@@ -260,7 +260,7 @@ Antall ledd i dokumentflyten bestemmer retning:
 | 2 | Toveis — kan sende tilbake | Bestiller ↔ Godkjenner |
 | 3+ | Enveis — men kan be om dokumentasjon ett ledd tilbake | A → B → C (B kan be A om mer info) |
 
-Ingen per-mal-konfigurasjon av tillatte overganger. Retningen utledes automatisk fra antall ledd. `isValidStatusTransition()` forblir uendret — enveis-begrensningen styres i UI (hvilke knapper som vises) og i `verifiserFlytRolle()`.
+Ingen per-mal-konfigurasjon av tillatte overganger. Retningen utledes automatisk fra antall ledd. `isValidStatusTransition()` forblir uendret — enveis-begrensningen styres i UI (hvilke knapper som vises) og server-side i `verifiserRetningsrett()` (POSISJON-basert; erstattet `verifiserFlytRolle` i fase 3.4).
 
 ### 2. Feltlåsing — dataintegritet
 

@@ -1,8 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter, erAvsenderledd, erMedlemAvFlyt } from "@sitedoc/shared";
-import type { FlytMedlemInfo, AdminNiva, RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
-import { hentFlytRettighetOverrides } from "../services/flytRettighet";
+import { type Permission, PERMISSIONS, utvidTillatelser, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter, erAvsenderledd, erMedlemAvFlyt } from "@sitedoc/shared";
+import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 
 /**
  * Hent brukerens faggruppe-IDer i et prosjekt.
@@ -34,21 +33,6 @@ export async function hentBrukerFaggruppeIder(
   if (medlem.role === "admin") return null;
 
   return medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
-}
-
-/**
- * Bygg Prisma WHERE-filter for faggruppe-basert tilgang.
- * Returnerer null for admin (ingen filtrering nødvendig).
- */
-export function byggFaggruppeFilter(faggruppeIder: string[] | null) {
-  if (faggruppeIder === null) return null;
-
-  return {
-    OR: [
-      { bestillerFaggruppeId: { in: faggruppeIder } },
-      { utforerFaggruppeId: { in: faggruppeIder } },
-    ],
-  };
 }
 
 /**
@@ -780,87 +764,6 @@ export async function verifiserDokumentTilgang(
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Du har ikke tilgang til dette dokumentet",
-    });
-  }
-}
-
-/**
- * Verifiser at bruker har riktig rolle i dokumentflyten for å utføre statusendringen.
- * Dokumenter uten dokumentflytId slipper gjennom (bakoverkompatibilitet).
- * Admin/registrator har alltid lov.
- */
-export async function verifiserFlytRolle(
-  userId: string,
-  projectId: string,
-  dokumentflytId: string | null | undefined,
-  bestillerFaggruppeId: string | null,
-  utforerFaggruppeId: string | null,
-  gjeldendStatus: string,
-  nyStatus: string,
-): Promise<void> {
-  // Dokumenter uten dokumentflyt — bakoverkompatibilitet
-  if (!dokumentflytId) return;
-
-  // Hent brukerens info
-  const bruker = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-  if (bruker?.role === "sitedoc_admin") return;
-
-  const medlem = await prisma.projectMember.findUnique({
-    where: { userId_projectId: { userId, projectId } },
-    include: {
-      faggruppeKoblinger: { select: { faggruppeId: true } },
-      groupMemberships: { select: { groupId: true } },
-    },
-  });
-  if (!medlem) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem av prosjektet" });
-  }
-
-  // Hent flytens medlemmer
-  const flytMedlemmer = await prisma.dokumentflytMedlem.findMany({
-    where: { dokumentflytId },
-    select: { rolle: true, faggruppeId: true, projectMemberId: true, groupId: true },
-  });
-
-  const medlemmerInfo: FlytMedlemInfo[] = flytMedlemmer.map((m) => ({
-    rolle: m.rolle,
-    faggruppeId: m.faggruppeId,
-    projectMemberId: m.projectMemberId,
-    groupId: m.groupId,
-  }));
-
-  // adminNiva (Kloss 2): sitedoc_admin bypasset allerede over (linje 646, full return).
-  // Prosjektadmin = "prosjekt" (egen matrise-kolonne, full innenfor statusmaskinen ved tom
-  // override, konfigurerbar nedover). Firma-admin er IKKE et flyt-admin-nivå (Kenneth-vedtak
-  // 2026-07-23) — og har uansett ingen ProjectMember-rad, så den kaster FORBIDDEN over (linje
-  // 655). Ingen firmaRoller-sjekk her: firma-admin får ingen bypass server-side (uendret).
-  const adminNiva: AdminNiva = medlem.role === "admin" ? "prosjekt" : null;
-
-  const rolle = utledMinRolle(
-    {
-      userId,
-      projectMemberId: medlem.id,
-      faggruppeIder: medlem.faggruppeKoblinger.map((e) => e.faggruppeId),
-      gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
-      erAdmin: adminNiva !== null,
-    },
-    medlemmerInfo,
-    { bestillerFaggruppeId, utforerFaggruppeId },
-  );
-
-  // Globale rettighets-overstyringer (config-design rev.7 § 1). Tom tabell → tom map →
-  // bit-identisk med default-laget. Kloss 2d: matrisen er global, ikke per-firma —
-  // ingen org-resolving via prosjektet.
-  const overrides = await hentFlytRettighetOverrides();
-
-  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, adminNiva, overrides)) {
-    const rolleNavn = rolle ?? "ingen";
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: `Du har rollen «${rolleNavn}» i denne dokumentflyten og kan ikke utføre overgangen ${gjeldendStatus} → ${nyStatus}`,
     });
   }
 }

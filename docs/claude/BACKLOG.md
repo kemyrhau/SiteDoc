@@ -130,11 +130,13 @@ Kenneth-vedtak 2026-07-31 (`delplaner/flytmodell-veileder-cowork.md` § 2.6): *�
 - Rekkefølge sorteres på hardkodet `ROLLE_KONFIG[...].rekkefølge`, ikke på `steg`
 - `@@unique([dokumentflytId, faggruppeId, rolle, steg])` gjør `rolle` til del av leddets identitet
 
-### Død kode i dokumentflyt-domenet — ordre levert
+### Død kode i dokumentflyt-domenet — implementert (branch `chore/dodkode-dokumentflyt`, venter gate/merge)
 
-`verifiserFlytRolle` (`tilgangskontroll.ts:792-866`) og `byggFaggruppeFilter` (`:43-52`) har **null kallsteder** — erstattet i fase 3.4, aldri slettet. De fikk to lesere (cowork og fabel) til å konkludere feil om hva som bærer modellen på samme dag.
+`verifiserFlytRolle` og `byggFaggruppeFilter` (null kallsteder, erstattet i fase 3.4) er **slettet** fra `tilgangskontroll.ts` + foreldreløse importer ryddet. `dokumentflyt.md:29` rettet til § 2.6-vedtaket, og doc-referanser i `arkitektur.md`/`web.md`/`MALBYGGER.md` pekt til `verifiserRetningsrett`.
 
-Ordre: [delplaner/dodkode-opprydding-ordre-2026-08-13.md](delplaner/dodkode-opprydding-ordre-2026-08-13.md). Inkluderer retting av `dokumentflyt.md:29` (*«flytboks trenger ikke navn»* — motsier § 2.6-vedtaket) og regelen **«en erstattet funksjon slettes i samme fase som erstatningen merges»**.
+Ordre: [delplaner/dodkode-opprydding-ordre-2026-08-13.md](delplaner/dodkode-opprydding-ordre-2026-08-13.md). Regelen **«en erstattet funksjon slettes i samme fase som erstatningen merges»** plasseres i repo-docs av cowork.
+
+**Sweep-kandidater som ble stående** (kaskade-døde etter slettingen, men sammenvevd med live admin-UI/testsuiter — egen gate): `erTillattForRolle` + `hentFlytRettighetOverrides` (siste prod-konsument var `verifiserFlytRolle`), `hentRolleFiltrertHandlinger` (kun test-kall), og hele `statusHandlinger.ts` rolle-matrise + `dashbord/admin/flyt-rettigheter`-flaten. Se leveranserapport.
 
 ### 🔴 Utskriftsformer — samlet kravspec (Kenneth, prod 2026-08-13)
 

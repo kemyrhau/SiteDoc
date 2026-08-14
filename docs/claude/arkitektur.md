@@ -139,7 +139,6 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | Funksjon | Beskrivelse |
 |----------|-------------|
 | `hentBrukerFaggruppeIder(userId, projectId)` | Returnerer `string[]` eller `null` (admin) |
-| `byggFaggruppeFilter(faggruppeIder)` | Prisma WHERE-filter for bestiller/utforer-faggrupper basert på id-liste |
 | `byggTilgangsFilter(userId, projectId)` | Prisma WHERE-filter, `null` for admin |
 | `verifiserFaggruppeTilhorighet(userId, faggruppeId)` | FORBIDDEN hvis ikke tilhører (admin-bypass) |
 | `verifiserAdmin(userId, projectId)` | FORBIDDEN hvis ikke admin. company_admin med riktig org arver admin uten ProjectMember-rad |
@@ -149,7 +148,7 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Faggruppe + fagområde-tilgang. bestillerId/utforerId nullable for HMS |
 | `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. `sitedoc_admin`, prosjekt-admin, og `firma_admin` på koblet `ProjectOrganization` får alle PERMISSIONS — uavhengig av ProjectMember-rad (fix `c22a345d` 2026-05-28 speilet `verifiserAdmin`-mønster) |
 | `verifiserTillatelse(userId, projectId, permission)` | FORBIDDEN hvis mangler |
-| `verifiserFlytRolle(...)` | Sjekker flytrolle for statusovergang (403 ved mismatch) |
+| `verifiserRetningsrett(userId, projectId, medlemmer, aktivPosisjon, nyStatus, fraStatus)` | POSISJON-basert autorisasjon for statusovergang (403 ved mismatch). Erstattet rolle×status-matrisen `verifiserFlytRolle` i fase 3.4 (`tilgangskontroll.ts:808`) |
 | `harFirmaHmsTilgang(userId, organizationId)` | `true` for sitedoc_admin, firma-admin, eller bruker med `"hms_ansvarlig"` i `OrganizationMember.firmaRoller`. Trinn 1 av firma-HMS-dashboard (2026-05-29) |
 
 **Tilgangslogikk for dokumentvisning:**

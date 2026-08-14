@@ -27,7 +27,12 @@ HE-Leder eller BH. Avhenger av hvem som eier prosjektet.
 Uavhengig av hvem som eier eller har ballen akkurat nå. Settes manuelt av nåværende mottaker.
 
 ### Flytboks
-Representerer nåværende mottaker visuelt. Er dynamisk — viser dokumentets bevegelse gjennom flyten. Trenger ikke navn, ettersom faggruppenavnet er selve boksen. Leder i gruppen markeres med blå prikk og mottar ballen automatisk når dokumentet sendes til gruppen.
+Representerer et ledd i flyten visuelt. Er dynamisk — viser dokumentets bevegelse gjennom flyten. Leder i gruppen markeres med blå prikk og mottar ballen automatisk når dokumentet sendes til gruppen.
+
+**Posisjon bærer rutingen, ikke boksnavnet** (Kenneth-vedtak 2026-07-31, [flytmodell-veileder-cowork.md § 2.6](delplaner/flytmodell-veileder-cowork.md)). Flyten er en ordnet liste av ledd (posisjon 1..N); rutingen teller ledd, aldri rollenavn. Hver boks viser **posisjonsnummer + hvem (person/faggruppe)**, og skal på sikt også bære et **fritt valgt ansvarsmerke** («Bestiller arbeid», «Kontrollerer avvik», «Godkjenner økonomi», «Utfører», «Orienteres»). Rollenavn er ikke lenger brukervendt identitet — det beholdes internt kun som rettighetsmal bak merket.
+
+- **Bygget** (posisjonsmodell prod 2026-08-03, se [historikk-2026-08.md](historikk-2026-08.md) Fase 3): posisjon/retning/terminal som lagrede fakta, avledet status, flytlinje i header med nummer + hvem.
+- 🟡 **VEDTATT, UBYGGET:** frie ansvarsmerker per ledd (`ansvarsmerke`-kolonnen er vedtatt men ikke implementert) + flytoppsett-UI for å velge merket.
 
 ---
 
