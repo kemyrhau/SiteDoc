@@ -1,20 +1,7 @@
 import { z } from "zod";
-import { TRPCError } from "@trpc/server";
-import { mkdir, writeFile } from "fs/promises";
-import { join } from "path";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserDokumentTilgang } from "../trpc/tilgangskontroll";
-import { signerFilSti } from "../utils/hmac";
-import { UPLOADS_DIR } from "../services/eksport/felles";
 import { rendrerSjekklisteArkivPdf } from "../services/arkiv/render";
-
-// Arkiv-PDF-ene legges under /uploads/privat/ → den eksisterende signatur-gaten
-// i server.ts beskytter dem uten ny tilgangslogikk (samme mønster som eksport).
-const ARKIV_DIR = join(UPLOADS_DIR, "privat", "arkiv");
-
-// Kortlevd: brukeren henter en fersk signert URL ved hvert klikk. 15 min dekker
-// selve nedlastingen med margin; en lekket lenke dør raskt.
-const NEDLASTING_LEVETID_MS = 15 * 60 * 1000;
 
 /** «14.08.2026 14:32» — generert-stempel, kort norsk format. */
 function genererStempel(dato: Date): string {
@@ -27,11 +14,23 @@ function genererStempel(dato: Date): string {
   });
 }
 
+/** «BEF-001» → filnavn. Faller tilbake til id når nummer/prefix mangler. */
+function byggFilnavn(prefix: string | null, nummer: number | null, id: string): string {
+  if (prefix && nummer != null) return `${prefix}-${String(nummer).padStart(3, "0")}.pdf`;
+  return `sjekkliste-${id}.pdf`;
+}
+
 export const arkivRouter = router({
-  // Rendr én sjekkliste til arkiv-PDF og returner en signert nedlastings-URL.
+  // Rendr én sjekkliste til arkiv-PDF og returner PDF-en (base64) i responsen.
   //
-  // Mutation (ikke query): skriver en fil til disk + en activity-rad per kall.
-  // react-query kan refetche queries fritt — et sideeffekt-kall skal aldri caches.
+  // Vei 3b: ingen disk-skriving, ingen signert URL. tRPC kjører in-process i
+  // web-containeren (Next route handler), som IKKE deler api-containerens
+  // uploads-volum for skriving. Å returnere PDF-en i responsen gjør det
+  // irrelevant hvilken container mutasjonen kjører i — renderen tar ~1 s når
+  // bildene er inlinet, og dokumentet hentes én gang (ikke verdt disk+cache).
+  // Web leser vedlegg fra et read-only uploads-mount (docker-compose*.yml).
+  //
+  // Mutation (ikke query): et sideeffekt-kall (activity-rad) skal aldri caches.
   rendrSjekkliste: protectedProcedure
     .input(
       z.object({
@@ -45,10 +44,11 @@ export const arkivRouter = router({
         where: { id: input.id },
         select: {
           id: true,
+          number: true,
           bestillerFaggruppeId: true,
           utforerFaggruppeId: true,
           template: {
-            select: { projectId: true, domain: true, hmsSynlighet: true },
+            select: { projectId: true, domain: true, hmsSynlighet: true, prefix: true },
           },
         },
       });
@@ -68,12 +68,6 @@ export const arkivRouter = router({
           generertTekst: genererStempel(new Date()),
           taMedEndringslogg: input.taMedEndringslogg,
         });
-
-      // Enkeltdokument fra dag én: én fil per sjekkliste, overskrives ved re-render.
-      await mkdir(ARKIV_DIR, { recursive: true });
-      const filnavn = `sjekkliste-${input.id}.pdf`;
-      await writeFile(join(ARKIV_DIR, filnavn), pdf);
-      const urlSti = `/uploads/privat/arkiv/${filnavn}`;
 
       const prosjekt = await ctx.prisma.project.findUnique({
         where: { id: sjekkliste.template.projectId },
@@ -101,16 +95,12 @@ export const arkivRouter = router({
         },
       });
 
-      let url: string;
-      try {
-        url = signerFilSti(urlSti, NEDLASTING_LEVETID_MS);
-      } catch {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Kunne ikke signere nedlastingslenken.",
-        });
-      }
-
-      return { url, komplett, renderTimeout, manglendeVedlegg };
+      return {
+        pdfBase64: pdf.toString("base64"),
+        filnavn: byggFilnavn(sjekkliste.template.prefix, sjekkliste.number, input.id),
+        komplett,
+        renderTimeout,
+        manglendeVedlegg,
+      };
     }),
 });
