@@ -36,13 +36,23 @@ const ER_BILDE = (v: BildeRef): boolean =>
   typeof v.url === "string" && (v.type === "bilde" || /\.(png|jpe?g|gif|webp)$/i.test(v.filnavn ?? ""));
 
 /**
- * Bilde-referanser i ett felt: per-felt `vedlegg` (alle felttyper) OG
- * `attachments`-feltets `verdi`-array (der filene ER verdien, per felt.ts:126).
+ * Alle bilde-referanser i ett felt, uansett nesting-dybde. Dyp traversering fordi
+ * bilder også ligger i repeater-RADER (celle-`vedlegg`/`verdi`) — ikke bare i
+ * feltets egen `vedlegg`/`verdi`. Uten rekursjon ble 14 av 18 bilder på BEF-001
+ * aldri samlet → aldri inlinet → underrapportert i `manglendeVedlegg`.
  */
 function bilderIFelt(felt: FeltVerdi): BildeRef[] {
-  const fraVedlegg = (felt.vedlegg ?? []) as BildeRef[];
-  const fraVerdi = Array.isArray(felt.verdi) ? (felt.verdi as BildeRef[]) : [];
-  return [...fraVedlegg, ...fraVerdi].filter((v) => v && typeof v === "object" && ER_BILDE(v));
+  const ut: BildeRef[] = [];
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) {
+      for (const x of v) walk(x);
+    } else if (v && typeof v === "object") {
+      if (ER_BILDE(v as BildeRef)) ut.push(v as BildeRef);
+      else for (const x of Object.values(v)) walk(x);
+    }
+  };
+  walk(felt);
+  return ut;
 }
 
 export interface SammenstillingOpts {
@@ -80,23 +90,46 @@ export interface SammenstillingResultat {
   ramme: RammeData;
 }
 
-/** Erstatter bilde-url-er (i vedlegg OG attachments-verdi) med inlinede data-URI-er. Klone. */
+// Placeholder for et bilde som ikke lot seg inline (fil mangler/leser feil). MÅ
+// være en data-URI: pdf-render-containeren er nettverksløs, så en gjenstående
+// `<img src="/uploads/...">` får aldri `naturalWidth>0` → bilde-vakten henger
+// hele 20 s-timeouten. Base64-SVG laster momentant (og overlever `esc()` rent —
+// kun [A-Za-z0-9+/=]). Synlig «Bilde mangler»-markør i kroppen; mangelen står
+// dessuten i loggseksjonen (`byggMangelMerknad`) — mangel-kontrakten fra 4a.
+const MANGLENDE_BILDE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260">' +
+  '<rect width="400" height="260" fill="#f3f4f6" stroke="#d1d5db" stroke-width="2"/>' +
+  '<text x="200" y="130" font-family="sans-serif" font-size="18" fill="#6b7280" ' +
+  'text-anchor="middle" dominant-baseline="middle">Bilde mangler</text></svg>';
+const MANGLENDE_BILDE_DATAURL =
+  "data:image/svg+xml;base64," + Buffer.from(MANGLENDE_BILDE_SVG).toString("base64");
+
+/**
+ * Erstatter bilde-url-er med inlinede data-URI-er, uansett nesting-dybde (samme
+ * rekursjon som `bilderIFelt` — repeater-rader inkludert). Dyp klone; muterer ikke
+ * input. Inlinet → data-URI; ikke inlinet → placeholder (ALDRI nettverks-url,
+ * se MANGLENDE_BILDE_DATAURL).
+ */
 function inlinDataBilder(
   data: Record<string, FeltVerdi>,
   dataUrl: Map<string, string>,
 ): Record<string, FeltVerdi> {
-  const bytt = <T,>(v: T): T => {
-    const b = v as unknown as BildeRef;
-    return b && typeof b === "object" && ER_BILDE(b) && dataUrl.has(b.url)
-      ? ({ ...b, url: dataUrl.get(b.url)! } as unknown as T)
-      : v;
+  const bytt = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(bytt);
+    if (v && typeof v === "object") {
+      if (ER_BILDE(v as BildeRef)) {
+        const b = v as BildeRef;
+        const url = dataUrl.has(b.url) ? dataUrl.get(b.url)! : MANGLENDE_BILDE_DATAURL;
+        return { ...b, url };
+      }
+      const ut: Record<string, unknown> = {};
+      for (const [k, x] of Object.entries(v)) ut[k] = bytt(x);
+      return ut;
+    }
+    return v;
   };
   const ut: Record<string, FeltVerdi> = {};
-  for (const [k, felt] of Object.entries(data)) {
-    const vedlegg = (felt.vedlegg ?? []).map(bytt);
-    const verdi = Array.isArray(felt.verdi) ? felt.verdi.map(bytt) : felt.verdi;
-    ut[k] = { ...felt, vedlegg, verdi };
-  }
+  for (const [k, felt] of Object.entries(data)) ut[k] = bytt(felt) as FeltVerdi;
   return ut;
 }
 

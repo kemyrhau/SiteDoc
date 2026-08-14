@@ -43,6 +43,16 @@ describe("resolverPersonnavn", () => {
     expect(ut.p!.verdi).toEqual(["Per Ekstern", "Kari"]);
   });
 
+  it("rekurserer inn i repeater-rader — nestet persons-UUID byttes, aldri rå nøkkel", async () => {
+    const data: Record<string, FeltVerdi> = {
+      r: { verdi: [{ pp: { verdi: [U1], kommentar: "", vedlegg: [] } }], kommentar: "", vedlegg: [] },
+    };
+    const objects = [obj("r", "repeater"), { ...obj("pp", "persons"), parentId: "r" }];
+    const ut = await resolverPersonnavn(fakePrisma([{ id: U1, name: "Kari Hansen" }]), data, objects);
+    expect(JSON.stringify(ut)).not.toContain(U1);
+    expect(JSON.stringify(ut)).toContain("Kari Hansen");
+  });
+
   it("ingen persons-felt → data uendret, ingen DB-kall", async () => {
     const prisma = fakePrisma([]);
     const data: Record<string, FeltVerdi> = { t: { verdi: "tekst", kommentar: "", vedlegg: [] } };
