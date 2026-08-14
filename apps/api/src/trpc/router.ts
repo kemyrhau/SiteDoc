@@ -46,6 +46,7 @@ import { firmaIntegrasjonRouter } from "../routes/firma-integrasjon";
 import { firmaRouter } from "../routes/firma";
 import { flytMatriseRouter } from "../routes/flytMatrise";
 import { papirkurvRouter } from "../routes/papirkurv";
+import { arkivRouter } from "../routes/arkiv";
 
 
 export const appRouter = router({
@@ -97,6 +98,7 @@ export const appRouter = router({
   firma: firmaRouter,
   flytMatrise: flytMatriseRouter,
   eksport: eksportRouter,
+  arkiv: arkivRouter,
 });
 
 export type AppRouter = typeof appRouter;

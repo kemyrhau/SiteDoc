@@ -55,10 +55,29 @@ export interface SammenstillingOpts {
   eksport?: boolean;
 }
 
+/**
+ * Data 4c trenger for å bygge de per-side Playwright-templatene (fortsettelses-
+ * header + bunntekst). Playwright-header/-footer rendres i side-margin uten
+ * dokumentets CSS, så de bygges med inline-stiler av `render-templates.ts` —
+ * her leverer vi kun de rå verdiene (unngår ny DB-henting i render-laget).
+ */
+export interface RammeData {
+  firmaNavn: string;
+  orgnr?: string;
+  dokumenttype: string;
+  dokumentnavn: string;
+  dokumentnummer: string;
+  dokumentId: string;
+  prosjekt: string | null;
+  logoDataUrl: string | null;
+}
+
 export interface SammenstillingResultat {
   html: string;
   /** Filnavn på vedlegg som ikke kom med → 4c setter x-render-komplett-kontrakten. */
   manglendeVedlegg: string[];
+  /** Verdier for per-side header/footer (4c). */
+  ramme: RammeData;
 }
 
 /** Erstatter bilde-url-er (i vedlegg OG attachments-verdi) med inlinede data-URI-er. Klone. */
@@ -192,5 +211,16 @@ export async function byggSjekklisteArkivHtml(
     manglendeVedlegg: manglende,
   };
 
-  return { html: byggArkivDokument(input), manglendeVedlegg: manglende };
+  const ramme: RammeData = {
+    firmaNavn: input.firma.navn,
+    orgnr: input.firma.orgnr ?? undefined,
+    dokumenttype: input.meta.dokumenttype,
+    dokumentnavn: input.meta.dokumentnavn,
+    dokumentnummer: input.meta.dokumentnummer,
+    dokumentId: input.meta.dokumentId,
+    prosjekt: input.prosjektblokk.prosjekt ?? null,
+    logoDataUrl: input.firma.logoDataUrl ?? null,
+  };
+
+  return { html: byggArkivDokument(input), manglendeVedlegg: manglende, ramme };
 }

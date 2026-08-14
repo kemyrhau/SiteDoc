@@ -159,6 +159,10 @@ Merget fra `SiteDoc-merge`, deployet test, migrering kjørt. **Ikke i prod.**
 
 **Ikke merget:** `feat/kontrollplan-revisjon` del 1 (lokal hos Opus, push gitt) · deaktiver-mønster (under bygging).
 
+### 🟢 Dokumentgenerering Stage 4 — arkivmal HTML→PDF (`feat/arkivmal-rendering`, ikke merget)
+
+Bygger videre på fase 3-datalaget. **Stage 1–4b pushet** (`e4a3e455`): ramme/innhold/logg/signatur (`packages/pdf/src/arkivmal/`) · 4a `pdf-render`-container (`docker/pdf-render/`, ren HTML→PDF, bilde-vakt, `x-render-komplett`-header, ingen secret) · 4b-1 bilde-inliner (flatt-hvit + 1600px/q88, annotasjon-kvalitet) · persons-resolver (UUID→navn) · 4b-2 orkestrator (`sammenstilling.ts`). **4c (gatet, denne commiten):** render-endepunkt + signert levering — `apps/api/src/services/arkiv/{disk-bilde,render-templates,render}.ts` + tRPC `arkiv.rendrSjekkliste` (samme port som lesing, skriver `/uploads/privat/arkiv/`, 15-min signert URL, activity-logg). Per-side footer-sporbarhet (generert-stempel + dok-id + `Side X av Y`). `@page :first { margin-top:0 }` mot side-1 header-dublering (UVERIFISERT mot Chromium-margin-presedens). **Gjenstår:** container-up (Kenneth) → rendertid-måling BEF-001 + annotasjons-skarphet · klient-knapp (egen runde) · timer/utlegg/kontrollplan-innholdslesere. 80/80 arkiv-tester grønne.
+
 ### ✅✅ ARKIVERT — august-deployene (03.08–06.08) → [historikk-2026-08.md](historikk-2026-08.md)
 
 Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmodellen komplett + effektivitets-runden + mobil M1–M3 (`8b068c73` 03.08) · Funn A + Funn C (`0ac25705` 04.08) · Funn D + opprettvelger v2 + Spor 1 + kontaktside (`5bf25f83` 05.08) · Ordre 1.4 auto-hopp (`8a2f6d9c` 05.08) · Spor 2 HMS komplett (`70d2b752` 06.08).
