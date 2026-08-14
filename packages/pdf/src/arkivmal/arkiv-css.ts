@@ -111,11 +111,9 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}
 
-/* Side 1: nuller print-margin-toppen så Chromium ikke har plass å tegne
-   fortsettelses-headeren der (body-toppteksten står alene på en fyldigere side
-   1). .ark-side sin 15mm topp-padding gir pusterom. Side 2+ beholder margin-
-   toppen og margin-headeren; bunn-margin (footer-sporbarhet) berøres ikke.
-   UVERIFISERT mot Chromium-margin-presedens (4c: bekreft ved ekte render). */
-@page :first { margin-top: 0 }
+/* Merk: ingen @page :first-regel. Verifisert 2026-08-15 at page.pdf({ margin })
+   i pdf-render-containeren overstyrer @page-margin, så CSS kan ikke skjule
+   margin-headeren på side 1. Dubleringen er i stedet løst ved at margin-headeren
+   bærer kun dokumentreferanse (render-templates.ts), ikke firma/prosjekt. */
 `.trim();
 }
