@@ -77,6 +77,10 @@ describe("byggSjekklisteArkivHtml — orkestrator", () => {
     // Dårlig bilde → manglende + mangel-merknad i dokumentet
     expect(r.manglendeVedlegg).toContain("/u/borte.png");
     expect(r.html).toContain("MANGLENDE VEDLEGG");
+    // Ikke-inlinet bilde erstattes med placeholder-data-URI i KROPPEN — aldri
+    // en gjenstående nettverks-url (som ville hengt bilde-vakten 20 s i containeren).
+    expect(r.html).toContain("data:image/svg+xml;base64,");
+    expect(r.html).not.toContain('src="/u/borte.png"');
     // Generert-stempel (sporbarhet)
     expect(r.html).toContain("Generert fra SiteDoc 11.08.2026 14:32 · dokument-id c1");
   });

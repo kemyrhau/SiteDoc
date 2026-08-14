@@ -80,6 +80,20 @@ export interface SammenstillingResultat {
   ramme: RammeData;
 }
 
+// Placeholder for et bilde som ikke lot seg inline (fil mangler/leser feil). MÅ
+// være en data-URI: pdf-render-containeren er nettverksløs, så en gjenstående
+// `<img src="/uploads/...">` får aldri `naturalWidth>0` → bilde-vakten henger
+// hele 20 s-timeouten. Base64-SVG laster momentant (og overlever `esc()` rent —
+// kun [A-Za-z0-9+/=]). Synlig «Bilde mangler»-markør i kroppen; mangelen står
+// dessuten i loggseksjonen (`byggMangelMerknad`) — mangel-kontrakten fra 4a.
+const MANGLENDE_BILDE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260">' +
+  '<rect width="400" height="260" fill="#f3f4f6" stroke="#d1d5db" stroke-width="2"/>' +
+  '<text x="200" y="130" font-family="sans-serif" font-size="18" fill="#6b7280" ' +
+  'text-anchor="middle" dominant-baseline="middle">Bilde mangler</text></svg>';
+const MANGLENDE_BILDE_DATAURL =
+  "data:image/svg+xml;base64," + Buffer.from(MANGLENDE_BILDE_SVG).toString("base64");
+
 /** Erstatter bilde-url-er (i vedlegg OG attachments-verdi) med inlinede data-URI-er. Klone. */
 function inlinDataBilder(
   data: Record<string, FeltVerdi>,
@@ -87,9 +101,11 @@ function inlinDataBilder(
 ): Record<string, FeltVerdi> {
   const bytt = <T,>(v: T): T => {
     const b = v as unknown as BildeRef;
-    return b && typeof b === "object" && ER_BILDE(b) && dataUrl.has(b.url)
-      ? ({ ...b, url: dataUrl.get(b.url)! } as unknown as T)
-      : v;
+    if (!(b && typeof b === "object" && ER_BILDE(b))) return v;
+    // Inlinet → data-URI. Ikke inlinet → placeholder-data-URI (ALDRI la
+    // nettverks-url stå, se MANGLENDE_BILDE_DATAURL).
+    const url = dataUrl.has(b.url) ? dataUrl.get(b.url)! : MANGLENDE_BILDE_DATAURL;
+    return { ...b, url } as unknown as T;
   };
   const ut: Record<string, FeltVerdi> = {};
   for (const [k, felt] of Object.entries(data)) {
