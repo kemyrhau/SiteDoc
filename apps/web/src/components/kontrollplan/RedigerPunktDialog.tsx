@@ -27,7 +27,7 @@ interface Punkt {
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
-  sjekkliste: { id: string; status: string } | null;
+  sjekkliste: { id: string; status: string; dokumentflytId: string | null; dokumentflyt: { id: string; name: string } | null } | null;
   dokumentflyt: { id: string; name: string } | null;
   drawing: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;
@@ -381,9 +381,15 @@ function FlytSeksjon({
 }) {
   const { t } = useTranslation();
   const { data: kanRedigere } = trpc.mal.kanRedigere.useQuery({ projectId });
+  // L1.6 (Kenneth): er punktet startet (koblet sjekkliste), er flyten låst til den flyten
+  // sjekklisten faktisk ligger i. Å endre punktets preset ville ikke flytte det eksisterende
+  // dokumentet — feltet ville vist en flyt dokumentet ikke er i. Da vises sjekklistens
+  // faktiske flyt read-only. Samme ærlighetsprinsipp som at fremdriften avledes fra
+  // sjekklisten, ikke fra punkt.status. Velgeren (+ kandidat-query) trengs kun ukoblet.
+  const erKoblet = punkt.sjekkliste != null;
   const { data: flyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId },
-    { enabled: kanRedigere === true },
+    { enabled: kanRedigere === true && !erKoblet },
   );
   const [valgt, setValgt] = useState(punkt.dokumentflytId ?? "");
   const [bulkResultat, setBulkResultat] = useState<{ oppdatert: number; hoppetOver: number } | null>(null);
@@ -410,6 +416,19 @@ function FlytSeksjon({
   const hoppesOver = valgt ? sammeMal.filter((p) => p.dokumentflytId && p.dokumentflytId !== valgt).length : 0;
 
   if (kanRedigere !== true) return null;
+
+  // Koblet punkt: flyten er låst. Vis den flyten sjekklisten FAKTISK ligger i, read-only.
+  if (erKoblet) {
+    return (
+      <div>
+        <label className="text-xs font-medium text-gray-600 mb-1.5 block">{t("kontrollplan.forhaandsvalgtFlyt")}</label>
+        <div className="w-full border rounded px-2 py-1.5 text-sm bg-gray-50 text-gray-600">
+          {punkt.sjekkliste?.dokumentflyt?.name ?? "—"}
+        </div>
+        <p className="text-[10px] text-gray-400 mt-1">{t("kontrollplan.flytLaastEtterStart")}</p>
+      </div>
+    );
+  }
 
   return (
     <div>

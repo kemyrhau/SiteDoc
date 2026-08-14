@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Eelvalitud dokumendivoog",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Kui voog on valitud, saab igaüks selles voos punkti alustada – olenemata registripidajast. Tühi: tänane reegel (kes alustab, peab voolus olema registripidaja).",
   "kontrollplan.flytIngenBrukRegistrator": "Puudub – kasutage registripidaja reeglit",
+  "kontrollplan.flytLaastEtterStart": "Punkt on alanud. Voog on lukustatud loodud kontrollnimekirjaga – selle siin muutmine ei liiguta olemasolevat dokumenti.",
   "kontrollplan.settFlytForAlle": "Rakenda kõikidele {{antall}} punktile malliga {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}}-l on juba erinev voog ja need jäetakse vahele",
   "kontrollplan.settFlytResultat": "{{oppdatert}} värskendati, {{hoppetOver}} jäeti vahele",

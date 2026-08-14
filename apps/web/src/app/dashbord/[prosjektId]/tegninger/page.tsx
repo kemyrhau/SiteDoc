@@ -910,28 +910,47 @@ export default function TegningerSide() {
 
               {/* Kontrollpunkt-markører (lag: kontrollpunkter) — farge = tilstand, fylt pin
                   = arbeid startet (print-sikker form: fylt vs. omriss). */}
-              {visKontrollpunkter && kontrollpunkter.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push(`/dashbord/${params.prosjektId}/kontrollplan`);
-                  }}
-                  className="group absolute -translate-x-1/2 -translate-y-full"
-                  style={{ left: `${m.x}%`, top: `${m.y}%` }}
-                  title={`${m.label} — ${t(m.tilstand.labelKey)}`}
-                >
-                  <MapPin
-                    className={`h-6 w-6 drop-shadow-md transition-transform group-hover:scale-125 ${
-                      m.id === uthevetPunktId ? "animate-bounce scale-125" : ""
-                    }`}
-                    style={{ fill: m.tilstand.fylt ? m.tilstand.farge : "white", color: m.tilstand.farge }}
-                  />
-                  <span className="absolute left-1/2 top-full mt-0.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900/80 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                    {m.label}
-                  </span>
-                </button>
-              ))}
+              {visKontrollpunkter && kontrollpunkter.map((m) => {
+                // «Vis på tegning»-uthevingen (?marker) må være lesbar UTEN bevegelse:
+                // et skjermbilde og en utskrift fryser animasjon, og prefers-reduced-motion
+                // slår den av. Derfor en statisk halo (hvit skive + mørk hårlinje) som bærer
+                // signalet, pluss en mild puls som kun trekker blikket. Forstørrelsen ligger
+                // på <button> (ikke på svg-en) — legges den på et element som også kjører
+                // animate-bounce, overstyrer keyframens transform scale og den blir en no-op.
+                const uthevet = m.id === uthevetPunktId;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/dashbord/${params.prosjektId}/kontrollplan`);
+                    }}
+                    className={`group absolute -translate-x-1/2 -translate-y-full ${uthevet ? "z-20 scale-110" : ""}`}
+                    style={{ left: `${m.x}%`, top: `${m.y}%` }}
+                    title={`${m.label} — ${t(m.tilstand.labelKey)}`}
+                  >
+                    {uthevet && (
+                      <>
+                        <span
+                          aria-hidden
+                          className="absolute left-1/2 top-1/2 z-0 h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/90 ring-2 ring-gray-900/60"
+                        />
+                        <span
+                          aria-hidden
+                          className="absolute left-1/2 top-1/2 z-0 h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-gray-900/40 animate-ping"
+                        />
+                      </>
+                    )}
+                    <MapPin
+                      className="relative z-10 h-6 w-6 drop-shadow-md transition-transform group-hover:scale-125"
+                      style={{ fill: m.tilstand.fylt ? m.tilstand.farge : "white", color: m.tilstand.farge }}
+                    />
+                    <span className="absolute left-1/2 top-full z-10 mt-0.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900/80 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      {m.label}
+                    </span>
+                  </button>
+                );
+              })}
 
               {/* Ny markør (klikket posisjon) */}
               {nyMarkør && (

@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Předvolený tok dokumentů",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Když je vybrán tok, kdokoli může začít bod v tomto toku – bez ohledu na registrátora. Prázdné: dnešní pravidlo (kdo začíná, musí být registrátorem v toku).",
   "kontrollplan.flytIngenBrukRegistrator": "Žádné — použijte pravidlo registrátora",
+  "kontrollplan.flytLaastEtterStart": "Pointa byla zahájena. Tok je uzamčen na kontrolním seznamu, který byl vytvořen – jeho změna zde nepřesune existující dokument.",
   "kontrollplan.settFlytForAlle": "Použít na všechny body {{antall}} se šablonou {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} již mají jiný postup a jsou přeskočeny",
   "kontrollplan.settFlytResultat": "{{oppdatert}} aktualizováno, {{hoppetOver}} přeskočeno",

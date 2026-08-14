@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Vorgewählter Dokumentenfluss",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Wenn ein Flow ausgewählt ist, kann jeder den Punkt in diesem Flow starten – unabhängig vom Registrar. Leer: die heutige Regel (wer startet, muss ein Registrar im Flow sein).",
   "kontrollplan.flytIngenBrukRegistrator": "Keine – verwenden Sie die Registrarregel",
+  "kontrollplan.flytLaastEtterStart": "Der Punkt wurde gestartet. Der Ablauf ist an die erstellte Checkliste gebunden. Wenn Sie ihn hier ändern, wird das vorhandene Dokument nicht verschoben.",
   "kontrollplan.settFlytForAlle": "Auf alle {{antall}} Punkte mit der Vorlage {{mal}} anwenden",
   "kontrollplan.settFlytHoppesOver": "{{antall}} haben bereits einen anderen Ablauf und werden übersprungen",
   "kontrollplan.settFlytResultat": "{{oppdatert}} aktualisiert, {{hoppetOver}} übersprungen",
