@@ -5,6 +5,8 @@ import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
 import { X, Trash2 } from "lucide-react";
 import { UkeVelger } from "./UkeVelger";
+import { avledPunktTilstand, isoUkeRef } from "@/lib/kontrollplanFremdrift";
+import { TilstandMerke } from "./TilstandMerke";
 
 interface Punkt {
   id: string;
@@ -16,6 +18,7 @@ interface Punkt {
   fristUke: number | null;
   fristAar: number | null;
   status: string;
+  varselUkerFor: number;
   avhengerAvId: string | null;
   dokumentflytId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
@@ -35,20 +38,6 @@ interface RedigerPunktDialogProps {
   // også fra matrisen, som åpner denne dialogen ved klikk.
   renderHandling?: (punkt: Punkt) => React.ReactNode;
 }
-
-const statusFarger: Record<string, string> = {
-  planlagt: "bg-gray-100 text-gray-700",
-  pagar: "bg-blue-100 text-blue-700",
-  utfort: "bg-amber-100 text-amber-700",
-  godkjent: "bg-green-100 text-green-700",
-};
-
-const gyldigeOverganger: Record<string, string[]> = {
-  planlagt: ["pagar"],
-  pagar: ["utfort", "planlagt"],
-  utfort: ["godkjent", "pagar"],
-  godkjent: [],
-};
 
 export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, projectId, renderHandling }: RedigerPunktDialogProps & { projectId: string }) {
   const { t } = useTranslation();
@@ -120,10 +109,6 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
     return gruppert;
   }, [allePunkter, punkt.id]);
 
-  function handleStatusEndring(nyStatus: string) {
-    oppdaterPunkt.mutate({ punktId: punkt.id, status: nyStatus as "planlagt" | "pagar" | "utfort" | "godkjent" });
-  }
-
   function handleLagreFrist() {
     oppdaterPunkt.mutate({ punktId: punkt.id, fristUke, fristAar });
   }
@@ -191,31 +176,14 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
             )}
           </div>
 
-          {/* Status */}
+          {/* Tilstand — READ-ONLY avledet (fremdrift × frist), samme som liste/rutenett/
+              tegning. Den gamle manuelle status-knapperaden (planlagt/pågår/utført/
+              godkjent) er FJERNET: `punkt.status` er pensjonert fra UI, og en manuell
+              setter ville latt brukeren sette en status som ikke vises noe sted.
+              Tilstanden endres nå kun av faktisk arbeid (kobling/Start → sjekklistestatus). */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1.5 block">{t("kontrollplan.status")}</label>
-            <div className="flex gap-2">
-              {(["planlagt", "pagar", "utfort", "godkjent"] as const).map((s) => {
-                const erAktiv = punkt.status === s;
-                const kanBytte = gyldigeOverganger[punkt.status]?.includes(s);
-                return (
-                  <button
-                    key={s}
-                    onClick={() => kanBytte && handleStatusEndring(s)}
-                    disabled={!kanBytte && !erAktiv}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                      erAktiv
-                        ? statusFarger[s] + " ring-2 ring-sitedoc-primary/40"
-                        : kanBytte
-                          ? "bg-gray-50 text-gray-500 hover:bg-gray-100 cursor-pointer"
-                          : "bg-gray-50 text-gray-300 cursor-not-allowed"
-                    }`}
-                  >
-                    {t(`kontrollplan.status${s.charAt(0).toUpperCase() + s.slice(1)}` as "kontrollplan.statusPlanlagt")}
-                  </button>
-                );
-              })}
-            </div>
+            <TilstandMerke visning={avledPunktTilstand(punkt, isoUkeRef(new Date()))} />
           </div>
 
           {/* Sjekkliste — start (oppretter sjekkliste via vanlig dokumentflyt) / koble / åpne */}

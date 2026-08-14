@@ -3,6 +3,11 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronUp, ChevronDown, Filter } from "lucide-react";
+import { avledPunktTilstand, isoUkeRef, type PunktTilstand } from "@/lib/kontrollplanFremdrift";
+import { TilstandMerke } from "./TilstandMerke";
+
+// Sorterings-/filter-rekkefølge for de avledede tilstandene (haster først).
+const TILSTAND_REKKEFOLGE: PunktTilstand[] = ["forfalt", "aktuellNaa", "pabegynt", "planlagt", "utenFrist", "godkjent"];
 
 interface Punkt {
   id: string;
@@ -14,6 +19,7 @@ interface Punkt {
   fristUke: number | null;
   fristAar: number | null;
   status: string;
+  varselUkerFor: number;
   avhengerAvId: string | null;
   dokumentflytId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
@@ -38,20 +44,6 @@ interface ListeVisningProps {
   // Start/koble/åpne-handling per rad (levert av siden — holder lista fri for trpc/nav).
   renderHandling?: (punkt: Punkt) => React.ReactNode;
 }
-
-const statusFarger: Record<string, string> = {
-  planlagt: "bg-gray-100 text-gray-700",
-  pagar: "bg-blue-100 text-blue-700",
-  utfort: "bg-amber-100 text-amber-700",
-  godkjent: "bg-green-100 text-green-700",
-};
-
-const statusNokler: Record<string, string> = {
-  planlagt: "kontrollplan.statusPlanlagt",
-  pagar: "kontrollplan.statusPagar",
-  utfort: "kontrollplan.statusUtfort",
-  godkjent: "kontrollplan.statusGodkjent",
-};
 
 const kontrollomradeNavn: Record<string, string> = {
   fukt: "Fukt",
@@ -78,8 +70,19 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk, renderHandling 
   // Milepæl-map
   const milepelMap = useMemo(() => new Map(milepeler.map((m) => [m.id, m])), [milepeler]);
 
-  // Unike verdier for filtre
-  const unikeStatuser = useMemo(() => [...new Set(punkter.map((p) => p.status))].sort(), [punkter]);
+  // Avledet tilstand per punkt (fremdrift × frist) — samme kilde som rutenett/tegning.
+  // `punkt.status` vises aldri; Status-kolonnen, filteret og sorteringen bruker denne.
+  const naa = useMemo(() => isoUkeRef(new Date()), []);
+  const tilstandMap = useMemo(
+    () => new Map(punkter.map((p) => [p.id, avledPunktTilstand(p, naa)])),
+    [punkter, naa],
+  );
+
+  // Unike tilstander til filteret (i haster-rekkefølge, kun de som finnes).
+  const unikeStatuser = useMemo(() => {
+    const finnes = new Set([...tilstandMap.values()].map((v) => v.tilstand));
+    return TILSTAND_REKKEFOLGE.filter((t) => finnes.has(t));
+  }, [tilstandMap]);
   const unikeFaggrupper = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of punkter) map.set(p.faggruppeId, p.faggruppe.name);
@@ -94,7 +97,7 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk, renderHandling 
   // Filtrerte + sorterte punkter
   const visbarePunkter = useMemo(() => {
     let resultat = punkter;
-    if (statusFilter.size > 0) resultat = resultat.filter((p) => statusFilter.has(p.status));
+    if (statusFilter.size > 0) resultat = resultat.filter((p) => statusFilter.has(tilstandMap.get(p.id)!.tilstand));
     if (faggruppeFilter.size > 0) resultat = resultat.filter((p) => faggruppeFilter.has(p.faggruppeId));
     if (omradeFilter.size > 0) resultat = resultat.filter((p) => p.omradeId && omradeFilter.has(p.omradeId));
 
@@ -109,7 +112,11 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk, renderHandling 
           const bV = (b.fristAar ?? 9999) * 100 + (b.fristUke ?? 99);
           return r * (aV - bV);
         }
-        case "status": return r * a.status.localeCompare(b.status);
+        case "status": {
+          const ai = TILSTAND_REKKEFOLGE.indexOf(tilstandMap.get(a.id)!.tilstand);
+          const bi = TILSTAND_REKKEFOLGE.indexOf(tilstandMap.get(b.id)!.tilstand);
+          return r * (ai - bi);
+        }
         case "milepel": {
           const aM = a.milepelId ? milepelMap.get(a.milepelId)?.navn ?? "" : "";
           const bM = b.milepelId ? milepelMap.get(b.milepelId)?.navn ?? "" : "";
@@ -119,7 +126,7 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk, renderHandling 
         default: return 0;
       }
     });
-  }, [punkter, statusFilter, faggruppeFilter, omradeFilter, sorterFelt, sorterRetning, milepelMap]);
+  }, [punkter, statusFilter, faggruppeFilter, omradeFilter, sorterFelt, sorterRetning, milepelMap, tilstandMap]);
 
   function toggleSort(felt: SorterFelt) {
     if (sorterFelt === felt) {
@@ -191,7 +198,7 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk, renderHandling 
               sorterFelt={sorterFelt}
               sorterRetning={sorterRetning}
               onSort={toggleSort}
-              filterVerdier={unikeStatuser.map((s) => ({ id: s, label: t(statusNokler[s] ?? s) }))}
+              filterVerdier={unikeStatuser.map((s) => ({ id: s, label: t("kontrollplan.tilstand" + s.charAt(0).toUpperCase() + s.slice(1)) }))}
               aktiveFilter={statusFilter}
               onFilter={setStatusFilter}
             />
@@ -231,9 +238,7 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk, renderHandling 
                     : "—"}
                 </td>
                 <td className="py-2 px-3">
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusFarger[punkt.status] ?? ""}`}>
-                    {t(statusNokler[punkt.status] ?? punkt.status)}
-                  </span>
+                  <TilstandMerke visning={tilstandMap.get(punkt.id)!} />
                 </td>
                 {renderHandling && (
                   <td className="py-2 px-3">{renderHandling(punkt)}</td>

@@ -47,6 +47,7 @@ interface PunktType {
   fristUke: number | null;
   fristAar: number | null;
   status: string;
+  varselUkerFor: number;
   avhengerAvId: string | null;
   dokumentflytId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };

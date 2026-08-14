@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil } from "lucide-react";
-import { avledPunktFremdrift } from "@/lib/kontrollplanFremdrift";
+import { avledPunktFremdrift, avledPunktTilstand, isoUkeRef, type UkeRef } from "@/lib/kontrollplanFremdrift";
 
 interface Punkt {
   id: string;
@@ -15,6 +15,7 @@ interface Punkt {
   fristUke: number | null;
   fristAar: number | null;
   status: string;
+  varselUkerFor: number;
   avhengerAvId: string | null;
   dokumentflytId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
@@ -45,55 +46,32 @@ function erBlokkert(punkt: Punkt): boolean {
   return punkt.avhengerAv.status !== "godkjent";
 }
 
-// Sjekk om frist er forfalt
-function erForfalt(punkt: Punkt): boolean {
-  if (!punkt.fristUke || !punkt.fristAar) return false;
-  if (avledPunktFremdrift(punkt) === "godkjent") return false;
-  const naa = new Date();
-  const aar = naa.getFullYear();
-  // Finn ukenummer (ISO 8601)
-  const janFoerste = new Date(aar, 0, 1);
-  const dager = Math.floor((naa.getTime() - janFoerste.getTime()) / 86400000);
-  const uke = Math.ceil((dager + janFoerste.getDay() + 1) / 7);
-  if (punkt.fristAar < aar) return true;
-  if (punkt.fristAar === aar && punkt.fristUke < uke) return true;
-  return false;
-}
-
-function StatusCelle({ punkt, onClick }: { punkt: Punkt; onClick: () => void }) {
+function StatusCelle({ punkt, naa, onClick }: { punkt: Punkt; naa: UkeRef; onClick: () => void }) {
+  const { t } = useTranslation();
   const blokkert = erBlokkert(punkt);
-  const forfalt = erForfalt(punkt);
-  // Fremdrift avledes fra koblet sjekkliste (fallback punktets egen status) — samme
-  // kilde som lista og fremdriftstelleren, så matrisen ikke drifter fra dem.
-  const fremdrift = avledPunktFremdrift(punkt);
-
-  let bg = "bg-gray-100 text-gray-600"; // planlagt
-  let ikon = "⬜";
-  if (blokkert) {
-    bg = "bg-gray-200 text-gray-400";
-    ikon = "🔒";
-  } else if (forfalt) {
-    bg = "bg-red-100 text-red-700";
-    ikon = "🔴";
-  } else if (fremdrift === "godkjent") {
-    bg = "bg-green-100 text-green-700";
-    ikon = "✅";
-  } else if (fremdrift === "utfort") {
-    bg = "bg-amber-100 text-amber-700";
-    ikon = "🟠";
-  } else if (fremdrift === "pagar") {
-    bg = "bg-blue-100 text-blue-700";
-    ikon = "🟡";
-  }
+  // Samme avledede tilstand (fremdrift × frist) som lista og tegningsmarkøren.
+  const tilstand = avledPunktTilstand(punkt, naa);
+  // Blokkert (uinnfridd avhengighet) overstyrer visuelt — grå/låst.
+  const farge = blokkert ? "#9ca3af" : tilstand.farge;
+  const tittel = blokkert
+    ? `${punkt.faggruppe.name} — ${t("kontrollplan.blokkertAvAvhengighet")}`
+    : `${punkt.faggruppe.name} — ${t(tilstand.labelKey)}${punkt.fristUke ? ` (U${punkt.fristUke})` : ""}`;
 
   return (
     <button
       onClick={onClick}
-      className={`w-full px-2 py-1.5 text-xs rounded ${bg} hover:ring-2 hover:ring-sitedoc-primary/30 transition-all text-left`}
-      title={`${punkt.faggruppe.name}${punkt.fristUke ? ` — U${punkt.fristUke}` : ""}`}
+      className="w-full px-2 py-1.5 text-xs rounded hover:ring-2 hover:ring-sitedoc-primary/30 transition-all text-left"
+      style={{ backgroundColor: `${farge}1a` }}
+      title={tittel}
     >
-      <span className="mr-1">{ikon}</span>
-      {punkt.fristUke ? `U${punkt.fristUke}` : ""}
+      <span className="inline-flex items-center gap-1">
+        <span
+          aria-hidden
+          className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
+          style={{ backgroundColor: !blokkert && tilstand.fylt ? farge : "transparent", border: `2px solid ${farge}` }}
+        />
+        {punkt.fristUke ? `U${punkt.fristUke}` : ""}
+      </span>
       <div className="text-[10px] truncate opacity-70">{punkt.faggruppe.name}</div>
     </button>
   );
@@ -101,6 +79,7 @@ function StatusCelle({ punkt, onClick }: { punkt: Punkt; onClick: () => void }) 
 
 export function MatriseVisning({ punkter, milepeler, onPunktKlikk, onMilepelRediger }: MatriseVisningProps) {
   const { t } = useTranslation();
+  const naa = useMemo(() => isoUkeRef(new Date()), []);
 
   // Bygg matrise-data: grupper etter milepæl, finn unike områder og maler
   const matriseData = useMemo(() => {
@@ -212,7 +191,7 @@ export function MatriseVisning({ punkter, milepeler, onPunktKlikk, onMilepelRedi
                         return (
                           <td key={mal.id} className="py-1 px-1">
                             {punkt ? (
-                              <StatusCelle punkt={punkt} onClick={() => onPunktKlikk(punkt)} />
+                              <StatusCelle punkt={punkt} naa={naa} onClick={() => onPunktKlikk(punkt)} />
                             ) : (
                               <div className="w-full h-8" />
                             )}
