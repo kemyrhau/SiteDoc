@@ -1,0 +1,11 @@
+{
+  "name": "sitedoc-pdf-render",
+  "private": true,
+  "type": "module",
+  "description": "Arkivmal HTML→PDF-konverter (Stage 4a) — standalone sidecar, deps i Docker.",
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": {
+    "fastify": "^5.2.0",
+    "playwright": "1.49.0"
+  }
+}

@@ -24,13 +24,14 @@ services:
       HOST: "0.0.0.0"
       NORBERT_URL: "http://embed:3302"
       OVERSETTELSE_URL: "http://oversettelse:3303"   # env-navn verifisert mot oversettelse-service.ts:11
+      PDF_URL: "http://pdf-render:3304"              # arkivmal HTML→PDF-konverter (Stage 4a)
     ports:
       - "127.0.0.1:3001:3001"
       - "127.0.0.1:3100:3100"   # web lytter her (deler api sitt nett-namespace)
     networks: [appnet]
     volumes:
       - /home/kemyrhau/stack/sitedoc/uploads:/app/apps/api/uploads
-    depends_on: [embed, oversettelse]
+    depends_on: [embed, oversettelse, pdf-render]
     security_opt: ["no-new-privileges:true"]
 
   sitedoc-web:
@@ -73,6 +74,22 @@ services:
     networks: [appnet]
     volumes: ["ml_models:/models"]
     depends_on: [embed]
+
+  # Arkivmal HTML→PDF-konverter (Stage 4a). Ren konverter: ingen DB, ingen
+  # FIL_SIGNING_SECRET (bilder inlinet av api, levering av api). Egen Chromium-base.
+  pdf-render:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.pdf
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+        BUILD_TID: ${BUILD_TID:-}
+    image: sitedoc-pdf-render:latest
+    container_name: sitedoc-pdf-render
+    restart: unless-stopped
+    environment: { PORT: "3304", HOST: "0.0.0.0" }   # internt på appnet, ingen host-port
+    networks: [appnet]
+    security_opt: ["no-new-privileges:true"]
 
 networks:
   appnet:
