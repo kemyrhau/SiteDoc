@@ -54,6 +54,11 @@ services:
       - ./env/web-test.env             # AUTH_* (egen test), AUTH_URL/NEXTAUTH_URL=https://test.sitedoc.no, DATABASE_URL (sitedoc_test) ...
     environment:
       PORT: "3300"
+    # Read-only: web kjører tRPC in-process (arkivmal-sammenstillingen), og
+    # `hentBildeBytesFraDisk` må LESE vedlegg fra disk. `:ro` gir lesetilgang
+    # uten skriveflate. Arkiv-PDF skrives ikke til disk (vei 3b: retur i respons).
+    volumes:
+      - /home/kemyrhau/stack/sitedoc/uploads:/app/apps/web/uploads:ro
     network_mode: "service:sitedoc-test-api"
     depends_on: [sitedoc-test-api]
     security_opt: ["no-new-privileges:true"]

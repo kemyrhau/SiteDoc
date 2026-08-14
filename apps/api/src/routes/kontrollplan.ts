@@ -44,6 +44,8 @@ const punktIncludes = {
   // L1.5: forhåndsvalgt flyt på punktet (satt av admin). Klienten bruker den til å
   // starte direkte (0 klikk) og til å vise hvilken flyt punktet er bundet til.
   dokumentflyt: { select: { id: true, name: true } },
+  // L2: tegningsplassering — hvilken tegning punktet ligger på (for «Vis på tegning»).
+  drawing: { select: { id: true, name: true } },
   avhengerAv: { select: { id: true, status: true, sjekklisteMal: { select: { name: true } }, omrade: { select: { navn: true } } } },
 } as const;
 
@@ -585,6 +587,73 @@ export const kontrollplanRouter = router({
         }),
       ]);
       return { oppdatert: oppdatert.count, hoppetOver: total - oppdatert.count };
+    }),
+
+  // L2: kontrollpunkt-markører for én tegning. Speiler oppgave.hentForTegning — kun
+  // punkter plassert på tegningen (positionX/Y satt). Tilstandsfeltene (status, sjekkliste,
+  // frist, varselUkerFor) lar klienten farge markøren med avledPunktTilstand — samme
+  // fargemodell som liste/rutenett, så tegningen aldri drifter fra dem.
+  hentForTegning: protectedProcedure
+    .input(z.object({ drawingId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const drawing = await ctx.prisma.drawing.findUniqueOrThrow({
+        where: { id: input.drawingId },
+        select: { byggeplass: { select: { projectId: true } } },
+      });
+      if (!drawing.byggeplass) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Tegningen er ikke tilknyttet en lokasjon" });
+      }
+      await verifiserProsjektmedlem(ctx.userId, drawing.byggeplass.projectId);
+      return ctx.prisma.kontrollplanPunkt.findMany({
+        where: { drawingId: input.drawingId, positionX: { not: null }, positionY: { not: null }, arkivert: false },
+        select: {
+          id: true,
+          positionX: true,
+          positionY: true,
+          status: true,
+          fristUke: true,
+          fristAar: true,
+          varselUkerFor: true,
+          sjekkliste: { select: { id: true, status: true } },
+          sjekklisteMal: { select: { prefix: true, name: true } },
+        },
+      });
+    }),
+
+  // L2: sett/tøm plassering av et punkt på en tegning. Plan-redigering (prosjektmedlem),
+  // IKKE admin — plassering er ikke en auth-sensitiv bypass slik flytvalget var. Posisjon
+  // er prosent (0-100) av bilde-containeren, samme koordinatmodell som oppgave/sjekkliste.
+  settPunktPlassering: protectedProcedure
+    .input(z.object({
+      punktId: z.string(),
+      drawingId: z.string().uuid().nullable(),
+      positionX: z.number().min(0).max(100).nullable(),
+      positionY: z.number().min(0).max(100).nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const punkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+        where: { id: input.punktId },
+        select: { kontrollplan: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      // Prosjektisolering: tegningen må høre til samme prosjekt som punktet.
+      if (input.drawingId) {
+        const drawing = await ctx.prisma.drawing.findUnique({
+          where: { id: input.drawingId },
+          select: { byggeplass: { select: { projectId: true } } },
+        });
+        if (!drawing?.byggeplass || drawing.byggeplass.projectId !== punkt.kontrollplan.projectId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Tegningen hører til et annet prosjekt enn kontrollpunktet." });
+        }
+      }
+      // Fjernes tegningen, tømmes også posisjonen (drawingId null → posisjon meningsløs).
+      await ctx.prisma.kontrollplanPunkt.update({
+        where: { id: input.punktId },
+        data: input.drawingId
+          ? { drawingId: input.drawingId, positionX: input.positionX, positionY: input.positionY }
+          : { drawingId: null, positionX: null, positionY: null },
+      });
+      return ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({ where: { id: input.punktId }, include: punktIncludes });
     }),
 
   // Opprett milepæl
