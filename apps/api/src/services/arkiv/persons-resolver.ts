@@ -20,15 +20,30 @@ export async function resolverPersonnavn(
   data: Record<string, FeltVerdi>,
   objects: RapportObjekt[],
 ): Promise<Record<string, FeltVerdi>> {
-  const personsIder = objects.filter((o) => o.type === "persons").map((o) => o.id);
-  if (personsIder.length === 0) return data;
+  const personsIder = new Set(objects.filter((o) => o.type === "persons").map((o) => o.id));
+  if (personsIder.size === 0) return data;
 
-  // Samle UUID-er på tvers av alle persons-felt.
+  // Et persons-felt-instans: nøkkelen er et persons-objekt-id OG verdien har en
+  // verdi-array. Gjelder både top-level OG nestet i repeater-rader.
+  const erPersons = (k: string, v: unknown): v is FeltVerdi =>
+    personsIder.has(k) && !!v && typeof v === "object" && Array.isArray((v as FeltVerdi).verdi);
+
+  // Samle UUID-er på tvers av ALLE persons-felt, uansett nesting-dybde. Uten
+  // rekursjon lekker rå UUID-er fra persons-felt nestet i repeater-rader.
   const uuider = new Set<string>();
-  for (const id of personsIder) {
-    const v = data[id]?.verdi;
-    if (Array.isArray(v)) for (const x of v) if (typeof x === "string" && UUID_RE.test(x)) uuider.add(x);
-  }
+  const samle = (o: unknown): void => {
+    if (Array.isArray(o)) {
+      for (const x of o) samle(x);
+    } else if (o && typeof o === "object") {
+      for (const [k, v] of Object.entries(o)) {
+        if (erPersons(k, v)) {
+          for (const x of v.verdi as unknown[])
+            if (typeof x === "string" && UUID_RE.test(x)) uuider.add(x);
+        } else samle(v);
+      }
+    }
+  };
+  samle(data);
   if (uuider.size === 0) return data;
 
   const brukere = await prisma.user.findMany({
@@ -37,16 +52,26 @@ export async function resolverPersonnavn(
   });
   const navn = new Map(brukere.map((u) => [u.id, u.name ?? "Ukjent bruker"]));
 
-  const ut: Record<string, FeltVerdi> = { ...data };
-  for (const id of personsIder) {
-    const felt = data[id];
-    if (!felt || !Array.isArray(felt.verdi)) continue;
-    ut[id] = {
-      ...felt,
-      verdi: (felt.verdi as string[]).map((x) =>
-        typeof x === "string" && UUID_RE.test(x) ? navn.get(x) ?? "Ukjent bruker" : x,
-      ),
-    };
-  }
-  return ut;
+  // Bytt UUID → navn på samme dybde. Dyp klone; muterer ikke input.
+  const bytt = (o: unknown): unknown => {
+    if (Array.isArray(o)) return o.map(bytt);
+    if (o && typeof o === "object") {
+      const ut: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(o)) {
+        if (erPersons(k, v)) {
+          ut[k] = {
+            ...v,
+            verdi: (v.verdi as unknown[]).map((x) =>
+              typeof x === "string" && UUID_RE.test(x) ? navn.get(x) ?? "Ukjent bruker" : x,
+            ),
+          };
+        } else {
+          ut[k] = bytt(v);
+        }
+      }
+      return ut;
+    }
+    return o;
+  };
+  return bytt(data) as Record<string, FeltVerdi>;
 }

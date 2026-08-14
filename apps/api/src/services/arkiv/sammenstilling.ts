@@ -36,13 +36,23 @@ const ER_BILDE = (v: BildeRef): boolean =>
   typeof v.url === "string" && (v.type === "bilde" || /\.(png|jpe?g|gif|webp)$/i.test(v.filnavn ?? ""));
 
 /**
- * Bilde-referanser i ett felt: per-felt `vedlegg` (alle felttyper) OG
- * `attachments`-feltets `verdi`-array (der filene ER verdien, per felt.ts:126).
+ * Alle bilde-referanser i ett felt, uansett nesting-dybde. Dyp traversering fordi
+ * bilder også ligger i repeater-RADER (celle-`vedlegg`/`verdi`) — ikke bare i
+ * feltets egen `vedlegg`/`verdi`. Uten rekursjon ble 14 av 18 bilder på BEF-001
+ * aldri samlet → aldri inlinet → underrapportert i `manglendeVedlegg`.
  */
 function bilderIFelt(felt: FeltVerdi): BildeRef[] {
-  const fraVedlegg = (felt.vedlegg ?? []) as BildeRef[];
-  const fraVerdi = Array.isArray(felt.verdi) ? (felt.verdi as BildeRef[]) : [];
-  return [...fraVedlegg, ...fraVerdi].filter((v) => v && typeof v === "object" && ER_BILDE(v));
+  const ut: BildeRef[] = [];
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) {
+      for (const x of v) walk(x);
+    } else if (v && typeof v === "object") {
+      if (ER_BILDE(v as BildeRef)) ut.push(v as BildeRef);
+      else for (const x of Object.values(v)) walk(x);
+    }
+  };
+  walk(felt);
+  return ut;
 }
 
 export interface SammenstillingOpts {
@@ -94,25 +104,32 @@ const MANGLENDE_BILDE_SVG =
 const MANGLENDE_BILDE_DATAURL =
   "data:image/svg+xml;base64," + Buffer.from(MANGLENDE_BILDE_SVG).toString("base64");
 
-/** Erstatter bilde-url-er (i vedlegg OG attachments-verdi) med inlinede data-URI-er. Klone. */
+/**
+ * Erstatter bilde-url-er med inlinede data-URI-er, uansett nesting-dybde (samme
+ * rekursjon som `bilderIFelt` — repeater-rader inkludert). Dyp klone; muterer ikke
+ * input. Inlinet → data-URI; ikke inlinet → placeholder (ALDRI nettverks-url,
+ * se MANGLENDE_BILDE_DATAURL).
+ */
 function inlinDataBilder(
   data: Record<string, FeltVerdi>,
   dataUrl: Map<string, string>,
 ): Record<string, FeltVerdi> {
-  const bytt = <T,>(v: T): T => {
-    const b = v as unknown as BildeRef;
-    if (!(b && typeof b === "object" && ER_BILDE(b))) return v;
-    // Inlinet → data-URI. Ikke inlinet → placeholder-data-URI (ALDRI la
-    // nettverks-url stå, se MANGLENDE_BILDE_DATAURL).
-    const url = dataUrl.has(b.url) ? dataUrl.get(b.url)! : MANGLENDE_BILDE_DATAURL;
-    return { ...b, url } as unknown as T;
+  const bytt = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(bytt);
+    if (v && typeof v === "object") {
+      if (ER_BILDE(v as BildeRef)) {
+        const b = v as BildeRef;
+        const url = dataUrl.has(b.url) ? dataUrl.get(b.url)! : MANGLENDE_BILDE_DATAURL;
+        return { ...b, url };
+      }
+      const ut: Record<string, unknown> = {};
+      for (const [k, x] of Object.entries(v)) ut[k] = bytt(x);
+      return ut;
+    }
+    return v;
   };
   const ut: Record<string, FeltVerdi> = {};
-  for (const [k, felt] of Object.entries(data)) {
-    const vedlegg = (felt.vedlegg ?? []).map(bytt);
-    const verdi = Array.isArray(felt.verdi) ? felt.verdi.map(bytt) : felt.verdi;
-    ut[k] = { ...felt, vedlegg, verdi };
-  }
+  for (const [k, felt] of Object.entries(data)) ut[k] = bytt(felt) as FeltVerdi;
   return ut;
 }
 
