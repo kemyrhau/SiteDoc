@@ -10,6 +10,8 @@
  *   databasetilgang.
  */
 
+import type { Utskriftsinnstillinger } from "../typer";
+
 /** Kilde for en hendelsesrad (lag 1). */
 export type ArkivHendelseKilde = "transfer" | "kommentar";
 
@@ -123,4 +125,105 @@ export interface ArkivLogg {
   revisjoner?: RevisjonRad[];
   /** Statusblokkens femte felt (null når ingen logg finnes). */
   sistEndret?: SistEndret | null;
+}
+
+// ---------------------------------------------------------------------------
+//  Ramme-byggeklosser (Stage 1) — dokumentets faste rammer
+// ---------------------------------------------------------------------------
+
+/** De seks innholdsvariantene, valgt av dokumentets `category`. */
+export type ArkivKategori =
+  | "sjekkliste"
+  | "oppgave"
+  | "hms"
+  | "kontrollplan"
+  | "timer"
+  | "utlegg";
+
+/** Eksportfirmaet (topptekst). Logo inline som data-URI — containeren har ingen disk/nett. */
+export interface ArkivFirma {
+  navn: string;
+  orgnr?: string | null;
+  logoDataUrl?: string | null;
+}
+
+/** Dokument-identitet (topptekst + sporbarhet). */
+export interface ArkivDokumentMeta {
+  kategori: ArkivKategori;
+  /** Vises uppercase i topptekstens type-etikett, f.eks. «Sjekkliste», «RUH». */
+  dokumenttype: string;
+  dokumentnavn: string;
+  /** Menneskevendt dokumentnr., f.eks. «SJ-2026-0142». */
+  dokumentnummer: string;
+  /** Systemets id — sporbarhet i bunntekst, kan ikke velges bort (§4). */
+  dokumentId: string;
+  /** Rå status-nøkkel (STATUS_TEKST/semantisk farge utledes). */
+  status: string;
+}
+
+/** Prosjektblokk — tre kolonner, komprimeres når felt slås av (ikke tomrom). */
+export interface ArkivProsjektblokk {
+  prosjekt?: string | null;
+  byggeplass?: string | null;
+  byggherre?: string | null;
+}
+
+/**
+ * Én celle i statusblokken. Varianten leverer sine celler (sjekkliste:
+ * Status/Utført av/Utført dato/Godkjent dato; RUH: Status/Meldt av/…).
+ * «Sist endret» legges til av sammenstillingen når logg finnes.
+ */
+export interface StatusCelle {
+  etikett: string;
+  verdi: string;
+  /** Grå tilleggstekst etter verdien, f.eks. «(bas)» eller dato-delen. */
+  underVerdi?: string | null;
+  /** Semantisk farge på verdien (grønn godkjent, rød avvik). Utledes av status når utelatt. */
+  farge?: string | null;
+}
+
+/**
+ * Signaturfelt (Stage 3). Reelle signaturdata gjengis; mangler signatur →
+ * åpen strek. `verb` = «signert» (sjekkliste/SJA) el. «registrert» (RUH).
+ */
+export interface ArkivSignatur {
+  /** «Utført av» · «Godkjent av» · «Meldt av» · «Lukket av». */
+  rolleEtikett: string;
+  navn: string;
+  rolle?: string | null;
+  /** ISO — «{verb} i SiteDoc {dato} {tid}». Null → åpen strek (ikke signert). */
+  tidspunkt?: string | null;
+  verb?: "signert" | "registrert";
+}
+
+/** Full sammenstillings-input for arkivdokumentet (Stage 3, sjekkliste/oppgave/HMS). */
+export interface ArkivDokumentInput {
+  firma: ArkivFirma;
+  meta: ArkivDokumentMeta;
+  prosjektblokk: ArkivProsjektblokk;
+  /** Variant-spesifikke statusceller (Status først, med semantisk farge). */
+  statusCeller: StatusCelle[];
+  /** Ferdig innhold-HTML (fra byggInnhold — kalleren inliner bilder som data-URI). */
+  innholdHtml: string;
+  logg: ArkivLogg;
+  signaturer: ArkivSignatur[];
+  /** «11.08.2026 14:32» — generert-stempel. */
+  generertTekst: string;
+  innstillinger?: Utskriftsinnstillinger | null;
+  /** Eksportpakke → sidetall tvinges på. */
+  eksport?: boolean;
+  /** Løpende utskrift: prosjektets sidetall-valg (fra PdfConfig). */
+  visSidenummer?: boolean;
+  /**
+   * Krav #2 (vedtak «logg alltid på, velges ved utskrift»): default true.
+   * false → Endringslogg (lag 2) utelates ved denne utskriften. Lag 1
+   * (Dokumenthistorikk) kan aldri velges bort.
+   */
+  taMedEndringslogg?: boolean;
+  /**
+   * Vedtak (c): filnavn på vedlegg som IKKE kom med (bilde-lasting feilet).
+   * Rendres som utvetydig mangel-merknad → dokumentet leses aldri som komplett
+   * når det ikke er det. Fylles av api-/container-laget.
+   */
+  manglendeVedlegg?: string[];
 }
