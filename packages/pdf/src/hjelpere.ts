@@ -52,7 +52,7 @@ export function formaterDatoTid(v: unknown): string {
   }
 }
 
-/** Formater dato+tid kort (f.eks. "03.04.2026 14:30") */
+/** Formater dato+tid kort (f.eks. "03.04.2026, 14:30") */
 export function formaterDatoTidKort(v: unknown): string {
   if (!v) return "";
   try {
@@ -66,6 +66,15 @@ export function formaterDatoTidKort(v: unknown): string {
   } catch {
     return String(v);
   }
+}
+
+/**
+ * Dato+tid «dd.mm.yyyy hh:mm» UTEN komma — arkivmalens mockup-format
+ * («07.08.2026 09:41»). `formaterDatoTidKort` (delt med de eldre malene) gir
+ * «07.08.2026, 14:52» via `toLocaleString`; her strippes komma-skilletegnet.
+ */
+export function formaterDatoTidPunkt(v: unknown): string {
+  return formaterDatoTidKort(v).replace(", ", " ");
 }
 
 /** Formater dato kort (f.eks. "03.04.2026") */

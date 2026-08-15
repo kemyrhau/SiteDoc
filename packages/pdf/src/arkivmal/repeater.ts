@@ -12,7 +12,7 @@
  * er arkiv-lokal. Tom repeater → «Ingen rader registrert» (skjules aldri).
  */
 
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid } from "../hjelpere";
+import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, formaterDatoTidPunkt } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
 import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
@@ -90,16 +90,17 @@ function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
     case "persons":
       return Array.isArray(verdi) && verdi.length > 0 ? esc((verdi as string[]).join(", ")) : TOM;
     case "attachments": {
-      // Bildene rendres samlet UNDER tabellen (byggBildeSamling). Cellen viser
-      // kun en kort filnavn-referanse — ALDRI det inlinede bilde-arrayet (ellers
-      // dumpes hele data-URI-base64 inn i cellen).
+      // Bildene rendres i full bredde rett under raden (byggBilderader), hvert
+      // med egen merking (filnavn + tid). Cellen gjentar IKKE filnavn — det ville
+      // vært en overflødig kryssreferanse (vedtak 2026-08-15). Kun et diskret
+      // antall, og ALDRI det inlinede bilde-arrayet (ingen data-URI-base64).
       const filer = Array.isArray(verdi)
         ? (verdi as unknown[]).filter(
             (v): v is Vedlegg =>
               !!v && typeof v === "object" && typeof (v as Vedlegg).filnavn === "string",
           )
         : [];
-      return filer.length > 0 ? esc(filer.map((f) => f.filnavn).join(", ")) : TOM;
+      return filer.length > 0 ? esc(`${filer.length} vedlegg`) : TOM;
     }
     default: {
       // text_field, person, company, bim/zone/room_property, m.fl.
@@ -117,10 +118,14 @@ function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
   }
 }
 
+/** Bilder per rekke i bilde-gridet (1fr 1fr → 2 stående per rekke). */
+const BILDER_PER_REKKE = 2;
+
 /**
  * Rendrer en repeater som tabell: «#» + én kolonne per barn (barnets label som
- * kolonneoverskrift), én rad per registrert element. Rad-kommentar (felt-nivå)
- * vises under raden når den finnes.
+ * kolonneoverskrift), én rad per registrert element. Radens bilder rendres i
+ * full spaltebredde rett under sin egen rad (vedtak 2026-08-15), ikke samlet
+ * etter tabellen.
  */
 export function byggRepeaterTabell(
   objekt: TreObjekt,
@@ -137,44 +142,69 @@ export function byggRepeaterTabell(
   }
 
   const kolonner = barn.map((b) => `<th>${esc(b.label)}</th>`).join("");
+  // «#» + én kolonne per barn — bildecellen spenner hele bredden.
+  const kolonnespenn = 1 + barn.length;
+  // Løpenummer starter på 01 og fortsetter gjennom hele repeateren (= dokumentet;
+  // starter på nytt per dokument, aldri videreført på tvers).
+  let bildeNr = 1;
   const kropp = rader
     .map((rad, idx) => {
       const celler = barn
         .map((b) => `<td>${cellVerdi(b, rad[b.id] as FeltVerdi | undefined)}</td>`)
         .join("");
-      return `<tr><td class="ark-rad-nr">${idx + 1}</td>${celler}</tr>`;
+      const datarad = `<tr><td class="ark-rad-nr">${idx + 1}</td>${celler}</tr>`;
+      const { html, nesteNr } = byggBilderader(bilderIRad(barn, rad), bildeNr, kolonnespenn);
+      bildeNr = nesteNr;
+      return datarad + html;
     })
     .join("");
 
-  const tabell = `
+  return `
 ${heading}
 <table class="ark-repeater">
   <thead><tr><th class="ark-rad-nr" style="color:${ARKIV_FARGER.navy}">#</th>${kolonner}</tr></thead>
   <tbody>${kropp}</tbody>
 </table>`.trim();
-
-  return tabell + byggBildeSamling(barn, rader);
 }
 
 /**
- * Bilder fra repeater-radene, samlet UNDER tabellen (mockup: ikke thumbnails i
- * celler). Hvert bilde merkes «Bilde — punkt {radnr} ({filnavn})» — radnummeret
- * er koblingen tilbake til tabellraden. Rekkefølge = radrekkefølge, så innenfor
- * raden. Ett kort holdes samlet ved sideskift (`break-inside:avoid` i CSS);
- * samlingen flyter over sider. Ingen bilder → ingen blokk (ikke «tomt» spor).
+ * Bilderad(er) for én tabellrad: bildene i full spaltebredde rett under raden,
+ * i et 1fr 1fr-grid (2 stående per rekke; siste alene → venstre kolonne, som
+ * mockupen). Hver rekke er sin EGEN `<tr>` slik at blokken kan BRYTE mellom
+ * rekker ved sideskift — store rader flyter over til neste side mens teksten
+ * blir stående med de første (plassutnyttelses-funnet: ingen `break-inside:
+ * avoid` som holder hele blokken samlet). Merking under hvert bilde: løpenr +
+ * filnavn + tidsstempel, i liten tekst (arkivsporbarhet) — ingen «punkt N»-
+ * kryssreferanse (bildet står ved raden sin). Ingen bilder → ingen rad.
  */
-function byggBildeSamling(barn: TreObjekt[], rader: Record<string, FeltVerdi>[]): string {
-  const kort: string[] = [];
-  rader.forEach((rad, idx) => {
-    for (const bilde of bilderIRad(barn, rad)) {
-      const filnavn = bilde.filnavn ? ` (${esc(bilde.filnavn)})` : "";
-      kort.push(
-        `<div class="ark-bilde-kort">` +
-          `<div class="ark-bilde-merke">Bilde — punkt ${idx + 1}${filnavn}</div>` +
-          `<img class="bilde-img" src="${esc(bilde.url)}" alt="">` +
-          `</div>`,
-      );
-    }
+function byggBilderader(
+  bilder: Vedlegg[],
+  startNr: number,
+  kolonnespenn: number,
+): { html: string; nesteNr: number } {
+  if (bilder.length === 0) return { html: "", nesteNr: startNr };
+
+  let nr = startNr;
+  const celler = bilder.map((b) => {
+    const nummer = String(nr++).padStart(2, "0");
+    let merke = `Bilde ${nummer}`;
+    if (b.filnavn) merke += ` — ${esc(b.filnavn)}`;
+    if (b.opprettet) merke += ` · ${esc(formaterDatoTidPunkt(b.opprettet))}`;
+    return (
+      `<div class="ark-bilde">` +
+        `<img class="ark-bilde-img" src="${esc(b.url)}" alt="">` +
+        `<div class="ark-bilde-tekst">${merke}</div>` +
+        `</div>`
+    );
   });
-  return kort.length > 0 ? `<div class="ark-bilde-samling">${kort.join("")}</div>` : "";
+
+  const rekker: string[] = [];
+  for (let i = 0; i < celler.length; i += BILDER_PER_REKKE) {
+    rekker.push(
+      `<tr class="ark-bilde-rad"><td class="ark-bilde-celle" colspan="${kolonnespenn}">` +
+        `<div class="ark-bilde-grid">${celler.slice(i, i + BILDER_PER_REKKE).join("")}</div>` +
+        `</td></tr>`,
+    );
+  }
+  return { html: rekker.join(""), nesteNr: nr };
 }

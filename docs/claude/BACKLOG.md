@@ -200,6 +200,45 @@ Rørt av fremdriftsplan-importen: rad-identiteten `@@unique([kontrollplanId, imp
 
 ⚠️ **Rekkefølge er ufravikelig:** arkiv-PDF verifisert i prod → klient-knapp levert og i bruk → *deretter* sletting. Fjernes den gamle veien før den nye er tatt i bruk, står Kenneth uten utskrift.
 
+### 🔴 Arkivmal mockup-gjennomgang 2026-08-16 — 7 avvik utenfor repeater-bilde-runden
+
+**Kilde:** `docs/redesign/arkivmal-pdf-mockup/Arkivmal PDF Mockup.dc.html` (Fabels reviderte mockup, 7 sider) gjennomgått side-for-side mot dagens arkivmal 2026-08-16. Repeater-bilde-vedtaket (fire punkter + tidsstempel + datoformat) er levert i egen runde; disse sju sto igjen og er **ikke** i den. Ført hver for seg fordi de ellers ikke finnes for neste økt.
+
+**2. Statusblokk-etikett «Opprettet» der mockupen sier «Utført dato»** — 🔴❓ trenger datakilde.
+- *Mockup (p1, s.1):* statusblokk-celle «Utført dato» (07.08.2026) + «Godkjent dato» (08.08.2026), alltid vist.
+- *Kode:* `sammenstilling.ts:226` setter cellen til «Opprettet» = `sjekkliste.createdAt`; «Godkjent» vises kun når en godkjent-hendelse finnes (`:228`).
+- *Mangler:* **Etiketten kan IKKE byttes til «Utført dato» før en faktisk «utført»-datakilde finnes — «Opprettet»-verdien (createdAt) ER ikke utførelsestidspunktet, så en «Utført dato»-etikett på den verdien er feil informasjon i et arkivdokument (dokumentet lyver).** Krever enten et utført-dato-felt i datamodellen eller en avledning fra hendelsesloggen (første signering/ferdigstilling). Beslutning + datakilde før noe bygges.
+
+**3. Befaringsrapport som egen dokumenttype + slank variant** — 🔴
+- *Mockup (p1c «Befaringsrapport-PDF»):* dokumenttype «Befaringsrapport — Lakselv Lufthavn · BEF-2026-001», **slank topptekst uten prosjekt-/statusblokk**, tabell med observasjons-punkt + bilderader.
+- *Kode:* `render.ts:94` kaster for alt annet enn «sjekkliste»; ingen befaring-leser. Topptekst/prosjekt/statusblokk rendres alltid (`dokument.ts:31-41`).
+- *Mangler:* befaring-datakilde (leser + dokumenttype-ruting) og en variant som utelater prosjekt-/statusblokk. Siden er også Fabels demo av bilde-rad-brytningen (allerede bygget) — det er kun dokumenttypen + slank-varianten som er ny.
+
+**4. Utskriftsform «dokumentliste» (kompakt fler-dokument)** — 🔴
+- *Mockup (p4 «Utskriftsform: dokumentliste»):* per-dokument kort (nr + tittel + status + **«HOS …»-pille** + utført/sendt-meta) med kompakt punkttabell, «aldri endringslogg eller signaturblokk», paginert «Side 1 av 6».
+- *Kode:* `byggArkivSamling` (`dokument.ts:65`) slår sammen N **fulle** `.ark-side`-dokumenter (med logg + signatur) — motsatt av kompaktformen.
+- *Mangler:* egen kompakt liste-renderer + «HOS {mottaker}»-status-pille. Henger sammen med «utskriftsformer-kravspecen» nevnt i punkt 3 over (samleutskrift).
+
+**5. Utskriftsform «tabellrapport» (flat tabell m/ bilde-thumbnail-kolonne)** — 🔴
+- *Mockup (p5 «Utskriftsform: tabellrapport»):* flat tabell over mange dokumenter (Dok.nr/Tittel/Status/Hos/Utført av/Dato/**Bilde**), 64×44 førstebilde-thumbnail i egen kolonne, «maks 10 rader per A4-side med bildekolonne, kolonnehode gjentas per side».
+- *Kode:* finnes ikke.
+- *Mangler:* egen tabellrapport-renderer med thumbnail-kolonne + paginering med gjentatt kolonnehode. (Thumbnail-i-celle er bevisst her — oversiktsliste, ikke repeater-formen.) Del av samme utskriftsformer-krav som punkt 4.
+
+**6. RUH/HMS som dokumenttype + tegningsutsnitt-med-markør** — 🔴
+- *Mockup (p2 «RUH-PDF»):* HMS-RUH med seksjoner Beskrivelse/Strakstiltak/Korrigerende tiltak (fra template-objekter), og en 2-kol bildeblokk «Bilde — hendelsessted (IMG_5102.jpg)» + «Plassering på tegning — K20-102» (tegningsutsnitt med markør).
+- *Kode:* kun sjekkliste rendres (`render.ts:94`). RUH-seksjonene ville kommet fra template-objekter via `byggInnhold`, men tegningsutsnitt-med-markør finnes ikke.
+- *Mangler:* RUH/HMS-datakilde + dokumenttype-ruting; **tegningsutsnitt-med-markør er egen feature** (crop av tegning rundt en plassering-markør). RUH-bildeblokken bruker gammel «Bilde — … (filnavn)»-form — avklares mot repeater-vedtaket hvis RUH skal bruke samme bilde-rad-form.
+
+**7. Endringslogg — vedlegg-rad-format «Bilde lagt til: {filnavn}»** — 🔴
+- *Mockup (p1b):* endringslogg-rad «Punkt 3 — Vedlegg → Bilde lagt til: IMG_4821.jpg» (ikke fra→til-diff, men en hendelse-formulering).
+- *Kode:* `loggseksjon.ts:72-75` rendrer alle endringer som `{fra} → {til}`; vedlegg-endringer har ikke egen formulering.
+- *Mangler:* logg-leseren (`logg-lesere.ts`) må emittere vedlegg-endringer med egen form, og `endringslogg()` rendre dem uten fra→til-pilen. Data-lag + formatering.
+
+**8. Værdata-snapshot i utskrift + malbygger-kobling** — 🔴 (eget vedtak)
+- *Vedtak:* `docs/redesign/vaerdata-snapshot-vedtak-fabel-2026-08-16.md` — utskrift viser frosset «Vær ved befaring 14.08.2026 07:12 · 4 °C, lett regn, 6 m/s», forankret i **brukerens befaringstidspunkt** (ikke `createdAt`); mangler snapshot → eksplisitt «Ikke registrert», aldri dagens vær.
+- *Kode:* `apps/api/src/routes/vaer.ts` (`hentVaerdata`) er rent live-oppslag (forecast + archive), ingen frysing/lagring; arkivmalen rendrer ikke værfelt spesielt.
+- *Mangler:* (a) snapshot lagres på værfeltet i `Checklist.data` når befaringstidspunktet settes (og re-hentes ved endring av tidspunktet — fanges av endringsloggen), (b) arkivmal rendrer lagret snapshot med «Ikke registrert»-fallback, (c) malbyggeren kobler/krever værfelt ↔ befaringstidspunkt-felt. Backlogg i vedtaket: 360-video-felttype (senere, eget løp).
+
 ### 🔴 Klient-utskrift: attachments-bilder rendres dobbelt, én gang brutt (Kenneth, prod 2026-08-15)
 
 **Observert i prod** (BEF-002, Test prosjekt SiteDoc Røstbakken): over bildene står to **brutte bilde-ikoner** med filnavnene `IMG_1773940614053.jpg` og `IMG_1773943366962.jpg` — og rett under står de samme bildene rendret korrekt.
