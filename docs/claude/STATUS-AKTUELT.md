@@ -110,6 +110,18 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 ## 🔴 ÅPENT SIKKERHETSPUNKT — alle sjekkliste-/oppgavebilder er uautentisert tilgjengelige (målt 2026-08-12)
 
+> 🟢 **LUKKET I PROD 2026-08-15 — målt sum 0.** `audit-sensitive-apen-sti.ts` (read-only, mot prod-DB) viser **null** sensitive fil-referanser på åpen `/uploads/`-sti: timer (tillegg+utlegg), kompetanse, maskin, `Image.file_url` og feltvedlegg i `Checklist`/`Task.data` — alle 0.
+>
+> **Veien dit, samme dag:** åpen `uploads/` ryddet (104 jpg → 102 slettet: 73 migrerte originaler + 2 foreldreløse + 27 uten referanse, **88 MB**). To rader i `timer.sheet_tillegg_vedlegg` sto igjen på åpen sti og ble migrert med `migrer-sensitive-filer-til-privat.ts --utfor`. Prod-dump før inngrepet: `~/backup/sitedoc-pre-slett-20260815-1251.dump`.
+>
+> **To hull funnet ved oppryddingen** (branch `fix/s1-feltvedlegg-privat`, merget `160c269a`):
+> 1. `apps/mobile/src/components/rapportobjekter/FeltDokumentasjon.tsx:146` kalte `lastOppFil` med tre argumenter → `privat` falt til default `false`. Dette kallet går utenom `OpplastingsKoProvider` (som utleder `privat` korrekt fra id-ene). Steg 4 ville **avvist** disse opplastingene, ikke sikret dem.
+> 2. `sheet_utlegg_vedlegg` (U1, 2026-08-08) manglet i alle migreringsscripts — lagt til som Type 4.
+>
+> **Prosessfunnet er viktigst:** S1 hadde **to** scripts, og bare `migrer-bilder-til-privat.ts` ble kjørt mot prod. `migrer-sensitive-filer-til-privat.ts` dekket timer hele tiden — den ble aldri kjørt. Ingenting fanget det; hullet ble funnet ved en filopprydding, ikke av en gate. Alle 15 kallsteder til `lastOppFil`/`/api/upload` er nå kartlagt (mobil-device punkt 4): de 9 øvrige uten `privat` er prosjektmedia, modeller, punktskyer, mapper og NS3420-import — ikke persondata.
+>
+> **Gjenstår:** `--rydd-originaler` (venter til test-DB også er migrert) · steg 4 hard validering (etter EAS-adopsjon) · test-miljøet ikke auditert.
+
 **Ikke en ny sårbarhet — dette er S1 Fase 1b, planlagt men ikke bygget.** `server.ts` sier det selv: *«Non-privat `/uploads/*` er uendret i Fase 1 (global gate kommer i Fase 1b).»* Målingen viser at hullet fortsatt står åpent.
 
 **Målt på prod 2026-08-12:**
