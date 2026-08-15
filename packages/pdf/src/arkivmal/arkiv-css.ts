@@ -30,6 +30,8 @@ export function hentArkivCss(): string {
 *{box-sizing:border-box}
 body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:10.5px;line-height:1.45}
 .ark-side{padding:15mm 16mm 10mm;color:${f.tekst};font-size:10.5px;line-height:1.45}
+/* Samleutskrift (N1): hvert dokument etter det første starter på ny side. */
+.ark-side + .ark-side{break-before:page;page-break-before:always}
 
 /* Topptekst (side 1) */
 .ark-topptekst{display:flex;justify-content:space-between;align-items:center;border:1px solid ${f.rammeLinje};padding:10px 14px}

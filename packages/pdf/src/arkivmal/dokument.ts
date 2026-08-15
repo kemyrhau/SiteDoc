@@ -16,7 +16,13 @@ import { byggLoggseksjon, byggMangelMerknad } from "./loggseksjon";
 import { byggSignaturblokk } from "./signatur";
 import type { ArkivDokumentInput } from "./typer";
 
-export function byggArkivDokument(input: ArkivDokumentInput): string {
+/**
+ * Ett dokuments innhold som `.ark-side`-blokk (uten shell/CSS). Skilt fra
+ * `byggArkivDokument` slik at flere dokumenter kan slås sammen til ÉN PDF
+ * (samleutskrift, N1): hver `.ark-side` starter på ny side (CSS-regel
+ * `.ark-side + .ark-side`), og shell + CSS legges på én gang av samleren.
+ */
+export function byggArkivSide(input: ArkivDokumentInput): string {
   const innst = tolkInnstillinger(input.innstillinger, {
     eksport: input.eksport,
     visSidenummer: input.visSidenummer,
@@ -36,7 +42,26 @@ export function byggArkivDokument(input: ArkivDokumentInput): string {
     .filter(Boolean)
     .join("\n");
 
+  return `<div class="ark-side">${body}</div>`;
+}
+
+/** HTML-shell (DOCTYPE + CSS) rundt én eller flere `.ark-side`-blokker. */
+function medShell(sider: string): string {
   return `<!DOCTYPE html>
 <html lang="nb"><head><meta charset="UTF-8"><style>${hentArkivCss()}</style></head>
-<body><div class="ark-side">${body}</div></body></html>`;
+<body>${sider}</body></html>`;
+}
+
+/** Ett standalone dokument (uendret utfall — én `.ark-side` i shell). */
+export function byggArkivDokument(input: ArkivDokumentInput): string {
+  return medShell(byggArkivSide(input));
+}
+
+/**
+ * Samleutskrift (N1): flere dokumenters `.ark-side`-blokker i ÉN PDF. Rekkefølge
+ * bevares; hver side etter den første tvinges til ny side av CSS-regelen
+ * `.ark-side + .ark-side { break-before: page }`. Tom liste → tomt dokument.
+ */
+export function byggArkivSamling(sider: string[]): string {
+  return medShell(sider.join("\n"));
 }
