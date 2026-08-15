@@ -11,7 +11,7 @@
  * alt strukturen; dette laget former den mot pikslene.
  */
 
-import { esc, formaterDatoTidKort } from "../hjelpere";
+import { esc, formaterDatoTidPunkt } from "../hjelpere";
 import { ARKIV_FARGER } from "./arkiv-css";
 import type { ArkivLogg, HendelseRad } from "./typer";
 
@@ -49,7 +49,7 @@ function dokumenthistorikk(hendelser: HendelseRad[]): string {
         ? `<span style="color:${farge};font-weight:600">${esc(h.handling)}</span>`
         : esc(h.handling);
       const kommentar = h.kommentar ? ` — «${esc(h.kommentar)}»` : "";
-      return `<tr><td class="ark-logg-tid">${esc(formaterDatoTidKort(h.tidspunkt))}</td><td>${esc(h.aktor)}${rolle}</td><td>${handling}${kommentar}${hale(h.antallFeltendringer)}</td></tr>`;
+      return `<tr><td class="ark-logg-tid">${esc(formaterDatoTidPunkt(h.tidspunkt))}</td><td>${esc(h.aktor)}${rolle}</td><td>${handling}${kommentar}${hale(h.antallFeltendringer)}</td></tr>`;
     })
     .join("");
   return `<div class="ark-seksjon">Dokumenthistorikk</div><table class="ark-logg"><tbody>${rader}</tbody></table>`;

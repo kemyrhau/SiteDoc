@@ -39,6 +39,13 @@ describe("byggLoggseksjon — Dokumenthistorikk (lag 1)", () => {
     expect(html).toContain("1 feltendring — se Endringslogg"); // entall
   });
 
+  it("tidspunkt-format er «dd.mm.yyyy hh:mm» uten komma (mockup-fasit)", () => {
+    const html = byggLoggseksjon(logg);
+    expect(html).toMatch(/05\.08\.2026 \d{2}:\d{2}/); // dato + mellomrom + tid
+    expect(html).not.toContain("05.08.2026,"); // ingen komma-skilletegn
+    expect(html).not.toContain("aug."); // ikke langt måned-format
+  });
+
   it("semantisk farge på Avvist (rød) og Godkjent (grønn)", () => {
     const html = byggLoggseksjon(logg);
     expect(html).toContain("#b91c1c"); // Avvist rød
@@ -121,6 +128,13 @@ describe("byggSignaturblokk", () => {
     expect(html).toContain("signert i SiteDoc");
     expect(html).toContain("Utført av — Mathias Berg, bas");
     expect(html).toContain("Godkjent av — ikke signert");
+  });
+
+  it("tidsstempel-format er «dd.mm.yyyy hh:mm» uten komma (mockup-fasit)", () => {
+    const html = byggSignaturblokk(sig);
+    expect(html).toMatch(/signert i SiteDoc 07\.08\.2026 \d{2}:52/);
+    expect(html).not.toContain("07.08.2026,"); // ingen komma
+    expect(html).not.toContain("aug."); // ikke langt format (formaterDatoTid)
   });
 
   it("tom liste → tom streng", () => {

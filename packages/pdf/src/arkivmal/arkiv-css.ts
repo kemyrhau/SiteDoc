@@ -92,12 +92,15 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .bilde-img{max-width:100%;height:auto;display:block}
 .bilde-nr{position:absolute;top:4px;right:6px;font-size:9px;color:${f.svak}}
 
-/* Repeater-vedlegg (steg 2) — bilder samlet UNDER tabellen, merket med radnummer
-   (mockup: «BILDE — PUNKT N (filnavn)»), ikke thumbnails i celler. Samlingen
-   flyter over sider; ett kort (bilde + merke) holdes samlet ved sideskift. */
-.ark-bilde-samling{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
-.ark-bilde-kort{flex:1 1 45%;min-width:45%;max-width:calc(50% - 5px);box-sizing:border-box;border:1px solid ${f.radLinje};padding:8px 10px;break-inside:avoid;page-break-inside:avoid}
-.ark-bilde-merke{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:${f.graa};margin-bottom:6px}
+/* Repeater-bilder (vedtak 2026-08-15) — full spaltebredde i egen <tr> rett under
+   raden, 1fr 1fr-grid (2 stående per rekke). Hver rekke er sin egen <tr>: den
+   globale tr-regelen (break-inside:avoid) holder ÉN rekke samlet, men blokken kan
+   BRYTE mellom rekker → store rader flyter over sider (ingen 40 %-luft). Merking
+   under bildet: løpenr + filnavn + tid, liten tekst. Bilde cappes til ~1/3 side. */
+.ark-bilde-celle{padding:4px 8px 8px}
+.ark-bilde-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ark-bilde-img{display:block;width:100%;height:auto;max-height:320px;object-fit:contain;background:${f.svakLinje}}
+.ark-bilde-tekst{font-size:8.5px;color:${f.svak};margin-top:3px}
 
 /* Loggseksjon — Dokumenthistorikk + Endringslogg (økt-gruppert) */
 .ark-logg{width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px}

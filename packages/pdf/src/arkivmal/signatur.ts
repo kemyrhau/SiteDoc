@@ -6,7 +6,7 @@
  * velges bort.
  */
 
-import { esc, formaterDatoTid } from "../hjelpere";
+import { esc, formaterDatoTidPunkt } from "../hjelpere";
 import type { ArkivSignatur } from "./typer";
 
 function signaturfelt(s: ArkivSignatur): string {
@@ -16,7 +16,7 @@ function signaturfelt(s: ArkivSignatur): string {
     ? `<div class="ark-sign-navn">${esc(s.navn)}</div>`
     : `<div class="ark-sign-navn ark-sign-tom">&nbsp;</div>`;
   const kvittering = s.tidspunkt
-    ? `${esc(s.rolleEtikett)} — ${esc(s.navn)}${rolle} · ${verb} i SiteDoc ${esc(formaterDatoTid(s.tidspunkt))}`
+    ? `${esc(s.rolleEtikett)} — ${esc(s.navn)}${rolle} · ${verb} i SiteDoc ${esc(formaterDatoTidPunkt(s.tidspunkt))}`
     : `${esc(s.rolleEtikett)} — ikke ${verb}`;
   return `<div class="ark-sign-felt">${navnOverStrek}<div class="ark-sign-strek">${kvittering}</div></div>`;
 }
