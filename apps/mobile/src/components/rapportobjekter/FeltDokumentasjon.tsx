@@ -143,7 +143,12 @@ export function FeltDokumentasjon({
 
       const fil = resultat.assets[0];
       settLasterOpp(true);
-      const opplastet = await lastOppFil(fil.uri, fil.name, fil.mimeType ?? "application/octet-stream");
+      // Feltvedlegg er sensitivt (samme som web-FeltDokumentasjon som sender
+      // ?privat=1, og som opplastingskøen som utleder privat fra sjekkliste-/
+      // oppgave-/tillegg-/utlegg-id). Dette direktekallet går utenom køen, så
+      // privat=true må settes eksplisitt — ellers havner PDF/Word-vedlegg på
+      // åpen /uploads/-sti (S1-hull, funnet ved prod-opprydding 2026-08-15).
+      const opplastet = await lastOppFil(fil.uri, fil.name, fil.mimeType ?? "application/octet-stream", true);
 
       onLeggTilVedlegg({
         id: randomUUID(),

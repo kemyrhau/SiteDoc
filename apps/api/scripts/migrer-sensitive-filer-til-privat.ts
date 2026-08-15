@@ -3,13 +3,17 @@
  * `/uploads/<x>` til `/uploads/privat/<x>` og oppdater pekeren. Sensitive filer
  * serveres deretter signatur-KUN (uploads/privat/-hooken i server.ts).
  *
- * Tre sensitive typer:
- *   1. SheetTilleggVedlegg.fileUrl        (db-timer, flat string)  — timer-kvittering/utlegg
+ * Fire sensitive typer:
+ *   1. SheetTilleggVedlegg.fileUrl        (db-timer, flat string)  — timer-kvittering (tillegg)
  *   2. AnsattKompetanse.vedlegg[].url     (db, JSON-array)         — kompetanse-sertifikat
  *   3. ServiceRecord.vedlegg[].url        (db-maskin, JSON-array)  — maskin-service
+ *   4. SheetUtleggVedlegg.fileUrl         (db-timer, flat string)  — timer-kvittering (utlegg)
  *
  * (2) og (3) har ingen opplastings-UI/rute i dag → normalt tomme; migreres
- * defensivt likevel (idempotent no-op om tomme).
+ * defensivt likevel (idempotent no-op om tomme). (4) har opplastings-UI (U1:
+ * mobil UtleggSeksjon via kø, web timer-detalj ?privat=1) — men den ble lagt til
+ * ETTER at type 1 ble skrevet, og manglet i scriptet til prod-opprydding
+ * 2026-08-15 avdekket hullet. Speiler type 1 1:1 (samme flat-string-mønster).
  *
  * ⚠️ KJENT BEGRENSNING — JSON-array-mønsteret (kompetanse/maskin, type 2+3):
  *   - Peker-oppdatering her er «les rad → muter array-kopi → skriv hele arrayet
@@ -158,7 +162,7 @@ async function migrerTimerVedlegg() {
     where: { fileUrl: { startsWith: PREFIKS, not: { startsWith: PRIVAT_PREFIKS } } },
     select: { id: true, fileUrl: true },
   });
-  console.log(`\nType 1 — timer-kvittering (SheetTilleggVedlegg): ${rader.length} kandidat(er)`);
+  console.log(`\nType 1 — timer-kvittering tillegg (SheetTilleggVedlegg): ${rader.length} kandidat(er)`);
   for (const r of rader) {
     await flyttFil(
       r.fileUrl,
@@ -169,6 +173,27 @@ async function migrerTimerVedlegg() {
         });
       },
       `SheetTilleggVedlegg ${r.id}`,
+    );
+  }
+}
+
+// --- Type 4: SheetUtleggVedlegg.fileUrl (db-timer) — speiler Type 1 ---
+async function migrerUtleggVedlegg() {
+  const rader = await prismaTimer.sheetUtleggVedlegg.findMany({
+    where: { fileUrl: { startsWith: PREFIKS, not: { startsWith: PRIVAT_PREFIKS } } },
+    select: { id: true, fileUrl: true },
+  });
+  console.log(`\nType 4 — timer-kvittering utlegg (SheetUtleggVedlegg): ${rader.length} kandidat(er)`);
+  for (const r of rader) {
+    await flyttFil(
+      r.fileUrl,
+      async (nyUrl) => {
+        await prismaTimer.sheetUtleggVedlegg.update({
+          where: { id: r.id },
+          data: { fileUrl: nyUrl },
+        });
+      },
+      `SheetUtleggVedlegg ${r.id}`,
     );
   }
 }
@@ -320,6 +345,7 @@ async function main() {
   await migrerTimerVedlegg();
   await migrerKompetanseVedlegg();
   await migrerMaskinVedlegg();
+  await migrerUtleggVedlegg();
 
   console.log(
     `\n=== Ferdig ===\n` +
