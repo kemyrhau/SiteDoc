@@ -15,9 +15,44 @@
 import { esc, normaliserOpsjon, formaterDato, formaterDatoTid } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
-import type { TreObjekt, FeltVerdi } from "../typer";
+import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
 
 const TOM = `<span class="tom">Ikke utfylt</span>`;
+
+/** Bilde-predikat — speiler `ER_BILDE` i sammenstilling.ts (url + type/filnavn). */
+function erBilde(v: unknown): v is Vedlegg {
+  const b = v as Partial<Vedlegg>;
+  return (
+    !!b &&
+    typeof b === "object" &&
+    typeof b.url === "string" &&
+    (b.type === "bilde" || /\.(png|jpe?g|gif|webp)$/i.test(b.filnavn ?? ""))
+  );
+}
+
+/**
+ * Radens bilder i FORUTSIGBAR rekkefølge: kolonnerekkefølge (barn-def), og
+ * innenfor en celle rekkefølgen de ligger i dataene (`vedlegg` før `verdi`).
+ * Bildene er alt inlinet til data-URI av sammenstillingen når dette kjører.
+ * Dedup på url (samme bilde kan ligge både i `vedlegg` og `verdi`).
+ */
+function bilderIRad(barn: TreObjekt[], rad: Record<string, FeltVerdi>): Vedlegg[] {
+  const ut: Vedlegg[] = [];
+  const sett = new Set<string>();
+  const leggTil = (v: unknown): void => {
+    if (erBilde(v) && !sett.has(v.url)) {
+      sett.add(v.url);
+      ut.push(v);
+    }
+  };
+  for (const b of barn) {
+    const felt = rad[b.id] as FeltVerdi | undefined;
+    if (!felt) continue;
+    if (Array.isArray(felt.vedlegg)) felt.vedlegg.forEach(leggTil);
+    if (Array.isArray(felt.verdi)) (felt.verdi as unknown[]).forEach(leggTil);
+  }
+  return ut;
+}
 
 /** Kompakt cellverdi for én kolonne (repeater-barn). Gjenbruker delte primitiver. */
 function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
@@ -54,9 +89,31 @@ function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
       return tom ? TOM : esc(formaterDatoTid(verdi));
     case "persons":
       return Array.isArray(verdi) && verdi.length > 0 ? esc((verdi as string[]).join(", ")) : TOM;
-    default:
+    case "attachments": {
+      // Bildene rendres samlet UNDER tabellen (byggBildeSamling). Cellen viser
+      // kun en kort filnavn-referanse — ALDRI det inlinede bilde-arrayet (ellers
+      // dumpes hele data-URI-base64 inn i cellen).
+      const filer = Array.isArray(verdi)
+        ? (verdi as unknown[]).filter(
+            (v): v is Vedlegg =>
+              !!v && typeof v === "object" && typeof (v as Vedlegg).filnavn === "string",
+          )
+        : [];
+      return filer.length > 0 ? esc(filer.map((f) => f.filnavn).join(", ")) : TOM;
+    }
+    default: {
       // text_field, person, company, bim/zone/room_property, m.fl.
-      return tom ? TOM : esc(typeof verdi === "object" ? JSON.stringify(verdi) : String(verdi));
+      if (tom) return TOM;
+      // Vakt: en verdi-array kan bære inlinede bilde-objekter (data-URI). Vis
+      // filnavn/antall, aldri JSON-dump (ville lagt megabyte base64 i cellen).
+      if (Array.isArray(verdi)) {
+        const navn = (verdi as unknown[])
+          .map((v) => (v && typeof v === "object" && "filnavn" in v ? String((v as Vedlegg).filnavn) : null))
+          .filter((n): n is string => !!n);
+        return navn.length > 0 ? esc(navn.join(", ")) : esc(`${(verdi as unknown[]).length} element(er)`);
+      }
+      return esc(typeof verdi === "object" ? JSON.stringify(verdi) : String(verdi));
+    }
   }
 }
 
@@ -89,10 +146,35 @@ export function byggRepeaterTabell(
     })
     .join("");
 
-  return `
+  const tabell = `
 ${heading}
 <table class="ark-repeater">
   <thead><tr><th class="ark-rad-nr" style="color:${ARKIV_FARGER.navy}">#</th>${kolonner}</tr></thead>
   <tbody>${kropp}</tbody>
 </table>`.trim();
+
+  return tabell + byggBildeSamling(barn, rader);
+}
+
+/**
+ * Bilder fra repeater-radene, samlet UNDER tabellen (mockup: ikke thumbnails i
+ * celler). Hvert bilde merkes «Bilde — punkt {radnr} ({filnavn})» — radnummeret
+ * er koblingen tilbake til tabellraden. Rekkefølge = radrekkefølge, så innenfor
+ * raden. Ett kort holdes samlet ved sideskift (`break-inside:avoid` i CSS);
+ * samlingen flyter over sider. Ingen bilder → ingen blokk (ikke «tomt» spor).
+ */
+function byggBildeSamling(barn: TreObjekt[], rader: Record<string, FeltVerdi>[]): string {
+  const kort: string[] = [];
+  rader.forEach((rad, idx) => {
+    for (const bilde of bilderIRad(barn, rad)) {
+      const filnavn = bilde.filnavn ? ` (${esc(bilde.filnavn)})` : "";
+      kort.push(
+        `<div class="ark-bilde-kort">` +
+          `<div class="ark-bilde-merke">Bilde — punkt ${idx + 1}${filnavn}</div>` +
+          `<img class="bilde-img" src="${esc(bilde.url)}" alt="">` +
+          `</div>`,
+      );
+    }
+  });
+  return kort.length > 0 ? `<div class="ark-bilde-samling">${kort.join("")}</div>` : "";
 }

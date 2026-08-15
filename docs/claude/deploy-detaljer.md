@@ -1,3 +1,39 @@
+## 🔴 HENDELSE 2026-08-15: prod nede i 6 timer etter Docker-daemon-restart
+
+**Hva skjedde:** Docker-daemonen restartet 2026-08-14 kl 23:05 UTC (`systemctl show docker --property=ActiveEnterTimestamp`). Serveren selv gikk uavbrutt — uptime 38 dager, ingen OOM i `dmesg`. Sannsynlig årsak: automatisk pakkeoppgradering av Docker.
+
+**Åtte av ti containere kom ikke opp igjen**, på tvers av tre compose-prosjekter:
+`sitedoc-api` · `sitedoc-web` · `sitedoc-pdf-render` (`Exited 137`) · `sitedoc-embed` · `sitedoc-oversettelse` · `salsaklubb` · `salsaklubb-postgres` · `postgres`
+
+**Prod var utilgjengelig i ~6 timer** før det ble oppdaget — og da tilfeldig, under feilsøking av noe annet.
+
+**Alle tjenester har `restart: unless-stopped`.** Den policyen restarter ikke pålitelig etter en daemon-restart; `restart: always` gjør det.
+
+### Berging
+
+```bash
+ssh -t server-ny 'cd ~/stack/postgres && sudo docker compose up -d'
+ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-api sitedoc-web pdf-render'
+ssh -t server-ny 'cd ~/stack/salsaklubb && sudo docker compose up -d'
+ssh -t server-ny 'sudo docker start sitedoc-embed sitedoc-oversettelse'   # eget compose-prosjekt «docker» → navnekonflikt ved `up`
+```
+
+**Rekkefølge:** postgres først. Alt annet feiler uten den, og feilene ser ut som nettverks- eller auth-problemer (`Can't reach database server`, `error=Configuration`) — ikke som «databasen er nede».
+
+### 🔴 To tiltak som ikke er gjort
+
+1. **`restart: unless-stopped` → `restart: always`** på alle tjenester i begge compose-filer og i salsaklubb-stacken. Ni forekomster.
+2. **Ingen overvåking.** Ingenting varslet at prod var nede. En enkel cron mot `/version` som varsler ved feil ville fanget det på minutter i stedet for timer.
+
+### Diagnose ved mistanke
+
+```bash
+ssh -t server-ny 'sudo docker ps --format "{{.Names}}	{{.Status}}"'   # forventet: 10 containere
+ssh -t server-ny 'sudo systemctl show docker --property=ActiveEnterTimestamp; uptime'
+```
+
+Er `ActiveEnterTimestamp` nyere enn containernes oppetid, har daemonen restartet.
+
 ---
 name: deploy-detaljer
 description: Detaljerte deploy-kommandoer, branching-regler, miljøer, mobil reload-typer, env-konsekvenser og lærdommer fra produksjons-deploy.

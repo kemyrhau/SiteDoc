@@ -1,5 +1,8 @@
 # ORDRE: Fiks speilfeil i 2-punkts georeferanse (P0)
 
+
+> ✅ **UTFØRT 2026-08-13** — `fix/georef-speilfeil-2punkt` (`7dd4df8d`), i prod. 461/461 shared-tester. Regresjonstest med reelle Lakselv-koordinater verifiserer orienterings-reversering, ikke bare avstand. Ingen migrering. **Åpen egen sak:** UI-hint «2 punkter gir eksakt fit».
+
 Dato: 2026-08-13 · Fra: fabel · Til: kode-Opus (via Kenneth)
 Fil: `packages/shared/src/utils/georeferanse.ts` — 2-punkts-grenen i `beregnTransformasjon`
 

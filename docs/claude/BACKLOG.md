@@ -65,6 +65,27 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### S1 hadde to migreringsscripts — bare ett ble kjørt mot prod, ingenting fanget det (funnet ved prod-opprydding 2026-08-15)
+
+S1 Fase 1 flyttet sensitive vedlegg fra åpen `/uploads/` til `/uploads/privat/` via
+**to uavhengige scripts** (bevisst delt, jf. kollisjonsadvarselen i `migrer-sensitive-filer-til-privat.ts`):
+
+- `migrer-bilder-til-privat.ts` (Fase 1b) — `Image` + feltvedlegg i `Checklist`/`Task`-data.
+- `migrer-sensitive-filer-til-privat.ts` (Fase 1) — timer-kvittering, kompetanse, maskin.
+
+**Kun bilde-scriptet ble faktisk kjørt mot prod.** Sensitiv-scriptet ble aldri kjørt,
+så to `timer.sheet_tillegg_vedlegg`-rader lå fortsatt på åpen sti da prod-`uploads/`
+ble ryddet 2026-08-15 (radene måtte tilbakeføres for ikke å gi 404). Ingen prosess,
+test eller sjekk fanget at det andre scriptet var uutført — det var en ren manuell
+gate uten kvittering.
+
+**Restanse / lærdom:**
+- Kjør `migrer-sensitive-filer-til-privat.ts` (nå med Type 4 = `sheet_utlegg_vedlegg`)
+  mot prod + test. Verifiser med `audit-sensitive-apen-sti.ts` (read-only) at 0
+  sensitive referanser gjenstår på åpen sti — for ALLE filtyper, ikke bare `.jpg`.
+- Prosess-gap: en S1 med N scripts trenger én samlet «alle kjørt + verifisert»-kvittering
+  (audit-scriptet er nå den kvitteringen), ikke N løsrevne manuelle kjøringer.
+
 ### Prosjektnummer: org.nr som firmadel når det finnes (Kenneth-vedtatt 2026-08-12)
 
 **Dagens generering** (`admin.ts:509-515`) har tre svakheter:
@@ -137,6 +158,90 @@ Kenneth-vedtak 2026-07-31 (`delplaner/flytmodell-veileder-cowork.md` § 2.6): *�
 Ordre: [delplaner/dodkode-opprydding-ordre-2026-08-13.md](delplaner/dodkode-opprydding-ordre-2026-08-13.md). Regelen **«en erstattet funksjon slettes i samme fase som erstatningen merges»** plasseres i repo-docs av cowork.
 
 **Sweep-kandidater som ble stående** (kaskade-døde etter slettingen, men sammenvevd med live admin-UI/testsuiter — egen gate): `erTillattForRolle` + `hentFlytRettighetOverrides` (siste prod-konsument var `verifiserFlytRolle`), `hentRolleFiltrertHandlinger` (kun test-kall), og hele `statusHandlinger.ts` rolle-matrise + `dashbord/admin/flyt-rettigheter`-flaten. Se leveranserapport.
+
+### Kontrollplan: samme sjekkliste på flere steder i tegningen (Kenneth, test 2026-08-14)
+
+**Kenneth etter L2-verifisering:** *«mulighet å plassere samme sjekkliste på flere plasser i tegningen»*
+
+**Hindringen er todelt:**
+1. `KontrollplanPunkt` har **ett** koordinatpar — `drawingId`/`positionX`/`positionY` (migrering `20260814140000`). Ett punkt = ett sted.
+2. `@@unique([kontrollplanId, omradeId, sjekklisteMalId])` (schema:2088) hindrer samme mal to ganger i samme område. KB2 på tre steder krever i dag **tre områder**.
+
+**To modeller, ikke vurdert:**
+- **(a) Flere posisjoner per punkt** — ny tabell `KontrollplanPunktPosisjon` (punktId, drawingId, x, y). Ett kontrollpunkt, N markører. Men da har punktet én sjekkliste for N steder — uklart om det er ønsket.
+- **(b) Løsne unique-constrainten** så samme mal kan brukes flere ganger i samme område. Hvert sted blir et eget punkt med egen sjekkliste. Mer data, men hver kontroll dokumenteres separat.
+
+🟢 **KENNETH-VEDTAK 2026-08-14: (b). «a er ikke lov.»**
+
+Hver kontroll skal dokumenteres separat. Én sjekkliste som dekker tre fysiske steder er ikke en gyldig kontroll — kontrollerer du oppstøtting av trær tre steder, er det tre kontroller med hver sin dokumentasjon, hvert sitt bildegrunnlag og hvert sitt godkjenningsløp. Modell (a) ville gitt én signatur for tre kontroller, og det holder ikke som dokumentasjon.
+
+**Konsekvenser som må håndteres ved bygging:**
+- `@@unique([kontrollplanId, omradeId, sjekklisteMalId])` (schema:2088) må løsnes eller erstattes med en identitet som tåler flere forekomster
+- **Rad-identiteten fra fremdriftsplan-import må endres samtidig:** `@@unique([kontrollplanId, importTaskUid, sjekklisteMalId])` bygger på samme antakelse. Én MS Project-aktivitet som gir tre kontrollpunkter må kunne dedupe riktig ved revisjon — ellers dukker de opp som «nye» hver gang planen importeres på nytt
+- UI må skille punktene visuelt når de deler mal og område (posisjon eller løpenummer)
+
+Rørt av fremdriftsplan-importen: rad-identiteten `@@unique([kontrollplanId, importTaskUid, sjekklisteMalId])` må vurderes samtidig.
+
+**Merk — allerede dekket:** Kenneths andre ønske, *«tilordne dokumentflyt uten å starte sjekklisten»*, finnes i «Forhåndsvalgt dokumentflyt»-velgeren i `RedigerPunktDialog`, og L1.6 forsterker skillet ved å fjerne flytvelgeren fra Start.
+
+### 🟡 Kontrollplan matrise-legend er legacy — matcher ikke seks-tilstand-modellen (funnet under M1)
+
+`MatriseVisning.tsx:230` viser en emoji-legend (✅🟡⬜🔒🔴 med `statusGodkjent/statusPagar/statusPlanlagt/statusBlokkert/statusForfalt`) som er en forenklet rest fra før tilstandsmodellen. De faktiske prikkene i lista/matrisa/tegningen bruker `avledPunktTilstand` (seks tilstander: godkjent · påbegynt · forfalt · aktuell nå · planlagt · uten frist) + M1-modifikatoren `overFrist` (rød kant). Legenden forklarer verken «aktuell nå», «uten frist» eller M1-hastesignalet. Egen sak: modernisér legenden til å speile `TilstandVisning` (form + farge + rød kant), eller fjern den til fordel for tooltip-teksten som allerede finnes per prikk.
+
+### 🟢 KENNETH-VEDTAK 2026-08-15: slutt å lappe klient-utskriften. Arkivmalen overtar.
+
+> *«vi slutter å lappe → arkivmalen håper jeg er fremtiden → ta også ut den gamle "døde" koden når playwright pdf fungerer»*
+
+**Konsekvenser:**
+
+1. **Ingen nye fikser i klient-utskriften.** Funn i den veien føres, men bygges ikke. Gjelder blant annet dobbeltrenderingen av attachments-bilder (over) og plassutnyttelsen — begge løses av arkivmalen.
+2. **Klient-utskriftskoden fjernes når arkiv-PDF er verifisert i prod.** Ikke før. Kandidater: `apps/web/src/app/utskrift/sjekkliste/[sjekklisteId]` · `utskrift/oppgave/[oppgaveId]` · `lib/utskrift-print.ts` · `print-no-break`-CSS · attachments-bildegridet i `RapportObjektVisning`. **Egen ordre med søkerom per symbol** — samme disiplin som død kode-oppryddingen i dokumentflyt-domenet.
+3. **`sjekklister/skriv-ut`** (samleutskrift) må vurderes separat — den dekkes ikke av arkivmalen før samleformene fra utskriftsformer-kravspecen er bygget.
+
+⚠️ **Rekkefølge er ufravikelig:** arkiv-PDF verifisert i prod → klient-knapp levert og i bruk → *deretter* sletting. Fjernes den gamle veien før den nye er tatt i bruk, står Kenneth uten utskrift.
+
+### 🔴 Klient-utskrift: attachments-bilder rendres dobbelt, én gang brutt (Kenneth, prod 2026-08-15)
+
+**Observert i prod** (BEF-002, Test prosjekt SiteDoc Røstbakken): over bildene står to **brutte bilde-ikoner** med filnavnene `IMG_1773940614053.jpg` og `IMG_1773943366962.jpg` — og rett under står de samme bildene rendret korrekt.
+
+**Årsak — dobbeltrendering:**
+- `RapportObjektVisning.tsx:314-328` (`case "attachments"`) rendrer objektets **`verdi`** som bildegrid
+- `FeltVedlegg` i utskriftssiden rendrer feltets **`vedlegg`**
+
+Samme bilder, to kodeveier. Og attachments-veien bygger src med `url.replace("/uploads", "")` (`:325`) — den laster ikke, derfor brutt-ikonet.
+
+**Samme bug som arkivmalens funn 2** («attachments-bilder lå i `verdi`, ikke `vedlegg`», dokgen 08-14), men i klient-utskriften. Syvende utslag av repeater/attachments-modellen — se § «Repeater er systematisk feilbehandlet».
+
+**Konsekvens:** et brutt bilde-ikon i en rapport som går til byggherre. Ikke datatap, men det ser ut som dokumentet mangler noe.
+
+**Fiks:** avgjør hvilken vei som eier bilderenderingen, og fjern den andre. `FeltVedlegg` virker — attachments-casen bør trolig ikke rendre bilder i det hele tatt når vedleggene allerede dekkes.
+
+⚠️ Rører **klient-utskriften**, ikke arkivmalen. Egen ordre; arkivmalen er ferdig og skal erstatte denne veien.
+
+### 🔴 Repeater er systematisk feilbehandlet — seks uavhengige funn på tre dager
+
+**Mønster, ikke enkeltbugs.** Hver gang noen skriver kode som traverserer felt, glemmes repeater-rader. Funnet av fire ulike agenter, i fire ulike lag:
+
+| # | Funn | Sted | Dato |
+|---|---|---|---|
+| 1 | Tom repeater ga `""` der andre typer ga «Ikke utfylt» | `packages/pdf/src/felt.ts:152` | 08-13 |
+| 2 | Attachments-bilder lå i `verdi`, ikke `vedlegg` | arkiv-sammenstilling | 08-14 |
+| 3 | `bilderIFelt` rekurserte ikke inn i rader — **14 av 18 bilder usynlige** | `sammenstilling.ts:42-45` | 08-14 |
+| 4 | `resolverPersonnavn` manglet samme rekursjon — **UUID lekket i nestede felt** | persons-resolver | 08-14 |
+| 5 | Attachments-array som celleverdi → `JSON.stringify` dumpet **megabyte base64 i en tabellcelle** | `cellVerdi` default-case | 08-14 |
+| 6 | Endringsloggen dumper **rå JSON av repeater-verdien** — barn-UUID-er + `/uploads`-stier og filnavn | `lesEndringslogg`/`byggArkivLogg` | 08-15 |
+
+**Kenneth 2026-08-13:** *«jeg tror det er en feil at repeater har sitt eget felt → det bryter med reelle behov»* og *«repeater trenger heller ingen tekst, kun repeater funksjon»*.
+
+Seks funn bekrefter det fra hver sin kant. **Repeateren er en container, ikke et felt** — men den er modellert som et felt med egen `verdi`, egne `vedlegg` og egen `kommentar`, og hver ny traverseringskode må huske å behandle den annerledes. Ingen gjør det.
+
+**To veier, ikke vurdert:**
+- **(a) Modell-rens:** fjern repeaterens egen `verdi`/`vedlegg`/`kommentar`. Den blir ren container. Bryter eksisterende data — krever migrering og opprydding av dokumenter som har brukt feltene.
+- **(b) Delt traverserings-hjelper:** én `forHvertFelt(data, fn)` som *alltid* rekurserer, og som all ny kode må bruke. Løser ikke modellen, men gjør feilen vanskelig å gjenta.
+
+**(b) er billigere og fanger de neste fem.** (a) er riktigere på sikt. Fabels vurdering.
+
+🔴 **Funn 6 er ikke fikset** — dokgen meldte den, rørte den ikke uten ordre. Den lekker interne nøkler i et dokument som går til byggherre, samme klasse som persons-UUID-lekkasjen. Egen ordre kreves.
 
 ### 🔴 Utskriftsformer — samlet kravspec (Kenneth, prod 2026-08-13)
 

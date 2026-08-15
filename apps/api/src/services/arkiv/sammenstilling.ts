@@ -15,6 +15,8 @@ import {
   byggInnhold,
   byggArkivLogg,
   byggArkivDokument,
+  byggArkivSide,
+  prosjektReferanseForUtskrift,
   statusTekst,
   statusSemantiskFarge,
   formaterNummer,
@@ -25,6 +27,7 @@ import {
   type StatusCelle,
   type ArkivSignatur,
   type ArkivDokumentInput,
+  type Utskriftsinnstillinger,
 } from "@sitedoc/pdf";
 import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
@@ -83,11 +86,26 @@ export interface RammeData {
 }
 
 export interface SammenstillingResultat {
+  /** Fullt standalone HTML-dokument (én PDF for ett dokument). */
   html: string;
+  /** Dette dokumentets `.ark-side`-blokk (uten shell) — for samleutskrift (N1). */
+  side: string;
+  /** Dokumenttittel (til per-dokument-status i responsen). */
+  tittel: string;
+  /** Nedlastingsfilnavn for enkeltdokument (`BEF-001.pdf`). */
+  filnavn: string;
+  /** Kompakt prosjektreferanse (ekstern/intern/SD) — for samleutskrift-filnavn. */
+  prosjektRef: string;
   /** Filnavn på vedlegg som ikke kom med → 4c setter x-render-komplett-kontrakten. */
   manglendeVedlegg: string[];
   /** Verdier for per-side header/footer (4c). */
   ramme: RammeData;
+}
+
+/** «BEF-001» → filnavn. Faller tilbake til id når nummer/prefix mangler. */
+function byggFilnavn(prefix: string | null, nummer: number | null, id: string): string {
+  if (prefix && nummer != null) return `${prefix}-${String(nummer).padStart(3, "0")}.pdf`;
+  return `sjekkliste-${id}.pdf`;
 }
 
 // Placeholder for et bilde som ikke lot seg inline (fil mangler/leser feil). MÅ
@@ -161,10 +179,20 @@ export async function byggSjekklisteArkivHtml(
     select: {
       name: true,
       projectNumber: true,
+      externalProjectNumber: true,
+      internalProjectNumber: true,
+      visSiteDocNummer: true,
+      utskriftsinnstillinger: true,
       primaryOrganization: { select: { name: true, organizationNumber: true, logoUrl: true } },
     },
   });
   const org = prosjekt?.primaryOrganization;
+  // Kompakt prosjektreferanse (ekstern → intern → SD, samme fallback som headeren)
+  // — brukes til samleutskrift-filnavn, så nummeret er konsistent med dokumentet.
+  const prosjektRef = prosjektReferanseForUtskrift(
+    prosjekt,
+    (prosjekt?.utskriftsinnstillinger ?? null) as Utskriftsinnstillinger | null,
+  );
 
   // 3) Samle bilde-url-er (vedlegg + firmalogo) → inline+komprimér.
   const bildeUrler = new Set<string>();
@@ -255,5 +283,13 @@ export async function byggSjekklisteArkivHtml(
     logoDataUrl: input.firma.logoDataUrl ?? null,
   };
 
-  return { html: byggArkivDokument(input), manglendeVedlegg: manglende, ramme };
+  return {
+    html: byggArkivDokument(input),
+    side: byggArkivSide(input),
+    tittel: sjekkliste.title,
+    filnavn: byggFilnavn(sjekkliste.template.prefix, sjekkliste.number, sjekklisteId),
+    prosjektRef,
+    manglendeVedlegg: manglende,
+    ramme,
+  };
 }

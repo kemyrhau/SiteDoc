@@ -70,6 +70,12 @@ export async function verifiserFaggruppeTilhorighet(
       });
       if (medlem?.role === "admin") return;
 
+      // Firma-admin-fallback (Kenneth-vedtak 2026-08-15): company_admin har admin i
+      // alle org-prosjekter UTEN ProjectMember-rad. Delt bypass-predikat (fabel-
+      // presedens) — samme sett som verifiserAdmin; uten dette avvises en firmaadmin
+      // fra å starte et kontrollpunkt ledelsen selv satte opp (L1.6).
+      if (await erFirmaAdminForProsjekt(userId, faggruppe.projectId)) return;
+
       // Dokumentflyt-medlemskap som alternativ tilhørighet: er bruker medlem av en
       // flyt der DENNE faggruppen er eier-faggruppe, får de opprette på faggruppens
       // vegne. Gjenbruker hentBrukersFlytMedlemskap (eneste medlemskaps-kilde) og
@@ -169,6 +175,34 @@ async function erFirmaAdmin(
     select: { firmaRoller: true },
   });
   return member?.firmaRoller.includes("firma_admin") ?? false;
+}
+
+/**
+ * Er bruker firma-admin på NOEN organisasjon koblet til prosjektet?
+ *
+ * Delt bypass-predikat (fabel-presedens 2026-08-15: ett felles bypass-sett for
+ * alle porter). Erstatter den identiske `projectOrganization`-løkken som lå
+ * kopiert på fem steder — `verifiserFaggruppeTilhorighet`, `verifiserAdmin`,
+ * `verifiserProsjektmedlem`, admin-status-oppslaget og tillatelses-oppslaget.
+ *
+ * BEVISST et boolsk predikat, ikke en «gjør-handlingen»-funksjon: de fem kallerne
+ * gjør ULIKT ved treff (return void · return `{erAdmin:true}` · return
+ * permission-Set) og noen har egen etterlogikk. Predikatet svarer kun på det ene
+ * identiske spørsmålet; kalleren beholder sin handling. Ny port skal arve DETTE,
+ * ikke gjenoppfinne løkken.
+ */
+export async function erFirmaAdminForProsjekt(
+  userId: string,
+  projectId: string,
+): Promise<boolean> {
+  const orgKoblinger = await prisma.projectOrganization.findMany({
+    where: { projectId },
+    select: { organizationId: true },
+  });
+  for (const { organizationId } of orgKoblinger) {
+    if (await erFirmaAdmin(userId, organizationId)) return true;
+  }
+  return false;
 }
 
 /**
@@ -366,14 +400,8 @@ export async function verifiserAdmin(
 
   if (medlem?.role === "admin") return;
 
-  // O-3a: firma-admin-fallback via OrganizationMember.firmaRoller (eller legacy User.role)
-  const orgKoblinger = await prisma.projectOrganization.findMany({
-    where: { projectId },
-    select: { organizationId: true },
-  });
-  for (const { organizationId } of orgKoblinger) {
-    if (await erFirmaAdmin(userId, organizationId)) return;
-  }
+  // O-3a: firma-admin-fallback (delt bypass-predikat, fabel-presedens)
+  if (await erFirmaAdminForProsjekt(userId, projectId)) return;
 
   throw new TRPCError({
     code: "FORBIDDEN",
@@ -416,14 +444,8 @@ export async function verifiserProsjektmedlem(
 
   if (medlem) return;
 
-  // O-3a: firma-admin-fallback via OrganizationMember.firmaRoller (eller legacy User.role)
-  const orgKoblinger = await prisma.projectOrganization.findMany({
-    where: { projectId },
-    select: { organizationId: true },
-  });
-  for (const { organizationId } of orgKoblinger) {
-    if (await erFirmaAdmin(userId, organizationId)) return;
-  }
+  // O-3a: firma-admin-fallback (delt bypass-predikat, fabel-presedens)
+  if (await erFirmaAdminForProsjekt(userId, projectId)) return;
 
   // Fase 2 / T.10: interne prosjekter (type="internt") er firma-eide bærere for
   // ikke-prosjekt-tid. Alle firma-ansatte (OrganizationMember på prosjektets
@@ -602,14 +624,8 @@ export async function verifiserAdminEllerFirmaansvarlig(
 
   if (medlem?.role === "admin") return { erAdmin: true };
 
-  // O-3a: firma-admin via OrganizationMember.firmaRoller (eller legacy User.role) → admin
-  const orgKoblinger = await prisma.projectOrganization.findMany({
-    where: { projectId },
-    select: { organizationId: true },
-  });
-  for (const { organizationId } of orgKoblinger) {
-    if (await erFirmaAdmin(userId, organizationId)) return { erAdmin: true };
-  }
+  // O-3a: firma-admin (delt bypass-predikat, fabel-presedens) → admin
+  if (await erFirmaAdminForProsjekt(userId, projectId)) return { erAdmin: true };
 
   if (medlem?.erFirmaansvarlig) return { erAdmin: false };
 
@@ -1118,17 +1134,11 @@ export async function hentBrukerTillatelser(
     return new Set([...PERMISSIONS] as Permission[]);
   }
 
-  // Firma-admin-fallback: speiler verifiserAdmin (linje 226-232).
-  // firma_admin på en koblet ProjectOrganization arver fulle prosjekt-tillatelser,
-  // også når bruker er ProjectMember med role="member".
-  const orgKoblinger = await prisma.projectOrganization.findMany({
-    where: { projectId },
-    select: { organizationId: true },
-  });
-  for (const { organizationId } of orgKoblinger) {
-    if (await erFirmaAdmin(userId, organizationId)) {
-      return new Set([...PERMISSIONS] as Permission[]);
-    }
+  // Firma-admin-fallback (delt bypass-predikat, fabel-presedens): firma_admin på en
+  // koblet ProjectOrganization arver fulle prosjekt-tillatelser, også når bruker er
+  // ProjectMember med role="member".
+  if (await erFirmaAdminForProsjekt(userId, projectId)) {
+    return new Set([...PERMISSIONS] as Permission[]);
   }
 
   if (!medlem) {

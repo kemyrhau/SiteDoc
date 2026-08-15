@@ -1,5 +1,8 @@
 # ORDRE: Opprydding av død kode — dokumentflyt-domenet (P1)
 
+
+> ✅ **UTFØRT 2026-08-14** — `chore/dodkode-dokumentflyt`, merget develop. `verifiserFlytRolle` + `byggFaggruppeFilter` slettet (0 kallsteder, søkerom oppgitt), `dokumentflyt.md:29` rettet. Tre kaskade-døde symboler BLE STÅENDE og rapportert: `hentFlytRettighetOverrides` (live admin-UI), `erTillattForRolle`, `hentRolleFiltrertHandlinger` — krever egen beslutning om flyt-rettigheter-admin skal rives.
+
 Dato: 2026-08-13 · Fra: fabel · Til: kode-Opus (via Kenneth) · Egen branch fra develop, ren opprydding — INGEN funksjonelle endringer i samme leveranse.
 
 ## Hvorfor nå

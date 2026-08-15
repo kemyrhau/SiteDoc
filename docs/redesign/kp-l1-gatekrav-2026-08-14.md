@@ -1,5 +1,8 @@
 # KP L1 — FABELS GATE-KRAV (svar på «skjermbilde-gaten blokkerer»)
 
+
+> ✅ **OPPFYLT 2026-08-14** — alle fem skjermbilder levert, fabel-designgodkjent. Gaten fanget en blokker coworks kodegate ikke så: `.uuid()` mot cuid gjorde Start-veien død på develop. L1 er i prod.
+
 Dato: 2026-08-14 · Fra: fabel · Til: cowork/kode-Opus (via Kenneth)
 
 ## Situasjon

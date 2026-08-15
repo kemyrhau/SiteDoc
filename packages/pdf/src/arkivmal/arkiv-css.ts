@@ -30,6 +30,8 @@ export function hentArkivCss(): string {
 *{box-sizing:border-box}
 body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:10.5px;line-height:1.45}
 .ark-side{padding:15mm 16mm 10mm;color:${f.tekst};font-size:10.5px;line-height:1.45}
+/* Samleutskrift (N1): hvert dokument etter det første starter på ny side. */
+.ark-side + .ark-side{break-before:page;page-break-before:always}
 
 /* Topptekst (side 1) */
 .ark-topptekst{display:flex;justify-content:space-between;align-items:center;border:1px solid ${f.rammeLinje};padding:10px 14px}
@@ -90,6 +92,13 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .bilde-img{max-width:100%;height:auto;display:block}
 .bilde-nr{position:absolute;top:4px;right:6px;font-size:9px;color:${f.svak}}
 
+/* Repeater-vedlegg (steg 2) — bilder samlet UNDER tabellen, merket med radnummer
+   (mockup: «BILDE — PUNKT N (filnavn)»), ikke thumbnails i celler. Samlingen
+   flyter over sider; ett kort (bilde + merke) holdes samlet ved sideskift. */
+.ark-bilde-samling{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.ark-bilde-kort{flex:1 1 45%;min-width:45%;max-width:calc(50% - 5px);box-sizing:border-box;border:1px solid ${f.radLinje};padding:8px 10px;break-inside:avoid;page-break-inside:avoid}
+.ark-bilde-merke{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:${f.graa};margin-bottom:6px}
+
 /* Loggseksjon — Dokumenthistorikk + Endringslogg (økt-gruppert) */
 .ark-logg{width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px}
 .ark-logg td{padding:4px 8px;border-bottom:1px solid ${f.svakLinje}}
@@ -111,11 +120,9 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}
 
-/* Side 1: nuller print-margin-toppen så Chromium ikke har plass å tegne
-   fortsettelses-headeren der (body-toppteksten står alene på en fyldigere side
-   1). .ark-side sin 15mm topp-padding gir pusterom. Side 2+ beholder margin-
-   toppen og margin-headeren; bunn-margin (footer-sporbarhet) berøres ikke.
-   UVERIFISERT mot Chromium-margin-presedens (4c: bekreft ved ekte render). */
-@page :first { margin-top: 0 }
+/* Merk: ingen @page :first-regel. Verifisert 2026-08-15 at page.pdf({ margin })
+   i pdf-render-containeren overstyrer @page-margin, så CSS kan ikke skjule
+   margin-headeren på side 1. Dubleringen er i stedet løst ved at margin-headeren
+   bærer kun dokumentreferanse (render-templates.ts), ikke firma/prosjekt. */
 `.trim();
 }

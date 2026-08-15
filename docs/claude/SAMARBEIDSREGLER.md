@@ -212,6 +212,17 @@ Første linje frigjør branchen. `git branch -d` er **-d, aldri -D** — den ska
 
 **Et ledig arbeidstre skal stå detached på `origin/develop`.** Da er branchen fri, treet er klart for neste økt uten oppsett, og fase 1 trenger kun `git checkout -B <ny-branch> origin/develop`.
 
+**Samme begrensning gjelder selve mergen (lærdom 2026-08-15 — cowork ga `checkout develop` tre ganger).** `SiteDoc-merge` kan aldri stå på `develop`, så merge-treet arbeider på `merge-restart` og pusher den dit:
+
+```sh
+cd ~/Documents/Programmering/SiteDoc-merge
+git fetch origin && git reset --hard origin/develop   # IKKE checkout develop
+git merge --no-ff origin/<branch> -m "merge: …"
+git push origin merge-restart:develop                 # IKKE push develop
+```
+
+`git push origin develop` fra merge-treet pusher den utdaterte kopien i hovedtreet og avvises som non-fast-forward. Etterpå: `cd ~/…/SiteDoc && git pull --ff-only`, deretter deploy per [deploy-detaljer.md § TEST-deploy — lim-klar](deploy-detaljer.md). **Viser bygget alt `CACHED`, også `COPY . .`, nådde koden aldri serveren** — mergen eller rsync feilet, les output på nytt før du bygger igjen.
+
 **Er tavla tom, lever ingen økter.** Det er hele poenget: kontrollflaten er lesbar for Kenneth uten å spørre noen.
 
 > ⚠️ **Regelen feilet på første anvendelse — cowork laget aldri raden** (2026-07-16). M-3a del 2 kjørte en hel kveld, bygde 42 filer og ble merget to ganger mens tavla sa «*(ingen aktive)*». Kenneth kunne lest kontrollflaten sin og konkludert at ingenting kjørte.
@@ -260,3 +271,32 @@ Svar merket som usikkerhet er nyttige. En gjetning ført som funn er ikke.
 ## Statustavle (vedlikeholdes av cowork)
 
 Øverst i STATUS-AKTUELT: rad per aktiv økt. Oppdateres ved rundestart (alle rader) og rundeslutt (tøm) — to commits per runde, ikke per økt.
+
+## Cowork-gate: verifiser status mot repoet, ikke mot statusfila (2026-08-15)
+
+Statusfiler er agentens siste kjente tilstand — ikke sannheten om repoet.
+Tre feil på én dag, alle fra samme rot:
+
+- **«PUSHET» er en påstand.** Verifiser med `git branch -r | grep <branch>`
+  **før** merge-kommandoen gis. Cowork ga merge-kommandoen i samme melding som
+  nudgen som ba agenten pushe → `not something we can merge`.
+- **En `BLOKKERT`-status kan være utløpt.** Sjekk med
+  `git merge-base --is-ancestor <sha> develop`. Utlegg stod blokkert i to dager
+  og ventet på test-deploy av `ae752b34`, som lå i develop hele tiden. Agenten
+  kan ikke se develop; cowork må løsne den.
+- **Verifiser agentens kodepåstand mot koden.** «Samme mønster som
+  verifiserAdmin» stemte — men det ble bekreftet i
+  `trpc/tilgangskontroll.ts` (fire forekomster), ikke antatt.
+
+**Sesjonsstart: `git status` i hovedtreet.** 2026-08-15 lå 481 linjer ucommittet
+der — fire fabel-vedtaksdokumenter i `docs/redesign/` og 80 linjer Kenneth-vedtak
+i BACKLOG, én `git checkout` unna å forsvinne. Cowork hadde i tillegg bedt
+Kenneth lime inn fabel-dokumenter som allerede lå i repoet. **Søk i repoet før
+du ber om noe.**
+
+**Sandkasse-fella:** cowork kjører bash i en Linux-sandkasse uten Mac-stiene
+montert. `git worktree list` derfra merker **alle** trær `prunable`, også de som
+finnes og er i bruk. Ikke bedøm worktree-tilstand derfra.
+
+**Aldri commit:** `tests/e2e/*-state.json` (Playwright storage-state med
+session-cookies).

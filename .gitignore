@@ -70,3 +70,4 @@ relay/
 # ikke kilde. 21 MB+ png. Funnene selv skrives inn i docs/claude/, bildene er lokale.
 docs/claude/delplaner/verifisering/
 *-bevis/
+tests/e2e/*-state.json

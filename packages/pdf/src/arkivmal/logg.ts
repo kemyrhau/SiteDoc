@@ -11,6 +11,57 @@ function datoDel(iso: string): string {
   return iso.slice(0, 10);
 }
 
+/** Teller bilde-objekter (url + type/filnavn) på tvers av nesting i repeater-rader. */
+function tellBilderILogg(rader: unknown[]): number {
+  let n = 0;
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) {
+      for (const x of v) walk(x);
+      return;
+    }
+    if (v != null && typeof v === "object") {
+      const o = v as { url?: unknown; type?: unknown; filnavn?: unknown };
+      const filnavn = typeof o.filnavn === "string" ? o.filnavn : "";
+      if (typeof o.url === "string" && (o.type === "bilde" || /\.(png|jpe?g|gif|webp)$/i.test(filnavn))) {
+        n++;
+        return;
+      }
+      for (const x of Object.values(v)) walk(x);
+    }
+  };
+  walk(rader);
+  return n;
+}
+
+/**
+ * Endringslogg-verdi → lesbar streng (funn 6). En repeater-verdi lagres som rå
+ * JSON av rad-objektene i `oldValue`/`newValue`; rendret rått lekker det barn-
+ * UUID-er og `/uploads`-stier til et byggherre-dokument. Samme prinsipp som
+ * `cellVerdi`/persons-resolveren: vis referansen (antall rader + bilder), ikke
+ * råstrukturen. Primitiver og andre strukturer passerer uendret; kun en JSON-
+ * array av rad-OBJEKTER (repeater) oppsummeres. Tom array → null («Ikke utfylt»).
+ */
+export function oppsummerLoggverdi(verdi: string | null): string | null {
+  if (verdi == null) return null;
+  const t = verdi.trim();
+  if (t === "") return null;
+  if (t[0] !== "[") return verdi; // primitiv/annen struktur → uendret
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(t);
+  } catch {
+    return verdi;
+  }
+  if (!Array.isArray(parsed)) return verdi;
+  if (parsed.length === 0) return null;
+  const erRader = parsed.every((r) => r != null && typeof r === "object" && !Array.isArray(r));
+  if (!erRader) return verdi; // list_multi o.l. (array av primitiver) → uendret
+  const antall = parsed.length;
+  const bilder = tellBilderILogg(parsed);
+  const rad = `${antall} rad${antall === 1 ? "" : "er"}`;
+  return bilder > 0 ? `${rad} (${bilder} bilde${bilder === 1 ? "" : "r"})` : rad;
+}
+
 /**
  * Grupperer flate feltendringer i økter = (userId, dato). Rader sorteres
  * kronologisk innad; øktene sorteres etter sin første endring.
@@ -76,7 +127,13 @@ export function byggArkivLogg(input: {
   endringer: RåEndring[];
   endringsloggAktivert: boolean;
 }): ArkivLogg {
-  const endringer = input.endringsloggAktivert ? input.endringer : [];
+  // Funn 6: oppsummer repeater-verdier (rå JSON lekker barn-UUID-er + /uploads-
+  // stier). Enkelt chokepunkt — både haletelling og økter arver de rene verdiene.
+  const endringer = (input.endringsloggAktivert ? input.endringer : []).map((e) => ({
+    ...e,
+    fraVerdi: oppsummerLoggverdi(e.fraVerdi),
+    tilVerdi: oppsummerLoggverdi(e.tilVerdi),
+  }));
   const hendelser = tellFeltendringer(input.hendelser, endringer);
   const økter = grupperØkter(endringer);
   const kandidater = [

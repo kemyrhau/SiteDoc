@@ -69,17 +69,26 @@ export interface TilstandVisning {
   tilstand: PunktTilstand;
   farge: string; // hex
   fylt: boolean; // true = arbeid startet (fylt sirkel) · false = ring (hul)
+  // M1 (fabel-gatet 2026-08-15): ORTOGONAL hastesignal-modifikator, ikke en syvende
+  // tilstand. true = frist passert og ikke godkjent → rendres som rød kant/omriss.
+  //  - Fylt (påbegynt) + overFrist = blått fyll + rød kant (startet OG forfalt) — den
+  //    fjerde formmatrise-cellen: uten dette blir forsinkelse usynlig så snart arbeid
+  //    startes, nettopp det man vil se på en kontrollplan i drift.
+  //  - Ikke startet + overFrist = «forfalt» (hvitt fyll + rød kant); rød er alt fargen.
+  // Form (fylt) og farge (haster) bæres uendret; overFrist legges KUN på kanten.
+  overFrist: boolean;
   labelKey: string; // i18n-nøkkel — også skillet mellom Uten frist / Planlagt
 }
 
 const GRAA = "#9ca3af";
+export const OVER_FRIST_KANT = "#ef4444"; // rød kant-modifikator (samme rød som «forfalt»)
 const TILSTAND: Record<PunktTilstand, TilstandVisning> = {
-  godkjent: { tilstand: "godkjent", farge: "#10b981", fylt: true, labelKey: "kontrollplan.tilstandGodkjent" },
-  pabegynt: { tilstand: "pabegynt", farge: "#3b82f6", fylt: true, labelKey: "kontrollplan.tilstandPabegynt" },
-  forfalt: { tilstand: "forfalt", farge: "#ef4444", fylt: false, labelKey: "kontrollplan.tilstandForfalt" },
-  aktuellNaa: { tilstand: "aktuellNaa", farge: "#f59e0b", fylt: false, labelKey: "kontrollplan.tilstandAktuellNaa" },
-  planlagt: { tilstand: "planlagt", farge: GRAA, fylt: false, labelKey: "kontrollplan.tilstandPlanlagt" },
-  utenFrist: { tilstand: "utenFrist", farge: GRAA, fylt: false, labelKey: "kontrollplan.tilstandUtenFrist" },
+  godkjent: { tilstand: "godkjent", farge: "#10b981", fylt: true, overFrist: false, labelKey: "kontrollplan.tilstandGodkjent" },
+  pabegynt: { tilstand: "pabegynt", farge: "#3b82f6", fylt: true, overFrist: false, labelKey: "kontrollplan.tilstandPabegynt" },
+  forfalt: { tilstand: "forfalt", farge: "#ef4444", fylt: false, overFrist: true, labelKey: "kontrollplan.tilstandForfalt" },
+  aktuellNaa: { tilstand: "aktuellNaa", farge: "#f59e0b", fylt: false, overFrist: false, labelKey: "kontrollplan.tilstandAktuellNaa" },
+  planlagt: { tilstand: "planlagt", farge: GRAA, fylt: false, overFrist: false, labelKey: "kontrollplan.tilstandPlanlagt" },
+  utenFrist: { tilstand: "utenFrist", farge: GRAA, fylt: false, overFrist: false, labelKey: "kontrollplan.tilstandUtenFrist" },
 };
 
 export interface UkeRef {
@@ -134,7 +143,17 @@ export function avledPunktTilstand(
   // Legacy `utfort` (kun ukoblet, manuelt satt før koble-mekanikken) vises som Påbegynt:
   // utført ≠ godkjent, og modellen har ingen egen «Utført». Treffer kun gammel data —
   // nye punkter når `pagar` kun via koble. Bevisst tap, deklarert.
-  if (fremdrift === "pagar" || fremdrift === "utfort") return TILSTAND.pabegynt;
+  if (fremdrift === "pagar" || fremdrift === "utfort") {
+    // M1: påbegynt arbeid som har passert fristen → hastesignal (rød kant på blått fyll).
+    // Uten dette blir forsinkelsen usynlig så snart arbeid startes — en påbegynt kontroll
+    // over frist er nettopp den man vil se. Arbeidstilstand (fylt) bæres uendret; kun
+    // kanten endres. Fristløst påbegynt punkt kan aldri være over frist → base pabegynt.
+    if (punkt.fristUke != null && punkt.fristAar != null) {
+      const uker = ukerTilFrist({ uke: punkt.fristUke, aar: punkt.fristAar }, naa);
+      if (uker < 0) return { ...TILSTAND.pabegynt, overFrist: true };
+    }
+    return TILSTAND.pabegynt;
+  }
   // Ikke startet (planlagt) → frist-basert.
   if (punkt.fristUke == null || punkt.fristAar == null) return TILSTAND.utenFrist;
   const uker = ukerTilFrist({ uke: punkt.fristUke, aar: punkt.fristAar }, naa);
