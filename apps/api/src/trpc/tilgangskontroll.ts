@@ -70,6 +70,18 @@ export async function verifiserFaggruppeTilhorighet(
       });
       if (medlem?.role === "admin") return;
 
+      // Firma-admin-fallback (Kenneth-vedtak 2026-08-15): company_admin har admin i
+      // alle org-prosjekter UTEN ProjectMember-rad — samme mønster som verifiserAdmin.
+      // Uten dette avvises en firmaadmin fra å starte et kontrollpunkt ledelsen selv
+      // satte opp (L1.6), stikk i strid med at kontrollplanen er et ledelsesdokument.
+      const orgKoblinger = await prisma.projectOrganization.findMany({
+        where: { projectId: faggruppe.projectId },
+        select: { organizationId: true },
+      });
+      for (const { organizationId } of orgKoblinger) {
+        if (await erFirmaAdmin(userId, organizationId)) return;
+      }
+
       // Dokumentflyt-medlemskap som alternativ tilhørighet: er bruker medlem av en
       // flyt der DENNE faggruppen er eier-faggruppe, får de opprette på faggruppens
       // vegne. Gjenbruker hentBrukersFlytMedlemskap (eneste medlemskaps-kilde) og
