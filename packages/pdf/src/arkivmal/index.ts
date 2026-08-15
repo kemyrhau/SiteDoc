@@ -59,4 +59,5 @@ export {
   tellFeltendringer,
   finnSistEndret,
   byggArkivLogg,
+  oppsummerLoggverdi,
 } from "./logg";

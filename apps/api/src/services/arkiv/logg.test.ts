@@ -4,6 +4,7 @@ import {
   tellFeltendringer,
   finnSistEndret,
   byggArkivLogg,
+  oppsummerLoggverdi,
   avledHandling,
   tolkInnstillinger,
   type HendelseRad,
@@ -135,6 +136,56 @@ describe("byggArkivLogg — endringslogg av/på", () => {
     // 09:00 fanges av hendelsen 10:00; 11.aug er foreldreløs (etter siste hendelse)
     expect(logg.hendelser?.[0]?.antallFeltendringer).toBe(1);
     expect(logg.sistEndret?.dato).toBe("2026-08-11T09:00:00.000Z");
+  });
+});
+
+describe("oppsummerLoggverdi — funn 6: ingen rå repeater-JSON i loggen", () => {
+  const repeaterJson = JSON.stringify([
+    { "cfa02a84-uuid": { verdi: "Rad 1", kommentar: "", vedlegg: [] },
+      "c3eaa1ef-uuid": { verdi: [{ id: "x", type: "bilde", url: "/uploads/abc.png", filnavn: "annotert.png" }], kommentar: "", vedlegg: [] } },
+    { "cfa02a84-uuid": { verdi: "Rad 2", kommentar: "", vedlegg: [] },
+      "c3eaa1ef-uuid": { verdi: [{ id: "y", type: "bilde", url: "/uploads/def.jpg", filnavn: "IMG.jpg" }], kommentar: "", vedlegg: [] } },
+  ]);
+
+  it("repeater-verdi → «N rader (M bilder)», aldri UUID/uploads-sti", () => {
+    const ut = oppsummerLoggverdi(repeaterJson);
+    expect(ut).toBe("2 rader (2 bilder)");
+    expect(ut).not.toContain("uuid");
+    expect(ut).not.toContain("/uploads");
+  });
+
+  it("én rad uten bilde → «1 rad»", () => {
+    expect(oppsummerLoggverdi(JSON.stringify([{ f: { verdi: "x" } }]))).toBe("1 rad");
+  });
+
+  it("primitiv verdi passerer uendret (vanlig feltendring)", () => {
+    expect(oppsummerLoggverdi("OK")).toBe("OK");
+    expect(oppsummerLoggverdi("Ikke OK")).toBe("Ikke OK");
+  });
+
+  it("array av primitiver (list_multi) passerer uendret", () => {
+    expect(oppsummerLoggverdi('["OK","Delvis"]')).toBe('["OK","Delvis"]');
+  });
+
+  it("tom array + null + tom streng → null («Ikke utfylt»)", () => {
+    expect(oppsummerLoggverdi("[]")).toBeNull();
+    expect(oppsummerLoggverdi(null)).toBeNull();
+    expect(oppsummerLoggverdi("")).toBeNull();
+  });
+
+  it("ugyldig JSON passerer uendret (ingen kast)", () => {
+    expect(oppsummerLoggverdi("[ikke json")).toBe("[ikke json");
+  });
+
+  it("byggArkivLogg oppsummerer repeater-endring i øktene (ingen rå JSON)", () => {
+    const e: RåEndring = {
+      userId: "u", aktor: "A", tidspunkt: "2026-08-15T09:00:00.000Z",
+      felt: "Kontrollpunkter", fraVerdi: null, tilVerdi: repeaterJson,
+    };
+    const logg = byggArkivLogg({ hendelser: [], endringer: [e], endringsloggAktivert: true });
+    const rad = logg.økter?.[0]?.rader?.[0];
+    expect(rad?.tilVerdi).toBe("2 rader (2 bilder)");
+    expect(JSON.stringify(logg)).not.toContain("/uploads");
   });
 });
 
