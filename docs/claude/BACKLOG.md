@@ -65,6 +65,27 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### S1 hadde to migreringsscripts — bare ett ble kjørt mot prod, ingenting fanget det (funnet ved prod-opprydding 2026-08-15)
+
+S1 Fase 1 flyttet sensitive vedlegg fra åpen `/uploads/` til `/uploads/privat/` via
+**to uavhengige scripts** (bevisst delt, jf. kollisjonsadvarselen i `migrer-sensitive-filer-til-privat.ts`):
+
+- `migrer-bilder-til-privat.ts` (Fase 1b) — `Image` + feltvedlegg i `Checklist`/`Task`-data.
+- `migrer-sensitive-filer-til-privat.ts` (Fase 1) — timer-kvittering, kompetanse, maskin.
+
+**Kun bilde-scriptet ble faktisk kjørt mot prod.** Sensitiv-scriptet ble aldri kjørt,
+så to `timer.sheet_tillegg_vedlegg`-rader lå fortsatt på åpen sti da prod-`uploads/`
+ble ryddet 2026-08-15 (radene måtte tilbakeføres for ikke å gi 404). Ingen prosess,
+test eller sjekk fanget at det andre scriptet var uutført — det var en ren manuell
+gate uten kvittering.
+
+**Restanse / lærdom:**
+- Kjør `migrer-sensitive-filer-til-privat.ts` (nå med Type 4 = `sheet_utlegg_vedlegg`)
+  mot prod + test. Verifiser med `audit-sensitive-apen-sti.ts` (read-only) at 0
+  sensitive referanser gjenstår på åpen sti — for ALLE filtyper, ikke bare `.jpg`.
+- Prosess-gap: en S1 med N scripts trenger én samlet «alle kjørt + verifisert»-kvittering
+  (audit-scriptet er nå den kvitteringen), ikke N løsrevne manuelle kjøringer.
+
 ### Prosjektnummer: org.nr som firmadel når det finnes (Kenneth-vedtatt 2026-08-12)
 
 **Dagens generering** (`admin.ts:509-515`) har tre svakheter:
