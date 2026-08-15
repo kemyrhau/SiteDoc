@@ -73,3 +73,59 @@ describe("avledPunktTilstand — seks tilstander (form = startet, farge = haster
     expect(planlagt.labelKey).not.toBe(utenFrist.labelKey);
   });
 });
+
+/**
+ * M1 (fabel-gatet 2026-08-15): rødt omriss (overFrist) på fylt markør over frist.
+ * Ortogonal modifikator — form (fylt) og farge (tilstand) bæres uendret; kun kanten.
+ * De to forfalt-cellene i formmatrisen: ikke-startet-over-frist og startet-over-frist.
+ */
+describe("avledPunktTilstand — M1 hastesignal (overFrist)", () => {
+  const naa = { uke: 20, aar: 2026 };
+  const base = { status: "planlagt", sjekkliste: null, fristUke: null, fristAar: null, varselUkerFor: 1 };
+
+  it("Celle: IKKE startet + over frist (forfalt) → overFrist=true, ring (hvitt fyll + rød kant)", () => {
+    const t = avledPunktTilstand({ ...base, fristUke: 10, fristAar: 2026 }, naa);
+    expect(t.tilstand).toBe("forfalt");
+    expect(t.fylt).toBe(false);
+    expect(t.overFrist).toBe(true);
+  });
+
+  it("Celle: STARTET + over frist → påbegynt, fylt, blå, overFrist=true (blått fyll + rød kant)", () => {
+    const t = avledPunktTilstand({ ...base, sjekkliste: { status: "draft" }, fristUke: 10, fristAar: 2026 }, naa);
+    expect(t.tilstand).toBe("pabegynt");
+    expect(t.fylt).toBe(true); // form uendret: arbeid startet
+    expect(t.farge).toBe("#3b82f6"); // farge uendret: blå
+    expect(t.overFrist).toBe(true); // KUN kanten: rød
+  });
+
+  it("Startet men INNENFOR frist → påbegynt uten hastesignal (overFrist=false)", () => {
+    const t = avledPunktTilstand({ ...base, sjekkliste: { status: "draft" }, fristUke: 30, fristAar: 2026 }, naa);
+    expect(t.tilstand).toBe("pabegynt");
+    expect(t.overFrist).toBe(false);
+  });
+
+  it("Startet UTEN frist → kan aldri være over frist (overFrist=false)", () => {
+    const t = avledPunktTilstand({ ...base, sjekkliste: { status: "draft" } }, naa);
+    expect(t.tilstand).toBe("pabegynt");
+    expect(t.overFrist).toBe(false);
+  });
+
+  it("Godkjent over frist → terminalt, INGEN hastesignal (overFrist=false)", () => {
+    const t = avledPunktTilstand({ ...base, sjekkliste: { status: "approved" }, fristUke: 10, fristAar: 2026 }, naa);
+    expect(t.tilstand).toBe("godkjent");
+    expect(t.overFrist).toBe(false);
+  });
+
+  it("Ikke-forfalt celler har overFrist=false (aktuellNaa, planlagt, utenFrist)", () => {
+    expect(avledPunktTilstand({ ...base, fristUke: 21, fristAar: 2026 }, naa).overFrist).toBe(false); // aktuellNaa
+    expect(avledPunktTilstand({ ...base, fristUke: 30, fristAar: 2026 }, naa).overFrist).toBe(false); // planlagt
+    expect(avledPunktTilstand(base, naa).overFrist).toBe(false); // utenFrist
+  });
+
+  it("U53-årskant: startet, frist U52/2026, nå U01/2027 → over frist (via U53) → overFrist=true", () => {
+    const nyttAar = { uke: 1, aar: 2027 };
+    const t = avledPunktTilstand({ ...base, sjekkliste: { status: "draft" }, fristUke: 52, fristAar: 2026 }, nyttAar);
+    expect(t.tilstand).toBe("pabegynt");
+    expect(t.overFrist).toBe(true); // ukerTilFrist = -2, ikke bommet på uke-tall alene
+  });
+});

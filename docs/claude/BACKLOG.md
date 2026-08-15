@@ -184,6 +184,10 @@ Rørt av fremdriftsplan-importen: rad-identiteten `@@unique([kontrollplanId, imp
 
 **Merk — allerede dekket:** Kenneths andre ønske, *«tilordne dokumentflyt uten å starte sjekklisten»*, finnes i «Forhåndsvalgt dokumentflyt»-velgeren i `RedigerPunktDialog`, og L1.6 forsterker skillet ved å fjerne flytvelgeren fra Start.
 
+### 🟡 Kontrollplan matrise-legend er legacy — matcher ikke seks-tilstand-modellen (funnet under M1)
+
+`MatriseVisning.tsx:230` viser en emoji-legend (✅🟡⬜🔒🔴 med `statusGodkjent/statusPagar/statusPlanlagt/statusBlokkert/statusForfalt`) som er en forenklet rest fra før tilstandsmodellen. De faktiske prikkene i lista/matrisa/tegningen bruker `avledPunktTilstand` (seks tilstander: godkjent · påbegynt · forfalt · aktuell nå · planlagt · uten frist) + M1-modifikatoren `overFrist` (rød kant). Legenden forklarer verken «aktuell nå», «uten frist» eller M1-hastesignalet. Egen sak: modernisér legenden til å speile `TilstandVisning` (form + farge + rød kant), eller fjern den til fordel for tooltip-teksten som allerede finnes per prikk.
+
 ### 🟢 KENNETH-VEDTAK 2026-08-15: slutt å lappe klient-utskriften. Arkivmalen overtar.
 
 > *«vi slutter å lappe → arkivmalen håper jeg er fremtiden → ta også ut den gamle "døde" koden når playwright pdf fungerer»*

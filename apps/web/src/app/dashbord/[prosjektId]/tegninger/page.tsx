@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
-import { avledPunktTilstand, isoUkeRef, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
+import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
 import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
 import {
   beregnTransformasjon,
@@ -943,7 +943,8 @@ export default function TegningerSide() {
                     )}
                     <MapPin
                       className="relative z-10 h-6 w-6 drop-shadow-md transition-transform group-hover:scale-125"
-                      style={{ fill: m.tilstand.fylt ? m.tilstand.farge : "white", color: m.tilstand.farge }}
+                      // M1: rød omriss (color) på fylt markør over frist — blått fyll + rød kant.
+                      style={{ fill: m.tilstand.fylt ? m.tilstand.farge : "white", color: m.tilstand.overFrist ? OVER_FRIST_KANT : m.tilstand.farge }}
                     />
                     <span className="absolute left-1/2 top-full z-10 mt-0.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900/80 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
                       {m.label}
