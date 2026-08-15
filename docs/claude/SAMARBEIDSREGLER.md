@@ -2,7 +2,58 @@
 
 > Fasit for hvem gjør hva på tvers av Cowork-økter på SiteDoc. Formål:
 > unngå kollisjon mellom kode-økter + holde orden på commits. Detaljerte
-> kjøreregler i [parallell-arbeid-lock.md]. Les FØR du instruerer en annen økt.
+> kjøreregler i [parallell-arbeid-lock.md]. **Les ved SESJONSSTART** — ikke
+> først når du skal instruere noen.
+
+## Cowork ved sesjonsstart — les dette før du sier noe
+
+**Arbeidsdelingen:** fabel designer · cowork dirigerer og dokumenterer · Opus
+koder · Kenneth gater og relayer. Kenneth er eneste kanal mellom øktene. Han skal
+ikke bruke tid på å finne ut hva cowork mener — **cowork har regien.**
+
+**Koden er eneste sannhet.** Dokumentasjonen forteller hvordan vi jobber; den
+avgjør ikke hva systemet gjør. Verifiser mot kode før du påstår noe, også når en
+agent eller et dokument sier det motsatte.
+
+### Lesekart — hva cowork må vite for å ha regien
+
+| Spørsmål | Kilde |
+|---|---|
+| Hvem jobber med hva nå, og hvem er blokkert? | `relay/status/*.md` (les **alle**, ikke siste) + `relay/inbox-cowork.md` |
+| Hva er levert, hva pågår, hva er i prod? | [STATUS-AKTUELT.md](STATUS-AKTUELT.md) |
+| Hva har fabel vedtatt og hvilke gatekrav gjelder? | `docs/redesign/` — vedtaks- og gate-filene ligger der, be aldri Kenneth lime dem inn |
+| Hva er faktisk pushet/merget? | `git branch -r`, `git merge-base --is-ancestor <sha> develop` — ikke statusfilene |
+| Ligger det ucommittet arbeid? | `git status` i hovedtreet |
+| Testdata og testbrukere for verifisering | `tests/e2e/mal-*.ts`, `tests/e2e/l16-setup.ts`, whitelist i `apps/api/src/routes/dev-login.ts` |
+| Hvilken doc skal oppdateres ved en endring? | [DOC-MAP.md](DOC-MAP.md) |
+| Deploy-kommandoer | [deploy-detaljer.md](deploy-detaljer.md) — **aldri skriv dem på nytt et annet sted** |
+| Strategisk planlegging / teknisk gjeld | [BACKLOG.md](BACKLOG.md) — kun da |
+
+### Ordreformat til Kenneth: hvem → gjør hva → når
+
+Hver leveranse fra cowork skal si **hvem** som utfører, **hva** som skal gjøres,
+og **rekkefølgen** hvis noe avhenger av noe annet. Kenneth skal kunne kopiere og
+kjøre uten å tolke.
+
+- **Bash som ren, kopierbar blokk.** Oppsett (worktree, branch) før nudge-tekst.
+  **Aldri git-kommandoer inne i en nudge** — Kenneth kjører dem da i sin egen
+  terminal i stedet for å gi dem til agenten.
+- **Nudge-tekst er det agenten skal lese**, formulert ferdig — ikke et referat
+  Kenneth må skrive om.
+- **Ikke gi merge-kommandoen i samme melding som nudgen** som ber agenten pushe.
+  Verifiser `git branch -r` først.
+- **Rekkefølge når noe avhenger:** «X først, fordi Y trenger resultatet.» Er de
+  uavhengige, si det — da kan flere agenter kjøre parallelt.
+
+### Spørsmål: samle, ikke drypp
+
+Mange små avklaringer koster Kenneth mer enn de sparer. Tenk ferdig, mål det som
+kan måles, og still **ett** spørsmål med nok kontekst til at det kan besvares én
+gang. Når du presenterer alternativer: rangér dem og forklar hvorfor du anbefaler
+ett. Spør når det er nødvendig — ikke for å dekke deg.
+
+**Kontrollspørsmål før du spør:** blir noe galt hvis ingen svarer? Er svaret nei,
+er det ikke et spørsmål — det er en beslutning cowork skal ta.
 
 ## Roller
 
@@ -220,6 +271,20 @@ git fetch origin && git reset --hard origin/develop   # IKKE checkout develop
 git merge --no-ff origin/<branch> -m "merge: …"
 git push origin merge-restart:develop                 # IKKE push develop
 ```
+
+**Gaten skal ligge i kommandoen, ikke i prosaen rundt (lærdom 2026-08-15 — «sjekk først, kjør så» ble hoppet over tre ganger).** Skriv én kjede som avbryter seg selv:
+
+```sh
+cd ~/Documents/Programmering/SiteDoc-merge && git fetch origin && \
+git rev-parse --verify origin/<branch> >/dev/null 2>&1 && \
+! git merge-base --is-ancestor origin/<branch> origin/develop && \
+git reset --hard origin/develop && \
+git merge --no-ff origin/<branch> -m "merge: …" && \
+git push origin merge-restart:develop && \
+cd ~/Documents/Programmering/SiteDoc && git pull --ff-only && ./deploy-test.sh
+```
+
+Linje 2 stopper hvis branchen ikke er pushet, linje 3 hvis den allerede er i develop. Uten dem bygger Kenneth uendret kode i seks minutter og tror knappen er på test.
 
 `git push origin develop` fra merge-treet pusher den utdaterte kopien i hovedtreet og avvises som non-fast-forward. Etterpå: `cd ~/…/SiteDoc && git pull --ff-only`, deretter deploy per [deploy-detaljer.md § TEST-deploy — lim-klar](deploy-detaljer.md). **Viser bygget alt `CACHED`, også `COPY . .`, nådde koden aldri serveren** — mergen eller rsync feilet, les output på nytt før du bygger igjen.
 
