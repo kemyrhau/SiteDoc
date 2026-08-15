@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil } from "lucide-react";
-import { avledPunktFremdrift, avledPunktTilstand, isoUkeRef, type UkeRef } from "@/lib/kontrollplanFremdrift";
+import { avledPunktFremdrift, avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type UkeRef } from "@/lib/kontrollplanFremdrift";
 
 interface Punkt {
   id: string;
@@ -55,6 +55,8 @@ function StatusCelle({ punkt, naa, onClick }: { punkt: Punkt; naa: UkeRef; onCli
   const tilstand = avledPunktTilstand(punkt, naa);
   // Blokkert (uinnfridd avhengighet) overstyrer visuelt — grå/låst.
   const farge = blokkert ? "#9ca3af" : tilstand.farge;
+  // M1: rød kant på fylt markør over frist. Blokkert overstyrer (grå/låst) → ingen kant.
+  const kantFarge = !blokkert && tilstand.overFrist ? OVER_FRIST_KANT : farge;
   const tittel = blokkert
     ? `${punkt.faggruppe.name} — ${t("kontrollplan.blokkertAvAvhengighet")}`
     : `${punkt.faggruppe.name} — ${t(tilstand.labelKey)}${punkt.fristUke ? ` (U${punkt.fristUke})` : ""}`;
@@ -70,7 +72,7 @@ function StatusCelle({ punkt, naa, onClick }: { punkt: Punkt; naa: UkeRef; onCli
         <span
           aria-hidden
           className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
-          style={{ backgroundColor: !blokkert && tilstand.fylt ? farge : "transparent", border: `2px solid ${farge}` }}
+          style={{ backgroundColor: !blokkert && tilstand.fylt ? farge : "transparent", border: `2px solid ${kantFarge}` }}
         />
         {punkt.fristUke ? `U${punkt.fristUke}` : ""}
       </span>
