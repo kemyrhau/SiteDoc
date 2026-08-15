@@ -4,6 +4,8 @@ import {
   byggMangelMerknad,
   byggSignaturblokk,
   byggArkivDokument,
+  byggArkivSide,
+  byggArkivSamling,
   byggArkivLogg,
   type ArkivLogg,
   type HendelseRad,
@@ -147,5 +149,49 @@ describe("byggArkivDokument — sammenstilling", () => {
     expect(html).toContain("Dokumenthistorikk");
     expect(html).toContain("signert i SiteDoc");
     expect(html).toContain("Generert fra SiteDoc 11.08.2026 14:32 · dokument-id sj_1");
+  });
+
+  it("byggArkivSide gir .ark-side-blokk UTEN shell (for samleutskrift)", () => {
+    const side = byggArkivSide(input);
+    expect(side.startsWith('<div class="ark-side">')).toBe(true);
+    expect(side).not.toContain("<!DOCTYPE html>");
+    expect(side).toContain("INNHOLD");
+  });
+
+  it("byggArkivDokument = én side i shell (inneholder sidens innhold)", () => {
+    const doc = byggArkivDokument(input);
+    expect(doc).toContain(byggArkivSide(input));
+    expect(doc.match(/class="ark-side"/g)?.length).toBe(1);
+  });
+});
+
+describe("byggArkivSamling — N1 samleutskrift (én PDF, flere dokumenter)", () => {
+  const input = (navn: string, tekst: string): ArkivDokumentInput => ({
+    firma: { navn: "SiteDoc AS" },
+    meta: { kategori: "sjekkliste", dokumenttype: "Sjekkliste", dokumentnavn: navn, dokumentnummer: "", dokumentId: navn, status: "draft" },
+    prosjektblokk: { prosjekt: "P", byggeplass: null, byggherre: null },
+    statusCeller: [],
+    innholdHtml: `<div>${tekst}</div>`,
+    logg: { hendelser: [], endringsloggAktivert: false, sistEndret: null },
+    signaturer: [],
+    generertTekst: "15.08.2026 09:00",
+  });
+
+  it("flere sider i ÉN shell, rekkefølge bevart", () => {
+    const html = byggArkivSamling([byggArkivSide(input("A", "DOK-A")), byggArkivSide(input("B", "DOK-B"))]);
+    // Én shell (én DOCTYPE, én <style>)
+    expect(html.match(/<!DOCTYPE html>/g)?.length).toBe(1);
+    expect(html.match(/<style>/g)?.length).toBe(1);
+    // Begge dokumenter med, i rekkefølge
+    expect(html.indexOf("DOK-A")).toBeLessThan(html.indexOf("DOK-B"));
+    // To .ark-side-blokker → sideskift-regelen (.ark-side + .ark-side) treffer
+    expect(html.match(/class="ark-side"/g)?.length).toBe(2);
+    expect(html).toContain(".ark-side + .ark-side");
+  });
+
+  it("tom liste → tomt dokument (shell uten sider)", () => {
+    const html = byggArkivSamling([]);
+    expect(html).toContain("<!DOCTYPE html>");
+    expect(html).not.toContain('class="ark-side"');
   });
 });

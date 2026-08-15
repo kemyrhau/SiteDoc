@@ -27,7 +27,7 @@ export { byggRepeaterTabell } from "./repeater";
 // Loggseksjon + signatur + sammenstilling (Stage 3)
 export { byggLoggseksjon, byggMangelMerknad } from "./loggseksjon";
 export { byggSignaturblokk } from "./signatur";
-export { byggArkivDokument } from "./dokument";
+export { byggArkivDokument, byggArkivSide, byggArkivSamling } from "./dokument";
 export type { ArkivSignatur, ArkivDokumentInput } from "./typer";
 
 // Ramme-byggeklosser (Stage 1)
@@ -59,4 +59,5 @@ export {
   tellFeltendringer,
   finnSistEndret,
   byggArkivLogg,
+  oppsummerLoggverdi,
 } from "./logg";
