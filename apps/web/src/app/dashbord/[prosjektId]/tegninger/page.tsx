@@ -941,10 +941,26 @@ export default function TegningerSide() {
                         />
                       </>
                     )}
+                    {/* M1 tegning (fabel-svar 2026-08-15): kraftigere over-frist-signal enn
+                        en tynn pinne-kant. Rød ring med HVIT separator (samme lesbarhets-grep
+                        som B1-haloen) rundt pinne-hodet — rødt mot broket ortofoto/rød pinne
+                        leses ikke uten separasjon. Eget lag BAK pinnen (z-[5]) men FORAN haloen
+                        (z-0): halo → rød ring → hvit separator → pinne, alle tre samtidig uten
+                        at ett skjuler et annet. box-shadow: hvit 2px (separator) + rød 3px
+                        (signalet, ≥2,5–3px-gulvet). Ren rendering — `overFrist` og modellen røres ikke. */}
+                    {m.tilstand.overFrist && (
+                      <span
+                        aria-hidden
+                        className="absolute left-1/2 top-[42%] z-[5] h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                        style={{ boxShadow: `0 0 0 2px #fff, 0 0 0 5px ${OVER_FRIST_KANT}` }}
+                      />
+                    )}
                     <MapPin
                       className="relative z-10 h-6 w-6 drop-shadow-md transition-transform group-hover:scale-125"
-                      // M1: rød omriss (color) på fylt markør over frist — blått fyll + rød kant.
-                      style={{ fill: m.tilstand.fylt ? m.tilstand.farge : "white", color: m.tilstand.overFrist ? OVER_FRIST_KANT : m.tilstand.farge }}
+                      // Pinnens egen strek = base-tilstandsfarge; over-frist bæres av den røde
+                      // ringen over (med hvit separator), ikke av pinne-streken — så pinne og
+                      // signal holdes visuelt adskilt (fabel-krav).
+                      style={{ fill: m.tilstand.fylt ? m.tilstand.farge : "white", color: m.tilstand.farge }}
                     />
                     <span className="absolute left-1/2 top-full z-10 mt-0.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900/80 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
                       {m.label}
