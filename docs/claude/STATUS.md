@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-08-15
+- 2026-08-15 — **`STATUS-AKTUELT.md` arkiv klient-knapp** (branch `feat/arkivmal-rendering`): «Last ned arkiv-PDF» på sjekklistedetalj (`trpc.arkiv.rendr` → Blob-nedlasting + ikke-blokkerende mangel-melding), i18n × 13 språk. Sammenslåing live-verifisert. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-15 — **`STATUS-AKTUELT.md` arkivmal N1/N2** (branch `feat/arkivmal-rendering`): render-kontrakt for klient-knapp — `arkiv.rendrSjekkliste`→`arkiv.rendr`, liste-payload + navngitt `mal`, én sammenhengende PDF for flere dok (`byggArkivSide`/`byggArkivSamling`), per-dok mangel-status + `renderTimeout` top-level. 102/102 arkiv-tester. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-15 — **`STATUS-AKTUELT.md` arkivmal funn 6** (branch `feat/arkivmal-rendering`): endringslogg-lekkasje fikset — `oppsummerLoggverdi` i `arkivmal/logg.ts` oppsummerer repeater-verdier («N rader (M bilder)») i stedet for rå JSON (barn-UUID/`/uploads`-lekkasje). 98/98 arkiv-tester. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-15 — **`STATUS-AKTUELT.md` arkivmal steg 2** (branch `feat/arkivmal-rendering`): repeater-vedlegg-render ført (bilder samlet under tabellen mot mockup + latent base64-dump-bug fikset) — arkivmalen komplett. Kode: `arkivmal/{repeater,arkiv-css}.ts`; 91/91 arkiv-tester. Ingen ny `docs/claude/`-fil; telling uendret.
