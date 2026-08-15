@@ -100,7 +100,9 @@ DATABASE_URL=<sitedoc_test> pnpm --filter @sitedoc/db exec tsx scripts/seed-test
 |---|---|---|
 | `test-admin@sitedoc.test` | `sitedoc_admin` | Ser alt; admin-paritet, søk-gating (admin-bypass) |
 | `test-firma@sitedoc.test` | `company_admin` | Firma-kontekst (Testfirma AS); FIRMA-sone, firma-hub |
-| `test-arbeider@sitedoc.test` | `user` (prosjektmedlem, **uten manage_field**) | Søke-gating-testen (steg iv): skjulte manage_field-kort |
+| `test-arbeider@sitedoc.test` | `user` (prosjektmedlem, **uten manage_field**) | Søke-gating-testen (steg iv): skjulte manage_field-kort. L1.6-gate: faggruppe-medlemskap toggles mellom scenario 4 (utenfor) og 2 (innenfor) |
+| `test-bestiller@sitedoc.test` | `user` | 5b-pilot ledd 2 (distinkt-person 4-ledds flyt) |
+| `test-godkjenner@sitedoc.test` | `user` | 5b-pilot ledd 4 |
 
 Whitelisten i `apps/api/src/routes/dev-login.ts` MÅ matche disse epostene.
 
