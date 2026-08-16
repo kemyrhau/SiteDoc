@@ -4,8 +4,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
+import { prosjektReferanseForUtskrift, ekspanderEndring, byggKolonnerPerFelt } from "@sitedoc/pdf";
 import type { ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
+import { byggObjektTre } from "@sitedoc/shared/types";
 import { Check, AlertCircle, Loader2, Printer, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
@@ -972,6 +973,7 @@ export default function SjekklisteDetaljSide() {
 
 interface EndringsloggRad {
   id: string;
+  fieldId: string;
   fieldLabel: string;
   oldValue: string | null;
   newValue: string | null;
@@ -979,34 +981,53 @@ interface EndringsloggRad {
   user: { id: string; name: string | null; email: string };
 }
 
-function formaterVerdi(json: string | null): string {
-  if (json == null) return "—";
-  try {
-    const parsed = JSON.parse(json);
-    if (parsed === null || parsed === "") return "—";
-    if (typeof parsed === "string") return parsed;
-    if (typeof parsed === "number" || typeof parsed === "boolean") return String(parsed);
-    if (Array.isArray(parsed)) return parsed.join(", ");
-    return json;
-  } catch {
-    return json;
-  }
-}
+type MalObjekt = { id: string; label: string; parentId?: string | null; sortOrder: number };
 
+/**
+ * Endringslogg — gjenbruker den avhengighetsfrie transformen fra `@sitedoc/pdf`
+ * (`ekspanderEndring`) i stedet for lokal JSON-formatering. Fikser to bugs som
+ * har vært synlige i web hele tiden: repeater-verdier ble `[object Object]`
+ * (`array.join`) og vær-objekter ble rå JSON. Transformen ekspanderer repeater-
+ * endringer til «Rad N — kolonne: X → Y», normaliserer bort signert-URL-query,
+ * og dropper kanoniske no-ops (vær-rekkefølge).
+ */
 function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
   const { data: sjekkliste } = trpc.sjekkliste.hentMedId.useQuery({ id: sjekklisteId });
 
   const enableChangeLog = (sjekkliste?.template as { enableChangeLog?: boolean } | undefined)?.enableChangeLog;
   const changeLog = ((sjekkliste as { changeLog?: EndringsloggRad[] } | undefined)?.changeLog ?? []);
+  const objekter = ((sjekkliste?.template as { objects?: MalObjekt[] } | undefined)?.objects ?? []);
 
-  if (!enableChangeLog || changeLog.length === 0) return null;
+  const kolonnerPerFelt = useMemo(
+    // byggObjektTre-returtypen er ikke rekursiv (dyp `children: unknown[]`) —
+    // cast som i sammenstilling.ts. byggKolonnerPerFelt leser kun id/label/children.
+    () => byggKolonnerPerFelt(byggObjektTre(objekter) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]),
+    [objekter],
+  );
+
+  const rader = useMemo(
+    () =>
+      changeLog.flatMap((rad) =>
+        ekspanderEndring(rad.fieldLabel, rad.oldValue, rad.newValue, kolonnerPerFelt[rad.fieldId]).map((d, i) => ({
+          key: `${rad.id}-${i}`,
+          felt: d.felt,
+          fraVerdi: d.fraVerdi,
+          tilVerdi: d.tilVerdi,
+          createdAt: rad.createdAt,
+          bruker: rad.user.name ?? rad.user.email,
+        })),
+      ),
+    [changeLog, kolonnerPerFelt],
+  );
+
+  if (!enableChangeLog || rader.length === 0) return null;
 
   return (
     <Card className="mt-6">
       <h4 className="mb-3 text-sm font-medium text-gray-500">Endringslogg</h4>
       <div className="flex flex-col gap-1.5">
-        {changeLog.map((rad) => (
-          <div key={rad.id} className="flex items-start gap-2 text-xs print-no-break">
+        {rader.map((rad) => (
+          <div key={rad.key} className="flex items-start gap-2 text-xs print-no-break">
             <span className="shrink-0 text-gray-400">
               {new Date(rad.createdAt).toLocaleString("nb-NO", {
                 day: "2-digit",
@@ -1016,15 +1037,11 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
                 minute: "2-digit",
               })}
             </span>
-            <span className="shrink-0 font-medium text-gray-600">
-              {rad.user.name ?? rad.user.email}
-            </span>
+            <span className="shrink-0 font-medium text-gray-600">{rad.bruker}</span>
             <span className="text-gray-500">
-              endret <span className="font-medium">{rad.fieldLabel}</span>
-              {rad.oldValue != null && (
-                <> fra &laquo;{formaterVerdi(rad.oldValue)}&raquo;</>
-              )}
-              {" "}til &laquo;{formaterVerdi(rad.newValue)}&raquo;
+              <span className="font-medium">{rad.felt}</span>
+              {rad.fraVerdi != null && <> fra &laquo;{rad.fraVerdi}&raquo;</>}
+              {" "}til &laquo;{rad.tilVerdi ?? "Ikke utfylt"}&raquo;
             </span>
           </div>
         ))}

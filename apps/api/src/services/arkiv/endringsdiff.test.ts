@@ -139,11 +139,37 @@ describe("ekspanderEndring — repeater celle-diff (punkt 2)", () => {
     expect(ekspanderEndring("Kontrollpunkter", fra, til, KOL)).toEqual([]);
   });
 
-  it("ukjent kolonne-id faller tilbake til id-en", () => {
+  it("ukjent kolonne-id faller tilbake til «Kolonne N» (ikke UUID/_)", () => {
     const fra = s([{ ukjent: celle("a") }]);
     const til = s([{ ukjent: celle("b") }]);
     const ut = ekspanderEndring("K", fra, til, KOL);
-    expect(ut[0]!.felt).toBe("Rad 1 — ukjent");
+    expect(ut[0]!.felt).toBe("Rad 1 — Kolonne 1");
+  });
+
+  it("tom kolonne-label faller tilbake til «Kolonne N»", () => {
+    const fra = s([{ c1: celle("a") }]);
+    const til = s([{ c1: celle("b") }]);
+    const ut = ekspanderEndring("K", fra, til, [{ id: "c1", label: "  " }]);
+    expect(ut[0]!.felt).toBe("Rad 1 — Kolonne 1");
+  });
+
+  it("bildeliste gjentas IKKE når bare teksten endret seg (vis kun ulikt)", () => {
+    const bilder = [bilde("a.jpg"), bilde("b.jpg")];
+    const fra = s([{ c1: { verdi: "gammel", vedlegg: bilder, kommentar: "" } }]);
+    const til = s([{ c1: { verdi: "ny", vedlegg: bilder, kommentar: "" } }]);
+    const ut = ekspanderEndring("K", fra, til, KOL);
+    expect(ut).toEqual([{ felt: "Rad 1 — Beskrivelse", fraVerdi: "gammel", tilVerdi: "ny" }]);
+    // Bildelisten skal ikke dukke opp på noen av sidene når den er uendret.
+    expect(ut[0]!.fraVerdi).not.toContain("bilde");
+    expect(ut[0]!.tilVerdi).not.toContain("bilde");
+  });
+
+  it("når bildelisten FAKTISK endres vises den på begge sider", () => {
+    const fra = s([{ c1: { verdi: "x", vedlegg: [bilde("a.jpg")], kommentar: "" } }]);
+    const til = s([{ c1: { verdi: "x", vedlegg: [bilde("a.jpg"), bilde("b.jpg")], kommentar: "" } }]);
+    const ut = ekspanderEndring("K", fra, til, KOL);
+    expect(ut[0]!.fraVerdi).toBe("1 bilde (a.jpg)");
+    expect(ut[0]!.tilVerdi).toBe("2 bilder (a.jpg, b.jpg)");
   });
 
   it("aldri barn-UUID eller uploads-sti i utdata", () => {

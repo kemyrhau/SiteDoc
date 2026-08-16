@@ -30,6 +30,35 @@ export interface DiffRad {
   tilVerdi: string | null;
 }
 
+/** Minimal tre-node for kolonne-utledning (strukturell — unngår shared-avhengighet). */
+interface TreNode {
+  id: string;
+  label: string;
+  children?: TreNode[];
+}
+
+/**
+ * Kolonne-labels per felt-id fra objekt-treet: for hvert objekt med barn
+ * (repeater) → `{ id, label }[]`. Delt av api-sammenstillingen og web-
+ * endringsloggen så begge gjør repeater-celle-endringer om til «Rad N —
+ * kolonnenavn» i stedet for barn-UUID. Rent lag; kalleren bygger treet
+ * (`byggObjektTre`) og sender det inn.
+ */
+export function byggKolonnerPerFelt(tre: TreNode[]): Record<string, KolonneDef[]> {
+  const kart: Record<string, KolonneDef[]> = {};
+  const walk = (noder: TreNode[]): void => {
+    for (const n of noder) {
+      const barn = n.children ?? [];
+      if (barn.length > 0) {
+        kart[n.id] = barn.map((b) => ({ id: b.id, label: b.label }));
+        walk(barn);
+      }
+    }
+  };
+  walk(tre);
+  return kart;
+}
+
 /** Maks antall filnavn som listes før «+N flere» (holder radene lesbare). */
 const MAKS_FILNAVN = 4;
 
@@ -158,9 +187,56 @@ function radSammendrag(rad: Record<string, unknown>): string {
   return deler.length ? deler.join(", ") : "tom rad";
 }
 
-/** Kolonne-label for et barn-id; faller tilbake til id-en når ukjent. */
-function kolonneLabel(kolonner: KolonneDef[], id: string): string {
-  return kolonner.find((k) => k.id === id)?.label ?? id;
+/**
+ * Kolonne-label for et barn-id. Faller tilbake til «Kolonne N» (posisjon) når
+ * mappingen ikke finner navnet — aldri rå barn-UUID eller tom `_` (kolonnen kan
+ * være slettet fra malen etter at data ble lagt inn, eller mangle label).
+ */
+function kolonneLabel(kolonner: KolonneDef[], id: string, ordinal: number): string {
+  const label = kolonner.find((k) => k.id === id)?.label?.trim();
+  return label ? label : `Kolonne ${ordinal}`;
+}
+
+/** Én celles innhold delt i sammenlignbare deler (verdi · bilder · merknad). */
+function celleDeler(celle: unknown): { verdi: string | null; bilder: string | null; kommentar: string | null } {
+  if (celle == null) return { verdi: null, bilder: null, kommentar: null };
+  if (typeof celle !== "object" || Array.isArray(celle)) {
+    return { verdi: lesbarVerdi(celle), bilder: null, kommentar: null };
+  }
+  const o = celle as { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown };
+  return {
+    verdi: lesbarVerdi(o.verdi),
+    bilder: Array.isArray(o.vedlegg) && o.vedlegg.length > 0 ? lesbarVerdi(o.vedlegg) : null,
+    kommentar: typeof o.kommentar === "string" && o.kommentar.trim() ? `merknad: ${o.kommentar.trim()}` : null,
+  };
+}
+
+function slåSammenDeler(d: { verdi: string | null; bilder: string | null; kommentar: string | null }): string | null {
+  const deler = [d.verdi, d.bilder, d.kommentar].filter((x): x is string => x != null);
+  return deler.length ? deler.join(" · ") : null;
+}
+
+/**
+ * Fra/til for en endret celle — viser BARE delene som faktisk er ulike. Uten
+ * dette gjentas en uendret bildeliste identisk på begge sider av pilen når bare
+ * teksten endret seg. Faller tilbake til hele cellen om ingen del skiller seg
+ * (skjer ikke etter `likForDiff`-filteret, men er en trygg bunn).
+ */
+function lesbarCelleDiff(fraCelle: unknown, tilCelle: unknown): { fra: string | null; til: string | null } {
+  const df = celleDeler(fraCelle);
+  const dt = celleDeler(tilCelle);
+  const uf = { ...df };
+  const ut = { ...dt };
+  for (const nøkkel of ["verdi", "bilder", "kommentar"] as const) {
+    if (df[nøkkel] === dt[nøkkel]) {
+      uf[nøkkel] = null;
+      ut[nøkkel] = null;
+    }
+  }
+  const fra = slåSammenDeler(uf);
+  const til = slåSammenDeler(ut);
+  if (fra == null && til == null) return { fra: lesbarCelle(fraCelle), til: lesbarCelle(tilCelle) };
+  return { fra, til };
 }
 
 /**
@@ -198,14 +274,15 @@ function diffRepeater(
     }
     if (fRad === undefined || tRad === undefined) continue;
     const nøkler = new Set([...Object.keys(fRad), ...Object.keys(tRad)]);
-    for (const k of ordneNøkler(nøkler, kolonner)) {
-      if (likForDiff(fRad[k], tRad[k])) continue; // uendret celle (etter normalisering)
+    ordneNøkler(nøkler, kolonner).forEach((k, ki) => {
+      if (likForDiff(fRad[k], tRad[k])) return; // uendret celle (etter normalisering)
+      const diff = lesbarCelleDiff(fRad[k], tRad[k]);
       ut.push({
-        felt: `Rad ${nr} — ${kolonneLabel(kolonner, k)}`,
-        fraVerdi: lesbarCelle(fRad[k]),
-        tilVerdi: lesbarCelle(tRad[k]),
+        felt: `Rad ${nr} — ${kolonneLabel(kolonner, k, ki + 1)}`,
+        fraVerdi: diff.fra,
+        tilVerdi: diff.til,
       });
-    }
+    });
   }
   return ut;
 }

@@ -180,7 +180,15 @@ symptomet; databasen fylles fortsatt med utløpte signaturer ved hver lagring. T
 spørsmål å måle før fiks: om `signerDataRad` dobbeltsignerer, og hvor mange rader som
 har signatur i data i dag. Se [BACKLOG § Signerte vedlegg-URL-er persisteres](BACKLOG.md).
 
-126/126 arkiv-tester grønne · pdf/api/web typecheck grønt. Ikke deployet.
+**Web-endringsloggen gjenbruker samme transform** (`sjekklister/[sjekklisteId]/page.tsx`):
+`ekspanderEndring` + `byggKolonnerPerFelt` (flyttet til `@sitedoc/pdf`, delt med
+api-sammenstillingen) erstatter lokal `formaterVerdi` — fikser to bugs som har vært
+synlige i web hele tiden: repeater-verdier ble `[object Object]` (`array.join` på
+objekter) og vær ble rå JSON. To PDF-observasjoner rettet samtidig (gjelder begge
+flater): kolonne-label faller nå tilbake til «Kolonne N» i stedet for rå UUID/`_`,
+og en uendret bildeliste gjentas ikke på begge sider av pilen (viser kun det ulike).
+
+129/129 arkiv-tester grønne · pdf/api/web typecheck grønt. Ikke deployet.
 
 ### 🟡 Startbar kontrollplan — Leveranse 1 (branch `feat/kontrollplan-startbar`) — PÅ BRANCH, venter diff-gate + test
 
