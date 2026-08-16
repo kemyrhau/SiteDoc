@@ -58,6 +58,12 @@ export interface VaerSnapshot {
   wind?: string;
   precipitation?: string;
   kilde: "automatisk";
+  /**
+   * Satt når snapshotet ble backfillet i ettertid — ikke i det befaringstidspunktet
+   * ble satt, men ved finalisering (server, funn d). Vedtakets punkt 2: «Merkes
+   * «hentet i ettertid» kun hvis det ble backfillet.» Online-hentingen setter den ikke.
+   */
+  hentetIEttertid?: boolean;
 }
 
 /**
