@@ -286,6 +286,15 @@ cd ~/Documents/Programmering/SiteDoc && git pull --ff-only && ./deploy-test.sh
 
 Linje 2 stopper hvis branchen ikke er pushet, linje 3 hvis den allerede er i develop. Uten dem bygger Kenneth uendret kode i seks minutter og tror knappen er på test.
 
+**Verifiser mergen mot agentens hash — ikke mot merge-commitens (2026-08-16).** Merge-commiten får alltid en **ny** hash; den skal ikke matche den agenten melder. Merge-commiten *peker på* agentens commit, den erstatter den ikke. Kenneth kunne derfor ikke selv se om en merge tok med arbeidet. Én kommando svarer:
+
+```sh
+cd ~/Documents/Programmering/SiteDoc && git fetch origin
+git merge-base --is-ancestor <agentens-hash> origin/develop && echo "JA — i develop" || echo "NEI"
+```
+
+Cowork skal gi denne linjen med agentens hash **hver gang** en merge meldes ferdig. Samme kommando avdekket at utlegg sto blokkert i to dager på arbeid som allerede lå i develop.
+
 `git push origin develop` fra merge-treet pusher den utdaterte kopien i hovedtreet og avvises som non-fast-forward. Etterpå: `cd ~/…/SiteDoc && git pull --ff-only`, deretter deploy per [deploy-detaljer.md § TEST-deploy — lim-klar](deploy-detaljer.md). **Viser bygget alt `CACHED`, også `COPY . .`, nådde koden aldri serveren** — mergen eller rsync feilet, les output på nytt før du bygger igjen.
 
 **Er tavla tom, lever ingen økter.** Det er hele poenget: kontrollflaten er lesbar for Kenneth uten å spørre noen.
