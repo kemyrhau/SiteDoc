@@ -239,6 +239,25 @@ Rørt av fremdriftsplan-importen: rad-identiteten `@@unique([kontrollplanId, imp
 - *Kode:* `apps/api/src/routes/vaer.ts` (`hentVaerdata`) er rent live-oppslag (forecast + archive), ingen frysing/lagring; arkivmalen rendrer ikke værfelt spesielt.
 - *Mangler:* (a) snapshot lagres på værfeltet i `Checklist.data` når befaringstidspunktet settes (og re-hentes ved endring av tidspunktet — fanges av endringsloggen), (b) arkivmal rendrer lagret snapshot med «Ikke registrert»-fallback, (c) malbyggeren kobler/krever værfelt ↔ befaringstidspunkt-felt. Backlogg i vedtaket: 360-video-felttype (senere, eget løp).
 
+### 🔴 Arkiv-PDF seks-funn 2026-08-16 (BEF-001 prod) — restanser etter utskrifts-runden
+
+**Kilde:** `docs/redesign/arkivpdf-seks-funn-vedtak-fabel-2026-08-16.md`. Funn 2 (filnavn ut), 3 (dokument-id ut av footer), 4 (side 1-marger) og 6-delen som gjaldt bilde/logg/signatur er **levert** i utskrifts-runden. Disse tre står igjen:
+
+**Funn 1 (app-side) — bildeNr tildeles ved opptak** — 🔴 (mobil + web + modell, eget spor).
+- *Vedtak:* bildenummer tildeles i appen når bildet tas, løpende stigende per sjekkliste på tvers av malobjekter, synlig i app-UI og refererbart i tekst («se bilde 07»). Et nummer som oppstår ved rendering finnes ikke når teksten skrives — derfor ikke print-nummerering.
+- *Kode i dag:* PDF-**fallbacken** er levert (`repeater.ts` `byggBilderader` leser `Vedlegg.bildeNr`, faller tilbake til dokumentrekkefølge når feltet mangler; `Vedlegg.bildeNr?` lagt til i `packages/pdf/src/typer.ts`). App-siden mangler: `bildeNr` settes ikke ved opptak (`FeltDokumentasjon.tsx` mobil+web skriver i dag `type/url/filnavn/opprettet`, ikke `bildeNr`).
+- *Mangler:* tildel løpende `bildeNr` per sjekkliste ved opptak/opplasting (mobil + web), vis det i app-UI, gjør det refererbart. Ingen re-nummerering av arkiverte dokumenter (de bruker fallbacken).
+
+**Funn 5 — endringslogg-støy (no-op-rader + rå JSON-diff)** — 🔴 (logg-leser/render, koblet + avhengig).
+- *Vedtak:* no-op-rader (lik → lik) logges aldri; reelle endringer vises som lesbar tekst, ikke rå JSON.
+- *Kode i dag:* endringslogg-verdier `JSON.stringify`-es ved skriving (`sjekkliste.ts:666-667`), og rå lik→lik filtreres allerede der (`:669`). Men den observerte no-op-en («5 rader (14 bilder) → 5 rader (14 bilder)») har ULIK rå-JSON og LIK lesbar form — så den slipper gjennom. `endringslogg()` (`loggseksjon.ts:72-75`) rendrer rå `oldValue`/`newValue` (med JSON-anførsel/klammer) som `{fra} → {til}`.
+- *Mangler:* (a) en lesbar verdi-transform (parse JSON → skalar uten anførsel; array → «N rader (M bilder)»-summering; objekt → felt-spesifikt), og (b) no-op-filter på den LESBARE formen (rå-filter fanger den ikke). **De to er koblet** (no-op krever lesbar form først), og de felt-spesifikke tilfellene henger på to andre saker: vær-verdier → værsnapshot-vedtaket (funn 5-vær, ikke bygget), vedlegg-verdier → funn 7 (endringslogg vedlegg-rad-format). Bygges samlet når de avhengighetene er avklart — ellers halvformattering. **Målt som større enn quick-take, derfor ført.**
+
+**Funn 6-rest — statusblokk «Opprettet»/«Sist endret» uten klokkeslett** — 🔴❓ (liten, kobler til punkt 2).
+- *Vedtak:* tidsstempler skal ha hh:mm (dd.mm.åååå hh:mm).
+- *Kode i dag:* bilde-merking + dokumenthistorikk + signatur har hh:mm (levert 08-15/08-16). Men statusblokk-cellene «Opprettet» (`sammenstilling.ts:226`) og «Sist endret» (`dokument.ts:34`) bruker `formaterDatoKort` → kun dato.
+- *Mangler:* dato+tid for de to cellene (~2 linjer, `formaterDatoKort` → dato+tid-format). ❓ Henger sammen med **BACKLOG-punkt 2 (statusblokk-etikett)**: hvis «Opprettet» blir «Utført dato» med annen datakilde, endres tid-spørsmålet med den. Avklar sammen med punkt 2.
+
 ### 🔴 Klient-utskrift: attachments-bilder rendres dobbelt, én gang brutt (Kenneth, prod 2026-08-15)
 
 **Observert i prod** (BEF-002, Test prosjekt SiteDoc Røstbakken): over bildene står to **brutte bilde-ikoner** med filnavnene `IMG_1773940614053.jpg` og `IMG_1773943366962.jpg` — og rett under står de samme bildene rendret korrekt.

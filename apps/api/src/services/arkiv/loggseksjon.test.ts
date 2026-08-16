@@ -162,7 +162,8 @@ describe("byggArkivDokument — sammenstilling", () => {
     expect(html).toContain("INNHOLD");
     expect(html).toContain("Dokumenthistorikk");
     expect(html).toContain("signert i SiteDoc");
-    expect(html).toContain("Generert fra SiteDoc 11.08.2026 14:32 · dokument-id sj_1");
+    expect(html).toContain("Generert fra SiteDoc 11.08.2026 14:32");
+    expect(html).not.toContain("dokument-id"); // funn 3: intern nøkkel utgår av bunnteksten
   });
 
   it("byggArkivSide gir .ark-side-blokk UTEN shell (for samleutskrift)", () => {

@@ -52,10 +52,10 @@ describe("byggRenderHeader", () => {
 });
 
 describe("byggRenderFooter", () => {
-  it("har generert-stempel + dokument-id (sporbarhetsminimum) og sidetall-spenn", () => {
+  it("har generert-stempel (sporbarhetsminimum) og sidetall-spenn; dokument-id utgått (funn 3)", () => {
     const f = byggRenderFooter(ramme, "14.08.2026 14:32");
     expect(f).toContain("Generert fra SiteDoc 14.08.2026 14:32");
-    expect(f).toContain("dokument-id sj_9f2c41d8");
+    expect(f).not.toContain("dokument-id");
     expect(f).toContain('<span class="pageNumber"></span>');
     expect(f).toContain('<span class="totalPages"></span>');
   });

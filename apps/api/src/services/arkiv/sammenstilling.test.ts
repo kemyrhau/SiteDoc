@@ -81,8 +81,9 @@ describe("byggSjekklisteArkivHtml — orkestrator", () => {
     // en gjenstående nettverks-url (som ville hengt bilde-vakten 20 s i containeren).
     expect(r.html).toContain("data:image/svg+xml;base64,");
     expect(r.html).not.toContain('src="/u/borte.png"');
-    // Generert-stempel (sporbarhet)
-    expect(r.html).toContain("Generert fra SiteDoc 11.08.2026 14:32 · dokument-id c1");
+    // Generert-stempel (sporbarhet); dokument-id utgått (funn 3)
+    expect(r.html).toContain("Generert fra SiteDoc 11.08.2026 14:32");
+    expect(r.html).not.toContain("dokument-id");
   });
 
   it("samler bilder nestet i repeater-rader (celle-vedlegg) → manglendeVedlegg", async () => {
