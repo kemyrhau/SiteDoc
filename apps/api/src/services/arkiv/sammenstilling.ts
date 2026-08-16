@@ -14,6 +14,7 @@ import { byggObjektTre } from "@sitedoc/shared/types";
 import {
   byggInnhold,
   byggArkivLogg,
+  byggKolonnerPerFelt,
   byggArkivDokument,
   byggArkivSide,
   prosjektReferanseForUtskrift,
@@ -28,7 +29,6 @@ import {
   type ArkivSignatur,
   type ArkivDokumentInput,
   type Utskriftsinnstillinger,
-  type KolonneDef,
 } from "@sitedoc/pdf";
 import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
@@ -150,26 +150,6 @@ function inlinDataBilder(
   const ut: Record<string, FeltVerdi> = {};
   for (const [k, felt] of Object.entries(data)) ut[k] = bytt(felt) as FeltVerdi;
   return ut;
-}
-
-/**
- * Kolonne-labels per felt-id fra objekt-treet: for hvert objekt med barn
- * (repeater) → `{ id, label }[]`. Endringsloggen bruker dette til å gjøre en
- * repeater-celle-endring om til «Rad N — kolonnenavn» i stedet for barn-UUID.
- */
-function byggKolonnerPerFelt(tre: TreObjekt[]): Record<string, KolonneDef[]> {
-  const kart: Record<string, KolonneDef[]> = {};
-  const walk = (noder: TreObjekt[]): void => {
-    for (const n of noder) {
-      const barn = n.children ?? [];
-      if (barn.length > 0) {
-        kart[n.id] = barn.map((b) => ({ id: b.id, label: b.label }));
-        walk(barn);
-      }
-    }
-  };
-  walk(tre);
-  return kart;
 }
 
 export async function byggSjekklisteArkivHtml(
