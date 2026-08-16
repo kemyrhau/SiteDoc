@@ -6,7 +6,7 @@ import { hentDatabase } from "../db/database";
 import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
-import { utledDokumentRettighet } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -19,6 +19,9 @@ export interface Vedlegg {
   url: string;
   filnavn: string;
   opprettet?: string;
+  // Løpende bildenummer per dokument, tildelt ved opptak (kun type "bilde").
+  // Dokgen leser dette; mangler det, faller den tilbake til dokumentrekkefølge.
+  bildeNr?: number;
 }
 
 export interface FeltVerdi {
@@ -400,13 +403,21 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   // Oppdater én nøkkel i et felt og planlegg auto-lagring
   const oppdaterFelt = useCallback(
     (objektId: string, oppdatering: Partial<FeltVerdi>) => {
-      settFeltVerdier((prev) => ({
-        ...prev,
-        [objektId]: {
-          ...(prev[objektId] ?? TOM_FELTVERDI),
-          ...oppdatering,
-        },
-      }));
+      settFeltVerdier((prev) => {
+        let oppd = oppdatering;
+        // Repeater-verdi (array av rader): tildel løpende bildeNr til nye bilder i radene.
+        if (Array.isArray(oppd.verdi)) {
+          const nyeRader = nummererRepeaterBilder(oppd.verdi, nesteBildeNr(prev));
+          if (nyeRader !== oppd.verdi) oppd = { ...oppd, verdi: nyeRader };
+        }
+        return {
+          ...prev,
+          [objektId]: {
+            ...(prev[objektId] ?? TOM_FELTVERDI),
+            ...oppd,
+          },
+        };
+      });
       settHarEndringer(true);
       planleggLagring();
     },
@@ -427,11 +438,16 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     (objektId: string, vedlegg: Vedlegg) => {
       settFeltVerdier((prev) => {
         const nåværende = prev[objektId] ?? TOM_FELTVERDI;
+        // Tildel løpende bildeNr ved opptak (kun bilder, kun hvis ikke allerede satt).
+        const nyttVedlegg =
+          vedlegg.type === "bilde" && vedlegg.bildeNr == null
+            ? { ...vedlegg, bildeNr: nesteBildeNr(prev) }
+            : vedlegg;
         return {
           ...prev,
           [objektId]: {
             ...nåværende,
-            vedlegg: [...nåværende.vedlegg, vedlegg],
+            vedlegg: [...nåværende.vedlegg, nyttVedlegg],
           },
         };
       });

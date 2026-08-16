@@ -3,6 +3,7 @@ export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighe
 export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller, flytRettighetNoekkel, ROLLE_HANDLINGER_DEFAULTS, PROSJEKTADMIN_ROLLE } from "./statusHandlinger";
 export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
+export { nesteBildeNr, nummererRepeaterBilder } from "./bildeNr";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
 export { hentStatusHandlinger, hentPosisjonFiltrertHandlinger } from "./statusHandlinger";
