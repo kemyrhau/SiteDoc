@@ -128,15 +128,17 @@ export function byggFortsettelsesHeader(
 }
 
 /**
- * Bunntekst — «Generert fra SiteDoc {tid} · dokument-id {id}» (venstre) +
- * valgfritt sidetall (høyre; settes normalt av Playwright footerTemplate).
- * Generert-stempel + id er sporbarhetsminimum (§4) — alltid med.
+ * Bunntekst — «Generert fra SiteDoc {tid}» (venstre) + valgfritt sidetall
+ * (høyre; settes normalt av Playwright footerTemplate). Dokument-id er fjernet
+ * (vedtak 2026-08-16, funn 3): den interne DB-nøkkelen er ubrukelig på papir —
+ * brukerens referanse er Dokumentnr. i toppteksten. `_meta` beholdes i
+ * signaturen for kall-kompatibilitet.
  */
 export function byggBunntekst(
-  meta: ArkivDokumentMeta,
+  _meta: ArkivDokumentMeta,
   generertTekst: string,
   sidetallHtml?: string | null,
 ): string {
   const hoyre = sidetallHtml ? `<span>${sidetallHtml}</span>` : "<span></span>";
-  return `<div class="ark-footer"><span>Generert fra SiteDoc ${esc(generertTekst)} · dokument-id ${esc(meta.dokumentId)}</span>${hoyre}</div>`;
+  return `<div class="ark-footer"><span>Generert fra SiteDoc ${esc(generertTekst)}</span>${hoyre}</div>`;
 }

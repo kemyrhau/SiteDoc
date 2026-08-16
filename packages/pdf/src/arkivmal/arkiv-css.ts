@@ -29,7 +29,12 @@ export function hentArkivCss(): string {
   return `
 *{box-sizing:border-box}
 body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:10.5px;line-height:1.45}
-.ark-side{padding:15mm 16mm 10mm;color:${f.tekst};font-size:10.5px;line-height:1.45}
+/* Ingen egen side-padding: rendrer-containeren (server.mjs) setter A4-margen via
+   Playwright (16mm topp/side, 14mm bunn) på HVER side. Egen padding her ble lagt
+   OPPÅ den → side 1 fikk dobbel marg (~31mm topp / 32mm side) mens innholdssider
+   hadde 16mm (vedtak 2026-08-16, funn 4). Margen eies nå kun av containeren, så
+   side 1 flukter med innholdssidene og kortet starter nær sidehodet. */
+.ark-side{color:${f.tekst};font-size:10.5px;line-height:1.45}
 /* Samleutskrift (N1): hvert dokument etter det første starter på ny side. */
 .ark-side + .ark-side{break-before:page;page-break-before:always}
 
@@ -65,7 +70,7 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .ark-fs-firma{font-size:11px;font-weight:700}
 .ark-fs-hoyre{text-align:right;font-size:9.5px;color:${f.graa}}
 
-/* Bunntekst — generert-stempel + dokument-id (sporbarhet, kan ikke velges bort) */
+/* Bunntekst — generert-stempel (sporbarhet, kan ikke velges bort; intern DB-nøkkel utgått, funn 3) */
 .ark-footer{display:flex;justify-content:space-between;border-top:1px solid ${f.radLinje};padding-top:5px;font-size:8.5px;color:${f.svak}}
 
 /* Innhold — generiske felt (felt.ts-output), stylet i arkiv-uttrykk */
