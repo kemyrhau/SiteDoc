@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Åpne sjekkliste",
   "kontrollplan.kobleEksisterende": "Koble eksisterende sjekkliste",
   "kontrollplan.kobleIngenKandidater": "Ingen ledige sjekklister med samme mal å koble.",
-  "kontrollplan.startVelgFlyt": "Velg dokumentflyt",
   "kontrollplan.startIngenFlyt": "Ingen dokumentflyt er satt på dette punktet, så det kan ikke startes ennå. En prosjektadmin må velge flyt for punktet (Rediger punkt → Forhåndsvalgt flyt).",
   "kontrollplan.velgFlytForPunkt": "Velg flyt for punktet",
   "kontrollplan.tilFlytOppsett": "Til flyt-oppsett",

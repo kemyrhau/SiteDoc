@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Otevřete kontrolní seznam",
   "kontrollplan.kobleEksisterende": "Propojit existující kontrolní seznam",
   "kontrollplan.kobleIngenKandidater": "Žádné dostupné kontrolní seznamy se stejnou šablonou k propojení.",
-  "kontrollplan.startVelgFlyt": "Vyberte tok dokumentů",
   "kontrollplan.startIngenFlyt": "Šablona není součástí toku dokumentů, kde jste registrátorem. Požádejte správce projektu, aby vás přidal jako registrátora v toku, který používá tuto šablonu.",
   "kontrollplan.velgFlytForPunkt": "Vyberte tok pro bod",
   "kontrollplan.tilFlytOppsett": "Přejděte na nastavení toku",

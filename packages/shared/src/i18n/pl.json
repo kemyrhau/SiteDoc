@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Otwórz listę kontrolną",
   "kontrollplan.kobleEksisterende": "Połącz istniejącą listę kontrolną",
   "kontrollplan.kobleIngenKandidater": "Brak dostępnych list kontrolnych z tym samym szablonem do połączenia.",
-  "kontrollplan.startVelgFlyt": "Wybierz przepływ dokumentów",
   "kontrollplan.startIngenFlyt": "Szablon nie jest częścią obiegu dokumentów, w którym jesteś rejestratorem. Poproś administratora projektu, aby dodał Cię jako rejestratora w przepływie korzystającym z tego szablonu.",
   "kontrollplan.velgFlytForPunkt": "Wybierz przepływ dla punktu",
   "kontrollplan.tilFlytOppsett": "Przejdź do konfiguracji przepływu",

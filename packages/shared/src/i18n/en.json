@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Open checklist",
   "kontrollplan.kobleEksisterende": "Link existing checklist",
   "kontrollplan.kobleIngenKandidater": "No available checklists with the same template to link.",
-  "kontrollplan.startVelgFlyt": "Choose document flow",
   "kontrollplan.startIngenFlyt": "No document flow is set on this point, so it cannot be started yet. A project admin must select a flow for the point (Edit point → Preselected flow).",
   "kontrollplan.velgFlytForPunkt": "Choose flow for the point",
   "kontrollplan.tilFlytOppsett": "Go to flow setup",

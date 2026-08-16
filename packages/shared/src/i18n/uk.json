@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Відкрити контрольний список",
   "kontrollplan.kobleEksisterende": "Посилання на існуючий контрольний список",
   "kontrollplan.kobleIngenKandidater": "Немає доступних контрольних списків із тим самим шаблоном для посилання.",
-  "kontrollplan.startVelgFlyt": "Виберіть документообіг",
   "kontrollplan.startIngenFlyt": "Шаблон не є частиною документообігу, де ви є реєстратором. Попросіть адміністратора проекту додати вас як реєстратора в потік, який використовує цей шаблон.",
   "kontrollplan.velgFlytForPunkt": "Виберіть потік для точки",
   "kontrollplan.tilFlytOppsett": "Перейдіть до налаштування потоку",

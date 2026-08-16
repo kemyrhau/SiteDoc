@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Deschide lista de verificare",
   "kontrollplan.kobleEksisterende": "Conectați lista de verificare existentă",
   "kontrollplan.kobleIngenKandidater": "Nu există liste de verificare disponibile cu același șablon de legat.",
-  "kontrollplan.startVelgFlyt": "Alegeți fluxul de documente",
   "kontrollplan.startIngenFlyt": "Șablonul nu face parte dintr-un flux de documente în care sunteți registrator. Solicitați unui administrator de proiect să vă adauge ca registrator în fluxul care utilizează acest șablon.",
   "kontrollplan.velgFlytForPunkt": "Alegeți fluxul pentru punct",
   "kontrollplan.tilFlytOppsett": "Accesați configurarea fluxului",

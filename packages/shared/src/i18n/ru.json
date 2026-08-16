@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Открыть контрольный список",
   "kontrollplan.kobleEksisterende": "Связать существующий контрольный список",
   "kontrollplan.kobleIngenKandidater": "Нет доступных контрольных списков с одинаковым шаблоном для ссылки.",
-  "kontrollplan.startVelgFlyt": "Выберите документооборот",
   "kontrollplan.startIngenFlyt": "Шаблон не является частью документооборота, в котором вы являетесь регистратором. Попросите администратора проекта добавить вас в качестве регистратора в поток, использующий этот шаблон.",
   "kontrollplan.velgFlytForPunkt": "Выберите поток для точки",
   "kontrollplan.tilFlytOppsett": "Перейти к настройке потока",

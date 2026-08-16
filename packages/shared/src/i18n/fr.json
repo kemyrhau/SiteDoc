@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Ouvrir la liste de contrôle",
   "kontrollplan.kobleEksisterende": "Lier la liste de contrôle existante",
   "kontrollplan.kobleIngenKandidater": "Aucune liste de contrôle disponible avec le même modèle à lier.",
-  "kontrollplan.startVelgFlyt": "Choisissez le flux de documents",
   "kontrollplan.startIngenFlyt": "Le modèle ne fait pas partie d'un flux documentaire dans lequel vous êtes un registraire. Demandez à un administrateur de projet de vous ajouter en tant que registraire dans le flux qui utilise ce modèle.",
   "kontrollplan.velgFlytForPunkt": "Choisissez le flux pour le point",
   "kontrollplan.tilFlytOppsett": "Accédez à la configuration du flux",

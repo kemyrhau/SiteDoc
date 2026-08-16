@@ -3309,7 +3309,6 @@
   "kontrollplan.aapneSjekkliste": "Checkliste öffnen",
   "kontrollplan.kobleEksisterende": "Vorhandene Checkliste verknüpfen",
   "kontrollplan.kobleIngenKandidater": "Keine verfügbaren Checklisten mit derselben Vorlage zum Verknüpfen.",
-  "kontrollplan.startVelgFlyt": "Wählen Sie Dokumentenfluss",
   "kontrollplan.startIngenFlyt": "Die Vorlage ist nicht Teil eines Dokumentenflusses, bei dem Sie Registrar sind. Bitten Sie einen Projektadministrator, Sie als Registrar in dem Flow hinzuzufügen, der diese Vorlage verwendet.",
   "kontrollplan.velgFlytForPunkt": "Wählen Sie „Flow“ für den Punkt",
   "kontrollplan.tilFlytOppsett": "Gehen Sie zum Flow-Setup",
