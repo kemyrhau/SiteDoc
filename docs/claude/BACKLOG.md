@@ -86,6 +86,46 @@ gate uten kvittering.
 - Prosess-gap: en S1 med N scripts trenger én samlet «alle kjørt + verifisert»-kvittering
   (audit-scriptet er nå den kvitteringen), ikke N løsrevne manuelle kjøringer.
 
+### 🔴 Signerte vedlegg-URL-er persisteres i `Checklist.data` — utløpte signaturer akkumulerer i DB (bevist i prod 2026-08-16)
+
+Funnet under endringslogg-runden (`fix/endringslogg-lesbar`). Symptomet var
+tjue støy-rader i BEF-001s endringslogg: fem repeater-endringer × tre celler,
+med samme tidsstempler som vær-radene. Diagnosen (måleskript mot prod,
+`relay/endringslogg-radantall-maletall.sql` Spørring 3/4): de tre «endrede»
+cellene per hendelse var bit-identiske i `opprettet`, `filnavn`, `id` og `verdi`
+— **eneste avvik var `?exp=` og `&sig=` på bilde-URL-en.**
+
+**Bevist rotårsak (ikke lenger mistanke):** produksjonsdatabasen lagrer signaturen
+som del av innholdet — f.eks. `…?exp=1786657261918&sig=…` ligger i `Checklist.data`.
+
+**Mekanismen i storage-stien:**
+- `oppdaterData` (`apps/api/src/routes/sjekkliste.ts:615`) leser `sjekkliste.data`
+  **rått** fra DB og lagrer klientens innsendte `input.data` (feltvis merge, `:754`).
+- Klienten lastet sjekklisten via en query som **signerer** vedlegg-URL-er
+  (`signerDataRad`/`signerDataRader` → `?exp=&sig=`). Den returnerer det den ble
+  servert — signert — så signaturen skrives tilbake til `Checklist.data`.
+- Auto-vær-lagringen (`useAutoVaer`) sender **hele** `data` tilbake, inkludert
+  urørte repeater-celler → ny signatur hver gang → rå-JSON skiller seg.
+
+**Symptomet er ryddet, ikke årsaken.** Changelog-runden la inn `normaliserForDiff`
+(`url.split("?")[0]`) i to lag (storage-sammenligning + render-diff), så loggen
+ikke teller signatur-churn som endring (16 → 4 rader). Men databasen fylles fortsatt
+med utløpte signaturer ved hver lagring — samme mønster som S1: symptomet er lett
+å rydde, årsaken fortsetter å produsere.
+
+**To spørsmål som må måles FØR fiks (ikke antatt):**
+1. **Dobbeltsignerer `signerDataRad` en allerede signert URL?** Hvis den signerer
+   en URL som allerede har `?exp=&sig=`, får man `…?exp=..&sig=..?exp=..&sig=..`
+   (ødelagt) eller idempotent overskriving? Avgjør om lagret data allerede er korrupt.
+2. **Hvor mange rader har signatur i `data` i dag?** Read-only-telling av
+   `Checklist.data`/`Task.data` med `?exp=`/`&sig=` i en vedlegg-URL — omfanget
+   avgjør om en backfill-rydding trengs eller om normalisering-ved-lagring holder.
+
+**Sannsynlig fiks (etter måling):** strip query-params fra vedlegg-URL FØR lagring
+i `oppdaterData` (samme `url.split("?")[0]` som `disk-bilde.ts` allerede bruker på
+serve-siden), så `Checklist.data` aldri holder en signatur. Da blir changelog-
+normaliseringen et forsvar i dybden, ikke den eneste barrieren.
+
 ### Prosjektnummer: org.nr som firmadel når det finnes (Kenneth-vedtatt 2026-08-12)
 
 **Dagens generering** (`admin.ts:509-515`) har tre svakheter:

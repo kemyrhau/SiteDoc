@@ -15,11 +15,6 @@ import { esc, formaterDatoTidPunkt } from "../hjelpere";
 import { ARKIV_FARGER } from "./arkiv-css";
 import type { ArkivLogg, HendelseRad } from "./typer";
 
-/** HH:MM fra ISO-tidsstempel. */
-function klokke(iso: string): string {
-  return iso.length >= 16 ? iso.slice(11, 16) : "";
-}
-
 /** «2026-08-05» → «05.08.2026» (ren streng — unngår tidssone-skift på dato-økter). */
 function datoKort(ymd: string): string {
   const [y, m, d] = ymd.split("-");
@@ -72,7 +67,9 @@ function endringslogg(logg: ArkivLogg): string {
         .map((r) => {
           const fra = `<span class="ark-svak">${r.fraVerdi ? esc(r.fraVerdi) : "Ikke utfylt"}</span>`;
           const til = r.tilVerdi ? esc(r.tilVerdi) : `<span class="ark-svak">Ikke utfylt</span>`;
-          return `<tr><td class="ark-logg-tid">${esc(klokke(r.tidspunkt))}</td><td>${esc(r.felt)}</td><td>${fra} → ${til}</td></tr>`;
+          // Punkt 4: full dato+tid på hver rad (ikke bare klokkeslett) — en rad
+          // skal være selvforklarende lest isolert, uavhengig av økt-headeren.
+          return `<tr><td class="ark-logg-tid">${esc(formaterDatoTidPunkt(r.tidspunkt))}</td><td>${esc(r.felt)}</td><td>${fra} → ${til}</td></tr>`;
         })
         .join("");
       return hdr + rows;

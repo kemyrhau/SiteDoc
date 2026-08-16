@@ -28,6 +28,7 @@ import {
   type ArkivSignatur,
   type ArkivDokumentInput,
   type Utskriftsinnstillinger,
+  type KolonneDef,
 } from "@sitedoc/pdf";
 import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
@@ -151,6 +152,26 @@ function inlinDataBilder(
   return ut;
 }
 
+/**
+ * Kolonne-labels per felt-id fra objekt-treet: for hvert objekt med barn
+ * (repeater) → `{ id, label }[]`. Endringsloggen bruker dette til å gjøre en
+ * repeater-celle-endring om til «Rad N — kolonnenavn» i stedet for barn-UUID.
+ */
+function byggKolonnerPerFelt(tre: TreObjekt[]): Record<string, KolonneDef[]> {
+  const kart: Record<string, KolonneDef[]> = {};
+  const walk = (noder: TreObjekt[]): void => {
+    for (const n of noder) {
+      const barn = n.children ?? [];
+      if (barn.length > 0) {
+        kart[n.id] = barn.map((b) => ({ id: b.id, label: b.label }));
+        walk(barn);
+      }
+    }
+  };
+  walk(tre);
+  return kart;
+}
+
 export async function byggSjekklisteArkivHtml(
   prisma: PrismaClient,
   sjekklisteId: string,
@@ -211,11 +232,13 @@ export async function byggSjekklisteArkivHtml(
     visTommeStrukturer: true,
   });
 
-  // 5) Logg (lag 1 alltid, lag 2 på malens enableChangeLog).
+  // 5) Logg (lag 1 alltid, lag 2 på malens enableChangeLog). Kolonne-map lar
+  // endringsloggen ekspandere repeater-endringer til «Rad N — kolonne»-rader.
   const endringsloggAktivert = sjekkliste.template.enableChangeLog;
+  const kolonnerPerFelt = byggKolonnerPerFelt(treObjekter);
   const hendelser = await lesHendelseslogg(prisma, { checklistId: sjekklisteId });
   const endringer = await lesEndringslogg(prisma, { checklistId: sjekklisteId }, endringsloggAktivert);
-  const logg = byggArkivLogg({ hendelser, endringer, endringsloggAktivert });
+  const logg = byggArkivLogg({ hendelser, endringer, endringsloggAktivert, kolonnerPerFelt });
 
   // 6) Statusceller + signaturer utledet av status + hendelseslogg.
   const godkjent = [...hendelser].reverse().find((h) => /godkjent/i.test(h.handling));

@@ -61,3 +61,6 @@ export {
   byggArkivLogg,
   oppsummerLoggverdi,
 } from "./logg";
+
+export { ekspanderEndring, normaliserForDiff, likForDiff } from "./endringsdiff";
+export type { KolonneDef, DiffRad } from "./endringsdiff";

@@ -110,6 +110,12 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 ## 🔴 ÅPENT SIKKERHETSPUNKT — alle sjekkliste-/oppgavebilder er uautentisert tilgjengelige (målt 2026-08-12)
 
+> 🟢 **ARKIVMAL I PROD 2026-08-16 (`c0b9f826` + runde 2).** Server-side PDF via Playwright erstatter ikke klient-utskriften ennå, men er komplett i vedtatt form: repeater-bilder i full bredde under egen rad (ikke samlet bakerst), løpenummer «Bilde 07 · 13.08.2026 10:41» lest fra `Vedlegg.bildeNr` med fallback til dokumentrekkefølge, IMG-filnavn og dokument-id ute, side 1-marger rettet (dobbel padding fjernet). **Rendertid 7,46 s på BEF-001** (73 bilder) — Kenneth målte i prod, tallet avblokkerer ytelsesspørsmålet.
+>
+> **Fabel-vedtak bak dette:** `arkivmal-repeaterbilder-vedtak-fabel-2026-08-15.md` + `arkivpdf-seks-funn-vedtak-fabel-2026-08-16.md`, begge in-repo i `docs/redesign/`. Mockup: `docs/redesign/arkivmal-pdf-mockup/`.
+>
+> **Gjenstår før klient-utskriften kan fjernes:** endringsloggen er den siste flaten som ikke gir mening for en leser — vær-rader gjentas (nøkkelrekkefølge varierer, ikke reell endring), «5 rader (14 bilder) → 5 rader (14 bilder)» sier ikke hva som endret seg. Samlet runde ligger i `relay/inbox-endringslogg.md` per Kenneths ønske om færre deploys. Sju øvrige saker fra mockup-gjennomgangen er ført i BACKLOG (statusblokk-etiketter, befaring som dokumenttype, to nye utskriftsformer, RUH/HMS, vedlegg-radformat, `bildeNr` i app, værsnapshot).
+
 > 🟢 **LUKKET I PROD 2026-08-15 — målt sum 0.** `audit-sensitive-apen-sti.ts` (read-only, mot prod-DB) viser **null** sensitive fil-referanser på åpen `/uploads/`-sti: timer (tillegg+utlegg), kompetanse, maskin, `Image.file_url` og feltvedlegg i `Checklist`/`Task.data` — alle 0.
 >
 > **Veien dit, samme dag:** åpen `uploads/` ryddet (104 jpg → 102 slettet: 73 migrerte originaler + 2 foreldreløse + 27 uten referanse, **88 MB**). To rader i `timer.sheet_tillegg_vedlegg` sto igjen på åpen sti og ble migrert med `migrer-sensitive-filer-til-privat.ts --utfor`. Prod-dump før inngrepet: `~/backup/sitedoc-pre-slett-20260815-1251.dump`.
@@ -146,6 +152,35 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
+
+### 🟢 F1 — endringsloggen lesbar (branch `fix/endringslogg-lesbar`, fra develop) — PÅ BRANCH, venter merge
+
+Arkivmalens endringslogg ga ikke mening for en leser. Fire punkter, én runde
+(ordre `relay/inbox-endringslogg.md`): **(1)** nøkkelsortering (`kanonisk()` i
+`@sitedoc/pdf/hjelpere`) i to lag — storage-sammenligning (`sjekkliste.ts:666`)
++ render-tids no-op (`arkivmal/logg.ts`) — så lik verdi med ulik nøkkelrekkefølge
+ikke er en endring. **(2)** lesbar transform: ny `endringsdiff.ts` ekspanderer
+repeater-endringer til én rad per endret celle («Rad 3 — Kommentar: X → Y»),
+lagt-til/fjernet rad = én linje; primitiver ryddes for JSON-anførselstegn.
+**(3)** vedlegg-radformat: bilde-celler → «N bilder (filnavn)», filnavn beholdt
+(eneste identifikator i loggen). **(4)** full dato+tid på hver rad (ikke bare
+klokkeslett). Kolonne-labels tres inn via `sammenstilling.ts` (`byggKolonnerPerFelt`
+fra objekt-treet) + `RåEndring.feltId`.
+
+**Målt på BEF-001 i prod (`relay/endringslogg-radantall-maletall.sql`, read-only):
+16 → 4 rader.** De fire er tre ekte tekstredigeringer (04:55: «press» →
+«freseasfalt» → «fresemasse») + én ikke-repeater-endring. De tjue som forsvant var
+signatur-churn: auto-vær-lagring returnerte ferskt signerte bilde-URL-er på urørte
+repeater-celler → `normaliserForDiff` (`url.split("?")[0]`) i begge lag fjerner
+`?exp=&sig=` fra sammenligningen (visning/lagret verdi uendret).
+
+**Rotårsak ført til BACKLOG:** signerte URL-er persisteres i `Checklist.data` (bevist:
+`?exp=1786657261918&sig=…` ligger i prod-data). Changelog-normaliseringen fikser
+symptomet; databasen fylles fortsatt med utløpte signaturer ved hver lagring. To
+spørsmål å måle før fiks: om `signerDataRad` dobbeltsignerer, og hvor mange rader som
+har signatur i data i dag. Se [BACKLOG § Signerte vedlegg-URL-er persisteres](BACKLOG.md).
+
+126/126 arkiv-tester grønne · pdf/api/web typecheck grønt. Ikke deployet.
 
 ### 🟡 Startbar kontrollplan — Leveranse 1 (branch `feat/kontrollplan-startbar`) — PÅ BRANCH, venter diff-gate + test
 
