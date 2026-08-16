@@ -9,8 +9,9 @@
  * - HEADER (alle sider — Chromium kan ikke slå den av per side): slank linje med
  *   KUN dokumentreferanse. Firma/prosjekt utelates bevisst — de står i brødtekst-
  *   toppteksten på side 1, og å gjenta dem i margin-headeren dupliserte side 1.
- * - FOOTER (HVER side, § 4-sporbarhet): «Generert fra SiteDoc … · dokument-id …»
- *   venstre, «Side X av Y» høyre.
+ * - FOOTER (HVER side, § 4-sporbarhet): «Generert fra SiteDoc …» venstre,
+ *   «Side X av Y» høyre. Dokument-id utgår (vedtak 2026-08-16, funn 3): intern
+ *   DB-nøkkel, ubrukelig på papir — brukerens referanse er Dokumentnr. i toppen.
  *
  * Padding 0 16mm speiler side-margin i `server.mjs` slik at header/footer flukter
  * med brødteksten. Verifiseres på ekte dokument (4c watch-item).
@@ -50,13 +51,14 @@ export function byggRenderHeader(ramme: RammeData): string {
 }
 
 /**
- * Bunntekst på HVER side. Generert-stempel + dokument-id (sporbarhetsminimum,
- * § 4) venstre; «Side X av Y» høyre med Chromium-injiserte sidetall.
+ * Bunntekst på HVER side. Generert-stempel (sporbarhetsminimum, § 4) venstre;
+ * «Side X av Y» høyre med Chromium-injiserte sidetall. Dokument-id utgår
+ * (vedtak 2026-08-16, funn 3) — intern DB-nøkkel, uten verdi på papir.
  */
-export function byggRenderFooter(ramme: RammeData, generertTekst: string): string {
+export function byggRenderFooter(_ramme: RammeData, generertTekst: string): string {
   return `
 <div style="width:100%;box-sizing:border-box;padding:${KANT};font-family:Arial,Helvetica,sans-serif;font-size:7px;color:${F.graa};display:flex;justify-content:space-between;align-items:center">
-  <span>Generert fra SiteDoc ${esc(generertTekst)} · dokument-id ${esc(ramme.dokumentId)}</span>
+  <span>Generert fra SiteDoc ${esc(generertTekst)}</span>
   <span>Side <span class="pageNumber"></span> av <span class="totalPages"></span></span>
 </div>`.trim();
 }

@@ -27,6 +27,13 @@ export interface Vedlegg {
   url: string;
   filnavn: string;
   opprettet?: string;
+  /**
+   * Løpende bildenummer tildelt i appen ved opptak (vedtak 2026-08-16), synlig
+   * for brukeren og refererbart i tekst. Utskriften rendrer dette LAGREDE
+   * nummeret; mangler det (arkiverte dokumenter fra før feltet), faller dokgen
+   * tilbake til dokumentrekkefølge. Dokgen teller aldri selv når feltet finnes.
+   */
+  bildeNr?: number;
 }
 
 export interface FeltVerdi {

@@ -114,10 +114,10 @@ describe("statusTekst / statusSemantiskFarge", () => {
 });
 
 describe("byggBunntekst — sporbarhetsminimum", () => {
-  it("generert-stempel + dokument-id alltid med", () => {
+  it("generert-stempel med; dokument-id utgått (funn 3)", () => {
     const html = byggBunntekst(meta, "11.08.2026 14:32");
     expect(html).toContain("Generert fra SiteDoc 11.08.2026 14:32");
-    expect(html).toContain("dokument-id sj_9f2c41d8");
+    expect(html).not.toContain("dokument-id");
   });
   it("sidetall valgfritt (settes normalt av container)", () => {
     expect(byggBunntekst(meta, "x", "Side 1 av 2")).toContain("Side 1 av 2");

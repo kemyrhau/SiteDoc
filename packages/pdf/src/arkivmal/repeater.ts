@@ -174,8 +174,9 @@ ${heading}
  * rekker ved sideskift — store rader flyter over til neste side mens teksten
  * blir stående med de første (plassutnyttelses-funnet: ingen `break-inside:
  * avoid` som holder hele blokken samlet). Merking under hvert bilde: løpenr +
- * filnavn + tidsstempel, i liten tekst (arkivsporbarhet) — ingen «punkt N»-
- * kryssreferanse (bildet står ved raden sin). Ingen bilder → ingen rad.
+ * tidsstempel, i liten tekst (vedtak 2026-08-16: filnavnet er internt og utgår).
+ * Nummeret leses fra `bildeNr` (tildelt i appen ved opptak); mangler det, faller
+ * vi tilbake til dokumentrekkefølge (`startNr`+). Ingen bilder → ingen rad.
  */
 function byggBilderader(
   bilder: Vedlegg[],
@@ -186,9 +187,10 @@ function byggBilderader(
 
   let nr = startNr;
   const celler = bilder.map((b) => {
-    const nummer = String(nr++).padStart(2, "0");
-    let merke = `Bilde ${nummer}`;
-    if (b.filnavn) merke += ` — ${esc(b.filnavn)}`;
+    // Lagret bildeNr fra appen har forrang; ellers dokumentrekkefølge (fallback).
+    const visNr = b.bildeNr ?? nr;
+    nr += 1;
+    let merke = `Bilde ${String(visNr).padStart(2, "0")}`;
     if (b.opprettet) merke += ` · ${esc(formaterDatoTidPunkt(b.opprettet))}`;
     return (
       `<div class="ark-bilde">` +

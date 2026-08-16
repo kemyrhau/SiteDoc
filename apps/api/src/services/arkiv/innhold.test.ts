@@ -51,7 +51,7 @@ describe("repeater som tabell (arkiv-override)", () => {
 
 describe("repeater-bilder — full bredde rett under sin egen rad (vedtak 2026-08-15)", () => {
   const DATA_URI = "data:image/jpeg;base64,AAAA";
-  const bilde = (filnavn: string, url = DATA_URI, opprettet?: string) => ({ id: filnavn, type: "bilde", url, filnavn, opprettet });
+  const bilde = (filnavn: string, url = DATA_URI, opprettet?: string, bildeNr?: number) => ({ id: filnavn, type: "bilde", url, filnavn, opprettet, bildeNr });
 
   const repeaterMedBilder = obj({
     id: "r1",
@@ -63,25 +63,34 @@ describe("repeater-bilder — full bredde rett under sin egen rad (vedtak 2026-0
     ],
   });
 
-  it("bilde rendres i egen bilderad med løpenr + filnavn, ikke «punkt N»", () => {
+  it("bilde rendres i egen bilderad med løpenr, uten filnavn og «punkt N» (funn 2)", () => {
     const rader = [{ kom: { verdi: "Sprekk" }, foto: { verdi: [bilde("IMG_4821.jpg")] } }];
     const html = byggInnhold([repeaterMedBilder], { r1: { verdi: rader, kommentar: "", vedlegg: [] } }, cfg(true));
     expect(html).toContain("ark-bilde-rad");
     expect(html).toContain("ark-bilde-grid");
-    expect(html).toContain("Bilde 01 — IMG_4821.jpg");
+    expect(html).toContain("Bilde 01");
+    expect(html).not.toContain("IMG_4821.jpg"); // filnavnet utgår (funn 2)
     expect(html).not.toContain("punkt 1"); // kryssreferansen utgår
     expect(html).toContain(`<img class="ark-bilde-img" src="${DATA_URI}"`);
   });
 
-  it("tidsstempel vises når `opprettet` finnes, utelates ellers", () => {
+  it("tidsstempel vises når `opprettet` finnes, utelates ellers («Bilde NN · tid»)", () => {
     const medTid = [{ kom: { verdi: "A" }, foto: { verdi: [bilde("A.jpg", DATA_URI, "2026-08-07T09:41:00Z")] } }];
     const htmlTid = byggInnhold([repeaterMedBilder], { r1: { verdi: medTid, kommentar: "", vedlegg: [] } }, cfg(true));
-    expect(htmlTid).toMatch(/Bilde 01 — A\.jpg · 07\.08\.2026/);
+    expect(htmlTid).toMatch(/Bilde 01 · 07\.08\.2026 \d{2}:\d{2}/);
+    expect(htmlTid).not.toContain("A.jpg"); // filnavn ikke i merkingen
 
     const utenTid = [{ kom: { verdi: "A" }, foto: { verdi: [bilde("A.jpg")] } }];
     const htmlUten = byggInnhold([repeaterMedBilder], { r1: { verdi: utenTid, kommentar: "", vedlegg: [] } }, cfg(true));
-    expect(htmlUten).toContain("Bilde 01 — A.jpg");
+    expect(htmlUten).toContain("Bilde 01");
     expect(htmlUten).not.toContain("·");
+  });
+
+  it("løpenr leses fra lagret bildeNr når det finnes, ellers dokumentrekkefølge (funn 1)", () => {
+    const medNr = [{ kom: { verdi: "A" }, foto: { verdi: [bilde("A.jpg", DATA_URI, undefined, 7)] } }];
+    const html = byggInnhold([repeaterMedBilder], { r1: { verdi: medNr, kommentar: "", vedlegg: [] } }, cfg(true));
+    expect(html).toContain("Bilde 07"); // lagret nummer, ikke telt (ville vært 01)
+    expect(html).not.toContain("Bilde 01");
   });
 
   it("cellen dumper ALDRI data-URI, og gjentar IKKE filnavn (kryssreferanse fjernet)", () => {
@@ -100,13 +109,14 @@ describe("repeater-bilder — full bredde rett under sin egen rad (vedtak 2026-0
       { kom: { verdi: "B" }, foto: { verdi: [bilde("B.jpg", "data:image/jpeg;base64,BBBB")] } },
     ];
     const html = byggInnhold([repeaterMedBilder], { r1: { verdi: rader, kommentar: "", vedlegg: [] } }, cfg(true));
-    expect(html.indexOf("Bilde 01 — A.jpg")).toBeLessThan(html.indexOf("Bilde 02 — B.jpg"));
+    expect(html.indexOf("Bilde 01")).toBeLessThan(html.indexOf("Bilde 02"));
   });
 
   it("bilde i celle-`vedlegg` (ikke bare `verdi`) samles også", () => {
     const rader = [{ kom: { verdi: "Sprekk", vedlegg: [bilde("V.jpg")] }, foto: { verdi: [] } }];
     const html = byggInnhold([repeaterMedBilder], { r1: { verdi: rader, kommentar: "", vedlegg: [] } }, cfg(true));
-    expect(html).toContain("Bilde 01 — V.jpg");
+    expect(html).toContain("Bilde 01");
+    expect(html).not.toContain("V.jpg");
   });
 
   it("repeater uten bilder → ingen bilderad", () => {
