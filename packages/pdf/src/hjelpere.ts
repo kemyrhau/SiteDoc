@@ -12,6 +12,28 @@ export function esc(tekst: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Kanonisk JSON-streng: rekursiv nøkkelsortering, uendret array-rekkefølge.
+ * To verdier med samme innhold men ulik nøkkelrekkefølge gir samme streng —
+ * så JSON-streng-sammenligning fanger ekte likhet (endringslogg punkt 1).
+ * Array-rekkefølge BEVARES (repeater-rad-rekkefølge er betydningsbærende).
+ */
+export function kanonisk(v: unknown): string {
+  return JSON.stringify(sorterNøkler(v));
+}
+
+function sorterNøkler(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sorterNøkler);
+  if (v != null && typeof v === "object") {
+    const ut: Record<string, unknown> = {};
+    for (const k of Object.keys(v as Record<string, unknown>).sort()) {
+      ut[k] = sorterNøkler((v as Record<string, unknown>)[k]);
+    }
+    return ut;
+  }
+  return v;
+}
+
 /** Normaliser opsjon — støtter både "streng" og {value,label}-format */
 export function normaliserOpsjon(raw: unknown): { value: string; label: string } {
   if (typeof raw === "string") return { value: raw, label: raw };

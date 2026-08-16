@@ -177,15 +177,18 @@ describe("oppsummerLoggverdi — funn 6: ingen rå repeater-JSON i loggen", () =
     expect(oppsummerLoggverdi("[ikke json")).toBe("[ikke json");
   });
 
-  it("byggArkivLogg oppsummerer repeater-endring i øktene (ingen rå JSON)", () => {
+  it("byggArkivLogg ekspanderer repeater-tillegg til én rad per lagt-til rad (ingen rå JSON)", () => {
     const e: RåEndring = {
       userId: "u", aktor: "A", tidspunkt: "2026-08-15T09:00:00.000Z",
       felt: "Kontrollpunkter", fraVerdi: null, tilVerdi: repeaterJson,
     };
     const logg = byggArkivLogg({ hendelser: [], endringer: [e], endringsloggAktivert: true });
-    const rad = logg.økter?.[0]?.rader?.[0];
-    expect(rad?.tilVerdi).toBe("2 rader (2 bilder)");
+    const rader = logg.økter?.[0]?.rader ?? [];
+    // Nytt: to lagt-til rader → to oppsummeringslinjer, ikke én «2 rader (2 bilder)».
+    expect(rader.map((r) => r.felt)).toEqual(["Rad 1 (lagt til)", "Rad 2 (lagt til)"]);
+    expect(rader[0]?.tilVerdi).toContain("bilde");
     expect(JSON.stringify(logg)).not.toContain("/uploads");
+    expect(JSON.stringify(logg)).not.toContain("uuid");
   });
 });
 

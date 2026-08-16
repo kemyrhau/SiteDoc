@@ -115,6 +115,7 @@ export async function lesEndringslogg(
     userId: r.userId,
     aktor: r.user?.name ?? "—",
     tidspunkt: r.createdAt.toISOString(),
+    feltId: r.fieldId,
     felt: r.fieldLabel,
     fraVerdi: r.oldValue,
     tilVerdi: r.newValue,
