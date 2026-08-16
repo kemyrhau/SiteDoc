@@ -2,7 +2,8 @@ export { utledMinRolle, utledDokumentRettighet, beregnHarBallen } from "./flytRo
 export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker } from "./flytRolle";
 export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller, flytRettighetNoekkel, ROLLE_HANDLINGER_DEFAULTS, PROSJEKTADMIN_ROLLE } from "./statusHandlinger";
 export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
-export { vaerkodeTilTekst } from "./vaer";
+export { vaerkodeTilTekst, finnVaerTimeIndeks, byggVaerSnapshot } from "./vaer";
+export type { VaerHourly, VaerSnapshot } from "./vaer";
 export { nesteBildeNr, nummererRepeaterBilder } from "./bildeNr";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";

@@ -218,6 +218,16 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     const initialisert: Record<string, FeltVerdi> = {};
     const harServerData = Object.keys(eksisterendeData).length > 0;
 
+    // Vær-anker: første date/date_time-felt i en mal som har værfelt. Dette feltet
+    // skal IKKE prefylles til i dag — værsnapshotet forankres i befaringstidspunktet
+    // brukeren aktivt setter (Kenneth-vedtak 2026-08-16). Andre datofelter prefylles
+    // som før (ren convenience, ingen vær koblet til).
+    const vaerAnkerId = alleObjekter.some((o) => o.type === "weather")
+      ? alleObjekter.find(
+          (o) => o.type === "date" || o.type === "date_time",
+        )?.id
+      : undefined;
+
     for (const objekt of alleObjekter) {
       if (DISPLAY_TYPER.has(objekt.type)) continue;
 
@@ -232,7 +242,11 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
         // Auto-fill for nye sjekklister uten eksisterende data
         let autoVerdi: unknown = null;
 
-        if (!harServerData && AUTO_FILL_TYPER.has(objekt.type)) {
+        if (
+          !harServerData &&
+          AUTO_FILL_TYPER.has(objekt.type) &&
+          objekt.id !== vaerAnkerId
+        ) {
           switch (objekt.type) {
             case "date":
               autoVerdi = new Date().toISOString().split("T")[0];

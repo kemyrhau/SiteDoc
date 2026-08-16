@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { trpc } from "../lib/trpc";
-import { vaerkodeTilTekst } from "@sitedoc/shared";
+import { byggVaerSnapshot } from "@sitedoc/shared";
+import { useNettverk } from "../providers/NettverkProvider";
 
 interface VaerVerdi {
   temp?: string;
@@ -8,6 +9,12 @@ interface VaerVerdi {
   wind?: string;
   precipitation?: string;
   kilde?: "manuell" | "automatisk";
+  // Offline: satt tidspunkt, men vær ikke hentet ennå. Vær-køen henter når enheten
+  // er online — for `venterTidspunkt`, ikke for tidspunktet nettet kom tilbake.
+  status?: "venter";
+  venterTidspunkt?: string;
+  lat?: number;
+  lng?: number;
 }
 
 interface RapportObjekt {
@@ -32,10 +39,20 @@ interface UseAutoVaerParams {
 }
 
 /**
- * Hook som automatisk henter værdata fra Open-Meteo når:
- * 1. Malen har et vær-felt (type: "weather")
- * 2. Malen har et dato- eller dato/tid-felt med en verdi
- * 3. Prosjektet har satt koordinater (latitude/longitude)
+ * Hook som henter et VÆRSNAPSHOT forankret i befaringstidspunktet (Kenneth-vedtak
+ * 2026-08-16, `docs/redesign/vaerdata-snapshot-vedtak-fabel-2026-08-16.md`):
+ *
+ * 1. Vær hentes UMIDDELBART når brukeren setter befaringstidspunktet (dato/tid-feltet)
+ *    — «Nå», manuell innskriving eller retting virker likt. Ikke ved lagring/render.
+ * 2. Rettet tidspunkt (også bare klokkeslett) → nytt snapshot for det nye tidspunktet.
+ * 3. Endring i bilde/tekst henter aldri nytt vær (kilde-vern + tidspunkt-guard).
+ * 4. Værfeltet står tomt til tidspunktet er satt. Mobil dropper prefyll av vær-ankeret
+ *    (useSjekklisteSkjema/useOppgaveSkjema), så «feltet har verdi» = brukeren satte det.
+ *
+ * Offline: kan ikke hente. Da skrives en «venter»-markør på værfeltet (med tidspunkt +
+ * koordinat) — VaerKøProvider henter for det LAGREDE tidspunktet når enheten er online.
+ * Mens dokumentet er montert og nettet kommer tilbake, refetcher React Query selv
+ * (refetchOnReconnect) → online-grenen fyller og fjerner markøren.
  */
 export function useAutoVaer({
   prosjektId,
@@ -43,28 +60,24 @@ export function useAutoVaer({
   hentFeltVerdi,
   settVerdi,
 }: UseAutoVaerParams) {
-  const harAutoFylt = useRef(false);
+  const { erPaaNettet } = useNettverk();
+  const sisteFyltTidspunktRef = useRef<string | null>(null);
+  const sisteVenterTidspunktRef = useRef<string | null>(null);
 
-  // Finn vær-felt
   const vaerObjekt = alleObjekter.find((o) => o.type === "weather");
-
-  // Finn første dato/dato_time-felt med verdi
   const datoObjekt = alleObjekter.find(
     (o) => o.type === "date" || o.type === "date_time",
   );
 
-  const datoVerdi = datoObjekt ? hentFeltVerdi(datoObjekt.id)?.verdi : null;
+  const datoVerdiRaw = datoObjekt ? hentFeltVerdi(datoObjekt.id)?.verdi : null;
+  const datoVerdi = typeof datoVerdiRaw === "string" ? datoVerdiRaw : null;
   const vaerVerdi = vaerObjekt
     ? (hentFeltVerdi(vaerObjekt.id)?.verdi as VaerVerdi | null)
     : null;
 
-  // Ekstraher dato-streng (YYYY-MM-DD)
   const datoStreng =
-    typeof datoVerdi === "string" && datoVerdi.length >= 10
-      ? datoVerdi.slice(0, 10)
-      : null;
+    datoVerdi && datoVerdi.length >= 10 ? datoVerdi.slice(0, 10) : null;
 
-  // Hent prosjektkoordinater
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
     { id: prosjektId! },
     { enabled: !!prosjektId },
@@ -73,12 +86,12 @@ export function useAutoVaer({
   const latitude = prosjekt?.latitude;
   const longitude = prosjekt?.longitude;
 
-  // Hent værdata når vi har dato + koordinater
   const kanHente =
     !!vaerObjekt &&
     !!datoStreng &&
     latitude != null &&
-    longitude != null;
+    longitude != null &&
+    erPaaNettet;
 
   const { data: vaerdata } = trpc.vaer.hentVaerdata.useQuery(
     {
@@ -89,46 +102,62 @@ export function useAutoVaer({
     { enabled: kanHente },
   );
 
-  // Auto-fyll vær-feltet
+  // ONLINE: fyll snapshot for det satte befaringstidspunktet (umiddelbart når data er der).
   useEffect(() => {
-    if (!vaerdata || !vaerObjekt) return;
-
-    // Ikke overskriv manuell data
+    if (!vaerdata || !vaerObjekt || !datoVerdi) return;
     if (vaerVerdi?.kilde === "manuell") return;
+    // Allerede fylt for dette tidspunktet (og ikke i venter-tilstand) → ikke gjør noe.
+    if (
+      sisteFyltTidspunktRef.current === datoVerdi &&
+      vaerVerdi?.status !== "venter"
+    )
+      return;
 
-    // Ikke fyll på nytt hvis allerede gjort
-    if (harAutoFylt.current && vaerVerdi?.kilde === "automatisk") return;
+    settVerdi(vaerObjekt.id, byggVaerSnapshot(vaerdata.hourly, datoVerdi));
+    sisteFyltTidspunktRef.current = datoVerdi;
+    sisteVenterTidspunktRef.current = null;
+  }, [
+    vaerdata,
+    vaerObjekt,
+    vaerVerdi?.kilde,
+    vaerVerdi?.status,
+    datoVerdi,
+    settVerdi,
+  ]);
 
-    // Finn kl. 12:00-indeksen (middag)
-    const klokke12Indeks = vaerdata.hourly.time.findIndex((t: string) =>
-      t.endsWith("T12:00"),
-    );
-    const indeks = klokke12Indeks >= 0 ? klokke12Indeks : 0;
-
-    const temp = vaerdata.hourly.temperature_2m[indeks];
-    const vaerkode = vaerdata.hourly.weather_code[indeks];
-    const vind = vaerdata.hourly.wind_speed_10m[indeks];
-
-    // Summer opp nedbør for hele dagen
-    const dagNedbor = vaerdata.hourly.precipitation.reduce(
-      (sum: number, v: number | null) => sum + (v ?? 0),
-      0,
-    );
-
-    const nyVerdi: VaerVerdi = {
-      temp: temp != null ? `${temp}°C` : undefined,
-      conditions: vaerkode != null ? vaerkodeTilTekst(vaerkode) : undefined,
-      wind: vind != null ? `${vind} m/s` : undefined,
-      precipitation: `${Math.round(dagNedbor * 10) / 10} mm`,
-      kilde: "automatisk",
-    };
-
-    settVerdi(vaerObjekt.id, nyVerdi);
-    harAutoFylt.current = true;
-  }, [vaerdata, vaerObjekt, vaerVerdi?.kilde, settVerdi]);
-
-  // Reset flag når dato endres
+  // OFFLINE: marker værfeltet som «venter» så UI og vær-kø vet at det skal hentes.
   useEffect(() => {
-    harAutoFylt.current = false;
-  }, [datoStreng]);
+    if (erPaaNettet) return; // online-grenen henter direkte
+    if (!vaerObjekt || !datoVerdi || !datoStreng) return;
+    if (vaerVerdi?.kilde === "manuell") return;
+    if (latitude == null || longitude == null) return; // uten koordinat kan køen ikke hente
+    // Allerede markert venter for akkurat dette tidspunktet → ikke skriv på nytt.
+    if (
+      vaerVerdi?.status === "venter" &&
+      vaerVerdi?.venterTidspunkt === datoVerdi
+    )
+      return;
+    if (sisteVenterTidspunktRef.current === datoVerdi) return;
+
+    settVerdi(vaerObjekt.id, {
+      kilde: "automatisk",
+      status: "venter",
+      venterTidspunkt: datoVerdi,
+      lat: latitude,
+      lng: longitude,
+    });
+    sisteVenterTidspunktRef.current = datoVerdi;
+    sisteFyltTidspunktRef.current = null;
+  }, [
+    erPaaNettet,
+    vaerObjekt,
+    datoVerdi,
+    datoStreng,
+    latitude,
+    longitude,
+    vaerVerdi?.kilde,
+    vaerVerdi?.status,
+    vaerVerdi?.venterTidspunkt,
+    settVerdi,
+  ]);
 }

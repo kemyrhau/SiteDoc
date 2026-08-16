@@ -1,9 +1,39 @@
 import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
+import { createTRPCClient } from "@trpc/client";
 import type { AppRouter } from "@sitedoc/api/src/trpc/router";
 import { AUTH_CONFIG } from "../config/auth";
 import { hentSessionToken, lagreSessionToken } from "../services/auth";
 
 export const trpc = createTRPCReact<AppRouter>();
+
+/**
+ * Vanilla tRPC-klient for kall UTENFOR React-treet (bakgrunnsjobber som vær-køen).
+ * Samme link/auth-config som React-klienten, men uten react-query. Kall f.eks.
+ * `vanillaTrpc.vaer.hentVaerdata.query({...})`.
+ */
+export const vanillaTrpc = createTRPCClient<AppRouter>({
+  links: [
+    httpBatchLink({
+      url: `${AUTH_CONFIG.apiUrl}/trpc`,
+      async headers() {
+        const token = await hentSessionToken();
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
+      async fetch(input, init) {
+        const response = await fetch(input, init);
+        const nyttToken = response.headers.get("x-session-token");
+        if (nyttToken) {
+          try {
+            await lagreSessionToken(nyttToken);
+          } catch {
+            // SecureStore-feil skal ikke velte respons.
+          }
+        }
+        return response;
+      },
+    }),
+  ],
+});
 
 export function opprettTrpcKlient() {
   return trpc.createClient({
