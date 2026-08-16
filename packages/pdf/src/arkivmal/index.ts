@@ -62,5 +62,5 @@ export {
   oppsummerLoggverdi,
 } from "./logg";
 
-export { ekspanderEndring, normaliserForDiff, likForDiff } from "./endringsdiff";
+export { ekspanderEndring, normaliserForDiff, likForDiff, byggKolonnerPerFelt } from "./endringsdiff";
 export type { KolonneDef, DiffRad } from "./endringsdiff";
