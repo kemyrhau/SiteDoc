@@ -31,6 +31,7 @@ export {
 // Hjelpefunksjoner
 export {
   esc,
+  kanonisk,
   normaliserOpsjon,
   formaterDato,
   formaterDatoTid,

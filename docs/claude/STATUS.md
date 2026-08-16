@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-08-15
+**Sist oppdatert:** 2026-08-16
+- 2026-08-16 — **`STATUS-AKTUELT.md` + `BACKLOG.md` F1 endringslogg lesbar** (branch `fix/endringslogg-lesbar`): endringsloggen gjort lesbar — nøkkelsortering (`kanonisk`) + signert-URL-normalisering (`normaliserForDiff`) i to lag, repeater-celle-diff (`endringsdiff.ts`), dato på rad. BEF-001 målt i prod 16 → 4 rader. Rotårsak (signerte URL-er i `Checklist.data`) ført til BACKLOG § Teknisk gjeld med to måle-spørsmål. 126/126 arkiv-tester. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-15 — **`STATUS-AKTUELT.md` arkiv klient-knapp** (branch `feat/arkivmal-rendering`): «Last ned arkiv-PDF» på sjekklistedetalj (`trpc.arkiv.rendr` → Blob-nedlasting + ikke-blokkerende mangel-melding), i18n × 13 språk. Sammenslåing live-verifisert. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-15 — **`STATUS-AKTUELT.md` arkivmal N1/N2** (branch `feat/arkivmal-rendering`): render-kontrakt for klient-knapp — `arkiv.rendrSjekkliste`→`arkiv.rendr`, liste-payload + navngitt `mal`, én sammenhengende PDF for flere dok (`byggArkivSide`/`byggArkivSamling`), per-dok mangel-status + `renderTimeout` top-level. 102/102 arkiv-tester. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-15 — **`STATUS-AKTUELT.md` arkivmal funn 6** (branch `feat/arkivmal-rendering`): endringslogg-lekkasje fikset — `oppsummerLoggverdi` i `arkivmal/logg.ts` oppsummerer repeater-verdier («N rader (M bilder)») i stedet for rå JSON (barn-UUID/`/uploads`-lekkasje). 98/98 arkiv-tester. Ingen ny `docs/claude/`-fil; telling uendret.

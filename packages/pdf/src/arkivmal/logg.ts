@@ -5,6 +5,7 @@
  */
 
 import type { HendelseRad, RåEndring, EndringsØkt, ArkivLogg, SistEndret } from "./typer";
+import { ekspanderEndring, type KolonneDef } from "./endringsdiff";
 
 /** YYYY-MM-DD fra ISO-tidsstempel (grupperingsnøkkel — dato, ikke tid). */
 function datoDel(iso: string): string {
@@ -121,19 +122,33 @@ export function finnSistEndret(kandidater: Array<{ tidspunkt: string; aktor: str
 /**
  * Bygger logg-konvolutten for sjekkliste/oppgave/HMS: lag 1 med
  * kryssreferanse-hale + lag 2 gruppert per økt (tom når endringslogg av).
+ *
+ * Hver rå feltendring ekspanderes til lesbare rader (`ekspanderEndring`):
+ * repeater-endringer blir én rad per endret celle, primitiver ryddes for
+ * JSON-anførselstegn, og kanoniske no-ops (lik verdi, ulik nøkkelrekkefølge)
+ * faller bort. `kolonnerPerFelt[feltId]` gir repeaterens kolonne-labels.
+ * Både haletelling og økter arver de ekspanderte radene.
  */
 export function byggArkivLogg(input: {
   hendelser: HendelseRad[];
   endringer: RåEndring[];
   endringsloggAktivert: boolean;
+  kolonnerPerFelt?: Record<string, KolonneDef[]>;
 }): ArkivLogg {
-  // Funn 6: oppsummer repeater-verdier (rå JSON lekker barn-UUID-er + /uploads-
-  // stier). Enkelt chokepunkt — både haletelling og økter arver de rene verdiene.
-  const endringer = (input.endringsloggAktivert ? input.endringer : []).map((e) => ({
-    ...e,
-    fraVerdi: oppsummerLoggverdi(e.fraVerdi),
-    tilVerdi: oppsummerLoggverdi(e.tilVerdi),
-  }));
+  const kolonner = input.kolonnerPerFelt ?? {};
+  const endringer: RåEndring[] = (input.endringsloggAktivert ? input.endringer : []).flatMap((e) =>
+    ekspanderEndring(e.felt, e.fraVerdi, e.tilVerdi, e.feltId ? kolonner[e.feltId] : undefined).map(
+      (rad) => ({
+        userId: e.userId,
+        aktor: e.aktor,
+        tidspunkt: e.tidspunkt,
+        feltId: e.feltId,
+        felt: rad.felt,
+        fraVerdi: rad.fraVerdi,
+        tilVerdi: rad.tilVerdi,
+      }),
+    ),
+  );
   const hendelser = tellFeltendringer(input.hendelser, endringer);
   const økter = grupperØkter(endringer);
   const kandidater = [

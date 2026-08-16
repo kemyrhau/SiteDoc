@@ -70,6 +70,8 @@ export interface RåEndring {
   userId: string;
   aktor: string;
   tidspunkt: string;
+  /** `fieldId` (objekt-id) — slår opp repeater-kolonner ved lesbar-ekspandering. */
+  feltId?: string;
   felt: string;
   fraVerdi: string | null;
   tilVerdi: string | null;

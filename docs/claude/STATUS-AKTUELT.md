@@ -153,6 +153,35 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟢 F1 — endringsloggen lesbar (branch `fix/endringslogg-lesbar`, fra develop) — PÅ BRANCH, venter merge
+
+Arkivmalens endringslogg ga ikke mening for en leser. Fire punkter, én runde
+(ordre `relay/inbox-endringslogg.md`): **(1)** nøkkelsortering (`kanonisk()` i
+`@sitedoc/pdf/hjelpere`) i to lag — storage-sammenligning (`sjekkliste.ts:666`)
++ render-tids no-op (`arkivmal/logg.ts`) — så lik verdi med ulik nøkkelrekkefølge
+ikke er en endring. **(2)** lesbar transform: ny `endringsdiff.ts` ekspanderer
+repeater-endringer til én rad per endret celle («Rad 3 — Kommentar: X → Y»),
+lagt-til/fjernet rad = én linje; primitiver ryddes for JSON-anførselstegn.
+**(3)** vedlegg-radformat: bilde-celler → «N bilder (filnavn)», filnavn beholdt
+(eneste identifikator i loggen). **(4)** full dato+tid på hver rad (ikke bare
+klokkeslett). Kolonne-labels tres inn via `sammenstilling.ts` (`byggKolonnerPerFelt`
+fra objekt-treet) + `RåEndring.feltId`.
+
+**Målt på BEF-001 i prod (`relay/endringslogg-radantall-maletall.sql`, read-only):
+16 → 4 rader.** De fire er tre ekte tekstredigeringer (04:55: «press» →
+«freseasfalt» → «fresemasse») + én ikke-repeater-endring. De tjue som forsvant var
+signatur-churn: auto-vær-lagring returnerte ferskt signerte bilde-URL-er på urørte
+repeater-celler → `normaliserForDiff` (`url.split("?")[0]`) i begge lag fjerner
+`?exp=&sig=` fra sammenligningen (visning/lagret verdi uendret).
+
+**Rotårsak ført til BACKLOG:** signerte URL-er persisteres i `Checklist.data` (bevist:
+`?exp=1786657261918&sig=…` ligger i prod-data). Changelog-normaliseringen fikser
+symptomet; databasen fylles fortsatt med utløpte signaturer ved hver lagring. To
+spørsmål å måle før fiks: om `signerDataRad` dobbeltsignerer, og hvor mange rader som
+har signatur i data i dag. Se [BACKLOG § Signerte vedlegg-URL-er persisteres](BACKLOG.md).
+
+126/126 arkiv-tester grønne · pdf/api/web typecheck grønt. Ikke deployet.
+
 ### 🟡 Startbar kontrollplan — Leveranse 1 (branch `feat/kontrollplan-startbar`) — PÅ BRANCH, venter diff-gate + test
 
 Kontrollpunkt kan startes/kobles til sjekkliste → planen teller reell status. Null nye kolonner
