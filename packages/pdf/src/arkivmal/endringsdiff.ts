@@ -16,6 +16,9 @@
  */
 
 import { kanonisk } from "../hjelpere";
+import type { Segment } from "./typer";
+
+export type { Segment };
 
 /** Kolonne i en repeater: barn-objektets id → menneskevennlig label. */
 export interface KolonneDef {
@@ -23,11 +26,21 @@ export interface KolonneDef {
   label: string;
 }
 
-/** Én ekspandert endringsrad før tidspunkt/aktør påføres av combineren. */
+/**
+ * Én ekspandert endringsrad før tidspunkt/aktør påføres av combineren.
+ * Verdiene er SEGMENTER (uendret/endret), ikke ferdig HTML — hver flate
+ * (arkiv-PDF, web) rendrer markeringen på sin måte (`<strong>` rundt endrede
+ * ord). Pakken returnerer aldri HTML til web.
+ */
 export interface DiffRad {
   felt: string;
-  fraVerdi: string | null;
-  tilVerdi: string | null;
+  fraVerdi: Segment[] | null;
+  tilVerdi: Segment[] | null;
+}
+
+/** Segmenter → ren tekst (plukker ut ordene uten markering — for tekst/tester). */
+export function segmenterTilTekst(segs: Segment[] | null): string | null {
+  return segs == null ? null : segs.map((s) => s.tekst).join("");
 }
 
 /** Minimal tre-node for kolonne-utledning (strukturell — unngår shared-avhengighet). */
@@ -187,14 +200,87 @@ function radSammendrag(rad: Record<string, unknown>): string {
   return deler.length ? deler.join(", ") : "tom rad";
 }
 
+/** Tokeniser til ord + mellomrom/skilletegn (separatorene beholdes for rekonstruksjon). */
+function tokeniser(s: string): string[] {
+  return s.match(/\s+|[^\s]+/g) ?? [];
+}
+
+/** Slår sammen sammenhengende tokens med samme `endret`-flagg til ett segment. */
+function byggSegmenter(tokens: string[], endret: boolean[]): Segment[] {
+  const segs: Segment[] = [];
+  for (let k = 0; k < tokens.length; k++) {
+    const forrige = segs[segs.length - 1];
+    if (forrige && forrige.endret === endret[k]) forrige.tekst += tokens[k];
+    else segs.push({ tekst: tokens[k]!, endret: endret[k]! });
+  }
+  return segs;
+}
+
+/**
+ * Ord-nivå diff (ikke tegn-nivå): finner lengste felles delsekvens av ord og
+ * markerer ord som IKKE er felles som endret. Slik uthever et endret ord i et
+ * langt avsnitt seg, i stedet for at hele teksten gjentas identisk på begge
+ * sider av pilen.
+ */
+function ordDiff(fra: string, til: string): { fra: Segment[]; til: Segment[] } {
+  const a = tokeniser(fra);
+  const b = tokeniser(til);
+  const m = a.length;
+  const n = b.length;
+  // LCS-lengder (DP bakfra).
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  for (let i = m - 1; i >= 0; i--) {
+    for (let j = n - 1; j >= 0; j--) {
+      dp[i]![j] = a[i] === b[j] ? dp[i + 1]![j + 1]! + 1 : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
+    }
+  }
+  // Backtrack: marker felles tokens som uendret.
+  const aEndret = new Array<boolean>(m).fill(true);
+  const bEndret = new Array<boolean>(n).fill(true);
+  let i = 0;
+  let j = 0;
+  while (i < m && j < n) {
+    if (a[i] === b[j]) {
+      aEndret[i] = false;
+      bEndret[j] = false;
+      i++;
+      j++;
+    } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return { fra: byggSegmenter(a, aEndret), til: byggSegmenter(b, bEndret) };
+}
+
+/**
+ * Gjør fra/til-strenger om til segmenter. Når begge finnes gjøres ord-diff
+ * (endrede ord markeres). Når bare én side finnes (lagt til / fjernet / tom →
+ * utfylt) er hele verdien ny/borte — da ingen intern uthevning (konteksten
+ * «Ikke utfylt → X» bærer betydningen).
+ */
+function tilSegmenter(fra: string | null, til: string | null): { fraVerdi: Segment[] | null; tilVerdi: Segment[] | null } {
+  if (fra != null && til != null) {
+    const d = ordDiff(fra, til);
+    return { fraVerdi: d.fra, tilVerdi: d.til };
+  }
+  return {
+    fraVerdi: fra != null ? [{ tekst: fra, endret: false }] : null,
+    tilVerdi: til != null ? [{ tekst: til, endret: false }] : null,
+  };
+}
+
 /**
  * Kolonne-label for et barn-id. Faller tilbake til «Kolonne N» (posisjon) når
- * mappingen ikke finner navnet — aldri rå barn-UUID eller tom `_` (kolonnen kan
- * være slettet fra malen etter at data ble lagt inn, eller mangle label).
+ * mappingen ikke finner navnet ELLER labelen er meningsløs — aldri rå barn-UUID
+ * og aldri en ren plassholder som «_» (en tom label bruker malbyggeren, og
+ * `"_".trim()` er ikke tom, så trim alene fanget den ikke). En label uten noe
+ * alfanumerisk tegn regnes som meningsløs.
  */
 function kolonneLabel(kolonner: KolonneDef[], id: string, ordinal: number): string {
   const label = kolonner.find((k) => k.id === id)?.label?.trim();
-  return label ? label : `Kolonne ${ordinal}`;
+  return label && /[\p{L}\p{N}]/u.test(label) ? label : `Kolonne ${ordinal}`;
 }
 
 /** Én celles innhold delt i sammenlignbare deler (verdi · bilder · merknad). */
@@ -265,11 +351,11 @@ function diffRepeater(
     const tRad = til[i];
     const nr = i + 1;
     if (fRad === undefined && tRad !== undefined) {
-      ut.push({ felt: `Rad ${nr} (lagt til)`, fraVerdi: null, tilVerdi: radSammendrag(tRad) });
+      ut.push({ felt: `Rad ${nr} (lagt til)`, ...tilSegmenter(null, radSammendrag(tRad)) });
       continue;
     }
     if (fRad !== undefined && tRad === undefined) {
-      ut.push({ felt: `Rad ${nr} (fjernet)`, fraVerdi: radSammendrag(fRad), tilVerdi: null });
+      ut.push({ felt: `Rad ${nr} (fjernet)`, ...tilSegmenter(radSammendrag(fRad), null) });
       continue;
     }
     if (fRad === undefined || tRad === undefined) continue;
@@ -279,8 +365,7 @@ function diffRepeater(
       const diff = lesbarCelleDiff(fRad[k], tRad[k]);
       ut.push({
         felt: `Rad ${nr} — ${kolonneLabel(kolonner, k, ki + 1)}`,
-        fraVerdi: diff.fra,
-        tilVerdi: diff.til,
+        ...tilSegmenter(diff.fra, diff.til),
       });
     });
   }
@@ -311,5 +396,5 @@ export function ekspanderEndring(
   const f = lesbarVerdi(fra);
   const t = lesbarVerdi(til);
   if (f === t) return []; // lesbar ekvivalens (ekstra sikring)
-  return [{ felt: feltLabel, fraVerdi: f, tilVerdi: t }];
+  return [{ felt: feltLabel, ...tilSegmenter(f, t) }];
 }

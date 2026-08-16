@@ -44,12 +44,22 @@ export interface HendelseRad {
   antallFeltendringer: number;
 }
 
-/** Én rad i lag 2 — Endringslogg (feltdiff). */
+/**
+ * Ett segment av en diff-verdi: en tekstbit som enten er uendret eller ble
+ * endret (ord-nivå diff). Hver flate rendrer `endret`-segmentene med markering
+ * (`<strong>`) — pakken returnerer segmenter, ALDRI ferdig HTML.
+ */
+export interface Segment {
+  tekst: string;
+  endret: boolean;
+}
+
+/** Én rad i lag 2 — Endringslogg (feltdiff). Verdiene er segment-lister. */
 export interface EndringRad {
   tidspunkt: string;
   felt: string;
-  fraVerdi: string | null;
-  tilVerdi: string | null;
+  fraVerdi: Segment[] | null;
+  tilVerdi: Segment[] | null;
 }
 
 /**
@@ -63,6 +73,20 @@ export interface EndringsØkt {
   /** Dato YYYY-MM-DD. */
   dato: string;
   rader: EndringRad[];
+}
+
+/**
+ * Ekspandert (lesbar) endring med aktør — combinerens mellomform mellom
+ * `ekspanderEndring` og øktgrupperingen. Verdiene er segment-lister (ord-diff);
+ * `RåEndring` (leser-nivå) bærer fortsatt rå JSON-strenger.
+ */
+export interface EkspandertEndring {
+  userId: string;
+  aktor: string;
+  tidspunkt: string;
+  felt: string;
+  fraVerdi: Segment[] | null;
+  tilVerdi: Segment[] | null;
 }
 
 /** Rå feltendring fra leser — flat, før gruppering. */

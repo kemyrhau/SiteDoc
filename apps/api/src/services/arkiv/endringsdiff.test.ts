@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ekspanderEndring, kanonisk, type KolonneDef } from "@sitedoc/pdf";
+import { ekspanderEndring, kanonisk, segmenterTilTekst, type KolonneDef, type DiffRad } from "@sitedoc/pdf";
 
 /**
  * Rent lag — lesbar diff-transform for endringsloggen (F1, punkt 1–3).
@@ -11,6 +11,14 @@ const KOL: KolonneDef[] = [
   { id: "c2", label: "Kommentar" },
   { id: "c3", label: "Bilde" },
 ];
+
+// Verdiene er segmenter (ord-diff). `flat` plukker ut ren tekst for likhet.
+const flat = (r: DiffRad) => ({
+  felt: r.felt,
+  fraVerdi: segmenterTilTekst(r.fraVerdi),
+  tilVerdi: segmenterTilTekst(r.tilVerdi),
+});
+const tekst = (segs: DiffRad["fraVerdi"]) => segmenterTilTekst(segs);
 
 // Hjelpere som speiler lagringsformatet: verdier lagres som JSON.stringify(verdi).
 const s = (v: unknown) => JSON.stringify(v);
@@ -32,7 +40,7 @@ describe("kanonisk — nøkkelsortering, uendret array-rekkefølge", () => {
 describe("ekspanderEndring — primitiver + no-op (punkt 1)", () => {
   it("primitiv streng-endring → ren tekst uten JSON-anførselstegn", () => {
     const ut = ekspanderEndring("Tilstand", s("OK"), s("Ikke OK"));
-    expect(ut).toEqual([{ felt: "Tilstand", fraVerdi: "OK", tilVerdi: "Ikke OK" }]);
+    expect(ut.map(flat)).toEqual([{ felt: "Tilstand", fraVerdi: "OK", tilVerdi: "Ikke OK" }]);
   });
 
   it("kun nøkkelrekkefølge endret → ingen rad (kanonisk no-op — vær-radene)", () => {
@@ -42,14 +50,14 @@ describe("ekspanderEndring — primitiver + no-op (punkt 1)", () => {
   });
 
   it("tom → utfylt (null oldValue) → én rad", () => {
-    expect(ekspanderEndring("Notat", null, s("Hei"))).toEqual([
+    expect(ekspanderEndring("Notat", null, s("Hei")).map(flat)).toEqual([
       { felt: "Notat", fraVerdi: null, tilVerdi: "Hei" },
     ]);
   });
 
   it("list_multi (array av primitiver) → komma-liste", () => {
     const ut = ekspanderEndring("Valg", s(["OK"]), s(["OK", "Delvis"]));
-    expect(ut).toEqual([{ felt: "Valg", fraVerdi: "OK", tilVerdi: "OK, Delvis" }]);
+    expect(ut.map(flat)).toEqual([{ felt: "Valg", fraVerdi: "OK", tilVerdi: "OK, Delvis" }]);
   });
 });
 
@@ -57,14 +65,14 @@ describe("ekspanderEndring — bilde-/vedleggsverdi (punkt 3, filnavn beholdt)",
   it("bilde-array → «N bilder (filnavn)» med filnavn", () => {
     const ut = ekspanderEndring("Vedlegg", s([bilde("a.jpg")]), s([bilde("a.jpg"), bilde("IMG_4821.jpg")]));
     expect(ut).toHaveLength(1);
-    expect(ut[0]!.fraVerdi).toBe("1 bilde (a.jpg)");
-    expect(ut[0]!.tilVerdi).toBe("2 bilder (a.jpg, IMG_4821.jpg)");
+    expect(tekst(ut[0]!.fraVerdi)).toBe("1 bilde (a.jpg)");
+    expect(tekst(ut[0]!.tilVerdi)).toBe("2 bilder (a.jpg, IMG_4821.jpg)");
   });
 
   it("lang filnavn-liste trunkeres med «+N flere»", () => {
     const bilder = ["a", "b", "c", "d", "e", "f"].map((n) => bilde(`${n}.jpg`));
     const ut = ekspanderEndring("Vedlegg", null, s(bilder));
-    expect(ut[0]!.tilVerdi).toContain("+2 flere");
+    expect(tekst(ut[0]!.tilVerdi)).toContain("+2 flere");
   });
 });
 
@@ -96,7 +104,7 @@ describe("ekspanderEndring — repeater celle-diff (punkt 2)", () => {
     const fra = s([rad("Vegg", "tørr")]);
     const til = s([rad("Vegg", "fuktig")]);
     const ut = ekspanderEndring("Kontrollpunkter", fra, til, KOL);
-    expect(ut).toEqual([{ felt: "Rad 1 — Kommentar", fraVerdi: "tørr", tilVerdi: "fuktig" }]);
+    expect(ut.map(flat)).toEqual([{ felt: "Rad 1 — Kommentar", fraVerdi: "tørr", tilVerdi: "fuktig" }]);
   });
 
   it("to endrede celler i samme rad → to rader, kolonne-rekkefølge", () => {
@@ -112,14 +120,14 @@ describe("ekspanderEndring — repeater celle-diff (punkt 2)", () => {
     const ut = ekspanderEndring("Kontrollpunkter", fra, til, KOL);
     expect(ut).toHaveLength(1);
     expect(ut[0]!.felt).toBe("Rad 2 (lagt til)");
-    expect(ut[0]!.tilVerdi).toBe("2 felt utfylt, 2 bilder");
+    expect(tekst(ut[0]!.tilVerdi)).toBe("2 felt utfylt, 2 bilder");
   });
 
   it("fjernet rad → ÉN oppsummeringslinje", () => {
     const fra = s([rad("Vegg", "tørr"), rad("Tak", "ok")]);
     const til = s([rad("Vegg", "tørr")]);
     const ut = ekspanderEndring("Kontrollpunkter", fra, til, KOL);
-    expect(ut).toEqual([{ felt: "Rad 2 (fjernet)", fraVerdi: "2 felt utfylt", tilVerdi: null }]);
+    expect(ut.map(flat)).toEqual([{ felt: "Rad 2 (fjernet)", fraVerdi: "2 felt utfylt", tilVerdi: null }]);
   });
 
   it("nyfylt 5-rads repeater → 5 rader (ikke femten) — rad-add-vedtaket", () => {
@@ -153,23 +161,30 @@ describe("ekspanderEndring — repeater celle-diff (punkt 2)", () => {
     expect(ut[0]!.felt).toBe("Rad 1 — Kolonne 1");
   });
 
+  it("plassholder-label «_» faller tilbake til «Kolonne N» (overlever trim, ingen alfanum)", () => {
+    const fra = s([{ c1: celle("a") }]);
+    const til = s([{ c1: celle("b") }]);
+    const ut = ekspanderEndring("K", fra, til, [{ id: "c1", label: "_" }]);
+    expect(ut[0]!.felt).toBe("Rad 1 — Kolonne 1");
+  });
+
   it("bildeliste gjentas IKKE når bare teksten endret seg (vis kun ulikt)", () => {
     const bilder = [bilde("a.jpg"), bilde("b.jpg")];
     const fra = s([{ c1: { verdi: "gammel", vedlegg: bilder, kommentar: "" } }]);
     const til = s([{ c1: { verdi: "ny", vedlegg: bilder, kommentar: "" } }]);
     const ut = ekspanderEndring("K", fra, til, KOL);
-    expect(ut).toEqual([{ felt: "Rad 1 — Beskrivelse", fraVerdi: "gammel", tilVerdi: "ny" }]);
+    expect(ut.map(flat)).toEqual([{ felt: "Rad 1 — Beskrivelse", fraVerdi: "gammel", tilVerdi: "ny" }]);
     // Bildelisten skal ikke dukke opp på noen av sidene når den er uendret.
-    expect(ut[0]!.fraVerdi).not.toContain("bilde");
-    expect(ut[0]!.tilVerdi).not.toContain("bilde");
+    expect(tekst(ut[0]!.fraVerdi)).not.toContain("bilde");
+    expect(tekst(ut[0]!.tilVerdi)).not.toContain("bilde");
   });
 
   it("når bildelisten FAKTISK endres vises den på begge sider", () => {
     const fra = s([{ c1: { verdi: "x", vedlegg: [bilde("a.jpg")], kommentar: "" } }]);
     const til = s([{ c1: { verdi: "x", vedlegg: [bilde("a.jpg"), bilde("b.jpg")], kommentar: "" } }]);
     const ut = ekspanderEndring("K", fra, til, KOL);
-    expect(ut[0]!.fraVerdi).toBe("1 bilde (a.jpg)");
-    expect(ut[0]!.tilVerdi).toBe("2 bilder (a.jpg, b.jpg)");
+    expect(tekst(ut[0]!.fraVerdi)).toBe("1 bilde (a.jpg)");
+    expect(tekst(ut[0]!.tilVerdi)).toBe("2 bilder (a.jpg, b.jpg)");
   });
 
   it("aldri barn-UUID eller uploads-sti i utdata", () => {
@@ -179,5 +194,34 @@ describe("ekspanderEndring — repeater celle-diff (punkt 2)", () => {
     const json = JSON.stringify(ut);
     expect(json).not.toContain("/uploads");
     expect(json).not.toContain("uuid");
+  });
+});
+
+describe("ord-nivå diff — endrede ord markeres (endret: true)", () => {
+  // Endrede ord = de i segmentene med endret:true, sammenslått.
+  const endredeOrd = (segs: DiffRad["fraVerdi"]) =>
+    (segs ?? []).filter((sg) => sg.endret).map((sg) => sg.tekst.trim()).filter(Boolean);
+
+  it("ett ord byttet i et avsnitt → kun det ordet markeres, resten uendret", () => {
+    const fra = s("Fundamentet er støpt med press og herdet over natten");
+    const til = s("Fundamentet er støpt med freseasfalt og herdet over natten");
+    const [rad] = ekspanderEndring("Beskrivelse", fra, til);
+    expect(endredeOrd(rad!.fraVerdi)).toEqual(["press"]);
+    expect(endredeOrd(rad!.tilVerdi)).toEqual(["freseasfalt"]);
+    // Hele teksten er fortsatt intakt (segmentene rekonstruerer originalen).
+    expect(tekst(rad!.tilVerdi)).toBe("Fundamentet er støpt med freseasfalt og herdet over natten");
+  });
+
+  it("BEF-001-sekvensen: press → freseasfalt → fresemasse (to separate endringer)", () => {
+    const e1 = ekspanderEndring("B", s("legges press her"), s("legges freseasfalt her"))[0]!;
+    const e2 = ekspanderEndring("B", s("legges freseasfalt her"), s("legges fresemasse her"))[0]!;
+    expect(endredeOrd(e1.tilVerdi)).toEqual(["freseasfalt"]);
+    expect(endredeOrd(e2.tilVerdi)).toEqual(["fresemasse"]);
+  });
+
+  it("lagt-til verdi (tom → utfylt) markeres ikke internt (alt er nytt)", () => {
+    const [rad] = ekspanderEndring("Notat", null, s("helt ny tekst"));
+    expect(endredeOrd(rad!.tilVerdi)).toEqual([]);
+    expect(tekst(rad!.tilVerdi)).toBe("helt ny tekst");
   });
 });

@@ -188,7 +188,15 @@ objekter) og vær ble rå JSON. To PDF-observasjoner rettet samtidig (gjelder be
 flater): kolonne-label faller nå tilbake til «Kolonne N» i stedet for rå UUID/`_`,
 og en uendret bildeliste gjentas ikke på begge sider av pilen (viser kun det ulike).
 
-129/129 arkiv-tester grønne · pdf/api/web typecheck grønt. Ikke deployet.
+**Ord-nivå diff (branch `fix/endringslogg-web`, holdes til app-runden):** transformen
+returnerer nå SEGMENTER (`{tekst, endret}[]`), ikke ren tekst — hver flate rendrer
+endrede ord i `<strong>` (arkiv-PDF: HTML-streng, web: JSX). Slik uthever ett endret
+ord seg i et langt avsnitt i stedet for at hele teksten gjentas identisk. LCS på
+ord-tokens (`ordDiff`), pakken returnerer aldri HTML til web. `_`-fallbacken skjerpet:
+en label uten alfanumerisk tegn (bokstavelig `"_"` overlevde `trim()`) gir «Kolonne N».
+Forkorting av lange tekster: **anbefaling avventer Kenneth** — ikke bygget.
+
+133/133 arkiv-tester grønne · pdf/api/web typecheck grønt. Ikke deployet.
 
 ### 🟡 Startbar kontrollplan — Leveranse 1 (branch `feat/kontrollplan-startbar`) — PÅ BRANCH, venter diff-gate + test
 
