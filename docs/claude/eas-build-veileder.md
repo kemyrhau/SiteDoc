@@ -25,6 +25,31 @@ Sky-bygg er **knappe**: ~15 iOS-bygg/mnd på fri plan, **reset den 1. i måneden
 3. **Kun TestFlight-leveranser**, aldri iterasjon — kode/Azure/docs skal være verifisert klar først.
 4. **Lokale bygg er blindvei** i dette monorepoet (se babel-noten under § Fallgruver) — ikke bruk dem for å spare kvote.
 
+### 🔴 FØR HVERT BYGG: sammenlign env-variabler i kode mot profil (30 sekunder, sparer bygg)
+
+**Lærdom 2026-08-17 — cowork brukte tre bygg som diagnoseverktøy for noe én grep avslørte.**
+Kjør dette før du fyrer:
+
+```bash
+cd <repo>
+echo "=== koden leser ==="
+grep -rhoE "EXPO_PUBLIC_[A-Z_]+" apps/mobile/src | sort -u
+echo "=== profilen setter ==="
+python3 -c "import json;print('\n'.join(sorted(json.load(open('apps/mobile/eas.json'))['build']['<profil>']['env'].keys())))"
+cd apps/mobile && eas env:list --environment preview   # test-profilen laster preview
+```
+
+Differansen er en variabel appen leser som tom streng. **Symptomet er ikke en tydelig feil** —
+det blir en 401, en 404 eller en tom skjerm langt inne i appen, og det koster et bygg å oppdage.
+
+Konkret utslag 2026-08-17: koden leste seks variabler, test-profilen satte fem.
+`EXPO_PUBLIC_DEV_LOGIN_SECRET` manglet → dev-login ga 401
+`DEV_LOGIN_SECRET_MANGLER_ELLER_FEIL` selv om serveren var korrekt satt opp.
+Løsning: `eas env:set --environment preview` (ikke `eas.json` — den er committet).
+
+⚠️ **`EXPO_PUBLIC_*` bakes inn ved kompilering.** En variabel satt etter at bygget startet,
+krever nytt bygg. Verifiser med `eas env:list` **før** du bygger, ikke etter.
+
 ### Bygg-logg (reset 1. i mnd — oppdateres ved HVERT sky-bygg)
 
 | Mnd | Brukt | Bygg |
