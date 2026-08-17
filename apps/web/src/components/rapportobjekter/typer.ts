@@ -23,6 +23,9 @@ export interface Vedlegg {
   url: string;
   filnavn: string;
   opprettet?: string;
+  // Løpende bildenummer per dokument, tildelt ved opptak (kun type "bilde").
+  // Dokgen leser dette; mangler det, faller den tilbake til dokumentrekkefølge.
+  bildeNr?: number;
 }
 
 export interface FeltVerdi {

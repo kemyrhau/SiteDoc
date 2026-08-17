@@ -7,7 +7,7 @@ import { oppgaveFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { useAuth } from "../providers/AuthProvider";
-import { utledDokumentRettighet, beregnLaasteFelter } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi } from "./useSjekklisteSkjema";
 
@@ -231,6 +231,15 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     const initialisert: Record<string, FeltVerdi> = {};
     const harServerData = Object.keys(eksisterendeData).length > 0;
 
+    // Vær-anker: første date/date_time-felt i en mal som har værfelt. Skal IKKE
+    // prefylles til i dag — værsnapshotet forankres i befaringstidspunktet brukeren
+    // aktivt setter (Kenneth-vedtak 2026-08-16). Andre datofelter prefylles som før.
+    const vaerAnkerId = alleObjekter.some((o) => o.type === "weather")
+      ? alleObjekter.find(
+          (o) => o.type === "date" || o.type === "date_time",
+        )?.id
+      : undefined;
+
     for (const objekt of alleObjekter) {
       if (DISPLAY_TYPER.has(objekt.type)) continue;
 
@@ -245,7 +254,11 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
         // Auto-fill for nye oppgaver uten eksisterende data
         let autoVerdi: unknown = null;
 
-        if (!harServerData && AUTO_FILL_TYPER.has(objekt.type)) {
+        if (
+          !harServerData &&
+          AUTO_FILL_TYPER.has(objekt.type) &&
+          objekt.id !== vaerAnkerId
+        ) {
           switch (objekt.type) {
             case "date":
               autoVerdi = new Date().toISOString().split("T")[0];
@@ -426,13 +439,21 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   // Oppdater én nøkkel i et felt og planlegg auto-lagring
   const oppdaterFelt = useCallback(
     (objektId: string, oppdatering: Partial<FeltVerdi>) => {
-      settFeltVerdier((prev) => ({
-        ...prev,
-        [objektId]: {
-          ...(prev[objektId] ?? TOM_FELTVERDI),
-          ...oppdatering,
-        },
-      }));
+      settFeltVerdier((prev) => {
+        let oppd = oppdatering;
+        // Repeater-verdi (array av rader): tildel løpende bildeNr til nye bilder i radene.
+        if (Array.isArray(oppd.verdi)) {
+          const nyeRader = nummererRepeaterBilder(oppd.verdi, nesteBildeNr(prev));
+          if (nyeRader !== oppd.verdi) oppd = { ...oppd, verdi: nyeRader };
+        }
+        return {
+          ...prev,
+          [objektId]: {
+            ...(prev[objektId] ?? TOM_FELTVERDI),
+            ...oppd,
+          },
+        };
+      });
       settHarEndringer(true);
       planleggLagring();
     },
@@ -463,11 +484,16 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     (objektId: string, vedlegg: Vedlegg) => {
       settFeltVerdier((prev) => {
         const nåværende = prev[objektId] ?? TOM_FELTVERDI;
+        // Tildel løpende bildeNr ved opptak (kun bilder, kun hvis ikke allerede satt).
+        const nyttVedlegg =
+          vedlegg.type === "bilde" && vedlegg.bildeNr == null
+            ? { ...vedlegg, bildeNr: nesteBildeNr(prev) }
+            : vedlegg;
         return {
           ...prev,
           [objektId]: {
             ...nåværende,
-            vedlegg: [...nåværende.vedlegg, vedlegg],
+            vedlegg: [...nåværende.vedlegg, nyttVedlegg],
           },
         };
       });

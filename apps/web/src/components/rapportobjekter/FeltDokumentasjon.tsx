@@ -85,12 +85,17 @@ export function FeltDokumentasjon({
   const håndterFilValg = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const filer = e.target.files;
     if (!filer) return;
-    for (let i = 0; i < filer.length; i++) {
-      const fil = filer[i];
-      if (fil) lastOppFil(fil);
-    }
-    // Reset input
-    e.target.value = "";
+    // Last opp SEKVENSIELt i FileList-rekkefølge — ellers legges vedleggene til i
+    // opplastings-fullført-rekkefølge (race), og bildeNr følger ikke rekkefølgen.
+    // (Nettleseren gir FileList i navn-/katalogrekkefølge, ikke valgrekkefølge — det
+    //  er den mest stabile rekkefølgen tilgjengelig for <input multiple>.)
+    const liste = Array.from(filer);
+    e.target.value = ""; // reset før asynkron løkke
+    void (async () => {
+      for (const fil of liste) {
+        await lastOppFil(fil);
+      }
+    })();
   }, [lastOppFil]);
 
   const limInnFraUtklippstavle = useCallback(async () => {
@@ -172,6 +177,12 @@ export function FeltDokumentasjon({
                       {v.filnavn}
                     </span>
                   </div>
+                )}
+                {/* Løpende bildenummer — refererbart i tekst («se bilde 07») */}
+                {v.type === "bilde" && v.bildeNr != null && (
+                  <span className="absolute left-0.5 top-0.5 rounded bg-black/60 px-1 text-[10px] font-semibold text-white">
+                    {String(v.bildeNr).padStart(2, "0")}
+                  </span>
                 )}
                 {/* Slett-knapp på valgt vedlegg */}
                 {erValgt && !leseModus && (

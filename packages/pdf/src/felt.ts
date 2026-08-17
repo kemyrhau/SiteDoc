@@ -111,7 +111,9 @@ export function renderFelt(
       if (v.conditions) deler.push(v.conditions);
       if (v.wind) deler.push(`Vind ${v.wind}`);
       if (v.precipitation && v.precipitation !== "0 mm") deler.push(`Nedbør ${v.precipitation}`);
-      verdiHtml = deler.length > 0 ? esc(deler.join(", ")) : `<span class="tom">Ingen værdata</span>`;
+      // Tomt/venter/ikke_registrert vær → «Ikke registrert» (vedtak 2026-08-16 punkt 3):
+      // et manglende snapshot er en opplysning, ikke en systemfeil. Aldri «dagens vær».
+      verdiHtml = deler.length > 0 ? esc(deler.join(", ")) : `<span class="tom">Ikke registrert</span>`;
       break;
     }
 

@@ -7,6 +7,7 @@ import { trpc, opprettTrpcKlient } from "../lib/trpc";
 import { DatabaseProvider } from "./DatabaseProvider";
 import { NettverkProvider } from "./NettverkProvider";
 import { OpplastingsKoProvider } from "./OpplastingsKoProvider";
+import { VaerKoProvider } from "./VaerKoProvider";
 import { AuthProvider } from "./AuthProvider";
 import { SpraakProvider } from "./SpraakProvider";
 import { TimerSyncProvider } from "./TimerSyncProvider";
@@ -73,6 +74,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <NettverkProvider>
             <OpplastingsKoProvider>
+              <VaerKoProvider>
               <AuthProvider>
                 <SpraakProvider>
                   <TimerSyncProvider>
@@ -84,6 +86,7 @@ export function Providers({ children }: { children: ReactNode }) {
                   </TimerSyncProvider>
                 </SpraakProvider>
               </AuthProvider>
+              </VaerKoProvider>
             </OpplastingsKoProvider>
           </NettverkProvider>
         </QueryClientProvider>

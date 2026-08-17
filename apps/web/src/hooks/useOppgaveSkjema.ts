@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, beregnLaasteFelter } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
@@ -163,13 +163,21 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
 
   const oppdaterFelt = useCallback(
     (objektId: string, oppdatering: Partial<FeltVerdi>) => {
-      settFeltVerdier((prev) => ({
-        ...prev,
-        [objektId]: {
-          ...(prev[objektId] ?? TOM_FELTVERDI),
-          ...oppdatering,
-        },
-      }));
+      settFeltVerdier((prev) => {
+        let oppd = oppdatering;
+        // Repeater-verdi (array av rader): tildel løpende bildeNr til nye bilder i radene.
+        if (Array.isArray(oppd.verdi)) {
+          const nyeRader = nummererRepeaterBilder(oppd.verdi, nesteBildeNr(prev));
+          if (nyeRader !== oppd.verdi) oppd = { ...oppd, verdi: nyeRader };
+        }
+        return {
+          ...prev,
+          [objektId]: {
+            ...(prev[objektId] ?? TOM_FELTVERDI),
+            ...oppd,
+          },
+        };
+      });
       planleggLagring();
     },
     [planleggLagring],
@@ -199,11 +207,16 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     (objektId: string, vedlegg: Vedlegg) => {
       settFeltVerdier((prev) => {
         const nåværende = prev[objektId] ?? TOM_FELTVERDI;
+        // Tildel løpende bildeNr ved opptak (kun bilder, kun hvis ikke allerede satt).
+        const nyttVedlegg =
+          vedlegg.type === "bilde" && vedlegg.bildeNr == null
+            ? { ...vedlegg, bildeNr: nesteBildeNr(prev) }
+            : vedlegg;
         return {
           ...prev,
           [objektId]: {
             ...nåværende,
-            vedlegg: [...nåværende.vedlegg, vedlegg],
+            vedlegg: [...nåværende.vedlegg, nyttVedlegg],
           },
         };
       });

@@ -41,3 +41,75 @@ const VAERKODE_MAP: Record<number, string> = {
 export function vaerkodeTilTekst(code: number): string {
   return VAERKODE_MAP[code] ?? "Ukjent";
 }
+
+/** Timesvis værserie fra Open-Meteo (samme form som `vaer.hentVaerdata` returnerer). */
+export interface VaerHourly {
+  time: string[];
+  temperature_2m: (number | null)[];
+  weather_code: (number | null)[];
+  wind_speed_10m: (number | null)[];
+  precipitation: (number | null)[];
+}
+
+/** Lagret værsnapshot på et weather-felt. */
+export interface VaerSnapshot {
+  temp?: string;
+  conditions?: string;
+  wind?: string;
+  precipitation?: string;
+  kilde: "automatisk";
+  /**
+   * Satt når snapshotet ble backfillet i ettertid — ikke i det befaringstidspunktet
+   * ble satt, men ved finalisering (server, funn d). Vedtakets punkt 2: «Merkes
+   * «hentet i ettertid» kun hvis det ble backfillet.» Online-hentingen setter den ikke.
+   */
+  hentetIEttertid?: boolean;
+}
+
+/**
+ * Finn indeksen i den timesvise værserien nærmest befaringens klokkeslett.
+ * Open-Meteo returnerer 24 timer for datoen; vi plukker timen nærmest tidspunktet
+ * brukeren fylte inn. Rent date-felt (uten klokkeslett) bruker kl. 12 som representant.
+ */
+export function finnVaerTimeIndeks(times: string[], tidspunkt: string): number {
+  const harKlokke = tidspunkt.length >= 13 && tidspunkt[10] === "T";
+  const maalTime = harKlokke ? parseInt(tidspunkt.slice(11, 13), 10) : 12;
+  let beste = 0;
+  let besteDiff = Infinity;
+  for (let i = 0; i < times.length; i++) {
+    const t = times[i];
+    if (!t || t.length < 13) continue;
+    const diff = Math.abs(parseInt(t.slice(11, 13), 10) - maalTime);
+    if (diff < besteDiff) {
+      besteDiff = diff;
+      beste = i;
+    }
+  }
+  return beste;
+}
+
+/**
+ * Bygg et værsnapshot fra en timesvis serie for et gitt befaringstidspunkt.
+ * Temperatur/værkode/vind hentes for timen nærmest klokkeslettet; nedbør summeres
+ * for hele dagen. Delt av web-hook, mobil-hook og mobil vær-kø.
+ */
+export function byggVaerSnapshot(
+  hourly: VaerHourly,
+  tidspunkt: string,
+): VaerSnapshot {
+  const indeks = finnVaerTimeIndeks(hourly.time, tidspunkt);
+  const temp = hourly.temperature_2m[indeks];
+  const vaerkode = hourly.weather_code[indeks];
+  const vind = hourly.wind_speed_10m[indeks];
+  const dagNedbor = hourly.precipitation.reduce(
+    (sum: number, v: number | null) => sum + (v ?? 0),
+    0,
+  );
+  return {
+    temp: temp != null ? `${temp}°C` : undefined,
+    conditions: vaerkode != null ? vaerkodeTilTekst(vaerkode) : undefined,
+    wind: vind != null ? `${vind} m/s` : undefined,
+    precipitation: `${Math.round(dagNedbor * 10) / 10} mm`,
+    kilde: "automatisk",
+  };
+}
