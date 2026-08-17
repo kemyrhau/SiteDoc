@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
-import { vaerkodeTilTekst } from "@sitedoc/shared";
+import { byggVaerSnapshot } from "@sitedoc/shared";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import type { FeltVerdi } from "@/components/rapportobjekter/typer";
 
@@ -20,12 +20,18 @@ interface UseAutoVaerParams {
 }
 
 /**
- * Hook som automatisk henter værdata fra Open-Meteo når:
- * 1. Malen har et vær-felt (type: "weather")
- * 2. Malen har et dato- eller dato/tid-felt med en verdi
- * 3. Prosjektet har satt koordinater (latitude/longitude)
+ * Hook som henter et VÆRSNAPSHOT forankret i befaringstidspunktet (Kenneth-vedtak
+ * 2026-08-16, `docs/redesign/vaerdata-snapshot-vedtak-fabel-2026-08-16.md`):
  *
- * Setter kilde: "automatisk" — bruker kan overstyre (kilde: "manuell")
+ * 1. Vær hentes når brukeren SETTER befaringstidspunktet (dato/tid-feltet) — umiddelbart.
+ * 2. Rettet tidspunkt (også bare klokkeslett) → nytt snapshot for det nye tidspunktet.
+ * 3. Endring i bilde/tekst henter aldri nytt vær (styres av `kilde`-vernet + tidspunkt-guard).
+ * 4. Værfeltet står tomt til tidspunktet er satt. Web prefyller ikke dato, så «feltet har
+ *    en verdi» betyr her at brukeren satte den — ingen ekstra vern trengs (mobil dropper
+ *    prefyll av vær-ankeret, se useSjekklisteSkjema/useOppgaveSkjema).
+ *
+ * Vær-felttypen kobles implisitt til første date/date_time-felt i malen. Setter kilde:
+ * "automatisk"; manuell overstyring (kilde: "manuell") røres aldri.
  */
 export function useAutoVaer({
   prosjektId,
@@ -33,28 +39,23 @@ export function useAutoVaer({
   hentFeltVerdi,
   settVerdi,
 }: UseAutoVaerParams) {
-  const harAutoFylt = useRef(false);
+  // Siste tidspunkt vi faktisk auto-fylte vær for — hindrer refyll-loop, gir refyll ved endret tid.
+  const sisteFyltTidspunktRef = useRef<string | null>(null);
 
-  // Finn vær-felt
   const vaerObjekt = alleObjekter.find((o) => o.type === "weather");
-
-  // Finn første dato/dato_time-felt med verdi
   const datoObjekt = alleObjekter.find(
-    (o) => (o.type === "date" || o.type === "date_time"),
+    (o) => o.type === "date" || o.type === "date_time",
   );
 
-  const datoVerdi = datoObjekt ? hentFeltVerdi(datoObjekt.id)?.verdi : null;
+  const datoVerdiRaw = datoObjekt ? hentFeltVerdi(datoObjekt.id)?.verdi : null;
+  const datoVerdi = typeof datoVerdiRaw === "string" ? datoVerdiRaw : null;
   const vaerVerdi = vaerObjekt
     ? (hentFeltVerdi(vaerObjekt.id)?.verdi as VaerVerdi | null)
     : null;
 
-  // Ekstraher dato-streng (YYYY-MM-DD)
   const datoStreng =
-    typeof datoVerdi === "string" && datoVerdi.length >= 10
-      ? datoVerdi.slice(0, 10)
-      : null;
+    datoVerdi && datoVerdi.length >= 10 ? datoVerdi.slice(0, 10) : null;
 
-  // Hent prosjektkoordinater
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
     { id: prosjektId },
     { enabled: !!prosjektId },
@@ -63,7 +64,6 @@ export function useAutoVaer({
   const latitude = prosjekt?.latitude;
   const longitude = prosjekt?.longitude;
 
-  // Hent værdata når vi har dato + koordinater
   const kanHente =
     !!vaerObjekt &&
     !!datoStreng &&
@@ -79,46 +79,19 @@ export function useAutoVaer({
     { enabled: kanHente },
   );
 
-  // Auto-fyll vær-feltet
+  // Auto-fyll vær-feltet for det satte befaringstidspunktet.
   useEffect(() => {
-    if (!vaerdata || !vaerObjekt) return;
+    if (!vaerdata || !vaerObjekt || !datoVerdi) return;
 
     // Ikke overskriv manuell data
     if (vaerVerdi?.kilde === "manuell") return;
 
-    // Ikke fyll på nytt hvis allerede gjort
-    if (harAutoFylt.current && vaerVerdi?.kilde === "automatisk") return;
+    // Allerede fylt for akkurat dette tidspunktet → ikke gjør noe (bryter refyll-loop)
+    if (sisteFyltTidspunktRef.current === datoVerdi) return;
 
-    // Finn kl. 12:00-indeksen (middag)
-    const klokke12Indeks = vaerdata.hourly.time.findIndex((t) =>
-      t.endsWith("T12:00"),
-    );
-    const indeks = klokke12Indeks >= 0 ? klokke12Indeks : 0;
-
-    const temp = vaerdata.hourly.temperature_2m[indeks];
-    const vaerkode = vaerdata.hourly.weather_code[indeks];
-    const vind = vaerdata.hourly.wind_speed_10m[indeks];
-
-    // Summer opp nedbør for hele dagen (alle 24 timer)
-    const dagNedbor = vaerdata.hourly.precipitation.reduce(
-      (sum: number, v: number | null) => sum + (v ?? 0),
-      0,
-    );
-
-    const nyVerdi: VaerVerdi = {
-      temp: temp != null ? `${temp}°C` : undefined,
-      conditions: vaerkode != null ? vaerkodeTilTekst(vaerkode) : undefined,
-      wind: vind != null ? `${vind} m/s` : undefined,
-      precipitation: `${Math.round(dagNedbor * 10) / 10} mm`,
-      kilde: "automatisk",
-    };
+    const nyVerdi: VaerVerdi = byggVaerSnapshot(vaerdata.hourly, datoVerdi);
 
     settVerdi(vaerObjekt.id, nyVerdi);
-    harAutoFylt.current = true;
-  }, [vaerdata, vaerObjekt, vaerVerdi?.kilde, settVerdi]);
-
-  // Reset flag når dato endres
-  useEffect(() => {
-    harAutoFylt.current = false;
-  }, [datoStreng]);
+    sisteFyltTidspunktRef.current = datoVerdi;
+  }, [vaerdata, vaerObjekt, vaerVerdi?.kilde, datoVerdi, settVerdi]);
 }

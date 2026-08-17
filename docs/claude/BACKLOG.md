@@ -283,10 +283,10 @@ Rørt av fremdriftsplan-importen: rad-identiteten `@@unique([kontrollplanId, imp
 
 **Kilde:** `docs/redesign/arkivpdf-seks-funn-vedtak-fabel-2026-08-16.md`. Funn 2 (filnavn ut), 3 (dokument-id ut av footer), 4 (side 1-marger) og 6-delen som gjaldt bilde/logg/signatur er **levert** i utskrifts-runden. Disse tre står igjen:
 
-**Funn 1 (app-side) — bildeNr tildeles ved opptak** — 🔴 (mobil + web + modell, eget spor).
-- *Vedtak:* bildenummer tildeles i appen når bildet tas, løpende stigende per sjekkliste på tvers av malobjekter, synlig i app-UI og refererbart i tekst («se bilde 07»). Et nummer som oppstår ved rendering finnes ikke når teksten skrives — derfor ikke print-nummerering.
-- *Kode i dag:* PDF-**fallbacken** er levert (`repeater.ts` `byggBilderader` leser `Vedlegg.bildeNr`, faller tilbake til dokumentrekkefølge når feltet mangler; `Vedlegg.bildeNr?` lagt til i `packages/pdf/src/typer.ts`). App-siden mangler: `bildeNr` settes ikke ved opptak (`FeltDokumentasjon.tsx` mobil+web skriver i dag `type/url/filnavn/opprettet`, ikke `bildeNr`).
-- *Mangler:* tildel løpende `bildeNr` per sjekkliste ved opptak/opplasting (mobil + web), vis det i app-UI, gjør det refererbart. Ingen re-nummerering av arkiverte dokumenter (de bruker fallbacken).
+**Funn 1 (app-side) — bildeNr tildeles ved opptak** — 🟢 **IMPLEMENTERT 2026-08-16** (branch `feat/app-vaer-bildenr`, ordre app-felt).
+- *Vedtak:* bildenummer tildeles i appen når bildet tas, løpende stigende per dokument på tvers av malobjekter, synlig i app-UI og refererbart i tekst («se bilde 07»). Et nummer som oppstår ved rendering finnes ikke når teksten skrives — derfor ikke print-nummerering.
+- *Levert:* `bildeNr` tildeles ved opptak i alle fire skjema-hooks (mobil+web × sjekkliste+oppgave; HMS deler samme sti via `template.domain="hms"`), løpende per dokument på tvers av topp-nivå-felt + repeater-rader. Delt logikk i `@sitedoc/shared` (`nesteBildeNr` + `nummererRepeaterBilder`, `utils/bildeNr.ts`). Nummeret vises som badge på thumbnail i app-UI (mobil+web `FeltDokumentasjon`) → refererbart i tekst. Web-galleri: `håndterFilValg`-await rettet så numre følger FileList-rekkefølge. PDF-fallbacken var levert fra før (`repeater.ts:191`). Ingen re-nummerering av arkiverte dokumenter.
+- *Rest:* mobil multi-select-galleri m/`orderedSelection` står åpen (se «Bildehåndtering på mobil»-posten). Offline-kollisjon (to enheter) godtatt (samme post).
 
 **Funn 5 — endringslogg-støy (no-op-rader + rå JSON-diff)** — 🔴 (logg-leser/render, koblet + avhengig).
 - *Vedtak:* no-op-rader (lik → lik) logges aldri; reelle endringer vises som lesbar tekst, ikke rå JSON.
@@ -614,6 +614,10 @@ Endringen: flagg på pickeren, returner array framfor enkeltobjekt, og la kaller
 🟡 **Merk asymmetrien:** `Image` har `sortOrder`, men vedlegg i felt-JSON (`vedlegg[]`) har kun `id`/`url`/`filnavn`/`opprettet` — der er rekkefølgen array-posisjonen. Nummereringen må utledes konsistent for begge, ellers viser samme bilde ulikt nummer på ulike flater.
 
 Hører naturlig sammen med fase 3 (arkivmal), der bildeblokkene uansett bygges.
+
+🟢 **Del 2 (nummerering) implementert 2026-08-16** (branch `feat/app-vaer-bildenr`, ordre app-felt): `Vedlegg.bildeNr?` tildeles ved opptak i alle fire skjema-hooks (mobil+web × sjekkliste+oppgave; HMS deler samme sti), løpende per dokument på tvers av felt + repeater-rader via delt `nesteBildeNr`/`nummererRepeaterBilder` i `@sitedoc/shared`. Dokgen leser feltet allerede (`packages/pdf/src/arkivmal/repeater.ts:191`), fallback til dokumentrekkefølge for arkiverte dokumenter. **Web-galleri:** manglende `await` i `FeltDokumentasjon.håndterFilValg` rettet → sekvensiell opplasting, så nummer følger FileList-rekkefølge (ikke opplastings-race). **Del 1 (mobil multi-select galleri m/`orderedSelection`) står fortsatt åpen** — `velgBilde` er enda single-select; bildeNr tildeles i den rekkefølgen brukeren legger til bildene ett og ett.
+
+🟡 **Oppfølger — offline-kollisjon på `bildeNr` (godtatt 2026-08-16, føres her):** nummeret utledes fra lokal dokumenttilstand ved opptak og er stabilt gjennom sync (sync rører kun `url`). Men tas to bilder på samme dokument fra TO ulike enheter offline, kan begge få samme nummer og kollidere ved sync — sjeldent for ett dokument, men mulig. Akseptert som kjent begrensning nå; avbøtes evt. senere med `(enhet, nr)` eller renummerering-ved-konflikt.
 
 ### 🔴 Dokumentflyt uten registrator kan lagres, men kan ikke brukes — og feilmeldingen forklarer ikke hvorfor (Kenneth i prod 2026-08-13)
 

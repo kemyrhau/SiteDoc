@@ -1,5 +1,5 @@
 import { View, Text, TextInput, Pressable } from "react-native";
-import { Cloud, Pencil } from "lucide-react-native";
+import { Cloud, CloudOff, Pencil } from "lucide-react-native";
 import { useState } from "react";
 import type { RapportObjektProps } from "./typer";
 
@@ -9,6 +9,7 @@ interface VaerVerdi {
   wind?: string;
   precipitation?: string;
   kilde?: "manuell" | "automatisk";
+  status?: "venter";
 }
 
 function formaterVaerTekst(v: VaerVerdi): string {
@@ -25,9 +26,29 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
   const [redigerer, settRedigerer] = useState(false);
   const harVerdi = !!(vaerVerdi.temp || vaerVerdi.conditions || vaerVerdi.wind || vaerVerdi.precipitation);
 
+  const venter = vaerVerdi.status === "venter" && !harVerdi;
+
   const oppdater = (felt: keyof VaerVerdi, nyVerdi: string) => {
-    onEndreVerdi({ ...vaerVerdi, [felt]: nyVerdi, kilde: "manuell" as const });
+    // Manuell overstyring fjerner venter-tilstanden (bruker fyller selv).
+    onEndreVerdi({ ...vaerVerdi, status: undefined, [felt]: nyVerdi, kilde: "manuell" as const });
   };
+
+  // Venter-tilstand: tidspunkt satt offline, vær hentes ved neste tilkobling.
+  if (venter && !redigerer) {
+    return (
+      <View className="flex-row items-center gap-2">
+        <CloudOff size={16} color="#9ca3af" />
+        <Text className="flex-1 text-sm text-gray-400">
+          Vær hentes når du er tilkoblet
+        </Text>
+        {!leseModus && (
+          <Pressable onPress={() => settRedigerer(true)} hitSlop={8}>
+            <Pencil size={14} color="#9ca3af" />
+          </Pressable>
+        )}
+      </View>
+    );
+  }
 
   // Kompakt visning (standard)
   if (!redigerer) {

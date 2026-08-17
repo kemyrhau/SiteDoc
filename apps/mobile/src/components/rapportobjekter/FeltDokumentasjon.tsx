@@ -321,13 +321,23 @@ export function FeltDokumentasjon({
                 }}
               >
                 {v.type === "bilde" ? (
-                  <Image
-                    source={{ uri: bildeUrl }}
-                    className={`h-[72px] w-[72px] rounded-lg ${
-                      erValgt ? "border-2 border-blue-500" : ""
-                    }`}
-                    resizeMode="cover"
-                  />
+                  <View className="h-[72px] w-[72px]">
+                    <Image
+                      source={{ uri: bildeUrl }}
+                      className={`h-[72px] w-[72px] rounded-lg ${
+                        erValgt ? "border-2 border-blue-500" : ""
+                      }`}
+                      resizeMode="cover"
+                    />
+                    {/* Løpende bildenummer — refererbart i tekst («se bilde 07») */}
+                    {v.bildeNr != null && (
+                      <View className="absolute left-1 top-1 rounded bg-black/60 px-1">
+                        <Text className="text-[10px] font-semibold text-white">
+                          {String(v.bildeNr).padStart(2, "0")}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 ) : (
                   <View
                     className={`h-[72px] w-[72px] items-center justify-center rounded-lg bg-gray-100 ${
