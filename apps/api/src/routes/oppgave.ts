@@ -125,6 +125,8 @@ function hentProjectId(oppgave: {
 }
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
+import { hentVaerHourly } from "../services/vaer";
+import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
 
 const FRITEKST_TYPER = new Set(["text_field"]);
 
@@ -713,6 +715,20 @@ export const oppgaveRouter = router({
         "task",
       );
 
+      // Guard (funn d): et finalisert dokument har frosset værsnapshot ved signering.
+      // Vær-køen (VaerKoProvider) kan komme online ETTER finalisering og forsøke å synke
+      // et snapshot — det skal aldri overskrive den finaliserte verdien. Slipp øvrige felt
+      // igjennom, og drop vær-feltene stille (køen tror den synket → retryer ikke evig).
+      let innData = input.data;
+      if (oppgave.terminal != null && oppgave.template?.objects) {
+        const vaerIder = vaerFeltIder(oppgave.template.objects);
+        if (vaerIder.size > 0 && Object.keys(innData).some((k) => vaerIder.has(k))) {
+          innData = Object.fromEntries(
+            Object.entries(innData).filter(([k]) => !vaerIder.has(k)),
+          );
+        }
+      }
+
       // Generer endringslogg hvis aktivert på malen (speil av sjekkliste.oppdaterData:374-407)
       const endringsloggRader: {
         taskId: string;
@@ -725,7 +741,7 @@ export const oppgaveRouter = router({
 
       if (oppgave.template?.enableChangeLog) {
         const gammelData = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
-        const nyData = input.data as Record<string, Record<string, unknown>>;
+        const nyData = innData as Record<string, Record<string, unknown>>;
         const displayTyper = new Set(["heading", "subtitle"]);
 
         const objektMap = new Map(
@@ -773,7 +789,7 @@ export const oppgaveRouter = router({
 
       if (brukerSpraak !== prosjektSpraak && oppgave.template?.objects) {
         try {
-          const data = input.data as Record<string, Record<string, unknown>>;
+          const data = innData as Record<string, Record<string, unknown>>;
           const objektTyper = new Map(oppgave.template.objects.map((o) => [o.id, o.type]));
           const teksterÅOversette: string[] = [];
 
@@ -822,7 +838,7 @@ export const oppgaveRouter = router({
           select: { data: true },
         });
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
-        const merget = { ...eksisterende, ...input.data };
+        const merget = { ...eksisterende, ...innData };
 
         const oppdatert = await tx.task.update({
           where: { id: input.id },
@@ -1354,6 +1370,18 @@ export const oppgaveRouter = router({
         if (nyEier) eierOppdatering = { eierUserId: nyEier };
       }
 
+      // Funn d: fryser dokumentet nå (terminal-transisjon), løs ventende vær-snapshot
+      // for det LAGREDE befaringstidspunktet (archive-vær), ikke finaliseringstidspunktet.
+      // Henting skjer FØR transaksjonen — aldri nettverk-I/O inne i en DB-transaksjon.
+      const finaliserer = ruting.terminal != null && oppgave.terminal == null;
+      const vaerOppdatering = finaliserer && oppgave.template?.objects
+        ? await resolverVentendeVaer(
+            (oppgave.data ?? {}) as Record<string, { verdi?: unknown; kommentar?: string; vedlegg?: unknown[] }>,
+            oppgave.template.objects,
+            hentVaerHourly,
+          )
+        : null;
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
@@ -1363,6 +1391,7 @@ export const oppgaveRouter = router({
             retning: ruting.retning,
             terminal: ruting.terminal,
             sendt: ruting.sendt,
+            ...(vaerOppdatering ? { data: vaerOppdatering as Prisma.InputJsonValue } : {}),
             ...eierOppdatering,
             ...(nyMottaker ? {
               recipientUserId: nyMottaker.recipientUserId,
