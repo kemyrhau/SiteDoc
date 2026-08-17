@@ -1271,6 +1271,40 @@ Faller pausevinduet **utenfor alle arbeidsvinduer** (`pauseMin > 0`, men ingen l
 
 **Vedtatt fiks (forener Kenneth-prinsipp «lagre rett» + ufravikelig «ALDRI slett eksisterende data»): B — flytt erstattet-rad til historikk-tabell ved rediger** i `2816`/`3016` (i stedet for å merke «erstattet» og la den ligge i hovedtabellen) → hovedtabell kun live → ingen leser trenger filter, og audit bevares. Migrering FLYTTER eksisterende «erstattet»-rader fra hovedtabellene til historikk (rydder bl.a. denne sedelen til 3+2 live — uten å slette data). `hentEndringerSiden`-filteret legges i SAMME PR som rulleringsvern (no-op etter migrering). **A (hard-slett) forkastet:** bryter «aldri slett data» uten eksplisitt unntak. Test-sedel `49a7c839` beholdes som regresjons-fixtur.
 
+### 🔴 Dagsseddel-konflikt: meldingen beskriver en løsning brukeren ikke kan utføre (Kenneth, mobil test-bygg 2026-08-17)
+
+**Observert på enhet** (test-bygg `32120cb`, Testfirma AS, dagsseddel ons. 08. juli 2026):
+
+Dagsseddelen står merket **`Konflikt`** med teksten:
+
+> ⚠️ *«Det finnes allerede en dagsseddel for denne datoen — dine timer slås sammen med den.»*
+
+**Kenneths innvending:** *«Det er fint at vi finner konflikter og at vi foreslår løsning — men
+løsningen kan ikke utføres.»* Meldingen sier hva som *vil* skje, men det finnes ingen handling
+som utfører sammenslåingen. Brukeren står med en beskrevet løsning og ingen knapp.
+
+**To ting som må avklares før noe bygges:**
+
+1. **Er «slås sammen» automatisk eller manuelt?** Er det automatisk, er meldingen feil formulert —
+   den er en varsling om noe som allerede skjer, ikke et forslag. Er det manuelt, mangler
+   handlingen.
+2. **`Konflikt` og `Attestert` vises samtidig** på samme dagsseddel (grønn «Attestert 10. juli,
+   21:36» over rød konflikt-boks). To tilstander som ser motstridende ut: er en attestert
+   dagsseddel fortsatt i konflikt, eller er attesteringen fra den *andre* seddelen? Uansett svar
+   er visningen tvetydig for den som skal handle.
+
+Listevisningen viser i tillegg **«2 konflikter — sjekk sedlene»** og **«Usendte kladder: 11»**
+side om side, med 11 dagssedler i `Utkast` fra juli. Verdt å måle om konflikt-tilstanden hindrer
+innsending, eller om de 11 er urelatert.
+
+**Mikrotekst-plikt:** en fiks her skal følge
+[tooltip-hjelpetekst-veileder.md § 3/3a](retningslinjer/tooltip-hjelpetekst-veileder.md) — hvor
+dokumentet flytter, hvem får ballen, hva ser motparten.
+
+Merk: konfliktdeteksjonen på timer-flaten **finnes** (`syncBatch`, se § Server-side
+samme-felt-konfliktdeteksjon over — der er den fraværende for sjekkliste/oppgave). Dette er
+altså ikke manglende deteksjon, men manglende oppløsning.
+
 ### 🟡 Mobil timer-detalj: rå UUID-etiketter når firma-katalog er tom (M-2-observasjon 2026-07-13, UX lav prio)
 
 I timer-detaljen rendres lønnsart/maskin/underprosjekt som rå UUID («48d06eba…», maskin «c22846f8…», «Ukjent underprosjekt») i stedet for navn når `lonnsart_local`/`equipment_local` er tomme — de tabellene er firma-scopede og pulles først ved firmavalg. **Pre-eksisterende, ikke fiks-B-regresjon** (verifisert under M-2, uavhengig av self-heal). Narrow (kun uvalgt firma / upullet katalog). Graceful degradering: vis generisk «Lønnsart»/«Maskin»/«Underprosjekt» i stedet for rå UUID når oppslaget mangler.
