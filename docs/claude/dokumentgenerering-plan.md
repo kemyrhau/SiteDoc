@@ -157,6 +157,21 @@ hvem andre som bruker den før frysingen løftes.
 **UI-krav:** uten nett skal knappen si at PDF krever tilkobling, ikke feile stille.
 Samme prinsipp som «Vær hentes når du er tilkoblet».
 
+**Fjerningsplan i tre faser — ikke bytt motor i ett steg.** Mobil har PDF som
+virker; en byttet motor som feiler på enhet etterlater feltarbeideren uten
+utskrift, og hver verifiseringsrunde koster et EAS-bygg.
+
+1. **Legg til.** `arkiv.rendr`-veien bygges ved siden av `expo-print`, som primær.
+   Den gamle koden røres ikke.
+2. **Verifiser på enhet.** Ekte dokument med bilder, mangel-kontrakten, deling,
+   og oppførsel uten nett. **Sammenlign mot web-generert PDF av samme dokument** —
+   de skal være identiske; det er hele poenget med byttet.
+3. **Fjern.** Først da: `expo-print`-import, HTML-byggingen, base64-inliningen av
+   vedlegg (`[id].tsx` ~513), og pakken fra `package.json`. Egen gate — ikke slett
+   i samme commit som du legger til.
+
+Ordre: `relay/inbox-mobil-arkivpdf.md`.
+
 ### F3 — Flere dokumenttyper 🟡
 
 BACKLOG punkt 3 (befaring) + punkt 6 (RUH/HMS). `render.ts:94` kaster for alt
