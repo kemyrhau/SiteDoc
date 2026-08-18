@@ -650,6 +650,8 @@
   "arkiv.advarselTimeout": "Generația nu s-a terminat la timp. PDF-ul a fost descărcat — încercați din nou pentru un rezultat complet.",
   "arkiv.advarselMangler": "Arhiva PDF a fost descărcată, dar {{antall}} atașament(e) lipsesc — documentul nu este complet.",
   "arkiv.feil": "Nu s-a putut crea arhiva PDF. Vă rugăm să încercați din nou.",
+  "arkiv.kreverTilkobling": "PDF-ul este generat pe server și necesită o conexiune. Încercați din nou când sunteți online.",
+  "arkiv.lokalFallback": "Local",
   "handling.kopier": "Copie",
   "handling.flytt": "Mişcare",
   "handling.filtrer": "Filtra",

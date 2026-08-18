@@ -650,6 +650,8 @@
   "arkiv.advarselTimeout": "Sukupolvi ei päättynyt ajoissa. PDF on ladattu – yritä uudelleen saadaksesi täydellisen tuloksen.",
   "arkiv.advarselMangler": "Arkisto-PDF on ladattu, mutta {{antall}} liitettä puuttuu – asiakirja ei ole täydellinen.",
   "arkiv.feil": "Arkiston PDF-tiedostoa ei voitu luoda. Yritä uudelleen.",
+  "arkiv.kreverTilkobling": "PDF luodaan palvelimella ja vaatii yhteyden. Yritä uudelleen, kun olet online-tilassa.",
+  "arkiv.lokalFallback": "Paikallinen",
   "handling.kopier": "Kopioida",
   "handling.flytt": "Liikkua",
   "handling.filtrer": "Suodattaa",

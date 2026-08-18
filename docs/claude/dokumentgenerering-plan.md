@@ -152,11 +152,15 @@ om at én mal gir fire representasjoner (malbygger / web-skjema / mobil / PDF).
 
 **Da kan `apps/mobile/app/sjekkliste/[id].tsx` sin `expo-print`-vei fjernes.**
 
-⚠️ **Men `felt.ts` forblir frossen — målt 2026-08-17.** Frysingen kan *ikke* løftes
+⚠️ **Men `felt.ts` forblir frossen — målt 2026-08-17/18.** Frysingen kan *ikke* løftes
 når mobil slutter å bruke den, fordi `renderFelt` fortsatt er live-avhengighet for
 `arkivmal/innhold.ts` (server-arkiv, web + snart mobil). Det som dør i fase 3 er
 **`byggSjekklisteHtml`/`renderAlleFelter`-grenen i `sjekkliste.ts`** — ikke `felt.ts`
 selv. Cowork skrev dette upresist i første utkast.
+
+Ingen app importerer `renderFelt`/`renderAlleFelter` direkte — begge har kun interne
+`packages/pdf`-konsumenter, via to kjeder: `sjekkliste.ts → byggSjekklisteHtml`
+(kun mobil) og `arkivmal/innhold.ts` (server-arkiv).
 
 Øvrige målinger: mobil har **nøyaktig én** PDF-vei (`app/sjekkliste/[id].tsx`, ingen
 andre-vei i oppgave/HMS/timer) · `arkiv.rendr` autentiserer likt for Bearer og cookie
