@@ -150,9 +150,18 @@ vedlikeholdspunkt, ingen divergens mellom flatene. Det fjerner risikoen for at
 arkivmal-endringer må speiles manuelt i mobil-PDF — samme klasse som Kenneths funn
 om at én mal gir fire representasjoner (malbygger / web-skjema / mobil / PDF).
 
-**Da kan `apps/mobile/app/sjekkliste/[id].tsx` sin `expo-print`-vei fjernes**, og
-`packages/pdf/src/felt.ts` blir ikke lenger frossen av mobil-hensyn — men verifiser
-hvem andre som bruker den før frysingen løftes.
+**Da kan `apps/mobile/app/sjekkliste/[id].tsx` sin `expo-print`-vei fjernes.**
+
+⚠️ **Men `felt.ts` forblir frossen — målt 2026-08-17.** Frysingen kan *ikke* løftes
+når mobil slutter å bruke den, fordi `renderFelt` fortsatt er live-avhengighet for
+`arkivmal/innhold.ts` (server-arkiv, web + snart mobil). Det som dør i fase 3 er
+**`byggSjekklisteHtml`/`renderAlleFelter`-grenen i `sjekkliste.ts`** — ikke `felt.ts`
+selv. Cowork skrev dette upresist i første utkast.
+
+Øvrige målinger: mobil har **nøyaktig én** PDF-vei (`app/sjekkliste/[id].tsx`, ingen
+andre-vei i oppgave/HMS/timer) · `arkiv.rendr` autentiserer likt for Bearer og cookie
+(`context.ts:76-79`), så mobil-tRPC trenger ingen ny auth-jobb · payload er identisk
+(`{ dokumenter: [{ id, type: "sjekkliste" }] }`).
 
 **UI-krav:** uten nett skal knappen si at PDF krever tilkobling, ikke feile stille.
 Samme prinsipp som «Vær hentes når du er tilkoblet».
