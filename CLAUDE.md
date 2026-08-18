@@ -62,6 +62,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH |
 | [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste, 5 prioritets-nivåer |
 | `docs/claude/historikk-2026-MM.md` | **Arkiv av deployete PR-er/saker per måned** (05, 06, 07, 08). Deployet arbeid flyttes hit fra STATUS-AKTUELT |
+| [docs/claude/dokumentgenerering-plan.md](docs/claude/dokumentgenerering-plan.md) | **🟢 STYRENDE for arkivmal/utskrift:** F1–F6 med avhengighetskart. F2 (fjern klient-utskrift) lukker 4 BACKLOG-saker uten ny kode |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
@@ -371,7 +372,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   2. Migrasjoner ALDRI redigeres etter merge til `main` — sikrer reproduserbarhet
   3. Cross-package-FK håndteres som svake String-felt uten Prisma `@relation` (etablert mønster i `db-maskin`)
 - **Migrasjons-backfill-disiplin** (ufravikelig fra 2026-05-26): Aldri hardkode én enkelt verdi på alle rader uten eksplisitt WHERE som matcher felt utover `domain` — bruk `prefix`/`name`/diskriminerende felt (`UPDATE ... WHERE prefix='SJA' SET subdomain='sja'` per kjent verdi, ikke én generisk default). Lærdom 2026-05-26 (HMS-mal-backfill traff SJA/RUH-maler) + oppfølger-fiks: se git-historikk.
-- ALDRI commit `.env`-filer
+- **ALDRI commit `.env`-filer — og aldri `>` mot en av dem.** Env-filer er gitignorerte og har ingen historikk; overskriver du en, finnes originalen ingen steder. Tre hendelser på fem dager (rsync uten `--exclude docker/env`, `echo > .env`, stale secret). Komplett fil-kart, gjenopprettings-grense og de fem ufravikelige reglene: [infrastruktur.md § Miljøvariabler](docs/claude/infrastruktur.md). **Skriv aldri rsync-til-server for hånd** — bruk `deploy-prod.sh`/`deploy-test.sh`, som har excludene innebygd.
 - Bilder komprimeres til 300–400 KB før opplasting
 - Alle database-endringer via Prisma-migreringer
 - **ALDRI slett eksisterende data** — migreringer må bevare brukere, medlemskap og prosjektdata (bruk ALTER/RENAME/INSERT, ikke DROP+CREATE)

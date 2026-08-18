@@ -50,6 +50,46 @@ Bygges nå inn i Docker-imagene (ikke apt på host). `Dockerfile.api` installere
 
 Container-env settes via `env_file` (se «Env-filer på server» under) + `environment:` i `docker-compose.yml`. Uploads er bind-mountet (`~/stack/sitedoc/uploads` → `/app/apps/api/uploads`), så egen `UPLOADS_DIR`-variabel trengs ikke som på gammel server.
 
+### 🔴 STYRENDE: env-filer overskrives — tre hendelser på fem dager (2026-08-13 → 08-18)
+
+Env-filer er **gitignorert og har ingen historikk**. Overskriver du en, finnes originalen
+ingen steder. Det har skjedd tre ganger:
+
+| Dato | Hva | Årsak |
+|---|---|---|
+| 08-13 | `docker/env/*` slettet for **prod OG test** | håndskrevet `rsync --delete` uten `--exclude docker/env` |
+| 08-18 | `apps/mobile/.env` tømt for `EXPO_PUBLIC_DEV_LOGIN_SECRET` | `echo "..." > .env` (overskrivende `>`, ikke `>>`) |
+| 08-18 | Stale 11-tegns secret mot test-APIs 64-tegns | konsekvens av forrige — dev-login 401 på mobil |
+
+**Hvor env-filer bor (komplett kart):**
+
+| Sted | Filer | Merk |
+|---|---|---|
+| `server-ny:~/stack/sitedoc/docker/env/` | `api.env` · `api-test.env` · `felles.env` · `web.env` · `web-test.env` | **delt prod↔test** — sletting rammer begge |
+| `server-ny:~/stack/salsaklubb/.env` | (eget prosjekt) | `SALSA_DB_PASSWORD` finnes kun her |
+| lokalt `apps/mobile/.env` | `EXPO_PUBLIC_*` | gitignorert, per worktree — hvert tre har sin egen |
+| lokalt `tests/e2e/.env.local` | `DEV_LOGIN_SECRET` | må matche `api-test.env` |
+| EAS (skyen) | `preview`-environment | `eas env:list --environment preview` |
+
+**Ufravikelige regler:**
+
+1. **Aldri `>` mot en env-fil.** Les den først (`cat`), legg til med `>>`, eller rediger den
+   ene linjen. `>` sletter alt du ikke visste var der.
+2. **Alltid `--exclude docker/env` ved rsync til server.** `deploy-prod.sh` og
+   `deploy-test.sh` har det innebygd — **skriv aldri rsync-kommandoen for hånd.**
+3. **Ingen env-fil i git.** Gjelder også `eas.json` for hemmeligheter — den er committet;
+   bruk `eas env:set --visibility sensitive`.
+4. **Endre secret ett sted → synk alle steder.** `DEV_LOGIN_SECRET` finnes i `api-test.env`,
+   `tests/e2e/.env.local`, hver mobil-`.env` og EAS `preview`. Roterer du én, må de andre
+   følge, ellers får du 401 som ser ut som en kodefeil.
+5. **Verifiser lengde, aldri verdi:** `${#VAR}` eller `grep -c`. Ved mismatch er
+   lengde-sammenligning nok til å finne feilen — det var slik 11-mot-64 ble oppdaget.
+
+**Gjenoppretting hvis en server-env forsvinner:** nøkkel*navn* kan leses ut av en kjørende
+container (`docker inspect`), men **verdiene er borte**. Kjører containeren fortsatt, kan
+verdiene hentes fra prosessens miljø; er den stoppet, må hver nøkkel settes på nytt.
+Dette er grunnen til at regel 2 finnes.
+
 ## Deployment
 
 Server-git er ikke satt opp ennå, så deploy går via rsync fra Mac + Docker-bygg på server-ny:
