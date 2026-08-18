@@ -1283,6 +1283,71 @@ Faller pausevinduet **utenfor alle arbeidsvinduer** (`pauseMin > 0`, men ingen l
 
 **Vedtatt fiks (forener Kenneth-prinsipp «lagre rett» + ufravikelig «ALDRI slett eksisterende data»): B — flytt erstattet-rad til historikk-tabell ved rediger** i `2816`/`3016` (i stedet for å merke «erstattet» og la den ligge i hovedtabellen) → hovedtabell kun live → ingen leser trenger filter, og audit bevares. Migrering FLYTTER eksisterende «erstattet»-rader fra hovedtabellene til historikk (rydder bl.a. denne sedelen til 3+2 live — uten å slette data). `hentEndringerSiden`-filteret legges i SAMME PR som rulleringsvern (no-op etter migrering). **A (hard-slett) forkastet:** bryter «aldri slett data» uten eksplisitt unntak. Test-sedel `49a7c839` beholdes som regresjons-fixtur.
 
+### 🟢 KENNETH-VEDTAK 2026-08-18: papirkurven beholdes, men trenger livssyklus
+
+> *«Skal vi sende til papirkurv? Hvis vi gjør det må vi tilby maks fleksibilitet for sletting.»*
+
+**Vedtak: ja, behold papirkurven.** SiteDoc er et dokumentasjonssystem for bygg — en
+godkjent kontrollrapport kan ha juridisk verdi år etter at den ble skrevet. To-stegs,
+reverserbar sletting er beskyttelse, ikke friksjon.
+
+**Problemet er ikke at papirkurven finnes, men at den er halvferdig.** 61 dokumenter
+samlet seg fra 2026-07-26 til 08-18 uten at noen ryddet, fordi det ikke fantes noen måte å
+rydde på. En bøtte uten bunn blir en bøtte ingen tømmer.
+
+**Fire deler, rangert:**
+
+1. **«Tøm papirkurv»** med bekreftelse (ekte modal, ikke `confirm()`). Uten den er alt
+   annet lapping.
+2. **Flervalg med avkryssing** — for både endelig sletting og **gjenoppretting**.
+   Gjenoppretting er undervurdert: sletter noen femten kontrollpunkter ved uhell, skal de
+   tilbake i én operasjon.
+3. **Automatisk tømming etter N dager**, konfigurerbart per firma (default 30 eller 90).
+   Det er dette som hindrer at papirkurven vokser i det uendelige.
+4. **Hvem kan slette endelig** — 🔴❓ **fabel-sak, ikke implementasjonsdetalj.** Et
+   godkjent og signert dokument bør trolig ikke kunne fjernes permanent av en vanlig
+   prosjektmedlem; sporbarheten er det produktet selger. Krever rolle-/kapabilitetsvedtak.
+
+Del 1–3 er ren mangel og kan bygges. Del 4 venter på fabel.
+
+### 🔴 Papirkurven mangler «Tøm» og masseslett — meldingen ber om en handling som ikke finnes (Kenneth, test 2026-08-18)
+
+**Målt i koden:** `apps/api/src/routes/papirkurv.ts` har `hentForProsjekt`, `gjenopprett`
+og **`slettEndelig` for ett dokument** (`{ id, type }`). Ingen tøm-alt, ingen
+masseoperasjon. Web-siden har verken avkryssing eller samlehandling.
+
+**Konsekvens:** Kenneth måtte slette **61 dokumenter én og én, med to klikk hver** — over
+120 klikk — for å kunne slette en mal.
+
+**Verre: «Slett mal»-meldingen sier «Tøm papirkurven først»** og antyder dermed en knapp
+som ikke eksisterer. Det er ikke bare uklar tekst; det er en instruks produktet ikke kan
+oppfylle.
+
+**Bør ha:** «Tøm papirkurv» (med bekreftelse), avkryssing for flerslett, og at
+mal-slettingen tilbyr handlingen direkte i stedet for å sende brukeren på leting.
+
+⚠️ Slett-bekreftelse skal bruke ekte modal, ikke `confirm()` — se CLAUDE.md
+§ UI-designprinsipper.
+
+### 🟡 «Slett mal»-blokkering peker ikke til papirkurven (Kenneth, test 2026-08-18)
+
+Sletting av en mal med dokumenter i papirkurven gir:
+
+> *«Malen har dokumenter i papirkurven (62). Tøm papirkurven først, så kan malen slettes.»*
+
+**Kenneth: «dette er også for dårlig forklart».** Meldingen sier hva som må gjøres, men
+ikke hvor. Brukeren står i **firmaoppsettet** (`/dashbord/oppsett/produksjon/sjekklistemaler`)
+når han får den, mens papirkurven er **prosjektbasert** — og den sier ikke hvilket
+prosjekt de 62 ligger i. Er de spredt over flere prosjekter, må hver tømmes uten at
+brukeren får vite hvilke.
+
+**Bør ha:** lenke direkte til papirkurven, og navn på prosjektet/prosjektene dokumentene
+ligger i. Er de i flere, list dem.
+
+Følger [tooltip-hjelpetekst-veileder.md § 3/3a](retningslinjer/tooltip-hjelpetekst-veileder.md)
+— en handlingstekst skal svare på hvor noe flytter og hva neste steg er, ikke bare hva som
+blokkerer.
+
 ### 🔴 Mobil hard-fryser på rapportobjekt uten `config.zone` (rotårsak funnet 2026-08-18)
 
 **Symptom:** appen fryser hardt ved åpning av en sjekkliste — ingen spinner, ingen krasj,
