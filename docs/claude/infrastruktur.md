@@ -161,6 +161,55 @@ cloudflared (på host) treffer API-containeren over docker-nettet, så `req.ip` 
 
 **API-autorisasjon:** Alle ruter med prosjektdata har `verifiserProsjektmedlem`-sjekk. Dokumentruter bruker `verifiserDokumentTilgang`. `endreStatus` bruker `ctx.userId` (aldri bruker-input som `senderId`).
 
+### Nettverkseksponering — målt 2026-08-18
+
+**Serveren har ingen offentlig IP.** `eno1` = `192.168.1.209/24` (privat LAN bak router).
+Offentlig IP `193.90.181.205` tilhører routeren. Målt utenfra samme kveld:
+
+| Port | Utenfra | Kommentar |
+|---|---|---|
+| 22 (SSH) | ✅ stengt | ingen port-forward i routeren |
+| 443 | ✅ stengt | forventet — Cloudflare Tunnel er **utgående** |
+| 5432 (postgres) | ✅ stengt | |
+
+**Alle app-porter binder til `127.0.0.1`** (`api` 3001/3100 · `test-api` 3301/3300 ·
+salsaklubb 3200 · postgres 5432 · cloudflared metrics 20241). `web`, `embed`,
+`oversettelse` og `pdf-render` publiserer ingen porter. Ingen container er på `0.0.0.0`
+— derfor treffer heller ikke **Docker-UFW-fella** (Docker som publiserer på `0.0.0.0`
+punkterer UFW via egne iptables-regler).
+
+**Begge inngangsveier er utgående-initiert:** Cloudflare Tunnel (`cloudflared`, systemd,
+tunnel `sitedoc-ny`) og Tailscale (`100.76.248.15`). Serveren trenger derfor **null
+inngående offentlige porter**.
+
+**Ingen host-brannmur i dag:** `ufw inactive`, nftables INPUT policy `accept` (kun
+Docker- og Tailscale-kjeder). Det finnes allerede `raw`-drops som beskytter
+`127.0.0.1`-portene mot spoofing fra ikke-`lo`.
+
+**🟡 Anbefalt, ikke gjort (defense-in-depth, ingen hast siden intet er eksponert):**
+
+```sh
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow in on lo
+sudo ufw allow in on tailscale0    # MÅ stå FØR enable — ellers lockout
+sudo ufw enable
+```
+
+⚠️ **Kjør kun med fysisk konsoll tilgjengelig.** `allow outgoing` er påkrevd —
+cloudflared, Tailscale, Open-Meteo, Resend, embed/oversettelse og docker-pull er alle
+utgående.
+
+**SSH-detalj:** port 22 holdes av **`ssh.socket`** (systemd socket-activation), ikke av
+en kjørende `sshd` — `systemctl is-active ssh sshd` gir `inactive`. Konsekvens:
+`ListenAddress` i `sshd_config` ignoreres; binding må evt. endres i `ssh.socket`.
+**Null `Accepted`-innlogginger på sshd siste 7 dager** (journal dekker tilbake til
+2026-06-07) — all tilgang går via **Tailscale SSH**, som termineres i `tailscaled`.
+`ssh.socket` kan derfor trolig deaktiveres helt, som eget steg etter UFW.
+
+**Den reelle internett-grensen er routeren**, ikke serveren. Endres port-forward der,
+endres eksponeringen uten at noe i repoet eller på serveren er rørt.
+
 ### Kjente aksepterte risikoer
 
 - **`allowDangerousEmailAccountLinking`** — Påkrevd for invitasjonsflyten. Risiko: kontoovertakelse hvis angriper kontrollerer OAuth-konto med offerets e-post. Lav i praksis (Google/Microsoft verifiserer e-post)
