@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin, Printer } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { useNettverk } from "../../src/providers/NettverkProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
@@ -42,6 +43,7 @@ import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
 import { hentSessionToken } from "../../src/services/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
 
 interface Transfer {
@@ -115,11 +117,15 @@ export default function SjekklisteUtfylling() {
   const router = useRouter();
   const { bruker } = useAuth();
   const { valgtProsjektId } = useProsjekt();
+  const { erPaaNettet } = useNettverk();
   const utils = trpc.useUtils();
 
   const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
   const [pdfHtml, settPdfHtml] = useState<string | null>(null);
   const [pdfLaster, settPdfLaster] = useState(false);
+  // Arkiv-PDF (server-generert, primær vei — mangel-kontrakten speiler web).
+  // `expo-print`-veien under (pdfHtml/håndterDelPdf) beholdes som lokal fallback (Fase 1).
+  const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
   const [lokTempPosX, setLokTempPosX] = useState<number | null>(null);
@@ -568,6 +574,57 @@ export default function SjekklisteUtfylling() {
     }
   }, [sjekkliste, pdfHtml, genererPdfHtml]);
 
+  // --- Arkiv-PDF (primær vei) -------------------------------------------
+  // Server rendrer samme arkiv-PDF som web (`arkiv.rendr`). Auth går via
+  // Bearer-token på tRPC-klienten (samme som alle andre kall). PDF-en kommer
+  // som base64 i responsen → skrives til fil → deles via `expo-sharing`.
+  const rendrArkiv = trpc.arkiv.rendr.useMutation({
+    onSuccess: async (res: {
+      pdfBase64: string;
+      filnavn: string;
+      komplett: boolean;
+      renderTimeout: boolean;
+      dokumenter: { manglendeVedlegg: string[] }[];
+    }) => {
+      try {
+        const filsti = `${FileSystem.cacheDirectory}${res.filnavn}`;
+        await FileSystem.writeAsStringAsync(filsti, res.pdfBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await Sharing.shareAsync(filsti, {
+          mimeType: "application/pdf",
+          dialogTitle: `Del ${sjekkliste?.title ?? "sjekkliste"}`,
+          UTI: "com.adobe.pdf",
+        });
+      } catch (feil) {
+        console.warn("Arkiv-PDF-deling feilet:", feil);
+      }
+      // Mangel-kontrakt (speiler web): timeout ≠ mangel. Ikke-blokkerende, inline.
+      const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
+      if (res.renderTimeout) {
+        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselTimeout") });
+      } else if (antallMangler > 0) {
+        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselMangler", { antall: antallMangler }) });
+      } else {
+        settArkivMelding(null);
+      }
+    },
+    onError: (error: { message?: string }) => {
+      settArkivMelding({ type: "feil", tekst: error.message ?? t("arkiv.feil") });
+    },
+  });
+
+  const håndterArkivPdf = useCallback(() => {
+    if (!id) return;
+    // Uten nett: si tydelig at PDF krever tilkobling, ikke feil stille.
+    if (!erPaaNettet) {
+      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      return;
+    }
+    settArkivMelding(null);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
+  }, [id, erPaaNettet, rendrArkiv, t]);
+
   // Hjelpefunksjon for å hente feltVerdier som PDF-format, med vedleggsbilder som base64
   async function feltVerdierForPdf() {
     type VedleggPdf = { id: string; type: string; url: string; filnavn: string };
@@ -774,8 +831,25 @@ export default function SjekklisteUtfylling() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
-            <Pressable onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf} hitSlop={12} disabled={pdfLaster}>
-              {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
+            {/* Primær: server-generert arkiv-PDF (samme motor som web). */}
+            <Pressable
+              onPress={håndterArkivPdf}
+              hitSlop={12}
+              disabled={rendrArkiv.isPending}
+              accessibilityLabel={t("handling.lastNedArkivPdf")}
+            >
+              {rendrArkiv.isPending ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
+            </Pressable>
+            {/* Fallback: lokal PDF på enheten (expo-print). Fjernes i Fase 3. */}
+            <Pressable
+              onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf}
+              hitSlop={8}
+              disabled={pdfLaster}
+              className="flex-row items-center gap-1 rounded bg-white/10 px-1.5 py-0.5"
+              accessibilityLabel={t("arkiv.lokalFallback")}
+            >
+              {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Printer size={13} color="#ffffff" />}
+              <Text className="text-[10px] text-white/70">{t("arkiv.lokalFallback")}</Text>
             </Pressable>
             <StatusMerkelapp status={sjekkliste.status} />
             {(() => {
@@ -806,6 +880,18 @@ export default function SjekklisteUtfylling() {
           />
         )}
       </View>
+
+      {/* Arkiv-PDF-melding: inline, ikke-blokkerende (ingen toast). Trykk for å lukke. */}
+      {arkivMelding && (
+        <Pressable
+          onPress={() => settArkivMelding(null)}
+          className={`px-3 py-2 ${arkivMelding.type === "feil" ? "bg-red-50" : "bg-amber-50"}`}
+        >
+          <Text className={`text-xs ${arkivMelding.type === "feil" ? "text-red-700" : "text-amber-700"}`}>
+            {arkivMelding.tekst}
+          </Text>
+        </Pressable>
+      )}
 
       <KeyboardAvoidingView
         className="flex-1"

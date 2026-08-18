@@ -650,6 +650,8 @@
   "arkiv.advarselTimeout": "Generation slutade inte i tid. PDF-filen har laddats ner - försök igen för ett komplett resultat.",
   "arkiv.advarselMangler": "Arkiv-PDF-filen har laddats ner, men {{antall}} bilagor saknas – dokumentet är inte komplett.",
   "arkiv.feil": "Det gick inte att skapa PDF-arkivet. Försök igen.",
+  "arkiv.kreverTilkobling": "PDF-filen genereras på servern och behöver en anslutning. Försök igen när du är online.",
+  "arkiv.lokalFallback": "Lokal",
   "handling.kopier": "Kopiera",
   "handling.flytt": "Flytta",
   "handling.filtrer": "Filtrera",

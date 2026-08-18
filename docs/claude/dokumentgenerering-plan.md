@@ -150,9 +150,14 @@ vedlikeholdspunkt, ingen divergens mellom flatene. Det fjerner risikoen for at
 arkivmal-endringer må speiles manuelt i mobil-PDF — samme klasse som Kenneths funn
 om at én mal gir fire representasjoner (malbygger / web-skjema / mobil / PDF).
 
-**Da kan `apps/mobile/app/sjekkliste/[id].tsx` sin `expo-print`-vei fjernes**, og
-`packages/pdf/src/felt.ts` blir ikke lenger frossen av mobil-hensyn — men verifiser
-hvem andre som bruker den før frysingen løftes.
+**Da kan `apps/mobile/app/sjekkliste/[id].tsx` sin `expo-print`-vei fjernes.**
+
+⚠️ **Presisering (målt 2026-08-18):** `felt.ts` kan **ikke** avfryses selv etter Fase 3.
+`renderFelt` konsumeres fortsatt av `arkivmal/innhold.ts` (server-arkiv-rendreren som
+web + mobil bruker). Det som dør når mobil dropper lokal generering er
+`byggSjekklisteHtml`/`renderAllefelter`-grenen i `sjekkliste.ts` — ikke `felt.ts`.
+Ingen app importerer `renderFelt`/`renderAllefelter` direkte; begge har kun interne
+`packages/pdf`-konsumenter.
 
 **UI-krav:** uten nett skal knappen si at PDF krever tilkobling, ikke feile stille.
 Samme prinsipp som «Vær hentes når du er tilkoblet».

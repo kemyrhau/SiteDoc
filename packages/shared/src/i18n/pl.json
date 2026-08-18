@@ -650,6 +650,8 @@
   "arkiv.advarselTimeout": "Generacja nie zakończyła się na czas. Plik PDF został pobrany — spróbuj ponownie, aby uzyskać pełny wynik.",
   "arkiv.advarselMangler": "Archiwalny plik PDF został pobrany, ale brakuje załączników ({{antall}}) — dokument nie jest kompletny.",
   "arkiv.feil": "Nie można utworzyć archiwum PDF. Spróbuj ponownie.",
+  "arkiv.kreverTilkobling": "Plik PDF jest generowany na serwerze i wymaga połączenia. Spróbuj ponownie, gdy będziesz online.",
+  "arkiv.lokalFallback": "Lokalny",
   "handling.kopier": "Kopia",
   "handling.flytt": "Przenosić",
   "handling.filtrer": "Filtr",

@@ -650,6 +650,8 @@
   "arkiv.advarselTimeout": "Die Generation wurde nicht rechtzeitig fertig. Das PDF wurde heruntergeladen. Versuchen Sie es erneut, um ein vollständiges Ergebnis zu erhalten.",
   "arkiv.advarselMangler": "Das Archiv-PDF wurde heruntergeladen, aber {{antall}} Anhänge fehlen – das Dokument ist unvollständig.",
   "arkiv.feil": "Das Archiv-PDF konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+  "arkiv.kreverTilkobling": "Das PDF wird auf dem Server generiert und benötigt eine Verbindung. Versuchen Sie es erneut, wenn Sie online sind.",
+  "arkiv.lokalFallback": "Lokal",
   "handling.kopier": "Kopie",
   "handling.flytt": "Bewegen",
   "handling.filtrer": "Filter",
