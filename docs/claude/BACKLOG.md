@@ -1283,6 +1283,36 @@ Faller pausevinduet **utenfor alle arbeidsvinduer** (`pauseMin > 0`, men ingen l
 
 **Vedtatt fiks (forener Kenneth-prinsipp «lagre rett» + ufravikelig «ALDRI slett eksisterende data»): B — flytt erstattet-rad til historikk-tabell ved rediger** i `2816`/`3016` (i stedet for å merke «erstattet» og la den ligge i hovedtabellen) → hovedtabell kun live → ingen leser trenger filter, og audit bevares. Migrering FLYTTER eksisterende «erstattet»-rader fra hovedtabellene til historikk (rydder bl.a. denne sedelen til 3+2 live — uten å slette data). `hentEndringerSiden`-filteret legges i SAMME PR som rulleringsvern (no-op etter migrering). **A (hard-slett) forkastet:** bryter «aldri slett data» uten eksplisitt unntak. Test-sedel `49a7c839` beholdes som regresjons-fixtur.
 
+### 🔴 Mobil hard-fryser på rapportobjekt uten `config.zone` (rotårsak funnet 2026-08-18)
+
+**Symptom:** appen fryser hardt ved åpning av en sjekkliste — ingen spinner, ingen krasj,
+hver gang. Dokumentet blir opprettet; etter tvungen omstart fungerer alt.
+
+**Rotårsak:** `E2E Sjekklistemal` ble seedet direkte til databasen fra
+`tests/e2e/mal-*.ts` og fikk `config = {}` på sitt `traffic_light`-objekt. Malbygger-laget
+maler har alltid `{"zone": "topptekst"}` eller `{"zone": "datafelter"}` — UI-et setter
+sonen når feltet dras inn, et script gjør det ikke.
+
+Mobil grupperer felter etter `zone` (`UtfyllingSeksjoner`, `grupperMedOverskrift`). Et
+felt uten sone tilhører ingen gruppe.
+
+⚠️ **Reproduserte ikke i simulator** (Metro, dev-modus) — kun i Release-bygg på fysisk
+enhet. En dev-kjøring frikjenner ikke denne klassen feil.
+
+**Frikjente underveis:** værsnapshot, `bildeNr` og `VaerKoProvider` (2026-08-16/17) — tre
+uavhengige bevislinjer: statisk analyse viste at ingen av kodestiene kjører for en mal med
+kun `traffic_light`; simulator-repro var negativ; datamodellen utelukket DB-bloat i
+sweepen.
+
+**To fikser, begge gjenstår:**
+
+1. **Koden skal tåle det.** Et felt uten `zone` skal falle tilbake til `datafelter`, ikke
+   henge. En importert eller tredjeparts mal kan mangle feltet like gjerne som et
+   seed-script. **Dette er den viktige** — den beskytter mot alle fremtidige kilder.
+2. **Seed-scriptene skal sette `zone`.** `tests/e2e/mal-*.ts` og andre fixtures.
+
+Regel og verifiserings-SQL: [MALBYGGER.md § `config.zone` er PÅKREVD](../../MALBYGGER.md).
+
 ### 🔴 Dagsseddel-konflikt: meldingen beskriver en løsning brukeren ikke kan utføre (Kenneth, mobil test-bygg 2026-08-17)
 
 **Observert på enhet** (test-bygg `32120cb`, Testfirma AS, dagsseddel ons. 08. juli 2026):
