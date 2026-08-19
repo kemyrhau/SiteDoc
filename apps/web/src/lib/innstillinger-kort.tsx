@@ -174,6 +174,9 @@ export function useInnstillingerKort(): {
           { labelKey: "innstillinger.lenke.lonnsarter", href: HUB_LENKER.lonnsarter },
           { labelKey: "innstillinger.lenke.aktiviteter", href: HUB_LENKER.aktiviteter },
           { labelKey: "innstillinger.lenke.tillegg", href: HUB_LENKER.tillegg },
+          // Utleggskategorier — firma-timer-konfig (ordning per kategori) → hub-underlenke.
+          // Gjenbruker fane-nøkkelen (som onboarding/oppsett under).
+          { labelKey: "firma.timer.fane.utleggskategorier", href: HUB_LENKER.utleggskategorier },
           // K13 F14/K13-g — begge timer-setup-faner er konfig → hub-underlenker (regel 1).
           // Gjenbruker develops fane-nøkler (fabel K13-g); labels: «Onboarding» + «Oppsett».
           { labelKey: "firma.timer.fane.onboarding", href: HUB_LENKER.timerOnboarding },
