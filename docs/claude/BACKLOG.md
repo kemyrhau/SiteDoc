@@ -77,6 +77,16 @@ Ved trykk på «+» i sjekkliste-lista frøs appen **helt** (ingen spinner, kun 
 
 (Sweep-ytelsessaken som ble avdekket underveis er allerede fikset — `perf(mobil): vaer-ko-sweep filtrerer i SQLite`, `f82cf431` — men den var ikke frys-årsaken.)
 
+### 🟡 Mobil: enkelt 0-byte bildeopplasting (bygg `0b8f113`, 2026-08-19) — mistenkt race mot frysingen
+
+Ett av Kenneths bilder (`8c57948a…png`) ble lagret som **0 bytes** på server (tom thumbnail, svart annoter). Grundig måling avkreftet de to første hypotesene:
+- **Ikke signering:** URL-en var signert og gyldig; `content-length: 0` = fila er faktisk tom. (Signering-siden av tom-ramme er en egen, ekte bug — fikset i `e52b18cd`, se over.)
+- **Ikke Release-modus / ikke filtype:** telling på test-DB ga **`.jpg` 4 med bytes / 0 tomme, `.png` 3 med bytes / 1 tom** — **1 av 8**, ikke-deterministisk. Sim (både gammel `fetch`+`FormData` og ny `uploadAsync`) laster opp bytes korrekt; Kenneths enhet lastet opp en JPG med bytes (`f0e27a06`, 335 KB) samme økt.
+
+**Hypotese:** en **race** — sannsynlig kobling til [frysingen](#-mobil-hard-frys-ved-sjekkliste-opprettelse--rapportert-på-test-bygg-32120cb1-kenneth-2026-08-17): fryser appen midt i en opplasting, kan fila bli ufullstendig/tom. Ikke isolér denne alene — verifiser sammen med frys-årsaken.
+
+**`uploadAsync`-fiks ligger ucommittet i git-stash** («uploadAsync-fiks (verifiseres i Release-sim)») — riktig hygiene (native multipart, arkitektur-uavhengig), men **ikke** rot-årsaken (gammel kode laster opp riktig 7/8). Vurder å committe den når frys/race er forstått.
+
 ### S1 hadde to migreringsscripts — bare ett ble kjørt mot prod, ingenting fanget det (funnet ved prod-opprydding 2026-08-15)
 
 S1 Fase 1 flyttet sensitive vedlegg fra åpen `/uploads/` til `/uploads/privat/` via
