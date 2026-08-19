@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Pakke A / A7: fjern «X-Powered-By: Next.js» (avslører rammeverk/versjon).
+  poweredByHeader: false,
   experimental: {
     // `sharp` (2026-08-14): arkivmalens bilde-komprimering (`services/arkiv/bilde-inliner.ts`)
     // importerer sharp statisk. Den når web-bygget via router.ts → tRPC-ruten, og
@@ -51,6 +53,32 @@ const nextConfig = {
   eslint: {
     // Lint kjøres separat via turbo lint
     ignoreDuringBuilds: true,
+  },
+  // Pakke A / A7: sikkerhets-headere på hele flaten. Web (port 3100) er hele
+  // den offentlige overflaten bak Cloudflare Tunnel — det finnes ingen egen
+  // nginx/proxy i repoet, så headerne settes her.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // HSTS (High). Ett år. Bevisst UTEN includeSubDomains/preload:
+          // sitedoc.no deler domene med api/test/ssh/embed + annen infra, og
+          // preload er tungt reverserbart. Kan skjerpes når alle subdomener er
+          // bekreftet HTTPS-only. Cloudflare terminerer TLS; nettleseren ser HTTPS.
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000",
+          },
+          // Klikkjacking-vern (Medium). SAMEORIGIN, ikke DENY, fordi appen selv
+          // rammer egne sider (split-view PDF, dokumentleser embed-modus).
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
+          },
+        ],
+      },
+    ];
   },
   async redirects() {
     return [
