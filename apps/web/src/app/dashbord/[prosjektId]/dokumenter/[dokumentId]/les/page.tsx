@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { rensHtml } from "@/lib/sanitize";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X, FileText, Download } from "lucide-react";
@@ -177,7 +178,7 @@ export default function DokumentLeser() {
                 <Tag
                   className={`text-gray-900 ${størrelse} ${erKlikkbar ? "cursor-pointer rounded px-1 -mx-1 hover:bg-amber-50 transition-colors" : ""} ${erValgt ? "bg-amber-100 rounded px-1 -mx-1" : ""}`}
                   onClick={erKlikkbar ? () => setSammenlignBlokk(erValgt ? null : { id: blokk.id, content: blokk.content }) : undefined}
-                  dangerouslySetInnerHTML={{ __html: innhold }}
+                  dangerouslySetInnerHTML={{ __html: rensHtml(innhold) }}
                 />
               );
             }
@@ -187,7 +188,7 @@ export default function DokumentLeser() {
                 <div
                   className={`mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800 ${erKlikkbar ? "cursor-pointer rounded px-1 -mx-1 hover:bg-amber-50 transition-colors" : ""} ${erValgt ? "bg-amber-100 rounded px-1 -mx-1" : ""}`}
                   onClick={erKlikkbar ? () => setSammenlignBlokk(erValgt ? null : { id: blokk.id, content: blokk.content }) : undefined}
-                  dangerouslySetInnerHTML={{ __html: innhold }}
+                  dangerouslySetInnerHTML={{ __html: rensHtml(innhold) }}
                 />
               );
 
@@ -211,7 +212,7 @@ export default function DokumentLeser() {
                 <figcaption
                   className={`-mt-2 mb-4 text-center text-sm italic text-gray-500 ${erKlikkbar ? "cursor-pointer hover:bg-amber-50 transition-colors" : ""} ${erValgt ? "bg-amber-100" : ""}`}
                   onClick={erKlikkbar ? () => setSammenlignBlokk(erValgt ? null : { id: blokk.id, content: blokk.content }) : undefined}
-                  dangerouslySetInnerHTML={{ __html: innhold }}
+                  dangerouslySetInnerHTML={{ __html: rensHtml(innhold) }}
                 />
               );
 
@@ -219,7 +220,7 @@ export default function DokumentLeser() {
               return (
                 <div
                   className="my-4 overflow-x-auto rounded-lg border border-gray-200"
-                  dangerouslySetInnerHTML={{ __html: blokk.content }}
+                  dangerouslySetInnerHTML={{ __html: rensHtml(blokk.content) }}
                 />
               );
 

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { rensHtml } from "@/lib/sanitize";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
@@ -359,7 +360,7 @@ function BlokkVisning({
               <Tag
                 key={blokk.id}
                 className={`text-gray-900 ${størrelse}`}
-                dangerouslySetInnerHTML={{ __html: innhold }}
+                dangerouslySetInnerHTML={{ __html: rensHtml(innhold) }}
               />
             );
           }
@@ -368,7 +369,7 @@ function BlokkVisning({
               <div
                 key={blokk.id}
                 className="mb-4 whitespace-pre-wrap text-base leading-7 text-gray-800"
-                dangerouslySetInnerHTML={{ __html: innhold }}
+                dangerouslySetInnerHTML={{ __html: rensHtml(innhold) }}
               />
             );
           case "image":
@@ -387,7 +388,7 @@ function BlokkVisning({
               <figcaption
                 key={blokk.id}
                 className="mb-6 text-center text-sm italic text-gray-500"
-                dangerouslySetInnerHTML={{ __html: innhold }}
+                dangerouslySetInnerHTML={{ __html: rensHtml(innhold) }}
               />
             );
           default:

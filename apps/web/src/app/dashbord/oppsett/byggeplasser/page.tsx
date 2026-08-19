@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
+import { rensSvg } from "@/lib/sanitize";
 import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import {
@@ -227,7 +228,9 @@ function RedigerLokasjon({
     }
     fetch(`/api${tegning.fileUrl}`)
       .then((res) => res.text())
-      .then((tekst) => {
+      .then((raaTekst) => {
+        // Saniter opplastet/konvertert SVG FØR våre egne, betrodde transformasjoner
+        const tekst = rensSvg(raaTekst);
         let tilpasset = tekst.replace(
           /<svg([^>]*)>/,
           (_match, attrs: string) => {
