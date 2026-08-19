@@ -65,6 +65,22 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟢 Mobil dokumentflyt-auto-utledning traff aldri (`af.templates` vs `maler`) — LØST (fiks) + bevisst INGEN datarydding (2026-08-19)
+
+**Bug:** `apps/mobile/src/components/OppgaveModal.tsx` leste `af.templates` fra `dokumentflyt.hentForProsjekt`, men API-feltet har **alltid** hett `maler` (`apps/api/src/routes/dokumentflyt.ts` — `maler` siden første commit `7dd22fc4`; søk på `templates:` i API-en er tomt). Feltet ble skrevet feil i **`9e723690` (2026-03-06)** og brukte aldri `.maler` — altså **feil fra start, ikke en regresjon fra en omdøping.** `af.templates` var dermed alltid `undefined`.
+
+**Konsekvens (funksjonell, ikke kosmetisk):** auto-utledningen av utfører-faggruppe traff aldri → oppgaver opprettet fra mobil falt til **oppretteren** som mottaker i stedet for flytens faggruppe. **Dokumentflyt virket ikke fra mobil** i ~5,5 måneder (2026-03-06 → 2026-08-19). Krasj-nyanse: den gamle `.some`-av-undefined krasjet **bare** når en flyts faggruppe matchet oppretterens (kortslutning ellers) — så krasjen blokkerte nettopp de opprettelsene der utledningen skulle truffet; resten falt stille tilbake.
+
+**Hvorfor upåaktet i 5,5 mnd:** auto-utledning som **stille faller tilbake gir ingen feilmelding — den gir bare feil svar.** Ingen exception (unntatt det smale krasj-tilfellet), ingen logg, ingen synlig avvik i UI. Klassisk stille-feil-lærdom.
+
+**Omfang målt før beslutning:**
+- **Web frikjent:** `apps/web/src/components/OpprettOppgaveModal.tsx` bruker korrekt `af.maler.some((wt) => wt.template.id === valgtMal)`. Bugget er **mobil-only** — de 13 av 18 forklares av mobil-flaten + legitimt selvrutede, ikke to buggede flater.
+- **Prod-data (read-only SQL 2026-08-19):** **13 selvrutede av 18** oppgaver totalt siden 2026-03-06 (utfører = bestiller, mens en flyt styrer malen i prosjektet).
+
+**Beslutning: INGEN datarydding.** Vi kan ikke skille feilrutede fra legitimt selvrutede, og å endre mottaker på eksisterende dokumenter i et **sporbarhetssystem** er verre enn å la dem stå. De 13 blir stående. Dette er en ren fremover-fiks.
+
+**Fiks:** `OppgaveModal.tsx` — `DokumentflytData.templates`→`maler` (type) + `af.maler?.some((m) => m.templateId === templateId)` (tilgang). `?.`-guarden fra `6bb82aa0` (krasj-fiks) beholdes. Verifiseres i sim etter test-deploy.
+
 ### 🟢 Mobil hard-frys ved sjekkliste-opprettelse — LØST + verifisert i Release-sim, `a29f89b2` (2026-08-19)
 
 **Rot-årsak (reprodusert + verifisert empirisk i Release-sim 2026-08-19):** ikke en synkron løkke/hang. Appen var i live (ingen `.ips`, native-klokka gikk), men en **tom, usynlig `RCTModalHostView` (React Native `<Modal>`) lå fullskjerm på topp og fanget all touch** — **venstre-edge-swipe (interactivePopGesture) løsnet den hver gang**. lldb bekreftet `presentedViewController=nil`: under **Fabric/newArch** rendres `<Modal>` INLINE (ikke som presentert UIKit-VC), og modalens **`onShow`/`onDismiss` fyrer IKKE pålitelig**. `OpprettDokumentModal`s P4a-gate utsatte dismiss til `onShow`; når auto-opprett fullførte FØR presentasjon (rask server — Kenneths «timing/data»-hypotese stemte) → `onShow` kom aldri → deadlock → stuck overlay. Nettverkslogg viste ALLE kall grønne (`sjekkliste.opprett` → 200); rent klientside-modal-livssyklus. Forklarer alt: doc opprettes (mutasjon kjører ferdig først), papirkurv-dokumentene (hvert frys-retry auto-opprettet ett til).
