@@ -18,16 +18,30 @@ Symptomet er `Script injection timed out` / `waited for document_idle` på **hve
 også `example.com`, så det ser ut som et generelt verktøyproblem. Det er det ikke; det er
 dokumentert oppførsel.
 
-**Riktig vei — og du skal be Kenneth om den, ikke prøve selv:**
+### Arbeidsmetoden — fast rekkefølge (Kenneth 2026-08-19)
 
-> «Jeg er klar for nettleser-verifisering. Kan du starte Playwright-utvidelsen og gi meg
-> token-en? Jeg trenger en fane på `<test.sitedoc.no eller sitedoc.no>`, innlogget som
-> `<rolle>`, med «Playwright Extension» klikket på den fanen.»
+**Fire steg. Ikke bytt om på dem — særlig ikke 2 og 3.**
 
-Kenneth gjør så stegene i § 0. **Vent på at han melder tilbake** — ikke start parallelle
-forsøk med andre verktøy imens. Kenneths ord (2026-08-19):
-*«jeg kan starte playwright og gi en nøkkel til opus — jeg ønsker at han ber meg gjøre det
-når han er klar, ellers jobber vi bare mot hverandre.»*
+| # | Hvem | Gjør |
+|---|---|---|
+| 1 | **Kenneth** | starter Playwright og gir agenten token |
+| 2 | **Agenten** | kobler til, åpner siden, og **bekrefter at han ser den** |
+| 3 | **Kenneth** | logger inn — **på den siden agenten allerede har åpen** |
+| 4 | **Agenten** | kjører resten og rapporterer selv |
+
+**Hvorfor rekkefølgen betyr noe:** logger Kenneth inn først og agenten navigerer etterpå,
+risikerer man å miste økta eller havne i en annen fane enn den relay-en er attachet til.
+Agenten etablerer forbindelsen og viser at den lever; **så** kommer innloggingen.
+
+**Be om det slik, når du er klar:**
+
+> «Jeg er klar for nettleser-verifisering. Kan du starte Playwright og gi meg token-en?
+> Jeg åpner `<test.sitedoc.no eller sitedoc.no>` og bekrefter at jeg ser siden — så logger
+> du inn som `<rolle>` på den fanen.»
+
+**Vent på at han melder tilbake** — ikke start parallelle forsøk med andre verktøy imens.
+Kenneths ord: *«jeg ønsker at han ber meg gjøre det når han er klar, ellers jobber vi bare
+mot hverandre.»*
 
 **Når token-en kommer:** `claude mcp remove playwright` + `claude mcp add` med ny token
 (§ 4). Utvidelsen genererer **ny token ved hver økt-start** — en gammel token gir samme
