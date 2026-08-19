@@ -65,15 +65,17 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
-### 🟡 Mobil hard-frys ved sjekkliste-opprettelse — rapportert på test-bygg `32120cb1` (Kenneth, 2026-08-17)
+### 🟢 Mobil hard-frys ved sjekkliste-opprettelse — ROT-ÅRSAK FUNNET + fikset `dda7cb8c` (2026-08-19, venter enhets-verifisering)
 
-Ved trykk på «+» i sjekkliste-lista frøs appen **helt** (ingen spinner, kun app-omstart hjalp). **Dokumentet ble likevel opprettet** — «E2E Sjekklistemal / Utkast» lå i lista etter omstart og fungerte. Så «+» rakk å skrive dokumentet (opprett + navigér til detaljside) før frysingen; frysen sitter i init-/mount-veien på detaljsiden, ikke i selve knappen.
+**Rot-årsak (bekreftet via Kenneths observasjoner 2026-08-19):** ikke en synkron løkke/hang. Appen var i live (ingen `.ips`, native-klokka gikk), men et **usynlig iOS modal-VC-lag** lå over skjermen og fanget all touch — **venstre-edge-swipe (interactivePopGesture) løsnet den hver gang** ved å poppe VC-en. `OpprettDokumentModal` sin **parent-prop-effekt** (`useEffect(() => setInternSynlig(synlig), [synlig])`) satte `internSynlig=false` UBETINGET når parenten lukket modalen rett etter auto-opprett — skjer det MID-PRESENT (før iOS `onShow`), fyrer `onDismiss` aldri og VC-en blir liggende som usynlig svart overlay. Den interne `fullførOpprett`-veien hadde allerede `harPresentert`-gaten; parent-veien snek seg forbi. Forklarer alt: doc opprettes (mutasjon kjører ferdig først), 61 papirkurv-dokumenter (hvert frys-retry auto-opprettet ett til). **Fiks:** parent-veien gater nå på `harPresentert`, utsetter dismiss til `onShow`.
 
-**Ikke reprodusert — og dagens vær/bildeNr-arbeid frikjent** (verifisert 2026-08-18):
+**Fjernet feilspor (frikjent tidligere runder):** synkron rekursjon/løkke (ingen — main-tråd i live), vær/bildeNr/`VaerKoProvider` (dagens arbeid — se under), zone-hypotese (falsifisert av Kenneth), Release-vs-dev og filtype for 0-byte (egen sak, se over).
+
+**Dagens vær/bildeNr-arbeid frikjent** (verifisert 2026-08-18):
 - **Statisk:** for E2E-malen (ett `traffic_light`, `parent_id=NULL`, ingen weather/date/repeater) kjører ingen av Sak A (vær-anker/`useAutoVaer`/`VaerKoProvider`) eller Sak B (bildeNr) sin kode. Ingen ugardert rekursjon i opprettelses-/render-veien (`erSynlig` er dybdeguardet, vær-anker er flat `.find()`).
 - **Simulator-repro:** iOS-sim mot api-test, dev-login som kemyrhau, `VaerKoProvider` aktiv. Flere opprettelser av E2E-sjekkliste → **ingen frys, fullt responsiv**. Realistisk synket data i lokal SQLite (timer 20+25 rader); `sjekkliste_feltdata`=1, `oppgave_feltdata`=0 — og de bulk-synkes ikke, så `VaerKoProvider`-sweepen (som kun leser de to) kan ikke bloate via sync.
 
-**Søkeintervall er kjent:** forrige mobil-test-bygg før `32120cb1` var **31. juli (`88ce430`)** — så regresjonen (om det er én) ligger i mobil-endringer i intervallet `88ce430..32120cb1`, ikke nødvendigvis i det som ble merget inn i `32120cb1` selv. Krever repro på **fysisk enhet** med konsoll for å lokalisere den spinnende funksjonen.
+**Gjenstår:** enhets-/Release-bygg-verifisering av `dda7cb8c` (dev-sim reproduserte ikke Release-timingen — «+» gikk rett til detalj uten overlay der). Fiksen gjør parent-veien konsistent med den eksisterende, fungerende interne `harPresentert`-gaten, så risikoen er lav; men bekreft på enhet at frysen er borte før prod-bygg.
 
 (Sweep-ytelsessaken som ble avdekket underveis er allerede fikset — `perf(mobil): vaer-ko-sweep filtrerer i SQLite`, `f82cf431` — men den var ikke frys-årsaken.)
 
