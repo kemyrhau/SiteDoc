@@ -65,6 +65,12 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 `drawing_position`-felttype er en placeholder ingen bruker (felle)
+
+`drawing_position` («Posisjon i tegning», `packages/shared/src/types/index.ts:259-264`, ikon `Target`) ligger i felt-paletten, men `TegningPosisjonObjekt.tsx` rendrer bare «Funksjonen er tilgjengelig i en kommende oppdatering». **Ingen mal bruker den.** Punkt-på-tegning fanges i praksis av dokumentets egen lokasjonsvelger (`drawingId`/`positionX`/`positionY`), ikke av dette feltet. En placeholder-felttype i paletten er en **felle** for neste som leter etter punkt-funksjonalitet (jf. type-forvekslingen `location` vs `drawing_position`, 2026-08-19). **Enten fullfør den, eller fjern den fra felttype-listen.**
+
+**Relatert — location-tvang-regelen (vedtatt 2026-08-19):** Kontekstkjeden nøkler bevisst på `type = "location"` (uten `parentId`/`conditionParentId`), IKKE `drawing_position`. Merk: regelen gir i dag **ingen** måte å ha et location-felt uten posisjons-tvang — legger man inn feltet, får man kravet. Dukker behovet for «location uten tvang» opp, er **`required`-flagget på location-objektet den naturlige bryteren** (i dag ignorert fordi location er en display-type).
+
 ### 🟢 Mobil dokumentflyt-auto-utledning traff aldri (`af.templates` vs `maler`) — LØST (fiks) + bevisst INGEN datarydding (2026-08-19)
 
 **Bug:** `apps/mobile/src/components/OppgaveModal.tsx` leste `af.templates` fra `dokumentflyt.hentForProsjekt`, men API-feltet har **alltid** hett `maler` (`apps/api/src/routes/dokumentflyt.ts` — `maler` siden første commit `7dd22fc4`; søk på `templates:` i API-en er tomt). Feltet ble skrevet feil i **`9e723690` (2026-03-06)** og brukte aldri `.maler` — altså **feil fra start, ikke en regresjon fra en omdøping.** `af.templates` var dermed alltid `undefined`.

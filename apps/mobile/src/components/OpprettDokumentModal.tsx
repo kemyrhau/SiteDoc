@@ -54,6 +54,9 @@ interface MalData {
   // mal.ts:84-95). Modalen bruker DENNE til flyt-valg — ikke en egen regel — så
   // «vist som opprettbar» og «kan faktisk opprettes» er én sannhet (paritet web).
   opprettbareFlytIder?: string[];
+  // Location-tvang (2026-08-19): server-avledet flagg — aktivt location-objekt i
+  // malen → posisjon (drawingId + punkt) er påkrevd for å opprette.
+  harAktivLocation?: boolean;
 }
 
 interface DokumentflytData {
@@ -103,6 +106,11 @@ interface OpprettDokumentModalProps {
   sjekklisteFeltId?: string;
   sjekklisteNummer?: string;
   feltLabel?: string;
+  // Create-fra-tegning / kontekstkjede (2026-08-19): forhåndssatt punkt på tegning.
+  // Satt → modalen hopper over sin egen lokasjonsvelger, viser en lesbar «plassert
+  // på tegning»-oppsummering, og sender positionX/Y til opprett. Se
+  // relay/inbox-mobil-kontekstkjede.md.
+  posisjon?: { drawingId: string; byggeplassId: string | null; x: number; y: number };
 }
 
 const PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
@@ -130,6 +138,7 @@ export function OpprettDokumentModal({
   sjekklisteFeltId,
   sjekklisteNummer,
   feltLabel,
+  posisjon,
 }: OpprettDokumentModalProps) {
   const { t } = useTranslation();
   const erOppgave = kategori === "oppgave";
@@ -189,7 +198,17 @@ export function OpprettDokumentModal({
   // GPS + sist brukt lokasjon ved modalåpning
   const harKjørtLokasjon = useRef(false);
   useEffect(() => {
-    if (!synlig || !valgtProsjektId || harKjørtLokasjon.current || alleTegninger.length === 0) return;
+    if (!synlig || harKjørtLokasjon.current) return;
+    // Create-fra-tegning / kontekstkjede: et forhåndssatt punkt vinner over GPS/sist-
+    // brukt. Modalen viser da en lesbar oppsummering i stedet for lokasjonsvelgeren.
+    if (posisjon) {
+      harKjørtLokasjon.current = true;
+      setValgtBygningId(posisjon.byggeplassId);
+      setValgtTegningId(posisjon.drawingId);
+      setLokasjonKilde("manuell");
+      return;
+    }
+    if (!valgtProsjektId || alleTegninger.length === 0) return;
     harKjørtLokasjon.current = true;
 
     (async () => {
@@ -462,6 +481,8 @@ export function OpprettDokumentModal({
         subject: emne.trim() || undefined,
         byggeplassId: valgtBygningId ?? undefined,
         drawingId: valgtTegningId ?? undefined,
+        positionX: posisjon?.x,
+        positionY: posisjon?.y,
       });
     } else {
       // Oppgave-tittel: fra sjekklistefelt, ellers redigert tittel (default malnavn).
@@ -478,6 +499,9 @@ export function OpprettDokumentModal({
         priority: prioritet,
         checklistId: sjekklisteId || undefined,
         checklistFieldId: sjekklisteFeltId || undefined,
+        drawingId: valgtTegningId ?? undefined,
+        positionX: posisjon?.x,
+        positionY: posisjon?.y,
       });
     }
   }, [
@@ -500,6 +524,7 @@ export function OpprettDokumentModal({
     sjekklisteFeltId,
     sjekklisteNummer,
     feltLabel,
+    posisjon,
   ]);
 
   const kanOpprett = !!oppretterFaggruppeId && !!valgtKandidat && !erPending;
@@ -814,7 +839,15 @@ export function OpprettDokumentModal({
           {/* 7. Lokasjon — auto-valgt fra GPS eller sist brukt, kan byttes manuelt */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">Lokasjon</Text>
-            {lokasjonTekst ? (
+            {posisjon ? (
+              <View className="flex-row items-center gap-2">
+                <MapPin size={14} color="#1e40af" />
+                <View className="flex-1">
+                  <Text className="text-sm text-gray-800">{lokasjonTekst ?? "Valgt tegning"}</Text>
+                  <Text className="text-[10px] text-green-600">Punkt satt på tegning</Text>
+                </View>
+              </View>
+            ) : lokasjonTekst ? (
               <Pressable
                 onPress={() => {
                   lukkAlleDropdowns();
@@ -853,8 +886,8 @@ export function OpprettDokumentModal({
               </Pressable>
             )}
 
-            {/* Manuell lokasjonsliste: bygning → tegning */}
-            {visLokasjonListe && (
+            {/* Manuell lokasjonsliste: bygning → tegning (skjult når punkt alt er satt) */}
+            {!posisjon && visLokasjonListe && (
               <View className="mt-2 rounded-lg border border-gray-200 bg-white">
                 {/* Bygningsvalg */}
                 {bygninger.map((b) => (
