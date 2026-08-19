@@ -112,7 +112,7 @@ export function OppgaveModal({
     const treff = alleDokumentflyter.filter(
       (af) =>
         af.faggruppeId === oppretterFaggruppeId &&
-        af.templates.some((t) => t.templateId === templateId),
+        af.templates?.some((t) => t.templateId === templateId),
     );
     return treff[0] ?? null;
   }, [alleDokumentflyter, oppretterFaggruppeId, templateId]);

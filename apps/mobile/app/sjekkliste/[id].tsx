@@ -198,7 +198,15 @@ export default function SjekklisteUtfylling() {
     id: string; name: string; drawingNumber: string | null;
     fileUrl: string; fileType: string;
     byggeplassId: string | null; byggeplass: { id: string; name: string } | null;
+    geoReference?: unknown | null;
   }>;
+
+  // Tegninger/kart å plassere posisjon på — må ha fil. Georeferert tegning
+  // (`geoReference`) fungerer som «kart» (kan være et georeferert kartutsnitt).
+  const tilgjengeligeTegninger = useMemo(
+    () => alleTegninger.filter((t) => t.fileUrl),
+    [alleTegninger],
+  );
 
   // Lokasjonsinformasjon fra sjekklisteDetalj
   const lokBygningNavn = sjekklisteDetalj?.byggeplass?.name;
@@ -910,10 +918,27 @@ export default function SjekklisteUtfylling() {
           onPress={() => {
             if (leseModus) return;
             // Initialiser temp-state fra nåværende lokasjon
+            const harLagretTegning = !!sjekklisteDetalj?.drawingId;
             setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
             setLokTempBygningId(sjekklisteDetalj?.byggeplass?.id ?? null);
             setLokTempPosX(sjekklisteDetalj?.positionX ?? null);
             setLokTempPosY(sjekklisteDetalj?.positionY ?? null);
+
+            // Vei videre når lokasjon mangler: gå rett til tegning/kart i stedet
+            // for å lande på en tom «Ingen tegning valgt»-tilstand.
+            if (!harLagretTegning && tilgjengeligeTegninger.length === 1) {
+              // Én tegning/kart → åpne den direkte i tegningsvisningen
+              const t = tilgjengeligeTegninger[0]!;
+              setLokTempTegningId(t.id);
+              setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+              setVisLokByttTegning(false);
+            } else if (!harLagretTegning && tilgjengeligeTegninger.length > 1) {
+              // Flere tegninger/kart → åpne velgeren direkte
+              setVisLokByttTegning(true);
+            } else {
+              // Har lagret tegning, eller ingen finnes → modalen viser rett tilstand
+              setVisLokByttTegning(false);
+            }
             setVisLokasjonModal(true);
           }}
           className="rounded-lg bg-white px-4 py-3"
@@ -1187,7 +1212,7 @@ export default function SjekklisteUtfylling() {
           tegningUrl={
             sjekklisteDetalj.drawing.fileUrl.startsWith("http")
               ? sjekklisteDetalj.drawing.fileUrl
-              : `${hentWebUrl()}/api${sjekklisteDetalj.drawing.fileUrl}`
+              : `${AUTH_CONFIG.apiUrl}${sjekklisteDetalj.drawing.fileUrl}`
           }
           positionX={sjekklisteDetalj.positionX}
           positionY={sjekklisteDetalj.positionY}
@@ -1217,7 +1242,7 @@ export default function SjekklisteUtfylling() {
             const tegningUrl = aktivTegning?.fileUrl
               ? (aktivTegning.fileUrl.startsWith("http")
                 ? aktivTegning.fileUrl
-                : `${hentWebUrl()}/api${aktivTegning.fileUrl}`)
+                : `${AUTH_CONFIG.apiUrl}${aktivTegning.fileUrl}`)
               : null;
 
             // «Bytt tegning»-liste — kun når bruker eksplisitt trykker «Bytt tegning»
@@ -1232,17 +1257,37 @@ export default function SjekklisteUtfylling() {
                     <View style={{ width: 50 }} />
                   </View>
                   <ScrollView className="flex-1" contentContainerClassName="p-3 gap-1">
-                    {bygninger.map((b) => {
-                      const bTegninger = alleTegninger.filter(
-                        (t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id && t.fileUrl,
+                    {(() => {
+                      const bygningIder = new Set(bygninger.map((b) => b.id));
+                      const grupper: Array<{ id: string; navn: string; tegninger: typeof tilgjengeligeTegninger }> = bygninger
+                        .map((b) => ({
+                          id: b.id,
+                          navn: b.name,
+                          tegninger: tilgjengeligeTegninger.filter(
+                            (t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id,
+                          ),
+                        }))
+                        .filter((g) => g.tegninger.length > 0);
+                      // Georeferert kart / tegning uten byggeplass — ellers usynlig i lista
+                      const løse = tilgjengeligeTegninger.filter(
+                        (t) => !bygningIder.has((t.byggeplassId ?? t.byggeplass?.id) ?? ""),
                       );
-                      if (bTegninger.length === 0) return null;
-                      return (
-                        <View key={b.id} className="mb-2">
-                          <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
-                            {b.name}
+                      if (løse.length > 0) {
+                        grupper.push({ id: "__løse", navn: "Kart", tegninger: løse });
+                      }
+                      if (grupper.length === 0) {
+                        return (
+                          <Text className="mt-8 px-6 text-center text-sm text-gray-500">
+                            Prosjektet har ingen tegning eller kart å plassere posisjon på.
                           </Text>
-                          {bTegninger.map((t) => (
+                        );
+                      }
+                      return grupper.map((g) => (
+                        <View key={g.id} className="mb-2">
+                          <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
+                            {g.navn}
+                          </Text>
+                          {g.tegninger.map((t) => (
                             <Pressable
                               key={t.id}
                               onPress={() => {
@@ -1252,16 +1297,21 @@ export default function SjekklisteUtfylling() {
                                 setLokTempPosY(null);
                                 setVisLokByttTegning(false);
                               }}
-                              className={`rounded-lg px-3 py-2.5 ${lokTempTegningId === t.id ? "bg-blue-50" : "bg-white"}`}
+                              className={`flex-row items-center gap-2 rounded-lg px-3 py-2.5 ${lokTempTegningId === t.id ? "bg-blue-50" : "bg-white"}`}
                             >
-                              <Text className={`text-sm ${lokTempTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                              <Text className={`flex-1 text-sm ${lokTempTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
                                 {t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name}
                               </Text>
+                              {t.geoReference != null && (
+                                <Text className="text-[10px] font-semibold uppercase tracking-wider text-green-600">
+                                  Kart
+                                </Text>
+                              )}
                             </Pressable>
                           ))}
                         </View>
-                      );
-                    })}
+                      ));
+                    })()}
                   </ScrollView>
                 </View>
               );
@@ -1280,15 +1330,23 @@ export default function SjekklisteUtfylling() {
                   </View>
                   <View className="flex-1 items-center justify-center gap-3 px-8">
                     <MapPin size={32} color="#9ca3af" />
-                    <Text className="text-center text-sm text-gray-500">
-                      Ingen tegning valgt. Velg en tegning for å markere posisjon.
-                    </Text>
-                    <Pressable
-                      onPress={() => setVisLokByttTegning(true)}
-                      className="mt-2 rounded-lg bg-blue-700 px-6 py-2.5"
-                    >
-                      <Text className="text-sm font-medium text-white">Velg tegning</Text>
-                    </Pressable>
+                    {tilgjengeligeTegninger.length === 0 ? (
+                      <Text className="text-center text-sm text-gray-500">
+                        Prosjektet har ingen tegning eller kart å plassere posisjon på.
+                      </Text>
+                    ) : (
+                      <>
+                        <Text className="text-center text-sm text-gray-500">
+                          Ingen tegning valgt. Velg en tegning eller kart for å markere posisjon.
+                        </Text>
+                        <Pressable
+                          onPress={() => setVisLokByttTegning(true)}
+                          className="mt-2 rounded-lg bg-blue-700 px-6 py-2.5"
+                        >
+                          <Text className="text-sm font-medium text-white">Velg tegning</Text>
+                        </Pressable>
+                      </>
+                    )}
                   </View>
                 </View>
               );
