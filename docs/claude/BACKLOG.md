@@ -1343,11 +1343,27 @@ Testprosjekt og i B12 — timer med feilsøking gikk til å skille datafeil fra 
 **Samme mønster som [`config.zone`](../../MALBYGGER.md)**: data skrevet direkte til
 databasen omgår all validering UI-et håndhever, og feilen dukker opp langt unna.
 
+**⚠️ Strukturelt gyldig er ikke det samme som brukbart (Kenneth 2026-08-19).** En agent ble
+bedt om å sette opp Agent-testprosjektet med byggeplass, tegning og georeferert kart. Han
+gjorde det via appens egne endepunkter — teknisk korrekt — men produserte en «plantegning»
+med fire tomme rom og et «kartutsnitt» som var beige firkanter på grønn bakgrunn.
+Georeferering på et bilde uten gjenkjennelige punkter tester ingenting.
+
+Kenneth satte opp samme type prosjekt med et **ekte ortofoto** (Norge i Bilder) — der er
+georefereringen meningsfull, og en posisjon peker på noe som finnes.
+
+> *«Problemet med agenter som setter opp prosjekter: de vet ikke hvordan det brukes.»*
+
+**Konsekvens for regelen:** testdata må være **representative**, ikke bare validerte.
+Referanse-testprosjektet bør settes opp av Kenneth én gang, dokumenteres, og deretter
+gjenbrukes — ikke gjenskapes av hver agent.
+
 **To deler:**
 
 1. **Regel — agenter oppretter prosjekter via systemet**, ikke direkte i DB. Samme prinsipp
    som malbygger-regelen. Trengs det seeding, skal den etterlikne hva opprettelsesflyten
-   faktisk setter (firma-tilknytning, byggeplass, dokumentflyt).
+   faktisk setter (firma-tilknytning, byggeplass, dokumentflyt). **Og agenter skal ikke
+   generere innhold de ikke forstår bruken av** — be om ekte fil fra Kenneth i stedet.
 2. **Ett komplett referanse-testprosjekt** som agenter tester mot, med: firma-tilknytning ·
    minst én byggeplass · georeferert tegning · 3D-modell · dokumentflyt med registrator og
    minst to ledd · sjekkliste- og oppgavemaler · kontrollplan. Verifisert komplett, og
