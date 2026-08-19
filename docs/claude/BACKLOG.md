@@ -27,11 +27,13 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ### 🔴 Pakke A — før pilot
 
+> **⚠️ Metode-prinsipp (2026-08-20): Aikido vurderer DEKLARERTE ranger, ikke KJØRENDE versjoner.** Et funn på `^x.y.0` kan være uskadelig i drift fordi lockfilen allerede har resolvet til en patchet versjon. **Sjekk `pnpm list <pakke>` / resolved versjon i `pnpm-lock.yaml` mot faktisk kjørende versjon FØR du antar at et funn er reelt** — det kan endre alvorlighetsgraden på flere av Pakke A-punktene (bekreftet for A3, se under).
+
 **A1. DOMPurify på `dangerouslySetInnerHTML`** — 🔴 **cowork løfter denne over Next-bumpen.** Aikido sa medium; det er den mest reelle angrepsflaten i listen. **Verifisert: 9 forekomster i 4 filer** (`dokumentleser/page.tsx`, `dokumenter/[id]/les/page.tsx`, `tegninger/page.tsx`, `oppsett/byggeplasser/page.tsx`), og **DOMPurify er ikke i bruk noe sted**. Filene rendrer `innhold`/`blokk.content` fra opplastede og maskinoversatte dokumenter, og `svgInnhold` fra DWG-konvertering. Opplastet innhold rett i DOM er stored XSS. SVG-profil for tegningene. Est. 3 t.
 
 **A2. `@fastify/static` path traversal** (High) — verifisert `^9.0.0`. Bump til patchet versjon, og verifiser at uploads-serving bruker `sendFile` med rot-lås. 🔴 **Merk sammenhengen:** vi lukket en omgåelse av *vår egen* signaturgate 2026-08-12 (`//`, `/./`, `%2e` → 200). Har `@fastify/static` i tillegg egen traversal, kan filer utenfor `uploads/` nås uavhengig av gaten. Est. 1 t.
 
-**A3. Next.js-bump** (critical) — verifisert `next ^14.2.0`, utenfor sikkerhetsstøtte. Kjente CVE-er i 14-serien, bl.a. middleware-autorisasjonsbypass fikset i 14.2.25. Bump til nyeste 14.2.x nå; Next 15 planlegges etter pilot. Dekker også «Next.js SSRF» + fast-uri/undici via lock. Est. 10 t.
+**A3. Next.js-bump** (critical) — ✅ **KORRIGERT + gjort 2026-08-20 (gulv-herding).** Aikido flagget `next ^14.2.0`, men **prod kjørte allerede 14.2.35** (lockfilen hadde resolvet den løse rangen til nyeste 14.2.x). Middleware-autorisasjonsbypassen (fikset i 14.2.25) var derfor **ikke en reell eksponering i drift** — funnet «critical» bygde på den deklarerte rangen, ikke kjørende versjon. Tiltak: hevet gulvet `next`/`eslint-config-next` `^14.2.0` → `^14.2.35` så en fremtidig `pnpm install` ikke kan regge tilbake under CVE-linjen (`eslint` forblir v8, ikke Next 15). Ingen faktisk versjonsflytt. Est. var 10 t; reelt <1 t.
 
 **A4. Hardkodet API-nøkkel** (High) — verifisert: `apps/web/src/components/GeoReferanseEditor.tsx` har Norkart/Webatlas-nøkkel i klartekst, og **ingen `NEXT_PUBLIC_*`-variant finnes**. (Fabels rapport oppgav `components/tegning/` — riktig sti er `components/`.) Maptile-nøkler er synlige i nettleseren uansett, men skal (a) ut av kildekoden og inn i env, (b) domenebegrenses hos Norkart, (c) **roteres** — den ligger i git-historikken. Est. 1 t.
 
