@@ -1297,6 +1297,36 @@ Faller pausevinduet **utenfor alle arbeidsvinduer** (`pauseMin > 0`, men ingen l
 
 **Vedtatt fiks (forener Kenneth-prinsipp «lagre rett» + ufravikelig «ALDRI slett eksisterende data»): B — flytt erstattet-rad til historikk-tabell ved rediger** i `2816`/`3016` (i stedet for å merke «erstattet» og la den ligge i hovedtabellen) → hovedtabell kun live → ingen leser trenger filter, og audit bevares. Migrering FLYTTER eksisterende «erstattet»-rader fra hovedtabellene til historikk (rydder bl.a. denne sedelen til 3+2 live — uten å slette data). `hentEndringerSiden`-filteret legges i SAMME PR som rulleringsvern (no-op etter migrering). **A (hard-slett) forkastet:** bryter «aldri slett data» uten eksplisitt unntak. Test-sedel `49a7c839` beholdes som regresjons-fixtur.
 
+### 🔴 Byggeplass og tegning kan ikke redigeres eller slettes fra UI (Kenneth 2026-08-19)
+
+**Observert:** etter at en byggeplass eller tegning er opprettet, finnes ingen vei i
+grensesnittet til å endre eller fjerne den.
+
+**Men API-et har det allerede:**
+
+| Router | Finnes |
+|---|---|
+| `byggeplass.ts` | `oppdater` (:108) · `publiser` (:198) · `hentSletteSammendrag` (:213) |
+| `tegning.ts` | `oppdater` (:294) · `tilknyttByggeplass` (:384) · `settGeoReferanse` (:401) · `fjernGeoReferanse` (:465) · `settGpsOverride` (:427) · `fjernGpsOverride` (:453) |
+
+`hentSletteSammendrag` er forarbeid til en slett-flyt som aldri fikk en knapp.
+
+**Samme mønster som papirkurven:** mekanikken finnes server-side, veien til den mangler i
+UI. Konsekvensen er at feilregistrerte data blir permanente — en byggeplass med feil navn,
+en tegning lastet opp i feil prosjekt, eller en georeferering satt feil, kan ikke rettes.
+
+**Skjerpende:** dette rammer nettopp det [referanse-testprosjektet](#) trenger. En agent
+som setter opp testdata kan ikke rydde etter seg, og feil oppsett blir liggende og
+forvirre neste økt.
+
+**Bør ha:** rediger og slett på byggeplass og tegning, med sletting bak bekreftelse som
+viser hva som forsvinner (`hentSletteSammendrag` er bygget for nettopp det). Ekte modal,
+ikke `confirm()`.
+
+⚠️ **Sletting av tegning må vurderes mot dokumenter som refererer den** — et kontrollpunkt
+eller en sjekkliste med posisjon på tegningen mister sin referanse. Avklar om sletting skal
+blokkeres, kaskadere, eller etterlate posisjonen uten tegning.
+
 ### 🔴 Agenter mangler et komplett referanse-testprosjekt (Kenneth 2026-08-19)
 
 > *«Opus opprettet dette prosjektet — ikke via systemet. Opus trenger et fungerende prosjekt
