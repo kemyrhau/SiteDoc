@@ -92,9 +92,12 @@ async def parse_xml_budget(file: UploadFile):
     content = await file.read()
 
     try:
-        import xml.etree.ElementTree as ET
+        # defusedxml (Pakke A / A5): blokkerer entity-expansion-DoS (billion
+        # laughs) + eksterne entiteter på opplastet NS3459-XML. Drop-in for
+        # xml.etree.ElementTree.fromstring — returnerer standard Element.
+        from defusedxml.ElementTree import fromstring as xml_fromstring
 
-        root = ET.fromstring(content)
+        root = xml_fromstring(content)
 
         # Finn alle poster (tilpass XPath til faktisk NS3459-skjema)
         poster = []
