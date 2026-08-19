@@ -140,7 +140,7 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 |-------|--------|-------------------|-------------|
 | **Kenneth** | Eneste som kjører kommandoer (terminal/SSH/sudo). Tar produktbeslutninger (K-saker). Relayer alle meldinger mellom økter. Utfører + beslutter — koder ikke. | **Ja — alt** | — |
 | **cowork** | Eier **commit-orden** + tverr-koordinering: merge-rekkefølge, regel 9/10-håndheving, prod-løp, konfliktvakt (frossen sone), BACKLOG, deploy-disiplin. Skriver timer/PSI-kode + gate-verifiserer. Gir Kenneth kommandoer. **Alt som lander på develop/main passerer cowork.** | Nei (gir Kenneth) | pipeline + timer |
-| **fabel** | Eier redesignet. Skriver ordre til redesign-Opus (hva kodes, designkrav, akseptkriterier), designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering fra Opus web. **Rører aldri git-koreografi.** | Nei | redesign-retning |
+| **fabel** | Eier redesignet. Skriver ordre til kode-agenter (hva kodes, designkrav, akseptkriterier) og leverer dem via `Fra fabel/til-repo-*`, designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering. **Rører aldri git-koreografi.** | Nei | redesign-retning |
 | **kode-agent** (oppgavenavngitt) | Koder ÉN oppgave i ETT worktree på EGEN branch. Får ordre fra cowork via `relay/inbox-<navn>.md`, eller fra fabel via `docs/redesign/`. Pusher egen branch, **aldri develop**. Rører ikke frossen sone (nav/layout). | Ja (egen branch) | egen feature-branch |
 | **verifiserings-agent** | Verifiserer i nettleser eller simulator. **Rapporterer funn — konkluderer ikke om årsak.** Skriver ikke kode. | Nei/begrenset | — |
 
@@ -193,7 +193,7 @@ All merge-koreografi går gjennom cowork:
 - **Worktree per spor:** aldri to økter i samme arbeidstre.
 - **Prod:** aldri uten Kenneths eksplisitte ordre; rett branch rsynca; migreringer gated.
 
-> **Design-godkjenning (akseptkriterium):** en redesign-UI-endring (flagg-på) er **ikke lukket** før **fabel har designgodkjent mot skjermbilder** fra Opus web — aldri på typecheck/`next build` alene. Build-gaten (regel 10) sikrer at det *bygger*; design-godkjenningen sikrer at det *ser riktig ut*. Begge kreves.
+> **Design-godkjenning (akseptkriterium):** en redesign-UI-endring (flagg-på) er **ikke lukket** før **fabel har designgodkjent mot skjermbilder** fra en verifiserings-agent — aldri på typecheck/`next build` alene. Build-gaten (regel 10) sikrer at det *bygger*; design-godkjenningen sikrer at det *ser riktig ut*. Begge kreves.
 
 Så lenge disse holdes vet Kenneth at develop er ren. «Går dette bra?» har én kilde: cowork.
 
@@ -203,7 +203,7 @@ Fire regler skjerper cowork sitt ansvar. Ved motstrid rapporteres de kolliderend
 
 1. **Leveranse til prod + EAS.** cowork eier koordineringen av at alle gatede commits/merges/alt faktisk arbeid **når** produksjon og EAS-bygg. Ingenting blir liggende gatet-men-ikke-deployet uten en eksplisitt grunn ført i STATUS-AKTUELT. **EAS-kvote spores i STATUS-AKTUELT § EAS-byggteller** (bygg # + dato, nullstilles den 1. hver måned); ved **12 bygg/mnd** stopper cowork opp + sjekker klar-tilstand + flagger i status før nytt bygg fyres. *(Grense: selve prod-deployen og EAS-fyringen utløses fortsatt kun på Kenneths eksplisitte go — kvote-gaten på EAS består. cowork sikrer klar-tilstand + flagger stopp; Kenneth trykker avtrekkeren.)*
 2. **Kommandoformat.** Alle terminalkommandoer som krever Kenneths TTY leveres i strukturert, nummerert rekkefølge — kopierbar blokk, forventet resultat per steg. Kenneth kjører + melder tilbake; cowork verifiserer mot forventningen før neste steg. *(Utvider meldingsflyt-regelen «kommandoer formuleres til Kenneth».)*
-3. **Bygg utenfor redesign.** cowork har hovedansvar for alle bygg/leveranser utenfor redesignets domene, samt all merge-timing og deploy. redesign-Opus eier sitt (`redesign/navigasjon`, fabels ordre). *(Skjerper eksisterende cowork-rad «eier resten + merge-timing + deploy».)*
+3. **Bygg utenfor redesign.** cowork har hovedansvar for alle bygg/leveranser utenfor redesignets domene, samt all merge-timing og deploy. En agent som jobber på fabels ordre eier sitt eget spor. *(Skjerper eksisterende cowork-rad «eier resten + merge-timing + deploy».)*
 4. **Koden sjekkes alltid.** Gate skjer mot **faktisk kode / git-objekt** — aldri på beskrivelse alene. Verifiser mot koden før beslutning/gate. *(Presisering av en generell gate-regel cowork allerede følger — kode-sjekken er det som avdekker avvik; ikke en ny skjerping.)*
 
    **Utvidet 2026-07-15 — regelen gjelder mer enn kode.** Fem brudd på én dag, alle samme form: *påstand uten måling*. Hver gang var det en kommando som rettet feilen, aldri resonnementet.
@@ -442,14 +442,16 @@ En Opus' rapport svarer på det den **lette etter**. Exit-runden henter det som 
 
 Svar merket som usikkerhet er nyttige. En gjetning ført som funn er ikke.
 
-## Statustavle (vedlikeholdes av cowork)
+## Belegg for arbeidsrutinene (utdyper § Arbeidsrutiner for en fersk cowork)
 
-Øverst i STATUS-AKTUELT: rad per aktiv økt. Oppdateres ved rundestart (alle rader) og rundeslutt (tøm) — to commits per runde, ikke per økt.
-
-## Cowork-gate: verifiser status mot repoet, ikke mot statusfila (2026-08-15)
+> ⚠️ **Erstattet 2026-08-20:** en tidligere «Statustavle»-seksjon her sa at tavla skulle
+> **tømmes ved rundeslutt**. Det ville slettet registeret over hvilke agenter som finnes —
+> nøyaktig feilen som gjorde at cowork mistet oversikten uten at Kenneth merket det. Tavla
+> er permanent; rader legges til og fjernes per agent. Se
+> [§ Statustavla er første handling](#-statustavla-er-første-handling--før-du-sier-noe).
 
 Statusfiler er agentens siste kjente tilstand — ikke sannheten om repoet.
-Tre feil på én dag, alle fra samme rot:
+Tre feil på én dag (2026-08-15), alle fra samme rot:
 
 - **«PUSHET» er en påstand.** Verifiser med `git branch -r | grep <branch>`
   **før** merge-kommandoen gis. Cowork ga merge-kommandoen i samme melding som
