@@ -1313,6 +1313,43 @@ Faller pausevinduet **utenfor alle arbeidsvinduer** (`pauseMin > 0`, men ingen l
 
 **Vedtatt fiks (forener Kenneth-prinsipp «lagre rett» + ufravikelig «ALDRI slett eksisterende data»): B — flytt erstattet-rad til historikk-tabell ved rediger** i `2816`/`3016` (i stedet for å merke «erstattet» og la den ligge i hovedtabellen) → hovedtabell kun live → ingen leser trenger filter, og audit bevares. Migrering FLYTTER eksisterende «erstattet»-rader fra hovedtabellene til historikk (rydder bl.a. denne sedelen til 3+2 live — uten å slette data). `hentEndringerSiden`-filteret legges i SAMME PR som rulleringsvern (no-op etter migrering). **A (hard-slett) forkastet:** bryter «aldri slett data» uten eksplisitt unntak. Test-sedel `49a7c839` beholdes som regresjons-fixtur.
 
+### 🔴❓ Én mal gir fire representasjoner — venter fabel-svar (Kenneth 2026-08-16)
+
+**Funnet:** samme repeater vises ulikt fire steder.
+
+| Flate | Viser |
+|---|---|
+| Malbyggeren | barnefeltets label |
+| Web-skjemaet | repeaterens navn + radnummer — barnelabelen er **usynlig** |
+| Mobil | en tredje variant |
+| PDF | kolonnehode fra barnelabelen |
+
+**Konsekvensen:** Kenneth kan ikke bygge en mal og forutse utskriften. Han satte `_` som
+label nettopp fordi den var usynlig i skjemaet — og oppdaget at den er kolonnehode i PDF.
+
+> *«Det er vanskelig å forutse hva som skrives ut når en bygger malen på en måte.»*
+
+**Kenneths observasjon som peker mot løsningen:** web-skjemaet viser allerede den ønskede
+formen — radnummer, tekst, bilder under. PDF-ens ekstra kolonnehode tilfører ingenting når
+repeateren har ett barn.
+
+**🔴 Spørsmål til fabel (stilt 2026-08-16, ubesvart):**
+
+1. Skal prinsippet være at **utskriften speiler skjemaet** — samme struktur, samme
+   etiketter, samme rekkefølge?
+2. Eller er tabellformen riktig for repeatere med flere kolonner, med en regel om at
+   **ett barn gir ingen kolonnehode**?
+
+Det andre er en liten kodeendring. Det første er et designprinsipp som ville styrt all
+fremtidig utskrift — og gjort malbyggeren forutsigbar: det du ser er det du får.
+
+**Ikke blokkerende:** det konkrete tilfellet løste seg da Kenneth ga feltet navnet
+«Observasjon». «Kolonne N»-fallbacken (`cba9f3cc`) står som sikkerhetsnett. Men neste mal
+med enslig repeater-barn treffer samme spørsmål.
+
+⚠️ Ført her 2026-08-19 fordi spørsmålet kun eksisterte i en chat-melding — cowork
+formulerte det uten å legge det i repoet.
+
 ### 🔴 Byggeplass og tegning kan ikke redigeres eller slettes fra UI (Kenneth 2026-08-19)
 
 **Observert:** etter at en byggeplass eller tegning er opprettet, finnes ingen vei i
