@@ -11,6 +11,36 @@ Hvordan en Opus-økt kan (1) styre Kenneths **ekte, innloggede Chrome** for
 web-verifisering/seeding, og (2) styre **iOS-simulatoren** for mobil-app-testing.
 Oppsettet persisterer på maskinen — en ny økt trenger kun å kjenne til det.
 
+## 0a. 🔴 TIL AGENTEN: slik kobler du deg til SiteDoc web (les FØR du prøver noe)
+
+**Bruk aldri `claude-in-chrome` mot SiteDoc.** Den henger alltid — se Caveat A under.
+Symptomet er `Script injection timed out` / `waited for document_idle` på **hver** side,
+også `example.com`, så det ser ut som et generelt verktøyproblem. Det er det ikke; det er
+dokumentert oppførsel.
+
+**Riktig vei — og du skal be Kenneth om den, ikke prøve selv:**
+
+> «Jeg er klar for nettleser-verifisering. Kan du starte Playwright-utvidelsen og gi meg
+> token-en? Jeg trenger en fane på `<test.sitedoc.no eller sitedoc.no>`, innlogget som
+> `<rolle>`, med «Playwright Extension» klikket på den fanen.»
+
+Kenneth gjør så stegene i § 0. **Vent på at han melder tilbake** — ikke start parallelle
+forsøk med andre verktøy imens. Kenneths ord (2026-08-19):
+*«jeg kan starte playwright og gi en nøkkel til opus — jeg ønsker at han ber meg gjøre det
+når han er klar, ellers jobber vi bare mot hverandre.»*
+
+**Når token-en kommer:** `claude mcp remove playwright` + `claude mcp add` med ny token
+(§ 4). Utvidelsen genererer **ny token ved hver økt-start** — en gammel token gir samme
+symptom som ingen token.
+
+**Så driver du med** `browser_snapshot` · `browser_navigate` · `browser_type` ·
+`browser_click` · `browser_press_key`.
+
+⚠️ **Ikke omgå dette ved å skrive til API-et fra side-JS.** Det er gjort før (oppsett av
+Agent-testprosjektet 2026-08-19) og fungerer teknisk, men da tester du ikke flaten Kenneth
+faktisk bruker — og du kan produsere data som ser gyldige ut uten å være det. Se
+[BACKLOG § referanse-testprosjekt](BACKLOG.md).
+
 ## 0. Hurtig-sjekkliste — hva Kenneth gjør for å få Opus på nettleser (verifisert 2026-07-11)
 
 For SiteDoc-web (test/prod) **bruk Playwright-utvidelsen, IKKE `claude-in-chrome`** (sistnevnte henger — se caveat under). Steg:
