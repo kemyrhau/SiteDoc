@@ -56,6 +56,37 @@ Alle arkitektur-beslutninger skal kunne forklares tilbake til en arbeidsflyt her
 
 ---
 
+## 🟢 STYRENDE: oppgave og sjekkliste er grunnleggende like — to forskjeller (Kenneth 2026-08-19)
+
+> *«Oppgave og sjekkliste skal være grunnleggende lik. Forskjell: sjekkliste kan slettes →
+> større behov for logg dersom man trenger å gå tilbake. Oppgave kan ikke slettes etter
+> første sending → større behov for å tilføye kommentarer.»*
+
+**Utgangspunktet er likhet.** Ny funksjonalitet på den ene flaten skal som hovedregel finnes
+på den andre. Avvik krever begrunnelse i de to forskjellene under — ikke i at «det ble
+sånn».
+
+| | Sjekkliste | Oppgave |
+|---|---|---|
+| **Sletting** | tillatt | **sperret etter første sending** (`oppgave.ts:1879` — kun `utkast`/`avbrutt`) |
+| **Følger av det** | **endringsloggen er sikkerhetsnettet** — den må kunne rekonstruere hva som sto | **kommentarer er sikkerhetsnettet** — det som ikke kan slettes, må kunne korrigeres i dialog |
+
+**Hvorfor det henger sammen:** et dokument som kan forsvinne, trenger en logg som overlever
+det. Et dokument som ikke kan forsvinne, trenger en måte å legge til det som mangler uten å
+skrive om historikken.
+
+**Konsekvens for prioritering:**
+
+- **Endringslogg-kvalitet er kritisk for sjekkliste** (lesbarhet, ord-diff, no-op-filtrering
+  — levert 2026-08-16/17). For oppgave er den nyttig, men mindre kritisk.
+- **Kommentar-/dialogflaten er kritisk for oppgave.** Der er terskelen for «godt nok»
+  høyere, fordi feil ikke kan ryddes ved sletting.
+- Bygges en av delene på én flate, skal den andre vurderes — men ikke automatisk kopieres.
+
+⚠️ **Ikke verifisert:** at sjekkliste faktisk kan slettes i alle statuser. Mål
+`sjekkliste.slett` mot samme statusgate som oppgave har, og rett dokumentet hvis de er like
+i dag.
+
 ## Arbeidsflyt — Leder/Prosjektleder
 
 ### Timer-attestering
