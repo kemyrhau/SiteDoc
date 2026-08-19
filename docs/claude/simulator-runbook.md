@@ -75,6 +75,16 @@ Innloggingsskjermen viser fire dev-login-knapper (kun i test-/dev-bygg —
 `erTestLoginAktiv || __DEV__`; fraværende i prod). Kilde:
 `apps/mobile/app/logg-inn.tsx` (`TESTBRUKERE`).
 
+> ⚠️ **`npx expo run:ios --configuration Release` gir IKKE dev-login (målt 2026-08-19).**
+> Release-bygg laster `.env.production` (`EXPO_PUBLIC_API_URL=https://api.sitedoc.no`
+> = **prod**, ingen `EXPO_PUBLIC_ENABLE_TEST_LOGIN`) → `__DEV__=false` + `erTestLoginAktiv=false`
+> → kun Google/Microsoft. **Release-sim er dermed stengt for agent-testing** med mindre du
+> legger en gitignorert `apps/mobile/.env.production.local` (høyest presedens) som overstyrer
+> `EXPO_PUBLIC_API_URL=http://localhost:3301` + `EXPO_PUBLIC_ENABLE_TEST_LOGIN=true` +
+> `EXPO_PUBLIC_DEV_LOGIN_SECRET=…`. **Advarsel:** uten den overstyringen peker Release-sim mot
+> **prod-API** — ikke last opp/skriv testdata fra et slikt bygg. Vanlig `npx expo run:ios`
+> (dev) er upåvirket og gir dev-login som normalt.
+
 | Knapp | Rolle | Data |
 |---|---|---|
 | 🧪 SiteDoc-admin (`test-admin`) | `sitedoc_admin` | **Ingen prosjekter** (admin-bypass-gapet, se punkt 4) |
