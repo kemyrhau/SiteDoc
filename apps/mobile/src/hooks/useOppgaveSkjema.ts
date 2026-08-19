@@ -6,6 +6,7 @@ import { hentDatabase } from "../db/database";
 import { oppgaveFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
+import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
 import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
@@ -365,9 +366,20 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     return avregistrer;
   }, [oppgaveId, registrerCallback]);
 
+  // Signerte vedlegg-URL-er fra server-emisjonen (private bilder). Kun visning —
+  // `feltVerdier` beholder rå URL så synk ikke forgifter data. Se signerteUrler.ts.
+  const signerteUrler = useMemo(() => {
+    const m = new Map<string, string>();
+    samleSignerteVedleggUrler((oppgave as { data?: unknown } | undefined)?.data, m);
+    return m;
+  }, [oppgave]);
+
   const hentFeltVerdi = useCallback(
-    (objektId: string): FeltVerdi => feltVerdier[objektId] ?? TOM_FELTVERDI,
-    [feltVerdier],
+    (objektId: string): FeltVerdi => {
+      const fv = feltVerdier[objektId] ?? TOM_FELTVERDI;
+      return resolveSignerteUrler(fv, signerteUrler);
+    },
+    [feltVerdier, signerteUrler],
   );
 
   // Lagre til server
