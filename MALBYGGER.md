@@ -99,6 +99,12 @@ FROM report_objects o JOIN report_templates t ON t.id = o.template_id
 WHERE o.config->>'zone' IS NULL;
 ```
 
+**Gjelder også prosjekter (Kenneth 2026-08-19):** et prosjekt opprettet direkte i databasen
+mangler firma-tilknytning, byggeplass og dokumentflyt — og produserer følgefeil som ser ut
+som produktbugs. `Testprosjekt SD-…0001` kostet timer med feilsøking fordi frysingen
+oppførte seg ulikt der og i et ekte prosjekt. Se
+[BACKLOG § referanse-testprosjekt](docs/claude/BACKLOG.md).
+
 **Regel for agenter som oppretter maler eller sjekklister:**
 
 1. **Bruk malbyggerens egne API-ruter** (`mal.ts` CRUD) — ikke direkte `INSERT` i

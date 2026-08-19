@@ -1297,6 +1297,38 @@ Faller pausevinduet **utenfor alle arbeidsvinduer** (`pauseMin > 0`, men ingen l
 
 **Vedtatt fiks (forener Kenneth-prinsipp «lagre rett» + ufravikelig «ALDRI slett eksisterende data»): B — flytt erstattet-rad til historikk-tabell ved rediger** i `2816`/`3016` (i stedet for å merke «erstattet» og la den ligge i hovedtabellen) → hovedtabell kun live → ingen leser trenger filter, og audit bevares. Migrering FLYTTER eksisterende «erstattet»-rader fra hovedtabellene til historikk (rydder bl.a. denne sedelen til 3+2 live — uten å slette data). `hentEndringerSiden`-filteret legges i SAMME PR som rulleringsvern (no-op etter migrering). **A (hard-slett) forkastet:** bryter «aldri slett data» uten eksplisitt unntak. Test-sedel `49a7c839` beholdes som regresjons-fixtur.
 
+### 🔴 Agenter mangler et komplett referanse-testprosjekt (Kenneth 2026-08-19)
+
+> *«Opus opprettet dette prosjektet — ikke via systemet. Opus trenger et fungerende prosjekt
+> å teste i: dokumentflyt, tegninger som er georeferert, 3D-modell, byggeplass med mere.»*
+
+**Utløser:** `Testprosjekt SD-…0001` ble opprettet av en agent utenom systemets egen
+opprettelsesflyt. Resultatet er et prosjekt som mangler byggeplass, ikke er tilknyttet
+firmaet (web: «Organisasjonen har ingen tilknyttede prosjekter ennå», mens mobil viser det
+under samme firma), og som produserer **følgefeil som ser ut som produktbugs**.
+
+Konkret kostnad 2026-08-19: frysingen ved sjekkliste-opprettelse oppførte seg ulikt i
+Testprosjekt og i B12 — timer med feilsøking gikk til å skille datafeil fra kodefeil.
+
+**Samme mønster som [`config.zone`](../../MALBYGGER.md)**: data skrevet direkte til
+databasen omgår all validering UI-et håndhever, og feilen dukker opp langt unna.
+
+**To deler:**
+
+1. **Regel — agenter oppretter prosjekter via systemet**, ikke direkte i DB. Samme prinsipp
+   som malbygger-regelen. Trengs det seeding, skal den etterlikne hva opprettelsesflyten
+   faktisk setter (firma-tilknytning, byggeplass, dokumentflyt).
+2. **Ett komplett referanse-testprosjekt** som agenter tester mot, med: firma-tilknytning ·
+   minst én byggeplass · georeferert tegning · 3D-modell · dokumentflyt med registrator og
+   minst to ledd · sjekkliste- og oppgavemaler · kontrollplan. Verifisert komplett, og
+   dokumentert hvor det ligger.
+
+**Relatert svakhet Kenneth peker på:** det finnes ingen guidet oppsettsflyt etter at et
+prosjekt er opprettet — brukeren må vite selv hva som må settes opp.
+Se [prosjektoppsett-veileder.md](prosjektoppsett-veileder.md) (🟡 PLAN, ikke bygget). Et
+referanse-testprosjekt og en oppsettsveiviser løser beslektede problemer: begge handler om
+at «opprettet» ikke er det samme som «brukbart».
+
 ### 🟢 KENNETH-VEDTAK 2026-08-18: papirkurven beholdes, men trenger livssyklus
 
 > *«Skal vi sende til papirkurv? Hvis vi gjør det må vi tilby maks fleksibilitet for sletting.»*
