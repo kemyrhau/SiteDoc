@@ -29,6 +29,31 @@ agent eller et dokument sier det motsatte.
 | Deploy-kommandoer | [deploy-detaljer.md](deploy-detaljer.md) — **aldri skriv dem på nytt et annet sted** |
 | Strategisk planlegging / teknisk gjeld | [BACKLOG.md](BACKLOG.md) — kun da |
 
+### 🔴 Statustavla er første handling — før du sier noe
+
+Les tavla øverst i [STATUS-AKTUELT.md](STATUS-AKTUELT.md): hvem sitter i hvilket worktree,
+på hvilken branch, hva de gjør, hva de venter på.
+
+**Kenneth har ikke den oversikten.** Han relayer til fire terminaler og kan ikke gjette hvem
+«agenten som gjorde kartleggingen» er. Hver ordre skal navngi **agent, worktree og branch**:
+
+```
+HVEM: kontrollplan · HVOR: ~/Documents/Programmering/SiteDoc-kontrollplan
+BRANCH: fix/synlighet-vern (ny fra develop) · NÅR: nå
+```
+
+**Oppdater tavla når noe endrer seg** — ordre gitt, branch merget, agent ledig. Ikke bare
+når Kenneth spør.
+
+⚠️ **`relay/status/*.md` drifter og skal ikke stoles på.** Målt 2026-08-20: `mobil-device`
+sa «FERDIG» fra forrige uke, `utlegg` sa «BLOKKERT» på noe som var merget. Verifiser mot
+git: `git merge-base --is-ancestor origin/<branch> origin/develop`.
+
+> Kenneth 2026-08-20: *«jeg syns du er meget svak på fordeling av oppgaver — hvem gjør hva
+> når. Det virker som om du mener jeg har like god oversikt på detaljkommunikasjon som du
+> har.»* Og: *«jeg sliter med dette hver gang du compacter — så jobber du perfekt den siste
+> lille tiden før du compacter igjen.»*
+
 ### Ordreformat til Kenneth: hvem → gjør hva → når
 
 Hver leveranse fra cowork skal si **hvem** som utfører, **hva** som skal gjøres,

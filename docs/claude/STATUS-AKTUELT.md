@@ -130,6 +130,35 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 >
 > **Gjenstår:** `--rydd-originaler` (venter til test-DB også er migrert) · steg 4 hard validering (etter EAS-adopsjon) · test-miljøet ikke auditert.
 
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-20)
+
+| Agent | Worktree | Branch | Gjør nå | Venter på |
+|---|---|---|---|---|
+| **dokgen** | `SiteDoc-dokgen` | `fix/pakke-a-sikkerhet` ✅ merget | **Ledig** | — |
+| **mobil-device** | `SiteDoc-mobil-device` | `feat/mobil-arkiv-pdf` ✅ merget t.o.m. steg 2 | Steg 3–4 (type-valg i tegning + rename) + kontekstkjede | Ingenting — kan bygge |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/synlighet-vern` (ny) | Fabels reviderte vedtak: teller-bug + `superRefine` + fjern `tilknyttFaggruppe` | Ingenting — kan bygge |
+| **smoketest** | — | `chore/demo-smoketest` | Løype B (mal fylt) + C hvis tid | Kenneth: demo-mal på riktig prosjekt |
+
+**Umerget:** `fix/endringslogg-web` — sjekk om den er overflødig (innholdet kan ha kommet
+inn via andre merger) før den ryddes.
+
+**Venter på Kenneth:**
+
+- **A4 Norkart** — utsatt, dialog tar tid. Kode urørt til ny nøkkel finnes.
+- **Browser-verifisering av A1** etter test-deploy: dokument med tabeller rendrer, tegning
+  kan inspiseres med hover-highlight. Bommer SVG-profilen, ser man det der.
+- **TestFlight bygg 45** — testliste i [testliste-bygg-45.md](testliste-bygg-45.md).
+- **Brannmur** — venter på LAN + fysisk konsoll. Ingenting eksponert utenfra (målt).
+
+**Åpne fabel-saker:** repeater-prinsippet · papirkurv-sletterettigheter · mappe-modellens
+flyt-spørsmål (punkt 4 i revidert synlighetsvedtak).
+
+⚠️ **Statusfilene i `relay/status/` er utdaterte** (2026-08-20) — `mobil-device` sier
+«FERDIG» fra S1-runden, `utlegg` sier «BLOKKERT» på noe som ble merget for en uke siden.
+Denne tavla er sannheten; statusfilene oppdateres av agentene selv og drifter.
+
+---
+
 **Ikke en ny sårbarhet — dette er S1 Fase 1b, planlagt men ikke bygget.** `server.ts` sier det selv: *«Non-privat `/uploads/*` er uendret i Fase 1 (global gate kommer i Fase 1b).»* Målingen viser at hullet fortsatt står åpent.
 
 **Målt på prod 2026-08-12:**
