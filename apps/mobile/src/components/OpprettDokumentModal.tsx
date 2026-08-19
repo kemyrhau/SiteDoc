@@ -162,9 +162,6 @@ export function OpprettDokumentModal({
   // settes false lokalt ved suksess, så modalen animerer HELT ut (iOS onDismiss)
   // FØR parenten navigerer — native modal-dismiss og stack-push kolliderer ellers.
   const [internSynlig, setInternSynlig] = useState(synlig);
-  useEffect(() => {
-    setInternSynlig(synlig);
-  }, [synlig]);
   const pendingNavId = useRef<string | null>(null);
   const harAutoOpprettet = useRef(false);
   // P4a: gate dismiss på at modalen faktisk er ferdig PRESENTERT. Ved auto-opprett
@@ -175,6 +172,22 @@ export function OpprettDokumentModal({
   // full presentasjon; er en dismiss ønsket før det, utsettes den til `onShow`.
   const harPresentert = useRef(false);
   const venterDismiss = useRef(false);
+  // Parent-drevet synlighet MÅ gjennom SAMME presentert-gate som `fullførOpprett` —
+  // ellers dismisser en parent-lukk (`synlig`→false, f.eks. rett etter auto-opprett)
+  // VC-en MID-PRESENT og etterlater den usynlige svarte overlay-en som fanger ALL
+  // touch (frys; kun edge-swipe/pop river den ned). Reprodusert 2026-08-19.
+  useEffect(() => {
+    if (synlig) {
+      venterDismiss.current = false; // ny åpning kansellerer evt. utsatt dismiss
+      setInternSynlig(true);
+      return;
+    }
+    if (Platform.OS !== "ios" || harPresentert.current) {
+      setInternSynlig(false);
+    } else {
+      venterDismiss.current = true; // utsett til onShow → onDismiss fyrer pålitelig
+    }
+  }, [synlig]);
 
   // Default oppgave-tittel = malnavn ved modalåpning (redigerbar). Kun på
   // false→true-overgang, så brukerens redigering ikke overskrives.
