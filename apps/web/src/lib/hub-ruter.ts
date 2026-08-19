@@ -20,6 +20,7 @@ export const HUB_LENKER = {
   lonnsarter: "/dashbord/firma/timer/lonnsarter",
   aktiviteter: "/dashbord/firma/timer/aktiviteter",
   tillegg: "/dashbord/firma/timer/tillegg",
+  utleggskategorier: "/dashbord/firma/timer/utleggskategorier",
   timerOnboarding: "/dashbord/firma/timer",
   timerOppsett: "/dashbord/firma/timer/oppsett",
   maskinregister: "/dashbord/maskin",
