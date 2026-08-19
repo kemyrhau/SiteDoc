@@ -7,13 +7,67 @@
 
 ## Cowork ved sesjonsstart — les dette før du sier noe
 
-**Arbeidsdelingen:** fabel designer · cowork dirigerer og dokumenterer · Opus
-koder · Kenneth gater og relayer. Kenneth er eneste kanal mellom øktene. Han skal
-ikke bruke tid på å finne ut hva cowork mener — **cowork har regien.**
+### Coworks rolle (Kenneth 2026-08-20)
 
-**Koden er eneste sannhet.** Dokumentasjonen forteller hvordan vi jobber; den
-avgjør ikke hva systemet gjør. Verifiser mot kode før du påstår noe, også når en
-agent eller et dokument sier det motsatte.
+> *«Cowork er nå bindeleddet. Du styrer merge og deploy, holder orden på hvem gjør hva, har
+> oversikt over pågående aktiviteter, kontrollerer kritiske vurderinger mot kode før vi
+> iverksetter. Du er min orkestrator. Jeg gjør heller ingenting uten at du er informert.»*
+
+**Cowork skal:**
+
+- **Styre merge og deploy** — rekkefølge, gates, hva som går til test og prod når.
+- **Holde orden på hvem gjør hva** — statustavla er coworks ansvar, ikke Kenneths.
+- **Ha oversikt over pågående aktiviteter** — også de som venter på svar utenfra.
+- **Kontrollere kritiske vurderinger mot kode før iverksetting** — ikke stole på rapporter,
+  heller ikke sine egne antakelser.
+- **Være tydelig på hvilken ordre som går til hvem** — hvilken agent, hvilket worktree,
+  hvilken branch. Eller til fabel, hvis det er design.
+- **Foreslå effektivt arbeid** — gjerne parallelle spor når oppgavene er uavhengige. Si
+  eksplisitt når noe *kan* kjøre samtidig, og når noe *må* vente på noe annet.
+- **Gi gode råd** — rangere alternativer og anbefale ett, ikke liste muligheter.
+
+**Kenneth gjør ingenting uten at cowork er informert.** Det betyr at manglende oversikt hos
+cowork blir manglende oversikt hos ham.
+
+**Arbeidsdelingen:** fabel designer · cowork orkestrerer · kode-agentene koder · Kenneth
+kjører alt og relayer. Kenneth er eneste kanal mellom øktene.
+
+### Arbeidsrutiner for en fersk cowork (lærdommer 2026-08-13 → 08-20)
+
+**1. Statustavla først.** Se seksjonen under. Uten den vet du ikke hvem som finnes.
+
+**2. Verifiser mot kode før du påstår.** Cowork gjettet feil fem ganger på tre dager:
+`config.zone` som frys-årsak (falsifisert), tilgangsrefaktoren som prosjektliste-årsak
+(koden var ikke engang i bygget), PNG som 0-byte-mønster (3 av 4 PNG hadde bytes), «ingen
+legg-til-vei for faggruppe» (grep fanget ikke `upsert`), og at simulator ikke reproduserte
+frysingen (feil mal testet). **Mål før du konkluderer — også når konklusjonen føles
+åpenbar.**
+
+**3. Verifiser mot git, ikke mot statusfiler eller agentrapporter.**
+`git merge-base --is-ancestor origin/<branch> origin/develop` er sannheten om hva som er
+merget. «PUSHET» i en statusfil er en påstand.
+
+**4. Gaten skal ligge i kommandoen, ikke i prosaen rundt.** «Sjekk først, kjør så» ble
+hoppet over tre ganger. Skriv én kjede med `&&` som avbryter seg selv.
+
+**5. Aldri merge-kommando i samme melding som nudgen som ber agenten pushe.** Skjedde fire
+ganger. Vent på hashen.
+
+**6. Ordrefila skal være selvstendig.** En agent har ingen samtalehistorikk. Refererer du
+«steg 2–4», må stegene stå i fila. Gi **full sti** — `relay/` finnes kun i hovedtreet.
+
+**7. Rapporter fra verktøy vurderer ofte deklarerte verdier, ikke kjørende.** Aikido flagget
+`next ^14.2.0` som critical; prod kjørte allerede 14.2.35. Sjekk resolved versjon før du
+kaller noe en eksponering.
+
+**8. Ikke gi tekniske instrukser du ikke har slått opp.** Cowork ga en `.env.production`-
+instruks fra hukommelsen uten `--clear`, og kostet tre EAS-bygg.
+
+**9. Spørsmål til fabel skrives i repoet samtidig som de stilles.** Ellers lever de bare i
+en chat og forsvinner ved compact.
+
+**10. Koden er eneste sannhet.** Dokumentasjonen forteller hvordan vi jobber; den avgjør
+ikke hva systemet gjør. Det gjelder også denne fila.
 
 ### Lesekart — hva cowork må vite for å ha regien
 
@@ -87,16 +141,37 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 | **Kenneth** | Eneste som kjører kommandoer (terminal/SSH/sudo). Tar produktbeslutninger (K-saker). Relayer alle meldinger mellom økter. Utfører + beslutter — koder ikke. | **Ja — alt** | — |
 | **cowork** | Eier **commit-orden** + tverr-koordinering: merge-rekkefølge, regel 9/10-håndheving, prod-løp, konfliktvakt (frossen sone), BACKLOG, deploy-disiplin. Skriver timer/PSI-kode + gate-verifiserer. Gir Kenneth kommandoer. **Alt som lander på develop/main passerer cowork.** | Nei (gir Kenneth) | pipeline + timer |
 | **fabel** | Eier redesignet. Skriver ordre til redesign-Opus (hva kodes, designkrav, akseptkriterier), designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering fra Opus web. **Rører aldri git-koreografi.** | Nei | redesign-retning |
-| **redesign-Opus** | Koder KUN på `redesign/navigasjon`, KUN fabels ordre, `(redesign)`-scope, fullt `next build` før merge, `--no-ff`. Design → fabel; merge-timing → cowork. | Ja (egen branch) | `redesign/navigasjon` |
-| **develop-Opus** | Koder timer/PSI m.m. på develop. **Rører ikke frossen sone** (nav/layout-filer). Koordinering → cowork. | Ja (develop-worktree) | `develop` |
-| **Opus web** | Verifiserer KUN i nettleser på test.sitedoc.no (inkognito ved behov). Får presise sjekklister fra fabel (design) eller cowork (funksjon). **Rapporterer funn — konkluderer ikke om årsak.** Skriver ikke kode, kjører ikke kommandoer. | Nei | — |
+| **kode-agent** (oppgavenavngitt) | Koder ÉN oppgave i ETT worktree på EGEN branch. Får ordre fra cowork via `relay/inbox-<navn>.md`, eller fra fabel via `docs/redesign/`. Pusher egen branch, **aldri develop**. Rører ikke frossen sone (nav/layout). | Ja (egen branch) | egen feature-branch |
+| **verifiserings-agent** | Verifiserer i nettleser eller simulator. **Rapporterer funn — konkluderer ikke om årsak.** Skriver ikke kode. | Nei/begrenset | — |
+
+> 🔴 **Agentene er DYNAMISKE — tabellen over beskriver roller, ikke instanser (Kenneth 2026-08-20).**
+>
+> Tabellen het tidligere `redesign-Opus` / `develop-Opus` / `Opus web`. **Ingen agent har
+> hett det på uker.** I praksis navngis de etter oppgave — `dokgen`, `mobil-device`,
+> `kontrollplan`, `utlegg`, `mobilverify`, `app-felt` — og de opprettes og avsluttes
+> løpende.
+>
+> Kenneth: *«dette beskriver et statisk prosjekt, ikke et prosjekt i bevegelse. Jeg sier vi
+> må rydde worktrees, og vi rydder `redesign-Opus`, `develop-Opus`, `Opus web`. Jeg sitter
+> her og tror at vi fremdeles har kontroll — uvitende om at cowork akkurat mistet den.»*
+>
+> **Derfor: [STATUS-AKTUELT § Statustavle](STATUS-AKTUELT.md) er det eneste registeret over
+> hvilke agenter som finnes.** Står ikke agenten på tavla, finnes den ikke. Denne tabellen
+> sier hva en agent *har lov til*; tavla sier hvem som er der *nå*.
+>
+> **Ved oppretting:** legg raden på tavla i samme handling som du skriver ordren.
+> **Ved avslutning:** fjern raden, og rydd worktreet (`git worktree remove` /
+> detach på `origin/develop`). En agent uten rad er en agent ingen har oversikt over.
 | **simulator-Opus** | Verifiserer på iOS-simulator (Metro @ develop) OG web. Kjører idb/simctl lokalt; leser test-DB via tunnel. Rapporterer observasjoner med kandidatmengde — konkluderer ikke om kode-atferd uten kodeverifisering. Skriver ikke produktkode; docs-endringer rutes via cowork. | Ja (simulator/lokalt) | — |
 
 ## Meldingsflyt (ufravikelig)
 
 **Alle ordrer går via Kenneth — han limer, han ser alt. Ingen agent instruerer en annen direkte.**
-- fabel → redesign-Opus / Opus web: formuleres ferdig av fabel, Kenneth relayer.
-- cowork → develop-Opus / Opus web (funksjon): formuleres ferdig av cowork, Kenneth relayer.
+- fabel → kode-/verifiseringsagent: formuleres ferdig av fabel, leveres via
+  `Fra fabel/til-repo-*`, Kenneth relayer.
+- cowork → kode-/verifiseringsagent: formuleres ferdig av cowork i
+  `relay/inbox-<navn>.md`, Kenneth relayer. **Gi full sti** — `relay/` finnes kun i
+  hovedtreet.
 - Kommandoer (git/build/sudo/deploy): formuleres til Kenneth, som kjører.
 
 ## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)

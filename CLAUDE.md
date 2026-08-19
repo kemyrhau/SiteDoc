@@ -8,7 +8,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 |-----|---------|
 | [docs/claude/SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) | **Veileder Opus:** sesjonsoppstart-veileder — vis ved sesjon-start |
 | [docs/claude/kontroll-claude-veileder.md](docs/claude/kontroll-claude-veileder.md) | **Veileder kontroll-Claude:** arbeidsmåte for verifiseringslaget over Opus — les `parallell-arbeid-lock.md` først |
-| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **STYRENDE — cowork leser ved SESJONSSTART:** lesekart (hvor status/vedtak/testdata ligger), ordreformat hvem→hva→når, rollekart, meldingsflyt, commit-orden, merge-mekanikk |
+| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — cowork leser FØRST hver sesjon:** coworks rolle som orkestrator (merge/deploy, hvem gjør hva, kontroll mot kode før iverksetting), 10 arbeidsrutiner for fersk cowork, statustavle-plikt, lesekart, ordreformat hvem→hva→hvor→når, merge-mekanikk. **Agentene er dynamiske — tavla i STATUS-AKTUELT er registeret** |
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
 | [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
