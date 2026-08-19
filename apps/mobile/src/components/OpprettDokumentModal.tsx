@@ -158,35 +158,15 @@ export function OpprettDokumentModal({
   const [visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
 
-  // P4a: serialiser navigering. `internSynlig` speiler `synlig`-propen men kan
-  // settes false lokalt ved suksess, så modalen animerer HELT ut (iOS onDismiss)
-  // FØR parenten navigerer — native modal-dismiss og stack-push kolliderer ellers.
+  // `internSynlig` speiler `synlig`-propen. (Historisk hadde denne en `onShow`/
+  // `onDismiss`-gate for Paper-arkitekturens VC-kollisjon; under Fabric/newArch er
+  // modalen inline og de callbackene fyrer ikke pålitelig → gaten deadlocket ved
+  // auto-opprett og etterlot en usynlig touch-fangende modal-host = frys. Fjernet;
+  // se `fullførOpprett`. Reprodusert + verifisert i Release-sim 2026-08-19.)
   const [internSynlig, setInternSynlig] = useState(synlig);
-  const pendingNavId = useRef<string | null>(null);
   const harAutoOpprettet = useRef(false);
-  // P4a: gate dismiss på at modalen faktisk er ferdig PRESENTERT. Ved auto-opprett
-  // (entydig kontekst) kan mutasjonen fullføre før slide-inn-animasjonen er ferdig
-  // (rask localhost/cache) → `setInternSynlig(false)` mid-present fører til at iOS
-  // `onDismiss` ALDRI fyrer → `pendingNavId` henger, navigering skjer aldri, og
-  // modal-VC-en blir liggende som usynlig svart overlay. `onShow` (kun iOS) bekrefter
-  // full presentasjon; er en dismiss ønsket før det, utsettes den til `onShow`.
-  const harPresentert = useRef(false);
-  const venterDismiss = useRef(false);
-  // Parent-drevet synlighet MÅ gjennom SAMME presentert-gate som `fullførOpprett` —
-  // ellers dismisser en parent-lukk (`synlig`→false, f.eks. rett etter auto-opprett)
-  // VC-en MID-PRESENT og etterlater den usynlige svarte overlay-en som fanger ALL
-  // touch (frys; kun edge-swipe/pop river den ned). Reprodusert 2026-08-19.
   useEffect(() => {
-    if (synlig) {
-      venterDismiss.current = false; // ny åpning kansellerer evt. utsatt dismiss
-      setInternSynlig(true);
-      return;
-    }
-    if (Platform.OS !== "ios" || harPresentert.current) {
-      setInternSynlig(false);
-    } else {
-      venterDismiss.current = true; // utsett til onShow → onDismiss fyrer pålitelig
-    }
+    setInternSynlig(synlig);
   }, [synlig]);
 
   // Default oppgave-tittel = malnavn ved modalåpning (redigerbar). Kun på
@@ -263,9 +243,6 @@ export function OpprettDokumentModal({
     if (!synlig) {
       harKjørtLokasjon.current = false;
       harAutoOpprettet.current = false;
-      pendingNavId.current = null;
-      harPresentert.current = false;
-      venterDismiss.current = false;
     }
   }, [synlig]);
 
@@ -438,47 +415,24 @@ export function OpprettDokumentModal({
     onLukk();
   }, [nullstillSkjema, onLukk]);
 
-  // P4a: kalles ved opprett-suksess. iOS → start dismiss lokalt og naviger først
-  // i onDismiss (etter at modalen er helt ute). Android har ingen modal-VC-
-  // kollisjon → naviger direkte.
+  // Opprett-suksess: naviger DIREKTE. Fabric (newArch) rendrer modalen inline
+  // (ingen presentert UIKit-VC → ingen VC/stack-push-kollisjon), og `<Modal>`s
+  // `onShow`/`onDismiss` fyrer ikke pålitelig — den gamle P4a-gaten (utsett dismiss
+  // til `onShow`) deadlocket når auto-opprett fullførte før presentasjon og
+  // etterlot en usynlig touch-fangende modal-host (frysen). Parenten nullstiller
+  // `valgtMal` → `synlig=false` → modalen rives ned.
   const fullførOpprett = useCallback(
     (id: string) => {
       nullstillSkjema();
-      if (Platform.OS === "ios") {
-        pendingNavId.current = id;
-        // Bare start dismiss hvis modalen er ferdig presentert; ellers utsett til
-        // `onShow` (unngår present/dismiss-race som svelger `onDismiss`).
-        if (harPresentert.current) {
-          setInternSynlig(false);
-        } else {
-          venterDismiss.current = true;
-        }
-      } else {
-        onOpprettet(id);
-      }
+      onOpprettet(id);
     },
     [nullstillSkjema, onOpprettet],
   );
 
-  // iOS: presentasjonen er ferdig. Er en dismiss ønsket (auto-opprett fullførte
-  // før animasjonen), utfør den nå — da fyrer `onDismiss` pålitelig.
-  const håndterShow = useCallback(() => {
-    harPresentert.current = true;
-    if (venterDismiss.current) {
-      venterDismiss.current = false;
-      setInternSynlig(false);
-    }
-  }, []);
-
-  // iOS: modalen er helt dismisset → trygt å navigere / rapportere lukket.
+  // Rapportér at modalen er lukket (statistikk/opprydding hos parent).
   const håndterDismiss = useCallback(() => {
     onModalLukket?.();
-    if (pendingNavId.current) {
-      const id = pendingNavId.current;
-      pendingNavId.current = null;
-      onOpprettet(id);
-    }
-  }, [onModalLukket, onOpprettet]);
+  }, [onModalLukket]);
 
   const håndterOpprett = useCallback(() => {
     if (!oppretterFaggruppeId) {
@@ -591,7 +545,6 @@ export function OpprettDokumentModal({
       visible={internSynlig}
       animationType="slide"
       onRequestClose={onLukk}
-      onShow={håndterShow}
       onDismiss={håndterDismiss}
     >
       <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
