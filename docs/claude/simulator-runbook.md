@@ -7,6 +7,30 @@ sist_verifisert_mot_kode: 2026-07-07
 
 # Simulator-runbook — oppstart til innlogget (test-miljø)
 
+> 🔴 **`EXPO_PUBLIC_*`-endringer krever cache-tømming (lærdom 2026-08-19).**
+> Verdiene **inlines per fil ved Metro-transform**, og transform-cachen nøkles på
+> **filinnhold — ikke på env-verdier.** Endrer du en `EXPO_PUBLIC_*`-variabel og bygger på
+> nytt uten å tømme cachen, gjenbrukes den gamle transformen med den gamle verdien.
+> Symptomet er at endringen «ikke virker» selv etter fersk install — typisk at dev-login
+> ikke vises fordi `EXPO_PUBLIC_ENABLE_TEST_LOGIN` fortsatt leses som `undefined`.
+>
+> Alltid ved env-endring: `npx expo start --clear`, eller avinstaller appen **og** tøm
+> Metro-cache før `expo run:ios`.
+>
+> **Release-sim:** `--configuration Release` laster `.env.production`, ikke `.env`. Skal du
+> ha dev-login i Release-sim, må test-verdiene ligge der (`EXPO_PUBLIC_API_URL`,
+> `EXPO_PUBLIC_DEV_LOGIN_SECRET`, `EXPO_PUBLIC_ENABLE_TEST_LOGIN`) **og** cachen tømmes.
+> ⚠️ Fila er gitignorert — **slett den etter testen.** Den skal aldri overleve økta og aldri
+> inn i et EAS-bygg.
+>
+> Kostnaden ved å ikke vite dette: tre Release-sim-bygg der dev-login «manglet», før
+> rotårsaken ble funnet. Cowork ga `.env.production`-instruksen uten `--clear`, og uten å
+> verifisere den mot dokumentasjon — den var hentet fra en tidligere observasjon i samme
+> økt.
+
+⚠️ **`scripts/simulator-tre.sh` finnes ikke lenger** (målt 2026-08-18) — referanser til den
+under er drift. Bruk et eksisterende worktree med `node_modules` i stedet.
+
 Ende-til-ende-oppskrift for å teste mobil-appen i iOS-simulator mot **test-API**
 (`api-test.sitedoc.no` via localhost-tunnel). Alt her er verifisert 2026-07-07.
 Sikkerhetsgrense, testbrukere og tunnelens rotårsak: se
