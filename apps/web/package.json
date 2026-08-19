@@ -30,6 +30,7 @@
     "@trpc/react-query": "^11.10.0",
     "@trpc/server": "^11.10.0",
     "delaunator": "^5.0.1",
+    "dompurify": "^3.4.14",
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^5.5.8",
     "html2canvas": "^1.4.1",

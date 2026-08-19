@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
+import { rensSvg } from "@/lib/sanitize";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
@@ -256,7 +257,9 @@ export default function TegningerSide() {
     }
     fetch(svgUrl)
       .then((res) => res.text())
-      .then((tekst) => {
+      .then((raaTekst) => {
+        // Saniter opplastet/konvertert SVG FØR våre egne, betrodde transformasjoner
+        const tekst = rensSvg(raaTekst);
         // Fjern faste width/height og inject zoom-justert stroke-width CSS
         let tilpasset = tekst.replace(
           /<svg([^>]*)>/,
