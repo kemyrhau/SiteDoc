@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { eq } from "drizzle-orm";
+import { InteractionManager } from "react-native";
+import { eq, like } from "drizzle-orm";
 import { byggVaerSnapshot } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import { sjekklisteFeltdata, oppgaveFeltdata } from "../db/schema";
@@ -41,6 +42,13 @@ interface FeltVerdiLike {
 
 const SWEEP_INTERVALL_MS = 30_000;
 
+// Bare rader som faktisk har en venter-markør er relevante. Filtrer i SQLite (C-laget)
+// i stedet for å lese ALLE feltdata-rader og JSON.parse hver i JS — i normaltilfellet
+// (ingen ventende vær) returnerer spørringen tomt umiddelbart uansett DB-størrelse.
+// Kandidat-treff verifiseres fortsatt strengt av `erVenterMarkor` (LIKE kan gi falske
+// positive; de leses og hoppes over, aldri skrevet).
+const VENTER_LIKE = '%"status":"venter"%';
+
 /** Er feltverdien en ventende vær-markør (satt offline, ikke hentet ennå)? */
 function erVenterMarkor(fv: FeltVerdiLike | undefined): fv is FeltVerdiLike & { verdi: VenterMarkor } {
   const v = fv?.verdi as VenterMarkor | undefined;
@@ -70,14 +78,16 @@ export function VaerKoProvider({ children }: { children: ReactNode }) {
         const db = hentDatabase();
         if (!db) return;
 
-        // Les alle lokale feltdata-rader (begge dokumenttyper).
+        // Les KUN feltdata-rader som inneholder en venter-markør (filtrert i SQLite).
         const sjekkRader = db
           .select({ id: sjekklisteFeltdata.sjekklisteId, json: sjekklisteFeltdata.feltVerdier })
           .from(sjekklisteFeltdata)
+          .where(like(sjekklisteFeltdata.feltVerdier, VENTER_LIKE))
           .all();
         const oppgRader = db
           .select({ id: oppgaveFeltdata.oppgaveId, json: oppgaveFeltdata.feltVerdier })
           .from(oppgaveFeltdata)
+          .where(like(oppgaveFeltdata.feltVerdier, VENTER_LIKE))
           .all();
 
         const jobber: Array<{ docType: "sjekkliste" | "oppgave"; docId: string }> = [
@@ -96,9 +106,12 @@ export function VaerKoProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Kjør ved reconnect + som sikkerhetsnett på intervall.
-    void prosesser();
-    const intervall = setInterval(() => void prosesser(), SWEEP_INTERVALL_MS);
+    // Kjør ved reconnect + som sikkerhetsnett på intervall. Kjør ETTER at interaksjoner/
+    // navigasjon har satt seg (`runAfterInteractions`), så den synkrone SQLite-lesningen
+    // aldri konkurrerer med JS-tråden mens et dokument mountes (opprettelse).
+    const kjor = () => InteractionManager.runAfterInteractions(() => void prosesser());
+    kjor();
+    const intervall = setInterval(kjor, SWEEP_INTERVALL_MS);
     return () => {
       avbrutt = true;
       clearInterval(intervall);

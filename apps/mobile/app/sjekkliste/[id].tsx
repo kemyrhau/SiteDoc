@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin, Printer } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
+import { useNettverk } from "../../src/providers/NettverkProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
@@ -42,6 +43,7 @@ import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
 import { hentSessionToken } from "../../src/services/auth";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
 
 interface Transfer {
@@ -115,11 +117,15 @@ export default function SjekklisteUtfylling() {
   const router = useRouter();
   const { bruker } = useAuth();
   const { valgtProsjektId } = useProsjekt();
+  const { erPaaNettet } = useNettverk();
   const utils = trpc.useUtils();
 
   const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
   const [pdfHtml, settPdfHtml] = useState<string | null>(null);
   const [pdfLaster, settPdfLaster] = useState(false);
+  // Arkiv-PDF (server-generert, primær vei — mangel-kontrakten speiler web).
+  // `expo-print`-veien under (pdfHtml/håndterDelPdf) beholdes som lokal fallback (Fase 1).
+  const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
   const [lokTempPosX, setLokTempPosX] = useState<number | null>(null);
@@ -192,7 +198,15 @@ export default function SjekklisteUtfylling() {
     id: string; name: string; drawingNumber: string | null;
     fileUrl: string; fileType: string;
     byggeplassId: string | null; byggeplass: { id: string; name: string } | null;
+    geoReference?: unknown | null;
   }>;
+
+  // Tegninger/kart å plassere posisjon på — må ha fil. Georeferert tegning
+  // (`geoReference`) fungerer som «kart» (kan være et georeferert kartutsnitt).
+  const tilgjengeligeTegninger = useMemo(
+    () => alleTegninger.filter((t) => t.fileUrl),
+    [alleTegninger],
+  );
 
   // Lokasjonsinformasjon fra sjekklisteDetalj
   const lokBygningNavn = sjekklisteDetalj?.byggeplass?.name;
@@ -568,6 +582,57 @@ export default function SjekklisteUtfylling() {
     }
   }, [sjekkliste, pdfHtml, genererPdfHtml]);
 
+  // --- Arkiv-PDF (primær vei) -------------------------------------------
+  // Server rendrer samme arkiv-PDF som web (`arkiv.rendr`). Auth går via
+  // Bearer-token på tRPC-klienten (samme som alle andre kall). PDF-en kommer
+  // som base64 i responsen → skrives til fil → deles via `expo-sharing`.
+  const rendrArkiv = trpc.arkiv.rendr.useMutation({
+    onSuccess: async (res: {
+      pdfBase64: string;
+      filnavn: string;
+      komplett: boolean;
+      renderTimeout: boolean;
+      dokumenter: { manglendeVedlegg: string[] }[];
+    }) => {
+      try {
+        const filsti = `${FileSystem.cacheDirectory}${res.filnavn}`;
+        await FileSystem.writeAsStringAsync(filsti, res.pdfBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await Sharing.shareAsync(filsti, {
+          mimeType: "application/pdf",
+          dialogTitle: `Del ${sjekkliste?.title ?? "sjekkliste"}`,
+          UTI: "com.adobe.pdf",
+        });
+      } catch (feil) {
+        console.warn("Arkiv-PDF-deling feilet:", feil);
+      }
+      // Mangel-kontrakt (speiler web): timeout ≠ mangel. Ikke-blokkerende, inline.
+      const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
+      if (res.renderTimeout) {
+        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselTimeout") });
+      } else if (antallMangler > 0) {
+        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselMangler", { antall: antallMangler }) });
+      } else {
+        settArkivMelding(null);
+      }
+    },
+    onError: (error: { message?: string }) => {
+      settArkivMelding({ type: "feil", tekst: error.message ?? t("arkiv.feil") });
+    },
+  });
+
+  const håndterArkivPdf = useCallback(() => {
+    if (!id) return;
+    // Uten nett: si tydelig at PDF krever tilkobling, ikke feil stille.
+    if (!erPaaNettet) {
+      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      return;
+    }
+    settArkivMelding(null);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
+  }, [id, erPaaNettet, rendrArkiv, t]);
+
   // Hjelpefunksjon for å hente feltVerdier som PDF-format, med vedleggsbilder som base64
   async function feltVerdierForPdf() {
     type VedleggPdf = { id: string; type: string; url: string; filnavn: string };
@@ -774,8 +839,25 @@ export default function SjekklisteUtfylling() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
-            <Pressable onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf} hitSlop={12} disabled={pdfLaster}>
-              {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
+            {/* Primær: server-generert arkiv-PDF (samme motor som web). */}
+            <Pressable
+              onPress={håndterArkivPdf}
+              hitSlop={12}
+              disabled={rendrArkiv.isPending}
+              accessibilityLabel={t("handling.lastNedArkivPdf")}
+            >
+              {rendrArkiv.isPending ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
+            </Pressable>
+            {/* Fallback: lokal PDF på enheten (expo-print). Fjernes i Fase 3. */}
+            <Pressable
+              onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf}
+              hitSlop={8}
+              disabled={pdfLaster}
+              className="flex-row items-center gap-1 rounded bg-white/10 px-1.5 py-0.5"
+              accessibilityLabel={t("arkiv.lokalFallback")}
+            >
+              {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Printer size={13} color="#ffffff" />}
+              <Text className="text-[10px] text-white/70">{t("arkiv.lokalFallback")}</Text>
             </Pressable>
             <StatusMerkelapp status={sjekkliste.status} />
             {(() => {
@@ -807,6 +889,18 @@ export default function SjekklisteUtfylling() {
         )}
       </View>
 
+      {/* Arkiv-PDF-melding: inline, ikke-blokkerende (ingen toast). Trykk for å lukke. */}
+      {arkivMelding && (
+        <Pressable
+          onPress={() => settArkivMelding(null)}
+          className={`px-3 py-2 ${arkivMelding.type === "feil" ? "bg-red-50" : "bg-amber-50"}`}
+        >
+          <Text className={`text-xs ${arkivMelding.type === "feil" ? "text-red-700" : "text-amber-700"}`}>
+            {arkivMelding.tekst}
+          </Text>
+        </Pressable>
+      )}
+
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -824,10 +918,27 @@ export default function SjekklisteUtfylling() {
           onPress={() => {
             if (leseModus) return;
             // Initialiser temp-state fra nåværende lokasjon
+            const harLagretTegning = !!sjekklisteDetalj?.drawingId;
             setLokTempTegningId(sjekklisteDetalj?.drawingId ?? null);
             setLokTempBygningId(sjekklisteDetalj?.byggeplass?.id ?? null);
             setLokTempPosX(sjekklisteDetalj?.positionX ?? null);
             setLokTempPosY(sjekklisteDetalj?.positionY ?? null);
+
+            // Vei videre når lokasjon mangler: gå rett til tegning/kart i stedet
+            // for å lande på en tom «Ingen tegning valgt»-tilstand.
+            if (!harLagretTegning && tilgjengeligeTegninger.length === 1) {
+              // Én tegning/kart → åpne den direkte i tegningsvisningen
+              const t = tilgjengeligeTegninger[0]!;
+              setLokTempTegningId(t.id);
+              setLokTempBygningId(t.byggeplassId ?? t.byggeplass?.id ?? null);
+              setVisLokByttTegning(false);
+            } else if (!harLagretTegning && tilgjengeligeTegninger.length > 1) {
+              // Flere tegninger/kart → åpne velgeren direkte
+              setVisLokByttTegning(true);
+            } else {
+              // Har lagret tegning, eller ingen finnes → modalen viser rett tilstand
+              setVisLokByttTegning(false);
+            }
             setVisLokasjonModal(true);
           }}
           className="rounded-lg bg-white px-4 py-3"
@@ -1101,7 +1212,7 @@ export default function SjekklisteUtfylling() {
           tegningUrl={
             sjekklisteDetalj.drawing.fileUrl.startsWith("http")
               ? sjekklisteDetalj.drawing.fileUrl
-              : `${hentWebUrl()}/api${sjekklisteDetalj.drawing.fileUrl}`
+              : `${AUTH_CONFIG.apiUrl}${sjekklisteDetalj.drawing.fileUrl}`
           }
           positionX={sjekklisteDetalj.positionX}
           positionY={sjekklisteDetalj.positionY}
@@ -1131,7 +1242,7 @@ export default function SjekklisteUtfylling() {
             const tegningUrl = aktivTegning?.fileUrl
               ? (aktivTegning.fileUrl.startsWith("http")
                 ? aktivTegning.fileUrl
-                : `${hentWebUrl()}/api${aktivTegning.fileUrl}`)
+                : `${AUTH_CONFIG.apiUrl}${aktivTegning.fileUrl}`)
               : null;
 
             // «Bytt tegning»-liste — kun når bruker eksplisitt trykker «Bytt tegning»
@@ -1146,17 +1257,37 @@ export default function SjekklisteUtfylling() {
                     <View style={{ width: 50 }} />
                   </View>
                   <ScrollView className="flex-1" contentContainerClassName="p-3 gap-1">
-                    {bygninger.map((b) => {
-                      const bTegninger = alleTegninger.filter(
-                        (t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id && t.fileUrl,
+                    {(() => {
+                      const bygningIder = new Set(bygninger.map((b) => b.id));
+                      const grupper: Array<{ id: string; navn: string; tegninger: typeof tilgjengeligeTegninger }> = bygninger
+                        .map((b) => ({
+                          id: b.id,
+                          navn: b.name,
+                          tegninger: tilgjengeligeTegninger.filter(
+                            (t) => (t.byggeplassId ?? t.byggeplass?.id) === b.id,
+                          ),
+                        }))
+                        .filter((g) => g.tegninger.length > 0);
+                      // Georeferert kart / tegning uten byggeplass — ellers usynlig i lista
+                      const løse = tilgjengeligeTegninger.filter(
+                        (t) => !bygningIder.has((t.byggeplassId ?? t.byggeplass?.id) ?? ""),
                       );
-                      if (bTegninger.length === 0) return null;
-                      return (
-                        <View key={b.id} className="mb-2">
-                          <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
-                            {b.name}
+                      if (løse.length > 0) {
+                        grupper.push({ id: "__løse", navn: "Kart", tegninger: løse });
+                      }
+                      if (grupper.length === 0) {
+                        return (
+                          <Text className="mt-8 px-6 text-center text-sm text-gray-500">
+                            Prosjektet har ingen tegning eller kart å plassere posisjon på.
                           </Text>
-                          {bTegninger.map((t) => (
+                        );
+                      }
+                      return grupper.map((g) => (
+                        <View key={g.id} className="mb-2">
+                          <Text className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-1 mb-1">
+                            {g.navn}
+                          </Text>
+                          {g.tegninger.map((t) => (
                             <Pressable
                               key={t.id}
                               onPress={() => {
@@ -1166,16 +1297,21 @@ export default function SjekklisteUtfylling() {
                                 setLokTempPosY(null);
                                 setVisLokByttTegning(false);
                               }}
-                              className={`rounded-lg px-3 py-2.5 ${lokTempTegningId === t.id ? "bg-blue-50" : "bg-white"}`}
+                              className={`flex-row items-center gap-2 rounded-lg px-3 py-2.5 ${lokTempTegningId === t.id ? "bg-blue-50" : "bg-white"}`}
                             >
-                              <Text className={`text-sm ${lokTempTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                              <Text className={`flex-1 text-sm ${lokTempTegningId === t.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
                                 {t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name}
                               </Text>
+                              {t.geoReference != null && (
+                                <Text className="text-[10px] font-semibold uppercase tracking-wider text-green-600">
+                                  Kart
+                                </Text>
+                              )}
                             </Pressable>
                           ))}
                         </View>
-                      );
-                    })}
+                      ));
+                    })()}
                   </ScrollView>
                 </View>
               );
@@ -1194,15 +1330,23 @@ export default function SjekklisteUtfylling() {
                   </View>
                   <View className="flex-1 items-center justify-center gap-3 px-8">
                     <MapPin size={32} color="#9ca3af" />
-                    <Text className="text-center text-sm text-gray-500">
-                      Ingen tegning valgt. Velg en tegning for å markere posisjon.
-                    </Text>
-                    <Pressable
-                      onPress={() => setVisLokByttTegning(true)}
-                      className="mt-2 rounded-lg bg-blue-700 px-6 py-2.5"
-                    >
-                      <Text className="text-sm font-medium text-white">Velg tegning</Text>
-                    </Pressable>
+                    {tilgjengeligeTegninger.length === 0 ? (
+                      <Text className="text-center text-sm text-gray-500">
+                        Prosjektet har ingen tegning eller kart å plassere posisjon på.
+                      </Text>
+                    ) : (
+                      <>
+                        <Text className="text-center text-sm text-gray-500">
+                          Ingen tegning valgt. Velg en tegning eller kart for å markere posisjon.
+                        </Text>
+                        <Pressable
+                          onPress={() => setVisLokByttTegning(true)}
+                          className="mt-2 rounded-lg bg-blue-700 px-6 py-2.5"
+                        >
+                          <Text className="text-sm font-medium text-white">Velg tegning</Text>
+                        </Pressable>
+                      </>
+                    )}
                   </View>
                 </View>
               );

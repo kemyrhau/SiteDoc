@@ -6,6 +6,7 @@ import { hentDatabase } from "../db/database";
 import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
+import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
@@ -333,9 +334,21 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     return avregistrer;
   }, [sjekklisteId, registrerCallback]);
 
+  // Signerte vedlegg-URL-er fra server-emisjonen (private bilder). Brukes KUN i
+  // visning — `feltVerdier` beholder den rå URL-en så synk ikke forgifter data.
+  const signerteUrler = useMemo(() => {
+    const m = new Map<string, string>();
+    samleSignerteVedleggUrler((sjekkliste as { data?: unknown } | undefined)?.data, m);
+    return m;
+  }, [sjekkliste]);
+
   const hentFeltVerdi = useCallback(
-    (objektId: string): FeltVerdi => feltVerdier[objektId] ?? TOM_FELTVERDI,
-    [feltVerdier],
+    (objektId: string): FeltVerdi => {
+      const fv = feltVerdier[objektId] ?? TOM_FELTVERDI;
+      // Bytt rå private URL-er til signerte for visning (fersk opplasting før refetch).
+      return resolveSignerteUrler(fv, signerteUrler);
+    },
+    [feltVerdier, signerteUrler],
   );
 
   // Lagre til server

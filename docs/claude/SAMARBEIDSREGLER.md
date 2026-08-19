@@ -372,5 +372,10 @@ du ber om noe.**
 montert. `git worktree list` derfra merker **alle** trær `prunable`, også de som
 finnes og er i bruk. Ikke bedøm worktree-tilstand derfra.
 
+**`relay/` finnes KUN i hovedtreet (lærdom 2026-08-17).** Mappa er gitignored, så
+den følger aldri med til et worktree. En nudge som sier «les `relay/inbox-x.md`»
+sender agenten til en sti som ikke kan eksistere der han står. **Gi alltid full
+sti:** `~/Documents/Programmering/SiteDoc/relay/inbox-x.md`.
+
 **Aldri commit:** `tests/e2e/*-state.json` (Playwright storage-state med
 session-cookies).

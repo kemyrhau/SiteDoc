@@ -54,6 +54,9 @@ interface MalData {
   // mal.ts:84-95). Modalen bruker DENNE til flyt-valg — ikke en egen regel — så
   // «vist som opprettbar» og «kan faktisk opprettes» er én sannhet (paritet web).
   opprettbareFlytIder?: string[];
+  // Location-tvang (2026-08-19): server-avledet flagg — aktivt location-objekt i
+  // malen → posisjon (drawingId + punkt) er påkrevd for å opprette.
+  harAktivLocation?: boolean;
 }
 
 interface DokumentflytData {
@@ -103,6 +106,11 @@ interface OpprettDokumentModalProps {
   sjekklisteFeltId?: string;
   sjekklisteNummer?: string;
   feltLabel?: string;
+  // Create-fra-tegning / kontekstkjede (2026-08-19): forhåndssatt punkt på tegning.
+  // Satt → modalen hopper over sin egen lokasjonsvelger, viser en lesbar «plassert
+  // på tegning»-oppsummering, og sender positionX/Y til opprett. Se
+  // relay/inbox-mobil-kontekstkjede.md.
+  posisjon?: { drawingId: string; byggeplassId: string | null; x: number; y: number };
 }
 
 const PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
@@ -130,6 +138,7 @@ export function OpprettDokumentModal({
   sjekklisteFeltId,
   sjekklisteNummer,
   feltLabel,
+  posisjon,
 }: OpprettDokumentModalProps) {
   const { t } = useTranslation();
   const erOppgave = kategori === "oppgave";
@@ -158,23 +167,16 @@ export function OpprettDokumentModal({
   const [visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
 
-  // P4a: serialiser navigering. `internSynlig` speiler `synlig`-propen men kan
-  // settes false lokalt ved suksess, så modalen animerer HELT ut (iOS onDismiss)
-  // FØR parenten navigerer — native modal-dismiss og stack-push kolliderer ellers.
+  // `internSynlig` speiler `synlig`-propen. (Historisk hadde denne en `onShow`/
+  // `onDismiss`-gate for Paper-arkitekturens VC-kollisjon; under Fabric/newArch er
+  // modalen inline og de callbackene fyrer ikke pålitelig → gaten deadlocket ved
+  // auto-opprett og etterlot en usynlig touch-fangende modal-host = frys. Fjernet;
+  // se `fullførOpprett`. Reprodusert + verifisert i Release-sim 2026-08-19.)
   const [internSynlig, setInternSynlig] = useState(synlig);
+  const harAutoOpprettet = useRef(false);
   useEffect(() => {
     setInternSynlig(synlig);
   }, [synlig]);
-  const pendingNavId = useRef<string | null>(null);
-  const harAutoOpprettet = useRef(false);
-  // P4a: gate dismiss på at modalen faktisk er ferdig PRESENTERT. Ved auto-opprett
-  // (entydig kontekst) kan mutasjonen fullføre før slide-inn-animasjonen er ferdig
-  // (rask localhost/cache) → `setInternSynlig(false)` mid-present fører til at iOS
-  // `onDismiss` ALDRI fyrer → `pendingNavId` henger, navigering skjer aldri, og
-  // modal-VC-en blir liggende som usynlig svart overlay. `onShow` (kun iOS) bekrefter
-  // full presentasjon; er en dismiss ønsket før det, utsettes den til `onShow`.
-  const harPresentert = useRef(false);
-  const venterDismiss = useRef(false);
 
   // Default oppgave-tittel = malnavn ved modalåpning (redigerbar). Kun på
   // false→true-overgang, så brukerens redigering ikke overskrives.
@@ -196,7 +198,17 @@ export function OpprettDokumentModal({
   // GPS + sist brukt lokasjon ved modalåpning
   const harKjørtLokasjon = useRef(false);
   useEffect(() => {
-    if (!synlig || !valgtProsjektId || harKjørtLokasjon.current || alleTegninger.length === 0) return;
+    if (!synlig || harKjørtLokasjon.current) return;
+    // Create-fra-tegning / kontekstkjede: et forhåndssatt punkt vinner over GPS/sist-
+    // brukt. Modalen viser da en lesbar oppsummering i stedet for lokasjonsvelgeren.
+    if (posisjon) {
+      harKjørtLokasjon.current = true;
+      setValgtBygningId(posisjon.byggeplassId);
+      setValgtTegningId(posisjon.drawingId);
+      setLokasjonKilde("manuell");
+      return;
+    }
+    if (!valgtProsjektId || alleTegninger.length === 0) return;
     harKjørtLokasjon.current = true;
 
     (async () => {
@@ -250,9 +262,6 @@ export function OpprettDokumentModal({
     if (!synlig) {
       harKjørtLokasjon.current = false;
       harAutoOpprettet.current = false;
-      pendingNavId.current = null;
-      harPresentert.current = false;
-      venterDismiss.current = false;
     }
   }, [synlig]);
 
@@ -425,47 +434,24 @@ export function OpprettDokumentModal({
     onLukk();
   }, [nullstillSkjema, onLukk]);
 
-  // P4a: kalles ved opprett-suksess. iOS → start dismiss lokalt og naviger først
-  // i onDismiss (etter at modalen er helt ute). Android har ingen modal-VC-
-  // kollisjon → naviger direkte.
+  // Opprett-suksess: naviger DIREKTE. Fabric (newArch) rendrer modalen inline
+  // (ingen presentert UIKit-VC → ingen VC/stack-push-kollisjon), og `<Modal>`s
+  // `onShow`/`onDismiss` fyrer ikke pålitelig — den gamle P4a-gaten (utsett dismiss
+  // til `onShow`) deadlocket når auto-opprett fullførte før presentasjon og
+  // etterlot en usynlig touch-fangende modal-host (frysen). Parenten nullstiller
+  // `valgtMal` → `synlig=false` → modalen rives ned.
   const fullførOpprett = useCallback(
     (id: string) => {
       nullstillSkjema();
-      if (Platform.OS === "ios") {
-        pendingNavId.current = id;
-        // Bare start dismiss hvis modalen er ferdig presentert; ellers utsett til
-        // `onShow` (unngår present/dismiss-race som svelger `onDismiss`).
-        if (harPresentert.current) {
-          setInternSynlig(false);
-        } else {
-          venterDismiss.current = true;
-        }
-      } else {
-        onOpprettet(id);
-      }
+      onOpprettet(id);
     },
     [nullstillSkjema, onOpprettet],
   );
 
-  // iOS: presentasjonen er ferdig. Er en dismiss ønsket (auto-opprett fullførte
-  // før animasjonen), utfør den nå — da fyrer `onDismiss` pålitelig.
-  const håndterShow = useCallback(() => {
-    harPresentert.current = true;
-    if (venterDismiss.current) {
-      venterDismiss.current = false;
-      setInternSynlig(false);
-    }
-  }, []);
-
-  // iOS: modalen er helt dismisset → trygt å navigere / rapportere lukket.
+  // Rapportér at modalen er lukket (statistikk/opprydding hos parent).
   const håndterDismiss = useCallback(() => {
     onModalLukket?.();
-    if (pendingNavId.current) {
-      const id = pendingNavId.current;
-      pendingNavId.current = null;
-      onOpprettet(id);
-    }
-  }, [onModalLukket, onOpprettet]);
+  }, [onModalLukket]);
 
   const håndterOpprett = useCallback(() => {
     if (!oppretterFaggruppeId) {
@@ -495,6 +481,8 @@ export function OpprettDokumentModal({
         subject: emne.trim() || undefined,
         byggeplassId: valgtBygningId ?? undefined,
         drawingId: valgtTegningId ?? undefined,
+        positionX: posisjon?.x,
+        positionY: posisjon?.y,
       });
     } else {
       // Oppgave-tittel: fra sjekklistefelt, ellers redigert tittel (default malnavn).
@@ -511,6 +499,9 @@ export function OpprettDokumentModal({
         priority: prioritet,
         checklistId: sjekklisteId || undefined,
         checklistFieldId: sjekklisteFeltId || undefined,
+        drawingId: valgtTegningId ?? undefined,
+        positionX: posisjon?.x,
+        positionY: posisjon?.y,
       });
     }
   }, [
@@ -533,6 +524,7 @@ export function OpprettDokumentModal({
     sjekklisteFeltId,
     sjekklisteNummer,
     feltLabel,
+    posisjon,
   ]);
 
   const kanOpprett = !!oppretterFaggruppeId && !!valgtKandidat && !erPending;
@@ -578,7 +570,6 @@ export function OpprettDokumentModal({
       visible={internSynlig}
       animationType="slide"
       onRequestClose={onLukk}
-      onShow={håndterShow}
       onDismiss={håndterDismiss}
     >
       <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
@@ -848,7 +839,15 @@ export function OpprettDokumentModal({
           {/* 7. Lokasjon — auto-valgt fra GPS eller sist brukt, kan byttes manuelt */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">Lokasjon</Text>
-            {lokasjonTekst ? (
+            {posisjon ? (
+              <View className="flex-row items-center gap-2">
+                <MapPin size={14} color="#1e40af" />
+                <View className="flex-1">
+                  <Text className="text-sm text-gray-800">{lokasjonTekst ?? "Valgt tegning"}</Text>
+                  <Text className="text-[10px] text-green-600">Punkt satt på tegning</Text>
+                </View>
+              </View>
+            ) : lokasjonTekst ? (
               <Pressable
                 onPress={() => {
                   lukkAlleDropdowns();
@@ -887,8 +886,8 @@ export function OpprettDokumentModal({
               </Pressable>
             )}
 
-            {/* Manuell lokasjonsliste: bygning → tegning */}
-            {visLokasjonListe && (
+            {/* Manuell lokasjonsliste: bygning → tegning (skjult når punkt alt er satt) */}
+            {!posisjon && visLokasjonListe && (
               <View className="mt-2 rounded-lg border border-gray-200 bg-white">
                 {/* Bygningsvalg */}
                 {bygninger.map((b) => (

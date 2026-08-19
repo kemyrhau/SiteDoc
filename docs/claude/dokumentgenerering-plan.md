@@ -127,6 +127,64 @@ og den koster ingen ny kode.
 ⚠️ Før sletting: `packages/pdf/src/felt.ts` er **frossen** (mobil-signatur) og
 skal ikke røres. Verifiser hva mobil faktisk bruker før noe fjernes.
 
+#### 🔴 F2 gjelder KUN web — mobil beholder sin egen PDF-vei (målt 2026-08-17)
+
+Mobil har **ikke** arkiv-PDF: ingen `arkiv.rendr`-kall finnes i `apps/mobile/src`.
+I stedet genererer `apps/mobile/app/sjekkliste/[id].tsx` PDF-en **på enheten** med
+`expo-print` + `expo-sharing`, fra HTML bygget via `@sitedoc/pdf` (commit
+`05d11c22`). Linje 513 inliner vedleggsbilder som base64 fordi `expo-print` ikke
+har auth-cookies.
+
+#### 🟢 KENNETH 2026-08-17: offline-argumentet holder ikke — mobil skal bruke `arkiv.rendr`
+
+> *«Dette gir ikke mening — jeg kan ikke dele en PDF uten internett fra telefonen.»*
+
+Cowork argumenterte først for at mobil måtte beholde lokal generering fordi appen
+skal virke offline. **Det argumentet er feil:** uten nett kan PDF-en ikke sendes
+noe sted, så lokal generering løser genereringen, ikke oppgaven. Det eneste
+gjenværende offline-scenariet — generér nå, lagre til Filer, del senere — er
+dårligere enn å vente og generere med riktig form når dekningen er tilbake.
+
+**Retning: mobil kaller `arkiv.rendr` som web.** Én PDF-motor, ett
+vedlikeholdspunkt, ingen divergens mellom flatene. Det fjerner risikoen for at
+arkivmal-endringer må speiles manuelt i mobil-PDF — samme klasse som Kenneths funn
+om at én mal gir fire representasjoner (malbygger / web-skjema / mobil / PDF).
+
+**Da kan `apps/mobile/app/sjekkliste/[id].tsx` sin `expo-print`-vei fjernes.**
+
+⚠️ **Men `felt.ts` forblir frossen — målt 2026-08-17/18.** Frysingen kan *ikke* løftes
+når mobil slutter å bruke den, fordi `renderFelt` fortsatt er live-avhengighet for
+`arkivmal/innhold.ts` (server-arkiv, web + snart mobil). Det som dør i fase 3 er
+**`byggSjekklisteHtml`/`renderAlleFelter`-grenen i `sjekkliste.ts`** — ikke `felt.ts`
+selv. Cowork skrev dette upresist i første utkast.
+
+Ingen app importerer `renderFelt`/`renderAlleFelter` direkte — begge har kun interne
+`packages/pdf`-konsumenter, via to kjeder: `sjekkliste.ts → byggSjekklisteHtml`
+(kun mobil) og `arkivmal/innhold.ts` (server-arkiv).
+
+Øvrige målinger: mobil har **nøyaktig én** PDF-vei (`app/sjekkliste/[id].tsx`, ingen
+andre-vei i oppgave/HMS/timer) · `arkiv.rendr` autentiserer likt for Bearer og cookie
+(`context.ts:76-79`), så mobil-tRPC trenger ingen ny auth-jobb · payload er identisk
+(`{ dokumenter: [{ id, type: "sjekkliste" }] }`).
+
+**UI-krav:** uten nett skal knappen si at PDF krever tilkobling, ikke feile stille.
+Samme prinsipp som «Vær hentes når du er tilkoblet».
+
+**Fjerningsplan i tre faser — ikke bytt motor i ett steg.** Mobil har PDF som
+virker; en byttet motor som feiler på enhet etterlater feltarbeideren uten
+utskrift, og hver verifiseringsrunde koster et EAS-bygg.
+
+1. **Legg til.** `arkiv.rendr`-veien bygges ved siden av `expo-print`, som primær.
+   Den gamle koden røres ikke.
+2. **Verifiser på enhet.** Ekte dokument med bilder, mangel-kontrakten, deling,
+   og oppførsel uten nett. **Sammenlign mot web-generert PDF av samme dokument** —
+   de skal være identiske; det er hele poenget med byttet.
+3. **Fjern.** Først da: `expo-print`-import, HTML-byggingen, base64-inliningen av
+   vedlegg (`[id].tsx` ~513), og pakken fra `package.json`. Egen gate — ikke slett
+   i samme commit som du legger til.
+
+Ordre: `relay/inbox-mobil-arkivpdf.md`.
+
 ### F3 — Flere dokumenttyper 🟡
 
 BACKLOG punkt 3 (befaring) + punkt 6 (RUH/HMS). `render.ts:94` kaster for alt

@@ -650,6 +650,8 @@
   "arkiv.advarselTimeout": "Genereringen ble ikke ferdig i tide. PDF-en er lastet ned — prøv gjerne igjen for et komplett resultat.",
   "arkiv.advarselMangler": "Arkiv-PDF-en er lastet ned, men mangler {{antall}} vedlegg — dokumentet er ikke komplett.",
   "arkiv.feil": "Kunne ikke lage arkiv-PDF. Prøv igjen.",
+  "arkiv.kreverTilkobling": "PDF-en genereres på serveren og krever nett-tilkobling. Prøv igjen når du er tilkoblet.",
+  "arkiv.lokalFallback": "Lokal",
   "handling.kopier": "Kopier",
   "handling.flytt": "Flytt",
   "handling.filtrer": "Filtrer",

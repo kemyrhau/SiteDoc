@@ -266,6 +266,10 @@ export const sjekklisteRouter = router({
         subject: z.string().max(500).optional(),
         byggeplassId: z.string().uuid().optional(),
         drawingId: z.string().uuid().optional(),
+        // Punkt-i-tegning (prosent 0–100) når sjekklisten opprettes fra en
+        // plassering på tegning/kart — speiler oppgave.opprett-kontrakten.
+        positionX: z.number().min(0).max(100).optional(),
+        positionY: z.number().min(0).max(100).optional(),
         dueDate: z.string().datetime().optional(),
         // Kontrollplan: er dette settet, kobles den nye sjekklisten atomisk til
         // kontrollpunktet (fyller punkt.sjekklisteId, løfter planlagt→pagar) i samme
@@ -523,6 +527,8 @@ export const sjekklisteRouter = router({
             subject: input.subject,
             byggeplassId: input.byggeplassId,
             drawingId: input.drawingId,
+            positionX: input.positionX,
+            positionY: input.positionY,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             // Spor 2 / 5a: HMS (SJA) opprettes nå som UTKAST (draft), ikke auto-sendt. Melder
             // eier innholdet og sender selv via hmsSendInn (→ Behandler-ledd + feltlås 5b).

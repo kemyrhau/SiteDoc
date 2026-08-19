@@ -650,6 +650,8 @@
   "arkiv.advarselTimeout": "Brezi nuk mbaroi në kohë. PDF është shkarkuar - provoni përsëri për një rezultat të plotë.",
   "arkiv.advarselMangler": "Arkivi PDF është shkarkuar, por mungojnë {{antall}} bashkëngjitje - dokumenti nuk është i plotë.",
   "arkiv.feil": "Arkivi PDF nuk mund të krijohej. Ju lutemi provoni përsëri.",
+  "arkiv.kreverTilkobling": "PDF është krijuar në server dhe ka nevojë për një lidhje. Provo sërish kur të jesh në linjë.",
+  "arkiv.lokalFallback": "Lokale",
   "handling.kopier": "Kopjo",
   "handling.flytt": "Lëvizni",
   "handling.filtrer": "Filtro",

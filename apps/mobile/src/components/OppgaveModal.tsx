@@ -27,7 +27,10 @@ interface DokumentflytData {
   faggruppeId: string;
   utforerFaggruppeId: string | null;
   utforerFaggruppe: { id: string; name: string } | null;
-  templates: Array<{
+  // API-feltet heter `maler` (dokumentflyt.hentForProsjekt → maler). Het feilaktig
+  // `templates` her fra 2026-03-06 (9e723690) → alltid undefined → auto-utledning
+  // av utfører traff aldri, og oppgaver falt til oppretter. Se BACKLOG.
+  maler: Array<{
     templateId: string;
     template: { id: string; name: string; category: string };
   }>;
@@ -112,7 +115,7 @@ export function OppgaveModal({
     const treff = alleDokumentflyter.filter(
       (af) =>
         af.faggruppeId === oppretterFaggruppeId &&
-        af.templates.some((t) => t.templateId === templateId),
+        af.maler?.some((m) => m.templateId === templateId),
     );
     return treff[0] ?? null;
   }, [alleDokumentflyter, oppretterFaggruppeId, templateId]);

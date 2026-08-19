@@ -650,6 +650,8 @@
   "arkiv.advarselTimeout": "Paaudze nepabeidza laikā. PDF fails ir lejupielādēts — mēģiniet vēlreiz, lai iegūtu pilnīgu rezultātu.",
   "arkiv.advarselMangler": "Arhīva PDF fails ir lejupielādēts, taču trūkst {{antall}} pielikuma(-u) — dokuments nav pilnīgs.",
   "arkiv.feil": "Nevarēja izveidot arhīva PDF failu. Lūdzu, mēģiniet vēlreiz.",
+  "arkiv.kreverTilkobling": "PDF fails tiek ģenerēts serverī, un tam ir nepieciešams savienojums. Mēģiniet vēlreiz, kad esat tiešsaistē.",
+  "arkiv.lokalFallback": "Vietējais",
   "handling.kopier": "Kopēt",
   "handling.flytt": "Pārvietot",
   "handling.filtrer": "Filtrs",

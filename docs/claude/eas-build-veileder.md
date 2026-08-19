@@ -25,6 +25,31 @@ Sky-bygg er **knappe**: ~15 iOS-bygg/mnd på fri plan, **reset den 1. i måneden
 3. **Kun TestFlight-leveranser**, aldri iterasjon — kode/Azure/docs skal være verifisert klar først.
 4. **Lokale bygg er blindvei** i dette monorepoet (se babel-noten under § Fallgruver) — ikke bruk dem for å spare kvote.
 
+### 🔴 FØR HVERT BYGG: sammenlign env-variabler i kode mot profil (30 sekunder, sparer bygg)
+
+**Lærdom 2026-08-17 — cowork brukte tre bygg som diagnoseverktøy for noe én grep avslørte.**
+Kjør dette før du fyrer:
+
+```bash
+cd <repo>
+echo "=== koden leser ==="
+grep -rhoE "EXPO_PUBLIC_[A-Z_]+" apps/mobile/src | sort -u
+echo "=== profilen setter ==="
+python3 -c "import json;print('\n'.join(sorted(json.load(open('apps/mobile/eas.json'))['build']['<profil>']['env'].keys())))"
+cd apps/mobile && eas env:list --environment preview   # test-profilen laster preview
+```
+
+Differansen er en variabel appen leser som tom streng. **Symptomet er ikke en tydelig feil** —
+det blir en 401, en 404 eller en tom skjerm langt inne i appen, og det koster et bygg å oppdage.
+
+Konkret utslag 2026-08-17: koden leste seks variabler, test-profilen satte fem.
+`EXPO_PUBLIC_DEV_LOGIN_SECRET` manglet → dev-login ga 401
+`DEV_LOGIN_SECRET_MANGLER_ELLER_FEIL` selv om serveren var korrekt satt opp.
+Løsning: `eas env:set --environment preview` (ikke `eas.json` — den er committet).
+
+⚠️ **`EXPO_PUBLIC_*` bakes inn ved kompilering.** En variabel satt etter at bygget startet,
+krever nytt bygg. Verifiser med `eas env:list` **før** du bygger, ikke etter.
+
 ### Bygg-logg (reset 1. i mnd — oppdateres ved HVERT sky-bygg)
 
 | Mnd | Brukt | Bygg |
@@ -91,8 +116,42 @@ Når disse er satt, autentiserer EAS med nøkkelen. Tegn på at det funker: linj
 *«Skipping capability identifier syncing because the current Apple authentication session is
 not using Cookies (username/password)»* — da brukes API-nøkkelen.
 
+> 🔴 **IKKE legg `EXPO_APPLE_TEAM_ID`/`EXPO_APPLE_TEAM_TYPE` i `~/.zshrc` (lærdom 43→44, gjentatt 2026-08-16).**
+> EAS har credentials lagret på serveren («Using remote iOS credentials (Expo server)»), og de
+> eksplisitte variablene **overstyrer** dem. Bygg 43 feilet to ganger på dette: først
+> `Invalid Apple Team Type: INDIVIDUALexport` (manglende linjeskift mellom to `export`-linjer i
+> `.zshrc:17`), deretter Apple 403 «This provider does not exist» da de nå korrekt parsede
+> variablene ble sendt i stedet for EAS' lagrede. Bygg 44 gikk gjennom **uten** dem.
+>
+> Samme feil traff igjen 2026-08-16 fordi denne seksjonen anbefalte `.zshrc`-veien mens
+> [STATUS-AKTUELT.md](STATUS-AKTUELT.md) dokumenterte at den feilet. **Verdien `INDIVIDUAL` er
+> riktig — problemet er at variabelen settes i det hele tatt.**
+>
+> Trenger du dem for en engangs-operasjon, sett dem i den ene terminal-økta (blokka over), aldri
+> permanent. Wrapper-veien under (`.env.eas.local` + `eas-build.sh`) har samme risiko og skal kun
+> brukes hvis EAS' lagrede credentials mangler.
+
+### 🟡 Transient: «Install pods» feiler med CocoaPods CDN 429 (2026-08-16)
+
+Symptom i CLI: `iOS build failed: Unknown error. See logs of the Install pods build phase`.
+I loggen står den ekte årsaken:
+
+```
+[!] CDN: trunk URL couldn't be downloaded: https://raw.githubusercontent.com/CocoaPods/Specs/.../libwebp.podspec.json
+    Response: 429 429: Too Many Requests
+pod install exited with non-zero code: 1
+```
+
+CocoaPods' CDN faller tilbake til `raw.githubusercontent.com`, og GitHub rate-limiter.
+**Ikke en feil i repoet — ikke feilsøk `Podfile.lock`, native deps eller fingerprint.**
+Bare fyr på nytt; er grensen fortsatt varm, vent ~20 min.
+
+⚠️ **Kvote:** EAS merker slike bygg «This build does not count towards your EAS Build usage»
+— sjekk banneret øverst på bygg-siden før du fører det i bygg-loggen. Et bygg som feiler i
+EAS' egen infrastruktur koster ingenting.
+
 **Gjør det permanent** (slipp å sette env hver gang):
-- Enklest: lim de 5 `export`-linjene inn i `~/.zshrc`.
+- ⚠️ Se advarselen over før du gjør dette — de to `EXPO_APPLE_*`-linjene skal IKKE inn i `~/.zshrc`.
 - Renest: legg nøkkelen i `eas.json` (`ascApiKeyPath` / `ascApiKeyId` / `ascApiKeyIssuerId`),
   eller lagre via `eas credentials`.
 
@@ -195,6 +254,23 @@ Resultat: «SiteDoc TEST» installeres som **egen app** ved siden av prod-«Site
 > egen senere oppfølger — se [BACKLOG.md](BACKLOG.md). Praktisk konsekvens nå: ikke kjør OAuth i
 > begge apper «samtidig» (iOS-udefinert hvilken app som fanger redirect på delt scheme).
 > Eget test-ikon (lettere å skille på hjemskjerm) er valgfritt, ikke gjort nå.
+
+> 🔴 **Google-innlogging virker IKKE i test-bygget — og det er forventet (verifisert 2026-08-17).**
+> `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` er den samme i test- og prod-profilen, men en Google
+> **iOS**-OAuth-klient er bundet til **én** bundle-id. Klienten er registrert for
+> `com.kemyrhau.sitedoc`, så forespørsler fra test-appens `com.kemyrhau.sitedoc.test` avvises —
+> appen har en identitet klienten ikke kjenner. Delt `scheme` (noten over) løser redirect-veien,
+> ikke klient-bindingen.
+>
+> **Innloggingsveien i test-bygget er dev-login**, ikke Google. Se
+> [dev-login-agent.md](dev-login-agent.md) — husk at `EXPO_PUBLIC_DEV_LOGIN_SECRET` må ligge i
+> EAS' `preview`-environment, ellers får du 401 `DEV_LOGIN_SECRET_MANGLER_ELLER_FEIL`.
+>
+> **Vil man ha Google i test likevel** (egen oppfølger, ikke gjort): ny iOS-OAuth-klient i Google
+> Cloud Console for `com.kemyrhau.sitedoc.test` (additivt — prod-klienten røres ikke) ·
+> `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` overstyres i test-profilen (klient-IDer er ikke hemmelige,
+> så `eas.json` er greit) · URL scheme (reversed client ID) for test-varianten i `app.config` ·
+> nytt bygg. Koster en Console-runde + ett bygg for en vei dev-login allerede dekker.
 
 ## Fallgruver (lærdom 2026-06-12)
 

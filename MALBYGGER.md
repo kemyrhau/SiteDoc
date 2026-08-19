@@ -75,6 +75,51 @@ Feltdefinisjon. Flat lagring med `parentId` for hierarki.
 | `required` | Påkrevd for utfylling |
 | `translations` | i18n-oversettelser per språk |
 
+### 🔴 STYRENDE: `config.zone` er PÅKREVD på alle rapportobjekter (2026-08-18)
+
+**Enhver `ReportObject` må ha `config.zone`** — `"topptekst"` eller `"datafelter"`.
+Malbyggeren setter den alltid, fordi feltet plasseres i en sone når det dras inn. **Et
+script som skriver direkte til databasen har ingen slik tvang**, og produserer objekter
+med `config = {}`.
+
+**Konsekvens, observert i prod-lignende test 2026-08-18:** mobilappen grupperer felter i
+seksjoner etter `zone` (`UtfyllingSeksjoner`, `grupperMedOverskrift`). Et felt uten sone
+tilhører ingen gruppe, og appen **hard-fryser** ved åpning av dokumentet — ingen spinner,
+ingen krasj, hver gang. Reproduserte **ikke** i simulator (dev-modus via Metro), kun i
+Release-bygg på enhet, så en dev-kjøring frikjenner ikke.
+
+**Belegg:** `E2E Sjekklistemal` (seedet fra `tests/e2e/mal-*.ts`) hadde
+`traffic_light` med `config = {}`. Samme spørring mot malbygger-laget `Befaringsrapport`
+ga `{"zone": "topptekst"}` / `{"zone": "datafelter"}` på **alle** felter.
+
+```sql
+-- Finn objekter uten sone (kjør ved mistanke om rare rendering-feil)
+SELECT t.name, o.type, o.label, o.config
+FROM report_objects o JOIN report_templates t ON t.id = o.template_id
+WHERE o.config->>'zone' IS NULL;
+```
+
+**Gjelder også prosjekter (Kenneth 2026-08-19):** et prosjekt opprettet direkte i databasen
+mangler firma-tilknytning, byggeplass og dokumentflyt — og produserer følgefeil som ser ut
+som produktbugs. `Testprosjekt SD-…0001` kostet timer med feilsøking fordi frysingen
+oppførte seg ulikt der og i et ekte prosjekt. Se
+[BACKLOG § referanse-testprosjekt](docs/claude/BACKLOG.md).
+
+**Regel for agenter som oppretter maler eller sjekklister:**
+
+1. **Bruk malbyggerens egne API-ruter** (`mal.ts` CRUD) — ikke direkte `INSERT` i
+   `report_objects`. Rutene validerer og setter det UI-et ville satt.
+2. **Må du seede direkte** (e2e-fixtures o.l.): sett `config.zone` eksplisitt på hvert
+   objekt. Et `traffic_light` uten sone er ikke en gyldig mal, uansett om databasen
+   godtar den.
+3. **Verifiser etter seeding** med spørringen over. Null rader er kravet.
+4. **Dev-kjøring er ikke verifisering.** Feilen viste seg kun i Release-bygg; Metro i
+   dev-modus rendret dokumentet uten problem.
+
+**Koden bør også tåle det** — et felt uten sone skal falle tilbake til `datafelter`, ikke
+henge. En mal fra import eller en tredjepart kan mangle feltet like gjerne som et
+seed-script. Ført i [BACKLOG](docs/claude/BACKLOG.md).
+
 ### 23 felttyper
 
 | Gruppe | Typer |

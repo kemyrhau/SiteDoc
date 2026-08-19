@@ -65,6 +65,54 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 `drawing_position`-felttype er en placeholder ingen bruker (felle)
+
+`drawing_position` («Posisjon i tegning», `packages/shared/src/types/index.ts:259-264`, ikon `Target`) ligger i felt-paletten, men `TegningPosisjonObjekt.tsx` rendrer bare «Funksjonen er tilgjengelig i en kommende oppdatering». **Ingen mal bruker den.** Punkt-på-tegning fanges i praksis av dokumentets egen lokasjonsvelger (`drawingId`/`positionX`/`positionY`), ikke av dette feltet. En placeholder-felttype i paletten er en **felle** for neste som leter etter punkt-funksjonalitet (jf. type-forvekslingen `location` vs `drawing_position`, 2026-08-19). **Enten fullfør den, eller fjern den fra felttype-listen.**
+
+**Relatert — location-tvang-regelen (vedtatt 2026-08-19):** Kontekstkjeden nøkler bevisst på `type = "location"` (uten `parentId`/`conditionParentId`), IKKE `drawing_position`. Merk: regelen gir i dag **ingen** måte å ha et location-felt uten posisjons-tvang — legger man inn feltet, får man kravet. Dukker behovet for «location uten tvang» opp, er **`required`-flagget på location-objektet den naturlige bryteren** (i dag ignorert fordi location er en display-type).
+
+### 🟢 Mobil dokumentflyt-auto-utledning traff aldri (`af.templates` vs `maler`) — LØST (fiks) + bevisst INGEN datarydding (2026-08-19)
+
+**Bug:** `apps/mobile/src/components/OppgaveModal.tsx` leste `af.templates` fra `dokumentflyt.hentForProsjekt`, men API-feltet har **alltid** hett `maler` (`apps/api/src/routes/dokumentflyt.ts` — `maler` siden første commit `7dd22fc4`; søk på `templates:` i API-en er tomt). Feltet ble skrevet feil i **`9e723690` (2026-03-06)** og brukte aldri `.maler` — altså **feil fra start, ikke en regresjon fra en omdøping.** `af.templates` var dermed alltid `undefined`.
+
+**Konsekvens (funksjonell, ikke kosmetisk):** auto-utledningen av utfører-faggruppe traff aldri → oppgaver opprettet fra mobil falt til **oppretteren** som mottaker i stedet for flytens faggruppe. **Dokumentflyt virket ikke fra mobil** i ~5,5 måneder (2026-03-06 → 2026-08-19). Krasj-nyanse: den gamle `.some`-av-undefined krasjet **bare** når en flyts faggruppe matchet oppretterens (kortslutning ellers) — så krasjen blokkerte nettopp de opprettelsene der utledningen skulle truffet; resten falt stille tilbake.
+
+**Hvorfor upåaktet i 5,5 mnd:** auto-utledning som **stille faller tilbake gir ingen feilmelding — den gir bare feil svar.** Ingen exception (unntatt det smale krasj-tilfellet), ingen logg, ingen synlig avvik i UI. Klassisk stille-feil-lærdom.
+
+**Omfang målt før beslutning:**
+- **Web frikjent:** `apps/web/src/components/OpprettOppgaveModal.tsx` bruker korrekt `af.maler.some((wt) => wt.template.id === valgtMal)`. Bugget er **mobil-only** — de 13 av 18 forklares av mobil-flaten + legitimt selvrutede, ikke to buggede flater.
+- **Prod-data (read-only SQL 2026-08-19):** **13 selvrutede av 18** oppgaver totalt siden 2026-03-06 (utfører = bestiller, mens en flyt styrer malen i prosjektet).
+
+**Beslutning: INGEN datarydding.** Vi kan ikke skille feilrutede fra legitimt selvrutede, og å endre mottaker på eksisterende dokumenter i et **sporbarhetssystem** er verre enn å la dem stå. De 13 blir stående. Dette er en ren fremover-fiks.
+
+**Fiks:** `OppgaveModal.tsx` — `DokumentflytData.templates`→`maler` (type) + `af.maler?.some((m) => m.templateId === templateId)` (tilgang). `?.`-guarden fra `6bb82aa0` (krasj-fiks) beholdes. Verifiseres i sim etter test-deploy.
+
+### 🟢 Mobil hard-frys ved sjekkliste-opprettelse — LØST + verifisert i Release-sim, `a29f89b2` (2026-08-19)
+
+**Rot-årsak (reprodusert + verifisert empirisk i Release-sim 2026-08-19):** ikke en synkron løkke/hang. Appen var i live (ingen `.ips`, native-klokka gikk), men en **tom, usynlig `RCTModalHostView` (React Native `<Modal>`) lå fullskjerm på topp og fanget all touch** — **venstre-edge-swipe (interactivePopGesture) løsnet den hver gang**. lldb bekreftet `presentedViewController=nil`: under **Fabric/newArch** rendres `<Modal>` INLINE (ikke som presentert UIKit-VC), og modalens **`onShow`/`onDismiss` fyrer IKKE pålitelig**. `OpprettDokumentModal`s P4a-gate utsatte dismiss til `onShow`; når auto-opprett fullførte FØR presentasjon (rask server — Kenneths «timing/data»-hypotese stemte) → `onShow` kom aldri → deadlock → stuck overlay. Nettverkslogg viste ALLE kall grønne (`sjekkliste.opprett` → 200); rent klientside-modal-livssyklus. Forklarer alt: doc opprettes (mutasjon kjører ferdig først), papirkurv-dokumentene (hvert frys-retry auto-opprettet ett til).
+
+**Fiks (`a29f89b2`):** naviger DIREKTE ved opprett-suksess (som Android-grenen alltid gjorde), la `synlig=false` rive ned modalen. Fjernet hele `onShow`/`harPresentert`/`venterDismiss`/`pendingNavId`-maskineriet (designet for Paper-VC-kollisjon, unødvendig OG ødelagt under Fabric). **Verifisert i Release-sim:** «+» → oppretter BLD8 → navigerer til detaljside, ingen frys. (Retter `dda7cb8c`, som anga feil mekanisme — «mid-present VC-dismiss» — og ikke hjalp; `dda7cb8c` er nå erstattet.)
+
+**Fjernet feilspor (tidligere runder):** synkron rekursjon/løkke (main-tråd i live), vær/bildeNr/`VaerKoProvider` (dagens arbeid — se under), zone-hypotese (falsifisert), datamengde/byggeplass (frøs i begge prosjekter), presentert-VC (nil — inline Fabric-modal).
+
+**Dagens vær/bildeNr-arbeid frikjent** (verifisert 2026-08-18):
+- **Statisk:** for E2E-malen (ett `traffic_light`, `parent_id=NULL`, ingen weather/date/repeater) kjører ingen av Sak A (vær-anker/`useAutoVaer`/`VaerKoProvider`) eller Sak B (bildeNr) sin kode. Ingen ugardert rekursjon i opprettelses-/render-veien (`erSynlig` er dybdeguardet, vær-anker er flat `.find()`).
+- **Simulator-repro:** iOS-sim mot api-test, dev-login som kemyrhau, `VaerKoProvider` aktiv. Flere opprettelser av E2E-sjekkliste → **ingen frys, fullt responsiv**. Realistisk synket data i lokal SQLite (timer 20+25 rader); `sjekkliste_feltdata`=1, `oppgave_feltdata`=0 — og de bulk-synkes ikke, så `VaerKoProvider`-sweepen (som kun leser de to) kan ikke bloate via sync.
+
+**Verifisert i Release-sim** (`npx expo run:ios --configuration Release`, som reproduserte den ekte Release-timingen — dev-sim gjorde ikke det). Gjenstår kun valgfri enhets-bekreftelse på Kenneths telefon ved neste EAS-bygg. **Merk (verktøy-lærdom):** Release-JS-endringer krever `EXPO_PUBLIC_*` via `.env.production`(.local) + **tømt Metro-transform-cache** (`rm -rf $TMPDIR/metro-*`) — ellers inlines gamle env-verdier og dev-login mangler. Se simulator-runbook.md.
+
+(Sweep-ytelsessaken som ble avdekket underveis er allerede fikset — `perf(mobil): vaer-ko-sweep filtrerer i SQLite`, `f82cf431` — men den var ikke frys-årsaken.)
+
+### 🟡 Mobil: enkelt 0-byte bildeopplasting (bygg `0b8f113`, 2026-08-19) — mistenkt race mot frysingen
+
+Ett av Kenneths bilder (`8c57948a…png`) ble lagret som **0 bytes** på server (tom thumbnail, svart annoter). Grundig måling avkreftet de to første hypotesene:
+- **Ikke signering:** URL-en var signert og gyldig; `content-length: 0` = fila er faktisk tom. (Signering-siden av tom-ramme er en egen, ekte bug — fikset i `e52b18cd`, se over.)
+- **Ikke Release-modus / ikke filtype:** telling på test-DB ga **`.jpg` 4 med bytes / 0 tomme, `.png` 3 med bytes / 1 tom** — **1 av 8**, ikke-deterministisk. Sim (både gammel `fetch`+`FormData` og ny `uploadAsync`) laster opp bytes korrekt; Kenneths enhet lastet opp en JPG med bytes (`f0e27a06`, 335 KB) samme økt.
+
+**Hypotese:** en **race** — sannsynlig kobling til [frysingen](#-mobil-hard-frys-ved-sjekkliste-opprettelse--rapportert-på-test-bygg-32120cb1-kenneth-2026-08-17): fryser appen midt i en opplasting, kan fila bli ufullstendig/tom. Ikke isolér denne alene — verifiser sammen med frys-årsaken.
+
+**`uploadAsync`-fiks ligger ucommittet i git-stash** («uploadAsync-fiks (verifiseres i Release-sim)») — riktig hygiene (native multipart, arkitektur-uavhengig), men **ikke** rot-årsaken (gammel kode laster opp riktig 7/8). Vurder å committe den når frys/race er forstått.
+
 ### S1 hadde to migreringsscripts — bare ett ble kjørt mot prod, ingenting fanget det (funnet ved prod-opprydding 2026-08-15)
 
 S1 Fase 1 flyttet sensitive vedlegg fra åpen `/uploads/` til `/uploads/privat/` via
@@ -1270,6 +1318,250 @@ Faller pausevinduet **utenfor alle arbeidsvinduer** (`pauseMin > 0`, men ingen l
 **Fare:** `syncBatch.createMany` setter ikke `attestertStatus` (default «pending») → hvis mobil pusher de lekkede radene tilbake, gjenoppstår audit-radene som LIVE → ekte server-korrupsjon + lønnsfeil. Latent (sedelen «sent» + web viser 3 → ikke rundtrippet). Potensielt prod-eksponert: en redigert sedel som delta-pulles til prod-mobil vil vise samme ×N.
 
 **Vedtatt fiks (forener Kenneth-prinsipp «lagre rett» + ufravikelig «ALDRI slett eksisterende data»): B — flytt erstattet-rad til historikk-tabell ved rediger** i `2816`/`3016` (i stedet for å merke «erstattet» og la den ligge i hovedtabellen) → hovedtabell kun live → ingen leser trenger filter, og audit bevares. Migrering FLYTTER eksisterende «erstattet»-rader fra hovedtabellene til historikk (rydder bl.a. denne sedelen til 3+2 live — uten å slette data). `hentEndringerSiden`-filteret legges i SAMME PR som rulleringsvern (no-op etter migrering). **A (hard-slett) forkastet:** bryter «aldri slett data» uten eksplisitt unntak. Test-sedel `49a7c839` beholdes som regresjons-fixtur.
+
+### 🔴❓ Én mal gir fire representasjoner — venter fabel-svar (Kenneth 2026-08-16)
+
+**Funnet:** samme repeater vises ulikt fire steder.
+
+| Flate | Viser |
+|---|---|
+| Malbyggeren | barnefeltets label |
+| Web-skjemaet | repeaterens navn + radnummer — barnelabelen er **usynlig** |
+| Mobil | en tredje variant |
+| PDF | kolonnehode fra barnelabelen |
+
+**Konsekvensen:** Kenneth kan ikke bygge en mal og forutse utskriften. Han satte `_` som
+label nettopp fordi den var usynlig i skjemaet — og oppdaget at den er kolonnehode i PDF.
+
+> *«Det er vanskelig å forutse hva som skrives ut når en bygger malen på en måte.»*
+
+**Kenneths observasjon som peker mot løsningen:** web-skjemaet viser allerede den ønskede
+formen — radnummer, tekst, bilder under. PDF-ens ekstra kolonnehode tilfører ingenting når
+repeateren har ett barn.
+
+**🔴 Spørsmål til fabel (stilt 2026-08-16, ubesvart):**
+
+1. Skal prinsippet være at **utskriften speiler skjemaet** — samme struktur, samme
+   etiketter, samme rekkefølge?
+2. Eller er tabellformen riktig for repeatere med flere kolonner, med en regel om at
+   **ett barn gir ingen kolonnehode**?
+
+Det andre er en liten kodeendring. Det første er et designprinsipp som ville styrt all
+fremtidig utskrift — og gjort malbyggeren forutsigbar: det du ser er det du får.
+
+**Ikke blokkerende:** det konkrete tilfellet løste seg da Kenneth ga feltet navnet
+«Observasjon». «Kolonne N»-fallbacken (`cba9f3cc`) står som sikkerhetsnett. Men neste mal
+med enslig repeater-barn treffer samme spørsmål.
+
+⚠️ Ført her 2026-08-19 fordi spørsmålet kun eksisterte i en chat-melding — cowork
+formulerte det uten å legge det i repoet.
+
+### 🔴 Byggeplass og tegning kan ikke redigeres eller slettes fra UI (Kenneth 2026-08-19)
+
+**Observert:** etter at en byggeplass eller tegning er opprettet, finnes ingen vei i
+grensesnittet til å endre eller fjerne den.
+
+**Men API-et har det allerede:**
+
+| Router | Finnes |
+|---|---|
+| `byggeplass.ts` | `oppdater` (:108) · `publiser` (:198) · `hentSletteSammendrag` (:213) |
+| `tegning.ts` | `oppdater` (:294) · `tilknyttByggeplass` (:384) · `settGeoReferanse` (:401) · `fjernGeoReferanse` (:465) · `settGpsOverride` (:427) · `fjernGpsOverride` (:453) |
+
+`hentSletteSammendrag` er forarbeid til en slett-flyt som aldri fikk en knapp.
+
+**Samme mønster som papirkurven:** mekanikken finnes server-side, veien til den mangler i
+UI. Konsekvensen er at feilregistrerte data blir permanente — en byggeplass med feil navn,
+en tegning lastet opp i feil prosjekt, eller en georeferering satt feil, kan ikke rettes.
+
+**Skjerpende:** dette rammer nettopp det [referanse-testprosjektet](#) trenger. En agent
+som setter opp testdata kan ikke rydde etter seg, og feil oppsett blir liggende og
+forvirre neste økt.
+
+**Bør ha:** rediger og slett på byggeplass og tegning, med sletting bak bekreftelse som
+viser hva som forsvinner (`hentSletteSammendrag` er bygget for nettopp det). Ekte modal,
+ikke `confirm()`.
+
+⚠️ **Sletting av tegning må vurderes mot dokumenter som refererer den** — et kontrollpunkt
+eller en sjekkliste med posisjon på tegningen mister sin referanse. Avklar om sletting skal
+blokkeres, kaskadere, eller etterlate posisjonen uten tegning.
+
+### 🔴 Agenter mangler et komplett referanse-testprosjekt (Kenneth 2026-08-19)
+
+> *«Opus opprettet dette prosjektet — ikke via systemet. Opus trenger et fungerende prosjekt
+> å teste i: dokumentflyt, tegninger som er georeferert, 3D-modell, byggeplass med mere.»*
+
+**Utløser:** `Testprosjekt SD-…0001` ble opprettet av en agent utenom systemets egen
+opprettelsesflyt. Resultatet er et prosjekt som mangler byggeplass, ikke er tilknyttet
+firmaet (web: «Organisasjonen har ingen tilknyttede prosjekter ennå», mens mobil viser det
+under samme firma), og som produserer **følgefeil som ser ut som produktbugs**.
+
+Konkret kostnad 2026-08-19: frysingen ved sjekkliste-opprettelse oppførte seg ulikt i
+Testprosjekt og i B12 — timer med feilsøking gikk til å skille datafeil fra kodefeil.
+
+**Samme mønster som [`config.zone`](../../MALBYGGER.md)**: data skrevet direkte til
+databasen omgår all validering UI-et håndhever, og feilen dukker opp langt unna.
+
+**⚠️ Strukturelt gyldig er ikke det samme som brukbart (Kenneth 2026-08-19).** En agent ble
+bedt om å sette opp Agent-testprosjektet med byggeplass, tegning og georeferert kart. Han
+gjorde det via appens egne endepunkter — teknisk korrekt — men produserte en «plantegning»
+med fire tomme rom og et «kartutsnitt» som var beige firkanter på grønn bakgrunn.
+Georeferering på et bilde uten gjenkjennelige punkter tester ingenting.
+
+Kenneth satte opp samme type prosjekt med et **ekte ortofoto** (Norge i Bilder) — der er
+georefereringen meningsfull, og en posisjon peker på noe som finnes.
+
+> *«Problemet med agenter som setter opp prosjekter: de vet ikke hvordan det brukes.»*
+
+**Konsekvens for regelen:** testdata må være **representative**, ikke bare validerte.
+Referanse-testprosjektet bør settes opp av Kenneth én gang, dokumenteres, og deretter
+gjenbrukes — ikke gjenskapes av hver agent.
+
+**To deler:**
+
+1. **Regel — agenter oppretter prosjekter via systemet**, ikke direkte i DB. Samme prinsipp
+   som malbygger-regelen. Trengs det seeding, skal den etterlikne hva opprettelsesflyten
+   faktisk setter (firma-tilknytning, byggeplass, dokumentflyt). **Og agenter skal ikke
+   generere innhold de ikke forstår bruken av** — be om ekte fil fra Kenneth i stedet.
+2. **Ett komplett referanse-testprosjekt** som agenter tester mot, med: firma-tilknytning ·
+   minst én byggeplass · georeferert tegning · 3D-modell · dokumentflyt med registrator og
+   minst to ledd · sjekkliste- og oppgavemaler · kontrollplan. Verifisert komplett, og
+   dokumentert hvor det ligger.
+
+**Relatert svakhet Kenneth peker på:** det finnes ingen guidet oppsettsflyt etter at et
+prosjekt er opprettet — brukeren må vite selv hva som må settes opp.
+Se [prosjektoppsett-veileder.md](prosjektoppsett-veileder.md) (🟡 PLAN, ikke bygget). Et
+referanse-testprosjekt og en oppsettsveiviser løser beslektede problemer: begge handler om
+at «opprettet» ikke er det samme som «brukbart».
+
+### 🟢 KENNETH-VEDTAK 2026-08-18: papirkurven beholdes, men trenger livssyklus
+
+> *«Skal vi sende til papirkurv? Hvis vi gjør det må vi tilby maks fleksibilitet for sletting.»*
+
+**Vedtak: ja, behold papirkurven.** SiteDoc er et dokumentasjonssystem for bygg — en
+godkjent kontrollrapport kan ha juridisk verdi år etter at den ble skrevet. To-stegs,
+reverserbar sletting er beskyttelse, ikke friksjon.
+
+**Problemet er ikke at papirkurven finnes, men at den er halvferdig.** 61 dokumenter
+samlet seg fra 2026-07-26 til 08-18 uten at noen ryddet, fordi det ikke fantes noen måte å
+rydde på. En bøtte uten bunn blir en bøtte ingen tømmer.
+
+**Fire deler, rangert:**
+
+1. **«Tøm papirkurv»** med bekreftelse (ekte modal, ikke `confirm()`). Uten den er alt
+   annet lapping.
+2. **Flervalg med avkryssing** — for både endelig sletting og **gjenoppretting**.
+   Gjenoppretting er undervurdert: sletter noen femten kontrollpunkter ved uhell, skal de
+   tilbake i én operasjon.
+3. **Automatisk tømming etter N dager**, konfigurerbart per firma (default 30 eller 90).
+   Det er dette som hindrer at papirkurven vokser i det uendelige.
+4. **Hvem kan slette endelig** — 🔴❓ **fabel-sak, ikke implementasjonsdetalj.** Et
+   godkjent og signert dokument bør trolig ikke kunne fjernes permanent av en vanlig
+   prosjektmedlem; sporbarheten er det produktet selger. Krever rolle-/kapabilitetsvedtak.
+
+Del 1–3 er ren mangel og kan bygges. Del 4 venter på fabel.
+
+### 🔴 Papirkurven mangler «Tøm» og masseslett — meldingen ber om en handling som ikke finnes (Kenneth, test 2026-08-18)
+
+**Målt i koden:** `apps/api/src/routes/papirkurv.ts` har `hentForProsjekt`, `gjenopprett`
+og **`slettEndelig` for ett dokument** (`{ id, type }`). Ingen tøm-alt, ingen
+masseoperasjon. Web-siden har verken avkryssing eller samlehandling.
+
+**Konsekvens:** Kenneth måtte slette **61 dokumenter én og én, med to klikk hver** — over
+120 klikk — for å kunne slette en mal.
+
+**Verre: «Slett mal»-meldingen sier «Tøm papirkurven først»** og antyder dermed en knapp
+som ikke eksisterer. Det er ikke bare uklar tekst; det er en instruks produktet ikke kan
+oppfylle.
+
+**Bør ha:** «Tøm papirkurv» (med bekreftelse), avkryssing for flerslett, og at
+mal-slettingen tilbyr handlingen direkte i stedet for å sende brukeren på leting.
+
+⚠️ Slett-bekreftelse skal bruke ekte modal, ikke `confirm()` — se CLAUDE.md
+§ UI-designprinsipper.
+
+### 🟡 «Slett mal»-blokkering peker ikke til papirkurven (Kenneth, test 2026-08-18)
+
+Sletting av en mal med dokumenter i papirkurven gir:
+
+> *«Malen har dokumenter i papirkurven (62). Tøm papirkurven først, så kan malen slettes.»*
+
+**Kenneth: «dette er også for dårlig forklart».** Meldingen sier hva som må gjøres, men
+ikke hvor. Brukeren står i **firmaoppsettet** (`/dashbord/oppsett/produksjon/sjekklistemaler`)
+når han får den, mens papirkurven er **prosjektbasert** — og den sier ikke hvilket
+prosjekt de 62 ligger i. Er de spredt over flere prosjekter, må hver tømmes uten at
+brukeren får vite hvilke.
+
+**Bør ha:** lenke direkte til papirkurven, og navn på prosjektet/prosjektene dokumentene
+ligger i. Er de i flere, list dem.
+
+Følger [tooltip-hjelpetekst-veileder.md § 3/3a](retningslinjer/tooltip-hjelpetekst-veileder.md)
+— en handlingstekst skal svare på hvor noe flytter og hva neste steg er, ikke bare hva som
+blokkerer.
+
+### 🔴 Mobil hard-fryser på rapportobjekt uten `config.zone` (rotårsak funnet 2026-08-18)
+
+**Symptom:** appen fryser hardt ved åpning av en sjekkliste — ingen spinner, ingen krasj,
+hver gang. Dokumentet blir opprettet; etter tvungen omstart fungerer alt.
+
+**Rotårsak:** `E2E Sjekklistemal` ble seedet direkte til databasen fra
+`tests/e2e/mal-*.ts` og fikk `config = {}` på sitt `traffic_light`-objekt. Malbygger-laget
+maler har alltid `{"zone": "topptekst"}` eller `{"zone": "datafelter"}` — UI-et setter
+sonen når feltet dras inn, et script gjør det ikke.
+
+Mobil grupperer felter etter `zone` (`UtfyllingSeksjoner`, `grupperMedOverskrift`). Et
+felt uten sone tilhører ingen gruppe.
+
+⚠️ **Reproduserte ikke i simulator** (Metro, dev-modus) — kun i Release-bygg på fysisk
+enhet. En dev-kjøring frikjenner ikke denne klassen feil.
+
+**Frikjente underveis:** værsnapshot, `bildeNr` og `VaerKoProvider` (2026-08-16/17) — tre
+uavhengige bevislinjer: statisk analyse viste at ingen av kodestiene kjører for en mal med
+kun `traffic_light`; simulator-repro var negativ; datamodellen utelukket DB-bloat i
+sweepen.
+
+**To fikser, begge gjenstår:**
+
+1. **Koden skal tåle det.** Et felt uten `zone` skal falle tilbake til `datafelter`, ikke
+   henge. En importert eller tredjeparts mal kan mangle feltet like gjerne som et
+   seed-script. **Dette er den viktige** — den beskytter mot alle fremtidige kilder.
+2. **Seed-scriptene skal sette `zone`.** `tests/e2e/mal-*.ts` og andre fixtures.
+
+Regel og verifiserings-SQL: [MALBYGGER.md § `config.zone` er PÅKREVD](../../MALBYGGER.md).
+
+### 🔴 Dagsseddel-konflikt: meldingen beskriver en løsning brukeren ikke kan utføre (Kenneth, mobil test-bygg 2026-08-17)
+
+**Observert på enhet** (test-bygg `32120cb`, Testfirma AS, dagsseddel ons. 08. juli 2026):
+
+Dagsseddelen står merket **`Konflikt`** med teksten:
+
+> ⚠️ *«Det finnes allerede en dagsseddel for denne datoen — dine timer slås sammen med den.»*
+
+**Kenneths innvending:** *«Det er fint at vi finner konflikter og at vi foreslår løsning — men
+løsningen kan ikke utføres.»* Meldingen sier hva som *vil* skje, men det finnes ingen handling
+som utfører sammenslåingen. Brukeren står med en beskrevet løsning og ingen knapp.
+
+**To ting som må avklares før noe bygges:**
+
+1. **Er «slås sammen» automatisk eller manuelt?** Er det automatisk, er meldingen feil formulert —
+   den er en varsling om noe som allerede skjer, ikke et forslag. Er det manuelt, mangler
+   handlingen.
+2. **`Konflikt` og `Attestert` vises samtidig** på samme dagsseddel (grønn «Attestert 10. juli,
+   21:36» over rød konflikt-boks). To tilstander som ser motstridende ut: er en attestert
+   dagsseddel fortsatt i konflikt, eller er attesteringen fra den *andre* seddelen? Uansett svar
+   er visningen tvetydig for den som skal handle.
+
+Listevisningen viser i tillegg **«2 konflikter — sjekk sedlene»** og **«Usendte kladder: 11»**
+side om side, med 11 dagssedler i `Utkast` fra juli. Verdt å måle om konflikt-tilstanden hindrer
+innsending, eller om de 11 er urelatert.
+
+**Mikrotekst-plikt:** en fiks her skal følge
+[tooltip-hjelpetekst-veileder.md § 3/3a](retningslinjer/tooltip-hjelpetekst-veileder.md) — hvor
+dokumentet flytter, hvem får ballen, hva ser motparten.
+
+Merk: konfliktdeteksjonen på timer-flaten **finnes** (`syncBatch`, se § Server-side
+samme-felt-konfliktdeteksjon over — der er den fraværende for sjekkliste/oppgave). Dette er
+altså ikke manglende deteksjon, men manglende oppløsning.
 
 ### 🟡 Mobil timer-detalj: rå UUID-etiketter når firma-katalog er tom (M-2-observasjon 2026-07-13, UX lav prio)
 

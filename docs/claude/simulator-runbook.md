@@ -7,6 +7,30 @@ sist_verifisert_mot_kode: 2026-07-07
 
 # Simulator-runbook — oppstart til innlogget (test-miljø)
 
+> 🔴 **`EXPO_PUBLIC_*`-endringer krever cache-tømming (lærdom 2026-08-19).**
+> Verdiene **inlines per fil ved Metro-transform**, og transform-cachen nøkles på
+> **filinnhold — ikke på env-verdier.** Endrer du en `EXPO_PUBLIC_*`-variabel og bygger på
+> nytt uten å tømme cachen, gjenbrukes den gamle transformen med den gamle verdien.
+> Symptomet er at endringen «ikke virker» selv etter fersk install — typisk at dev-login
+> ikke vises fordi `EXPO_PUBLIC_ENABLE_TEST_LOGIN` fortsatt leses som `undefined`.
+>
+> Alltid ved env-endring: `npx expo start --clear`, eller avinstaller appen **og** tøm
+> Metro-cache før `expo run:ios`.
+>
+> **Release-sim:** `--configuration Release` laster `.env.production`, ikke `.env`. Skal du
+> ha dev-login i Release-sim, må test-verdiene ligge der (`EXPO_PUBLIC_API_URL`,
+> `EXPO_PUBLIC_DEV_LOGIN_SECRET`, `EXPO_PUBLIC_ENABLE_TEST_LOGIN`) **og** cachen tømmes.
+> ⚠️ Fila er gitignorert — **slett den etter testen.** Den skal aldri overleve økta og aldri
+> inn i et EAS-bygg.
+>
+> Kostnaden ved å ikke vite dette: tre Release-sim-bygg der dev-login «manglet», før
+> rotårsaken ble funnet. Cowork ga `.env.production`-instruksen uten `--clear`, og uten å
+> verifisere den mot dokumentasjon — den var hentet fra en tidligere observasjon i samme
+> økt.
+
+⚠️ **`scripts/simulator-tre.sh` finnes ikke lenger** (målt 2026-08-18) — referanser til den
+under er drift. Bruk et eksisterende worktree med `node_modules` i stedet.
+
 Ende-til-ende-oppskrift for å teste mobil-appen i iOS-simulator mot **test-API**
 (`api-test.sitedoc.no` via localhost-tunnel). Alt her er verifisert 2026-07-07.
 Sikkerhetsgrense, testbrukere og tunnelens rotårsak: se
@@ -74,6 +98,16 @@ kjørende `expo`-prosessen** (Terminal B).
 Innloggingsskjermen viser fire dev-login-knapper (kun i test-/dev-bygg —
 `erTestLoginAktiv || __DEV__`; fraværende i prod). Kilde:
 `apps/mobile/app/logg-inn.tsx` (`TESTBRUKERE`).
+
+> ⚠️ **`npx expo run:ios --configuration Release` gir IKKE dev-login (målt 2026-08-19).**
+> Release-bygg laster `.env.production` (`EXPO_PUBLIC_API_URL=https://api.sitedoc.no`
+> = **prod**, ingen `EXPO_PUBLIC_ENABLE_TEST_LOGIN`) → `__DEV__=false` + `erTestLoginAktiv=false`
+> → kun Google/Microsoft. **Release-sim er dermed stengt for agent-testing** med mindre du
+> legger en gitignorert `apps/mobile/.env.production.local` (høyest presedens) som overstyrer
+> `EXPO_PUBLIC_API_URL=http://localhost:3301` + `EXPO_PUBLIC_ENABLE_TEST_LOGIN=true` +
+> `EXPO_PUBLIC_DEV_LOGIN_SECRET=…`. **Advarsel:** uten den overstyringen peker Release-sim mot
+> **prod-API** — ikke last opp/skriv testdata fra et slikt bygg. Vanlig `npx expo run:ios`
+> (dev) er upåvirket og gir dev-login som normalt.
 
 | Knapp | Rolle | Data |
 |---|---|---|
