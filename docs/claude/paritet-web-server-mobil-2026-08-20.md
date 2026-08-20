@@ -99,7 +99,7 @@ ingenting skjer, ingen feilmelding.
 | M5 | Attestering | Mobil mangler gjenåpne, redigering og ECO-flytting |
 | M6 | Prosjektleder-attestering | Mobil har kun firma-kontekst |
 | M7 | Timer-splitt | Mobil er ren lokal Drizzle-operasjon som **omgår server-valideringen** |
-| M8 | Dagsnorm | Web flat, mobil sesongjustert → ulikt trafikklys samme dag |
+| M8 | Dagsnorm | Web **detaljside** flat, mobil sesongjustert → ulikt trafikklys samme dag. **Presisert 2026-08-20:** web `/timer/ny` **har** t4-oppslaget (`page.tsx:72`) — hullet er detaljsiden alene, ikke web som flate |
 | M9 | Oppgave-endringslogg | Skrives av serveren, vises ingen steder — data uten leser |
 | M10 | Papirkurv | Web-only; sletter du på mobil har du ingen vei tilbake |
 | M11 | Vedleggssignering | Mobil-only; leder på web kan ikke signere |
