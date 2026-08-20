@@ -90,6 +90,11 @@ export { beregnUkenorm } from "./ukenorm";
 export type { UkenormResultat, UkenormDag } from "./ukenorm";
 export { STANDARD_ARBEIDSTID_FALLBACK } from "./arbeidstidDefault";
 export {
+  beregnOvertidsgrunnlag,
+  lesOvertidsgrunnlagFraSnapshot,
+} from "./overtidsgrunnlag";
+export type { OvertidRad, Overtidsgrunnlag } from "./overtidsgrunnlag";
+export {
   harFeltVerdi,
   beregnLaasteFelter,
   erUtfyllbartFelt,
