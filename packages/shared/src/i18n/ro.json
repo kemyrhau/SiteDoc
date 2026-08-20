@@ -1643,6 +1643,7 @@
   "firma.timer.rapport.eksport.knapp": "Export",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
+  "firma.timer.rapport.eksport.feil": "Exportul nu a reușit",
   "faggrupper.nyDokumentflyt": "Flux nou de documente",
   "faggrupper.nyFaggruppe": "Antreprenor nou",
   "faggrupper.leggTilFaggruppe": "Adăugați contractant",

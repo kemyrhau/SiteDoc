@@ -1643,6 +1643,7 @@
   "firma.timer.rapport.eksport.knapp": "Eksportēt",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
+  "firma.timer.rapport.eksport.feil": "Eksportēšana neizdevās",
   "faggrupper.nyDokumentflyt": "Jauna dokumentu plūsma",
   "faggrupper.nyFaggruppe": "Jauns darbuzņēmējs",
   "faggrupper.leggTilFaggruppe": "Pievienojiet darbuzņēmēju",

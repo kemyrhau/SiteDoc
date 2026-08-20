@@ -1643,6 +1643,7 @@
   "firma.timer.rapport.eksport.knapp": "Eksporto",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
+  "firma.timer.rapport.eksport.feil": "Eksporti dështoi",
   "faggrupper.nyDokumentflyt": "Rrjedha e re e dokumenteve",
   "faggrupper.nyFaggruppe": "Grupi i ri tregtar",
   "faggrupper.leggTilFaggruppe": "Shto grupin e tregtisë",

@@ -1643,6 +1643,7 @@
   "firma.timer.rapport.eksport.knapp": "Експорт",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
+  "firma.timer.rapport.eksport.feil": "Помилка експорту",
   "faggrupper.nyDokumentflyt": "Новий документообіг",
   "faggrupper.nyFaggruppe": "Новий підрядник",
   "faggrupper.leggTilFaggruppe": "Додати підрядника",

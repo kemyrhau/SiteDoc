@@ -1643,6 +1643,7 @@
   "firma.timer.rapport.eksport.knapp": "Vývozní",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
+  "firma.timer.rapport.eksport.feil": "Export se nezdařil",
   "faggrupper.nyDokumentflyt": "Nový tok dokumentů",
   "faggrupper.nyFaggruppe": "Nový dodavatel",
   "faggrupper.leggTilFaggruppe": "Přidat dodavatele",

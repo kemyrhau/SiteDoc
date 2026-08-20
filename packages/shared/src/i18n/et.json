@@ -1643,6 +1643,7 @@
   "firma.timer.rapport.eksport.knapp": "Ekspordi",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
   "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
+  "firma.timer.rapport.eksport.feil": "Eksport ebaõnnestus",
   "faggrupper.nyDokumentflyt": "Uus dokumendivoog",
   "faggrupper.nyFaggruppe": "Uus töövõtja",
   "faggrupper.leggTilFaggruppe": "Lisage töövõtja",

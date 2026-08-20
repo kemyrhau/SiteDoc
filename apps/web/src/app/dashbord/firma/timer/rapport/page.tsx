@@ -91,6 +91,9 @@ export default function TimerRapportSide() {
   const [detaljVy, setDetaljVy] = useState<DetaljVy>("dag");
   const [eksportÅpen, setEksportÅpen] = useState(false);
   const [eksporterer, setEksporterer] = useState(false);
+  // 1c: try/finally uten catch svelget kastet → «virker ikke» uten spor. Vis
+  // feilen til brukeren så den blir konkret (og logg for feilsøking).
+  const [eksportFeil, setEksportFeil] = useState<string | null>(null);
 
   const { data: prosjekter } = trpc.timer.rapport.hentFirmaProsjekterMedTimer.useQuery(
     { organizationId: orgId! },
@@ -201,6 +204,7 @@ export default function TimerRapportSide() {
   async function håndterEksport(format: "csv" | "xlsx") {
     if (!rapportData || rapportData.ansatte.length === 0) return;
     setEksportÅpen(false);
+    setEksportFeil(null);
     setEksporterer(true);
     try {
       const mod = await import("@/lib/timer-rapport-eksport");
@@ -223,6 +227,12 @@ export default function TimerRapportSide() {
       } else {
         await mod.eksporterXlsx(input);
       }
+    } catch (e) {
+      // 1c: gjør det tause kastet synlig. Loggen bevarer stacken for å pinne
+      // det faktiske kastet (exceljs-runtime mistenkt); brukeren får en konkret
+      // melding i stedet for en fil som aldri kom.
+      console.error("[timer-eksport] eksport feilet", e);
+      setEksportFeil(e instanceof Error ? e.message : String(e));
     } finally {
       setEksporterer(false);
     }
@@ -274,6 +284,13 @@ export default function TimerRapportSide() {
           </div>
         </div>
       </SonetonetSidehode>
+
+      {/* 1c: eksport-feil synlig for bruker (ellers svelget i try/finally). */}
+      {eksportFeil && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {t("firma.timer.rapport.eksport.feil")}: {eksportFeil}
+        </div>
+      )}
 
       {/* Filter-rad */}
       <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
