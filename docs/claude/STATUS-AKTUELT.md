@@ -22,6 +22,39 @@ De to vedleggsfilene flyttet til `~/backup/karantene-timer-20260820/` — **ikke
 fordi prod og test deler uploads-volum (test-DB verifisert til 0 referanser før flytting).
 **Ikke rørt:** lønnsarter, aktiviteter, tilleggskatalog, maskinregister — oppsettet står.
 
+**✅ AM ORDRE 2 STEG 1 LEVERT 2026-08-20** — `feat/am-ordre2-attestering`, 2 commits.
+Design: [designnotat-attestering-fabel-2026-08-20.md](../redesign/designnotat-attestering-fabel-2026-08-20.md).
+Grunnlag: [na-rapport-attestering-2026-08-20.md](na-rapport-attestering-2026-08-20.md).
+
+- **`e4755aaa` — API-fikser + shared.** `erstattet`-filter i `hentTilAttestering` (+ alias)
+  — dobbelttelling var en bug uavhengig av dette designet. Multi-status i
+  `hentTilAttesteringFirma` (union, bakoverkompatibel). **`beregnUkenorm`** i shared med
+  **injisert** dagsnorm-oppslag (server: `hentEffektivArbeidstid`, mobil: lokal variant) —
+  37,5/40 forekommer aldri som literal, overgangsuker regnes blandet. Fallback-konstanten
+  samlet til én `STANDARD_ARBEIDSTID_FALLBACK`; Prisma-`@default` forblir literal.
+- **`9afc8951` — backstop (B) + snapshot.** `beregnOvertidsgrunnlag` +
+  `lesOvertidsgrunnlagFraSnapshot` i shared. Backstoppen er **lese-avledning**, ikke
+  persistert kolonne: overtidsgrunnlaget beregnes on-the-fly per sedel fra radenes timer ×
+  effektiv dagsnorm (sommertid-bevisst). `attestertSnapshot` utvides **ved attestering**
+  med uke-nivå grunnlag → etterprøvbart i ettertid.
+
+🔴 **Vedtaket bak (B):** persistering ved skriving ble avvist fordi den fryser normen på
+**feil tidspunkt** — attestanten skal se normen som gjaldt da *han* vurderte, ikke da
+arbeideren førte. Systemet har allerede riktig mønster i `attestertSnapshot` (prissnapshot,
+Fase 0 A.7), som fylles ved attestering. Fabel endret sitt eget designord («lagrer») da
+argumentet ble lagt fram. Se [domene-arbeidsflyt.md](domene-arbeidsflyt.md) —
+`lonnsartId` røres aldri av backstoppen; avvik mellom beregnet og valgt er noe attestanten
+**ser**, ikke noe systemet retter.
+
+**Tester:** 19/19 i shared, inkl. de to gate-testene — at beregningen aldri muterer input
+(`lonnsartId`-invarianten), og at gamle snapshot-former gir `null`, aldri `0` (et `0` ville
+sett ut som et faktum). Typecheck 5/5. Ingen migrering.
+
+**Ytelse (målt av dokgen):** lese-avledningen gjør ett `hentEffektivArbeidstid`-kall per
+unike dato, uke-scopet → ≤ 7 kall uansett antall rader eller ansatte.
+
+**⏸ STEG 2 (D3-visningene) venter fabels designgate.** Ikke bygget.
+
 **✅ AM ORDRE 1 (timer-bugs) LEVERT 2026-08-20** — `fix/am-ordre1-timer`, 3 commits, merget develop.
 Fabels ordreliste: [referat-markussen-ordreliste-fabel-2026-08-20.md](../redesign/referat-markussen-ordreliste-fabel-2026-08-20.md).
 
