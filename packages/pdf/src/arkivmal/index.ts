@@ -6,9 +6,11 @@
 export type {
   ArkivHendelseKilde,
   HendelseRad,
+  Segment,
   EndringRad,
   EndringsØkt,
   RåEndring,
+  EkspandertEndring,
   PunktRad,
   RevisjonRad,
   SistEndret,
@@ -62,5 +64,5 @@ export {
   oppsummerLoggverdi,
 } from "./logg";
 
-export { ekspanderEndring, normaliserForDiff, likForDiff, byggKolonnerPerFelt } from "./endringsdiff";
+export { ekspanderEndring, normaliserForDiff, likForDiff, byggKolonnerPerFelt, segmenterTilTekst } from "./endringsdiff";
 export type { KolonneDef, DiffRad } from "./endringsdiff";

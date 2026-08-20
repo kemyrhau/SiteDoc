@@ -5,10 +5,12 @@ import {
   finnSistEndret,
   byggArkivLogg,
   oppsummerLoggverdi,
+  segmenterTilTekst,
   avledHandling,
   tolkInnstillinger,
   type HendelseRad,
   type RåEndring,
+  type EkspandertEndring,
 } from "@sitedoc/pdf";
 
 /**
@@ -24,6 +26,7 @@ const h = (tidspunkt: string, aktor = "A"): HendelseRad => ({
   antallFeltendringer: 0,
 });
 
+// Leser-nivå rå endring (string-verdi) — input til byggArkivLogg + tellFeltendringer.
 const e = (userId: string, tidspunkt: string, felt = "F"): RåEndring => ({
   userId,
   aktor: userId,
@@ -33,11 +36,21 @@ const e = (userId: string, tidspunkt: string, felt = "F"): RåEndring => ({
   tilVerdi: "x",
 });
 
+// Ekspandert endring (segment-verdi) — input til grupperØkter.
+const ee = (userId: string, tidspunkt: string, felt = "F"): EkspandertEndring => ({
+  userId,
+  aktor: userId,
+  tidspunkt,
+  felt,
+  fraVerdi: null,
+  tilVerdi: [{ tekst: "x", endret: false }],
+});
+
 describe("grupperØkter — økt = (person, dag)", () => {
   it("to endringer samme dag+person → én økt, selv med timer imellom", () => {
     const økter = grupperØkter([
-      e("u1", "2026-08-10T08:00:00.000Z"),
-      e("u1", "2026-08-10T15:00:00.000Z"),
+      ee("u1", "2026-08-10T08:00:00.000Z"),
+      ee("u1", "2026-08-10T15:00:00.000Z"),
     ]);
     expect(økter).toHaveLength(1);
     expect(økter[0]!.rader).toHaveLength(2);
@@ -46,25 +59,25 @@ describe("grupperØkter — økt = (person, dag)", () => {
 
   it("samme person ulik dag → to økter", () => {
     const økter = grupperØkter([
-      e("u1", "2026-08-10T23:00:00.000Z"),
-      e("u1", "2026-08-11T01:00:00.000Z"),
+      ee("u1", "2026-08-10T23:00:00.000Z"),
+      ee("u1", "2026-08-11T01:00:00.000Z"),
     ]);
     expect(økter).toHaveLength(2);
   });
 
   it("ulik person samme dag → to økter", () => {
     const økter = grupperØkter([
-      e("u1", "2026-08-10T10:00:00.000Z"),
-      e("u2", "2026-08-10T10:00:00.000Z"),
+      ee("u1", "2026-08-10T10:00:00.000Z"),
+      ee("u2", "2026-08-10T10:00:00.000Z"),
     ]);
     expect(økter).toHaveLength(2);
   });
 
   it("økter sorteres etter første endring; rader kronologisk innad", () => {
     const økter = grupperØkter([
-      e("u2", "2026-08-11T09:00:00.000Z", "sen"),
-      e("u1", "2026-08-10T12:00:00.000Z", "b"),
-      e("u1", "2026-08-10T09:00:00.000Z", "a"),
+      ee("u2", "2026-08-11T09:00:00.000Z", "sen"),
+      ee("u1", "2026-08-10T12:00:00.000Z", "b"),
+      ee("u1", "2026-08-10T09:00:00.000Z", "a"),
     ]);
     expect(økter[0]!.userId).toBe("u1");
     expect(økter[0]!.rader.map((r) => r.felt)).toEqual(["a", "b"]);
@@ -186,7 +199,7 @@ describe("oppsummerLoggverdi — funn 6: ingen rå repeater-JSON i loggen", () =
     const rader = logg.økter?.[0]?.rader ?? [];
     // Nytt: to lagt-til rader → to oppsummeringslinjer, ikke én «2 rader (2 bilder)».
     expect(rader.map((r) => r.felt)).toEqual(["Rad 1 (lagt til)", "Rad 2 (lagt til)"]);
-    expect(rader[0]?.tilVerdi).toContain("bilde");
+    expect(segmenterTilTekst(rader[0]?.tilVerdi ?? null)).toContain("bilde");
     expect(JSON.stringify(logg)).not.toContain("/uploads");
     expect(JSON.stringify(logg)).not.toContain("uuid");
   });

@@ -4,7 +4,7 @@
  * lag 1. Utfalls-agnostisk mot fabels tabell-vs-seksjon-valg.
  */
 
-import type { HendelseRad, RåEndring, EndringsØkt, ArkivLogg, SistEndret } from "./typer";
+import type { HendelseRad, RåEndring, EkspandertEndring, EndringsØkt, ArkivLogg, SistEndret } from "./typer";
 import { ekspanderEndring, type KolonneDef } from "./endringsdiff";
 
 /** YYYY-MM-DD fra ISO-tidsstempel (grupperingsnøkkel — dato, ikke tid). */
@@ -67,7 +67,7 @@ export function oppsummerLoggverdi(verdi: string | null): string | null {
  * Grupperer flate feltendringer i økter = (userId, dato). Rader sorteres
  * kronologisk innad; øktene sorteres etter sin første endring.
  */
-export function grupperØkter(endringer: RåEndring[]): EndringsØkt[] {
+export function grupperØkter(endringer: EkspandertEndring[]): EndringsØkt[] {
   const kart = new Map<string, EndringsØkt>();
   for (const e of endringer) {
     const dato = datoDel(e.tidspunkt);
@@ -100,7 +100,7 @@ export function grupperØkter(endringer: RåEndring[]): EndringsØkt[] {
  * Muterer ikke input; returnerer nye `HendelseRad` med `antallFeltendringer`
  * satt, sortert kronologisk.
  */
-export function tellFeltendringer(hendelser: HendelseRad[], endringer: RåEndring[]): HendelseRad[] {
+export function tellFeltendringer(hendelser: HendelseRad[], endringer: Array<{ tidspunkt: string }>): HendelseRad[] {
   const sortert = [...hendelser].sort((a, b) => a.tidspunkt.localeCompare(b.tidspunkt));
   const antall = sortert.map(() => 0);
   for (const e of endringer) {
@@ -136,13 +136,12 @@ export function byggArkivLogg(input: {
   kolonnerPerFelt?: Record<string, KolonneDef[]>;
 }): ArkivLogg {
   const kolonner = input.kolonnerPerFelt ?? {};
-  const endringer: RåEndring[] = (input.endringsloggAktivert ? input.endringer : []).flatMap((e) =>
+  const endringer: EkspandertEndring[] = (input.endringsloggAktivert ? input.endringer : []).flatMap((e) =>
     ekspanderEndring(e.felt, e.fraVerdi, e.tilVerdi, e.feltId ? kolonner[e.feltId] : undefined).map(
       (rad) => ({
         userId: e.userId,
         aktor: e.aktor,
         tidspunkt: e.tidspunkt,
-        feltId: e.feltId,
         felt: rad.felt,
         fraVerdi: rad.fraVerdi,
         tilVerdi: rad.tilVerdi,
