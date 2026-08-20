@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Avaa tarkistuslista",
   "kontrollplan.kobleEksisterende": "Linkitä olemassa oleva tarkistuslista",
   "kontrollplan.kobleIngenKandidater": "Ei saatavilla tarkistuslistoja, joissa on sama linkitettävä malli.",
-  "kontrollplan.startVelgFlyt": "Valitse asiakirjakulku",
   "kontrollplan.startIngenFlyt": "Asiakirjakulkua ei ole asetettu tälle kohdalle, joten sitä ei voi vielä aloittaa. Projektin tai yrityksen pääkäyttäjän on valittava pisteelle kulku (Muokkaa pistettä → Esivalittu kulku).",
   "kontrollplan.velgFlytForPunkt": "Valitse pisteen virtaus",
   "kontrollplan.tilFlytOppsett": "Siirry virtauksen asetuksiin",

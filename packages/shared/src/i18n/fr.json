@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Ouvrir la liste de contrôle",
   "kontrollplan.kobleEksisterende": "Lier la liste de contrôle existante",
   "kontrollplan.kobleIngenKandidater": "Aucune liste de contrôle disponible avec le même modèle à lier.",
-  "kontrollplan.startVelgFlyt": "Choisissez le flux de documents",
   "kontrollplan.startIngenFlyt": "Aucun flux de documents n'est défini sur ce point, il ne peut donc pas encore être démarré. Un administrateur de projet ou d'entreprise doit sélectionner un flux pour le point (Modifier le point → Flux présélectionné).",
   "kontrollplan.velgFlytForPunkt": "Choisissez le flux pour le point",
   "kontrollplan.tilFlytOppsett": "Accédez à la configuration du flux",

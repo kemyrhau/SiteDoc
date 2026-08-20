@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Atidarykite kontrolinį sąrašą",
   "kontrollplan.kobleEksisterende": "Susieti esamą kontrolinį sąrašą",
   "kontrollplan.kobleIngenKandidater": "Nėra galimų kontrolinių sąrašų su tuo pačiu šablonu, kurį galima susieti.",
-  "kontrollplan.startVelgFlyt": "Pasirinkite dokumentų srautą",
   "kontrollplan.startIngenFlyt": "Šiuo metu dokumentų srautas nenustatytas, todėl jo pradėti dar negalima. Projekto arba įmonės administratorius turi pasirinkti taško srautą (Redaguoti tašką → Iš anksto pasirinktas srautas).",
   "kontrollplan.velgFlytForPunkt": "Pasirinkite taško srautą",
   "kontrollplan.tilFlytOppsett": "Eikite į srauto sąranką",

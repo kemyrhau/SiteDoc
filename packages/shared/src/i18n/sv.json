@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Öppna checklistan",
   "kontrollplan.kobleEksisterende": "Länka befintlig checklista",
   "kontrollplan.kobleIngenKandidater": "Inga tillgängliga checklistor med samma mall att länka till.",
-  "kontrollplan.startVelgFlyt": "Välj dokumentflöde",
   "kontrollplan.startIngenFlyt": "Inget dokumentflöde är inställt på denna punkt, så det kan inte startas ännu. En projekt- eller företagsadministratör måste välja ett flöde för punkten (Redigera punkt → Förvalt flöde).",
   "kontrollplan.velgFlytForPunkt": "Välj flöde för punkten",
   "kontrollplan.tilFlytOppsett": "Gå till flödesinställningar",

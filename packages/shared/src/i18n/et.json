@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Ava kontrollnimekiri",
   "kontrollplan.kobleEksisterende": "Linkige olemasolev kontroll-loend",
   "kontrollplan.kobleIngenKandidater": "Sama malliga kontroll-loendeid pole linkimiseks.",
-  "kontrollplan.startVelgFlyt": "Valige dokumendivoog",
   "kontrollplan.startIngenFlyt": "Selles punktis pole dokumendivoogu määratud, seega ei saa seda veel alustada. Projekti või ettevõtte administraator peab valima punkti jaoks voo (Redigeeri punkti → Eelvalitud voog).",
   "kontrollplan.velgFlytForPunkt": "Valige punkti jaoks voog",
   "kontrollplan.tilFlytOppsett": "Minge voo seadistusse",

@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Відкрити контрольний список",
   "kontrollplan.kobleEksisterende": "Посилання на існуючий контрольний список",
   "kontrollplan.kobleIngenKandidater": "Немає доступних контрольних списків із тим самим шаблоном для посилання.",
-  "kontrollplan.startVelgFlyt": "Виберіть документообіг",
   "kontrollplan.startIngenFlyt": "На цій точці не налаштовано документообіг, тому його ще не можна запустити. Адміністратор проекту або компанії має вибрати потік для точки (Редагувати точку → Попередньо вибраний потік).",
   "kontrollplan.velgFlytForPunkt": "Виберіть потік для точки",
   "kontrollplan.tilFlytOppsett": "Перейдіть до налаштування потоку",

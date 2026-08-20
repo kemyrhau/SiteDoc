@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Otwórz listę kontrolną",
   "kontrollplan.kobleEksisterende": "Połącz istniejącą listę kontrolną",
   "kontrollplan.kobleIngenKandidater": "Brak dostępnych list kontrolnych z tym samym szablonem do połączenia.",
-  "kontrollplan.startVelgFlyt": "Wybierz przepływ dokumentów",
   "kontrollplan.startIngenFlyt": "W tym miejscu nie jest ustawiony żaden przepływ dokumentów, więc nie można go jeszcze rozpocząć. Administrator projektu lub firmy musi wybrać przepływ dla punktu (Edycja punktu → Wstępnie wybrany przepływ).",
   "kontrollplan.velgFlytForPunkt": "Wybierz przepływ dla punktu",
   "kontrollplan.tilFlytOppsett": "Przejdź do konfiguracji przepływu",

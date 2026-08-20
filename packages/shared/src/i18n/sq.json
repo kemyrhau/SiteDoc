@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Hap listën e kontrollit",
   "kontrollplan.kobleEksisterende": "Lidh listën ekzistuese të kontrollit",
   "kontrollplan.kobleIngenKandidater": "Nuk ka lista kontrolli të disponueshme me të njëjtin shabllon për lidhje.",
-  "kontrollplan.startVelgFlyt": "Zgjidhni rrjedhën e dokumentit",
   "kontrollplan.startIngenFlyt": "Asnjë rrjedhë dokumenti nuk është caktuar në këtë pikë, kështu që nuk mund të fillohet ende. Një administrator projekti ose kompanie duhet të zgjedhë një rrjedhë për pikën (Redakto pikën → Rrjedha e parazgjedhur).",
   "kontrollplan.velgFlytForPunkt": "Zgjidhni rrjedhën për pikën",
   "kontrollplan.tilFlytOppsett": "Shko te konfigurimi i rrjedhës",

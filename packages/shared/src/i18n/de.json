@@ -3317,7 +3317,6 @@
   "kontrollplan.aapneSjekkliste": "Checkliste öffnen",
   "kontrollplan.kobleEksisterende": "Vorhandene Checkliste verknüpfen",
   "kontrollplan.kobleIngenKandidater": "Keine verfügbaren Checklisten mit derselben Vorlage zum Verknüpfen.",
-  "kontrollplan.startVelgFlyt": "Wählen Sie Dokumentenfluss",
   "kontrollplan.startIngenFlyt": "Zu diesem Zeitpunkt ist noch kein Dokumentenfluss eingestellt, daher kann dieser noch nicht gestartet werden. Ein Projekt- oder Firmenadministrator muss einen Fluss für den Punkt auswählen (Punkt bearbeiten → Vorgewählter Fluss).",
   "kontrollplan.velgFlytForPunkt": "Wählen Sie „Flow“ für den Punkt",
   "kontrollplan.tilFlytOppsett": "Gehen Sie zum Flow-Setup",
