@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Fără puncte de control",
   "kontrollplan.ingenPunkterBeskrivelse": "Adăugați puncte de control pentru a începe",
   "kontrollplan.velgByggeplass": "Selectați un șantier pentru a vizualiza planul de control",
+  "kontrollplan.ingenPunkterByggeplass": "Nu există puncte de control pe acest șantier",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Punctele de control sunt pe alt șantier - atingeți pentru a merge acolo:",
   "kontrollplan.sjekklisteMal": "Șablon de listă de verificare",
   "kontrollplan.faggruppe": "Grup comercial",
   "kontrollplan.omrade": "Zonă",

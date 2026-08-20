@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Контрольних точок немає",
   "kontrollplan.ingenPunkterBeskrivelse": "Додайте контрольні точки, щоб почати",
   "kontrollplan.velgByggeplass": "Виберіть будівельний майданчик, щоб переглянути контрольний план",
+  "kontrollplan.ingenPunkterByggeplass": "На цьому будівельному майданчику немає контрольних точок",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Контрольні точки знаходяться на іншому будівельному майданчику — натисніть, щоб перейти туди:",
   "kontrollplan.sjekklisteMal": "Шаблон контрольного списку",
   "kontrollplan.faggruppe": "Торгова група",
   "kontrollplan.omrade": "Площа",

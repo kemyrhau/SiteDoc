@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Ei ohjauspisteitä",
   "kontrollplan.ingenPunkterBeskrivelse": "Aloita lisäämällä ohjauspisteitä",
   "kontrollplan.velgByggeplass": "Valitse rakennuspaikka nähdäksesi ohjaussuunnitelman",
+  "kontrollplan.ingenPunkterByggeplass": "Tällä rakennustyömaalla ei ole valvontapisteitä",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Valvontapisteet ovat toisella rakennustyömaalla – napauta mennäksesi sinne:",
   "kontrollplan.sjekklisteMal": "Tarkistuslistan malli",
   "kontrollplan.faggruppe": "Kaupparyhmä",
   "kontrollplan.omrade": "Alue",

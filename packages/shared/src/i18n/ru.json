@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Нет контрольных точек",
   "kontrollplan.ingenPunkterBeskrivelse": "Добавьте контрольные точки, чтобы начать",
   "kontrollplan.velgByggeplass": "Выберите строительную площадку, чтобы просмотреть план управления",
+  "kontrollplan.ingenPunkterByggeplass": "На этой строительной площадке нет контрольных точек.",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Контрольные точки находятся на другой строительной площадке — нажмите, чтобы перейти туда:",
   "kontrollplan.sjekklisteMal": "Шаблон контрольного списка",
   "kontrollplan.faggruppe": "Торговая группа",
   "kontrollplan.omrade": "Область",

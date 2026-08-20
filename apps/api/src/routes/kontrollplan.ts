@@ -97,6 +97,35 @@ export const kontrollplanRouter = router({
       });
     }),
 
+  // Andre byggeplasser i samme prosjekt som HAR ikke-arkiverte kontrollpunkter.
+  // Brukes av mobil for å skille «ingen punkter på prosjektet» fra «ingen punkter
+  // på DENNE byggeplassen — de ligger på X» + hopp dit. Tar byggeplassId (utleder
+  // prosjektet selv), så mobil-skjermen slipper å kjenne projectId.
+  andreByggeplasserMedPunkter: protectedProcedure
+    .input(z.object({ byggeplassId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
+        where: { id: input.byggeplassId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
+      const planer = await ctx.prisma.kontrollplan.findMany({
+        where: {
+          projectId: byggeplass.projectId,
+          byggeplassId: { not: input.byggeplassId },
+        },
+        select: {
+          byggeplassId: true,
+          byggeplass: { select: { name: true } },
+          _count: { select: { punkter: { where: { arkivert: false } } } },
+        },
+      });
+      return planer
+        .filter((p) => p._count.punkter > 0)
+        .map((p) => ({ byggeplassId: p.byggeplassId, navn: p.byggeplass.name, antall: p._count.punkter }))
+        .sort((a, b) => b.antall - a.antall);
+    }),
+
   // Opprett eller hent kontrollplan for byggeplass
   opprettEllerHent: protectedProcedure
     .input(z.object({

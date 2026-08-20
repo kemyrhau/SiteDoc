@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Brak punktów kontrolnych",
   "kontrollplan.ingenPunkterBeskrivelse": "Aby rozpocząć, dodaj punkty kontrolne",
   "kontrollplan.velgByggeplass": "Wybierz plac budowy, aby wyświetlić plan sterowania",
+  "kontrollplan.ingenPunkterByggeplass": "Brak punktów kontrolnych na tym placu budowy",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Punkty kontrolne znajdują się na innym placu budowy — kliknij, aby tam przejść:",
   "kontrollplan.sjekklisteMal": "Szablon listy kontrolnej",
   "kontrollplan.faggruppe": "Grupa handlowa",
   "kontrollplan.omrade": "Obszar",

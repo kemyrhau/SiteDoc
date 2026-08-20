@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "No control points",
   "kontrollplan.ingenPunkterBeskrivelse": "Add control points to get started",
   "kontrollplan.velgByggeplass": "Select a building site to view the control plan",
+  "kontrollplan.ingenPunkterByggeplass": "No control points on this building site",
+  "kontrollplan.punkterPaaAnnenByggeplass": "The control points are on another building site — tap to go there:",
   "kontrollplan.sjekklisteMal": "Checklist template",
   "kontrollplan.faggruppe": "Trade group",
   "kontrollplan.omrade": "Area",

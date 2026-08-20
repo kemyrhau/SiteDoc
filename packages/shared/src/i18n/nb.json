@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Ingen kontrollpunkter",
   "kontrollplan.ingenPunkterBeskrivelse": "Legg til kontrollpunkter for å komme i gang",
   "kontrollplan.velgByggeplass": "Velg en byggeplass for å se kontrollplanen",
+  "kontrollplan.ingenPunkterByggeplass": "Ingen kontrollpunkter på denne byggeplassen",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Kontrollpunktene ligger på en annen byggeplass — trykk for å gå dit:",
   "kontrollplan.sjekklisteMal": "Sjekkliste-mal",
   "kontrollplan.faggruppe": "Faggruppe",
   "kontrollplan.omrade": "Område",

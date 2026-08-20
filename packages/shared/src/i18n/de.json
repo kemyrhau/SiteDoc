@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Keine Kontrollpunkte",
   "kontrollplan.ingenPunkterBeskrivelse": "Fügen Sie Kontrollpunkte hinzu, um loszulegen",
   "kontrollplan.velgByggeplass": "Wählen Sie eine Baustelle aus, um den Kontrollplan anzuzeigen",
+  "kontrollplan.ingenPunkterByggeplass": "Auf dieser Baustelle gibt es keine Kontrollpunkte",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Die Kontrollpunkte befinden sich auf einer anderen Baustelle – tippen Sie, um dorthin zu gelangen:",
   "kontrollplan.sjekklisteMal": "Checklisten-Vorlage",
   "kontrollplan.faggruppe": "Handelsgruppe",
   "kontrollplan.omrade": "Bereich",

@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Aucun point de contrôle",
   "kontrollplan.ingenPunkterBeskrivelse": "Ajoutez des points de contrôle pour commencer",
   "kontrollplan.velgByggeplass": "Sélectionnez un chantier pour visualiser le plan de contrôle",
+  "kontrollplan.ingenPunkterByggeplass": "Aucun point de contrôle sur ce chantier",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Les points de contrôle se trouvent sur un autre chantier — appuyez pour y aller :",
   "kontrollplan.sjekklisteMal": "Modèle de liste de contrôle",
   "kontrollplan.faggruppe": "Groupe commercial",
   "kontrollplan.omrade": "Zone",
