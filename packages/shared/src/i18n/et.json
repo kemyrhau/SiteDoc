@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Pole kontrollpunkte",
   "kontrollplan.ingenPunkterBeskrivelse": "Alustamiseks lisage kontrollpunktid",
   "kontrollplan.velgByggeplass": "Juhtplaani vaatamiseks valige ehitusplats",
+  "kontrollplan.ingenPunkterByggeplass": "Sellel ehitusplatsil pole kontrollpunkte",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Kontrollpunktid asuvad teisel ehitusplatsil – puudutage sinna minemiseks:",
   "kontrollplan.sjekklisteMal": "Kontrollnimekirja mall",
   "kontrollplan.faggruppe": "Kaubandusgrupp",
   "kontrollplan.omrade": "Piirkond",

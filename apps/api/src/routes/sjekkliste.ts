@@ -583,7 +583,11 @@ export const sjekklisteRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
         where: { id: input.id },
-        include: { template: { select: { projectId: true, domain: true } } },
+        include: {
+          template: { select: { projectId: true, domain: true } },
+          // 3b: koblet kontrollpunkt (om noen) — for å speile lokasjon dit.
+          kontrollplanPunkt: { select: { id: true } },
+        },
       });
       await verifiserDokumentTilgang(
         ctx.userId,
@@ -604,10 +608,27 @@ export const sjekklisteRouter = router({
       }
 
       const { id, ...data } = input;
-      return ctx.prisma.checklist.update({
+      const oppdatert = await ctx.prisma.checklist.update({
         where: { id },
         data,
       });
+
+      // 3b: Er sjekklista koblet til et kontrollpunkt og «lokasjoner»-flyttingen rører
+      // tegning/posisjon — speil samme plassering til punktet. Uten dette skrives
+      // posisjonen kun til Checklist (som kontrollplan-tegningsoversikten IKKE leser),
+      // så punkt-markøren forsvinner. Checklist-posisjonen beholdes (rendres i
+      // sjekkliste-detalj/utskrift). Samme nullstill-regel som settPunktPlassering:
+      // fjernes tegningen, tømmes posisjonen.
+      if (input.drawingId !== undefined && sjekkliste.kontrollplanPunkt) {
+        await ctx.prisma.kontrollplanPunkt.update({
+          where: { id: sjekkliste.kontrollplanPunkt.id },
+          data: input.drawingId
+            ? { drawingId: input.drawingId, positionX: input.positionX ?? null, positionY: input.positionY ?? null }
+            : { drawingId: null, positionX: null, positionY: null },
+        });
+      }
+
+      return oppdatert;
     }),
 
   // Oppdater sjekklistedata (fylling av felter)

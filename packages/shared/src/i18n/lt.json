@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Kontrolinių taškų nėra",
   "kontrollplan.ingenPunkterBeskrivelse": "Norėdami pradėti, pridėkite kontrolinius taškus",
   "kontrollplan.velgByggeplass": "Norėdami peržiūrėti valdymo planą, pasirinkite statybvietę",
+  "kontrollplan.ingenPunkterByggeplass": "Šioje statybvietėje nėra kontrolės taškų",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Kontrolės taškai yra kitoje statybvietėje – palieskite, kad ten eitumėte:",
   "kontrollplan.sjekklisteMal": "Kontrolinio sąrašo šablonas",
   "kontrollplan.faggruppe": "Prekybos grupė",
   "kontrollplan.omrade": "Plotas",

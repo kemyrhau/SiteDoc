@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Nuk ka pika kontrolli",
   "kontrollplan.ingenPunkterBeskrivelse": "Shtoni pikat e kontrollit për të filluar",
   "kontrollplan.velgByggeplass": "Zgjidhni një kantier ndërtimi për të parë planin e kontrollit",
+  "kontrollplan.ingenPunkterByggeplass": "Nuk ka pikë kontrolli në këtë kantier",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Pikat e kontrollit janë në një kantier tjetër ndërtimi — trokitni lehtë për të shkuar atje:",
   "kontrollplan.sjekklisteMal": "Modeli i listës së kontrollit",
   "kontrollplan.faggruppe": "Grupi tregtar",
   "kontrollplan.omrade": "Zona",

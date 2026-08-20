@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Nav kontroles punktu",
   "kontrollplan.ingenPunkterBeskrivelse": "Lai sāktu, pievienojiet kontroles punktus",
   "kontrollplan.velgByggeplass": "Izvēlieties būvlaukumu, lai skatītu kontroles plānu",
+  "kontrollplan.ingenPunkterByggeplass": "Šajā būvlaukumā nav kontroles punktu",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Kontroles punkti atrodas citā būvlaukumā — pieskarieties, lai tur dotos:",
   "kontrollplan.sjekklisteMal": "Kontrolsaraksta veidne",
   "kontrollplan.faggruppe": "Tirdzniecības grupa",
   "kontrollplan.omrade": "Apgabals",

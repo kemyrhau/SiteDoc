@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Žádné kontrolní body",
   "kontrollplan.ingenPunkterBeskrivelse": "Chcete-li začít, přidejte kontrolní body",
   "kontrollplan.velgByggeplass": "Vyberte staveniště pro zobrazení kontrolního plánu",
+  "kontrollplan.ingenPunkterByggeplass": "Na tomto staveništi nejsou žádné kontrolní body",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Kontrolní body jsou na jiném staveništi – klepnutím tam přejdete:",
   "kontrollplan.sjekklisteMal": "Šablona kontrolního seznamu",
   "kontrollplan.faggruppe": "Obchodní skupina",
   "kontrollplan.omrade": "Plocha",

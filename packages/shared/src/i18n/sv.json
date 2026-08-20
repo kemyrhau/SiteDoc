@@ -2567,6 +2567,8 @@
   "kontrollplan.ingenPunkter": "Inga kontrollpunkter",
   "kontrollplan.ingenPunkterBeskrivelse": "Lägg till kontrollpunkter för att komma igång",
   "kontrollplan.velgByggeplass": "Välj en byggarbetsplats för att se kontrollplanen",
+  "kontrollplan.ingenPunkterByggeplass": "Inga kontrollpunkter på denna byggarbetsplats",
+  "kontrollplan.punkterPaaAnnenByggeplass": "Kontrollpunkterna finns på en annan byggarbetsplats – tryck för att gå dit:",
   "kontrollplan.sjekklisteMal": "Checklista mall",
   "kontrollplan.faggruppe": "Handelsgrupp",
   "kontrollplan.omrade": "Område",
