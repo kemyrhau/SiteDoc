@@ -5,9 +5,9 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift, ekspanderEndring, byggKolonnerPerFelt } from "@sitedoc/pdf";
-import type { ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
+import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/pdf";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { Check, AlertCircle, Loader2, Printer, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
+import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -771,17 +771,6 @@ export default function SjekklisteDetaljSide() {
               )}
               <span className="hidden sm:inline">{t("handling.lastNedArkivPdf")}</span>
             </button>
-            <button
-              // noopener: gir print-fanen egen renderer-prosess så window.print()-
-              // dialogen ikke fryser denne (opphavs-)fanen — de er same-origin og
-              // ville ellers delt hovedtråd. Auto-lukking (afterprint→window.close)
-              // virker fortsatt: script-åpnet, history-1-fane er script-closable. BEF-001-funn 2.
-              onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}?print=true`, "_blank", "noopener")}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-              title="Skriv ut"
-            >
-              <Printer className="h-4 w-4" />
-            </button>
           </div>
         </div>
 
@@ -983,6 +972,15 @@ interface EndringsloggRad {
 
 type MalObjekt = { id: string; label: string; parentId?: string | null; sortOrder: number };
 
+/** Segmenter → JSX: endrede ord i <strong> (ord-diff fra @sitedoc/pdf, ikke HTML). */
+function RenderSegmenter({ segs }: { segs: Segment[] }) {
+  return (
+    <>
+      {segs.map((s, i) => (s.endret ? <strong key={i}>{s.tekst}</strong> : <span key={i}>{s.tekst}</span>))}
+    </>
+  );
+}
+
 /**
  * Endringslogg — gjenbruker den avhengighetsfrie transformen fra `@sitedoc/pdf`
  * (`ekspanderEndring`) i stedet for lokal JSON-formatering. Fikser to bugs som
@@ -994,31 +992,30 @@ type MalObjekt = { id: string; label: string; parentId?: string | null; sortOrde
 function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
   const { data: sjekkliste } = trpc.sjekkliste.hentMedId.useQuery({ id: sjekklisteId });
 
-  const enableChangeLog = (sjekkliste?.template as { enableChangeLog?: boolean } | undefined)?.enableChangeLog;
-  const changeLog = ((sjekkliste as { changeLog?: EndringsloggRad[] } | undefined)?.changeLog ?? []);
-  const objekter = ((sjekkliste?.template as { objects?: MalObjekt[] } | undefined)?.objects ?? []);
+  // Smale refs (ikke hele `sjekkliste`) i dep-arrayene — den tRPC-infererte typen
+  // trigger TS2589 «excessively deep» hvis den havner i useMemo-deps.
+  const template = sjekkliste?.template as { objects?: MalObjekt[]; enableChangeLog?: boolean } | undefined;
+  const changeLog = (sjekkliste as { changeLog?: EndringsloggRad[] } | undefined)?.changeLog;
+  const enableChangeLog = template?.enableChangeLog;
 
-  const kolonnerPerFelt = useMemo(
+  const kolonnerPerFelt = useMemo(() => {
     // byggObjektTre-returtypen er ikke rekursiv (dyp `children: unknown[]`) —
     // cast som i sammenstilling.ts. byggKolonnerPerFelt leser kun id/label/children.
-    () => byggKolonnerPerFelt(byggObjektTre(objekter) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]),
-    [objekter],
-  );
+    return byggKolonnerPerFelt(byggObjektTre(template?.objects ?? []) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]);
+  }, [template]);
 
-  const rader = useMemo(
-    () =>
-      changeLog.flatMap((rad) =>
-        ekspanderEndring(rad.fieldLabel, rad.oldValue, rad.newValue, kolonnerPerFelt[rad.fieldId]).map((d, i) => ({
-          key: `${rad.id}-${i}`,
-          felt: d.felt,
-          fraVerdi: d.fraVerdi,
-          tilVerdi: d.tilVerdi,
-          createdAt: rad.createdAt,
-          bruker: rad.user.name ?? rad.user.email,
-        })),
-      ),
-    [changeLog, kolonnerPerFelt],
-  );
+  const rader = useMemo(() => {
+    return (changeLog ?? []).flatMap((rad) =>
+      ekspanderEndring(rad.fieldLabel, rad.oldValue, rad.newValue, kolonnerPerFelt[rad.fieldId]).map((d, i) => ({
+        key: `${rad.id}-${i}`,
+        felt: d.felt,
+        fraVerdi: d.fraVerdi,
+        tilVerdi: d.tilVerdi,
+        createdAt: rad.createdAt,
+        bruker: rad.user.name ?? rad.user.email,
+      })),
+    );
+  }, [changeLog, kolonnerPerFelt]);
 
   if (!enableChangeLog || rader.length === 0) return null;
 
@@ -1040,8 +1037,8 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
             <span className="shrink-0 font-medium text-gray-600">{rad.bruker}</span>
             <span className="text-gray-500">
               <span className="font-medium">{rad.felt}</span>
-              {rad.fraVerdi != null && <> fra &laquo;{rad.fraVerdi}&raquo;</>}
-              {" "}til &laquo;{rad.tilVerdi ?? "Ikke utfylt"}&raquo;
+              {rad.fraVerdi != null && <> fra &laquo;<RenderSegmenter segs={rad.fraVerdi} />&raquo;</>}
+              {" "}til &laquo;{rad.tilVerdi != null ? <RenderSegmenter segs={rad.tilVerdi} /> : "Ikke utfylt"}&raquo;
             </span>
           </div>
         ))}

@@ -276,17 +276,34 @@ export const updateDokumentflytSchema = z.object({
   templateIds: z.array(z.string().uuid()).optional(),
 });
 
-export const addDokumentflytMedlemSchema = z.object({
-  dokumentflytId: z.string().uuid(),
-  projectId: z.string().uuid(),
-  faggruppeId: z.string().uuid().optional(),
-  projectMemberId: z.string().uuid().optional(),
-  groupId: z.string().uuid().optional(),
-  rolle: dokumentflytRolleSchema,
-  steg: z.number().int().min(1).default(1),
-  kanRedigere: z.boolean().default(true),
-  låsesEtterPasseringer: z.number().int().min(1).nullable().optional(),
-});
+export const addDokumentflytMedlemSchema = z
+  .object({
+    dokumentflytId: z.string().uuid(),
+    projectId: z.string().uuid(),
+    faggruppeId: z.string().uuid().optional(),
+    projectMemberId: z.string().uuid().optional(),
+    groupId: z.string().uuid().optional(),
+    rolle: dokumentflytRolleSchema,
+    steg: z.number().int().min(1).default(1),
+    kanRedigere: z.boolean().default(true),
+    låsesEtterPasseringer: z.number().int().min(1).nullable().optional(),
+  })
+  // Et flyt-ledd bindes til HØYST én av faggruppe / gruppe / person. 0 er gyldig
+  // (åpent ledd — «alle prosjektmedlemmer», jf. modul.ts HMS-bestiller). 2+ er ikke:
+  // synlighets- og ball-logikken (byggPosisjonsLedd) forutsetter én binding per ledd.
+  .superRefine((val, ctx) => {
+    const antallBindinger = [val.faggruppeId, val.projectMemberId, val.groupId].filter(
+      (v) => v != null,
+    ).length;
+    if (antallBindinger > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Et dokumentflyt-ledd kan bindes til høyst én av faggruppe, gruppe eller person.",
+        path: ["faggruppeId"],
+      });
+    }
+  });
 
 export const removeDokumentflytMedlemSchema = z.object({
   id: z.string().uuid(),

@@ -1,5 +1,9 @@
-fastapi>=0.100.0
+# Pakke A / A6: fastapi>=0.115 drar starlette>=0.40 (multipart-DoS-CVE-er i
+# eldre starlette). python-multipart>=0.0.18 lukker CVE-2024-53981 (DoS ved
+# ondsinnet form-data). Workeren tar multipart-opplasting paa alle /parse-ruter.
+fastapi>=0.115.0
 uvicorn>=0.23.0
 openpyxl>=3.1.0
 pdfplumber>=0.10.0
-python-multipart>=0.0.6
+python-multipart>=0.0.18
+defusedxml>=0.7.1

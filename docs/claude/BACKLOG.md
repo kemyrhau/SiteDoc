@@ -27,17 +27,19 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ### 🔴 Pakke A — før pilot
 
+> **⚠️ Metode-prinsipp (2026-08-20): Aikido vurderer DEKLARERTE ranger, ikke KJØRENDE versjoner.** Et funn på `^x.y.0` kan være uskadelig i drift fordi lockfilen allerede har resolvet til en patchet versjon. **Sjekk `pnpm list <pakke>` / resolved versjon i `pnpm-lock.yaml` mot faktisk kjørende versjon FØR du antar at et funn er reelt** — det kan endre alvorlighetsgraden på flere av Pakke A-punktene (bekreftet for A3, se under).
+
 **A1. DOMPurify på `dangerouslySetInnerHTML`** — 🔴 **cowork løfter denne over Next-bumpen.** Aikido sa medium; det er den mest reelle angrepsflaten i listen. **Verifisert: 9 forekomster i 4 filer** (`dokumentleser/page.tsx`, `dokumenter/[id]/les/page.tsx`, `tegninger/page.tsx`, `oppsett/byggeplasser/page.tsx`), og **DOMPurify er ikke i bruk noe sted**. Filene rendrer `innhold`/`blokk.content` fra opplastede og maskinoversatte dokumenter, og `svgInnhold` fra DWG-konvertering. Opplastet innhold rett i DOM er stored XSS. SVG-profil for tegningene. Est. 3 t.
 
 **A2. `@fastify/static` path traversal** (High) — verifisert `^9.0.0`. Bump til patchet versjon, og verifiser at uploads-serving bruker `sendFile` med rot-lås. 🔴 **Merk sammenhengen:** vi lukket en omgåelse av *vår egen* signaturgate 2026-08-12 (`//`, `/./`, `%2e` → 200). Har `@fastify/static` i tillegg egen traversal, kan filer utenfor `uploads/` nås uavhengig av gaten. Est. 1 t.
 
-**A3. Next.js-bump** (critical) — verifisert `next ^14.2.0`, utenfor sikkerhetsstøtte. Kjente CVE-er i 14-serien, bl.a. middleware-autorisasjonsbypass fikset i 14.2.25. Bump til nyeste 14.2.x nå; Next 15 planlegges etter pilot. Dekker også «Next.js SSRF» + fast-uri/undici via lock. Est. 10 t.
+**A3. Next.js-bump** (critical) — ✅ **KORRIGERT + gjort 2026-08-20 (gulv-herding).** Aikido flagget `next ^14.2.0`, men **prod kjørte allerede 14.2.35** (lockfilen hadde resolvet den løse rangen til nyeste 14.2.x). Middleware-autorisasjonsbypassen (fikset i 14.2.25) var derfor **ikke en reell eksponering i drift** — funnet «critical» bygde på den deklarerte rangen, ikke kjørende versjon. Tiltak: hevet gulvet `next`/`eslint-config-next` `^14.2.0` → `^14.2.35` så en fremtidig `pnpm install` ikke kan regge tilbake under CVE-linjen (`eslint` forblir v8, ikke Next 15). Ingen faktisk versjonsflytt. Est. var 10 t; reelt <1 t.
 
-**A4. Hardkodet API-nøkkel** (High) — verifisert: `apps/web/src/components/GeoReferanseEditor.tsx` har Norkart/Webatlas-nøkkel i klartekst, og **ingen `NEXT_PUBLIC_*`-variant finnes**. (Fabels rapport oppgav `components/tegning/` — riktig sti er `components/`.) Maptile-nøkler er synlige i nettleseren uansett, men skal (a) ut av kildekoden og inn i env, (b) domenebegrenses hos Norkart, (c) **roteres** — den ligger i git-historikken. Est. 1 t.
+**A4. Hardkodet API-nøkkel** (High) — 🟡 **UTSATT 2026-08-20** (Norkart-dialogen tar tid; resten av Pakke A er gjort). Kode urørt (`GeoReferanseEditor.tsx:262`). Rekkefølge ved gjenopptak: domenebegrens+roter hos Norkart → `NEXT_PUBLIC_NORKART_API_KEY` som **build-arg** (Dockerfile.web + compose prod/test + `web.env`, jf. `NEXT_PUBLIC_BUILD_SHA`) → fjern hardkodet verdi → deploy → revoker gammel. Verifisert: `apps/web/src/components/GeoReferanseEditor.tsx` har Norkart/Webatlas-nøkkel i klartekst, og **ingen `NEXT_PUBLIC_*`-variant finnes**. (Fabels rapport oppgav `components/tegning/` — riktig sti er `components/`.) Maptile-nøkler er synlige i nettleseren uansett, men skal (a) ut av kildekoden og inn i env, (b) domenebegrenses hos Norkart, (c) **roteres** — den ligger i git-historikken. Est. 1 t.
 
-**A5. `defusedxml` i ftd-worker** (Aikido critical, reelt medium/DoS) — verifisert: `ftd-worker/main.py` bruker `xml.etree` på opplastet NS3459-XML, og **`defusedxml` står ikke i requirements**. Entity-expansion-DoS. Est. 30 min.
+**A5. `defusedxml` i ftd-worker** — ✅ **gjort 2026-08-20, men KORRIGERT alvorlighet: ftd-worker er IKKE deployet.** `ftd-worker/main.py` brukte `xml.etree.fromstring` på opplastet NS3459-XML (entity-expansion-DoS), nå byttet til `defusedxml.ElementTree.fromstring` + `defusedxml>=0.7.1` (verifisert i venv: billion-laughs → `EntitiesForbidden`). **MEN Python-workeren har ingen Dockerfile, står ikke i noen compose, og kalles ikke fra api/web** — den er en frittstående prototype (siden `55b73664`), ikke en kjørende flate. **Prodens faktiske NS3459/XML-parsing skjer in-process i `apps/api/src/services/ftd-prosessering.ts:1391` med `fast-xml-parser`** (`XMLParser`). ⚠️ **Det er DEN veien som er den reelle XML-flaten** — dekket av `fast-xml-parser`-oppdateringen i Pakke B; ikke la den falle mellom stolene. Fiksen her er gyldig hvis workeren noen gang deployes, men lukket ingen live-eksponering. Est. var 30 min.
 
-**A6. `fastapi>=0.115`-pin** — ftd-worker tar multipart-opplasting; kjente DoS-CVE-er i eldre starlette. Pinnen drar starlette ≥0.40 + nyeste python-multipart. Est. 30 min.
+**A6. `fastapi>=0.115`-pin** — ✅ **gjort 2026-08-20, samme korreksjon som A5: ftd-worker er ikke deployet.** Hevet `fastapi>=0.100`→`>=0.115` + `python-multipart>=0.0.6`→`>=0.0.18` (CVE-2024-53981). ⚠️ **Python har ingen lockfil** — `pip install -r requirements.txt` med `>=`-gulv resolver til nyeste ved hver build, så en fersk build hadde uansett fått patchet starlette/multipart; gulv-hevingen gjør sikkerhetsgulvet eksplisitt (samme logikk som A3). Men siden workeren ikke kjører, var det ingen reell eksponering å lukke. Est. var 30 min.
 
 **A7. Proxy-headers** — HSTS (High), X-Frame-Options (Medium), X-Powered-By av (Medium). Tre linjer i nginx/proxy. Est. 15 min.
 
@@ -346,7 +348,9 @@ Rørt av fremdriftsplan-importen: rad-identiteten `@@unique([kontrollplanId, imp
 - *Kode i dag:* bilde-merking + dokumenthistorikk + signatur har hh:mm (levert 08-15/08-16). Men statusblokk-cellene «Opprettet» (`sammenstilling.ts:226`) og «Sist endret» (`dokument.ts:34`) bruker `formaterDatoKort` → kun dato.
 - *Mangler:* dato+tid for de to cellene (~2 linjer, `formaterDatoKort` → dato+tid-format). ❓ Henger sammen med **BACKLOG-punkt 2 (statusblokk-etikett)**: hvis «Opprettet» blir «Utført dato» med annen datakilde, endres tid-spørsmålet med den. Avklar sammen med punkt 2.
 
-### 🔴 Klient-utskrift: attachments-bilder rendres dobbelt, én gang brutt (Kenneth, prod 2026-08-15)
+### ✅ Klient-utskrift: attachments-bilder rendres dobbelt, én gang brutt (Kenneth, prod 2026-08-15) — LØST av F2 (2026-08-20)
+
+**Lukket 2026-08-20 (F2 / `feat/f2-fjern-klient-utskrift`).** Dobbeltrenderingen krevde `RapportObjektVisning` sin attachments-gren **og** `FeltVedlegg` samtidig — det skjedde kun i `apps/web/src/app/utskrift/**`, som nå er slettet. Den gjenværende klient-utskrift-flaten `sjekklister/skriv-ut/page.tsx` bruker **ikke** `FeltVedlegg`, så ingen dobbeltrendering gjenstår. (Original beskrivelse under.)
 
 **Observert i prod** (BEF-002, Test prosjekt SiteDoc Røstbakken): over bildene står to **brutte bilde-ikoner** med filnavnene `IMG_1773940614053.jpg` og `IMG_1773943366962.jpg` — og rett under står de samme bildene rendret korrekt.
 
@@ -693,6 +697,8 @@ Hører naturlig sammen med fase 3 (arkivmal), der bildeblokkene uansett bygges.
 
 ### Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (målt 2026-08-13)
 
+> ⚠️ **IKKE lukket av F2 (2026-08-20).** Planen § F2 listet denne blant «fire saker F2 dekker», men F2 fjerner kun **web**-klient-utskriften. Denne saken bor i **mobil-stien** (`packages/pdf/src/felt.ts:131/152` via expo-print) og hører til **Fase 3 (mobil-device)** — dokgen rørte ingen mobil-filer. Meldt fra i stedet for lukket (per F2-ordrens gate).
+
 **Oppfølger til web-funnet under.** `packages/pdf/src/felt.ts` viser «Ikke utfylt» for ~15 felttyper, men returnerer `""` — altså skjuler feltet — for to innholdsbærende typer:
 
 - **`repeater` med 0 rader** (`felt.ts:152`) → tom kontrolltabell forsvinner
@@ -707,6 +713,8 @@ Det betyr at kontrolltabellen Kenneth reagerte på i `K-avv-003` ville forsvunne
 **Tiltak:** vurder om mobil skal få `visTommeStrukturer` som default etter at arkivmalen er verifisert. Krever EAS-bygg for å nå felt.
 
 ### 🔴 Web-utskrift skjuler uutfylte felter — mobil viser dem (målt i prod 2026-08-12)
+
+> ⚠️ **DELVIS av F2 (2026-08-20), IKKE lukket.** F2 slettet `utskrift/**`, men denne oppførselen bor i **delt** `RapportObjektVisning.tsx:42` (`if (tom) return null`), som fortsatt brukes av `sjekklister/skriv-ut/page.tsx` (bulk-utskrift av valgte sjekklister) — en andre web-klient-utskrift-flate planen § F2 overså. **Lukkes først når `skriv-ut` også fjernes/flyttes til arkiv-PDF** (egen ordre — se F2-rapport 2026-08-20). Krever ny kode, utenfor F2s «ingen ny kode»-scope.
 
 **Samme dokument gir ulikt innhold avhengig av hvor det skrives ut.**
 
@@ -739,6 +747,8 @@ Det betyr at kontrolltabellen Kenneth reagerte på i `K-avv-003` ville forsvunne
 Gjelder minst `dashbord/oppsett/prosjektoppsett`, men kartlegg alle `dashbord/oppsett/*` og `dashbord/firma/*`-innstillingsflater.
 
 ### Store bilder mangler i klient-utskrift — `window.print()` venter ikke på lasting (målt 2026-08-12)
+
+> ⚠️ **DELVIS av F2 (2026-08-20), IKKE lukket.** F2 slettet `utskrift/**` (som hadde bilde-venting via `skrivUtNaarBilderErKlare`). Men `sjekklister/skriv-ut/page.tsx:111` kaller fortsatt `window.print()` **uten** bilde-venting — samme bug, andre flate. **Lukkes når `skriv-ut` fjernes/flyttes til arkiv-PDF** (samme oppfølger som web-skjuler-uutfylte over).
 
 **Eksisterende feil, ikke innført av noen nylig endring.** Oppdaget under verifisering av bilde-migreringen på test.
 

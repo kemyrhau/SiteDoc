@@ -1,4 +1,5 @@
-import { eq, and, gt, inArray } from "drizzle-orm";
+import { eq, and, gt, gte, inArray } from "drizzle-orm";
+import { finnSedlerÅSlette } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
   dagsseddelLocal,
@@ -29,7 +30,7 @@ import type { trpc } from "../lib/trpc";
 
 type SyncResultat = {
   push: { ok: number; conflict: number; avvist: number; feilet: number };
-  pull: { mottatt: number };
+  pull: { mottatt: number; slettet: number };
   feil?: string;
 };
 
@@ -149,12 +150,12 @@ export async function syncTimer(
 ): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
-    return { push: { ok: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0 } };
+    return { push: { ok: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0, slettet: 0 } };
   }
 
   const resultat: SyncResultat = {
     push: { ok: 0, conflict: 0, avvist: 0, feilet: 0 },
-    pull: { mottatt: 0 },
+    pull: { mottatt: 0, slettet: 0 },
   };
 
   // Forson lokal sedel-identitet mot server-identiteten (2026-07-11).
@@ -837,6 +838,46 @@ export async function syncTimer(
         }
       }
     }
+
+    // ORDRE 1a: delete-propagering server→mobil. Serveren oppga et EKSPLISITT
+    // intervall (`slettevindu`) + de levende sedlene i det. Fjern lokale sedler
+    // innenfor intervallet som IKKE lenger finnes på server. Vakt 1 (kun innenfor
+    // vinduet) og vakt 2 (aldri pending/avvist) håndheves i finnSedlerÅSlette
+    // (@sitedoc/shared, enhetstestet) — rotårsaksfiks i sync-laget, ikke en
+    // klient-dedup som maskerer. `gte`-filteret er kun en kandidat-innsnevring;
+    // den delte funksjonen forblir den autoritative vakten.
+    const levendeNokler = new Set<string>();
+    for (const s of svar.levendeSedler) {
+      levendeNokler.add(s.id);
+      if (s.clientUuid) levendeNokler.add(s.clientUuid);
+    }
+    const lokaleIVindu = db
+      .select({
+        id: dagsseddelLocal.id,
+        dato: dagsseddelLocal.dato,
+        syncStatus: dagsseddelLocal.syncStatus,
+      })
+      .from(dagsseddelLocal)
+      .where(
+        and(
+          eq(dagsseddelLocal.userId, userId),
+          gte(dagsseddelLocal.dato, svar.slettevindu.fraDato),
+        ),
+      )
+      .all();
+    const skalSlettes = finnSedlerÅSlette(
+      lokaleIVindu,
+      levendeNokler,
+      svar.slettevindu,
+    );
+    for (const sheetId of skalSlettes) {
+      db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).run();
+      db.delete(sheetTilleggLocal).where(eq(sheetTilleggLocal.dagsseddelId, sheetId)).run();
+      db.delete(sheetMachineLocal).where(eq(sheetMachineLocal.dagsseddelId, sheetId)).run();
+      db.delete(sheetUtleggLocal).where(eq(sheetUtleggLocal.dagsseddelId, sheetId)).run();
+      db.delete(dagsseddelLocal).where(eq(dagsseddelLocal.id, sheetId)).run();
+    }
+    resultat.pull.slettet = skalSlettes.length;
 
     resultat.pull.mottatt = svar.sedler.length;
   } catch (e) {

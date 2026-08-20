@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
+import { rensSvg } from "@/lib/sanitize";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
@@ -256,7 +257,9 @@ export default function TegningerSide() {
     }
     fetch(svgUrl)
       .then((res) => res.text())
-      .then((tekst) => {
+      .then((raaTekst) => {
+        // Saniter opplastet/konvertert SVG FØR våre egne, betrodde transformasjoner
+        const tekst = rensSvg(raaTekst);
         // Fjern faste width/height og inject zoom-justert stroke-width CSS
         let tilpasset = tekst.replace(
           /<svg([^>]*)>/,
@@ -535,12 +538,16 @@ export default function TegningerSide() {
 
   // L2: kontrollpunkt-markører, farget av den avledede tilstanden (samme fargemodell
   // som liste/rutenett — delt hjelper). Form (fylt pin vs. omriss) = arbeid startet.
-  const kontrollpunkter: Array<{ id: string; x: number; y: number; label: string; tilstand: TilstandVisning }> =
+  const kontrollpunkter: Array<{ id: string; x: number; y: number; label: string; omradeNavn: string | null; sjekklisteId: string | null; tilstand: TilstandVisning }> =
     (kontrollpunktMarkører ?? []).map((p) => ({
       id: p.id,
       x: p.positionX!,
       y: p.positionY!,
       label: p.sjekklisteMal.prefix ? `${p.sjekklisteMal.prefix} — ${p.sjekklisteMal.name}` : p.sjekklisteMal.name,
+      omradeNavn: p.omrade?.navn ?? null,
+      // 3a: startet punkt → åpne den koblede sjekklista direkte; planlagt (ingen
+      // sjekkliste ennå) → fall tilbake til kontrollplan-oversikten som før.
+      sjekklisteId: p.sjekkliste?.id ?? null,
       tilstand: avledPunktTilstand(p, naaUke),
     }));
 
@@ -923,11 +930,15 @@ export default function TegningerSide() {
                     key={m.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      router.push(`/dashbord/${params.prosjektId}/kontrollplan`);
+                      router.push(
+                        m.sjekklisteId
+                          ? `/dashbord/${params.prosjektId}/sjekklister/${m.sjekklisteId}`
+                          : `/dashbord/${params.prosjektId}/kontrollplan`,
+                      );
                     }}
                     className={`group absolute -translate-x-1/2 -translate-y-full ${uthevet ? "z-20 scale-110" : ""}`}
                     style={{ left: `${m.x}%`, top: `${m.y}%` }}
-                    title={`${m.label} — ${t(m.tilstand.labelKey)}`}
+                    title={`${m.label}${m.omradeNavn ? ` · ${m.omradeNavn}` : ""} — ${t(m.tilstand.labelKey)}`}
                   >
                     {uthevet && (
                       <>

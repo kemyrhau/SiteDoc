@@ -42,15 +42,39 @@ dev-login-agent.md er kilden for whitelist/secret/tunnel-teori).
 Simulatoren kjøres fra et **eget, permanent worktree**, ikke fra hovedtreet. Grunn: hovedtreet
 brukes til merging og branch-bytte, og filer som endres under en pågående test gir falske funn.
 
+🔴 **`scripts/simulator-tre.sh` FINNES IKKE** (målt 2026-08-18, bekreftet 2026-08-20).
+Stegene under er den manuelle løypa som erstatter den. Kommandoene i den gamle
+script-formen er fjernet fra dette avsnittet fordi de sendte agenter i blindvei.
+
+**Førstegangsoppsett:**
+
 ```bash
-cd ~/Documents/Programmering/SiteDoc
-./scripts/simulator-tre.sh            # oppretter ved første kjøring, ellers oppdaterer til origin/develop
-./scripts/simulator-tre.sh main       # eller annen ref (f.eks. verifisere prod-kode)
+git -C ~/Documents/Programmering/SiteDoc worktree add \
+  ~/Documents/Programmering/SiteDoc-simulator --detach origin/develop
+cd ~/Documents/Programmering/SiteDoc-simulator && pnpm install
 ```
 
-Scriptet er idempotent: henter fra origin, setter treet på ønsket ref (detached), oppretter
-`apps/mobile/.env` med `EXPO_PUBLIC_API_URL=http://localhost:3301` første gang, og kjører
-`pnpm install` **kun** når lockfilen har endret seg. Til slutt skriver det ut oppstartsstegene.
+**`.env` — settes ÉN gang, kun hvis fila ikke finnes:**
+
+```bash
+cd ~/Documents/Programmering/SiteDoc-simulator/apps/mobile \
+&& [ -f .env ] && echo "FINNES ALLEREDE — ikke rør" \
+|| printf 'EXPO_PUBLIC_API_URL=http://localhost:3301\n' > .env
+```
+
+⚠️ **Gaten `[ -f .env ]` er ufravikelig.** `> .env` mot en eksisterende fil sletter
+gitignorerte verdier som ikke finnes noe annet sted — det har skjedd (dev-login-secreten
+forsvant slik, og lokal Expo sluttet å virke). Se
+[infrastruktur.md § Miljøvariabler](infrastruktur.md).
+
+**Oppdatere treet til ny kode senere:**
+
+```bash
+git -C ~/Documents/Programmering/SiteDoc-simulator fetch origin \
+&& git -C ~/Documents/Programmering/SiteDoc-simulator checkout --detach origin/develop
+```
+
+`.env` er gitignorert og overlever ref-bytte — den settes bare første gang.
 
 - **Sti:** `~/Documents/Programmering/SiteDoc-simulator`
 - **Detached HEAD med vilje** — `develop` er checked out i hovedtreet, og en branch kan bare være

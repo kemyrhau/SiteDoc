@@ -13,7 +13,13 @@
 
 import { esc, formaterDatoTidPunkt } from "../hjelpere";
 import { ARKIV_FARGER } from "./arkiv-css";
-import type { ArkivLogg, HendelseRad } from "./typer";
+import { formaterAktorRolle } from "./rolleEtikett";
+import type { ArkivLogg, HendelseRad, Segment } from "./typer";
+
+/** Segmenter → HTML: endrede ord i `<strong>`, uendrede rå-escapet (ord-diff). */
+function segmentHtml(segs: Segment[]): string {
+  return segs.map((s) => (s.endret ? `<strong>${esc(s.tekst)}</strong>` : esc(s.tekst))).join("");
+}
 
 /** «2026-08-05» → «05.08.2026» (ren streng — unngår tidssone-skift på dato-økter). */
 function datoKort(ymd: string): string {
@@ -38,7 +44,13 @@ function dokumenthistorikk(hendelser: HendelseRad[]): string {
   if (hendelser.length === 0) return "";
   const rader = hendelser
     .map((h) => {
-      const rolle = h.aktorRolle ? ` <span class="ark-svak">(${esc(h.aktorRolle)})</span>` : "";
+      // STEG 1: normaliser rå senderRolle (fire former: kjent enum → etikett · posisjonsetikett
+      // → rått · ukjent → rått · tom/null → BLANK). Blank ⇒ HELE parentesen utelates — «()» i
+      // hver tredje null-rad er støy (Kenneth-presisering 2026-08-20).
+      const rolleTekst = formaterAktorRolle(h.aktorRolle);
+      const rolle = rolleTekst
+        ? ` <span class="ark-svak">(${esc(rolleTekst)})</span>`
+        : "";
       const farge = handlingFarge(h.handling);
       const handling = farge
         ? `<span style="color:${farge};font-weight:600">${esc(h.handling)}</span>`
@@ -65,8 +77,8 @@ function endringslogg(logg: ArkivLogg): string {
       const hdr = `<tr><td colspan="3" class="ark-okt">${esc(ø.aktor)} · ${esc(datoKort(ø.dato))} <span class="ark-seksjon-note">— ${n} feltendring${n === 1 ? "" : "er"}</span></td></tr>`;
       const rows = ø.rader
         .map((r) => {
-          const fra = `<span class="ark-svak">${r.fraVerdi ? esc(r.fraVerdi) : "Ikke utfylt"}</span>`;
-          const til = r.tilVerdi ? esc(r.tilVerdi) : `<span class="ark-svak">Ikke utfylt</span>`;
+          const fra = `<span class="ark-svak">${r.fraVerdi ? segmentHtml(r.fraVerdi) : "Ikke utfylt"}</span>`;
+          const til = r.tilVerdi ? segmentHtml(r.tilVerdi) : `<span class="ark-svak">Ikke utfylt</span>`;
           // Punkt 4: full dato+tid på hver rad (ikke bare klokkeslett) — en rad
           // skal være selvforklarende lest isolert, uavhengig av økt-headeren.
           return `<tr><td class="ark-logg-tid">${esc(formaterDatoTidPunkt(r.tidspunkt))}</td><td>${esc(r.felt)}</td><td>${fra} → ${til}</td></tr>`;

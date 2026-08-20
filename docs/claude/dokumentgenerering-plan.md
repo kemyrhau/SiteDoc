@@ -35,7 +35,12 @@ endringsloggen.
 
 ## Faser
 
-### F1 — Endringsloggen blir lesbar 🔴 NESTE
+### F1 — Endringsloggen blir lesbar ✅ LEVERT (merget develop 2026-08-20)
+
+> `fix/endringslogg-lesbar` er i develop (0 foran, verifisert med `merge-base --is-ancestor`).
+> **Restpost:** `fix/endringslogg-web` (`ce994756`, 16.08) er ferdig, testet 133/133 og
+> **fortsatt umerget** — ord-nivå diff som uthever det faktisk endrede ordet, pluss
+> skjerpet «_»-label-fallback. F1 er ikke helt i mål før den er inne.
 
 Ordre klar: `relay/inbox-endringslogg.md`. BACKLOG: seks-funn § funn 5, punkt 7
 (vedlegg-radformat), punkt 8 (værsnapshot).
@@ -108,13 +113,36 @@ mekanikk — `weatherTimeFieldId` i config, felt-velger i `FeltKonfigurasjon`, o
 valideringsregel. Ingen «felt refererer et annet felts verdi»-mekanikk finnes i
 dag (`conditions`/`parentId` er synlighet, `calculation` er død config).
 
-### F2 — Klient-utskriften fjernes 🔴 BLOKKERT AV F1
+### F2 — Klient-utskriften fjernes 🟢 ÅPEN (F1 merget 2026-08-20)
 
 Når endringsloggen er lesbar, er arkiv-PDF-en bedre enn klient-utskriften på alle
 punkter Kenneth har målt. Da fjernes `apps/web/src/app/utskrift/**` og
 knappe-duplikatet på sjekklistedetalj.
 
-**F2 lukker fire BACKLOG-saker uten å bygge noe:**
+> 🔴 **KORRIGERT 2026-08-20 ved levering (`d92ece42`): F2 lukket ÉN sak, ikke fire.**
+> Anslaget under var en overvurdering, avdekket da dokgen målte hver sak mot koden i
+> stedet for å stole på planen.
+>
+> - ✅ **Lukket:** «attachments-bilder rendres dobbelt» — krevde `utskrift/**`, nå borte.
+> - ⚠️ **Ikke lukket (mobil):** bor i `packages/pdf/felt.ts` via `expo-print` → hører til
+>   Fase 3, ikke F2.
+> - ⚠️ **To delvis lukket:** «skjuler uutfylte» + «print uten bilde-venting» bor i en
+>   **andre web-utskriftsflate planen overså** —
+>   `apps/web/src/app/dashbord/[prosjektId]/sjekklister/skriv-ut/page.tsx:111`
+>   (bulk-utskrift, `window.print()` uten bilde-venting, deler `RapportObjektVisning`).
+>   Den lukker begge når den flyttes til arkiv-PDF, men det krever **ny kode** og faller
+>   derfor utenfor F2s «ingen ny kode»-premiss. **Egen oppfølger — se F2b under.**
+>
+> **Lærdom:** «lukker N saker uten ny kode» skal måles mot koden før det skrives i en
+> plan, ikke anslås. Anslaget sto i både planen og `CLAUDE.md`-indeksen i fire dager.
+
+### F2b — bulk-utskriftsflaten 🟡 OPPFØLGER (åpnet 2026-08-20)
+
+`sjekklister/skriv-ut/page.tsx` er den gjenstående web-klient-utskriften. Flyttes til
+arkiv-PDF på samme måte som F2 flyttet detaljsidene. Lukker «skjuler uutfylte» og
+«print uten bilde-venting» helt. Krever ny kode; ikke prioritert foran AM-ordrene.
+
+**Opprinnelig anslag (beholdt for sporbarhet) — F2 skulle lukke fire BACKLOG-saker uten å bygge noe:**
 
 - Attachments-bilder rendres dobbelt, én gang brutt (2026-08-15)
 - Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (2026-08-13)
@@ -123,6 +151,11 @@ knappe-duplikatet på sjekklistedetalj.
 
 Alle fire gjelder kun klient-veien. Det er den største enkeltgevinsten i planen,
 og den koster ingen ny kode.
+
+> **🟢 GJENNOMFØRT 2026-08-20 (`feat/f2-fjern-klient-utskrift`, dokgen) — med to korreksjoner.** Slettet `apps/web/src/app/utskrift/**` (både sjekkliste- og oppgave-ruten) + foreldreløs `apps/web/src/lib/utskrift-print.ts`, fjernet «Skriv ut»-duplikatknappen på sjekkliste- og oppgavedetalj. **Av de fire sakene lukket F2 reelt bare ÉN** (attachments dobbelt — venue slettet). De øvrige tre stemte ikke med koden:
+> - **To oppdagede oppfølgere (planen overså `sjekklister/skriv-ut/page.tsx`):** «web-skjuler-uutfylte» (sak 3) og «window.print venter ikke» (sak 4) bor i **delt** `RapportObjektVisning`/`window.print()`, som bulk-utskrifts-ruten `sjekklister/skriv-ut` fortsatt bruker. F2 (kun `utskrift/**`) lukker dem derfor ikke. **Egen ordre trengs:** fjern/flytt `skriv-ut` til arkiv-PDF (`arkiv.rendr` tar array — bulk er mulig, men er ny kode).
+> - **Mobil-saken (sak 2)** er Fase 3 (`felt.ts`/expo-print) — ikke rørt, meldt fra per gate.
+> - **⚠️ Regresjon innført bevisst:** oppgavedetalj hadde **kun** klient-utskrift (ingen arkiv-PDF; `arkiv/sammenstilling.ts` rendrer bare sjekkliste). Å slette hele `utskrift/**` fjernet oppgave-utskrift **uten erstatning** til oppgave får arkiv-PDF (etter F3). Flagget to ganger før utførelse; ordren ble bekreftet bokstavelig.
 
 ⚠️ Før sletting: `packages/pdf/src/felt.ts` er **frossen** (mobil-signatur) og
 skal ikke røres. Verifiser hva mobil faktisk bruker før noe fjernes.
@@ -228,7 +261,7 @@ Rører ikke PDF-laget og kan tas av en mobil-agent når som helst.
 ## Avhengighetskart
 
 ```
-F1 (endringslogg) ──► F2 (fjern klient-utskrift) ──► lukker 4 BACKLOG-saker
+F1 ✅ merget ──► F2 (fjern klient-utskrift) ÅPEN ──► lukker 4 BACKLOG-saker
 F1b (værsnapshot) ──── uavhengig, egen runde
 F3 (dokumenttyper) ─── uavhengig
 F4 (utskriftsformer) ── reconciles mot kravspec 2026-08-13 først

@@ -81,7 +81,8 @@ describe("byggLoggseksjon — Endringslogg (lag 2, økt-gruppert)", () => {
     expect(html).toContain("2 feltendringer");
     expect(html).toContain("Silje Havstad · 06.08.2026");
     expect(html).toContain('<span class="ark-svak">Ikke utfylt</span> → OK'); // tom fra-verdi vist
-    expect(html).toContain('<span class="ark-svak">32 mm</span> → 35 mm');
+    // Ord-diff: endret ord i <strong>, uendret «mm» rå. 32→35 er ett ord.
+    expect(html).toContain('<span class="ark-svak"><strong>32</strong> mm</span> → <strong>35</strong> mm');
   });
 });
 

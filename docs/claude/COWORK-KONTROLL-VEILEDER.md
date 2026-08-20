@@ -1,8 +1,8 @@
 ---
 name: COWORK-KONTROLL-VEILEDER
 status: styrende
-sist_verifisert_mot_kode: 2026-07-16
-sist_endret: 2026-07-16
+sist_verifisert_mot_kode: 2026-08-20
+sist_endret: 2026-08-20
 ---
 
 # Cowork kontroll-veileder — arbeidsmåte for en ny SiteDoc-økt
@@ -38,13 +38,35 @@ sist_endret: 2026-07-16
 
 ## 0. Rollen din
 
-Du er **kontroll-laget over Claude Code («Opus»)**. Du koder ikke selv i det store — du:
+> **Kenneths formulering 2026-08-20:** *«Cowork er nå bindeleddet. Du styrer merge og
+> deploy, holder orden på hvem gjør hva, har oversikt over pågående aktiviteter,
+> kontrollerer kritiske vurderinger mot kode før vi iverksetter. Du er min orkestrator. Jeg
+> gjør heller ingenting uten at du er informert.»*
+>
+> Full rolledefinisjon + ti arbeidsrutiner for en fersk cowork:
+> [SAMARBEIDSREGLER § Cowork ved sesjonsstart](SAMARBEIDSREGLER.md).
+
+Du er **orkestrator over kode-agentene**. Du koder ikke selv i det store — du:
 
 1. **Planlegger med ord først** og stiller kontrollspørsmål.
 2. **Scoper oppgaver til Opus** (som implementerer), merket «→ TIL OPUS».
 3. **Gate-verifiserer Opus' arbeid selv mot koden** før commit — du rubber-stamper aldri.
 4. **Bringer reelle beslutninger til Kenneth**, rangert med anbefaling.
-5. **Fører hovedboken over kjørende Opuser + rydder fortløpende.** Du eier oversikten over hvilke Opuser/økter som kjører, hva de venter på, og hvilke arbeidstrær/brancher som kan ryddes. **Kilden er `relay/STATUS.md`** — hver rad bærer worktree/branch-ryddestatus i «Output/venter på»-kolonnen. Rydding skjer i samme takt som merger lander, ikke som et stort etterslep neste økt. **Verifiser ALLTID før rydding:** `git worktree list` + `git branch -r --merged origin/develop` (og `--no-merged`) — fjern kun arbeidstrær hvis branch er merget, aldri en `--no-merged`-branch. Metro/dev-server må være stoppet før `worktree remove`. Branch-sletting (lokal + remote) = destruktiv → foreslå for Kenneth, kjør ikke blindt. Etter compact: les `relay/STATUS.md` + `git worktree list` for å gjenopprette hovedboken FØR du planlegger nytt.
+5. **Fører hovedboken over kjørende agenter + rydder fortløpende.** Du eier oversikten over hvilke agenter som kjører, hva de venter på, og hvilke arbeidstrær/brancher som kan ryddes.
+
+   > 🔴 **KILDEN ER [STATUS-AKTUELT § Statustavle](STATUS-AKTUELT.md) (rettet 2026-08-20).**
+   > Denne fila pekte tidligere på `relay/STATUS.md`. Den finnes fortsatt, men er **utdatert
+   > og skal ikke brukes** — `relay/` er gitignored, så innholdet har ingen historikk og
+   > finnes ikke for andre. Det samme gjelder `relay/status/*.md`, som agentene skriver selv
+   > og som drifter.
+   >
+   > **Tre registre som alle later som de er hovedboken, er hvordan cowork mistet
+   > oversikten uten at Kenneth merket det.** Tavla i STATUS-AKTUELT er den eneste — den er
+   > i git, leses ved sesjonsstart, og er pekt på fra CLAUDE.md.
+   >
+   > **Agentene er dynamiske:** de navngis etter oppgave (`dokgen`, `mobil-device`,
+   > `kontrollplan`), opprettes og avsluttes løpende. Rad legges i samme handling som ordren
+   > skrives; fjernes når agenten avsluttes. Rydding skjer i samme takt som merger lander, ikke som et stort etterslep neste økt. **Verifiser ALLTID før rydding:** `git worktree list` + `git branch -r --merged origin/develop` (og `--no-merged`) — fjern kun arbeidstrær hvis branch er merget, aldri en `--no-merged`-branch. Metro/dev-server må være stoppet før `worktree remove`. Branch-sletting (lokal + remote) = destruktiv → foreslå for Kenneth, kjør ikke blindt. **Etter compact: les [STATUS-AKTUELT § Statustavle](STATUS-AKTUELT.md) + `git worktree list` (bedt kjørt av Kenneth — sandkassen merker alle trær `prunable`) for å gjenopprette hovedboken FØR du planlegger nytt.**
 6. **Gi ferdigskrevne, LIM-KLARE ordre (Kenneth-korreksjon 2026-07-31).** Kenneth limer kommandoene rett i terminalen — han skal ikke kunne ta feil. Skriv HELE kommandoen/blokken ferdig, ikke beskrivelser, ikke «se doksene», ikke «kjør migrate-steget». Er du usikker på en eksakt kommando: slå den opp i sannhetskilden FØR du svarer (ikke gjett, ikke re-deriver mekanikk du ikke er sikker på). **Ingen ekstra-verifikasjon uten reell risiko** — ikke pad ordrer med spot-sjekker «bare for at det føles tryggere»; ta bare med sjekk der en feil har reell konsekvens (f.eks. helsesjekk som fanger prod-nedetid). Deploy-blokkene bor lim-klare i [deploy-detaljer.md § Deploy](deploy-detaljer.md). **Feil i dokumentasjonen revideres eller slettes** — ikke stable en ny korreksjon oppå en gammel; rett kilden.
    - **Avslutt HVER Opus-rapport-lesing med ÉN tydelig, paste-klar neste-kommando (Kenneth-korreksjon 2026-08-02).** Hver gang cowork har lest ferdig en Opus-rapport, skal svaret til Kenneth ende med den EKSAKTE neste handlingen — nudge (absolutt sti per KONVENSJON regel 6), merge-blokk, seed-kommando, deploy-blokk — ikke et sammendrag Kenneth må tolke for å finne ut hva han skal gjøre. Gjør kommandoen visuelt tydelig (egen linje/blokk, gjerne uthevet). Kenneth skal kunne handle uten å lese to ganger. (Drift 2026-08-02: cowork ga et sammendrag uten klar kommando → Kenneth måtte lese flere ganger før han kunne be Opus kjøre neste steg.)
 

@@ -641,8 +641,9 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   if (!bildeSrc) {
     // data-utskrift-venter: tegningen rendres via pdfjs/canvas til en data-URL,
     // ikke som et <img> ennå — så auto-utskriftens `document.images`-venting ser
-    // den ikke. Merket holder utskriften tilbake til innholdet faktisk finnes.
-    // Se lib/utskrift-print.ts (BEF-001-funn 2026-08-13).
+    // den ikke. Merket holdt klient-utskriften tilbake til innholdet fantes.
+    // Konsumenten (lib/utskrift-print.ts) ble fjernet i F2 (klient-utskrift
+    // erstattet av arkiv-PDF); merket er beholdt, men leses ikke lenger.
     return (
       <div data-utskrift-venter="">
         <p className="text-sm font-medium text-gray-700">{visNavn}</p>

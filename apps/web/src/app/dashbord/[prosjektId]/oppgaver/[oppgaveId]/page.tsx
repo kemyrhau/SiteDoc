@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, Printer, Pencil, ArrowLeft, ShieldAlert } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
@@ -710,17 +710,6 @@ export default function OppgaveDetaljSide() {
             onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
           />
           )}
-          <button
-            // noopener: gir print-fanen egen renderer-prosess så window.print()-
-            // dialogen ikke fryser denne (opphavs-)fanen — de er same-origin og
-            // ville ellers delt hovedtråd. Auto-lukking (afterprint→window.close)
-            // virker fortsatt: script-åpnet, history-1-fane er script-closable. BEF-001-funn 2.
-            onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank", "noopener")}
-            className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-            title={t("handling.skrivUtEnkel")}
-          >
-            <Printer className="h-4 w-4" />
-          </button>
         </div>
 
         {/* Beskrivelse (kun hvis finnes) */}

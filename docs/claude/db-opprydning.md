@@ -78,21 +78,37 @@ Verifisert i [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md) — 
 
 ### 1.2 CHECK constraint på `dokumentflyt_medlemmer`
 
-**Problem:** Modellen tillater at `enterprise_id`, `group_id` og `project_member_id` settes samtidig på samme rad. Audit viste 0/3 rader med multiple FK satt — trygt å legge til constraint nå.
+**Problem:** Modellen tillater at `faggruppe_id`, `group_id` og `project_member_id` settes samtidig på samme rad.
 
-**Plan:**
+🔴 **Rettet 2026-08-20 — planen under sto feil på to punkter:**
+
+1. **`= 1` var feil — skal være `<= 1`.** Et ledd med null bindinger er et **gyldig åpent ledd** (fabels synlighetsvedtak 2026-08-20). `= 1` ville feilet migreringen på hver eneste åpne rad.
+2. **`enterprise_id` finnes ikke.** Kolonnen heter `faggruppe_id` etter faggruppe-renamet (`b5069c8f`, `schema.prisma:1352`). Den gamle SQL-en ville feilet på ukjent kolonne.
+
+**Korrigert plan:**
 ```sql
-ALTER TABLE dokumentflyt_medlemmer ADD CONSTRAINT dm_exactly_one_fk
+ALTER TABLE dokumentflyt_medlemmer ADD CONSTRAINT hoyst_en_binding
   CHECK (
-    (CASE WHEN enterprise_id IS NOT NULL THEN 1 ELSE 0 END
-   + CASE WHEN group_id IS NOT NULL THEN 1 ELSE 0 END
-   + CASE WHEN project_member_id IS NOT NULL THEN 1 ELSE 0 END) = 1
+    (faggruppe_id IS NOT NULL)::int
+  + (group_id IS NOT NULL)::int
+  + (project_member_id IS NOT NULL)::int <= 1
   );
 ```
 
-Wrap i Prisma-migrering med raw SQL.
+Wrap i Prisma-migrering med raw SQL (Prisma modellerer ikke CHECK).
 
-**Risiko:** Veldig lav. Ingen eksisterende data brytes.
+**Forhåndssjekk er påkrevd — kjør mot prod FØR migreringen:**
+```sql
+SELECT count(*) FROM dokumentflyt_medlemmer
+WHERE (faggruppe_id IS NOT NULL)::int
+    + (group_id IS NOT NULL)::int
+    + (project_member_id IS NOT NULL)::int > 1;
+```
+Er svaret > 0 feiler migreringen. Aprils audit sa 0/3 rader, men den er fra før både faggruppe-renamet og et halvår med skriving — den teller ikke som verifisering i dag.
+
+**Status:** API-inngangen er vernet fra 2026-08-20 (`addDokumentflytMedlemSchema` `superRefine`, «høyst én»). DB-nivået er fortsatt åpent: `prosjekt.ts` og `modul.ts` skriver via intern `prisma.create` og ser aldri skjemaet. Invarianten er dokumentert som kommentar på modellen i `schema.prisma`.
+
+**Risiko:** Lav, forutsatt at forhåndssjekken kjøres.
 
 ## Prioritet 2 — Krever avklaring før migrering
 

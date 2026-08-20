@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, MapPin } from "lucide-react-native";
+import { ArrowLeft, MapPin, ChevronRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
@@ -109,7 +109,7 @@ function PunktKort({ punkt }: { punkt: PunktRad }) {
 
 export default function KontrollplanLese() {
   const { t } = useTranslation();
-  const { valgtBygningId } = useByggeplass();
+  const { valgtBygningId, settBygning } = useByggeplass();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -119,6 +119,15 @@ export default function KontrollplanLese() {
   );
 
   const plan = planQuery.data as KontrollplanData | null | undefined;
+  const harPunkter = !!plan && plan.punkter.length > 0;
+
+  // Er gjeldende byggeplass tom? Finn om punktene ligger på en annen byggeplass i
+  // prosjektet — skiller «ingen punkter på prosjektet» fra «ligger på X» (med hopp).
+  const andreQuery = trpc.kontrollplan.andreByggeplasserMedPunkter.useQuery(
+    { byggeplassId: valgtBygningId! },
+    { enabled: !!valgtBygningId && !planQuery.isLoading && !harPunkter },
+  );
+  const andrePlasser = andreQuery.data ?? [];
 
   // Grupper punkter på milepæl (rekkefølge fra milepeler-lista, deretter «uten»).
   const grupper = useMemo(() => {
@@ -169,12 +178,52 @@ export default function KontrollplanLese() {
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>
         </View>
-      ) : !plan || plan.punkter.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-center text-base text-gray-500">
-            {t("kontrollplan.ingenPunkter")}
-          </Text>
-        </View>
+      ) : !harPunkter ? (
+        andreQuery.isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#1e40af" />
+          </View>
+        ) : andrePlasser.length > 0 ? (
+          // Tom byggeplass, men punktene ligger på en annen — vis hopp-til-handling.
+          <View className="flex-1 px-6 pt-10">
+            <View className="items-center">
+              <MapPin size={32} color="#9ca3af" />
+              <Text className="mt-3 text-center text-base font-medium text-gray-700">
+                {t("kontrollplan.ingenPunkterByggeplass")}
+              </Text>
+              <Text className="mt-1 text-center text-sm text-gray-500">
+                {t("kontrollplan.punkterPaaAnnenByggeplass")}
+              </Text>
+            </View>
+            <View className="mt-5 overflow-hidden rounded-xl border border-gray-200 bg-white">
+              {andrePlasser.map((b) => (
+                <Pressable
+                  key={b.byggeplassId}
+                  onPress={() => settBygning(b.byggeplassId)}
+                  className="flex-row items-center justify-between border-b border-gray-100 px-4 py-3 active:bg-gray-50"
+                >
+                  <View className="flex-row items-center gap-2">
+                    <MapPin size={16} color="#1e40af" />
+                    <Text className="text-base font-medium text-gray-900">{b.navn}</Text>
+                  </View>
+                  <View className="flex-row items-center gap-2">
+                    <View className="rounded-full bg-blue-50 px-2 py-0.5">
+                      <Text className="text-xs font-semibold text-sitedoc-blue">{b.antall}</Text>
+                    </View>
+                    <ChevronRight size={18} color="#9ca3af" />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : (
+          // Ingen byggeplass i prosjektet har punkter — dagens tekst er riktig her.
+          <View className="flex-1 items-center justify-center px-8">
+            <Text className="text-center text-base text-gray-500">
+              {t("kontrollplan.ingenPunkter")}
+            </Text>
+          </View>
+        )
       ) : (
         <ScrollView
           refreshControl={

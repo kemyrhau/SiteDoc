@@ -902,6 +902,57 @@ Hvis én av disse er av, skjules knappen — ingen poeng å tilby Underprosjekt-
 
 Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` peker til kilde-dokumentet. Endringer i Godkjenningens økonomiske status påvirker ikke Underprosjektets åpen/lukket-status.
 
+## Flerstegs attesteringsflyt — 🟡 VEDTATT PRINSIPP, IKKE BYGGET (Kenneth 2026-08-20)
+
+**Vedtak:** attesteringsflyten skal leve **i firmamodulen (timer)**. Den skal **ikke**
+bygges på eller blandes inn i dagens dokumentflyt-modul.
+
+**Ønsket modell** (Kenneths skisse): et firma konfigurerer sine egne attesteringssteg
+som en leddrekke — `arbeider ↔ prosjektleder ↔ kontorleder`, deretter eksport til
+lønnssystem. Toveis-pilene er retur nedover i kjeden. **Lønn er ikke et ledd** — se
+avklaringen under åpne spørsmål.
+
+**Dagens tilstand (målt 2026-08-20):** timer har **ett** attesteringssteg. `attestertStatus`
+er flat med fire verdier (`pending` | `attestert` | `returnert` | `erstattet`,
+`db-timer/prisma/schema.prisma:249`). Det finnes ingen stegmodell, ingen kjede og ingen
+firma-innstilling for rekkefølge. Prosjektleder (eller `ProjectMember.kanAttestere`)
+attesterer, og raden er ferdig.
+
+**Hvorfor ikke gjenbruke dokumentflyt:**
+
+1. **Begrepsgrensen er låst.** Attestering = arbeider får lønn for registrert tid.
+   Godkjenning = entreprenør får byggherre til å godta kostnad. Grensen er ufravikelig
+   (CLAUDE.md, låst 2026-04-26); å kjøre timer gjennom dokumentflyt-motoren ville viske
+   den ut i både kode og UI.
+2. **Isolasjonsaksene er ulike.** Timer er firmamodul isolert på `organizationId`;
+   dokumentflyt er prosjektmodul isolert på `projectId`. Kjeden krysser nivåene —
+   prosjektleder er prosjekt-nivå, kontorleder og lønn er firma-nivå. Dokumentflyt-motoren
+   kan ikke spenne begge slik den står.
+
+**Til orientering:** dokumentflyt har allerede en ordnet leddrekke (`DokumentflytMedlem.steg: Int`,
+`rolle`, `ansvarsmerke`, binding mot faggruppe/gruppe/person/åpent). Den er **referanse for
+modellering**, ikke noe timer skal koble seg på.
+
+**Åpne spørsmål før bygging:**
+
+- ✅ **AVKLART (Kenneth 2026-08-20): lønn er IKKE et attesteringssteg.** «Lønn» er et
+  **eksternt lønnssystem** (Proadm). Kjeden har derfor **tre ledd** — `arbeider ↔
+  prosjektleder ↔ kontorleder` — og eksport til lønn er utgangen, ikke et ledd.
+  Firmaet (A.Markussen) sørger selv for at lønnsartene er korrekte **før** eksport;
+  derfor må firmaet kunne redigere sine egne lønnsarter. Konsistent med lønnsart-grensen
+  i CLAUDE.md: SiteDoc leverer default lønnsart-numre (redigerbare per firma), mens
+  mapping til konto og faktiske satser tilhører regnskap.
+  → Verifisert i kode 2026-08-20: `timer/lonnsart.ts` har `opprett`/`oppdater`/`deaktiver`
+  (deaktivering, ikke sletting) og web-flaten `/dashbord/firma/timer/lonnsarter` **er i prod**.
+- Hvor mange ledd trenger et firma faktisk? Skissen har tre; er to nok for mindre firma,
+  og skal antallet være fritt konfigurerbart?
+- Hvordan bindes et ledd — rolle, person, eller kapabilitet (`kanAttestere`)?
+- Hva skjer med `gjenaapneAttestering` når det er flere ledd — reverseres ett steg eller hele kjeden?
+
+**Relatert restriksjon (målt 2026-08-20):** en attestert rad kan i dag ikke åpnes alene.
+`returnerRader` krever `pending`; `gjenaapneAttestering` krever at sedelen er `accepted`.
+En delvis attestert `sent`-sedel har derfor ingen vei tilbake for enkeltraden. Egen sak.
+
 ## Planlagte arkitektur-utvidelser (2026-06-08)
 
 > **🟢 Beslutningssett rutet fra [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md).** Schema-skisse i [arkitektur.md](arkitektur.md). Faseinndelt via SPOR 3 — ikke kodet ennå. Alt additivt (nullable/defaultet) → enkelt-stegs migrasjoner; **T.2 (`projectId NOT NULL`) gjenåpnes IKKE**.

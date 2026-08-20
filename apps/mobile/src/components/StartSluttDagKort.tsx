@@ -28,6 +28,7 @@ import {
   pauseVinduFra,
   pauseMinForDag,
   hhmmTilMin,
+  finnOverlappendeTidsrom,
   DEFAULT_PAUSE_ETTER_TIMER,
   type ReiseKategori,
 } from "@sitedoc/shared";
@@ -136,6 +137,17 @@ export function StartSluttDagKort() {
           Alert.alert(
             t("timer.appendSendt.tittel"),
             t("timer.appendSendt.melding"),
+          );
+        } else if (forslag.vekForOverlapp.length > 0) {
+          // 1b (fabel): si HVA som vek — tidsrommene — og at manuell rad er
+          // beholdt. Foran «for kort» (om play vek helt, er overlapp den reelle
+          // grunnen, ikke kort økt).
+          const intervaller = forslag.vekForOverlapp
+            .map((v) => `${v.fraTid}–${v.tilTid}`)
+            .join(", ");
+          Alert.alert(
+            t("timer.playVek.tittel"),
+            t("timer.playVek.melding", { intervaller }),
           );
         } else if (forslag.ingenRader) {
           // F-c: økta førte 0 rader (for kort etter pause/runding) — gi
@@ -413,13 +425,15 @@ function genererForslag(
   blokkertSendt: boolean;
   ingenRader: boolean;
   harEksisterendeRader: boolean;
+  // 1b: tidsrom der play vek for manuelle rader (tomt = ingen konflikt).
+  vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
 } {
   const db = hentDatabase();
-  if (!db) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false };
+  if (!db) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false, vekForOverlapp: [] };
 
   // 1. Prosjekt via Haversine.
   const prosjekter = hentProsjekterLokalt(orgId);
-  if (prosjekter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false };
+  if (prosjekter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false, vekForOverlapp: [] };
   const lat = dag.startLat ?? endLat;
   const lng = dag.startLng ?? endLng;
   let valgtProsjekt = prosjekter[0];
@@ -441,7 +455,7 @@ function genererForslag(
     .from(aktivitetLocal)
     .where(eq(aktivitetLocal.aktiv, true))
     .all();
-  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false };
+  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false, vekForOverlapp: [] };
   const aktivitet =
     aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
 
@@ -552,6 +566,7 @@ function genererForslag(
   let blokkertSendt = false;
   let totalRader = 0;
   let harEksisterendeRader = false;
+  const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
   segmenter.forEach((seg, i) => {
     // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
     // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
@@ -581,6 +596,7 @@ function genererForslag(
     if (seg.erStartSegment) startSheetId = res?.id ?? null;
     totalRader += res?.raderOpprettet ?? 0;
     if (res?.haddeEksisterendeRader) harEksisterendeRader = true;
+    if (res?.vekForOverlapp?.length) vekForOverlapp.push(...res.vekForOverlapp);
   });
   return {
     id: startSheetId,
@@ -588,6 +604,7 @@ function genererForslag(
     ingenRader: totalRader === 0,
     // F-g: skiller pre-fylt sedel (økta bidro 0) fra reelt tom sedel.
     harEksisterendeRader,
+    vekForOverlapp,
   };
 }
 
@@ -627,6 +644,8 @@ function opprettDagsseddelForSegment(args: {
   utfall: SegmentUtfall;
   raderOpprettet: number;
   haddeEksisterendeRader: boolean;
+  // 1b: tidsrom der en play-rad vek for en overlappende manuell rad.
+  vekForOverlapp: Array<{ fraTid: string; tilTid: string }>;
 } | null {
   const {
     userId,
@@ -679,6 +698,7 @@ function opprettDagsseddelForSegment(args: {
         utfall: "blokkertSendt",
         raderOpprettet: 0,
         haddeEksisterendeRader: false,
+        vekForOverlapp: [],
       };
     }
     haddeEksisterendeRader =
@@ -724,6 +744,19 @@ function opprettDagsseddelForSegment(args: {
   // reise). 0 rader = økta var for kort til å telle etter pause/runding →
   // kalleren gir arbeideren en melding i stedet for et stille tomt dagskort.
   let raderOpprettet = 0;
+
+  // 1b (fabel-vedtak 2026-08-20): play VIKER for manuelt førte timer. Manuell
+  // input er en aktiv brukerhandling og er fasit — en avledet (play-generert)
+  // rad skal aldri overlappe/overskrive den. Samler tidsrom der en play-rad ble
+  // hoppet over pga. overlapp, så kalleren kan varsle HVA som vek (ikke bare
+  // «konflikt»). Overlapp-vakten er DELT kilde (finnOverlappendeTidsrom,
+  // @sitedoc/shared) — samme som manuell-veien i TimerSeksjon.tsx.
+  const vekForOverlapp: Array<{ fraTid: string; tilTid: string }> = [];
+  const eksisterendeTidsrom = db
+    .select({ fraTid: sheetTimerLocal.fraTid, tilTid: sheetTimerLocal.tilTid })
+    .from(sheetTimerLocal)
+    .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+    .all();
 
   // Auto-fordeling normaltid/overtid (per dag). Klassifiserings-regelen er
   // isolert i @sitedoc/shared lonnsregel.ts (forward-compat Nivå 1-2). Overtid
@@ -773,6 +806,14 @@ function opprettDagsseddelForSegment(args: {
       // ③a/③b: aldri feil-match, aldri stille drop — uten treff hoppes raden
       // over, og [id].tsx viser banner (manglerStandard/manglerOvertidLonnsart).
       if (!lonnsart) continue;
+      // 1b: play viker for overlappende manuell rad. Delt vakt
+      // (finnOverlappendeTidsrom) — berøring i endepunkt teller ikke. Ved treff
+      // settes IKKE play-raden inn; arbeiderens manuelle rad beholdes, og
+      // tidsrommet samles for varsel til kalleren.
+      if (finnOverlappendeTidsrom(vindu.fraTid, vindu.tilTid, eksisterendeTidsrom)) {
+        vekForOverlapp.push({ fraTid: vindu.fraTid, tilTid: vindu.tilTid });
+        continue;
+      }
       // F5 (Valg A): bæreren = carve-vinduet som absorberer lunsjen. carve legger
       // pausen på det ENE vinduet som krysser lunsjvinduet (tilFraAntall, «påføres
       // én gang») → den raden har et klokke-gap (spenn − timer ≈ pauseMin). Den
@@ -836,6 +877,7 @@ function opprettDagsseddelForSegment(args: {
     utfall: resultat.eksisterte ? "appendet" : "opprettet",
     raderOpprettet,
     haddeEksisterendeRader,
+    vekForOverlapp,
   };
 }
 

@@ -82,8 +82,18 @@ export {
   finnTidsromKonflikt,
 } from "./tidsromValidering";
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
+export { finnSedlerÅSlette } from "./timerSyncSletting";
+export type { Slettevindu, LokalSedelUtsnitt } from "./timerSyncSletting";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
+export { beregnUkenorm } from "./ukenorm";
+export type { UkenormResultat, UkenormDag } from "./ukenorm";
+export { STANDARD_ARBEIDSTID_FALLBACK } from "./arbeidstidDefault";
+export {
+  beregnOvertidsgrunnlag,
+  lesOvertidsgrunnlagFraSnapshot,
+} from "./overtidsgrunnlag";
+export type { OvertidRad, Overtidsgrunnlag } from "./overtidsgrunnlag";
 export {
   harFeltVerdi,
   beregnLaasteFelter,
