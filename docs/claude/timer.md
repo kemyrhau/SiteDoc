@@ -908,8 +908,9 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 bygges på eller blandes inn i dagens dokumentflyt-modul.
 
 **Ønsket modell** (Kenneths skisse): et firma konfigurerer sine egne attesteringssteg
-som en leddrekke — f.eks. `arbeider ↔ prosjektleder ↔ kontorleder → lønn`. Toveis-pilene
-er retur nedover i kjeden; siste ledd er utgangen.
+som en leddrekke — `arbeider ↔ prosjektleder ↔ kontorleder`, deretter eksport til
+lønnssystem. Toveis-pilene er retur nedover i kjeden. **Lønn er ikke et ledd** — se
+avklaringen under åpne spørsmål.
 
 **Dagens tilstand (målt 2026-08-20):** timer har **ett** attesteringssteg. `attestertStatus`
 er flat med fire verdier (`pending` | `attestert` | `returnert` | `erstattet`,
@@ -934,10 +935,17 @@ modellering**, ikke noe timer skal koble seg på.
 
 **Åpne spørsmål før bygging:**
 
-- Hvor mange ledd trenger et firma faktisk? Kenneths skisse har tre eller fire.
-- **Er lønn et attesteringssteg eller bare mottaker av ferdig attesterte timer?** Er lønn
-  kun mottaker, er kjeden tre ledd og vesentlig enklere. Jf. lønnsart-grensen: regnskap
-  eier kobling og satser, ikke SiteDoc.
+- ✅ **AVKLART (Kenneth 2026-08-20): lønn er IKKE et attesteringssteg.** «Lønn» er et
+  **eksternt lønnssystem** (Proadm). Kjeden har derfor **tre ledd** — `arbeider ↔
+  prosjektleder ↔ kontorleder` — og eksport til lønn er utgangen, ikke et ledd.
+  Firmaet (A.Markussen) sørger selv for at lønnsartene er korrekte **før** eksport;
+  derfor må firmaet kunne redigere sine egne lønnsarter. Konsistent med lønnsart-grensen
+  i CLAUDE.md: SiteDoc leverer default lønnsart-numre (redigerbare per firma), mens
+  mapping til konto og faktiske satser tilhører regnskap.
+  → Verifisert i kode 2026-08-20: `timer/lonnsart.ts` har `opprett`/`oppdater`/`deaktiver`
+  (deaktivering, ikke sletting) og web-flaten `/dashbord/firma/timer/lonnsarter` **er i prod**.
+- Hvor mange ledd trenger et firma faktisk? Skissen har tre; er to nok for mindre firma,
+  og skal antallet være fritt konfigurerbart?
 - Hvordan bindes et ledd — rolle, person, eller kapabilitet (`kanAttestere`)?
 - Hva skjer med `gjenaapneAttestering` når det er flere ledd — reverseres ett steg eller hele kjeden?
 

@@ -13,6 +13,15 @@ sist_verifisert_mot_kode: 2026-08-09
 | **kontrollplan** | `SiteDoc-kontrollplan` | `fix/synlighet-vern` (`37480046` pushet) | Ferdig — venter coworks merge | Cowork: merge fra `SiteDoc-merge` |
 | **smoketest** | — | `chore/demo-smoketest` | Løype B (mal fylt) + C hvis tid | Kenneth: demo-mal på riktig prosjekt |
 
+**🗑️ PROD-DATAFIKS 2026-08-20 — timerader tømt for A.Markussen (før demo).** Ustrukturerte
+testdata slettet på Kenneths ordre: 18 `daily_sheets`, 16 `sheet_timer`, 2 `sheet_tillegg`,
+4 `sheet_machines`, 2 `sheet_tillegg_vedlegg` (0 utlegg, 0 historikk). Én transaksjon med
+`ON_ERROR_STOP=1`; alle tall verifisert mot forhåndstelling. **Backup:**
+`server-ny:~/backup/timer-for-sletting-20260820-0753.sql` (54K, hele `timer`-skjemaet).
+De to vedleggsfilene flyttet til `~/backup/karantene-timer-20260820/` — **ikke slettet**,
+fordi prod og test deler uploads-volum (test-DB verifisert til 0 referanser før flytting).
+**Ikke rørt:** lønnsarter, aktiviteter, tilleggskatalog, maskinregister — oppsettet står.
+
 **Branch-rydding 2026-08-20:** `fix/pakke-a-sikkerhet` merget + slettet på origin.
 `fix/endringslogg-web` merget (`b4159178`) — den var **ikke** overflødig; `ce994756`
 (ord-nivå diff, 133/133) hadde ligget ferdig og umerget siden 16.08.
