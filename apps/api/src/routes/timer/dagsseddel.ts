@@ -597,6 +597,78 @@ function osloVeggurTilInstant(dato: Date, hhmm: string): Date {
   return new Date(antattUtc.getTime() - offsetMs);
 }
 
+/** Instant → «HH:MM» i Europe/Oslo (24t). Invers av osloVeggurTilInstant. */
+function instantTilOsloHHMM(d: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Oslo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
+/**
+ * SAK 1 (web-friksjon 2026-08-20): auto-opprett ÉN timer-rad som dekker
+ * arbeidstidsvinduet ved manuell sedel-opprettelse med prosjekt. Speiler mobils
+ * genererForslag-PRINSIPP (forslag, fritt redigerbart) — men uten OT-splitt: én
+ * rad på firmaets standard-lønnsart, akkurat det «Legg til timer-rad»-modalen
+ * ellers ville prefylt (samme felt som tilfoyTimerRad; sedelen holder pauseMin,
+ * timer-verdien har pausen trukket fra). Idempotent + defensiv: hopper over hvis
+ * sedelen alt har rader, vindu mangler, standard-lønnsart mangler, eller vinduet
+ * gir 0 timer. Første rad ⇒ ingen overlapp/maskin-validering nødvendig.
+ */
+async function opprettForsteTimerRadForslag(
+  prismaTimer: typeof import("@sitedoc/db-timer").prismaTimer,
+  args: {
+    sheetId: string;
+    orgId: string;
+    projectId: string;
+    aktivitetId: string;
+    byggeplassId: string | null;
+    startAt: Date | null;
+    endAt: Date | null;
+    pauseMin: number;
+  },
+): Promise<void> {
+  const { sheetId, orgId, projectId, aktivitetId, byggeplassId, startAt, endAt, pauseMin } = args;
+  if (!startAt || !endAt) return;
+
+  // Idempotens: kun på en tom sedel (re-send av samme clientUuid, eller en
+  // eksisterende sedel, rører ingenting).
+  const antallRader = await prismaTimer.sheetTimer.count({ where: { sheetId } });
+  if (antallRader > 0) return;
+
+  // Firmaets standard-lønnsart (samme kilde som modalens default + mobils
+  // normaltid-rad). Uten en standard-lønnsart lages ingen rad — brukeren legger
+  // til manuelt (modalen ville hatt samme tomme default).
+  const standardLonnsart = await prismaTimer.lonnsart.findFirst({
+    where: { organizationId: orgId, erStandardvalg: true, aktiv: true },
+    select: { id: true },
+  });
+  if (!standardLonnsart) return;
+
+  // Timer = brutto vindu − pause (samme som mobils totalTimer), 2-desimal.
+  const bruttoTimer = (endAt.getTime() - startAt.getTime()) / 3_600_000;
+  const timer = Math.round(Math.max(0, bruttoTimer - pauseMin / 60) * 100) / 100;
+  if (timer <= 0) return;
+
+  await prismaTimer.$transaction([
+    prismaTimer.sheetTimer.create({
+      data: {
+        sheetId,
+        projectId,
+        byggeplassId,
+        lonnsartId: standardLonnsart.id,
+        aktivitetId,
+        timer,
+        fraTid: instantTilOsloHHMM(startAt),
+        tilTid: instantTilOsloHHMM(endAt),
+      },
+    }),
+    touchSedel(prismaTimer, sheetId),
+  ]);
+}
+
 // ============================================================================
 //  Splitt-rad — delt input-skjema + validerings-kjerne (P2)
 //  Delt av leder-`splittRad` (attestering, status=sent) og arbeider-
@@ -939,6 +1011,10 @@ export const dagsseddelRouter = router({
         aktivitetId: z.string().uuid(),
         avdelingId: z.string().uuid().nullable().optional(),
         byggeplassId: z.string().uuid().nullable().optional(),
+        // SAK 1: prosjekt for auto-første-rad. Uten den lages ingen rad (dagens
+        // oppførsel — tom sedel). Lagres IKKE på sedelen (T.1 dato-only); brukes
+        // kun til å opprette den første timer-raden.
+        projectId: z.string().uuid().nullable().optional(),
         dato: z.string(), // ISO-dato (YYYY-MM-DD)
         startAt: z.string().nullable().optional(), // ISO timestamp
         endAt: z.string().nullable().optional(),
@@ -964,6 +1040,13 @@ export const dagsseddelRouter = router({
           code: "BAD_REQUEST",
           message: "Aktivitet finnes ikke i firmaets katalog",
         });
+      }
+
+      // SAK 1: prosjekt for auto-første-rad må tilhøre firmaet (samme grense som
+      // rad-mutasjonene). Verifiseres FØR sedel-opprettelse så en ugyldig
+      // prosjekt-referanse ikke etterlater en sedel uten rad.
+      if (input.projectId) {
+        await verifiserProsjekterTilhørerFirma([input.projectId], orgId);
       }
 
       const dato = new Date(input.dato);
@@ -1015,6 +1098,21 @@ export const dagsseddelRouter = router({
           // Re-send av samme clientUuid: returner eksisterende uten endring
           update: {},
         });
+        // SAK 1: opprett auto-første-rad når klienten sendte prosjekt. Idempotent
+        // (hopper over hvis sedelen alt har rader) — trygt selv om upsert traff
+        // en eksisterende sedel via clientUuid-re-send.
+        if (input.projectId) {
+          await opprettForsteTimerRadForslag(ctx.prismaTimer, {
+            sheetId: sheet.id,
+            orgId,
+            projectId: input.projectId,
+            aktivitetId: input.aktivitetId,
+            byggeplassId: input.byggeplassId ?? null,
+            startAt: startAtVerdi,
+            endAt: endAtVerdi,
+            pauseMin: pauseMinVerdi,
+          });
+        }
         return { ...sheet, eksisterte: false };
       } catch (e) {
         // D1 (web-paritet 2026-07-08): duplikat-dato er IKKE en feil — mobil

@@ -163,6 +163,9 @@ export default function NyDagsseddelSide() {
     opprett.mutate({
       clientUuid,
       aktivitetId: valgtAktivitetId,
+      // SAK 1: send prosjektet så serveren auto-oppretter den første timer-raden
+      // som dekker arbeidstidsvinduet (forslag, fritt redigerbart på detalj-siden).
+      projectId,
       dato,
       startAt: tilstartAt(startAt),
       endAt: tilstartAt(endAt),
