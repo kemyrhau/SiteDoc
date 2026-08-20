@@ -11,7 +11,10 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-08-16
+**Sist oppdatert:** 2026-08-20
+- 2026-08-20 — **`db-opprydning.md` § 1.2 DRIFT RETTET** (develop): CHECK-planen sto med `= 1` (ville feilet på hvert åpne ledd — fabels vedtak sier `<= 1`) og med kolonnen `enterprise_id`, som ikke finnes etter faggruppe-renamet. Begge rettet, forhåndssjekk mot prod lagt til som påkrevd steg.
+- 2026-08-20 — **NY fil `retningslinjer/ui-standarder.md`** (develop): UI-designprinsipper + fargepalett flyttet ordrett ut av `CLAUDE.md` (hovedfila nådde 40k-grensen). Fortsatt styrende; `CLAUDE.md` har peker.
+- 2026-08-20 — **`STATUS-AKTUELT.md` arkivering** (develop): juli-deployene (del 6 timeføring, F2/F3/F5, F-b/F-e/F-f/F-g, `hentEndringerSiden` fiks B, lønnsart-import) flyttet ordrett til `historikk-2026-07.md`. To konkurrerende statustavler slått sammen til én; branch-detaljene ligger under egen overskrift. 109 KB → 97 KB.
 - 2026-08-16 — **`STATUS-AKTUELT.md` + `BACKLOG.md` F1 endringslogg lesbar** (branch `fix/endringslogg-lesbar`): endringsloggen gjort lesbar — nøkkelsortering (`kanonisk`) + signert-URL-normalisering (`normaliserForDiff`) i to lag, repeater-celle-diff (`endringsdiff.ts`), dato på rad. BEF-001 målt i prod 16 → 4 rader. Rotårsak (signerte URL-er i `Checklist.data`) ført til BACKLOG § Teknisk gjeld med to måle-spørsmål. 126/126 arkiv-tester. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-15 — **`STATUS-AKTUELT.md` arkiv klient-knapp** (branch `feat/arkivmal-rendering`): «Last ned arkiv-PDF» på sjekklistedetalj (`trpc.arkiv.rendr` → Blob-nedlasting + ikke-blokkerende mangel-melding), i18n × 13 språk. Sammenslåing live-verifisert. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-15 — **`STATUS-AKTUELT.md` arkivmal N1/N2** (branch `feat/arkivmal-rendering`): render-kontrakt for klient-knapp — `arkiv.rendrSjekkliste`→`arkiv.rendr`, liste-payload + navngitt `mal`, én sammenhengende PDF for flere dok (`byggArkivSide`/`byggArkivSamling`), per-dok mangel-status + `renderTimeout` top-level. 102/102 arkiv-tester. Ingen ny `docs/claude/`-fil; telling uendret.

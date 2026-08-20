@@ -35,7 +35,12 @@ endringsloggen.
 
 ## Faser
 
-### F1 — Endringsloggen blir lesbar 🔴 NESTE
+### F1 — Endringsloggen blir lesbar ✅ LEVERT (merget develop 2026-08-20)
+
+> `fix/endringslogg-lesbar` er i develop (0 foran, verifisert med `merge-base --is-ancestor`).
+> **Restpost:** `fix/endringslogg-web` (`ce994756`, 16.08) er ferdig, testet 133/133 og
+> **fortsatt umerget** — ord-nivå diff som uthever det faktisk endrede ordet, pluss
+> skjerpet «_»-label-fallback. F1 er ikke helt i mål før den er inne.
 
 Ordre klar: `relay/inbox-endringslogg.md`. BACKLOG: seks-funn § funn 5, punkt 7
 (vedlegg-radformat), punkt 8 (værsnapshot).
@@ -108,7 +113,7 @@ mekanikk — `weatherTimeFieldId` i config, felt-velger i `FeltKonfigurasjon`, o
 valideringsregel. Ingen «felt refererer et annet felts verdi»-mekanikk finnes i
 dag (`conditions`/`parentId` er synlighet, `calculation` er død config).
 
-### F2 — Klient-utskriften fjernes 🔴 BLOKKERT AV F1
+### F2 — Klient-utskriften fjernes 🟢 ÅPEN (F1 merget 2026-08-20)
 
 Når endringsloggen er lesbar, er arkiv-PDF-en bedre enn klient-utskriften på alle
 punkter Kenneth har målt. Da fjernes `apps/web/src/app/utskrift/**` og
@@ -228,7 +233,7 @@ Rører ikke PDF-laget og kan tas av en mobil-agent når som helst.
 ## Avhengighetskart
 
 ```
-F1 (endringslogg) ──► F2 (fjern klient-utskrift) ──► lukker 4 BACKLOG-saker
+F1 ✅ merget ──► F2 (fjern klient-utskrift) ÅPEN ──► lukker 4 BACKLOG-saker
 F1b (værsnapshot) ──── uavhengig, egen runde
 F3 (dokumenttyper) ─── uavhengig
 F4 (utskriftsformer) ── reconciles mot kravspec 2026-08-13 først

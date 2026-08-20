@@ -1,5 +1,22 @@
 # Ordre: kartlegging medlemskapsmodeller + synlighetsvedtak B (fabel → kode-Opus)
 
+> 🔴 **OVERSTYRT 2026-08-20 — premisset under er motbevist. Les
+> [vedtak-synlighet-revidert-fabel-2026-08-20.md](vedtak-synlighet-revidert-fabel-2026-08-20.md) i stedet.**
+>
+> Bakgrunnsavsnittet sier at dokumentet ble usynlig fordi faggruppen hadde 0
+> `FaggruppeKobling`-medlemmer, og at synlighetslogikken bare leser én av de tre
+> medlemskapsmodellene. **Begge deler er feil.** Kartleggingen viste at
+> `byggTilgangsFilter` (`tilgangskontroll.ts:975`) allerede leser alle tre leddkildene
+> med admin-bypass — og Kenneth er prosjektadmin på 999, så han gikk uansett utenom
+> medlemsfilteret.
+>
+> **Faktisk årsak til 999-gåten:** faggruppe-tellerens manglende `deletedAt`-filter
+> (`faggruppe.ts:27–30`) — siden telte papirkurv-dokumenter som lista med rette skjulte.
+> Fikset i `37480046`.
+>
+> Beholdt som historikk fordi vedtaks-avsnittene under fortsatt gjelder. **Ikke bygg
+> etter bakgrunnsavsnittet.**
+
 **Dato:** 2026-08-20 · **Status:** kartlegging + forberedelse til fiks. Ingen kodeendringer uten egen commit-klarering.
 **Bakgrunn:** faggruppen «A.Markussen» på prosjekt 999 hadde 0 FaggruppeKobling-medlemmer selv om Kenneth deltok i flyten via tilgangsgruppen «A.Markussen Ansatte» — dokumentet ble usynlig. Tre medlemskapsmodeller (person-ledd, gruppe-ledd, faggruppe-ledd) presenteres som én i UI, men synlighetslogikken leser bare én av dem.
 
