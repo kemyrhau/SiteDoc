@@ -24,11 +24,41 @@ export type PivotRad = {
   dato: Date | string;
   totaltimer: number;
   ukenorm: number;
-  overtidsgrunnlag?: { avvik: boolean } | null;
+  overtidsgrunnlag?: {
+    sumOrdinaert: number;
+    sumOvertid: number;
+    beregnetOvertid: number;
+    avvik: boolean;
+  } | null;
   ansatt: { id: string; name: string | null; email: string } | null;
   prosjekt: { id: string; name: string; internalProjectNumber: string | null } | null;
   timer: { projectId: string; timer: number | string }[];
 };
+
+/** Uke-nivå avvik (D2): misforhold mellom FØRT og BEREGNET overtid — ikke
+ *  «over norm». En ansatt som fører overtiden riktig har intet avvik. */
+export type UkeAvvik = {
+  norm: number;
+  ukesum: number;
+  sumOrdinaert: number;
+  sumOvertid: number; // ført (valgt)
+  beregnetOvertid: number; // ukesum − norm, gulv 0
+  avvikTimer: number; // beregnet − ført; >0 = overtid ikke ført, <0 = ført under norm
+};
+
+function beregnUkeAvvik(sedler: PivotRad[]): UkeAvvik {
+  const norm = sedler[0]?.ukenorm ?? 0;
+  const ukesum = r2(sedler.reduce((a, s) => a + s.totaltimer, 0));
+  const sumOvertid = r2(
+    sedler.reduce((a, s) => a + (s.overtidsgrunnlag?.sumOvertid ?? 0), 0),
+  );
+  const sumOrdinaert = r2(ukesum - sumOvertid);
+  const beregnetOvertid = r2(Math.max(0, ukesum - norm));
+  const avvikTimer = r2(beregnetOvertid - sumOvertid);
+  return { norm, ukesum, sumOrdinaert, sumOvertid, beregnetOvertid, avvikTimer };
+}
+
+const r2 = (n: number): number => Math.round(n * 100) / 100;
 
 /* ------------------------------------------------------------------ */
 /*  Ukedag-akse                                                         */
@@ -306,11 +336,8 @@ export function AnsattPivot({
             const aDag = dager.map((d) =>
               a.sedler.find((s) => isoAv(s.dato) === d.iso),
             );
-            const ukesum = a.sedler.reduce((x, s) => x + s.totaltimer, 0);
-            const norm = a.sedler[0]?.ukenorm ?? 0;
-            const harAvvik =
-              a.sedler.some((s) => s.overtidsgrunnlag?.avvik) ||
-              (norm > 0 && ukesum > norm + 0.01);
+            const avvik = beregnUkeAvvik(a.sedler);
+            const ukesum = avvik.ukesum;
             const apen = apenAnsatt.has(a.id);
             const prosjekter = grupperPerProsjekt(a.sedler);
             return (
@@ -347,19 +374,13 @@ export function AnsattPivot({
                   <td className="px-3 py-1.5 text-right font-mono text-xs font-semibold tabular-nums text-gray-900">
                     {ukesum.toFixed(1)}
                   </td>
-                  {/* Norm-kolonne + reservert badge-slot for D2-varsel (STEG 3) */}
-                  <td className="px-3 py-1.5 text-right font-mono text-xs tabular-nums text-gray-500">
-                    <div className="flex items-center justify-end gap-1">
-                      {/* badge-slot: STEG 3 fyller denne med D2-varsel */}
-                      <span className="inline-flex h-4 w-4 items-center justify-center">
-                        {harAvvik && (
-                          <TriangleAlert
-                            className="h-3.5 w-3.5 text-amber-500"
-                            aria-label={t("timer.attestering.pivot.avvik")}
-                          />
-                        )}
+                  {/* Norm-kolonne: eksplisitt tallfestet avviksbadge (D2) + norm */}
+                  <td className="px-3 py-1.5 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Avviksbadge avvik={avvik} />
+                      <span className="font-mono text-xs tabular-nums text-gray-500">
+                        {avvik.norm > 0 ? avvik.norm.toFixed(1) : "·"}
                       </span>
-                      <span>{norm > 0 ? norm.toFixed(1) : "·"}</span>
                     </div>
                   </td>
                   {!readOnly && (
@@ -474,5 +495,32 @@ function TomPivot() {
     <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
       <p className="text-sm text-gray-500">{t("timer.attestering.pivot.ingenData")}</p>
     </div>
+  );
+}
+
+/** Eksplisitt tallfestet avviksbadge (D2). «over norm» = beregnet overtid ikke
+ *  ført; «ført under norm» = overtid ført mens uken er under norm. Tooltip viser
+ *  de tre D2-tallene. Intet avvik → ingen badge (norm forblir høyrejustert). */
+function Avviksbadge({ avvik }: { avvik: UkeAvvik }) {
+  const { t } = useTranslation();
+  if (avvik.norm <= 0) return null;
+  const over = avvik.avvikTimer > 0.01;
+  const under = avvik.avvikTimer < -0.01;
+  if (!over && !under) return null;
+  const tooltip = t("timer.attestering.pivot.avvikTooltip", {
+    norm: avvik.norm.toFixed(1),
+    ord: avvik.sumOrdinaert.toFixed(1),
+    ot: avvik.sumOvertid.toFixed(1),
+  });
+  return (
+    <span
+      title={tooltip}
+      className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200"
+    >
+      <TriangleAlert className="h-3 w-3 shrink-0" />
+      {over
+        ? t("timer.attestering.pivot.avvikOver", { timer: avvik.avvikTimer.toFixed(1) })
+        : t("timer.attestering.pivot.avvikUnder")}
+    </span>
   );
 }
