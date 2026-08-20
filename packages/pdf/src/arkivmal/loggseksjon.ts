@@ -44,9 +44,13 @@ function dokumenthistorikk(hendelser: HendelseRad[]): string {
   if (hendelser.length === 0) return "";
   const rader = hendelser
     .map((h) => {
-      // STEG 1: normaliser rå senderRolle (kjent enum → etikett · posisjonsetikett → som-det-er
-      // · tom/ukjent → «—»). Alltid vist — «—» er et forventet tilfelle (mange null-rader).
-      const rolle = ` <span class="ark-svak">(${esc(formaterAktorRolle(h.aktorRolle))})</span>`;
+      // STEG 1: normaliser rå senderRolle (fire former: kjent enum → etikett · posisjonsetikett
+      // → rått · ukjent → rått · tom/null → BLANK). Blank ⇒ HELE parentesen utelates — «()» i
+      // hver tredje null-rad er støy (Kenneth-presisering 2026-08-20).
+      const rolleTekst = formaterAktorRolle(h.aktorRolle);
+      const rolle = rolleTekst
+        ? ` <span class="ark-svak">(${esc(rolleTekst)})</span>`
+        : "";
       const farge = handlingFarge(h.handling);
       const handling = farge
         ? `<span style="color:${farge};font-weight:600">${esc(h.handling)}</span>`
