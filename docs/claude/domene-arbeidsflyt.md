@@ -56,29 +56,53 @@ Alle arkitektur-beslutninger skal kunne forklares tilbake til en arbeidsflyt her
 
 ---
 
-## 🔴 STYRENDE: automatiske kilder overskriver aldri menneskelige handlinger (fabel 2026-08-20)
+## 🔴 BINDENDE VEDTAK: uoppfordret automatikk overskriver aldri en menneskelig handling (fabel 2026-08-20)
 
-**Prinsippet:** en avledet eller automatisk registrering skal aldri slette, overskrive eller
-fortrenge noe et menneske aktivt har lagt inn. Ved konflikt viker automatikken, og brukeren
-varsles om **hva** som vek — ikke bare at det oppsto en konflikt.
+**Vedtaket:** en avledet eller automatisk registrering skal aldri slette, overskrive eller
+fortrenge noe et menneske aktivt har lagt inn — **uten at det er mennesket selv som ba om
+det**. Ved konflikt viker automatikken, og konflikten **synliggjøres**.
 
 **Opphav:** fabels gate på AM ordre 1b (play-knapp vs. manuell timeføring). Ordlyden:
 *«manuelt førte timer er en aktiv brukerhandling og skal aldri slettes av en automatisk
 kilde — samme prinsipp som «utførte kontroller flyttes aldri». Play er avledet
 registrering; manuell input er fasit.»*
 
-**Gjelder på tvers av moduler.** Kjente anvendelser:
+### Tre presiseringer — vedtaket bites her (fabel 2026-08-20)
 
-| Automatisk kilde | Menneskelig handling | Regel |
+**1 · Vike betyr aldri tie.** Forkastes en play-generert rad stille, kan reelle arbeidstimer
+forsvinne fordi en manuell rad var ført feil. Regelen er **vike + varsle**, aldri vike +
+glemme. Varselet skal si *hva* som vek — hvilket tidsrom, og at den manuelle raden er
+beholdt. Dette er den delen som ryker først når vedtaket gjenbrukes i en ny sak.
+
+**2 · En rettelse er også en menneskelig handling.** Vedtaket hindrer ikke at et menneske
+ber systemet hente på nytt. Værsnapshot som oppdateres fordi brukeren retter
+befaringstidspunktet **er** auto-overskriving — utløst av en menneskelig handling, og det er
+lov. Derfor **«uoppfordret automatikk»**, ikke «automatikk». Uten det ordet kolliderer
+vedtaket med værregelen (samme dag: vær hentes én gang, i det øyeblikket tidspunktet settes;
+et rettet tidspunkt oppdaterer feltet).
+
+**3 · Migreringer og backfill er unntatt, eksplisitt.** En datareparasjon — som
+steg-backfillen — er et bevisst inngrep med Kenneth-vedtak bak seg, ikke en «automatisk
+kilde». Uten dette unntaket kan vedtaket brukes som argument mot nødvendige reparasjoner.
+
+### Presedens
+
+| Automatisk kilde | Menneskelig handling | Utfall |
 |---|---|---|
-| Play-generert timerad | Manuelt ført rad | Play genererer ikke overlappende rad; manuell beholdes (`e789ddc4`) |
-| Auto-utkast dagsseddel | Arbeiderens egne rader | Forslag i draft, aldri auto-rad |
-| Vær-snapshot | Brukerens satte tidspunkt | Vær hentes for **lagret** tidspunkt, ikke tilkoblingstidspunkt |
+| Play-generert timerad | Manuelt ført rad | Play genererer ikke overlappende rad; manuell beholdes, arbeideren varsles om tidsrommet (`e789ddc4`) |
 | Kontrollplan-omplassering | Utført kontroll | Utførte kontroller flyttes aldri |
+| Auto-utkast dagsseddel | Arbeiderens egne rader | Forslag i draft, aldri auto-rad |
+| Vær-henting | Brukeren retter tidspunkt | **Overskriver — lovlig.** Rettelsen er den menneskelige handlingen (jf. presisering 2) |
 
-**Konsekvens for nye funksjoner:** når en automatisk kilde og en brukerhandling kan treffe
-samme felt, skal designet svare på tre ting før koding — hvem viker, hva sier varselet, og
-hvor ligger regelen (delt kilde, ikke kopi per flate).
+### Konsekvens for nye funksjoner
+
+Når en automatisk kilde og en brukerhandling kan treffe samme felt, skal designet svare på
+fire ting før koding:
+
+1. Hvem viker?
+2. Ba mennesket om dette? (Er ja — er det ikke uoppfordret, og vedtaket gjelder ikke.)
+3. Hva sier varselet konkret — hvilket felt, hvilken verdi, hva ble beholdt?
+4. Hvor ligger regelen? Delt kilde, aldri kopi per flate.
 
 ## 🟢 STYRENDE: oppgave og sjekkliste er grunnleggende like — to forskjeller (Kenneth 2026-08-19)
 
