@@ -468,33 +468,6 @@ export const medlemRouter = router({
       });
     }),
 
-  // Tilknytt et eksisterende prosjektmedlem til en faggruppe
-  tilknyttFaggruppe: protectedProcedure
-    .input(
-      z.object({
-        projectMemberId: z.string().uuid(),
-        faggruppeId: z.string().uuid(),
-        projectId: z.string().uuid(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
-
-      return ctx.prisma.faggruppeKobling.upsert({
-        where: {
-          projectMemberId_faggruppeId: {
-            projectMemberId: input.projectMemberId,
-            faggruppeId: input.faggruppeId,
-          },
-        },
-        create: {
-          projectMemberId: input.projectMemberId,
-          faggruppeId: input.faggruppeId,
-        },
-        update: {},
-      });
-    }),
-
   // Fjern et prosjektmedlem fra en faggruppe (fjerner FaggruppeKobling)
   fjernFraFaggruppe: protectedProcedure
     .input(

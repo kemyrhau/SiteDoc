@@ -24,10 +24,12 @@ export const faggruppeRouter = router({
           },
           _count: {
             select: {
-              bestillerChecklists: true,
-              utforerChecklists: true,
-              bestillerTasks: true,
-              utforerTasks: true,
+              // F0: tell kun ikke-slettede — ellers viser faggruppe-siden
+              // papirkurv-dokumenter som ikke finnes i sjekkliste-/oppgave-lista.
+              bestillerChecklists: { where: IKKE_SLETTET },
+              utforerChecklists: { where: IKKE_SLETTET },
+              bestillerTasks: { where: IKKE_SLETTET },
+              utforerTasks: { where: IKKE_SLETTET },
             },
           },
         },

@@ -1349,6 +1349,10 @@ model Dokumentflyt {
 model DokumentflytMedlem {
   id                     String    @id @default(uuid())
   dokumentflytId         String    @map("dokumentflyt_id")
+  // Binding: HØYST én av faggruppeId/projectMemberId/groupId (0 = åpent ledd, «alle
+  // prosjektmedlemmer»; jf. modul.ts HMS-bestiller). Håndhevet på API-INPUT
+  // (addDokumentflytMedlemSchema.superRefine), IKKE i DB — interne prisma.create
+  // (prosjekt.ts/modul.ts) omgår skjemaet og må selv respektere «høyst én».
   faggruppeId            String?   @map("faggruppe_id")
   projectMemberId        String?   @map("project_member_id")
   groupId                String?   @map("group_id")
