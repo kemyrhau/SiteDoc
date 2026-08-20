@@ -82,6 +82,8 @@ export {
   finnTidsromKonflikt,
 } from "./tidsromValidering";
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
+export { finnSedlerÅSlette } from "./timerSyncSletting";
+export type { Slettevindu, LokalSedelUtsnitt } from "./timerSyncSletting";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
 export {

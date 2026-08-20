@@ -3886,6 +3886,22 @@ export const dagsseddelRouter = router({
           : { dato: { gte: minDato } }),
       };
 
+      // ORDRE 1a: autoritativt id-sett for delete-propagering server→mobil.
+      // Serveren enumererer ALLE levende sedler i et EKSPLISITT intervall
+      // (dato >= minDato, uavhengig av updatedAt-cursoren) og sender intervallet
+      // med i svaret. Klienten sletter kun lokale sedler INNENFOR intervallet som
+      // mangler her (vakt 1), aldri pending/avvist (vakt 2). `where`-grenene over
+      // (inkrementell updatedAt vs. full dato) gjør at klienten IKKE trygt kan
+      // utlede vinduet selv — derfor er `slettevindu` autoritativt fra serveren.
+      const slettevindu = {
+        fraDato: minDato.toISOString().slice(0, 10),
+        tilDato: null as string | null,
+      };
+      const levendeSedler = await ctx.prismaTimer.dailySheet.findMany({
+        where: { organizationId: orgId, userId: ctx.userId, dato: { gte: minDato } },
+        select: { id: true, clientUuid: true },
+      });
+
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where,
         include: {
@@ -3935,6 +3951,9 @@ export const dagsseddelRouter = router({
 
       return {
         serverTid: new Date().toISOString(),
+        // ORDRE 1a: intervallet id-settet gjelder for + de levende sedlene i det.
+        slettevindu,
+        levendeSedler,
         sedler: sedler.map((s) => ({
           id: s.id,
           clientUuid: s.clientUuid,
