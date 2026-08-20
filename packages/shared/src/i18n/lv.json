@@ -137,6 +137,8 @@
   "timer.forKort.preFyltMelding": "Sesija bija pārāk īsa, lai pievienotu jaunas stundu rindas, taču dienas lapā jau ir ieraksti.",
   "timer.appendSendt.tittel": "Diena jau ir iesniegta",
   "timer.appendSendt.melding": "Jums ir šīs dienas ieraksts, kas jau ir iesniegts apstiprināšanai. Jaunā sesija netika pievienota. Lai mainītu dienu, tas ir atkārtoti jāatver (nāks vēlāk).",
+  "timer.playVek.tittel": "Atskaņošanas laiks deva vietu manuālai ievadīšanai",
+  "timer.playVek.melding": "Spēles laiks {{intervaller}} netika pievienots, jo jūs jau esat manuāli ievadījis stundas šajā periodā. Jūsu manuālais ieraksts netiek mainīts.",
   "timer.gjenaapne.knapp": "Atkārtoti atvērt rediģēšanai",
   "timer.gjenaapne.hjelp": "Atvelk lapu no apstiprināšanas, lai jūs varētu pievienot ierakstus. Jūsu pārvaldnieks to vairs neredzēs, kamēr nebūsiet atkārtoti iesniedzis.",
   "timer.gjenaapne.feilGodkjent": "Dienas lapu jau ir apstiprinājis jūsu vadītājs — sazinieties ar viņu, lai veiktu izmaiņas.",

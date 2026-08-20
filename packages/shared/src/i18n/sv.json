@@ -137,6 +137,8 @@
   "timer.forKort.preFyltMelding": "Sessionen var för kort för att lägga till nya timrader, men dagbladet har redan poster.",
   "timer.appendSendt.tittel": "Dagen är redan inlämnad",
   "timer.appendSendt.melding": "Du har ett bidrag för denna dag som redan har skickats in för godkännande. Den nya sessionen lades inte till. För att ändra dag måste den öppnas igen (kommer senare).",
+  "timer.playVek.tittel": "Speltiden gav vika för manuell inmatning",
+  "timer.playVek.melding": "Speltiden för {{intervaller}} lades inte till eftersom du redan har angett timmar manuellt under den perioden. Din manuella inmatning hålls oförändrad.",
   "timer.gjenaapne.knapp": "Öppna för redigering igen",
   "timer.gjenaapne.hjelp": "Dra tillbaka arket från godkännande så att du kan lägga till poster. Din chef kommer inte att se det igen förrän du skickar in det igen.",
   "timer.gjenaapne.feilGodkjent": "Dagbladet har redan godkänts av din chef – kontakta dem för att göra ändringar.",

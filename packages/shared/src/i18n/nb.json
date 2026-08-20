@@ -137,6 +137,8 @@
   "timer.forKort.preFyltMelding": "Økten var for kort til å legge til nye timer-rader, men dagsseddelen har allerede registreringer fra før.",
   "timer.appendSendt.tittel": "Dagen er allerede sendt",
   "timer.appendSendt.melding": "Du har en registrering for denne dagen som alt er sendt til attestering. Den nye økten ble ikke lagt til. Åpne sedelen og trykk «Gjenåpne for redigering» for å endre den.",
+  "timer.playVek.tittel": "Play-tid vek for manuell føring",
+  "timer.playVek.melding": "Play-tiden for {{intervaller}} ble ikke lagt til, fordi du allerede har ført timer manuelt i det tidsrommet. Din manuelle registrering er beholdt uendret.",
   "timer.gjenaapne.knapp": "Gjenåpne for redigering",
   "timer.gjenaapne.hjelp": "Henter sedelen tilbake fra attestering så du kan etter-registrere. Lederen ser den ikke før du sender på nytt.",
   "timer.gjenaapne.feilGodkjent": "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring.",

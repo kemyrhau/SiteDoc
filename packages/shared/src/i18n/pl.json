@@ -137,6 +137,8 @@
   "timer.forKort.preFyltMelding": "Sesja była zbyt krótka, aby dodać nowe wiersze godzin, ale arkusz dzienny zawiera już wpisy.",
   "timer.appendSendt.tittel": "Dzień został już przesłany",
   "timer.appendSendt.melding": "Masz wpis na ten dzień, który został już przesłany do zatwierdzenia. Nowa sesja nie została dodana. Aby zmienić dzień, należy go ponownie otworzyć (w późniejszym terminie).",
+  "timer.playVek.tittel": "Czas gry ustąpił miejsca ręcznemu wprowadzaniu",
+  "timer.playVek.melding": "Czas gry dla {{intervaller}} nie został dodany, ponieważ godziny w tym okresie zostały już ręcznie wprowadzone. Twój wpis ręczny pozostaje niezmieniony.",
   "timer.gjenaapne.knapp": "Otwórz ponownie do edycji",
   "timer.gjenaapne.hjelp": "Wycofuje arkusz z zatwierdzenia, aby można było dodać wpisy. Twój menedżer nie zobaczy go ponownie, dopóki nie prześlesz go ponownie.",
   "timer.gjenaapne.feilGodkjent": "Arkusz dzienny został już zatwierdzony przez Twojego menedżera – skontaktuj się z nim, aby wprowadzić zmiany.",

@@ -137,6 +137,8 @@
   "timer.forKort.preFyltMelding": "Sesija buvo per trumpa, kad būtų galima pridėti naujų valandų eilučių, bet dienos lape jau yra įrašų.",
   "timer.appendSendt.tittel": "Diena jau pateikta",
   "timer.appendSendt.melding": "Turite šios dienos įrašą, kuris jau buvo pateiktas patvirtinti. Nauja sesija nebuvo pridėta. Norėdami pakeisti dieną, jį reikia vėl atidaryti (bus vėliau).",
+  "timer.playVek.tittel": "Žaidimo laikas užleido vietą rankiniam įvedimui",
+  "timer.playVek.melding": "Žaidimo laikas {{intervaller}} nepridėtas, nes jau įvedėte to laikotarpio valandas. Jūsų rankinis įvedimas lieka nepakitęs.",
   "timer.gjenaapne.knapp": "Iš naujo atidaryti redaguoti",
   "timer.gjenaapne.hjelp": "Atšaukia lapą nuo patvirtinimo, kad galėtumėte pridėti įrašų. Jūsų vadovas daugiau jo nematys, kol nepateiksite iš naujo.",
   "timer.gjenaapne.feilGodkjent": "Dienos lapą jau patvirtino jūsų vadovas – susisiekite su juo ir atlikite pakeitimus.",

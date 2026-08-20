@@ -137,6 +137,8 @@
   "timer.forKort.preFyltMelding": "La session était trop courte pour ajouter de nouvelles lignes d'heures, mais la feuille de jour contient déjà des entrées.",
   "timer.appendSendt.tittel": "La journée est déjà soumise",
   "timer.appendSendt.melding": "Vous avez une entrée pour ce jour qui a déjà été soumise pour approbation. La nouvelle session n'a pas été ajoutée. Pour changer de jour, il faut le rouvrir (à venir plus tard).",
+  "timer.playVek.tittel": "Le temps de jeu a cédé la place à la saisie manuelle",
+  "timer.playVek.melding": "Le temps de lecture pour {{intervaller}} n'a pas été ajouté, car vous avez déjà saisi manuellement les heures dans cette période. Votre saisie manuelle reste inchangée.",
   "timer.gjenaapne.knapp": "Rouvrir pour modification",
   "timer.gjenaapne.hjelp": "Extrait la feuille de l'approbation afin que vous puissiez ajouter des entrées. Votre responsable ne le verra plus tant que vous ne le soumettrez pas à nouveau.",
   "timer.gjenaapne.feilGodkjent": "La feuille journalière a déjà été approuvée par votre responsable – contactez-le pour apporter des modifications.",

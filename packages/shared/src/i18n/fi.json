@@ -137,6 +137,8 @@
   "timer.forKort.preFyltMelding": "Istunto oli liian lyhyt uusien tuntirivien lisäämiseen, mutta päiväkirjassa on jo merkintöjä.",
   "timer.appendSendt.tittel": "Päivä on jo lähetetty",
   "timer.appendSendt.melding": "Sinulla on tämän päivän merkintä, joka on jo lähetetty hyväksyttäväksi. Uutta istuntoa ei lisätty. Jos haluat muuttaa päivää, se on avattava uudelleen (tulossa myöhemmin).",
+  "timer.playVek.tittel": "Peliaika väistyi manuaaliseen syöttämiseen",
+  "timer.playVek.melding": "Peliaikaa {{intervaller}} ei lisätty, koska olet jo syöttänyt tunnit manuaalisesti tälle ajanjaksolle. Manuaalinen syöttösi säilyy ennallaan.",
   "timer.gjenaapne.knapp": "Avaa uudelleen muokkausta varten",
   "timer.gjenaapne.hjelp": "Vetää arkin pois hyväksynnästä, jotta voit lisätä merkintöjä. Esimies ei näe sitä uudelleen ennen kuin lähetät sen uudelleen.",
   "timer.gjenaapne.feilGodkjent": "Esimies on jo hyväksynyt päiväkirjan – ota yhteyttä häneen tehdäksesi muutoksia.",

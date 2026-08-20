@@ -137,6 +137,8 @@
   "timer.forKort.preFyltMelding": "The session was too short to add new hour rows, but the day sheet already has entries.",
   "timer.appendSendt.tittel": "The day is already submitted",
   "timer.appendSendt.melding": "You have an entry for this day that has already been submitted for approval. The new session was not added. Open the sheet and tap “Reopen for editing” to change it.",
+  "timer.playVek.tittel": "Play time gave way to manual entry",
+  "timer.playVek.melding": "The play time for {{intervaller}} was not added, because you already have manually entered hours in that period. Your manual entry is kept unchanged.",
   "timer.gjenaapne.knapp": "Reopen for editing",
   "timer.gjenaapne.hjelp": "Pulls the sheet back from approval so you can add entries. Your manager won't see it again until you resubmit.",
   "timer.gjenaapne.feilGodkjent": "The daily sheet has already been approved by your manager — contact them to make changes.",
