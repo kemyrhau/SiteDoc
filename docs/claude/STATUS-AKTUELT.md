@@ -8,7 +8,7 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `feat/f2-fjern-klient-utskrift` (ny) | F2 — fjern `apps/web/src/app/utskrift/**` + knappe-duplikat; lukker 4 BACKLOG-saker | Ingenting — kan bygge. **Gate:** ikke rør filer mobil-device eier (Fase 3 = `expo-print` i mobil) |
+| **dokgen** | `SiteDoc-dokgen` | `fix/am-ordre1-timer` ✅ levert | **Ledig** — neste: AM ordre 2 (attestering) når fabel har designet, ev. F2 i mellomtiden | Fabel: designrunde attestering |
 | **mobil-device** | `SiteDoc-mobil-device` | `feat/mobil-arkiv-pdf` ✅ merget t.o.m. steg 2 | Steg 3–4 (type-valg i tegning + rename) + kontekstkjede | Ingenting — kan bygge |
 | **kontrollplan** | `SiteDoc-kontrollplan` | `fix/synlighet-vern` (`37480046` pushet) | Ferdig — venter coworks merge | Cowork: merge fra `SiteDoc-merge` |
 | **smoketest** | — | `chore/demo-smoketest` | Løype B (mal fylt) + C hvis tid | Kenneth: demo-mal på riktig prosjekt |
@@ -21,6 +21,41 @@ testdata slettet på Kenneths ordre: 18 `daily_sheets`, 16 `sheet_timer`, 2 `she
 De to vedleggsfilene flyttet til `~/backup/karantene-timer-20260820/` — **ikke slettet**,
 fordi prod og test deler uploads-volum (test-DB verifisert til 0 referanser før flytting).
 **Ikke rørt:** lønnsarter, aktiviteter, tilleggskatalog, maskinregister — oppsettet står.
+
+**✅ AM ORDRE 1 (timer-bugs) LEVERT 2026-08-20** — `fix/am-ordre1-timer`, 3 commits, merget develop.
+Fabels ordreliste: [referat-markussen-ordreliste-fabel-2026-08-20.md](../redesign/referat-markussen-ordreliste-fabel-2026-08-20.md).
+
+- **1a `5eb47e6b` — delete-propagering server→mobil.** Rotårsak: `hentEndringerSiden`
+  hadde **ingen delete-kanal**; juli-tombstonen (`slettede_rader_local`) er en lokal
+  mobiltabell som kun går mobil→server. Server hard-sletter uten spor, klienten fjernet
+  aldri lokale rader som manglet i svaret → splitt doblet timetall, og de 18 slettede
+  sedlene levde videre. Fiks: pull-svaret bærer nå et autoritativt id-sett for et
+  **eksplisitt intervall**. To vakter i delt, testet `finnSedlerÅSlette`
+  (`packages/shared/src/utils/timerSyncSletting.ts`, 9/9): klienten sletter kun innenfor
+  serverens uttalte intervall, og rører aldri `pending`/`avvist`.
+  **Tombstone-tabell ble avvist** — hver delete-vei måtte da huske å skrive den, samme
+  feilklasse som ga oss `steg`-problemet. Ingen migrering.
+- **1b `e789ddc4` — play viker for manuell føring** (fabel-gatet regel (a), 2026-08-20).
+  Play-genereringen kaller nå samme delte `finnOverlappendeTidsrom` som manuell-veien —
+  ikke en kopi. Ved overlapp settes play-raden ikke inn; varselet sier hvilke tidsrom som
+  vek og at den manuelle raden er beholdt.
+- **1c `668b834f` — eksportfeilen er ikke lenger taus.** `håndterEksport` hadde
+  `try/finally` uten `catch`; kast ble stille konsoll-rejection = «virker ikke» uten spor.
+  Nå vises `e.message` i rød banner. **`xlsx`-sikkerhetsbyttet er irrelevant her** —
+  timer-eksporten bruker allerede `exceljs`; FTD/økonomi er eget spor.
+
+🟡 **ÅPENT på 1c:** det faktiske exceljs-kastet er **ikke pinnet**. Chrome-verktøyet nådde
+aldri `document_idle` (presence-WebSocket holder siden «busy»). Vei videre: deploy catch-en
+til test, kjør eksporten, les `e.message` i banneret. Server-side-flytt holdes tilbake til
+kastet er identifisert.
+
+**DoD klikktelling (fabels krav):** ingen av de tre fiksene endrer klikktall — 1a leser rent
+fra lokal SQLite, 1b beholder play på 3 tapp (fjerner kun avvist-risiko), 1c er 2 klikk.
+Det er et **funn**, ikke et tomrom: «mange klikk»-inntrykket adresseres i ORDRE 2s
+designrunde (dagskort-åpning).
+
+**Reload:** mobil 1a+1b er JS-endringer → Metro-reload i dev. TestFlight krever nytt
+EAS-bygg (native uendret, men `@sitedoc/shared`-endringen må inn i bundelen).
 
 **Branch-rydding 2026-08-20:** `fix/pakke-a-sikkerhet` merget + slettet på origin.
 `fix/endringslogg-web` merget (`b4159178`) — den var **ikke** overflødig; `ce994756`

@@ -56,6 +56,30 @@ Alle arkitektur-beslutninger skal kunne forklares tilbake til en arbeidsflyt her
 
 ---
 
+## 🔴 STYRENDE: automatiske kilder overskriver aldri menneskelige handlinger (fabel 2026-08-20)
+
+**Prinsippet:** en avledet eller automatisk registrering skal aldri slette, overskrive eller
+fortrenge noe et menneske aktivt har lagt inn. Ved konflikt viker automatikken, og brukeren
+varsles om **hva** som vek — ikke bare at det oppsto en konflikt.
+
+**Opphav:** fabels gate på AM ordre 1b (play-knapp vs. manuell timeføring). Ordlyden:
+*«manuelt førte timer er en aktiv brukerhandling og skal aldri slettes av en automatisk
+kilde — samme prinsipp som «utførte kontroller flyttes aldri». Play er avledet
+registrering; manuell input er fasit.»*
+
+**Gjelder på tvers av moduler.** Kjente anvendelser:
+
+| Automatisk kilde | Menneskelig handling | Regel |
+|---|---|---|
+| Play-generert timerad | Manuelt ført rad | Play genererer ikke overlappende rad; manuell beholdes (`e789ddc4`) |
+| Auto-utkast dagsseddel | Arbeiderens egne rader | Forslag i draft, aldri auto-rad |
+| Vær-snapshot | Brukerens satte tidspunkt | Vær hentes for **lagret** tidspunkt, ikke tilkoblingstidspunkt |
+| Kontrollplan-omplassering | Utført kontroll | Utførte kontroller flyttes aldri |
+
+**Konsekvens for nye funksjoner:** når en automatisk kilde og en brukerhandling kan treffe
+samme felt, skal designet svare på tre ting før koding — hvem viker, hva sier varselet, og
+hvor ligger regelen (delt kilde, ikke kopi per flate).
+
 ## 🟢 STYRENDE: oppgave og sjekkliste er grunnleggende like — to forskjeller (Kenneth 2026-08-19)
 
 > *«Oppgave og sjekkliste skal være grunnleggende lik. Forskjell: sjekkliste kan slettes →
