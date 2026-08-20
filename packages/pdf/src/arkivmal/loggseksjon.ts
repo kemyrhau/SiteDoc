@@ -13,6 +13,7 @@
 
 import { esc, formaterDatoTidPunkt } from "../hjelpere";
 import { ARKIV_FARGER } from "./arkiv-css";
+import { formaterAktorRolle } from "./rolleEtikett";
 import type { ArkivLogg, HendelseRad, Segment } from "./typer";
 
 /** Segmenter → HTML: endrede ord i `<strong>`, uendrede rå-escapet (ord-diff). */
@@ -43,7 +44,13 @@ function dokumenthistorikk(hendelser: HendelseRad[]): string {
   if (hendelser.length === 0) return "";
   const rader = hendelser
     .map((h) => {
-      const rolle = h.aktorRolle ? ` <span class="ark-svak">(${esc(h.aktorRolle)})</span>` : "";
+      // STEG 1: normaliser rå senderRolle (fire former: kjent enum → etikett · posisjonsetikett
+      // → rått · ukjent → rått · tom/null → BLANK). Blank ⇒ HELE parentesen utelates — «()» i
+      // hver tredje null-rad er støy (Kenneth-presisering 2026-08-20).
+      const rolleTekst = formaterAktorRolle(h.aktorRolle);
+      const rolle = rolleTekst
+        ? ` <span class="ark-svak">(${esc(rolleTekst)})</span>`
+        : "";
       const farge = handlingFarge(h.handling);
       const handling = farge
         ? `<span style="color:${farge};font-weight:600">${esc(h.handling)}</span>`
