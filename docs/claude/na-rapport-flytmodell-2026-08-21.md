@@ -161,3 +161,37 @@ Seksjonene 1–6 svarer 1:1 på fabels punkter. **Full dekning**, med to eksplis
 - **Pkt 2 & 6 — prod-radtellinger:** ikke målt (ingen prod-DB-tilgang). Feltene og deres skrive-/lese-stier er kartlagt; *antallet* rader krever en DB-spørring.
 - **Pkt 5 — klikk-/begrepsgevinst-estimat:** utelatt som design-/vurderingssteg; surface-faktagrunnlaget er levert.
 Ingen innholdsmessig avvik mellom min opprinnelige seksjonering og fabels nummerering — kun omstrukturert til fabels rekkefølge.
+
+---
+
+## Prod-radtellinger — punkt 2 og 6 (målt 2026-08-21, kjørt av Kenneth)
+
+Rapportens forfatter hadde ikke prod-DB-tilgang; tallene ble hentet av Kenneth og
+føres inn her av cowork ved merge.
+
+| Tabell | Verdi | Rader |
+|---|---|---|
+| `dokumentflyt_medlemmer` | `utforer` | 10 |
+| | `bestiller` | 8 |
+| | `registrator` | 6 |
+| | `godkjenner` | 4 |
+| | **sum** | **28** |
+| `document_transfers` | `(null)` | 20 |
+| | `utforer` | 18 |
+| | `bestiller` | 18 |
+| | `godkjenner` | 2 |
+| | **sum** | **58** |
+| `flyt_rettighet_overrides` | — | **0 rader** |
+
+**Tre konsekvenser for fjerningsdesignet:**
+
+1. 🟢 **`flyt_rettighet_overrides` er tom.** Ingen kunde har lagret overstyringer.
+   Fabels F5 («kunde-overrides migreres kun der entydig, aldri stille») har ingen data
+   å migrere — tabellen og lese-/skrivestien kan behandles som ren kode, ikke som et
+   datamigreringsproblem.
+2. **28 leddrader totalt** på tvers av alle flyter i prod. Type→posisjon-mapping er en
+   liten, håndterbar mengde — ikke en masseoperasjon.
+3. **20 av 58 `document_transfers` har allerede `sender_rolle = null`.** PDF-loggen må
+   altså **allerede i dag** tåle at feltet mangler. Det styrker F3 (frys historikk, ikke
+   migrer): null-håndteringen finnes eller trengs uansett, og enum-bug-fiksen
+   (`loggseksjon.ts:46`) må dekke begge former.
