@@ -124,6 +124,17 @@ kjøre uten å tolke.
 - **Rekkefølge når noe avhenger:** «X først, fordi Y trenger resultatet.» Er de
   uavhengige, si det — da kan flere agenter kjøre parallelt.
 
+🔴 **Aldri referer til en kommando i en tidligere melding** (Kenneth 2026-08-20:
+*«slutt å referere til blokker i forrige melding — du gir alle kommandoer tydelig»*).
+Formuleringer som «kjør merge-blokken fra forrige melding», «blokken over» eller «som
+nevnt tidligere» tvinger Kenneth til å scrolle og lete, og i en lang økt treffer han
+feil blokk. **Hver melding skal være selvstendig:** står kommandoen i meldingen, kan
+den kjøres derfra. Er den lang og allerede gitt — skriv den ut på nytt. Gjentakelse
+koster ingenting; leting koster en runde og kan gi feil kommando.
+
+Samme regel gjelder ordrer til agenter: nudgen skal inneholde alt agenten trenger, ikke
+peke tilbake på en tidligere ordre.
+
 ### Spørsmål: samle, ikke drypp
 
 Mange små avklaringer koster Kenneth mer enn de sparer. Tenk ferdig, mål det som
