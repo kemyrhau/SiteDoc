@@ -28,6 +28,9 @@ import {
   krevesBelop,
   UTLEGG_ORDNINGER,
   type UtleggOrdning,
+  beregnUkenorm,
+  beregnOvertidsgrunnlag,
+  type Overtidsgrunnlag,
 } from "@sitedoc/shared";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
@@ -341,6 +344,87 @@ function snapshotMaskin(r: MaskinRow): MaskinSnapshot {
     enhet: r.enhet,
     parentRadId: r.parentRadId,
   };
+}
+
+// ============================================================================
+//  ORDRE 2 STEG 1 — uke-nivå overtidsgrunnlag for attestert-snapshot.
+//
+//  Fabels krav (D2): ved attestering skrives et ETTERPRØVBART grunnlag for
+//  overtidsvarselet attestanten handlet på — norm for uken, sum ordinært, sum
+//  overtid, beregnet vs. valgt. Samme tidspunkt/mønster som pris-snapshotet.
+//  Ren beregning: leser ukens ikke-erstattede rader (org-isolert) + effektiv
+//  dagsnorm, rører ALDRI lonnsartId. attestertSnapshot er Json? → migreringsfri.
+// ============================================================================
+
+/** Legg n dager til en ISO-dato (YYYY-MM-DD) i UTC. */
+function leggTilDagerIso(iso: string, n: number): string {
+  const [aar, mnd, dag] = iso.split("-").map(Number);
+  const d = new Date(Date.UTC(aar ?? 1970, (mnd ?? 1) - 1, dag ?? 1));
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Mandagens ISO-dato for uken en gitt dato faller i (UTC). */
+function mandagIso(dato: Date): string {
+  const d = new Date(
+    Date.UTC(dato.getUTCFullYear(), dato.getUTCMonth(), dato.getUTCDate()),
+  );
+  const dag = d.getUTCDay(); // 0=søndag, 1=mandag
+  const diff = dag === 0 ? -6 : 1 - dag;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+type PrismaTimerKlient =
+  | Prisma.TransactionClient
+  | typeof import("@sitedoc/db-timer").prismaTimer;
+
+async function byggUkeOvertidsgrunnlag(
+  prismaTimer: PrismaTimerKlient,
+  organizationId: string,
+  userId: string,
+  dato: Date,
+): Promise<Overtidsgrunnlag> {
+  const ukestart = mandagIso(dato);
+  const ukeslutt = leggTilDagerIso(ukestart, 4); // fredag
+
+  // Effektiv (sommertid-bevisst) dagsnorm for ukens fem arbeidsdager.
+  const dagsnormMap = new Map<string, number>();
+  await Promise.all(
+    [0, 1, 2, 3, 4].map(async (i) => {
+      const iso = leggTilDagerIso(ukestart, i);
+      const eff = await hentEffektivArbeidstid(
+        organizationId,
+        new Date(`${iso}T00:00:00.000Z`),
+      );
+      dagsnormMap.set(iso, eff.dagsnorm);
+    }),
+  );
+  const uke = beregnUkenorm(ukestart, (iso) => dagsnormMap.get(iso) ?? 0);
+
+  // Ukens aktive timer-rader for brukeren (org-isolert, ikke-erstattet).
+  const rader = await prismaTimer.sheetTimer.findMany({
+    where: {
+      attestertStatus: { not: "erstattet" },
+      sheet: {
+        organizationId,
+        userId,
+        dato: {
+          gte: new Date(`${ukestart}T00:00:00.000Z`),
+          lte: new Date(`${ukeslutt}T23:59:59.999Z`),
+        },
+      },
+    },
+    select: { timer: true, lonnsart: { select: { overtidsnivaa: true } } },
+  });
+
+  return beregnOvertidsgrunnlag(
+    rader.map((r) => ({
+      timer: Number(r.timer),
+      overtidsnivaa: r.lonnsart?.overtidsnivaa ?? null,
+    })),
+    uke.norm,
+  );
 }
 
 // ============================================================================
@@ -2165,8 +2249,12 @@ export const dagsseddelRouter = router({
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
-          timer: true,
-          tillegg: true,
+          // ORDRE 2 STEG 1 (2026-08-20): filtrer ut "erstattet"-rader (audit-spor
+          // fra rediger-mutasjoner). Uten dette dobbelttelles redigerte rader i
+          // `totaltimer`/`antallRader` — en bug uavhengig av aggregat-designet
+          // (samme filter som hentTilAttesteringFirma :2315).
+          timer: { where: { attestertStatus: { not: "erstattet" } } },
+          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -2209,8 +2297,9 @@ export const dagsseddelRouter = router({
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
-          timer: true,
-          tillegg: true,
+          // ORDRE 2 STEG 1: samme erstattet-filter som hentTilAttestering.
+          timer: { where: { attestertStatus: { not: "erstattet" } } },
+          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -2271,7 +2360,17 @@ export const dagsseddelRouter = router({
         // T7-5e: fane-filter på attestering-listen.
         // "sent" = venter på attestering (default, bakover-kompat).
         // "accepted" = ferdig attestert (read-only-visning).
-        status: z.enum(["sent", "accepted"]).optional().default("sent"),
+        // ORDRE 2 STEG 1 (2026-08-20): tar nå ENTEN én status ELLER en liste
+        // (multi-status i ett kall — aggregat-visningene trenger sent+accepted
+        // for komplett uke). Enkelt-string beholdt → eksisterende web-kallere
+        // (fane-filteret) er uendret.
+        status: z
+          .union([
+            z.enum(["sent", "accepted"]),
+            z.array(z.enum(["sent", "accepted"])).min(1),
+          ])
+          .optional()
+          .default("sent"),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -2302,9 +2401,12 @@ export const dagsseddelRouter = router({
       // rader er attestert — eksisterende filter dekker dem. Inkluderer maskiner
       // og rad-status så klient kan vise fremdrift (X av Y attestert).
       // T7-5e: status-input styrer fane — "sent" venter, "accepted" attestert.
+      // ORDRE 2 STEG 1: normaliser status til liste (union: én ELLER flere).
+      const statuser = Array.isArray(input.status) ? input.status : [input.status];
+
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
-          status: input.status,
+          status: { in: statuser },
           timer: { some: { projectId: { in: prosjektIder } } },
           ...(datoFilter ? { dato: datoFilter } : {}),
         },
@@ -2312,7 +2414,13 @@ export const dagsseddelRouter = router({
           aktivitet: { select: { id: true, navn: true, kode: true } },
           // Filtrer ut "erstattet"-rader (audit-spor fra rediger-mutasjoner).
           // Uten dette vises gamle rader sammen med erstatningene i listen.
-          timer: { where: { attestertStatus: { not: "erstattet" } } },
+          // ORDRE 2 STEG 1: lonnsart.overtidsnivaa lastes for backstop-avledningen
+          // (beregnet vs. valgt overtid) — brukes kun til beregning, rører aldri
+          // rad.lonnsartId.
+          timer: {
+            where: { attestertStatus: { not: "erstattet" } },
+            include: { lonnsart: { select: { overtidsnivaa: true } } },
+          },
           tillegg: { where: { attestertStatus: { not: "erstattet" } } },
           maskiner: { where: { attestertStatus: { not: "erstattet" } } },
         },
@@ -2390,8 +2498,35 @@ export const dagsseddelRouter = router({
         input.organizationId,
       );
 
+      // ORDRE 2 STEG 1 — backstop som LESE-avledning: server beregner
+      // klassifisering (beregnet vs. valgt overtid) per sedel on-the-fly fra
+      // radenes timer + EFFEKTIV dagsnorm (sommertid-bevisst, ikke flat
+      // orgSetting.dagsnorm). Rører ALDRI rad.lonnsartId. Batch dagsnorm per
+      // unik dato.
+      const unikeDatoer = Array.from(
+        new Set(sedler.map((s) => s.dato.toISOString().slice(0, 10))),
+      );
+      const effektivDagsnormMap = new Map<string, number>();
+      await Promise.all(
+        unikeDatoer.map(async (iso) => {
+          const eff = await hentEffektivArbeidstid(
+            input.organizationId,
+            new Date(`${iso}T00:00:00.000Z`),
+          );
+          effektivDagsnormMap.set(iso, eff.dagsnorm);
+        }),
+      );
+
       return sedler.map((s) => {
         const projectId = s.timer[0]?.projectId ?? null;
+        const isoDato = s.dato.toISOString().slice(0, 10);
+        const overtidsgrunnlag: Overtidsgrunnlag = beregnOvertidsgrunnlag(
+          s.timer.map((r) => ({
+            timer: Number(r.timer),
+            overtidsnivaa: r.lonnsart?.overtidsnivaa ?? null,
+          })),
+          effektivDagsnormMap.get(isoDato) ?? 0,
+        );
         const timerMedProsjekt = s.timer.map((r) => ({
           ...r,
           project: prosjektMap.get(r.projectId) ?? null,
@@ -2416,6 +2551,10 @@ export const dagsseddelRouter = router({
           tilleggHarKrav: s.tillegg.length > 0,
           dagsnorm,
           redigerTillatt,
+          // ORDRE 2 STEG 1: beregnet vs. valgt overtid (dag-nivå) — attestanten
+          // ser avvik, systemet retter aldri lonnsartId. Uke-nivå-varselet (D2)
+          // bygges i STEG 3 oppå denne.
+          overtidsgrunnlag,
           // T.11: true når sedel har maskinarbeid og eier mangler gyldig bevis.
           manglerMaskinforerbevis:
             s.maskiner.length > 0 && !maskinforerbevisMap.get(s.userId),
@@ -2756,6 +2895,34 @@ export const dagsseddelRouter = router({
       const naa = new Date();
       const uniqueSheetIds = Array.from(new Set(alle.map((r) => r.sheetId)));
 
+      // ORDRE 2 STEG 1 — uke-nivå overtidsgrunnlag per sedel (etterprøvbart
+      // snapshot). Cache per (bruker + uke) så samme uke ikke beregnes flere
+      // ganger. sheetGrunnlag: sheetId → grunnlag (null hvis org mangler).
+      const sheetInfo = await ctx.prismaTimer.dailySheet.findMany({
+        where: { id: { in: uniqueSheetIds } },
+        select: { id: true, dato: true, userId: true, organizationId: true },
+      });
+      const ukeCache = new Map<string, Overtidsgrunnlag>();
+      const sheetGrunnlag = new Map<string, Overtidsgrunnlag | null>();
+      for (const sh of sheetInfo) {
+        if (!sh.organizationId) {
+          sheetGrunnlag.set(sh.id, null);
+          continue;
+        }
+        const key = `${sh.userId}-${mandagIso(sh.dato)}`;
+        let g = ukeCache.get(key);
+        if (!g) {
+          g = await byggUkeOvertidsgrunnlag(
+            ctx.prismaTimer,
+            sh.organizationId,
+            sh.userId,
+            sh.dato,
+          );
+          ukeCache.set(key, g);
+        }
+        sheetGrunnlag.set(sh.id, g);
+      }
+
       // Bygg snapshot-operasjoner per rad (Fase 0 A.7)
       const operations = [
         ...timerRader.map((rad) =>
@@ -2777,6 +2944,8 @@ export const dagsseddelRouter = router({
                 aktivitetId: rad.aktivitet.id,
                 aktivitetKode: rad.aktivitet.kode,
                 aktivitetNavn: rad.aktivitet.navn,
+                // ORDRE 2 STEG 1: etterprøvbart overtidsgrunnlag (uke-nivå).
+                overtidsgrunnlag: (sheetGrunnlag.get(rad.sheetId) ?? null) as unknown as Prisma.InputJsonValue,
                 attestertVed: naa.toISOString(),
               },
             },
@@ -3774,7 +3943,13 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
         where: { id: input.id },
-        select: { status: true },
+        // ORDRE 2 STEG 1: dato/userId/organizationId trengs til uke-grunnlaget.
+        select: {
+          status: true,
+          dato: true,
+          userId: true,
+          organizationId: true,
+        },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
       if (sheet.status !== "sent") {
@@ -3828,6 +4003,17 @@ export const dagsseddelRouter = router({
 
       const naa = new Date();
 
+      // ORDRE 2 STEG 1: uke-nivå overtidsgrunnlag for etterprøvbart snapshot.
+      // Enkelt-sedel → én beregning. null hvis org mangler (defensivt).
+      const ukeGrunnlag: Overtidsgrunnlag | null = sheet.organizationId
+        ? await byggUkeOvertidsgrunnlag(
+            ctx.prismaTimer,
+            sheet.organizationId,
+            sheet.userId,
+            sheet.dato,
+          )
+        : null;
+
       await ctx.prismaTimer.$transaction([
         ...timerRader.map((rad) =>
           ctx.prismaTimer.sheetTimer.update({
@@ -3848,6 +4034,8 @@ export const dagsseddelRouter = router({
                 aktivitetId: rad.aktivitet.id,
                 aktivitetKode: rad.aktivitet.kode,
                 aktivitetNavn: rad.aktivitet.navn,
+                // ORDRE 2 STEG 1: etterprøvbart overtidsgrunnlag (uke-nivå).
+                overtidsgrunnlag: ukeGrunnlag as unknown as Prisma.InputJsonValue,
                 attestertVed: naa.toISOString(),
               },
             },

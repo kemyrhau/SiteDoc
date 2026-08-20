@@ -1,4 +1,5 @@
 import { eq, and, desc } from "drizzle-orm";
+import { STANDARD_ARBEIDSTID_FALLBACK } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
   arbeidstidskalenderLocal,
@@ -28,9 +29,10 @@ export type EffektivArbeidstid = {
 };
 
 // Sikkerhetsnett: brukes hvis cache er tom (første gang appen kjøres offline).
-const DEFAULT_START_TID = "07:00";
-const DEFAULT_SLUTT_TID = "15:00";
-const DEFAULT_PAUSE_MIN = 30;
+// ORDRE 2 STEG 1 (2026-08-20): delt kilde — @sitedoc/shared arbeidstidDefault.
+const DEFAULT_START_TID = STANDARD_ARBEIDSTID_FALLBACK.startTid;
+const DEFAULT_SLUTT_TID = STANDARD_ARBEIDSTID_FALLBACK.sluttTid;
+const DEFAULT_PAUSE_MIN = STANDARD_ARBEIDSTID_FALLBACK.pauseMin;
 
 /**
  * Last ned kalender-rader for periode currentYear ± 1 og overskriv lokal
