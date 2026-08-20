@@ -56,6 +56,32 @@ Alle arkitektur-beslutninger skal kunne forklares tilbake til en arbeidsflyt her
 
 ---
 
+## 🔴 BINDENDE VEDTAK: rekkefølgen styrer flyten — kun registrator består (Kenneth 2026-08-21)
+
+**Vedtaket:** dokumentflyt styres av **rekkefølgen på flytboksene alene**. Den eneste
+rolleegenskapen som beholdes er **registrator** — hvem som kan opprette og starte
+dokumentet. Semantiske ledd-typer som utfører, godkjenner og kontrollør **fjernes som
+egenskaper**: hva et ledd *er*, følger av hvor det står i flyten, ikke av en merkelapp.
+
+**Modellkonsekvens:** et ledd = posisjon + bemanning (person, gruppe eller faggruppe, med
+«høyst én»-vernet fra `37480046`) + registrator-flagg. Ikke noe mer.
+
+**Hva vedtaket lukker:**
+
+- Flytmodell-spørsmålet A–D, som har stått åpent i innboksen.
+- Deler av KP-start-beslutningen a/b/c: «hvem kan starte» **er** registrator-leddet;
+  resten er rekkefølge.
+
+**Begrunnelsen er begrepsøkonomi.** Hver ledd-type er et begrep brukeren må lære, et valg
+i flytbyggeren, og en gren i koden. Posisjonen bærer allerede betydningen — å merke den i
+tillegg er duplisering som kan drifte fra hverandre. Kenneth 2026-08-21: *«jeg mener vi
+besluttet å kode oss bort fra det.»*
+
+🟡 **Ikke bygget. Kartlegging pågår før fjerningsdesign** — typen kan være vevd inn i
+signerings- og attesteringslogikk, og det skal måles, ikke antas. Seks kartleggingspunkter
+i [vedtak-flytmodell-rekkefolge-fabel-2026-08-21.md](../redesign/vedtak-flytmodell-rekkefolge-fabel-2026-08-21.md).
+Fjerningsordre formuleres av fabel etter rapport, med Kenneth-gate før bygging.
+
 ## 🔴 BINDENDE VEDTAK: uoppfordret automatikk overskriver aldri en menneskelig handling (fabel 2026-08-20)
 
 **Vedtaket:** en avledet eller automatisk registrering skal aldri slette, overskrive eller
