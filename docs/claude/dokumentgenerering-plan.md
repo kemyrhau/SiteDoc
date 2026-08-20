@@ -119,7 +119,30 @@ Når endringsloggen er lesbar, er arkiv-PDF-en bedre enn klient-utskriften på a
 punkter Kenneth har målt. Da fjernes `apps/web/src/app/utskrift/**` og
 knappe-duplikatet på sjekklistedetalj.
 
-**F2 lukker fire BACKLOG-saker uten å bygge noe:**
+> 🔴 **KORRIGERT 2026-08-20 ved levering (`d92ece42`): F2 lukket ÉN sak, ikke fire.**
+> Anslaget under var en overvurdering, avdekket da dokgen målte hver sak mot koden i
+> stedet for å stole på planen.
+>
+> - ✅ **Lukket:** «attachments-bilder rendres dobbelt» — krevde `utskrift/**`, nå borte.
+> - ⚠️ **Ikke lukket (mobil):** bor i `packages/pdf/felt.ts` via `expo-print` → hører til
+>   Fase 3, ikke F2.
+> - ⚠️ **To delvis lukket:** «skjuler uutfylte» + «print uten bilde-venting» bor i en
+>   **andre web-utskriftsflate planen overså** —
+>   `apps/web/src/app/dashbord/[prosjektId]/sjekklister/skriv-ut/page.tsx:111`
+>   (bulk-utskrift, `window.print()` uten bilde-venting, deler `RapportObjektVisning`).
+>   Den lukker begge når den flyttes til arkiv-PDF, men det krever **ny kode** og faller
+>   derfor utenfor F2s «ingen ny kode»-premiss. **Egen oppfølger — se F2b under.**
+>
+> **Lærdom:** «lukker N saker uten ny kode» skal måles mot koden før det skrives i en
+> plan, ikke anslås. Anslaget sto i både planen og `CLAUDE.md`-indeksen i fire dager.
+
+### F2b — bulk-utskriftsflaten 🟡 OPPFØLGER (åpnet 2026-08-20)
+
+`sjekklister/skriv-ut/page.tsx` er den gjenstående web-klient-utskriften. Flyttes til
+arkiv-PDF på samme måte som F2 flyttet detaljsidene. Lukker «skjuler uutfylte» og
+«print uten bilde-venting» helt. Krever ny kode; ikke prioritert foran AM-ordrene.
+
+**Opprinnelig anslag (beholdt for sporbarhet) — F2 skulle lukke fire BACKLOG-saker uten å bygge noe:**
 
 - Attachments-bilder rendres dobbelt, én gang brutt (2026-08-15)
 - Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (2026-08-13)

@@ -62,7 +62,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH |
 | [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste, 5 prioritets-nivåer |
 | `docs/claude/historikk-2026-MM.md` | **Arkiv av deployete PR-er/saker per måned** (05, 06, 07, 08). Deployet arbeid flyttes hit fra STATUS-AKTUELT |
-| [docs/claude/dokumentgenerering-plan.md](docs/claude/dokumentgenerering-plan.md) | **🟢 STYRENDE for arkivmal/utskrift:** F1–F6 med avhengighetskart. F2 (fjern klient-utskrift) lukker 4 BACKLOG-saker uten ny kode |
+| [docs/claude/dokumentgenerering-plan.md](docs/claude/dokumentgenerering-plan.md) | **🟢 STYRENDE for arkivmal/utskrift:** F1–F6 med avhengighetskart. F2 (fjern klient-utskrift) levert 2026-08-20 — lukket **1** BACKLOG-sak, ikke 4 (planens anslag korrigert ved måling) |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
