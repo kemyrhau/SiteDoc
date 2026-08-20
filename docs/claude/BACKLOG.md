@@ -348,7 +348,9 @@ Rørt av fremdriftsplan-importen: rad-identiteten `@@unique([kontrollplanId, imp
 - *Kode i dag:* bilde-merking + dokumenthistorikk + signatur har hh:mm (levert 08-15/08-16). Men statusblokk-cellene «Opprettet» (`sammenstilling.ts:226`) og «Sist endret» (`dokument.ts:34`) bruker `formaterDatoKort` → kun dato.
 - *Mangler:* dato+tid for de to cellene (~2 linjer, `formaterDatoKort` → dato+tid-format). ❓ Henger sammen med **BACKLOG-punkt 2 (statusblokk-etikett)**: hvis «Opprettet» blir «Utført dato» med annen datakilde, endres tid-spørsmålet med den. Avklar sammen med punkt 2.
 
-### 🔴 Klient-utskrift: attachments-bilder rendres dobbelt, én gang brutt (Kenneth, prod 2026-08-15)
+### ✅ Klient-utskrift: attachments-bilder rendres dobbelt, én gang brutt (Kenneth, prod 2026-08-15) — LØST av F2 (2026-08-20)
+
+**Lukket 2026-08-20 (F2 / `feat/f2-fjern-klient-utskrift`).** Dobbeltrenderingen krevde `RapportObjektVisning` sin attachments-gren **og** `FeltVedlegg` samtidig — det skjedde kun i `apps/web/src/app/utskrift/**`, som nå er slettet. Den gjenværende klient-utskrift-flaten `sjekklister/skriv-ut/page.tsx` bruker **ikke** `FeltVedlegg`, så ingen dobbeltrendering gjenstår. (Original beskrivelse under.)
 
 **Observert i prod** (BEF-002, Test prosjekt SiteDoc Røstbakken): over bildene står to **brutte bilde-ikoner** med filnavnene `IMG_1773940614053.jpg` og `IMG_1773943366962.jpg` — og rett under står de samme bildene rendret korrekt.
 
@@ -695,6 +697,8 @@ Hører naturlig sammen med fase 3 (arkivmal), der bildeblokkene uansett bygges.
 
 ### Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (målt 2026-08-13)
 
+> ⚠️ **IKKE lukket av F2 (2026-08-20).** Planen § F2 listet denne blant «fire saker F2 dekker», men F2 fjerner kun **web**-klient-utskriften. Denne saken bor i **mobil-stien** (`packages/pdf/src/felt.ts:131/152` via expo-print) og hører til **Fase 3 (mobil-device)** — dokgen rørte ingen mobil-filer. Meldt fra i stedet for lukket (per F2-ordrens gate).
+
 **Oppfølger til web-funnet under.** `packages/pdf/src/felt.ts` viser «Ikke utfylt» for ~15 felttyper, men returnerer `""` — altså skjuler feltet — for to innholdsbærende typer:
 
 - **`repeater` med 0 rader** (`felt.ts:152`) → tom kontrolltabell forsvinner
@@ -709,6 +713,8 @@ Det betyr at kontrolltabellen Kenneth reagerte på i `K-avv-003` ville forsvunne
 **Tiltak:** vurder om mobil skal få `visTommeStrukturer` som default etter at arkivmalen er verifisert. Krever EAS-bygg for å nå felt.
 
 ### 🔴 Web-utskrift skjuler uutfylte felter — mobil viser dem (målt i prod 2026-08-12)
+
+> ⚠️ **DELVIS av F2 (2026-08-20), IKKE lukket.** F2 slettet `utskrift/**`, men denne oppførselen bor i **delt** `RapportObjektVisning.tsx:42` (`if (tom) return null`), som fortsatt brukes av `sjekklister/skriv-ut/page.tsx` (bulk-utskrift av valgte sjekklister) — en andre web-klient-utskrift-flate planen § F2 overså. **Lukkes først når `skriv-ut` også fjernes/flyttes til arkiv-PDF** (egen ordre — se F2-rapport 2026-08-20). Krever ny kode, utenfor F2s «ingen ny kode»-scope.
 
 **Samme dokument gir ulikt innhold avhengig av hvor det skrives ut.**
 
@@ -741,6 +747,8 @@ Det betyr at kontrolltabellen Kenneth reagerte på i `K-avv-003` ville forsvunne
 Gjelder minst `dashbord/oppsett/prosjektoppsett`, men kartlegg alle `dashbord/oppsett/*` og `dashbord/firma/*`-innstillingsflater.
 
 ### Store bilder mangler i klient-utskrift — `window.print()` venter ikke på lasting (målt 2026-08-12)
+
+> ⚠️ **DELVIS av F2 (2026-08-20), IKKE lukket.** F2 slettet `utskrift/**` (som hadde bilde-venting via `skrivUtNaarBilderErKlare`). Men `sjekklister/skriv-ut/page.tsx:111` kaller fortsatt `window.print()` **uten** bilde-venting — samme bug, andre flate. **Lukkes når `skriv-ut` fjernes/flyttes til arkiv-PDF** (samme oppfølger som web-skjuler-uutfylte over).
 
 **Eksisterende feil, ikke innført av noen nylig endring.** Oppdaget under verifisering av bilde-migreringen på test.
 

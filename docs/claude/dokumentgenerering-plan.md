@@ -124,6 +124,11 @@ knappe-duplikatet på sjekklistedetalj.
 Alle fire gjelder kun klient-veien. Det er den største enkeltgevinsten i planen,
 og den koster ingen ny kode.
 
+> **🟢 GJENNOMFØRT 2026-08-20 (`feat/f2-fjern-klient-utskrift`, dokgen) — med to korreksjoner.** Slettet `apps/web/src/app/utskrift/**` (både sjekkliste- og oppgave-ruten) + foreldreløs `apps/web/src/lib/utskrift-print.ts`, fjernet «Skriv ut»-duplikatknappen på sjekkliste- og oppgavedetalj. **Av de fire sakene lukket F2 reelt bare ÉN** (attachments dobbelt — venue slettet). De øvrige tre stemte ikke med koden:
+> - **To oppdagede oppfølgere (planen overså `sjekklister/skriv-ut/page.tsx`):** «web-skjuler-uutfylte» (sak 3) og «window.print venter ikke» (sak 4) bor i **delt** `RapportObjektVisning`/`window.print()`, som bulk-utskrifts-ruten `sjekklister/skriv-ut` fortsatt bruker. F2 (kun `utskrift/**`) lukker dem derfor ikke. **Egen ordre trengs:** fjern/flytt `skriv-ut` til arkiv-PDF (`arkiv.rendr` tar array — bulk er mulig, men er ny kode).
+> - **Mobil-saken (sak 2)** er Fase 3 (`felt.ts`/expo-print) — ikke rørt, meldt fra per gate.
+> - **⚠️ Regresjon innført bevisst:** oppgavedetalj hadde **kun** klient-utskrift (ingen arkiv-PDF; `arkiv/sammenstilling.ts` rendrer bare sjekkliste). Å slette hele `utskrift/**` fjernet oppgave-utskrift **uten erstatning** til oppgave får arkiv-PDF (etter F3). Flagget to ganger før utførelse; ordren ble bekreftet bokstavelig.
+
 ⚠️ Før sletting: `packages/pdf/src/felt.ts` er **frossen** (mobil-signatur) og
 skal ikke røres. Verifiser hva mobil faktisk bruker før noe fjernes.
 

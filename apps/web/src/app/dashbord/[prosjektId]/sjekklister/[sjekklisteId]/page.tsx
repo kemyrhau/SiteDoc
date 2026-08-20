@@ -7,7 +7,7 @@ import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift, ekspanderEndring, byggKolonnerPerFelt } from "@sitedoc/pdf";
 import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/pdf";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { Check, AlertCircle, Loader2, Printer, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
+import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -770,17 +770,6 @@ export default function SjekklisteDetaljSide() {
                 <Download className="h-4 w-4" />
               )}
               <span className="hidden sm:inline">{t("handling.lastNedArkivPdf")}</span>
-            </button>
-            <button
-              // noopener: gir print-fanen egen renderer-prosess så window.print()-
-              // dialogen ikke fryser denne (opphavs-)fanen — de er same-origin og
-              // ville ellers delt hovedtråd. Auto-lukking (afterprint→window.close)
-              // virker fortsatt: script-åpnet, history-1-fane er script-closable. BEF-001-funn 2.
-              onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}?print=true`, "_blank", "noopener")}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-              title="Skriv ut"
-            >
-              <Printer className="h-4 w-4" />
             </button>
           </div>
         </div>
