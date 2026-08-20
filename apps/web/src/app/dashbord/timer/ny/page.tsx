@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Button, Input, Spinner } from "@sitedoc/ui";
 import { ArrowLeft } from "lucide-react";
 
@@ -41,6 +42,12 @@ export default function NyDagsseddelSide() {
 
   const [dato, setDato] = useState(iDag());
   const [projectId, setProjectId] = useState<string>("");
+  // Prefyll-paritet med mobil (ny.tsx:104-156): mobil forhåndsvelger prosjekt via
+  // GPS innenfor 500m. Web har ingen GPS, men kjenner det aktive prosjektet fra
+  // toppbar-konteksten. `prosjektRortAvBruker` speiler mobils «aldri overstyr et
+  // valg» — når bruker først rører velgeren (også ved å tømme den), slås
+  // auto-prefyll av.
+  const [prosjektRortAvBruker, setProsjektRortAvBruker] = useState(false);
   const [aktivitetId, setAktivitetId] = useState<string>("");
   const [pauseMin, setPauseMin] = useState(0);
   const [startAt, setStartAt] = useState("");
@@ -56,17 +63,36 @@ export default function NyDagsseddelSide() {
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id ?? null;
 
+  // Aktiv prosjektkontekst fra toppbaren (urlProsjektId ?? localStorage). På
+  // firma-nivå-ruten kommer den fra localStorage; null når ingen er valgt.
+  const { prosjektId: aktivProsjektId } = useProsjekt();
+
   const { data: aktiviteter, isLoading: aktiviteterLaster } =
     trpc.timer.aktivitet.list.useQuery();
 
   // D7: prosjektliste for arbeider (inkluderer interne prosjekter). Cast for å
   // unngå TS2589 (dyp Project-type) — samme mønster som detalj-siden.
   const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery();
-  const prosjekter = (prosjekterRaw ?? []) as unknown as Array<{
-    id: string;
-    name: string;
-    internalProjectNumber: string | null;
-  }>;
+  const prosjekter = useMemo(
+    () =>
+      (prosjekterRaw ?? []) as unknown as Array<{
+        id: string;
+        name: string;
+        internalProjectNumber: string | null;
+      }>,
+    [prosjekterRaw],
+  );
+
+  // Prefyll prosjekt fra aktiv toppbar-kontekst — paritet med mobils GPS-forvalg.
+  // Kun når: bruker ikke har rørt velgeren, feltet er tomt, en kontekst finnes,
+  // og konteksten peker på et prosjekt som faktisk finnes i timer-lista. Ingen
+  // aktiv kontekst (firmanivå) → tomt felt (uendret oppførsel).
+  useEffect(() => {
+    if (prosjektRortAvBruker || projectId) return;
+    if (!aktivProsjektId) return;
+    if (!prosjekter.some((p) => p.id === aktivProsjektId)) return;
+    setProjectId(aktivProsjektId);
+  }, [aktivProsjektId, prosjekter, prosjektRortAvBruker, projectId]);
 
   // Kalender-effektiv arbeidstid for valgt dato. Re-fetcher når `dato` endres.
   const { data: effektiv } = trpc.organisasjon.hentEffektivArbeidstid.useQuery(
@@ -190,7 +216,10 @@ export default function NyDagsseddelSide() {
           </label>
           <select
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={(e) => {
+              setProjectId(e.target.value);
+              setProsjektRortAvBruker(true);
+            }}
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
             required
           >
