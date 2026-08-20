@@ -144,6 +144,23 @@ feilet med «No such file or directory» fordi forrige blokk var en server-sesjo
 Praktisk: server-kommandoer og Mac-kommandoer skal aldri stå i samme blokk uten at
 skiftet er markert.
 
+### Leveranser fra fabel — egen protokoll
+
+Fabel har **ingen skrivetilgang til repoet**. Alt kommer via nedlastingspakker Kenneth
+pakker ut, og det er der flyten svikter — ikke i innholdet.
+
+🔴 **Les [informasjonsflyt-fabel-cowork.md](informasjonsflyt-fabel-cowork.md) før du
+behandler en fabel-leveranse.** Kjernen:
+
+- Finn nyeste pakke selv med `ls -dt` — **macOS' « 2»-dubletter er de nyeste**, og sortert
+  på navn havner de feil sted.
+- Skill de tre feilmodusene (ikke lastet ned · dublett · synk-svikt) **før** du sier at
+  noe mangler.
+- **Ordlyd limt inn i meldingen slår disk** ved konflikt — synk kan svikte, limt tekst kan
+  ikke.
+- Cowork eier kopiering inn i repoet. **En leveranse som ikke er committet, finnes ikke**
+  for agentene og overlever ikke compact.
+
 ### Spørsmål: samle, ikke drypp
 
 Mange små avklaringer koster Kenneth mer enn de sparer. Tenk ferdig, mål det som
