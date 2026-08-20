@@ -689,6 +689,8 @@ export const kontrollplanRouter = router({
           varselUkerFor: true,
           sjekkliste: { select: { id: true, status: true } },
           sjekklisteMal: { select: { prefix: true, name: true } },
+          // 3a: område gir markørens kontrollpunkt-identitet i tooltip (malnavn + område).
+          omrade: { select: { navn: true } },
         },
       });
     }),
