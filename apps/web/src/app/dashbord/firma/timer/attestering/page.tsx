@@ -66,7 +66,12 @@ type AttesteringRad = {
   // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
   manglerMaskinforerbevis: boolean;
   // ORDRE 2 STEG 1/2: server-avledet overtidsgrunnlag (dag-nivå) + ukenorm.
-  overtidsgrunnlag: { avvik: boolean } | null;
+  overtidsgrunnlag: {
+    sumOrdinaert: number;
+    sumOvertid: number;
+    beregnetOvertid: number;
+    avvik: boolean;
+  } | null;
   ukenorm: number;
 };
 
