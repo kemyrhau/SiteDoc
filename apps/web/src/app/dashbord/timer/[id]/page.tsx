@@ -1600,6 +1600,14 @@ function TimerRadDialog({
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
 
+  // SAK 3-fiks: pause-LENGDEN i timeberegningen (effektiveTimerFraSpenn/
+  // pauseOverlappMin/tilFraAntall) skal vaere sedelens faktiske pauseMin, ikke
+  // firma-default (standardPauseMin). Avvek sedelens pause fra firma-default
+  // ble timetallet feil uten varsel. pauseFra-VINDUET beholder firma-default-
+  // plasseringen (standardPauseEtterTimer). DailySheet.pauseMin er non-null
+  // (Int @default(0)); ?? standardPauseMin er kun defensiv fallback.
+  const beregningsPauseMin = pauseMin ?? standardPauseMin;
+
   // D2 (web-paritet): prosjekt velges i modalen (som mobil). Ved NY rad kan den
   // endres (raden opprettes under valgt prosjekt); ved redigering er den låst —
   // server-oppdaterTimerRad flytter ikke rad mellom prosjekter (egen oppfølger).
@@ -1655,7 +1663,7 @@ function TimerRadDialog({
           defaultFraTid!,
           defaultTilTid!,
           pauseVinduFra(skiftStart, standardPauseEtterTimer),
-          standardPauseMin,
+          beregningsPauseMin,
         ),
       );
     }
@@ -1718,8 +1726,8 @@ function TimerRadDialog({
     const fm = hhmmTilMin(fraTid);
     const tm = hhmmTilMin(tilTid);
     if (tm <= fm) return 0;
-    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), standardPauseMin);
-  }, [fraTid, tilTid, pauseFra, standardPauseMin]);
+    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), beregningsPauseMin);
+  }, [fraTid, tilTid, pauseFra, beregningsPauseMin]);
 
   // P1 (maskin-i-rad): bucket-kapasitet for den valgfrie maskin-seksjonen.
   // Samme (projectId, ECO)-bøtte-regel som MaskinRadDialog — arbeidSum og
@@ -1753,21 +1761,21 @@ function TimerRadDialog({
     const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
     setFraTid(r);
     if (r && tilTid) {
-      setTimer(String(effektiveTimerFraSpenn(r, tilTid, pauseFra, standardPauseMin)));
+      setTimer(String(effektiveTimerFraSpenn(r, tilTid, pauseFra, beregningsPauseMin)));
     }
   }
   function endreTil(v: string) {
     const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
     setTilTid(r);
     if (fraTid && r) {
-      setTimer(String(effektiveTimerFraSpenn(fraTid, r, pauseFra, standardPauseMin)));
+      setTimer(String(effektiveTimerFraSpenn(fraTid, r, pauseFra, beregningsPauseMin)));
     }
   }
   function endreTimer(v: string) {
     setTimer(v);
     const n = parseFloat(v);
     if (fraTid && !isNaN(n) && n > 0) {
-      setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
+      setTilTid(tilFraAntall(fraTid, n, pauseFra, beregningsPauseMin));
     }
   }
 
@@ -1837,7 +1845,7 @@ function TimerRadDialog({
         fraTid,
         tilTid,
         pauseFra,
-        standardPauseMin,
+        beregningsPauseMin,
       );
       if (Math.abs(forventet - tNum) > 0.01) {
         setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
