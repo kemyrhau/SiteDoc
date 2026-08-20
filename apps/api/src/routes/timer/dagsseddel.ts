@@ -2165,8 +2165,12 @@ export const dagsseddelRouter = router({
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
-          timer: true,
-          tillegg: true,
+          // ORDRE 2 STEG 1 (2026-08-20): filtrer ut "erstattet"-rader (audit-spor
+          // fra rediger-mutasjoner). Uten dette dobbelttelles redigerte rader i
+          // `totaltimer`/`antallRader` — en bug uavhengig av aggregat-designet
+          // (samme filter som hentTilAttesteringFirma :2315).
+          timer: { where: { attestertStatus: { not: "erstattet" } } },
+          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -2209,8 +2213,9 @@ export const dagsseddelRouter = router({
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
-          timer: true,
-          tillegg: true,
+          // ORDRE 2 STEG 1: samme erstattet-filter som hentTilAttestering.
+          timer: { where: { attestertStatus: { not: "erstattet" } } },
+          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -2271,7 +2276,17 @@ export const dagsseddelRouter = router({
         // T7-5e: fane-filter på attestering-listen.
         // "sent" = venter på attestering (default, bakover-kompat).
         // "accepted" = ferdig attestert (read-only-visning).
-        status: z.enum(["sent", "accepted"]).optional().default("sent"),
+        // ORDRE 2 STEG 1 (2026-08-20): tar nå ENTEN én status ELLER en liste
+        // (multi-status i ett kall — aggregat-visningene trenger sent+accepted
+        // for komplett uke). Enkelt-string beholdt → eksisterende web-kallere
+        // (fane-filteret) er uendret.
+        status: z
+          .union([
+            z.enum(["sent", "accepted"]),
+            z.array(z.enum(["sent", "accepted"])).min(1),
+          ])
+          .optional()
+          .default("sent"),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -2302,9 +2317,12 @@ export const dagsseddelRouter = router({
       // rader er attestert — eksisterende filter dekker dem. Inkluderer maskiner
       // og rad-status så klient kan vise fremdrift (X av Y attestert).
       // T7-5e: status-input styrer fane — "sent" venter, "accepted" attestert.
+      // ORDRE 2 STEG 1: normaliser status til liste (union: én ELLER flere).
+      const statuser = Array.isArray(input.status) ? input.status : [input.status];
+
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
-          status: input.status,
+          status: { in: statuser },
           timer: { some: { projectId: { in: prosjektIder } } },
           ...(datoFilter ? { dato: datoFilter } : {}),
         },

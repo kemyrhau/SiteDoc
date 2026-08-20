@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Button, Input, Spinner } from "@sitedoc/ui";
+import { STANDARD_ARBEIDSTID_FALLBACK } from "@sitedoc/shared";
 import { ArrowLeft } from "lucide-react";
 
 function nyUuid(): string {
@@ -108,9 +109,10 @@ export default function NyDagsseddelSide() {
       setPauseMin(effektiv.pauseMin);
     } else if (!orgId) {
       // Ingen firma-kontekst → fall tilbake til default-vindu.
-      setStartAt("07:00");
-      setEndAt("15:00");
-      setPauseMin(30);
+      // ORDRE 2 STEG 1 (2026-08-20): delt kilde — @sitedoc/shared.
+      setStartAt(STANDARD_ARBEIDSTID_FALLBACK.startTid);
+      setEndAt(STANDARD_ARBEIDSTID_FALLBACK.sluttTid);
+      setPauseMin(STANDARD_ARBEIDSTID_FALLBACK.pauseMin);
     }
   }, [effektiv, orgId, manueltEndret]);
 

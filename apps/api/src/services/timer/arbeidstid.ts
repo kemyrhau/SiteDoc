@@ -20,6 +20,7 @@
  */
 
 import { prisma } from "@sitedoc/db";
+import { STANDARD_ARBEIDSTID_FALLBACK } from "@sitedoc/shared";
 
 export type EffektivArbeidstid = {
   startTid: string; // HH:MM
@@ -30,9 +31,10 @@ export type EffektivArbeidstid = {
 
 // Sikkerhetsnett ved manglende OrganizationSetting (skal ikke skje i prod —
 // settings opprettes ved firma-onboarding — men vi defaulter for å unngå krasj).
-const DEFAULT_START_TID = "07:00";
-const DEFAULT_SLUTT_TID = "15:00";
-const DEFAULT_PAUSE_MIN = 30;
+// ORDRE 2 STEG 1 (2026-08-20): delt kilde — se @sitedoc/shared arbeidstidDefault.
+const DEFAULT_START_TID = STANDARD_ARBEIDSTID_FALLBACK.startTid;
+const DEFAULT_SLUTT_TID = STANDARD_ARBEIDSTID_FALLBACK.sluttTid;
+const DEFAULT_PAUSE_MIN = STANDARD_ARBEIDSTID_FALLBACK.pauseMin;
 
 export async function hentEffektivArbeidstid(
   organizationId: string,
