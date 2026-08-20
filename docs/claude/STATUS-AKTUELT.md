@@ -8,10 +8,20 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `fix/am-ordre1-timer` ✅ levert | **Ledig** — neste: AM ordre 2 (attestering) når fabel har designet, ev. F2 i mellomtiden | Fabel: designrunde attestering |
-| **mobil-device** | `SiteDoc-mobil-device` | `feat/mobil-arkiv-pdf` ✅ merget t.o.m. steg 2 | Steg 3–4 (type-valg i tegning + rename) + kontekstkjede | Ingenting — kan bygge |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/synlighet-vern` (`37480046` pushet) | Ferdig — venter coworks merge | Cowork: merge fra `SiteDoc-merge` |
-| **smoketest** | — | `chore/demo-smoketest` | Løype B (mal fylt) + C hvis tid | Kenneth: demo-mal på riktig prosjekt |
+| **dokgen** | `SiteDoc-dokgen` | `feat/am-ordre2-attestering` | AM ordre 2 steg 2 — korreksjon 2–4 (lønnsartfordeling · seriegodkjenning · returner+redigering) + seed for designgate | Ingenting — kan bygge |
+| **kontrollplan** | `SiteDoc-kontrollplan` | — | **Ledig.** Neste: flytmodell **F1** (UI slutter å lese typematrisen) — har kartleggingskonteksten | Kenneths klarsignal |
+| **mobil-device** | `SiteDoc-mobil-device` | `feat/mobil-arkiv-pdf` | ❓ **Ingen status siden 2026-08-20.** Eier steg 3–4 + kontekstkjede | Purring eller omstart |
+| **smoketest** | — | `chore/demo-smoketest` | Utgått — A.Markussen-møtet er gjennomført | — |
+
+**Repo-hygiene 2026-08-21:** alle brancher ryddet. Eneste umergede er
+`feat/am-ordre2-attestering` (dokgens pågående). Fem brancher merget og slettet i dag,
+hvorav to var «probe»-brancher fra avsluttede økter som aldri sto i tavla — ferdig arbeid
+ingen visste om. Det er hullet denne tavla skal lukke.
+
+🔴 **Develop er 68 commits foran prod.** Blokkeres av to uverifiserte ting på test:
+A1 browser-verifisering (DOMPurify sanerer alt opplastet innhold ved render — bommet
+SVG-profil tar ned tegningsvisningen) og pinning av exceljs-kastet i den nye røde banneren.
+Begge tar fem minutter. Jo lenger develop står, jo større og mer risikabel blir deployen.
 
 **🗑️ PROD-DATAFIKS 2026-08-20 — timerader tømt for A.Markussen (før demo).** Ustrukturerte
 testdata slettet på Kenneths ordre: 18 `daily_sheets`, 16 `sheet_timer`, 2 `sheet_tillegg`,
