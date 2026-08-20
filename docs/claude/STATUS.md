@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-08-20
+- 2026-08-20 — **`timer.md` § Flerstegs attesteringsflyt** (develop): nytt vedtatt prinsipp (Kenneth) — attesteringsflyten lever i firmamodulen, skal ikke bygges på dokumentflyt. Begrunnelse (begrepsgrense attestering≠godkjenning + ulik isolasjonsakse), dagens ett-stegs tilstand målt mot kode, fire åpne spørsmål. 🟡 ikke bygget.
 - 2026-08-20 — **`db-opprydning.md` § 1.2 DRIFT RETTET** (develop): CHECK-planen sto med `= 1` (ville feilet på hvert åpne ledd — fabels vedtak sier `<= 1`) og med kolonnen `enterprise_id`, som ikke finnes etter faggruppe-renamet. Begge rettet, forhåndssjekk mot prod lagt til som påkrevd steg.
 - 2026-08-20 — **NY fil `retningslinjer/ui-standarder.md`** (develop): UI-designprinsipper + fargepalett flyttet ordrett ut av `CLAUDE.md` (hovedfila nådde 40k-grensen). Fortsatt styrende; `CLAUDE.md` har peker.
 - 2026-08-20 — **`STATUS-AKTUELT.md` arkivering** (develop): juli-deployene (del 6 timeføring, F2/F3/F5, F-b/F-e/F-f/F-g, `hentEndringerSiden` fiks B, lønnsart-import) flyttet ordrett til `historikk-2026-07.md`. To konkurrerende statustavler slått sammen til én; branch-detaljene ligger under egen overskrift. 109 KB → 97 KB.
