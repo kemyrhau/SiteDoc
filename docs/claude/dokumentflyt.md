@@ -450,10 +450,23 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 avsender. Knappen sa «Godkjenn og fullfør» i stedet for «Send», og tidslinja viste
 `Utkast → Sendt → Mottatt` på samme minutt med samme aktør.
 
-**Rotårsak:** `addDokumentflytMedlemSchema` har `steg: z.number().int().min(1).default(1)`
-(`packages/shared/src/validation/index.ts:287`). **Klienten må sende `steg` — serveren
-utleder aldri neste ledige posisjon.** `leggTilMedlem` (`routes/dokumentflyt.ts:153-158`)
-sender input rett til `create`. Sender UI-et ingenting, får hvert eneste nye ledd `steg = 1`.
+> ⚠️ **Fabel sporet denne først (2026-08-13)** som «Steg-inngangen kollapser flyter (P1)» i
+> REDESIGN-MASTERPLAN § Nye backlog-saker. Hans diagnose er mer presis enn skjema-defaulten
+> og er **verifisert på nytt 2026-08-20** — se de to punktene under. Fabels føring gjelder:
+> steg-fiksen **må bygges sammen med `utledMinRolle`-klientporten**, ellers innføres ny feil.
+> Klientporten er samme sak som H4 i
+> [paritet-web-server-mobil-2026-08-20.md](paritet-web-server-mobil-2026-08-20.md).
+
+**Rotårsak — tre lag, alle verifisert 2026-08-20:**
+
+1. **UI sender hardkodet `steg={1}`** — `apps/web/src/app/dashbord/oppsett/produksjon/dokumentflyt/page.tsx:869,886`.
+   Ingen vei i oppsettsflaten kan sette noe annet.
+2. **Standardflyter seedes flate** — `apps/api/src/routes/prosjekt.ts:515,529` gir både
+   `bestiller` og `utforer` `steg: 1`. Nye prosjekter får altså kollapsede flyter fra
+   fødselen. (Kun HMS-flyten setter steg eksplisitt.)
+3. **Serveren utleder ingenting** — `addDokumentflytMedlemSchema` har
+   `steg: …default(1)` (`packages/shared/src/validation/index.ts:287`), og `leggTilMedlem`
+   (`routes/dokumentflyt.ts:153-158`) sender input rett til `create`. Ingen backstop.
 
 Da finner `nesteLedd()` (`flytPosisjon.ts:172`) ingen posisjon høyere enn den aktive,
 returnerer `null`, og handlingen blir «Godkjenn og fullfør» — dokumentet kan aldri
