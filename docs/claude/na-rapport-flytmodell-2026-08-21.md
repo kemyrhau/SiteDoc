@@ -20,6 +20,8 @@
 - Den rolle-TYPE-baserte matrisen (`erTillattForRolle` / `ROLLE_HANDLINGER_DEFAULTS`) lever fortsatt i `packages/shared`, **men kalles IKKE fra apps/api sin endreStatus-sti** [MÅLT — ❌ ingen treff på `erTillattForRolle`/`celleTillatt`/`hentRolleFiltrertHandlinger` i `apps/api` utenom tester]. Den konsumeres av **klient-UI** (web/mobil) og **admin-konfig-CRUD** (`flytMatrise`).
 - Type-makten som gjenstår i praksis: (a) klient-UI via shared-matrisen, (b) admin-konfig + dens DB-rader, (c) `senderRolle`-snapshot per transfer. Ingen sitter i serverens aktive flyt-autorisasjon.
 
+> 🔑 **RAPPORTENS VIKTIGSTE FUNN (pkt 3):** `registrator` er i dag **BÅDE en rolle-TYPE-verdi** (`DokumentflytMedlem.rolle="registrator"` — gater hvem som kan opprette) **OG en tillatelse** (`create_checklists`/`create_tasks` — gater flytt/eierbytte + `senderRolle`-snapshot). **Disse to må reconciles når registrator skal bli ett flagg (fabels F4)** — ellers står to uavhengige «registrator»-kilder igjen. Full mekanikk: pkt 3.
+
 ---
 
 ## 1. Hvor leses ledd-typen i dag? (uttømmende)
@@ -77,7 +79,7 @@
 - **Andre «registrator»-mekanisme (parallell):** `erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks")` — en **tillatelse**, brukt til «flytt/bytt eier»-gaten [`sjekkliste.ts:1828-1837`, `oppgave.ts:1910-1963`] og til å utlede `senderRolle` i snapshot [`transfer-snapshot.ts:52`]. Admin → alltid `"registrator"` i `utledMinRolle` [`flytRolle.ts:73`].
 - Default: ny flyt starter med ett `registrator`-ledd [`dokumentflyt.ts:58-60`].
 
-**Faktisk tilstand:** «registrator» er i dag BÅDE (a) en **rolle-TYPE-verdi** i `DokumentflytMedlem.rolle` (gater hvem som kan opprette — man må være registrator-medlem av flyten) OG (b) en **tillatelse** (`create_checklists/tasks`, for flytt/eierbytte + snapshot). For at registrator skal bli et **flagg** i stedet for en type, må «registrator-medlem av flyten»-konseptet (i dag en rad med `rolle="registrator"`) uttrykkes som en per-ledd-egenskap, og `hentMineOpprettFlyter`/`opprettbareFlytIder` (som i dag velger flyter der brukeren har `rolle="registrator"`) key-e på den egenskapen. *(Hvordan = fabels designsteg.)*
+> 🔑 **Faktisk tilstand (rapportens viktigste funn — reconciles i fabels F4):** «registrator» er i dag **BÅDE** (a) en **rolle-TYPE-verdi** i `DokumentflytMedlem.rolle` (gater hvem som kan **opprette** — man må være registrator-medlem av flyten [`sjekkliste.ts:407-410`, `oppgave.ts:499`]) **OG** (b) en **tillatelse** `create_checklists`/`create_tasks` (gater **flytt/eierbytte** [`sjekkliste.ts:1828-1837`] + utleder `senderRolle` [`transfer-snapshot.ts:52`]). **To uavhengige «registrator»-kilder.** For at registrator skal bli ett **flagg** i stedet for en type, må begge reconciles: «registrator-medlem av flyten»-konseptet (i dag `rolle="registrator"`) uttrykkes som en per-ledd-egenskap, `hentMineOpprettFlyter`/`opprettbareFlytIder` key-e på den, **og** forholdet til `create_*`-tillatelsen avklares (er de samme flagg, eller to ulike ting?). *(Hvordan = fabels designsteg / F4.)*
 
 ---
 
