@@ -135,6 +135,15 @@ koster ingenting; leting koster en runde og kan gi feil kommando.
 Samme regel gjelder ordrer til agenter: nudgen skal inneholde alt agenten trenger, ikke
 peke tilbake på en tidligere ordre.
 
+🔴 **Si hvilken maskin kommandoen kjøres på — hver gang vi veksler.** Etter en `ssh -t
+server-ny`-blokk står Kenneth igjen på serveren, ikke på Macen. Neste Mac-kommando må
+derfor innledes med `exit` (eller gis som `ssh`-fri blokk med eksplisitt «på Macen:»).
+Målt 2026-08-20: en `cd ~/Documents/Programmering/SiteDoc` ble kjørt på server-ny og
+feilet med «No such file or directory» fordi forrige blokk var en server-sesjon.
+
+Praktisk: server-kommandoer og Mac-kommandoer skal aldri stå i samme blokk uten at
+skiftet er markert.
+
 ### Spørsmål: samle, ikke drypp
 
 Mange små avklaringer koster Kenneth mer enn de sparer. Tenk ferdig, mål det som

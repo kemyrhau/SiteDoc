@@ -444,6 +444,56 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 
 **To roller er valgfrie i en flyt** (utfører, bestiller). Registrator og godkjenner er bærebjelkene: noen oppretter, noen godkjenner.
 
+## 🔴 ROTÅRSAK — `steg` settes aldri av UI, så flyter blir flate (målt 2026-08-20)
+
+**Symptom (prod, A.Markussen):** et dokument sendt fra registrator ble liggende hos
+avsender. Knappen sa «Godkjenn og fullfør» i stedet for «Send», og tidslinja viste
+`Utkast → Sendt → Mottatt` på samme minutt med samme aktør.
+
+**Rotårsak:** `addDokumentflytMedlemSchema` har `steg: z.number().int().min(1).default(1)`
+(`packages/shared/src/validation/index.ts:287`). **Klienten må sende `steg` — serveren
+utleder aldri neste ledige posisjon.** `leggTilMedlem` (`routes/dokumentflyt.ts:153-158`)
+sender input rett til `create`. Sender UI-et ingenting, får hvert eneste nye ledd `steg = 1`.
+
+Da finner `nesteLedd()` (`flytPosisjon.ts:172`) ingen posisjon høyere enn den aktive,
+returnerer `null`, og handlingen blir «Godkjenn og fullfør» — dokumentet kan aldri
+forlate første ledd.
+
+**Målt utbredelse (prod 2026-08-20):**
+
+| flyt | leddfordeling |
+|---|---|
+| `A.Markussen Ansatte. -> A.Markussen ledelse` | registrator **steg 1**, godkjenner **steg 1** ← flat |
+| `A.Markussen Ansatte -> ledelse` | tre ledd på steg 1, ett på 2, ett på 3 ← delvis |
+| `Tømrer -> Ledelse` | ett ledd, steg 1 |
+
+Prosjekt 998 har 5 flyter og 15 ledd og er ikke gjennomgått — problemet vokser med antall
+flyter, siden hver nye flyt bygges med samme UI.
+
+**Midlertidig rettet i data** for de to A.Markussen-flytene (`UPDATE ... SET steg = 2/3`).
+Det er en lapp, ikke en fiks — neste ledd noen legger til får `steg = 1` igjen.
+
+**Må bygges (ikke gjort):**
+
+1. **Serveren utleder steg når klienten ikke sender det** — `max(steg) + 1` for flyten,
+   eller kanonisk rollerekkefølge (registrator → utfører → godkjenner). Dette er den
+   egentlige fiksen; alt annet er symptombehandling.
+2. **Vern mot at to ledd med ulik rolle deler posisjon.** To roller på samme steg gjør
+   ballposisjonen tvetydig.
+3. **Datamigrering** som retter eksisterende flate flyter — med forhåndssjekk, siden
+   «riktig» steg må utledes fra rollen.
+4. **Duplikatvarsel ved binding** (Kenneth 2026-08-20): legges en person til et ledd der
+   han allerede er dekket av en gruppe eller faggruppe, skal det **varsles, ikke blokkeres**
+   — «Kenneth Myrhaug er allerede dekket av gruppen A.Markussen Ansatte i dette leddet.
+   Legg til likevel?». Direkte binding kan være tilsiktet (personen skal stå der selv om
+   han forlater gruppen), men skal være et bevisst valg. Merk at `superRefine`-vernet fra
+   `37480046` **ikke** dekker dette — det håndhever «høyst én binding per leddrad», ikke
+   overlapp på tvers av rader i samme ledd.
+
+**Beslektet observasjon:** `recipient_user_id`/`recipient_group_id` på `checklists` settes
+aldri — heller ikke på dokumenter med status `sent`. Posisjonsmodellen har overtatt;
+kolonnene er relikvier. Skal ryddes, men ikke før noen har bekreftet at ingen leser dem.
+
 ## 🟡 Kjent begrensning — flytsteg kan ikke bygges ut videre
 
 **Observert av Kenneth 2026-07-21** (skjermbilde, `oppsett/produksjon/dokumentflyt`): etter hvert som en dokumentflyt får steg, **forsvinner steget som valg for videre utbygging**. En flyt kan altså ikke utvides forbi et visst punkt.
