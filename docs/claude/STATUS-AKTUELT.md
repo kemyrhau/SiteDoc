@@ -22,6 +22,30 @@ De to vedleggsfilene flyttet til `~/backup/karantene-timer-20260820/` — **ikke
 fordi prod og test deler uploads-volum (test-DB verifisert til 0 referanser før flytting).
 **Ikke rørt:** lønnsarter, aktiviteter, tilleggskatalog, maskinregister — oppsettet står.
 
+**✅ KP MOBIL TOM-TILSTAND — LIVE-VERIFISERT 2026-08-21 (alle tre grønne).**
+iOS-simulator fra `SiteDoc-simulator` mot api-test/`sitedoc_test`. Bevis:
+`SiteDoc-simulator/kontrollplan-bevis/` (tre PNG).
+
+| Tilstand | Kontekst | Skjermen viste |
+|---|---|---|
+| **A** | B12 → sommerfeldtsgt 65 (0 punkter) | «Ingen kontrollpunkter på denne byggeplassen» + trykkbart «Bygg B12 [7] ›» |
+| **B** | Agent-testprosjekt → Testområde 1 (0 i hele prosjektet) | «Ingen kontrollpunkter» — ingen liste, ingen bytt-til |
+| **C** *(edge)* | B12 → Narvik — **plan finnes, 0 punkter** | Identisk med A |
+
+**Edgen var den som kunne gått galt:** `harPunkter` nøkler på `plan.punkter.length > 0`,
+ikke på om planen finnes. En tom plan faller derfor til «ligger på»-grenen, ikke til
+B-teksten. Verifisert i kode og live.
+
+**404-degraderingen er verifisert borte** — ved capture svarte
+`kontrollplan.andreByggeplasserMedPunkter` 200. Uten deployen ville queryen gitt 404 →
+tomt kandidatsett → **A og C ville falskt vist seg som B**. At de viser «ligger på Bygg B12»
+beviser at skjermbildene viser koden i drift, ikke feilmodusen. Verdt å huske som mønster:
+en feilende query kan degradere til noe som ser ut som riktig oppførsel.
+
+🟡 **Sidefunn å vurdere:** byggeplass-katalogen på mobil er per-firma og refreshes **ved
+login** — firma-bytte alene synker den ikke. Verifiseringen krevde frisk innlogging for å få
+Testfirma AS' byggeplasser. Om det er bevisst eller en mangel er ikke avklart.
+
 **✅ AM ORDRE 2 STEG 1 LEVERT 2026-08-20** — `feat/am-ordre2-attestering`, 2 commits.
 Design: [designnotat-attestering-fabel-2026-08-20.md](../redesign/designnotat-attestering-fabel-2026-08-20.md).
 Grunnlag: [na-rapport-attestering-2026-08-20.md](na-rapport-attestering-2026-08-20.md).
