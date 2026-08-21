@@ -378,13 +378,185 @@ export function KontekstChip() {
     />
   );
 
+  // Popover-innhold (firma/prosjekt/byggeplass-nivåene). Skilt ut som variabel
+  // slik at popoveren kan ligge INNI den `relative` knappe-wrapperen (velgerKnapper)
+  // og forankres til PROSJEKT-knappen — ikke til hele chip-containeren, som flyter
+  // til ~460px etter C6 (fabel-fiks 2026-08-21: `relative` på knappen + popover
+  // `right-0`/`top-[calc(100%+6px)]`).
+  const popoverInnhold = (
+    <>
+      {/* --- FIRMA -------------------------------------------------- */}
+      {åpentNivå === "firma" ? (
+        <div className="border-b border-gray-100">
+          <SeksjonsLabel>{t("kontekstChip.velgFirma")}</SeksjonsLabel>
+          {visFirmaSøk && (
+            <SøkeFelt verdi={firmaSøk} onEndre={setFirmaSøk} placeholder={t("kontekstChip.velgFirma")} autoFokus />
+          )}
+          <div className="max-h-64 overflow-auto pb-1">
+            {firmaFiltrert.map((f) => (
+              <TraktRad
+                key={f.id}
+                tittel={f.name}
+                valgt={valgtFirma?.id === f.id}
+                onVelg={() => velgFirmaTrakt(f.id)}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        visFirmaSteg && (
+          <NivåRad
+            etikett={t("kontekstChip.firma")}
+            etikettKlasse="text-[#92400e]"
+            verdi={firmaNavn ?? ""}
+            kanEndre={kanBytteFirma}
+            endreTekst={t("kontekstChip.endre")}
+            onEndre={() => setÅpentNivå("firma")}
+          />
+        )
+      )}
+
+      {/* --- PROSJEKT ----------------------------------------------- */}
+      {åpentNivå === "prosjekt" ? (
+        <div className="border-b border-gray-100">
+          <div className="flex items-center justify-between px-3 pb-1.5 pt-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+              {t("kontekstChip.velgProsjekt")}
+            </span>
+            {visScopePille && (
+              <div className="inline-flex rounded-md bg-gray-100 p-0.5 text-xs font-medium">
+                {(["alle", "mine"] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setProsjektFilter(s)}
+                    className={`rounded px-2 py-0.5 transition-colors ${
+                      prosjektFilter === s
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {t(s === "alle" ? "kontekstChip.alle" : "kontekstChip.mine")}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {visProsjektSøk && (
+            <SøkeFelt verdi={prosjektSøk} onEndre={setProsjektSøk} placeholder={t("prosjektVelger.sok")} autoFokus />
+          )}
+          <div className="max-h-64 overflow-auto pb-1">
+            {prosjektFiltrert.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-gray-400">{t("prosjektVelger.ingen")}</p>
+            ) : (
+              <>
+                {/* B3: Favoritter øverst → Sist brukt → Alle prosjekter. */}
+                {favorittProsjektRader.length > 0 && (
+                  <>
+                    <SeksjonsLabel>{t("kontekstChip.favoritter")}</SeksjonsLabel>
+                    {favorittProsjektRader.map(prosjektRad)}
+                  </>
+                )}
+                {sistUtenFav.length > 0 && (
+                  <>
+                    <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
+                    {sistUtenFav.map(prosjektRad)}
+                  </>
+                )}
+                {(favorittProsjektRader.length > 0 || sistUtenFav.length > 0) &&
+                  øvrigeUtenFav.length > 0 && (
+                    <SeksjonsLabel>{t("prosjektVelger.alleProsjekter")}</SeksjonsLabel>
+                  )}
+                {øvrigeUtenFav.map(prosjektRad)}
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <NivåRad
+          etikett={t("kontekstChip.prosjekt")}
+          etikettKlasse="text-[#1e40af]"
+          verdi={valgtProsjekt ? prosjektEtikett : prosjektTekst}
+          kanEndre
+          endreTekst={t("kontekstChip.endre")}
+          onEndre={() => setÅpentNivå("prosjekt")}
+        />
+      )}
+
+      {/* --- BYGGEPLASS --------------------------------------------- */}
+      {/* B2: åpent byggeplass-steg rendres også mens lista for et nyvalgt
+          prosjekt lastes (viser «Laster …»); B2-effekten lukker hvis
+          prosjektet viser seg uten byggeplasser. Sammenfoldet NivåRad kun
+          når prosjektet HAR byggeplasser. */}
+      {åpentNivå === "byggeplass" ? (
+        <div>
+          <div className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            {t("byggeplassVelger.velg")}{" "}
+            {bygninger.length > 0 && (
+              <span className="text-gray-300">
+                · {t("kontekstChip.antallApne", { antall: bygninger.length })}
+              </span>
+            )}
+          </div>
+          {visByggeplassSøk && (
+            <SøkeFelt
+              verdi={byggeplassSøk}
+              onEndre={setByggeplassSøk}
+              placeholder={t("byggeplassVelger.sok")}
+              autoFokus
+            />
+          )}
+          <div className="max-h-64 overflow-auto pb-1">
+            {bygninger.length === 0 && byggeplassQuery.isFetching ? (
+              <p className="px-3 py-2 text-sm text-gray-400">{t("kontekstChip.laster")}</p>
+            ) : (
+              <>
+                {sistByggeplass && (
+                  <>
+                    <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
+                    {byggeplassRad(sistByggeplass)}
+                  </>
+                )}
+                <SeksjonsLabel>
+                  {t("kontekstChip.allePaa", { prosjekt: prosjektEtikett })}
+                </SeksjonsLabel>
+                <TraktRad
+                  tittel={t("kontekstChip.heleProsjektet")}
+                  valgt={!aktivByggeplass}
+                  onVelg={() => velgByggeplassTrakt(null)}
+                />
+                {øvrigeByggeplass.map(byggeplassRad)}
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        harByggeplasser && (
+          <NivåRad
+            etikett={t("kontekstChip.byggeplass")}
+            etikettKlasse="text-gray-500"
+            verdi={aktivByggeplass?.name ?? t("kontekstChip.heleProsjektet")}
+            kanEndre
+            endreTekst={t("kontekstChip.endre")}
+            onEndre={() => setÅpentNivå("byggeplass")}
+            sisteRad
+          />
+        )
+      )}
+    </>
+  );
+
   // Split-chip «NIVÅORD ▾ | ⇄» (P1/R2, fabel-fasit § 2a) — ligger på den AKTIVE
   // linja (kloss 2c-grammatikk b): linje 2 i prosjektkontekst, linje 1 i
   // firmakontekst. Venstre segment = velger (popover), ⇄ = sonefarget klikkmål
   // for flatebytte (−12px overlapp, z-10 tucker over hjørnet), vises kun med
   // motpart. Delt markup så begge kontekster bruker samme chip.
   const velgerKnapper = (
-    <>
+    // `relative` HER (på knappe-wrapperen), ikke på chip-containeren: popoveren
+    // forankres til PROSJEKT-knappen uansett navnelengde (C6-robust — fabel-fiks
+    // 2026-08-21). Tidligere lå `relative` på containeren + popover `left-0`, som
+    // etter C6-flyten (navn ~460px) skjøv popoveren langt til venstre for knappen.
+    <div className="relative flex items-center">
       <button
         onClick={() => (apen ? setApen(false) : åpne())}
         // Fast min-bredde = PROSJEKT-knappens bredde (127px, målt) + justify-center:
@@ -407,11 +579,19 @@ export function KontekstChip() {
           <ArrowLeftRight className="h-4 w-4 shrink-0" />
         </Link>
       )}
-    </>
+      {apen && (
+        <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-80 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
+          {popoverInnhold}
+        </div>
+      )}
+    </div>
   );
 
   return (
-    <div ref={ref} className="relative">
+    // `relative` er flyttet ned til velgerKnapper (knappe-wrapperen) — popoveren
+    // forankres til PROSJEKT-knappen, ikke til denne containeren (som flyter til
+    // ~460px etter C6). `ref` beholdes for klikk-utenfor-lukking.
+    <div ref={ref}>
       {/* Kloss 2c: to-linjers topplinje. Grammatikk (fabel-gate, ufravikelig):
           (a) sonetonen følger AKTIV kontekst — kun ÉN tone om gangen (to toner
               samtidig = intet signal). Prosjektkontekst: firma-linja er dempet
@@ -467,169 +647,6 @@ export function KontekstChip() {
             </span>
             {velgerKnapper}
           </div>
-        </div>
-      )}
-
-      {apen && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-80 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
-          {/* --- FIRMA -------------------------------------------------- */}
-          {åpentNivå === "firma" ? (
-            <div className="border-b border-gray-100">
-              <SeksjonsLabel>{t("kontekstChip.velgFirma")}</SeksjonsLabel>
-              {visFirmaSøk && (
-                <SøkeFelt verdi={firmaSøk} onEndre={setFirmaSøk} placeholder={t("kontekstChip.velgFirma")} autoFokus />
-              )}
-              <div className="max-h-64 overflow-auto pb-1">
-                {firmaFiltrert.map((f) => (
-                  <TraktRad
-                    key={f.id}
-                    tittel={f.name}
-                    valgt={valgtFirma?.id === f.id}
-                    onVelg={() => velgFirmaTrakt(f.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            visFirmaSteg && (
-              <NivåRad
-                etikett={t("kontekstChip.firma")}
-                etikettKlasse="text-[#92400e]"
-                verdi={firmaNavn ?? ""}
-                kanEndre={kanBytteFirma}
-                endreTekst={t("kontekstChip.endre")}
-                onEndre={() => setÅpentNivå("firma")}
-              />
-            )
-          )}
-
-          {/* --- PROSJEKT ----------------------------------------------- */}
-          {åpentNivå === "prosjekt" ? (
-            <div className="border-b border-gray-100">
-              <div className="flex items-center justify-between px-3 pb-1.5 pt-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  {t("kontekstChip.velgProsjekt")}
-                </span>
-                {visScopePille && (
-                  <div className="inline-flex rounded-md bg-gray-100 p-0.5 text-xs font-medium">
-                    {(["alle", "mine"] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setProsjektFilter(s)}
-                        className={`rounded px-2 py-0.5 transition-colors ${
-                          prosjektFilter === s
-                            ? "bg-white text-gray-900 shadow-sm"
-                            : "text-gray-500 hover:text-gray-700"
-                        }`}
-                      >
-                        {t(s === "alle" ? "kontekstChip.alle" : "kontekstChip.mine")}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {visProsjektSøk && (
-                <SøkeFelt verdi={prosjektSøk} onEndre={setProsjektSøk} placeholder={t("prosjektVelger.sok")} autoFokus />
-              )}
-              <div className="max-h-64 overflow-auto pb-1">
-                {prosjektFiltrert.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-gray-400">{t("prosjektVelger.ingen")}</p>
-                ) : (
-                  <>
-                    {/* B3: Favoritter øverst → Sist brukt → Alle prosjekter. */}
-                    {favorittProsjektRader.length > 0 && (
-                      <>
-                        <SeksjonsLabel>{t("kontekstChip.favoritter")}</SeksjonsLabel>
-                        {favorittProsjektRader.map(prosjektRad)}
-                      </>
-                    )}
-                    {sistUtenFav.length > 0 && (
-                      <>
-                        <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
-                        {sistUtenFav.map(prosjektRad)}
-                      </>
-                    )}
-                    {(favorittProsjektRader.length > 0 || sistUtenFav.length > 0) &&
-                      øvrigeUtenFav.length > 0 && (
-                        <SeksjonsLabel>{t("prosjektVelger.alleProsjekter")}</SeksjonsLabel>
-                      )}
-                    {øvrigeUtenFav.map(prosjektRad)}
-                  </>
-                )}
-              </div>
-            </div>
-          ) : (
-            <NivåRad
-              etikett={t("kontekstChip.prosjekt")}
-              etikettKlasse="text-[#1e40af]"
-              verdi={valgtProsjekt ? prosjektEtikett : prosjektTekst}
-              kanEndre
-              endreTekst={t("kontekstChip.endre")}
-              onEndre={() => setÅpentNivå("prosjekt")}
-            />
-          )}
-
-          {/* --- BYGGEPLASS --------------------------------------------- */}
-          {/* B2: åpent byggeplass-steg rendres også mens lista for et nyvalgt
-              prosjekt lastes (viser «Laster …»); B2-effekten lukker hvis
-              prosjektet viser seg uten byggeplasser. Sammenfoldet NivåRad kun
-              når prosjektet HAR byggeplasser. */}
-          {åpentNivå === "byggeplass" ? (
-            <div>
-              <div className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                {t("byggeplassVelger.velg")}{" "}
-                {bygninger.length > 0 && (
-                  <span className="text-gray-300">
-                    · {t("kontekstChip.antallApne", { antall: bygninger.length })}
-                  </span>
-                )}
-              </div>
-              {visByggeplassSøk && (
-                <SøkeFelt
-                  verdi={byggeplassSøk}
-                  onEndre={setByggeplassSøk}
-                  placeholder={t("byggeplassVelger.sok")}
-                  autoFokus
-                />
-              )}
-              <div className="max-h-64 overflow-auto pb-1">
-                {bygninger.length === 0 && byggeplassQuery.isFetching ? (
-                  <p className="px-3 py-2 text-sm text-gray-400">{t("kontekstChip.laster")}</p>
-                ) : (
-                  <>
-                    {sistByggeplass && (
-                      <>
-                        <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
-                        {byggeplassRad(sistByggeplass)}
-                      </>
-                    )}
-                    <SeksjonsLabel>
-                      {t("kontekstChip.allePaa", { prosjekt: prosjektEtikett })}
-                    </SeksjonsLabel>
-                    <TraktRad
-                      tittel={t("kontekstChip.heleProsjektet")}
-                      valgt={!aktivByggeplass}
-                      onVelg={() => velgByggeplassTrakt(null)}
-                    />
-                    {øvrigeByggeplass.map(byggeplassRad)}
-                  </>
-                )}
-              </div>
-            </div>
-          ) : (
-            harByggeplasser && (
-              <NivåRad
-                etikett={t("kontekstChip.byggeplass")}
-                etikettKlasse="text-gray-500"
-                verdi={aktivByggeplass?.name ?? t("kontekstChip.heleProsjektet")}
-                kanEndre
-                endreTekst={t("kontekstChip.endre")}
-                onEndre={() => setÅpentNivå("byggeplass")}
-                sisteRad
-              />
-            )
-          )}
         </div>
       )}
     </div>
