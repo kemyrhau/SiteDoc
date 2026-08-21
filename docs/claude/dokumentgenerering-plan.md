@@ -175,6 +175,40 @@ utelater `location` og `drawing_position` eksplisitt fra arkivstien, og klient-u
 eneste vei til tegningsprint — ble fjernet 2026-08-20 (F2, `d92ece42`). Se
 [designnotat-arkivmal-pdf-fabel-2026-08-21.md](../redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md).
 
+### D2/D2b — tegningsutskrift ✅ LEVERT (`feat/arkivmal-d2b`, kontrollplan, 2026-08-21)
+
+Tre commits. Design: [designnotat-arkivmal-pdf-fabel-2026-08-21.md](../redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md)
+§ D2b + D2b-utvidelse (fabel-ratifisert), tillegg i `tillegg-designnotat-arkivmal-d2b-fabel-2026-08-21.md`.
+
+| Commit | Innhold |
+|---|---|
+| `7be8daaf` | Ren ekstraksjon `byggDetaljUtsnitt({url,x,y,hoydePx,zoom})` fra `byggTegningPosisjon` (`tegning.ts:27`). Golden-test krever **byte-identisk** output for den gamle PDF-veien (`sjekkliste.ts:156`). Ingen adferdsendring. |
+| `2732a164` | D2b-helside (`arkivmal/tegningsside.ts`) + funn 2b: rekursiv markør-innsamling (`apps/api/.../arkiv/tegningsmarkorer.ts`), sharp-crop 4× i 4:3, kant-klemt, 320px. |
+| `6803aa98` | Funn 3 — `drawing_position` rendres lesbart i endringsloggen. |
+
+**Vedtatt presentasjonsregel (ikke inkonsistens):** frittstående `drawing_position` = blokk-form
+(D2 steg 2, uendret). Repeater-markører = helside + **detaljutsnitt i tabellraden**. Per-rad
+oversikt+detalj er avvist — oversikten ville vært identisk på hver rad.
+
+**Fire fabel-gates, alle løst:** bilde-bevisst paginering (`break-inside:avoid`, `thead` per side),
+fast utsnitts-spek, moderat DPI (320px pre-croppet server-side), og Gate 4 — som **falt ved måling**:
+`byggTegningPosisjon` tok ikke målstørrelse (`DETALJ_ZOOM` modul-konstant, hardkodet `height:260px`,
+tvunget tokolonners grid). Derfor ekstraksjonen i `7be8daaf`.
+
+🔴 **Arkitekturgrensen som ble gatet:** `sharp` ligger **kun i `apps/api`**. `packages/pdf` beholder
+null avhengigheter fordi **mobil importerer den** og ikke kan bundle native Node-moduler. Cropping
+hører server-side, HTML-bygging i `packages/pdf`. `felt.ts` frosset gjennom hele runden.
+
+**Funn 3s rotårsak var en annen enn antatt.** Målt på BEF-002: markøren traff
+«ukjent objekt → null»-fallbacken i `lesbarVerdi` (`arkivmal/endringsdiff.ts`), så *ekte*
+posisjonsendringer viste «Ikke utfylt → Ikke utfylt». Det var en **render**-feil, ikke et sviktende
+no-op-filter — `normaliserForDiff` er urørt (verifisert: null treff i diffen). Identiske markører
+filtreres allerede av rå-sammenligningen. Hadde fiksen blitt låst på antagelsen, ville en ikke-
+eksisterende bug blitt «fikset» og render-feilen stått igjen.
+
+⚠️ **Gjenstår:** visuell gate hos fabel etter test-deploy — liggende-rotasjon og drawing-sizing er
+implementert, men ikke sett. Render-verifisering tas av kontrollplan mot test-API-et.
+
 ### F2b — bulk-utskriftsflaten 🟡 OPPFØLGER (åpnet 2026-08-20)
 
 `sjekklister/skriv-ut/page.tsx` er den gjenstående web-klient-utskriften. Flyttes til
