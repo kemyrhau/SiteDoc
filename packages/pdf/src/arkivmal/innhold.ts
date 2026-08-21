@@ -12,6 +12,7 @@
 
 import { renderFelt } from "../felt";
 import { byggRepeaterTabell } from "./repeater";
+import { byggRadkort, repeaterErRik } from "./radkort";
 import { byggArkivTegningsposisjon } from "./tegningsfelt";
 import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
 
@@ -23,9 +24,12 @@ export function byggInnhold(
   let html = "";
   for (const objekt of objekter) {
     if (objekt.type === "repeater") {
-      // Arkiv-override: repeater som tabell (skannbart), ikke felt.ts' div-blokk.
-      // Repeater eier sine egne barn (kolonner) → ingen videre rekursjon her.
-      html += byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label);
+      // Formvalg (Kenneth-vedtak 2026-08-21): RIK repeater (bilder/tegningsposisjon/
+      // nestet repeater) → radkort (mockup 2a); helskalar → tabell (mockup 2b).
+      // Aldri blandingsformer. Repeater eier barna → ingen videre rekursjon her.
+      html += repeaterErRik(objekt)
+        ? byggRadkort(objekt, data[objekt.id]?.verdi, objekt.label)
+        : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label);
       continue;
     }
     if (objekt.type === "drawing_position") {
