@@ -48,6 +48,39 @@ CLAUDE.md har kort oversikt over miljøer + deploy-kommandoen. Denne fila har
 alle detaljene: branching-regler, modul-DB-pakke-lærdommer, mobil reload-typer,
 tRPC-mutations env-konsekvens og prod-lærdommer.
 
+## 🔴 FELLE 2026-08-21: deploy sendte GAMMEL kode uten å feile
+
+**Symptom:** `deploy-test.sh` kjørte grønt, docker bygde på 3,8 s med alt CACHED, og
+popover-fiksen var ikke i imaget. Førte til en runde falsk `--no-cache`-feilsøking.
+
+**Rotårsak — ikke cachen:** merge skjer i `SiteDoc-merge` og pushes rett til `develop`,
+mens `deploy-test.sh` **rsyncer fra hovedtreet `SiteDoc`**. De to trærne synkes aldri
+automatisk. Hovedtreet lå to merger bak, så rsync sendte forrige runde. Docker fikk
+identisk kontekst (269 kB begge ganger), cachet riktig, og bygde et gammelt image —
+**uten at noe feilet noe sted**.
+
+Etter `git pull` ble konteksten 1,35 GB og bygget ekte.
+
+**Asymmetrien som gjorde det mulig:** `deploy-prod.sh` HADDE allerede en ajour-guard
+(«main skal være à jour med origin»). `deploy-test.sh` manglet den. Noen løste problemet
+ett sted og ikke det andre — samme mønster som `ruteErFirmaKontekst` i tre kopier der én
+var rettet.
+
+**Fikset:** ajour-guard lagt inn i `deploy-test.sh` — stopper deployen hvis treet er bak
+`origin/develop`, med instruksen `git pull --ff-only origin develop`.
+
+**Regel for enhver deploy:** merger du i `SiteDoc-merge` og deployer i samme økt, må
+hovedtreet pulles først. Vakten fanger det nå, men forstå hvorfor: **deploy leser fra
+disk, ikke fra origin.**
+
+**Verifiser alltid at koden faktisk er i imaget** (DOCKER-NOTES § metode b):
+
+```bash
+ssh -t server-ny 'sudo docker exec sitedoc-test-web grep -c "<distinkt streng fra fiksen>" /app/apps/web/src/<fil>'
+```
+
+Svarer den `0`, kjører imaget gammel kode uansett hva deploy-loggen sa.
+
 ## Worktree-deploy (parallell-arbeid)
 
 Flere git-worktrees deler samme repo (se [parallell-arbeid-lock.md](parallell-arbeid-lock.md)). **Prod-deploy kjøres ALLTID fra `../SiteDoc-deploy` (branch `main`)** — aldri fra det delte redesign-treet (`…/SiteDoc`, `redesign/navigasjon`) eller develop-treet. rsync-kilden må være riktig branch, ellers bygges feil kode (prod/test/redesign deler build-kontekst på server-ny).

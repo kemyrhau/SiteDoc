@@ -12,6 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-08-21
+- 2026-08-21 — **`deploy-detaljer.md` § FELLE deploy sendte gammel kode** (develop): `deploy-test.sh` rsyncet fra hovedtreet som lå to merger bak → Docker fikk identisk kontekst → cachet gammelt image uten å feile. `deploy-prod.sh` hadde allerede vakten; test manglet den. Ajour-guard lagt inn.
 - 2026-08-21 — **NY fil `kontekstvelger-regresjonsjakt-2026-08-21.md`** (develop): sju tap i k3-runden kartlagt, seks i `ad7cadc1`. Årsak: ny trakt skrevet uten inventar over hva den gamle kunne. Autovalg byggeplass var sideeffekt i UI-komponent → nye sjekklister fikk `byggeplassId=undefined`.
 - 2026-08-21 — **`redesign-paritetssjekkliste.md` + `k3-verifiseringslogg.md` RE-VERIFISERT** (develop): begge sto med falske ✅ i en måned («favoritter bevart», «autovalg byggeplass fungerer», «Alle/Mine fungerer»). Korrigert ved regresjonsjakten, deretter re-verifisert av utfører ved kontekstvelger-1a-leveransen.
 - 2026-08-21 — **`BACKLOG.md` § D7 klientside-filter** (develop): fabel-gatet forbehold ført som backlog-rad — web filtrerer sjekklister klientside, mobil serverside. Måletrigger ved ~500 sjekklister.

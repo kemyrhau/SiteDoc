@@ -112,6 +112,27 @@ Kontrollmekanismen sviktet i samme runde som tapet skjedde:
 **Der biter hypotese (a) — ikke som årsak til reverseringer, men som årsak til at tapene ikke
 ble oppdaget.** En agent som leser dokumentasjonen får bekreftet at alt er på plass.
 
+## Samme klasse — fire funn på én dag (2026-08-21)
+
+Regresjonsjakten var det første. Tre til dukket opp samme dag, alle med samme signatur:
+**noe forsvinner uten feilmelding, uten spor i git, og dokumentasjonen sier at alt er i
+orden.**
+
+| # | Funn | Hvorfor det var usynlig |
+|---|---|---|
+| 1 | Denne rapporten — sju tap i `ad7cadc1` | Ny komponent inventarierte aldri den gamle |
+| 2 | Falske ✅ i paritetssjekkliste + k3-logg | Kontrollen ble ikke re-verifisert ved berøring |
+| 3 | `useFavoritter` mount-race | Toggle før load-effekten nullet hele lista — stille |
+| 4 | [Deploy sendte gammel kode](deploy-detaljer.md) | `deploy-test.sh` leste fra et tre som lå bak; Docker cachet «riktig» |
+
+**Ingen av dem var mystiske.** Alle fire hadde en målbar årsak, og i tre av fire fantes det
+allerede en mekanisme som *skulle* fanget det — den var bare ikke anvendt konsekvent:
+paritetssjekklista fantes, `deploy-prod.sh` hadde ajour-vakten, og Caveat A om Chrome sto
+skrevet.
+
+**Fellesnevneren er ikke slurv, men asymmetri:** en regel innført ett sted og glemt det
+andre. `ruteErFirmaKontekst` i tre kopier med én rettet er samme form.
+
 ## Lærdom — inn i arbeidsmåten
 
 **Når en komponent skrives om fremfor å gjenbrukes, skal ordren inventariere hva den gamle
