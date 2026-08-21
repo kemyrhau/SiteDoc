@@ -135,26 +135,70 @@ const BILDER_PER_REKKE = 2;
  * full spaltebredde rett under sin egen rad (vedtak 2026-08-15), ikke samlet
  * etter tabellen.
  */
+/** F7-merkelinje (ordre 2026-08-21, linje 11 — ORDRETT, ikke omskriv). */
+const F7_MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direkte på skjemaet, uten 'Legg til rad'.";
+
+/**
+ * F7 (D1, ordre-arkivmal-f7-objektniva 2026-08-21): innhold festet på repeater-OBJEKTET
+ * (kommentar/vedlegg uten «Legg til rad») rendres som egen merket blokk «Registrert utenfor
+ * rader» rett OVER tabellen/kortene. Aldri som «rad 0», aldri utelatt — gjelder også når
+ * repeateren HAR rader. Objektnivå-bildene står FØRST på siden, så de nummereres FØR
+ * radbildene: blokken forbruker bildeNr-telleren først og returnerer `nesteNr` til radene
+ * (`b.bildeNr` fra appen har forrang, som ellers). Bilder: 2/rekke, løpenr + tid — samme
+ * primitiver som radbildene; ikke-bilde-vedlegg → filteller (aldri base64/JSON-dump).
+ * Delt av tabell (repeater.ts) og radkort (radkort.ts).
+ */
+export function byggUtenforRaderBlokk(
+  objektFelt: FeltVerdi | undefined,
+  startNr: number,
+): { html: string; nesteNr: number } {
+  const kommentar = objektFelt?.kommentar?.trim() ?? "";
+  const alle = Array.isArray(objektFelt?.vedlegg) ? (objektFelt!.vedlegg as Vedlegg[]) : [];
+  const bilder = alle.filter(erBilde);
+  const antallIkkeBilder = alle.length - bilder.length;
+  if (!kommentar && bilder.length === 0 && antallIkkeBilder === 0) {
+    return { html: "", nesteNr: startNr };
+  }
+  let nr = startNr;
+  const celler = bilder.map((b) => {
+    const visNr = b.bildeNr ?? nr;
+    nr += 1;
+    let merke = `Bilde ${String(visNr).padStart(2, "0")}`;
+    if (b.opprettet) merke += ` · ${esc(formaterDatoTidPunkt(b.opprettet))}`;
+    return `<div class="ark-bilde"><img class="ark-bilde-img" src="${esc(b.url)}" alt=""><div class="ark-bilde-tekst">${merke}</div></div>`;
+  });
+  const grid = celler.length ? `<div class="ark-bilde-grid">${celler.join("")}</div>` : "";
+  const kommentarHtml = kommentar ? `<div class="kommentar">${esc(kommentar)}</div>` : "";
+  const filteller = antallIkkeBilder > 0
+    ? `<div class="vedlegg-teller">${antallIkkeBilder} vedlegg uten forhåndsvisning</div>`
+    : "";
+  const html = `<div class="ark-utenfor-rader"><div class="ark-utenfor-merke">${F7_MERKE}</div>${kommentarHtml}${grid}${filteller}</div>`;
+  return { html, nesteNr: nr };
+}
+
 export function byggRepeaterTabell(
   objekt: TreObjekt,
   verdi: unknown,
   label: string,
+  objektFelt?: FeltVerdi,
 ): string {
   const barn = objekt.children ?? [];
   const rader = Array.isArray(verdi) ? (verdi as Record<string, FeltVerdi>[]) : [];
 
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
+  // F7: objektnivå-blokk FØRST (forbruker bildeNr før radene). Tom blokk → "".
+  const blokk = byggUtenforRaderBlokk(objektFelt, 1);
 
   if (rader.length === 0) {
-    return `${heading}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
+    // Case (a): objektnivå-innhold + 0 rader → blokk + «Ingen rader registrert».
+    return `${heading}${blokk.html}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
   }
 
   const kolonner = barn.map((b) => `<th>${esc(b.label)}</th>`).join("");
   // «#» + én kolonne per barn — bildecellen spenner hele bredden.
   const kolonnespenn = 1 + barn.length;
-  // Løpenummer starter på 01 og fortsetter gjennom hele repeateren (= dokumentet;
-  // starter på nytt per dokument, aldri videreført på tvers).
-  let bildeNr = 1;
+  // Løpenummer fortsetter FRA objektnivå-blokken (F7: objektbilder først på siden).
+  let bildeNr = blokk.nesteNr;
   const kropp = rader
     .map((rad, idx) => {
       const celler = barn
@@ -176,8 +220,10 @@ export function byggRepeaterTabell(
     })
     .join("");
 
+  // Case (b): objektnivå-blokk rett OVER tabellen (tom blokk → "").
   return `
 ${heading}
+${blokk.html}
 <table class="ark-repeater">
   <thead><tr><th class="ark-rad-nr" style="color:${ARKIV_FARGER.navy}">#</th>${kolonner}</tr></thead>
   <tbody>${kropp}</tbody>

@@ -83,3 +83,35 @@ describe("byggRadkort — mockup 2a (BEF-002)", () => {
     expect(byggRadkort(BEFARING, [], "Befaring")).toContain("Ingen rader registrert");
   });
 });
+
+describe("funn #4 (hull 1) — skalar-rad-kommentar rendres (var tapt i radkort)", () => {
+  it("skalar-felt med kommentar → «Merknad: …» under verdien", () => {
+    const rad = { txt: fv("En verdi", "Skalar-kommentar her"), dp: fv(null), calc: fv(null), nrep: fv([]) };
+    const html = byggRadkort(BEFARING, [rad], "Befaring");
+    expect(html).toContain("En verdi");
+    expect(html).toContain("Merknad: Skalar-kommentar her");
+  });
+
+  it("calculation-felt (skalar-gren) med kommentar → merknad rendres òg", () => {
+    const rad = { txt: fv("V"), dp: fv(null), calc: fv(42, "Kalk-kommentar"), nrep: fv([]) };
+    expect(byggRadkort(BEFARING, [rad], "Befaring")).toContain("Merknad: Kalk-kommentar");
+  });
+
+  it("skalar-felt UTEN kommentar → ingen tom merknad-node", () => {
+    const rad = { txt: fv("Bare verdi"), dp: fv(null), calc: fv(null), nrep: fv([]) };
+    const html = byggRadkort(BEFARING, [rad], "Befaring");
+    expect(html).not.toContain("Merknad:");
+    expect(html).not.toContain("ark-radkort-merknad");
+  });
+
+  it("ÉN kilde: drawing_position-merknaden er byte-identisk uendret (låst plass, mockup 2a)", () => {
+    // Samme rad som mockup-testen: merknaden står inne i posisjon-tekst-kolonnen, under koordinaten.
+    const rad = {
+      txt: fv("x"), calc: fv(null), nrep: fv([]),
+      dp: fv({ drawingId: "d1", positionX: 60.65, positionY: 75.2, drawingName: "Z-20-01", utsnittDataUrl: "data:image/jpeg;base64,C" }, "På låst plass"),
+    };
+    const html = byggRadkort(BEFARING, [rad], "Befaring");
+    // merknaden ligger fortsatt INNE i posisjon-tekst (mellom koord og blokk-slutt), ikke etter hele feltet
+    expect(html).toContain(`<div class="ark-celle-koord">Z-20-01 (60,7 %, 75,2 %)</div><div class="ark-radkort-merknad">Merknad: På låst plass</div></div></div>`);
+  });
+});

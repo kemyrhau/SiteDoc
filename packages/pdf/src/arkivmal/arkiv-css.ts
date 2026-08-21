@@ -80,6 +80,8 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .tom{color:${f.svak}}
 .tekst-verdi{color:${f.celletekst}}
 .kommentar{font-size:9.5px;color:${f.graa};margin-top:2px}
+.ark-utenfor-rader{margin-bottom:10px}
+.ark-utenfor-merke{font-size:8.5px;font-weight:600;font-style:italic;color:${f.graa};margin-bottom:4px}
 .heading{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:${f.navy};font-weight:600;border-bottom:2px solid ${f.navy};padding-bottom:4px;margin-top:14px}
 .subtitle{font-size:10px;font-weight:600;color:${f.celletekst};margin-top:8px}
 .trafikklys{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}

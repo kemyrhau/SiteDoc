@@ -8,6 +8,9 @@ sist_endret: 2026-08-21
 
 # Ordre: funn #3, #4 og #6 fra Kenneths print-runde 2
 
+> **🟢 STATUS 2026-08-22:** **Funn #3** levert (branch `fix/arkivmal-funn-3-4`, commit `b75b880c` — delt `beregnUtsnittVindu`, detalj = oversikt croppet til vindu; påvirker arkiv-PDF + sjekkliste-PDF/mobil). **Funn #4** levert i samme branch: hull 1 (radkort skalar-kommentar via delt `byggMerknad`, drawing_position byte-identisk) + hull 2 = **F7-D1** (folded inn — «Registrert utenfor rader»-blokk, kommentar + vedlegg). Alle fire kommentar-nivåer enhetstestet. F7s skjermbevis-DoD er ÅPEN (Kenneth kjører — se F7-ordren). **Funn #6** IKKE startet (egen leveranse, web+mobil utfyllingsflate).
+
+
 ## Funn #3 — BUG: oversikt og detaljutsnitt treffer ulike koordinater
 
 Lokasjons-blokken i print viser prikken på ETT punkt i oversikten og et ANNET i

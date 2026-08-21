@@ -1,4 +1,8 @@
 # ORDRE — Arkiv-PDF: F7, innhold på repeater-objektnivå (D1)
+
+> **🟢 KODE LEVERT 2026-08-22** (branch `fix/arkivmal-funn-3-4`, foldet inn i funn-4-leveransen — hull 2 = F7-D1, samme `innhold.ts:30-32`-datatap sett fra to ordrenumre). `byggUtenforRaderBlokk` (repeater.ts) rendrer «Registrert utenfor rader»-blokk (kommentar + vedlegg, merkelinje ordrett, 2/rekke løpenr+tid, filteller for ikke-bilder), objektbilder nummereres FØR radbildene, blokk over tabell/radkort. Case a/b/c + nummerering enhetstestet (`f7-utenfor-rader.test.ts`, 14 tester). `felt.ts` urørt.
+> **🔴 DoD-RESTANSE (Kenneth kjører — IKKE gjort):** pkt 1 (BHO-002 web-PDF viser blokk-kommentar+bilde · mobil-PDF UENDRET regresjonssjekk), pkt 3 (BEF-001 fortsatt 73 bilder), pkt 5 (skjermbevis mot mockupside «Repeater F7» — fant den ikke som søkbar tekst i `.dc.html`; bygget mot ordrens skriftlige spec). Meldt åpen, ikke stilltiende lukket.
+
 **Fra:** fabel · **Dato:** 2026-08-21 · **Til:** kode-agent (via Kenneth) · **Spor:** DG (masterplan, plass 0b — etter D2/D2b)
 **Grunnlag:** `docs/redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md` (D1, Kenneth-godkjent) · `docs/redesign/beslutning-repeater-label-modell-fabel-2026-08-21.md` (D8) · mockupside «Repeater F7»
 **Status avklart:** BEF-001-test kjørt 21.08 — bildene kom med. F7 er **eksisterende mangel**, ikke regresjon fra deployen 20.08.
