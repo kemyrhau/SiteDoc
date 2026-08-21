@@ -2389,7 +2389,7 @@
   "flythjelp.handling.godkjenn": "Approuve le document. Il n’avance pas – il reste approuvé pour toutes les parties, prêt à être clôturé.",
   "flythjelp.handling.sendTilbakeUtforer": "Déplace le document d’un pas en arrière : de vous à {{mottaker}}, pour correction. Chez eux, il apparaît comme En cours.",
   "flythjelp.handling.sendPaaNytt": "Fait avancer à nouveau le document : de vous vers {{mottaker}}, après correction.",
-  "flythjelp.handling.lukk": "Termine le flux : le document est archivé comme Fermé pour tout le monde et ne continue pas. La réouverture nécessite une autorisation distincte.",
+  "flythjelp.handling.lukk": "Supprime le document du flux et le marque Fermé pour tout le monde : plus personne ne le détient. De là, il peut être rouvert ou supprimé ; Close est le chemin vers la suppression. Action administrative (administrateur de projet/système).",
   "flythjelp.handling.gjenapne": "Récupère un document fermé au début : il devient un brouillon avec son créateur, prêt à être modifié et renvoyé.",
   "flythjelp.handling.videresend": "Déplace le document latéralement : hors de ce flux, vers {{mottaker}} (outil d'administration pour les flux croisés).",
   "flythjelp.handling.slettTrukket": "Supprime définitivement le document retiré. Le flux est déjà arrêté – aucune autre partie n’est affectée.",

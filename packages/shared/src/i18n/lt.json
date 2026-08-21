@@ -2389,7 +2389,7 @@
   "flythjelp.handling.godkjenn": "Patvirtina dokumentą. Jis nejuda į priekį – jis yra Patvirtintas visoms šalims, paruoštas uždarymui.",
   "flythjelp.handling.sendTilbakeUtforer": "Perkelia dokumentą vienu žingsniu atgal: nuo jūsų iki {{mottaker}}, taisymui. Jiems tai rodoma kaip Vykdoma.",
   "flythjelp.handling.sendPaaNytt": "Po pataisymo vėl perkelia dokumentą į priekį: iš jūsų į {{mottaker}}.",
-  "flythjelp.handling.lukk": "Baigiamas srautas: dokumentas archyvuojamas kaip Uždarytas visiems ir neperkeliamas. Norint iš naujo atidaryti, reikia atskiro leidimo.",
+  "flythjelp.handling.lukk": "Išima dokumentą iš srauto ir visiems pažymi, kad jis uždarytas – niekas jo nebelaiko. Iš čia jį galima iš naujo atidaryti arba ištrinti; Uždarytas kelias į ištrynimą. Administracinis veiksmas (projekto/sistemos administratorius).",
   "flythjelp.handling.gjenapne": "Atkuria uždarytą dokumentą atgal į pradžią: jis tampa juodraščiu su kūrėju, paruoštu redaguoti ir išsiųsti iš naujo.",
   "flythjelp.handling.videresend": "Perkelia dokumentą į šoną: iš šio srauto į {{mottaker}} (kryžminio srauto administratoriaus įrankis).",
   "flythjelp.handling.slettTrukket": "Visam laikui ištrina atšauktą dokumentą. Srautas jau sustabdytas – jokios kitos šalys neturi įtakos.",

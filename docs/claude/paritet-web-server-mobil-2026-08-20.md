@@ -169,14 +169,19 @@ gjennom appen**, ikke **sedler som forsvinner på serversiden**.
 arbeider kan se timer som ikke finnes og tro at de er ført. Gjelder all serverside-sletting,
 ikke bare manuell rydding.
 
-### D5 · Sjekkliste i «Mottatt» kan ikke slettes av noen 🟡
-Slettedialogen sier «Kun sjekklister i utkast- eller avbrutt-status kan slettes», men
-«Avbrutt» finnes ikke i statuslista (Utkast, Sendt, Mottatt, Under arbeid, Besvart,
-Godkjent, Avvist, Lukket). «Trekk tilbake» under ADMIN fører til Utkast **hos avsender**,
-ikke til en slettbar tilstand. Et dokument kan altså havne i en tilstand der heller ikke
-systemadmin får slettet det. Måtte ryddes med SQL.
-Merk FK-ene: `images` og `document_transfers` mangler `onDelete` og **blokkerer** sletting;
-`checklist_change_log` kaskaderer, `tasks` settes til null.
+### D5 · Sjekkliste i «Mottatt» kan ikke slettes av noen ✅ LØST (2026-08-21)
+**Rotårsak:** slettevakten var `draft` || `cancelled`, men `cancelled` er uoppnåelig (0 prod-rader)
+— så alt utenom Utkast havnet i en tilstand ingen, heller ikke systemadmin, fikk slettet uten SQL.
+**Fiks (Lukk-som-slette-port, Kenneth-vedtak):** slettevakten er nå `draft` || `closed` (både
+sjekkliste + oppgave), og «Lukk» (KUN admin) er gjeninnført som `approved→closed` / `dismissed→closed`.
+Det gir alltid en vei til sletting: et dokument i Mottatt rutes Avvis → Lukk → Slett (eller
+Godkjenn → Lukk → Slett); et Godkjent/Avvist dokument Lukkes → slettes. Feilmeldingen er endret til
+«Lukk dokumentet først, så kan det slettes». Bevisst tostegs-vern: dokumenter i AKTIV flyt slettes
+aldri direkte — de må Lukkes (synlig, gjenåpnbart) → papirkurv (90 dagers angrefrist).
+Se [`delplaner/flytrettigheter-evaluering-2026-07-26.md § H6-REVISJON`](delplaner/flytrettigheter-evaluering-2026-07-26.md).
+**Restanse (uendret, egen sak):** FK-ene `images` og `document_transfers` mangler `onDelete` og
+**blokkerer** myk-sletting av dokumenter med bilder/overføringer; `checklist_change_log` kaskaderer,
+`tasks` settes til null. Lukk-porten løser status-gaten, ikke FK-blokkeringen.
 
 ### D6 · Annotering lager duplikat i visningen + ukomprimert fil 🟡
 Et annotert bilde vises som to miniatyrer (01 original, 02 annotert) i samme rad. Målt i
@@ -204,8 +209,8 @@ faggruppe og én flyt per reell arbeidsdeling, og oppsettsflaten bør vise helhe
 
 - Dokumentflyt-ledd får `steg = 1` som default og UI setter det ikke → flyt stopper hos
   registrator. Se [dokumentflyt.md](dokumentflyt.md).
-- Sjekkliste i «Mottatt» kan ikke slettes; statusen «Avbrutt» som feilmeldingen viser til
-  finnes ikke i UI.
+- ~~Sjekkliste i «Mottatt» kan ikke slettes; statusen «Avbrutt» som feilmeldingen viser til
+  finnes ikke i UI.~~ ✅ LØST 2026-08-21 (Lukk-som-slette-port) — se D5 over.
 - Annotert PNG lagres ukomprimert (1,98 MB mot originalens 290 KB) — henger sammen med H6.
 - `recipient_user_id`/`recipient_group_id` på `checklists` settes aldri; posisjonsmodellen
   har overtatt. Relikvier.

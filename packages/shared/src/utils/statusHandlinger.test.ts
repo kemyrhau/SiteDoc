@@ -60,7 +60,7 @@ const HANDLING_MATRISE: HandlingRad[] = [
   // — [ADMIN — står] erAdmin=true gir alle handlinger ————————————————
   { navn: "[ADMIN] registrator+erAdmin, draft → alle", status: "draft", rolle: "registrator", erAdmin: true, forventet: ["sent", "deleted"] },
   { navn: "[ADMIN] registrator+erAdmin, responded → alle (pilot-fiks B: Send; Runde-2: Send tilbake fjernet)", status: "responded", rolle: "registrator", erAdmin: true, forventet: ["sent", "approved", "forwarded"] },
-  { navn: "[ADMIN] registrator+erAdmin, closed → gjenåpne (F4: universet har Gjenåpne)", status: "closed", rolle: "registrator", erAdmin: true, forventet: ["draft"] },
+  { navn: "[ADMIN] registrator+erAdmin, closed → gjenåpne+slett (H6-revisjon: universet har Gjenåpne + Slett)", status: "closed", rolle: "registrator", erAdmin: true, forventet: ["draft", "deleted"] },
   { navn: "[ADMIN] erAdmin overstyrer rolle-filter: bestiller+erAdmin, responded → alle (Runde-2: uten Send tilbake)", status: "responded", rolle: "bestiller", erAdmin: true, forventet: ["sent", "approved", "forwarded"] },
 
   // — [REGISTRATOR — VENDT] Fase B: registrator sender/sletter EGEN kladd, ellers tom —
@@ -70,12 +70,15 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[REGISTRATOR] in_progress → tom (Runde-2: in_progress-grenen fjernet)", status: "in_progress", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] responded → tom (fikset: kan ikke lenger godkjenne)", status: "responded", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] rejected → tom (F3: rejected merget inn i in_progress, universet er tomt)", status: "rejected", rolle: "registrator", erAdmin: false, forventet: [] },
-  // H6 (Godkjent = stoppsted): approved→closed fjernet, approved→draft (Gjenåpne) lagt til — Reg eier gjenåpne.
-  { navn: "[REGISTRATOR] approved → gjenåpne (H6: Godkjent lukkes aldri, Reg eier gjenåpne)", status: "approved", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
-  // F4 (spec § 3–4): Gjenåpne fra alle avsluttede statuser eies av registrator (oppretter).
-  { navn: "[REGISTRATOR] cancelled → gjenåpne (F4: Reg eier gjenåpne, legacy)", status: "cancelled", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
-  { navn: "[REGISTRATOR] closed → gjenåpne (F4)", status: "closed", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
-  { navn: "[REGISTRATOR] dismissed → gjenåpne (F4: åpner F1s terminal-status)", status: "dismissed", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
+  // H6-REVISJON (2026-08-21): approved har Gjenåpne (→draft) for Reg; Lukk (→closed) er KUN-ADMIN,
+  // ikke registrator — derfor fortsatt bare draft for registrator uten erAdmin.
+  { navn: "[REGISTRATOR] approved → gjenåpne (H6-rev: Lukk er admin-only, Reg eier kun Gjenåpne)", status: "approved", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
+  // F4 (spec § 3–4): Gjenåpne fra avsluttede statuser eies av registrator (oppretter).
+  // cancelled er RETIRERT (0 prod-rader, universet tomt) → registrator får ingenting.
+  { navn: "[REGISTRATOR] cancelled → tom (retirert status, universet er tomt)", status: "cancelled", rolle: "registrator", erAdmin: false, forventet: [] },
+  // H6-REVISJON: closed har Gjenåpne (→draft) + Slett (→deleted; slett-mutasjonen slipper tilgang-haver).
+  { navn: "[REGISTRATOR] closed → gjenåpne+slett (H6-rev: Reg eier Gjenåpne + Slett-på-closed)", status: "closed", rolle: "registrator", erAdmin: false, forventet: ["draft", "deleted"] },
+  { navn: "[REGISTRATOR] dismissed → gjenåpne (F4: Lukk admin-only, Reg eier kun Gjenåpne)", status: "dismissed", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
 
   // — [ROLLE — står] øvrige roller filtreres per ROLLE_HANDLINGER ————
   { navn: "[ROLLE] bestiller, draft → send+slett", status: "draft", rolle: "bestiller", erAdmin: false, forventet: ["sent", "deleted"] },
@@ -215,6 +218,67 @@ describe("isValidStatusTransition — closed → draft (F4: Gjenåpne-handlingen
   it("closed-universet: Gjenåpne-handlingen ruter til draft", () => {
     const gjenapne = hentStatusHandlinger("closed").find((h) => h.tekstNoekkel === "statushandling.gjenapne");
     expect(gjenapne?.nyStatus).toBe("draft");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  H6-REVISJON — «Lukk» som slette-port (Kenneth-vedtak 2026-08-21)     */
+/* ------------------------------------------------------------------ */
+
+describe("Lukk-som-slette-port — statusmaskin + univers + posisjon-gate", () => {
+  // Maskin: Lukk (INN i closed) fra de to stopp-stedene, og Slett (UT av closed).
+  it("approved → closed (Lukk) er lovlig — Godkjent kan lukkes som exit", () => {
+    expect(isValidStatusTransition("approved", "closed")).toBe(true);
+  });
+  it("dismissed → closed (Lukk) er lovlig — Avvist tas ut av flyt", () => {
+    expect(isValidStatusTransition("dismissed", "closed")).toBe(true);
+  });
+  it("closed → deleted (Slett) er lovlig — slettevaktens andre lovlige kilde", () => {
+    expect(isValidStatusTransition("closed", "deleted")).toBe(true);
+  });
+  it("draft → cancelled er ULOVLIG (død referanse fjernet)", () => {
+    expect(isValidStatusTransition("draft", "cancelled")).toBe(false);
+  });
+  it("cancelled → * er ULOVLIG (fra-status fjernet, retirert)", () => {
+    expect(isValidStatusTransition("cancelled", "draft")).toBe(false);
+    expect(isValidStatusTransition("cancelled", "deleted")).toBe(false);
+  });
+
+  // Univers: Lukk finnes på approved+dismissed, Slett finnes på closed.
+  it("approved-universet inneholder Lukk (→closed)", () => {
+    const lukk = hentStatusHandlinger("approved").find((h) => h.nyStatus === "closed");
+    expect(lukk?.tekstNoekkel).toBe("handling.lukk");
+  });
+  it("dismissed-universet inneholder Lukk (→closed)", () => {
+    const lukk = hentStatusHandlinger("dismissed").find((h) => h.nyStatus === "closed");
+    expect(lukk?.tekstNoekkel).toBe("handling.lukk");
+  });
+  it("closed-universet inneholder Slett (→deleted)", () => {
+    const slett = hentStatusHandlinger("closed").find((h) => h.nyStatus === "deleted");
+    expect(slett?.tekstNoekkel).toBe("handling.slett");
+  });
+  it("cancelled-universet er tomt (retirert status)", () => {
+    expect(hentStatusHandlinger("cancelled")).toEqual([]);
+  });
+
+  // Posisjon-gate: Lukk (→closed) er KUN-ADMIN. Ingen ball-rett gir den.
+  const ballOgTerminere = {
+    retningsrett: { kanSende: true, kanBesvare: true, kanTerminere: true, kanVideresende: true },
+    erAvsender: true,
+    erMedlemAvFlyt: true,
+    erSisteLedd: false,
+  };
+  it("posisjon: Lukk (approved→closed) vises IKKE for ball-holder uten admin", () => {
+    const h = hentPosisjonFiltrertHandlinger("approved", { ...ballOgTerminere, erAdmin: false });
+    expect(h.some((x) => x.nyStatus === "closed")).toBe(false);
+  });
+  it("posisjon: Lukk (approved→closed) vises for admin (erAdmin-snarvei)", () => {
+    const h = hentPosisjonFiltrertHandlinger("approved", { ...ballOgTerminere, erAdmin: true });
+    expect(h.some((x) => x.nyStatus === "closed")).toBe(true);
+  });
+  it("posisjon: Slett (deleted) er aldri i menyen (går via onSlett), også for admin", () => {
+    const h = hentPosisjonFiltrertHandlinger("closed", { ...ballOgTerminere, erAdmin: false });
+    expect(h.some((x) => x.nyStatus === "deleted")).toBe(false);
   });
 });
 

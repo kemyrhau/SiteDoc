@@ -2389,7 +2389,7 @@
   "flythjelp.handling.godkjenn": "Godkjenner dokumentet. Det flytter ikke videre — står som Godkjent hos alle parter, klart til lukking.",
   "flythjelp.handling.sendTilbakeUtforer": "Flytter dokumentet ett ledd tilbake: fra deg til {{mottaker}}, for utbedring. Hos dem står det som Under arbeid.",
   "flythjelp.handling.sendPaaNytt": "Flytter dokumentet fram igjen: fra deg til {{mottaker}}, etter retting.",
-  "flythjelp.handling.lukk": "Avslutter flyten: dokumentet arkiveres som Lukket hos alle og flytter ikke videre. Gjenåpning krever egen rettighet.",
+  "flythjelp.handling.lukk": "Tar dokumentet ut av flyten og setter det som Lukket hos alle — ingen har ballen lenger. Herfra kan det gjenåpnes eller slettes; Lukk er veien til sletting. Administrativ handling (prosjekt-/systemadmin).",
   "flythjelp.handling.gjenapne": "Henter et avsluttet dokument tilbake til start: det blir kladd hos oppretteren, klart til redigering og ny sending.",
   "flythjelp.handling.videresend": "Flytter dokumentet sideveis: ut av denne flyten, til {{mottaker}} (admin-verktøy for kryssflyt).",
   "flythjelp.handling.slettTrukket": "Sletter det trukket-tilbake dokumentet permanent. Flyten er alt stoppet — ingen andre parter berøres.",

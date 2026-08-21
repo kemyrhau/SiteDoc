@@ -15,17 +15,30 @@ Format: `SD-YYYYMMDD-XXXX`. Brukes ved prosjektopprettelse. 4-sifret padded løp
 Tilstandsmaskin for dokumentstatus. Brukes på server (API-validering) og klient (knapp-visning).
 
 ```
-draft → sent → received → responded → approved   (Godkjent = stoppsted, lukkes ALDRI — H6)
-                                       responded → in_progress (Send tilbake, F3)
-                                       approved → draft (Gjenåpne, H6 — Reg + P-adm)
-in_progress → responded / sent (Send på nytt) / closed (Lukk)
+draft → sent → received → responded → approved   (Godkjent = stoppsted i FLYTEN)
+                                       approved → draft (Gjenåpne — Reg + P-adm)
+                                       approved → closed (Lukk — KUN admin)
 received → dismissed (Avvis, begrunnelse påkrevd) · received → draft (Trekk tilbake, F2)
+             dismissed → draft (Gjenåpne) · dismissed → closed (Lukk — KUN admin)
+closed → draft (Gjenåpne) · closed → deleted (Slett, via slettevakt)
 ```
 
-**H6 Godkjent = stoppsted:** en Godkjent sjekkliste/oppgave lukkes aldri (`approved→closed`
-fjernet). Veien tilbake er Gjenåpne (`approved→draft`, registrator + prosjektadmin). Send/Videresend
-beholdt. `in_progress→closed` (Lukk) står — det er der et åpent dokument/KS-avvik lukkes. Ren kode,
-ingen migrering, ingen ny mikrotekst-nøkkel (`flythjelp.handling.gjenapne` gjenbrukt).
+**H6-REVISJON — «Lukk» som slette-port (Kenneth-vedtak 2026-08-21, fabel-svar):** H6s opprinnelige
+«Godkjent lukkes ALDRI» gjaldt Lukk som en KONKURRERENDE terminal ved siden av Godkjent. Med Lukk
+gjeninnført som *administrativ exit + eneste port til sletting* er dette ikke lenger en konflikt:
+Godkjent er fortsatt stoppsted i FLYTEN (ingen får ballen videre), mens Lukk tar dokumentet UT av
+flyten til `closed`. Sletting krever `draft` ELLER `closed` (slettevakt) — alt annet må Lukkes først.
+- **Lukk** (`approved→closed`, `dismissed→closed`): **KUN admin** (sitedoc_admin + prosjektadmin).
+  I klienten gatet av `posisjonHandlingTillatt` (`closed`→`false`); admin får den via `erAdmin`-
+  snarveien i `hentPosisjonFiltrertHandlinger`. Server-gaten er `verifiserRetningsrett` (admin-bypass
+  :836/:848), IKKE `ROLLE_HANDLINGER_DEFAULTS`.
+- **Gjenåpne** (`approved/dismissed/closed→draft`): registrator + prosjektadmin (uendret F4/H6).
+- **Slett** (`closed→deleted`): via slett-mutasjonens `verifiserDokumentTilgang` (tilgang-haver),
+  ikke handlingsmenyen (`deleted`→`false` i posisjon-path).
+- `cancelled` er retirert (0 prod-rader, målt): `hentStatusHandlinger("cancelled")` → `[]`,
+  rolle-raden fjernet, `draft→cancelled` ute av statusmaskinen.
+Nye mikrotekst-nøkler: ingen (`handling.lukk`/`handling.slett`/`flythjelp.handling.lukk` fantes;
+sistnevntes tekst omskrevet til ny semantikk + regenerert for 13 språk).
 
 **F3 Merge «Under arbeid»:** `rejected` er merget inn i `in_progress` — Send tilbake
 (responded→in_progress) ruter direkte til Under arbeid, ingen Gjenoppta. `rejected`-rader
@@ -49,7 +62,7 @@ interface StatusHandling {
 }
 ```
 
-Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir Godkjenn + Send tilbake (→ in_progress) + Videresend. **§8A-fiks (2026-07-29):** F5s «Send fram» (`received`/`responded`/`approved` → `sent`) er fjernet — den var en recipient-løs no-op (server auto-konverterte `sent→received` og nullstilte recipient). Framover fra `received` = Besvar/Godkjenn. `draft→sent` (førstegangs-send) og `in_progress→sent` (Send på nytt) er urørt.
+Returnerer tom array for `cancelled` (retirert). **H6-revisjon (2026-08-21):** `closed` er IKKE lenger tomt — det gir Gjenåpne (→draft) + Slett (→deleted); `approved`/`dismissed` gir Gjenåpne + Lukk (→closed, kun admin i klienten). `responded` gir Godkjenn + Send tilbake (→ in_progress) + Videresend. **§8A-fiks (2026-07-29):** F5s «Send fram» (`received`/`responded`/`approved` → `sent`) er fjernet — den var en recipient-løs no-op (server auto-konverterte `sent→received` og nullstilte recipient). Framover fra `received` = Besvar/Godkjenn. `draft→sent` (førstegangs-send) og `in_progress→sent` (Send på nytt) er urørt.
 
 ### Georeferanse (`georeferanse.ts`)
 

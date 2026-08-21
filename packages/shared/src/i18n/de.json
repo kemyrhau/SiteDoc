@@ -2389,7 +2389,7 @@
   "flythjelp.handling.godkjenn": "Genehmigt das Dokument. Es geht nicht weiter – es steht für alle Parteien als „Genehmigt“ zur Verfügung und kann geschlossen werden.",
   "flythjelp.handling.sendTilbakeUtforer": "Verschiebt das Dokument einen Schritt zurück: von Ihnen zu {{mottaker}}, zur Korrektur. Bei ihnen wird es als Im Gange angezeigt.",
   "flythjelp.handling.sendPaaNytt": "Verschiebt das Dokument wieder vorwärts: von Ihnen nach {{mottaker}}, nach der Korrektur.",
-  "flythjelp.handling.lukk": "Beendet den Fluss: Das Dokument wird für alle als „Geschlossen“ archiviert und wird nicht fortgesetzt. Für die Wiedereröffnung ist eine gesonderte Genehmigung erforderlich.",
+  "flythjelp.handling.lukk": "Nimmt das Dokument aus dem Fluss und markiert es für alle als „Geschlossen“ – niemand hält es mehr. Von hier aus kann es erneut geöffnet oder gelöscht werden; Close ist der Pfad zum Löschen. Administrative Aktion (Projekt-/Systemadministrator).",
   "flythjelp.handling.gjenapne": "Ruft ein geschlossenes Dokument wieder an den Anfang ab: Es wird beim Ersteller zu einem Entwurf, der bearbeitet und erneut gesendet werden kann.",
   "flythjelp.handling.videresend": "Verschiebt das Dokument seitwärts: aus diesem Fluss heraus nach {{mottaker}} (Admin-Tool für Cross-Flow).",
   "flythjelp.handling.slettTrukket": "Löscht das zurückgezogene Dokument dauerhaft. Der Fluss ist bereits gestoppt – keine anderen Parteien sind betroffen.",
