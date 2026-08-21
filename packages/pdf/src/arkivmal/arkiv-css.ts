@@ -128,6 +128,19 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}
 
+/* D2b helside tegningsprint (fabel 2026-08-21). Egen .ark-side (arver break-before).
+   tr-regelen over gir Gate 1 (markør-rad splittes aldri); thead-regelen gjentar
+   tabellhodet per side. Drawing-sizing/liggende-rotasjon finpusses ved visuell gate. */
+.ark-tegningsside .ark-seksjon{margin-bottom:6px}
+.ark-tegning-full{margin:8px 0 10px;text-align:center}
+.ark-tegning-full svg{display:inline-block;width:100%;height:auto;max-height:150mm;border:1px solid ${f.radLinje};border-radius:4px}
+.ark-tegning-liggende{position:relative;width:100%;height:180mm;overflow:hidden}
+.ark-tegning-liggende svg{position:absolute;top:50%;left:50%;width:180mm;max-height:none;height:auto;transform:translate(-50%,-50%) rotate(90deg)}
+.ark-markor-tabell{margin-top:8px}
+.ark-markor-tabell td{vertical-align:middle}
+.ark-utsnitt-celle{width:150px}
+.ark-utsnitt-mangler{height:96px;border:1px dashed ${f.radLinje};border-radius:4px}
+
 /* Merk: ingen @page :first-regel. Verifisert 2026-08-15 at page.pdf({ margin })
    i pdf-render-containeren overstyrer @page-margin, så CSS kan ikke skjule
    margin-headeren på side 1. Dubleringen er i stedet løst ved at margin-headeren

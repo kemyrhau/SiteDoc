@@ -27,6 +27,8 @@ export { byggInnhold } from "./innhold";
 export { byggRepeaterTabell } from "./repeater";
 export { byggArkivTegningsposisjon, byggLokasjonsblokk } from "./tegningsfelt";
 export type { LokasjonsData } from "./tegningsfelt";
+export { byggTegningsside, byggTegningssider } from "./tegningsside";
+export type { TegningssideData, TegningssideMarkor } from "./tegningsside";
 
 // Loggseksjon + signatur + sammenstilling (Stage 3)
 export { byggLoggseksjon, byggMangelMerknad } from "./loggseksjon";

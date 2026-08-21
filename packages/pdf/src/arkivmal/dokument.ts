@@ -45,7 +45,10 @@ export function byggArkivSide(input: ArkivDokumentInput): string {
     .filter(Boolean)
     .join("\n");
 
-  return `<div class="ark-side">${body}</div>`;
+  // D2b: helside(r) tegningsprint etter dokumentet — hver er sin egen `.ark-side`
+  // (CSS `.ark-side + .ark-side` gir sideskift). Tom → ingenting.
+  const tegningssider = input.tegningssiderHtml ?? "";
+  return `<div class="ark-side">${body}</div>${tegningssider ? "\n" + tegningssider : ""}`;
 }
 
 /** HTML-shell (DOCTYPE + CSS) rundt én eller flere `.ark-side`-blokker. */

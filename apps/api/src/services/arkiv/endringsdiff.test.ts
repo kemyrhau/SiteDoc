@@ -147,6 +147,34 @@ describe("ekspanderEndring — repeater celle-diff (punkt 2)", () => {
     expect(ekspanderEndring("Kontrollpunkter", fra, til, KOL)).toEqual([]);
   });
 
+  // Funn 3 (2026-08-21): drawing_position-markør i repeater-celle. Målt på BEF-002:
+  // markør-verdien er {drawingId,positionX,positionY,drawingName}. Uten render-casen
+  // traff den «ukjent objekt → null» → ekte posisjonsendring viste «Ikke utfylt →
+  // Ikke utfylt». Fiks i lesbarVerdi (endringsdiff.ts); no-op håndteres av rå-diff.
+  describe("drawing_position i repeater-celle (funn 3)", () => {
+    const DP: KolonneDef[] = [{ id: "dp", label: "Posisjon i tegning" }];
+    const mrk = (x: number, y: number) => celle({ drawingId: "d1", drawingName: "Z-20-01", positionX: x, positionY: y });
+
+    it("ENDRET markør → lesbar posisjon, IKKE «Ikke utfylt → Ikke utfylt»", () => {
+      const ut = ekspanderEndring("Befaring", s([{ dp: mrk(60.65, 75.2) }]), s([{ dp: mrk(84.04, 56.63) }]), DP);
+      expect(ut.map(flat)).toEqual([
+        { felt: "Rad 1 — Posisjon i tegning", fraVerdi: "Z-20-01 (60,7 %, 75,2 %)", tilVerdi: "Z-20-01 (84,0 %, 56,6 %)" },
+      ]);
+    });
+
+    it("IDENTISK markør → ingen rad (rå-diff filtrerer no-op)", () => {
+      const ut = ekspanderEndring("Befaring", s([{ dp: mrk(60.65, 75.2) }]), s([{ dp: mrk(60.65, 75.2) }]), DP);
+      expect(ut).toEqual([]);
+    });
+
+    it("markør fjernet (satt → tom) → «Z-20-01 (…) → Ikke utfylt»", () => {
+      const ut = ekspanderEndring("Befaring", s([{ dp: mrk(60.65, 75.2) }]), s([{ dp: celle(null) }]), DP);
+      expect(ut.map(flat)).toEqual([
+        { felt: "Rad 1 — Posisjon i tegning", fraVerdi: "Z-20-01 (60,7 %, 75,2 %)", tilVerdi: null },
+      ]);
+    });
+  });
+
   it("ukjent kolonne-id faller tilbake til «Kolonne N» (ikke UUID/_)", () => {
     const fra = s([{ ukjent: celle("a") }]);
     const til = s([{ ukjent: celle("b") }]);

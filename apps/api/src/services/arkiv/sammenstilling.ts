@@ -18,6 +18,7 @@ import {
   byggArkivDokument,
   byggArkivSide,
   byggLokasjonsblokk,
+  byggTegningssider,
   prosjektReferanseForUtskrift,
   statusTekst,
   statusSemantiskFarge,
@@ -31,10 +32,12 @@ import {
   type ArkivDokumentInput,
   type Utskriftsinnstillinger,
   type TegningsOppslagOppf,
+  type TegningssideData,
 } from "@sitedoc/pdf";
 import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
 import { lesHendelseslogg, lesEndringslogg } from "./logg-lesere";
+import { samleRepeaterMarkorer, byggUtsnittCrop, type RepeaterMarkor } from "./tegningsmarkorer";
 
 interface BildeRef { url: string; filnavn?: string; type?: string }
 
@@ -187,6 +190,13 @@ export async function byggSjekklisteArkivHtml(
     const v = dataMedNavn[obj.id]?.verdi as { drawingId?: string } | null | undefined;
     if (v?.drawingId) tegningIder.add(v.drawingId);
   }
+  // D2b: rekursive repeater-markører (kan nestes) → deres tegninger må også med.
+  // Treet bygges her (brukes også til innhold/logg-kolonner under). Negativ-testen
+  // (markør på tegning A + doc-lokasjon på tegning B → BEGGE tegninger med) dekkes
+  // av at både `sjekkliste.drawingId` og markørenes drawingId legges i settet.
+  const treObjekter = byggObjektTre(objects) as unknown as TreObjekt[];
+  const repeaterMarkorer = samleRepeaterMarkorer(treObjekter, dataMedNavn);
+  for (const m of repeaterMarkorer) tegningIder.add(m.drawingId);
   const tegninger = tegningIder.size
     ? await prisma.drawing.findMany({
         where: { id: { in: [...tegningIder] } },
@@ -245,8 +255,7 @@ export async function byggSjekklisteArkivHtml(
     };
   }
 
-  // 4) Innhold (tre-bevisst, tomme strukturer synlig).
-  const treObjekter = byggObjektTre(objects) as unknown as TreObjekt[];
+  // 4) Innhold (tre-bevisst, tomme strukturer synlig). `treObjekter` bygget over.
   const innholdHtml = byggInnhold(treObjekter, dataInlinet, {
     bildeBaseUrl: "",
     visTommeStrukturer: true,
@@ -266,6 +275,45 @@ export async function byggSjekklisteArkivHtml(
     },
     tegningsOppslag,
   );
+
+  // 4c) D2b: helside per tegning med repeater-markører. Grupper markørene per
+  // tegning (bevar dokumentorden → flat nummerering 1..N per tegning). Croppene
+  // lages fra tegningens RÅ bytes (bedre enn den komprimerte data-URI-en),
+  // nedskalert til moderat DPI (Gate 3). Tegning uten inlinet bilde hoppes over.
+  const markorerPerTegning = new Map<string, RepeaterMarkor[]>();
+  for (const m of repeaterMarkorer) {
+    const arr = markorerPerTegning.get(m.drawingId) ?? [];
+    arr.push(m);
+    markorerPerTegning.set(m.drawingId, arr);
+  }
+  const tegningssideData: TegningssideData[] = [];
+  for (const [drawingId, mrk] of markorerPerTegning) {
+    const t = tegningPerId.get(drawingId);
+    const oppslag = tegningsOppslag[drawingId];
+    if (!t || !oppslag) continue; // tegning slettet / bilde-henting feilet → ingen side
+    const kanCrop = t.imageWidth != null && t.imageHeight != null;
+    const bytes = kanCrop ? await opts.hentBildeBytes(t.fileUrl).catch(() => null) : null;
+    const markorer = await Promise.all(
+      mrk.map(async (m, i) => ({
+        nr: i + 1, // flat nummerering per tegning = punktnr
+        x: m.x,
+        y: m.y,
+        punkttekst: m.punkttekst,
+        resultat: m.resultat,
+        utsnittDataUrl:
+          bytes && kanCrop ? await byggUtsnittCrop(bytes, t.imageWidth!, t.imageHeight!, m.x, m.y) : null,
+      })),
+    );
+    tegningssideData.push({
+      tegningNavn: oppslag.navn ?? tegningNavn(t),
+      bildeDataUrl: oppslag.dataUrl,
+      imageWidth: t.imageWidth,
+      imageHeight: t.imageHeight,
+      markorer,
+      visResultat: mrk.some((m) => m.resultat != null),
+    });
+  }
+  const tegningssiderHtml = byggTegningssider(tegningssideData);
 
   // 5) Logg (lag 1 alltid, lag 2 på malens enableChangeLog). Kolonne-map lar
   // endringsloggen ekspandere repeater-endringer til «Rad N — kolonne»-rader.
@@ -323,6 +371,7 @@ export async function byggSjekklisteArkivHtml(
     statusCeller,
     innholdHtml,
     lokasjonHtml,
+    tegningssiderHtml,
     logg,
     signaturer,
     generertTekst: opts.generertTekst,

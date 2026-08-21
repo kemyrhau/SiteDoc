@@ -237,6 +237,12 @@ export interface ArkivDokumentInput {
    * Tom streng/utelatt → ingen lokasjonsseksjon (aldri tom kartboks).
    */
   lokasjonHtml?: string;
+  /**
+   * D2b (2026-08-21): helside(r) tegningsprint (`byggTegningssider`) — én per
+   * tegning med repeater-markører i dokumentet, plassert ETTER dokumentet (egne
+   * `.ark-side`). Tom/utelatt → ingen tegningssider.
+   */
+  tegningssiderHtml?: string;
   logg: ArkivLogg;
   signaturer: ArkivSignatur[];
   /** «11.08.2026 14:32» — generert-stempel. */
