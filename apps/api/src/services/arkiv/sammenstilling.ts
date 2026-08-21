@@ -17,6 +17,7 @@ import {
   byggKolonnerPerFelt,
   byggArkivDokument,
   byggArkivSide,
+  byggLokasjonsblokk,
   prosjektReferanseForUtskrift,
   statusTekst,
   statusSemantiskFarge,
@@ -29,6 +30,7 @@ import {
   type ArkivSignatur,
   type ArkivDokumentInput,
   type Utskriftsinnstillinger,
+  type TegningsOppslagOppf,
 } from "@sitedoc/pdf";
 import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
@@ -174,6 +176,27 @@ export async function byggSjekklisteArkivHtml(
   // 1) persons-UUID → navn (aldri rå nøkkel til byggherre).
   const dataMedNavn = await resolverPersonnavn(prisma, raaData, objects);
 
+  // 1b) D2: samle tegninger som markører peker på — dokumentnivå (checklist-
+  // raden) + feltnivå (`drawing_position`-verdier). Slås opp samlet slik at
+  // «tegning slettet etter markering» faller pent ut: `findMany` utelater den,
+  // oppslaget blir tomt, og rendreren returnerer "" (ingen tom tegningsblokk).
+  const tegningIder = new Set<string>();
+  if (sjekkliste.drawingId) tegningIder.add(sjekkliste.drawingId);
+  for (const obj of objects) {
+    if (obj.type !== "drawing_position") continue;
+    const v = dataMedNavn[obj.id]?.verdi as { drawingId?: string } | null | undefined;
+    if (v?.drawingId) tegningIder.add(v.drawingId);
+  }
+  const tegninger = tegningIder.size
+    ? await prisma.drawing.findMany({
+        where: { id: { in: [...tegningIder] } },
+        select: { id: true, name: true, drawingNumber: true, fileUrl: true, imageWidth: true, imageHeight: true },
+      })
+    : [];
+  const tegningPerId = new Map(tegninger.map((t) => [t.id, t]));
+  const tegningNavn = (t: { drawingNumber: string | null; name: string }): string =>
+    t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name;
+
   // 2) Firma (eksportfirma) via prosjektets org — for topptekst + logo.
   const prosjekt = await prisma.project.findUnique({
     where: { id: sjekkliste.template.projectId },
@@ -201,16 +224,48 @@ export async function byggSjekklisteArkivHtml(
     for (const v of bilderIFelt(felt)) bildeUrler.add(v.url);
   }
   if (org?.logoUrl) bildeUrler.add(org.logoUrl);
+  // D2: tegningsbilder inlines i SAMME batch → data-URI (aldri signert URL).
+  for (const t of tegninger) bildeUrler.add(t.fileUrl);
   const { dataUrl, manglende } = await inlineBilder(opts.hentBildeBytes, [...bildeUrler]);
 
   const dataInlinet = inlinDataBilder(dataMedNavn, dataUrl);
+
+  // 3b) D2: oppslag drawingId → inlinet tegningsbilde + dimensjoner (arkiv-only,
+  // valgfritt på PdfConfig → mobil uendret). Henting feilet → hoppes over
+  // (filnavnet er alt ført i `manglende`); rendreren utelater da blokken.
+  const tegningsOppslag: Record<string, TegningsOppslagOppf> = {};
+  for (const t of tegninger) {
+    const url = dataUrl.get(t.fileUrl);
+    if (!url) continue;
+    tegningsOppslag[t.id] = {
+      dataUrl: url,
+      imageWidth: t.imageWidth,
+      imageHeight: t.imageHeight,
+      navn: tegningNavn(t),
+    };
+  }
 
   // 4) Innhold (tre-bevisst, tomme strukturer synlig).
   const treObjekter = byggObjektTre(objects) as unknown as TreObjekt[];
   const innholdHtml = byggInnhold(treObjekter, dataInlinet, {
     bildeBaseUrl: "",
     visTommeStrukturer: true,
+    tegningsOppslag,
   });
+
+  // 4b) D2: dokument-lokasjon (tegningsmarkør) øverst side 1. Tekstlinje under:
+  // byggeplass · tegningsnavn. Uten markør/bilde → "" (ingen lokasjonsseksjon).
+  const docTegning = sjekkliste.drawingId ? tegningPerId.get(sjekkliste.drawingId) : undefined;
+  const lokasjonHtml = byggLokasjonsblokk(
+    {
+      drawingId: sjekkliste.drawingId,
+      positionX: sjekkliste.positionX,
+      positionY: sjekkliste.positionY,
+      byggeplassNavn: sjekkliste.byggeplass?.name ?? null,
+      tegningNavn: docTegning ? tegningNavn(docTegning) : null,
+    },
+    tegningsOppslag,
+  );
 
   // 5) Logg (lag 1 alltid, lag 2 på malens enableChangeLog). Kolonne-map lar
   // endringsloggen ekspandere repeater-endringer til «Rad N — kolonne»-rader.
@@ -267,6 +322,7 @@ export async function byggSjekklisteArkivHtml(
     },
     statusCeller,
     innholdHtml,
+    lokasjonHtml,
     logg,
     signaturer,
     generertTekst: opts.generertTekst,

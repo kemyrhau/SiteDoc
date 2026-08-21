@@ -12,6 +12,7 @@
 
 import { renderFelt } from "../felt";
 import { byggRepeaterTabell } from "./repeater";
+import { byggArkivTegningsposisjon } from "./tegningsfelt";
 import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
 
 export function byggInnhold(
@@ -25,6 +26,12 @@ export function byggInnhold(
       // Arkiv-override: repeater som tabell (skannbart), ikke felt.ts' div-blokk.
       // Repeater eier sine egne barn (kolonner) → ingen videre rekursjon her.
       html += byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label);
+      continue;
+    }
+    if (objekt.type === "drawing_position") {
+      // Arkiv-override (D2): tegningsutsnitt via byggTegningPosisjon — felt.ts
+      // utelater denne (frosset mobil-sti). Ingen markør/bilde → "".
+      html += byggArkivTegningsposisjon(data[objekt.id]?.verdi, config.tegningsOppslag);
       continue;
     }
     html += renderFelt(objekt, data[objekt.id], config);

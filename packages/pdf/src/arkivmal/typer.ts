@@ -231,6 +231,12 @@ export interface ArkivDokumentInput {
   statusCeller: StatusCelle[];
   /** Ferdig innhold-HTML (fra byggInnhold — kalleren inliner bilder som data-URI). */
   innholdHtml: string;
+  /**
+   * D2 (2026-08-21): dokument-lokasjon (tegningsmarkør) rendret av
+   * `byggLokasjonsblokk`, plassert ØVERST side 1 rett under dokumenthodet.
+   * Tom streng/utelatt → ingen lokasjonsseksjon (aldri tom kartboks).
+   */
+  lokasjonHtml?: string;
   logg: ArkivLogg;
   signaturer: ArkivSignatur[];
   /** «11.08.2026 14:32» — generert-stempel. */
