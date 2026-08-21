@@ -158,6 +158,11 @@ function bildeSammendrag(bilder: unknown[]): string {
   return `${tekst} (${vist.join(", ")}${rest > 0 ? `, +${rest} flere` : ""})`;
 }
 
+/** Prosent på norsk form med én desimal: 75.17 → «75,2 %» (speiler cellrenderen). */
+function prosent(n: number): string {
+  return `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+}
+
 /** En rå verdi → lesbar streng. Null/tom → null («Ikke utfylt» ved render). */
 function lesbarVerdi(v: unknown): string | null {
   if (v == null) return null;
@@ -169,6 +174,18 @@ function lesbarVerdi(v: unknown): string | null {
     if (v.every((x) => typeof x === "string" || typeof x === "number")) return v.join(", ");
     // Array av rad-objekter uten kolonne-kontekst (fallback) → antall.
     return `${v.length} rad${v.length === 1 ? "" : "er"}`;
+  }
+  // Funn 3 (2026-08-21): drawing_position-markør {drawingId,positionX,positionY,
+  // drawingName}. Uten denne casen traff markøren «ukjent objekt → null»-
+  // fallbacken → ekte posisjonsendringer viste «Ikke utfylt → Ikke utfylt» i
+  // endringsloggen. Identiske markører filtreres alt av rå-sammenligningen;
+  // dette gjør ULIKE lesbare. Koordinat vises her (endringslogg, ikke innhold).
+  if (typeof v === "object" && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>;
+    if (typeof o.drawingId === "string" && typeof o.positionX === "number" && typeof o.positionY === "number") {
+      const navn = typeof o.drawingName === "string" && o.drawingName.trim() ? o.drawingName.trim() : "Tegning";
+      return `${navn} (${prosent(o.positionX)}, ${prosent(o.positionY)})`;
+    }
   }
   // Ukjent objekt-struktur → skjul rå struktur (aldri UUID/uploads-sti i loggen).
   return null;
