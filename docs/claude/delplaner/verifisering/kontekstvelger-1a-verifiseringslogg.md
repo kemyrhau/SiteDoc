@@ -72,3 +72,9 @@ KontekstChip vises i ny nav):
 - E: `apps/web/src/lib/ruteKontekst.ts` + KontekstChip/Toppbar/NavSidebar
 - B1–B4 + C5/C6: `apps/web/src/components/layout/KontekstChip.tsx` + `components/kontekst-chip/trakt-primitiver.tsx`
 - D7: `apps/web/src/app/dashbord/[prosjektId]/sjekklister/page.tsx`
+
+## Gjenstår
+- [ ] Designgate: skjermbilder + task-walkthrough + klikktall → fabel-godkjenning
+- [ ] Kenneth-bekreftelse D7
+- [ ] Backlog-rad om klientside-filterets skaleringsforbehold (eier: cowork, via exit-gate)
+- [ ] Gitignore-hullet i `docs/claude/delplaner/verifisering/`: cowork-målt 2026-08-21 — regelen (.gitignore:69) finnes for 21 MB bevis-bilder; md-loggene er bifangst, 46 filer allerede i git, ingenting tapt på disk (kun tilfeldig sporing). Vedtatt fiks: ignorer filtype (`**/*.png`, `**/*.jpg`) i stedet for mappen — logger spores automatisk, bilder holdes ute. Eier: cowork.
