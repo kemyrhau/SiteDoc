@@ -24,7 +24,8 @@ export type {
 
 // Innholds-renderer (Stage 2)
 export { byggInnhold } from "./innhold";
-export { byggRepeaterTabell } from "./repeater";
+export { byggRepeaterTabell, skalarCelle } from "./repeater";
+export { byggRadkort, repeaterErRik } from "./radkort";
 export { byggArkivTegningsposisjon, byggLokasjonsblokk } from "./tegningsfelt";
 export type { LokasjonsData } from "./tegningsfelt";
 export { byggTegningsside, byggTegningssider } from "./tegningsside";

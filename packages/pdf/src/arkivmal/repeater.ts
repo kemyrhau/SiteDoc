@@ -14,18 +14,10 @@
 
 import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, formaterDatoTidPunkt } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
-import { byggDetaljUtsnitt } from "../tegning";
 import { ARKIV_FARGER } from "./arkiv-css";
 import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
 
 const TOM = `<span class="tom">Ikke utfylt</span>`;
-/** Detaljutsnitt i repeater-cellen — lavere enn D2-blokkens 260 (raden er kompakt). */
-const CELLE_UTSNITT_HOYDE = 80;
-
-/** Prosent på norsk form med én desimal: 75.17 → «75,2 %» (speiler utfyllings-UI). */
-function prosent(n: number): string {
-  return `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
-}
 
 /** Bilde-predikat — speiler `ER_BILDE` i sammenstilling.ts (url + type/filnavn). */
 function erBilde(v: unknown): v is Vedlegg {
@@ -62,8 +54,12 @@ function bilderIRad(barn: TreObjekt[], rad: Record<string, FeltVerdi>): Vedlegg[
   return ut;
 }
 
-/** Kompakt cellverdi for én kolonne (repeater-barn). Gjenbruker delte primitiver. */
-function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
+/**
+ * Kompakt skalar-cellverdi for én kolonne (repeater-barn): label-fritt, kun verdien.
+ * Delt med radkort-formen (radkort.ts) for skalar/beregning/dato/status-felt.
+ * Håndterer IKKE drawing_position (radkort eier den) — den grenen er fjernet.
+ */
+export function skalarCelle(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
   const verdi = felt?.verdi;
   const tom = verdi === null || verdi === undefined || verdi === "";
 
@@ -97,31 +93,10 @@ function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
       return tom ? TOM : esc(formaterDatoTid(verdi));
     case "persons":
       return Array.isArray(verdi) && verdi.length > 0 ? esc((verdi as string[]).join(", ")) : TOM;
-    case "location":
-    case "drawing_position": {
-      // D2 (funn 2a, 2026-08-21): en tegningsmarkør er et objekt
-      // `{drawingId,positionX,positionY,drawingName}` → uten egen case dumpet
-      // default `JSON.stringify` rå koordinater i cellen (målt på prod).
-      // Koordinattekst «<tegningsnavn> (X,X %, Y,Y %)» PLUSS det croppede
-      // detaljutsnittet under (Kenneth-vedtak 2026-08-21: utsnittet flyttet inn i
-      // raden; helsidens duplikat-tabell fjernet). Utsnittet injiseres på markør-
-      // verdien (`utsnittDataUrl`) av sammenstillingen; oversikten forblir AVVIST i
-      // raden. Uten komplett markør → «Ikke utfylt».
-      const m = verdi as {
-        drawingId?: string | null;
-        positionX?: number | null;
-        positionY?: number | null;
-        drawingName?: string | null;
-        utsnittDataUrl?: string | null;
-      } | null | undefined;
-      if (!m || !m.drawingId || m.positionX == null || m.positionY == null) return TOM;
-      const navn = m.drawingName ?? "Tegning";
-      const koord = esc(`${navn} (${prosent(m.positionX)}, ${prosent(m.positionY)})`);
-      const utsnitt = m.utsnittDataUrl
-        ? `<div class="ark-celle-utsnitt">${byggDetaljUtsnitt({ url: m.utsnittDataUrl, x: 50, y: 50, hoydePx: CELLE_UTSNITT_HOYDE, zoom: 1 })}</div>`
-        : "";
-      return `<div class="ark-celle-koord">${koord}</div>${utsnitt}`;
-    }
+    // Merk: `drawing_position`/`location` har INGEN case her lenger. En repeater
+    // med tegningsposisjon er per definisjon RIK → rendres som radkort (radkort.ts),
+    // aldri som tabell. Grenen ble uNÅBAR og er fjernet (Kenneth 2026-08-21) for å
+    // unngå død kode. Helskalar repeater (denne tabellformen) har aldri drawing_position.
     case "attachments": {
       // Bildene rendres i full bredde rett under raden (byggBilderader), hvert
       // med egen merking (filnavn + tid). Cellen gjentar IKKE filnavn — det ville
@@ -191,7 +166,7 @@ export function byggRepeaterTabell(
           const kommentar = felt?.kommentar?.trim()
             ? `<div class="kommentar">${esc(felt.kommentar)}</div>`
             : "";
-          return `<td>${cellVerdi(b, felt)}${kommentar}</td>`;
+          return `<td>${skalarCelle(b, felt)}${kommentar}</td>`;
         })
         .join("");
       const datarad = `<tr><td class="ark-rad-nr">${idx + 1}</td>${celler}</tr>`;

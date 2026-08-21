@@ -144,6 +144,29 @@ thead{display:table-header-group}
 .ark-celle-koord{margin-bottom:4px}
 .ark-celle-utsnitt{max-width:150px}
 
+/* Radkort (mockup 2a, Kenneth-vedtak 2026-08-21) — rik repeater. Paginering (pkt 7):
+   kortet har IKKE break-inside:avoid (kan brytes MELLOM felt); hvert felt og hvert
+   enkeltbilde holdes samlet; bildeblokken kan brytes mellom rekker. */
+.ark-radkort{border:1px solid ${f.radLinje};border-radius:6px;margin:8px 0}
+.ark-radkort-header{display:flex;align-items:center;gap:8px;background:#f8fafc;border-bottom:1px solid ${f.radLinje};padding:6px 10px;border-radius:6px 6px 0 0}
+.ark-radkort-nr{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${f.navy};color:#fff;font-size:11px;font-weight:700;flex:0 0 auto}
+.ark-radkort-tittel{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${f.navy}}
+.ark-radkort-markor{margin-left:auto;font-size:9px;color:${f.graa};text-align:right}
+.ark-radkort-kropp{padding:8px 10px}
+.ark-radkort-felt{margin-bottom:8px;break-inside:avoid;page-break-inside:avoid}
+.ark-radkort-label{font-size:8.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${f.graa};margin-bottom:2px}
+.ark-radkort-posisjon{display:flex;gap:10px;align-items:flex-start}
+.ark-radkort-utsnitt{width:40mm;flex:0 0 auto}
+.ark-radkort-posisjon-tekst{padding-top:2px}
+.ark-radkort-merknad{font-style:italic;color:${f.graa};font-size:9.5px;margin-top:2px}
+.ark-radkort-nested{margin-left:12px;padding-left:8px;border-left:2px solid ${f.radLinje}}
+/* Bildeblokk: egen (kan brytes mellom rekker); label + enkeltbilde holdes samlet. */
+.ark-radkort-bildefelt{margin-bottom:8px}
+.ark-radkort-bilder{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ark-radkort-bilde{break-inside:avoid;page-break-inside:avoid}
+.ark-radkort-bilde img{display:block;width:auto;height:auto;max-width:100%;max-height:60mm}
+.ark-radkort-bildetekst{font-size:8.5px;color:${f.graa};margin-top:3px}
+
 /* Merk: ingen @page :first-regel. Verifisert 2026-08-15 at page.pdf({ margin })
    i pdf-render-containeren overstyrer @page-margin, så CSS kan ikke skjule
    margin-headeren på side 1. Dubleringen er i stedet løst ved at margin-headeren
