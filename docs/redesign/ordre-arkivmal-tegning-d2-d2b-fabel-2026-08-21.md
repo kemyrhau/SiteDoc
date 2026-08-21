@@ -15,9 +15,9 @@ Arkiv-PDF-en skal skrive ut tegningsposisjoner og dokumentlokasjon. I dag utelat
 
 ## D2 — per markering + dokumentlokasjon
 1. **`drawing_position` (feltnivå):** per markering én blokk: oversikt (hele tegningen m/markør + utsnittsramme) + detalj (4× zoom rundt markøren), via `byggTegningPosisjon`. Flere markeringer → én blokk per markering, gruppert per tegning. Tegningsnavn som blokk-tittel.
-2. **`location` (dokumentnivå):** rendres ØVERST på side 1, rett under dokumenthodet, i alle dokumentklasser (sjekkliste/oppgave/HMS): hele kartutsnittet venstre + innzoomet utsnitt rundt punktet høyre. **Format 14:9 — samme som tegningsutsnittene; endret plassering endrer aldri format.** Tekstlinje under: bygning · byggeplass · punkt satt av hvem/når.
-3. **Koordinat skrives IKKE ut** — telefon-GPS kan avvike betydelig; kartutsnittet med brukersatt punkt er dokumentasjonen.
-4. **Uten markering utelates seksjonen helt** — aldri tom kartboks eller tom tegningsblokk.
+2. **`location` (dokumentnivå):** dokument-lokasjon ER en tegningsmarkør (drawingId + positionX/Y — ingen lat/lng, ingen kartgenerator; cowork-verifisert 21.08). Rendres ØVERST på side 1, rett under dokumenthodet, i alle dokumentklasser (sjekkliste/oppgave/HMS), **identisk med drawing_position-formen:** hele tegningen m/markør venstre + 4× detaljutsnitt høyre, via `byggTegningPosisjon`. **Format 14:9 — endret plassering endrer aldri format.** Tekstlinje under: bygning · byggeplass · tegningsnavn. «Punkt satt av hvem/når» utelates — feltet finnes ikke (ev. changelog-utledning er egen sak).
+3. **Ingen GPS-/koordinatspråk i utskriften** — det finnes ingen koordinat å skrive ut.
+4. **Uten markering utelates seksjonen helt** — aldri tom boks eller tom tegningsblokk.
 
 ## D2b — helside per tegning
 Per tegning som har markeringer i dokumentet: ÉN helside med hele tegningen i størst mulig format (roter til liggende når tegningen er bredere enn høy), ALLE markører nummerert — **markørnummer = punktnummer i rapporten** — og markør→punkt-tabell under (markør · punkttekst · resultat). D2-blokkene supplerer helsiden, erstatter den ikke. Ingen markeringer på en tegning → ingen tegningsside.
