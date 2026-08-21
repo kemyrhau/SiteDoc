@@ -18,6 +18,7 @@ export type {
   ProsjektForPdf,
   Utskriftsinnstillinger,
   PdfConfig,
+  TegningsOppslagOppf,
 } from "./typer";
 
 // Konstanter

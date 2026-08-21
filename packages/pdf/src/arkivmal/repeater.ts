@@ -19,6 +19,11 @@ import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
 
 const TOM = `<span class="tom">Ikke utfylt</span>`;
 
+/** Prosent på norsk form med én desimal: 75.17 → «75,2 %» (speiler utfyllings-UI). */
+function prosent(n: number): string {
+  return `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+}
+
 /** Bilde-predikat — speiler `ER_BILDE` i sammenstilling.ts (url + type/filnavn). */
 function erBilde(v: unknown): v is Vedlegg {
   const b = v as Partial<Vedlegg>;
@@ -89,6 +94,25 @@ function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
       return tom ? TOM : esc(formaterDatoTid(verdi));
     case "persons":
       return Array.isArray(verdi) && verdi.length > 0 ? esc((verdi as string[]).join(", ")) : TOM;
+    case "location":
+    case "drawing_position": {
+      // D2 (funn 2a, 2026-08-21): en tegningsmarkør er et objekt
+      // `{drawingId,positionX,positionY,drawingName}` → uten egen case dumpet
+      // default `JSON.stringify` rå koordinater i cellen (målt på prod).
+      // Kompakt form som speiler utfyllings-UI: «<tegningsnavn> (X,X %, Y,Y %)».
+      // Prosentene bærer informasjon og lar leseren koble cellen til punktet når
+      // 2b (oversikt+detalj-blokk per markering) kommer. Uten komplett markør →
+      // «Ikke utfylt» (samme gate som resten: tegning uten posisjon = ingenting).
+      const m = verdi as {
+        drawingId?: string | null;
+        positionX?: number | null;
+        positionY?: number | null;
+        drawingName?: string | null;
+      } | null | undefined;
+      if (!m || !m.drawingId || m.positionX == null || m.positionY == null) return TOM;
+      const navn = m.drawingName ?? "Tegning";
+      return esc(`${navn} (${prosent(m.positionX)}, ${prosent(m.positionY)})`);
+    }
     case "attachments": {
       // Bildene rendres i full bredde rett under raden (byggBilderader), hvert
       // med egen merking (filnavn + tid). Cellen gjentar IKKE filnavn — det ville

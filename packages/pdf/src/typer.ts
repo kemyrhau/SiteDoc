@@ -163,4 +163,22 @@ export interface PdfConfig {
    * tom kontrolltabell ikke forsvinne stille (cowork 2026-08-13).
    */
   visTommeStrukturer?: boolean;
+  /**
+   * Arkiv-only (opt-in, default av → mobil uendret): oppslag `drawingId` →
+   * inlinet tegningsbilde (data-URI) + dimensjoner, som lar arkivstien rendre
+   * `drawing_position`/dokument-lokasjon via `byggTegningPosisjon`. Bildet er
+   * ALLEREDE inlinet til data-URI av api-sammenstillingen (nettverksfri
+   * container) — aldri en signert URL. Mobil setter aldri dette.
+   */
+  tegningsOppslag?: Record<string, TegningsOppslagOppf>;
+}
+
+/** Én oppføring i `PdfConfig.tegningsOppslag` — inlinet tegningsbilde + metadata. */
+export interface TegningsOppslagOppf {
+  /** Inlinet tegningsbilde som `data:image/…;base64,…` (aldri nettverks-URL). */
+  dataUrl: string;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
+  /** Tegningsnavn (m/ evt. tegningsnummer) for blokk-tittel. */
+  navn?: string | null;
 }
