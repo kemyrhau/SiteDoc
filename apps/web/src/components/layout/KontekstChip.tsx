@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronDown, ArrowLeftRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -49,17 +50,9 @@ function relativPath(href: string, prefiks: string): string {
  * dekkes av prefikset. Grense-sikker match (ikke løs `startsWith`) så
  * `/dashbord/maskinXYZ` ikke feilaktig treffer.
  *
- * ⚠️ FRAMTID: nye topp-nivå-firmamoduler må legges til her, ellers viser chippen
- * feil (prosjekt-)kontekst på den ruta.
+ * ⚠️ FRAMTID: nye topp-nivå-firmamoduler legges til i `ruteErFirmaKontekst`
+ * (delt modul `@/lib/ruteKontekst`), som Toppbar og NavSidebar deler.
  */
-function ruteErFirmaKontekst(pathname: string | null): boolean {
-  const p = pathname ?? "";
-  return (
-    p.startsWith("/dashbord/firma") ||
-    p === "/dashbord/maskin" ||
-    p.startsWith("/dashbord/maskin/")
-  );
-}
 
 /**
  * KontekstChip (steg iii + K3-trakt) — samlet «{Firma} / {Prosjekt} ▾»-velger

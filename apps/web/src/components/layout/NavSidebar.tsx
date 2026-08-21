@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Settings, PanelLeftClose, ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { useNavBredde, type NavBredde } from "@/kontekst/nav-bredde-kontekst";
 import {
@@ -141,7 +142,7 @@ export function NavSidebar() {
 
   // c2: maks én aktiv rad på tvers av sonene. Prosjekt-radene lyser aldri på
   // firma-/hub-ruter (der eier en firma-lenke / footeren aktiv-tilstanden).
-  const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
+  const erFirmaKontekst = ruteErFirmaKontekst(pathname);
   const erHub = pathname?.startsWith("/dashbord/innstillinger") ?? false;
 
   function erElementAktiv(element: SidebarElement): boolean {

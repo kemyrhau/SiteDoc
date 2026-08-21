@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useProsjekt } from "./prosjekt-kontekst";
 import { useFirma } from "./firma-kontekst";
+import { trpc } from "@/lib/trpc";
 
 // Beholder samme localStorage-nøkkel for bakoverkompatibilitet
 const BYGGEPLASS_STORAGE_KEY = "sitedoc-aktiv-bygning";
@@ -66,6 +67,15 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const [posisjonsvelgerAktiv, setPosisjonsvelgerAktiv] = useState(false);
   const [posisjonsvelgerFeltId, setPosisjonsvelgerFeltId] = useState<string | null>(null);
   const posisjonsResultatRef = useRef<PosisjonsResultat | null>(null);
+
+  // A1 (datakvalitet): byggeplass-lista bor i kilden — ikke i en UI-komponent —
+  // så autovalg + gyldighets-guard kan skje deterministisk her. React-query
+  // deduper mot KontekstChips identiske kall (samme path+input) → ingen
+  // dobbelt-henting. Sortert på `number` fra serveren (deterministisk «første»).
+  const byggeplassListe = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: prosjektId ?? "" },
+    { enabled: !!prosjektId },
+  );
 
   // Defensiv cleanup ved firma-bytte: clear byggeplass-state umiddelbart
   // slik at gammel byggeplass-etikett ikke henger igjen i topbar mens
@@ -153,6 +163,27 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     },
     [prosjektId],
   );
+
+  // A1: autovalg + gyldighets-guard. Kjører når byggeplass-lista er lastet.
+  // - Aktiv byggeplass som IKKE finnes i prosjektets liste (slettet/fremmed) →
+  //   forkast og revelg (dekker stale localStorage-id + prosjektbytte-guarden).
+  // - Ingen gyldig byggeplass valgt + prosjektet har byggeplasser → velg første
+  //   deterministisk. Erstatter sideeffekten som lå i ByggeplassVelger.tsx
+  //   (tapt i 4d52114e) — nå i kilden, så den ikke dør stille når UI fjernes.
+  //   `velgByggeplass` persisterer, akkurat som det gamle autovalget gjorde.
+  useEffect(() => {
+    if (!prosjektId) return;
+    const liste = byggeplassListe.data;
+    if (!liste) return; // vent på lista før valget røres (unngår stale-race)
+    const gyldig = !!aktivByggeplass && liste.some((b) => b.id === aktivByggeplass.id);
+    if (gyldig) return; // respekter gyldig (persistert) valg — ingen override
+    if (liste.length > 0) {
+      const forste = liste[0]!;
+      velgByggeplass({ id: forste.id, name: forste.name, number: forste.number });
+    } else if (aktivByggeplass) {
+      velgByggeplass(null); // prosjektet har ingen byggeplasser → nullstill rest
+    }
+  }, [prosjektId, byggeplassListe.data, aktivByggeplass, velgByggeplass]);
 
   const settStandardTegning = useCallback(
     (tegning: StandardTegning | null) => {
