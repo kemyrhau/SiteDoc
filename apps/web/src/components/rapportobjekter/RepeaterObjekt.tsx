@@ -131,6 +131,10 @@ export function RepeaterObjekt({
               const feltVerdi = rad[barnObjekt.id] ?? TOM_FELTVERDI;
               const erDisplay = DISPLAY_TYPER.has(barnObjekt.type);
 
+              // Rad-unik nøkkel: felt som overlever navigasjon (drawing_position)
+              // må skilles per rad, ellers overskriver rad 2 rad 1s resultat.
+              const feltNokkel = `${barnObjekt.id}:${radIndeks}`;
+
               if (erDisplay) {
                 return (
                   <div key={barnObjekt.id}>
@@ -142,6 +146,7 @@ export function RepeaterObjekt({
                       }
                       leseModus={leseModus}
                       prosjektId={prosjektId}
+                      feltNokkel={feltNokkel}
                     />
                   </div>
                 );
@@ -157,6 +162,7 @@ export function RepeaterObjekt({
                     }
                     leseModus={leseModus}
                     prosjektId={prosjektId}
+                    feltNokkel={feltNokkel}
                   />
                   <FeltDokumentasjon
                     kommentar={feltVerdi.kommentar}

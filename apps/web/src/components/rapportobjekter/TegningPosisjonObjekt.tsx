@@ -12,6 +12,7 @@ export function TegningPosisjonObjekt({
   verdi,
   onEndreVerdi,
   leseModus,
+  feltNokkel,
 }: RapportObjektProps) {
   const posisjon = verdi as TegningPosisjonVerdi | null;
   const params = useParams<{ prosjektId: string }>();
@@ -19,12 +20,17 @@ export function TegningPosisjonObjekt({
   const { startPosisjonsvelger, hentOgTømPosisjonsResultat } = useByggeplass();
   const harSjekketResultat = useRef(false);
 
+  // Rad-unik nøkkel i repeater (${objekt.id}:${radIndeks}); top-nivå → objekt.id.
+  // Uten dette deler alle repeater-rader samme nøkkel → rad 2 overskriver rad 1s
+  // posisjonsresultat ved retur fra tegningssiden.
+  const nokkel = feltNokkel ?? objekt.id;
+
   // Sjekk om det finnes et ventende posisjonsresultat fra tegningssiden
   useEffect(() => {
     if (harSjekketResultat.current) return;
     harSjekketResultat.current = true;
 
-    const resultat = hentOgTømPosisjonsResultat(objekt.id);
+    const resultat = hentOgTømPosisjonsResultat(nokkel);
     if (resultat) {
       onEndreVerdi({
         drawingId: resultat.drawingId,
@@ -33,10 +39,10 @@ export function TegningPosisjonObjekt({
         drawingName: resultat.drawingName,
       } satisfies TegningPosisjonVerdi);
     }
-  }, [objekt.id, hentOgTømPosisjonsResultat, onEndreVerdi]);
+  }, [nokkel, hentOgTømPosisjonsResultat, onEndreVerdi]);
 
   function handleVelgPosisjon() {
-    startPosisjonsvelger(objekt.id);
+    startPosisjonsvelger(nokkel);
     router.push(`/dashbord/${params.prosjektId}/tegninger`);
   }
 

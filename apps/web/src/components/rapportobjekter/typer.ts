@@ -15,6 +15,14 @@ export interface RapportObjektProps {
   leseModus?: boolean;
   prosjektId?: string;
   barneObjekter?: RapportObjekt[];
+  /**
+   * Instans-unik nøkkel for felt som overlever en navigasjon (posisjonsvelger).
+   * I en repeater deler alle rader samme `objekt.id` (malobjektets id) → uten en
+   * rad-unik nøkkel overskriver rad 2 rad 1s posisjonsresultat ved retur. Settes
+   * av `RepeaterObjekt` til `${objekt.id}:${radIndeks}`; utelatt (top-nivå) →
+   * komponenten faller til `objekt.id`.
+   */
+  feltNokkel?: string;
 }
 
 export interface Vedlegg {

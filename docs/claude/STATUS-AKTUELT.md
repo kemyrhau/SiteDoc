@@ -398,6 +398,10 @@ Bygger videre på fase 3-datalaget. **Stage 1–4b pushet** (`e4a3e455`): ramme/
 
 **Klient-knapp «Last ned arkiv-PDF».** På sjekklistedetalj (`sjekklister/[sjekklisteId]/page.tsx`): `trpc.arkiv.rendr` → last ned `pdfBase64` (Blob), ikke-blokkerende mangel-melding (amber ved `renderTimeout`/`manglendeVedlegg`, rød ved hard feil — inline banner, ingen toast). Kun sjekkliste; **ikke** oppgavedetalj (task-leser mangler → `NOT_IMPLEMENTED`). i18n `handling.lastNedArkivPdf` + `arkiv.*` × 13 språk. **Gjenstår:** fabel-skjermbilde-gate etter test-redeploy.
 
+### 🟢 Funn 1 — én markør per repeater (branch `fix/tegningsposisjon-repeater-radindeks`, fra develop) — PÅ BRANCH, venter dual-review
+
+Rotårsak (Kenneth-test 2026-08-21): `TegningPosisjonObjekt.tsx` nøklet posisjonsvelgeren på `objekt.id` (malobjektets id). Alle rader i en repeater deler samme malobjekt → rad 2 overskrev rad 1s posisjonsresultat ved retur fra tegningssiden (eller fant ingenting). Blokkerte all D2b-testdata (flere markører på samme tegning). Fiks (ren prop-tråding, ingen kontekst-endring — konteksten nøkler alt på en ugjennomsiktig streng): ny valgfri `feltNokkel` på `RapportObjektProps`; `RepeaterObjekt` sender `${barnObjekt.id}:${radIndeks}` per rad; `TegningPosisjonObjekt` bruker `feltNokkel ?? objekt.id`. Top-nivå + kontrollplan-flyt (egen `punkt.id`) uendret. Web typecheck + build grønn. **Gjenstår:** in-app verifisering (to markører på to rader, begge består) — skjer når Kenneth lager D2b-testdata.
+
 ### ✅✅ ARKIVERT — august-deployene (03.08–06.08) → [historikk-2026-08.md](historikk-2026-08.md)
 
 Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmodellen komplett + effektivitets-runden + mobil M1–M3 (`8b068c73` 03.08) · Funn A + Funn C (`0ac25705` 04.08) · Funn D + opprettvelger v2 + Spor 1 + kontaktside (`5bf25f83` 05.08) · Ordre 1.4 auto-hopp (`8a2f6d9c` 05.08) · Spor 2 HMS komplett (`70d2b752` 06.08).
