@@ -1,13 +1,28 @@
 import { describe, it, expect } from "vitest";
-import { byggTegningPosisjon, byggDetaljUtsnitt } from "./tegning";
+import { byggTegningPosisjon, byggDetaljUtsnitt, beregnUtsnittVindu } from "./tegning";
 
 /**
- * Gate 4 (fabel 2026-08-21): `byggDetaljUtsnitt` er en REN ekstraksjon ut av
- * `byggTegningPosisjon`. tegning.ts deles med den gamle PDF-veien (sjekkliste.ts),
- * så den gamle kallstien må være BIT-FOR-BIT uendret. GOLDEN er den beviste
- * pre-ekstraksjon-outputen (diffet mot origin/develop → byte-identisk 2026-08-21).
+ * Funn #3 (2026-08-22): oversikt og 4×-detalj skal treffe NØYAKTIG samme punkt.
+ * Tidligere brukte detaljen `transform-origin:x% y%` på et `object-fit:cover`-bilde
+ * med en fast prikk på 50%,50% → markør og prikk sammenfalt kun ved x=y=50, og
+ * prosenten ble målt mot boks-aspect (ikke bilde-aspect). Nå croppes detaljen til
+ * SAMME vindu som oversiktens ramme, med markøren på samme (cx,cy) → per konstruksjon
+ * identisk. Testene under er invarianter, ikke en byte-golden — de vokter regelen,
+ * ikke tilfeldig formatering.
  */
-const GOLDEN = "\n<div style=\"font-size:10px;font-weight:500;color:#374151;margin-bottom:6px;\">Z-20-01</div>\n<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;\">\n  <!-- Oversiktsbilde med markør — SVG med korrekt aspect ratio -->\n  <div style=\"border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;width:100%;\">\n    <svg width=\"100%\" viewBox=\"0 0 177.77777777777777 100\" preserveAspectRatio=\"xMidYMid meet\" style=\"display:block;\">\n      <image href=\"data:img/x\" x=\"0\" y=\"0\" width=\"177.77777777777777\" height=\"100\" preserveAspectRatio=\"none\"/>\n      <circle cx=\"107.82222222222221\" cy=\"75.2\" r=\"2.666666666666666\" fill=\"#ef4444\" stroke=\"white\" stroke-width=\"0.7111111111111111\"/>\n      <rect x=\"85.6\" y=\"62.7\" width=\"44.44444444444444\" height=\"25\" fill=\"none\" stroke=\"#f87171\" stroke-width=\"0.5333333333333333\"/>\n    </svg>\n    <div style=\"font-size:9px;color:#6b7280;padding:2px 4px;\">Oversikt</div>\n  </div>\n\n  <!-- Detalj-utsnitt -->\n  <div style=\"position:relative;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;height:260px;\">\n    <img src=\"data:img/x\" alt=\"Detalj\" style=\"width:100%;height:100%;object-fit:cover;transform-origin:60.65% 75.2%;transform:scale(4);\" />\n    <div style=\"position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:#ef4444;border:2px solid white;transform:translate(-50%,-50%);z-index:2;\"></div>\n    <div style=\"position:absolute;bottom:4px;left:4px;background:rgba(255,255,255,0.8);padding:1px 6px;border-radius:3px;font-size:9px;font-weight:500;color:#6b7280;\">Detalj</div>\n  </div>\n</div>";
+
+/** Hent alle `<circle cx cy>` fra HTML-en (rekkefølge: oversikt så detalj). */
+function hentSirkler(html: string): Array<{ cx: number; cy: number }> {
+  const treff = [...html.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)"/g)];
+  return treff.map((m) => ({ cx: parseFloat(m[1]!), cy: parseFloat(m[2]!) }));
+}
+
+/** Hent detalj-SVG-ens viewBox ("x y w h") — den andre svg-en i outputen. */
+function hentDetaljViewBox(html: string): { x: number; y: number; w: number; h: number } {
+  const alle = [...html.matchAll(/viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/g)];
+  const d = alle[1]!; // [0] = oversikt (0 0 vbW vbH), [1] = detalj (rammevinduet)
+  return { x: parseFloat(d[1]!), y: parseFloat(d[2]!), w: parseFloat(d[3]!), h: parseFloat(d[4]!) };
+}
 
 const INPUT = {
   tegningBildeUrl: "data:img/x",
@@ -18,23 +33,96 @@ const INPUT = {
   imageHeight: 900,
 };
 
-describe("byggTegningPosisjon — byte-identisk gammel kallsti (ren ekstraksjon)", () => {
-  it("output er bit-for-bit lik golden (ingen adferdsendring i ekstraksjonen)", () => {
-    expect(byggTegningPosisjon(INPUT)).toBe(GOLDEN);
+describe("byggTegningPosisjon — funn #3: oversikt og detalj deler koordinat", () => {
+  it("begge SVG-ene tegner markøren på IDENTISK (cx,cy)", () => {
+    const sirkler = hentSirkler(byggTegningPosisjon(INPUT));
+    expect(sirkler).toHaveLength(2); // oversikt + detalj
+    expect(sirkler[0]!.cx).toBe(sirkler[1]!.cx);
+    expect(sirkler[0]!.cy).toBe(sirkler[1]!.cy);
   });
 
-  it("detaljpanelet er nøyaktig byggDetaljUtsnitt(hoydePx=260, zoom=4)", () => {
-    const detalj = byggDetaljUtsnitt({ url: INPUT.tegningBildeUrl, x: INPUT.positionX, y: INPUT.positionY, hoydePx: 260, zoom: 4 });
-    expect(byggTegningPosisjon(INPUT)).toContain(detalj);
+  it("detaljens viewBox INNEHOLDER markøren (croppet rundt (cx,cy), ikke forbi)", () => {
+    const html = byggTegningPosisjon(INPUT);
+    const { cx, cy } = hentSirkler(html)[1]!;
+    const vb = hentDetaljViewBox(html);
+    expect(cx).toBeGreaterThanOrEqual(vb.x);
+    expect(cx).toBeLessThanOrEqual(vb.x + vb.w);
+    expect(cy).toBeGreaterThanOrEqual(vb.y);
+    expect(cy).toBeLessThanOrEqual(vb.y + vb.h);
+  });
+
+  it("begge SVG-ene bruker SAMME bilde-href og samme bilde-plassering (0,0,vbW,vbH)", () => {
+    const html = byggTegningPosisjon(INPUT);
+    const bilder = [...html.matchAll(/<image href="([^"]+)" x="0" y="0" width="([\d.]+)"/g)];
+    expect(bilder).toHaveLength(2);
+    expect(bilder[0]![1]).toBe(bilder[1]![1]); // samme href
+    expect(bilder[0]![2]).toBe(bilder[1]![2]); // samme vbW
+  });
+
+  it("ikke lenger transform-origin/object-fit-cover-detalj (rotårsaken er borte)", () => {
+    const html = byggTegningPosisjon(INPUT);
+    expect(html).not.toContain("transform-origin");
+    expect(html).not.toContain("object-fit:cover");
   });
 });
 
-describe("byggDetaljUtsnitt — parameterisert målstørrelse (Gate 4)", () => {
-  it("hoydePx og zoom er parametre (ny form ≠ 260/4-formen)", () => {
-    const arkiv = byggDetaljUtsnitt({ url: "data:img/x", x: 60.65, y: 75.2, hoydePx: 96, zoom: 4 });
+describe("funn #3 negativ-test — markør MIDT PÅ vs NÆR KANT treffer identisk i begge", () => {
+  const base = { tegningBildeUrl: "data:img/x", imageWidth: 1000, imageHeight: 1000 };
+
+  it("MIDT PÅ (50,50): detalj-markøren er sentrert i vinduet", () => {
+    const html = byggTegningPosisjon({ ...base, positionX: 50, positionY: 50 });
+    const { cx, cy } = hentSirkler(html)[1]!;
+    const vb = hentDetaljViewBox(html);
+    // relativ posisjon i vinduet ~ 0.5 (ingen klemming midt på)
+    expect((cx - vb.x) / vb.w).toBeCloseTo(0.5, 6);
+    expect((cy - vb.y) / vb.h).toBeCloseTo(0.5, 6);
+    // og oversikt == detalj
+    const s = hentSirkler(html);
+    expect(s[0]!.cx).toBe(s[1]!.cx);
+  });
+
+  it("NÆR KANT (96,96): vinduet klemmes, men oversikt og detalj peker på SAMME punkt", () => {
+    const html = byggTegningPosisjon({ ...base, positionX: 96, positionY: 96 });
+    const s = hentSirkler(html);
+    expect(s[0]!.cx).toBe(s[1]!.cx);
+    expect(s[0]!.cy).toBe(s[1]!.cy);
+    // markøren er FORSKJØVET fra midten i det klemte vinduet (ikke sentrert) — matcher oversikten
+    const vb = hentDetaljViewBox(html);
+    expect((s[1]!.cx - vb.x) / vb.w).toBeGreaterThan(0.5);
+    // og markøren er fortsatt innenfor vinduet
+    expect(s[1]!.cx).toBeLessThanOrEqual(vb.x + vb.w);
+  });
+});
+
+describe("beregnUtsnittVindu — delt vindu-funksjon (én kilde for rect + crop)", () => {
+  it("midt på → ramme sentrert rundt markøren", () => {
+    const v = beregnUtsnittVindu(50, 50, 1000, 1000, 4);
+    expect(v.cx).toBeCloseTo(50, 6);
+    expect(v.rammeX + v.rammeW / 2).toBeCloseTo(v.cx, 6);
+    expect(v.rammeY + v.rammeH / 2).toBeCloseTo(v.cy, 6);
+  });
+
+  it("nær kant → ramme klemmes innenfor bildet (aldri forbi 0 eller vbW/vbH)", () => {
+    const v = beregnUtsnittVindu(98, 98, 1000, 1000, 4);
+    expect(v.rammeX).toBeGreaterThanOrEqual(0);
+    expect(v.rammeY).toBeGreaterThanOrEqual(0);
+    expect(v.rammeX + v.rammeW).toBeLessThanOrEqual(v.vbW + 1e-9);
+    expect(v.rammeY + v.rammeH).toBeLessThanOrEqual(v.vbH + 1e-9);
+  });
+
+  it("mangler bildedimensjoner → kvadratisk viewBox (100×100)", () => {
+    const v = beregnUtsnittVindu(50, 50, null, null, 4);
+    expect(v.vbW).toBe(100);
+    expect(v.vbH).toBe(100);
+  });
+});
+
+describe("byggDetaljUtsnitt — parameterisert målstørrelse (radkort-sti, uendret)", () => {
+  it("hoydePx og zoom er parametre; radkort bruker denne (server-croppet bilde, sentrert)", () => {
+    const arkiv = byggDetaljUtsnitt({ url: "data:img/x", x: 50, y: 50, hoydePx: 96, zoom: 1 });
     expect(arkiv).toContain("height:96px;");
-    expect(arkiv).toContain("transform:scale(4);");
-    expect(arkiv).toContain("transform-origin:60.65% 75.2%;");
+    expect(arkiv).toContain("transform:scale(1);");
+    expect(arkiv).toContain("transform-origin:50% 50%;");
     expect(arkiv).not.toMatch(/https?:\/\//);
   });
 });

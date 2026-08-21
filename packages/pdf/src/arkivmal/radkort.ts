@@ -17,7 +17,7 @@
 
 import { esc, fullBildeUrl, formaterDatoTidPunkt } from "../hjelpere";
 import { byggDetaljUtsnitt } from "../tegning";
-import { skalarCelle } from "./repeater";
+import { skalarCelle, byggUtenforRaderBlokk } from "./repeater";
 import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
 
 /** Detaljutsnittet i radkortet — «kun visuell lokasjon» (~40 mm, Kenneth). 4:3 → ~30 mm høyt. */
@@ -76,6 +76,19 @@ function byggBildeblokk(vedlegg: Vedlegg[] | undefined): string {
 }
 
 /** Ett felt i radkortet: label + verdi (per type), + ev. bildeblokk hos feltet. */
+/**
+ * Merknad (felt-kommentar) i radkort — ÉN kilde for regelen (funn #4, 2026-08-22).
+ * Tidligere skrev bare `drawing_position`-grenen den ut; skalar-felt tapte kommentaren
+ * (`radkort.ts:107-109`). Nå kaller alle relevante grener denne helperen: `drawing_position`
+ * injiserer den inline på den DESIGNLÅSTE plassen (mockup 2a pkt 5: kursiv under koordinaten,
+ * i tekstkolonnen ved siden av utsnittet), skalar-grenen appender den under verdien.
+ */
+function byggMerknad(felt: FeltVerdi | undefined): string {
+  return felt?.kommentar?.trim()
+    ? `<div class="ark-radkort-merknad">Merknad: ${esc(felt.kommentar)}</div>`
+    : "";
+}
+
 function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number): string {
   const label = `<div class="ark-radkort-label">${esc(barn.label)}</div>`;
   let innhold: string;
@@ -87,9 +100,8 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
     } else {
       const navn = m.drawingName ?? "Tegning";
       const koord = esc(`${navn} (${prosent(m.positionX)}, ${prosent(m.positionY)})`);
-      const merknad = felt?.kommentar?.trim()
-        ? `<div class="ark-radkort-merknad">Merknad: ${esc(felt.kommentar)}</div>`
-        : "";
+      // Låst plass (mockup 2a): merknaden står inne i posisjon-tekst-kolonnen, under koordinaten.
+      const merknad = byggMerknad(felt);
       const utsnitt = m.utsnittDataUrl
         ? `<div class="ark-radkort-utsnitt">${byggDetaljUtsnitt({ url: m.utsnittDataUrl, x: 50, y: 50, hoydePx: RADKORT_UTSNITT_HOYDE, zoom: 1 })}</div>`
         : "";
@@ -105,8 +117,9 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
   } else if (barn.type === "attachments") {
     innhold = ""; // bildene rendres av bildeblokken under
   } else {
-    // Skalar/beregning/dato/status → label + verdi (delt med tabellformen).
-    innhold = `<div class="felt-verdi">${skalarCelle(barn, felt)}</div>`;
+    // Skalar/beregning/dato/status → label + verdi (delt med tabellformen) + ev. merknad.
+    // Funn #4: skalar-grenen tapte kommentaren; nå appended via samme byggMerknad-kilde.
+    innhold = `<div class="felt-verdi">${skalarCelle(barn, felt)}</div>${byggMerknad(felt)}`;
   }
 
   // Bilder som henger på DETTE feltet (per-felt vedlegg + attachments-verdi).
@@ -142,11 +155,13 @@ function byggRadkortRader(objekt: TreObjekt, rader: Record<string, FeltVerdi>[],
 }
 
 /** Rik repeater som radkort (seksjonshode + ett kort per rad). Tom → «Ingen rader registrert». */
-export function byggRadkort(objekt: TreObjekt, verdi: unknown, label: string): string {
+export function byggRadkort(objekt: TreObjekt, verdi: unknown, label: string, objektFelt?: FeltVerdi): string {
   const rader = Array.isArray(verdi) ? (verdi as Record<string, FeltVerdi>[]) : [];
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
+  // F7: objektnivå-blokk «Registrert utenfor rader» rett over kortene (tom → "").
+  const blokk = byggUtenforRaderBlokk(objektFelt, 1);
   if (rader.length === 0) {
-    return `${heading}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
+    return `${heading}${blokk.html}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
   }
-  return `${heading}${byggRadkortRader(objekt, rader, 0)}`;
+  return `${heading}${blokk.html}${byggRadkortRader(objekt, rader, 0)}`;
 }

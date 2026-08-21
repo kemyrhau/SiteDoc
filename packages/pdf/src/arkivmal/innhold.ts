@@ -27,9 +27,11 @@ export function byggInnhold(
       // Formvalg (Kenneth-vedtak 2026-08-21): RIK repeater (bilder/tegningsposisjon/
       // nestet repeater) → radkort (mockup 2a); helskalar → tabell (mockup 2b).
       // Aldri blandingsformer. Repeater eier barna → ingen videre rekursjon her.
+      // F7: send hele FeltVerdi (ikke bare .verdi) så objektnivå-kommentar/vedlegg
+      // (festet på repeateren uten «Legg til rad») kan rendres i «Registrert utenfor rader».
       html += repeaterErRik(objekt)
-        ? byggRadkort(objekt, data[objekt.id]?.verdi, objekt.label)
-        : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label);
+        ? byggRadkort(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id])
+        : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id]);
       continue;
     }
     if (objekt.type === "drawing_position") {
