@@ -56,27 +56,30 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       // er nå den eneste bakover-handlingen — ruter via forrigeBallLedd. Én bakover-vei, ingen in_progress.
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
-    // H6 (Godkjent = stoppsted): Godkjent lukkes ALDRI — Lukk fjernet. Veien tilbake er Gjenåpne
-    // (approved→draft, samme handling som øvrig gjenåpne). Videresend beholdt (sende-kapasitet
-    // ok på en låst suksess-terminal).
+    // H6-REVISJON (Kenneth-vedtak 2026-08-21): «Lukk» (approved→closed) gjeninnført som
+    // administrativ exit — KUN admin (gatet i posisjonHandlingTillatt). Godkjent = stoppsted
+    // i FLYTEN; Lukk = vei UT (port til sletting). Gjenåpne + Videresend beholdt.
     approved: [
       { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
+      { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-600", aktivFarge: "bg-gray-400" },
       // §8A-fiks (2026-07-29): «Send fram» (approved→sent) FJERNET — samme recipient-løse no-op. Videresend beholdt.
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
-    // F4 (Gjenåpne-samling): closed/dismissed/cancelled er avsluttede statuser. Gjenåpne
-    // (→draft) henter dokumentet tilbake til kladd hos oppretteren — samme handling overalt.
+    // Lukk-som-slette-port (2026-08-21): closed er levende igjen. Gjenåpne (angreveien) +
+    // Slett (→deleted, gatet av slettevakten draft||closed + sletterett).
     closed: [
-      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
-    ],
-    // F4: Avvist gjenåpnes med valgfri begrunnelse (nudge, ikke påkrevd — motsatt av selve Avvis).
-    dismissed: [
-      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
-    ],
-    cancelled: [
       { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
       { tekstNoekkel: "handling.slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
+    // F4: Avvist gjenåpnes med valgfri begrunnelse (nudge). Lukk (2026-08-21): administrativ
+    // exit også fra Avvist (KUN admin) — avvist dokument tas ut av flyt, port til sletting.
+    dismissed: [
+      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
+      { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-600", aktivFarge: "bg-gray-400" },
+    ],
+    // `cancelled`-blokka FJERNET (Kenneth-vedtak 2026-08-21): statusen er uoppnåelig etter F1
+    // (målt prod: 0 rader). hentStatusHandlinger("cancelled") → [] via `?? []` → en evt.
+    // historisk rad rendres lesbart uten handlinger. Enum/DB-verdien beholdes.
   };
   return handlinger[status] ?? [];
 }
@@ -91,10 +94,14 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Avvis                     | Godkjenn (F6, fra Mottatt)        |
  * | in_progress  | — (kollapset, Runde-2)                                                                        |
  * | responded    | —                    | —           | —                                 | Godkjenn                          |
- * | approved     | Gjenåpne             | —           | —                                 | —                                 |
- * | closed       | Gjenåpne             | —           | —                                 | —                                 |
- * | dismissed    | Gjenåpne             | —           | —                                 | —                                 |
- * | cancelled    | Gjenåpne             | —           | —                                 | —                                 |
+ * | approved     | Gjenåpne, Lukk*      | —           | —                                 | —                                 |
+ * | closed       | Gjenåpne, Slett      | —           | —                                 | —                                 |
+ * | dismissed    | Gjenåpne, Lukk*      | —           | —                                 | —                                 |
+ * | cancelled    | (fjernet — uoppnåelig, 0 rader)                                                              |
+ *
+ * *Lukk (approved/dismissed→closed) = administrativ exit (Lukk-som-slette-port, 2026-08-21).
+ * Server-default: registrator (+ prosjektadmin via statusmaskin). KLIENTEN viser Lukk KUN til
+ * admin (posisjon-pathen gater `closed`→false); registratorens default-rett er server/config-side.
  *
  * H3 (videresend-rettighet, 2026-07-26): Videresend (`forwarded`) er fjernet fra utfører/godkjenner-
  * defaults — kun prosjektadmin har den (via statusmaskin-snittet). Cellene i matrisen står igjen så
@@ -102,10 +109,12 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * Runde-2 (2026-08-02): `in_progress` er kollapset HELT (Q1=A) — grenen finnes ikke mer, «Send tilbake»
  * (responded→in_progress) fjernet. Bakover er nå kun Besvar ← (received→responded). Lukk for KS-avvik/
  * HMS går via firma-terminal (hms.ts), ikke in_progress→closed.
- * F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft eies av registrator
- * (oppretter) + prosjektadmin (spec § 4). Bestiller mister gjenåpne (var legacy cancelled).
- * H6 (Godkjent = stoppsted): approved→closed er fjernet (Godkjent lukkes aldri). Veien tilbake
- * er Gjenåpne (approved→draft), samme eierskap som øvrig gjenåpne: registrator + prosjektadmin.
+ * F4 (Gjenåpne-samling): closed/dismissed → draft eies av registrator (oppretter) +
+ * prosjektadmin (spec § 4). Bestiller mister gjenåpne.
+ * H6-REVISJON (Lukk-som-slette-port, Kenneth-vedtak 2026-08-21, fabel-svar): approved→closed
+ * («Lukk») GJENINNFØRT som administrativ exit — Godkjent er stoppsted i FLYTEN, ikke terminal
+ * for dokumentasjon (den bor fortsatt i approved); Lukk er veien UT (port til sletting).
+ * KUN admin i klienten. Gjenåpne (approved→draft) beholdt: registrator + prosjektadmin.
  */
 export function hentRolleFiltrertHandlinger(
   status: string,
@@ -178,11 +187,16 @@ function posisjonHandlingTillatt(status: string, nyStatus: string, ctx: Posisjon
       return retningsrett.kanSende;
     case "responded": // Besvar (retur bakover)
       return retningsrett.kanBesvare;
+    case "closed":
+      // Lukk (approved/dismissed→closed) = administrativ exit, KUN admin (Kenneth-vedtak
+      // 2026-08-21). IKKE en ball-handling (`kanTerminere`) — det ville gitt den til enhver
+      // i flyten. Admin får den via `erAdmin`-snarveien i hentPosisjonFiltrertHandlinger
+      // (:167). Ingen ny gate, ingen ny rettighet.
+      return false;
     case "approved":
     case "dismissed":
-    case "closed":
     case "cancelled":
-    case "rejected": // Godkjenn / Avvis / Lukk (terminaler)
+    case "rejected": // Godkjenn / Avvis (avslutter et AKTIVT dokument — ball-handling)
       return retningsrett.kanTerminere;
     case "forwarded": // Videresend (H3)
       return retningsrett.kanVideresende;
@@ -330,26 +344,29 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
     draft: new Set(["sent", "deleted"]),
     // F2 (spec § 3): avsender-siden trekker en sendt hendelse tilbake til kladd før svar.
     received: new Set(["draft"]),
-    // F4 (spec § 3–4): Gjenåpne fra alle avsluttede statuser → kladd hos oppretteren.
-    // Rett: registrator (oppretter) + prosjektadmin; godkjenner-ledd kan mangle.
-    closed: new Set(["draft"]),
+    // Lukk-som-slette-port (Kenneth-vedtak 2026-08-21): closed er levende igjen. Registrator
+    // eier Gjenåpne (→draft, spec § 4) + Slett (→deleted; slett-mutasjonens verifiserDokumentTilgang
+    // slipper tilgang-haver, ikke bare admin). Lukk INN i closed er derimot admin-only (se under).
+    closed: new Set(["draft", "deleted"]),
+    // H6-REVISJON (2026-08-21): Gjenåpne (→draft) beholdt. Lukk (→closed) er IKKE her: Lukk er en
+    // KUN-ADMIN administrativ exit (Kenneth-vedtak), ingen flyt-rolle eier den. Universet
+    // (hentStatusHandlinger.dismissed) har Lukk så admin ser den via erAdmin-snarveien.
     dismissed: new Set(["draft"]),
-    cancelled: new Set(["draft"]),
-    // H6 (Godkjent = stoppsted): Gjenåpne fra Godkjent (approved→draft) — samme regel som øvrig
-    // gjenåpne: registrator (oppretter) + prosjektadmin. Erstatter approved→closed (fjernet).
+    // H6-REVISJON (2026-08-21): approved→closed («Lukk») GJENINNFØRT i universet, men som KUN-ADMIN
+    // (var fjernet helt av H6). Registrator eier kun Gjenåpne (→draft) her — ikke Lukk. Server-gaten
+    // for Lukk er verifiserRetningsrett (admin :836/:848), IKKE denne rolletabellen (måling under).
     approved: new Set(["draft"]),
     // F0 soft-delete: oppretteren kan gjenopprette egne slettede dokumenter (spec § 3–4).
     slettet: new Set(["gjenopprett"]),
+    // `cancelled` fjernet (uoppnåelig status, 0 prod-rader — Kenneth-måling 2026-08-21).
   },
   bestiller: {
     draft: new Set(["sent", "deleted"]),
     // F2 (spec § 3): Trekk tilbake flyttet fra sent→cancelled til received→draft (D-1).
     received: new Set(["draft"]),
-    // Runde-2: in_progress-Lukk fjernet (kollaps). Lukk for KS-avvik/HMS går via firma-terminal (hms.ts).
-    // H6 (Godkjent = stoppsted): approved→closed fjernet (Godkjent lukkes aldri) — bestiller
-    // mister Lukk på Godkjent. Gjenåpne eies av Reg + P-adm, ikke bestiller.
-    // F4: Gjenåpne eies IKKE av bestiller (spec § 3 — kun Reg + P-adm). Legacy cancelled→draft
-    // flyttet til registrator; bestiller mister gjenåpne.
+    // Lukk-som-slette-port (2026-08-21): Lukk (approved/dismissed→closed) er admin-handling
+    // (klient) + registrator server-default — IKKE bestiller. Bestiller har hverken Lukk eller
+    // Gjenåpne (Gjenåpne eies av Reg + P-adm, spec § 4).
   },
   utforer: {
     // F1 (matrise § 3): utfører eier Avvis (received→dismissed) sammen med prosjektadmin.

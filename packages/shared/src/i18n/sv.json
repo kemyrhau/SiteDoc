@@ -2389,7 +2389,7 @@
   "flythjelp.handling.godkjenn": "Godkänner dokumentet. Den går inte vidare — den står som Godkänd för alla parter, redo att stängas.",
   "flythjelp.handling.sendTilbakeUtforer": "Flyttar dokumentet ett steg tillbaka: från dig till {{mottaker}}, för korrigering. Hos dem visas det som Pågår.",
   "flythjelp.handling.sendPaaNytt": "Flyttar dokumentet framåt igen: från dig till {{mottaker}}, efter korrigering.",
-  "flythjelp.handling.lukk": "Avslutar flödet: dokumentet arkiveras som Stängt för alla och går inte vidare. Återöppning kräver ett separat tillstånd.",
+  "flythjelp.handling.lukk": "Tar dokumentet ur flödet och markerar det som stängt för alla – ingen håller det längre. Härifrån kan den öppnas igen eller raderas; Stäng är vägen till radering. Administrativ åtgärd (projekt-/systemadministratör).",
   "flythjelp.handling.gjenapne": "Hämtar ett stängt dokument tillbaka till början: det blir ett utkast med dess skapare, redo för redigering och återsändning.",
   "flythjelp.handling.videresend": "Flyttar dokumentet i sidled: ut ur detta flöde, till {{mottaker}} (adminverktyg för korsflöde).",
   "flythjelp.handling.slettTrukket": "Raderar det återkallade dokumentet permanent. Flödet är redan stoppat — inga andra parter påverkas.",

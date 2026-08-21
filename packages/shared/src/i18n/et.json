@@ -2389,7 +2389,7 @@
   "flythjelp.handling.godkjenn": "Kinnitab dokumendi. See ei liigu edasi – see on kõigi osapoolte jaoks heaks kiidetud, sulgemiseks valmis.",
   "flythjelp.handling.sendTilbakeUtforer": "Liigutab dokumendi ühe sammu tagasi: teilt {{mottaker}}-le, parandamiseks. Neil kuvatakse see kui Pooleli.",
   "flythjelp.handling.sendPaaNytt": "Liigutab dokumendi pärast parandamist uuesti edasi: teilt kasutajale {{mottaker}}.",
-  "flythjelp.handling.lukk": "Lõpetab voo: dokument arhiveeritakse kõigi jaoks suletud kujul ja see ei liigu edasi. Taasavamiseks on vaja eraldi luba.",
+  "flythjelp.handling.lukk": "Eemaldab dokumendi voost ja märgib selle kõigi jaoks suletuks – seda ei hoia enam keegi. Siit saab selle uuesti avada või kustutada; Kustutamise tee on suletud. Haldustoiming (projekti/süsteemiadministraator).",
   "flythjelp.handling.gjenapne": "Toob suletud dokumendi algusesse: sellest saab koos loojaga mustand, mis on redigeerimiseks ja uuesti saatmiseks valmis.",
   "flythjelp.handling.videresend": "Liigutab dokumendi külili: sellest voost välja, asukohta {{mottaker}} (administraatori tööriist ristvoo jaoks).",
   "flythjelp.handling.slettTrukket": "Kustutab tagasi võetud dokumendi jäädavalt. Voog on juba peatatud – see ei mõjuta teisi osapooli.",

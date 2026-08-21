@@ -872,7 +872,13 @@ export async function verifiserRetningsrett(
   const tillatt =
     nyStatus === "sent" ? rett.kanSende
     : nyStatus === "responded" ? rett.kanBesvare
-    : ["approved", "dismissed", "closed", "cancelled", "rejected"].includes(nyStatus) ? rett.kanTerminere
+    // Lukk (→closed) = KUN admin (Kenneth-vedtak 2026-08-21). Splittet UT av kanTerminere-grenen:
+    // en ball-holder skal IKKE kunne lukke (closed er porten til sletting — vernet må ligge i
+    // serverlaget, ikke bare i klientens skjulte knapp). Admin er allerede sluppet gjennom av de
+    // tidlige returene: sitedoc_admin (:836) + prosjektadmin (medlem.role==="admin", :848).
+    // Speiler klientens `posisjonHandlingTillatt` (`case "closed": return false` + erAdmin-snarvei).
+    : nyStatus === "closed" ? false
+    : ["approved", "dismissed", "rejected"].includes(nyStatus) ? rett.kanTerminere
     : nyStatus === "draft" ? (fraStatus === "received" ? erAvsender : erMedlem)
     : harBallen;
 

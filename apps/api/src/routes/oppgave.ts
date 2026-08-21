@@ -1851,7 +1851,7 @@ export const oppgaveRouter = router({
       return resultat;
     }),
 
-  // Slett oppgave (myk — legges i papirkurv, kan gjenopprettes i 90 dager). Kun utkast/avbrutt.
+  // Slett oppgave (myk — legges i papirkurv, kan gjenopprettes i 90 dager). Kun utkast/lukket.
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1873,10 +1873,12 @@ export const oppgaveRouter = router({
         "task",
       );
 
-      if (oppgave.status !== "draft" && oppgave.status !== "cancelled") {
+      // Slettevakt (Lukk-som-slette-port, Kenneth-vedtak 2026-08-21): kun `draft`
+      // ELLER `closed` — alt annet gjennom Lukk først. `cancelled` (uoppnåelig) ut.
+      if (oppgave.status !== "draft" && oppgave.status !== "closed") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Kun oppgaver i utkast- eller avbrutt-status kan slettes",
+          message: "Lukk dokumentet først, så kan det slettes",
         });
       }
 

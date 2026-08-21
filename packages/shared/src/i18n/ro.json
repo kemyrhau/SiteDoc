@@ -2389,7 +2389,7 @@
   "flythjelp.handling.godkjenn": "Aproba documentul. Nu merge mai departe – este Aprobat pentru toate părțile, gata să fie închis.",
   "flythjelp.handling.sendTilbakeUtforer": "Mută documentul cu un pas înapoi: de la dvs. la {{mottaker}}, pentru corectare. La ei apare ca În curs.",
   "flythjelp.handling.sendPaaNytt": "Mută ​​din nou documentul înainte: de la dvs. la {{mottaker}}, după corectare.",
-  "flythjelp.handling.lukk": "Încheie fluxul: documentul este arhivat ca Închis pentru toată lumea și nu trece mai departe. Redeschiderea necesită o permisiune separată.",
+  "flythjelp.handling.lukk": "Scoate documentul din flux și îl marchează Închis pentru toată lumea — nimeni nu îl mai ține. De aici poate fi redeschis sau șters; Închidere este calea către ștergere. Acțiune administrativă (administrator proiect/sistem).",
   "flythjelp.handling.gjenapne": "Preia un document închis la început: devine o schiță împreună cu creatorul său, gata pentru editare și retrimitere.",
   "flythjelp.handling.videresend": "Mută ​​documentul în lateral: din acest flux, la {{mottaker}} (instrument de administrare pentru flux încrucișat).",
   "flythjelp.handling.slettTrukket": "Șterge definitiv documentul retras. Fluxul este deja oprit - nicio altă parte nu este afectată.",

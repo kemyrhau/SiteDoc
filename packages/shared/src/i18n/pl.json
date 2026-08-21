@@ -2389,7 +2389,7 @@
   "flythjelp.handling.godkjenn": "Zatwierdza dokument. Nie idzie dalej — ma status Zatwierdzony dla wszystkich stron i gotowy do zamknięcia.",
   "flythjelp.handling.sendTilbakeUtforer": "Przesuwa dokument o krok wstecz: od Ciebie do {{mottaker}}, w celu poprawienia. U nich wyświetla się to jako W toku.",
   "flythjelp.handling.sendPaaNytt": "Przenosi dokument ponownie do przodu: od Ciebie do {{mottaker}}, po poprawieniu.",
-  "flythjelp.handling.lukk": "Kończy przepływ: dokument zostaje zarchiwizowany jako Zamknięty dla wszystkich i nie jest kontynuowany. Ponowne otwarcie wymaga osobnego pozwolenia.",
+  "flythjelp.handling.lukk": "Wycofuje dokument z obiegu i oznacza go jako zamknięty dla wszystkich — nikt już go nie trzyma. Stąd można go ponownie otworzyć lub usunąć; Zamknij to ścieżka do usunięcia. Akcja administracyjna (administrator projektu/systemu).",
   "flythjelp.handling.gjenapne": "Przywraca zamknięty dokument z powrotem na początek: staje się wersją roboczą u swojego twórcy, gotową do edycji i ponownego wysłania.",
   "flythjelp.handling.videresend": "Przesuwa dokument na bok: poza ten przepływ, do {{mottaker}} (narzędzie administracyjne do przepływu krzyżowego).",
   "flythjelp.handling.slettTrukket": "Trwale usuwa wycofany dokument. Przepływ został już zatrzymany — nie ma to wpływu na inne strony.",
