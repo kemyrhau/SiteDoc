@@ -22,6 +22,20 @@ if [ "$BRANCH" != "develop" ]; then
   exit 1
 fi
 
+# --- Ajour-guard: treet må være à jour med origin/develop ------------------
+# Rotårsak 2026-08-21: merge skjer i SiteDoc-merge og pushes rett til develop,
+# mens deploy rsyncer fra DETTE treet. Er det bak, sendes forrige runde til test
+# — Docker ser identisk kontekst, cacher, og imaget blir gammelt uten at noe
+# feiler. Kostet en runde med falsk «--no-cache»-feilsøking.
+git fetch -q origin develop 2>/dev/null || true
+BAK="$(git rev-list --count HEAD..origin/develop 2>/dev/null || echo 0)"
+if [ "$BAK" != "0" ]; then
+  echo "⚠️  Treet er $BAK commit(s) bak origin/develop."
+  echo "    Deploy ville sendt GAMMEL kode til test uten å feile."
+  echo "    Kjør:  git pull --ff-only origin develop   og prøv igjen. Avbryter."
+  exit 1
+fi
+
 SRC="$(pwd)/"
 DST="server-ny:stack/sitedoc/"
 COMPOSE="docker/docker-compose.test.yml"
