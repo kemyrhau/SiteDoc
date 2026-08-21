@@ -73,4 +73,53 @@ describe("byggRepeaterTabell — drawing_position-celle (funn 2a)", () => {
     const html = byggRepeaterTabell(REPEATER, rader(null), REPEATER.label);
     expect(html).toContain("Ikke utfylt");
   });
+
+  // Task 1 (Kenneth 2026-08-21): detaljutsnittet inn i cellen (koordinat + utsnitt).
+  it("markør m/ injisert utsnittDataUrl → koordinat + detaljutsnitt i cella", () => {
+    const html = byggRepeaterTabell(
+      REPEATER,
+      rader({ drawingId: "d1", positionX: 60.65, positionY: 75.2, drawingName: "Z-20-01", utsnittDataUrl: "data:image/jpeg;base64,CROP" }),
+      REPEATER.label,
+    );
+    expect(html).toContain("Z-20-01 (60,7 %, 75,2 %)");
+    expect(html).toContain("ark-celle-utsnitt");
+    expect(html).toContain("data:image/jpeg;base64,CROP");
+  });
+
+  it("markør UTEN utsnittDataUrl → kun koordinat, ingen utsnitt-node", () => {
+    const html = byggRepeaterTabell(
+      REPEATER,
+      rader({ drawingId: "d1", positionX: 10, positionY: 20, drawingName: "Z" }),
+      REPEATER.label,
+    );
+    expect(html).toContain("Z (10,0 %, 20,0 %)");
+    expect(html).not.toContain("ark-celle-utsnitt");
+  });
+});
+
+// Task 3 (Kenneth 2026-08-21): repeater-celle-kommentar skrives ut (som felt.ts).
+describe("byggRepeaterTabell — celle-kommentar (funn 3-følge)", () => {
+  const TXT: TreObjekt = {
+    id: "rep", type: "repeater", label: "Befaring", required: false, config: {}, sortOrder: 0, parentId: null,
+    children: [{ id: "txt", type: "text_field", label: "Beskrivelse", required: false, config: {}, sortOrder: 0, parentId: "rep", children: [] }],
+  };
+
+  it("celle med kommentar → kommer med (.kommentar)", () => {
+    const html = byggRepeaterTabell(
+      TXT,
+      [{ txt: { verdi: "Vegg", kommentar: "Repeater 1 setter en lokasjon", vedlegg: [] } }],
+      TXT.label,
+    );
+    expect(html).toContain('class="kommentar"');
+    expect(html).toContain("Repeater 1 setter en lokasjon");
+  });
+
+  it("celle uten kommentar → ingen tom kommentar-node", () => {
+    const html = byggRepeaterTabell(
+      TXT,
+      [{ txt: { verdi: "Vegg", kommentar: "", vedlegg: [] } }],
+      TXT.label,
+    );
+    expect(html).not.toContain('class="kommentar"');
+  });
 });

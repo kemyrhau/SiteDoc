@@ -37,6 +37,11 @@ export function byggArkivSide(input: ArkivDokumentInput): string {
     input.lokasjonHtml ?? "",
     input.innholdHtml,
     byggMangelMerknad(input.manglendeVedlegg ?? []),
+    // D2b (Kenneth-vedtak 2026-08-21): helside(r) tegningsprint I rapportkroppen —
+    // innhold → TEGNINGSSIDE(R) → dokumenthistorikk → endringslogg → signatur.
+    // `break-before:page` (CSS) gir egen side; historikken fyller arket etterpå
+    // (før var arket før tegningssiden halvtomt fordi rapporten sluttet på signatur).
+    input.tegningssiderHtml ?? "",
     byggLoggseksjon(input.logg, input.taMedEndringslogg ?? true),
     byggSignaturblokk(input.signaturer),
     // Sidetall settes per side av containeren (Stage 4) — utelates i body.
@@ -45,10 +50,7 @@ export function byggArkivSide(input: ArkivDokumentInput): string {
     .filter(Boolean)
     .join("\n");
 
-  // D2b: helside(r) tegningsprint etter dokumentet — hver er sin egen `.ark-side`
-  // (CSS `.ark-side + .ark-side` gir sideskift). Tom → ingenting.
-  const tegningssider = input.tegningssiderHtml ?? "";
-  return `<div class="ark-side">${body}</div>${tegningssider ? "\n" + tegningssider : ""}`;
+  return `<div class="ark-side">${body}</div>`;
 }
 
 /** HTML-shell (DOCTYPE + CSS) rundt én eller flere `.ark-side`-blokker. */

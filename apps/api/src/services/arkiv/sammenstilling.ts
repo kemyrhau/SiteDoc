@@ -255,7 +255,27 @@ export async function byggSjekklisteArkivHtml(
     };
   }
 
+  // 3c) D2b (Kenneth-vedtak 2026-08-21): crop-utsnitt per repeater-markør (sharp,
+  // rå bytes, moderat DPI — Gate 3) og INJISER det på markør-verdien i `dataInlinet`
+  // (`utsnittDataUrl`), så repeater-cella rendrer utsnittet under koordinatteksten.
+  // Innsamlingen kjøres på `dataInlinet` slik at referansene treffer det byggInnhold
+  // faktisk rendrer. Bytes hentes én gang per tegning.
+  const markorerInlinet = samleRepeaterMarkorer(treObjekter, dataInlinet);
+  const bytesPerTegning = new Map<string, Buffer | null>();
+  for (const m of markorerInlinet) {
+    const t = tegningPerId.get(m.drawingId);
+    if (!t || !tegningsOppslag[m.drawingId] || t.imageWidth == null || t.imageHeight == null) continue;
+    if (!bytesPerTegning.has(m.drawingId)) {
+      bytesPerTegning.set(m.drawingId, await opts.hentBildeBytes(t.fileUrl).catch(() => null));
+    }
+    const bytes = bytesPerTegning.get(m.drawingId);
+    if (!bytes) continue;
+    const crop = await byggUtsnittCrop(bytes, t.imageWidth, t.imageHeight, m.x, m.y);
+    if (crop) m.markorObj.utsnittDataUrl = crop;
+  }
+
   // 4) Innhold (tre-bevisst, tomme strukturer synlig). `treObjekter` bygget over.
+  // Repeater-cellene bærer nå injiserte detaljutsnitt.
   const innholdHtml = byggInnhold(treObjekter, dataInlinet, {
     bildeBaseUrl: "",
     visTommeStrukturer: true,
@@ -276,44 +296,28 @@ export async function byggSjekklisteArkivHtml(
     tegningsOppslag,
   );
 
-  // 4c) D2b: helside per tegning med repeater-markører. Grupper markørene per
-  // tegning (bevar dokumentorden → flat nummerering 1..N per tegning). Croppene
-  // lages fra tegningens RÅ bytes (bedre enn den komprimerte data-URI-en),
-  // nedskalert til moderat DPI (Gate 3). Tegning uten inlinet bilde hoppes over.
-  const markorerPerTegning = new Map<string, RepeaterMarkor[]>();
-  for (const m of repeaterMarkorer) {
-    const arr = markorerPerTegning.get(m.drawingId) ?? [];
-    arr.push(m);
-    markorerPerTegning.set(m.drawingId, arr);
-  }
-  const tegningssideData: TegningssideData[] = [];
-  for (const [drawingId, mrk] of markorerPerTegning) {
-    const t = tegningPerId.get(drawingId);
-    const oppslag = tegningsOppslag[drawingId];
+  // 4c) D2b: helside per tegning = full tegning + nummererte markører (nr =
+  // radnummer i repeater-tabellen). Markør→punkt-tabellen er FJERNET (detaljutsnittet
+  // ligger nå i repeater-cella). Grupper per tegning, bevar dokumentorden.
+  const helsidePerTegning = new Map<string, TegningssideData>();
+  for (const m of markorerInlinet) {
+    const t = tegningPerId.get(m.drawingId);
+    const oppslag = tegningsOppslag[m.drawingId];
     if (!t || !oppslag) continue; // tegning slettet / bilde-henting feilet → ingen side
-    const kanCrop = t.imageWidth != null && t.imageHeight != null;
-    const bytes = kanCrop ? await opts.hentBildeBytes(t.fileUrl).catch(() => null) : null;
-    const markorer = await Promise.all(
-      mrk.map(async (m, i) => ({
-        nr: i + 1, // flat nummerering per tegning = punktnr
-        x: m.x,
-        y: m.y,
-        punkttekst: m.punkttekst,
-        resultat: m.resultat,
-        utsnittDataUrl:
-          bytes && kanCrop ? await byggUtsnittCrop(bytes, t.imageWidth!, t.imageHeight!, m.x, m.y) : null,
-      })),
-    );
-    tegningssideData.push({
-      tegningNavn: oppslag.navn ?? tegningNavn(t),
-      bildeDataUrl: oppslag.dataUrl,
-      imageWidth: t.imageWidth,
-      imageHeight: t.imageHeight,
-      markorer,
-      visResultat: mrk.some((m) => m.resultat != null),
-    });
+    let side = helsidePerTegning.get(m.drawingId);
+    if (!side) {
+      side = {
+        tegningNavn: oppslag.navn ?? tegningNavn(t),
+        bildeDataUrl: oppslag.dataUrl,
+        imageWidth: t.imageWidth,
+        imageHeight: t.imageHeight,
+        markorer: [],
+      };
+      helsidePerTegning.set(m.drawingId, side);
+    }
+    side.markorer.push({ nr: m.radnr, x: m.x, y: m.y });
   }
-  const tegningssiderHtml = byggTegningssider(tegningssideData);
+  const tegningssiderHtml = byggTegningssider([...helsidePerTegning.values()]);
 
   // 5) Logg (lag 1 alltid, lag 2 på malens enableChangeLog). Kolonne-map lar
   // endringsloggen ekspandere repeater-endringer til «Rad N — kolonne»-rader.
