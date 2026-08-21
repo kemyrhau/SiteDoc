@@ -128,18 +128,21 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}
 
-/* D2b helside tegningsprint (fabel 2026-08-21). Egen .ark-side (arver break-before).
-   tr-regelen over gir Gate 1 (markør-rad splittes aldri); thead-regelen gjentar
-   tabellhodet per side. Drawing-sizing/liggende-rotasjon finpusses ved visuell gate. */
+/* D2b helside tegningsprint (fabel 2026-08-21, revidert). Ligger nå I rapportkroppen
+   (mellom innhold og logg), ikke som egen ark-side til slutt, derfor break-before:page
+   her. Detaljutsnittet er flyttet inn i repeater-cella (ark-celle-utsnitt), så
+   helsidens markor-punkt-tabell er fjernet — helsiden = tegning + nummererte markorer.
+   Drawing-sizing/liggende-rotasjon finpusses ved visuell gate. */
+.ark-tegningsside{break-before:page;page-break-before:always}
 .ark-tegningsside .ark-seksjon{margin-bottom:6px}
 .ark-tegning-full{margin:8px 0 10px;text-align:center}
-.ark-tegning-full svg{display:inline-block;width:100%;height:auto;max-height:150mm;border:1px solid ${f.radLinje};border-radius:4px}
-.ark-tegning-liggende{position:relative;width:100%;height:180mm;overflow:hidden}
-.ark-tegning-liggende svg{position:absolute;top:50%;left:50%;width:180mm;max-height:none;height:auto;transform:translate(-50%,-50%) rotate(90deg)}
-.ark-markor-tabell{margin-top:8px}
-.ark-markor-tabell td{vertical-align:middle}
-.ark-utsnitt-celle{width:150px}
-.ark-utsnitt-mangler{height:96px;border:1px dashed ${f.radLinje};border-radius:4px}
+.ark-tegning-full svg{display:inline-block;width:100%;height:auto;max-height:210mm;border:1px solid ${f.radLinje};border-radius:4px}
+.ark-tegning-liggende{position:relative;width:100%;height:230mm;overflow:hidden}
+.ark-tegning-liggende svg{position:absolute;top:50%;left:50%;width:230mm;max-height:none;height:auto;transform:translate(-50%,-50%) rotate(90deg)}
+/* Detaljutsnitt i repeater-cella (Kenneth-vedtak 2026-08-21). Gate 1: raden med
+   utsnitt splittes aldri (global tr{break-inside:avoid}). */
+.ark-celle-koord{margin-bottom:4px}
+.ark-celle-utsnitt{max-width:150px}
 
 /* Merk: ingen @page :first-regel. Verifisert 2026-08-15 at page.pdf({ margin })
    i pdf-render-containeren overstyrer @page-margin, så CSS kan ikke skjule

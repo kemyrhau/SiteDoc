@@ -20,10 +20,19 @@ export interface RepeaterMarkor {
   /** Posisjon i prosent (0–100). */
   x: number;
   y: number;
-  /** Radens tekstfelt (punkttekst) — trimmet, null når tomt/fraværende. */
-  punkttekst: string | null;
-  /** Radens status/traffic_light (resultat) — null når malen mangler slik kolonne. */
-  resultat: string | null;
+  /**
+   * 1-basert radnummer i repeateren. Helsidens markørnummer = dette, så det
+   * peker mot radnummeret i repeater-tabellen (Kenneth-vedtak 2026-08-21:
+   * detaljutsnittet flyttet inn i raden, helsidens duplikat-tabell fjernet).
+   */
+  radnr: number;
+  /**
+   * Referanse til markør-verdi-objektet i data-treet. Kalleren injiserer det
+   * croppede detaljutsnittet her (`utsnittDataUrl`), så repeater-cellen kan
+   * rendre det under koordinatteksten. Mutasjonen treffer den data-en som
+   * `byggInnhold` faktisk rendrer (kjør innsamlingen på `dataInlinet`).
+   */
+  markorObj: Record<string, unknown>;
 }
 
 interface MarkorVerdi {
@@ -33,20 +42,21 @@ interface MarkorVerdi {
 }
 
 /** Er verdien en komplett tegningsmarkør? */
-function harMarkor(v: unknown): v is { drawingId: string; positionX: number; positionY: number } {
+function harMarkor(v: unknown): v is MarkorVerdi & { drawingId: string; positionX: number; positionY: number } {
   const m = v as MarkorVerdi | null | undefined;
-  return !!m && typeof m.drawingId === "string" && m.positionX != null && m.positionY != null;
-}
-
-function tekstAv(v: unknown): string | null {
-  if (typeof v !== "string") return null;
-  const t = v.trim();
-  return t.length ? t : null;
+  return (
+    !!m &&
+    typeof m === "object" &&
+    typeof m.drawingId === "string" &&
+    m.positionX != null &&
+    m.positionY != null
+  );
 }
 
 /**
  * Samler alle repeater-markører (rekursivt). `data` er rad-scope ved rekursjon
  * inn i nestede repeatere. Rekkefølge = traverseringsrekkefølge (dokumentorden).
+ * `radnr` er 1-basert radindeks i den umiddelbare repeateren.
  */
 export function samleRepeaterMarkorer(
   objekter: TreObjekt[],
@@ -57,24 +67,26 @@ export function samleRepeaterMarkorer(
     if (obj.type === "repeater") {
       const barn = obj.children ?? [];
       const dpBarn = barn.filter((b) => b.type === "drawing_position");
-      const tekstBarn = barn.find((b) => b.type === "text_field");
-      const statusBarn = barn.find((b) => b.type === "traffic_light");
       const nestedRep = barn.filter((b) => b.type === "repeater");
       const rader = Array.isArray(data[obj.id]?.verdi)
         ? (data[obj.id]!.verdi as Record<string, FeltVerdi>[])
         : [];
-      for (const rad of rader) {
-        const punkttekst = tekstBarn ? tekstAv(rad[tekstBarn.id]?.verdi) : null;
-        const resultat = statusBarn ? tekstAv(rad[statusBarn.id]?.verdi) : null;
+      rader.forEach((rad, radIdx) => {
         for (const dp of dpBarn) {
           const v = rad[dp.id]?.verdi;
           if (harMarkor(v)) {
-            ut.push({ drawingId: v.drawingId, x: v.positionX, y: v.positionY, punkttekst, resultat });
+            ut.push({
+              drawingId: v.drawingId,
+              x: v.positionX,
+              y: v.positionY,
+              radnr: radIdx + 1,
+              markorObj: v as unknown as Record<string, unknown>,
+            });
           }
         }
         // Rekursiv: nestede repeatere i denne raden (rad = data-scope).
         for (const nr of nestedRep) ut.push(...samleRepeaterMarkorer([nr], rad));
-      }
+      });
     } else if (obj.children && obj.children.length > 0) {
       // Seksjoner (heading/subtitle med barn) — rekurser i samme data-scope.
       ut.push(...samleRepeaterMarkorer(obj.children, data));

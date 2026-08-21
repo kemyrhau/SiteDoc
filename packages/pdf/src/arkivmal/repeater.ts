@@ -14,10 +14,13 @@
 
 import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, formaterDatoTidPunkt } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
+import { byggDetaljUtsnitt } from "../tegning";
 import { ARKIV_FARGER } from "./arkiv-css";
 import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
 
 const TOM = `<span class="tom">Ikke utfylt</span>`;
+/** Detaljutsnitt i repeater-cellen — lavere enn D2-blokkens 260 (raden er kompakt). */
+const CELLE_UTSNITT_HOYDE = 80;
 
 /** Prosent på norsk form med én desimal: 75.17 → «75,2 %» (speiler utfyllings-UI). */
 function prosent(n: number): string {
@@ -99,19 +102,25 @@ function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
       // D2 (funn 2a, 2026-08-21): en tegningsmarkør er et objekt
       // `{drawingId,positionX,positionY,drawingName}` → uten egen case dumpet
       // default `JSON.stringify` rå koordinater i cellen (målt på prod).
-      // Kompakt form som speiler utfyllings-UI: «<tegningsnavn> (X,X %, Y,Y %)».
-      // Prosentene bærer informasjon og lar leseren koble cellen til punktet når
-      // 2b (oversikt+detalj-blokk per markering) kommer. Uten komplett markør →
-      // «Ikke utfylt» (samme gate som resten: tegning uten posisjon = ingenting).
+      // Koordinattekst «<tegningsnavn> (X,X %, Y,Y %)» PLUSS det croppede
+      // detaljutsnittet under (Kenneth-vedtak 2026-08-21: utsnittet flyttet inn i
+      // raden; helsidens duplikat-tabell fjernet). Utsnittet injiseres på markør-
+      // verdien (`utsnittDataUrl`) av sammenstillingen; oversikten forblir AVVIST i
+      // raden. Uten komplett markør → «Ikke utfylt».
       const m = verdi as {
         drawingId?: string | null;
         positionX?: number | null;
         positionY?: number | null;
         drawingName?: string | null;
+        utsnittDataUrl?: string | null;
       } | null | undefined;
       if (!m || !m.drawingId || m.positionX == null || m.positionY == null) return TOM;
       const navn = m.drawingName ?? "Tegning";
-      return esc(`${navn} (${prosent(m.positionX)}, ${prosent(m.positionY)})`);
+      const koord = esc(`${navn} (${prosent(m.positionX)}, ${prosent(m.positionY)})`);
+      const utsnitt = m.utsnittDataUrl
+        ? `<div class="ark-celle-utsnitt">${byggDetaljUtsnitt({ url: m.utsnittDataUrl, x: 50, y: 50, hoydePx: CELLE_UTSNITT_HOYDE, zoom: 1 })}</div>`
+        : "";
+      return `<div class="ark-celle-koord">${koord}</div>${utsnitt}`;
     }
     case "attachments": {
       // Bildene rendres i full bredde rett under raden (byggBilderader), hvert
@@ -174,7 +183,16 @@ export function byggRepeaterTabell(
   const kropp = rader
     .map((rad, idx) => {
       const celler = barn
-        .map((b) => `<td>${cellVerdi(b, rad[b.id] as FeltVerdi | undefined)}</td>`)
+        .map((b) => {
+          const felt = rad[b.id] as FeltVerdi | undefined;
+          // Funn (Kenneth 2026-08-21): celle-kommentar ble aldri skrevet ut
+          // (felt.ts:217 gjør det for topp-nivå-felt, men repeater-cella droppet
+          // den). Samme visuelle form (.kommentar); ingen tom node uten kommentar.
+          const kommentar = felt?.kommentar?.trim()
+            ? `<div class="kommentar">${esc(felt.kommentar)}</div>`
+            : "";
+          return `<td>${cellVerdi(b, felt)}${kommentar}</td>`;
+        })
         .join("");
       const datarad = `<tr><td class="ark-rad-nr">${idx + 1}</td>${celler}</tr>`;
       const { html, nesteNr } = byggBilderader(bilderIRad(barn, rad), bildeNr, kolonnespenn);

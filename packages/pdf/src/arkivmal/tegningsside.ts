@@ -1,38 +1,27 @@
 /**
- * Arkivmal — D2b helside tegningsprint (fabel-ratifisert 2026-08-21).
+ * Arkivmal — D2b helside tegningsprint (fabel 2026-08-21, revidert 2026-08-21).
  *
- * Per tegning som har markeringer i dokumentet: ÉN helside med hele tegningen i
- * størst mulig format (roteres til liggende når bredere enn høy), ALLE markører
- * nummerert (flat nummerering per tegning = punktnr), + markør→punkt-tabell under:
- * markør# · punkttekst · detaljutsnitt (· resultat kun når malen har status-kolonne).
+ * Per tegning som har markeringer i dokumentet: ÉN helside (i rapportkroppen,
+ * `break-before:page`) med hele tegningen i størst mulig format (roteres til
+ * liggende når bredere enn høy) og ALLE markører nummerert.
  *
- * Gates (fabel): (1) bilde-bevisst paginering — rad med utsnitt splittes aldri
- * over sidegrense (`break-inside:avoid` per rad; tabellen flyter til nye sider).
- * (2) Fast utsnitts-spek — utsnittene er pre-croppet server-side (4×-zoom, 4:3,
- * klemt til tegningskant) og rendres av `byggDetaljUtsnitt` med `zoom:1` (croppen
- * ER zoomen). (3) Moderat DPI — cropene er nedskalert server-side, ikke full
- * tegning gjentatt N ganger. (4) Gjenbruk — `byggDetaljUtsnitt` (parametrisk).
+ * REVISJON (Kenneth-vedtak 2026-08-21): detaljutsnittet er flyttet INN i
+ * repeater-tabellens «Posisjon i tegning»-celle (rapportkroppen), så markør→punkt-
+ * tabellen på helsiden er FJERNET (den ble duplikat). Markørnummeret = radnummeret
+ * i repeater-tabellen, som allerede står der. Helsiden = tegning + nummererte
+ * markører, ingenting mer.
  *
  * `felt.ts` frosset; ren HTML-streng, ingen avhengigheter.
  */
 
 import { esc } from "../hjelpere";
-import { byggDetaljUtsnitt } from "../tegning";
-import { ARKIV_FARGER } from "./arkiv-css";
 
-/** Én markør på helsiden. */
+/** Én markør på helsiden — nummer = radnummer i repeater-tabellen. */
 export interface TegningssideMarkor {
-  /** Flat nummer per tegning (= punktnr i rapporten). */
   nr: number;
   /** Posisjon i prosent (0–100). */
   x: number;
   y: number;
-  /** Punkttekst (repeater-radens tekstfelt) — null → «—». */
-  punkttekst: string | null;
-  /** Valgfri resultat-kolonne (kun når malen har status-felt). */
-  resultat: string | null;
-  /** Pre-croppet, moderat-DPI detaljutsnitt (data-URI) — null → stiplet tom celle. */
-  utsnittDataUrl: string | null;
 }
 
 /** Én tegnings helside-data. */
@@ -43,16 +32,11 @@ export interface TegningssideData {
   imageWidth?: number | null;
   imageHeight?: number | null;
   markorer: TegningssideMarkor[];
-  /** Vis resultat-kolonne (malen har status-felt). */
-  visResultat: boolean;
 }
-
-/** Detaljutsnittets fysiske høyde i tabellraden (~3 cm ≈ 96px, samme som arbeidsliste-utsnitt). */
-const UTSNITT_HOYDE_PX = 96;
 
 /**
  * Nummerert markør-overlay på full tegning. SVG med korrekt aspect ratio;
- * hver markør = rød sirkel + hvitt tall. Speiler `byggTegningPosisjon`-stilen.
+ * hver markør = rød sirkel + hvitt tall (= radnummer).
  */
 function byggFullTegning(data: TegningssideData): string {
   const { bildeDataUrl, imageWidth, imageHeight, markorer } = data;
@@ -74,71 +58,28 @@ function byggFullTegning(data: TegningssideData): string {
     })
     .join("");
 
-  // Bredere enn høy → roter 90° for å bruke stående A4 best (Gate: «roteres til
-  // liggende»). Rotasjonen skjer på et wrap-element; SVG-en beholder sin ratio.
   const svg =
     `<svg width="100%" viewBox="0 0 ${vbW} ${vbH}" preserveAspectRatio="xMidYMid meet" style="display:block;">` +
     `<image href="${esc(bildeDataUrl)}" x="0" y="0" width="${vbW}" height="${vbH}" preserveAspectRatio="none"/>` +
     markorSvg +
     `</svg>`;
 
-  if (liggende) {
-    // Roter 90°: bredden blir sidehøyde. Wrap i fast-høyde-boks som roteres.
-    return `<div class="ark-tegning-full ark-tegning-liggende">${svg}</div>`;
-  }
-  return `<div class="ark-tegning-full">${svg}</div>`;
+  // Bredere enn høy → roter 90° for å bruke stående A4 best.
+  return `<div class="ark-tegning-full${liggende ? " ark-tegning-liggende" : ""}">${svg}</div>`;
 }
 
-/** Markør→punkt-tabell. Hver rad `break-inside:avoid` (Gate 1). */
-function byggMarkorTabell(data: TegningssideData): string {
-  const kolonner =
-    `<th class="ark-rad-nr">#</th><th>Punkt</th>` +
-    (data.visResultat ? `<th>Resultat</th>` : "") +
-    `<th>Utsnitt</th>`;
-
-  const rader = data.markorer
-    .map((m) => {
-      const punkt = m.punkttekst ? esc(m.punkttekst) : `<span class="tom">—</span>`;
-      const resultat = data.visResultat
-        ? `<td>${m.resultat ? esc(m.resultat) : `<span class="tom">—</span>`}</td>`
-        : "";
-      const utsnitt = m.utsnittDataUrl
-        ? byggDetaljUtsnitt({ url: m.utsnittDataUrl, x: 50, y: 50, hoydePx: UTSNITT_HOYDE_PX, zoom: 1 })
-        : `<div class="ark-utsnitt-mangler"></div>`;
-      return (
-        `<tr class="ark-markor-rad">` +
-        `<td class="ark-rad-nr">${m.nr}</td>` +
-        `<td>${punkt}</td>` +
-        resultat +
-        `<td class="ark-utsnitt-celle">${utsnitt}</td>` +
-        `</tr>`
-      );
-    })
-    .join("");
-
-  return (
-    `<table class="ark-repeater ark-markor-tabell">` +
-    `<thead><tr><th class="ark-rad-nr" style="color:${ARKIV_FARGER.navy}">#</th>` +
-    `<th>Punkt</th>${data.visResultat ? `<th>Resultat</th>` : ""}<th>Utsnitt</th></tr></thead>` +
-    `<tbody>${rader}</tbody>` +
-    `</table>`
-  );
-}
-
-/** Én tegnings helside som `.ark-side` (egen PDF-side). */
+/** Én tegnings helside (i rapportkroppen — `break-before:page` via CSS). */
 export function byggTegningsside(data: TegningssideData): string {
   if (data.markorer.length === 0) return ""; // ingen markører → ingen side
-  const tittel = `<div class="ark-seksjon">${esc(data.tegningNavn)}</div>`;
   return (
-    `<div class="ark-side ark-tegningsside">` +
-    tittel +
+    `<div class="ark-tegningsside">` +
+    `<div class="ark-seksjon">${esc(data.tegningNavn)}</div>` +
     byggFullTegning(data) +
-    byggMarkorTabell(data) +
     `</div>`
   );
 }
 
-/** Alle tegningssider (én `.ark-side` per tegning m/ markører). Tom liste → "". */
+/** Alle tegningssider (én helside per tegning m/ markører). Tom liste → "". */
 export function byggTegningssider(sider: TegningssideData[]): string {
   return sider.map(byggTegningsside).filter(Boolean).join("\n");
 }
