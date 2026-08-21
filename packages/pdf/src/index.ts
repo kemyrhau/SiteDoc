@@ -62,8 +62,8 @@ export type {
 export { renderFelt, renderAllefelter } from "./felt";
 
 // Tegningsposisjon
-export { byggTegningPosisjon } from "./tegning";
-export type { TegningPosisjonData } from "./tegning";
+export { byggTegningPosisjon, byggDetaljUtsnitt } from "./tegning";
+export type { TegningPosisjonData, DetaljUtsnittData } from "./tegning";
 
 // Tegning via screenshot (alternativ uten koordinatberegning)
 export { genererTegningMedScreenshot } from "./tegning-screenshot";
