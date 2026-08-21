@@ -280,6 +280,11 @@ export default function OppgaveDetaljSide() {
       utils.oppgave.hentForProsjekt.invalidate();
       router.push(listeSti);
     },
+    // Samme stille-feil-mønster som sjekkliste-detaljsiden: uten onError så en
+    // avvist sletting ut som en død knapp. Vis serverens melding via `statusFeil`.
+    onError: (error: { message?: string }) => {
+      setStatusFeil(error.message ?? "Kunne ikke slette oppgaven. Prøv igjen.");
+    },
   });
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
