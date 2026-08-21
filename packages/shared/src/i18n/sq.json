@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Krijo",
   "flytvisning.admin.videresend": "Përpara përtej",
   "flytvisning.admin.gjenapne": "Rihap",
-  "flytvisning.admin.lukkTrukket": "Mbylle tërhequr",
   "flytvisning.admin.slett": "Fshije",
   "flytvisning.admin.farlig": "Zona e rrezikut",
   "flytvisning.forklaring.h1": "Kufiri i ndërprerë (H1) = kutia nuk është një stacion i veçantë në makinën e statusit të sotëm; modeli i pozicionit ende nuk është vendosur.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "Ju keni topin",
   "flyt.duHarBallenMerke": "Ti e ke topin — {{merke}}",
   "flyt.sendTil": "Dërgo te {{navn}}",
-  "flyt.besvarTil": "Përgjigju {{navn}}"
+  "flyt.besvarTil": "Përgjigju {{navn}}",
+  "flytvisning.admin.slettLukket": "Fshi i mbyllur"
 }

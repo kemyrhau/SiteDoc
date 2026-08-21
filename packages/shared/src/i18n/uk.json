@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Створити",
   "flytvisning.admin.videresend": "Вперед поперек",
   "flytvisning.admin.gjenapne": "Знову відкрити",
-  "flytvisning.admin.lukkTrukket": "Закрити вилучено",
   "flytvisning.admin.slett": "Видалити",
   "flytvisning.admin.farlig": "НЕБЕЗПЕЧНА ЗОНА",
   "flytvisning.forklaring.h1": "Пунктирна межа (H1) = ящик не є окремою станцією в сучасній станційній машині; модель посади ще не визначена.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "У вас є м'яч",
   "flyt.duHarBallenMerke": "У вас м’яч — {{merke}}",
   "flyt.sendTil": "Надіслати до {{navn}}",
-  "flyt.besvarTil": "Відповісти {{navn}}"
+  "flyt.besvarTil": "Відповісти {{navn}}",
+  "flytvisning.admin.slettLukket": "Видалити закрито"
 }

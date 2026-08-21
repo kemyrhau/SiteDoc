@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Erstellen",
   "flytvisning.admin.videresend": "Vorwärts quer",
   "flytvisning.admin.gjenapne": "Wieder öffnen",
-  "flytvisning.admin.lukkTrukket": "Close zurückgezogen",
   "flytvisning.admin.slett": "Löschen",
   "flytvisning.admin.farlig": "Gefahrenzone",
   "flytvisning.forklaring.h1": "Gestrichelter Rand (H1) = die Box ist in der heutigen Statusmaschine keine separate Station; das Positionsmodell ist noch nicht entschieden.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "Du hast den Ball",
   "flyt.duHarBallenMerke": "Du hast den Ball – {{merke}}",
   "flyt.sendTil": "Senden an {{navn}}",
-  "flyt.besvarTil": "Antwort auf {{navn}}"
+  "flyt.besvarTil": "Antwort auf {{navn}}",
+  "flytvisning.admin.slettLukket": "Löschen geschlossen"
 }

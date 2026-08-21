@@ -312,11 +312,12 @@ export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
       lokalt: [
         h([["registrator", SENTINEL_FRA, SENTINEL_TIL]]), // Opprett — lov-låst (hengelås)
         h([["registrator", "draft", "deleted"]], "flytvisning.handling.slettKladd"), // Slett kladd (soft)
-        // Gjenåpne (korreksjon a): registrator-cellene → én rad, fire delceller (Lukket · Avvist · Trukket · Godkjent).
+        // Gjenåpne: registrator-cellene → én rad, tre delceller (Lukket · Avvist · Godkjent).
+        // H6-revisjon (2026-08-21): `cancelled`-delcella fjernet — statusen er retirert (0 prod-rader),
+        // og `finnRad("cancelled","draft")` gir undefined etter at matrise-raden ble tatt ut (:93).
         h([
           ["registrator", "closed", "draft"],
           ["registrator", "dismissed", "draft"],
-          ["registrator", "cancelled", "draft"],
           ["registrator", "approved", "draft"],
         ]),
       ],
@@ -394,8 +395,11 @@ export const FLYTVISNING_ADMIN_SONE: AdminSoneGruppe[] = [
   },
   {
     labelNoekkel: "flytvisning.admin.gjenapne",
-    handlinger: [pah([["closed", "draft"], ["dismissed", "draft"], ["cancelled", "draft"], ["approved", "draft"]])],
+    // H6-revisjon (2026-08-21): `cancelled`-delcella fjernet (retirert status). Gjenåpne = tre fra-statuser.
+    handlinger: [pah([["closed", "draft"], ["dismissed", "draft"], ["approved", "draft"]])],
   },
-  { labelNoekkel: "flytvisning.admin.lukkTrukket", farlig: true, handlinger: [pah([["cancelled", "deleted"]])] },
+  // H6-revisjon (2026-08-21): var «lukkTrukket» (slett et avbrutt dokument — flyt som ikke finnes lenger).
+  // Omskrevet til Slett-på-Lukket (`closed→deleted`) — den nye slettevaktens andre lovlige kilde.
+  { labelNoekkel: "flytvisning.admin.slettLukket", farlig: true, handlinger: [pah([["closed", "deleted"]])] },
   { labelNoekkel: "flytvisning.admin.slett", handlinger: [pah([["draft", "deleted"]])] },
 ];

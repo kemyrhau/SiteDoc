@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Opprett",
   "flytvisning.admin.videresend": "Videresend på tvers",
   "flytvisning.admin.gjenapne": "Gjenåpne",
-  "flytvisning.admin.lukkTrukket": "Lukk trukket",
   "flytvisning.admin.slett": "Slett",
   "flytvisning.admin.farlig": "Farlig sone",
   "flytvisning.forklaring.h1": "Stiplet ramme (H1) = boksen er ikke en egen stasjon i dagens statusmaskin; posisjonsmodellen er ikke avgjort.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "Du har ballen",
   "flyt.duHarBallenMerke": "Du har ballen — {{merke}}",
   "flyt.sendTil": "Send til {{navn}}",
-  "flyt.besvarTil": "Besvar til {{navn}}"
+  "flyt.besvarTil": "Besvar til {{navn}}",
+  "flytvisning.admin.slettLukket": "Slett lukket"
 }

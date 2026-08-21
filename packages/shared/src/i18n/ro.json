@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Crea",
   "flytvisning.admin.videresend": "Înainte peste",
   "flytvisning.admin.gjenapne": "Redeschide",
-  "flytvisning.admin.lukkTrukket": "Aproape retras",
   "flytvisning.admin.slett": "Şterge",
   "flytvisning.admin.farlig": "Zona de pericol",
   "flytvisning.forklaring.h1": "Chenar întrerupt (H1) = caseta nu este o stație separată în mașina de stare de astăzi; modelul de poziție nu este încă decis.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "Ai mingea",
   "flyt.duHarBallenMerke": "Ai mingea — {{merke}}",
   "flyt.sendTil": "Trimite la {{navn}}",
-  "flyt.besvarTil": "Răspunde la {{navn}}"
+  "flyt.besvarTil": "Răspunde la {{navn}}",
+  "flytvisning.admin.slettLukket": "Șterge închis"
 }

@@ -159,7 +159,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - **Etter HVER mobil-commit:** skriv eksplisitt «**Reload:** [metode]».
 
 **Deploy-triggere — INGEN automatikk finnes noe sted:**
-- Push til `develop` → deployer IKKE til test. Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh` (rsync `--delete` til `server-ny:stack/sitedoc`) + den utskrevne `sudo docker compose -f docker/docker-compose.test.yml … build/up` (krever Kenneths TTY). Bekreftet 2026-07-07: ingen CI/cron/hook/webhook — «auto-deploy» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10. Se [BACKLOG § «Auto-deploy til test» finnes ikke](docs/claude/BACKLOG.md).
+- Push til `develop` → deployer IKKE til test. Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh` (rsync `--delete` til `server-ny:stack/sitedoc`) + den utskrevne `sudo docker compose -f docker/docker-compose.test.yml … build/up` (krever Kenneths TTY). Bekreftet 2026-07-07: ingen **deployende** CI/cron/hook/webhook — «auto-deploy» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10. Se [BACKLOG § «Auto-deploy til test» finnes ikke](docs/claude/BACKLOG.md). **MERK (2026-08-21): en test-CI FINNES** — `.github/workflows/ci.yml` kjører `pnpm test` (pdf/shared/web — IKKE api, som mangler test-script) på PR **og** push til `develop` (docs/md path-ignored, ingen lint/typecheck). Den **deployer ikke** — den bare gater tester. Kjør derfor `pnpm test` fra ROT før merge til develop, ikke bare pakken din (pakke-typecheck fanger ikke drift mellom data og def).
 - Push til feature-branch → ingen deploy
 - Push til `main` → manuell prod-deploy. **ALDRI deploy til prod uten eksplisitt forespørsel.**
 

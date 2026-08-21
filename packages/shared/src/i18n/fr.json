@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Créer",
   "flytvisning.admin.videresend": "Transférer à travers",
   "flytvisning.admin.gjenapne": "Rouvrir",
-  "flytvisning.admin.lukkTrukket": "Fermer retiré",
   "flytvisning.admin.slett": "Supprimer",
   "flytvisning.admin.farlig": "Zone dangereuse",
   "flytvisning.forklaring.h1": "Bordure pointillée (H1) = la boîte n'est pas une station distincte dans la machine d'état actuelle ; le modèle de poste n’est pas encore décidé.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "Tu as le ballon",
   "flyt.duHarBallenMerke": "Vous avez le ballon — {{merke}}",
   "flyt.sendTil": "Envoyer à {{navn}}",
-  "flyt.besvarTil": "Répondre à {{navn}}"
+  "flyt.besvarTil": "Répondre à {{navn}}",
+  "flytvisning.admin.slettLukket": "Supprimer fermé"
 }

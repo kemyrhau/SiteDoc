@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Izveidot",
   "flytvisning.admin.videresend": "Uz priekšu pāri",
   "flytvisning.admin.gjenapne": "Atkārtoti atvērt",
-  "flytvisning.admin.lukkTrukket": "Aizvērt atsaukts",
   "flytvisning.admin.slett": "Dzēst",
   "flytvisning.admin.farlig": "Bīstamības zona",
   "flytvisning.forklaring.h1": "Pārtraukta robeža (H1) = kaste nav atsevišķa stacija mūsdienu statusa mašīnā; pozīcijas modelis vēl nav izlemts.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "Jums ir bumba",
   "flyt.duHarBallenMerke": "Jums ir bumba — {{merke}}",
   "flyt.sendTil": "Sūtīt uz {{navn}}",
-  "flyt.besvarTil": "Atbildēt uz {{navn}}"
+  "flyt.besvarTil": "Atbildēt uz {{navn}}",
+  "flytvisning.admin.slettLukket": "Dzēst aizvērts"
 }

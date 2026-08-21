@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Create",
   "flytvisning.admin.videresend": "Forward across",
   "flytvisning.admin.gjenapne": "Reopen",
-  "flytvisning.admin.lukkTrukket": "Close withdrawn",
   "flytvisning.admin.slett": "Delete",
   "flytvisning.admin.farlig": "Danger zone",
   "flytvisning.forklaring.h1": "Dashed border (H1) = the box is not a separate station in today's status machine; the position model is not yet decided.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "You have the ball",
   "flyt.duHarBallenMerke": "You have the ball — {{merke}}",
   "flyt.sendTil": "Send to {{navn}}",
-  "flyt.besvarTil": "Reply to {{navn}}"
+  "flyt.besvarTil": "Reply to {{navn}}",
+  "flytvisning.admin.slettLukket": "Delete closed"
 }

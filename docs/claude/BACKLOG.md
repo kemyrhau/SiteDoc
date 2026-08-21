@@ -2323,7 +2323,7 @@ Rotårsak i delt `KartVelger` (native `<dialog>`-Modal → `L.map()` init med 0�
 **Rotårsak bekreftet 2026-07-07 (cause c): det finnes ingen auto-deploy til test — deploy-pathen gikk tapt i server-migreringen 2026-06-10.** Ikke disk, ikke Docker-cache.
 
 **Bevis (git + server):**
-- `.github/workflows/` har **aldri** eksistert → ingen CI. Ingen deployende git-hooks. Ingen bruker-/root-cron, ingen systemd-timer, ingen webhook-prosess på server-ny (verifisert 2026-07-07, sudo-sjekk).
+- Per 2026-07-07 hadde `.github/workflows/` **aldri** eksistert → ingen CI. Ingen deployende git-hooks. Ingen bruker-/root-cron, ingen systemd-timer, ingen webhook-prosess på server-ny (verifisert 2026-07-07, sudo-sjekk). **Oppdatering 2026-08-21:** `.github/workflows/ci.yml` er senere lagt til — men den kjører kun `pnpm test` på PR/push til develop (Trinn 1, bevisst smal), den **deployer ingenting**. Diagnosen (ingen auto-*deploy*) står uendret.
 - Det som *fantes* før: `deploy-test.sh` (opprettet 2026-03-16, `42983dab`) — en **ett-kommando manuell** deploy mot gammel WSL/PM2-server (`git push` + `ssh sitedoc … git pull && build && pm2 restart`). «Auto-deploy» i CLAUDE.md var alltid dette scriptet, aldri en push-trigger.
 - Migreringen 2026-06-10 (`20a98cdf`): prod-`deploy.sh` ble **portet** til Docker/server-ny, men test-`deploy-test.sh` ble **kun deprecated til stub** (`exit 1`) og aldri erstattet. Test-stacken ble reist på server-ny Docker 2026-06-11 (containerne kjører), men deploy-*scriptet* ble aldri gjenskapt → test-deploy var ad-hoc manuell siden. Det er derfor 2026-06-24-hendelsen skjedde.
 
