@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Создавать",
   "flytvisning.admin.videresend": "Вперед через",
   "flytvisning.admin.gjenapne": "Открыть заново",
-  "flytvisning.admin.lukkTrukket": "Закрыть снято",
   "flytvisning.admin.slett": "Удалить",
   "flytvisning.admin.farlig": "Опасная зона",
   "flytvisning.forklaring.h1": "Пунктирная граница (H1) = прямоугольник не является отдельной станцией в сегодняшней машине состояния; позиция модели еще не определена.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "У тебя есть мяч",
   "flyt.duHarBallenMerke": "У тебя есть мяч — {{merke}}",
   "flyt.sendTil": "Отправить на {{navn}}",
-  "flyt.besvarTil": "Ответить пользователю {{navn}}"
+  "flyt.besvarTil": "Ответить пользователю {{navn}}",
+  "flytvisning.admin.slettLukket": "Удалить закрыто"
 }

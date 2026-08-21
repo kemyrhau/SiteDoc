@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Skapa",
   "flytvisning.admin.videresend": "Fram över",
   "flytvisning.admin.gjenapne": "Öppna igen",
-  "flytvisning.admin.lukkTrukket": "Stäng tillbakadragen",
   "flytvisning.admin.slett": "Radera",
   "flytvisning.admin.farlig": "Riskzon",
   "flytvisning.forklaring.h1": "Streckad kant (H1) = boxen är inte en separat station i dagens statusmaskin; befattningsmodellen är ännu inte beslutad.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "Du har bollen",
   "flyt.duHarBallenMerke": "Du har bollen – {{merke}}",
   "flyt.sendTil": "Skicka till {{namn}}",
-  "flyt.besvarTil": "Svara på {{namn}}"
+  "flyt.besvarTil": "Svara på {{namn}}",
+  "flytvisning.admin.slettLukket": "Ta bort stängd"
 }

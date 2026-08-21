@@ -84,9 +84,9 @@ describe("flytvisning-fane render", () => {
     expect(getByText("H1")).toBeTruthy();
   });
 
-  it("admin-sonens farlig-gruppe (Lukk trukket) er merket", () => {
+  it("admin-sonens farlig-gruppe (Slett lukket) er merket", () => {
     const { getByText } = renderFane();
-    const farlig = getByText(new RegExp(t("flytvisning.admin.lukkTrukket")));
+    const farlig = getByText(new RegExp(t("flytvisning.admin.slettLukket")));
     expect(within(farlig).toString).toBeTruthy();
     expect(farlig.textContent).toContain(t("flytvisning.admin.farlig"));
   });

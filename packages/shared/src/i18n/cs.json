@@ -3430,7 +3430,6 @@
   "flytvisning.admin.opprett": "Vytvořit",
   "flytvisning.admin.videresend": "Vpřed napříč",
   "flytvisning.admin.gjenapne": "Znovu otevřít",
-  "flytvisning.admin.lukkTrukket": "Zavřít staženo",
   "flytvisning.admin.slett": "Vymazat",
   "flytvisning.admin.farlig": "Nebezpečná zóna",
   "flytvisning.forklaring.h1": "Přerušovaná hranice (H1) = box není samostatnou stanicí v dnešním stavovém automatu; o pozičním modelu ještě není rozhodnuto.",
@@ -3552,5 +3551,6 @@
   "flyt.duHarBallen": "Máš míč",
   "flyt.duHarBallenMerke": "Máš míč — {{merke}}",
   "flyt.sendTil": "Odeslat na {{navn}}",
-  "flyt.besvarTil": "Odpovědět uživateli {{navn}}"
+  "flyt.besvarTil": "Odpovědět uživateli {{navn}}",
+  "flytvisning.admin.slettLukket": "Smazat uzavřeno"
 }
