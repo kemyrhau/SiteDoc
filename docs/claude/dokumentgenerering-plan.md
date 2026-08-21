@@ -136,6 +136,45 @@ knappe-duplikatet på sjekklistedetalj.
 > **Lærdom:** «lukker N saker uten ny kode» skal måles mot koden før det skrives i en
 > plan, ikke anslås. Anslaget sto i både planen og `CLAUDE.md`-indeksen i fire dager.
 
+### 🔴 F7 — arkiv-PDF taper innhold festet på repeater-OBJEKTET (funnet i prod 2026-08-21)
+
+**Symptom:** BHO-002 (prod) viser kommentar «Testbilde» og ett bilde på web. Arkiv-PDF-en
+skriver «Ingen rader registrert» og utelater både kommentar og bilde.
+
+**Målt i prod-data** (`checklists.data`, dokument `642094ba-a009-45f4-83c9-2bb28173291e`):
+
+```
+ae7b9ce3… : { verdi: null, vedlegg: [],  kommentar: "…" }
+b40966ed… : { verdi: null, vedlegg: [1], kommentar: "…" }
+```
+
+**Ingen rad-array finnes.** «Legg til rad» ble aldri trykket — innholdet er festet direkte
+på repeater-objektet. `byggRepeaterTabell` (`packages/pdf/src/arkivmal/repeater.ts:136`)
+gjør `Array.isArray(verdi) ? … : []`, og skriver derfor korrekt «Ingen rader registrert».
+
+**Bugen er ikke den manglende raden — det er at objektnivå-innhold aldri rendres.**
+Kommentar og vedlegg som ligger på selve repeater-objektet faller ut av arkivet uten varsel.
+Brukeren ser bildet på skjermen, laster ned PDF-en, og bildet er borte.
+
+**Alvorlighet:** høy for et arkivdokument. Stille datatap i den ene leveransen som skal være
+etterprøvbar.
+
+🟡 **Krever fabel-beslutning før fiks:** malbyggeren tillater at et repeater-objekt har egen
+kommentar og egne vedlegg uten at det finnes rader. Arkivet må da ha et sted å vise dem —
+egen blokk over tabellen, eller som «rad 0». Det er en visningsbeslutning, ikke bare en
+kodefiks.
+
+🟡 **Regresjon eller dokumentforskjell — UAVKLART.** `repeater.ts` er uendret siden
+2026-08-16, og de tre commitene som traff `packages/pdf` gjelder rolleetikett og
+endringslogg. **Test:** last ned BEF-001 fra prod (verifisert mandag 2026-08-17 med 73
+bilder). Kommer bildene fortsatt → BHO-002 er et annet datatilfelle og F7 er en eksisterende
+mangel. Mangler de → regresjon, og hastegraden øker.
+
+**Prioritet:** F7 kommer **etter** D2/D2b (tegningsutskrift) i DG-sporet. Grunn: `felt.ts:36`
+utelater `location` og `drawing_position` eksplisitt fra arkivstien, og klient-utskriften —
+eneste vei til tegningsprint — ble fjernet 2026-08-20 (F2, `d92ece42`). Se
+[designnotat-arkivmal-pdf-fabel-2026-08-21.md](../redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md).
+
 ### F2b — bulk-utskriftsflaten 🟡 OPPFØLGER (åpnet 2026-08-20)
 
 `sjekklister/skriv-ut/page.tsx` er den gjenstående web-klient-utskriften. Flyttes til
