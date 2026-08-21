@@ -67,9 +67,16 @@ For SiteDoc-web (test/prod) **bruk Playwright-utvidelsen, IKKE `claude-in-chrome
 3. **Klikk «Playwright Extension»** på den fanen → relay-en attacher til akkurat den fanen.
 4. Si fra til Opus. Da driver Opus med `browser_snapshot`/`browser_navigate`/`browser_type`.
 
-**Caveat A — `claude-in-chrome` henger på SiteDoc (verifisert 2026-07-11):** dashbordet holder
+**Caveat A — `claude-in-chrome` henger på SiteDoc (verifisert 2026-07-11, gjentruffet 2026-08-21):** dashbordet holder
 en vedvarende tilkobling (SSE/websocket) → `document_idle` fyrer aldri → alle
-`claude-in-chrome`-handlinger feiler «waited 45000ms for document_idle». **Bruk Playwright** for SiteDoc.
+`claude-in-chrome`-handlinger som venter på idle (`computer screenshot`, `find`, `read_page`) feiler
+«waited … for document_idle». **Bruk Playwright** for SiteDoc. Ikke feilsøk dette på nytt — det er
+verktøyets møte med SiteDocs vedvarende socket, ikke et sesjonsproblem (samme vegg traff dokgen med
+exceljs 2026-08-20 og kontekstvelger-målingen 2026-08-21).
+**Delvis fallback hvis du likevel er på `claude-in-chrome`:** `javascript_tool` venter IKKE på idle og
+virker — nok til å inspisere/drive DOM (klikk via `.click()`, lese `getBoundingClientRect`/`localStorage`,
+telle onClick-invokasjoner). Men det gir INGEN skjermbilder (bildefangst går via samme injeksjon).
+Visuelle skjermbilder må da tas manuelt, eller via Playwright.
 
 **Caveat B — nyNav er en PER-FIRMA-toggle; sjekk den er PÅ før globalsøk (verifisert 2026-07-11):**
 `Ctrl+K` (globalsøk-paletten) trigget først ikke — årsaken var at **nyNav var avslått for firmaet**, ikke en

@@ -25,7 +25,7 @@ Grunnlag: [kontekstvelger-regresjonsjakt-2026-08-21.md](../../kontekstvelger-reg
 |---|---|---|---|---|
 | Bytte byggeplass innen prosjekt | **2** | chip **(1)** → `åpne()` lander rett på byggeplass-nivå (B1, prosjekt alt avklart) → byggeplassrad **(2)** | **2** — åpnet på byggeplass-nivå (5 rader + «Hele prosjektet»), byggeplassrad byttet + lukket | ✅ |
 | Bytte prosjekt + byggeplass | **3** (var 5) | chip **(1)** → «Endre» prosjekt **(2)** → prosjektrad **(3)**; B2 blir i popoveren + A1 autovelger byggeplass. **+1 (=4) hvis en _annen_ byggeplass enn den autovalgte velges** | **3** m/ autovalgt byggeplass (B2 holdt popoveren + avanserte til byggeplass-nivå, A1 satte byggeplass); **4** for spesifikk byggeplass | ✅ (spenningsfunn under) |
-| Lang liste >6 | **2 + tasting** (var 3 + klikk i felt) | chip **(1)** → søk autofokusert (B4), tast → filtrert rad **(2)** | **Ikke eksponert** — testorg (SITEDOC MYRHAUG) har 2 prosjekter + ≤6 byggeplasser overalt → >6-søk vises aldri. B4-autofokus verifisert i bygg, ikke på flate her | ⚠️ |
+| Lang liste >6 | **2 + tasting** (var 3 + klikk i felt) | chip **(1)** → søk autofokusert (B4), tast → filtrert rad **(2)** | **Kode-verifisert** — testorg har ≤6 overalt, så >6-terskelen eksponeres ikke på flate. Terskelen (`length > 6`) + `autoFokus`-prop er triviell logikk; **ikke seedet** (Kenneth 2026-08-21: lav verdi, testdata forvirrer neste måling). Flate-bevis første gang et ekte prosjekt passerer 6. | 🟢 kode |
 
 Baseline (før): se [k3-verifiseringslogg § Klikktelling](k3-verifiseringslogg.md).
 
@@ -92,8 +92,8 @@ KontekstChip vises i ny nav):
 
 - [ ] **C6 flytende bredde** — chip vokser med navnelengden (~460px maks), knappene følger; ikke lenger fast 240px. (Målt: chip-container-bredde 410px, navn flyter — men se popover-ankerfeil, fikset på egen branch; visuell bekreftelse etter redeploy.)
 - [ ] **C5 snudd trunkering** — langt byggeplassnavn spiser IKKE prosjektnavnet lenger; prosjektnavn prioritert (maks ~280px), byggeplass-suffiks dempet + trunkerer. `title` = full tekst. (Rent kosmetisk — visuell bekreftelse gjenstår.)
-- [x] **B3 favoritter** — stjerne per prosjektrad JS-verifisert (aria-label + toggle append/remove + persistering + stopPropagation). «Favoritter»-seksjon (>6) ikke eksponert i testorg (2 prosjekter).
-- [ ] **B4 autofokus** — ikke eksponert (ingen liste >6 i testorg); kode verifisert i bygg. Trenger org/seed med >6.
+- [x] **B3 favoritter** — stjerne per prosjektrad JS-verifisert (aria-label + toggle append/remove + persistering + stopPropagation). «Favoritter»-seksjon (>6) er **kode-verifisert** (triviell terskel-logikk, ikke seedet — Kenneth 2026-08-21); flate-bevis når et ekte prosjekt passerer 6.
+- [x] **B4 autofokus** — **kode-verifisert** (`autoFokus`-prop på `SøkeFelt`, mount = nivå åpnes). >6-terskelen ikke eksponert i testorg; ikke seedet (lav verdi). Flate-bevis ved første ekte >6-liste.
 - [x] **B2 ikke-lukk** — JS-verifisert: prosjektvalg holdt popoveren åpen + avanserte til byggeplass-steget, A1-autovalgt byggeplass markert.
 - [x] **B1** — JS-verifisert: chip åpnet på byggeplass-nivå (prosjekt avklart + har byggeplasser).
 - [x] **A1 datakvalitet** — JS-verifisert: chip viste byggeplass uten at trakten var åpnet; per-prosjekt persistering + guard.
@@ -119,6 +119,6 @@ KontekstChip vises i ny nav):
 - [x] Kenneth-bekreftelse D7 (bekreftet 2026-08-21)
 - [ ] Merge `fix/kontekstchip-popover-anker` (`c13a8e87`) → redeploy → «etter»-posisjon for popover + visuell C5/C6-bekreftelse
 - [x] Bifunn 1: `useFavoritter` mount-race — fikset (`19ad87b5`, les-storage-før-mutasjon + test)
-- [ ] B4 autofokus + B3 Favoritter-seksjon: flate-bevis krever org/seed med >6 prosjekter/byggeplasser
+- [x] B4 autofokus + B3 Favoritter-seksjon: **kode-verifisert, ikke seedet** (Kenneth 2026-08-21 — triviell terskel-logikk, testdata forvirrer neste måling). Flate-bevis første gang et ekte prosjekt passerer 6.
 - [ ] Backlog-rad om klientside-filterets skaleringsforbehold (eier: cowork, via exit-gate)
 - [ ] Gitignore-hullet i `docs/claude/delplaner/verifisering/`: cowork-målt 2026-08-21 — regelen (.gitignore:69) finnes for 21 MB bevis-bilder; md-loggene er bifangst, 46 filer allerede i git, ingenting tapt på disk (kun tilfeldig sporing). Vedtatt fiks: ignorer filtype (`**/*.png`, `**/*.jpg`) i stedet for mappen — logger spores automatisk, bilder holdes ute. Eier: cowork.
