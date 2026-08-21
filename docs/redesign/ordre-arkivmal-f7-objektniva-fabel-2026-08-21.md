@@ -1,7 +1,7 @@
 # ORDRE — Arkiv-PDF: F7, innhold på repeater-objektnivå (D1)
 
 > **🟢 KODE LEVERT 2026-08-22** (branch `fix/arkivmal-funn-3-4`, foldet inn i funn-4-leveransen — hull 2 = F7-D1, samme `innhold.ts:30-32`-datatap sett fra to ordrenumre). `byggUtenforRaderBlokk` (repeater.ts) rendrer «Registrert utenfor rader»-blokk (kommentar + vedlegg, merkelinje ordrett, 2/rekke løpenr+tid, filteller for ikke-bilder), objektbilder nummereres FØR radbildene, blokk over tabell/radkort. Case a/b/c + nummerering enhetstestet (`f7-utenfor-rader.test.ts`, 14 tester). `felt.ts` urørt.
-> **🔴 DoD-RESTANSE (Kenneth kjører — IKKE gjort):** pkt 1 (BHO-002 web-PDF viser blokk-kommentar+bilde · mobil-PDF UENDRET regresjonssjekk), pkt 3 (BEF-001 fortsatt 73 bilder), pkt 5 (skjermbevis mot mockupside «Repeater F7» — fant den ikke som søkbar tekst i `.dc.html`; bygget mot ordrens skriftlige spec). Meldt åpen, ikke stilltiende lukket.
+> **🔴 DoD-RESTANSE (Kenneth kjører — IKKE gjort):** de skjermbevis-avhengige punktene (1, 3, 5) står åpne, men er **omskrevet** (se DoD under) — BEF-001/BEF-002/BHO-002 er slettet, så de verifiseres nå mot et NYTT kontrolldokument Kenneth bygger på dagens mal, ikke de gamle. Enhetstestene (case a/b/c + nummerering + filteller) er grønne; det som gjenstår er web/mobil-PDF-bevis på det nye dokumentet. Mockupside «Repeater F7» finnes ikke — designgaten går mot skriftlig spec + fabel.
 
 **Fra:** fabel · **Dato:** 2026-08-21 · **Til:** kode-agent (via Kenneth) · **Spor:** DG (masterplan, plass 0b — etter D2/D2b)
 **Grunnlag:** `docs/redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md` (D1, Kenneth-godkjent) · `docs/redesign/beslutning-repeater-label-modell-fabel-2026-08-21.md` (D8) · mockupside «Repeater F7»
@@ -24,8 +24,11 @@ Innhold på objektnivå rendres som **egen merket blokk «Registrert utenfor rad
 - Ingen datamodell-endring, ingen migrering.
 
 ## Definition of Done
-1. **Web + mobil verifisert:** web-nedlastet arkiv-PDF av BHO-002 viser kommentaren «Testbilde» + bildet i blokken; mobil-generert PDF UENDRET (regresjonssjekk). Jf. paritetskartleggingen (24 avvik): bevis fra begge flater, ikke antakelse.
-2. Testtilfeller (a)/(b)/(c) over + tom repeater uten objektnivå-innhold (kun «Ingen rader registrert», som i dag).
-3. BEF-001 re-lastes etter fiksen: fortsatt 73 bilder, uendret radrendering (ingen sideeffekt på rad-stien).
-4. Vedlegg som ikke er bilder → filteller, aldri base64/JSON-dump i blokken.
-5. Skjermbevis mot mockupsiden «Repeater F7». Rotårsaksfiks fremfor plaster; kvalitet foran fart.
+
+> **⚠️ DoD OMSKREVET 2026-08-22 — verifiseringsgrunnlaget er borte.** BEF-001, BEF-002 og BHO-002 er slettet av Kenneth; de opprinnelige sjekkene («BHO-002 viser Testbilde», «BEF-001 fortsatt 73 bilder») kan ikke kjøres som skrevet, og skal IKKE gjenopprettes fra papirkurven. DoD-en baseres i stedet på **et nytt kontrolldokument Kenneth bygger på dagens mal** — bedre grunnlag: da verifiseres F7 mot et dokument laget etter gjeldende regler, ikke et pre-regel-dokument. Mockupsiden «Repeater F7» finnes ikke (bekreftet: null treff på «utenfor rader»/«repeater» i `arkivmal-pdf-mockup/`-mappa — Kenneth tar den med fabel); designgaten sammenlignes derfor mot ordrens skriftlige spec + fabels vurdering, ikke en mockup.
+
+1. **Web + mobil verifisert på nytt dokument:** legg kommentar + bilde direkte på en repeater (uten «Legg til rad») i Kenneths nye mal; web-nedlastet arkiv-PDF viser dem i «Registrert utenfor rader»-blokken; mobil-generert PDF UENDRET (regresjonssjekk mot rad-stien). Bevis fra begge flater, ikke antakelse.
+2. Testtilfeller (a)/(b)/(c) over + tom repeater uten objektnivå-innhold (kun «Ingen rader registrert», som i dag). **Enhetstestet 2026-08-22** (`f7-utenfor-rader.test.ts`, 14 tester).
+3. Ny mal med bilder på både objektnivå og rad: objektbildene får lavere løpenr enn radbildene (nummereres først), og radrendringen er uendret. **Nummereringen enhetstestet** (objektbilde 01/02 → radbilde 03).
+4. Vedlegg som ikke er bilder → filteller, aldri base64/JSON-dump i blokken. **Enhetstestet.**
+5. Visuell gjennomgang mot ordrens skriftlige spec + fabels designgate (ikke mockup — den finnes ikke). Rotårsaksfiks fremfor plaster; kvalitet foran fart.
