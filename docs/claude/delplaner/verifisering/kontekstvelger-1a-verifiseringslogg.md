@@ -44,15 +44,17 @@ DOM-tilstand inspisert etter hvert klikk.
 - **E ✅ (indirekte)** — D7-kontekstlinja + chip fungerer; `/dashbord/maskin`-konsistens ikke re-målt denne runden (Kenneth bekreftet velgeren virker). Anbefalt eksplisitt sjekk ved fabel-gaten.
 - **D7 ✅** — kontekstlinje-knappen «Vis hele prosjektet» rendret i sjekkliste­oversikten; **Kenneth bekreftet filteret virker** → fabels siste premiss lukket.
 
-### 🔴 Bifunn 1 — `useFavoritter` mount-race (delt hook, pre-eksisterende)
+### 🟢 Bifunn 1 — `useFavoritter` mount-race (delt hook) — FUNNET + FIKSET (`19ad87b5`)
 `useFavoritter` (`apps/web/src/hooks/useFavoritter.ts:25`) init-er `useState<string[]>([])` og laster
 localStorage i en `useEffect` (linje 29). Chip-en remonteres per prosjekt (prosjekt-scopet layout),
 så en favoritt-toggle i vinduet mellom mount (favoritter=[]) og load-effekten **overskriver hele den
 persisterte lista**. Observert én gang rett etter et B2-prosjektbytte: `["2bd15f09"]` → `["f6dcb81f"]`
 (2bd15f09 forsvant). Ikke reprodusert i satt tilstand (append virker da). Lav sannsynlighet i menneskelig
-tempo, men = «fiks forsvinner stille»-mønsteret Kenneth jakter. **Foreslått fiks (én linje):** lazy
-`useState(() => les localStorage)` i stedet for `[]`-så-effekt. Delt hook (gamle velgere bruker den
-også) → eier: cowork, egen liten sak. Ikke fikset her (task-grense).
+tempo, men = «fiks forsvinner stille»-mønsteret Kenneth jakter. **Fikset (cowork-anvist, `19ad87b5`):**
+lazy-init løser det IKKE (effekten returnerer tidlig når `userId`/`nokkel` ennå er undefined) — i stedet
+leser `toggleFavoritt` nå gjeldende liste fra localStorage FØR mutasjon, så storage er sannhetskilden ved
+skriving og en tidlig toggle kan aldri nulle lista. Load-effekten beholdt for lese-synk. Test dekker racen
+(`src/hooks/__tests__/useFavoritter.test.ts`, 5/5): tom state + storage m/ innhold → innholdet overlever.
 
 ### 🟡 Bifunn 2 — popover-anker (C6-bivirkning) — FUNNET + FIKSET
 `KontekstChip.tsx` popover lå `absolute left-0` mot chip-containeren, som etter C6 flyter til ~460px.
@@ -116,7 +118,7 @@ KontekstChip vises i ny nav):
 - [ ] Designgate: **visuelle** skjermbilder (verktøy blokkert — Kenneth/fabel tar manuelt) + fabel-godkjenning. Klikktall + atferd er målt (over).
 - [x] Kenneth-bekreftelse D7 (bekreftet 2026-08-21)
 - [ ] Merge `fix/kontekstchip-popover-anker` (`c13a8e87`) → redeploy → «etter»-posisjon for popover + visuell C5/C6-bekreftelse
-- [ ] Bifunn 1: `useFavoritter` mount-race — lazy init-fiks (eier: cowork, delt hook)
+- [x] Bifunn 1: `useFavoritter` mount-race — fikset (`19ad87b5`, les-storage-før-mutasjon + test)
 - [ ] B4 autofokus + B3 Favoritter-seksjon: flate-bevis krever org/seed med >6 prosjekter/byggeplasser
 - [ ] Backlog-rad om klientside-filterets skaleringsforbehold (eier: cowork, via exit-gate)
 - [ ] Gitignore-hullet i `docs/claude/delplaner/verifisering/`: cowork-målt 2026-08-21 — regelen (.gitignore:69) finnes for 21 MB bevis-bilder; md-loggene er bifangst, 46 filer allerede i git, ingenting tapt på disk (kun tilfeldig sporing). Vedtatt fiks: ignorer filtype (`**/*.png`, `**/*.jpg`) i stedet for mappen — logger spores automatisk, bilder holdes ute. Eier: cowork.
