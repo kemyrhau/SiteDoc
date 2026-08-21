@@ -51,17 +51,32 @@ export function useFavoritter(
   const toggleFavoritt = useCallback(
     (id: string) => {
       if (!nokkel || typeof window === "undefined") return;
-      setFavoritter((forrige) => {
-        const ny = forrige.includes(id)
-          ? forrige.filter((x) => x !== id)
-          : [...forrige, id];
-        try {
-          localStorage.setItem(nokkel, JSON.stringify(ny));
-        } catch {
-          // Stille fall — favoritter er nice-to-have.
+      // Les gjeldende liste fra localStorage FØR mutasjon — storage er
+      // sannhetskilden ved skriving. `userId` (og dermed `nokkel`) kommer ofte
+      // asynkront, og komponenten kan remonteres (prosjekt-scopet layout), så
+      // load-effekten under kan ennå ikke ha kjørt når en toggle fires: `state`
+      // er da [] mens storage har innhold. Stolte vi på `forrige` fra setState,
+      // ville togglen nullet hele den persisterte lista (mount-race, cowork-målt
+      // 2026-08-21). Ved å lese storage her kan en tidlig toggle aldri nulle den.
+      let gjeldende: string[] = [];
+      try {
+        const lagret = localStorage.getItem(nokkel);
+        const parsed = lagret ? JSON.parse(lagret) : [];
+        if (Array.isArray(parsed) && parsed.every((x) => typeof x === "string")) {
+          gjeldende = parsed;
         }
-        return ny;
-      });
+      } catch {
+        gjeldende = [];
+      }
+      const ny = gjeldende.includes(id)
+        ? gjeldende.filter((x) => x !== id)
+        : [...gjeldende, id];
+      try {
+        localStorage.setItem(nokkel, JSON.stringify(ny));
+      } catch {
+        // Stille fall — favoritter er nice-to-have.
+      }
+      setFavoritter(ny); // hold state i synk for lesing (erFavoritt/favoritter)
     },
     [nokkel],
   );
