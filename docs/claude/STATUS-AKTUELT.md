@@ -398,6 +398,18 @@ Bygger videre på fase 3-datalaget. **Stage 1–4b pushet** (`e4a3e455`): ramme/
 
 **Klient-knapp «Last ned arkiv-PDF».** På sjekklistedetalj (`sjekklister/[sjekklisteId]/page.tsx`): `trpc.arkiv.rendr` → last ned `pdfBase64` (Blob), ikke-blokkerende mangel-melding (amber ved `renderTimeout`/`manglendeVedlegg`, rød ved hard feil — inline banner, ingen toast). Kun sjekkliste; **ikke** oppgavedetalj (task-leser mangler → `NOT_IMPLEMENTED`). i18n `handling.lastNedArkivPdf` + `arkiv.*` × 13 språk. **Gjenstår:** fabel-skjermbilde-gate etter test-redeploy.
 
+### 🟢 Kontekstvelger v2 — retning 1a (branch `feat/kontekstvelger-1a`, fra develop) — PÅ BRANCH, venter designgate + merge
+
+Grunnlag: [ordre-kontekstvelger-1a](../redesign/ordre-kontekstvelger-1a-fabel-2026-08-21.md) + [regresjonsjakt](kontekstvelger-regresjonsjakt-2026-08-21.md). Flagg-nøytralt (funksjonalitet, aldri bak `nyNavigasjon`). Fire commits: **A1+E** (`1fbd9524`), **B+C** (`567e05f5`), **D7** (`9421cb91`), doc-sync. 
+
+- **A1 (datakvalitet):** autovalg byggeplass flyttet fra sideeffekt i `ByggeplassVelger` (kun gammel nav → tapt i ny nav, `4d52114e`) inn i `byggeplass-kontekst.tsx` (query + autovalg-effekt + gyldighets-guard). Nye sjekklister får ikke lenger `byggeplassId=undefined`.
+- **E:** `ruteErFirmaKontekst` → delt `@/lib/ruteKontekst` (maskin-bevisst), importert i KontekstChip+Toppbar+NavSidebar (funn 6: `/dashbord/maskin` FIRMA konsistent).
+- **B1** åpne() dypeste avklarte steg (verifisert). **B2** prosjektvalg lukker ikke — avanserer til byggeplass-steget (3 klikk mot 5). **B3** favoritter via delt `useFavoritter` (localStorage, ingen ny lagring) + stjerne per rad (ny valgfri `handling`-slot på `TraktRad`) + Favoritter→Sist brukt→Alle. **B4** autofokus-søk.
+- **C5** snudd trunkering (prosjektnavn prioritert). **C6** 240px-anker oppgitt, navn flyter ~460px.
+- **D7 (design-gated):** byggeplassfilter i sjekklisteoversikten + «Hele prosjektet»-tilstand (klientside, OR-null). **Premiss enkeltmålt — Kenneth bekrefter i designgaten før merge.**
+
+i18n × 15 språk (6 nye nøkler). Web typecheck + build grønn. Doc-sync: `redesign-paritetssjekkliste.md` + `k3-verifiseringslogg.md` re-verifisert (`sist_verifisert_mot_kode=2026-08-21`), K3-vedtakets popover-punkt → B2. **Gjenstår:** fabel skjermbilde-designgate m/ klikk-budsjett-walkthrough + D7-bekreftelse; merge via cowork `--no-ff`.
+
 ### ✅✅ ARKIVERT — august-deployene (03.08–06.08) → [historikk-2026-08.md](historikk-2026-08.md)
 
 Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmodellen komplett + effektivitets-runden + mobil M1–M3 (`8b068c73` 03.08) · Funn A + Funn C (`0ac25705` 04.08) · Funn D + opprettvelger v2 + Spor 1 + kontaktside (`5bf25f83` 05.08) · Ordre 1.4 auto-hopp (`8a2f6d9c` 05.08) · Spor 2 HMS komplett (`70d2b752` 06.08).
