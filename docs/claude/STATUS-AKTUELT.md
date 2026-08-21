@@ -301,6 +301,37 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟢 DG-sporet + flytmodell — SEKS MERGER TIL DEVELOP 2026-08-21 (kontrollplan)
+
+Alt merget til `develop`, **ikke deployet til prod**. Test har alt til og med radkortet.
+
+| Merge | Innhold |
+|---|---|
+| `4d561a93` | D2b-helside, funn 2b (rekursiv markør-innsamling), funn 3 (lesbar `drawing_position` i endringsloggen), `byggDetaljUtsnitt` ekstrahert byte-identisk |
+| — | Utsnitt i repeater-celle + tegningsside flyttet inn i rapportkroppen + celle-kommentar |
+| `271b9d6e` | **Lukk som slette-port** — kun admin, håndhevet i klient OG server |
+| — | Radkort-form for rike repeatere (mockup 2a); tabell beholdes for helskalare |
+
+**Rekkefølgen i arkiv-PDF er nå:** innhold → tegningsside(r) → dokumenthistorikk →
+endringslogg → signatur.
+
+🔴 **Åpent, venter Kenneth:** bildeblokken i radkortet får egen «BILDER»-etikett i samme
+stil som feltetikettene, så den leses som et femte felt — og siden bilder henger på ulike
+felt i ulike rader, ser kortet inkonsekvent ut. Ikke en feil i formvalget: bildene *er* på
+forskjellige felt. Anbefalt løsning er innrykk + eierreferanse («Bilder — Posisjon i
+tegning»). Se [designnotat-arkivmal-pdf-fabel-2026-08-21.md](../redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md).
+
+🔴 **Ikke merget:** `fix/slett-onerror` (`c168c0fa`) dekker sjekkliste- og oppgavedetalj.
+**Listesiden (`sjekklister/page.tsx:323`) og HMS-sletting mangler fortsatt `onError`** —
+målt 2026-08-21. Kundevendt før A.Markussen-møtet.
+
+⚠️ **Ikke åpnet:** fabels ordre for funn 3/4/6 (tilbehør på Posisjon/Lokasjon/Dato),
+`docs/redesign/ordre-arkivmal-funn-3-4-6-tilbehor-fabel-2026-08-21.md`.
+
+**Vedtak fattet 2026-08-21 som må huskes:** H6 er **revidert, ikke reversert** — «Godkjent
+er stoppsted i FLYTEN; Lukk er administrativ exit». Slettevakten er nå `draft || closed`.
+`cancelled` er død status (0 rader i prod). Lukk er **kun admin** i begge lag.
+
 ### 🟢 F1 — endringsloggen lesbar (branch `fix/endringslogg-lesbar`, fra develop) — PÅ BRANCH, venter merge
 
 Arkivmalens endringslogg ga ikke mening for en leser. Fire punkter, én runde
