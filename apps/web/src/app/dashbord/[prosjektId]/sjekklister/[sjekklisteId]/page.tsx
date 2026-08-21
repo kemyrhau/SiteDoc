@@ -176,6 +176,13 @@ export default function SjekklisteDetaljSide() {
       utils.sjekkliste.hentForProsjekt.invalidate();
       router.push(listeSti);
     },
+    // Uten onError feilet sletting STILLE — knappen så død ut selv om serveren
+    // avviste korrekt (slettevakt). Vis serverens melding (den sier hva brukeren
+    // kan gjøre), ikke et klient-regelsett nummer to. `statusFeil` når både
+    // banneret (ikke-HMS) og handlingsmenyens `feilmelding` (også HMS).
+    onError: (error: { message?: string }) => {
+      setStatusFeil(error.message ?? "Kunne ikke slette dokumentet. Prøv igjen.");
+    },
   });
 
   const oppdaterMutasjon = trpc.sjekkliste.oppdater.useMutation({
