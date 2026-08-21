@@ -11,6 +11,12 @@ sist_verifisert_mot_kode: 2026-07-23
 
 # K3 verifiseringslogg
 
+> 🔴 **TO OPPFØRINGER ER USANNE (målt 2026-08-21):** «Autovalg byggeplass — fungerer»
+> og «Alle/Mine — fungerer» er ført som ✅ Bestod, men koden gjør ingen av delene.
+> Autovalget forsvant i `4d52114e`, scope-valget i `ad7cadc1`. Se
+> [kontekstvelger-regresjonsjakt-2026-08-21.md](../../kontekstvelger-regresjonsjakt-2026-08-21.md).
+
+
 ## Kundetelefon-gjennomklikk (Kenneth, test.sitedoc.no, 2026-07-22)
 
 ### ✅ Bestod (kjernemekanikk)
