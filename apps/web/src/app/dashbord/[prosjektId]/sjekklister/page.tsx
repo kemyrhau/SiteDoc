@@ -8,7 +8,7 @@ import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
-import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight, User, Users } from "lucide-react";
+import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight, User, Users, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
@@ -276,6 +276,8 @@ export default function SjekklisteSide() {
   const [mineOppgaver, setMineOppgaver] = useState(false);
   // Kontrollplan-skille: "" = alle · "plan" = hører til kontrollplanen · "tillegg" = kommer i tillegg.
   const [planKoblingFilter, setPlanKoblingFilter] = useState<"" | "plan" | "tillegg">("");
+  // D7: av = filtrer lista på aktiv byggeplass (default); på = «Hele prosjektet».
+  const [byggeplassFilterAv, setByggeplassFilterAv] = useState(false);
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
@@ -578,6 +580,15 @@ export default function SjekklisteSide() {
   // Filtrer
   const filtrerte = useMemo(() => {
     let resultat = (sjekklister ?? []);
+    // D7: filtrer på aktiv byggeplass fra konteksten (mobil-paritet — mobil sender
+    // byggeplassId til serveren; web filtrerte ikke). «Hele prosjektet» =
+    // ufiltrert (byggeplassFilterAv). OR-null: dokumenter uten byggeplass vises i
+    // alle byggeplass-visninger (samme semantikk som serverfilteret sjekkliste.ts).
+    if (aktivByggeplass && !byggeplassFilterAv) {
+      resultat = resultat.filter(
+        (s) => s.byggeplass == null || s.byggeplass.id === aktivByggeplass.id,
+      );
+    }
     // Kontrollplan-skille: «hører til planen» (koblet punkt) vs «kommer i tillegg» (fri).
     if (planKoblingFilter === "plan") resultat = resultat.filter((s) => s.kontrollplanPunkt != null);
     else if (planKoblingFilter === "tillegg") resultat = resultat.filter((s) => s.kontrollplanPunkt == null);
@@ -647,7 +658,7 @@ export default function SjekklisteSide() {
       });
     }
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter]);
+  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter, aktivByggeplass, byggeplassFilterAv]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -824,6 +835,30 @@ export default function SjekklisteSide() {
             <button onClick={() => setFilterVerdier({})} className="text-xs text-gray-400 hover:text-gray-600">{t("handling.nullstill")}</button>
           )}
           <span className="ml-auto text-xs text-gray-400">{filtrerte.length} av {sjekklister?.length ?? 0}</span>
+        </div>
+      )}
+
+      {/* D7: kontekstlinje — hvilken byggeplass lista er scopet til, med bytte
+          til «Hele prosjektet». Vises kun når en byggeplass er aktiv og det
+          finnes dokumenter. (Design-gates hos Kenneth/fabel.) */}
+      {aktivByggeplass && !!sjekklister?.length && (
+        <div className="mb-2 flex items-center gap-2 text-xs text-gray-500">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          <span>
+            {t("sjekklister.viser")}:{" "}
+            <span className="font-medium text-gray-700">
+              {byggeplassFilterAv ? t("kontekstChip.heleProsjektet") : aktivByggeplass.name}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setByggeplassFilterAv((v) => !v)}
+            className="font-medium text-sitedoc-secondary hover:underline"
+          >
+            {byggeplassFilterAv
+              ? t("sjekklister.filtrerPaaByggeplass", { byggeplass: aktivByggeplass.name })
+              : t("sjekklister.visHeleProsjektet")}
+          </button>
         </div>
       )}
 
