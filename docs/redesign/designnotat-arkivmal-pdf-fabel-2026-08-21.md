@@ -17,7 +17,7 @@ Arkiv-PDF-en taper innhold stille: brukeren ser bilde/kommentar/tegningsmarkerin
 ## 3. Designbeslutninger (fabel)
 **D1 — F7, innhold på repeater-objektnivå:** vises som egen merket blokk **«Registrert utenfor rader»** rett OVER tabellen. Aldri som «rad 0» (forfalsker radtellingen), aldri utelatt (stille datatap). Gjelder også når repeateren HAR rader — blokken står da over tabellen med samme merking. Mockupside «Repeater F7».
 
-**D2 — Tegninger i arkivet:** `drawing_position` rendres som oversikt + 4×-detalj per markering, gruppert per tegning — **gjenbruk `byggTegningPosisjon`**, ikke ny renderer. Dokumentnivå-lokasjon (kartpunkt fra «Velg lokasjon») rendres som kartutsnitt m/punkt + bygning/byggeplass/koordinat. Regel: **uten markering utelates hele seksjonen** — aldri tom kartboks. Mockupside «Tegninger i arkivet».
+**D2 — Tegninger i arkivet:** `drawing_position` rendres som oversikt + 4×-detalj per markering, gruppert per tegning — **gjenbruk `byggTegningPosisjon`**, ikke ny renderer. Dokumentnivå-lokasjon (kartpunkt fra «Velg lokasjon») rendres **øverst i PDF-en på side 1, rett under dokumenthodet** (Kenneth 21.08): hele kartutsnittet til venstre, innzoomet utsnitt rundt punktet til høyre — **samme format som tegningsutsnittene (14:9); endret plassering endrer ALDRI format** (Kenneth 21.08). Gjelder ALLE dokumentklasser (sjekkliste, oppgave, HMS). **Koordinat skrives ikke ut** (Kenneth 21.08): telefon-GPS kan avvike betydelig — kartutsnittet med brukersatt punkt er dokumentasjonen. Regel: **uten markering utelates hele seksjonen** — aldri tom kartboks. Mockupsider: sjekkliste s. 1, RUH, «Tegninger i arkivet».
 
 **D2b — Helside tegningsprint (Kenneth-funn 21.08):** per tegning som har markeringer i dokumentet skrives ÉN helside med hele tegningen i størst mulig format (roteres til liggende når tegningen er bredere enn høy) og ALLE markører nummerert mot punktnumrene, med markør→punkt-tabell under. En befaringsrapport uten tegningen er halv dokumentasjon — markørene er hele poenget med georefereringen. D2 (oversikt/detalj per punkt) supplerer helsiden, erstatter den ikke. Uten markeringer på en tegning skrives ingen tegningsside. Mockupside «Helside tegningsprint».
 
@@ -26,6 +26,7 @@ Arkiv-PDF-en taper innhold stille: brukeren ser bilde/kommentar/tegningsmarkerin
 **D4 — Knappenavn:** «Last ned arkiv-PDF» utgår → **«Last ned PDF»** (splittknapp). Klikk = standardvariant; pil åpner meny:
 - **Med logg** (standard) — innhold, tegninger, dokumenthistorikk, endringslogg, signaturer
 - **Uten logg** — innhold, tegninger, signaturer
+- **Lagre i prosjektmappe** (Kenneth 21.08) — PDF-en arkiveres i dokumentmappen i prosjektet i stedet for nedlasting
 - **Send til …** — e-post m/PDF-vedlegg (eksisterende funksjon flyttes hit)
 Samme knapp på sjekkliste, oppgave og HMS. Mockupside «Nedlastingsvalg».
 
@@ -35,6 +36,8 @@ Samme knapp på sjekkliste, oppgave og HMS. Mockupside «Nedlastingsvalg».
 - Dokumentliste og tabellrapport (eksisterende mockupsider) — kompaktform, aldri logg/signaturblokk
 - **Samlerapport blandet** — SJ + OPG + HMS i én PDF: oversikt per dokumenttype først, deretter hvert dokument i kompaktform. Mockupside «Samlerapport».
 - **Sluttoppgjør — oppgaveliste** — alle tilhørende oppgaver m/kilde-kolonne (sjekklistepunkt/befaringspunkt/RUH/manuell), telleblokk lukket/under arbeid/åpen; åpne oppgaver vises rødt men blokkerer ikke utskrift. Mockupside «Sluttoppgjør».
+- **Arbeidsliste håndverker (Kenneth 21.08)** — «gå ut og fiks disse»: 6 oppgaver per A4 **liggende**; per rad: oppg.nr + emne/første tekstblokk (avkortet) + første bilde + tegningsutsnitt rundt markøren — begge i opprinnelig format (4:3), ~3 cm høye — + **utført/kommentar-kolonne som fylles ut FOR HÅND** (Utført ja/nei + kommentarlinjer): listen er til håndverkere utenfor prosjektet uten SiteDoc-tilgang. Manglende bilde/markering → stiplet tom celle, raden beholder høyden. Mockupside «Arbeidsliste».
+- **Excel-eksport (Kenneth 21.08)** — samme utvalg som tabellrapporten som .xlsx, **kun data** (dok.nr, tittel, status, hos, ansvarlig, datoer, punktverdier); bilder og tegninger utelates — refereres med bildeNr/tegningsnavn. Fabel-vurdering: riktig — innbakte bilder gjør regnearket ubrukelig som datagrunnlag.
 
 **D7 — HMS-varianter:** SJA og Avvik følger samme arkivramme som RUH-siden; egne mockupsider kun hvis Kenneth ber om det.
 
