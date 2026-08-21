@@ -81,6 +81,29 @@ ssh -t server-ny 'sudo docker exec sitedoc-test-web grep -c "<distinkt streng fr
 
 Svarer den `0`, kjører imaget gammel kode uansett hva deploy-loggen sa.
 
+### 🔴 `dist/` er DØDT i api-imaget — grep aldri der (målt 2026-08-21)
+
+`Dockerfile.api:54` er `CMD ["pnpm", "exec", "tsx", "src/server.ts"]`. **Runtime kjører
+TypeScript-kilden direkte.** `pnpm turbo build` (`:19`) produserer et `dist/` som aldri
+startes — det fungerer som typesjekk-port i bygget, ikke som leveranse.
+
+Konsekvens: `ls /app/apps/api/dist/...` sier **ingenting** om hva som kjører. En sjekk
+mot `dist` kan vise ferske filer mens den kjørende koden er gammel, og motsatt. Cowork
+gjorde nettopp den feilen 2026-08-21 og trodde et bygg var verifisert.
+
+**`packages/pdf` har i tillegg ingen byggetrinn i det hele tatt** — `main`/`types`/
+`exports` peker alle på `./src/index.ts`. Det finnes ingen `packages/pdf/dist`, og å lete
+etter en kompilert `.js` derfra er å lete etter noe som aldri har eksistert.
+
+Riktig sjekk for en `packages/pdf`-leveranse — **kilden, aldri kompilatet**:
+
+```bash
+ssh -t server-ny 'sudo docker exec sitedoc-test-api grep -c "<distinkt streng>" /app/packages/pdf/src/arkivmal/<fil>.ts'
+```
+
+Dette gjelder **alle** arkiv-PDF-endringer: hele arkivmalen bor i `packages/pdf`, og web
+og mobil deler den. Verifiser i `apps/api`-containeren — det er den som rendrer.
+
 ## Worktree-deploy (parallell-arbeid)
 
 Flere git-worktrees deler samme repo (se [parallell-arbeid-lock.md](parallell-arbeid-lock.md)). **Prod-deploy kjøres ALLTID fra `../SiteDoc-deploy` (branch `main`)** — aldri fra det delte redesign-treet (`…/SiteDoc`, `redesign/navigasjon`) eller develop-treet. rsync-kilden må være riktig branch, ellers bygges feil kode (prod/test/redesign deler build-kontekst på server-ny).
