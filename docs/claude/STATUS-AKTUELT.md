@@ -321,12 +321,27 @@ felt i ulike rader, ser kortet inkonsekvent ut. Ikke en feil i formvalget: bilde
 forskjellige felt. Anbefalt løsning er innrykk + eierreferanse («Bilder — Posisjon i
 tegning»). Se [designnotat-arkivmal-pdf-fabel-2026-08-21.md](../redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md).
 
-🔴 **Ikke merget:** `fix/slett-onerror` (`c168c0fa`) dekker sjekkliste- og oppgavedetalj.
-**Listesiden (`sjekklister/page.tsx:323`) og HMS-sletting mangler fortsatt `onError`** —
-målt 2026-08-21. Kundevendt før A.Markussen-møtet.
+**Senere samme kveld — fire merger til:** flytvisning-opprydding (`cancelled`-celler +
+`lukkTrukket` → `slettLukket`), **funn 3** (oversikt og 4×-detalj traff ulike koordinater —
+én delt `beregnUtsnittVindu`, detaljen ER oversikten croppet, så avviket er umulig ved
+konstruksjon), **funn 4 + F7-D1** (alle fire kommentar-nivåer printes; «Registrert utenfor
+rader»-blokk med kommentar **og** vedlegg), og **onError** på slette-mutasjonen.
 
-⚠️ **Ikke åpnet:** fabels ordre for funn 3/4/6 (tilbehør på Posisjon/Lokasjon/Dato),
-`docs/redesign/ordre-arkivmal-funn-3-4-6-tilbehor-fabel-2026-08-21.md`.
+🔴 **Funn 3 endret også sjekkliste-PDF-en på mobil-veien** (`sjekkliste.ts:156` går via samme
+`byggTegningPosisjon`). Begge var feil; begge er rettet. **Reload:** full JS-bundle på mobil.
+
+**Funn 6 er IKKE startet** — tilbehør-fjerning på `drawing_position`, `location`,
+repeater-radnivå og `date`/`date_time` i utfyllingsflaten (web + mobil). Migreringsmåling
+gjort i prod: **kun repeater har data** (4 kommentarer + 4 vedlegg av 13 felt); de tre andre
+felttypene har null. Ren fjerning der, ingen read-only-visning å bygge.
+
+⚠️ **Verifiseringsgrunnlaget er borte:** Kenneth slettet BEF-001, BEF-002 og BHO-002.
+F7s DoD er skrevet om til å peke på **et nytt kontrolldokument på dagens mal**. Bygg malen
+først — da dekker samme runde både funn 6-verifiseringen og F7s skjermbevis.
+
+⚠️ **Mockupsiden «Repeater F7» finnes ikke.** F7-ordren refererer til den, men det er null
+treff i `docs/redesign/arkivmal-pdf-mockup/`. Blokken er bygget mot ordrens skriftlige spec.
+Fabel skylder enten mockupen, eller en bekreftelse på at spec-en er fasit.
 
 **Vedtak fattet 2026-08-21 som må huskes:** H6 er **revidert, ikke reversert** — «Godkjent
 er stoppsted i FLYTEN; Lukk er administrativ exit». Slettevakten er nå `draft || closed`.
