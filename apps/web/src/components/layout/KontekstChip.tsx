@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown, ArrowLeftRight } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
+import { useFavoritter } from "@/hooks/useFavoritter";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -143,11 +145,20 @@ export function KontekstChip() {
   // Byggeplasser for aktivt prosjekt — kilde til byggeplass-steget i trakten.
   // Alltid montert (deduplikeres mot toppbarens ByggeplassVelger av react-query)
   // slik at default-nivået i åpne() vet om prosjektet HAR byggeplasser.
-  const { data: _bygninger } = trpc.bygning.hentForProsjekt.useQuery(
+  const byggeplassQuery = trpc.bygning.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
-  const bygninger = (_bygninger ?? []) as Byggeplass[];
+  const bygninger = (byggeplassQuery.data ?? []) as Byggeplass[];
+
+  // B2: satt når prosjektvalg avanserer til byggeplass-steget i popoveren, mens
+  // vi venter på om det nye prosjektet FAKTISK har byggeplasser (async).
+  const [avventerByggeplass, setAvventerByggeplass] = useState(false);
+
+  // B3: prosjekt-favoritter (localStorage, delt hook — samme som gamle
+  // ProsjektVelger; ingen ny lagring). Stjerne på hver rad + «Favoritter»-seksjon.
+  const { data: session } = useSession();
+  const { erFavoritt, toggleFavoritt } = useFavoritter(session?.user?.id);
 
   // K3 «Sist brukt» (v1): Activity-basert liste (distinkte prosjekter, nyeste
   // først) — ikke én sticky-verdi. Løser 4-5-prosjekt-scenariet. Tom Activity
@@ -166,6 +177,17 @@ export function KontekstChip() {
     document.addEventListener("mousedown", handleKlikk);
     return () => document.removeEventListener("mousedown", handleKlikk);
   }, []);
+
+  // B2: etter prosjektvalg avanserer vi optimistisk til byggeplass-steget. Når
+  // lista for det NYE prosjektet er lastet (data definert + ikke fetching):
+  // har det ingen byggeplasser → lukk popoveren (som gammel oppførsel); har det
+  // byggeplasser → bli stående på byggeplass-steget (A1-autovalgt vises valgt).
+  useEffect(() => {
+    if (!avventerByggeplass) return;
+    if (byggeplassQuery.isFetching || byggeplassQuery.data === undefined) return;
+    setAvventerByggeplass(false);
+    if (byggeplassQuery.data.length === 0) setApen(false);
+  }, [avventerByggeplass, byggeplassQuery.isFetching, byggeplassQuery.data]);
 
   // c3: aldri «Velg firma / {konkret prosjekt}». Utled firma fra prosjektets
   // primaryOrganization når det ikke er eksplisitt valgt (typisk sitedoc_admin
@@ -244,6 +266,17 @@ export function KontekstChip() {
   const sistIderSet = new Set(sistProsjektRader.map((p) => p.id));
   const øvrigeProsjekt = prosjektFiltrert.filter((p) => !sistIderSet.has(p.id));
 
+  // B3: «Favoritter»-seksjon øverst (over «Sist brukt»), samme seksjonering som
+  // recency — kun i lange lister (>6); korte lister vises flatt (stjernene er
+  // synlige der uansett). Favoritter dedupliseres ut av Sist brukt/Alle så en
+  // rad aldri vises to steder.
+  const favorittProsjektRader = visProsjektSøk
+    ? prosjektFiltrert.filter((p) => erFavoritt(p.id))
+    : [];
+  const favorittSet = new Set(favorittProsjektRader.map((p) => p.id));
+  const sistUtenFav = sistProsjektRader.filter((p) => !favorittSet.has(p.id));
+  const øvrigeUtenFav = øvrigeProsjekt.filter((p) => !favorittSet.has(p.id));
+
   const bq = byggeplassSøk.toLowerCase();
   const byggeplassFiltrert = bq
     ? bygninger.filter((b) => b.name.toLowerCase().includes(bq))
@@ -295,25 +328,46 @@ export function KontekstChip() {
     velgFirma(id);
     setÅpentNivå("prosjekt");
   }
-  // Prosjektvalg lukker popoveren (vedtak 3). Byggeplass er valgfritt ettervalg
-  // — brukeren åpner chippen på nytt og går til byggeplass-steget.
+  // B2 (erstatter vedtak 3 «prosjektvalg lukker»): bli i popoveren og avansér
+  // til byggeplass-steget. Om det nye prosjektet har byggeplasser avgjøres når
+  // lista er lastet — B2-effekten lukker hvis prosjektet er uten byggeplasser.
   function velgProsjektTrakt(id: string) {
     velgProsjekt(id);
-    setApen(false);
+    setByggeplassSøk("");
+    setÅpentNivå("byggeplass");
+    setAvventerByggeplass(true);
   }
   function velgByggeplassTrakt(b: Byggeplass | null) {
     velgByggeplass(b);
     setApen(false);
   }
 
-  const prosjektRad = (p: (typeof prosjekter)[number]) => (
-    <TraktRad
-      key={p.id}
-      tittel={`${p.internalProjectNumber ? `${p.internalProjectNumber} ` : ""}${p.name}${p.address ? ` · ${p.address}` : ""}`}
-      valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
-      onVelg={() => velgProsjektTrakt(p.id)}
-    />
-  );
+  const prosjektRad = (p: (typeof prosjekter)[number]) => {
+    const erFav = erFavoritt(p.id);
+    return (
+      <TraktRad
+        key={p.id}
+        tittel={`${p.internalProjectNumber ? `${p.internalProjectNumber} ` : ""}${p.name}${p.address ? ` · ${p.address}` : ""}`}
+        valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
+        onVelg={() => velgProsjektTrakt(p.id)}
+        handling={
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavoritt(p.id);
+            }}
+            title={erFav ? t("kontekstChip.fjernFavoritt") : t("kontekstChip.leggTilFavoritt")}
+            aria-label={erFav ? t("kontekstChip.fjernFavoritt") : t("kontekstChip.leggTilFavoritt")}
+            aria-pressed={erFav}
+            className="flex shrink-0 items-center px-2.5 text-gray-300 transition-colors hover:text-amber-500"
+          >
+            <Star className={`h-4 w-4 ${erFav ? "fill-amber-400 text-amber-400" : ""}`} />
+          </button>
+        }
+      />
+    );
+  };
 
   const byggeplassRad = (b: Byggeplass) => (
     <TraktRad
@@ -334,9 +388,10 @@ export function KontekstChip() {
       <button
         onClick={() => (apen ? setApen(false) : åpne())}
         // Fast min-bredde = PROSJEKT-knappens bredde (127px, målt) + justify-center:
-        // «FIRMA» (kortere) og «PROSJEKT» får samme knappebredde, så ⇄ (som følger
-        // knappens høyrekant) står pixel-fast ved firma↔prosjekt-bytte. FIRMA-chippen
-        // får luft rundt sentrert nivåord — fabel-godkjent pris for stabil ⇄.
+        // «FIRMA» (kortere) og «PROSJEKT» får SAMME knappebredde (behold — koster
+        // ingenting). Merk (C6, 2026-08-21): 240px-navneankeret er oppgitt, så ⇄ er
+        // ikke lenger pikselfast ved firma↔prosjekt-bytte — lik knappbredde beholdes
+        // for symmetri, ikke lenger for stabil ⇄.
         className={`relative z-0 flex min-w-[127px] items-center justify-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold uppercase tracking-wide transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
       >
         {erFirmaKontekst ? t("kontekstChip.firma") : t("kontekstChip.prosjekt")}
@@ -368,12 +423,11 @@ export function KontekstChip() {
       {erFirmaKontekst ? (
         // Firmakontekst: én linje — firma + amber split-chip.
         <div className="flex items-center gap-2">
-          {/* Ankret bredde: navn-området har FAST 240px (w-60) i begge kontekster
-              så chip+⇄ alltid står på samme x — de hopper ikke sidevegs ved
-              firma↔prosjekt-bytte. Navn venstrejusteres og trunkeres; title gir
-              fullt navn. */}
+          {/* C6: 240px-ankeret oppgitt — navnet flyter (maks ~460px) og trunkerer;
+              title gir fullt navn. Lesbare navn prioriteres over pikselfast ⇄
+              (Kenneth-vedtak 2026-08-21). */}
           <span
-            className="w-60 truncate text-sm font-medium text-blue-100"
+            className="min-w-0 max-w-[460px] truncate text-sm font-medium text-blue-100"
             title={firmaNavn ?? ""}
           >
             {firmaNavn ?? t("kontekstChip.velgFirma")}
@@ -391,21 +445,24 @@ export function KontekstChip() {
             </span>
           )}
           <div className="flex items-center gap-2">
-            {/* Ankret bredde: fast 240px (w-60) — matcher firma-grenen så chip+⇄
-                står på samme x i begge kontekster. Prosjektnavnet (min-w-0
-                truncate) og byggeplass-suffikset (shrink-0) deler de 240px:
-                navnet trunkerer, byggeplass overlever. title gir fullt navn. */}
+            {/* C5+C6 (Kenneth-vedtak 2026-08-21): 240px-ankeret er oppgitt —
+                navneområdet FLYTER (maks ~460px). Snudd trunkering: prosjektnavnet
+                har prioritet (shrink-0 opp til egen maks ~280px, så truncate),
+                byggeplass-suffikset yielder (min-w-0 truncate, dempet tone). Før
+                spiste et langt byggeplassnavn prosjektnavnet. title = full tekst. */}
             <span
-              className="flex w-60 items-center text-sm font-medium text-blue-100"
+              className="flex min-w-0 max-w-[460px] items-center text-sm font-medium text-blue-100"
               title={
                 valgtProsjekt && aktivByggeplass
                   ? `${prosjektTekst} · ${aktivByggeplass.name}`
                   : prosjektTekst
               }
             >
-              <span className="min-w-0 truncate">{prosjektTekst}</span>
+              <span className="max-w-[280px] shrink-0 truncate">{prosjektTekst}</span>
               {valgtProsjekt && aktivByggeplass && (
-                <span className="ml-1 shrink-0 whitespace-nowrap">· {aktivByggeplass.name}</span>
+                <span className="ml-1 min-w-0 truncate whitespace-nowrap text-blue-200/70">
+                  · {aktivByggeplass.name}
+                </span>
               )}
             </span>
             {velgerKnapper}
@@ -420,7 +477,7 @@ export function KontekstChip() {
             <div className="border-b border-gray-100">
               <SeksjonsLabel>{t("kontekstChip.velgFirma")}</SeksjonsLabel>
               {visFirmaSøk && (
-                <SøkeFelt verdi={firmaSøk} onEndre={setFirmaSøk} placeholder={t("kontekstChip.velgFirma")} />
+                <SøkeFelt verdi={firmaSøk} onEndre={setFirmaSøk} placeholder={t("kontekstChip.velgFirma")} autoFokus />
               )}
               <div className="max-h-64 overflow-auto pb-1">
                 {firmaFiltrert.map((f) => (
@@ -473,23 +530,31 @@ export function KontekstChip() {
                 )}
               </div>
               {visProsjektSøk && (
-                <SøkeFelt verdi={prosjektSøk} onEndre={setProsjektSøk} placeholder={t("prosjektVelger.sok")} />
+                <SøkeFelt verdi={prosjektSøk} onEndre={setProsjektSøk} placeholder={t("prosjektVelger.sok")} autoFokus />
               )}
               <div className="max-h-64 overflow-auto pb-1">
                 {prosjektFiltrert.length === 0 ? (
                   <p className="px-3 py-2 text-sm text-gray-400">{t("prosjektVelger.ingen")}</p>
                 ) : (
                   <>
-                    {sistProsjektRader.length > 0 && (
+                    {/* B3: Favoritter øverst → Sist brukt → Alle prosjekter. */}
+                    {favorittProsjektRader.length > 0 && (
                       <>
-                        <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
-                        {sistProsjektRader.map(prosjektRad)}
-                        {øvrigeProsjekt.length > 0 && (
-                          <SeksjonsLabel>{t("prosjektVelger.alleProsjekter")}</SeksjonsLabel>
-                        )}
+                        <SeksjonsLabel>{t("kontekstChip.favoritter")}</SeksjonsLabel>
+                        {favorittProsjektRader.map(prosjektRad)}
                       </>
                     )}
-                    {øvrigeProsjekt.map(prosjektRad)}
+                    {sistUtenFav.length > 0 && (
+                      <>
+                        <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
+                        {sistUtenFav.map(prosjektRad)}
+                      </>
+                    )}
+                    {(favorittProsjektRader.length > 0 || sistUtenFav.length > 0) &&
+                      øvrigeUtenFav.length > 0 && (
+                        <SeksjonsLabel>{t("prosjektVelger.alleProsjekter")}</SeksjonsLabel>
+                      )}
+                    {øvrigeUtenFav.map(prosjektRad)}
                   </>
                 )}
               </div>
@@ -505,42 +570,55 @@ export function KontekstChip() {
             />
           )}
 
-          {/* --- BYGGEPLASS (kun når prosjektet har byggeplasser) ------- */}
-          {harByggeplasser &&
-            (åpentNivå === "byggeplass" ? (
-              <div>
-                <div className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  {t("byggeplassVelger.velg")}{" "}
+          {/* --- BYGGEPLASS --------------------------------------------- */}
+          {/* B2: åpent byggeplass-steg rendres også mens lista for et nyvalgt
+              prosjekt lastes (viser «Laster …»); B2-effekten lukker hvis
+              prosjektet viser seg uten byggeplasser. Sammenfoldet NivåRad kun
+              når prosjektet HAR byggeplasser. */}
+          {åpentNivå === "byggeplass" ? (
+            <div>
+              <div className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                {t("byggeplassVelger.velg")}{" "}
+                {bygninger.length > 0 && (
                   <span className="text-gray-300">
                     · {t("kontekstChip.antallApne", { antall: bygninger.length })}
                   </span>
-                </div>
-                {visByggeplassSøk && (
-                  <SøkeFelt
-                    verdi={byggeplassSøk}
-                    onEndre={setByggeplassSøk}
-                    placeholder={t("byggeplassVelger.sok")}
-                  />
                 )}
-                <div className="max-h-64 overflow-auto pb-1">
-                  {sistByggeplass && (
-                    <>
-                      <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
-                      {byggeplassRad(sistByggeplass)}
-                    </>
-                  )}
-                  <SeksjonsLabel>
-                    {t("kontekstChip.allePaa", { prosjekt: prosjektEtikett })}
-                  </SeksjonsLabel>
-                  <TraktRad
-                    tittel={t("kontekstChip.heleProsjektet")}
-                    valgt={!aktivByggeplass}
-                    onVelg={() => velgByggeplassTrakt(null)}
-                  />
-                  {øvrigeByggeplass.map(byggeplassRad)}
-                </div>
               </div>
-            ) : (
+              {visByggeplassSøk && (
+                <SøkeFelt
+                  verdi={byggeplassSøk}
+                  onEndre={setByggeplassSøk}
+                  placeholder={t("byggeplassVelger.sok")}
+                  autoFokus
+                />
+              )}
+              <div className="max-h-64 overflow-auto pb-1">
+                {bygninger.length === 0 && byggeplassQuery.isFetching ? (
+                  <p className="px-3 py-2 text-sm text-gray-400">{t("kontekstChip.laster")}</p>
+                ) : (
+                  <>
+                    {sistByggeplass && (
+                      <>
+                        <SeksjonsLabel>{t("kontekstChip.sistBrukt")}</SeksjonsLabel>
+                        {byggeplassRad(sistByggeplass)}
+                      </>
+                    )}
+                    <SeksjonsLabel>
+                      {t("kontekstChip.allePaa", { prosjekt: prosjektEtikett })}
+                    </SeksjonsLabel>
+                    <TraktRad
+                      tittel={t("kontekstChip.heleProsjektet")}
+                      valgt={!aktivByggeplass}
+                      onVelg={() => velgByggeplassTrakt(null)}
+                    />
+                    {øvrigeByggeplass.map(byggeplassRad)}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            harByggeplasser && (
               <NivåRad
                 etikett={t("kontekstChip.byggeplass")}
                 etikettKlasse="text-gray-500"
@@ -550,7 +628,8 @@ export function KontekstChip() {
                 onEndre={() => setÅpentNivå("byggeplass")}
                 sisteRad
               />
-            ))}
+            )
+          )}
         </div>
       )}
     </div>
