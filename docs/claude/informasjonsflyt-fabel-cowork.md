@@ -98,6 +98,18 @@ inventarierte hva den gamle inneholdt. Se
 3. **Ved retting av et eksisterende notat:** si eksplisitt hvilket avsnitt som erstattes, og
    at resten er uendret. Da kan cowork verifisere kirurgisk i stedet for å diffe hele fila.
 
+4. 🔴 **Helfil-leveranser av filer som finnes i repoet er forbudt** (fabels vedtak
+   2026-08-21, etter at hans 23-linjers logg holdt på å overskrive en 74-linjers versjon).
+   **Eksisterende filer leveres som merkede TILLEGG-blokker** cowork fletter inn. **Kun nye
+   filer leveres hele.**
+
+   Grunnen er strukturell: fabel jobber fra sin egen kopi og ser ikke hva en agent har lagt
+   til i mellomtiden. Coworks linjetelling-før-erstatning (§ 3b) er motparten til denne
+   regelen — to uavhengige vern mot samme feilklasse.
+
+   Fabel fører også prosjektkopier av repo-filer som **pekere** til repo-versjonen, ikke som
+   parallelle statuskilder.
+
 ## 6 · Meldinger tilbake til fabel
 
 Kenneth relayer **hver melding manuelt**. Derfor:
