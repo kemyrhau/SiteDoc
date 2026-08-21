@@ -18,8 +18,13 @@ Web-utfylling rendrer raden som `{radIndeks+1} {repeater.label}` og viser aldri 
 - **Rekkefølge korrigert etter uttrekket (cowork 21.08):** malryddingen (punkt 4/5) går FØR web-fiksen (punkt 3). Uttrekket fant fire mistenkelige labels: «_ Endret til Observasjon for opus» (Testprosjekt) + tre «-»-labels på list_single under «Observasjon/kontroll/objekt» i Befaring (998), Beraringsrapport (999) og Byggelerers dagbok/kontroll (999). Bygges web-fiksen først, får brukeren kolonner som heter «-» — verre før bedre. De to 999-malene er A.Markussens: navnene bestemmes av Kenneth, ingen automatisk omskriving. Bonus: «Beraringsrapport» er stavefeil for «Befaringsrapport» — rettes i samme rydding (Kenneth-godkjenning).
 - F7-ordren (objektnivå-blokken) skrives fortsatt etter BEF-001-testen og bygger på samme modell: blokken «Registrert utenfor rader» står UTENFOR tabellen nettopp fordi den ikke er en rad.
 
-## D9 — Informasjonsfeltet (Kenneth-regel 21.08)
-**All tekst et menneske skriver inn i rapporter må bety noe.** Veiledning hører ikke hjemme i labels — den hører hjemme i informasjonsfeltet (helpText), som alle malobjekter har. Egenskaper:
-1. **Under utfylling:** vises som veiledning — hva som skal observeres/dokumenteres.
-2. **På utskrift:** skrives IKKE ut som standard. Valgfritt med: avkryssing «Ta med veiledningstekster» i «Last ned PDF»-menyen (mockupside «Nedlastingsvalg» oppdatert).
-3. Regelen gir malryddingen retning: «-»-labelene og arbeidsnotiser erstattes av ekte feltnavn; veiledning flyttes til informasjonsfeltet.
+## D9 — Informasjonsfeltet (Kenneth-regel 21.08; presisert etter cowork-innsigelse s.d.)
+**All tekst et menneske skriver inn i rapporter må bety noe.** Veiledning hører ikke hjemme i labels. Kodeverifisert 21.08: tilknyttet veiledning FINNES allerede — `config.helpText` per malobjekt: malbyggeren har inndatafeltet (FeltKonfigurasjon.tsx:118), web-utfyllingen viser den under feltet (FeltWrapper.tsx:83), oversettelseslaget håndterer den (useOversettelse.ts:43). Den følger feltet og skjules med betingelser fordi den rendres inne i feltets wrapper. Ingen parentId-konvensjon, ingen migrering, ingen ny mekanisme.
+
+**To former, én regel:**
+- **Per-felt-veiledning = `config.helpText`** (finnes) — «hva skal observeres/dokumenteres her».
+- **Frittstående instruksjonsblokk = `info_text`-objekt** (finnes) — veiledning som ikke hører til ett felt; rendring i arkiv dekket av D3.
+
+**Utskriftsregel (begge former):** skrives IKKE ut som standard; avkryssing «Ta med veiledningstekster» i «Last ned PDF»-menyen slår på BEGGE (mockupside «Nedlastingsvalg»). Én bryter, én måte — aldri to.
+
+**Malryddingens retning:** «-»-labels og arbeidsnotiser erstattes av ekte feltnavn; veiledning flyttes til `config.helpText` på feltet (eller info_text-objekt der den er frittstående).
