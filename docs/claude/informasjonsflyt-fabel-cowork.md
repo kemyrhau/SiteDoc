@@ -55,6 +55,31 @@ Fabels leveranser lever i tre tilstander med ulik autoritet:
 **Cowork eier steg 2→3.** En fabel-leveranse som ikke er kopiert inn og committet, finnes
 ikke for agentene og overlever ikke neste compact.
 
+## 3b · 🔴 Nyest ≠ rikest — sammenlign FØR du erstatter
+
+Fabel jobber fra sin egen kopi. Har en agent redigert samme fil i mellomtiden, vet ikke
+fabel om det — og hans «oppdaterte» versjon kan være tynnere enn den som allerede står i
+repoet.
+
+**Målt 2026-08-21:** fabels oppdaterte `kontekstvelger-1a-verifiseringslogg.md` (23 linjer)
+holdt på å overskrive kontrollplans versjon (74 linjer). Tapt ville vært hele Chrome- og
+GIF-måleplanen, mesteparten av klikk-detaljene og spenningsfunnet redusert fra sju omtaler
+til to. Vunnet: ett nytt avsnitt.
+
+**Regel:** før en fabel-fil kopieres over en eksisterende, mål begge:
+
+```bash
+git show origin/develop:<sti> | wc -l     # det som står
+wc -l "Fra fabel/<pakke>/<sti>"           # det som kommer
+```
+
+Er den innkommende kortere, **flett** — ta det rikeste som base og legg til det nye
+avsnittet. Ikke erstatt.
+
+Dette er samme feilklasse som `ad7cadc1` i kontekstvelgeren: en nyskrevet versjon som ikke
+inventarierte hva den gamle inneholdt. Se
+[kontekstvelger-regresjonsjakt-2026-08-21.md](kontekstvelger-regresjonsjakt-2026-08-21.md).
+
 ## 4 · Coworks plikter ved hver leveranse
 
 1. **Finn nyeste pakke selv** (`ls -dt`, fang « 2»).
