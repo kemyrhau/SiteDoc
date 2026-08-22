@@ -56,6 +56,23 @@ interface ByggeplassKontekstType {
   hentOgTømPosisjonsResultat: (feltId: string) => PosisjonsResultat | null;
 }
 
+/**
+ * Ren beslutning for URL-basert re-hydrering av posisjonsvelgeren (funn 2026-08-22).
+ * URL-parameteren `posisjonsvelger=<feltId>` er sannhetskilden på tegningsruten; provider-
+ * staten er ren in-memory og dør ved full last. Ved mount avgjør denne hva som skal skje:
+ *   · param satt + provider tom → "start" (gjenopprett velger-modus etter full last)
+ *   · ingen param + provider aktiv → "avbryt" (rydd stale modus arvet fra en dokument-flyt)
+ *   · ellers → "ingen" (klient-nav der staten alt er korrekt)
+ */
+export function velgerRehydreringsHandling(
+  param: string | null,
+  aktiv: boolean,
+): "start" | "avbryt" | "ingen" {
+  if (param && !aktiv) return "start";
+  if (!param && aktiv) return "avbryt";
+  return "ingen";
+}
+
 const ByggeplassKontekst = createContext<ByggeplassKontekstType | null>(null);
 
 export function ByggeplassProvider({ children }: { children: ReactNode }) {
