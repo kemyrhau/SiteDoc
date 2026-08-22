@@ -232,6 +232,41 @@ All merge-koreografi går gjennom cowork:
 
 > **Design-godkjenning (akseptkriterium):** en redesign-UI-endring (flagg-på) er **ikke lukket** før **fabel har designgodkjent mot skjermbilder** fra en verifiserings-agent — aldri på typecheck/`next build` alene. Build-gaten (regel 10) sikrer at det *bygger*; design-godkjenningen sikrer at det *ser riktig ut*. Begge kreves.
 
+### 🔴 Merge-kjeden SKAL bære gaten (lærdom 2026-08-22)
+
+Regel 10 fantes, men cowork kjørte `pnpm test` som siste port før deploy i to dager. **`pnpm test`
+kjører vitest, ikke tsc.** Kjeden gikk grønn og deployet inn i en kompileringsfeil
+(`setSlettFeil` etterlatt etter en konfliktopprydding); Docker-bygget fanget den etter tre
+minutter og en TTY, i stedet for tre sekunder lokalt.
+
+**Gaten skal stå i selve kommandokjeden Kenneth limer inn**, ikke i hukommelsen til den som
+skriver den:
+
+```bash
+pnpm typecheck 2>&1 | grep -E "error|Tasks:" | tail -5 && \
+pnpm test 2>&1 | grep -E "FAIL|Test Files|Tests " && \
+./deploy-test.sh
+```
+
+Kjeden er selv-gatende: feiler typecheck, kjøres verken tester eller deploy.
+
+**Beslektet lærdom samme dag:** `grep` er case-sensitivt. Cowork brukte `grep -c "slettFeil"`
+som bevis på at en opprydding var komplett — det gjenværende kallet het `setSlettFeil`, med
+stor S, og traff ikke mønsteret. **Et grep-treff på null er ikke bevis for fravær.** Bruk `-i`
+når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dette fortsatt».
+
+### 🔴 Statustavla har ÉN skribent: cowork (vedtatt 2026-08-22)
+
+**Agentene skriver ikke lenger i `STATUS-AKTUELT.md`.** De rapporterer i leveransen sin — som
+de allerede gjør, grundig — og cowork fører det inn ved merge.
+
+**Hvorfor:** fire merge-konflikter i statustavla på én dag, alle trivielle, alle kostet en
+runde. Årsaken var ikke slurv: hver agent følger regelen om å føre eget arbeid inn, og alle
+skriver på samme sted — nederst i «Pågående arbeid». Riktig oppførsel, feil resultat.
+
+Agentene beholder doc-plikten på **sine egne spec-filer** i `docs/claude/`, der de er eneste
+skribent. Det er kun den delte tavla som får én eier.
+
 Så lenge disse holdes vet Kenneth at develop er ren. «Går dette bra?» har én kilde: cowork.
 
 ## Cowork leveranse-ansvar (ordre 2026-07-14)
