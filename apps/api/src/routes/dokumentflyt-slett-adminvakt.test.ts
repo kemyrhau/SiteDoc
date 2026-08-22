@@ -37,7 +37,13 @@ function lagCaller(del: ReturnType<typeof vi.fn>) {
     sessionToken: null,
     req: { log: { info: vi.fn(), warn: vi.fn() } },
     nyttSessionTokenForRespons: { value: null },
-    prisma: { dokumentflyt: { delete: del } },
+    // `slett` kjører count-vakt (kombinert med admin-gaten ved merge) FØR delete → 0 dokumenter
+    // slipper gjennom til delete. (Count-vaktens egen > 0-atferd testes i dokumentflyt-slettevern.test.ts.)
+    prisma: {
+      checklist: { count: vi.fn().mockResolvedValue(0) },
+      task: { count: vi.fn().mockResolvedValue(0) },
+      dokumentflyt: { delete: del },
+    },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
   return dokumentflytRouter.createCaller(ctx);
