@@ -7,7 +7,7 @@ import {
   removeDokumentflytMedlemSchema,
   oppdaterRollerSchema,
 } from "@sitedoc/shared";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
 
 const dokumentflytInclude = {
   faggruppe: { select: { id: true, name: true, color: true } },
@@ -145,7 +145,12 @@ export const dokumentflytRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // Admin-gate (Kenneth-vedtak 2026-08-22): sletting rører alle dokumenter i flyten →
+      // krever prosjektadmin eller høyere. `verifiserAdmin` dekker alle tre i én: sitedoc_admin →
+      // prosjektadmin (ProjectMember.role="admin") → firmaadmin. Den siste er IKKE valgfri:
+      // firmaadmin har INGEN ProjectMember-rad, så en egen `medlem.role`-sjekk ville avvist ham
+      // (samme felle vi snublet i på verifiserRetningsrett). Bruk hjelperen, ikke en håndrullet sjekk.
+      await verifiserAdmin(ctx.userId, input.projectId);
       return ctx.prisma.dokumentflyt.delete({ where: { id: input.id } });
     }),
 
