@@ -135,8 +135,10 @@ const BILDER_PER_REKKE = 2;
  * full spaltebredde rett under sin egen rad (vedtak 2026-08-15), ikke samlet
  * etter tabellen.
  */
-/** F7-merkelinje (ordre 2026-08-21, linje 11 — ORDRETT, ikke omskriv). */
-const F7_MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direkte på skjemaet, uten 'Legg til rad'.";
+/** F7-merkelinje. Guillemeter «Legg til rad» + intet punktum = fasit-PNG-en
+ * (mockup-f7-objektniva-vedtatt.png); PNG går foran ordreteksten ved motstrid,
+ * og guillemeter er prosjektets sitat-standard (A3-kvittering 2026-08-22). */
+const F7_MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direkte på skjemaet, uten «Legg til rad»";
 
 /**
  * F7 (D1, ordre-arkivmal-f7-objektniva 2026-08-21): innhold festet på repeater-OBJEKTET
@@ -165,10 +167,19 @@ export function byggUtenforRaderBlokk(
     nr += 1;
     let merke = `Bilde ${String(visNr).padStart(2, "0")}`;
     if (b.opprettet) merke += ` · ${esc(formaterDatoTidPunkt(b.opprettet))}`;
+    // A4-kvittering (2026-08-22): IKKE tvungen 4:3-ramme. `.ark-bilde-img` er den DELTE
+    // radbilde-primitiven (object-fit:contain, bildeforhold ALLTID bevart, aldri oppskalert
+    // — fabels radkort-designlås). Fasitens «Bilde 4:3 (mobilformat)» er en plassholder-
+    // etikett, ikke et rammekrav. Ikke «rett» dette til fast 4:3 — det ville brutt designlåsen.
+    // A2 (2026-08-22): fasitens «· med tegningsmarkering — se tegningsseksjon» er IKKE med her.
+    // Målt: `Vedlegg` (type "bilde"|"fil") har intet markør-felt, «Tegning»-knappen lagrer et
+    // vanlig type:"bilde"-screenshot, og markøren er alltid en egen drawing_position-feltverdi —
+    // aldri koblet til et bestemt bilde. Suffikset mangler datagrunnlag → fabels sak, ikke bygg.
     return `<div class="ark-bilde"><img class="ark-bilde-img" src="${esc(b.url)}" alt=""><div class="ark-bilde-tekst">${merke}</div></div>`;
   });
   const grid = celler.length ? `<div class="ark-bilde-grid">${celler.join("")}</div>` : "";
-  const kommentarHtml = kommentar ? `<div class="kommentar">${esc(kommentar)}</div>` : "";
+  // A1-kvittering (2026-08-22): kommentar i guillemeter «…» = fasit-PNG-en («Testbilde»).
+  const kommentarHtml = kommentar ? `<div class="kommentar">«${esc(kommentar)}»</div>` : "";
   const filteller = antallIkkeBilder > 0
     ? `<div class="vedlegg-teller">${antallIkkeBilder} vedlegg uten forhåndsvisning</div>`
     : "";

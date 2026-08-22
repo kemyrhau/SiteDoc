@@ -11,7 +11,8 @@ import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
  * FØR radbildene. Dekker funn #4 hull 2 (nivå-2-kommentar) + vedlegg-datatapet.
  */
 
-const MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direkte på skjemaet, uten 'Legg til rad'.";
+// Guillemeter «Legg til rad», intet punktum = fasit-PNG (A3-kvittering 2026-08-22).
+const MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direkte på skjemaet, uten «Legg til rad»";
 
 const barn = (id: string, type: string, label: string): TreObjekt =>
   ({ id, type, label, required: false, config: {}, sortOrder: 0, parentId: "rep", children: [] }) as TreObjekt;
@@ -36,7 +37,8 @@ describe("byggUtenforRaderBlokk — F7-blokk direkte", () => {
   it("kommentar uten vedlegg → merkelinje ORDRETT + kommentar, ingen bilder forbrukt", () => {
     const { html, nesteNr } = byggUtenforRaderBlokk(fv([], "Testkommentar"), 1);
     expect(html).toContain(MERKE);
-    expect(html).toContain("Testkommentar");
+    // A1: kommentar i guillemeter (fasit «Testbilde»).
+    expect(html).toContain("«Testkommentar»");
     expect(nesteNr).toBe(1);
   });
 
