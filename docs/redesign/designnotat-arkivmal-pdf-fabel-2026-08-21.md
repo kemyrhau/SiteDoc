@@ -27,12 +27,15 @@ Arkiv-PDF-en taper innhold stille: brukeren ser bilde/kommentar/tegningsmarkerin
 
 **D3 — Instruksjonstyper:** info_text/info_image vises grått som instruksjonskontekst (byggherre skal se hva utfører leste); video som referanselinje (tittel + URL); quiz som spørsmål + avgitt svar + riktig/feil — avgitt svar er dokumentasjonsdata. Mockupside «Malobjekt-revisjon» (rad-for-rad-vedtak for alle 26 typer).
 
-**D4 — Knappenavn:** «Last ned arkiv-PDF» utgår → **«Last ned PDF»** (splittknapp). Klikk = standardvariant; pil åpner meny:
-- **Med logg** (standard) — innhold, tegninger, dokumenthistorikk, endringslogg, signaturer
-- **Uten logg** — innhold, tegninger, signaturer
+**D4 — Knappenavn og varianter (REVIDERT 22.08, Kenneth-vedtak):** «Last ned arkiv-PDF» utgår → **«Last ned PDF»** (splittknapp). Klikk = nedlasting; pil åpner meny:
 - **Lagre i prosjektmappe** (Kenneth 21.08) — PDF-en arkiveres i dokumentmappen i prosjektet i stedet for nedlasting
 - **Send til …** — e-post m/PDF-vedlegg (eksisterende funksjon flyttes hit)
-Samme knapp på sjekkliste, oppgave og HMS. Mockupside «Nedlastingsvalg».
+- Avkryssing: **Ta med veiledningstekster** (av som standard)
+
+«Med logg / Uten logg» er UTGÅTT. Kenneth-vedtak 22.08: **dokumenthistorikken** (flytsporet — fra hvem til hvem, med tilhørende kommentar) skrives **alltid** — den er dokumentasjonsverdi; **endringsloggen** (hvilket felt ble endret, når, av hvem) skrives **aldri** — den er et UI-verktøy for å undersøke hva som skjedde i utfyllingen ved konflikt. Ingen «uten historikk»-variant for eksterne mottakere — historikken er en del av dokumentet. Dermed finnes bare én PDF-variant og loggvalget bortfaller.
+Kryssreferanse: historikkradenes «(N feltendringer — se Endringslogg)» → **behold tallet, fjern henvisningen** («N feltendringer»). Tallet sier at noe ble endret før sending; henvisningen ville pekt på en seksjon som ikke finnes.
+Mekanikk (kodeverifisert av kontrollplan): loggseksjon.ts:104–105 skiller allerede seksjonene — dokumenthistorikk() rendres ubetinget, endringslogg() gates på taMedEndringslogg; endringslogg-veien fjernes fra arkivstien. F1 (lesbar endringslogg) og funn 3 (lesbar drawing_position i loggen) beholder full verdi — de gjelder UI-visningen.
+Samme knapp på sjekkliste, oppgave og HMS. Mockupsider «Nedlastingsvalg» og «kompakt én side» (rev. 22.08).
 
 **D5 — Oppgave-PDF:** egen dokumentklasse i arkivformen (beskrivelse, ansvarlig/frist/prioritet, kilde-referanse, tegningsposisjon, dokumentasjon, opprettet/lukket-signatur). Mockupside «Oppgave-PDF».
 
