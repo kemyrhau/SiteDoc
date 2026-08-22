@@ -47,8 +47,11 @@ export interface OppgavePosisjon {
 export interface RadOppgaveAdapter {
   /** Slår opp eksisterende oppgave for en rad-nøkkel; undefined → ingen ennå. */
   finnForRad: (radNokkel: string) => { id: string; nummer?: string } | undefined;
-  /** Åpner opprett-modal for raden. `radPosisjon` = radens posisjon (null → dokument-fallback). */
-  onOpprett: (radNokkel: string, radPosisjon: OppgavePosisjon | null) => void;
+  /**
+   * Åpner opprett-modal for raden. `radPosisjon` = radens posisjon (null → dokument-fallback).
+   * `radNummer` = radens 1-baserte posisjon (til tittelen — identifiserer raden, som headeren/markøren).
+   */
+  onOpprett: (radNokkel: string, radPosisjon: OppgavePosisjon | null, radNummer: number) => void;
   /** Naviger til eksisterende rad-oppgave. */
   onNaviger: (id: string) => void;
 }

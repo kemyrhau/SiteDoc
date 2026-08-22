@@ -135,6 +135,12 @@ export function OpprettOppgaveModal({
     if (valgtMal && !malAlternativer.some((m) => m.value === valgtMal)) setValgtMal("");
   }, [malAlternativer, valgtMal]);
 
+  // Funn 2 (2026-08-22): forhåndsvelg malen når det finnes NØYAKTIG ÉN — brukeren skal slippe å
+  // velge fra en liste med ett element. Nedtrekket beholdes for to+ maler.
+  useEffect(() => {
+    if (open && !valgtMal && malAlternativer.length === 1) setValgtMal(malAlternativer[0]!.value);
+  }, [open, valgtMal, malAlternativer]);
+
   // Reset state ved lukking
   useEffect(() => {
     if (!open) {

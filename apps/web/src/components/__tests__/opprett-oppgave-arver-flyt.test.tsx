@@ -100,4 +100,14 @@ describe("OpprettOppgaveModal — oppgaven arver sjekklistens dokumentflyt (steg
       bestillerFaggruppeId: "fag-1",
     });
   });
+
+  it("funn 2: nøyaktig én oppgavemal → forhåndsvelges (submit UTEN manuelt malvalg virker)", () => {
+    render(<OpprettOppgaveModal {...baseProps} sjekklisteFlytId="flyt-A" />);
+
+    // Ingen fireEvent.change på malen — den skal være auto-valgt (flyten har kun m1).
+    fireEvent.click(screen.getByText("Opprett oppgave"));
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(mutate.mock.calls[0]![0]).toMatchObject({ templateId: "m1", dokumentflytId: "flyt-A" });
+  });
 });

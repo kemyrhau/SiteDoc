@@ -346,6 +346,11 @@ export default function SjekklisteDetaljSide() {
     lestAvMottakerVed?: string | null;
     byggeplass?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
+    // Dokument-lokasjon (tegningsmarkør) — arves av rad-oppgaver når raden mangler egen posisjon.
+    // Skalar-felt fra `hentMedId` (bruker `include` → alle Checklist-kolonner er med).
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
   } | undefined;
 
   // Oversettelse (Lag 2): on-demand felt-oversettelse for bruker med annet språk
@@ -897,20 +902,21 @@ export default function SjekklisteDetaljSide() {
                 onOpprett: (
                   nokkel: string,
                   radPosisjon: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null,
+                  radNummer: number,
                 ) => {
-                  const dok = sjekkliste as unknown as {
-                    drawingId?: string | null;
-                    positionX?: number | null;
-                    positionY?: number | null;
-                  };
                   setOpprettOppgaveFeltId(nokkel);
-                  setOpprettOppgaveFeltLabel(objekt.label);
-                  // Radens egen posisjon hvis den finnes, ellers dokumentets lokasjon.
+                  // Funn 3: tittelen skal identifisere RADEN — radnummeret (samme 1-baserte tall som
+                  // rad-headeren og markøren viser), ikke bare feltnavnet.
+                  setOpprettOppgaveFeltLabel(`${objekt.label} (rad ${radNummer})`);
+                  // Funn 1: dokument-lokasjon-fallbacken leses fra `fullSjekkliste` (= fullSjekklisteRå,
+                  // hentMedId) — IKKE fra `sjekkliste` (useSjekklisteSkjema), som sprer posisjon
+                  // BETINGET fra en annen query og ga `undefined` (skjult av `as unknown as`) → «Ikke satt».
+                  // Kjede: radens egen posisjon → SJEKKLISTENS → ingen.
                   setOpprettOppgavePosisjon(
                     radPosisjon ?? {
-                      drawingId: dok.drawingId ?? null,
-                      positionX: dok.positionX ?? null,
-                      positionY: dok.positionY ?? null,
+                      drawingId: fullSjekkliste?.drawingId ?? null,
+                      positionX: fullSjekkliste?.positionX ?? null,
+                      positionY: fullSjekkliste?.positionY ?? null,
                     },
                   );
                 },
