@@ -57,7 +57,7 @@ export function RepeaterObjekt({
   );
 
   const opprettRadOppgave = useCallback(
-    (rad: Rad) => {
+    (rad: Rad, radIndeks: number) => {
       // 🔴 LOAD-BEARING: persister rad-id-ene FØR opprettelse. Et dokument som aldri er redigert
       // etter rad-id-deployen har fortsatt gammel lagret form (rå `felter`, ingen `_radId`); da
       // ville neste LESING delt ut en NY uuid via `normaliserRad`, og oppgavens nøkkel
@@ -66,7 +66,7 @@ export function RepeaterObjekt({
       // Idempotent: rader som allerede HAR lagret id skrives uendret (samme id). Kravet er
       // «ekte id ved OPPRETTELSE av oppgaven, ikke ved neste lagring» (Kenneth-vedtak 2026-08-22).
       onEndreVerdi(rader);
-      radOppgaver?.onOpprett(`${objekt.id}:${rad._radId}`, posisjonFraRad(rad, barn));
+      radOppgaver?.onOpprett(`${objekt.id}:${rad._radId}`, posisjonFraRad(rad, barn), radIndeks + 1);
     },
     [rader, barn, objekt.id, radOppgaver, onEndreVerdi],
   );
@@ -179,7 +179,7 @@ export function RepeaterObjekt({
                   return (
                     <button
                       type="button"
-                      onClick={() => opprettRadOppgave(rad)}
+                      onClick={() => opprettRadOppgave(rad, radIndeks)}
                       className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 hover:bg-gray-200 print-skjul"
                     >
                       <Plus size={11} />
