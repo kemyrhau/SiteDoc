@@ -200,6 +200,7 @@ function DokumentflytKort({
 
   const [visMalVelger, setVisMalVelger] = useState(false);
   const [malAdvarsel, setMalAdvarsel] = useState<{ malId: string; flytNavn: string } | null>(null);
+  const [slettFeil, setSlettFeil] = useState<string | null>(null);
 
   const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
     onSuccess: () => {
@@ -211,7 +212,12 @@ function DokumentflytKort({
   const slettMutation = trpc.dokumentflyt.slett.useMutation({
     onSuccess: () => {
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setSlettFeil(null);
     },
+    // Slett-vernet (server) avviser sletting av en flyt med dokumenter. Uten onError ble
+    // avvisningen stille (tre stille avvisninger på to dager) — vis serverens melding.
+    // `error: { message?: string }`-typen unngår tRPC TS2589 (kodebase-standard, jf. CLAUDE.md).
+    onError: (error: { message?: string }) => setSlettFeil(error.message ?? "Kunne ikke slette flyten."),
   });
 
   const tilknyttedeMalIder = new Set(df.maler.map((m) => m.template.id));
@@ -291,6 +297,13 @@ function DokumentflytKort({
           </button>
         )}
       </div>
+
+      {/* Slett-vern: serverens avvisning (flyt med dokumenter) vises her — aldri stille. */}
+      {slettFeil && (
+        <p className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {slettFeil}
+        </p>
+      )}
 
       {/* Visuell flyt — dynamiske bokser basert på konfigurerte roller */}
       <DynamiskFlyt
