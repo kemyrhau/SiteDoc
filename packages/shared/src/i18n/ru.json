@@ -651,7 +651,7 @@
   "handling.importer": "Импорт",
   "handling.lastOpp": "Загрузить",
   "handling.lastNed": "Скачать",
-  "handling.lastNedArkivPdf": "Скачать архив PDF",
+  "handling.lastNedArkivPdf": "Скачать PDF",
   "arkiv.advarselTimeout": "Генерация не завершилась вовремя. PDF-файл загружен — попробуйте еще раз, чтобы получить полный результат.",
   "arkiv.advarselMangler": "Архив PDF скачан, но вложений {{antall}} нет — документ неполный.",
   "arkiv.feil": "Не удалось создать архив PDF. Пожалуйста, попробуйте еще раз.",

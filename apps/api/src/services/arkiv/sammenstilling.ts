@@ -71,7 +71,6 @@ export interface SammenstillingOpts {
   /** «11.08.2026 14:32» — generert-stempel. */
   generertTekst: string;
   /** Krav #2: default true (lag 2 med). */
-  taMedEndringslogg?: boolean;
   eksport?: boolean;
 }
 
@@ -383,7 +382,6 @@ export async function byggSjekklisteArkivHtml(
     logg,
     signaturer,
     generertTekst: opts.generertTekst,
-    taMedEndringslogg: opts.taMedEndringslogg ?? true,
     eksport: opts.eksport,
     manglendeVedlegg: manglende,
   };

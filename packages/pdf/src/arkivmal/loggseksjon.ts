@@ -14,18 +14,11 @@
 import { esc, formaterDatoTidPunkt } from "../hjelpere";
 import { ARKIV_FARGER } from "./arkiv-css";
 import { formaterAktorRolle } from "./rolleEtikett";
-import type { ArkivLogg, HendelseRad, Segment } from "./typer";
+import type { ArkivLogg, HendelseRad } from "./typer";
 
-/** Segmenter → HTML: endrede ord i `<strong>`, uendrede rå-escapet (ord-diff). */
-function segmentHtml(segs: Segment[]): string {
-  return segs.map((s) => (s.endret ? `<strong>${esc(s.tekst)}</strong>` : esc(s.tekst))).join("");
-}
-
-/** «2026-08-05» → «05.08.2026» (ren streng — unngår tidssone-skift på dato-økter). */
-function datoKort(ymd: string): string {
-  const [y, m, d] = ymd.split("-");
-  return d && m && y ? `${d}.${m}.${y}` : ymd;
-}
+// D4-revisjon (2026-08-22): `segmentHtml` + `datoKort` fjernet — de var kun i endringslogg-
+// rendreren, som utgår (endringsloggen skrives aldri i PDF). Ord-diff-segmentene bygges
+// fortsatt i api-en for web-UI-verktøyet; kun PDF-rendringen er borte.
 
 /** Semantisk farge på en handling (gjenbruker arkiv-paletten). */
 function handlingFarge(handling: string): string | null {
@@ -37,7 +30,10 @@ function handlingFarge(handling: string): string | null {
 function hale(n: number): string {
   if (n <= 0) return ""; // 0 → ingen hale (ikke «0 feltendringer»)
   const ord = n === 1 ? "feltendring" : "feltendringer";
-  return ` <span class="ark-svak">(${n} ${ord} — se Endringslogg)</span>`;
+  // D4-revisjon (Kenneth-vedtak 2026-08-22): behold tallet, FJERN «— se Endringslogg».
+  // Endringsloggen skrives aldri i PDF nå, så henvisningen ville pekt på en seksjon som
+  // ikke finnes. Tallet står — det sier at noe ble endret før sending.
+  return ` <span class="ark-svak">(${n} ${ord})</span>`;
 }
 
 function dokumenthistorikk(hendelser: HendelseRad[]): string {
@@ -62,47 +58,20 @@ function dokumenthistorikk(hendelser: HendelseRad[]): string {
   return `<div class="ark-seksjon">Dokumenthistorikk</div><table class="ark-logg"><tbody>${rader}</tbody></table>`;
 }
 
-function endringslogg(logg: ArkivLogg): string {
-  const økter = logg.økter ?? [];
-  // Lag 2 utelates i stillhet når av (lag 1 dekker sporbarhetsminimumet).
-  if (!logg.endringsloggAktivert || økter.length === 0) return "";
-
-  const total = økter.reduce((s, ø) => s + ø.rader.length, 0);
-  const øktOrd = økter.length === 1 ? "økt" : "økter";
-  const note = `<span class="ark-seksjon-note">— ${total} feltendring${total === 1 ? "" : "er"} i ${økter.length} ${øktOrd}</span>`;
-
-  const kropp = økter
-    .map((ø) => {
-      const n = ø.rader.length;
-      const hdr = `<tr><td colspan="3" class="ark-okt">${esc(ø.aktor)} · ${esc(datoKort(ø.dato))} <span class="ark-seksjon-note">— ${n} feltendring${n === 1 ? "" : "er"}</span></td></tr>`;
-      const rows = ø.rader
-        .map((r) => {
-          const fra = `<span class="ark-svak">${r.fraVerdi ? segmentHtml(r.fraVerdi) : "Ikke utfylt"}</span>`;
-          const til = r.tilVerdi ? segmentHtml(r.tilVerdi) : `<span class="ark-svak">Ikke utfylt</span>`;
-          // Punkt 4: full dato+tid på hver rad (ikke bare klokkeslett) — en rad
-          // skal være selvforklarende lest isolert, uavhengig av økt-headeren.
-          return `<tr><td class="ark-logg-tid">${esc(formaterDatoTidPunkt(r.tidspunkt))}</td><td>${esc(r.felt)}</td><td>${fra} → ${til}</td></tr>`;
-        })
-        .join("");
-      return hdr + rows;
-    })
-    .join("");
-
-  return `<div class="ark-seksjon">Endringslogg ${note}</div><table class="ark-logg"><tbody>${kropp}</tbody></table>`;
-}
+// D4-revisjon (2026-08-22): `endringslogg`-rendreren er FJERNET — endringsloggen skrives aldri
+// i PDF (Kenneth-vedtak). Selve endringslogg-DATAEN (ArkivLogg.økter) bygges fortsatt av
+// api-en (byggArkivLogg) og brukes av web-UI-verktøyet; kun PDF-seksjonen utgår.
 
 /**
- * Full loggseksjon for sjekkliste/oppgave/HMS: Dokumenthistorikk (lag 1, ALLTID
- * — sporbarhetsminimum) + Endringslogg (lag 2, økt-gruppert).
- *
- * `taMedEndringslogg` (krav #2, vedtak «logg alltid på, velges ved utskrift»):
- * default true; false utelater lag 2 ved DENNE utskriften — men lag 1 kan aldri
- * velges bort. Kontrollplan «Punkt-historikk» og timer/utlegg «Revisjoner»
- * bygges i det egne datakilde-steget.
+ * Loggseksjon for sjekkliste/oppgave/HMS: KUN Dokumenthistorikk (flytsporet — fra hvem til
+ * hvem, med tilhørende kommentar). D4-revisjon (Kenneth-vedtak 2026-08-22): **endringsloggen
+ * skrives ALDRI i PDF** — den er et UI-verktøy for å undersøke hva som skjedde i utfyllingen
+ * ved konflikt, ikke dokumentasjonsverdi. Dokumenthistorikken skrives ALLTID (den ER en del av
+ * dokumentet — ingen «uten historikk»-variant, heller ikke for eksterne mottakere). Dermed
+ * finnes bare én PDF-variant og «Med logg / Uten logg»-valget bortfaller.
  */
-export function byggLoggseksjon(logg: ArkivLogg, taMedEndringslogg = true): string {
-  const lag2 = taMedEndringslogg ? endringslogg(logg) : "";
-  return dokumenthistorikk(logg.hendelser ?? []) + lag2;
+export function byggLoggseksjon(logg: ArkivLogg): string {
+  return dokumenthistorikk(logg.hendelser ?? []);
 }
 
 /**

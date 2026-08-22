@@ -35,8 +35,9 @@ describe("byggLoggseksjon — Dokumenthistorikk (lag 1)", () => {
     const html = byggLoggseksjon(logg);
     expect(html).toContain("Dokumenthistorikk");
     expect(html).toContain("(bas)");
-    expect(html).toContain("6 feltendringer — se Endringslogg");
-    expect(html).toContain("1 feltendring — se Endringslogg"); // entall
+    // D4-revisjon (2026-08-22): behold tallet, «— se Endringslogg» fjernet.
+    expect(html).toContain("(6 feltendringer)");
+    expect(html).toContain("(1 feltendring)"); // entall
   });
 
   it("tidspunkt-format er «dd.mm.yyyy hh:mm» uten komma (mockup-fasit)", () => {
@@ -57,51 +58,33 @@ describe("byggLoggseksjon — Dokumenthistorikk (lag 1)", () => {
     expect(html).not.toContain("0 feltendring");
   });
 
-  it("endringslogg av → ingen Endringslogg-SEKSJON (ordet finnes i halen, men ikke headingen)", () => {
-    // Halen sier «... se Endringslogg», men selve seksjons-headingen skal mangle.
+  it("Endringslogg-SEKSJONEN er aldri i PDF (D4-revisjon) — kun Dokumenthistorikk", () => {
     expect(byggLoggseksjon(logg)).not.toContain('ark-seksjon">Endringslogg');
   });
 });
 
-describe("byggLoggseksjon — Endringslogg (lag 2, økt-gruppert)", () => {
-  it("økt-overskrifter + total-note", () => {
-    const logg = byggArkivLogg({
-      hendelser: [h({ tidspunkt: "2026-08-05T11:10:00.000Z", aktor: "Mathias Berg", handling: "Sendt" })],
-      endringer: [
-        { userId: "u1", aktor: "Mathias Berg", tidspunkt: "2026-08-05T07:14:00.000Z", felt: "Punkt 1 — Resultat", fraVerdi: null, tilVerdi: "OK" },
-        { userId: "u1", aktor: "Mathias Berg", tidspunkt: "2026-08-05T09:41:00.000Z", felt: "Punkt 2 — Resultat", fraVerdi: null, tilVerdi: "OK" },
-        { userId: "u2", aktor: "Silje Havstad", tidspunkt: "2026-08-06T08:21:00.000Z", felt: "Punkt 1 — Kommentar", fraVerdi: "32 mm", tilVerdi: "35 mm" },
-      ],
-      endringsloggAktivert: true,
-    });
-    const html = byggLoggseksjon(logg);
-    expect(html).toContain("Endringslogg");
-    expect(html).toContain("3 feltendringer i 2 økter");
-    expect(html).toContain("Mathias Berg · 05.08.2026");
-    expect(html).toContain("2 feltendringer");
-    expect(html).toContain("Silje Havstad · 06.08.2026");
-    expect(html).toContain('<span class="ark-svak">Ikke utfylt</span> → OK'); // tom fra-verdi vist
-    // Ord-diff: endret ord i <strong>, uendret «mm» rå. 32→35 er ett ord.
-    expect(html).toContain('<span class="ark-svak"><strong>32</strong> mm</span> → <strong>35</strong> mm');
-  });
-});
+// D4-revisjon (2026-08-22): describe «byggLoggseksjon — Endringslogg (lag 2)» FJERNET —
+// endringslogg-rendreren utgår (endringsloggen skrives aldri i PDF). Ord-diff-DATAEN
+// (byggArkivLogg → ArkivLogg.økter) bygges fortsatt for web-UI-verktøyet; kun PDF-seksjonen
+// er borte. Testene for den PDF-seksjonen er derfor slettet, ikke bare deaktivert.
 
-describe("krav #2 — logg-valg ved utskrift (taMedEndringslogg)", () => {
+describe("D4-revisjon (2026-08-22) — endringsloggen skrives ALDRI i PDF", () => {
   const logg = byggArkivLogg({
-    hendelser: [h({ tidspunkt: "2026-08-05T11:10:00.000Z", aktor: "M", handling: "Sendt" })],
+    hendelser: [h({ tidspunkt: "2026-08-05T11:10:00.000Z", aktor: "M", handling: "Sendt", antallFeltendringer: 2 })],
     endringer: [{ userId: "u1", aktor: "M", tidspunkt: "2026-08-05T07:14:00.000Z", felt: "F", fraVerdi: null, tilVerdi: "OK" }],
     endringsloggAktivert: true,
   });
 
-  it("false → Endringslogg (lag 2) utelates, men Dokumenthistorikk (lag 1) består", () => {
-    const html = byggLoggseksjon(logg, false);
+  it("Dokumenthistorikk består ALLTID; Endringslogg-seksjonen er borte (også når endringsloggAktivert)", () => {
+    const html = byggLoggseksjon(logg);
     expect(html).toContain("Dokumenthistorikk");
     expect(html).not.toContain('ark-seksjon">Endringslogg');
   });
 
-  it("true (default) → begge lag med", () => {
-    expect(byggLoggseksjon(logg, true)).toContain('ark-seksjon">Endringslogg');
-    expect(byggLoggseksjon(logg)).toContain('ark-seksjon">Endringslogg');
+  it("kryssreferansen: behold tallet «N feltendring(er)», FJERN «— se Endringslogg»", () => {
+    const html = byggLoggseksjon(logg);
+    expect(html).toMatch(/\(\d+ feltendring(er)?\)/); // «(1 feltendring)» / «(N feltendringer)»
+    expect(html).not.toContain("se Endringslogg");
   });
 });
 

@@ -651,7 +651,7 @@
   "handling.importer": "Tuoda",
   "handling.lastOpp": "Lataa",
   "handling.lastNed": "Lataa",
-  "handling.lastNedArkivPdf": "Lataa arkisto PDF",
+  "handling.lastNedArkivPdf": "Lataa PDF",
   "arkiv.advarselTimeout": "Sukupolvi ei päättynyt ajoissa. PDF on ladattu – yritä uudelleen saadaksesi täydellisen tuloksen.",
   "arkiv.advarselMangler": "Arkisto-PDF on ladattu, mutta {{antall}} liitettä puuttuu – asiakirja ei ole täydellinen.",
   "arkiv.feil": "Arkiston PDF-tiedostoa ei voitu luoda. Yritä uudelleen.",

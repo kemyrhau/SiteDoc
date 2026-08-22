@@ -42,7 +42,7 @@ export function byggArkivSide(input: ArkivDokumentInput): string {
     // `break-before:page` (CSS) gir egen side; historikken fyller arket etterpå
     // (før var arket før tegningssiden halvtomt fordi rapporten sluttet på signatur).
     input.tegningssiderHtml ?? "",
-    byggLoggseksjon(input.logg, input.taMedEndringslogg ?? true),
+    byggLoggseksjon(input.logg),
     byggSignaturblokk(input.signaturer),
     // Sidetall settes per side av containeren (Stage 4) — utelates i body.
     byggBunntekst(input.meta, input.generertTekst, null),

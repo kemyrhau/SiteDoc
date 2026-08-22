@@ -42,7 +42,6 @@ export const arkivRouter = router({
             z.object({
               id: z.string().uuid(),
               type: z.enum(["sjekkliste", "oppgave"]).default("sjekkliste"),
-              taMedEndringslogg: z.boolean().optional(),
             }),
           )
           .min(1),
@@ -89,7 +88,6 @@ export const arkivRouter = router({
       const dokRefs: ArkivDokumentRef[] = input.dokumenter.map((d) => ({
         id: d.id,
         type: d.type,
-        taMedEndringslogg: d.taMedEndringslogg,
       }));
       const naa = new Date();
       const resultat = await rendrArkivPdf(ctx.prisma, dokRefs, {
