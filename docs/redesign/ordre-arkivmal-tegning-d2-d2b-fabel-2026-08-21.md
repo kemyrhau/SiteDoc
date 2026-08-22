@@ -20,7 +20,10 @@ Arkiv-PDF-en skal skrive ut tegningsposisjoner og dokumentlokasjon. I dag utelat
 4. **Uten markering utelates seksjonen helt** — aldri tom boks eller tom tegningsblokk.
 
 ## D2b — helside per tegning
-Per tegning som har markeringer i dokumentet: ÉN helside med hele tegningen i størst mulig format (roter til liggende når tegningen er bredere enn høy), ALLE markører nummerert — **markørnummer = punktnummer i rapporten** — og markør→punkt-tabell under (markør · punkttekst · resultat). D2-blokkene supplerer helsiden, erstatter den ikke. Ingen markeringer på en tegning → ingen tegningsside.
+
+> **🔴 REVISJON (Kenneth-vedtak 2026-08-22):** helside skrives KUN for en tegning med **2 ELLER FLERE markører**. Helsiden finnes for å vise SAMMENHENGEN mellom punkter; med ett punkt er radens detaljutsnitt (i repeater-cella) fullstendig, og helsiden tilfører kun et ekstra ark. Teller PER tegning (ikke totalt): to tegninger med én markør hver → ingen helsider; én tegning med to → én helside. Dokument-lokasjonen teller ikke (samles ikke som repeater-markør). Impl: `velgHelsider` (`packages/pdf/src/arkivmal/tegningsside.ts`) + `sammenstilling.ts`. Testet (`tegningsside.test.ts`). Erstatter «har markeringer» (≥1) under.
+
+Per tegning med ≥2 markører (revisjon over): ÉN helside med hele tegningen i størst mulig format (roter til liggende når tegningen er bredere enn høy), ALLE markører nummerert — **markørnummer = punktnummer i rapporten** — og markør→punkt-tabell under (markør · punkttekst · resultat). D2-blokkene supplerer helsiden, erstatter den ikke. Færre enn 2 markører på en tegning → ingen tegningsside.
 
 ## Avgrensning
 - Kun arkiv-PDF-stien (`packages/pdf/src/arkivmal/`). Ingen endring i `felt.ts`, `sjekkliste.ts` (gammel vei) eller mobil-appen.

@@ -1,9 +1,9 @@
 /**
  * Arkivmal — D2b helside tegningsprint (fabel 2026-08-21, revidert 2026-08-21).
  *
- * Per tegning som har markeringer i dokumentet: ÉN helside (i rapportkroppen,
- * `break-before:page`) med hele tegningen i størst mulig format (roteres til
- * liggende når bredere enn høy) og ALLE markører nummerert.
+ * Per tegning med 2 ELLER FLERE markører (Kenneth-vedtak 2026-08-22, `velgHelsider`):
+ * ÉN helside (i rapportkroppen, `break-before:page`) med hele tegningen i størst mulig
+ * format (roteres til liggende når bredere enn høy) og ALLE markører nummerert.
  *
  * REVISJON (Kenneth-vedtak 2026-08-21): detaljutsnittet er flyttet INN i
  * repeater-tabellens «Posisjon i tegning»-celle (rapportkroppen), så markør→punkt-
@@ -32,6 +32,19 @@ export interface TegningssideData {
   imageWidth?: number | null;
   imageHeight?: number | null;
   markorer: TegningssideMarkor[];
+}
+
+/**
+ * Helside-regel (Kenneth-vedtak 2026-08-22): en helside skrives KUN for en tegning med
+ * 2 ELLER FLERE markører. Helsiden finnes for å vise SAMMENHENGEN mellom punkter; med ett
+ * punkt er radens detaljutsnitt (i repeater-cella) fullstendig, og helsiden tilfører
+ * ingenting annet enn et ekstra ark. Teller PER tegning (kalleren har gruppert markørene
+ * per `drawingId`, så to tegninger med én markør hver gir ingen helsider). Dokument-
+ * lokasjonen teller ikke — den samles ikke som repeater-markør (`samleRepeaterMarkorer`
+ * hopper over topp-nivå/dokumentnivå) og når aldri denne lista.
+ */
+export function velgHelsider(sider: TegningssideData[]): TegningssideData[] {
+  return sider.filter((s) => s.markorer.length >= 2);
 }
 
 /**

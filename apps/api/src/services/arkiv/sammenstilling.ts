@@ -19,6 +19,7 @@ import {
   byggArkivSide,
   byggLokasjonsblokk,
   byggTegningssider,
+  velgHelsider,
   prosjektReferanseForUtskrift,
   statusTekst,
   statusSemantiskFarge,
@@ -317,7 +318,10 @@ export async function byggSjekklisteArkivHtml(
     }
     side.markorer.push({ nr: m.radnr, x: m.x, y: m.y });
   }
-  const tegningssiderHtml = byggTegningssider([...helsidePerTegning.values()]);
+  // Helside-regel (Kenneth-vedtak 2026-08-22): KUN tegninger med ≥2 markører. Teller PER
+  // tegning (markørene er alt gruppert per drawingId over). Dokument-lokasjonen (4b) teller
+  // ikke — den ligger ikke i `markorerInlinet` (samleRepeaterMarkorer tar kun repeater-rader).
+  const tegningssiderHtml = byggTegningssider(velgHelsider([...helsidePerTegning.values()]));
 
   // 5) Logg (lag 1 alltid, lag 2 på malens enableChangeLog). Kolonne-map lar
   // endringsloggen ekspandere repeater-endringer til «Rad N — kolonne»-rader.
