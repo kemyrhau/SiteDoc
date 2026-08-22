@@ -8,7 +8,7 @@ import {
   removeDokumentflytMedlemSchema,
   oppdaterRollerSchema,
 } from "@sitedoc/shared";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
 const dokumentflytInclude = {
@@ -147,7 +147,12 @@ export const dokumentflytRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // Admin-gate (Kenneth-vedtak 2026-08-22): sletting rører alle dokumenter i flyten →
+      // krever prosjektadmin eller høyere. `verifiserAdmin` dekker alle tre i én: sitedoc_admin →
+      // prosjektadmin (ProjectMember.role="admin") → firmaadmin. Den siste er IKKE valgfri:
+      // firmaadmin har INGEN ProjectMember-rad, så en egen `medlem.role`-sjekk ville avvist ham
+      // (samme felle vi snublet i på verifiserRetningsrett). Bruk hjelperen, ikke en håndrullet sjekk.
+      await verifiserAdmin(ctx.userId, input.projectId);
 
       // Slett-vern (Kenneth-bestilling 2026-08-22): `Checklist`/`Task`/`Godkjenning`/
       // `KontrollplanPunkt` → `Dokumentflyt` er alle `onDelete: SetNull` (schema:1084/1150/1211/
