@@ -4,7 +4,7 @@ import { Plus, Trash2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { RapportObjektProps, RapportObjekt } from "./typer";
 import type { FeltVerdi } from "../../hooks/useSjekklisteSkjema";
-import { RapportObjektRenderer, DISPLAY_TYPER } from "./RapportObjektRenderer";
+import { RapportObjektRenderer, DISPLAY_TYPER, tilbehorVisning } from "./RapportObjektRenderer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
 type RadData = Record<string, FeltVerdi>;
@@ -162,24 +162,31 @@ export function RepeaterObjekt({
                     }
                     leseModus={leseModus}
                   />
-                  <FeltDokumentasjon
-                    kommentar={feltVerdi.kommentar ?? ""}
-                    vedlegg={feltVerdi.vedlegg ?? []}
-                    onEndreKommentar={(k) =>
-                      oppdaterKommentar(radIndeks, barnObjekt.id, k)
-                    }
-                    onLeggTilVedlegg={(v) =>
-                      leggTilVedlegg(radIndeks, barnObjekt.id, v)
-                    }
-                    onFjernVedlegg={(vId) =>
-                      fjernVedlegg(radIndeks, barnObjekt.id, vId)
-                    }
-                    leseModus={leseModus}
-                    sjekklisteId={sjekklisteId}
-                    oppgaveIdForKo={oppgaveIdForKo}
-                    objektId={barnObjekt.id}
-                    skjulKommentar={barnObjekt.type === "text_field"}
-                  />
+                  {(() => {
+                    // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).
+                    const harData = !!feltVerdi.kommentar?.trim() || (feltVerdi.vedlegg?.length ?? 0) > 0;
+                    const tv = tilbehorVisning(barnObjekt.type, !!leseModus, harData);
+                    return tv.vis ? (
+                      <FeltDokumentasjon
+                        kommentar={feltVerdi.kommentar ?? ""}
+                        vedlegg={feltVerdi.vedlegg ?? []}
+                        onEndreKommentar={(k) =>
+                          oppdaterKommentar(radIndeks, barnObjekt.id, k)
+                        }
+                        onLeggTilVedlegg={(v) =>
+                          leggTilVedlegg(radIndeks, barnObjekt.id, v)
+                        }
+                        onFjernVedlegg={(vId) =>
+                          fjernVedlegg(radIndeks, barnObjekt.id, vId)
+                        }
+                        leseModus={tv.leseModus}
+                        sjekklisteId={sjekklisteId}
+                        oppgaveIdForKo={oppgaveIdForKo}
+                        objektId={barnObjekt.id}
+                        skjulKommentar={barnObjekt.type === "text_field"}
+                      />
+                    ) : null;
+                  })()}
                 </View>
               );
             })}

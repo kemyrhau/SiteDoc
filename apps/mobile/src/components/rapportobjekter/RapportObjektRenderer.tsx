@@ -34,6 +34,29 @@ export const DISPLAY_TYPER = new Set(["heading", "subtitle", "location", "info_t
 // Read-only typer (viser verdi men kan ikke endres av bruker)
 export const READONLY_TYPER = new Set(["calculation"]);
 
+// Funn 6 (Kenneth-vedtak 2026-08-22): tilbehør (kommentar/bilde/vedlegg/tegning) fjernes fra
+// NYREGISTRERING på disse typene. «Øvrige felttyper beholder tilbehør» → deny-list PER felttype.
+// `weather` beholdes (var alt tilbehørsfri via SKJUL_VEDLEGG_TYPER — bevarer dagens oppførsel).
+const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "weather"]);
+
+/**
+ * Hvordan tilbehøret (FeltDokumentasjon) skal vises for en felttype (funn 6, speiler web):
+ * - de fire (+weather): ren fjerning i utfylling (0 prod-data). Global leseModus unntatt.
+ * - `repeater`: eksisterende objektnivå-tilbehør (prod: 4+4) vises READ-ONLY, men KUN når det
+ *   finnes data — mobil FeltDokumentasjon self-hider IKKE (rendrer tom kommentar-boks), derfor
+ *   gates det på `harData` her. Print-veien (F7) er URØRT.
+ * - Øvrige: uendret (global leseModus styrer).
+ */
+export function tilbehorVisning(
+  type: string,
+  globalLeseModus: boolean,
+  harData: boolean,
+): { vis: boolean; leseModus: boolean } {
+  if (!globalLeseModus && TILBEHOR_REN_FJERNING.has(type)) return { vis: false, leseModus: false };
+  if (type === "repeater") return { vis: harData, leseModus: true };
+  return { vis: true, leseModus: globalLeseModus };
+}
+
 const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   heading: OverskriftObjekt,
   subtitle: UndertittelObjekt,

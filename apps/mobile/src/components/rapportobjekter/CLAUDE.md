@@ -17,6 +17,8 @@ RapportObjektRenderer (dispatcher)
 
 **FeltDokumentasjon** håndterer kamera, dokumentvelger, tegningsskjermbilde, bildeannotering, filmrull-thumbnails og kommentarfelt. Bruker refs (`onLeggTilVedleggRef`, `leggIKoRef`) for å unngå stale closures i asynkrone kamera-callbacks.
 
+**Funn 6 (Kenneth-vedtak 2026-08-22):** `tilbehorVisning(type, globalLeseModus, harData)` i `RapportObjektRenderer.tsx` gater FeltDokumentasjon på BEGGE monteringssteder (`FeltWrapper.tsx` + `RepeaterObjekt.tsx`). `date`/`date_time`/`drawing_position`/`location`/`weather` → ingen tilbehør i nyregistrering (ren fjerning); `repeater` → objektnivå-tilbehør read-only KUN når `harData` (mobil FeltDokumentasjon self-hider IKKE en tom kommentar-boks, derfor has-data-gate). Deny-list PER felttype: et `text_field`-barn i en repeater-rad beholder tilbehøret. Print-veien (arkiv-PDF F7) er urørt.
+
 ## Props-kontrakt (`RapportObjektProps`)
 
 ```typescript
