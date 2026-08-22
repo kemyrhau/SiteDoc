@@ -52,7 +52,12 @@ export function ryddFullforteOpplastinger() {
 
           // Repeater-barn (nestet i verdi-arrayen)
           if (Array.isArray(felt.verdi)) {
-            for (const rad of felt.verdi as Record<string, { vedlegg?: Array<{ id: string; url: string }> }>[]) {
+            for (const raaRad of felt.verdi as Array<Record<string, unknown>>) {
+              // Rad-id (2026-08-22): ny form { _radId, felter } eller gammel naken Record.
+              // Muterer vedlegg-url IN PLACE, så vi henter det faktiske felt-map-objektet i begge.
+              const rad = (raaRad && typeof raaRad === "object" && "felter" in raaRad
+                ? (raaRad as { felter: unknown }).felter
+                : raaRad) as Record<string, { vedlegg?: Array<{ id: string; url: string }> }>;
               for (const barnId of Object.keys(rad)) {
                 const barn = rad[barnId];
                 if (!barn?.vedlegg) continue;

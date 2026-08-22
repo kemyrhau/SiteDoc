@@ -42,6 +42,29 @@ export interface FeltVerdi {
   vedlegg: Vedlegg[];
 }
 
+/**
+ * Repeater-RAD (rad-id-vedtak 2026-08-22, variant OMSLUTTING): `{ _radId, felter }`, ikke en
+ * naken `Record`. `_radId` er en STABIL id (uuid) tildelt i utfyllingsflaten (web/mobil) og bevart
+ * gjennom redigering/sletting — fundamentet for persistente rad-scopede oppgaver (indeks brekker
+ * ved radsletting). PDF/api LESER kun (rendring) og bruker aldri id-en; der normaliseres gamle
+ * rader med tom id. Typen er deklarert LOKALT per pakke (packages/pdf importerer bevisst ikke
+ * @sitedoc/shared, felt.ts:79) — hver pakke håndhever sine egne rad-tilgangssteder.
+ */
+export interface Rad {
+  _radId: string;
+  felter: Record<string, FeltVerdi>;
+}
+
+/**
+ * Normaliser en rå repeater-rad til `{ _radId, felter }`. Bakoverkompat (migrer-ved-lesing):
+ * gammel form (naken `Record<string, FeltVerdi>`) omsluttes. PDF/api bruker ikke `_radId` →
+ * tom id her (den ekte uuid-en tildeles i web/mobil ved opprettelse/lesing og persisteres der).
+ */
+export function normaliserRad(raa: unknown): Rad {
+  if (raa && typeof raa === "object" && "felter" in raa) return raa as Rad;
+  return { _radId: "", felter: (raa ?? {}) as Record<string, FeltVerdi> };
+}
+
 export interface VaerVerdi {
   temp?: string;
   conditions?: string;

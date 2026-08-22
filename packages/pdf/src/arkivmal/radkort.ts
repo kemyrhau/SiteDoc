@@ -18,7 +18,8 @@
 import { esc, fullBildeUrl, formaterDatoTidPunkt } from "../hjelpere";
 import { byggDetaljUtsnitt } from "../tegning";
 import { skalarCelle, byggUtenforRaderBlokk } from "./repeater";
-import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
+import { normaliserRad } from "../typer";
+import type { TreObjekt, FeltVerdi, Vedlegg, Rad } from "../typer";
 
 /** Detaljutsnittet i radkortet — «kun visuell lokasjon» (~40 mm, Kenneth). 4:3 → ~30 mm høyt. */
 const RADKORT_UTSNITT_HOYDE = 113; // ~30 mm
@@ -109,7 +110,7 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
     }
   } else if (barn.type === "repeater") {
     // Nestet repeater → rekursivt radkort m/ innrykk; tom → «Ingen rader».
-    const rader = Array.isArray(felt?.verdi) ? (felt!.verdi as Record<string, FeltVerdi>[]) : [];
+    const rader = Array.isArray(felt?.verdi) ? (felt!.verdi as unknown[]).map(normaliserRad) : [];
     innhold =
       rader.length === 0
         ? `<div class="felt-verdi"><span class="tom">Ingen rader</span></div>`
@@ -133,12 +134,12 @@ function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: nu
 }
 
 /** Radkortene for én repeater (uten seksjonshode — kalles av byggRadkort + nesting). */
-function byggRadkortRader(objekt: TreObjekt, rader: Record<string, FeltVerdi>[], dybde: number): string {
+function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number): string {
   const barn = objekt.children ?? [];
   return rader
     .map((rad, idx) => {
       const radnr = idx + 1;
-      const harMarkor = barn.some((b) => b.type === "drawing_position" && harMarkorVerdi(rad[b.id]?.verdi));
+      const harMarkor = barn.some((b) => b.type === "drawing_position" && harMarkorVerdi(rad.felter[b.id]?.verdi));
       const markorTekst = harMarkor
         ? `<span class="ark-radkort-markor">markør ${radnr} på tegningssiden</span>`
         : "";
@@ -148,7 +149,7 @@ function byggRadkortRader(objekt: TreObjekt, rader: Record<string, FeltVerdi>[],
         `<span class="ark-radkort-tittel">${esc(objekt.label)} — rad ${radnr}</span>` +
         markorTekst +
         `</div>`;
-      const felter = barn.map((b) => byggRadkortFelt(b, rad[b.id] as FeltVerdi | undefined, dybde)).join("");
+      const felter = barn.map((b) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde)).join("");
       return `<div class="ark-radkort">${header}<div class="ark-radkort-kropp">${felter}</div></div>`;
     })
     .join("");
@@ -156,7 +157,7 @@ function byggRadkortRader(objekt: TreObjekt, rader: Record<string, FeltVerdi>[],
 
 /** Rik repeater som radkort (seksjonshode + ett kort per rad). Tom → «Ingen rader registrert». */
 export function byggRadkort(objekt: TreObjekt, verdi: unknown, label: string, objektFelt?: FeltVerdi): string {
-  const rader = Array.isArray(verdi) ? (verdi as Record<string, FeltVerdi>[]) : [];
+  const rader = Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : [];
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
   // F7: objektnivå-blokk «Registrert utenfor rader» rett over kortene (tom → "").
   const blokk = byggUtenforRaderBlokk(objektFelt, 1);

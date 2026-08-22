@@ -1,14 +1,11 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { RapportObjektProps, FeltVerdi } from "./typer";
-import { TOM_FELTVERDI } from "./typer";
+import type { RapportObjektProps, FeltVerdi, Rad } from "./typer";
+import { TOM_FELTVERDI, normaliserRad, nyRadId } from "./typer";
 import { RapportObjektRenderer, DISPLAY_TYPER, tilbehorVisning } from "./RapportObjektRenderer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
-
-type RadData = Record<string, FeltVerdi>;
-type RepeaterVerdi = RadData[];
 
 export function RepeaterObjekt({
   objekt,
@@ -18,15 +15,22 @@ export function RepeaterObjekt({
   prosjektId,
   barneObjekter,
 }: RapportObjektProps) {
-  const rader = Array.isArray(verdi) ? (verdi as RepeaterVerdi) : [];
+  // Rad-id (2026-08-22, variant omslutting): normaliser gammel/ny radform ved lesing →
+  // { _radId, felter }. Memoisert på `verdi`-referansen så id-ene er STABILE på tvers av
+  // rendringer (ikke ny uuid per render). Gamle rader (uten id) får uuid som persisteres ved
+  // neste lagring; ingen bruker mister en rad fordi den er gammel.
+  const rader = useMemo<Rad[]>(
+    () => (Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : []),
+    [verdi],
+  );
   const barn = barneObjekter ?? [];
 
   const leggTilRad = useCallback(() => {
-    const nyRad: RadData = {};
+    const felter: Record<string, FeltVerdi> = {};
     for (const b of barn) {
-      nyRad[b.id] = { ...TOM_FELTVERDI };
+      felter[b.id] = { ...TOM_FELTVERDI };
     }
-    onEndreVerdi([...rader, nyRad]);
+    onEndreVerdi([...rader, { _radId: nyRadId(), felter }]);
   }, [barn, rader, onEndreVerdi]);
 
   const fjernRad = useCallback(
@@ -40,8 +44,8 @@ export function RepeaterObjekt({
     (radIndeks: number, feltId: string, nyVerdi: unknown) => {
       const oppdatert = rader.map((rad, i) => {
         if (i !== radIndeks) return rad;
-        const eksisterende = rad[feltId] ?? { ...TOM_FELTVERDI };
-        return { ...rad, [feltId]: { ...eksisterende, verdi: nyVerdi } };
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
+        return { ...rad, felter: { ...rad.felter, [feltId]: { ...eksisterende, verdi: nyVerdi } } };
       });
       onEndreVerdi(oppdatert);
     },
@@ -52,8 +56,8 @@ export function RepeaterObjekt({
     (radIndeks: number, feltId: string, kommentar: string) => {
       const oppdatert = rader.map((rad, i) => {
         if (i !== radIndeks) return rad;
-        const eksisterende = rad[feltId] ?? { ...TOM_FELTVERDI };
-        return { ...rad, [feltId]: { ...eksisterende, kommentar } };
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
+        return { ...rad, felter: { ...rad.felter, [feltId]: { ...eksisterende, kommentar } } };
       });
       onEndreVerdi(oppdatert);
     },
@@ -64,12 +68,15 @@ export function RepeaterObjekt({
     (radIndeks: number, feltId: string, vedlegg: FeltVerdi["vedlegg"][number]) => {
       const oppdatert = rader.map((rad, i) => {
         if (i !== radIndeks) return rad;
-        const eksisterende = rad[feltId] ?? { ...TOM_FELTVERDI };
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
         return {
           ...rad,
-          [feltId]: {
-            ...eksisterende,
-            vedlegg: [...(eksisterende.vedlegg ?? []), vedlegg],
+          felter: {
+            ...rad.felter,
+            [feltId]: {
+              ...eksisterende,
+              vedlegg: [...(eksisterende.vedlegg ?? []), vedlegg],
+            },
           },
         };
       });
@@ -82,12 +89,15 @@ export function RepeaterObjekt({
     (radIndeks: number, feltId: string, vedleggId: string) => {
       const oppdatert = rader.map((rad, i) => {
         if (i !== radIndeks) return rad;
-        const eksisterende = rad[feltId] ?? { ...TOM_FELTVERDI };
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
         return {
           ...rad,
-          [feltId]: {
-            ...eksisterende,
-            vedlegg: (eksisterende.vedlegg ?? []).filter((v) => v.id !== vedleggId),
+          felter: {
+            ...rad.felter,
+            [feltId]: {
+              ...eksisterende,
+              vedlegg: (eksisterende.vedlegg ?? []).filter((v) => v.id !== vedleggId),
+            },
           },
         };
       });
@@ -108,7 +118,7 @@ export function RepeaterObjekt({
     <div className="flex flex-col gap-1.5">
       {rader.map((rad, radIndeks) => (
         <div
-          key={radIndeks}
+          key={rad._radId}
           className="rounded border border-gray-200 bg-gray-50/50 px-3 py-2"
         >
           <div className="mb-1 flex items-center justify-between">
@@ -128,7 +138,7 @@ export function RepeaterObjekt({
 
           <div className="flex flex-col gap-1">
             {barn.map((barnObjekt) => {
-              const feltVerdi = rad[barnObjekt.id] ?? TOM_FELTVERDI;
+              const feltVerdi = rad.felter[barnObjekt.id] ?? TOM_FELTVERDI;
               const erDisplay = DISPLAY_TYPER.has(barnObjekt.type);
 
               // Rad-unik nøkkel: felt som overlever navigasjon (drawing_position)

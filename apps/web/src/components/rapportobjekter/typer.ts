@@ -44,6 +44,34 @@ export interface FeltVerdi {
 
 export const TOM_FELTVERDI: FeltVerdi = { verdi: null, kommentar: "", vedlegg: [] };
 
+/**
+ * Repeater-RAD (rad-id-vedtak 2026-08-22, variant OMSLUTTING): `{ _radId, felter }`, ikke en
+ * naken `Record`. `_radId` er en STABIL id tildelt ved opprettelse og bevart gjennom redigering/
+ * sletting — fundamentet for persistente rad-scopede oppgaver (array-indeks brekker ved
+ * radsletting). Typen er LOKAL for web (packages/pdf importerer bevisst ikke @sitedoc/shared).
+ */
+export interface Rad {
+  _radId: string;
+  felter: Record<string, FeltVerdi>;
+}
+
+/** Ny stabil rad-id. crypto.randomUUID i nettleser/Node; enkel fallback ellers. */
+export function nyRadId(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `rad-${Date.now().toString(36)}-${(globalThis.performance?.now() ?? 0).toString(36)}`;
+}
+
+/**
+ * Normaliser en rå repeater-rad til `{ _radId, felter }` (migrer-ved-lesing). Gammel form
+ * (naken `Record<string, FeltVerdi>`) omsluttes og får ny stabil id. Memoiseres av kalleren på
+ * `verdi`-referansen så id-en er stabil på tvers av rendringer og persisteres ved neste lagring.
+ */
+export function normaliserRad(raa: unknown): Rad {
+  if (raa && typeof raa === "object" && "felter" in raa) return raa as Rad;
+  return { _radId: nyRadId(), felter: (raa ?? {}) as Record<string, FeltVerdi> };
+}
+
 // Normaliser opsjon — støtter både string og {value, label}-format
 export function normaliserOpsjon(opsjon: unknown): { value: string; label: string } {
   if (typeof opsjon === "string") return { value: opsjon, label: opsjon };

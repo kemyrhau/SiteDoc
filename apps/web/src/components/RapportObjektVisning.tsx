@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { normaliserOpsjon } from "./rapportobjekter/typer";
+import { normaliserOpsjon, normaliserRad } from "./rapportobjekter/typer";
 import type { RapportObjekt } from "./rapportobjekter/typer";
 import { formaterDato, formaterDatoTid } from "@sitedoc/pdf";
 import type { VaerVerdi } from "@sitedoc/pdf";
@@ -403,7 +403,8 @@ function ObjektInnhold({
     }
 
     case "repeater": {
-      const repeaterRader = Array.isArray(verdi) ? (verdi as Array<Record<string, { verdi?: unknown; kommentar?: string; vedlegg?: Array<{ id: string; type: string; url: string; filnavn: string; opprettet?: string }> }>>) : [];
+      // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
+      const repeaterRader = Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : [];
       const repeaterBarn = objekt.children ?? [];
 
       if (repeaterRader.length === 0) {
@@ -418,10 +419,10 @@ function ObjektInnhold({
           <p className="mb-2 text-xs font-medium text-gray-500">{label}</p>
           <div className="flex flex-col gap-2">
             {repeaterRader.map((rad, radIdx) => (
-              <div key={radIdx} className="print-no-break rounded border border-gray-200 px-3 py-2">
+              <div key={rad._radId} className="print-no-break rounded border border-gray-200 px-3 py-2">
                 <p className="mb-1 text-[11px] font-semibold text-gray-400">{radIdx + 1} {label}</p>
                 {repeaterBarn.map((barn) => {
-                  const feltData = rad[barn.id];
+                  const feltData = rad.felter[barn.id];
                   const barnVerdi = feltData?.verdi ?? null;
                   const barnVedlegg = feltData?.vedlegg ?? [];
                   const barnKommentar = feltData?.kommentar ?? "";
