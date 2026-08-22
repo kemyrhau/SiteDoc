@@ -116,6 +116,9 @@ function scenarioFirmaadmin() {
 
 function permissivPrisma() {
   return {
+    // D-vakten (fjernMedlem/oppdaterRoller) og slett-vernet teller dokumenter → 0 slipper gjennom.
+    checklist: { count: vi.fn().mockResolvedValue(0) },
+    task: { count: vi.fn().mockResolvedValue(0) },
     dokumentflyt: {
       create: vi.fn().mockResolvedValue({ id: FLYT }),
       update: vi.fn().mockResolvedValue({ id: FLYT }),
@@ -153,7 +156,8 @@ function lagCallerMed(prisma: unknown) {
 const PROSEDYRER: Array<{ navn: string; kall: (c: any) => Promise<unknown> }> = [
   { navn: "opprett", kall: (c) => c.opprett({ projectId: PROSJEKT, name: "F" }) },
   { navn: "oppdater", kall: (c) => c.oppdater({ id: ID, projectId: PROSJEKT }) },
-  { navn: "oppdaterRoller", kall: (c) => c.oppdaterRoller({ id: ID, projectId: PROSJEKT, roller: [] }) },
+  // E krever registrator i første ledd → tom roller ville feilet av annen grunn enn admin-gaten.
+  { navn: "oppdaterRoller", kall: (c) => c.oppdaterRoller({ id: ID, projectId: PROSJEKT, roller: [{ rolle: "registrator" }] }) },
   { navn: "leggTilMedlem", kall: (c) => c.leggTilMedlem({ dokumentflytId: ID, projectId: PROSJEKT, rolle: "registrator" }) },
   { navn: "fjernMedlem", kall: (c) => c.fjernMedlem({ id: ID, projectId: PROSJEKT }) },
   { navn: "settHovedansvarlig", kall: (c) => c.settHovedansvarlig({ id: ID, projectId: PROSJEKT, erHovedansvarlig: true }) },

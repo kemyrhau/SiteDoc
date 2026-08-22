@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Modal, Select, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { byggOpprettInput } from "@/lib/opprettFraTegning";
@@ -36,6 +37,12 @@ interface OpprettOppgaveModalProps {
    * lokasjon. Sendes videre til oppgaven ved opprettelse. Utelatt/null → ingen posisjon.
    */
   forhandsPosisjon?: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null;
+  /**
+   * A (2026-08-22): sti tilbake til dokumentet som opprettet oppgaven. Bæres i URL til den nye
+   * oppgaven (`?returnerTil=`) så retur-stien overlever full last — samme mønster som
+   * posisjonsvelgeren. Ved opprettelse ÅPNES oppgaven med én gang for fortløpende utfylling.
+   */
+  returnerTil?: string;
 }
 
 export function OpprettOppgaveModal({
@@ -48,8 +55,10 @@ export function OpprettOppgaveModal({
   feltLabel,
   sjekklisteFlytId,
   forhandsPosisjon,
+  returnerTil,
 }: OpprettOppgaveModalProps) {
   const utils = trpc.useUtils();
+  const router = useRouter();
 
   // Steg 1 (oppgave-fra-rad): velgeren kollapser til ÉN ting — hvilken oppgavemal i flyten.
   // Ingen faggruppe-valg: faggruppen er en egenskap ved flyten (`byggOpprettInput` leser den ut).
@@ -158,9 +167,13 @@ export function OpprettOppgaveModal({
   }, [sjekklisteNummer, feltLabel]);
 
   const opprettMutation = trpc.oppgave.opprett.useMutation({
-    onSuccess: () => {
+    onSuccess: (data: { id: string }) => {
       utils.oppgave.hentForSjekkliste.invalidate({ checklistId: sjekklisteId });
       onClose();
+      // A: ÅPNE den nye oppgaven med én gang for fortløpende utfylling. Retur-stien bæres i URL
+      // (`returnerTil`), så «tilbake» går til dokumentet som opprettet den — også etter full last.
+      const retur = returnerTil ? `?returnerTil=${encodeURIComponent(returnerTil)}` : "";
+      router.push(`/dashbord/${prosjektId}/oppgaver/${data.id}${retur}`);
     },
   });
 

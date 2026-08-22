@@ -42,7 +42,9 @@ export interface OppgavePosisjon {
 
 /** Adapter for rad-scopede oppgaver i en repeater (nøkkel `${objekt.id}:${_radId}`). */
 export interface RadOppgaveAdapter {
-  finnForRad: (radNokkel: string) => { id: string; nummer?: string } | undefined;
-  onOpprett: (radNokkel: string, radPosisjon: OppgavePosisjon | null) => void;
+  /** C: alle oppgaver på en rad (flere er lov). Tom liste → ingen ennå. */
+  finnForRad: (radNokkel: string) => Array<{ id: string; nummer?: string }>;
+  /** `radNummer` (funn 3): radens 1-baserte posisjon, til tittelen (identifiserer raden). */
+  onOpprett: (radNokkel: string, radPosisjon: OppgavePosisjon | null, radNummer: number) => void;
   onNaviger: (id: string) => void;
 }

@@ -35,7 +35,7 @@ function setup(verdi: unknown) {
       verdi={verdi}
       onEndreVerdi={onEndreVerdi}
       barneObjekter={barn}
-      radOppgaver={{ finnForRad: () => undefined, onOpprett, onNaviger: () => {} }}
+      radOppgaver={{ finnForRad: () => [], onOpprett, onNaviger: () => {} }}
     />,
   );
   return { onEndreVerdi, onOpprett };

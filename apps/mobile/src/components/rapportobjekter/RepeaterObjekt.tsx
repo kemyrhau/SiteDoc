@@ -80,14 +80,14 @@ export function RepeaterObjekt({
   );
 
   const opprettRadOppgave = useCallback(
-    (rad: Rad) => {
+    (rad: Rad, radIndeks: number) => {
       // 🔴 LOAD-BEARING: persister rad-id-ene FØR opprettelse. En offline-rad lagret før rad-id-
       // endringen har gammel form (rå `felter`, ingen `_radId`); uten dette ville neste LESING delt
       // ut en NY uuid via `normaliserRad`, og oppgavens nøkkel (`objekt.id:<denne uuid-en>`) ble
       // foreldreløs etter reload/re-sync. Å skrive `{ _radId, felter }`-formen NÅ persisterer id-en.
       // Idempotent: rader som allerede HAR id skrives uendret. (Kenneth-vedtak 2026-08-22.)
       onEndreVerdi(raderRef.current);
-      radOppgaver?.onOpprett(`${objekt.id}:${rad._radId}`, posisjonFraRad(rad, barn));
+      radOppgaver?.onOpprett(`${objekt.id}:${rad._radId}`, posisjonFraRad(rad, barn), radIndeks + 1);
     },
     [barn, objekt.id, radOppgaver, onEndreVerdi],
   );
@@ -180,37 +180,39 @@ export function RepeaterObjekt({
               {radIndeks + 1} {objekt.label}
             </Text>
             <View className="flex-row items-center gap-2">
-              {/* Rad-scopet oppgave (nøkkel objekt.id:_radId). Badge alltid; «+ Oppgave» kun i
-                  redigering. Whole-field-oppgave på repeater er avskrudd — per-rad er entydig. */}
+              {/* C: FLERE oppgaver per rad — én badge per oppgave + «+ Oppgave» blir stående ved
+                  siden av (erstattes ikke). Whole-field-oppgave på repeater er avskrudd. */}
               {radOppgaver &&
                 (() => {
                   const nokkel = `${objekt.id}:${rad._radId}`;
-                  const opg = radOppgaver.finnForRad(nokkel);
-                  if (opg) {
-                    return (
-                      <Pressable
-                        onPress={() => radOppgaver.onNaviger(opg.id)}
-                        className="rounded-full bg-blue-100 px-2.5 py-0.5"
-                        hitSlop={6}
-                      >
-                        <Text className="text-[11px] font-medium text-blue-700">
-                          {opg.nummer ?? t("oppgave.oppgave", "Oppgave")}
-                        </Text>
-                      </Pressable>
-                    );
-                  }
-                  if (leseModus) return null;
+                  const opgListe = radOppgaver.finnForRad(nokkel);
                   return (
-                    <Pressable
-                      onPress={() => opprettRadOppgave(rad)}
-                      className="flex-row items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5"
-                      hitSlop={6}
-                    >
-                      <Plus size={11} color="#6b7280" />
-                      <Text className="text-[11px] text-gray-500">
-                        {t("oppgave.oppgave", "Oppgave")}
-                      </Text>
-                    </Pressable>
+                    <>
+                      {opgListe.map((opg) => (
+                        <Pressable
+                          key={opg.id}
+                          onPress={() => radOppgaver.onNaviger(opg.id)}
+                          className="rounded-full bg-blue-100 px-2.5 py-0.5"
+                          hitSlop={6}
+                        >
+                          <Text className="text-[11px] font-medium text-blue-700">
+                            {opg.nummer ?? t("oppgave.oppgave", "Oppgave")}
+                          </Text>
+                        </Pressable>
+                      ))}
+                      {!leseModus && (
+                        <Pressable
+                          onPress={() => opprettRadOppgave(rad, radIndeks)}
+                          className="flex-row items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5"
+                          hitSlop={6}
+                        >
+                          <Plus size={11} color="#6b7280" />
+                          <Text className="text-[11px] text-gray-500">
+                            {t("oppgave.oppgave", "Oppgave")}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </>
                   );
                 })()}
               {!leseModus && (

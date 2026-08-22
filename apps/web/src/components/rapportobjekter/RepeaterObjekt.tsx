@@ -160,31 +160,36 @@ export function RepeaterObjekt({
               {/* Rad-scopet oppgave (nøkkel objekt.id:_radId). Badge vises alltid; «+ Oppgave»
                   kun i redigering. Whole-field-oppgave på repeateren er avskrudd — per-rad er
                   den entydige veien. */}
+              {/* C (2026-08-22): FLERE oppgaver per rad. Én badge per oppgave + «+ Oppgave» blir
+                  stående ved siden av (erstattes ikke) så en rad kan utløse flere (f.eks. KS-avvik
+                  + bestilling). */}
               {radOppgaver &&
                 (() => {
                   const nokkel = `${objekt.id}:${rad._radId}`;
-                  const opg = radOppgaver.finnForRad(nokkel);
-                  if (opg) {
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => radOppgaver.onNaviger(opg.id)}
-                        className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-200 print-skjul"
-                      >
-                        {opg.nummer ?? "Oppgave"}
-                      </button>
-                    );
-                  }
-                  if (leseModus) return null;
+                  const opgListe = radOppgaver.finnForRad(nokkel);
                   return (
-                    <button
-                      type="button"
-                      onClick={() => opprettRadOppgave(rad, radIndeks)}
-                      className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 hover:bg-gray-200 print-skjul"
-                    >
-                      <Plus size={11} />
-                      Oppgave
-                    </button>
+                    <>
+                      {opgListe.map((opg) => (
+                        <button
+                          key={opg.id}
+                          type="button"
+                          onClick={() => radOppgaver.onNaviger(opg.id)}
+                          className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-200 print-skjul"
+                        >
+                          {opg.nummer ?? "Oppgave"}
+                        </button>
+                      ))}
+                      {!leseModus && (
+                        <button
+                          type="button"
+                          onClick={() => opprettRadOppgave(rad, radIndeks)}
+                          className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 hover:bg-gray-200 print-skjul"
+                        >
+                          <Plus size={11} />
+                          Oppgave
+                        </button>
+                      )}
+                    </>
                   );
                 })()}
               {!leseModus && (

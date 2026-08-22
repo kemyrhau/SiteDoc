@@ -35,6 +35,9 @@ vi.mock("@/lib/trpc", () => {
   };
 });
 
+// A la til useRouter i modalen (åpner ny oppgave ved opprettelse) → mock next/navigation.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
 import { OpprettOppgaveModal } from "../OpprettOppgaveModal";
 
 // jsdom implementerer ikke <dialog>.showModal/close (Modal bruker native <dialog>).
