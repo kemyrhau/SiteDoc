@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Plus, Info, Globe, Loader2 } from "lucide-react";
 import type { Vedlegg } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
+import { tilbehorVisning } from "./RapportObjektRenderer";
 
 interface FeltWrapperProps {
   objekt: {
@@ -128,19 +129,26 @@ export function FeltWrapper({
         <p className="mt-1 text-xs text-red-500">{valideringsfeil}</p>
       )}
 
-      {/* Dokumentasjon (kommentar + vedlegg) */}
-      <FeltDokumentasjon
-        kommentar={kommentar}
-        vedlegg={vedlegg}
-        onEndreKommentar={onEndreKommentar}
-        onLeggTilVedlegg={onLeggTilVedlegg}
-        onFjernVedlegg={onFjernVedlegg}
-        leseModus={leseModus}
-        skjulKommentar={objekt.type === "text_field"}
-        prosjektId={prosjektId}
-        byggeplassId={byggeplassId}
-        standardTegningId={standardTegningId}
-      />
+      {/* Dokumentasjon (kommentar + vedlegg) — funn 6: fjernet for date/date_time/
+          drawing_position/location; repeater vises read-only kun når det finnes data. */}
+      {(() => {
+        const harData = !!kommentar?.trim() || (vedlegg?.length ?? 0) > 0;
+        const tv = tilbehorVisning(objekt.type, !!leseModus, harData);
+        return tv.vis ? (
+          <FeltDokumentasjon
+            kommentar={kommentar}
+            vedlegg={vedlegg}
+            onEndreKommentar={onEndreKommentar}
+            onLeggTilVedlegg={onLeggTilVedlegg}
+            onFjernVedlegg={onFjernVedlegg}
+            leseModus={tv.leseModus}
+            skjulKommentar={objekt.type === "text_field"}
+            prosjektId={prosjektId}
+            byggeplassId={byggeplassId}
+            standardTegningId={standardTegningId}
+          />
+        ) : null;
+      })()}
 
       {/* Oppgave-badge eller +Oppgave-knapp */}
       {oppgaveNummer && oppgaveId ? (
