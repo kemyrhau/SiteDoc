@@ -10,6 +10,38 @@ import {
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET } from "../utils/softDelete";
+import type { PrismaClient } from "@sitedoc/db";
+
+/**
+ * Teller IKKE-slettede dokumenter (sjekklister + oppgaver) bundet til en flyt. Delt av slett-vernet
+ * OG ledd-vernet (fjernMedlem/oppdaterRoller): en flyt med aktive dokumenter kan verken SLETTES
+ * eller TØMMES for ledd — begge etterlater dokumentene uten flytstruktur, i stillhet (samme skade,
+ * ulike dører). Papirkurv (KUN_SLETTET) holdes utenfor per ordre. Godkjenning/KontrollplanPunkt
+ * telles IKKE her (meldt som utvidelse, likt slett-vernet).
+ */
+async function tellFlytDokumenter(prisma: PrismaClient, dokumentflytId: string): Promise<number> {
+  const [sjekklister, oppgaver] = await Promise.all([
+    prisma.checklist.count({ where: { dokumentflytId, ...IKKE_SLETTET } }),
+    prisma.task.count({ where: { dokumentflytId, ...IKKE_SLETTET } }),
+  ]);
+  return sjekklister + oppgaver;
+}
+
+/**
+ * E (Kenneth-vedtak 2026-08-22): en dokumentflyt MÅ ha Registrator i FØRSTE ledd — det er den som
+ * OPPRETTER dokumentet. Uten registrator først kan ingen starte et dokument i flyten, og den er
+ * ubrukelig (før: ingen validering → man kunne sette Godkjenner som første boks). Boksene rendres i
+ * `roller`-array-rekkefølge (DynamiskFlyt), så første ledd = `roller[0]`. Kastes ved lagring.
+ */
+function validerRegistratorForst(roller: Array<{ rolle: string }>): void {
+  if (roller.length === 0 || roller[0]?.rolle !== "registrator") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        "Første ledd i flyten må være Registrator — det er den som oppretter dokumentet. Sett Registrator som første rolle.",
+    });
+  }
+}
 
 const dokumentflytInclude = {
   faggruppe: { select: { id: true, name: true, color: true } },
@@ -73,6 +105,7 @@ export const dokumentflytRouter = router({
       const startRoller = roller && roller.length > 0
         ? roller
         : [{ rolle: "registrator" as const }];
+      validerRegistratorForst(startRoller); // E: registrator i første ledd (default oppfyller det)
       return ctx.prisma.dokumentflyt.create({
         data: {
           ...data,
@@ -126,6 +159,7 @@ export const dokumentflytRouter = router({
     .input(oppdaterRollerSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      validerRegistratorForst(input.roller); // E: registrator må stå i første ledd
 
       const eksisterende = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
         where: { id: input.id },
@@ -139,8 +173,18 @@ export const dokumentflytRouter = router({
         .map((r) => r.rolle)
         .filter((rolle) => !nyeRolleNavn.has(rolle));
 
-      // Slett DokumentflytMedlem for fjernede roller
+      // Ledd-vern (D, Kenneth-vedtak 2026-08-22): å FJERNE en rolle sletter DokumentflytMedlem for
+      // det leddet → dokumentene i flyten mister leddet sitt, i stillhet (samme skade som å slette
+      // flyten, som er vernet). Blokker rolle-fjerning når flyten har aktive dokumenter. Å LEGGE TIL
+      // eller endre etiketter er trygt og forblir tillatt (derfor bare når fjernedeRoller > 0).
       if (fjernedeRoller.length > 0) {
+        const antall = await tellFlytDokumenter(ctx.prisma, input.id);
+        if (antall > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Flyten har ${antall} aktivt dokument${antall === 1 ? "" : "er"} som bruker leddene. Du kan ikke fjerne en rolle nå — flytt eller lukk dokumentene først.`,
+          });
+        }
         await ctx.prisma.dokumentflytMedlem.deleteMany({
           where: {
             dokumentflytId: input.id,
@@ -170,11 +214,7 @@ export const dokumentflytRouter = router({
       // Vi teller IKKE-slettede sjekklister + oppgaver (papirkurv-rader holdes utenfor per ordre —
       // de ville uansett fått SetNull ved en senere hard-sletting). App-guard med lesbar melding;
       // en `onDelete: Restrict`-DB-backstop er meldt som eget spor (jf. ReportTemplate schema:1144).
-      const [antallSjekklister, antallOppgaver] = await Promise.all([
-        ctx.prisma.checklist.count({ where: { dokumentflytId: input.id, ...IKKE_SLETTET } }),
-        ctx.prisma.task.count({ where: { dokumentflytId: input.id, ...IKKE_SLETTET } }),
-      ]);
-      const antall = antallSjekklister + antallOppgaver;
+      const antall = await tellFlytDokumenter(ctx.prisma, input.id);
       if (antall > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -210,6 +250,20 @@ export const dokumentflytRouter = router({
     .input(removeDokumentflytMedlemSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      // Ledd-vern (D): å fjerne et flytmedlem tømmer leddet for det medlemmet → dokumentene mister
+      // (deler av) leddet sitt, i stillhet. Blokker når flyten har aktive dokumenter. Hent medlemmets
+      // flyt for å telle (input bærer bare medlem-id).
+      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { dokumentflytId: true },
+      });
+      const antall = await tellFlytDokumenter(ctx.prisma, medlem.dokumentflytId);
+      if (antall > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Flyten har ${antall} aktivt dokument${antall === 1 ? "" : "er"} som bruker leddene. Du kan ikke fjerne et medlem nå — flytt eller lukk dokumentene først.`,
+        });
+      }
       return ctx.prisma.dokumentflytMedlem.delete({ where: { id: input.id } });
     }),
 

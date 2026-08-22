@@ -373,13 +373,21 @@ export default function SjekklisteDetaljSide() {
   );
   const sjekklisteOppgaver = (sjekklisteOppgaverRå ?? []) as SjekklisteOppgave[];
 
-  // Bygg map: feltId → oppgave
+  // Bygg map: feltId/rad-nøkkel → oppgaver. C (2026-08-22): en LISTE per nøkkel, ikke én oppgave.
+  // Datamodellen tillater flere oppgaver på samme felt/rad (checklistFieldId er ikke unik); før
+  // gjorde `map.set` at siste vant og resten forsvant i stillhet. Nå grupperes de, stabilt sortert
+  // på nummer så badge-rekkefølgen ikke hopper mellom rendringer.
   const feltOppgaveMap = useMemo(() => {
-    const map = new Map<string, SjekklisteOppgave>();
+    const map = new Map<string, SjekklisteOppgave[]>();
     for (const oppgave of sjekklisteOppgaver) {
       if (oppgave.checklistFieldId) {
-        map.set(oppgave.checklistFieldId, oppgave);
+        const liste = map.get(oppgave.checklistFieldId) ?? [];
+        liste.push(oppgave);
+        map.set(oppgave.checklistFieldId, liste);
       }
+    }
+    for (const liste of map.values()) {
+      liste.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
     }
     return map;
   }, [sjekklisteOppgaver]);
@@ -883,7 +891,9 @@ export default function SjekklisteDetaljSide() {
             );
           }
 
-          const feltOppgave = feltOppgaveMap.get(objekt.id);
+          // Vanlige felt: uendret — én badge (den første). C (flere per rad) gjelder KUN
+          // repeater-rader; whole-field-oppgaver forblir 1:1 i visningen.
+          const feltOppgave = feltOppgaveMap.get(objekt.id)?.[0];
           const oppgaveNummer = formaterOppgaveNr(feltOppgave);
 
           const erRepeater = objekt.type === "repeater";
@@ -895,10 +905,9 @@ export default function SjekklisteDetaljSide() {
           // slå «oppgave på hele tabellen» på igjen om behovet dukker opp.
           const radOppgaver = erRepeater
             ? {
-                finnForRad: (nokkel: string) => {
-                  const o = feltOppgaveMap.get(nokkel);
-                  return o ? { id: o.id, nummer: formaterOppgaveNr(o) } : undefined;
-                },
+                // C: ALLE oppgaver på raden (kan være flere), ikke bare den første.
+                finnForRad: (nokkel: string) =>
+                  (feltOppgaveMap.get(nokkel) ?? []).map((o) => ({ id: o.id, nummer: formaterOppgaveNr(o) })),
                 onOpprett: (
                   nokkel: string,
                   radPosisjon: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null,
@@ -1020,6 +1029,7 @@ export default function SjekklisteDetaljSide() {
         feltLabel={opprettOppgaveFeltLabel}
         forhandsPosisjon={opprettOppgavePosisjon}
         sjekklisteFlytId={(fullSjekklisteRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? null}
+        returnerTil={`${listeSti}/${params.sjekklisteId}`}
       />
 
     </div>

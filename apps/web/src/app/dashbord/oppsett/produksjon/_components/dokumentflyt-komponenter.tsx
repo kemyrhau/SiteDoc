@@ -13,6 +13,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
+import { useFlytAdmin } from "./flyt-admin-kontekst";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -82,6 +83,7 @@ export function LeggTilMedlemDropdown({
   onInviterNy?: () => void;
 }) {
   const { t } = useTranslation();
+  const erFlytAdmin = useFlytAdmin();
   const mutFeil = useMutasjonsFeil();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -103,6 +105,9 @@ export function LeggTilMedlemDropdown({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
+
+  // G: kun admin kan legge til flyt-medlem (server-gatet) — skjul hele dropdownen for ikke-admin.
+  if (!erFlytAdmin) return null;
 
   const eksisterendeFaggruppeIder = new Set(
     eksisterende.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id),

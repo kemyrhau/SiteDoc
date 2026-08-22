@@ -175,14 +175,18 @@ export default function SjekklisteUtfylling() {
   );
   const sjekklisteOppgaver = (oppgaverQuery.data ?? []) as SjekklisteOppgave[];
 
-  // Mapping: feltId → oppgave (for badge-visning)
+  // Mapping: feltId/rad-nøkkel → oppgaver (C: LISTE, ikke én — datamodellen tillater flere på samme
+  // rad; `map.set` gjorde før at siste vant og resten forsvant i stillhet). Sortert på nummer.
   const feltOppgaveMap = useMemo(() => {
-    const map = new Map<string, SjekklisteOppgave>();
+    const map = new Map<string, SjekklisteOppgave[]>();
     for (const oppgave of sjekklisteOppgaver) {
       if (oppgave.checklistFieldId) {
-        map.set(oppgave.checklistFieldId, oppgave);
+        const liste = map.get(oppgave.checklistFieldId) ?? [];
+        liste.push(oppgave);
+        map.set(oppgave.checklistFieldId, liste);
       }
     }
+    for (const liste of map.values()) liste.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
     return map;
   }, [sjekklisteOppgaver]);
 
@@ -1003,8 +1007,8 @@ export default function SjekklisteUtfylling() {
           // lesemodus; enkeltfelt låses ikke etter innsending.
           const verdiLeseModus = leseModus;
 
-          // Oppgave-kobling for dette feltet
-          const feltOppgave = feltOppgaveMap.get(objekt.id);
+          // Oppgave-kobling for dette feltet (vanlige felt: uendret, én badge — C gjelder kun rader)
+          const feltOppgave = feltOppgaveMap.get(objekt.id)?.[0];
           const oppgaveNummer = feltOppgave
             ? `${feltOppgave.template?.prefix ?? ""}${feltOppgave.number ?? ""}`
             : undefined;
@@ -1015,18 +1019,20 @@ export default function SjekklisteUtfylling() {
           // `erRepeater`-vaktene. Speiler web.
           const radOppgaver = erRepeater
             ? {
-                finnForRad: (nokkel: string) => {
-                  const o = feltOppgaveMap.get(nokkel);
-                  if (!o) return undefined;
-                  const nr = `${o.template?.prefix ?? ""}${o.number ?? ""}`;
-                  return { id: o.id, nummer: nr.trim() ? nr : undefined };
-                },
+                // C: ALLE oppgaver på raden (kan være flere).
+                finnForRad: (nokkel: string) =>
+                  (feltOppgaveMap.get(nokkel) ?? []).map((o) => {
+                    const nr = `${o.template?.prefix ?? ""}${o.number ?? ""}`;
+                    return { id: o.id, nummer: nr.trim() ? nr : undefined };
+                  }),
                 onOpprett: (
                   nokkel: string,
                   radPosisjon: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null,
+                  radNummer: number,
                 ) => {
                   setOpprettOppgaveFeltId(nokkel);
-                  setOpprettOppgaveFeltLabel(objekt.label);
+                  // Funn 3: radnummer i tittelen (identifiserer raden, som headeren).
+                  setOpprettOppgaveFeltLabel(`${objekt.label} (rad ${radNummer})`);
                   setOpprettOppgaveKategori("oppgave");
                   // Radens posisjon ?? dokumentets lokasjon. Modalen krever fullt punkt.
                   const kilde = radPosisjon ?? {

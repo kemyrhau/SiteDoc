@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert } from "lucide-react";
@@ -218,7 +218,15 @@ export default function OppgaveDetaljSide() {
   // følger dokumentet — retur + brødsmule peker mot HMS-lista, ikke Oppgaver.
   const erHms =
     (fullOppgaveRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
-  const listeSti = `/dashbord/${params.prosjektId}/${erHms ? "hms" : "oppgaver"}`;
+  // A (2026-08-22): `returnerTil` (URL) peker tilbake til dokumentet som opprettet oppgaven — så
+  // «tilbake» går dit, ikke til oppgavelista. Bæres i URL → overlever full last. Kun interne stier
+  // godtas (må starte med «/» og ikke «//») så en manipulert param ikke kan redirecte ut av appen.
+  const returnerTilRaa = useSearchParams().get("returnerTil");
+  const returnerTil =
+    returnerTilRaa && returnerTilRaa.startsWith("/") && !returnerTilRaa.startsWith("//")
+      ? returnerTilRaa
+      : null;
+  const listeSti = returnerTil ?? `/dashbord/${params.prosjektId}/${erHms ? "hms" : "oppgaver"}`;
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.

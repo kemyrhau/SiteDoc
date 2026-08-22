@@ -9,8 +9,12 @@ import { describe, it, expect, vi } from "vitest";
  * tilgangskontroll mockes (ingen ekte DB); tokenKilde=null omgår token-rotasjons-middlewaren.
  */
 
+// `slett` kjører nå BÅDE admin-gate (verifiserAdmin) OG count-vakt (kombinert ved merge). Denne
+// fila tester COUNT-atferden isolert → la admin-gaten passere (no-op). Admin-gaten selv testes i
+// dokumentflyt-slett-adminvakt.test.ts (ekte verifiserAdmin).
 vi.mock("../trpc/tilgangskontroll", () => ({
   verifiserProsjektmedlem: vi.fn().mockResolvedValue(undefined),
+  verifiserAdmin: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { dokumentflytRouter } from "./dokumentflyt";

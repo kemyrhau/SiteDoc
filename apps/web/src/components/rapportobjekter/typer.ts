@@ -45,8 +45,8 @@ export interface OppgavePosisjon {
 
 /** Adapter for rad-scopede oppgaver i en repeater (nøkkel `${objekt.id}:${_radId}`). */
 export interface RadOppgaveAdapter {
-  /** Slår opp eksisterende oppgave for en rad-nøkkel; undefined → ingen ennå. */
-  finnForRad: (radNokkel: string) => { id: string; nummer?: string } | undefined;
+  /** Alle oppgaver på en rad-nøkkel (C: flere er lov). Tom liste → ingen ennå. */
+  finnForRad: (radNokkel: string) => Array<{ id: string; nummer?: string }>;
   /**
    * Åpner opprett-modal for raden. `radPosisjon` = radens posisjon (null → dokument-fallback).
    * `radNummer` = radens 1-baserte posisjon (til tittelen — identifiserer raden, som headeren/markøren).

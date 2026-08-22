@@ -232,6 +232,10 @@ export default function TegningerSide() {
   );
 
   const opprettOppgaveMutation = trpc.oppgave.opprett.useMutation({
+    // B (2026-08-22): oppgave-grenen navigerer BEVISST IKKE til det nye dokumentet. En oppgave
+    // opprettet fra tegning får en markør som blir stående på tegningen — markøren ER kvitteringen
+    // («det ble opprettet, her»), og brukeren fortsetter gjerne å plassere flere. Å hoppe til
+    // oppgaven ville brutt den flyten. Sjekkliste-grenen (under) er motsatt: den navigerer.
     onSuccess: (_data: unknown, _vars: { title: string }) => {
       utils.oppgave.hentForTegning.invalidate({ drawingId: aktivTegning?.id ?? "" });
       lukkModal();
@@ -244,8 +248,13 @@ export default function TegningerSide() {
   });
 
   const opprettSjekklisteMutation = trpc.sjekkliste.opprett.useMutation({
-    onSuccess: () => {
+    // B (2026-08-22): naviger til den nye sjekklisten med én gang. Før: den ble opprettet i
+    // stillhet og brukeren måtte lete den opp i lista (2–3 ekstra steg + «hva skjedde?»). En
+    // sjekkliste fylles ut inne i dokumentet (ikke via en tegningsmarkør), så den riktige neste
+    // handlingen er å åpne den. (Oppgave-grenen over navigerer bevisst ikke — markøren er nok.)
+    onSuccess: (data: { id: string }) => {
       lukkModal();
+      router.push(`/dashbord/${params.prosjektId}/sjekklister/${data.id}`);
     },
     onError: (error: { message?: string }) => {
       setOpprettFeil(error.message ?? "Kunne ikke opprette sjekklisten. Prøv igjen.");
