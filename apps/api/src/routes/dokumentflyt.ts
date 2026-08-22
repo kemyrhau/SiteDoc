@@ -35,11 +35,24 @@ const dokumentflytInclude = {
   },
 } as const;
 
+/**
+ * ADMIN-GATE på flyt-konfigurasjon (Kenneth-vedtak 2026-08-22, fabel-verifisert).
+ *
+ * ALLE mutasjoner her konfigurerer dokumentflyten — opprett/oppdater/roller/medlemmer/
+ * hovedansvarlig/slett — og krever derfor prosjektadmin eller høyere. De bruker `verifiserAdmin`
+ * (ikke `verifiserProsjektmedlem`), som dekker sitedoc_admin → prosjektadmin
+ * (`ProjectMember.role="admin"`) → **firmaadmin** i én. Firmaadmin-grenen er IKKE valgfri:
+ * firmaadmin har INGEN ProjectMember-rad, så en håndrullet `medlem.role`-sjekk ville avvist ham
+ * (samme felle som `verifiserRetningsrett`). Bruk hjelperen, aldri en egen sjekk.
+ *
+ * UNNTAK: `hentForProsjekt` (lese) står på medlem-nivå — alle må se flytene sine.
+ */
 export const dokumentflytRouter = router({
   // Hent alle dokumentflyter for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      // Lese-gaten BLIR STÅENDE på medlem-nivå: alle må se flytene sine (kun mutasjonene admin-gates).
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.dokumentflyt.findMany({
         where: { projectId: input.projectId },
@@ -52,7 +65,7 @@ export const dokumentflytRouter = router({
   opprett: protectedProcedure
     .input(createDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       const { templateIds, medlemmer, roller, ...data } = input;
       // Default: ny dokumentflyt starter med Registrator som eneste rolle.
       // Bruker legger til Bestiller/Utfører/Godkjenner via «+ Legg til rolle».
@@ -85,7 +98,7 @@ export const dokumentflytRouter = router({
   oppdater: protectedProcedure
     .input(updateDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       const { id, projectId: _projectId, templateIds, ...data } = input;
 
       if (Object.keys(data).length > 0) {
@@ -112,7 +125,7 @@ export const dokumentflytRouter = router({
   oppdaterRoller: protectedProcedure
     .input(oppdaterRollerSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
 
       const eksisterende = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
         where: { id: input.id },
@@ -147,11 +160,7 @@ export const dokumentflytRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      // Admin-gate (Kenneth-vedtak 2026-08-22): sletting rører alle dokumenter i flyten →
-      // krever prosjektadmin eller høyere. `verifiserAdmin` dekker alle tre i én: sitedoc_admin →
-      // prosjektadmin (ProjectMember.role="admin") → firmaadmin. Den siste er IKKE valgfri:
-      // firmaadmin har INGEN ProjectMember-rad, så en egen `medlem.role`-sjekk ville avvist ham
-      // (samme felle vi snublet i på verifiserRetningsrett). Bruk hjelperen, ikke en håndrullet sjekk.
+      // Admin-gate — begrunnelse i router-doccen øverst. Sletting rører alle dokumenter i flyten.
       await verifiserAdmin(ctx.userId, input.projectId);
 
       // Slett-vern (Kenneth-bestilling 2026-08-22): `Checklist`/`Task`/`Godkjenning`/
@@ -180,7 +189,7 @@ export const dokumentflytRouter = router({
   leggTilMedlem: protectedProcedure
     .input(addDokumentflytMedlemSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       const { projectId: _projectId, ...data } = input;
       return ctx.prisma.dokumentflytMedlem.create({
         data,
@@ -200,7 +209,7 @@ export const dokumentflytRouter = router({
   fjernMedlem: protectedProcedure
     .input(removeDokumentflytMedlemSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       return ctx.prisma.dokumentflytMedlem.delete({ where: { id: input.id } });
     }),
 
@@ -214,7 +223,7 @@ export const dokumentflytRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
 
       const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
         where: { id: input.id },
@@ -249,7 +258,7 @@ export const dokumentflytRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
 
       const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
         where: { id: input.id },
@@ -294,7 +303,7 @@ export const dokumentflytRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       return ctx.prisma.dokumentflytMedlem.update({
         where: { id: input.id },
         data: { kanRedigere: input.kanRedigere },
