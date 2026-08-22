@@ -1,16 +1,32 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Plus, Trash2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { randomUUID } from "expo-crypto";
 import type { RapportObjektProps, RapportObjekt } from "./typer";
 import type { FeltVerdi } from "../../hooks/useSjekklisteSkjema";
 import { RapportObjektRenderer, DISPLAY_TYPER, tilbehorVisning } from "./RapportObjektRenderer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
-type RadData = Record<string, FeltVerdi>;
-type RepeaterVerdi = RadData[];
-
 const TOM_FELTVERDI: FeltVerdi = { verdi: null, kommentar: "", vedlegg: [] };
+
+/**
+ * Repeater-RAD (rad-id-vedtak 2026-08-22, variant OMSLUTTING): `{ _radId, felter }`. `_radId`
+ * er en STABIL id (expo-crypto uuid) bevart gjennom redigering/sletting — fundamentet for
+ * persistente rad-scopede oppgaver. Lokal type (mobil har egen radrenderer + SQLite-offline).
+ */
+interface Rad {
+  _radId: string;
+  felter: Record<string, FeltVerdi>;
+}
+
+/** Migrer-ved-lesing: gammel naken-Record-rad omsluttes og får ny stabil id. Kalleren
+ *  memoiserer på `verdi` så id-en er stabil på tvers av rendringer + persisteres ved neste
+ *  lagring (offline-rader lagret før endringen åpnes og redigeres som før — de får id ved lesing). */
+function normaliserRad(raa: unknown): Rad {
+  if (raa && typeof raa === "object" && "felter" in raa) return raa as Rad;
+  return { _radId: randomUUID(), felter: (raa ?? {}) as Record<string, FeltVerdi> };
+}
 
 export function RepeaterObjekt({
   objekt,
@@ -22,7 +38,12 @@ export function RepeaterObjekt({
   oppgaveIdForKo,
 }: RapportObjektProps) {
   const { t } = useTranslation();
-  const rader = Array.isArray(verdi) ? (verdi as RepeaterVerdi) : [];
+  // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
+  // Memoisert på `verdi` så id-ene er STABILE på tvers av rendringer (ikke ny uuid per render).
+  const rader = useMemo<Rad[]>(
+    () => (Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : []),
+    [verdi],
+  );
   const barn = barneObjekter ?? [];
 
   // Ref for å unngå stale closure i asynkrone callbacks (kamera)
@@ -30,11 +51,11 @@ export function RepeaterObjekt({
   raderRef.current = rader;
 
   const leggTilRad = useCallback(() => {
-    const nyRad: RadData = {};
+    const felter: Record<string, FeltVerdi> = {};
     for (const b of barn) {
-      nyRad[b.id] = { ...TOM_FELTVERDI };
+      felter[b.id] = { ...TOM_FELTVERDI };
     }
-    onEndreVerdi([...raderRef.current, nyRad]);
+    onEndreVerdi([...raderRef.current, { _radId: randomUUID(), felter }]);
   }, [barn, onEndreVerdi]);
 
   const fjernRad = useCallback(
@@ -48,8 +69,8 @@ export function RepeaterObjekt({
     (radIndeks: number, feltId: string, nyVerdi: unknown) => {
       const oppdatert = raderRef.current.map((rad, i) => {
         if (i !== radIndeks) return rad;
-        const eksisterende = rad[feltId] ?? { ...TOM_FELTVERDI };
-        return { ...rad, [feltId]: { ...eksisterende, verdi: nyVerdi } };
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
+        return { ...rad, felter: { ...rad.felter, [feltId]: { ...eksisterende, verdi: nyVerdi } } };
       });
       onEndreVerdi(oppdatert);
     },
@@ -60,8 +81,8 @@ export function RepeaterObjekt({
     (radIndeks: number, feltId: string, kommentar: string) => {
       const oppdatert = raderRef.current.map((rad, i) => {
         if (i !== radIndeks) return rad;
-        const eksisterende = rad[feltId] ?? { ...TOM_FELTVERDI };
-        return { ...rad, [feltId]: { ...eksisterende, kommentar } };
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
+        return { ...rad, felter: { ...rad.felter, [feltId]: { ...eksisterende, kommentar } } };
       });
       onEndreVerdi(oppdatert);
     },
@@ -72,12 +93,15 @@ export function RepeaterObjekt({
     (radIndeks: number, feltId: string, vedlegg: FeltVerdi["vedlegg"][number]) => {
       const oppdatert = raderRef.current.map((rad, i) => {
         if (i !== radIndeks) return rad;
-        const eksisterende = rad[feltId] ?? { ...TOM_FELTVERDI };
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
         return {
           ...rad,
-          [feltId]: {
-            ...eksisterende,
-            vedlegg: [...(eksisterende.vedlegg ?? []), vedlegg],
+          felter: {
+            ...rad.felter,
+            [feltId]: {
+              ...eksisterende,
+              vedlegg: [...(eksisterende.vedlegg ?? []), vedlegg],
+            },
           },
         };
       });
@@ -90,12 +114,15 @@ export function RepeaterObjekt({
     (radIndeks: number, feltId: string, vedleggId: string) => {
       const oppdatert = raderRef.current.map((rad, i) => {
         if (i !== radIndeks) return rad;
-        const eksisterende = rad[feltId] ?? { ...TOM_FELTVERDI };
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
         return {
           ...rad,
-          [feltId]: {
-            ...eksisterende,
-            vedlegg: (eksisterende.vedlegg ?? []).filter((v) => v.id !== vedleggId),
+          felter: {
+            ...rad.felter,
+            [feltId]: {
+              ...eksisterende,
+              vedlegg: (eksisterende.vedlegg ?? []).filter((v) => v.id !== vedleggId),
+            },
           },
         };
       });
@@ -118,7 +145,7 @@ export function RepeaterObjekt({
     <View className="gap-1.5">
       {rader.map((rad, radIndeks) => (
         <View
-          key={radIndeks}
+          key={rad._radId}
           className="rounded border border-gray-200 bg-gray-50 px-3 py-2"
         >
           <View className="mb-1 flex-row items-center justify-between">
@@ -134,7 +161,7 @@ export function RepeaterObjekt({
 
           <View className="gap-1">
             {barn.map((barnObjekt) => {
-              const feltVerdi = rad[barnObjekt.id] ?? TOM_FELTVERDI;
+              const feltVerdi = rad.felter[barnObjekt.id] ?? TOM_FELTVERDI;
               const erDisplay = DISPLAY_TYPER.has(barnObjekt.type);
 
               if (erDisplay) {

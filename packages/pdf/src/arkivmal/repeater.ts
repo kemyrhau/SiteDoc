@@ -15,7 +15,8 @@
 import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, formaterDatoTidPunkt } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
-import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
+import { normaliserRad } from "../typer";
+import type { TreObjekt, FeltVerdi, Vedlegg, Rad } from "../typer";
 
 const TOM = `<span class="tom">Ikke utfylt</span>`;
 
@@ -36,7 +37,7 @@ function erBilde(v: unknown): v is Vedlegg {
  * Bildene er alt inlinet til data-URI av sammenstillingen når dette kjører.
  * Dedup på url (samme bilde kan ligge både i `vedlegg` og `verdi`).
  */
-function bilderIRad(barn: TreObjekt[], rad: Record<string, FeltVerdi>): Vedlegg[] {
+function bilderIRad(barn: TreObjekt[], rad: Rad): Vedlegg[] {
   const ut: Vedlegg[] = [];
   const sett = new Set<string>();
   const leggTil = (v: unknown): void => {
@@ -46,7 +47,7 @@ function bilderIRad(barn: TreObjekt[], rad: Record<string, FeltVerdi>): Vedlegg[
     }
   };
   for (const b of barn) {
-    const felt = rad[b.id] as FeltVerdi | undefined;
+    const felt = rad.felter[b.id] as FeltVerdi | undefined;
     if (!felt) continue;
     if (Array.isArray(felt.vedlegg)) felt.vedlegg.forEach(leggTil);
     if (Array.isArray(felt.verdi)) (felt.verdi as unknown[]).forEach(leggTil);
@@ -194,7 +195,8 @@ export function byggRepeaterTabell(
   objektFelt?: FeltVerdi,
 ): string {
   const barn = objekt.children ?? [];
-  const rader = Array.isArray(verdi) ? (verdi as Record<string, FeltVerdi>[]) : [];
+  // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
+  const rader = Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : [];
 
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
   // F7: objektnivå-blokk FØRST (forbruker bildeNr før radene). Tom blokk → "".
@@ -214,7 +216,7 @@ export function byggRepeaterTabell(
     .map((rad, idx) => {
       const celler = barn
         .map((b) => {
-          const felt = rad[b.id] as FeltVerdi | undefined;
+          const felt = rad.felter[b.id] as FeltVerdi | undefined;
           // Funn (Kenneth 2026-08-21): celle-kommentar ble aldri skrevet ut
           // (felt.ts:217 gjør det for topp-nivå-felt, men repeater-cella droppet
           // den). Samme visuelle form (.kommentar); ingen tom node uten kommentar.

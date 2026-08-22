@@ -7,11 +7,13 @@
  */
 
 // Typer
+export { normaliserRad } from "./typer";
 export type {
   RapportObjekt,
   TreObjekt,
   Vedlegg,
   FeltVerdi,
+  Rad,
   VaerVerdi,
   SjekklisteForPdf,
   OppgaveForPdf,

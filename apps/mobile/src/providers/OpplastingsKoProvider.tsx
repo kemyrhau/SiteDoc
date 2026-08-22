@@ -240,7 +240,12 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           // Søk i repeater-data (nestet i verdi-arrayen)
           const verdi = (felt as Record<string, unknown> | undefined)?.verdi;
           if (Array.isArray(verdi)) {
-            for (const rad of verdi as Record<string, { vedlegg?: Array<{ id: string; url: string }> }>[]) {
+            for (const raaRad of verdi as Array<Record<string, unknown>>) {
+              // Rad-id (2026-08-22): ny form { _radId, felter } eller gammel naken Record.
+              // Muterer vedlegg-url IN PLACE → hent det faktiske felt-map-objektet i begge former.
+              const rad = (raaRad && typeof raaRad === "object" && "felter" in raaRad
+                ? (raaRad as { felter: unknown }).felter
+                : raaRad) as Record<string, { vedlegg?: Array<{ id: string; url: string }> }>;
               for (const barnId of Object.keys(rad)) {
                 const barn = rad[barnId];
                 if (!barn?.vedlegg) continue;

@@ -13,6 +13,7 @@
  */
 
 import sharp from "sharp";
+import { normaliserRad } from "@sitedoc/pdf";
 import type { TreObjekt, FeltVerdi } from "@sitedoc/pdf";
 
 export interface RepeaterMarkor {
@@ -68,12 +69,13 @@ export function samleRepeaterMarkorer(
       const barn = obj.children ?? [];
       const dpBarn = barn.filter((b) => b.type === "drawing_position");
       const nestedRep = barn.filter((b) => b.type === "repeater");
+      // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
       const rader = Array.isArray(data[obj.id]?.verdi)
-        ? (data[obj.id]!.verdi as Record<string, FeltVerdi>[])
+        ? (data[obj.id]!.verdi as unknown[]).map(normaliserRad)
         : [];
       rader.forEach((rad, radIdx) => {
         for (const dp of dpBarn) {
-          const v = rad[dp.id]?.verdi;
+          const v = rad.felter[dp.id]?.verdi;
           if (harMarkor(v)) {
             ut.push({
               drawingId: v.drawingId,
@@ -84,8 +86,8 @@ export function samleRepeaterMarkorer(
             });
           }
         }
-        // Rekursiv: nestede repeatere i denne raden (rad = data-scope).
-        for (const nr of nestedRep) ut.push(...samleRepeaterMarkorer([nr], rad));
+        // Rekursiv: nestede repeatere i denne raden — datascope er radens felter.
+        for (const nr of nestedRep) ut.push(...samleRepeaterMarkorer([nr], rad.felter));
       });
     } else if (obj.children && obj.children.length > 0) {
       // Seksjoner (heading/subtitle med barn) — rekurser i samme data-scope.
