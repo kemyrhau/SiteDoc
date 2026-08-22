@@ -1013,6 +1013,7 @@ export default function SjekklisteDetaljSide() {
         sjekklisteNummer={sjekklisteNummer}
         feltLabel={opprettOppgaveFeltLabel}
         forhandsPosisjon={opprettOppgavePosisjon}
+        sjekklisteFlytId={(fullSjekklisteRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? null}
       />
 
     </div>

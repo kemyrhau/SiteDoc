@@ -51,19 +51,19 @@ describe("RepeaterObjekt — rad-oppgave persisterer stabil _radId ved opprettel
 
     // 1) Persisteringen skjedde FØR opprettelse: onEndreVerdi fikk { _radId, felter }-formen.
     expect(onEndreVerdi).toHaveBeenCalledTimes(1);
-    const persistert = onEndreVerdi.mock.calls[0][0] as Array<{ _radId: string; felter: Record<string, unknown> }>;
-    const persistertId = persistert[0]._radId;
+    const persistert = onEndreVerdi.mock.calls[0]![0] as Array<{ _radId: string; felter: Record<string, unknown> }>;
+    const persistertId = persistert[0]!._radId;
     expect(persistertId).toBeTruthy();
-    expect(persistert[0].felter.f1).toBeTruthy(); // felt-innholdet bevart i omsluttingen
+    expect(persistert[0]!.felter.f1).toBeTruthy(); // felt-innholdet bevart i omsluttingen
 
     // 2) Oppgavens nøkkel bruker DEN persisterte id-en (ikke array-indeks, ikke en annen uuid).
     expect(onOpprett).toHaveBeenCalledTimes(1);
-    expect(onOpprett.mock.calls[0][0]).toBe(`rep:${persistertId}`);
+    expect(onOpprett.mock.calls[0]![0]).toBe(`rep:${persistertId}`);
 
     // 3) Kjernen: neste LESING av de persisterte radene gir SAMME id → badgen matcher etter reload.
     //    (Uten persisteringen ville normaliserRad her delt ut en NY uuid og koblingen blitt foreldreløs.)
     const gjennlest = persistert.map(normaliserRad);
-    expect(gjennlest[0]._radId).toBe(persistertId);
+    expect(gjennlest[0]!._radId).toBe(persistertId);
   });
 
   it("idempotens: rad som allerede HAR lagret _radId → id-en endres ikke ved opprettelse", () => {
@@ -72,8 +72,8 @@ describe("RepeaterObjekt — rad-oppgave persisterer stabil _radId ved opprettel
 
     fireEvent.click(screen.getByText("Oppgave"));
 
-    const persistert = onEndreVerdi.mock.calls[0][0] as Array<{ _radId: string }>;
-    expect(persistert[0]._radId).toBe("fast-id-123"); // uendret — ingen ny uuid
-    expect(onOpprett.mock.calls[0][0]).toBe("rep:fast-id-123");
+    const persistert = onEndreVerdi.mock.calls[0]![0] as Array<{ _radId: string }>;
+    expect(persistert[0]!._radId).toBe("fast-id-123"); // uendret — ingen ny uuid
+    expect(onOpprett.mock.calls[0]![0]).toBe("rep:fast-id-123");
   });
 });
