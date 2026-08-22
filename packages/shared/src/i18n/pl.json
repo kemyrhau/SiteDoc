@@ -651,7 +651,7 @@
   "handling.importer": "Import",
   "handling.lastOpp": "Wgrywać",
   "handling.lastNed": "Pobierać",
-  "handling.lastNedArkivPdf": "Pobierz archiwum PDF",
+  "handling.lastNedArkivPdf": "Pobierz PDF",
   "arkiv.advarselTimeout": "Generacja nie zakończyła się na czas. Plik PDF został pobrany — spróbuj ponownie, aby uzyskać pełny wynik.",
   "arkiv.advarselMangler": "Archiwalny plik PDF został pobrany, ale brakuje załączników ({{antall}}) — dokument nie jest kompletny.",
   "arkiv.feil": "Nie można utworzyć archiwum PDF. Spróbuj ponownie.",

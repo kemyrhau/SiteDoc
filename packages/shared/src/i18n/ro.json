@@ -651,7 +651,7 @@
   "handling.importer": "Import",
   "handling.lastOpp": "Încărcați",
   "handling.lastNed": "Descărcați",
-  "handling.lastNedArkivPdf": "Descărcați arhiva PDF",
+  "handling.lastNedArkivPdf": "Descărcați PDF",
   "arkiv.advarselTimeout": "Generația nu s-a terminat la timp. PDF-ul a fost descărcat — încercați din nou pentru un rezultat complet.",
   "arkiv.advarselMangler": "Arhiva PDF a fost descărcată, dar {{antall}} atașament(e) lipsesc — documentul nu este complet.",
   "arkiv.feil": "Nu s-a putut crea arhiva PDF. Vă rugăm să încercați din nou.",

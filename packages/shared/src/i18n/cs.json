@@ -651,7 +651,7 @@
   "handling.importer": "Importovat",
   "handling.lastOpp": "Nahrát",
   "handling.lastNed": "Stáhnout",
-  "handling.lastNedArkivPdf": "Stáhnout archiv PDF",
+  "handling.lastNedArkivPdf": "Stáhnout PDF",
   "arkiv.advarselTimeout": "Generace neskončila včas. Soubor PDF byl stažen – zkuste to znovu pro úplný výsledek.",
   "arkiv.advarselMangler": "Archiv PDF byl stažen, ale chybí {{antall}} přílohy — dokument není kompletní.",
   "arkiv.feil": "Archiv PDF nelze vytvořit. Zkuste to prosím znovu.",

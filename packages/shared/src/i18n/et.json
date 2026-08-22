@@ -651,7 +651,7 @@
   "handling.importer": "Import",
   "handling.lastOpp": "Laadi üles",
   "handling.lastNed": "Laadi alla",
-  "handling.lastNedArkivPdf": "Laadige alla arhiivi PDF",
+  "handling.lastNedArkivPdf": "Laadige alla PDF",
   "arkiv.advarselTimeout": "Põlvkond ei saanud õigeks ajaks valmis. PDF on alla laaditud – täieliku tulemuse saamiseks proovige uuesti.",
   "arkiv.advarselMangler": "Arhiivi PDF on alla laaditud, kuid puudu on {{antall}} manus(t) – dokument pole täielik.",
   "arkiv.feil": "Arhiivi PDF-i ei saanud luua. Palun proovi uuesti.",

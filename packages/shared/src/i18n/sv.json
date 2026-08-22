@@ -651,7 +651,7 @@
   "handling.importer": "Importera",
   "handling.lastOpp": "Ladda upp",
   "handling.lastNed": "Ladda ner",
-  "handling.lastNedArkivPdf": "Ladda ner PDF-arkiv",
+  "handling.lastNedArkivPdf": "Ladda ner PDF",
   "arkiv.advarselTimeout": "Generation slutade inte i tid. PDF-filen har laddats ner - försök igen för ett komplett resultat.",
   "arkiv.advarselMangler": "Arkiv-PDF-filen har laddats ner, men {{antall}} bilagor saknas – dokumentet är inte komplett.",
   "arkiv.feil": "Det gick inte att skapa PDF-arkivet. Försök igen.",

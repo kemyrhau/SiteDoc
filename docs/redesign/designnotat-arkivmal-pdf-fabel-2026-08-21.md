@@ -28,6 +28,9 @@ Arkiv-PDF-en taper innhold stille: brukeren ser bilde/kommentar/tegningsmarkerin
 **D3 — Instruksjonstyper:** info_text/info_image vises grått som instruksjonskontekst (byggherre skal se hva utfører leste); video som referanselinje (tittel + URL); quiz som spørsmål + avgitt svar + riktig/feil — avgitt svar er dokumentasjonsdata. Mockupside «Malobjekt-revisjon» (rad-for-rad-vedtak for alle 26 typer).
 
 **D4 — Knappenavn og varianter (REVIDERT 22.08, Kenneth-vedtak):** «Last ned arkiv-PDF» utgår → **«Last ned PDF»** (splittknapp). Klikk = nedlasting; pil åpner meny:
+
+> **🟢 LEVERT 2026-08-22** (branch `fix/d4-nedlastingsmeny`): logg-delen + rename + kryssreferanse. Endringslogg-PDF-seksjonen fjernet (`loggseksjon.ts` — `byggLoggseksjon` gir kun Dokumenthistorikk; `endringslogg`/`segmentHtml`/`datoKort` + `taMedEndringslogg`-gjennomløpet ryddet i pdf+api). Kryssreferanse «(N feltendringer — se Endringslogg)» → «(N feltendringer)». Knappen `handling.lastNedArkivPdf` → «Last ned PDF» (15 språk). **IKKE bygget (meldt):** splittknapp-menyen (Lagre i prosjektmappe / Send til …) finnes ikke i dag — dagens UI er én knapp; og avkryssingen «Ta med veiledningstekster» er D9-sporet (ikke bygget fra før → skal ikke improviseres inn her). Tester oppdatert (api loggseksjon + sammenstilling).
+
 - **Lagre i prosjektmappe** (Kenneth 21.08) — PDF-en arkiveres i dokumentmappen i prosjektet i stedet for nedlasting
 - **Send til …** — e-post m/PDF-vedlegg (eksisterende funksjon flyttes hit)
 - Avkryssing: **Ta med veiledningstekster** (av som standard)

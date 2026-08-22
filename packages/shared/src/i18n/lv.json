@@ -651,7 +651,7 @@
   "handling.importer": "Importēt",
   "handling.lastOpp": "Augšupielādēt",
   "handling.lastNed": "Lejupielādēt",
-  "handling.lastNedArkivPdf": "Lejupielādēt arhīvu PDF",
+  "handling.lastNedArkivPdf": "Lejupielādēt PDF",
   "arkiv.advarselTimeout": "Paaudze nepabeidza laikā. PDF fails ir lejupielādēts — mēģiniet vēlreiz, lai iegūtu pilnīgu rezultātu.",
   "arkiv.advarselMangler": "Arhīva PDF fails ir lejupielādēts, taču trūkst {{antall}} pielikuma(-u) — dokuments nav pilnīgs.",
   "arkiv.feil": "Nevarēja izveidot arhīva PDF failu. Lūdzu, mēģiniet vēlreiz.",
