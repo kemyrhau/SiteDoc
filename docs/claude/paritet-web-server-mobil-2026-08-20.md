@@ -31,7 +31,7 @@ fått en fiks eller en funksjon som den andre aldri fikk.
 
 ---
 
-## HØY (7)
+## HØY (8)
 
 ### H1 · HMS-behandling er umulig fra mobil
 Web har `HmsHandlingsflate` med Besvar/Lukk/Returner/Gjenåpne
@@ -85,6 +85,19 @@ Regelen i CLAUDE.md håndheves altså kun på én av tre flater.
 gjør).
 **Konsekvens:** HMS-admin trykker Returner på en SJA, skriver spørsmål, sender —
 ingenting skjer, ingen feilmelding.
+
+### H8 · Mobil kan ikke sette tegningsposisjon på repeater-rader (Kenneth 2026-08-22)
+
+Mobilappen støtter kun dokumentets **hovedlokasjon**. Web støtter i tillegg
+`drawing_position` som barnefelt i en repeater — markøren per rad.
+
+**Konsekvens:** et dokument utfylt på mobil kan aldri få radmarkører. Hele D2b-sporet
+bygget 2026-08-21 (nummererte markører, helside, detaljutsnitt i radkortet) hviler på
+data mobilen ikke kan produsere. En befaring registrert i felt — altså på mobil, som er
+poenget med feltregistrering — gir en rapport uten de punktene rapporten er laget for å vise.
+
+⚠️ Ikke målt: om mobil *viser* radmarkører satt på web, eller om den også taper dem i
+visning og lokal PDF. Det avgjør om dette er en mangel eller også et datatap. Mål før ordre.
 
 ---
 
