@@ -222,7 +222,6 @@ function DokumentflytKort({
     onSuccess: () => {
       mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
-      setSlettFeil(null);
     },
     onError: mutFeil.onError,
   });
