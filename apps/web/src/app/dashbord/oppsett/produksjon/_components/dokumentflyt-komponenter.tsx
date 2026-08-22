@@ -12,6 +12,7 @@ import {
   Users,
   UserPlus,
 } from "lucide-react";
+import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -81,14 +82,17 @@ export function LeggTilMedlemDropdown({
   onInviterNy?: () => void;
 }) {
   const { t } = useTranslation();
+  const mutFeil = useMutasjonsFeil();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const leggTilMutation = trpc.dokumentflyt.leggTilMedlem.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       onLagtTil();
       setOpen(false);
     },
+    onError: mutFeil.onError,
   });
 
   useEffect(() => {
@@ -223,6 +227,8 @@ export function LeggTilMedlemDropdown({
           </div>
         </div>
       )}
+
+      <MutasjonsFeil melding={mutFeil.feil} />
     </div>
   );
 }
@@ -249,6 +255,7 @@ export function InviterNyMedlemModal({
   onFerdig: () => void;
 }) {
   const { t } = useTranslation();
+  const mutFeil = useMutasjonsFeil();
   const [epost, setEpost] = useState("");
   const [fornavn, setFornavn] = useState("");
   const [etternavn, setEtternavn] = useState("");
@@ -272,6 +279,7 @@ export function InviterNyMedlemModal({
     e.preventDefault();
     if (!epost.trim() || !fornavn.trim() || !etternavn.trim()) return;
 
+    mutFeil.nullstill();
     try {
       const nyttMedlem = await leggTilMedlemMutation.mutateAsync({
         projectId: prosjektId,
@@ -295,8 +303,10 @@ export function InviterNyMedlemModal({
 
       onFerdig();
       onClose();
-    } catch (_err) {
-      // Feilen vises via mutation.error
+    } catch (err) {
+      // Gatet dokumentflyt-mutasjon (og medlem-oppretting) kan avvises server-side —
+      // vis serverens melding i stedet for stille avvisning.
+      mutFeil.onError(err as { message?: string });
     }
   }
 
@@ -338,11 +348,7 @@ export function InviterNyMedlemModal({
           onChange={(e) => setTelefon(e.target.value)}
         />
 
-        {leggTilMedlemMutation.error && (
-          <p className="text-sm text-red-600">
-            {leggTilMedlemMutation.error.message}
-          </p>
-        )}
+        <MutasjonsFeil melding={mutFeil.feil} />
 
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>

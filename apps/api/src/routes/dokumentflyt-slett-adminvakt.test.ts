@@ -83,3 +83,89 @@ describe("dokumentflyt.slett — admin-gate (verifiserAdmin)", () => {
     expect(del).toHaveBeenCalledWith({ where: { id: FLYT } });
   });
 });
+
+// ---------------------------------------------------------------------------
+//  Admin-gate på ALLE åtte flyt-konfig-mutasjonene (Kenneth-vedtak 2026-08-22).
+//  Gjenbruker samme harness: ekte verifiserAdmin + mocket @sitedoc/db-prisma.
+//  Permissiv ctx.prisma lar hver prosedyre-kropp fullføre for slipp-scenariene.
+// ---------------------------------------------------------------------------
+
+const ID = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+
+function scenarioMedlem() {
+  userFindUnique.mockResolvedValue({ role: "user" });
+  memberFindUnique.mockResolvedValue({ role: "member" });
+  orgFindMany.mockResolvedValue([]); // ingen org → ingen firmaadmin-fallback
+}
+function scenarioProsjektadmin() {
+  userFindUnique.mockResolvedValue({ role: "user" });
+  memberFindUnique.mockResolvedValue({ role: "admin" });
+}
+function scenarioFirmaadmin() {
+  userFindUnique.mockResolvedValue({ role: "company_admin" }); // ikke sitedoc_admin
+  memberFindUnique.mockResolvedValue(null); // INGEN medlemsrad
+  orgFindMany.mockResolvedValue([{ organizationId: "org-1" }]);
+  orgMemberFindUnique.mockResolvedValue({ firmaRoller: ["firma_admin"] });
+}
+
+function permissivPrisma() {
+  return {
+    dokumentflyt: {
+      create: vi.fn().mockResolvedValue({ id: FLYT }),
+      update: vi.fn().mockResolvedValue({ id: FLYT }),
+      delete: vi.fn().mockResolvedValue({ id: FLYT }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ id: FLYT, roller: [] }),
+    },
+    dokumentflytMal: {
+      deleteMany: vi.fn().mockResolvedValue({}),
+      createMany: vi.fn().mockResolvedValue({}),
+    },
+    dokumentflytMedlem: {
+      create: vi.fn().mockResolvedValue({ id: "m" }),
+      delete: vi.fn().mockResolvedValue({ id: "m" }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "m", dokumentflytId: FLYT, rolle: "registrator", steg: 1 }),
+      updateMany: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({ id: "m" }),
+    },
+  };
+}
+
+function lagCallerMed(prisma: unknown) {
+  const ctx = {
+    userId: "user-1",
+    tokenKilde: null,
+    sessionToken: null,
+    req: { log: { info: vi.fn(), warn: vi.fn() } },
+    nyttSessionTokenForRespons: { value: null },
+    prisma,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  return dokumentflytRouter.createCaller(ctx);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PROSEDYRER: Array<{ navn: string; kall: (c: any) => Promise<unknown> }> = [
+  { navn: "opprett", kall: (c) => c.opprett({ projectId: PROSJEKT, name: "F" }) },
+  { navn: "oppdater", kall: (c) => c.oppdater({ id: ID, projectId: PROSJEKT }) },
+  { navn: "oppdaterRoller", kall: (c) => c.oppdaterRoller({ id: ID, projectId: PROSJEKT, roller: [] }) },
+  { navn: "leggTilMedlem", kall: (c) => c.leggTilMedlem({ dokumentflytId: ID, projectId: PROSJEKT, rolle: "registrator" }) },
+  { navn: "fjernMedlem", kall: (c) => c.fjernMedlem({ id: ID, projectId: PROSJEKT }) },
+  { navn: "settHovedansvarlig", kall: (c) => c.settHovedansvarlig({ id: ID, projectId: PROSJEKT, erHovedansvarlig: true }) },
+  { navn: "settGruppeHovedansvarlig", kall: (c) => c.settGruppeHovedansvarlig({ id: ID, projectId: PROSJEKT, hovedansvarligPersonId: null }) },
+  { navn: "settKanRedigere", kall: (c) => c.settKanRedigere({ id: ID, projectId: PROSJEKT, kanRedigere: true }) },
+];
+
+describe.each(PROSEDYRER)("dokumentflyt.$navn — admin-gate (verifiserAdmin)", ({ kall }) => {
+  it("vanlig medlem → FORBIDDEN (gaten stopper før kroppen)", async () => {
+    scenarioMedlem();
+    await expect(kall(lagCallerMed(permissivPrisma()))).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+  it("prosjektadmin → slipper", async () => {
+    scenarioProsjektadmin();
+    await expect(kall(lagCallerMed(permissivPrisma()))).resolves.toBeDefined();
+  });
+  it("firmaadmin uten ProjectMember-rad → slipper (riktig hjelper)", async () => {
+    scenarioFirmaadmin();
+    await expect(kall(lagCallerMed(permissivPrisma()))).resolves.toBeDefined();
+  });
+});

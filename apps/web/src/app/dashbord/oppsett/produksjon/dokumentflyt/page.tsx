@@ -31,6 +31,7 @@ import { HmsFlytKort } from "@/components/hms/HmsFlytKort";
 import { nesteAutoFarge, FARGE_MAP as FAGGRUPPE_FARGER } from "../_components/faggruppe-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -111,15 +112,18 @@ function FaggruppeFargePrikk({ farge }: { farge: string | null }) {
 function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string; prosjektId: string }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const mutFeil = useMutasjonsFeil();
   const [visInput, setVisInput] = useState(false);
   const [navn, setNavn] = useState("");
 
   const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
       setVisInput(false);
       setNavn("");
     },
+    onError: mutFeil.onError,
   });
 
   if (!visInput) {
@@ -135,34 +139,37 @@ function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string;
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <input
-        type="text"
-        value={navn}
-        onChange={(e) => setNavn(e.target.value)}
-        placeholder={t("dokumentflyt.dokumentflytNavn")}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-        autoFocus
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && navn.trim()) {
-            opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
-          }
-          if (e.key === "Escape") { setVisInput(false); setNavn(""); }
-        }}
-      />
-      <Button
-        size="sm"
-        onClick={() => {
-          if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
-        }}
-        disabled={!navn.trim() || opprettMutation.isPending}
-        loading={opprettMutation.isPending}
-      >
-        {t("handling.opprett")}
-      </Button>
-      <Button size="sm" variant="secondary" onClick={() => { setVisInput(false); setNavn(""); }}>
-        {t("handling.avbryt")}
-      </Button>
+    <div>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={navn}
+          onChange={(e) => setNavn(e.target.value)}
+          placeholder={t("dokumentflyt.dokumentflytNavn")}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && navn.trim()) {
+              opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
+            }
+            if (e.key === "Escape") { setVisInput(false); setNavn(""); }
+          }}
+        />
+        <Button
+          size="sm"
+          onClick={() => {
+            if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
+          }}
+          disabled={!navn.trim() || opprettMutation.isPending}
+          loading={opprettMutation.isPending}
+        >
+          {t("handling.opprett")}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => { setVisInput(false); setNavn(""); }}>
+          {t("handling.avbryt")}
+        </Button>
+      </div>
+      <MutasjonsFeil melding={mutFeil.feil} />
     </div>
   );
 }
@@ -195,6 +202,7 @@ function DokumentflytKort({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const mutFeil = useMutasjonsFeil();
   const [erRedigering, setErRedigering] = useState(false);
   const [navn, setNavn] = useState(df.name);
 
@@ -203,15 +211,19 @@ function DokumentflytKort({
 
   const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
       setErRedigering(false);
     },
+    onError: mutFeil.onError,
   });
 
   const slettMutation = trpc.dokumentflyt.slett.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   const tilknyttedeMalIder = new Set(df.maler.map((m) => m.template.id));
@@ -291,6 +303,8 @@ function DokumentflytKort({
           </button>
         )}
       </div>
+
+      <MutasjonsFeil melding={mutFeil.feil} />
 
       {/* Visuell flyt — dynamiske bokser basert på konfigurerte roller */}
       <DynamiskFlyt
@@ -436,14 +450,17 @@ function DynamiskFlyt({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const mutFeil = useMutasjonsFeil();
   const [visLeggTilRolle, setVisLeggTilRolle] = useState(false);
   const [redigerLabel, setRedigerLabel] = useState<string | null>(null);
   const [labelVerdi, setLabelVerdi] = useState("");
 
   const oppdaterRollerMutation = trpc.dokumentflyt.oppdaterRoller.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   // Roller fra df.roller (stabile, persistert i DB)
@@ -485,7 +502,8 @@ function DynamiskFlyt({
   };
 
   return (
-    <div className="flex items-stretch gap-0 flex-wrap">
+    <div>
+      <div className="flex items-stretch gap-0 flex-wrap">
       {konfigRoller.map((rk, idx) => {
         const konfig = ROLLE_KONFIG[rk.rolle];
         if (!konfig) return null;
@@ -572,6 +590,8 @@ function DynamiskFlyt({
           )}
         </>
       )}
+      </div>
+      <MutasjonsFeil melding={mutFeil.feil} />
     </div>
   );
 }
@@ -621,32 +641,41 @@ function FlytBoks({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const mutFeil = useMutasjonsFeil();
   const [visInviterNy, setVisInviterNy] = useState(false);
   const [utvidetGruppe, setUtvidetGruppe] = useState<Set<string>>(new Set());
   const f = FLYT_FARGER[farge] ?? FLYT_FARGER.blue!;
 
   const settHovedansvarligMutation = trpc.dokumentflyt.settHovedansvarlig.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   const settGruppeHovedansvarligMutation = trpc.dokumentflyt.settGruppeHovedansvarlig.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   const settKanRedigereMutation = trpc.dokumentflyt.settKanRedigere.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   // Del medlemmer i grupper og enkeltpersoner
@@ -875,6 +904,8 @@ function FlytBoks({
           onInviterNy={() => setVisInviterNy(true)}
         />
       </div>
+
+      <MutasjonsFeil melding={mutFeil.feil} />
 
       {/* Inviter ny person modal */}
       <InviterNyMedlemModal
