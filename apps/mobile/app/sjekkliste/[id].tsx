@@ -140,6 +140,11 @@ export default function SjekklisteUtfylling() {
   const [opprettOppgaveFeltId, setOpprettOppgaveFeltId] = useState<string | null>(null);
   const [opprettOppgaveFeltLabel, setOpprettOppgaveFeltLabel] = useState<string | null>(null);
   const [valgtOppgaveMal, setValgtOppgaveMal] = useState<MalData | null>(null);
+  // Forhåndsposisjon for rad-oppgaver: radens drawing_position ?? dokumentets lokasjon. Modalen
+  // krever fullt punkt (drawingId + x + y) → null når det mangler.
+  const [opprettOppgavePosisjon, setOpprettOppgavePosisjon] = useState<
+    { drawingId: string; byggeplassId: string | null; x: number; y: number } | null
+  >(null);
 
   // Hent overføringer for historikk
   const detaljQuery = trpc.sjekkliste.hentMedId.useQuery(
@@ -1004,6 +1009,46 @@ export default function SjekklisteUtfylling() {
             ? `${feltOppgave.template?.prefix ?? ""}${feltOppgave.number ?? ""}`
             : undefined;
 
+          const erRepeater = objekt.type === "repeater";
+          // Rad-scopet oppgave-adapter — KUN repeater. Whole-field-oppgaven på repeateren skrus AV
+          // (per-rad er entydig; prod har 0 whole-field-koblinger på repeater). Reversibelt: fjern
+          // `erRepeater`-vaktene. Speiler web.
+          const radOppgaver = erRepeater
+            ? {
+                finnForRad: (nokkel: string) => {
+                  const o = feltOppgaveMap.get(nokkel);
+                  if (!o) return undefined;
+                  const nr = `${o.template?.prefix ?? ""}${o.number ?? ""}`;
+                  return { id: o.id, nummer: nr.trim() ? nr : undefined };
+                },
+                onOpprett: (
+                  nokkel: string,
+                  radPosisjon: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null,
+                ) => {
+                  setOpprettOppgaveFeltId(nokkel);
+                  setOpprettOppgaveFeltLabel(objekt.label);
+                  setOpprettOppgaveKategori("oppgave");
+                  // Radens posisjon ?? dokumentets lokasjon. Modalen krever fullt punkt.
+                  const kilde = radPosisjon ?? {
+                    drawingId: sjekklisteDetalj?.drawingId ?? null,
+                    positionX: sjekklisteDetalj?.positionX ?? null,
+                    positionY: sjekklisteDetalj?.positionY ?? null,
+                  };
+                  setOpprettOppgavePosisjon(
+                    kilde.drawingId && kilde.positionX != null && kilde.positionY != null
+                      ? {
+                          drawingId: kilde.drawingId,
+                          byggeplassId: sjekklisteDetalj?.byggeplass?.id ?? null,
+                          x: kilde.positionX,
+                          y: kilde.positionY,
+                        }
+                      : null,
+                  );
+                },
+                onNaviger: (oid: string) => router.push(`/oppgave/${oid}`),
+              }
+            : undefined;
+
           return (
             <FeltWrapper
               key={objekt.id}
@@ -1019,13 +1064,18 @@ export default function SjekklisteUtfylling() {
               sjekklisteId={sjekkliste.id}
               nestingNivå={nestingNivå}
               valideringsfeil={valideringsfeil[objekt.id]}
-              oppgaveNummer={oppgaveNummer && oppgaveNummer.trim() ? oppgaveNummer : undefined}
-              oppgaveId={feltOppgave?.id}
-              onOpprettOppgave={() => {
-                setOpprettOppgaveFeltId(objekt.id);
-                setOpprettOppgaveFeltLabel(objekt.label);
-                setOpprettOppgaveKategori("oppgave");
-              }}
+              oppgaveNummer={erRepeater ? undefined : oppgaveNummer && oppgaveNummer.trim() ? oppgaveNummer : undefined}
+              oppgaveId={erRepeater ? undefined : feltOppgave?.id}
+              onOpprettOppgave={
+                erRepeater
+                  ? undefined // repeater bruker per-rad-oppgaver (radOppgaver); whole-field avskrudd
+                  : () => {
+                      setOpprettOppgaveFeltId(objekt.id);
+                      setOpprettOppgaveFeltLabel(objekt.label);
+                      setOpprettOppgaveKategori("oppgave");
+                      setOpprettOppgavePosisjon(null);
+                    }
+              }
               onNavigerTilOppgave={(oppgaveId) => router.push(`/oppgave/${oppgaveId}`)}
               oversettelser={oversettelser}
               oversettelseLaster={oversettelseLaster}
@@ -1040,6 +1090,7 @@ export default function SjekklisteUtfylling() {
                 leseModus={verdiLeseModus}
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 sjekklisteId={sjekkliste.id}
+                radOppgaver={radOppgaver}
               />
             </FeltWrapper>
           );
@@ -1430,11 +1481,13 @@ export default function SjekklisteUtfylling() {
             : undefined
         }
         feltLabel={opprettOppgaveFeltLabel ?? undefined}
+        posisjon={opprettOppgavePosisjon ?? undefined}
         onOpprettet={(oppgaveId) => {
           setValgtOppgaveMal(null);
           setOpprettOppgaveKategori(null);
           setOpprettOppgaveFeltId(null);
           setOpprettOppgaveFeltLabel(null);
+          setOpprettOppgavePosisjon(null);
           // Oppdater oppgavelisten for denne sjekklisten
           utils.oppgave.hentForSjekkliste.invalidate({ checklistId: id! });
           // Naviger til oppgave-detaljskjerm
@@ -1445,6 +1498,7 @@ export default function SjekklisteUtfylling() {
           setOpprettOppgaveKategori(null);
           setOpprettOppgaveFeltId(null);
           setOpprettOppgaveFeltLabel(null);
+          setOpprettOppgavePosisjon(null);
         }}
       />
     </SafeAreaView>

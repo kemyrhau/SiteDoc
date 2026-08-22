@@ -74,6 +74,13 @@ interface SjekklisteOppgave {
   template: { prefix: string | null } | null;
 }
 
+/** «BEF-001» (prefix + nullpadd) el. «001» (uten prefix); undefined når nummer mangler. */
+function formaterOppgaveNr(o: SjekklisteOppgave | undefined): string | undefined {
+  if (!o || o.number == null) return undefined;
+  const nr = String(o.number).padStart(3, "0");
+  return o.template?.prefix ? `${o.template.prefix}-${nr}` : nr;
+}
+
 /** Last ned en base64-PDF som fil (arkiv-PDF returneres i responsen, vei 3b). */
 function lastNedPdfBase64(pdfBase64: string, filnavn: string): void {
   const bytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
@@ -96,6 +103,12 @@ export default function SjekklisteDetaljSide() {
   // Oppgave-opprettelsesmodal state
   const [opprettOppgaveFeltId, setOpprettOppgaveFeltId] = useState<string | null>(null);
   const [opprettOppgaveFeltLabel, setOpprettOppgaveFeltLabel] = useState("");
+  // Forhåndsposisjon for rad-oppgaver: radens egen drawing_position ?? dokumentets lokasjon.
+  const [opprettOppgavePosisjon, setOpprettOppgavePosisjon] = useState<{
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
+  } | null>(null);
 
   // --- Hent brukerinfo og prosjektdata FØR skjema-hook ---
 
@@ -866,10 +879,44 @@ export default function SjekklisteDetaljSide() {
           }
 
           const feltOppgave = feltOppgaveMap.get(objekt.id);
-          const oppgaveNummer = feltOppgave && feltOppgave.number != null
-            ? feltOppgave.template?.prefix
-              ? `${feltOppgave.template.prefix}-${String(feltOppgave.number).padStart(3, "0")}`
-              : String(feltOppgave.number).padStart(3, "0")
+          const oppgaveNummer = formaterOppgaveNr(feltOppgave);
+
+          const erRepeater = objekt.type === "repeater";
+          // Rad-scopet oppgave-adapter — KUN repeater. Whole-field-oppgaven på repeateren skrus AV
+          // (per-rad er den entydige veien; to feste-måter er nettopp tvetydigheten vi fjernet
+          // 2026-08-22). Både OPPRETTELSE og BADGE-VISNING utelates: prod har 0 whole-field-
+          // koblinger på repeater (Kenneth-måling) → ingen bakoverkompat å bevare. Reversibelt:
+          // fjern `erRepeater`-vaktene (her + oppgaveNummer/oppgaveId/onOpprettOppgave under) for å
+          // slå «oppgave på hele tabellen» på igjen om behovet dukker opp.
+          const radOppgaver = erRepeater
+            ? {
+                finnForRad: (nokkel: string) => {
+                  const o = feltOppgaveMap.get(nokkel);
+                  return o ? { id: o.id, nummer: formaterOppgaveNr(o) } : undefined;
+                },
+                onOpprett: (
+                  nokkel: string,
+                  radPosisjon: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null,
+                ) => {
+                  const dok = sjekkliste as unknown as {
+                    drawingId?: string | null;
+                    positionX?: number | null;
+                    positionY?: number | null;
+                  };
+                  setOpprettOppgaveFeltId(nokkel);
+                  setOpprettOppgaveFeltLabel(objekt.label);
+                  // Radens egen posisjon hvis den finnes, ellers dokumentets lokasjon.
+                  setOpprettOppgavePosisjon(
+                    radPosisjon ?? {
+                      drawingId: dok.drawingId ?? null,
+                      positionX: dok.positionX ?? null,
+                      positionY: dok.positionY ?? null,
+                    },
+                  );
+                },
+                onNaviger: (id: string) =>
+                  router.push(`/dashbord/${params.prosjektId}/oppgaver?oppgave=${id}`),
+              }
             : undefined;
 
           return (
@@ -887,12 +934,19 @@ export default function SjekklisteDetaljSide() {
                 prosjektId={params.prosjektId}
                 byggeplassId={fullSjekkliste?.byggeplass?.id}
                 standardTegningId={standardTegning?.id}
-                oppgaveNummer={oppgaveNummer}
-                oppgaveId={feltOppgave?.id}
-                onOpprettOppgave={() => {
-                  setOpprettOppgaveFeltId(objekt.id);
-                  setOpprettOppgaveFeltLabel(objekt.label);
-                }}
+                oppgaveNummer={erRepeater ? undefined : oppgaveNummer}
+                oppgaveId={erRepeater ? undefined : feltOppgave?.id}
+                onOpprettOppgave={
+                  erRepeater
+                    ? undefined // avskrudd: repeater bruker per-rad-oppgaver (se radOppgaver).
+                    // Whole-field-badge på repeater er også utelatt: prod har 0 slike koblinger
+                    // (Kenneth-måling 2026-08-22) → visningsveien ville vært død fra dag én.
+                    : () => {
+                        setOpprettOppgaveFeltId(objekt.id);
+                        setOpprettOppgaveFeltLabel(objekt.label);
+                        setOpprettOppgavePosisjon(null);
+                      }
+                }
                 onNavigerTilOppgave={(id) =>
                   router.push(`/dashbord/${params.prosjektId}/oppgaver?oppgave=${id}`)
                 }
@@ -909,6 +963,7 @@ export default function SjekklisteDetaljSide() {
                   leseModus={verdiLeseModus}
                   prosjektId={params.prosjektId}
                   barneObjekter={barneObjekterMap.get(objekt.id)}
+                  radOppgaver={radOppgaver}
                 />
               </FeltWrapper>
             </div>
@@ -957,6 +1012,7 @@ export default function SjekklisteDetaljSide() {
         sjekklisteFeltId={opprettOppgaveFeltId ?? ""}
         sjekklisteNummer={sjekklisteNummer}
         feltLabel={opprettOppgaveFeltLabel}
+        forhandsPosisjon={opprettOppgavePosisjon}
       />
 
     </div>
