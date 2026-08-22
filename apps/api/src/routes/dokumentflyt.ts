@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   createDokumentflytSchema,
@@ -8,6 +9,7 @@ import {
   oppdaterRollerSchema,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
+import { IKKE_SLETTET } from "../utils/softDelete";
 
 const dokumentflytInclude = {
   faggruppe: { select: { id: true, name: true, color: true } },
@@ -160,6 +162,26 @@ export const dokumentflytRouter = router({
     .mutation(async ({ ctx, input }) => {
       // Admin-gate — begrunnelse i router-doccen øverst. Sletting rører alle dokumenter i flyten.
       await verifiserAdmin(ctx.userId, input.projectId);
+
+      // Slett-vern (Kenneth-bestilling 2026-08-22): `Checklist`/`Task`/`Godkjenning`/
+      // `KontrollplanPunkt` → `Dokumentflyt` er alle `onDelete: SetNull` (schema:1084/1150/1211/
+      // 2099). Uten denne vakten ville sletting stille NULLSTILT flyt-id på ALLE dokumentene i
+      // flyten — de ble flyt-løse uten spor (prod: 1 av 16 sjekklister ER flyt-løs, kan være dette).
+      // Vi teller IKKE-slettede sjekklister + oppgaver (papirkurv-rader holdes utenfor per ordre —
+      // de ville uansett fått SetNull ved en senere hard-sletting). App-guard med lesbar melding;
+      // en `onDelete: Restrict`-DB-backstop er meldt som eget spor (jf. ReportTemplate schema:1144).
+      const [antallSjekklister, antallOppgaver] = await Promise.all([
+        ctx.prisma.checklist.count({ where: { dokumentflytId: input.id, ...IKKE_SLETTET } }),
+        ctx.prisma.task.count({ where: { dokumentflytId: input.id, ...IKKE_SLETTET } }),
+      ]);
+      const antall = antallSjekklister + antallOppgaver;
+      if (antall > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Flyten har ${antall} dokument${antall === 1 ? "" : "er"} og kan ikke slettes. Flytt eller lukk dem først.`,
+        });
+      }
+
       return ctx.prisma.dokumentflyt.delete({ where: { id: input.id } });
     }),
 
