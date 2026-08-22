@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Rediģēt moduļus",
   "dokumentflyt.leggTilMal": "Pievienojiet veidni",
   "dokumentflyt.ingenMaler": "Nav izveidota neviena veidne",
-  "dokumentflyt.malDuplikatAdvarsel": "Šī veidne jau ir pievienota tai pašai tirdzniecības grupai «{{flytNavn}}». Tirdzniecības grupai nevajadzētu būt divām plūsmām ar vienu un to pašu veidni, jo tas rada neskaidrības pārsūtīšanas laikā.",
-  "dokumentflyt.malDuplikatFortsett": "Tik un tā turpini",
   "tabell.bestiller": "Pasūtītājs",
   "tabell.utforer": "Izpildītājs",
   "tabell.bestillerFaggruppe": "Radītājs darbuzņēmējs",

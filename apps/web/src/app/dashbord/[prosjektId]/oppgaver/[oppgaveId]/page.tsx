@@ -704,6 +704,7 @@ export default function OppgaveDetaljSide() {
             dokumentflyter={dokumentflyter}
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardFaggruppeId={oppgave.utforerFaggruppe?.id}
+            aktivDokumentflytId={(fullOppgaveRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? undefined}
             minRolle={minRolle}
             adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}

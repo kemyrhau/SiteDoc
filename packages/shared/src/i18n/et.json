@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Redigeeri mooduleid",
   "dokumentflyt.leggTilMal": "Lisa mall",
   "dokumentflyt.ingenMaler": "Malle pole loodud",
-  "dokumentflyt.malDuplikatAdvarsel": "See mall on sama kaubandusgrupi jaoks juba lisatud lehele «{{flytNavn}}». Kaubandusgrupil ei tohiks olla kahte sama malliga voogu, kuna see tekitab edastamisel ebaselgust.",
-  "dokumentflyt.malDuplikatFortsett": "Jätka ikkagi",
   "tabell.bestiller": "Tellija",
   "tabell.utforer": "Täitja",
   "tabell.bestillerFaggruppe": "Looja töövõtja",

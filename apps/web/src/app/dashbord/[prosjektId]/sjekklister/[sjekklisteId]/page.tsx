@@ -324,6 +324,7 @@ export default function SjekklisteDetaljSide() {
   // fullSjekklisteRå hentet ovenfor — cast for typesikkerhet
   const fullSjekkliste = fullSjekklisteRå as {
     number?: number | null;
+    dokumentflytId?: string | null;
     bestiller?: { name?: string | null };
     bestillerUserId?: string;
     recipientUserId?: string | null;
@@ -752,6 +753,7 @@ export default function SjekklisteDetaljSide() {
             dokumentflyter={dokumentflyter}
             templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
             standardFaggruppeId={sjekkliste.utforerFaggruppe?.id}
+            aktivDokumentflytId={fullSjekkliste?.dokumentflytId ?? undefined}
             minRolle={minRolle}
             adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}

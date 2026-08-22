@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Redakto module",
   "dokumentflyt.leggTilMal": "Shto shabllon",
   "dokumentflyt.ingenMaler": "Nuk u krijuan shabllone",
-  "dokumentflyt.malDuplikatAdvarsel": "Ky shabllon është bashkangjitur tashmë te «{{flytNavn}}» për të njëjtin grup tregtar. Një grup tregtar nuk duhet të ketë dy flukse me të njëjtin shabllon pasi kjo krijon paqartësi gjatë përcjelljes.",
-  "dokumentflyt.malDuplikatFortsett": "Vazhdo gjithsesi",
   "tabell.bestiller": "porositës",
   "tabell.utforer": "Ekzekutues",
   "tabell.bestillerFaggruppe": "Grupi tregtar i porositësve",

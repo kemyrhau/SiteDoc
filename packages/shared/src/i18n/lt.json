@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Redaguoti modulius",
   "dokumentflyt.leggTilMal": "Pridėti šabloną",
   "dokumentflyt.ingenMaler": "Jokių šablonų nesukurta",
-  "dokumentflyt.malDuplikatAdvarsel": "Šis šablonas jau pridėtas prie tos pačios prekybos grupės „{{flytNavn}}“. Prekybos grupė neturėtų turėti dviejų srautų su tuo pačiu šablonu, nes tai sukelia neaiškumų persiunčiant.",
-  "dokumentflyt.malDuplikatFortsett": "Vis tiek tęsk",
   "tabell.bestiller": "Užsakovas",
   "tabell.utforer": "Vykdytojas",
   "tabell.bestillerFaggruppe": "Kūrėjas rangovas",

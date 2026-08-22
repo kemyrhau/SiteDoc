@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Muokkaa moduuleja",
   "dokumentflyt.leggTilMal": "Lisää malli",
   "dokumentflyt.ingenMaler": "Ei luotu malleja",
-  "dokumentflyt.malDuplikatAdvarsel": "Tämä malli on jo liitetty saman kaupparyhmän «{{flytNavn}}»-tiedostoon. Kaupparyhmässä ei saa olla kahta saman mallin kulkua, koska tämä aiheuttaa epäselvyyttä edelleenlähetyksessä.",
-  "dokumentflyt.malDuplikatFortsett": "Jatka joka tapauksessa",
   "tabell.bestiller": "Tilaaja",
   "tabell.utforer": "Toteuttaja",
   "tabell.bestillerFaggruppe": "Tekijäurakoitsija",

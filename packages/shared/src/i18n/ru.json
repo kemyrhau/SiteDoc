@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Редактировать модули",
   "dokumentflyt.leggTilMal": "Добавить шаблон",
   "dokumentflyt.ingenMaler": "Шаблоны не созданы",
-  "dokumentflyt.malDuplikatAdvarsel": "Этот шаблон уже прикреплен к «{{flytNavn}}» для той же торговой группы. В торговой группе не должно быть двух потоков с одним и тем же шаблоном, поскольку это создает неоднозначность при пересылке.",
-  "dokumentflyt.malDuplikatFortsett": "Продолжить в любом случае",
   "tabell.bestiller": "Заказчик",
   "tabell.utforer": "Исполнитель",
   "tabell.bestillerFaggruppe": "Создатель-подрядчик",

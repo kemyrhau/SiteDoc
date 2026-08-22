@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Redigera moduler",
   "dokumentflyt.leggTilMal": "Lägg till mall",
   "dokumentflyt.ingenMaler": "Inga mallar skapade",
-  "dokumentflyt.malDuplikatAdvarsel": "Denna mall är redan kopplad till «{{flytNavn}}» för samma branschgrupp. En branschgrupp ska inte ha två flöden med samma mall då detta skapar oklarheter vid vidarebefordran.",
-  "dokumentflyt.malDuplikatFortsett": "Fortsätt i alla fall",
   "tabell.bestiller": "Beställare",
   "tabell.utforer": "Testamentsexekutor",
   "tabell.bestillerFaggruppe": "Skaparentreprenör",

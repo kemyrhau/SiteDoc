@@ -215,3 +215,22 @@ function finnMottaker(df: DokumentflytData): { userId?: string; groupId?: string
   }
   return undefined;
 }
+
+/**
+ * Standard-mottaker for «Besvar» — FLYT-BEVISST (funn 2026-08-22).
+ *
+ * `byggVideresendValg` lager ÉN oppføring per dokumentflyt, så en faggruppe med FLERE flyter
+ * (samme mal) gir flere oppføringer med samme `faggruppeId` men ulik `dokumentflytId`. Et
+ * oppslag på `faggruppeId` alene (`.find` = første treff) kan da rute Besvar til FEIL flyts
+ * mottaker. Dokumentet kjenner sin EGEN flyt: match på den. Faggruppe-oppslaget beholdes kun
+ * som fallback for FLYT-LØSE dokumenter (ingen `aktivDokumentflytId`).
+ */
+export function finnStandardMottaker(
+  valg: VideresendValg[],
+  aktivDokumentflytId: string | undefined,
+  standardFaggruppeId: string | undefined,
+): VideresendValg | undefined {
+  if (aktivDokumentflytId) return valg.find((v) => v.dokumentflytId === aktivDokumentflytId);
+  if (standardFaggruppeId) return valg.find((v) => v.faggruppeId === standardFaggruppeId);
+  return undefined;
+}

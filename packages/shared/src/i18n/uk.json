@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Редагувати модулі",
   "dokumentflyt.leggTilMal": "Додати шаблон",
   "dokumentflyt.ingenMaler": "Шаблони не створено",
-  "dokumentflyt.malDuplikatAdvarsel": "Цей шаблон уже долучено до «{{flytNavn}}» для тієї самої торгової групи. Торгова група не повинна мати два потоки з однаковим шаблоном, оскільки це створює неоднозначність під час пересилання.",
-  "dokumentflyt.malDuplikatFortsett": "Все одно продовжуй",
   "tabell.bestiller": "Замовник",
   "tabell.utforer": "Виконавець",
   "tabell.bestillerFaggruppe": "Творець підрядник",

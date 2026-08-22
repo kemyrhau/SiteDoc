@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Editați module",
   "dokumentflyt.leggTilMal": "Adăugați șablon",
   "dokumentflyt.ingenMaler": "Nu au fost create șabloane",
-  "dokumentflyt.malDuplikatAdvarsel": "Acest șablon este deja atașat la «{{flytNavn}}» pentru același grup comercial. Un grup comercial nu ar trebui să aibă două fluxuri cu același șablon, deoarece acest lucru creează ambiguitate la redirecționare.",
-  "dokumentflyt.malDuplikatFortsett": "Continuați oricum",
   "tabell.bestiller": "ordonator",
   "tabell.utforer": "Executor testamentar",
   "tabell.bestillerFaggruppe": "Antreprenor creator",

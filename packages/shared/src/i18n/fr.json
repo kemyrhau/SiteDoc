@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Modifier les modules",
   "dokumentflyt.leggTilMal": "Ajouter un modèle",
   "dokumentflyt.ingenMaler": "Aucun modèle créé",
-  "dokumentflyt.malDuplikatAdvarsel": "Ce modèle est déjà attaché à « {{flytNavn}} » pour le même groupe professionnel. Un groupe commercial ne doit pas avoir deux flux avec le même modèle car cela crée une ambiguïté lors du transfert.",
-  "dokumentflyt.malDuplikatFortsett": "Continuer quand même",
   "tabell.bestiller": "Commandante",
   "tabell.utforer": "Exécutrice",
   "tabell.bestillerFaggruppe": "Créateur entrepreneur",

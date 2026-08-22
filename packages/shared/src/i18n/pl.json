@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Edytuj moduły",
   "dokumentflyt.leggTilMal": "Dodaj szablon",
   "dokumentflyt.ingenMaler": "Nie utworzono żadnych szablonów",
-  "dokumentflyt.malDuplikatAdvarsel": "Ten szablon jest już dołączony do «{{flytNavn}}» dla tej samej grupy handlowej. Grupa branżowa nie powinna mieć dwóch przepływów z tym samym szablonem, ponieważ stwarza to niejednoznaczność podczas spedycji.",
-  "dokumentflyt.malDuplikatFortsett": "Kontynuuj mimo to",
   "tabell.bestiller": "Zamawiający",
   "tabell.utforer": "Wykonawca",
   "tabell.bestillerFaggruppe": "Twórca wykonawca",

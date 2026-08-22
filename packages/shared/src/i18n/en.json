@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Edit modules",
   "dokumentflyt.leggTilMal": "Add template",
   "dokumentflyt.ingenMaler": "No templates created",
-  "dokumentflyt.malDuplikatAdvarsel": "This template is already attached to «{{flytNavn}}» for the same trade group. A trade group should not have two flows with the same template as this creates ambiguity when forwarding.",
-  "dokumentflyt.malDuplikatFortsett": "Continue anyway",
   "tabell.bestiller": "Orderer",
   "tabell.utforer": "Executor",
   "tabell.bestillerFaggruppe": "Orderer trade group",

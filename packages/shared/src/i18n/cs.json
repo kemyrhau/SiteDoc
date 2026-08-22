@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Upravit moduly",
   "dokumentflyt.leggTilMal": "Přidat šablonu",
   "dokumentflyt.ingenMaler": "Nebyly vytvořeny žádné šablony",
-  "dokumentflyt.malDuplikatAdvarsel": "Tato šablona je již připojena k «{{flytNavn}}» pro stejnou obchodní skupinu. Obchodní skupina by neměla mít dva toky se stejnou šablonou, protože to vytváří nejednoznačnost při předávání.",
-  "dokumentflyt.malDuplikatFortsett": "Přesto pokračujte",
   "tabell.bestiller": "Objednatel",
   "tabell.utforer": "Vykonavatel",
   "tabell.bestillerFaggruppe": "Tvůrce dodavatel",

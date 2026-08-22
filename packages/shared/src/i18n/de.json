@@ -2452,8 +2452,6 @@
   "brukere.redigerModuler": "Bearbeiten Sie Module",
   "dokumentflyt.leggTilMal": "Vorlage hinzufügen",
   "dokumentflyt.ingenMaler": "Keine Vorlagen erstellt",
-  "dokumentflyt.malDuplikatAdvarsel": "Diese Vorlage ist bereits an „{{flytNavn}}“ für dieselbe Handelsgruppe angehängt. Eine Handelsgruppe sollte nicht über zwei Flows mit derselben Vorlage verfügen, da dies zu Unklarheiten bei der Weiterleitung führt.",
-  "dokumentflyt.malDuplikatFortsett": "Machen Sie trotzdem weiter",
   "tabell.bestiller": "Besteller",
   "tabell.utforer": "Testamentsvollstrecker",
   "tabell.bestillerFaggruppe": "Auftragnehmer des Erstellers",
