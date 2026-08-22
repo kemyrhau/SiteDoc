@@ -59,6 +59,8 @@ describe("RepeaterObjekt — rad-oppgave persisterer stabil _radId ved opprettel
     // 2) Oppgavens nøkkel bruker DEN persisterte id-en (ikke array-indeks, ikke en annen uuid).
     expect(onOpprett).toHaveBeenCalledTimes(1);
     expect(onOpprett.mock.calls[0]![0]).toBe(`rep:${persistertId}`);
+    // Funn 3: radens 1-baserte nummer sendes med (til tittelen). Første rad → 1.
+    expect(onOpprett.mock.calls[0]![2]).toBe(1);
 
     // 3) Kjernen: neste LESING av de persisterte radene gir SAMME id → badgen matcher etter reload.
     //    (Uten persisteringen ville normaliserRad her delt ut en NY uuid og koblingen blitt foreldreløs.)
