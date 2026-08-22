@@ -3,7 +3,7 @@ import { View, Text, Pressable } from "react-native";
 import { Plus, Trash2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
-import type { RapportObjektProps, RapportObjekt } from "./typer";
+import type { RapportObjektProps, RapportObjekt, OppgavePosisjon } from "./typer";
 import type { FeltVerdi } from "../../hooks/useSjekklisteSkjema";
 import { RapportObjektRenderer, DISPLAY_TYPER, tilbehorVisning } from "./RapportObjektRenderer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
@@ -28,6 +28,19 @@ function normaliserRad(raa: unknown): Rad {
   return { _radId: randomUUID(), felter: (raa ?? {}) as Record<string, FeltVerdi> };
 }
 
+/** Radens forhåndsposisjon: `drawing_position`-barnefeltets verdi (stabil under `_radId`).
+ *  Mobil `TegningPosisjonObjekt` er foreløpig en placeholder → i praksis null; kalleren faller
+ *  da til dokumentets lokasjon. */
+function posisjonFraRad(rad: Rad, barn: RapportObjekt[]): OppgavePosisjon | null {
+  const posBarn = barn.find((b) => b.type === "drawing_position");
+  const pos = posBarn ? (rad.felter[posBarn.id]?.verdi as
+    | { drawingId?: string; positionX?: number; positionY?: number }
+    | null
+    | undefined) : null;
+  if (!pos || !pos.drawingId) return null;
+  return { drawingId: pos.drawingId, positionX: pos.positionX ?? null, positionY: pos.positionY ?? null };
+}
+
 export function RepeaterObjekt({
   objekt,
   verdi,
@@ -36,6 +49,7 @@ export function RepeaterObjekt({
   barneObjekter,
   sjekklisteId,
   oppgaveIdForKo,
+  radOppgaver,
 }: RapportObjektProps) {
   const { t } = useTranslation();
   // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
@@ -63,6 +77,19 @@ export function RepeaterObjekt({
       onEndreVerdi(raderRef.current.filter((_, i) => i !== indeks));
     },
     [onEndreVerdi],
+  );
+
+  const opprettRadOppgave = useCallback(
+    (rad: Rad) => {
+      // 🔴 LOAD-BEARING: persister rad-id-ene FØR opprettelse. En offline-rad lagret før rad-id-
+      // endringen har gammel form (rå `felter`, ingen `_radId`); uten dette ville neste LESING delt
+      // ut en NY uuid via `normaliserRad`, og oppgavens nøkkel (`objekt.id:<denne uuid-en>`) ble
+      // foreldreløs etter reload/re-sync. Å skrive `{ _radId, felter }`-formen NÅ persisterer id-en.
+      // Idempotent: rader som allerede HAR id skrives uendret. (Kenneth-vedtak 2026-08-22.)
+      onEndreVerdi(raderRef.current);
+      radOppgaver?.onOpprett(`${objekt.id}:${rad._radId}`, posisjonFraRad(rad, barn));
+    },
+    [barn, objekt.id, radOppgaver, onEndreVerdi],
   );
 
   const oppdaterFeltVerdi = useCallback(
@@ -152,11 +179,46 @@ export function RepeaterObjekt({
             <Text className="text-[11px] font-semibold text-gray-400">
               {radIndeks + 1} {objekt.label}
             </Text>
-            {!leseModus && (
-              <Pressable onPress={() => fjernRad(radIndeks)} hitSlop={8}>
-                <Trash2 size={12} color="#fca5a5" />
-              </Pressable>
-            )}
+            <View className="flex-row items-center gap-2">
+              {/* Rad-scopet oppgave (nøkkel objekt.id:_radId). Badge alltid; «+ Oppgave» kun i
+                  redigering. Whole-field-oppgave på repeater er avskrudd — per-rad er entydig. */}
+              {radOppgaver &&
+                (() => {
+                  const nokkel = `${objekt.id}:${rad._radId}`;
+                  const opg = radOppgaver.finnForRad(nokkel);
+                  if (opg) {
+                    return (
+                      <Pressable
+                        onPress={() => radOppgaver.onNaviger(opg.id)}
+                        className="rounded-full bg-blue-100 px-2.5 py-0.5"
+                        hitSlop={6}
+                      >
+                        <Text className="text-[11px] font-medium text-blue-700">
+                          {opg.nummer ?? t("oppgave.oppgave", "Oppgave")}
+                        </Text>
+                      </Pressable>
+                    );
+                  }
+                  if (leseModus) return null;
+                  return (
+                    <Pressable
+                      onPress={() => opprettRadOppgave(rad)}
+                      className="flex-row items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5"
+                      hitSlop={6}
+                    >
+                      <Plus size={11} color="#6b7280" />
+                      <Text className="text-[11px] text-gray-500">
+                        {t("oppgave.oppgave", "Oppgave")}
+                      </Text>
+                    </Pressable>
+                  );
+                })()}
+              {!leseModus && (
+                <Pressable onPress={() => fjernRad(radIndeks)} hitSlop={8}>
+                  <Trash2 size={12} color="#fca5a5" />
+                </Pressable>
+              )}
+            </View>
           </View>
 
           <View className="gap-1">

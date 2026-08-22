@@ -23,6 +23,34 @@ export interface RapportObjektProps {
    * komponenten faller til `objekt.id`.
    */
   feltNokkel?: string;
+  /**
+   * Rad-scopet oppgave-kobling — KUN repeater (kalleren fyller den for `type === "repeater"`,
+   * utelatt ellers). Nøkkel er `${objekt.id}:${_radId}` (STABIL rad-id, aldri array-indeks).
+   * Whole-field-oppgave på selve repeateren er bevisst avskrudd (per-rad er entydig); se
+   * page.tsx der `onOpprettOppgave` utelates for repeater. Reversibel — fjern utelatelsen om
+   * et «oppgave på hele tabellen»-behov dukker opp.
+   */
+  radOppgaver?: RadOppgaveAdapter;
+}
+
+/**
+ * Forhåndsutfylt tegnings-posisjon en rad-oppgave arver: radens egen `drawing_position`-verdi
+ * hvis den finnes, ellers dokumentets lokasjon (kalleren avgjør fallbacken).
+ */
+export interface OppgavePosisjon {
+  drawingId?: string | null;
+  positionX?: number | null;
+  positionY?: number | null;
+}
+
+/** Adapter for rad-scopede oppgaver i en repeater (nøkkel `${objekt.id}:${_radId}`). */
+export interface RadOppgaveAdapter {
+  /** Slår opp eksisterende oppgave for en rad-nøkkel; undefined → ingen ennå. */
+  finnForRad: (radNokkel: string) => { id: string; nummer?: string } | undefined;
+  /** Åpner opprett-modal for raden. `radPosisjon` = radens posisjon (null → dokument-fallback). */
+  onOpprett: (radNokkel: string, radPosisjon: OppgavePosisjon | null) => void;
+  /** Naviger til eksisterende rad-oppgave. */
+  onNaviger: (id: string) => void;
 }
 
 export interface Vedlegg {

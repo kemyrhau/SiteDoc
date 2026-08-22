@@ -22,6 +22,11 @@ interface OpprettOppgaveModalProps {
   sjekklisteFeltId: string;
   sjekklisteNummer?: string | null;
   feltLabel?: string;
+  /**
+   * Forhåndsutfylt tegnings-posisjon (rad-oppgaver): radens egen `drawing_position` ?? dokumentets
+   * lokasjon. Sendes videre til oppgaven ved opprettelse. Utelatt/null → ingen posisjon.
+   */
+  forhandsPosisjon?: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null;
 }
 
 export function OpprettOppgaveModal({
@@ -32,6 +37,7 @@ export function OpprettOppgaveModal({
   sjekklisteFeltId,
   sjekklisteNummer,
   feltLabel,
+  forhandsPosisjon,
 }: OpprettOppgaveModalProps) {
   const utils = trpc.useUtils();
 
@@ -165,6 +171,15 @@ export function OpprettOppgaveModal({
       checklistId: sjekklisteId,
       checklistFieldId: sjekklisteFeltId,
       dokumentflytId: matchendeArbeidsforlop?.id,
+      // Forhåndsposisjon (rad-oppgaver): kun når en tegning er kjent. positionX/Y følger med
+      // hvis satt (dokument-fallback kan ha tegning uten punkt).
+      ...(forhandsPosisjon?.drawingId
+        ? {
+            drawingId: forhandsPosisjon.drawingId,
+            ...(forhandsPosisjon.positionX != null ? { positionX: forhandsPosisjon.positionX } : {}),
+            ...(forhandsPosisjon.positionY != null ? { positionY: forhandsPosisjon.positionY } : {}),
+          }
+        : {}),
     });
   }
 
