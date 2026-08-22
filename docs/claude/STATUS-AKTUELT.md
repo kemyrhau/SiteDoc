@@ -4,21 +4,20 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-20)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-22)
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | `feat/am-ordre2-attestering` | AM ordre 2 steg 2 — korreksjon 2–4 (lønnsartfordeling · seriegodkjenning · returner+redigering) + seed for designgate | Ingenting — kan bygge |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | **Ledig.** Neste: flytmodell **F1** (UI slutter å lese typematrisen) — har kartleggingskonteksten | Kenneths klarsignal |
+| **kontrollplan** | `SiteDoc-kontrollplan` | — | Leverte natt til 22.08: D2b, funn 2b/3/4, F7-D1, Lukk-som-slette-port, radkort, funn 6, posisjonsvelger-URL. Nå: kvittering av F7-blokken mot fasit-PNG + kartlegging «Opprett fra tegning» | Kenneths klarsignal på neste ordre |
 | **mobil-device** | `SiteDoc-mobil-device` | `feat/mobil-arkiv-pdf` | ❓ **Ingen status siden 2026-08-20.** Eier steg 3–4 + kontekstkjede | Purring eller omstart |
-| **smoketest** | — | `chore/demo-smoketest` | Utgått — A.Markussen-møtet er gjennomført | — |
 
 **Repo-hygiene 2026-08-21:** alle brancher ryddet. Eneste umergede er
 `feat/am-ordre2-attestering` (dokgens pågående). Fem brancher merget og slettet i dag,
 hvorav to var «probe»-brancher fra avsluttede økter som aldri sto i tavla — ferdig arbeid
 ingen visste om. Det er hullet denne tavla skal lukke.
 
-🔴 **Develop er 68 commits foran prod.** Blokkeres av to uverifiserte ting på test:
+🔴 **Develop er 73 commits foran prod (målt 2026-08-22).** Blokkeres av to uverifiserte ting på test:
 A1 browser-verifisering (DOMPurify sanerer alt opplastet innhold ved render — bommet
 SVG-profil tar ned tegningsvisningen) og pinning av exceljs-kastet i den nye røde banneren.
 Begge tar fem minutter. Jo lenger develop står, jo større og mer risikabel blir deployen.
