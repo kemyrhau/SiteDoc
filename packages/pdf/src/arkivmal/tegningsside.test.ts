@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { byggTegningsside, byggTegningssider } from "./tegningsside";
+import { byggTegningsside, byggTegningssider, velgHelsider } from "./tegningsside";
 import type { TegningssideData } from "./tegningsside";
 
 const basis = (over: Partial<TegningssideData> = {}): TegningssideData => ({
@@ -49,5 +49,33 @@ describe("byggTegningssider — flere tegninger", () => {
     expect(html).toContain(">A<");
     expect(html).toContain(">C<");
     expect(html).not.toContain(">B<");
+  });
+});
+
+describe("velgHelsider — helside KUN for tegning med ≥2 markører (Kenneth-vedtak 2026-08-22)", () => {
+  const medMarkorer = (navn: string, antall: number): TegningssideData =>
+    basis({ tegningNavn: navn, markorer: Array.from({ length: antall }, (_, i) => ({ nr: i + 1, x: 10 * i, y: 10 * i })) });
+
+  it("1 markør → ingen helside", () => {
+    expect(velgHelsider([medMarkorer("A", 1)])).toHaveLength(0);
+  });
+
+  it("2 markører samme tegning → én helside", () => {
+    const ut = velgHelsider([medMarkorer("A", 2)]);
+    expect(ut).toHaveLength(1);
+    expect(ut[0]!.tegningNavn).toBe("A");
+  });
+
+  it("1 + 1 på TO tegninger → ingen helside (teller per tegning, ikke totalt)", () => {
+    expect(velgHelsider([medMarkorer("A", 1), medMarkorer("B", 1)])).toHaveLength(0);
+  });
+
+  it("blandet: A=2, B=1, C=3 → kun A og C (≥2)", () => {
+    const ut = velgHelsider([medMarkorer("A", 2), medMarkorer("B", 1), medMarkorer("C", 3)]);
+    expect(ut.map((s) => s.tegningNavn)).toEqual(["A", "C"]);
+  });
+
+  it("0 markører → ingen helside (defensivt)", () => {
+    expect(velgHelsider([medMarkorer("A", 0)])).toHaveLength(0);
   });
 });
