@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
-import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
 import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
@@ -106,6 +106,7 @@ export default function TegningerSide() {
     aktivTegning,
     aktivByggeplass,
     posisjonsvelgerAktiv,
+    startPosisjonsvelger,
     fullførPosisjonsvelger,
     avbrytPosisjonsvelger,
   } = useByggeplass();
@@ -126,6 +127,25 @@ export default function TegningerSide() {
   const naaUke = useMemo(() => isoUkeRef(new Date()), []);
   // L2: «Vis på tegning» sender ?marker=<punktId> → den markøren utheves (spretter).
   const uthevetPunktId = useSearchParams().get("marker");
+  const posisjonsvelgerParam = useSearchParams().get("posisjonsvelger");
+  const harRehydrertVelger = useRef(false);
+
+  // Re-hydrer velger-tilstanden fra URL-en ÉN gang ved mount (funn 2026-08-22):
+  // posisjonsvelgerAktiv er ren in-memory provider-state og nullstilles ved full last /
+  // remount. Uten dette faller klikk-gaten (:457) gjennom → «Opprett fra tegning» i stedet
+  // for å sette PUNKT. URL-en er sannhetskilden på denne ruten:
+  //   · param satt, men provider tom (full last) → gjenopprett velger-modus.
+  //   · ingen param, men provider har stale velger-modus → rydd (så «fra Tegninger-siden»
+  //     alltid gir Opprett-dialog, aldri arvet velger-modus fra en tidligere dokument-flyt).
+  // Run-once-guard: uten den re-fyrer effekten etter fullførPosisjonsvelger (aktiv=false,
+  // før router.back()) og `startPosisjonsvelger` ville nullstilt resultat-ref-en → punktet tapt.
+  useEffect(() => {
+    if (harRehydrertVelger.current) return;
+    harRehydrertVelger.current = true;
+    const handling = velgerRehydreringsHandling(posisjonsvelgerParam, posisjonsvelgerAktiv);
+    if (handling === "start") startPosisjonsvelger(posisjonsvelgerParam!);
+    else if (handling === "avbryt") avbrytPosisjonsvelger();
+  }, [posisjonsvelgerParam, posisjonsvelgerAktiv, startPosisjonsvelger, avbrytPosisjonsvelger]);
 
   // DWG-elementinfo ved klikk
   const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);

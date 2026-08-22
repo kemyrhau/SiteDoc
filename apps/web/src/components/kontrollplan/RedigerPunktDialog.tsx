@@ -507,9 +507,11 @@ function TegningSeksjon({
 
   function plasser() {
     // Kontrollplan-siden henter resultatet ved retur (hentOgTømPosisjonsResultat).
+    // Velger-tilstanden bæres i URL-en (funn 2026-08-22) → overlever full last på
+    // tegningssiden, som re-hydrerer fra `posisjonsvelger`-parameteren.
     startPosisjonsvelger(punkt.id);
     onLukk();
-    router.push(`/dashbord/${projectId}/tegninger`);
+    router.push(`/dashbord/${projectId}/tegninger?posisjonsvelger=${encodeURIComponent(punkt.id)}`);
   }
   function vis() {
     if (!punkt.drawing) return;

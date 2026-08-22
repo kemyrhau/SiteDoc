@@ -43,7 +43,10 @@ export function TegningPosisjonObjekt({
 
   function handleVelgPosisjon() {
     startPosisjonsvelger(nokkel);
-    router.push(`/dashbord/${params.prosjektId}/tegninger`);
+    // Bær velger-tilstanden i URL-en (funn 2026-08-22): tegningssiden re-hydrerer
+    // fra `posisjonsvelger`-parameteren ved full last / remount, så et klikk setter
+    // PUNKT (ikke «Opprett fra tegning»). En ren in-memory-overlevering var skjør.
+    router.push(`/dashbord/${params.prosjektId}/tegninger?posisjonsvelger=${encodeURIComponent(nokkel)}`);
   }
 
   // Lesemodus: vis posisjon eller «Ingen posisjon valgt»
