@@ -9,7 +9,8 @@ sist_verifisert_mot_kode: 2026-08-09
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | — | AM ordre 2 steg 2 **merget** 2026-08-23 (`68fcbe00`): D3-pivotene, uke-avvik/badge, firma-scopet katalog | Ledig — venter neste ordre |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/mobil-tegningsvisning` · `docs/felt-frys-opphevet` | Begge pushet. Kø etter simulator-grønt: fold D2/D3 → `renderFelt` + dødt subtre · H1 · H8 · oppgave-PDF · H3/H5-rest | Simulator-verifisering av tegningsvisningen |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/mobil-uploadasync-0byte` | Tetter filnavn-hullet i uploadAsync-fiksen (serveren 400-er på manglende endelse) + skriver verifiseringsprotokollen. Kø etter simulator-grønt: fold D2/D3 → `renderFelt` + dødt subtre · H1 · H8 · oppgave-PDF · H3/H5-rest | Ingenting — kan bygge |
+| **simulator** | `SiteDoc-simulator` | detached `origin/develop` | Kjører kontrollplans protokoll: opplasting (3 uri-tilfeller) · mobil tegningsvisning · delt periodefilter | Protokollen fra kontrollplan |
 
 **Lukket 2026-08-23:** `mobil-device`-raden. `feat/mobil-arkiv-pdf` er merget (verifisert med
 `merge-base --is-ancestor`); raden sto åpen på arbeid som lå i develop. Samme feilklasse som
