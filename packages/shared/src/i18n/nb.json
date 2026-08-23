@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Trykk på tegningen for å plassere markør",
   "lokasjoner.skjulOppgaver": "Skjul tidligere oppgaver",
   "lokasjoner.visOppgaver": "Vis tidligere oppgaver",
+  "lokasjoner.filter": "Filter",
+  "lokasjoner.lag.oppgaver": "Oppgaver",
+  "lokasjoner.lag.kontrollpunkter": "Kontrollpunkter",
+  "lokasjoner.lag.omrader": "Områder",
   "lokasjoner.henterData": "Henter byggeplassdata…",
   "dokument.fra": "Fra",
   "dokument.til": "Til",
@@ -3572,5 +3576,6 @@
   "periodeFilter.egendefinert": "Egendefinert",
   "periodeFilter.fra": "Fra",
   "periodeFilter.til": "Til",
-  "periodeFilter.ugyldigIntervall": "Fra-dato er etter til-dato"
+  "periodeFilter.ugyldigIntervall": "Fra-dato er etter til-dato",
+  "periodeFilter.velgDato": "Velg dato"
 }

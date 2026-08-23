@@ -20,6 +20,7 @@ import {
   Check,
   X,
   ChevronDown,
+  SlidersHorizontal,
 } from "lucide-react-native";
 import * as Location from "expo-location";
 import { useTranslation } from "react-i18next";
@@ -29,16 +30,21 @@ import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { AUTH_CONFIG } from "../../src/config/auth";
 import { KartVisning } from "../../src/components/KartVisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
-import type { Markør, GpsMarkør } from "../../src/components/TegningsVisning";
+import type { Markør, GpsMarkør, Omrade } from "../../src/components/TegningsVisning";
 import { TegningsVelger } from "../../src/components/TegningsVelger";
 import { OppgaveModal } from "../../src/components/OppgaveModal";
 import { MalVelger } from "../../src/components/MalVelger";
+import { PeriodeFilter } from "../../src/components/PeriodeFilter";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   beregnTransformasjon,
   gpsTilTegning,
+  effektiveGrenser,
+  innenforPeriode,
+  avledPunktTilstand,
+  isoUkeRef,
 } from "@sitedoc/shared/utils";
-import type { GeoReferanse } from "@sitedoc/shared";
+import type { GeoReferanse, Periode } from "@sitedoc/shared";
 
 // Type-casts for å unngå TS2589 (excessively deep type instantiation)
 interface BygningData {
@@ -75,7 +81,29 @@ interface OppgaveMarkør {
   positionX: number;
   positionY: number;
   status: string;
+  createdAt?: string;
   template: { prefix: string | null } | null;
+}
+
+interface KontrollpunktMarkør {
+  id: string;
+  positionX: number | null;
+  positionY: number | null;
+  status: string;
+  fristUke: number | null;
+  fristAar: number | null;
+  varselUkerFor: number;
+  opprettet?: string;
+  sjekkliste: { id: string; status: string } | null;
+  sjekklisteMal: { prefix: string | null; name: string } | null;
+  omrade: { navn: string } | null;
+}
+
+interface OmradeData {
+  id: string;
+  navn: string;
+  farge: string;
+  polygon: unknown;
 }
 
 export default function LokasjonerSkjerm() {
@@ -104,7 +132,15 @@ export default function LokasjonerSkjerm() {
   const [visOppgaveModal, setVisOppgaveModal] = useState(false);
   const [visMalVelger, setVisMalVelger] = useState(false);
   const [valgtMalId, setValgtMalId] = useState<string | null>(null);
-  const [visEksisterende, setVisEksisterende] = useState(true);
+
+  // Lagfiltre (paritet med web-tegningssiden): oppgaver + kontrollpunkter + områder, alle på.
+  const [visOppgaver, setVisOppgaver] = useState(true);
+  const [visKontrollpunkter, setVisKontrollpunkter] = useState(true);
+  const [visOmrader, setVisOmrader] = useState(true);
+  // Periodefilter på markørene (createdAt/opprettet). Standard: alle.
+  const [periode, setPeriode] = useState<Periode>({ hurtigvalg: "alle", fra: null, til: null });
+  // Sammenleggbart filterpanel (skjult som standard — renere skjerm).
+  const [visFilter, setVisFilter] = useState(false);
 
   // Hent alle bygninger for valgt prosjekt
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -133,11 +169,25 @@ export default function LokasjonerSkjerm() {
     { enabled: !!valgtTegningId },
   );
 
+  // Kontrollpunkt-markører for valgt tegning (paritet med web).
+  const kontrollpunktQuery = trpc.kontrollplan.hentForTegning.useQuery(
+    { drawingId: valgtTegningId! },
+    { enabled: !!valgtTegningId },
+  );
+
+  // Områder (soner/rom/etasjer) for valgt tegning.
+  const omradeQuery = trpc.omrade.hentForTegning.useQuery(
+    { tegningId: valgtTegningId! },
+    { enabled: !!valgtTegningId },
+  );
+
   // Cast data
   const bygninger = (bygningQuery.data ?? []) as BygningData[];
   const tegninger = (tegningQuery.data ?? []) as TegningData[];
   const valgtTegningDetalj = valgtTegningQuery.data as TegningDetalj | undefined;
   const eksisterendeOppgaver = (oppgaverQuery.data ?? []) as OppgaveMarkør[];
+  const kontrollpunktMarkører = (kontrollpunktQuery.data ?? []) as KontrollpunktMarkør[];
+  const tegningOmrader = (omradeQuery.data ?? []) as OmradeData[];
 
   // Auto-velg første bygning hvis ingen er valgt (og ingen dyplenke satte den)
   useEffect(() => {
@@ -161,24 +211,52 @@ export default function LokasjonerSkjerm() {
     [valgtTegningDetalj?.geoReference],
   );
 
-  // Bygg markørliste: eksisterende oppgaver + ny markør.
-  // Georef-punktene (P1/P2/P3) vises IKKE i tegningsvisningen — de er
-  // konfigurasjon og hører kun hjemme i Innstillinger → Byggeplasser
-  // (georef-editoren), ikke som feltmarkører her.
+  // Periodefilter-grenser + dagens ISO-uke (til kontrollpunkt-tilstand).
+  const { fra: pFra, til: pTil } = effektiveGrenser(periode);
+  const naaUke = useMemo(() => isoUkeRef(new Date()), []);
+
+  // Bygg markørliste: oppgaver (grønn) + kontrollpunkter (tilstandsfarget) + ny markør.
+  // Begge lag periodefiltreres på createdAt/opprettet og styres av hver sin vis-bryter.
+  // Georef-punktene (P1/P2/P3) vises IKKE her — de er konfigurasjon (georef-editoren).
   const markører: Markør[] = useMemo(() => {
     const liste: Markør[] = [];
 
-    // Eksisterende oppgaver
-    if (visEksisterende) {
+    // Oppgaver
+    if (visOppgaver) {
       for (const o of eksisterendeOppgaver) {
-        if (o.positionX != null && o.positionY != null) {
-          liste.push({
-            id: o.id,
-            x: o.positionX,
-            y: o.positionY,
-            label: `${o.template?.prefix ?? ""}${o.template?.prefix ? "-" : ""}${String(o.number).padStart(3, "0")}`,
-          });
-        }
+        if (o.positionX == null || o.positionY == null) continue;
+        if (o.createdAt && !innenforPeriode(new Date(o.createdAt), pFra, pTil)) continue;
+        liste.push({
+          id: o.id,
+          x: o.positionX,
+          y: o.positionY,
+          farge: "#10b981",
+          fylt: true,
+          label: `${o.template?.prefix ?? ""}${o.template?.prefix ? "-" : ""}${String(o.number).padStart(3, "0")}`,
+        });
+      }
+    }
+
+    // Kontrollpunkter — farge/form fra avledet tilstand (samme modell som web liste/rutenett).
+    if (visKontrollpunkter) {
+      for (const p of kontrollpunktMarkører) {
+        if (p.positionX == null || p.positionY == null) continue;
+        if (p.opprettet && !innenforPeriode(new Date(p.opprettet), pFra, pTil)) continue;
+        const tilstand = avledPunktTilstand(p, naaUke);
+        const navn = p.sjekklisteMal
+          ? p.sjekklisteMal.prefix
+            ? `${p.sjekklisteMal.prefix} — ${p.sjekklisteMal.name}`
+            : p.sjekklisteMal.name
+          : "";
+        liste.push({
+          id: `kp:${p.id}`,
+          x: p.positionX,
+          y: p.positionY,
+          farge: tilstand.farge,
+          fylt: tilstand.fylt,
+          kantFarge: tilstand.overFrist ? "#ef4444" : tilstand.fylt ? "#ffffff" : tilstand.farge,
+          label: navn,
+        });
       }
     }
 
@@ -188,11 +266,26 @@ export default function LokasjonerSkjerm() {
         x: markørPosisjon.x,
         y: markørPosisjon.y,
         farge: "#10b981",
+        fylt: true,
       });
     }
 
     return liste;
-  }, [eksisterendeOppgaver, markørPosisjon, visEksisterende]);
+  }, [eksisterendeOppgaver, kontrollpunktMarkører, markørPosisjon, visOppgaver, visKontrollpunkter, pFra, pTil, naaUke]);
+
+  // Områder (polygoner) — normaliser polygon-json til {x,y}[]; tomt/for få punkter → dropp.
+  const omrader: Omrade[] = useMemo(() => {
+    if (!visOmrader) return [];
+    return tegningOmrader
+      .map((o) => {
+        const rå = Array.isArray(o.polygon) ? o.polygon : [];
+        const punkter = rå
+          .filter((p): p is { x: number; y: number } => !!p && typeof p === "object" && "x" in p && "y" in p)
+          .map((p) => ({ x: Number(p.x), y: Number(p.y) }));
+        return { id: o.id, navn: o.navn, farge: o.farge || "#3b82f6", polygon: punkter };
+      })
+      .filter((o) => o.polygon.length >= 3);
+  }, [tegningOmrader, visOmrader]);
 
   // GPS-status
   const [gpsStatus, setGpsStatus] = useState<"venter" | "ingen_tillatelse" | "aktiv" | "feil" | "ugyldig_georef" | null>(null);
@@ -452,11 +545,19 @@ export default function LokasjonerSkjerm() {
     setMarkørPosisjon(null);
   }, []);
 
-  // Håndter trykk på eksisterende markør
+  // Håndter trykk på eksisterende markør. Kontrollpunkt-markører har `kp:`-prefiks:
+  // koblet sjekkliste → åpne den; uten kobling (ennå ikke startet) → ingen navigasjon
+  // (mobil har ingen kontrollplan-oversikt å falle til). Oppgave-markører → åpne oppgaven.
   const håndterMarkørTrykk = useCallback((markørId: string) => {
     if (markørId === "ny-oppgave") return;
+    if (markørId.startsWith("kp:")) {
+      const punktId = markørId.slice(3);
+      const punkt = kontrollpunktMarkører.find((p) => p.id === punktId);
+      if (punkt?.sjekkliste?.id) router.push(`/sjekkliste/${punkt.sjekkliste.id}`);
+      return;
+    }
     router.push(`/oppgave/${markørId}`);
-  }, [router]);
+  }, [router, kontrollpunktMarkører]);
 
   // Håndter oppgave opprettet
   const håndterOppgaveOpprettet = useCallback((oppgaveId: string) => {
@@ -625,20 +726,51 @@ export default function LokasjonerSkjerm() {
               </>
             )}
           </View>
-          {/* Toggle for eksisterende oppgaver */}
+        </View>
+      )}
+
+      {/* Lag- og periodefilter (paritet med web-tegningssiden) — sammenleggbart, kun når tegning vises */}
+      {visserTegning && (
+        <View className="border-b border-gray-200 bg-white">
           <Pressable
-            onPress={() => setVisEksisterende(!visEksisterende)}
-            className="mt-1.5 flex-row items-center gap-1.5"
+            onPress={() => setVisFilter((v) => !v)}
+            className="flex-row items-center justify-between px-4 py-2"
           >
-            {visEksisterende ? (
-              <Eye size={12} color="#6b7280" />
-            ) : (
-              <EyeOff size={12} color="#6b7280" />
-            )}
-            <Text className="text-xs text-gray-500">
-              {visEksisterende ? t("lokasjoner.skjulOppgaver") : t("lokasjoner.visOppgaver")}
-            </Text>
+            <View className="flex-row items-center gap-1.5">
+              <SlidersHorizontal size={14} color="#6b7280" />
+              <Text className="text-xs font-medium text-gray-600">{t("lokasjoner.filter")}</Text>
+            </View>
+            <ChevronDown
+              size={16}
+              color="#9ca3af"
+              style={{ transform: [{ rotate: visFilter ? "180deg" : "0deg" }] }}
+            />
           </Pressable>
+          {visFilter && (
+            <View className="gap-2.5 px-4 pb-3">
+              {/* Lag-brytere */}
+              <View className="flex-row flex-wrap gap-2">
+                {([
+                  ["oppgaver", visOppgaver, setVisOppgaver, "#10b981"],
+                  ["kontrollpunkter", visKontrollpunkter, setVisKontrollpunkter, "#3b82f6"],
+                  ["omrader", visOmrader, setVisOmrader, "#6b7280"],
+                ] as const).map(([nøkkel, på, sett, farge]) => (
+                  <Pressable
+                    key={nøkkel}
+                    onPress={() => sett((v) => !v)}
+                    className={`flex-row items-center gap-1.5 rounded-full border px-2.5 py-1 ${på ? "border-gray-300 bg-gray-50" : "border-gray-200 bg-white"}`}
+                  >
+                    {på ? <Eye size={12} color={farge} /> : <EyeOff size={12} color="#9ca3af" />}
+                    <Text className={`text-xs ${på ? "text-gray-700" : "text-gray-400"}`}>
+                      {t(`lokasjoner.lag.${nøkkel}`)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              {/* Periodefilter */}
+              <PeriodeFilter periode={periode} onEndre={setPeriode} />
+            </View>
+          )}
         </View>
       )}
 
@@ -663,6 +795,7 @@ export default function LokasjonerSkjerm() {
             onTrykk={plasseringsmodus ? håndterTegningTrykk : undefined}
             onMarkørTrykk={håndterMarkørTrykk}
             markører={markører}
+            omrader={omrader}
             gpsMarkør={gpsMarkør}
             pdfPageSize={valgtTegningDetalj?.pdfPageSize ?? undefined}
           />

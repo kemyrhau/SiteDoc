@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Tippen Sie auf die Zeichnung, um eine Markierung zu platzieren",
   "lokasjoner.skjulOppgaver": "Vorherige Aufgaben ausblenden",
   "lokasjoner.visOppgaver": "Vorherige Aufgaben anzeigen",
+  "lokasjoner.filter": "Filter",
+  "lokasjoner.lag.oppgaver": "Aufgaben",
+  "lokasjoner.lag.kontrollpunkter": "Kontrollpunkte",
+  "lokasjoner.lag.omrader": "Bereiche",
   "lokasjoner.henterData": "Baustellendaten werden abgerufen…",
   "dokument.fra": "Aus",
   "dokument.til": "Zu",
@@ -3574,5 +3578,6 @@
   "periodeFilter.egendefinert": "Brauch",
   "periodeFilter.fra": "Aus",
   "periodeFilter.til": "Zu",
-  "periodeFilter.ugyldigIntervall": "Von-Datum ist Nach-Bis-Datum"
+  "periodeFilter.ugyldigIntervall": "Von-Datum ist Nach-Bis-Datum",
+  "periodeFilter.velgDato": "Datum auswählen"
 }

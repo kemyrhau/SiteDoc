@@ -20,6 +20,18 @@ export interface Markør {
   id: string;
   label?: string;
   farge?: string;
+  /** true = fylt sirkel (arbeid startet) · false/utelatt = ring (hul). Speiler web-tilstandsformen. */
+  fylt?: boolean;
+  /** Kant-farge-overstyring (over frist → rød). Utelatt → hvit kant som før. */
+  kantFarge?: string;
+}
+
+/** Område (sone/rom/etasje) tegnet som polygon i prosent-koordinater — parallelt med web. */
+export interface Omrade {
+  id: string;
+  navn: string;
+  farge: string;
+  polygon: Array<{ x: number; y: number }>;
 }
 
 export interface GpsMarkør {
@@ -34,6 +46,7 @@ interface TegningsVisningProps {
   onTrykk?: (posX: number, posY: number) => void;
   onMarkørTrykk?: (id: string) => void;
   markører?: Markør[];
+  omrader?: Omrade[];
   gpsMarkør?: GpsMarkør | null;
   /** Ubrukt — beholdt for bakoverkompatibilitet */
   pdfPageSize?: { width: number; height: number };
@@ -47,12 +60,27 @@ interface TegningsVisningProps {
 function byggHtml(
   tegningUrl: string,
   markører: Markør[],
+  omrader: Omrade[],
   gpsMarkør: GpsMarkør | null,
   kanTrykke: boolean,
 ): string {
   const markørData = JSON.stringify(markører.map((m) => ({
     id: m.id, x: m.x, y: m.y, farge: m.farge || "#ef4444", label: m.label || "",
+    fylt: m.fylt !== false, kantFarge: m.kantFarge || "#ffffff",
   })));
+  const omradeData = JSON.stringify(
+    omrader
+      .filter((o) => Array.isArray(o.polygon) && o.polygon.length >= 3)
+      .map((o) => ({
+        id: o.id,
+        navn: o.navn || "",
+        farge: o.farge || "#3b82f6",
+        punkter: o.polygon.map((p) => `${p.x},${p.y}`).join(" "),
+        // Etikett-anker: polygonets tyngdepunkt (enkelt snitt).
+        cx: o.polygon.reduce((s, p) => s + p.x, 0) / o.polygon.length,
+        cy: o.polygon.reduce((s, p) => s + p.y, 0) / o.polygon.length,
+      })),
+  );
   const gpsData = gpsMarkør ? JSON.stringify({ x: gpsMarkør.x, y: gpsMarkør.y }) : "null";
 
   return `<!DOCTYPE html>
@@ -64,6 +92,8 @@ function byggHtml(
   #tegning { display:block; width:100%; height:auto; }
   .pin { position:absolute; z-index:10; pointer-events:auto; }
   .pin-dot { width:16px;height:16px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%);transform-origin:center; }
+  #omradeSvg { position:absolute; inset:0; width:100%; height:100%; z-index:5; pointer-events:none; }
+  .omrade-navn { position:absolute; z-index:6; transform:translate(-50%,-50%);transform-origin:center; font:700 8px sans-serif; color:#1f2937; background:rgba(255,255,255,0.75); border-radius:3px; padding:0 3px; white-space:nowrap; pointer-events:none; }
   .pin-label {
     position:absolute; top:10px; left:50%; transform:translateX(-50%);transform-origin:center top;
     font:700 8px sans-serif; color:#1f2937;
@@ -88,6 +118,7 @@ function byggHtml(
 <div id="debug">Laster...</div>
 <script>
 var markører = ${markørData};
+var omrader = ${omradeData};
 var gpsPos = ${gpsData};
 var currentZoom = 1;
 
@@ -102,6 +133,9 @@ function oppdaterZoom() {
   });
   document.querySelectorAll('.pin-label').forEach(function(el) {
     el.style.transform = 'translateX(-50%) scale(' + inv + ')';
+  });
+  document.querySelectorAll('.omrade-navn').forEach(function(el) {
+    el.style.transform = 'translate(-50%,-50%) scale(' + inv + ')';
   });
   document.querySelectorAll('.gps-outer').forEach(function(el) {
     el.style.transform = 'translate(-50%,-50%) scale(' + inv + ')';
@@ -123,8 +157,38 @@ function plasser() {
     'Bilde: ' + img.naturalWidth + 'x' + img.naturalHeight +
     ' | Zoom: ' + currentZoom.toFixed(1) + 'x';
 
-  document.querySelectorAll('.pin,.gps').forEach(function(e){e.remove()});
+  document.querySelectorAll('.pin,.gps,#omradeSvg,.omrade-navn').forEach(function(e){e.remove()});
   var container = document.getElementById('container');
+
+  // Områder (polygoner) UNDER markørene — SVG-overlay i prosent-koordinater.
+  if (omrader.length) {
+    var svgNs = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNs, 'svg');
+    svg.setAttribute('id', 'omradeSvg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    omrader.forEach(function(o) {
+      var poly = document.createElementNS(svgNs, 'polygon');
+      poly.setAttribute('points', o.punkter);
+      poly.setAttribute('fill', o.farge);
+      poly.setAttribute('fill-opacity', '0.15');
+      poly.setAttribute('stroke', o.farge);
+      poly.setAttribute('stroke-width', '0.4');
+      poly.setAttribute('vector-effect', 'non-scaling-stroke');
+      svg.appendChild(poly);
+    });
+    container.appendChild(svg);
+    // Områdenavn ved tyngdepunktet.
+    omrader.forEach(function(o) {
+      if (!o.navn) return;
+      var nl = document.createElement('div');
+      nl.className = 'omrade-navn';
+      nl.style.left = o.cx + '%';
+      nl.style.top = o.cy + '%';
+      nl.textContent = o.navn;
+      container.appendChild(nl);
+    });
+  }
 
   // Plasser med CSS-prosent — identisk med web UI og PDF
   markører.forEach(function(m) {
@@ -132,7 +196,8 @@ function plasser() {
     div.className = 'pin';
     div.style.left = m.x + '%';
     div.style.top = m.y + '%';
-    div.innerHTML = '<div class="pin-dot" style="background:' + m.farge + '"></div>' +
+    var bg = m.fylt ? m.farge : '#ffffff';
+    div.innerHTML = '<div class="pin-dot" style="background:' + bg + ';border-color:' + m.kantFarge + '"></div>' +
       (m.label ? '<div class="pin-label">' + m.label + '</div>' : '');
     div.onclick = function(e) {
       e.stopPropagation();
@@ -179,6 +244,7 @@ export function TegningsVisning({
   onTrykk,
   onMarkørTrykk,
   markører = [],
+  omrader = [],
   gpsMarkør,
 }: TegningsVisningProps) {
   const [laster, setLaster] = useState(true);
@@ -242,7 +308,7 @@ export function TegningsVisning({
     [onTrykk, onMarkørTrykk],
   );
 
-  const html = byggHtml(tegningUrl, markører, gpsMarkør ?? null, !!onTrykk);
+  const html = byggHtml(tegningUrl, markører, omrader, gpsMarkør ?? null, !!onTrykk);
 
   return (
     <View className="flex-1 bg-black">

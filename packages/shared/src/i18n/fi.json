@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Aseta merkki napauttamalla piirrosta",
   "lokasjoner.skjulOppgaver": "Piilota aiemmat tehtävät",
   "lokasjoner.visOppgaver": "Näytä aiemmat tehtävät",
+  "lokasjoner.filter": "Suodattaa",
+  "lokasjoner.lag.oppgaver": "Tehtävät",
+  "lokasjoner.lag.kontrollpunkter": "Kontrollipisteet",
+  "lokasjoner.lag.omrader": "Alueet",
   "lokasjoner.henterData": "Haetaan rakennustyömaan tietoja…",
   "dokument.fra": "From",
   "dokument.til": "Vastaanottaja",
@@ -3574,5 +3578,6 @@
   "periodeFilter.egendefinert": "Mukautettu",
   "periodeFilter.fra": "From",
   "periodeFilter.til": "Vastaanottaja",
-  "periodeFilter.ugyldigIntervall": "Päivämäärästä on myöhempää"
+  "periodeFilter.ugyldigIntervall": "Päivämäärästä on myöhempää",
+  "periodeFilter.velgDato": "Valitse päivämäärä"
 }

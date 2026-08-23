@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Appuyez sur le dessin pour placer un marqueur",
   "lokasjoner.skjulOppgaver": "Masquer les tâches précédentes",
   "lokasjoner.visOppgaver": "Afficher les tâches précédentes",
+  "lokasjoner.filter": "Filtre",
+  "lokasjoner.lag.oppgaver": "Tâches",
+  "lokasjoner.lag.kontrollpunkter": "Points de contrôle",
+  "lokasjoner.lag.omrader": "Domaines",
   "lokasjoner.henterData": "Récupération des données du chantier…",
   "dokument.fra": "Depuis",
   "dokument.til": "À",
@@ -3574,5 +3578,6 @@
   "periodeFilter.egendefinert": "Coutume",
   "periodeFilter.fra": "Depuis",
   "periodeFilter.til": "À",
-  "periodeFilter.ugyldigIntervall": "De la date est après à ce jour"
+  "periodeFilter.ugyldigIntervall": "De la date est après à ce jour",
+  "periodeFilter.velgDato": "Sélectionnez une date"
 }

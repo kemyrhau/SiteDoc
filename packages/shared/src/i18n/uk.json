@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Натисніть на малюнок, щоб розмістити маркер",
   "lokasjoner.skjulOppgaver": "Приховати попередні завдання",
   "lokasjoner.visOppgaver": "Показати попередні завдання",
+  "lokasjoner.filter": "фільтр",
+  "lokasjoner.lag.oppgaver": "завдання",
+  "lokasjoner.lag.kontrollpunkter": "Контрольні точки",
+  "lokasjoner.lag.omrader": "Області",
   "lokasjoner.henterData": "Отримання даних будівельного майданчика…",
   "dokument.fra": "Від",
   "dokument.til": "до",
@@ -3574,5 +3578,6 @@
   "periodeFilter.egendefinert": "Custom",
   "periodeFilter.fra": "Від",
   "periodeFilter.til": "до",
-  "periodeFilter.ugyldigIntervall": "Від дати – це після до дати"
+  "periodeFilter.ugyldigIntervall": "Від дати – це після до дати",
+  "periodeFilter.velgDato": "Виберіть дату"
 }

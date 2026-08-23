@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Norėdami įdėti žymeklį, bakstelėkite piešinį",
   "lokasjoner.skjulOppgaver": "Slėpti ankstesnes užduotis",
   "lokasjoner.visOppgaver": "Rodyti ankstesnes užduotis",
+  "lokasjoner.filter": "Filtruoti",
+  "lokasjoner.lag.oppgaver": "Užduotys",
+  "lokasjoner.lag.kontrollpunkter": "Kontroliniai taškai",
+  "lokasjoner.lag.omrader": "Sritys",
   "lokasjoner.henterData": "Gaunami statybvietės duomenys…",
   "dokument.fra": "Iš",
   "dokument.til": "Į",
@@ -3574,5 +3578,6 @@
   "periodeFilter.egendefinert": "Pasirinktinis",
   "periodeFilter.fra": "Iš",
   "periodeFilter.til": "Į",
-  "periodeFilter.ugyldigIntervall": "Nuo datos yra vėliau iki datos"
+  "periodeFilter.ugyldigIntervall": "Nuo datos yra vėliau iki datos",
+  "periodeFilter.velgDato": "Pasirinkite datą"
 }

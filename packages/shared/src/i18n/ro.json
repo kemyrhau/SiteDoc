@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Atingeți desenul pentru a plasa un marcator",
   "lokasjoner.skjulOppgaver": "Ascunde sarcinile anterioare",
   "lokasjoner.visOppgaver": "Afișați sarcinile anterioare",
+  "lokasjoner.filter": "Filtra",
+  "lokasjoner.lag.oppgaver": "Sarcini",
+  "lokasjoner.lag.kontrollpunkter": "Puncte de control",
+  "lokasjoner.lag.omrader": "Zone",
   "lokasjoner.henterData": "Fetching building site data…",
   "dokument.fra": "Din",
   "dokument.til": "La",
@@ -3574,5 +3578,6 @@
   "periodeFilter.egendefinert": "Personalizat",
   "periodeFilter.fra": "Din",
   "periodeFilter.til": "La",
-  "periodeFilter.ugyldigIntervall": "De la data este după până la data"
+  "periodeFilter.ugyldigIntervall": "De la data este după până la data",
+  "periodeFilter.velgDato": "Selectați data"
 }

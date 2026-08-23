@@ -1,25 +1,24 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { type Periode, type PeriodeHurtigvalg, erUgyldigIntervall } from "@/lib/periode";
+import {
+  type Periode,
+  type PeriodeHurtigvalg,
+  erUgyldigIntervall,
+  HURTIGVALG_STANDARD,
+  PERIODE_NOEKKEL,
+} from "@/lib/periode";
 
 /**
- * Delt periodefilter (2026-08-23): i dag · siste uke · siste måned · alle · egendefinert (fra/til).
- * i18n via `periodeFilter.*`. Bygget for tegningssiden; laget delt så Bilder-siden (to hardkodede,
- * norsk-i-JSX-kopier med ulik ordlyd) kan bytte over trivielt senere.
+ * Delt periodefilter (2026-08-23): i dag · siste uke · siste måned · siste 3 måneder · alle ·
+ * egendefinert (fra/til som brukeren setter selv).
+ * i18n via `periodeFilter.*`. Hurtigvalg-settet + i18n-nøklene bor i @sitedoc/shared (delt med
+ * mobil-RN-varianten) så settet ikke kan drifte mellom flatene.
  */
 // ÉN fast rekkefølge, LIK på alle flater (Kenneth-vedtak 2026-08-23): poenget med en delt komponent
-// er at filteret oppfører seg identisk overalt. Ingen per-flate-trimming (det ville gjeninnført
-// divergensen) — derfor er settet hardkodet her, ikke en prop.
-const HURTIGVALG: PeriodeHurtigvalg[] = ["idag", "uke", "mnd", "3mnd", "alle", "egendefinert"];
-const NOEKKEL: Record<PeriodeHurtigvalg, string> = {
-  idag: "periodeFilter.idag",
-  uke: "periodeFilter.sisteUke",
-  mnd: "periodeFilter.sisteMaaned",
-  "3mnd": "periodeFilter.siste3Maaneder",
-  alle: "periodeFilter.alle",
-  egendefinert: "periodeFilter.egendefinert",
-};
+// er at filteret oppfører seg identisk overalt. Ingen per-flate-trimming og ingen `valg`-prop — det
+// ville gjeninnført divergensen. Settet er modul-konstant i @sitedoc/shared, delt med mobil-RN-
+// varianten, og låst av test («standard-settet er de seks, likt på alle flater»).
 
 /** Date → «yyyy-mm-dd» for <input type="date"> (lokal dato, ikke UTC-forskjøvet). */
 function tilInputVerdi(d: Date | null): string {
@@ -45,7 +44,7 @@ export function PeriodeFilter({ periode, onEndre }: { periode: Periode; onEndre:
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {HURTIGVALG.map((h) => (
+      {HURTIGVALG_STANDARD.map((h) => (
         <button
           key={h}
           type="button"
@@ -54,7 +53,7 @@ export function PeriodeFilter({ periode, onEndre }: { periode: Periode; onEndre:
             periode.hurtigvalg === h ? "bg-blue-100 text-blue-700" : "bg-white text-gray-600 hover:bg-gray-100"
           }`}
         >
-          {t(NOEKKEL[h])}
+          {t(PERIODE_NOEKKEL[h])}
         </button>
       ))}
 

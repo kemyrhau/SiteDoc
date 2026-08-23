@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Klepnutím na kresbu umístíte značku",
   "lokasjoner.skjulOppgaver": "Skrýt předchozí úkoly",
   "lokasjoner.visOppgaver": "Zobrazit předchozí úkoly",
+  "lokasjoner.filter": "Filtr",
+  "lokasjoner.lag.oppgaver": "Úkoly",
+  "lokasjoner.lag.kontrollpunkter": "Kontrolní body",
+  "lokasjoner.lag.omrader": "Oblasti",
   "lokasjoner.henterData": "Načítání dat staveniště…",
   "dokument.fra": "Z",
   "dokument.til": "Na",
@@ -3574,5 +3578,6 @@
   "periodeFilter.egendefinert": "Zvyk",
   "periodeFilter.fra": "Z",
   "periodeFilter.til": "Na",
-  "periodeFilter.ugyldigIntervall": "Datum od je po datu"
+  "periodeFilter.ugyldigIntervall": "Datum od je po datu",
+  "periodeFilter.velgDato": "Vyberte datum"
 }

@@ -2278,6 +2278,10 @@
   "lokasjoner.trykkPaaTegning": "Prekni në vizatim për të vendosur një shënues",
   "lokasjoner.skjulOppgaver": "Fshih detyrat e mëparshme",
   "lokasjoner.visOppgaver": "Trego detyrat e mëparshme",
+  "lokasjoner.filter": "Filtro",
+  "lokasjoner.lag.oppgaver": "Detyrat",
+  "lokasjoner.lag.kontrollpunkter": "Pikat e kontrollit",
+  "lokasjoner.lag.omrader": "Zonat",
   "lokasjoner.henterData": "Po merr të dhënat e faqes së ndërtimit…",
   "dokument.fra": "Nga",
   "dokument.til": "për të",
@@ -3574,5 +3578,6 @@
   "periodeFilter.egendefinert": "Me porosi",
   "periodeFilter.fra": "Nga",
   "periodeFilter.til": "për të",
-  "periodeFilter.ugyldigIntervall": "Nga data është pas deri më sot"
+  "periodeFilter.ugyldigIntervall": "Nga data është pas deri më sot",
+  "periodeFilter.velgDato": "Zgjidhni datën"
 }
