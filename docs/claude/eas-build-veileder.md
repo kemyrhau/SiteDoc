@@ -203,6 +203,23 @@ wrapper: **`apps/mobile/eas-build.sh`**.
    EXPO_APPLE_TEAM_ID=WVFPRZ8T98
    EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
    ```
+
+   > 🔴 **Fila er gitgnorert og finnes KUN i det worktreet du opprettet den i.** Bytter du
+   > arbeidstre — eller rydder et — er den borte, og wrapperen stopper med «Fant ikke
+   > .env.eas.local». Det skjedde 2026-08-23 og kostet en runde med leting.
+   >
+   > **Hvor tingene ligger på Kenneths maskin** (2026-08-23, så neste økt slipper å lete):
+   > · `.p8`-nøkkelen: `~/.apple-keys/AuthKey_BQ3N27PWFA.p8` — **kan ikke lastes ned på nytt**
+   >   fra Apple. Forsvinner den, må en ny API-nøkkel opprettes i App Store Connect.
+   > · **Key ID** står i filnavnet (`BQ3N27PWFA`).
+   > · **Issuer ID** er IKKE dokumentert noe sted (og skal ikke være det) — hentes fra
+   >   App Store Connect → Users and Access → Integrations → Keys, øverst på siden.
+   >
+   > Verifiser oppsettet uten å vise innhold:
+   > ```bash
+   > grep -c '^EXPO_[A-Z_]*=.\+' .env.eas.local            # skal gi 5
+   > test -f "$(grep '^EXPO_ASC_API_KEY_PATH=' .env.eas.local | cut -d= -f2-)" && echo ok
+   > ```
 2. **Kjør wrapperen:**
    ```bash
    cd apps/mobile && ./eas-build.sh          # profil "test" (default)
