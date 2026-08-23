@@ -8,7 +8,10 @@ import { type Periode, type PeriodeHurtigvalg, erUgyldigIntervall } from "@/lib/
  * i18n via `periodeFilter.*`. Bygget for tegningssiden; laget delt så Bilder-siden (to hardkodede,
  * norsk-i-JSX-kopier med ulik ordlyd) kan bytte over trivielt senere.
  */
-const STANDARD_VALG: PeriodeHurtigvalg[] = ["idag", "uke", "mnd", "alle", "egendefinert"];
+// ÉN fast rekkefølge, LIK på alle flater (Kenneth-vedtak 2026-08-23): poenget med en delt komponent
+// er at filteret oppfører seg identisk overalt. Ingen per-flate-trimming (det ville gjeninnført
+// divergensen) — derfor er settet hardkodet her, ikke en prop.
+const HURTIGVALG: PeriodeHurtigvalg[] = ["idag", "uke", "mnd", "3mnd", "alle", "egendefinert"];
 const NOEKKEL: Record<PeriodeHurtigvalg, string> = {
   idag: "periodeFilter.idag",
   uke: "periodeFilter.sisteUke",
@@ -31,16 +34,7 @@ function fraInputVerdi(s: string): Date | null {
   return s ? new Date(`${s}T00:00:00`) : null;
 }
 
-export function PeriodeFilter({
-  periode,
-  onEndre,
-  valg = STANDARD_VALG,
-}: {
-  periode: Periode;
-  onEndre: (p: Periode) => void;
-  /** Hvilke hurtigvalg som vises (Bilder-siden kan f.eks. inkludere «3mnd»). Default = STANDARD_VALG. */
-  valg?: PeriodeHurtigvalg[];
-}) {
+export function PeriodeFilter({ periode, onEndre }: { periode: Periode; onEndre: (p: Periode) => void }) {
   const { t } = useTranslation();
 
   function velgHurtig(h: PeriodeHurtigvalg) {
@@ -51,7 +45,7 @@ export function PeriodeFilter({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {valg.map((h) => (
+      {HURTIGVALG.map((h) => (
         <button
           key={h}
           type="button"
