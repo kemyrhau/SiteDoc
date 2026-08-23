@@ -8,8 +8,8 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `fix/dagskort-posisjonering` | Levert og merget (`38c3a302`): Turid-seed, tre D3-rettelser, dagskort-hover. Posisjoneringsfiksene (dødsone, scroll-drift, vertikal vending, Escape/klikk-utenfor) klare til merge | Kenneths visuelle verifisering på test |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/mobil-uploadasync-0byte` | Tetter filnavn-hullet i uploadAsync-fiksen (serveren 400-er på manglende endelse) + skriver verifiseringsprotokollen. Kø etter simulator-grønt: fold D2/D3 → `renderFelt` + dødt subtre · H1 · H8 · oppgave-PDF · H3/H5-rest | Ingenting — kan bygge |
+| **dokgen** | `SiteDoc-dokgen` | `feat/dagskort-tillegg-utlegg` | Utvider dagskortet: tillegg + utlegg i kortet, aktivering også på navnet. **Krever serverendring** — `utlegg` mangler i `hentTilAttesteringFirma`s include | Ingenting — kan bygge |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/attestering-navigasjon-ekspander` | Retur-navigasjon via URL-tilstand (visning · uke · fane) + kollaps alle / utvid alle / utvid avvik, avvikssedler åpne ved lasting | Ingenting — kan bygge. `fix/mobil-uploadasync-0byte` ligger parkert til simulator har kjørt |
 | **simulator** | `SiteDoc-simulator` | detached `origin/develop` | Kjører kontrollplans protokoll: opplasting (3 uri-tilfeller) · mobil tegningsvisning · delt periodefilter | Protokollen fra kontrollplan |
 
 **Lukket 2026-08-23:** `mobil-device`-raden. `feat/mobil-arkiv-pdf` er merget (verifisert med
