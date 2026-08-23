@@ -18,6 +18,7 @@ import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKonteks
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { flytFaggruppeIder } from "@/lib/flyt-faggrupper";
+import { lesDokumentLokasjon } from "@/lib/dokument-lokasjon";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjoner";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -226,6 +227,8 @@ export default function OppgaveDetaljSide() {
     (fullOppgaveRå as unknown as { dokumentflytId?: string | null } | undefined)?.dokumentflytId,
     dokumentflyterRå,
   );
+  // Dokument-lokasjon fra RÅ hentMedId (se lesDokumentLokasjon) — IKKE fra det omformede `oppgave`.
+  const oppgaveLokasjon = lesDokumentLokasjon(fullOppgaveRå);
   // A (2026-08-22): `returnerTil` (URL) peker tilbake til dokumentet som opprettet oppgaven — så
   // «tilbake» går dit, ikke til oppgavelista. Bæres i URL → overlever full last. Kun interne stier
   // godtas (må starte med «/» og ikke «//») så en manipulert param ikke kan redirecte ut av appen.
@@ -528,7 +531,10 @@ export default function OppgaveDetaljSide() {
     },
     {
       etikett: t("kontekstChip.byggeplass"),
-      verdi: oppgaveCast.drawing?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
+      // Byggeplass utledes av tegningens byggeplass (Task har ingen egen byggeplass-kolonne). Fra
+      // lesDokumentLokasjon (rå hentMedId) — det omformede `oppgave` dropper `drawing` → viste ellers
+      // «Hele prosjektet» selv når oppgaven har en tegning (samme rotårsak som lokasjon).
+      verdi: oppgaveLokasjon.bygningNavn ?? t("kontekstChip.heleProsjektet"),
       type: "display",
     },
     {
@@ -762,13 +768,16 @@ export default function OppgaveDetaljSide() {
 
         {/* Lokasjon */}
         <div className="mt-2 max-w-md print-skjul">
+          {/* 🔴 Lokasjonsvisning-bug (2026-08-23): les fra RÅ hentMedId via lesDokumentLokasjon —
+              det omformede `oppgave` (useOppgaveSkjema) dropper drawingId/positionX/positionY/drawing
+              → «Ikke satt» selv når posisjonen finnes (`as unknown as` skjulte det). */}
           <LokasjonVelger
             prosjektId={params.prosjektId}
-            tegningId={(oppgave as unknown as { drawingId?: string | null }).drawingId}
-            tegningNavn={(oppgave as unknown as { drawing?: { name?: string } | null }).drawing?.name}
-            bygningNavn={(oppgave as unknown as { drawing?: { byggeplass?: { name?: string } | null } | null }).drawing?.byggeplass?.name}
-            positionX={(oppgave as unknown as { positionX?: number | null }).positionX}
-            positionY={(oppgave as unknown as { positionY?: number | null }).positionY}
+            tegningId={oppgaveLokasjon.tegningId ?? undefined}
+            tegningNavn={oppgaveLokasjon.tegningNavn ?? undefined}
+            bygningNavn={oppgaveLokasjon.bygningNavn ?? undefined}
+            positionX={oppgaveLokasjon.positionX ?? undefined}
+            positionY={oppgaveLokasjon.positionY ?? undefined}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
