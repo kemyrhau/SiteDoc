@@ -8,8 +8,8 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `feat/dagskort-tillegg-utlegg` | Utvider dagskortet: tillegg + utlegg i kortet, aktivering også på navnet. **Krever serverendring** — `utlegg` mangler i `hentTilAttesteringFirma`s include | Ingenting — kan bygge |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/attestering-navigasjon-ekspander` | Retur-navigasjon via URL-tilstand (visning · uke · fane) + kollaps alle / utvid alle / utvid avvik, avvikssedler åpne ved lasting | Ingenting — kan bygge. `fix/mobil-uploadasync-0byte` ligger parkert til simulator har kjørt |
+| **dokgen** | `SiteDoc-dokgen` | — | Levert og merget (`76590eba`): tillegg + utlegg i dagskortet, navnet som tredje inngang, `select`-avgrenset utlegg-oppslag | Ledig |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/attestering-navigasjon-ekspander` | URL-tilstand (visning · uke · fane), kollaps/utvid alle, «Krever vurdering» (B ∪ C), manuelle toggles overlever re-fetch. Rebaset og klar (`05812fd4`) | Merge + Kenneths visuelle verifisering. `fix/mobil-uploadasync-0byte` parkert til simulator |
 | **simulator** | `SiteDoc-simulator` | detached `origin/develop` | Kjører kontrollplans protokoll: opplasting (3 uri-tilfeller) · mobil tegningsvisning · delt periodefilter | Protokollen fra kontrollplan |
 
 **Lukket 2026-08-23:** `mobil-device`-raden. `feat/mobil-arkiv-pdf` er merget (verifisert med
