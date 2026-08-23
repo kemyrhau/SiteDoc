@@ -258,15 +258,27 @@ om at én mal gir fire representasjoner (malbygger / web-skjema / mobil / PDF).
 
 **Da kan `apps/mobile/app/sjekkliste/[id].tsx` sin `expo-print`-vei fjernes.**
 
-⚠️ **Men `felt.ts` forblir frossen — målt 2026-08-17/18.** Frysingen kan *ikke* løftes
-når mobil slutter å bruke den, fordi `renderFelt` fortsatt er live-avhengighet for
-`arkivmal/innhold.ts` (server-arkiv, web + snart mobil). Det som dør i fase 3 er
-**`byggSjekklisteHtml`/`renderAlleFelter`-grenen i `sjekkliste.ts`** — ikke `felt.ts`
-selv. Cowork skrev dette upresist i første utkast.
+⚠️ ~~**Men `felt.ts` forblir frossen — målt 2026-08-17/18.**~~ **VEDTAK 2026-08-23: FRYSEN
+OPPHEVES (Kenneth).** Fase 3 er levert (mobil-arkivmal-PDF, branch `feat/mobil-arkivmal-pdf`):
+`byggSjekklisteHtml`/`renderAllefelter`-grenen i `sjekkliste.ts` er død (0 importører), og
+**mobil KJØRER aldri `felt.ts` lenger** (`grep renderFelt|renderAllefelter apps/mobile` → 0).
+Det tidligere argumentet — «`renderFelt` er fortsatt live for `arkivmal/innhold.ts`» — konflaterte
+**server-bruk** med **mobil-versjonsavvik**: frysen beskyttet mot at gamle TestFlight-installasjoner
+*rendrer* annerledes enn serveren, og det forutsetter at mobil *kjører* koden. Serveren har intet
+versjonsavvik (deployer alltid siste `felt.ts`). **Målt fallgruve (2026-08-23):** `felt.ts` LIGGER
+fortsatt i mobil-bundlen (Hermes-export: `renderAllefelter`+`bilde-rutenett` i string-tabellen) —
+Metro tree-shaker ikke barrel-re-eksporten `index.ts → ./felt`. Men **bundlet ≠ kjørt**: død kode
+som endres, endrer ingenting for noen. Bundle-størrelsen er den eneste gjenværende kostnaden (egen
+sak: mobil kan dyp-importere `arkivmal/endringsdiff` i stedet for barrel-en).
 
-Ingen app importerer `renderFelt`/`renderAlleFelter` direkte — begge har kun interne
+**Konsekvens:** D2/D3-overridene (`instruksjonsfelt.ts`, `tegningsfelt.ts`) kan foldes inn i
+`renderFelt` som hovedvei — intercept-i-`innhold.ts` droppes. **Status: PENDING** — gates av
+simulator-runden (mobil har ubekreftede lag fra tegningsvisning + arkiv-PDF-bytte; ett ubekreftet
+lag om gangen). Rører `packages/pdf`, så ikke før simulator er grønn.
+
+Ingen app importerer `renderFelt`/`renderAllefelter` direkte — begge har kun interne
 `packages/pdf`-konsumenter, via to kjeder: `sjekkliste.ts → byggSjekklisteHtml`
-(kun mobil) og `arkivmal/innhold.ts` (server-arkiv).
+(nå død) og `arkivmal/innhold.ts` (server-arkiv, eneste levende).
 
 Øvrige målinger: mobil har **nøyaktig én** PDF-vei (`app/sjekkliste/[id].tsx`, ingen
 andre-vei i oppgave/HMS/timer) · `arkiv.rendr` autentiserer likt for Bearer og cookie
