@@ -35,7 +35,8 @@ import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
-import { byggSjekklisteHtml } from "@sitedoc/pdf";
+import { byggSjekklisteHtml, ekspanderEndring, byggKolonnerPerFelt, segmenterTilTekst } from "@sitedoc/pdf";
+import { byggObjektTre } from "@sitedoc/shared";
 import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
@@ -65,20 +66,6 @@ interface EndringsloggRad {
   newValue: string | null;
   createdAt: Date | string;
   user: { id: string; name: string | null; email: string };
-}
-
-function formaterLoggVerdi(json: string | null): string {
-  if (json == null) return "—";
-  try {
-    const parsed = JSON.parse(json);
-    if (parsed === null || parsed === "") return "—";
-    if (typeof parsed === "string") return parsed;
-    if (typeof parsed === "number" || typeof parsed === "boolean") return String(parsed);
-    if (Array.isArray(parsed)) return parsed.join(", ");
-    return json;
-  } catch {
-    return json;
-  }
 }
 
 function formaterHistorikkDato(dato: Date | string): string {
@@ -191,6 +178,17 @@ export default function SjekklisteUtfylling() {
     return map;
   }, [sjekklisteOppgaver]);
 
+  // H5-paritet (2026-08-23): kolonne-labels for repeater-diff i endringsloggen — brukes av
+  // ekspanderEndring (delt @sitedoc/pdf), samme som web + arkiv-PDF.
+  const kolonnerPerFelt = useMemo(() => {
+    const objs = ((sjekklisteDetalj as unknown as { template?: { objects?: unknown[] } })?.template?.objects ?? []) as {
+      id: string;
+      parentId?: string | null;
+      sortOrder: number;
+    }[];
+    return byggKolonnerPerFelt(byggObjektTre(objs) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]);
+  }, [sjekklisteDetalj]);
+
   const { ventende, erAktiv } = useOpplastingsKo();
 
   // Bygninger og tegninger for lokasjonsvelger
@@ -290,7 +288,7 @@ export default function SjekklisteUtfylling() {
       projectMemberId: m.projectMemberId ?? null, groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      { ...minFlytInfo, userId: "", erAdmin: (minFlytInfo.adminNiva !== null) },
       medlemmer,
       { bestillerFaggruppeId: sj.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: sj.utforerFaggruppe?.id ?? "" },
     );
@@ -319,7 +317,7 @@ export default function SjekklisteUtfylling() {
       userId: minFlytInfo.userId,
       gruppeIder: minFlytInfo.gruppeIder,
       faggruppeIder: (minFlytInfo as { faggruppeIder?: string[] }).faggruppeIder ?? [],
-      erAdmin: minFlytInfo.erAdmin,
+      erAdmin: (minFlytInfo.adminNiva !== null),
     };
     const erMedlemAv = (l: (typeof ledd)[number]): boolean =>
       l.brukerIder.has(bruker.userId) ||
@@ -331,7 +329,7 @@ export default function SjekklisteUtfylling() {
       harBallen,
       erAvsender: erAvsenderledd(ledd, aktivPosisjon, bruker),
       erMedlemAvFlyt: erMedlemAvFlyt(ledd, bruker),
-      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin }),
+      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: (minFlytInfo.adminNiva !== null) }),
     };
   }, [sjekklisteDetalj, minFlytInfo, flytMedlemmer]);
   const harBallen = posisjonRett.harBallen;
@@ -362,7 +360,7 @@ export default function SjekklisteUtfylling() {
   const rettighetInput = useMemo(() => {
     if (!minFlytInfo) return undefined;
     return {
-      erAdmin: minFlytInfo.erAdmin,
+      erAdmin: (minFlytInfo.adminNiva !== null),
       minRolle,
       tillatelser: mineTillatelser,
       harBallen,
@@ -1130,26 +1128,39 @@ export default function SjekklisteUtfylling() {
               <Text className="text-sm font-semibold text-gray-700">{t("dokument.endringslogg")}</Text>
             </View>
             <View className="rounded-lg bg-white">
-              {(sjekklisteDetalj.changeLog ?? []).map((rad, i) => (
-                <View
-                  key={rad.id}
-                  className={`px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
-                >
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-xs font-medium text-gray-700">
-                      {rad.user.name ?? rad.user.email}
-                    </Text>
-                    <Text className="text-xs text-gray-400">
-                      {formaterHistorikkDato(rad.createdAt)}
-                    </Text>
+              {(sjekklisteDetalj.changeLog ?? []).map((rad, i) => {
+                // H5: delt ekspanderEndring (som web/arkiv) — tolker repeater/vær korrekt og
+                // returnerer TOM liste for kanoniske no-ops (som web filtrerer bort). Én logglinje
+                // kan bli flere diff-rader (én per endret repeater-celle).
+                const diffs = ekspanderEndring(
+                  rad.fieldLabel,
+                  rad.oldValue,
+                  rad.newValue,
+                  kolonnerPerFelt[(rad as { fieldId?: string }).fieldId ?? ""] ?? [],
+                );
+                if (diffs.length === 0) return null; // no-op — ingen falsk logglinje
+                return (
+                  <View key={rad.id} className={`px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}>
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-xs font-medium text-gray-700">
+                        {rad.user.name ?? rad.user.email}
+                      </Text>
+                      <Text className="text-xs text-gray-400">{formaterHistorikkDato(rad.createdAt)}</Text>
+                    </View>
+                    {diffs.map((d, j) => {
+                      const fra = segmenterTilTekst(d.fraVerdi);
+                      const til = segmenterTilTekst(d.tilVerdi);
+                      return (
+                        <Text key={j} className="mt-0.5 text-xs text-gray-600">
+                          {t("dokument.endret")} <Text className="font-medium">{d.felt}</Text>
+                          {fra != null && fra !== "" ? ` fra «${fra}»` : ""}
+                          {` til «${til ?? ""}»`}
+                        </Text>
+                      );
+                    })}
                   </View>
-                  <Text className="mt-0.5 text-xs text-gray-600">
-                    {t("dokument.endret")} <Text className="font-medium">{rad.fieldLabel}</Text>
-                    {rad.oldValue != null && ` fra «${formaterLoggVerdi(rad.oldValue)}»`}
-                    {` til «${formaterLoggVerdi(rad.newValue)}»`}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         )}
