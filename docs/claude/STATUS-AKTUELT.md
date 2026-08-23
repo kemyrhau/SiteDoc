@@ -8,7 +8,7 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | — | Levert og merget (`76590eba`): tillegg + utlegg i dagskortet, navnet som tredje inngang, `select`-avgrenset utlegg-oppslag | Ledig |
+| **dokgen** | `SiteDoc-dokgen` | `fix/timer-layout-uten-firma` | Fem firma-flater som låste seg når ingen firma var valgt (timer-layout, moduler, innstillinger = dead-ends · prosjekter, kompetanse = usanne tom-states). Delt `IngenFirmaValgt`-komponent for ordlyd/stil; guard-logikken per side | Merge + verifisering |
 | **kontrollplan** | `SiteDoc-kontrollplan` | `feat/attestering-navigasjon-ekspander` | URL-tilstand (visning · uke · fane), kollaps/utvid alle, «Krever vurdering» (B ∪ C), manuelle toggles overlever re-fetch. Rebaset og klar (`05812fd4`) | Merge + Kenneths visuelle verifisering. `fix/mobil-uploadasync-0byte` parkert til simulator |
 | **simulator** | `SiteDoc-simulator` | detached `origin/develop` | Kjører kontrollplans protokoll: opplasting (3 uri-tilfeller) · mobil tegningsvisning · delt periodefilter | Protokollen fra kontrollplan |
 
