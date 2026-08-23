@@ -240,15 +240,43 @@ kjører vitest, ikke tsc.** Kjeden gikk grønn og deployet inn i en kompilerings
 minutter og en TTY, i stedet for tre sekunder lokalt.
 
 **Gaten skal stå i selve kommandokjeden Kenneth limer inn**, ikke i hukommelsen til den som
-skriver den:
+skriver den.
+
+🔴 **Rettet 2026-08-23 — kjeden over var DEKORATIV i to dager.** Den opprinnelige formen var:
 
 ```bash
-pnpm typecheck 2>&1 | grep -E "error|Tasks:" | tail -5 && \
-pnpm test 2>&1 | grep -E "FAIL|Test Files|Tests " && \
+pnpm typecheck 2>&1 | grep -E "error|Tasks:" | tail -5 && \   # ← exit-koden er tail sin: ALLTID 0
+pnpm test 2>&1 | grep -E "FAIL|Test Files|Tests " && \        # ← grep matcher «Test Files» uansett
 ./deploy-test.sh
 ```
 
-Kjeden er selv-gatende: feiler typecheck, kjøres verken tester eller deploy.
+I bash er exit-koden for en pipe **siste ledds** kode, ikke den feilende kommandoens. `tail`
+lykkes alltid, og `grep` lykkes så lenge mønsteret finnes i output — som «Test Files» gjør også
+når tester er røde. **Begge leddene returnerte 0 uansett utfall, og `&& ./deploy-test.sh` kjørte
+alltid.** Regelen ble skrevet for å fikse nøyaktig denne feilklassen og bar den selv; cowork ga
+kjeden videre hele 23.08 uten å måle den. Ironien er poenget: *en gate man ikke har målt, er en
+påstand.*
+
+**Riktig form — eksplisitt exit-kode, ingen pipe mellom kommandoen og gaten:**
+
+```bash
+cd ~/Documents/Programmering/SiteDoc && \
+pnpm typecheck > /tmp/tc.log 2>&1;   echo "typecheck exit=$?"; tail -5 /tmp/tc.log
+pnpm test      > /tmp/test.log 2>&1; echo "test exit=$?";      grep -E "Test Files|Tests |FAIL" /tmp/test.log | tail -5
+# begge exit=0 → så, og først da:
+./deploy-test.sh
+```
+
+Trengs én selv-avbrytende kjede, må `set -o pipefail` stå først — uten den propagerer ingen
+pipe feilkoden:
+
+```bash
+set -o pipefail && cd ~/Documents/Programmering/SiteDoc && \
+pnpm typecheck 2>&1 | tail -5 && pnpm test 2>&1 | tail -5 && ./deploy-test.sh
+```
+
+**Generell regel:** en `&&`-kjede der leddene inneholder `|` gater ikke uten `pipefail`. Skriver
+du en gate, mål at den faktisk stopper — kjør den mot noe som feiler før du stoler på den.
 
 **Beslektet lærdom samme dag:** `grep` er case-sensitivt. Cowork brukte `grep -c "slettFeil"`
 som bevis på at en opprydding var komplett — det gjenværende kallet het `setSlettFeil`, med
