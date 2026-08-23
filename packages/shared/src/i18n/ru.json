@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Показать детали дня",
   "timer.attestering.dagskort.manglerBevis": "Отсутствует сертификат оператора",
   "timer.attestering.dagskort.maskinUtenTimerad": "Машина без ввода времени",
+  "timer.attestering.dagskort.kr": "ОК {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} ч сверх нормы",
   "timer.attestering.pivot.avvikUnder": "сверхурочная работа учитывается по норме",

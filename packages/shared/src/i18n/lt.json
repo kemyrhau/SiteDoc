@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Rodyti dienos informaciją",
   "timer.attestering.dagskort.manglerBevis": "Trūksta operatoriaus pažymėjimo",
   "timer.attestering.dagskort.maskinUtenTimerad": "Mašina be laiko įrašo",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{laikmatis}} val. viršija normą",
   "timer.attestering.pivot.avvikUnder": "viršvalandžiai įrašyti pagal normatyvą",

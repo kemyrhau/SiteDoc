@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Afișați detaliile zilei",
   "timer.attestering.dagskort.manglerBevis": "Lipsește certificatul de operator",
   "timer.attestering.dagskort.maskinUtenTimerad": "Mașină fără introducere de timp",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h peste norma",
   "timer.attestering.pivot.avvikUnder": "ore suplimentare înregistrate sub normă",

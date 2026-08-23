@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Afficher les détails du jour",
   "timer.attestering.dagskort.manglerBevis": "Certificat d'opérateur manquant",
   "timer.attestering.dagskort.maskinUtenTimerad": "Machine sans saisie de temps",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h au-dessus de la norme",
   "timer.attestering.pivot.avvikUnder": "heures supplémentaires enregistrées selon la norme",

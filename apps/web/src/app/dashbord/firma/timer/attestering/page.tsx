@@ -22,8 +22,8 @@ import { useFirma } from "@/kontekst/firma-kontekst";
 import {
   ProsjektPivot,
   AnsattPivot,
-  type PivotRad,
 } from "@/components/attestering/AttesteringPivot";
+import { tilPivotRad } from "@/components/attestering/DagsKort";
 import type {
   MaskinRad,
   RadProsjekt,
@@ -42,6 +42,15 @@ type Ansatt = {
   email: string;
   ansattnummer: string | null;
   avdelingId: string | null;
+};
+
+// Utlegg-rad slik dagskortet trenger den: beløp + kategorinavn. Speiler
+// server-`select` (id/belop/expenseCategory.navn) — INGEN kommentar/vedlegg.
+// `belop` er Decimal serialisert (unknown → Number ved mapping).
+type UtleggRad = {
+  id: string;
+  belop: unknown;
+  expenseCategory: { navn: string } | null;
 };
 
 type AttesteringRad = {
@@ -63,6 +72,8 @@ type AttesteringRad = {
   timer: TimerRad[];
   tillegg: TilleggRad[];
   maskiner: MaskinRad[];
+  // Dagskort: utlegg (beløp + kategorinavn via server-include; INGEN vedlegg).
+  utlegg: UtleggRad[];
   // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
   manglerMaskinforerbevis: boolean;
   // ORDRE 2 STEG 1/2: server-avledet overtidsgrunnlag (dag-nivå) + ukenorm.
@@ -116,42 +127,9 @@ function formatDato(d: Date | string): string {
   });
 }
 
-/** Typet innsnevring AttesteringRad → PivotRad. Leser eksplisitt fra kilden i
- *  stedet for `as unknown as PivotRad[]` — mister vi et felt PivotRad krever,
- *  feiler tsc her, ikke som `undefined` langt unna (SAMARBEIDSREGLER-advarselen
- *  om cast-lekkasje). */
-function tilPivotRad(r: AttesteringRad): PivotRad {
-  return {
-    id: r.id,
-    dato: r.dato,
-    totaltimer: r.totaltimer,
-    ukenorm: r.ukenorm,
-    overtidsgrunnlag: r.overtidsgrunnlag,
-    ansatt: r.ansatt
-      ? { id: r.ansatt.id, name: r.ansatt.name, email: r.ansatt.email }
-      : null,
-    prosjekt: r.prosjekt,
-    // TimerRad.timer/MaskinRad.timer/mengde er `unknown` (Decimal serialisert
-    // som tall/streng); dagskortet + pivoten konsumerer via Number(), så vi
-    // normaliserer her. beskrivelse/sheetTimerId følger med i payloaden.
-    timer: r.timer.map((rad) => ({
-      id: rad.id,
-      projectId: rad.projectId,
-      timer: Number(rad.timer),
-      aktivitetId: rad.aktivitetId,
-      lonnsartId: rad.lonnsartId,
-      beskrivelse: rad.beskrivelse,
-    })),
-    maskiner: r.maskiner.map((m) => ({
-      vehicleId: m.vehicleId,
-      sheetTimerId: m.sheetTimerId,
-      timer: Number(m.timer),
-      mengde: m.mengde === null || m.mengde === undefined ? null : Number(m.mengde),
-      enhet: m.enhet,
-    })),
-    manglerMaskinforerbevis: r.manglerMaskinforerbevis,
-  };
-}
+// tilPivotRad (AttesteringRad → PivotRad) er nå delt fra DagsKort.tsx, så
+// pivotene og Sedler-lista bruker samme mapping. AttesteringRad er strukturelt
+// en RaaSedel.
 
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                           */

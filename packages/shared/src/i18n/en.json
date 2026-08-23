@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Show day details",
   "timer.attestering.dagskort.manglerBevis": "Missing operator certificate",
   "timer.attestering.dagskort.maskinUtenTimerad": "Machine without a time entry",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h over norm",
   "timer.attestering.pivot.avvikUnder": "overtime logged under norm",

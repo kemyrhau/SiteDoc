@@ -22,6 +22,84 @@ import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import type { PivotRad, PivotMaskinRad } from "./AttesteringPivot";
+import type { TimerRad, MaskinRad, TilleggRad } from "./attestering-buckets";
+
+const nbTall = new Intl.NumberFormat("nb-NO", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/* ------------------------------------------------------------------ */
+/*  Mapper: rå sedel (hentTilAttesteringFirma) → PivotRad             */
+/*  Delt kilde for pivotene (page.tsx) OG Sedler-lista (SeddelKort),   */
+/*  så mappingen ikke drifter mellom flatene (SAMARBEIDSREGLER-        */
+/*  advarselen om cast-lekkasje). Decimal-felt (`unknown`) → Number.   */
+/* ------------------------------------------------------------------ */
+
+export type RaaUtlegg = {
+  belop: unknown;
+  expenseCategory: { navn: string } | null;
+};
+
+/** Strukturelt minimum dagskortet trenger. ukenorm/overtidsgrunnlag/prosjekt
+ *  brukes ikke av kortet (kun av pivotenes norm-kolonne) → valgfrie her, så
+ *  SeddelKortData (uten dem) også kan mappes. */
+export type RaaSedel = {
+  id: string;
+  dato: Date | string;
+  totaltimer: number;
+  ukenorm?: number;
+  overtidsgrunnlag?: PivotRad["overtidsgrunnlag"];
+  ansatt: { id: string; name: string | null; email: string } | null;
+  prosjekt?: PivotRad["prosjekt"];
+  timer: TimerRad[];
+  maskiner: MaskinRad[];
+  tillegg: TilleggRad[];
+  utlegg: RaaUtlegg[];
+  manglerMaskinforerbevis: boolean;
+};
+
+const tallEllerNull = (v: unknown): number | null =>
+  v === null || v === undefined ? null : Number(v);
+
+export function tilPivotRad(r: RaaSedel): PivotRad {
+  return {
+    id: r.id,
+    dato: r.dato,
+    totaltimer: r.totaltimer,
+    ukenorm: r.ukenorm ?? 0,
+    overtidsgrunnlag: r.overtidsgrunnlag ?? null,
+    ansatt: r.ansatt
+      ? { id: r.ansatt.id, name: r.ansatt.name, email: r.ansatt.email }
+      : null,
+    prosjekt: r.prosjekt ?? null,
+    timer: r.timer.map((rad) => ({
+      id: rad.id,
+      projectId: rad.projectId,
+      timer: Number(rad.timer),
+      aktivitetId: rad.aktivitetId,
+      lonnsartId: rad.lonnsartId,
+      beskrivelse: rad.beskrivelse,
+    })),
+    maskiner: r.maskiner.map((m) => ({
+      vehicleId: m.vehicleId,
+      sheetTimerId: m.sheetTimerId,
+      timer: Number(m.timer),
+      mengde: tallEllerNull(m.mengde),
+      enhet: m.enhet,
+    })),
+    tillegg: r.tillegg.map((tl) => ({
+      tilleggId: tl.tilleggId,
+      antall: Number(tl.antall),
+      kommentar: tl.kommentar,
+    })),
+    utlegg: r.utlegg.map((u) => ({
+      kategoriNavn: u.expenseCategory?.navn ?? null,
+      belop: tallEllerNull(u.belop),
+    })),
+    manglerMaskinforerbevis: r.manglerMaskinforerbevis,
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Katalog-navn — org-scopet oppslag (ett kall, delt via query-cache) */
@@ -31,17 +109,20 @@ export type KatalogNavn = {
   lonnsartNavn: (id: string) => string;
   aktivitetNavn: (id: string) => string;
   maskinNavn: (id: string) => string;
+  tilleggNavn: (id: string) => string;
 };
 
-/** Henter lønnsart-/aktivitet-/maskin-katalogene for det VISTE firmaet og gir
- *  navn-resolvere. Samme org-scope-krav som SeddelKort (uten organizationId
- *  avleder serveren feil firma for en cross-org admin). */
+/** Henter lønnsart-/aktivitet-/maskin-/tillegg-katalogene for det VISTE firmaet
+ *  og gir navn-resolvere. Samme org-scope-krav som SeddelKort (uten
+ *  organizationId avleder serveren feil firma for en cross-org admin).
+ *  Utlegg trenger ingen katalog — kategorinavnet følger med i sedel-payloaden. */
 export function useKatalogNavn(orgId: string | undefined): KatalogNavn {
   const { t } = useTranslation();
   const enabled = !!orgId;
   const input = { organizationId: orgId ?? "" };
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(input, { enabled });
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(input, { enabled });
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery(input, { enabled });
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(input, { enabled });
   const equipment = equipmentRaw as unknown as
     | Array<{ id: string; merke: string; modell: string; internNavn: string | null }>
@@ -51,6 +132,7 @@ export function useKatalogNavn(orgId: string | undefined): KatalogNavn {
   return {
     lonnsartNavn: (id) => lonnsarter?.find((l) => l.id === id)?.navn ?? ukjent,
     aktivitetNavn: (id) => aktiviteter?.find((a) => a.id === id)?.navn ?? ukjent,
+    tilleggNavn: (id) => tilleggKatalog?.find((x) => x.id === id)?.navn ?? ukjent,
     maskinNavn: (id) => {
       const e = equipment?.find((x) => x.id === id);
       if (!e) return ukjent;
@@ -67,7 +149,9 @@ export function useKatalogNavn(orgId: string | undefined): KatalogNavn {
 export function harKortInnhold(seddel: PivotRad): boolean {
   return (
     seddel.timer.some((tr) => (tr.beskrivelse ?? "").trim() !== "") ||
-    seddel.maskiner.length > 0
+    seddel.maskiner.length > 0 ||
+    seddel.tillegg.length > 0 ||
+    seddel.utlegg.length > 0
   );
 }
 
@@ -181,6 +265,47 @@ export function DagsKort({
           </p>
           {maskinUtenTimerrad.map((m, i) => (
             <MaskinLinje key={i} rad={m} maskinNavn={katalog.maskinNavn} />
+          ))}
+        </div>
+      )}
+
+      {/* Tillegg registrert samme dag: navn + antall. */}
+      {seddel.tillegg.length > 0 && (
+        <div className="mt-1 border-t border-gray-100 pt-1">
+          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+            {t("timer.tillegg")}
+          </p>
+          {seddel.tillegg.map((tl, i) => (
+            <div key={i} className="flex items-start gap-2 py-0.5">
+              <span className="min-w-0 flex-1 text-xs text-gray-700">
+                {katalog.tilleggNavn(tl.tilleggId)}
+              </span>
+              <span className="shrink-0 font-mono text-xs tabular-nums text-gray-700">
+                {nbTall.format(tl.antall)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Utlegg registrert samme dag: kategori + beløp (kr). Vedlegg ses i
+          detaljen (private/signeringskrevende — bevisst ute av liste-payloaden). */}
+      {seddel.utlegg.length > 0 && (
+        <div className="mt-1 border-t border-gray-100 pt-1">
+          <p className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+            {t("timer.utlegg")}
+          </p>
+          {seddel.utlegg.map((u, i) => (
+            <div key={i} className="flex items-start gap-2 py-0.5">
+              <span className="min-w-0 flex-1 text-xs text-gray-700">
+                {u.kategoriNavn ?? t("timer.attestering.dagskort.ukjent")}
+              </span>
+              <span className="shrink-0 font-mono text-xs tabular-nums text-gray-700">
+                {u.belop === null
+                  ? "—"
+                  : t("timer.attestering.dagskort.kr", { belop: nbTall.format(u.belop) })}
+              </span>
+            </div>
           ))}
         </div>
       )}
@@ -309,7 +434,12 @@ export function HoverKort({
       {children}
       <button
         type="button"
-        onClick={() => setPinnet((p) => !p)}
+        onClick={(e) => {
+          // Stopp bobling: i SeddelKort ligger ikonet inni en klikkbar header
+          // (toggle expand) — pin-klikket skal ikke også utløse den.
+          e.stopPropagation();
+          setPinnet((p) => !p);
+        }}
         aria-label={t("timer.attestering.dagskort.visDetaljer")}
         aria-expanded={vis}
         className="shrink-0 rounded p-0.5 text-gray-300 hover:text-blue-600"

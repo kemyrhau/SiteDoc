@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Näytä päivän tiedot",
   "timer.attestering.dagskort.manglerBevis": "Operaattorin varmenne puuttuu",
   "timer.attestering.dagskort.maskinUtenTimerad": "Kone ilman aikamerkintää",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{ajastin}} h yli normin",
   "timer.attestering.pivot.avvikUnder": "ylityöt kirjattu normaalisti",

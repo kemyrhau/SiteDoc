@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Показати подробиці дня",
   "timer.attestering.dagskort.manglerBevis": "Відсутній сертифікат оператора",
   "timer.attestering.dagskort.maskinUtenTimerad": "Автомат без введення часу",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} год понад норму",
   "timer.attestering.pivot.avvikUnder": "понаднормова робота зарахована під норму",
