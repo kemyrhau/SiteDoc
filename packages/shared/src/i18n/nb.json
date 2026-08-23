@@ -2453,8 +2453,6 @@
   "brukere.redigerModuler": "Rediger moduler",
   "dokumentflyt.leggTilMal": "Legg til mal",
   "dokumentflyt.ingenMaler": "Ingen maler opprettet",
-  "dokumentflyt.malDuplikatAdvarsel": "Denne malen er allerede tilknyttet «{{flytNavn}}» for samme faggruppe. En faggruppe bør ikke ha to flyter med samme mal da dette skaper tvetydighet ved videresending.",
-  "dokumentflyt.malDuplikatFortsett": "Fortsett likevel",
   "tabell.bestiller": "Bestiller",
   "tabell.utforer": "Utfører",
   "tabell.bestillerFaggruppe": "Bestiller-faggruppe",

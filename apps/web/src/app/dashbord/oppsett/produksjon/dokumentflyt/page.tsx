@@ -226,7 +226,6 @@ function DokumentflytKort({
   const [navn, setNavn] = useState(df.name);
 
   const [visMalVelger, setVisMalVelger] = useState(false);
-  const [malAdvarsel, setMalAdvarsel] = useState<{ malId: string; flytNavn: string } | null>(null);
 
   const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
     onSuccess: () => {
@@ -247,34 +246,15 @@ function DokumentflytKort({
 
   const tilknyttedeMalIder = new Set(df.maler.map((m) => m.template.id));
 
-  const utforToggleMal = (malId: string) => {
+  // Mal-duplikat-advarselen er FJERNET (funn 2026-08-22): to flyter i samme faggruppe med
+  // samme mal er et LOVLIG oppsett. Tvetydigheten den advarte mot er lukket i begge lag —
+  // opprettelse (flyt-først-velger, tegninger/page.tsx) og «Besvar» (finnStandardMottaker,
+  // flyt-bevisst standard-mottaker). Å blokkere et gyldig oppsett var støy.
+  const toggleMal = (malId: string) => {
     const nyeIds = tilknyttedeMalIder.has(malId)
       ? [...tilknyttedeMalIder].filter((id) => id !== malId)
       : [...tilknyttedeMalIder, malId];
     oppdaterMutation.mutate({ id: df.id, projectId: prosjektId, templateIds: nyeIds });
-    setMalAdvarsel(null);
-  };
-
-  const toggleMal = (malId: string) => {
-    // Kun sjekk ved tillegg, ikke fjerning
-    if (tilknyttedeMalIder.has(malId)) {
-      utforToggleMal(malId);
-      return;
-    }
-    // Sjekk om malen allerede finnes i en annen dokumentflyt for samme faggruppe
-    if (df.faggruppeId) {
-      const duplikatFlyt = alleDokumentflyter.find(
-        (annen) =>
-          annen.id !== df.id &&
-          annen.faggruppeId === df.faggruppeId &&
-          annen.maler.some((m) => m.template.id === malId),
-      );
-      if (duplikatFlyt) {
-        setMalAdvarsel({ malId, flytNavn: duplikatFlyt.name });
-        return;
-      }
-    }
-    utforToggleMal(malId);
   };
 
   return (
@@ -416,30 +396,6 @@ function DokumentflytKort({
             </div>
           )}
         </div>
-        )}
-
-        {/* Advarsel: mal allerede tilknyttet en annen flyt */}
-        {malAdvarsel && (
-          <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-            <p className="text-xs text-amber-800">
-              {t("dokumentflyt.malDuplikatAdvarsel", { flytNavn: malAdvarsel.flytNavn })}
-            </p>
-            <div className="mt-1.5 flex gap-2">
-              <button
-                onClick={() => utforToggleMal(malAdvarsel.malId)}
-                className="rounded bg-amber-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-amber-700"
-              >
-                {t("dokumentflyt.malDuplikatFortsett")}
-              </button>
-              <button
-                onClick={() => setMalAdvarsel(null)}
-                className="rounded bg-white px-2 py-0.5 text-xs text-gray-600 border border-gray-200 hover:bg-gray-50"
-              >
-                {t("handling.avbryt")}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

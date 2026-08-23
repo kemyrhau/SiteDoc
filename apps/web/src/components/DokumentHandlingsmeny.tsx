@@ -28,7 +28,7 @@ import {
   type FlytPosisjonLedd,
   type LeddKlassifisering,
 } from "@sitedoc/shared";
-import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn } from "@/lib/videresend-valg";
+import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn, finnStandardMottaker } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
 import { STATUS_LABEL_NOEKKEL, flythjelpTekst } from "@/lib/flytmatrise-def";
 import { byggLedd, finnAktivtIndex, type FlytMedlem } from "@/lib/flyt-ledd";
@@ -69,6 +69,12 @@ interface DokumentHandlingsmenyProps {
   dokumentflyter?: DokumentflytData[];
   templateId?: string | null;
   standardFaggruppeId?: string;
+  /**
+   * Dokumentets EGEN dokumentflyt (server-fakta). Gjør standard-mottaker-oppslaget for «Besvar»
+   * flyt-bevisst: to flyter i samme faggruppe → faggruppeId-match er tvetydig (funn 2026-08-22).
+   * Flyt-løse dokumenter (ingen flyt) lar den være undefined → fallback til standardFaggruppeId.
+   */
+  aktivDokumentflytId?: string;
   minRolle?: DokumentflytRolle | null;
   /**
    * Admin-nivå i flyt-laget (Kloss 2): "sitedoc" (kode-bypass), "prosjekt" (full innenfor
@@ -160,6 +166,7 @@ export function DokumentHandlingsmeny({
   dokumentflyter,
   templateId,
   standardFaggruppeId,
+  aktivDokumentflytId,
   minRolle,
   adminNiva,
   flytMedlemmer,
@@ -251,11 +258,12 @@ export function DokumentHandlingsmeny({
     [harFlyt, status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erFlytAdminNiva, nesteLeddPos, alle],
   );
 
-  // Standard-mottaker (utfører-faggruppen) for «besvar»-overgangen
+  // Standard-mottaker for «besvar» — FLYT-BEVISST (funn 2026-08-22): matcher dokumentets EGEN
+  // flyt (aktivDokumentflytId), ikke bare faggruppeId. To flyter i samme faggruppe → faggruppe-
+  // match er tvetydig (.find = første treff, kunne rute til feil flyts mottaker). Flyt-løse
+  // dokumenter faller tilbake til faggruppeId inne i finnStandardMottaker.
   const mottakerForStandard = (): Mottaker | undefined => {
-    const std = standardFaggruppeId
-      ? videresendValg.find((v) => v.faggruppeId === standardFaggruppeId)
-      : undefined;
+    const std = finnStandardMottaker(videresendValg, aktivDokumentflytId, standardFaggruppeId);
     return std?.mottaker ? { ...std.mottaker, dokumentflytId: std.dokumentflytId } : undefined;
   };
 
