@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Hledat stavební stránky...",
   "tegninger.alleLokasjoner": "Všechna stavební místa",
   "tegninger.velgTegning": "Vyberte kresbu v panelu",
+  "tegninger.naavaerendePosisjon": "Aktuální pozice",
   "tegninger.velgLokasjonOgTegning": "Vyberte staveniště a výkres v panelu",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Máš míč — {{merke}}",
   "flyt.sendTil": "Odeslat na {{navn}}",
   "flyt.besvarTil": "Odpovědět uživateli {{navn}}",
-  "flytvisning.admin.slettLukket": "Smazat uzavřeno"
+  "flytvisning.admin.slettLukket": "Smazat uzavřeno",
+  "periodeFilter.idag": "Dnes",
+  "periodeFilter.sisteUke": "Minulý týden",
+  "periodeFilter.sisteMaaned": "Minulý měsíc",
+  "periodeFilter.siste3Maaneder": "Poslední 3 měsíce",
+  "periodeFilter.alle": "Vše",
+  "periodeFilter.egendefinert": "Zvyk",
+  "periodeFilter.fra": "Z",
+  "periodeFilter.til": "Na",
+  "periodeFilter.ugyldigIntervall": "Datum od je po datu"
 }

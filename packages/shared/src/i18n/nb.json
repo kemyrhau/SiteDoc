@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Søk byggeplasser...",
   "tegninger.alleLokasjoner": "Alle byggeplasser",
   "tegninger.velgTegning": "Velg en tegning i panelet",
+  "tegninger.naavaerendePosisjon": "Nåværende posisjon",
   "tegninger.velgLokasjonOgTegning": "Velg en byggeplass og tegning i panelet",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Du har ballen — {{merke}}",
   "flyt.sendTil": "Send til {{navn}}",
   "flyt.besvarTil": "Besvar til {{navn}}",
-  "flytvisning.admin.slettLukket": "Slett lukket"
+  "flytvisning.admin.slettLukket": "Slett lukket",
+  "periodeFilter.idag": "I dag",
+  "periodeFilter.sisteUke": "Siste uke",
+  "periodeFilter.sisteMaaned": "Siste måned",
+  "periodeFilter.siste3Maaneder": "Siste 3 måneder",
+  "periodeFilter.alle": "Alle",
+  "periodeFilter.egendefinert": "Egendefinert",
+  "periodeFilter.fra": "Fra",
+  "periodeFilter.til": "Til",
+  "periodeFilter.ugyldigIntervall": "Fra-dato er etter til-dato"
 }

@@ -230,6 +230,7 @@ export const oppgaveRouter = router({
           status: true,
           positionX: true,
           positionY: true,
+          createdAt: true, // periodefilter på tegningen (2026-08-23)
           template: { select: { prefix: true, name: true } },
         },
         orderBy: { createdAt: "desc" },

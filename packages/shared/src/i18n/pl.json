@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Szukaj placów budowy...",
   "tegninger.alleLokasjoner": "Wszystkie place budowy",
   "tegninger.velgTegning": "Wybierz rysunek w panelu",
+  "tegninger.naavaerendePosisjon": "Aktualna pozycja",
   "tegninger.velgLokasjonOgTegning": "Wybierz plac budowy i rysunek w panelu",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Masz piłkę — {{merke}}",
   "flyt.sendTil": "Wyślij do {{navn}}",
   "flyt.besvarTil": "Odpowiedz do {{navn}}",
-  "flytvisning.admin.slettLukket": "Usuń zamknięte"
+  "flytvisning.admin.slettLukket": "Usuń zamknięte",
+  "periodeFilter.idag": "Dzisiaj",
+  "periodeFilter.sisteUke": "Ostatni tydzień",
+  "periodeFilter.sisteMaaned": "Ostatni miesiąc",
+  "periodeFilter.siste3Maaneder": "Ostatnie 3 miesiące",
+  "periodeFilter.alle": "Wszystko",
+  "periodeFilter.egendefinert": "Zwyczaj",
+  "periodeFilter.fra": "Z",
+  "periodeFilter.til": "Do",
+  "periodeFilter.ugyldigIntervall": "Od daty jest po dacie"
 }

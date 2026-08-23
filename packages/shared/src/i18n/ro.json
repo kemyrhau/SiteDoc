@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Search building sites...",
   "tegninger.alleLokasjoner": "All building sites",
   "tegninger.velgTegning": "Selectați un desen din panou",
+  "tegninger.naavaerendePosisjon": "Poziția actuală",
   "tegninger.velgLokasjonOgTegning": "Select a building site and drawing in the panel",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Ai mingea — {{merke}}",
   "flyt.sendTil": "Trimite la {{navn}}",
   "flyt.besvarTil": "Răspunde la {{navn}}",
-  "flytvisning.admin.slettLukket": "Șterge închis"
+  "flytvisning.admin.slettLukket": "Șterge închis",
+  "periodeFilter.idag": "Astăzi",
+  "periodeFilter.sisteUke": "Săptămâna trecută",
+  "periodeFilter.sisteMaaned": "Luna trecută",
+  "periodeFilter.siste3Maaneder": "Ultimele 3 luni",
+  "periodeFilter.alle": "Toate",
+  "periodeFilter.egendefinert": "Personalizat",
+  "periodeFilter.fra": "Din",
+  "periodeFilter.til": "La",
+  "periodeFilter.ugyldigIntervall": "De la data este după până la data"
 }

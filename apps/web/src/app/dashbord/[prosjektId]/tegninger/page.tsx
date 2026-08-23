@@ -8,6 +8,8 @@ import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass
 import { byggOpprettInput } from "@/lib/opprettFraTegning";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
+import { PeriodeFilter } from "@/components/PeriodeFilter";
+import { type Periode, effektiveGrenser, innenforPeriode } from "@/lib/periode";
 import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
 import {
   beregnTransformasjon,
@@ -35,6 +37,7 @@ interface Markør {
   y: number;
   label: string;
   status: string;
+  createdAt: string; // periodefilter (2026-08-23)
 }
 
 interface IfcMetadataJson {
@@ -111,6 +114,7 @@ export default function TegningerSide() {
     startPosisjonsvelger,
     fullførPosisjonsvelger,
     avbrytPosisjonsvelger,
+    settAktivTegning,
   } = useByggeplass();
   const utils = trpc.useUtils();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -126,10 +130,24 @@ export default function TegningerSide() {
   // render eller lagrede posisjoner). Lagene som faktisk finnes: oppgaver + kontrollpunkter.
   const [visOppgaver, setVisOppgaver] = useState(true);
   const [visKontrollpunkter, setVisKontrollpunkter] = useState(true);
+  // Periodefilter på markørene (createdAt). Standard: alle.
+  const [periode, setPeriode] = useState<Periode>({ hurtigvalg: "alle", fra: null, til: null });
+  const { fra: pFra, til: pTil } = effektiveGrenser(periode);
   const naaUke = useMemo(() => isoUkeRef(new Date()), []);
   // L2: «Vis på tegning» sender ?marker=<punktId> → den markøren utheves (spretter).
   const uthevetPunktId = useSearchParams().get("marker");
-  const posisjonsvelgerParam = useSearchParams().get("posisjonsvelger");
+  const sokeParams = useSearchParams();
+  const posisjonsvelgerParam = sokeParams.get("posisjonsvelger");
+  // F1 (2026-08-23): «Endre» sender feltets NÅVÆRENDE posisjon med i URL-en → velgeren åpner på
+  // RIKTIG tegning og tegner den eksisterende markøren dempet, så brukeren ser hvor punktet står.
+  const eksTegningId = sokeParams.get("tegning");
+  const eksTegningNavn = sokeParams.get("tegningNavn");
+  const eksPxRaa = sokeParams.get("px");
+  const eksPyRaa = sokeParams.get("py");
+  const eksisterendeMarkør =
+    eksTegningId && eksPxRaa != null && eksPyRaa != null && !Number.isNaN(Number(eksPxRaa)) && !Number.isNaN(Number(eksPyRaa))
+      ? { drawingId: eksTegningId, x: Number(eksPxRaa), y: Number(eksPyRaa) }
+      : null;
   const harRehydrertVelger = useRef(false);
 
   // Re-hydrer velger-tilstanden fra URL-en ÉN gang ved mount (funn 2026-08-22):
@@ -145,8 +163,14 @@ export default function TegningerSide() {
     if (harRehydrertVelger.current) return;
     harRehydrertVelger.current = true;
     const handling = velgerRehydreringsHandling(posisjonsvelgerParam, posisjonsvelgerAktiv);
-    if (handling === "start") startPosisjonsvelger(posisjonsvelgerParam!);
-    else if (handling === "avbryt") avbrytPosisjonsvelger();
+    if (handling === "start") {
+      startPosisjonsvelger(posisjonsvelgerParam!);
+      // F1: åpne feltets EGEN tegning (ikke standard/sist-viste) når «Endre» ga oss en.
+      if (eksTegningId && aktivTegning?.id !== eksTegningId) {
+        settAktivTegning({ id: eksTegningId, name: eksTegningNavn ?? "" });
+      }
+    } else if (handling === "avbryt") avbrytPosisjonsvelger();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posisjonsvelgerParam, posisjonsvelgerAktiv, startPosisjonsvelger, avbrytPosisjonsvelger]);
 
   // DWG-elementinfo ved klikk
@@ -559,7 +583,7 @@ export default function TegningerSide() {
     });
   }
 
-  // Markører fra eksisterende oppgaver
+  // Markører fra eksisterende oppgaver (periode-filtrert på createdAt).
   const markører: Markør[] = (oppgaveMarkører ?? [])
     .filter((o) => o.positionX != null && o.positionY != null)
     .map((o) => ({
@@ -570,22 +594,27 @@ export default function TegningerSide() {
         ? `${o.template.prefix}-${String(o.number ?? 0).padStart(3, "0")}`
         : o.title,
       status: o.status,
-    }));
+      createdAt: String((o as { createdAt?: string }).createdAt ?? ""),
+    }))
+    .filter((m) => !m.createdAt || innenforPeriode(new Date(m.createdAt), pFra, pTil));
 
   // L2: kontrollpunkt-markører, farget av den avledede tilstanden (samme fargemodell
   // som liste/rutenett — delt hjelper). Form (fylt pin vs. omriss) = arbeid startet.
-  const kontrollpunkter: Array<{ id: string; x: number; y: number; label: string; omradeNavn: string | null; sjekklisteId: string | null; tilstand: TilstandVisning }> =
-    (kontrollpunktMarkører ?? []).map((p) => ({
-      id: p.id,
-      x: p.positionX!,
-      y: p.positionY!,
-      label: p.sjekklisteMal.prefix ? `${p.sjekklisteMal.prefix} — ${p.sjekklisteMal.name}` : p.sjekklisteMal.name,
-      omradeNavn: p.omrade?.navn ?? null,
-      // 3a: startet punkt → åpne den koblede sjekklista direkte; planlagt (ingen
-      // sjekkliste ennå) → fall tilbake til kontrollplan-oversikten som før.
-      sjekklisteId: p.sjekkliste?.id ?? null,
-      tilstand: avledPunktTilstand(p, naaUke),
-    }));
+  const kontrollpunkter: Array<{ id: string; x: number; y: number; label: string; omradeNavn: string | null; sjekklisteId: string | null; tilstand: TilstandVisning; createdAt: string }> =
+    (kontrollpunktMarkører ?? [])
+      .map((p) => ({
+        id: p.id,
+        x: p.positionX!,
+        y: p.positionY!,
+        label: p.sjekklisteMal.prefix ? `${p.sjekklisteMal.prefix} — ${p.sjekklisteMal.name}` : p.sjekklisteMal.name,
+        omradeNavn: p.omrade?.navn ?? null,
+        // 3a: startet punkt → åpne den koblede sjekklista direkte; planlagt (ingen
+        // sjekkliste ennå) → fall tilbake til kontrollplan-oversikten som før.
+        sjekklisteId: p.sjekkliste?.id ?? null,
+        tilstand: avledPunktTilstand(p, naaUke),
+        createdAt: String((p as { opprettet?: string }).opprettet ?? ""), // KontrollplanPunkt.opprettet
+      }))
+      .filter((m) => !m.createdAt || innenforPeriode(new Date(m.createdAt), pFra, pTil));
 
   // Flyt-velger (modell-korreksjon 2026-08-22): flyter brukeren kan OPPRETTE i, med ≥1
   // ikke-HMS-mal av valgt kategori. Etikett = flytnavn. Admin/manage_field/domene-bypass
@@ -796,6 +825,15 @@ export default function TegningerSide() {
           </>
         )}
 
+        {/* Periodefilter på markørene (createdAt). Vises når tegningen HAR markører (ufiltrert), så
+            filteret er tilgjengelig selv når gjeldende periode skjuler alle. */}
+        {((oppgaveMarkører?.length ?? 0) + (kontrollpunktMarkører?.length ?? 0)) > 0 && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <PeriodeFilter periode={periode} onEndre={setPeriode} />
+          </>
+        )}
+
         {/* GPS-koordinater for georefererte tegninger */}
         {transformasjon && (
           <>
@@ -991,6 +1029,17 @@ export default function TegningerSide() {
                 );
               })}
 
+              {/* F1: eksisterende posisjon (dempet) under velging — så brukeren ser hvor punktet står i dag */}
+              {posisjonsvelgerAktiv && eksisterendeMarkør && aktivTegning?.id === eksisterendeMarkør.drawingId && (
+                <div
+                  className="absolute -translate-x-1/2 -translate-y-full pointer-events-none opacity-40"
+                  style={{ left: `${eksisterendeMarkør.x}%`, top: `${eksisterendeMarkør.y}%` }}
+                  title={t("tegninger.naavaerendePosisjon")}
+                >
+                  <MapPin className="h-7 w-7 fill-gray-400 text-gray-600 drop-shadow" />
+                </div>
+              )}
+
               {/* Ny markør (klikket posisjon) */}
               {nyMarkør && (
                 <div
@@ -1074,6 +1123,16 @@ export default function TegningerSide() {
                 </span>
               </button>
             ))}
+            {/* F1: eksisterende posisjon (dempet) under velging */}
+            {posisjonsvelgerAktiv && eksisterendeMarkør && aktivTegning?.id === eksisterendeMarkør.drawingId && (
+              <div
+                className="absolute -translate-x-1/2 -translate-y-full pointer-events-none opacity-40"
+                style={{ left: `${eksisterendeMarkør.x}%`, top: `${eksisterendeMarkør.y}%` }}
+                title={t("tegninger.naavaerendePosisjon")}
+              >
+                <MapPin className="h-7 w-7 fill-gray-400 text-gray-600 drop-shadow" />
+              </div>
+            )}
             {nyMarkør && (
               <div
                 className="absolute -translate-x-1/2 -translate-y-full pointer-events-none"

@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Шукати будівельні майданчики...",
   "tegninger.alleLokasjoner": "Всі будівельні майданчики",
   "tegninger.velgTegning": "Виберіть малюнок на панелі",
+  "tegninger.naavaerendePosisjon": "Поточна позиція",
   "tegninger.velgLokasjonOgTegning": "Виберіть будівельний майданчик і малюнок на панелі",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "У вас м’яч — {{merke}}",
   "flyt.sendTil": "Надіслати до {{navn}}",
   "flyt.besvarTil": "Відповісти {{navn}}",
-  "flytvisning.admin.slettLukket": "Видалити закрито"
+  "flytvisning.admin.slettLukket": "Видалити закрито",
+  "periodeFilter.idag": "Сьогодні",
+  "periodeFilter.sisteUke": "Минулого тижня",
+  "periodeFilter.sisteMaaned": "Останній місяць",
+  "periodeFilter.siste3Maaneder": "Останні 3 місяці",
+  "periodeFilter.alle": "всі",
+  "periodeFilter.egendefinert": "Custom",
+  "periodeFilter.fra": "Від",
+  "periodeFilter.til": "до",
+  "periodeFilter.ugyldigIntervall": "Від дати – це після до дати"
 }

@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Sök på byggplatser...",
   "tegninger.alleLokasjoner": "Alla byggarbetsplatser",
   "tegninger.velgTegning": "Välj en ritning i panelen",
+  "tegninger.naavaerendePosisjon": "Nuvarande position",
   "tegninger.velgLokasjonOgTegning": "Välj en byggarbetsplats och rita i panelen",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Du har bollen – {{merke}}",
   "flyt.sendTil": "Skicka till {{namn}}",
   "flyt.besvarTil": "Svara på {{namn}}",
-  "flytvisning.admin.slettLukket": "Ta bort stängd"
+  "flytvisning.admin.slettLukket": "Ta bort stängd",
+  "periodeFilter.idag": "I dag",
+  "periodeFilter.sisteUke": "Förra veckan",
+  "periodeFilter.sisteMaaned": "Förra månaden",
+  "periodeFilter.siste3Maaneder": "Senaste 3 månaderna",
+  "periodeFilter.alle": "Alla",
+  "periodeFilter.egendefinert": "Beställnings",
+  "periodeFilter.fra": "Från",
+  "periodeFilter.til": "Till",
+  "periodeFilter.ugyldigIntervall": "Från datum är efter till datum"
 }

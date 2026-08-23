@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Ieškokite statybviečių...",
   "tegninger.alleLokasjoner": "Visos statybvietės",
   "tegninger.velgTegning": "Skydelyje pasirinkite piešinį",
+  "tegninger.naavaerendePosisjon": "Dabartinė padėtis",
   "tegninger.velgLokasjonOgTegning": "Skydelyje pasirinkite statybvietę ir brėžinį",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Tu turi kamuolį – {{merke}}",
   "flyt.sendTil": "Siųsti į {{navn}}",
   "flyt.besvarTil": "Atsakyti {{navn}}",
-  "flytvisning.admin.slettLukket": "Ištrinti uždaryta"
+  "flytvisning.admin.slettLukket": "Ištrinti uždaryta",
+  "periodeFilter.idag": "Šiandien",
+  "periodeFilter.sisteUke": "Praėjusią savaitę",
+  "periodeFilter.sisteMaaned": "Praėjusį mėnesį",
+  "periodeFilter.siste3Maaneder": "Paskutiniai 3 mėn",
+  "periodeFilter.alle": "Visi",
+  "periodeFilter.egendefinert": "Pasirinktinis",
+  "periodeFilter.fra": "Iš",
+  "periodeFilter.til": "Į",
+  "periodeFilter.ugyldigIntervall": "Nuo datos yra vėliau iki datos"
 }

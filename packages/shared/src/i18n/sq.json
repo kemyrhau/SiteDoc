@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Kërko faqet e ndërtimit...",
   "tegninger.alleLokasjoner": "Të gjitha kantieret",
   "tegninger.velgTegning": "Zgjidhni një vizatim në panel",
+  "tegninger.naavaerendePosisjon": "Pozicioni aktual",
   "tegninger.velgLokasjonOgTegning": "Zgjidhni një kantier ndërtimi dhe një vizatim në panel",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Ti e ke topin — {{merke}}",
   "flyt.sendTil": "Dërgo te {{navn}}",
   "flyt.besvarTil": "Përgjigju {{navn}}",
-  "flytvisning.admin.slettLukket": "Fshi i mbyllur"
+  "flytvisning.admin.slettLukket": "Fshi i mbyllur",
+  "periodeFilter.idag": "Sot",
+  "periodeFilter.sisteUke": "Javën e kaluar",
+  "periodeFilter.sisteMaaned": "Muajin e kaluar",
+  "periodeFilter.siste3Maaneder": "3 muajt e fundit",
+  "periodeFilter.alle": "Të gjitha",
+  "periodeFilter.egendefinert": "Me porosi",
+  "periodeFilter.fra": "Nga",
+  "periodeFilter.til": "për të",
+  "periodeFilter.ugyldigIntervall": "Nga data është pas deri më sot"
 }
