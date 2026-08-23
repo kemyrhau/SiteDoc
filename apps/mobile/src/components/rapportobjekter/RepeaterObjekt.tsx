@@ -50,6 +50,7 @@ export function RepeaterObjekt({
   sjekklisteId,
   oppgaveIdForKo,
   radOppgaver,
+  tillatteFaggruppeIder,
 }: RapportObjektProps) {
   const { t } = useTranslation();
   // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
@@ -252,6 +253,7 @@ export function RepeaterObjekt({
                       oppdaterFeltVerdi(radIndeks, barnObjekt.id, v)
                     }
                     leseModus={leseModus}
+                    tillatteFaggruppeIder={tillatteFaggruppeIder}
                   />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).

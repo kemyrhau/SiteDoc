@@ -13,6 +13,7 @@ import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
+import { flytFaggruppeIder } from "@/lib/flyt-faggrupper";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjoner";
 import { PrintHeader } from "@/components/PrintHeader";
@@ -391,6 +392,14 @@ export default function SjekklisteDetaljSide() {
     }
     return map;
   }, [sjekklisteOppgaver]);
+
+  // 4b (dokumentflyten er nøkkelen): faggrupper som er MEDLEM av dokumentets flyt — begrenser
+  // `company`-feltet (FirmaObjekt). null = flyt-løst dokument (gyldig) → FirmaObjekt viser alle.
+  // Ikke memoisert — se oppgave-detaljsiden: dype tRPC-typer i deps-array tipper TS2589. Billig.
+  const tillatteFaggruppeIder = flytFaggruppeIder(
+    (fullSjekklisteRå as unknown as { dokumentflytId?: string | null } | undefined)?.dokumentflytId,
+    dokumentflyterRå,
+  );
 
   // Bygg trestruktur og flat ut i DFS-rekkefølge (forelder → barn → neste forelder)
   const objekter = useMemo(() => {
@@ -979,6 +988,7 @@ export default function SjekklisteDetaljSide() {
                   prosjektId={params.prosjektId}
                   barneObjekter={barneObjekterMap.get(objekt.id)}
                   radOppgaver={radOppgaver}
+                  tillatteFaggruppeIder={tillatteFaggruppeIder}
                 />
               </FeltWrapper>
             </div>

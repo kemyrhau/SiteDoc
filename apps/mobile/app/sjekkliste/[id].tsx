@@ -31,6 +31,7 @@ import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 import { trpc } from "../../src/lib/trpc";
+import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
@@ -266,6 +267,13 @@ export default function SjekklisteUtfylling() {
     const flyt = rå.find((df) => df.id === sj.dokumentflytId);
     return flyt?.medlemmer ?? [];
   }, [sjekklisteDetalj, dokumentflyterRå]);
+
+  // 4b (dokumentflyten er nøkkelen): faggruppene `company`-feltet (FirmaObjekt) får tilby.
+  // Inline kall (IKKE useMemo med de dype tRPC-typene i deps — tipper TS2589).
+  const tillatteFaggruppeIder = flytFaggruppeIder(
+    (sjekklisteDetalj as unknown as { dokumentflytId?: string | null })?.dokumentflytId,
+    dokumentflyterRå,
+  );
 
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !sjekklisteDetalj) return undefined;
@@ -1097,6 +1105,7 @@ export default function SjekklisteUtfylling() {
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 sjekklisteId={sjekkliste.id}
                 radOppgaver={radOppgaver}
+                tillatteFaggruppeIder={tillatteFaggruppeIder}
               />
             </FeltWrapper>
           );

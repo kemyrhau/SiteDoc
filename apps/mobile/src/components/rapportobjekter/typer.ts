@@ -31,6 +31,14 @@ export interface RapportObjektProps {
    * koblinger. Speiler web (apps/web/.../rapportobjekter/typer.ts).
    */
   radOppgaver?: RadOppgaveAdapter;
+  /**
+   * 4b (bindende vedtak `domene-arbeidsflyt.md`: dokumentflyten er nøkkelen): faggruppe-id-ene som
+   * er MEDLEM av dokumentets dokumentflyt. `company`-feltet (FirmaObjekt) begrenser valgene til
+   * disse — ikke prosjektets alle. `null`/utelatt = flyt-løst dokument (gyldig) → FirmaObjekt faller
+   * tilbake til alle faggrupper med en mikrotekst-linje. En lagret verdi utenfor settet vises
+   * som ikke-valgbar (utenfor flyten), aldri skjult. Speiler web (apps/web/.../rapportobjekter/typer.ts).
+   */
+  tillatteFaggruppeIder?: string[] | null;
 }
 
 /** Radens forhåndsposisjon (drawing_position-verdi ?? dokument-fallback avgjøres av kalleren). */
