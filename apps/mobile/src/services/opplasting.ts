@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { randomUUID } from "expo-crypto";
 import { AUTH_CONFIG } from "../config/auth";
 import { hentSessionToken } from "./auth";
 
@@ -36,7 +37,12 @@ function saniter(navn: string): string {
  */
 function sikreEndelse(filnavn: string, mimeType: string): string {
   const rent = saniter(filnavn);
-  if (/\.[a-z0-9]{2,5}$/i.test(rent)) return rent;
+  // Ekte endelse = punktum + 1–6 tegn med MINST én bokstav. Et rent numerisk suffiks
+  // («Faktura 2026.08» → «.08») er et dato-/versjonsfragment, ikke en endelse → da vinner
+  // MIME. (Kjent restgrense: et alfabetisk men ikke-reelt suffiks som «.v2» leses fortsatt
+  // som endelse — sjeldnere, og krever en kjent-endelse-liste å skille rent.)
+  const m = rent.match(/\.([a-z0-9]{1,6})$/i);
+  if (m && m[1] && /[a-z]/i.test(m[1])) return rent;
   return rent + (ENDELSE_FRA_MIME[mimeType.toLowerCase()] ?? "");
 }
 
@@ -67,14 +73,20 @@ export async function lastOppFil(
   // returneres som visningsnavn, kopieres fila til en cache-sti navngitt `trygtNavn` og
   // lastes opp derfra. Uten dette ser serveren cache-uri-ens basename (ofte uten endelse for
   // dokumenter) → 400 «Ugyldig filtype: (ingen)».
+  //
+  // Kopien legges i en UNIK underkatalog (ikke bare et unikt filnavn): basename MÅ forbli
+  // `trygtNavn` (det blir multipart-filnavnet), men to samtidige opplastinger med samme
+  // filnavn ville ellers pekt på samme sti — og køens direktekall-søsken (FeltDokumentasjon,
+  // utenom den sekvensielle køen) kunne slettet den enes kopi mens den andre strømmet fra
+  // den. Unik katalog gjør kollisjon umulig ved konstruksjon, ikke ved antakelse om kallmønster.
   const trygtNavn = sikreEndelse(filnavn, mimeType);
-  const opplastingsUri = `${FileSystem.cacheDirectory}${trygtNavn}`;
+  const kopiKatalog = `${FileSystem.cacheDirectory}opplasting-${randomUUID()}/`;
+  const opplastingsUri = `${kopiKatalog}${trygtNavn}`;
 
   console.log("[OPPL] Laster opp:", trygtNavn, "til:", url, "uri:", uri.slice(-50), "token:", token ? "ja" : "nei");
 
   try {
-    // Idempotent: rydd en evt. tidligere kopi med samme navn før vi kopierer.
-    await FileSystem.deleteAsync(opplastingsUri, { idempotent: true });
+    await FileSystem.makeDirectoryAsync(kopiKatalog, { intermediates: true });
     await FileSystem.copyAsync({ from: uri, to: opplastingsUri });
 
     const respons = await FileSystem.uploadAsync(url, opplastingsUri, {
@@ -102,7 +114,8 @@ export async function lastOppFil(
     console.log("[OPPL] Suksess:", resultat.fileUrl, "size:", resultat.fileSize);
     return resultat;
   } finally {
-    // Rydd cache-kopien uansett utfall (idempotent — feiler ikke om kopien aldri ble laget).
-    await FileSystem.deleteAsync(opplastingsUri, { idempotent: true }).catch(() => {});
+    // Rydd HELE den unike kopikatalogen uansett utfall (idempotent — feiler ikke om den
+    // aldri ble laget). Sletter kun denne opplastingens katalog, aldri en annens.
+    await FileSystem.deleteAsync(kopiKatalog, { idempotent: true }).catch(() => {});
   }
 }
