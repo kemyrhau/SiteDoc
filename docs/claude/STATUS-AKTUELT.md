@@ -4,23 +4,30 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-22)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-23)
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `feat/am-ordre2-attestering` | AM ordre 2 steg 2 — korreksjon 2–4 (lønnsartfordeling · seriegodkjenning · returner+redigering) + seed for designgate | Ingenting — kan bygge |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | Leverte natt til 22.08: D2b, funn 2b/3/4, F7-D1, Lukk-som-slette-port, radkort, funn 6, posisjonsvelger-URL. Nå: kvittering av F7-blokken mot fasit-PNG + kartlegging «Opprett fra tegning» | Kenneths klarsignal på neste ordre |
-| **mobil-device** | `SiteDoc-mobil-device` | `feat/mobil-arkiv-pdf` | ❓ **Ingen status siden 2026-08-20.** Eier steg 3–4 + kontekstkjede | Purring eller omstart |
+| **dokgen** | `SiteDoc-dokgen` | — | AM ordre 2 steg 2 **merget** 2026-08-23 (`68fcbe00`): D3-pivotene, uke-avvik/badge, firma-scopet katalog | Ledig — venter neste ordre |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/mobil-tegningsvisning` · `docs/felt-frys-opphevet` | Begge pushet. Kø etter simulator-grønt: fold D2/D3 → `renderFelt` + dødt subtre · H1 · H8 · oppgave-PDF · H3/H5-rest | Simulator-verifisering av tegningsvisningen |
 
-**Repo-hygiene 2026-08-21:** alle brancher ryddet. Eneste umergede er
-`feat/am-ordre2-attestering` (dokgens pågående). Fem brancher merget og slettet i dag,
-hvorav to var «probe»-brancher fra avsluttede økter som aldri sto i tavla — ferdig arbeid
-ingen visste om. Det er hullet denne tavla skal lukke.
+**Lukket 2026-08-23:** `mobil-device`-raden. `feat/mobil-arkiv-pdf` er merget (verifisert med
+`merge-base --is-ancestor`); raden sto åpen på arbeid som lå i develop. Samme feilklasse som
+utlegg-raden 2026-08-15 — en `❓ ingen status`-rad er ikke bevis for at noe gjenstår.
 
-🔴 **Develop er 73 commits foran prod (målt 2026-08-22).** Blokkeres av to uverifiserte ting på test:
-A1 browser-verifisering (DOMPurify sanerer alt opplastet innhold ved render — bommet
-SVG-profil tar ned tegningsvisningen) og pinning av exceljs-kastet i den nye røde banneren.
-Begge tar fem minutter. Jo lenger develop står, jo større og mer risikabel blir deployen.
+🔴 **Develop er 132 commits foran prod (målt 2026-08-23).** Tavla sa 73 i går; tallet var
+utdatert, ikke feil den gangen. Blokkeres av to uverifiserte ting på test: A1
+browser-verifisering (DOMPurify sanerer alt opplastet innhold ved render — bommet SVG-profil
+tar ned tegningsvisningen) og pinning av exceljs-kastet i den nye røde banneren.
+Jo lenger develop står, jo større og mer risikabel blir deployen.
+
+**🔓 Frysen på `packages/pdf/src/felt.ts` er opphevet (2026-08-23).** Kontrollplan målte at
+fila ligger i mobil-bundlen (Metro tree-shaker ikke barrel-re-eksporter), og konkluderte at
+frysen sto. Cowork målte kallveien: null kallsteder i `apps/mobile`, og mobilens eneste
+`@sitedoc/pdf`-import (`ekspanderEndring` m.fl. i `arkivmal/endringsdiff.ts`) har ingen kant
+inn i `felt.ts`. **Bundlet ≠ kjørt** — død kode som endres, endrer ingenting for noen.
+Vedtak ført i [dokumentgenerering-plan.md](dokumentgenerering-plan.md), branch
+`docs/felt-frys-opphevet`. Bundle-størrelse er eneste gjenværende kostnad (egen sak).
 
 **🗑️ PROD-DATAFIKS 2026-08-20 — timerader tømt for A.Markussen (før demo).** Ustrukturerte
 testdata slettet på Kenneths ordre: 18 `daily_sheets`, 16 `sheet_timer`, 2 `sheet_tillegg`,
