@@ -1541,6 +1541,8 @@
   "firma.timer.ingenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai skatītu laika moduli.",
   "firma.moduler.ingenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai pārvaldītu uzņēmuma moduļus.",
   "firma.innstillinger.ingenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai skatītu uzņēmuma iestatījumus.",
+  "firma.prosjekter.ingenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai skatītu tā projektus.",
+  "firma.kompetanse.ingenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai skatītu kompetences matricu.",
   "firma.timer.visInaktive": "Rādīt neaktīvu",
   "deaktiver.inaktiv": "Neaktīvs",
   "deaktiver.visInaktive": "Rādīt neaktīvo ({{antall}})",

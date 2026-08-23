@@ -1541,6 +1541,8 @@
   "firma.timer.ingenFirma": "Select a company from the top menu to view the time module.",
   "firma.moduler.ingenFirma": "Select a company from the top menu to manage company modules.",
   "firma.innstillinger.ingenFirma": "Select a company from the top menu to view company settings.",
+  "firma.prosjekter.ingenFirma": "Select a company from the top menu to view its projects.",
+  "firma.kompetanse.ingenFirma": "Select a company from the top menu to view the competence matrix.",
   "firma.timer.visInaktive": "Show inactive",
   "deaktiver.inaktiv": "Inactive",
   "deaktiver.visInaktive": "Show inactive ({{antall}})",

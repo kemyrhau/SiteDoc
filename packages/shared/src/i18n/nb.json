@@ -1541,6 +1541,8 @@
   "firma.timer.ingenFirma": "Velg et firma fra toppmenyen for å se timer-modulen.",
   "firma.moduler.ingenFirma": "Velg et firma fra toppmenyen for å administrere firmamoduler.",
   "firma.innstillinger.ingenFirma": "Velg et firma fra toppmenyen for å se firmainnstillinger.",
+  "firma.prosjekter.ingenFirma": "Velg et firma fra toppmenyen for å se prosjektene.",
+  "firma.kompetanse.ingenFirma": "Velg et firma fra toppmenyen for å se kompetansematrisen.",
   "firma.timer.visInaktive": "Vis inaktive",
   "deaktiver.inaktiv": "Inaktiv",
   "deaktiver.visInaktive": "Vis inaktive ({{antall}})",

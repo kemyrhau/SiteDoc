@@ -1541,6 +1541,8 @@
   "firma.timer.ingenFirma": "Valitse yritys ylävalikosta nähdäksesi aikamoduulin.",
   "firma.moduler.ingenFirma": "Valitse yritys ylävalikosta hallitaksesi yritysmoduuleja.",
   "firma.innstillinger.ingenFirma": "Valitse yritys ylävalikosta nähdäksesi yrityksen asetukset.",
+  "firma.prosjekter.ingenFirma": "Valitse yritys ylävalikosta nähdäksesi sen projektit.",
+  "firma.kompetanse.ingenFirma": "Valitse yritys ylävalikosta nähdäksesi osaamismatriisin.",
   "firma.timer.visInaktive": "Näytä passiivinen",
   "deaktiver.inaktiv": "Ei-aktiivinen",
   "deaktiver.visInaktive": "Näytä passiivinen ({{antall}})",

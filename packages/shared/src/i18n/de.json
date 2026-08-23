@@ -1541,6 +1541,8 @@
   "firma.timer.ingenFirma": "Wählen Sie im oberen Menü ein Unternehmen aus, um das Zeitmodul anzuzeigen.",
   "firma.moduler.ingenFirma": "Wählen Sie im oberen Menü ein Unternehmen aus, um Unternehmensmodule zu verwalten.",
   "firma.innstillinger.ingenFirma": "Wählen Sie im oberen Menü ein Unternehmen aus, um die Unternehmenseinstellungen anzuzeigen.",
+  "firma.prosjekter.ingenFirma": "Wählen Sie im oberen Menü ein Unternehmen aus, um seine Projekte anzuzeigen.",
+  "firma.kompetanse.ingenFirma": "Wählen Sie im oberen Menü ein Unternehmen aus, um die Kompetenzmatrix anzuzeigen.",
   "firma.timer.visInaktive": "Inaktiv anzeigen",
   "deaktiver.inaktiv": "Inaktiv",
   "deaktiver.visInaktive": "Inaktiv anzeigen ({{antall}})",

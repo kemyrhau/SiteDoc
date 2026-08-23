@@ -1541,6 +1541,8 @@
   "firma.timer.ingenFirma": "Norėdami peržiūrėti laiko modulį, viršutiniame meniu pasirinkite įmonę.",
   "firma.moduler.ingenFirma": "Norėdami valdyti įmonės modulius, viršutiniame meniu pasirinkite įmonę.",
   "firma.innstillinger.ingenFirma": "Norėdami peržiūrėti įmonės nustatymus, viršutiniame meniu pasirinkite įmonę.",
+  "firma.prosjekter.ingenFirma": "Viršutiniame meniu pasirinkite įmonę, kad peržiūrėtumėte jos projektus.",
+  "firma.kompetanse.ingenFirma": "Norėdami peržiūrėti kompetencijų matricą, viršutiniame meniu pasirinkite įmonę.",
   "firma.timer.visInaktive": "Rodyti neaktyvų",
   "deaktiver.inaktiv": "Neaktyvus",
   "deaktiver.visInaktive": "Rodyti neaktyvius ({{antall}})",

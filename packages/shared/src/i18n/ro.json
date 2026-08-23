@@ -1541,6 +1541,8 @@
   "firma.timer.ingenFirma": "Selectați o companie din meniul de sus pentru a vizualiza modulul de timp.",
   "firma.moduler.ingenFirma": "Selectați o companie din meniul de sus pentru a gestiona modulele companiei.",
   "firma.innstillinger.ingenFirma": "Selectați o companie din meniul de sus pentru a vedea setările companiei.",
+  "firma.prosjekter.ingenFirma": "Selectați o companie din meniul de sus pentru a-și vizualiza proiectele.",
+  "firma.kompetanse.ingenFirma": "Selectați o companie din meniul de sus pentru a vizualiza matricea de competențe.",
   "firma.timer.visInaktive": "Arată inactiv",
   "deaktiver.inaktiv": "Inactiv",
   "deaktiver.visInaktive": "Afișați inactiv ({{antall}})",

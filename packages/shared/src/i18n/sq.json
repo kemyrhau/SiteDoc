@@ -1541,6 +1541,8 @@
   "firma.timer.ingenFirma": "Zgjidhni një kompani nga menyja e sipërme për të parë modulin e kohës.",
   "firma.moduler.ingenFirma": "Zgjidhni një kompani nga menyja e sipërme për të menaxhuar modulet e kompanisë.",
   "firma.innstillinger.ingenFirma": "Zgjidhni një kompani nga menyja e sipërme për të parë cilësimet e kompanisë.",
+  "firma.prosjekter.ingenFirma": "Zgjidhni një kompani nga menyja e sipërme për të parë projektet e saj.",
+  "firma.kompetanse.ingenFirma": "Zgjidhni një kompani nga menyja e sipërme për të parë matricën e kompetencave.",
   "firma.timer.visInaktive": "Shfaq joaktiv",
   "deaktiver.inaktiv": "Joaktiv",
   "deaktiver.visInaktive": "Shfaq joaktiv ({{antall}})",
