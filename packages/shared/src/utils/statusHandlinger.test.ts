@@ -263,6 +263,11 @@ describe("Lukk-som-slette-port — statusmaskin + univers + posisjon-gate", () =
 
   // Posisjon-gate: Lukk (→closed) er KUN-ADMIN. Ingen ball-rett gir den.
   const ballOgTerminere = {
+    // `harBallen` ble PÅKREVD i Lukk-som-slette-port-runden (2026-08-22) uten at denne
+    // hjelperen ble oppdatert → typecheck rød på develop i to dager. Vitest strippet typene
+    // (esbuild), så testene var grønne og CI — som kun kjører `pnpm test` — sa ingenting.
+    // Objektet heter «ball», og testene under gjelder ball-holder uten admin → true.
+    harBallen: true,
     retningsrett: { kanSende: true, kanBesvare: true, kanTerminere: true, kanVideresende: true },
     erAvsender: true,
     erMedlemAvFlyt: true,
