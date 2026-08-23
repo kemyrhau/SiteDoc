@@ -246,10 +246,6 @@ function DokumentflytKort({
 
   const tilknyttedeMalIder = new Set(df.maler.map((m) => m.template.id));
 
-  // Mal-duplikat-advarselen er FJERNET (funn 2026-08-22): to flyter i samme faggruppe med
-  // samme mal er et LOVLIG oppsett. Tvetydigheten den advarte mot er lukket i begge lag —
-  // opprettelse (flyt-først-velger, tegninger/page.tsx) og «Besvar» (finnStandardMottaker,
-  // flyt-bevisst standard-mottaker). Å blokkere et gyldig oppsett var støy.
   const toggleMal = (malId: string) => {
     const nyeIds = tilknyttedeMalIder.has(malId)
       ? [...tilknyttedeMalIder].filter((id) => id !== malId)
@@ -396,6 +392,8 @@ function DokumentflytKort({
             </div>
           )}
         </div>
+        )}
+
       </div>
     </div>
   );
