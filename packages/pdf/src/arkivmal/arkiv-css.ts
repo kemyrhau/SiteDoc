@@ -109,6 +109,24 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .ark-bilde-img{display:block;width:100%;height:auto;max-height:320px;object-fit:contain;background:${f.svakLinje}}
 .ark-bilde-tekst{font-size:8.5px;color:${f.svak};margin-top:3px}
 
+/* Instruksjonsfelt (F2-rest 2026-08-23) — info_text/info_image/video som grå
+   instruksjonskontekst (byggherre ser hva utfører fikk instruks om). felt.ts
+   dropper dem (frosset); rendres via arkiv-override (D2-mønster). */
+.ark-instruksjon{margin-top:10px;border-left:3px solid ${f.rammeLinje};background:${f.flateBg};padding:8px 12px}
+.ark-instruksjon-tittel{font-size:8.5px;letter-spacing:0.06em;text-transform:uppercase;color:${f.graa};font-weight:600;margin-bottom:3px}
+.ark-instruksjon-tekst{font-size:10px;color:${f.celletekst};white-space:pre-wrap}
+.ark-instruksjon-bilde{max-width:100%;height:auto;max-height:260px;object-fit:contain;display:block;margin-top:2px}
+.ark-instruksjon-caption{font-size:9px;font-style:italic;color:${f.graa};margin-top:3px}
+.ark-instruksjon-ref{font-size:9.5px;color:${f.graa};word-break:break-all;margin-top:2px}
+
+/* Quiz-svar (F2-rest) — spørsmål + avgitt svar + riktig/feil. Svaret er
+   DOKUMENTASJONSDATA; å droppe det var datatap i byggherre-leveransen (F7-klasse). */
+.ark-quiz{margin-top:10px;border:1px solid ${f.radLinje};padding:8px 12px}
+.ark-quiz-sp{font-weight:600;color:${f.tekst};margin-bottom:4px}
+.ark-quiz-linje{font-size:10px;color:${f.celletekst};margin-top:2px}
+.ark-quiz-rett{color:${f.gronn};font-weight:600}
+.ark-quiz-feil{color:${f.rod};font-weight:600}
+
 /* Loggseksjon — Dokumenthistorikk + Endringslogg (økt-gruppert) */
 .ark-logg{width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px}
 .ark-logg td{padding:4px 8px;border-bottom:1px solid ${f.svakLinje}}
