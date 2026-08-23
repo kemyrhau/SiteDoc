@@ -38,7 +38,6 @@ const nbTall = new Intl.NumberFormat("nb-NO", {
 
 export type RaaUtlegg = {
   belop: unknown;
-  kommentar: string | null;
   expenseCategory: { navn: string } | null;
 };
 
@@ -97,7 +96,6 @@ export function tilPivotRad(r: RaaSedel): PivotRad {
     utlegg: r.utlegg.map((u) => ({
       kategoriNavn: u.expenseCategory?.navn ?? null,
       belop: tallEllerNull(u.belop),
-      kommentar: u.kommentar,
     })),
     manglerMaskinforerbevis: r.manglerMaskinforerbevis,
   };

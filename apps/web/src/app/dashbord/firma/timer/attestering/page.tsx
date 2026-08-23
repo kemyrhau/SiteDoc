@@ -44,13 +44,12 @@ type Ansatt = {
   avdelingId: string | null;
 };
 
-// Utlegg-rad slik dagskortet trenger den: beløp + kategorinavn (server-include).
-// Vedlegg utelates bevisst (private/signeringskrevende). `belop` er Decimal
-// serialisert (unknown → Number ved mapping).
+// Utlegg-rad slik dagskortet trenger den: beløp + kategorinavn. Speiler
+// server-`select` (id/belop/expenseCategory.navn) — INGEN kommentar/vedlegg.
+// `belop` er Decimal serialisert (unknown → Number ved mapping).
 type UtleggRad = {
   id: string;
   belop: unknown;
-  kommentar: string | null;
   expenseCategory: { navn: string } | null;
 };
 

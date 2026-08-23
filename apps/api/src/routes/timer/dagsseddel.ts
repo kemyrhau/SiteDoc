@@ -2423,13 +2423,21 @@ export const dagsseddelRouter = router({
           },
           tillegg: { where: { attestertStatus: { not: "erstattet" } } },
           maskiner: { where: { attestertStatus: { not: "erstattet" } } },
-          // Dagskortet viser «alt registrert den dagen» → utlegg med. KUN
-          // beløp + kategorinavn — IKKE vedlegg: de er private og krever
-          // signering per URL (signerHvisPrivat), unødig kost + eksponerings-
-          // flate i en uke-liste. Vedlegg ses i detaljen. SheetUtlegg har ingen
+          // Dagskortet viser «alt registrert den dagen» → utlegg med. `select`
+          // (ikke `include`) → KUN beløp + kategorinavn i denne uke-scopede
+          // firma-spørringen; henter IKKE kommentar (@db.Text), mvaSats,
+          // ordningVedFoering, projectId eller timestamps unødig. Vedlegg er
+          // UMULIG å dra med her: SheetUtleggVedlegg er svak FK uten @relation,
+          // så Prisma har ingen relasjon å traversere (sterkere enn å «la være»
+          // — de kan uansett ikke lekke via denne spørringen). Vedlegg ses i
+          // detaljen (private, signeres per URL). SheetUtlegg har ingen
           // attestertStatus (ingen rediger-erstatt-modell) → intet erstattet-filter.
           utlegg: {
-            include: { expenseCategory: { select: { navn: true } } },
+            select: {
+              id: true,
+              belop: true,
+              expenseCategory: { select: { navn: true } },
+            },
           },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],

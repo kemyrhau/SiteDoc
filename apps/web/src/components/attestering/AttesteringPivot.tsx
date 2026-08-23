@@ -61,10 +61,9 @@ export type PivotTilleggRad = {
 };
 
 export type PivotUtleggRad = {
-  /** Kategorinavn fra server-include (ingen katalog-oppslag på klient). */
+  /** Kategorinavn fra server-select (ingen katalog-oppslag på klient). */
   kategoriNavn: string | null;
   belop: number | null;
-  kommentar: string | null;
 };
 
 export type PivotRad = {
