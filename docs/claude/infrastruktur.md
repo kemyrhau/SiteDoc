@@ -68,6 +68,8 @@ ingen steder. Det har skjedd tre ganger:
 | `server-ny:~/stack/sitedoc/docker/env/` | `api.env` · `api-test.env` · `felles.env` · `web.env` · `web-test.env` | **delt prod↔test** — sletting rammer begge |
 | `server-ny:~/stack/salsaklubb/.env` | (eget prosjekt) | `SALSA_DB_PASSWORD` finnes kun her |
 | lokalt `apps/mobile/.env` | `EXPO_PUBLIC_*` | gitignorert, per worktree — hvert tre har sin egen |
+| lokalt `apps/mobile/.env.eas.local` | 5 ASC-variabler (`EXPO_ASC_*`, `EXPO_APPLE_*`) | gitignorert, **per worktree**. Uten den stopper `eas-build.sh` med «Fant ikke .env.eas.local» — skjedde 2026-08-23 etter treskifte |
+| lokalt `~/.apple-keys/AuthKey_<KEYID>.p8` | ASC-signeringsnøkkel | 🔴 **utenfor repoet og KAN IKKE lastes ned på nytt fra Apple.** Forsvinner den, må ny API-nøkkel opprettes i App Store Connect. Key-ID står i filnavnet; issuer-ID hentes fra ASC → Users and Access → Integrations → Keys |
 | lokalt `tests/e2e/.env.local` | `DEV_LOGIN_SECRET` | må matche `api-test.env` |
 | EAS (skyen) | `preview`-environment | `eas env:list --environment preview` |
 
@@ -75,6 +77,16 @@ ingen steder. Det har skjedd tre ganger:
 
 1. **Aldri `>` mot en env-fil.** Les den først (`cat`), legg til med `>>`, eller rediger den
    ene linjen. `>` sletter alt du ikke visste var der.
+
+   > **Skal en env-fil OPPRETTES, bruk en vakt — ikke `>` alene.** Cowork ga et rått
+   > `cat > .env.eas.local` 2026-08-23; fila var tom den gangen, men kommandoen ville
+   > tømt den om den ikke var det. Riktig form:
+   > ```bash
+   > test -f .env.eas.local && echo "FINNES ALLEREDE — rediger i stedet" || cat > .env.eas.local <<'EOF'
+   > ...
+   > EOF
+   > ```
+   > Regelen finnes fordi «jeg sjekket at den var borte» er nettopp det man hopper over.
 2. **Alltid `--exclude docker/env` ved rsync til server.** `deploy-prod.sh` og
    `deploy-test.sh` har det innebygd — **skriv aldri rsync-kommandoen for hånd.**
 3. **Ingen env-fil i git.** Gjelder også `eas.json` for hemmeligheter — den er committet;
