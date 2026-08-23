@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Otsi ehitusplatse...",
   "tegninger.alleLokasjoner": "Kõik ehitusplatsid",
   "tegninger.velgTegning": "Valige paneelil joonis",
+  "tegninger.naavaerendePosisjon": "Praegune positsioon",
   "tegninger.velgLokasjonOgTegning": "Valige paneelil ehitusplats ja joonis",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Sul on pall — {{merke}}",
   "flyt.sendTil": "Saada aadressile {{navn}}",
   "flyt.besvarTil": "Vasta kasutajale {{navn}}",
-  "flytvisning.admin.slettLukket": "Kustuta suletud"
+  "flytvisning.admin.slettLukket": "Kustuta suletud",
+  "periodeFilter.idag": "Täna",
+  "periodeFilter.sisteUke": "Eelmisel nädalal",
+  "periodeFilter.sisteMaaned": "Eelmisel kuul",
+  "periodeFilter.siste3Maaneder": "Viimased 3 kuud",
+  "periodeFilter.alle": "Kõik",
+  "periodeFilter.egendefinert": "Kohandatud",
+  "periodeFilter.fra": "Alates",
+  "periodeFilter.til": "To",
+  "periodeFilter.ugyldigIntervall": "Alates kuupäevast on hilisem"
 }

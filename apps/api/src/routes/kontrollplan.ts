@@ -687,6 +687,7 @@ export const kontrollplanRouter = router({
           fristUke: true,
           fristAar: true,
           varselUkerFor: true,
+          opprettet: true, // periodefilter på tegningen (2026-08-23) — KontrollplanPunkt bruker `opprettet`
           sjekkliste: { select: { id: true, status: true } },
           sjekklisteMal: { select: { prefix: true, name: true } },
           // 3a: område gir markørens kontrollpunkt-identitet i tooltip (malnavn + område).

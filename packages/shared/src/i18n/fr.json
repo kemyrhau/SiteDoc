@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Rechercher des chantiers...",
   "tegninger.alleLokasjoner": "Tous les chantiers",
   "tegninger.velgTegning": "Sélectionnez un dessin dans le panneau",
+  "tegninger.naavaerendePosisjon": "Poste actuel",
   "tegninger.velgLokasjonOgTegning": "Sélectionnez un chantier et un dessin dans le panneau",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Vous avez le ballon — {{merke}}",
   "flyt.sendTil": "Envoyer à {{navn}}",
   "flyt.besvarTil": "Répondre à {{navn}}",
-  "flytvisning.admin.slettLukket": "Supprimer fermé"
+  "flytvisning.admin.slettLukket": "Supprimer fermé",
+  "periodeFilter.idag": "Aujourd'hui",
+  "periodeFilter.sisteUke": "La semaine dernière",
+  "periodeFilter.sisteMaaned": "Mois dernier",
+  "periodeFilter.siste3Maaneder": "3 derniers mois",
+  "periodeFilter.alle": "Toute",
+  "periodeFilter.egendefinert": "Coutume",
+  "periodeFilter.fra": "Depuis",
+  "periodeFilter.til": "À",
+  "periodeFilter.ugyldigIntervall": "De la date est après à ce jour"
 }

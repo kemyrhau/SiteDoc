@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Поиск строительных площадок...",
   "tegninger.alleLokasjoner": "Все строительные площадки",
   "tegninger.velgTegning": "Выберите рисунок на панели",
+  "tegninger.naavaerendePosisjon": "Текущая позиция",
   "tegninger.velgLokasjonOgTegning": "Выберите строительную площадку и рисунок на панели.",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "У тебя есть мяч — {{merke}}",
   "flyt.sendTil": "Отправить на {{navn}}",
   "flyt.besvarTil": "Ответить пользователю {{navn}}",
-  "flytvisning.admin.slettLukket": "Удалить закрыто"
+  "flytvisning.admin.slettLukket": "Удалить закрыто",
+  "periodeFilter.idag": "Сегодня",
+  "periodeFilter.sisteUke": "На прошлой неделе",
+  "periodeFilter.sisteMaaned": "В прошлом месяце",
+  "periodeFilter.siste3Maaneder": "Последние 3 месяца",
+  "periodeFilter.alle": "Все",
+  "periodeFilter.egendefinert": "Обычай",
+  "periodeFilter.fra": "От",
+  "periodeFilter.til": "К",
+  "periodeFilter.ugyldigIntervall": "С даты после даты"
 }

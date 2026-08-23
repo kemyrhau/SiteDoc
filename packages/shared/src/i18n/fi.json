@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Hae rakennustyömaita...",
   "tegninger.alleLokasjoner": "Kaikki rakennustyömaat",
   "tegninger.velgTegning": "Valitse piirustus paneelista",
+  "tegninger.naavaerendePosisjon": "Nykyinen sijainti",
   "tegninger.velgLokasjonOgTegning": "Valitse paneelista rakennuspaikka ja piirros",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Sinulla on pallo – {{merke}}",
   "flyt.sendTil": "Lähetä osoitteeseen {{navn}}",
   "flyt.besvarTil": "Vastaa käyttäjälle {{navn}}",
-  "flytvisning.admin.slettLukket": "Poista suljettu"
+  "flytvisning.admin.slettLukket": "Poista suljettu",
+  "periodeFilter.idag": "Tänään",
+  "periodeFilter.sisteUke": "Viime viikolla",
+  "periodeFilter.sisteMaaned": "Viime kuussa",
+  "periodeFilter.siste3Maaneder": "Viimeiset 3 kuukautta",
+  "periodeFilter.alle": "Kaikki",
+  "periodeFilter.egendefinert": "Mukautettu",
+  "periodeFilter.fra": "From",
+  "periodeFilter.til": "Vastaanottaja",
+  "periodeFilter.ugyldigIntervall": "Päivämäärästä on myöhempää"
 }

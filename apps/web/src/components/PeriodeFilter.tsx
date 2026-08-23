@@ -1,0 +1,94 @@
+"use client";
+
+import { useTranslation } from "react-i18next";
+import { type Periode, type PeriodeHurtigvalg, erUgyldigIntervall } from "@/lib/periode";
+
+/**
+ * Delt periodefilter (2026-08-23): i dag · siste uke · siste måned · alle · egendefinert (fra/til).
+ * i18n via `periodeFilter.*`. Bygget for tegningssiden; laget delt så Bilder-siden (to hardkodede,
+ * norsk-i-JSX-kopier med ulik ordlyd) kan bytte over trivielt senere.
+ */
+const STANDARD_VALG: PeriodeHurtigvalg[] = ["idag", "uke", "mnd", "alle", "egendefinert"];
+const NOEKKEL: Record<PeriodeHurtigvalg, string> = {
+  idag: "periodeFilter.idag",
+  uke: "periodeFilter.sisteUke",
+  mnd: "periodeFilter.sisteMaaned",
+  "3mnd": "periodeFilter.siste3Maaneder",
+  alle: "periodeFilter.alle",
+  egendefinert: "periodeFilter.egendefinert",
+};
+
+/** Date → «yyyy-mm-dd» for <input type="date"> (lokal dato, ikke UTC-forskjøvet). */
+function tilInputVerdi(d: Date | null): string {
+  if (!d) return "";
+  const år = d.getFullYear();
+  const mnd = String(d.getMonth() + 1).padStart(2, "0");
+  const dag = String(d.getDate()).padStart(2, "0");
+  return `${år}-${mnd}-${dag}`;
+}
+/** «yyyy-mm-dd» → Date ved lokal midnatt (tom → null). */
+function fraInputVerdi(s: string): Date | null {
+  return s ? new Date(`${s}T00:00:00`) : null;
+}
+
+export function PeriodeFilter({
+  periode,
+  onEndre,
+  valg = STANDARD_VALG,
+}: {
+  periode: Periode;
+  onEndre: (p: Periode) => void;
+  /** Hvilke hurtigvalg som vises (Bilder-siden kan f.eks. inkludere «3mnd»). Default = STANDARD_VALG. */
+  valg?: PeriodeHurtigvalg[];
+}) {
+  const { t } = useTranslation();
+
+  function velgHurtig(h: PeriodeHurtigvalg) {
+    // Egendefinert beholder allerede satte datoer; øvrige nullstiller (grensene avledes av valget).
+    if (h === "egendefinert") onEndre({ hurtigvalg: h, fra: periode.fra, til: periode.til });
+    else onEndre({ hurtigvalg: h, fra: null, til: null });
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {valg.map((h) => (
+        <button
+          key={h}
+          type="button"
+          onClick={() => velgHurtig(h)}
+          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+            periode.hurtigvalg === h ? "bg-blue-100 text-blue-700" : "bg-white text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          {t(NOEKKEL[h])}
+        </button>
+      ))}
+
+      {periode.hurtigvalg === "egendefinert" && (
+        <>
+          <label className="ml-1 flex items-center gap-1 text-xs text-gray-500">
+            {t("periodeFilter.fra")}
+            <input
+              type="date"
+              value={tilInputVerdi(periode.fra)}
+              onChange={(e) => onEndre({ ...periode, fra: fraInputVerdi(e.target.value) })}
+              className="rounded border border-gray-300 px-1.5 py-0.5 text-xs"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-gray-500">
+            {t("periodeFilter.til")}
+            <input
+              type="date"
+              value={tilInputVerdi(periode.til)}
+              onChange={(e) => onEndre({ ...periode, til: fraInputVerdi(e.target.value) })}
+              className="rounded border border-gray-300 px-1.5 py-0.5 text-xs"
+            />
+          </label>
+          {erUgyldigIntervall(periode) && (
+            <span className="text-xs text-amber-600">{t("periodeFilter.ugyldigIntervall")}</span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

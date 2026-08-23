@@ -46,7 +46,16 @@ export function TegningPosisjonObjekt({
     // Bær velger-tilstanden i URL-en (funn 2026-08-22): tegningssiden re-hydrerer
     // fra `posisjonsvelger`-parameteren ved full last / remount, så et klikk setter
     // PUNKT (ikke «Opprett fra tegning»). En ren in-memory-overlevering var skjør.
-    router.push(`/dashbord/${params.prosjektId}/tegninger?posisjonsvelger=${encodeURIComponent(nokkel)}`);
+    const sp = new URLSearchParams({ posisjonsvelger: nokkel });
+    // F1 (2026-08-23): «Endre» sender feltets NÅVÆRENDE posisjon med → velgeren åpner på riktig
+    // tegning og tegner den eksisterende markøren dempet. Ny plassering (tomt felt) sender ingenting.
+    if (posisjon?.drawingId) {
+      sp.set("tegning", posisjon.drawingId);
+      if (posisjon.drawingName) sp.set("tegningNavn", posisjon.drawingName);
+      sp.set("px", String(posisjon.positionX));
+      sp.set("py", String(posisjon.positionY));
+    }
+    router.push(`/dashbord/${params.prosjektId}/tegninger?${sp.toString()}`);
   }
 
   // Lesemodus: vis posisjon eller «Ingen posisjon valgt»

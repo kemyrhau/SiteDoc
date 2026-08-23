@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Baustellen durchsuchen...",
   "tegninger.alleLokasjoner": "Alle Baustellen",
   "tegninger.velgTegning": "Wählen Sie im Bedienfeld eine Zeichnung aus",
+  "tegninger.naavaerendePosisjon": "Aktuelle Position",
   "tegninger.velgLokasjonOgTegning": "Wählen Sie im Panel einen Baugrundstück und eine Zeichnung aus",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Du hast den Ball – {{merke}}",
   "flyt.sendTil": "Senden an {{navn}}",
   "flyt.besvarTil": "Antwort auf {{navn}}",
-  "flytvisning.admin.slettLukket": "Löschen geschlossen"
+  "flytvisning.admin.slettLukket": "Löschen geschlossen",
+  "periodeFilter.idag": "Heute",
+  "periodeFilter.sisteUke": "Letzte Woche",
+  "periodeFilter.sisteMaaned": "Letzten Monat",
+  "periodeFilter.siste3Maaneder": "Letzte 3 Monate",
+  "periodeFilter.alle": "Alle",
+  "periodeFilter.egendefinert": "Brauch",
+  "periodeFilter.fra": "Aus",
+  "periodeFilter.til": "Zu",
+  "periodeFilter.ugyldigIntervall": "Von-Datum ist Nach-Bis-Datum"
 }

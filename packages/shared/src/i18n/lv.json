@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Meklēt būvlaukumus...",
   "tegninger.alleLokasjoner": "Visas būvlaukumi",
   "tegninger.velgTegning": "Panelī atlasiet zīmējumu",
+  "tegninger.naavaerendePosisjon": "Pašreizējā pozīcija",
   "tegninger.velgLokasjonOgTegning": "Panelī atlasiet būvlaukumu un zīmējumu",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "Jums ir bumba — {{merke}}",
   "flyt.sendTil": "Sūtīt uz {{navn}}",
   "flyt.besvarTil": "Atbildēt uz {{navn}}",
-  "flytvisning.admin.slettLukket": "Dzēst aizvērts"
+  "flytvisning.admin.slettLukket": "Dzēst aizvērts",
+  "periodeFilter.idag": "Šodien",
+  "periodeFilter.sisteUke": "Pagājušajā nedēļā",
+  "periodeFilter.sisteMaaned": "Pagājušajā mēnesī",
+  "periodeFilter.siste3Maaneder": "Pēdējie 3 mēneši",
+  "periodeFilter.alle": "Visi",
+  "periodeFilter.egendefinert": "Pielāgots",
+  "periodeFilter.fra": "No",
+  "periodeFilter.til": "Uz",
+  "periodeFilter.ugyldigIntervall": "No datuma ir pēc datuma"
 }

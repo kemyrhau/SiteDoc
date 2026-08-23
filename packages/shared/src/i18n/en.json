@@ -1183,6 +1183,7 @@
   "tegninger.sokLokasjoner": "Search building sites...",
   "tegninger.alleLokasjoner": "All building sites",
   "tegninger.velgTegning": "Select a drawing in the panel",
+  "tegninger.naavaerendePosisjon": "Current position",
   "tegninger.velgLokasjonOgTegning": "Select a building site and drawing in the panel",
   "tegninger.2d": "2D",
   "tegninger.3d": "3D",
@@ -3552,5 +3553,14 @@
   "flyt.duHarBallenMerke": "You have the ball — {{merke}}",
   "flyt.sendTil": "Send to {{navn}}",
   "flyt.besvarTil": "Reply to {{navn}}",
-  "flytvisning.admin.slettLukket": "Delete closed"
+  "flytvisning.admin.slettLukket": "Delete closed",
+  "periodeFilter.idag": "Today",
+  "periodeFilter.sisteUke": "Last week",
+  "periodeFilter.sisteMaaned": "Last month",
+  "periodeFilter.siste3Maaneder": "Last 3 months",
+  "periodeFilter.alle": "All",
+  "periodeFilter.egendefinert": "Custom",
+  "periodeFilter.fra": "From",
+  "periodeFilter.til": "To",
+  "periodeFilter.ugyldigIntervall": "From date is after to date"
 }
