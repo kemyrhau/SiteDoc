@@ -168,10 +168,27 @@ export function SeddelKort({
   const tidsrundingMinutter = orgSetting?.tidsrundingMinutter ?? null;
 
   // Kataloger for navn-oppslag (queries deler cache på tvers av sedler).
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
-  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
-  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
-  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  // MÅ scopes til det VISTE firmaet (valgtFirma): uten organizationId avleder
+  // list-queriene org fra innloggingen (resolverOrgFraInput → krevBrukersOrg),
+  // så en sitedoc_admin/firma-admin som ser et ANNET firmas sedler får feil
+  // (eller tom) katalog → alle rader viser «—» for lønnsart/aktivitet/tillegg/
+  // maskin selv om FK-ene er korrekte.
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
   const equipment = equipmentRaw as unknown as
     | Array<{ id: string; merke: string; modell: string; internNavn: string | null }>
     | undefined;
