@@ -38,6 +38,11 @@ import {
   type KatalogNavn,
   type RaaUtlegg,
 } from "./DagsKort";
+import {
+  sedelHarTilleggKrav,
+  sedelHarMertid,
+  sedelHarMaskinOver,
+} from "./sedel-vurdering";
 
 type SplittAktiv =
   | { radType: "timer"; original: TimerRad }
@@ -104,6 +109,8 @@ export function SeddelKort({
   onReturner,
   attesterPending,
   readOnly = false,
+  expanded: expandedProp,
+  onToggleExpand,
 }: {
   sedel: SeddelKortData;
   onAttester: () => void;
@@ -112,6 +119,11 @@ export function SeddelKort({
   // T7-5e: read-only-modus skjuler ↩/✓/⋯-meny og per-rad penn/✂.
   // Brukes på "Attestert"-fanen i firma-attestering-listen.
   readOnly?: boolean;
+  // Valgfritt kontrollert expand: gis begge, styrer forelderen åpen/lukket (firma-
+  // attestering: kollaps/utvid alle + utvid avvik). Utelates de, faller kortet til
+  // sin egen interne tilstand med auto-expand ved avvik (DagsKort-bruken uendret).
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
@@ -138,27 +150,25 @@ export function SeddelKort({
     projectId: string;
     ecoId: string | null;
   } | null>(null);
-  const oransje = sedel.tilleggHarKrav;
-  // T7-4g: mertid = arbeidet mer enn dagsnorm. Krever dagsnorm > 0 for å
-  // unngå false positive på sedler uten konfigurert norm.
-  const harMertid =
-    sedel.dagsnorm > 0 && sedel.totaltimer > sedel.dagsnorm + 0.001;
-  // B5 (2026-05-27): maskin-av-arbeid-invariant speilet fra EcoBucketAttest
-  // (attestering-buckets.tsx:572). Pause-buffer fordi døgn-utleide maskiner
-  // går mens operatør pauser (T.7 2026-05-18). Auto-expand når brutt så
-  // leder ser detaljene umiddelbart.
+  // Vurderings-predikatene deles med firma-attesteringssidens standard-ekspander
+  // (sedel-vurdering.ts) så definisjonene ikke drifter. `sumMaskin`/`maskinOk`
+  // beholdes lokalt for VISNING (tallet + invariant-teksten under).
+  const oransje = sedelHarTilleggKrav(sedel);
+  const harMertid = sedelHarMertid(sedel);
+  const maskinOver = sedelHarMaskinOver(sedel);
   const sumMaskin = sedel.maskiner.reduce(
     (acc, r) => acc + tilTall(r.timer),
     0,
   );
   const pauseTimer = sedel.pauseMin / 60;
-  const maskinOk = sumMaskin <= sedel.totaltimer + pauseTimer + 0.001;
-  const maskinOver = sumMaskin > 0 && !maskinOk;
-  // T7-4g: default-expanded ved tilleggskrav ELLER mertid ELLER maskin
-  // over invariant — leder må se detaljene når noe avviker.
-  const [expanded, setExpanded] = useState<boolean>(
+  const maskinOk = !maskinOver;
+  // T7-4g: default-expanded ved tilleggskrav ELLER mertid ELLER maskin over
+  // invariant (kun i intern modus — DagsKort; firma-attestering styrer expand utenfra).
+  const kontrollertExpand = expandedProp !== undefined;
+  const [internExpanded, setInternExpanded] = useState<boolean>(
     oransje || harMertid || maskinOver,
   );
+  const expanded = kontrollertExpand ? expandedProp : internExpanded;
 
   // T7-4f-splitt-1-klikk: prosjekter + tidsrunding for SplittRadModal.
   // trpc-cache dedupliserer på tvers av sedel-kort — én faktisk query per side.
@@ -272,7 +282,8 @@ export function SeddelKort({
   ) : null;
 
   function toggleExpanded() {
-    setExpanded((o) => !o);
+    if (kontrollertExpand) onToggleExpand?.();
+    else setInternExpanded((o) => !o);
   }
 
   return (
