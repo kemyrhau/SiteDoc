@@ -317,6 +317,44 @@ Kompilatoren tier, feltet leses som `undefined`, og symptomet dukker opp langt u
 neste gang. Og et grep-treff på null er ikke bevis for fravær; kompilatoren og databasen er
 fasit, ikke søkemønsteret.
 
+### 🔴 En kommentar som lover mer enn koden holder — tre ganger på én dag (2026-08-23)
+
+Samme feilform tre ganger, i tre ulike lag:
+
+| Sted | Kommentaren lovet | Koden gjorde |
+|---|---|---|
+| `opplasting.ts` (mobil) | «`filnavn` bæres som multipart-filnavn så MIME-utledningen og filtype-blokklista fungerer» | `filnavn` ble aldri sendt — kun logget. `uploadAsync` har ingen filnavn-opsjon |
+| `dagsseddel.ts` (api) | «KUN beløp + kategorinavn» over et `utlegg`-oppslag | `include` uten `select` → alle skalarfelt, inkl. `kommentar` (`@db.Text`) |
+| `SAMARBEIDSREGLER.md` selv | «Kjeden er selv-gatende: feiler typecheck, kjøres verken tester eller deploy» | `cmd \| grep \| tail` returnerer `tail` sin kode — alltid 0 |
+
+**Regelen, formulert av dokgen:** *skriver du «KUN X» i en kommentar, skal konstruksjonen håndheve
+X — ikke dokumentere en intensjon.* Prisma: `select`, aldri `include`, når kommentaren avgrenser.
+Bash: `set -o pipefail` eller eksplisitt `exit=$?`, aldri en pipe som gate.
+
+**Hvorfor den er farlig og ikke bare slurv:** en kommentar som overdriver leses som en garanti av
+neste leser, og da slutter noen å måle. Alle tre tilfellene ble funnet ved måling, ingen ved
+lesing. Den sterkeste formen er en garanti ved konstruksjon — som `SheetUtleggVedlegg`, der svak
+FK uten `@relation` gjør vedlegg umulig å dra med. Da er kommentaren en observasjon, ikke et løfte.
+
+### 🔴 Kollisjonssjekken gjelder ORDRER, ikke bare arbeidstrær (2026-08-23)
+
+Cowork ga dokgen og kontrollplan hver sin ordre samme kveld — «tillegg/utlegg i dagskortet» og
+«URL-tilstand + ekspander-knapper». De hørtes uavhengige ut. De delte **17 filer**, inkludert
+`attestering/page.tsx` og `SeddelKort.tsx`, som begge restrukturerte. Resultatet var en semantisk
+konflikt som måtte løses ved rebase.
+
+**Før to ordrer sendes ut parallelt, kjør sjekken — den tar sekunder:**
+
+```sh
+comm -12 <(git diff --name-only origin/develop..origin/<branch-a> | sort) \
+         <(git diff --name-only origin/develop..origin/<branch-b> | sort)
+```
+
+Er branchene ikke skrevet ennå, gjør det samme på flatene ordrene *beskriver*: hvilke sider,
+hvilke komponenter de importerer. Filoverlapp på side-nivå fanger ikke delte komponenter — det
+sto allerede i kollisjons-sjekken (punkt 3), og ble likevel glemt fordi oppgavene *hørtes*
+disjunkte ut. **Oppgavebeskrivelser kolliderer ikke; filer gjør.**
+
 ### 🔴 Statustavla har ÉN skribent: cowork (vedtatt 2026-08-22)
 
 **Agentene skriver ikke lenger i `STATUS-AKTUELT.md`.** De rapporterer i leveransen sin — som
