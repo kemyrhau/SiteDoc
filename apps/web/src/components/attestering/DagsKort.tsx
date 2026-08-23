@@ -11,6 +11,7 @@
 
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -203,24 +204,98 @@ export function HoverKort({
 }) {
   const { t } = useTranslation();
   const ankerRef = useRef<HTMLSpanElement | null>(null);
+  const kortRef = useRef<HTMLDivElement | null>(null);
+  const lukkeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafId = useRef<number | null>(null);
   const [apen, setApen] = useState(false);
   const [pinnet, setPinnet] = useState(false);
   const [koord, setKoord] = useState<{ top: number; left: number } | null>(null);
 
-  const oppdaterKoord = useCallback(() => {
-    const r = ankerRef.current?.getBoundingClientRect();
-    if (!r) return;
-    // Under ankeret, høyrekant på linje med cellen; klemmes mot venstre kant.
-    const bredde = 320; // w-80
-    const left = Math.max(8, Math.min(r.right - bredde, window.innerWidth - bredde - 8));
-    setKoord({ top: r.bottom + 4, left });
-  }, []);
-
   const vis = (apen || pinnet) && !!kort;
 
+  // Posisjonering: horisontal klemming mot viewport + VERTIKAL VENDING oppover
+  // når kortet ikke får plass under ankeret (siste rad i tabellen). Bruker
+  // kortets målte høyde (etter mount) for vend-beslutningen.
+  const posisjoner = useCallback(() => {
+    const a = ankerRef.current?.getBoundingClientRect();
+    if (!a) return;
+    const bredde = 320; // w-80
+    const gap = 4;
+    const left = Math.max(8, Math.min(a.right - bredde, window.innerWidth - bredde - 8));
+    const hoyde = kortRef.current?.offsetHeight ?? 0;
+    const plassUnder = window.innerHeight - a.bottom;
+    const vendOpp = hoyde > 0 && plassUnder < hoyde + gap && a.top > plassUnder;
+    const top = vendOpp
+      ? Math.max(8, a.top - hoyde - gap)
+      : a.bottom + gap;
+    setKoord({ top, left });
+  }, []);
+
+  // Posisjoner etter mount (kortet er målbart) — useLayoutEffect => før paint,
+  // så vendingen ikke flimrer.
   useLayoutEffect(() => {
-    if (vis) oppdaterKoord();
-  }, [vis, oppdaterKoord]);
+    if (vis) posisjoner();
+  }, [vis, posisjoner]);
+
+  // Følg ankeret ved scroll/resize (rAF-throttlet) — ellers blir et fixed-
+  // posisjonert kort stående mens raden scroller vekk. Reposisjonering fremfor
+  // lukking: pin er touch-veien og piloten er mobil-tung, der scroll er konstant.
+  useEffect(() => {
+    if (!vis) return;
+    const oppdater = () => {
+      if (rafId.current !== null) return;
+      rafId.current = requestAnimationFrame(() => {
+        rafId.current = null;
+        posisjoner();
+      });
+    };
+    window.addEventListener("scroll", oppdater, true); // capture → fanger indre scroll-container
+    window.addEventListener("resize", oppdater);
+    return () => {
+      window.removeEventListener("scroll", oppdater, true);
+      window.removeEventListener("resize", oppdater);
+      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    };
+  }, [vis, posisjoner]);
+
+  // Pinnet kort: Escape + klikk-utenfor lukker. Flere kort kan pinnes samtidig;
+  // uten dette blir de liggende. Kun aktivt når pinnet (ingen globale lyttere ellers).
+  useEffect(() => {
+    if (!pinnet) return;
+    const paTast = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPinnet(false);
+    };
+    const paKlikk = (e: MouseEvent) => {
+      const mal = e.target as Node;
+      if (ankerRef.current?.contains(mal) || kortRef.current?.contains(mal)) return;
+      setPinnet(false);
+    };
+    document.addEventListener("keydown", paTast);
+    document.addEventListener("mousedown", paKlikk);
+    return () => {
+      document.removeEventListener("keydown", paTast);
+      document.removeEventListener("mousedown", paKlikk);
+    };
+  }, [pinnet]);
+
+  // Rydd lukke-timer ved unmount.
+  useEffect(() => {
+    return () => {
+      if (lukkeTimer.current) clearTimeout(lukkeTimer.current);
+    };
+  }, []);
+
+  const aapneHover = useCallback(() => {
+    if (lukkeTimer.current) clearTimeout(lukkeTimer.current);
+    setApen(true);
+  }, []);
+  // Kort lukke-forsinkelse: bygger bro over gapet mellom anker og kort, så
+  // onMouseLeave ikke lukker portalen før musen når kortet (hover-dødsone).
+  const planleggLukk = useCallback(() => {
+    if (lukkeTimer.current) clearTimeout(lukkeTimer.current);
+    lukkeTimer.current = setTimeout(() => setApen(false), 120);
+  }, []);
 
   if (!kort) return <>{children}</>;
 
@@ -228,8 +303,8 @@ export function HoverKort({
     <span
       ref={ankerRef}
       className="relative inline-flex items-center gap-1"
-      onMouseEnter={() => setApen(true)}
-      onMouseLeave={() => setApen(false)}
+      onMouseEnter={aapneHover}
+      onMouseLeave={planleggLukk}
     >
       {children}
       <button
@@ -242,12 +317,17 @@ export function HoverKort({
         <Info className="h-3 w-3" />
       </button>
       {vis &&
-        koord &&
         createPortal(
           <div
-            style={{ position: "fixed", top: koord.top, left: koord.left, zIndex: 50 }}
-            onMouseEnter={() => setApen(true)}
-            onMouseLeave={() => setApen(false)}
+            ref={kortRef}
+            style={{
+              position: "fixed",
+              top: koord?.top ?? -9999,
+              left: koord?.left ?? -9999,
+              zIndex: 50,
+            }}
+            onMouseEnter={aapneHover}
+            onMouseLeave={planleggLukk}
           >
             {kort}
           </div>,
