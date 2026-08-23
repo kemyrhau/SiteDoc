@@ -1538,6 +1538,7 @@
   "firma.timer.attestering": "Attestation",
   "firma.timer.attesteringBeskrivelse": "Timesheets awaiting attestation across projects",
   "firma.timer.attesteringIngenFirma": "Select a company from the top menu to view the attestation list.",
+  "firma.timer.ingenFirma": "Select a company from the top menu to view the time module.",
   "firma.timer.visInaktive": "Show inactive",
   "deaktiver.inaktiv": "Inactive",
   "deaktiver.visInaktive": "Show inactive ({{antall}})",

@@ -1538,6 +1538,7 @@
   "firma.timer.attestering": "Atestace",
   "firma.timer.attesteringBeskrivelse": "Časové rozvrhy čekající na atestaci napříč projekty",
   "firma.timer.attesteringIngenFirma": "Výběrem společnosti z horní nabídky zobrazíte seznam atestací.",
+  "firma.timer.ingenFirma": "Chcete-li zobrazit časový modul, vyberte společnost z horní nabídky.",
   "firma.timer.visInaktive": "Zobrazit neaktivní",
   "deaktiver.inaktiv": "Neaktivní",
   "deaktiver.visInaktive": "Zobrazit neaktivní ({{antall}})",

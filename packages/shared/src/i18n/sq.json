@@ -1538,6 +1538,7 @@
   "firma.timer.attestering": "Vërtetim",
   "firma.timer.attesteringBeskrivelse": "Fletët e kohës që presin vërtetimin nëpër projekte",
   "firma.timer.attesteringIngenFirma": "Zgjidhni një kompani nga menyja e sipërme për të parë listën e vërtetimeve.",
+  "firma.timer.ingenFirma": "Zgjidhni një kompani nga menyja e sipërme për të parë modulin e kohës.",
   "firma.timer.visInaktive": "Shfaq joaktiv",
   "deaktiver.inaktiv": "Joaktiv",
   "deaktiver.visInaktive": "Shfaq joaktiv ({{antall}})",

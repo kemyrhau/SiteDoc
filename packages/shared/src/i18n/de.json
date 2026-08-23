@@ -1538,6 +1538,7 @@
   "firma.timer.attestering": "Bescheinigung",
   "firma.timer.attesteringBeskrivelse": "Stundenzettel warten projektübergreifend auf die Bescheinigung",
   "firma.timer.attesteringIngenFirma": "Wählen Sie im oberen Menü ein Unternehmen aus, um die Attestierungsliste anzuzeigen.",
+  "firma.timer.ingenFirma": "Wählen Sie im oberen Menü ein Unternehmen aus, um das Zeitmodul anzuzeigen.",
   "firma.timer.visInaktive": "Inaktiv anzeigen",
   "deaktiver.inaktiv": "Inaktiv",
   "deaktiver.visInaktive": "Inaktiv anzeigen ({{antall}})",

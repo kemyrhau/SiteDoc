@@ -1538,6 +1538,7 @@
   "firma.timer.attestering": "Intyg",
   "firma.timer.attesteringBeskrivelse": "Tidrapporter som väntar på attestering över projekt",
   "firma.timer.attesteringIngenFirma": "Välj ett företag från toppmenyn för att se attestlistan.",
+  "firma.timer.ingenFirma": "Välj ett företag från toppmenyn för att se tidsmodulen.",
   "firma.timer.visInaktive": "Visa inaktiv",
   "deaktiver.inaktiv": "Inaktiv",
   "deaktiver.visInaktive": "Visa inaktiva ({{antall}})",

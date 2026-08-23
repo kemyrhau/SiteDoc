@@ -1538,6 +1538,7 @@
   "firma.timer.attestering": "Attestering",
   "firma.timer.attesteringBeskrivelse": "Dagssedler som venter på attestering på tvers av prosjekter",
   "firma.timer.attesteringIngenFirma": "Velg et firma fra toppmenyen for å se attesterings-listen.",
+  "firma.timer.ingenFirma": "Velg et firma fra toppmenyen for å se timer-modulen.",
   "firma.timer.visInaktive": "Vis inaktive",
   "deaktiver.inaktiv": "Inaktiv",
   "deaktiver.visInaktive": "Vis inaktive ({{antall}})",
