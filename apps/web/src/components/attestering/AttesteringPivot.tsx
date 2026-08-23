@@ -9,15 +9,50 @@
 // Per-ansatt har en norm-kolonne (ukenorm fra beregnUkenorm, servert per sedel)
 // med avviksmarkering. D2-varselet (STEG 3) bor i badge-slotten som er reservert
 // her nå — ikke fjern den.
+//
+// FABEL → STEG 3 (attestantvarsel): SKAL gjenbruke beregnUkeAvvik/
+// overtidsgrunnlag — ikke duplisere regnestykket. Badge-slotten her er rett plass.
+//
+// Avviksbadgen regnes på HELE ukens grunnlag (sent+accepted samlet, `ukeGrunnlag`),
+// ikke bare den viste fanen — en halv-attestert uke ga tidligere falsk «ført
+// under norm». Visning (`visningsRader`) og avviksgrunnlag (`ukeGrunnlag`) er
+// bevisst atskilte i AnsattPivot-signaturen.
 
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@sitedoc/ui";
 import { Check, ChevronDown, ChevronRight, TriangleAlert } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
+import {
+  DagsKort,
+  HoverKort,
+  harKortInnhold,
+  useKatalogNavn,
+  type KatalogNavn,
+} from "./DagsKort";
 
 /* ------------------------------------------------------------------ */
 /*  Typer (strukturelt kompatible med AttesteringRad i page.tsx)        */
 /* ------------------------------------------------------------------ */
+
+export type PivotTimerRad = {
+  /** SheetTimer.id — maskinrader nøstes hit via sheetTimerId. */
+  id: string;
+  projectId: string;
+  timer: number;
+  aktivitetId: string;
+  lonnsartId: string;
+  beskrivelse: string | null;
+};
+
+export type PivotMaskinRad = {
+  vehicleId: string;
+  /** Kobling til timerraden maskinen ble ført med (nøsting). null = uten timerrad. */
+  sheetTimerId: string | null;
+  timer: number;
+  mengde: number | null;
+  enhet: string | null;
+};
 
 export type PivotRad = {
   id: string;
@@ -32,7 +67,10 @@ export type PivotRad = {
   } | null;
   ansatt: { id: string; name: string | null; email: string } | null;
   prosjekt: { id: string; name: string; internalProjectNumber: string | null } | null;
-  timer: { projectId: string; timer: number | string }[];
+  timer: PivotTimerRad[];
+  // Dagskort: maskinrader (nøstes under timerrad via sheetTimerId) + T.11-flagg.
+  maskiner: PivotMaskinRad[];
+  manglerMaskinforerbevis: boolean;
 };
 
 /** Uke-nivå avvik (D2): misforhold mellom FØRT og BEREGNET overtid — ikke
@@ -118,10 +156,50 @@ function TallCelle({
       <button
         onClick={onClick}
         className="w-full rounded px-1 text-right text-gray-900 hover:bg-blue-50 hover:text-blue-700"
-        title=""
       >
         {innhold}
       </button>
+    </td>
+  );
+}
+
+/** Celle som representerer ÉN dagsseddel (én ansatt, én dag). Som TallCelle,
+ *  men med dagskort-hover når sedelen har beskrivelse eller maskinarbeid.
+ *  Klikk på tallet går fortsatt til sedel-detaljen. */
+function SeddelCelle({
+  seddel,
+  erHelg,
+  onAapneSedel,
+  katalog,
+}: {
+  seddel: PivotRad | undefined;
+  erHelg: boolean;
+  onAapneSedel: (sheetId: string) => void;
+  katalog: KatalogNavn;
+}) {
+  const verdi = seddel?.totaltimer ?? 0;
+  const innhold = fmt(verdi);
+  const base = `px-2 py-1 text-right font-mono text-xs tabular-nums ${
+    erHelg ? "bg-gray-50" : ""
+  }`;
+  if (!seddel || innhold === "") {
+    return <td className={`${base} text-gray-400`}>{innhold || "·"}</td>;
+  }
+  const kort = harKortInnhold(seddel) ? (
+    <DagsKort seddel={seddel} katalog={katalog} />
+  ) : null;
+  return (
+    <td className={base}>
+      <span className="flex justify-end">
+        <HoverKort kort={kort}>
+          <button
+            onClick={() => onAapneSedel(seddel.id)}
+            className="rounded px-1 text-right text-gray-900 hover:bg-blue-50 hover:text-blue-700"
+          >
+            {innhold}
+          </button>
+        </HoverKort>
+      </span>
     </td>
   );
 }
@@ -131,14 +209,16 @@ function TallCelle({
 /* ================================================================== */
 
 export function ProsjektPivot({
-  sedler,
+  visningsRader,
   ukestart,
   onAapneSedel,
   onAttesterMange,
   attesterPending,
   readOnly,
 }: {
-  sedler: PivotRad[];
+  /** Rader som VISES (aktiv fane, filtrert). Per-prosjekt-pivoten har ingen
+   *  avviksbadge, så den trenger kun visnings-datasettet. */
+  visningsRader: PivotRad[];
   ukestart: Date;
   onAapneSedel: (sheetId: string) => void;
   onAttesterMange: (sheetIds: string[]) => void;
@@ -146,6 +226,8 @@ export function ProsjektPivot({
   readOnly: boolean;
 }) {
   const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const katalog = useKatalogNavn(valgtFirma?.id);
   const dager = useMemo(() => byggUkedager(ukestart), [ukestart]);
   const [apneProsjekt, setApneProsjekt] = useState<Set<string>>(new Set());
 
@@ -154,7 +236,7 @@ export function ProsjektPivot({
       string,
       { navn: string; nummer: string | null; sedler: PivotRad[] }
     >();
-    for (const s of sedler) {
+    for (const s of visningsRader) {
       const key = s.prosjekt?.id ?? "—";
       const g = m.get(key) ?? {
         navn: s.prosjekt?.name ?? "—",
@@ -165,7 +247,7 @@ export function ProsjektPivot({
       m.set(key, g);
     }
     return Array.from(m.entries()).map(([id, g]) => ({ id, ...g }));
-  }, [sedler]);
+  }, [visningsRader]);
 
   if (grupper.length === 0) return <TomPivot />;
 
@@ -257,11 +339,12 @@ export function ProsjektPivot({
                           {a.navn}
                         </td>
                         {aDag.map((s, i) => (
-                          <TallCelle
+                          <SeddelCelle
                             key={i}
-                            verdi={s?.totaltimer ?? 0}
+                            seddel={s}
                             erHelg={dager[i]?.erHelg ?? false}
-                            onClick={s ? () => onAapneSedel(s.id) : undefined}
+                            onAapneSedel={onAapneSedel}
+                            katalog={katalog}
                           />
                         ))}
                         <td className="px-3 py-1 text-right font-mono text-xs tabular-nums">
@@ -285,14 +368,20 @@ export function ProsjektPivot({
 /* ================================================================== */
 
 export function AnsattPivot({
-  sedler,
+  visningsRader,
+  ukeGrunnlag,
   ukestart,
   onAapneSedel,
   onAttesterMange,
   attesterPending,
   readOnly,
 }: {
-  sedler: PivotRad[];
+  /** Rader som VISES (aktiv fane, filtrert). Styrer tabell-innholdet. */
+  visningsRader: PivotRad[];
+  /** Avviksgrunnlag: HELE uken (sent+accepted samlet), samme filtre. Styrer
+   *  norm-kolonnens avviksbadge — badgen skal si sannheten om uken, ikke om
+   *  fanen (en halv-attestert uke ga tidligere falsk «ført under norm»). */
+  ukeGrunnlag: PivotRad[];
   ukestart: Date;
   onAapneSedel: (sheetId: string) => void;
   onAttesterMange: (sheetIds: string[]) => void;
@@ -300,10 +389,29 @@ export function AnsattPivot({
   readOnly: boolean;
 }) {
   const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const katalog = useKatalogNavn(valgtFirma?.id);
   const dager = useMemo(() => byggUkedager(ukestart), [ukestart]);
   const [apenAnsatt, setApenAnsatt] = useState<Set<string>>(new Set());
 
-  const ansatte = useMemo(() => grupperPerAnsatt(sedler), [sedler]);
+  const ansatte = useMemo(() => grupperPerAnsatt(visningsRader), [visningsRader]);
+
+  // Avviksgrunnlag per ansatt = hele ukens rader (sent+accepted), slått opp på
+  // ansatt-id. Vises fanevis, men badgen regnes på unionen.
+  const grunnlagPerAnsatt = useMemo(() => {
+    const m = new Map<string, PivotRad[]>();
+    for (const g of grupperPerAnsatt(ukeGrunnlag)) m.set(g.id, g.sedler);
+    return m;
+  }, [ukeGrunnlag]);
+
+  // Prosjektnavn-oppslag for ekspanderte rader — aldri rå UUID (fix #2).
+  const prosjektNavnFor = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of ukeGrunnlag) if (s.prosjekt) m.set(s.prosjekt.id, s.prosjekt.name);
+    return (projectId: string): string =>
+      m.get(projectId) ?? t("timer.attestering.pivot.annetProsjekt");
+  }, [ukeGrunnlag, t]);
+
   if (ansatte.length === 0) return <TomPivot />;
 
   return (
@@ -336,10 +444,12 @@ export function AnsattPivot({
             const aDag = dager.map((d) =>
               a.sedler.find((s) => isoAv(s.dato) === d.iso),
             );
-            const avvik = beregnUkeAvvik(a.sedler);
-            const ukesum = avvik.ukesum;
+            // Avvik fra hele ukens grunnlag (union), ikke bare vist fane.
+            const avvik = beregnUkeAvvik(grunnlagPerAnsatt.get(a.id) ?? a.sedler);
+            // ukesum til visning følger fanen (det attestanten ser nå).
+            const ukesum = r2(a.sedler.reduce((x, s) => x + s.totaltimer, 0));
             const apen = apenAnsatt.has(a.id);
-            const prosjekter = grupperPerProsjekt(a.sedler);
+            const prosjekter = grupperPerProsjekt(a.sedler, prosjektNavnFor);
             return (
               <Fragment key={a.id}>
                 <tr className="border-b border-gray-100 hover:bg-gray-50">
@@ -364,11 +474,12 @@ export function AnsattPivot({
                     </button>
                   </th>
                   {aDag.map((s, i) => (
-                    <TallCelle
+                    <SeddelCelle
                       key={i}
-                      verdi={s?.totaltimer ?? 0}
+                      seddel={s}
                       erHelg={dager[i]?.erHelg ?? false}
-                      onClick={s ? () => onAapneSedel(s.id) : undefined}
+                      onAapneSedel={onAapneSedel}
+                      katalog={katalog}
                     />
                   ))}
                   <td className="px-3 py-1.5 text-right font-mono text-xs font-semibold tabular-nums text-gray-900">
@@ -455,16 +566,15 @@ function grupperPerAnsatt(sedler: PivotRad[]) {
   return Array.from(m.values()).sort((a, b) => a.navn.localeCompare(b.navn, "no"));
 }
 
-function grupperPerProsjekt(sedler: PivotRad[]) {
+function grupperPerProsjekt(
+  sedler: PivotRad[],
+  navnFor: (projectId: string) => string,
+) {
   const m = new Map<string, { id: string; navn: string }>();
   for (const s of sedler) {
     for (const r of s.timer) {
       if (!m.has(r.projectId)) {
-        m.set(r.projectId, {
-          id: r.projectId,
-          navn:
-            s.prosjekt?.id === r.projectId ? s.prosjekt.name : r.projectId.slice(0, 8),
-        });
+        m.set(r.projectId, { id: r.projectId, navn: navnFor(r.projectId) });
       }
     }
   }
