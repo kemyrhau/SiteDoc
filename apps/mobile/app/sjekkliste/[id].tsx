@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin, Printer } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
@@ -35,15 +35,11 @@ import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
-import { byggSjekklisteHtml, ekspanderEndring, byggKolonnerPerFelt, segmenterTilTekst } from "@sitedoc/pdf";
+import { ekspanderEndring, byggKolonnerPerFelt, segmenterTilTekst } from "@sitedoc/pdf";
 import { byggObjektTre } from "@sitedoc/shared";
-import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
-import { TegningsCapture } from "../../src/components/TegningsCapture";
-import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
-import { hentSessionToken } from "../../src/services/auth";
-import * as Print from "expo-print";
+import { AUTH_CONFIG } from "../../src/config/auth";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
@@ -109,10 +105,10 @@ export default function SjekklisteUtfylling() {
   const utils = trpc.useUtils();
 
   const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
-  const [pdfHtml, settPdfHtml] = useState<string | null>(null);
-  const [pdfLaster, settPdfLaster] = useState(false);
-  // Arkiv-PDF (server-generert, primær vei — mangel-kontrakten speiler web).
-  // `expo-print`-veien under (pdfHtml/håndterDelPdf) beholdes som lokal fallback (Fase 1).
+  // Arkiv-PDF (server-generert, ENESTE vei fra 2026-08-23 — mobil bygger ikke HTML lokalt lenger).
+  // Mangel-kontrakten speiler web (renderTimeout + manglendeVedlegg). Fase 3: den lokale
+  // expo-print-veien (byggSjekklisteHtml) er fjernet — telefonen må uansett være på nett for
+  // å hente bilder/tegninger til en PDF.
   const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
@@ -120,8 +116,6 @@ export default function SjekklisteUtfylling() {
   const [lokTempPosY, setLokTempPosY] = useState<number | null>(null);
   const [lokTempTegningId, setLokTempTegningId] = useState<string | null>(null);
   const [lokTempBygningId, setLokTempBygningId] = useState<string | null>(null);
-  const [tegningScreenshot, setTegningScreenshot] = useState<string | null>(null);
-  const [tegningDetaljScreenshot, setTegningDetaljScreenshot] = useState<string | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
@@ -503,104 +497,11 @@ export default function SjekklisteUtfylling() {
     return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
   }, [sjekkliste?.template?.objects, hentFeltVerdi, t]);
 
-  // Hent prosjektdata for PDF
-  const { data: prosjektData } = trpc.prosjekt.hentMedId.useQuery(
-    { id: valgtProsjektId! },
-    { enabled: !!valgtProsjektId },
-  );
-
-  const genererPdfHtml = useCallback(async () => {
-    if (!sjekkliste) return "";
-    const detalj = detaljQuery.data as Record<string, unknown> | undefined;
-    const webBaseUrl = hentWebUrl();
-    const bildeBase = `${webBaseUrl}/api`;
-    const sjekklisteMedDetaljer = {
-      ...(sjekkliste as Parameters<typeof byggSjekklisteHtml>[0]),
-      updatedAt: detalj?.updatedAt as Date | string | undefined,
-      changeLog: (detalj?.changeLog ?? []) as Array<{ createdAt: Date | string; user: { name: string | null } }>,
-      drawing: sjekklisteDetalj?.drawing ?? null,
-      drawingId: sjekklisteDetalj?.drawingId ?? null,
-      positionX: sjekklisteDetalj?.positionX ?? null,
-      positionY: sjekklisteDetalj?.positionY ?? null,
-      building: sjekklisteDetalj?.byggeplass ?? null,
-      bestiller: sjekklisteDetalj?.bestiller ?? null,
-      creator: sjekklisteDetalj?.creator ?? null,
-      createdAt: sjekklisteDetalj?.createdAt,
-    };
-    const prosjektForPdf = prosjektData ? {
-      name: prosjektData.name,
-      projectNumber: prosjektData.projectNumber,
-      externalProjectNumber: (prosjektData as unknown as Record<string, unknown>).externalProjectNumber as string | null | undefined,
-      address: prosjektData.address,
-      logoUrl: (prosjektData as unknown as Record<string, unknown>).logoUrl as string | null | undefined,
-    } : null;
-    const ui = (prosjektData as unknown as Record<string, unknown> | undefined)?.utskriftsinnstillinger as Record<string, boolean> | null | undefined;
-    // Tegningsbilde-URL (PNG/bilde-tegninger fungerer direkte, PDF-tegninger ikke)
-    const tegningUrl = sjekklisteDetalj?.drawing?.fileUrl
-      ? `${bildeBase}${sjekklisteDetalj.drawing.fileUrl}`
-      : null;
-    // Konverter vedleggsbilder til base64 (expo-print har ikke auth-cookies)
-    const feltVerdierMedBase64 = await feltVerdierForPdf();
-    return byggSjekklisteHtml(
-      sjekklisteMedDetaljer,
-      feltVerdierMedBase64,
-      prosjektForPdf,
-      ui ? {
-        logo: ui.logo,
-        eksternProsjektnummer: ui.eksternProsjektnummer,
-        prosjektnavn: ui.prosjektnavn,
-        fraTil: ui.fraTil,
-        lokasjon: ui.lokasjon,
-        tegningsnummer: ui.tegningsnummer,
-        vaer: ui.vaer,
-      } : null,
-      {
-        bildeBaseUrl: bildeBase,
-        maksbildeHoyde: 200,
-        gjentakendeHeader: true,
-        visSidenummer: true,
-        tegningBildeUrl: tegningUrl,
-        tegningScreenshot,
-        tegningDetaljScreenshot,
-      },
-    );
-  }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj, tegningScreenshot, tegningDetaljScreenshot]);
-
-  // Vis forhåndsvisning
-  const håndterVisPdf = useCallback(async () => {
-    settPdfLaster(true);
-    try {
-      const html = await genererPdfHtml();
-      if (html) settPdfHtml(html);
-    } finally {
-      settPdfLaster(false);
-    }
-  }, [genererPdfHtml]);
-
-  // Del PDF direkte (uten forhåndsvisning)
-  const håndterDelPdf = useCallback(async () => {
-    if (!sjekkliste) return;
-    settPdfLaster(true);
-    try {
-      const html = pdfHtml ?? await genererPdfHtml();
-      if (!html) return;
-      const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri, {
-        mimeType: "application/pdf",
-        dialogTitle: `Del ${sjekkliste.title}`,
-        UTI: "com.adobe.pdf",
-      });
-    } catch (feil) {
-      console.warn("PDF-deling feilet:", feil);
-    } finally {
-      settPdfLaster(false);
-    }
-  }, [sjekkliste, pdfHtml, genererPdfHtml]);
-
-  // --- Arkiv-PDF (primær vei) -------------------------------------------
-  // Server rendrer samme arkiv-PDF som web (`arkiv.rendr`). Auth går via
-  // Bearer-token på tRPC-klienten (samme som alle andre kall). PDF-en kommer
-  // som base64 i responsen → skrives til fil → deles via `expo-sharing`.
+  // --- Arkiv-PDF (ENESTE vei fra 2026-08-23) ----------------------------
+  // Server rendrer samme arkiv-PDF som web (`arkiv.rendr`). Auth via Bearer-token
+  // på tRPC-klienten. PDF-en kommer som base64 → skrives til fil → deles via
+  // `expo-sharing`. Ingen lokal HTML-bygging lenger (telefonen må være på nett for
+  // å hente bilder/tegninger uansett).
   const rendrArkiv = trpc.arkiv.rendr.useMutation({
     onSuccess: async (res: {
       pdfBase64: string;
@@ -647,70 +548,6 @@ export default function SjekklisteUtfylling() {
     settArkivMelding(null);
     rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
   }, [id, erPaaNettet, rendrArkiv, t]);
-
-  // Hjelpefunksjon for å hente feltVerdier som PDF-format, med vedleggsbilder som base64
-  async function feltVerdierForPdf() {
-    type VedleggPdf = { id: string; type: string; url: string; filnavn: string };
-    const resultat: Record<string, { verdi: unknown; kommentar: string; vedlegg: VedleggPdf[] }> = {};
-    const webBaseUrl = hentWebUrl();
-    const bildeBase = `${webBaseUrl}/api`;
-    const token = await hentSessionToken();
-
-    // Samle alle vedleggsbilder som trenger konvertering
-    const konverteringsJobb: Array<{ objektId: string; idx: number; url: string }> = [];
-
-    for (const objekt of sjekkliste?.template?.objects ?? []) {
-      const fv = hentFeltVerdi(objekt.id);
-      const vedlegg = (fv.vedlegg as VedleggPdf[]) ?? [];
-      resultat[objekt.id] = { verdi: fv.verdi, kommentar: fv.kommentar, vedlegg: [...vedlegg] };
-
-      vedlegg.forEach((v, idx) => {
-        const erBilde = v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn);
-        if (!erBilde) return;
-        if (v.url.startsWith("data:")) return; // Allerede base64
-
-        // Bygg full URL for nedlasting
-        let fullUrl = v.url;
-        if (fullUrl.startsWith("/uploads/")) fullUrl = `${bildeBase}${fullUrl}`;
-        else if (fullUrl.startsWith("/")) fullUrl = `${bildeBase}${fullUrl}`;
-
-        konverteringsJobb.push({ objektId: objekt.id, idx, url: fullUrl });
-      });
-    }
-
-    // Last ned og konverter parallelt (maks 6 samtidige)
-    const BATCH_SIZE = 6;
-    for (let i = 0; i < konverteringsJobb.length; i += BATCH_SIZE) {
-      const batch = konverteringsJobb.slice(i, i + BATCH_SIZE);
-      const resultater = await Promise.allSettled(
-        batch.map(async (jobb) => {
-          const headers: Record<string, string> = {};
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-          const resp = await fetch(jobb.url, { headers });
-          if (!resp.ok) return null;
-          const blob = await resp.blob();
-          return new Promise<string | null>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-          });
-        }),
-      );
-
-      resultater.forEach((r, bIdx) => {
-        if (r.status === "fulfilled" && r.value) {
-          const jobb = batch[bIdx];
-          resultat[jobb.objektId].vedlegg[jobb.idx] = {
-            ...resultat[jobb.objektId].vedlegg[jobb.idx],
-            url: r.value,
-          };
-        }
-      });
-    }
-
-    return resultat;
-  }
 
   // Påkrevd-felt-teller (M2): live antall gjenstående påkrevde synlige felt. Deaktiverer
   // framover-primær (Send/Besvar) + caption. Read-only speiling av `valider()` — muterer ikke.
@@ -854,25 +691,20 @@ export default function SjekklisteUtfylling() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
-            {/* Primær: server-generert arkiv-PDF (samme motor som web). */}
+            {/* Server-generert arkiv-PDF (samme motor som web) — eneste vei. Offline:
+                CloudOff-ikon signaliserer FØR tap at PDF krever nett; tap forklarer
+                med full mikrotekst (arkiv.kreverTilkobling). */}
             <Pressable
               onPress={håndterArkivPdf}
               hitSlop={12}
               disabled={rendrArkiv.isPending}
-              accessibilityLabel={t("handling.lastNedArkivPdf")}
+              accessibilityLabel={erPaaNettet ? t("handling.lastNedArkivPdf") : t("arkiv.kreverTilkobling")}
             >
-              {rendrArkiv.isPending ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
-            </Pressable>
-            {/* Fallback: lokal PDF på enheten (expo-print). Fjernes i Fase 3. */}
-            <Pressable
-              onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf}
-              hitSlop={8}
-              disabled={pdfLaster}
-              className="flex-row items-center gap-1 rounded bg-white/10 px-1.5 py-0.5"
-              accessibilityLabel={t("arkiv.lokalFallback")}
-            >
-              {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Printer size={13} color="#ffffff" />}
-              <Text className="text-[10px] text-white/70">{t("arkiv.lokalFallback")}</Text>
+              {rendrArkiv.isPending
+                ? <ActivityIndicator size="small" color="#ffffff" />
+                : !erPaaNettet
+                  ? <CloudOff size={18} color="#fbbf24" />
+                  : <Share2 size={18} color="#ffffff" />}
             </Pressable>
             <StatusMerkelapp status={sjekkliste.status} />
             {(() => {
@@ -1292,32 +1124,6 @@ export default function SjekklisteUtfylling() {
       </View>
 
       </KeyboardAvoidingView>
-
-      {/* Tegnings-screenshot for PDF (offscreen capture) */}
-      {sjekklisteDetalj?.drawing?.fileUrl && sjekklisteDetalj.positionX != null && sjekklisteDetalj.positionY != null && !tegningScreenshot && (
-        <TegningsCapture
-          tegningUrl={
-            sjekklisteDetalj.drawing.fileUrl.startsWith("http")
-              ? sjekklisteDetalj.drawing.fileUrl
-              : `${AUTH_CONFIG.apiUrl}${sjekklisteDetalj.drawing.fileUrl}`
-          }
-          positionX={sjekklisteDetalj.positionX}
-          positionY={sjekklisteDetalj.positionY}
-          onCapture={(oversikt, detalj) => {
-            setTegningScreenshot(oversikt);
-            setTegningDetaljScreenshot(detalj);
-          }}
-        />
-      )}
-
-      {/* PDF-forhåndsvisning */}
-      <PdfForhandsvisning
-        synlig={!!pdfHtml}
-        html={pdfHtml ?? ""}
-        tittel={sjekkliste?.title ?? ""}
-        onDel={håndterDelPdf}
-        onLukk={() => settPdfHtml(null)}
-      />
 
       {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}
       <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>
