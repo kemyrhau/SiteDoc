@@ -255,6 +255,40 @@ som bevis på at en opprydding var komplett — det gjenværende kallet het `set
 stor S, og traff ikke mønsteret. **Et grep-treff på null er ikke bevis for fravær.** Bruk `-i`
 når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dette fortsatt».
 
+### 🔴 Mål mot RIKTIG database — og les tidsstemplene (lærdom 2026-08-23)
+
+**Kenneth tester på `test.sitedoc.no` → databasen heter `sitedoc_test`.** `-d sitedoc` er
+PRODUKSJON. Regelen sto i CLAUDE.md hele tiden; cowork brukte den ikke.
+
+Kostnaden 2026-08-23: cowork målte «Kenneths oppgaver» mot prod, fant tre rader uten
+tegning og posisjon, og konkluderte at lokasjonsarven var brutt. De tre radene var fra
+**26. mars** og aldri rørt. Kontrollplan bygget en hel feilsøkingsrunde på det premisset.
+Riktig måling mot `sitedoc_test` viste at arven virket hele tiden — feilen var i
+visningen.
+
+**To krav til enhver DB-måling som skal si noe om det Kenneth nettopp gjorde:**
+
+1. `-d sitedoc_test` med mindre spørsmålet uttrykkelig gjelder produksjon (kundepåvirkning,
+   datavolum, migrerings-risiko).
+2. **Ta alltid med `created_at` i utvalget.** Da er det synlig at radene er fra en annen tid
+   enn arbeidet, i stedet for at man leser dem som ferske.
+
+### 🔴 `as unknown as` skjuler manglende felt — tre feil på to dager
+
+Mønsteret: en komponent caster et objekt til en type som lover felt objektet ikke har.
+Kompilatoren tier, feltet leses som `undefined`, og symptomet dukker opp langt unna.
+
+| Dato | Sted | Symptom |
+|---|---|---|
+| 08-22 | sjekkliste-siden leste `sjekkliste` (skjema-hook) i stedet for `fullSjekkliste` | dokument-lokasjon arvet ikke |
+| 08-23 | oppgave-siden leste omformet objekt uten `drawing`/`positionX` | «LOKASJON Ikke satt» på data som fantes |
+| 08-22 | cowork brukte `grep -c "slettFeil"` som bevis; kallet het `setSlettFeil` | tsc-feil nådde Docker-bygget |
+
+**Regel:** når en verdi «forsvinner» uten feilmelding, mistenk casten før logikken. Erstatt
+`as unknown as` med en typet hjelper som leser fra den rå kilden — da sier kompilatoren fra
+neste gang. Og et grep-treff på null er ikke bevis for fravær; kompilatoren og databasen er
+fasit, ikke søkemønsteret.
+
 ### 🔴 Statustavla har ÉN skribent: cowork (vedtatt 2026-08-22)
 
 **Agentene skriver ikke lenger i `STATUS-AKTUELT.md`.** De rapporterer i leveransen sin — som
