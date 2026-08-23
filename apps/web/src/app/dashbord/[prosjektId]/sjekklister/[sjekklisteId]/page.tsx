@@ -401,6 +401,16 @@ export default function SjekklisteDetaljSide() {
     dokumentflyterRå,
   );
 
+  // 🔴 Lokasjonsarv (2026-08-23): dokumentets lokasjon som en oppgave arver når raden/feltet ikke
+  // har egen posisjon. BEGGE opprett-stiene bruker denne — tidligere hardkodet whole-field-stien
+  // `null`, så en oppgave fra et vanlig felt aldri arvet dokumentets Z-20-01 (kun rad-stien fikk
+  // fallbacken). Kilde: `fullSjekkliste` (= fullSjekklisteRå/hentMedId — alle Checklist-skalarer).
+  const dokumentPosisjon = {
+    drawingId: fullSjekkliste?.drawingId ?? null,
+    positionX: fullSjekkliste?.positionX ?? null,
+    positionY: fullSjekkliste?.positionY ?? null,
+  };
+
   // Bygg trestruktur og flat ut i DFS-rekkefølge (forelder → barn → neste forelder)
   const objekter = useMemo(() => {
     const rå = (sjekkliste?.template?.objects ?? []) as RapportObjekt[];
@@ -930,13 +940,7 @@ export default function SjekklisteDetaljSide() {
                   // hentMedId) — IKKE fra `sjekkliste` (useSjekklisteSkjema), som sprer posisjon
                   // BETINGET fra en annen query og ga `undefined` (skjult av `as unknown as`) → «Ikke satt».
                   // Kjede: radens egen posisjon → SJEKKLISTENS → ingen.
-                  setOpprettOppgavePosisjon(
-                    radPosisjon ?? {
-                      drawingId: fullSjekkliste?.drawingId ?? null,
-                      positionX: fullSjekkliste?.positionX ?? null,
-                      positionY: fullSjekkliste?.positionY ?? null,
-                    },
-                  );
+                  setOpprettOppgavePosisjon(radPosisjon ?? dokumentPosisjon);
                 },
                 onNaviger: (id: string) =>
                   router.push(`/dashbord/${params.prosjektId}/oppgaver?oppgave=${id}`),
@@ -968,7 +972,9 @@ export default function SjekklisteDetaljSide() {
                     : () => {
                         setOpprettOppgaveFeltId(objekt.id);
                         setOpprettOppgaveFeltLabel(objekt.label);
-                        setOpprettOppgavePosisjon(null);
+                        // 🔴 Lokasjonsarv-buggen: hardkodet `null` her → oppgave fra vanlig felt
+                        // arvet aldri dokumentets lokasjon. Nå samme fallback som rad-stien.
+                        setOpprettOppgavePosisjon(dokumentPosisjon);
                       }
                 }
                 onNavigerTilOppgave={(id) =>
