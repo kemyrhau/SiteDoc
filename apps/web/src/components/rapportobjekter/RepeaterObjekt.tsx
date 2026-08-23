@@ -30,6 +30,7 @@ export function RepeaterObjekt({
   prosjektId,
   barneObjekter,
   radOppgaver,
+  tillatteFaggruppeIder,
 }: RapportObjektProps) {
   // Rad-id (2026-08-22, variant omslutting): normaliser gammel/ny radform ved lesing →
   // { _radId, felter }. Memoisert på `verdi`-referansen så id-ene er STABILE på tvers av
@@ -241,6 +242,7 @@ export function RepeaterObjekt({
                     leseModus={leseModus}
                     prosjektId={prosjektId}
                     feltNokkel={feltNokkel}
+                    tillatteFaggruppeIder={tillatteFaggruppeIder}
                   />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).

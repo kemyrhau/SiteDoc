@@ -10,7 +10,7 @@ interface Faggruppe {
   name: string;
 }
 
-export function FirmaObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, tillatteFaggruppeIder }: RapportObjektProps) {
   const [visModal, settVisModal] = useState(false);
   const { valgtProsjektId } = useProsjekt();
   const valgtId = typeof verdi === "string" ? verdi : null;
@@ -21,7 +21,18 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektPro
   );
 
   const faggrupper = (faggruppeQuery.data ?? []) as Faggruppe[];
+
+  // 4b (dokumentflyten er nøkkelen): begrens valgene til faggrupper som er MEDLEM av dokumentets
+  // flyt. `tillatteFaggruppeIder == null` = flyt-løst dokument (gyldig) → vis alle + mikrotekst.
+  const scopet = tillatteFaggruppeIder != null;
+  const tillatt = scopet ? new Set(tillatteFaggruppeIder) : null;
+  // Vis de tillatte + ALLTID den lagrede verdien (selv om den er utenfor flyten) — data forsvinner
+  // aldri stille (funn 6-prinsippet); den utenfor-verdien merkes ikke-valgbar nedenfor.
+  const synlige = tillatt
+    ? faggrupper.filter((e) => tillatt.has(e.id) || e.id === valgtId)
+    : faggrupper;
   const valgtFaggruppe = faggrupper.find((e) => e.id === valgtId);
+  const valgtErUtenfor = !!tillatt && !!valgtId && !tillatt.has(valgtId);
 
   return (
     <View>
@@ -37,6 +48,17 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektPro
         </Text>
       </Pressable>
 
+      {!scopet && (
+        <Text className="mt-1 text-xs text-gray-400">
+          Dokumentet har ingen dokumentflyt — viser alle faggrupper.
+        </Text>
+      )}
+      {valgtErUtenfor && (
+        <Text className="mt-1 text-xs text-amber-600">
+          Valgt faggruppe er ikke medlem av dokumentflyten. Behold eller velg en fra flyten.
+        </Text>
+      )}
+
       <Modal visible={visModal} animationType="slide" presentationStyle="pageSheet">
         <View className="flex-1 bg-white">
           <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
@@ -46,22 +68,33 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektPro
             </Pressable>
           </View>
           <FlatList
-            data={faggrupper}
+            data={synlige}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
               const erValgt = item.id === valgtId;
+              // Faggruppe utenfor flyten er ikke-valgbar — unntatt hvis den ER den lagrede verdien
+              // (da må den kunne velges bort). Speiler web `disabled={utenfor && e.id !== valgtId}`.
+              const utenfor = !!tillatt && !tillatt.has(item.id);
+              const ikkeValgbar = utenfor && !erValgt;
               return (
                 <Pressable
                   onPress={() => {
+                    if (ikkeValgbar) return;
                     onEndreVerdi(erValgt ? null : item.id);
                     settVisModal(false);
                   }}
-                  className="flex-row items-center border-b border-gray-100 px-4 py-3"
+                  disabled={ikkeValgbar}
+                  className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
+                    ikkeValgbar ? "opacity-40" : ""
+                  }`}
                 >
                   <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-purple-100">
                     <Building2 size={16} color="#7c3aed" />
                   </View>
-                  <Text className="flex-1 text-sm font-medium text-gray-900">{item.name}</Text>
+                  <Text className="flex-1 text-sm font-medium text-gray-900">
+                    {item.name}
+                    {utenfor ? " (utenfor flyten)" : ""}
+                  </Text>
                   {erValgt && <Check size={20} color="#1e40af" />}
                 </Pressable>
               );

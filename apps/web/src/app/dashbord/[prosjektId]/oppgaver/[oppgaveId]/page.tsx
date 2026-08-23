@@ -17,6 +17,7 @@ import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
+import { flytFaggruppeIder } from "@/lib/flyt-faggrupper";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjoner";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -218,6 +219,13 @@ export default function OppgaveDetaljSide() {
   // følger dokumentet — retur + brødsmule peker mot HMS-lista, ikke Oppgaver.
   const erHms =
     (fullOppgaveRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
+  // 4b: faggrupper som er MEDLEM av oppgavens dokumentflyt — begrenser `company`-feltet. Ikke
+  // memoisert: å legge de dype tRPC-typene i en useMemo-deps-array tipper TS2589 (excessively deep);
+  // funksjonen er en billig find+map og kan trygt kjøre per render.
+  const tillatteFaggruppeIder = flytFaggruppeIder(
+    (fullOppgaveRå as unknown as { dokumentflytId?: string | null } | undefined)?.dokumentflytId,
+    dokumentflyterRå,
+  );
   // A (2026-08-22): `returnerTil` (URL) peker tilbake til dokumentet som opprettet oppgaven — så
   // «tilbake» går dit, ikke til oppgavelista. Bæres i URL → overlever full last. Kun interne stier
   // godtas (må starte med «/» og ikke «//») så en manipulert param ikke kan redirecte ut av appen.
@@ -845,6 +853,7 @@ export default function OppgaveDetaljSide() {
                     leseModus={verdiLeseModus}
                     prosjektId={params.prosjektId}
                     barneObjekter={barneObjekterMap.get(objekt.id)}
+                    tillatteFaggruppeIder={tillatteFaggruppeIder}
                   />
                 </FeltWrapper>
               </div>

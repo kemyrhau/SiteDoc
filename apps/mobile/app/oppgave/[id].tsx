@@ -44,6 +44,7 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { trpc } from "../../src/lib/trpc";
+import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { oppgaveFeltdata, opplastingsKo } from "../../src/db/schema";
@@ -165,6 +166,13 @@ export default function OppgaveDetalj() {
     const flyt = rå.find((df) => df.id === op.dokumentflytId);
     return flyt?.medlemmer ?? [];
   }, [oppgaveDetalj, dokumentflyterRå]);
+
+  // 4b (dokumentflyten er nøkkelen): faggruppene `company`-feltet (FirmaObjekt) får tilby.
+  // Inline kall (IKKE useMemo med de dype tRPC-typene i deps — tipper TS2589).
+  const tillatteFaggruppeIder = flytFaggruppeIder(
+    (oppgaveDetalj as unknown as { dokumentflytId?: string | null })?.dokumentflytId,
+    dokumentflyterRå,
+  );
 
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !oppgaveDetalj) return undefined;
@@ -783,6 +791,7 @@ export default function OppgaveDetalj() {
                 leseModus={verdiLeseModus}
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 oppgaveIdForKo={oppgave.id}
+                tillatteFaggruppeIder={tillatteFaggruppeIder}
               />
             </FeltWrapper>
           );

@@ -31,6 +31,14 @@ export interface RapportObjektProps {
    * et «oppgave på hele tabellen»-behov dukker opp.
    */
   radOppgaver?: RadOppgaveAdapter;
+  /**
+   * 4b (bindende vedtak `domene-arbeidsflyt.md`: dokumentflyten er nøkkelen): faggruppe-id-ene som
+   * er MEDLEM av dokumentets dokumentflyt. `company`-feltet (FirmaObjekt) begrenser valgene til
+   * disse — ikke prosjektets alle. `null`/utelatt = flyt-løst dokument (gyldig) → FirmaObjekt faller
+   * tilbake til alle faggrupper med en mikrotekst-linje. En lagret verdi utenfor settet vises
+   * READ-ONLY, aldri skjult.
+   */
+  tillatteFaggruppeIder?: string[] | null;
 }
 
 /**
