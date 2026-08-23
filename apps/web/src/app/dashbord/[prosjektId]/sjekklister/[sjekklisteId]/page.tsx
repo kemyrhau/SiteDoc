@@ -914,9 +914,9 @@ export default function SjekklisteDetaljSide() {
                   radNummer: number,
                 ) => {
                   setOpprettOppgaveFeltId(nokkel);
-                  // Funn 3: tittelen skal identifisere RADEN — radnummeret (samme 1-baserte tall som
-                  // rad-headeren og markøren viser), ikke bare feltnavnet.
-                  setOpprettOppgaveFeltLabel(`${objekt.label} (rad ${radNummer})`);
+                  // Funn 3+2: radnummeret FORAN etiketten, slik rad-headeren selv leses («2 Observasjon»,
+                  // ikke «Observasjon (rad 2)»).
+                  setOpprettOppgaveFeltLabel(`${radNummer} ${objekt.label}`);
                   // Funn 1: dokument-lokasjon-fallbacken leses fra `fullSjekkliste` (= fullSjekklisteRå,
                   // hentMedId) — IKKE fra `sjekkliste` (useSjekklisteSkjema), som sprer posisjon
                   // BETINGET fra en annen query og ga `undefined` (skjult av `as unknown as`) → «Ikke satt».

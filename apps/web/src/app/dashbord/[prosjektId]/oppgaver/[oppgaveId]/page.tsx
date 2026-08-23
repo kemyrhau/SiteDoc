@@ -221,11 +221,14 @@ export default function OppgaveDetaljSide() {
   // A (2026-08-22): `returnerTil` (URL) peker tilbake til dokumentet som opprettet oppgaven — så
   // «tilbake» går dit, ikke til oppgavelista. Bæres i URL → overlever full last. Kun interne stier
   // godtas (må starte med «/» og ikke «//») så en manipulert param ikke kan redirecte ut av appen.
-  const returnerTilRaa = useSearchParams().get("returnerTil");
+  const sokeParams = useSearchParams();
+  const returnerTilRaa = sokeParams.get("returnerTil");
   const returnerTil =
     returnerTilRaa && returnerTilRaa.startsWith("/") && !returnerTilRaa.startsWith("//")
       ? returnerTilRaa
       : null;
+  // Dokumentnummeret til det som opprettet oppgaven (til tilbake-lenken «← Tilbake til BEF-006»).
+  const returnerNavn = returnerTil ? sokeParams.get("returnerNavn") : null;
   const listeSti = returnerTil ?? `/dashbord/${params.prosjektId}/${erHms ? "hms" : "oppgaver"}`;
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
@@ -296,7 +299,7 @@ export default function OppgaveDetaljSide() {
   });
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown, variabler: { nyStatus?: string }) => {
       setStatusFeil(null);
       const k = handlingRef.current ? kvitteringEtikett(handlingRef.current) : null;
       if (k) {
@@ -306,6 +309,13 @@ export default function OppgaveDetaljSide() {
       }
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+      // Funn 1 (2026-08-22): auto-retur etter Send/Godkjenn — den naturlige slutten på oppgaven.
+      // Hele poenget med rad-oppgaver er å opprette KS-avvik fortløpende MENS man fyller ut
+      // sjekklisten, så vi sender brukeren tilbake dit. Kun ved sending/godkjenning (ikke ved
+      // f.eks. «start»/utkast-endringer), og kun når vi kom fra et dokument (returnerTil).
+      if (returnerTil && (variabler.nyStatus === "sent" || variabler.nyStatus === "approved")) {
+        router.push(returnerTil);
+      }
     },
     // TS2589-avlastning: shallow error-type unngår instansiering av dyp tRPC-feiltype.
     onError: (error: { message?: string }) => {
@@ -537,6 +547,18 @@ export default function OppgaveDetaljSide() {
     <div className="max-w-3xl pb-12">
       {/* Skjerm-header: sticky ved scrolling */}
       <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-4 sm:px-6 py-3 mb-3">
+        {/* Funn 1 (2026-08-22): synlig tilbake-lenke til dokumentet som opprettet oppgaven — så
+            brukeren kan gå tilbake NÅR SOM HELST, ikke bare når systemet auto-returnerer etter Send. */}
+        {returnerTil && (
+          <button
+            type="button"
+            onClick={() => router.push(returnerTil)}
+            className="mb-1.5 inline-flex min-h-8 items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-sitedoc-primary"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {returnerNavn ? `Tilbake til ${returnerNavn}` : "Tilbake til dokumentet"}
+          </button>
+        )}
         {/* Ordre 2.3/Funn G: HMS-brødsmule — HMS-avvik/RUH er task under panseret, men
             konteksten er HMS. «← HMS» returnerer til HMS-lista, ikke Oppgaver. */}
         {erHms && (

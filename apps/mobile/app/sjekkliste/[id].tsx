@@ -1031,8 +1031,8 @@ export default function SjekklisteUtfylling() {
                   radNummer: number,
                 ) => {
                   setOpprettOppgaveFeltId(nokkel);
-                  // Funn 3: radnummer i tittelen (identifiserer raden, som headeren).
-                  setOpprettOppgaveFeltLabel(`${objekt.label} (rad ${radNummer})`);
+                  // Funn 3+2: radnummeret FORAN etiketten, slik rad-headeren leses («2 Observasjon»).
+                  setOpprettOppgaveFeltLabel(`${radNummer} ${objekt.label}`);
                   setOpprettOppgaveKategori("oppgave");
                   // Radens posisjon ?? dokumentets lokasjon. Modalen krever fullt punkt.
                   const kilde = radPosisjon ?? {

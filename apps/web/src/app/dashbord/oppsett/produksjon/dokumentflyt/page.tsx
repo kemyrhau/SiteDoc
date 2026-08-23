@@ -106,6 +106,19 @@ function FaggruppeFargePrikk({ farge }: { farge: string | null }) {
   return <span className={`inline-block h-3 w-3 rounded-full ${bg} shrink-0`} />;
 }
 
+/**
+ * Funn 3 (2026-08-22): visuelt skille sjekkliste- vs oppgavemal i flyt-pillene. Skillet bæres av
+ * ikon-FORMEN (S/H-lesbar, jf. arkiv-vedtaket — ikke farge alene); fargen er kun dekor oppå.
+ * Speiler nedtrekkets SJEKKLISTER/OPPGAVER-deling. `aria-label` gir samme skille for skjermleser.
+ */
+function MalKategoriMerke({ category }: { category: string }) {
+  if (category === "sjekkliste")
+    return <ClipboardCheck className="h-3 w-3 shrink-0 text-blue-600" aria-label="Sjekklistemal" />;
+  if (category === "oppgave")
+    return <CheckCircle2 className="h-3 w-3 shrink-0 text-amber-600" aria-label="Oppgavemal" />;
+  return <FileText className="h-3 w-3 shrink-0 text-gray-400" aria-label="Mal" />;
+}
+
 /* ------------------------------------------------------------------ */
 /*  NyDokumentflytKnapp                                                */
 /* ------------------------------------------------------------------ */
@@ -336,6 +349,7 @@ function DokumentflytKort({
               className="group/mal inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-500"
               title={t("handling.fjern")}
             >
+              <MalKategoriMerke category={m.template.category} />
               {m.template.name}
               <X className="h-3 w-3 opacity-0 group-hover/mal:opacity-100" />
             </button>
@@ -345,6 +359,7 @@ function DokumentflytKort({
               key={m.template.id}
               className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500"
             >
+              <MalKategoriMerke category={m.template.category} />
               {m.template.name}
             </span>
           ),
