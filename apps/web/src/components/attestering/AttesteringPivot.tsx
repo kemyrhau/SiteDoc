@@ -22,10 +22,37 @@ import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@sitedoc/ui";
 import { Check, ChevronDown, ChevronRight, TriangleAlert } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
+import {
+  DagsKort,
+  HoverKort,
+  harKortInnhold,
+  useKatalogNavn,
+  type KatalogNavn,
+} from "./DagsKort";
 
 /* ------------------------------------------------------------------ */
 /*  Typer (strukturelt kompatible med AttesteringRad i page.tsx)        */
 /* ------------------------------------------------------------------ */
+
+export type PivotTimerRad = {
+  /** SheetTimer.id — maskinrader nøstes hit via sheetTimerId. */
+  id: string;
+  projectId: string;
+  timer: number;
+  aktivitetId: string;
+  lonnsartId: string;
+  beskrivelse: string | null;
+};
+
+export type PivotMaskinRad = {
+  vehicleId: string;
+  /** Kobling til timerraden maskinen ble ført med (nøsting). null = uten timerrad. */
+  sheetTimerId: string | null;
+  timer: number;
+  mengde: number | null;
+  enhet: string | null;
+};
 
 export type PivotRad = {
   id: string;
@@ -40,7 +67,10 @@ export type PivotRad = {
   } | null;
   ansatt: { id: string; name: string | null; email: string } | null;
   prosjekt: { id: string; name: string; internalProjectNumber: string | null } | null;
-  timer: { projectId: string; timer: number | string }[];
+  timer: PivotTimerRad[];
+  // Dagskort: maskinrader (nøstes under timerrad via sheetTimerId) + T.11-flagg.
+  maskiner: PivotMaskinRad[];
+  manglerMaskinforerbevis: boolean;
 };
 
 /** Uke-nivå avvik (D2): misforhold mellom FØRT og BEREGNET overtid — ikke
@@ -133,6 +163,47 @@ function TallCelle({
   );
 }
 
+/** Celle som representerer ÉN dagsseddel (én ansatt, én dag). Som TallCelle,
+ *  men med dagskort-hover når sedelen har beskrivelse eller maskinarbeid.
+ *  Klikk på tallet går fortsatt til sedel-detaljen. */
+function SeddelCelle({
+  seddel,
+  erHelg,
+  onAapneSedel,
+  katalog,
+}: {
+  seddel: PivotRad | undefined;
+  erHelg: boolean;
+  onAapneSedel: (sheetId: string) => void;
+  katalog: KatalogNavn;
+}) {
+  const verdi = seddel?.totaltimer ?? 0;
+  const innhold = fmt(verdi);
+  const base = `px-2 py-1 text-right font-mono text-xs tabular-nums ${
+    erHelg ? "bg-gray-50" : ""
+  }`;
+  if (!seddel || innhold === "") {
+    return <td className={`${base} text-gray-400`}>{innhold || "·"}</td>;
+  }
+  const kort = harKortInnhold(seddel) ? (
+    <DagsKort seddel={seddel} katalog={katalog} />
+  ) : null;
+  return (
+    <td className={base}>
+      <span className="flex justify-end">
+        <HoverKort kort={kort}>
+          <button
+            onClick={() => onAapneSedel(seddel.id)}
+            className="rounded px-1 text-right text-gray-900 hover:bg-blue-50 hover:text-blue-700"
+          >
+            {innhold}
+          </button>
+        </HoverKort>
+      </span>
+    </td>
+  );
+}
+
 /* ================================================================== */
 /*  Per prosjekt                                                        */
 /* ================================================================== */
@@ -155,6 +226,8 @@ export function ProsjektPivot({
   readOnly: boolean;
 }) {
   const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const katalog = useKatalogNavn(valgtFirma?.id);
   const dager = useMemo(() => byggUkedager(ukestart), [ukestart]);
   const [apneProsjekt, setApneProsjekt] = useState<Set<string>>(new Set());
 
@@ -266,11 +339,12 @@ export function ProsjektPivot({
                           {a.navn}
                         </td>
                         {aDag.map((s, i) => (
-                          <TallCelle
+                          <SeddelCelle
                             key={i}
-                            verdi={s?.totaltimer ?? 0}
+                            seddel={s}
                             erHelg={dager[i]?.erHelg ?? false}
-                            onClick={s ? () => onAapneSedel(s.id) : undefined}
+                            onAapneSedel={onAapneSedel}
+                            katalog={katalog}
                           />
                         ))}
                         <td className="px-3 py-1 text-right font-mono text-xs tabular-nums">
@@ -315,6 +389,8 @@ export function AnsattPivot({
   readOnly: boolean;
 }) {
   const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const katalog = useKatalogNavn(valgtFirma?.id);
   const dager = useMemo(() => byggUkedager(ukestart), [ukestart]);
   const [apenAnsatt, setApenAnsatt] = useState<Set<string>>(new Set());
 
@@ -398,11 +474,12 @@ export function AnsattPivot({
                     </button>
                   </th>
                   {aDag.map((s, i) => (
-                    <TallCelle
+                    <SeddelCelle
                       key={i}
-                      verdi={s?.totaltimer ?? 0}
+                      seddel={s}
                       erHelg={dager[i]?.erHelg ?? false}
-                      onClick={s ? () => onAapneSedel(s.id) : undefined}
+                      onAapneSedel={onAapneSedel}
+                      katalog={katalog}
                     />
                   ))}
                   <td className="px-3 py-1.5 text-right font-mono text-xs font-semibold tabular-nums text-gray-900">

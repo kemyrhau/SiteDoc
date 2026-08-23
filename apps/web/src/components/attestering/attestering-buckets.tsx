@@ -32,6 +32,9 @@ export type TimerRad = {
   byggeplassId: string | null;
   fraTid: string | null;
   tilTid: string | null;
+  // T.12: fritekst per rad («hva jeg gjorde»). Følger med i payloaden
+  // (hentTilAttesteringFirma bruker include uten select). Kjernen i dagskortet.
+  beskrivelse: string | null;
   timer: unknown;
   attestertStatus: string | null;
   project?: RadProsjekt;
@@ -50,6 +53,10 @@ export type TilleggRad = {
 export type MaskinRad = {
   id: string;
   vehicleId: string;
+  // Del B pkt 1: svak FK → sheet_timer.id. Kobler maskinraden til timerraden
+  // den ble ført med — dagskortet nøster maskin under sin timerrad via denne.
+  // null = ført før koblingen fantes → «Maskin uten timerad».
+  sheetTimerId: string | null;
   projectId: string;
   // T7-4d (2026-05-16): ECO på maskin-rad.
   externalCostObjectId: string | null;

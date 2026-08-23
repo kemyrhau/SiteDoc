@@ -131,9 +131,25 @@ function tilPivotRad(r: AttesteringRad): PivotRad {
       ? { id: r.ansatt.id, name: r.ansatt.name, email: r.ansatt.email }
       : null,
     prosjekt: r.prosjekt,
-    // TimerRad.timer er `unknown` (Decimal serialisert som tall/streng);
-    // pivoten konsumerer via Number(), så vi normaliserer til number her.
-    timer: r.timer.map((rad) => ({ projectId: rad.projectId, timer: Number(rad.timer) })),
+    // TimerRad.timer/MaskinRad.timer/mengde er `unknown` (Decimal serialisert
+    // som tall/streng); dagskortet + pivoten konsumerer via Number(), så vi
+    // normaliserer her. beskrivelse/sheetTimerId følger med i payloaden.
+    timer: r.timer.map((rad) => ({
+      id: rad.id,
+      projectId: rad.projectId,
+      timer: Number(rad.timer),
+      aktivitetId: rad.aktivitetId,
+      lonnsartId: rad.lonnsartId,
+      beskrivelse: rad.beskrivelse,
+    })),
+    maskiner: r.maskiner.map((m) => ({
+      vehicleId: m.vehicleId,
+      sheetTimerId: m.sheetTimerId,
+      timer: Number(m.timer),
+      mengde: m.mengde === null || m.mengde === undefined ? null : Number(m.mengde),
+      enhet: m.enhet,
+    })),
+    manglerMaskinforerbevis: r.manglerMaskinforerbevis,
   };
 }
 
