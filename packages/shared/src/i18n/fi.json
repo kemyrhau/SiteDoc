@@ -1539,6 +1539,8 @@
   "firma.timer.attesteringBeskrivelse": "Työaikalomakkeet odottavat todistusta projekteista",
   "firma.timer.attesteringIngenFirma": "Valitse yritys ylävalikosta nähdäksesi todistusluettelon.",
   "firma.timer.ingenFirma": "Valitse yritys ylävalikosta nähdäksesi aikamoduulin.",
+  "firma.moduler.ingenFirma": "Valitse yritys ylävalikosta hallitaksesi yritysmoduuleja.",
+  "firma.innstillinger.ingenFirma": "Valitse yritys ylävalikosta nähdäksesi yrityksen asetukset.",
   "firma.timer.visInaktive": "Näytä passiivinen",
   "deaktiver.inaktiv": "Ei-aktiivinen",
   "deaktiver.visInaktive": "Näytä passiivinen ({{antall}})",

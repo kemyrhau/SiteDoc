@@ -1539,6 +1539,8 @@
   "firma.timer.attesteringBeskrivelse": "Foile de pontaj care așteaptă atestarea pentru toate proiectele",
   "firma.timer.attesteringIngenFirma": "Selectați o companie din meniul de sus pentru a vizualiza lista de atestare.",
   "firma.timer.ingenFirma": "Selectați o companie din meniul de sus pentru a vizualiza modulul de timp.",
+  "firma.moduler.ingenFirma": "Selectați o companie din meniul de sus pentru a gestiona modulele companiei.",
+  "firma.innstillinger.ingenFirma": "Selectați o companie din meniul de sus pentru a vedea setările companiei.",
   "firma.timer.visInaktive": "Arată inactiv",
   "deaktiver.inaktiv": "Inactiv",
   "deaktiver.visInaktive": "Afișați inactiv ({{antall}})",

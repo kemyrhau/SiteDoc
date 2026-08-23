@@ -1539,6 +1539,8 @@
   "firma.timer.attesteringBeskrivelse": "Karty czasu pracy oczekujące na zatwierdzenie w ramach projektów",
   "firma.timer.attesteringIngenFirma": "Aby wyświetlić listę atestów, wybierz firmę z górnego menu.",
   "firma.timer.ingenFirma": "Aby wyświetlić moduł czasu, wybierz firmę z górnego menu.",
+  "firma.moduler.ingenFirma": "Wybierz firmę z górnego menu, aby zarządzać modułami firmy.",
+  "firma.innstillinger.ingenFirma": "Wybierz firmę z górnego menu, aby wyświetlić ustawienia firmy.",
   "firma.timer.visInaktive": "Pokaż nieaktywne",
   "deaktiver.inaktiv": "Nieaktywny",
   "deaktiver.visInaktive": "Pokaż nieaktywne ({{antall}})",

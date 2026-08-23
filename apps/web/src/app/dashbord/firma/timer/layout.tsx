@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { IngenFirmaValgt } from "@/components/firma/IngenFirmaValgt";
 
 export default function FirmaTimerLayout({
   children,
@@ -60,10 +60,7 @@ export default function FirmaTimerLayout({
             {t("firma.timer.tittel")}
           </h1>
         </div>
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{t("firma.timer.ingenFirma")}</span>
-        </div>
+        <IngenFirmaValgt tekst={t("firma.timer.ingenFirma")} />
       </div>
     );
   }

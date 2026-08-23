@@ -1539,6 +1539,8 @@
   "firma.timer.attesteringBeskrivelse": "Darba laika uzskaites tabulas, kas gaida atestāciju visos projektos",
   "firma.timer.attesteringIngenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai skatītu atestācijas sarakstu.",
   "firma.timer.ingenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai skatītu laika moduli.",
+  "firma.moduler.ingenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai pārvaldītu uzņēmuma moduļus.",
+  "firma.innstillinger.ingenFirma": "Augšējā izvēlnē atlasiet uzņēmumu, lai skatītu uzņēmuma iestatījumus.",
   "firma.timer.visInaktive": "Rādīt neaktīvu",
   "deaktiver.inaktiv": "Neaktīvs",
   "deaktiver.visInaktive": "Rādīt neaktīvo ({{antall}})",

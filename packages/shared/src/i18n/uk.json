@@ -1539,6 +1539,8 @@
   "firma.timer.attesteringBeskrivelse": "Табель очікування атестації для проектів",
   "firma.timer.attesteringIngenFirma": "Виберіть компанію у верхньому меню, щоб переглянути список атестацій.",
   "firma.timer.ingenFirma": "Виберіть компанію у верхньому меню, щоб переглянути часовий модуль.",
+  "firma.moduler.ingenFirma": "Виберіть компанію у верхньому меню, щоб керувати модулями компанії.",
+  "firma.innstillinger.ingenFirma": "Виберіть компанію у верхньому меню, щоб переглянути налаштування компанії.",
   "firma.timer.visInaktive": "Показати неактивний",
   "deaktiver.inaktiv": "Неактивний",
   "deaktiver.visInaktive": "Показати неактивні ({{antall}})",

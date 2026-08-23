@@ -1539,6 +1539,8 @@
   "firma.timer.attesteringBeskrivelse": "Töötunnitabelid ootavad atesteerimist kõigi projektide lõikes",
   "firma.timer.attesteringIngenFirma": "Atesteerimisnimekirja vaatamiseks valige ülemisest menüüst ettevõte.",
   "firma.timer.ingenFirma": "Ajamooduli vaatamiseks valige ülemisest menüüst ettevõte.",
+  "firma.moduler.ingenFirma": "Ettevõtte moodulite haldamiseks valige ülemisest menüüst ettevõte.",
+  "firma.innstillinger.ingenFirma": "Ettevõtte seadete vaatamiseks valige ülemisest menüüst ettevõte.",
   "firma.timer.visInaktive": "Kuva passiivne",
   "deaktiver.inaktiv": "Mitteaktiivne",
   "deaktiver.visInaktive": "Kuva passiivne ({{antall}})",

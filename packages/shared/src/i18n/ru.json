@@ -1539,6 +1539,8 @@
   "firma.timer.attesteringBeskrivelse": "Таблицы учета рабочего времени, ожидающие аттестации по проектам",
   "firma.timer.attesteringIngenFirma": "Выберите компанию в верхнем меню, чтобы просмотреть список аттестатов.",
   "firma.timer.ingenFirma": "Выберите компанию в верхнем меню, чтобы просмотреть модуль времени.",
+  "firma.moduler.ingenFirma": "Выберите компанию в верхнем меню, чтобы управлять модулями компании.",
+  "firma.innstillinger.ingenFirma": "Выберите компанию в верхнем меню, чтобы просмотреть настройки компании.",
   "firma.timer.visInaktive": "Показать неактивное",
   "deaktiver.inaktiv": "Неактивный",
   "deaktiver.visInaktive": "Показать неактивное ({{antall}})",
