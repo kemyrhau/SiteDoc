@@ -30,6 +30,14 @@ import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
 import type { MaskinRad, TilleggRad, TimerRad } from "./attestering-buckets";
+import {
+  DagsKort,
+  HoverKort,
+  harKortInnhold,
+  tilPivotRad,
+  type KatalogNavn,
+  type RaaUtlegg,
+} from "./DagsKort";
 
 type SplittAktiv =
   | { radType: "timer"; original: TimerRad }
@@ -58,6 +66,9 @@ export type SeddelKortData = {
   timer: TimerRad[];
   tillegg: TilleggRad[];
   maskiner: MaskinRad[];
+  // Dagskort (hover fra navnet): utlegg registrert samme dag (beløp +
+  // kategorinavn, ingen vedlegg). Følger med i hentTilAttesteringFirma-payloaden.
+  utlegg: RaaUtlegg[];
   // T.11: true når sedel har maskinarbeid og eier mangler gyldig
   // maskinførerbevis. Leder-synlighet — aldri blokkerende.
   manglerMaskinforerbevis: boolean;
@@ -246,6 +257,20 @@ export function SeddelKort({
 
   const ansattNavn = sedel.ansatt?.name ?? sedel.ansatt?.email ?? "—";
 
+  // Dagskort som tredje inngang (navnet) — samme kort som pivotenes celler.
+  // Her mapper navnet 1:1 til én sedel (én person, én dag), så semantikken er
+  // uendret. Gjenbruker kortets eksisterende navn-resolvere (ingen ekstra query).
+  const dagskortKatalog: KatalogNavn = {
+    lonnsartNavn,
+    aktivitetNavn,
+    maskinNavn,
+    tilleggNavn,
+  };
+  const dagskortSedel = tilPivotRad(sedel);
+  const dagskortNode = harKortInnhold(dagskortSedel) ? (
+    <DagsKort seddel={dagskortSedel} katalog={dagskortKatalog} />
+  ) : null;
+
   function toggleExpanded() {
     setExpanded((o) => !o);
   }
@@ -284,8 +309,11 @@ export function SeddelKort({
           {initialer(sedel.ansatt?.name ?? null, sedel.ansatt?.email)}
         </div>
 
-        {/* Navn + ansattnr */}
-        <span className="text-sm font-medium text-gray-900">{ansattNavn}</span>
+        {/* Navn + ansattnr. Navnet er tredje inngang til dagskortet (hover +
+            utvidelsesikon). Klikk på navnet bobler fortsatt til header-toggle. */}
+        <HoverKort kort={dagskortNode}>
+          <span className="text-sm font-medium text-gray-900">{ansattNavn}</span>
+        </HoverKort>
         {sedel.ansatt?.ansattnummer && (
           <span className="text-xs text-gray-500">
             #{sedel.ansatt.ansattnummer}

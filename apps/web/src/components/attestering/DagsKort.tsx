@@ -22,11 +22,86 @@ import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import type { PivotRad, PivotMaskinRad } from "./AttesteringPivot";
+import type { TimerRad, MaskinRad, TilleggRad } from "./attestering-buckets";
 
 const nbTall = new Intl.NumberFormat("nb-NO", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
+/* ------------------------------------------------------------------ */
+/*  Mapper: rå sedel (hentTilAttesteringFirma) → PivotRad             */
+/*  Delt kilde for pivotene (page.tsx) OG Sedler-lista (SeddelKort),   */
+/*  så mappingen ikke drifter mellom flatene (SAMARBEIDSREGLER-        */
+/*  advarselen om cast-lekkasje). Decimal-felt (`unknown`) → Number.   */
+/* ------------------------------------------------------------------ */
+
+export type RaaUtlegg = {
+  belop: unknown;
+  kommentar: string | null;
+  expenseCategory: { navn: string } | null;
+};
+
+/** Strukturelt minimum dagskortet trenger. ukenorm/overtidsgrunnlag/prosjekt
+ *  brukes ikke av kortet (kun av pivotenes norm-kolonne) → valgfrie her, så
+ *  SeddelKortData (uten dem) også kan mappes. */
+export type RaaSedel = {
+  id: string;
+  dato: Date | string;
+  totaltimer: number;
+  ukenorm?: number;
+  overtidsgrunnlag?: PivotRad["overtidsgrunnlag"];
+  ansatt: { id: string; name: string | null; email: string } | null;
+  prosjekt?: PivotRad["prosjekt"];
+  timer: TimerRad[];
+  maskiner: MaskinRad[];
+  tillegg: TilleggRad[];
+  utlegg: RaaUtlegg[];
+  manglerMaskinforerbevis: boolean;
+};
+
+const tallEllerNull = (v: unknown): number | null =>
+  v === null || v === undefined ? null : Number(v);
+
+export function tilPivotRad(r: RaaSedel): PivotRad {
+  return {
+    id: r.id,
+    dato: r.dato,
+    totaltimer: r.totaltimer,
+    ukenorm: r.ukenorm ?? 0,
+    overtidsgrunnlag: r.overtidsgrunnlag ?? null,
+    ansatt: r.ansatt
+      ? { id: r.ansatt.id, name: r.ansatt.name, email: r.ansatt.email }
+      : null,
+    prosjekt: r.prosjekt ?? null,
+    timer: r.timer.map((rad) => ({
+      id: rad.id,
+      projectId: rad.projectId,
+      timer: Number(rad.timer),
+      aktivitetId: rad.aktivitetId,
+      lonnsartId: rad.lonnsartId,
+      beskrivelse: rad.beskrivelse,
+    })),
+    maskiner: r.maskiner.map((m) => ({
+      vehicleId: m.vehicleId,
+      sheetTimerId: m.sheetTimerId,
+      timer: Number(m.timer),
+      mengde: tallEllerNull(m.mengde),
+      enhet: m.enhet,
+    })),
+    tillegg: r.tillegg.map((tl) => ({
+      tilleggId: tl.tilleggId,
+      antall: Number(tl.antall),
+      kommentar: tl.kommentar,
+    })),
+    utlegg: r.utlegg.map((u) => ({
+      kategoriNavn: u.expenseCategory?.navn ?? null,
+      belop: tallEllerNull(u.belop),
+      kommentar: u.kommentar,
+    })),
+    manglerMaskinforerbevis: r.manglerMaskinforerbevis,
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Katalog-navn — org-scopet oppslag (ett kall, delt via query-cache) */
@@ -361,7 +436,12 @@ export function HoverKort({
       {children}
       <button
         type="button"
-        onClick={() => setPinnet((p) => !p)}
+        onClick={(e) => {
+          // Stopp bobling: i SeddelKort ligger ikonet inni en klikkbar header
+          // (toggle expand) — pin-klikket skal ikke også utløse den.
+          e.stopPropagation();
+          setPinnet((p) => !p);
+        }}
         aria-label={t("timer.attestering.dagskort.visDetaljer")}
         aria-expanded={vis}
         className="shrink-0 rounded p-0.5 text-gray-300 hover:text-blue-600"
