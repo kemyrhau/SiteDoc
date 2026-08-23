@@ -37,6 +37,10 @@
  *   · Per Berg      — 37,5 t, alt normaltid           → intet avvik (ren norm)
  *   Alle sedler status «sent» → havner i «Venter på attestering»-fanen.
  *
+ * I tillegg: Turid Lie (firma_admin i demo-orgen, ingen dagsedler). Kenneth
+ * impersonerer henne og tar D3-bildene som VANLIG firmabruker — ikke
+ * sitedoc_admin, som er cross-org-veien bf2bf475 nettopp rettet.
+ *
  * @sitedoc/db-timer importeres relativt (db avhenger ikke av db-timer i
  * package.json — bevisst, jf. «modul-tabeller aldri i packages/db»). Scriptet
  * er dev/test-verktøy, ikke runtime, så relativ import er akseptabelt her.
@@ -103,6 +107,16 @@ const ANSATTE = [
   { key: "KARI", navn: "Kari Hansen", email: "kari.hansen@demo-timer.test", ansattnummer: "102" },
   { key: "PER", navn: "Per Berg", email: "per.berg@demo-timer.test", ansattnummer: "103" },
 ] as const;
+
+// Attestant: firma-admin i demo-orgen — IKKE en ansatt med dagsedler. Kenneth
+// impersonerer henne for D3-skjermbildene (fabel: bilder skal tas som VANLIG
+// firmabruker, ikke sitedoc_admin). firmaRoller ["firma_admin"] er nøyaktig det
+// kanAttestereFirma → autoriserAdminForFirma slipper gjennom (utenom sitedoc_admin).
+const ATTESTANT = {
+  navn: "Turid Lie",
+  email: "turid.lie@demo-timer.test",
+  ansattnummer: "200",
+} as const;
 
 const LONNSARTER = [
   { key: "NORM", navn: "Normaltid", kode: "100", overtidsnivaa: null as number | null, erStandardvalg: true },
@@ -245,8 +259,41 @@ async function seedKjerne(): Promise<{
     });
   }
 
+  // Attestant (firma_admin) — egen bruker uten dagsedler. firmaRoller settes i
+  // BÅDE create og update, så en tidligere kjøring uten rollen rettes ved re-run.
+  const attestant = await prisma.user.upsert({
+    where: { email: ATTESTANT.email },
+    update: { name: ATTESTANT.navn },
+    create: { email: ATTESTANT.email, name: ATTESTANT.navn, role: "user" },
+  });
+  const attestantMedlem = await prisma.organizationMember.upsert({
+    where: { userId_organizationId: { userId: attestant.id, organizationId: orgId } },
+    update: { ansattnummer: ATTESTANT.ansattnummer, firmaRoller: ["firma_admin"] },
+    create: {
+      userId: attestant.id,
+      organizationId: orgId,
+      ansattnummer: ATTESTANT.ansattnummer,
+      firmaRoller: ["firma_admin"],
+    },
+  });
+
+  // Selv-verifikasjon av gaten: attestanten MÅ ha firma_admin i demo-orgen,
+  // ellers ser hun tom side. Speiler autoriserAdminForFirma → erFirmaAdmin
+  // (firmaRoller.includes("firma_admin")). Avbryt høylytt hvis premisset brister.
+  const harFirmaAdmin = attestantMedlem.firmaRoller.includes("firma_admin");
   console.log(
-    `Kjerne: org «${ORG_NAVN}» (${orgId}), ${PROSJEKTER.length} prosjekter, ${ANSATTE.length} ansatte.`,
+    `Attestant: ${ATTESTANT.navn} <${ATTESTANT.email}> — firma_admin=${harFirmaAdmin} ` +
+      `⇒ kanAttestere(${ORG_NAVN})=${harFirmaAdmin}.`,
+  );
+  if (!harFirmaAdmin) {
+    throw new Error(
+      `Attestant mangler firma_admin i demo-orgen — kanAttestere ville blitt false.`,
+    );
+  }
+
+  console.log(
+    `Kjerne: org «${ORG_NAVN}» (${orgId}), ${PROSJEKTER.length} prosjekter, ` +
+      `${ANSATTE.length} ansatte + 1 attestant.`,
   );
   return { orgId, prosjektIder, ansattIder };
 }
@@ -366,7 +413,11 @@ async function main(): Promise<void> {
   await seedDagsedler(orgId, prosjektIder, ansattIder, lonnsartIder, aktivitetId);
 
   console.log("\nFerdig.");
-  console.log(`Firma i firma-velgeren: «${ORG_NAVN}» (erKunde=true → synlig for sitedoc_admin).`);
+  console.log(`Firma: «${ORG_NAVN}» (erKunde=true → synlig i firma-velgeren).`);
+  console.log(
+    `📸 Ta D3-bildene som VANLIG firmabruker: impersoner «${ATTESTANT.navn}» ` +
+      `<${ATTESTANT.email}> (firma_admin) — ikke sitedoc_admin.`,
+  );
   console.log("Gå til: Firma → Timer → Attestering. Fanen «Venter på attestering».");
   console.log("  · Visningsvelger «Per prosjekt» + «Per ansatt» (norm-kolonne).");
   console.log("  · Ola Nordmann: +4,5 t over norm · Kari Hansen: overtid ført under norm · Per Berg: ingen avvik.");
