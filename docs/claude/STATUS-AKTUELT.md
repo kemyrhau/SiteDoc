@@ -8,9 +8,16 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `fix/timer-layout-uten-firma` | Fem firma-flater som låste seg når ingen firma var valgt (timer-layout, moduler, innstillinger = dead-ends · prosjekter, kompetanse = usanne tom-states). Delt `IngenFirmaValgt`-komponent for ordlyd/stil; guard-logikken per side | Merge + verifisering |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/attestering-navigasjon-ekspander` | URL-tilstand (visning · uke · fane), kollaps/utvid alle, «Krever vurdering» (B ∪ C), manuelle toggles overlever re-fetch. Rebaset og klar (`05812fd4`) | Merge + Kenneths visuelle verifisering. `fix/mobil-uploadasync-0byte` parkert til simulator |
-| **simulator** | `SiteDoc-simulator` | detached `origin/develop` | Kjører kontrollplans protokoll: opplasting (3 uri-tilfeller) · mobil tegningsvisning · delt periodefilter | Protokollen fra kontrollplan |
+| **simulator** | `SiteDoc-simulator` | `fix/mobil-uploadasync-0byte` + detached `origin/develop` | 🔴 **ENESTE AKTIVE SPOR.** Kjører kontrollplans protokoll: opplasting (4 krav-tilfeller, PDF viktigst) · mobil tegningsvisning · delt periodefilter | Å bli åpnet |
+| **dokgen** | `SiteDoc-dokgen` | — | Ledig. Siste: fem firma-guarder + dagskort-utvidelser, alt merget | Ny ordre |
+| **kontrollplan** | `SiteDoc-kontrollplan` | — | Ledig. Siste: URL-tilstand + ekspandere, merget. Pdf-køen (fold D2/D3 → `renderFelt` · H1 · H8 · oppgave-PDF · H3/H5-rest) står bak simulator-runden | Simulator-grønt |
+
+**✅ TIMER-SPORET LUKKET 2026-08-24.** Fabels designgate på D3 bestått skriftlig:
+[gatekvittering-d3-pivot-fabel-2026-08-24.md](../redesign/gatekvittering-d3-pivot-fabel-2026-08-24.md).
+Rettecommiten for småfeilene er `5b104725` (verifisert i develop med `merge-base`).
+Levert i samme runde: D3-pivotene, norm-kolonne med union-avvik, dagskort-hover med
+tillegg/utlegg og tre innganger, URL-båret retur-navigasjon, kollaps/utvid alle,
+«Krever vurdering» med auto-utvidede avvikssedler, og fem firma-guarder.
 
 **Lukket 2026-08-23:** `mobil-device`-raden. `feat/mobil-arkiv-pdf` er merget (verifisert med
 `merge-base --is-ancestor`); raden sto åpen på arbeid som lå i develop. Samme feilklasse som
