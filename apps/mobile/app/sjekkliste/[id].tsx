@@ -1087,7 +1087,17 @@ export default function SjekklisteUtfylling() {
                       setOpprettOppgaveFeltId(objekt.id);
                       setOpprettOppgaveFeltLabel(objekt.label);
                       setOpprettOppgaveKategori("oppgave");
-                      setOpprettOppgavePosisjon(null);
+                      // 🔴 Lokasjonsarv: hardkodet null før → oppgave fra vanlig felt arvet aldri
+                      // dokumentets lokasjon. Nå samme dokument-fallback som rad-stien (modalen
+                      // krever fullt punkt: drawingId + x + y).
+                      const d = sjekklisteDetalj?.drawingId ?? null;
+                      const x = sjekklisteDetalj?.positionX ?? null;
+                      const y = sjekklisteDetalj?.positionY ?? null;
+                      setOpprettOppgavePosisjon(
+                        d && x != null && y != null
+                          ? { drawingId: d, byggeplassId: sjekklisteDetalj?.byggeplass?.id ?? null, x, y }
+                          : null,
+                      );
                     }
               }
               onNavigerTilOppgave={(oppgaveId) => router.push(`/oppgave/${oppgaveId}`)}

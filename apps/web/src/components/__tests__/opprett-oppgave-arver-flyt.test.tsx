@@ -113,4 +113,22 @@ describe("OpprettOppgaveModal — oppgaven arver sjekklistens dokumentflyt (steg
     expect(mutate).toHaveBeenCalledTimes(1);
     expect(mutate.mock.calls[0]![0]).toMatchObject({ templateId: "m1", dokumentflytId: "flyt-A" });
   });
+
+  it("🔴 lokasjonsarv: forhandsPosisjon → mutate sender drawingId + positionX + positionY", () => {
+    render(
+      <OpprettOppgaveModal
+        {...baseProps}
+        sjekklisteFlytId="flyt-A"
+        forhandsPosisjon={{ drawingId: "d-1", positionX: 19.4, positionY: 73.7 }}
+      />,
+    );
+    fireEvent.click(screen.getByText("Opprett oppgave"));
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(mutate.mock.calls[0]![0]).toMatchObject({
+      drawingId: "d-1",
+      positionX: 19.4,
+      positionY: 73.7,
+    });
+  });
 });
