@@ -44,6 +44,16 @@ type Ansatt = {
   avdelingId: string | null;
 };
 
+// Utlegg-rad slik dagskortet trenger den: beløp + kategorinavn (server-include).
+// Vedlegg utelates bevisst (private/signeringskrevende). `belop` er Decimal
+// serialisert (unknown → Number ved mapping).
+type UtleggRad = {
+  id: string;
+  belop: unknown;
+  kommentar: string | null;
+  expenseCategory: { navn: string } | null;
+};
+
 type AttesteringRad = {
   id: string;
   dato: Date | string;
@@ -63,6 +73,8 @@ type AttesteringRad = {
   timer: TimerRad[];
   tillegg: TilleggRad[];
   maskiner: MaskinRad[];
+  // Dagskort: utlegg (beløp + kategorinavn via server-include; INGEN vedlegg).
+  utlegg: UtleggRad[];
   // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
   manglerMaskinforerbevis: boolean;
   // ORDRE 2 STEG 1/2: server-avledet overtidsgrunnlag (dag-nivå) + ukenorm.
@@ -148,6 +160,16 @@ function tilPivotRad(r: AttesteringRad): PivotRad {
       timer: Number(m.timer),
       mengde: m.mengde === null || m.mengde === undefined ? null : Number(m.mengde),
       enhet: m.enhet,
+    })),
+    tillegg: r.tillegg.map((tl) => ({
+      tilleggId: tl.tilleggId,
+      antall: Number(tl.antall),
+      kommentar: tl.kommentar,
+    })),
+    utlegg: r.utlegg.map((u) => ({
+      kategoriNavn: u.expenseCategory?.navn ?? null,
+      belop: u.belop === null || u.belop === undefined ? null : Number(u.belop),
+      kommentar: u.kommentar,
     })),
     manglerMaskinforerbevis: r.manglerMaskinforerbevis,
   };

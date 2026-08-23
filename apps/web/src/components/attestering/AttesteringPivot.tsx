@@ -54,6 +54,19 @@ export type PivotMaskinRad = {
   enhet: string | null;
 };
 
+export type PivotTilleggRad = {
+  tilleggId: string;
+  antall: number;
+  kommentar: string | null;
+};
+
+export type PivotUtleggRad = {
+  /** Kategorinavn fra server-include (ingen katalog-oppslag på klient). */
+  kategoriNavn: string | null;
+  belop: number | null;
+  kommentar: string | null;
+};
+
 export type PivotRad = {
   id: string;
   dato: Date | string;
@@ -70,6 +83,9 @@ export type PivotRad = {
   timer: PivotTimerRad[];
   // Dagskort: maskinrader (nøstes under timerrad via sheetTimerId) + T.11-flagg.
   maskiner: PivotMaskinRad[];
+  // Dagskort: tillegg + utlegg registrert samme dag («ett kort» = alt).
+  tillegg: PivotTilleggRad[];
+  utlegg: PivotUtleggRad[];
   manglerMaskinforerbevis: boolean;
 };
 

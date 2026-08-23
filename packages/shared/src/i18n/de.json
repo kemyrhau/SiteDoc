@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Tagesdetails anzeigen",
   "timer.attestering.dagskort.manglerBevis": "Fehlendes Betreiberzertifikat",
   "timer.attestering.dagskort.maskinUtenTimerad": "Maschine ohne Zeiteintrag",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h über der Norm",
   "timer.attestering.pivot.avvikUnder": "Überstunden werden gemäß Norm protokolliert",

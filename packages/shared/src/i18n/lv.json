@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Rādīt dienas informāciju",
   "timer.attestering.dagskort.manglerBevis": "Trūkst operatora sertifikāta",
   "timer.attestering.dagskort.maskinUtenTimerad": "Mašīna bez laika ieraksta",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h virs normas",
   "timer.attestering.pivot.avvikUnder": "virsstundas reģistrētas zem normas",

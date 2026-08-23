@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Visa detaljer om dagen",
   "timer.attestering.dagskort.manglerBevis": "Operatörscertifikat saknas",
   "timer.attestering.dagskort.maskinUtenTimerad": "Maskin utan tidsangivelse",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h över norm",
   "timer.attestering.pivot.avvikUnder": "övertid loggas enligt norm",

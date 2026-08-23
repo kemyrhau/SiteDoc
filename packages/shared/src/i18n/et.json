@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Näita päeva üksikasju",
   "timer.attestering.dagskort.manglerBevis": "Operaatori sertifikaat puudub",
   "timer.attestering.dagskort.maskinUtenTimerad": "Masin ilma aja sisestuseta",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h üle normi",
   "timer.attestering.pivot.avvikUnder": "ületunnitöö normi piires",

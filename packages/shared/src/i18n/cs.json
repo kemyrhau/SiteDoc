@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Zobrazit podrobnosti dne",
   "timer.attestering.dagskort.manglerBevis": "Chybí certifikát operátora",
   "timer.attestering.dagskort.maskinUtenTimerad": "Stroj bez zadání času",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h nad normou",
   "timer.attestering.pivot.avvikUnder": "přesčas přihlášený pod norm",

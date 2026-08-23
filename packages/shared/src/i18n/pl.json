@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Pokaż szczegóły dnia",
   "timer.attestering.dagskort.manglerBevis": "Brak certyfikatu operatora",
   "timer.attestering.dagskort.maskinUtenTimerad": "Maszyna bez wpisu czasu",
+  "timer.attestering.dagskort.kr": "NOK {{belop}}",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} h powyżej normy",
   "timer.attestering.pivot.avvikUnder": "nadgodziny rejestrowane w ramach normy",

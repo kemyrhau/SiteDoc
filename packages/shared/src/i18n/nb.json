@@ -489,6 +489,7 @@
   "timer.attestering.dagskort.visDetaljer": "Vis dagsdetaljer",
   "timer.attestering.dagskort.manglerBevis": "Mangler maskinførerbevis",
   "timer.attestering.dagskort.maskinUtenTimerad": "Maskin uten timerad",
+  "timer.attestering.dagskort.kr": "{{belop}} kr",
   "timer.attestering.dagskort.ukjent": "—",
   "timer.attestering.pivot.avvikOver": "+{{timer}} t over norm",
   "timer.attestering.pivot.avvikUnder": "overtid ført under norm",

@@ -2423,6 +2423,14 @@ export const dagsseddelRouter = router({
           },
           tillegg: { where: { attestertStatus: { not: "erstattet" } } },
           maskiner: { where: { attestertStatus: { not: "erstattet" } } },
+          // Dagskortet viser «alt registrert den dagen» → utlegg med. KUN
+          // beløp + kategorinavn — IKKE vedlegg: de er private og krever
+          // signering per URL (signerHvisPrivat), unødig kost + eksponerings-
+          // flate i en uke-liste. Vedlegg ses i detaljen. SheetUtlegg har ingen
+          // attestertStatus (ingen rediger-erstatt-modell) → intet erstattet-filter.
+          utlegg: {
+            include: { expenseCategory: { select: { navn: true } } },
+          },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
