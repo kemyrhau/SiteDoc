@@ -2266,6 +2266,10 @@
   "lokasjoner.trykkPaaTegning": "Kliknij rysunek, aby umieścić znacznik",
   "lokasjoner.skjulOppgaver": "Ukryj poprzednie zadania",
   "lokasjoner.visOppgaver": "Pokaż poprzednie zadania",
+  "lokasjoner.filter": "Filtr",
+  "lokasjoner.lag.oppgaver": "Zadania",
+  "lokasjoner.lag.kontrollpunkter": "Punkty kontrolne",
+  "lokasjoner.lag.omrader": "Obszary",
   "lokasjoner.henterData": "Pobieram dane placu budowy…",
   "dokument.fra": "Z",
   "dokument.til": "Do",
@@ -3562,5 +3566,6 @@
   "periodeFilter.egendefinert": "Zwyczaj",
   "periodeFilter.fra": "Z",
   "periodeFilter.til": "Do",
-  "periodeFilter.ugyldigIntervall": "Od daty jest po dacie"
+  "periodeFilter.ugyldigIntervall": "Od daty jest po dacie",
+  "periodeFilter.velgDato": "Wybierz datę"
 }

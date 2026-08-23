@@ -2266,6 +2266,10 @@
   "lokasjoner.trykkPaaTegning": "Markeri paigutamiseks puudutage joonist",
   "lokasjoner.skjulOppgaver": "Peida eelmised ülesanded",
   "lokasjoner.visOppgaver": "Näita eelnevaid ülesandeid",
+  "lokasjoner.filter": "Filter",
+  "lokasjoner.lag.oppgaver": "Ülesanded",
+  "lokasjoner.lag.kontrollpunkter": "Kontrollpunktid",
+  "lokasjoner.lag.omrader": "Piirkonnad",
   "lokasjoner.henterData": "Ehitusplatsi andmete toomine…",
   "dokument.fra": "Alates",
   "dokument.til": "To",
@@ -3562,5 +3566,6 @@
   "periodeFilter.egendefinert": "Kohandatud",
   "periodeFilter.fra": "Alates",
   "periodeFilter.til": "To",
-  "periodeFilter.ugyldigIntervall": "Alates kuupäevast on hilisem"
+  "periodeFilter.ugyldigIntervall": "Alates kuupäevast on hilisem",
+  "periodeFilter.velgDato": "Valige kuupäev"
 }

@@ -2266,6 +2266,10 @@
   "lokasjoner.trykkPaaTegning": "Tap on the drawing to place a marker",
   "lokasjoner.skjulOppgaver": "Hide previous tasks",
   "lokasjoner.visOppgaver": "Show previous tasks",
+  "lokasjoner.filter": "Filter",
+  "lokasjoner.lag.oppgaver": "Tasks",
+  "lokasjoner.lag.kontrollpunkter": "Control points",
+  "lokasjoner.lag.omrader": "Areas",
   "lokasjoner.henterData": "Fetching building site data…",
   "dokument.fra": "From",
   "dokument.til": "To",
@@ -3562,5 +3566,6 @@
   "periodeFilter.egendefinert": "Custom",
   "periodeFilter.fra": "From",
   "periodeFilter.til": "To",
-  "periodeFilter.ugyldigIntervall": "From date is after to date"
+  "periodeFilter.ugyldigIntervall": "From date is after to date",
+  "periodeFilter.velgDato": "Select date"
 }

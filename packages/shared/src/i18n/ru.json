@@ -2266,6 +2266,10 @@
   "lokasjoner.trykkPaaTegning": "Нажмите на рисунок, чтобы разместить маркер.",
   "lokasjoner.skjulOppgaver": "Скрыть предыдущие задачи",
   "lokasjoner.visOppgaver": "Показать предыдущие задачи",
+  "lokasjoner.filter": "Фильтр",
+  "lokasjoner.lag.oppgaver": "Задачи",
+  "lokasjoner.lag.kontrollpunkter": "Контрольные точки",
+  "lokasjoner.lag.omrader": "Области",
   "lokasjoner.henterData": "Получение данных о строительной площадке…",
   "dokument.fra": "От",
   "dokument.til": "К",
@@ -3562,5 +3566,6 @@
   "periodeFilter.egendefinert": "Обычай",
   "periodeFilter.fra": "От",
   "periodeFilter.til": "К",
-  "periodeFilter.ugyldigIntervall": "С даты после даты"
+  "periodeFilter.ugyldigIntervall": "С даты после даты",
+  "periodeFilter.velgDato": "Выберите дату"
 }

@@ -2266,6 +2266,10 @@
   "lokasjoner.trykkPaaTegning": "Pieskarieties zīmējumam, lai novietotu marķieri",
   "lokasjoner.skjulOppgaver": "Paslēpt iepriekšējos uzdevumus",
   "lokasjoner.visOppgaver": "Rādīt iepriekšējos uzdevumus",
+  "lokasjoner.filter": "Filtrs",
+  "lokasjoner.lag.oppgaver": "Uzdevumi",
+  "lokasjoner.lag.kontrollpunkter": "Kontroles punkti",
+  "lokasjoner.lag.omrader": "Jomas",
   "lokasjoner.henterData": "Notiek būvlaukuma datu iegūšana…",
   "dokument.fra": "No",
   "dokument.til": "Uz",
@@ -3562,5 +3566,6 @@
   "periodeFilter.egendefinert": "Pielāgots",
   "periodeFilter.fra": "No",
   "periodeFilter.til": "Uz",
-  "periodeFilter.ugyldigIntervall": "No datuma ir pēc datuma"
+  "periodeFilter.ugyldigIntervall": "No datuma ir pēc datuma",
+  "periodeFilter.velgDato": "Izvēlieties datumu"
 }

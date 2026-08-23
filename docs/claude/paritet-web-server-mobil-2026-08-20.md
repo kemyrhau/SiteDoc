@@ -2,7 +2,7 @@
 name: paritet-web-server-mobil-2026-08-20
 description: Paritetskartlegging av handlingsmønster mellom web, server og mobil — 24 avvik, 7 av dem høy alvorlighet. Målt mot kode 2026-08-20.
 sist_verifisert_mot_kode: 2026-08-20
-sist_endret: 2026-08-20
+sist_endret: 2026-08-23
 ---
 
 # Paritet web ↔ server ↔ mobil — 24 avvik (målt 2026-08-20)
@@ -114,6 +114,28 @@ poenget med feltregistrering — gir en rapport uten de punktene rapporten er la
 
 ⚠️ Ikke målt: om mobil *viser* radmarkører satt på web, eller om den også taper dem i
 visning og lokal PDF. Det avgjør om dette er en mangel eller også et datatap. Mål før ordre.
+
+### Tegningsvisning · mobil viste kun oppgavemarkører ✅ LØST (2026-08-23, branch `feat/mobil-tegningsvisning`)
+
+Mobil-lokasjonsfanen (`apps/mobile/app/(tabs)/lokasjoner.tsx`) hentet kun
+`oppgave.hentForTegning`. Web-tegningssiden viser i tillegg **kontrollpunkt-markører**
+(`kontrollplan.hentForTegning`, tilstandsfarget) og **områder** (`omrade.hentForTegning`,
+polygoner), med **lag-brytere** (oppgaver/kontrollpunkter/områder) og et **periodefilter**
+på markørenes `createdAt`/`opprettet`.
+**Fiks:**
+- Delt logikk løftet til `@sitedoc/shared/utils`: `periode.ts` (hurtigvalg-sett + grensematte,
+  enekilde web+mobil, `HURTIGVALG_STANDARD` modul-konstant) og `kontrollplanFremdrift.ts`
+  (`avledPunktTilstand`/`isoUkeRef` → identisk tilstandsfarge som web). Web re-eksporterer begge
+  for bakoverkompat (importørene urørt).
+- Ny RN `PeriodeFilter` (Pressable-chips + DateTimePicker) som konsumerer den delte logikken —
+  ikke en kopi, så settet kan ikke drifte.
+- `TegningsVisning` utvidet: Markør-form `fylt`/`kantFarge` (tilstand + over-frist-rød kant) +
+  ny `omrader`-prop med SVG-polygon-overlay i WebView-en.
+- `lokasjoner.tsx`: to nye queries, tre lag-brytere + periodefilter i et sammenleggbart panel,
+  kontrollpunkt-tap → koblet sjekkliste.
+- Shared-test `periode.test.ts` (+12) låser den delte kontrakten.
+⚠️ **Gjenstår: simulator-verifisering** (docs/claude/simulator-runbook.md § 1) — typecheck 11/11
++ tester grønne, men ikke kjørt på simulator ennå.
 
 ---
 

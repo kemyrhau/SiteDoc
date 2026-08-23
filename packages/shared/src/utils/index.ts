@@ -113,6 +113,30 @@ export {
 export type { Grense, GrenseStatus } from "./grenseSjekk";
 export { grupperMedOverskrift } from "./seksjoner";
 export type { Seksjon } from "./seksjoner";
+export {
+  HURTIGVALG_STANDARD,
+  PERIODE_NOEKKEL,
+  grenserForHurtigvalg,
+  effektiveGrenser,
+  innenforPeriode,
+  erUgyldigIntervall,
+} from "./periode";
+export type { Periode, PeriodeHurtigvalg } from "./periode";
+export {
+  avledSjekklisteFremdrift,
+  avledPunktFremdrift,
+  tellGodkjente,
+  ukerTilFrist,
+  isoUkeRef,
+  avledPunktTilstand,
+  OVER_FRIST_KANT,
+} from "./kontrollplanFremdrift";
+export type {
+  PunktFremdrift,
+  PunktTilstand,
+  TilstandVisning,
+  UkeRef,
+} from "./kontrollplanFremdrift";
 export { perspektivEtikett, utledPerspektiv, kvitteringEtikett } from "./perspektivEtikett";
 export type {
   BadgeVariant,

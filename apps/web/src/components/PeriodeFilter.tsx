@@ -1,22 +1,19 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { type Periode, type PeriodeHurtigvalg, erUgyldigIntervall } from "@/lib/periode";
+import {
+  type Periode,
+  type PeriodeHurtigvalg,
+  erUgyldigIntervall,
+  HURTIGVALG_STANDARD,
+  PERIODE_NOEKKEL,
+} from "@/lib/periode";
 
 /**
  * Delt periodefilter (2026-08-23): i dag · siste uke · siste måned · alle · egendefinert (fra/til).
- * i18n via `periodeFilter.*`. Bygget for tegningssiden; laget delt så Bilder-siden (to hardkodede,
- * norsk-i-JSX-kopier med ulik ordlyd) kan bytte over trivielt senere.
+ * i18n via `periodeFilter.*`. Hurtigvalg-settet + i18n-nøklene bor i @sitedoc/shared (delt med
+ * mobil-RN-varianten) så settet ikke kan drifte mellom flatene.
  */
-const STANDARD_VALG: PeriodeHurtigvalg[] = ["idag", "uke", "mnd", "alle", "egendefinert"];
-const NOEKKEL: Record<PeriodeHurtigvalg, string> = {
-  idag: "periodeFilter.idag",
-  uke: "periodeFilter.sisteUke",
-  mnd: "periodeFilter.sisteMaaned",
-  "3mnd": "periodeFilter.siste3Maaneder",
-  alle: "periodeFilter.alle",
-  egendefinert: "periodeFilter.egendefinert",
-};
 
 /** Date → «yyyy-mm-dd» for <input type="date"> (lokal dato, ikke UTC-forskjøvet). */
 function tilInputVerdi(d: Date | null): string {
@@ -34,7 +31,7 @@ function fraInputVerdi(s: string): Date | null {
 export function PeriodeFilter({
   periode,
   onEndre,
-  valg = STANDARD_VALG,
+  valg = HURTIGVALG_STANDARD,
 }: {
   periode: Periode;
   onEndre: (p: Periode) => void;
@@ -60,7 +57,7 @@ export function PeriodeFilter({
             periode.hurtigvalg === h ? "bg-blue-100 text-blue-700" : "bg-white text-gray-600 hover:bg-gray-100"
           }`}
         >
-          {t(NOEKKEL[h])}
+          {t(PERIODE_NOEKKEL[h])}
         </button>
       ))}
 

@@ -2266,6 +2266,10 @@
   "lokasjoner.trykkPaaTegning": "Tryck på ritningen för att placera en markör",
   "lokasjoner.skjulOppgaver": "Dölj tidigare uppgifter",
   "lokasjoner.visOppgaver": "Visa tidigare uppgifter",
+  "lokasjoner.filter": "Filtrera",
+  "lokasjoner.lag.oppgaver": "Uppgifter",
+  "lokasjoner.lag.kontrollpunkter": "Kontrollpunkter",
+  "lokasjoner.lag.omrader": "Områden",
   "lokasjoner.henterData": "Hämtar byggplatsdata...",
   "dokument.fra": "Från",
   "dokument.til": "Till",
@@ -3562,5 +3566,6 @@
   "periodeFilter.egendefinert": "Beställnings",
   "periodeFilter.fra": "Från",
   "periodeFilter.til": "Till",
-  "periodeFilter.ugyldigIntervall": "Från datum är efter till datum"
+  "periodeFilter.ugyldigIntervall": "Från datum är efter till datum",
+  "periodeFilter.velgDato": "Välj datum"
 }
