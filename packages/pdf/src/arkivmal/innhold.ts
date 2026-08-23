@@ -14,6 +14,7 @@ import { renderFelt } from "../felt";
 import { byggRepeaterTabell } from "./repeater";
 import { byggRadkort, repeaterErRik } from "./radkort";
 import { byggArkivTegningsposisjon } from "./tegningsfelt";
+import { byggInstruksjonsfelt } from "./instruksjonsfelt";
 import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
 
 export function byggInnhold(
@@ -38,6 +39,13 @@ export function byggInnhold(
       // Arkiv-override (D2): tegningsutsnitt via byggTegningPosisjon — felt.ts
       // utelater denne (frosset mobil-sti). Ingen markør/bilde → "".
       html += byggArkivTegningsposisjon(data[objekt.id]?.verdi, config.tegningsOppslag);
+      continue;
+    }
+    // Arkiv-override (F2-rest): info_text/info_image/video/quiz — felt.ts dropper
+    // alle fire (frosset). Quiz-svaret er dokumentasjonsdata (datatap før).
+    const instruksjon = byggInstruksjonsfelt(objekt, data[objekt.id]);
+    if (instruksjon !== null) {
+      html += instruksjon;
       continue;
     }
     html += renderFelt(objekt, data[objekt.id], config);

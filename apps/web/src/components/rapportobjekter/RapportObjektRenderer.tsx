@@ -23,10 +23,23 @@ import { RepeaterObjekt } from "./RepeaterObjekt";
 import { LokasjonObjekt } from "./LokasjonObjekt";
 import { TegningPosisjonObjekt } from "./TegningPosisjonObjekt";
 import { QuizObjekt } from "./QuizObjekt";
+import { InfoTekstObjekt } from "./InfoTekstObjekt";
+import { InfoBildeObjekt } from "./InfoBildeObjekt";
+import { VideoObjekt } from "./VideoObjekt";
 import { UkjentObjekt } from "./UkjentObjekt";
 
-// Display-only typer som ikke wrappes med FeltWrapper/FeltDokumentasjon
-export const DISPLAY_TYPER = new Set(["heading", "subtitle", "location"]);
+// Display-only typer som ikke wrappes med FeltWrapper/FeltDokumentasjon.
+// info_text/info_image/video (F2-rest 2026-08-23): instruksjonsfelt portert fra mobil,
+// rendres som ren visning uten kommentar/vedlegg-tilbehør. Mobil holder video som
+// interaktiv («watched»); web behandler den som ren visning (ordre: «no user value»).
+export const DISPLAY_TYPER = new Set([
+  "heading",
+  "subtitle",
+  "location",
+  "info_text",
+  "info_image",
+  "video",
+]);
 
 // Typer som skjules i utfyllingsmodus (vises kun i print/lesemodus)
 export const SKJULT_I_UTFYLLING = new Set(["location", "drawing_position"]);
@@ -83,6 +96,9 @@ const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   location: LokasjonObjekt,
   drawing_position: TegningPosisjonObjekt,
   quiz: QuizObjekt,
+  info_text: InfoTekstObjekt,
+  info_image: InfoBildeObjekt,
+  video: VideoObjekt,
 };
 
 export function RapportObjektRenderer(props: RapportObjektProps) {
