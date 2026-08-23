@@ -4,8 +4,8 @@
 // Uke-navigasjon, filter-pills, gruppering per prosjekt, kompakt sedel-kort
 // via SeddelKort (T7-4f-3b 2026-05-17 — flat tabell, ikke ProsjektSectionAttest).
 
-import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
@@ -31,6 +31,7 @@ import type {
   TimerRad,
 } from "@/components/attestering/attestering-buckets";
 import { SeddelKort } from "@/components/attestering/SeddelKort";
+import { sedelKreverVurdering } from "@/components/attestering/sedel-vurdering";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -141,12 +142,21 @@ export default function FirmaAttesteringSide() {
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
+  // Retur-navigasjon (2026-08-23): visning/uke/fane leves i URL-en så «Tilbake til
+  // oversikt» fra detaljsiden gjenoppretter konteksten, og en URL kan deles. Ekspandert
+  // rad + scroll bevisst UTELATT — visning + uke er nok til å finne konteksten på ett blikk.
   // ORDRE 2 STEG 2 (D3): visningsvelger — Sedler (dagens) · Per prosjekt · Per ansatt.
-  const [visning, setVisning] = useState<"sedler" | "prosjekt" | "ansatt">(
-    "sedler",
-  );
-  const [ukeOffset, setUkeOffset] = useState(0);
+  const [visning, setVisning] = useState<"sedler" | "prosjekt" | "ansatt">(() => {
+    const v = searchParams.get("visning");
+    return v === "prosjekt" || v === "ansatt" ? v : "sedler";
+  });
+  const [ukeOffset, setUkeOffset] = useState<number>(() => {
+    const u = Number(searchParams.get("uke"));
+    return Number.isInteger(u) ? u : 0;
+  });
   const [valgtProsjektId, setValgtProsjektId] = useState<string>("");
   const [valgtAnsattId, setValgtAnsattId] = useState<string>("");
   const [valgtAvdelingId, setValgtAvdelingId] = useState<string>("");
@@ -154,7 +164,19 @@ export default function FirmaAttesteringSide() {
   const [feil, setFeil] = useState<string | null>(null);
   // T7-5e: fane-toggle mellom venter på attestering ("sent") og attestert
   // ("accepted"). Attestert-fanen er read-only — knapper og redigering skjult.
-  const [aktivFane, setAktivFane] = useState<"sent" | "accepted">("sent");
+  const [aktivFane, setAktivFane] = useState<"sent" | "accepted">(() =>
+    searchParams.get("fane") === "accepted" ? "accepted" : "sent",
+  );
+
+  // Speil visning/uke/fane til URL-en (router.replace — ikke history-push, ikke back).
+  // Én retning: state → URL. Init-lesingen skjer i useState over, så ingen løkke.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    p.set("visning", visning);
+    p.set("uke", String(ukeOffset));
+    p.set("fane", aktivFane);
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+  }, [visning, ukeOffset, aktivFane, pathname, router]);
 
   const ukestart = useMemo(() => getUkestart(ukeOffset), [ukeOffset]);
   const ukeslutt = useMemo(() => getUkeslutt(ukestart), [ukestart]);
@@ -248,6 +270,45 @@ export default function FirmaAttesteringSide() {
     [sentRader, acceptedRader, passererFilter],
   );
 
+  // Ekspander-modell (2026-08-23) løftet til page-nivå så «Kollaps alle»/«Utvid alle»/«Krever
+  // vurdering» styrer alle SeddelKort. To lag så MANUELLE toggles OVERLEVER en re-fetch: å
+  // attestere ÉN sedel skal ikke kollapse en annen brukeren har åpnet (samme tapte kontekst som
+  // «Tilbake til oversikt» fikset; attestering er hyppigste handling).
+  //  - `baseModus`: hva knappene setter (standard = krever-vurdering / alle / ingen).
+  //  - `overstyringer`: per-sedel bruker-toggles OPPÅ basen, sheet-id-nøklet → persisterer på
+  //    tvers av re-fetch. Basen leses LIVE fra gjeldende data, så urørte/nye sedler følger den.
+  //  - Hver knapp nullstiller overstyringene (bulk-reset). «Kollaps alle» nullstiller begge lag.
+  const [baseModus, setBaseModus] = useState<"standard" | "alle" | "ingen">("standard");
+  const [overstyringer, setOverstyringer] = useState<Map<string, boolean>>(new Map());
+  const erApen = useCallback(
+    (s: AttesteringRad): boolean => {
+      const o = overstyringer.get(s.id);
+      if (o !== undefined) return o;
+      if (baseModus === "alle") return true;
+      if (baseModus === "ingen") return false;
+      return sedelKreverVurdering(s); // standard: B ∪ C
+    },
+    [overstyringer, baseModus],
+  );
+  const utvidAlle = () => {
+    setBaseModus("alle");
+    setOverstyringer(new Map());
+  };
+  const kollapsAlle = () => {
+    setBaseModus("ingen");
+    setOverstyringer(new Map());
+  };
+  const utvidKreverVurdering = () => {
+    setBaseModus("standard");
+    setOverstyringer(new Map());
+  };
+  const toggleSedel = (s: AttesteringRad) => {
+    const ny = !erApen(s);
+    setOverstyringer((prev) => new Map(prev).set(s.id, ny));
+  };
+  const alleUtvidet = filtrerteSedler.length > 0 && filtrerteSedler.every(erApen);
+  const ingenUtvidet = filtrerteSedler.every((s) => !erApen(s));
+
   // Gruppering per prosjekt
   const grupper = useMemo(() => {
     const m = new Map<string, AttesteringRad[]>();
@@ -282,8 +343,17 @@ export default function FirmaAttesteringSide() {
   });
 
   // ORDRE 2 STEG 2: pivot-callbacks. Celle-klikk → sedel-detalj; batch per rad.
-  const aapneSedel = (sheetId: string) =>
-    router.push(`/dashbord/firma/timer/attestering/${sheetId}`);
+  // Bær retur-konteksten som EKSPLISITTE verdier (?fraVisning/fraUke/fraFane), ikke en
+  // encodet retur-URL — sistnevnte er et open-redirect-mønster som må valideres. Detaljsiden
+  // bygger tilbakeUrl av det lukkede settet; ugyldige verdier faller til standard.
+  const aapneSedel = (sheetId: string) => {
+    const qp = new URLSearchParams({
+      fraVisning: visning,
+      fraUke: String(ukeOffset),
+      fraFane: aktivFane,
+    });
+    router.push(`/dashbord/firma/timer/attestering/${sheetId}?${qp.toString()}`);
+  };
   const attesterMange = (sheetIds: string[]) => {
     setFeil(null);
     for (const id of sheetIds) attester.mutate({ id });
@@ -495,20 +565,47 @@ export default function FirmaAttesteringSide() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {grupper.map((g) => (
-            <ProsjektGruppe
-              key={g.prosjektId}
-              gruppe={g}
-              onAttester={(id) => {
-                setFeil(null);
-                attester.mutate({ id });
-              }}
-              onReturner={(id) => setReturnerId(id)}
-              attesterPending={attester.isPending}
-              readOnly={readOnly}
-            />
-          ))}
+        <div className="space-y-3">
+          {/* Ekspander-kontroller (2026-08-23): to knapper + gjenopprett standard-settet. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={kollapsAlle}
+              disabled={ingenUtvidet}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            >
+              {t("timer.attestering.ekspander.kollapsAlle")}
+            </button>
+            <button
+              onClick={utvidAlle}
+              disabled={alleUtvidet}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            >
+              {t("timer.attestering.ekspander.utvidAlle")}
+            </button>
+            <button
+              onClick={utvidKreverVurdering}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {t("timer.attestering.ekspander.kreverVurdering")}
+            </button>
+          </div>
+          <div className="space-y-6">
+            {grupper.map((g) => (
+              <ProsjektGruppe
+                key={g.prosjektId}
+                gruppe={g}
+                onAttester={(id) => {
+                  setFeil(null);
+                  attester.mutate({ id });
+                }}
+                onReturner={(id) => setReturnerId(id)}
+                attesterPending={attester.isPending}
+                readOnly={readOnly}
+                erApen={erApen}
+                onToggleSedel={toggleSedel}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -532,6 +629,8 @@ function ProsjektGruppe({
   onReturner,
   attesterPending,
   readOnly,
+  erApen,
+  onToggleSedel,
 }: {
   gruppe: {
     prosjektId: string;
@@ -541,6 +640,8 @@ function ProsjektGruppe({
     arbeidstimer: number;
     maskintimer: number;
   };
+  erApen: (s: AttesteringRad) => boolean;
+  onToggleSedel: (s: AttesteringRad) => void;
   onAttester: (sheetId: string) => void;
   onReturner: (sheetId: string) => void;
   attesterPending: boolean;
@@ -594,6 +695,8 @@ function ProsjektGruppe({
             onReturner={() => onReturner(s.id)}
             attesterPending={attesterPending}
             readOnly={readOnly}
+            expanded={erApen(s)}
+            onToggleExpand={() => onToggleSedel(s)}
           />
         ))}
       </div>
