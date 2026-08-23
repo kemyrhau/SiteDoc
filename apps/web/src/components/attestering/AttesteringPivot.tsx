@@ -9,6 +9,14 @@
 // Per-ansatt har en norm-kolonne (ukenorm fra beregnUkenorm, servert per sedel)
 // med avviksmarkering. D2-varselet (STEG 3) bor i badge-slotten som er reservert
 // her nå — ikke fjern den.
+//
+// FABEL → STEG 3 (attestantvarsel): SKAL gjenbruke beregnUkeAvvik/
+// overtidsgrunnlag — ikke duplisere regnestykket. Badge-slotten her er rett plass.
+//
+// Avviksbadgen regnes på HELE ukens grunnlag (sent+accepted samlet, `ukeGrunnlag`),
+// ikke bare den viste fanen — en halv-attestert uke ga tidligere falsk «ført
+// under norm». Visning (`visningsRader`) og avviksgrunnlag (`ukeGrunnlag`) er
+// bevisst atskilte i AnsattPivot-signaturen.
 
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -118,7 +126,6 @@ function TallCelle({
       <button
         onClick={onClick}
         className="w-full rounded px-1 text-right text-gray-900 hover:bg-blue-50 hover:text-blue-700"
-        title=""
       >
         {innhold}
       </button>
@@ -131,14 +138,16 @@ function TallCelle({
 /* ================================================================== */
 
 export function ProsjektPivot({
-  sedler,
+  visningsRader,
   ukestart,
   onAapneSedel,
   onAttesterMange,
   attesterPending,
   readOnly,
 }: {
-  sedler: PivotRad[];
+  /** Rader som VISES (aktiv fane, filtrert). Per-prosjekt-pivoten har ingen
+   *  avviksbadge, så den trenger kun visnings-datasettet. */
+  visningsRader: PivotRad[];
   ukestart: Date;
   onAapneSedel: (sheetId: string) => void;
   onAttesterMange: (sheetIds: string[]) => void;
@@ -154,7 +163,7 @@ export function ProsjektPivot({
       string,
       { navn: string; nummer: string | null; sedler: PivotRad[] }
     >();
-    for (const s of sedler) {
+    for (const s of visningsRader) {
       const key = s.prosjekt?.id ?? "—";
       const g = m.get(key) ?? {
         navn: s.prosjekt?.name ?? "—",
@@ -165,7 +174,7 @@ export function ProsjektPivot({
       m.set(key, g);
     }
     return Array.from(m.entries()).map(([id, g]) => ({ id, ...g }));
-  }, [sedler]);
+  }, [visningsRader]);
 
   if (grupper.length === 0) return <TomPivot />;
 
@@ -285,14 +294,20 @@ export function ProsjektPivot({
 /* ================================================================== */
 
 export function AnsattPivot({
-  sedler,
+  visningsRader,
+  ukeGrunnlag,
   ukestart,
   onAapneSedel,
   onAttesterMange,
   attesterPending,
   readOnly,
 }: {
-  sedler: PivotRad[];
+  /** Rader som VISES (aktiv fane, filtrert). Styrer tabell-innholdet. */
+  visningsRader: PivotRad[];
+  /** Avviksgrunnlag: HELE uken (sent+accepted samlet), samme filtre. Styrer
+   *  norm-kolonnens avviksbadge — badgen skal si sannheten om uken, ikke om
+   *  fanen (en halv-attestert uke ga tidligere falsk «ført under norm»). */
+  ukeGrunnlag: PivotRad[];
   ukestart: Date;
   onAapneSedel: (sheetId: string) => void;
   onAttesterMange: (sheetIds: string[]) => void;
@@ -303,7 +318,24 @@ export function AnsattPivot({
   const dager = useMemo(() => byggUkedager(ukestart), [ukestart]);
   const [apenAnsatt, setApenAnsatt] = useState<Set<string>>(new Set());
 
-  const ansatte = useMemo(() => grupperPerAnsatt(sedler), [sedler]);
+  const ansatte = useMemo(() => grupperPerAnsatt(visningsRader), [visningsRader]);
+
+  // Avviksgrunnlag per ansatt = hele ukens rader (sent+accepted), slått opp på
+  // ansatt-id. Vises fanevis, men badgen regnes på unionen.
+  const grunnlagPerAnsatt = useMemo(() => {
+    const m = new Map<string, PivotRad[]>();
+    for (const g of grupperPerAnsatt(ukeGrunnlag)) m.set(g.id, g.sedler);
+    return m;
+  }, [ukeGrunnlag]);
+
+  // Prosjektnavn-oppslag for ekspanderte rader — aldri rå UUID (fix #2).
+  const prosjektNavnFor = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of ukeGrunnlag) if (s.prosjekt) m.set(s.prosjekt.id, s.prosjekt.name);
+    return (projectId: string): string =>
+      m.get(projectId) ?? t("timer.attestering.pivot.annetProsjekt");
+  }, [ukeGrunnlag, t]);
+
   if (ansatte.length === 0) return <TomPivot />;
 
   return (
@@ -336,10 +368,12 @@ export function AnsattPivot({
             const aDag = dager.map((d) =>
               a.sedler.find((s) => isoAv(s.dato) === d.iso),
             );
-            const avvik = beregnUkeAvvik(a.sedler);
-            const ukesum = avvik.ukesum;
+            // Avvik fra hele ukens grunnlag (union), ikke bare vist fane.
+            const avvik = beregnUkeAvvik(grunnlagPerAnsatt.get(a.id) ?? a.sedler);
+            // ukesum til visning følger fanen (det attestanten ser nå).
+            const ukesum = r2(a.sedler.reduce((x, s) => x + s.totaltimer, 0));
             const apen = apenAnsatt.has(a.id);
-            const prosjekter = grupperPerProsjekt(a.sedler);
+            const prosjekter = grupperPerProsjekt(a.sedler, prosjektNavnFor);
             return (
               <Fragment key={a.id}>
                 <tr className="border-b border-gray-100 hover:bg-gray-50">
@@ -455,16 +489,15 @@ function grupperPerAnsatt(sedler: PivotRad[]) {
   return Array.from(m.values()).sort((a, b) => a.navn.localeCompare(b.navn, "no"));
 }
 
-function grupperPerProsjekt(sedler: PivotRad[]) {
+function grupperPerProsjekt(
+  sedler: PivotRad[],
+  navnFor: (projectId: string) => string,
+) {
   const m = new Map<string, { id: string; navn: string }>();
   for (const s of sedler) {
     for (const r of s.timer) {
       if (!m.has(r.projectId)) {
-        m.set(r.projectId, {
-          id: r.projectId,
-          navn:
-            s.prosjekt?.id === r.projectId ? s.prosjekt.name : r.projectId.slice(0, 8),
-        });
+        m.set(r.projectId, { id: r.projectId, navn: navnFor(r.projectId) });
       }
     }
   }

@@ -4,7 +4,7 @@
 // Uke-navigasjon, filter-pills, gruppering per prosjekt, kompakt sedel-kort
 // via SeddelKort (T7-4f-3b 2026-05-17 — flat tabell, ikke ProsjektSectionAttest).
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -116,6 +116,27 @@ function formatDato(d: Date | string): string {
   });
 }
 
+/** Typet innsnevring AttesteringRad → PivotRad. Leser eksplisitt fra kilden i
+ *  stedet for `as unknown as PivotRad[]` — mister vi et felt PivotRad krever,
+ *  feiler tsc her, ikke som `undefined` langt unna (SAMARBEIDSREGLER-advarselen
+ *  om cast-lekkasje). */
+function tilPivotRad(r: AttesteringRad): PivotRad {
+  return {
+    id: r.id,
+    dato: r.dato,
+    totaltimer: r.totaltimer,
+    ukenorm: r.ukenorm,
+    overtidsgrunnlag: r.overtidsgrunnlag,
+    ansatt: r.ansatt
+      ? { id: r.ansatt.id, name: r.ansatt.name, email: r.ansatt.email }
+      : null,
+    prosjekt: r.prosjekt,
+    // TimerRad.timer er `unknown` (Decimal serialisert som tall/streng);
+    // pivoten konsumerer via Number(), så vi normaliserer til number her.
+    timer: r.timer.map((rad) => ({ projectId: rad.projectId, timer: Number(rad.timer) })),
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                           */
 /* ------------------------------------------------------------------ */
@@ -207,14 +228,31 @@ export default function FirmaAttesteringSide() {
     return Array.from(m.values());
   }, [rader]);
 
-  const filtrerteSedler = useMemo(() => {
-    return rader.filter((s) => {
+  // Ett filter-predikat, to bruk: visning (aktiv fane) og avviksgrunnlag
+  // (hele uken). Delt så de aldri drifter.
+  const passererFilter = useCallback(
+    (s: AttesteringRad): boolean => {
       if (valgtProsjektId && s.prosjekt?.id !== valgtProsjektId) return false;
       if (valgtAnsattId && s.ansatt?.id !== valgtAnsattId) return false;
       if (valgtAvdelingId && s.ansatt?.avdelingId !== valgtAvdelingId) return false;
       return true;
-    });
-  }, [rader, valgtProsjektId, valgtAnsattId, valgtAvdelingId]);
+    },
+    [valgtProsjektId, valgtAnsattId, valgtAvdelingId],
+  );
+
+  const filtrerteSedler = useMemo(
+    () => rader.filter(passererFilter),
+    [rader, passererFilter],
+  );
+
+  // ORDRE 2 STEG 2 (fabel-gate-fiks): avviksbadgen skal gjelde HELE uken, ikke
+  // den aktive fanen. page snevrer `rader` til aktiv fane for visning, men både
+  // sent- og accepted-settet er alt lastet (to parallelle queries over). Union
+  // med samme pill-filter → korrekt norm-avvik selv når uken er delvis attestert.
+  const ukeGrunnlag = useMemo(
+    () => [...sentRader, ...acceptedRader].filter(passererFilter),
+    [sentRader, acceptedRader, passererFilter],
+  );
 
   // Gruppering per prosjekt
   const grupper = useMemo(() => {
@@ -439,7 +477,7 @@ export default function FirmaAttesteringSide() {
         </div>
       ) : visning === "prosjekt" ? (
         <ProsjektPivot
-          sedler={filtrerteSedler as unknown as PivotRad[]}
+          visningsRader={filtrerteSedler.map(tilPivotRad)}
           ukestart={ukestart}
           onAapneSedel={aapneSedel}
           onAttesterMange={attesterMange}
@@ -448,7 +486,8 @@ export default function FirmaAttesteringSide() {
         />
       ) : visning === "ansatt" ? (
         <AnsattPivot
-          sedler={filtrerteSedler as unknown as PivotRad[]}
+          visningsRader={filtrerteSedler.map(tilPivotRad)}
+          ukeGrunnlag={ukeGrunnlag.map(tilPivotRad)}
           ukestart={ukestart}
           onAapneSedel={aapneSedel}
           onAttesterMange={attesterMange}
