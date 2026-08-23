@@ -8,7 +8,7 @@ sist_verifisert_mot_kode: 2026-08-09
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | — | AM ordre 2 steg 2 **merget** 2026-08-23 (`68fcbe00`): D3-pivotene, uke-avvik/badge, firma-scopet katalog | Ledig — venter neste ordre |
+| **dokgen** | `SiteDoc-dokgen` | `fix/dagskort-posisjonering` | Levert og merget (`38c3a302`): Turid-seed, tre D3-rettelser, dagskort-hover. Posisjoneringsfiksene (dødsone, scroll-drift, vertikal vending, Escape/klikk-utenfor) klare til merge | Kenneths visuelle verifisering på test |
 | **kontrollplan** | `SiteDoc-kontrollplan` | `fix/mobil-uploadasync-0byte` | Tetter filnavn-hullet i uploadAsync-fiksen (serveren 400-er på manglende endelse) + skriver verifiseringsprotokollen. Kø etter simulator-grønt: fold D2/D3 → `renderFelt` + dødt subtre · H1 · H8 · oppgave-PDF · H3/H5-rest | Ingenting — kan bygge |
 | **simulator** | `SiteDoc-simulator` | detached `origin/develop` | Kjører kontrollplans protokoll: opplasting (3 uri-tilfeller) · mobil tegningsvisning · delt periodefilter | Protokollen fra kontrollplan |
 
