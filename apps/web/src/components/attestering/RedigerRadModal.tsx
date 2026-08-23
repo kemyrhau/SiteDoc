@@ -100,10 +100,20 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
       { retry: false },
     );
 
-  // Dropdowns + tidsrunding fra firma-setting.
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
-  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
-  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  // Dropdowns + tidsrunding fra firma-setting. Katalog scopes til sedelens
+  // firma — ellers avleder list-queriene org fra innloggingen, og en cross-org
+  // admin får feil/tom katalog i rediger-dropdownene.
+  const katalogEnabled = !!sheet?.organizationId;
+  const katalogInput = { organizationId: sheet?.organizationId ?? "" };
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(katalogInput, {
+    enabled: katalogEnabled,
+  });
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(katalogInput, {
+    enabled: katalogEnabled,
+  });
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(katalogInput, {
+    enabled: katalogEnabled,
+  });
   const equipment = equipmentRaw as unknown as
     | Array<{
         id: string;

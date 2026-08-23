@@ -2501,14 +2501,21 @@ export const dagsseddelRouter = router({
       // ORDRE 2 STEG 1 — backstop som LESE-avledning: server beregner
       // klassifisering (beregnet vs. valgt overtid) per sedel on-the-fly fra
       // radenes timer + EFFEKTIV dagsnorm (sommertid-bevisst, ikke flat
-      // orgSetting.dagsnorm). Rører ALDRI rad.lonnsartId. Batch dagsnorm per
-      // unik dato.
-      const unikeDatoer = Array.from(
-        new Set(sedler.map((s) => s.dato.toISOString().slice(0, 10))),
-      );
+      // orgSetting.dagsnorm). Rører ALDRI rad.lonnsartId.
+      //
+      // ORDRE 2 STEG 2 — ukenorm per sedel (D3 per-ansatt-visningens norm-
+      // kolonne). Batch effektiv dagsnorm for (a) hver sedels dato og (b) alle
+      // fem arbeidsdager i hver representerte uke, så beregnUkenorm får hele
+      // uken (overgangsuker/helligdager stemmer også for dager uten sedel).
+      const unikeUker = Array.from(new Set(sedler.map((s) => mandagIso(s.dato))));
+      const datoBehov = new Set<string>();
+      for (const s of sedler) datoBehov.add(s.dato.toISOString().slice(0, 10));
+      for (const uke of unikeUker) {
+        for (let i = 0; i < 5; i++) datoBehov.add(leggTilDagerIso(uke, i));
+      }
       const effektivDagsnormMap = new Map<string, number>();
       await Promise.all(
-        unikeDatoer.map(async (iso) => {
+        Array.from(datoBehov).map(async (iso) => {
           const eff = await hentEffektivArbeidstid(
             input.organizationId,
             new Date(`${iso}T00:00:00.000Z`),
@@ -2516,6 +2523,13 @@ export const dagsseddelRouter = router({
           effektivDagsnormMap.set(iso, eff.dagsnorm);
         }),
       );
+      const ukenormMap = new Map<string, number>();
+      for (const uke of unikeUker) {
+        ukenormMap.set(
+          uke,
+          beregnUkenorm(uke, (iso) => effektivDagsnormMap.get(iso) ?? 0).norm,
+        );
+      }
 
       return sedler.map((s) => {
         const projectId = s.timer[0]?.projectId ?? null;
@@ -2527,6 +2541,7 @@ export const dagsseddelRouter = router({
           })),
           effektivDagsnormMap.get(isoDato) ?? 0,
         );
+        const ukenorm = ukenormMap.get(mandagIso(s.dato)) ?? 0;
         const timerMedProsjekt = s.timer.map((r) => ({
           ...r,
           project: prosjektMap.get(r.projectId) ?? null,
@@ -2555,6 +2570,8 @@ export const dagsseddelRouter = router({
           // ser avvik, systemet retter aldri lonnsartId. Uke-nivå-varselet (D2)
           // bygges i STEG 3 oppå denne.
           overtidsgrunnlag,
+          // ORDRE 2 STEG 2: ukenorm for sedelens uke (D3 per-ansatt norm-kolonne).
+          ukenorm,
           // T.11: true når sedel har maskinarbeid og eier mangler gyldig bevis.
           manglerMaskinforerbevis:
             s.maskiner.length > 0 && !maskinforerbevisMap.get(s.userId),

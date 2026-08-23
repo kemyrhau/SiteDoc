@@ -5,6 +5,7 @@
 // via SeddelKort (T7-4f-3b 2026-05-17 — flat tabell, ikke ProsjektSectionAttest).
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
@@ -13,8 +14,16 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  LayoutList,
+  FolderKanban,
+  Users,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import {
+  ProsjektPivot,
+  AnsattPivot,
+  type PivotRad,
+} from "@/components/attestering/AttesteringPivot";
 import type {
   MaskinRad,
   RadProsjekt,
@@ -56,6 +65,14 @@ type AttesteringRad = {
   maskiner: MaskinRad[];
   // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
   manglerMaskinforerbevis: boolean;
+  // ORDRE 2 STEG 1/2: server-avledet overtidsgrunnlag (dag-nivå) + ukenorm.
+  overtidsgrunnlag: {
+    sumOrdinaert: number;
+    sumOvertid: number;
+    beregnetOvertid: number;
+    avvik: boolean;
+  } | null;
+  ukenorm: number;
 };
 
 /* ------------------------------------------------------------------ */
@@ -108,7 +125,12 @@ export default function FirmaAttesteringSide() {
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
+  const router = useRouter();
 
+  // ORDRE 2 STEG 2 (D3): visningsvelger — Sedler (dagens) · Per prosjekt · Per ansatt.
+  const [visning, setVisning] = useState<"sedler" | "prosjekt" | "ansatt">(
+    "sedler",
+  );
   const [ukeOffset, setUkeOffset] = useState(0);
   const [valgtProsjektId, setValgtProsjektId] = useState<string>("");
   const [valgtAnsattId, setValgtAnsattId] = useState<string>("");
@@ -227,6 +249,14 @@ export default function FirmaAttesteringSide() {
     onError: (e: { message: string }) => setFeil(e.message),
   });
 
+  // ORDRE 2 STEG 2: pivot-callbacks. Celle-klikk → sedel-detalj; batch per rad.
+  const aapneSedel = (sheetId: string) =>
+    router.push(`/dashbord/firma/timer/attestering/${sheetId}`);
+  const attesterMange = (sheetIds: string[]) => {
+    setFeil(null);
+    for (const id of sheetIds) attester.mutate({ id });
+  };
+
   if (tilgangLaster) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -303,6 +333,30 @@ export default function FirmaAttesteringSide() {
             </span>
           )}
         </button>
+      </div>
+
+      {/* ORDRE 2 STEG 2: visningsvelger — samme uke/filtre på alle tre */}
+      <div className="mb-4 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+        {(
+          [
+            { id: "sedler", ikon: LayoutList },
+            { id: "prosjekt", ikon: FolderKanban },
+            { id: "ansatt", ikon: Users },
+          ] as const
+        ).map((v) => (
+          <button
+            key={v.id}
+            onClick={() => setVisning(v.id)}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              visning === v.id
+                ? "bg-white text-blue-700 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <v.ikon className="h-3.5 w-3.5" />
+            {t(`timer.attestering.visning.${v.id}`)}
+          </button>
+        ))}
       </div>
 
       {/* Uke-navigasjon */}
@@ -383,6 +437,24 @@ export default function FirmaAttesteringSide() {
         <div className="flex items-center justify-center py-12">
           <Spinner />
         </div>
+      ) : visning === "prosjekt" ? (
+        <ProsjektPivot
+          sedler={filtrerteSedler as unknown as PivotRad[]}
+          ukestart={ukestart}
+          onAapneSedel={aapneSedel}
+          onAttesterMange={attesterMange}
+          attesterPending={attester.isPending}
+          readOnly={readOnly}
+        />
+      ) : visning === "ansatt" ? (
+        <AnsattPivot
+          sedler={filtrerteSedler as unknown as PivotRad[]}
+          ukestart={ukestart}
+          onAapneSedel={aapneSedel}
+          onAttesterMange={attesterMange}
+          attesterPending={attester.isPending}
+          readOnly={readOnly}
+        />
       ) : grupper.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <p className="text-sm text-gray-500">
