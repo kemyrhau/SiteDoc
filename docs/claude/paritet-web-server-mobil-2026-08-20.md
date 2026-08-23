@@ -42,34 +42,50 @@ Web har `HmsHandlingsflate` med Besvar/Lukk/Returner/Gjenåpne
 **Konsekvens:** en HMS-behandler kan ikke behandle et avvik fra mobil; han får i stedet
 den generelle flytmenyen, som er feil løp.
 
-### H2 · «Trekk tilbake» forsvinner på mobil for alle som ikke er admin
+### H2 · «Trekk tilbake» forsvinner på mobil for alle som ikke er admin ✅ LØST (2026-08-23, branch `fix/mobil-paritet-h2345`)
 Mobil gater handlingen på `erAdmin` (`DokumentHandlingslinje.tsx:206-208`), web gjør det
 ikke (`DokumentHandlingsmeny.tsx:454-465`). Serveren tillater den for avsenderleddet
 (`tilgangskontroll.ts:876`).
 **Konsekvens:** avsender kan angre en sending på web, men ikke på mobil.
+**Fiks:** `erAdmin`-gaten på `adminHandlinger` fjernet — `øvrige` er allerede den AUTORISERTE
+mengden (`hentPosisjonFiltrertHandlinger` = server-speil via retningsrett), så autoriserte
+admin-statuser (Trekk tilbake for avsenderleddet) vises uten admin-flagg, som web.
 
-### H3 · Mobil tilbyr «Videresend» som serveren alltid avviser
+### H3 · Mobil tilbyr «Videresend» som serveren alltid avviser ✅ LØST (2026-08-23)
 Mobil rendrer videresend-raden ubetinget uten mottaker
 (`DokumentHandlingslinje.tsx:205,449-451`); web gater den på `!harFlyt`
 (`DokumentHandlingsmeny.tsx:416-419`). Serveren kaster BAD_REQUEST «Videresending krever
 en mottaker» (`sjekkliste.ts:1171`).
 **Konsekvens:** knappen finnes, trykkes, og feiler hver gang.
+**Fiks:** `videresendHandlinger = harFlyt ? [] : …` — vises kun for flyt-LØSE dok, som web.
+Den alltid-feilende knappen på flyt-BUNDNE dok er borte. **MELDT (restanse):** mobil mangler
+web sin mottaker-velger (`recipientOppforinger`) for flyt-LØSE forwarding, så den grenen
+kan fortsatt sende uten mottaker → egen liten oppfølger, ikke i denne runden.
 
-### H4 · Firma-admin-fantomet er fikset på web, ikke på mobil
+### H4 · Firma-admin-fantomet er fikset på web, ikke på mobil ✅ LØST (2026-08-23)
 Web sender `erAdmin: adminNiva !== null` (`useFlytKontekst.ts:167`) med en kommentar om at
 dette «erstatter det gamle erAdmin-flagget som viste firma-admin et fantom-menyvalg
 serveren avviste». Mobil sender fortsatt det gamle flagget
 (`sjekkliste/[id].tsx:276`, `oppgave/[id].tsx:186`).
 **Konsekvens:** firma-admin utenfor flyten får handlingslinje på mobil der web viser
 lesevisning — og en Videresend serveren nekter.
+**Fiks:** de 4 side-beregningene per side (`minRolle`/`retningsrett` via `utledMinRolle`/
+`retningsrettigheter`) bruker nå `minFlytInfo.adminNiva !== null` i stedet for det gamle
+`minFlytInfo.erAdmin`, på begge sider. Komponenten fikk allerede `adminNiva` korrekt.
 
-### H5 · Mobil har egen, buggy endringslogg-formatering
+### H5 · Mobil har egen, buggy endringslogg-formatering ✅ LØST (2026-08-23)
 Web og arkiv-PDF bruker `ekspanderEndring` fra `@sitedoc/pdf`. Mobil har lokal
 `formaterLoggVerdi` (`apps/mobile/app/sjekkliste/[id].tsx:69-81`) der
 `Array.isArray(parsed) → parsed.join(", ")`.
 **Konsekvens:** repeater-endringer vises som `[object Object], [object Object]`,
 vær-objekter som rå JSON, og kanoniske no-ops gir falske logglinjer som web og arkiv-PDF
 filtrerer bort. Observert i drift 2026-08-20.
+**Fiks (MÅL FØRST bekreftet):** mobil KAN importere `ekspanderEndring` — den importerer alt
+`byggSjekklisteHtml` fra `@sitedoc/pdf` (null-deps, mobil-bundlet). `formaterLoggVerdi` slettet;
+endringsloggen bruker nå `ekspanderEndring` + `byggKolonnerPerFelt` + `segmenterTilTekst`, hopper
+over no-ops (tom liste), og én logglinje kan bli flere diff-rader (per endret repeater-celle).
+**Merk:** mobilens `EndringsloggRad`-type mangler `fieldId`, så repeater-KOLONNE-labels faller
+til generiske når fieldId ikke er i dataen — kjernebuggene (JSON/[object Object]/no-op) er borte.
 
 ### H6 · Bildekomprimering finnes kun på mobil
 Mobil komprimerer til 300–400 KB / maks 1920 px (`src/services/bilde.ts:13-99`). Web

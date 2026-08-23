@@ -191,7 +191,7 @@ export default function OppgaveDetalj() {
       groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      { ...minFlytInfo, userId: "", erAdmin: (minFlytInfo.adminNiva !== null) },
       medlemmer,
       { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
     );
@@ -220,7 +220,7 @@ export default function OppgaveDetalj() {
       userId: minFlytInfo.userId,
       gruppeIder: minFlytInfo.gruppeIder,
       faggruppeIder: (minFlytInfo as { faggruppeIder?: string[] }).faggruppeIder ?? [],
-      erAdmin: minFlytInfo.erAdmin,
+      erAdmin: (minFlytInfo.adminNiva !== null),
     };
     const erMedlemAv = (l: (typeof ledd)[number]): boolean =>
       l.brukerIder.has(bruker.userId) ||
@@ -232,7 +232,7 @@ export default function OppgaveDetalj() {
       harBallen,
       erAvsender: erAvsenderledd(ledd, aktivPosisjon, bruker),
       erMedlemAvFlyt: erMedlemAvFlyt(ledd, bruker),
-      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin }),
+      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: (minFlytInfo.adminNiva !== null) }),
     };
   }, [oppgaveDetalj, minFlytInfo, flytMedlemmer]);
   const harBallen = posisjonRett.harBallen;
@@ -263,7 +263,7 @@ export default function OppgaveDetalj() {
   const rettighetInput = useMemo(() => {
     if (!minFlytInfo) return undefined;
     return {
-      erAdmin: minFlytInfo.erAdmin,
+      erAdmin: (minFlytInfo.adminNiva !== null),
       minRolle,
       tillatelser: mineTillatelser,
       harBallen,

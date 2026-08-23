@@ -202,10 +202,17 @@ export function DokumentHandlingslinje({
     (h) => !ADMIN_STATUSER.has(h.nyStatus as string) && h.nyStatus !== "forwarded" && !erDestruktivNy(h.nyStatus as string),
   );
   const destruktivHandlinger = øvrige.filter((h) => erDestruktivNy(h.nyStatus as string));
-  const videresendHandlinger = øvrige.filter((h) => h.nyStatus === "forwarded");
-  const adminHandlinger = erAdmin
-    ? øvrige.filter((h) => ADMIN_STATUSER.has(h.nyStatus as string) && h.nyStatus !== "forwarded")
-    : [];
+  // H3-paritet (2026-08-23): videresend vises KUN for flyt-LØSE (ad-hoc) dok — som web
+  // (DokumentHandlingsmeny `!harFlyt`). For flyt-bundne dok krever serveren en mottaker mobil ikke
+  // sender («Videresending krever en mottaker», sjekkliste.ts:1171) → knappen feilet alltid.
+  const videresendHandlinger = harFlyt ? [] : øvrige.filter((h) => h.nyStatus === "forwarded");
+  // H2-paritet (2026-08-23): IKKE gate admin-statuser (Trekk tilbake m.fl.) på erAdmin. `øvrige` er
+  // allerede den AUTORISERTE mengden (hentPosisjonFiltrertHandlinger = server-speil via retningsrett),
+  // så serveren tillater f.eks. Trekk tilbake for AVSENDERLEDDET (tilgangskontroll.ts:876) uten at
+  // brukeren er admin. Web gater heller ikke (grupperer bare autoriserte admin-statuser i seksjonen).
+  const adminHandlinger = øvrige.filter(
+    (h) => ADMIN_STATUSER.has(h.nyStatus as string) && h.nyStatus !== "forwarded",
+  );
 
   const harFlytBytte =
     tilgjengeligeFlyter?.kanFlytte === true && (tilgjengeligeFlyter.andre.length ?? 0) > 0;
