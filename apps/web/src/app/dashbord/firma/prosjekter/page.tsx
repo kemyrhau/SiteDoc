@@ -8,11 +8,12 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { IngenFirmaValgt } from "@/components/firma/IngenFirmaValgt";
 
 export default function FirmaProsjekter() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { valgtFirma, kanAdministrereFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma, isLoading: firmaLaster } = useFirma();
   const orgId = valgtFirma?.id;
 
   const { data: prosjekter, isLoading } =
@@ -35,6 +36,21 @@ export default function FirmaProsjekter() {
       {t("dashbord.nyttProsjekt")}
     </Link>
   ) : null;
+
+  if (firmaLaster) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Spinner />
+      </div>
+    );
+  }
+
+  // «Ingen firma valgt» ≠ «ingen prosjekter». Uten firma er spørringen disablet
+  // → tidligere falt vi til tom-staten «Organisasjonen har ingen prosjekter»,
+  // som er en USANN påstand om data. Skill dem.
+  if (!orgId) {
+    return <IngenFirmaValgt tekst={t("firma.prosjekter.ingenFirma")} />;
+  }
 
   if (isLoading) {
     return (

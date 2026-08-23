@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { IngenFirmaValgt } from "@/components/firma/IngenFirmaValgt";
 
 export default function FirmaTimerLayout({
   children,
@@ -14,7 +15,7 @@ export default function FirmaTimerLayout({
 }) {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, isLoading: firmaLaster } = useFirma();
   const orgId = valgtFirma?.id;
   const { data: status, isLoading } = trpc.timer.onboarding.status.useQuery(
     { organizationId: orgId! },
@@ -33,6 +34,36 @@ export default function FirmaTimerLayout({
 
   // Før aktivering: vis kun onboarding + oppsett-veiviseren (steg 1 aktiverer)
   const filtrert = status?.harTimerModul ? sub : sub.slice(0, 2);
+
+  // Mens firma-konteksten selv laster (henter medlemskap/tilgjengelige firma)
+  // er valgtFirma ennå ikke avgjort → spinner, IKKE «ingen firma» (ellers
+  // flasher meldingen for en bruker som har et lagret firma).
+  if (firmaLaster) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+
+  // «Ingen firma valgt» ≠ «laster». Uten orgId er status-spørringen DISABLET
+  // (enabled: !!orgId), og en disablet React Query fullfører aldri — barne-
+  // sidene henger på `!status` (evig spinner, ingen onboarding.status-kall).
+  // Guard her (layouten wrapper alle timer-undersider), så vi viser en tilstand
+  // som SIER det + peker til firmavelgeren, i stedet for spinner. isLoading-
+  // sjekken under gjelder nå kun når spørringen faktisk kjører (orgId finnes).
+  if (!orgId) {
+    return (
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-gray-900">
+            {t("firma.timer.tittel")}
+          </h1>
+        </div>
+        <IngenFirmaValgt tekst={t("firma.timer.ingenFirma")} />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
