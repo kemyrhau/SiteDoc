@@ -170,10 +170,16 @@ export function OpprettOppgaveModal({
     onSuccess: (data: { id: string }) => {
       utils.oppgave.hentForSjekkliste.invalidate({ checklistId: sjekklisteId });
       onClose();
-      // A: ÅPNE den nye oppgaven med én gang for fortløpende utfylling. Retur-stien bæres i URL
-      // (`returnerTil`), så «tilbake» går til dokumentet som opprettet den — også etter full last.
-      const retur = returnerTil ? `?returnerTil=${encodeURIComponent(returnerTil)}` : "";
-      router.push(`/dashbord/${prosjektId}/oppgaver/${data.id}${retur}`);
+      // A: ÅPNE den nye oppgaven med én gang for fortløpende utfylling. Retur-stien + dokumentnavnet
+      // bæres i URL (`returnerTil`/`returnerNavn`), så «tilbake»-lenken kan vise «← Tilbake til
+      // BEF-006» og auto-retur virker — også etter full last.
+      const params = new URLSearchParams();
+      if (returnerTil) {
+        params.set("returnerTil", returnerTil);
+        if (sjekklisteNummer) params.set("returnerNavn", sjekklisteNummer);
+      }
+      const spm = params.toString();
+      router.push(`/dashbord/${prosjektId}/oppgaver/${data.id}${spm ? `?${spm}` : ""}`);
     },
   });
 
