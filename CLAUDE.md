@@ -201,6 +201,18 @@ fargepalett (`sitedoc-primary` `#1e40af` m.fl.). **Styrende — les før ny UI-f
 - All kode, kommentarer og commits på **norsk bokmål**
 - Variabelnavn kan være engelske der naturlig (`id`, `status`, `config`)
 - Bruk alltid æ, ø, å — ALDRI ASCII-erstatninger
+- **«pr.» vs «per» — husstil (Kenneth-vedtak 2026-08-24):** som preposisjon i en
+  **sats eller enhet** skrives **`pr.`** med punktum: «450 kr pr. time», «pris pr. stk.».
+  Det er riksmåls- og forretningskonvensjonen målgruppen bruker. *(Språkrådet anbefaler
+  «per» fullt ut; husstilen følger kundene, ikke anbefalingen — valget er tatt bevisst.)*
+  **Unntak:** latinske uttrykk beholder «per» (*per capita*).
+  🔴 **Som grupperings-etikett skal ordet ikke brukes i det hele tatt.** Skriv **«Etter
+  prosjekt»**, ikke «Per prosjekt» — «Per» er også et fornavn, og forvekslingen er konkret
+  (Per Berg står i attesteringslista rett under etiketten). «Etter …» er entydig og
+  omgår hele per/pr.-spørsmålet.
+- **i18n gjelder også ikke-JSX:** arknavn i Excel-eksport, PDF-overskrifter og filnavn er
+  synlige strenger og skal gjennom `t()`. `addWorksheet("Per prosjekt")` slapp unna i
+  ett år fordi flaten ikke er JSX (funnet 2026-08-24).
 - **i18n-krav:** Alle synlige UI-strenger i web-appen MÅ bruke `t()` fra react-i18next — ALDRI hardkod norsk tekst i JSX. Ved nye sider/komponenter:
   1. Nøkler i **både** `nb.json` og `en.json` (`packages/shared/src/i18n/`). Format `seksjon.noekkel`; gjenbruk eksisterende (`handling.lagre`, `handling.avbryt`, `tabell.navn`).
   2. Data utenfor komponenter (arrays, configs): `labelKey` i stedet for `label`, kall `t()` ved rendering.
