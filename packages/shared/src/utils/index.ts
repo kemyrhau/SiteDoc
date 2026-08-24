@@ -122,6 +122,7 @@ export {
   erUgyldigIntervall,
 } from "./periode";
 export type { Periode, PeriodeHurtigvalg } from "./periode";
+export { ENDELSE_FRA_MIME, saniter, sikreEndelse } from "./filnavn";
 export {
   avledSjekklisteFremdrift,
   avledPunktFremdrift,
