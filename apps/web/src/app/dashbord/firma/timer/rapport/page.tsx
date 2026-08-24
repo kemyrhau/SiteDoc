@@ -79,6 +79,7 @@ export default function TimerRapportSide() {
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const harTimer = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
+  const utils = trpc.useUtils();
 
   const standardPeriode = useMemo(() => førsteOgSisteIMåneden(), []);
   const [fra, setFra] = useState(standardPeriode.fra);
@@ -225,7 +226,17 @@ export default function TimerRapportSide() {
       if (format === "csv") {
         mod.eksporterCsv(input);
       } else {
-        await mod.eksporterXlsx(input);
+        // Detalj-radene hentes KUN her (ved eksport-klikk), med SAMME filtre som
+        // skjermrapporten — egen prosedyre, ikke aggregatet. .xlsx får detalj-
+        // arkene; CSV forblir sammendrag (ett flatt bord).
+        const detalj = await utils.timer.rapport.detaljEksport.fetch({
+          organizationId: orgId!,
+          fra,
+          til,
+          prosjektId: valgtProsjektId || undefined,
+          ansattId: valgtAnsattId || undefined,
+        });
+        await mod.eksporterXlsx(input, detalj);
       }
     } catch (e) {
       // 1c: gjør det tause kastet synlig. Loggen bevarer stacken for å pinne
