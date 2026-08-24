@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { DatoVelgerFelt } from "./DatoVelgerFelt";
 import { useTranslation } from "react-i18next";
 import {
   type Periode,
@@ -79,17 +79,17 @@ export function PeriodeFilter({
       )}
 
       {visVelger && (
-        <DateTimePicker
+        <DatoVelgerFelt
           value={(visVelger === "fra" ? periode.fra : periode.til) ?? new Date()}
           mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={(_event, valgtDato) => {
             const gjeldende = visVelger;
-            setVisVelger(Platform.OS === "ios" ? gjeldende : null);
+            if (Platform.OS !== "ios") setVisVelger(null); // Android-dialogen lukker seg selv
             if (valgtDato) {
               onEndre({ ...periode, [gjeldende === "fra" ? "fra" : "til"]: valgtDato });
             }
           }}
+          onLukk={() => setVisVelger(null)}
         />
       )}
     </View>
