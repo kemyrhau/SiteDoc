@@ -12,7 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Trash2, Pencil, X, Check, Camera, Clock } from "lucide-react-native";
+import { Plus, Trash2, Pencil, X, Check, Camera, ImagePlus, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
@@ -418,17 +418,30 @@ function UtleggVedleggSeksjon({
         </View>
       )}
       {redigerbar && (
-        <Pressable
-          onPress={() => leggVed("kamera")}
-          disabled={arbeider}
-          className="flex-row items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 active:bg-gray-50"
-          style={{ minHeight: 44 }}
-        >
-          <Camera size={18} color="#1e40af" />
-          <Text className="text-sm font-medium text-gray-600">
-            {t("timer.utlegg.taBilde")}
-          </Text>
-        </Pressable>
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => leggVed("kamera")}
+            disabled={arbeider}
+            className="flex-1 flex-row items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 active:bg-gray-50"
+            style={{ minHeight: 44 }}
+          >
+            <Camera size={18} color="#1e40af" />
+            <Text className="text-sm font-medium text-gray-600">
+              {t("timer.utlegg.taBilde")}
+            </Text>
+          </Pressable>
+          {/* Galleri-vei: skjermbilde av digital kvittering (Vipps/e-post) uten
+              kamera. Samme velgBilde-pipeline (komprimering + GPS + HEIC→jpg). */}
+          <Pressable
+            onPress={() => leggVed("galleri")}
+            disabled={arbeider}
+            accessibilityLabel={t("timer.utlegg.velgFraBilder")}
+            className="items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white px-4 active:bg-gray-50"
+            style={{ minHeight: 44 }}
+          >
+            <ImagePlus size={18} color="#1e40af" />
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -743,17 +756,30 @@ function UtleggRadModal({
                       </Pressable>
                     </View>
                   ) : (
-                    <Pressable
-                      onPress={() => taKvittering("kamera")}
-                      disabled={arbeider}
-                      className="flex-row items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 active:bg-gray-50"
-                      style={{ minHeight: 44 }}
-                    >
-                      <Camera size={18} color="#1e40af" />
-                      <Text className="text-sm font-medium text-gray-600">
-                        {t("timer.utlegg.taBilde")}
-                      </Text>
-                    </Pressable>
+                    <View className="flex-row gap-2">
+                      <Pressable
+                        onPress={() => taKvittering("kamera")}
+                        disabled={arbeider}
+                        className="flex-1 flex-row items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 active:bg-gray-50"
+                        style={{ minHeight: 44 }}
+                      >
+                        <Camera size={18} color="#1e40af" />
+                        <Text className="text-sm font-medium text-gray-600">
+                          {t("timer.utlegg.taBilde")}
+                        </Text>
+                      </Pressable>
+                      {/* Galleri-vei (ny rad): digital kvittering som skjermbilde.
+                          Samme velgBilde-pipeline (komprimering + GPS + HEIC→jpg). */}
+                      <Pressable
+                        onPress={() => taKvittering("galleri")}
+                        disabled={arbeider}
+                        accessibilityLabel={t("timer.utlegg.velgFraBilder")}
+                        className="items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white px-4 active:bg-gray-50"
+                        style={{ minHeight: 44 }}
+                      >
+                        <ImagePlus size={18} color="#1e40af" />
+                      </Pressable>
+                    </View>
                   )}
                 </View>
               ))}

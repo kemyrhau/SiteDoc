@@ -275,6 +275,7 @@
   "timer.utlegg.kilde.firmaStandard": "firma-standard",
   "timer.utlegg.kilde.overstyrt": "overstyrt for prosjektet",
   "timer.utlegg.taBilde": "Ta bilde av kvitteringen",
+  "timer.utlegg.velgFraBilder": "Velg fra bilder",
   "timer.utlegg.kvitteringPaakrevd": "Kvittering påkrevd — Lagre aktiveres når bildet er tatt",
   "timer.utlegg.dekketAvFirma": "Dekket av firma — ingen refusjon, ingen lønn. Kvittering er valgfri.",
   "timer.utlegg.ingenKategorier": "Ingen utleggskategorier tilgjengelig for dette prosjektet",

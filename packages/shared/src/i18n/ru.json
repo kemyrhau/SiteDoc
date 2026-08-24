@@ -275,6 +275,7 @@
   "timer.utlegg.kilde.firmaStandard": "стандарт компании",
   "timer.utlegg.kilde.overstyrt": "переопределено для проекта",
   "timer.utlegg.taBilde": "Сфотографируйте чек",
+  "timer.utlegg.velgFraBilder": "Выбрать из фотографий",
   "timer.utlegg.kvitteringPaakrevd": "Требуется квитанция — сохранение становится возможным после того, как фотография будет сделана.",
   "timer.utlegg.dekketAvFirma": "Покрывается компанией — ни возмещения, ни оплаты. Квитанция не является обязательной.",
   "timer.utlegg.ingenKategorier": "Для этого проекта нет доступных категорий расходов.",

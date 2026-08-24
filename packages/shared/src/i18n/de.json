@@ -275,6 +275,7 @@
   "timer.utlegg.kilde.firmaStandard": "Firmenstandard",
   "timer.utlegg.kilde.overstyrt": "für das Projekt überschrieben",
   "timer.utlegg.taBilde": "Machen Sie ein Foto von der Quittung",
+  "timer.utlegg.velgFraBilder": "Wählen Sie aus Fotos",
   "timer.utlegg.kvitteringPaakrevd": "Quittung erforderlich – Speichern ist aktiviert, sobald das Foto aufgenommen wurde",
   "timer.utlegg.dekketAvFirma": "Vom Unternehmen übernommen – keine Rückerstattung, keine Bezahlung. Der Empfang ist optional.",
   "timer.utlegg.ingenKategorier": "Für dieses Projekt sind keine Ausgabenkategorien verfügbar",
