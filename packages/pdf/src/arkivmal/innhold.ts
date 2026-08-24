@@ -13,8 +13,6 @@
 import { renderFelt } from "../felt";
 import { byggRepeaterTabell } from "./repeater";
 import { byggRadkort, repeaterErRik } from "./radkort";
-import { byggArkivTegningsposisjon } from "./tegningsfelt";
-import { byggInstruksjonsfelt } from "./instruksjonsfelt";
 import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
 
 export function byggInnhold(
@@ -35,19 +33,8 @@ export function byggInnhold(
         : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id]);
       continue;
     }
-    if (objekt.type === "drawing_position") {
-      // Arkiv-override (D2): tegningsutsnitt via byggTegningPosisjon — felt.ts
-      // utelater denne (frosset mobil-sti). Ingen markør/bilde → "".
-      html += byggArkivTegningsposisjon(data[objekt.id]?.verdi, config.tegningsOppslag);
-      continue;
-    }
-    // Arkiv-override (F2-rest): info_text/info_image/video/quiz — felt.ts dropper
-    // alle fire (frosset). Quiz-svaret er dokumentasjonsdata (datatap før).
-    const instruksjon = byggInstruksjonsfelt(objekt, data[objekt.id]);
-    if (instruksjon !== null) {
-      html += instruksjon;
-      continue;
-    }
+    // D2 (tegningsutsnitt) + D3 (instruksjonstyper) er FOLDET inn i renderFelt (2026-08-24) —
+    // felt.ts-frysen ble opphevet, så intercept-i-innhold.ts trengs ikke lenger.
     html += renderFelt(objekt, data[objekt.id], config);
     // Nestede seksjoner: render barn etter overskriften.
     if (objekt.children && objekt.children.length > 0) {
