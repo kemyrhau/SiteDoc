@@ -271,10 +271,13 @@ Metro tree-shaker ikke barrel-re-eksporten `index.ts → ./felt`. Men **bundlet 
 som endres, endrer ingenting for noen. Bundle-størrelsen er den eneste gjenværende kostnaden (egen
 sak: mobil kan dyp-importere `arkivmal/endringsdiff` i stedet for barrel-en).
 
-**Konsekvens:** D2/D3-overridene (`instruksjonsfelt.ts`, `tegningsfelt.ts`) kan foldes inn i
-`renderFelt` som hovedvei — intercept-i-`innhold.ts` droppes. **Status: PENDING** — gates av
-simulator-runden (mobil har ubekreftede lag fra tegningsvisning + arkiv-PDF-bytte; ett ubekreftet
-lag om gangen). Rører `packages/pdf`, så ikke før simulator er grønn.
+**Konsekvens: LEVERT 2026-08-24** (branch `feat/pdf-fold-d2d3`, etter grønn simulator på tre runder).
+D2/D3-overridene (`byggArkivTegningsposisjon`, `byggInstruksjonsfelt`) er FOLDET inn i `renderFelt`
+(`felt.ts`) som hovedvei; intercept-i-`innhold.ts` droppet. **Dødt subtre ryddet** (målt: 0
+importører, kompilatoren som fasit): `sjekkliste.ts`/`byggSjekklisteHtml`, `renderAllefelter`,
+`tegning-screenshot.ts`, header-generatorene (`byggSjekklisteHeader`/`byggOppgaveHeader`/
+`byggMetadataRutenett` — `prosjektReferanseForUtskrift` beholdt), mobil `PdfForhandsvisning`/
+`TegningsCapture`. Gater: typecheck 11/11, pdf 80, api arkiv 139, web 189, shared 539.
 
 Ingen app importerer `renderFelt`/`renderAllefelter` direkte — begge har kun interne
 `packages/pdf`-konsumenter, via to kjeder: `sjekkliste.ts → byggSjekklisteHtml`

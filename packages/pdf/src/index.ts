@@ -47,34 +47,19 @@ export {
 // CSS
 export { hentCss } from "./css";
 
-// Header-generatorer
-export {
-  byggSjekklisteHeader,
-  byggOppgaveHeader,
-  byggMetadataRutenett,
-  prosjektReferanseForUtskrift,
-} from "./header";
-export type {
-  SjekklisteHeaderData,
-  OppgaveHeaderData,
-  MetadataRutenettData,
-} from "./header";
+// Prosjekt-referanse (header-generatorene ble slettet 2026-08-24 med den døde klient-utskrift-
+// grenen — arkivmalen bygger header-HTML nå).
+export { prosjektReferanseForUtskrift } from "./header";
 
-// Felt-renderer
-export { renderFelt, renderAllefelter } from "./felt";
+// Felt-renderer (renderAllefelter slettet 2026-08-24 — byggSjekklisteHtml var eneste kaller).
+export { renderFelt } from "./felt";
 
 // Tegningsposisjon
 export { byggTegningPosisjon, byggDetaljUtsnitt } from "./tegning";
 export type { TegningPosisjonData, DetaljUtsnittData } from "./tegning";
 
-// Tegning via screenshot (alternativ uten koordinatberegning)
-export { genererTegningMedScreenshot } from "./tegning-screenshot";
-export type { TegningScreenshotData } from "./tegning-screenshot";
-
-// Komplett HTML-generatorer
-export { byggSjekklisteHtml } from "./sjekkliste";
-// Merk: byggOppgaveHtml pensjonert (fase 3, 2026-08-12) — var eksportert uten
-// kaller. Web-oppgave rendrer via JSX, mobil printer kun sjekkliste.
+// Komplett HTML: byggSjekklisteHtml + tegning-screenshot slettet 2026-08-24 (mobil gikk over
+// til arkivmalen; 0 importører). Arkiv-PDF (`arkivmal/`) er eneste HTML-genererings-vei.
 
 // Sluttrapport (kontrollplan SAK10 §14-7)
 export { genererSluttrapportHtml } from "./sluttrapport";

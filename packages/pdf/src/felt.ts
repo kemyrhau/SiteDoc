@@ -6,6 +6,13 @@
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
 import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl } from "./hjelpere";
+// D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
+// felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
+// arkivmal-overgangen), så den er nå ren server/arkiv-renderer. Intercept-i-innhold.ts droppet;
+// tegningsutsnitt + instruksjonstyper rendres her. Acyklisk: tegningsfelt/instruksjonsfelt
+// importerer verken felt eller innhold.
+import { byggArkivTegningsposisjon } from "./arkivmal/tegningsfelt";
+import { byggInstruksjonsfelt } from "./arkivmal/instruksjonsfelt";
 
 // ---------------------------------------------------------------------------
 //  Hovedfunksjon
@@ -32,9 +39,13 @@ export function renderFelt(
     return `<div class="subtitle">${esc(label)}</div>`;
   }
 
-  // Skjulte/spesialtyper
-  if (type === "location" || type === "drawing_position") return "";
-  if (type === "info_text" || type === "info_image" || type === "video" || type === "quiz") return "";
+  // Dokument-lokasjon rendres på dokumentnivå (byggLokasjonsblokk), ikke som felt.
+  if (type === "location") return "";
+  // D2: tegningsutsnitt for feltnivå-markør (uten markør/bilde → "").
+  if (type === "drawing_position") return byggArkivTegningsposisjon(verdi, config.tegningsOppslag);
+  // D3: instruksjonstyper (info_text/info_image/video/quiz) — dokumentasjonsdata (quiz-svar).
+  const instruksjon = byggInstruksjonsfelt(objekt, felt);
+  if (instruksjon !== null) return instruksjon;
 
   // Verdi-HTML per type
   let verdiHtml = "";
@@ -230,19 +241,3 @@ export function renderFelt(
 // ---------------------------------------------------------------------------
 //  Render alle felter fra et objekt-tre
 // ---------------------------------------------------------------------------
-
-/**
- * Renderer hele objekt-treet til HTML-strenger.
- * Håndterer nesting (barn rendres rekursivt via repeater).
- */
-export function renderAllefelter(
-  objekter: TreObjekt[],
-  feltVerdier: Record<string, FeltVerdi>,
-  config: PdfConfig,
-): string {
-  let html = "";
-  for (const objekt of objekter) {
-    html += renderFelt(objekt, feltVerdier[objekt.id], config);
-  }
-  return html;
-}
