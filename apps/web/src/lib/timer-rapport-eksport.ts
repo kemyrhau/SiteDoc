@@ -38,6 +38,14 @@ export type EksportInput = {
 };
 
 /**
+ * Oversetter injisert fra kall-stedet (page.tsx har react-i18next `t`). Denne
+ * libben lazy-importeres uten React-kontekst, så `t()` kan ikke kalles direkte
+ * her — arknavn (synlige strenger, i18n gjelder også ikke-JSX) sendes gjennom
+ * denne. Minimal signatur: i18next-`t` er kompatibel.
+ */
+export type OversettFn = (nøkkel: string) => string;
+
+/**
  * Rå detalj-rader fra timer.rapport.detaljEksport (server). Strukturelt lik
  * prosedyre-returen — timerader med maskin nøstet under, egne lister for
  * tillegg/utlegg. Feeder detalj-arkene (Timerader/Tillegg/Utlegg).
@@ -166,7 +174,7 @@ const SAMMENDRAG_HEADER = [
   "Kladd",
   "Sent",
   "Attestert",
-  "Per prosjekt",
+  "Etter prosjekt",
 ] as const;
 
 const PER_PROSJEKT_HEADER = [
@@ -419,6 +427,7 @@ function byggUtleggArk(ws: Worksheet, detalj: DetaljEksport): void {
 export async function eksporterXlsx(
   input: EksportInput,
   detalj: DetaljEksport,
+  t: OversettFn,
 ): Promise<void> {
   const ExcelJSModule = await import("exceljs");
   const ExcelJS =
@@ -427,7 +436,7 @@ export async function eksporterXlsx(
   const wb = new (ExcelJS as { Workbook: new () => import("exceljs").Workbook }).Workbook();
 
   // Ark 1: Sammendrag (uendret)
-  const wsSam = wb.addWorksheet("Sammendrag");
+  const wsSam = wb.addWorksheet(t("timer.eksport.ark.sammendrag"));
   wsSam.addRow([...SAMMENDRAG_HEADER]);
   wsSam.getRow(1).font = { bold: true };
   for (const rad of sammendragRader(input.ansatte)) {
@@ -438,7 +447,7 @@ export async function eksporterXlsx(
   });
 
   // Ark 2: Per prosjekt (aggregat, uendret — én rad per ansatt × prosjekt)
-  const wsPro = wb.addWorksheet("Per prosjekt");
+  const wsPro = wb.addWorksheet(t("timer.eksport.ark.etterProsjekt"));
   wsPro.addRow([...PER_PROSJEKT_HEADER]);
   wsPro.getRow(1).font = { bold: true };
   for (const a of input.ansatte) {
@@ -458,7 +467,7 @@ export async function eksporterXlsx(
   });
 
   // Ark 3: Per dag (aggregat, uendret — én rad per ansatt × dag)
-  const wsDag = wb.addWorksheet("Per dag");
+  const wsDag = wb.addWorksheet(t("timer.eksport.ark.etterDag"));
   wsDag.addRow([...PER_DAG_HEADER]);
   wsDag.getRow(1).font = { bold: true };
   for (const a of input.ansatte) {
@@ -471,9 +480,9 @@ export async function eksporterXlsx(
   });
 
   // Ark 4–6: detalj (lønn/fakturering)
-  byggTimeraderArk(wb.addWorksheet("Timerader"), detalj);
-  byggTilleggArk(wb.addWorksheet("Tillegg"), detalj);
-  byggUtleggArk(wb.addWorksheet("Utlegg"), detalj);
+  byggTimeraderArk(wb.addWorksheet(t("timer.eksport.ark.timerader")), detalj);
+  byggTilleggArk(wb.addWorksheet(t("timer.eksport.ark.tillegg")), detalj);
+  byggUtleggArk(wb.addWorksheet(t("timer.eksport.ark.utlegg")), detalj);
 
   const buffer = await wb.xlsx.writeBuffer();
   lastNed(

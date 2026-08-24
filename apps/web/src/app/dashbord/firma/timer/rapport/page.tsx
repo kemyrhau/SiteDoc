@@ -236,7 +236,7 @@ export default function TimerRapportSide() {
           prosjektId: valgtProsjektId || undefined,
           ansattId: valgtAnsattId || undefined,
         });
-        await mod.eksporterXlsx(input, detalj);
+        await mod.eksporterXlsx(input, detalj, t);
       }
     } catch (e) {
       // 1c: gjør det tause kastet synlig. Loggen bevarer stacken for å pinne
