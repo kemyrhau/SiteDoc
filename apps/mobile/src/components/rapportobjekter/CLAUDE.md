@@ -121,8 +121,8 @@ Config `options` kan være strenger (`"Ja"`) eller objekter (`{value: "green", l
 
 ## Plattformforskjeller
 
-- **iOS:** DateTimePicker bruker "spinner", forblir åpen etter valg
-- **Android:** DateTimePicker bruker dialog, auto-advance dato→tid
+- **iOS:** DateTimePicker via delt `DatoVelgerFelt` (`components/DatoVelgerFelt.tsx`) — spinner/inline + eksplisitt «Ferdig»-knapp (iOS-velgeren lukker seg ikke selv; uten «Ferdig» sto brukeren fast, fikset 2026-08-24). Siden eier vis/skjul-state + onChange-logikk; komponenten eier boksen. Modal-varianten (`timer-detalj/FraTilTidFelt.tsx`) brukes når velgeren ER hovedhandlingen.
+- **Android:** DateTimePicker bruker dialog, auto-advance dato→tid (håndteres i sidens onChange)
 - **InteractionManager:** MÅ brukes etter kamera/picker lukkes for å unngå React Navigation-krasj
 - **Modal:** ALLTID rendres i komponenttreet med `visible`-prop — ALDRI conditional mount (`{betingelse && <Modal>}`)
 

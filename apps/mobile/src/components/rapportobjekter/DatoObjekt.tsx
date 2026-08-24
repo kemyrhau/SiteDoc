@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Calendar, X } from "lucide-react-native";
+import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import type { RapportObjektProps } from "./typer";
 
 export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
@@ -68,14 +68,14 @@ export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
       )}
 
       {visVelger && (
-        <DateTimePicker
+        <DatoVelgerFelt
           value={datoVerdi ?? new Date()}
           mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={(_event, valgtDato) => {
-            settVisVelger(Platform.OS === "ios");
+            if (Platform.OS !== "ios") settVisVelger(false); // Android-dialogen lukker seg selv
             if (valgtDato) onEndreVerdi(valgtDato.toISOString());
           }}
+          onLukk={() => settVisVelger(false)}
         />
       )}
     </View>
