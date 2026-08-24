@@ -275,6 +275,7 @@
   "timer.utlegg.kilde.firmaStandard": "yrityksen standardi",
   "timer.utlegg.kilde.overstyrt": "ohitettu projektille",
   "timer.utlegg.taBilde": "Ota valokuva kuitista",
+  "timer.utlegg.velgFraBilder": "Valitse kuvista",
   "timer.utlegg.kvitteringPaakrevd": "Kuitti vaaditaan — Tallenna on käytössä, kun valokuva on otettu",
   "timer.utlegg.dekketAvFirma": "Yhtiö kattaa – ei korvausta, ei palkkaa. Kuitti on valinnainen.",
   "timer.utlegg.ingenKategorier": "Tälle projektille ei ole saatavilla kululuokkia",

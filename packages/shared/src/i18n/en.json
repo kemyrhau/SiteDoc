@@ -275,6 +275,7 @@
   "timer.utlegg.kilde.firmaStandard": "company standard",
   "timer.utlegg.kilde.overstyrt": "overridden for the project",
   "timer.utlegg.taBilde": "Take a photo of the receipt",
+  "timer.utlegg.velgFraBilder": "Choose from photos",
   "timer.utlegg.kvitteringPaakrevd": "Receipt required — Save is enabled once the photo is taken",
   "timer.utlegg.dekketAvFirma": "Covered by the company — no reimbursement, no pay. Receipt is optional.",
   "timer.utlegg.ingenKategorier": "No expense categories available for this project",

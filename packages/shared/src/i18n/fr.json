@@ -275,6 +275,7 @@
   "timer.utlegg.kilde.firmaStandard": "norme de l'entreprise",
   "timer.utlegg.kilde.overstyrt": "remplacé pour le projet",
   "timer.utlegg.taBilde": "Prendre une photo du reçu",
+  "timer.utlegg.velgFraBilder": "Choisissez parmi les photos",
   "timer.utlegg.kvitteringPaakrevd": "Reçu requis — L'enregistrement est activé une fois la photo prise",
   "timer.utlegg.dekketAvFirma": "Couvert par l'entreprise — aucun remboursement, aucun salaire. Le reçu est facultatif.",
   "timer.utlegg.ingenKategorier": "Aucune catégorie de dépenses disponible pour ce projet",
