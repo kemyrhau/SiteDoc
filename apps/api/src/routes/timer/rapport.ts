@@ -364,15 +364,22 @@ export const rapportRouter = router({
           aktivitet: r.aktivitet?.navn ?? "(ukjent)",
           timer: Number(r.timer),
           beskrivelse: r.beskrivelse,
-          status: s.status,
+          // T.3: RAD-status (attestertStatus), ikke sedel-status. Lønn spør om
+          // raden er attestert; en sedel kan stå "sent" mens enkeltrader er
+          // returnert. null → "pending" (Prisma-default).
+          radstatus: r.attestertStatus ?? "pending",
           // Nøsting: maskin-rader ført med DENNE timeraden (sheetTimerId === r.id).
           maskiner: s.maskiner
             .filter((m) => m.sheetTimerId === r.id)
             .map((m) => ({
               id: m.id,
               navn: utstyrMap.get(m.vehicleId) ?? m.vehicleId,
+              // Maskintimer = egen størrelse (attesteringsflaten summerer den
+              // separat), egen kolonne i eksporten — aldri i timer-kolonnen.
+              timer: Number(m.timer),
               mengde: m.mengde === null ? null : Number(m.mengde),
               enhet: m.enhet,
+              radstatus: m.attestertStatus ?? "pending",
             })),
         })),
       );
@@ -394,9 +401,10 @@ export const rapportRouter = router({
             ansattnr: ansattnummerMap.get(s.userId) ?? null,
             prosjekt: prosjektNavn(m.projectId),
             navn: utstyrMap.get(m.vehicleId) ?? m.vehicleId,
+            timer: Number(m.timer),
             mengde: m.mengde === null ? null : Number(m.mengde),
             enhet: m.enhet,
-            status: s.status,
+            radstatus: m.attestertStatus ?? "pending",
           })),
       );
 
@@ -410,7 +418,8 @@ export const rapportRouter = router({
           tillegg: r.tillegg?.navn ?? "(ukjent)",
           antall: Number(r.antall),
           kommentar: r.kommentar,
-          status: s.status,
+          // T.3 rad-status (som timerader).
+          radstatus: r.attestertStatus ?? "pending",
         })),
       );
 
@@ -424,7 +433,9 @@ export const rapportRouter = router({
           kategori: r.expenseCategory?.navn ?? "(ukjent)",
           belop: r.belop === null ? null : Number(r.belop),
           kommentar: r.kommentar,
-          status: s.status,
+          // SheetUtlegg har INGEN rad-status → sedel-status (kolonnen heter
+          // «Seddelstatus» på utlegg-arket, ikke «Radstatus» — ulik betydning).
+          seddelstatus: s.status,
         })),
       );
 
