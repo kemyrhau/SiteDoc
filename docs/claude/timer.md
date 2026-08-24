@@ -495,6 +495,12 @@ Anvendt på alle fire rad-skrive-stiene i `dagsseddel.ts`:
 
 > **Kjent asymmetri (BACKLOG, ikke 1b):** `rapport.ts` henter «firmaets prosjekter» via `primaryOrganizationId` (kun eide), mens rad-grensen tillater deltatte (ProjectOrganization). En underentreprenørs egne timer på et deltatt-men-ikke-eid prosjekt vises derfor ikke i firmaets periode-rapport. Under-rapportering, ikke lekkasje — eget oppfølgings-punkt.
 
+### Detaljeksport (lønn/fakturering) — `detaljEksport` (2026-08-24)
+
+`rapport.ts:detaljEksport` er en EGEN prosedyre ved siden av `firmaPeriodeRapport` (ikke ombygging — skjermrapport aggregerer med groupBy for rask visning, eksporten drar rå rader; én payload til begge ville gitt treg skjerm eller amputert eksport). Samme filtre (periode/prosjekt/ansatt), kalt **kun ved eksport-klikk** (`utils…fetch` i `rapport/page.tsx`). Inkluderer alle fire rad-typer med erstattet-filter (`timer`/`tillegg`/`maskiner` med `attestertStatus != "erstattet"`; `utlegg` har ingen status), lønnsart/aktivitet-navn per timerad (via `@relation`), kryss-prosjekt-navn og maskin-navn (`ctx.prismaMaskin`). Utlegg via `select` (beløp + kategorinavn + kommentar), **aldri vedlegg**.
+
+`.xlsx`-arkstruktur (vedtatt form, erstatter tidligere «Per prosjekt» + «Per dag»): **Sammendrag** (uendret) · **Timerader** (maskin nøstet under sin timerad via `sheetTimerId`, maskin uten timerad nederst) · **Tillegg** · **Utlegg**. Hvert detalj-ark har en **SUBTOTAL(109)-kontrollsum** (levende formel som respekterer Excel-filtrering) — regnet fra RADENE, ikke serveraggregatet: avvik mot Sammendrag = kodeveiene har drevet fra hverandre, synlig i fila før lønnskjøringen. CSV forblir sammendrag (ett flatt bord). Timerad-kolonnene er en **datadrevet liste** i `timer-rapport-eksport.ts` — proadm-«underprosjekt» legges senere til som ÉN kolonne + ETT filter, uten ombygging. Siste kolonne på hver rad er en tynn **ID** (koblingsnøkkel for den framtidige dimensjonen).
+
 ## Byggeplass-geofence (GPS-deteksjon) — ✅ 1c-server + mobil L1 IMPLEMENTERT (🟡 enhet-test gjenstår)
 
 Gir `Byggeplass` GPS-senter + radius så mobil kan identifisere **hvilken byggeplass** arbeider står på (utvider Fase 1 som kun identifiserte prosjekt/oppmøtested). Løser byggeplass-koordinat-gapet [`fase-0 T.8:990`](fase-0-beslutninger.md) — som også Fase 3 (kontor→byggeplass-reise) trenger.
