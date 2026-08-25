@@ -1679,6 +1679,7 @@
   "timer.eksport.ark.timerader": "Regjistrimet në kohë",
   "timer.eksport.ark.tillegg": "Suplementet",
   "timer.eksport.ark.utlegg": "Shpenzimet",
+  "timer.eksport.maskinIkkeEksporterbar": "⚠ Makinë në një hyrje kohore jo të eksportueshme: {{navn}}",
   "firma.timer.rapport.tom": "Nuk ka orë të regjistruara në periudhën e zgjedhur.",
   "firma.timer.rapport.eksport.knapp": "Eksporto",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",

@@ -1679,6 +1679,7 @@
   "timer.eksport.ark.timerader": "Zeiteinträge",
   "timer.eksport.ark.tillegg": "Ergänzungen",
   "timer.eksport.ark.utlegg": "Kosten",
+  "timer.eksport.maskinIkkeEksporterbar": "⚠ Maschine auf einem nicht exportierbaren Zeiteintrag: {{navn}}",
   "firma.timer.rapport.tom": "No registered hours in the selected period.",
   "firma.timer.rapport.eksport.knapp": "Export",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
