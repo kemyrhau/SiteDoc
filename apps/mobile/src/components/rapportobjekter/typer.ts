@@ -19,7 +19,11 @@ export interface RapportObjektProps {
   verdi: unknown;
   onEndreVerdi: (verdi: unknown) => void;
   leseModus?: boolean;
-  prosjektId?: string;
+  // `prosjektId` FJERNET 2026-08-24: den var valgfri og ble aldri threadet til repeater-barn,
+  // så prop-brukende felt (rom/sone/lokasjon/drawing_position) ble stille tomme uten kompileringsfeil.
+  // Alle prosjekt-avhengige felt henter nå fra kontekst (`useProsjekt().valgtProsjektId`), som de
+  // tre som alltid virket (firma/person/persons). En valgfri prop ingen threader konsekvent er en
+  // felle — derfor borte helt, ikke bare fikset per felt.
   barneObjekter?: RapportObjekt[];
   /** Sjekkliste-ID for opplastingskø (brukes av RepeaterObjekt) */
   sjekklisteId?: string;

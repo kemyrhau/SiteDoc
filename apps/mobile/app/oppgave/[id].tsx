@@ -752,7 +752,6 @@ export default function OppgaveDetalj() {
                   verdi={null}
                   onEndreVerdi={() => {}}
                   leseModus={leseModus}
-                  prosjektId={valgtProsjektId ?? undefined}
                 />
               </View>
             );
