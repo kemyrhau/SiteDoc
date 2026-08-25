@@ -326,7 +326,7 @@ export default function TimerRapportSide() {
         firmanavn: valgtFirma?.name ?? "firma",
       };
       if (format === "csv") {
-        mod.eksporterCsv(input);
+        mod.eksporterCsv(input, t);
       } else {
         // Detalj-radene hentes KUN her (ved eksport-klikk), med SAMME filtre som
         // skjermrapporten. detaljEksport filtrerer alltid på skalEksporteres

@@ -172,36 +172,52 @@ function sammendragRader(ansatte: AnsattRapportRad[]): Array<Array<string | numb
   ]);
 }
 
-const SAMMENDRAG_HEADER = [
-  "Ansatt",
-  "Ansattnr",
-  "Total timer",
-  "Antall sedler",
-  "Sist registrert",
-  "Kladd",
-  "Sent",
-  "Attestert",
-  "Etter prosjekt",
+/**
+ * Kolonne-etikett fra i18n. Nøklene lever i `timer.eksport.kol*` — SAMME
+ * navnemønster som PDF-ens `firma.timer.rapport.pdf.kol*` (den gjorde dette
+ * riktig først). Hver eksportvei eier sitt navnerom, men speiler den andres
+ * navngivning slik at et grep på tvers avslører drift (jf. den allerede
+ * mirror'ede `maskinIkkeEksporterbar`). Skjer en endring i én kolonneetikett
+ * skal søster-nøkkelen finnes med samme leaf-navn i det andre navnerommet.
+ */
+const kolTekst =
+  (t: OversettFn) =>
+  (nøkkel: string): string =>
+    t(`timer.eksport.${nøkkel}`);
+
+/** Header + stabile kolonnenøkler (til i18n-trygt indeks-oppslag — `indexOf`
+ *  på den OVERSATTE strengen ryker når fanen ikke er norsk). */
+const SAMMENDRAG_KOL = [
+  "kolAnsatt",
+  "kolAnsattnr",
+  "kolTotalTimer",
+  "kolSedler",
+  "kolSistRegistrert",
+  "kolKladd",
+  "kolSent",
+  "kolAttestert",
+  "ark.etterProsjekt", // gjenbruk av eksisterende arknavn-nøkkel (samme etikett)
 ] as const;
 
-const PER_PROSJEKT_HEADER = [
-  "Ansatt",
-  "Ansattnr",
-  "Prosjekt",
-  "Prosjektnummer",
-  "Internt prosjektnummer",
-  "Timer",
+const PER_PROSJEKT_KOL = [
+  "kolAnsatt",
+  "kolAnsattnr",
+  "kolProsjekt",
+  "kolProsjektnummer",
+  "kolInternProsjektnummer",
+  "kolTimer",
 ] as const;
 
-const PER_DAG_HEADER = ["Ansatt", "Ansattnr", "Dato", "Timer"] as const;
+const PER_DAG_KOL = ["kolAnsatt", "kolAnsattnr", "kolDato", "kolTimer"] as const;
 
 /** CSV-eksport (semikolon-separert for Excel-kompatibilitet, kun sammendrag).
  *  CSV er ett flatt bord → detalj-arkene (Timerader/Tillegg/Utlegg) finnes kun
  *  i .xlsx. CSV forblir sammendrags-eksporten. */
-export function eksporterCsv(input: EksportInput): void {
+export function eksporterCsv(input: EksportInput, t: OversettFn): void {
   const sep = ";";
+  const kol = kolTekst(t);
   const linjer: string[] = [];
-  linjer.push(SAMMENDRAG_HEADER.join(sep));
+  linjer.push(SAMMENDRAG_KOL.map(kol).join(sep));
   for (const rad of sammendragRader(input.ansatte)) {
     linjer.push(
       rad
@@ -270,53 +286,57 @@ function settBredder(ws: Worksheet, bredder: number[]): void {
  * som ett felt på server-raden + ett filter) — uten ombygging.
  */
 function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): void {
-  const header = [
-    "Dato",
-    "Ansatt",
-    "Ansattnr",
-    "Prosjekt",
+  const kol = kolTekst(t);
+  const noekler = [
+    "kolDato",
+    "kolAnsatt",
+    "kolAnsattnr",
+    "kolProsjekt",
     // ← framtidig «Underprosjekt» slottes inn her (data fra server-raden).
-    "Lønnsart",
-    "Aktivitet",
-    "Timer",
-    "Maskintimer", // egen kolonne — holder Timer-kolonnen (kontrollsum) ren
-    "Beskrivelse",
-    "Radstatus", // T.3 attestertStatus per rad (ikke sedel-status)
-    "Mengde",
-    "Enhet",
-    "ID", // tynn koblingsnøkkel (sheetTimer.id / sheetMachine.id), ikke lesestoff
+    "kolLonnsart",
+    "kolAktivitet",
+    "kolTimer",
+    "kolMaskintimer", // egen kolonne — holder Timer-kolonnen (kontrollsum) ren
+    "kolBeskrivelse",
+    "kolRadstatus", // T.3 attestertStatus per rad (ikke sedel-status)
+    "kolMengde",
+    "kolEnhet",
+    "kolId", // tynn koblingsnøkkel (sheetTimer.id / sheetMachine.id), ikke lesestoff
   ];
+  const header = noekler.map(kol);
   ws.addRow(header);
   ws.getRow(1).font = { bold: true };
-  const timerKol = header.indexOf("Timer"); // robust mot innskutte kolonner
-  const maskintimerKol = header.indexOf("Maskintimer");
+  // Indeks slås opp på den STABILE nøkkelen, ikke den oversatte strengen —
+  // robust mot både innskutte kolonner OG ikke-norske faner.
+  const timerKol = noekler.indexOf("kolTimer");
+  const maskintimerKol = noekler.indexOf("kolMaskintimer");
   const førsteData = 2;
 
-  for (const t of detalj.timerader) {
+  for (const rad of detalj.timerader) {
     ws.addRow([
-      t.dato,
-      t.ansatt,
-      t.ansattnr ?? "",
-      t.prosjekt,
-      t.lonnsart,
-      t.aktivitet,
-      t.timer, // NUMERISK — SUBTOTAL kan ikke summere formaterte strenger
+      rad.dato,
+      rad.ansatt,
+      rad.ansattnr ?? "",
+      rad.prosjekt,
+      rad.lonnsart,
+      rad.aktivitet,
+      rad.timer, // NUMERISK — SUBTOTAL kan ikke summere formaterte strenger
       "", // Maskintimer tom på timerad
-      t.beskrivelse ?? "",
-      t.radstatus,
+      rad.beskrivelse ?? "",
+      rad.radstatus,
       "",
       "",
-      t.id,
+      rad.id,
     ]);
     // Maskin nøstet rett under sin timerad. Timer-kolonnen står TOM (maskin
     // bærer maskintimer i EGEN kolonne) → arbeidstimer-kontrollsummen forblir ren.
-    for (const m of t.maskiner) {
+    for (const m of rad.maskiner) {
       ws.addRow([
-        t.dato,
-        t.ansatt,
-        t.ansattnr ?? "",
-        t.prosjekt,
-        `↳ ${m.navn}`,
+        rad.dato,
+        rad.ansatt,
+        rad.ansattnr ?? "",
+        rad.prosjekt,
+        t("timer.eksport.maskinNoster", { navn: m.navn }),
         "",
         "", // Timer tom for maskin
         m.timer, // maskintimer (numerisk)
@@ -334,7 +354,7 @@ function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): 
       m.ansatt,
       m.ansattnr ?? "",
       m.prosjekt,
-      `⚠ Maskin uten timerad: ${m.navn}`,
+      t("timer.eksport.maskinUtenTimerad", { navn: m.navn }),
       "",
       "",
       m.timer,
@@ -348,8 +368,7 @@ function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): 
   // Maskin på en timerad som ble ekskludert av skalEksporteres — EGEN linje,
   // ikke «uten timerad» (den er anomali-signalet «maskin uten registrert arbeid»).
   // Maskintimene beholdes i maskintimer-summen (fakturerbart — maskin er ikke
-  // en lønnsart). Ny streng → gjennom t() fra start (de øvrige merkene ryddes
-  // i kolonne-overskrift-batchen).
+  // en lønnsart).
   for (const m of detalj.maskinIkkeEksporterbar) {
     ws.addRow([
       m.dato,
@@ -375,26 +394,26 @@ function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): 
     [timerKol, maskintimerKol],
     førsteData,
     ws.rowCount,
-    "SUM (kontroll)",
+    t("timer.eksport.sumKontroll"),
   );
   settBredder(ws, [12, 22, 10, 24, 20, 20, 9, 11, 40, 12, 10, 8, 14]);
 }
 
-function byggTilleggArk(ws: Worksheet, detalj: DetaljEksport): void {
-  const header = [
-    "Dato",
-    "Ansatt",
-    "Ansattnr",
-    "Prosjekt",
-    "Tillegg",
-    "Antall",
-    "Kommentar",
-    "Radstatus",
-    "ID",
+function byggTilleggArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): void {
+  const noekler = [
+    "kolDato",
+    "kolAnsatt",
+    "kolAnsattnr",
+    "kolProsjekt",
+    "kolTillegg",
+    "kolAntall",
+    "kolKommentar",
+    "kolRadstatus",
+    "kolId",
   ];
-  ws.addRow(header);
+  ws.addRow(noekler.map(kolTekst(t)));
   ws.getRow(1).font = { bold: true };
-  const antallKol = header.indexOf("Antall");
+  const antallKol = noekler.indexOf("kolAntall");
   for (const r of detalj.tillegg) {
     ws.addRow([
       r.dato,
@@ -408,25 +427,25 @@ function byggTilleggArk(ws: Worksheet, detalj: DetaljEksport): void {
       r.id,
     ]);
   }
-  leggTilSumrad(ws, header.length, [antallKol], 2, ws.rowCount, "SUM (kontroll)");
+  leggTilSumrad(ws, noekler.length, [antallKol], 2, ws.rowCount, t("timer.eksport.sumKontroll"));
   settBredder(ws, [12, 22, 10, 24, 22, 9, 40, 12, 14]);
 }
 
-function byggUtleggArk(ws: Worksheet, detalj: DetaljEksport): void {
-  const header = [
-    "Dato",
-    "Ansatt",
-    "Ansattnr",
-    "Prosjekt",
-    "Kategori",
-    "Beløp",
-    "Kommentar",
-    "Seddelstatus", // utlegg har ingen rad-status → sedel-status (ulik betydning)
-    "ID",
+function byggUtleggArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): void {
+  const noekler = [
+    "kolDato",
+    "kolAnsatt",
+    "kolAnsattnr",
+    "kolProsjekt",
+    "kolKategori",
+    "kolBelop",
+    "kolKommentar",
+    "kolSeddelstatus", // utlegg har ingen rad-status → sedel-status (ulik betydning)
+    "kolId",
   ];
-  ws.addRow(header);
+  ws.addRow(noekler.map(kolTekst(t)));
   ws.getRow(1).font = { bold: true };
-  const belopKol = header.indexOf("Beløp");
+  const belopKol = noekler.indexOf("kolBelop");
   for (const r of detalj.utlegg) {
     ws.addRow([
       r.dato,
@@ -440,7 +459,7 @@ function byggUtleggArk(ws: Worksheet, detalj: DetaljEksport): void {
       r.id,
     ]);
   }
-  leggTilSumrad(ws, header.length, [belopKol], 2, ws.rowCount, "SUM (kontroll)");
+  leggTilSumrad(ws, noekler.length, [belopKol], 2, ws.rowCount, t("timer.eksport.sumKontroll"));
   settBredder(ws, [12, 22, 10, 24, 22, 12, 40, 12, 14]);
 }
 
@@ -464,9 +483,11 @@ export async function eksporterXlsx(
     (ExcelJSModule as unknown as typeof import("exceljs"));
   const wb = new (ExcelJS as { Workbook: new () => import("exceljs").Workbook }).Workbook();
 
+  const kol = kolTekst(t);
+
   // Ark 1: Sammendrag (uendret)
   const wsSam = wb.addWorksheet(t("timer.eksport.ark.sammendrag"));
-  wsSam.addRow([...SAMMENDRAG_HEADER]);
+  wsSam.addRow(SAMMENDRAG_KOL.map(kol));
   wsSam.getRow(1).font = { bold: true };
   for (const rad of sammendragRader(input.ansatte)) {
     wsSam.addRow(rad);
@@ -477,7 +498,7 @@ export async function eksporterXlsx(
 
   // Ark 2: Per prosjekt (aggregat, uendret — én rad per ansatt × prosjekt)
   const wsPro = wb.addWorksheet(t("timer.eksport.ark.etterProsjekt"));
-  wsPro.addRow([...PER_PROSJEKT_HEADER]);
+  wsPro.addRow(PER_PROSJEKT_KOL.map(kol));
   wsPro.getRow(1).font = { bold: true };
   for (const a of input.ansatte) {
     for (const p of a.perProsjekt.slice().sort((x, y) => y.timer - x.timer)) {
@@ -497,7 +518,7 @@ export async function eksporterXlsx(
 
   // Ark 3: Per dag (aggregat, uendret — én rad per ansatt × dag)
   const wsDag = wb.addWorksheet(t("timer.eksport.ark.etterDag"));
-  wsDag.addRow([...PER_DAG_HEADER]);
+  wsDag.addRow(PER_DAG_KOL.map(kol));
   wsDag.getRow(1).font = { bold: true };
   for (const a of input.ansatte) {
     for (const d of a.perDag) {
@@ -510,8 +531,8 @@ export async function eksporterXlsx(
 
   // Ark 4–6: detalj (lønn/fakturering)
   byggTimeraderArk(wb.addWorksheet(t("timer.eksport.ark.timerader")), detalj, t);
-  byggTilleggArk(wb.addWorksheet(t("timer.eksport.ark.tillegg")), detalj);
-  byggUtleggArk(wb.addWorksheet(t("timer.eksport.ark.utlegg")), detalj);
+  byggTilleggArk(wb.addWorksheet(t("timer.eksport.ark.tillegg")), detalj, t);
+  byggUtleggArk(wb.addWorksheet(t("timer.eksport.ark.utlegg")), detalj, t);
 
   const buffer = await wb.xlsx.writeBuffer();
   lastNed(
