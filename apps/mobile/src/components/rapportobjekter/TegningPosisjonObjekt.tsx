@@ -6,6 +6,7 @@ import type { RapportObjektProps } from "./typer";
 import type { TegningPosisjonVerdi } from "@sitedoc/shared";
 import { trpc } from "../../lib/trpc";
 import { AUTH_CONFIG } from "../../config/auth";
+import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import { TegningsVisning, type Markør } from "../TegningsVisning";
 import { TegningsVelger } from "../TegningsVelger";
 
@@ -39,8 +40,11 @@ export function TegningPosisjonObjekt({
   verdi,
   onEndreVerdi,
   leseModus,
-  prosjektId,
 }: RapportObjektProps) {
+  // Prosjekt-id fra KONTEKST, ikke `prosjektId`-propen — den threades ikke ned til felt
+  // (rendereren sender den ikke), så propen var undefined → query disabled → 0 tegninger.
+  // Samme kilde som TegningsSkjermbilde/FeltDokumentasjon bruker.
+  const { valgtProsjektId } = useProsjekt();
   const posisjon = verdi as TegningPosisjonVerdi | null;
   const [modalÅpen, setModalÅpen] = useState(false);
   const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
@@ -52,12 +56,14 @@ export function TegningPosisjonObjekt({
   );
 
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
-    { enabled: modalÅpen && !!prosjektId },
+    { projectId: valgtProsjektId! },
+    { enabled: modalÅpen && !!valgtProsjektId },
   );
+  // Hent ALLE prosjektets tegninger (som TegningsSkjermbilde); TegningsVelger filtrerer
+  // client-side på valgt bygning. Ingen byggeplassId i queryen → ingen re-fetch ved bygningsbytte.
   const tegningQuery = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: prosjektId!, ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}) },
-    { enabled: modalÅpen && !!prosjektId },
+    { projectId: valgtProsjektId! },
+    { enabled: modalÅpen && !!valgtProsjektId },
   );
   const tegningDetaljQuery = trpc.tegning.hentMedId.useQuery(
     { id: valgtTegningId! },
@@ -141,7 +147,15 @@ export function TegningPosisjonObjekt({
         </Pressable>
       )}
 
-      <Modal visible={modalÅpen} animationType="slide" onRequestClose={() => setModalÅpen(false)}>
+      {/* fullScreen + conditional content: WebView-en (TegningsVisning) må UNMOUNTES når modalen
+          lukkes, ellers blir skjermen svart (samme mønster som FeltDokumentasjons skjermbilde-modal). */}
+      <Modal
+        visible={modalÅpen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setModalÅpen(false)}
+      >
+        {modalÅpen ? (
         <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
           <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
             <Pressable onPress={() => setModalÅpen(false)} hitSlop={12}>
@@ -193,6 +207,7 @@ export function TegningPosisjonObjekt({
             />
           )}
         </SafeAreaView>
+        ) : null}
       </Modal>
     </View>
   );

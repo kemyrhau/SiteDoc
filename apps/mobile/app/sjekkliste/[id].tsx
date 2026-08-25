@@ -832,7 +832,6 @@ export default function SjekklisteUtfylling() {
                   verdi={null}
                   onEndreVerdi={() => {}}
                   leseModus={leseModus}
-                  prosjektId={valgtProsjektId ?? undefined}
                 />
               </View>
             );
