@@ -2282,60 +2282,8 @@ export const dagsseddelRouter = router({
       }));
     }),
 
-  // @deprecated alias for hentTilAttestering — beholdes 1 uke per CLAUDE.md
-  // API-bakoverkompatibilitet-regel. Fjernes etter 2026-05-09.
-  hentTilGodkjenning: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      await krevProsjektLeder(ctx.userId, input.projectId);
-
-      const sedler = await ctx.prismaTimer.dailySheet.findMany({
-        where: {
-          // T.1 (2026-05-11): projectId ligger på rad — filtrer via timer-relasjon.
-          timer: { some: { projectId: input.projectId } },
-          status: "sent",
-        },
-        include: {
-          aktivitet: { select: { id: true, navn: true, kode: true } },
-          // ORDRE 2 STEG 1: samme erstattet-filter som hentTilAttestering.
-          timer: { where: { attestertStatus: { not: "erstattet" } } },
-          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
-        },
-        orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
-      });
-
-      const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
-      const brukere = await prisma.user.findMany({
-        where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true },
-      });
-      const medlemmer = await prisma.organizationMember.findMany({
-        where: { userId: { in: userIder } },
-        select: { userId: true, ansattnummer: true },
-      });
-      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
-      const brukerMap = new Map(
-        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
-      );
-
-      return sedler.map((s) => ({
-        ...s,
-        ansatt: brukerMap.get(s.userId) ?? null,
-        totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
-        antallRader: s.timer.length + s.tillegg.length,
-      }));
-    }),
-
   // Boolean-flagg som sidebar/UI bruker for å gate Attestering-lenken.
   kanAttestere: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      return erProsjektLeder(ctx.userId, input.projectId);
-    }),
-
-  // @deprecated alias for kanAttestere — beholdes 1 uke per CLAUDE.md
-  // API-bakoverkompatibilitet-regel. Fjernes etter 2026-05-09.
-  kanGodkjenne: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return erProsjektLeder(ctx.userId, input.projectId);
