@@ -39,7 +39,11 @@ export const rapportRouter = router({
    * i UI ved behov.
    */
   firmaPeriodeRapport: protectedProcedure
-    .input(periodeSchema)
+    // kunEksporterbare: eksport-veien (aggregat-arkene) setter den → time-summene
+    // ekskluderer lønnsarter med skalEksporteres=false, så aggregatet matcher
+    // detalj-arkene (ingen «to sannheter»). SKJERMEN kaller uten flagget = alle
+    // timer (attestering/oversikt trenger å se alt). Ordren gjelder eksporter.
+    .input(periodeSchema.extend({ kunEksporterbare: z.boolean().optional() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
@@ -89,7 +93,8 @@ export const rapportRouter = router({
           ...(input.ansattId ? { userId: input.ansattId } : {}),
         },
         include: {
-          timer: true,
+          // lonnsart.skalEksporteres for kunEksporterbare-filteret (time-summen).
+          timer: { include: { lonnsart: { select: { skalEksporteres: true } } } },
           tillegg: true,
           maskiner: true,
         },
@@ -149,6 +154,13 @@ export const rapportRouter = router({
         // Hver SheetTimer-rad kan ha forskjellig projectId — splitt mellom dem.
         let sedelTimer = 0;
         for (const t of sedel.timer) {
+          // Eksport-veien: hopp over lønnsarter merket skalEksporteres=false, så
+          // aggregatets time-sum matcher detalj-arkene. Sedel-metadata
+          // (statusFordeling/antallSedler/sistRegistrert) filtreres IKKE — en
+          // sedel med kun ikke-eksporterbare timer er fortsatt en reell sedel.
+          if (input.kunEksporterbare && t.lonnsart?.skalEksporteres === false) {
+            continue;
+          }
           const radTimer = Number(t.timer);
           sedelTimer += radTimer;
           a.perProsjekt.set(
@@ -274,14 +286,23 @@ export const rapportRouter = router({
           // (samme som hentTilAttesteringFirma). Navnene inkluderes per rad via
           // de faktiske @relation-ene på SheetTimer.
           timer: {
-            where: { attestertStatus: { not: "erstattet" } },
+            // skalEksporteres=false → typen utelates fra ALLE eksporter (fabel-
+            // vedtak): en intern lønnsart merket «ikke eksporter» skal ikke lande
+            // i lønnsgrunnlaget. Relasjons-filter → ekskluderes på DB-nivå.
+            where: {
+              attestertStatus: { not: "erstattet" },
+              lonnsart: { skalEksporteres: true },
+            },
             include: {
               lonnsart: { select: { navn: true } },
               aktivitet: { select: { navn: true } },
             },
           },
           tillegg: {
-            where: { attestertStatus: { not: "erstattet" } },
+            where: {
+              attestertStatus: { not: "erstattet" },
+              tillegg: { skalEksporteres: true },
+            },
             include: { tillegg: { select: { navn: true } } },
           },
           maskiner: { where: { attestertStatus: { not: "erstattet" } } },

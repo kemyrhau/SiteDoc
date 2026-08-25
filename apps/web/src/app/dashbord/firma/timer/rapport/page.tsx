@@ -209,8 +209,20 @@ export default function TimerRapportSide() {
     setEksporterer(true);
     try {
       const mod = await import("@/lib/timer-rapport-eksport");
+      // Aggregatet til eksporten hentes med kunEksporterbare=true — time-summene
+      // ekskluderer lønnsarter merket skalEksporteres=false, så aggregat-arkene
+      // matcher detalj-arkene. Skjermens `rapportData` (alle timer) brukes kun
+      // som «har data»-vakt over; eksporten skal ikke speile ikke-eksporterbare.
+      const eksportRapport = await utils.timer.rapport.firmaPeriodeRapport.fetch({
+        organizationId: orgId!,
+        fra,
+        til,
+        prosjektId: valgtProsjektId || undefined,
+        ansattId: valgtAnsattId || undefined,
+        kunEksporterbare: true,
+      });
       const input = {
-        ansatte: rapportData.ansatte.map((a) => ({
+        ansatte: eksportRapport.ansatte.map((a) => ({
           ...a,
           sistRegistrert:
             typeof a.sistRegistrert === "string"
@@ -227,8 +239,8 @@ export default function TimerRapportSide() {
         mod.eksporterCsv(input);
       } else {
         // Detalj-radene hentes KUN her (ved eksport-klikk), med SAMME filtre som
-        // skjermrapporten — egen prosedyre, ikke aggregatet. .xlsx får detalj-
-        // arkene; CSV forblir sammendrag (ett flatt bord).
+        // skjermrapporten. detaljEksport filtrerer alltid på skalEksporteres
+        // (det ER lønnseksporten). .xlsx får detalj-arkene; CSV forblir sammendrag.
         const detalj = await utils.timer.rapport.detaljEksport.fetch({
           organizationId: orgId!,
           fra,
