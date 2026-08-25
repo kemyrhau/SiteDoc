@@ -1,80 +1,197 @@
 import { useState } from "react";
-import { View, Text, Pressable, Modal, SafeAreaView } from "react-native";
-import { Target, X } from "lucide-react-native";
+import { View, Text, Pressable, Modal, ActivityIndicator } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Target, X, Check } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
 import type { TegningPosisjonVerdi } from "@sitedoc/shared";
+import { trpc } from "../../lib/trpc";
+import { AUTH_CONFIG } from "../../config/auth";
+import { TegningsVisning, type Markør } from "../TegningsVisning";
+import { TegningsVelger } from "../TegningsVelger";
 
+// Minimale former (unngår TS2589 fra dype tRPC-typer, samme mønster som lokasjoner.tsx).
+interface BygningData {
+  id: string;
+  name: string;
+  status: string;
+  type?: string;
+}
+interface TegningData {
+  id: string;
+  name: string;
+  drawingNumber: string | null;
+  discipline: string | null;
+  floor: string | null;
+  byggeplassId: string | null;
+  fileUrl: string | null;
+  geoReference?: unknown;
+  _count: { revisions: number };
+}
+
+/**
+ * H8 (2026-08-24): mobil kan nå SETTE tegningsposisjon — tidligere en placeholder.
+ * Modal med TegningsVelger (bygning→tegning) + TegningsVisning (tapp for å plassere markør).
+ * Default-tegning: radens egen (`verdi.drawingId`) hvis satt, ellers velgeren.
+ * (Dokumentets tegning som mellomdefault krever en ny prop threadet fra detaljsiden — egen
+ *  liten oppfølger; kjeden radens→dokumentets→full velger fullføres da.)
+ */
 export function TegningPosisjonObjekt({
   verdi,
   onEndreVerdi,
   leseModus,
+  prosjektId,
 }: RapportObjektProps) {
   const posisjon = verdi as TegningPosisjonVerdi | null;
-  const [_modalSynlig, _setModalSynlig] = useState(false);
+  const [modalÅpen, setModalÅpen] = useState(false);
+  const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
+  const [valgtTegningId, setValgtTegningId] = useState<string | null>(posisjon?.drawingId ?? null);
+  const [tempPos, setTempPos] = useState<{ x: number; y: number } | null>(
+    posisjon?.positionX != null && posisjon?.positionY != null
+      ? { x: posisjon.positionX, y: posisjon.positionY }
+      : null,
+  );
 
-  // Forenklet mobilversjon — viser posisjonsinformasjon
-  // Full implementasjon med TegningsVisning og tegningsvelger kommer i neste iterasjon
+  const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: modalÅpen && !!prosjektId },
+  );
+  const tegningQuery = trpc.tegning.hentForProsjekt.useQuery(
+    { projectId: prosjektId!, ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}) },
+    { enabled: modalÅpen && !!prosjektId },
+  );
+  const tegningDetaljQuery = trpc.tegning.hentMedId.useQuery(
+    { id: valgtTegningId! },
+    { enabled: modalÅpen && !!valgtTegningId },
+  );
 
-  if (leseModus && posisjon) {
-    return (
-      <View className="gap-2">
-        <View className="flex-row items-center gap-2">
-          <Target size={16} color="#6b7280" />
-          <Text className="text-sm text-gray-700">
-            {posisjon.drawingName}
-          </Text>
-        </View>
-        <Text className="text-xs text-gray-500">
-          Posisjon: {posisjon.positionX.toFixed(1)}%, {posisjon.positionY.toFixed(1)}%
-        </Text>
-      </View>
+  const bygninger = (bygningQuery.data ?? []) as BygningData[];
+  const tegninger = (tegningQuery.data ?? []) as TegningData[];
+  const tegningDetalj = tegningDetaljQuery.data as { name: string; fileUrl: string | null } | undefined;
+
+  function åpne() {
+    setValgtTegningId(posisjon?.drawingId ?? null);
+    setValgtBygningId(null);
+    setTempPos(
+      posisjon?.positionX != null && posisjon?.positionY != null
+        ? { x: posisjon.positionX, y: posisjon.positionY }
+        : null,
     );
+    setModalÅpen(true);
   }
 
-  if (leseModus) {
-    return (
-      <Text className="text-sm italic text-gray-400">
-        Ingen posisjon valgt
+  function bekreft() {
+    if (valgtTegningId && tempPos && tegningDetalj) {
+      onEndreVerdi({
+        drawingId: valgtTegningId,
+        positionX: tempPos.x,
+        positionY: tempPos.y,
+        drawingName: tegningDetalj.name,
+      } as TegningPosisjonVerdi);
+    }
+    setModalÅpen(false);
+  }
+
+  const markører: Markør[] = tempPos
+    ? [{ id: "ny", x: tempPos.x, y: tempPos.y, farge: "#10b981", fylt: true }]
+    : [];
+  const tegningUrl = tegningDetalj?.fileUrl
+    ? tegningDetalj.fileUrl.startsWith("http")
+      ? tegningDetalj.fileUrl
+      : `${AUTH_CONFIG.apiUrl}${tegningDetalj.fileUrl}`
+    : null;
+
+  // Visning av lagret posisjon (les + rediger deler samme oppsummering).
+  const oppsummering = posisjon ? (
+    <View className="gap-2">
+      <View className="flex-row items-center gap-2">
+        <Target size={16} color="#6b7280" />
+        <Text className="flex-1 text-sm text-gray-700">{posisjon.drawingName}</Text>
+        {!leseModus && (
+          <Pressable onPress={() => onEndreVerdi(null)} className="rounded-full bg-gray-100 p-1">
+            <X size={14} color="#6b7280" />
+          </Pressable>
+        )}
+      </View>
+      <Text className="text-xs text-gray-500">
+        Posisjon: {posisjon.positionX.toFixed(1)}%, {posisjon.positionY.toFixed(1)}%
       </Text>
-    );
+    </View>
+  ) : null;
+
+  if (leseModus) {
+    return oppsummering ?? <Text className="text-sm italic text-gray-400">Ingen posisjon valgt</Text>;
   }
 
   return (
     <View className="gap-3">
       {posisjon ? (
         <View className="gap-2">
-          <View className="flex-row items-center gap-2">
-            <Target size={16} color="#6b7280" />
-            <Text className="flex-1 text-sm text-gray-700">
-              {posisjon.drawingName}
-            </Text>
-            <Pressable
-              onPress={() => onEndreVerdi(null)}
-              className="rounded-full bg-gray-100 p-1"
-            >
-              <X size={14} color="#6b7280" />
-            </Pressable>
-          </View>
-          <Text className="text-xs text-gray-500">
-            Posisjon: {posisjon.positionX.toFixed(1)}%, {posisjon.positionY.toFixed(1)}%
-          </Text>
+          {oppsummering}
+          <Pressable onPress={åpne} className="self-start rounded-lg bg-gray-100 px-3 py-1.5">
+            <Text className="text-xs font-medium text-gray-700">Endre posisjon</Text>
+          </Pressable>
         </View>
       ) : (
-        <View className="items-center rounded-lg border border-dashed border-gray-300 px-4 py-6">
+        <Pressable
+          onPress={åpne}
+          className="items-center rounded-lg border border-dashed border-gray-300 px-4 py-6"
+        >
           <Target size={24} color="#9ca3af" />
-          <Text className="mt-2 text-sm text-gray-500">
-            Velg tegning og marker posisjon
-          </Text>
-          <Text className="text-xs text-gray-400">
-            Funksjonen er tilgjengelig i en kommende oppdatering
-          </Text>
-        </View>
+          <Text className="mt-2 text-sm text-gray-600">Velg tegning og marker posisjon</Text>
+        </Pressable>
       )}
 
-      {/* Placeholder Modal for full tegningsvelger */}
-      <Modal visible={false} animationType="slide">
-        <SafeAreaView className="flex-1 bg-white">
-          <Text>Tegningsvelger — kommer</Text>
+      <Modal visible={modalÅpen} animationType="slide" onRequestClose={() => setModalÅpen(false)}>
+        <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+          <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
+            <Pressable onPress={() => setModalÅpen(false)} hitSlop={12}>
+              <X size={22} color="#374151" />
+            </Pressable>
+            <Text className="text-sm font-semibold text-gray-900">Marker posisjon</Text>
+            <Pressable
+              onPress={bekreft}
+              disabled={!valgtTegningId || !tempPos}
+              hitSlop={12}
+              className={`flex-row items-center gap-1 rounded-full px-3 py-1 ${valgtTegningId && tempPos ? "bg-green-600" : "bg-gray-200"}`}
+            >
+              <Check size={14} color={valgtTegningId && tempPos ? "#ffffff" : "#9ca3af"} />
+              <Text className={`text-xs font-medium ${valgtTegningId && tempPos ? "text-white" : "text-gray-400"}`}>
+                Bekreft
+              </Text>
+            </Pressable>
+          </View>
+
+          {valgtTegningId && tegningUrl ? (
+            <View className="flex-1">
+              <TegningsVisning
+                tegningUrl={tegningUrl}
+                tegningNavn={tegningDetalj?.name ?? ""}
+                onLukk={() => setValgtTegningId(null)}
+                onTrykk={(x, y) => setTempPos({ x, y })}
+                markører={markører}
+              />
+              <View className="border-t border-gray-200 bg-white px-4 py-2">
+                <Pressable onPress={() => { setValgtTegningId(null); setTempPos(null); }}>
+                  <Text className="text-center text-sm text-sitedoc-primary">Bytt tegning</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : valgtTegningId && tegningDetaljQuery.isLoading ? (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator size="large" color="#1e40af" />
+            </View>
+          ) : (
+            <TegningsVelger
+              bygninger={bygninger}
+              tegninger={tegninger}
+              valgtBygningId={valgtBygningId}
+              valgtTegningId={valgtTegningId}
+              onVelgBygning={(id) => setValgtBygningId(id)}
+              onVelgTegning={(id) => { setValgtTegningId(id); setTempPos(null); }}
+              onAvbryt={() => setModalÅpen(false)}
+              laster={bygningQuery.isLoading || tegningQuery.isLoading}
+            />
+          )}
         </SafeAreaView>
       </Modal>
     </View>

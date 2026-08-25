@@ -102,10 +102,19 @@ gjør).
 **Konsekvens:** HMS-admin trykker Returner på en SJA, skriver spørsmål, sender —
 ingenting skjer, ingen feilmelding.
 
-### H8 · Mobil kan ikke sette tegningsposisjon på repeater-rader (Kenneth 2026-08-22)
+### H8 · Mobil kan ikke sette tegningsposisjon på repeater-rader ✅ LØST (2026-08-24, branch `feat/mobil-h8-tegningsposisjon`)
 
-Mobilappen støtter kun dokumentets **hovedlokasjon**. Web støtter i tillegg
-`drawing_position` som barnefelt i en repeater — markøren per rad.
+`TegningPosisjonObjekt` var en placeholder («funksjonen er tilgjengelig i en kommende
+oppdatering»). Nå: modal med `TegningsVelger` (bygning→tegning) + `TegningsVisning` (tapp for
+å plassere markør) + bekreft → lagrer `{drawingId, positionX, positionY, drawingName}`. Siden
+feltet rendres per repeater-rad, kan mobil nå sette markør PER RAD — D2b-dataen mobilen ikke
+kunne produsere finnes nå. Default-tegning: radens egen (`verdi.drawingId`), ellers velgeren.
+**Rest (liten oppfølger):** «dokumentets tegning» som mellom-default i kjeden radens→dokumentets→
+full velger krever en ny prop threadet fra detaljsiden — ikke i denne runden. **Simulator-verifisering
+gjenstår.**
+
+~~Mobilappen støtter kun dokumentets **hovedlokasjon**. Web støtter i tillegg
+`drawing_position` som barnefelt i en repeater — markøren per rad.~~
 
 **Konsekvens:** et dokument utfylt på mobil kan aldri få radmarkører. Hele D2b-sporet
 bygget 2026-08-21 (nummererte markører, helside, detaljutsnitt i radkortet) hviler på
