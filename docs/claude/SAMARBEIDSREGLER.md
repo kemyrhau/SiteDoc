@@ -124,35 +124,14 @@ kjøre uten å tolke.
 - **Rekkefølge når noe avhenger:** «X først, fordi Y trenger resultatet.» Er de
   uavhengige, si det — da kan flere agenter kjøre parallelt.
 
-🔴 **ÉN ÅPEN ORDRE PER AGENT. Skriv aldri ordre nummer to før den første er besvart**
-(Kenneth 2026-08-25). Gjør du det, kan ikke Kenneth vite om den andre er et **tillegg**
-til den første eller en **ny retning** som erstatter den. Han kan bare lime; det er cowork
-som eier rekkefølgen.
+**To ordrer til SAMME agent før den første er relayet — merk hvilken som gjelder**
+(Kenneth 2026-08-25). Rekker ikke Kenneth å sende den første, kan han ikke vite om den
+andre er et *tillegg* eller en *ny retning*. Skjedde tre ganger 2026-08-25; verste utfall
+var at dokgen bygde om etter en eldre melding cowork allerede hadde godkjent bort.
 
-**Målt kostnad 2026-08-25 — tre misfyringer på én dag, alle samme form:**
-
-| Sak | Hva som skjedde |
-|---|---|
-| kontrollplans utlegg-sweep | Ordre skrevet, aldri relayet. Agenten sto ledig og ventet på noe som lå hos cowork |
-| dokgens maskin-rettelse | Samme — skrevet, ikke sendt, gjentatt en runde senere |
-| i18n-nøkkelen | Cowork **godkjente** at dokgen utsatte den, men en eldre melding med motsatt innhold ble relayet etterpå. Dokgen leste det som overstyring og bygde om |
-
-Den siste er den farligste: agenten gjorde noe *annet* enn cowork hadde bestemt, og ingen
-oppdaget det før leveransen kom.
-
-**Reglene som følger:**
-
-1. **Vent på svar.** Er agenten stille, purr — ikke skriv en ny ordre oppå.
-2. **Må noe sendes før svar, merk det i første linje:** `TILLEGG til ordren om X` eller
-   `🔴 ERSTATTER ordren om X — den forrige gjelder ikke lenger`. Uten merkelappen er
-   meldingen ikke sendbar.
-3. **Ikke be Kenneth kvittere for hver relay.** Det flytter kostnaden for coworks
-   rekkefølgeproblem over på ham. Løsningen er å skrive færre og mer komplette ordrer,
-   ikke å innføre et kvitteringsregime.
-
-Samme feilklasse som «aldri merge-kommando i samme melding som nudgen» (§ Ordreformat) —
-begge handler om at to instrukser i samme åndedrag ikke kan utføres i rekkefølge av noen
-som ikke ser hva cowork tenkte.
+Ikke et regime — et lite problem som håndteres når det oppstår. Må noe likevel ut før
+svar, skriv `TILLEGG til ordren om X` eller `ERSTATTER ordren om X` i første linje. Og
+cowork spør ikke om lov til å sende; cowork skriver ordren.
 
 🔴 **Aldri referer til en kommando i en tidligere melding** (Kenneth 2026-08-20:
 *«slutt å referere til blokker i forrige melding — du gir alle kommandoer tydelig»*).
