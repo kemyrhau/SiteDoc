@@ -6,6 +6,18 @@
  * - Web: CSS print / window.print() (felt-rendering + konstanter)
  */
 
+// Timer-rapport PDF (ny mal på HTML→PDF-motoren)
+export { byggTimerRapportHtml } from "./timer-rapport";
+export type {
+  TimerRapportData,
+  TimerRapportTekster,
+  TimerRapportAnsatt,
+  TimerRapportTimerad,
+  TimerRapportLosMaskin,
+  TimerRapportTillegg,
+  TimerRapportUtlegg,
+} from "./timer-rapport";
+
 // Typer
 export { normaliserRad } from "./typer";
 export type {

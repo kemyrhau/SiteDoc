@@ -37,6 +37,11 @@
  *   · Per Berg      — 37,5 t, alt normaltid           → intet avvik (ren norm)
  *   Alle sedler status «sent» → havner i «Venter på attestering»-fanen.
  *
+ * Ekstra-rader (for PDF-rapportens Tillegg/Utlegg/maskin-seksjoner): Ola mandag
+ * får overtidsmat-tillegg + maskin NØSTET under sin timerad; Per mandag km-
+ * tillegg + maskin UTEN timerad; Kari fredag et parkering-utlegg. Endrer demo-
+ * tallene fra ren-timer-versjonen (D3-gaten er lukket → ufarlig, se sluttlogg).
+ *
  * I tillegg: Turid Lie (firma_admin i demo-orgen, ingen dagsedler). Kenneth
  * impersonerer henne og tar D3-bildene som VANLIG firmabruker — ikke
  * sitedoc_admin, som er cross-org-veien bf2bf475 nettopp rettet.
@@ -48,6 +53,7 @@
 
 import { prisma } from "../src/index";
 import { prismaTimer } from "../../db-timer/src";
+import { prismaMaskin } from "../../db-maskin/src";
 
 /* ------------------------------------------------------------------ */
 /*  🔴 DB-navn-gate — kjør KUN mot sitedoc_test                        */
@@ -124,6 +130,52 @@ const LONNSARTER = [
 ] as const;
 
 const AKTIVITET = { navn: "Grunnarbeid", kode: "GA" } as const;
+
+// Tillegg-katalog (for Tillegg-arket/-seksjonen). type: avhuking | antall.
+const TILLEGG = [
+  { key: "OVERTIDSMAT", navn: "Overtidsmat", kode: "OM", type: "avhuking" },
+  { key: "KM", navn: "Kjøregodtgjørelse", kode: "KM", type: "antall" },
+] as const;
+
+// Utleggskategori (for Utlegg-seksjonen).
+const UTLEGGSKATEGORI = { navn: "Parkering" } as const;
+
+// Utstyr (db-maskin) — for maskin-radene. Navn i PDF = «merke modell».
+const UTSTYR = {
+  merke: "Volvo",
+  modell: "EC220",
+  internNavn: "Graver 1",
+  kategori: "anleggsmaskin",
+  type: "gravemaskin",
+} as const;
+
+// Ekstra-rader per (ansatt, ukedag): tillegg / maskin / utlegg — nok til at hver
+// PDF-seksjon viser ekte struktur. `nestUnder` = indeks i dagens timer-rader
+// (maskin nøstet under sin timerad via sheetTimerId); null = maskin uten timerad.
+type Maskin = { timer: number; mengde: number; enhet: string; nestUnder: number | null };
+type EkstraDag = {
+  tillegg?: { key: "OVERTIDSMAT" | "KM"; antall: number }[];
+  maskin?: Maskin[];
+  utlegg?: { belop: number }[];
+};
+const EKSTRA: Record<string, Record<number, EkstraDag>> = {
+  // Ola mandag (2 timer-rader): tillegg + maskin NØSTET under første timerad.
+  OLA: {
+    0: {
+      tillegg: [{ key: "OVERTIDSMAT", antall: 1 }],
+      maskin: [{ timer: 3, mengde: 12, enhet: "m3", nestUnder: 0 }],
+    },
+  },
+  // Kari fredag: utlegg.
+  KARI: { 4: { utlegg: [{ belop: 150 }] } },
+  // Per mandag: tillegg (antall) + maskin UTEN timerad (viser den bøtta).
+  PER: {
+    0: {
+      tillegg: [{ key: "KM", antall: 12 }],
+      maskin: [{ timer: 2.5, mengde: 8, enhet: "m3", nestUnder: null }],
+    },
+  },
+};
 
 // Rader per ansatt per ukedag (0 = mandag ... 4 = fredag).
 // { p: prosjekt-key, l: lønnsart-key, t: timer }
@@ -305,6 +357,9 @@ async function seedKjerne(): Promise<{
 async function seedKatalog(orgId: string): Promise<{
   lonnsartIder: Map<string, string>;
   aktivitetId: string;
+  tilleggIder: Map<string, string>;
+  utleggKategoriId: string;
+  vehicleId: string;
 }> {
   const lonnsartIder = new Map<string, string>();
   for (const l of LONNSARTER) {
@@ -335,8 +390,55 @@ async function seedKatalog(orgId: string): Promise<{
     });
   }
 
-  console.log(`Katalog: ${LONNSARTER.length} lønnsarter, 1 aktivitet.`);
-  return { lonnsartIder, aktivitetId: aktivitet.id };
+  const tilleggIder = new Map<string, string>();
+  for (const tl of TILLEGG) {
+    let rad = await prismaTimer.tillegg.findFirst({
+      where: { organizationId: orgId, navn: tl.navn },
+    });
+    if (!rad) {
+      rad = await prismaTimer.tillegg.create({
+        data: { organizationId: orgId, navn: tl.navn, kode: tl.kode, type: tl.type },
+      });
+    }
+    tilleggIder.set(tl.key, rad.id);
+  }
+
+  let utleggKat = await prismaTimer.expenseCategory.findFirst({
+    where: { organizationId: orgId, navn: UTLEGGSKATEGORI.navn },
+  });
+  if (!utleggKat) {
+    utleggKat = await prismaTimer.expenseCategory.create({
+      data: { organizationId: orgId, navn: UTLEGGSKATEGORI.navn, ordning: "utlegg" },
+    });
+  }
+
+  // Utstyr i db-maskin (svak FK — SheetMachine.vehicleId, ingen @relation).
+  let utstyr = await prismaMaskin.equipment.findFirst({
+    where: { organizationId: orgId, internNavn: UTSTYR.internNavn },
+  });
+  if (!utstyr) {
+    utstyr = await prismaMaskin.equipment.create({
+      data: {
+        organizationId: orgId,
+        kategori: UTSTYR.kategori,
+        type: UTSTYR.type,
+        merke: UTSTYR.merke,
+        modell: UTSTYR.modell,
+        internNavn: UTSTYR.internNavn,
+      },
+    });
+  }
+
+  console.log(
+    `Katalog: ${LONNSARTER.length} lønnsarter, 1 aktivitet, ${TILLEGG.length} tillegg, 1 utleggskategori, 1 utstyr.`,
+  );
+  return {
+    lonnsartIder,
+    aktivitetId: aktivitet.id,
+    tilleggIder,
+    utleggKategoriId: utleggKat.id,
+    vehicleId: utstyr.id,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -349,10 +451,14 @@ async function seedDagsedler(
   ansattIder: Map<string, string>,
   lonnsartIder: Map<string, string>,
   aktivitetId: string,
+  tilleggIder: Map<string, string>,
+  utleggKategoriId: string,
+  vehicleId: string,
 ): Promise<void> {
   const mandag = inneverendeMandag();
   let sedler = 0;
   let rader = 0;
+  let ekstraN = 0;
 
   for (const a of ANSATTE) {
     const userId = ansattIder.get(a.key)!;
@@ -378,10 +484,15 @@ async function seedDagsedler(
         },
       });
 
-      // Idempotent rad-sett: slett eksisterende, gjenskap.
+      // Idempotent rad-sett: slett eksisterende (inkl. ekstra-tabellene), gjenskap.
       await prismaTimer.sheetTimer.deleteMany({ where: { sheetId: sedel.id } });
+      await prismaTimer.sheetTillegg.deleteMany({ where: { sheetId: sedel.id } });
+      await prismaTimer.sheetMachine.deleteMany({ where: { sheetId: sedel.id } });
+      await prismaTimer.sheetUtlegg.deleteMany({ where: { sheetId: sedel.id } });
+
+      const opprettedeTimer: string[] = [];
       for (const r of radDef) {
-        await prismaTimer.sheetTimer.create({
+        const tr = await prismaTimer.sheetTimer.create({
           data: {
             sheetId: sedel.id,
             lonnsartId: lonnsartIder.get(r.l)!,
@@ -391,13 +502,60 @@ async function seedDagsedler(
             beskrivelse: `${AKTIVITET.navn} – ${r.p}`,
           },
         });
+        opprettedeTimer.push(tr.id);
         rader += 1;
       }
+
+      // Ekstra-rader (tillegg/maskin/utlegg) på valgte sedler — så hver PDF-
+      // seksjon viser ekte struktur. dagProsjekt = dagens første timerad-prosjekt.
+      const dagProsjekt = prosjektIder.get(radDef[0]!.p)!;
+      const ekstra = EKSTRA[a.key]?.[dagIdx];
+      for (const tl of ekstra?.tillegg ?? []) {
+        await prismaTimer.sheetTillegg.create({
+          data: {
+            sheetId: sedel.id,
+            tilleggId: tilleggIder.get(tl.key)!,
+            projectId: dagProsjekt,
+            antall: tl.antall,
+          },
+        });
+        ekstraN += 1;
+      }
+      for (const m of ekstra?.maskin ?? []) {
+        await prismaTimer.sheetMachine.create({
+          data: {
+            sheetId: sedel.id,
+            vehicleId,
+            projectId: dagProsjekt,
+            timer: m.timer,
+            mengde: m.mengde,
+            enhet: m.enhet,
+            // Nøstet under sin timerad (sheetTimerId) eller null = uten timerad.
+            sheetTimerId: m.nestUnder === null ? null : opprettedeTimer[m.nestUnder]!,
+          },
+        });
+        ekstraN += 1;
+      }
+      for (const u of ekstra?.utlegg ?? []) {
+        await prismaTimer.sheetUtlegg.create({
+          data: {
+            sheetId: sedel.id,
+            projectId: dagProsjekt,
+            expenseCategoryId: utleggKategoriId,
+            belop: u.belop,
+            ordningVedFoering: "utlegg",
+          },
+        });
+        ekstraN += 1;
+      }
+
       sedler += 1;
     }
   }
 
-  console.log(`Dagsedler: ${sedler} sedler (status «sent»), ${rader} timer-rader. Uke fra ${isoDato(mandag)}.`);
+  console.log(
+    `Dagsedler: ${sedler} sedler (status «sent»), ${rader} timer-rader, ${ekstraN} ekstra-rader (tillegg/maskin/utlegg). Uke fra ${isoDato(mandag)}.`,
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -409,8 +567,18 @@ async function main(): Promise<void> {
   console.log("Seeder Timer-demo for attesterings-pivotene …\n");
 
   const { orgId, prosjektIder, ansattIder } = await seedKjerne();
-  const { lonnsartIder, aktivitetId } = await seedKatalog(orgId);
-  await seedDagsedler(orgId, prosjektIder, ansattIder, lonnsartIder, aktivitetId);
+  const { lonnsartIder, aktivitetId, tilleggIder, utleggKategoriId, vehicleId } =
+    await seedKatalog(orgId);
+  await seedDagsedler(
+    orgId,
+    prosjektIder,
+    ansattIder,
+    lonnsartIder,
+    aktivitetId,
+    tilleggIder,
+    utleggKategoriId,
+    vehicleId,
+  );
 
   console.log("\nFerdig.");
   console.log(`Firma: «${ORG_NAVN}» (erKunde=true → synlig i firma-velgeren).`);
@@ -422,6 +590,15 @@ async function main(): Promise<void> {
   console.log("  · Visningsvelger «Per prosjekt» + «Per ansatt» (norm-kolonne).");
   console.log("  · Ola Nordmann: +4,5 t over norm · Kari Hansen: overtid ført under norm · Per Berg: ingen avvik.");
   console.log("  · Ola mandag = 2 rader (ekspander) · celle-klikk åpner sedel-detalj.");
+  console.log("\n📄 PDF-gate: Firma → Timer → Rapport → Eksporter → «PDF (.pdf)» (Prosjekt/Ansatt = Alle).");
+  console.log("  · Ola mandag: maskin NØSTET under timerad · Per mandag: maskin UTEN timerad · tillegg + utlegg populert.");
+  console.log(
+    "\n⚠ MERK: ekstra-radene (tillegg/maskin/utlegg) endrer demo-tallene fra tidligere kjøringer.",
+  );
+  console.log(
+    "  D3-gaten er LUKKET og skjermbildene tatt, så det er ufarlig — men attesterings-pivotene",
+  );
+  console.log("  viser nå også maskin/tillegg/utlegg, ikke bare timer som før.");
 }
 
 main()
