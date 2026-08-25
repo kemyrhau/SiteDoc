@@ -74,6 +74,73 @@ function førsteOgSisteIMåneden(): { fra: string; til: string } {
   };
 }
 
+/** Last ned base64-PDF fra pdfEksport-prosedyren. */
+function lastNedBase64(base64: string, filnavn: string, mime: string): void {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filnavn;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Alle oversatte PDF-overskrifter/etiketter (1:1 med teksterSchema server-side).
+ *  PDF-overskrifter er synlige strenger → gjennom t(), som arknavnene. */
+function byggPdfTekster(t: (key: string) => string): {
+  [K in
+    | "dokumentTittel" | "periode" | "prosjekt" | "ansatt" | "alle" | "ingenData" | "sum"
+    | "sammendrag" | "kolAnsattnr" | "kolTotalTimer" | "kolSedler" | "kolSistRegistrert"
+    | "kolKladd" | "kolSent" | "kolAttestert" | "timerader" | "kolDato" | "kolLonnsart"
+    | "kolAktivitet" | "kolTimer" | "kolMaskintimer" | "kolBeskrivelse" | "kolRadstatus"
+    | "kolMengde" | "kolEnhet" | "maskinUtenTimerad" | "maskinIkkeEksporterbar" | "tillegg"
+    | "kolTillegg" | "kolAntall" | "kolKommentar" | "utlegg" | "kolKategori" | "kolBelop"
+    | "kolSeddelstatus"]: string;
+} {
+  const k = (s: string): string => t(`firma.timer.rapport.pdf.${s}`);
+  return {
+    dokumentTittel: k("dokumentTittel"),
+    periode: k("periode"),
+    prosjekt: k("prosjekt"),
+    ansatt: k("ansatt"),
+    alle: k("alle"),
+    ingenData: k("ingenData"),
+    sum: k("sum"),
+    sammendrag: k("sammendrag"),
+    kolAnsattnr: k("kolAnsattnr"),
+    kolTotalTimer: k("kolTotalTimer"),
+    kolSedler: k("kolSedler"),
+    kolSistRegistrert: k("kolSistRegistrert"),
+    kolKladd: k("kolKladd"),
+    kolSent: k("kolSent"),
+    kolAttestert: k("kolAttestert"),
+    timerader: k("timerader"),
+    kolDato: k("kolDato"),
+    kolLonnsart: k("kolLonnsart"),
+    kolAktivitet: k("kolAktivitet"),
+    kolTimer: k("kolTimer"),
+    kolMaskintimer: k("kolMaskintimer"),
+    kolBeskrivelse: k("kolBeskrivelse"),
+    kolRadstatus: k("kolRadstatus"),
+    kolMengde: k("kolMengde"),
+    kolEnhet: k("kolEnhet"),
+    maskinUtenTimerad: k("maskinUtenTimerad"),
+    maskinIkkeEksporterbar: k("maskinIkkeEksporterbar"),
+    tillegg: k("tillegg"),
+    kolTillegg: k("kolTillegg"),
+    kolAntall: k("kolAntall"),
+    kolKommentar: k("kolKommentar"),
+    utlegg: k("utlegg"),
+    kolKategori: k("kolKategori"),
+    kolBelop: k("kolBelop"),
+    kolSeddelstatus: k("kolSeddelstatus"),
+  };
+}
+
 export default function TimerRapportSide() {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
@@ -202,12 +269,35 @@ export default function TimerRapportSide() {
     }
   }
 
-  async function håndterEksport(format: "csv" | "xlsx") {
+  async function håndterEksport(format: "csv" | "xlsx" | "pdf") {
     if (!rapportData || rapportData.ansatte.length === 0) return;
     setEksportÅpen(false);
     setEksportFeil(null);
     setEksporterer(true);
     try {
+      if (format === "pdf") {
+        // PDF bygges SERVER-side (samme HTML→PDF-motor som arkiv). Klienten
+        // sender oversatte overskrifter/filnavn inn (ingen server-i18n); serveren
+        // gjenbruker firmaPeriodeRapport + detaljEksport (ingen fjerde data-vei).
+        const res = await utils.timer.rapport.pdfEksport.fetch({
+          organizationId: orgId!,
+          fra,
+          til,
+          prosjektId: valgtProsjektId || undefined,
+          ansattId: valgtAnsattId || undefined,
+          firmanavn: valgtFirma?.name ?? "firma",
+          filnavn: `SiteDoc-${t("firma.timer.rapport.pdf.filnavn")}-${fra}-${til}.pdf`,
+          footerGenerert: t("firma.timer.rapport.pdf.footerGenerert", {
+            dato: new Date().toLocaleDateString("nb-NO"),
+          }),
+          footerSide: t("firma.timer.rapport.pdf.footerSide"),
+          footerAv: t("firma.timer.rapport.pdf.footerAv"),
+          tekster: byggPdfTekster(t),
+        });
+        lastNedBase64(res.pdf, res.filnavn, "application/pdf");
+        return;
+      }
+
       const mod = await import("@/lib/timer-rapport-eksport");
       // Aggregatet til eksporten hentes med kunEksporterbare=true — time-summene
       // ekskluderer lønnsarter merket skalEksporteres=false, så aggregat-arkene
@@ -300,6 +390,13 @@ export default function TimerRapportSide() {
                     className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
                   >
                     {t("firma.timer.rapport.eksport.excel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => håndterEksport("pdf")}
+                    className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    {t("firma.timer.rapport.eksport.pdf")}
                   </button>
                 </div>
               </>

@@ -12,9 +12,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
+import { esc, byggTimerRapportHtml, type TimerRapportData } from "@sitedoc/pdf";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import { renderPdfViaContainer } from "../../services/pdf-render-klient";
 
 async function verifiserFirmaAdmin(
   userId: string,
@@ -30,6 +32,47 @@ const periodeSchema = z.object({
   til: z.string(),
   prosjektId: z.string().uuid().optional(),
   ansattId: z.string().uuid().optional(),
+});
+
+// Alle synlige PDF-overskrifter/etiketter injiseres oversatt fra klienten
+// (api har ingen server-i18n; samme mønster som arkiv-PDF). Speiler
+// TimerRapportTekster i @sitedoc/pdf — typecheck fanger avvik ved bruk.
+const teksterSchema = z.object({
+  dokumentTittel: z.string(),
+  periode: z.string(),
+  prosjekt: z.string(),
+  ansatt: z.string(),
+  alle: z.string(),
+  ingenData: z.string(),
+  sum: z.string(),
+  sammendrag: z.string(),
+  kolAnsattnr: z.string(),
+  kolTotalTimer: z.string(),
+  kolSedler: z.string(),
+  kolSistRegistrert: z.string(),
+  kolKladd: z.string(),
+  kolSent: z.string(),
+  kolAttestert: z.string(),
+  timerader: z.string(),
+  kolDato: z.string(),
+  kolLonnsart: z.string(),
+  kolAktivitet: z.string(),
+  kolTimer: z.string(),
+  kolMaskintimer: z.string(),
+  kolBeskrivelse: z.string(),
+  kolRadstatus: z.string(),
+  kolMengde: z.string(),
+  kolEnhet: z.string(),
+  maskinUtenTimerad: z.string(),
+  maskinIkkeEksporterbar: z.string(),
+  tillegg: z.string(),
+  kolTillegg: z.string(),
+  kolAntall: z.string(),
+  kolKommentar: z.string(),
+  utlegg: z.string(),
+  kolKategori: z.string(),
+  kolBelop: z.string(),
+  kolSeddelstatus: z.string(),
 });
 
 export const rapportRouter = router({
@@ -488,6 +531,145 @@ export const rapportRouter = router({
       );
 
       return { timerader, maskinUtenTimerad, maskinIkkeEksporterbar, tillegg, utlegg };
+    }),
+
+  /**
+   * PDF-eksport (fase 1): dokument-versjon av rapporten — samme innhold som
+   * Excel, formatert som et dokument som kan sendes ut av huset. Ny mal på den
+   * eksisterende HTML→PDF-motoren (pdf-render-containeren).
+   *
+   * DATA-GJENBRUK: kaller firmaPeriodeRapport (aggregat, kunEksporterbare) +
+   * detaljEksport (detalj) via createCaller — samme raduttrekk som CSV/Excel,
+   * ingen fjerde data-vei som kan drive fra hverandre. Overskrifter injiseres
+   * oversatt fra klienten (ingen server-i18n). ID-kolonner utelates bevisst.
+   */
+  pdfEksport: protectedProcedure
+    .input(
+      periodeSchema.extend({
+        firmanavn: z.string(),
+        filnavn: z.string(),
+        footerGenerert: z.string(),
+        footerSide: z.string(),
+        footerAv: z.string(),
+        tekster: teksterSchema,
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      await krevTimerAktivert(orgId);
+
+      const filtre = {
+        organizationId: input.organizationId,
+        fra: input.fra,
+        til: input.til,
+        prosjektId: input.prosjektId,
+        ansattId: input.ansattId,
+      };
+      const caller = rapportRouter.createCaller(ctx);
+      const aggregat = await caller.firmaPeriodeRapport({ ...filtre, kunEksporterbare: true });
+      const detalj = await caller.detaljEksport(filtre);
+
+      const prosjektFilter = input.prosjektId
+        ? (aggregat.prosjekter.find((p) => p.id === input.prosjektId)?.navn ?? null)
+        : null;
+      const ansattFilter = input.ansattId
+        ? (aggregat.ansatte.find((a) => a.userId === input.ansattId)?.navn ??
+            aggregat.ansatte.find((a) => a.userId === input.ansattId)?.email ??
+            null)
+        : null;
+
+      const data: TimerRapportData = {
+        firmanavn: input.firmanavn,
+        fra: input.fra,
+        til: input.til,
+        prosjektFilter,
+        ansattFilter,
+        ansatte: aggregat.ansatte.map((a) => ({
+          navn: a.navn ?? a.email,
+          ansattnr: a.ansattnummer,
+          totalTimer: a.totalTimer,
+          antallSedler: a.antallSedler,
+          sistRegistrert: a.sistRegistrert
+            ? a.sistRegistrert.toISOString().slice(0, 10)
+            : null,
+          kladd: a.statusFordeling.kladd,
+          sent: a.statusFordeling.sent,
+          attestert: a.statusFordeling.attestert,
+        })),
+        timerader: detalj.timerader.map((r) => ({
+          dato: r.dato,
+          ansatt: r.ansatt,
+          ansattnr: r.ansattnr,
+          prosjekt: r.prosjekt,
+          lonnsart: r.lonnsart,
+          aktivitet: r.aktivitet,
+          timer: r.timer,
+          beskrivelse: r.beskrivelse,
+          radstatus: r.radstatus,
+          maskiner: r.maskiner.map((m) => ({
+            navn: m.navn,
+            timer: m.timer,
+            mengde: m.mengde,
+            enhet: m.enhet,
+            radstatus: m.radstatus,
+          })),
+        })),
+        maskinUtenTimerad: detalj.maskinUtenTimerad.map((m) => ({
+          dato: m.dato,
+          ansatt: m.ansatt,
+          ansattnr: m.ansattnr,
+          prosjekt: m.prosjekt,
+          navn: m.navn,
+          timer: m.timer,
+          mengde: m.mengde,
+          enhet: m.enhet,
+          radstatus: m.radstatus,
+        })),
+        maskinIkkeEksporterbar: detalj.maskinIkkeEksporterbar.map((m) => ({
+          dato: m.dato,
+          ansatt: m.ansatt,
+          ansattnr: m.ansattnr,
+          prosjekt: m.prosjekt,
+          navn: m.navn,
+          timer: m.timer,
+          mengde: m.mengde,
+          enhet: m.enhet,
+          radstatus: m.radstatus,
+        })),
+        tillegg: detalj.tillegg.map((r) => ({
+          dato: r.dato,
+          ansatt: r.ansatt,
+          ansattnr: r.ansattnr,
+          prosjekt: r.prosjekt,
+          tillegg: r.tillegg,
+          antall: r.antall,
+          kommentar: r.kommentar,
+          radstatus: r.radstatus,
+        })),
+        utlegg: detalj.utlegg.map((r) => ({
+          dato: r.dato,
+          ansatt: r.ansatt,
+          ansattnr: r.ansattnr,
+          prosjekt: r.prosjekt,
+          kategori: r.kategori,
+          belop: r.belop,
+          kommentar: r.kommentar,
+          seddelstatus: r.seddelstatus,
+        })),
+      };
+
+      const html = byggTimerRapportHtml(data, input.tekster);
+
+      // Margin-header (alle sider, kan ikke slås av per side): firmanavn +
+      // periode så flersides-dokument er identifiserbart. Footer: generert-
+      // stempel + Chromium-injiserte sidetall. Inline-stilt (margin arver ingen CSS).
+      const stil = "font-family:Arial,Helvetica,sans-serif;font-size:7px;color:#6b7280";
+      const header = `<div style="width:100%;box-sizing:border-box;padding:0 16mm;${stil};text-align:right">${esc(input.firmanavn)} · ${esc(input.fra)}–${esc(input.til)}</div>`;
+      const footer = `<div style="width:100%;box-sizing:border-box;padding:0 16mm;${stil};display:flex;justify-content:space-between"><span>${esc(input.footerGenerert)}</span><span>${esc(input.footerSide)} <span class="pageNumber"></span> ${esc(input.footerAv)} <span class="totalPages"></span></span></div>`;
+
+      const { pdf } = await renderPdfViaContainer(html, header, footer);
+      return { pdf: pdf.toString("base64"), filnavn: input.filnavn };
     }),
 
   /**
