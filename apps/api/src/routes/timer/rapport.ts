@@ -542,6 +542,11 @@ export const rapportRouter = router({
    * detaljEksport (detalj) via createCaller — samme raduttrekk som CSV/Excel,
    * ingen fjerde data-vei som kan drive fra hverandre. Overskrifter injiseres
    * oversatt fra klienten (ingen server-i18n). ID-kolonner utelates bevisst.
+   *
+   * 🔴 BETINGELSE (Kenneth 2026-08-26): to konsumenter tåler createCaller-mønsteret.
+   * Dukker en TREDJE opp som trenger samme aggregat/detalj, EKSTRAHER data-
+   * byggingen til delte funksjoner — tre call-sites begynner å skjule hvor
+   * sannheten bor.
    */
   pdfEksport: protectedProcedure
     .input(
