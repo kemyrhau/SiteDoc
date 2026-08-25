@@ -67,6 +67,10 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 Lint-error: ubrukt `nåværendeOrgId` i admin/prosjekter (funnet 2026-08-26)
+
+`apps/web/src/app/dashbord/admin/prosjekter/page.tsx:236` — `nåværendeOrgId` tilordnes men brukes aldri → `@typescript-eslint/no-unused-vars` gjør `pnpm lint --filter @sitedoc/web` rødt. **Preeksisterende på develop**, urørt av eksport-i18n-runden (`fix/eksport-kolonner-i18n`). Fiks: prefiks med `_` eller fjern variabelen. Skrevet inn her fordi en flytende lint-error ellers bare oppdages på nytt av hver agent og lates ligge — nå har den fil, linje og eier.
+
 ### 🔴 `drawing_position`-felttype er en placeholder ingen bruker (felle)
 
 `drawing_position` («Posisjon i tegning», `packages/shared/src/types/index.ts:259-264`, ikon `Target`) ligger i felt-paletten, men `TegningPosisjonObjekt.tsx` rendrer bare «Funksjonen er tilgjengelig i en kommende oppdatering». **Ingen mal bruker den.** Punkt-på-tegning fanges i praksis av dokumentets egen lokasjonsvelger (`drawingId`/`positionX`/`positionY`), ikke av dette feltet. En placeholder-felttype i paletten er en **felle** for neste som leter etter punkt-funksjonalitet (jf. type-forvekslingen `location` vs `drawing_position`, 2026-08-19). **Enten fullfør den, eller fjern den fra felttype-listen.**
