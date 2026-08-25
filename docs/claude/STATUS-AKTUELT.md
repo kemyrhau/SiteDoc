@@ -4,7 +4,21 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-23)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-25)
+
+| Agent | Worktree | Branch | Gjør nå | Venter på |
+|---|---|---|---|---|
+| **dokgen** | `SiteDoc-dokgen` | `feat/timer-rapport-pdf` | **Fase 1 av printmotoren** — PDF av Timer-rapporten. Ny mal på den eksisterende HTML→PDF-motoren (`services/arkiv/render.ts` → pdf-render-container, Playwright) | Ingenting — bygger |
+| **kontrollplan** | `SiteDoc-kontrollplan` | — | Ledig. Siste: `prosjektId`-prop-fella (fire feltvelgere stille tomme i repeater-rader), merget | Ny ordre |
+| **simulator** | `SiteDoc-simulator` | detached `origin/develop` | Re-verifiserer fire feltvelgere i repeater-rad: tegningsposisjon (H8), rom, sone, lokasjon. Ingen av dem har virket der | Test-deploy av `8847b119` |
+
+**Prod er à jour 2026-08-25 20:57** (`a8750601`, 198 commits, ingen migreringer).
+Develop ligger foran med seed, designnotat og h8-fiksen.
+
+**Printmotoren er faset** — se
+[printmotor-faser-2026-08-25.md](delplaner/printmotor-faser-2026-08-25.md).
+Fase 1 = PDF · fase 2 = radvalg + Type-kolonne · fase 3 = lagrede maler.
+`skalEksporteres` er ferdig og i prod; ikke bygg den på nytt i fase 2.
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
