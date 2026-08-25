@@ -1,16 +1,30 @@
 # Designnotat — eksportvalg og fakturagrunnlag (Timer-rapport)
 
-**Fra:** fabel · **Dato:** 2026-08-25 · **Status:** til Kenneths valg → deretter ordre
+**Fra:** fabel · **Dato:** 2026-08-25, rev. samme dag (skalEksporteres-korreksjon) · **Status:** til Kenneths valg → deretter ordre
 **Mockup:** «Eksportvalg Mockup.dc.html» (1a anbefalt, 1b alternativ, 1c KPI-svar)
 
-## Rammen: bekreftet, med kodebevis
+## Rammen: bekreftet — med korrigert kodefunn
 
 Lønnsgrunnlag og fakturagrunnlag er to dokumenter av samme data — rammen er riktig.
-Og domenet har allerede eksport-inkludering som OPPSETTSBESLUTNING, ikke
-per-eksport-valg: både lønnsarter og tillegg bærer `skalEksporteres` per type
-(lonnsarter/page.tsx:28, tillegg/page.tsx:23). Tolv avhukinger per eksport ville
-duplisert en mekanisme som finnes. Riktig modell: navngitte formål med
-forhåndsvalg, der oppsettsflaggene respekteres i alle formål.
+Domenet har eksport-inkludering som OPPSETTSBESLUTNING: `skalEksporteres` per
+lønnsart (schema:32) og tillegg (schema:93), satt i UI («Skal eksporteres til
+lønn/regnskap», 14 språk). KORREKSJON (cowork-måling 25.08): feltet LESES ALDRI
+— ingen where i detaljEksport, ingen filtrering i eksport-libben. Innstillingen
+er inert; formålene kan ikke respektere et filter som ikke finnes, de må
+IMPLEMENTERE det. Modellen står likevel: navngitte formål med forhåndsvalg,
+ikke tolv avhukinger per eksport.
+
+**Vedtatt semantikk (fabel):** `skalEksporteres = nei` ⇒ utelatt fra ALLE
+formål — én regel, ingen formål-matrise. Kunden har satt den og stoler på den i
+en fil som avgjør utbetaling; et formål som stille overstyrer ville skapt to
+sannheter. Overstyring finnes, men bare i Tilpasset-modalen: utelatte typer
+listes grå med merket «utelatt i oppsett» og kan hukes på eksplisitt — synlig
+unntak, aldri stille. (Mockup 1a oppdatert.)
+
+**Egen sak, uavhengig av designet:** at innstillingen er inert i dag er en
+tillitsfeil — filteret implementeres server-side i detaljEksport og eksisterende
+eksport-lib nå, uten å vente på formålsvalget. Kvittert at cowork fører den
+separat.
 
 ## Alternativer, rangert
 
