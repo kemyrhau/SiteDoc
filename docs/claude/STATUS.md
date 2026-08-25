@@ -11,7 +11,11 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-08-20
+**Sist oppdatert:** 2026-08-21
+- 2026-08-21 — **`deploy-detaljer.md` § FELLE deploy sendte gammel kode** (develop): `deploy-test.sh` rsyncet fra hovedtreet som lå to merger bak → Docker fikk identisk kontekst → cachet gammelt image uten å feile. `deploy-prod.sh` hadde allerede vakten; test manglet den. Ajour-guard lagt inn.
+- 2026-08-21 — **NY fil `kontekstvelger-regresjonsjakt-2026-08-21.md`** (develop): sju tap i k3-runden kartlagt, seks i `ad7cadc1`. Årsak: ny trakt skrevet uten inventar over hva den gamle kunne. Autovalg byggeplass var sideeffekt i UI-komponent → nye sjekklister fikk `byggeplassId=undefined`.
+- 2026-08-21 — **`redesign-paritetssjekkliste.md` + `k3-verifiseringslogg.md` RE-VERIFISERT** (develop): begge sto med falske ✅ i en måned («favoritter bevart», «autovalg byggeplass fungerer», «Alle/Mine fungerer»). Korrigert ved regresjonsjakten, deretter re-verifisert av utfører ved kontekstvelger-1a-leveransen.
+- 2026-08-21 — **`BACKLOG.md` § D7 klientside-filter** (develop): fabel-gatet forbehold ført som backlog-rad — web filtrerer sjekklister klientside, mobil serverside. Måletrigger ved ~500 sjekklister.
 - 2026-08-21 — **NY fil `na-rapport-flytmodell-2026-08-21.md`** (develop): kodeverifisert nå-rapport til vedtaket «rekkefølge styrer, kun registrator består». **Hovedfunn: serverens aktive statusovergangs-autorisasjon er allerede posisjonsbasert** (`verifiserRetningsrett`, `tilgangskontroll.ts:824-885`); typematrisen kalles ikke fra `endreStatus`-stien. Signering (HMAC på fil-URL) og varsling er urelatert til typen. Prod-tellinger lagt til av cowork: 28 leddrader, 58 transfers (20 allerede med `sender_rolle=null`), **0 rader i `flyt_rettighet_overrides`** → fabels F5 har ingen data å migrere.
 - 2026-08-20 — **NY fil `na-rapport-attestering-2026-08-20.md`** (develop): nå-rapport til fabels designrunde for AM ordre 2. Sju kartlagte punkter. Nøkkelfunn: **ukenormen 37,5/40 finnes ikke lagret noe sted** — den er emergent av dagsvindu × arbeidsdager; vintertid = fravær av aktiv sommertid (bekreftet, ingen egen enum-verdi); begge attesteringsvisninger kan bygges uten nye endepunkter; klikk før = 3 (hel sedel) / 5+ (én rad).
 - 2026-08-20 — **`paritet-web-server-mobil-2026-08-20.md` § M8 PRESISERT** (develop): web `/timer/ny` har t4-oppslaget (`page.tsx:72`) — dagsnorm-hullet gjelder web **detaljside** alene, ikke web som flate. Målt i nå-rapporten.

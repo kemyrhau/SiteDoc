@@ -136,6 +136,79 @@ knappe-duplikatet på sjekklistedetalj.
 > **Lærdom:** «lukker N saker uten ny kode» skal måles mot koden før det skrives i en
 > plan, ikke anslås. Anslaget sto i både planen og `CLAUDE.md`-indeksen i fire dager.
 
+### 🔴 F7 — arkiv-PDF taper innhold festet på repeater-OBJEKTET (funnet i prod 2026-08-21)
+
+**Symptom:** BHO-002 (prod) viser kommentar «Testbilde» og ett bilde på web. Arkiv-PDF-en
+skriver «Ingen rader registrert» og utelater både kommentar og bilde.
+
+**Målt i prod-data** (`checklists.data`, dokument `642094ba-a009-45f4-83c9-2bb28173291e`):
+
+```
+ae7b9ce3… : { verdi: null, vedlegg: [],  kommentar: "…" }
+b40966ed… : { verdi: null, vedlegg: [1], kommentar: "…" }
+```
+
+**Ingen rad-array finnes.** «Legg til rad» ble aldri trykket — innholdet er festet direkte
+på repeater-objektet. `byggRepeaterTabell` (`packages/pdf/src/arkivmal/repeater.ts:136`)
+gjør `Array.isArray(verdi) ? … : []`, og skriver derfor korrekt «Ingen rader registrert».
+
+**Bugen er ikke den manglende raden — det er at objektnivå-innhold aldri rendres.**
+Kommentar og vedlegg som ligger på selve repeater-objektet faller ut av arkivet uten varsel.
+Brukeren ser bildet på skjermen, laster ned PDF-en, og bildet er borte.
+
+**Alvorlighet:** høy for et arkivdokument. Stille datatap i den ene leveransen som skal være
+etterprøvbar.
+
+🟡 **Krever fabel-beslutning før fiks:** malbyggeren tillater at et repeater-objekt har egen
+kommentar og egne vedlegg uten at det finnes rader. Arkivet må da ha et sted å vise dem —
+egen blokk over tabellen, eller som «rad 0». Det er en visningsbeslutning, ikke bare en
+kodefiks.
+
+🟡 **Regresjon eller dokumentforskjell — UAVKLART.** `repeater.ts` er uendret siden
+2026-08-16, og de tre commitene som traff `packages/pdf` gjelder rolleetikett og
+endringslogg. **Test:** last ned BEF-001 fra prod (verifisert mandag 2026-08-17 med 73
+bilder). Kommer bildene fortsatt → BHO-002 er et annet datatilfelle og F7 er en eksisterende
+mangel. Mangler de → regresjon, og hastegraden øker.
+
+**Prioritet:** F7 kommer **etter** D2/D2b (tegningsutskrift) i DG-sporet. Grunn: `felt.ts:36`
+utelater `location` og `drawing_position` eksplisitt fra arkivstien, og klient-utskriften —
+eneste vei til tegningsprint — ble fjernet 2026-08-20 (F2, `d92ece42`). Se
+[designnotat-arkivmal-pdf-fabel-2026-08-21.md](../redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md).
+
+### D2/D2b — tegningsutskrift ✅ LEVERT (`feat/arkivmal-d2b`, kontrollplan, 2026-08-21)
+
+Tre commits. Design: [designnotat-arkivmal-pdf-fabel-2026-08-21.md](../redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md)
+§ D2b + D2b-utvidelse (fabel-ratifisert), tillegg i `tillegg-designnotat-arkivmal-d2b-fabel-2026-08-21.md`.
+
+| Commit | Innhold |
+|---|---|
+| `7be8daaf` | Ren ekstraksjon `byggDetaljUtsnitt({url,x,y,hoydePx,zoom})` fra `byggTegningPosisjon` (`tegning.ts:27`). Golden-test krever **byte-identisk** output for den gamle PDF-veien (`sjekkliste.ts:156`). Ingen adferdsendring. |
+| `2732a164` | D2b-helside (`arkivmal/tegningsside.ts`) + funn 2b: rekursiv markør-innsamling (`apps/api/.../arkiv/tegningsmarkorer.ts`), sharp-crop 4× i 4:3, kant-klemt, 320px. |
+| `6803aa98` | Funn 3 — `drawing_position` rendres lesbart i endringsloggen. |
+
+**Vedtatt presentasjonsregel (ikke inkonsistens):** frittstående `drawing_position` = blokk-form
+(D2 steg 2, uendret). Repeater-markører = helside + **detaljutsnitt i tabellraden**. Per-rad
+oversikt+detalj er avvist — oversikten ville vært identisk på hver rad.
+
+**Fire fabel-gates, alle løst:** bilde-bevisst paginering (`break-inside:avoid`, `thead` per side),
+fast utsnitts-spek, moderat DPI (320px pre-croppet server-side), og Gate 4 — som **falt ved måling**:
+`byggTegningPosisjon` tok ikke målstørrelse (`DETALJ_ZOOM` modul-konstant, hardkodet `height:260px`,
+tvunget tokolonners grid). Derfor ekstraksjonen i `7be8daaf`.
+
+🔴 **Arkitekturgrensen som ble gatet:** `sharp` ligger **kun i `apps/api`**. `packages/pdf` beholder
+null avhengigheter fordi **mobil importerer den** og ikke kan bundle native Node-moduler. Cropping
+hører server-side, HTML-bygging i `packages/pdf`. `felt.ts` frosset gjennom hele runden.
+
+**Funn 3s rotårsak var en annen enn antatt.** Målt på BEF-002: markøren traff
+«ukjent objekt → null»-fallbacken i `lesbarVerdi` (`arkivmal/endringsdiff.ts`), så *ekte*
+posisjonsendringer viste «Ikke utfylt → Ikke utfylt». Det var en **render**-feil, ikke et sviktende
+no-op-filter — `normaliserForDiff` er urørt (verifisert: null treff i diffen). Identiske markører
+filtreres allerede av rå-sammenligningen. Hadde fiksen blitt låst på antagelsen, ville en ikke-
+eksisterende bug blitt «fikset» og render-feilen stått igjen.
+
+⚠️ **Gjenstår:** visuell gate hos fabel etter test-deploy — liggende-rotasjon og drawing-sizing er
+implementert, men ikke sett. Render-verifisering tas av kontrollplan mot test-API-et.
+
 ### F2b — bulk-utskriftsflaten 🟡 OPPFØLGER (åpnet 2026-08-20)
 
 `sjekklister/skriv-ut/page.tsx` er den gjenstående web-klient-utskriften. Flyttes til
@@ -185,15 +258,30 @@ om at én mal gir fire representasjoner (malbygger / web-skjema / mobil / PDF).
 
 **Da kan `apps/mobile/app/sjekkliste/[id].tsx` sin `expo-print`-vei fjernes.**
 
-⚠️ **Men `felt.ts` forblir frossen — målt 2026-08-17/18.** Frysingen kan *ikke* løftes
-når mobil slutter å bruke den, fordi `renderFelt` fortsatt er live-avhengighet for
-`arkivmal/innhold.ts` (server-arkiv, web + snart mobil). Det som dør i fase 3 er
-**`byggSjekklisteHtml`/`renderAlleFelter`-grenen i `sjekkliste.ts`** — ikke `felt.ts`
-selv. Cowork skrev dette upresist i første utkast.
+⚠️ ~~**Men `felt.ts` forblir frossen — målt 2026-08-17/18.**~~ **VEDTAK 2026-08-23: FRYSEN
+OPPHEVES (Kenneth).** Fase 3 er levert (mobil-arkivmal-PDF, branch `feat/mobil-arkivmal-pdf`):
+`byggSjekklisteHtml`/`renderAllefelter`-grenen i `sjekkliste.ts` er død (0 importører), og
+**mobil KJØRER aldri `felt.ts` lenger** (`grep renderFelt|renderAllefelter apps/mobile` → 0).
+Det tidligere argumentet — «`renderFelt` er fortsatt live for `arkivmal/innhold.ts`» — konflaterte
+**server-bruk** med **mobil-versjonsavvik**: frysen beskyttet mot at gamle TestFlight-installasjoner
+*rendrer* annerledes enn serveren, og det forutsetter at mobil *kjører* koden. Serveren har intet
+versjonsavvik (deployer alltid siste `felt.ts`). **Målt fallgruve (2026-08-23):** `felt.ts` LIGGER
+fortsatt i mobil-bundlen (Hermes-export: `renderAllefelter`+`bilde-rutenett` i string-tabellen) —
+Metro tree-shaker ikke barrel-re-eksporten `index.ts → ./felt`. Men **bundlet ≠ kjørt**: død kode
+som endres, endrer ingenting for noen. Bundle-størrelsen er den eneste gjenværende kostnaden (egen
+sak: mobil kan dyp-importere `arkivmal/endringsdiff` i stedet for barrel-en).
 
-Ingen app importerer `renderFelt`/`renderAlleFelter` direkte — begge har kun interne
+**Konsekvens: LEVERT 2026-08-24** (branch `feat/pdf-fold-d2d3`, etter grønn simulator på tre runder).
+D2/D3-overridene (`byggArkivTegningsposisjon`, `byggInstruksjonsfelt`) er FOLDET inn i `renderFelt`
+(`felt.ts`) som hovedvei; intercept-i-`innhold.ts` droppet. **Dødt subtre ryddet** (målt: 0
+importører, kompilatoren som fasit): `sjekkliste.ts`/`byggSjekklisteHtml`, `renderAllefelter`,
+`tegning-screenshot.ts`, header-generatorene (`byggSjekklisteHeader`/`byggOppgaveHeader`/
+`byggMetadataRutenett` — `prosjektReferanseForUtskrift` beholdt), mobil `PdfForhandsvisning`/
+`TegningsCapture`. Gater: typecheck 11/11, pdf 80, api arkiv 139, web 189, shared 539.
+
+Ingen app importerer `renderFelt`/`renderAllefelter` direkte — begge har kun interne
 `packages/pdf`-konsumenter, via to kjeder: `sjekkliste.ts → byggSjekklisteHtml`
-(kun mobil) og `arkivmal/innhold.ts` (server-arkiv).
+(nå død) og `arkivmal/innhold.ts` (server-arkiv, eneste levende).
 
 Øvrige målinger: mobil har **nøyaktig én** PDF-vei (`app/sjekkliste/[id].tsx`, ingen
 andre-vei i oppgave/HMS/timer) · `arkiv.rendr` autentiserer likt for Bearer og cookie

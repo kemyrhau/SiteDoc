@@ -2282,60 +2282,8 @@ export const dagsseddelRouter = router({
       }));
     }),
 
-  // @deprecated alias for hentTilAttestering — beholdes 1 uke per CLAUDE.md
-  // API-bakoverkompatibilitet-regel. Fjernes etter 2026-05-09.
-  hentTilGodkjenning: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      await krevProsjektLeder(ctx.userId, input.projectId);
-
-      const sedler = await ctx.prismaTimer.dailySheet.findMany({
-        where: {
-          // T.1 (2026-05-11): projectId ligger på rad — filtrer via timer-relasjon.
-          timer: { some: { projectId: input.projectId } },
-          status: "sent",
-        },
-        include: {
-          aktivitet: { select: { id: true, navn: true, kode: true } },
-          // ORDRE 2 STEG 1: samme erstattet-filter som hentTilAttestering.
-          timer: { where: { attestertStatus: { not: "erstattet" } } },
-          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
-        },
-        orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
-      });
-
-      const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
-      const brukere = await prisma.user.findMany({
-        where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true },
-      });
-      const medlemmer = await prisma.organizationMember.findMany({
-        where: { userId: { in: userIder } },
-        select: { userId: true, ansattnummer: true },
-      });
-      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
-      const brukerMap = new Map(
-        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
-      );
-
-      return sedler.map((s) => ({
-        ...s,
-        ansatt: brukerMap.get(s.userId) ?? null,
-        totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
-        antallRader: s.timer.length + s.tillegg.length,
-      }));
-    }),
-
   // Boolean-flagg som sidebar/UI bruker for å gate Attestering-lenken.
   kanAttestere: protectedProcedure
-    .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      return erProsjektLeder(ctx.userId, input.projectId);
-    }),
-
-  // @deprecated alias for kanAttestere — beholdes 1 uke per CLAUDE.md
-  // API-bakoverkompatibilitet-regel. Fjernes etter 2026-05-09.
-  kanGodkjenne: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return erProsjektLeder(ctx.userId, input.projectId);
@@ -2423,6 +2371,22 @@ export const dagsseddelRouter = router({
           },
           tillegg: { where: { attestertStatus: { not: "erstattet" } } },
           maskiner: { where: { attestertStatus: { not: "erstattet" } } },
+          // Dagskortet viser «alt registrert den dagen» → utlegg med. `select`
+          // (ikke `include`) → KUN beløp + kategorinavn i denne uke-scopede
+          // firma-spørringen; henter IKKE kommentar (@db.Text), mvaSats,
+          // ordningVedFoering, projectId eller timestamps unødig. Vedlegg er
+          // UMULIG å dra med her: SheetUtleggVedlegg er svak FK uten @relation,
+          // så Prisma har ingen relasjon å traversere (sterkere enn å «la være»
+          // — de kan uansett ikke lekke via denne spørringen). Vedlegg ses i
+          // detaljen (private, signeres per URL). SheetUtlegg har ingen
+          // attestertStatus (ingen rediger-erstatt-modell) → intet erstattet-filter.
+          utlegg: {
+            select: {
+              id: true,
+              belop: true,
+              expenseCategory: { select: { navn: true } },
+            },
+          },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -2501,14 +2465,21 @@ export const dagsseddelRouter = router({
       // ORDRE 2 STEG 1 — backstop som LESE-avledning: server beregner
       // klassifisering (beregnet vs. valgt overtid) per sedel on-the-fly fra
       // radenes timer + EFFEKTIV dagsnorm (sommertid-bevisst, ikke flat
-      // orgSetting.dagsnorm). Rører ALDRI rad.lonnsartId. Batch dagsnorm per
-      // unik dato.
-      const unikeDatoer = Array.from(
-        new Set(sedler.map((s) => s.dato.toISOString().slice(0, 10))),
-      );
+      // orgSetting.dagsnorm). Rører ALDRI rad.lonnsartId.
+      //
+      // ORDRE 2 STEG 2 — ukenorm per sedel (D3 per-ansatt-visningens norm-
+      // kolonne). Batch effektiv dagsnorm for (a) hver sedels dato og (b) alle
+      // fem arbeidsdager i hver representerte uke, så beregnUkenorm får hele
+      // uken (overgangsuker/helligdager stemmer også for dager uten sedel).
+      const unikeUker = Array.from(new Set(sedler.map((s) => mandagIso(s.dato))));
+      const datoBehov = new Set<string>();
+      for (const s of sedler) datoBehov.add(s.dato.toISOString().slice(0, 10));
+      for (const uke of unikeUker) {
+        for (let i = 0; i < 5; i++) datoBehov.add(leggTilDagerIso(uke, i));
+      }
       const effektivDagsnormMap = new Map<string, number>();
       await Promise.all(
-        unikeDatoer.map(async (iso) => {
+        Array.from(datoBehov).map(async (iso) => {
           const eff = await hentEffektivArbeidstid(
             input.organizationId,
             new Date(`${iso}T00:00:00.000Z`),
@@ -2516,6 +2487,13 @@ export const dagsseddelRouter = router({
           effektivDagsnormMap.set(iso, eff.dagsnorm);
         }),
       );
+      const ukenormMap = new Map<string, number>();
+      for (const uke of unikeUker) {
+        ukenormMap.set(
+          uke,
+          beregnUkenorm(uke, (iso) => effektivDagsnormMap.get(iso) ?? 0).norm,
+        );
+      }
 
       return sedler.map((s) => {
         const projectId = s.timer[0]?.projectId ?? null;
@@ -2527,6 +2505,7 @@ export const dagsseddelRouter = router({
           })),
           effektivDagsnormMap.get(isoDato) ?? 0,
         );
+        const ukenorm = ukenormMap.get(mandagIso(s.dato)) ?? 0;
         const timerMedProsjekt = s.timer.map((r) => ({
           ...r,
           project: prosjektMap.get(r.projectId) ?? null,
@@ -2555,6 +2534,8 @@ export const dagsseddelRouter = router({
           // ser avvik, systemet retter aldri lonnsartId. Uke-nivå-varselet (D2)
           // bygges i STEG 3 oppå denne.
           overtidsgrunnlag,
+          // ORDRE 2 STEG 2: ukenorm for sedelens uke (D3 per-ansatt norm-kolonne).
+          ukenorm,
           // T.11: true når sedel har maskinarbeid og eier mangler gyldig bevis.
           manglerMaskinforerbevis:
             s.maskiner.length > 0 && !maskinforerbevisMap.get(s.userId),

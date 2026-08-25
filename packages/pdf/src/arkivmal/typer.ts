@@ -231,6 +231,18 @@ export interface ArkivDokumentInput {
   statusCeller: StatusCelle[];
   /** Ferdig innhold-HTML (fra byggInnhold — kalleren inliner bilder som data-URI). */
   innholdHtml: string;
+  /**
+   * D2 (2026-08-21): dokument-lokasjon (tegningsmarkør) rendret av
+   * `byggLokasjonsblokk`, plassert ØVERST side 1 rett under dokumenthodet.
+   * Tom streng/utelatt → ingen lokasjonsseksjon (aldri tom kartboks).
+   */
+  lokasjonHtml?: string;
+  /**
+   * D2b (2026-08-21): helside(r) tegningsprint (`byggTegningssider`) — én per
+   * tegning med repeater-markører i dokumentet, plassert ETTER dokumentet (egne
+   * `.ark-side`). Tom/utelatt → ingen tegningssider.
+   */
+  tegningssiderHtml?: string;
   logg: ArkivLogg;
   signaturer: ArkivSignatur[];
   /** «11.08.2026 14:32» — generert-stempel. */
@@ -240,12 +252,8 @@ export interface ArkivDokumentInput {
   eksport?: boolean;
   /** Løpende utskrift: prosjektets sidetall-valg (fra PdfConfig). */
   visSidenummer?: boolean;
-  /**
-   * Krav #2 (vedtak «logg alltid på, velges ved utskrift»): default true.
-   * false → Endringslogg (lag 2) utelates ved denne utskriften. Lag 1
-   * (Dokumenthistorikk) kan aldri velges bort.
-   */
-  taMedEndringslogg?: boolean;
+  // `taMedEndringslogg` fjernet (D4-revisjon 2026-08-22): endringsloggen skrives aldri i PDF,
+  // så loggvalget bortfalt — kun én PDF-variant.
   /**
    * Vedtak (c): filnavn på vedlegg som IKKE kom med (bilde-lasting feilet).
    * Rendres som utvetydig mangel-merknad → dokumentet leses aldri som komplett

@@ -4,7 +4,8 @@
 // Uke-navigasjon, filter-pills, gruppering per prosjekt, kompakt sedel-kort
 // via SeddelKort (T7-4f-3b 2026-05-17 — flat tabell, ikke ProsjektSectionAttest).
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
@@ -13,8 +14,16 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  LayoutList,
+  FolderKanban,
+  Users,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import {
+  ProsjektPivot,
+  AnsattPivot,
+} from "@/components/attestering/AttesteringPivot";
+import { tilPivotRad } from "@/components/attestering/DagsKort";
 import type {
   MaskinRad,
   RadProsjekt,
@@ -22,6 +31,7 @@ import type {
   TimerRad,
 } from "@/components/attestering/attestering-buckets";
 import { SeddelKort } from "@/components/attestering/SeddelKort";
+import { sedelKreverVurdering } from "@/components/attestering/sedel-vurdering";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -33,6 +43,15 @@ type Ansatt = {
   email: string;
   ansattnummer: string | null;
   avdelingId: string | null;
+};
+
+// Utlegg-rad slik dagskortet trenger den: beløp + kategorinavn. Speiler
+// server-`select` (id/belop/expenseCategory.navn) — INGEN kommentar/vedlegg.
+// `belop` er Decimal serialisert (unknown → Number ved mapping).
+type UtleggRad = {
+  id: string;
+  belop: unknown;
+  expenseCategory: { navn: string } | null;
 };
 
 type AttesteringRad = {
@@ -54,8 +73,18 @@ type AttesteringRad = {
   timer: TimerRad[];
   tillegg: TilleggRad[];
   maskiner: MaskinRad[];
+  // Dagskort: utlegg (beløp + kategorinavn via server-include; INGEN vedlegg).
+  utlegg: UtleggRad[];
   // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
   manglerMaskinforerbevis: boolean;
+  // ORDRE 2 STEG 1/2: server-avledet overtidsgrunnlag (dag-nivå) + ukenorm.
+  overtidsgrunnlag: {
+    sumOrdinaert: number;
+    sumOvertid: number;
+    beregnetOvertid: number;
+    avvik: boolean;
+  } | null;
+  ukenorm: number;
 };
 
 /* ------------------------------------------------------------------ */
@@ -99,6 +128,10 @@ function formatDato(d: Date | string): string {
   });
 }
 
+// tilPivotRad (AttesteringRad → PivotRad) er nå delt fra DagsKort.tsx, så
+// pivotene og Sedler-lista bruker samme mapping. AttesteringRad er strukturelt
+// en RaaSedel.
+
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                           */
 /* ------------------------------------------------------------------ */
@@ -108,8 +141,22 @@ export default function FirmaAttesteringSide() {
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
-  const [ukeOffset, setUkeOffset] = useState(0);
+  // Retur-navigasjon (2026-08-23): visning/uke/fane leves i URL-en så «Tilbake til
+  // oversikt» fra detaljsiden gjenoppretter konteksten, og en URL kan deles. Ekspandert
+  // rad + scroll bevisst UTELATT — visning + uke er nok til å finne konteksten på ett blikk.
+  // ORDRE 2 STEG 2 (D3): visningsvelger — Sedler (dagens) · Per prosjekt · Per ansatt.
+  const [visning, setVisning] = useState<"sedler" | "prosjekt" | "ansatt">(() => {
+    const v = searchParams.get("visning");
+    return v === "prosjekt" || v === "ansatt" ? v : "sedler";
+  });
+  const [ukeOffset, setUkeOffset] = useState<number>(() => {
+    const u = Number(searchParams.get("uke"));
+    return Number.isInteger(u) ? u : 0;
+  });
   const [valgtProsjektId, setValgtProsjektId] = useState<string>("");
   const [valgtAnsattId, setValgtAnsattId] = useState<string>("");
   const [valgtAvdelingId, setValgtAvdelingId] = useState<string>("");
@@ -117,7 +164,19 @@ export default function FirmaAttesteringSide() {
   const [feil, setFeil] = useState<string | null>(null);
   // T7-5e: fane-toggle mellom venter på attestering ("sent") og attestert
   // ("accepted"). Attestert-fanen er read-only — knapper og redigering skjult.
-  const [aktivFane, setAktivFane] = useState<"sent" | "accepted">("sent");
+  const [aktivFane, setAktivFane] = useState<"sent" | "accepted">(() =>
+    searchParams.get("fane") === "accepted" ? "accepted" : "sent",
+  );
+
+  // Speil visning/uke/fane til URL-en (router.replace — ikke history-push, ikke back).
+  // Én retning: state → URL. Init-lesingen skjer i useState over, så ingen løkke.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    p.set("visning", visning);
+    p.set("uke", String(ukeOffset));
+    p.set("fane", aktivFane);
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+  }, [visning, ukeOffset, aktivFane, pathname, router]);
 
   const ukestart = useMemo(() => getUkestart(ukeOffset), [ukeOffset]);
   const ukeslutt = useMemo(() => getUkeslutt(ukestart), [ukestart]);
@@ -185,14 +244,70 @@ export default function FirmaAttesteringSide() {
     return Array.from(m.values());
   }, [rader]);
 
-  const filtrerteSedler = useMemo(() => {
-    return rader.filter((s) => {
+  // Ett filter-predikat, to bruk: visning (aktiv fane) og avviksgrunnlag
+  // (hele uken). Delt så de aldri drifter.
+  const passererFilter = useCallback(
+    (s: AttesteringRad): boolean => {
       if (valgtProsjektId && s.prosjekt?.id !== valgtProsjektId) return false;
       if (valgtAnsattId && s.ansatt?.id !== valgtAnsattId) return false;
       if (valgtAvdelingId && s.ansatt?.avdelingId !== valgtAvdelingId) return false;
       return true;
-    });
-  }, [rader, valgtProsjektId, valgtAnsattId, valgtAvdelingId]);
+    },
+    [valgtProsjektId, valgtAnsattId, valgtAvdelingId],
+  );
+
+  const filtrerteSedler = useMemo(
+    () => rader.filter(passererFilter),
+    [rader, passererFilter],
+  );
+
+  // ORDRE 2 STEG 2 (fabel-gate-fiks): avviksbadgen skal gjelde HELE uken, ikke
+  // den aktive fanen. page snevrer `rader` til aktiv fane for visning, men både
+  // sent- og accepted-settet er alt lastet (to parallelle queries over). Union
+  // med samme pill-filter → korrekt norm-avvik selv når uken er delvis attestert.
+  const ukeGrunnlag = useMemo(
+    () => [...sentRader, ...acceptedRader].filter(passererFilter),
+    [sentRader, acceptedRader, passererFilter],
+  );
+
+  // Ekspander-modell (2026-08-23) løftet til page-nivå så «Kollaps alle»/«Utvid alle»/«Krever
+  // vurdering» styrer alle SeddelKort. To lag så MANUELLE toggles OVERLEVER en re-fetch: å
+  // attestere ÉN sedel skal ikke kollapse en annen brukeren har åpnet (samme tapte kontekst som
+  // «Tilbake til oversikt» fikset; attestering er hyppigste handling).
+  //  - `baseModus`: hva knappene setter (standard = krever-vurdering / alle / ingen).
+  //  - `overstyringer`: per-sedel bruker-toggles OPPÅ basen, sheet-id-nøklet → persisterer på
+  //    tvers av re-fetch. Basen leses LIVE fra gjeldende data, så urørte/nye sedler følger den.
+  //  - Hver knapp nullstiller overstyringene (bulk-reset). «Kollaps alle» nullstiller begge lag.
+  const [baseModus, setBaseModus] = useState<"standard" | "alle" | "ingen">("standard");
+  const [overstyringer, setOverstyringer] = useState<Map<string, boolean>>(new Map());
+  const erApen = useCallback(
+    (s: AttesteringRad): boolean => {
+      const o = overstyringer.get(s.id);
+      if (o !== undefined) return o;
+      if (baseModus === "alle") return true;
+      if (baseModus === "ingen") return false;
+      return sedelKreverVurdering(s); // standard: B ∪ C
+    },
+    [overstyringer, baseModus],
+  );
+  const utvidAlle = () => {
+    setBaseModus("alle");
+    setOverstyringer(new Map());
+  };
+  const kollapsAlle = () => {
+    setBaseModus("ingen");
+    setOverstyringer(new Map());
+  };
+  const utvidKreverVurdering = () => {
+    setBaseModus("standard");
+    setOverstyringer(new Map());
+  };
+  const toggleSedel = (s: AttesteringRad) => {
+    const ny = !erApen(s);
+    setOverstyringer((prev) => new Map(prev).set(s.id, ny));
+  };
+  const alleUtvidet = filtrerteSedler.length > 0 && filtrerteSedler.every(erApen);
+  const ingenUtvidet = filtrerteSedler.every((s) => !erApen(s));
 
   // Gruppering per prosjekt
   const grupper = useMemo(() => {
@@ -226,6 +341,23 @@ export default function FirmaAttesteringSide() {
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
+
+  // ORDRE 2 STEG 2: pivot-callbacks. Celle-klikk → sedel-detalj; batch per rad.
+  // Bær retur-konteksten som EKSPLISITTE verdier (?fraVisning/fraUke/fraFane), ikke en
+  // encodet retur-URL — sistnevnte er et open-redirect-mønster som må valideres. Detaljsiden
+  // bygger tilbakeUrl av det lukkede settet; ugyldige verdier faller til standard.
+  const aapneSedel = (sheetId: string) => {
+    const qp = new URLSearchParams({
+      fraVisning: visning,
+      fraUke: String(ukeOffset),
+      fraFane: aktivFane,
+    });
+    router.push(`/dashbord/firma/timer/attestering/${sheetId}?${qp.toString()}`);
+  };
+  const attesterMange = (sheetIds: string[]) => {
+    setFeil(null);
+    for (const id of sheetIds) attester.mutate({ id });
+  };
 
   if (tilgangLaster) {
     return (
@@ -303,6 +435,30 @@ export default function FirmaAttesteringSide() {
             </span>
           )}
         </button>
+      </div>
+
+      {/* ORDRE 2 STEG 2: visningsvelger — samme uke/filtre på alle tre */}
+      <div className="mb-4 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+        {(
+          [
+            { id: "sedler", ikon: LayoutList },
+            { id: "prosjekt", ikon: FolderKanban },
+            { id: "ansatt", ikon: Users },
+          ] as const
+        ).map((v) => (
+          <button
+            key={v.id}
+            onClick={() => setVisning(v.id)}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              visning === v.id
+                ? "bg-white text-blue-700 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <v.ikon className="h-3.5 w-3.5" />
+            {t(`timer.attestering.visning.${v.id}`)}
+          </button>
+        ))}
       </div>
 
       {/* Uke-navigasjon */}
@@ -383,6 +539,25 @@ export default function FirmaAttesteringSide() {
         <div className="flex items-center justify-center py-12">
           <Spinner />
         </div>
+      ) : visning === "prosjekt" ? (
+        <ProsjektPivot
+          visningsRader={filtrerteSedler.map(tilPivotRad)}
+          ukestart={ukestart}
+          onAapneSedel={aapneSedel}
+          onAttesterMange={attesterMange}
+          attesterPending={attester.isPending}
+          readOnly={readOnly}
+        />
+      ) : visning === "ansatt" ? (
+        <AnsattPivot
+          visningsRader={filtrerteSedler.map(tilPivotRad)}
+          ukeGrunnlag={ukeGrunnlag.map(tilPivotRad)}
+          ukestart={ukestart}
+          onAapneSedel={aapneSedel}
+          onAttesterMange={attesterMange}
+          attesterPending={attester.isPending}
+          readOnly={readOnly}
+        />
       ) : grupper.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
           <p className="text-sm text-gray-500">
@@ -390,20 +565,47 @@ export default function FirmaAttesteringSide() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {grupper.map((g) => (
-            <ProsjektGruppe
-              key={g.prosjektId}
-              gruppe={g}
-              onAttester={(id) => {
-                setFeil(null);
-                attester.mutate({ id });
-              }}
-              onReturner={(id) => setReturnerId(id)}
-              attesterPending={attester.isPending}
-              readOnly={readOnly}
-            />
-          ))}
+        <div className="space-y-3">
+          {/* Ekspander-kontroller (2026-08-23): to knapper + gjenopprett standard-settet. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={kollapsAlle}
+              disabled={ingenUtvidet}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            >
+              {t("timer.attestering.ekspander.kollapsAlle")}
+            </button>
+            <button
+              onClick={utvidAlle}
+              disabled={alleUtvidet}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            >
+              {t("timer.attestering.ekspander.utvidAlle")}
+            </button>
+            <button
+              onClick={utvidKreverVurdering}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {t("timer.attestering.ekspander.kreverVurdering")}
+            </button>
+          </div>
+          <div className="space-y-6">
+            {grupper.map((g) => (
+              <ProsjektGruppe
+                key={g.prosjektId}
+                gruppe={g}
+                onAttester={(id) => {
+                  setFeil(null);
+                  attester.mutate({ id });
+                }}
+                onReturner={(id) => setReturnerId(id)}
+                attesterPending={attester.isPending}
+                readOnly={readOnly}
+                erApen={erApen}
+                onToggleSedel={toggleSedel}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -427,6 +629,8 @@ function ProsjektGruppe({
   onReturner,
   attesterPending,
   readOnly,
+  erApen,
+  onToggleSedel,
 }: {
   gruppe: {
     prosjektId: string;
@@ -436,6 +640,8 @@ function ProsjektGruppe({
     arbeidstimer: number;
     maskintimer: number;
   };
+  erApen: (s: AttesteringRad) => boolean;
+  onToggleSedel: (s: AttesteringRad) => void;
   onAttester: (sheetId: string) => void;
   onReturner: (sheetId: string) => void;
   attesterPending: boolean;
@@ -489,6 +695,8 @@ function ProsjektGruppe({
             onReturner={() => onReturner(s.id)}
             attesterPending={attesterPending}
             readOnly={readOnly}
+            expanded={erApen(s)}
+            onToggleExpand={() => onToggleSedel(s)}
           />
         ))}
       </div>

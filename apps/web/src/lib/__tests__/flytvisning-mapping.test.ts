@@ -50,14 +50,14 @@ describe("flytvisning — ren projeksjon over den delte def-en", () => {
 });
 
 describe("flytvisning — Avvik 1: gruppering til én rad med delceller", () => {
-  it("Registrator-gjenåpne er ÉN handling med fire delceller (ikke fire like rader)", () => {
+  it("Registrator-gjenåpne er ÉN handling med tre delceller (ikke tre like rader)", () => {
     const reg = FLYTVISNING_BOKS_DEF.find((b) => b.boks === "registrator")!;
     const gjenapne = (reg.grupper.lokalt ?? []).filter(
       (hd): hd is Extract<FlytHandling, { type: "handling" }> =>
         hd.type === "handling" && finnRad(hd.celler[0]?.fra ?? "", hd.celler[0]?.til ?? "")?.labelNoekkel === "statushandling.gjenapne",
     );
     expect(gjenapne).toHaveLength(1);
-    expect(gjenapne[0]!.celler.map((c) => c.fra).sort()).toEqual(["approved", "cancelled", "closed", "dismissed"]);
+    expect(gjenapne[0]!.celler.map((c) => c.fra).sort()).toEqual(["approved", "closed", "dismissed"]);
   });
 
   it("Utfører-Besvar er ÉN handling med én delcelle (Mottatt) — Runde-2: in_progress fjernet", () => {
@@ -69,10 +69,10 @@ describe("flytvisning — Avvik 1: gruppering til én rad med delceller", () => 
     expect(besvar[0]!.celler.map((c) => c.fra).sort()).toEqual(["received"]);
   });
 
-  it("admin-sonens Videresend (3 delceller, Runde-2: in_progress fjernet) + Gjenåpne (4 delceller)", () => {
+  it("admin-sonens Videresend (3 delceller, Runde-2: in_progress fjernet) + Gjenåpne (3 delceller)", () => {
     const forventetAntall: Record<string, number> = {
       "flytvisning.admin.videresend": 3, // received/responded/approved (in_progress fjernet)
-      "flytvisning.admin.gjenapne": 4, // closed/dismissed/cancelled/approved
+      "flytvisning.admin.gjenapne": 3, // closed/dismissed/approved (H6-revisjon: cancelled retirert)
     };
     for (const [label, antall] of Object.entries(forventetAntall)) {
       const gruppe = FLYTVISNING_ADMIN_SONE.find((g) => g.labelNoekkel === label)!;
@@ -84,7 +84,7 @@ describe("flytvisning — Avvik 1: gruppering til én rad med delceller", () => 
 });
 
 describe("flytvisning — korreksjon (a): Gjenåpne begge steder, distinkte celler", () => {
-  const gjenapneFra = ["closed", "dismissed", "cancelled", "approved"];
+  const gjenapneFra = ["closed", "dismissed", "approved"]; // H6-revisjon: cancelled retirert
 
   it("registrator-gjenåpne finnes i Registrator-boksen (LOKALT)", () => {
     const reg = FLYTVISNING_BOKS_DEF.find((b) => b.boks === "registrator")!;
@@ -121,6 +121,17 @@ describe("flytvisning — korreksjon (b): Slett kladd begge bokser, ingen Slett 
     const adminSlett = FLYTVISNING_ADMIN_SONE.find((g) => g.labelNoekkel === "flytvisning.admin.slett")!;
     const handling = adminSlett.handlinger[0] as Extract<FlytHandling, { type: "handling" }>;
     expect(handlingLabelNoekkel(handling)).toBe("handling.slett");
+  });
+
+  it("admin-Slett lukket (H6-revisjon) er closed→deleted, farlig, egen rad fra admin-Slett kladd", () => {
+    const slettLukket = FLYTVISNING_ADMIN_SONE.find((g) => g.labelNoekkel === "flytvisning.admin.slettLukket")!;
+    expect(slettLukket).toBeDefined();
+    expect(slettLukket.farlig).toBe(true);
+    const handling = slettLukket.handlinger[0] as Extract<FlytHandling, { type: "handling" }>;
+    expect(handling.celler[0]!.fra).toBe("closed");
+    expect(handling.celler[0]!.til).toBe("deleted");
+    // `lukkTrukket` (gammel «slett avbrutt») skal være borte — flyt som ikke finnes lenger.
+    expect(FLYTVISNING_ADMIN_SONE.some((g) => g.labelNoekkel === "flytvisning.admin.lukkTrukket")).toBe(false);
   });
 
   it("«Slett endelig» (slett_endelig / papirkurv-pseudo) er IKKE en celle i fanen", () => {

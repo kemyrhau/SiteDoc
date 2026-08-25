@@ -80,21 +80,21 @@ export const MATRISE_RADER: MatriseRad[] = [
   // §8A-fiks (2026-07-29): F5s «Send fram» (responded→sent) FJERNET — recipient-løs no-op.
   { fra: "responded", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   // F3: `rejected`-seksjonen utgår (merget inn i in_progress over).
-  // H6 (Godkjent = stoppsted): approved→closed fjernet (Godkjent lukkes aldri). Gjenåpne
-  // (approved→draft) er veien tilbake — default-roller registrator + prosjektadmin (avledes fra
-  // ROLLE_HANDLINGER_DEFAULTS). Gjenbruker gjenapne-mikrotekst (samme som øvrig Gjenåpne).
+  // H6-REVISJON (Kenneth-vedtak 2026-08-21, «Lukk som slette-port»): approved→closed («Lukk»)
+  // GJENINNFØRT — administrativ exit + port til sletting (KUN admin i klienten, gatet i
+  // posisjonHandlingTillatt). Gjenåpne (approved→draft) beholdt (registrator + prosjektadmin).
   { fra: "approved", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
+  { fra: "approved", til: "closed", labelNoekkel: "handling.lukk", flythjelpNoekkel: "flythjelp.handling.lukk" },
   // §8A-fiks (2026-07-29): F5s «Send fram» (approved→sent) FJERNET — recipient-løs no-op.
   { fra: "approved", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
-  // F4 (Gjenåpne-samling, spec § 3): closed/dismissed/cancelled → draft er ÉN handling
-  // (Gjenåpne) — henter et avsluttet dokument tilbake til kladd hos oppretteren. Default-
-  // roller: registrator + prosjektadmin (avledes fra ROLLE_HANDLINGER_DEFAULTS). cancelled er legacy.
+  // F4 (Gjenåpne-samling, spec § 3): closed/dismissed → draft er ÉN handling (Gjenåpne) — henter et
+  // avsluttet dokument tilbake til kladd. Default-roller registrator + prosjektadmin. H6-REVISJON
+  // (2026-08-21): closed→deleted (Slett, via slettevakt) + dismissed→closed (Lukk, KUN admin) lagt til.
+  // `cancelled`-kantene FJERNET (statusen er retirert — 0 prod-rader, ute av statusmaskinen).
   { fra: "closed", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
+  { fra: "closed", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slett" },
   { fra: "dismissed", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
-  { fra: "cancelled", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
-  // Fiks 2 (klikktest): F0 soft-delete gjelder også trukket-tilbake dokument → 90-dagers papirkurv,
-  // ikke «permanent». Koherens med hover (DokumentHandlingsmeny). slettTrukket beholdes som relikvi.
-  { fra: "cancelled", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slett" },
+  { fra: "dismissed", til: "closed", labelNoekkel: "handling.lukk", flythjelpNoekkel: "flythjelp.handling.lukk" },
   // F0 soft-delete — papirkurv-handlinger fra visningsstatus «Slettet» (deletedAt).
   { fra: "slettet", til: "gjenopprett", labelNoekkel: "statushandling.gjenopprett", flythjelpNoekkel: "flythjelp.handling.gjenopprett" },
   { fra: "slettet", til: "slett_endelig", labelNoekkel: "statushandling.slettEndelig", flythjelpNoekkel: "flythjelp.handling.slettEndelig" },
@@ -312,11 +312,12 @@ export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
       lokalt: [
         h([["registrator", SENTINEL_FRA, SENTINEL_TIL]]), // Opprett — lov-låst (hengelås)
         h([["registrator", "draft", "deleted"]], "flytvisning.handling.slettKladd"), // Slett kladd (soft)
-        // Gjenåpne (korreksjon a): registrator-cellene → én rad, fire delceller (Lukket · Avvist · Trukket · Godkjent).
+        // Gjenåpne: registrator-cellene → én rad, tre delceller (Lukket · Avvist · Godkjent).
+        // H6-revisjon (2026-08-21): `cancelled`-delcella fjernet — statusen er retirert (0 prod-rader),
+        // og `finnRad("cancelled","draft")` gir undefined etter at matrise-raden ble tatt ut (:93).
         h([
           ["registrator", "closed", "draft"],
           ["registrator", "dismissed", "draft"],
-          ["registrator", "cancelled", "draft"],
           ["registrator", "approved", "draft"],
         ]),
       ],
@@ -394,8 +395,11 @@ export const FLYTVISNING_ADMIN_SONE: AdminSoneGruppe[] = [
   },
   {
     labelNoekkel: "flytvisning.admin.gjenapne",
-    handlinger: [pah([["closed", "draft"], ["dismissed", "draft"], ["cancelled", "draft"], ["approved", "draft"]])],
+    // H6-revisjon (2026-08-21): `cancelled`-delcella fjernet (retirert status). Gjenåpne = tre fra-statuser.
+    handlinger: [pah([["closed", "draft"], ["dismissed", "draft"], ["approved", "draft"]])],
   },
-  { labelNoekkel: "flytvisning.admin.lukkTrukket", farlig: true, handlinger: [pah([["cancelled", "deleted"]])] },
+  // H6-revisjon (2026-08-21): var «lukkTrukket» (slett et avbrutt dokument — flyt som ikke finnes lenger).
+  // Omskrevet til Slett-på-Lukket (`closed→deleted`) — den nye slettevaktens andre lovlige kilde.
+  { labelNoekkel: "flytvisning.admin.slettLukket", farlig: true, handlinger: [pah([["closed", "deleted"]])] },
   { labelNoekkel: "flytvisning.admin.slett", handlinger: [pah([["draft", "deleted"]])] },
 ];

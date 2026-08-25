@@ -12,6 +12,7 @@
 
 import { renderFelt } from "../felt";
 import { byggRepeaterTabell } from "./repeater";
+import { byggRadkort, repeaterErRik } from "./radkort";
 import type { TreObjekt, FeltVerdi, PdfConfig } from "../typer";
 
 export function byggInnhold(
@@ -22,11 +23,18 @@ export function byggInnhold(
   let html = "";
   for (const objekt of objekter) {
     if (objekt.type === "repeater") {
-      // Arkiv-override: repeater som tabell (skannbart), ikke felt.ts' div-blokk.
-      // Repeater eier sine egne barn (kolonner) → ingen videre rekursjon her.
-      html += byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label);
+      // Formvalg (Kenneth-vedtak 2026-08-21): RIK repeater (bilder/tegningsposisjon/
+      // nestet repeater) → radkort (mockup 2a); helskalar → tabell (mockup 2b).
+      // Aldri blandingsformer. Repeater eier barna → ingen videre rekursjon her.
+      // F7: send hele FeltVerdi (ikke bare .verdi) så objektnivå-kommentar/vedlegg
+      // (festet på repeateren uten «Legg til rad») kan rendres i «Registrert utenfor rader».
+      html += repeaterErRik(objekt)
+        ? byggRadkort(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id])
+        : byggRepeaterTabell(objekt, data[objekt.id]?.verdi, objekt.label, data[objekt.id]);
       continue;
     }
+    // D2 (tegningsutsnitt) + D3 (instruksjonstyper) er FOLDET inn i renderFelt (2026-08-24) —
+    // felt.ts-frysen ble opphevet, så intercept-i-innhold.ts trengs ikke lenger.
     html += renderFelt(objekt, data[objekt.id], config);
     // Nestede seksjoner: render barn etter overskriften.
     if (objekt.children && objekt.children.length > 0) {

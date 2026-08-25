@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert } from "lucide-react";
@@ -17,6 +17,8 @@ import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
+import { flytFaggruppeIder } from "@/lib/flyt-faggrupper";
+import { lesDokumentLokasjon } from "@/lib/dokument-lokasjon";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjoner";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -218,7 +220,27 @@ export default function OppgaveDetaljSide() {
   // følger dokumentet — retur + brødsmule peker mot HMS-lista, ikke Oppgaver.
   const erHms =
     (fullOppgaveRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
-  const listeSti = `/dashbord/${params.prosjektId}/${erHms ? "hms" : "oppgaver"}`;
+  // 4b: faggrupper som er MEDLEM av oppgavens dokumentflyt — begrenser `company`-feltet. Ikke
+  // memoisert: å legge de dype tRPC-typene i en useMemo-deps-array tipper TS2589 (excessively deep);
+  // funksjonen er en billig find+map og kan trygt kjøre per render.
+  const tillatteFaggruppeIder = flytFaggruppeIder(
+    (fullOppgaveRå as unknown as { dokumentflytId?: string | null } | undefined)?.dokumentflytId,
+    dokumentflyterRå,
+  );
+  // Dokument-lokasjon fra RÅ hentMedId (se lesDokumentLokasjon) — IKKE fra det omformede `oppgave`.
+  const oppgaveLokasjon = lesDokumentLokasjon(fullOppgaveRå);
+  // A (2026-08-22): `returnerTil` (URL) peker tilbake til dokumentet som opprettet oppgaven — så
+  // «tilbake» går dit, ikke til oppgavelista. Bæres i URL → overlever full last. Kun interne stier
+  // godtas (må starte med «/» og ikke «//») så en manipulert param ikke kan redirecte ut av appen.
+  const sokeParams = useSearchParams();
+  const returnerTilRaa = sokeParams.get("returnerTil");
+  const returnerTil =
+    returnerTilRaa && returnerTilRaa.startsWith("/") && !returnerTilRaa.startsWith("//")
+      ? returnerTilRaa
+      : null;
+  // Dokumentnummeret til det som opprettet oppgaven (til tilbake-lenken «← Tilbake til BEF-006»).
+  const returnerNavn = returnerTil ? sokeParams.get("returnerNavn") : null;
+  const listeSti = returnerTil ?? `/dashbord/${params.prosjektId}/${erHms ? "hms" : "oppgaver"}`;
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
@@ -280,10 +302,15 @@ export default function OppgaveDetaljSide() {
       utils.oppgave.hentForProsjekt.invalidate();
       router.push(listeSti);
     },
+    // Samme stille-feil-mønster som sjekkliste-detaljsiden: uten onError så en
+    // avvist sletting ut som en død knapp. Vis serverens melding via `statusFeil`.
+    onError: (error: { message?: string }) => {
+      setStatusFeil(error.message ?? "Kunne ikke slette oppgaven. Prøv igjen.");
+    },
   });
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown, variabler: { nyStatus?: string }) => {
       setStatusFeil(null);
       const k = handlingRef.current ? kvitteringEtikett(handlingRef.current) : null;
       if (k) {
@@ -293,6 +320,13 @@ export default function OppgaveDetaljSide() {
       }
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+      // Funn 1 (2026-08-22): auto-retur etter Send/Godkjenn — den naturlige slutten på oppgaven.
+      // Hele poenget med rad-oppgaver er å opprette KS-avvik fortløpende MENS man fyller ut
+      // sjekklisten, så vi sender brukeren tilbake dit. Kun ved sending/godkjenning (ikke ved
+      // f.eks. «start»/utkast-endringer), og kun når vi kom fra et dokument (returnerTil).
+      if (returnerTil && (variabler.nyStatus === "sent" || variabler.nyStatus === "approved")) {
+        router.push(returnerTil);
+      }
     },
     // TS2589-avlastning: shallow error-type unngår instansiering av dyp tRPC-feiltype.
     onError: (error: { message?: string }) => {
@@ -497,7 +531,10 @@ export default function OppgaveDetaljSide() {
     },
     {
       etikett: t("kontekstChip.byggeplass"),
-      verdi: oppgaveCast.drawing?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
+      // Byggeplass utledes av tegningens byggeplass (Task har ingen egen byggeplass-kolonne). Fra
+      // lesDokumentLokasjon (rå hentMedId) — det omformede `oppgave` dropper `drawing` → viste ellers
+      // «Hele prosjektet» selv når oppgaven har en tegning (samme rotårsak som lokasjon).
+      verdi: oppgaveLokasjon.bygningNavn ?? t("kontekstChip.heleProsjektet"),
       type: "display",
     },
     {
@@ -524,6 +561,18 @@ export default function OppgaveDetaljSide() {
     <div className="max-w-3xl pb-12">
       {/* Skjerm-header: sticky ved scrolling */}
       <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-4 sm:px-6 py-3 mb-3">
+        {/* Funn 1 (2026-08-22): synlig tilbake-lenke til dokumentet som opprettet oppgaven — så
+            brukeren kan gå tilbake NÅR SOM HELST, ikke bare når systemet auto-returnerer etter Send. */}
+        {returnerTil && (
+          <button
+            type="button"
+            onClick={() => router.push(returnerTil)}
+            className="mb-1.5 inline-flex min-h-8 items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-sitedoc-primary"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {returnerNavn ? `Tilbake til ${returnerNavn}` : "Tilbake til dokumentet"}
+          </button>
+        )}
         {/* Ordre 2.3/Funn G: HMS-brødsmule — HMS-avvik/RUH er task under panseret, men
             konteksten er HMS. «← HMS» returnerer til HMS-lista, ikke Oppgaver. */}
         {erHms && (
@@ -699,6 +748,7 @@ export default function OppgaveDetaljSide() {
             dokumentflyter={dokumentflyter}
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardFaggruppeId={oppgave.utforerFaggruppe?.id}
+            aktivDokumentflytId={(fullOppgaveRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? undefined}
             minRolle={minRolle}
             adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}
@@ -719,13 +769,16 @@ export default function OppgaveDetaljSide() {
 
         {/* Lokasjon */}
         <div className="mt-2 max-w-md print-skjul">
+          {/* 🔴 Lokasjonsvisning-bug (2026-08-23): les fra RÅ hentMedId via lesDokumentLokasjon —
+              det omformede `oppgave` (useOppgaveSkjema) dropper drawingId/positionX/positionY/drawing
+              → «Ikke satt» selv når posisjonen finnes (`as unknown as` skjulte det). */}
           <LokasjonVelger
             prosjektId={params.prosjektId}
-            tegningId={(oppgave as unknown as { drawingId?: string | null }).drawingId}
-            tegningNavn={(oppgave as unknown as { drawing?: { name?: string } | null }).drawing?.name}
-            bygningNavn={(oppgave as unknown as { drawing?: { byggeplass?: { name?: string } | null } | null }).drawing?.byggeplass?.name}
-            positionX={(oppgave as unknown as { positionX?: number | null }).positionX}
-            positionY={(oppgave as unknown as { positionY?: number | null }).positionY}
+            tegningId={oppgaveLokasjon.tegningId ?? undefined}
+            tegningNavn={oppgaveLokasjon.tegningNavn ?? undefined}
+            bygningNavn={oppgaveLokasjon.bygningNavn ?? undefined}
+            positionX={oppgaveLokasjon.positionX ?? undefined}
+            positionY={oppgaveLokasjon.positionY ?? undefined}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -810,6 +863,7 @@ export default function OppgaveDetaljSide() {
                     leseModus={verdiLeseModus}
                     prosjektId={params.prosjektId}
                     barneObjekter={barneObjekterMap.get(objekt.id)}
+                    tillatteFaggruppeIder={tillatteFaggruppeIder}
                   />
                 </FeltWrapper>
               </div>

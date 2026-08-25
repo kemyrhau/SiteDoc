@@ -4,24 +4,38 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-20)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-23)
 
 | Agent | Worktree | Branch | Gjør nå | Venter på |
 |---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `feat/am-ordre2-attestering` | AM ordre 2 steg 2 — korreksjon 2–4 (lønnsartfordeling · seriegodkjenning · returner+redigering) + seed for designgate | Ingenting — kan bygge |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | **Ledig.** Neste: flytmodell **F1** (UI slutter å lese typematrisen) — har kartleggingskonteksten | Kenneths klarsignal |
-| **mobil-device** | `SiteDoc-mobil-device` | `feat/mobil-arkiv-pdf` | ❓ **Ingen status siden 2026-08-20.** Eier steg 3–4 + kontekstkjede | Purring eller omstart |
-| **smoketest** | — | `chore/demo-smoketest` | Utgått — A.Markussen-møtet er gjennomført | — |
+| **simulator** | `SiteDoc-simulator` | `fix/mobil-uploadasync-0byte` + detached `origin/develop` | 🔴 **ENESTE AKTIVE SPOR.** Kjører kontrollplans protokoll: opplasting (4 krav-tilfeller, PDF viktigst) · mobil tegningsvisning · delt periodefilter | Å bli åpnet |
+| **dokgen** | `SiteDoc-dokgen` | — | Ledig. Siste: fem firma-guarder + dagskort-utvidelser, alt merget | Ny ordre |
+| **kontrollplan** | `SiteDoc-kontrollplan` | — | Ledig. Siste: URL-tilstand + ekspandere, merget. Pdf-køen (fold D2/D3 → `renderFelt` · H1 · H8 · oppgave-PDF · H3/H5-rest) står bak simulator-runden | Simulator-grønt |
 
-**Repo-hygiene 2026-08-21:** alle brancher ryddet. Eneste umergede er
-`feat/am-ordre2-attestering` (dokgens pågående). Fem brancher merget og slettet i dag,
-hvorav to var «probe»-brancher fra avsluttede økter som aldri sto i tavla — ferdig arbeid
-ingen visste om. Det er hullet denne tavla skal lukke.
+**✅ TIMER-SPORET LUKKET 2026-08-24.** Fabels designgate på D3 bestått skriftlig:
+[gatekvittering-d3-pivot-fabel-2026-08-24.md](../redesign/gatekvittering-d3-pivot-fabel-2026-08-24.md).
+Rettecommiten for småfeilene er `5b104725` (verifisert i develop med `merge-base`).
+Levert i samme runde: D3-pivotene, norm-kolonne med union-avvik, dagskort-hover med
+tillegg/utlegg og tre innganger, URL-båret retur-navigasjon, kollaps/utvid alle,
+«Krever vurdering» med auto-utvidede avvikssedler, og fem firma-guarder.
 
-🔴 **Develop er 68 commits foran prod.** Blokkeres av to uverifiserte ting på test:
-A1 browser-verifisering (DOMPurify sanerer alt opplastet innhold ved render — bommet
-SVG-profil tar ned tegningsvisningen) og pinning av exceljs-kastet i den nye røde banneren.
-Begge tar fem minutter. Jo lenger develop står, jo større og mer risikabel blir deployen.
+**Lukket 2026-08-23:** `mobil-device`-raden. `feat/mobil-arkiv-pdf` er merget (verifisert med
+`merge-base --is-ancestor`); raden sto åpen på arbeid som lå i develop. Samme feilklasse som
+utlegg-raden 2026-08-15 — en `❓ ingen status`-rad er ikke bevis for at noe gjenstår.
+
+🔴 **Develop er 132 commits foran prod (målt 2026-08-23).** Tavla sa 73 i går; tallet var
+utdatert, ikke feil den gangen. Blokkeres av to uverifiserte ting på test: A1
+browser-verifisering (DOMPurify sanerer alt opplastet innhold ved render — bommet SVG-profil
+tar ned tegningsvisningen) og pinning av exceljs-kastet i den nye røde banneren.
+Jo lenger develop står, jo større og mer risikabel blir deployen.
+
+**🔓 Frysen på `packages/pdf/src/felt.ts` er opphevet (2026-08-23).** Kontrollplan målte at
+fila ligger i mobil-bundlen (Metro tree-shaker ikke barrel-re-eksporter), og konkluderte at
+frysen sto. Cowork målte kallveien: null kallsteder i `apps/mobile`, og mobilens eneste
+`@sitedoc/pdf`-import (`ekspanderEndring` m.fl. i `arkivmal/endringsdiff.ts`) har ingen kant
+inn i `felt.ts`. **Bundlet ≠ kjørt** — død kode som endres, endrer ingenting for noen.
+Vedtak ført i [dokumentgenerering-plan.md](dokumentgenerering-plan.md), branch
+`docs/felt-frys-opphevet`. Bundle-størrelse er eneste gjenværende kostnad (egen sak).
 
 **🗑️ PROD-DATAFIKS 2026-08-20 — timerader tømt for A.Markussen (før demo).** Ustrukturerte
 testdata slettet på Kenneths ordre: 18 `daily_sheets`, 16 `sheet_timer`, 2 `sheet_tillegg`,
@@ -301,6 +315,52 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟢 DG-sporet + flytmodell — SEKS MERGER TIL DEVELOP 2026-08-21 (kontrollplan)
+
+Alt merget til `develop`, **ikke deployet til prod**. Test har alt til og med radkortet.
+
+| Merge | Innhold |
+|---|---|
+| `4d561a93` | D2b-helside, funn 2b (rekursiv markør-innsamling), funn 3 (lesbar `drawing_position` i endringsloggen), `byggDetaljUtsnitt` ekstrahert byte-identisk |
+| — | Utsnitt i repeater-celle + tegningsside flyttet inn i rapportkroppen + celle-kommentar |
+| `271b9d6e` | **Lukk som slette-port** — kun admin, håndhevet i klient OG server |
+| — | Radkort-form for rike repeatere (mockup 2a); tabell beholdes for helskalare |
+
+**Rekkefølgen i arkiv-PDF er nå:** innhold → tegningsside(r) → dokumenthistorikk →
+endringslogg → signatur.
+
+🔴 **Åpent, venter Kenneth:** bildeblokken i radkortet får egen «BILDER»-etikett i samme
+stil som feltetikettene, så den leses som et femte felt — og siden bilder henger på ulike
+felt i ulike rader, ser kortet inkonsekvent ut. Ikke en feil i formvalget: bildene *er* på
+forskjellige felt. Anbefalt løsning er innrykk + eierreferanse («Bilder — Posisjon i
+tegning»). Se [designnotat-arkivmal-pdf-fabel-2026-08-21.md](../redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md).
+
+**Senere samme kveld — fire merger til:** flytvisning-opprydding (`cancelled`-celler +
+`lukkTrukket` → `slettLukket`), **funn 3** (oversikt og 4×-detalj traff ulike koordinater —
+én delt `beregnUtsnittVindu`, detaljen ER oversikten croppet, så avviket er umulig ved
+konstruksjon), **funn 4 + F7-D1** (alle fire kommentar-nivåer printes; «Registrert utenfor
+rader»-blokk med kommentar **og** vedlegg), og **onError** på slette-mutasjonen.
+
+🔴 **Funn 3 endret også sjekkliste-PDF-en på mobil-veien** (`sjekkliste.ts:156` går via samme
+`byggTegningPosisjon`). Begge var feil; begge er rettet. **Reload:** full JS-bundle på mobil.
+
+**Funn 6 er IKKE startet** — tilbehør-fjerning på `drawing_position`, `location`,
+repeater-radnivå og `date`/`date_time` i utfyllingsflaten (web + mobil). Migreringsmåling
+gjort i prod: **kun repeater har data** (4 kommentarer + 4 vedlegg av 13 felt); de tre andre
+felttypene har null. Ren fjerning der, ingen read-only-visning å bygge.
+
+⚠️ **Verifiseringsgrunnlaget er borte:** Kenneth slettet BEF-001, BEF-002 og BHO-002.
+F7s DoD er skrevet om til å peke på **et nytt kontrolldokument på dagens mal**. Bygg malen
+først — da dekker samme runde både funn 6-verifiseringen og F7s skjermbevis.
+
+⚠️ **Mockupsiden «Repeater F7» finnes ikke.** F7-ordren refererer til den, men det er null
+treff i `docs/redesign/arkivmal-pdf-mockup/`. Blokken er bygget mot ordrens skriftlige spec.
+Fabel skylder enten mockupen, eller en bekreftelse på at spec-en er fasit.
+
+**Vedtak fattet 2026-08-21 som må huskes:** H6 er **revidert, ikke reversert** — «Godkjent
+er stoppsted i FLYTEN; Lukk er administrativ exit». Slettevakten er nå `draft || closed`.
+`cancelled` er død status (0 rader i prod). Lukk er **kun admin** i begge lag.
+
 ### 🟢 F1 — endringsloggen lesbar (branch `fix/endringslogg-lesbar`, fra develop) — PÅ BRANCH, venter merge
 
 Arkivmalens endringslogg ga ikke mening for en leser. Fire punkter, én runde
@@ -397,6 +457,67 @@ Bygger videre på fase 3-datalaget. **Stage 1–4b pushet** (`e4a3e455`): ramme/
 **N1/N2 — kontrakt for klient-knapp (fabel-vedtak 2026-08-15).** `arkiv.rendrSjekkliste` → **`arkiv.rendr`** (ingen konsumenter → ingen alias). **N1:** payload er alltid en liste — `{ mal, dokumenter: [{ id, type, taMedEndringslogg? }] }`; ett element = som før, flere = **én sammenhengende PDF** (`byggArkivSide` skilt fra shell + `byggArkivSamling` + CSS `.ark-side + .ark-side { break-before: page }`, ett pdf-render-kall), men mangel-kontrakten holdes **per dokument** i responsens `dokumenter[]`. **N2:** `mal` er navngitt felt (bare «arkiv» nå, rutes på malnavn). Respons: `{ pdfBase64, filnavn, komplett, renderTimeout, dokumenter: [{id,type,tittel,manglendeVedlegg}] }`. `type:"oppgave"` godtas men avvises `NOT_IMPLEMENTED` (task-leser mangler). N>1-filnavn `samleutskrift-<prosjektref>-<YYYY-MM-DD>.pdf` (`prosjektReferanseForUtskrift`). Aktivitetslogg per dokument. 102/102 arkiv-tester (4 nye). **Sammenslåing live-verifisert 2026-08-15** (2 dok → 1 PDF, sideskift, samleutskrift-header, per-dok mangel-status, kontinuerlig sidenummer) mot api-test.
 
 **Klient-knapp «Last ned arkiv-PDF».** På sjekklistedetalj (`sjekklister/[sjekklisteId]/page.tsx`): `trpc.arkiv.rendr` → last ned `pdfBase64` (Blob), ikke-blokkerende mangel-melding (amber ved `renderTimeout`/`manglendeVedlegg`, rød ved hard feil — inline banner, ingen toast). Kun sjekkliste; **ikke** oppgavedetalj (task-leser mangler → `NOT_IMPLEMENTED`). i18n `handling.lastNedArkivPdf` + `arkiv.*` × 13 språk. **Gjenstår:** fabel-skjermbilde-gate etter test-redeploy.
+
+### 🟢 Funn 1 — én markør per repeater (branch `fix/tegningsposisjon-repeater-radindeks`, fra develop) — PÅ BRANCH, venter dual-review
+
+Rotårsak (Kenneth-test 2026-08-21): `TegningPosisjonObjekt.tsx` nøklet posisjonsvelgeren på `objekt.id` (malobjektets id). Alle rader i en repeater deler samme malobjekt → rad 2 overskrev rad 1s posisjonsresultat ved retur fra tegningssiden (eller fant ingenting). Blokkerte all D2b-testdata (flere markører på samme tegning). Fiks (ren prop-tråding, ingen kontekst-endring — konteksten nøkler alt på en ugjennomsiktig streng): ny valgfri `feltNokkel` på `RapportObjektProps`; `RepeaterObjekt` sender `${barnObjekt.id}:${radIndeks}` per rad; `TegningPosisjonObjekt` bruker `feltNokkel ?? objekt.id`. Top-nivå + kontrollplan-flyt (egen `punkt.id`) uendret. Web typecheck + build grønn. **Gjenstår:** in-app verifisering (to markører på to rader, begge består) — skjer når Kenneth lager D2b-testdata.
+### 🟢 Oppgave per repeater-rad (branch `feat/oppgave-per-rad`, fra develop) — PÅ BRANCH, venter dual-review
+
+Bygger på rad-id-fundamentet (`{ _radId, felter }`, merget). Hver repeater-RAD får egen oppgave-kobling, nøkkel `${objekt.id}:${_radId}` (STABIL rad-id, aldri array-indeks). Web+mobil: per-rad badge i rad-headeren (`RepeaterObjekt`), whole-field-opprettelse PÅ repeater **avskrudd** (per-rad er entydig — prod har 0 whole-field-koblinger på repeater, Kenneth-måling 2026-08-22; avskruingen er kommentert som reversibel). Bakoverkompat gratis: `feltOppgaveMap` på ren streng-nøkkel treffer de 3 eksisterende koblingene (text_field/list_single) uendret. Forhåndsutfylling: oppgaven arver radens `drawing_position` hvis satt, ellers dokumentets lokasjon (`OpprettOppgaveModal.forhandsPosisjon` → `drawingId/positionX/positionY`; API-mutasjonen tok dem allerede). 🔴 **Load-bearing:** `onEndreVerdi(rader)` FØR opprettelse persisterer rad-id-en (ellers ville en gammel-form-rad fått ny uuid ved neste lesing → foreldreløs badge) — 2 dedikerte tester (`repeater-rad-oppgave.test.tsx`: gammel-rad-persist + idempotens). Mobil `drawing_position` er placeholder → rad-posisjon i praksis null, faller til dokument. `pnpm test` fra rot grønn (web 22 filer). **Gjenstår:** in-app-verifisering begge flater + oppgave-per-rad-DEL (visning/flyt i oppgave-detalj) ved behov.
+### 🟢 Oppgave arver sjekklistens dokumentflyt — steg 1 (branch `feat/oppgave-arver-flyt`, fra develop) — PÅ BRANCH, venter dual-review
+
+Følger bindende vedtak `domene-arbeidsflyt.md` (`ec79cb2f`): dokumentflyten er nøkkelen, faggruppe er avledet. `OpprettOppgaveModal` var det siste stedet med `.find(faggruppeId)`-mønsteret (ett av fire funn 2026-08-22). **Fiks:** oppgaven ARVER sjekklistens `dokumentflytId` (trås inn fra page via `fullSjekklisteRå.dokumentflytId`); velgeren kollapser til ÉN ting — hvilken oppgavemal i flyten. Faggruppene leses ut av flyten via den delte, testede `byggOpprettInput` (bestiller = utfører = flytens `faggruppeId`). `matchendeArbeidsforlop` + faggruppe-Select FJERNET. **Gate 1 (målt, Kenneth-bekreftet FALLBACK):** flyt-løse sjekklister er en gyldig tilstand (`Checklist.dokumentflyt onDelete: SetNull` schema:1084; F1b HMS-degradering; pre-flyt-dok `5573ccd2`) → når sjekklisten er flyt-løs vises en mikrotekst-linje («ikke knyttet til en dokumentflyt …») + en **flyt-velger** (ikke faggruppe — ellers gjenoppliver vi det forbudte mønsteret). **Gate 2 (målt):** en flyt kan ha 0 oppgavemaler — HOVEDSTI, ikke kant → interim: tom Select + deaktivert knapp (steg 2 legger malbygger-CTA). **Ikke i steg 1:** huske mal, tom-tilstand-CTA, åpne/retur (steg 2/3, steg 3 venter fabel). Tester: `opprett-oppgave-arver-flyt.test.tsx` (2 — arv + fallback binder til flyt) + rettet pre-eksisterende tsc-strict-indeksfeil i `repeater-rad-oppgave.test.tsx` (merget på develop, vitest fanget den ikke). `pnpm test` fra rot grønn (web 23 filer), alle pakker typecheck rene.
+### 🟢 Slett-vern på dokumentflyt (branch `fix/dokumentflyt-slettevern`, fra develop) — PÅ BRANCH, venter dual-review
+
+Kenneth-bestilling 2026-08-22. `dokumentflyt.slett` hadde ingen vakt (`verifiserProsjektmedlem` → `delete`), og `Checklist`/`Task`/`Godkjenning`/`KontrollplanPunkt` → `Dokumentflyt` er alle `onDelete: SetNull` (schema:1084/1150/1211/2099) → sletting nullstilte stille flyt-id på ALLE dokumenter i flyten (prod: 1 av 16 sjekklister er flyt-løs — kan være dette). **Vakt:** teller IKKE-slettede (`IKKE_SLETTET = deletedAt:null`) sjekklister + oppgaver; `> 0` → `BAD_REQUEST` «Flyten har N dokument(er) og kan ikke slettes. Flytt eller lukk dem først.» (mikrotekst-standard, speiler `mal.slettMal`). **Klient:** `slettMutation` fikk `onError` som viser meldingen i et rødt banner på flyt-raden (var stille før — tre stille avvisninger på to dager). Tester: `dokumentflyt-slettevern.test.ts` (4 — dokumenter→BAD_REQUEST, entall-grammatikk, tom→slettes, `deletedAt:null`-filter). `pnpm test` fra rot grønn; api-testen kjøres lokalt (api er ikke i root-test-gaten). **MELDT (ikke bygd, Kenneth avgjør):** (1) `onDelete: Restrict` DB-backstop som `ReportTemplate` (schema:1144) — migrering, må tåle den ene flyt-løse raden + Godkjenning/KontrollplanPunkt-FK-ene; (2) hvem bør kunne slette en flyt (i dag: ethvert prosjektmedlem — for bredt).
+### 🟢 Admin-gate på dokumentflyt-sletting (branch `fix/dokumentflyt-slett-adminvakt`, fra develop) — PÅ BRANCH, venter dual-review
+
+Kenneth-vedtak 2026-08-22: sletting av en flyt (rører alle dokumenter i den) krever prosjektadmin eller høyere. `dokumentflyt.slett` byttet `verifiserProsjektmedlem` → **`verifiserAdmin`** (tilgangskontroll.ts:389) — dekker sitedoc_admin → prosjektadmin (`ProjectMember.role="admin"`) → **firmaadmin** i én. Firmaadmin-fallbacken er ikke valgfri: firmaadmin har INGEN ProjectMember-rad, så en håndrullet `medlem.role`-sjekk ville avvist ham (samme felle som `verifiserRetningsrett`). Test: `dokumentflyt-slett-adminvakt.test.ts` (3, kjører EKTE `verifiserAdmin` via mocket `@sitedoc/db`-prisma): prosjektmedlem→FORBIDDEN · prosjektadmin→slipper · **firmaadmin uten medlemsrad→slipper** (beviser riktig hjelper). `pnpm test` fra rot grønn; api-testen lokalt. **Merk:** rører samme `slett`-prosedyre som `fix/dokumentflyt-slettevern` → de to må kombineres ved merge (admin-gate-linja + count-vakt-blokken koeksisterer trivielt). **MELDT (ikke bygd, Kenneth avgjør hele settet i én):** disse config-write-prosedyrene står fortsatt på `verifiserProsjektmedlem` og bør trolig admin-gates tilsvarende: `opprett`, `oppdater`, `oppdaterRoller`, `leggTilMedlem`, `fjernMedlem`, `settHovedansvarlig`, `settGruppeHovedansvarlig`, `settKanRedigere` (8 stk). `hentForProsjekt` (lese) bør forbli medlem-nivå.
+### 🟢 Oppgave-fra-rad — funn 1–3 (branch `fix/oppgave-rad-funn`, fra `feat/oppgave-arver-flyt`) — PÅ BRANCH, venter dual-review
+
+Fem funn fra Kenneths test 2026-08-22. **Bygget (web):** (1) 🔴 **lokasjonsarv-bug** — rad-oppgave uten egen posisjon fikk «Ikke satt» selv om sjekklisten HAR lokasjon. Rotårsak: dokument-fallbacken leste `sjekkliste` (useSjekklisteSkjema, som sprer posisjon BETINGET fra en annen query) via `as unknown as` → `undefined` skjult for kompilatoren. Fiks: les fra `fullSjekkliste` (= `fullSjekklisteRå`, hentMedId — samme kilde som `dokumentflytId`), `as unknown as`-casten fjernet, `drawingId/positionX/positionY` typet på `fullSjekkliste`. Kjede: radens egen → sjekklistens → ingen. (2) **auto-velg mal** når nøyaktig én finnes (nedtrekk beholdes for flere). (3) **radnummer i tittelen** — «Oppgave fra BEF-002: Observasjon (rad 3)» (radens 1-baserte nr, `onOpprett` fikk `radNummer`-param). Tester: repeater-rad-oppgave (+radNummer-assertion), opprett-oppgave-arver-flyt (+auto-velg-mal). `pnpm test` fra rot grønn (web 23), alle pakker typecheck rene. **Mobil:** funn 1 er allerede korrekt (leser `sjekklisteDetalj` direkte); funn 2/3 er web-UI — mobil-paritet meldt, ikke bygd. **Funn 5** (åpne oppgave + retur-sti) = steg 3, venter fabel — urørt. **MELDT (funn 4, ikke bygd):** kun én oppgave per rad i dag — se kvittering (datamodellen tillater allerede flere; 1:1 er en klient-visningsvalg).
+### 🟢 Admin-gate på ALL flyt-konfigurasjon (branch `fix/dokumentflyt-config-adminvakt`, fra `fix/dokumentflyt-slett-adminvakt`) — PÅ BRANCH, venter dual-review
+
+Kenneth-vedtak 2026-08-22 (utvider slett-gaten til alle 8). **Server:** `opprett · oppdater · oppdaterRoller · leggTilMedlem · fjernMedlem · settHovedansvarlig · settGruppeHovedansvarlig · settKanRedigere` byttet `verifiserProsjektmedlem` → `verifiserAdmin`. `hentForProsjekt` (lese) står. Begrunnelse skrevet ÉN gang i router-doccen (slett-kommentaren trimmet til referanse). **Tillegg 1 (halvskreven tilstand i OpprettKontaktModal):** valgte **(b)** — admin-forsjekk FØR første skriving. `medlem.leggTil` (kontakt) er ikke gatet, men `dokumentflyt.leggTilMedlem` (flyt-plassering) er → ikke-admin ville fått kontakt opprettet + plassering avvist = foreldreløs kontakt. Forsjekk (`hentMinTilgang.erAdmin`, kjent i klienten) blokkerer FØR skriving KUN når en flyt-plassering faktisk ville skjedd (kontakt uten flyt fortsatt tillatt for ikke-admin). **Tillegg 2 (onError):** ny delt helper `components/MutasjonsFeil.tsx` (`useMutasjonsFeil()` + `<MutasjonsFeil>`) wiret på alle gatede mutasjoner — page.tsx (4 komponenter), dokumentflyt-komponenter.tsx (2), OpprettKontaktModal (try/catch fantes alt). Ingen stille avvisning. **Tillegg 3 (test):** utvidet `dokumentflyt-slett-adminvakt.test.ts` — 27 tester (3 slett + 8 prosedyrer × [medlem→FORBIDDEN · prosjektadmin→slipper · firmaadmin uten medlemsrad→slipper]), ekte `verifiserAdmin` + permissiv prisma. `pnpm test` fra rot grønn; api-testen lokalt. **Stabler på slett-adminvakt-branchen** (samme router). **MELDT (ikke bygd):** flytoppsett-siden bør vise read-only for ikke-admin (~73 edit-kontroller, ingen route-guard i dag) — se kvittering.
+### 🟢 Slett-vern på dokumentflyt (branch `fix/dokumentflyt-slettevern`, fra develop) — PÅ BRANCH, venter dual-review
+
+Kenneth-bestilling 2026-08-22. `dokumentflyt.slett` hadde ingen vakt (`verifiserProsjektmedlem` → `delete`), og `Checklist`/`Task`/`Godkjenning`/`KontrollplanPunkt` → `Dokumentflyt` er alle `onDelete: SetNull` (schema:1084/1150/1211/2099) → sletting nullstilte stille flyt-id på ALLE dokumenter i flyten (prod: 1 av 16 sjekklister er flyt-løs — kan være dette). **Vakt:** teller IKKE-slettede (`IKKE_SLETTET = deletedAt:null`) sjekklister + oppgaver; `> 0` → `BAD_REQUEST` «Flyten har N dokument(er) og kan ikke slettes. Flytt eller lukk dem først.» (mikrotekst-standard, speiler `mal.slettMal`). **Klient:** `slettMutation` fikk `onError` som viser meldingen i et rødt banner på flyt-raden (var stille før — tre stille avvisninger på to dager). Tester: `dokumentflyt-slettevern.test.ts` (4 — dokumenter→BAD_REQUEST, entall-grammatikk, tom→slettes, `deletedAt:null`-filter). `pnpm test` fra rot grønn; api-testen kjøres lokalt (api er ikke i root-test-gaten). **MELDT (ikke bygd, Kenneth avgjør):** (1) `onDelete: Restrict` DB-backstop som `ReportTemplate` (schema:1144) — migrering, må tåle den ene flyt-løse raden + Godkjenning/KontrollplanPunkt-FK-ene; (2) hvem bør kunne slette en flyt (i dag: ethvert prosjektmedlem — for bredt).
+### 🟢 Oppgave arver sjekklistens dokumentflyt — steg 1 (branch `feat/oppgave-arver-flyt`, fra develop) — PÅ BRANCH, venter dual-review
+
+Følger bindende vedtak `domene-arbeidsflyt.md` (`ec79cb2f`): dokumentflyten er nøkkelen, faggruppe er avledet. `OpprettOppgaveModal` var det siste stedet med `.find(faggruppeId)`-mønsteret (ett av fire funn 2026-08-22). **Fiks:** oppgaven ARVER sjekklistens `dokumentflytId` (trås inn fra page via `fullSjekklisteRå.dokumentflytId`); velgeren kollapser til ÉN ting — hvilken oppgavemal i flyten. Faggruppene leses ut av flyten via den delte, testede `byggOpprettInput` (bestiller = utfører = flytens `faggruppeId`). `matchendeArbeidsforlop` + faggruppe-Select FJERNET. **Gate 1 (målt, Kenneth-bekreftet FALLBACK):** flyt-løse sjekklister er en gyldig tilstand (`Checklist.dokumentflyt onDelete: SetNull` schema:1084; F1b HMS-degradering; pre-flyt-dok `5573ccd2`) → når sjekklisten er flyt-løs vises en mikrotekst-linje («ikke knyttet til en dokumentflyt …») + en **flyt-velger** (ikke faggruppe — ellers gjenoppliver vi det forbudte mønsteret). **Gate 2 (målt):** en flyt kan ha 0 oppgavemaler — HOVEDSTI, ikke kant → interim: tom Select + deaktivert knapp (steg 2 legger malbygger-CTA). **Ikke i steg 1:** huske mal, tom-tilstand-CTA, åpne/retur (steg 2/3, steg 3 venter fabel). Tester: `opprett-oppgave-arver-flyt.test.tsx` (2 — arv + fallback binder til flyt) + rettet pre-eksisterende tsc-strict-indeksfeil i `repeater-rad-oppgave.test.tsx` (merget på develop, vitest fanget den ikke). `pnpm test` fra rot grønn (web 23 filer), alle pakker typecheck rene.
+### 🟢 Oppgave-fra-rad — funn 1–3 (branch `fix/oppgave-rad-funn`, fra `feat/oppgave-arver-flyt`) — PÅ BRANCH, venter dual-review
+
+Fem funn fra Kenneths test 2026-08-22. **Bygget (web):** (1) 🔴 **lokasjonsarv-bug** — rad-oppgave uten egen posisjon fikk «Ikke satt» selv om sjekklisten HAR lokasjon. Rotårsak: dokument-fallbacken leste `sjekkliste` (useSjekklisteSkjema, som sprer posisjon BETINGET fra en annen query) via `as unknown as` → `undefined` skjult for kompilatoren. Fiks: les fra `fullSjekkliste` (= `fullSjekklisteRå`, hentMedId — samme kilde som `dokumentflytId`), `as unknown as`-casten fjernet, `drawingId/positionX/positionY` typet på `fullSjekkliste`. Kjede: radens egen → sjekklistens → ingen. (2) **auto-velg mal** når nøyaktig én finnes (nedtrekk beholdes for flere). (3) **radnummer i tittelen** — «Oppgave fra BEF-002: Observasjon (rad 3)» (radens 1-baserte nr, `onOpprett` fikk `radNummer`-param). Tester: repeater-rad-oppgave (+radNummer-assertion), opprett-oppgave-arver-flyt (+auto-velg-mal). `pnpm test` fra rot grønn (web 23), alle pakker typecheck rene. **Mobil:** funn 1 er allerede korrekt (leser `sjekklisteDetalj` direkte); funn 2/3 er web-UI — mobil-paritet meldt, ikke bygd. **Funn 5** (åpne oppgave + retur-sti) = steg 3, venter fabel — urørt. **MELDT (funn 4, ikke bygd):** kun én oppgave per rad i dag — se kvittering (datamodellen tillater allerede flere; 1:1 er en klient-visningsvalg).
+### 🟢 Oppgave/flyt-bunt A–G (branch `feat/oppgave-flyt-bunt`) — PÅ BRANCH, venter dual-review
+
+Kenneth-vedtak 2026-08-22: ÉN branch/merge/deploy for hele settet (større bunter, ikke småordrer). Integrasjonsbranch som fletter inn hele stacken (oppgave-per-rad→steg 1→funn 1–3, slett-vern count-vakt, slett-adminvakt, config-adminvakt) + syv nye deler. Merge-konflikter løst: slett = admin-gate + count-vakt kombinert; slett-testene dekker nå begge gater.
+- **A** (web): «+ Oppgave» → oppgaven ÅPNES med én gang for utfylling; retur til dokumentet som opprettet den bæres i URL (`?returnerTil=`, open-redirect-guard: kun interne stier) → overlever full last (som posisjonsvelgeren). `OpprettOppgaveModal` fikk `returnerTil`-prop + `router.push`; oppgave-siden leser `returnerTil` og bruker det som tilbake-mål.
+- **B** (web): tegning-opprett → sjekkliste NAVIGERER til nytt dokument (før: måtte letes opp i lista). Oppgave-grenen uendret (markøren på tegningen ER kvitteringen) — begrunnelse i koden.
+- **C** (web+mobil): flere oppgaver per rad. `feltOppgaveMap: Map<string,Oppgave>` → `Map<string,Oppgave[]>` (map.set → grupper; siste vant før). Badge-LISTE per rad + «+ Oppgave» blir stående ved siden av. Vanlige felt uendret (én badge, `[0]`).
+- **D** (api): ledd-vern på `fjernMedlem` + `oppdaterRoller` — en flyt med aktive dokumenter kan verken slettes ELLER tømmes for ledd (samme skade, ulike dører). Delt `tellFlytDokumenter` (refaktorert slett). oppdaterRoller blokkerer KUN ved rolle-FJERNING (adding trygt).
+- **E** (api): en flyt MÅ ha Registrator i første ledd (`roller[0]`) — `validerRegistratorForst()` i opprett+oppdaterRoller. Før: ingen validering → Godkjenner-først = ubrukelig flyt.
+- **F** (mobil): funn 2 var ALLEREDE løst (MalVelger auto-velger ved 1 mal); funn 3 (radnummer i tittel) lagt til. Mobil C+funn3.
+- **G** (web): read-only flytoppsett for ikke-admin — `FlytAdminContext` + `hentMinTilgang.erAdmin`, read-only-banner + skjuler flyt-KONFIG-kontrollene (ikke faggruppe-CRUD, som ikke er server-gatet).
+
+Tester: api dokumentflyt-flytvern.test.ts (8, D+E) + slett-vern/adminvakt (31) + web oppgave-tester. `pnpm typecheck` OG `pnpm test` fra rot — se kvittering.
+
+**Runde 3 (funn 4b — `company`-felt flyt-scoping):** Bindende vedtak (dokumentflyten er nøkkelen). `FirmaObjekt` hentet ALLE prosjektets faggrupper → et `company`-felt kunne peke på en faggruppe utenfor dokumentets flyt. Fiks: ny prop `tillatteFaggruppeIder?: string[] | null` på `RapportObjektProps` (regnet på siden fra flytens medlemmer via ren `flytFaggruppeIder`-helper, kalt inline — useMemo med dype tRPC-deps tipper TS2589). FirmaObjekt begrenser valgene til flytens faggrupper. **Flyt-løst** (null) → alle + mikrotekst. **Lagret verdi utenfor flyten** → READ-ONLY-merket «(utenfor flyten)», aldri skjult (funn 6). Web (sjekkliste+oppgave+RepeaterObjekt-videreføring) + mobil (samme). Test: `flyt-faggrupper.test.ts` (4). Malsiden (dupliserte company-felt i seed) rydder Kenneth selv — ikke min oppgave.
+
+**Runde 2 (fire funn, samme branch):** (1) 🔴 auto-retur etter Send/Godkjenn (`endreStatus` nyStatus=sent/approved → `returnerTil`) + synlig «← Tilbake til {dok-nr}»-lenke (dok-nr bæres i URL som `returnerNavn`) — brukeren kan gå tilbake når som helst. (2) tittel-form: radnummeret FORAN etiketten («2 Observasjon», ikke «Observasjon (rad 2)») — web+mobil. (3) mal-piller i flytoppsett får S/H-lesbart kategori-ikon (`MalKategoriMerke`: ClipboardCheck=sjekkliste, CheckCircle2=oppgave — form, ikke farge alene). (4) «Oppretter-entreprise»-feltet: MELDT, venter Kenneths måling (malfelt type `company`? → fjern feltet, ikke bygg logikk) — IKKE rørt.
+### 🟢 DG D2 — tegning + dokument-lokasjon i arkiv-PDF (branch `feat/arkivmal-tegning-d2`, fra develop) — PÅ BRANCH, venter dual-review
+
+Grunnlag: `docs/redesign/ordre-arkivmal-tegning-d2-d2b-fabel-2026-08-21.md` + designnotat (D2 korrigert: dokument-lokasjon er **tegningsmarkør**, ikke kart/GPS). `felt.ts` FROSSET (delt mobil-sti) — override i `arkivmal/` etter repeater-mønsteret. **Bygget (steg 1–3):** ny `arkivmal/tegningsfelt.ts` (`byggArkivTegningsposisjon` feltnivå + `byggLokasjonsblokk` dokumentnivå, begge gjenbruker `byggTegningPosisjon`) · `innhold.ts` intercepter `drawing_position` · `dokument.ts` plasserer `lokasjonHtml` rett under dokumenthodet · `sammenstilling.ts` samler tegninger (dok + felt) → **samme bilde-inline-batch (data-URI, aldri signert URL)** → `tegningsOppslag` på `PdfConfig` (arkiv-only, mobil uendret). **Cowork-tillegg lukket:** tegningsbildet skaffes som base64 data-URI via disk-inlining (samme kjede som vedlegg) — ingen URL som kan utløpe under render. **Gate (Kenneth 2026-08-21):** tegning uten markør skrives IKKE ut, heller ikke når `drawing_id` er satt men `position_x/y` NULL (BEF-001: ukonvertert PDF-tegning) — presiserer «uten markering utelates seksjonen». **Funn 2a (prod-lekkasje, fikset):** `drawing_position` i en repeater-CELLE dumpet rå koordinat-JSON (`cellVerdi` default `JSON.stringify`) — ny `location`/`drawing_position`-case viser «\<tegningsnavn\> (X,X %, Y,Y %)» som speiler utfyllings-UI, aldri JSON. 19/19 pdf-tester (15 nye/D2-relaterte inkl. kant-tilstander + 2a) + 133/133 api arkiv-tester. **Gjenstår:** render-verifisering begge flater (venter testdata m/ ekte markører) + **funn 2b** (per markering én oversikt+detalj-blokk under repeater-raden — `tegningsOppslag` inn i `byggRepeaterTabell` + samle repeater-nestede `drawingId` i sammenstilling) + **funn 3** (endringslogg no-op på tom markør — venter ekte diff-par) + **D2b** (helside per tegning). 2b/3/D2b venter testdata (blokkert av funn 1: UI kan kun sette én markør per repeater, `TegningPosisjonObjekt.tsx` — egen branch).
+### 🟢 Kontekstvelger v2 — retning 1a (branch `feat/kontekstvelger-1a`, fra develop) — PÅ BRANCH, venter designgate + merge
+
+Grunnlag: [ordre-kontekstvelger-1a](../redesign/ordre-kontekstvelger-1a-fabel-2026-08-21.md) + [regresjonsjakt](kontekstvelger-regresjonsjakt-2026-08-21.md). Flagg-nøytralt (funksjonalitet, aldri bak `nyNavigasjon`). Fire commits: **A1+E** (`1fbd9524`), **B+C** (`567e05f5`), **D7** (`9421cb91`), doc-sync. 
+
+- **A1 (datakvalitet):** autovalg byggeplass flyttet fra sideeffekt i `ByggeplassVelger` (kun gammel nav → tapt i ny nav, `4d52114e`) inn i `byggeplass-kontekst.tsx` (query + autovalg-effekt + gyldighets-guard). Nye sjekklister får ikke lenger `byggeplassId=undefined`.
+- **E:** `ruteErFirmaKontekst` → delt `@/lib/ruteKontekst` (maskin-bevisst), importert i KontekstChip+Toppbar+NavSidebar (funn 6: `/dashbord/maskin` FIRMA konsistent).
+- **B1** åpne() dypeste avklarte steg (verifisert). **B2** prosjektvalg lukker ikke — avanserer til byggeplass-steget (3 klikk mot 5). **B3** favoritter via delt `useFavoritter` (localStorage, ingen ny lagring) + stjerne per rad (ny valgfri `handling`-slot på `TraktRad`) + Favoritter→Sist brukt→Alle. **B4** autofokus-søk.
+- **C5** snudd trunkering (prosjektnavn prioritert). **C6** 240px-anker oppgitt, navn flyter ~460px.
+- **D7 (design-gated):** byggeplassfilter i sjekklisteoversikten + «Hele prosjektet»-tilstand (klientside, OR-null). **Premiss enkeltmålt — Kenneth bekrefter i designgaten før merge.**
+
+i18n × 15 språk (6 nye nøkler). Web typecheck + build grønn. Doc-sync: `redesign-paritetssjekkliste.md` + `k3-verifiseringslogg.md` re-verifisert (`sist_verifisert_mot_kode=2026-08-21`), K3-vedtakets popover-punkt → B2. **Gjenstår:** fabel skjermbilde-designgate m/ klikk-budsjett-walkthrough + D7-bekreftelse; merge via cowork `--no-ff`.
 
 ### ✅✅ ARKIVERT — august-deployene (03.08–06.08) → [historikk-2026-08.md](historikk-2026-08.md)
 

@@ -113,6 +113,31 @@ export {
 export type { Grense, GrenseStatus } from "./grenseSjekk";
 export { grupperMedOverskrift } from "./seksjoner";
 export type { Seksjon } from "./seksjoner";
+export {
+  HURTIGVALG_STANDARD,
+  PERIODE_NOEKKEL,
+  grenserForHurtigvalg,
+  effektiveGrenser,
+  innenforPeriode,
+  erUgyldigIntervall,
+} from "./periode";
+export type { Periode, PeriodeHurtigvalg } from "./periode";
+export { ENDELSE_FRA_MIME, saniter, sikreEndelse } from "./filnavn";
+export {
+  avledSjekklisteFremdrift,
+  avledPunktFremdrift,
+  tellGodkjente,
+  ukerTilFrist,
+  isoUkeRef,
+  avledPunktTilstand,
+  OVER_FRIST_KANT,
+} from "./kontrollplanFremdrift";
+export type {
+  PunktFremdrift,
+  PunktTilstand,
+  TilstandVisning,
+  UkeRef,
+} from "./kontrollplanFremdrift";
 export { perspektivEtikett, utledPerspektiv, kvitteringEtikett } from "./perspektivEtikett";
 export type {
   BadgeVariant,
@@ -171,7 +196,10 @@ export function isValidStatusTransition(
   next: string,
 ): boolean {
   const validTransitions: Record<string, string[]> = {
-    draft: ["sent", "cancelled"],
+    // Lukk-som-slette-port (Kenneth-vedtak 2026-08-21, fabel-svar): draft→cancelled
+    // var en død referanse til en uoppnåelig status (målt prod: 0 cancelled-rader) —
+    // fjernet. Sletting går via slettevakten (draft||closed), ikke denne tabellen.
+    draft: ["sent"],
     // F2 (D-1): `sent` er transient (auto→received) og har ingen produserbare handlinger.
     // Trekk tilbake flyttet til received→draft; sent→cancelled utgår.
     sent: ["received"],
@@ -196,17 +224,20 @@ export function isValidStatusTransition(
     // (fra received), én bakover-vei. `in_progress` kollapses HELT (Q1=A) og skrives aldri.
     responded: ["approved", "sent"],
     // §8A-fiks (2026-07-29): `approved→sent` FJERNET — samme recipient-løse no-op.
-    // H6 (Godkjent = stoppsted): approved lukkes ALDRI — approved→closed fjernet. Veien tilbake er
-    // Gjenåpne (approved→draft, Reg + P-adm, § 4).
-    approved: ["draft"],
+    // H6-REVISJON (Kenneth-vedtak 2026-08-21, fabel-svar «Lukk som slette-port»):
+    // approved→closed GJENINNFØRT som «Lukk» — administrativ exit (KUN admin i klienten,
+    // gatet i posisjonHandlingTillatt). H6s «Godkjent lukkes ALDRI» gjaldt Lukk som
+    // konkurrerende TERMINAL; med Lukk som port til sletting er approved fortsatt stedet
+    // dokumentasjonsverdien bor — Godkjent = stoppsted i FLYTEN, Lukk = exit. Gjenåpne beholdt.
+    approved: ["draft", "closed"],
     // F3: `rejected`-oppføringen utgår (merget inn i in_progress). `status` er String —
     // eksisterende `rejected`-rader migreres til `in_progress` ved deploy (se migrering).
-    // F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft er ÉN handling (Gjenåpne) —
-    // henter et avsluttet dokument tilbake til kladd hos oppretteren. cancelled er legacy.
-    closed: ["draft"],
-    cancelled: ["draft"],
-    // F4: Avvist er ikke lenger terminal — dismissed→draft åpner F1s terminal-status (Gjenåpne).
-    dismissed: ["draft"],
+    // Lukk (Kenneth 2026-08-21): closed→deleted (Slett, via slettevakt) + closed→draft (Gjenåpne).
+    // closed er levende igjen (approved/dismissed→closed). cancelled fjernet (uoppnåelig, 0 rader).
+    closed: ["draft", "deleted"],
+    // F4: Avvist er ikke lenger terminal — dismissed→draft (Gjenåpne). Lukk (2026-08-21):
+    // dismissed→closed (administrativ exit, port til sletting — avvist tas ut av flyt).
+    dismissed: ["draft", "closed"],
   };
 
   return validTransitions[current]?.includes(next) ?? false;

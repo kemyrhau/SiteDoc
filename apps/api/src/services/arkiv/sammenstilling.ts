@@ -17,6 +17,9 @@ import {
   byggKolonnerPerFelt,
   byggArkivDokument,
   byggArkivSide,
+  byggLokasjonsblokk,
+  byggTegningssider,
+  velgHelsider,
   prosjektReferanseForUtskrift,
   statusTekst,
   statusSemantiskFarge,
@@ -29,10 +32,13 @@ import {
   type ArkivSignatur,
   type ArkivDokumentInput,
   type Utskriftsinnstillinger,
+  type TegningsOppslagOppf,
+  type TegningssideData,
 } from "@sitedoc/pdf";
 import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
 import { lesHendelseslogg, lesEndringslogg } from "./logg-lesere";
+import { samleRepeaterMarkorer, byggUtsnittCrop, type RepeaterMarkor } from "./tegningsmarkorer";
 
 interface BildeRef { url: string; filnavn?: string; type?: string }
 
@@ -65,7 +71,6 @@ export interface SammenstillingOpts {
   /** «11.08.2026 14:32» — generert-stempel. */
   generertTekst: string;
   /** Krav #2: default true (lag 2 med). */
-  taMedEndringslogg?: boolean;
   eksport?: boolean;
 }
 
@@ -174,6 +179,34 @@ export async function byggSjekklisteArkivHtml(
   // 1) persons-UUID → navn (aldri rå nøkkel til byggherre).
   const dataMedNavn = await resolverPersonnavn(prisma, raaData, objects);
 
+  // 1b) D2: samle tegninger som markører peker på — dokumentnivå (checklist-
+  // raden) + feltnivå (`drawing_position`-verdier). Slås opp samlet slik at
+  // «tegning slettet etter markering» faller pent ut: `findMany` utelater den,
+  // oppslaget blir tomt, og rendreren returnerer "" (ingen tom tegningsblokk).
+  const tegningIder = new Set<string>();
+  if (sjekkliste.drawingId) tegningIder.add(sjekkliste.drawingId);
+  for (const obj of objects) {
+    if (obj.type !== "drawing_position") continue;
+    const v = dataMedNavn[obj.id]?.verdi as { drawingId?: string } | null | undefined;
+    if (v?.drawingId) tegningIder.add(v.drawingId);
+  }
+  // D2b: rekursive repeater-markører (kan nestes) → deres tegninger må også med.
+  // Treet bygges her (brukes også til innhold/logg-kolonner under). Negativ-testen
+  // (markør på tegning A + doc-lokasjon på tegning B → BEGGE tegninger med) dekkes
+  // av at både `sjekkliste.drawingId` og markørenes drawingId legges i settet.
+  const treObjekter = byggObjektTre(objects) as unknown as TreObjekt[];
+  const repeaterMarkorer = samleRepeaterMarkorer(treObjekter, dataMedNavn);
+  for (const m of repeaterMarkorer) tegningIder.add(m.drawingId);
+  const tegninger = tegningIder.size
+    ? await prisma.drawing.findMany({
+        where: { id: { in: [...tegningIder] } },
+        select: { id: true, name: true, drawingNumber: true, fileUrl: true, imageWidth: true, imageHeight: true },
+      })
+    : [];
+  const tegningPerId = new Map(tegninger.map((t) => [t.id, t]));
+  const tegningNavn = (t: { drawingNumber: string | null; name: string }): string =>
+    t.drawingNumber ? `${t.drawingNumber} ${t.name}` : t.name;
+
   // 2) Firma (eksportfirma) via prosjektets org — for topptekst + logo.
   const prosjekt = await prisma.project.findUnique({
     where: { id: sjekkliste.template.projectId },
@@ -201,16 +234,93 @@ export async function byggSjekklisteArkivHtml(
     for (const v of bilderIFelt(felt)) bildeUrler.add(v.url);
   }
   if (org?.logoUrl) bildeUrler.add(org.logoUrl);
+  // D2: tegningsbilder inlines i SAMME batch → data-URI (aldri signert URL).
+  for (const t of tegninger) bildeUrler.add(t.fileUrl);
   const { dataUrl, manglende } = await inlineBilder(opts.hentBildeBytes, [...bildeUrler]);
 
   const dataInlinet = inlinDataBilder(dataMedNavn, dataUrl);
 
-  // 4) Innhold (tre-bevisst, tomme strukturer synlig).
-  const treObjekter = byggObjektTre(objects) as unknown as TreObjekt[];
+  // 3b) D2: oppslag drawingId → inlinet tegningsbilde + dimensjoner (arkiv-only,
+  // valgfritt på PdfConfig → mobil uendret). Henting feilet → hoppes over
+  // (filnavnet er alt ført i `manglende`); rendreren utelater da blokken.
+  const tegningsOppslag: Record<string, TegningsOppslagOppf> = {};
+  for (const t of tegninger) {
+    const url = dataUrl.get(t.fileUrl);
+    if (!url) continue;
+    tegningsOppslag[t.id] = {
+      dataUrl: url,
+      imageWidth: t.imageWidth,
+      imageHeight: t.imageHeight,
+      navn: tegningNavn(t),
+    };
+  }
+
+  // 3c) D2b (Kenneth-vedtak 2026-08-21): crop-utsnitt per repeater-markør (sharp,
+  // rå bytes, moderat DPI — Gate 3) og INJISER det på markør-verdien i `dataInlinet`
+  // (`utsnittDataUrl`), så repeater-cella rendrer utsnittet under koordinatteksten.
+  // Innsamlingen kjøres på `dataInlinet` slik at referansene treffer det byggInnhold
+  // faktisk rendrer. Bytes hentes én gang per tegning.
+  const markorerInlinet = samleRepeaterMarkorer(treObjekter, dataInlinet);
+  const bytesPerTegning = new Map<string, Buffer | null>();
+  for (const m of markorerInlinet) {
+    const t = tegningPerId.get(m.drawingId);
+    if (!t || !tegningsOppslag[m.drawingId] || t.imageWidth == null || t.imageHeight == null) continue;
+    if (!bytesPerTegning.has(m.drawingId)) {
+      bytesPerTegning.set(m.drawingId, await opts.hentBildeBytes(t.fileUrl).catch(() => null));
+    }
+    const bytes = bytesPerTegning.get(m.drawingId);
+    if (!bytes) continue;
+    const crop = await byggUtsnittCrop(bytes, t.imageWidth, t.imageHeight, m.x, m.y);
+    if (crop) m.markorObj.utsnittDataUrl = crop;
+  }
+
+  // 4) Innhold (tre-bevisst, tomme strukturer synlig). `treObjekter` bygget over.
+  // Repeater-cellene bærer nå injiserte detaljutsnitt.
   const innholdHtml = byggInnhold(treObjekter, dataInlinet, {
     bildeBaseUrl: "",
     visTommeStrukturer: true,
+    tegningsOppslag,
   });
+
+  // 4b) D2: dokument-lokasjon (tegningsmarkør) øverst side 1. Tekstlinje under:
+  // byggeplass · tegningsnavn. Uten markør/bilde → "" (ingen lokasjonsseksjon).
+  const docTegning = sjekkliste.drawingId ? tegningPerId.get(sjekkliste.drawingId) : undefined;
+  const lokasjonHtml = byggLokasjonsblokk(
+    {
+      drawingId: sjekkliste.drawingId,
+      positionX: sjekkliste.positionX,
+      positionY: sjekkliste.positionY,
+      byggeplassNavn: sjekkliste.byggeplass?.name ?? null,
+      tegningNavn: docTegning ? tegningNavn(docTegning) : null,
+    },
+    tegningsOppslag,
+  );
+
+  // 4c) D2b: helside per tegning = full tegning + nummererte markører (nr =
+  // radnummer i repeater-tabellen). Markør→punkt-tabellen er FJERNET (detaljutsnittet
+  // ligger nå i repeater-cella). Grupper per tegning, bevar dokumentorden.
+  const helsidePerTegning = new Map<string, TegningssideData>();
+  for (const m of markorerInlinet) {
+    const t = tegningPerId.get(m.drawingId);
+    const oppslag = tegningsOppslag[m.drawingId];
+    if (!t || !oppslag) continue; // tegning slettet / bilde-henting feilet → ingen side
+    let side = helsidePerTegning.get(m.drawingId);
+    if (!side) {
+      side = {
+        tegningNavn: oppslag.navn ?? tegningNavn(t),
+        bildeDataUrl: oppslag.dataUrl,
+        imageWidth: t.imageWidth,
+        imageHeight: t.imageHeight,
+        markorer: [],
+      };
+      helsidePerTegning.set(m.drawingId, side);
+    }
+    side.markorer.push({ nr: m.radnr, x: m.x, y: m.y });
+  }
+  // Helside-regel (Kenneth-vedtak 2026-08-22): KUN tegninger med ≥2 markører. Teller PER
+  // tegning (markørene er alt gruppert per drawingId over). Dokument-lokasjonen (4b) teller
+  // ikke — den ligger ikke i `markorerInlinet` (samleRepeaterMarkorer tar kun repeater-rader).
+  const tegningssiderHtml = byggTegningssider(velgHelsider([...helsidePerTegning.values()]));
 
   // 5) Logg (lag 1 alltid, lag 2 på malens enableChangeLog). Kolonne-map lar
   // endringsloggen ekspandere repeater-endringer til «Rad N — kolonne»-rader.
@@ -267,10 +377,11 @@ export async function byggSjekklisteArkivHtml(
     },
     statusCeller,
     innholdHtml,
+    lokasjonHtml,
+    tegningssiderHtml,
     logg,
     signaturer,
     generertTekst: opts.generertTekst,
-    taMedEndringslogg: opts.taMedEndringslogg ?? true,
     eksport: opts.eksport,
     manglendeVedlegg: manglende,
   };

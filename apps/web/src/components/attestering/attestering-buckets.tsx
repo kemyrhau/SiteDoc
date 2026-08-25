@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { useFirma } from "@/kontekst/firma-kontekst";
 import { Check, RotateCcw, X } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -31,6 +32,9 @@ export type TimerRad = {
   byggeplassId: string | null;
   fraTid: string | null;
   tilTid: string | null;
+  // T.12: fritekst per rad («hva jeg gjorde»). Følger med i payloaden
+  // (hentTilAttesteringFirma bruker include uten select). Kjernen i dagskortet.
+  beskrivelse: string | null;
   timer: unknown;
   attestertStatus: string | null;
   project?: RadProsjekt;
@@ -49,6 +53,10 @@ export type TilleggRad = {
 export type MaskinRad = {
   id: string;
   vehicleId: string;
+  // Del B pkt 1: svak FK → sheet_timer.id. Kobler maskinraden til timerraden
+  // den ble ført med — dagskortet nøster maskin under sin timerrad via denne.
+  // null = ført før koblingen fantes → «Maskin uten timerad».
+  sheetTimerId: string | null;
   projectId: string;
   // T7-4d (2026-05-16): ECO på maskin-rad.
   externalCostObjectId: string | null;
@@ -128,8 +136,18 @@ function TimerRaderLeder({
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
-  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
+  // Katalog scopes til VISTE firma (valgtFirma) — ellers avleder list-queriene
+  // org fra innloggingen og en cross-org admin får «—» på alle rader.
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
   const førsteProsjektId = prosjektKontekst ?? rader[0]?.projectId;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
     { projectId: førsteProsjektId ?? "" },
@@ -279,7 +297,12 @@ function TilleggRaderLeder({
   onToggle: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
 
   function infoFor(tilleggId: string): { navn: string; type: string } {
     const tt = tilleggKatalog?.find((x) => x.id === tilleggId);
@@ -351,7 +374,12 @@ function MaskinRaderLeder({
   onToggle: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
   const equipment = equipmentRaw as unknown as
     | Array<{
         id: string;

@@ -7,10 +7,11 @@ import { Spinner } from "@sitedoc/ui";
 import { Save, HelpCircle, X, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { IngenFirmaValgt } from "@/components/firma/IngenFirmaValgt";
 
 export default function FirmaInnstillinger() {
   const { t } = useTranslation();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, isLoading: firmaLaster } = useFirma();
   const orgId = valgtFirma?.id;
 
   const { data: org, isLoading } = trpc.organisasjon.hentMedId.useQuery(
@@ -95,6 +96,20 @@ export default function FirmaInnstillinger() {
       invoiceEmail: fakturaEpost.trim() || null,
       ehfEnabled: ehf,
     });
+  }
+
+  // Firma-kontekst laster → spinner. Uten valgt firma → «ingen firma»-melding
+  // (ellers rendret siden et tomt, redigerbart skjema / blank via `!org` under —
+  // hentMedId er disablet uten orgId og fullfører aldri).
+  if (firmaLaster) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Spinner />
+      </div>
+    );
+  }
+  if (!orgId) {
+    return <IngenFirmaValgt tekst={t("firma.innstillinger.ingenFirma")} />;
   }
 
   if (isLoading) {

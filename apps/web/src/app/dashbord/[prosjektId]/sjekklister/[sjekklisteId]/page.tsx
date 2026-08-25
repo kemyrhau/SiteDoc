@@ -13,6 +13,7 @@ import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
+import { flytFaggruppeIder } from "@/lib/flyt-faggrupper";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
 import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjoner";
 import { PrintHeader } from "@/components/PrintHeader";
@@ -74,6 +75,13 @@ interface SjekklisteOppgave {
   template: { prefix: string | null } | null;
 }
 
+/** «BEF-001» (prefix + nullpadd) el. «001» (uten prefix); undefined når nummer mangler. */
+function formaterOppgaveNr(o: SjekklisteOppgave | undefined): string | undefined {
+  if (!o || o.number == null) return undefined;
+  const nr = String(o.number).padStart(3, "0");
+  return o.template?.prefix ? `${o.template.prefix}-${nr}` : nr;
+}
+
 /** Last ned en base64-PDF som fil (arkiv-PDF returneres i responsen, vei 3b). */
 function lastNedPdfBase64(pdfBase64: string, filnavn: string): void {
   const bytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
@@ -96,6 +104,12 @@ export default function SjekklisteDetaljSide() {
   // Oppgave-opprettelsesmodal state
   const [opprettOppgaveFeltId, setOpprettOppgaveFeltId] = useState<string | null>(null);
   const [opprettOppgaveFeltLabel, setOpprettOppgaveFeltLabel] = useState("");
+  // Forhåndsposisjon for rad-oppgaver: radens egen drawing_position ?? dokumentets lokasjon.
+  const [opprettOppgavePosisjon, setOpprettOppgavePosisjon] = useState<{
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
+  } | null>(null);
 
   // --- Hent brukerinfo og prosjektdata FØR skjema-hook ---
 
@@ -175,6 +189,13 @@ export default function SjekklisteDetaljSide() {
     onSuccess: () => {
       utils.sjekkliste.hentForProsjekt.invalidate();
       router.push(listeSti);
+    },
+    // Uten onError feilet sletting STILLE — knappen så død ut selv om serveren
+    // avviste korrekt (slettevakt). Vis serverens melding (den sier hva brukeren
+    // kan gjøre), ikke et klient-regelsett nummer to. `statusFeil` når både
+    // banneret (ikke-HMS) og handlingsmenyens `feilmelding` (også HMS).
+    onError: (error: { message?: string }) => {
+      setStatusFeil(error.message ?? "Kunne ikke slette dokumentet. Prøv igjen.");
     },
   });
 
@@ -317,6 +338,7 @@ export default function SjekklisteDetaljSide() {
   // fullSjekklisteRå hentet ovenfor — cast for typesikkerhet
   const fullSjekkliste = fullSjekklisteRå as {
     number?: number | null;
+    dokumentflytId?: string | null;
     bestiller?: { name?: string | null };
     bestillerUserId?: string;
     recipientUserId?: string | null;
@@ -326,6 +348,11 @@ export default function SjekklisteDetaljSide() {
     lestAvMottakerVed?: string | null;
     byggeplass?: { id: string; name: string } | null;
     drawing?: { id: string; name: string; drawingNumber: string | null } | null;
+    // Dokument-lokasjon (tegningsmarkør) — arves av rad-oppgaver når raden mangler egen posisjon.
+    // Skalar-felt fra `hentMedId` (bruker `include` → alle Checklist-kolonner er med).
+    drawingId?: string | null;
+    positionX?: number | null;
+    positionY?: number | null;
   } | undefined;
 
   // Oversettelse (Lag 2): on-demand felt-oversettelse for bruker med annet språk
@@ -348,16 +375,42 @@ export default function SjekklisteDetaljSide() {
   );
   const sjekklisteOppgaver = (sjekklisteOppgaverRå ?? []) as SjekklisteOppgave[];
 
-  // Bygg map: feltId → oppgave
+  // Bygg map: feltId/rad-nøkkel → oppgaver. C (2026-08-22): en LISTE per nøkkel, ikke én oppgave.
+  // Datamodellen tillater flere oppgaver på samme felt/rad (checklistFieldId er ikke unik); før
+  // gjorde `map.set` at siste vant og resten forsvant i stillhet. Nå grupperes de, stabilt sortert
+  // på nummer så badge-rekkefølgen ikke hopper mellom rendringer.
   const feltOppgaveMap = useMemo(() => {
-    const map = new Map<string, SjekklisteOppgave>();
+    const map = new Map<string, SjekklisteOppgave[]>();
     for (const oppgave of sjekklisteOppgaver) {
       if (oppgave.checklistFieldId) {
-        map.set(oppgave.checklistFieldId, oppgave);
+        const liste = map.get(oppgave.checklistFieldId) ?? [];
+        liste.push(oppgave);
+        map.set(oppgave.checklistFieldId, liste);
       }
+    }
+    for (const liste of map.values()) {
+      liste.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
     }
     return map;
   }, [sjekklisteOppgaver]);
+
+  // 4b (dokumentflyten er nøkkelen): faggrupper som er MEDLEM av dokumentets flyt — begrenser
+  // `company`-feltet (FirmaObjekt). null = flyt-løst dokument (gyldig) → FirmaObjekt viser alle.
+  // Ikke memoisert — se oppgave-detaljsiden: dype tRPC-typer i deps-array tipper TS2589. Billig.
+  const tillatteFaggruppeIder = flytFaggruppeIder(
+    (fullSjekklisteRå as unknown as { dokumentflytId?: string | null } | undefined)?.dokumentflytId,
+    dokumentflyterRå,
+  );
+
+  // 🔴 Lokasjonsarv (2026-08-23): dokumentets lokasjon som en oppgave arver når raden/feltet ikke
+  // har egen posisjon. BEGGE opprett-stiene bruker denne — tidligere hardkodet whole-field-stien
+  // `null`, så en oppgave fra et vanlig felt aldri arvet dokumentets Z-20-01 (kun rad-stien fikk
+  // fallbacken). Kilde: `fullSjekkliste` (= fullSjekklisteRå/hentMedId — alle Checklist-skalarer).
+  const dokumentPosisjon = {
+    drawingId: fullSjekkliste?.drawingId ?? null,
+    positionX: fullSjekkliste?.positionX ?? null,
+    positionY: fullSjekkliste?.positionY ?? null,
+  };
 
   // Bygg trestruktur og flat ut i DFS-rekkefølge (forelder → barn → neste forelder)
   const objekter = useMemo(() => {
@@ -745,6 +798,7 @@ export default function SjekklisteDetaljSide() {
             dokumentflyter={dokumentflyter}
             templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
             standardFaggruppeId={sjekkliste.utforerFaggruppe?.id}
+            aktivDokumentflytId={fullSjekkliste?.dokumentflytId ?? undefined}
             minRolle={minRolle}
             adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}
@@ -858,11 +912,41 @@ export default function SjekklisteDetaljSide() {
             );
           }
 
-          const feltOppgave = feltOppgaveMap.get(objekt.id);
-          const oppgaveNummer = feltOppgave && feltOppgave.number != null
-            ? feltOppgave.template?.prefix
-              ? `${feltOppgave.template.prefix}-${String(feltOppgave.number).padStart(3, "0")}`
-              : String(feltOppgave.number).padStart(3, "0")
+          // Vanlige felt: uendret — én badge (den første). C (flere per rad) gjelder KUN
+          // repeater-rader; whole-field-oppgaver forblir 1:1 i visningen.
+          const feltOppgave = feltOppgaveMap.get(objekt.id)?.[0];
+          const oppgaveNummer = formaterOppgaveNr(feltOppgave);
+
+          const erRepeater = objekt.type === "repeater";
+          // Rad-scopet oppgave-adapter — KUN repeater. Whole-field-oppgaven på repeateren skrus AV
+          // (per-rad er den entydige veien; to feste-måter er nettopp tvetydigheten vi fjernet
+          // 2026-08-22). Både OPPRETTELSE og BADGE-VISNING utelates: prod har 0 whole-field-
+          // koblinger på repeater (Kenneth-måling) → ingen bakoverkompat å bevare. Reversibelt:
+          // fjern `erRepeater`-vaktene (her + oppgaveNummer/oppgaveId/onOpprettOppgave under) for å
+          // slå «oppgave på hele tabellen» på igjen om behovet dukker opp.
+          const radOppgaver = erRepeater
+            ? {
+                // C: ALLE oppgaver på raden (kan være flere), ikke bare den første.
+                finnForRad: (nokkel: string) =>
+                  (feltOppgaveMap.get(nokkel) ?? []).map((o) => ({ id: o.id, nummer: formaterOppgaveNr(o) })),
+                onOpprett: (
+                  nokkel: string,
+                  radPosisjon: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null,
+                  radNummer: number,
+                ) => {
+                  setOpprettOppgaveFeltId(nokkel);
+                  // Funn 3+2: radnummeret FORAN etiketten, slik rad-headeren selv leses («2 Observasjon»,
+                  // ikke «Observasjon (rad 2)»).
+                  setOpprettOppgaveFeltLabel(`${radNummer} ${objekt.label}`);
+                  // Funn 1: dokument-lokasjon-fallbacken leses fra `fullSjekkliste` (= fullSjekklisteRå,
+                  // hentMedId) — IKKE fra `sjekkliste` (useSjekklisteSkjema), som sprer posisjon
+                  // BETINGET fra en annen query og ga `undefined` (skjult av `as unknown as`) → «Ikke satt».
+                  // Kjede: radens egen posisjon → SJEKKLISTENS → ingen.
+                  setOpprettOppgavePosisjon(radPosisjon ?? dokumentPosisjon);
+                },
+                onNaviger: (id: string) =>
+                  router.push(`/dashbord/${params.prosjektId}/oppgaver?oppgave=${id}`),
+              }
             : undefined;
 
           return (
@@ -880,12 +964,21 @@ export default function SjekklisteDetaljSide() {
                 prosjektId={params.prosjektId}
                 byggeplassId={fullSjekkliste?.byggeplass?.id}
                 standardTegningId={standardTegning?.id}
-                oppgaveNummer={oppgaveNummer}
-                oppgaveId={feltOppgave?.id}
-                onOpprettOppgave={() => {
-                  setOpprettOppgaveFeltId(objekt.id);
-                  setOpprettOppgaveFeltLabel(objekt.label);
-                }}
+                oppgaveNummer={erRepeater ? undefined : oppgaveNummer}
+                oppgaveId={erRepeater ? undefined : feltOppgave?.id}
+                onOpprettOppgave={
+                  erRepeater
+                    ? undefined // avskrudd: repeater bruker per-rad-oppgaver (se radOppgaver).
+                    // Whole-field-badge på repeater er også utelatt: prod har 0 slike koblinger
+                    // (Kenneth-måling 2026-08-22) → visningsveien ville vært død fra dag én.
+                    : () => {
+                        setOpprettOppgaveFeltId(objekt.id);
+                        setOpprettOppgaveFeltLabel(objekt.label);
+                        // 🔴 Lokasjonsarv-buggen: hardkodet `null` her → oppgave fra vanlig felt
+                        // arvet aldri dokumentets lokasjon. Nå samme fallback som rad-stien.
+                        setOpprettOppgavePosisjon(dokumentPosisjon);
+                      }
+                }
                 onNavigerTilOppgave={(id) =>
                   router.push(`/dashbord/${params.prosjektId}/oppgaver?oppgave=${id}`)
                 }
@@ -902,6 +995,8 @@ export default function SjekklisteDetaljSide() {
                   leseModus={verdiLeseModus}
                   prosjektId={params.prosjektId}
                   barneObjekter={barneObjekterMap.get(objekt.id)}
+                  radOppgaver={radOppgaver}
+                  tillatteFaggruppeIder={tillatteFaggruppeIder}
                 />
               </FeltWrapper>
             </div>
@@ -950,6 +1045,9 @@ export default function SjekklisteDetaljSide() {
         sjekklisteFeltId={opprettOppgaveFeltId ?? ""}
         sjekklisteNummer={sjekklisteNummer}
         feltLabel={opprettOppgaveFeltLabel}
+        forhandsPosisjon={opprettOppgavePosisjon}
+        sjekklisteFlytId={(fullSjekklisteRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? null}
+        returnerTil={`${listeSti}/${params.sjekklisteId}`}
       />
 
     </div>

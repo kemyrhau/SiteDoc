@@ -79,6 +79,7 @@ export default function TimerRapportSide() {
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const harTimer = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
+  const utils = trpc.useUtils();
 
   const standardPeriode = useMemo(() => førsteOgSisteIMåneden(), []);
   const [fra, setFra] = useState(standardPeriode.fra);
@@ -208,8 +209,20 @@ export default function TimerRapportSide() {
     setEksporterer(true);
     try {
       const mod = await import("@/lib/timer-rapport-eksport");
+      // Aggregatet til eksporten hentes med kunEksporterbare=true — time-summene
+      // ekskluderer lønnsarter merket skalEksporteres=false, så aggregat-arkene
+      // matcher detalj-arkene. Skjermens `rapportData` (alle timer) brukes kun
+      // som «har data»-vakt over; eksporten skal ikke speile ikke-eksporterbare.
+      const eksportRapport = await utils.timer.rapport.firmaPeriodeRapport.fetch({
+        organizationId: orgId!,
+        fra,
+        til,
+        prosjektId: valgtProsjektId || undefined,
+        ansattId: valgtAnsattId || undefined,
+        kunEksporterbare: true,
+      });
       const input = {
-        ansatte: rapportData.ansatte.map((a) => ({
+        ansatte: eksportRapport.ansatte.map((a) => ({
           ...a,
           sistRegistrert:
             typeof a.sistRegistrert === "string"
@@ -225,7 +238,17 @@ export default function TimerRapportSide() {
       if (format === "csv") {
         mod.eksporterCsv(input);
       } else {
-        await mod.eksporterXlsx(input);
+        // Detalj-radene hentes KUN her (ved eksport-klikk), med SAMME filtre som
+        // skjermrapporten. detaljEksport filtrerer alltid på skalEksporteres
+        // (det ER lønnseksporten). .xlsx får detalj-arkene; CSV forblir sammendrag.
+        const detalj = await utils.timer.rapport.detaljEksport.fetch({
+          organizationId: orgId!,
+          fra,
+          til,
+          prosjektId: valgtProsjektId || undefined,
+          ansattId: valgtAnsattId || undefined,
+        });
+        await mod.eksporterXlsx(input, detalj, t);
       }
     } catch (e) {
       // 1c: gjør det tause kastet synlig. Loggen bevarer stacken for å pinne

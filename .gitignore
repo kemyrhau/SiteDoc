@@ -68,6 +68,7 @@ relay/
 
 # Verifiseringsartefakter (skjermbilder fra Opus-verifisering) — bevis for en runde,
 # ikke kilde. 21 MB+ png. Funnene selv skrives inn i docs/claude/, bildene er lokale.
-docs/claude/delplaner/verifisering/
+docs/claude/delplaner/verifisering/**/*.png
+docs/claude/delplaner/verifisering/**/*.jpg
 *-bevis/
 tests/e2e/*-state.json

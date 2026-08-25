@@ -159,7 +159,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - **Etter HVER mobil-commit:** skriv eksplisitt «**Reload:** [metode]».
 
 **Deploy-triggere — INGEN automatikk finnes noe sted:**
-- Push til `develop` → deployer IKKE til test. Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh` (rsync `--delete` til `server-ny:stack/sitedoc`) + den utskrevne `sudo docker compose -f docker/docker-compose.test.yml … build/up` (krever Kenneths TTY). Bekreftet 2026-07-07: ingen CI/cron/hook/webhook — «auto-deploy» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10. Se [BACKLOG § «Auto-deploy til test» finnes ikke](docs/claude/BACKLOG.md).
+- Push til `develop` → deployer IKKE til test. Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh` (rsync `--delete` til `server-ny:stack/sitedoc`) + den utskrevne `sudo docker compose -f docker/docker-compose.test.yml … build/up` (krever Kenneths TTY). Bekreftet 2026-07-07: ingen **deployende** CI/cron/hook/webhook — «auto-deploy» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10. Se [BACKLOG § «Auto-deploy til test» finnes ikke](docs/claude/BACKLOG.md). **MERK (2026-08-21): en test-CI FINNES** — `.github/workflows/ci.yml` kjører `pnpm test` (pdf/shared/web — IKKE api, som mangler test-script) på PR **og** push til `develop` (docs/md path-ignored, ingen lint/typecheck). Den **deployer ikke** — den bare gater tester. Kjør derfor `pnpm test` fra ROT før merge til develop, ikke bare pakken din (pakke-typecheck fanger ikke drift mellom data og def).
 - Push til feature-branch → ingen deploy
 - Push til `main` → manuell prod-deploy. **ALDRI deploy til prod uten eksplisitt forespørsel.**
 
@@ -201,6 +201,18 @@ fargepalett (`sitedoc-primary` `#1e40af` m.fl.). **Styrende — les før ny UI-f
 - All kode, kommentarer og commits på **norsk bokmål**
 - Variabelnavn kan være engelske der naturlig (`id`, `status`, `config`)
 - Bruk alltid æ, ø, å — ALDRI ASCII-erstatninger
+- **«pr.» vs «per» — husstil (Kenneth-vedtak 2026-08-24):** som preposisjon i en
+  **sats eller enhet** skrives **`pr.`** med punktum: «450 kr pr. time», «pris pr. stk.».
+  Det er riksmåls- og forretningskonvensjonen målgruppen bruker. *(Språkrådet anbefaler
+  «per» fullt ut; husstilen følger kundene, ikke anbefalingen — valget er tatt bevisst.)*
+  **Unntak:** latinske uttrykk beholder «per» (*per capita*).
+  🔴 **Som grupperings-etikett skal ordet ikke brukes i det hele tatt.** Skriv **«Etter
+  prosjekt»**, ikke «Per prosjekt» — «Per» er også et fornavn, og forvekslingen er konkret
+  (Per Berg står i attesteringslista rett under etiketten). «Etter …» er entydig og
+  omgår hele per/pr.-spørsmålet.
+- **i18n gjelder også ikke-JSX:** arknavn i Excel-eksport, PDF-overskrifter og filnavn er
+  synlige strenger og skal gjennom `t()`. `addWorksheet("Per prosjekt")` slapp unna i
+  ett år fordi flaten ikke er JSX (funnet 2026-08-24).
 - **i18n-krav:** Alle synlige UI-strenger i web-appen MÅ bruke `t()` fra react-i18next — ALDRI hardkod norsk tekst i JSX. Ved nye sider/komponenter:
   1. Nøkler i **både** `nb.json` og `en.json` (`packages/shared/src/i18n/`). Format `seksjon.noekkel`; gjenbruk eksisterende (`handling.lagre`, `handling.avbryt`, `tabell.navn`).
   2. Data utenfor komponenter (arrays, configs): `labelKey` i stedet for `label`, kall `t()` ved rendering.

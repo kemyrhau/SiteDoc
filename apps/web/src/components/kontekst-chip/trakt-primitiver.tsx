@@ -60,28 +60,36 @@ export function TraktRad({
   undertekst,
   valgt,
   onVelg,
+  handling,
 }: {
   tittel: string;
   undertekst?: string;
   valgt: boolean;
   onVelg: () => void;
+  /**
+   * Valgfritt høyre-element (eget klikkmål), f.eks. favoritt-stjerne. Ligger som
+   * SØSKEN av rad-knappen — aldri nøstet (knapp-i-knapp er ugyldig HTML). Utelatt
+   * → raden er uendret (bakoverkompatibel; `DokumentKontekstChipLinje` upåvirket).
+   */
+  handling?: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onVelg}
-      // ≥44px hit-target (min-h-11) — feltarbeideren treffer med tommel.
-      className={`flex min-h-11 w-full flex-col justify-center px-3 py-2 text-left transition-colors hover:bg-blue-50 ${
-        valgt ? "bg-blue-50" : ""
-      }`}
-    >
-      <span
-        className={`text-sm ${valgt ? "font-semibold text-sitedoc-primary" : "font-medium text-gray-900"}`}
+    <div className={`flex items-stretch ${valgt ? "bg-blue-50" : ""}`}>
+      <button
+        type="button"
+        onClick={onVelg}
+        // ≥44px hit-target (min-h-11) — feltarbeideren treffer med tommel.
+        className="flex min-h-11 flex-1 flex-col justify-center px-3 py-2 text-left transition-colors hover:bg-blue-50"
       >
-        {tittel}
-      </span>
-      {undertekst && <span className="text-xs text-gray-400">{undertekst}</span>}
-    </button>
+        <span
+          className={`text-sm ${valgt ? "font-semibold text-sitedoc-primary" : "font-medium text-gray-900"}`}
+        >
+          {tittel}
+        </span>
+        {undertekst && <span className="text-xs text-gray-400">{undertekst}</span>}
+      </button>
+      {handling}
+    </div>
   );
 }
 
@@ -97,10 +105,13 @@ export function SøkeFelt({
   verdi,
   onEndre,
   placeholder,
+  autoFokus = false,
 }: {
   verdi: string;
   onEndre: (v: string) => void;
   placeholder: string;
+  /** Autofokuser ved mount (nivå åpnes) — web/desktop. Kun det åpne nivåets søk rendres. */
+  autoFokus?: boolean;
 }) {
   return (
     <div className="px-3 pb-1 pt-1">
@@ -111,6 +122,7 @@ export function SøkeFelt({
           value={verdi}
           onChange={(e) => onEndre(e.target.value)}
           placeholder={placeholder}
+          autoFocus={autoFokus}
           className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
         />
       </div>

@@ -203,6 +203,14 @@ wrapper: **`apps/mobile/eas-build.sh`**.
    EXPO_APPLE_TEAM_ID=WVFPRZ8T98
    EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
    ```
+
+   > 🔴 **Fila er gitignorert og finnes KUN i worktreet du opprettet den i.** Bytter du
+   > arbeidstre — eller rydder et — stopper wrapperen med «Fant ikke .env.eas.local».
+   > Skjedde 2026-08-23.
+   >
+   > **Kanonisk env-filkart (hvor `.p8` og de fem variablene bor, og hva som ikke kan
+   > gjenopprettes): [infrastruktur.md § Miljøvariabler](infrastruktur.md).** Duplisér
+   > ikke kartet hit — én kilde.
 2. **Kjør wrapperen:**
    ```bash
    cd apps/mobile && ./eas-build.sh          # profil "test" (default)

@@ -15,6 +15,7 @@ import {
   erOnboardingFullført,
 } from "@/lib/onboarding-wizard";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { IngenFirmaValgt } from "@/components/firma/IngenFirmaValgt";
 
 type ModulSlug = "timer" | "maskin" | "kompetanse" | "fremdrift" | "varelager";
 type ModulStatus = "tilgjengelig" | "kommer-snart";
@@ -67,7 +68,7 @@ const MODULER: ModulDef[] = [
 
 export default function FirmaModulerSide() {
   const { t } = useTranslation();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, isLoading: firmaLaster } = useFirma();
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
   const router = useRouter();
@@ -97,12 +98,17 @@ export default function FirmaModulerSide() {
     { enabled: !!orgId && timerAktiv },
   );
 
-  if (!valgtFirma || !orgId) {
+  // Mens firma-konteksten laster → spinner. Uten valgt firma → «ingen firma»-
+  // melding, IKKE evig spinner (firma-spørringen er disablet og fullfører aldri).
+  if (firmaLaster) {
     return (
       <div className="flex items-center justify-center py-20">
         <Spinner />
       </div>
     );
+  }
+  if (!valgtFirma || !orgId) {
+    return <IngenFirmaValgt tekst={t("firma.moduler.ingenFirma")} />;
   }
 
   function erAktiv(slug: ModulSlug): boolean {

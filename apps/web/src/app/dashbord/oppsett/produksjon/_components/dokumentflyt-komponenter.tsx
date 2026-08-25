@@ -12,6 +12,8 @@ import {
   Users,
   UserPlus,
 } from "lucide-react";
+import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
+import { useFlytAdmin } from "./flyt-admin-kontekst";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -81,14 +83,18 @@ export function LeggTilMedlemDropdown({
   onInviterNy?: () => void;
 }) {
   const { t } = useTranslation();
+  const erFlytAdmin = useFlytAdmin();
+  const mutFeil = useMutasjonsFeil();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const leggTilMutation = trpc.dokumentflyt.leggTilMedlem.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       onLagtTil();
       setOpen(false);
     },
+    onError: mutFeil.onError,
   });
 
   useEffect(() => {
@@ -99,6 +105,9 @@ export function LeggTilMedlemDropdown({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
+
+  // G: kun admin kan legge til flyt-medlem (server-gatet) — skjul hele dropdownen for ikke-admin.
+  if (!erFlytAdmin) return null;
 
   const eksisterendeFaggruppeIder = new Set(
     eksisterende.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id),
@@ -223,6 +232,8 @@ export function LeggTilMedlemDropdown({
           </div>
         </div>
       )}
+
+      <MutasjonsFeil melding={mutFeil.feil} />
     </div>
   );
 }
@@ -249,6 +260,7 @@ export function InviterNyMedlemModal({
   onFerdig: () => void;
 }) {
   const { t } = useTranslation();
+  const mutFeil = useMutasjonsFeil();
   const [epost, setEpost] = useState("");
   const [fornavn, setFornavn] = useState("");
   const [etternavn, setEtternavn] = useState("");
@@ -272,6 +284,7 @@ export function InviterNyMedlemModal({
     e.preventDefault();
     if (!epost.trim() || !fornavn.trim() || !etternavn.trim()) return;
 
+    mutFeil.nullstill();
     try {
       const nyttMedlem = await leggTilMedlemMutation.mutateAsync({
         projectId: prosjektId,
@@ -295,8 +308,10 @@ export function InviterNyMedlemModal({
 
       onFerdig();
       onClose();
-    } catch (_err) {
-      // Feilen vises via mutation.error
+    } catch (err) {
+      // Gatet dokumentflyt-mutasjon (og medlem-oppretting) kan avvises server-side —
+      // vis serverens melding i stedet for stille avvisning.
+      mutFeil.onError(err as { message?: string });
     }
   }
 
@@ -338,11 +353,7 @@ export function InviterNyMedlemModal({
           onChange={(e) => setTelefon(e.target.value)}
         />
 
-        {leggTilMedlemMutation.error && (
-          <p className="text-sm text-red-600">
-            {leggTilMedlemMutation.error.message}
-          </p>
-        )}
+        <MutasjonsFeil melding={mutFeil.feil} />
 
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>

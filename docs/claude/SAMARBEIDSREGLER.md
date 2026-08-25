@@ -124,6 +124,15 @@ kjøre uten å tolke.
 - **Rekkefølge når noe avhenger:** «X først, fordi Y trenger resultatet.» Er de
   uavhengige, si det — da kan flere agenter kjøre parallelt.
 
+**To ordrer til SAMME agent før den første er relayet — merk hvilken som gjelder**
+(Kenneth 2026-08-25). Rekker ikke Kenneth å sende den første, kan han ikke vite om den
+andre er et *tillegg* eller en *ny retning*. Skjedde tre ganger 2026-08-25; verste utfall
+var at dokgen bygde om etter en eldre melding cowork allerede hadde godkjent bort.
+
+Ikke et regime — et lite problem som håndteres når det oppstår. Må noe likevel ut før
+svar, skriv `TILLEGG til ordren om X` eller `ERSTATTER ordren om X` i første linje. Og
+cowork spør ikke om lov til å sende; cowork skriver ordren.
+
 🔴 **Aldri referer til en kommando i en tidligere melding** (Kenneth 2026-08-20:
 *«slutt å referere til blokker i forrige melding — du gir alle kommandoer tydelig»*).
 Formuleringer som «kjør merge-blokken fra forrige melding», «blokken over» eller «som
@@ -231,6 +240,141 @@ All merge-koreografi går gjennom cowork:
 - **Prod:** aldri uten Kenneths eksplisitte ordre; rett branch rsynca; migreringer gated.
 
 > **Design-godkjenning (akseptkriterium):** en redesign-UI-endring (flagg-på) er **ikke lukket** før **fabel har designgodkjent mot skjermbilder** fra en verifiserings-agent — aldri på typecheck/`next build` alene. Build-gaten (regel 10) sikrer at det *bygger*; design-godkjenningen sikrer at det *ser riktig ut*. Begge kreves.
+
+### 🔴 Merge-kjeden SKAL bære gaten (lærdom 2026-08-22)
+
+Regel 10 fantes, men cowork kjørte `pnpm test` som siste port før deploy i to dager. **`pnpm test`
+kjører vitest, ikke tsc.** Kjeden gikk grønn og deployet inn i en kompileringsfeil
+(`setSlettFeil` etterlatt etter en konfliktopprydding); Docker-bygget fanget den etter tre
+minutter og en TTY, i stedet for tre sekunder lokalt.
+
+**Gaten skal stå i selve kommandokjeden Kenneth limer inn**, ikke i hukommelsen til den som
+skriver den.
+
+🔴 **Rettet 2026-08-23 — kjeden over var DEKORATIV i to dager.** Den opprinnelige formen var:
+
+```bash
+pnpm typecheck 2>&1 | grep -E "error|Tasks:" | tail -5 && \   # ← exit-koden er tail sin: ALLTID 0
+pnpm test 2>&1 | grep -E "FAIL|Test Files|Tests " && \        # ← grep matcher «Test Files» uansett
+./deploy-test.sh
+```
+
+I bash er exit-koden for en pipe **siste ledds** kode, ikke den feilende kommandoens. `tail`
+lykkes alltid, og `grep` lykkes så lenge mønsteret finnes i output — som «Test Files» gjør også
+når tester er røde. **Begge leddene returnerte 0 uansett utfall, og `&& ./deploy-test.sh` kjørte
+alltid.** Regelen ble skrevet for å fikse nøyaktig denne feilklassen og bar den selv; cowork ga
+kjeden videre hele 23.08 uten å måle den. Ironien er poenget: *en gate man ikke har målt, er en
+påstand.*
+
+**Riktig form — eksplisitt exit-kode, ingen pipe mellom kommandoen og gaten:**
+
+```bash
+cd ~/Documents/Programmering/SiteDoc && \
+pnpm typecheck > /tmp/tc.log 2>&1;   echo "typecheck exit=$?"; tail -5 /tmp/tc.log
+pnpm test      > /tmp/test.log 2>&1; echo "test exit=$?";      grep -E "Test Files|Tests |FAIL" /tmp/test.log | tail -5
+# begge exit=0 → så, og først da:
+./deploy-test.sh
+```
+
+Trengs én selv-avbrytende kjede, må `set -o pipefail` stå først — uten den propagerer ingen
+pipe feilkoden:
+
+```bash
+set -o pipefail && cd ~/Documents/Programmering/SiteDoc && \
+pnpm typecheck 2>&1 | tail -5 && pnpm test 2>&1 | tail -5 && ./deploy-test.sh
+```
+
+**Generell regel:** en `&&`-kjede der leddene inneholder `|` gater ikke uten `pipefail`. Skriver
+du en gate, mål at den faktisk stopper — kjør den mot noe som feiler før du stoler på den.
+
+**Beslektet lærdom samme dag:** `grep` er case-sensitivt. Cowork brukte `grep -c "slettFeil"`
+som bevis på at en opprydding var komplett — det gjenværende kallet het `setSlettFeil`, med
+stor S, og traff ikke mønsteret. **Et grep-treff på null er ikke bevis for fravær.** Bruk `-i`
+når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dette fortsatt».
+
+### 🔴 Mål mot RIKTIG database — og les tidsstemplene (lærdom 2026-08-23)
+
+**Kenneth tester på `test.sitedoc.no` → databasen heter `sitedoc_test`.** `-d sitedoc` er
+PRODUKSJON. Regelen sto i CLAUDE.md hele tiden; cowork brukte den ikke.
+
+Kostnaden 2026-08-23: cowork målte «Kenneths oppgaver» mot prod, fant tre rader uten
+tegning og posisjon, og konkluderte at lokasjonsarven var brutt. De tre radene var fra
+**26. mars** og aldri rørt. Kontrollplan bygget en hel feilsøkingsrunde på det premisset.
+Riktig måling mot `sitedoc_test` viste at arven virket hele tiden — feilen var i
+visningen.
+
+**To krav til enhver DB-måling som skal si noe om det Kenneth nettopp gjorde:**
+
+1. `-d sitedoc_test` med mindre spørsmålet uttrykkelig gjelder produksjon (kundepåvirkning,
+   datavolum, migrerings-risiko).
+2. **Ta alltid med `created_at` i utvalget.** Da er det synlig at radene er fra en annen tid
+   enn arbeidet, i stedet for at man leser dem som ferske.
+
+### 🔴 `as unknown as` skjuler manglende felt — tre feil på to dager
+
+Mønsteret: en komponent caster et objekt til en type som lover felt objektet ikke har.
+Kompilatoren tier, feltet leses som `undefined`, og symptomet dukker opp langt unna.
+
+| Dato | Sted | Symptom |
+|---|---|---|
+| 08-22 | sjekkliste-siden leste `sjekkliste` (skjema-hook) i stedet for `fullSjekkliste` | dokument-lokasjon arvet ikke |
+| 08-23 | oppgave-siden leste omformet objekt uten `drawing`/`positionX` | «LOKASJON Ikke satt» på data som fantes |
+| 08-22 | cowork brukte `grep -c "slettFeil"` som bevis; kallet het `setSlettFeil` | tsc-feil nådde Docker-bygget |
+
+**Regel:** når en verdi «forsvinner» uten feilmelding, mistenk casten før logikken. Erstatt
+`as unknown as` med en typet hjelper som leser fra den rå kilden — da sier kompilatoren fra
+neste gang. Og et grep-treff på null er ikke bevis for fravær; kompilatoren og databasen er
+fasit, ikke søkemønsteret.
+
+### 🔴 En kommentar som lover mer enn koden holder — tre ganger på én dag (2026-08-23)
+
+Samme feilform tre ganger, i tre ulike lag:
+
+| Sted | Kommentaren lovet | Koden gjorde |
+|---|---|---|
+| `opplasting.ts` (mobil) | «`filnavn` bæres som multipart-filnavn så MIME-utledningen og filtype-blokklista fungerer» | `filnavn` ble aldri sendt — kun logget. `uploadAsync` har ingen filnavn-opsjon |
+| `dagsseddel.ts` (api) | «KUN beløp + kategorinavn» over et `utlegg`-oppslag | `include` uten `select` → alle skalarfelt, inkl. `kommentar` (`@db.Text`) |
+| `SAMARBEIDSREGLER.md` selv | «Kjeden er selv-gatende: feiler typecheck, kjøres verken tester eller deploy» | `cmd \| grep \| tail` returnerer `tail` sin kode — alltid 0 |
+
+**Regelen, formulert av dokgen:** *skriver du «KUN X» i en kommentar, skal konstruksjonen håndheve
+X — ikke dokumentere en intensjon.* Prisma: `select`, aldri `include`, når kommentaren avgrenser.
+Bash: `set -o pipefail` eller eksplisitt `exit=$?`, aldri en pipe som gate.
+
+**Hvorfor den er farlig og ikke bare slurv:** en kommentar som overdriver leses som en garanti av
+neste leser, og da slutter noen å måle. Alle tre tilfellene ble funnet ved måling, ingen ved
+lesing. Den sterkeste formen er en garanti ved konstruksjon — som `SheetUtleggVedlegg`, der svak
+FK uten `@relation` gjør vedlegg umulig å dra med. Da er kommentaren en observasjon, ikke et løfte.
+
+### 🔴 Kollisjonssjekken gjelder ORDRER, ikke bare arbeidstrær (2026-08-23)
+
+Cowork ga dokgen og kontrollplan hver sin ordre samme kveld — «tillegg/utlegg i dagskortet» og
+«URL-tilstand + ekspander-knapper». De hørtes uavhengige ut. De delte **17 filer**, inkludert
+`attestering/page.tsx` og `SeddelKort.tsx`, som begge restrukturerte. Resultatet var en semantisk
+konflikt som måtte løses ved rebase.
+
+**Før to ordrer sendes ut parallelt, kjør sjekken — den tar sekunder:**
+
+```sh
+comm -12 <(git diff --name-only origin/develop..origin/<branch-a> | sort) \
+         <(git diff --name-only origin/develop..origin/<branch-b> | sort)
+```
+
+Er branchene ikke skrevet ennå, gjør det samme på flatene ordrene *beskriver*: hvilke sider,
+hvilke komponenter de importerer. Filoverlapp på side-nivå fanger ikke delte komponenter — det
+sto allerede i kollisjons-sjekken (punkt 3), og ble likevel glemt fordi oppgavene *hørtes*
+disjunkte ut. **Oppgavebeskrivelser kolliderer ikke; filer gjør.**
+
+### 🔴 Statustavla har ÉN skribent: cowork (vedtatt 2026-08-22)
+
+**Agentene skriver ikke lenger i `STATUS-AKTUELT.md`.** De rapporterer i leveransen sin — som
+de allerede gjør, grundig — og cowork fører det inn ved merge.
+
+**Hvorfor:** fire merge-konflikter i statustavla på én dag, alle trivielle, alle kostet en
+runde. Årsaken var ikke slurv: hver agent følger regelen om å føre eget arbeid inn, og alle
+skriver på samme sted — nederst i «Pågående arbeid». Riktig oppførsel, feil resultat.
+
+Agentene beholder doc-plikten på **sine egne spec-filer** i `docs/claude/`, der de er eneste
+skribent. Det er kun den delte tavla som får én eier.
 
 Så lenge disse holdes vet Kenneth at develop er ren. «Går dette bra?» har én kilde: cowork.
 

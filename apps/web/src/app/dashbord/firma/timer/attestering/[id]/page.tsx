@@ -4,7 +4,7 @@
 // projectId-løs — firma-admin kan attestere rader på tvers av prosjekter
 // (gated på autoriserAdminForFirma i hentForAttestering + attesterRader).
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -16,7 +16,24 @@ export default function AttesteringDetaljFirmaSide() {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const orgId = valgtFirma?.id;
+
+  // Retur-URL (2026-08-23): gjenopprett oversiktens visning/uke/fane fra EKSPLISITTE
+  // ?fraVisning/fraUke/fraFane-verdier (lukket sett — ingen vilkårlig URL å validere, unngår
+  // open-redirect). Ugyldig/utelatt verdi faller til standard; ingen fra-parametre → bar base-URL.
+  const BASE = "/dashbord/firma/timer/attestering";
+  const fraVisning = searchParams.get("fraVisning");
+  const fraUke = searchParams.get("fraUke");
+  const fraFane = searchParams.get("fraFane");
+  const harReturkontekst = fraVisning !== null || fraUke !== null || fraFane !== null;
+  const visning =
+    fraVisning === "prosjekt" || fraVisning === "ansatt" ? fraVisning : "sedler";
+  const uke = Number.isInteger(Number(fraUke)) ? Number(fraUke) : 0;
+  const fane = fraFane === "accepted" ? "accepted" : "sent";
+  const tilbakeUrl = harReturkontekst
+    ? `${BASE}?visning=${visning}&uke=${uke}&fane=${fane}`
+    : BASE;
 
   const { data: kanAttestere, isLoading: tilgangLaster } =
     trpc.timer.dagsseddel.kanAttestereFirma.useQuery(
@@ -57,7 +74,7 @@ export default function AttesteringDetaljFirmaSide() {
   return (
     <AttesteringDetalj
       sheetId={params.id}
-      tilbakeUrl="/dashbord/firma/timer/attestering"
+      tilbakeUrl={tilbakeUrl}
     />
   );
 }

@@ -68,7 +68,7 @@ Cowork sammenlignet implementasjonen mot fasit-bildene (`docs/redesign/fasit/01-
 
 1. **Trakt-retningen er låst.** Én popover: **firma → prosjekt → byggeplass**. Kun **ett nivå åpent om gangen**. Et valgt nivå kollapser til en sammenfoldet rad med **«Endre»**.
 2. **Den frittstående `ByggeplassVelger` fjernes i ny nav** — byggeplass bor i trakten. **K1-fiksen trengs likevel**, siden gammel nav beholder velgeren.
-3. **Popoveren lukkes ved prosjektvalg.** Byggeplass er et **valgfritt ettervalg**, ikke et obligatorisk tredje steg.
+3. ~~**Popoveren lukkes ved prosjektvalg.** Byggeplass er et **valgfritt ettervalg**, ikke et obligatorisk tredje steg.~~ **🔄 OPPDATERT → B2 (Kenneth-valgt 1a-mockup, 2026-08-21):** prosjektvalg lukker IKKE lenger popoveren — den avanserer til byggeplass-steget i samme åpning (prosjekt med byggeplasser). Prosjekt uten byggeplasser → lukker som før. Reduserer prosjekt+byggeplass fra 5 til 3 klikk. Se [ordre-kontekstvelger-1a-fabel-2026-08-21.md § B2](../../redesign/ordre-kontekstvelger-1a-fabel-2026-08-21.md) + branch `feat/kontekstvelger-1a`.
 
 ## Låste prinsipper
 

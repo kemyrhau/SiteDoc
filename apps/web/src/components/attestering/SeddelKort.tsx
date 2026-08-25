@@ -30,6 +30,19 @@ import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
 import type { MaskinRad, TilleggRad, TimerRad } from "./attestering-buckets";
+import {
+  DagsKort,
+  HoverKort,
+  harKortInnhold,
+  tilPivotRad,
+  type KatalogNavn,
+  type RaaUtlegg,
+} from "./DagsKort";
+import {
+  sedelHarTilleggKrav,
+  sedelHarMertid,
+  sedelHarMaskinOver,
+} from "./sedel-vurdering";
 
 type SplittAktiv =
   | { radType: "timer"; original: TimerRad }
@@ -58,6 +71,9 @@ export type SeddelKortData = {
   timer: TimerRad[];
   tillegg: TilleggRad[];
   maskiner: MaskinRad[];
+  // Dagskort (hover fra navnet): utlegg registrert samme dag (beløp +
+  // kategorinavn, ingen vedlegg). Følger med i hentTilAttesteringFirma-payloaden.
+  utlegg: RaaUtlegg[];
   // T.11: true når sedel har maskinarbeid og eier mangler gyldig
   // maskinførerbevis. Leder-synlighet — aldri blokkerende.
   manglerMaskinforerbevis: boolean;
@@ -93,6 +109,8 @@ export function SeddelKort({
   onReturner,
   attesterPending,
   readOnly = false,
+  expanded: expandedProp,
+  onToggleExpand,
 }: {
   sedel: SeddelKortData;
   onAttester: () => void;
@@ -101,6 +119,11 @@ export function SeddelKort({
   // T7-5e: read-only-modus skjuler ↩/✓/⋯-meny og per-rad penn/✂.
   // Brukes på "Attestert"-fanen i firma-attestering-listen.
   readOnly?: boolean;
+  // Valgfritt kontrollert expand: gis begge, styrer forelderen åpen/lukket (firma-
+  // attestering: kollaps/utvid alle + utvid avvik). Utelates de, faller kortet til
+  // sin egen interne tilstand med auto-expand ved avvik (DagsKort-bruken uendret).
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
@@ -127,27 +150,25 @@ export function SeddelKort({
     projectId: string;
     ecoId: string | null;
   } | null>(null);
-  const oransje = sedel.tilleggHarKrav;
-  // T7-4g: mertid = arbeidet mer enn dagsnorm. Krever dagsnorm > 0 for å
-  // unngå false positive på sedler uten konfigurert norm.
-  const harMertid =
-    sedel.dagsnorm > 0 && sedel.totaltimer > sedel.dagsnorm + 0.001;
-  // B5 (2026-05-27): maskin-av-arbeid-invariant speilet fra EcoBucketAttest
-  // (attestering-buckets.tsx:572). Pause-buffer fordi døgn-utleide maskiner
-  // går mens operatør pauser (T.7 2026-05-18). Auto-expand når brutt så
-  // leder ser detaljene umiddelbart.
+  // Vurderings-predikatene deles med firma-attesteringssidens standard-ekspander
+  // (sedel-vurdering.ts) så definisjonene ikke drifter. `sumMaskin`/`maskinOk`
+  // beholdes lokalt for VISNING (tallet + invariant-teksten under).
+  const oransje = sedelHarTilleggKrav(sedel);
+  const harMertid = sedelHarMertid(sedel);
+  const maskinOver = sedelHarMaskinOver(sedel);
   const sumMaskin = sedel.maskiner.reduce(
     (acc, r) => acc + tilTall(r.timer),
     0,
   );
   const pauseTimer = sedel.pauseMin / 60;
-  const maskinOk = sumMaskin <= sedel.totaltimer + pauseTimer + 0.001;
-  const maskinOver = sumMaskin > 0 && !maskinOk;
-  // T7-4g: default-expanded ved tilleggskrav ELLER mertid ELLER maskin
-  // over invariant — leder må se detaljene når noe avviker.
-  const [expanded, setExpanded] = useState<boolean>(
+  const maskinOk = !maskinOver;
+  // T7-4g: default-expanded ved tilleggskrav ELLER mertid ELLER maskin over
+  // invariant (kun i intern modus — DagsKort; firma-attestering styrer expand utenfra).
+  const kontrollertExpand = expandedProp !== undefined;
+  const [internExpanded, setInternExpanded] = useState<boolean>(
     oransje || harMertid || maskinOver,
   );
+  const expanded = kontrollertExpand ? expandedProp : internExpanded;
 
   // T7-4f-splitt-1-klikk: prosjekter + tidsrunding for SplittRadModal.
   // trpc-cache dedupliserer på tvers av sedel-kort — én faktisk query per side.
@@ -168,10 +189,27 @@ export function SeddelKort({
   const tidsrundingMinutter = orgSetting?.tidsrundingMinutter ?? null;
 
   // Kataloger for navn-oppslag (queries deler cache på tvers av sedler).
-  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
-  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
-  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
-  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  // MÅ scopes til det VISTE firmaet (valgtFirma): uten organizationId avleder
+  // list-queriene org fra innloggingen (resolverOrgFraInput → krevBrukersOrg),
+  // så en sitedoc_admin/firma-admin som ser et ANNET firmas sedler får feil
+  // (eller tom) katalog → alle rader viser «—» for lønnsart/aktivitet/tillegg/
+  // maskin selv om FK-ene er korrekte.
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
   const equipment = equipmentRaw as unknown as
     | Array<{ id: string; merke: string; modell: string; internNavn: string | null }>
     | undefined;
@@ -229,8 +267,23 @@ export function SeddelKort({
 
   const ansattNavn = sedel.ansatt?.name ?? sedel.ansatt?.email ?? "—";
 
+  // Dagskort som tredje inngang (navnet) — samme kort som pivotenes celler.
+  // Her mapper navnet 1:1 til én sedel (én person, én dag), så semantikken er
+  // uendret. Gjenbruker kortets eksisterende navn-resolvere (ingen ekstra query).
+  const dagskortKatalog: KatalogNavn = {
+    lonnsartNavn,
+    aktivitetNavn,
+    maskinNavn,
+    tilleggNavn,
+  };
+  const dagskortSedel = tilPivotRad(sedel);
+  const dagskortNode = harKortInnhold(dagskortSedel) ? (
+    <DagsKort seddel={dagskortSedel} katalog={dagskortKatalog} />
+  ) : null;
+
   function toggleExpanded() {
-    setExpanded((o) => !o);
+    if (kontrollertExpand) onToggleExpand?.();
+    else setInternExpanded((o) => !o);
   }
 
   return (
@@ -267,8 +320,11 @@ export function SeddelKort({
           {initialer(sedel.ansatt?.name ?? null, sedel.ansatt?.email)}
         </div>
 
-        {/* Navn + ansattnr */}
-        <span className="text-sm font-medium text-gray-900">{ansattNavn}</span>
+        {/* Navn + ansattnr. Navnet er tredje inngang til dagskortet (hover +
+            utvidelsesikon). Klikk på navnet bobler fortsatt til header-toggle. */}
+        <HoverKort kort={dagskortNode}>
+          <span className="text-sm font-medium text-gray-900">{ansattNavn}</span>
+        </HoverKort>
         {sedel.ansatt?.ansattnummer && (
           <span className="text-xs text-gray-500">
             #{sedel.ansatt.ansattnummer}

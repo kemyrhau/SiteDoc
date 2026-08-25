@@ -27,10 +27,12 @@ import {
   InviterNyMedlemModal,
 } from "../_components/dokumentflyt-komponenter";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { FlytAdminContext, useFlytAdmin } from "../_components/flyt-admin-kontekst";
 import { HmsFlytKort } from "@/components/hms/HmsFlytKort";
 import { nesteAutoFarge, FARGE_MAP as FAGGRUPPE_FARGER } from "../_components/faggruppe-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -104,23 +106,43 @@ function FaggruppeFargePrikk({ farge }: { farge: string | null }) {
   return <span className={`inline-block h-3 w-3 rounded-full ${bg} shrink-0`} />;
 }
 
+/**
+ * Funn 3 (2026-08-22): visuelt skille sjekkliste- vs oppgavemal i flyt-pillene. Skillet bæres av
+ * ikon-FORMEN (S/H-lesbar, jf. arkiv-vedtaket — ikke farge alene); fargen er kun dekor oppå.
+ * Speiler nedtrekkets SJEKKLISTER/OPPGAVER-deling. `aria-label` gir samme skille for skjermleser.
+ */
+function MalKategoriMerke({ category }: { category: string }) {
+  if (category === "sjekkliste")
+    return <ClipboardCheck className="h-3 w-3 shrink-0 text-blue-600" aria-label="Sjekklistemal" />;
+  if (category === "oppgave")
+    return <CheckCircle2 className="h-3 w-3 shrink-0 text-amber-600" aria-label="Oppgavemal" />;
+  return <FileText className="h-3 w-3 shrink-0 text-gray-400" aria-label="Mal" />;
+}
+
 /* ------------------------------------------------------------------ */
 /*  NyDokumentflytKnapp                                                */
 /* ------------------------------------------------------------------ */
 
 function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string; prosjektId: string }) {
   const { t } = useTranslation();
+  const erFlytAdmin = useFlytAdmin();
   const utils = trpc.useUtils();
+  const mutFeil = useMutasjonsFeil();
   const [visInput, setVisInput] = useState(false);
   const [navn, setNavn] = useState("");
 
   const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
       setVisInput(false);
       setNavn("");
     },
+    onError: mutFeil.onError,
   });
+
+  // G: kun admin kan opprette ny dokumentflyt (server-gatet) — skjul hele knappen for ikke-admin.
+  if (!erFlytAdmin) return null;
 
   if (!visInput) {
     return (
@@ -135,34 +157,37 @@ function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string;
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <input
-        type="text"
-        value={navn}
-        onChange={(e) => setNavn(e.target.value)}
-        placeholder={t("dokumentflyt.dokumentflytNavn")}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-        autoFocus
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && navn.trim()) {
-            opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
-          }
-          if (e.key === "Escape") { setVisInput(false); setNavn(""); }
-        }}
-      />
-      <Button
-        size="sm"
-        onClick={() => {
-          if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
-        }}
-        disabled={!navn.trim() || opprettMutation.isPending}
-        loading={opprettMutation.isPending}
-      >
-        {t("handling.opprett")}
-      </Button>
-      <Button size="sm" variant="secondary" onClick={() => { setVisInput(false); setNavn(""); }}>
-        {t("handling.avbryt")}
-      </Button>
+    <div>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={navn}
+          onChange={(e) => setNavn(e.target.value)}
+          placeholder={t("dokumentflyt.dokumentflytNavn")}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && navn.trim()) {
+              opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
+            }
+            if (e.key === "Escape") { setVisInput(false); setNavn(""); }
+          }}
+        />
+        <Button
+          size="sm"
+          onClick={() => {
+            if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
+          }}
+          disabled={!navn.trim() || opprettMutation.isPending}
+          loading={opprettMutation.isPending}
+        >
+          {t("handling.opprett")}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => { setVisInput(false); setNavn(""); }}>
+          {t("handling.avbryt")}
+        </Button>
+      </div>
+      <MutasjonsFeil melding={mutFeil.feil} />
     </div>
   );
 }
@@ -194,56 +219,38 @@ function DokumentflytKort({
   alleDokumentflyter: Dokumentflyt[];
 }) {
   const { t } = useTranslation();
+  const erFlytAdmin = useFlytAdmin();
   const utils = trpc.useUtils();
+  const mutFeil = useMutasjonsFeil();
   const [erRedigering, setErRedigering] = useState(false);
   const [navn, setNavn] = useState(df.name);
 
   const [visMalVelger, setVisMalVelger] = useState(false);
-  const [malAdvarsel, setMalAdvarsel] = useState<{ malId: string; flytNavn: string } | null>(null);
 
   const oppdaterMutation = trpc.dokumentflyt.oppdater.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
       setErRedigering(false);
     },
+    onError: mutFeil.onError,
   });
 
   const slettMutation = trpc.dokumentflyt.slett.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   const tilknyttedeMalIder = new Set(df.maler.map((m) => m.template.id));
 
-  const utforToggleMal = (malId: string) => {
+  const toggleMal = (malId: string) => {
     const nyeIds = tilknyttedeMalIder.has(malId)
       ? [...tilknyttedeMalIder].filter((id) => id !== malId)
       : [...tilknyttedeMalIder, malId];
     oppdaterMutation.mutate({ id: df.id, projectId: prosjektId, templateIds: nyeIds });
-    setMalAdvarsel(null);
-  };
-
-  const toggleMal = (malId: string) => {
-    // Kun sjekk ved tillegg, ikke fjerning
-    if (tilknyttedeMalIder.has(malId)) {
-      utforToggleMal(malId);
-      return;
-    }
-    // Sjekk om malen allerede finnes i en annen dokumentflyt for samme faggruppe
-    if (df.faggruppeId) {
-      const duplikatFlyt = alleDokumentflyter.find(
-        (annen) =>
-          annen.id !== df.id &&
-          annen.faggruppeId === df.faggruppeId &&
-          annen.maler.some((m) => m.template.id === malId),
-      );
-      if (duplikatFlyt) {
-        setMalAdvarsel({ malId, flytNavn: duplikatFlyt.name });
-        return;
-      }
-    }
-    utforToggleMal(malId);
   };
 
   return (
@@ -281,7 +288,7 @@ function DokumentflytKort({
               <X className="h-4 w-4" />
             </button>
           </div>
-        ) : (
+        ) : erFlytAdmin ? (
           <button
             onClick={() => setErRedigering(true)}
             className="flex-1 text-left text-sm font-semibold text-gray-700 hover:text-blue-600"
@@ -289,8 +296,13 @@ function DokumentflytKort({
           >
             {df.name}
           </button>
+        ) : (
+          // G: ikke-admin ser navnet som ren tekst (ingen rediger-trigger).
+          <span className="flex-1 text-left text-sm font-semibold text-gray-700">{df.name}</span>
         )}
       </div>
+
+      <MutasjonsFeil melding={mutFeil.feil} />
 
       {/* Visuell flyt — dynamiske bokser basert på konfigurerte roller */}
       <DynamiskFlyt
@@ -305,17 +317,30 @@ function DokumentflytKort({
 
       {/* Maler */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        {df.maler.map((m) => (
-          <button
-            key={m.template.id}
-            onClick={() => toggleMal(m.template.id)}
-            className="group/mal inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-500"
-            title={t("handling.fjern")}
-          >
-            {m.template.name}
-            <X className="h-3 w-3 opacity-0 group-hover/mal:opacity-100" />
-          </button>
-        ))}
+        {df.maler.map((m) =>
+          erFlytAdmin ? (
+            <button
+              key={m.template.id}
+              onClick={() => toggleMal(m.template.id)}
+              className="group/mal inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 hover:bg-red-50 hover:text-red-500"
+              title={t("handling.fjern")}
+            >
+              <MalKategoriMerke category={m.template.category} />
+              {m.template.name}
+              <X className="h-3 w-3 opacity-0 group-hover/mal:opacity-100" />
+            </button>
+          ) : (
+            // G: ikke-admin ser malen, men kan ikke fjerne den (ingen X-trigger).
+            <span
+              key={m.template.id}
+              className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500"
+            >
+              <MalKategoriMerke category={m.template.category} />
+              {m.template.name}
+            </span>
+          ),
+        )}
+        {erFlytAdmin && (
         <div className="relative">
           <button
             onClick={() => setVisMalVelger(!visMalVelger)}
@@ -367,29 +392,8 @@ function DokumentflytKort({
             </div>
           )}
         </div>
-
-        {/* Advarsel: mal allerede tilknyttet en annen flyt */}
-        {malAdvarsel && (
-          <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-            <p className="text-xs text-amber-800">
-              {t("dokumentflyt.malDuplikatAdvarsel", { flytNavn: malAdvarsel.flytNavn })}
-            </p>
-            <div className="mt-1.5 flex gap-2">
-              <button
-                onClick={() => utforToggleMal(malAdvarsel.malId)}
-                className="rounded bg-amber-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-amber-700"
-              >
-                {t("dokumentflyt.malDuplikatFortsett")}
-              </button>
-              <button
-                onClick={() => setMalAdvarsel(null)}
-                className="rounded bg-white px-2 py-0.5 text-xs text-gray-600 border border-gray-200 hover:bg-gray-50"
-              >
-                {t("handling.avbryt")}
-              </button>
-            </div>
-          </div>
         )}
+
       </div>
     </div>
   );
@@ -435,15 +439,19 @@ function DynamiskFlyt({
   gruppeMedlemNavn: Map<string, Array<{ navn: string; projectMemberId: string; gruppeMedlemId: string; erAdmin: boolean }>>;
 }) {
   const { t } = useTranslation();
+  const erFlytAdmin = useFlytAdmin();
   const utils = trpc.useUtils();
+  const mutFeil = useMutasjonsFeil();
   const [visLeggTilRolle, setVisLeggTilRolle] = useState(false);
   const [redigerLabel, setRedigerLabel] = useState<string | null>(null);
   const [labelVerdi, setLabelVerdi] = useState("");
 
   const oppdaterRollerMutation = trpc.dokumentflyt.oppdaterRoller.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   // Roller fra df.roller (stabile, persistert i DB)
@@ -485,7 +493,8 @@ function DynamiskFlyt({
   };
 
   return (
-    <div className="flex items-stretch gap-0 flex-wrap">
+    <div>
+      <div className="flex items-stretch gap-0 flex-wrap">
       {konfigRoller.map((rk, idx) => {
         const konfig = ROLLE_KONFIG[rk.rolle];
         if (!konfig) return null;
@@ -532,8 +541,8 @@ function DynamiskFlyt({
         <span className="text-xs text-gray-400 italic self-center mr-2">{t("dokumentflyt.ingenRoller")}</span>
       )}
 
-      {/* + Legg til rolle */}
-      {tilgjengeligeRoller.length > 0 && (
+      {/* + Legg til rolle — G: kun admin (server-gatet). */}
+      {erFlytAdmin && tilgjengeligeRoller.length > 0 && (
         <>
           {konfigRoller.length > 0 && (
             <div className="flex items-center px-2">
@@ -572,6 +581,8 @@ function DynamiskFlyt({
           )}
         </>
       )}
+      </div>
+      <MutasjonsFeil melding={mutFeil.feil} />
     </div>
   );
 }
@@ -620,33 +631,43 @@ function FlytBoks({
   onAvbrytLabel?: () => void;
 }) {
   const { t } = useTranslation();
+  const erFlytAdmin = useFlytAdmin();
   const utils = trpc.useUtils();
+  const mutFeil = useMutasjonsFeil();
   const [visInviterNy, setVisInviterNy] = useState(false);
   const [utvidetGruppe, setUtvidetGruppe] = useState<Set<string>>(new Set());
   const f = FLYT_FARGER[farge] ?? FLYT_FARGER.blue!;
 
   const settHovedansvarligMutation = trpc.dokumentflyt.settHovedansvarlig.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   const fjernMedlemMutation = trpc.dokumentflyt.fjernMedlem.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   const settGruppeHovedansvarligMutation = trpc.dokumentflyt.settGruppeHovedansvarlig.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   const settKanRedigereMutation = trpc.dokumentflyt.settKanRedigere.useMutation({
     onSuccess: () => {
+      mutFeil.nullstill();
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
+    onError: mutFeil.onError,
   });
 
   // Del medlemmer i grupper og enkeltpersoner
@@ -667,6 +688,18 @@ function FlytBoks({
   }
 
   function renderHovedansvarligPrikk(m: DokumentflytMedlem) {
+    // G: ikke-admin ser prikken som statisk statusindikator (kan ikke sette/fjerne hovedansvarlig).
+    if (!erFlytAdmin) {
+      return (
+        <span
+          className={`shrink-0 rounded-full ${
+            m.erHovedansvarlig
+              ? `h-2.5 w-2.5 ${f.prikkBg} ring-2 ${f.prikkRing}`
+              : "h-2.5 w-2.5 border border-gray-300"
+          }`}
+        />
+      );
+    }
     return (
       <button
         onClick={(e) => {
@@ -688,6 +721,18 @@ function FlytBoks({
   }
 
   function renderKanRedigereToggle(m: DokumentflytMedlem) {
+    // G: ikke-admin ser rettighet som statisk merke (kan ikke bytte leser/redigerer).
+    if (!erFlytAdmin) {
+      return (
+        <span
+          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+            m.kanRedigere ? "text-gray-400" : "bg-amber-100 text-amber-700"
+          }`}
+        >
+          {m.kanRedigere ? t("dokumentflyt.redigerer") : t("dokumentflyt.leserRettighet")}
+        </span>
+      );
+    }
     return (
       <button
         onClick={(e) => {
@@ -735,7 +780,7 @@ function FlytBoks({
             }}
             onBlur={() => onLagreLabel?.()}
           />
-        ) : (
+        ) : erFlytAdmin ? (
           <button
             onClick={() => onStartRedigerLabel?.()}
             className="hover:underline"
@@ -743,8 +788,11 @@ function FlytBoks({
           >
             {tittel}
           </button>
+        ) : (
+          // G: ikke-admin ser rollenavnet som ren tekst (ingen rediger-trigger).
+          <span>{tittel}</span>
         )}
-        {onFjernRolle && (
+        {erFlytAdmin && onFjernRolle && (
           <button
             onClick={onFjernRolle}
             className="ml-auto rounded p-0.5 text-gray-300 opacity-0 group-hover/boks:opacity-100 hover:bg-red-100 hover:text-red-500 transition-opacity"
@@ -783,16 +831,18 @@ function FlytBoks({
                 )}
               </button>
               {renderKanRedigereToggle(m)}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
-                }}
-                className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
-                title={t("handling.fjern")}
-              >
-                <X className="h-3 w-3 text-gray-400" />
-              </button>
+              {erFlytAdmin && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
+                  }}
+                  className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
+                  title={t("handling.fjern")}
+                >
+                  <X className="h-3 w-3 text-gray-400" />
+                </button>
+              )}
             </div>
             {erUtvidet && medlemNavn.length > 0 && (
               <div className="ml-5 mt-0.5 mb-1 space-y-0.5">
@@ -800,22 +850,31 @@ function FlytBoks({
                   const erHA = m.hovedansvarligPersonId === gm.projectMemberId;
                   return (
                     <div key={gm.gruppeMedlemId} className="flex items-center gap-1.5 text-xs text-gray-600">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          settGruppeHovedansvarligMutation.mutate({
-                            id: m.id,
-                            projectId: prosjektId,
-                            hovedansvarligPersonId: erHA ? null : gm.projectMemberId,
-                          });
-                        }}
-                        className={`shrink-0 rounded-full transition-all ${
-                          erHA
-                            ? `h-2 w-2 ${f.prikkBg} ring-2 ${f.prikkRing}`
-                            : "h-2 w-2 border border-gray-300 hover:bg-gray-400 hover:border-gray-400"
-                        }`}
-                        title={erHA ? t("dokumentflyt.fjernHovedansvarlig") : t("dokumentflyt.settHovedansvarlig")}
-                      />
+                      {erFlytAdmin ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            settGruppeHovedansvarligMutation.mutate({
+                              id: m.id,
+                              projectId: prosjektId,
+                              hovedansvarligPersonId: erHA ? null : gm.projectMemberId,
+                            });
+                          }}
+                          className={`shrink-0 rounded-full transition-all ${
+                            erHA
+                              ? `h-2 w-2 ${f.prikkBg} ring-2 ${f.prikkRing}`
+                              : "h-2 w-2 border border-gray-300 hover:bg-gray-400 hover:border-gray-400"
+                          }`}
+                          title={erHA ? t("dokumentflyt.fjernHovedansvarlig") : t("dokumentflyt.settHovedansvarlig")}
+                        />
+                      ) : (
+                        // G: ikke-admin ser statisk statusprikk (kan ikke sette gruppe-hovedansvarlig).
+                        <span
+                          className={`shrink-0 rounded-full ${
+                            erHA ? `h-2 w-2 ${f.prikkBg} ring-2 ${f.prikkRing}` : "h-2 w-2 border border-gray-300"
+                          }`}
+                        />
+                      )}
                       <User className={`h-3 w-3 ${f.ikon} shrink-0`} />
                       {gm.navn}
                     </div>
@@ -846,16 +905,18 @@ function FlytBoks({
               </span>
             )}
             {renderKanRedigereToggle(m)}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
-              }}
-              className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
-              title={t("handling.fjern")}
-            >
-              <X className="h-3 w-3 text-gray-400" />
-            </button>
+            {erFlytAdmin && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId });
+                }}
+                className="rounded p-0.5 opacity-0 transition-opacity group-hover/medlem:opacity-100 hover:bg-red-100 hover:text-red-600"
+                title={t("handling.fjern")}
+              >
+                <X className="h-3 w-3 text-gray-400" />
+              </button>
+            )}
           </div>
         );
       })}
@@ -875,6 +936,8 @@ function FlytBoks({
           onInviterNy={() => setVisInviterNy(true)}
         />
       </div>
+
+      <MutasjonsFeil melding={mutFeil.feil} />
 
       {/* Inviter ny person modal */}
       <InviterNyMedlemModal
@@ -927,6 +990,12 @@ export default function KontakterSide() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
+  // G: er brukeren admin? Styrer om flyt-konfig-kontrollene VISES (server-gaten avviser uansett).
+  const { data: minTilgang } = trpc.gruppe.hentMinTilgang.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const erFlytAdmin = minTilgang?.erAdmin ?? false;
 
   const erLaster = e1 || e2 || e3 || e4 || e5;
   const utils = trpc.useUtils();
@@ -1067,7 +1136,16 @@ export default function KontakterSide() {
   const alleFaggrupper = (faggrupper ?? []) as Faggruppe[];
   const alleMedlemmer = (medlemmer ?? []) as ProsjektMedlem[];
   return (
+    <FlytAdminContext.Provider value={erFlytAdmin}>
     <div>
+      {/* G: sett forventningen — ikke-admin ser skrivebeskyttet oppsett (kontrollene skjules, og
+          serveren avviser uansett). */}
+      {!erFlytAdmin && (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Du har ikke administratorrettigheter på dette prosjektet. Dokumentflyt-oppsettet er
+          skrivebeskyttet for deg — du kan se flytene, men ikke endre dem. Be en prosjektadmin om endringer.
+        </p>
+      )}
       <div className="mb-4">
         <div className="flex items-center justify-between">
           <div>
@@ -1355,5 +1433,6 @@ export default function KontakterSide() {
       )}
 
     </div>
+    </FlytAdminContext.Provider>
   );
 }

@@ -12,6 +12,7 @@ export function TegningPosisjonObjekt({
   verdi,
   onEndreVerdi,
   leseModus,
+  feltNokkel,
 }: RapportObjektProps) {
   const posisjon = verdi as TegningPosisjonVerdi | null;
   const params = useParams<{ prosjektId: string }>();
@@ -19,12 +20,17 @@ export function TegningPosisjonObjekt({
   const { startPosisjonsvelger, hentOgTømPosisjonsResultat } = useByggeplass();
   const harSjekketResultat = useRef(false);
 
+  // Rad-unik nøkkel i repeater (${objekt.id}:${radIndeks}); top-nivå → objekt.id.
+  // Uten dette deler alle repeater-rader samme nøkkel → rad 2 overskriver rad 1s
+  // posisjonsresultat ved retur fra tegningssiden.
+  const nokkel = feltNokkel ?? objekt.id;
+
   // Sjekk om det finnes et ventende posisjonsresultat fra tegningssiden
   useEffect(() => {
     if (harSjekketResultat.current) return;
     harSjekketResultat.current = true;
 
-    const resultat = hentOgTømPosisjonsResultat(objekt.id);
+    const resultat = hentOgTømPosisjonsResultat(nokkel);
     if (resultat) {
       onEndreVerdi({
         drawingId: resultat.drawingId,
@@ -33,11 +39,23 @@ export function TegningPosisjonObjekt({
         drawingName: resultat.drawingName,
       } satisfies TegningPosisjonVerdi);
     }
-  }, [objekt.id, hentOgTømPosisjonsResultat, onEndreVerdi]);
+  }, [nokkel, hentOgTømPosisjonsResultat, onEndreVerdi]);
 
   function handleVelgPosisjon() {
-    startPosisjonsvelger(objekt.id);
-    router.push(`/dashbord/${params.prosjektId}/tegninger`);
+    startPosisjonsvelger(nokkel);
+    // Bær velger-tilstanden i URL-en (funn 2026-08-22): tegningssiden re-hydrerer
+    // fra `posisjonsvelger`-parameteren ved full last / remount, så et klikk setter
+    // PUNKT (ikke «Opprett fra tegning»). En ren in-memory-overlevering var skjør.
+    const sp = new URLSearchParams({ posisjonsvelger: nokkel });
+    // F1 (2026-08-23): «Endre» sender feltets NÅVÆRENDE posisjon med → velgeren åpner på riktig
+    // tegning og tegner den eksisterende markøren dempet. Ny plassering (tomt felt) sender ingenting.
+    if (posisjon?.drawingId) {
+      sp.set("tegning", posisjon.drawingId);
+      if (posisjon.drawingName) sp.set("tegningNavn", posisjon.drawingName);
+      sp.set("px", String(posisjon.positionX));
+      sp.set("py", String(posisjon.positionY));
+    }
+    router.push(`/dashbord/${params.prosjektId}/tegninger?${sp.toString()}`);
   }
 
   // Lesemodus: vis posisjon eller «Ingen posisjon valgt»

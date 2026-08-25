@@ -1723,10 +1723,14 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
-      if (sjekkliste.status !== "draft" && sjekkliste.status !== "cancelled") {
+      // Slettevakt (Lukk-som-slette-port, Kenneth-vedtak 2026-08-21): kun `draft`
+      // ELLER `closed`. Alt annet må gjennom Lukk først (to-stegs sletting). Gammel
+      // «avbrutt»-status (`cancelled`) er uoppnåelig og tatt ut. Meldingen sier hva
+      // brukeren KAN gjøre, ikke bare hva som er forbudt.
+      if (sjekkliste.status !== "draft" && sjekkliste.status !== "closed") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Kun sjekklister i utkast- eller avbrutt-status kan slettes",
+          message: "Lukk dokumentet først, så kan det slettes",
         });
       }
 

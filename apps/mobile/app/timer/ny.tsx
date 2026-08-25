@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Calendar, ChevronRight, Check, X, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { DatoVelgerFelt } from "../../src/components/DatoVelgerFelt";
 import * as Location from "expo-location";
 import { hentDatabase } from "../../src/db/database";
 import { aktivitetLocal } from "../../src/db/schema";
@@ -259,14 +259,15 @@ export default function NyDagsseddelSide() {
         </View>
 
         {visDatoVelger && (
-          <DateTimePicker
+          <DatoVelgerFelt
             value={new Date(dato)}
             mode="date"
-            display={Platform.OS === "ios" ? "inline" : "default"}
+            iosDisplay="inline"
             onChange={(_, valgt) => {
-              setVisDatoVelger(Platform.OS === "ios");
+              if (Platform.OS !== "ios") setVisDatoVelger(false); // Android lukker selv
               if (valgt) setDato(formatIsoDato(valgt));
             }}
+            onLukk={() => setVisDatoVelger(false)}
           />
         )}
 

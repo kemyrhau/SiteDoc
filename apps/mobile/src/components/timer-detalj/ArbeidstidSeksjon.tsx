@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Pencil, X, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../db/database";
 import { dagsseddelLocal } from "../../db/schema";
@@ -224,15 +224,15 @@ function RedigerArbeidstidModal({
               onPress={() => setVisStartPicker(true)}
             />
             {visStartPicker && (
-              <DateTimePicker
+              <DatoVelgerFelt
                 value={startDato ?? new Date()}
                 mode="time"
                 is24Hour
-                display={Platform.OS === "ios" ? "spinner" : "default"}
                 onChange={(_, valgt) => {
-                  setVisStartPicker(Platform.OS === "ios");
+                  if (Platform.OS !== "ios") setVisStartPicker(false); // Android lukker selv
                   if (valgt) setStartDato(valgt);
                 }}
+                onLukk={() => setVisStartPicker(false)}
               />
             )}
           </View>
@@ -247,15 +247,15 @@ function RedigerArbeidstidModal({
               onPress={() => setVisEndPicker(true)}
             />
             {visEndPicker && (
-              <DateTimePicker
+              <DatoVelgerFelt
                 value={endDato ?? new Date()}
                 mode="time"
                 is24Hour
-                display={Platform.OS === "ios" ? "spinner" : "default"}
                 onChange={(_, valgt) => {
-                  setVisEndPicker(Platform.OS === "ios");
+                  if (Platform.OS !== "ios") setVisEndPicker(false); // Android lukker selv
                   if (valgt) setEndDato(valgt);
                 }}
+                onLukk={() => setVisEndPicker(false)}
               />
             )}
           </View>

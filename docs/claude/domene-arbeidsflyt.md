@@ -56,6 +56,33 @@ Alle arkitektur-beslutninger skal kunne forklares tilbake til en arbeidsflyt her
 
 ---
 
+## 🔴 BINDENDE VEDTAK: dokumentflyten er nøkkelen — faggruppe er avledet (Kenneth 2026-08-22)
+
+**Vedtaket:** et dokument tilhører alltid nøyaktig **én dokumentflyt**. Faggruppen er en
+**egenskap ved flyten**, ikke en inngang til den. Overalt hvor en flate skal identifisere
+hvor et dokument hører hjemme — opprettelse, videresending, mal-utvalg, mottakervalg —
+er det **flyt-id-en som velges og sendes**. Faggruppen leses ut av flyten etterpå.
+
+**Hvorfor dette er bindende:** én faggruppe kan ha flere flyter. Å velge faggruppe først
+gjør valget flertydig, og koden må da gjette — typisk med `.find()`, der første treff
+vinner. Det er ikke en teoretisk risiko; det var rotårsaken til fire målte funn
+2026-08-22, alle med samme signatur:
+
+| Sted | Feilen |
+|---|---|
+| «Opprett fra tegning» | Valgte faggruppe først og sendte aldri `dokumentflytId` → serveren avviste alt annet enn HMS. Stille i fire uker (regresjon fra `5573ccd2`, 24.07) |
+| `OpprettOppgaveModal` | Utleder flyt fra valgt mal via `.find()` i stedet for å arve sjekklistens flyt |
+| `mottakerForStandard()` | Finner standard-mottaker på `faggruppeId` — første treff vinner ved to flyter |
+| `dokumentflyt.malDuplikatAdvarsel` | Advarer mot to flyter med samme mal i én faggruppe, i stedet for at flyten er nøkkelen. Vakt mot en modellsvakhet, ikke mot en brukerfeil |
+
+**Praktisk regel for nye flater:** finner du deg selv i å skrive
+`X.find(v => v.faggruppeId === …)` for å bestemme hvor et dokument skal, har du valgt feil
+nøkkel. Flyt-id-en er kjent — bruk den.
+
+**Unntak: HMS.** HMS-dokumenter rutes av serveren til prosjektets HMS-flyt, og klienten
+skal **aldri** sende `dokumentflytId` for dem (`sjekkliste.ts:345` feiler høylytt).
+HMS *har* en flyt — den er bare ikke klientens sak.
+
 ## 🔴 BINDENDE VEDTAK: rekkefølgen styrer flyten — kun registrator består (Kenneth 2026-08-21)
 
 **Vedtaket:** dokumentflyt styres av **rekkefølgen på flytboksene alene**. Den eneste
@@ -142,8 +169,10 @@ sånn».
 
 | | Sjekkliste | Oppgave |
 |---|---|---|
-| **Sletting** | tillatt | **sperret etter første sending** (`oppgave.ts:1879` — kun `utkast`/`avbrutt`) |
+| **Sletting** | **`draft` \|\| `closed`** (`sjekkliste.ts` slett-mutasjon) | **`draft` \|\| `closed`** (`oppgave.ts` slett-mutasjon) |
 | **Følger av det** | **endringsloggen er sikkerhetsnettet** — den må kunne rekonstruere hva som sto | **kommentarer er sikkerhetsnettet** — det som ikke kan slettes, må kunne korrigeres i dialog |
+
+> **Måling + H6-revisjon (2026-08-21):** Begge typer hadde ALLEREDE identisk slettevakt (`draft` || `cancelled`) — sjekkliste var IKKE friere slettbar enn oppgave i koden (doc-drift mot «tillatt»-påstanden over, nå rettet). Lukk-som-slette-port-vedtaket endret begge til `draft` || `closed`: `cancelled` (uoppnåelig, 0 prod-rader) ut, `closed` inn som den slettbare terminalen. Alt annet må Lukkes først (to-stegs sletting: Lukk → papirkurv → 90-dagers angrefrist). Lukk er KUN admin. Se [`flytrettigheter-evaluering-2026-07-26.md § H6-REVISJON`](delplaner/flytrettigheter-evaluering-2026-07-26.md).
 
 **Hvorfor det henger sammen:** et dokument som kan forsvinne, trenger en logg som overlever
 det. Et dokument som ikke kan forsvinne, trenger en måte å legge til det som mangler uten å
@@ -157,9 +186,10 @@ skrive om historikken.
   høyere, fordi feil ikke kan ryddes ved sletting.
 - Bygges en av delene på én flate, skal den andre vurderes — men ikke automatisk kopieres.
 
-⚠️ **Ikke verifisert:** at sjekkliste faktisk kan slettes i alle statuser. Mål
-`sjekkliste.slett` mot samme statusgate som oppgave har, og rett dokumentet hvis de er like
-i dag.
+✅ **Verifisert (2026-08-21):** `sjekkliste.slett` og `oppgave.slett` har IDENTISK statusgate
+(begge `draft` || `closed` etter H6-revisjonen; var begge `draft` || `cancelled` før). Sjekkliste
+kan altså IKKE slettes i alle statuser — den påstanden var doc-drift. Prinsippet over (endringslogg
+kontra kommentar som sikkerhetsnett) står som design-rasjonale, men slette-mekanikken er lik i dag.
 
 ## Arbeidsflyt — Leder/Prosjektleder
 

@@ -4,9 +4,12 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
-import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass-kontekst";
+import { byggOpprettInput } from "@/lib/opprettFraTegning";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
+import { PeriodeFilter } from "@/components/PeriodeFilter";
+import { type Periode, effektiveGrenser, innenforPeriode } from "@/lib/periode";
 import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
 import {
   beregnTransformasjon,
@@ -20,6 +23,7 @@ interface DokumentflytMalRad {
 
 interface DokumentflytRad {
   id: string;
+  name: string;
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
@@ -33,6 +37,7 @@ interface Markør {
   y: number;
   label: string;
   status: string;
+  createdAt: string; // periodefilter (2026-08-23)
 }
 
 interface IfcMetadataJson {
@@ -106,8 +111,10 @@ export default function TegningerSide() {
     aktivTegning,
     aktivByggeplass,
     posisjonsvelgerAktiv,
+    startPosisjonsvelger,
     fullførPosisjonsvelger,
     avbrytPosisjonsvelger,
+    settAktivTegning,
   } = useByggeplass();
   const utils = trpc.useUtils();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -123,9 +130,48 @@ export default function TegningerSide() {
   // render eller lagrede posisjoner). Lagene som faktisk finnes: oppgaver + kontrollpunkter.
   const [visOppgaver, setVisOppgaver] = useState(true);
   const [visKontrollpunkter, setVisKontrollpunkter] = useState(true);
+  // Periodefilter på markørene (createdAt). Standard: alle.
+  const [periode, setPeriode] = useState<Periode>({ hurtigvalg: "alle", fra: null, til: null });
+  const { fra: pFra, til: pTil } = effektiveGrenser(periode);
   const naaUke = useMemo(() => isoUkeRef(new Date()), []);
   // L2: «Vis på tegning» sender ?marker=<punktId> → den markøren utheves (spretter).
   const uthevetPunktId = useSearchParams().get("marker");
+  const sokeParams = useSearchParams();
+  const posisjonsvelgerParam = sokeParams.get("posisjonsvelger");
+  // F1 (2026-08-23): «Endre» sender feltets NÅVÆRENDE posisjon med i URL-en → velgeren åpner på
+  // RIKTIG tegning og tegner den eksisterende markøren dempet, så brukeren ser hvor punktet står.
+  const eksTegningId = sokeParams.get("tegning");
+  const eksTegningNavn = sokeParams.get("tegningNavn");
+  const eksPxRaa = sokeParams.get("px");
+  const eksPyRaa = sokeParams.get("py");
+  const eksisterendeMarkør =
+    eksTegningId && eksPxRaa != null && eksPyRaa != null && !Number.isNaN(Number(eksPxRaa)) && !Number.isNaN(Number(eksPyRaa))
+      ? { drawingId: eksTegningId, x: Number(eksPxRaa), y: Number(eksPyRaa) }
+      : null;
+  const harRehydrertVelger = useRef(false);
+
+  // Re-hydrer velger-tilstanden fra URL-en ÉN gang ved mount (funn 2026-08-22):
+  // posisjonsvelgerAktiv er ren in-memory provider-state og nullstilles ved full last /
+  // remount. Uten dette faller klikk-gaten (:457) gjennom → «Opprett fra tegning» i stedet
+  // for å sette PUNKT. URL-en er sannhetskilden på denne ruten:
+  //   · param satt, men provider tom (full last) → gjenopprett velger-modus.
+  //   · ingen param, men provider har stale velger-modus → rydd (så «fra Tegninger-siden»
+  //     alltid gir Opprett-dialog, aldri arvet velger-modus fra en tidligere dokument-flyt).
+  // Run-once-guard: uten den re-fyrer effekten etter fullførPosisjonsvelger (aktiv=false,
+  // før router.back()) og `startPosisjonsvelger` ville nullstilt resultat-ref-en → punktet tapt.
+  useEffect(() => {
+    if (harRehydrertVelger.current) return;
+    harRehydrertVelger.current = true;
+    const handling = velgerRehydreringsHandling(posisjonsvelgerParam, posisjonsvelgerAktiv);
+    if (handling === "start") {
+      startPosisjonsvelger(posisjonsvelgerParam!);
+      // F1: åpne feltets EGEN tegning (ikke standard/sist-viste) når «Endre» ga oss en.
+      if (eksTegningId && aktivTegning?.id !== eksTegningId) {
+        settAktivTegning({ id: eksTegningId, name: eksTegningNavn ?? "" });
+      }
+    } else if (handling === "avbryt") avbrytPosisjonsvelger();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posisjonsvelgerParam, posisjonsvelgerAktiv, startPosisjonsvelger, avbrytPosisjonsvelger]);
 
   // DWG-elementinfo ved klikk
   const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);
@@ -136,7 +182,10 @@ export default function TegningerSide() {
   const [opprettType, setOpprettType] = useState<"oppgave" | "sjekkliste">("oppgave");
 
   const [valgtMal, setValgtMal] = useState("");
-  const [valgtOppretter, setValgtOppretter] = useState("");
+  // Funn 2026-08-22 (modell-korreksjon): dialogen velger DOKUMENTFLYT, ikke faggruppe.
+  // Faggruppene utledes fra flyten. `valgtFlyt` = valgt dokumentflytId ("" = ingen).
+  const [valgtFlyt, setValgtFlyt] = useState("");
+  const [opprettFeil, setOpprettFeil] = useState<string | null>(null);
 
   // GPS-koordinater ved musebevegelse over georeferert tegning
   const [gpsKoordinat, setGpsKoordinat] = useState<{ lat: number; lng: number } | null>(null);
@@ -190,11 +239,10 @@ export default function TegningerSide() {
     },
   });
 
-  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: visOpprettModal },
-  );
-  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
+  // Flyter brukeren kan OPPRETTE i (registrator-medlem) — ikke synlighets-medlemskap
+  // (hentMineFlyter). Serveren krever registrator-medlemskap for opprett, så mal-lista
+  // filtreres på nettopp disse (funn 2026-08-22 pkt 4).
+  const { data: mineOpprettFlyter } = trpc.medlem.hentMineOpprettFlyter.useQuery(
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
   );
@@ -206,30 +254,34 @@ export default function TegningerSide() {
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
   );
-  const { data: minTilgang } = trpc.gruppe.hentMinTilgang.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: visOpprettModal },
-  );
-
-  // Auto-velg oppretter-faggruppe når data lastes
-  useEffect(() => {
-    if (!visOpprettModal || valgtOppretter) return;
-    if (mineFaggrupper && mineFaggrupper.length > 0) {
-      const forste = mineFaggrupper[0];
-      if (forste) setValgtOppretter(forste.id);
-    }
-  }, [mineFaggrupper, visOpprettModal, valgtOppretter]);
 
   const opprettOppgaveMutation = trpc.oppgave.opprett.useMutation({
+    // B (2026-08-22): oppgave-grenen navigerer BEVISST IKKE til det nye dokumentet. En oppgave
+    // opprettet fra tegning får en markør som blir stående på tegningen — markøren ER kvitteringen
+    // («det ble opprettet, her»), og brukeren fortsetter gjerne å plassere flere. Å hoppe til
+    // oppgaven ville brutt den flyten. Sjekkliste-grenen (under) er motsatt: den navigerer.
     onSuccess: (_data: unknown, _vars: { title: string }) => {
       utils.oppgave.hentForTegning.invalidate({ drawingId: aktivTegning?.id ?? "" });
       lukkModal();
     },
+    // Funn 2026-08-22: uten onError feilet opprett STILLE (serveren avviste manglende
+    // dokumentflytId, brukeren så ingenting). Vis serverens melding.
+    onError: (error: { message?: string }) => {
+      setOpprettFeil(error.message ?? "Kunne ikke opprette oppgaven. Prøv igjen.");
+    },
   });
 
   const opprettSjekklisteMutation = trpc.sjekkliste.opprett.useMutation({
-    onSuccess: () => {
+    // B (2026-08-22): naviger til den nye sjekklisten med én gang. Før: den ble opprettet i
+    // stillhet og brukeren måtte lete den opp i lista (2–3 ekstra steg + «hva skjedde?»). En
+    // sjekkliste fylles ut inne i dokumentet (ikke via en tegningsmarkør), så den riktige neste
+    // handlingen er å åpne den. (Oppgave-grenen over navigerer bevisst ikke — markøren er nok.)
+    onSuccess: (data: { id: string }) => {
       lukkModal();
+      router.push(`/dashbord/${params.prosjektId}/sjekklister/${data.id}`);
+    },
+    onError: (error: { message?: string }) => {
+      setOpprettFeil(error.message ?? "Kunne ikke opprette sjekklisten. Prøv igjen.");
     },
   });
 
@@ -389,7 +441,8 @@ export default function TegningerSide() {
     setVisOpprettModal(false);
     setNyMarkør(null);
     setValgtMal("");
-    setValgtOppretter("");
+    setValgtFlyt("");
+    setOpprettFeil(null);
   }
 
   const handleMuseBevegelse = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -469,30 +522,36 @@ export default function TegningerSide() {
     setVisOpprettModal(true);
   }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus]);
 
-  // Finn matchende arbeidsforløp for valgt oppretter + mal
+  // Modell-korreksjon (funn 2026-08-22): dokumentflyt er nøkkelen, ikke faggruppe.
+  // Serveren (F1/B1) krever `dokumentflytId` for ikke-HMS og validerer at flyten har malen
+  // + at bruker er registrator-medlem. Faggruppene utledes FRA flyten (flyt.faggruppeId).
   const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as DokumentflytRad[];
-  // Person-/gruppe-direkte medlem uten egen faggruppe: bruk eier-faggruppen (Dokumentflyt.faggruppeId)
-  // til flyten brukeren er medlem av og som har valgt mal.
-  const mineFlytIder = new Set(mineFlyter ?? []);
-  const flytFallbackFaggruppe = valgtMal
-    ? alleArbeidsforlop.find((af) => mineFlytIder.has(af.id) && af.maler.some((wt) => wt.template.id === valgtMal))?.faggruppeId ?? null
-    : null;
-  const effektivOppretter = valgtOppretter || flytFallbackFaggruppe || "";
-  const matchendeArbeidsforlop = alleArbeidsforlop.find((af) =>
-    af.faggruppeId === effektivOppretter &&
-    af.maler.some((wt) => wt.template.id === valgtMal),
-  );
-  const utledetSvarer = effektivOppretter;
+  const mineOpprettFlytIder = new Set(mineOpprettFlyter ?? []);
+  // Flyter brukeren kan opprette i (registrator-medlem).
+  const opprettFlyter = alleArbeidsforlop.filter((af) => mineOpprettFlytIder.has(af.id));
+  const valgtFlytObjekt = opprettFlyter.find((af) => af.id === valgtFlyt) ?? null;
+
+  // HMS-maler er FLYT-UAVHENGIGE: serveren auto-ruter dem til prosjektets HMS-flyt og
+  // FORBYR klient-sendt dokumentflytId (sjekkliste.ts:345 / oppgave.ts). De vises i egen
+  // gruppe (A-vedtak), og ved submit sendes ingen flyt/faggruppe for dem.
+  const alleMalerTypet = (alleMaler ?? []) as Array<{ id: string; name: string; category: string; domain: string | null }>;
+  // NB: `Map` er skygget av lucide-react-ikonet i denne fila — bruk Set av HMS-mal-IDer.
+  const hmsMalIder = new Set(alleMalerTypet.filter((m) => m.domain === "hms").map((m) => m.id));
+  const erHmsMal = (malId: string) => hmsMalIder.has(malId);
 
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
-    if (!valgtMal || !effektivOppretter) return;
+    setOpprettFeil(null);
+    if (!valgtMal) return;
+    const hms = erHmsMal(valgtMal);
+    // Ikke-HMS krever en valgt flyt (kilde til dokumentflytId + faggruppe). HMS: server auto-ruter.
+    if (!hms && !valgtFlytObjekt) return;
+    const flytInput = byggOpprettInput(hms, valgtFlytObjekt);
 
     if (opprettType === "oppgave") {
       opprettOppgaveMutation.mutate({
         templateId: valgtMal,
-        bestillerFaggruppeId: effektivOppretter,
-        utforerFaggruppeId: utledetSvarer,
+        ...flytInput,
         title: "Ny oppgave",
         drawingId: aktivTegning?.id,
         positionX: nyMarkør?.x,
@@ -501,10 +560,11 @@ export default function TegningerSide() {
     } else {
       opprettSjekklisteMutation.mutate({
         templateId: valgtMal,
-        bestillerFaggruppeId: effektivOppretter,
-        utforerFaggruppeId: utledetSvarer,
+        ...flytInput,
         byggeplassId: aktivByggeplass?.id,
         drawingId: aktivTegning?.id,
+        positionX: nyMarkør?.x,
+        positionY: nyMarkør?.y,
       });
     }
   }
@@ -523,7 +583,7 @@ export default function TegningerSide() {
     });
   }
 
-  // Markører fra eksisterende oppgaver
+  // Markører fra eksisterende oppgaver (periode-filtrert på createdAt).
   const markører: Markør[] = (oppgaveMarkører ?? [])
     .filter((o) => o.positionX != null && o.positionY != null)
     .map((o) => ({
@@ -534,74 +594,54 @@ export default function TegningerSide() {
         ? `${o.template.prefix}-${String(o.number ?? 0).padStart(3, "0")}`
         : o.title,
       status: o.status,
-    }));
+      createdAt: String((o as { createdAt?: string }).createdAt ?? ""),
+    }))
+    .filter((m) => !m.createdAt || innenforPeriode(new Date(m.createdAt), pFra, pTil));
 
   // L2: kontrollpunkt-markører, farget av den avledede tilstanden (samme fargemodell
   // som liste/rutenett — delt hjelper). Form (fylt pin vs. omriss) = arbeid startet.
-  const kontrollpunkter: Array<{ id: string; x: number; y: number; label: string; omradeNavn: string | null; sjekklisteId: string | null; tilstand: TilstandVisning }> =
-    (kontrollpunktMarkører ?? []).map((p) => ({
-      id: p.id,
-      x: p.positionX!,
-      y: p.positionY!,
-      label: p.sjekklisteMal.prefix ? `${p.sjekklisteMal.prefix} — ${p.sjekklisteMal.name}` : p.sjekklisteMal.name,
-      omradeNavn: p.omrade?.navn ?? null,
-      // 3a: startet punkt → åpne den koblede sjekklista direkte; planlagt (ingen
-      // sjekkliste ennå) → fall tilbake til kontrollplan-oversikten som før.
-      sjekklisteId: p.sjekkliste?.id ?? null,
-      tilstand: avledPunktTilstand(p, naaUke),
-    }));
+  const kontrollpunkter: Array<{ id: string; x: number; y: number; label: string; omradeNavn: string | null; sjekklisteId: string | null; tilstand: TilstandVisning; createdAt: string }> =
+    (kontrollpunktMarkører ?? [])
+      .map((p) => ({
+        id: p.id,
+        x: p.positionX!,
+        y: p.positionY!,
+        label: p.sjekklisteMal.prefix ? `${p.sjekklisteMal.prefix} — ${p.sjekklisteMal.name}` : p.sjekklisteMal.name,
+        omradeNavn: p.omrade?.navn ?? null,
+        // 3a: startet punkt → åpne den koblede sjekklista direkte; planlagt (ingen
+        // sjekkliste ennå) → fall tilbake til kontrollplan-oversikten som før.
+        sjekklisteId: p.sjekkliste?.id ?? null,
+        tilstand: avledPunktTilstand(p, naaUke),
+        createdAt: String((p as { opprettet?: string }).opprettet ?? ""), // KontrollplanPunkt.opprettet
+      }))
+      .filter((m) => !m.createdAt || innenforPeriode(new Date(m.createdAt), pFra, pTil));
 
-  // Filtrerte maler basert på tilgang:
-  // 1. Admin / manage_field → alle maler
-  // 2. Faggruppe-arbeidsforløp → maler knyttet via dokumentflyt + HMS (alle kan opprette HMS)
-  // 3. Domene-grupper (HMS, Bygg) → maler med matchende domain
-  const filtrerMaler = (() => {
-    // Person-/gruppe-direkte medlem har ingen faggruppe å velge, men kan opprette via
-    // flyt-medlemskap — blokkér kun når det verken finnes faggruppe eller flyt-medlemskap.
-    if (!valgtOppretter && mineFlytIder.size === 0) return [];
-    const alleMalerTypet = (alleMaler ?? []) as Array<{ id: string; name: string; category: string; domain: string | null }>;
-    const kategoriMaler = alleMalerTypet.filter((m) => m.category === opprettType);
+  // Flyt-velger (modell-korreksjon 2026-08-22): flyter brukeren kan OPPRETTE i, med ≥1
+  // ikke-HMS-mal av valgt kategori. Etikett = flytnavn. Admin/manage_field/domene-bypass
+  // fjernet: serveren krever registrator-medlemskap av flyten for opprett (også for admin,
+  // F1-oppfølger 2026-07-24) — å vise maler man ikke kan opprette var villedende (pkt 3/4).
+  const flytAlternativer = opprettFlyter
+    .filter((af) => af.maler.some((wt) => wt.template.category === opprettType && !hmsMalIder.has(wt.template.id)))
+    .map((af) => ({ value: af.id, label: af.name }));
 
-    // Admin eller manage_field → alle maler av riktig kategori
-    if (minTilgang?.erAdmin || minTilgang?.tillatelser.includes("manage_field")) {
-      return kategoriMaler.map((m) => ({ id: m.id, name: m.name }));
-    }
+  // Mal-liste: den valgte flytens ikke-HMS-maler + ALLTID HMS-maler (flyt-uavhengige, egen gruppe).
+  const flytMalAlternativer = valgtFlytObjekt
+    ? valgtFlytObjekt.maler
+        .filter((wt) => wt.template.category === opprettType && !hmsMalIder.has(wt.template.id))
+        .map((wt) => ({ value: wt.template.id, label: wt.template.name }))
+    : [];
+  const hmsMalAlternativer = alleMalerTypet
+    .filter((m) => m.category === opprettType && m.domain === "hms")
+    .map((m) => ({ value: m.id, label: `${m.name} (HMS)` }));
+  const malAlternativer = [...flytMalAlternativer, ...hmsMalAlternativer];
 
-    const synligeMalIder = new Set<string>();
-
-    // Faggruppe-arbeidsforløp: maler knyttet til valgt oppretter via dokumentflyt,
-    // eller til en flyt brukeren er direkte medlem av (person-/gruppe-binding).
-    for (const af of alleArbeidsforlop) {
-      if (af.faggruppeId !== valgtOppretter && !mineFlytIder.has(af.id)) continue;
-      for (const wt of af.maler) {
-        if (wt.template.category === opprettType) {
-          synligeMalIder.add(wt.template.id);
-        }
-      }
-    }
-
-    // HMS-maler er alltid tilgjengelige for faggruppe-medlemmer
-    for (const mal of kategoriMaler) {
-      if (mal.domain === "hms") {
-        synligeMalIder.add(mal.id);
-      }
-    }
-
-    // Domene-tilgang: maler som matcher brukerens gruppe-domener
-    if (minTilgang?.domener) {
-      for (const mal of kategoriMaler) {
-        if (mal.domain && minTilgang.domener.includes(mal.domain)) {
-          synligeMalIder.add(mal.id);
-        }
-      }
-    }
-
-    return kategoriMaler
-      .filter((m) => synligeMalIder.has(m.id))
-      .map((m) => ({ id: m.id, name: m.name }));
-  })();
-
-  const oppretterAlternativer = (mineFaggrupper ?? []).map((e) => ({ value: e.id, label: e.name }));
+  // Auto-velg flyt når nøyaktig én er mulig; rydd stale valg (f.eks. ved kategori-bytte).
+  useEffect(() => {
+    if (!visOpprettModal) return;
+    const gyldig = flytAlternativer.some((f) => f.value === valgtFlyt);
+    if (valgtFlyt && !gyldig) setValgtFlyt("");
+    else if (!valgtFlyt && flytAlternativer.length === 1) setValgtFlyt(flytAlternativer[0]!.value);
+  }, [visOpprettModal, flytAlternativer, valgtFlyt]);
 
   // Ingen tegning valgt
   if (!aktivTegning) {
@@ -782,6 +822,15 @@ export default function TegningerSide() {
                 {t("kontrollplan.lagOppgaver")} ({markører.length})
               </button>
             </div>
+          </>
+        )}
+
+        {/* Periodefilter på markørene (createdAt). Vises når tegningen HAR markører (ufiltrert), så
+            filteret er tilgjengelig selv når gjeldende periode skjuler alle. */}
+        {((oppgaveMarkører?.length ?? 0) + (kontrollpunktMarkører?.length ?? 0)) > 0 && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <PeriodeFilter periode={periode} onEndre={setPeriode} />
           </>
         )}
 
@@ -980,6 +1029,17 @@ export default function TegningerSide() {
                 );
               })}
 
+              {/* F1: eksisterende posisjon (dempet) under velging — så brukeren ser hvor punktet står i dag */}
+              {posisjonsvelgerAktiv && eksisterendeMarkør && aktivTegning?.id === eksisterendeMarkør.drawingId && (
+                <div
+                  className="absolute -translate-x-1/2 -translate-y-full pointer-events-none opacity-40"
+                  style={{ left: `${eksisterendeMarkør.x}%`, top: `${eksisterendeMarkør.y}%` }}
+                  title={t("tegninger.naavaerendePosisjon")}
+                >
+                  <MapPin className="h-7 w-7 fill-gray-400 text-gray-600 drop-shadow" />
+                </div>
+              )}
+
               {/* Ny markør (klikket posisjon) */}
               {nyMarkør && (
                 <div
@@ -1063,6 +1123,16 @@ export default function TegningerSide() {
                 </span>
               </button>
             ))}
+            {/* F1: eksisterende posisjon (dempet) under velging */}
+            {posisjonsvelgerAktiv && eksisterendeMarkør && aktivTegning?.id === eksisterendeMarkør.drawingId && (
+              <div
+                className="absolute -translate-x-1/2 -translate-y-full pointer-events-none opacity-40"
+                style={{ left: `${eksisterendeMarkør.x}%`, top: `${eksisterendeMarkør.y}%` }}
+                title={t("tegninger.naavaerendePosisjon")}
+              >
+                <MapPin className="h-7 w-7 fill-gray-400 text-gray-600 drop-shadow" />
+              </div>
+            )}
             {nyMarkør && (
               <div
                 className="absolute -translate-x-1/2 -translate-y-full pointer-events-none"
@@ -1103,7 +1173,7 @@ export default function TegningerSide() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => { setOpprettType("oppgave"); setValgtMal(""); }}
+              onClick={() => { setOpprettType("oppgave"); setValgtMal(""); setValgtFlyt(""); setOpprettFeil(null); }}
               className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 opprettType === "oppgave"
                   ? "bg-blue-100 text-blue-700"
@@ -1114,7 +1184,7 @@ export default function TegningerSide() {
             </button>
             <button
               type="button"
-              onClick={() => { setOpprettType("sjekkliste"); setValgtMal(""); }}
+              onClick={() => { setOpprettType("sjekkliste"); setValgtMal(""); setValgtFlyt(""); setOpprettFeil(null); }}
               className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 opprettType === "sjekkliste"
                   ? "bg-blue-100 text-blue-700"
@@ -1125,26 +1195,30 @@ export default function TegningerSide() {
             </button>
           </div>
 
-          {oppretterAlternativer.length > 1 && (
+          {flytAlternativer.length > 1 && (
             <Select
-              label="Faggruppe"
-              options={oppretterAlternativer}
-              value={valgtOppretter}
-              onChange={(e) => { setValgtOppretter(e.target.value); setValgtMal(""); }}
-              placeholder="Velg faggruppe..."
+              label="Dokumentflyt"
+              options={flytAlternativer}
+              value={valgtFlyt}
+              onChange={(e) => { setValgtFlyt(e.target.value); setValgtMal(""); setOpprettFeil(null); }}
+              placeholder="Velg dokumentflyt..."
             />
           )}
 
           <Select
             label="Mal"
-            options={filtrerMaler.map((m) => ({ value: m.id, label: m.name }))}
+            options={malAlternativer}
             value={valgtMal}
-            onChange={(e) => setValgtMal(e.target.value)}
+            onChange={(e) => { setValgtMal(e.target.value); setOpprettFeil(null); }}
             placeholder="Velg mal..."
           />
 
+          {opprettFeil && (
+            <p className="text-sm text-red-600 bg-red-50 rounded-md p-3">{opprettFeil}</p>
+          )}
+
           <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={erLaster} disabled={!valgtMal || !effektivOppretter}>
+            <Button type="submit" loading={erLaster} disabled={!valgtMal || (!erHmsMal(valgtMal) && !valgtFlyt)}>
               <Plus className="mr-1.5 h-4 w-4" />
               Opprett {opprettType === "oppgave" ? "oppgave" : "sjekkliste"}
             </Button>

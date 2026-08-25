@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   createDokumentflytSchema,
@@ -7,7 +8,40 @@ import {
   removeDokumentflytMedlemSchema,
   oppdaterRollerSchema,
 } from "@sitedoc/shared";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
+import { IKKE_SLETTET } from "../utils/softDelete";
+import type { PrismaClient } from "@sitedoc/db";
+
+/**
+ * Teller IKKE-slettede dokumenter (sjekklister + oppgaver) bundet til en flyt. Delt av slett-vernet
+ * OG ledd-vernet (fjernMedlem/oppdaterRoller): en flyt med aktive dokumenter kan verken SLETTES
+ * eller TØMMES for ledd — begge etterlater dokumentene uten flytstruktur, i stillhet (samme skade,
+ * ulike dører). Papirkurv (KUN_SLETTET) holdes utenfor per ordre. Godkjenning/KontrollplanPunkt
+ * telles IKKE her (meldt som utvidelse, likt slett-vernet).
+ */
+async function tellFlytDokumenter(prisma: PrismaClient, dokumentflytId: string): Promise<number> {
+  const [sjekklister, oppgaver] = await Promise.all([
+    prisma.checklist.count({ where: { dokumentflytId, ...IKKE_SLETTET } }),
+    prisma.task.count({ where: { dokumentflytId, ...IKKE_SLETTET } }),
+  ]);
+  return sjekklister + oppgaver;
+}
+
+/**
+ * E (Kenneth-vedtak 2026-08-22): en dokumentflyt MÅ ha Registrator i FØRSTE ledd — det er den som
+ * OPPRETTER dokumentet. Uten registrator først kan ingen starte et dokument i flyten, og den er
+ * ubrukelig (før: ingen validering → man kunne sette Godkjenner som første boks). Boksene rendres i
+ * `roller`-array-rekkefølge (DynamiskFlyt), så første ledd = `roller[0]`. Kastes ved lagring.
+ */
+function validerRegistratorForst(roller: Array<{ rolle: string }>): void {
+  if (roller.length === 0 || roller[0]?.rolle !== "registrator") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        "Første ledd i flyten må være Registrator — det er den som oppretter dokumentet. Sett Registrator som første rolle.",
+    });
+  }
+}
 
 const dokumentflytInclude = {
   faggruppe: { select: { id: true, name: true, color: true } },
@@ -33,11 +67,24 @@ const dokumentflytInclude = {
   },
 } as const;
 
+/**
+ * ADMIN-GATE på flyt-konfigurasjon (Kenneth-vedtak 2026-08-22, fabel-verifisert).
+ *
+ * ALLE mutasjoner her konfigurerer dokumentflyten — opprett/oppdater/roller/medlemmer/
+ * hovedansvarlig/slett — og krever derfor prosjektadmin eller høyere. De bruker `verifiserAdmin`
+ * (ikke `verifiserProsjektmedlem`), som dekker sitedoc_admin → prosjektadmin
+ * (`ProjectMember.role="admin"`) → **firmaadmin** i én. Firmaadmin-grenen er IKKE valgfri:
+ * firmaadmin har INGEN ProjectMember-rad, så en håndrullet `medlem.role`-sjekk ville avvist ham
+ * (samme felle som `verifiserRetningsrett`). Bruk hjelperen, aldri en egen sjekk.
+ *
+ * UNNTAK: `hentForProsjekt` (lese) står på medlem-nivå — alle må se flytene sine.
+ */
 export const dokumentflytRouter = router({
   // Hent alle dokumentflyter for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
+      // Lese-gaten BLIR STÅENDE på medlem-nivå: alle må se flytene sine (kun mutasjonene admin-gates).
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return ctx.prisma.dokumentflyt.findMany({
         where: { projectId: input.projectId },
@@ -50,7 +97,7 @@ export const dokumentflytRouter = router({
   opprett: protectedProcedure
     .input(createDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       const { templateIds, medlemmer, roller, ...data } = input;
       // Default: ny dokumentflyt starter med Registrator som eneste rolle.
       // Bruker legger til Bestiller/Utfører/Godkjenner via «+ Legg til rolle».
@@ -58,6 +105,7 @@ export const dokumentflytRouter = router({
       const startRoller = roller && roller.length > 0
         ? roller
         : [{ rolle: "registrator" as const }];
+      validerRegistratorForst(startRoller); // E: registrator i første ledd (default oppfyller det)
       return ctx.prisma.dokumentflyt.create({
         data: {
           ...data,
@@ -83,7 +131,7 @@ export const dokumentflytRouter = router({
   oppdater: protectedProcedure
     .input(updateDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       const { id, projectId: _projectId, templateIds, ...data } = input;
 
       if (Object.keys(data).length > 0) {
@@ -110,7 +158,8 @@ export const dokumentflytRouter = router({
   oppdaterRoller: protectedProcedure
     .input(oppdaterRollerSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
+      validerRegistratorForst(input.roller); // E: registrator må stå i første ledd
 
       const eksisterende = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
         where: { id: input.id },
@@ -124,8 +173,18 @@ export const dokumentflytRouter = router({
         .map((r) => r.rolle)
         .filter((rolle) => !nyeRolleNavn.has(rolle));
 
-      // Slett DokumentflytMedlem for fjernede roller
+      // Ledd-vern (D, Kenneth-vedtak 2026-08-22): å FJERNE en rolle sletter DokumentflytMedlem for
+      // det leddet → dokumentene i flyten mister leddet sitt, i stillhet (samme skade som å slette
+      // flyten, som er vernet). Blokker rolle-fjerning når flyten har aktive dokumenter. Å LEGGE TIL
+      // eller endre etiketter er trygt og forblir tillatt (derfor bare når fjernedeRoller > 0).
       if (fjernedeRoller.length > 0) {
+        const antall = await tellFlytDokumenter(ctx.prisma, input.id);
+        if (antall > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Flyten har ${antall} aktivt dokument${antall === 1 ? "" : "er"} som bruker leddene. Du kan ikke fjerne en rolle nå — flytt eller lukk dokumentene først.`,
+          });
+        }
         await ctx.prisma.dokumentflytMedlem.deleteMany({
           where: {
             dokumentflytId: input.id,
@@ -145,7 +204,24 @@ export const dokumentflytRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // Admin-gate — begrunnelse i router-doccen øverst. Sletting rører alle dokumenter i flyten.
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      // Slett-vern (Kenneth-bestilling 2026-08-22): `Checklist`/`Task`/`Godkjenning`/
+      // `KontrollplanPunkt` → `Dokumentflyt` er alle `onDelete: SetNull` (schema:1084/1150/1211/
+      // 2099). Uten denne vakten ville sletting stille NULLSTILT flyt-id på ALLE dokumentene i
+      // flyten — de ble flyt-løse uten spor (prod: 1 av 16 sjekklister ER flyt-løs, kan være dette).
+      // Vi teller IKKE-slettede sjekklister + oppgaver (papirkurv-rader holdes utenfor per ordre —
+      // de ville uansett fått SetNull ved en senere hard-sletting). App-guard med lesbar melding;
+      // en `onDelete: Restrict`-DB-backstop er meldt som eget spor (jf. ReportTemplate schema:1144).
+      const antall = await tellFlytDokumenter(ctx.prisma, input.id);
+      if (antall > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Flyten har ${antall} dokument${antall === 1 ? "" : "er"} og kan ikke slettes. Flytt eller lukk dem først.`,
+        });
+      }
+
       return ctx.prisma.dokumentflyt.delete({ where: { id: input.id } });
     }),
 
@@ -153,7 +229,7 @@ export const dokumentflytRouter = router({
   leggTilMedlem: protectedProcedure
     .input(addDokumentflytMedlemSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       const { projectId: _projectId, ...data } = input;
       return ctx.prisma.dokumentflytMedlem.create({
         data,
@@ -173,7 +249,21 @@ export const dokumentflytRouter = router({
   fjernMedlem: protectedProcedure
     .input(removeDokumentflytMedlemSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
+      // Ledd-vern (D): å fjerne et flytmedlem tømmer leddet for det medlemmet → dokumentene mister
+      // (deler av) leddet sitt, i stillhet. Blokker når flyten har aktive dokumenter. Hent medlemmets
+      // flyt for å telle (input bærer bare medlem-id).
+      const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { dokumentflytId: true },
+      });
+      const antall = await tellFlytDokumenter(ctx.prisma, medlem.dokumentflytId);
+      if (antall > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Flyten har ${antall} aktivt dokument${antall === 1 ? "" : "er"} som bruker leddene. Du kan ikke fjerne et medlem nå — flytt eller lukk dokumentene først.`,
+        });
+      }
       return ctx.prisma.dokumentflytMedlem.delete({ where: { id: input.id } });
     }),
 
@@ -187,7 +277,7 @@ export const dokumentflytRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
 
       const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
         where: { id: input.id },
@@ -222,7 +312,7 @@ export const dokumentflytRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
 
       const medlem = await ctx.prisma.dokumentflytMedlem.findUniqueOrThrow({
         where: { id: input.id },
@@ -267,7 +357,7 @@ export const dokumentflytRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       return ctx.prisma.dokumentflytMedlem.update({
         where: { id: input.id },
         data: { kanRedigere: input.kanRedigere },

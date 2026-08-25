@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin, Printer } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
@@ -31,17 +31,15 @@ import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 import { trpc } from "../../src/lib/trpc";
+import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
-import { byggSjekklisteHtml } from "@sitedoc/pdf";
-import { PdfForhandsvisning } from "../../src/components/PdfForhandsvisning";
+import { ekspanderEndring, byggKolonnerPerFelt, segmenterTilTekst } from "@sitedoc/pdf";
+import { byggObjektTre } from "@sitedoc/shared";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
-import { TegningsCapture } from "../../src/components/TegningsCapture";
-import { AUTH_CONFIG, hentWebUrl } from "../../src/config/auth";
-import { hentSessionToken } from "../../src/services/auth";
-import * as Print from "expo-print";
+import { AUTH_CONFIG } from "../../src/config/auth";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { eq } from "drizzle-orm";
@@ -64,20 +62,6 @@ interface EndringsloggRad {
   newValue: string | null;
   createdAt: Date | string;
   user: { id: string; name: string | null; email: string };
-}
-
-function formaterLoggVerdi(json: string | null): string {
-  if (json == null) return "—";
-  try {
-    const parsed = JSON.parse(json);
-    if (parsed === null || parsed === "") return "—";
-    if (typeof parsed === "string") return parsed;
-    if (typeof parsed === "number" || typeof parsed === "boolean") return String(parsed);
-    if (Array.isArray(parsed)) return parsed.join(", ");
-    return json;
-  } catch {
-    return json;
-  }
 }
 
 function formaterHistorikkDato(dato: Date | string): string {
@@ -121,10 +105,10 @@ export default function SjekklisteUtfylling() {
   const utils = trpc.useUtils();
 
   const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
-  const [pdfHtml, settPdfHtml] = useState<string | null>(null);
-  const [pdfLaster, settPdfLaster] = useState(false);
-  // Arkiv-PDF (server-generert, primær vei — mangel-kontrakten speiler web).
-  // `expo-print`-veien under (pdfHtml/håndterDelPdf) beholdes som lokal fallback (Fase 1).
+  // Arkiv-PDF (server-generert, ENESTE vei fra 2026-08-23 — mobil bygger ikke HTML lokalt lenger).
+  // Mangel-kontrakten speiler web (renderTimeout + manglendeVedlegg). Fase 3: den lokale
+  // expo-print-veien (byggSjekklisteHtml) er fjernet — telefonen må uansett være på nett for
+  // å hente bilder/tegninger til en PDF.
   const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
@@ -132,14 +116,17 @@ export default function SjekklisteUtfylling() {
   const [lokTempPosY, setLokTempPosY] = useState<number | null>(null);
   const [lokTempTegningId, setLokTempTegningId] = useState<string | null>(null);
   const [lokTempBygningId, setLokTempBygningId] = useState<string | null>(null);
-  const [tegningScreenshot, setTegningScreenshot] = useState<string | null>(null);
-  const [tegningDetaljScreenshot, setTegningDetaljScreenshot] = useState<string | null>(null);
 
   // State for oppgave-fra-felt
   const [opprettOppgaveKategori, setOpprettOppgaveKategori] = useState<"oppgave" | null>(null);
   const [opprettOppgaveFeltId, setOpprettOppgaveFeltId] = useState<string | null>(null);
   const [opprettOppgaveFeltLabel, setOpprettOppgaveFeltLabel] = useState<string | null>(null);
   const [valgtOppgaveMal, setValgtOppgaveMal] = useState<MalData | null>(null);
+  // Forhåndsposisjon for rad-oppgaver: radens drawing_position ?? dokumentets lokasjon. Modalen
+  // krever fullt punkt (drawingId + x + y) → null når det mangler.
+  const [opprettOppgavePosisjon, setOpprettOppgavePosisjon] = useState<
+    { drawingId: string; byggeplassId: string | null; x: number; y: number } | null
+  >(null);
 
   // Hent overføringer for historikk
   const detaljQuery = trpc.sjekkliste.hentMedId.useQuery(
@@ -170,16 +157,31 @@ export default function SjekklisteUtfylling() {
   );
   const sjekklisteOppgaver = (oppgaverQuery.data ?? []) as SjekklisteOppgave[];
 
-  // Mapping: feltId → oppgave (for badge-visning)
+  // Mapping: feltId/rad-nøkkel → oppgaver (C: LISTE, ikke én — datamodellen tillater flere på samme
+  // rad; `map.set` gjorde før at siste vant og resten forsvant i stillhet). Sortert på nummer.
   const feltOppgaveMap = useMemo(() => {
-    const map = new Map<string, SjekklisteOppgave>();
+    const map = new Map<string, SjekklisteOppgave[]>();
     for (const oppgave of sjekklisteOppgaver) {
       if (oppgave.checklistFieldId) {
-        map.set(oppgave.checklistFieldId, oppgave);
+        const liste = map.get(oppgave.checklistFieldId) ?? [];
+        liste.push(oppgave);
+        map.set(oppgave.checklistFieldId, liste);
       }
     }
+    for (const liste of map.values()) liste.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
     return map;
   }, [sjekklisteOppgaver]);
+
+  // H5-paritet (2026-08-23): kolonne-labels for repeater-diff i endringsloggen — brukes av
+  // ekspanderEndring (delt @sitedoc/pdf), samme som web + arkiv-PDF.
+  const kolonnerPerFelt = useMemo(() => {
+    const objs = ((sjekklisteDetalj as unknown as { template?: { objects?: unknown[] } })?.template?.objects ?? []) as {
+      id: string;
+      parentId?: string | null;
+      sortOrder: number;
+    }[];
+    return byggKolonnerPerFelt(byggObjektTre(objs) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]);
+  }, [sjekklisteDetalj]);
 
   const { ventende, erAktiv } = useOpplastingsKo();
 
@@ -258,6 +260,13 @@ export default function SjekklisteUtfylling() {
     return flyt?.medlemmer ?? [];
   }, [sjekklisteDetalj, dokumentflyterRå]);
 
+  // 4b (dokumentflyten er nøkkelen): faggruppene `company`-feltet (FirmaObjekt) får tilby.
+  // Inline kall (IKKE useMemo med de dype tRPC-typene i deps — tipper TS2589).
+  const tillatteFaggruppeIder = flytFaggruppeIder(
+    (sjekklisteDetalj as unknown as { dokumentflytId?: string | null })?.dokumentflytId,
+    dokumentflyterRå,
+  );
+
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !sjekklisteDetalj) return undefined;
     const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
@@ -273,7 +282,7 @@ export default function SjekklisteUtfylling() {
       projectMemberId: m.projectMemberId ?? null, groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      { ...minFlytInfo, userId: "", erAdmin: (minFlytInfo.adminNiva !== null) },
       medlemmer,
       { bestillerFaggruppeId: sj.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: sj.utforerFaggruppe?.id ?? "" },
     );
@@ -302,7 +311,7 @@ export default function SjekklisteUtfylling() {
       userId: minFlytInfo.userId,
       gruppeIder: minFlytInfo.gruppeIder,
       faggruppeIder: (minFlytInfo as { faggruppeIder?: string[] }).faggruppeIder ?? [],
-      erAdmin: minFlytInfo.erAdmin,
+      erAdmin: (minFlytInfo.adminNiva !== null),
     };
     const erMedlemAv = (l: (typeof ledd)[number]): boolean =>
       l.brukerIder.has(bruker.userId) ||
@@ -314,7 +323,7 @@ export default function SjekklisteUtfylling() {
       harBallen,
       erAvsender: erAvsenderledd(ledd, aktivPosisjon, bruker),
       erMedlemAvFlyt: erMedlemAvFlyt(ledd, bruker),
-      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin }),
+      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: (minFlytInfo.adminNiva !== null) }),
     };
   }, [sjekklisteDetalj, minFlytInfo, flytMedlemmer]);
   const harBallen = posisjonRett.harBallen;
@@ -345,7 +354,7 @@ export default function SjekklisteUtfylling() {
   const rettighetInput = useMemo(() => {
     if (!minFlytInfo) return undefined;
     return {
-      erAdmin: minFlytInfo.erAdmin,
+      erAdmin: (minFlytInfo.adminNiva !== null),
       minRolle,
       tillatelser: mineTillatelser,
       harBallen,
@@ -488,104 +497,11 @@ export default function SjekklisteUtfylling() {
     return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
   }, [sjekkliste?.template?.objects, hentFeltVerdi, t]);
 
-  // Hent prosjektdata for PDF
-  const { data: prosjektData } = trpc.prosjekt.hentMedId.useQuery(
-    { id: valgtProsjektId! },
-    { enabled: !!valgtProsjektId },
-  );
-
-  const genererPdfHtml = useCallback(async () => {
-    if (!sjekkliste) return "";
-    const detalj = detaljQuery.data as Record<string, unknown> | undefined;
-    const webBaseUrl = hentWebUrl();
-    const bildeBase = `${webBaseUrl}/api`;
-    const sjekklisteMedDetaljer = {
-      ...(sjekkliste as Parameters<typeof byggSjekklisteHtml>[0]),
-      updatedAt: detalj?.updatedAt as Date | string | undefined,
-      changeLog: (detalj?.changeLog ?? []) as Array<{ createdAt: Date | string; user: { name: string | null } }>,
-      drawing: sjekklisteDetalj?.drawing ?? null,
-      drawingId: sjekklisteDetalj?.drawingId ?? null,
-      positionX: sjekklisteDetalj?.positionX ?? null,
-      positionY: sjekklisteDetalj?.positionY ?? null,
-      building: sjekklisteDetalj?.byggeplass ?? null,
-      bestiller: sjekklisteDetalj?.bestiller ?? null,
-      creator: sjekklisteDetalj?.creator ?? null,
-      createdAt: sjekklisteDetalj?.createdAt,
-    };
-    const prosjektForPdf = prosjektData ? {
-      name: prosjektData.name,
-      projectNumber: prosjektData.projectNumber,
-      externalProjectNumber: (prosjektData as unknown as Record<string, unknown>).externalProjectNumber as string | null | undefined,
-      address: prosjektData.address,
-      logoUrl: (prosjektData as unknown as Record<string, unknown>).logoUrl as string | null | undefined,
-    } : null;
-    const ui = (prosjektData as unknown as Record<string, unknown> | undefined)?.utskriftsinnstillinger as Record<string, boolean> | null | undefined;
-    // Tegningsbilde-URL (PNG/bilde-tegninger fungerer direkte, PDF-tegninger ikke)
-    const tegningUrl = sjekklisteDetalj?.drawing?.fileUrl
-      ? `${bildeBase}${sjekklisteDetalj.drawing.fileUrl}`
-      : null;
-    // Konverter vedleggsbilder til base64 (expo-print har ikke auth-cookies)
-    const feltVerdierMedBase64 = await feltVerdierForPdf();
-    return byggSjekklisteHtml(
-      sjekklisteMedDetaljer,
-      feltVerdierMedBase64,
-      prosjektForPdf,
-      ui ? {
-        logo: ui.logo,
-        eksternProsjektnummer: ui.eksternProsjektnummer,
-        prosjektnavn: ui.prosjektnavn,
-        fraTil: ui.fraTil,
-        lokasjon: ui.lokasjon,
-        tegningsnummer: ui.tegningsnummer,
-        vaer: ui.vaer,
-      } : null,
-      {
-        bildeBaseUrl: bildeBase,
-        maksbildeHoyde: 200,
-        gjentakendeHeader: true,
-        visSidenummer: true,
-        tegningBildeUrl: tegningUrl,
-        tegningScreenshot,
-        tegningDetaljScreenshot,
-      },
-    );
-  }, [sjekkliste, prosjektData, detaljQuery.data as unknown, sjekklisteDetalj, tegningScreenshot, tegningDetaljScreenshot]);
-
-  // Vis forhåndsvisning
-  const håndterVisPdf = useCallback(async () => {
-    settPdfLaster(true);
-    try {
-      const html = await genererPdfHtml();
-      if (html) settPdfHtml(html);
-    } finally {
-      settPdfLaster(false);
-    }
-  }, [genererPdfHtml]);
-
-  // Del PDF direkte (uten forhåndsvisning)
-  const håndterDelPdf = useCallback(async () => {
-    if (!sjekkliste) return;
-    settPdfLaster(true);
-    try {
-      const html = pdfHtml ?? await genererPdfHtml();
-      if (!html) return;
-      const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri, {
-        mimeType: "application/pdf",
-        dialogTitle: `Del ${sjekkliste.title}`,
-        UTI: "com.adobe.pdf",
-      });
-    } catch (feil) {
-      console.warn("PDF-deling feilet:", feil);
-    } finally {
-      settPdfLaster(false);
-    }
-  }, [sjekkliste, pdfHtml, genererPdfHtml]);
-
-  // --- Arkiv-PDF (primær vei) -------------------------------------------
-  // Server rendrer samme arkiv-PDF som web (`arkiv.rendr`). Auth går via
-  // Bearer-token på tRPC-klienten (samme som alle andre kall). PDF-en kommer
-  // som base64 i responsen → skrives til fil → deles via `expo-sharing`.
+  // --- Arkiv-PDF (ENESTE vei fra 2026-08-23) ----------------------------
+  // Server rendrer samme arkiv-PDF som web (`arkiv.rendr`). Auth via Bearer-token
+  // på tRPC-klienten. PDF-en kommer som base64 → skrives til fil → deles via
+  // `expo-sharing`. Ingen lokal HTML-bygging lenger (telefonen må være på nett for
+  // å hente bilder/tegninger uansett).
   const rendrArkiv = trpc.arkiv.rendr.useMutation({
     onSuccess: async (res: {
       pdfBase64: string;
@@ -632,70 +548,6 @@ export default function SjekklisteUtfylling() {
     settArkivMelding(null);
     rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
   }, [id, erPaaNettet, rendrArkiv, t]);
-
-  // Hjelpefunksjon for å hente feltVerdier som PDF-format, med vedleggsbilder som base64
-  async function feltVerdierForPdf() {
-    type VedleggPdf = { id: string; type: string; url: string; filnavn: string };
-    const resultat: Record<string, { verdi: unknown; kommentar: string; vedlegg: VedleggPdf[] }> = {};
-    const webBaseUrl = hentWebUrl();
-    const bildeBase = `${webBaseUrl}/api`;
-    const token = await hentSessionToken();
-
-    // Samle alle vedleggsbilder som trenger konvertering
-    const konverteringsJobb: Array<{ objektId: string; idx: number; url: string }> = [];
-
-    for (const objekt of sjekkliste?.template?.objects ?? []) {
-      const fv = hentFeltVerdi(objekt.id);
-      const vedlegg = (fv.vedlegg as VedleggPdf[]) ?? [];
-      resultat[objekt.id] = { verdi: fv.verdi, kommentar: fv.kommentar, vedlegg: [...vedlegg] };
-
-      vedlegg.forEach((v, idx) => {
-        const erBilde = v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn);
-        if (!erBilde) return;
-        if (v.url.startsWith("data:")) return; // Allerede base64
-
-        // Bygg full URL for nedlasting
-        let fullUrl = v.url;
-        if (fullUrl.startsWith("/uploads/")) fullUrl = `${bildeBase}${fullUrl}`;
-        else if (fullUrl.startsWith("/")) fullUrl = `${bildeBase}${fullUrl}`;
-
-        konverteringsJobb.push({ objektId: objekt.id, idx, url: fullUrl });
-      });
-    }
-
-    // Last ned og konverter parallelt (maks 6 samtidige)
-    const BATCH_SIZE = 6;
-    for (let i = 0; i < konverteringsJobb.length; i += BATCH_SIZE) {
-      const batch = konverteringsJobb.slice(i, i + BATCH_SIZE);
-      const resultater = await Promise.allSettled(
-        batch.map(async (jobb) => {
-          const headers: Record<string, string> = {};
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-          const resp = await fetch(jobb.url, { headers });
-          if (!resp.ok) return null;
-          const blob = await resp.blob();
-          return new Promise<string | null>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-          });
-        }),
-      );
-
-      resultater.forEach((r, bIdx) => {
-        if (r.status === "fulfilled" && r.value) {
-          const jobb = batch[bIdx];
-          resultat[jobb.objektId].vedlegg[jobb.idx] = {
-            ...resultat[jobb.objektId].vedlegg[jobb.idx],
-            url: r.value,
-          };
-        }
-      });
-    }
-
-    return resultat;
-  }
 
   // Påkrevd-felt-teller (M2): live antall gjenstående påkrevde synlige felt. Deaktiverer
   // framover-primær (Send/Besvar) + caption. Read-only speiling av `valider()` — muterer ikke.
@@ -839,25 +691,20 @@ export default function SjekklisteUtfylling() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
-            {/* Primær: server-generert arkiv-PDF (samme motor som web). */}
+            {/* Server-generert arkiv-PDF (samme motor som web) — eneste vei. Offline:
+                CloudOff-ikon signaliserer FØR tap at PDF krever nett; tap forklarer
+                med full mikrotekst (arkiv.kreverTilkobling). */}
             <Pressable
               onPress={håndterArkivPdf}
               hitSlop={12}
               disabled={rendrArkiv.isPending}
-              accessibilityLabel={t("handling.lastNedArkivPdf")}
+              accessibilityLabel={erPaaNettet ? t("handling.lastNedArkivPdf") : t("arkiv.kreverTilkobling")}
             >
-              {rendrArkiv.isPending ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
-            </Pressable>
-            {/* Fallback: lokal PDF på enheten (expo-print). Fjernes i Fase 3. */}
-            <Pressable
-              onPress={erRedigerbar ? håndterVisPdf : håndterDelPdf}
-              hitSlop={8}
-              disabled={pdfLaster}
-              className="flex-row items-center gap-1 rounded bg-white/10 px-1.5 py-0.5"
-              accessibilityLabel={t("arkiv.lokalFallback")}
-            >
-              {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Printer size={13} color="#ffffff" />}
-              <Text className="text-[10px] text-white/70">{t("arkiv.lokalFallback")}</Text>
+              {rendrArkiv.isPending
+                ? <ActivityIndicator size="small" color="#ffffff" />
+                : !erPaaNettet
+                  ? <CloudOff size={18} color="#fbbf24" />
+                  : <Share2 size={18} color="#ffffff" />}
             </Pressable>
             <StatusMerkelapp status={sjekkliste.status} />
             {(() => {
@@ -998,10 +845,52 @@ export default function SjekklisteUtfylling() {
           // lesemodus; enkeltfelt låses ikke etter innsending.
           const verdiLeseModus = leseModus;
 
-          // Oppgave-kobling for dette feltet
-          const feltOppgave = feltOppgaveMap.get(objekt.id);
+          // Oppgave-kobling for dette feltet (vanlige felt: uendret, én badge — C gjelder kun rader)
+          const feltOppgave = feltOppgaveMap.get(objekt.id)?.[0];
           const oppgaveNummer = feltOppgave
             ? `${feltOppgave.template?.prefix ?? ""}${feltOppgave.number ?? ""}`
+            : undefined;
+
+          const erRepeater = objekt.type === "repeater";
+          // Rad-scopet oppgave-adapter — KUN repeater. Whole-field-oppgaven på repeateren skrus AV
+          // (per-rad er entydig; prod har 0 whole-field-koblinger på repeater). Reversibelt: fjern
+          // `erRepeater`-vaktene. Speiler web.
+          const radOppgaver = erRepeater
+            ? {
+                // C: ALLE oppgaver på raden (kan være flere).
+                finnForRad: (nokkel: string) =>
+                  (feltOppgaveMap.get(nokkel) ?? []).map((o) => {
+                    const nr = `${o.template?.prefix ?? ""}${o.number ?? ""}`;
+                    return { id: o.id, nummer: nr.trim() ? nr : undefined };
+                  }),
+                onOpprett: (
+                  nokkel: string,
+                  radPosisjon: { drawingId?: string | null; positionX?: number | null; positionY?: number | null } | null,
+                  radNummer: number,
+                ) => {
+                  setOpprettOppgaveFeltId(nokkel);
+                  // Funn 3+2: radnummeret FORAN etiketten, slik rad-headeren leses («2 Observasjon»).
+                  setOpprettOppgaveFeltLabel(`${radNummer} ${objekt.label}`);
+                  setOpprettOppgaveKategori("oppgave");
+                  // Radens posisjon ?? dokumentets lokasjon. Modalen krever fullt punkt.
+                  const kilde = radPosisjon ?? {
+                    drawingId: sjekklisteDetalj?.drawingId ?? null,
+                    positionX: sjekklisteDetalj?.positionX ?? null,
+                    positionY: sjekklisteDetalj?.positionY ?? null,
+                  };
+                  setOpprettOppgavePosisjon(
+                    kilde.drawingId && kilde.positionX != null && kilde.positionY != null
+                      ? {
+                          drawingId: kilde.drawingId,
+                          byggeplassId: sjekklisteDetalj?.byggeplass?.id ?? null,
+                          x: kilde.positionX,
+                          y: kilde.positionY,
+                        }
+                      : null,
+                  );
+                },
+                onNaviger: (oid: string) => router.push(`/oppgave/${oid}`),
+              }
             : undefined;
 
           return (
@@ -1019,13 +908,28 @@ export default function SjekklisteUtfylling() {
               sjekklisteId={sjekkliste.id}
               nestingNivå={nestingNivå}
               valideringsfeil={valideringsfeil[objekt.id]}
-              oppgaveNummer={oppgaveNummer && oppgaveNummer.trim() ? oppgaveNummer : undefined}
-              oppgaveId={feltOppgave?.id}
-              onOpprettOppgave={() => {
-                setOpprettOppgaveFeltId(objekt.id);
-                setOpprettOppgaveFeltLabel(objekt.label);
-                setOpprettOppgaveKategori("oppgave");
-              }}
+              oppgaveNummer={erRepeater ? undefined : oppgaveNummer && oppgaveNummer.trim() ? oppgaveNummer : undefined}
+              oppgaveId={erRepeater ? undefined : feltOppgave?.id}
+              onOpprettOppgave={
+                erRepeater
+                  ? undefined // repeater bruker per-rad-oppgaver (radOppgaver); whole-field avskrudd
+                  : () => {
+                      setOpprettOppgaveFeltId(objekt.id);
+                      setOpprettOppgaveFeltLabel(objekt.label);
+                      setOpprettOppgaveKategori("oppgave");
+                      // 🔴 Lokasjonsarv: hardkodet null før → oppgave fra vanlig felt arvet aldri
+                      // dokumentets lokasjon. Nå samme dokument-fallback som rad-stien (modalen
+                      // krever fullt punkt: drawingId + x + y).
+                      const d = sjekklisteDetalj?.drawingId ?? null;
+                      const x = sjekklisteDetalj?.positionX ?? null;
+                      const y = sjekklisteDetalj?.positionY ?? null;
+                      setOpprettOppgavePosisjon(
+                        d && x != null && y != null
+                          ? { drawingId: d, byggeplassId: sjekklisteDetalj?.byggeplass?.id ?? null, x, y }
+                          : null,
+                      );
+                    }
+              }
               onNavigerTilOppgave={(oppgaveId) => router.push(`/oppgave/${oppgaveId}`)}
               oversettelser={oversettelser}
               oversettelseLaster={oversettelseLaster}
@@ -1040,6 +944,8 @@ export default function SjekklisteUtfylling() {
                 leseModus={verdiLeseModus}
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 sjekklisteId={sjekkliste.id}
+                radOppgaver={radOppgaver}
+                tillatteFaggruppeIder={tillatteFaggruppeIder}
               />
             </FeltWrapper>
           );
@@ -1054,26 +960,39 @@ export default function SjekklisteUtfylling() {
               <Text className="text-sm font-semibold text-gray-700">{t("dokument.endringslogg")}</Text>
             </View>
             <View className="rounded-lg bg-white">
-              {(sjekklisteDetalj.changeLog ?? []).map((rad, i) => (
-                <View
-                  key={rad.id}
-                  className={`px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}
-                >
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-xs font-medium text-gray-700">
-                      {rad.user.name ?? rad.user.email}
-                    </Text>
-                    <Text className="text-xs text-gray-400">
-                      {formaterHistorikkDato(rad.createdAt)}
-                    </Text>
+              {(sjekklisteDetalj.changeLog ?? []).map((rad, i) => {
+                // H5: delt ekspanderEndring (som web/arkiv) — tolker repeater/vær korrekt og
+                // returnerer TOM liste for kanoniske no-ops (som web filtrerer bort). Én logglinje
+                // kan bli flere diff-rader (én per endret repeater-celle).
+                const diffs = ekspanderEndring(
+                  rad.fieldLabel,
+                  rad.oldValue,
+                  rad.newValue,
+                  kolonnerPerFelt[(rad as { fieldId?: string }).fieldId ?? ""] ?? [],
+                );
+                if (diffs.length === 0) return null; // no-op — ingen falsk logglinje
+                return (
+                  <View key={rad.id} className={`px-3 py-2.5 ${i > 0 ? "border-t border-gray-100" : ""}`}>
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-xs font-medium text-gray-700">
+                        {rad.user.name ?? rad.user.email}
+                      </Text>
+                      <Text className="text-xs text-gray-400">{formaterHistorikkDato(rad.createdAt)}</Text>
+                    </View>
+                    {diffs.map((d, j) => {
+                      const fra = segmenterTilTekst(d.fraVerdi);
+                      const til = segmenterTilTekst(d.tilVerdi);
+                      return (
+                        <Text key={j} className="mt-0.5 text-xs text-gray-600">
+                          {t("dokument.endret")} <Text className="font-medium">{d.felt}</Text>
+                          {fra != null && fra !== "" ? ` fra «${fra}»` : ""}
+                          {` til «${til ?? ""}»`}
+                        </Text>
+                      );
+                    })}
                   </View>
-                  <Text className="mt-0.5 text-xs text-gray-600">
-                    {t("dokument.endret")} <Text className="font-medium">{rad.fieldLabel}</Text>
-                    {rad.oldValue != null && ` fra «${formaterLoggVerdi(rad.oldValue)}»`}
-                    {` til «${formaterLoggVerdi(rad.newValue)}»`}
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         )}
@@ -1205,32 +1124,6 @@ export default function SjekklisteUtfylling() {
       </View>
 
       </KeyboardAvoidingView>
-
-      {/* Tegnings-screenshot for PDF (offscreen capture) */}
-      {sjekklisteDetalj?.drawing?.fileUrl && sjekklisteDetalj.positionX != null && sjekklisteDetalj.positionY != null && !tegningScreenshot && (
-        <TegningsCapture
-          tegningUrl={
-            sjekklisteDetalj.drawing.fileUrl.startsWith("http")
-              ? sjekklisteDetalj.drawing.fileUrl
-              : `${AUTH_CONFIG.apiUrl}${sjekklisteDetalj.drawing.fileUrl}`
-          }
-          positionX={sjekklisteDetalj.positionX}
-          positionY={sjekklisteDetalj.positionY}
-          onCapture={(oversikt, detalj) => {
-            setTegningScreenshot(oversikt);
-            setTegningDetaljScreenshot(detalj);
-          }}
-        />
-      )}
-
-      {/* PDF-forhåndsvisning */}
-      <PdfForhandsvisning
-        synlig={!!pdfHtml}
-        html={pdfHtml ?? ""}
-        tittel={sjekkliste?.title ?? ""}
-        onDel={håndterDelPdf}
-        onLukk={() => settPdfHtml(null)}
-      />
 
       {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}
       <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>
@@ -1430,11 +1323,13 @@ export default function SjekklisteUtfylling() {
             : undefined
         }
         feltLabel={opprettOppgaveFeltLabel ?? undefined}
+        posisjon={opprettOppgavePosisjon ?? undefined}
         onOpprettet={(oppgaveId) => {
           setValgtOppgaveMal(null);
           setOpprettOppgaveKategori(null);
           setOpprettOppgaveFeltId(null);
           setOpprettOppgaveFeltLabel(null);
+          setOpprettOppgavePosisjon(null);
           // Oppdater oppgavelisten for denne sjekklisten
           utils.oppgave.hentForSjekkliste.invalidate({ checklistId: id! });
           // Naviger til oppgave-detaljskjerm
@@ -1445,6 +1340,7 @@ export default function SjekklisteUtfylling() {
           setOpprettOppgaveKategori(null);
           setOpprettOppgaveFeltId(null);
           setOpprettOppgaveFeltLabel(null);
+          setOpprettOppgavePosisjon(null);
         }}
       />
     </SafeAreaView>

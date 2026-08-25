@@ -14,6 +14,7 @@ import {
 import { Plus, Pencil, Trash2, AlertTriangle, Upload } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { IngenFirmaValgt } from "@/components/firma/IngenFirmaValgt";
 
 type MatriseBruker = {
   id: string;
@@ -133,7 +134,7 @@ function MatriseFane() {
   const { t } = useTranslation();
   const { data: session } = useSession();
   const ctxUserId = session?.user?.id as string | undefined;
-  const { valgtFirma, kanAdministrereFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma, isLoading: firmaLaster } = useFirma();
   const orgId = valgtFirma?.id;
 
   const { data, isLoading } = trpc.kompetanse.hentMatrise.useQuery(
@@ -203,6 +204,20 @@ function MatriseFane() {
       filterKategori ? k.kategori === filterKategori : true,
     );
   }, [data, filterKategori]);
+
+  if (firmaLaster) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Spinner />
+      </div>
+    );
+  }
+
+  // «Ingen firma valgt» ≠ «ingen ansatte». Uten firma er matrise-spørringen
+  // disablet → tidligere viste vi «ingen ansatte», en usann påstand om data.
+  if (!orgId) {
+    return <IngenFirmaValgt tekst={t("firma.kompetanse.ingenFirma")} />;
+  }
 
   if (isLoading) {
     return (

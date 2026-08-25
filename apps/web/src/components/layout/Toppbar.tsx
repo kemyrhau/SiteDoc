@@ -13,6 +13,7 @@ import { useNyNavigasjon, useSettNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useSokModal } from "@/kontekst/sok-modal-kontekst";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
@@ -46,7 +47,7 @@ export function Toppbar() {
   const pathname = usePathname();
   const aktivSeksjon = useAktivSeksjon();
   const { prosjektId } = useProsjekt();
-  const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
+  const erFirmaKontekst = ruteErFirmaKontekst(pathname);
   const erHub = pathname?.startsWith("/dashbord/innstillinger") ?? false;
   const { erSitedocAdmin, kanAdministrereFirma } = useFirma();
   const { byggeplassAktiv } = useToppbarFiltreKontekst();

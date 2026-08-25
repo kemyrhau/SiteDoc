@@ -4,6 +4,7 @@ import { Plus, Info, Globe } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
+import { tilbehorVisning } from "./RapportObjektRenderer";
 
 /** Felttyper som ikke skal ha vedlegg/kommentar eller oppgave-badge */
 const SKJUL_VEDLEGG_TYPER = new Set(["date", "date_time", "weather"]);
@@ -145,23 +146,28 @@ export function FeltWrapper({
         <Text className="mt-1 text-xs text-red-500">{valideringsfeil}</Text>
       )}
 
-      {/* Dokumentasjon (kommentar + vedlegg) — skjul for dato, dato/tid og vær */}
-      {!SKJUL_VEDLEGG_TYPER.has(objekt.type) && (
-        <FeltDokumentasjon
-          kommentar={kommentar}
-          vedlegg={vedlegg}
-          onEndreKommentar={onEndreKommentar}
-          onLeggTilVedlegg={onLeggTilVedlegg}
-          onFjernVedlegg={onFjernVedlegg}
-          onErstattVedlegg={onErstattVedlegg}
-          onFlyttVedlegg={onFlyttVedlegg}
-          leseModus={leseModus}
-          sjekklisteId={sjekklisteId}
-          oppgaveIdForKo={oppgaveIdForKo}
-          objektId={objekt.id}
-          skjulKommentar={objekt.type === "text_field"}
-        />
-      )}
+      {/* Dokumentasjon (kommentar + vedlegg) — funn 6: fjernet for date/date_time/weather/
+          drawing_position/location; repeater vises read-only kun når det finnes data. */}
+      {(() => {
+        const harData = !!kommentar?.trim() || (vedlegg?.length ?? 0) > 0;
+        const tv = tilbehorVisning(objekt.type, !!leseModus, harData);
+        return tv.vis ? (
+          <FeltDokumentasjon
+            kommentar={kommentar}
+            vedlegg={vedlegg}
+            onEndreKommentar={onEndreKommentar}
+            onLeggTilVedlegg={onLeggTilVedlegg}
+            onFjernVedlegg={onFjernVedlegg}
+            onErstattVedlegg={onErstattVedlegg}
+            onFlyttVedlegg={onFlyttVedlegg}
+            leseModus={tv.leseModus}
+            sjekklisteId={sjekklisteId}
+            oppgaveIdForKo={oppgaveIdForKo}
+            objektId={objekt.id}
+            skjulKommentar={objekt.type === "text_field"}
+          />
+        ) : null;
+      })()}
 
       {/* Oppgave-badge og opprett-knapp (skjul for dato/vær og når vi er i en oppgave) */}
       {SKJUL_VEDLEGG_TYPER.has(objekt.type) ? null : !oppgaveIdForKo && oppgaveNummer && oppgaveId ? (

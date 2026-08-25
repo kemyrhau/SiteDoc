@@ -39,7 +39,11 @@ export const rapportRouter = router({
    * i UI ved behov.
    */
   firmaPeriodeRapport: protectedProcedure
-    .input(periodeSchema)
+    // kunEksporterbare: eksport-veien (aggregat-arkene) setter den → time-summene
+    // ekskluderer lønnsarter med skalEksporteres=false, så aggregatet matcher
+    // detalj-arkene (ingen «to sannheter»). SKJERMEN kaller uten flagget = alle
+    // timer (attestering/oversikt trenger å se alt). Ordren gjelder eksporter.
+    .input(periodeSchema.extend({ kunEksporterbare: z.boolean().optional() }))
     .query(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
@@ -89,7 +93,8 @@ export const rapportRouter = router({
           ...(input.ansattId ? { userId: input.ansattId } : {}),
         },
         include: {
-          timer: true,
+          // lonnsart.skalEksporteres for kunEksporterbare-filteret (time-summen).
+          timer: { include: { lonnsart: { select: { skalEksporteres: true } } } },
           tillegg: true,
           maskiner: true,
         },
@@ -149,6 +154,13 @@ export const rapportRouter = router({
         // Hver SheetTimer-rad kan ha forskjellig projectId — splitt mellom dem.
         let sedelTimer = 0;
         for (const t of sedel.timer) {
+          // Eksport-veien: hopp over lønnsarter merket skalEksporteres=false, så
+          // aggregatets time-sum matcher detalj-arkene. Sedel-metadata
+          // (statusFordeling/antallSedler/sistRegistrert) filtreres IKKE — en
+          // sedel med kun ikke-eksporterbare timer er fortsatt en reell sedel.
+          if (input.kunEksporterbare && t.lonnsart?.skalEksporteres === false) {
+            continue;
+          }
           const radTimer = Number(t.timer);
           sedelTimer += radTimer;
           a.perProsjekt.set(
@@ -214,6 +226,268 @@ export const rapportRouter = router({
         antallSedler: sedler.length,
         statusFordeling,
       };
+    }),
+
+  /**
+   * Detaljeksport: RÅ timer-/tillegg-/utlegg-rader for perioden — grunnlaget
+   * lønn/fakturering trenger, som aggregatet i firmaPeriodeRapport ikke gir.
+   *
+   * BEVISST egen prosedyre (ikke ombygging av firmaPeriodeRapport): skjerm-
+   * rapporten aggregerer med groupBy for rask visning, detaljeksporten drar
+   * hver rad. Samme payload til begge ville gitt treg skjerm ELLER amputert
+   * eksport. SAMME filtre (periode/prosjekt/ansatt), kalt KUN ved eksport-klikk.
+   *
+   * Nøsting: maskin-rader bæres under sin timerad via SheetMachine.sheetTimerId
+   * (samme som dagskort-hoveren). Klienten flater ut til ark-rader.
+   *
+   * Fremtid (proadm-underprosjekt): gruppering er datadrevet i klientens
+   * kolonne-spec — en ny dimensjon = én kolonne (feltet legges på radene her)
+   * + ett filter (utvid periodeSchema + where under). Ikke bygget nå.
+   */
+  detaljEksport: protectedProcedure
+    .input(periodeSchema)
+    .query(async ({ ctx, input }) => {
+      if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      await krevTimerAktivert(orgId);
+
+      const fraDato = new Date(input.fra);
+      const tilDato = new Date(input.til);
+      if (Number.isNaN(fraDato.getTime()) || Number.isNaN(tilDato.getTime())) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Ugyldig dato-format (forventet YYYY-MM-DD)",
+        });
+      }
+
+      const prosjekter = await prisma.project.findMany({
+        where: {
+          primaryOrganizationId: orgId,
+          ...(input.prosjektId ? { id: input.prosjektId } : {}),
+        },
+        select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
+      });
+      const prosjektIder = prosjekter.map((p) => p.id);
+      const prosjektMap = new Map(prosjekter.map((p) => [p.id, p]));
+
+      if (prosjektIder.length === 0) {
+        return {
+          timerader: [],
+          maskinUtenTimerad: [],
+          maskinIkkeEksporterbar: [],
+          tillegg: [],
+          utlegg: [],
+        };
+      }
+
+      const sedler = await ctx.prismaTimer.dailySheet.findMany({
+        where: {
+          organizationId: orgId,
+          timer: { some: { projectId: { in: prosjektIder } } },
+          dato: { gte: fraDato, lte: tilDato },
+          ...(input.ansattId ? { userId: input.ansattId } : {}),
+        },
+        include: {
+          // erstattet-filter: audit-rader fra rediger-mutasjoner ekskluderes
+          // (samme som hentTilAttesteringFirma). Navnene inkluderes per rad via
+          // de faktiske @relation-ene på SheetTimer.
+          timer: {
+            // skalEksporteres=false → timeraden utelates fra eksport (fabel-
+            // vedtak). Filtreres i KODE (ikke DB-where) fordi maskin-rader som
+            // henger på en ekskludert timerad skal klassifiseres separat — vi
+            // trenger å vite HVILKE timerad-id-er som ble ekskludert.
+            where: { attestertStatus: { not: "erstattet" } },
+            include: {
+              lonnsart: { select: { navn: true, skalEksporteres: true } },
+              aktivitet: { select: { navn: true } },
+            },
+          },
+          tillegg: {
+            where: {
+              attestertStatus: { not: "erstattet" },
+              tillegg: { skalEksporteres: true },
+            },
+            include: { tillegg: { select: { navn: true } } },
+          },
+          maskiner: { where: { attestertStatus: { not: "erstattet" } } },
+          // SheetUtlegg har ingen attestertStatus → intet erstattet-filter.
+          // Bredere select enn attesterings-lista (kommentar med for eksport-ark),
+          // men fortsatt IKKE vedlegg (svak FK uten @relation → umulig via query).
+          utlegg: {
+            select: {
+              id: true,
+              belop: true,
+              kommentar: true,
+              projectId: true,
+              expenseCategory: { select: { navn: true } },
+            },
+          },
+        },
+        orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
+      });
+
+      // Ansatt-navn + ansattnummer (org-scopet, som hentTilAttesteringFirma).
+      const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
+      const brukere = await prisma.user.findMany({
+        where: { id: { in: userIder } },
+        select: { id: true, name: true, email: true },
+      });
+      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+      const medlemmer = await prisma.organizationMember.findMany({
+        where: { userId: { in: userIder }, organizationId: orgId },
+        select: { userId: true, ansattnummer: true },
+      });
+      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
+
+      // Kryss-prosjekt: rader kan peke på prosjekt utenfor firmaets egne — samle
+      // alle unike projectId og slå opp navn for dem også (ellers «ukjent»).
+      const alleProsjektIder = new Set<string>(prosjektIder);
+      for (const s of sedler) {
+        for (const r of s.timer) alleProsjektIder.add(r.projectId);
+        for (const r of s.tillegg) alleProsjektIder.add(r.projectId);
+        for (const r of s.maskiner) alleProsjektIder.add(r.projectId);
+        for (const r of s.utlegg) alleProsjektIder.add(r.projectId);
+      }
+      const ekstraIder = Array.from(alleProsjektIder).filter((id) => !prosjektMap.has(id));
+      if (ekstraIder.length > 0) {
+        const ekstra = await prisma.project.findMany({
+          where: { id: { in: ekstraIder } },
+          select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
+        });
+        for (const p of ekstra) prosjektMap.set(p.id, p);
+      }
+      const prosjektNavn = (id: string): string => prosjektMap.get(id)?.name ?? "(ukjent)";
+
+      // Maskin-navn (kryss-modul → db-maskin). Samme navn-form som dagskortet.
+      const vehicleIder = Array.from(
+        new Set(sedler.flatMap((s) => s.maskiner.map((m) => m.vehicleId))),
+      );
+      const utstyrMap = new Map<string, string>();
+      if (vehicleIder.length > 0) {
+        const utstyr = await ctx.prismaMaskin.equipment.findMany({
+          where: { id: { in: vehicleIder } },
+          select: { id: true, merke: true, modell: true, internNavn: true },
+        });
+        for (const e of utstyr) {
+          const base = `${e.merke ?? ""} ${e.modell ?? ""}`.trim();
+          utstyrMap.set(e.id, base || e.internNavn || e.id);
+        }
+      }
+
+      const iso = (d: Date): string => d.toISOString().slice(0, 10);
+      const ansatt = (userId: string): string =>
+        brukerMap.get(userId)?.name ?? brukerMap.get(userId)?.email ?? "(ukjent)";
+
+      // skalEksporteres-filter i kode: false → timeraden ut av eksporten.
+      const eksporterbar = (r: { lonnsart: { skalEksporteres: boolean } | null }): boolean =>
+        r.lonnsart?.skalEksporteres !== false;
+
+      const timerader = sedler.flatMap((s) =>
+        s.timer.filter(eksporterbar).map((r) => ({
+          id: r.id,
+          dato: iso(s.dato),
+          ansatt: ansatt(s.userId),
+          ansattnr: ansattnummerMap.get(s.userId) ?? null,
+          prosjekt: prosjektNavn(r.projectId),
+          lonnsart: r.lonnsart?.navn ?? "(ukjent)",
+          aktivitet: r.aktivitet?.navn ?? "(ukjent)",
+          timer: Number(r.timer),
+          beskrivelse: r.beskrivelse,
+          // T.3: RAD-status (attestertStatus), ikke sedel-status. Lønn spør om
+          // raden er attestert; en sedel kan stå "sent" mens enkeltrader er
+          // returnert. null → "pending" (Prisma-default).
+          radstatus: r.attestertStatus ?? "pending",
+          // Nøsting: maskin-rader ført med DENNE (eksporterbare) timeraden.
+          maskiner: s.maskiner
+            .filter((m) => m.sheetTimerId === r.id)
+            .map((m) => ({
+              id: m.id,
+              navn: utstyrMap.get(m.vehicleId) ?? m.vehicleId,
+              // Maskintimer = egen størrelse (attesteringsflaten summerer den
+              // separat), egen kolonne i eksporten — aldri i timer-kolonnen.
+              timer: Number(m.timer),
+              mengde: m.mengde === null ? null : Number(m.mengde),
+              enhet: m.enhet,
+              radstatus: m.attestertStatus ?? "pending",
+            })),
+        })),
+      );
+
+      // Maskin-linje (felles form for de to «løse» bøttene).
+      const maskinLinje = (
+        s: (typeof sedler)[number],
+        m: (typeof sedler)[number]["maskiner"][number],
+      ) => ({
+        id: m.id,
+        dato: iso(s.dato),
+        ansatt: ansatt(s.userId),
+        ansattnr: ansattnummerMap.get(s.userId) ?? null,
+        prosjekt: prosjektNavn(m.projectId),
+        navn: utstyrMap.get(m.vehicleId) ?? m.vehicleId,
+        timer: Number(m.timer),
+        mengde: m.mengde === null ? null : Number(m.mengde),
+        enhet: m.enhet,
+        radstatus: m.attestertStatus ?? "pending",
+      });
+
+      // Maskin-klassifisering i to «løse» bøtter (nøstede ligger i timerader):
+      //  - på en timerad som ble EKSKLUDERT av skalEksporteres → egen linje.
+      //    IKKE «uten timerad»: den bøtta betyr «maskin brukt uten registrert
+      //    arbeid» (et anomali-signal noen skal reagere på). Filtrerte-timerad-
+      //    maskiner ville drukne signalet. Maskintimene beholdes (fakturerbart —
+      //    maskin er ikke en lønnsart).
+      //  - uten gyldig sheetTimerId-kobling → ekte «uten timerad».
+      const maskinIkkeEksporterbar: ReturnType<typeof maskinLinje>[] = [];
+      const maskinUtenTimerad: ReturnType<typeof maskinLinje>[] = [];
+      for (const s of sedler) {
+        const eksporterbareIder = new Set(
+          s.timer.filter(eksporterbar).map((r) => r.id),
+        );
+        const ekskluderteIder = new Set(
+          s.timer.filter((r) => !eksporterbar(r)).map((r) => r.id),
+        );
+        for (const m of s.maskiner) {
+          if (m.sheetTimerId && eksporterbareIder.has(m.sheetTimerId)) continue; // nøstet
+          if (m.sheetTimerId && ekskluderteIder.has(m.sheetTimerId)) {
+            maskinIkkeEksporterbar.push(maskinLinje(s, m));
+          } else {
+            maskinUtenTimerad.push(maskinLinje(s, m));
+          }
+        }
+      }
+
+      const tillegg = sedler.flatMap((s) =>
+        s.tillegg.map((r) => ({
+          id: r.id,
+          dato: iso(s.dato),
+          ansatt: ansatt(s.userId),
+          ansattnr: ansattnummerMap.get(s.userId) ?? null,
+          prosjekt: prosjektNavn(r.projectId),
+          tillegg: r.tillegg?.navn ?? "(ukjent)",
+          antall: Number(r.antall),
+          kommentar: r.kommentar,
+          // T.3 rad-status (som timerader).
+          radstatus: r.attestertStatus ?? "pending",
+        })),
+      );
+
+      const utlegg = sedler.flatMap((s) =>
+        s.utlegg.map((r) => ({
+          id: r.id,
+          dato: iso(s.dato),
+          ansatt: ansatt(s.userId),
+          ansattnr: ansattnummerMap.get(s.userId) ?? null,
+          prosjekt: prosjektNavn(r.projectId),
+          kategori: r.expenseCategory?.navn ?? "(ukjent)",
+          belop: r.belop === null ? null : Number(r.belop),
+          kommentar: r.kommentar,
+          // SheetUtlegg har INGEN rad-status → sedel-status (kolonnen heter
+          // «Seddelstatus» på utlegg-arket, ikke «Radstatus» — ulik betydning).
+          seddelstatus: s.status,
+        })),
+      );
+
+      return { timerader, maskinUtenTimerad, maskinIkkeEksporterbar, tillegg, utlegg };
     }),
 
   /**

@@ -32,9 +32,17 @@ export function byggArkivSide(input: ArkivDokumentInput): string {
     byggTopptekst(input.firma, input.meta, innst),
     byggProsjektblokk(input.prosjektblokk, innst),
     byggStatusblokk(input.statusCeller, input.logg.sistEndret, (iso) => formaterDatoKort(iso)),
+    // D2: dokument-lokasjon (tegningsmarkør) øverst side 1, rett under
+    // dokumenthodet — før innholdet. Tom streng filtreres bort av `.filter(Boolean)`.
+    input.lokasjonHtml ?? "",
     input.innholdHtml,
     byggMangelMerknad(input.manglendeVedlegg ?? []),
-    byggLoggseksjon(input.logg, input.taMedEndringslogg ?? true),
+    // D2b (Kenneth-vedtak 2026-08-21): helside(r) tegningsprint I rapportkroppen —
+    // innhold → TEGNINGSSIDE(R) → dokumenthistorikk → endringslogg → signatur.
+    // `break-before:page` (CSS) gir egen side; historikken fyller arket etterpå
+    // (før var arket før tegningssiden halvtomt fordi rapporten sluttet på signatur).
+    input.tegningssiderHtml ?? "",
+    byggLoggseksjon(input.logg),
     byggSignaturblokk(input.signaturer),
     // Sidetall settes per side av containeren (Stage 4) — utelates i body.
     byggBunntekst(input.meta, input.generertTekst, null),

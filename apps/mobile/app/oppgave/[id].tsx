@@ -28,6 +28,7 @@ import {
   ChevronDown,
   MessageCircle,
   Send,
+  Share2,
 } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
@@ -44,6 +45,10 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { trpc } from "../../src/lib/trpc";
+import { useNettverk } from "../../src/providers/NettverkProvider";
+import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system/legacy";
+import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { oppgaveFeltdata, opplastingsKo } from "../../src/db/schema";
@@ -96,7 +101,9 @@ export default function OppgaveDetalj() {
   const router = useRouter();
   const { bruker } = useAuth();
   const { valgtProsjektId } = useProsjekt();
+  const { erPaaNettet } = useNettverk();
   const utils = trpc.useUtils();
+  const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
 
   // State for inline redigering av tittel og beskrivelse
   const [visTittelModal, settVisTittelModal] = useState(false);
@@ -166,6 +173,13 @@ export default function OppgaveDetalj() {
     return flyt?.medlemmer ?? [];
   }, [oppgaveDetalj, dokumentflyterRå]);
 
+  // 4b (dokumentflyten er nøkkelen): faggruppene `company`-feltet (FirmaObjekt) får tilby.
+  // Inline kall (IKKE useMemo med de dype tRPC-typene i deps — tipper TS2589).
+  const tillatteFaggruppeIder = flytFaggruppeIder(
+    (oppgaveDetalj as unknown as { dokumentflytId?: string | null })?.dokumentflytId,
+    dokumentflyterRå,
+  );
+
   const minRolle = useMemo(() => {
     if (!minFlytInfo || !oppgaveDetalj) return undefined;
     const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
@@ -183,7 +197,7 @@ export default function OppgaveDetalj() {
       groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      { ...minFlytInfo, userId: "", erAdmin: (minFlytInfo.adminNiva !== null) },
       medlemmer,
       { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
     );
@@ -212,7 +226,7 @@ export default function OppgaveDetalj() {
       userId: minFlytInfo.userId,
       gruppeIder: minFlytInfo.gruppeIder,
       faggruppeIder: (minFlytInfo as { faggruppeIder?: string[] }).faggruppeIder ?? [],
-      erAdmin: minFlytInfo.erAdmin,
+      erAdmin: (minFlytInfo.adminNiva !== null),
     };
     const erMedlemAv = (l: (typeof ledd)[number]): boolean =>
       l.brukerIder.has(bruker.userId) ||
@@ -224,7 +238,7 @@ export default function OppgaveDetalj() {
       harBallen,
       erAvsender: erAvsenderledd(ledd, aktivPosisjon, bruker),
       erMedlemAvFlyt: erMedlemAvFlyt(ledd, bruker),
-      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin }),
+      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: (minFlytInfo.adminNiva !== null) }),
     };
   }, [oppgaveDetalj, minFlytInfo, flytMedlemmer]);
   const harBallen = posisjonRett.harBallen;
@@ -255,7 +269,7 @@ export default function OppgaveDetalj() {
   const rettighetInput = useMemo(() => {
     if (!minFlytInfo) return undefined;
     return {
-      erAdmin: minFlytInfo.erAdmin,
+      erAdmin: (minFlytInfo.adminNiva !== null),
       minRolle,
       tillatelser: mineTillatelser,
       harBallen,
@@ -392,6 +406,54 @@ export default function OppgaveDetalj() {
     lagreStatus,
     synkStatus,
   } = useOppgaveSkjema(id!, rettighetInput);
+
+  // --- Arkiv-PDF (server-generert, samme motor som web via arkiv.rendr, type "oppgave").
+  // Paritet med sjekkliste-detaljen: base64 → fil → expo-sharing; mangel-kontrakt speiler web
+  // (renderTimeout + manglendeVedlegg). Krever nett (bilder/tegninger hentes fra server).
+  const rendrArkiv = trpc.arkiv.rendr.useMutation({
+    onSuccess: async (res: {
+      pdfBase64: string;
+      filnavn: string;
+      komplett: boolean;
+      renderTimeout: boolean;
+      dokumenter: { manglendeVedlegg: string[] }[];
+    }) => {
+      try {
+        const filsti = `${FileSystem.cacheDirectory}${res.filnavn}`;
+        await FileSystem.writeAsStringAsync(filsti, res.pdfBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await Sharing.shareAsync(filsti, {
+          mimeType: "application/pdf",
+          dialogTitle: `Del ${oppgave?.title ?? "oppgave"}`,
+          UTI: "com.adobe.pdf",
+        });
+      } catch (feil) {
+        console.warn("Arkiv-PDF-deling feilet:", feil);
+      }
+      const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
+      if (res.renderTimeout) {
+        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselTimeout") });
+      } else if (antallMangler > 0) {
+        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselMangler", { antall: antallMangler }) });
+      } else {
+        settArkivMelding(null);
+      }
+    },
+    onError: (error: { message?: string }) => {
+      settArkivMelding({ type: "feil", tekst: error.message ?? t("arkiv.feil") });
+    },
+  });
+
+  const håndterArkivPdf = useCallback(() => {
+    if (!id) return;
+    if (!erPaaNettet) {
+      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      return;
+    }
+    settArkivMelding(null);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "oppgave" }] });
+  }, [id, erPaaNettet, rendrArkiv, t]);
 
   // On-demand oversettelse av firmainnhold
   const prosjektKildesprak = (detaljQuery.data as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
@@ -583,6 +645,20 @@ export default function OppgaveDetalj() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
+            {/* Server-generert arkiv-PDF (samme motor som web) — paritet med sjekkliste.
+                Offline: CloudOff signaliserer FØR tap; tap forklarer med arkiv.kreverTilkobling. */}
+            <Pressable
+              onPress={håndterArkivPdf}
+              hitSlop={12}
+              disabled={rendrArkiv.isPending}
+              accessibilityLabel={erPaaNettet ? t("handling.lastNedArkivPdf") : t("arkiv.kreverTilkobling")}
+            >
+              {rendrArkiv.isPending
+                ? <ActivityIndicator size="small" color="#ffffff" />
+                : !erPaaNettet
+                  ? <CloudOff size={18} color="#fbbf24" />
+                  : <Share2 size={18} color="#ffffff" />}
+            </Pressable>
             <StatusMerkelapp status={oppgave.status} />
             {(() => {
               const recipientGroup = (oppgaveDetalj as { recipientGroup?: { id: string; name: string | null } | null } | undefined)?.recipientGroup;
@@ -613,6 +689,18 @@ export default function OppgaveDetalj() {
           />
         )}
       </View>
+
+      {/* Arkiv-PDF-melding: inline, ikke-blokkerende. Trykk for å lukke. */}
+      {arkivMelding && (
+        <Pressable
+          onPress={() => settArkivMelding(null)}
+          className={`px-3 py-2 ${arkivMelding.type === "feil" ? "bg-red-50" : "bg-amber-50"}`}
+        >
+          <Text className={`text-xs ${arkivMelding.type === "feil" ? "text-red-700" : "text-amber-700"}`}>
+            {arkivMelding.tekst}
+          </Text>
+        </Pressable>
+      )}
 
       <KeyboardAvoidingView
         className="flex-1"
@@ -783,6 +871,7 @@ export default function OppgaveDetalj() {
                 leseModus={verdiLeseModus}
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 oppgaveIdForKo={oppgave.id}
+                tillatteFaggruppeIder={tillatteFaggruppeIder}
               />
             </FeltWrapper>
           );

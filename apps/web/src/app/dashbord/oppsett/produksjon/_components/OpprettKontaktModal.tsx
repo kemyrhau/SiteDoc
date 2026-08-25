@@ -117,6 +117,14 @@ export function OpprettKontaktModal({
     }
   }
 
+  // (b) Admin-status kjent i klienten FØR første skriving (se handleOpprett): flyt-plassering er
+  // admin-gatet server-side, så vi må avvise ikke-admin før kontakten opprettes — ellers halv tilstand.
+  const { data: minTilgang } = trpc.gruppe.hentMinTilgang.useQuery(
+    { projectId: prosjektId },
+    { enabled: open },
+  );
+  const erAdmin = minTilgang?.erAdmin ?? false;
+
   const leggTilMedlemMutation = trpc.medlem.leggTil.useMutation();
   const leggTilEksisterendeMutation = trpc.medlem.leggTilEksisterende.useMutation();
   const leggTilFlytMedlemMutation = trpc.dokumentflyt.leggTilMedlem.useMutation();
@@ -161,6 +169,20 @@ export function OpprettKontaktModal({
 
     // Faggrupper som skal kobles til kontakten (fra flyt-radene)
     const faggruppeIder = [...new Set(flytRader.map((r) => r.faggruppeId).filter(Boolean))];
+
+    // (b) Rett-sjekk FØR første skriving (Tillegg 1, Kenneth-vedtak 2026-08-22): flyt-plassering
+    // (`dokumentflyt.leggTilMedlem`) er admin-gatet server-side. Ville vi skrevet flyt-medlemskap
+    // uten å være admin, ville kontakten blitt OPPRETTET (`medlem.leggTil` er ikke gatet) og
+    // plasseringen avvist → foreldreløs kontakt uten flyttilknytning, i stillhet. Vi forhindrer
+    // tilstanden i stedet for å rydde etter den. Kontakt UTEN flyt-plassering (ingen rad med rolle)
+    // er fortsatt tillatt for ikke-admin — vi blokkerer kun når en flyt-skriving faktisk ville skjedd.
+    const skalPlassereIFlyt = flytRader.some((r) => r.flytId && r.roller.length > 0);
+    if (skalPlassereIFlyt && !erAdmin) {
+      setFeil(
+        "Bare administratorer kan plassere en kontakt i en dokumentflyt. Be en prosjektadmin gjøre det, eller opprett kontakten uten flyt-plassering.",
+      );
+      return;
+    }
 
     try {
       let projectMemberId: string;

@@ -15,7 +15,8 @@
 import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, formaterDatoTidPunkt } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
-import type { TreObjekt, FeltVerdi, Vedlegg } from "../typer";
+import { normaliserRad } from "../typer";
+import type { TreObjekt, FeltVerdi, Vedlegg, Rad } from "../typer";
 
 const TOM = `<span class="tom">Ikke utfylt</span>`;
 
@@ -36,7 +37,7 @@ function erBilde(v: unknown): v is Vedlegg {
  * Bildene er alt inlinet til data-URI av sammenstillingen når dette kjører.
  * Dedup på url (samme bilde kan ligge både i `vedlegg` og `verdi`).
  */
-function bilderIRad(barn: TreObjekt[], rad: Record<string, FeltVerdi>): Vedlegg[] {
+function bilderIRad(barn: TreObjekt[], rad: Rad): Vedlegg[] {
   const ut: Vedlegg[] = [];
   const sett = new Set<string>();
   const leggTil = (v: unknown): void => {
@@ -46,7 +47,7 @@ function bilderIRad(barn: TreObjekt[], rad: Record<string, FeltVerdi>): Vedlegg[
     }
   };
   for (const b of barn) {
-    const felt = rad[b.id] as FeltVerdi | undefined;
+    const felt = rad.felter[b.id] as FeltVerdi | undefined;
     if (!felt) continue;
     if (Array.isArray(felt.vedlegg)) felt.vedlegg.forEach(leggTil);
     if (Array.isArray(felt.verdi)) (felt.verdi as unknown[]).forEach(leggTil);
@@ -54,8 +55,12 @@ function bilderIRad(barn: TreObjekt[], rad: Record<string, FeltVerdi>): Vedlegg[
   return ut;
 }
 
-/** Kompakt cellverdi for én kolonne (repeater-barn). Gjenbruker delte primitiver. */
-function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
+/**
+ * Kompakt skalar-cellverdi for én kolonne (repeater-barn): label-fritt, kun verdien.
+ * Delt med radkort-formen (radkort.ts) for skalar/beregning/dato/status-felt.
+ * Håndterer IKKE drawing_position (radkort eier den) — den grenen er fjernet.
+ */
+export function skalarCelle(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
   const verdi = felt?.verdi;
   const tom = verdi === null || verdi === undefined || verdi === "";
 
@@ -89,6 +94,10 @@ function cellVerdi(objekt: TreObjekt, felt: FeltVerdi | undefined): string {
       return tom ? TOM : esc(formaterDatoTid(verdi));
     case "persons":
       return Array.isArray(verdi) && verdi.length > 0 ? esc((verdi as string[]).join(", ")) : TOM;
+    // Merk: `drawing_position`/`location` har INGEN case her lenger. En repeater
+    // med tegningsposisjon er per definisjon RIK → rendres som radkort (radkort.ts),
+    // aldri som tabell. Grenen ble uNÅBAR og er fjernet (Kenneth 2026-08-21) for å
+    // unngå død kode. Helskalar repeater (denne tabellformen) har aldri drawing_position.
     case "attachments": {
       // Bildene rendres i full bredde rett under raden (byggBilderader), hvert
       // med egen merking (filnavn + tid). Cellen gjentar IKKE filnavn — det ville
@@ -127,30 +136,95 @@ const BILDER_PER_REKKE = 2;
  * full spaltebredde rett under sin egen rad (vedtak 2026-08-15), ikke samlet
  * etter tabellen.
  */
+/** F7-merkelinje. Guillemeter «Legg til rad» + intet punktum = fasit-PNG-en
+ * (mockup-f7-objektniva-vedtatt.png); PNG går foran ordreteksten ved motstrid,
+ * og guillemeter er prosjektets sitat-standard (A3-kvittering 2026-08-22). */
+const F7_MERKE = "Registrert utenfor rader — kommentar og vedlegg festet direkte på skjemaet, uten «Legg til rad»";
+
+/**
+ * F7 (D1, ordre-arkivmal-f7-objektniva 2026-08-21): innhold festet på repeater-OBJEKTET
+ * (kommentar/vedlegg uten «Legg til rad») rendres som egen merket blokk «Registrert utenfor
+ * rader» rett OVER tabellen/kortene. Aldri som «rad 0», aldri utelatt — gjelder også når
+ * repeateren HAR rader. Objektnivå-bildene står FØRST på siden, så de nummereres FØR
+ * radbildene: blokken forbruker bildeNr-telleren først og returnerer `nesteNr` til radene
+ * (`b.bildeNr` fra appen har forrang, som ellers). Bilder: 2/rekke, løpenr + tid — samme
+ * primitiver som radbildene; ikke-bilde-vedlegg → filteller (aldri base64/JSON-dump).
+ * Delt av tabell (repeater.ts) og radkort (radkort.ts).
+ */
+export function byggUtenforRaderBlokk(
+  objektFelt: FeltVerdi | undefined,
+  startNr: number,
+): { html: string; nesteNr: number } {
+  const kommentar = objektFelt?.kommentar?.trim() ?? "";
+  const alle = Array.isArray(objektFelt?.vedlegg) ? (objektFelt!.vedlegg as Vedlegg[]) : [];
+  const bilder = alle.filter(erBilde);
+  const antallIkkeBilder = alle.length - bilder.length;
+  if (!kommentar && bilder.length === 0 && antallIkkeBilder === 0) {
+    return { html: "", nesteNr: startNr };
+  }
+  let nr = startNr;
+  const celler = bilder.map((b) => {
+    const visNr = b.bildeNr ?? nr;
+    nr += 1;
+    let merke = `Bilde ${String(visNr).padStart(2, "0")}`;
+    if (b.opprettet) merke += ` · ${esc(formaterDatoTidPunkt(b.opprettet))}`;
+    // A4-kvittering (2026-08-22): IKKE tvungen 4:3-ramme. `.ark-bilde-img` er den DELTE
+    // radbilde-primitiven (object-fit:contain, bildeforhold ALLTID bevart, aldri oppskalert
+    // — fabels radkort-designlås). Fasitens «Bilde 4:3 (mobilformat)» er en plassholder-
+    // etikett, ikke et rammekrav. Ikke «rett» dette til fast 4:3 — det ville brutt designlåsen.
+    // A2 (2026-08-22): fasitens «· med tegningsmarkering — se tegningsseksjon» er IKKE med her.
+    // Målt: `Vedlegg` (type "bilde"|"fil") har intet markør-felt, «Tegning»-knappen lagrer et
+    // vanlig type:"bilde"-screenshot, og markøren er alltid en egen drawing_position-feltverdi —
+    // aldri koblet til et bestemt bilde. Suffikset mangler datagrunnlag → fabels sak, ikke bygg.
+    return `<div class="ark-bilde"><img class="ark-bilde-img" src="${esc(b.url)}" alt=""><div class="ark-bilde-tekst">${merke}</div></div>`;
+  });
+  const grid = celler.length ? `<div class="ark-bilde-grid">${celler.join("")}</div>` : "";
+  // A1-kvittering (2026-08-22): kommentar i guillemeter «…» = fasit-PNG-en («Testbilde»).
+  const kommentarHtml = kommentar ? `<div class="kommentar">«${esc(kommentar)}»</div>` : "";
+  const filteller = antallIkkeBilder > 0
+    ? `<div class="vedlegg-teller">${antallIkkeBilder} vedlegg uten forhåndsvisning</div>`
+    : "";
+  const html = `<div class="ark-utenfor-rader"><div class="ark-utenfor-merke">${F7_MERKE}</div>${kommentarHtml}${grid}${filteller}</div>`;
+  return { html, nesteNr: nr };
+}
+
 export function byggRepeaterTabell(
   objekt: TreObjekt,
   verdi: unknown,
   label: string,
+  objektFelt?: FeltVerdi,
 ): string {
   const barn = objekt.children ?? [];
-  const rader = Array.isArray(verdi) ? (verdi as Record<string, FeltVerdi>[]) : [];
+  // Rad-id (2026-08-22): normaliser gammel/ny radform ved lesing → { _radId, felter }.
+  const rader = Array.isArray(verdi) ? (verdi as unknown[]).map(normaliserRad) : [];
 
   const heading = `<div class="ark-seksjon">${esc(label)}</div>`;
+  // F7: objektnivå-blokk FØRST (forbruker bildeNr før radene). Tom blokk → "".
+  const blokk = byggUtenforRaderBlokk(objektFelt, 1);
 
   if (rader.length === 0) {
-    return `${heading}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
+    // Case (a): objektnivå-innhold + 0 rader → blokk + «Ingen rader registrert».
+    return `${heading}${blokk.html}<div class="felt-verdi"><span class="tom">Ingen rader registrert</span></div>`;
   }
 
   const kolonner = barn.map((b) => `<th>${esc(b.label)}</th>`).join("");
   // «#» + én kolonne per barn — bildecellen spenner hele bredden.
   const kolonnespenn = 1 + barn.length;
-  // Løpenummer starter på 01 og fortsetter gjennom hele repeateren (= dokumentet;
-  // starter på nytt per dokument, aldri videreført på tvers).
-  let bildeNr = 1;
+  // Løpenummer fortsetter FRA objektnivå-blokken (F7: objektbilder først på siden).
+  let bildeNr = blokk.nesteNr;
   const kropp = rader
     .map((rad, idx) => {
       const celler = barn
-        .map((b) => `<td>${cellVerdi(b, rad[b.id] as FeltVerdi | undefined)}</td>`)
+        .map((b) => {
+          const felt = rad.felter[b.id] as FeltVerdi | undefined;
+          // Funn (Kenneth 2026-08-21): celle-kommentar ble aldri skrevet ut
+          // (felt.ts:217 gjør det for topp-nivå-felt, men repeater-cella droppet
+          // den). Samme visuelle form (.kommentar); ingen tom node uten kommentar.
+          const kommentar = felt?.kommentar?.trim()
+            ? `<div class="kommentar">${esc(felt.kommentar)}</div>`
+            : "";
+          return `<td>${skalarCelle(b, felt)}${kommentar}</td>`;
+        })
         .join("");
       const datarad = `<tr><td class="ark-rad-nr">${idx + 1}</td>${celler}</tr>`;
       const { html, nesteNr } = byggBilderader(bilderIRad(barn, rad), bildeNr, kolonnespenn);
@@ -159,8 +233,10 @@ export function byggRepeaterTabell(
     })
     .join("");
 
+  // Case (b): objektnivå-blokk rett OVER tabellen (tom blokk → "").
   return `
 ${heading}
+${blokk.html}
 <table class="ark-repeater">
   <thead><tr><th class="ark-rad-nr" style="color:${ARKIV_FARGER.navy}">#</th>${kolonner}</tr></thead>
   <tbody>${kropp}</tbody>

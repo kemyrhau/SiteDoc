@@ -22,6 +22,20 @@ if [ "$BRANCH" != "develop" ]; then
   exit 1
 fi
 
+# --- Ajour-guard: treet må være à jour med origin/develop ------------------
+# Rotårsak 2026-08-21: merge skjer i SiteDoc-merge og pushes rett til develop,
+# mens deploy rsyncer fra DETTE treet. Er det bak, sendes forrige runde til test
+# — Docker ser identisk kontekst, cacher, og imaget blir gammelt uten at noe
+# feiler. Kostet en runde med falsk «--no-cache»-feilsøking.
+git fetch -q origin develop 2>/dev/null || true
+BAK="$(git rev-list --count HEAD..origin/develop 2>/dev/null || echo 0)"
+if [ "$BAK" != "0" ]; then
+  echo "⚠️  Treet er $BAK commit(s) bak origin/develop."
+  echo "    Deploy ville sendt GAMMEL kode til test uten å feile."
+  echo "    Kjør:  git pull --ff-only origin develop   og prøv igjen. Avbryter."
+  exit 1
+fi
+
 SRC="$(pwd)/"
 DST="server-ny:stack/sitedoc/"
 COMPOSE="docker/docker-compose.test.yml"
@@ -56,9 +70,26 @@ rsync -a --delete \
   "$SRC" "$DST"
 
 # --- 2. Skriv ut docker-kommandoen (kjøres IKKE her — sudo krever TTY) -------
+#
+# Bygg-stempel (2026-08-23): GIT_SHA/BUILD_TID interpoleres inn i imaget via
+# build-args (docker-compose.*.yml → Dockerfile.api/.web). Uten dem svarer
+# /version «dev»/«ukjent» og footeren viser «Bygg dev · ukjent» — mekanismen
+# fantes, men deploy-stien fylte den aldri. Kostet tre runder 2026-08-23:
+# ingen kunne se om en merge faktisk var deployet, og et bygg som kom ut
+# all-CACHED ble lest som «uendret» i stedet for «nådde ikke fram».
+GIT_SHA="$(git -C "$(dirname "$0")" rev-parse --short HEAD)"
+BUILD_TID="$(date -Iseconds)"
+
 echo ""
 echo "✅ Kode synket til server-ny. Kjør NÅ i egen TTY (sudo docker — ikke automatiserbart herfra):"
 echo ""
-echo "    ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f $COMPOSE up -d --build'"
+echo "    ssh -t server-ny 'cd ~/stack/sitedoc && sudo env GIT_SHA=$GIT_SHA BUILD_TID=$BUILD_TID docker compose -f $COMPOSE up -d --build'"
 echo ""
-echo "Verifiser etterpå som INNLOGGET bruker: https://test.sitedoc.no"
+echo "Verifiser at riktig commit KJØRER (ikke bare at serveren svarer):"
+echo "    curl -s https://api-test.sitedoc.no/version"
+echo "    → gitSha skal være $GIT_SHA"
+echo ""
+echo "Kommer bygget ut med ALT «CACHED», også «COPY . .», nådde koden ikke fram."
+echo "Tving da: sudo env GIT_SHA=$GIT_SHA BUILD_TID=$BUILD_TID docker compose -f $COMPOSE build --no-cache sitedoc-test-web sitedoc-test-api"
+echo ""
+echo "Verifiser til slutt som INNLOGGET bruker: https://test.sitedoc.no"

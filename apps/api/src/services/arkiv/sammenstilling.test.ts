@@ -130,12 +130,12 @@ describe("byggSjekklisteArkivHtml — orkestrator", () => {
     expect(r.manglendeVedlegg).toContain("/u/nestet.png");
   });
 
-  it("respekterer taMedEndringslogg=false (men Dokumenthistorikk består)", async () => {
+  it("D4: Dokumenthistorikk består alltid; Endringslogg-seksjonen er aldri i PDF", async () => {
     const r = await byggSjekklisteArkivHtml(fakePrisma(), "c1", {
       hentBildeBytes: async () => null,
       generertTekst: "x",
-      taMedEndringslogg: false,
     });
     expect(r.html).toContain("Dokumenthistorikk");
+    expect(r.html).not.toContain('ark-seksjon">Endringslogg');
   });
 });

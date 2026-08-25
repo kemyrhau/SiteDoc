@@ -80,6 +80,8 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .tom{color:${f.svak}}
 .tekst-verdi{color:${f.celletekst}}
 .kommentar{font-size:9.5px;color:${f.graa};margin-top:2px}
+.ark-utenfor-rader{margin-bottom:10px}
+.ark-utenfor-merke{font-size:8.5px;font-weight:600;font-style:italic;color:${f.graa};margin-bottom:4px}
 .heading{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:${f.navy};font-weight:600;border-bottom:2px solid ${f.navy};padding-bottom:4px;margin-top:14px}
 .subtitle{font-size:10px;font-weight:600;color:${f.celletekst};margin-top:8px}
 .trafikklys{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
@@ -107,6 +109,24 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .ark-bilde-img{display:block;width:100%;height:auto;max-height:320px;object-fit:contain;background:${f.svakLinje}}
 .ark-bilde-tekst{font-size:8.5px;color:${f.svak};margin-top:3px}
 
+/* Instruksjonsfelt (F2-rest 2026-08-23) — info_text/info_image/video som grå
+   instruksjonskontekst (byggherre ser hva utfører fikk instruks om). felt.ts
+   dropper dem (frosset); rendres via arkiv-override (D2-mønster). */
+.ark-instruksjon{margin-top:10px;border-left:3px solid ${f.rammeLinje};background:${f.flateBg};padding:8px 12px}
+.ark-instruksjon-tittel{font-size:8.5px;letter-spacing:0.06em;text-transform:uppercase;color:${f.graa};font-weight:600;margin-bottom:3px}
+.ark-instruksjon-tekst{font-size:10px;color:${f.celletekst};white-space:pre-wrap}
+.ark-instruksjon-bilde{max-width:100%;height:auto;max-height:260px;object-fit:contain;display:block;margin-top:2px}
+.ark-instruksjon-caption{font-size:9px;font-style:italic;color:${f.graa};margin-top:3px}
+.ark-instruksjon-ref{font-size:9.5px;color:${f.graa};word-break:break-all;margin-top:2px}
+
+/* Quiz-svar (F2-rest) — spørsmål + avgitt svar + riktig/feil. Svaret er
+   DOKUMENTASJONSDATA; å droppe det var datatap i byggherre-leveransen (F7-klasse). */
+.ark-quiz{margin-top:10px;border:1px solid ${f.radLinje};padding:8px 12px}
+.ark-quiz-sp{font-weight:600;color:${f.tekst};margin-bottom:4px}
+.ark-quiz-linje{font-size:10px;color:${f.celletekst};margin-top:2px}
+.ark-quiz-rett{color:${f.gronn};font-weight:600}
+.ark-quiz-feil{color:${f.rod};font-weight:600}
+
 /* Loggseksjon — Dokumenthistorikk + Endringslogg (økt-gruppert) */
 .ark-logg{width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px}
 .ark-logg td{padding:4px 8px;border-bottom:1px solid ${f.svakLinje}}
@@ -127,6 +147,45 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 /* Sideskift — ingen radbryting midt i tabellrad ved paginering */
 tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}
+
+/* D2b helside tegningsprint (fabel 2026-08-21, revidert). Ligger nå I rapportkroppen
+   (mellom innhold og logg), ikke som egen ark-side til slutt, derfor break-before:page
+   her. Detaljutsnittet er flyttet inn i repeater-cella (ark-celle-utsnitt), så
+   helsidens markor-punkt-tabell er fjernet — helsiden = tegning + nummererte markorer.
+   Drawing-sizing/liggende-rotasjon finpusses ved visuell gate. */
+.ark-tegningsside{break-before:page;page-break-before:always}
+.ark-tegningsside .ark-seksjon{margin-bottom:6px}
+.ark-tegning-full{margin:8px 0 10px;text-align:center}
+.ark-tegning-full svg{display:inline-block;width:100%;height:auto;max-height:210mm;border:1px solid ${f.radLinje};border-radius:4px}
+.ark-tegning-liggende{position:relative;width:100%;height:230mm;overflow:hidden}
+.ark-tegning-liggende svg{position:absolute;top:50%;left:50%;width:230mm;max-height:none;height:auto;transform:translate(-50%,-50%) rotate(90deg)}
+/* Detaljutsnitt i repeater-cella (Kenneth-vedtak 2026-08-21). Gate 1: raden med
+   utsnitt splittes aldri (global tr{break-inside:avoid}). */
+.ark-celle-koord{margin-bottom:4px}
+.ark-celle-utsnitt{max-width:150px}
+
+/* Radkort (mockup 2a, Kenneth-vedtak 2026-08-21) — rik repeater. Paginering (pkt 7):
+   kortet har IKKE break-inside:avoid (kan brytes MELLOM felt); hvert felt og hvert
+   enkeltbilde holdes samlet; bildeblokken kan brytes mellom rekker. */
+.ark-radkort{border:1px solid ${f.radLinje};border-radius:6px;margin:8px 0}
+.ark-radkort-header{display:flex;align-items:center;gap:8px;background:#f8fafc;border-bottom:1px solid ${f.radLinje};padding:6px 10px;border-radius:6px 6px 0 0}
+.ark-radkort-nr{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${f.navy};color:#fff;font-size:11px;font-weight:700;flex:0 0 auto}
+.ark-radkort-tittel{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${f.navy}}
+.ark-radkort-markor{margin-left:auto;font-size:9px;color:${f.graa};text-align:right}
+.ark-radkort-kropp{padding:8px 10px}
+.ark-radkort-felt{margin-bottom:8px;break-inside:avoid;page-break-inside:avoid}
+.ark-radkort-label{font-size:8.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${f.graa};margin-bottom:2px}
+.ark-radkort-posisjon{display:flex;gap:10px;align-items:flex-start}
+.ark-radkort-utsnitt{width:40mm;flex:0 0 auto}
+.ark-radkort-posisjon-tekst{padding-top:2px}
+.ark-radkort-merknad{font-style:italic;color:${f.graa};font-size:9.5px;margin-top:2px}
+.ark-radkort-nested{margin-left:12px;padding-left:8px;border-left:2px solid ${f.radLinje}}
+/* Bildeblokk: egen (kan brytes mellom rekker); label + enkeltbilde holdes samlet. */
+.ark-radkort-bildefelt{margin-bottom:8px}
+.ark-radkort-bilder{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ark-radkort-bilde{break-inside:avoid;page-break-inside:avoid}
+.ark-radkort-bilde img{display:block;width:auto;height:auto;max-width:100%;max-height:60mm}
+.ark-radkort-bildetekst{font-size:8.5px;color:${f.graa};margin-top:3px}
 
 /* Merk: ingen @page :first-regel. Verifisert 2026-08-15 at page.pdf({ margin })
    i pdf-render-containeren overstyrer @page-margin, så CSS kan ikke skjule

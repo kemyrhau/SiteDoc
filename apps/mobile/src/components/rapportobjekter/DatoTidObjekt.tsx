@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import { Calendar, Clock, X } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
 
@@ -100,26 +100,28 @@ export function DatoTidObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektP
       )}
 
       {visModus && (
-        <DateTimePicker
+        <DatoVelgerFelt
           value={datoVerdi ?? new Date()}
           mode={visModus}
-          display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={(_event, valgtDato) => {
-            if (Platform.OS !== "ios") settVisModus(null);
-            if (!valgtDato) return;
-
+            // iOS: «Ferdig» (onLukk) lukker; her settes bare verdien. Android: lukk/kjed her.
+            if (!valgtDato) {
+              if (Platform.OS !== "ios") settVisModus(null); // Android avbryt
+              return;
+            }
             if (visModus === "date") {
               const nyDato = datoVerdi ? new Date(datoVerdi) : new Date();
               nyDato.setFullYear(valgtDato.getFullYear(), valgtDato.getMonth(), valgtDato.getDate());
               onEndreVerdi(nyDato.toISOString());
-              if (Platform.OS !== "ios") settVisModus("time");
+              if (Platform.OS !== "ios") settVisModus("time"); // Android: kjed videre til tid
             } else {
               const nyDato = datoVerdi ? new Date(datoVerdi) : new Date();
               nyDato.setHours(valgtDato.getHours(), valgtDato.getMinutes());
               onEndreVerdi(nyDato.toISOString());
-              if (Platform.OS !== "ios") settVisModus(null);
+              if (Platform.OS !== "ios") settVisModus(null); // Android: ferdig
             }
           }}
+          onLukk={() => settVisModus(null)}
         />
       )}
     </View>

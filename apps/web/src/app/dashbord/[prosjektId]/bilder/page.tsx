@@ -18,6 +18,8 @@ import {
   erInnenforTegning,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
+import { PeriodeFilter } from "@/components/PeriodeFilter";
+import { type Periode, effektiveGrenser } from "@/lib/periode";
 import {
   Image as ImageIcon,
   AlertTriangle,
@@ -148,7 +150,9 @@ export default function BilderSide() {
   const [velgerOmråde, setVelgerOmråde] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
-  const [datoHurtigvalg, setDatoHurtigvalg] = useState<string>("alle");
+  // Periodefilter: delt komponent (2026-08-23). `datoFra`/`datoTil` (fra useBilder) driver
+  // filtreringen som før; `periode` er UI-tilstanden. Byttet fra to hardkodede knapperader.
+  const [periode, setPeriode] = useState<Periode>({ hurtigvalg: "alle", fra: null, til: null });
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = trpc.bilde.hentForProsjekt.useQuery(
@@ -271,28 +275,13 @@ export default function BilderSide() {
     });
   }, [alleBilder, datoFra, datoTil]);
 
-  // ── Hurtigvalg-håndtering ──
-
-  function handleHurtigvalg(valg: string) {
-    setDatoHurtigvalg(valg);
-    const nå = new Date();
-    switch (valg) {
-      case "uke":
-        settDatoFra(new Date(nå.getTime() - 7 * 86400000));
-        settDatoTil(null);
-        break;
-      case "mnd":
-        settDatoFra(new Date(nå.getTime() - 30 * 86400000));
-        settDatoTil(null);
-        break;
-      case "3mnd":
-        settDatoFra(new Date(nå.getTime() - 90 * 86400000));
-        settDatoTil(null);
-        break;
-      default:
-        settDatoFra(null);
-        settDatoTil(null);
-    }
+  // ── Periodefilter-håndtering ──
+  // Delt komponent: setter UI-tilstanden + oversetter til datoFra/datoTil (som filteret bruker).
+  function handlePeriodeEndre(p: Periode) {
+    setPeriode(p);
+    const { fra, til } = effektiveGrenser(p);
+    settDatoFra(fra);
+    settDatoTil(til);
   }
 
   // ── Lightbox ──
@@ -402,21 +391,10 @@ export default function BilderSide() {
 
     return (
       <div className="flex-1 overflow-auto bg-gray-50 p-6">
-        {/* Datofilter */}
+        {/* Datofilter — delt PeriodeFilter (2026-08-23). Telleren viser det FILTRERTE settet
+            (datoFiltrerteBilder), ikke totalen — hele poenget med telleren. */}
         <div className="mb-4 flex items-center gap-2">
-          {["alle", "uke", "mnd", "3mnd"].map((v) => (
-            <button
-              key={v}
-              onClick={() => handleHurtigvalg(v)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                datoHurtigvalg === v
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-white text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              {v === "alle" ? "Alle" : v === "uke" ? "Siste uke" : v === "mnd" ? "Siste måned" : "Siste 3 mnd"}
-            </button>
-          ))}
+          <PeriodeFilter periode={periode} onEndre={handlePeriodeEndre} />
           <div className="flex-1" />
           <span className="text-xs text-gray-400">
             {datoFiltrerteBilder.length} bilder
@@ -690,20 +668,8 @@ export default function BilderSide() {
 
         <div className="mx-1 h-4 w-px bg-gray-200" />
 
-        {/* Datofilter */}
-        {["alle", "uke", "mnd", "3mnd"].map((v) => (
-          <button
-            key={v}
-            onClick={() => handleHurtigvalg(v)}
-            className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-              datoHurtigvalg === v
-                ? "bg-blue-100 text-blue-700"
-                : "text-gray-100 hover:bg-gray-100 text-gray-500"
-            }`}
-          >
-            {v === "alle" ? "Alle" : v === "uke" ? "Siste uke" : v === "mnd" ? "Siste mnd" : "3 mnd"}
-          </button>
-        ))}
+        {/* Datofilter — delt PeriodeFilter (samme tilstand som rutenett-visningen). */}
+        <PeriodeFilter periode={periode} onEndre={handlePeriodeEndre} />
 
         <div className="mx-1 h-4 w-px bg-gray-200" />
 

@@ -32,7 +32,6 @@ export type ArkivDokumentType = "sjekkliste" | "oppgave";
 export interface ArkivDokumentRef {
   id: string;
   type: ArkivDokumentType;
-  taMedEndringslogg?: boolean;
 }
 
 /** Per-dokument-status i responsen (mangel-kontrakten per dokument, N1). */
@@ -97,7 +96,6 @@ export async function rendrArkivPdf(
     const r = await byggSjekklisteArkivHtml(prisma, dok.id, {
       hentBildeBytes: hentBildeBytesFraDisk,
       generertTekst: opts.generertTekst,
-      taMedEndringslogg: dok.taMedEndringslogg,
       eksport: opts.eksport,
     });
     bygde.push({ dok, ...r });

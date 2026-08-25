@@ -2,7 +2,7 @@
 name: paritet-web-server-mobil-2026-08-20
 description: Paritetskartlegging av handlingsmønster mellom web, server og mobil — 24 avvik, 7 av dem høy alvorlighet. Målt mot kode 2026-08-20.
 sist_verifisert_mot_kode: 2026-08-20
-sist_endret: 2026-08-20
+sist_endret: 2026-08-23
 ---
 
 # Paritet web ↔ server ↔ mobil — 24 avvik (målt 2026-08-20)
@@ -31,7 +31,7 @@ fått en fiks eller en funksjon som den andre aldri fikk.
 
 ---
 
-## HØY (7)
+## HØY (8)
 
 ### H1 · HMS-behandling er umulig fra mobil
 Web har `HmsHandlingsflate` med Besvar/Lukk/Returner/Gjenåpne
@@ -42,34 +42,50 @@ Web har `HmsHandlingsflate` med Besvar/Lukk/Returner/Gjenåpne
 **Konsekvens:** en HMS-behandler kan ikke behandle et avvik fra mobil; han får i stedet
 den generelle flytmenyen, som er feil løp.
 
-### H2 · «Trekk tilbake» forsvinner på mobil for alle som ikke er admin
+### H2 · «Trekk tilbake» forsvinner på mobil for alle som ikke er admin ✅ LØST (2026-08-23, branch `fix/mobil-paritet-h2345`)
 Mobil gater handlingen på `erAdmin` (`DokumentHandlingslinje.tsx:206-208`), web gjør det
 ikke (`DokumentHandlingsmeny.tsx:454-465`). Serveren tillater den for avsenderleddet
 (`tilgangskontroll.ts:876`).
 **Konsekvens:** avsender kan angre en sending på web, men ikke på mobil.
+**Fiks:** `erAdmin`-gaten på `adminHandlinger` fjernet — `øvrige` er allerede den AUTORISERTE
+mengden (`hentPosisjonFiltrertHandlinger` = server-speil via retningsrett), så autoriserte
+admin-statuser (Trekk tilbake for avsenderleddet) vises uten admin-flagg, som web.
 
-### H3 · Mobil tilbyr «Videresend» som serveren alltid avviser
+### H3 · Mobil tilbyr «Videresend» som serveren alltid avviser ✅ LØST (2026-08-23)
 Mobil rendrer videresend-raden ubetinget uten mottaker
 (`DokumentHandlingslinje.tsx:205,449-451`); web gater den på `!harFlyt`
 (`DokumentHandlingsmeny.tsx:416-419`). Serveren kaster BAD_REQUEST «Videresending krever
 en mottaker» (`sjekkliste.ts:1171`).
 **Konsekvens:** knappen finnes, trykkes, og feiler hver gang.
+**Fiks:** `videresendHandlinger = harFlyt ? [] : …` — vises kun for flyt-LØSE dok, som web.
+Den alltid-feilende knappen på flyt-BUNDNE dok er borte. **MELDT (restanse):** mobil mangler
+web sin mottaker-velger (`recipientOppforinger`) for flyt-LØSE forwarding, så den grenen
+kan fortsatt sende uten mottaker → egen liten oppfølger, ikke i denne runden.
 
-### H4 · Firma-admin-fantomet er fikset på web, ikke på mobil
+### H4 · Firma-admin-fantomet er fikset på web, ikke på mobil ✅ LØST (2026-08-23)
 Web sender `erAdmin: adminNiva !== null` (`useFlytKontekst.ts:167`) med en kommentar om at
 dette «erstatter det gamle erAdmin-flagget som viste firma-admin et fantom-menyvalg
 serveren avviste». Mobil sender fortsatt det gamle flagget
 (`sjekkliste/[id].tsx:276`, `oppgave/[id].tsx:186`).
 **Konsekvens:** firma-admin utenfor flyten får handlingslinje på mobil der web viser
 lesevisning — og en Videresend serveren nekter.
+**Fiks:** de 4 side-beregningene per side (`minRolle`/`retningsrett` via `utledMinRolle`/
+`retningsrettigheter`) bruker nå `minFlytInfo.adminNiva !== null` i stedet for det gamle
+`minFlytInfo.erAdmin`, på begge sider. Komponenten fikk allerede `adminNiva` korrekt.
 
-### H5 · Mobil har egen, buggy endringslogg-formatering
+### H5 · Mobil har egen, buggy endringslogg-formatering ✅ LØST (2026-08-23)
 Web og arkiv-PDF bruker `ekspanderEndring` fra `@sitedoc/pdf`. Mobil har lokal
 `formaterLoggVerdi` (`apps/mobile/app/sjekkliste/[id].tsx:69-81`) der
 `Array.isArray(parsed) → parsed.join(", ")`.
 **Konsekvens:** repeater-endringer vises som `[object Object], [object Object]`,
 vær-objekter som rå JSON, og kanoniske no-ops gir falske logglinjer som web og arkiv-PDF
 filtrerer bort. Observert i drift 2026-08-20.
+**Fiks (MÅL FØRST bekreftet):** mobil KAN importere `ekspanderEndring` — den importerer alt
+`byggSjekklisteHtml` fra `@sitedoc/pdf` (null-deps, mobil-bundlet). `formaterLoggVerdi` slettet;
+endringsloggen bruker nå `ekspanderEndring` + `byggKolonnerPerFelt` + `segmenterTilTekst`, hopper
+over no-ops (tom liste), og én logglinje kan bli flere diff-rader (per endret repeater-celle).
+**Merk:** mobilens `EndringsloggRad`-type mangler `fieldId`, så repeater-KOLONNE-labels faller
+til generiske når fieldId ikke er i dataen — kjernebuggene (JSON/[object Object]/no-op) er borte.
 
 ### H6 · Bildekomprimering finnes kun på mobil
 Mobil komprimerer til 300–400 KB / maks 1920 px (`src/services/bilde.ts:13-99`). Web
@@ -85,6 +101,50 @@ Regelen i CLAUDE.md håndheves altså kun på én av tre flater.
 gjør).
 **Konsekvens:** HMS-admin trykker Returner på en SJA, skriver spørsmål, sender —
 ingenting skjer, ingen feilmelding.
+
+### H8 · Mobil kan ikke sette tegningsposisjon på repeater-rader ✅ LØST (2026-08-24, branch `feat/mobil-h8-tegningsposisjon`)
+
+`TegningPosisjonObjekt` var en placeholder («funksjonen er tilgjengelig i en kommende
+oppdatering»). Nå: modal med `TegningsVelger` (bygning→tegning) + `TegningsVisning` (tapp for
+å plassere markør) + bekreft → lagrer `{drawingId, positionX, positionY, drawingName}`. Siden
+feltet rendres per repeater-rad, kan mobil nå sette markør PER RAD — D2b-dataen mobilen ikke
+kunne produsere finnes nå. Default-tegning: radens egen (`verdi.drawingId`), ellers velgeren.
+**Rest (liten oppfølger):** «dokumentets tegning» som mellom-default i kjeden radens→dokumentets→
+full velger krever en ny prop threadet fra detaljsiden — ikke i denne runden. **Simulator-verifisering
+gjenstår.**
+
+~~Mobilappen støtter kun dokumentets **hovedlokasjon**. Web støtter i tillegg
+`drawing_position` som barnefelt i en repeater — markøren per rad.~~
+
+**Konsekvens:** et dokument utfylt på mobil kan aldri få radmarkører. Hele D2b-sporet
+bygget 2026-08-21 (nummererte markører, helside, detaljutsnitt i radkortet) hviler på
+data mobilen ikke kan produsere. En befaring registrert i felt — altså på mobil, som er
+poenget med feltregistrering — gir en rapport uten de punktene rapporten er laget for å vise.
+
+⚠️ Ikke målt: om mobil *viser* radmarkører satt på web, eller om den også taper dem i
+visning og lokal PDF. Det avgjør om dette er en mangel eller også et datatap. Mål før ordre.
+
+### Tegningsvisning · mobil viste kun oppgavemarkører ✅ LØST (2026-08-23, branch `feat/mobil-tegningsvisning`)
+
+Mobil-lokasjonsfanen (`apps/mobile/app/(tabs)/lokasjoner.tsx`) hentet kun
+`oppgave.hentForTegning`. Web-tegningssiden viser i tillegg **kontrollpunkt-markører**
+(`kontrollplan.hentForTegning`, tilstandsfarget) og **områder** (`omrade.hentForTegning`,
+polygoner), med **lag-brytere** (oppgaver/kontrollpunkter/områder) og et **periodefilter**
+på markørenes `createdAt`/`opprettet`.
+**Fiks:**
+- Delt logikk løftet til `@sitedoc/shared/utils`: `periode.ts` (hurtigvalg-sett + grensematte,
+  enekilde web+mobil, `HURTIGVALG_STANDARD` modul-konstant) og `kontrollplanFremdrift.ts`
+  (`avledPunktTilstand`/`isoUkeRef` → identisk tilstandsfarge som web). Web re-eksporterer begge
+  for bakoverkompat (importørene urørt).
+- Ny RN `PeriodeFilter` (Pressable-chips + DateTimePicker) som konsumerer den delte logikken —
+  ikke en kopi, så settet kan ikke drifte.
+- `TegningsVisning` utvidet: Markør-form `fylt`/`kantFarge` (tilstand + over-frist-rød kant) +
+  ny `omrader`-prop med SVG-polygon-overlay i WebView-en.
+- `lokasjoner.tsx`: to nye queries, tre lag-brytere + periodefilter i et sammenleggbart panel,
+  kontrollpunkt-tap → koblet sjekkliste.
+- Shared-test `periode.test.ts` (+12) låser den delte kontrakten.
+⚠️ **Gjenstår: simulator-verifisering** (docs/claude/simulator-runbook.md § 1) — typecheck 11/11
++ tester grønne, men ikke kjørt på simulator ennå.
 
 ---
 
@@ -169,14 +229,19 @@ gjennom appen**, ikke **sedler som forsvinner på serversiden**.
 arbeider kan se timer som ikke finnes og tro at de er ført. Gjelder all serverside-sletting,
 ikke bare manuell rydding.
 
-### D5 · Sjekkliste i «Mottatt» kan ikke slettes av noen 🟡
-Slettedialogen sier «Kun sjekklister i utkast- eller avbrutt-status kan slettes», men
-«Avbrutt» finnes ikke i statuslista (Utkast, Sendt, Mottatt, Under arbeid, Besvart,
-Godkjent, Avvist, Lukket). «Trekk tilbake» under ADMIN fører til Utkast **hos avsender**,
-ikke til en slettbar tilstand. Et dokument kan altså havne i en tilstand der heller ikke
-systemadmin får slettet det. Måtte ryddes med SQL.
-Merk FK-ene: `images` og `document_transfers` mangler `onDelete` og **blokkerer** sletting;
-`checklist_change_log` kaskaderer, `tasks` settes til null.
+### D5 · Sjekkliste i «Mottatt» kan ikke slettes av noen ✅ LØST (2026-08-21)
+**Rotårsak:** slettevakten var `draft` || `cancelled`, men `cancelled` er uoppnåelig (0 prod-rader)
+— så alt utenom Utkast havnet i en tilstand ingen, heller ikke systemadmin, fikk slettet uten SQL.
+**Fiks (Lukk-som-slette-port, Kenneth-vedtak):** slettevakten er nå `draft` || `closed` (både
+sjekkliste + oppgave), og «Lukk» (KUN admin) er gjeninnført som `approved→closed` / `dismissed→closed`.
+Det gir alltid en vei til sletting: et dokument i Mottatt rutes Avvis → Lukk → Slett (eller
+Godkjenn → Lukk → Slett); et Godkjent/Avvist dokument Lukkes → slettes. Feilmeldingen er endret til
+«Lukk dokumentet først, så kan det slettes». Bevisst tostegs-vern: dokumenter i AKTIV flyt slettes
+aldri direkte — de må Lukkes (synlig, gjenåpnbart) → papirkurv (90 dagers angrefrist).
+Se [`delplaner/flytrettigheter-evaluering-2026-07-26.md § H6-REVISJON`](delplaner/flytrettigheter-evaluering-2026-07-26.md).
+**Restanse (uendret, egen sak):** FK-ene `images` og `document_transfers` mangler `onDelete` og
+**blokkerer** myk-sletting av dokumenter med bilder/overføringer; `checklist_change_log` kaskaderer,
+`tasks` settes til null. Lukk-porten løser status-gaten, ikke FK-blokkeringen.
 
 ### D6 · Annotering lager duplikat i visningen + ukomprimert fil 🟡
 Et annotert bilde vises som to miniatyrer (01 original, 02 annotert) i samme rad. Målt i
@@ -204,8 +269,8 @@ faggruppe og én flyt per reell arbeidsdeling, og oppsettsflaten bør vise helhe
 
 - Dokumentflyt-ledd får `steg = 1` som default og UI setter det ikke → flyt stopper hos
   registrator. Se [dokumentflyt.md](dokumentflyt.md).
-- Sjekkliste i «Mottatt» kan ikke slettes; statusen «Avbrutt» som feilmeldingen viser til
-  finnes ikke i UI.
+- ~~Sjekkliste i «Mottatt» kan ikke slettes; statusen «Avbrutt» som feilmeldingen viser til
+  finnes ikke i UI.~~ ✅ LØST 2026-08-21 (Lukk-som-slette-port) — se D5 over.
 - Annotert PNG lagres ukomprimert (1,98 MB mot originalens 290 KB) — henger sammen med H6.
 - `recipient_user_id`/`recipient_group_id` på `checklists` settes aldri; posisjonsmodellen
   har overtatt. Relikvier.
