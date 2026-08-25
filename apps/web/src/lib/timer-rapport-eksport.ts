@@ -45,6 +45,21 @@ export type EksportInput = {
  */
 export type OversettFn = (nøkkel: string) => string;
 
+/** Maskin-rad uten (gyldig eller eksporterbar) timerad — samme form i begge
+ *  «løse» bøttene (uten timerad · på ikke-eksporterbar timerad). */
+type LøsMaskinRad = {
+  id: string;
+  dato: string;
+  ansatt: string;
+  ansattnr: string | null;
+  prosjekt: string;
+  navn: string;
+  timer: number;
+  mengde: number | null;
+  enhet: string | null;
+  radstatus: string;
+};
+
 /**
  * Rå detalj-rader fra timer.rapport.detaljEksport (server). Strukturelt lik
  * prosedyre-returen — timerader med maskin nøstet under, egne lister for
@@ -71,18 +86,10 @@ export type DetaljEksport = {
       radstatus: string;
     }>;
   }>;
-  maskinUtenTimerad: Array<{
-    id: string;
-    dato: string;
-    ansatt: string;
-    ansattnr: string | null;
-    prosjekt: string;
-    navn: string;
-    timer: number;
-    mengde: number | null;
-    enhet: string | null;
-    radstatus: string;
-  }>;
+  maskinUtenTimerad: LøsMaskinRad[];
+  // Maskin på en timerad som ble ekskludert av skalEksporteres — EGEN linje,
+  // ikke «uten timerad» (den bøtta er anomali-signal «maskin uten arbeid»).
+  maskinIkkeEksporterbar: LøsMaskinRad[];
   tillegg: Array<{
     id: string;
     dato: string;
@@ -328,6 +335,27 @@ function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport): void {
       m.ansattnr ?? "",
       m.prosjekt,
       `⚠ Maskin uten timerad: ${m.navn}`,
+      "",
+      "",
+      m.timer,
+      "",
+      m.radstatus,
+      m.mengde ?? "",
+      m.enhet ?? "",
+      m.id,
+    ]);
+  }
+  // Maskin på en timerad som ble ekskludert av skalEksporteres — EGEN linje,
+  // ikke «uten timerad» (den er anomali-signalet «maskin uten registrert arbeid»).
+  // Maskintimene beholdes i maskintimer-summen (fakturerbart — maskin er ikke
+  // en lønnsart). i18n av merket følger kolonne-overskrift-batchen.
+  for (const m of detalj.maskinIkkeEksporterbar) {
+    ws.addRow([
+      m.dato,
+      m.ansatt,
+      m.ansattnr ?? "",
+      m.prosjekt,
+      `⚠ Maskin på ikke-eksporterbar timerad: ${m.navn}`,
       "",
       "",
       m.timer,
