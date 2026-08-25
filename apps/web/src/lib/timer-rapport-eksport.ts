@@ -43,7 +43,7 @@ export type EksportInput = {
  * her — arknavn (synlige strenger, i18n gjelder også ikke-JSX) sendes gjennom
  * denne. Minimal signatur: i18next-`t` er kompatibel.
  */
-export type OversettFn = (nøkkel: string) => string;
+export type OversettFn = (nøkkel: string, opts?: Record<string, string>) => string;
 
 /** Maskin-rad uten (gyldig eller eksporterbar) timerad — samme form i begge
  *  «løse» bøttene (uten timerad · på ikke-eksporterbar timerad). */
@@ -269,7 +269,7 @@ function settBredder(ws: Worksheet, bredder: number[]): void {
  * framtidig proadm-«underprosjekt»-dimensjon legges til som ÉN kolonne her (og
  * som ett felt på server-raden + ett filter) — uten ombygging.
  */
-function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport): void {
+function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): void {
   const header = [
     "Dato",
     "Ansatt",
@@ -348,14 +348,15 @@ function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport): void {
   // Maskin på en timerad som ble ekskludert av skalEksporteres — EGEN linje,
   // ikke «uten timerad» (den er anomali-signalet «maskin uten registrert arbeid»).
   // Maskintimene beholdes i maskintimer-summen (fakturerbart — maskin er ikke
-  // en lønnsart). i18n av merket følger kolonne-overskrift-batchen.
+  // en lønnsart). Ny streng → gjennom t() fra start (de øvrige merkene ryddes
+  // i kolonne-overskrift-batchen).
   for (const m of detalj.maskinIkkeEksporterbar) {
     ws.addRow([
       m.dato,
       m.ansatt,
       m.ansattnr ?? "",
       m.prosjekt,
-      `⚠ Maskin på ikke-eksporterbar timerad: ${m.navn}`,
+      t("timer.eksport.maskinIkkeEksporterbar", { navn: m.navn }),
       "",
       "",
       m.timer,
@@ -508,7 +509,7 @@ export async function eksporterXlsx(
   });
 
   // Ark 4–6: detalj (lønn/fakturering)
-  byggTimeraderArk(wb.addWorksheet(t("timer.eksport.ark.timerader")), detalj);
+  byggTimeraderArk(wb.addWorksheet(t("timer.eksport.ark.timerader")), detalj, t);
   byggTilleggArk(wb.addWorksheet(t("timer.eksport.ark.tillegg")), detalj);
   byggUtleggArk(wb.addWorksheet(t("timer.eksport.ark.utlegg")), detalj);
 

@@ -1679,6 +1679,7 @@
   "timer.eksport.ark.timerader": "Записи часу",
   "timer.eksport.ark.tillegg": "БАДи",
   "timer.eksport.ark.utlegg": "Витрати",
+  "timer.eksport.maskinIkkeEksporterbar": "⚠ Машина на неекспортованому записі часу: {{navn}}",
   "firma.timer.rapport.tom": "У вибраний період немає зареєстрованих годин.",
   "firma.timer.rapport.eksport.knapp": "Експорт",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",

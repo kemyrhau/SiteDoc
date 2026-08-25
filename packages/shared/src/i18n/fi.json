@@ -1679,6 +1679,7 @@
   "timer.eksport.ark.timerader": "Aikamerkinnät",
   "timer.eksport.ark.tillegg": "Lisäravinteet",
   "timer.eksport.ark.utlegg": "Kulut",
+  "timer.eksport.maskinIkkeEksporterbar": "⚠ Kone ei-vietävällä aikamerkinnällä: {{navn}}",
   "firma.timer.rapport.tom": "Ei rekisteröityjä tunteja valitulla ajanjaksolla.",
   "firma.timer.rapport.eksport.knapp": "Viedä",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",

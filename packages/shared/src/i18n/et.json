@@ -1679,6 +1679,7 @@
   "timer.eksport.ark.timerader": "Aja sissekanded",
   "timer.eksport.ark.tillegg": "Toidulisandid",
   "timer.eksport.ark.utlegg": "Kulud",
+  "timer.eksport.maskinIkkeEksporterbar": "⚠ Masin mitteeksporditava ajakirjega: {{navn}}",
   "firma.timer.rapport.tom": "Valitud perioodil pole registreeritud tunde.",
   "firma.timer.rapport.eksport.knapp": "Ekspordi",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",

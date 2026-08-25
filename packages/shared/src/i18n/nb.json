@@ -1679,6 +1679,7 @@
   "timer.eksport.ark.timerader": "Timerader",
   "timer.eksport.ark.tillegg": "Tillegg",
   "timer.eksport.ark.utlegg": "Utlegg",
+  "timer.eksport.maskinIkkeEksporterbar": "⚠ Maskin på ikke-eksporterbar timerad: {{navn}}",
   "firma.timer.rapport.tom": "Ingen registrerte timer i valgt periode.",
   "firma.timer.rapport.eksport.knapp": "Eksporter",
   "firma.timer.rapport.eksport.csv": "CSV (.csv)",
