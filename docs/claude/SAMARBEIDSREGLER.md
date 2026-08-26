@@ -69,6 +69,29 @@ en chat og forsvinner ved compact.
 **10. Koden er eneste sannhet.** Dokumentasjonen forteller hvordan vi jobber; den avgjør
 ikke hva systemet gjør. Det gjelder også denne fila.
 
+**11. Skriv ordren til fil FØR du gir nudgen.** Mekanismen står i § Meldingsflyt; det som
+mangler er disiplinen. Praksisen var etablert (45 `relay/inbox-*`-filer 28.07–20.08) og
+**falt bort 20. august**, samme dag coworks rolle ble omdefinert. Fra da av levde hver ordre
+kun i en chat-melding, og **tre gikk tapt på ett døgn** — kontrollplans utlegg-sweep,
+dokgens maskin-rettelse og GDPR-kartleggingen. Agentene sto ledige og ventet på noe som lå
+hos cowork. En fil overlever både compact og glemt liming.
+
+**12. `/version` FØR hver kjede som avhenger av en deploy** (lærdom 2026-08-25/26). Tre
+runder gikk tapt på at en seed kjørte mot gammelt image: seeden kjører i containeren, så
+deploy er en hard forutsetning, ikke et valgfritt steg. `curl -s
+https://api-test.sitedoc.no/version` svarer på ett sekund. Byggstempelet ble laget for
+akkurat dette spørsmålet og fylles nå av `deploy-test.sh` (koblet 2026-08-25 — det hadde
+aldri vært det). Kommer bygget ut med alt `CACHED`, også `COPY . .`, nådde koden ikke fram.
+
+**13. Målestokken for prioritering er piloten, ikke backloggens lengde.**
+`docs/redesign/REDESIGN-MASTERPLAN.md` § Målestokk: *«…pilotfrist ~sept 2026 (50 ansatte,
+mobil viktigst)»*. Kenneth 2026-08-26: funksjonelt produkt først, GDPR og lovkrav så godt vi
+kan — i den rekkefølgen.
+🔴 **To filer har samme tittel og samme «opprettet 2026-07-12»:**
+`REDESIGN-MASTERPLAN.md` (justert 2026-08-20, GJELDENDE) og `MASTERPLAN.md` (14.08,
+utdatert). Cowork leste feil fil og bygde en hel prioritering på den. Sjekk datoen i
+`## Rekkefølge`-overskriften.
+
 ### Lesekart — hva cowork må vite for å ha regien
 
 | Spørsmål | Kilde |
