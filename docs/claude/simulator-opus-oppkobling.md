@@ -170,11 +170,23 @@ Presise, observerbare forventninger (tekst på skjerm, badge-tall, navigasjonsm�
 ```
 TEST <id>: PASS | AVVIK | BLOKKERT
 Faktisk:   <hva skjedde per steg — sitér skjermtekst>
-Bevis:     <skjermbilde(r)>
+Bevis:     <sitert a11y-tekst / logglinje — skjermbilde KUN når spørsmålet er visuelt>
 Avvik:     <forventet vs faktisk, kun ved AVVIK>
 Blokkert:  <hva som mangler + hvem: Kenneth-hånd / manglende seed / miljøledd nede>
 ```
-- **Skjermbilde + sitert skjermtekst** på hvert ikke-trivielt steg — cowork gater mot fasit, så råobservasjon leveres, ikke en dom.
+
+🔴 **TEKST ER BEVISET, IKKE SKJERMBILDET (Kenneth 2026-08-26).** Denne linjen sa tidligere
+«skjermbilde + sitert skjermtekst på hvert ikke-trivielt steg». Det kostet **46 % av Kenneths
+ukebudsjett på én time** — 50+ skjermbilder à ~1000–1500 tokens. Simulatoren har vært brukt
+uten problemer i månedsvis nettopp fordi verifiseringen var tekstbasert; det var protokollen
+her som ba om bildene.
+
+- **Standard: `idb ui describe-all`** for hva som finnes på skjermen, og **Metro-loggen** for
+  hva som faktisk skjedde (`[OPPL] size:`, statusendringer, feil). Det svarer på «virker det»
+  uten å lagre et eneste bilde.
+- **Skjermbilde kun når SPØRSMÅLET er visuelt** — blør en strek, er lerretet svart, tegner en
+  tegning. «Finnes velgeren», «endret statusen seg», «hvor stor ble fila» er tekst.
+- Ett bilde, ikke en serie. Cowork gater mot fasit, så råobservasjon leveres, ikke en dom.
 - **Ikke selv-godkjenn mot fasit.** Simulator-Opus rapporterer hva som skjedde; **cowork avgjør PASS/AVVIK**.
 - **Blokkert ≠ fail:** miljøledd nede, manglende seed eller Kenneth-hånd-steg meldes eksplisitt med hvem som må handle — ikke gjett rundt det.
 - **En AVVIK stopper ikke resten** av batchen med mindre den er en forutsetning — kjør videre, samle alt, rapporter samlet.
