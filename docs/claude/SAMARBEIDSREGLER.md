@@ -69,6 +69,24 @@ en chat og forsvinner ved compact.
 **10. Koden er eneste sannhet.** Dokumentasjonen forteller hvordan vi jobber; den avgjør
 ikke hva systemet gjør. Det gjelder også denne fila.
 
+**10c. Simulator-ordrer er dyre — skriv dem deretter** (Kenneth 2026-08-26). Én runde brukte
+**88 % av Kenneths sesjon på 23 minutter**; han jobber normalt fem timer sammenhengende.
+Årsaken er skjermbilder: 50+ fulle 1290×2796-bilder à ~1000–1500 tokens, fordi cowork stablet
+fire punkter i én ordre og ba om visuell verifisering av ting som kunne leses som tekst.
+
+Tre krav til enhver simulator-ordre:
+
+1. **Merk hvert punkt: VISUELT eller TEKST.** Bare det som faktisk må ses — strek-bløding,
+   svart render, om en tegning tegner — krever skjermbilde. Tilstandsendring, at en velger
+   fyller seg, at en knapp finnes: `idb ui describe-all` eller Metro-logg. Sier ordren det
+   ikke, tar agenten skjermbilde av alt.
+2. **Ett til to punkter per runde.** Fire punkter ble til gjentatte miljøoppsett og navigasjon
+   fram og tilbake.
+3. **🔴 Aldri be om verifisering av kode som ikke er deployet.** Annoteringstesten ble bestilt
+   før fiksen var merget; hele runden gikk mot gammel kode og måtte gjentas. Sjekk
+   `merge-base --is-ancestor <fiks> <bygget som kjører>` FØR ordren skrives — samme
+   `/version`-disiplin som punkt 12.
+
 **10b. Et sidefunn er en påstand — gate det som alt annet før det blir en ordre.** Cowork
 gjorde to ordrer av uverifiserte premisser 2026-08-26: oppgave-PDF på mobil (serveren
 implementerer det ikke — `arkiv.ts:51` kaster) og «merge telles som falsk konflikt» (telleren
