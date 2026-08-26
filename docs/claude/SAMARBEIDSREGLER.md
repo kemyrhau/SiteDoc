@@ -91,6 +91,21 @@ agentrapporter cowork stolte på fordi de var velskrevne. Agenten oppdaget det s
 tilfeller — men da var runden brukt. **Mål premisset i koden før du skriver ordren**, ikke
 etterpå. Samme regel som § Cowork leveranse-ansvar punkt 4, anvendt på sidefunn.
 
+**10d. Avslutt og gjenåpne agenter mellom oppgaver — og skriv til fil, så det er gratis**
+(Kenneth 2026-08-26). Hver handling en agent gjør, leser hele samtalen på nytt først. En økt
+som har gått i timevis leser hundre tusen ord før hvert trykk; en fersk økt leser nesten
+ingenting. **Regningen er kontekstens tykkelse ganget med antall handlinger** — det er derfor
+forbruket kan løpe mens prosentangivelsen står stille. Prosenten er tykkelsen, ikke antall
+lesninger.
+
+Det som gjør det trygt å avslutte, er **filene**. Ligger ordren i `relay/inbox-*.md` og
+funnene i repoet, mister en ny økt ingenting — den leser seg opp på sekunder. Er alt bare i
+samtalen, tør ingen avslutte, og da blir økten lang og dyr. De to reglene henger sammen: skriv
+til fil, så kan du starte ferskt.
+
+Særlig verdt å starte ferskt **før en simulator-runde** — den gjør mange handlinger etter
+hverandre, og da teller tykkelsen ekstra.
+
 **11. Skriv ordren til fil FØR du gir nudgen.** Mekanismen står i § Meldingsflyt; det som
 mangler er disiplinen. Praksisen var etablert (45 `relay/inbox-*`-filer 28.07–20.08) og
 **falt bort 20. august**, samme dag coworks rolle ble omdefinert. Fra da av levde hver ordre

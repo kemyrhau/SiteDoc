@@ -187,6 +187,11 @@ her som ba om bildene.
 - **Skjermbilde kun når SPØRSMÅLET er visuelt** — blør en strek, er lerretet svart, tegner en
   tegning. «Finnes velgeren», «endret statusen seg», «hvor stor ble fila» er tekst.
 - Ett bilde, ikke en serie. Cowork gater mot fasit, så råobservasjon leveres, ikke en dom.
+- **Batch handlingene.** Flere tapp, så én verifisering — ikke tapp, sjekk, tapp, sjekk. Hver
+  verifisering er en ny lesning av hele samtalen, og det er antall lesninger som koster.
+- **Skriv funnet til ordrefila med én gang det er gjort**, ikke i en sluttoppsummering. Da
+  overlever resultatet uansett hva som skjer med økten — og du slipper å bære bevismaterialet
+  videre i konteksten for å kunne rapportere senere.
 - **Ikke selv-godkjenn mot fasit.** Simulator-Opus rapporterer hva som skjedde; **cowork avgjør PASS/AVVIK**.
 - **Blokkert ≠ fail:** miljøledd nede, manglende seed eller Kenneth-hånd-steg meldes eksplisitt med hvem som må handle — ikke gjett rundt det.
 - **En AVVIK stopper ikke resten** av batchen med mindre den er en forutsetning — kjør videre, samle alt, rapporter samlet.
