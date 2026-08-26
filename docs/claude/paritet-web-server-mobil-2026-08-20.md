@@ -33,14 +33,19 @@ fått en fiks eller en funksjon som den andre aldri fikk.
 
 ## HØY (8)
 
-### H1 · HMS-behandling er umulig fra mobil
-Web har `HmsHandlingsflate` med Besvar/Lukk/Returner/Gjenåpne
-(`apps/web/src/components/HmsHandlingsflate.tsx:82-93`). Mobil har **kun melder-siden**
-(`apps/mobile/app/sjekkliste/[id].tsx:1147-1172`) — null treff på
-`hmsBesvar`/`hmsLukk`/`hmsGjenapne`/`hmsReturner` i hele appen. Serveren har alle fem
-(`sjekkliste.ts:1367,1441,1496,1571,1626`).
-**Konsekvens:** en HMS-behandler kan ikke behandle et avvik fra mobil; han får i stedet
-den generelle flytmenyen, som er feil løp.
+### H1 · HMS-behandling er umulig fra mobil ✅ LØST (2026-08-26, branch `feat/mobil-h1-hms`)
+Web har `HmsHandlingsflate` (Besvar/Lukk/Gjenåpne). Mobil hadde **kun melder-siden** → en
+HMS-behandler falt til den generelle `DokumentHandlingslinje` (feil løp).
+**Fiks:** ny `HmsBehandlingsflate` (RN-port av web-flaten) — **Besvar** (obligatorisk begrunnelse,
+`hmsBesvar`) · **Lukk** (valgfri kommentar, `hmsLukk`) · **Gjenåpne** (valgfri kommentar,
+`hmsGjenapne`). `erHmsAdmin` fra server-queryen. Mount-en i `sjekkliste/[id].tsx` er nå
+`erHms ? (melder-banner ELLER behandler-flate) : DokumentHandlingslinje` — den generelle menyen
+vises ALDRI for HMS-dok.
+**«Returner» UTELATT med vilje:** web har knappen, men `sjekkliste.hmsReturner` finnes ikke på
+serveren (H7) — en alltid-feilende knapp replikeres ikke.
+**🔴 dokumentflytId-unntaket respektert:** behandler-mutasjonene tar `{id, begrunnelse/kommentar}`,
+aldri `dokumentflytId` (verifisert mot `sjekkliste.ts:345` FØR klientkallet).
+**⚠️ Simulator-verifisering gjenstår.**
 
 ### H2 · «Trekk tilbake» forsvinner på mobil for alle som ikke er admin ✅ LØST (2026-08-23, branch `fix/mobil-paritet-h2345`)
 Mobil gater handlingen på `erAdmin` (`DokumentHandlingslinje.tsx:206-208`), web gjør det

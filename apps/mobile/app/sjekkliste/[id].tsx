@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
+import { HmsBehandlingsflate, type HmsHandlingType } from "../../src/components/HmsBehandlingsflate";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -445,6 +446,37 @@ export default function SjekklisteUtfylling() {
       Alert.alert(t("feil.ukjentFeil"), feil.message ?? "");
     },
   });
+
+  // H1 — HMS-BEHANDLING fra mobil. HMS er eget løp; for behandler-siden (HMS-admin) vises
+  // HmsBehandlingsflate i stedet for den generelle DokumentHandlingslinje (feil løp for HMS).
+  const [hmsFeil, settHmsFeil] = useState<string | null>(null);
+  const hmsBehandlerOnSuccess = () => {
+    utils.sjekkliste.hentMedId.invalidate({ id: id! });
+    utils.hms.hentDokumenter.invalidate();
+    settHmsFeil(null);
+  };
+  const hmsBehandlerOnError = (feil: { message?: string }) =>
+    settHmsFeil(feil.message ?? t("feil.ukjentFeil"));
+  const hmsBesvarMutasjon = trpc.sjekkliste.hmsBesvar.useMutation({ onSuccess: hmsBehandlerOnSuccess, onError: hmsBehandlerOnError });
+  const hmsLukkMutasjon = trpc.sjekkliste.hmsLukk.useMutation({ onSuccess: hmsBehandlerOnSuccess, onError: hmsBehandlerOnError });
+  const hmsGjenapneMutasjon = trpc.sjekkliste.hmsGjenapne.useMutation({ onSuccess: hmsBehandlerOnSuccess, onError: hmsBehandlerOnError });
+  const hmsBehandlerLaster = hmsBesvarMutasjon.isPending || hmsLukkMutasjon.isPending || hmsGjenapneMutasjon.isPending;
+  // HMS-admin-flagg fra serveren (samme kilde som web); gated på HMS-dokument.
+  const { data: erHmsAdmin } = trpc.hms.erHmsAdmin.useQuery(
+    { projectId: valgtProsjektId! },
+    {
+      enabled:
+        !!valgtProsjektId &&
+        (detaljQuery.data as { template?: { domain?: string } } | undefined)?.template?.domain === "hms",
+    },
+  );
+  const utforHmsBehandling = (type: HmsHandlingType, tekst: string | undefined) => {
+    if (!id) return;
+    settHmsFeil(null);
+    if (type === "besvar") hmsBesvarMutasjon.mutate({ id, begrunnelse: tekst ?? "" });
+    else if (type === "lukk") hmsLukkMutasjon.mutate({ id, kommentar: tekst });
+    else hmsGjenapneMutasjon.mutate({ id, kommentar: tekst });
+  };
 
 
 
@@ -1062,7 +1094,8 @@ export default function SjekklisteUtfylling() {
           dedikert Send inn/Forkast/Send tilbake — mobil oppretter SJA via sjekkliste.opprett
           (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
       <View className="border-t border-gray-200 bg-white px-4 py-3">
-        {erHms && erMelder && ballHosMelder ? (
+        {erHms ? (
+          erMelder && ballHosMelder ? (
           <View className="gap-2">
             <Text className="text-sm leading-relaxed text-gray-600">
               {sjekkliste.status === "draft" ? t("hms.utkast.forklaring") : t("hms.retur.forklaring")}
@@ -1088,6 +1121,17 @@ export default function SjekklisteUtfylling() {
               )}
             </View>
           </View>
+          ) : (
+            /* H1: HMS-behandler-flate (Besvar/Lukk/Gjenåpne) — erstatter den generelle
+               DokumentHandlingslinje for HMS-dok (eget løp). */
+            <HmsBehandlingsflate
+              status={sjekkliste.status}
+              erHmsAdmin={erHmsAdmin ?? false}
+              erLaster={hmsBehandlerLaster}
+              feilmelding={hmsFeil}
+              onUtfor={utforHmsBehandling}
+            />
+          )
         ) : (
         <DokumentHandlingslinje
           status={sjekkliste.status}
