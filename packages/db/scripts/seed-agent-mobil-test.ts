@@ -73,6 +73,9 @@ const OPPGAVE_TITTEL = "Agent testoppgave";
 const SJEKKLISTEMAL_NAVN = "Agent sjekklistemal m/ tegningsposisjon (mobil-test)";
 const SJEKKLISTE_TITTEL = "Agent testsjekkliste";
 
+const HMS_MAL_NAVN = "Agent SJA (mobil-test)";
+const HMS_SJA_TITTEL = "Agent HMS-avvik til behandling";
+
 /* ------------------------------------------------------------------ */
 /*  Kjerne: prosjekt + bruker + medlemskap                            */
 /* ------------------------------------------------------------------ */
@@ -208,6 +211,18 @@ async function seedSjekkliste(prosjektId: string, brukerId: string): Promise<voi
       config: { buildingFilter: null, disciplineFilter: null },
     },
   });
+  // De tre feltene prosjektId-prop-fiksen (2026-08-24) gjaldt — MÅ ligge INNE i repeateren
+  // (parentId satt), for det var repeater-barn rendereren aldri threadet prosjektId til. Én rad
+  // viser da alle fire velgerne, og hele prop-fiksen verifiseres i ett blikk.
+  await prisma.reportObject.create({
+    data: { templateId: malId, parentId: repeater.id, type: "room_property", label: "Rom", sortOrder: 2 },
+  });
+  await prisma.reportObject.create({
+    data: { templateId: malId, parentId: repeater.id, type: "zone_property", label: "Sone", sortOrder: 3 },
+  });
+  await prisma.reportObject.create({
+    data: { templateId: malId, parentId: repeater.id, type: "location", label: "Lokasjon", sortOrder: 4 },
+  });
 
   const eks = await prisma.checklist.findFirst({
     where: { templateId: malId, title: SJEKKLISTE_TITTEL },
@@ -226,6 +241,118 @@ async function seedSjekkliste(prosjektId: string, brukerId: string): Promise<voi
   }
   console.log(
     `2) Sjekklistemal «${SJEKKLISTEMAL_NAVN}» (drawing_position i repeater) + sjekkliste «${SJEKKLISTE_TITTEL}».`,
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  3. HMS-grunnlag: SJA-mal + HMS-gruppe + flyt + SJA i "received"    */
+/* ------------------------------------------------------------------ */
+//
+// 🔴 RESPEKTERER HMS-ruten (omgår den IKKE): SJA (subdomain="sja") → Checklist, auto-rutet til
+// HMS-gruppen (ProjectGroup domains=["hms"]) + bundet til HMS-flyten. Speiler modul.ts sin
+// `seedHmsModulOmradet` — kan IKKE importeres (apps/api avhenger av @sitedoc/db, ikke omvendt),
+// så den er replikert her, minimalt (kun SJA, ikke RUH/avvik). SJA-en seedes i "received"
+// (mimicker hmsSendInn: melder→HMS-gruppe, aktivPosisjon=2 flyt-bundet), så Besvar/Lukk er
+// meningsfulle for behandler. kemyrhau er prosjekt-admin → erHmsAdmin=true.
+
+async function seedHms(prosjektId: string, brukerId: string): Promise<void> {
+  // 1) HMS-gruppe (idempotent).
+  let hmsGruppe = await prisma.projectGroup.findFirst({
+    where: { projectId: prosjektId, domains: { array_contains: ["hms"] } },
+    select: { id: true },
+  });
+  if (!hmsGruppe) {
+    hmsGruppe = await prisma.projectGroup.create({
+      data: {
+        projectId: prosjektId,
+        name: "HMS-ansvarlige",
+        slug: "hms-ansvarlige",
+        category: "field",
+        domains: ["hms"],
+        permissions: ["create_tasks", "create_checklists", "checklist_edit"],
+      },
+      select: { id: true },
+    });
+  }
+
+  // 2) HMS-flyt (Dokumentflyt "HMS") + bestiller-boks (åpen) + utforer-boks (HMS-gruppe).
+  let hmsFlyt = await prisma.dokumentflyt.findFirst({
+    where: { projectId: prosjektId, name: "HMS" },
+    select: { id: true },
+  });
+  if (!hmsFlyt) {
+    hmsFlyt = await prisma.dokumentflyt.create({
+      data: { projectId: prosjektId, name: "HMS" },
+      select: { id: true },
+    });
+    await prisma.dokumentflytMedlem.create({
+      data: { dokumentflytId: hmsFlyt.id, rolle: "bestiller", steg: 1 },
+    });
+    await prisma.dokumentflytMedlem.create({
+      data: { dokumentflytId: hmsFlyt.id, rolle: "utforer", steg: 2, groupId: hmsGruppe.id },
+    });
+  }
+
+  // 3) SJA-mal (category="hms" ⇒ domain="hms"; subdomain="sja" → Checklist-rutet).
+  let sjaMal = await prisma.reportTemplate.findFirst({
+    where: { projectId: prosjektId, domain: "hms", subdomain: "sja" },
+    select: { id: true },
+  });
+  if (!sjaMal) {
+    sjaMal = await prisma.reportTemplate.create({
+      data: {
+        projectId: prosjektId,
+        name: HMS_MAL_NAVN,
+        category: "hms",
+        domain: "hms",
+        subdomain: "sja",
+        prefix: "SJA",
+        hmsSynlighet: "apen",
+      },
+      select: { id: true },
+    });
+    await prisma.reportObject.create({
+      data: { templateId: sjaMal.id, type: "text_field", label: "Beskrivelse av avvik", sortOrder: 0 },
+    });
+  }
+
+  // 4) Knytt SJA-malen til HMS-flyten (samme kobling som modul.ts).
+  await prisma.dokumentflytMal.upsert({
+    where: { dokumentflytId_templateId: { dokumentflytId: hmsFlyt.id, templateId: sjaMal.id } },
+    update: {},
+    create: { dokumentflytId: hmsFlyt.id, templateId: sjaMal.id },
+  });
+
+  // 5) SJA-dokument i "received" (mimicker hmsSendInn end-state).
+  const eks = await prisma.checklist.findFirst({
+    where: { templateId: sjaMal.id, title: HMS_SJA_TITTEL },
+    select: { id: true },
+  });
+  if (!eks) {
+    const sja = await prisma.checklist.create({
+      data: {
+        templateId: sjaMal.id,
+        bestillerUserId: brukerId,
+        eierUserId: brukerId,
+        recipientGroupId: hmsGruppe.id,
+        dokumentflytId: hmsFlyt.id,
+        title: HMS_SJA_TITTEL,
+        status: "received",
+        aktivPosisjon: 2,
+      },
+    });
+    await prisma.documentTransfer.create({
+      data: {
+        checklistId: sja.id,
+        senderId: brukerId,
+        recipientGroupId: hmsGruppe.id,
+        fromStatus: "draft",
+        toStatus: "received",
+      },
+    });
+  }
+  console.log(
+    `3) HMS: SJA-mal «${HMS_MAL_NAVN}» + SJA «${HMS_SJA_TITTEL}» i "received" → behandler ser Besvar/Lukk.`,
   );
 }
 
@@ -253,8 +380,41 @@ async function verifiser(prosjektId: string, brukerId: string): Promise<void> {
   if (!dp) {
     throw new Error("drawing_position-felt mangler i repeater — H8-markøren ville aldri rendres.");
   }
+
+  // Premiss 3: rom/sone/lokasjon MÅ også ligge INNE i repeateren (parentId satt) — prop-fiksen
+  // gjaldt nettopp repeater-barn. Et felt utenfor repeateren tester ikke det som var galt.
+  for (const type of ["room_property", "zone_property", "location"] as const) {
+    const felt = await prisma.reportObject.findFirst({
+      where: {
+        type,
+        parentId: { not: null },
+        template: { projectId: prosjektId, name: SJEKKLISTEMAL_NAVN },
+      },
+    });
+    if (!felt) {
+      throw new Error(`${type} mangler i repeater — prop-fiksen ville vært utestbar for det feltet.`);
+    }
+  }
+
+  // Premiss 4: HMS SJA MÅ finnes i "received" (behandler ser Besvar/Lukk; H1 utestbart ellers).
+  const sja = await prisma.checklist.findFirst({
+    where: {
+      title: HMS_SJA_TITTEL,
+      template: { projectId: prosjektId, domain: "hms", subdomain: "sja" },
+    },
+    select: { status: true, recipientGroupId: true, dokumentflytId: true },
+  });
+  if (!sja) throw new Error("HMS SJA-dokument mangler — H1 Besvar/Lukk/Gjenåpne er utestbart.");
+  if (sja.status !== "received") {
+    throw new Error(`HMS SJA er "${sja.status}", ikke "received" — Besvar/Lukk er ikke meningsfulle.`);
+  }
+  if (!sja.recipientGroupId || !sja.dokumentflytId) {
+    throw new Error("HMS SJA er ikke rutet til HMS-gruppen/flyten — ruten ble omgått, ikke respektert.");
+  }
+
   console.log(
-    `✓ Verifisert: kemyrhau er ${medlem.role} · drawing_position ligger i repeater (parentId=${dp.parentId}).`,
+    `✓ Verifisert: kemyrhau er ${medlem.role} · drawing_position + rom/sone/lokasjon ligger i repeater ` +
+      `· HMS SJA i "received" rutet til HMS-gruppe+flyt.`,
   );
 }
 
@@ -269,15 +429,26 @@ async function main(): Promise<void> {
   const { prosjektId, brukerId } = await seedKjerne();
   await seedOppgave(prosjektId, brukerId);
   await seedSjekkliste(prosjektId, brukerId);
+  await seedHms(prosjektId, brukerId);
   await verifiser(prosjektId, brukerId);
 
   console.log("\nFerdig.");
   console.log(`Logg inn på mobil som ${BRUKER_EMAIL} (dev-login) → ${PROSJEKT_NAVN}.`);
   console.log("  · Oppgaver: «Agent testoppgave» → detalj → arkiv-PDF (Share2/CloudOff/manglendeVedlegg).");
-  console.log("  · Sjekklister: «Agent testsjekkliste» → legg til repeater-rad → sett tegningsposisjon → H8-markør.");
+  console.log(
+    `  · Sjekklister: «${SJEKKLISTE_TITTEL}» → legg til repeater-rad → én rad viser ALLE FIRE velgerne ` +
+      "(tegningsposisjon H8 + Rom + Sone + Lokasjon) → prosjektId-prop-fiksen verifiseres i ett blikk.",
+  );
+  console.log(
+    `  · HMS: «${HMS_SJA_TITTEL}» (SJA, i "received") → åpne på mobil → HMS-behandler-flate: Besvar/Lukk (H1). Lukk → Gjenåpne.`,
+  );
   console.log(
     "  ⚠ Tegningsposisjon krever en tegning på prosjektet å plassere på — sikre at AGENT-TEST-0001 har minst én tegning (egen seed/opplasting hvis ikke).",
   );
+  // Rydding av tomme BLD14/BLD15-utkast: BEVISST UTELATT. Den eneste trygge filteren («tomt
+  // draft») ville også truffet seedens egne draft-dokumenter (oppgave/sjekkliste opprettes uten
+  // status → default "draft"), og å slette brukerdokumenter fra en seed er nettopp den
+  // destruktive klassen ordren ba meg la ligge hvis risikabelt. De er harmløse.
 }
 
 main()
