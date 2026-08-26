@@ -263,9 +263,16 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   window.lagre = function() {
     canvas.discardActiveObject();
     canvas.renderAll();
-    // Eksporter i originaloppløsning for å bevare bildekvalitet og aspect ratio
+    // Eksporter i originaloppløsning (input er alt ≤1920px komprimert vedlegg, så multiplier
+    // over-oppløser ikke). JPEG, IKKE PNG: PNG q1 av et foto blir 3–4 MB (tapsfri re-koding);
+    // JPEG q0.92 gir ~1 MB (~4× mindre) — målt 2026-08-26 (BACKLOG-772). Hvit bakgrunn fordi
+    // JPEG mangler alpha. q0.92 (over Chromiums 4:4:4-terskel ~0.9): lavere q flipper til
+    // chroma-subsampling (4:2:0) som gjør 3px røde streker uleselige (målt strek-feil 105 mot
+    // 11 ved 4:4:4). Lesbarhet > filstørrelse (ordren).
     var multiplier = originalBredde > 0 ? (originalBredde / canvas.width) : 1;
-    var dataUrl = canvas.toDataURL({ format: 'png', quality: 1, multiplier: multiplier });
+    canvas.backgroundColor = '#ffffff';
+    canvas.renderAll();
+    var dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: multiplier });
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ferdig', dataUrl: dataUrl }));
   };
 
