@@ -124,6 +124,21 @@ kjøre uten å tolke.
 - **Rekkefølge når noe avhenger:** «X først, fordi Y trenger resultatet.» Er de
   uavhengige, si det — da kan flere agenter kjøre parallelt.
 
+🔴 **NUDGEN SKAL BÆRE MÅLET — ikke bare ordrefila** (Kenneth 2026-08-26). Ligger
+ordren i `relay/inbox-*.md`, står worktreet der — men Kenneth limer **nudgen**,
+ikke fila. Uten mottaker i første linje kan han lime til feil terminal, og *«da
+blir jeg plaget med masse forespørsler jeg må svare ja/nei på»*.
+
+**Form:** første linje er destinasjonen, alene.
+
+```
+→ SiteDoc-dokgen
+Les ~/Documents/Programmering/SiteDoc/relay/inbox-<navn>.md og kjør den.
+```
+
+Samme prinsipp som «si hvilken maskin kommandoen kjøres på»: den som limer skal
+aldri måtte utlede hvor noe hører hjemme.
+
 **To ordrer til SAMME agent før den første er relayet — merk hvilken som gjelder**
 (Kenneth 2026-08-25). Rekker ikke Kenneth å sende den første, kan han ikke vite om den
 andre er et *tillegg* eller en *ny retning*. Skjedde tre ganger 2026-08-25; verste utfall
