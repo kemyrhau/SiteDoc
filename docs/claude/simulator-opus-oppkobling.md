@@ -192,6 +192,15 @@ her som ba om bildene.
 - **Skriv funnet til ordrefila med én gang det er gjort**, ikke i en sluttoppsummering. Da
   overlever resultatet uansett hva som skjer med økten — og du slipper å bære bevismaterialet
   videre i konteksten for å kunne rapportere senere.
+- **Må et bilde tas: lagre det på disk og oppgi stien.** Bruk bildet, ikke bær det. Den som
+  skal vurdere det leser det én gang.
+- **Meld hva runden ETTERLOT** — utkast, rader, opplastede filer. Uten det degraderer
+  agent-prosjektet for hver runde, og til slutt vet ingen hva som er seed og hva som er søppel.
+  (Målt: fire tomme utkast etter to runder, fordi «+» auto-oppretter når malvelgeren åpnes.)
+- **Driftskunnskap hører i [simulator-runbook.md](simulator-runbook.md), ikke i en rapport.**
+  Oppdager du hvordan noe oppfører seg — at kamera ikke finnes og galleriveien må brukes, at
+  «+» lager utkast, hvilke koordinater som treffer hva — skriv det dit. Ellers oppdager neste
+  agent det på nytt, og hver oppdagelse koster.
 - **Ikke selv-godkjenn mot fasit.** Simulator-Opus rapporterer hva som skjedde; **cowork avgjør PASS/AVVIK**.
 - **Blokkert ≠ fail:** miljøledd nede, manglende seed eller Kenneth-hånd-steg meldes eksplisitt med hvem som må handle — ikke gjett rundt det.
 - **En AVVIK stopper ikke resten** av batchen med mindre den er en forutsetning — kjør videre, samle alt, rapporter samlet.
