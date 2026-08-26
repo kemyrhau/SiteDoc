@@ -69,6 +69,14 @@ en chat og forsvinner ved compact.
 **10. Koden er eneste sannhet.** Dokumentasjonen forteller hvordan vi jobber; den avgjør
 ikke hva systemet gjør. Det gjelder også denne fila.
 
+**10b. Et sidefunn er en påstand — gate det som alt annet før det blir en ordre.** Cowork
+gjorde to ordrer av uverifiserte premisser 2026-08-26: oppgave-PDF på mobil (serveren
+implementerer det ikke — `arkiv.ts:51` kaster) og «merge telles som falsk konflikt» (telleren
+leses av ingen; brukertallet kommer fra en DB-telling merge aldri setter). Begge kom fra
+agentrapporter cowork stolte på fordi de var velskrevne. Agenten oppdaget det selv i begge
+tilfeller — men da var runden brukt. **Mål premisset i koden før du skriver ordren**, ikke
+etterpå. Samme regel som § Cowork leveranse-ansvar punkt 4, anvendt på sidefunn.
+
 **11. Skriv ordren til fil FØR du gir nudgen.** Mekanismen står i § Meldingsflyt; det som
 mangler er disiplinen. Praksisen var etablert (45 `relay/inbox-*`-filer 28.07–20.08) og
 **falt bort 20. august**, samme dag coworks rolle ble omdefinert. Fra da av levde hver ordre
