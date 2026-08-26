@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-08-21
+**Sist oppdatert:** 2026-08-26
+- 2026-08-26 — **NY fil `gdpr-kartlegging.md`** (branch `docs/gdpr-kartlegging`): måling av hvor personopplysninger om en ansatt bor, på tvers av alle fire database-schemaer + fillagring. Hovedfunn: **ingen sletteløsning finnes** (ingen rute/jobb tar en `userId`), persondata spredt over kjerne + tre isolerte modul-schemaer uten kryss-cascade, **disk-filer forlates ved DB-sletting** (mekanismen bak ~560/650 foreldreløse), **EXIF/GPS strippes aldri** ved opplasting. Hver forekomst merket Slett/Anonymiser/Bevar; oppbevaringsplikt gjennomgående **«uavklart — juridisk»** (ingen jus gjettet). Ingen løsning foreslått. Verifisert mot schema + kodeveier, ikke faktiske data.
 - 2026-08-21 — **`deploy-detaljer.md` § FELLE deploy sendte gammel kode** (develop): `deploy-test.sh` rsyncet fra hovedtreet som lå to merger bak → Docker fikk identisk kontekst → cachet gammelt image uten å feile. `deploy-prod.sh` hadde allerede vakten; test manglet den. Ajour-guard lagt inn.
 - 2026-08-21 — **NY fil `kontekstvelger-regresjonsjakt-2026-08-21.md`** (develop): sju tap i k3-runden kartlagt, seks i `ad7cadc1`. Årsak: ny trakt skrevet uten inventar over hva den gamle kunne. Autovalg byggeplass var sideeffekt i UI-komponent → nye sjekklister fikk `byggeplassId=undefined`.
 - 2026-08-21 — **`redesign-paritetssjekkliste.md` + `k3-verifiseringslogg.md` RE-VERIFISERT** (develop): begge sto med falske ✅ i en måned («favoritter bevart», «autovalg byggeplass fungerer», «Alle/Mine fungerer»). Korrigert ved regresjonsjakten, deretter re-verifisert av utfører ved kontekstvelger-1a-leveransen.
