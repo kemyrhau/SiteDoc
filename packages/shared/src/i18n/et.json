@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Lehe olek",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Masin ilma ajakirjeta: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (kontroll)"
+  "timer.eksport.sumKontroll": "SUM (kontroll)",
+  "timer.sync.slattSammen": "Ühendatud selle kuupäeva jaoks juba eksisteerinud päevalehega – teie lahtiolekuajad jäetakse alles."
 }

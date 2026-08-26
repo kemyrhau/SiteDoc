@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Statusi i fletës",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Makinë pa hyrje kohore: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (kontrolli)"
+  "timer.eksport.sumKontroll": "SUM (kontrolli)",
+  "timer.sync.slattSammen": "E shkrirë me fletën e ditës që ekzistonte tashmë për këtë datë - orët tuaja mbahen."
 }

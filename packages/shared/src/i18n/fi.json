@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Taulukon tila",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Kone ilman aikamerkintää: {{navn}}",
-  "timer.eksport.sumKontroll": "SUMMA (kontrolli)"
+  "timer.eksport.sumKontroll": "SUMMA (kontrolli)",
+  "timer.sync.slattSammen": "Yhdistetty päivätaulukkoon, joka oli jo olemassa tälle päivälle – tunnisi säilytetään."
 }

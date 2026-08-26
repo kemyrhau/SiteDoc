@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Статус аркуша",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Машина без введення часу: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (контроль)"
+  "timer.eksport.sumKontroll": "SUM (контроль)",
+  "timer.sync.slattSammen": "Об’єднано з денним аркушем, який уже існував на цю дату — ваші години зберігаються."
 }

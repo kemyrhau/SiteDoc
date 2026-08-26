@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Statut de la feuille",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Machine sans saisie de temps : {{navn}}",
-  "timer.eksport.sumKontroll": "SOMME (contrôle)"
+  "timer.eksport.sumKontroll": "SOMME (contrôle)",
+  "timer.sync.slattSammen": "Fusionné avec la feuille de jour qui existait déjà à cette date — vos horaires sont conservés."
 }

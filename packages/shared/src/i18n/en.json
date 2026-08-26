@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Sheet status",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Machine without a time entry: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (control)"
+  "timer.eksport.sumKontroll": "SUM (control)",
+  "timer.sync.slattSammen": "Merged with the day sheet that already existed for this date — your hours are kept."
 }

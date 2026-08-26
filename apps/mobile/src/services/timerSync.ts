@@ -12,6 +12,7 @@ import {
   slettedeRaderLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
+import i18n from "../lib/i18n";
 
 /* ============================================================================
  *  Timer offline-sync — orkestrerer push (lokale pending → server) og pull
@@ -248,9 +249,11 @@ export async function syncTimer(
               status: r.serverData.status,
               lederKommentar: r.serverData.lederKommentar,
               attestertVed: r.serverData.attestertVed,
-              feilmelding:
-                r.feilmelding ??
-                "Slått sammen med eksisterende dagsseddel for datoen.",
+              // Beskriver det som ALT har skjedd (automatisk forsoning), ikke en
+              // manuell handling. Serveren sender ikke lenger tekst her; klienten
+              // eier brukerkopien via i18n. `r.feilmelding ??` beholdt som vern
+              // om en fremtidig server-variant skulle sende noe.
+              feilmelding: r.feilmelding ?? i18n.t("timer.sync.slattSammen"),
               sistSynkronisert: naa,
             })
             .where(eq(dagsseddelLocal.id, serverClientUuid))

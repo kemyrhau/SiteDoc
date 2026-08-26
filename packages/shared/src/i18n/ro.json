@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Starea foii",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Mașină fără introducere de timp: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (control)"
+  "timer.eksport.sumKontroll": "SUM (control)",
+  "timer.sync.slattSammen": "Îmbinat cu foaia de zi care exista deja pentru această dată — orele dvs. sunt păstrate."
 }

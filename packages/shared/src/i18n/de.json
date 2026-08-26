@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Blattstatus",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Maschine ohne Zeiteintrag: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (Kontrolle)"
+  "timer.eksport.sumKontroll": "SUM (Kontrolle)",
+  "timer.sync.slattSammen": "Zusammengeführt mit der für dieses Datum bereits vorhandenen Tagesliste – Ihre Stunden bleiben erhalten."
 }
