@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Stan arkusza",
   "timer.eksport.maskinNoster": "↳ {{nawigacja}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Maszyna bez wpisu czasu: {{navn}}",
-  "timer.eksport.sumKontroll": "SUMA (kontrola)"
+  "timer.eksport.sumKontroll": "SUMA (kontrola)",
+  "timer.sync.slattSammen": "Połączono z arkuszem dziennym, który już istniał dla tej daty — Twoje godziny pracy zostaną zachowane."
 }

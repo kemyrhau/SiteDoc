@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Bladstatus",
   "timer.eksport.maskinNoster": "↳ {{namn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Maskin utan tidsangivelse: {{namn}}",
-  "timer.eksport.sumKontroll": "SUM (kontroll)"
+  "timer.eksport.sumKontroll": "SUM (kontroll)",
+  "timer.sync.slattSammen": "Sammanslagna med dagbladet som redan fanns för detta datum – dina timmar behålls."
 }

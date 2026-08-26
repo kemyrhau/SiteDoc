@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Stav listu",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Stroj bez zadání času: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (kontrola)"
+  "timer.eksport.sumKontroll": "SUM (kontrola)",
+  "timer.sync.slattSammen": "Sloučeno s denním listem, který již pro toto datum existoval – vaše hodiny jsou zachovány."
 }

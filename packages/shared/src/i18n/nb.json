@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Seddelstatus",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Maskin uten timerad: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (kontroll)"
+  "timer.eksport.sumKontroll": "SUM (kontroll)",
+  "timer.sync.slattSammen": "Slått sammen med dagsseddelen som alt fantes for denne datoen — timene dine er beholdt."
 }

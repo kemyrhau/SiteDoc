@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Lapas statuss",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Iekārta bez laika ieraksta: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (kontrole)"
+  "timer.eksport.sumKontroll": "SUM (kontrole)",
+  "timer.sync.slattSammen": "Apvienots ar dienas lapu, kas šim datumam jau pastāvēja — jūsu darba laiks tiek saglabāts."
 }

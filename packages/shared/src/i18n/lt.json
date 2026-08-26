@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Lapo būsena",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Įrenginys be laiko įrašo: {{navn}}",
-  "timer.eksport.sumKontroll": "SUM (kontrolė)"
+  "timer.eksport.sumKontroll": "SUM (kontrolė)",
+  "timer.sync.slattSammen": "Sujungta su šios datos dienos lapu – jūsų valandos išsaugomos."
 }

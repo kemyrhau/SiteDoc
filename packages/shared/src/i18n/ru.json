@@ -3669,5 +3669,6 @@
   "timer.eksport.kolSeddelstatus": "Статус листа",
   "timer.eksport.maskinNoster": "↳ {{navn}}",
   "timer.eksport.maskinUtenTimerad": "⚠ Машина без ввода времени: {{navn}}",
-  "timer.eksport.sumKontroll": "СУММ (контроль)"
+  "timer.eksport.sumKontroll": "СУММ (контроль)",
+  "timer.sync.slattSammen": "Объединение с уже существующим на эту дату расписанием дней — ваши часы сохраняются."
 }

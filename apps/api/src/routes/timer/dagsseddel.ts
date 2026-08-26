@@ -5135,8 +5135,12 @@ export const dagsseddelRouter = router({
                       eksisterende.attestertVed?.toISOString() ?? null,
                     updatedAt: eksisterende.updatedAt.toISOString(),
                   },
-                  feilmelding:
-                    "Det finnes allerede en dagsseddel for denne datoen — dine timer slås sammen med den.",
+                  // Ingen feilmelding: dette er et MASKINSIGNAL til mobilen om å
+                  // forsone identiteten (re-nøkle + additiv re-push, timerSync M1),
+                  // ikke en handling arbeideren skal gjøre. Brukerteksten eies av
+                  // klienten (i18n `timer.sync.slattSammen`) — serveren har ingen
+                  // i18n, og den gamle strengen «dine timer slås sammen med den»
+                  // beskrev en manuell fremtidig handling som ikke lenger finnes.
                 });
                 continue;
               }
