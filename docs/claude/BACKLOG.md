@@ -803,7 +803,10 @@ Gjelder minst `dashbord/oppsett/prosjektoppsett`, men kartlegg alle `dashbord/op
 🔴 **Gjelder også arkiv-PDF (fase 3).** Meldt til Opus dokgen som krav til rendrer-containeren: `networkidle0` alene er ikke nok for store bilder som dekodes etter at nettverket er stille. **Og en PDF skal ikke genereres stille med hull** — enten feil hele jobben, eller marker manglende bilde synlig. Et arkivdokument som ser komplett ut mens det mangler bevis er den verste utgangen. Fase 3b skal dokumentere dette som *rettelse*, ikke regresjon, i før/etter-beviset.
 
 
-### 🔴 Mobil-annotering eksporterer 3,4 MB PNG — sprenger rapport-størrelsen (Del C, målt 2026-08-13) — EGEN MOBIL-PR
+### ✅ LØST 2026-08-26 (branch `fix/annotering-bildestorrelse`) — Mobil-annotering eksporterer 3,4 MB PNG — sprenger rapport-størrelsen (Del C, målt 2026-08-13)
+
+> **[løst 2026-08-26]** `annoterings-html.ts:268` → JPEG q0.92 + hvit bakgrunn (var PNG q1). Målt (PIL, representativt 1920×1536-foto): PNG q1 **4516 KB** → JPEG q0.92+hvit **~1000 KB** (~4×). **Kvalitetsvalg begrunnet i strek-lesbarhet:** q0.85 gir 520 KB men nettleseren bruker 4:2:0 chroma-subsampling som gjør 3px-røde-streker uleselige (målt strek-fargefeil 105 mot 11 ved 4:4:4); q≥0.9 flipper til 4:4:4 (skarpe streker). Lesbarhet > filstørrelse (ordren). Multiplier urørt — input er alt ≤1920px komprimert vedlegg (ingen over-oppløsning). Hardkodet `.png`/`image/png` i lagringsstien (`BildeAnnotering.tsx`, `FeltDokumentasjon.tsx`) → `.jpg`/`image/jpeg`. ⚠️ Simulator-verifisering (visuell strek) gjenstår.
+
 
 > **[triage 2026-08-26]** verifisert åpen — 🔴 BLOKKERER — én runde (mobil-PR): `annoterings-html.ts:268` `toDataURL(png, quality 1)` uten hvit bakgrunn/JPEG; rammer mobilkamera direkte → rapport for stor for e-post.
 
