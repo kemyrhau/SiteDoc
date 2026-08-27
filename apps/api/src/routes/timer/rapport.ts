@@ -12,6 +12,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
+import { byggDetaljRader, ALLE_RADTYPER, type DetaljRadType } from "@sitedoc/shared";
 import { esc, byggTimerRapportHtml, type TimerRapportData } from "@sitedoc/pdf";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
@@ -45,6 +46,7 @@ const teksterSchema = z.object({
   alle: z.string(),
   ingenData: z.string(),
   sum: z.string(),
+  // Sammendrag
   sammendrag: z.string(),
   kolAnsattnr: z.string(),
   kolTotalTimer: z.string(),
@@ -53,26 +55,26 @@ const teksterSchema = z.object({
   kolKladd: z.string(),
   kolSent: z.string(),
   kolAttestert: z.string(),
-  timerader: z.string(),
+  // Detaljer (merged Type-tabell, fase 2)
+  detaljer: z.string(),
   kolDato: z.string(),
-  kolLonnsart: z.string(),
+  kolType: z.string(),
+  kolBetegnelse: z.string(),
   kolAktivitet: z.string(),
   kolTimer: z.string(),
   kolMaskintimer: z.string(),
-  kolBeskrivelse: z.string(),
-  kolRadstatus: z.string(),
+  kolAntall: z.string(),
+  kolBelop: z.string(),
   kolMengde: z.string(),
   kolEnhet: z.string(),
+  kolBeskrivelse: z.string(),
+  kolStatus: z.string(),
+  typeTimer: z.string(),
+  typeMaskin: z.string(),
+  typeTillegg: z.string(),
+  typeUtlegg: z.string(),
   maskinUtenTimerad: z.string(),
   maskinIkkeEksporterbar: z.string(),
-  tillegg: z.string(),
-  kolTillegg: z.string(),
-  kolAntall: z.string(),
-  kolKommentar: z.string(),
-  utlegg: z.string(),
-  kolKategori: z.string(),
-  kolBelop: z.string(),
-  kolSeddelstatus: z.string(),
 });
 
 export const rapportRouter = router({
@@ -556,6 +558,12 @@ export const rapportRouter = router({
         footerGenerert: z.string(),
         footerSide: z.string(),
         footerAv: z.string(),
+        // Radvalg fra Tilpasset-modalen — hvilke radtyper som skal med (fase 2).
+        // Utelatt/tom → alle fire (samme som de direkte format-knappene = full).
+        radTyper: z
+          .array(z.enum(["timer", "maskin", "tillegg", "utlegg"]))
+          .min(1)
+          .optional(),
         tekster: teksterSchema,
       }),
     )
@@ -584,6 +592,30 @@ export const rapportRouter = router({
             null)
         : null;
 
+      // Ett kronologisk radsett med Type-kolonne (fase 2), filtrert på radvalget.
+      // SAMME @sitedoc/shared-bygger som Excel-arket → identisk radsett/rekkefølge.
+      // ID-feltet slippes her (aldri i PDF — koblingsnøkkel for DB).
+      const valgteRadTyper: readonly DetaljRadType[] = input.radTyper ?? ALLE_RADTYPER;
+      const detaljRader = byggDetaljRader(detalj, valgteRadTyper).map((r) => ({
+        type: r.type,
+        nivaa: r.nivaa,
+        dato: r.dato,
+        ansatt: r.ansatt,
+        ansattnr: r.ansattnr,
+        prosjekt: r.prosjekt,
+        betegnelse: r.betegnelse,
+        aktivitet: r.aktivitet,
+        timer: r.timer,
+        maskintimer: r.maskintimer,
+        antall: r.antall,
+        belop: r.belop,
+        mengde: r.mengde,
+        enhet: r.enhet,
+        beskrivelse: r.beskrivelse,
+        status: r.status,
+        maskinMerke: r.maskinMerke,
+      }));
+
       const data: TimerRapportData = {
         firmanavn: input.firmanavn,
         fra: input.fra,
@@ -602,66 +634,7 @@ export const rapportRouter = router({
           sent: a.statusFordeling.sent,
           attestert: a.statusFordeling.attestert,
         })),
-        timerader: detalj.timerader.map((r) => ({
-          dato: r.dato,
-          ansatt: r.ansatt,
-          ansattnr: r.ansattnr,
-          prosjekt: r.prosjekt,
-          lonnsart: r.lonnsart,
-          aktivitet: r.aktivitet,
-          timer: r.timer,
-          beskrivelse: r.beskrivelse,
-          radstatus: r.radstatus,
-          maskiner: r.maskiner.map((m) => ({
-            navn: m.navn,
-            timer: m.timer,
-            mengde: m.mengde,
-            enhet: m.enhet,
-            radstatus: m.radstatus,
-          })),
-        })),
-        maskinUtenTimerad: detalj.maskinUtenTimerad.map((m) => ({
-          dato: m.dato,
-          ansatt: m.ansatt,
-          ansattnr: m.ansattnr,
-          prosjekt: m.prosjekt,
-          navn: m.navn,
-          timer: m.timer,
-          mengde: m.mengde,
-          enhet: m.enhet,
-          radstatus: m.radstatus,
-        })),
-        maskinIkkeEksporterbar: detalj.maskinIkkeEksporterbar.map((m) => ({
-          dato: m.dato,
-          ansatt: m.ansatt,
-          ansattnr: m.ansattnr,
-          prosjekt: m.prosjekt,
-          navn: m.navn,
-          timer: m.timer,
-          mengde: m.mengde,
-          enhet: m.enhet,
-          radstatus: m.radstatus,
-        })),
-        tillegg: detalj.tillegg.map((r) => ({
-          dato: r.dato,
-          ansatt: r.ansatt,
-          ansattnr: r.ansattnr,
-          prosjekt: r.prosjekt,
-          tillegg: r.tillegg,
-          antall: r.antall,
-          kommentar: r.kommentar,
-          radstatus: r.radstatus,
-        })),
-        utlegg: detalj.utlegg.map((r) => ({
-          dato: r.dato,
-          ansatt: r.ansatt,
-          ansattnr: r.ansattnr,
-          prosjekt: r.prosjekt,
-          kategori: r.kategori,
-          belop: r.belop,
-          kommentar: r.kommentar,
-          seddelstatus: r.seddelstatus,
-        })),
+        detaljRader,
       };
 
       const html = byggTimerRapportHtml(data, input.tekster);

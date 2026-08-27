@@ -1,8 +1,8 @@
 ---
 name: printmotor-faser
 description: Faseinndeling av fabels printmotor-design (eksportvalg + lagrede utskriftsmaler). Cowork eier inndelingen; fabel eier designet.
-status: FASE 1 BESTILT
-sist_verifisert_mot_kode: 2026-08-25
+status: FASE 2 LEVERT (branch feat/eksport-fase2-radvalg)
+sist_verifisert_mot_kode: 2026-08-27
 ---
 
 # Printmotor — faseinndeling
@@ -19,7 +19,7 @@ mangel hos fabel 2026-08-25; det var feil og er rettet.)
 | Fase | Innhold | Hvorfor her |
 |---|---|---|
 | **1** | **PDF av rapporten.** Tredje valg i Eksporter-menyen. Samme innhold som dagens Excel, formatert som dokument. Ny mal på `arkiv.rendr`-motoren — `packages/pdf` er dokumentorientert og har ingen tabellrenderer, men HTML→PDF-rørledningen står | Hullet Kenneth pekte på: «det fins enda ingen print av rapporter». Motoren finnes, ingen ny datamodell |
-| **2** | **Radvalg.** Type-kolonne (Timer · Maskin · Tillegg · Utlegg) i ett kronologisk ark + avhuking av radtyper i Tilpasset-modalen. Ingen lagring | Gjør eksporten svar på «hva trenger jeg» uten et malsystem |
+| **2** ✅ | **Radvalg.** Type-kolonne (Timer · Maskin · Tillegg · Utlegg) i ett kronologisk ark + avhuking av radtyper i Tilpasset-modalen. Ingen lagring. **Levert 2026-08-27** (`feat/eksport-fase2-radvalg`): delt `byggDetaljRader` i `@sitedoc/shared` (én sannhet, Excel+PDF), fire SUBTOTAL-summer, PDF dropper tomme kolonner. Detaljer i [timer.md § Fase 2](../timer.md) | Gjør eksporten svar på «hva trenger jeg» uten et malsystem |
 | **3** | **Lagrede maler.** `EksportOppsett` (firma + personlig via nullable `eierId`, `basertPaId` som bindeledd), «Lagre som», redigering | Modalen fra fase 2 ER redigereren — den får bare lagringsknapper |
 
 **Hvorfor datamodellen kommer sist:** den designes da mot en funksjon som virker,

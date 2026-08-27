@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { ALLE_RADTYPER, type DetaljRadType } from "@sitedoc/shared";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -95,11 +96,11 @@ function byggPdfTekster(t: (key: string) => string): {
   [K in
     | "dokumentTittel" | "periode" | "prosjekt" | "ansatt" | "alle" | "ingenData" | "sum"
     | "sammendrag" | "kolAnsattnr" | "kolTotalTimer" | "kolSedler" | "kolSistRegistrert"
-    | "kolKladd" | "kolSent" | "kolAttestert" | "timerader" | "kolDato" | "kolLonnsart"
-    | "kolAktivitet" | "kolTimer" | "kolMaskintimer" | "kolBeskrivelse" | "kolRadstatus"
-    | "kolMengde" | "kolEnhet" | "maskinUtenTimerad" | "maskinIkkeEksporterbar" | "tillegg"
-    | "kolTillegg" | "kolAntall" | "kolKommentar" | "utlegg" | "kolKategori" | "kolBelop"
-    | "kolSeddelstatus"]: string;
+    | "kolKladd" | "kolSent" | "kolAttestert" | "detaljer" | "kolDato" | "kolType"
+    | "kolBetegnelse" | "kolAktivitet" | "kolTimer" | "kolMaskintimer" | "kolAntall"
+    | "kolBelop" | "kolMengde" | "kolEnhet" | "kolBeskrivelse" | "kolStatus" | "typeTimer"
+    | "typeMaskin" | "typeTillegg" | "typeUtlegg" | "maskinUtenTimerad"
+    | "maskinIkkeEksporterbar"]: string;
 } {
   const k = (s: string): string => t(`firma.timer.rapport.pdf.${s}`);
   return {
@@ -118,26 +119,25 @@ function byggPdfTekster(t: (key: string) => string): {
     kolKladd: k("kolKladd"),
     kolSent: k("kolSent"),
     kolAttestert: k("kolAttestert"),
-    timerader: k("timerader"),
+    detaljer: k("detaljer"),
     kolDato: k("kolDato"),
-    kolLonnsart: k("kolLonnsart"),
+    kolType: k("kolType"),
+    kolBetegnelse: k("kolBetegnelse"),
     kolAktivitet: k("kolAktivitet"),
     kolTimer: k("kolTimer"),
     kolMaskintimer: k("kolMaskintimer"),
-    kolBeskrivelse: k("kolBeskrivelse"),
-    kolRadstatus: k("kolRadstatus"),
+    kolAntall: k("kolAntall"),
+    kolBelop: k("kolBelop"),
     kolMengde: k("kolMengde"),
     kolEnhet: k("kolEnhet"),
+    kolBeskrivelse: k("kolBeskrivelse"),
+    kolStatus: k("kolStatus"),
+    typeTimer: k("typeTimer"),
+    typeMaskin: k("typeMaskin"),
+    typeTillegg: k("typeTillegg"),
+    typeUtlegg: k("typeUtlegg"),
     maskinUtenTimerad: k("maskinUtenTimerad"),
     maskinIkkeEksporterbar: k("maskinIkkeEksporterbar"),
-    tillegg: k("tillegg"),
-    kolTillegg: k("kolTillegg"),
-    kolAntall: k("kolAntall"),
-    kolKommentar: k("kolKommentar"),
-    utlegg: k("utlegg"),
-    kolKategori: k("kolKategori"),
-    kolBelop: k("kolBelop"),
-    kolSeddelstatus: k("kolSeddelstatus"),
   };
 }
 
@@ -159,6 +159,11 @@ export default function TimerRapportSide() {
   const [detaljVy, setDetaljVy] = useState<DetaljVy>("dag");
   const [eksportÅpen, setEksportÅpen] = useState(false);
   const [eksporterer, setEksporterer] = useState(false);
+  // Tilpasset-modal (fase 2, radvalg): hvilke radtyper som skal med + format.
+  // Ingen lagring — valget gjelder kun denne eksporten (lagrede maler er fase 3).
+  const [tilpassetÅpen, setTilpassetÅpen] = useState(false);
+  const [valgteRadTyper, setValgteRadTyper] = useState<DetaljRadType[]>([...ALLE_RADTYPER]);
+  const [tilpassetFormat, setTilpassetFormat] = useState<"xlsx" | "pdf">("xlsx");
   // 1c: try/finally uten catch svelget kastet → «virker ikke» uten spor. Vis
   // feilen til brukeren så den blir konkret (og logg for feilsøking).
   const [eksportFeil, setEksportFeil] = useState<string | null>(null);
@@ -269,7 +274,12 @@ export default function TimerRapportSide() {
     }
   }
 
-  async function håndterEksport(format: "csv" | "xlsx" | "pdf") {
+  /** `radTyper` undefined → alle fire (direkte format-knapper = full eksport).
+   *  Tilpasset-modalen sender et subsett. Excel og PDF følger SAMME valg. */
+  async function håndterEksport(
+    format: "csv" | "xlsx" | "pdf",
+    radTyper?: DetaljRadType[],
+  ) {
     if (!rapportData || rapportData.ansatte.length === 0) return;
     setEksportÅpen(false);
     setEksportFeil(null);
@@ -277,8 +287,8 @@ export default function TimerRapportSide() {
     try {
       if (format === "pdf") {
         // PDF bygges SERVER-side (samme HTML→PDF-motor som arkiv). Klienten
-        // sender oversatte overskrifter/filnavn inn (ingen server-i18n); serveren
-        // gjenbruker firmaPeriodeRapport + detaljEksport (ingen fjerde data-vei).
+        // sender oversatte overskrifter/filnavn + radvalg inn (ingen server-i18n);
+        // serveren gjenbruker firmaPeriodeRapport + detaljEksport (ingen fjerde data-vei).
         const res = await utils.timer.rapport.pdfEksport.fetch({
           organizationId: orgId!,
           fra,
@@ -292,6 +302,7 @@ export default function TimerRapportSide() {
           }),
           footerSide: t("firma.timer.rapport.pdf.footerSide"),
           footerAv: t("firma.timer.rapport.pdf.footerAv"),
+          radTyper,
           tekster: byggPdfTekster(t),
         });
         lastNedBase64(res.pdf, res.filnavn, "application/pdf");
@@ -338,7 +349,7 @@ export default function TimerRapportSide() {
           prosjektId: valgtProsjektId || undefined,
           ansattId: valgtAnsattId || undefined,
         });
-        await mod.eksporterXlsx(input, detalj, t);
+        await mod.eksporterXlsx(input, detalj, t, radTyper ?? [...ALLE_RADTYPER]);
       }
     } catch (e) {
       // 1c: gjør det tause kastet synlig. Loggen bevarer stacken for å pinne
@@ -398,12 +409,38 @@ export default function TimerRapportSide() {
                   >
                     {t("firma.timer.rapport.eksport.pdf")}
                   </button>
+                  <div className="my-1 border-t border-gray-100" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEksportÅpen(false);
+                      setTilpassetÅpen(true);
+                    }}
+                    className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    {t("firma.timer.rapport.eksport.tilpasset")}
+                  </button>
                 </div>
               </>
             )}
           </div>
         </div>
       </SonetonetSidehode>
+
+      {tilpassetÅpen && (
+        <TilpassetModal
+          valgteRadTyper={valgteRadTyper}
+          setValgteRadTyper={setValgteRadTyper}
+          format={tilpassetFormat}
+          setFormat={setTilpassetFormat}
+          onAvbryt={() => setTilpassetÅpen(false)}
+          onEksporter={() => {
+            setTilpassetÅpen(false);
+            void håndterEksport(tilpassetFormat === "pdf" ? "pdf" : "xlsx", valgteRadTyper);
+          }}
+          t={t}
+        />
+      )}
 
       {/* 1c: eksport-feil synlig for bruker (ellers svelget i try/finally). */}
       {eksportFeil && (
@@ -731,6 +768,116 @@ function Detaljvisning({
                 ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Radtypene i visningsrekkefølge — samme fire som eksport-radvalget. */
+const RADTYPER: DetaljRadType[] = ["timer", "maskin", "tillegg", "utlegg"];
+
+/**
+ * Tilpasset-modal (fase 2): avhuking av radtyper + format. Ingen lagring, ingen
+ * gruppering/kolonnevalg (det er fase 3 — mockup 2b, resten av redigereren).
+ * Valget gjelder kun denne eksporten; Excel og PDF følger samme radvalg.
+ */
+function TilpassetModal({
+  valgteRadTyper,
+  setValgteRadTyper,
+  format,
+  setFormat,
+  onAvbryt,
+  onEksporter,
+  t,
+}: {
+  valgteRadTyper: DetaljRadType[];
+  setValgteRadTyper: (v: DetaljRadType[]) => void;
+  format: "xlsx" | "pdf";
+  setFormat: (f: "xlsx" | "pdf") => void;
+  onAvbryt: () => void;
+  onEksporter: () => void;
+  t: (k: string) => string;
+}) {
+  function toggle(rt: DetaljRadType) {
+    setValgteRadTyper(
+      valgteRadTyper.includes(rt)
+        ? valgteRadTyper.filter((x) => x !== rt)
+        : [...valgteRadTyper, rt],
+    );
+  }
+  const ingenValgt = valgteRadTyper.length === 0;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white shadow-xl">
+        <div className="border-b border-gray-100 px-4 py-3">
+          <h2 className="text-sm font-semibold text-gray-900">
+            {t("firma.timer.rapport.tilpasset.tittel")}
+          </h2>
+        </div>
+
+        <div className="space-y-4 px-4 py-4">
+          {/* Rader */}
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.timer.rapport.tilpasset.rader")}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {RADTYPER.map((rt) => (
+                <label key={rt} className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={valgteRadTyper.includes(rt)}
+                    onChange={() => toggle(rt)}
+                    className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary"
+                  />
+                  {t(`timer.eksport.type${rt.charAt(0).toUpperCase()}${rt.slice(1)}`)}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Format */}
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.timer.rapport.tilpasset.format")}
+            </div>
+            <div className="inline-flex overflow-hidden rounded-md border border-gray-300">
+              <button
+                type="button"
+                onClick={() => setFormat("xlsx")}
+                className={`px-4 py-1.5 text-sm ${format === "xlsx" ? "bg-sitedoc-primary text-white" : "bg-white text-gray-700"}`}
+              >
+                {t("firma.timer.rapport.tilpasset.formatExcel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormat("pdf")}
+                className={`border-l border-gray-300 px-4 py-1.5 text-sm ${format === "pdf" ? "bg-sitedoc-primary text-white" : "bg-white text-gray-700"}`}
+              >
+                {t("firma.timer.rapport.tilpasset.formatPdf")}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-gray-100 px-4 py-3">
+          <button
+            type="button"
+            onClick={onAvbryt}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            {t("firma.timer.rapport.tilpasset.avbryt")}
+          </button>
+          <button
+            type="button"
+            onClick={onEksporter}
+            disabled={ingenValgt}
+            className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t("firma.timer.rapport.tilpasset.eksporter")}
+          </button>
         </div>
       </div>
     </div>

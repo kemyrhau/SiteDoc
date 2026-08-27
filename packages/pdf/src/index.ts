@@ -12,10 +12,9 @@ export type {
   TimerRapportData,
   TimerRapportTekster,
   TimerRapportAnsatt,
-  TimerRapportTimerad,
-  TimerRapportLosMaskin,
-  TimerRapportTillegg,
-  TimerRapportUtlegg,
+  TimerRapportDetaljRad,
+  TimerRapportRadType,
+  TimerRapportMaskinMerke,
 } from "./timer-rapport";
 
 // Typer
