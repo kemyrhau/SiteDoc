@@ -6,6 +6,7 @@ import { tilleggRouter } from "./tillegg";
 import { expenseCategoryRouter } from "./expenseCategory";
 import { dagsseddelRouter } from "./dagsseddel";
 import { rapportRouter } from "./rapport";
+import { eksportOppsettRouter } from "./eksportOppsett";
 
 export const timerRouter = router({
   onboarding: onboardingRouter,
@@ -15,4 +16,5 @@ export const timerRouter = router({
   expenseCategory: expenseCategoryRouter,
   dagsseddel: dagsseddelRouter,
   rapport: rapportRouter,
+  eksportOppsett: eksportOppsettRouter,
 });

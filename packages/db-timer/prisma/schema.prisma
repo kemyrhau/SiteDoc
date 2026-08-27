@@ -506,3 +506,41 @@ model SheetRadHistorikk {
   @@map("sheet_rad_historikk")
   @@schema("timer")
 }
+
+// ==========================================================================
+//  EksportOppsett — lagrede utskriftsmaler for timer-rapport (printmotor fase 3)
+//  Lagrer en VISNING (radTyper + format i JSON), IKKE dokumentstruktur — derfor
+//  IKKE ReportTemplate/OrganizationTemplate (fabel-vedtak: ikke et tredje
+//  mal-begrep; se designnotat-eksportvalg rev 3 + migrering-reporttemplate.md).
+//  db-timer er rett datalag: oppsettet er timer-rapport-spesifikt.
+//
+//  To nivåer via nullable eierId: null = firmamal (alle i firmaet leser; kun
+//  firma-admin skriver), satt = personlig (kun eieren ser/redigerer). basertPaId
+//  binder «Lagre som min» til firmamalen den ble kopiert fra — svakt selvref-felt
+//  UTEN Prisma @relation (db-maskin cross-modul-mønster); «SetNull ved sletting»
+//  håndheves i slett-prosedyren (nuller basertPaId på pekende kopier), ikke av en
+//  FK. Ingen sync: kopien er bevisst en frossen kopi.
+//
+//  Innebygde maler (Full eksport osv.) er KODE, ikke rader her — ingen seed-drift.
+//  configVersion lar config-formen vokse (grupperings-fase 4: per ansatt/prosjekt
+//  + fakturatopptekst) uten å migrere radene.
+//  Svake String-FK-er: organizationId → organizations.id, opprettetAvId → users.id.
+// ==========================================================================
+
+model EksportOppsett {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id") // svak FK → organizations.id
+  name           String
+  config         Json // { radTyper: ("timer"|"maskin"|"tillegg"|"utlegg")[], format: "xlsx"|"pdf" }
+  configVersion  Int      @default(1) @map("config_version")
+  eierId         String?  @map("eier_id") // null = firmamal; satt = personlig (svak FK → users.id)
+  basertPaId     String?  @map("basert_pa_id") // firmamalen «Lagre som min» ble kopiert fra (SetNull i slett-prosedyren)
+  opprettetAvId  String   @map("opprettet_av_id") // svak FK → users.id (attribusjon)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([basertPaId])
+  @@map("eksport_oppsett")
+  @@schema("timer")
+}

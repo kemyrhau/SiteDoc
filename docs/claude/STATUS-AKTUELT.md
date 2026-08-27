@@ -329,6 +329,10 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟢 Printmotor fase 3 — lagrede utskriftsmaler (branch `feat/eksport-fase3-lagrede-maler`, fra develop) — PÅ BRANCH, venter dual-review
+
+Ny tabell `EksportOppsett` (`db-timer`, migrering `20260827120000_eksport_oppsett` — **additiv, gatet av Kenneth, ikke kjørt på test/prod**), router `timer.eksportOppsett` (list/lagre/oppdater/slett), fase-2-modalen fikk lagringsknapper (Lagre / Lagre som min / Lagre som firma / Slett) + maler-velger i eksport-menyen (Mine · Firmaets · Innebygd «Full eksport» · Ny). To nivåer via nullable `eierId` (firma/personlig), `basertPaId` med SetNull i slett-prosedyren. i18n 14 nøkler → 15 språk. Grønt: typecheck 11/11, test, lint (mine filer). **Kun én innebygd** («Full eksport») — Lønnsgrunnlag/Fakturagrunnlag venter på grupperings-fase 4. Detaljer: [timer.md § Fase 3](timer.md) · [printmotor-faser](delplaner/printmotor-faser-2026-08-25.md). **Ingen prod.**
+
 ### 🟢 DG-sporet + flytmodell — SEKS MERGER TIL DEVELOP 2026-08-21 (kontrollplan)
 
 Alt merget til `develop`, **ikke deployet til prod**. Test har alt til og med radkortet.

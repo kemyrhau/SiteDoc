@@ -48,6 +48,28 @@ type SortRetning = "asc" | "desc";
 
 type DetaljVy = "dag" | "uke";
 
+/** Configen en lagret utskriftsmal bærer (configVersion 1). Grupperingen (per
+ *  ansatt/prosjekt + fakturatopptekst) er fase 4 — leseren tolererer at den mangler. */
+type MalConfig = { radTyper: DetaljRadType[]; format: "xlsx" | "pdf" };
+
+/** En lagret mal slik list-endepunktet returnerer den (config er Json). */
+type LagretMal = { id: string; name: string; eierId: string | null; config: unknown };
+
+/** Tolk mal-config defensivt: ukjente/tomme felt faller tilbake til «alt + Excel»,
+ *  så en fremtidig config-form (fase 4) aldri krasjer en eldre klient. */
+function lesConfig(config: unknown): MalConfig {
+  const c = (config ?? {}) as { radTyper?: unknown; format?: unknown };
+  const radTyper = Array.isArray(c.radTyper)
+    ? c.radTyper.filter((r): r is DetaljRadType =>
+        ALLE_RADTYPER.includes(r as DetaljRadType),
+      )
+    : [];
+  return {
+    radTyper: radTyper.length > 0 ? radTyper : [...ALLE_RADTYPER],
+    format: c.format === "pdf" ? "pdf" : "xlsx",
+  };
+}
+
 function isoUkeNokkel(datoStr: string): string {
   const d = new Date(datoStr);
   const year = d.getUTCFullYear();
@@ -143,7 +165,7 @@ function byggPdfTekster(t: (key: string) => string): {
 
 export default function TimerRapportSide() {
   const { t } = useTranslation();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const harTimer = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
   const utils = trpc.useUtils();
@@ -159,11 +181,15 @@ export default function TimerRapportSide() {
   const [detaljVy, setDetaljVy] = useState<DetaljVy>("dag");
   const [eksportÅpen, setEksportÅpen] = useState(false);
   const [eksporterer, setEksporterer] = useState(false);
-  // Tilpasset-modal (fase 2, radvalg): hvilke radtyper som skal med + format.
-  // Ingen lagring — valget gjelder kun denne eksporten (lagrede maler er fase 3).
+  // Tilpasset-modalen ER redigereren (fase 3): radvalg + format + navn + lagring.
+  // `redigererMalId` = null → ny/innebygd (kun «Lagre som ny»); satt → en lagret
+  // mal åpnet for redigering (får «Lagre»/«Slett»). valgteRadTyper+format er den
+  // arbeidende configen; malNavn navnefeltet.
   const [tilpassetÅpen, setTilpassetÅpen] = useState(false);
   const [valgteRadTyper, setValgteRadTyper] = useState<DetaljRadType[]>([...ALLE_RADTYPER]);
   const [tilpassetFormat, setTilpassetFormat] = useState<"xlsx" | "pdf">("xlsx");
+  const [malNavn, setMalNavn] = useState("");
+  const [redigererMalId, setRedigererMalId] = useState<string | null>(null);
   // 1c: try/finally uten catch svelget kastet → «virker ikke» uten spor. Vis
   // feilen til brukeren så den blir konkret (og logg for feilsøking).
   const [eksportFeil, setEksportFeil] = useState<string | null>(null);
@@ -186,6 +212,22 @@ export default function TimerRapportSide() {
     },
     { enabled: !!orgId && harTimer },
   );
+
+  // Lagrede utskriftsmaler (fase 3): firmaets (eierId=null) + kallerens egne
+  // personlige. Serveren filtrerer bort andres personlige.
+  const { data: maler } = trpc.timer.eksportOppsett.list.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId && harTimer },
+  );
+  const lagreMal = trpc.timer.eksportOppsett.lagre.useMutation();
+  const oppdaterMal = trpc.timer.eksportOppsett.oppdater.useMutation();
+  const slettMal = trpc.timer.eksportOppsett.slett.useMutation();
+
+  // Cast bryter tRPC-ens dype Json-inferens på `config` (TS2589) — LagretMal
+  // bærer config som `unknown`, som er den formen klienten uansett tolker via lesConfig.
+  const malerListe = (maler ?? []) as unknown as LagretMal[];
+  const mineMalene = malerListe.filter((m) => m.eierId !== null);
+  const firmaMalene = malerListe.filter((m) => m.eierId === null);
 
   // Viktig: useMemo MÅ kalles før alle conditional returns under,
   // ellers brytes Rules of Hooks (React error #310 — flagget i memory
@@ -362,6 +404,82 @@ export default function TimerRapportSide() {
     }
   }
 
+  /* ---- Lagrede maler (fase 3) — åpne/bruk/lagre/slett ---- */
+
+  /** Åpne redigereren for en NY mal (blank) eller den innebygde «Full eksport». */
+  function åpneRedigerer(forhåndsutfylt?: { navn: string; radTyper: DetaljRadType[] }) {
+    setRedigererMalId(null);
+    setMalNavn(forhåndsutfylt?.navn ?? "");
+    setValgteRadTyper(forhåndsutfylt ? [...forhåndsutfylt.radTyper] : [...ALLE_RADTYPER]);
+    setTilpassetFormat("xlsx");
+    setEksportÅpen(false);
+    setTilpassetÅpen(true);
+  }
+
+  /** Åpne en lagret mal for redigering (får «Lagre»/«Slett»). */
+  function redigerMal(m: LagretMal) {
+    const cfg = lesConfig(m.config);
+    setRedigererMalId(m.id);
+    setMalNavn(m.name);
+    setValgteRadTyper(cfg.radTyper);
+    setTilpassetFormat(cfg.format);
+    setEksportÅpen(false);
+    setTilpassetÅpen(true);
+  }
+
+  /** Klikk på en mal-rad = eksporter direkte med malens config (Excel/PDF). */
+  function brukMal(m: LagretMal) {
+    const cfg = lesConfig(m.config);
+    setEksportÅpen(false);
+    void håndterEksport(cfg.format, cfg.radTyper);
+  }
+
+  async function lagreSomNy(nivaa: "firma" | "personlig") {
+    if (!orgId || !malNavn.trim()) return;
+    setEksportFeil(null);
+    try {
+      await lagreMal.mutateAsync({
+        organizationId: orgId,
+        name: malNavn.trim(),
+        config: { radTyper: valgteRadTyper, format: tilpassetFormat },
+        nivaa,
+      });
+      await utils.timer.eksportOppsett.list.invalidate();
+      setTilpassetÅpen(false);
+    } catch (e) {
+      setEksportFeil(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function lagreEndring() {
+    if (!orgId || !redigererMalId || !malNavn.trim()) return;
+    setEksportFeil(null);
+    try {
+      await oppdaterMal.mutateAsync({
+        id: redigererMalId,
+        organizationId: orgId,
+        name: malNavn.trim(),
+        config: { radTyper: valgteRadTyper, format: tilpassetFormat },
+      });
+      await utils.timer.eksportOppsett.list.invalidate();
+      setTilpassetÅpen(false);
+    } catch (e) {
+      setEksportFeil(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function slettMalen() {
+    if (!orgId || !redigererMalId) return;
+    setEksportFeil(null);
+    try {
+      await slettMal.mutateAsync({ id: redigererMalId, organizationId: orgId });
+      await utils.timer.eksportOppsett.list.invalidate();
+      setTilpassetÅpen(false);
+    } catch (e) {
+      setEksportFeil(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   const harData = !!rapportData && rapportData.ansatte.length > 0;
 
   return (
@@ -387,7 +505,48 @@ export default function TimerRapportSide() {
                   className="fixed inset-0 z-10"
                   onClick={() => setEksportÅpen(false)}
                 />
-                <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                  {/* Lagrede maler — «Mine» øverst, så «Firmaets». Klikk på raden
+                      eksporterer med malens config; «Rediger» åpner redigereren. */}
+                  {mineMalene.length > 0 && (
+                    <MalSeksjon
+                      tittel={t("firma.timer.rapport.maler.mine")}
+                      maler={mineMalene}
+                      onBruk={brukMal}
+                      onRediger={redigerMal}
+                      redigerTekst={t("firma.timer.rapport.maler.rediger")}
+                    />
+                  )}
+                  {firmaMalene.length > 0 && (
+                    <MalSeksjon
+                      tittel={t("firma.timer.rapport.maler.firma")}
+                      maler={firmaMalene}
+                      onBruk={brukMal}
+                      onRediger={redigerMal}
+                      redigerTekst={t("firma.timer.rapport.maler.rediger")}
+                    />
+                  )}
+
+                  {/* Innebygd: én startpunkt-mal (Full eksport). Åpner redigereren
+                      forhåndsutfylt — grunnlag for «Lagre som ny». */}
+                  <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                    {t("firma.timer.rapport.maler.innebygd")}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      åpneRedigerer({
+                        navn: t("firma.timer.rapport.maler.fullEksport"),
+                        radTyper: [...ALLE_RADTYPER],
+                      })
+                    }
+                    className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    {t("firma.timer.rapport.maler.fullEksport")}
+                  </button>
+
+                  {/* Direkte full-eksport per format — uendret fra i dag. */}
+                  <div className="my-1 border-t border-gray-100" />
                   <button
                     type="button"
                     onClick={() => håndterEksport("csv")}
@@ -409,16 +568,14 @@ export default function TimerRapportSide() {
                   >
                     {t("firma.timer.rapport.eksport.pdf")}
                   </button>
+
                   <div className="my-1 border-t border-gray-100" />
                   <button
                     type="button"
-                    onClick={() => {
-                      setEksportÅpen(false);
-                      setTilpassetÅpen(true);
-                    }}
-                    className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => åpneRedigerer()}
+                    className="block w-full px-3 py-1.5 text-left text-sm font-medium text-sitedoc-primary hover:bg-gray-50"
                   >
-                    {t("firma.timer.rapport.eksport.tilpasset")}
+                    {t("firma.timer.rapport.maler.ny")}
                   </button>
                 </div>
               </>
@@ -429,15 +586,23 @@ export default function TimerRapportSide() {
 
       {tilpassetÅpen && (
         <TilpassetModal
+          navn={malNavn}
+          setNavn={setMalNavn}
           valgteRadTyper={valgteRadTyper}
           setValgteRadTyper={setValgteRadTyper}
           format={tilpassetFormat}
           setFormat={setTilpassetFormat}
+          redigererEksisterende={redigererMalId !== null}
+          kanLagreFirma={kanAdministrereFirma}
+          lagrer={lagreMal.isPending || oppdaterMal.isPending || slettMal.isPending}
           onAvbryt={() => setTilpassetÅpen(false)}
           onEksporter={() => {
             setTilpassetÅpen(false);
             void håndterEksport(tilpassetFormat === "pdf" ? "pdf" : "xlsx", valgteRadTyper);
           }}
+          onLagreSomNy={lagreSomNy}
+          onLagreEndring={lagreEndring}
+          onSlett={slettMalen}
           t={t}
         />
       )}
@@ -777,28 +942,93 @@ function Detaljvisning({
 /** Radtypene i visningsrekkefølge — samme fire som eksport-radvalget. */
 const RADTYPER: DetaljRadType[] = ["timer", "maskin", "tillegg", "utlegg"];
 
+/** Én mal-seksjon i eksport-nedtrekket (Mine / Firmaets). Rad-klikk eksporterer;
+ *  «Rediger» åpner redigereren. */
+function MalSeksjon({
+  tittel,
+  maler,
+  onBruk,
+  onRediger,
+  redigerTekst,
+}: {
+  tittel: string;
+  maler: LagretMal[];
+  onBruk: (m: LagretMal) => void;
+  onRediger: (m: LagretMal) => void;
+  redigerTekst: string;
+}) {
+  return (
+    <>
+      <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+        {tittel}
+      </div>
+      {maler.map((m) => (
+        <div key={m.id} className="flex items-center hover:bg-gray-50">
+          <button
+            type="button"
+            onClick={() => onBruk(m)}
+            className="flex-1 truncate px-3 py-1.5 text-left text-sm text-gray-700"
+            title={m.name}
+          >
+            {m.name}
+          </button>
+          <button
+            type="button"
+            onClick={() => onRediger(m)}
+            className="px-2 py-1.5 text-xs text-gray-400 hover:text-sitedoc-primary"
+          >
+            {redigerTekst}
+          </button>
+        </div>
+      ))}
+    </>
+  );
+}
+
 /**
- * Tilpasset-modal (fase 2): avhuking av radtyper + format. Ingen lagring, ingen
- * gruppering/kolonnevalg (det er fase 3 — mockup 2b, resten av redigereren).
- * Valget gjelder kun denne eksporten; Excel og PDF følger samme radvalg.
+ * Redigereren (fase 3) — Tilpasset-modalen med lagring. Navnefelt + radvalg +
+ * format, og lagringsveier avhengig av modus:
+ *  - alltid: «Eksporter uten å lagre» (fase-2-oppførselen).
+ *  - alltid: «Lagre som min» (+ «Lagre som firma» for firma-admin).
+ *  - når en lagret mal er åpnet: «Lagre» (oppdater) + «Slett» (med in-modal
+ *    bekreftelse, ikke confirm() — UI-standard).
+ * Gruppering/kolonnevalg er fase 4 (ikke bygd her).
  */
 function TilpassetModal({
+  navn,
+  setNavn,
   valgteRadTyper,
   setValgteRadTyper,
   format,
   setFormat,
+  redigererEksisterende,
+  kanLagreFirma,
+  lagrer,
   onAvbryt,
   onEksporter,
+  onLagreSomNy,
+  onLagreEndring,
+  onSlett,
   t,
 }: {
+  navn: string;
+  setNavn: (v: string) => void;
   valgteRadTyper: DetaljRadType[];
   setValgteRadTyper: (v: DetaljRadType[]) => void;
   format: "xlsx" | "pdf";
   setFormat: (f: "xlsx" | "pdf") => void;
+  redigererEksisterende: boolean;
+  kanLagreFirma: boolean;
+  lagrer: boolean;
   onAvbryt: () => void;
   onEksporter: () => void;
+  onLagreSomNy: (nivaa: "firma" | "personlig") => void;
+  onLagreEndring: () => void;
+  onSlett: () => void;
   t: (k: string) => string;
 }) {
+  const [bekrefterSlett, setBekrefterSlett] = useState(false);
+
   function toggle(rt: DetaljRadType) {
     setValgteRadTyper(
       valgteRadTyper.includes(rt)
@@ -807,6 +1037,7 @@ function TilpassetModal({
     );
   }
   const ingenValgt = valgteRadTyper.length === 0;
+  const utenNavn = navn.trim().length === 0;
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
@@ -818,6 +1049,20 @@ function TilpassetModal({
         </div>
 
         <div className="space-y-4 px-4 py-4">
+          {/* Navn */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.timer.rapport.tilpasset.navn")}
+            </label>
+            <input
+              type="text"
+              value={navn}
+              onChange={(e) => setNavn(e.target.value)}
+              placeholder={t("firma.timer.rapport.tilpasset.navnPlaceholder")}
+              className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none"
+            />
+          </div>
+
           {/* Rader */}
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -860,24 +1105,98 @@ function TilpassetModal({
               </button>
             </div>
           </div>
+
+          {/* Lagre-valg (forhåndsdefinerte knapper, ikke fritekst-nivåvalg) */}
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.timer.rapport.tilpasset.lagreGruppe")}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {redigererEksisterende && (
+                <button
+                  type="button"
+                  onClick={onLagreEndring}
+                  disabled={ingenValgt || utenNavn || lagrer}
+                  className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
+                >
+                  {t("firma.timer.rapport.tilpasset.lagre")}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onLagreSomNy("personlig")}
+                disabled={ingenValgt || utenNavn || lagrer}
+                className="rounded-md border border-sitedoc-primary px-3 py-1.5 text-sm font-medium text-sitedoc-primary hover:bg-sitedoc-primary/5 disabled:opacity-50"
+              >
+                {t("firma.timer.rapport.tilpasset.lagreSomMin")}
+              </button>
+              {kanLagreFirma && (
+                <button
+                  type="button"
+                  onClick={() => onLagreSomNy("firma")}
+                  disabled={ingenValgt || utenNavn || lagrer}
+                  className="rounded-md border border-sitedoc-primary px-3 py-1.5 text-sm font-medium text-sitedoc-primary hover:bg-sitedoc-primary/5 disabled:opacity-50"
+                >
+                  {t("firma.timer.rapport.tilpasset.lagreSomFirma")}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-gray-100 px-4 py-3">
-          <button
-            type="button"
-            onClick={onAvbryt}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            {t("firma.timer.rapport.tilpasset.avbryt")}
-          </button>
-          <button
-            type="button"
-            onClick={onEksporter}
-            disabled={ingenValgt}
-            className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {t("firma.timer.rapport.tilpasset.eksporter")}
-          </button>
+        {/* Footer: slett (venstre) · avbryt + eksporter (høyre). Slett bekreftes
+            in-modal, aldri via confirm() (UI-standard). */}
+        <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-4 py-3">
+          <div>
+            {redigererEksisterende &&
+              (bekrefterSlett ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">
+                    {t("firma.timer.rapport.tilpasset.slettBekreft")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onSlett}
+                    disabled={lagrer}
+                    className="rounded-md bg-red-600 px-2.5 py-1 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {t("firma.timer.rapport.tilpasset.slett")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBekrefterSlett(false)}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    {t("firma.timer.rapport.tilpasset.avbryt")}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setBekrefterSlett(true)}
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                >
+                  {t("firma.timer.rapport.tilpasset.slett")}
+                </button>
+              ))}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onAvbryt}
+              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              {t("firma.timer.rapport.tilpasset.avbryt")}
+            </button>
+            <button
+              type="button"
+              onClick={onEksporter}
+              disabled={ingenValgt}
+              className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t("firma.timer.rapport.tilpasset.eksporter")}
+            </button>
+          </div>
         </div>
       </div>
     </div>
