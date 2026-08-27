@@ -4,27 +4,32 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-25)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-27 kl. 21)
 
-| Agent | Worktree | Branch | Gjør nå | Venter på |
-|---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `feat/timer-rapport-pdf` | **Fase 1 av printmotoren** — PDF av Timer-rapporten. Ny mal på den eksisterende HTML→PDF-motoren (`services/arkiv/render.ts` → pdf-render-container, Playwright) | Ingenting — bygger |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | Ledig. Siste: `prosjektId`-prop-fella (fire feltvelgere stille tomme i repeater-rader), merget | Ny ordre |
-| **simulator** | `SiteDoc-simulator` | detached `origin/develop` | Re-verifiserer fire feltvelgere i repeater-rad: tegningsposisjon (H8), rom, sone, lokasjon. Ingen av dem har virket der | Test-deploy av `8847b119` |
+**Alle agenter er avsluttet.** Alt som lå i agenthodene er skrevet til `relay/`-ordrer.
+Neste økter startes ferskt — se køen under.
 
-**Prod er à jour 2026-08-25 20:57** (`a8750601`, 198 commits, ingen migreringer).
-Develop ligger foran med seed, designnotat og h8-fiksen.
+| Agent | Worktree | Tilstand | Neste ordre |
+|---|---|---|---|
+| **dokgen** | `SiteDoc-dokgen` | Avsluttet. Alt pushet | `relay/inbox-mobil-create-frys.md` (blokkerer bygget) → `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` |
+| **simulator** | `SiteDoc-simulator` | Avsluttet. **Tunnel 3301 + Release-app står** (bygget fra `564cf61e`, uten create-fiksen) | Verifiser create-frysen når dokgen har kandidat. 🔴 Krever NYTT Release-bygg — se «Tilstand etterlatt» i `relay/inbox-simulator-d1-d2.md` |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/seed-hms-og-feltvelgere` | Ingen ny ordre |
+| **fabel** | — | Har `relay/fabel-eksport-arkivering.md` klar til sending | Kenneth relayer |
 
-**Printmotoren er faset** — se
-[printmotor-faser-2026-08-25.md](delplaner/printmotor-faser-2026-08-25.md).
-Fase 1 = PDF · fase 2 = radvalg + Type-kolonne · fase 3 = lagrede maler.
-`skalEksporteres` er ferdig og i prod; ikke bygg den på nytt i fase 2.
+**Test: `37d53899`** (2026-08-27 20:16). **Prod: `a8750601`** (2026-08-25 20:57) —
+**60 commits bak, hvorav 10 mobil.** Én additiv migrering venter
+(`20260827120000_eksport_oppsett`, db-timer).
 
-| Agent | Worktree | Branch | Gjør nå | Venter på |
-|---|---|---|---|---|
-| **simulator** | `SiteDoc-simulator` | `fix/mobil-uploadasync-0byte` + detached `origin/develop` | 🔴 **ENESTE AKTIVE SPOR.** Kjører kontrollplans protokoll: opplasting (4 krav-tilfeller, PDF viktigst) · mobil tegningsvisning · delt periodefilter | Å bli åpnet |
-| **dokgen** | `SiteDoc-dokgen` | — | Ledig. Siste: fem firma-guarder + dagskort-utvidelser, alt merget | Ny ordre |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | Ledig. Siste: URL-tilstand + ekspandere, merget. Pdf-køen (fold D2/D3 → `renderFelt` · H1 · H8 · oppgave-PDF · H3/H5-rest) står bak simulator-runden | Simulator-grønt |
+🔴 **EAS-bygget er blokkert** av svart frys i mobilens opprett-flyt
+(`fix/mobil-create-frys`, pushet, uverifisert). Kenneth-vedtak 2026-08-27: alt mobil
+ferdig FØR bygget, så det blir ett bygg og ikke tre. Kvote: ~8 igjen, reset 1. sept.
+
+**Printmotoren fase 1–4 er levert og på test.** Modellen ble snudd 2026-08-27: malen
+styrer **skjermen**, og eksporten skriver ut det som vises. Se
+[printmotor-faser-2026-08-25.md](delplaner/printmotor-faser-2026-08-25.md)
+§ Retningsrettelse. Neste retning er **arkivering framfor nedlasting** — fabel eier
+designet; det harde premisset er at `Folder.projectId` er påkrevd mens timer-rapporten
+er en firma-flate.
 
 **✅ TIMER-SPORET LUKKET 2026-08-24.** Fabels designgate på D3 bestått skriftlig:
 [gatekvittering-d3-pivot-fabel-2026-08-24.md](../redesign/gatekvittering-d3-pivot-fabel-2026-08-24.md).
@@ -37,11 +42,9 @@ tillegg/utlegg og tre innganger, URL-båret retur-navigasjon, kollaps/utvid alle
 `merge-base --is-ancestor`); raden sto åpen på arbeid som lå i develop. Samme feilklasse som
 utlegg-raden 2026-08-15 — en `❓ ingen status`-rad er ikke bevis for at noe gjenstår.
 
-🔴 **Develop er 132 commits foran prod (målt 2026-08-23).** Tavla sa 73 i går; tallet var
-utdatert, ikke feil den gangen. Blokkeres av to uverifiserte ting på test: A1
-browser-verifisering (DOMPurify sanerer alt opplastet innhold ved render — bommet SVG-profil
-tar ned tegningsvisningen) og pinning av exceljs-kastet i den nye røde banneren.
-Jo lenger develop står, jo større og mer risikabel blir deployen.
+🔵 **Prod-releasen 2026-08-25 (`a8750601`, 198 commits) tømte etterslepet.** Develop er
+nå 60 commits foran igjen — se tavla øverst for gjeldende tall og migrerings-status.
+Den gamle 132-advarselen er avløst av den releasen og fjernet 2026-08-27.
 
 **🔓 Frysen på `packages/pdf/src/felt.ts` er opphevet (2026-08-23).** Kontrollplan målte at
 fila ligger i mobil-bundlen (Metro tree-shaker ikke barrel-re-eksporter), og konkluderte at
