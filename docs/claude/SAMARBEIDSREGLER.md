@@ -103,6 +103,14 @@ funnene i repoet, mister en ny økt ingenting — den leser seg opp på sekunder
 samtalen, tør ingen avslutte, og da blir økten lang og dyr. De to reglene henger sammen: skriv
 til fil, så kan du starte ferskt.
 
+🔴 **Det dyre overlever et exit — kunnskapen om at det står der gjør det ikke.** SSH-tunneler,
+installerte simulator-bygg, kjørende dev-servere og genererte `node_modules` er prosesser og
+filer på Kenneths maskin; de dør ikke med agent-økta. Det som forsvinner er at noen VET at de
+lever. En fersk økt som ikke får vite det, bygger på nytt — og et Release-sim-bygg kostet tre
+forsøk 27.08 da Hermes-fella slo til. **Derfor: siste handling før exit er en «Tilstand
+etterlatt»-blokk i ordrefila** med hva som står oppe, hva som er slettet, og hva som må
+gjenskapes. Uten den er et exit ikke gratis, det er bare usynlig dyrt.
+
 Særlig verdt å starte ferskt **før en simulator-runde** — den gjør mange handlinger etter
 hverandre, og da teller tykkelsen ekstra.
 
