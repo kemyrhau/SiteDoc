@@ -229,13 +229,18 @@ radnivå og fulgte aldri etter.
 innen hver sedel og bærer per-rad-fordelingen; `perAktivitet`-aggregatet og detaljlistens
 aktivitetsetikett leser fra den. Sedelens egen `aktivitetId` brukes ikke lenger i «Mine timer».
 
-### D4 · Sletting på server propagerer ikke til mobil 🔴
+### D4 · Sletting på server propagerer ikke til mobil ✅ LØST (2026-08-20, `5eb47e6b`)
 Etter at 18 dagssedler ble slettet i prod, viste mobilen dem fortsatt — lokal SQLite fikk
 aldri beskjed. Tombstone-mekanismen fra juli (`slettede_rader`) dekker **rader slettet
 gjennom appen**, ikke **sedler som forsvinner på serversiden**.
-**Konsekvens:** enhver ryddejobb i databasen etterlater spøkelser på telefonene. En
-arbeider kan se timer som ikke finnes og tro at de er ført. Gjelder all serverside-sletting,
-ikke bare manuell rydding.
+**Fiks (samme dag som målingen — dette dokumentet ble skrevet FØR fiksen landet):**
+`hentEndringerSiden` sender nå et autoritativt `slettevindu` {fraDato, tilDato} +
+`levendeSedler` [{id, clientUuid}] over hele intervallet (`dato >= minDato`, uavhengig av
+`updatedAt`-cursoren). Klienten (`timerSync.ts` pull, linjene ~854–892) fjerner lokale
+sedler i intervallet som mangler i det levende id-settet. Vakt-logikken ligger delt og
+enhetstestet i `@sitedoc/shared` (`finnSedlerÅSlette`, 9 tester): VAKT 1 rører kun sedler
+innenfor `[fraDato,tilDato]`, VAKT 2 rører aldri `pending`/`avvist` (upushet lokalt arbeid).
+Verifisert mot kode 2026-08-27 (D1–D4-runden): server + klient + delt vakt er komplett.
 
 ### D5 · Sjekkliste i «Mottatt» kan ikke slettes av noen ✅ LØST (2026-08-21)
 **Rotårsak:** slettevakten var `draft` || `cancelled`, men `cancelled` er uoppnåelig (0 prod-rader)
