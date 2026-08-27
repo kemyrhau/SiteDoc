@@ -1,8 +1,8 @@
 ---
 name: omrader-akse-naastatus
 description: Fabel kodeverifisert nå-status 2026-08-27 for områder-aksen (svar på omrader-retning-2026-08-26.md). Fakta først — endrer designspørsmålene vesentlig.
-status: 🟢 FAKTA — grunnlag for fabel-design
-sist_verifisert_mot_kode: 2026-08-27 (fabel, lesetilgang lokal mappe)
+status: 🟢 FAKTA — grunnlag for fabel-design (cowork-bekreftet 2026-08-27)
+sist_verifisert_mot_kode: 2026-08-27 (fabel + cowork, uavhengige målinger)
 ---
 
 # Områder-aksen — kodeverifisert nå-status (fabel 2026-08-27)
@@ -37,6 +37,9 @@ som noe langt større. Tre av fire ledd i Kenneths kjede er bygget.
    `omradeId: null` (`ImportFremdriftsplanDialog.tsx:204`). Områder opprettes manuelt
    og kobles manuelt. `Omrade` har ingen import-avstamningsfelt (søkt hele
    schema.prisma for importTaskUid/importWbs — finnes kun på KontrollplanPunkt).
+   Cowork-presisering 2026-08-27: koblingen `KontrollplanPunkt.omradeId` finnes
+   allerede med SetNull, indeks og unik-constraint — schemaet er forberedt;
+   importen fyller den bare aldri.
 
 5. **Område-verktøy finnes i kontrollplan**: skyv frister per område
    (`kontrollplan.ts:829`), kopier punkter mellom områder, f.eks. etasje 3 → 4
@@ -69,11 +72,13 @@ mobil-flatens bruk av områder.
   SiteDoc allerede LAGRER avledninger av planen (punkter med TaskUID/WBS) uten å eie
   den — «kun visning»-utgangen har dermed presedens i eksisterende modell.
 
-## Redundans-merknad
+## Redundans-merknad — LUKKET 2026-08-27
 
-Alle fakta over er **enkeltmålt** (fabel med lesetilgang, 2026-08-27). Før design
-låses skal cowork/Opus bekrefte nå-bildet — særlig: hvem bygget Omrade + import
-(KP-sporet L1/L2?), om det er i prod eller på develop, og 3D-status.
+Alle fire fakta cowork-bekreftet ved uavhengig måling samme dag. Proveniens:
+`Omrade` fra «Implementer Område-modell med API, velger-komponenter og rename
+Sone→Område»; import-identiteten fra KP-sporet («feat(kontrollplan): rad-identitet
++ duplikat-guard for fremdriftsplan-import (del 1)»). **Begge er i prod.**
+Gjenstår enkeltmålt/umålt: 3D-kobling til områder.
 
 ## Neste steg (fabel)
 
