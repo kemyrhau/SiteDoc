@@ -61,6 +61,7 @@ export {
   byggDetaljRader,
   kolonnerMedInnhold,
   grupperDetaljRader,
+  flatDetaljRader,
   ALLE_RADTYPER,
 } from "./timerDetaljRader";
 export type {
@@ -74,6 +75,7 @@ export type {
   Gruppering,
   DetaljSubtotal,
   DetaljGruppe,
+  DetaljVisuellRad,
 } from "./timerDetaljRader";
 export {
   OVERTID_NIVAA_50,

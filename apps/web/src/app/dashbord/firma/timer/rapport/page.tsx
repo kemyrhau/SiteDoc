@@ -10,6 +10,7 @@ import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { TimerRapportDetaljer } from "@/components/timer/TimerRapportDetaljer";
 
 type StatusFordeling = { kladd: number; sent: number; attestert: number };
 
@@ -103,6 +104,13 @@ function lesConfig(config: unknown): MalConfig {
         : "auto",
     topptekst: linjer && linjer.length > 0 ? { linjer } : null,
   };
+}
+
+/** Malnavn med filtype-suffiks: «Full eksport» → «Full eksport (.xlsx)». Filtypen
+ *  ligger i `config.format` og sier hva mal-raden produserer (Kenneth 2026-08-27) —
+ *  menyen viste før bare navnet uten å røpe om det ble .xlsx eller .pdf. */
+function medFiltype(navn: string, format: "xlsx" | "pdf"): string {
+  return `${navn} (.${format})`;
 }
 
 /** Innebygd mal (KODE, ikke DB-rad) — alltid tilgjengelig, kan ikke slettes.
@@ -325,6 +333,22 @@ export default function TimerRapportSide() {
     },
     { enabled: !!orgId && harTimer },
   );
+
+  // Detaljradene som skjermen viser (og eksporten skriver ut) — samme filtre som
+  // sammendraget. Hentes eagerly: skjermen ER dokumentet, så radene må stå på
+  // flaten. Virtualiseringen i TimerRapportDetaljer bærer volumet (tusenvis av
+  // rader på et stort firma; ingen terskel — Kenneth-vedtak 2026-08-27).
+  const { data: detalj, isLoading: detaljLaster } =
+    trpc.timer.rapport.detaljEksport.useQuery(
+      {
+        organizationId: orgId!,
+        fra,
+        til,
+        prosjektId: valgtProsjektId || undefined,
+        ansattId: valgtAnsattId || undefined,
+      },
+      { enabled: !!orgId && harTimer },
+    );
 
   // Lagrede utskriftsmaler (fase 3): firmaets (eierId=null) + kallerens egne
   // personlige. Serveren filtrerer bort andres personlige.
@@ -593,19 +617,28 @@ export default function TimerRapportSide() {
     setTilpassetÅpen(true);
   }
 
-  /** Klikk på en mal-rad = eksporter direkte med malens config (filtype = config.format). */
+  /** Klikk på en mal-rad = ANVEND malen på skjermen (radvalg · mottaker · gruppering
+   *  styrer detaljvisningen; format/orientering/topptekst huskes til utskrift). Modell-
+   *  skifte 2026-08-27: malen er en visningskontroll, ikke en skjult eksport-knapp —
+   *  du ser dokumentet på flaten før du skriver det ut. */
   function brukMal(m: LagretMal) {
-    const cfg = lesConfig(m.config);
-    setEksportÅpen(false);
+    settModalFraConfig(lesConfig(m.config));
     if (orgId) settSistBrukt(eksportMalNøkkel, m.id);
-    void håndterEksport(cfg.format, cfg);
+    setEksportÅpen(false);
   }
 
-  /** Klikk på en innebygd mal-rad = ett-klikk-eksport med dens config. */
+  /** Klikk på en innebygd mal-rad = anvend dens config på skjermen (som brukMal). */
   function brukInnebygd(mal: InnebygdMal) {
-    setEksportÅpen(false);
+    settModalFraConfig(mal.config);
     if (orgId) settSistBrukt(eksportMalNøkkel, mal.id);
-    void håndterEksport(mal.config.format, mal.config);
+    setEksportÅpen(false);
+  }
+
+  /** Config for «skriv ut det som vises»: skjermens gjeldende akser (radvalg ·
+   *  mottaker · gruppering · orientering · topptekst) med valgt filtype. `modalConfig`
+   *  leser de SAMME page-state-feltene som nå styrer detaljvisningen. */
+  function skjermConfig(format: "xlsx" | "pdf"): MalConfig {
+    return { ...modalConfig(), format };
   }
 
   async function lagreSomNy(nivaa: "firma" | "personlig") {
@@ -717,9 +750,11 @@ export default function TimerRapportSide() {
                         type="button"
                         onClick={() => brukInnebygd(mal)}
                         className="flex flex-1 items-center gap-2 truncate px-3 py-1.5 text-left text-sm text-gray-700"
-                        title={mal.navn}
+                        title={medFiltype(mal.navn, mal.config.format)}
                       >
-                        <span className="truncate">{mal.navn}</span>
+                        <span className="truncate">
+                          {medFiltype(mal.navn, mal.config.format)}
+                        </span>
                         {sistBruktMalId === mal.id && (
                           <SistBruktMerke tekst={t("firma.timer.rapport.maler.sistBrukt")} />
                         )}
@@ -734,25 +769,26 @@ export default function TimerRapportSide() {
                     </div>
                   ))}
 
-                  {/* Direkte full-eksport per format — uendret fra i dag. */}
+                  {/* «Skriv ut det som vises»: eksporterer skjermens gjeldende akser
+                      (radvalg · mottaker · gruppering), ikke en egen full-default. */}
                   <div className="my-1 border-t border-gray-100" />
                   <button
                     type="button"
-                    onClick={() => håndterEksport("csv")}
+                    onClick={() => håndterEksport("csv", skjermConfig("xlsx"))}
                     className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
                   >
                     {t("firma.timer.rapport.eksport.csv")}
                   </button>
                   <button
                     type="button"
-                    onClick={() => håndterEksport("xlsx")}
+                    onClick={() => håndterEksport("xlsx", skjermConfig("xlsx"))}
                     className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
                   >
                     {t("firma.timer.rapport.eksport.excel")}
                   </button>
                   <button
                     type="button"
-                    onClick={() => håndterEksport("pdf")}
+                    onClick={() => håndterEksport("pdf", skjermConfig("pdf"))}
                     className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
                   >
                     {t("firma.timer.rapport.eksport.pdf")}
@@ -967,6 +1003,72 @@ export default function TimerRapportSide() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Detaljer — skjermens speiling av dokumentet. Radvalg · mottaker · gruppering
+          er visningskontroller (styrer denne tabellen OG utskriften); filterraden over
+          styrer HVILKE data. «Eksporter» skriver ut nøyaktig det som vises her. */}
+      {harData && (
+        <div className="mt-6">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+            <h2 className="text-base font-semibold text-gray-900">
+              {t("firma.timer.rapport.detaljer.tittel")}
+            </h2>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                {RADTYPER.map((rt) => (
+                  <label
+                    key={rt}
+                    className="flex cursor-pointer items-center gap-1.5 text-sm text-gray-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={valgteRadTyper.includes(rt)}
+                      onChange={() =>
+                        setValgteRadTyper((forr) =>
+                          forr.includes(rt)
+                            ? forr.filter((x) => x !== rt)
+                            : [...forr, rt],
+                        )
+                      }
+                      className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary"
+                    />
+                    {t(`timer.eksport.type${rt.charAt(0).toUpperCase()}${rt.slice(1)}`)}
+                  </label>
+                ))}
+              </div>
+              <Segment
+                verdi={mottaker}
+                valg={[
+                  { v: "intern", tekst: t("firma.timer.rapport.tilpasset.mottakerIntern") },
+                  { v: "ekstern", tekst: t("firma.timer.rapport.tilpasset.mottakerEkstern") },
+                ]}
+                onVelg={setMottaker}
+              />
+              <Segment
+                verdi={gruppering}
+                valg={[
+                  { v: "ingen", tekst: t("firma.timer.rapport.tilpasset.grupperingIngen") },
+                  { v: "ansatt", tekst: t("firma.timer.rapport.tilpasset.grupperingAnsatt") },
+                  { v: "prosjekt", tekst: t("firma.timer.rapport.tilpasset.grupperingProsjekt") },
+                ]}
+                onVelg={setGruppering}
+              />
+            </div>
+          </div>
+          {mottaker === "ekstern" && (
+            <p className="mb-2 text-xs text-gray-500">
+              {t("firma.timer.rapport.tilpasset.eksternNote")}
+            </p>
+          )}
+          <TimerRapportDetaljer
+            detalj={detalj}
+            isLoading={detaljLaster}
+            valgteRadTyper={valgteRadTyper}
+            mottaker={mottaker}
+            gruppering={gruppering}
+          />
         </div>
       )}
     </div>
@@ -1208,9 +1310,11 @@ function MalSeksjon({
             type="button"
             onClick={() => onBruk(m)}
             className="flex flex-1 items-center gap-2 truncate px-3 py-1.5 text-left text-sm text-gray-700"
-            title={m.name}
+            title={medFiltype(m.name, lesConfig(m.config).format)}
           >
-            <span className="truncate">{m.name}</span>
+            <span className="truncate">
+              {medFiltype(m.name, lesConfig(m.config).format)}
+            </span>
             {sistBruktId === m.id && <SistBruktMerke tekst={sistBruktTekst} />}
           </button>
           <button
