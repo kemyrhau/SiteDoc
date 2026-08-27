@@ -212,11 +212,21 @@ flyter brukeren er medlem av, uavhengig av ballposisjon — i tråd med Kenneths
 **Gjenstår å måle:** kan KMY åpne dokumentet fra lista etterpå, eller krasjer det også?
 Det skiller gjengivelsesfeil fra tilstandsfeil.
 
-### D2 · Mobil låser seg ved opprettelse av sjekkliste i prosjekt 998 🔴
-Prosjekt 998 har 3 faggrupper, 5 flyter, 15 ledd. Prosjekt 999, som fungerer, har 1/2/4.
-Mistanke: `OpprettDokumentModal` må la brukeren velge kandidat når det finnes flere
-flyter, og snubler i presentasjonsovergangen — samme sted som freeze-fiksen `a29f89b2`
-traff, men en annen gren. Ikke bekreftet.
+### D2 · Mobil låser seg ved opprettelse av sjekkliste i prosjekt 998 ✅ LØST (2026-08-27)
+**Rotårsak (bekreftet mot kode):** frysen lå IKKE i `OpprettDokumentModal` (den ble ryddet
+i `a29f89b2`), men i `MalVelger.tsx` — som fortsatt bar den SAMME `onDismiss`-deadlock-gaten
+`a29f89b2` fjernet, «samme sted, annen gren». `velg()` utsatte på iOS `onVelg` til `<Modal
+onDismiss>` fyrte (via `ventendeMal` + `internSynlig=false`); under Fabric/newArch rendres
+modalen inline og `onDismiss` fyrer ikke pålitelig → `onVelg` ble aldri kalt → opprett-modalen
+åpnet aldri, og den nedrevne velger-hosten fanget all touch = frys. Symptomet traff kun
+prosjekter med **≥2 opprettbare maler** (998); med nøyaktig 1 mal (999) hopper `skalAutoVelge`
+over hele velger-modalen og kaller `onVelg` direkte — derfor «virket» 999. Ikke antall flyter/
+faggrupper i seg selv, men antall opprettbare maler i prosjektet.
+**Fiks:** `velg()` kaller `onVelg` direkte på alle plattformer (speiler `a29f89b2`); fjernet
+`ventendeMal`/`internSynlig`/`håndterDismiss`/`onDismiss`-maskineriet. `OpprettDokumentModal`
+sin egen fler-flyt-håndtering er inline `<View>`-dropdowns (ikke modaler) og var aldri årsaken.
+🟡 **Krever Release-sim-verifisering på enhet** (samme som `a29f89b2` — Fabric-modal-livssyklus
+kan ikke verifiseres i JS-typecheck alene).
 
 ### D3 · «Mine timer» fordeler timer på feil aktivitet ✅ LØST (2026-08-27)
 **Rotårsak:** `apps/mobile/app/timer/mine.tsx` tilskrev hele sedelens timesum til **sedelens**
