@@ -8,6 +8,13 @@
  * initial page-load for brukere som aldri klikker eksport.
  */
 
+import {
+  byggDetaljRader,
+  ALLE_RADTYPER,
+  type DetaljRad,
+  type DetaljRadType,
+} from "@sitedoc/shared";
+
 type StatusFordeling = { kladd: number; sent: number; attestert: number };
 
 export type AnsattRapportRad = {
@@ -276,16 +283,47 @@ function settBredder(ws: Worksheet, bredder: number[]): void {
   });
 }
 
+/** Type-etikett (Type-kolonnen) fra radtypen. */
+function typeEtikett(t: OversettFn, type: DetaljRadType): string {
+  return t(`timer.eksport.type${type.charAt(0).toUpperCase()}${type.slice(1)}`);
+}
+
 /**
- * Ark «Timerader»: én rad per SheetTimer, med maskin-rader nøstet UNDER sin
- * timerad (sheetTimerId, samme som dagskort-hoveren). Maskin uten timerad
- * samles nederst — vist ærlig, ikke skjult.
- *
- * DATADREVET gruppering: kolonnene er en liste, ikke hardkodede nivåer. En
- * framtidig proadm-«underprosjekt»-dimensjon legges til som ÉN kolonne her (og
- * som ett felt på server-raden + ett filter) — uten ombygging.
+ * Betegnelse-cellen: lønnsart/tilleggsnavn/kategori direkte, men maskin-navnet
+ * merkes etter opprinnelse (nøstet «↳», uten timerad, ikke-eksporterbar) med
+ * SAMME i18n-strenger som før sammenslåingen (behold anomali-signalene synlige).
  */
-function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): void {
+function betegnelse(t: OversettFn, r: DetaljRad): string {
+  if (r.type !== "maskin") return r.betegnelse;
+  switch (r.maskinMerke) {
+    case "noster":
+      return t("timer.eksport.maskinNoster", { navn: r.betegnelse });
+    case "utenTimerad":
+      return t("timer.eksport.maskinUtenTimerad", { navn: r.betegnelse });
+    case "ikkeEksporterbar":
+      return t("timer.eksport.maskinIkkeEksporterbar", { navn: r.betegnelse });
+    default:
+      return r.betegnelse; // timeraden er skjult av radvalget — normal maskin-rad
+  }
+}
+
+/**
+ * Ark «Detaljer»: ÉN kronologisk tabell med Type-kolonne (Timer · Maskin ·
+ * Tillegg · Utlegg) — erstatter de tre gamle detaljarkene (fase 2, 2026-08-26).
+ * Maskin beholder nøstingen under sin timerad. Radsettet + rekkefølgen kommer
+ * fra @sitedoc/shared `byggDetaljRader`, SAMME kilde som PDF-en, så de aldri kan
+ * drive fra hverandre. Excel viser ALLE kolonner (bredde er gratis her); PDF
+ * dropper de tomme.
+ *
+ * Fire kontrollsummer (Timer/Maskintimer/Antall/Beløp) via SUBTOTAL(109) —
+ * respekterer Excel-filtrering, så en Type-filtrert visning oppdaterer summen.
+ * Timer-summen må fortsatt stemme mot Sammendrag når Timer-rader er med.
+ */
+function byggDetaljerArk(
+  ws: Worksheet,
+  rader: DetaljRad[],
+  t: OversettFn,
+): void {
   const kol = kolTekst(t);
   const noekler = [
     "kolDato",
@@ -293,189 +331,69 @@ function byggTimeraderArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): 
     "kolAnsattnr",
     "kolProsjekt",
     // ← framtidig «Underprosjekt» slottes inn her (data fra server-raden).
-    "kolLonnsart",
+    "kolType",
+    "kolBetegnelse", // lønnsart · maskinnavn · tilleggsnavn · kategori
     "kolAktivitet",
     "kolTimer",
     "kolMaskintimer", // egen kolonne — holder Timer-kolonnen (kontrollsum) ren
-    "kolBeskrivelse",
-    "kolRadstatus", // T.3 attestertStatus per rad (ikke sedel-status)
+    "kolAntall",
+    "kolBelop",
     "kolMengde",
     "kolEnhet",
-    "kolId", // tynn koblingsnøkkel (sheetTimer.id / sheetMachine.id), ikke lesestoff
+    "kolBeskrivelse",
+    "kolStatus", // rad-status (timer/maskin/tillegg) · seddelstatus (utlegg)
+    "kolId", // tynn koblingsnøkkel — Excel-only, aldri PDF
   ];
-  const header = noekler.map(kol);
-  ws.addRow(header);
+  ws.addRow(noekler.map(kol));
   ws.getRow(1).font = { bold: true };
   // Indeks slås opp på den STABILE nøkkelen, ikke den oversatte strengen —
   // robust mot både innskutte kolonner OG ikke-norske faner.
-  const timerKol = noekler.indexOf("kolTimer");
-  const maskintimerKol = noekler.indexOf("kolMaskintimer");
-  const førsteData = 2;
-
-  for (const rad of detalj.timerader) {
-    ws.addRow([
-      rad.dato,
-      rad.ansatt,
-      rad.ansattnr ?? "",
-      rad.prosjekt,
-      rad.lonnsart,
-      rad.aktivitet,
-      rad.timer, // NUMERISK — SUBTOTAL kan ikke summere formaterte strenger
-      "", // Maskintimer tom på timerad
-      rad.beskrivelse ?? "",
-      rad.radstatus,
-      "",
-      "",
-      rad.id,
-    ]);
-    // Maskin nøstet rett under sin timerad. Timer-kolonnen står TOM (maskin
-    // bærer maskintimer i EGEN kolonne) → arbeidstimer-kontrollsummen forblir ren.
-    for (const m of rad.maskiner) {
-      ws.addRow([
-        rad.dato,
-        rad.ansatt,
-        rad.ansattnr ?? "",
-        rad.prosjekt,
-        t("timer.eksport.maskinNoster", { navn: m.navn }),
-        "",
-        "", // Timer tom for maskin
-        m.timer, // maskintimer (numerisk)
-        "",
-        m.radstatus,
-        m.mengde ?? "",
-        m.enhet ?? "",
-        m.id,
-      ]);
-    }
-  }
-  for (const m of detalj.maskinUtenTimerad) {
-    ws.addRow([
-      m.dato,
-      m.ansatt,
-      m.ansattnr ?? "",
-      m.prosjekt,
-      t("timer.eksport.maskinUtenTimerad", { navn: m.navn }),
-      "",
-      "",
-      m.timer,
-      "",
-      m.radstatus,
-      m.mengde ?? "",
-      m.enhet ?? "",
-      m.id,
-    ]);
-  }
-  // Maskin på en timerad som ble ekskludert av skalEksporteres — EGEN linje,
-  // ikke «uten timerad» (den er anomali-signalet «maskin uten registrert arbeid»).
-  // Maskintimene beholdes i maskintimer-summen (fakturerbart — maskin er ikke
-  // en lønnsart).
-  for (const m of detalj.maskinIkkeEksporterbar) {
-    ws.addRow([
-      m.dato,
-      m.ansatt,
-      m.ansattnr ?? "",
-      m.prosjekt,
-      t("timer.eksport.maskinIkkeEksporterbar", { navn: m.navn }),
-      "",
-      "",
-      m.timer,
-      "",
-      m.radstatus,
-      m.mengde ?? "",
-      m.enhet ?? "",
-      m.id,
-    ]);
-  }
-
-  // Dobbel kontrollsum: arbeidstimer (vs Sammendrag) + maskintimer (egen størrelse).
-  leggTilSumrad(
-    ws,
-    header.length,
-    [timerKol, maskintimerKol],
-    førsteData,
-    ws.rowCount,
-    t("timer.eksport.sumKontroll"),
-  );
-  settBredder(ws, [12, 22, 10, 24, 20, 20, 9, 11, 40, 12, 10, 8, 14]);
-}
-
-function byggTilleggArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): void {
-  const noekler = [
-    "kolDato",
-    "kolAnsatt",
-    "kolAnsattnr",
-    "kolProsjekt",
-    "kolTillegg",
-    "kolAntall",
-    "kolKommentar",
-    "kolRadstatus",
-    "kolId",
+  const sumKol = [
+    noekler.indexOf("kolTimer"),
+    noekler.indexOf("kolMaskintimer"),
+    noekler.indexOf("kolAntall"),
+    noekler.indexOf("kolBelop"),
   ];
-  ws.addRow(noekler.map(kolTekst(t)));
-  ws.getRow(1).font = { bold: true };
-  const antallKol = noekler.indexOf("kolAntall");
-  for (const r of detalj.tillegg) {
+
+  for (const r of rader) {
     ws.addRow([
       r.dato,
       r.ansatt,
       r.ansattnr ?? "",
       r.prosjekt,
-      r.tillegg,
-      r.antall,
-      r.kommentar ?? "",
-      r.radstatus,
-      r.id,
-    ]);
-  }
-  leggTilSumrad(ws, noekler.length, [antallKol], 2, ws.rowCount, t("timer.eksport.sumKontroll"));
-  settBredder(ws, [12, 22, 10, 24, 22, 9, 40, 12, 14]);
-}
-
-function byggUtleggArk(ws: Worksheet, detalj: DetaljEksport, t: OversettFn): void {
-  const noekler = [
-    "kolDato",
-    "kolAnsatt",
-    "kolAnsattnr",
-    "kolProsjekt",
-    "kolKategori",
-    "kolBelop",
-    "kolKommentar",
-    "kolSeddelstatus", // utlegg har ingen rad-status → sedel-status (ulik betydning)
-    "kolId",
-  ];
-  ws.addRow(noekler.map(kolTekst(t)));
-  ws.getRow(1).font = { bold: true };
-  const belopKol = noekler.indexOf("kolBelop");
-  for (const r of detalj.utlegg) {
-    ws.addRow([
-      r.dato,
-      r.ansatt,
-      r.ansattnr ?? "",
-      r.prosjekt,
-      r.kategori,
+      typeEtikett(t, r.type),
+      betegnelse(t, r),
+      r.aktivitet ?? "",
+      r.timer ?? "", // NUMERISK der satt — SUBTOTAL ignorerer tomme/tekst-celler
+      r.maskintimer ?? "",
+      r.antall ?? "",
       r.belop ?? "",
-      r.kommentar ?? "",
-      r.seddelstatus,
+      r.mengde ?? "",
+      r.enhet ?? "",
+      r.beskrivelse ?? "",
+      r.status,
       r.id,
     ]);
   }
-  leggTilSumrad(ws, noekler.length, [belopKol], 2, ws.rowCount, t("timer.eksport.sumKontroll"));
-  settBredder(ws, [12, 22, 10, 24, 22, 12, 40, 12, 14]);
+
+  leggTilSumrad(ws, noekler.length, sumKol, 2, ws.rowCount, t("timer.eksport.sumKontroll"));
+  settBredder(ws, [12, 22, 10, 22, 10, 24, 18, 9, 11, 9, 11, 10, 8, 34, 12, 14]);
 }
 
 /**
- * Excel-eksport (6 ark: Sammendrag + Per prosjekt + Per dag + Timerader +
- * Tillegg + Utlegg).
+ * Excel-eksport (4 ark: Sammendrag + Per prosjekt + Per dag + Detaljer).
  *
  * Aggregat-arkene (Sammendrag/Per prosjekt/Per dag) beholdes — vi vet ikke hvem
  * som bruker dem, og å fjerne output på en slutning er den stille bruddformen.
- * Detalj-arkene (Timerader/Tillegg/Utlegg) er TILLEGG, matet av
- * timer.rapport.detaljEksport hentet ved eksport-klikk.
+ * Detalj-arket (ett kronologisk «Detaljer» med Type-kolonne, fase 2) matet av
+ * timer.rapport.detaljEksport hentet ved eksport-klikk, filtrert på `valgteRadTyper`
+ * (radvalget fra Tilpasset-modalen; default = alle fire typer).
  */
 export async function eksporterXlsx(
   input: EksportInput,
   detalj: DetaljEksport,
   t: OversettFn,
+  valgteRadTyper: readonly DetaljRadType[] = ALLE_RADTYPER,
 ): Promise<void> {
   const ExcelJSModule = await import("exceljs");
   const ExcelJS =
@@ -529,10 +447,10 @@ export async function eksporterXlsx(
     col.width = 18;
   });
 
-  // Ark 4–6: detalj (lønn/fakturering)
-  byggTimeraderArk(wb.addWorksheet(t("timer.eksport.ark.timerader")), detalj, t);
-  byggTilleggArk(wb.addWorksheet(t("timer.eksport.ark.tillegg")), detalj, t);
-  byggUtleggArk(wb.addWorksheet(t("timer.eksport.ark.utlegg")), detalj, t);
+  // Ark 4: Detaljer (ett kronologisk ark med Type-kolonne, radvalg-filtrert).
+  // SAMME radsett/rekkefølge som PDF-en (delt @sitedoc/shared byggDetaljRader).
+  const detaljRader = byggDetaljRader(detalj, valgteRadTyper);
+  byggDetaljerArk(wb.addWorksheet(t("timer.eksport.ark.detaljer")), detaljRader, t);
 
   const buffer = await wb.xlsx.writeBuffer();
   lastNed(

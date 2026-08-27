@@ -2,11 +2,16 @@
  * Timer-rapport PDF — ny mal på den eksisterende HTML→PDF-motoren
  * (arkiv.rendr-rørledningen: `.ark`-HTML → pdf-render-containeren via page.pdf).
  *
- * FASE 1: et DOKUMENT (ikke et regneark på papir) med samme innhold som Excel-
- * eksporten — firmatopp (firmanavn, periode, aktive filtre), sammendrag, så
- * detaljradene. Sidetall + generert-stempel legges av containerens header/footer-
- * template (bygges api-side). ID-kolonnene er BEVISST utelatt — de er
- * koblingsnøkler for databasen, ikke lesestoff for en byggherre.
+ * FASE 2 (2026-08-26): detaljene er ETT kronologisk «Detaljer»-avsnitt med en
+ * Type-kolonne (Timer · Maskin · Tillegg · Utlegg) i stedet for tre tabeller.
+ * Radsettet + rekkefølgen bygges av @sitedoc/shared `byggDetaljRader` (SAMME
+ * kilde som Excel-arket) og mates hit ferdig-flatet — denne pakken importerer
+ * bevisst IKKE @sitedoc/shared (null runtime-avhengigheter), den mottar rader som
+ * data. Radvalget fra Tilpasset-modalen er allerede anvendt i `detaljRader`.
+ *
+ * PDF-forskjell mot Excel: kolonner som er HELT tomme for de valgte radtypene
+ * droppes (16 kolonner på A4 er uleselig — velger man bare Timer er Beløp/Antall/
+ * Mengde/Enhet tomme hele veien). ID-kolonnen er aldri med (koblingsnøkkel for DB).
  *
  * Ren HTML-streng, null runtime-avhengigheter (som resten av @sitedoc/pdf).
  * Serveren eier innholdet; oversatte overskrifter (`tekster`) injiseres fra
@@ -30,59 +35,36 @@ export type TimerRapportAnsatt = {
   attestert: number;
 };
 
-export type TimerRapportMaskin = {
-  navn: string;
-  timer: number;
-  mengde: number | null;
-  enhet: string | null;
-  radstatus: string;
-};
+export type TimerRapportRadType = "timer" | "maskin" | "tillegg" | "utlegg";
+export type TimerRapportMaskinMerke =
+  | "noster"
+  | "utenTimerad"
+  | "ikkeEksporterbar"
+  | null;
 
-export type TimerRapportTimerad = {
+/**
+ * Én flat detaljrad — strukturelt identisk med @sitedoc/shared `DetaljRad`, men
+ * definert her for å holde pakken fri for shared-avhengigheten. Api-en mapper
+ * shared-radene til denne før byggingen. ID-feltet er bevisst utelatt (aldri PDF).
+ */
+export type TimerRapportDetaljRad = {
+  type: TimerRapportRadType;
+  nivaa: 0 | 1;
   dato: string;
   ansatt: string;
   ansattnr: string | null;
   prosjekt: string;
-  lonnsart: string;
-  aktivitet: string;
-  timer: number;
-  beskrivelse: string | null;
-  radstatus: string;
-  maskiner: TimerRapportMaskin[];
-};
-
-export type TimerRapportLosMaskin = {
-  dato: string;
-  ansatt: string;
-  ansattnr: string | null;
-  prosjekt: string;
-  navn: string;
-  timer: number;
-  mengde: number | null;
-  enhet: string | null;
-  radstatus: string;
-};
-
-export type TimerRapportTillegg = {
-  dato: string;
-  ansatt: string;
-  ansattnr: string | null;
-  prosjekt: string;
-  tillegg: string;
-  antall: number;
-  kommentar: string | null;
-  radstatus: string;
-};
-
-export type TimerRapportUtlegg = {
-  dato: string;
-  ansatt: string;
-  ansattnr: string | null;
-  prosjekt: string;
-  kategori: string;
+  betegnelse: string;
+  aktivitet: string | null;
+  timer: number | null;
+  maskintimer: number | null;
+  antall: number | null;
   belop: number | null;
-  kommentar: string | null;
-  seddelstatus: string;
+  mengde: number | null;
+  enhet: string | null;
+  beskrivelse: string | null;
+  status: string;
+  maskinMerke: TimerRapportMaskinMerke;
 };
 
 export type TimerRapportData = {
@@ -92,11 +74,7 @@ export type TimerRapportData = {
   prosjektFilter: string | null; // navn hvis filtrert, null = alle
   ansattFilter: string | null;
   ansatte: TimerRapportAnsatt[];
-  timerader: TimerRapportTimerad[];
-  maskinUtenTimerad: TimerRapportLosMaskin[];
-  maskinIkkeEksporterbar: TimerRapportLosMaskin[];
-  tillegg: TimerRapportTillegg[];
-  utlegg: TimerRapportUtlegg[];
+  detaljRader: TimerRapportDetaljRad[];
 };
 
 /** Alle synlige strenger (overskrifter/etiketter) — injisert oversatt fra klient. */
@@ -117,29 +95,28 @@ export type TimerRapportTekster = {
   kolKladd: string;
   kolSent: string;
   kolAttestert: string;
-  // Timerader
-  timerader: string;
+  // Detaljer (merged)
+  detaljer: string;
   kolDato: string;
-  kolLonnsart: string;
+  kolType: string;
+  kolBetegnelse: string;
   kolAktivitet: string;
   kolTimer: string;
   kolMaskintimer: string;
-  kolBeskrivelse: string;
-  kolRadstatus: string;
+  kolAntall: string;
+  kolBelop: string;
   kolMengde: string;
   kolEnhet: string;
+  kolBeskrivelse: string;
+  kolStatus: string;
+  // Type-etiketter
+  typeTimer: string;
+  typeMaskin: string;
+  typeTillegg: string;
+  typeUtlegg: string;
+  // Maskin-merker
   maskinUtenTimerad: string;
   maskinIkkeEksporterbar: string;
-  // Tillegg
-  tillegg: string;
-  kolTillegg: string;
-  kolAntall: string;
-  kolKommentar: string;
-  // Utlegg
-  utlegg: string;
-  kolKategori: string;
-  kolBelop: string;
-  kolSeddelstatus: string;
 };
 
 /* ------------------------------------------------------------------ */
@@ -175,13 +152,13 @@ tr { break-inside: avoid; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .sum td { font-weight: 700; border-top: 1.5px solid #9ca3af; background: #f9fafb; }
 .mrk { color: #6b7280; }
-.maskin td:first-child { padding-left: 16px; }
+.nest td:nth-child(6) { padding-left: 16px; }
 .slate { display: inline-block; background: #e2e8f0; color: #475569; font-size: 7.5px; font-weight: 700; text-transform: uppercase; padding: 0 4px; border-radius: 3px; margin-right: 4px; }
 .tom { color: #9ca3af; font-style: italic; padding: 8px 0; }
 `;
 
 /* ------------------------------------------------------------------ */
-/*  Tabeller                                                           */
+/*  Sammendrag                                                        */
 /* ------------------------------------------------------------------ */
 
 function th(...celler: string[]): string {
@@ -214,107 +191,142 @@ function sammendragTabell(d: TimerRapportData, t: TimerRapportTekster): string {
   </table>`;
 }
 
-function timeraderTabell(d: TimerRapportData, t: TimerRapportTekster): string {
-  const harNoe =
-    d.timerader.length > 0 ||
-    d.maskinUtenTimerad.length > 0 ||
-    d.maskinIkkeEksporterbar.length > 0;
-  if (!harNoe) return `<p class="tom">${esc(t.ingenData)}</p>`;
+/* ------------------------------------------------------------------ */
+/*  Detaljer (merged Type-tabell, tomme kolonner droppes)             */
+/* ------------------------------------------------------------------ */
 
-  const maskinRad = (m: TimerRapportMaskin): string => `<tr class="maskin mrk">
-    <td></td><td></td><td></td><td></td>
-    <td><span class="slate">${esc(t.kolMaskintimer)}</span>${esc(m.navn)}</td>
-    <td></td>
-    <td class="num"></td>
-    <td class="num">${tall(m.timer)}</td>
-    <td>${m.mengde === null ? "" : `${tall(m.mengde)} ${esc(m.enhet ?? "")}`}</td>
-    <td>${esc(m.radstatus)}</td>
-  </tr>`;
+/** Kolonne-descriptor: header, celle-verdi, evt. sum, og om den kan droppes når
+ *  tom. `alltid` = identitets-/type-kolonner som aldri droppes. */
+type KolDef = {
+  header: string;
+  num: boolean;
+  alltid: boolean;
+  /** true hvis noen valgt rad har innhold i kolonnen (ellers droppes den). */
+  tilstede: (rader: TimerRapportDetaljRad[]) => boolean;
+  celle: (r: TimerRapportDetaljRad, t: TimerRapportTekster) => string;
+  /** hvis satt: kolonnen får en SUM-celle i sumraden. */
+  sum?: (rader: TimerRapportDetaljRad[]) => number;
+};
 
-  const losMaskinRad = (m: TimerRapportLosMaskin, merke: string): string => `<tr class="maskin mrk">
-    <td>${esc(m.dato)}</td><td>${esc(m.ansatt)}</td><td>${esc(m.ansattnr ?? "")}</td><td>${esc(m.prosjekt)}</td>
-    <td><span class="slate">${esc(merke)}</span>${esc(m.navn)}</td>
-    <td></td>
-    <td class="num"></td>
-    <td class="num">${tall(m.timer)}</td>
-    <td>${m.mengde === null ? "" : `${tall(m.mengde)} ${esc(m.enhet ?? "")}`}</td>
-    <td>${esc(m.radstatus)}</td>
-  </tr>`;
-
-  const rader = d.timerader
-    .map(
-      (r) => `<tr>
-      <td>${esc(r.dato)}</td>
-      <td>${esc(r.ansatt)}</td>
-      <td>${esc(r.ansattnr ?? "")}</td>
-      <td>${esc(r.prosjekt)}</td>
-      <td>${esc(r.lonnsart)}</td>
-      <td>${esc(r.aktivitet)}</td>
-      <td class="num">${tall(r.timer)}</td>
-      <td class="num"></td>
-      <td>${esc(r.beskrivelse ?? "")}</td>
-      <td>${esc(r.radstatus)}</td>
-    </tr>${r.maskiner.map(maskinRad).join("")}`,
-    )
-    .join("");
-
-  const losUten = d.maskinUtenTimerad
-    .map((m) => losMaskinRad(m, t.maskinUtenTimerad))
-    .join("");
-  const losIkke = d.maskinIkkeEksporterbar
-    .map((m) => losMaskinRad(m, t.maskinIkkeEksporterbar))
-    .join("");
-
-  const sumTimer = d.timerader.reduce((s, r) => s + r.timer, 0);
-  const sumMaskin =
-    d.timerader.reduce((s, r) => s + r.maskiner.reduce((a, m) => a + m.timer, 0), 0) +
-    d.maskinUtenTimerad.reduce((s, m) => s + m.timer, 0) +
-    d.maskinIkkeEksporterbar.reduce((s, m) => s + m.timer, 0);
-
-  return `<table>
-    <thead>${th(t.kolDato, t.ansatt, t.kolAnsattnr, t.prosjekt, t.kolLonnsart, t.kolAktivitet, t.kolTimer, t.kolMaskintimer, t.kolBeskrivelse, t.kolRadstatus)}</thead>
-    <tbody>${rader}${losUten}${losIkke}
-      <tr class="sum"><td>${esc(t.sum)}</td><td></td><td></td><td></td><td></td><td></td><td class="num">${tall(sumTimer)}</td><td class="num">${tall(sumMaskin)}</td><td></td><td></td></tr>
-    </tbody>
-  </table>`;
+function typeEtikett(r: TimerRapportDetaljRad, t: TimerRapportTekster): string {
+  switch (r.type) {
+    case "timer":
+      return t.typeTimer;
+    case "maskin":
+      return t.typeMaskin;
+    case "tillegg":
+      return t.typeTillegg;
+    case "utlegg":
+      return t.typeUtlegg;
+  }
 }
 
-function tilleggTabell(d: TimerRapportData, t: TimerRapportTekster): string {
-  if (d.tillegg.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
-  const rader = d.tillegg
-    .map(
-      (r) => `<tr>
-      <td>${esc(r.dato)}</td><td>${esc(r.ansatt)}</td><td>${esc(r.ansattnr ?? "")}</td><td>${esc(r.prosjekt)}</td>
-      <td>${esc(r.tillegg)}</td><td class="num">${tall(r.antall)}</td><td>${esc(r.kommentar ?? "")}</td><td>${esc(r.radstatus)}</td>
-    </tr>`,
-    )
-    .join("");
-  const sum = d.tillegg.reduce((s, r) => s + r.antall, 0);
-  return `<table>
-    <thead>${th(t.kolDato, t.ansatt, t.kolAnsattnr, t.prosjekt, t.kolTillegg, t.kolAntall, t.kolKommentar, t.kolRadstatus)}</thead>
-    <tbody>${rader}
-      <tr class="sum"><td>${esc(t.sum)}</td><td></td><td></td><td></td><td></td><td class="num">${tall(sum)}</td><td></td><td></td></tr>
-    </tbody>
-  </table>`;
+/** Betegnelse-cellen — maskin-navn får merke etter opprinnelse (behold anomali-signal). */
+function betegnelseCelle(r: TimerRapportDetaljRad, t: TimerRapportTekster): string {
+  if (r.type !== "maskin") return esc(r.betegnelse);
+  switch (r.maskinMerke) {
+    case "utenTimerad":
+      return `<span class="slate">${esc(t.maskinUtenTimerad)}</span>${esc(r.betegnelse)}`;
+    case "ikkeEksporterbar":
+      return `<span class="slate">${esc(t.maskinIkkeEksporterbar)}</span>${esc(r.betegnelse)}`;
+    case "noster":
+      return `↳ ${esc(r.betegnelse)}`; // innrykk via .nest-klasse
+    default:
+      return esc(r.betegnelse);
+  }
 }
 
-function utleggTabell(d: TimerRapportData, t: TimerRapportTekster): string {
-  if (d.utlegg.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
-  const rader = d.utlegg
-    .map(
-      (r) => `<tr>
-      <td>${esc(r.dato)}</td><td>${esc(r.ansatt)}</td><td>${esc(r.ansattnr ?? "")}</td><td>${esc(r.prosjekt)}</td>
-      <td>${esc(r.kategori)}</td><td class="num">${tallEllerTom(r.belop)}</td><td>${esc(r.kommentar ?? "")}</td><td>${esc(r.seddelstatus)}</td>
-    </tr>`,
-    )
+const harTekst = (v: string | null): boolean => v !== null && v !== "";
+const harTall = (v: number | null): boolean => v !== null;
+
+function kolonner(t: TimerRapportTekster): KolDef[] {
+  return [
+    { header: t.kolDato, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.dato) },
+    { header: t.ansatt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.ansatt) },
+    { header: t.kolAnsattnr, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.ansattnr ?? "") },
+    { header: t.prosjekt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.prosjekt) },
+    { header: t.kolType, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => esc(typeEtikett(r, tk)) },
+    { header: t.kolBetegnelse, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => betegnelseCelle(r, tk) },
+    {
+      header: t.kolAktivitet, num: false, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTekst(r.aktivitet)),
+      celle: (r) => esc(r.aktivitet ?? ""),
+    },
+    {
+      header: t.kolTimer, num: true, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTall(r.timer)),
+      celle: (r) => tallEllerTom(r.timer),
+      sum: (rader) => rader.reduce((s, r) => s + (r.timer ?? 0), 0),
+    },
+    {
+      header: t.kolMaskintimer, num: true, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTall(r.maskintimer)),
+      celle: (r) => tallEllerTom(r.maskintimer),
+      sum: (rader) => rader.reduce((s, r) => s + (r.maskintimer ?? 0), 0),
+    },
+    {
+      header: t.kolAntall, num: true, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTall(r.antall)),
+      celle: (r) => tallEllerTom(r.antall),
+      sum: (rader) => rader.reduce((s, r) => s + (r.antall ?? 0), 0),
+    },
+    {
+      header: t.kolBelop, num: true, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTall(r.belop)),
+      celle: (r) => tallEllerTom(r.belop),
+      sum: (rader) => rader.reduce((s, r) => s + (r.belop ?? 0), 0),
+    },
+    {
+      header: t.kolMengde, num: true, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTall(r.mengde)),
+      celle: (r) => tallEllerTom(r.mengde),
+    },
+    {
+      header: t.kolEnhet, num: false, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTekst(r.enhet)),
+      celle: (r) => esc(r.enhet ?? ""),
+    },
+    {
+      header: t.kolBeskrivelse, num: false, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTekst(r.beskrivelse)),
+      celle: (r) => esc(r.beskrivelse ?? ""),
+    },
+    { header: t.kolStatus, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.status) },
+  ];
+}
+
+function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
+  if (d.detaljRader.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
+  const rader = d.detaljRader;
+  const kols = kolonner(t).filter((k) => k.alltid || k.tilstede(rader));
+
+  const head = th(...kols.map((k) => k.header));
+
+  const body = rader
+    .map((r) => {
+      const nest = r.type === "maskin" && r.nivaa === 1 ? " nest mrk" : "";
+      const mrk = r.type === "maskin" && r.nivaa !== 1 ? " mrk" : "";
+      const celler = kols
+        .map((k) => `<td class="${k.num ? "num" : ""}">${k.celle(r, t)}</td>`)
+        .join("");
+      return `<tr class="${(nest || mrk).trim()}">${celler}</tr>`;
+    })
     .join("");
-  const sum = d.utlegg.reduce((s, r) => s + (r.belop ?? 0), 0);
-  return `<table>
-    <thead>${th(t.kolDato, t.ansatt, t.kolAnsattnr, t.prosjekt, t.kolKategori, t.kolBelop, t.kolKommentar, t.kolSeddelstatus)}</thead>
-    <tbody>${rader}
-      <tr class="sum"><td>${esc(t.sum)}</td><td></td><td></td><td></td><td></td><td class="num">${tall(sum)}</td><td></td><td></td></tr>
-    </tbody>
-  </table>`;
+
+  const harSum = kols.some((k) => k.sum);
+  let sumRad = "";
+  if (harSum) {
+    const celler = kols
+      .map((k, i) => {
+        if (i === 0) return `<td>${esc(t.sum)}</td>`;
+        if (k.sum) return `<td class="num">${tall(k.sum(rader))}</td>`;
+        return "<td></td>";
+      })
+      .join("");
+    sumRad = `<tr class="sum">${celler}</tr>`;
+  }
+
+  return `<table><thead>${head}</thead><tbody>${body}${sumRad}</tbody></table>`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -343,14 +355,8 @@ export function byggTimerRapportHtml(
     <h2>${esc(t.sammendrag)}</h2>
     ${sammendragTabell(d, t)}
 
-    <h2>${esc(t.timerader)}</h2>
-    ${timeraderTabell(d, t)}
-
-    <h2>${esc(t.tillegg)}</h2>
-    ${tilleggTabell(d, t)}
-
-    <h2>${esc(t.utlegg)}</h2>
-    ${utleggTabell(d, t)}
+    <h2>${esc(t.detaljer)}</h2>
+    ${detaljerTabell(d, t)}
   </div>
 </body></html>`;
 }
