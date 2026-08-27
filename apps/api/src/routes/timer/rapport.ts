@@ -138,6 +138,14 @@ export const rapportRouter = router({
 
       // Hent dagseddel-rader i perioden for firmaets prosjekter.
       // T.1 (2026-05-11): DailySheet har ikke projectId — filtrer via SheetTimer-join.
+      // 🔴 Prosjektfilter på RAD-nivå (2026-08-27): `some` under velger sedler som
+      // HAR minst én rad på det filtrerte prosjektet; include-en må så filtrere
+      // radene, ellers drar en Fjordgata-seddel med seg Olas Sentrumsparken-rader
+      // (samme seddel, annet prosjekt) → summen lekker på tvers av prosjekter.
+      // KUN når prosjektId er satt: uten filter er `prosjektIder` hele firmaet, og
+      // rader kan bevisst peke på prosjekt UTENFOR firmaet (kryss-prosjekt, se
+      // detaljEksport) — et ubetinget `in: prosjektIder` ville stille droppe dem.
+      const radProsjektFilter = input.prosjektId ? { projectId: input.prosjektId } : {};
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
           // Fase 1b: firma-isolasjon — kun sedler EID av firmaet (SHA-modell:
@@ -151,9 +159,13 @@ export const rapportRouter = router({
         },
         include: {
           // lonnsart.skalEksporteres for kunEksporterbare-filteret (time-summen).
-          timer: { include: { lonnsart: { select: { skalEksporteres: true } } } },
-          tillegg: true,
-          maskiner: true,
+          // where på rad-nivå: kun det filtrerte prosjektets rader (tomt = alle).
+          timer: {
+            where: radProsjektFilter,
+            include: { lonnsart: { select: { skalEksporteres: true } } },
+          },
+          tillegg: { where: radProsjektFilter },
+          maskiner: { where: radProsjektFilter },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -337,6 +349,12 @@ export const rapportRouter = router({
         };
       }
 
+      // 🔴 Prosjektfilter på RAD-nivå (2026-08-27) — samme lekkasje som
+      // firmaPeriodeRapport: `some` velger sedelen, include-en må filtrere radene,
+      // ellers går rader fra andre prosjekter på samme seddel ut i eksporten (og
+      // ut av huset i et fakturagrunnlag). KUN når prosjektId er satt (kryss-
+      // prosjekt-rader utenfor firmaet skal ikke stille droppes uten filter).
+      const radProsjektFilter = input.prosjektId ? { projectId: input.prosjektId } : {};
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
           organizationId: orgId,
@@ -353,7 +371,7 @@ export const rapportRouter = router({
             // vedtak). Filtreres i KODE (ikke DB-where) fordi maskin-rader som
             // henger på en ekskludert timerad skal klassifiseres separat — vi
             // trenger å vite HVILKE timerad-id-er som ble ekskludert.
-            where: { attestertStatus: { not: "erstattet" } },
+            where: { attestertStatus: { not: "erstattet" }, ...radProsjektFilter },
             include: {
               lonnsart: { select: { navn: true, skalEksporteres: true } },
               aktivitet: { select: { navn: true } },
@@ -363,14 +381,16 @@ export const rapportRouter = router({
             where: {
               attestertStatus: { not: "erstattet" },
               tillegg: { skalEksporteres: true },
+              ...radProsjektFilter,
             },
             include: { tillegg: { select: { navn: true } } },
           },
-          maskiner: { where: { attestertStatus: { not: "erstattet" } } },
+          maskiner: { where: { attestertStatus: { not: "erstattet" }, ...radProsjektFilter } },
           // SheetUtlegg har ingen attestertStatus → intet erstattet-filter.
           // Bredere select enn attesterings-lista (kommentar med for eksport-ark),
           // men fortsatt IKKE vedlegg (svak FK uten @relation → umulig via query).
           utlegg: {
+            where: radProsjektFilter,
             select: {
               id: true,
               belop: true,
