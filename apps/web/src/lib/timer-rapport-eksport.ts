@@ -174,22 +174,22 @@ function lastNed(blob: Blob, filnavn: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** Sammendrags-rader. `visStatus=false` (mottaker=ekstern) dropper Kladd/Sendt/
- *  Attestert — aggregert arbeidsflyt-status er fortsatt intern status og skal ut
- *  av et byggherredokument (fase 4). */
+/** Sammendrags-rader. `ekstern` (mottaker=ekstern, ut av huset) dropper både
+ *  Ansattnr (pseudonymiseringsnøkkel) og status-tellingene (Kladd/Sendt/Attestert
+ *  = intern arbeidsflyt-status). Ansattnavn beholdes. Fase 4 + oppfølger. */
 function sammendragRader(
   ansatte: AnsattRapportRad[],
-  visStatus: boolean,
+  ekstern: boolean,
 ): Array<Array<string | number>> {
   return ansatte.map((a) => [
     a.navn ?? a.email,
-    a.ansattnummer ?? "",
+    ...(ekstern ? [] : [a.ansattnummer ?? ""]),
     formaterNorsk(a.totalTimer),
     a.antallSedler,
     a.sistRegistrert ? a.sistRegistrert.slice(0, 10) : "",
-    ...(visStatus
-      ? [a.statusFordeling.kladd, a.statusFordeling.sent, a.statusFordeling.attestert]
-      : []),
+    ...(ekstern
+      ? []
+      : [a.statusFordeling.kladd, a.statusFordeling.sent, a.statusFordeling.attestert]),
     a.perProsjekt
       .slice()
       .sort((x, y) => y.timer - x.timer)
@@ -213,16 +213,17 @@ const kolTekst =
 
 /** Header + stabile kolonnenøkler (til i18n-trygt indeks-oppslag — `indexOf`
  *  på den OVERSATTE strengen ryker når fanen ikke er norsk). */
-/** Sammendrags-kolonner. Status-tellingene (Kladd/Sendt/Attestert) droppes for
- *  mottaker=ekstern (fase 4) — samme regel som Detaljer-arkets Status-kolonne. */
-function sammendragKol(visStatus: boolean): string[] {
+/** Sammendrags-kolonner. Ekstern (ut av huset) dropper Ansattnr (pseudonymiserings-
+ *  nøkkel) + status-tellingene (Kladd/Sendt/Attestert) — samme regel som Detaljer-
+ *  arkets Ansattnr/Status. Ansattnavn beholdes. Fase 4 + oppfølger. */
+function sammendragKol(ekstern: boolean): string[] {
   return [
     "kolAnsatt",
-    "kolAnsattnr",
+    ...(ekstern ? [] : ["kolAnsattnr"]),
     "kolTotalTimer",
     "kolSedler",
     "kolSistRegistrert",
-    ...(visStatus ? ["kolKladd", "kolSent", "kolAttestert"] : []),
+    ...(ekstern ? [] : ["kolKladd", "kolSent", "kolAttestert"]),
     "ark.etterProsjekt", // gjenbruk av eksisterende arknavn-nøkkel (samme etikett)
   ];
 }
@@ -248,10 +249,10 @@ export function eksporterCsv(
 ): void {
   const sep = ";";
   const kol = kolTekst(t);
-  const visStatus = opts.mottaker !== "ekstern";
+  const ekstern = opts.mottaker === "ekstern";
   const linjer: string[] = [];
-  linjer.push(sammendragKol(visStatus).map(kol).join(sep));
-  for (const rad of sammendragRader(input.ansatte, visStatus)) {
+  linjer.push(sammendragKol(ekstern).map(kol).join(sep));
+  for (const rad of sammendragRader(input.ansatte, ekstern)) {
     linjer.push(
       rad
         .map((v) => {
@@ -350,16 +351,25 @@ export function byggStatusEtiketter(t: OversettFn): Record<string, string> {
  * Betegnelse-cellen: lønnsart/tilleggsnavn/kategori direkte, men maskin-navnet
  * merkes etter opprinnelse (nøstet «↳», uten timerad, ikke-eksporterbar) med
  * SAMME i18n-strenger som før sammenslåingen (behold anomali-signalene synlige).
+ *
+ * Fase 4-oppfølger: `utenTimerad`/`ikkeEksporterbar` er INTERNE anomali-signaler
+ * (vår egen datakvalitet). Ved `mottaker=ekstern` undertrykkes merkelappen — kun
+ * maskinnavnet står igjen. RADEN blir uendret; det er bare etiketten som er intern.
+ * Nøstingsmerket «↳» beholdes (rent visnings-innrykk, ikke et anomali-signal).
  */
-function betegnelse(t: OversettFn, r: DetaljRad): string {
+function betegnelse(t: OversettFn, r: DetaljRad, ekstern: boolean): string {
   if (r.type !== "maskin") return r.betegnelse;
   switch (r.maskinMerke) {
     case "noster":
       return t("timer.eksport.maskinNoster", { navn: r.betegnelse });
     case "utenTimerad":
-      return t("timer.eksport.maskinUtenTimerad", { navn: r.betegnelse });
+      return ekstern
+        ? r.betegnelse
+        : t("timer.eksport.maskinUtenTimerad", { navn: r.betegnelse });
     case "ikkeEksporterbar":
-      return t("timer.eksport.maskinIkkeEksporterbar", { navn: r.betegnelse });
+      return ekstern
+        ? r.betegnelse
+        : t("timer.eksport.maskinIkkeEksporterbar", { navn: r.betegnelse });
     default:
       return r.betegnelse; // timeraden er skjult av radvalget — normal maskin-rad
   }
@@ -386,12 +396,14 @@ function byggDetaljerArk(
 ): void {
   const kol = kolTekst(t);
   const ekstern = mottaker === "ekstern";
-  // Fase 4: ekstern (ut av huset) dropper Status OG ID strukturelt (designlås 1).
-  // Kolonnene finnes ikke i arket — kan ikke glemmes på. ID er uansett Excel-only.
+  // Fase 4 (+ oppfølger): ekstern (ut av huset) dropper Status, ID OG Ansattnr
+  // strukturelt. Kolonnene finnes ikke i arket — kan ikke glemmes på. Ansattnr er
+  // pseudonymiseringsnøkkelen (peker inn i registeret) → aldri ut av huset; ID er
+  // uansett Excel-only. Ansattnavn BLIR (dokumentasjon av hvem som utførte arbeidet).
   const noekler = [
     "kolDato",
     "kolAnsatt",
-    "kolAnsattnr",
+    ...(ekstern ? [] : ["kolAnsattnr"]),
     "kolProsjekt",
     // ← framtidig «Underprosjekt» slottes inn her (data fra server-raden).
     "kolType",
@@ -427,10 +439,10 @@ function byggDetaljerArk(
     const base: Array<string | number> = [
       r.dato,
       r.ansatt,
-      r.ansattnr ?? "",
+      ...(ekstern ? [] : [r.ansattnr ?? ""]),
       r.prosjekt,
       typeEtikett(t, r.type),
-      betegnelse(t, r),
+      betegnelse(t, r, ekstern),
       r.aktivitet ?? "",
       r.fraTid ?? "",
       r.tilTid ?? "",
@@ -474,7 +486,8 @@ function byggDetaljerArk(
 
   leggTilSumrad(ws, antallKol, sumKol, førsteData, ws.rowCount, t("timer.eksport.sumKontroll"));
 
-  const bredder = [12, 22, 10, 22, 10, 24, 18, 7, 7, 9, 11, 9, 11, 10, 8, 34];
+  // Bredder mirrorer noekler: ansattnr (10) droppes for ekstern, status/id ved sine flagg.
+  const bredder = [12, 22, ...(ekstern ? [] : [10]), 22, 10, 24, 18, 7, 7, 9, 11, 9, 11, 10, 8, 34];
   if (statusIdx !== -1) bredder.push(12);
   if (idIdx !== -1) bredder.push(14);
   settBredder(ws, bredder);
@@ -498,7 +511,7 @@ export async function eksporterXlsx(
   const valgteRadTyper = opts.radTyper ?? ALLE_RADTYPER;
   const mottaker = opts.mottaker ?? "intern";
   const gruppering: Gruppering = opts.gruppering ?? "ingen";
-  const visStatus = mottaker !== "ekstern";
+  const ekstern = mottaker === "ekstern";
 
   const ExcelJSModule = await import("exceljs");
   const ExcelJS =
@@ -510,9 +523,9 @@ export async function eksporterXlsx(
 
   // Ark 1: Sammendrag. Ekstern (fase 4) dropper status-tellingene (Kladd/Sendt/Attestert).
   const wsSam = wb.addWorksheet(t("timer.eksport.ark.sammendrag"));
-  wsSam.addRow(sammendragKol(visStatus).map(kol));
+  wsSam.addRow(sammendragKol(ekstern).map(kol));
   wsSam.getRow(1).font = { bold: true };
-  for (const rad of sammendragRader(input.ansatte, visStatus)) {
+  for (const rad of sammendragRader(input.ansatte, ekstern)) {
     wsSam.addRow(rad);
   }
   wsSam.columns.forEach((col) => {

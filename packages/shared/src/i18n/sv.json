@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Landskap",
   "firma.timer.rapport.tilpasset.topptekst": "Rubriktext",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "En rad per rad...",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Slå samman fält: {firma} · {period} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Slå samman fält: {firma} · {period} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Senast använd"
 }

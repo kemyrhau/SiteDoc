@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Liggende",
   "firma.timer.rapport.tilpasset.topptekst": "Topptekst",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Én linje pr. rad …",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Flettefelt: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Flettefelt: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Sist brukt"
 }

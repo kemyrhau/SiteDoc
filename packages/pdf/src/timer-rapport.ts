@@ -207,29 +207,32 @@ function th(...celler: string[]): string {
 
 function sammendragTabell(d: TimerRapportData, t: TimerRapportTekster): string {
   if (d.ansatte.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
-  // Fase 4: ekstern (ut av huset) skjuler status-fordelingen (Kladd/Sendt/
-  // Attestert) — aggregert arbeidsflyt-status er fortsatt intern status.
-  const visStatus = d.mottaker !== "ekstern";
-  const statusHead = visStatus ? [t.kolKladd, t.kolSent, t.kolAttestert] : [];
+  // Fase 4 (+ oppfølger): ekstern (ut av huset) skjuler Ansattnr (pseudonymiserings-
+  // nøkkel) OG status-fordelingen (Kladd/Sendt/Attestert = intern arbeidsflyt-status).
+  // Ansattnavn beholdes (dokumentasjon av hvem som utførte arbeidet).
+  const ekstern = d.mottaker === "ekstern";
+  const nrHead = ekstern ? [] : [t.kolAnsattnr];
+  const statusHead = ekstern ? [] : [t.kolKladd, t.kolSent, t.kolAttestert];
   const rader = d.ansatte
     .map(
       (a) => `<tr>
       <td>${esc(a.navn)}</td>
-      <td>${esc(a.ansattnr ?? "")}</td>
+      ${ekstern ? "" : `<td>${esc(a.ansattnr ?? "")}</td>`}
       <td class="num">${tall(a.totalTimer)}</td>
       <td class="num">${a.antallSedler}</td>
       <td>${esc(a.sistRegistrert ?? "")}</td>
-      ${visStatus ? `<td class="num">${a.kladd}</td><td class="num">${a.sent}</td><td class="num">${a.attestert}</td>` : ""}
+      ${ekstern ? "" : `<td class="num">${a.kladd}</td><td class="num">${a.sent}</td><td class="num">${a.attestert}</td>`}
     </tr>`,
     )
     .join("");
   const sumTimer = d.ansatte.reduce((s, a) => s + a.totalTimer, 0);
   const sumSedler = d.ansatte.reduce((s, a) => s + a.antallSedler, 0);
-  const sumStatusCeller = visStatus ? "<td></td><td></td><td></td>" : "";
+  const sumNrCelle = ekstern ? "" : "<td></td>";
+  const sumStatusCeller = ekstern ? "" : "<td></td><td></td><td></td>";
   return `<table>
-    <thead>${th(t.ansatt, t.kolAnsattnr, t.kolTotalTimer, t.kolSedler, t.kolSistRegistrert, ...statusHead)}</thead>
+    <thead>${th(t.ansatt, ...nrHead, t.kolTotalTimer, t.kolSedler, t.kolSistRegistrert, ...statusHead)}</thead>
     <tbody>${rader}
-      <tr class="sum"><td>${esc(t.sum)}</td><td></td><td class="num">${tall(sumTimer)}</td><td class="num">${sumSedler}</td><td></td>${sumStatusCeller}</tr>
+      <tr class="sum"><td>${esc(t.sum)}</td>${sumNrCelle}<td class="num">${tall(sumTimer)}</td><td class="num">${sumSedler}</td><td></td>${sumStatusCeller}</tr>
     </tbody>
   </table>`;
 }
@@ -266,14 +269,26 @@ function typeEtikett(r: TimerRapportDetaljRad, t: TimerRapportTekster): string {
   }
 }
 
-/** Betegnelse-cellen — maskin-navn får merke etter opprinnelse (behold anomali-signal). */
-function betegnelseCelle(r: TimerRapportDetaljRad, t: TimerRapportTekster): string {
+/** Betegnelse-cellen — maskin-navn får merke etter opprinnelse. Fase 4-oppfølger:
+ *  `utenTimerad`/`ikkeEksporterbar` er INTERNE anomali-signaler (vår datakvalitet);
+ *  ved `mottaker=ekstern` undertrykkes merkelappen — kun maskinnavnet står igjen.
+ *  Nøstingsmerket «↳» beholdes (rent innrykk, ikke et anomali-signal). */
+function betegnelseCelle(
+  r: TimerRapportDetaljRad,
+  t: TimerRapportTekster,
+  mottaker: TimerRapportMottaker,
+): string {
   if (r.type !== "maskin") return esc(r.betegnelse);
+  const ekstern = mottaker === "ekstern";
   switch (r.maskinMerke) {
     case "utenTimerad":
-      return `<span class="slate">${esc(t.maskinUtenTimerad)}</span>${esc(r.betegnelse)}`;
+      return ekstern
+        ? esc(r.betegnelse)
+        : `<span class="slate">${esc(t.maskinUtenTimerad)}</span>${esc(r.betegnelse)}`;
     case "ikkeEksporterbar":
-      return `<span class="slate">${esc(t.maskinIkkeEksporterbar)}</span>${esc(r.betegnelse)}`;
+      return ekstern
+        ? esc(r.betegnelse)
+        : `<span class="slate">${esc(t.maskinIkkeEksporterbar)}</span>${esc(r.betegnelse)}`;
     case "noster":
       return `↳ ${esc(r.betegnelse)}`; // innrykk via .nest-klasse
     default:
@@ -285,13 +300,17 @@ const harTekst = (v: string | null): boolean => v !== null && v !== "";
 const harTall = (v: number | null): boolean => v !== null;
 
 function kolonner(t: TimerRapportTekster, mottaker: TimerRapportMottaker): KolDef[] {
+  const ekstern = mottaker === "ekstern";
   const kols: KolDef[] = [
     { header: t.kolDato, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.dato) },
     { header: t.ansatt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.ansatt) },
-    { header: t.kolAnsattnr, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.ansattnr ?? "") },
+    // Fase 4-oppfølger: Ansattnr (pseudonymiseringsnøkkel) ut av eksterne dokumenter.
+    ...(ekstern
+      ? []
+      : [{ header: t.kolAnsattnr, num: false, alltid: true, tilstede: () => true, celle: (r: TimerRapportDetaljRad) => esc(r.ansattnr ?? "") } as KolDef]),
     { header: t.prosjekt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.prosjekt) },
     { header: t.kolType, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => esc(typeEtikett(r, tk)) },
-    { header: t.kolBetegnelse, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => betegnelseCelle(r, tk) },
+    { header: t.kolBetegnelse, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => betegnelseCelle(r, tk, mottaker) },
     {
       header: t.kolAktivitet, num: false, alltid: false,
       tilstede: (rader) => rader.some((r) => harTekst(r.aktivitet)),

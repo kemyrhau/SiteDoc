@@ -178,12 +178,14 @@ const EKSTRA: Record<string, Record<number, EkstraDag>> = {
 };
 
 // Rader per ansatt per ukedag (0 = mandag ... 4 = fredag).
-// { p: prosjekt-key, l: lønnsart-key, t: timer }
-type Rad = { p: "P1" | "P2"; l: "NORM" | "OT50"; t: number };
+// { p: prosjekt-key, l: lønnsart-key, t: timer, [fra/til: "HH:MM" klokkeslett] }
+// fra/til er valgfritt — satt på et par rader så eksport-gaten faktisk kan bekrefte
+// at Fra/Til-kolonnene vises (Kenneth ba om klokkeslett i intern- OG byggherrerapport).
+type Rad = { p: "P1" | "P2"; l: "NORM" | "OT50"; t: number; fra?: string; til?: string };
 const DAGSEDLER: Record<string, Rad[][]> = {
-  // Ola: 42 t, alt normaltid → +4,5 t over norm. Mandag = 2 rader (ekspandert).
+  // Ola: 42 t, alt normaltid → +4,5 t over norm. Mandag = 2 rader (ekspandert) med klokkeslett.
   OLA: [
-    [{ p: "P1", l: "NORM", t: 6 }, { p: "P2", l: "NORM", t: 3 }],
+    [{ p: "P1", l: "NORM", t: 6, fra: "07:00", til: "13:00" }, { p: "P2", l: "NORM", t: 3, fra: "13:00", til: "16:00" }],
     [{ p: "P1", l: "NORM", t: 8 }],
     [{ p: "P1", l: "NORM", t: 8 }],
     [{ p: "P1", l: "NORM", t: 8.5 }],
@@ -197,9 +199,9 @@ const DAGSEDLER: Record<string, Rad[][]> = {
     [{ p: "P2", l: "NORM", t: 7 }],
     [{ p: "P2", l: "OT50", t: 4 }],
   ],
-  // Per: 37,5 t, alt normaltid → intet avvik (ren norm i kolonnen).
+  // Per: 37,5 t, alt normaltid → intet avvik (ren norm i kolonnen). Mandag med klokkeslett.
   PER: [
-    [{ p: "P1", l: "NORM", t: 7.5 }],
+    [{ p: "P1", l: "NORM", t: 7.5, fra: "07:00", til: "15:00" }],
     [{ p: "P1", l: "NORM", t: 7.5 }],
     [{ p: "P2", l: "NORM", t: 7.5 }],
     [{ p: "P2", l: "NORM", t: 7.5 }],
@@ -499,6 +501,8 @@ async function seedDagsedler(
             aktivitetId,
             projectId: prosjektIder.get(r.p)!,
             timer: r.t,
+            fraTid: r.fra ?? null,
+            tilTid: r.til ?? null,
             beskrivelse: `${AKTIVITET.navn} – ${r.p}`,
           },
         });

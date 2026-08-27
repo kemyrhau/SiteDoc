@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Peizažas",
   "firma.timer.rapport.tilpasset.topptekst": "Antraštės tekstas",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Viena eilutė vienoje eilutėje…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Sujungti laukus: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Sujungti laukus: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Paskutinis naudotas"
 }

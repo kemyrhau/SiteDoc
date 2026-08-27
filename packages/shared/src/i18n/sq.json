@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Peizazhi",
   "firma.timer.rapport.tilpasset.topptekst": "Teksti i titullit",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Një rresht për rresht…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Bashkoni fushat: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Bashkoni fushat: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Përdorur për herë të fundit"
 }
