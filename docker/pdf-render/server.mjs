@@ -58,7 +58,7 @@ app.get("/health", async () => ({ status: "ok" }));
 app.get("/version", async () => ({ gitSha: GIT_SHA, buildTid: BUILD_TID }));
 
 app.post("/pdf", async (req, reply) => {
-  const { html, headerTemplate, footerTemplate } = req.body ?? {};
+  const { html, headerTemplate, footerTemplate, landscape } = req.body ?? {};
   if (typeof html !== "string" || html.length === 0) {
     return reply.code(400).send({ feil: "html (streng) er påkrevd" });
   }
@@ -71,6 +71,9 @@ app.post("/pdf", async (req, reply) => {
 
     const pdf = await page.pdf({
       format: "A4",
+      // Fase 4 (timer-rapport byggherredokument): valgfri liggende A4. Default
+      // false → stående, som før — arkiv-PDF-veien sender ikke feltet og er uendret.
+      landscape: Boolean(landscape),
       printBackground: true,
       margin: { top: "16mm", bottom: "14mm", left: "16mm", right: "16mm" },
       displayHeaderFooter: Boolean(headerTemplate || footerTemplate),

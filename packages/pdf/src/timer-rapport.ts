@@ -69,6 +69,27 @@ export type TimerRapportDetaljRad = {
   maskinMerke: TimerRapportMaskinMerke;
 };
 
+/** Subtotal for en gruppe (og grand total) — strukturelt lik @sitedoc/shared
+ *  `DetaljSubtotal`; null der ingen rad i gruppen bærer størrelsen. */
+export type TimerRapportSubtotal = {
+  timer: number | null;
+  maskintimer: number | null;
+  antall: number | null;
+  belop: number | null;
+};
+
+/** Én gruppe i «Detaljer» — strukturelt lik @sitedoc/shared `DetaljGruppe`.
+ *  `overskrift = null` ⇒ gruppering «ingen» (ingen gruppe-overskrift, kun grand total). */
+export type TimerRapportGruppe = {
+  overskrift: string | null;
+  rader: TimerRapportDetaljRad[];
+  subtotal: TimerRapportSubtotal;
+};
+
+/** Fase 4: hvem dokumentet går til. `ekstern` ⇒ status utelates STRUKTURELT i
+ *  begge tabeller (Detaljer OG Sammendrag) — regel, ikke avhuking (designlås 1). */
+export type TimerRapportMottaker = "intern" | "ekstern";
+
 export type TimerRapportData = {
   firmanavn: string;
   fra: string;
@@ -76,7 +97,13 @@ export type TimerRapportData = {
   prosjektFilter: string | null; // navn hvis filtrert, null = alle
   ansattFilter: string | null;
   ansatte: TimerRapportAnsatt[];
-  detaljRader: TimerRapportDetaljRad[];
+  /** Fase 4: grupperte detaljrader (byggDetaljRader → grupperDetaljRader, mappet av api). */
+  grupper: TimerRapportGruppe[];
+  /** Fase 4: hvem dokumentet går til (ekstern skjuler status). */
+  mottaker: TimerRapportMottaker;
+  /** Fase 4: ferdig-flettet topptekst ({firma}/{periode}/{prosjekt} allerede satt inn).
+   *  Tom liste ⇒ standard firmatopp (firmanavn + doktittel + meta). */
+  topptekstLinjer: string[];
 };
 
 /** Alle synlige strenger (overskrifter/etiketter) — injisert oversatt fra klient. */
@@ -99,6 +126,7 @@ export type TimerRapportTekster = {
   kolAttestert: string;
   // Detaljer (merged)
   detaljer: string;
+  subtotal: string; // gruppe-subtotal-etikett (fase 4)
   kolDato: string;
   kolType: string;
   kolBetegnelse: string;
@@ -161,6 +189,12 @@ tr { break-inside: avoid; }
 .nest td:nth-child(6) { padding-left: 16px; }
 .slate { display: inline-block; background: #e2e8f0; color: #475569; font-size: 7.5px; font-weight: 700; text-transform: uppercase; padding: 0 4px; border-radius: 3px; margin-right: 4px; }
 .tom { color: #9ca3af; font-style: italic; padding: 8px 0; }
+/* Fase 4: topptekst (erstatter standard firmatopp når satt). */
+.topptekst .t0 { font-size: 18px; font-weight: 700; color: #26327e; }
+.topptekst .tn { font-size: 10px; color: #374151; margin-top: 2px; }
+/* Fase 4: gruppe-overskrift + subtotal i Detaljer. */
+.grp td { background: #eef1f8; font-weight: 700; color: #26327e; font-size: 9px; padding: 5px; border-top: 1px solid #c7d0ea; }
+.sub td { font-weight: 600; border-top: 1px solid #d1d5db; background: #fafbfe; }
 `;
 
 /* ------------------------------------------------------------------ */
@@ -173,6 +207,10 @@ function th(...celler: string[]): string {
 
 function sammendragTabell(d: TimerRapportData, t: TimerRapportTekster): string {
   if (d.ansatte.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
+  // Fase 4: ekstern (ut av huset) skjuler status-fordelingen (Kladd/Sendt/
+  // Attestert) — aggregert arbeidsflyt-status er fortsatt intern status.
+  const visStatus = d.mottaker !== "ekstern";
+  const statusHead = visStatus ? [t.kolKladd, t.kolSent, t.kolAttestert] : [];
   const rader = d.ansatte
     .map(
       (a) => `<tr>
@@ -181,18 +219,17 @@ function sammendragTabell(d: TimerRapportData, t: TimerRapportTekster): string {
       <td class="num">${tall(a.totalTimer)}</td>
       <td class="num">${a.antallSedler}</td>
       <td>${esc(a.sistRegistrert ?? "")}</td>
-      <td class="num">${a.kladd}</td>
-      <td class="num">${a.sent}</td>
-      <td class="num">${a.attestert}</td>
+      ${visStatus ? `<td class="num">${a.kladd}</td><td class="num">${a.sent}</td><td class="num">${a.attestert}</td>` : ""}
     </tr>`,
     )
     .join("");
   const sumTimer = d.ansatte.reduce((s, a) => s + a.totalTimer, 0);
   const sumSedler = d.ansatte.reduce((s, a) => s + a.antallSedler, 0);
+  const sumStatusCeller = visStatus ? "<td></td><td></td><td></td>" : "";
   return `<table>
-    <thead>${th(t.ansatt, t.kolAnsattnr, t.kolTotalTimer, t.kolSedler, t.kolSistRegistrert, t.kolKladd, t.kolSent, t.kolAttestert)}</thead>
+    <thead>${th(t.ansatt, t.kolAnsattnr, t.kolTotalTimer, t.kolSedler, t.kolSistRegistrert, ...statusHead)}</thead>
     <tbody>${rader}
-      <tr class="sum"><td>${esc(t.sum)}</td><td></td><td class="num">${tall(sumTimer)}</td><td class="num">${sumSedler}</td><td></td><td></td><td></td><td></td></tr>
+      <tr class="sum"><td>${esc(t.sum)}</td><td></td><td class="num">${tall(sumTimer)}</td><td class="num">${sumSedler}</td><td></td>${sumStatusCeller}</tr>
     </tbody>
   </table>`;
 }
@@ -210,7 +247,9 @@ type KolDef = {
   /** true hvis noen valgt rad har innhold i kolonnen (ellers droppes den). */
   tilstede: (rader: TimerRapportDetaljRad[]) => boolean;
   celle: (r: TimerRapportDetaljRad, t: TimerRapportTekster) => string;
-  /** hvis satt: kolonnen får en SUM-celle i sumraden. */
+  /** hvis satt: kolonnen får en SUM-celle i sum-/subtotal-raden. `felt` peker på
+   *  hvilken subtotal-størrelse gruppens subtotal-rad henter (fase 4). */
+  felt?: keyof TimerRapportSubtotal;
   sum?: (rader: TimerRapportDetaljRad[]) => number;
 };
 
@@ -245,8 +284,8 @@ function betegnelseCelle(r: TimerRapportDetaljRad, t: TimerRapportTekster): stri
 const harTekst = (v: string | null): boolean => v !== null && v !== "";
 const harTall = (v: number | null): boolean => v !== null;
 
-function kolonner(t: TimerRapportTekster): KolDef[] {
-  return [
+function kolonner(t: TimerRapportTekster, mottaker: TimerRapportMottaker): KolDef[] {
+  const kols: KolDef[] = [
     { header: t.kolDato, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.dato) },
     { header: t.ansatt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.ansatt) },
     { header: t.kolAnsattnr, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.ansattnr ?? "") },
@@ -269,25 +308,25 @@ function kolonner(t: TimerRapportTekster): KolDef[] {
       celle: (r) => esc(r.tilTid ?? ""),
     },
     {
-      header: t.kolTimer, num: true, alltid: false,
+      header: t.kolTimer, num: true, alltid: false, felt: "timer",
       tilstede: (rader) => rader.some((r) => harTall(r.timer)),
       celle: (r) => tallEllerTom(r.timer),
       sum: (rader) => rader.reduce((s, r) => s + (r.timer ?? 0), 0),
     },
     {
-      header: t.kolMaskintimer, num: true, alltid: false,
+      header: t.kolMaskintimer, num: true, alltid: false, felt: "maskintimer",
       tilstede: (rader) => rader.some((r) => harTall(r.maskintimer)),
       celle: (r) => tallEllerTom(r.maskintimer),
       sum: (rader) => rader.reduce((s, r) => s + (r.maskintimer ?? 0), 0),
     },
     {
-      header: t.kolAntall, num: true, alltid: false,
+      header: t.kolAntall, num: true, alltid: false, felt: "antall",
       tilstede: (rader) => rader.some((r) => harTall(r.antall)),
       celle: (r) => tallEllerTom(r.antall),
       sum: (rader) => rader.reduce((s, r) => s + (r.antall ?? 0), 0),
     },
     {
-      header: t.kolBelop, num: true, alltid: false,
+      header: t.kolBelop, num: true, alltid: false, felt: "belop",
       tilstede: (rader) => rader.some((r) => harTall(r.belop)),
       celle: (r) => tallEllerTom(r.belop),
       sum: (rader) => rader.reduce((s, r) => s + (r.belop ?? 0), 0),
@@ -307,46 +346,84 @@ function kolonner(t: TimerRapportTekster): KolDef[] {
       tilstede: (rader) => rader.some((r) => harTekst(r.beskrivelse)),
       celle: (r) => esc(r.beskrivelse ?? ""),
     },
-    {
+  ];
+  // Fase 4: ekstern (ut av huset) dropper Status-kolonnen STRUKTURELT (designlås 1).
+  // ID er aldri i PDF (koblingsnøkkel) — så ekstern-regelen for PDF er kun status.
+  if (mottaker !== "ekstern") {
+    kols.push({
       header: t.kolStatus, num: false, alltid: true, tilstede: () => true,
       // Oversett rå status-verdi (pending/sent/…); ukjent → rå (skjul aldri en verdi).
       celle: (r) => esc(t.statusEtiketter[r.status] ?? r.status),
-    },
-  ];
+    });
+  }
+  return kols;
+}
+
+/** Sum-/subtotal-rad: etikett i første kolonne, tall i de summerbare. `hentSum`
+ *  gir verdien pr. kolonne (grand total leser fra alle rader; gruppe-subtotal fra
+ *  gruppens forhåndsberegnede subtotal). */
+function sumRadHtml(
+  kols: KolDef[],
+  klasse: string,
+  etikett: string,
+  hentSum: (k: KolDef) => number | null,
+): string {
+  const celler = kols
+    .map((k, i) => {
+      if (i === 0) return `<td>${esc(etikett)}</td>`;
+      const v = hentSum(k);
+      if (v !== null) return `<td class="num">${tall(v)}</td>`;
+      return "<td></td>";
+    })
+    .join("");
+  return `<tr class="${klasse}">${celler}</tr>`;
 }
 
 function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
-  if (d.detaljRader.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
-  const rader = d.detaljRader;
-  const kols = kolonner(t).filter((k) => k.alltid || k.tilstede(rader));
+  const alleRader = d.grupper.flatMap((g) => g.rader);
+  if (alleRader.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
+  // Kolonne-tilstedeværelse måles over ALLE rader (uavhengig av gruppering), så
+  // kolonnesettet er stabilt på tvers av grupper.
+  const kols = kolonner(t, d.mottaker).filter((k) => k.alltid || k.tilstede(alleRader));
 
   const head = th(...kols.map((k) => k.header));
 
-  const body = rader
-    .map((r) => {
-      const nest = r.type === "maskin" && r.nivaa === 1 ? " nest mrk" : "";
-      const mrk = r.type === "maskin" && r.nivaa !== 1 ? " mrk" : "";
-      const celler = kols
-        .map((k) => `<td class="${k.num ? "num" : ""}">${k.celle(r, t)}</td>`)
-        .join("");
-      return `<tr class="${(nest || mrk).trim()}">${celler}</tr>`;
+  const radHtml = (r: TimerRapportDetaljRad): string => {
+    const nest = r.type === "maskin" && r.nivaa === 1 ? " nest mrk" : "";
+    const mrk = r.type === "maskin" && r.nivaa !== 1 ? " mrk" : "";
+    const celler = kols
+      .map((k) => `<td class="${k.num ? "num" : ""}">${k.celle(r, t)}</td>`)
+      .join("");
+    return `<tr class="${(nest || mrk).trim()}">${celler}</tr>`;
+  };
+
+  const body = d.grupper
+    .map((g) => {
+      const grpHead =
+        g.overskrift !== null
+          ? `<tr class="grp"><td colspan="${kols.length}">${esc(g.overskrift)}</td></tr>`
+          : "";
+      const rader = g.rader.map(radHtml).join("");
+      // Gruppe-subtotal kun når gruppert (overskrift satt) — «ingen» får bare grand total.
+      const sub =
+        g.overskrift !== null
+          ? sumRadHtml(
+              kols,
+              "sub",
+              `${t.subtotal}: ${g.overskrift}`,
+              (k) => (k.felt ? g.subtotal[k.felt] : null),
+            )
+          : "";
+      return grpHead + rader + sub;
     })
     .join("");
 
-  const harSum = kols.some((k) => k.sum);
-  let sumRad = "";
-  if (harSum) {
-    const celler = kols
-      .map((k, i) => {
-        if (i === 0) return `<td>${esc(t.sum)}</td>`;
-        if (k.sum) return `<td class="num">${tall(k.sum(rader))}</td>`;
-        return "<td></td>";
-      })
-      .join("");
-    sumRad = `<tr class="sum">${celler}</tr>`;
-  }
+  // Grand total over alle rader (SUM-kolonner). Utelates når ingen summerbar kolonne finnes.
+  const grandRad = kols.some((k) => k.sum)
+    ? sumRadHtml(kols, "sum", t.sum, (k) => (k.sum ? k.sum(alleRader) : null))
+    : "";
 
-  return `<table><thead>${head}</thead><tbody>${body}${sumRad}</tbody></table>`;
+  return `<table><thead>${head}</thead><tbody>${body}${grandRad}</tbody></table>`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -363,13 +440,22 @@ export function byggTimerRapportHtml(
     `<span><b>${esc(t.ansatt)}:</b> ${esc(d.ansattFilter ?? t.alle)}</span>`,
   ];
 
+  // Fase 4: lagret topptekst (ferdig-flettet) erstatter standard firmatopp når satt
+  // — den bærer allerede firma/periode/prosjekt slik malen ville det. Tom ⇒ standard.
+  const topp =
+    d.topptekstLinjer.length > 0
+      ? `<div class="topptekst">${d.topptekstLinjer
+          .map((l, i) => `<div class="${i === 0 ? "t0" : "tn"}">${esc(l)}</div>`)
+          .join("")}</div>`
+      : `<div class="firmanavn">${esc(d.firmanavn)}</div>
+      <div class="doktittel">${esc(t.dokumentTittel)}</div>
+      <div class="meta">${filtre.join("")}</div>`;
+
   return `<!doctype html><html lang="nb"><head><meta charset="utf-8"><style>${CSS}</style></head>
 <body>
   <div class="ark-side">
     <div class="topp">
-      <div class="firmanavn">${esc(d.firmanavn)}</div>
-      <div class="doktittel">${esc(t.dokumentTittel)}</div>
-      <div class="meta">${filtre.join("")}</div>
+      ${topp}
     </div>
 
     <h2>${esc(t.sammendrag)}</h2>

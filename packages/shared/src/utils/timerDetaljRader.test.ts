@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   byggDetaljRader,
   kolonnerMedInnhold,
+  grupperDetaljRader,
   ALLE_RADTYPER,
   type DetaljEksportKilde,
 } from "./timerDetaljRader";
@@ -186,5 +187,56 @@ describe("kolonnerMedInnhold", () => {
     // maskin nøstet under timeraden bærer ikke klokkeslett (det er arbeidsradens)
     expect(rader.find((r) => r.type === "maskin")?.fraTid).toBeNull();
     expect(rader.find((r) => r.type === "tillegg")?.tilTid).toBeNull();
+  });
+});
+
+describe("grupperDetaljRader (fase 4)", () => {
+  // Radsett med to ansatte på to prosjekter, tvers-flettet, + en nøstet maskin.
+  const rader = byggDetaljRader(
+    kilde({
+      timerader: [
+        timerad({ id: "t1", dato: "2026-08-10", ansatt: "Ola", prosjekt: "Kai 12", timer: 7.5,
+          maskiner: [{ id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert" }] }),
+        timerad({ id: "t2", dato: "2026-08-11", ansatt: "Kari", prosjekt: "Bru 3", timer: 8 }),
+        timerad({ id: "t3", dato: "2026-08-12", ansatt: "Ola", prosjekt: "Bru 3", timer: 5 }),
+      ],
+    }),
+    ALLE_RADTYPER,
+  );
+
+  it("gruppering «ingen» → én gruppe uten overskrift, rekkefølge uendret", () => {
+    const g = grupperDetaljRader(rader, "ingen");
+    expect(g).toHaveLength(1);
+    expect(g[0]!.overskrift).toBeNull();
+    expect(g[0]!.rader).toBe(rader);
+    // Subtotal = sum over alle timer-rader (maskin bidrar ikke til timer).
+    expect(g[0]!.subtotal.timer).toBe(20.5);
+    expect(g[0]!.subtotal.maskintimer).toBe(4);
+  });
+
+  it("gruppering «ansatt» → bøtter sortert på navn, nøstet maskin følger sin timerad", () => {
+    const g = grupperDetaljRader(rader, "ansatt");
+    expect(g.map((x) => x.overskrift)).toEqual(["Kari", "Ola"]);
+    const ola = g.find((x) => x.overskrift === "Ola")!;
+    // Ola: timerad+maskin (10.) og timerad (12.) → 3 rader, maskin rett etter sin timerad.
+    expect(ola.rader.map((r) => r.type)).toEqual(["timer", "maskin", "timer"]);
+    expect(ola.subtotal.timer).toBe(12.5);
+    expect(ola.subtotal.maskintimer).toBe(4);
+    expect(g.find((x) => x.overskrift === "Kari")!.subtotal.timer).toBe(8);
+  });
+
+  it("gruppering «prosjekt» → bøtter på prosjekt; subtotal.antall/belop null når fraværende", () => {
+    const g = grupperDetaljRader(rader, "prosjekt");
+    expect(g.map((x) => x.overskrift)).toEqual(["Bru 3", "Kai 12"]);
+    const bru = g.find((x) => x.overskrift === "Bru 3")!;
+    expect(bru.subtotal.timer).toBe(13); // Kari 8 + Ola 5
+    expect(bru.subtotal.antall).toBeNull(); // ingen tillegg
+    expect(bru.subtotal.belop).toBeNull(); // ingen utlegg
+  });
+
+  it("grand total = sum av gruppe-subtotaler (ingen dobbelttelling)", () => {
+    const g = grupperDetaljRader(rader, "prosjekt");
+    const grand = g.reduce((s, x) => s + (x.subtotal.timer ?? 0), 0);
+    expect(grand).toBe(20.5);
   });
 });

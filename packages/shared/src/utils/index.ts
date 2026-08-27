@@ -57,7 +57,12 @@ export {
   beregnMaskinBrudd,
 } from "./maskinKapasitet";
 export type { MaskinKapasitetRad, MaskinBrudd } from "./maskinKapasitet";
-export { byggDetaljRader, kolonnerMedInnhold, ALLE_RADTYPER } from "./timerDetaljRader";
+export {
+  byggDetaljRader,
+  kolonnerMedInnhold,
+  grupperDetaljRader,
+  ALLE_RADTYPER,
+} from "./timerDetaljRader";
 export type {
   DetaljRadType,
   DetaljRad,
@@ -66,6 +71,9 @@ export type {
   KildeLosMaskin,
   MaskinMerke,
   KolonneTilstedevaerelse,
+  Gruppering,
+  DetaljSubtotal,
+  DetaljGruppe,
 } from "./timerDetaljRader";
 export {
   OVERTID_NIVAA_50,

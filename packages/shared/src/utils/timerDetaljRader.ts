@@ -326,3 +326,97 @@ export function kolonnerMedInnhold(rader: DetaljRad[]): KolonneTilstedevaerelse 
     beskrivelse: rader.some((r) => r.beskrivelse !== null && r.beskrivelse !== ""),
   };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Fase 4 — gruppering (presentasjonslag OVER byggDetaljRader)        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Grupperings-dimensjonen (fase 4). Ren PRESENTASJON: sortering + subtotal-
+ * innskudd. `grupperDetaljRader` PAKKER `byggDetaljRader`-outputen — den rører
+ * ALDRI radsettet eller radenes rekkefølge innen en gruppe (designlås 2). «Én
+ * sannhet for Excel og PDF» består: begge flater grupperer via denne, så subtotaler
+ * og gruppe-rekkefølge kan aldri drive fra hverandre.
+ */
+export type Gruppering = "ingen" | "ansatt" | "prosjekt";
+
+/** Subtotal for en gruppe (og grand total): null der ingen rad i gruppen bærer
+ *  den størrelsen, så renderere kan la irrelevante kolonner stå tomme. */
+export type DetaljSubtotal = {
+  timer: number | null;
+  maskintimer: number | null;
+  antall: number | null;
+  belop: number | null;
+};
+
+export type DetaljGruppe = {
+  /** Gruppenøkkel (ansatt-/prosjektnavn). "" når gruppering = "ingen". */
+  nokkel: string;
+  /** Vises som gruppe-overskrift. null når gruppering = "ingen" (ingen overskrift). */
+  overskrift: string | null;
+  rader: DetaljRad[];
+  subtotal: DetaljSubtotal;
+};
+
+function subtotalAv(rader: DetaljRad[]): DetaljSubtotal {
+  const sumHvis = (velg: (r: DetaljRad) => number | null): number | null => {
+    let noen = false;
+    let sum = 0;
+    for (const r of rader) {
+      const v = velg(r);
+      if (v !== null) {
+        noen = true;
+        sum += v;
+      }
+    }
+    return noen ? sum : null;
+  };
+  return {
+    timer: sumHvis((r) => r.timer),
+    maskintimer: sumHvis((r) => r.maskintimer),
+    antall: sumHvis((r) => r.antall),
+    belop: sumHvis((r) => r.belop),
+  };
+}
+
+/**
+ * Grupper det ferdig-byggede radsettet.
+ *
+ *  - "ingen"    → én gruppe, `overskrift = null` (renderer viser ingen gruppe-
+ *                 overskrift, kun grand total). Rekkefølgen er byggDetaljRaders
+ *                 kronologiske — uendret.
+ *  - "ansatt"   → bøtter på `rad.ansatt`, gruppene sortert på navn (localeCompare).
+ *  - "prosjekt" → bøtter på `rad.prosjekt`, gruppene sortert på navn.
+ *
+ * Rekkefølgen INNEN en gruppe er kildens (kronologisk). En nøstet maskin bærer
+ * samme ansatt/prosjekt som sin timerad, så den havner i samme bøtte, rett etter
+ * timeraden — nøstingen bevares. Stabil bøtte-oppbygging (Map bevarer innsettings-
+ * rekkefølge; radene pushes i kildeorden).
+ */
+export function grupperDetaljRader(
+  rader: DetaljRad[],
+  gruppering: Gruppering,
+): DetaljGruppe[] {
+  if (gruppering === "ingen") {
+    return [{ nokkel: "", overskrift: null, rader, subtotal: subtotalAv(rader) }];
+  }
+  const nokkelAv = (r: DetaljRad): string =>
+    gruppering === "ansatt" ? r.ansatt : r.prosjekt;
+
+  const bøtter = new Map<string, DetaljRad[]>();
+  for (const r of rader) {
+    const k = nokkelAv(r);
+    const liste = bøtter.get(k);
+    if (liste) liste.push(r);
+    else bøtter.set(k, [r]);
+  }
+
+  return Array.from(bøtter.entries())
+    .sort((a, b) => a[0].localeCompare(b[0], "nb"))
+    .map(([nokkel, gruppeRader]) => ({
+      nokkel,
+      overskrift: nokkel,
+      rader: gruppeRader,
+      subtotal: subtotalAv(gruppeRader),
+    }));
+}

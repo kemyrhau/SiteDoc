@@ -31,15 +31,26 @@ async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<
 }
 
 /**
- * Config-formen slik den er i dag (configVersion 1): radvalg + format — nøyaktig
- * de to kontrollene Tilpasset-modalen har. Grupperings-dimensjonen (per ansatt /
- * per prosjekt + fakturatopptekst) er fase 4; configVersion lar formen vokse uten
- * å migrere radene, så lesere må tolerere manglende framtidige felt.
+ * Config-formen (configVersion 2, fase 4). v1 var {radTyper, format}; fase 4 la til
+ * `mottaker`/`gruppering`/`orientering`/`topptekst`. `format` (xlsx|pdf = filtype)
+ * er URØRT fra v1 — `orientering` (auto|staaende|liggende = sideformat) er et EGET
+ * felt, ikke en omdøping (navnekollisjon i designnotatet, ikke en beslutning).
+ *
+ * De fire fase 4-feltene er valgfrie med v1-defaults, så en klient som fortsatt
+ * sender v1-config (kun radTyper+format) validerer og leses som intern/ingen/auto/
+ * ingen topptekst — ingen atferdsendring for eksisterende maler. configVersion
+ * bumpes til 2 på alle skriv herfra.
  */
 const configSchema = z.object({
   radTyper: z.array(z.enum(["timer", "maskin", "tillegg", "utlegg"])).min(1),
   format: z.enum(["xlsx", "pdf"]),
+  mottaker: z.enum(["intern", "ekstern"]).optional(),
+  gruppering: z.enum(["ingen", "ansatt", "prosjekt"]).optional(),
+  orientering: z.enum(["auto", "staaende", "liggende"]).optional(),
+  topptekst: z.object({ linjer: z.array(z.string()) }).nullable().optional(),
 });
+
+const CONFIG_VERSION = 2;
 
 const NIVAA = ["firma", "personlig"] as const;
 
@@ -100,6 +111,7 @@ export const eksportOppsettRouter = router({
           organizationId: orgId,
           name: input.name.trim(),
           config: input.config,
+          configVersion: CONFIG_VERSION,
           eierId: input.nivaa === "firma" ? null : ctx.userId,
           basertPaId: input.basertPaId ?? null,
           opprettetAvId: ctx.userId,
@@ -141,7 +153,10 @@ export const eksportOppsettRouter = router({
         where: { id: input.id },
         data: {
           ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-          ...(input.config !== undefined ? { config: input.config } : {}),
+          // Skriver vi config, er den v2-formen → bump configVersion samtidig.
+          ...(input.config !== undefined
+            ? { config: input.config, configVersion: CONFIG_VERSION }
+            : {}),
         },
       });
     }),
