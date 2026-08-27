@@ -25,6 +25,8 @@ const timerad = (o: Partial<DetaljEksportKilde["timerader"][number]> = {}) => ({
   prosjekt: "Kai 12",
   lonnsart: "Normaltid",
   aktivitet: "Graving",
+  fraTid: "07:00",
+  tilTid: "15:00",
   timer: 7.5,
   beskrivelse: "gravde",
   radstatus: "attestert",
@@ -158,5 +160,31 @@ describe("kolonnerMedInnhold", () => {
     expect(kol.maskintimer).toBe(false);
     expect(kol.mengde).toBe(false);
     expect(kol.enhet).toBe(false);
+    expect(kol.fraTid).toBe(true);
+    expect(kol.tilTid).toBe(true);
+  });
+
+  it("klokkeslett lander på timer-raden, er null på tillegg/utlegg/maskin", () => {
+    const rader = byggDetaljRader(
+      kilde({
+        timerader: [
+          timerad({
+            maskiner: [
+              { id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert" },
+            ],
+          }),
+        ],
+        tillegg: [
+          { id: "a1", dato: "2026-08-10", ansatt: "Ola", ansattnr: "104", prosjekt: "Kai 12", tillegg: "Diett", antall: 1, kommentar: null, radstatus: "sent" },
+        ],
+      }),
+      ["timer", "maskin", "tillegg"],
+    );
+    const timerRad = rader.find((r) => r.type === "timer");
+    expect(timerRad?.fraTid).toBe("07:00");
+    expect(timerRad?.tilTid).toBe("15:00");
+    // maskin nøstet under timeraden bærer ikke klokkeslett (det er arbeidsradens)
+    expect(rader.find((r) => r.type === "maskin")?.fraTid).toBeNull();
+    expect(rader.find((r) => r.type === "tillegg")?.tilTid).toBeNull();
   });
 });

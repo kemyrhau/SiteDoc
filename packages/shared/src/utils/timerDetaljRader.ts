@@ -46,6 +46,8 @@ export type DetaljEksportKilde = {
     lonnsart: string;
     aktivitet: string;
     timer: number;
+    fraTid: string | null; // "HH:MM" — per-rad klokkeslett (SheetTimer.fraTid)
+    tilTid: string | null; // "HH:MM"
     beskrivelse: string | null;
     radstatus: string;
     maskiner: KildeMaskin[];
@@ -101,6 +103,8 @@ export type DetaljRad = {
   /** Lønnsart · maskinnavn · tilleggsnavn · utleggskategori. */
   betegnelse: string;
   aktivitet: string | null; // kun timer
+  fraTid: string | null; // "HH:MM" — kun timer (per-rad klokkeslett)
+  tilTid: string | null; // "HH:MM" — kun timer
   timer: number | null; // kun timer (arbeidstimer — kontrollsum mot Sammendrag)
   maskintimer: number | null; // kun maskin (egen størrelse)
   antall: number | null; // kun tillegg
@@ -161,6 +165,8 @@ export function byggDetaljRader(
     prosjekt: id.prosjekt,
     betegnelse: m.navn,
     aktivitet: null,
+    fraTid: null,
+    tilTid: null,
     timer: null,
     maskintimer: m.timer,
     antall: null,
@@ -188,6 +194,8 @@ export function byggDetaljRader(
         prosjekt: r.prosjekt,
         betegnelse: r.lonnsart,
         aktivitet: r.aktivitet,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
         timer: r.timer,
         maskintimer: null,
         antall: null,
@@ -232,6 +240,8 @@ export function byggDetaljRader(
             prosjekt: r.prosjekt,
             betegnelse: r.tillegg,
             aktivitet: null,
+            fraTid: null,
+            tilTid: null,
             timer: null,
             maskintimer: null,
             antall: r.antall,
@@ -262,6 +272,8 @@ export function byggDetaljRader(
             prosjekt: r.prosjekt,
             betegnelse: r.kategori,
             aktivitet: null,
+            fraTid: null,
+            tilTid: null,
             timer: null,
             maskintimer: null,
             antall: null,
@@ -289,6 +301,8 @@ export function byggDetaljRader(
  *  PDF bruker dette til å droppe helt tomme kolonner (A4-lesbarhet); Excel viser alt. */
 export type KolonneTilstedevaerelse = {
   aktivitet: boolean;
+  fraTid: boolean;
+  tilTid: boolean;
   timer: boolean;
   maskintimer: boolean;
   antall: boolean;
@@ -301,6 +315,8 @@ export type KolonneTilstedevaerelse = {
 export function kolonnerMedInnhold(rader: DetaljRad[]): KolonneTilstedevaerelse {
   return {
     aktivitet: rader.some((r) => r.aktivitet !== null && r.aktivitet !== ""),
+    fraTid: rader.some((r) => r.fraTid !== null && r.fraTid !== ""),
+    tilTid: rader.some((r) => r.tilTid !== null && r.tilTid !== ""),
     timer: rader.some((r) => r.timer !== null),
     maskintimer: rader.some((r) => r.maskintimer !== null),
     antall: rader.some((r) => r.antall !== null),

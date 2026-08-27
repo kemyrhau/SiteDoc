@@ -61,6 +61,8 @@ const teksterSchema = z.object({
   kolType: z.string(),
   kolBetegnelse: z.string(),
   kolAktivitet: z.string(),
+  kolFra: z.string(),
+  kolTil: z.string(),
   kolTimer: z.string(),
   kolMaskintimer: z.string(),
   kolAntall: z.string(),
@@ -75,6 +77,9 @@ const teksterSchema = z.object({
   typeUtlegg: z.string(),
   maskinUtenTimerad: z.string(),
   maskinIkkeEksporterbar: z.string(),
+  // Status-VERDIENE oversatt (rå DB-koder som pending/sent er ikke norsk).
+  // Map verdi→etikett; ukjent verdi faller tilbake til rå streng i renderer.
+  statusEtiketter: z.record(z.string()),
 });
 
 export const rapportRouter = router({
@@ -436,6 +441,9 @@ export const rapportRouter = router({
           prosjekt: prosjektNavn(r.projectId),
           lonnsart: r.lonnsart?.navn ?? "(ukjent)",
           aktivitet: r.aktivitet?.navn ?? "(ukjent)",
+          // T.4 per-rad klokkeslett "HH:MM" (kun timer-rader har det).
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
           timer: Number(r.timer),
           beskrivelse: r.beskrivelse,
           // T.3: RAD-status (attestertStatus), ikke sedel-status. Lønn spør om
@@ -605,6 +613,8 @@ export const rapportRouter = router({
         prosjekt: r.prosjekt,
         betegnelse: r.betegnelse,
         aktivitet: r.aktivitet,
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
         timer: r.timer,
         maskintimer: r.maskintimer,
         antall: r.antall,
