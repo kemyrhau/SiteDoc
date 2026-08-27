@@ -11,18 +11,32 @@ Neste økter startes ferskt — se køen under.
 
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Avsluttet. Alt pushet | `relay/inbox-mobil-create-frys.md` (blokkerer bygget) → `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` |
-| **simulator** | `SiteDoc-simulator` | Avsluttet. **Tunnel 3301 + Release-app står** (bygget fra `564cf61e`, uten create-fiksen) | Verifiser create-frysen når dokgen har kandidat. 🔴 Krever NYTT Release-bygg — se «Tilstand etterlatt» i `relay/inbox-simulator-d1-d2.md` |
+| **dokgen** | `SiteDoc-dokgen` | Avsluttet. Alt pushet og merget | `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` (begge web, ikke hastende) |
+| **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
 | **kontrollplan** | `SiteDoc-kontrollplan` | `feat/seed-hms-og-feltvelgere` | Ingen ny ordre |
 | **fabel** | — | Har `relay/fabel-eksport-arkivering.md` klar til sending | Kenneth relayer |
 
-**Test: `37d53899`** (2026-08-27 20:16). **Prod: `a8750601`** (2026-08-25 20:57) —
-**60 commits bak, hvorav 10 mobil.** Én additiv migrering venter
-(`20260827120000_eksport_oppsett`, db-timer).
+**Develop: `52495604`.** **Prod: `a8750601`** (2026-08-25 20:57) — **60+ commits bak,
+hvorav 12 mobil.** Én additiv migrering venter (`20260827120000_eksport_oppsett`, db-timer).
 
-🔴 **EAS-bygget er blokkert** av svart frys i mobilens opprett-flyt
-(`fix/mobil-create-frys`, pushet, uverifisert). Kenneth-vedtak 2026-08-27: alt mobil
-ferdig FØR bygget, så det blir ett bygg og ikke tre. Kvote: ~8 igjen, reset 1. sept.
+✅ **EAS-bygget er IKKE lenger blokkert (2026-08-27 kl. 22).** Opprett-frysen er lukket
+og gatet 3/3 i Release/Fabric (`fix/malvelger-intree`, merget `52495604`).
+
+**Fire runder på samme feilklasse, og den fjerde traff fordi premisset ble motbevist:**
+`MalVelger.tsx:50` påsto at Fabric rendrer `<Modal>` inline uten native VC. Simulator
+observerte svart pageSheet **med grabber** — en glyf bare UIKit tegner for en presentert
+VC. `a29f89b2`, `df86b817` og `d4a76020` fjernet hver sitt nabo-ledd og lot det native
+arket stå, fordi kommentaren sa det ikke kunne være kilden. Fiksen var å fjerne arket.
+🔴 **D1 («krasj ved sending») fantes aldri som egen sak** — det var denne frysen,
+feilaktig tilskrevet send-knappen. Send-flyten er verifisert frisk i både dev og Release.
+
+**Veien til TestFlight er åpen:** merge develop→main → prod-deploy → migrering →
+prod-verifisering som innlogget → env-diff (`eas-build-veileder.md`) → EAS
+production-bygg → submit. Kvote ~8 igjen, reset 1. sept.
+
+**Gjenstår på mobil, ingen av dem blokkerende:** timer-splitt som omgår server-validering
+(lønn-integritet, høyest), papirkurv-guard, tab-bar-oppfølger fra
+`relay/inbox-malvelger-intree.md`, og `BackHandler` uverifisert på Android.
 
 **Printmotoren fase 1–4 er levert og på test.** Modellen ble snudd 2026-08-27: malen
 styrer **skjermen**, og eksporten skriver ut det som vises. Se
