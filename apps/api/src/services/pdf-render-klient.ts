@@ -20,11 +20,14 @@ export async function renderPdfViaContainer(
   html: string,
   headerTemplate: string,
   footerTemplate: string,
+  // Fase 4: liggende A4 (default false → stående, uendret for eksisterende
+  // konsumenter). Containeren defaulter også false hvis feltet utelates.
+  landscape = false,
 ): Promise<PdfRenderResultat> {
   const respons = await fetch(`${PDF_BASE_URL}/pdf`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ html, headerTemplate, footerTemplate }),
+    body: JSON.stringify({ html, headerTemplate, footerTemplate, landscape }),
   });
   if (!respons.ok) {
     const feil = await respons.text().catch(() => "");

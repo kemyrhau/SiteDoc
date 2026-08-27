@@ -12,7 +12,13 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { byggDetaljRader, ALLE_RADTYPER, type DetaljRadType } from "@sitedoc/shared";
+import {
+  byggDetaljRader,
+  grupperDetaljRader,
+  ALLE_RADTYPER,
+  type DetaljRadType,
+  type Gruppering,
+} from "@sitedoc/shared";
 import { esc, byggTimerRapportHtml, type TimerRapportData } from "@sitedoc/pdf";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
@@ -57,6 +63,7 @@ const teksterSchema = z.object({
   kolAttestert: z.string(),
   // Detaljer (merged Type-tabell, fase 2)
   detaljer: z.string(),
+  subtotal: z.string(), // gruppe-subtotal-etikett (fase 4)
   kolDato: z.string(),
   kolType: z.string(),
   kolBetegnelse: z.string(),
@@ -572,6 +579,13 @@ export const rapportRouter = router({
           .array(z.enum(["timer", "maskin", "tillegg", "utlegg"]))
           .min(1)
           .optional(),
+        // Fase 4 (config v2). Utelatt → v1-default: intern · ingen · auto · ingen topptekst.
+        mottaker: z.enum(["intern", "ekstern"]).optional(),
+        gruppering: z.enum(["ingen", "ansatt", "prosjekt"]).optional(),
+        orientering: z.enum(["auto", "staaende", "liggende"]).optional(),
+        // Rå topptekst-linjer med flettefelt {firma}/{periode}/{prosjekt} — flettes
+        // server-side fra rapportfilteret (én sannhet). Tom/utelatt → standard firmatopp.
+        topptekstLinjer: z.array(z.string()).optional(),
         tekster: teksterSchema,
       }),
     )
@@ -602,29 +616,57 @@ export const rapportRouter = router({
 
       // Ett kronologisk radsett med Type-kolonne (fase 2), filtrert på radvalget.
       // SAMME @sitedoc/shared-bygger som Excel-arket → identisk radsett/rekkefølge.
+      // Grupperingen (fase 4) PAKKER radsettet — rører det aldri (designlås 2).
       // ID-feltet slippes her (aldri i PDF — koblingsnøkkel for DB).
       const valgteRadTyper: readonly DetaljRadType[] = input.radTyper ?? ALLE_RADTYPER;
-      const detaljRader = byggDetaljRader(detalj, valgteRadTyper).map((r) => ({
-        type: r.type,
-        nivaa: r.nivaa,
-        dato: r.dato,
-        ansatt: r.ansatt,
-        ansattnr: r.ansattnr,
-        prosjekt: r.prosjekt,
-        betegnelse: r.betegnelse,
-        aktivitet: r.aktivitet,
-        fraTid: r.fraTid,
-        tilTid: r.tilTid,
-        timer: r.timer,
-        maskintimer: r.maskintimer,
-        antall: r.antall,
-        belop: r.belop,
-        mengde: r.mengde,
-        enhet: r.enhet,
-        beskrivelse: r.beskrivelse,
-        status: r.status,
-        maskinMerke: r.maskinMerke,
+      const mottaker = input.mottaker ?? "intern";
+      const gruppering: Gruppering = input.gruppering ?? "ingen";
+      const flateRader = byggDetaljRader(detalj, valgteRadTyper);
+      const grupper = grupperDetaljRader(flateRader, gruppering).map((g) => ({
+        overskrift: g.overskrift,
+        subtotal: g.subtotal,
+        rader: g.rader.map((r) => ({
+          type: r.type,
+          nivaa: r.nivaa,
+          dato: r.dato,
+          ansatt: r.ansatt,
+          ansattnr: r.ansattnr,
+          prosjekt: r.prosjekt,
+          betegnelse: r.betegnelse,
+          aktivitet: r.aktivitet,
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+          timer: r.timer,
+          maskintimer: r.maskintimer,
+          antall: r.antall,
+          belop: r.belop,
+          mengde: r.mengde,
+          enhet: r.enhet,
+          beskrivelse: r.beskrivelse,
+          status: r.status,
+          maskinMerke: r.maskinMerke,
+        })),
       }));
+
+      // Format=auto (designlås 3): liggende når beskrivelse-kolonnen faktisk er med
+      // i PDF (noen valgt rad har beskrivelse), ellers stående. Eksplisitt valg låser.
+      const beskrivelseMed = flateRader.some(
+        (r) => r.beskrivelse !== null && r.beskrivelse !== "",
+      );
+      const orientering = input.orientering ?? "auto";
+      const liggende =
+        orientering === "liggende" || (orientering === "auto" && beskrivelseMed);
+
+      // Topptekst (designlås 4): flett {firma}/{periode}/{prosjekt} fra filteret.
+      // Appen spør aldri om noe den vet — det variable kommer fra rapportfilteret.
+      const flettefelt: Record<string, string> = {
+        "{firma}": input.firmanavn,
+        "{periode}": `${input.fra}–${input.til}`,
+        "{prosjekt}": prosjektFilter ?? input.tekster.alle,
+      };
+      const topptekstLinjer = (input.topptekstLinjer ?? [])
+        .map((l) => l.replace(/\{firma\}|\{periode\}|\{prosjekt\}/g, (m) => flettefelt[m] ?? m))
+        .filter((l) => l.trim().length > 0);
 
       const data: TimerRapportData = {
         firmanavn: input.firmanavn,
@@ -632,6 +674,8 @@ export const rapportRouter = router({
         til: input.til,
         prosjektFilter,
         ansattFilter,
+        mottaker,
+        topptekstLinjer,
         ansatte: aggregat.ansatte.map((a) => ({
           navn: a.navn ?? a.email,
           ansattnr: a.ansattnummer,
@@ -644,7 +688,7 @@ export const rapportRouter = router({
           sent: a.statusFordeling.sent,
           attestert: a.statusFordeling.attestert,
         })),
-        detaljRader,
+        grupper,
       };
 
       const html = byggTimerRapportHtml(data, input.tekster);
@@ -656,7 +700,7 @@ export const rapportRouter = router({
       const header = `<div style="width:100%;box-sizing:border-box;padding:0 16mm;${stil};text-align:right">${esc(input.firmanavn)} · ${esc(input.fra)}–${esc(input.til)}</div>`;
       const footer = `<div style="width:100%;box-sizing:border-box;padding:0 16mm;${stil};display:flex;justify-content:space-between"><span>${esc(input.footerGenerert)}</span><span>${esc(input.footerSide)} <span class="pageNumber"></span> ${esc(input.footerAv)} <span class="totalPages"></span></span></div>`;
 
-      const { pdf } = await renderPdfViaContainer(html, header, footer);
+      const { pdf } = await renderPdfViaContainer(html, header, footer, liggende);
       return { pdf: pdf.toString("base64"), filnavn: input.filnavn };
     }),
 

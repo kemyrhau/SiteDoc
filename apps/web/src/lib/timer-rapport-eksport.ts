@@ -10,10 +10,21 @@
 
 import {
   byggDetaljRader,
+  grupperDetaljRader,
   ALLE_RADTYPER,
   type DetaljRad,
   type DetaljRadType,
+  type DetaljGruppe,
+  type Gruppering,
 } from "@sitedoc/shared";
+
+/** Fase 4-akser som styrer eksport-utformingen (mottaker + gruppering). Radvalget
+ *  ligger separat i `radTyper`. `format`/`orientering`/`topptekst` er PDF-only. */
+export type EksportOpts = {
+  radTyper?: readonly DetaljRadType[];
+  mottaker?: "intern" | "ekstern";
+  gruppering?: Gruppering;
+};
 
 type StatusFordeling = { kladd: number; sent: number; attestert: number };
 
@@ -163,16 +174,22 @@ function lastNed(blob: Blob, filnavn: string): void {
   URL.revokeObjectURL(url);
 }
 
-function sammendragRader(ansatte: AnsattRapportRad[]): Array<Array<string | number>> {
+/** Sammendrags-rader. `visStatus=false` (mottaker=ekstern) dropper Kladd/Sendt/
+ *  Attestert — aggregert arbeidsflyt-status er fortsatt intern status og skal ut
+ *  av et byggherredokument (fase 4). */
+function sammendragRader(
+  ansatte: AnsattRapportRad[],
+  visStatus: boolean,
+): Array<Array<string | number>> {
   return ansatte.map((a) => [
     a.navn ?? a.email,
     a.ansattnummer ?? "",
     formaterNorsk(a.totalTimer),
     a.antallSedler,
     a.sistRegistrert ? a.sistRegistrert.slice(0, 10) : "",
-    a.statusFordeling.kladd,
-    a.statusFordeling.sent,
-    a.statusFordeling.attestert,
+    ...(visStatus
+      ? [a.statusFordeling.kladd, a.statusFordeling.sent, a.statusFordeling.attestert]
+      : []),
     a.perProsjekt
       .slice()
       .sort((x, y) => y.timer - x.timer)
@@ -196,17 +213,19 @@ const kolTekst =
 
 /** Header + stabile kolonnenøkler (til i18n-trygt indeks-oppslag — `indexOf`
  *  på den OVERSATTE strengen ryker når fanen ikke er norsk). */
-const SAMMENDRAG_KOL = [
-  "kolAnsatt",
-  "kolAnsattnr",
-  "kolTotalTimer",
-  "kolSedler",
-  "kolSistRegistrert",
-  "kolKladd",
-  "kolSent",
-  "kolAttestert",
-  "ark.etterProsjekt", // gjenbruk av eksisterende arknavn-nøkkel (samme etikett)
-] as const;
+/** Sammendrags-kolonner. Status-tellingene (Kladd/Sendt/Attestert) droppes for
+ *  mottaker=ekstern (fase 4) — samme regel som Detaljer-arkets Status-kolonne. */
+function sammendragKol(visStatus: boolean): string[] {
+  return [
+    "kolAnsatt",
+    "kolAnsattnr",
+    "kolTotalTimer",
+    "kolSedler",
+    "kolSistRegistrert",
+    ...(visStatus ? ["kolKladd", "kolSent", "kolAttestert"] : []),
+    "ark.etterProsjekt", // gjenbruk av eksisterende arknavn-nøkkel (samme etikett)
+  ];
+}
 
 const PER_PROSJEKT_KOL = [
   "kolAnsatt",
@@ -222,12 +241,17 @@ const PER_DAG_KOL = ["kolAnsatt", "kolAnsattnr", "kolDato", "kolTimer"] as const
 /** CSV-eksport (semikolon-separert for Excel-kompatibilitet, kun sammendrag).
  *  CSV er ett flatt bord → detalj-arkene (Timerader/Tillegg/Utlegg) finnes kun
  *  i .xlsx. CSV forblir sammendrags-eksporten. */
-export function eksporterCsv(input: EksportInput, t: OversettFn): void {
+export function eksporterCsv(
+  input: EksportInput,
+  t: OversettFn,
+  opts: { mottaker?: "intern" | "ekstern" } = {},
+): void {
   const sep = ";";
   const kol = kolTekst(t);
+  const visStatus = opts.mottaker !== "ekstern";
   const linjer: string[] = [];
-  linjer.push(SAMMENDRAG_KOL.map(kol).join(sep));
-  for (const rad of sammendragRader(input.ansatte)) {
+  linjer.push(sammendragKol(visStatus).map(kol).join(sep));
+  for (const rad of sammendragRader(input.ansatte, visStatus)) {
     linjer.push(
       rad
         .map((v) => {
@@ -355,10 +379,15 @@ function betegnelse(t: OversettFn, r: DetaljRad): string {
  */
 function byggDetaljerArk(
   ws: Worksheet,
-  rader: DetaljRad[],
+  grupper: DetaljGruppe[],
   t: OversettFn,
+  mottaker: "intern" | "ekstern",
+  gruppering: Gruppering,
 ): void {
   const kol = kolTekst(t);
+  const ekstern = mottaker === "ekstern";
+  // Fase 4: ekstern (ut av huset) dropper Status OG ID strukturelt (designlås 1).
+  // Kolonnene finnes ikke i arket — kan ikke glemmes på. ID er uansett Excel-only.
   const noekler = [
     "kolDato",
     "kolAnsatt",
@@ -377,11 +406,12 @@ function byggDetaljerArk(
     "kolMengde",
     "kolEnhet",
     "kolBeskrivelse",
-    "kolStatus", // rad-status (timer/maskin/tillegg) · seddelstatus (utlegg)
-    "kolId", // tynn koblingsnøkkel — Excel-only, aldri PDF
+    ...(ekstern ? [] : ["kolStatus"]), // rad-/seddelstatus — kun intern
+    ...(ekstern ? [] : ["kolId"]), // tynn koblingsnøkkel — kun intern, aldri PDF
   ];
   ws.addRow(noekler.map(kol));
   ws.getRow(1).font = { bold: true };
+  const antallKol = noekler.length;
   // Indeks slås opp på den STABILE nøkkelen, ikke den oversatte strengen —
   // robust mot både innskutte kolonner OG ikke-norske faner.
   const sumKol = [
@@ -390,9 +420,11 @@ function byggDetaljerArk(
     noekler.indexOf("kolAntall"),
     noekler.indexOf("kolBelop"),
   ];
+  const idIdx = noekler.indexOf("kolId");
+  const statusIdx = noekler.indexOf("kolStatus");
 
-  for (const r of rader) {
-    ws.addRow([
+  const radVerdier = (r: DetaljRad): Array<string | number> => {
+    const base: Array<string | number> = [
       r.dato,
       r.ansatt,
       r.ansattnr ?? "",
@@ -409,13 +441,43 @@ function byggDetaljerArk(
       r.mengde ?? "",
       r.enhet ?? "",
       r.beskrivelse ?? "",
-      statusEtikett(t, r.status), // rå DB-kode → norsk (pending/sent er ikke norsk)
-      r.id,
-    ]);
+    ];
+    if (statusIdx !== -1) base.push(statusEtikett(t, r.status)); // rå DB-kode → norsk
+    if (idIdx !== -1) base.push(r.id);
+    return base;
+  };
+
+  // Første datarad (etter header) — grand total SUBTOTAL(109) spenner herfra.
+  // SUBTOTAL(109) ignorerer nøstede SUBTOTAL-celler → gruppe-subtotaler
+  // dobbelttelles ikke i grand total (Excel-native, ikke en spesialkasse her).
+  const førsteData = 2;
+  for (const g of grupper) {
+    if (gruppering !== "ingen" && g.overskrift !== null) {
+      const hdr = ws.addRow([g.overskrift]);
+      hdr.font = { bold: true };
+    }
+    const grFørste = ws.rowCount + 1;
+    for (const r of g.rader) ws.addRow(radVerdier(r));
+    const grSiste = ws.rowCount;
+    // Gruppe-subtotal kun når faktisk gruppert («ingen» får bare grand total).
+    if (gruppering !== "ingen" && g.overskrift !== null) {
+      leggTilSumrad(
+        ws,
+        antallKol,
+        sumKol,
+        grFørste,
+        grSiste,
+        `${t("timer.eksport.subtotal")}: ${g.overskrift}`,
+      );
+    }
   }
 
-  leggTilSumrad(ws, noekler.length, sumKol, 2, ws.rowCount, t("timer.eksport.sumKontroll"));
-  settBredder(ws, [12, 22, 10, 22, 10, 24, 18, 7, 7, 9, 11, 9, 11, 10, 8, 34, 12, 14]);
+  leggTilSumrad(ws, antallKol, sumKol, førsteData, ws.rowCount, t("timer.eksport.sumKontroll"));
+
+  const bredder = [12, 22, 10, 22, 10, 24, 18, 7, 7, 9, 11, 9, 11, 10, 8, 34];
+  if (statusIdx !== -1) bredder.push(12);
+  if (idIdx !== -1) bredder.push(14);
+  settBredder(ws, bredder);
 }
 
 /**
@@ -431,8 +493,13 @@ export async function eksporterXlsx(
   input: EksportInput,
   detalj: DetaljEksport,
   t: OversettFn,
-  valgteRadTyper: readonly DetaljRadType[] = ALLE_RADTYPER,
+  opts: EksportOpts = {},
 ): Promise<void> {
+  const valgteRadTyper = opts.radTyper ?? ALLE_RADTYPER;
+  const mottaker = opts.mottaker ?? "intern";
+  const gruppering: Gruppering = opts.gruppering ?? "ingen";
+  const visStatus = mottaker !== "ekstern";
+
   const ExcelJSModule = await import("exceljs");
   const ExcelJS =
     (ExcelJSModule as unknown as { default?: typeof import("exceljs") }).default ??
@@ -441,11 +508,11 @@ export async function eksporterXlsx(
 
   const kol = kolTekst(t);
 
-  // Ark 1: Sammendrag (uendret)
+  // Ark 1: Sammendrag. Ekstern (fase 4) dropper status-tellingene (Kladd/Sendt/Attestert).
   const wsSam = wb.addWorksheet(t("timer.eksport.ark.sammendrag"));
-  wsSam.addRow(SAMMENDRAG_KOL.map(kol));
+  wsSam.addRow(sammendragKol(visStatus).map(kol));
   wsSam.getRow(1).font = { bold: true };
-  for (const rad of sammendragRader(input.ansatte)) {
+  for (const rad of sammendragRader(input.ansatte, visStatus)) {
     wsSam.addRow(rad);
   }
   wsSam.columns.forEach((col) => {
@@ -486,9 +553,17 @@ export async function eksporterXlsx(
   });
 
   // Ark 4: Detaljer (ett kronologisk ark med Type-kolonne, radvalg-filtrert).
-  // SAMME radsett/rekkefølge som PDF-en (delt @sitedoc/shared byggDetaljRader).
+  // SAMME radsett/rekkefølge som PDF-en (delt @sitedoc/shared byggDetaljRader),
+  // pakket i grupper (fase 4) via SAMME grupperDetaljRader som PDF-en.
   const detaljRader = byggDetaljRader(detalj, valgteRadTyper);
-  byggDetaljerArk(wb.addWorksheet(t("timer.eksport.ark.detaljer")), detaljRader, t);
+  const grupper = grupperDetaljRader(detaljRader, gruppering);
+  byggDetaljerArk(
+    wb.addWorksheet(t("timer.eksport.ark.detaljer")),
+    grupper,
+    t,
+    mottaker,
+    gruppering,
+  );
 
   const buffer = await wb.xlsx.writeBuffer();
   lastNed(

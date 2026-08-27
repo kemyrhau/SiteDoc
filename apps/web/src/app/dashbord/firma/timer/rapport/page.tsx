@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { ALLE_RADTYPER, type DetaljRadType } from "@sitedoc/shared";
+import { ALLE_RADTYPER, type DetaljRadType, type Gruppering } from "@sitedoc/shared";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -48,26 +48,112 @@ type SortRetning = "asc" | "desc";
 
 type DetaljVy = "dag" | "uke";
 
-/** Configen en lagret utskriftsmal bærer (configVersion 1). Grupperingen (per
- *  ansatt/prosjekt + fakturatopptekst) er fase 4 — leseren tolererer at den mangler. */
-type MalConfig = { radTyper: DetaljRadType[]; format: "xlsx" | "pdf" };
+type Mottaker = "intern" | "ekstern";
+type Orientering = "auto" | "staaende" | "liggende";
+type Topptekst = { linjer: string[] } | null;
+
+/** Configen en lagret utskriftsmal bærer (configVersion 2, fase 4). `format`
+ *  (xlsx|pdf) = filtype (v1, urørt); `orientering` (auto|staaende|liggende) =
+ *  PDF-sideformat (eget felt, ikke omdøping av `format`). */
+type MalConfig = {
+  radTyper: DetaljRadType[];
+  format: "xlsx" | "pdf";
+  mottaker: Mottaker;
+  gruppering: Gruppering;
+  orientering: Orientering;
+  topptekst: Topptekst;
+};
 
 /** En lagret mal slik list-endepunktet returnerer den (config er Json). */
 type LagretMal = { id: string; name: string; eierId: string | null; config: unknown };
 
-/** Tolk mal-config defensivt: ukjente/tomme felt faller tilbake til «alt + Excel»,
- *  så en fremtidig config-form (fase 4) aldri krasjer en eldre klient. */
+/** Tolk mal-config defensivt: ukjente/tomme felt faller tilbake til v1-default
+ *  (alt · Excel · intern · ingen · auto · ingen topptekst), så en configVersion-1-
+ *  rad leses uten atferdsendring og en fremtidig form aldri krasjer klienten. */
 function lesConfig(config: unknown): MalConfig {
-  const c = (config ?? {}) as { radTyper?: unknown; format?: unknown };
+  const c = (config ?? {}) as {
+    radTyper?: unknown;
+    format?: unknown;
+    mottaker?: unknown;
+    gruppering?: unknown;
+    orientering?: unknown;
+    topptekst?: unknown;
+  };
   const radTyper = Array.isArray(c.radTyper)
     ? c.radTyper.filter((r): r is DetaljRadType =>
         ALLE_RADTYPER.includes(r as DetaljRadType),
       )
     : [];
+  const tp = c.topptekst as { linjer?: unknown } | null | undefined;
+  const linjer =
+    tp && Array.isArray(tp.linjer)
+      ? tp.linjer.filter((l): l is string => typeof l === "string")
+      : null;
   return {
     radTyper: radTyper.length > 0 ? radTyper : [...ALLE_RADTYPER],
     format: c.format === "pdf" ? "pdf" : "xlsx",
+    mottaker: c.mottaker === "ekstern" ? "ekstern" : "intern",
+    gruppering:
+      c.gruppering === "ansatt" || c.gruppering === "prosjekt" ? c.gruppering : "ingen",
+    orientering:
+      c.orientering === "staaende" || c.orientering === "liggende"
+        ? c.orientering
+        : "auto",
+    topptekst: linjer && linjer.length > 0 ? { linjer } : null,
   };
+}
+
+/** Innebygd mal (KODE, ikke DB-rad) — alltid tilgjengelig, kan ikke slettes.
+ *  «Rediger» åpner redigereren forhåndsutfylt som grunnlag for «Lagre som ny». */
+type InnebygdMal = { navn: string; config: MalConfig };
+
+/** Innebygde maler etter fase 4: Full eksport · Lønnsgrunnlag (ansatt-gruppert) ·
+ *  Fakturagrunnlag (ekstern · prosjekt · liggende · firmatopp). Bygges med t() fordi
+ *  Fakturagrunnlag-toppteksten bærer det oversatte malnavnet som dokumenttittel. */
+function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
+  return [
+    {
+      navn: t("firma.timer.rapport.maler.fullEksport"),
+      config: {
+        radTyper: [...ALLE_RADTYPER],
+        format: "xlsx",
+        mottaker: "intern",
+        gruppering: "ingen",
+        orientering: "auto",
+        topptekst: null,
+      },
+    },
+    {
+      navn: t("firma.timer.rapport.maler.lonnsgrunnlag"),
+      config: {
+        radTyper: [...ALLE_RADTYPER],
+        format: "xlsx",
+        mottaker: "intern",
+        gruppering: "ansatt",
+        orientering: "auto",
+        topptekst: null,
+      },
+    },
+    {
+      navn: t("firma.timer.rapport.maler.fakturagrunnlag"),
+      config: {
+        radTyper: [...ALLE_RADTYPER],
+        format: "pdf",
+        mottaker: "ekstern",
+        gruppering: "prosjekt",
+        orientering: "liggende",
+        // {firma}/{periode}/{prosjekt} flettes server-side; midtlinjen er dokumenttittelen.
+        topptekst: {
+          linjer: [
+            "{firma}",
+            t("firma.timer.rapport.maler.fakturagrunnlag"),
+            "{periode}",
+            "{prosjekt}",
+          ],
+        },
+      },
+    },
+  ];
 }
 
 function isoUkeNokkel(datoStr: string): string {
@@ -121,7 +207,7 @@ function byggPdfTekster(
   [K in
     | "dokumentTittel" | "periode" | "prosjekt" | "ansatt" | "alle" | "ingenData" | "sum"
     | "sammendrag" | "kolAnsattnr" | "kolTotalTimer" | "kolSedler" | "kolSistRegistrert"
-    | "kolKladd" | "kolSent" | "kolAttestert" | "detaljer" | "kolDato" | "kolType"
+    | "kolKladd" | "kolSent" | "kolAttestert" | "detaljer" | "subtotal" | "kolDato" | "kolType"
     | "kolBetegnelse" | "kolAktivitet" | "kolFra" | "kolTil" | "kolTimer" | "kolMaskintimer"
     | "kolAntall" | "kolBelop" | "kolMengde" | "kolEnhet" | "kolBeskrivelse" | "kolStatus"
     | "typeTimer" | "typeMaskin" | "typeTillegg" | "typeUtlegg" | "maskinUtenTimerad"
@@ -145,6 +231,7 @@ function byggPdfTekster(
     kolSent: k("kolSent"),
     kolAttestert: k("kolAttestert"),
     detaljer: k("detaljer"),
+    subtotal: k("subtotal"),
     kolDato: k("kolDato"),
     kolType: k("kolType"),
     kolBetegnelse: k("kolBetegnelse"),
@@ -194,6 +281,13 @@ export default function TimerRapportSide() {
   const [tilpassetÅpen, setTilpassetÅpen] = useState(false);
   const [valgteRadTyper, setValgteRadTyper] = useState<DetaljRadType[]>([...ALLE_RADTYPER]);
   const [tilpassetFormat, setTilpassetFormat] = useState<"xlsx" | "pdf">("xlsx");
+  // Fase 4-akser (config v2): mottaker · gruppering · orientering · topptekst.
+  // Toppteksten redigeres som flerlinjet tekst (én linje pr. rad) og konverteres
+  // til/fra `{linjer}` ved lagring/lasting.
+  const [mottaker, setMottaker] = useState<Mottaker>("intern");
+  const [gruppering, setGruppering] = useState<Gruppering>("ingen");
+  const [orientering, setOrientering] = useState<Orientering>("auto");
+  const [topptekstTekst, setTopptekstTekst] = useState("");
   const [malNavn, setMalNavn] = useState("");
   const [redigererMalId, setRedigererMalId] = useState<string | null>(null);
   // 1c: try/finally uten catch svelget kastet → «virker ikke» uten spor. Vis
@@ -234,6 +328,9 @@ export default function TimerRapportSide() {
   const malerListe = (maler ?? []) as unknown as LagretMal[];
   const mineMalene = malerListe.filter((m) => m.eierId !== null);
   const firmaMalene = malerListe.filter((m) => m.eierId === null);
+
+  // Innebygde maler (kode) — bygges med t() for oversatt navn + Fakturagrunnlag-topptekst.
+  const innebygde = useMemo(() => byggInnebygde(t), [t]);
 
   // Viktig: useMemo MÅ kalles før alle conditional returns under,
   // ellers brytes Rules of Hooks (React error #310 — flagget i memory
@@ -322,18 +419,31 @@ export default function TimerRapportSide() {
     }
   }
 
-  /** `radTyper` undefined → alle fire (direkte format-knapper = full eksport).
-   *  Tilpasset-modalen sender et subsett. Excel og PDF følger SAMME valg. */
+  /** Utforming-config for en eksport. Bygges fra en mal (brukMal), fra modalen
+   *  («Eksporter uten å lagre») eller som full-default (de direkte format-knappene). */
+  const FULL_CONFIG: MalConfig = {
+    radTyper: [...ALLE_RADTYPER],
+    format: "xlsx",
+    mottaker: "intern",
+    gruppering: "ingen",
+    orientering: "auto",
+    topptekst: null,
+  };
+
+  /** `utFormat` = filtypen som produseres (csv|xlsx|pdf). `cfg` bærer fase 4-aksene
+   *  (radvalg · mottaker · gruppering · orientering · topptekst). Excel og PDF følger
+   *  SAMME cfg. CSV er sammendrag (respekterer kun mottaker). */
   async function håndterEksport(
-    format: "csv" | "xlsx" | "pdf",
-    radTyper?: DetaljRadType[],
+    utFormat: "csv" | "xlsx" | "pdf",
+    cfg: MalConfig = FULL_CONFIG,
   ) {
     if (!rapportData || rapportData.ansatte.length === 0) return;
+    const radTyper = cfg.radTyper;
     setEksportÅpen(false);
     setEksportFeil(null);
     setEksporterer(true);
     try {
-      if (format === "pdf") {
+      if (utFormat === "pdf") {
         // PDF bygges SERVER-side (samme HTML→PDF-motor som arkiv). Klienten
         // sender oversatte overskrifter/filnavn + radvalg + status-etiketter inn
         // (ingen server-i18n); serveren gjenbruker firmaPeriodeRapport + detaljEksport.
@@ -354,6 +464,12 @@ export default function TimerRapportSide() {
           footerSide: t("firma.timer.rapport.pdf.footerSide"),
           footerAv: t("firma.timer.rapport.pdf.footerAv"),
           radTyper,
+          // Fase 4-akser. topptekst-linjene sendes rå (med {firma}/{periode}/
+          // {prosjekt}) — serveren flettes dem fra rapportfilteret.
+          mottaker: cfg.mottaker,
+          gruppering: cfg.gruppering,
+          orientering: cfg.orientering,
+          topptekstLinjer: cfg.topptekst?.linjer,
           tekster: byggPdfTekster(t, byggStatusEtiketter(t)),
         });
         lastNedBase64(res.pdf, res.filnavn, "application/pdf");
@@ -387,8 +503,8 @@ export default function TimerRapportSide() {
         til,
         firmanavn: valgtFirma?.name ?? "firma",
       };
-      if (format === "csv") {
-        mod.eksporterCsv(input, t);
+      if (utFormat === "csv") {
+        mod.eksporterCsv(input, t, { mottaker: cfg.mottaker });
       } else {
         // Detalj-radene hentes KUN her (ved eksport-klikk), med SAMME filtre som
         // skjermrapporten. detaljEksport filtrerer alltid på skalEksporteres
@@ -400,7 +516,11 @@ export default function TimerRapportSide() {
           prosjektId: valgtProsjektId || undefined,
           ansattId: valgtAnsattId || undefined,
         });
-        await mod.eksporterXlsx(input, detalj, t, radTyper ?? [...ALLE_RADTYPER]);
+        await mod.eksporterXlsx(input, detalj, t, {
+          radTyper,
+          mottaker: cfg.mottaker,
+          gruppering: cfg.gruppering,
+        });
       }
     } catch (e) {
       // 1c: gjør det tause kastet synlig. Loggen bevarer stacken for å pinne
@@ -413,34 +533,64 @@ export default function TimerRapportSide() {
     }
   }
 
-  /* ---- Lagrede maler (fase 3) — åpne/bruk/lagre/slett ---- */
+  /* ---- Lagrede maler (fase 3/4) — åpne/bruk/lagre/slett ---- */
 
-  /** Åpne redigereren for en NY mal (blank) eller den innebygde «Full eksport». */
-  function åpneRedigerer(forhåndsutfylt?: { navn: string; radTyper: DetaljRadType[] }) {
+  /** Sett hele modal-tilstanden fra en config (delt av «Ny», «Rediger» og innebygd). */
+  function settModalFraConfig(cfg: MalConfig) {
+    setValgteRadTyper([...cfg.radTyper]);
+    setTilpassetFormat(cfg.format);
+    setMottaker(cfg.mottaker);
+    setGruppering(cfg.gruppering);
+    setOrientering(cfg.orientering);
+    setTopptekstTekst(cfg.topptekst ? cfg.topptekst.linjer.join("\n") : "");
+  }
+
+  /** Bygg config fra gjeldende modal-tilstand. Topptekst: én linje pr. rad, tomme
+   *  linjer filtreres bort; ingen linjer → null. */
+  function modalConfig(): MalConfig {
+    const linjer = topptekstTekst
+      .split("\n")
+      .map((l) => l.trimEnd())
+      .filter((l) => l.trim().length > 0);
+    return {
+      radTyper: valgteRadTyper,
+      format: tilpassetFormat,
+      mottaker,
+      gruppering,
+      orientering,
+      topptekst: linjer.length > 0 ? { linjer } : null,
+    };
+  }
+
+  /** Åpne redigereren for en NY mal (blank) eller forhåndsutfylt fra en innebygd. */
+  function åpneRedigerer(forhåndsutfylt?: InnebygdMal) {
     setRedigererMalId(null);
     setMalNavn(forhåndsutfylt?.navn ?? "");
-    setValgteRadTyper(forhåndsutfylt ? [...forhåndsutfylt.radTyper] : [...ALLE_RADTYPER]);
-    setTilpassetFormat("xlsx");
+    settModalFraConfig(forhåndsutfylt?.config ?? FULL_CONFIG);
     setEksportÅpen(false);
     setTilpassetÅpen(true);
   }
 
   /** Åpne en lagret mal for redigering (får «Lagre»/«Slett»). */
   function redigerMal(m: LagretMal) {
-    const cfg = lesConfig(m.config);
     setRedigererMalId(m.id);
     setMalNavn(m.name);
-    setValgteRadTyper(cfg.radTyper);
-    setTilpassetFormat(cfg.format);
+    settModalFraConfig(lesConfig(m.config));
     setEksportÅpen(false);
     setTilpassetÅpen(true);
   }
 
-  /** Klikk på en mal-rad = eksporter direkte med malens config (Excel/PDF). */
+  /** Klikk på en mal-rad = eksporter direkte med malens config (filtype = config.format). */
   function brukMal(m: LagretMal) {
     const cfg = lesConfig(m.config);
     setEksportÅpen(false);
-    void håndterEksport(cfg.format, cfg.radTyper);
+    void håndterEksport(cfg.format, cfg);
+  }
+
+  /** Klikk på en innebygd mal-rad = ett-klikk-eksport med dens config. */
+  function brukInnebygd(mal: InnebygdMal) {
+    setEksportÅpen(false);
+    void håndterEksport(mal.config.format, mal.config);
   }
 
   async function lagreSomNy(nivaa: "firma" | "personlig") {
@@ -450,7 +600,7 @@ export default function TimerRapportSide() {
       await lagreMal.mutateAsync({
         organizationId: orgId,
         name: malNavn.trim(),
-        config: { radTyper: valgteRadTyper, format: tilpassetFormat },
+        config: modalConfig(),
         nivaa,
       });
       await utils.timer.eksportOppsett.list.invalidate();
@@ -468,7 +618,7 @@ export default function TimerRapportSide() {
         id: redigererMalId,
         organizationId: orgId,
         name: malNavn.trim(),
-        config: { radTyper: valgteRadTyper, format: tilpassetFormat },
+        config: modalConfig(),
       });
       await utils.timer.eksportOppsett.list.invalidate();
       setTilpassetÅpen(false);
@@ -536,23 +686,31 @@ export default function TimerRapportSide() {
                     />
                   )}
 
-                  {/* Innebygd: én startpunkt-mal (Full eksport). Åpner redigereren
-                      forhåndsutfylt — grunnlag for «Lagre som ny». */}
+                  {/* Innebygde maler (kode): Full eksport · Lønnsgrunnlag ·
+                      Fakturagrunnlag. Rad-klikk = ett-klikk-eksport med malens
+                      config; «Rediger» åpner redigereren forhåndsutfylt. */}
                   <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                     {t("firma.timer.rapport.maler.innebygd")}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      åpneRedigerer({
-                        navn: t("firma.timer.rapport.maler.fullEksport"),
-                        radTyper: [...ALLE_RADTYPER],
-                      })
-                    }
-                    className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    {t("firma.timer.rapport.maler.fullEksport")}
-                  </button>
+                  {innebygde.map((mal) => (
+                    <div key={mal.navn} className="flex items-center hover:bg-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => brukInnebygd(mal)}
+                        className="flex-1 truncate px-3 py-1.5 text-left text-sm text-gray-700"
+                        title={mal.navn}
+                      >
+                        {mal.navn}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => åpneRedigerer(mal)}
+                        className="px-2 py-1.5 text-xs text-gray-400 hover:text-sitedoc-primary"
+                      >
+                        {t("firma.timer.rapport.maler.rediger")}
+                      </button>
+                    </div>
+                  ))}
 
                   {/* Direkte full-eksport per format — uendret fra i dag. */}
                   <div className="my-1 border-t border-gray-100" />
@@ -601,13 +759,21 @@ export default function TimerRapportSide() {
           setValgteRadTyper={setValgteRadTyper}
           format={tilpassetFormat}
           setFormat={setTilpassetFormat}
+          mottaker={mottaker}
+          setMottaker={setMottaker}
+          gruppering={gruppering}
+          setGruppering={setGruppering}
+          orientering={orientering}
+          setOrientering={setOrientering}
+          topptekstTekst={topptekstTekst}
+          setTopptekstTekst={setTopptekstTekst}
           redigererEksisterende={redigererMalId !== null}
           kanLagreFirma={kanAdministrereFirma}
           lagrer={lagreMal.isPending || oppdaterMal.isPending || slettMal.isPending}
           onAvbryt={() => setTilpassetÅpen(false)}
           onEksporter={() => {
             setTilpassetÅpen(false);
-            void håndterEksport(tilpassetFormat === "pdf" ? "pdf" : "xlsx", valgteRadTyper);
+            void håndterEksport(tilpassetFormat === "pdf" ? "pdf" : "xlsx", modalConfig());
           }}
           onLagreSomNy={lagreSomNy}
           onLagreEndring={lagreEndring}
@@ -781,6 +947,35 @@ export default function TimerRapportSide() {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Segmentert valgknapp-gruppe (forhåndsdefinerte valg fremfor fritekst). Generisk
+ *  over string-unionen den styrer. */
+function Segment<T extends string>({
+  verdi,
+  valg,
+  onVelg,
+}: {
+  verdi: T;
+  valg: Array<{ v: T; tekst: string }>;
+  onVelg: (v: T) => void;
+}) {
+  return (
+    <div className="inline-flex flex-wrap overflow-hidden rounded-md border border-gray-300">
+      {valg.map((o, i) => (
+        <button
+          key={o.v}
+          type="button"
+          onClick={() => onVelg(o.v)}
+          className={`px-3 py-1.5 text-sm ${i > 0 ? "border-l border-gray-300" : ""} ${
+            verdi === o.v ? "bg-sitedoc-primary text-white" : "bg-white text-gray-700"
+          }`}
+        >
+          {o.tekst}
+        </button>
+      ))}
     </div>
   );
 }
@@ -1010,6 +1205,14 @@ function TilpassetModal({
   setValgteRadTyper,
   format,
   setFormat,
+  mottaker,
+  setMottaker,
+  gruppering,
+  setGruppering,
+  orientering,
+  setOrientering,
+  topptekstTekst,
+  setTopptekstTekst,
   redigererEksisterende,
   kanLagreFirma,
   lagrer,
@@ -1026,6 +1229,14 @@ function TilpassetModal({
   setValgteRadTyper: (v: DetaljRadType[]) => void;
   format: "xlsx" | "pdf";
   setFormat: (f: "xlsx" | "pdf") => void;
+  mottaker: Mottaker;
+  setMottaker: (m: Mottaker) => void;
+  gruppering: Gruppering;
+  setGruppering: (g: Gruppering) => void;
+  orientering: Orientering;
+  setOrientering: (o: Orientering) => void;
+  topptekstTekst: string;
+  setTopptekstTekst: (v: string) => void;
   redigererEksisterende: boolean;
   kanLagreFirma: boolean;
   lagrer: boolean;
@@ -1037,6 +1248,16 @@ function TilpassetModal({
   t: (k: string) => string;
 }) {
   const [bekrefterSlett, setBekrefterSlett] = useState(false);
+  // Auto-orientering avledes av om beskrivelse-kolonnen er med (grovt: brukeren har
+  // valgt en radtype som bærer beskrivelse). Vises som hint; det faktiske valget
+  // gjøres i rendereren fra de faktiske radene.
+  const beskrivelseSannsynlig =
+    valgteRadTyper.includes("timer") ||
+    valgteRadTyper.includes("tillegg") ||
+    valgteRadTyper.includes("utlegg");
+  const autoResultat = beskrivelseSannsynlig
+    ? t("firma.timer.rapport.tilpasset.orienteringLiggende")
+    : t("firma.timer.rapport.tilpasset.orienteringStaaende");
 
   function toggle(rt: DetaljRadType) {
     setValgteRadTyper(
@@ -1092,28 +1313,95 @@ function TilpassetModal({
             </div>
           </div>
 
+          {/* Mottaker (fase 4) — regel, ikke avhuking. Ekstern fjerner status+ID strukturelt. */}
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.timer.rapport.tilpasset.mottaker")}
+            </div>
+            <Segment
+              verdi={mottaker}
+              valg={[
+                { v: "intern", tekst: t("firma.timer.rapport.tilpasset.mottakerIntern") },
+                { v: "ekstern", tekst: t("firma.timer.rapport.tilpasset.mottakerEkstern") },
+              ]}
+              onVelg={setMottaker}
+            />
+            {mottaker === "ekstern" && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                {t("firma.timer.rapport.tilpasset.eksternNote")}
+              </p>
+            )}
+          </div>
+
+          {/* Gruppering (fase 4) — ren presentasjon, rører aldri radsettet. */}
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.timer.rapport.tilpasset.gruppering")}
+            </div>
+            <Segment
+              verdi={gruppering}
+              valg={[
+                { v: "ingen", tekst: t("firma.timer.rapport.tilpasset.grupperingIngen") },
+                { v: "ansatt", tekst: t("firma.timer.rapport.tilpasset.grupperingAnsatt") },
+                { v: "prosjekt", tekst: t("firma.timer.rapport.tilpasset.grupperingProsjekt") },
+              ]}
+              onVelg={setGruppering}
+            />
+          </div>
+
           {/* Format */}
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
               {t("firma.timer.rapport.tilpasset.format")}
             </div>
-            <div className="inline-flex overflow-hidden rounded-md border border-gray-300">
-              <button
-                type="button"
-                onClick={() => setFormat("xlsx")}
-                className={`px-4 py-1.5 text-sm ${format === "xlsx" ? "bg-sitedoc-primary text-white" : "bg-white text-gray-700"}`}
-              >
-                {t("firma.timer.rapport.tilpasset.formatExcel")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormat("pdf")}
-                className={`border-l border-gray-300 px-4 py-1.5 text-sm ${format === "pdf" ? "bg-sitedoc-primary text-white" : "bg-white text-gray-700"}`}
-              >
-                {t("firma.timer.rapport.tilpasset.formatPdf")}
-              </button>
-            </div>
+            <Segment
+              verdi={format}
+              valg={[
+                { v: "xlsx", tekst: t("firma.timer.rapport.tilpasset.formatExcel") },
+                { v: "pdf", tekst: t("firma.timer.rapport.tilpasset.formatPdf") },
+              ]}
+              onVelg={setFormat}
+            />
           </div>
+
+          {/* Orientering + topptekst — kun relevant for PDF (dokumentet som sendes). */}
+          {format === "pdf" && (
+            <>
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {t("firma.timer.rapport.tilpasset.orientering")}
+                </div>
+                <Segment
+                  verdi={orientering}
+                  valg={[
+                    {
+                      v: "auto",
+                      tekst: `${t("firma.timer.rapport.tilpasset.orienteringAuto")} (${autoResultat})`,
+                    },
+                    { v: "staaende", tekst: t("firma.timer.rapport.tilpasset.orienteringStaaende") },
+                    { v: "liggende", tekst: t("firma.timer.rapport.tilpasset.orienteringLiggende") },
+                  ]}
+                  onVelg={setOrientering}
+                />
+              </div>
+
+              <div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {t("firma.timer.rapport.tilpasset.topptekst")}
+                </div>
+                <textarea
+                  value={topptekstTekst}
+                  onChange={(e) => setTopptekstTekst(e.target.value)}
+                  rows={4}
+                  placeholder={t("firma.timer.rapport.tilpasset.topptekstPlaceholder")}
+                  className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-sitedoc-primary focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {t("firma.timer.rapport.tilpasset.topptekstHjelp")}
+                </p>
+              </div>
+            </>
+          )}
 
           {/* Lagre-valg (forhåndsdefinerte knapper, ikke fritekst-nivåvalg) */}
           <div>
