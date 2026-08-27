@@ -6,7 +6,6 @@ import {
   Pressable,
   Modal,
   ActivityIndicator,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native";
 import { X, ChevronDown, ChevronRight } from "lucide-react-native";
@@ -47,39 +46,19 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
   const maler = malQuery.data as MalData[] | undefined;
   const [visUtilgjengelige, setVisUtilgjengelige] = useState(false);
 
-  // P4a: serialiser overrekkelsen til opprett-modalen. På iOS kan ikke to native
-  // modaler transisjonere samtidig — presenteres opprett-modalen (fullScreen) mens
-  // denne velgeren (pageSheet) fortsatt dismisses, feiler presentasjonen og skjermen
-  // blir svart. `internSynlig` speiler `synlig`-propen, men settes lokalt false ved
-  // valg så velgeren animerer HELT ut (onDismiss) FØR `onVelg` presenterer opprett-
-  // modalen. Android har ingen slik VC-kollisjon (og `onDismiss` fyres uansett ikke
-  // der) → velg direkte. (Auto-velg-grenen under rendrer aldri Modal → ingen
-  // kollisjon, kaller `onVelg` direkte.)
-  const [internSynlig, setInternSynlig] = useState(synlig);
-  useEffect(() => {
-    setInternSynlig(synlig);
-  }, [synlig]);
-  const ventendeMal = useRef<MalData | null>(null);
-  useEffect(() => {
-    if (!synlig) ventendeMal.current = null;
-  }, [synlig]);
-
+  // Malvalg: kall `onVelg` DIREKTE (som Android-grenen alltid gjorde). Under
+  // Fabric/newArch rendres <Modal> INLINE (ingen presentert UIKit-VC), så det
+  // finnes ingen to-modal-VC-kollisjon å serialisere mot — og `onDismiss` fyrer
+  // ikke pålitelig. Den gamle P4a-gaten (utsett `onVelg` til `onDismiss` på iOS)
+  // deadlocket derfor ved malvalg: `onDismiss` kom aldri → `onVelg` ble aldri
+  // kalt → opprett-modalen åpnet aldri, og den nedrevne velger-hosten fanget all
+  // touch = frys. Symptomet traff kun prosjekter med ≥2 opprettbare maler (1 mal
+  // → `skalAutoVelge` hopper over hele modalen). Samme rotårsak som a29f89b2
+  // fjernet fra opprett-modalen (Fabric-modal-livssyklus, verifisert i Release-sim
+  // 2026-08-19). Parenten setter `valgtMal` → `synlig=false` → velger-modalen
+  // rives ned, opprett-modalen rendres inline (ingen kollisjon).
   const velg = (mal: MalData) => {
-    if (Platform.OS === "ios") {
-      ventendeMal.current = mal;
-      setInternSynlig(false);
-    } else {
-      onVelg(mal);
-    }
-  };
-
-  // iOS: velgeren er helt dismisset → trygt å presentere opprett-modalen.
-  const håndterDismiss = () => {
-    if (ventendeMal.current) {
-      const mal = ventendeMal.current;
-      ventendeMal.current = null;
-      onVelg(mal);
-    }
+    onVelg(mal);
   };
 
   const kategoriMaler = useMemo(
@@ -119,10 +98,9 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
 
   return (
     <Modal
-      visible={internSynlig}
+      visible={synlig}
       animationType="slide"
       presentationStyle="pageSheet"
-      onDismiss={håndterDismiss}
     >
       <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
         {/* Header */}

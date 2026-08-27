@@ -212,27 +212,45 @@ flyter brukeren er medlem av, uavhengig av ballposisjon — i tråd med Kenneths
 **Gjenstår å måle:** kan KMY åpne dokumentet fra lista etterpå, eller krasjer det også?
 Det skiller gjengivelsesfeil fra tilstandsfeil.
 
-### D2 · Mobil låser seg ved opprettelse av sjekkliste i prosjekt 998 🔴
-Prosjekt 998 har 3 faggrupper, 5 flyter, 15 ledd. Prosjekt 999, som fungerer, har 1/2/4.
-Mistanke: `OpprettDokumentModal` må la brukeren velge kandidat når det finnes flere
-flyter, og snubler i presentasjonsovergangen — samme sted som freeze-fiksen `a29f89b2`
-traff, men en annen gren. Ikke bekreftet.
+### D2 · Mobil låser seg ved opprettelse av sjekkliste i prosjekt 998 ✅ LØST (2026-08-27)
+**Rotårsak (bekreftet mot kode):** frysen lå IKKE i `OpprettDokumentModal` (den ble ryddet
+i `a29f89b2`), men i `MalVelger.tsx` — som fortsatt bar den SAMME `onDismiss`-deadlock-gaten
+`a29f89b2` fjernet, «samme sted, annen gren». `velg()` utsatte på iOS `onVelg` til `<Modal
+onDismiss>` fyrte (via `ventendeMal` + `internSynlig=false`); under Fabric/newArch rendres
+modalen inline og `onDismiss` fyrer ikke pålitelig → `onVelg` ble aldri kalt → opprett-modalen
+åpnet aldri, og den nedrevne velger-hosten fanget all touch = frys. Symptomet traff kun
+prosjekter med **≥2 opprettbare maler** (998); med nøyaktig 1 mal (999) hopper `skalAutoVelge`
+over hele velger-modalen og kaller `onVelg` direkte — derfor «virket» 999. Ikke antall flyter/
+faggrupper i seg selv, men antall opprettbare maler i prosjektet.
+**Fiks:** `velg()` kaller `onVelg` direkte på alle plattformer (speiler `a29f89b2`); fjernet
+`ventendeMal`/`internSynlig`/`håndterDismiss`/`onDismiss`-maskineriet. `OpprettDokumentModal`
+sin egen fler-flyt-håndtering er inline `<View>`-dropdowns (ikke modaler) og var aldri årsaken.
+🟡 **Krever Release-sim-verifisering på enhet** (samme som `a29f89b2` — Fabric-modal-livssyklus
+kan ikke verifiseres i JS-typecheck alene).
 
-### D3 · «Mine timer» fordeler timer på feil aktivitet 🔴
-`apps/mobile/app/timer/mine.tsx:110-111` tilskriver hele sedelens timesum til **sedelens**
+### D3 · «Mine timer» fordeler timer på feil aktivitet ✅ LØST (2026-08-27)
+**Rotårsak:** `apps/mobile/app/timer/mine.tsx` tilskrev hele sedelens timesum til **sedelens**
 `aktivitetId`, mens aktivitet ligger **per rad** (`SheetTimer.aktivitetId`, vedtatt i
 [dagsseddel-design.md](dagsseddel-design.md)). Fører du 4 t graving og 4 t anleggsarbeid på
-en sedel merket «Anleggsarbeid», rapporteres 8 t anleggsarbeid og 0 t graving.
-**Totalen er riktig; fordelingen er det ikke.** Rapporten ble bygget før aktivitet flyttet
-ned på radnivå og fulgte aldri etter.
+en sedel merket «Anleggsarbeid», ble det rapportert 8 t anleggsarbeid og 0 t graving.
+Totalen var riktig; fordelingen ikke. Rapporten ble bygget før aktivitet flyttet ned på
+radnivå og fulgte aldri etter.
+**Fiks:** `lesDataLokalt` summerer nå per rad-aktivitet (`sheet_timer_local.aktivitet_id`)
+innen hver sedel og bærer per-rad-fordelingen; `perAktivitet`-aggregatet og detaljlistens
+aktivitetsetikett leser fra den. Sedelens egen `aktivitetId` brukes ikke lenger i «Mine timer».
 
-### D4 · Sletting på server propagerer ikke til mobil 🔴
+### D4 · Sletting på server propagerer ikke til mobil ✅ LØST (2026-08-20, `5eb47e6b`)
 Etter at 18 dagssedler ble slettet i prod, viste mobilen dem fortsatt — lokal SQLite fikk
 aldri beskjed. Tombstone-mekanismen fra juli (`slettede_rader`) dekker **rader slettet
 gjennom appen**, ikke **sedler som forsvinner på serversiden**.
-**Konsekvens:** enhver ryddejobb i databasen etterlater spøkelser på telefonene. En
-arbeider kan se timer som ikke finnes og tro at de er ført. Gjelder all serverside-sletting,
-ikke bare manuell rydding.
+**Fiks (samme dag som målingen — dette dokumentet ble skrevet FØR fiksen landet):**
+`hentEndringerSiden` sender nå et autoritativt `slettevindu` {fraDato, tilDato} +
+`levendeSedler` [{id, clientUuid}] over hele intervallet (`dato >= minDato`, uavhengig av
+`updatedAt`-cursoren). Klienten (`timerSync.ts` pull, linjene ~854–892) fjerner lokale
+sedler i intervallet som mangler i det levende id-settet. Vakt-logikken ligger delt og
+enhetstestet i `@sitedoc/shared` (`finnSedlerÅSlette`, 9 tester): VAKT 1 rører kun sedler
+innenfor `[fraDato,tilDato]`, VAKT 2 rører aldri `pending`/`avvist` (upushet lokalt arbeid).
+Verifisert mot kode 2026-08-27 (D1–D4-runden): server + klient + delt vakt er komplett.
 
 ### D5 · Sjekkliste i «Mottatt» kan ikke slettes av noen ✅ LØST (2026-08-21)
 **Rotårsak:** slettevakten var `draft` || `cancelled`, men `cancelled` er uoppnåelig (0 prod-rader)
