@@ -56,6 +56,8 @@ export type TimerRapportDetaljRad = {
   prosjekt: string;
   betegnelse: string;
   aktivitet: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
   timer: number | null;
   maskintimer: number | null;
   antall: number | null;
@@ -101,6 +103,8 @@ export type TimerRapportTekster = {
   kolType: string;
   kolBetegnelse: string;
   kolAktivitet: string;
+  kolFra: string;
+  kolTil: string;
   kolTimer: string;
   kolMaskintimer: string;
   kolAntall: string;
@@ -117,6 +121,8 @@ export type TimerRapportTekster = {
   // Maskin-merker
   maskinUtenTimerad: string;
   maskinIkkeEksporterbar: string;
+  // Status-VERDIENE oversatt (verdi→etikett). Ukjent verdi → rå streng.
+  statusEtiketter: Record<string, string>;
 };
 
 /* ------------------------------------------------------------------ */
@@ -253,6 +259,16 @@ function kolonner(t: TimerRapportTekster): KolDef[] {
       celle: (r) => esc(r.aktivitet ?? ""),
     },
     {
+      header: t.kolFra, num: false, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTekst(r.fraTid)),
+      celle: (r) => esc(r.fraTid ?? ""),
+    },
+    {
+      header: t.kolTil, num: false, alltid: false,
+      tilstede: (rader) => rader.some((r) => harTekst(r.tilTid)),
+      celle: (r) => esc(r.tilTid ?? ""),
+    },
+    {
       header: t.kolTimer, num: true, alltid: false,
       tilstede: (rader) => rader.some((r) => harTall(r.timer)),
       celle: (r) => tallEllerTom(r.timer),
@@ -291,7 +307,11 @@ function kolonner(t: TimerRapportTekster): KolDef[] {
       tilstede: (rader) => rader.some((r) => harTekst(r.beskrivelse)),
       celle: (r) => esc(r.beskrivelse ?? ""),
     },
-    { header: t.kolStatus, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.status) },
+    {
+      header: t.kolStatus, num: false, alltid: true, tilstede: () => true,
+      // Oversett rå status-verdi (pending/sent/…); ukjent → rå (skjul aldri en verdi).
+      celle: (r) => esc(t.statusEtiketter[r.status] ?? r.status),
+    },
   ];
 }
 

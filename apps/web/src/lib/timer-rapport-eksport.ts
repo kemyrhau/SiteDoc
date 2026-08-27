@@ -81,6 +81,8 @@ export type DetaljEksport = {
     prosjekt: string;
     lonnsart: string;
     aktivitet: string;
+    fraTid: string | null; // "HH:MM" per-rad klokkeslett
+    tilTid: string | null;
     timer: number;
     beskrivelse: string | null;
     radstatus: string; // T.3 attestertStatus per rad, ikke sedel-status
@@ -289,6 +291,38 @@ function typeEtikett(t: OversettFn, type: DetaljRadType): string {
 }
 
 /**
+ * Status-VERDIENE er rå DB-koder (pending/sent/…) — ikke norsk. Status-kolonnen
+ * blander to vokabular: rad-status (timer/maskin/tillegg = attestertStatus) og
+ * sedel-status (utlegg = DailySheet.status). ÉN mapping her, gjenbrukt av Excel
+ * (oversetter direkte) OG PDF (bygger etikett-map via `byggStatusEtiketter`, sendt
+ * inn i `tekster` fordi api ikke har `t()`) — så flatene aldri kan drive fra hverandre.
+ */
+const STATUS_I18N: Record<string, string> = {
+  // rad-status (attestertStatus)
+  pending: "timer.attestering.radStatus.pending",
+  attestert: "timer.attestering.radStatus.attestert",
+  returnert: "timer.attestering.radStatus.returnert",
+  // sedel-status (DailySheet.status)
+  draft: "timer.statusType.draft",
+  sent: "timer.statusType.sent",
+  returned: "timer.statusType.returned",
+  accepted: "timer.statusType.accepted",
+};
+
+/** Oversett én status-verdi; ukjent/ny verdi → rå streng (skjul aldri en verdi vi ikke kjenner). */
+export function statusEtikett(t: OversettFn, verdi: string): string {
+  const nøkkel = STATUS_I18N[verdi];
+  return nøkkel ? t(nøkkel) : verdi;
+}
+
+/** Ferdig-oversatt verdi→etikett-map for PDF (injiseres i `tekster.statusEtiketter`). */
+export function byggStatusEtiketter(t: OversettFn): Record<string, string> {
+  const ut: Record<string, string> = {};
+  for (const [verdi, nøkkel] of Object.entries(STATUS_I18N)) ut[verdi] = t(nøkkel);
+  return ut;
+}
+
+/**
  * Betegnelse-cellen: lønnsart/tilleggsnavn/kategori direkte, men maskin-navnet
  * merkes etter opprinnelse (nøstet «↳», uten timerad, ikke-eksporterbar) med
  * SAMME i18n-strenger som før sammenslåingen (behold anomali-signalene synlige).
@@ -334,6 +368,8 @@ function byggDetaljerArk(
     "kolType",
     "kolBetegnelse", // lønnsart · maskinnavn · tilleggsnavn · kategori
     "kolAktivitet",
+    "kolFra", // klokkeslett HH:MM (kun timer-rader)
+    "kolTil",
     "kolTimer",
     "kolMaskintimer", // egen kolonne — holder Timer-kolonnen (kontrollsum) ren
     "kolAntall",
@@ -364,6 +400,8 @@ function byggDetaljerArk(
       typeEtikett(t, r.type),
       betegnelse(t, r),
       r.aktivitet ?? "",
+      r.fraTid ?? "",
+      r.tilTid ?? "",
       r.timer ?? "", // NUMERISK der satt — SUBTOTAL ignorerer tomme/tekst-celler
       r.maskintimer ?? "",
       r.antall ?? "",
@@ -371,13 +409,13 @@ function byggDetaljerArk(
       r.mengde ?? "",
       r.enhet ?? "",
       r.beskrivelse ?? "",
-      r.status,
+      statusEtikett(t, r.status), // rå DB-kode → norsk (pending/sent er ikke norsk)
       r.id,
     ]);
   }
 
   leggTilSumrad(ws, noekler.length, sumKol, 2, ws.rowCount, t("timer.eksport.sumKontroll"));
-  settBredder(ws, [12, 22, 10, 22, 10, 24, 18, 9, 11, 9, 11, 10, 8, 34, 12, 14]);
+  settBredder(ws, [12, 22, 10, 22, 10, 24, 18, 7, 7, 9, 11, 9, 11, 10, 8, 34, 12, 14]);
 }
 
 /**

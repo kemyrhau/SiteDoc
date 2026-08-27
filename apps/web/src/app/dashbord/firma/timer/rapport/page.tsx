@@ -114,16 +114,19 @@ function lastNedBase64(base64: string, filnavn: string, mime: string): void {
 
 /** Alle oversatte PDF-overskrifter/etiketter (1:1 med teksterSchema server-side).
  *  PDF-overskrifter er synlige strenger → gjennom t(), som arknavnene. */
-function byggPdfTekster(t: (key: string) => string): {
+function byggPdfTekster(
+  t: (key: string) => string,
+  statusEtiketter: Record<string, string>,
+): {
   [K in
     | "dokumentTittel" | "periode" | "prosjekt" | "ansatt" | "alle" | "ingenData" | "sum"
     | "sammendrag" | "kolAnsattnr" | "kolTotalTimer" | "kolSedler" | "kolSistRegistrert"
     | "kolKladd" | "kolSent" | "kolAttestert" | "detaljer" | "kolDato" | "kolType"
-    | "kolBetegnelse" | "kolAktivitet" | "kolTimer" | "kolMaskintimer" | "kolAntall"
-    | "kolBelop" | "kolMengde" | "kolEnhet" | "kolBeskrivelse" | "kolStatus" | "typeTimer"
-    | "typeMaskin" | "typeTillegg" | "typeUtlegg" | "maskinUtenTimerad"
+    | "kolBetegnelse" | "kolAktivitet" | "kolFra" | "kolTil" | "kolTimer" | "kolMaskintimer"
+    | "kolAntall" | "kolBelop" | "kolMengde" | "kolEnhet" | "kolBeskrivelse" | "kolStatus"
+    | "typeTimer" | "typeMaskin" | "typeTillegg" | "typeUtlegg" | "maskinUtenTimerad"
     | "maskinIkkeEksporterbar"]: string;
-} {
+} & { statusEtiketter: Record<string, string> } {
   const k = (s: string): string => t(`firma.timer.rapport.pdf.${s}`);
   return {
     dokumentTittel: k("dokumentTittel"),
@@ -146,6 +149,8 @@ function byggPdfTekster(t: (key: string) => string): {
     kolType: k("kolType"),
     kolBetegnelse: k("kolBetegnelse"),
     kolAktivitet: k("kolAktivitet"),
+    kolFra: k("kolFra"),
+    kolTil: k("kolTil"),
     kolTimer: k("kolTimer"),
     kolMaskintimer: k("kolMaskintimer"),
     kolAntall: k("kolAntall"),
@@ -160,6 +165,7 @@ function byggPdfTekster(t: (key: string) => string): {
     typeUtlegg: k("typeUtlegg"),
     maskinUtenTimerad: k("maskinUtenTimerad"),
     maskinIkkeEksporterbar: k("maskinIkkeEksporterbar"),
+    statusEtiketter,
   };
 }
 
@@ -329,8 +335,11 @@ export default function TimerRapportSide() {
     try {
       if (format === "pdf") {
         // PDF bygges SERVER-side (samme HTML→PDF-motor som arkiv). Klienten
-        // sender oversatte overskrifter/filnavn + radvalg inn (ingen server-i18n);
-        // serveren gjenbruker firmaPeriodeRapport + detaljEksport (ingen fjerde data-vei).
+        // sender oversatte overskrifter/filnavn + radvalg + status-etiketter inn
+        // (ingen server-i18n); serveren gjenbruker firmaPeriodeRapport + detaljEksport.
+        // Status-etikett-mappen kommer fra SAMME kilde som Excel (lazy — unngå
+        // exceljs-bundle i initial load; helperen selv drar ikke inn exceljs).
+        const { byggStatusEtiketter } = await import("@/lib/timer-rapport-eksport");
         const res = await utils.timer.rapport.pdfEksport.fetch({
           organizationId: orgId!,
           fra,
@@ -345,7 +354,7 @@ export default function TimerRapportSide() {
           footerSide: t("firma.timer.rapport.pdf.footerSide"),
           footerAv: t("firma.timer.rapport.pdf.footerAv"),
           radTyper,
-          tekster: byggPdfTekster(t),
+          tekster: byggPdfTekster(t, byggStatusEtiketter(t)),
         });
         lastNedBase64(res.pdf, res.filnavn, "application/pdf");
         return;
