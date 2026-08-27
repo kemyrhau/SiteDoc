@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Paysage",
   "firma.timer.rapport.tilpasset.topptekst": "Texte d'en-tête",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Une ligne par ligne…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Fusionner les champs : {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Fusionner les champs : {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Dernière utilisation"
 }

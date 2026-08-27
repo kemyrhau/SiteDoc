@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Krajina",
   "firma.timer.rapport.tilpasset.topptekst": "Text záhlaví",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Jeden řádek na řádek…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Sloučit pole: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Sloučit pole: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Naposledy použité"
 }

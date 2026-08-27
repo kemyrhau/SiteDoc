@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Krajobraz",
   "firma.timer.rapport.tilpasset.topptekst": "Tekst nagłówka",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Jedna linia w każdym rzędzie…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Połącz pola: {firma} · {okres} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Połącz pola: {firma} · {okres} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Ostatnio używany"
 }

@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Landscape",
   "firma.timer.rapport.tilpasset.topptekst": "Header text",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "One line per row …",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Merge fields: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Merge fields: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Last used"
 }

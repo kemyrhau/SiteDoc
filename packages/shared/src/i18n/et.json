@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Maastik",
   "firma.timer.rapport.tilpasset.topptekst": "Päise tekst",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Üks rida rea ​​kohta…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Ühenda väljad: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Ühenda väljad: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Viimati kasutatud"
 }

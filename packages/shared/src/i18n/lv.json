@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Ainava",
   "firma.timer.rapport.tilpasset.topptekst": "Virsraksta teksts",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Viena rinda katrā rindā…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Apvienot laukus: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Apvienot laukus: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Pēdējo reizi lietots"
 }

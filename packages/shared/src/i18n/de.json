@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Landschaft",
   "firma.timer.rapport.tilpasset.topptekst": "Kopfzeilentext",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Eine Zeile pro Zeile …",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Felder zusammenführen: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Felder zusammenführen: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Zuletzt verwendet"
 }

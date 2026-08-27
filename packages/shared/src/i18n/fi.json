@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Maisema",
   "firma.timer.rapport.tilpasset.topptekst": "Otsikkoteksti",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Yksi rivi per rivi…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Yhdistä kentät: {firma} · {periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Yhdistä kentät: {firma} · {periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Viimeksi käytetty"
 }

@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Peisaj",
   "firma.timer.rapport.tilpasset.topptekst": "Textul antetului",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "O linie pe rând...",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Îmbinați câmpurile: {firma} · {periodă} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Îmbinați câmpurile: {firma} · {periodă} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Ultima utilizare"
 }

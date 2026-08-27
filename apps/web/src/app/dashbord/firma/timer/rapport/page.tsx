@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { ALLE_RADTYPER, type DetaljRadType, type Gruppering } from "@sitedoc/shared";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type StatusFordeling = { kladd: number; sent: number; attestert: number };
@@ -104,8 +106,10 @@ function lesConfig(config: unknown): MalConfig {
 }
 
 /** Innebygd mal (KODE, ikke DB-rad) — alltid tilgjengelig, kan ikke slettes.
- *  «Rediger» åpner redigereren forhåndsutfylt som grunnlag for «Lagre som ny». */
-type InnebygdMal = { navn: string; config: MalConfig };
+ *  «Rediger» åpner redigereren forhåndsutfylt som grunnlag for «Lagre som ny».
+ *  `id` er en stabil kode-id (samme strengfelt som `EksportOppsett.id` for lagrede)
+ *  — brukes til «sist brukt»-markering. */
+type InnebygdMal = { id: string; navn: string; config: MalConfig };
 
 /** Innebygde maler etter fase 4: Full eksport · Lønnsgrunnlag (ansatt-gruppert) ·
  *  Fakturagrunnlag (ekstern · prosjekt · liggende · firmatopp). Bygges med t() fordi
@@ -113,6 +117,7 @@ type InnebygdMal = { navn: string; config: MalConfig };
 function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
   return [
     {
+      id: "innebygd:full",
       navn: t("firma.timer.rapport.maler.fullEksport"),
       config: {
         radTyper: [...ALLE_RADTYPER],
@@ -124,6 +129,7 @@ function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
       },
     },
     {
+      id: "innebygd:lonn",
       navn: t("firma.timer.rapport.maler.lonnsgrunnlag"),
       config: {
         radTyper: [...ALLE_RADTYPER],
@@ -135,6 +141,7 @@ function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
       },
     },
     {
+      id: "innebygd:faktura",
       navn: t("firma.timer.rapport.maler.fakturagrunnlag"),
       config: {
         radTyper: [...ALLE_RADTYPER],
@@ -258,8 +265,14 @@ function byggPdfTekster(
 
 export default function TimerRapportSide() {
   const { t } = useTranslation();
+  const { data: session } = useSession();
   const { valgtFirma, kanAdministrereFirma } = useFirma();
   const orgId = valgtFirma?.id;
+  // Sist brukte mal (localStorage per bruker, delt hook) — kun til «Sist brukt»-
+  // markering i menyen, aldri omorganisering. Nøkkel per bruker + firma-flate.
+  const { sistBrukt, settSistBrukt } = useSistBrukteMal(session?.user?.id);
+  const eksportMalNøkkel = orgId ? `timereksport:${orgId}` : "";
+  const sistBruktMalId = orgId ? sistBrukt(eksportMalNøkkel) : null;
   const harTimer = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
   const utils = trpc.useUtils();
 
@@ -584,12 +597,14 @@ export default function TimerRapportSide() {
   function brukMal(m: LagretMal) {
     const cfg = lesConfig(m.config);
     setEksportÅpen(false);
+    if (orgId) settSistBrukt(eksportMalNøkkel, m.id);
     void håndterEksport(cfg.format, cfg);
   }
 
   /** Klikk på en innebygd mal-rad = ett-klikk-eksport med dens config. */
   function brukInnebygd(mal: InnebygdMal) {
     setEksportÅpen(false);
+    if (orgId) settSistBrukt(eksportMalNøkkel, mal.id);
     void håndterEksport(mal.config.format, mal.config);
   }
 
@@ -674,6 +689,8 @@ export default function TimerRapportSide() {
                       onBruk={brukMal}
                       onRediger={redigerMal}
                       redigerTekst={t("firma.timer.rapport.maler.rediger")}
+                      sistBruktId={sistBruktMalId ?? undefined}
+                      sistBruktTekst={t("firma.timer.rapport.maler.sistBrukt")}
                     />
                   )}
                   {firmaMalene.length > 0 && (
@@ -683,6 +700,8 @@ export default function TimerRapportSide() {
                       onBruk={brukMal}
                       onRediger={redigerMal}
                       redigerTekst={t("firma.timer.rapport.maler.rediger")}
+                      sistBruktId={sistBruktMalId ?? undefined}
+                      sistBruktTekst={t("firma.timer.rapport.maler.sistBrukt")}
                     />
                   )}
 
@@ -693,14 +712,17 @@ export default function TimerRapportSide() {
                     {t("firma.timer.rapport.maler.innebygd")}
                   </div>
                   {innebygde.map((mal) => (
-                    <div key={mal.navn} className="flex items-center hover:bg-gray-50">
+                    <div key={mal.id} className="flex items-center hover:bg-gray-50">
                       <button
                         type="button"
                         onClick={() => brukInnebygd(mal)}
-                        className="flex-1 truncate px-3 py-1.5 text-left text-sm text-gray-700"
+                        className="flex flex-1 items-center gap-2 truncate px-3 py-1.5 text-left text-sm text-gray-700"
                         title={mal.navn}
                       >
-                        {mal.navn}
+                        <span className="truncate">{mal.navn}</span>
+                        {sistBruktMalId === mal.id && (
+                          <SistBruktMerke tekst={t("firma.timer.rapport.maler.sistBrukt")} />
+                        )}
                       </button>
                       <button
                         type="button"
@@ -1148,18 +1170,32 @@ const RADTYPER: DetaljRadType[] = ["timer", "maskin", "tillegg", "utlegg"];
 
 /** Én mal-seksjon i eksport-nedtrekket (Mine / Firmaets). Rad-klikk eksporterer;
  *  «Rediger» åpner redigereren. */
+/** Liten «Sist brukt»-etikett — markerer sist eksporterte mal uten å endre
+ *  listerekkefølgen (en meny som stokker seg selv flytter seg under hånden). */
+function SistBruktMerke({ tekst }: { tekst: string }) {
+  return (
+    <span className="shrink-0 rounded bg-sitedoc-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sitedoc-primary">
+      {tekst}
+    </span>
+  );
+}
+
 function MalSeksjon({
   tittel,
   maler,
   onBruk,
   onRediger,
   redigerTekst,
+  sistBruktId,
+  sistBruktTekst,
 }: {
   tittel: string;
   maler: LagretMal[];
   onBruk: (m: LagretMal) => void;
   onRediger: (m: LagretMal) => void;
   redigerTekst: string;
+  sistBruktId?: string;
+  sistBruktTekst: string;
 }) {
   return (
     <>
@@ -1171,10 +1207,11 @@ function MalSeksjon({
           <button
             type="button"
             onClick={() => onBruk(m)}
-            className="flex-1 truncate px-3 py-1.5 text-left text-sm text-gray-700"
+            className="flex flex-1 items-center gap-2 truncate px-3 py-1.5 text-left text-sm text-gray-700"
             title={m.name}
           >
-            {m.name}
+            <span className="truncate">{m.name}</span>
+            {sistBruktId === m.id && <SistBruktMerke tekst={sistBruktTekst} />}
           </button>
           <button
             type="button"

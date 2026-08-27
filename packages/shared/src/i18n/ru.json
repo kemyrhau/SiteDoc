@@ -3712,5 +3712,6 @@
   "firma.timer.rapport.tilpasset.orienteringLiggende": "Пейзаж",
   "firma.timer.rapport.tilpasset.topptekst": "Текст заголовка",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Одна строка в строке…",
-  "firma.timer.rapport.tilpasset.topptekstHjelp": "Объединить поля: {firma} · { periode} · {prosjekt}"
+  "firma.timer.rapport.tilpasset.topptekstHjelp": "Объединить поля: {firma} · { periode} · {prosjekt}",
+  "firma.timer.rapport.maler.sistBrukt": "Последнее использование"
 }
