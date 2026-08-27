@@ -24,6 +24,7 @@
     "@sitedoc/shared": "workspace:*",
     "@sitedoc/ui": "workspace:*",
     "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-virtual": "^3.14.10",
     "@thatopen/components": "^3.3.3",
     "@thatopen/fragments": "^3.3.6",
     "@trpc/client": "^11.10.0",

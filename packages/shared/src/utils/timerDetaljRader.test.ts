@@ -3,6 +3,7 @@ import {
   byggDetaljRader,
   kolonnerMedInnhold,
   grupperDetaljRader,
+  flatDetaljRader,
   ALLE_RADTYPER,
   type DetaljEksportKilde,
 } from "./timerDetaljRader";
@@ -238,5 +239,52 @@ describe("grupperDetaljRader (fase 4)", () => {
     const g = grupperDetaljRader(rader, "prosjekt");
     const grand = g.reduce((s, x) => s + (x.subtotal.timer ?? 0), 0);
     expect(grand).toBe(20.5);
+  });
+});
+
+describe("flatDetaljRader (virtualiserings-flate)", () => {
+  const rader = byggDetaljRader(
+    kilde({
+      timerader: [
+        timerad({ id: "t1", dato: "2026-08-10", ansatt: "Ola", prosjekt: "Kai 12", timer: 7.5,
+          maskiner: [{ id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert" }] }),
+        timerad({ id: "t2", dato: "2026-08-11", ansatt: "Kari", prosjekt: "Bru 3", timer: 8 }),
+        timerad({ id: "t3", dato: "2026-08-12", ansatt: "Ola", prosjekt: "Bru 3", timer: 5 }),
+      ],
+    }),
+    ALLE_RADTYPER,
+  );
+
+  it("«ingen» → kun rad-er + én avsluttende grandtotal (verken header eller subtotal)", () => {
+    const flate = flatDetaljRader(grupperDetaljRader(rader, "ingen"));
+    expect(flate.filter((r) => r.kind === "header")).toHaveLength(0);
+    expect(flate.filter((r) => r.kind === "subtotal")).toHaveLength(0);
+    const grand = flate.filter((r) => r.kind === "grandtotal");
+    expect(grand).toHaveLength(1);
+    expect(flate.at(-1)!.kind).toBe("grandtotal");
+    // 4 rader (t1 + nøstet maskin + t2 + t3) + grandtotal.
+    expect(flate).toHaveLength(5);
+    if (grand[0]!.kind === "grandtotal") expect(grand[0]!.subtotal.timer).toBe(20.5);
+  });
+
+  it("«ansatt» → header + rader + subtotal pr. gruppe, så én grandtotal til slutt", () => {
+    const flate = flatDetaljRader(grupperDetaljRader(rader, "ansatt"));
+    // 2 headere (Kari, Ola), 2 subtotaler, 1 grandtotal, 4 rader = 9.
+    expect(flate.filter((r) => r.kind === "header").map((r) => r.kind === "header" && r.overskrift))
+      .toEqual(["Kari", "Ola"]);
+    expect(flate.filter((r) => r.kind === "subtotal")).toHaveLength(2);
+    expect(flate.filter((r) => r.kind === "grandtotal")).toHaveLength(1);
+    expect(flate.at(-1)!.kind).toBe("grandtotal");
+    // Rekkefølge innen Ola-gruppen: header → timer → maskin → timer → subtotal.
+    const olaHeader = flate.findIndex((r) => r.kind === "header" && r.overskrift === "Ola");
+    expect(flate[olaHeader + 1]!.kind).toBe("rad");
+    expect(flate[olaHeader + 4]!.kind).toBe("subtotal");
+  });
+
+  it("tomt radsett → kun grandtotal med null-summer", () => {
+    const flate = flatDetaljRader(grupperDetaljRader([], "ingen"));
+    expect(flate).toHaveLength(1);
+    expect(flate[0]!.kind).toBe("grandtotal");
+    if (flate[0]!.kind === "grandtotal") expect(flate[0]!.subtotal.timer).toBeNull();
   });
 });

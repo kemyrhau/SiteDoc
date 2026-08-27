@@ -420,3 +420,45 @@ export function grupperDetaljRader(
       subtotal: subtotalAv(gruppeRader),
     }));
 }
+
+/* ------------------------------------------------------------------ */
+/*  Flat visuell rad-liste (for virtualisering på skjerm)             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Én visuell rad i den flate lista en virtualisert skjerm-renderer itererer over.
+ * Gruppe-overskrifter, subtotaler og grand total er IKKE `DetaljRad` i seg selv
+ * (de er struktur på `DetaljGruppe`), men et vindus-bibliotek trenger ÉN flat
+ * indeksert liste. `flatDetaljRader` pakker `grupperDetaljRader`-outputen til den
+ * lista uten å røre radsettet — samme «én sannhet» som Excel/PDF, tredje konsument.
+ */
+export type DetaljVisuellRad =
+  | { kind: "header"; nokkel: string; overskrift: string }
+  | { kind: "rad"; rad: DetaljRad }
+  | { kind: "subtotal"; nokkel: string; subtotal: DetaljSubtotal }
+  | { kind: "grandtotal"; subtotal: DetaljSubtotal };
+
+/**
+ * Flat ut grupper til en indeksert visuell-rad-liste:
+ *  - hver gruppe med `overskrift !== null` gir en `header`-rad først og en
+ *    `subtotal`-rad sist (som i PDF); `overskrift === null` (gruppering "ingen")
+ *    gir verken header eller subtotal — kun radene.
+ *  - alltid en avsluttende `grandtotal` over ALLE rader (speiler PDF-ens grand total).
+ *
+ * Grand total regnes fra alle radene på tvers av grupper (samme `subtotalAv`).
+ */
+export function flatDetaljRader(grupper: DetaljGruppe[]): DetaljVisuellRad[] {
+  const ut: DetaljVisuellRad[] = [];
+  for (const g of grupper) {
+    if (g.overskrift !== null) {
+      ut.push({ kind: "header", nokkel: g.nokkel, overskrift: g.overskrift });
+    }
+    for (const rad of g.rader) ut.push({ kind: "rad", rad });
+    if (g.overskrift !== null) {
+      ut.push({ kind: "subtotal", nokkel: g.nokkel, subtotal: g.subtotal });
+    }
+  }
+  const alleRader = grupper.flatMap((g) => g.rader);
+  ut.push({ kind: "grandtotal", subtotal: subtotalAv(alleRader) });
+  return ut;
+}

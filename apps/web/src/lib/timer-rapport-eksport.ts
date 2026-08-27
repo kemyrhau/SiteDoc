@@ -159,7 +159,7 @@ function lagFilnavn(firmanavn: string, fra: string, til: string, ext: "csv" | "x
   return `SiteDoc-timer-${slugify(firmanavn)}-${fra}-${til}.${ext}`;
 }
 
-function formaterNorsk(n: number): string {
+export function formaterNorsk(n: number): string {
   return n.toFixed(2).replace(".", ",");
 }
 
@@ -206,7 +206,7 @@ function sammendragRader(
  * mirror'ede `maskinIkkeEksporterbar`). Skjer en endring i én kolonneetikett
  * skal søster-nøkkelen finnes med samme leaf-navn i det andre navnerommet.
  */
-const kolTekst =
+export const kolTekst =
   (t: OversettFn) =>
   (nøkkel: string): string =>
     t(`timer.eksport.${nøkkel}`);
@@ -311,7 +311,7 @@ function settBredder(ws: Worksheet, bredder: number[]): void {
 }
 
 /** Type-etikett (Type-kolonnen) fra radtypen. */
-function typeEtikett(t: OversettFn, type: DetaljRadType): string {
+export function typeEtikett(t: OversettFn, type: DetaljRadType): string {
   return t(`timer.eksport.type${type.charAt(0).toUpperCase()}${type.slice(1)}`);
 }
 
@@ -357,7 +357,7 @@ export function byggStatusEtiketter(t: OversettFn): Record<string, string> {
  * maskinnavnet står igjen. RADEN blir uendret; det er bare etiketten som er intern.
  * Nøstingsmerket «↳» beholdes (rent visnings-innrykk, ikke et anomali-signal).
  */
-function betegnelse(t: OversettFn, r: DetaljRad, ekstern: boolean): string {
+export function betegnelse(t: OversettFn, r: DetaljRad, ekstern: boolean): string {
   if (r.type !== "maskin") return r.betegnelse;
   switch (r.maskinMerke) {
     case "noster":
