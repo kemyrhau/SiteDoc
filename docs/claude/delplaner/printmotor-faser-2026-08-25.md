@@ -60,3 +60,51 @@ innebygd (`Full eksport`); de to formålene venter på fase 4.
   `OrganizationMember.firmaRoller`. IKKE `User.role === "company_admin"` — den er
   den gamle kilden, og begge lever side om side i serveren midt i en ufullført
   konsolidering (`tilgangskontroll.ts:73` mot `:177`).
+
+## Åpent etter fase 4-gaten (2026-08-27) — fabel eier
+
+**Sammendraget følger ikke grupperingen.** Velger man «Etter prosjekt» grupperes
+Detaljer på prosjekt, mens Sammendrag fortsatt lister ansatte. Slik er fase 4
+designet (gruppering treffer kun detaljtabellen), men for et fakturagrunnlag er
+det underlig at dokumentet er organisert på prosjekt mens oppsummeringen er
+organisert på person. Spørsmålet er om Sammendrag skal arve `gruppering` når
+`mottaker=ekstern`. **Ikke bygget på en slutning — venter fabel-svar.**
+
+**Lukket i samme gate:** ansattnr og «MASKIN UTEN TIMERAD»-merket skal ut av
+eksterne dokumenter (Kenneth-vedtak 2026-08-27 — ansattnr er
+pseudonymiseringsnøkkelen; merket er et internt anomali-signal). Ordre:
+`relay/inbox-eksport-fase4-oppfolger.md`. Ansattnavn BLIR — det er
+dokumentasjonen av hvem som utførte arbeidet.
+
+**Ikke en defekt:** klokkeslett manglet i gate-PDF-en fordi `timer-demo`-seeden
+ikke har fra/til-tider. Kolonnene finnes og er gatet på datainnhold
+(`timer-rapport.ts:301-308`).
+
+## 🔴 Retningsrettelse 2026-08-27 — malen styrer skjermen, ikke bare dokumentet
+
+**Kenneth:** *«jeg etterlyste tidligere at det er ønskelig å kunne dynamisk vise på
+web → for så å skrive ut det vi ser.»*
+
+Han ba om dette **før** printmotoren ble faset. Cowork fanget det ikke inn i denne
+planen, og fase 1–4 ble derfor bygget dokument-først: malen former dokumentet ved
+eksport, mens web-rapporten forble et aggregat per ansatt. Brukeren bygger et
+dokument han ikke kan se før det er laget.
+
+Migreringskommentaren i `20260827120000_eksport_oppsett` sa det hele tiden:
+*«EksportOppsett lagrer en VISNING … IKKE dokumentstruktur.»* Ordet var riktig fra
+starten; implementasjonen ble en eksportinnstilling.
+
+**Rettelsen:** `radTyper`, `gruppering` og `mottaker` styrer **skjermen**; «Eksporter»
+skriver ut det som vises. `format`, `orientering` og `topptekst` er egenskaper ved
+utskriften og påvirker ikke flaten. Bieffekt som er verdt mye: setter man
+`mottaker=ekstern`, ser man dokumentet slik byggherren vil se det — uten status og
+ansattnr — **før** det sendes.
+
+Ordre: `relay/inbox-timer-rapport-detaljvisning.md`.
+
+**Hvorfor dette haster mer enn det ser ut:** prosjektfilter-feilen (rader fra andre
+prosjekter lakk inn i både rapport og eksport, `rapport.ts:148`/`:343`) sto i et
+ferdig dokument før noen så den. Skjermen sa 129 og dokumentet sa 129 — de var
+enige, og begge tok feil. Enighet mellom to visninger av samme spørring beskytter
+ikke mot at spørringen er gal. Sto radene på skjermen, ville feilen vært synlig der
+den kan fanges.
