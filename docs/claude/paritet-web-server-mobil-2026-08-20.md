@@ -218,13 +218,16 @@ Mistanke: `OpprettDokumentModal` må la brukeren velge kandidat når det finnes 
 flyter, og snubler i presentasjonsovergangen — samme sted som freeze-fiksen `a29f89b2`
 traff, men en annen gren. Ikke bekreftet.
 
-### D3 · «Mine timer» fordeler timer på feil aktivitet 🔴
-`apps/mobile/app/timer/mine.tsx:110-111` tilskriver hele sedelens timesum til **sedelens**
+### D3 · «Mine timer» fordeler timer på feil aktivitet ✅ LØST (2026-08-27)
+**Rotårsak:** `apps/mobile/app/timer/mine.tsx` tilskrev hele sedelens timesum til **sedelens**
 `aktivitetId`, mens aktivitet ligger **per rad** (`SheetTimer.aktivitetId`, vedtatt i
 [dagsseddel-design.md](dagsseddel-design.md)). Fører du 4 t graving og 4 t anleggsarbeid på
-en sedel merket «Anleggsarbeid», rapporteres 8 t anleggsarbeid og 0 t graving.
-**Totalen er riktig; fordelingen er det ikke.** Rapporten ble bygget før aktivitet flyttet
-ned på radnivå og fulgte aldri etter.
+en sedel merket «Anleggsarbeid», ble det rapportert 8 t anleggsarbeid og 0 t graving.
+Totalen var riktig; fordelingen ikke. Rapporten ble bygget før aktivitet flyttet ned på
+radnivå og fulgte aldri etter.
+**Fiks:** `lesDataLokalt` summerer nå per rad-aktivitet (`sheet_timer_local.aktivitet_id`)
+innen hver sedel og bærer per-rad-fordelingen; `perAktivitet`-aggregatet og detaljlistens
+aktivitetsetikett leser fra den. Sedelens egen `aktivitetId` brukes ikke lenger i «Mine timer».
 
 ### D4 · Sletting på server propagerer ikke til mobil 🔴
 Etter at 18 dagssedler ble slettet i prod, viste mobilen dem fortsatt — lokal SQLite fikk
