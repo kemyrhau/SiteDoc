@@ -565,6 +565,18 @@ export function OpprettDokumentModal({
 
   const valgtOppretter = bestillerFaggrupper.find((e) => e.id === oppretterFaggruppeId);
 
+  // Auto-opprett-path (og mens konteksten avgjøres): IKKE monter en native <Modal>.
+  // Ved entydig kontekst opprettes utkastet automatisk (effekten på :543) og vi
+  // navigerer rett inn — modalen her ville bare vist en fullskjerm-spinner i 1–2 s
+  // FØR den rives ned + navigerer. Nettopp den present-så-dismiss-en av et ANDRE
+  // native modal-VC, rett etter at MalVelger-pageSheet dismisser, etterlot en svart,
+  // touch-fangende host under Fabric (tredje ledd i samme klasse som a29f89b2 +
+  // df86b817 — hver fiks flyttet frysen ett ledd ned; denne fjerner leddet). Auto-
+  // create-effekten er gated på `synlig`, ikke på at modalen er montert, så create +
+  // navigasjon skjer uansett. Speiler MalVelgers egen `skalAutoVelge → return null`.
+  // Den native modalen mountes nå KUN for det flertydige skjemaet (manuelt valg).
+  if (synlig && (kontekstLaster || skalAutoOpprett)) return null;
+
   return (
     <Modal
       visible={internSynlig}

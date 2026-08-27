@@ -269,8 +269,22 @@ faggrupper i seg selv, men antall opprettbare maler i prosjektet.
 **Fiks:** `velg()` kaller `onVelg` direkte på alle plattformer (speiler `a29f89b2`); fjernet
 `ventendeMal`/`internSynlig`/`håndterDismiss`/`onDismiss`-maskineriet. `OpprettDokumentModal`
 sin egen fler-flyt-håndtering er inline `<View>`-dropdowns (ikke modaler) og var aldri årsaken.
-🟡 **Krever Release-sim-verifisering på enhet** (samme som `a29f89b2` — Fabric-modal-livssyklus
-kan ikke verifiseres i JS-typecheck alene).
+**Oppfølger (2026-08-27, `fix/mobil-create-frys`) — tredje ledd i samme klasse:** Release-sim
+(simulator-Opus, B12/5 maler) målte at `df86b817` fikser velger-dismissen, men create-flyten
+**fortsatt** endte i svart frys ~1–2 s etter at lista rendret. Rotårsak: i **auto-opprett-path**
+(entydig kontekst) mountet `OpprettDokumentModal` en native fullskjerm-`<Modal>` bare for å vise
+en spinner mens utkastet ble opprettet (`skalAutoOpprett` → `håndterOpprett` → `onOpprettet` →
+`router.push`) — altså **present-så-dismiss + navigasjon** av et ANDRE native modal-VC, rett etter
+at MalVelger-pageSheet dismisset. Det er Fabric-black-host-mekanismen `a29f89b2`/`df86b817` flyttet
+ett ledd hver. **Fiks (arkitektur, ikke lapp):** i auto-path mountes den native modalen ikke i det
+hele tatt — `if (synlig && (kontekstLaster || skalAutoOpprett)) return null;` (speiler MalVelgers
+egen `skalAutoVelge → return null`). Auto-create-effekten er gated på `synlig`, ikke på at modalen
+er montert, så create + navigasjon skjer uansett. Samtidige native modaler i hot-path: 2 → 1. Den
+native modalen mountes nå KUN for det flertydige skjemaet (manuelt valg). typecheck grønt.
+🟡 **Krever Release-sim-verifisering på enhet** (Fabric-modal-livssyklus; simulator-Opus reproduserer:
+Opprett → velg mal → vent 2 s → forvent at det navigeres inn, ikke svart skjerm). **D1** lukkes
+sannsynligvis av denne — simulator kunne ikke reprodusere send-krasjen; «krasj ved sending» var
+trolig denne create-frysen feiltilskrevet send-knappen.
 
 ### D3 · «Mine timer» fordeler timer på feil aktivitet ✅ LØST (2026-08-27)
 **Rotårsak:** `apps/mobile/app/timer/mine.tsx` tilskrev hele sedelens timesum til **sedelens**
