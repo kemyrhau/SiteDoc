@@ -170,6 +170,50 @@ på markørenes `createdAt`/`opprettet`.
 | M11 | Vedleggssignering | Mobil-only; leder på web kan ikke signere |
 | M12 | `byttEier` | Server-handling ingen klient eksponerer (usikker — kan være bevisst) |
 
+### 🟡 M5 + M6 UTSATT MED MÅLEPUNKT (Kenneth + cowork 2026-08-27) — ikke start disse
+
+**Attestering er ikke én funksjon, det er to:** *beslutning* (attester/returner) og
+*korreksjon* (rediger, gjenåpne, ECO-flytt). Målt i koden har mobil en **komplett
+beslutningsflate og null korreksjon** — 892 linjer over seks filer, fem tRPC-prosedyrer
+(`hentTilAttesteringFirma`, `hentForAttestering`, `kanAttestereFirma`, `attesterRader`,
+`returnerRader`).
+
+Spørsmålet er derfor ikke «web eller app», men om **beslutning alene er en ærlig flyt.**
+Den er ærlig på én betingelse: at **retur med begrunnelse ER korreksjonsveien på mobil.**
+Lederen på byggeplassen trenger ikke redigeringsrett hvis feil rader sendes tilbake til
+den som førte dem — det er et sunnere ansvarsforhold enn at lederen retter andres
+timedata selv.
+
+Betingelsen ryker hvis normale runder er fulle av småfeil lederen i dag retter selv. Å
+returnere en hel seddel for én feil rad er tyngre enn å rette den, og da inviterer mobil
+deg inn og stopper deg — verre enn ingen flate.
+
+**Målepunktet — andelen attesteringsrunder uten korreksjon:**
+
+```sql
+SELECT count(*) FILTER (WHERE korr=0) AS uten_korreksjon,
+       count(*) FILTER (WHERE korr>0) AS med_korreksjon,
+       count(*)                        AS attesterte_sedler
+FROM (SELECT s.id, count(t.id) FILTER (
+        WHERE t.attestert_status IN ('erstattet','returnert')) AS korr
+      FROM timer.daily_sheets s
+      JOIN timer.sheet_timer t ON t.sheet_id = s.id
+      WHERE s.status = 'accepted' GROUP BY s.id) x;
+```
+
+**Høy andel uten korreksjon** → behold mobil som beslutningsflate, med eksplisitt
+«rediger på web»-henvisning i stedet for late paritetsløfter.
+**Lav andel** → pensjoner de 892 linjene; attestering blir en ren web-funksjon.
+
+🔴 **Målt mot PROD 2026-08-27: 0 / 0 / 0.** Attestering har **aldri vært kjørt i
+produksjon**. Det finnes ingen empiri, og begge utfall ville vært gjetning. **Beslutningen
+utsettes til etter piloten** — kjør spørringen på nytt da.
+
+**Uansett utfall:** pensjoneres mobil-attestering, må linja i CLAUDE.md under
+«Attestering ≠ Godkjenning» med i samme leveranse — den sier i dag «Timer-modul,
+**mobil-UI**, lønnseksport». Piloten rammes ikke; mobil-løftet der er timeregistrering,
+ikke attestering.
+
 ## LAV (5)
 
 Deaktiverte handlinger med begrunnelse (web-only) · ulik bekreftelsesfriksjon (ett klikk
