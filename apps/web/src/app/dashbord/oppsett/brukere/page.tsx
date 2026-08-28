@@ -854,7 +854,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                             tegninger: { label: t("nav.tegninger"), aktivBg: "bg-amber-100 text-amber-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
                             "3d": { label: "3D", aktivBg: "bg-purple-100 text-purple-700", inaktivBg: "bg-gray-100 text-gray-400 line-through" },
                           };
-                          const alleModulNavn: Array<"sjekklister" | "oppgaver" | "tegninger" | "3d"> = ["sjekklister", "oppgaver", "tegninger", "3d"];
+                          // Kun 3D er igjen som ekte gruppemodul (Kenneth-vedtak 2026-08-28):
+                          // sjekklister/oppgaver/tegninger er fundament og gates ikke lenger på
+                          // group.modules (se sidebar-elementer.tsx). Lagrede modules-verdier for de
+                          // tre røres IKKE — harmløs rest, toggle bevarer dem. Typen holder 4-unionen
+                          // så spread/filter mot eksisterende lagrede verdier fortsatt typer.
+                          const alleModulNavn: Array<"sjekklister" | "oppgaver" | "tegninger" | "3d"> = ["3d"];
 
                           return (
                             <div className="ml-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>

@@ -76,14 +76,15 @@ export const hovedelementer: SidebarElement[] = [
     labelKey: "nav.sjekklister",
     ikon: <ClipboardCheck className="h-5 w-5" />,
     kreverProsjekt: true,
-    kreverGruppemodul: "sjekklister",
+    // Fundament, ikke gruppemodul (Kenneth-vedtak 2026-08-28): sjekklister er alltid
+    // en del av prosjektet. Gates ikke lenger på ProjectGroup.modules (ledd 6).
   },
   {
     id: "oppgaver",
     labelKey: "nav.oppgaver",
     ikon: <ListTodo className="h-5 w-5" />,
     kreverProsjekt: true,
-    kreverGruppemodul: "oppgaver",
+    // Fundament, ikke gruppemodul (Kenneth-vedtak 2026-08-28) — se sjekklister over.
   },
   {
     id: "hms",
@@ -98,7 +99,8 @@ export const hovedelementer: SidebarElement[] = [
     labelKey: "nav.tegninger",
     ikon: <Map className="h-5 w-5" />,
     kreverProsjekt: true,
-    kreverGruppemodul: "tegninger",
+    // Fundament, ikke gruppemodul (Kenneth-vedtak 2026-08-28) — se sjekklister over.
+    // 3D under er ekte tilvalg og beholder sin kreverGruppemodul.
   },
   {
     id: "3d-visning",

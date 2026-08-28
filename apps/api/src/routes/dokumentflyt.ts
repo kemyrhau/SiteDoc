@@ -10,7 +10,7 @@ import {
   oppdaterRollerSchema,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
-import { sikreProsjektmedlemmer } from "../services/ansatt";
+import { sikreProsjektmedlemmer, aktivAnsattIFirmaWhere } from "../services/ansatt";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import type { PrismaClient } from "@sitedoc/db";
 
@@ -251,6 +251,57 @@ export const dokumentflytRouter = router({
   // userIds) inn i en flyt-rolle. Sikrer ProjectMember for hver (delt helper med
   // medlem.leggTilEksisterendeMange) og binder personen til rollen. Admin-gatet.
   // Deaktiverte/ubrukbare avvises i sikreProsjektmedlemmer — de bindes aldri.
+  // Ansattvelger-modalen i flyt-kontekst: LIST alle aktive ansatte i eier-firmaet,
+  // MERK dem som alt står i en rolle i DENNE flyten — ikke skjul dem (Kenneth-vedtak
+  // 2026-08-28). Skiller seg fra medlem.hentLedigeFirmaBrukere, som filtrerer bort alle
+  // prosjektmedlemmer (riktig for prosjektmedlem-flaten, feil for flyt-flaten der samme
+  // person gjerne skal kunne stå i to roller). Merket er scopet PER FLYT: i en annen
+  // dokumentflyt er personen umerket og fritt tilgjengelig.
+  hentFirmaBrukereForFlyt: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid(), dokumentflytId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      const flyt = await ctx.prisma.dokumentflyt.findFirstOrThrow({
+        where: { id: input.dokumentflytId, projectId: input.projectId },
+        select: { id: true, project: { select: { primaryOrganizationId: true } } },
+      });
+      const orgId = flyt.project?.primaryOrganizationId;
+      if (!orgId) return [];
+
+      // Alle aktive, brukbare ansatte — INGEN notIn: vi skjuler ingen.
+      const ansatte = await ctx.prisma.organizationMember.findMany({
+        where: aktivAnsattIFirmaWhere(orgId),
+        select: {
+          avdelingId: true,
+          user: { select: { id: true, name: true, email: true, role: true } },
+        },
+        orderBy: { user: { name: "asc" } },
+      });
+
+      // Rollemerker per bruker — kun denne flytens medlemmer (per flyt, ikke prosjekt).
+      const flytMedlemmer = await ctx.prisma.dokumentflytMedlem.findMany({
+        where: {
+          dokumentflytId: input.dokumentflytId,
+          projectMember: { userId: { not: null } },
+        },
+        select: { rolle: true, projectMember: { select: { userId: true } } },
+      });
+      const rollerByUser = new Map<string, Set<string>>();
+      for (const m of flytMedlemmer) {
+        const uid = m.projectMember?.userId;
+        if (!uid) continue;
+        if (!rollerByUser.has(uid)) rollerByUser.set(uid, new Set());
+        rollerByUser.get(uid)!.add(m.rolle);
+      }
+
+      return ansatte.map((m) => ({
+        ...m.user,
+        avdelingId: m.avdelingId,
+        flytRoller: [...(rollerByUser.get(m.user.id) ?? [])],
+      }));
+    }),
+
   leggTilAnsatteIRolle: protectedProcedure
     .input(addAnsatteIRolleSchema)
     .mutation(async ({ ctx, input }) => {

@@ -20,10 +20,19 @@ import { Modal, Button, Spinner } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { Building2, User, UserPlus } from "lucide-react";
 
+/** Rolle-nøkkel → i18n-tittel for merket «allerede i flyten». */
+const ROLLE_TITTEL_NOEKKEL: Record<string, string> = {
+  registrator: "dokumentflyt.registrator",
+  bestiller: "dokumentflyt.bestiller",
+  utforer: "dokumentflyt.utforer",
+  godkjenner: "dokumentflyt.godkjenner",
+};
+
 export function AnsattVelgerModal({
   open,
   onClose,
   projectId,
+  dokumentflytId,
   tittel,
   bekreftLabel,
   onBekreft,
@@ -34,6 +43,12 @@ export function AnsattVelgerModal({
   open: boolean;
   onClose: () => void;
   projectId: string;
+  /**
+   * Flyt-modus (Kenneth-vedtak 2026-08-28): når satt, listes ALLE aktive ansatte og de
+   * som alt står i en rolle i denne flyten MERKES i stedet for å skjules. Uten den:
+   * prosjektmedlem-flaten, som lister kun ikke-medlemmer (uendret).
+   */
+  dokumentflytId?: string;
   /** Modal-tittel (flatespesifikk, f.eks. «Legg til i prosjektet» / «… i rollen»). */
   tittel: string;
   /** Etikett på bekreft-knappen (uten tall — tallet legges på av modalen). */
@@ -47,10 +62,16 @@ export function AnsattVelgerModal({
   const { t } = useTranslation();
   const [valgte, setValgte] = useState<Set<string>>(new Set());
 
-  const ansatteQuery = trpc.medlem.hentLedigeFirmaBrukere.useQuery(
+  // Prosjektmedlem-flate: kun ikke-medlemmer. Flyt-flate: alle aktive, merket per rolle.
+  const ledigeQuery = trpc.medlem.hentLedigeFirmaBrukere.useQuery(
     { projectId },
-    { enabled: open },
+    { enabled: open && !dokumentflytId },
   );
+  const flytQuery = trpc.dokumentflyt.hentFirmaBrukereForFlyt.useQuery(
+    { projectId, dokumentflytId: dokumentflytId ?? "" },
+    { enabled: open && !!dokumentflytId },
+  );
+  const ansatteQuery = dokumentflytId ? flytQuery : ledigeQuery;
   const avdelingerQuery = trpc.medlem.hentAvdelingerForProsjekt.useQuery(
     { projectId },
     { enabled: open },
@@ -169,7 +190,17 @@ export function AnsattVelgerModal({
                     />
                     <User className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                     <div className="min-w-0">
-                      <div className="truncate text-gray-800">{b.name ?? b.email}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-gray-800">{b.name ?? b.email}</span>
+                        {((b as { flytRoller?: string[] }).flytRoller ?? []).map((r) => (
+                          <span
+                            key={r}
+                            className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-amber-700"
+                          >
+                            {t(ROLLE_TITTEL_NOEKKEL[r] ?? r)}
+                          </span>
+                        ))}
+                      </div>
                       <div className="truncate text-[11px] text-gray-400">
                         {b.name ? b.email : null}
                         {b.avdelingId && avdelingNavnById.has(b.avdelingId)
