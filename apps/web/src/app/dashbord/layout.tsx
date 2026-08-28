@@ -13,7 +13,9 @@ import { Toppbar } from "@/components/layout/Toppbar";
 import { HovedSidebar } from "@/components/layout/HovedSidebar";
 import { NavSidebar } from "@/components/layout/NavSidebar";
 import { ImpersoneringBanner } from "@/components/layout/ImpersoneringBanner";
+import { DeaktivertForklaring } from "@/components/DeaktivertForklaring";
 import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
+import { trpc } from "@/lib/trpc";
 
 export default function DashbordLayout({
   children,
@@ -23,6 +25,15 @@ export default function DashbordLayout({
   const pathname = usePathname();
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
   const nyNav = useNyNavigasjon();
+
+  // Deaktivert-guard (Kenneth-vedtak 2026-08-28): en deaktivert ansatt som kommer inn via
+  // en dyplenke (bokmerke/e-post) traff «Prosjektet ble ikke funnet» i [prosjektId]/layout
+  // — forklaringen lå kun på dashbord-siden. Fanges nå ÉТ sted høyt i treet (denne layouten
+  // wrapper både dashbord og alle prosjekt-ruter): vis forklaringen i stedet for innhold +
+  // sidebar, så «ikke funnet» / «Ingen prosjekter» aldri møter ham. Gjelder KUN deaktivert
+  // (aktiv-bruker-mistet-prosjekt er en egen sak — se DeaktivertForklaring).
+  const { data: minBruker } = trpc.bruker.hentMin.useQuery();
+  const erDeaktivert = minBruker?.erDeaktivert === true;
 
   return (
     <NavigasjonProvider>
@@ -37,12 +48,22 @@ export default function DashbordLayout({
                     <Toppbar />
                     <ImpersoneringBanner />
                     <div className="flex flex-1 overflow-hidden">
-                      {nyNav ? (
-                        <NavSidebar />
+                      {erDeaktivert ? (
+                        // Ingen sidebar (dens prosjektvelger ville sagt «Ingen prosjekter» —
+                        // samme løgn). Toppbaren beholdes for utlogging.
+                        <main className="flex-1 overflow-y-auto">
+                          <DeaktivertForklaring />
+                        </main>
                       ) : (
-                        !erFirmaKontekst && <HovedSidebar />
+                        <>
+                          {nyNav ? (
+                            <NavSidebar />
+                          ) : (
+                            !erFirmaKontekst && <HovedSidebar />
+                          )}
+                          <main className="flex-1 overflow-y-auto">{children}</main>
+                        </>
                       )}
-                      <main className="flex-1 overflow-y-auto">{children}</main>
                     </div>
                   </div>
                   </NavBreddeProvider>
