@@ -151,6 +151,39 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `verifiserRetningsrett(userId, projectId, medlemmer, aktivPosisjon, nyStatus, fraStatus)` | POSISJON-basert autorisasjon for statusovergang (403 ved mismatch). Erstattet rolle×status-matrisen `verifiserFlytRolle` i fase 3.4 (`tilgangskontroll.ts:808`) |
 | `harFirmaHmsTilgang(userId, organizationId)` | `true` for sitedoc_admin, firma-admin, eller bruker med `"hms_ansvarlig"` i `OrganizationMember.firmaRoller`. Trinn 1 av firma-HMS-dashboard (2026-05-29) |
 
+### 🔴 Stigen fra «ansatt i firmaet» til «ser Sjekklister» — NI ledd (målt 2026-08-28)
+
+Kenneth traff dette på test: en ansatt som er prosjektmedlem OG registrator i
+dokumentflyten så likevel verken Sjekklister, Oppgaver eller Tegninger. Målingen fant
+ni ledd, og **to parallelle modulsystemer** — der bare det ene har UI.
+
+| # | Ledd | Hvor | Gater |
+|---|---|---|---|
+| 1 | `User.canLogin` | `apps/web/src/auth.ts:24` | All autentisering. Ingen Credentials-provider finnes → firma-e-post som dør er en endelig sperre |
+| 2 | `OrganizationMember.status = "aktiv"` | `tilgangskontroll.ts` (`krevAktivAnsettelse` + `hentBrukersOrg`) | Ansettelse i firmaet. **Ny 2026-08-28** |
+| 3 | `ProjectMember` | `tilgangskontroll.ts:18` m.fl. | Medlemskap i prosjektet |
+| 4 | `ProjectMember.role = "admin"` | `gruppe.ts:75` | **Omgår ledd 5–6 helt.** Derfor ser admin alt og vanlig ansatt ikke |
+| 5 | `ProjectGroup`-medlemskap (brukergruppe) | `gruppe.ts:81` | Uten gruppe → tom modul-liste |
+| 6 | **`ProjectGroup.modules`** | `gruppe.ts:81`, lest av `sidebar-elementer.tsx:346` | 🔴 **Sjekklister · Oppgaver · Tegninger · 3D** i sidebaren |
+| 7 | **`ProjectModule`** | `modul.hentForProsjekt` | HMS-avvik, Timer, Varelager, Økonomi m.fl. (`kreverModul`) |
+| 8 | `Faggruppe`-kobling på `ProjectMember` | `byggTilgangsFilter` | Hvilke dokumenter man ser |
+| 9 | `DokumentflytMedlem` | flytmodellen | Rolle i en konkret flyt |
+
+🔴 **To modulsystemer, ett synlig.** `ProjectModule` (ledd 7) har UI på
+Innstillinger → Moduler. **`ProjectGroup.modules` (ledd 6) har ingen.** Den er det som
+skjuler Sjekklister og Oppgaver, og den kan ikke ses eller endres noe sted i
+grensesnittet. Det er derfor feilen framstår som uforklarlig: modulsiden viser at alt er
+i orden, mens et usynlig system blokkerer.
+
+**Konsekvens for feilsøking:** «hvorfor ser ikke X sjekklistene?» besvares nesten alltid
+av ledd 5–6, ikke av ledd 3, 8 eller 9. Sjekk brukergruppe-medlemskapet og gruppens
+`modules`-array først.
+
+🟢 **Kenneth-vedtak 2026-08-28:** *«sjekklister og oppgaver skal alltid være en del av
+prosjekt — uten dette faller grunnlaget bort. Tegninger er også automatisk en del av
+grunnlaget. 3D skal være ekstra feature.»* Sjekklister, oppgaver og tegninger skal
+dermed **ut av ledd 6** — de er fundament, ikke moduler. 3D forblir valgbar.
+
 **Tilgangslogikk for dokumentvisning:**
 - Admin ser alltid alt
 - company_admin ser alt i alle prosjekter tilknyttet sin organisasjon (uten ProjectMember-rad)
