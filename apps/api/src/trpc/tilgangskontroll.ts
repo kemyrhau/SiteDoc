@@ -41,9 +41,13 @@ export async function krevAktivAnsettelse(
     select: { status: true },
   });
   if (medlem && medlem.status === "deaktivert") {
+    // Brukervendt tekst, vist ordrett der en handling avvises midt i en økt
+    // (mid-økt-håndtering, ansattvelger-runden: ingen polling, ingen streng-matching
+    // — meldingen ER forklaringen). Speiler dashbord-empty-staten for deaktiverte.
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Ansettelsen din i dette firmaet er deaktivert",
+      message:
+        "Ansettelsen din i dette firmaet er deaktivert, så du har ikke lenger tilgang her. Kontakt firmaadministratoren hvis dette er feil.",
     });
   }
 }

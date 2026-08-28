@@ -5,10 +5,12 @@ import {
   createDokumentflytSchema,
   updateDokumentflytSchema,
   addDokumentflytMedlemSchema,
+  addAnsatteIRolleSchema,
   removeDokumentflytMedlemSchema,
   oppdaterRollerSchema,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
+import { sikreProsjektmedlemmer } from "../services/ansatt";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import type { PrismaClient } from "@sitedoc/db";
 
@@ -243,6 +245,72 @@ export const dokumentflytRouter = router({
           group: { select: { id: true, name: true } },
         },
       });
+    }),
+
+  // Batch: legg firmaets ansatte (ev. en hel avdeling, ekspandert klient-side til
+  // userIds) inn i en flyt-rolle. Sikrer ProjectMember for hver (delt helper med
+  // medlem.leggTilEksisterendeMange) og binder personen til rollen. Admin-gatet.
+  // Deaktiverte/ubrukbare avvises i sikreProsjektmedlemmer — de bindes aldri.
+  leggTilAnsatteIRolle: protectedProcedure
+    .input(addAnsatteIRolleSchema)
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      const flyt = await ctx.prisma.dokumentflyt.findFirstOrThrow({
+        where: { id: input.dokumentflytId, projectId: input.projectId, ...IKKE_SLETTET },
+        select: { id: true, project: { select: { primaryOrganizationId: true } } },
+      });
+      const orgId = flyt.project?.primaryOrganizationId;
+      if (!orgId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Prosjektet har ikke et eier-firma å hente ansatte fra",
+        });
+      }
+
+      const res = await sikreProsjektmedlemmer(ctx.prisma, {
+        projectId: input.projectId,
+        organizationId: orgId,
+        userIds: input.userIds,
+      });
+
+      // Bind hver gyldig person til rollen — hopp over dem som allerede står i
+      // nøyaktig denne rollen på dette steget (idempotent, ingen duplikat-ledd).
+      const projectMemberIds = [...res.projectMemberIdByUserId.values()];
+      const alleredeBundet = new Set(
+        (
+          await ctx.prisma.dokumentflytMedlem.findMany({
+            where: {
+              dokumentflytId: input.dokumentflytId,
+              rolle: input.rolle,
+              steg: input.steg,
+              projectMemberId: { in: projectMemberIds },
+            },
+            select: { projectMemberId: true },
+          })
+        ).map((m) => m.projectMemberId),
+      );
+
+      let bundet = 0;
+      for (const pmId of projectMemberIds) {
+        if (alleredeBundet.has(pmId)) continue;
+        await ctx.prisma.dokumentflytMedlem.create({
+          data: {
+            dokumentflytId: input.dokumentflytId,
+            projectMemberId: pmId,
+            rolle: input.rolle,
+            steg: input.steg,
+          },
+        });
+        bundet += 1;
+      }
+
+      return {
+        bundet,
+        alleredeIRollen: alleredeBundet.size,
+        lagtTilSomMedlem: res.lagtTil,
+        ugyldige: res.ugyldige.length,
+      };
     }),
 
   // Fjern medlem fra dokumentflyt
