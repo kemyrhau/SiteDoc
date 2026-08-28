@@ -42,6 +42,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier/mottaker, flytregler, redigerbarhet |
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, dokumentsøk |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
+| [docs/claude/sikkerhet.md](docs/claude/sikkerhet.md) | **🟠 SAMLET SIKKERHETSVURDERING:** åpne punkter rangert etter vei fra utenforstående til skade, hva som er målt trygt med dato/metode, og de fire funnene om `/uploads/` som lå spredt i hvert sitt dokument. Erstatter sikkerhetspunktet i STATUS-AKTUELT |
 | [docs/claude/gdpr-kartlegging.md](docs/claude/gdpr-kartlegging.md) | **🟢 MÅLING:** Hvor persondata om ansatt bor (4 DB + disk); slett/anonymiser/bevar; ingen sletteløsning finnes |
 | [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT:** Aktivitet per `SheetTimer`-rad, ny `SheetMachine` — se også fase-0 C.18 |
 | [docs/claude/mobil-dagsseddel-ui-spec.md](docs/claude/mobil-dagsseddel-ui-spec.md) | **🟢 MÅL-SPEC:** Mobil dagsseddel-UI v2-overhaul — fasiten A.Markussen verifiserer mot. U-serie: U1–U3 visuelle + U-flyt (multi-økt/glemt-dag) |

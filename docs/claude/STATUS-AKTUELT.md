@@ -228,7 +228,12 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 `nav.sok` «Søk»→«Dokumentsøk» + `nav.kontrollplan` «Kontrollplaner»→«Kontrollplan» rendres i gammel `HovedSidebar` (`sidebar-elementer.tsx:131,145`) — **ikke** bak `nyNavigasjon`-flagg. Kilde: `73f88112` (finnbarhet i18n), live i prod via develop→main-deploy **`43299d03`** (2026-07-15). **Pilot-support:** etiketten byttet for ALLE brukere, ikke bare ny-nav — bevisst (unngår label-mismatch på tvers av flagg-tilstand, jf. Lokasjoner/Byggeplasser). `firmaNav.innstillinger`→«Firmaprofil» er derimot INERT i prod (gammel firma-nav hardkoder «Innstillinger»).
 
-## 🔴 ÅPENT SIKKERHETSPUNKT — alle sjekkliste-/oppgavebilder er uautentisert tilgjengelige (målt 2026-08-12)
+## 🔴 SIKKERHET — flyttet til [sikkerhet.md](sikkerhet.md) (2026-08-28)
+
+Punktet om uautentisert tilgang til sjekkliste-/oppgavebilder sto her med en
+overskrift som hadde mistet kroppen sin — innholdet under hadde drevet over til
+arkivmal-PDF. Vurderingen, de fire funnene om `/uploads/` og hva som er målt trygt
+står nå samlet i [sikkerhet.md](sikkerhet.md). **Ikke dupliser hit.**
 
 > 🟢 **ARKIVMAL I PROD 2026-08-16 (`c0b9f826` + runde 2).** Server-side PDF via Playwright erstatter ikke klient-utskriften ennå, men er komplett i vedtatt form: repeater-bilder i full bredde under egen rad (ikke samlet bakerst), løpenummer «Bilde 07 · 13.08.2026 10:41» lest fra `Vedlegg.bildeNr` med fallback til dokumentrekkefølge, IMG-filnavn og dokument-id ute, side 1-marger rettet (dobbel padding fjernet). **Rendertid 7,46 s på BEF-001** (73 bilder) — Kenneth målte i prod, tallet avblokkerer ytelsesspørsmålet.
 >
