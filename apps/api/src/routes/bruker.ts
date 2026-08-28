@@ -21,11 +21,20 @@ export const brukerRouter = router({
       select: { id: true, name: true, email: true, role: true, nyNavigasjon: true },
     });
     if (!user) return null;
-    const medlem = await ctx.prisma.organizationMember.findFirst({
+    const medlemskap = await ctx.prisma.organizationMember.findMany({
       where: { userId: ctx.userId },
-      select: { organizationId: true },
+      select: { organizationId: true, status: true },
     });
-    return { ...user, organizationId: medlem?.organizationId ?? null };
+    const aktivtMedlem = medlemskap.find((m) => m.status === "aktiv");
+    // erDeaktivert: har minst ett firmamedlemskap, men INGEN er aktivt. Skiller den
+    // deaktiverte ansatte (forklarende empty-state) fra den org-løse (venter på
+    // prosjekttilgang). Fase 1 registreringsmodell (2026-08-28).
+    const erDeaktivert = medlemskap.length > 0 && !aktivtMedlem;
+    return {
+      ...user,
+      organizationId: aktivtMedlem?.organizationId ?? medlemskap[0]?.organizationId ?? null,
+      erDeaktivert,
+    };
   }),
 
   hentSpraak: protectedProcedure.query(async ({ ctx }) => {

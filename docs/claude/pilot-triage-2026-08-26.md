@@ -12,7 +12,7 @@ verifisert_mot: origin/develop (worktree docs/pilot-triage)
 
 ## Målestokk
 
-Fra `docs/redesign/MASTERPLAN.md`: *«enkelhet / selvforklarende navigasjon / timeføring med få klikk + pilotfrist ~sept 2026 (50 ansatte, mobil viktigst).»* Funksjonalitet går foran alt annet.
+Fra `docs/redesign/REDESIGN-MASTERPLAN.md`: *«enkelhet / selvforklarende navigasjon / timeføring med få klikk + pilotfrist ~sept 2026 (50 ansatte, mobil viktigst).»* Funksjonalitet går foran alt annet.
 
 Den avgjørende kolonnen er **pilot-impact**: *kan 50 ansatte, de fleste på telefon, ta SiteDoc i bruk i september uten at dette er løst?*
 - **Blokkerer** — piloten feiler eller skader tillit uten den

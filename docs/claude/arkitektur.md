@@ -151,6 +151,76 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `verifiserRetningsrett(userId, projectId, medlemmer, aktivPosisjon, nyStatus, fraStatus)` | POSISJON-basert autorisasjon for statusovergang (403 ved mismatch). Erstattet rolle×status-matrisen `verifiserFlytRolle` i fase 3.4 (`tilgangskontroll.ts:808`) |
 | `harFirmaHmsTilgang(userId, organizationId)` | `true` for sitedoc_admin, firma-admin, eller bruker med `"hms_ansvarlig"` i `OrganizationMember.firmaRoller`. Trinn 1 av firma-HMS-dashboard (2026-05-29) |
 
+### 🔴 Stigen fra «ansatt i firmaet» til «ser Sjekklister» — NI ledd (målt 2026-08-28)
+
+Kenneth traff dette på test: en ansatt som er prosjektmedlem OG registrator i
+dokumentflyten så likevel verken Sjekklister, Oppgaver eller Tegninger. Målingen fant
+ni ledd, og **to parallelle modulsystemer** — der bare det ene har UI.
+
+| # | Ledd | Hvor | Gater |
+|---|---|---|---|
+| 1 | `User.canLogin` | `apps/web/src/auth.ts:24` | All autentisering. Ingen Credentials-provider finnes → firma-e-post som dør er en endelig sperre |
+| 2 | `OrganizationMember.status = "aktiv"` | `tilgangskontroll.ts` (`krevAktivAnsettelse` + `hentBrukersOrg`) | Ansettelse i firmaet. **Ny 2026-08-28** |
+| 3 | `ProjectMember` | `tilgangskontroll.ts:18` m.fl. | Medlemskap i prosjektet |
+| 4 | `ProjectMember.role = "admin"` | `gruppe.ts:75` | **Omgår ledd 5–6 helt.** Derfor ser admin alt og vanlig ansatt ikke |
+| 5 | `ProjectGroup`-medlemskap (brukergruppe) | `gruppe.ts:81` | Uten gruppe → tom modul-liste |
+| 6 | **`ProjectGroup.modules`** | `gruppe.ts:81`, lest av `sidebar-elementer.tsx:346` | **Kun 3D** i sidebaren (fra 2026-08-28). Sjekklister/oppgaver/tegninger er fjernet herfra — de er fundament |
+| 7 | **`ProjectModule`** | `modul.hentForProsjekt` | HMS-avvik, Timer, Varelager, Økonomi m.fl. (`kreverModul`) |
+| 8 | `Faggruppe`-kobling på `ProjectMember` | `byggTilgangsFilter` | Hvilke dokumenter man ser |
+| 9 | `DokumentflytMedlem` | flytmodellen | Rolle i en konkret flyt |
+
+🔴 **To modulsystemer på hver sin side av huset.** `ProjectModule` (ledd 7) redigeres på
+Innstillinger → **Moduler**. `ProjectGroup.modules` (ledd 6) redigeres på
+Innstillinger → **Brukere/Medlemmer**, per brukergruppe (`oppsett/brukere/page.tsx:871`).
+
+To systemer som begge heter «moduler», på to ulike sider, som gater ulike deler av
+sidebaren. Modulsiden kan vise at alt er i orden mens det andre blokkerer — og ingenting
+i grensesnittet forteller at de er to.
+
+⚠️ **Korreksjon 2026-08-28:** første versjon av dette avsnittet påsto at ledd 6 ikke
+hadde UI. Feil — den ligger på brukergruppe-siden. Målingen var riktig, konklusjonen for
+rask.
+
+**Ledd 6 gater KUN klienten.** `group.modules` leses ett sted (`gruppe.ts:81`) og skrives
+ett sted (`:534`); **ingen api-rute gater på den.** Å fjerne sidebar-sjekken er derfor
+trygt — serveren har aldri nektet på dette grunnlaget.
+
+**Konsekvens for feilsøking:** «hvorfor ser ikke X sjekklistene?» besvares nesten alltid
+av ledd 5–6, ikke av ledd 3, 8 eller 9. Sjekk brukergruppe-medlemskapet og gruppens
+`modules`-array først.
+
+🟢 **Kenneth-vedtak 2026-08-28 — IMPLEMENTERT:** *«sjekklister og oppgaver skal alltid
+være en del av prosjekt — uten dette faller grunnlaget bort. Tegninger er også automatisk
+en del av grunnlaget. 3D skal være ekstra feature.»* Sjekklister, oppgaver og tegninger er
+tatt **ut av ledd 6** — `kreverGruppemodul` er fjernet fra de tre i
+`sidebar-elementer.tsx` (branch `fix/fundament-og-flytvelger`). De er fundament, ikke
+moduler. 3D beholder `kreverGruppemodul: "3d"` og forblir valgbar.
+
+Brukergruppe-editoren (`oppsett/brukere/page.tsx`) viser derfor nå **kun `3d`-badgen** —
+`alleModulNavn` snevret til `["3d"]`. **Lagrede `group.modules`-verdier for de tre
+fundament-modulene røres IKKE** (harmløs rest, migrering uten gevinst; toggle bevarer dem).
+Serverens `alleGruppeModuler` (`gruppe.ts:27`) står også urørt — den er en admin-default,
+ikke lagret data, og leses ikke lenger for de tre.
+
+🟢 **Modalens ekskludering var PER PROSJEKT, nedtrekkets PER ROLLE — måling 2026-08-28.**
+De to plukkerne på dokumentflyt-oppsettet svarte ulikt om samme person fordi de er to
+funksjoner på samme flate, ikke to varianter av én:
+- **Modalen «Legg ansatte i rollen»** (`AnsattVelgerModal` via `hentLedigeFirmaBrukere`)
+  filtrerte bort alle som alt var `ProjectMember` i prosjektet — **scope: per prosjekt**.
+  Riktig for prosjektmedlem-flaten (man re-legger ikke et medlem), feil for flyt der samme
+  person skal kunne stå i to roller. Derfor forsvant Ola/Per.
+- **Nedtrekket** (`LeggTilMedlemDropdown`) ekskluderte kun dem som alt sto i **nøyaktig
+  denne rollen** — **scope: per rolle**. Skjulte derfor aldri en person for å stå i en
+  *annen* rolle; tilbød Ola under Godkjenner selv om han var Registrator.
+
+De kunne aldri bli enige fordi de aldri målte det samme. Løst (branch
+`fix/fundament-og-flytvelger`): modalen fikk flyt-modus (`dokumentflytId`-prop + ny
+`dokumentflyt.hentFirmaBrukereForFlyt`) som lister ALLE aktive ansatte og **merker** dem
+som alt står i en rolle i **denne flyten** (per flyt, ikke per prosjekt) i stedet for å
+skjule dem. Nedtrekket skjulte aldri noen → uendret; ⚠️ liten restanse: det viser ikke
+rolle-merket på sine PERSONER-linjer (paritet ville kreve å tre flyt-rolle-data gjennom
+dropdownen — ikke gjort).
+
 **Tilgangslogikk for dokumentvisning:**
 - Admin ser alltid alt
 - company_admin ser alt i alle prosjekter tilknyttet sin organisasjon (uten ProjectMember-rad)

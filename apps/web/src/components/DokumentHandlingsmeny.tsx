@@ -99,6 +99,14 @@ interface DokumentHandlingsmenyProps {
   bestillerUserId?: string;
   /** Tidspunkt da mottaker åpnet dokumentet */
   lestAvMottakerVed?: Date | string | null;
+  /**
+   * Oppretter-slett (Kenneth-vedtak 2026-08-28): dokumentets oppretter kan slette sitt
+   * EGET UTKAST. Serveren tillater det allerede (avgjorDokumentTilgang innsender-gren);
+   * klienten skjulte «Slett» fordi «deleted» filtreres bort for ikke-admin OG legges i
+   * Admin-seksjonen. Settes av sidene som `erMelder && erUtkast`. Viser «Slett» i en egen
+   * seksjon UTENFOR Admin når den ikke alt vises via admin-stien.
+   */
+  kanSletteSomOppretter?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -175,6 +183,7 @@ export function DokumentHandlingsmeny({
   recipientGroupId,
   // bestillerUserId: prop beholdt for API-kompat, men klienten utleder ikke mottaker (server gjør).
   lestAvMottakerVed,
+  kanSletteSomOppretter,
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
@@ -458,6 +467,15 @@ export function DokumentHandlingsmeny({
   const destruktivOppforinger = øvrigeStatus.filter((h) => h.nyStatus === "dismissed").map(byggStatusOppforing);
   const slettOppforinger = øvrigeStatus.filter((h) => h.nyStatus === "deleted").map(byggStatusOppforing);
 
+  // Oppretter-slett (Kenneth-vedtak 2026-08-28): oppretteren skal se «Slett» på sitt eget
+  // utkast, UTENFOR Admin. `deleted` filtreres bort fra `aktive` for ikke-admin, så vi
+  // henter handlingen fra det rå status-universet (`alle`, som for draft inneholder den).
+  const oppretterSlettKilde = alle.find((h) => h.nyStatus === "deleted");
+  const visOppretterSlett = !!kanSletteSomOppretter && status === "draft" && !!oppretterSlettKilde;
+  const oppretterSlettOppforinger: MenyOppforing[] = visOppretterSlett
+    ? [byggStatusOppforing(oppretterSlettKilde!)]
+    : [];
+
   // Admin-seksjon: aktive admin-status som IKKE er primær (Lukk/Trekk tilbake/Gjenåpne) + Slett SIST.
   const adminStatusOppforinger: MenyOppforing[] = aktive
     .filter((h) => h !== effektivPrimær && ADMIN_NY.has(h.nyStatus) && h.nyStatus !== "forwarded")
@@ -470,7 +488,11 @@ export function DokumentHandlingsmeny({
       erDestruktiv: h.nyStatus === "cancelled",
       mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
-  const adminOppforinger: MenyOppforing[] = [...adminStatusOppforinger, ...slettOppforinger];
+  // Når oppretteren får «Slett» i egen seksjon, ikke dupliser den i Admin (gjelder flyt-løse
+  // utkast der `deleted` alt lå i `aktive` → slettOppforinger). Admin-only-tilfellet uendret.
+  const adminOppforinger: MenyOppforing[] = visOppretterSlett
+    ? [...adminStatusOppforinger]
+    : [...adminStatusOppforinger, ...slettOppforinger];
 
   // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen.
   // P1-restfiks (2026-08-03): `alle` er det RÅ status-universet (ikke posisjon-filtrert), så «Send»
@@ -495,6 +517,7 @@ export function DokumentHandlingsmeny({
     framoverOppforinger.length +
     destruktivOppforinger.length +
     videresendOppforinger.length +
+    oppretterSlettOppforinger.length +
     adminOppforinger.length;
   // Split vises kun ved primær + ≥1 øvrig lovlig. Deaktiverte alene utløser IKKE split
   // (received×godkjenner = «Godkjenn uten split»); de vises som info NÅR menyen åpnes.
@@ -641,6 +664,7 @@ export function DokumentHandlingsmeny({
       framover={framoverOppforinger}
       destruktiv={destruktivOppforinger}
       videresend={videresendOppforinger}
+      oppretterSlett={oppretterSlettOppforinger}
       admin={adminOppforinger}
       deaktivert={deaktiverteOppforinger}
       onVelg={klikk}
@@ -745,6 +769,7 @@ function DropdownMeny({
   framover,
   destruktiv,
   videresend,
+  oppretterSlett,
   admin,
   deaktivert,
   onVelg,
@@ -762,6 +787,8 @@ function DropdownMeny({
   destruktiv: MenyOppforing[];
   /** Videresend: mottaker-liste (person-velger), etter destruktive */
   videresend: MenyOppforing[];
+  /** Oppretter-slett: «Slett» for eget utkast, egen seksjon UTENFOR Admin (rød) */
+  oppretterSlett: MenyOppforing[];
   /** Admin-overstyringer (Lukk/Trekk tilbake/Gjenåpne-når-sekundær) */
   admin: MenyOppforing[];
   /** Deaktiverte (gjennomstrøket, med begrunnelse) */
@@ -931,6 +958,13 @@ function DropdownMeny({
         <>
           {skille(true)}
           {destruktiv.map(statusRad)}
+        </>
+      )}
+
+      {oppretterSlett.length > 0 && (
+        <>
+          {skille(true)}
+          {oppretterSlett.map(statusRad)}
         </>
       )}
 

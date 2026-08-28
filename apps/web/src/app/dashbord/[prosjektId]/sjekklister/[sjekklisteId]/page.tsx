@@ -807,6 +807,7 @@ export default function SjekklisteDetaljSide() {
             recipientGroupId={fullSjekkliste?.recipientGroupId}
             bestillerUserId={fullSjekkliste?.bestillerUserId}
             lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
+            kanSletteSomOppretter={erMelder && erUtkast}
           />
           )}
           <div className="ml-auto flex items-center gap-2">

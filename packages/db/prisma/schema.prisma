@@ -24,7 +24,15 @@ model User {
   // resolverNyNavigasjon: konto > lokal/query > env-default > av. Additiv, ingen backfill.
   nyNavigasjon Boolean? @map("ny_navigasjon")
 
-  // Per A.10 — to bruksområder: data-mottaker uten innloggings-tilgang OG arkivert User-rad ved org-bytte
+  // Per A.10 — to bruksområder: data-mottaker uten innloggings-tilgang OG arkivert User-rad ved org-bytte.
+  //
+  // NIVÅSKILLE (ufravikelig — ikke konsolider med OrganizationMember.status):
+  //   canLogin = kan personen AUTENTISERE overhodet (portvakt, håndheves i
+  //     apps/web/src/auth.ts:24). Global for User-raden, uavhengig av firma.
+  //   OrganizationMember.status = er personen ANSATT i DETTE firmaet nå.
+  // En som slutter hos firma A men jobber hos B beholder canLogin=true; kun A-
+  // medlemskapet får status="deaktivert". Konsolideres de, ryker multi-firma.
+  // Kandidatfiltrering krever BEGGE: se services/ansatt.ts (aktivAnsattIFirmaWhere).
   canLogin Boolean @default(true) @map("can_login")
 
   // Per A.11 — GDPR data-minimalisering (kun det som brukes for forretning/lov)
@@ -219,6 +227,20 @@ model OrganizationMember {
   firmaRoller    String[] @default([]) @map("firma_roller")
   ansattnummer   String?
   avdelingId     String?  @map("avdeling_id")
+  // Ansettelsesstatus (registreringsmodell fase 1, 2026-08-28). "aktiv" | "deaktivert".
+  // String (ikke DB-enum) som ansattRolle/firmaRoller — utvidbar uten migrasjon.
+  // Deaktivering er ÉN reversibel fakta lest ved porten (tilgangskontroll.ts:
+  // krevAktivAnsettelse + hentBrukersOrg-filter) — IKKE N periodeSlutt-skrivinger.
+  // deaktivertAvUserId er String? uten @relation (A.3-mønster) → audit-spor bevart
+  // ved User-sletting. Varig historikk («når mistet han tilgang») ligger i Activity.
+  //
+  // NIVÅSKILLE (ufravikelig — ikke konsolider med User.canLogin): status = ansatt i
+  // DETTE firmaet nå; canLogin = kan autentisere overhodet (portvakt, auth.ts:24).
+  // Skilt bevisst så multi-firma virker. Kandidatfiltrering («brukbar person i firma
+  // X») krever BEGGE og bor ett sted: services/ansatt.ts (aktivAnsattIFirmaWhere).
+  status             String    @default("aktiv")
+  deaktivertVed      DateTime? @map("deaktivert_ved")
+  deaktivertAvUserId String?   @map("deaktivert_av_user_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

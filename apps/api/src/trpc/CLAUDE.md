@@ -58,6 +58,47 @@ await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
 await verifiserTillatelse(ctx.userId, projectId, "manage_field");
 ```
 
+## Ansettelses-guard (registreringsmodell fase 1, 2026-08-28)
+
+Deaktivering av en ansatt er ÉN reversibel fakta på `OrganizationMember.status`
+(`"aktiv"` | `"deaktivert"`), lest **ved porten** — ikke N `periodeSlutt`-skrivinger.
+
+- `krevAktivAnsettelse(userId, projectId)` — kaster FORBIDDEN når brukeren er ansatt
+  i prosjektets **eier-firma** (`Project.primaryOrganizationId`) og status er
+  `"deaktivert"`. No-op for standalone-prosjekter og for ikke-ansatte (guest på annet
+  firmas prosjekt). Kalt i alle 11 prosjekt-porter ETTER `sitedoc_admin`-bypass, FØR
+  firma-admin-bypass (en deaktivert firma_admin skal ikke slippe inn via
+  `erFirmaAdminForProsjekt`).
+- `hentBrukersOrg` filtrerer på `status:"aktiv"` → dekker hele firma-nivå-medlemsveien
+  (inkl. timeføring via `krevBrukersOrg`) på én linje. Bonus: løser multi-org rent til
+  det aktive firmaet.
+- `hentDeaktiverteOrgIder(userId)` — brukt av `prosjekt.hentAlle`/`hentSistBrukte` for å
+  skjule prosjekter eid av org der ansettelsen er deaktivert (ProjectMember-radene
+  ryddes bevisst ikke, så member-scopet ville ellers vist ikke-åpnbare prosjekter).
+- Deaktivering-mutasjon: `organisasjon.settAnsattStatus` (firmaadmin-only, lockout-guard
+  på egen rad, sitedoc_admin skjermet). Varig spor i `Activity` (`action:
+  "ansatt_deaktivert"|"ansatt_aktivert"`, `targetType:"organization_member"`).
+- Oppfølger i BACKLOG: en deaktivert firma-admin beholder admin-rettigheter (de
+  `verifiserFirmaAdmin`-lokale rutene leser `firmaRoller`, ikke status).
+
+### Kandidatregel: «aktiv brukbar ansatt i firma X» (services/ansatt.ts, ansattvelger-runden)
+
+Regelen «hvem kan velges inn» var håndskrevet flere steder; én glemte `status`. Den bor
+nå ett sted: `aktivAnsattIFirmaWhere(orgId)` = `{ organizationId, status:"aktiv",
+user:{ canLogin: true } }`. To ADSKILTE nivåer (skrevet inn i schema ved begge felt):
+`User.canLogin` = kan autentisere overhodet (portvakt, auth.ts:24) · `OrganizationMember.status`
+= ansatt i DETTE firmaet nå. Konsolider dem aldri — multi-firma ryker.
+
+- **Bruker regelen** (lister kandidater): `medlem.hentLedigeFirmaBrukere`,
+  `medlem.hentAvdelingerForProsjekt`, og valideringen i `sikreProsjektmedlemmer`.
+- **Bruker den bevisst IKKE** (annet spørsmål — e-post-oppslag ved invitasjon,
+  «finnes en autentiserbar bruker med denne e-posten»): `medlem.leggTil` (:189/:206),
+  `gruppe.leggTilMedlem`, `organisasjon.inviterBruker`. Org/status håndteres der via
+  `hentBrukersOrg` + porten.
+- `sikreProsjektmedlemmer(tx, {...})` — delt batch-helper: validerer hver userId mot
+  regelen, oppretter manglende ProjectMember, returnerer projectMemberId + tellinger.
+  Brukt av `medlem.leggTilEksisterendeMange` og `dokumentflyt.leggTilAnsatteIRolle`.
+
 ## Fallgruver
 
 - `null`-retur fra `byggTilgangsFilter` betyr admin — IKKE tomt filter

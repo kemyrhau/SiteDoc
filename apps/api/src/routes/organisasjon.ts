@@ -279,6 +279,8 @@ export const organisasjonRouter = router({
         avdelingId: true,
         ansattRolle: true,
         firmaRoller: true,
+        status: true,
+        deaktivertVed: true,
         user: {
           select: {
             id: true,
@@ -305,6 +307,8 @@ export const organisasjonRouter = router({
       avdelingId: m.avdelingId,
       ansattRolle: m.ansattRolle,
       firmaRoller: m.firmaRoller,
+      status: m.status,
+      deaktivertVed: m.deaktivertVed,
     }));
   }),
 
@@ -458,6 +462,94 @@ export const organisasjonRouter = router({
           data: { firmaRoller: member.firmaRoller.filter((r) => r !== "firma_admin") },
         });
       }
+      return { ok: true };
+    }),
+
+  // Deaktiver / aktiver en ansatt (registreringsmodell fase 1, 2026-08-28).
+  // Deaktivering er ÉN reversibel fakta på OrganizationMember.status — tilgangen
+  // nektes ved porten (tilgangskontroll.ts: krevAktivAnsettelse + hentBrukersOrg-
+  // filter). Ingenting personen har ført/opprettet røres; reaktivering = én skriving.
+  // Speiler settFirmaAdmin sitt mønster (firmaadmin-only, sitedoc_admin skjermet).
+  settAnsattStatus: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        organizationId: z.string().uuid(),
+        aktiv: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+
+      // Lockout-guard: kan ikke deaktivere egen rad — ville fjernet egen tilgang
+      // til å aktivere seg selv igjen.
+      if (input.userId === ctx.userId && !input.aktiv) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Du kan ikke deaktivere din egen ansettelse",
+        });
+      }
+
+      const member = await ctx.prisma.organizationMember.findUnique({
+        where: {
+          userId_organizationId: { userId: input.userId, organizationId: orgId },
+        },
+        select: {
+          id: true,
+          status: true,
+          user: { select: { role: true, name: true } },
+        },
+      });
+
+      if (!member) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Brukeren tilhører ikke firmaet",
+        });
+      }
+
+      if (member.user.role === "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kan ikke endre systemadministrator",
+        });
+      }
+
+      const nyStatus = input.aktiv ? "aktiv" : "deaktivert";
+      if (member.status === nyStatus) return { ok: true }; // idempotent
+
+      await ctx.prisma.organizationMember.update({
+        where: { id: member.id },
+        data: {
+          status: nyStatus,
+          deaktivertVed: input.aktiv ? null : new Date(),
+          deaktivertAvUserId: input.aktiv ? null : ctx.userId,
+        },
+      });
+
+      // Varig spor («når mistet han tilgang», hvem gjorde det) i den purpose-built
+      // Activity-tabellen — gjenbruk av eksisterende audit-modell, ikke nytt
+      // loggsystem. Row-feltene over holder nåtilstand for lista.
+      const aktor = ctx.userId
+        ? await ctx.prisma.user.findUnique({
+            where: { id: ctx.userId },
+            select: { name: true },
+          })
+        : null;
+      await ctx.prisma.activity.create({
+        data: {
+          actorUserId: ctx.userId,
+          actorNavnSnapshot: aktor?.name ?? null,
+          organizationId: orgId,
+          targetType: "organization_member",
+          targetId: member.id,
+          action: input.aktiv ? "ansatt_aktivert" : "ansatt_deaktivert",
+          payload: { targetUserId: input.userId, targetNavn: member.user.name },
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
+        },
+      });
+
       return { ok: true };
     }),
 

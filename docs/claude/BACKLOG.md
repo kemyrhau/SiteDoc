@@ -47,7 +47,7 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ### Pakke B — vedlikeholdsvindu
 
-Én PR: `pnpm update` + `overrides` der transitivt. Omfatter protobufjs (transitiv via `@xenova/transformers`; pollution-CVE krever ondsinnede `.proto`-filer vi ikke parser), next-auth beta + `@auth/core`, find-my-way, tar/tar-fs, brace-expansion, browserslist, undici, expo-file-system, sharp, fast-xml-parser, csv-parse, nanoid, jose, ajv, yargs, js-yaml, picomatch, postal-mime, `@ungap/structured-clone`, onnxruntime-node, `@fastify/forwarded`, `@expo/spawn-async`, i18next, zod. Est. 3–4 t inkl. regresjon.
+Én PR: `pnpm update` + `overrides` der transitivt. Omfatter next-auth beta + `@auth/core`, find-my-way, tar/tar-fs, brace-expansion, browserslist, undici, expo-file-system, sharp, fast-xml-parser, csv-parse, nanoid, jose, ajv, yargs, js-yaml, picomatch, postal-mime, `@ungap/structured-clone`, `@fastify/forwarded`, `@expo/spawn-async`, i18next, zod. Est. 3–4 t inkl. regresjon. **Redusert 2026-08-28:** `@xenova/transformers` fjernet (branch `chore/dodkode-xenova`) → `protobufjs` og `onnxruntime-node` falt ut av treet (var kun transitive via `@xenova`), så de er ute av denne pakken.
 
 **B-unntak: `xlsx` → `exceljs`** — pollution-CVE-en er reell og npm-versjonen får ikke fiks. **Verifisert: begge finnes i `apps/api` (`xlsx ^0.18.5` + `exceljs ^4.4.0`), og web bruker kun exceljs.** Migrer api-bruken og fjern `xlsx`. Egen post.
 
@@ -56,6 +56,27 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 - **Docker kjører som root** — verifisert: **0 `USER`-linjer** i `Dockerfile.api`, `.web` og `.ml`. Legg til non-root + chown av arbeidskatalog. Est. 3 t inkl. test av volummounts (uploads-bind-mount er den risikable delen).
 - **CI:** pinn 3rd-party Actions til sha + `persist-credentials: false` på checkout. Est. 15 min.
 - **`@fastify/cors`:** verifiser at origin er eksplisitt liste, ikke `true`. Est. 15 min.
+
+### Pakke D — containertopologi (kartlagt 2026-08-28)
+
+Full vurdering med målinger og sammenhenger: **[sikkerhet.md](sikkerhet.md)** — ikke
+dupliser analysen hit. Her står kun oppgavene.
+
+- **`page.route`-abort i `pdf-render/server.mjs`** — dreper SSRF-vektoren
+  (`waitUntil: "networkidle"` lar Chromium hente URL-er som havner i rapport-HTML).
+  Én linje, endrer ikke normal drift. 🔴 Containeren deles med test og bygges ikke av
+  vanlige `--no-deps`-deploys → eget gatet steg. **Est. 30 min. Gjør denne nå.**
+- **`--no-sandbox` i pdf-render** — renderer-exploit ikke inneslutt. Lavere prioritet
+  når punktet over er gjort. Est. ukjent (krever test av Chromium i container).
+
+🔵 **Tre punkter venter bevisst på serverflyttingen (~okt 2026):** test skriver i prods
+uploads-katalog, flatt `appnet` mellom test og prod, og pdf-render delt mellom dem. Alle
+tre er konsekvenser av at to stacker deler én maskin, og forsvinner når prod flyttes til
+hosted mens test blir stående. **Ikke bruk en risikorunde på uploads-volumene nå** —
+uploads har gått tapt to ganger på denne serveren.
+🔴 **Men flyttingen må BÆRE dem:** blir segmenteringen ikke designet inn fra start,
+gjenskaper vi det flate nettet på ny maskin. `sikkerhet.md` skal leses som del av
+flytte-planleggingen.
 
 ### CSP — egen post, ikke hastetiltak
 
@@ -68,6 +89,10 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 **Rekkefølgen cowork anbefaler avviker fra fabels på ett punkt:** DOMPurify før Next-bump. Next-CVE-ene krever spesifikke angrepsmønstre mot middleware; usanitert opplastet innhold i DOM er en åpen flate der kunden selv leverer nyttelasten.
 
 ## 1. Teknisk gjeld
+
+### 🟡 En deaktivert firma-admin beholder admin-rettigheter (registreringsmodell fase 1-oppfølger, 2026-08-28)
+
+`verifiserFirmaAdmin` (routes-lokale kopier ×16) og `erFirmaAdmin`/`erFirmaAdminForProsjekt` (tilgangskontroll.ts) leser `firmaRoller`, ikke `status`. Fase 1 la `krevAktivAnsettelse` FØR firma-admin-bypass i de 11 prosjekt-portene (så en deaktivert firma_admin nektes prosjekttilgang der) og `status`-filter i `hentBrukersOrg` (så firma-nivå-medlemsveien, inkl. timeføring, stenger). Men de firma-admin-**spesifikke** rutene som gater direkte på `verifiserFirmaAdmin` (lønnsart-/eksport-oppsett-/onboarding-config m.m.) sjekker fortsatt ikke status. En deaktivert **ikke-admin** feiler disse uansett; hullet gjelder kun en deaktivert person som fortsatt har `firma_admin` i `firmaRoller`. Fiks: sentraliser `verifiserFirmaAdmin`-kopiene og legg status-sjekk der. Lav prioritet (lockout-guarden hindrer selv-deaktivering; scenariet krever at admin A deaktiverer admin B og lar B beholde rollen).
 
 ### 🟡 CLAUDE.md er 375 tegn fra 40k-taket — neste indeksrad bryter det (målt 2026-08-26)
 
@@ -225,7 +250,7 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 > **[triage 2026-08-26]** verifisert åpen — Kan vente (Skjemmer ved 3+-ledds flyt) — egen fase: helt sann; `steg={1}` hardkodet + seed `steg:1`; steg + `utledMinRolle` MÅ fikses sammen.
 
-Fabel har ført disse i [redesign/MASTERPLAN.md](../redesign/MASTERPLAN.md) § Nye backlog-saker. Repo-siden her, med kodereferanser.
+Fabel har ført disse i [redesign/REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Nye backlog-saker. Repo-siden her, med kodereferanser.
 
 **Posisjonsmodellen er i prod siden 2026-08-03** og virker: rutingen teller ledd, ikke rollenavn (`services/flytFakta.ts:151-212`, `packages/shared/src/utils/flytPosisjon.ts`, autorisasjon via `verifiserRetningsrett` i `tilgangskontroll.ts:905-968`). Bestiller/utfører-faggruppene er **ikke rutingsbærende**.
 

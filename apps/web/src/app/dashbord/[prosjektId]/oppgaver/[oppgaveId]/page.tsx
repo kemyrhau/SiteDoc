@@ -757,6 +757,7 @@ export default function OppgaveDetaljSide() {
             recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
+            kanSletteSomOppretter={erMelder && erUtkast}
             onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
           />
           )}

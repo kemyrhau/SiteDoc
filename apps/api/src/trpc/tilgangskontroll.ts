@@ -4,6 +4,72 @@ import { type Permission, PERMISSIONS, utvidTillatelser, avgjorDokumentTilgang, 
 import type { RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 
 /**
+ * Nekt prosjekttilgang når brukerens ansettelse i prosjektets EIER-firma er
+ * deaktivert (registreringsmodell fase 1, 2026-08-28).
+ *
+ * Deaktivering er ÉN reversibel fakta på `OrganizationMember.status`, lest ved
+ * porten — ikke N `periodeSlutt`-skrivinger. Kalles i hver prosjekt-port ETTER
+ * sitedoc_admin-bypass (som beholder tilgang) men FØR firma-admin-bypass (en
+ * deaktivert firma_admin skal ikke slippe inn via erFirmaAdminForProsjekt).
+ *
+ * No-op (tilgang uendret) når:
+ *  - prosjektet er standalone (primaryOrganizationId = null) — ingen eier-firma
+ *  - brukeren ikke er ansatt i eier-firmaet (ingen OrganizationMember-rad) —
+ *    tilgangen eies da av et annet firma / annen kilde, ikke vår å nekte
+ *
+ * Kaster FORBIDDEN KUN når brukeren ER ansatt i eier-firmaet og status="deaktivert".
+ * Firma-nivå-veien (timeføring m.m.) dekkes separat av status-filteret i
+ * `hentBrukersOrg`.
+ */
+export async function krevAktivAnsettelse(
+  userId: string,
+  projectId: string,
+): Promise<void> {
+  const prosjekt = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { primaryOrganizationId: true },
+  });
+  if (!prosjekt?.primaryOrganizationId) return;
+
+  const medlem = await prisma.organizationMember.findUnique({
+    where: {
+      userId_organizationId: {
+        userId,
+        organizationId: prosjekt.primaryOrganizationId,
+      },
+    },
+    select: { status: true },
+  });
+  if (medlem && medlem.status === "deaktivert") {
+    // Brukervendt tekst, vist ordrett der en handling avvises midt i en økt
+    // (mid-økt-håndtering, ansattvelger-runden: ingen polling, ingen streng-matching
+    // — meldingen ER forklaringen). Speiler dashbord-empty-staten for deaktiverte.
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "Ansettelsen din i dette firmaet er deaktivert, så du har ikke lenger tilgang her. Kontakt firmaadministratoren hvis dette er feil.",
+    });
+  }
+}
+
+/**
+ * Org-ID-ene der brukeren har en DEAKTIVERT ansettelse (registreringsmodell fase 1).
+ *
+ * Prosjekt-lister scoper på ProjectMember-eksistens, og de radene ryddes bevisst
+ * IKKE ved deaktivering. Uten dette ville en deaktivert ansatt fortsatt SE (men ikke
+ * kunne åpne) sine gamle prosjekter — lista må derfor ekskludere prosjekter eid av
+ * en org der ansettelsen er deaktivert. Guest-tilgang på annet firmas prosjekt (ingen
+ * OrganizationMember-rad i eier-org) er upåvirket.
+ */
+export async function hentDeaktiverteOrgIder(userId: string): Promise<string[]> {
+  const rader = await prisma.organizationMember.findMany({
+    where: { userId, status: "deaktivert" },
+    select: { organizationId: true },
+  });
+  return rader.map((r) => r.organizationId);
+}
+
+/**
  * Hent brukerens faggruppe-IDer i et prosjekt.
  * Returnerer null for admin (ser alt), string[] for vanlige brukere.
  */
@@ -14,6 +80,8 @@ export async function hentBrukerFaggruppeIder(
   // sitedoc_admin ser alt
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return null;
+
+  await krevAktivAnsettelse(userId, projectId);
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
@@ -45,6 +113,15 @@ export async function verifiserFaggruppeTilhorighet(
   // sitedoc_admin har alltid tilgang
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
+
+  // Deaktivert ansettelse blokkerer opprett — også når person-/faggruppe-bindingen
+  // fortsatt finnes (den ryddes ikke ved deaktivering). Resolve prosjektet fra
+  // faggruppen (opprett er ikke hot-path; ett indeksert oppslag er greit).
+  const fgForGuard = await prisma.faggruppe.findUnique({
+    where: { id: faggruppeId },
+    select: { projectId: true },
+  });
+  if (fgForGuard) await krevAktivAnsettelse(userId, fgForGuard.projectId);
 
   const kobling = await prisma.faggruppeKobling.findFirst({
     where: {
@@ -105,12 +182,19 @@ export async function verifiserFaggruppeTilhorighet(
  * (én bruker = én org). O-4 introduserer eksplisitt primær-flagg når
  * multi-org støttes.
  *
- * @throws BAD_REQUEST hvis bruker har flere OrganizationMember-rader.
- * @returns organizationId, eller null hvis bruker er org-løs (f.eks. sitedoc_admin).
+ * @throws BAD_REQUEST hvis bruker har flere AKTIVE OrganizationMember-rader.
+ * @returns organizationId, eller null hvis bruker er org-løs (f.eks. sitedoc_admin)
+ *          ELLER deaktivert i alle sine firmaer.
+ *
+ * Status-filter (registreringsmodell fase 1, 2026-08-28): kun `status="aktiv"`
+ * teller. Dette dekker HELE firma-nivå-medlemsveien på én linje — inkl. timeføring,
+ * som går via `krevBrukersOrg` (en sluttet arbeider som fortsatt kan føre timer er
+ * et lønnsproblem, ikke bare et innsynsproblem). Bonus: en person deaktivert i firma
+ * A men aktiv i B løser seg nå rent til B i stedet for å kaste multi-org.
  */
 export async function hentBrukersOrg(userId: string): Promise<string | null> {
   const members = await prisma.organizationMember.findMany({
-    where: { userId },
+    where: { userId, status: "aktiv" },
     select: { organizationId: true },
   });
   const [first, ...rest] = members;
@@ -289,7 +373,8 @@ export type HmsHandling = "tilfoyInformasjon" | "sendInn" | "besvar" | "lukk" | 
 
 /**
  * HMS-egen autorisasjonsguard (tilstand × handling × hvem) — dedikert HMS-løp,
- * D2. Rører ALDRI `verifiserFlytRolle`/rolle-matrisen. sitedoc_admin bypasser.
+ * D2. Egen guard ved siden av flytens posisjons-baserte autorisasjon
+ * (`verifiserRetningsrett`), ikke delt med den. sitedoc_admin bypasser.
  *
  * | Handling         | Hvem      | Tilstand                  |
  * |------------------|-----------|---------------------------|
@@ -322,6 +407,8 @@ export async function verifiserHmsHandling(
   if (bruker?.role === "sitedoc_admin") return;
 
   const { bestillerUserId, status, projectId } = sjekkliste;
+
+  await krevAktivAnsettelse(userId, projectId);
 
   const erÅpenBehandling = status === "sent" || status === "received" || status === "responded";
 
@@ -394,6 +481,8 @@ export async function verifiserAdmin(
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
+  await krevAktivAnsettelse(userId, projectId);
+
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
@@ -437,6 +526,8 @@ export async function verifiserProsjektmedlem(
   // sitedoc_admin har alltid tilgang
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
+
+  await krevAktivAnsettelse(userId, projectId);
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
@@ -618,6 +709,8 @@ export async function verifiserAdminEllerFirmaansvarlig(
 
   if (bruker?.role === "sitedoc_admin") return { erAdmin: true };
 
+  await krevAktivAnsettelse(userId, projectId);
+
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
@@ -659,6 +752,8 @@ export async function verifiserDokumentTilgang(
   // oppslaget (admin har ikke nødvendigvis en ProjectMember-rad).
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
+
+  await krevAktivAnsettelse(userId, projectId);
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
@@ -785,10 +880,16 @@ export async function verifiserDokumentTilgang(
 }
 
 /**
- * F3.4: POSISJON-basert autorisasjon (erstatter verifiserFlytRolle sin rolle×status-matrise).
- * Rutingen teller ledd — så autorisasjonen gjør det også: en handling er tillatt hvis brukeren
- * har ballen (er medlem av aktivPosisjon-leddet) eller har terminerings-fullmakt (kanTerminereUtenBall).
+ * F3.4: POSISJON-basert autorisasjon. En handling er tillatt hvis brukeren har ballen
+ * (er medlem av aktivPosisjon-leddet) eller har terminerings-fullmakt (kanTerminereUtenBall).
+ * Rutingen teller ledd — så autorisasjonen gjør det også.
  * Retningsreglene (retningsrettigheter) er ÉN kilde delt med klient (Fase 4).
+ *
+ * HISTORIKK (bevisst bevart her — det ene stedet modellskiftet forklares): dette ERSTATTET
+ * en rolle×status-matrise (`verifiserFlytRolle`, nå slettet), der rettigheten fulgte hvilken
+ * ROLLE du hadde og hvilken STATUS dokumentet sto i. Posisjonsmodellen lar rettigheten følge
+ * POSISJONEN i flyten — hvem som har ballen. Ikke gå tilbake til rolle×status: rutingen
+ * (byggPosisjonsLedd/harBallenPosisjon) forutsetter posisjon, ikke rolle×status.
  *
  *   send      → kanSende (ball-holder)
  *   responded → kanBesvare (ball-holder, kontroll|utfor)
@@ -829,6 +930,11 @@ export async function verifiserRetningsrett(
   nyStatus: string,
   fraStatus: string,
 ): Promise<void> {
+  // Deaktivert ansettelse blokkerer enhver statusendring — også flyt-løse og
+  // videresending. Ligger FØR de tidlige returene så en sluttet arbeider ikke
+  // kan endre status på et flyt-løst dokument (sitedoc_admin no-op-es i helperen).
+  await krevAktivAnsettelse(userId, projectId);
+
   if (medlemmer.length === 0) return; // Flyt-løst dok — bakoverkompat.
   if (nyStatus === "forwarded") return; // Videresend autoriseres i flyt-bytte-grenen (H3).
 
@@ -986,6 +1092,8 @@ export async function byggTilgangsFilter(
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return null;
 
+  await krevAktivAnsettelse(userId, projectId);
+
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {
@@ -1123,6 +1231,8 @@ export async function hentBrukerTillatelser(
   if (bruker?.role === "sitedoc_admin") {
     return new Set([...PERMISSIONS] as Permission[]);
   }
+
+  await krevAktivAnsettelse(userId, projectId);
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
@@ -1412,6 +1522,10 @@ export async function hentBrukerProsjektTilgang(
     where: { id: userId },
     select: { role: true },
   });
+  // sitedoc_admin beholder bypass; alle andre må ha aktiv ansettelse i eier-firma.
+  if (bruker?.role !== "sitedoc_admin") {
+    await krevAktivAnsettelse(userId, projectId);
+  }
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     include: {

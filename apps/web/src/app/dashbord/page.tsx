@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge, Button, EmptyState } from "@sitedoc/ui";
+import { DeaktivertForklaring } from "@/components/DeaktivertForklaring";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -123,6 +124,11 @@ export default function DashbordSide() {
                 )
               }
             />
+          ) : minBruker?.erDeaktivert ? (
+            // Deaktivert ansatt: «Ingen prosjekter» ville sett ut som en feil (og folk
+            // melder feil som ikke finnes). Delt forklaring (også brukt av dashbord/layout
+            // for dyplenke-inngangen) — auth er uendret, det er tilgangen som er av.
+            <DeaktivertForklaring />
           ) : (
             <EmptyState
               title={t("dashbord.venterPaaTilgangTittel")}

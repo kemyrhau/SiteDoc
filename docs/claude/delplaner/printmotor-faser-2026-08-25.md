@@ -108,3 +108,28 @@ ferdig dokument før noen så den. Skjermen sa 129 og dokumentet sa 129 — de v
 enige, og begge tok feil. Enighet mellom to visninger av samme spørring beskytter
 ikke mot at spørringen er gal. Sto radene på skjermen, ville feilen vært synlig der
 den kan fanges.
+
+## ⚠️ Mal-klikket har hatt TRE posisjoner på to dager — les alle før du endrer
+
+Dette er den saken i sporet med størst risiko for at noen «retter tilbake» til noe som
+allerede er forkastet. Alle tre posisjonene er ekte vedtak, tatt i rekkefølge:
+
+| # | Posisjon | Dato | Hvorfor forlatt |
+|---|---|---|---|
+| 1 | **Klikk på mal = eksporter direkte** (fase 3-oppførsel) | 27.08 | Dokumentet forlot huset uten at noen hadde sett det. Prosjektfilter-feilen sto i en ferdig PDF før den ble oppdaget |
+| 2 | **Klikk = anvend malen på skjermen**, eksporter separat | 27.08 | Kenneth i praksis: *«når jeg trykket fakturagrunnlag → skjedde ingen ting»*. Nettlesere laster ned uten fanfare; uten synlig bekreftelse er «anvendt» og «ingenting skjedde» umulig å skille |
+| 3 | **Klikk = anvend PÅ SKJERMEN og last ned** — 🟢 gjeldende | 27.08 | Coworks premiss i #2 var galt: **nedlasting er ikke sending.** Dokumentet forlater huset når e-posten sendes, ikke når fila havner i Downloads. «Se før du sender» holder derfor selv med nedlasting |
+
+🔵 **Neste retning er allerede kjent: arkivering framfor nedlasting.**
+**Kenneth 27.08:** *«ingen ønsker et dokument i nedlastinger for så å flytte/arkivere det
+senere → det må umiddelbart arkiveres, huske hvilken mappe.»*
+
+Fabel eier designet (`relay/fabel-eksport-arkivering.md`, usendt per 28.08). Det harde
+premisset: **`Folder.projectId` er påkrevd** mens timer-rapporten er en **firma**-flate
+der prosjekt bare er et filter — et ufiltrert dokument har ingen mappe å ligge i.
+
+🔴 **Nedlastingsveien (#3) er MIDLERTIDIG, men skal ikke fjernes uten erstatning.** Noen
+trenger fila lokalt — for å legge ved i Outlook, eller laste opp i en kundeportal. Blir
+arkivering bygget, blir «last ned» sannsynligvis «last ned fra arkivet», ikke borte.
+**Eksport-utløseren er derfor bygget samlet ett sted** nettopp for at #3 kan bli
+arkivering uten at flyten rives opp.

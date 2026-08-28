@@ -2,7 +2,7 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
-import { Shield, ShieldAlert, User, Pencil, Plus, X, Sparkles } from "lucide-react";
+import { Shield, ShieldAlert, User, Pencil, Plus, X, Sparkles, UserMinus, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -29,6 +29,8 @@ type BrukerRad = {
   avdelingId: string | null;
   ansattRolle: string;
   firmaRoller: string[];
+  status: string;
+  deaktivertVed: string | Date | null;
 };
 
 export default function FirmaBrukere() {
@@ -46,6 +48,14 @@ export default function FirmaBrukere() {
   const [inviterÅpen, setInviterÅpen] = useState(false);
   const [redigerBruker, setRedigerBruker] = useState<BrukerRad | null>(null);
   const [nyNavPilotÅpen, setNyNavPilotÅpen] = useState(false);
+  const [deaktiverBruker, setDeaktiverBruker] = useState<BrukerRad | null>(null);
+  const [visSluttede, setVisSluttede] = useState(false);
+
+  // Aktiver-igjen: reversibel, benign handling → direkte mutasjon uten bekreftelse.
+  // Deaktivering går via DeaktiverModal (tilgangsendring som rammer en person).
+  const settStatus = trpc.organisasjon.settAnsattStatus.useMutation({
+    onSuccess: () => utils.organisasjon.hentBrukere.invalidate(),
+  });
 
   if (isLoading) {
     return (
@@ -55,6 +65,11 @@ export default function FirmaBrukere() {
     );
   }
 
+  const antallSluttede = brukere?.filter((b) => b.status === "deaktivert").length ?? 0;
+  const synligeBrukere = (brukere ?? []).filter(
+    (b) => visSluttede || b.status !== "deaktivert",
+  );
+
   return (
     <div>
       <SonetonetSidehode sone="firma" className="mb-4">
@@ -63,6 +78,16 @@ export default function FirmaBrukere() {
             {t("firma.ansatte.tittel")}
           </h1>
           <div className="flex items-center gap-2">
+            {antallSluttede > 0 && (
+              <label className="mr-1 flex cursor-pointer items-center gap-1.5 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={visSluttede}
+                  onChange={(e) => setVisSluttede(e.target.checked)}
+                />
+                {t("firma.ansatte.visSluttede", { antall: antallSluttede })}
+              </label>
+            )}
             <button
               onClick={() => setNyNavPilotÅpen(true)}
               disabled={!orgId || !brukere || brukere.length === 0}
@@ -113,23 +138,35 @@ export default function FirmaBrukere() {
               </tr>
             </thead>
             <tbody>
-              {brukere.map((b) => {
+              {synligeBrukere.map((b) => {
                 const erSystemadmin = b.role === "sitedoc_admin";
                 const erFirmaAdmin = b.firmaRoller.includes("firma_admin");
                 const erHmsAnsvarlig = b.firmaRoller.includes("hms_ansvarlig");
+                const erDeaktivert = b.status === "deaktivert";
                 return (
                   <tr
                     key={b.id}
-                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                    className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 ${
+                      erDeaktivert ? "bg-gray-50/60" : ""
+                    }`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100">
                           <User className="h-3.5 w-3.5 text-gray-500" />
                         </div>
-                        <span className="font-medium text-gray-900">
+                        <span
+                          className={`font-medium ${
+                            erDeaktivert ? "text-gray-400" : "text-gray-900"
+                          }`}
+                        >
                           {b.name ?? t("firma.ansatte.utenNavn")}
                         </span>
+                        {erDeaktivert && (
+                          <span className="inline-flex rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                            {t("firma.ansatte.status.sluttet")}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-500">{b.email}</td>
@@ -166,14 +203,43 @@ export default function FirmaBrukere() {
                     </td>
                     <td className="px-4 py-3">
                       {!erSystemadmin && (
-                        <button
-                          onClick={() => setRedigerBruker(b)}
-                          aria-label={t("firma.ansatte.rediger.iconLabel")}
-                          title={t("firma.ansatte.rediger.iconLabel")}
-                          className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setRedigerBruker(b)}
+                            aria-label={t("firma.ansatte.rediger.iconLabel")}
+                            title={t("firma.ansatte.rediger.iconLabel")}
+                            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          {erDeaktivert ? (
+                            <button
+                              onClick={() =>
+                                orgId &&
+                                settStatus.mutate({
+                                  userId: b.id,
+                                  organizationId: orgId,
+                                  aktiv: true,
+                                })
+                              }
+                              disabled={settStatus.isPending}
+                              aria-label={t("firma.ansatte.aktiver.iconLabel")}
+                              title={t("firma.ansatte.aktiver.iconLabel")}
+                              className="rounded-md p-1 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
+                            >
+                              <UserCheck className="h-3.5 w-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setDeaktiverBruker(b)}
+                              aria-label={t("firma.ansatte.deaktiver.iconLabel")}
+                              title={t("firma.ansatte.deaktiver.iconLabel")}
+                              className="rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                            >
+                              <UserMinus className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -215,6 +281,96 @@ export default function FirmaBrukere() {
           onLukk={() => setNyNavPilotÅpen(false)}
         />
       )}
+
+      {deaktiverBruker && orgId && (
+        <DeaktiverModal
+          bruker={deaktiverBruker}
+          organizationId={orgId}
+          onLukk={() => setDeaktiverBruker(null)}
+          onSuksess={() => {
+            utils.organisasjon.hentBrukere.invalidate();
+            setDeaktiverBruker(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Bekreftelse for deaktivering — en tilgangsendring som rammer en person, så egen
+// modal (ikke confirm()). Mikrotekst-standard: sier hva som skjer (mister tilgang til
+// firmaets prosjekter) OG hva som IKKE skjer (alt personen har ført/opprettet står
+// urørt med ham som forfatter).
+function DeaktiverModal({
+  bruker,
+  organizationId,
+  onLukk,
+  onSuksess,
+}: {
+  bruker: BrukerRad;
+  organizationId: string;
+  onLukk: () => void;
+  onSuksess: () => void;
+}) {
+  const { t } = useTranslation();
+  const deaktiver = trpc.organisasjon.settAnsattStatus.useMutation({
+    onSuccess: () => onSuksess(),
+  });
+  const navn = bruker.name ?? t("firma.ansatte.utenNavn");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
+            <UserMinus className="h-4 w-4 text-red-500" />
+            {t("firma.ansatte.deaktiver.tittel", { navn })}
+          </h2>
+          <button
+            onClick={onLukk}
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            aria-label={t("handling.avbryt")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-3 px-5 py-4">
+          <p className="text-sm text-gray-700">
+            {t("firma.ansatte.deaktiver.hva", { navn })}
+          </p>
+          <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-500">
+            {t("firma.ansatte.deaktiver.ikke")}
+          </p>
+          {deaktiver.isError && (
+            <p className="text-sm text-red-500">{deaktiver.error.message}</p>
+          )}
+          <div className="flex justify-end gap-2 border-t border-gray-200 pt-3">
+            <button
+              type="button"
+              onClick={onLukk}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              {t("handling.avbryt")}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                deaktiver.mutate({
+                  userId: bruker.id,
+                  organizationId,
+                  aktiv: false,
+                })
+              }
+              disabled={deaktiver.isPending}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deaktiver.isPending
+                ? t("firma.ansatte.deaktiver.lagrer")
+                : t("firma.ansatte.deaktiver.bekreft")}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
