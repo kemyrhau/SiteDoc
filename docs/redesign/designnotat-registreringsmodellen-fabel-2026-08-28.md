@@ -180,3 +180,58 @@ som skal ha timer/maskin/varelager, uten å stenge noe. Håndheving berører mob
 og skal måles før den loves — å stenge folk ute midt i en pilot er en dyr måte å
 oppdage en feilkonfigurasjon på. Registreringen gir dataene til å se hva håndheving
 faktisk ville gjort.
+
+---
+
+## 🟢 KENNETH-VEDTAK 2026-08-28 (2) — tilgangsmodellen i lag, og kryssfirma-spørsmålet
+
+### Modellen, slik Kenneth formulerte den
+
+```
+User.canLogin                    ← porten: kan personen autentisere i det hele tatt
+├─ Firmabruker (OrganizationMember, status="aktiv")
+│    → prosjekter (ProjectMember) + moduler aktivert i prosjektet (ProjectModule)
+│    → firma-flater: timer · varelager · maskin — dersom firmaet har dem
+│      (OrganizationModule)
+└─ Uten firma, eller ansatt i et EKSTERNT firma
+     → kun prosjektet + modulene brukeren er gitt tilgang til
+```
+
+**Kenneths regel: samme forhold skal ikke sjekkes i to forskjellige kodeavsnitt.**
+
+Målt 2026-08-28: `canLogin` er allerede riktig plassert som **portvakt** — den håndheves
+ved autentisering (`apps/web/src/auth.ts:24`), så en deaktivert bruker kommer ikke inn.
+Bruddet ligger i **kandidatfiltrene**: «hvem kan jeg velge blant» er håndskrevet seks
+steder (`gruppe.ts:334`, `medlem.ts:189`/`:206`/`:572`, `organisasjon.ts:644`).
+
+Det er der buggen oppsto: `hentLedigeFirmaBrukere` husket `canLogin` og glemte `status`,
+slik at en deaktivert ansatt sto synlig og valgbar. Ikke uoppmerksomhet — regelen
+«brukbar person i dette firmaet» finnes ikke noe sted og gjenskapes hver gang.
+**Fiks: én delt hjelper, ikke seks rettede where-setninger.**
+
+### Kryssfirma: kan firma B trekke folkene sine ut av firma A sitt prosjekt?
+
+**Kenneth:** *«firma B må kunne deaktivere sine egne ansatte — de skal ikke få fortsette
+som om de jobber i firma B ved å opprette oppgaver og sjekklister på vegne av et firma de
+ikke er ansatt i. Dersom brukeren har en firma-e-post vil OAuth automatisk slutte å virke.
+Dersom e-posten er privat, må kanskje firma A ta ansvar for sitt eget prosjekt.»*
+
+Skaden er presist identifisert: ikke at hun *ser* prosjektet, men at hun **handler på
+vegne av et firma hun ikke jobber i**.
+
+**Vedtak: ingenting bygges.** To målinger avgjorde det:
+
+1. **Det finnes ingen passord-innlogging.** `auth.ts` har kun Google og Microsoft Entra
+   ID — ingen Credentials-provider. Dør firma-e-posten hos identitetsleverandøren, finnes
+   det ingen bakvei inn. Kenneths OAuth-argument er ikke bare sannsynlig, det er lukket.
+2. **En kirurgisk fiks er ikke uttrykkbar.** Cowork foreslo å kutte bindingen til firma
+   B sin faggruppe og la prosjekttilgangen stå — men `Faggruppe` har `projectId` og
+   **ingen `organizationId`**. En faggruppe vet ikke hvilket firma den representerer.
+
+**Restrisiko, akseptert:** en person med **privat** e-post, deaktivert i firma B, kan
+handle på vegne av B til firma A fjerner henne fra prosjektet. Firma A eide invitasjonen
+og eier opprydningen. Prisen for å lukke den er `organizationId` på `Faggruppe` — en
+modellendring for et kanttilfelle. **Tas ikke nå.**
+
+🔴 **Dette er et vedtak, ikke et hull.** Finner noen det igjen: les dette avsnittet før du
+starter arkitektur-diskusjonen på nytt.
