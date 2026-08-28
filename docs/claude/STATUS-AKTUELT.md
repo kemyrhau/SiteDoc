@@ -370,6 +370,10 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟢 ANSVARLIG-kolonnen navnga feil faggruppe på utkast (branch `fix/ansvarlig-kolonne`, fra develop) — PÅ BRANCH, venter dual-review + gate
+
+Kenneth-funn (prod): sjekklistelista viste faggruppenavn i ANSVARLIG på utkast. `formaterAnsvarlig` (sjekklister/page.tsx + IDENTISK i oppgaver/page.tsx) falt tilbake på `utforerFaggruppe.name` når dokumentet ikke var sendt — en faggruppe som ennå ikke hadde fått ansvar (utkast har verken `recipientUser` eller `recipientGroup`). Kenneth-vedtak: ansvarlig = den/de i flyten som skal svare ut dokumentet; **utkast → oppretteren** (`rad.bestiller?.name`), **ellers ingen mottaker → tom** («—» i cella). Ledd 1–2 (mottaker-person/-gruppe) beholdt. Fikset begge sider: funksjonen returnerer **tom streng** (ikke «—») så filterbyggingen (`bygg()` → Boolean-filter) ikke får en «—»-oppføring — cella rendrer «—», samme mønster som `opprettetAv`. Filter- OG sorteringsveien treffer `formaterAnsvarlig` begge steder → dekket. **Måling (mål-før-utvid):** den buggede fallbacken finnes KUN i disse to filene; HMS-flatene (`HmsFlytStripe`/`HmsFlytKort`/`flyt-ledd`) bruker «ansvarlig» i en annen, korrekt betydning (HMS-behandler/`erHovedansvarlig`) — ikke rørt. Ingen nye i18n-nøkler. Grønt: typecheck web, `pnpm test` 189/189. **Ingen prod.** Reload: n/a (web).
+
 ### ✅ ARKIVERT — prod-deploy 2026-08-28 (`ba234fd1`, 26 commits) → [historikk-2026-08.md](historikk-2026-08.md)
 
 Registreringsmodell fase 1 (ansatt-status-guard i 11 porter), ansattvelger + delt `services/ansatt.ts`, fundament ut av gruppemodul, tre slettevakter, deaktivert bruker på dyplenke, død kode (`@xenova`). Verifisert innlogget 28.08. Migrering `20260828120000_organization_member_status` kjørt; `db-timer`/`db-maskin`/`db-varelager` sjekket — ingen ventende.

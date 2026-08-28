@@ -136,10 +136,17 @@ function formaterLopenummer(rad: SjekklisteRad): string {
   return rad.number ? String(rad.number).padStart(3, "0") : "—";
 }
 
+// Ansvarlig = den/de i flyten som har ansvar for å svare ut dokumentet (Kenneth-vedtak
+// 2026-08-28). Reell mottaker (person/gruppe) er et ekte ansvar. Et UTKAST er ikke sendt
+// og har ingen mottaker → ansvarlig er oppretteren som holder det nå. Ellers (ingen
+// mottaker, ikke utkast) er det ingen faktisk ansvarlig ennå → tom («—» i cella). Falt
+// FØR tilbake på utforerFaggruppe, som navnga en faggruppe som ennå ikke hadde fått ansvar.
+// Tom streng (ikke «—») så filterbyggingen (bygg → Boolean-filter) ikke får en «—»-oppføring.
 function formaterAnsvarlig(rad: SjekklisteRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return rad.utforerFaggruppe.name;
+  if (rad.status === "draft") return rad.bestiller?.name ?? "";
+  return "";
 }
 
 function formaterDato(dato: string | null): string {
@@ -704,14 +711,16 @@ export default function SjekklisteSide() {
         filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }] },
       ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"),
         celle: (rad) => {
-          // Person → User-ikon; gruppe/faggruppe → Users-ikon (lite, dempet).
-          // Speil formaterAnsvarlig: person kun når recipientUser har navn.
-          const erPerson = !!rad.recipientUser?.name;
+          const ansvarlig = formaterAnsvarlig(rad);
+          if (!ansvarlig) return <span className="text-gray-300">—</span>;
+          // Person (mottaker-person ELLER utkastets oppretter) → User-ikon;
+          // gruppe/faggruppe → Users-ikon (lite, dempet).
+          const erPerson = !!rad.recipientUser?.name || (rad.status === "draft" && !!rad.bestiller?.name);
           const Ikon = erPerson ? User : Users;
           return (
             <span className="inline-flex items-center text-gray-600">
               <Ikon className="mr-1 h-3 w-3 text-gray-400" />
-              {formaterAnsvarlig(rad)}
+              {ansvarlig}
             </span>
           );
         },
