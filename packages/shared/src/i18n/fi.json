@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Tarkistuslistat ({{antall}})",
   "malbygger.oppgaverBruk": "Tehtävät ({{antall}})",
   "malbygger.ingenBruk": "Mikään tarkistuslista tai tehtävä ei käytä tätä kenttää.",
+  "malbygger.slettFeiletTittel": "Poistaminen epäonnistui",
   "malbygger.tvingSlett": "Pakota poistaminen (testi)",
   "prosjektoppsett.tittel": "Projektin asetukset",
   "prosjektoppsett.firmalogo": "Yrityksen logo",

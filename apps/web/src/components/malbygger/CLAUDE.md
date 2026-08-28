@@ -50,11 +50,20 @@ API returnerer flat array. `byggTre()` i MalBygger:
 
 ## Slett-validering
 
-Sletting av rapportobjekter blokkeres hvis data finnes:
-1. `mal.sjekkObjektBruk` — JSONB `?|` operator sjekker sjekklister + oppgaver (inkl. alle etterkommere)
+Sletting av rapportobjekter blokkeres hvis **faktisk innhold** finnes:
+1. `mal.sjekkObjektBruk` (klient) og `mal.slettObjekt` (server-guard) deler predikatet
+   `harFaktiskInnholdForObjekt` (`mal.ts`) — teller kun sjekklister/oppgaver med FAKTISK
+   lagret verdi/kommentar/vedlegg for objektet (eller en etterkommer), i AKTIVE dokumenter
+   (`deleted_at IS NULL`). Skjerpet 2026-08-28: `?|` (nøkkel finnes) ga falsk positiv fordi
+   klienten auto-lagrer `{verdi:null,kommentar:"",vedlegg:[]}` for hvert felt så snart et
+   dokument åpnes; og soft-slettede dokumenter blokkerte i det uendelige. Begge må bruke
+   SAMME predikat — ellers sier klienten «ingen bruk», serveren nekter, og optimistisk
+   fjerning rulles stille tilbake ved refetch.
 2. `SlettBekreftelse`-modal viser berørte dokumenter
 3. Slett-knappen skjules helt ved bruk
-4. DB CASCADE sletter barn automatisk
+4. Feiler serverslettingen likevel, vises serverens melding (`malbygger.slettFeiletTittel`
+   + `error.message`) i stedet for stille rollback (`slettMutation.onError`)
+5. DB CASCADE sletter barn automatisk
 
 ## Rekkefølge-sortering
 

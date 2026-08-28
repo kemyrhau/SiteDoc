@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Checklisten ({{antall}})",
   "malbygger.oppgaverBruk": "Aufgaben ({{antall}})",
   "malbygger.ingenBruk": "Dieses Feld wird von keiner Checkliste oder Aufgabe verwendet.",
+  "malbygger.slettFeiletTittel": "Das Löschen ist fehlgeschlagen",
   "malbygger.tvingSlett": "Löschen erzwingen (Test)",
   "prosjektoppsett.tittel": "Projekteinstellungen",
   "prosjektoppsett.firmalogo": "Firmenlogo",

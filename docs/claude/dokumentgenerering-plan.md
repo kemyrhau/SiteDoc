@@ -106,6 +106,16 @@ Målingen snudde antakelsen om omfang — **det meste finnes allerede:**
   skal bygges** — sorteringen beskytter mot enhver fremtidig verdi-ekvivalens, ikke
   bare vær.
 
+> ⚠️ **Datamåling 2026-08-28 — «dropp tomme felter» kan ALDRI stole på nøkkel-eksistens.**
+> Å bare ÅPNE et dokument auto-lagrer en tom felt-oppføring `{ verdi:null, kommentar:"",
+> vedlegg:[] }` for HVERT ikke-display-felt (klienten sender hele feltverdi-mappen ved
+> auto-lagring: `useSjekklisteSkjema`/`useOppgaveSkjema`). `Checklist.data`/`Task.data` har
+> derfor nøkler for felt ingen har fylt ut. Enhver «skjul/dropp uutfylt»-logikk må teste
+> **verdien** (`data[objId]?.verdi` tom = `null`/`""`/`[]`/`{}`, evt. tom kommentar+vedlegg),
+> aldri `data ? key` / `?|` (nøkkel finnes). `packages/pdf/src/felt.ts:32` gjør allerede
+> dette riktig (`tom = verdi === null || undefined || ""`). Samme fella traff malobjekt-
+> slettevakten (`mal.ts`, rettet 2026-08-28 med `harFaktiskInnholdForObjekt`).
+
 **Beslutning som avgjør størrelsen:** godtar vi dagens implisitte «første
 `date_time`-felt»-konvensjon, kollapser malbygger-jobben til nesten null og vær
 blir ren snapshot-plumbing. Krever vi eksplisitt utpeking, må det bygges ny

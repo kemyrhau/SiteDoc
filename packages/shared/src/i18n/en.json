@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Checklists ({{antall}})",
   "malbygger.oppgaverBruk": "Tasks ({{antall}})",
   "malbygger.ingenBruk": "No checklists or tasks use this field.",
+  "malbygger.slettFeiletTittel": "Deletion failed",
   "malbygger.tvingSlett": "Force delete (test)",
   "prosjektoppsett.tittel": "Project settings",
   "prosjektoppsett.firmalogo": "Company logo",

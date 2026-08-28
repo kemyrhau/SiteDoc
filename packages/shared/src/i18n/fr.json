@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Listes de contrôle ({{antall}})",
   "malbygger.oppgaverBruk": "Tâches ({{antall}})",
   "malbygger.ingenBruk": "Aucune liste de contrôle ou tâche n'utilise ce champ.",
+  "malbygger.slettFeiletTittel": "La suppression a échoué",
   "malbygger.tvingSlett": "Forcer la suppression (test)",
   "prosjektoppsett.tittel": "Paramètres du projet",
   "prosjektoppsett.firmalogo": "Logo de l'entreprise",
