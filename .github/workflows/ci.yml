@@ -1,8 +1,14 @@
 name: CI
 
 # Trinn 1 (bevisst smalt): kjør tester på PR mot develop.
-# Lint og typecheck er IKKE med — de har bred pre-eksisterende gjeld
+# Lint og WEB-typecheck er IKKE med — de har bred pre-eksisterende gjeld
 # og føres som egen sak. En rød CI dag én blir ignorert.
+#
+# Unntak (lagt til 2026-08-28): MOBIL-typecheck ER med. Den ble ryddet grønn
+# 2026-07-30 (`fba830da`) nettopp for å kunne blokkere, så gjelds-argumentet
+# over gjelder ikke den. Regel 10 i SAMARBEIDSREGLER har krevd den før merge
+# hele tiden og er blitt brutt gjentatte ganger — fordi regelen bare sto i et
+# dokument noen måtte huske å lese. Her håndheves den av maskinen i stedet.
 #
 # Kjører både på pull_request og ved push til develop: merge-konvensjonen
 # er `git push origin HEAD:develop` fra et merge-tre (uten PR), så uten
@@ -48,3 +54,11 @@ jobs:
           pnpm --filter @sitedoc/db-varelager exec prisma generate
 
       - run: pnpm test
+
+      # Regel 10, mobil-halvdelen. `if: always()` fordi en rød test ellers ville
+      # skjult en rød typecheck — vi vil se begge, ikke den første som feiler.
+      # Forutsetter Prisma-klientene generert over: uten dem rapporterer tsc
+      # 400+ falske «implicit any» fra ugenererte .prisma/*-client.
+      - name: Mobil typecheck (regel 10)
+        if: always()
+        run: pnpm --filter @sitedoc/mobile typecheck
