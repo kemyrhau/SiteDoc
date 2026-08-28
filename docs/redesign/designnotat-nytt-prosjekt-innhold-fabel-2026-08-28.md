@@ -124,6 +124,19 @@ har prosjekter, men er ikke forhåndsvalgt. Begrunnelse: en forhåndsvalgt kopi 
 annet prosjekts faggrupper og flyt stille, og første gang det er feil må brukeren
 oppdage noe han aldri valgte. Kan snus senere med bruksdata — fabels anbefaling fulgt.
 
+**2. ⚠️ SNUDD SAMME DAG — les
+[designnotat-registreringsmodellen-fabel-2026-08-28.md](designnotat-registreringsmodellen-fabel-2026-08-28.md)
+§ «Kopi-fra-prosjekt består som tillegg» FØR du bygger dette.** Vedtaket under står som
+det ble tatt, men er **erstattet**: medlemskopi-som-avhuking avløses av
+`prosjektTilgang`-regelen per ansatt (`alle`/`avdeling`/`manuell`) — regelen svarer på
+spørsmålet avhukingen prøvde å stille, og gjør den overflødig. Grunnen til snuingen var
+at ansatt-livssyklusen ikke var premiss da dette vedtaket ble tatt.
+
+🔴 **`relay/inbox-kopier-prosjektoppsett.md` krever fortsatt avhukingen og skal IKKE
+relayes uendret.**
+
+Det opprinnelige vedtaket, bevart:
+
 **2. Medlemmer kopieres, som avhuking.** Ikke tomme skall som standard-eneste-vei.
 Gruppene («Ansatte», «Ledelse») er rollebaserte og de samme personene går igjen på
 tvers av prosjekter, så skall-uten-folk ville betydd å bemanne på nytt hver gang.

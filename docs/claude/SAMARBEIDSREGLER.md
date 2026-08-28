@@ -103,6 +103,33 @@ funnene i repoet, mister en ny økt ingenting — den leser seg opp på sekunder
 samtalen, tør ingen avslutte, og da blir økten lang og dyr. De to reglene henger sammen: skriv
 til fil, så kan du starte ferskt.
 
+🔴 **Et SNUDD vedtak rettes DER DET STO — ikke bare der det ble snudd.**
+(Kenneth 2026-08-28: *«en alvorlig risiko er at vi om en uke starter å endre tilbake på noe
+som virker til noe som ikke virker — fjerner funksjoner vi har måttet legge til
+underveis.»*)
+
+Når vi endrer mening midt i en runde, skriver vi det nye vedtaket der det ble tatt — og
+lar det gamle stå uendret et annet sted. Den som leser det gamle først, bygger det
+forkastede.
+
+**To ekte tilfeller funnet 2026-08-28:**
+- `designnotat-nytt-prosjekt-innhold` bar Kenneth-vedtaket «medlemskopi som avhuking»;
+  `designnotat-registreringsmodellen` hadde erstattet det samme dag. Den første sa
+  ingenting. Ordren som krevde avhukingen lå fortsatt klar til relay.
+- Mal-klikket hadde **tre** posisjoner på to dager (eksporter → anvend → anvend+last ned,
+  og arkivering som neste). Faseplanen hadde én av dem.
+
+**Regelen:** rett originalen med en ⚠️-blokk som sier at vedtaket er snudd, av hvem, når
+og hvorfor — og **behold det gamle vedtaket synlig under**. Slett det aldri; da mister
+neste leser begrunnelsen for at vi ikke går tilbake.
+
+🔴 **Og: `relay/` er GITIGNORERT.** Vedtak som bare står i en ordre, forsvinner når
+agenten avsluttes. **Skal en beslutning overleve, skriv den i et repo-dokument** — ordren
+er arbeidsseddel, ikke arkiv. Det gjelder særlig «ikke fjern dette»-beslutninger:
+«Inviter ny person» blir stående · aggregat-arkene i Excel består · `skalEksporteres` er
+ferdig · ID-kolonnene er koblingsnøkkel · `canLogin` og `status` skal ikke konsolideres.
+Alle fem er ting noen ellers ville ryddet bort i god tro.
+
 🔴 **Det dyre overlever et exit — kunnskapen om at det står der gjør det ikke.** SSH-tunneler,
 installerte simulator-bygg, kjørende dev-servere og genererte `node_modules` er prosesser og
 filer på Kenneths maskin; de dør ikke med agent-økta. Det som forsvinner er at noen VET at de
