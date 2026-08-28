@@ -250,7 +250,7 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 > **[triage 2026-08-26]** verifisert åpen — Kan vente (Skjemmer ved 3+-ledds flyt) — egen fase: helt sann; `steg={1}` hardkodet + seed `steg:1`; steg + `utledMinRolle` MÅ fikses sammen.
 
-Fabel har ført disse i [redesign/MASTERPLAN.md](../redesign/MASTERPLAN.md) § Nye backlog-saker. Repo-siden her, med kodereferanser.
+Fabel har ført disse i [redesign/REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-MASTERPLAN.md) § Nye backlog-saker. Repo-siden her, med kodereferanser.
 
 **Posisjonsmodellen er i prod siden 2026-08-03** og virker: rutingen teller ledd, ikke rollenavn (`services/flytFakta.ts:151-212`, `packages/shared/src/utils/flytPosisjon.ts`, autorisasjon via `verifiserRetningsrett` i `tilgangskontroll.ts:905-968`). Bestiller/utfører-faggruppene er **ikke rutingsbærende**.
 

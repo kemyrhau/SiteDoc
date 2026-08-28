@@ -22,7 +22,7 @@ kilde: ført av cowork fra fabel-relay. Fabels arbeidskopi i designprosjektet �
 
 **Cowork-måling: det lå IKKE i planen.** `SonetonetSidehode` er brukt på nøyaktig to filer i dag (`[prosjektId]/hms/page.tsx` + `firma/hms/page.tsx`) — HMS var pilot, og utrulling til øvrige sider stod ingen steder. Det er mangelen.
 
-**Krav lagt til K3-leveransen:** `SonetonetSidehode` rulles ut på **alle firma- og prosjektsider samtidig med K3**, ikke bare HMS. Sonetonen (amber=firma/blå=prosjekt) blir da et konsistent nivåsignal på hver side, ikke en HMS-særegenhet. Sideinventar: [MASTERPLAN § Flate-inventar](../../redesign/MASTERPLAN.md) — cowork måler eksakt liste ved ordreskriving.
+**Krav lagt til K3-leveransen:** `SonetonetSidehode` rulles ut på **alle firma- og prosjektsider samtidig med K3**, ikke bare HMS. Sonetonen (amber=firma/blå=prosjekt) blir da et konsistent nivåsignal på hver side, ikke en HMS-særegenhet. Sideinventar: [MASTERPLAN § Flate-inventar](../../redesign/REDESIGN-MASTERPLAN.md) — cowork måler eksakt liste ved ordreskriving.
 
 ---
 
@@ -101,4 +101,4 @@ De tre øvrige (sticky-byggeplass-fallback, default-åpent = grunneste uavklarte
 
 ## Fasit ved ordreskriving
 
-§ 3a i beslutningskartet + skjermbilder. **Begge ligger i designprosjektet, ikke i repoet** — må relayes av Kenneth til utførende Opus (jf. [MASTERPLAN § filkart](../../redesign/MASTERPLAN.md)).
+§ 3a i beslutningskartet + skjermbilder. **Begge ligger i designprosjektet, ikke i repoet** — må relayes av Kenneth til utførende Opus (jf. [MASTERPLAN § filkart](../../redesign/REDESIGN-MASTERPLAN.md)).
