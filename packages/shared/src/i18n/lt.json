@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Kontroliniai sąrašai ({{antall}})",
   "malbygger.oppgaverBruk": "Užduotys ({{antall}})",
   "malbygger.ingenBruk": "Šis laukas nenaudojamas jokiuose kontroliniuose sąrašuose ar užduotyse.",
+  "malbygger.slettFeiletTittel": "Nepavyko ištrinti",
   "malbygger.tvingSlett": "Priverstinai ištrinti (bandyti)",
   "prosjektoppsett.tittel": "Projekto nustatymai",
   "prosjektoppsett.firmalogo": "Įmonės logotipas",

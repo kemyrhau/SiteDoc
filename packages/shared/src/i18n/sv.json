@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Checklistor ({{antall}})",
   "malbygger.oppgaverBruk": "Uppgifter ({{antall}})",
   "malbygger.ingenBruk": "Inga checklistor eller uppgifter använder detta fält.",
+  "malbygger.slettFeiletTittel": "Raderingen misslyckades",
   "malbygger.tvingSlett": "Tvinga radering (testa)",
   "prosjektoppsett.tittel": "Projektinställningar",
   "prosjektoppsett.firmalogo": "Företagets logotyp",

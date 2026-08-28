@@ -1,12 +1,60 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import type { Prisma } from "@sitedoc/db";
+import { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET, KUN_SLETTET } from "../utils/softDelete";
 import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
 import type { OversettelsesMotor } from "../services/oversettelse-service";
+
+/**
+ * Slett-vern-predikat (2026-08-28): et rapportobjekt teller som «i bruk» KUN når et
+ * dokument har FAKTISK lagret innhold for det (eller en etterkommer) — ikke bare en
+ * åpnet-men-tom nøkkel. Klienten auto-lagrer `{ verdi:null, kommentar:"", vedlegg:[] }`
+ * for HVERT felt så snart dokumentet åpnes (useSjekklisteSkjema/useOppgaveSkjema), så
+ * `data ?| keys` (nøkkel finnes) talte ethvert *åpnet* dokument som bruk — en falsk
+ * positiv som blokkerte malredigering (Kenneth-funn). Kanonisk form er
+ * `{ "<objektId>": { verdi, kommentar, vedlegg } }`; rå skalarverdier (eldre data)
+ * håndteres av else-grenen. «Tomt» = `null` / `""` / `[]` / `{}`.
+ *
+ * Deles av `sjekkObjektBruk` (klient-sjekk) OG `slettObjekt` (server-guard) så de to
+ * ALLTID er enige — uenighet ga stille optimistisk fjerning + gjenoppretting ved refetch.
+ */
+function harFaktiskInnholdForObjekt(sletteIder: string[]): Prisma.Sql {
+  return Prisma.sql`
+    EXISTS (
+      SELECT 1 FROM jsonb_each(data) AS e(key, value)
+      WHERE e.key = ANY(${sletteIder})
+        AND CASE
+          WHEN jsonb_typeof(e.value) = 'object' THEN
+            CASE
+              WHEN (e.value ? 'verdi' OR e.value ? 'kommentar' OR e.value ? 'vedlegg') THEN (
+                   (e.value -> 'verdi' IS NOT NULL
+                     AND e.value -> 'verdi' <> 'null'::jsonb
+                     AND e.value -> 'verdi' <> '""'::jsonb
+                     AND e.value -> 'verdi' <> '[]'::jsonb
+                     AND e.value -> 'verdi' <> '{}'::jsonb)
+                OR (e.value -> 'kommentar' IS NOT NULL
+                     AND e.value -> 'kommentar' <> 'null'::jsonb
+                     AND e.value -> 'kommentar' <> '""'::jsonb)
+                OR (e.value -> 'vedlegg' IS NOT NULL
+                     AND e.value -> 'vedlegg' <> 'null'::jsonb
+                     AND e.value -> 'vedlegg' <> '[]'::jsonb)
+              )
+              -- ukjent objektform (ikke {verdi,...}): konservativt «i bruk» om ikke tomt
+              ELSE e.value <> '{}'::jsonb
+            END
+          -- rå skalar/array direkte under nøkkelen (eldre data)
+          ELSE (
+            e.value <> 'null'::jsonb
+            AND e.value <> '""'::jsonb
+            AND e.value <> '[]'::jsonb
+          )
+        END
+    )
+  `;
+}
 
 // Config-schema: aksepterer vilkårlig JSON for rapportobjekt-konfigurasjon
 const configSchema = z.preprocess(
@@ -629,23 +677,23 @@ export const malRouter = router({
       }
       finnEtterkommere(input.id);
 
-      // Hent sjekklister med data for noen av disse IDene (JSONB ?| operator)
-      const sjekklisteIder = await ctx.prisma.$queryRaw<{ id: string }[]>`
+      // Hent sjekklister med FAKTISK innhold for noen av disse IDene (ikke bare nøkkel).
+      const sjekklisteIder = await ctx.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM checklists
         WHERE template_id = ${objekt.templateId}
         AND deleted_at IS NULL
         AND data IS NOT NULL
-        AND data ?| ${sletteIder}
-      `;
+        AND ${harFaktiskInnholdForObjekt(sletteIder)}
+      `);
 
-      // Hent oppgave-IDer med data for noen av disse IDene
-      const oppgaveIder = await ctx.prisma.$queryRaw<{ id: string }[]>`
+      // Hent oppgave-IDer med FAKTISK innhold for noen av disse IDene
+      const oppgaveIder = await ctx.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM tasks
         WHERE template_id = ${objekt.templateId}
         AND deleted_at IS NULL
         AND data IS NOT NULL
-        AND data ?| ${sletteIder}
-      `;
+        AND ${harFaktiskInnholdForObjekt(sletteIder)}
+      `);
 
       // Hent detaljer for berørte sjekklister
       const sjekklister = sjekklisteIder.length > 0
@@ -685,11 +733,14 @@ export const malRouter = router({
       const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
       await verifiserAdmin(ctx.userId, objekt.template.projectId);
 
-      // Slett-vern (2026-08-10): objekt (+ etterkommere) med data i sjekklister/
-      // oppgaver kan ikke slettes — Task.data/Checklist.data (JSONB nøklet på
-      // ReportObject.id) ville blitt uleselig. Server-guard; UI hadde bare
-      // `sjekkObjektBruk` (skjuler knappen), ingen håndhevelse. Teller aktive OG
-      // papirkurv (samme begrunnelse som slettMal).
+      // Slett-vern (2026-08-10, skjerpet 2026-08-28): objekt (+ etterkommere) med
+      // FAKTISK innhold i en AKTIV sjekkliste/oppgave kan ikke slettes — Task.data/
+      // Checklist.data (JSONB nøklet på ReportObject.id) ville blitt uleselig. Server-
+      // guard; UI har `sjekkObjektBruk` (skjuler knappen) som nå bruker SAMME predikat.
+      // To retting (Kenneth-funn): (1) `deleted_at IS NULL` — en soft-slettet sjekkliste
+      // skal ikke blokkere i det uendelige; papirkurven var før en evig sperre. (2)
+      // verdi-basert bruk-sjekk i stedet for `?|` (nøkkel finnes) — se
+      // `harFaktiskInnholdForObjekt`. Behold vakten: et felt som ER i bruk nektes fortsatt.
       const alleObjekter = await ctx.prisma.reportObject.findMany({
         where: { templateId: objekt.templateId },
         select: { id: true, parentId: true },
@@ -705,8 +756,8 @@ export const malRouter = router({
       };
       finnEtterkommere(input.id);
       const [sjekkMed, oppgMed] = await Promise.all([
-        ctx.prisma.$queryRaw<{ n: bigint }[]>`SELECT count(*) AS n FROM checklists WHERE template_id = ${objekt.templateId} AND data IS NOT NULL AND data ?| ${sletteIder}`,
-        ctx.prisma.$queryRaw<{ n: bigint }[]>`SELECT count(*) AS n FROM tasks WHERE template_id = ${objekt.templateId} AND data IS NOT NULL AND data ?| ${sletteIder}`,
+        ctx.prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT count(*) AS n FROM checklists WHERE template_id = ${objekt.templateId} AND deleted_at IS NULL AND data IS NOT NULL AND ${harFaktiskInnholdForObjekt(sletteIder)}`),
+        ctx.prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT count(*) AS n FROM tasks WHERE template_id = ${objekt.templateId} AND deleted_at IS NULL AND data IS NOT NULL AND ${harFaktiskInnholdForObjekt(sletteIder)}`),
       ]);
       const antall = Number(sjekkMed[0]?.n ?? 0) + Number(oppgMed[0]?.n ?? 0);
       if (antall > 0) {

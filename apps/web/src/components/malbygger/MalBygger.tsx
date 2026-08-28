@@ -162,6 +162,7 @@ export function MalBygger({ mal }: MalByggerProps) {
   const [visForhandsvisning, setVisForhandsvisning] = useState(false);
   const [aktivtDrag, setAktivtDrag] = useState<Active | null>(null);
   const [slettBekreftelse, setSlettBekreftelse] = useState<{ id: string; label: string } | null>(null);
+  const [slettFeil, setSlettFeil] = useState<string | null>(null);
   const [visSpraakVelger, setVisSpraakVelger] = useState(false);
 
   // PSI: hent psi-data (languages) via templateId
@@ -248,6 +249,14 @@ export function MalBygger({ mal }: MalByggerProps) {
     onSuccess: (_data: unknown, variabler: { id: string }) => {
       setObjekter((prev) => prev.filter((o) => o.id !== variabler.id));
       if (valgtId === variabler.id) setValgtId(null);
+    },
+    onError: (error: { message?: string }) => {
+      // Sletting feilet server-side (typisk: feltet er i bruk). `utførSlett` fjernet
+      // optimistisk — hent malen på nytt så objektet kommer tilbake, og VIS serverens
+      // forklaring. Kenneth-funn: stille rollback fikk brukeren til å tro slettingen
+      // virket, og oppdaget det først ved neste refresh.
+      setSlettFeil(error.message ?? t("malbygger.slettFeiletTittel"));
+      refetchMal();
     },
   });
 
@@ -972,6 +981,18 @@ export function MalBygger({ mal }: MalByggerProps) {
           onBekreft={() => utførSlett(slettBekreftelse.id)}
           onAvbryt={() => setSlettBekreftelse(null)}
         />
+      )}
+
+      {/* Sletting feilet — vis serverens forklaring (ikke stille rollback) */}
+      {slettFeil && (
+        <Modal open title={t("malbygger.slettFeiletTittel")} onClose={() => setSlettFeil(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{slettFeil}</p>
+            <div className="flex justify-end">
+              <Button onClick={() => setSlettFeil(null)}>{t("handling.lukk")}</Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

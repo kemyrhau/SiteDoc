@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Kontrolní seznamy ({{antall}})",
   "malbygger.oppgaverBruk": "Úkoly ({{antall}})",
   "malbygger.ingenBruk": "Toto pole nepoužívají žádné kontrolní seznamy ani úkoly.",
+  "malbygger.slettFeiletTittel": "Smazání se nezdařilo",
   "malbygger.tvingSlett": "Vynutit smazání (test)",
   "prosjektoppsett.tittel": "Nastavení projektu",
   "prosjektoppsett.firmalogo": "Logo společnosti",

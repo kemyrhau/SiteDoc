@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Listat e kontrollit ({{antall}})",
   "malbygger.oppgaverBruk": "Detyrat ({{antall}})",
   "malbygger.ingenBruk": "Asnjë listë kontrolli apo detyra nuk e përdor këtë fushë.",
+  "malbygger.slettFeiletTittel": "Fshirja dështoi",
   "malbygger.tvingSlett": "Fshij me forcë (test)",
   "prosjektoppsett.tittel": "Cilësimet e projektit",
   "prosjektoppsett.firmalogo": "Logoja e kompanisë",

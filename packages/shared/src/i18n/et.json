@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Kontrollnimekirjad ({{antall}})",
   "malbygger.oppgaverBruk": "Ülesanded ({{antall}})",
   "malbygger.ingenBruk": "Seda välja ei kasuta ükski kontroll-loend ega ülesanne.",
+  "malbygger.slettFeiletTittel": "Kustutamine ebaõnnestus",
   "malbygger.tvingSlett": "Sundkustutamine (testimine)",
   "prosjektoppsett.tittel": "Projekti seaded",
   "prosjektoppsett.firmalogo": "Ettevõtte logo",

@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Liste de verificare ({{antall}})",
   "malbygger.oppgaverBruk": "Sarcini ({{antall}})",
   "malbygger.ingenBruk": "Nu există liste de verificare sau sarcini care utilizează acest câmp.",
+  "malbygger.slettFeiletTittel": "Ștergerea nu a reușit",
   "malbygger.tvingSlett": "Ștergerea forțată (test)",
   "prosjektoppsett.tittel": "Setările proiectului",
   "prosjektoppsett.firmalogo": "Sigla companiei",

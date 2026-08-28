@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Контрольні списки ({{antall}})",
   "malbygger.oppgaverBruk": "Завдання ({{antall}})",
   "malbygger.ingenBruk": "Жодні контрольні списки чи завдання не використовують це поле.",
+  "malbygger.slettFeiletTittel": "Не вдалося видалити",
   "malbygger.tvingSlett": "Примусове видалення (тест)",
   "prosjektoppsett.tittel": "Налаштування проекту",
   "prosjektoppsett.firmalogo": "Логотип компанії",

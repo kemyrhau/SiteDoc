@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Listy kontrolne ({{antall}})",
   "malbygger.oppgaverBruk": "Zadania ({{antall}})",
   "malbygger.ingenBruk": "Żadne listy kontrolne ani zadania nie korzystają z tego pola.",
+  "malbygger.slettFeiletTittel": "Usunięcie nie powiodło się",
   "malbygger.tvingSlett": "Wymuś usunięcie (test)",
   "prosjektoppsett.tittel": "Ustawienia projektu",
   "prosjektoppsett.firmalogo": "Logo firmy",

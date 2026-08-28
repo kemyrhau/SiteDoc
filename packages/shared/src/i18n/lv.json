@@ -2125,6 +2125,7 @@
   "malbygger.sjekklisterBruk": "Kontrolsaraksti ({{antall}})",
   "malbygger.oppgaverBruk": "Uzdevumi ({{antall}})",
   "malbygger.ingenBruk": "Šis lauks netiek izmantots neviens kontrolsaraksts vai uzdevums.",
+  "malbygger.slettFeiletTittel": "Dzēšana neizdevās",
   "malbygger.tvingSlett": "Piespiedu dzēšana (pārbaude)",
   "prosjektoppsett.tittel": "Projekta iestatījumi",
   "prosjektoppsett.firmalogo": "Uzņēmuma logotips",
