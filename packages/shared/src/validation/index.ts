@@ -158,6 +158,26 @@ export const addExistingMemberSchema = z.object({
   faggruppeIder: z.array(z.string().uuid()).default([]),
 });
 
+// Batch: legg til flere eksisterende firma-ansatte som prosjektmedlemmer (ansattvelger).
+// Hver userId valideres server-side mot «aktiv brukbar ansatt i eier-firma» — en
+// deaktivert person legges aldri til, uansett hva klienten sendte.
+export const addExistingMembersManySchema = z.object({
+  projectId: z.string().uuid(),
+  userIds: z.array(z.string().uuid()).min(1).max(500),
+  role: z.enum(["member", "admin"]).default("member"),
+  faggruppeIder: z.array(z.string().uuid()).default([]),
+});
+
+// Batch: legg firmaets ansatte inn i en dokumentflyt-rolle (ansattvelger, flyt-flate).
+// Sikrer ProjectMember for hver + binder til rollen. Admin-gatet server-side.
+export const addAnsatteIRolleSchema = z.object({
+  dokumentflytId: z.string().uuid(),
+  projectId: z.string().uuid(),
+  userIds: z.array(z.string().uuid()).min(1).max(500),
+  rolle: dokumentflytRolleSchema,
+  steg: z.number().int().min(1).default(1),
+});
+
 // Tegningsvalidering
 export const DRAWING_DISCIPLINES = [
   "ARK", "LARK", "RIB", "RIV", "RIE", "RIG", "RIBr", "RIAku",

@@ -22,6 +22,7 @@ import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { KontaktForklaringsboks } from "@/components/oppsett/KontaktForklaringsboks";
 import { FlytChip } from "@/components/oppsett/FlytChip";
 import { OpprettKontaktModal, type FlytForModal } from "../produksjon/_components/OpprettKontaktModal";
+import { AnsattVelgerModal } from "@/components/AnsattVelgerModal";
 import { HmsBehandlerHandlinger } from "@/components/hms/HmsBehandlerHandlinger";
 import { finnHmsGruppe, erHmsGruppe, byggHmsKontakter, type HmsGruppe } from "@/components/hms/hms-utils";
 
@@ -132,6 +133,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [nyGruppeInput, setNyGruppeInput] = useState(false);
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
   const [nyKontaktOpen, setNyKontaktOpen] = useState(false);
+  const [ansattVelgerOpen, setAnsattVelgerOpen] = useState(false);
 
   const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
     onSuccess: () => {
@@ -142,6 +144,16 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const settKanAttestereMutation = trpc.medlem.settKanAttestere.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  // Batch: legg til firmaets ansatte / avdeling som prosjektmedlemmer (ansattvelger).
+  const leggTilMangeMutation = trpc.medlem.leggTilEksisterendeMange.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentLedigeFirmaBrukere.invalidate({ projectId: prosjektId });
+      utils.medlem.hentAvdelingerForProsjekt.invalidate({ projectId: prosjektId });
+      setAnsattVelgerOpen(false);
     },
   });
 
@@ -561,6 +573,13 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 {t("brukere.nyGruppe")}
               </button>
             )}
+            <button
+              onClick={() => setAnsattVelgerOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              <Users className="h-4 w-4" />
+              {t("ansattvelger.leggTilFraFirmaet")}
+            </button>
             <button
               onClick={() => setNyKontaktOpen(true)}
               className="flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
@@ -1282,6 +1301,20 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
         </table>
       </div>
       </div>
+
+      <AnsattVelgerModal
+        open={ansattVelgerOpen}
+        onClose={() => setAnsattVelgerOpen(false)}
+        projectId={prosjektId}
+        tittel={t("ansattvelger.tittelProsjekt")}
+        bekreftLabel={t("ansattvelger.leggTilIProsjektet")}
+        isPending={leggTilMangeMutation.isPending}
+        feilmelding={leggTilMangeMutation.error?.message ?? null}
+        onInviterNy={() => setNyKontaktOpen(true)}
+        onBekreft={(userIds) =>
+          leggTilMangeMutation.mutate({ projectId: prosjektId, userIds })
+        }
+      />
 
       <OpprettKontaktModal
         open={nyKontaktOpen}

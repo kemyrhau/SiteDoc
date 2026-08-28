@@ -1,9 +1,10 @@
 import { z } from "zod";
 import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { addMemberSchema, addExistingMemberSchema } from "@sitedoc/shared";
+import { addMemberSchema, addExistingMemberSchema, addExistingMembersManySchema } from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import { sendInvitasjonsEpost } from "../services/epost";
+import { aktivAnsattIFirmaWhere, sikreProsjektmedlemmer } from "../services/ansatt";
 import {
   verifiserAdmin,
   verifiserAdminEllerFirmaansvarlig,
@@ -567,17 +568,20 @@ export const medlemRouter = router({
 
       const medlemmer = await ctx.prisma.organizationMember.findMany({
         where: {
-          organizationId: prosjekt.primaryOrganizationId,
+          // «Aktiv, brukbar ansatt i firmaet» — delt kandidatregel (services/ansatt.ts).
+          // Tidligere hadde denne kun `user.canLogin` og glemte `status:"aktiv"` → en
+          // deaktivert ansatt var valgbar. Nå kan ikke halve regelen forsvinne.
+          ...aktivAnsattIFirmaWhere(prosjekt.primaryOrganizationId),
           userId: { notIn: eksisterendeIder },
-          user: { canLogin: true },
         },
         select: {
+          avdelingId: true,
           user: { select: { id: true, name: true, email: true, role: true } },
         },
         orderBy: { user: { name: "asc" } },
       });
 
-      return medlemmer.map((m) => m.user);
+      return medlemmer.map((m) => ({ ...m.user, avdelingId: m.avdelingId }));
     }),
 
   // Legg til en eksisterende firma-bruker som prosjektmedlem (ingen e-post sendt).
@@ -643,5 +647,78 @@ export const medlemRouter = router({
       });
 
       return nyMedlem;
+    }),
+
+  // Aktive avdelinger i prosjektets eier-firma, med antall AKTIVE brukbare ansatte
+  // (samme kandidatregel som hentLedigeFirmaBrukere). Mater avdelingsvalget i
+  // ansattvelgeren. Gatet som medlem-tillegg (prosjektadmin/firmaansvarlig) — ikke
+  // firmaadmin-only som avdeling.hentAlle, som ville stengt prosjektadmin ute.
+  hentAvdelingerForProsjekt: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+      if (!prosjekt.primaryOrganizationId) return [];
+      const orgId = prosjekt.primaryOrganizationId;
+
+      const avdelinger = await ctx.prisma.avdeling.findMany({
+        where: { organizationId: orgId, aktiv: true },
+        select: {
+          id: true,
+          navn: true,
+          organizationMembers: {
+            where: aktivAnsattIFirmaWhere(orgId),
+            select: { userId: true },
+          },
+        },
+        orderBy: { navn: "asc" },
+      });
+
+      return avdelinger.map((a) => ({
+        id: a.id,
+        navn: a.navn,
+        // Bruker-IDene i avdelingen (aktive/brukbare) — klienten ekspanderer
+        // avdelingsvalg til disse og teller ærlig hvor mange tilgang gis til.
+        brukerIder: a.organizationMembers
+          .map((m) => m.userId)
+          .filter((id): id is string => id !== null),
+      }));
+    }),
+
+  // Batch: legg til flere eksisterende firma-ansatte som prosjektmedlemmer (ansattvelger).
+  // Deler ProjectMember-sikringen med dokumentflyt.leggTilAnsatteIRolle (services/ansatt.ts).
+  leggTilEksisterendeMange: protectedProcedure
+    .input(addExistingMembersManySchema)
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+      if (!prosjekt.primaryOrganizationId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Prosjektet har ikke et eier-firma å hente ansatte fra",
+        });
+      }
+
+      const res = await sikreProsjektmedlemmer(ctx.prisma, {
+        projectId: input.projectId,
+        organizationId: prosjekt.primaryOrganizationId,
+        userIds: input.userIds,
+        role: input.role,
+        faggruppeIder: input.faggruppeIder,
+      });
+
+      return {
+        lagtTil: res.lagtTil,
+        alleredeMedlem: res.alleredeMedlem,
+        ugyldige: res.ugyldige.length,
+      };
     }),
 });

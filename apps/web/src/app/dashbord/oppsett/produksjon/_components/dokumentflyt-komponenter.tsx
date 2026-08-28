@@ -13,6 +13,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
+import { AnsattVelgerModal } from "@/components/AnsattVelgerModal";
 import { useFlytAdmin } from "./flyt-admin-kontekst";
 
 /* ------------------------------------------------------------------ */
@@ -86,6 +87,7 @@ export function LeggTilMedlemDropdown({
   const erFlytAdmin = useFlytAdmin();
   const mutFeil = useMutasjonsFeil();
   const [open, setOpen] = useState(false);
+  const [velgerÅpen, setVelgerÅpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const leggTilMutation = trpc.dokumentflyt.leggTilMedlem.useMutation({
@@ -93,6 +95,17 @@ export function LeggTilMedlemDropdown({
       mutFeil.nullstill();
       onLagtTil();
       setOpen(false);
+    },
+    onError: mutFeil.onError,
+  });
+
+  // Batch: legg firmaets ansatte / avdeling inn i rollen (ansattvelger). Egen
+  // mutasjon (ikke leggTilMedlem) fordi den også sikrer ProjectMember per person.
+  const leggTilAnsatteMutation = trpc.dokumentflyt.leggTilAnsatteIRolle.useMutation({
+    onSuccess: () => {
+      mutFeil.nullstill();
+      onLagtTil();
+      setVelgerÅpen(false);
     },
     onError: mutFeil.onError,
   });
@@ -222,9 +235,19 @@ export function LeggTilMedlemDropdown({
             <button
               onClick={() => {
                 setOpen(false);
-                if (onInviterNy) onInviterNy();
+                setVelgerÅpen(true);
               }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-sitedoc-primary hover:bg-blue-50"
+            >
+              <Users className="h-3.5 w-3.5" />
+              {t("ansattvelger.leggTilFraFirmaet")}
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                if (onInviterNy) onInviterNy();
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50"
             >
               <UserPlus className="h-3.5 w-3.5" />
               {t("dokumentflyt.inviterNyPerson")}
@@ -232,6 +255,26 @@ export function LeggTilMedlemDropdown({
           </div>
         </div>
       )}
+
+      <AnsattVelgerModal
+        open={velgerÅpen}
+        onClose={() => setVelgerÅpen(false)}
+        projectId={prosjektId}
+        tittel={t("ansattvelger.tittelRolle")}
+        bekreftLabel={t("ansattvelger.leggTilIRollen")}
+        isPending={leggTilAnsatteMutation.isPending}
+        feilmelding={mutFeil.feil}
+        onInviterNy={onInviterNy}
+        onBekreft={(userIds) =>
+          leggTilAnsatteMutation.mutate({
+            dokumentflytId,
+            projectId: prosjektId,
+            userIds,
+            rolle: typedRolle,
+            steg,
+          })
+        }
+      />
 
       <MutasjonsFeil melding={mutFeil.feil} />
     </div>
