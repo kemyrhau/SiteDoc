@@ -16,8 +16,17 @@ Neste økter startes ferskt — se køen under.
 | **kontrollplan** | `SiteDoc-kontrollplan` | `feat/seed-hms-og-feltvelgere` | Ingen ny ordre |
 | **fabel** | — | Har `relay/fabel-eksport-arkivering.md` klar til sending | Kenneth relayer |
 
-**Develop: `52495604`.** **Prod: `a8750601`** (2026-08-25 20:57) — **60+ commits bak,
-hvorav 12 mobil.** Én additiv migrering venter (`20260827120000_eksport_oppsett`, db-timer).
+✅ **PROD À JOUR 2026-08-28 06:23** — `5dcdeb58` (60 commits). Migreringene kjørt,
+verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`) sendt inn samme runde.
+
+🔴 **Funn under releasen: `db-timer`-migreringen `20260811130000_utlegg_ordning_justering`
+var ALDRI kjørt mot prod.** Releasenoten på `a8750601` (25.08) sa «ingen migreringer» —
+sant for `packages/db`, usant for `db-timer`. Prod hadde i to uker CHECK-constraints som
+avviste `'lonnstillegg'` og manglet kolonnene `satsbasert`/`mulig_skattepliktig`, mens
+koden forventet begge. Utleggskategori-siden var dermed ødelagt i prod hele perioden;
+ingen meldte fra fordi timer-modulen ikke er i bruk der (0 attesterte sedler, målt 27.08).
+**Rettet i deploy-rutinen:** `migrate deploy` kjøres nå for alle fire db-pakker ved hver
+deploy — ikke utledes fra diffen. Se [deploy-detaljer.md](deploy-detaljer.md).
 
 ✅ **EAS-bygget er IKKE lenger blokkert (2026-08-27 kl. 22).** Opprett-frysen er lukket
 og gatet 3/3 i Release/Fabric (`fix/malvelger-intree`, merget `52495604`).
