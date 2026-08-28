@@ -33,14 +33,19 @@ fått en fiks eller en funksjon som den andre aldri fikk.
 
 ## HØY (8)
 
-### H1 · HMS-behandling er umulig fra mobil
-Web har `HmsHandlingsflate` med Besvar/Lukk/Returner/Gjenåpne
-(`apps/web/src/components/HmsHandlingsflate.tsx:82-93`). Mobil har **kun melder-siden**
-(`apps/mobile/app/sjekkliste/[id].tsx:1147-1172`) — null treff på
-`hmsBesvar`/`hmsLukk`/`hmsGjenapne`/`hmsReturner` i hele appen. Serveren har alle fem
-(`sjekkliste.ts:1367,1441,1496,1571,1626`).
-**Konsekvens:** en HMS-behandler kan ikke behandle et avvik fra mobil; han får i stedet
-den generelle flytmenyen, som er feil løp.
+### H1 · HMS-behandling er umulig fra mobil ✅ LØST (2026-08-26, branch `feat/mobil-h1-hms`)
+Web har `HmsHandlingsflate` (Besvar/Lukk/Gjenåpne). Mobil hadde **kun melder-siden** → en
+HMS-behandler falt til den generelle `DokumentHandlingslinje` (feil løp).
+**Fiks:** ny `HmsBehandlingsflate` (RN-port av web-flaten) — **Besvar** (obligatorisk begrunnelse,
+`hmsBesvar`) · **Lukk** (valgfri kommentar, `hmsLukk`) · **Gjenåpne** (valgfri kommentar,
+`hmsGjenapne`). `erHmsAdmin` fra server-queryen. Mount-en i `sjekkliste/[id].tsx` er nå
+`erHms ? (melder-banner ELLER behandler-flate) : DokumentHandlingslinje` — den generelle menyen
+vises ALDRI for HMS-dok.
+**«Returner» UTELATT med vilje:** web har knappen, men `sjekkliste.hmsReturner` finnes ikke på
+serveren (H7) — en alltid-feilende knapp replikeres ikke.
+**🔴 dokumentflytId-unntaket respektert:** behandler-mutasjonene tar `{id, begrunnelse/kommentar}`,
+aldri `dokumentflytId` (verifisert mot `sjekkliste.ts:345` FØR klientkallet).
+**⚠️ Simulator-verifisering gjenstår.**
 
 ### H2 · «Trekk tilbake» forsvinner på mobil for alle som ikke er admin ✅ LØST (2026-08-23, branch `fix/mobil-paritet-h2345`)
 Mobil gater handlingen på `erAdmin` (`DokumentHandlingslinje.tsx:206-208`), web gjør det
@@ -165,6 +170,50 @@ på markørenes `createdAt`/`opprettet`.
 | M11 | Vedleggssignering | Mobil-only; leder på web kan ikke signere |
 | M12 | `byttEier` | Server-handling ingen klient eksponerer (usikker — kan være bevisst) |
 
+### 🟡 M5 + M6 UTSATT MED MÅLEPUNKT (Kenneth + cowork 2026-08-27) — ikke start disse
+
+**Attestering er ikke én funksjon, det er to:** *beslutning* (attester/returner) og
+*korreksjon* (rediger, gjenåpne, ECO-flytt). Målt i koden har mobil en **komplett
+beslutningsflate og null korreksjon** — 892 linjer over seks filer, fem tRPC-prosedyrer
+(`hentTilAttesteringFirma`, `hentForAttestering`, `kanAttestereFirma`, `attesterRader`,
+`returnerRader`).
+
+Spørsmålet er derfor ikke «web eller app», men om **beslutning alene er en ærlig flyt.**
+Den er ærlig på én betingelse: at **retur med begrunnelse ER korreksjonsveien på mobil.**
+Lederen på byggeplassen trenger ikke redigeringsrett hvis feil rader sendes tilbake til
+den som førte dem — det er et sunnere ansvarsforhold enn at lederen retter andres
+timedata selv.
+
+Betingelsen ryker hvis normale runder er fulle av småfeil lederen i dag retter selv. Å
+returnere en hel seddel for én feil rad er tyngre enn å rette den, og da inviterer mobil
+deg inn og stopper deg — verre enn ingen flate.
+
+**Målepunktet — andelen attesteringsrunder uten korreksjon:**
+
+```sql
+SELECT count(*) FILTER (WHERE korr=0) AS uten_korreksjon,
+       count(*) FILTER (WHERE korr>0) AS med_korreksjon,
+       count(*)                        AS attesterte_sedler
+FROM (SELECT s.id, count(t.id) FILTER (
+        WHERE t.attestert_status IN ('erstattet','returnert')) AS korr
+      FROM timer.daily_sheets s
+      JOIN timer.sheet_timer t ON t.sheet_id = s.id
+      WHERE s.status = 'accepted' GROUP BY s.id) x;
+```
+
+**Høy andel uten korreksjon** → behold mobil som beslutningsflate, med eksplisitt
+«rediger på web»-henvisning i stedet for late paritetsløfter.
+**Lav andel** → pensjoner de 892 linjene; attestering blir en ren web-funksjon.
+
+🔴 **Målt mot PROD 2026-08-27: 0 / 0 / 0.** Attestering har **aldri vært kjørt i
+produksjon**. Det finnes ingen empiri, og begge utfall ville vært gjetning. **Beslutningen
+utsettes til etter piloten** — kjør spørringen på nytt da.
+
+**Uansett utfall:** pensjoneres mobil-attestering, må linja i CLAUDE.md under
+«Attestering ≠ Godkjenning» med i samme leveranse — den sier i dag «Timer-modul,
+**mobil-UI**, lønnseksport». Piloten rammes ikke; mobil-løftet der er timeregistrering,
+ikke attestering.
+
 ## LAV (5)
 
 Deaktiverte handlinger med begrunnelse (web-only) · ulik bekreftelsesfriksjon (ett klikk
@@ -207,27 +256,59 @@ flyter brukeren er medlem av, uavhengig av ballposisjon — i tråd med Kenneths
 **Gjenstår å måle:** kan KMY åpne dokumentet fra lista etterpå, eller krasjer det også?
 Det skiller gjengivelsesfeil fra tilstandsfeil.
 
-### D2 · Mobil låser seg ved opprettelse av sjekkliste i prosjekt 998 🔴
-Prosjekt 998 har 3 faggrupper, 5 flyter, 15 ledd. Prosjekt 999, som fungerer, har 1/2/4.
-Mistanke: `OpprettDokumentModal` må la brukeren velge kandidat når det finnes flere
-flyter, og snubler i presentasjonsovergangen — samme sted som freeze-fiksen `a29f89b2`
-traff, men en annen gren. Ikke bekreftet.
+### D2 · Mobil låser seg ved opprettelse av sjekkliste i prosjekt 998 ✅ LØST (2026-08-27)
+**Rotårsak (bekreftet mot kode):** frysen lå IKKE i `OpprettDokumentModal` (den ble ryddet
+i `a29f89b2`), men i `MalVelger.tsx` — som fortsatt bar den SAMME `onDismiss`-deadlock-gaten
+`a29f89b2` fjernet, «samme sted, annen gren». `velg()` utsatte på iOS `onVelg` til `<Modal
+onDismiss>` fyrte (via `ventendeMal` + `internSynlig=false`); under Fabric/newArch rendres
+modalen inline og `onDismiss` fyrer ikke pålitelig → `onVelg` ble aldri kalt → opprett-modalen
+åpnet aldri, og den nedrevne velger-hosten fanget all touch = frys. Symptomet traff kun
+prosjekter med **≥2 opprettbare maler** (998); med nøyaktig 1 mal (999) hopper `skalAutoVelge`
+over hele velger-modalen og kaller `onVelg` direkte — derfor «virket» 999. Ikke antall flyter/
+faggrupper i seg selv, men antall opprettbare maler i prosjektet.
+**Fiks:** `velg()` kaller `onVelg` direkte på alle plattformer (speiler `a29f89b2`); fjernet
+`ventendeMal`/`internSynlig`/`håndterDismiss`/`onDismiss`-maskineriet. `OpprettDokumentModal`
+sin egen fler-flyt-håndtering er inline `<View>`-dropdowns (ikke modaler) og var aldri årsaken.
+**Oppfølger (2026-08-27, `fix/mobil-create-frys`) — tredje ledd i samme klasse:** Release-sim
+(simulator-Opus, B12/5 maler) målte at `df86b817` fikser velger-dismissen, men create-flyten
+**fortsatt** endte i svart frys ~1–2 s etter at lista rendret. Rotårsak: i **auto-opprett-path**
+(entydig kontekst) mountet `OpprettDokumentModal` en native fullskjerm-`<Modal>` bare for å vise
+en spinner mens utkastet ble opprettet (`skalAutoOpprett` → `håndterOpprett` → `onOpprettet` →
+`router.push`) — altså **present-så-dismiss + navigasjon** av et ANDRE native modal-VC, rett etter
+at MalVelger-pageSheet dismisset. Det er Fabric-black-host-mekanismen `a29f89b2`/`df86b817` flyttet
+ett ledd hver. **Fiks (arkitektur, ikke lapp):** i auto-path mountes den native modalen ikke i det
+hele tatt — `if (synlig && (kontekstLaster || skalAutoOpprett)) return null;` (speiler MalVelgers
+egen `skalAutoVelge → return null`). Auto-create-effekten er gated på `synlig`, ikke på at modalen
+er montert, så create + navigasjon skjer uansett. Samtidige native modaler i hot-path: 2 → 1. Den
+native modalen mountes nå KUN for det flertydige skjemaet (manuelt valg). typecheck grønt.
+🟡 **Krever Release-sim-verifisering på enhet** (Fabric-modal-livssyklus; simulator-Opus reproduserer:
+Opprett → velg mal → vent 2 s → forvent at det navigeres inn, ikke svart skjerm). **D1** lukkes
+sannsynligvis av denne — simulator kunne ikke reprodusere send-krasjen; «krasj ved sending» var
+trolig denne create-frysen feiltilskrevet send-knappen.
 
-### D3 · «Mine timer» fordeler timer på feil aktivitet 🔴
-`apps/mobile/app/timer/mine.tsx:110-111` tilskriver hele sedelens timesum til **sedelens**
+### D3 · «Mine timer» fordeler timer på feil aktivitet ✅ LØST (2026-08-27)
+**Rotårsak:** `apps/mobile/app/timer/mine.tsx` tilskrev hele sedelens timesum til **sedelens**
 `aktivitetId`, mens aktivitet ligger **per rad** (`SheetTimer.aktivitetId`, vedtatt i
 [dagsseddel-design.md](dagsseddel-design.md)). Fører du 4 t graving og 4 t anleggsarbeid på
-en sedel merket «Anleggsarbeid», rapporteres 8 t anleggsarbeid og 0 t graving.
-**Totalen er riktig; fordelingen er det ikke.** Rapporten ble bygget før aktivitet flyttet
-ned på radnivå og fulgte aldri etter.
+en sedel merket «Anleggsarbeid», ble det rapportert 8 t anleggsarbeid og 0 t graving.
+Totalen var riktig; fordelingen ikke. Rapporten ble bygget før aktivitet flyttet ned på
+radnivå og fulgte aldri etter.
+**Fiks:** `lesDataLokalt` summerer nå per rad-aktivitet (`sheet_timer_local.aktivitet_id`)
+innen hver sedel og bærer per-rad-fordelingen; `perAktivitet`-aggregatet og detaljlistens
+aktivitetsetikett leser fra den. Sedelens egen `aktivitetId` brukes ikke lenger i «Mine timer».
 
-### D4 · Sletting på server propagerer ikke til mobil 🔴
+### D4 · Sletting på server propagerer ikke til mobil ✅ LØST (2026-08-20, `5eb47e6b`)
 Etter at 18 dagssedler ble slettet i prod, viste mobilen dem fortsatt — lokal SQLite fikk
 aldri beskjed. Tombstone-mekanismen fra juli (`slettede_rader`) dekker **rader slettet
 gjennom appen**, ikke **sedler som forsvinner på serversiden**.
-**Konsekvens:** enhver ryddejobb i databasen etterlater spøkelser på telefonene. En
-arbeider kan se timer som ikke finnes og tro at de er ført. Gjelder all serverside-sletting,
-ikke bare manuell rydding.
+**Fiks (samme dag som målingen — dette dokumentet ble skrevet FØR fiksen landet):**
+`hentEndringerSiden` sender nå et autoritativt `slettevindu` {fraDato, tilDato} +
+`levendeSedler` [{id, clientUuid}] over hele intervallet (`dato >= minDato`, uavhengig av
+`updatedAt`-cursoren). Klienten (`timerSync.ts` pull, linjene ~854–892) fjerner lokale
+sedler i intervallet som mangler i det levende id-settet. Vakt-logikken ligger delt og
+enhetstestet i `@sitedoc/shared` (`finnSedlerÅSlette`, 9 tester): VAKT 1 rører kun sedler
+innenfor `[fraDato,tilDato]`, VAKT 2 rører aldri `pending`/`avvist` (upushet lokalt arbeid).
+Verifisert mot kode 2026-08-27 (D1–D4-runden): server + klient + delt vakt er komplett.
 
 ### D5 · Sjekkliste i «Mottatt» kan ikke slettes av noen ✅ LØST (2026-08-21)
 **Rotårsak:** slettevakten var `draft` || `cancelled`, men `cancelled` er uoppnåelig (0 prod-rader)

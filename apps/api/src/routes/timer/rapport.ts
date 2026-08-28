@@ -12,9 +12,18 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
+import {
+  byggDetaljRader,
+  grupperDetaljRader,
+  ALLE_RADTYPER,
+  type DetaljRadType,
+  type Gruppering,
+} from "@sitedoc/shared";
+import { esc, byggTimerRapportHtml, type TimerRapportData } from "@sitedoc/pdf";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import { renderPdfViaContainer } from "../../services/pdf-render-klient";
 
 async function verifiserFirmaAdmin(
   userId: string,
@@ -30,6 +39,54 @@ const periodeSchema = z.object({
   til: z.string(),
   prosjektId: z.string().uuid().optional(),
   ansattId: z.string().uuid().optional(),
+});
+
+// Alle synlige PDF-overskrifter/etiketter injiseres oversatt fra klienten
+// (api har ingen server-i18n; samme mønster som arkiv-PDF). Speiler
+// TimerRapportTekster i @sitedoc/pdf — typecheck fanger avvik ved bruk.
+const teksterSchema = z.object({
+  dokumentTittel: z.string(),
+  periode: z.string(),
+  prosjekt: z.string(),
+  ansatt: z.string(),
+  alle: z.string(),
+  ingenData: z.string(),
+  sum: z.string(),
+  // Sammendrag
+  sammendrag: z.string(),
+  kolAnsattnr: z.string(),
+  kolTotalTimer: z.string(),
+  kolSedler: z.string(),
+  kolSistRegistrert: z.string(),
+  kolKladd: z.string(),
+  kolSent: z.string(),
+  kolAttestert: z.string(),
+  // Detaljer (merged Type-tabell, fase 2)
+  detaljer: z.string(),
+  subtotal: z.string(), // gruppe-subtotal-etikett (fase 4)
+  kolDato: z.string(),
+  kolType: z.string(),
+  kolBetegnelse: z.string(),
+  kolAktivitet: z.string(),
+  kolFra: z.string(),
+  kolTil: z.string(),
+  kolTimer: z.string(),
+  kolMaskintimer: z.string(),
+  kolAntall: z.string(),
+  kolBelop: z.string(),
+  kolMengde: z.string(),
+  kolEnhet: z.string(),
+  kolBeskrivelse: z.string(),
+  kolStatus: z.string(),
+  typeTimer: z.string(),
+  typeMaskin: z.string(),
+  typeTillegg: z.string(),
+  typeUtlegg: z.string(),
+  maskinUtenTimerad: z.string(),
+  maskinIkkeEksporterbar: z.string(),
+  // Status-VERDIENE oversatt (rå DB-koder som pending/sent er ikke norsk).
+  // Map verdi→etikett; ukjent verdi faller tilbake til rå streng i renderer.
+  statusEtiketter: z.record(z.string()),
 });
 
 export const rapportRouter = router({
@@ -81,6 +138,14 @@ export const rapportRouter = router({
 
       // Hent dagseddel-rader i perioden for firmaets prosjekter.
       // T.1 (2026-05-11): DailySheet har ikke projectId — filtrer via SheetTimer-join.
+      // 🔴 Prosjektfilter på RAD-nivå (2026-08-27): `some` under velger sedler som
+      // HAR minst én rad på det filtrerte prosjektet; include-en må så filtrere
+      // radene, ellers drar en Fjordgata-seddel med seg Olas Sentrumsparken-rader
+      // (samme seddel, annet prosjekt) → summen lekker på tvers av prosjekter.
+      // KUN når prosjektId er satt: uten filter er `prosjektIder` hele firmaet, og
+      // rader kan bevisst peke på prosjekt UTENFOR firmaet (kryss-prosjekt, se
+      // detaljEksport) — et ubetinget `in: prosjektIder` ville stille droppe dem.
+      const radProsjektFilter = input.prosjektId ? { projectId: input.prosjektId } : {};
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
           // Fase 1b: firma-isolasjon — kun sedler EID av firmaet (SHA-modell:
@@ -94,9 +159,13 @@ export const rapportRouter = router({
         },
         include: {
           // lonnsart.skalEksporteres for kunEksporterbare-filteret (time-summen).
-          timer: { include: { lonnsart: { select: { skalEksporteres: true } } } },
-          tillegg: true,
-          maskiner: true,
+          // where på rad-nivå: kun det filtrerte prosjektets rader (tomt = alle).
+          timer: {
+            where: radProsjektFilter,
+            include: { lonnsart: { select: { skalEksporteres: true } } },
+          },
+          tillegg: { where: radProsjektFilter },
+          maskiner: { where: radProsjektFilter },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -280,6 +349,12 @@ export const rapportRouter = router({
         };
       }
 
+      // 🔴 Prosjektfilter på RAD-nivå (2026-08-27) — samme lekkasje som
+      // firmaPeriodeRapport: `some` velger sedelen, include-en må filtrere radene,
+      // ellers går rader fra andre prosjekter på samme seddel ut i eksporten (og
+      // ut av huset i et fakturagrunnlag). KUN når prosjektId er satt (kryss-
+      // prosjekt-rader utenfor firmaet skal ikke stille droppes uten filter).
+      const radProsjektFilter = input.prosjektId ? { projectId: input.prosjektId } : {};
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
           organizationId: orgId,
@@ -296,7 +371,7 @@ export const rapportRouter = router({
             // vedtak). Filtreres i KODE (ikke DB-where) fordi maskin-rader som
             // henger på en ekskludert timerad skal klassifiseres separat — vi
             // trenger å vite HVILKE timerad-id-er som ble ekskludert.
-            where: { attestertStatus: { not: "erstattet" } },
+            where: { attestertStatus: { not: "erstattet" }, ...radProsjektFilter },
             include: {
               lonnsart: { select: { navn: true, skalEksporteres: true } },
               aktivitet: { select: { navn: true } },
@@ -306,14 +381,16 @@ export const rapportRouter = router({
             where: {
               attestertStatus: { not: "erstattet" },
               tillegg: { skalEksporteres: true },
+              ...radProsjektFilter,
             },
             include: { tillegg: { select: { navn: true } } },
           },
-          maskiner: { where: { attestertStatus: { not: "erstattet" } } },
+          maskiner: { where: { attestertStatus: { not: "erstattet" }, ...radProsjektFilter } },
           // SheetUtlegg har ingen attestertStatus → intet erstattet-filter.
           // Bredere select enn attesterings-lista (kommentar med for eksport-ark),
           // men fortsatt IKKE vedlegg (svak FK uten @relation → umulig via query).
           utlegg: {
+            where: radProsjektFilter,
             select: {
               id: true,
               belop: true,
@@ -391,6 +468,9 @@ export const rapportRouter = router({
           prosjekt: prosjektNavn(r.projectId),
           lonnsart: r.lonnsart?.navn ?? "(ukjent)",
           aktivitet: r.aktivitet?.navn ?? "(ukjent)",
+          // T.4 per-rad klokkeslett "HH:MM" (kun timer-rader har det).
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
           timer: Number(r.timer),
           beskrivelse: r.beskrivelse,
           // T.3: RAD-status (attestertStatus), ikke sedel-status. Lønn spør om
@@ -488,6 +568,160 @@ export const rapportRouter = router({
       );
 
       return { timerader, maskinUtenTimerad, maskinIkkeEksporterbar, tillegg, utlegg };
+    }),
+
+  /**
+   * PDF-eksport (fase 1): dokument-versjon av rapporten — samme innhold som
+   * Excel, formatert som et dokument som kan sendes ut av huset. Ny mal på den
+   * eksisterende HTML→PDF-motoren (pdf-render-containeren).
+   *
+   * DATA-GJENBRUK: kaller firmaPeriodeRapport (aggregat, kunEksporterbare) +
+   * detaljEksport (detalj) via createCaller — samme raduttrekk som CSV/Excel,
+   * ingen fjerde data-vei som kan drive fra hverandre. Overskrifter injiseres
+   * oversatt fra klienten (ingen server-i18n). ID-kolonner utelates bevisst.
+   *
+   * 🔴 BETINGELSE (Kenneth 2026-08-26): to konsumenter tåler createCaller-mønsteret.
+   * Dukker en TREDJE opp som trenger samme aggregat/detalj, EKSTRAHER data-
+   * byggingen til delte funksjoner — tre call-sites begynner å skjule hvor
+   * sannheten bor.
+   */
+  pdfEksport: protectedProcedure
+    .input(
+      periodeSchema.extend({
+        firmanavn: z.string(),
+        filnavn: z.string(),
+        footerGenerert: z.string(),
+        footerSide: z.string(),
+        footerAv: z.string(),
+        // Radvalg fra Tilpasset-modalen — hvilke radtyper som skal med (fase 2).
+        // Utelatt/tom → alle fire (samme som de direkte format-knappene = full).
+        radTyper: z
+          .array(z.enum(["timer", "maskin", "tillegg", "utlegg"]))
+          .min(1)
+          .optional(),
+        // Fase 4 (config v2). Utelatt → v1-default: intern · ingen · auto · ingen topptekst.
+        mottaker: z.enum(["intern", "ekstern"]).optional(),
+        gruppering: z.enum(["ingen", "ansatt", "prosjekt"]).optional(),
+        orientering: z.enum(["auto", "staaende", "liggende"]).optional(),
+        // Rå topptekst-linjer med flettefelt {firma}/{periode}/{prosjekt} — flettes
+        // server-side fra rapportfilteret (én sannhet). Tom/utelatt → standard firmatopp.
+        topptekstLinjer: z.array(z.string()).optional(),
+        tekster: teksterSchema,
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      await krevTimerAktivert(orgId);
+
+      const filtre = {
+        organizationId: input.organizationId,
+        fra: input.fra,
+        til: input.til,
+        prosjektId: input.prosjektId,
+        ansattId: input.ansattId,
+      };
+      const caller = rapportRouter.createCaller(ctx);
+      const aggregat = await caller.firmaPeriodeRapport({ ...filtre, kunEksporterbare: true });
+      const detalj = await caller.detaljEksport(filtre);
+
+      const prosjektFilter = input.prosjektId
+        ? (aggregat.prosjekter.find((p) => p.id === input.prosjektId)?.navn ?? null)
+        : null;
+      const ansattFilter = input.ansattId
+        ? (aggregat.ansatte.find((a) => a.userId === input.ansattId)?.navn ??
+            aggregat.ansatte.find((a) => a.userId === input.ansattId)?.email ??
+            null)
+        : null;
+
+      // Ett kronologisk radsett med Type-kolonne (fase 2), filtrert på radvalget.
+      // SAMME @sitedoc/shared-bygger som Excel-arket → identisk radsett/rekkefølge.
+      // Grupperingen (fase 4) PAKKER radsettet — rører det aldri (designlås 2).
+      // ID-feltet slippes her (aldri i PDF — koblingsnøkkel for DB).
+      const valgteRadTyper: readonly DetaljRadType[] = input.radTyper ?? ALLE_RADTYPER;
+      const mottaker = input.mottaker ?? "intern";
+      const gruppering: Gruppering = input.gruppering ?? "ingen";
+      const flateRader = byggDetaljRader(detalj, valgteRadTyper);
+      const grupper = grupperDetaljRader(flateRader, gruppering).map((g) => ({
+        overskrift: g.overskrift,
+        subtotal: g.subtotal,
+        rader: g.rader.map((r) => ({
+          type: r.type,
+          nivaa: r.nivaa,
+          dato: r.dato,
+          ansatt: r.ansatt,
+          ansattnr: r.ansattnr,
+          prosjekt: r.prosjekt,
+          betegnelse: r.betegnelse,
+          aktivitet: r.aktivitet,
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+          timer: r.timer,
+          maskintimer: r.maskintimer,
+          antall: r.antall,
+          belop: r.belop,
+          mengde: r.mengde,
+          enhet: r.enhet,
+          beskrivelse: r.beskrivelse,
+          status: r.status,
+          maskinMerke: r.maskinMerke,
+        })),
+      }));
+
+      // Format=auto (designlås 3): liggende når beskrivelse-kolonnen faktisk er med
+      // i PDF (noen valgt rad har beskrivelse), ellers stående. Eksplisitt valg låser.
+      const beskrivelseMed = flateRader.some(
+        (r) => r.beskrivelse !== null && r.beskrivelse !== "",
+      );
+      const orientering = input.orientering ?? "auto";
+      const liggende =
+        orientering === "liggende" || (orientering === "auto" && beskrivelseMed);
+
+      // Topptekst (designlås 4): flett {firma}/{periode}/{prosjekt} fra filteret.
+      // Appen spør aldri om noe den vet — det variable kommer fra rapportfilteret.
+      const flettefelt: Record<string, string> = {
+        "{firma}": input.firmanavn,
+        "{periode}": `${input.fra}–${input.til}`,
+        "{prosjekt}": prosjektFilter ?? input.tekster.alle,
+      };
+      const topptekstLinjer = (input.topptekstLinjer ?? [])
+        .map((l) => l.replace(/\{firma\}|\{periode\}|\{prosjekt\}/g, (m) => flettefelt[m] ?? m))
+        .filter((l) => l.trim().length > 0);
+
+      const data: TimerRapportData = {
+        firmanavn: input.firmanavn,
+        fra: input.fra,
+        til: input.til,
+        prosjektFilter,
+        ansattFilter,
+        mottaker,
+        topptekstLinjer,
+        ansatte: aggregat.ansatte.map((a) => ({
+          navn: a.navn ?? a.email,
+          ansattnr: a.ansattnummer,
+          totalTimer: a.totalTimer,
+          antallSedler: a.antallSedler,
+          sistRegistrert: a.sistRegistrert
+            ? a.sistRegistrert.toISOString().slice(0, 10)
+            : null,
+          kladd: a.statusFordeling.kladd,
+          sent: a.statusFordeling.sent,
+          attestert: a.statusFordeling.attestert,
+        })),
+        grupper,
+      };
+
+      const html = byggTimerRapportHtml(data, input.tekster);
+
+      // Margin-header (alle sider, kan ikke slås av per side): firmanavn +
+      // periode så flersides-dokument er identifiserbart. Footer: generert-
+      // stempel + Chromium-injiserte sidetall. Inline-stilt (margin arver ingen CSS).
+      const stil = "font-family:Arial,Helvetica,sans-serif;font-size:7px;color:#6b7280";
+      const header = `<div style="width:100%;box-sizing:border-box;padding:0 16mm;${stil};text-align:right">${esc(input.firmanavn)} · ${esc(input.fra)}–${esc(input.til)}</div>`;
+      const footer = `<div style="width:100%;box-sizing:border-box;padding:0 16mm;${stil};display:flex;justify-content:space-between"><span>${esc(input.footerGenerert)}</span><span>${esc(input.footerSide)} <span class="pageNumber"></span> ${esc(input.footerAv)} <span class="totalPages"></span></span></div>`;
+
+      const { pdf } = await renderPdfViaContainer(html, header, footer, liggende);
+      return { pdf: pdf.toString("base64"), filnavn: input.filnavn };
     }),
 
   /**

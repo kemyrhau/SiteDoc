@@ -115,7 +115,8 @@ export function BildeAnnotering({ bildeUri, onFerdig, onAvbryt }: BildeAnnoterin
           sendMelding({ type: "settBilde", bildeUrl: `data:image/jpeg;base64,${base64}` });
         } else if (data.type === "ferdig" && data.dataUrl) {
           const base64Data = (data.dataUrl as string).split(",")[1];
-          const filsti = `${FileSystem.cacheDirectory}annotert_${Date.now()}.png`;
+          // .jpg — annoteringen eksporteres nå som JPEG (annoterings-html.ts), ikke PNG.
+          const filsti = `${FileSystem.cacheDirectory}annotert_${Date.now()}.jpg`;
           await FileSystem.writeAsStringAsync(filsti, base64Data, {
             encoding: FileSystem.EncodingType.Base64,
           });

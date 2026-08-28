@@ -166,6 +166,37 @@ tømmes ved kaldstart/ny innlogging.) Se [BACKLOG](BACKLOG.md).
 | `401` / `SECRET_MANGLER` fra `/dev-login` | `DEV_LOGIN_SECRET` matcher ikke mellom mobil-bundel og server-container | Sjekksum-prosedyre (aldri echo verdien): sammenlign `sha1sum` av Mac-`.env`-verdi, `docker/env/api-test.env` på server, og container-runtime (`/proc/PID/environ`). Env-endring krever **recreate** api + **force-recreate** web — se [DOCKER-NOTES.md punkt 8](../../docker/DOCKER-NOTES.md) |
 | `No script URL provided` (rød RN-skjerm) | Metro er ikke i gang | Start `npx expo start` i Terminal B → trykk `i` |
 | test-admin ser ingen prosjekter | Admin-bypass-gapet — mobil prosjektliste er medlemskaps-basert, `sitedoc_admin` uten `ProjectMember`-rad ser tomt (web fikk bypass i redesign steg ii) | **Forventet.** Bruk «Egen bruker (kemyrhau)» for data. Oppfølger: [BACKLOG § Mobil prosjektliste mangler sitedoc_admin-bypass](BACKLOG.md) |
+| Release-bygg feiler på `[CP] Copy XCFrameworks` (hermes-engine) med `rsync … hermes.xcframework/ios-arm64_x86_64-simulator/*: No such file` | **Debug→Release-artefakt-fella.** Et dev-bygg (Debug) laster kun `hermes-ios-<v>-debug.tar.gz` til `ios/Pods/hermes-engine-artifacts/`; release-tarballen mangler (evt. som avbrutt `hermes-ios.download`). Første Release-bygg feiler da på `tar`. | Se **§ 4a** — ikke bare bygg på nytt (idempotens-fella under gir 3 bygg). |
+
+> ### 4a. Debug→Release Hermes-fella (kostet 3 bygg 2026-08-27 — skal koste 0)
+>
+> `expo run:ios --configuration Release` etter et Debug-dev-bygg feiler på hermes-`Copy XCFrameworks`
+> fordi **kun debug-Hermes-prebuilt er lastet ned.** To feller stablet:
+>
+> 1. **Manglende release-artefakt.** `ios/Pods/hermes-engine-artifacts/` har `hermes-ios-<v>-debug.tar.gz`
+>    men ikke `-release.tar.gz` (ofte en halvferdig `hermes-ios.download`). Byggets `[Hermes] Replace`-steg
+>    kjører `tar -xf …-release.tar.gz` → «No such file» → tom `destroot` → rsync i `Copy XCFrameworks` feiler.
+> 2. **🔴 Idempotens-buggen som gjør at «bygg på nytt» IKKE hjelper.** `node_modules/react-native/sdks/hermes-engine/utils/replace_hermes_version.js`
+>    `main()` sjekker **ikke** om `tar` lyktes: den kjører `rmSync('hermes-engine')` (sletter destroot),
+>    `tar` feiler, men den skriver likevel `.last_build_configuration=Release` (i `ios/Pods/`). Neste
+>    Release-bygg ser «samme config» → **hopper over ekstraksjonen** → destroot forblir tom → samme rsync-feil.
+>    Uendret kildekode ⇒ transform-cachen hjelper heller ikke.
+>
+> **Fiks (én gang, ~15 s — ingen ny nedlasting hvis release-tarball finnes):**
+> ```bash
+> cd apps/mobile/ios/Pods
+> # 1) hent release-artefakt om den mangler (samme Maven-kilde som debug):
+> A=hermes-engine-artifacts; V=0.81.5   # V = RN-versjon (matcher debug-tarballens navn)
+> [ -f "$A/hermes-ios-$V-release.tar.gz" ] || curl -s -o "$A/hermes-ios-$V-release.tar.gz" \
+>   "https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/$V/react-native-artifacts-$V-hermes-ios-release.tar.gz"
+> rm -f "$A/hermes-ios.download"; gzip -t "$A/hermes-ios-$V-release.tar.gz"   # valider
+> # 2) ekstrahér manuelt til destroot (det replace-scriptet skulle gjort), og sett marker konsistent:
+> rm -rf hermes-engine && mkdir hermes-engine && tar -xf "$A/hermes-ios-$V-release.tar.gz" -C hermes-engine
+> ls -d hermes-engine/destroot/Library/Frameworks/universal/hermes.xcframework/ios-arm64_x86_64-simulator  # skal finnes
+> printf 'Release' > .last_build_configuration
+> ```
+> Deretter `npx expo run:ios --configuration Release` — Copy XCFrameworks finner nå slicen.
+> (RNDeps-artefakten har typisk begge varianter allerede; det er kun Hermes som mangler release.)
 
 ## 5. Autonom styring med idb (agent-tap — funn Plan 2-bevis 2026-07-07)
 

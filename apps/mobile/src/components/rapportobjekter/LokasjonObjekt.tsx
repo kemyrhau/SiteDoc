@@ -1,16 +1,19 @@
 import { View, Text } from "react-native";
 import { MapPin } from "lucide-react-native";
 import { trpc } from "../../lib/trpc";
+import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import type { RapportObjektProps } from "./typer";
 
-export function LokasjonObjekt({ verdi, prosjektId }: RapportObjektProps) {
+export function LokasjonObjekt({ verdi }: RapportObjektProps) {
+  // Prosjekt-id fra KONTEKST — ikke en prop (rendereren threader den ikke til repeater-barn).
+  const { valgtProsjektId } = useProsjekt();
   // Lokasjon-verdi: bygning + tegning-tekst (f.eks. "NRK · AG-01-01 Gulvbehandling")
   const lokasjonTekst = typeof verdi === "string" && verdi ? verdi : null;
 
   // Fallback til prosjektadresse hvis ingen dokumentlokasjon
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
-    { id: prosjektId! },
-    { enabled: !!prosjektId && !lokasjonTekst },
+    { id: valgtProsjektId! },
+    { enabled: !!valgtProsjektId && !lokasjonTekst },
   );
 
   const visTekst = lokasjonTekst ?? prosjekt?.address ?? null;

@@ -170,11 +170,37 @@ Presise, observerbare forventninger (tekst på skjerm, badge-tall, navigasjonsm�
 ```
 TEST <id>: PASS | AVVIK | BLOKKERT
 Faktisk:   <hva skjedde per steg — sitér skjermtekst>
-Bevis:     <skjermbilde(r)>
+Bevis:     <sitert a11y-tekst / logglinje — skjermbilde KUN når spørsmålet er visuelt>
 Avvik:     <forventet vs faktisk, kun ved AVVIK>
 Blokkert:  <hva som mangler + hvem: Kenneth-hånd / manglende seed / miljøledd nede>
 ```
-- **Skjermbilde + sitert skjermtekst** på hvert ikke-trivielt steg — cowork gater mot fasit, så råobservasjon leveres, ikke en dom.
+
+🔴 **TEKST ER BEVISET, IKKE SKJERMBILDET (Kenneth 2026-08-26).** Denne linjen sa tidligere
+«skjermbilde + sitert skjermtekst på hvert ikke-trivielt steg». Det kostet **46 % av Kenneths
+ukebudsjett på én time** — 50+ skjermbilder à ~1000–1500 tokens. Simulatoren har vært brukt
+uten problemer i månedsvis nettopp fordi verifiseringen var tekstbasert; det var protokollen
+her som ba om bildene.
+
+- **Standard: `idb ui describe-all`** for hva som finnes på skjermen, og **Metro-loggen** for
+  hva som faktisk skjedde (`[OPPL] size:`, statusendringer, feil). Det svarer på «virker det»
+  uten å lagre et eneste bilde.
+- **Skjermbilde kun når SPØRSMÅLET er visuelt** — blør en strek, er lerretet svart, tegner en
+  tegning. «Finnes velgeren», «endret statusen seg», «hvor stor ble fila» er tekst.
+- Ett bilde, ikke en serie. Cowork gater mot fasit, så råobservasjon leveres, ikke en dom.
+- **Batch handlingene.** Flere tapp, så én verifisering — ikke tapp, sjekk, tapp, sjekk. Hver
+  verifisering er en ny lesning av hele samtalen, og det er antall lesninger som koster.
+- **Skriv funnet til ordrefila med én gang det er gjort**, ikke i en sluttoppsummering. Da
+  overlever resultatet uansett hva som skjer med økten — og du slipper å bære bevismaterialet
+  videre i konteksten for å kunne rapportere senere.
+- **Må et bilde tas: lagre det på disk og oppgi stien.** Bruk bildet, ikke bær det. Den som
+  skal vurdere det leser det én gang.
+- **Meld hva runden ETTERLOT** — utkast, rader, opplastede filer. Uten det degraderer
+  agent-prosjektet for hver runde, og til slutt vet ingen hva som er seed og hva som er søppel.
+  (Målt: fire tomme utkast etter to runder, fordi «+» auto-oppretter når malvelgeren åpnes.)
+- **Driftskunnskap hører i [simulator-runbook.md](simulator-runbook.md), ikke i en rapport.**
+  Oppdager du hvordan noe oppfører seg — at kamera ikke finnes og galleriveien må brukes, at
+  «+» lager utkast, hvilke koordinater som treffer hva — skriv det dit. Ellers oppdager neste
+  agent det på nytt, og hver oppdagelse koster.
 - **Ikke selv-godkjenn mot fasit.** Simulator-Opus rapporterer hva som skjedde; **cowork avgjør PASS/AVVIK**.
 - **Blokkert ≠ fail:** miljøledd nede, manglende seed eller Kenneth-hånd-steg meldes eksplisitt med hvem som må handle — ikke gjett rundt det.
 - **En AVVIK stopper ikke resten** av batchen med mindre den er en forutsetning — kjør videre, samle alt, rapporter samlet.

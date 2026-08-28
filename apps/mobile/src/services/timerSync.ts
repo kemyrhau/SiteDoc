@@ -12,6 +12,7 @@ import {
   slettedeRaderLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
+import i18n from "../lib/i18n";
 
 /* ============================================================================
  *  Timer offline-sync — orkestrerer push (lokale pending → server) og pull
@@ -29,7 +30,12 @@ import type { trpc } from "../lib/trpc";
  * ============================================================================ */
 
 type SyncResultat = {
-  push: { ok: number; conflict: number; avvist: number; feilet: number };
+  // `merged` = automatisk dato-kollisjon-forsoning (M1) — IKKE en konflikt.
+  // Skilt fra `conflict` (server-wins, krever bruker-avklaring) så en fremtidig
+  // konsument av run-telleren ikke rapporterer en merge som falsk alarm. Merk:
+  // brukertallet i statusbaren kommer fra DB-status (`tellConflict`), ikke herfra
+  // — merge setter `syncStatus="pending"`, så den telles aldri som konflikt der.
+  push: { ok: number; merged: number; conflict: number; avvist: number; feilet: number };
   pull: { mottatt: number; slettet: number };
   feil?: string;
 };
@@ -150,11 +156,11 @@ export async function syncTimer(
 ): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
-    return { push: { ok: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0, slettet: 0 } };
+    return { push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0, slettet: 0 } };
   }
 
   const resultat: SyncResultat = {
-    push: { ok: 0, conflict: 0, avvist: 0, feilet: 0 },
+    push: { ok: 0, merged: 0, conflict: 0, avvist: 0, feilet: 0 },
     pull: { mottatt: 0, slettet: 0 },
   };
 
@@ -248,14 +254,20 @@ export async function syncTimer(
               status: r.serverData.status,
               lederKommentar: r.serverData.lederKommentar,
               attestertVed: r.serverData.attestertVed,
-              feilmelding:
-                r.feilmelding ??
-                "Slått sammen med eksisterende dagsseddel for datoen.",
+              // Beskriver det som ALT har skjedd (automatisk forsoning), ikke en
+              // manuell handling. Serveren sender ikke lenger tekst her; klienten
+              // eier brukerkopien via i18n. `r.feilmelding ??` beholdt som vern
+              // om en fremtidig server-variant skulle sende noe.
+              feilmelding: r.feilmelding ?? i18n.t("timer.sync.slattSammen"),
               sistSynkronisert: naa,
             })
             .where(eq(dagsseddelLocal.id, serverClientUuid))
             .run();
-          resultat.push.conflict++;
+          // En automatisk sammenslåing er ikke en konflikt. Egen teller så
+          // run-resultatet ikke rapporterer en falsk alarm (server-wins under
+          // teller fortsatt `conflict`). Sedelen er `pending` → statusbaren
+          // (DB-basert) viser den som «venter på sync», ikke som konflikt.
+          resultat.push.merged++;
         } else {
           // Server-wins: låst (accepted) eller nyere server-versjon under samme
           // identitet. Overskriv metadata, marker conflict for bruker-avklaring.

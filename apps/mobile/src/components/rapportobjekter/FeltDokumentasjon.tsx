@@ -412,8 +412,9 @@ export function FeltDokumentasjon({
             onFerdig={async (annotert) => {
               settAnnoteringBilde(null);
               if (valgtVedleggId && onErstattVedlegg) {
-                // Erstatt original med annotert bilde (unngår duplikat)
-                const filnavn = `annotert_${Date.now()}.png`;
+                // Erstatt original med annotert bilde (unngår duplikat). .jpg — annoteringen
+                // eksporteres nå som JPEG (annoterings-html.ts), ikke PNG (BACKLOG-772).
+                const filnavn = `annotert_${Date.now()}.jpg`;
                 const lokalSti = await lagreLokaltBilde(annotert, filnavn);
                 onErstattVedlegg(valgtVedleggId, lokalSti, filnavn);
                 // Legg i opplastingskø med samme vedlegg-ID
@@ -425,7 +426,7 @@ export function FeltDokumentasjon({
                   vedleggId: valgtVedleggId,
                   lokalSti,
                   filnavn,
-                  mimeType: "image/png",
+                  mimeType: "image/jpeg",
                   filstorrelse,
                   gpsAktivert: false,
                 });

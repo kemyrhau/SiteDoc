@@ -4,13 +4,46 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-23)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-27 kl. 21)
 
-| Agent | Worktree | Branch | Gjør nå | Venter på |
-|---|---|---|---|---|
-| **simulator** | `SiteDoc-simulator` | `fix/mobil-uploadasync-0byte` + detached `origin/develop` | 🔴 **ENESTE AKTIVE SPOR.** Kjører kontrollplans protokoll: opplasting (4 krav-tilfeller, PDF viktigst) · mobil tegningsvisning · delt periodefilter | Å bli åpnet |
-| **dokgen** | `SiteDoc-dokgen` | — | Ledig. Siste: fem firma-guarder + dagskort-utvidelser, alt merget | Ny ordre |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | Ledig. Siste: URL-tilstand + ekspandere, merget. Pdf-køen (fold D2/D3 → `renderFelt` · H1 · H8 · oppgave-PDF · H3/H5-rest) står bak simulator-runden | Simulator-grønt |
+**Alle agenter er avsluttet.** Alt som lå i agenthodene er skrevet til `relay/`-ordrer.
+Neste økter startes ferskt — se køen under.
+
+| Agent | Worktree | Tilstand | Neste ordre |
+|---|---|---|---|
+| **dokgen** | `SiteDoc-dokgen` | Avsluttet. Alt pushet og merget | `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` (begge web, ikke hastende) |
+| **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/seed-hms-og-feltvelgere` | Ingen ny ordre |
+| **fabel** | — | Har `relay/fabel-eksport-arkivering.md` klar til sending | Kenneth relayer |
+
+**Develop: `52495604`.** **Prod: `a8750601`** (2026-08-25 20:57) — **60+ commits bak,
+hvorav 12 mobil.** Én additiv migrering venter (`20260827120000_eksport_oppsett`, db-timer).
+
+✅ **EAS-bygget er IKKE lenger blokkert (2026-08-27 kl. 22).** Opprett-frysen er lukket
+og gatet 3/3 i Release/Fabric (`fix/malvelger-intree`, merget `52495604`).
+
+**Fire runder på samme feilklasse, og den fjerde traff fordi premisset ble motbevist:**
+`MalVelger.tsx:50` påsto at Fabric rendrer `<Modal>` inline uten native VC. Simulator
+observerte svart pageSheet **med grabber** — en glyf bare UIKit tegner for en presentert
+VC. `a29f89b2`, `df86b817` og `d4a76020` fjernet hver sitt nabo-ledd og lot det native
+arket stå, fordi kommentaren sa det ikke kunne være kilden. Fiksen var å fjerne arket.
+🔴 **D1 («krasj ved sending») fantes aldri som egen sak** — det var denne frysen,
+feilaktig tilskrevet send-knappen. Send-flyten er verifisert frisk i både dev og Release.
+
+**Veien til TestFlight er åpen:** merge develop→main → prod-deploy → migrering →
+prod-verifisering som innlogget → env-diff (`eas-build-veileder.md`) → EAS
+production-bygg → submit. Kvote ~8 igjen, reset 1. sept.
+
+**Gjenstår på mobil, ingen av dem blokkerende:** timer-splitt som omgår server-validering
+(lønn-integritet, høyest), papirkurv-guard, tab-bar-oppfølger fra
+`relay/inbox-malvelger-intree.md`, og `BackHandler` uverifisert på Android.
+
+**Printmotoren fase 1–4 er levert og på test.** Modellen ble snudd 2026-08-27: malen
+styrer **skjermen**, og eksporten skriver ut det som vises. Se
+[printmotor-faser-2026-08-25.md](delplaner/printmotor-faser-2026-08-25.md)
+§ Retningsrettelse. Neste retning er **arkivering framfor nedlasting** — fabel eier
+designet; det harde premisset er at `Folder.projectId` er påkrevd mens timer-rapporten
+er en firma-flate.
 
 **✅ TIMER-SPORET LUKKET 2026-08-24.** Fabels designgate på D3 bestått skriftlig:
 [gatekvittering-d3-pivot-fabel-2026-08-24.md](../redesign/gatekvittering-d3-pivot-fabel-2026-08-24.md).
@@ -23,11 +56,9 @@ tillegg/utlegg og tre innganger, URL-båret retur-navigasjon, kollaps/utvid alle
 `merge-base --is-ancestor`); raden sto åpen på arbeid som lå i develop. Samme feilklasse som
 utlegg-raden 2026-08-15 — en `❓ ingen status`-rad er ikke bevis for at noe gjenstår.
 
-🔴 **Develop er 132 commits foran prod (målt 2026-08-23).** Tavla sa 73 i går; tallet var
-utdatert, ikke feil den gangen. Blokkeres av to uverifiserte ting på test: A1
-browser-verifisering (DOMPurify sanerer alt opplastet innhold ved render — bommet SVG-profil
-tar ned tegningsvisningen) og pinning av exceljs-kastet i den nye røde banneren.
-Jo lenger develop står, jo større og mer risikabel blir deployen.
+🔵 **Prod-releasen 2026-08-25 (`a8750601`, 198 commits) tømte etterslepet.** Develop er
+nå 60 commits foran igjen — se tavla øverst for gjeldende tall og migrerings-status.
+Den gamle 132-advarselen er avløst av den releasen og fjernet 2026-08-27.
 
 **🔓 Frysen på `packages/pdf/src/felt.ts` er opphevet (2026-08-23).** Kontrollplan målte at
 fila ligger i mobil-bundlen (Metro tree-shaker ikke barrel-re-eksporter), og konkluderte at
@@ -314,6 +345,22 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
+
+### 🔴🟢 Prosjektfilter-lekkasje rad-nivå — bug-fiks (branch `fix/rapport-prosjektfilter-radniva`, fra develop) — PÅ BRANCH, venter Kenneths gate
+
+**Datakorrekthet, prioritert foran husk-konfig.** Kenneth filtrerte på Fjordgata 12 og fikk 6 t Sentrumsparken med i PDF-en (skjerm 129 = 123+6). Årsak: `firmaPeriodeRapport` + `detaljEksport` valgte sedler med `timer.some.projectId in prosjektIder`, men `include`-en trakk ALLE rader på sedelen uten rad-filter → split-sedler (P1+P2) lekket. Fiks: rad-nivå-`projectId`-filter på alle fire relasjoner (timer/tillegg/maskin/utlegg) i begge spørringene, **kun når `input.prosjektId` er satt** (bevarer kryss-prosjekt-rader utenfor firmaet ved ingen filter). Sedel-valg + `statusFordeling` (per-sedel) urørt — `antallSedler` teller fortsatt sedler som berører prosjektet. Grønt: typecheck api/shared/pdf/web, test 4/4 tasks, lint. Detaljer: [timer.md § Prosjektfilter rad-nivå](timer.md). **Ingen migrering. Ingen prod.** `fix/eksport-husk-konfig` er PAUSET (WIP `bbd62ba0` på egen branch, ikke pushet).
+
+### 🟢 Fase 4-oppfølger — ekstern-lekkasjer + sist brukt (branch `fix/eksport-ekstern-ansattnr-maskinmerke`, fra develop) — PÅ BRANCH, venter Kenneths gate
+
+Kenneth gatet Fakturagrunnlag-PDF på test (Demo Bygg AS) — harde regler holdt (ingen status/ID, liggende, prosjektgruppert, topptekst). To lekkasjer igjen, begge intern info ut av huset: (1) **ansattnr** (pseudonymiseringsnøkkel) utelates nå strukturelt ved `mottaker=ekstern` i Excel Detaljer+Sammendrag + PDF Detaljer+Sammendrag — **ansattnavn BLIR**; (2) **maskin-anomali-merkene** (`utenTimerad`/`ikkeEksporterbar`) undertrykkes for ekstern (kun navnet står; raden blir) i PDF+Excel. + **Sist brukte mal** merkes i eksport-menyen («Sist brukt», delt `useSistBrukteMal`, localStorage, MERKING ikke omorganisering, ukjent id ignoreres stille). + Demo-seed fikk fra/til-klokkeslett (koden var riktig, dataene manglet tider). Regresjonstest `timer-rapport.test.ts` (intern vs ekstern). i18n 1 nøkkel × 15 språk. Grønt: typecheck shared/pdf/web, test shared 551 / pdf 82 / web 189, lint (mine filer). Detaljer: [timer.md § Fase 4 → Oppfølger](timer.md). **Åpent (fabel): Sammendrag per ansatt selv ved prosjektgruppering — ikke bygd.** **Ingen migrering. Ingen prod.**
+
+### 🟢 Printmotor fase 4 — byggherredokumentet (branch `feat/eksport-fase4-byggherredokument`, MERGET develop `eddc118b`) — PÅ TEST, gatet
+
+config v2 (JSONB, **ingen migrering**) med fire nye akser: `mottaker`/`gruppering`/`orientering`/`topptekst`; v1-rader leses med v1-defaults (ingen atferdsendring). **`mottaker=ekstern`** fjerner status STRUKTURELT (Excel Detaljer + Sammendrag, PDF) + ID (Excel) — regel, ikke avhuking, ingen overstyring; redigereren viser noten «Ekstern — interne kolonner utelatt». **`gruppering`** (ingen/ansatt/prosjekt) via ny delt `grupperDetaljRader` i `@sitedoc/shared` som **pakker** `byggDetaljRader` (rører den aldri) — subtotal pr. gruppe + grand total, SUBTOTAL(109) i Excel (ingen dobbelttelling), samme funksjon i PDF. **`orientering`** (auto/staaende/liggende) — auto → liggende når beskrivelse med; avledet server-side, sendt som `landscape` til pdf-render. **`topptekst`** ({firma}/{periode}/{prosjekt} flettes server-side). Innebygde: **Lønnsgrunnlag** (intern·ansatt) + **Fakturagrunnlag** (ekstern·prosjekt·liggende·firmatopp) aktivert ved siden av Full eksport — ett-klikk + Rediger. i18n 19 nøkler × 15 språk. 🔴 **pdf-render-containeren fikk valgfri `landscape`-param (default false → arkiv uendret) — DELT MED PROD, eget deploy-steg Kenneth gater; liggende virker ikke før den er bygget.** Grønt: typecheck shared/pdf/api/web, test shared 551 / pdf 80 / web 189, lint (mine filer). Detaljer: [timer.md § Fase 4](timer.md) · [printmotor-faser](delplaner/printmotor-faser-2026-08-25.md). **Ingen migrering. Ingen prod.**
+
+### 🟢 Printmotor fase 3 — lagrede utskriftsmaler (branch `feat/eksport-fase3-lagrede-maler`, MERGET develop `17fd66f6`) — PÅ TEST
+
+Ny tabell `EksportOppsett` (`db-timer`, migrering `20260827120000_eksport_oppsett` — **additiv, gatet av Kenneth, ikke kjørt på test/prod**), router `timer.eksportOppsett` (list/lagre/oppdater/slett), fase-2-modalen fikk lagringsknapper (Lagre / Lagre som min / Lagre som firma / Slett) + maler-velger i eksport-menyen (Mine · Firmaets · Innebygd «Full eksport» · Ny). To nivåer via nullable `eierId` (firma/personlig), `basertPaId` med SetNull i slett-prosedyren. i18n 14 nøkler → 15 språk. **Kun én innebygd** («Full eksport») — Lønnsgrunnlag/Fakturagrunnlag venter på grupperings-fase 4. **+ To defektrettinger fra fase-2-output (samme runde):** (1) status-verdiene (`pending`/`sent`) oversettes nå i Excel+PDF via delt `STATUS_I18N`-mapping; (2) klokkeslett `Fra`/`Til` (`SheetTimer.fraTid`/`tilTid`) tatt inn i `byggDetaljRader` → begge formater. Grønt: typecheck 11/11, shared 547 / pdf 80 / web 189, lint (mine filer). Detaljer: [timer.md § Fase 3](timer.md) · [printmotor-faser](delplaner/printmotor-faser-2026-08-25.md). **Ingen prod.**
 
 ### 🟢 DG-sporet + flytmodell — SEKS MERGER TIL DEVELOP 2026-08-21 (kontrollplan)
 

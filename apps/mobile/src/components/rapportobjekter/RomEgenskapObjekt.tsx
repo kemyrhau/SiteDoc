@@ -1,15 +1,18 @@
 import { View, Text, TouchableOpacity, Modal, FlatList, Pressable } from "react-native";
 import { useState } from "react";
 import { trpc } from "../../lib/trpc";
+import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import type { RapportObjektProps } from "./typer";
 
-export function RomEgenskapObjekt({ verdi, onEndreVerdi, leseModus, prosjektId }: RapportObjektProps) {
+export function RomEgenskapObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  // Prosjekt-id fra KONTEKST — ikke en prop (rendereren threader den ikke til repeater-barn).
+  const { valgtProsjektId } = useProsjekt();
   const valgtId = typeof verdi === "string" ? verdi : "";
   const [visModal, setVisModal] = useState(false);
 
   const { data: omrader } = trpc.omrade.hentForProsjekt.useQuery(
-    { projectId: prosjektId!, type: "rom" },
-    { enabled: !!prosjektId },
+    { projectId: valgtProsjektId!, type: "rom" },
+    { enabled: !!valgtProsjektId },
   );
 
   // Cast for å unngå TS2589 (excessively deep type instantiation)

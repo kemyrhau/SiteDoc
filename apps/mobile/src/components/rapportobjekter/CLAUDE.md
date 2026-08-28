@@ -27,7 +27,9 @@ RapportObjektRenderer (dispatcher)
   verdi: unknown             // nåværende verdi (type varierer per objekttype)
   onEndreVerdi(verdi): void  // endrings-callback
   leseModus?: boolean        // skjuler redigerings-UI
-  prosjektId?: string        // for kontekstavhengige objekter (person, firma)
+  // prosjektId FJERNET 2026-08-24 — var valgfri + aldri threadet til repeater-barn (stille tomme
+  // felt). Prosjekt-avhengige felt (person/firma/rom/sone/lokasjon/drawing_position) henter fra
+  // useProsjekt()-KONTEKST, ikke prop.
   barneObjekter?: RapportObjekt[]  // for repeater
   sjekklisteId?: string      // for opplastingskø
   oppgaveIdForKo?: string    // for oppgave-opplastingskø

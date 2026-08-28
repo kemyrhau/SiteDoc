@@ -30,7 +30,10 @@ interface SedelRad {
   dato: string;
   status: string;
   projectId: string;
-  aktivitetId: string;
+  // Aktivitet ligger per rad (SheetTimer.aktivitetId), ikke per sedel — en
+  // dagsseddel kan blande flere aktiviteter (dagsseddel-design.md, D3-fiks
+  // 2026-08-27). Vi bærer derfor per-rad-fordelingen, ikke sedelens aktivitetId.
+  perAktivitet: { aktivitetId: string; timer: number }[];
   totaltimer: number;
 }
 
@@ -97,18 +100,31 @@ function lesDataLokalt(userId: string, fra: string, til: string): {
     .all();
 
   const rader: SedelRad[] = sedler.map((s) => {
-    const timer = db
-      .select({ timer: sheetTimerLocal.timer })
+    const timerRader = db
+      .select({
+        aktivitetId: sheetTimerLocal.aktivitetId,
+        timer: sheetTimerLocal.timer,
+      })
       .from(sheetTimerLocal)
       .where(eq(sheetTimerLocal.dagsseddelId, s.id))
       .all();
+    // Summér per rad-aktivitet innen sedelen — bevarer fordelingen når en
+    // dagsseddel har flere aktiviteter (D3: før ble hele summen tilskrevet
+    // sedelens aktivitetId).
+    const perAkt = new Map<string, number>();
+    for (const tr of timerRader) {
+      perAkt.set(tr.aktivitetId, (perAkt.get(tr.aktivitetId) ?? 0) + tr.timer);
+    }
     return {
       id: s.id,
       dato: s.dato,
       status: s.status,
       projectId: s.projectId,
-      aktivitetId: s.aktivitetId ?? "",
-      totaltimer: timer.reduce((acc, t) => acc + t.timer, 0),
+      perAktivitet: Array.from(perAkt, ([aktivitetId, timer]) => ({
+        aktivitetId,
+        timer,
+      })),
+      totaltimer: timerRader.reduce((acc, t) => acc + t.timer, 0),
     };
   });
 
@@ -156,11 +172,13 @@ export default function MineTimerSide() {
   const perAktivitet = useMemo(() => {
     const m = new Map<string, { navn: string; timer: number }>();
     for (const r of data.rader) {
-      const navn = data.aktivitetNavnMap.get(r.aktivitetId) ?? "—";
-      const id = r.aktivitetId || "_ukjent";
-      const eks = m.get(id);
-      if (eks) eks.timer += r.totaltimer;
-      else m.set(id, { navn, timer: r.totaltimer });
+      for (const p of r.perAktivitet) {
+        const navn = data.aktivitetNavnMap.get(p.aktivitetId) ?? "—";
+        const id = p.aktivitetId || "_ukjent";
+        const eks = m.get(id);
+        if (eks) eks.timer += p.timer;
+        else m.set(id, { navn, timer: p.timer });
+      }
     }
     return Array.from(m.values()).sort((a, b) => b.timer - a.timer);
   }, [data.rader, data.aktivitetNavnMap]);
@@ -275,7 +293,13 @@ export default function MineTimerSide() {
                 </View>
                 <View className="mt-0.5 flex-row items-center gap-2">
                   <Text className="text-xs text-gray-500">
-                    {data.aktivitetNavnMap.get(rad.aktivitetId) ?? "—"}
+                    {rad.perAktivitet.length === 0
+                      ? "—"
+                      : rad.perAktivitet
+                          .map(
+                            (p) => data.aktivitetNavnMap.get(p.aktivitetId) ?? "—",
+                          )
+                          .join(", ")}
                   </Text>
                   <Text className="text-xs text-gray-400">·</Text>
                   <Text className="text-xs text-gray-500">

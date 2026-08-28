@@ -69,6 +69,74 @@ en chat og forsvinner ved compact.
 **10. Koden er eneste sannhet.** Dokumentasjonen forteller hvordan vi jobber; den avgjør
 ikke hva systemet gjør. Det gjelder også denne fila.
 
+**10c. Simulator-ordrer: be om TEKST-verifisering** (Kenneth 2026-08-26). Det er
+**skjermbildene** som er dyre, ikke simulatoren — den har vært brukt i månedsvis uten
+problemer på tekstbasert verifisering. Én skjermbilde-tung runde brukte **46 % av Kenneths
+ukebudsjett på én time** (50+ bilder à ~1000–1500 tokens).
+
+Full regel i [simulator-opus-oppkobling.md § handoff](simulator-opus-oppkobling.md). Kort:
+`idb ui describe-all` + Metro-logg er beviset; skjermbilde kun når SPØRSMÅLET er visuelt
+(blør en strek, er lerretet svart). Ordren skal si hvilket punkt som er hva — sier den det
+ikke, fotograferer agenten alt.
+
+🔴 **Aldri be om verifisering av kode som ikke er deployet.** Annoteringstesten ble bestilt før
+fiksen var merget; hele runden gikk mot gammel kode og måtte gjentas. Sjekk
+`merge-base --is-ancestor <fiks> <bygget som kjører>` FØR ordren skrives.
+
+**10b. Et sidefunn er en påstand — gate det som alt annet før det blir en ordre.** Cowork
+gjorde to ordrer av uverifiserte premisser 2026-08-26: oppgave-PDF på mobil (serveren
+implementerer det ikke — `arkiv.ts:51` kaster) og «merge telles som falsk konflikt» (telleren
+leses av ingen; brukertallet kommer fra en DB-telling merge aldri setter). Begge kom fra
+agentrapporter cowork stolte på fordi de var velskrevne. Agenten oppdaget det selv i begge
+tilfeller — men da var runden brukt. **Mål premisset i koden før du skriver ordren**, ikke
+etterpå. Samme regel som § Cowork leveranse-ansvar punkt 4, anvendt på sidefunn.
+
+**10d. Avslutt og gjenåpne agenter mellom oppgaver — og skriv til fil, så det er gratis**
+(Kenneth 2026-08-26). Hver handling en agent gjør, leser hele samtalen på nytt først. En økt
+som har gått i timevis leser hundre tusen ord før hvert trykk; en fersk økt leser nesten
+ingenting. **Regningen er kontekstens tykkelse ganget med antall handlinger** — det er derfor
+forbruket kan løpe mens prosentangivelsen står stille. Prosenten er tykkelsen, ikke antall
+lesninger.
+
+Det som gjør det trygt å avslutte, er **filene**. Ligger ordren i `relay/inbox-*.md` og
+funnene i repoet, mister en ny økt ingenting — den leser seg opp på sekunder. Er alt bare i
+samtalen, tør ingen avslutte, og da blir økten lang og dyr. De to reglene henger sammen: skriv
+til fil, så kan du starte ferskt.
+
+🔴 **Det dyre overlever et exit — kunnskapen om at det står der gjør det ikke.** SSH-tunneler,
+installerte simulator-bygg, kjørende dev-servere og genererte `node_modules` er prosesser og
+filer på Kenneths maskin; de dør ikke med agent-økta. Det som forsvinner er at noen VET at de
+lever. En fersk økt som ikke får vite det, bygger på nytt — og et Release-sim-bygg kostet tre
+forsøk 27.08 da Hermes-fella slo til. **Derfor: siste handling før exit er en «Tilstand
+etterlatt»-blokk i ordrefila** med hva som står oppe, hva som er slettet, og hva som må
+gjenskapes. Uten den er et exit ikke gratis, det er bare usynlig dyrt.
+
+Særlig verdt å starte ferskt **før en simulator-runde** — den gjør mange handlinger etter
+hverandre, og da teller tykkelsen ekstra.
+
+**11. Skriv ordren til fil FØR du gir nudgen.** Mekanismen står i § Meldingsflyt; det som
+mangler er disiplinen. Praksisen var etablert (45 `relay/inbox-*`-filer 28.07–20.08) og
+**falt bort 20. august**, samme dag coworks rolle ble omdefinert. Fra da av levde hver ordre
+kun i en chat-melding, og **tre gikk tapt på ett døgn** — kontrollplans utlegg-sweep,
+dokgens maskin-rettelse og GDPR-kartleggingen. Agentene sto ledige og ventet på noe som lå
+hos cowork. En fil overlever både compact og glemt liming.
+
+**12. `/version` FØR hver kjede som avhenger av en deploy** (lærdom 2026-08-25/26). Tre
+runder gikk tapt på at en seed kjørte mot gammelt image: seeden kjører i containeren, så
+deploy er en hard forutsetning, ikke et valgfritt steg. `curl -s
+https://api-test.sitedoc.no/version` svarer på ett sekund. Byggstempelet ble laget for
+akkurat dette spørsmålet og fylles nå av `deploy-test.sh` (koblet 2026-08-25 — det hadde
+aldri vært det). Kommer bygget ut med alt `CACHED`, også `COPY . .`, nådde koden ikke fram.
+
+**13. Målestokken for prioritering er piloten, ikke backloggens lengde.**
+`docs/redesign/REDESIGN-MASTERPLAN.md` § Målestokk: *«…pilotfrist ~sept 2026 (50 ansatte,
+mobil viktigst)»*. Kenneth 2026-08-26: funksjonelt produkt først, GDPR og lovkrav så godt vi
+kan — i den rekkefølgen.
+🔴 **To filer har samme tittel og samme «opprettet 2026-07-12»:**
+`REDESIGN-MASTERPLAN.md` (justert 2026-08-20, GJELDENDE) og `MASTERPLAN.md` (14.08,
+utdatert). Cowork leste feil fil og bygde en hel prioritering på den. Sjekk datoen i
+`## Rekkefølge`-overskriften.
+
 ### Lesekart — hva cowork må vite for å ha regien
 
 | Spørsmål | Kilde |
@@ -123,6 +191,21 @@ kjøre uten å tolke.
   Verifiser `git branch -r` først.
 - **Rekkefølge når noe avhenger:** «X først, fordi Y trenger resultatet.» Er de
   uavhengige, si det — da kan flere agenter kjøre parallelt.
+
+🔴 **NUDGEN SKAL BÆRE MÅLET — ikke bare ordrefila** (Kenneth 2026-08-26). Ligger
+ordren i `relay/inbox-*.md`, står worktreet der — men Kenneth limer **nudgen**,
+ikke fila. Uten mottaker i første linje kan han lime til feil terminal, og *«da
+blir jeg plaget med masse forespørsler jeg må svare ja/nei på»*.
+
+**Form:** første linje er destinasjonen, alene.
+
+```
+→ SiteDoc-dokgen
+Les ~/Documents/Programmering/SiteDoc/relay/inbox-<navn>.md og kjør den.
+```
+
+Samme prinsipp som «si hvilken maskin kommandoen kjøres på»: den som limer skal
+aldri måtte utlede hvor noe hører hjemme.
 
 **To ordrer til SAMME agent før den første er relayet — merk hvilken som gjelder**
 (Kenneth 2026-08-25). Rekker ikke Kenneth å sende den første, kan han ikke vite om den
