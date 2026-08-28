@@ -11,13 +11,35 @@ Neste økter startes ferskt — se køen under.
 
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Avsluttet. Alt pushet og merget | `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` (begge web, ikke hastende) |
+| **dokgen** | `SiteDoc-dokgen` | Avsluttet. Alt pushet og merget | `relay/inbox-prosjektoppsett-veileder.md` (ON) → rename `IKKE_I_PAPIRKURV` → `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
 | **kontrollplan** | `SiteDoc-kontrollplan` | `feat/seed-hms-og-feltvelgere` | Ingen ny ordre |
 | **fabel** | — | Har `relay/fabel-eksport-arkivering.md` klar til sending | Kenneth relayer |
 
 ✅ **PROD À JOUR 2026-08-28 06:23** — `5dcdeb58` (60 commits). Migreringene kjørt,
 verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`) sendt inn samme runde.
+
+**Test: `dca9c382`** (28.08 15:21). Etter prod-releasen har develop fått, alt gatet av
+Kenneth på test:
+
+- **Registrerings-sporet fase 1** — `OrganizationMember.status` + guard i alle 11
+  prosjekt-porter + `hentBrukersOrg`-filter (dekker firma-veien inkl. timeføring).
+  🔴 **En ansatt som sluttet beholdt tidligere tilgang til alt** — `periodeSlutt` var
+  inert i begge ender.
+- **Ansattvelger** — firmaets ansatte + avdelinger inn i prosjekt og flytroller. Tidligere
+  fantes **ingen vei** fra «ansatt i firmaet» til «medlem av prosjektet»; eneste utvei var
+  å invitere kolleger på e-post. Delt regel `aktivAnsattIFirmaWhere` samler `status` +
+  `canLogin` ett sted (seks håndskrevne where-setninger hadde drevet fra hverandre).
+- **Fundament ut av gruppemodul-gatingen** — sjekklister/oppgaver/tegninger vises nå for
+  vanlige ansatte. 3D forblir tilvalg. Kenneth-vedtak; åpnet ingenting (datalaget vaktet
+  uansett).
+- **Slettevakter** — malobjekt-vakten talte soft-slettede dokumenter og nøkkel-eksistens
+  som «bruk»; **å åpne et dokument auto-lagrer tomme feltoppføringer**, så ethvert åpnet
+  dokument låste malen for alltid. Oppretter kan nå slette eget utkast (serveren tillot
+  det alt — klienten gjemte knappen). Deaktivert bruker møter forklaringen på dyplenker.
+- **`@xenova/transformers` fjernet** — død avhengighet som dro `onnxruntime` +
+  `sharp@0.32.6`, sistnevnte lastet libvips fra GitHub ved hver `pnpm install` og tok ned
+  to bygg på to dager, ett av dem midt i prod-releasen. **Bekreftet borte fra byggeloggen.**
 
 🔴 **Funn under releasen: `db-timer`-migreringen `20260811130000_utlegg_ordning_justering`
 var ALDRI kjørt mot prod.** Releasenoten på `a8750601` (25.08) sa «ingen migreringer» —
