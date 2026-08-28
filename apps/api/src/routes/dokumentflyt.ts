@@ -256,8 +256,10 @@ export const dokumentflytRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
+      // Dokumentflyt er IKKE soft-deletet (kun Checklist/Task har deletedAt) — derfor
+      // ingen IKKE_SLETTET her; det ville gitt Prisma «Unknown argument deletedAt».
       const flyt = await ctx.prisma.dokumentflyt.findFirstOrThrow({
-        where: { id: input.dokumentflytId, projectId: input.projectId, ...IKKE_SLETTET },
+        where: { id: input.dokumentflytId, projectId: input.projectId },
         select: { id: true, project: { select: { primaryOrganizationId: true } } },
       });
       const orgId = flyt.project?.primaryOrganizationId;
