@@ -123,6 +123,14 @@ export default function DashbordSide() {
                 )
               }
             />
+          ) : minBruker?.erDeaktivert ? (
+            // Deaktivert ansatt: «Ingen prosjekter» ville sett ut som en feil (og folk
+            // melder feil som ikke finnes). Egen forklarende tom-state (fase 1
+            // registreringsmodell 2026-08-28) — auth er uendret, det er tilgangen som er av.
+            <EmptyState
+              title={t("dashbord.deaktivertTittel")}
+              description={t("dashbord.deaktivertBeskrivelse")}
+            />
           ) : (
             <EmptyState
               title={t("dashbord.venterPaaTilgangTittel")}

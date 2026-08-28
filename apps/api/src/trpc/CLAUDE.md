@@ -58,6 +58,29 @@ await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
 await verifiserTillatelse(ctx.userId, projectId, "manage_field");
 ```
 
+## Ansettelses-guard (registreringsmodell fase 1, 2026-08-28)
+
+Deaktivering av en ansatt er ÉN reversibel fakta på `OrganizationMember.status`
+(`"aktiv"` | `"deaktivert"`), lest **ved porten** — ikke N `periodeSlutt`-skrivinger.
+
+- `krevAktivAnsettelse(userId, projectId)` — kaster FORBIDDEN når brukeren er ansatt
+  i prosjektets **eier-firma** (`Project.primaryOrganizationId`) og status er
+  `"deaktivert"`. No-op for standalone-prosjekter og for ikke-ansatte (guest på annet
+  firmas prosjekt). Kalt i alle 11 prosjekt-porter ETTER `sitedoc_admin`-bypass, FØR
+  firma-admin-bypass (en deaktivert firma_admin skal ikke slippe inn via
+  `erFirmaAdminForProsjekt`).
+- `hentBrukersOrg` filtrerer på `status:"aktiv"` → dekker hele firma-nivå-medlemsveien
+  (inkl. timeføring via `krevBrukersOrg`) på én linje. Bonus: løser multi-org rent til
+  det aktive firmaet.
+- `hentDeaktiverteOrgIder(userId)` — brukt av `prosjekt.hentAlle`/`hentSistBrukte` for å
+  skjule prosjekter eid av org der ansettelsen er deaktivert (ProjectMember-radene
+  ryddes bevisst ikke, så member-scopet ville ellers vist ikke-åpnbare prosjekter).
+- Deaktivering-mutasjon: `organisasjon.settAnsattStatus` (firmaadmin-only, lockout-guard
+  på egen rad, sitedoc_admin skjermet). Varig spor i `Activity` (`action:
+  "ansatt_deaktivert"|"ansatt_aktivert"`, `targetType:"organization_member"`).
+- Oppfølger i BACKLOG: en deaktivert firma-admin beholder admin-rettigheter (de
+  `verifiserFirmaAdmin`-lokale rutene leser `firmaRoller`, ikke status).
+
 ## Fallgruver
 
 - `null`-retur fra `byggTilgangsFilter` betyr admin — IKKE tomt filter

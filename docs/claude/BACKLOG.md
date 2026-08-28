@@ -69,6 +69,10 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 En deaktivert firma-admin beholder admin-rettigheter (registreringsmodell fase 1-oppfølger, 2026-08-28)
+
+`verifiserFirmaAdmin` (routes-lokale kopier ×16) og `erFirmaAdmin`/`erFirmaAdminForProsjekt` (tilgangskontroll.ts) leser `firmaRoller`, ikke `status`. Fase 1 la `krevAktivAnsettelse` FØR firma-admin-bypass i de 11 prosjekt-portene (så en deaktivert firma_admin nektes prosjekttilgang der) og `status`-filter i `hentBrukersOrg` (så firma-nivå-medlemsveien, inkl. timeføring, stenger). Men de firma-admin-**spesifikke** rutene som gater direkte på `verifiserFirmaAdmin` (lønnsart-/eksport-oppsett-/onboarding-config m.m.) sjekker fortsatt ikke status. En deaktivert **ikke-admin** feiler disse uansett; hullet gjelder kun en deaktivert person som fortsatt har `firma_admin` i `firmaRoller`. Fiks: sentraliser `verifiserFirmaAdmin`-kopiene og legg status-sjekk der. Lav prioritet (lockout-guarden hindrer selv-deaktivering; scenariet krever at admin A deaktiverer admin B og lar B beholde rollen).
+
 ### 🟡 CLAUDE.md er 375 tegn fra 40k-taket — neste indeksrad bryter det (målt 2026-08-26)
 
 `CLAUDE.md` er **39 625 av 40 000 tegn** på develop. Dokumentasjons-regelen sier taket «overskrides aldri». Én ny rad i doc-indeks-tabellen (~130–190 tegn) presser den over. Historisk løsning: flytt en seksjon ut til en detaljfil i `docs/claude/` og la en peker stå igjen (slik `retningslinjer/ui-standarder.md` ble skilt ut 2026-08-20). **Ikke gjør det midt i en annen leveranse** — det er en egen liten rydderunde som skal planlegges, ikke en overraskelse. Inntil da: nye daterte analyse-/triage-/nå-rapport-dokumenter føres i `STATUS.md`, IKKE i CLAUDE.md-indeksen (etablert praksis for `na-rapport-*`, `kontekstvelger-regresjonsjakt-*`, `pilot-triage-*`) — kun varige referansefiler fortjener en indeksrad. Kandidat-seksjoner å flytte: fargepalett-peker er alt ute; neste er trolig i18n-krav-blokken eller deploy-sekvens-blokken.

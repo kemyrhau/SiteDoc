@@ -219,6 +219,15 @@ model OrganizationMember {
   firmaRoller    String[] @default([]) @map("firma_roller")
   ansattnummer   String?
   avdelingId     String?  @map("avdeling_id")
+  // Ansettelsesstatus (registreringsmodell fase 1, 2026-08-28). "aktiv" | "deaktivert".
+  // String (ikke DB-enum) som ansattRolle/firmaRoller — utvidbar uten migrasjon.
+  // Deaktivering er ÉN reversibel fakta lest ved porten (tilgangskontroll.ts:
+  // krevAktivAnsettelse + hentBrukersOrg-filter) — IKKE N periodeSlutt-skrivinger.
+  // deaktivertAvUserId er String? uten @relation (A.3-mønster) → audit-spor bevart
+  // ved User-sletting. Varig historikk («når mistet han tilgang») ligger i Activity.
+  status             String    @default("aktiv")
+  deaktivertVed      DateTime? @map("deaktivert_ved")
+  deaktivertAvUserId String?   @map("deaktivert_av_user_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

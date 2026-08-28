@@ -8,6 +8,7 @@ import {
   verifiserProsjektmedlem,
   verifiserAdmin,
   hentBrukersOrg,
+  hentDeaktiverteOrgIder,
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
@@ -75,11 +76,25 @@ export const prosjektRouter = router({
       // (type="internt") filtreres alltid ut. For ikke-admin er member-scopet
       // allerede uten interne (de har ingen ProjectMember-rader); type-filteret
       // er nødvendig for sitedoc_admin-grenen (tomt filter / org-filter).
+      //
+      // Deaktivert ansettelse (fase 1 registreringsmodell): ProjectMember-radene
+      // ryddes bevisst ikke, så member-scopet ville fortsatt vist gamle prosjekter
+      // brukeren ikke lenger kan åpne. Ekskluder prosjekter eid av org der
+      // ansettelsen er deaktivert — speiler krevAktivAnsettelse ved porten.
+      const deaktiverteOrgIder = erSitedocAdmin
+        ? []
+        : await hentDeaktiverteOrgIder(ctx.userId!);
       const where: Prisma.ProjectWhereInput = erSitedocAdmin
         ? input?.organizationId
           ? { type: "kunde", primaryOrganizationId: input.organizationId }
           : { type: "kunde" }
-        : { type: "kunde", members: { some: { userId: ctx.userId } } };
+        : {
+            type: "kunde",
+            members: { some: { userId: ctx.userId } },
+            ...(deaktiverteOrgIder.length > 0
+              ? { NOT: { primaryOrganizationId: { in: deaktiverteOrgIder } } }
+              : {}),
+          };
       return ctx.prisma.project.findMany({
         where,
         orderBy: { createdAt: "desc" },
@@ -134,11 +149,17 @@ export const prosjektRouter = router({
         select: { role: true },
       });
       const erSitedocAdmin = bruker.role === "sitedoc_admin";
+      const deaktiverteOrgIder = erSitedocAdmin
+        ? []
+        : await hentDeaktiverteOrgIder(ctx.userId!);
       const where: Prisma.ProjectWhereInput = {
         id: { in: distinkte },
         type: "kunde",
         ...(input?.organizationId ? { primaryOrganizationId: input.organizationId } : {}),
         ...(erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } }),
+        ...(deaktiverteOrgIder.length > 0
+          ? { NOT: { primaryOrganizationId: { in: deaktiverteOrgIder } } }
+          : {}),
       };
       // Kun id-ene trengs (klienten mapper mot allerede-lastet prosjektliste).
       // Flat `string[]`-retur unngår tRPC-include-TS2589 på klientsiden.
