@@ -260,6 +260,7 @@ export function LeggTilMedlemDropdown({
         open={velgerÅpen}
         onClose={() => setVelgerÅpen(false)}
         projectId={prosjektId}
+        dokumentflytId={dokumentflytId}
         tittel={t("ansattvelger.tittelRolle")}
         bekreftLabel={t("ansattvelger.leggTilIRollen")}
         isPending={leggTilAnsatteMutation.isPending}
