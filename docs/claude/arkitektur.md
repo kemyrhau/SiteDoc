@@ -169,11 +169,21 @@ ni ledd, og **to parallelle modulsystemer** — der bare det ene har UI.
 | 8 | `Faggruppe`-kobling på `ProjectMember` | `byggTilgangsFilter` | Hvilke dokumenter man ser |
 | 9 | `DokumentflytMedlem` | flytmodellen | Rolle i en konkret flyt |
 
-🔴 **To modulsystemer, ett synlig.** `ProjectModule` (ledd 7) har UI på
-Innstillinger → Moduler. **`ProjectGroup.modules` (ledd 6) har ingen.** Den er det som
-skjuler Sjekklister og Oppgaver, og den kan ikke ses eller endres noe sted i
-grensesnittet. Det er derfor feilen framstår som uforklarlig: modulsiden viser at alt er
-i orden, mens et usynlig system blokkerer.
+🔴 **To modulsystemer på hver sin side av huset.** `ProjectModule` (ledd 7) redigeres på
+Innstillinger → **Moduler**. `ProjectGroup.modules` (ledd 6) redigeres på
+Innstillinger → **Brukere/Medlemmer**, per brukergruppe (`oppsett/brukere/page.tsx:871`).
+
+To systemer som begge heter «moduler», på to ulike sider, som gater ulike deler av
+sidebaren. Modulsiden kan vise at alt er i orden mens det andre blokkerer — og ingenting
+i grensesnittet forteller at de er to.
+
+⚠️ **Korreksjon 2026-08-28:** første versjon av dette avsnittet påsto at ledd 6 ikke
+hadde UI. Feil — den ligger på brukergruppe-siden. Målingen var riktig, konklusjonen for
+rask.
+
+**Ledd 6 gater KUN klienten.** `group.modules` leses ett sted (`gruppe.ts:81`) og skrives
+ett sted (`:534`); **ingen api-rute gater på den.** Å fjerne sidebar-sjekken er derfor
+trygt — serveren har aldri nektet på dette grunnlaget.
 
 **Konsekvens for feilsøking:** «hvorfor ser ikke X sjekklistene?» besvares nesten alltid
 av ledd 5–6, ikke av ledd 3, 8 eller 9. Sjekk brukergruppe-medlemskapet og gruppens
