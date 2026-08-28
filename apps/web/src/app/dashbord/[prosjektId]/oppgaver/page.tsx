@@ -151,10 +151,17 @@ function formaterLopenummer(rad: OppgaveRad): string {
   return rad.number ? String(rad.number).padStart(3, "0") : "—";
 }
 
+// Ansvarlig = den/de i flyten som har ansvar for å svare ut dokumentet (Kenneth-vedtak
+// 2026-08-28). Reell mottaker (person/gruppe) er et ekte ansvar. Et UTKAST er ikke sendt
+// og har ingen mottaker → ansvarlig er oppretteren som holder det nå. Ellers (ingen
+// mottaker, ikke utkast) er det ingen faktisk ansvarlig ennå → tom («—» i cella). Falt
+// FØR tilbake på utforerFaggruppe, som navnga en faggruppe som ennå ikke hadde fått ansvar.
+// Tom streng (ikke «—») så filterbyggingen (bygg → Boolean-filter) ikke får en «—»-oppføring.
 function formaterAnsvarlig(rad: OppgaveRad): string {
   if (rad.recipientUser?.name) return rad.recipientUser.name;
   if (rad.recipientGroup?.name) return rad.recipientGroup.name;
-  return rad.utforerFaggruppe?.name ?? "";
+  if (rad.status === "draft") return rad.bestiller?.name ?? "";
+  return "";
 }
 
 function formaterDato(dato: string | null): string {
@@ -787,7 +794,12 @@ export default function OppgaverSide() {
       },
       ansvarlig: {
         id: "ansvarlig", header: t("tabell.ansvarlig"),
-        celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
+        celle: (rad) => {
+          const ansvarlig = formaterAnsvarlig(rad);
+          return ansvarlig
+            ? <span className="text-gray-600">{ansvarlig}</span>
+            : <span className="text-gray-300">—</span>;
+        },
         sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad),
         filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [],
       },
