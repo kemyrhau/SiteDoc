@@ -8,7 +8,7 @@ const nextConfig = {
     // Next forsøkte å bundle den ved «Collecting page data» → «Could not load the
     // "sharp" module using the linux-x64 runtime» (sharp har plattform-binærer som
     // ikke kan bundles). Ekstern-lista lar den lastes som vanlig node-modul i api.
-    serverComponentsExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser", "pdfjs-dist", "@xenova/transformers", "onnxruntime-node", "sharp"],
+    serverComponentsExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser", "pdfjs-dist", "sharp"],
     // Aktiverer src/instrumentation.ts (boot-guard for FIL_SIGNING_SECRET —
     // tRPC/signering kjører i web-prosessen). Next 14.2 krever eksplisitt flagg.
     instrumentationHook: true,
@@ -29,7 +29,6 @@ const nextConfig = {
       config.externals = config.externals || [];
       config.externals.push(
         "web-ifc", "@thatopen/components", "@thatopen/fragments",
-        "@xenova/transformers", "onnxruntime-node", "onnxruntime-common",
         // sharp (2026-08-14): har plattform-spesifikke binærer som ikke kan
         // bundles. Når tRPC-ruten via api/src/routes/tegning.ts (og arkivmalens
         // bilde-inliner). `serverComponentsExternalPackages` er IKKE nok — den

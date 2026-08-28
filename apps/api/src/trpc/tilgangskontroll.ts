@@ -373,7 +373,8 @@ export type HmsHandling = "tilfoyInformasjon" | "sendInn" | "besvar" | "lukk" | 
 
 /**
  * HMS-egen autorisasjonsguard (tilstand × handling × hvem) — dedikert HMS-løp,
- * D2. Rører ALDRI `verifiserFlytRolle`/rolle-matrisen. sitedoc_admin bypasser.
+ * D2. Egen guard ved siden av flytens posisjons-baserte autorisasjon
+ * (`verifiserRetningsrett`), ikke delt med den. sitedoc_admin bypasser.
  *
  * | Handling         | Hvem      | Tilstand                  |
  * |------------------|-----------|---------------------------|
@@ -879,10 +880,16 @@ export async function verifiserDokumentTilgang(
 }
 
 /**
- * F3.4: POSISJON-basert autorisasjon (erstatter verifiserFlytRolle sin rolle×status-matrise).
- * Rutingen teller ledd — så autorisasjonen gjør det også: en handling er tillatt hvis brukeren
- * har ballen (er medlem av aktivPosisjon-leddet) eller har terminerings-fullmakt (kanTerminereUtenBall).
+ * F3.4: POSISJON-basert autorisasjon. En handling er tillatt hvis brukeren har ballen
+ * (er medlem av aktivPosisjon-leddet) eller har terminerings-fullmakt (kanTerminereUtenBall).
+ * Rutingen teller ledd — så autorisasjonen gjør det også.
  * Retningsreglene (retningsrettigheter) er ÉN kilde delt med klient (Fase 4).
+ *
+ * HISTORIKK (bevisst bevart her — det ene stedet modellskiftet forklares): dette ERSTATTET
+ * en rolle×status-matrise (`verifiserFlytRolle`, nå slettet), der rettigheten fulgte hvilken
+ * ROLLE du hadde og hvilken STATUS dokumentet sto i. Posisjonsmodellen lar rettigheten følge
+ * POSISJONEN i flyten — hvem som har ballen. Ikke gå tilbake til rolle×status: rutingen
+ * (byggPosisjonsLedd/harBallenPosisjon) forutsetter posisjon, ikke rolle×status.
  *
  *   send      → kanSende (ball-holder)
  *   responded → kanBesvare (ball-holder, kontroll|utfor)

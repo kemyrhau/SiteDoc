@@ -1035,9 +1035,10 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
-      // F3.4: POSISJON-basert autorisasjon (erstatter verifiserFlytRolle sin rolle×status-matrise).
-      // 1b B-gaten fjernet: HMS ruter nå via posisjon → null-medlem-bestillerboksen (E1) er ikke
-      // lenger et autorisasjonsproblem. Medlemmer lastes her og gjenbrukes av rutingen nedenfor.
+      // F3.4: POSISJON-basert autorisasjon — rettigheten følger hvem som har ballen (se
+      // verifiserRetningsrett). 1b B-gaten fjernet: HMS ruter nå via posisjon → null-medlem-
+      // bestillerboksen (E1) er ikke lenger et autorisasjonsproblem. Medlemmer lastes her og
+      // gjenbrukes av rutingen nedenfor.
       const flytMedlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
       await verifiserRetningsrett(
         ctx.userId,
@@ -1379,7 +1380,7 @@ export const sjekklisteRouter = router({
   // ---------- Dedikert HMS-løp (D1/D2) ----------
   // HMS er et selvstendig løp ved siden av dokumentflyten — egen tilstandsmaskin
   // (sent → responded → closed, + gjenåpne) og egen autorisasjon
-  // (verifiserHmsHandling). Rører ALDRI verifiserFlytRolle/rolle-matrisen.
+  // (verifiserHmsHandling), atskilt fra flytens posisjons-baserte autorisasjon.
 
   /**
    * Besvar HMS-sak med obligatorisk begrunnelse (HMS-admin).

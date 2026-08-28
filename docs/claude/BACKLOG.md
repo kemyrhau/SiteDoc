@@ -47,7 +47,7 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ### Pakke B — vedlikeholdsvindu
 
-Én PR: `pnpm update` + `overrides` der transitivt. Omfatter protobufjs (transitiv via `@xenova/transformers`; pollution-CVE krever ondsinnede `.proto`-filer vi ikke parser), next-auth beta + `@auth/core`, find-my-way, tar/tar-fs, brace-expansion, browserslist, undici, expo-file-system, sharp, fast-xml-parser, csv-parse, nanoid, jose, ajv, yargs, js-yaml, picomatch, postal-mime, `@ungap/structured-clone`, onnxruntime-node, `@fastify/forwarded`, `@expo/spawn-async`, i18next, zod. Est. 3–4 t inkl. regresjon.
+Én PR: `pnpm update` + `overrides` der transitivt. Omfatter next-auth beta + `@auth/core`, find-my-way, tar/tar-fs, brace-expansion, browserslist, undici, expo-file-system, sharp, fast-xml-parser, csv-parse, nanoid, jose, ajv, yargs, js-yaml, picomatch, postal-mime, `@ungap/structured-clone`, `@fastify/forwarded`, `@expo/spawn-async`, i18next, zod. Est. 3–4 t inkl. regresjon. **Redusert 2026-08-28:** `@xenova/transformers` fjernet (branch `chore/dodkode-xenova`) → `protobufjs` og `onnxruntime-node` falt ut av treet (var kun transitive via `@xenova`), så de er ute av denne pakken.
 
 **B-unntak: `xlsx` → `exceljs`** — pollution-CVE-en er reell og npm-versjonen får ikke fiks. **Verifisert: begge finnes i `apps/api` (`xlsx ^0.18.5` + `exceljs ^4.4.0`), og web bruker kun exceljs.** Migrer api-bruken og fjern `xlsx`. Egen post.
 
