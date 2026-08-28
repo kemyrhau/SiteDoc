@@ -17,7 +17,7 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 |---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | Avsluttet. `fix/ansvarlig-kolonne` levert (`eb9cc787`), merget og på test | `relay/inbox-prosjektoppsett-veileder.md` (ON — masterplanens neste) → rename `IKKE_I_PAPIRKURV` → `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` **+ `relay/inbox-tabellbredder.md` (kjøres SAMMEN med kolonnevelgeren, Kenneth-vedtak 28.08)** |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/seed-hms-og-feltvelgere` | Ingen ny ordre |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Avsluttet. **Null utestående** — alle åtte `feat/kontrollplan-*` er i prod, og treets egen `feat/seed-hms-og-feltvelgere` (`e69830fe`) er i develop | `relay/inbox-kp-speiling.md` (restfunn fra AM-3-målingen — IKKE AM-3 selv, den er fikset) |
 | **fabel** | — | Har to notater klare til sending: `relay/fabel-eksport-arkivering.md` og `relay/fabel-nav-gating-modellen.md` | Kenneth relayer |
 
 ✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
