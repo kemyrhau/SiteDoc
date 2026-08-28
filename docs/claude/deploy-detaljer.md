@@ -190,8 +190,23 @@ sudo docker compose -f docker/docker-compose.test.yml up -d --no-deps sitedoc-te
 sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'
 ```
 - **Kun `apps/web`+`packages` endret** (ikke `apps/api`): dropp `build sitedoc-test-api`, `up ... sitedoc-test-web` alene.
-- **Ingen migrering i diffen:** dropp migrate-linja.
-- **Migrering i andre db-pakker** (db-timer/maskin/varelager): legg til `&& pnpm --filter @sitedoc/db-<pakke> exec prisma migrate deploy` i migrate-linja.
+- 🔴 **IKKE utled migreringer fra diffen — spør databasen.** Kjør `migrate deploy` for
+  **alle fire** db-pakker ved hver deploy. Kommandoen er idempotent og svarer «No pending
+  migrations» når det ikke er noe å gjøre, så det koster sekunder og fjerner en
+  skjønnsvurdering:
+  `pnpm --filter @sitedoc/db exec prisma migrate deploy && pnpm --filter @sitedoc/db-timer exec prisma migrate deploy && pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy && pnpm --filter @sitedoc/db-varelager exec prisma migrate deploy`
+
+  **Bakgrunn (2026-08-28):** prod-releasen `a8750601` (25.08) er merket «ingen
+  migreringer». Det var sant for `packages/db` og **usant for `db-timer`** —
+  `20260811130000_utlegg_ordning_justering` fra 11. august var aldri kjørt. Prod hadde
+  dermed i to uker CHECK-constraints som avviste `'lonnstillegg'` og manglet kolonnene
+  `satsbasert`/`mulig_skattepliktig`, mens koden forventet begge. Enhver Prisma-lesning av
+  `expense_categories` ville feilet. Ingen meldte fra fordi timer-modulen ikke er i bruk i
+  prod (0 attesterte sedler målt 27.08) — feilen var der, ingen gikk på den.
+
+  Den betingede formuleringen som sto her («ingen migrering i diffen → dropp migrate-linja»)
+  er nettopp det som lot konklusjonen bli trukket fra feil sted. **Fire pakker har hver sin
+  migreringsmappe; å se i én av dem er ikke å ha sjekket.**
 - Verifiser som INNLOGGET bruker på test.sitedoc.no (ikke bare HTTP 200).
 
 ### Bygg-stempel: env-interpolering (fra 2026-08-11 — GIT_SHA/BUILD_TID i compose-args)
