@@ -4,51 +4,39 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-27 kl. 21)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-28 kl. 16)
 
 **Alle agenter er avsluttet.** Alt som lå i agenthodene er skrevet til `relay/`-ordrer.
 Neste økter startes ferskt — se køen under.
 
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Avsluttet. Alt pushet og merget | `relay/inbox-prosjektoppsett-veileder.md` (ON) → rename `IKKE_I_PAPIRKURV` → `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` |
+| **dokgen** | `SiteDoc-dokgen` | Avsluttet. Alt pushet og merget | `relay/inbox-ansvarlig-kolonne.md` (sendt 28.08) → `relay/inbox-prosjektoppsett-veileder.md` (ON) → rename `IKKE_I_PAPIRKURV` → `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
 | **kontrollplan** | `SiteDoc-kontrollplan` | `feat/seed-hms-og-feltvelgere` | Ingen ny ordre |
 | **fabel** | — | Har `relay/fabel-eksport-arkivering.md` klar til sending | Kenneth relayer |
 
-✅ **PROD À JOUR 2026-08-28 06:23** — `5dcdeb58` (60 commits). Migreringene kjørt,
-verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`) sendt inn samme runde.
+✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
+alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
+sendt inn i forrige runde (`5dcdeb58`).
 
-**Test: `dca9c382`** (28.08 15:21). Etter prod-releasen har develop fått, alt gatet av
-Kenneth på test:
+**Test og prod står nå på samme innhold.** Alt som lå her som «på test» er live:
+registreringsmodell fase 1 (ansatt-status-guard i 11 porter), ansattvelger, fundament ut
+av gruppemodul-gatingen, tre slettevakter, deaktivert-på-dyplenke, `@xenova` fjernet.
+Detaljer per spor: [historikk-2026-08.md § Prod-deploy 2026-08-28](historikk-2026-08.md).
 
-- **Registrerings-sporet fase 1** — `OrganizationMember.status` + guard i alle 11
-  prosjekt-porter + `hentBrukersOrg`-filter (dekker firma-veien inkl. timeføring).
-  🔴 **En ansatt som sluttet beholdt tidligere tilgang til alt** — `periodeSlutt` var
-  inert i begge ender.
-- **Ansattvelger** — firmaets ansatte + avdelinger inn i prosjekt og flytroller. Tidligere
-  fantes **ingen vei** fra «ansatt i firmaet» til «medlem av prosjektet»; eneste utvei var
-  å invitere kolleger på e-post. Delt regel `aktivAnsattIFirmaWhere` samler `status` +
-  `canLogin` ett sted (seks håndskrevne where-setninger hadde drevet fra hverandre).
-- **Fundament ut av gruppemodul-gatingen** — sjekklister/oppgaver/tegninger vises nå for
-  vanlige ansatte. 3D forblir tilvalg. Kenneth-vedtak; åpnet ingenting (datalaget vaktet
-  uansett).
-- **Slettevakter** — malobjekt-vakten talte soft-slettede dokumenter og nøkkel-eksistens
-  som «bruk»; **å åpne et dokument auto-lagrer tomme feltoppføringer**, så ethvert åpnet
-  dokument låste malen for alltid. Oppretter kan nå slette eget utkast (serveren tillot
-  det alt — klienten gjemte knappen). Deaktivert bruker møter forklaringen på dyplenker.
-- **`@xenova/transformers` fjernet** — død avhengighet som dro `onnxruntime` +
-  `sharp@0.32.6`, sistnevnte lastet libvips fra GitHub ved hver `pnpm install` og tok ned
-  to bygg på to dager, ett av dem midt i prod-releasen. **Bekreftet borte fra byggeloggen.**
+🔴 **Første release som kan FRATA tilgang.** `OrganizationMember.status` styrer 11
+prosjekt-porter. Deaktivering er manuell — ingen ansatt endret status ved deploy
+(migreringen er additiv med default `aktiv`). Følg med på A.Markussen: sjekklister,
+oppgaver og tegninger dukket samtidig opp for ansatte som ikke så dem før.
 
-🔴 **Funn under releasen: `db-timer`-migreringen `20260811130000_utlegg_ordning_justering`
-var ALDRI kjørt mot prod.** Releasenoten på `a8750601` (25.08) sa «ingen migreringer» —
-sant for `packages/db`, usant for `db-timer`. Prod hadde i to uker CHECK-constraints som
-avviste `'lonnstillegg'` og manglet kolonnene `satsbasert`/`mulig_skattepliktig`, mens
-koden forventet begge. Utleggskategori-siden var dermed ødelagt i prod hele perioden;
-ingen meldte fra fordi timer-modulen ikke er i bruk der (0 attesterte sedler, målt 27.08).
-**Rettet i deploy-rutinen:** `migrate deploy` kjøres nå for alle fire db-pakker ved hver
-deploy — ikke utledes fra diffen. Se [deploy-detaljer.md](deploy-detaljer.md).
+🔴 **`deploy-prod.sh` printet migrate-linja for kun `@sitedoc/db`, og etter `up`.** Begge
+rettet i skriptet 28.08. Det var den linja som lot `20260811130000_utlegg_ordning_justering`
+(`db-timer`) ligge ukjørt i prod i to uker — releasenoten på `a8750601` sa «ingen
+migreringer», sant for `packages/db`, usant for `db-timer`. Utleggskategori-siden var
+ødelagt i prod hele perioden; ingen meldte fra fordi timer-modulen ikke er i bruk der.
+**Regel: spør databasen, ikke diffen** — alle fire pakker, hver gang, FØR `up`. Se
+[deploy-detaljer.md](deploy-detaljer.md).
 
 ✅ **EAS-bygget er IKKE lenger blokkert (2026-08-27 kl. 22).** Opprett-frysen er lukket
 og gatet 3/3 i Release/Fabric (`fix/malvelger-intree`, merget `52495604`).
@@ -382,25 +370,9 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
-### 🟢 Slettevakter — tre falske «nei» + oppretter-slett (branch `fix/slettevakter`, fra develop) — PÅ BRANCH, venter dual-review + gate
+### ✅ ARKIVERT — prod-deploy 2026-08-28 (`ba234fd1`, 26 commits) → [historikk-2026-08.md](historikk-2026-08.md)
 
-Fire funn fra Kenneths gate (`b5cae541`), «systemet sier nei når det skulle sagt ja». **(1) Malobjekt kunne ikke slettes:** `mal.slettObjekt`-vakten talte to ting som ikke er bruk — soft-slettede dokumenter (manglet `deleted_at IS NULL`) og `data ?|` (JSONB nøkkel-EKSISTENS). Klienten auto-lagrer `{verdi:null,kommentar:"",vedlegg:[]}` for hvert felt så snart et dokument åpnes, så `?|` talte ethvert *åpnet* dokument som bruk. Nytt delt predikat `harFaktiskInnholdForObjekt` (`mal.ts`) teller kun FAKTISK innhold (verdi/kommentar/vedlegg ≠ null/`""`/`[]`/`{}`) i AKTIVE dokumenter; brukt av BÅDE `sjekkObjektBruk` (klient) og `slettObjekt` (server) så de er enige. Vakten beholdt — felt med ekte innhold nektes fortsatt. **(2) «Objektet kom tilbake etter refresh»:** samme rot — `sjekkObjektBruk` hadde `deleted_at IS NULL`, `slettObjekt` ikke → klient tillot, server nektet, optimistisk fjerning rullet stille tilbake. Fikset root + symptom: `slettMutation.onError` (MalBygger) viser nå serverens melding (`malbygger.slettFeiletTittel`) i stedet for stille rollback. **(3) Oppretter kan slette eget utkast:** server tillot det alt (`avgjorDokumentTilgang` innsender-gren, ingen admin-sjekk); klienten skjulte «Slett» (filtreres bort for ikke-admin + lå under ADMIN). Måling: samme skjevhet for BEGGE dokumenttyper — de deler `DokumentHandlingsmeny`. Ny prop `kanSletteSomOppretter` (`erMelder && erUtkast`) fra begge detaljsidene → «Slett» vises i egen seksjon UTENFOR Admin, aldri duplisert. Ingen server-endring. **(4) Deaktivert bruker på dyplenke:** bygget som foreslått (Kenneth-go). Delt `DeaktivertForklaring`-komponent (løftet ut av `dashbord/page.tsx`), rendret fra `dashbord/layout.tsx` når `bruker.hentMin.erDeaktivert` — ÉТ punkt høyt i treet som wrapper både dashbord og alle prosjekt-ruter. Sidebaren droppes (dens velger sa «Ingen prosjekter» — samme løgn), Toppbar beholdt for utlogging. Deaktivert møter forklaringen uansett inngangspunkt; «Prosjektet ble ikke funnet» nås ikke. **KUN deaktivert-tilfellet** (Kenneth-vedtak): en aktiv bruker som mistet ett prosjekt får bevisst «ikke funnet» — «du mistet tilgangen» ville lekke at prosjektet finnes til en URL-gjetter (egen sak). i18n: én ny nøkkel (`malbygger.slettFeiletTittel`) nb+en+13. Grønt: typecheck api+web, `pnpm test` 189/189. **Ingen prod.** Reload: n/a (web). Funn 1–3 committet `f76eb329`; funn 4 egen commit.
-
-### 🟢 Død kode: fjern `@xenova/transformers` + rett forlatte kommentarer (branch `chore/dodkode-xenova`, fra develop) — PÅ BRANCH, venter dual-review + gate
-
-**To uavhengige oppryddinger, ingen atferdsendring.** (1) `@xenova/transformers` (0 kildebruk, kun deklarert i `apps/api/package.json`) fjernet — den dro `onnxruntime-web/node/common` + `sharp@0.32.6`, og 0.32.6 lastet `libvips` fra GitHub ved HVER `pnpm install` (feilet 27.08 test + 28.08 midt i prod-release). Ryddet begge externals-listene i `next.config.js` (fjernet @xenova + onnxruntime-node/common, som ble stale; `sharp@0.34.5` beholdt — installerer rent). Lockfile −347 linjer. (2) Seks kommentarer pekte på slettede `verifiserFlytRolle`/rolle-matrisen; omskrevet til å beskrive dagens posisjons-baserte autorisasjon, erstatnings-historikken beholdt i ÉN (`tilgangskontroll.ts:882`). Grønt: typecheck api+web+shared, `pnpm test` 4/4, `pnpm install --frozen-lockfile` uten libvips-nedlasting. api-lint uendret (57→55 preeksisterende feil, 0 nye). **Ingen prod.** Reload: n/a.
-
-### 🟢 Ansattvelger — velg firmaets ansatte + avdelinger inn i prosjekt/flyt (branch `feat/ansattvelger`, fra develop) — PÅ BRANCH, venter dual-review + gate
-
-**Registreringsmodell — foran fase 2.** Hullet: «+ Legg til» på en flytrolle åpnet kun «Inviter ny person» (e-post) for folk som allerede er ansatt; flyt-dropdownen listet kun eksisterende `ProjectMember`. Måling: `medlem.leggTilEksisterende` fantes (enkelt), men ingen batch/avdeling/multi-select. **Delt hjelper** `services/ansatt.ts`: `aktivAnsattIFirmaWhere` (status:"aktiv" + canLogin) samler kandidatregelen som var håndskrevet flere steder — rettet også en reell bug (`hentLedigeFirmaBrukere` manglet `status`, en deaktivert ansatt var valgbar). `sikreProsjektmedlemmer` deles av to nye batch-mutasjoner: `medlem.leggTilEksisterendeMange` + `dokumentflyt.leggTilAnsatteIRolle`. Ny `medlem.hentAvdelingerForProsjekt`. Web: gjenbrukbar `AnsattVelgerModal` (ansatte + avdelinger multi-select, «gir tilgang til N personer»-teller) på to flater — prosjektmedlemmer (`oppsett/brukere`) + flyt-rolle-dropdown; «Inviter ny person» beholdt. Skille `canLogin` vs `status` skrevet inn i schema ved begge felt (kommentar, ingen migrering). Mid-økt: guardens FORBIDDEN-melding gjort brukervendt, vist ordrett (ingen polling/streng-matching, Kenneth-vedtak). i18n nb+en+13. Grønt: typecheck api+web+shared. **Ingen prod.** Reload: n/a (web).
-
-### 🟢 Fundament ut av gruppemodul + flytvelger merker (branch `fix/fundament-og-flytvelger`, fra develop) — PÅ BRANCH, venter Kenneths gate
-
-To saker fra Kenneths gate 2026-08-28. **(1) Fundament ut av ledd 6:** `kreverGruppemodul` fjernet fra sjekklister/oppgaver/tegninger i `sidebar-elementer.tsx` — de gates ikke lenger på `ProjectGroup.modules`. 3D beholder sin (ekte tilvalg). Målt trygt: ledd 6 gater kun klienten, ingen api-rute leser `group.modules`. Brukergruppe-editorens badge-liste (`oppsett/brukere/page.tsx`) snevret til kun `3d` (`alleModulNavn = ["3d"]`); **lagrede `group.modules`-verdier røres IKKE** (harmløs rest, ikke pyntet — seksjonen kan forsvinne avhengig av fabels svar). **(2) Flytvelger merker i stedet for å skjule:** ansattvelger-modalen i flyt-kontekst (`AnsattVelgerModal` med ny `dokumentflytId`-prop) lister nå ALLE aktive ansatte og MERKER dem som alt står i en rolle i denne flyten (amber rolle-chip), i stedet for å utelate dem. Ny query `dokumentflyt.hentFirmaBrukereForFlyt` (merke scopet **per flyt**, ikke prosjekt — samme person umerket i annen flyt). **Måling:** modalens gamle ekskludering var **per prosjekt** (`hentLedigeFirmaBrukere` filtrerer bort prosjektmedlemmer), nedtrekkets **per rolle** — to funksjoner på samme flate, derfor svarte de aldri likt (skrevet inn i arkitektur.md). Bekreftelses-mutasjonen `leggTilAnsatteIRolle` var alt idempotent. `hentLedigeFirmaBrukere` + prosjektmedlem-flaten uendret. ⚠️ Liten restanse: nedtrekket skjulte aldri noen (per rolle) → uendret, men viser ikke rolle-merke på PERSONER-linjene. Ingen nye i18n-nøkler (gjenbruker `dokumentflyt.{registrator,bestiller,utforer,godkjenner}`). Grønt: typecheck api+web. **Ingen prod.** Reload: n/a (web).
-
-### 🔴🟢 Ansatt-status-guard — deaktiver ansatt (branch `feat/ansatt-status-guard`, fra develop) — PÅ BRANCH, venter dual-review + gate
-
-**Registreringsmodell fase 1** ([designnotat](../redesign/designnotat-registreringsmodellen-fabel-2026-08-28.md)). Hullet: en ansatt som slutter beholdt i dag tilgang til alt — `ProjectMember.periodeSlutt` var inert og guarden leste bare rad-eksistens. Fiks **ved porten, ikke vifteskriving**: ny `OrganizationMember.status` (`aktiv`|`deaktivert`) lest av `krevAktivAnsettelse` i alle 11 prosjekt-porter i `tilgangskontroll.ts` (etter sitedoc_admin-, før firma-admin-bypass) + `status:"aktiv"`-filter i `hentBrukersOrg` (dekker firma-nivå/timeføring via `krevBrukersOrg` på én linje, løser multi-org rent). `prosjekt.hentAlle`/`hentSistBrukte` skjuler prosjekter eid av deaktivert-org (`hentDeaktiverteOrgIder`) — ProjectMember-rader ryddes bevisst ikke. Mutasjon `organisasjon.settAnsattStatus` (firmaadmin, lockout-guard egen rad, sitedoc_admin skjermet); varig spor i `Activity` (gjenbruk, ikke nytt loggsystem). Web: deaktiver-modal (mikrotekst: hva skjer / hva IKKE skjer — det personen har ført står urørt), «Vis sluttede»-filter, «Sluttet»-merke, aktiver-igjen. Dashboard-empty-state for deaktivert bruker (`bruker.hentMin.erDeaktivert`). Migrering `20260828120000_organization_member_status` (ren additiv, default `aktiv`). i18n nb+en+13 generert. Grønt: typecheck api+web. **Oppfølger i BACKLOG:** deaktivert firma-admin beholder admin-rettigheter. **Ingen prod.** Reload: n/a (web).
+Registreringsmodell fase 1 (ansatt-status-guard i 11 porter), ansattvelger + delt `services/ansatt.ts`, fundament ut av gruppemodul, tre slettevakter, deaktivert bruker på dyplenke, død kode (`@xenova`). Verifisert innlogget 28.08. Migrering `20260828120000_organization_member_status` kjørt; `db-timer`/`db-maskin`/`db-varelager` sjekket — ingen ventende.
 
 ### 🔴🟢 Prosjektfilter-lekkasje rad-nivå — bug-fiks (branch `fix/rapport-prosjektfilter-radniva`, fra develop) — PÅ BRANCH, venter Kenneths gate
 
@@ -410,13 +382,14 @@ To saker fra Kenneths gate 2026-08-28. **(1) Fundament ut av ledd 6:** `kreverGr
 
 Kenneth gatet Fakturagrunnlag-PDF på test (Demo Bygg AS) — harde regler holdt (ingen status/ID, liggende, prosjektgruppert, topptekst). To lekkasjer igjen, begge intern info ut av huset: (1) **ansattnr** (pseudonymiseringsnøkkel) utelates nå strukturelt ved `mottaker=ekstern` i Excel Detaljer+Sammendrag + PDF Detaljer+Sammendrag — **ansattnavn BLIR**; (2) **maskin-anomali-merkene** (`utenTimerad`/`ikkeEksporterbar`) undertrykkes for ekstern (kun navnet står; raden blir) i PDF+Excel. + **Sist brukte mal** merkes i eksport-menyen («Sist brukt», delt `useSistBrukteMal`, localStorage, MERKING ikke omorganisering, ukjent id ignoreres stille). + Demo-seed fikk fra/til-klokkeslett (koden var riktig, dataene manglet tider). Regresjonstest `timer-rapport.test.ts` (intern vs ekstern). i18n 1 nøkkel × 15 språk. Grønt: typecheck shared/pdf/web, test shared 551 / pdf 82 / web 189, lint (mine filer). Detaljer: [timer.md § Fase 4 → Oppfølger](timer.md). **Åpent (fabel): Sammendrag per ansatt selv ved prosjektgruppering — ikke bygd.** **Ingen migrering. Ingen prod.**
 
-### 🟢 Printmotor fase 4 — byggherredokumentet (branch `feat/eksport-fase4-byggherredokument`, MERGET develop `eddc118b`) — PÅ TEST, gatet
+### ✅ ARKIVERT — printmotor fase 3 + 4 → [historikk-2026-08.md](historikk-2026-08.md)
 
-config v2 (JSONB, **ingen migrering**) med fire nye akser: `mottaker`/`gruppering`/`orientering`/`topptekst`; v1-rader leses med v1-defaults (ingen atferdsendring). **`mottaker=ekstern`** fjerner status STRUKTURELT (Excel Detaljer + Sammendrag, PDF) + ID (Excel) — regel, ikke avhuking, ingen overstyring; redigereren viser noten «Ekstern — interne kolonner utelatt». **`gruppering`** (ingen/ansatt/prosjekt) via ny delt `grupperDetaljRader` i `@sitedoc/shared` som **pakker** `byggDetaljRader` (rører den aldri) — subtotal pr. gruppe + grand total, SUBTOTAL(109) i Excel (ingen dobbelttelling), samme funksjon i PDF. **`orientering`** (auto/staaende/liggende) — auto → liggende når beskrivelse med; avledet server-side, sendt som `landscape` til pdf-render. **`topptekst`** ({firma}/{periode}/{prosjekt} flettes server-side). Innebygde: **Lønnsgrunnlag** (intern·ansatt) + **Fakturagrunnlag** (ekstern·prosjekt·liggende·firmatopp) aktivert ved siden av Full eksport — ett-klikk + Rediger. i18n 19 nøkler × 15 språk. 🔴 **pdf-render-containeren fikk valgfri `landscape`-param (default false → arkiv uendret) — DELT MED PROD, eget deploy-steg Kenneth gater; liggende virker ikke før den er bygget.** Grønt: typecheck shared/pdf/api/web, test shared 551 / pdf 80 / web 189, lint (mine filer). Detaljer: [timer.md § Fase 4](timer.md) · [printmotor-faser](delplaner/printmotor-faser-2026-08-25.md). **Ingen migrering. Ingen prod.**
-
-### 🟢 Printmotor fase 3 — lagrede utskriftsmaler (branch `feat/eksport-fase3-lagrede-maler`, MERGET develop `17fd66f6`) — PÅ TEST
-
-Ny tabell `EksportOppsett` (`db-timer`, migrering `20260827120000_eksport_oppsett` — **additiv, gatet av Kenneth, ikke kjørt på test/prod**), router `timer.eksportOppsett` (list/lagre/oppdater/slett), fase-2-modalen fikk lagringsknapper (Lagre / Lagre som min / Lagre som firma / Slett) + maler-velger i eksport-menyen (Mine · Firmaets · Innebygd «Full eksport» · Ny). To nivåer via nullable `eierId` (firma/personlig), `basertPaId` med SetNull i slett-prosedyren. i18n 14 nøkler → 15 språk. **Kun én innebygd** («Full eksport») — Lønnsgrunnlag/Fakturagrunnlag venter på grupperings-fase 4. **+ To defektrettinger fra fase-2-output (samme runde):** (1) status-verdiene (`pending`/`sent`) oversettes nå i Excel+PDF via delt `STATUS_I18N`-mapping; (2) klokkeslett `Fra`/`Til` (`SheetTimer.fraTid`/`tilTid`) tatt inn i `byggDetaljRader` → begge formater. Grønt: typecheck 11/11, shared 547 / pdf 80 / web 189, lint (mine filer). Detaljer: [timer.md § Fase 3](timer.md) · [printmotor-faser](delplaner/printmotor-faser-2026-08-25.md). **Ingen prod.**
+Sto som «PÅ TEST / Ingen prod». **Målt 2026-08-28: `eddc118b` og `17fd66f6` er begge
+forfedre av `5dcdeb58`** — de har vært i prod siden 06:23 den 28.08. `db-timer`-migreringen
+`20260827120000_eksport_oppsett` er også kjørt (målt: ingen ventende i noen av de tre
+modulpakkene). ⚠️ **Én rest er reell og flyttet til [BACKLOG](BACKLOG.md):** `landscape`-
+parameteren er i koden, men pdf-render-containeren er ikke bygget — liggende
+Fakturagrunnlag virker ikke ennå. Buntes med `page.route`-fiksen i ett gatet steg.
 
 ### 🟢 DG-sporet + flytmodell — SEKS MERGER TIL DEVELOP 2026-08-21 (kontrollplan)
 

@@ -68,6 +68,13 @@ dupliser analysen hit. Her står kun oppgavene.
   vanlige `--no-deps`-deploys → eget gatet steg. **Est. 30 min. Gjør denne nå.**
 - **`--no-sandbox` i pdf-render** — renderer-exploit ikke inneslutt. Lavere prioritet
   når punktet over er gjort. Est. ukjent (krever test av Chromium i container).
+- **`landscape`-param i pdf-render er bygget i koden, men containeren er ikke bygget.**
+  Printmotor fase 4 (`eddc118b`, i prod siden `5dcdeb58`) sender `landscape` til
+  pdf-render; parameteren er valgfri med default `false`, så arkivutskrift er uendret og
+  ingenting er ødelagt — men **liggende Fakturagrunnlag virker ikke før containeren
+  bygges**. Samme container, samme gate som `page.route`-punktet over.
+  🔴 **Bunt dem:** ett gatet pdf-render-deploy dekker begge, i stedet for to runder mot
+  en container som deles med prod.
 
 🔵 **Tre punkter venter bevisst på serverflyttingen (~okt 2026):** test skriver i prods
 uploads-katalog, flatt `appnet` mellom test og prod, og pdf-render delt mellom dem. Alle

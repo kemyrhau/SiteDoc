@@ -72,12 +72,16 @@ cat <<KOMMANDOER
 
   ssh -t server-ny "cd ~/stack/sitedoc && sudo env GIT_SHA=$SHA BUILD_TID=$TID docker compose -f $COMPOSE build sitedoc-web"
 
+  # MIGRER FØR up — ny kode mot gammelt skjema gir 500 i vinduet mellom.
+  # ALLE FIRE db-pakker, ALLTID. Ikke utled fra diffen: en db-timer-migrering lå
+  # ukjørt i prod i to uker (11.-28. aug) fordi denne linja bare nevnte @sitedoc/db.
+  # "No pending migrations to apply" er det normale svaret og koster to sekunder.
+  # Gaten avbryter mot feil database.
+  ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f $COMPOSE run --rm --no-deps --entrypoint sh sitedoc-api -c "echo \\\$DATABASE_URL | grep -qE \\"/sitedoc([?].*)?\\\$\\" || exit 1; for p in db db-timer db-maskin db-varelager; do echo \\"--- \\\$p\\"; pnpm --filter @sitedoc/\\\$p exec prisma migrate deploy || exit 1; done"'
+
   # up UTEN -p (containerne ligger i tre compose-prosjekter) og med --no-deps
   # (beskytter embed/oversettelse mot restart)
   ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f $COMPOSE up -d --no-deps sitedoc-api sitedoc-web'
-
-  # Har releasen migreringer — KUN da, og gaten avbryter mot feil database:
-  # ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f $COMPOSE run --rm --no-deps --entrypoint sh sitedoc-api -c "echo \\\$DATABASE_URL | grep -qE \\"/sitedoc([?].*)?\\\$\\" || exit 1; pnpm --filter @sitedoc/db exec prisma migrate deploy"'
 
 Verifiser: curl -s https://api.sitedoc.no/version   (skal vise $SHA)
 Deretter som INNLOGGET bruker på https://sitedoc.no — anonym 200 er IKKE godkjent verifisering.
