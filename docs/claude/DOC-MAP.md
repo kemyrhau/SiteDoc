@@ -8,6 +8,8 @@ sist_verifisert_mot_kode: 2026-05-16
 
 | Hendelse | Fil(er) som MÅ oppdateres |
 |---|---|
+| 🔴 **Skal opprette en NY .md-fil** | **Grep først på BEGREPET, ikke filnavnet** — `grep -rl "<begrep>" docs/`. Filnavn divergerer: sikkerhetsfunn lå i seks filer med ulike navn, og masterplanen fantes som både `MASTERPLAN.md` og `REDESIGN-MASTERPLAN.md` (forgrenet, begge levende). Finnes temaet: skriv der, ikke ved siden av |
+| Sikkerhetsfunn, angrepsflate, tilgangsmodell | `sikkerhet.md` (vurdering + sammenhenger) · `BACKLOG.md` § 0 (oppgaver m/estimat) · `gdpr-kartlegging.md` (persondata) — **ikke ny fil** |
 | Ny arkitektur-/designbeslutning | `fase-0-beslutninger.md` |
 | Feature deployet til prod | `STATUS.md` (prod-deploys) + `historikk-YYYY-MM.md` — fjernes fra STATUS-AKTUELT.md |
 | PR merget til develop | `STATUS-AKTUELT.md` § Pågående arbeid (maks 3 aktive) |
