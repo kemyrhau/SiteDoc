@@ -132,13 +132,46 @@ Eies av [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling
 | `historikk-2026-MM.md` | Lukkede funn med dato — **arkiv, flyttes aldri hit** |
 | `apps/api/scripts/audit-sensitive-apen-sti.ts` | Målingen av åpen sti (read-only, kjøres mot prod) |
 
+## 🔵 Planlagt serverflytting (~okt 2026) lukker TRE av punktene gratis
+
+**Kenneth 2026-08-28:** *«om et par måneder tror jeg vi skal flytte serveren igjen til
+en hostet server. Da forblir test hvor den er nå.»*
+
+Flyttes prod til hosted mens test blir stående på `server-ny`, opphører tre av punktene
+å eksistere — de er alle konsekvenser av at to stacker deler én maskin:
+
+| Punkt | Hva som skjer ved flytting |
+|---|---|
+| **1. Test skriver i prods uploads** | Borte. Ulike maskiner, ingen delt bind-mount |
+| **5. Flatt `appnet` test↔prod** | Borte. Ingen delt docker-nett |
+| **4. pdf-render delt med test** | Splittes. Fjerner også den gatede deploy-særegenheten |
+
+**Konsekvens for prioriteringen:** ikke bruk en forsiktig runde på å skille
+uploads-volumene nå. Skillet kommer gratis, og uploads har gått tapt to ganger på denne
+serveren. Det som IKKE løses av flyttingen er applikasjonsnivået: uautentisert
+`/uploads/`, A2, SSRF-en og `--no-sandbox`.
+
+🔴 **Men flyttingen må da BÆRE dem.** Blir de ikke designet inn, gjenskaper vi det flate
+nettet på ny maskin og har brukt en flytting uten å hente gevinsten. Denne fila skal
+leses som del av flytte-planleggingen, ikke etterpå.
+
 ## Anbefalt rekkefølge
 
+**Nå (billig, uavhengig av flytting):**
+
 1. **`page.route`-abort i pdf-render** — én linje, lav risiko, egen gatet deploy
-2. **Skill test fra prods uploads-volum** — forsiktig runde, uploads har gått tapt før
-3. **Nettverkssegmentering, test↔prod først**
-4. **BACKLOG A2** — versjonsoppslag, rot-låsen er allerede på plass
-5. `--no-sandbox`
+2. **BACKLOG A2** — versjonsoppslag; rot-låsen er allerede verifisert på plass
+
+**Ved serverflyttingen (~okt 2026):**
+
+3. Nettverkssegmentering designes inn fra start — ikke gjenskap flatt `appnet`
+4. Uploads-volumene skilles som konsekvens av flyttingen, ikke som egen risikooperasjon
+
+**Egen vurdering, uavhengig av begge:**
+
+5. Uautentisert `/uploads/` for sjekkliste-/oppgavebilder — applikasjonsnivå,
+   overlever flyttingen
+6. `--no-sandbox`
 
 ## Metode
 

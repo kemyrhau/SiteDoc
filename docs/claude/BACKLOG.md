@@ -57,6 +57,27 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 - **CI:** pinn 3rd-party Actions til sha + `persist-credentials: false` på checkout. Est. 15 min.
 - **`@fastify/cors`:** verifiser at origin er eksplisitt liste, ikke `true`. Est. 15 min.
 
+### Pakke D — containertopologi (kartlagt 2026-08-28)
+
+Full vurdering med målinger og sammenhenger: **[sikkerhet.md](sikkerhet.md)** — ikke
+dupliser analysen hit. Her står kun oppgavene.
+
+- **`page.route`-abort i `pdf-render/server.mjs`** — dreper SSRF-vektoren
+  (`waitUntil: "networkidle"` lar Chromium hente URL-er som havner i rapport-HTML).
+  Én linje, endrer ikke normal drift. 🔴 Containeren deles med test og bygges ikke av
+  vanlige `--no-deps`-deploys → eget gatet steg. **Est. 30 min. Gjør denne nå.**
+- **`--no-sandbox` i pdf-render** — renderer-exploit ikke inneslutt. Lavere prioritet
+  når punktet over er gjort. Est. ukjent (krever test av Chromium i container).
+
+🔵 **Tre punkter venter bevisst på serverflyttingen (~okt 2026):** test skriver i prods
+uploads-katalog, flatt `appnet` mellom test og prod, og pdf-render delt mellom dem. Alle
+tre er konsekvenser av at to stacker deler én maskin, og forsvinner når prod flyttes til
+hosted mens test blir stående. **Ikke bruk en risikorunde på uploads-volumene nå** —
+uploads har gått tapt to ganger på denne serveren.
+🔴 **Men flyttingen må BÆRE dem:** blir segmenteringen ikke designet inn fra start,
+gjenskaper vi det flate nettet på ny maskin. `sikkerhet.md` skal leses som del av
+flytte-planleggingen.
+
 ### CSP — egen post, ikke hastetiltak
 
 Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inline-scripts. Krever egen testrunde. **Frist: før pilot-slutt**, ikke før pilot-start.
