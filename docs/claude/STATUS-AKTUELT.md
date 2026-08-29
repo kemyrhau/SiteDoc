@@ -15,9 +15,9 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Avsluttet. `fix/ansvarlig-kolonne` levert (`eb9cc787`), merget og på test | `relay/inbox-prosjektoppsett-veileder.md` (ON — masterplanens neste) → rename `IKKE_I_PAPIRKURV` → `relay/inbox-malklikk-eksporter.md` → `relay/inbox-kolonnevelger.md` **+ `relay/inbox-tabellbredder.md` (kjøres SAMMEN med kolonnevelgeren, Kenneth-vedtak 28.08)** |
+| **dokgen** | `SiteDoc-dokgen` | Levert `feat/flytboks-stegvisning` (i develop `16c20a9e`). Dev-server kjører fortsatt lokalt — be ham stoppe den. Env-filene er symlinket fra hovedtreet | **`relay/inbox-prosjektoppsett-veileder.md` (ON — masterplanens prioritet 1, cowork-gatet 29.08)** → rename `IKKE_I_PAPIRKURV` → `inbox-malklikk-eksporter.md` → `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (sammen) |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Levert `fix/kp-lokasjon` (i develop `b987d793`, gatet 4/4 på test). Ledig | `relay/inbox-opus-faste-felt.md` — fabels ordre, cowork-gatet 29.08. Branch `feat/faste-felt`. **Går FØR kolonnevelger/tabellbredder** (samme listefiler) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Levert `feat/faste-felt` (i develop `30260f88`, på test). Ledig | `relay/inbox-oppgave-emne.md` — emne-chip på oppgave-detaljsiden (funn fra Kenneths gate 29.08) |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 ✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
