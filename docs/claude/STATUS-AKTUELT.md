@@ -376,7 +376,7 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
-### 🟢 Oppgave-datalås + repeater ut av oppgavemaler (MERGET develop `f61eb64b`) — PÅ TEST
+### 🟢 Oppgave-datalås + repeater ut av oppgavemaler (MERGET develop `f61eb64b`) — PÅ TEST, GATET 3/3
 
 **Kenneth-funn på test 29.08:** han sendte en oppgave, fikk den i retur, og **endret et
 utfylt tallfelt** (antall gravemaskiner 1 → 2). Skulle ikke være mulig.
@@ -408,6 +408,10 @@ en repeater er N ting, en arbeidsordre er én; riktig modell finnes allerede mot
 «slutt å tilby», ikke «riv ut»** — eksisterende objekter rendres som før, ingen migrering.
 Målt: 0 oppgavemaler med repeater på test, 4 i prod (alle Kenneths egne testdokumenter,
 bekreftet av ham).
+
+**Kenneths gate på test 29.08 — 3/3 grønt:** utfylt felt låst etter retur, tomt felt fyllbart,
+kommentar og vedlegg går på begge · repeater borte fra oppgavemaler, til stede i sjekklistemaler ·
+utkast fullt redigerbart.
 
 **Meldt, ikke bygget:** mobil `useOppgaveSkjema` har trolig samme mount-staleness
 (server-vakten dekker den) · quiz/video/info_image/signature kan være meningsløse i oppgave —
