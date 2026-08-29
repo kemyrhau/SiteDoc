@@ -71,7 +71,7 @@
   "kontekstChip.fjernFavoritt": "Supprimer le favori",
   "kontekstChip.heleProsjektet": "Projet entier",
   "kontekstChip.faggruppeKunUtkast": "Le commerce ne peut être modifié que dans le brouillon",
-  "kontekstChip.byggeplassLaastGodkjent": "Le site est verrouillé après approbation. Rouvrez la liste de contrôle pour la modifier.",
+  "kontekstChip.byggeplassLaastGodkjent": "Le chantier est verrouillé après approbation. Rouvrez la liste de contrôle pour la modifier.",
   "kontekstChip.velgFelt": "Sélectionnez {{felt}}",
   "felles.ingenTreff": "Aucune correspondance",
   "kontekstChip.allePaa": "Tout en {{prosjekt}}",

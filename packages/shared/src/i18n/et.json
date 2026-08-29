@@ -71,7 +71,7 @@
   "kontekstChip.fjernFavoritt": "Eemalda lemmik",
   "kontekstChip.heleProsjektet": "Kogu projekt",
   "kontekstChip.faggruppeKunUtkast": "Kauplemist saab muuta ainult eelnõus",
-  "kontekstChip.byggeplassLaastGodkjent": "Sait on pärast kinnitamist lukustatud. Selle muutmiseks avage kontroll-loend uuesti.",
+  "kontekstChip.byggeplassLaastGodkjent": "Ehitusplats on peale kooskõlastamist lukustatud. Selle muutmiseks avage kontroll-loend uuesti.",
   "kontekstChip.velgFelt": "Valige {{felt}}",
   "felles.ingenTreff": "Vasteid pole",
   "kontekstChip.allePaa": "Kõik {{projektis}}",

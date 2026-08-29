@@ -71,7 +71,7 @@
   "kontekstChip.fjernFavoritt": "Favorit entfernen",
   "kontekstChip.heleProsjektet": "Gesamtes Projekt",
   "kontekstChip.faggruppeKunUtkast": "Der Handel kann nur im Entwurf geändert werden",
-  "kontekstChip.byggeplassLaastGodkjent": "Die Website wird nach der Genehmigung gesperrt. Öffnen Sie die Checkliste erneut, um sie zu ändern.",
+  "kontekstChip.byggeplassLaastGodkjent": "Nach Genehmigung wird die Baustelle gesperrt. Öffnen Sie die Checkliste erneut, um sie zu ändern.",
   "kontekstChip.velgFelt": "Wählen Sie {{felt}}",
   "felles.ingenTreff": "Keine Übereinstimmungen",
   "kontekstChip.allePaa": "Alles in {{prosjekt}}",

@@ -71,7 +71,7 @@
   "kontekstChip.fjernFavoritt": "Ta bort favorit",
   "kontekstChip.heleProsjektet": "Hela projektet",
   "kontekstChip.faggruppeKunUtkast": "Handel kan endast ändras i utkast",
-  "kontekstChip.byggeplassLaastGodkjent": "Sidan är låst efter godkännande. Öppna checklistan igen för att ändra den.",
+  "kontekstChip.byggeplassLaastGodkjent": "Byggplatsen är låst efter godkännande. Öppna checklistan igen för att ändra den.",
   "kontekstChip.velgFelt": "Välj {{filt}}",
   "felles.ingenTreff": "Inga matchningar",
   "kontekstChip.allePaa": "Allt i {{prosjekt}}",
