@@ -1,6 +1,28 @@
 # Prosjektoppsett-veileder
 
-**Status:** Plan (ikke implementert som in-app veileder) — 2026-05-02
+**Status:** ⚠️ **DELVIS BYGGET — målt 2026-08-29.** Planen er fra 2026-05-02 og sto som «ikke
+implementert» til den ble målt. Faktisk tilstand:
+
+- ✅ **Panelet finnes** — `apps/web/src/app/dashbord/[prosjektId]/page.tsx:119-198`. Fire steg
+  + modul-steg (timer/maskin/varelager når modulen er aktiv), lenker til riktige URL-er,
+  markeres grønne fra DB-tilstand via `prosjekt.hentOnboardingStatus` (`prosjekt.ts:207`),
+  skjules når alt er oppfylt. i18n-et.
+- ✅ **UX-problem 1 løst** — `[prosjektId]/faggrupper` er full CRUD (ny/rediger/slett) og
+  lenket fra dashbord-kortet «Faggrupper». Beskrivelsen «read-only uten lenke» under er
+  utdatert.
+- ✅ **`harTegning` + delstatus** lagt til 2026-08-29 (`214bae7f`) — lokasjonssteget blir grønt
+  først når både byggeplass og tegning finnes; ellers «Lokasjon ✓ · Tegning mangler». Flagget
+  `harLokasjon` var `byggeplass.count` og ble grønt uten en eneste tegning.
+- ⚠️ **UX-problem 3** (klikk-på-navn-redigering uten synlig signal) står. Hover gir signal,
+  hviletilstand ikke. **Utsatt bevisst:** flaten er navneredigering i flytoppsettet, som er
+  parkert til faggruppe/kontakter-avklaringen ([domene-arbeidsflyt.md](domene-arbeidsflyt.md)).
+- ❌ **Selve gaten er ikke gjennomført.** Ingen har gått veien fra tomt prosjekt til sendt
+  sjekkliste kun via panelets lenker. Panelet finnes; om veien går, vet vi ikke.
+
+🔴 **Les resten av dokumentet som plan, ikke som tilstand.** `prosjekt.opprett`
+(`prosjekt.ts:278`) lager fortsatt hverken faggruppe, flyt eller mal — det premisset holder.
+Merk at `opprettTestprosjekt` (`:365`) DOES seede flyter, så den som tester med et testprosjekt
+ser ikke hullet.
 **Bakgrunn:** Observert under manuell test at ny bruker ikke finner frem
 uten å kjenne URL-strukturen. Blokkerer selvstendig A.Markussen-onboarding.
 

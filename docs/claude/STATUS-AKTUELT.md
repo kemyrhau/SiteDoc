@@ -15,9 +15,9 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Levert `feat/flytboks-stegvisning` (i develop `16c20a9e`). Dev-server kjører fortsatt lokalt — be ham stoppe den. Env-filene er symlinket fra hovedtreet | **`relay/inbox-prosjektoppsett-veileder.md` (ON — masterplanens prioritet 1, cowork-gatet 29.08)** → rename `IKKE_I_PAPIRKURV` → `inbox-malklikk-eksporter.md` → `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (sammen) |
+| **dokgen** | `SiteDoc-dokgen` | Levert `feat/flytboks-stegvisning` + `feat/prosjektoppsett-veileder` (`214bae7f`). Dev-server stoppet. Env symlinket fra hovedtreet | rename `IKKE_I_PAPIRKURV` → `inbox-malklikk-eksporter.md` → `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (sammen) |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Levert `feat/faste-felt` (i develop `30260f88`, på test). Ledig | `relay/inbox-oppgave-emne.md` — emne-chip på oppgave-detaljsiden (funn fra Kenneths gate 29.08) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Levert `feat/faste-felt` + `fix/oppgave-emne` (`ff485478`). Ledig | Ingen ny ordre |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 ✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
@@ -375,6 +375,35 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
+
+### 🟢 Emne på oppgave + onboarding-delstatus (`fix/oppgave-emne` + `feat/prosjektoppsett-veileder`, MERGET develop) — PÅ TEST
+
+**Funn 1 fra Kenneths gate 29.08 løst** (`ff485478`): `EmneVelger` rendres nå på
+oppgave-detaljsiden, gjenbrukt uendret fra sjekklisten. `leseModus = status !== "draft"` —
+speiler `oppgave.oppdater` (`oppgave.ts:670`), som er **strengere enn sjekklistens vakt** og
+avviser ALL redigering utenfor `draft`. **Cowork-vedtak samme runde:** LokasjonVelger-gatingen
+på samme side rettet fra `["closed","approved"]` til `status !== "draft"` — den ga stille
+server-avvisning i `sent`. To felt side om side oppfører seg nå likt. Ingen nye i18n.
+Sjekklistens gating urørt.
+
+**ON onboarding** (`214bae7f`): `harTegning` i `hentOnboardingStatus` + delstatus på
+lokasjonssteget («Lokasjon ✓ · Tegning mangler»). Flagget `harLokasjon` var `byggeplass.count`
+og ble grønt uten en eneste tegning.
+
+🔴 **Målt av dokgen før bygging — ordren var delvis foreldet:** selve onboarding-panelet var
+**allerede bygget** (`[prosjektId]/page.tsx:119-198`, fire steg + modul-steg, DB-avledet,
+skjules når alt er oppfylt), og UX-problem 1 (faggrupper read-only) var løst — siden er full
+CRUD og lenket fra dashbord-kortet. ⚠️ **Coworks gate 28.08 verifiserte hullet i
+`prosjekt.opprett` men sjekket aldri om konsumenten fantes.** `hentOnboardingStatus` er
+navngitt etter sin bruker; ett grep ville avslørt det. Ført i masterplanen.
+
+**UX3** (blyant ved redigerbare navn i flytoppsettet) **utsatt** — den flaten er parkert til
+faggruppe/kontakter-avklaringen er gjort (`domene-arbeidsflyt.md`).
+
+⚠️ **GJENSTÅR — selve leveransen er ikke gjennomført:** Kenneth skal opprette et tomt prosjekt
+og komme fram til sendt sjekkliste **kun via panelets lenker**. Panelet fantes fra før; det
+ingen vet er om veien går. Kjøres på test.
+
 
 ### 🟢 FASTE FELT — emne-skrivevei, lokasjonsmodell, faggruppe-fjerning (`feat/faste-felt`, MERGET develop `30260f88`) — PÅ TEST, gatet med funn
 
