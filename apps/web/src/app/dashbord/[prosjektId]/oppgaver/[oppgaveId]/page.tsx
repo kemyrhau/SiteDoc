@@ -16,6 +16,7 @@ import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
+import { EmneVelger } from "@/components/EmneVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { flytFaggruppeIder } from "@/lib/flyt-faggrupper";
 import { lesDokumentLokasjon } from "@/lib/dokument-lokasjon";
@@ -515,6 +516,17 @@ export default function OppgaveDetaljSide() {
   };
   const erUtkast = oppgaveCast.status === "draft";
 
+  // Emne (FASTE FELT Del A#3): les fra RÅ hentMedId, widnet via unknown for å unngå
+  // TS2589 på den dype tRPC-typen (samme avlastning som resten av fila).
+  const emneRå = fullOppgaveRå as unknown as {
+    subject?: string | null;
+    template?: { showSubject?: boolean; subjects?: unknown };
+  } | undefined;
+  const visEmne = emneRå?.template?.showSubject !== false;
+  const emneForslag = Array.isArray(emneRå?.template?.subjects)
+    ? (emneRå!.template!.subjects as unknown[]).map(String)
+    : [];
+
   function lagreTittel() {
     const ny = tittelUtkast.trim();
     setRedigererTittel(false);
@@ -768,6 +780,21 @@ export default function OppgaveDetaljSide() {
           <p className="mt-2 text-sm text-gray-600 line-clamp-2 sm:line-clamp-none">{oppgave.description}</p>
         )}
 
+        {/* Emne (FASTE FELT Del A#3) — malen TILLATER (showSubject ≠ false). Leses fra RÅ
+            hentMedId (samme grunn som lokasjon: det omformede `oppgave` dropper felt). */}
+        {visEmne && (
+          <div className="mt-2 max-w-md print-skjul">
+            <EmneVelger
+              emne={emneRå?.subject ?? null}
+              forslag={emneForslag}
+              // Oppgave-vakten er strengere enn sjekklistens: oppgave.oppdater (oppgave.ts:670)
+              // avviser ALL redigering utenfor draft. Klienten speiler serveren — ikke ["closed","approved"].
+              leseModus={(oppgave.status ?? "") !== "draft"}
+              onLagre={(emne) => oppdaterMutasjon.mutate({ id: params.oppgaveId, subject: emne })}
+            />
+          </div>
+        )}
+
         {/* Lokasjon */}
         <div className="mt-2 max-w-md print-skjul">
           {/* 🔴 Lokasjonsvisning-bug (2026-08-23): les fra RÅ hentMedId via lesDokumentLokasjon —
@@ -789,7 +816,9 @@ export default function OppgaveDetaljSide() {
                 positionY: data.positionY ?? null,
               });
             }}
-            leseModus={["closed", "approved"].includes(oppgave.status)}
+            // Cowork-vedtak 2026-08-29: speil server-vakten (oppgave.ts:670, draft-only) —
+            // ikke ["closed","approved"], som viste velgeren redigerbar i sent men fikk stille avvisning.
+            leseModus={(oppgave.status ?? "") !== "draft"}
           />
         </div>
       </div>
