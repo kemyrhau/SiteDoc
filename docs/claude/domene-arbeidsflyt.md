@@ -135,6 +135,34 @@ ettertid.
 oppgaven til en melding arbeideren bare kunne kommentere på. Kenneths egne to formuleringer
 pekte hver sin vei; beskrivelsen over avgjorde det.
 
+### 🔴 Repeater hører ikke hjemme i en oppgave (Kenneth 2026-08-29)
+
+> *«Kanskje vi må akseptere at repeater ikke tilhører i oppgave. Kanskje det objektet bør
+> fjernes/deaktiveres i malbyggeren for oppgave.»*
+
+**Begrunnelsen:** en repeater er en liste av N ting. En arbeidsordre er **én** ting som skal
+utføres og godkjennes. Legger man fem observasjoner i én oppgave, får de én felles status —
+man kan ikke melde punkt 3 ferdig og la punkt 5 stå.
+
+**Og modellen finnes allerede i riktig retning:** `feat/oppgave-per-rad` lot hver repeater-rad
+i en **sjekkliste** få sin egen oppgave (rad-unik nøkkel `${objekt.id}:${_radId}`). Sjekklisten
+samler observasjonene; oppgaven bærer én av dem. Repeater i en oppgavemal duplicerer altså en
+struktur som hører hjemme ett nivå over.
+
+**Målt på test 2026-08-29 — fjerningen er gratis:**
+
+```
+category   | maler | repeatere
+sjekkliste |     6 |         8
+(1 row)
+```
+
+**Null oppgavemaler bruker repeater.** Ingen eksisterende mal avhenger av den.
+
+**Form:** objektet fjernes fra felttype-velgeren når malens `category = "oppgave"`. Eksisterende
+objekter slettes ikke — skulle en finnes, skal den fortsatt rendres. Vi slutter å tilby den,
+vi river den ikke ut.
+
 ⚠️ **Ikke bygget da vedtaket ble tatt.** `oppgave.oppdaterData` (`oppgave.ts:689`) hadde ingen
 statusvakt — en sendt oppgave kunne få endret en utfylt verdi (Kenneth-funn på test 29.08:
 antall gravemaskiner endret fra 1 til 2 etter sending). Ordre: `relay/inbox-oppgave-datalaas.md`.
