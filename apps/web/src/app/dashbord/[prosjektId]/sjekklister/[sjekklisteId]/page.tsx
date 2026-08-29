@@ -26,6 +26,7 @@ import { FlytIndikator } from "@/components/FlytIndikator";
 import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
+import { EmneVelger } from "@/components/EmneVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useOversettelse } from "@/hooks/useOversettelse";
@@ -353,6 +354,9 @@ export default function SjekklisteDetaljSide() {
     drawingId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
+    subject?: string | null;
+    // FASTE FELT: malen TILLATER emne/lokasjon (showSubject/showLocation), + forslagsliste.
+    template?: { showSubject?: boolean; showLocation?: boolean; subjects?: unknown } | null;
   } | undefined;
 
   // Oversettelse (Lag 2): on-demand felt-oversettelse for bruker med annet språk
@@ -847,7 +851,22 @@ export default function SjekklisteDetaljSide() {
           </div>
         )}
 
-        {/* Lokasjon */}
+        {/* Emne (FASTE FELT Del A#3) — malen TILLATER (showSubject ≠ false). */}
+        {fullSjekkliste?.template?.showSubject !== false && (
+          <div className="mt-2 max-w-md print-skjul">
+            <EmneVelger
+              emne={fullSjekkliste?.subject ?? null}
+              forslag={Array.isArray(fullSjekkliste?.template?.subjects)
+                ? (fullSjekkliste.template.subjects as unknown[]).map(String)
+                : []}
+              leseModus={["closed", "approved"].includes(sjekkliste.status)}
+              onLagre={(emne) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, subject: emne })}
+            />
+          </div>
+        )}
+
+        {/* Lokasjon (FASTE FELT Del B#2) — malen TILLATER (showLocation ≠ false). */}
+        {fullSjekkliste?.template?.showLocation !== false && (
         <div className="mt-2 max-w-md print-skjul">
           <LokasjonVelger
             prosjektId={params.prosjektId}
@@ -869,6 +888,7 @@ export default function SjekklisteDetaljSide() {
             leseModus={["closed", "approved"].includes(sjekkliste.status)}
           />
         </div>
+        )}
       </div>
 
       {/* Spor 2 / 5a: HMS melder-handlingsbanner — Send inn/Forkast (utkast) eller

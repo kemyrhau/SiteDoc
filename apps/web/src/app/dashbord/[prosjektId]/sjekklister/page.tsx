@@ -609,6 +609,8 @@ export default function SjekklisteSide() {
         const lopenummer = `${s.template?.prefix ?? ""}${s.number != null ? String(s.number).padStart(3, "0") : ""}`.toLowerCase();
         return (
           s.title.toLowerCase().includes(sok) ||
+          // FASTE FELT Del A#4: emne er søkbart (stikkord om innhold).
+          (s.subject != null && s.subject.toLowerCase().includes(sok)) ||
           lopenummer.includes(sok) ||
           (s.number != null && String(s.number).includes(sok))
         );

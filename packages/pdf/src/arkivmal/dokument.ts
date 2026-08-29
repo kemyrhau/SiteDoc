@@ -11,7 +11,7 @@
 import { formaterDatoKort } from "../hjelpere";
 import { hentArkivCss } from "./arkiv-css";
 import { tolkInnstillinger } from "./innstillinger";
-import { byggTopptekst, byggProsjektblokk, byggStatusblokk, byggBunntekst } from "./ramme";
+import { byggTopptekst, byggProsjektblokk, byggEmneblokk, byggStatusblokk, byggBunntekst } from "./ramme";
 import { byggLoggseksjon, byggMangelMerknad } from "./loggseksjon";
 import { byggSignaturblokk } from "./signatur";
 import type { ArkivDokumentInput } from "./typer";
@@ -35,6 +35,8 @@ export function byggArkivSide(input: ArkivDokumentInput): string {
     // D2: dokument-lokasjon (tegningsmarkør) øverst side 1, rett under
     // dokumenthodet — før innholdet. Tom streng filtreres bort av `.filter(Boolean)`.
     input.lokasjonHtml ?? "",
+    // FASTE FELT (designlås 1): emne som første datafelt, før sjekkliste-innholdet.
+    byggEmneblokk(input.emne),
     input.innholdHtml,
     byggMangelMerknad(input.manglendeVedlegg ?? []),
     // D2b (Kenneth-vedtak 2026-08-21): helside(r) tegningsprint I rapportkroppen —

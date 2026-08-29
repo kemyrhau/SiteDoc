@@ -327,7 +327,8 @@ export const malRouter = router({
         hmsSynlighet: z.enum(["privat", "apen"]).nullable().optional(),
         subjects: z.array(z.string().max(255)).optional(),
         showSubject: z.boolean().optional(),
-        showFaggruppe: z.boolean().optional(),
+        // showFaggruppe fjernet (FASTE FELT Del C): faggruppe er avledet av dokumentflyten,
+        // en synlighetsbryter ville motsagt modellen. DB-kolonnen står (drop = egen migrering).
         showLocation: z.boolean().optional(),
         showPriority: z.boolean().optional(),
         enableChangeLog: z.boolean().optional(),
@@ -482,7 +483,7 @@ export const malRouter = router({
             hmsSynlighet: kilde.hmsSynlighet,
             subjects: (kilde.subjects ?? []) as Prisma.InputJsonValue,
             showSubject: kilde.showSubject,
-            showFaggruppe: kilde.showFaggruppe,
+            // showFaggruppe utelatt (FASTE FELT Del C) — DB-default (true) gjelder på kopi.
             showLocation: kilde.showLocation,
             showPriority: kilde.showPriority,
             enableChangeLog: kilde.enableChangeLog,

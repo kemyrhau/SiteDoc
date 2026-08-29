@@ -662,6 +662,8 @@ export default function OppgaverSide() {
         const lopenummer = `${o.template?.prefix ?? ""}${o.number != null ? String(o.number).padStart(3, "0") : ""}`.toLowerCase();
         return (
           o.title.toLowerCase().includes(sok) ||
+          // FASTE FELT Del A#4: emne er søkbart (stikkord om innhold).
+          (o.subject != null && o.subject.toLowerCase().includes(sok)) ||
           lopenummer.includes(sok) ||
           (o.number != null && String(o.number).includes(sok))
         );

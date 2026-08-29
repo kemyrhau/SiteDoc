@@ -377,6 +377,8 @@ export async function byggSjekklisteArkivHtml(
     },
     statusCeller,
     innholdHtml,
+    // FASTE FELT (designlås 1): emne som første datafelt.
+    emne: sjekkliste.subject,
     lokasjonHtml,
     tegningssiderHtml,
     logg,
