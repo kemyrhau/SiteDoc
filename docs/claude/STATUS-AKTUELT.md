@@ -376,6 +376,48 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟢 FASTE FELT — emne-skrivevei, lokasjonsmodell, faggruppe-fjerning (`feat/faste-felt`, MERGET develop `30260f88`) — PÅ TEST, gatet med funn
+
+Fabels ordre, cowork-gatet (Del D var alt bygget; `ReportTemplate.subjects` og `Task.subject`
+fantes alt — sparte tre runder). **Emne:** `EmneVelger` på sjekkliste-detalj (chip + Endre,
+`<datalist>` fra malens `subjects`), emnefelt i oppgave-modalen, fritekstsøk inkluderer
+`subject`. 🔴 **Avvik A2, fabel-ratifisert FØR koding:** mockupen forutsatte en opprett-modal
+for sjekkliste — den finnes ikke (`OpprettMalVelger.tsx:212` oppretter ved klikk). Emne settes
+derfor kun på detaljsiden for sjekkliste. **Lokasjon:** to tilstander («+ Legg til lokasjon» /
+aktivert m/Endre-Fjern), `showLocation` gater rendringen (var ubetinget), PDF skriver
+byggeplass-linja alltid + emne som første datafelt. **Malbygger:** faggruppe-raden fjernet,
+radtekster rettet. **Statusvakt:** `subject` inn i den eksisterende `approved`/`closed`-vakten.
+
+**Kenneths gate på test 29.08 — fire funn, alle rutet:** oppgave-detaljsiden mangler
+emne-chippen (→ `relay/inbox-oppgave-emne.md`) · duplisert lokasjonsvelger, modal vs. navigering
+til Tegninger (→ fabel) · barn-labels usynlige i utfylling (kjent D8/D9, venter malrydding) ·
+flytboksene kollapset (se under).
+
+### 🟢 Stegvisning i flytoppsettet (`feat/flytboks-stegvisning`, MERGET develop `16c20a9e`) — PÅ TEST, LOKALT GATET FØRST
+
+**Kenneth-vedtak: verifisert lokalt før test** — første gang i dag. Oppsettet sorterte boksene på
+**rollerangering** (`dokumentflyt/page.tsx:475`), dokumentet på `steg`. Å nummerere den gamle
+sorteringen ville satt tall på feil rekkefølge. Nå sorteres og nummereres begge flater på `steg`.
+Sammendragslinja følger samme rekkefølge. Kun `page.tsx`, +41/−3, ingen datamodell.
+
+⚠️ **Kjent grense, skrevet i commit-meldingen:** oppsettet har én boks per **rolle**, dokumentet
+én per **posisjon**. En rolle på flere steg (rundtur — «Endringsmelding» har Godkjenner på steg 1
+OG 4) vises på sitt tidligste steg (`min`). Kenneth-vedtak: behold `min`, den ærlige fiksen hører
+til `steg={1}`-runden.
+
+🔴 **Lokal verifisering kostet en halv økt fordi miljøet var råttent, ikke metoden.** Lokal DB var
+fire måneder bak: `organization_members.status` manglet → 500 på alt som slår opp org-medlemskap,
+mens resten svarte 200. `prisma migrate deploy` tok ikke igjen etterslepet — den stoppet på
+`mal_integritet` (unik navne-indeks mot fem identiske PSI-maler fra april-seeden) og lot DB stå i
+failed-migration-tilstand. Løst med frisk test-dump (`lokal-dev.md § 3`). **Lærdommene ført i
+[lokal-dev.md](lokal-dev.md)**: dumpen er veien, ikke migrate deploy · dev-serveren må stoppes før
+`dropdb` · regenerering av Prisma-klienten avdekker slik drift i stedet for å skjule den.
+
+**Målt underveis, til fabels F1:** «Tømrer -> HE» var IKKE divergenstilfellet cowork antok —
+dens steg er monotone med rangeringen. Beviset kom fra «Endringsmelding», der Godkjenner står på
+plass 2 og rangering ville satt den sist.
+
+
 ### 🟢 KP-lokasjon — isolering, arv av tegning, statuslås (`fix/kp-lokasjon`, MERGET develop `b987d793`) — PÅ TEST, GATET 4/4
 
 Fire runder, kontrollplan. **Utløser:** måling av AM-3-fiksen (`180e9c61`) avdekket fire hull.
