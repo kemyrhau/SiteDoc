@@ -106,6 +106,14 @@ Mye «ikke prod» ble LIVE: statusmaskin-redesign F0–F6, flytrettigheter H3/H6
 - **Fire-boks-taket:** oppsett-UI lar hver rolle brukes én gang → maks fire flytbokser; strider mot vedtatt posisjons-/frinavnmodell.
 - **Død kode-opprydding (ordre levert 2026-08-13,** `til-repo-2026-08-13-1015/ORDRE-dodkode-opprydding.md`**):** `verifiserFlytRolle` + `byggFaggruppeFilter` (null kallsteder, feilinformerte to lesere s.d.), dokumentflyt.md:29 motsier vedtak; sweep i domenet + regel: erstattet funksjon slettes i samme fase.
 - UI-hint GeoReferanseEditor: 2-punkts eksakt fit kan ikke avdekke speilfeil — «verifiser med Min posisjon eller legg til 3. punkt».
+- 🔴 **«Ingen lokasjon» finnes ikke som et valg (Kenneth-funn 2026-08-29).** `positionX`/
+  `positionY` er null både når lokasjon *ikke er satt ennå* og når rapporten *bevisst gjelder
+  hele byggeplassen*. Kenneth: *«dersom lokasjonsvelger alltid velges, da tar jeg bort
+  muligheten å ikke ha med lokasjon i en rapport — noen ganger er det nyttig, da rapporten kan
+  gjelde byggeplassen.»* Funnet stoppet ordren `relay/inbox-lokasjon-autoapne.md` (auto-åpne
+  tegning ved manglende markering) — den er ⛔ ON HOLD til modellen er avklart, ellers ber
+  systemet om en pin på dokumenter som ikke skal ha en. **Hører sammen med punktet under: dette
+  er samme rot.** Fabels domene — begrepsavklaring før mer bygges.
 - **Begrepsforvirring «lokasjon» i malbyggeren:** TRE ulike ting bærer navnet — `ReportTemplate.showLocation` (fast felt, auto fra bygning/tegning) · `location`-rapportobjekt (ren tekst, prosjektadresse som fallback) · `drawing_position`-rapportobjekt (bærer `drawingId` + koordinater). Byggeplass ER lokasjonen: den eier tegningene (`Drawing.byggeplassId`) og har koordinater fra georeferert tegning. Fabels domene — begrepsavklaring før flere felt bygges.
 - **Lokasjon/tegningspunkt — fire funn (prod 2026-08-13):** (1) dokumentsiden viser ikke valgt lokasjon etter lagring, mens utskriften gjør det (manglende query-invalidering) · (2) detaljutsnitt mangler — `RapportObjektVisning.tsx:550-554` har 3 s fallback-timer som setter `klar=true` UTEN detalj · (3) de to bildene skal stå side ved side, innzoomet til høyre · (4) tegning skal åpne automatisk ved ny sjekkliste når malen har lokasjonsfelt.
 - **Værdata bør hentes fra byggeplassen:** `useAutoVaer.ts:58-64` bruker prosjektets koordinater. `Byggeplass.latitude/longitude` finnes. Et prosjekt kan strekke seg over kilometer; for en befaringsrapport er været på byggeplassen dokumentasjon.
