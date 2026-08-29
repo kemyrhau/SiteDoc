@@ -7,6 +7,7 @@ describe("harFeltVerdi", () => {
     expect(harFeltVerdi(undefined)).toBe(false);
     expect(harFeltVerdi("")).toBe(false);
     expect(harFeltVerdi([])).toBe(false);
+    expect(harFeltVerdi({})).toBe(false); // tomt objekt → ingen verdi
   });
 
   it("returnerer true for reelle verdier", () => {
