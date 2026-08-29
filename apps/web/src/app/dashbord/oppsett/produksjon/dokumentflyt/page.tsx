@@ -417,6 +417,37 @@ const ROLLE_KONFIG: Record<string, { farge: string; ikonNavn: string; tittelNoek
   godkjenner: { farge: "green", ikonNavn: "CheckCircle2", tittelNoekkel: "dokumentflyt.godkjenner", rekkefølge: 3 },
 };
 
+/**
+ * Leddposisjon (steg) for en rolle-boks, avledet fra flytens medlemmer — SAMME rå steg
+ * som dokumentet nummererer med (FlytIndikator via byggPosisjonsLedd, gruppert på m.steg).
+ * Da kan de to flatene refereres til hverandre. Rolle uten medlemmer har ingen posisjon
+ * ennå → null. Flere medlemmer på samme rolle deler steg → min er representanten.
+ */
+function stegForRolle(medlemmer: DokumentflytMedlem[], rolle: string): number | null {
+  const medl = medlemmer.filter((m) => m.rolle === rolle);
+  if (medl.length === 0) return null;
+  return Math.min(...medl.map((m) => m.steg));
+}
+
+/**
+ * Sorter rolle-konfig på flytens POSISJON (steg), ikke på rollerangering. Rangeringen er
+ * kun sekundær tiebreak (og styrer fortsatt hvilken rolle som *foreslås* ved leggTilRolle)
+ * — den bestemmer ikke lenger visningsrekkefølgen. Roller uten posisjon (ingen medlemmer)
+ * sorteres sist.
+ */
+function sorterRollerPaaSteg(roller: RolleKonfig[], medlemmer: DokumentflytMedlem[]): RolleKonfig[] {
+  return [...roller].sort((a, b) => {
+    const sa = stegForRolle(medlemmer, a.rolle);
+    const sb = stegForRolle(medlemmer, b.rolle);
+    if (sa !== sb) {
+      if (sa === null) return 1;
+      if (sb === null) return -1;
+      return sa - sb;
+    }
+    return (ROLLE_KONFIG[a.rolle]?.rekkefølge ?? 99) - (ROLLE_KONFIG[b.rolle]?.rekkefølge ?? 99);
+  });
+}
+
 function RolleIkon({ rolle }: { rolle: string }) {
   switch (rolle) {
     case "registrator": return <Pencil className="h-3 w-3" />;
@@ -465,6 +496,9 @@ function DynamiskFlyt({
     rollerMedMedlemmer.set(m.rolle, liste);
   }
 
+  // Sorter boksene på flytens posisjon (steg), ikke på rollerangering (delt hjelper).
+  const sortertRoller = sorterRollerPaaSteg(konfigRoller, df.medlemmer);
+
   // Roller som kan legges til (ikke allerede konfigurert)
   const rolleRekkefølge: DokumentflytRolle[] = ["registrator", "bestiller", "utforer", "godkjenner"];
   const eksisterendeRoller = new Set(konfigRoller.map((r) => r.rolle));
@@ -495,12 +529,12 @@ function DynamiskFlyt({
   return (
     <div>
       <div className="flex items-stretch gap-0 flex-wrap">
-      {konfigRoller.map((rk, idx) => {
+      {sortertRoller.map((rk, idx) => {
         const konfig = ROLLE_KONFIG[rk.rolle];
         if (!konfig) return null;
         const medlemmer = rollerMedMedlemmer.get(rk.rolle) ?? [];
         const erFørst = idx === 0;
-        const erSist = idx === konfigRoller.length - 1 && tilgjengeligeRoller.length === 0;
+        const erSist = idx === sortertRoller.length - 1 && tilgjengeligeRoller.length === 0;
         const visTittel = rk.label ?? t(konfig.tittelNoekkel);
 
         return (
@@ -512,6 +546,7 @@ function DynamiskFlyt({
             )}
             <FlytBoks
               tittel={visTittel}
+              nummer={stegForRolle(df.medlemmer, rk.rolle)}
               ikon={<RolleIkon rolle={rk.rolle} />}
               farge={konfig.farge}
               avrunding={erFørst && erSist ? "rounded-lg" : erFørst ? "rounded-l-lg" : erSist ? "rounded-r-lg" : ""}
@@ -589,6 +624,7 @@ function DynamiskFlyt({
 
 function FlytBoks({
   tittel,
+  nummer,
   ikon,
   farge,
   avrunding,
@@ -610,6 +646,7 @@ function FlytBoks({
   onAvbrytLabel,
 }: {
   tittel: string;
+  nummer?: number | null;
   ikon: JSX.Element;
   farge: string;
   avrunding: string;
@@ -766,6 +803,7 @@ function FlytBoks({
     <div className={`group/boks flex-1 ${avrunding} border ${f.border} ${f.bg} px-3 py-2`}>
       <div className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${f.tittel}`}>
         {ikon}
+        {nummer != null && <span className="font-normal text-gray-400">{nummer}.</span>}
         {redigerLabel ? (
           <input
             type="text"
@@ -1288,7 +1326,7 @@ export default function KontakterSide() {
                     {dflyter.length === 0
                       ? <span className="text-xs text-gray-300">{t("dokumentflyt.ingenFlyter")}</span>
                       : dflyter.map((df) => {
-                          const rolleNavn = ((df.roller ?? []) as RolleKonfig[])
+                          const rolleNavn = sorterRollerPaaSteg((df.roller ?? []) as RolleKonfig[], df.medlemmer)
                             .map((r) => {
                               const konfig = ROLLE_KONFIG[r.rolle];
                               return r.label ?? (konfig ? t(konfig.tittelNoekkel) : r.rolle);
