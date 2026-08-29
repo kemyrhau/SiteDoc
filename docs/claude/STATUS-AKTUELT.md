@@ -17,7 +17,7 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 |---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | Levert `feat/flytboks-stegvisning` + `feat/prosjektoppsett-veileder` (`214bae7f`). Dev-server stoppet. Env symlinket fra hovedtreet | rename `IKKE_I_PAPIRKURV` → `inbox-malklikk-eksporter.md` → `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (sammen) |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Levert `feat/faste-felt` + `fix/oppgave-emne` (`ff485478`). Ledig | Ingen ny ordre |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Levert fire brancher 29.08, alle merget. Ledig | Ingen ny ordre |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 ✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
@@ -375,6 +375,44 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
+
+### 🟢 Oppgave-datalås + repeater ut av oppgavemaler (MERGET develop `f61eb64b`) — PÅ TEST
+
+**Kenneth-funn på test 29.08:** han sendte en oppgave, fikk den i retur, og **endret et
+utfylt tallfelt** (antall gravemaskiner 1 → 2). Skulle ikke være mulig.
+
+**Rotårsak (kontrollplan):** `oppgave.oppdater` (`:635`) ER draft-only — men feltverdiene går
+gjennom `oppgave.oppdaterData` (`:689`), som hadde **ingen statussjekk**. To dører, én vakt.
+Kommentaren i `oppdater` lovet «kun tilføyelser er tillatt» — en regel ingen kode håndhevet.
+🔴 **Fjerde forekomst av samme form på to dager** (prosjektisolering · lokasjonsgating ·
+`forbedreOversettelse` · denne).
+
+**Klient-rotårsaken var en annen og verre:** låsen `beregnLaasteFelter` VAR wiret og predikatet
+var riktig — men lås-settet ble beregnet **én gang ved mount** (`useOppgaveSkjema.ts:95`) og
+aldri på nytt etter refetch. Kenneths flyt (opprett → fyll → send → få i retur, alt med
+dokumentet åpent) ga et lås-sett utledet fra tom utkast-data. Nå `useMemo`, reberegnes ved
+status/data-endring. Bonus: utkast er igjen fullt redigerbart — den gamle låsen over-låste
+utfylte utkast-felt ved reload.
+
+**Vedtak B (Kenneths regi):** felt med verdi låses ved sending · tomme felt kan fylles av den
+som har ballen · kommentarer og vedlegg går alltid. Domenet han formulerte:
+*«en oppgave er en arbeidsordre — arbeideren fyller ut de tomme feltene når oppgaven er utført
+og sender til godkjenning.»* Ført i
+[domene-arbeidsflyt.md § Hva en oppgave ER](domene-arbeidsflyt.md). Alternativ A («redigerbar
+som utkast kun») forkastet — det ville gjort oppgaven til en melding.
+
+**Repeater ut av oppgavemaler** (`d2958b98`): `FeltPalett` skjuler `repeater` når
+`category = "oppgave"`. Kenneth: *«en repeater tilhører ikke i oppgave.»* Begrunnelsen —
+en repeater er N ting, en arbeidsordre er én; riktig modell finnes allerede motsatt vei
+(`feat/oppgave-per-rad`: hver repeater-rad i en SJEKKLISTE får sin egen oppgave). **Formen er
+«slutt å tilby», ikke «riv ut»** — eksisterende objekter rendres som før, ingen migrering.
+Målt: 0 oppgavemaler med repeater på test, 4 i prod (alle Kenneths egne testdokumenter,
+bekreftet av ham).
+
+**Meldt, ikke bygget:** mobil `useOppgaveSkjema` har trolig samme mount-staleness
+(server-vakten dekker den) · quiz/video/info_image/signature kan være meningsløse i oppgave —
+hver fjerning er et produktvedtak.
+
 
 ### 🟢 Emne på oppgave + onboarding-delstatus (`fix/oppgave-emne` + `feat/prosjektoppsett-veileder`, MERGET develop) — PÅ TEST
 
