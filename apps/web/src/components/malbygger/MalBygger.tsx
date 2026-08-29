@@ -658,7 +658,7 @@ export function MalBygger({ mal }: MalByggerProps) {
         onDragEnd={handleDragEnd}
       >
         {/* Venstre — Feltpalett */}
-        <FeltPalett psiModus={psiModus} />
+        <FeltPalett psiModus={psiModus} category={mal.category} />
 
         {/* Midt — Malsoner */}
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
