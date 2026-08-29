@@ -43,6 +43,31 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 4. Stikkprøve-QA på fagtermer for noen utvalgte språk (de/fr/sv/pl typisk) — Google Translate kan ta feil i kontekst. Kjente quirks logget i [BACKLOG.md § i18n](BACKLOG.md): fransk «pause» kan bli oversatt til «saut» (hopp), klønete kildetekst gir klønete oversettelser på alle språk.
 5. Mobil + web henter automatisk fra `@sitedoc/shared` ved neste build — ingen separat distribusjon.
 
+#### 🔴 Retter du en ENGELSK kildestreng, oppdager generatoren det ikke
+
+Default-modus fyller kun **manglende** nøkler. Endrer du teksten i en nøkkel som allerede
+finnes i alle 15 filer, hopper generatoren over den — en ny kjøring rører ingenting, og de
+13 målspråkene beholder oversettelsen av den *gamle* engelske teksten. Symptomet er at
+alt ser grønt ut mens tretten språk sier noe annet enn kilden.
+
+To veier, begge riktige:
+
+- **`--force`** — regenererer alle nøkler. Enkelt, men rører hele filsettet og gir en stor diff.
+- **Kirurgisk:** slett den ene nøkkelen fra de 13 målspråkene og kjør generatoren på nytt.
+  Da fylles kun den, fra ny kilde.
+
+**Håndrediger aldri én målspråkfil for å «rette opp».** Da drifter den fra generatoren, og
+neste kjøring lar den stå fordi nøkkelen finnes.
+
+Målt 2026-08-28: `kontekstChip.byggeplassLaastGodkjent` ble opprettet med engelsk «Site»,
+som ga tysk «Website». Retting til husets etablerte «Building site» (`kontekstChip.byggeplass`,
+`timer.felt.byggeplass`) slo ikke gjennom før nøkkelen ble slettet fra de 13 og regenerert
+(`fab6deb0` → de «Baustelle», fr «chantier», sv «Byggplatsen»).
+
+🔴 **Sjekk husets term før du finner på en ny engelsk fagterm.** Grep `en.json` for et
+eksisterende ord for begrepet — for byggeplass er det «building site». Ett nytt ord i én
+nøkkel blir til tretten avvik.
+
 #### Diagnostikk-regel: i18n-diff er ikke alltid en bug
 
 Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Hvis nøkkelen ikke brukes noe sted i `*.ts`/`*.tsx`, er det en relikvi som skal slettes — ikke en bug som skal fylles. Lærdom fra `hjelp.flyt.{bestiller,utforer,godkjenner}` 2026-05-23 (HjelpModal-refaktorering etterlot ubrukte nøkler i en.json).
