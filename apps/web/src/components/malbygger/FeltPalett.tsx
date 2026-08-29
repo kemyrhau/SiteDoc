@@ -36,14 +36,24 @@ const PSI_TYPER = new Set(["heading", "subtitle", "info_text", "info_image", "vi
 // Skjult fra paletten — område/rom håndteres via kontrollplan, ikke som felt i malen
 const SKJULTE_TYPER = new Set(["zone_property", "room_property"]);
 
-export function FeltPalett({ psiModus }: { psiModus?: boolean }) {
+// Felttyper som ikke lenger TILBYS for en gitt maltype (`category` er bryteren). En repeater
+// er en liste av N ting, mens en oppgave er ÉN ting med felles status (domene-arbeidsflyt.md
+// § Repeater hører ikke hjemme i en oppgave). Vi fjerner tilbudet, ikke dataene: en
+// eksisterende oppgave-repeater rendres og fungerer som før. Sjekkliste/HMS urørt.
+const SKJULT_PER_KATEGORI: Record<string, ReadonlySet<string>> = {
+  oppgave: new Set(["repeater"]),
+};
+
+export function FeltPalett({ psiModus, category }: { psiModus?: boolean; category?: string }) {
   const { t } = useTranslation();
+  const skjultForKategori = category ? SKJULT_PER_KATEGORI[category] : undefined;
   const gruppert = kategoriRekkefølge
     .map((kategori) => ({
       kategori,
       label: t(kategoriLabelKeys[kategori]),
       typer: REPORT_OBJECT_TYPES.filter((type) => {
         if (SKJULTE_TYPER.has(type)) return false;
+        if (skjultForKategori?.has(type)) return false;
         if (psiModus && !PSI_TYPER.has(type)) return false;
         return REPORT_OBJECT_TYPE_META[type].category === kategori;
       }),
