@@ -109,6 +109,54 @@ signerings- og attesteringslogikk, og det skal måles, ikke antas. Seks kartlegg
 i [vedtak-flytmodell-rekkefolge-fabel-2026-08-21.md](../redesign/vedtak-flytmodell-rekkefolge-fabel-2026-08-21.md).
 Fjerningsordre formuleres av fabel etter rapport, med Kenneth-gate før bygging.
 
+### Tillegg 2026-08-29 (Kenneth): bakover skal være stegadressert, som framover
+
+> *«Fra mitt ståsted: (2 til n) i hver eneste flytboks — sende frem eller tilbake i flyten.»*
+
+Hver boks fra posisjon 2 og utover skal kunne sende **begge veier**. Registrator er unntaket
+i den andre enden: den er alltid første boks og har ingen posisjon å gå tilbake til.
+
+🔴 **Dette er ikke bygget, og koden gjør noe annet.** Målt 2026-08-29:
+
+- Framover **er** stegadressert: `send → sent` ruter via `nesteLedd` (`flytPosisjon.ts:172`).
+- Bakover er **ikke** stegadressert. Det finnes én bakover-handling, `Besvar`
+  (`received → responded`), som returnerer ballen til avsenderen — ikke til et valgt steg.
+  Fra `responded` er eneste standardovergang `approved` (`statusHandlinger.ts:378-387`).
+- «Send tilbake» (`responded → in_progress`) ble **fjernet 2026-08-02** i «Runde-2»
+  (`statusHandlinger.ts:55-56, 110`). ⚠️ **Begrunnelsen ble aldri skrevet ned.** Den
+  beslutningen står nå i motstrid til kravet over, og ingen kan lese seg til hvorfor den
+  ble tatt — noter det før noen bygger den tilbake eller argumenterer mot den.
+
+**Kjernen, formulert av Kenneth og bekreftet mot kode:** statusmaskinen koder i dag *retning*
+som *status* i stedet for som *posisjon*. Det er derfor bakover ikke kan adresseres. Fiksen er
+ikke en manglende knapp.
+
+**Relatert innsikt samme dag — boksen bør bære sin egen posisjon.** I dag bor `steg` kun på
+`DokumentflytMedlem`, ikke på boksen. Derfor må boksens nummer utledes (`min(medlemmenes
+steg)`), og derfor hardkoder `leggTilMedlem` `steg=1` (`dokumentflyt/page.tsx:869, 886` ·
+`validation/index.ts:307`). Legger boksen sin posisjon i `Dokumentflyt.roller` og lar medlemmet
+arve den, forsvinner hardkodingen uten ny inngang: rekkefølgen brukeren allerede ser **er**
+posisjonen.
+
+### ⏸️ PARKERT 2026-08-29 (Kenneth): frie boksnavn venter på faggruppe/kontakter-avklaringen
+
+Boksen får i dag et navn i flytoppsettet som skal fortelle brukeren hva som forventes i akkurat
+det leddet — og navnet virker der. Men det **følger ikke med til utfyllingen**: dokumentets
+merke avledes fortsatt av rollenavnet (`flytPosisjon.ts:32-47` → `FlytIndikator.tsx:159`), og
+kolonnen `DokumentflytMedlem.ansvarsmerke` (`schema.prisma:1385`), som ble laget for å bære
+navnet per posisjon, leses aldri.
+
+**Kenneth 2026-08-29:** *«Jeg er usikker om vi bare avventer denne inntil videre. Jeg må avklare
+faggruppe/kontakter-problematikken som jeg foreløpig ikke har noe svar på.»*
+
+Problemet han sikter til: en flytboks bemannes av **én av tre ting** — faggruppe, kontaktgruppe
+eller enkeltperson (`DokumentflytMedlem`, «høyst én»). Flytlinja viser navnet på det som er
+bundet, uten å si hvilken av de tre. Heter kontaktgruppa og faggruppa begge «Byggherre», kan
+ingen lese seg til hvilken som står der. **Det er ikke et navneproblem — typen vises ikke.**
+
+**Ikke bygg frie boksnavn før dette er avklart.** Å la boksen bære et fritt navn samtidig som
+bemanningens type er usynlig, legger et tredje navn oppå to som allerede forveksles.
+
 ## 🔴 BINDENDE VEDTAK: uoppfordret automatikk overskriver aldri en menneskelig handling (fabel 2026-08-20)
 
 **Vedtaket:** en avledet eller automatisk registrering skal aldri slette, overskrive eller
