@@ -417,6 +417,7 @@ export const oppgaveRouter = router({
         bestillerFaggruppeId: z.string().uuid().optional(),
         utforerFaggruppeId: z.string().uuid().optional(),
         title: z.string().min(1).max(255),
+        subject: z.string().max(500).optional(),
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
         dueDate: z.string().datetime().optional(),
@@ -594,6 +595,7 @@ export const oppgaveRouter = router({
             bestillerFaggruppeId: input.bestillerFaggruppeId ?? null,
             utforerFaggruppeId: input.utforerFaggruppeId ?? null,
             title: input.title,
+            subject: input.subject,
             description: input.description,
             priority: input.priority,
             number: nummer,
@@ -635,6 +637,7 @@ export const oppgaveRouter = router({
       z.object({
         id: z.string().uuid(),
         title: z.string().min(1).max(255).optional(),
+        subject: z.string().max(500).nullable().optional(),
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "critical"]).optional(),
         dueDate: z.string().datetime().optional(),

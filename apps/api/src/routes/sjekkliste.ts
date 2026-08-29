@@ -572,6 +572,7 @@ export const sjekklisteRouter = router({
       z.object({
         id: z.string().uuid(),
         title: z.string().max(255).optional(),
+        subject: z.string().max(500).nullable().optional(),
         bestillerFaggruppeId: z.string().uuid().optional(),
         utforerFaggruppeId: z.string().uuid().optional(),
         drawingId: z.string().uuid().nullable().optional(),
@@ -607,17 +608,17 @@ export const sjekklisteRouter = router({
         });
       }
 
-      // Lokasjon (tegning/pin) OG byggeplass er del av det et godkjent dokument påstår. Endres
-      // de etter godkjenning, er dokumentet endret etter levering uten spor — riktig vei er
-      // gjenåpne → rette → godkjenne på nytt. Serverside sannhet; klienten deaktiverer også
-      // byggeplass-chippen. Byggeplass-chippen var eneste ugatede skriver (målt runde 2).
-      const rørerLokasjonEllerByggeplass =
-        input.drawingId !== undefined || input.positionX !== undefined ||
+      // Emne, lokasjon (tegning/pin) OG byggeplass er del av det et godkjent dokument påstår.
+      // Endres de etter godkjenning, er dokumentet endret etter levering uten spor — riktig
+      // vei er gjenåpne → rette → godkjenne på nytt. Serverside sannhet; klienten deaktiverer
+      // også byggeplass-chippen + emne-Endre. (subject tatt inn i vakten: FASTE FELT Del D.)
+      const rørerLaastFelt =
+        input.subject !== undefined || input.drawingId !== undefined || input.positionX !== undefined ||
         input.positionY !== undefined || input.byggeplassId !== undefined;
-      if (rørerLokasjonEllerByggeplass && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
+      if (rørerLaastFelt && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Sjekklisten er låst etter godkjenning. Gjenåpne den for å endre byggeplass eller lokasjon.",
+          message: "Sjekklisten er låst etter godkjenning. Gjenåpne den for å endre emne, byggeplass eller lokasjon.",
         });
       }
 

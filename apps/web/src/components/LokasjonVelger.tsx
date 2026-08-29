@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Modal, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-import { MapPin, X, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
+import { MapPin, X, Plus, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
 interface LokasjonVelgerProps {
   prosjektId: string;
@@ -34,6 +35,7 @@ export function LokasjonVelger({
   onLagre,
   leseModus,
 }: LokasjonVelgerProps) {
+  const { t } = useTranslation();
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [open, setOpen] = useState(false);
   const [valgtBygningId, setValgtBygningId] = useState<string>("");
@@ -163,37 +165,58 @@ export function LokasjonVelger({
   }
 
   const harLokasjon = !!tegningId;
-  const visTekst = harLokasjon
-    ? `${bygningNavn ? bygningNavn + " · " : ""}${tegningNavn ?? "Tegning"}`
-    : "Ikke satt — klikk for å velge";
+  const harPunkt = positionX != null && positionY != null;
+  const tegningTekst = `${bygningNavn ? bygningNavn + " · " : ""}${tegningNavn ?? t("lokasjonVelger.tegning")}`;
 
   return (
     <>
-      <div
-        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-          leseModus ? "border-gray-100 bg-gray-50" : "cursor-pointer border-gray-200 hover:bg-gray-50"
-        }`}
-        onClick={leseModus ? undefined : åpne}
-      >
-        <MapPin className={`h-4 w-4 shrink-0 ${harLokasjon ? "text-blue-500" : "text-gray-300"}`} />
-        <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Lokasjon</div>
-          <div className={`truncate ${harLokasjon ? "text-gray-800" : "text-gray-400 italic"}`}>
-            {visTekst}
-          </div>
-        </div>
-        {harLokasjon && !leseModus && (
-          <button
-            onClick={(e) => { e.stopPropagation(); handleFjern(); }}
-            className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
-            title="Fjern lokasjon"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
+      {/* To tilstander (FASTE FELT Del B, designlås 3): AKTIVERT (tegning valgt) viser
+          tegning + punkt-status + Endre/Fjern; PASSIV (ingen lokasjon) er en diskret
+          «+ Legg til lokasjon» — null er et gyldig, ferdig svar, ingen automatikk spør.
+          Intern etikett så alle kallere (sjekkliste + oppgave) er selvforklarende. */}
+      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+        {t("lokasjonVelger.etikett")}
       </div>
+      {harLokasjon ? (
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+          <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-gray-800">{tegningTekst}</div>
+            <div className="text-xs text-gray-400">
+              {harPunkt ? t("lokasjonVelger.punktSatt") : t("lokasjonVelger.utenPunkt")}
+            </div>
+          </div>
+          {!leseModus && (
+            <>
+              <button
+                onClick={åpne}
+                className="rounded px-2 py-1 text-xs font-medium text-sitedoc-secondary hover:bg-gray-100"
+              >
+                {t("handling.endre")}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleFjern(); }}
+                className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                title={t("lokasjonVelger.fjern")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      ) : leseModus ? (
+        <div className="text-sm italic text-gray-400">{t("lokasjonVelger.ingenLokasjon")}</div>
+      ) : (
+        <button
+          onClick={åpne}
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-sitedoc-secondary hover:bg-gray-50"
+        >
+          <Plus className="h-4 w-4" />
+          {t("lokasjonVelger.leggTil")}
+        </button>
+      )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Velg lokasjon">
+      <Modal open={open} onClose={() => setOpen(false)} title={t("lokasjonVelger.velgLokasjon")}>
         <div className="flex flex-col gap-3">
           {/* Bygning — vises kun når det faktisk er flere alternativer.
               Én bygning auto-selectes via useEffect; ingen reell valgmulighet. */}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useId } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { Modal, Select, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { byggOpprettInput } from "@/lib/opprettFraTegning";
@@ -59,12 +60,16 @@ export function OpprettOppgaveModal({
 }: OpprettOppgaveModalProps) {
   const utils = trpc.useUtils();
   const router = useRouter();
+  const { t } = useTranslation();
+  const emneListeId = useId();
 
   // Steg 1 (oppgave-fra-rad): velgeren kollapser til ÉN ting — hvilken oppgavemal i flyten.
   // Ingen faggruppe-valg: faggruppen er en egenskap ved flyten (`byggOpprettInput` leser den ut).
   const [valgtMal, setValgtMal] = useState("");
   // Kun brukt i FLYT-LØS-fallbacken: hvilken flyt oppgaven skal følge (sjekklisten mangler en å arve).
   const [valgtFlyt, setValgtFlyt] = useState("");
+  // FASTE FELT Del A#2: valgfritt emne (stikkord). Nedtrekk-med-fritekst fra malens subjects.
+  const [emne, setEmne] = useState("");
 
   const { data: arbeidsforlop } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -80,7 +85,7 @@ export function OpprettOppgaveModal({
   );
 
   const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as DokumentflytRad[];
-  const alleMalerTypet = (alleMaler ?? []) as Array<{ id: string; name: string; category: string; domain: string | null }>;
+  const alleMalerTypet = (alleMaler ?? []) as Array<{ id: string; name: string; category: string; domain: string | null; showSubject?: boolean; subjects?: unknown }>;
   // HMS-maler er FLYT-UAVHENGIGE (serveren auto-ruter til HMS-flyten og FORBYR klient-sendt
   // dokumentflytId). Deteksjon på domain, ikke category — jf. tegning-dialogen.
   const hmsMalIder = useMemo(
@@ -155,8 +160,14 @@ export function OpprettOppgaveModal({
     if (!open) {
       setValgtMal("");
       setValgtFlyt("");
+      setEmne("");
     }
   }, [open]);
+
+  // Valgt mal → emnefelt vises kun når malen tillater det (showSubject ≠ false); forslag fra subjects.
+  const valgtMalObjekt = alleMalerTypet.find((m) => m.id === valgtMal);
+  const visEmne = !!valgtMalObjekt && valgtMalObjekt.showSubject !== false;
+  const emneForslag = Array.isArray(valgtMalObjekt?.subjects) ? (valgtMalObjekt.subjects as unknown[]).map(String) : [];
 
   // Auto-tittel
   const tittel = useMemo(() => {
@@ -198,6 +209,7 @@ export function OpprettOppgaveModal({
       templateId: valgtMal,
       ...flytInput,
       title: tittel,
+      ...(visEmne && emne.trim() ? { subject: emne.trim() } : {}),
       checklistId: sjekklisteId,
       checklistFieldId: sjekklisteFeltId,
       // Forhåndsposisjon (rad-oppgaver): kun når en tegning er kjent. positionX/Y følger med
@@ -243,6 +255,26 @@ export function OpprettOppgaveModal({
           options={malAlternativer}
           placeholder="Velg mal"
         />
+
+        {/* FASTE FELT Del A#2: valgfritt emne — nedtrekk-med-fritekst fra malens subjects.
+            Vises kun når valgt mal tillater emne (showSubject ≠ false). */}
+        {visEmne && (
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">{t("oppgaveModal.emneValgfritt")}</label>
+            <input
+              list={emneListeId}
+              value={emne}
+              onChange={(e) => setEmne(e.target.value)}
+              placeholder={t("emneVelger.plassholder")}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+            <datalist id={emneListeId}>
+              {emneForslag.map((f) => (
+                <option key={f} value={f} />
+              ))}
+            </datalist>
+          </div>
+        )}
 
         <p className="text-sm text-gray-500">Tittel: {tittel}</p>
 

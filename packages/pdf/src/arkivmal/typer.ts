@@ -232,6 +232,11 @@ export interface ArkivDokumentInput {
   /** Ferdig innhold-HTML (fra byggInnhold — kalleren inliner bilder som data-URI). */
   innholdHtml: string;
   /**
+   * FASTE FELT (designlås 1): emne (stikkord) som FØRSTE datafelt, etter dokumenthode
+   * + lokasjon, før sjekklisteinnholdet. Rendres av `byggEmneblokk`. Tom/null → ingen linje.
+   */
+  emne?: string | null;
+  /**
    * D2 (2026-08-21): dokument-lokasjon (tegningsmarkør) rendret av
    * `byggLokasjonsblokk`, plassert ØVERST side 1 rett under dokumenthodet.
    * Tom streng/utelatt → ingen lokasjonsseksjon (aldri tom kartboks).

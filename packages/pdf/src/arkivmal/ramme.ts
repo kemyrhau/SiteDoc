@@ -70,11 +70,24 @@ export function byggProsjektblokk(
     `<div><span class="ark-etikett">${esc(etikett)}</span><br><strong>${esc(verdi)}</strong></div>`;
 
   if (innst.prosjektnavn && blokk.prosjekt) celler.push(celle("Prosjekt", blokk.prosjekt));
-  if (innst.lokasjon && blokk.byggeplass) celler.push(celle("Byggeplass", blokk.byggeplass));
+  // FASTE FELT (designlås 2): byggeplass-linjen skrives ALLTID når byggeplass finnes —
+  // ikke lenger bak `innst.lokasjon`. Rapporten går til byggherre; en utelatt lokasjon lar
+  // leseren gjette om den ble glemt. Er byggeplass null (standalone) faller cellen bort.
+  if (blokk.byggeplass) celler.push(celle("Byggeplass", blokk.byggeplass));
   if (blokk.byggherre) celler.push(celle("Byggherre", blokk.byggherre));
 
   if (celler.length === 0) return "";
   return `<div class="ark-prosjektblokk">${celler.join("")}</div>`;
+}
+
+/**
+ * Emneblokk (FASTE FELT designlås 1) — emne som første datafelt, samme celle-stil som
+ * prosjektblokken (gjenbruker `.ark-prosjektblokk`/`.ark-etikett`, ingen ny CSS). Tomt
+ * emne → tom streng (ingen blokk).
+ */
+export function byggEmneblokk(emne?: string | null): string {
+  if (!emne) return "";
+  return `<div class="ark-prosjektblokk"><div><span class="ark-etikett">Emne</span><br><strong>${esc(emne)}</strong></div></div>`;
 }
 
 /** Én statusblokk-celle → HTML. */

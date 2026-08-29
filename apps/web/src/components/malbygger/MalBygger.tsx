@@ -30,7 +30,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
-import { MapPin, Pencil, FileText, Building2, Eye, EyeOff, AlertTriangle, Globe, Check } from "lucide-react";
+import { MapPin, Pencil, FileText, Eye, EyeOff, AlertTriangle, Globe, Check } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
 function opsjonTilStreng(opsjon: unknown): string {
@@ -836,6 +836,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                     }
                   </button>
                 </div>
+                <div className="mt-1 text-xs text-gray-400">{t("malbygger.emneBeskrivelse")}</div>
                 {mal.showSubject !== false && Array.isArray(mal.subjects) && (mal.subjects as unknown[]).length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {(mal.subjects as unknown[]).map((s, i) => (
@@ -855,33 +856,15 @@ export function MalBygger({ mal }: MalByggerProps) {
                 )}
               </div>
               )}
-              {/* Oppretter-faggruppe — skjules i PSI-modus */}
-              {!psiModus && (
-              <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
-                <span className={mal.showFaggruppe === false ? "line-through text-gray-300" : ""}>{t("malbygger.bestillerFaggruppe")}</span>
-                <span className="text-xs text-gray-400">
-                  {mal.showFaggruppe === false ? t("malbygger.skjultSettesAuto") : t("malbygger.velgesVedOpprettelse")}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showFaggruppe: !(mal.showFaggruppe !== false) })}
-                  className="ml-auto rounded p-1 hover:bg-gray-200"
-                  title={mal.showFaggruppe === false ? t("malbygger.visFaggruppeFelt") : t("malbygger.skjulFaggruppeFelt")}
-                >
-                  {mal.showFaggruppe === false
-                    ? <EyeOff className="h-3.5 w-3.5 text-gray-400" />
-                    : <Eye className="h-3.5 w-3.5 text-gray-400" />
-                  }
-                </button>
-              </div>
-              )}
+              {/* Faggruppe-raden fjernet (FASTE FELT Del C, Kenneth-vedtak 2026-08-29):
+                  faggruppe er avledet av dokumentflyten (domene-arbeidsflyt.md), så en
+                  synlighetsbryter ville motsagt modellen. showFaggruppe-kolonnen står i DB. */}
               {/* Lokasjon */}
               <div className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500">
                 <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
                 <span className={mal.showLocation === false ? "line-through text-gray-300" : ""}>{t("malbygger.lokasjon")}</span>
                 <span className="text-xs text-gray-400">
-                  {mal.showLocation === false ? t("malbygger.skjult") : t("malbygger.settesAutoFraBygning")}
+                  {mal.showLocation === false ? t("malbygger.skjult") : t("malbygger.lokasjonBeskrivelse")}
                 </span>
                 <button
                   type="button"
@@ -901,7 +884,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                   <AlertTriangle className="h-4 w-4 shrink-0 text-gray-400" />
                   <span className={mal.showPriority === false ? "line-through text-gray-300" : ""}>{t("malbygger.prioritet")}</span>
                   <span className="text-xs text-gray-400">
-                    {mal.showPriority === false ? t("malbygger.skjult") : t("malbygger.prioritetVerdier")}
+                    {mal.showPriority === false ? t("malbygger.skjult") : t("malbygger.prioritetBeskrivelse")}
                   </span>
                   <button
                     type="button"
