@@ -68,9 +68,29 @@ PGBIN=/opt/homebrew/opt/postgresql@16/bin
 "$PGBIN/pg_restore" --no-owner --no-privileges -U kennethmyrhaug -d sitedoc ~/Downloads/sitedoc_test-lokal.dump
 ```
 
+🔴 **`prisma migrate deploy` er IKKE veien til å ta igjen etterslepet** (lærdom 2026-08-29).
+En lokal DB som har ligget stille noen måneder henter ikke inn ~170 migreringer; den stopper
+på gamle datafeil som migreringene forutsetter er ryddet. Målt: `20260810120000_mal_integritet`
+legger en unik navne-indeks, og lokal DB hadde **fem** identiske PSI-maler fra april-seeden →
+deployen stoppet etter 9 migreringer og lot databasen stå i «failed migration»-tilstand, som er
+verre enn utgangspunktet.
+
+**Dumpen er veien.** Den kommer fra en database der alle migreringer allerede har kjørt, så
+ingen datalandminer utløses. Rydding av duplikater for å komme videre er ubegrenset arbeid —
+neste migrering har sin egen forutsetning.
+
+Symptomet som avslørte etterslepet: **500 på alt som slår opp org-medlemskap**
+(`bruker.hentMin`, `faggruppe.hentForProsjekt`, `mal`/`dokumentflyt`/`organisasjon.hentForProsjekt`),
+mens prosedyrer som ikke rører tabellen svarte 200. Prisma-klienten var regenerert mot
+develop-schemaet og spurte etter `organization_members.status`; lokal DB manglet kolonnen.
+🔴 **Regenerering skjulte ikke problemet — den avdekket det.** Med gammel klient spurte ingen
+etter kolonnen, og driften lå usett.
+
 Ufravikelig:
 
 - **Test-dumpen, aldri prod** — ingen kunde-PII på laptopen.
+- **Stopp dev-serveren før `dropdb`** — den holder tilkoblinger, og `dropdb` feiler med
+  «database is being accessed by other users». `lsof -ti:3100,3001 | xargs kill`, så drop.
 - **`grep -x postgres`** (eksakt match) — løst `grep postgres` treffer `salsaklubb-postgres` først, som verken har rollen `sitedoc` eller databasen.
 - **`--no-owner --no-privileges`** — da trengs ikke `sitedoc`-rollen lokalt.
 
