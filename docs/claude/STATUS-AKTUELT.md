@@ -376,6 +376,40 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟢 KP-lokasjon — isolering, arv av tegning, statuslås (`fix/kp-lokasjon`, MERGET develop `b987d793`) — PÅ TEST, GATET 4/4
+
+Fire runder, kontrollplan. **Utløser:** måling av AM-3-fiksen (`180e9c61`) avdekket fire hull.
+**(1) Prosjektisolering:** `sjekkliste.oppdater` skrev `input.drawingId` til både `Checklist` og
+koblet `KontrollplanPunkt` uten tegnings-oppslag — målt åpen og nåbar. Søsterprosedyren
+`settPunktPlassering` hadde vakten. Ny delt `verifiserTegningIProsjekt` i
+`services/kontrollplanKobling.ts`, kalt fra begge dører (ingen kopiert if-blokk).
+**(2) Arv ved Start:** `koblePunktTilSjekkliste` kopierer nå punktets `drawingId` + byggeplass ved
+`kilde:"startet"` — **aldri pin**. Kenneth-vedtak: *«hver sjekkliste må få sin egen plassering»* ·
+punktet er planleggerens omtrentlige plassering, sjekklisten dokumenterer faktisk utførelse.
+Utfører kan bytte tegning som bevisst valg. **(3) Statuslås:** `approved`/`closed` var låst KUN
+klient-side; byggeplass-chippen var ugatet og skrev `drawingId: null` på godkjente dokumenter.
+Kenneth-vedtak (alternativ 1): byggeplass er del av det dokumentet påstår → serverside-vakt på
+`drawingId`/`positionX`/`positionY`/`byggeplassId` + deaktivert chip. Retting går via gjenåpning,
+som gir spor. **(4) `?? null`** i speil-blokken erstattet med «utelatt = behold», likt
+`Checklist.update`. **(5) Mobil-tapp** på punkt uten sjekkliste gir nå `Alert` i stedet for stille
+`return`. 🔴 **Repeater urørt** (Kenneths «ikke rør») — ingen av de sju bærende filene rørt,
+regresjonstester 5/5, Kenneth bekreftet uendret på test.
+
+**i18n-lærdom ført til [shared-pakker.md § i18n](shared-pakker.md):** generatoren hopper over
+nøkler som finnes og oppdager IKKE at kildestrengen er endret. «Site» ga tysk «Website»; retting
+til husets «Building site» slo først gjennom da nøkkelen ble slettet fra de 13 og regenerert
+(`fab6deb0` → de «Baustelle», fr «chantier», sv «Byggplatsen»).
+
+**Kenneths gate på test 29.08, 4/4:** godkjent sjekkliste → chip død m/forklaring · utkast → chip
+virker · Start fra plassert punkt → LOKASJON «900512 Røstbakken · Z-20-01» uten pin · repeater
+uendret. **Ingen migrering. Ingen prod.** Reload (mobil): JS-bundle.
+
+⚠️ **Funn under gaten, egen sak:** klikk på et IKKE-startet kontrollpunkt på tegningen sender
+brukeren til kontrollplan-oversikten uten å si hvilket punkt han kom fra
+(`tegninger/page.tsx:980-986`, fallback fra `180e9c61`). Kenneth mistet oversikten over hvilken
+sjekkliste han skulle fylle ut.
+
+
 ### 🟢 ANSVARLIG-kolonnen navnga feil faggruppe på utkast (`fix/ansvarlig-kolonne`, MERGET develop `12e34ceb`) — PÅ TEST, venter Kenneths gate
 
 Kenneth-funn (prod): sjekklistelista viste faggruppenavn i ANSVARLIG på utkast. `formaterAnsvarlig` (sjekklister/page.tsx + IDENTISK i oppgaver/page.tsx) falt tilbake på `utforerFaggruppe.name` når dokumentet ikke var sendt — en faggruppe som ennå ikke hadde fått ansvar (utkast har verken `recipientUser` eller `recipientGroup`). Kenneth-vedtak: ansvarlig = den/de i flyten som skal svare ut dokumentet; **utkast → oppretteren** (`rad.bestiller?.name`), **ellers ingen mottaker → tom** («—» i cella). Ledd 1–2 (mottaker-person/-gruppe) beholdt. Fikset begge sider: funksjonen returnerer **tom streng** (ikke «—») så filterbyggingen (`bygg()` → Boolean-filter) ikke får en «—»-oppføring — cella rendrer «—», samme mønster som `opprettetAv`. Filter- OG sorteringsveien treffer `formaterAnsvarlig` begge steder → dekket. **Måling (mål-før-utvid):** den buggede fallbacken finnes KUN i disse to filene; HMS-flatene (`HmsFlytStripe`/`HmsFlytKort`/`flyt-ledd`) bruker «ansvarlig» i en annen, korrekt betydning (HMS-behandler/`erHovedansvarlig`) — ikke rørt. Ingen nye i18n-nøkler. Grønt: typecheck web, `pnpm test` 189/189. **Ingen prod.** Reload: n/a (web).
