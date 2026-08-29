@@ -607,6 +607,20 @@ export const sjekklisteRouter = router({
         });
       }
 
+      // Lokasjon (tegning/pin) OG byggeplass er del av det et godkjent dokument påstår. Endres
+      // de etter godkjenning, er dokumentet endret etter levering uten spor — riktig vei er
+      // gjenåpne → rette → godkjenne på nytt. Serverside sannhet; klienten deaktiverer også
+      // byggeplass-chippen. Byggeplass-chippen var eneste ugatede skriver (målt runde 2).
+      const rørerLokasjonEllerByggeplass =
+        input.drawingId !== undefined || input.positionX !== undefined ||
+        input.positionY !== undefined || input.byggeplassId !== undefined;
+      if (rørerLokasjonEllerByggeplass && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Sjekklisten er låst etter godkjenning. Gjenåpne den for å endre byggeplass eller lokasjon.",
+        });
+      }
+
       // Prosjektisolering: en tegning skrevet på sjekklista (og speilet til punktet under)
       // MÅ tilhøre sjekklistas prosjekt. Delt vakt med settPunktPlassering — samme felt, to
       // dører. Uten den kunne en fremmed drawingId skrives inn her (auth sjekker kun

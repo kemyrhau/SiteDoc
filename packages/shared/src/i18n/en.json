@@ -72,6 +72,7 @@
   "kontekstChip.fjernFavoritt": "Remove favorite",
   "kontekstChip.heleProsjektet": "Entire project",
   "kontekstChip.faggruppeKunUtkast": "Trade can only be changed in draft",
+  "kontekstChip.byggeplassLaastGodkjent": "Site is locked after approval. Reopen the checklist to change it.",
   "kontekstChip.velgFelt": "Select {{felt}}",
   "felles.ingenTreff": "No matches",
   "kontekstChip.allePaa": "All in {{prosjekt}}",

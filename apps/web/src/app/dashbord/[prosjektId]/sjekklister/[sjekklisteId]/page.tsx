@@ -555,6 +555,9 @@ export default function SjekklisteDetaljSide() {
     utforerFaggruppe?: { id: string; name?: string | null } | null;
   };
   const erUtkast = sjekklisteCast.status === "draft";
+  // Byggeplass er del av det et godkjent dokument påstår → chippen dør på approved/closed
+  // (server avviser óg). Byttes byggeplass, må dokumentet gjenåpnes — det gir et spor.
+  const erLaast = sjekklisteCast.status === "approved" || sjekklisteCast.status === "closed";
 
   function lagreTittel() {
     const ny = tittelUtkast.trim();
@@ -574,6 +577,8 @@ export default function SjekklisteDetaljSide() {
       etikett: t("kontekstChip.byggeplass"),
       verdi: fullSjekkliste?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
       type: "velger",
+      deaktivert: erLaast,
+      deaktivertGrunn: t("kontekstChip.byggeplassLaastGodkjent"),
       valgtId: fullSjekkliste?.byggeplass?.id ?? null,
       tomLabel: t("kontekstChip.heleProsjektet"),
       alternativer: bygninger.map((b) => ({ id: b.id, navn: b.name })),
