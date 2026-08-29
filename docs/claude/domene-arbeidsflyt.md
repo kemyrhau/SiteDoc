@@ -109,6 +109,37 @@ signerings- og attesteringslogikk, og det skal måles, ikke antas. Seks kartlegg
 i [vedtak-flytmodell-rekkefolge-fabel-2026-08-21.md](../redesign/vedtak-flytmodell-rekkefolge-fabel-2026-08-21.md).
 Fjerningsordre formuleres av fabel etter rapport, med Kenneth-gate før bygging.
 
+### Hva en oppgave ER — Kenneth 2026-08-29
+
+> *«Jeg er ute og registrerer noe som er feil utført. Jeg oppretter en arbeidsordre — en
+> oppgave til en arbeider. Arbeideren fyller ut de tomme feltene når oppgaven er utført, og
+> sender oppgaven til ledelsen for godkjenning av arbeidet.»*
+
+**En oppgave er en arbeidsordre.** Den beveger seg gjennom minst tre hender med hver sin
+oppgave: den som *oppdager* fyller ut avviket, den som *utfører* fyller ut resultatet, den som
+*godkjenner* leser begge deler.
+
+**Modellkonsekvensen — vedtatt 2026-08-29 (alternativ B):**
+
+- Et felt som **har** en verdi kan ikke endres etter sending. Verdien tilhører den som skrev
+  den, og skal kunne leses i ettertid som hans svar.
+- Et **tomt** felt kan fylles av den som har ballen. Det er hele poenget: arbeideren
+  dokumenterer utførelsen i felt oppretteren lot stå åpne.
+- Kommentarer og vedlegg kan alltid legges til, i alle statuser.
+
+**Hvert felt skrives én gang, av den som eide dokumentet da.** Det er sporbarheten en
+arbeidsordre trenger — man skal se hvem som svarte hva, og ingen skal kunne endre det i
+ettertid.
+
+🔴 **Dette forkastet alternativ A** («oppgave redigerbar som utkast kun»), som ville gjort
+oppgaven til en melding arbeideren bare kunne kommentere på. Kenneths egne to formuleringer
+pekte hver sin vei; beskrivelsen over avgjorde det.
+
+⚠️ **Ikke bygget da vedtaket ble tatt.** `oppgave.oppdaterData` (`oppgave.ts:689`) hadde ingen
+statusvakt — en sendt oppgave kunne få endret en utfylt verdi (Kenneth-funn på test 29.08:
+antall gravemaskiner endret fra 1 til 2 etter sending). Ordre: `relay/inbox-oppgave-datalaas.md`.
+**Sjekklister har bevisst motsatt regel** og er redigerbare til godkjent/lukket.
+
 ### Tillegg 2026-08-29 (Kenneth): bakover skal være stegadressert, som framover
 
 > *«Fra mitt ståsted: (2 til n) i hver eneste flytboks — sende frem eller tilbake i flyten.»*
