@@ -1149,6 +1149,7 @@
   "onboarding.timerOppsett": "Einrichtung der Zeiterfassung",
   "onboarding.maskinregister": "Geräteregister",
   "onboarding.varekatalog": "Artikelkatalog",
+  "onboarding.tegningMangler": "Standort ✓ · Zeichnung fehlt",
   "moduler.beskrivelse": "Aktivieren Sie vordefinierte Vorlagen und Workflows, die auf Ihr Projekt zugeschnitten sind",
   "moduler.aktiv": "Aktiv",
   "moduler.deaktiver": "Deaktivieren",

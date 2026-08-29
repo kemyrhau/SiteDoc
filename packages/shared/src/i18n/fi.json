@@ -1149,6 +1149,7 @@
   "onboarding.timerOppsett": "Ajan seurannan asetukset",
   "onboarding.maskinregister": "Laiterekisteri",
   "onboarding.varekatalog": "Tuoteluettelo",
+  "onboarding.tegningMangler": "Sijainti ✓ · Piirustus puuttuu",
   "moduler.beskrivelse": "Aktivoi valmiita malleja ja työnkulkuja, jotka on räätälöity projektiisi",
   "moduler.aktiv": "Aktiivinen",
   "moduler.deaktiver": "Poista käytöstä",

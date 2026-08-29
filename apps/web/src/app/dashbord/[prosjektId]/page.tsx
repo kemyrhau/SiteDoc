@@ -117,7 +117,7 @@ export default function ProsjektOversikt() {
           </div>
         )}
         {erAdmin && onboardingStatus && (() => {
-          const steg = [
+          const steg: Array<{ label: string; ferdig: boolean; href: string; undertekst?: string }> = [
             {
               label: t("onboarding.dokumentflyt"),
               ferdig: onboardingStatus.harDokumentflyt,
@@ -134,8 +134,15 @@ export default function ProsjektOversikt() {
               href: "/dashbord/oppsett/produksjon/dokumentflyt",
             },
             {
+              // Steg 4 krever BÅDE byggeplass OG tegning — harLokasjon alene ble grønt
+              // av én byggeplass uten en eneste tegning. Delstatus vises når byggeplass
+              // finnes men tegning mangler (det halvgjorte tilfellet).
               label: t("onboarding.lokasjoner"),
-              ferdig: onboardingStatus.harLokasjon,
+              ferdig: onboardingStatus.harLokasjon && onboardingStatus.harTegning,
+              undertekst:
+                onboardingStatus.harLokasjon && !onboardingStatus.harTegning
+                  ? t("onboarding.tegningMangler")
+                  : undefined,
               href: "/dashbord/oppsett/byggeplasser",
             },
             ...(onboardingStatus.timerAktiv
@@ -178,18 +185,27 @@ export default function ProsjektOversikt() {
                   <Link
                     key={s.label}
                     href={s.href}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    className={`inline-flex flex-col items-start gap-0.5 border px-3 py-1 text-xs font-medium transition-colors ${
+                      s.undertekst ? "rounded-lg" : "rounded-full"
+                    } ${
                       s.ferdig
                         ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
                         : "border-gray-300 bg-white text-gray-600 hover:bg-gray-100"
                     }`}
                   >
-                    {s.ferdig ? (
-                      <Check className="h-3 w-3" />
-                    ) : (
-                      <span className="inline-block h-3 w-3 rounded-sm border border-gray-400" />
+                    <span className="inline-flex items-center gap-1.5">
+                      {s.ferdig ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        <span className="inline-block h-3 w-3 rounded-sm border border-gray-400" />
+                      )}
+                      {s.label}
+                    </span>
+                    {s.undertekst && (
+                      <span className="pl-[1.125rem] text-[10px] font-normal text-gray-400">
+                        {s.undertekst}
+                      </span>
                     )}
-                    {s.label}
                   </Link>
                 ))}
               </div>

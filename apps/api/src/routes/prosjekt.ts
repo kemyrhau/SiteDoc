@@ -214,6 +214,7 @@ export const prosjektRouter = router({
         brukergruppeAntall,
         malKobletAntall,
         lokasjonAntall,
+        tegningAntall,
         prosjekt,
         prosjektmoduler,
       ] = await Promise.all([
@@ -225,6 +226,9 @@ export const prosjektRouter = router({
           where: { dokumentflyt: { projectId: input.projectId } },
         }),
         ctx.prisma.byggeplass.count({ where: { projectId: input.projectId } }),
+        // Steg 4 «Lokasjoner + tegninger» krever en faktisk tegning, ikke bare en
+        // byggeplass — georef er et hint, ikke en gate, så en ugeoreferert tegning teller.
+        ctx.prisma.drawing.count({ where: { projectId: input.projectId } }),
         ctx.prisma.project.findUnique({
           where: { id: input.projectId },
           select: { primaryOrganizationId: true },
@@ -262,6 +266,7 @@ export const prosjektRouter = router({
         harBrukergruppe: brukergruppeAntall > 0,
         harMalKobletTilFlyt: malKobletAntall > 0,
         harLokasjon: lokasjonAntall > 0,
+        harTegning: tegningAntall > 0,
         timerAktiv,
         harTimerOppsett: timerAktiv && lonnsartAntall > 0 && aktivitetAntall > 0,
         maskinAktiv,
