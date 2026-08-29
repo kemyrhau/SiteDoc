@@ -182,6 +182,13 @@ skjemaet, men ble aldri fylt — planen viste 0 % selv om sjekklister var godkje
   bestiller = brukerens faggruppe (flytens eier), utfører = `punkt.faggruppeId`, flyt fra
   malens `opprettbareFlytIder` (MalVelger-regel: én flyt → 1 klikk, flere → velger, ingen →
   forklarende feil). Ikke-atomisk opprett+koble ville gitt duplikat-sjekklister; derfor én tx.
+- **Start arver punktets TEGNING** (Kenneth-vedtak 2026-08-28): står punktet plassert på en
+  tegning (`KontrollplanPunkt.drawingId`), åpner den nye sjekklisten med den tegningen valgt —
+  men **aldri pin** (`positionX`/`positionY` arves ikke). Punktet er planleggerens omtrentlige
+  plassering; sjekklisten dokumenterer faktisk utførelse, så utføreren setter sin egen markør
+  og kan bytte tegning som et bevisst valg. Arven skjer server-side i `koblePunktTilSjekkliste`
+  kun ved `kilde:"startet"` (byggeplass følger tegningen); «koblet» rører aldri en eksisterende
+  sjekklistes lokasjon.
 - **Koble eksisterende** (`kontrollplan.koblePunkt`) knytter en allerede opprettet sjekkliste
   (samme mal, ikke alt koblet) til punktet — dekker sjekklister laget før koblingen fantes.
 - **Fremdrift** avledes fra koblet sjekkliste-status i `apps/web/src/lib/kontrollplanFremdrift.ts`
@@ -190,7 +197,14 @@ skjemaet, men ble aldri fylt — planen viste 0 % selv om sjekklister var godkje
   `kontrollplanPunkt`-relasjonen (intet nytt felt).
 
 Statusløft er kun `planlagt → pagar` ved kobling; startet/utført/godkjent arbeid røres aldri.
-Aktiv varsling (scheduler) og tegningspunkter (`drawingId` på punktet) er Leveranse 2/3.
+Aktiv varsling (scheduler) er Leveranse 2/3.
+
+**Prosjektisolering på tegnings-referanser (delt vakt):** `settPunktPlassering` (kontrollplan)
+og `sjekkliste.oppdater` skriver samme `drawingId`-felt fra hver sin dør. Vakten som krever at
+tegningen tilhører samme prosjekt bor i `verifiserTegningIProsjekt`
+(`apps/api/src/services/kontrollplanKobling.ts`) og kalles fra begge — én kilde, kan ikke drifte.
+`sjekkliste.oppdater`-speilet til punktet skiller «feltet utelatt» (behold) fra «satt til null»
+(tøm), likt `Checklist.update`.
 
 ### Forhåndsvalgt dokumentflyt (Leveranse 1.5)
 

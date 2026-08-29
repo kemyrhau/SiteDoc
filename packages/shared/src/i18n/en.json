@@ -2348,6 +2348,8 @@
   "lokasjoner.oppdatereOppgaver": "Update tasks",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS not available",
   "lokasjoner.venterPaaGps": "Waiting for GPS position. Try again shortly.",
+  "lokasjoner.punktUtenSjekklisteTittel": "No checklist yet",
+  "lokasjoner.punktUtenSjekkliste": "This control point has no checklist yet. Start the control from the control plan on desktop.",
   "lokasjoner.plassering": "Placement",
   "lokasjoner.navigering": "Navigation",
   "lokasjoner.gpsTillatelse": "GPS permission missing",

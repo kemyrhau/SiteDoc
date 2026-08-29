@@ -2348,6 +2348,8 @@
   "lokasjoner.oppdatereOppgaver": "Oppdatere oppgaver",
   "lokasjoner.gpsIkkeTilgjengelig": "GPS ikke tilgjengelig",
   "lokasjoner.venterPaaGps": "Venter på GPS-posisjon. Prøv igjen om et øyeblikk.",
+  "lokasjoner.punktUtenSjekklisteTittel": "Ingen sjekkliste ennå",
+  "lokasjoner.punktUtenSjekkliste": "Kontrollpunktet har ingen sjekkliste ennå. Start kontrollen fra kontrollplanen på PC.",
   "lokasjoner.plassering": "Plassering",
   "lokasjoner.navigering": "Navigering",
   "lokasjoner.gpsTillatelse": "GPS-tillatelse mangler",
