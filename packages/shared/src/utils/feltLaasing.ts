@@ -22,15 +22,22 @@
  */
 
 /**
- * Har feltet en reell (ikke-tom) verdi? Tom streng, null/undefined og tom
- * array regnes som «ingen verdi» og låser derfor ikke.
+ * Har feltet en reell (ikke-tom) verdi? Tom streng, null/undefined, tom array
+ * OG tomt objekt (`{}`) regnes som «ingen verdi» og låser derfor ikke. Samme
+ * tom-definisjon som serverens append-only-vakt (`oppgave.oppdaterData`) bruker,
+ * så klient-lås og server-håndhevelse ikke divergerer på hva «tomt» betyr.
  */
 export function harFeltVerdi(verdi: unknown): boolean {
   return (
     verdi !== null &&
     verdi !== undefined &&
     verdi !== "" &&
-    !(Array.isArray(verdi) && verdi.length === 0)
+    !(Array.isArray(verdi) && verdi.length === 0) &&
+    !(
+      typeof verdi === "object" &&
+      !Array.isArray(verdi) &&
+      Object.keys(verdi as object).length === 0
+    )
   );
 }
 

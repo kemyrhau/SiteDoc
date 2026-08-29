@@ -72,7 +72,13 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   const feltVerdierRef = useRef(feltVerdier);
   feltVerdierRef.current = feltVerdier;
 
-  // Append-only: felt som hadde verdier fra server er låst for verdi-endring
+  // Append-only (Vedtak B, 2026-08-29): et felt låses for verdi-endring når det har en
+  // server-bekreftet verdi OG oppgaven ikke lenger er utkast. Refen speiler et memo som
+  // reberegnes når status ELLER server-data endres — se `låsteFelter` nedenfor. Den gamle
+  // mount-engangs-utledningen (erInitialisert-gaten) ble stående stale gjennom en
+  // statusendring: et felt fylt i draft og deretter sendt forble ulåst → rotårsaken til at
+  // et sendt felt kunne endres (Kenneths gate 29.08). Ref brukes i den debouncede
+  // settVerdi-guarden for å unngå stale closure.
   const låsteFelterRef = useRef<Set<string>>(new Set());
 
   const utils = trpc.useUtils();
@@ -86,6 +92,20 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   const oppgave = oppgaveQuery.data as UseOppgaveSkjemaResultat["oppgave"] & {
     data: Record<string, unknown> | null;
   } | undefined;
+
+  // Draft → alt fritt redigerbart (tomt lås-sett). Ikke-draft → lås felt med server-
+  // bekreftet verdi (tomme felt kan fortsatt fylles av den som har ballen — Vedtak B).
+  // Reberegnes ved status- OG data-endring: et felt låses så snart verdien er server-
+  // bekreftet, i takt med serverens append-only-vakt (oppgave.oppdaterData). Speiles til
+  // refen for settVerdi-guarden.
+  const låsteFelter = useMemo(
+    () =>
+      !oppgave || oppgave.status === "draft"
+        ? new Set<string>()
+        : beregnLaasteFelter((oppgave.data ?? {}) as Record<string, { verdi?: unknown }>),
+    [oppgave],
+  );
+  låsteFelterRef.current = låsteFelter;
 
   const alleObjekter = useMemo(
     () => (oppgave?.template?.objects ?? []) as RapportObjekt[],
@@ -113,8 +133,8 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       }
     }
 
-    // Append-only: lås felt som allerede har server-bekreftet verdi (delt kilde)
-    låsteFelterRef.current = beregnLaasteFelter(eksisterendeData);
+    // Lås-settet utledes nå av `låsteFelter`-memoet (status- + data-drevet), ikke her —
+    // engangs-utledningen ved mount ble stående stale gjennom statusendringer.
     settFeltVerdier(initialisert);
     settErInitialisert(true);
   }, [oppgave, alleObjekter, erInitialisert]);

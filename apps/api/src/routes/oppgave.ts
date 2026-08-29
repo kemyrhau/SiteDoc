@@ -5,6 +5,7 @@ import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSi
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
+import { harFeltVerdi } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
@@ -719,6 +720,29 @@ export const oppgaveRouter = router({
         "task",
       );
 
+      // Append-only-vakt (Vedtak B, 2026-08-29): en oppgave er en arbeidsordre — den som
+      // har ballen fyller TOMME felt, men et felt som ALLEREDE har en verdi kan ikke endres
+      // etter at oppgaven er sendt. Hvert felt skrives én gang, av den som eide dokumentet da.
+      // Kun i draft er alt fritt redigerbart. Klient-låsen (beregnLaasteFelter) speiler dette,
+      // men er best-effort UI — her ligger håndhevelsen. Kommentar/vedlegg (tilføyelser) ligger
+      // i samme feltobjekt og slipper alltid gjennom: uendret `verdi` treffer ikke vakten.
+      if (oppgave.status !== "draft") {
+        const lagretData = (oppgave.data ?? {}) as Record<string, { verdi?: unknown } | undefined>;
+        for (const [feltId, innFelt] of Object.entries(input.data)) {
+          const gammelFelt = lagretData[feltId];
+          // Tomt felt (mangler, eller null/""/[]/{}) kan fylles — det er B.
+          if (!gammelFelt || !harFeltVerdi(gammelFelt.verdi)) continue;
+          const nyVerdi = (innFelt as { verdi?: unknown } | undefined)?.verdi;
+          // Feltet HADDE verdi → kun uendret verdi slipper gjennom (kommentar/vedlegg-tilføyelser).
+          if (JSON.stringify(nyVerdi ?? null) !== JSON.stringify(gammelFelt.verdi ?? null)) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Oppgaver kan ikke redigeres etter sending — kun tilføyelser er tillatt",
+            });
+          }
+        }
+      }
+
       // Guard (funn d): et finalisert dokument har frosset værsnapshot ved signering.
       // Vær-køen (VaerKoProvider) kan komme online ETTER finalisering og forsøke å synke
       // et snapshot — det skal aldri overskrive den finaliserte verdien. Slipp øvrige felt
@@ -899,6 +923,21 @@ export const oppgaveRouter = router({
       if (!original) throw new TRPCError({ code: "BAD_REQUEST", message: "Ingen original å forbedre" });
 
       const verdiFor = felt.verdi ?? null;
+
+      // Append-only-vakt (Vedtak B): fjerde skrivevei til felt-`verdi`. `forbedreOversettelse`
+      // kan sette `felt.verdi` (manuell overstyring ELLER re-oversettelse via motor). Har feltet
+      // en verdi og oppgaven er sendt, er verdien låst — bare kommentar-forbedring (tilføyelse)
+      // slipper gjennom. Speiler `oppdaterData`-vakten over.
+      if (
+        oppgave.status !== "draft" &&
+        harFeltVerdi(felt.verdi) &&
+        (input.motor !== undefined || input.manuellVerdi !== undefined)
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Oppgaver kan ikke redigeres etter sending — kun tilføyelser er tillatt",
+        });
+      }
 
       if (input.motor) {
         const prosjekt = await ctx.prisma.project.findUnique({
