@@ -1149,6 +1149,7 @@
   "onboarding.timerOppsett": "Inställning av tidsregistrering",
   "onboarding.maskinregister": "Utrustningsregister",
   "onboarding.varekatalog": "Artikelkatalog",
+  "onboarding.tegningMangler": "Plats ✓ · Ritning saknas",
   "moduler.beskrivelse": "Aktivera fördefinierade mallar och arbetsflöden skräddarsydda för ditt projekt",
   "moduler.aktiv": "Aktiv",
   "moduler.deaktiver": "Avaktivera",
