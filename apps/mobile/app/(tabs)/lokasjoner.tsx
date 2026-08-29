@@ -546,18 +546,23 @@ export default function LokasjonerSkjerm() {
   }, []);
 
   // Håndter trykk på eksisterende markør. Kontrollpunkt-markører har `kp:`-prefiks:
-  // koblet sjekkliste → åpne den; uten kobling (ennå ikke startet) → ingen navigasjon
-  // (mobil har ingen kontrollplan-oversikt å falle til). Oppgave-markører → åpne oppgaven.
+  // koblet sjekkliste → åpne den; uten kobling (ennå ikke startet) → informativ melding
+  // (mobil har ingen kontrollplan-oversikt å falle til, slik web gjør — men et stille
+  // `return` etterlot tappen uten respons). Oppgave-markører → åpne oppgaven.
   const håndterMarkørTrykk = useCallback((markørId: string) => {
     if (markørId === "ny-oppgave") return;
     if (markørId.startsWith("kp:")) {
       const punktId = markørId.slice(3);
       const punkt = kontrollpunktMarkører.find((p) => p.id === punktId);
-      if (punkt?.sjekkliste?.id) router.push(`/sjekkliste/${punkt.sjekkliste.id}`);
+      if (punkt?.sjekkliste?.id) {
+        router.push(`/sjekkliste/${punkt.sjekkliste.id}`);
+      } else {
+        Alert.alert(t("lokasjoner.punktUtenSjekklisteTittel"), t("lokasjoner.punktUtenSjekkliste"));
+      }
       return;
     }
     router.push(`/oppgave/${markørId}`);
-  }, [router, kontrollpunktMarkører]);
+  }, [router, kontrollpunktMarkører, t]);
 
   // Håndter oppgave opprettet
   const håndterOppgaveOpprettet = useCallback((oppgaveId: string) => {

@@ -6,7 +6,7 @@ import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
-import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
+import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import {
@@ -607,6 +607,28 @@ export const sjekklisteRouter = router({
         });
       }
 
+      // Lokasjon (tegning/pin) OG byggeplass er del av det et godkjent dokument påstår. Endres
+      // de etter godkjenning, er dokumentet endret etter levering uten spor — riktig vei er
+      // gjenåpne → rette → godkjenne på nytt. Serverside sannhet; klienten deaktiverer også
+      // byggeplass-chippen. Byggeplass-chippen var eneste ugatede skriver (målt runde 2).
+      const rørerLokasjonEllerByggeplass =
+        input.drawingId !== undefined || input.positionX !== undefined ||
+        input.positionY !== undefined || input.byggeplassId !== undefined;
+      if (rørerLokasjonEllerByggeplass && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Sjekklisten er låst etter godkjenning. Gjenåpne den for å endre byggeplass eller lokasjon.",
+        });
+      }
+
+      // Prosjektisolering: en tegning skrevet på sjekklista (og speilet til punktet under)
+      // MÅ tilhøre sjekklistas prosjekt. Delt vakt med settPunktPlassering — samme felt, to
+      // dører. Uten den kunne en fremmed drawingId skrives inn her (auth sjekker kun
+      // sjekklistas eget prosjekt, ikke tegningens). `null` = fjern tegning, ingen sjekk.
+      if (input.drawingId) {
+        await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, sjekkliste.template.projectId);
+      }
+
       const { id, ...data } = input;
       const oppdatert = await ctx.prisma.checklist.update({
         where: { id },
@@ -619,12 +641,24 @@ export const sjekklisteRouter = router({
       // så punkt-markøren forsvinner. Checklist-posisjonen beholdes (rendres i
       // sjekkliste-detalj/utskrift). Samme nullstill-regel som settPunktPlassering:
       // fjernes tegningen, tømmes posisjonen.
-      if (input.drawingId !== undefined && sjekkliste.kontrollplanPunkt) {
+      const rørerLokasjon =
+        input.drawingId !== undefined || input.positionX !== undefined || input.positionY !== undefined;
+      if (rørerLokasjon && sjekkliste.kontrollplanPunkt) {
+        // Trygt ved konstruksjon: skill «feltet er utelatt» (behold) fra «feltet er satt til
+        // null» (tøm), likt Checklist.update over. `?? null` tømte tidligere en posisjon som
+        // bare var utelatt. Fjernes tegningen (eksplisitt null), tømmes posisjonen med — en
+        // pin uten tegning er meningsløs.
+        const punktData: Prisma.KontrollplanPunktUncheckedUpdateInput =
+          input.drawingId === null
+            ? { drawingId: null, positionX: null, positionY: null }
+            : {
+                ...(input.drawingId !== undefined ? { drawingId: input.drawingId } : {}),
+                ...(input.positionX !== undefined ? { positionX: input.positionX } : {}),
+                ...(input.positionY !== undefined ? { positionY: input.positionY } : {}),
+              };
         await ctx.prisma.kontrollplanPunkt.update({
           where: { id: sjekkliste.kontrollplanPunkt.id },
-          data: input.drawingId
-            ? { drawingId: input.drawingId, positionX: input.positionX ?? null, positionY: input.positionY ?? null }
-            : { drawingId: null, positionX: null, positionY: null },
+          data: punktData,
         });
       }
 

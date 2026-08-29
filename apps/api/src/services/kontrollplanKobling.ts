@@ -30,6 +30,10 @@ export async function koblePunktTilSjekkliste(
       sjekklisteMalId: true,
       sjekklisteId: true,
       status: true,
+      // Kenneth-vedtak 28.08: Start arver punktets TEGNING (aldri pin). Les drawingId +
+      // tegningens byggeplass så den nye sjekklisten åpner med planens tegning valgt.
+      drawingId: true,
+      drawing: { select: { byggeplassId: true } },
       kontrollplan: { select: { projectId: true } },
     },
   });
@@ -95,4 +99,42 @@ export async function koblePunktTilSjekkliste(
   await tx.kontrollplanHistorikk.create({
     data: { punktId: args.punktId, brukerId: args.brukerId, handling: args.kilde },
   });
+
+  // Kenneth-vedtak 28.08: en kontroll startet fra et plassert punkt ARVER punktets TEGNING
+  // som utgangspunkt — ALDRI pin. Punktet er planleggerens omtrentlige plassering;
+  // sjekklisten dokumenterer faktisk utførelse, så utføreren setter sin egen markør (og kan
+  // bytte tegning som et bevisst valg). Byggeplassen følger tegningen, så lokasjonsvelgeren
+  // åpner konsistent. Kun ved «startet» (fersk, tom sjekkliste) — «koblet» rører aldri en
+  // eksisterende sjekklistes lokasjon.
+  if (args.kilde === "startet" && punkt.drawingId) {
+    await tx.checklist.update({
+      where: { id: args.sjekklisteId },
+      data: { drawingId: punkt.drawingId, byggeplassId: punkt.drawing?.byggeplassId ?? undefined },
+    });
+  }
+}
+
+/**
+ * Prosjektisolering for tegnings-referanser (CLAUDE.md — regelen uten unntak): en `drawingId`
+ * som skrives på et kontrollplanpunkt eller en koblet sjekkliste MÅ tilhøre samme prosjekt som
+ * objektet. To dører skriver samme felt — `kontrollplan.settPunktPlassering` og
+ * `sjekkliste.oppdater` — så vakten bor her, i den delte hjelperen begge arver, og kan ikke
+ * drifte fra hverandre. Kalles med `null`-tegning som no-op-ansvar hos kalleren (fjerning av
+ * tegning trenger ingen isolasjonssjekk).
+ */
+export async function verifiserTegningIProsjekt(
+  db: TxClient,
+  drawingId: string,
+  projectId: string,
+): Promise<void> {
+  const drawing = await db.drawing.findUnique({
+    where: { id: drawingId },
+    select: { byggeplass: { select: { projectId: true } } },
+  });
+  if (!drawing?.byggeplass || drawing.byggeplass.projectId !== projectId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Tegningen hører til et annet prosjekt.",
+    });
+  }
 }

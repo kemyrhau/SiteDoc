@@ -3,7 +3,7 @@ import { type Prisma } from "@sitedoc/db";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
-import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
+import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
 // L1.5: en forhåndsvalgt flyt må høre til prosjektet, bruke punktets mal, og ha en
@@ -712,15 +712,10 @@ export const kontrollplanRouter = router({
         select: { kontrollplan: { select: { projectId: true } } },
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
-      // Prosjektisolering: tegningen må høre til samme prosjekt som punktet.
+      // Prosjektisolering: tegningen må høre til samme prosjekt som punktet. Delt vakt med
+      // sjekkliste.oppdater (samme felt, to dører) — se kontrollplanKobling.ts.
       if (input.drawingId) {
-        const drawing = await ctx.prisma.drawing.findUnique({
-          where: { id: input.drawingId },
-          select: { byggeplass: { select: { projectId: true } } },
-        });
-        if (!drawing?.byggeplass || drawing.byggeplass.projectId !== punkt.kontrollplan.projectId) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Tegningen hører til et annet prosjekt enn kontrollpunktet." });
-        }
+        await verifiserTegningIProsjekt(ctx.prisma, input.drawingId, punkt.kontrollplan.projectId);
       }
       // Fjernes tegningen, tømmes også posisjonen (drawingId null → posisjon meningsløs).
       await ctx.prisma.kontrollplanPunkt.update({
