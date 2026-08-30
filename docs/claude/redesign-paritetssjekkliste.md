@@ -128,7 +128,7 @@ i et redesign som bare leser ankeret:
 | O9 | Mappeoppsett («Box») | `/oppsett/produksjon/box` | **1a «Prosjektoppsett › Mappeoppsett»** (bygget) | `manage_field` (sublink-gated) | **Ja** (rename box→mapper, tiltak 4) | |
 | O10 | PSI-mal-oppsett | `/oppsett/produksjon/psi` (skjult hvis PSI av) | **1a «Maler › PSI-mal»** (bygget) | `manage_field` + PSI-modul aktiv (`modul.hentForProsjekt`) | **Ja** | |
 | O11 | AI-søk-config | oppsett-sidebar `ai-sok` / `/oppsett/ai-sok` | 1a «Søk og AI › AI-søk» | `kreverProsjekt` | **Ja** | |
-| O12 | Prosjekteier / «Firmainnstillinger» (read-only) | `/oppsett/firma` (Prosjekteier-barn) | 1a «Prosjektoppsett › Eier-firma» (lenke til firma) | `harFirmaTilgang` | **Ja** | |
+| O12 | Prosjekteier / «Eier-firma» (read-only) | `/oppsett/firma` (Prosjekteier-barn) | 1a «Prosjektoppsett › Eier-firma» (lenke til firma) | `harFirmaTilgang` | **Ja** | Redigering fjernet 2026-08-30 (`fix/o12-eier-firma-lesevisning`): `organisasjon.oppdater`-mutasjon + skjema borte, kun lesevisning + gated lenke «Rediger i Firmaprofil» → `/dashbord/firma/innstillinger`. i18n komplett. Gate: Kenneth |
 | O13 | Generelle prosjekt-innstillinger | `/oppsett/prosjektoppsett` | 1a «Prosjektoppsett › Generelt» | — | **Ja** | |
 
 ## Seksjon F — Firma-administrasjon (`/dashbord/firma/*`) → 1a FIRMA-hub / sidebar-F
@@ -323,7 +323,7 @@ Faggrupper/Medlemmer + gjensidig synonym-cluster (dokumentflyt↔faggruppe↔med
 
 | Paritet | Rute | Regel | Søkeinngang (kilde) |
 |---|---|---|---|
-| O12 | `/dashbord/oppsett/firma` (Eier-firma) | 1 | Hub-underlenke «Prosjektoppsett › Eier-firma» (dobbel gating: prosjekt + `harFirmaTilgang`) |
+| O12 | `/dashbord/oppsett/firma` (Eier-firma, read-only fra 2026-08-30) | 1 | Hub-underlenke «Prosjektoppsett › Eier-firma» (dobbel gating: prosjekt + `harFirmaTilgang`) |
 | FM4 | `/dashbord/maskin/import` | 1 | Hub-underlenke «Maskin › Import» |
 | F14 | `/dashbord/firma/timer/onboarding` | 1 | Hub-underlenke «Timer › Onboarding» (K13-g) |
 | F14b | `/dashbord/firma/timer/oppsett` | 1 | Hub-underlenke «Timer › Oppsett» (K13-g — develop la til; gjenbruker `firma.timer.fane.oppsett`) |
