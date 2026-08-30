@@ -353,9 +353,20 @@ faggruppe tilhører denne kontakten» har ikke ett svar, og skal ikke stilles.
 Kenneth 2026-08-30: *«samme kontakt kan være medlem av flere faggrupper, det gjør at en
 kontaktgruppe og en faggruppe ikke kan være det samme.»*
 
-**Konsekvens for opprettelse fra en flytboks:** `Dokumentflyt.faggruppeId`
-(`schema.prisma:1366`) bærer konteksten, så en kontakt opprettet derfra skal **arve
-faggruppen som forhåndsvalg — ikke som låsing**. Mange-til-mange består.
+**Konsekvens for opprettelse fra en flytboks (Kenneth-vedtak 2026-08-30):**
+`Dokumentflyt.faggruppeId` (`schema.prisma:1366`) bærer konteksten, og en kontakt opprettet
+derfra skal **arve faggruppen stille — ikke vise hele hierarkiet**.
+
+Kenneth valgte den lette modalen framfor den fulle: står du i en flytboks, er faggruppe, flyt
+og rolle allerede bestemt av konteksten, og å be brukeren bekrefte dem er å spørre om noe
+systemet vet. Skjemaet forblir navn/e-post/telefon; koblingen skjer i bakgrunnen.
+
+🔴 **Arv er ikke låsing.** Medlemskapet er mange-til-mange, så kontakten kan senere legges i
+flere faggrupper fra kontaktsiden. Den stille arven setter den **første** tilknytningen, den
+definerer den ikke.
+
+⚠️ **Cowork foreslo først full modal med synlig forhåndsvalg; det ble avvist.** Rett ikke
+tilbake uten å lese dette avsnittet.
 
 🔴 **`Dokumentflyt.faggruppeId` er nullbar med vilje, ikke ved slurv.** `modul.ts:55-56`
 oppretter HMS-flyten som `{ projectId, name: "HMS" }` uten faggruppe når HMS-modulen slås på —
