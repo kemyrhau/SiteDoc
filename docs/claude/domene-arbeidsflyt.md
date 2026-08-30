@@ -135,6 +135,32 @@ ettertid.
 oppgaven til en melding arbeideren bare kunne kommentere på. Kenneths egne to formuleringer
 pekte hver sin vei; beskrivelsen over avgjorde det.
 
+### 🔴 Innhold låses, merkelapper gjør ikke (Kenneth 2026-08-29)
+
+Låsen over gjelder **feltverdier** — arbeiderens svar, som er bevis. Den gjelder **ikke**
+merkelapper som finnes for at noen skal finne dokumentet igjen.
+
+> **Kenneth:** *«En ansatt la ikke til emne på en oppgave. Lederen ønsker å legge til
+> emnefeltet fordi han trenger en søkestreng ekstra.»*
+
+**Vedtak: emne skal kunne ENDRES etter sending**, ikke bare fylles når det er tomt. En
+merkelapp som er satt feil er verdiløs hvis den ikke kan rettes, og endringsloggen viser
+hvem som gjorde det.
+
+| | Låses ved sending | Begrunnelse |
+|---|---|---|
+| **Feltverdi** | ✅ ja | arbeiderens svar — bevis, skrives én gang |
+| **Lokasjon** | ✅ ja | HVOR arbeidet ble utført er dokumentasjon |
+| **Emne** | ❌ nei | merkelapp for gjenfinning, ikke et svar |
+| **Kommentar / vedlegg** | ❌ nei | tilføyelser, tar ikke bort noe |
+
+⚠️ **Hullet ble laget av oss selv** i `fix/oppgave-datalaas` (i prod `3a2f7dc3`): `subject`
+lå inne i utkast-låsen på `oppgave.oppdater`, og klienten speilet den. Rettes i
+`relay/inbox-emne-alltid-redigerbart.md`.
+
+**Testen for nye felt:** dokumenterer feltet *hva som ble gjort*, eller hjelper det noen med
+å *finne dokumentet*? Det første låses, det andre ikke.
+
 ### 🔴 Repeater hører ikke hjemme i en oppgave (Kenneth 2026-08-29)
 
 > *«Kanskje vi må akseptere at repeater ikke tilhører i oppgave. Kanskje det objektet bør
