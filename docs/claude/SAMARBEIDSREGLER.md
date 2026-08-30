@@ -341,7 +341,30 @@ All merge-koreografi går gjennom cowork:
 - **Regel 9:** `redesign/navigasjon → develop` alltid `--no-ff` (synlige, revertbare grenser).
 - **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck) **OG grønt `pnpm --filter @sitedoc/mobile typecheck` (exit 0)**. Mobil-gaten er nå blokkerende — baseline ble ryddet 2026-07-30 (`fba830da`, branch `fix/mobil-typecheck-groenn`).
 
-  > **Kjør `prisma generate` for de 4 db-pakkene FØR mobil-typecheck** (`db`, `db-timer`, `db-maskin`, `db-varelager`) — ellers rapporterer tsc 400+ falske «implicit any»-feil fra ugenererte Prisma-klienter (`.prisma/*-client`), som maskerer de reelle. I Docker-deployen bakes generate inn; lokalt/i gaten er det et eksplisitt forsteg.
+  > **Kjør `prisma generate` for de 4 db-pakkene FØR gaten** (`db`, `db-timer`, `db-maskin`, `db-varelager`) — ellers rapporterer tsc 400+ falske «implicit any»-feil fra ugenererte Prisma-klienter (`.prisma/*-client`), som maskerer de reelle. I Docker-deployen bakes generate inn; lokalt/i gaten er det et eksplisitt forsteg.
+  >
+  > 🔴 **Utvidet 2026-08-30 — gjelder `web build`, ikke bare mobil-typecheck.** Notatet sa
+  > «før mobil-typecheck», og det leses som at web-bygget er upåvirket. Det er feil:
+  > `next build` typesjekker `apps/api` gjennom importkjeden, så en stale klient feller
+  > web-bygget også. Målt samme dag: gaten på develop etter tre merger feilet med
+  > `'prosjektTilgang' does not exist in type 'OrganizationMemberSelect'` — feltet fantes i
+  > schemaet, klienten i hovedtreet var fra før migreringen.
+  >
+  > 🔴 **Gaten kan feile på TREETS tilstand, ikke kodens — to lag, i denne rekkefølgen:**
+  > 1. `Module not found` på en pakke som står i `pnpm-lock.yaml` → `node_modules` er bak
+  >    lockfilen. **Kjør `pnpm install`**, ikke en kodejakt. (Målt 2026-08-30:
+  >    `@tanstack/react-virtual` kom inn fra et annet worktree med `86a91047`.)
+  > 2. `does not exist in type '<Modell>Select'` → Prisma-klienten er bak schemaet.
+  >    **Kjør generate for alle fire.**
+  >
+  > **Fast forsteg i enhver gate som kjøres rett etter en merge:**
+  > ```sh
+  > cd ~/Documents/Programmering/SiteDoc && pnpm install && \
+  > for p in db db-timer db-maskin db-varelager; do pnpm --filter @sitedoc/$p exec prisma generate; done
+  > ```
+  > Uten det bruker økta to runder på å oppdage at koden var i orden hele tiden. Det skjedde
+  > både 2026-08-28 (blokkerte prod-releasen) og 2026-08-30 — samme feilklasse, to ganger på
+  > tre dager, fordi forsteget sto beskrevet for smalt.
   >
   > ⚠️ **Historikk (hvorfor gaten finnes):** Regelen gatet KUN web til 2026-07-16, og mobil råtnet i skyggen — `@sitedoc/mobile typecheck` var **rød på ren develop** (11 ekte feil, bl.a. `erstattVedlegg` returnert av begge mobil-hookene men ikke deklarert i interfacene). Ingen visste, fordi gaten aldri spurte. Ryddet 2026-07-30 (`fba830da`) → mobil-gaten er nå blokkerende, ikke bare baseline-sammenligning.
 - **Worktree per spor:** aldri to økter i samme arbeidstre.
