@@ -241,6 +241,13 @@ model OrganizationMember {
   status             String    @default("aktiv")
   deaktivertVed      DateTime? @map("deaktivert_ved")
   deaktivertAvUserId String?   @map("deaktivert_av_user_id")
+  // Registreringsmodell fase 2 (2026-08-30).
+  // prosjektTilgang: regel for hvilke prosjekter personen blir medlem i.
+  // "alle" | "avdeling" | "manuell". NULL = arv OrganizationSetting.prosjektTilgangDefault
+  // (IKKE «ingen tilgang»). LAGRES i fase 2, EVALUERES IKKE — regelen kjører ved
+  // to hendelser (nytt prosjekt / ny ansatt onboardes), begge fase 3. Uten firmamalen
+  // som gjør friksjonen liten blir halv-automatikk en daglig blokker (Kenneths rekkefølge).
+  prosjektTilgang    String?   @map("prosjekt_tilgang")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -346,6 +353,16 @@ model OrganizationSetting {
   timerTilgangDefault       String @default("alle-ansatte") @map("timer_tilgang_default")
   vareforbrukTilgangDefault String @default("alle-ansatte") @map("vareforbruk_tilgang_default")
   maskinbrukTilgangDefault  String @default("sertifiserte") @map("maskinbruk_tilgang_default")
+
+  // Firmadefault for prosjekttilgang (registreringsmodell fase 2, 2026-08-30).
+  // Verdier: 'alle' | 'avdeling' | 'manuell'. Gjelder som utgangspunkt for nye
+  // ansatte; per-ansatt OrganizationMember.prosjektTilgang overstyrer.
+  // Default 'manuell' (Kenneth-vedtak 2026-08-28): prosjekttilgang gir innsyn i
+  // prosjektets DOKUMENTER, ikke bare timeføring. 'alle' ville gitt enhver ansatt
+  // innsyn i byggherre-korrespondanse på alle prosjekter. Friksjonen ved 'manuell'
+  // er synlig og rettes én gang; oversharing er usynlig og rettes aldri. Firmaet
+  // kan flytte defaulten til 'alle'/'avdeling' selv. LAGRES i fase 2, EVALUERES fase 3.
+  prosjektTilgangDefault    String @default("manuell") @map("prosjekt_tilgang_default")
 
   // Per Fase 0.5 § 2 — hvem kan registrere AnsattKompetanse-rader
   // Verdier: 'firma_admin' | 'bruker_egen' | 'alle'

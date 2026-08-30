@@ -177,6 +177,34 @@ To systemer som begge heter «moduler», på to ulike sider, som gater ulike del
 sidebaren. Modulsiden kan vise at alt er i orden mens det andre blokkerer — og ingenting
 i grensesnittet forteller at de er to.
 
+### Registreringsmodellen — nøklene firmaet gir hver ansatt (`OrganizationMember`)
+
+«Ansatte-siden er stedet firmaet gir og tar nøkler — kun der» (Kenneth). Registreringen bor
+på `OrganizationMember` (`schema.prisma:222`) og redigeres per ansatt på
+`/dashbord/firma/ansatte` (rediger-modal), firmadefaulten på `/dashbord/firma/innstillinger`.
+
+| Felt | Type | Innhold | Fase |
+|---|---|---|---|
+| `status` | `String` | `"aktiv"` \| `"deaktivert"` + `deaktivertVed` | 1 (2026-08-28, prod) |
+| `ansattRolle` | `String` | stilling: `ansatt`/`bas`/`prosjektleder`/`daglig_leder` | eksisterende |
+| `avdelingId` | `String?` | avdeling (`Avdeling`, `schema.prisma:2275`) | eksisterende, redigerbar fra fase 2 |
+| `firmaRoller` | `String[]` | `firma_admin`/`hms_ansvarlig`/`hr_ansvarlig` | eksisterende |
+| `prosjektTilgang` | `String?` | `alle`/`avdeling`/`manuell`; NULL = arv firmadefault | **2 (2026-08-30)** |
+
+🔴 **`modulNokler` er TATT UT av fase 2 (Kenneth 2026-08-30).** Modulmodellen er ikke avklart:
+moduler kjøpes på firmanivå, og et felt per ansatt ville tvunget 50 kort-redigeringer når
+firmaet kjøper en modul. Ligger hos fabel (`modulmodell-utredning-2026-08-30.md`). Ingen kolonne.
+
+🔴 **Fase 2 LAGRER og VISER, evaluerer IKKE** (Kenneth-vedtak 2026-08-28):
+`prosjektTilgang` evalueres ved to hendelser (nytt prosjekt / ny ansatt onboardes) —
+begge fase 3, sammen med firmamalen som gjør friksjonen liten.
+
+**Firmadefault:** `OrganizationSetting.prosjektTilgangDefault` (`schema.prisma:349`,
+default `"manuell"`) — gjelder som utgangspunkt for nye ansatte; per-ansatt-valg overstyrer.
+`"manuell"` fordi prosjekttilgang gir innsyn i prosjektets *dokumenter*, ikke bare timeføring:
+`"alle"` ville gitt enhver ansatt innsyn i byggherre-korrespondanse på alle prosjekter.
+Migrering: `20260830120000_registrering_fase2_prosjekttilgang` (additiv, ingen backfill).
+
 ⚠️ **Korreksjon 2026-08-28:** første versjon av dette avsnittet påsto at ledd 6 ikke
 hadde UI. Feil — den ligger på brukergruppe-siden. Målingen var riktig, konklusjonen for
 rask.
