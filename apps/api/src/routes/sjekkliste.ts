@@ -608,17 +608,20 @@ export const sjekklisteRouter = router({
         });
       }
 
-      // Emne, lokasjon (tegning/pin) OG byggeplass er del av det et godkjent dokument påstår.
-      // Endres de etter godkjenning, er dokumentet endret etter levering uten spor — riktig
-      // vei er gjenåpne → rette → godkjenne på nytt. Serverside sannhet; klienten deaktiverer
-      // også byggeplass-chippen + emne-Endre. (subject tatt inn i vakten: FASTE FELT Del D.)
+      // Lokasjon (tegning/pin) OG byggeplass er del av det et godkjent dokument påstår — HVOR
+      // arbeidet ble utført er dokumentasjon. Endres de etter godkjenning, er dokumentet endret
+      // etter levering uten spor — riktig vei er gjenåpne → rette → godkjenne på nytt.
+      // `subject` (emne) er UNNTATT (Kenneth-vedtak 2026-08-29): det er en merkelapp for
+      // gjenfinning, ikke dokumentasjon, og skal kunne settes/rettes også etter godkjenning —
+      // endringsloggen viser hvem. Speiler oppgave.oppdater. Utskriften genereres på forespørsel
+      // (arkiv.rendr, ingen lagret kopi), så «øyeblikksbilde» finnes ikke som teknisk størrelse.
       const rørerLaastFelt =
-        input.subject !== undefined || input.drawingId !== undefined || input.positionX !== undefined ||
+        input.drawingId !== undefined || input.positionX !== undefined ||
         input.positionY !== undefined || input.byggeplassId !== undefined;
       if (rørerLaastFelt && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Sjekklisten er låst etter godkjenning. Gjenåpne den for å endre emne, byggeplass eller lokasjon.",
+          message: "Sjekklisten er låst etter godkjenning. Gjenåpne den for å endre byggeplass eller lokasjon.",
         });
       }
 
