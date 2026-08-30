@@ -15,9 +15,9 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Ledig. Env symlinket fra hovedtreet | **`relay/inbox-reg-fase2.md`** — masterplanens punkt 2. 🔴 Inneholder migrering: skrives, vises, kjøres IKKE uten Kenneths go |
+| **dokgen** | `SiteDoc-dokgen` | Ledig. `feat/reg-fase2` (`578e2b67`) **merget til develop 30.08** (`355c200c`). Env symlinket fra hovedtreet | Ingen. Neste: `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (kjøres sammen) |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig. To brancher venter merge: `fix/emne-alltid-redigerbart` (`f074f903`) · `fix/emne-sjekkliste` (`c18c01a5`) | Ingen ny ordre — venter på at REG fase 2 lander, for å unngå kollisjon |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig. Begge emne-brancher merget 30.08 (`7b1a87c8`, `14d8fcc7`). Treet står på `fix/emne-sjekkliste` — må detaches før ny branch | **`relay/inbox-o12-eier-firma.md`** — branch `fix/o12-eier-firma-lesevisning`. ✅ Sperren er løftet: `feat/reg-fase2` er i develop, i18n er fri |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
@@ -382,6 +382,34 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
+
+### 🟢 Tre brancher merget til develop 30.08 — IKKE deployet (bevisst, ny deploy-rytme)
+
+Merget i rekkefølge, alle disjunkte (verifisert med `merge-base`-diff, ingen delte filer):
+
+| Branch | Hash | Merge | Innhold |
+|---|---|---|---|
+| `fix/emne-alltid-redigerbart` | `f074f903` | `7b1a87c8` | Emne redigerbart etter sending på oppgave |
+| `fix/emne-sjekkliste` | `c18c01a5` | `14d8fcc7` | Samme regel på sjekkliste — Kenneth: *«øyeblikksbilde vs. levende dokument, det er jo det samme»* |
+| `feat/reg-fase2` | `578e2b67` | `355c200c` | REG fase 2: `prosjektTilgang` per ansatt + `prosjektTilgangDefault` firmadefault |
+
+🔴 **REG fase 2 inneholder en migrering** (`20260830120000_registrering_fase2_prosjekttilgang`)
+— ren additiv, `ADD COLUMN` på `organization_members` + `organization_settings`, ingen DROP,
+ingen backfill. **Kjørt KUN lokalt.** Test og prod har den ikke. Neste deploy må kjøre
+`migrate deploy` for alle fire db-pakker.
+
+`modulNokler` ble tatt ut av fase 2 før commit — se [BACKLOG § 2 Modulmodellen](BACKLOG.md)
+og [modulmodell-utredning-2026-08-30.md](modulmodell-utredning-2026-08-30.md).
+
+**Cowork-gate på reg-fase2 (målt, ikke lest av rapport):** `modulNokler` har null levende
+referanser i kode/schema/migrering/15 språkfiler · begge mutasjoner er `verifiserFirmaAdmin`-
+gatet · `prosjektTilgang` evalueres ingen steder (fase 2-kravet holder) · alle 15 i18n-filer
+har 14 forekomster, ingen henger etter.
+
+**Falsk alarm som ble målt bort:** `git diff develop..branch` viste at alle tre «fjernet»
+tavle-radene og DEPLOY-RYTME-blokken. Mot egen merge-base rørte alle tre **null** linjer i
+`STATUS-AKTUELT.md` — de var bare bak på fila. 🔴 **`git diff develop..branch` svarer ikke på
+«hva endret branchen».** Det gjør `git diff $(git merge-base develop branch)..branch`.
 
 ### 🟢 Oppgave-datalås + repeater ut av oppgavemaler (MERGET develop `f61eb64b`) — PÅ TEST, GATET 3/3
 

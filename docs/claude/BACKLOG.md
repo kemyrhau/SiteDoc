@@ -3165,6 +3165,53 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### 🟡 `harFirmaTilgang` er to ulike inline-definisjoner (målt 2026-08-30)
+
+Ikke en delt hjelper. Regnes ut to steder, med ulik betydning:
+
+| Sted | Definisjon |
+|---|---|
+| `apps/web/src/components/layout/OppsettSidemeny.tsx:122` | `!!prosjektFirma \|\| !!erAdmin` |
+| `apps/web/src/lib/innstillinger-kort.tsx:78` | `!!prosjektFirma \|\| erSitedocAdmin` |
+
+Begge gater synlighet mot samme flater, men `erAdmin` og `erSitedocAdmin` er ikke samme
+sak. 🔴 **Merk at navnet lyver:** `!!prosjektFirma` betyr «prosjektet har et eier-firma»,
+ikke «du har firmatilgang». Fabels O12-ordre antok det siste og skrev en DoD som ville
+feilet på egne premisser (`relay/fabel-o12-gating-avvik.md`).
+
+Trekk ut én hjelper med et navn som beskriver hva den faktisk svarer på. **Ikke i O12-runden**
+— den er en rotårsaksfiks, og scope-utvidelse er grunnen til at O12 bare ble halvveis
+utført i mai.
+
+### ❓ Modulmodellen — hva en modul ER, og hva som skjer når en mangler (2026-08-30)
+
+**Blokkerer:** `modulNokler` på ansattkortet (tatt ut av REG fase 2 2026-08-30).
+**Utredning med måling:** [modulmodell-utredning-2026-08-30.md](modulmodell-utredning-2026-08-30.md)
+— **les den, ikke gjenta målingen herfra.**
+
+Kenneths premiss: *«Moduler → firma kjøper → firma tildeler ansattilgang. Kortet kan derfor
+bare speile hvilke tilganger firmaet eier.»* Og problemet som avgjør saken: *«Firmaet har 50
+ansatte og alle ferdig registrert → firmaet kjøper 2 nye moduler → må 50 ansattkort
+redigeres?»* Svaret kan ikke være ja.
+
+Tre åpne spørsmål til fabel: (1) er timer/maskin/varelager **ett** kjøp eller tre — Kenneth
+sier *«maskin og varelager tilhører modulen timer»*, koden har tre uavhengige flagg;
+(2) finnes det et reelt behov for å begrense en modul **per ansatt**; (3) hva står igjen på
+ansattkortet hvis `modulNokler` går ut.
+
+**Målt svar på Kenneths kontrollspørsmål «kollapser timer uten maskin?»: nei.** Datalaget
+tåler det, rapport og PDF dropper tomme kolonner, mobilen skjuler seksjonen og forklarer.
+**Men web viser en MASKIN-seksjon som ikke kan fylles**, og `vareforbruk.ts` er det eneste
+stedet i kodebasen som skiller «ikke kjøpt» fra «ingen data».
+
+🔴 **Målingen i utredningen er datert og skal gjøres på nytt før beslutning** — vi koder
+videre i timer-, maskin- og registreringsflatene. Bruk § 3 som liste over hvor man måler.
+
+🔴 **Ikke legg `krevMaskinAktivert` på `equipment.list`.** Mobilens `TimerSyncProvider`
+henter maskinkatalogen i samme `Promise.all` som timer-katalogen — en gate der brekker hele
+timer-synken for firmaer med timer uten maskin. Eneste målte vei der «maskin mangler»
+faktisk kan velte timer, og den er én linje unna.
+
 ### MalBygger felttype-restanser — fase M-3a del 2 (2026-07-16) 🟡
 
 Del 2 lukket F1 (grenseverdier), F2-quiz, F4-`persons.max`, kollapsbare seksjoner og kopiér-mal (branch `feat/faseM-3a-del2`, se [faseM-3a-felttype-matrise.md](faseM-3a-felttype-matrise.md) § Del 2). Følgende del 1-funn ble bevisst deferrert:
