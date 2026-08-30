@@ -29,9 +29,13 @@ type BrukerRad = {
   avdelingId: string | null;
   ansattRolle: string;
   firmaRoller: string[];
+  prosjektTilgang: string | null;
   status: string;
   deaktivertVed: string | Date | null;
 };
+
+const PROSJEKT_TILGANG = ["alle", "avdeling", "manuell"] as const;
+type ProsjektTilgang = (typeof PROSJEKT_TILGANG)[number];
 
 export default function FirmaBrukere() {
   const { t } = useTranslation();
@@ -669,21 +673,43 @@ function RedigerModal({
   const [ansattRolle, setAnsattRolle] = useState<AnsattRolle>(
     tilAnsattRolle(bruker.ansattRolle),
   );
+  const [avdelingId, setAvdelingId] = useState<string | null>(bruker.avdelingId);
+  // null = arv firmadefault (vises som eget valg med oppløst default-verdi).
+  const [prosjektTilgang, setProsjektTilgang] = useState<ProsjektTilgang | null>(
+    bruker.prosjektTilgang as ProsjektTilgang | null,
+  );
   const [erFirmaAdmin, setErFirmaAdmin] = useState(
     bruker.firmaRoller.includes("firma_admin"),
   );
   const [erHmsAnsvarlig, setErHmsAnsvarlig] = useState(
     bruker.firmaRoller.includes("hms_ansvarlig"),
   );
+  const [erHrAnsvarlig, setErHrAnsvarlig] = useState(
+    bruker.firmaRoller.includes("hr_ansvarlig"),
+  );
   const [feilmelding, setFeilmelding] = useState<string | null>(null);
   const [lagrer, setLagrer] = useState(false);
 
   const opprinneligErFirmaAdmin = bruker.firmaRoller.includes("firma_admin");
   const opprinneligErHmsAnsvarlig = bruker.firmaRoller.includes("hms_ansvarlig");
+  const opprinneligErHrAnsvarlig = bruker.firmaRoller.includes("hr_ansvarlig");
+
+  // Avdelinger for nedtrekk + firmadefault for prosjekttilgang (til «Arv»-etiketten).
+  const { data: avdelinger } = trpc.avdeling.hentAlle.useQuery(
+    { organizationId },
+    { enabled: !!organizationId },
+  );
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId },
+    { enabled: !!organizationId },
+  );
+  const firmadefault = (setting?.prosjektTilgangDefault ?? "manuell") as ProsjektTilgang;
 
   const oppdater = trpc.organisasjon.oppdaterBruker.useMutation();
   const settFirmaAdmin = trpc.organisasjon.settFirmaAdmin.useMutation();
   const settFirmaHmsAnsvarlig = trpc.organisasjon.settFirmaHmsAnsvarlig.useMutation();
+  const tildelOrgRolle = trpc.organisasjon.tildelOrgRolle.useMutation();
+  const fjernOrgRolle = trpc.organisasjon.fjernOrgRolle.useMutation();
 
   const kanLagre =
     navn.trim().length > 0 && email.trim().length > 0 && !lagrer;
@@ -703,6 +729,8 @@ function RedigerModal({
         telefon: trimmetTelefon === "" ? null : trimmetTelefon,
         ansattnummer: ansattnummer.trim(),
         ansattRolle,
+        avdelingId,
+        prosjektTilgang,
       });
       if (erFirmaAdmin !== opprinneligErFirmaAdmin) {
         await settFirmaAdmin.mutateAsync({
@@ -718,6 +746,22 @@ function RedigerModal({
           harTilgang: erHmsAnsvarlig,
         });
       }
+      if (erHrAnsvarlig !== opprinneligErHrAnsvarlig) {
+        // hr_ansvarlig har ingen dedikert toggle-mutasjon — bruk den generiske.
+        if (erHrAnsvarlig) {
+          await tildelOrgRolle.mutateAsync({
+            userId: bruker.id,
+            organizationId,
+            role: "hr_ansvarlig",
+          });
+        } else {
+          await fjernOrgRolle.mutateAsync({
+            userId: bruker.id,
+            organizationId,
+            role: "hr_ansvarlig",
+          });
+        }
+      }
       onSuksess();
     } catch (err) {
       setFeilmelding(err instanceof Error ? err.message : String(err));
@@ -728,8 +772,8 @@ function RedigerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 px-5 py-3">
           <h2 className="text-base font-semibold text-gray-900">
             {t("firma.ansatte.rediger.tittel")}
           </h2>
@@ -741,7 +785,7 @@ function RedigerModal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
+        <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("firma.ansatte.inviter.navn")}
@@ -814,6 +858,63 @@ function RedigerModal({
           </div>
 
           <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.ansatte.avdelingLabel")}
+            </label>
+            <select
+              value={avdelingId ?? ""}
+              onChange={(e) => setAvdelingId(e.target.value === "" ? null : e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
+            >
+              <option value="">{t("firma.ansatte.utenAvdeling")}</option>
+              {(avdelinger ?? [])
+                .filter((a) => a.aktiv || a.id === avdelingId)
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.navn}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.ansatte.prosjektTilgang.label")}
+            </label>
+            <p className="mb-2 text-xs text-gray-500">
+              {t("firma.ansatte.prosjektTilgang.hjelp")}
+            </p>
+            <div className="space-y-1.5">
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="prosjektTilgang"
+                  checked={prosjektTilgang === null}
+                  onChange={() => setProsjektTilgang(null)}
+                  className="mt-0.5"
+                />
+                <span>
+                  {t("firma.ansatte.prosjektTilgang.arv", {
+                    verdi: t(`firma.ansatte.prosjektTilgang.verdi.${firmadefault}`),
+                  })}
+                </span>
+              </label>
+              {PROSJEKT_TILGANG.map((v) => (
+                <label key={v} className="flex items-start gap-2 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="prosjektTilgang"
+                    checked={prosjektTilgang === v}
+                    onChange={() => setProsjektTilgang(v)}
+                    className="mt-0.5"
+                  />
+                  <span>{t(`firma.ansatte.prosjektTilgang.verdi.${v}`)}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
@@ -840,6 +941,21 @@ function RedigerModal({
             </label>
             <p className="ml-6 mt-1 text-xs text-gray-500">
               {t("firma.ansatte.hmsAnsvarligHjelp")}
+            </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={erHrAnsvarlig}
+                onChange={(e) => setErHrAnsvarlig(e.target.checked)}
+              />
+              <ShieldAlert className="h-3.5 w-3.5 text-blue-600" />
+              {t("firma.ansatte.hrAnsvarligLabel")}
+            </label>
+            <p className="ml-6 mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.hrAnsvarligHjelp")}
             </p>
           </div>
 

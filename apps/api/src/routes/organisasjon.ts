@@ -279,6 +279,7 @@ export const organisasjonRouter = router({
         avdelingId: true,
         ansattRolle: true,
         firmaRoller: true,
+        prosjektTilgang: true,
         status: true,
         deaktivertVed: true,
         user: {
@@ -307,6 +308,7 @@ export const organisasjonRouter = router({
       avdelingId: m.avdelingId,
       ansattRolle: m.ansattRolle,
       firmaRoller: m.firmaRoller,
+      prosjektTilgang: m.prosjektTilgang,
       status: m.status,
       deaktivertVed: m.deaktivertVed,
     }));
@@ -727,6 +729,11 @@ export const organisasjonRouter = router({
         ansattRolle: z
           .enum(["ansatt", "bas", "prosjektleder", "daglig_leder"])
           .optional(),
+        // Registreringsmodell fase 2: avdeling + prosjekttilgang eies av
+        // OrganizationMember. null på avdelingId = «Uten avdeling»;
+        // null på prosjektTilgang = arv firmadefault.
+        avdelingId: z.string().uuid().nullable().optional(),
+        prosjektTilgang: z.enum(["alle", "avdeling", "manuell"]).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -784,11 +791,39 @@ export const organisasjonRouter = router({
         select: { id: true, name: true, email: true, phone: true, role: true },
       });
 
-      // ansattnummer + ansattRolle eies av OrganizationMember
-      if (input.ansattnummer !== undefined || input.ansattRolle !== undefined) {
-        const memberData: { ansattnummer?: string | null; ansattRolle?: string } = {};
+      // Avdeling må tilhøre samme firma (org-isolasjon). null = «Uten avdeling».
+      if (input.avdelingId) {
+        const avdeling = await ctx.prisma.avdeling.findFirst({
+          where: { id: input.avdelingId, organizationId: orgId },
+          select: { id: true },
+        });
+        if (!avdeling) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Avdelingen finnes ikke i firmaet",
+          });
+        }
+      }
+
+      // ansattnummer + ansattRolle + avdeling + prosjekttilgang eies av
+      // OrganizationMember. prosjektTilgang null = arv firmadefault;
+      // EVALUERES ikke i fase 2 (regelen kjører i fase 3).
+      if (
+        input.ansattnummer !== undefined ||
+        input.ansattRolle !== undefined ||
+        input.avdelingId !== undefined ||
+        input.prosjektTilgang !== undefined
+      ) {
+        const memberData: {
+          ansattnummer?: string | null;
+          ansattRolle?: string;
+          avdelingId?: string | null;
+          prosjektTilgang?: string | null;
+        } = {};
         if (input.ansattnummer !== undefined) memberData.ansattnummer = input.ansattnummer || null;
         if (input.ansattRolle !== undefined) memberData.ansattRolle = input.ansattRolle;
+        if (input.avdelingId !== undefined) memberData.avdelingId = input.avdelingId;
+        if (input.prosjektTilgang !== undefined) memberData.prosjektTilgang = input.prosjektTilgang;
         await ctx.prisma.organizationMember.updateMany({
           where: { userId: input.userId, organizationId: orgId },
           data: memberData,
@@ -797,13 +832,21 @@ export const organisasjonRouter = router({
 
       const medlem = await ctx.prisma.organizationMember.findUnique({
         where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
-        select: { ansattnummer: true, ansattRolle: true, firmaRoller: true },
+        select: {
+          ansattnummer: true,
+          ansattRolle: true,
+          firmaRoller: true,
+          avdelingId: true,
+          prosjektTilgang: true,
+        },
       });
       return {
         ...oppdatert,
         ansattnummer: medlem?.ansattnummer ?? null,
         ansattRolle: medlem?.ansattRolle ?? "ansatt",
         firmaRoller: medlem?.firmaRoller ?? [],
+        avdelingId: medlem?.avdelingId ?? null,
+        prosjektTilgang: medlem?.prosjektTilgang ?? null,
       };
     }),
 
@@ -952,6 +995,10 @@ export const organisasjonRouter = router({
         maskinbrukTilgangDefault: z
           .enum(["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"])
           .optional(),
+        // Registreringsmodell fase 2: firmadefault for prosjekttilgang. Gjelder som
+        // utgangspunkt for nye ansatte (per-ansatt prosjektTilgang overstyrer).
+        // Default 'manuell' (Kenneth-vedtak 2026-08-28); firmaet kan flytte den selv.
+        prosjektTilgangDefault: z.enum(["alle", "avdeling", "manuell"]).optional(),
         kompetanseRegistreringTilgang: z
           .enum(["firma_admin", "bruker_egen", "alle"])
           .optional(),

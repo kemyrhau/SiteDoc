@@ -290,6 +290,9 @@ export default function FirmaInnstillinger() {
         beskrivelseNoekkel="firma.innstillinger.tilgangMaskinbruk.beskrivelse"
       />
 
+      {/* Prosjekttilgang-default (registreringsmodell fase 2) */}
+      <ProsjektTilgangDefaultSeksjon />
+
       {/* Kompetansematrise — registreringspolicy */}
       <KompetansePolicySeksjon />
 
@@ -621,6 +624,90 @@ function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: Tilga
               </div>
               <div className="text-xs text-gray-600">
                 {t(`firma.innstillinger.tilgangVerdi.${v}.beskrivelse`)}
+              </div>
+            </div>
+          </label>
+        ))}
+      </div>
+
+      {oppdater.isError && (
+        <p className="mt-3 text-sm text-red-500">
+          Kunne ikke lagre: {oppdater.error.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  ProsjektTilgangDefaultSeksjon — registreringsmodell fase 2         */
+/*  Firmadefault for OrganizationMember.prosjektTilgang. Gjelder som   */
+/*  utgangspunkt for nye ansatte; per-ansatt-valg overstyrer. LAGRES,  */
+/*  evalueres i fase 3. Default 'manuell' (Kenneth-vedtak 2026-08-28). */
+/* ------------------------------------------------------------------ */
+
+type ProsjektTilgangVerdi = "alle" | "avdeling" | "manuell";
+
+function ProsjektTilgangDefaultSeksjon() {
+  const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const utils = trpc.useUtils();
+
+  const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  if (!setting || !orgId) return null;
+
+  function endre(verdi: ProsjektTilgangVerdi) {
+    oppdater.mutate({ prosjektTilgangDefault: verdi, organizationId: orgId! });
+  }
+
+  const verdier: ProsjektTilgangVerdi[] = ["alle", "avdeling", "manuell"];
+  const aktivVerdi = (setting.prosjektTilgangDefault ?? "manuell") as ProsjektTilgangVerdi;
+
+  return (
+    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-1 text-sm font-semibold text-gray-700">
+        {t("firma.innstillinger.prosjektTilgangDefault.tittel")}
+      </h2>
+      <p className="mb-4 text-xs text-gray-500">
+        {t("firma.innstillinger.prosjektTilgangDefault.beskrivelse")}
+      </p>
+
+      <div className="space-y-2">
+        {verdier.map((v) => (
+          <label
+            key={v}
+            className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+              aktivVerdi === v
+                ? "border-sitedoc-primary bg-sitedoc-primary/5"
+                : "border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            <input
+              type="radio"
+              name="prosjektTilgangDefault"
+              value={v}
+              checked={aktivVerdi === v}
+              onChange={() => endre(v)}
+              disabled={oppdater.isPending}
+              className="mt-0.5"
+            />
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                {t(`firma.innstillinger.prosjektTilgangVerdi.${v}.tittel`)}
+              </div>
+              <div className="text-xs text-gray-600">
+                {t(`firma.innstillinger.prosjektTilgangVerdi.${v}.beskrivelse`)}
               </div>
             </div>
           </label>
