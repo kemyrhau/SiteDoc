@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
-import { useFirma } from "@/kontekst/firma-kontekst";
 import { Spinner, EmptyState } from "@sitedoc/ui";
 import { Building2, Pencil } from "lucide-react";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -14,7 +13,6 @@ export default function EierFirma() {
   useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
-  const { erSitedocAdmin } = useFirma();
   const { data: organisasjon, isLoading } = trpc.organisasjon.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
@@ -37,25 +35,28 @@ export default function EierFirma() {
     );
   }
 
-  // Speiler innstillinger-kort.tsx:78 — `!!prosjektFirma || erSitedocAdmin`.
-  // Lenken gir ingen skrivevei; Firmaprofil har egen firmaadmin-vakt på serveren.
-  const harFirmaTilgang = !!organisasjon || erSitedocAdmin;
-
+  // Gaten er den tidlige returen på `!organisasjon` over: siden rendres kun når
+  // prosjektet har et eier-firma — samme betingelse som `!!prosjektFirma` i
+  // innstillinger-kort.tsx:78. Lenken gir ingen skrivevei; Firmaprofil har egen
+  // firmaadmin-vakt på serveren.
+  //
+  // Bevisst forskjell fra hub-kortet (`|| erSitedocAdmin`): en sitedoc-admin på et
+  // prosjekt UTEN eier-firma får EmptyState og ingen lenke her, mens hub-kortet ville
+  // vist den. Riktig — siden har ingenting å vise om et firma som ikke finnes, og
+  // standalone prosjekt (organizationId = null) er en gyldig permanent tilstand.
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-gray-900">
           {t("oppsett.firmainnstillinger")}
         </h1>
-        {harFirmaTilgang && (
-          <Link
-            href={HUB_LENKER.firmainfo}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Pencil className="mr-1.5 h-4 w-4" />
-            {t("oppsett.eierFirma.rediger")}
-          </Link>
-        )}
+        <Link
+          href={HUB_LENKER.firmainfo}
+          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <Pencil className="mr-1.5 h-4 w-4" />
+          {t("oppsett.eierFirma.rediger")}
+        </Link>
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white p-6">
