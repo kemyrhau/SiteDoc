@@ -383,7 +383,26 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
-### 🟢 Fire brancher merget til develop 30.08 — IKKE deployet (bevisst, ny deploy-rytme)
+### 🟢 TEST-DEPLOY 30.08 (`24bccbba`) — fire runder + REG fase 2-migreringen
+
+Stempel verifisert: `curl https://api-test.sitedoc.no/version` → `24bccbba`. Migrering
+`20260830120000_registrering_fase2_prosjekttilgang` applied på `sitedoc_test`; de tre andre
+db-pakkene svarte «No pending».
+
+🔴 **Migreringen ble nesten glemt — tredje gang samme feilklasse på tre dager.**
+`deploy-test.sh` skrev ut `up -d --build` **uten migrate-steget**. Blokken er raskere å lime
+enn den fulle sekvensen og fungerer ni av ti ganger, fordi det som regel ikke er noen
+migrering. Denne gangen kjørte test ny kode mot gammelt skjema i noen minutter —
+`organisasjon.hentMedlemmer` velger `prosjektTilgang`, som ikke fantes i `sitedoc_test`.
+
+Tre kilder, samme feil, tre dager: `deploy-prod.sh` hadde migrate utkommentert (rettet
+29.08) · `deploy-detaljer.md` sa «droppes når diffen ikke har migrering» (rettet 30.08) ·
+`deploy-test.sh` skrev ut en blokk uten den (rettet 30.08). **Skriptet er kilden Kenneth
+faktisk limer fra** — det skriver nå ut STEG 1 bygg → STEG 2 migrer (alle fire, med
+`sitedoc_test`-gate) → STEG 3 start. Utskriften er verifisert byte-identisk med kommandoen
+som virket.
+
+### 🟢 Fire brancher merget til develop 30.08 — deployet til test (se over)
 
 Merget i rekkefølge, alle disjunkte (verifisert med `merge-base`-diff, ingen delte filer):
 
