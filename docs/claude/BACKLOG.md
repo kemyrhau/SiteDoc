@@ -3165,6 +3165,46 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### 🔴 Slettevakter: dokumentflyt er vernet i begge ender, faggruppe er ikke (målt 2026-08-30)
+
+Asymmetri mellom to strukturobjekter av samme klasse. Den ene fikk vakt fordi Kenneth ba om
+det 2026-08-22; den andre ble aldri nevnt.
+
+| Objekt | Vernet mot | Ikke vernet mot |
+|---|---|---|
+| `Dokumentflyt.slett` | dokumenter (`tellFlytDokumenter`, lesbar melding) | — medlemmer cascader, men et medlemskap har ingen selvstendig eksistens |
+| `Dokumentflyt.fjernMedlem` | aktive dokumenter i flyten | (for bredt — se under) |
+| **`Faggruppe.slett`** (`faggruppe.ts`) | sjekklister + oppgaver | 🔴 **medlemmer** (`FaggruppeKobling`, `Cascade`) · 🔴 **flyter** (`Dokumentflyt.faggruppeId`, `SetNull`) |
+
+**Reachbar tilstand:** en faggruppe med medlemmer og flyter, men ingen dokumenter ennå, kan
+slettes. Koblingene forsvinner med `Cascade`, flytene mister faggruppen sin med `SetNull` —
+stille, begge deler. 🔴 **Det er nøyaktig tilstanden til et nyoppsatt prosjekt**, altså når
+noen er mest tilbøyelig til å slette en faggruppe de opprettet feil.
+
+Historisk belegg for at `SetNull`-hullet biter: slett-vern-kommentaren i `dokumentflyt.ts`
+noterer *«prod: 1 av 16 sjekklister ER flyt-løs, kan være dette»*.
+
+**Fiks:** speil flytvakten — tell medlemmer og flyter i samme `Promise.all`, samme
+meldingsform. Fire linjer.
+
+### 🟡 Ledd-vernet treffer for bredt (Kenneth 2026-08-30 — revisjon, ikke reversering)
+
+`dokumentflyt.fjernMedlem` (`:370`) blokkerer fjerning så lenge **flyten** har aktive
+dokumenter. Kenneth: *«fjerning av medlemmet skader ikke dokumentet som er laget — jeg mener
+det er feil beslutning.»*
+
+Han har rett med én presisering: innholdet er skrevet og uberørt; det som kan skades er et
+**åpent** dokuments evne til å finne neste mottaker (`nesteLedd`, `flytPosisjon.ts:172`).
+Vernet sikter på noe ekte, men blokkerer også når medlemmet **ikke er alene i leddet** og når
+dokumentene er **lukket**.
+
+**Riktig avgrensning:** «dette leddet ville blitt tomt, og det finnes åpne dokumenter i det».
+Krever telling per ledd (`rolle` + `steg`), ikke per flyt. Praktisk konsekvens i dag: en
+ansatt som slutter kan ikke fjernes før alle flytens dokumenter er lukket.
+
+⚠️ **Reviderer ledd-vernet fra 2026-08-22 — formålet består.** Ført i
+[domene-arbeidsflyt.md](domene-arbeidsflyt.md); rett ikke tilbake uten å lese vedtaket der.
+
 ### 🔴 i18n: prosjektstatus i firmalisten rendres rått (målt 2026-08-30)
 
 `apps/web/src/app/dashbord/firma/prosjekter/page.tsx:149` er

@@ -290,6 +290,79 @@ fire ting før koding:
 3. Hva sier varselet konkret — hvilket felt, hvilken verdi, hva ble beholdt?
 4. Hvor ligger regelen? Delt kilde, aldri kopi per flate.
 
+## 🔴 BINDENDE VEDTAK: å avslutte et prosjekt er å FRYSE det, ikke å slette noe (Kenneth 2026-08-30)
+
+> **Kenneth 2026-08-30:** *«Hvordan kan vi avslutte et prosjekt når oppgaver ikke kan slettes?
+> Vi må ha en løsning for å avslutte et prosjekt!»*
+
+**Spørsmålet var feil stilt, og det er en god nyhet:** avslutning skal ikke kreve at noe
+slettes. Sjekklistene fra et ferdig byggeprosjekt er nettopp det kunden skal beholde — de
+**er** produktet. Det som mangler er ikke sletting, det er **frysing**.
+
+### 🔴 Målt 2026-08-30: `Project.status` håndhever ingenting
+
+| Lag | Tilstand |
+|---|---|
+| DB | `Project.status String @default("active")` (`schema.prisma:584`) |
+| API godtar | `active` · `archived` · `completed` · `deactivated` (`prosjekt.ts:606`) |
+| API **håndhever** | **ingenting** — ingen skrivevei leser `Project.status` |
+| UI lover | *«Prosjektet er arkivert og skrivebeskyttet»* (`nb.json:2218`) |
+
+**Negativ kontroll kjørt:** `tilgangskontroll.ts` leser `OrganizationMember.status` (ansatt),
+aldri `Project.status`. Ordet «skrivebeskytt»/`readOnly` finnes ikke i `apps/api`. Ingen
+`select` av prosjektstatus i skriveveiene.
+
+🔴 **Dette er en løftebrist mot kunden, ikke bare en manglende funksjon.** Velger man
+«Arkivert» i dag skjer ingenting: dokumenter kan fortsatt endres, sendes og opprettes.
+Det er samme form som «en kommentar som lover mer enn koden holder», men på en flate kunden
+leser.
+
+### Konsekvensen: frysing løser tre saker med ett grep
+
+Gjøres `archived` til en ekte skrivevakt i serverlaget, faller to beslektede spørsmål bort:
+
+1. **Ledd-vernet** (`dokumentflyt.fjernMedlem:370`) blokkerer fjerning av et flytmedlem så
+   lenge flyten har aktive dokumenter. I et **arkivert** prosjekt skal ingenting bevege seg,
+   så ingen trenger å fjernes. Problemet forsvinner der det gjorde mest vondt.
+2. **Sletting av flyt med lukkede dokumenter** — Kenneth var eksplisitt usikker. Med frysing
+   trenger spørsmålet ikke avgjøres: lukkede dokumenter i et arkivert prosjekt er urørlige
+   uansett, og flyten kan stå som historikk uten å være i veien.
+
+### Om ledd-vernet i et AKTIVT prosjekt (Kenneth 2026-08-30)
+
+> *«Fjerning av medlemmet skader ikke dokumentet som er laget — jeg mener det er feil
+> beslutning.»*
+
+**Han har rett, med én presisering.** Innholdet i et opprettet dokument er skrevet og
+uberørt. Det fjerning *kan* skade er et **åpent** dokuments evne til å finne neste mottaker,
+siden `nesteLedd` (`flytPosisjon.ts:172`) regnes ut fra levende `DokumentflytMedlem`-rader.
+
+Vernet sikter altså på noe ekte, men **treffer for bredt**: det blokkerer også når medlemmet
+ikke er alene i leddet, og når dokumentene er lukket. Riktig avgrensning er «dette leddet
+ville blitt tomt, og det finnes åpne dokumenter i det» — ikke «flyten har dokumenter».
+⚠️ Dette **reviderer**, men reverserer ikke, ledd-vernet Kenneth bestilte 2026-08-22; formålet
+består, treffbildet snevres.
+
+### Faggruppe-medlemskap er mange-til-mange (målt 2026-08-30)
+
+`FaggruppeKobling` har `@@unique([projectMemberId, faggruppeId])` (`schema.prisma:665`) — en
+sammensatt unik, som er nettopp det som gjør koblingen mange-til-mange.
+
+🔴 **Derfor kan «kontaktgruppe» aldri være det samme som faggruppe.** Spørsmålet «hvilken
+faggruppe tilhører denne kontakten» har ikke ett svar, og skal ikke stilles.
+Kenneth 2026-08-30: *«samme kontakt kan være medlem av flere faggrupper, det gjør at en
+kontaktgruppe og en faggruppe ikke kan være det samme.»*
+
+**Konsekvens for opprettelse fra en flytboks:** `Dokumentflyt.faggruppeId`
+(`schema.prisma:1366`) bærer konteksten, så en kontakt opprettet derfra skal **arve
+faggruppen som forhåndsvalg — ikke som låsing**. Mange-til-mange består.
+
+🔴 **`Dokumentflyt.faggruppeId` er nullbar med vilje, ikke ved slurv.** `modul.ts:55-56`
+oppretter HMS-flyten som `{ projectId, name: "HMS" }` uten faggruppe når HMS-modulen slås på —
+HMS er tverrgående, ikke en part. Målt på test 2026-08-30: begge faggruppe-løse flyter heter
+«HMS». **Sett aldri feltet `NOT NULL`** — det ville stoppet HMS-modulen. En flytboks uten
+faggruppe må derfor spørre, ikke anta.
+
 ## 🟢 STYRENDE: oppgave og sjekkliste er grunnleggende like — to forskjeller (Kenneth 2026-08-19)
 
 > *«Oppgave og sjekkliste skal være grunnleggende lik. Forskjell: sjekkliste kan slettes →
