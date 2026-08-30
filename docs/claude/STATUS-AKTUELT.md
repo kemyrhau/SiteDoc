@@ -15,10 +15,17 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Levert `feat/flytboks-stegvisning` + `feat/prosjektoppsett-veileder` (`214bae7f`). Dev-server stoppet. Env symlinket fra hovedtreet | rename `IKKE_I_PAPIRKURV` → `inbox-malklikk-eksporter.md` → `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (sammen) |
+| **dokgen** | `SiteDoc-dokgen` | Ledig. Env symlinket fra hovedtreet | **`relay/inbox-reg-fase2.md`** — masterplanens punkt 2. 🔴 Inneholder migrering: skrives, vises, kjøres IKKE uten Kenneths go |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Levert fire brancher 29.08, alle merget. Ledig | Ingen ny ordre |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig. To brancher venter merge: `fix/emne-alltid-redigerbart` (`f074f903`) · `fix/emne-sjekkliste` (`c18c01a5`) | Ingen ny ordre — venter på at REG fase 2 lander, for å unngå kollisjon |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
+
+🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
+kan utvikle mer fra masterplan først. Dette er små endringer som bare koster tid og er
+ineffektiv utvikling.»* Åtte test-deployer og to prod-releaser på én dag, flere for
+tofils-endringer. **Ny form: brancher merges til develop løpende** (så de ikke råtner — vi så
+i dag hva som skjer når 20 innslag blir stående), **men test-deploy skjer når det finnes et
+sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 
 ✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
