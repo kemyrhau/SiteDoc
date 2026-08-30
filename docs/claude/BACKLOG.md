@@ -3165,6 +3165,19 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### 🔴 i18n: prosjektstatus i firmalisten rendres rått (målt 2026-08-30)
+
+`apps/web/src/app/dashbord/firma/prosjekter/page.tsx:149` er
+`p.status === "active" ? "Aktiv" : p.status` — alt annet enn aktiv går **forbi `t()`** og
+vises på engelsk («archived», «completed») til kunden.
+
+Serveren har fire statuser (`prosjekt.ts:606`); to av dem har ingen norsk tekst noe sted i
+firmaflaten. `admin/prosjekter/page.tsx:311` har samme form, men dekker `deactivated` — også
+den uten `t()`.
+
+**Tas som ryddepunkt i FL-runden** (prosjekt-livssyklus på firmanivå), ikke som egen runde
+— fabel-anvisning 2026-08-30. Trenger nøkler for alle fire i `nb` + `en` + 13 genererte.
+
 ### 🟡 `harFirmaTilgang` er to ulike inline-definisjoner (målt 2026-08-30)
 
 Ikke en delt hjelper. Regnes ut to steder, med ulik betydning:
