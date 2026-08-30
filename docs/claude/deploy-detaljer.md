@@ -222,7 +222,15 @@ SHA=$(git -C ~/Documents/Programmering/SiteDoc rev-parse --short HEAD); TID=$(da
 ssh -t server-ny "cd ~/stack/sitedoc && sudo GIT_SHA=$SHA BUILD_TID=$TID docker compose -f docker/docker-compose.test.yml build sitedoc-test-api && sudo GIT_SHA=$SHA BUILD_TID=$TID docker compose -f docker/docker-compose.test.yml build sitedoc-test-web && sudo docker compose -f docker/docker-compose.test.yml up -d --no-deps sitedoc-test-api sitedoc-test-web && sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'"
 ```
 - **`sudo VAR=val docker compose`** — env-tilordningen står foran `docker compose` (etter `sudo`), så interpoleringen kjører i CLI-prosessen under sudo. Prefikset gjentas per `build` fordi hver `sudo`-invokasjon har eget miljø. Samme prefiks for BEGGE tjenester — ikke lenger ulike arg-navn (web trengte `NEXT_PUBLIC_*` før).
-- SHA/TID ekspanderes på Mac (dobbelfnutt), server får literale verdier. Sekvensielt bygg (api → web separat, aldri sammen = OOM). Migrate-linja droppes når diffen ikke har migrering.
+- SHA/TID ekspanderes på Mac (dobbelfnutt), server får literale verdier. Sekvensielt bygg (api → web separat, aldri sammen = OOM).
+- 🔴 **RETTET 2026-08-30 — her sto «migrate-linja droppes når diffen ikke har migrering».**
+  Det motsier den 🔴-merkede regelen lenger opp i samme fil («IKKE utled migreringer fra
+  diffen — kjør alle fire, kommandoen er idempotent»), som ble skrevet 28.08 nettopp fordi
+  den betingede formuleringen lot prod gå to uker med en ukjørt `db-timer`-migrering.
+  **Regelen ble oppdatert ett sted og ikke det andre** — den gamle setningen sto igjen som
+  en gyldig instruks for den som leste blokken i stedet for avsnittet.
+  **Migrate-linja droppes ALDRI.** Rekkefølgen er **build → migrate → up** (ny kode mot
+  gammelt skjema gir 500 i vinduet mellom).
 - **sudo kan spørre om passord 2–3 ganger** (én gang per ~5-min bygg, sudo-cache utløper) — `-t` gir TTY så du kan skrive det.
 - **Verifiser stemplet:** `curl https://api-test.sitedoc.no/version` → `{gitSha, byggTid, node}` + diskret grå linje nederst i Innstillinger.
 
