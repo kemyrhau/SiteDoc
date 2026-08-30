@@ -1,35 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
-import { Spinner, Button, Input, EmptyState } from "@sitedoc/ui";
+import { Spinner, EmptyState } from "@sitedoc/ui";
 import { Building2, Pencil } from "lucide-react";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { HUB_LENKER } from "@/lib/hub-ruter";
 
-export default function FirmaInnstillinger() {
+export default function EierFirma() {
   useToppbarFiltre({ byggeplass: false });
-  const utils = trpc.useUtils();
+  const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
   const { data: organisasjon, isLoading } = trpc.organisasjon.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
-
-  const [redigerer, setRedigerer] = useState(false);
-  const [navn, setNavn] = useState("");
-  const [orgNr, setOrgNr] = useState("");
-  const [fakturaAdresse, setFakturaAdresse] = useState("");
-  const [fakturaEpost, setFakturaEpost] = useState("");
-
-  const oppdaterMutasjon = trpc.organisasjon.oppdater.useMutation({
-    onSuccess: () => {
-      if (prosjektId) {
-        utils.organisasjon.hentForProsjekt.invalidate({ projectId: prosjektId });
-      }
-      setRedigerer(false);
-    },
-  });
 
   if (isLoading) {
     return (
@@ -42,42 +29,34 @@ export default function FirmaInnstillinger() {
   if (!organisasjon) {
     return (
       <EmptyState
-        title="Ingen firma"
-        description="Du er ikke tilknyttet noe firma."
+        title={t("oppsett.eierFirma.ingenFirmaTittel")}
+        description={t("oppsett.eierFirma.ingenFirmaBeskrivelse")}
       />
     );
   }
 
-  function startRediger() {
-    if (!organisasjon) return;
-    setNavn(organisasjon.name);
-    setOrgNr(organisasjon.organizationNumber ?? "");
-    setFakturaAdresse(organisasjon.invoiceAddress ?? "");
-    setFakturaEpost(organisasjon.invoiceEmail ?? "");
-    setRedigerer(true);
-  }
-
-  function lagre() {
-    if (!organisasjon) return;
-    oppdaterMutasjon.mutate({
-      organizationId: organisasjon.id,
-      name: navn,
-      organizationNumber: orgNr || null,
-      invoiceAddress: fakturaAdresse || null,
-      invoiceEmail: fakturaEpost || null,
-    });
-  }
-
+  // Gaten er den tidlige returen på `!organisasjon` over: siden rendres kun når
+  // prosjektet har et eier-firma — samme betingelse som `!!prosjektFirma` i
+  // innstillinger-kort.tsx:78. Lenken gir ingen skrivevei; Firmaprofil har egen
+  // firmaadmin-vakt på serveren.
+  //
+  // Bevisst forskjell fra hub-kortet (`|| erSitedocAdmin`): en sitedoc-admin på et
+  // prosjekt UTEN eier-firma får EmptyState og ingen lenke her, mens hub-kortet ville
+  // vist den. Riktig — siden har ingenting å vise om et firma som ikke finnes, og
+  // standalone prosjekt (organizationId = null) er en gyldig permanent tilstand.
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Eier-firma</h1>
-        {!redigerer && (
-          <Button variant="secondary" onClick={startRediger}>
-            <Pencil className="mr-1.5 h-4 w-4" />
-            Rediger
-          </Button>
-        )}
+        <h1 className="text-lg font-semibold text-gray-900">
+          {t("oppsett.firmainnstillinger")}
+        </h1>
+        <Link
+          href={HUB_LENKER.firmainfo}
+          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <Pencil className="mr-1.5 h-4 w-4" />
+          {t("oppsett.eierFirma.rediger")}
+        </Link>
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white p-6">
@@ -85,95 +64,40 @@ export default function FirmaInnstillinger() {
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
             <Building2 className="h-5 w-5 text-purple-600" />
           </div>
-          {redigerer ? (
-            <Input
-              value={navn}
-              onChange={(e) => setNavn(e.target.value)}
-              required
-              className="text-lg font-semibold"
-            />
-          ) : (
-            <h2 className="text-lg font-semibold text-gray-900">{organisasjon.name}</h2>
-          )}
+          <h2 className="text-lg font-semibold text-gray-900">{organisasjon.name}</h2>
         </div>
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
           <div>
-            {redigerer ? (
-              <Input
-                label="Org.nr"
-                value={orgNr}
-                onChange={(e) => setOrgNr(e.target.value)}
-                placeholder="123 456 789"
-              />
-            ) : (
-              <>
-                <p className="text-sm text-gray-500">Org.nr</p>
-                <p className="font-medium text-gray-900">
-                  {organisasjon.organizationNumber || "Ikke satt"}
-                </p>
-              </>
-            )}
+            <p className="text-sm text-gray-500">{t("oppsett.eierFirma.orgNr")}</p>
+            <p className="font-medium text-gray-900">
+              {organisasjon.organizationNumber || t("oppsett.eierFirma.ikkeSatt")}
+            </p>
           </div>
 
           <div>
-            {redigerer ? (
-              <Input
-                label="Faktura-e-post"
-                type="email"
-                value={fakturaEpost}
-                onChange={(e) => setFakturaEpost(e.target.value)}
-                placeholder="faktura@firma.no"
-              />
-            ) : (
-              <>
-                <p className="text-sm text-gray-500">Faktura-e-post</p>
-                <p className="font-medium text-gray-900">
-                  {organisasjon.invoiceEmail || "Ikke satt"}
-                </p>
-              </>
-            )}
+            <p className="text-sm text-gray-500">{t("oppsett.eierFirma.fakturaEpost")}</p>
+            <p className="font-medium text-gray-900">
+              {organisasjon.invoiceEmail || t("oppsett.eierFirma.ikkeSatt")}
+            </p>
           </div>
 
           <div className="col-span-2">
-            {redigerer ? (
-              <Input
-                label="Fakturaadresse"
-                value={fakturaAdresse}
-                onChange={(e) => setFakturaAdresse(e.target.value)}
-                placeholder="Gateadresse, postnr og sted"
-              />
-            ) : (
-              <>
-                <p className="text-sm text-gray-500">Fakturaadresse</p>
-                <p className="font-medium text-gray-900">
-                  {organisasjon.invoiceAddress || "Ikke satt"}
-                </p>
-              </>
-            )}
+            <p className="text-sm text-gray-500">{t("oppsett.eierFirma.fakturaAdresse")}</p>
+            <p className="font-medium text-gray-900">
+              {organisasjon.invoiceAddress || t("oppsett.eierFirma.ikkeSatt")}
+            </p>
           </div>
 
           <div>
-            <p className="text-sm text-gray-500">EHF</p>
+            <p className="text-sm text-gray-500">{t("oppsett.eierFirma.ehf")}</p>
             <p className="font-medium text-gray-900">
-              {organisasjon.ehfEnabled ? "Aktivert" : "Ikke aktivert"}
+              {organisasjon.ehfEnabled
+                ? t("oppsett.eierFirma.aktivert")
+                : t("oppsett.eierFirma.ikkeAktivert")}
             </p>
           </div>
         </div>
-
-        {redigerer && (
-          <div className="mt-6 flex justify-end gap-2 border-t border-gray-100 pt-4">
-            <Button variant="secondary" onClick={() => setRedigerer(false)}>
-              Avbryt
-            </Button>
-            <Button
-              onClick={lagre}
-              disabled={!navn || oppdaterMutasjon.isPending}
-            >
-              Lagre
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
