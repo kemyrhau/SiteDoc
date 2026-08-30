@@ -17,7 +17,7 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 |---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | Ledig. `feat/reg-fase2` (`578e2b67`) **merget til develop 30.08** (`355c200c`). Env symlinket fra hovedtreet | Ingen. Neste: `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (kjøres sammen) |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig. Begge emne-brancher merget 30.08 (`7b1a87c8`, `14d8fcc7`). Treet står på `fix/emne-sjekkliste` — må detaches før ny branch | **`relay/inbox-o12-eier-firma.md`** — branch `fix/o12-eier-firma-lesevisning`. ✅ Sperren er løftet: `feat/reg-fase2` er i develop, i18n er fri |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig, detached på `origin/develop`. O12 levert + merget 30.08. **Env symlinket fra hovedtreet 30.08** (manglet — ga `MissingSecret` på dev-start) | Ingen |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
@@ -383,7 +383,7 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
-### 🟢 Tre brancher merget til develop 30.08 — IKKE deployet (bevisst, ny deploy-rytme)
+### 🟢 Fire brancher merget til develop 30.08 — IKKE deployet (bevisst, ny deploy-rytme)
 
 Merget i rekkefølge, alle disjunkte (verifisert med `merge-base`-diff, ingen delte filer):
 
@@ -392,6 +392,24 @@ Merget i rekkefølge, alle disjunkte (verifisert med `merge-base`-diff, ingen de
 | `fix/emne-alltid-redigerbart` | `f074f903` | `7b1a87c8` | Emne redigerbart etter sending på oppgave |
 | `fix/emne-sjekkliste` | `c18c01a5` | `14d8fcc7` | Samme regel på sjekkliste — Kenneth: *«øyeblikksbilde vs. levende dokument, det er jo det samme»* |
 | `feat/reg-fase2` | `578e2b67` | `355c200c` | REG fase 2: `prosjektTilgang` per ansatt + `prosjektTilgangDefault` firmadefault |
+| `fix/o12-eier-firma-lesevisning` | `0101bd25` | `964fdbfd` | **O12 — UI-duplikatet lukket.** `oppsett/firma` er ren lesevisning; Kenneth gatet i nettleser |
+
+**O12 i klartekst:** vedtaket ble tatt 2026-05-03 (`navigasjon-arkitektur-analyse`, linje 92)
+og **halvveis utført samme dag** — renamet gjort, redigeringen stående. I fire måneder skrev
+`oppsett/firma` og `firma/innstillinger` **samme rad med samme mutasjon**
+(`organisasjon.oppdater`), der prosjektsiden manglet validering, i18n og en fungerende
+gating på Rediger-knappen. Kenneth 30.08: *«vi kan aldri duplisere hverken UI eller kode.»*
+Fila gikk 180 → 113 linjer; `organisasjon.oppdater` har 0 treff der nå.
+
+🔴 **Cowork-gaten sendte den tilbake én gang, og det var riktig:** første leveranse hadde
+`const harFirmaTilgang = !!organisasjon || erSitedocAdmin` **etter** den tidlige returen på
+`!organisasjon` — altså konstant `true`. Oppførselen var riktig, konstruksjonen løy. Å levere
+en falsk gate i nettopp den runden som ryddet et halvutført vedtak ville vært samme feil i ny
+form. Nå er gaten den tidlige returen, og kommentaren sier det.
+
+✅ **Faggruppe-duplikatet fra samme mai-analyse (linje 60–61) er allerede ryddet** — målt
+30.08, `/dashbord/prosjekter/[id]/faggrupper` finnes ikke. Radene er merket i analysen.
+`oppsett/firma` var dermed det eneste bekreftede UI-duplikatet vi hadde.
 
 🔴 **REG fase 2 inneholder en migrering** (`20260830120000_registrering_fase2_prosjekttilgang`)
 — ren additiv, `ADD COLUMN` på `organization_members` + `organization_settings`, ingen DROP,
