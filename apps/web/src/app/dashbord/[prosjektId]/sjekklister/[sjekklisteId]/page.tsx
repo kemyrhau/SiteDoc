@@ -859,7 +859,12 @@ export default function SjekklisteDetaljSide() {
               forslag={Array.isArray(fullSjekkliste?.template?.subjects)
                 ? (fullSjekkliste.template.subjects as unknown[]).map(String)
                 : []}
-              leseModus={["closed", "approved"].includes(sjekkliste.status)}
+              // Emne er en merkelapp for gjenfinning, ikke dokumentasjon — skal kunne settes/rettes
+              // også etter godkjenning (Kenneth-vedtak 2026-08-29, speiler oppgave). Server-vakten
+              // (sjekkliste.oppdater) slipper `subject` forbi godkjent-låsen; her speiler vi
+              // dokumentets redigeringsrett (ballholder-editor + admin) via samme `leseModus` som
+              // styrer feltredigering. Lokasjon/byggeplass forblir låst ved approved/closed.
+              leseModus={leseModus}
               onLagre={(emne) => oppdaterMutasjon.mutate({ id: params.sjekklisteId, subject: emne })}
             />
           </div>
