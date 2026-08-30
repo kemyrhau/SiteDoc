@@ -668,15 +668,26 @@ export const oppgaveRouter = router({
         "task",
       );
 
-      // Append-only: Oppgaver kan kun redigeres i utkast-status
+      const { id, ...data } = input;
+
+      // Append-only: metadata (tittel/lokasjon/faggruppe/frist osv.) kan kun endres i utkast.
+      // UNNTAK — `subject` (emne): det er en merkelapp for gjenfinning, ikke dokumentasjon av
+      // utført arbeid, og skal kunne settes/rettes etter sending (Kenneth-vedtak 2026-08-29).
+      // Endringsloggen viser hvem som gjorde det. Vakten slipper derfor KUN emne forbi utenfor
+      // draft; ethvert annet felt i samme kall avvises fortsatt. (Feltverdier og lokasjon har
+      // egne, uendrede vakter — subject ligger som kolonne på Task, ikke i `data`.)
       if (oppgave.status !== "draft") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Oppgaver kan ikke redigeres etter sending — kun tilføyelser er tillatt",
-        });
+        const rørerAnnetEnnEmne = Object.entries(data).some(
+          ([felt, verdi]) => felt !== "subject" && verdi !== undefined,
+        );
+        if (rørerAnnetEnnEmne) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Oppgaver kan ikke redigeres etter sending — kun tilføyelser er tillatt",
+          });
+        }
       }
 
-      const { id, ...data } = input;
       return ctx.prisma.task.update({
         where: { id },
         data: {

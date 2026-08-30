@@ -787,9 +787,12 @@ export default function OppgaveDetaljSide() {
             <EmneVelger
               emne={emneRå?.subject ?? null}
               forslag={emneForslag}
-              // Oppgave-vakten er strengere enn sjekklistens: oppgave.oppdater (oppgave.ts:670)
-              // avviser ALL redigering utenfor draft. Klienten speiler serveren — ikke ["closed","approved"].
-              leseModus={(oppgave.status ?? "") !== "draft"}
+              // Emne er en merkelapp for gjenfinning, ikke dokumentasjon — skal kunne settes/rettes
+              // etter sending (Kenneth-vedtak 2026-08-29). Server-vakten (oppgave.oppdater) slipper
+              // `subject` forbi utkast-låsen; her speiler vi dokumentets redigeringsrett: redigerbar
+              // for den som kan redigere i flyten (ballholder-editor) + admin, via samme `leseModus`
+              // som styrer kommentar/vedlegg. Feltverdi- og lokasjon-låsen er uendret.
+              leseModus={leseModus}
               onLagre={(emne) => oppdaterMutasjon.mutate({ id: params.oppgaveId, subject: emne })}
             />
           </div>
