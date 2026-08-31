@@ -1315,6 +1315,11 @@ export const dagsseddelRouter = router({
           message: `Dagsseddel er låst (status: ${sheet.status})`,
         });
       }
+      // Funn 2 (modul-resolver): NYE rader krever aktiv Timer-firmatak. Slår
+      // firmaet av Timer, kan ingen nye rader føres. Redigering/fjerning av rader
+      // som alt finnes gates IKKE — en påbegynt dagsseddel skal aldri bli ulagrbar
+      // fordi firmaet slår av Timer midt i en arbeidsdag (Kenneth-grense 2026-08-31).
+      await krevTimerAktivert(sheet.organizationId);
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
 
       // Verifiser lønnsart + aktivitet tilhører samme firma
@@ -1679,6 +1684,9 @@ export const dagsseddelRouter = router({
           message: `Dagsseddel er låst (status: ${sheet.status})`,
         });
       }
+      // Funn 2 (modul-resolver): NYE rader krever aktiv Timer-firmatak. Redigering/
+      // fjerning av eksisterende rader gates IKKE — arbeid i gang skal aldri låses.
+      await krevTimerAktivert(sheet.organizationId);
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
 
       const tillegg = await ctx.prismaTimer.tillegg.findFirst({
@@ -1906,6 +1914,9 @@ export const dagsseddelRouter = router({
           message: `Dagsseddel er låst (status: ${sheet.status})`,
         });
       }
+      // Funn 2 (modul-resolver): NYE rader krever aktiv Timer-firmatak. Redigering/
+      // fjerning av eksisterende rader gates IKKE — arbeid i gang skal aldri låses.
+      await krevTimerAktivert(sheet.organizationId);
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
 
       const kategori = await ctx.prismaTimer.expenseCategory.findFirst({
