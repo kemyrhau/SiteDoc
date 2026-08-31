@@ -172,8 +172,10 @@ export const faggruppeRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, faggruppe.projectId);
 
-      // Sjekk om faggruppen har tilknyttede sjekklister eller oppgaver
-      const [sjekklisteAntall, oppgaveAntall] = await Promise.all([
+      // Sjekk om faggruppen har tilknyttede sjekklister, oppgaver, medlemmer eller flyter.
+      // Medlem-koblinger er onDelete: Cascade og flyter onDelete: SetNull — begge ville
+      // forsvunnet stille uten denne vakten (speiler slett-vernet i dokumentflyt.ts).
+      const [sjekklisteAntall, oppgaveAntall, medlemAntall, flytAntall] = await Promise.all([
         ctx.prisma.checklist.count({
           where: {
             ...IKKE_SLETTET,
@@ -192,6 +194,13 @@ export const faggruppeRouter = router({
             ],
           },
         }),
+        // Kun aktive koblinger — periodeSlutt = null (C.13). Historiske skal ikke blokkere.
+        ctx.prisma.faggruppeKobling.count({
+          where: { faggruppeId: input.id, periodeSlutt: null },
+        }),
+        ctx.prisma.dokumentflyt.count({
+          where: { faggruppeId: input.id },
+        }),
       ]);
 
       if (sjekklisteAntall > 0 || oppgaveAntall > 0) {
@@ -201,6 +210,16 @@ export const faggruppeRouter = router({
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message: `Kan ikke slette «${faggruppe.name}» fordi den har ${detaljer.join(" og ")} tilknyttet. Flytt eller slett disse først.`,
+        });
+      }
+
+      if (medlemAntall > 0 || flytAntall > 0) {
+        const detaljer: string[] = [];
+        if (medlemAntall > 0) detaljer.push(`${medlemAntall} medlem${medlemAntall !== 1 ? "mer" : ""}`);
+        if (flytAntall > 0) detaljer.push(`${flytAntall} dokumentflyt${flytAntall !== 1 ? "er" : ""}`);
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kan ikke slette «${faggruppe.name}» fordi den har ${detaljer.join(" og ")} tilknyttet. Flytt eller fjern disse først.`,
         });
       }
 
