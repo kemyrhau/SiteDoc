@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ModalFlate } from "./ModalFlate";
 import ViewShot from "react-native-view-shot";
 import { Camera, X } from "lucide-react-native";
 import { trpc } from "../lib/trpc";
@@ -78,7 +78,7 @@ export function TegningsSkjermbilde({ prosjektId, onFerdig, onAvbryt }: Tegnings
   }, [onFerdig]);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-gray-50">
       {/* Header */}
       <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
         <Pressable onPress={onAvbryt} hitSlop={12}>
@@ -136,6 +136,6 @@ export function TegningsSkjermbilde({ prosjektId, onFerdig, onAvbryt }: Tegnings
         onAvbryt={() => {}}
         laster={bygningQuery.isLoading || tegningQuery.isLoading}
       />
-    </SafeAreaView>
+    </ModalFlate>
   );
 }

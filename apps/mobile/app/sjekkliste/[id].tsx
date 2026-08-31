@@ -16,6 +16,7 @@ import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, 
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
+import { ModalFlate } from "../../src/components/ModalFlate";
 import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
@@ -1170,7 +1171,7 @@ export default function SjekklisteUtfylling() {
 
       {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}
       <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }} edges={["top"]}>
+        <ModalFlate kanter={["top", "bottom"]} className="bg-white">
           {(() => {
             const aktivTegning = lokTempTegningId
               ? alleTegninger.find((t) => t.id === lokTempTegningId)
@@ -1338,7 +1339,7 @@ export default function SjekklisteUtfylling() {
               </View>
             );
           })()}
-        </SafeAreaView>
+        </ModalFlate>
       </Modal>
 
       {/* Malvelger for oppgave fra felt */}

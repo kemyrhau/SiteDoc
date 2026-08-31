@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, KeyboardAvoidingView, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ModalFlate } from "../ModalFlate";
 import { useTranslation } from "react-i18next";
 import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
@@ -223,7 +223,7 @@ export function FeltDokumentasjon({
             onEndreKommentar(lokalKommentar);
             settVisKommentarModal(false);
           }}>
-            <SafeAreaView className="flex-1 bg-white">
+            <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
               <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
                 className="flex-1"
@@ -253,7 +253,7 @@ export function FeltDokumentasjon({
                   className="flex-1 px-4 py-3 text-base text-gray-900"
                 />
               </KeyboardAvoidingView>
-            </SafeAreaView>
+            </ModalFlate>
           </Modal>
         </>
       )}

@@ -11,7 +11,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ModalFlate } from "./ModalFlate";
 import { ChevronDown, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import * as Location from "expo-location";
@@ -584,7 +584,7 @@ export function OpprettDokumentModal({
       onRequestClose={onLukk}
       onDismiss={håndterDismiss}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
+      <ModalFlate kanter={["top", "bottom"]} className="bg-white">
         {visSpinner ? (
           <View className="flex-1 items-center justify-center gap-3">
             <ActivityIndicator size="large" color="#1e40af" />
@@ -963,7 +963,7 @@ export function OpprettDokumentModal({
         </ScrollView>
         </KeyboardAvoidingView>
         )}
-      </SafeAreaView>
+      </ModalFlate>
     </Modal>
   );
 }
