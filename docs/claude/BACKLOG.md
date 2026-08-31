@@ -3165,6 +3165,77 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### 📋 REGRESJONSAUDIT mobil, bygg 44 → 31.08 — åtte fjernede funksjoner
+
+**Utløst av Kenneth 2026-08-31:** *«jeg sliter veldig med at Opus fikser noe → så forsvinner
+noe annet. Sjekk hva som er blitt borte siden bygg 44.»* Metode: 59 mobil-commits, kumulativ
+diff fil for fil + churn-analyse for funksjonalitet lagt til og fjernet *inne i* perioden.
+
+**Coworks vurdering: ingenting gjenopprettes blindt.** Sju av åtte er bevisste vedtak, og å
+reversere et vedtak uten å ta det opp igjen er nettopp den feilklassen
+[SAMARBEIDSREGLER § snudd vedtak](SAMARBEIDSREGLER.md) beskriver. Ett punkt hviler derimot på
+en **påstand** i stedet for en måling — det skal måles.
+
+| # | Fjernet | Commit | Vurdering |
+|---|---|---|---|
+| **A1** | Kommentar + bilde fra `location` og `drawing_position`; repeater-objektets tilbehør read-only | `ef8f1403` | 🔴 **MÅL PREMISSET** — se under |
+| **A2** | Lokal/offline PDF + in-app forhåndsvisning. `PdfForhandsvisning.tsx` og `TegningsCapture.tsx` slettet | `0188b6b6` | ⏸️ Bevisst arkitekturvedtak (F2 «fjern klient-utskrift», levert 20.08). **Reverseres ikke — vedtaket tas eventuelt opp på nytt.** Feltkonsekvens: uten dekning finnes ingen PDF |
+| **A3** | «Videresend» skjult for flytbundne dokumenter | `a50a53c7` | ✅ Riktig — serveren avviste den uansett |
+| **A4** | Georef-punktene (P1/P2/P3) på tegningen | `6bb82aa0` | 🟡 Vurder som toggle. Logikken lever, kun visningen er borte |
+| **A5** | Dato prefylles ikke i maler med værfelt | `7e200820` | ⏸️ Bevisst, knyttet til værflyten. Reverseres ikke isolert |
+| **A6** | Annotering JPEG q0.92 i stedet for tapsfri PNG | `2ef13845` | ✅ Løste pilot-blokkeren (3,4 MB → ~1 MB) |
+| **A7** | Sveip-ned lukker MalVelger | `28e55ed5` | ✅ Pris for Fabric-frys-fiksen |
+| **A8** | Debug-overlay i tegningsvisning | `dace662f` | ✅ Skulle aldri vært i prod |
+
+🔴 **A1 — påstanden som skal måles.** `RapportObjektRenderer.tsx:37-40` begrunner fjerningen
+med at det *«ikke fantes produksjonsdata»* på disse felttypene. Kenneth bruker lokasjon og
+tegningsposisjon daglig. **Spør databasen** (prod, `attachments`/`comments` mot felttypene)
+før dette står som avgjort. Er det data der, er A1 et tap ingen målte.
+
+**Avkreftet — ikke tap** (ført så ingen leter på nytt): oppgave-PDF lagt til og revertert
+*inne i* perioden (netto null) · `TegningsVelger` urørt · endringsloggen bevart og utvidet ·
+HMS-flatene urørt · kamera/opplasting kun tillegg · `prosjektId`-propen fjernet var en
+**fiks** (den ble aldri threadet ned → tom tegningsvelger).
+
+### 🟡 Halvdøde mekanismer funnet i samme audit (ingen er regresjoner)
+
+- **`lokasjoner.tsx:474` SKRIVER sist brukte tegning, men leser den aldri.** Kun
+  `tegninger.tsx:100` leser. Minnet oppfører seg derfor ulikt avhengig av hvor du kom fra.
+  Predaterer bygg 44 (`git log -S` gir kun `a46d58e9`, `6a25946f`).
+- **`harAktivLocation`** (`OpprettDokumentModal.tsx:59`, `MalVelger.tsx:29`) — prop lagt til i
+  `78fbc3b0`, **ingen sender den, ingen leser den**. Location-tvangen den skulle bære finnes
+  ikke.
+- **`lasterBygningId` / `lasterProsjektId`** — eksponert fra kontekstene, **0 brukere**.
+- **Død meny i Lokasjoner** (`:440-458`): «Tegningsinformasjon», «Forbered til offline»,
+  «Oppdatere oppgaver» — alle tre grenene er tomme. Sannsynligvis her `erTegningCachet` og
+  `hentTegningLokalSti` (0 brukere) skulle vært brukt.
+- **`B1` mistanke:** `OpprettDokumentModal:553-578` beregner `visSpinner`, men returnerer
+  `null` før render for to av tre tilfeller → ingen visuell tilbakemelding i 1–2 s ved
+  auto-opprettelse.
+
+### 🔴 PLANLAGT AUDIT: de 219 commitene UTENFOR `apps/mobile` (Kenneth-bestilt 2026-08-31)
+
+**Blindsonen mobil-auditen selv flagget.** Arkiv/PDF-rendring, flyt-rettigheter og
+dokumentgenerering bor på **serveren** — en mobilflate kan ha mistet oppførsel uten at én
+linje i `apps/mobile` er rørt. A2 (lokal PDF → `arkiv.rendr`) er nettopp et slikt tilfelle,
+og det er sannsynligvis flere.
+
+**Skal kjøres av en dedikert Opus i eget worktree.** Metode, ferdig utledet:
+
+1. Range: `9ee8242c..<develop-tip>` for `apps/api packages/shared packages/pdf packages/db`.
+2. **Samme metode som mobil-auditen** — kumulativ diff fil for fil, pluss churn-analyse
+   (sum slettede linjer per commit vs. netto per fil) for å fange det som ble lagt til og
+   fjernet igjen inne i perioden. Ren endepunkt-diff skjuler den klassen.
+3. Se etter: slettede tRPC-prosedyrer · innsnevrede Zod-input · fjernede `include`/`select`-felt
+   som klienten fortsatt leser · vakter som ble strengere uten at UI vet det · endrede
+   returtyper.
+4. 🔴 **Kryssjekk mot mobil:** for hver fjernet/endret API-flate, grep `apps/mobile` etter
+   kallstedet. Et felt som forsvant fra en respons gir `undefined` på mobil — stille.
+5. Rapporter i samme form: beviselig fjernet · mistanke · ubrukte mekanismer · avkreftet.
+
+**Forventet størrelse:** 219 commits over fire pakker. Én økt rekker det neppe — ordren skal
+be om at agenten sier hvor langt den kom framfor å hoppe over noe stille.
+
 ### 🔴 `SafeAreaView` anvender 0 padding inne i `presentationStyle="fullScreen"` (målt 2026-08-31)
 
 **Simulator-måling, iPhone 16 Plus / iOS 18.4** (`relay/inbox-simulator-safearea-maaling.md`
