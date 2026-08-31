@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Pressable, Modal, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Target, X, Check } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
 import type { TegningPosisjonVerdi } from "@sitedoc/shared";
@@ -46,6 +46,10 @@ export function TegningPosisjonObjekt({
   // Samme kilde som TegningsSkjermbilde/FeltDokumentasjon bruker.
   const { valgtProsjektId } = useProsjekt();
   const posisjon = verdi as TegningPosisjonVerdi | null;
+  // useSafeAreaInsets måler riktig topp/bunn inne i presentationStyle="fullScreen";
+  // <SafeAreaView edges> anvender 0 der (simulator-målt 2026-08-31), derfor padder vi
+  // fra hooken på en vanlig View. Kun målt for DENNE modalen — se BACKLOG-spor.
+  const insets = useSafeAreaInsets();
   const [modalÅpen, setModalÅpen] = useState(false);
   const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(posisjon?.drawingId ?? null);
@@ -156,7 +160,7 @@ export function TegningPosisjonObjekt({
         onRequestClose={() => setModalÅpen(false)}
       >
         {modalÅpen ? (
-        <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
+        <View className="flex-1 bg-white" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
           <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
             <Pressable onPress={() => setModalÅpen(false)} hitSlop={12}>
               <X size={22} color="#374151" />
@@ -218,7 +222,7 @@ export function TegningPosisjonObjekt({
               laster={bygningQuery.isLoading || tegningQuery.isLoading}
             />
           )}
-        </SafeAreaView>
+        </View>
         ) : null}
       </Modal>
     </View>
