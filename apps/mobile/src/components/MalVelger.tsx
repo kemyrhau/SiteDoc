@@ -8,7 +8,7 @@ import {
   StyleSheet,
   BackHandler,
 } from "react-native";
-import { SafeAreaView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { X, ChevronDown, ChevronRight } from "lucide-react-native";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";

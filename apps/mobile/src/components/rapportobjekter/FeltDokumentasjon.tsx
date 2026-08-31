@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, KeyboardAvoidingView, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";

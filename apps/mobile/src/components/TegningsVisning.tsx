@@ -110,12 +110,10 @@ function byggHtml(
   }
   .gps-inner { width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2.5px solid #fff;box-shadow:0 0 6px rgba(59,130,246,0.5); }
   @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.3)} }
-  #debug { position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);color:#0f0;font:10px monospace;padding:4px;z-index:999; }
 </style></head><body>
 <div id="container">
   <img id="tegning" src="${tegningUrl}" />
 </div>
-<div id="debug">Laster...</div>
 <script>
 var markører = ${markørData};
 var omrader = ${omradeData};
@@ -152,10 +150,6 @@ function plasser() {
   var dispW = img.clientWidth;
   var dispH = img.clientHeight;
   if (dispW <= 0 || dispH <= 0) return;
-
-  document.getElementById('debug').textContent =
-    'Bilde: ' + img.naturalWidth + 'x' + img.naturalHeight +
-    ' | Zoom: ' + currentZoom.toFixed(1) + 'x';
 
   document.querySelectorAll('.pin,.gps,#omradeSvg,.omrade-navn').forEach(function(e){e.remove()});
   var container = document.getElementById('container');

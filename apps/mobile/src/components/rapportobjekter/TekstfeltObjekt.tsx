@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, Modal, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
