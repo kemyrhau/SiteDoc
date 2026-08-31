@@ -16,8 +16,8 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | Ledig. `feat/reg-fase2` (`578e2b67`) **merget til develop 30.08** (`355c200c`). Env symlinket fra hovedtreet | Ingen. Neste: `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (kjøres sammen) |
-| **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig. O12 + faggruppe-slettevakt levert og merget 30.08. **Env symlinket fra hovedtreet 30.08** (manglet — ga `MissingSecret` på dev-start) | Ingen. Kontakt-modalen venter fabel-sesjonen (Kenneth-vedtak 30.08) |
+| **simulator** | `SiteDoc-simulator` | Tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | **`relay/inbox-simulator-safearea-maaling.md`** — MÅLING, ingen kode. 🔴 Må måle FØR `fix/tegningsposisjon-felle` merges, ellers mister vi grunnlinjen |
+| **kontrollplan** | `SiteDoc-kontrollplan` | O12 + faggruppe-slettevakt levert og merget 30.08. **Env symlinket fra hovedtreet 30.08** | 🔴 **`relay/inbox-tegningsposisjon-felle.md`** — branch `fix/tegningsposisjon-felle`. **PROD-FELLE**: modalen kan ikke lukkes, bruker må drepe appen |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
