@@ -11,7 +11,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
-import { SafeAreaView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronDown, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import * as Location from "expo-location";

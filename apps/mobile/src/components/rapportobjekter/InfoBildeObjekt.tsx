@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { View, Text, Image, TouchableOpacity, Modal, ScrollView, SafeAreaView, useWindowDimensions } from "react-native";
+import { View, Text, Image, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { X } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
 import { hentWebUrl } from "../../config/auth";

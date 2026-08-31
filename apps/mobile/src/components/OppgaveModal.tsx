@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { MapPin, ChevronDown, ArrowRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../lib/trpc";
