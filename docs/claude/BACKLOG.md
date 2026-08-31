@@ -3373,6 +3373,35 @@ Trekk ut én hjelper med et navn som beskriver hva den faktisk svarer på. **Ikk
 — den er en rotårsaksfiks, og scope-utvidelse er grunnen til at O12 bare ble halvveis
 utført i mai.
 
+### 🟢 Modulmodellen — V1/V2/V3 VEDTATT 2026-08-31, venter fabel-revisjon på to punkter
+
+**Designnotat:** [modulhierarki-designnotat-fabel-2026-08-31.md](../redesign/modulhierarki-designnotat-fabel-2026-08-31.md)
+
+**Vedtatt av Kenneth 2026-08-31:**
+- **V1** — timer-familien er **ett kjøp** (Timer) med Maskin og Varelager som **underbrytere
+  på firmanivå**, default på. Stat/kommune dekkes av å ikke kjøpe Timer.
+- **V2** — per-ansatt begrensning finnes, men som **unntaksliste på modulkortet**
+  (firma/moduler → «Begrens tilgang»), aldri som felt på ansattkortet. 🔴 **Det er dette som
+  løser 50-ansatte-problemet:** nytt kjøp krever null kortredigeringer, kun unntak føres.
+  **`modulNokler` gjeninnføres ikke — REG fase 2 er endelig avblokkert.**
+- **V3** — prosjektbryteren er svaret på 3D-eksempelet: 3D slås på per prosjekt, under
+  firmataket.
+
+**Effektiv tilstand (firmamoduler):** `firmatak ∧ underbryter ∧ prosjektbryter ∧ ikke-unntatt`.
+
+🔴 **VENTER fabel-revisjon på to målte korreksjoner** (`relay/fabel-modulhierarki-v2-ja-og-to-korreksjoner.md`):
+
+1. **Formelen gjelder kun firmamoduler.** `FirmamodulSlug` = `timer|maskin|varelager`;
+   `PROSJEKT_MODULER` (`packages/shared/src/types/index.ts:476`) = ni andre slugs med **null
+   overlapp** og **uten firmatak**. Notatets «viser kun moduler med aktivt firmatak» ville
+   grået ut HMS, 3D, Økonomi, PSI, Kontrollplan, Dokumentsøk, Oversettelse, Godkjenning og
+   Befaringsrapport. Prosjektmoduler har formelen `prosjektbryter` alene.
+2. **Standalone-prosjekter har intet tak.** `ProjectModule.organizationId` er nullbar
+   (`schema.prisma:1495`) og standalone er en gyldig permanent tilstand. «Aldri lest alene»
+   trenger en carve-out for prosjekter uten eier-firma.
+
+**Ingen ordre skrives før revisjonen foreligger.**
+
 ### ❓ Modulmodellen — hva en modul ER, og hva som skjer når en mangler (2026-08-30)
 
 **Blokkerer:** `modulNokler` på ansattkortet (tatt ut av REG fase 2 2026-08-30).
