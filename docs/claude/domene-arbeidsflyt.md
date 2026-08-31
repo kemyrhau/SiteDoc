@@ -290,6 +290,49 @@ fire ting før koding:
 3. Hva sier varselet konkret — hvilket felt, hvilken verdi, hva ble beholdt?
 4. Hvor ligger regelen? Delt kilde, aldri kopi per flate.
 
+## 🔴 BINDENDE VEDTAK: mangler prosjektet modulen, skal telefonen ikke tilby den (Kenneth 2026-08-31)
+
+> **Kenneth 2026-08-31:** *«Dersom et prosjekt ikke har en modul → da bør ikke telefonen
+> tilby modulen»* — og presisert samme dag: *«eller firma»*.
+
+**Dette snur dagens praksis.** Mobilen bruker i dag «soft-skjul»: seksjoner forsvinner når
+**datalisten er tom**, ikke når **modulen er av**. Konsekvensen er at «ikke kjøpt» og «ingen
+data ennå» ser helt like ut — dokumentert i
+[modulmodell-utredning-2026-08-30.md](modulmodell-utredning-2026-08-30.md), der målingen viste
+at `vareforbruk.ts` er det **eneste** stedet i kodebasen som skiller de to.
+
+**Regelen fra nå: BEGGE nivåer må være aktive.** Gatingen leser modultilstand, ikke om det
+tilfeldigvis finnes rader:
+
+| Nivå | Tabell | Betydning |
+|---|---|---|
+| Firma | `OrganizationModule` (`schema.prisma:282`) | **Kjøpet** — har firmaet modulen i det hele tatt |
+| Prosjekt | `ProjectModule` (`schema.prisma:1491`) | **Bryteren** — er den slått på for dette prosjektet |
+
+🔴 **Målt luke 2026-08-31: firmanivået er ikke med i gaten.** `krevMaskinAktivert`
+(`services/maskin/moduleGate.ts:40`) slår kun opp i `ProjectModule` — `OrganizationModule`
+leses aldri. Det er derfor Kenneth kunne registrere timer mens Timer sto som «Aktiver»
+(altså av) på `/dashbord/firma/moduler`.
+
+**En modul som ikke er kjøpt skal ikke kunne slås på per prosjekt heller.** Firmanivået er
+taket; prosjektnivået er bryteren under taket.
+
+**Belegg fra felt (Kenneth 2026-08-31):** Timer sto som «Aktiver» (altså av) i firmamoduler,
+mens han samtidig registrerte timer på telefonen og innstillingssiden viste tilgangsvalg for
+tre moduler som ikke var på. Tre flater, tre ulike svar på om modulen finnes.
+
+### 🔴 Fella som må måles FØR dette bygges
+
+`TimerSyncProvider.tsx:104-108` henter **maskinkatalogen i samme `Promise.all` som
+timer-katalogen**. Det virker i dag kun fordi `equipment.list` **ikke** er modul-gatet.
+
+**Legger noen `krevMaskinAktivert` på den prosedyren, feiler hele timer-synken på mobil for
+et firma som har Timer uten Maskin.** Det er den eneste målte veien der «maskin mangler»
+faktisk kan velte timer, og den er én linje unna.
+
+Gating skal derfor skje **i UI-laget mot modultilstand**, ikke ved å gate katalog-prosedyrene
+serverside. Katalogen kan gjerne svare tomt — det er visningen som skal la være å spørre.
+
 ## 🔴 BINDENDE VEDTAK: å avslutte et prosjekt er å FRYSE det, ikke å slette noe (Kenneth 2026-08-30)
 
 > **Kenneth 2026-08-30:** *«Hvordan kan vi avslutte et prosjekt når oppgaver ikke kan slettes?
