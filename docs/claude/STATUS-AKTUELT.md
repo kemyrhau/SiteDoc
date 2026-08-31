@@ -16,8 +16,8 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | Ledig. `feat/reg-fase2` (`578e2b67`) **merget til develop 30.08** (`355c200c`). Env symlinket fra hovedtreet | Ingen. Neste: `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (kjøres sammen) |
-| **simulator** | `SiteDoc-simulator` | Ledig, tre rent (ingen commit/branch). Safe-area-målingen levert 31.08. 🔴 **Tunnel 3301 er NEDE** (`ssh -N -L 3301:localhost:3301 server-ny`). 🔴 **Release-appen på simulatoren er OVERSKREVET** med et lokalt DEV-client-bygg — må reinstalleres for ekte release-atferd. Metro 8081 kjører fra et annet vindu | Ingen |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig. O12 + faggruppe-slettevakt (30.08) + tegningsposisjon-fella (31.08, `20df827f`) levert og merget. **Env symlinket fra hovedtreet** | Ingen. Venter EAS-bygg 47 |
+| **simulator** | `SiteDoc-simulator` | Tre rent. Safe-area-målingen 31.08 var utslagsgivende — coworks tre hypoteser var alle feil. 🔴 **Tunnel 3301 NEDE** (`ssh -N -L 3301:localhost:3301 server-ny`). 🔴 **Release-appen OVERSKREVET** av DEV-client-bygg. Metro 8081 fra annet vindu | **`relay/inbox-simulator-pagesheet.md`** — måler 2 pageSheet-modaler. Avgjør om 15 flater skal røres |
+| **kontrollplan** | `SiteDoc-kontrollplan` | O12 + faggruppe-slettevakt + tegningsposisjon-fella levert. **Env symlinket** | 🔴 **`relay/inbox-modalflate-systemfiks.md`** — branch `fix/modalflate`. Delt komponent + lint-forbud. Retter regresjonen i bygg 47 |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
@@ -422,8 +422,30 @@ sekundene og et ubekreftet modalvalg. Ingen save-on-background finnes.
 «Bekreft» ligge i det døde båndet — brukeren kom seg ut, men kunne fortsatt ikke sette en
 posisjon, som var Kenneths opprinnelige klage. Inset-fiksen kom i `20df827f`.
 
-**Gjenstår:** kartlegg de øvrige fullScreen-modalene ([BACKLOG](BACKLOG.md)). **Ikke rullet
-ut bredt** — én skjerm er målt, resten er hypotese.
+### 🔴 REGRESJON i samme bygg (47) — vi ødela fire skjermer mens vi fikset én
+
+Kenneth testet bygg 47 og bekreftet at tegningsposisjonen virker: *«de nye plassene knappene
+har fått i fiksen fungerer svært bra»*. **Men tekstfelt-modalen var nå ødelagt** — «Ferdig»
+under Dynamic Island, vinduet låst.
+
+**Årsak, målt:** importbyttet erstattet React Natives innebygde `SafeAreaView` med
+context-varianten i sju filer. **Fire av dem er fullScreen-modaler**, der context-varianten
+anvender 0 padding: `TekstfeltObjekt` · `InfoBildeObjekt` · `FeltDokumentasjon` ·
+`OpprettDokumentModal`. De virket i bygg 46.
+
+🔴 **Rotårsaken er coworks rekkefølge, ikke koden.** Importbyttet ble bestilt i **samme runde**
+som fella — før simulator-målingen forelå. Ordren sa «mål hver fil»; det som ikke var målt
+ennå var at komponenten svikter i en hel modal-klasse. **Mål først, bestill så** gjelder også
+når endringen ser triviell ut.
+
+**Kartlagt 2026-08-31:** 9 fullScreen-modaler rammet (4 av oss, 5 fra før) · 15 pageSheet
+umålt · 1 fikset. 🔴 **`<Modal>` uten `presentationStyle` ER fullScreen på iOS** — derfor er
+`TekstfeltObjekt.tsx:46` rammet uten å se sånn ut.
+
+**Systemfiks bestilt** (Kenneth: *«ikke lapp sammen — lag en løsning som fungerer over alle
+flater»*): delt `ModalFlate`-komponent + `no-restricted-imports`-lint som forbyr
+`SafeAreaView` i `apps/mobile`. `relay/inbox-modalflate-systemfiks.md`.
+pageSheet måles parallelt før de røres — `relay/inbox-simulator-pagesheet.md`.
 
 ### 🟢 TEST-DEPLOY 30.08 (`24bccbba`) — fire runder + REG fase 2-migreringen
 

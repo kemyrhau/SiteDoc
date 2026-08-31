@@ -42,6 +42,16 @@ cd apps/mobile && eas env:list --environment preview   # test-profilen laster pr
 Differansen er en variabel appen leser som tom streng. **Symptomet er ikke en tydelig feil** —
 det blir en 401, en 404 eller en tom skjerm langt inne i appen, og det koster et bygg å oppdage.
 
+🔴 **På `production` er differansen ALLTID to variabler, og det er RIKTIG** (målt 2026-08-31).
+`EXPO_PUBLIC_ENABLE_TEST_LOGIN` og `EXPO_PUBLIC_DEV_LOGIN_SECRET` skal **ikke** finnes der:
+`auth.ts:19` er `=== "true"`, så fravær gir `false` og slår av test-innlogging i prod, og
+`devLoginSecret` faller til `""` i en sti som da er avslått. `test`-profilen har flagget
+(det var fiksen 17.08); `production` skal ikke ha det.
+
+**Sjekken er altså laget for test-profilen.** På production betyr «tom differanse» at noe er
+galt, ikke omvendt. Cowork var 2026-08-31 i ferd med å stoppe et bygg på denne differansen —
+mål hvordan variabelen LESES før du kaller den en mangel.
+
 Konkret utslag 2026-08-17: koden leste seks variabler, test-profilen satte fem.
 `EXPO_PUBLIC_DEV_LOGIN_SECRET` manglet → dev-login ga 401
 `DEV_LOGIN_SECRET_MANGLER_ELLER_FEIL` selv om serveren var korrekt satt opp.
