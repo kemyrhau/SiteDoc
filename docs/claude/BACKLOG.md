@@ -3178,7 +3178,7 @@ en **påstand** i stedet for en måling — det skal måles.
 
 | # | Fjernet | Commit | Vurdering |
 |---|---|---|---|
-| **A1** | Kommentar + bilde fra `location` og `drawing_position`; repeater-objektets tilbehør read-only | `ef8f1403` | 🔴 **MÅL PREMISSET** — se under |
+| **A1** | Kommentar + bilde fra `location` og `drawing_position`; repeater-objektets tilbehør read-only | `ef8f1403` | ✅ **RIKTIG — Kenneth 2026-08-31.** Se under |
 | **A2** | Lokal/offline PDF + in-app forhåndsvisning. `PdfForhandsvisning.tsx` og `TegningsCapture.tsx` slettet | `0188b6b6` | ⏸️ Bevisst arkitekturvedtak (F2 «fjern klient-utskrift», levert 20.08). **Reverseres ikke — vedtaket tas eventuelt opp på nytt.** Feltkonsekvens: uten dekning finnes ingen PDF |
 | **A3** | «Videresend» skjult for flytbundne dokumenter | `a50a53c7` | ✅ Riktig — serveren avviste den uansett |
 | **A4** | Georef-punktene (P1/P2/P3) på tegningen | `6bb82aa0` | 🟡 Vurder som toggle. Logikken lever, kun visningen er borte |
@@ -3187,10 +3187,21 @@ en **påstand** i stedet for en måling — det skal måles.
 | **A7** | Sveip-ned lukker MalVelger | `28e55ed5` | ✅ Pris for Fabric-frys-fiksen |
 | **A8** | Debug-overlay i tegningsvisning | `dace662f` | ✅ Skulle aldri vært i prod |
 
-🔴 **A1 — påstanden som skal måles.** `RapportObjektRenderer.tsx:37-40` begrunner fjerningen
-med at det *«ikke fantes produksjonsdata»* på disse felttypene. Kenneth bruker lokasjon og
-tegningsposisjon daglig. **Spør databasen** (prod, `attachments`/`comments` mot felttypene)
-før dette står som avgjort. Er det data der, er A1 et tap ingen målte.
+🔴 **A1 — AVGJORT, og begrunnelsen i koden er den svakeste av to.**
+
+`RapportObjektRenderer.tsx:37-40` begrunner fjerningen med at det *«ikke fantes
+produksjonsdata»* på disse felttypene. Cowork flagget den som en påstand som burde måles —
+Kenneth avgjorde det på domenet i stedet:
+
+> **Kenneth 2026-08-31:** *«denne skal ikke reverseres. Denne produserte støy i felter som
+> ikke skal kommenteres eller ha ekstra vedlegg.»*
+
+**Det er den holdbare begrunnelsen.** En lokasjon og en tegningsposisjon er *hvor* noe er —
+de bærer ikke observasjoner. Kommentaren og bildet hører på feltet som beskriver funnet.
+
+⚠️ **Ikke mål prod-data på dette.** Datatellingen kan falsifiseres (finner noen én rad, ser
+det ut som fjerningen var feil), og da ville noen «gjenopprette» støyen i god tro.
+Domenegrunnen er uavhengig av hva som ligger i basen.
 
 **Avkreftet — ikke tap** (ført så ingen leter på nytt): oppgave-PDF lagt til og revertert
 *inne i* perioden (netto null) · `TegningsVelger` urørt · endringsloggen bevart og utvidet ·
