@@ -13,6 +13,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
 | [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
+| [docs/claude/kvalitetssikring-plan.md](docs/claude/kvalitetssikring-plan.md) | **🟢 VEDTATT 2026-08-31:** fire lag mot regresjoner. Lag 1 = gjør feilklassen ulovlig (lint) · lag 2 = simulator-røykliste FØR hvert EAS-bygg · lag 3 = slå på 29 ubrukte api-tester. Utløst av tre regresjoner på én dag som alle kompilerte grønt |
 | [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Deploy-bash, `.env`-krav, branching, mobil reload, prod-lærdommer |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
 | [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
