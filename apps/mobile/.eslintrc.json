@@ -1,4 +1,20 @@
 {
   "extends": ["../../.eslintrc.json", "plugin:react-hooks/recommended"],
-  "plugins": ["react-hooks"]
+  "plugins": ["react-hooks"],
+  "rules": {
+    "no-restricted-imports": ["error", {
+      "paths": [
+        {
+          "name": "react-native-safe-area-context",
+          "importNames": ["SafeAreaView"],
+          "message": "Bruk <ModalFlate> i modaler, eller useSafeAreaInsets() direkte. SafeAreaView anvender 0 padding inne i <Modal> (målt 2026-08-31)."
+        },
+        {
+          "name": "react-native",
+          "importNames": ["SafeAreaView"],
+          "message": "SafeAreaView fra react-native er deprecated og en no-op på Android. Bruk <ModalFlate> i modaler, eller useSafeAreaInsets() direkte."
+        }
+      ]
+    }]
+  }
 }

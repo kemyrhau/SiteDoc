@@ -8,11 +8,11 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  SafeAreaView as RNSafeAreaView,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ModalFlate } from "../../src/components/ModalFlate";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft,
@@ -980,7 +980,7 @@ export default function OppgaveDetalj() {
 
       {/* Tittel-redigeringsmodal */}
       <Modal visible={visTittelModal} animationType="slide" onRequestClose={() => settVisTittelModal(false)}>
-        <RNSafeAreaView className="flex-1 bg-white">
+        <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             className="flex-1"
@@ -1005,12 +1005,12 @@ export default function OppgaveDetalj() {
               className="flex-1 px-4 py-3 text-base text-gray-900"
             />
           </KeyboardAvoidingView>
-        </RNSafeAreaView>
+        </ModalFlate>
       </Modal>
 
       {/* Beskrivelse-redigeringsmodal */}
       <Modal visible={visBeskrivelseModal} animationType="slide" onRequestClose={() => settVisBeskrivelseModal(false)}>
-        <RNSafeAreaView className="flex-1 bg-white">
+        <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             className="flex-1"
@@ -1037,12 +1037,12 @@ export default function OppgaveDetalj() {
               className="flex-1 px-4 py-3 text-base text-gray-900"
             />
           </KeyboardAvoidingView>
-        </RNSafeAreaView>
+        </ModalFlate>
       </Modal>
 
       {/* Dialog-modal */}
       <Modal visible={visDialogModal} animationType="slide" onRequestClose={() => settVisDialogModal(false)}>
-        <RNSafeAreaView className="flex-1 bg-white">
+        <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             className="flex-1"
@@ -1072,7 +1072,7 @@ export default function OppgaveDetalj() {
               className="flex-1 px-4 py-3 text-base text-gray-900"
             />
           </KeyboardAvoidingView>
-        </RNSafeAreaView>
+        </ModalFlate>
       </Modal>
     </SafeAreaView>
   );

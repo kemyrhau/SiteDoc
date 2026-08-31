@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Image, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ModalFlate } from "../ModalFlate";
 import { X } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
 import { hentWebUrl } from "../../config/auth";
@@ -33,7 +33,7 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
 
       <Modal visible={zoom} transparent animationType="fade">
         <View className="flex-1 bg-black">
-          <SafeAreaView className="flex-1">
+          <ModalFlate kanter={["top", "bottom"]} className="flex-1">
             <View className="flex-row items-center justify-end px-4 py-3">
               <TouchableOpacity onPress={() => setZoom(false)} hitSlop={12}>
                 <X size={22} color="#ffffff" />
@@ -51,7 +51,7 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
                 resizeMode="contain"
               />
             </ScrollView>
-          </SafeAreaView>
+          </ModalFlate>
         </View>
       </Modal>
     </>
