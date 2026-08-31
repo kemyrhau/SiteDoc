@@ -16,8 +16,8 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 | Agent | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | Ledig. `feat/reg-fase2` (`578e2b67`) **merget til develop 30.08** (`355c200c`). Env symlinket fra hovedtreet | Ingen. Neste: `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (kjøres sammen) |
-| **simulator** | `SiteDoc-simulator` | Tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | **`relay/inbox-simulator-safearea-maaling.md`** — MÅLING, ingen kode. 🔴 Må måle FØR `fix/tegningsposisjon-felle` merges, ellers mister vi grunnlinjen |
-| **kontrollplan** | `SiteDoc-kontrollplan` | O12 + faggruppe-slettevakt levert og merget 30.08. **Env symlinket fra hovedtreet 30.08** | 🔴 **`relay/inbox-tegningsposisjon-felle.md`** — branch `fix/tegningsposisjon-felle`. **PROD-FELLE**: modalen kan ikke lukkes, bruker må drepe appen |
+| **simulator** | `SiteDoc-simulator` | Ledig, tre rent (ingen commit/branch). Safe-area-målingen levert 31.08. 🔴 **Tunnel 3301 er NEDE** (`ssh -N -L 3301:localhost:3301 server-ny`). 🔴 **Release-appen på simulatoren er OVERSKREVET** med et lokalt DEV-client-bygg — må reinstalleres for ekte release-atferd. Metro 8081 kjører fra et annet vindu | Ingen |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig. O12 + faggruppe-slettevakt (30.08) + tegningsposisjon-fella (31.08, `20df827f`) levert og merget. **Env symlinket fra hovedtreet** | Ingen. Venter EAS-bygg 47 |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
@@ -227,33 +227,22 @@ Denne tavla er sannheten; statusfilene oppdateres av agentene selv og drifter.
 
 > Ordre 1 ([SAMARBEIDSREGLER § Cowork leveranse-ansvar](SAMARBEIDSREGLER.md#cowork-leveranse-ansvar-ordre-2026-07-14)): cowork sporer EAS-bygg her. Ved **12 bygg/mnd** → stopp + sjekk klar-tilstand + flagg i status før nytt bygg fyres. Dato/# bekreftes mot `eas build:list`.
 
-🔴 **August 2026 — 12 bygg brukt (av ~15), ~3 igjen. Reset 1. sep.**
-**KORRIGERT 2026-08-31 mot `eas build:list` — telleren sa «2 brukt, ~13 igjen».**
+🔴 **DENNE TABELLEN ER FJERNET 2026-08-31 — den var et duplikat som drev.**
 
-Feilen: kun `production`-byggene ble ført. **De åtte `test`-profil-byggene 17.–19.08 teller
-også mot kvoten** — EAS' fri plan teller bygg per plattform, ikke per profil. Telleren
-underrapporterte med en faktor 6, og Kenneth planla 4 bygg på den 31.08 i den tro at det var
-rikelig. **Vi står på 12-terskelen der [SAMARBEIDSREGLER § Cowork leveranse-ansvar](SAMARBEIDSREGLER.md)
-sier cowork skal stoppe opp og flagge før nytt bygg fyres.**
+**Kanonisk byggteller: [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).**
+Ikke før tall her; les dem der, og les dem der fra `eas build:list`.
 
-| # | Dato | Commit | Profil | Formål |
-|---|------|--------|--------|--------|
-| 43 | 2026-08-08 | `6d9a7c91` | production | HMS 5a+5b + utlegg U1. **Bygget OK, men aldri sluppet til testere** |
-| 44 | 2026-08-09 | `9ee8242c` | production | **Bunt 44 → TestFlight.** ⚠️ Telleren oppga `2240f9f6` — feil commit, rettet mot `build:list` |
-| — | 2026-08-17 17:49 | `32120cb1` | test | **errored** (feilet etter start → teller trolig) |
-| — | 2026-08-17 18:07 | `32120cb1` | test | internal |
-| — | 2026-08-17 18:34 | `32120cb1` | test | internal |
-| — | 2026-08-17 19:04 | `f4c40185` | test | internal |
-| — | 2026-08-18 23:08 | `0b8f1137` | test | internal |
-| — | 2026-08-19 09:37 | `4c06948d` | test | internal |
-| — | 2026-08-19 13:23 | `aa2c1039` | test | internal |
-| — | 2026-08-19 16:54 | `97fb784a` | test | internal |
-| 45 | 2026-08-19 19:38 | `8fdd82bc` | production | TestFlight bygg 45 |
-| 46 | 2026-08-28 | `5605775d` | production | **Bygget Kenneth kjører 31.08** — tegningsposisjon-fella ble funnet her |
+**Hva som skjedde:** tavla førte kun `production`-byggene og sa «2 brukt, ~13 igjen» for
+august. Veilederen var **allerede rettet 28.08** til «12 bygg, 11 tellende, ~4 igjen» — men
+cowork leste bare tavla, korrigerte den mot `eas build:list`, og kom til ~3 igjen fordi det
+errorede bygget 17.08 ble regnet som brukt. Veilederen visste at det var en CocoaPods 429 fra
+EAS-infra som eksplisitt *«does not count towards usage»*.
 
-⚠️ **Usikkerhet:** om det errorede bygget 17.08 teller. Det startet 17:49 og feilet 17:52 —
-altså etter byggestart, som per 43→44-lærdommen er det som utløser telling. Regnet som brukt.
-Er det ikke det, er tallet 11 av ~15.
+**To registre for samme tall, og begge tok feil på hver sin måte.** Kenneth 2026-08-30:
+*«vi kan aldri duplisere hverken UI eller kode»* — det gjelder tellere også. Tavla peker nå,
+og teller ikke.
+
+**Status 2026-08-31: 12 bygg, 11 tellende, ~4 igjen. Reset 1. september.**
 
 **Lærdom 43→44:** to mislykkede fyringsforsøk på 43 brente **null kvote** — begge feilet under credential-validering før byggestart. Første: `~/.zshrc:17` manglet linjeskift mellom to `export`-linjer → `Invalid Apple Team Type: INDIVIDUALexport`. Andre: Apple 403 «This provider does not exist» da de nå korrekt parsede `EXPO_APPLE_*`-variablene ble sendt i stedet for EAS' lagrede credentials. Kvote telles først når bygget faktisk starter.
 
@@ -403,6 +392,38 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
+
+### 🔴 PROD-FELLE lukket 31.08 (`73b30e71`) — tegningsposisjon-modalen kunne ikke lukkes
+
+**Kenneth i felt på TestFlight-bygg 46 (`5605775d`):** *«eneste måten å komme ut av tegning →
+avslutte og restarte appen»*. Rammet alle som åpnet et `drawing_position`-felt i en repeater
+på iPhone med Dynamic Island — A.Markussen i produksjon.
+
+**Mekanismen, målt på simulator (iPhone 16 Plus / iOS 18.4):** `useSafeAreaInsets()` gir
+korrekt `top=59` inne i `<Modal presentationStyle="fullScreen">`, men `<SafeAreaView>`
+anvender **0** padding der. Headeren rendret på y≈32–54, inne i det 59 px høye island-båndet.
+`idb ui tap` på X-en ×3 lukket ikke; tap rett under båndet traff umiddelbart. Både «Lukk» og
+«Bekreft» var utenfor rekkevidde.
+
+🔴 **Cowork gjettet på tre mekanismer — alle tre var feil** (manglende provider · kontekst
+krysser ikke modalen · insets er null). Målingen fant den fjerde. En fiks skrevet på
+hypotesene ville bommet; runden var verdt kostnaden.
+
+**Levert (`73b30e71`):** «Lukk» i bunnlinjen (utgang uavhengig av insets) · indre X lukker nå
+hele modalen · `SafeAreaView` byttet mot `View` + `useSafeAreaInsets()`-padding ·
+prod-debug-linjen `Bilde: WxH | Zoom: Nx` fjernet fra WebView-en · sju filer rettet fra
+React Natives innebygde `SafeAreaView` til context-varianten.
+
+**Datatap målt, ikke antatt:** en påbegynt repeater-rad **overlever** app-drap (autolagring
+til SQLite, 2 s debounce i `useSjekklisteSkjema.ts:405-410`). Tapt går kun de siste ≤2
+sekundene og et ubekreftet modalvalg. Ingen save-on-background finnes.
+
+⚠️ **Cowork-gaten sendte første leveranse tilbake.** `dace662f` fjernet fella, men lot
+«Bekreft» ligge i det døde båndet — brukeren kom seg ut, men kunne fortsatt ikke sette en
+posisjon, som var Kenneths opprinnelige klage. Inset-fiksen kom i `20df827f`.
+
+**Gjenstår:** kartlegg de øvrige fullScreen-modalene ([BACKLOG](BACKLOG.md)). **Ikke rullet
+ut bredt** — én skjerm er målt, resten er hypotese.
 
 ### 🟢 TEST-DEPLOY 30.08 (`24bccbba`) — fire runder + REG fase 2-migreringen
 

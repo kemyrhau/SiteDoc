@@ -241,6 +241,21 @@ Ikke et regime — et lite problem som håndteres når det oppstår. Må noe lik
 svar, skriv `TILLEGG til ordren om X` eller `ERSTATTER ordren om X` i første linje. Og
 cowork spør ikke om lov til å sende; cowork skriver ordren.
 
+🔴 **`git checkout -B <branch>` gis ÉN gang — aldri gjentatt** (lærdom 2026-08-31).
+Regelen over sier at gjentakelse er gratis og leting er dyrt. **Det gjelder ikke `-B`.**
+`-B` *tilbakestiller* en eksisterende branch til startpunktet.
+
+Cowork ga `git checkout -B fix/tegningsposisjon-felle origin/develop` i to påfølgende
+meldinger. Kenneth kjørte den første, kontrollplan committet `dace662f`, og så kjørte han den
+andre — som flyttet branchen tilbake og kastet commiten ut av den lokale ref-en. Agenten fant
+et tre der arbeidet hans så ut til å være borte.
+
+Det gikk bra fordi han **hadde pushet** (origin holdt commiten) og fordi han rebaset i stedet
+for å gjette. Uten push hadde runden vært tapt.
+
+**Skal oppsettet gjentas etter at arbeidet er startet:** `git checkout <branch>` uten `-B`,
+eller `git fetch && git status` for å se hvor treet står. `-B` hører kun til fase 1 (ÅPNE).
+
 🔴 **Aldri referer til en kommando i en tidligere melding** (Kenneth 2026-08-20:
 *«slutt å referere til blokker i forrige melding — du gir alle kommandoer tydelig»*).
 Formuleringer som «kjør merge-blokken fra forrige melding», «blokken over» eller «som

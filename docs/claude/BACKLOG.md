@@ -3165,6 +3165,36 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### 🔴 `SafeAreaView` anvender 0 padding inne i `presentationStyle="fullScreen"` (målt 2026-08-31)
+
+**Simulator-måling, iPhone 16 Plus / iOS 18.4** (`relay/inbox-simulator-safearea-maaling.md`
+§ RESULTAT — full tallgrunnlag der):
+
+| Målepunkt | `top` | `bottom` |
+|---|---|---|
+| Utenfor modal | 59 | 34 |
+| **Inne i fullScreen-modal** | **59** | **34** |
+| Referanseskjerm | 59 | 34 |
+
+🔴 **Hooken er riktig, komponenten er feil.** `useSafeAreaInsets()` returnerer korrekt `59`
+inne i modalen — konteksten krysser `<Modal>` som den skal. Men
+`<SafeAreaView edges={["top"]}>` **anvender 0 topp-padding** der. Bevis: første barn under
+`SafeAreaView` lå på y=10, ikke y=59. På en vanlig pushet skjerm virker `SafeAreaView` (y=84).
+
+**Konsekvensen er ikke kosmetisk.** Kontroller i det 59 px høye båndet er **ikke truffbare** —
+`idb ui tap 25 43` ×3 lukket ikke modalen, mens `tap 215 85` rett under båndet traff
+umiddelbart. Det ga en prod-felle i bygg 46 der brukeren måtte drepe appen (lukket
+2026-08-31, `73b30e71`).
+
+**Løsning som er verifisert å virke:** `useSafeAreaInsets()` + manuell `paddingTop`/
+`paddingBottom` på en vanlig `View`, i stedet for `<SafeAreaView>`.
+
+**Gjenstår — eget spor:** kartlegg hvilke av de ~26 flatene som kombinerer `SafeAreaView` med
+`Modal` som faktisk bruker `presentationStyle="fullScreen"`, og migrer **kun de**.
+🔴 **Ikke rull ut bredt uten å måle.** Kontrollplan noterte at flere av dem bruker `pageSheet`
+eller in-tree-overlay og derfor ikke nødvendigvis er rammet. Én skjerm er målt; resten er
+hypotese.
+
 ### 🟡 Serverfeilmeldinger er ikke oversatt (målt 2026-08-30)
 
 UI-strenger går gjennom `t()` og finnes i 15 språk. **`TRPCError`-meldinger gjør ikke.**
