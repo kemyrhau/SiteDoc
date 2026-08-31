@@ -227,12 +227,33 @@ Denne tavla er sannheten; statusfilene oppdateres av agentene selv og drifter.
 
 > Ordre 1 ([SAMARBEIDSREGLER § Cowork leveranse-ansvar](SAMARBEIDSREGLER.md#cowork-leveranse-ansvar-ordre-2026-07-14)): cowork sporer EAS-bygg her. Ved **12 bygg/mnd** → stopp + sjekk klar-tilstand + flagg i status før nytt bygg fyres. Dato/# bekreftes mot `eas build:list`.
 
-**August 2026 — 2 bygg brukt (av ~15), ~13 igjen. Reset 1. sep.**
+🔴 **August 2026 — 12 bygg brukt (av ~15), ~3 igjen. Reset 1. sep.**
+**KORRIGERT 2026-08-31 mot `eas build:list` — telleren sa «2 brukt, ~13 igjen».**
+
+Feilen: kun `production`-byggene ble ført. **De åtte `test`-profil-byggene 17.–19.08 teller
+også mot kvoten** — EAS' fri plan teller bygg per plattform, ikke per profil. Telleren
+underrapporterte med en faktor 6, og Kenneth planla 4 bygg på den 31.08 i den tro at det var
+rikelig. **Vi står på 12-terskelen der [SAMARBEIDSREGLER § Cowork leveranse-ansvar](SAMARBEIDSREGLER.md)
+sier cowork skal stoppe opp og flagge før nytt bygg fyres.**
 
 | # | Dato | Commit | Profil | Formål |
 |---|------|--------|--------|--------|
-| 43 | 2026-08-08 | `6d9a7c9` | production | HMS 5a+5b + utlegg U1. **Bygget OK, men aldri sluppet til testere** — holdt tilbake da Kenneth utsatte for å få mer med i 44. Ingen «What to Test», ingen export compliance besvart |
-| 44 | 2026-08-09 | `2240f9f6` | production | **Bunt 44 → TestFlight.** HMS melder-flyt + tegnings-navigasjon + maskin ved redigering + seks katalog-cacher + åtte mobil-småfunn |
+| 43 | 2026-08-08 | `6d9a7c91` | production | HMS 5a+5b + utlegg U1. **Bygget OK, men aldri sluppet til testere** |
+| 44 | 2026-08-09 | `9ee8242c` | production | **Bunt 44 → TestFlight.** ⚠️ Telleren oppga `2240f9f6` — feil commit, rettet mot `build:list` |
+| — | 2026-08-17 17:49 | `32120cb1` | test | **errored** (feilet etter start → teller trolig) |
+| — | 2026-08-17 18:07 | `32120cb1` | test | internal |
+| — | 2026-08-17 18:34 | `32120cb1` | test | internal |
+| — | 2026-08-17 19:04 | `f4c40185` | test | internal |
+| — | 2026-08-18 23:08 | `0b8f1137` | test | internal |
+| — | 2026-08-19 09:37 | `4c06948d` | test | internal |
+| — | 2026-08-19 13:23 | `aa2c1039` | test | internal |
+| — | 2026-08-19 16:54 | `97fb784a` | test | internal |
+| 45 | 2026-08-19 19:38 | `8fdd82bc` | production | TestFlight bygg 45 |
+| 46 | 2026-08-28 | `5605775d` | production | **Bygget Kenneth kjører 31.08** — tegningsposisjon-fella ble funnet her |
+
+⚠️ **Usikkerhet:** om det errorede bygget 17.08 teller. Det startet 17:49 og feilet 17:52 —
+altså etter byggestart, som per 43→44-lærdommen er det som utløser telling. Regnet som brukt.
+Er det ikke det, er tallet 11 av ~15.
 
 **Lærdom 43→44:** to mislykkede fyringsforsøk på 43 brente **null kvote** — begge feilet under credential-validering før byggestart. Første: `~/.zshrc:17` manglet linjeskift mellom to `export`-linjer → `Invalid Apple Team Type: INDIVIDUALexport`. Andre: Apple 403 «This provider does not exist» da de nå korrekt parsede `EXPO_APPLE_*`-variablene ble sendt i stedet for EAS' lagrede credentials. Kvote telles først når bygget faktisk starter.
 
