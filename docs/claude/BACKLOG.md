@@ -3389,18 +3389,33 @@ utført i mai.
 
 **Effektiv tilstand (firmamoduler):** `firmatak ∧ underbryter ∧ prosjektbryter ∧ ikke-unntatt`.
 
-🔴 **VENTER fabel-revisjon på to målte korreksjoner** (`relay/fabel-modulhierarki-v2-ja-og-to-korreksjoner.md`):
+✅ **Revisjon 1 mottatt og flettet inn 2026-08-31.** Fabel aksepterte begge coworks
+korreksjoner («feilen var min: jeg generaliserte timer-familiens formel til *moduler* uten å
+måle prosjektmodul-settet»). **Modellen er komplett — ordre kan skrives.**
 
-1. **Formelen gjelder kun firmamoduler.** `FirmamodulSlug` = `timer|maskin|varelager`;
-   `PROSJEKT_MODULER` (`packages/shared/src/types/index.ts:476`) = ni andre slugs med **null
-   overlapp** og **uten firmatak**. Notatets «viser kun moduler med aktivt firmatak» ville
-   grået ut HMS, 3D, Økonomi, PSI, Kontrollplan, Dokumentsøk, Oversettelse, Godkjenning og
-   Befaringsrapport. Prosjektmoduler har formelen `prosjektbryter` alene.
-2. **Standalone-prosjekter har intet tak.** `ProjectModule.organizationId` er nullbar
-   (`schema.prisma:1495`) og standalone er en gyldig permanent tilstand. «Aldri lest alene»
-   trenger en carve-out for prosjekter uten eier-firma.
+**To familier, to formler:**
 
-**Ingen ordre skrives før revisjonen foreligger.**
+| | Firmamoduler | Prosjektmoduler |
+|---|---|---|
+| Slugs | `timer` + underbryterne `maskin`/`varelager` | ni: `oversettelse`, `godkjenning`, `hms-avvik`, `befaringsrapport`, `3d-visning`, `okonomi`, `dokumentsok`, `psi`, `kontrollplan` |
+| Formel | tak ∧ underbryter ∧ bryter ∧ ikke-unntatt | **bryter alene** |
+
+**Standalone-prosjekt** (`organizationId = null`): kun de ni vises. Ingen firmamodul-seksjon.
+
+🔴 **Fire designlås-punkter som HVER ordre i sporet skal sitere:** (1) `equipment.list` gates
+aldri · (2) de ni prosjektmodulene grås aldri ut mot firmatak · (3) standalone mister aldri
+prosjektmoduler · (4) unntakslisten bor på modulkortet, aldri på ansattkortet.
+
+**Rekkefølge (fabels § 4 — tre små ordrer, ikke én stor):**
+1. Delt resolver `modul.effektivTilstand(firmaId?, prosjektId?)` + `krev*Aktivert` leser den
+   → retter drift-punkt 3 (gaten leser kun `ProjectModule` i dag).
+2. Flatene speiler resolveren — firma/innstillinger, web-dagsseddel, prosjektoppsett med
+   grå-under-tak + toveis lenke → drift-punkt 4 og 5.
+3. Dok-sync: `terminologi.md § 0`-diagram, schema-kommentar for varelager, peker fra
+   `domene-arbeidsflyt.md`.
+
+⚠️ **Enkeltmålt:** familie-inventaret (3 + 9 slugs) er målt én gang. Utfører verifiserer begge
+sett ved ordre-oppstart før tallene låses i `terminologi.md`.
 
 ### ❓ Modulmodellen — hva en modul ER, og hva som skjer når en mangler (2026-08-30)
 

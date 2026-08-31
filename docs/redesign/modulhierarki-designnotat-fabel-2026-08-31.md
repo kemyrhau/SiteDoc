@@ -1,8 +1,9 @@
 ---
 name: modulhierarki-designnotat
 description: Fabels designnotat — revidert modulhierarki, definisjon av «aktivert» per nivå, eierflate per nivå. Svar på fabel-modulhierarkiet-revisjon.md (cowork 2026-08-31) og modulmodell-utredning-2026-08-30.md Q1–Q3.
-status: 🟢 V1 og V3 Kenneth-vedtatt 2026-08-31; V2 revidert etter Kenneth-presisering (unntaksliste) — venter endelig V2-vedtak
+status: 🟢 KOMPLETT — V1, V2 og V3 Kenneth-vedtatt 2026-08-31. Revisjon 1 (to familier + standalone-carveout) flettet inn av cowork samme dag. Klar for ordre.
 skrevet: 2026-08-31 av fabel
+revidert: 2026-08-31 — revisjon 1 (ENDRING A–D) flettet inn av cowork etter cowork-gate som målte at formelen bare gjaldt firmamodul-familien
 ---
 
 # Modulhierarkiet — designnotat (fabel)
@@ -76,17 +77,39 @@ Regler diagrammet nå bærer eksplisitt (retter drift-punkt 1 og 2):
 
 ## 2. Hva «aktivert» betyr på hvert nivå (svar på ask 2)
 
-Tre nivåer, én formel:
+> 🔄 **REVIDERT** av `revisjon1-fabel-2026-08-31` (ENDRING A), flettet inn av cowork
+> 2026-08-31. Den opprinnelige teksten hadde **én** formel for «moduler» — den var generalisert
+> fra timer-familien uten at prosjektmodul-settet var målt, og ville grået ut alle ni
+> prosjektmoduler.
+
+Det finnes **to modulfamilier** med hver sin formel. Null overlapp i slugs (målt av cowork
+2026-08-31):
+
+| | Firmamoduler | Prosjektmoduler |
+|---|---|---|
+| Slugs | `timer` (m/underbrytere `maskin`, `varelager`) | `oversettelse`, `godkjenning`, `hms-avvik`, `befaringsrapport`, `3d-visning`, `okonomi`, `dokumentsok`, `psi`, `kontrollplan` |
+| Firmatak | `OrganizationModule` | **finnes ikke, og skal ikke innføres** |
+| Effektiv tilstand | firmatak ∧ underbryter ∧ prosjektbryter ∧ ikke-unntatt | **prosjektbryter alene** |
+| Styres fra | firma/moduler (tak, underbrytere, unntak) + prosjektoppsett (bryter) | prosjektoppsett alene |
+
+Nivåtabellen (firmatak / underbryter / prosjektbryter / unntaksliste) gjelder dermed KUN
+firmamodul-familien. Kompetanse og Fremdrift hører til firmamodul-familien når de en gang
+aktiveres.
+
+**Nivåene i firmamodul-familien:**
 
 | Nivå | Betyr | Lagres i | Hvem styrer |
 |---|---|---|---|
 | **Firmatak** | Firmaet eier modulen (kjøp) | `OrganizationModule` | Firmaadmin på firma/moduler |
-| **Underbryter** (kun Timer-familien) | Firmaet ønsker delfunksjonen | firma-nivå flagg (maskin/varelager) | Firmaadmin, samme kort |
+| **Underbryter** | Firmaet ønsker delfunksjonen | firma-nivå flagg (maskin/varelager) | Firmaadmin, samme kort |
 | **Prosjektbryter** | Prosjektet bruker modulen | `ProjectModule` | Prosjektoppsett |
 
-**Effektiv tilstand = firmatak ∧ underbryter ∧ prosjektbryter ∧ ikke-unntatt-ansatt.** Dette er det allerede førte
-Kenneth-vedtaket («dersom et prosjekt ikke har en modul — eller firma — tilbyr ikke telefonen
-modulen»), utvidet med underbryteren.
+🔴 **Standalone-carveout (Kenneth-korreksjon 2026-08-31):** `ProjectModule.organizationId` er
+nullbar (`schema.prisma:1495`); standalone-prosjekt er en **gyldig permanent tilstand**
+(CLAUDE.md § Organisasjonsmodellen). «En `ProjectModule`-rad uten firmatak leses aldri alene»
+gjelder derfor kun prosjekter **med** eier-firma. Uten firma finnes intet tak:
+prosjektbryteren står alene for prosjektmodulene, og firmamodul-familien er utilgjengelig
+(intet firma → intet kjøp → timer-familien vises ikke, verken aktiv eller grået).
 
 - Tak AV → modulen finnes ikke i produktet for det firmaet: ikke i prosjektoppsett, ikke på
   mobil, ingen skrivende API-kall. En `ProjectModule`-rad uten firmatak er meningsløs og skal
@@ -111,13 +134,21 @@ modulen»), utvidet med underbryteren.
 ## 3. Hvilken flate eier svaret (svar på ask 3)
 
 **Én kilde: API-et beregner effektiv modultilstand ett sted** (foreslått: én delt
-resolver/prosedyre, f.eks. `modul.effektivTilstand(firmaId, prosjektId?)`), og **alle flater
+resolver/prosedyre, f.eks. `modul.effektivTilstand(firmaId?, prosjektId?)`), og **alle flater
 speiler den**. Ingen flate regner selv.
 
+*(🔄 ENDRING C, revisjon 1: `firmaId` er **valgfri** — resolveren svarer for begge familier og
+for standalone, med familie-formlene i § 2. Flatene skal ikke selv vite hvilken familie en
+slug tilhører.)*
+
 - **firma/moduler** eier firmataket og underbryterne (skriveflate).
-- **Prosjektoppsett** (`/dashbord/oppsett/produksjon/moduler`) eier prosjektbryteren
-  (skriveflate) — og viser kun moduler med aktivt firmatak; øvrige vises grået med «styres av
-  firmaet» + lenke til firma/moduler.
+- **Prosjektoppsett** (`/dashbord/oppsett/produksjon/moduler`) eier prosjektbryteren for
+  **BEGGE familier**, med ulik visning *(🔄 ENDRING B, revisjon 1)*:
+  - **Prosjektmodulene (de ni):** alltid tilgjengelige brytere — de har intet firmatak og
+    skal 🔴 **ALDRI** grås ut med «styres av firmaet».
+  - **Firmamodul-familien:** vises kun med aktivt firmatak; uten tak grået med «styres av
+    firmaet» + lenke til firma/moduler. **Gråingen gjelder kun denne familien.**
+  - **Standalone-prosjekt:** kun de ni prosjektmodulene vises. Ingen firmamodul-seksjon.
 - **Alle andre flater er speil:** firma/innstillinger (tilgangsvalgene som i dag sier sitt
   eget), mobil, dagsseddel-web. De leser effektiv tilstand og har ingen egen mening. Retter
   drift-punkt 4 (tre flater, tre svar).
@@ -132,9 +163,21 @@ innsnevring under taket, aldri en utvidelse forbi det.
 
 ## 4. Utførelsesrekkefølge (til ordre etter Kenneth-vedtak)
 
-1. **Vedtak:** V1 ✅ og V3 ✅ (Kenneth 2026-08-31 — 3D-eksempelet hans ER prosjektbryteren:
-   tegninger alltid på, 3D-visning per prosjekt). V2 i revidert form (unntaksliste) venter
-   endelig ja. Ingen kode før V2 er lukket.
+1. **Vedtak:** V1 ✅, V2 ✅ (unntaksliste, Kenneth via cowork-gate 2026-08-31), V3 ✅
+   (3D-eksempelet ER prosjektbryteren: tegninger alltid på, 3D-visning per prosjekt) — med
+   revisjon 1s to korreksjoner (to familier · standalone-carveout) innarbeidet.
+   **Modellen er komplett; ordre kan skrives.** *(🔄 ENDRING D, revisjon 1)*
+
+🔴 **Fire designlås-punkter som HVER ordre i dette sporet skal sitere:**
+1. `equipment.list` gates aldri — `TimerSyncProvider:104-108` henter maskinkatalogen i samme
+   `Promise.all` som timer-katalogen, og en vakt der feller hele timer-synken på mobil.
+2. De ni prosjektmodulene grås **aldri** ut mot firmatak — de har ikke noe tak.
+3. Standalone-prosjekter mister **aldri** prosjektmoduler.
+4. Unntakslisten bor på **modulkortet**, aldri på ansattkortet.
+
+⚠️ **Enkeltmålt premiss:** familie-inventaret (3 + 9 slugs, null overlapp) er målt **én gang**
+av cowork 2026-08-31. Utfører verifiserer begge sett mot koden ved ordre-oppstart, **før**
+tallene låses som fakta i `terminologi.md`.
 2. **Delt resolver for effektiv tilstand** + `krev*Aktivert` leser den (skrivende prosedyrer).
    Klikk-budsjett og funksjonsinventar i ordren; utfører måler § 3-punktene på nytt først.
 3. **Flatene speiler:** firma/innstillinger og web-dagsseddel (MASKIN-seksjonen bruker
