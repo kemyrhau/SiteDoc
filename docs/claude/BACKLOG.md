@@ -3165,7 +3165,22 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
-### 🔴 Slettevakter: dokumentflyt er vernet i begge ender, faggruppe er ikke (målt 2026-08-30)
+### 🟡 Serverfeilmeldinger er ikke oversatt (målt 2026-08-30)
+
+UI-strenger går gjennom `t()` og finnes i 15 språk. **`TRPCError`-meldinger gjør ikke.**
+Verifisert: `dokumentflyt.ts:187,223` og `faggruppe.ts` slett-vakten er hardkodede norske
+strenger i `message`.
+
+**Konsekvens:** en svensk, polsk eller litauisk bruker får norsk feilmelding når en handling
+blokkeres — og det er nettopp i de øyeblikkene språket betyr mest, fordi meldingen forklarer
+hva han må gjøre for å komme videre.
+
+Funnet av kontrollplan under slettevakt-runden 30.08, som **riktig speilet det eksisterende
+mønsteret framfor å innføre et nytt** for én melding. Krever en beslutning om form
+(nøkkel + parametre fra serveren, oversatt i klienten?) før noen begynner — ikke en
+opprydding man tar underveis.
+
+### ✅ LØST 2026-08-30 (`fc817801`, merge `661682c5`) — Slettevakter: dokumentflyt vernet i begge ender, faggruppe ikke
 
 Asymmetri mellom to strukturobjekter av samme klasse. Den ene fikk vakt fordi Kenneth ba om
 det 2026-08-22; den andre ble aldri nevnt.
@@ -3184,8 +3199,18 @@ noen er mest tilbøyelig til å slette en faggruppe de opprettet feil.
 Historisk belegg for at `SetNull`-hullet biter: slett-vern-kommentaren i `dokumentflyt.ts`
 noterer *«prod: 1 av 16 sjekklister ER flyt-løs, kan være dette»*.
 
-**Fiks:** speil flytvakten — tell medlemmer og flyter i samme `Promise.all`, samme
-meldingsform. Fire linjer.
+**LØST:** `faggruppe.slett` teller nå aktive `FaggruppeKobling` (`periodeSlutt: null`, C.13 —
+historiske blokkerer ikke) + `Dokumentflyt` med `faggruppeId`, i egen `PRECONDITION_FAILED`-
+blokk med samme meldingsform. Sjekkliste-/oppgavetellingen urørt.
+
+**Målt effekt på test:** **én** faggruppe blir nytt blokkert — «Elektro» (april 2026,
+6 medlemmer, 2 flyter, null dokumenter). **Ingen vranglås:** begge flytene er tomme, så veien
+ut går (fjern koblinger → slett flyter → slett faggruppe).
+
+⚠️ **Kjent skavank, bevisst:** de to vaktene er separate blokker, så en faggruppe med *både*
+dokumenter og medlemmer gir to runder friksjon — rydd dokumentene, prøv igjen, bli stoppet av
+den andre. Ordren forbød å røre den eksisterende blokka; begge meldingene er sanne hver for
+seg. Slås de sammen, gjør det i en runde som eier hele prosedyren.
 
 ### 🟡 Ledd-vernet treffer for bredt (Kenneth 2026-08-30 — revisjon, ikke reversering)
 

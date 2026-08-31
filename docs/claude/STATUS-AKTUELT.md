@@ -17,7 +17,7 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 |---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | Ledig. `feat/reg-fase2` (`578e2b67`) **merget til develop 30.08** (`355c200c`). Env symlinket fra hovedtreet | Ingen. Neste: `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (kjøres sammen) |
 | **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | O12 levert + merget 30.08. **Env symlinket fra hovedtreet 30.08** (manglet — ga `MissingSecret` på dev-start) | **`relay/inbox-faggruppe-slettevakt.md`** — branch `fix/faggruppe-slettevakt`. Speiler flytvakten (medlemmer + flyter) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig. O12 + faggruppe-slettevakt levert og merget 30.08. **Env symlinket fra hovedtreet 30.08** (manglet — ga `MissingSecret` på dev-start) | Ingen. Kontakt-modalen venter fabel-sesjonen (Kenneth-vedtak 30.08) |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
@@ -412,6 +412,7 @@ Merget i rekkefølge, alle disjunkte (verifisert med `merge-base`-diff, ingen de
 | `fix/emne-sjekkliste` | `c18c01a5` | `14d8fcc7` | Samme regel på sjekkliste — Kenneth: *«øyeblikksbilde vs. levende dokument, det er jo det samme»* |
 | `feat/reg-fase2` | `578e2b67` | `355c200c` | REG fase 2: `prosjektTilgang` per ansatt + `prosjektTilgangDefault` firmadefault |
 | `fix/o12-eier-firma-lesevisning` | `0101bd25` | `964fdbfd` | **O12 — UI-duplikatet lukket.** `oppsett/firma` er ren lesevisning; Kenneth gatet i nettleser |
+| `fix/faggruppe-slettevakt` | `fc817801` | `661682c5` | Faggruppe-sletting teller nå medlemmer + flyter. **Merget ETTER test-deployen `24bccbba`** — ikke på test |
 
 **O12 i klartekst:** vedtaket ble tatt 2026-05-03 (`navigasjon-arkitektur-analyse`, linje 92)
 og **halvveis utført samme dag** — renamet gjort, redigeringen stående. I fire måneder skrev
