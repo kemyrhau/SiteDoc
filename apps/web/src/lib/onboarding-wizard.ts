@@ -87,6 +87,38 @@ export const MODUL_WIZARD_URL: Partial<Record<string, string>> = {
   timer: "/dashbord/firma/timer/oppsett",
 };
 
+/** Firmanivå-onboarding-status, avledet fra `organisasjon.hentOnboardingStatus`. */
+export type FirmaOnboardingStatus = RouterOutputs["organisasjon"]["hentOnboardingStatus"];
+
+/**
+ * Firmanivå-onboarding-veiviser (masterplanens punkt 1).
+ *
+ * KUN to gating-steg (M1, Kenneth-vedtak 2026-09-01): firmaprofil og første
+ * prosjekt. Er begge på plass, ER firmaet onboardet, og prosjekt-veiviseren tar
+ * over — en ren skjøt mellom firma- og prosjektnivået.
+ *
+ * Ansatte, avdelinger, oppmøtesteder og moduler er bevisst IKKE steg her: de er
+ * valgfrie anbefalinger (rendres som haker i firma-oppsett-siden) og gater aldri
+ * fullført-tilstanden. Et enmanns-firma uten avdelinger skal ikke stå ufullført
+ * for alltid (fabel-fence 1). `modulSlug: "firma"` er en etikett, ikke en
+ * firmamodul-slug — firma-onboarding er ikke selv en modul.
+ */
+export const firmaOnboardingWizard: OnboardingWizardConfig<FirmaOnboardingStatus> = {
+  modulSlug: "firma",
+  steg: [
+    {
+      id: "firmaprofil",
+      tittelKey: "firma.onboarding.steg.firmaprofil.tittel",
+      ferdig: (status) => status.harFirmaprofil,
+    },
+    {
+      id: "prosjekt",
+      tittelKey: "firma.onboarding.steg.prosjekt.tittel",
+      ferdig: (status) => status.harProsjekt,
+    },
+  ],
+};
+
 export const timerOnboardingWizard: OnboardingWizardConfig<TimerOnboardingStatus> = {
   modulSlug: "timer",
   steg: [
