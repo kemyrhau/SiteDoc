@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
+import { kanonisk, likForDiff } from "@sitedoc/pdf";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { documentStatusSchema } from "@sitedoc/shared";
@@ -797,10 +798,17 @@ export const oppgaveRouter = router({
           const gammelV = gammelVerdi?.verdi ?? null;
           const nyV = nyVerdi?.verdi ?? null;
 
-          const gammelStr = gammelV != null ? JSON.stringify(gammelV) : null;
-          const nyStr = nyV != null ? JSON.stringify(nyV) : null;
+          // Endring bestemmes av NORMALISERT innhold: lik verdi med ulik
+          // nøkkelrekkefølge ELLER kun ulik signert-URL-query er IKKE en endring
+          // (punkt 1 + rotårsak: auto-vær-lagring returnerer ferskt signerte
+          // bilde-URL-er på urørte repeater-celler). Lagrer kanonisk original.
+          // Selve oppgave-dataen lagres uendret (se innData under); dette styrer
+          // kun changelog-radene + hva som regnes som endring. Speiler
+          // sjekkliste.ts:754-757.
+          const gammelStr = gammelV != null ? kanonisk(gammelV) : null;
+          const nyStr = nyV != null ? kanonisk(nyV) : null;
 
-          if (gammelStr !== nyStr) {
+          if (!likForDiff(gammelV, nyV)) {
             endringsloggRader.push({
               taskId: input.id,
               userId: ctx.userId,
