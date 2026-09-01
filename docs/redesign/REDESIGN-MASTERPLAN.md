@@ -173,11 +173,24 @@ masterplan-punkt. Er linjen tom en hel uke, kjører vi reaktivt uten å vite det
 ## Neste konkrete steg (justert 2026-08-28)
 1. ✅ **Registrerings-sporet er gatet og i prod** (`ba234fd1`, 28.08) — deaktivering,
    tilgangstap og reaktivering verifisert av Kenneth på test før release
-2. ⛔ **ON-ordren skal IKKE relayes slik den står (cowork 2026-08-30).** Den bygde på at
-   onboarding-panelet manglet; målingen viser at det finnes og konsumeres
-   (`[prosjektId]/page.tsx:119-214`). Hullet er på **firmanivå**, ikke prosjektnivå — flyttet
-   inn i sesjonen i pkt 7. Cowork gatet ordren uten å greppe etter panelets konsument.
-   Ordren omskrives etter sesjonens designnotat.
+2. ✅ **ON-ordren er omskrevet og frigitt 2026-09-01** — `relay/inbox-firma-onboarding.md`,
+   branch `feat/firma-onboarding`. ⛔-en er hevet: firmanivået den ventet på ble avklart da
+   modulhierarkiet ble lukket samme dag (steg 2–4 + mobil modulgating).
+
+   **Ny måling snudde ordren i vår favør:** den generiske veiviser-modellen finnes allerede
+   (`apps/web/src/lib/onboarding-wizard.ts:17-59` — `OnboardingSteg<TStatus>`,
+   `OnboardingWizardConfig<TStatus>`, `førsteUfullførteSteg`, `erOnboardingFullført`), skrevet
+   for gjenbruk. Timer-veiviseren er den fungerende instansen. Oppgaven er derfor å plugge inn
+   en firma-config + status-query + side — ikke å bygge onboarding.
+
+   🔴 **Fella ordren fencer:** `count() > 0` er feil ferdig-predikat på firmanivå.
+   `OrganizationSeedPolicy` (`schema.prisma:148-164`) finnes fordi «aldri onboardet» og «har
+   bevisst egen katalog» er identiske i data.
+
+   ~~⛔ Gammel tekst (beholdt så begrunnelsen ikke går tapt): ON-ordren skal IKKE relayes slik
+   den står (cowork 2026-08-30) — den bygde på at onboarding-panelet manglet; målingen viser at
+   det finnes og konsumeres (`[prosjektId]/page.tsx:119-214`). Cowork gatet ordren uten å greppe
+   etter panelets konsument.~~
 3. **Relay fabel-notatene som ligger usendt:** arkivering framfor nedlasting (PR-sporet) ·
    `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` ·
    `fabel-o12-gating-avvik.md` (2026-08-30) · `fabel-firmanivaaet-mangler-styring.md` (2026-08-30)
