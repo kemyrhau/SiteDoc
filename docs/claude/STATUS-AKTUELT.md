@@ -20,8 +20,9 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
-| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | **Modulhierarkiet lukket på web:** steg 2 (`1266ac2a`), steg 3 (`97d074b8`, gatet på test), steg 4 (`7b9493b3`) | **`relay/inbox-api-testscript.md`** — branch `chore/api-testscript`. Lag 3: 27 api-testfiler som aldri har kjørt |
-| **dokgen** | 🟢 **PLAN** | `SiteDoc-dokgen` | Tre merget 01.09: `5b5f5442` · `8c75948f` · `fa06cd62` («Hele prosjektet») | **`relay/inbox-mobil-modulgating.md`** — branch `feat/mobil-modulgating`. Mobilen leser aldri firmataket. Kø: `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
+| **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
+| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | Ledig. Neste plan-punkt ikke valgt — kandidater: masterplan pkt 2 (REG fase 3) eller `timer-gps-prosjekt-utredning` (reisetid, A.Markussen-frist september) |
+| **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | Fem merget 01.09, sist `d394bdde` (kolonnevelger + tabellbredder) | **`relay/inbox-timerrapport-flate.md`** — branch `feat/timerrapport-flate`. Fem funn fra Kenneths gate: velger nåbar fra tabellen · innholdsbevisste bredder · maskinlinje slås sammen når `utleieEnhet="time"` · disabled-knapper uten forklaring · «Eksporter uten å lagre» |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
 
