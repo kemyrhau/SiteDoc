@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Modal, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Target, X, Check } from "lucide-react-native";
@@ -7,6 +7,7 @@ import type { TegningPosisjonVerdi } from "@sitedoc/shared";
 import { trpc } from "../../lib/trpc";
 import { AUTH_CONFIG } from "../../config/auth";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
+import { useByggeplass } from "../../kontekst/ByggeplassKontekst";
 import { TegningsVisning, type Markør } from "../TegningsVisning";
 import { TegningsVelger } from "../TegningsVelger";
 
@@ -32,7 +33,9 @@ interface TegningData {
 /**
  * H8 (2026-08-24): mobil kan nå SETTE tegningsposisjon — tidligere en placeholder.
  * Modal med TegningsVelger (bygning→tegning) + TegningsVisning (tapp for å plassere markør).
- * Default-tegning: radens egen (`verdi.drawingId`) hvis satt, ellers velgeren.
+ * Default-tegning: radens egen (`verdi.drawingId`) hvis satt, ellers per-byggeplass
+ * siste-tegning-minne fra `ByggeplassKontekst` (samme kilde som OpprettDokumentModal),
+ * ellers velgeren. Minnet er FORHÅNDSVALG, ikke låsing — «Bytt tegning» virker som før.
  * (Dokumentets tegning som mellomdefault krever en ny prop threadet fra detaljsiden — egen
  *  liten oppfølger; kjeden radens→dokumentets→full velger fullføres da.)
  */
@@ -45,6 +48,9 @@ export function TegningPosisjonObjekt({
   // (rendereren sender den ikke), så propen var undefined → query disabled → 0 tegninger.
   // Samme kilde som TegningsSkjermbilde/FeltDokumentasjon bruker.
   const { valgtProsjektId } = useProsjekt();
+  // Per-byggeplass siste-tegning-minne (felles kontekst, IKKE en egen implementasjon).
+  // Lesenøkkel = global aktiv byggeplass, som OpprettDokumentModal:221-223.
+  const { valgtBygningId: kontekstBygningId, hentSistTegning, settSistTegning } = useByggeplass();
   const posisjon = verdi as TegningPosisjonVerdi | null;
   // useSafeAreaInsets måler riktig topp/bunn inne i presentationStyle="fullScreen";
   // <SafeAreaView edges> anvender 0 der (simulator-målt 2026-08-31), derfor padder vi
@@ -78,7 +84,38 @@ export function TegningPosisjonObjekt({
   const tegninger = (tegningQuery.data ?? []) as TegningData[];
   const tegningDetalj = tegningDetaljQuery.data as { name: string; fileUrl: string | null } | undefined;
 
+  // Forvalg fra minnet kjøres én gang per modal-åpning, ETTER at tegningslista er
+  // lastet (queryen er disabled til modalen åpnes). Ref-guard hindrer at et senere
+  // brukervalg overskrives av effekten.
+  const harForvalgt = useRef(false);
+  useEffect(() => {
+    if (!modalÅpen || harForvalgt.current) return;
+    // Rediger vinner: en rad som alt har en tegning bruker sin egen (satt i åpne()).
+    if (posisjon?.drawingId) {
+      harForvalgt.current = true;
+      return;
+    }
+    // Vent til lista er lastet så vi kan VALIDERE minnet mot den. Uten byggeplass i
+    // konteksten finnes ingen lesenøkkel → fall til velgeren (dagens oppførsel).
+    if (tegningQuery.isLoading || !kontekstBygningId) return;
+    harForvalgt.current = true;
+    const lagretTegningId = hentSistTegning(kontekstBygningId);
+    if (!lagretTegningId) return;
+    // Fall-through til dagens oppførsel hvis minnet peker på en tegning som ikke er
+    // gyldig her (slettet / annet prosjekt) — ellers er fiksen verre enn problemet.
+    if (!tegninger.some((t) => t.id === lagretTegningId)) return;
+    setValgtTegningId(lagretTegningId);
+  }, [
+    modalÅpen,
+    tegningQuery.isLoading,
+    tegninger,
+    kontekstBygningId,
+    posisjon?.drawingId,
+    hentSistTegning,
+  ]);
+
   function åpne() {
+    harForvalgt.current = false;
     setValgtTegningId(posisjon?.drawingId ?? null);
     setValgtBygningId(null);
     setTempPos(
@@ -97,6 +134,11 @@ export function TegningPosisjonObjekt({
         positionY: tempPos.y,
         drawingName: tegningDetalj.name,
       } as TegningPosisjonVerdi);
+      // Husk siste tegning per byggeplass i felles kontekst — nøkkel = tegningens
+      // egen byggeplass (som OpprettDokumentModal:475), så minnet er symmetrisk
+      // mellom de to flatene. Fall til global kontekst hvis tegningen mangler den.
+      const bp = tegninger.find((t) => t.id === valgtTegningId)?.byggeplassId ?? kontekstBygningId;
+      if (bp) settSistTegning(bp, valgtTegningId);
     }
     setModalÅpen(false);
   }

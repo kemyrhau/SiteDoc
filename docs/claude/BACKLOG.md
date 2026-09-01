@@ -117,6 +117,12 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 **Relatert — location-tvang-regelen (vedtatt 2026-08-19):** Kontekstkjeden nøkler bevisst på `type = "location"` (uten `parentId`/`conditionParentId`), IKKE `drawing_position`. Merk: regelen gir i dag **ingen** måte å ha et location-felt uten posisjons-tvang — legger man inn feltet, får man kravet. Dukker behovet for «location uten tvang» opp, er **`required`-flagget på location-objektet den naturlige bryteren** (i dag ignorert fordi location er en display-type).
 
+### 🟡 GPS-prioritert forvalg i `TegningPosisjonObjekt` — vurdert, ikke bygget (Kenneth-delt 2026-09-01)
+
+Da tegningsminnet ble koblet på repeater-flaten (`fix/tegningsminne-repeater`), ble kun ren minne-gjenbruk bygget. `OpprettDokumentModal:234-247` gjør mer: velger tegning fra **GPS-treff først** (`geoReference`-bounds via `erInnenforBounds`), og bruker minnet som tie-breaker blant treffene. **Vurdering (Opus, delt av Kenneth):** hører hjemme her også — en repeater-rad settes typisk i felt, der GPS er en sterkere «riktig tegning»-indikator enn sist brukt. **Men det er en egen endring** (permisjonsprompt + `geoReference`-bounds-sjekk), ikke noe som smugles inn i en minne-kobling. Egen ordre når det prioriteres.
+
+**Kjent asymmetri (samme som `OpprettDokumentModal`):** minnet **leses** med global aktiv byggeplass og **skrives** med tegningens egen `byggeplassId`. Konsekvens: et dokument på byggeplass B kan få forvalgt A sin siste tegning når A er aktiv i toppmenyen. Forvalg, ikke låsing — «Bytt tegning» redder det. Bevisst speiling av eksisterende flate framfor ny modell; noteres som kjent kant.
+
 ### 🟢 Mobil dokumentflyt-auto-utledning traff aldri (`af.templates` vs `maler`) — LØST (fiks) + bevisst INGEN datarydding (2026-08-19)
 
 **Bug:** `apps/mobile/src/components/OppgaveModal.tsx` leste `af.templates` fra `dokumentflyt.hentForProsjekt`, men API-feltet har **alltid** hett `maler` (`apps/api/src/routes/dokumentflyt.ts` — `maler` siden første commit `7dd22fc4`; søk på `templates:` i API-en er tomt). Feltet ble skrevet feil i **`9e723690` (2026-03-06)** og brukte aldri `.maler` — altså **feil fra start, ikke en regresjon fra en omdøping.** `af.templates` var dermed alltid `undefined`.
