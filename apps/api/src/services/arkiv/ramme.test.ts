@@ -66,8 +66,16 @@ describe("byggProsjektblokk — komprimering", () => {
     expect(html).toContain("Byggeplass");
   });
 
-  it("lokasjon av → Byggeplass faller bort", () => {
+  it("lokasjon av → Byggeplass beholdes likevel (designlås 2: alltid vist når satt)", () => {
+    // Endret atferd (ramme.ts:73-76): byggeplass-linjen er ikke lenger bak
+    // innst.lokasjon — rapporten går til byggherre, en utelatt lokasjon lar leseren
+    // gjette om den ble glemt. `lokasjon` styrer nå D2-dokumentlokasjonen, ikke cellen.
     const html = byggProsjektblokk(blokk, tolkInnstillinger({ lokasjon: false }));
+    expect(html).toContain("Byggeplass");
+  });
+
+  it("byggeplass mangler (standalone) → Byggeplass-cellen faller bort", () => {
+    const html = byggProsjektblokk({ prosjekt: "998 Instinniforbotn", byggherre: "Fjordbygg Eiendom AS" }, tolkInnstillinger(null));
     expect(html).not.toContain(">Byggeplass<");
   });
 
