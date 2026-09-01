@@ -168,6 +168,7 @@ masterplan-punkt. Er linjen tom en hel uke, kjører vi reaktivt uten å vite det
 | Uke | Lukket | Merget totalt | Kommentar |
 |---|---|---|---|
 | 30.–31.08 | **3** — REG fase 2 · O12 · modul-resolver | 9 | Seks av ni var feltfunn, en regresjon vi selv innførte, og opprydding. Utløste [arbeidsform-vedtaket](../claude/SAMARBEIDSREGLER.md) om plan-spor vs funn-spor |
+| 01.09 | **5** — modulhierarki steg 3 (flatespeiling, gatet på test) · steg 4 (dok-sync) · mobil modulgating · kvalitetssikring **lag 3** (api i CI-gaten) · flateparitet-vedtaket | 6 | 🟢 **Første dag der plan-sporet vant.** Fem av seks merger lukket planarbeid; kun én var feltfunn (🔴 mobilen skjulte dokumenter via et byggeplass-filter uten av-knapp). Motsatt fordeling av 31.08 — arbeidsformen virket etter én dag. **Modulhierarkiet er lukket på web og mobil**; underbrytere + unntaksliste gjenstår som egne runder. **`apps/api` gater nå CI** (27 filer, 269 tester) etter å ha vært usynlig for pipelinen |
 
 ## Neste konkrete steg (justert 2026-08-28)
 1. ✅ **Registrerings-sporet er gatet og i prod** (`ba234fd1`, 28.08) — deaktivering,
