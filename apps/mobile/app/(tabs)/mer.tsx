@@ -32,6 +32,7 @@ import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 import { byttSpraak } from "../../src/lib/i18n";
 import { useNyNavigasjon, useSettNyNavigasjon } from "../../src/hooks/useNyNavigasjon";
+import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import type { SpraakKode } from "@sitedoc/shared";
 
@@ -48,6 +49,8 @@ export default function MerSkjerm() {
   const { valgtFirma, firmaer, valgtFirmaId } = useFirma();
   const nyNav = useNyNavigasjon();
   const settNyNav = useSettNyNavigasjon();
+  // Firmatak-gate: skjul timer-inngangene i menyen når Timer er av for firmaet.
+  const timerSkjult = useFirmamodulSkjult("timer");
 
   // Rolle for flagg-toggle-gating (kun sitedoc_admin kan skru på ny navigasjon,
   // speiler web-brukermenyen). Egen query — BrukerData bærer ikke role.
@@ -179,29 +182,33 @@ export default function MerSkjerm() {
               onPress={() => router.push("/kontakter")}
             />
           )}
-          <MenyRad
-            ikon={Clock}
-            tekst={t("nav.timer")}
-            badge={
-              conflictAntall > 0
-                ? { tekst: `${conflictAntall}`, farge: "rod" }
-                : pendingAntall > 0
-                  ? { tekst: `${pendingAntall}`, farge: "gul" }
-                  : undefined
-            }
-            onPress={() => router.push("/timer")}
-          />
-          <MenyRad
-            ikon={BarChart3}
-            tekst={t("nav.timerMine")}
-            onPress={() => router.push("/timer/mine")}
-          />
-          {kanAttestereFirma?.kanAttestere && (
-            <MenyRad
-              ikon={ClipboardCheck}
-              tekst={t("timer.attestering.tittel")}
-              onPress={() => router.push("/timer/attestering")}
-            />
+          {!timerSkjult && (
+            <>
+              <MenyRad
+                ikon={Clock}
+                tekst={t("nav.timer")}
+                badge={
+                  conflictAntall > 0
+                    ? { tekst: `${conflictAntall}`, farge: "rod" }
+                    : pendingAntall > 0
+                      ? { tekst: `${pendingAntall}`, farge: "gul" }
+                      : undefined
+                }
+                onPress={() => router.push("/timer")}
+              />
+              <MenyRad
+                ikon={BarChart3}
+                tekst={t("nav.timerMine")}
+                onPress={() => router.push("/timer/mine")}
+              />
+              {kanAttestereFirma?.kanAttestere && (
+                <MenyRad
+                  ikon={ClipboardCheck}
+                  tekst={t("timer.attestering.tittel")}
+                  onPress={() => router.push("/timer/attestering")}
+                />
+              )}
+            </>
           )}
           <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
         </View>
