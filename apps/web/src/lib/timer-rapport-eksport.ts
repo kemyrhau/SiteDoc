@@ -11,11 +11,16 @@
 import {
   byggDetaljRader,
   grupperDetaljRader,
+  losTimerKolonner,
+  TIMER_KOL_KEYS,
+  TIMER_KOL_I18N,
+  INTERNE_TIMER_KOLONNER,
   ALLE_RADTYPER,
   type DetaljRad,
   type DetaljRadType,
   type DetaljGruppe,
   type Gruppering,
+  type TimerKolKey,
 } from "@sitedoc/shared";
 
 /** Fase 4-akser som styrer eksport-utformingen (mottaker + gruppering). Radvalget
@@ -24,6 +29,9 @@ export type EksportOpts = {
   radTyper?: readonly DetaljRadType[];
   mottaker?: "intern" | "ekstern";
   gruppering?: Gruppering;
+  /** Malens `config.kolonner` — valgt kolonnesett + rekkefølge (flateparitet).
+   *  Tom/utelatt → dagens fulle kolonnesett (Excel viste alt). */
+  valgteKolonner?: string[];
 };
 
 type StatusFordeling = { kladd: number; sent: number; attestert: number };
@@ -387,75 +395,75 @@ export function betegnelse(t: OversettFn, r: DetaljRad, ekstern: boolean): strin
  * respekterer Excel-filtrering, så en Type-filtrert visning oppdaterer summen.
  * Timer-summen må fortsatt stemme mot Sammendrag når Timer-rader er med.
  */
+/** Per-kolonne descriptor for Excel-detaljarket: header-i18n, kolonnebredde,
+ *  om kolonnen summeres (kontrollsum), og celle-verdien. Nøklene = @sitedoc/shared
+ *  `TimerKolKey` (flateparitet). `id`-kolonnen håndteres separat (Excel-only). */
+type ExcelKolDesc = {
+  i18n: string;
+  bredde: number;
+  sum?: boolean;
+  verdi: (r: DetaljRad, t: OversettFn, ekstern: boolean) => string | number;
+};
+
+const EXCEL_KOL: Record<TimerKolKey, ExcelKolDesc> = {
+  dato: { i18n: "kolDato", bredde: 12, verdi: (r) => r.dato },
+  ansatt: { i18n: "kolAnsatt", bredde: 22, verdi: (r) => r.ansatt },
+  ansattnr: { i18n: "kolAnsattnr", bredde: 10, verdi: (r) => r.ansattnr ?? "" },
+  prosjekt: { i18n: "kolProsjekt", bredde: 22, verdi: (r) => r.prosjekt },
+  type: { i18n: "kolType", bredde: 10, verdi: (r, t) => typeEtikett(t, r.type) },
+  betegnelse: { i18n: "kolBetegnelse", bredde: 24, verdi: (r, t, ekstern) => betegnelse(t, r, ekstern) },
+  aktivitet: { i18n: "kolAktivitet", bredde: 18, verdi: (r) => r.aktivitet ?? "" },
+  fraTid: { i18n: "kolFra", bredde: 7, verdi: (r) => r.fraTid ?? "" },
+  tilTid: { i18n: "kolTil", bredde: 7, verdi: (r) => r.tilTid ?? "" },
+  timer: { i18n: "kolTimer", bredde: 9, sum: true, verdi: (r) => r.timer ?? "" },
+  maskintimer: { i18n: "kolMaskintimer", bredde: 11, sum: true, verdi: (r) => r.maskintimer ?? "" },
+  antall: { i18n: "kolAntall", bredde: 9, sum: true, verdi: (r) => r.antall ?? "" },
+  belop: { i18n: "kolBelop", bredde: 11, sum: true, verdi: (r) => r.belop ?? "" },
+  mengde: { i18n: "kolMengde", bredde: 10, verdi: (r) => r.mengde ?? "" },
+  enhet: { i18n: "kolEnhet", bredde: 8, verdi: (r) => r.enhet ?? "" },
+  beskrivelse: { i18n: "kolBeskrivelse", bredde: 34, verdi: (r) => r.beskrivelse ?? "" },
+  status: { i18n: "kolStatus", bredde: 12, verdi: (r, t) => statusEtikett(t, r.status) },
+};
+
 function byggDetaljerArk(
   ws: Worksheet,
   grupper: DetaljGruppe[],
   t: OversettFn,
   mottaker: "intern" | "ekstern",
   gruppering: Gruppering,
+  valgteKolonner?: string[],
 ): void {
   const kol = kolTekst(t);
   const ekstern = mottaker === "ekstern";
-  // Fase 4 (+ oppfølger): ekstern (ut av huset) dropper Status, ID OG Ansattnr
-  // strukturelt. Kolonnene finnes ikke i arket — kan ikke glemmes på. Ansattnr er
-  // pseudonymiseringsnøkkelen (peker inn i registeret) → aldri ut av huset; ID er
-  // uansett Excel-only. Ansattnavn BLIR (dokumentasjon av hvem som utførte arbeidet).
-  const noekler = [
-    "kolDato",
-    "kolAnsatt",
-    ...(ekstern ? [] : ["kolAnsattnr"]),
-    "kolProsjekt",
-    // ← framtidig «Underprosjekt» slottes inn her (data fra server-raden).
-    "kolType",
-    "kolBetegnelse", // lønnsart · maskinnavn · tilleggsnavn · kategori
-    "kolAktivitet",
-    "kolFra", // klokkeslett HH:MM (kun timer-rader)
-    "kolTil",
-    "kolTimer",
-    "kolMaskintimer", // egen kolonne — holder Timer-kolonnen (kontrollsum) ren
-    "kolAntall",
-    "kolBelop",
-    "kolMengde",
-    "kolEnhet",
-    "kolBeskrivelse",
-    ...(ekstern ? [] : ["kolStatus"]), // rad-/seddelstatus — kun intern
-    ...(ekstern ? [] : ["kolId"]), // tynn koblingsnøkkel — kun intern, aldri PDF
-  ];
+  const alleRader = grupper.flatMap((g) => g.rader);
+
+  // Kolonnesett + rekkefølge (flateparitet, config v3): malens `valgteKolonner`
+  // ordrett — nøyaktig samme kolonner som skjerm/PDF. Mangler valget: dagens fulle
+  // sett (Excel viste ALT; beholdt uendret for maler uten kolonnevalg). Ekstern-
+  // regelen (Status/Ansattnr) filtreres bort strukturelt i begge veier.
+  const harValg = !!(valgteKolonner && valgteKolonner.length > 0);
+  const koler: TimerKolKey[] = harValg
+    ? losTimerKolonner(alleRader, mottaker, valgteKolonner)
+    : TIMER_KOL_KEYS.filter((k) => !(ekstern && INTERNE_TIMER_KOLONNER.includes(k)));
+
+  // ID-kolonnen (tynn koblingsnøkkel) er Excel-only og aldri valgbar — kun i legacy
+  // intern-modus. Ved eksplisitt kolonnevalg finnes den ikke (skjerm/PDF har ingen ID).
+  const medId = !harValg && !ekstern;
+
+  const noekler = koler.map((k) => EXCEL_KOL[k].i18n);
+  if (medId) noekler.push("kolId");
   ws.addRow(noekler.map(kol));
   ws.getRow(1).font = { bold: true };
   const antallKol = noekler.length;
-  // Indeks slås opp på den STABILE nøkkelen, ikke den oversatte strengen —
-  // robust mot både innskutte kolonner OG ikke-norske faner.
-  const sumKol = [
-    noekler.indexOf("kolTimer"),
-    noekler.indexOf("kolMaskintimer"),
-    noekler.indexOf("kolAntall"),
-    noekler.indexOf("kolBelop"),
-  ];
-  const idIdx = noekler.indexOf("kolId");
-  const statusIdx = noekler.indexOf("kolStatus");
+
+  // Sum-kolonner = posisjonene til de summerbare kolonnene som faktisk er med.
+  const sumKol = koler
+    .map((k, i) => (EXCEL_KOL[k].sum ? i : -1))
+    .filter((i) => i !== -1);
 
   const radVerdier = (r: DetaljRad): Array<string | number> => {
-    const base: Array<string | number> = [
-      r.dato,
-      r.ansatt,
-      ...(ekstern ? [] : [r.ansattnr ?? ""]),
-      r.prosjekt,
-      typeEtikett(t, r.type),
-      betegnelse(t, r, ekstern),
-      r.aktivitet ?? "",
-      r.fraTid ?? "",
-      r.tilTid ?? "",
-      r.timer ?? "", // NUMERISK der satt — SUBTOTAL ignorerer tomme/tekst-celler
-      r.maskintimer ?? "",
-      r.antall ?? "",
-      r.belop ?? "",
-      r.mengde ?? "",
-      r.enhet ?? "",
-      r.beskrivelse ?? "",
-    ];
-    if (statusIdx !== -1) base.push(statusEtikett(t, r.status)); // rå DB-kode → norsk
-    if (idIdx !== -1) base.push(r.id);
+    const base: Array<string | number> = koler.map((k) => EXCEL_KOL[k].verdi(r, t, ekstern));
+    if (medId) base.push(r.id);
     return base;
   };
 
@@ -486,10 +494,9 @@ function byggDetaljerArk(
 
   leggTilSumrad(ws, antallKol, sumKol, førsteData, ws.rowCount, t("timer.eksport.sumKontroll"));
 
-  // Bredder mirrorer noekler: ansattnr (10) droppes for ekstern, status/id ved sine flagg.
-  const bredder = [12, 22, ...(ekstern ? [] : [10]), 22, 10, 24, 18, 7, 7, 9, 11, 9, 11, 10, 8, 34];
-  if (statusIdx !== -1) bredder.push(12);
-  if (idIdx !== -1) bredder.push(14);
+  // Bredder følger kolonnesettet 1:1 (ID = 14 til slutt i legacy intern-modus).
+  const bredder = koler.map((k) => EXCEL_KOL[k].bredde);
+  if (medId) bredder.push(14);
   settBredder(ws, bredder);
 }
 
@@ -576,6 +583,7 @@ export async function eksporterXlsx(
     t,
     mottaker,
     gruppering,
+    opts.valgteKolonner,
   );
 
   const buffer = await wb.xlsx.writeBuffer();

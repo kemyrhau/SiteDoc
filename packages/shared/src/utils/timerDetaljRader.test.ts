@@ -4,6 +4,7 @@ import {
   kolonnerMedInnhold,
   grupperDetaljRader,
   flatDetaljRader,
+  losTimerKolonner,
   ALLE_RADTYPER,
   type DetaljEksportKilde,
 } from "./timerDetaljRader";
@@ -286,5 +287,56 @@ describe("flatDetaljRader (virtualiserings-flate)", () => {
     expect(flate).toHaveLength(1);
     expect(flate[0]!.kind).toBe("grandtotal");
     if (flate[0]!.kind === "grandtotal") expect(flate[0]!.subtotal.timer).toBeNull();
+  });
+});
+
+describe("losTimerKolonner (flateparitet — ÉN sannhet for skjerm/PDF/Excel)", () => {
+  const rader = byggDetaljRader(kilde({ timerader: [timerad()] }), ALLE_RADTYPER);
+
+  it("config satt → ordrett brukervalg i valgt rekkefølge (ingen drop-tom)", () => {
+    // «mengde» har ingen data på en ren timerad, men er eksplisitt valgt → skal STÅ (B1).
+    expect(losTimerKolonner(rader, "intern", ["prosjekt", "dato", "timer", "mengde"])).toEqual([
+      "prosjekt",
+      "dato",
+      "timer",
+      "mengde",
+    ]);
+  });
+
+  it("ekstern VINNER over kolonnevalget: ansattnr/status filtreres bort strukturelt", () => {
+    const valgt = ["dato", "ansattnr", "ansatt", "status", "timer"];
+    expect(losTimerKolonner(rader, "ekstern", valgt)).toEqual(["dato", "ansatt", "timer"]);
+    // Intern beholder dem (samme brukervalg).
+    expect(losTimerKolonner(rader, "intern", valgt)).toEqual(valgt);
+  });
+
+  it("ukjente nøkler i config filtreres bort (relikvi fra annen form)", () => {
+    expect(losTimerKolonner(rader, "intern", ["dato", "finnesikke", "timer"])).toEqual([
+      "dato",
+      "timer",
+    ]);
+  });
+
+  it("tom/utelatt config → dynamisk standardsett (intern: med ansattnr + status)", () => {
+    const koler = losTimerKolonner(rader, "intern", []);
+    expect(koler.slice(0, 6)).toEqual([
+      "dato",
+      "ansatt",
+      "ansattnr",
+      "prosjekt",
+      "type",
+      "betegnelse",
+    ]);
+    expect(koler).toContain("status");
+    // Tomme kolonner (ingen maskin/tillegg/utlegg-data) droppes i dynamisk modus.
+    expect(koler).not.toContain("maskintimer");
+    expect(koler).not.toContain("belop");
+  });
+
+  it("tom config + ekstern → ansattnr/status utelatt fra standardsettet", () => {
+    const koler = losTimerKolonner(rader, "ekstern", []);
+    expect(koler).not.toContain("ansattnr");
+    expect(koler).not.toContain("status");
+    expect(koler).toContain("ansatt");
   });
 });

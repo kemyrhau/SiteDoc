@@ -7,11 +7,12 @@ import {
   byggDetaljRader,
   grupperDetaljRader,
   flatDetaljRader,
-  kolonnerMedInnhold,
+  losTimerKolonner,
   type DetaljRad,
   type DetaljRadType,
   type DetaljSubtotal,
   type Gruppering,
+  type TimerKolKey,
 } from "@sitedoc/shared";
 import {
   type DetaljEksport,
@@ -46,24 +47,7 @@ const TOM_KILDE: DetaljEksport = {
   utlegg: [],
 };
 
-type KolKey =
-  | "dato"
-  | "ansatt"
-  | "ansattnr"
-  | "prosjekt"
-  | "type"
-  | "betegnelse"
-  | "aktivitet"
-  | "fraTid"
-  | "tilTid"
-  | "timer"
-  | "maskintimer"
-  | "antall"
-  | "belop"
-  | "mengde"
-  | "enhet"
-  | "beskrivelse"
-  | "status";
+type KolKey = TimerKolKey;
 
 /** i18n-nøkkel (delt med Excel via `kolTekst`), bredde, høyrejustering (tall),
  *  og hvilket subtotal-felt kolonnen summerer (om noen). */
@@ -96,6 +80,8 @@ interface Props {
   valgteRadTyper: DetaljRadType[];
   mottaker: Mottaker;
   gruppering: Gruppering;
+  /** Malens `config.kolonner` — valgt kolonnesett + rekkefølge. Tom → standardsett. */
+  valgteKolonner?: string[];
 }
 
 export function TimerRapportDetaljer({
@@ -104,6 +90,7 @@ export function TimerRapportDetaljer({
   valgteRadTyper,
   mottaker,
   gruppering,
+  valgteKolonner,
 }: Props) {
   const { t } = useTranslation();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -119,26 +106,13 @@ export function TimerRapportDetaljer({
     const grupper = grupperDetaljRader(byggeteRader, gruppering);
     const flatListe = flatDetaljRader(grupper);
 
-    // PDF-modell: alltid-kolonner + kolonner som har innhold i radsettet (tomme
-    // droppes for lesbarhet, som i dokumentet). Ansattnr/Status kun intern.
-    const innhold = kolonnerMedInnhold(byggeteRader);
-    const koler: KolKey[] = ["dato", "ansatt"];
-    if (!ekstern) koler.push("ansattnr");
-    koler.push("prosjekt", "type", "betegnelse");
-    if (innhold.aktivitet) koler.push("aktivitet");
-    if (innhold.fraTid) koler.push("fraTid");
-    if (innhold.tilTid) koler.push("tilTid");
-    if (innhold.timer) koler.push("timer");
-    if (innhold.maskintimer) koler.push("maskintimer");
-    if (innhold.antall) koler.push("antall");
-    if (innhold.belop) koler.push("belop");
-    if (innhold.mengde) koler.push("mengde");
-    if (innhold.enhet) koler.push("enhet");
-    if (innhold.beskrivelse) koler.push("beskrivelse");
-    if (!ekstern) koler.push("status");
+    // ÉN sannhet med PDF/Excel: malens kolonnevalg styrer settet + rekkefølgen
+    // (ordrett, ingen drop-tom); mangler det, dagens dynamiske sett (alltid-kolonner
+    // + kolonner med innhold). Ekstern-regelen (Ansattnr/Status) vinner strukturelt.
+    const koler = losTimerKolonner(byggeteRader, mottaker, valgteKolonner);
 
     return { rader: byggeteRader, flate: flatListe, aktiveKoler: koler };
-  }, [detalj, valgteRadTyper, gruppering, ekstern]);
+  }, [detalj, valgteRadTyper, gruppering, mottaker, valgteKolonner]);
 
   const gridTemplate = aktiveKoler.map((k) => `${KOL_META[k].bredde}px`).join(" ");
   const totalBredde = aktiveKoler.reduce((s, k) => s + KOL_META[k].bredde, 0);

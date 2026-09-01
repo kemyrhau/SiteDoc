@@ -328,6 +328,116 @@ export function kolonnerMedInnhold(rader: DetaljRad[]): KolonneTilstedevaerelse 
 }
 
 /* ------------------------------------------------------------------ */
+/*  Kolonnevalg — ÉN sannhet for skjerm/PDF/Excel (flateparitet)       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Kanonisk kolonnesett + rekkefølge for detalj-tabellen. Rekkefølgen her ER
+ * standardrekkefølgen (brukt når en mal ikke har eksplisitt `config.kolonner`).
+ * Alle tre flater (skjerm/PDF/Excel) projiserer sine kolonner ut fra disse nøklene,
+ * så de aldri kan drive fra hverandre (Kenneth flateparitet-vedtak 2026-09-01).
+ * `id`-kolonnen (koblingsnøkkel) er bevisst IKKE her — den er Excel-only og ikke valgbar.
+ */
+export const TIMER_KOL_KEYS = [
+  "dato",
+  "ansatt",
+  "ansattnr",
+  "prosjekt",
+  "type",
+  "betegnelse",
+  "aktivitet",
+  "fraTid",
+  "tilTid",
+  "timer",
+  "maskintimer",
+  "antall",
+  "belop",
+  "mengde",
+  "enhet",
+  "beskrivelse",
+  "status",
+] as const;
+
+export type TimerKolKey = (typeof TIMER_KOL_KEYS)[number];
+
+/**
+ * Strukturelt interne kolonner — aldri i en ekstern rapport (designlås 1, personvern).
+ * Ansattnr er pseudonymiseringsnøkkelen; status er intern arbeidsflyt. Denne regelen
+ * VINNER over brukerens kolonnevalg — den kan ikke overstyres fra kolonnevelgeren.
+ * (ID er uansett ikke en valgbar kolonne, og aldri i PDF.)
+ */
+export const INTERNE_TIMER_KOLONNER: readonly TimerKolKey[] = ["ansattnr", "status"];
+
+/** i18n-nøkkel pr. kolonne (delt av skjerm/velger/Excel via `kolTekst`/`t`). */
+export const TIMER_KOL_I18N: Record<TimerKolKey, string> = {
+  dato: "kolDato",
+  ansatt: "kolAnsatt",
+  ansattnr: "kolAnsattnr",
+  prosjekt: "kolProsjekt",
+  type: "kolType",
+  betegnelse: "kolBetegnelse",
+  aktivitet: "kolAktivitet",
+  fraTid: "kolFra",
+  tilTid: "kolTil",
+  timer: "kolTimer",
+  maskintimer: "kolMaskintimer",
+  antall: "kolAntall",
+  belop: "kolBelop",
+  mengde: "kolMengde",
+  enhet: "kolEnhet",
+  beskrivelse: "kolBeskrivelse",
+  status: "kolStatus",
+};
+
+/**
+ * Løs de aktive detalj-kolonnene, i rekkefølge. ÉN sannhet for alle tre flater.
+ *
+ *  - `valgteKolonner` satt (malens `config.kolonner`) → ordrett brukervalg, i den
+ *    rekkefølgen arrayet har. INGEN «drop tom» (B1, Kenneth 2026-09-01): en kolonne
+ *    brukeren eksplisitt har valgt vises selv om den er tom den dagen.
+ *  - `valgteKolonner` tom/utelatt → dagens dynamiske atferd: alltid-kolonner +
+ *    kolonner som faktisk har innhold (tomme droppes for lesbarhet). Uendret for
+ *    eksisterende maler.
+ *
+ * Ekstern-regelen (INTERNE_TIMER_KOLONNER) filtreres bort STRUKTURELT i begge veier
+ * — den vinner over brukervalget.
+ */
+export function losTimerKolonner(
+  rader: DetaljRad[],
+  mottaker: "intern" | "ekstern",
+  valgteKolonner?: readonly string[] | null,
+): TimerKolKey[] {
+  const ekstern = mottaker === "ekstern";
+  const strukturOk = (k: TimerKolKey): boolean =>
+    !(ekstern && INTERNE_TIMER_KOLONNER.includes(k));
+
+  if (valgteKolonner && valgteKolonner.length > 0) {
+    return valgteKolonner
+      .filter((k): k is TimerKolKey =>
+        (TIMER_KOL_KEYS as readonly string[]).includes(k),
+      )
+      .filter(strukturOk);
+  }
+
+  const innhold = kolonnerMedInnhold(rader);
+  const koler: TimerKolKey[] = ["dato", "ansatt"];
+  if (!ekstern) koler.push("ansattnr");
+  koler.push("prosjekt", "type", "betegnelse");
+  if (innhold.aktivitet) koler.push("aktivitet");
+  if (innhold.fraTid) koler.push("fraTid");
+  if (innhold.tilTid) koler.push("tilTid");
+  if (innhold.timer) koler.push("timer");
+  if (innhold.maskintimer) koler.push("maskintimer");
+  if (innhold.antall) koler.push("antall");
+  if (innhold.belop) koler.push("belop");
+  if (innhold.mengde) koler.push("mengde");
+  if (innhold.enhet) koler.push("enhet");
+  if (innhold.beskrivelse) koler.push("beskrivelse");
+  if (!ekstern) koler.push("status");
+  return koler;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Fase 4 — gruppering (presentasjonslag OVER byggDetaljRader)        */
 /* ------------------------------------------------------------------ */
 

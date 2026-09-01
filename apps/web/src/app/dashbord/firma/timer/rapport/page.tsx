@@ -5,12 +5,22 @@ import { useTranslation } from "react-i18next";
 import { useSession } from "next-auth/react";
 import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { ALLE_RADTYPER, type DetaljRadType, type Gruppering } from "@sitedoc/shared";
+import {
+  ALLE_RADTYPER,
+  TIMER_KOL_KEYS,
+  TIMER_KOL_I18N,
+  INTERNE_TIMER_KOLONNER,
+  type DetaljRadType,
+  type Gruppering,
+  type TimerKolKey,
+} from "@sitedoc/shared";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { TimerRapportDetaljer } from "@/components/timer/TimerRapportDetaljer";
+import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
+import { kolTekst } from "@/lib/timer-rapport-eksport";
 
 type StatusFordeling = { kladd: number; sent: number; attestert: number };
 
@@ -65,6 +75,9 @@ type MalConfig = {
   gruppering: Gruppering;
   orientering: Orientering;
   topptekst: Topptekst;
+  /** configVersion 3: valgt kolonnesett + rekkefølge (rekkefølgen I arrayet ER
+   *  kolonnerekkefølgen). Tom → standardsett i standardrekkefølge (uendret atferd). */
+  kolonner: TimerKolKey[];
 };
 
 /** En lagret mal slik list-endepunktet returnerer den (config er Json). */
@@ -81,6 +94,7 @@ function lesConfig(config: unknown): MalConfig {
     gruppering?: unknown;
     orientering?: unknown;
     topptekst?: unknown;
+    kolonner?: unknown;
   };
   const radTyper = Array.isArray(c.radTyper)
     ? c.radTyper.filter((r): r is DetaljRadType =>
@@ -92,6 +106,13 @@ function lesConfig(config: unknown): MalConfig {
     tp && Array.isArray(tp.linjer)
       ? tp.linjer.filter((l): l is string => typeof l === "string")
       : null;
+  // configVersion 3: `kolonner` — kjente nøkler i lagret rekkefølge; ukjente filtreres
+  // bort (relikvier fra en fremtidig/gammel form). Utelatt/tom → standardsett (v1/v2-rader).
+  const kolonner = Array.isArray(c.kolonner)
+    ? c.kolonner.filter((k): k is TimerKolKey =>
+        (TIMER_KOL_KEYS as readonly string[]).includes(k as string),
+      )
+    : [];
   return {
     radTyper: radTyper.length > 0 ? radTyper : [...ALLE_RADTYPER],
     format: c.format === "pdf" ? "pdf" : "xlsx",
@@ -103,6 +124,7 @@ function lesConfig(config: unknown): MalConfig {
         ? c.orientering
         : "auto",
     topptekst: linjer && linjer.length > 0 ? { linjer } : null,
+    kolonner,
   };
 }
 
@@ -134,6 +156,9 @@ function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
         gruppering: "ingen",
         orientering: "auto",
         topptekst: null,
+        // Full eksport = alle kolonner i standardrekkefølge (eksplisitt sett → alle
+        // tre flater viser det samme, jf. flateparitet-vedtaket).
+        kolonner: [...TIMER_KOL_KEYS],
       },
     },
     {
@@ -146,6 +171,7 @@ function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
         gruppering: "ansatt",
         orientering: "auto",
         topptekst: null,
+        kolonner: [...TIMER_KOL_KEYS],
       },
     },
     {
@@ -166,6 +192,13 @@ function byggInnebygde(t: (k: string) => string): InnebygdMal[] {
             "{prosjekt}",
           ],
         },
+        // Fakturagrunnlag til byggherre: eget kolonnesett UTEN ansatt (personen skal
+        // ofte ikke vises på fakturaen — Kenneth 2026-09-01). Ansattnr/status droppes
+        // uansett strukturelt av ekstern-regelen.
+        kolonner: [
+          "dato", "prosjekt", "type", "betegnelse", "aktivitet",
+          "timer", "maskintimer", "antall", "belop", "mengde", "enhet", "beskrivelse",
+        ],
       },
     },
   ];
@@ -309,6 +342,10 @@ export default function TimerRapportSide() {
   const [gruppering, setGruppering] = useState<Gruppering>("ingen");
   const [orientering, setOrientering] = useState<Orientering>("auto");
   const [topptekstTekst, setTopptekstTekst] = useState("");
+  // config v3: valgt kolonnesett + rekkefølge. Tom → dynamisk standardsett. Styrer
+  // detaljvisningen (skjerm) live og skrives ut av Excel/PDF (flateparitet).
+  const [valgteKolonner, setValgteKolonner] = useState<TimerKolKey[]>([]);
+  const [visKolonneVelger, setVisKolonneVelger] = useState(false);
   const [malNavn, setMalNavn] = useState("");
   const [redigererMalId, setRedigererMalId] = useState<string | null>(null);
   // 1c: try/finally uten catch svelget kastet → «virker ikke» uten spor. Vis
@@ -465,6 +502,9 @@ export default function TimerRapportSide() {
     gruppering: "ingen",
     orientering: "auto",
     topptekst: null,
+    // Tom → dynamisk standardsett (dagens atferd for de direkte format-knappene og
+    // en blank ny mal); brukeren materialiserer et eksplisitt sett i kolonnevelgeren.
+    kolonner: [],
   };
 
   /** `utFormat` = filtypen som produseres (csv|xlsx|pdf). `cfg` bærer fase 4-aksene
@@ -507,6 +547,7 @@ export default function TimerRapportSide() {
           gruppering: cfg.gruppering,
           orientering: cfg.orientering,
           topptekstLinjer: cfg.topptekst?.linjer,
+          kolonner: cfg.kolonner.length > 0 ? cfg.kolonner : undefined,
           tekster: byggPdfTekster(t, byggStatusEtiketter(t)),
         });
         lastNedBase64(res.pdf, res.filnavn, "application/pdf");
@@ -557,6 +598,7 @@ export default function TimerRapportSide() {
           radTyper,
           mottaker: cfg.mottaker,
           gruppering: cfg.gruppering,
+          valgteKolonner: cfg.kolonner.length > 0 ? cfg.kolonner : undefined,
         });
       }
     } catch (e) {
@@ -580,6 +622,7 @@ export default function TimerRapportSide() {
     setGruppering(cfg.gruppering);
     setOrientering(cfg.orientering);
     setTopptekstTekst(cfg.topptekst ? cfg.topptekst.linjer.join("\n") : "");
+    setValgteKolonner([...cfg.kolonner]);
   }
 
   /** Bygg config fra gjeldende modal-tilstand. Topptekst: én linje pr. rad, tomme
@@ -596,6 +639,7 @@ export default function TimerRapportSide() {
       gruppering,
       orientering,
       topptekst: linjer.length > 0 ? { linjer } : null,
+      kolonner: valgteKolonner,
     };
   }
 
@@ -825,6 +869,10 @@ export default function TimerRapportSide() {
           setOrientering={setOrientering}
           topptekstTekst={topptekstTekst}
           setTopptekstTekst={setTopptekstTekst}
+          valgteKolonner={valgteKolonner}
+          setValgteKolonner={setValgteKolonner}
+          visKolonneVelger={visKolonneVelger}
+          setVisKolonneVelger={setVisKolonneVelger}
           redigererEksisterende={redigererMalId !== null}
           kanLagreFirma={kanAdministrereFirma}
           lagrer={lagreMal.isPending || oppdaterMal.isPending || slettMal.isPending}
@@ -1068,6 +1116,7 @@ export default function TimerRapportSide() {
             valgteRadTyper={valgteRadTyper}
             mottaker={mottaker}
             gruppering={gruppering}
+            valgteKolonner={valgteKolonner}
           />
         </div>
       )}
@@ -1354,6 +1403,10 @@ function TilpassetModal({
   setOrientering,
   topptekstTekst,
   setTopptekstTekst,
+  valgteKolonner,
+  setValgteKolonner,
+  visKolonneVelger,
+  setVisKolonneVelger,
   redigererEksisterende,
   kanLagreFirma,
   lagrer,
@@ -1378,6 +1431,10 @@ function TilpassetModal({
   setOrientering: (o: Orientering) => void;
   topptekstTekst: string;
   setTopptekstTekst: (v: string) => void;
+  valgteKolonner: TimerKolKey[];
+  setValgteKolonner: (v: TimerKolKey[]) => void;
+  visKolonneVelger: boolean;
+  setVisKolonneVelger: (v: boolean) => void;
   redigererEksisterende: boolean;
   kanLagreFirma: boolean;
   lagrer: boolean;
@@ -1409,6 +1466,46 @@ function TilpassetModal({
   }
   const ingenValgt = valgteRadTyper.length === 0;
   const utenNavn = navn.trim().length === 0;
+
+  // Kolonnevelger (config v3). Ekstern skjuler de interne kolonnene (status/ansattnr)
+  // fra lista — personvern-regelen, ikke en preferanse. Tom `valgteKolonner` seedes
+  // med standardsettet så velgeren har noe å vise; første endring materialiserer et
+  // eksplisitt sett. Dato er alltid-på (låst); ansatt er default-på men fjernbar (B2).
+  const eksternMal = mottaker === "ekstern";
+  const tilgjengeligeKoler = TIMER_KOL_KEYS.filter(
+    (k) => !(eksternMal && INTERNE_TIMER_KOLONNER.includes(k)),
+  );
+  const effektivKolonner: TimerKolKey[] = (
+    valgteKolonner.length > 0 ? valgteKolonner : [...tilgjengeligeKoler]
+  ).filter((k) => tilgjengeligeKoler.includes(k));
+  const kolNavn = kolTekst(t);
+  const kolonneGrupper: KolonneVelgerGruppe[] = [
+    {
+      id: "kolonner",
+      navn: t("kolonne.kolonner"),
+      felter: tilgjengeligeKoler.map((k) => ({
+        id: k,
+        navn: kolNavn(TIMER_KOL_I18N[k]),
+        laast: k === "dato",
+      })),
+    },
+  ];
+  function kolToggle(id: string) {
+    if (id === "__reset__") {
+      setValgteKolonner([]); // tilbake til dynamisk standardsett
+      return;
+    }
+    const base = effektivKolonner;
+    const nøkkel = id as TimerKolKey;
+    setValgteKolonner(
+      base.includes(nøkkel) ? base.filter((k) => k !== nøkkel) : [...base, nøkkel],
+    );
+  }
+  function kolReorder(ny: string[]) {
+    setValgteKolonner(
+      ny.filter((k): k is TimerKolKey => (TIMER_KOL_KEYS as readonly string[]).includes(k)),
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
@@ -1488,6 +1585,40 @@ function TilpassetModal({
               ]}
               onVelg={setGruppering}
             />
+          </div>
+
+          {/* Kolonner (config v3) — valgt sett + rekkefølge (drabar). Styrer skjerm,
+              Excel OG PDF likt (flateparitet). Ekstern skjuler de interne kolonnene. */}
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {t("firma.timer.rapport.tilpasset.kolonner")}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setVisKolonneVelger(!visKolonneVelger)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              >
+                {t("kolonne.velgParameter")}
+                <span className="text-gray-400">({effektivKolonner.length})</span>
+              </button>
+              <KolonneVelger
+                apen={visKolonneVelger}
+                onLukk={() => setVisKolonneVelger(false)}
+                aktive={new Set(effektivKolonner)}
+                onToggle={kolToggle}
+                grupper={kolonneGrupper}
+                sokPlaceholder={t("firma.timer.rapport.tilpasset.kolonnerSok")}
+                nullstillTekst={t("handling.nullstill")}
+                okTekst={t("handling.ok")}
+                sorterbar
+                rekkefolge={effektivKolonner}
+                onRekkefolgeEndring={kolReorder}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {t("firma.timer.rapport.tilpasset.kolonnerHjelp")}
+            </p>
           </div>
 
           {/* Format */}
