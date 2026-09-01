@@ -174,9 +174,32 @@ overgangene med tid, person og rolle — og så signaturblokka. Tom posisjon ren
 finnes. Om denne PDF-en er arkivmalen eller den eldre utskriften er **ikke målt**. Avklar det
 før noen bygger — ikke anta at grep-treffet og det observerte dokumentet er samme vei.
 
-**Det PDF-en gjør er sannsynligvis svaret på hele saken:** historikk alltid synlig,
-felt-for-felt-endringslogg ikke. Det er nøyaktig Kenneths formulering om at loggen er noe man
-tar frem ved tvist.
+**🟢 LØSNINGEN FINNES ALLEREDE — i PDF-ens dokumenthistorikk.** Målt på BEF_-004 (Lavangen
+Kommune, generert 01.09.2026 16:52):
+
+```
+01.09.2026 16:49   Kenneth Myrhaug (Bestiller)   Sendt (31 feltendringer)
+01.09.2026 16:49   Kenneth Myrhaug (Bestiller)   Mottatt
+```
+
+**Endringene kollapses til et TALL på statusovergangen.** Ikke 31 rader — én linje som sier at
+31 felt ble endret før dokumentet ble sendt. Leseren ser at det skjedde noe, og graver kun ved
+tvist. Det er presis Kenneths formulering, og det er allerede implementert.
+
+**Retningen er dermed konkret:** web og mobil skal vise dokumenthistorikk med
+feltendrings-**telling** per overgang, slik PDF-en gjør — ikke en flat liste med hver rad.
+Detaljene hentes fram på forespørsel.
+
+### Målt støy i dagens web-visning (samme dokument, 31.08)
+
+- **~25 rader «Rad 3 — Kolonne 2 til «Ikke utfylt»»** innenfor minutter (07:47–13:40). Autolagring
+  skriver en rad hver gang en repeater-rad berøres. Ingen «fra»-verdi — bare «til».
+- **Rå ISO-tidsstempler i verditeksten:** «Dato og tid fra «2026-08-28T12:46:36.857Z» til
+  «2026-08-28T12:30:36.857Z»». Ikke formatert dato, og differansen er 16 minutter bakover.
+- Radene er fra **før** `normaliserForDiff`-utvidelsen (merget 31.08 kveld). Nye rader skal være
+  langt færre — ikke verifisert i praksis ennå.
+
+> **Kenneth 2026-09-01:** *«mulig loggen som er søppel blir bedre i fremtiden.»*
 
 **Merk ved bygging:** loggen sammenligner kun feltets `verdi`. `kommentar` og `vedlegg` er
 «tilføyelser» og logges ikke — bevisst, og samme grunn til at de slipper gjennom append-only-
