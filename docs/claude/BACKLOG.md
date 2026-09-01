@@ -123,6 +123,43 @@ Da tegningsminnet ble koblet på repeater-flaten (`fix/tegningsminne-repeater`),
 
 **Kjent asymmetri (samme som `OpprettDokumentModal`):** minnet **leses** med global aktiv byggeplass og **skrives** med tegningens egen `byggeplassId`. Konsekvens: et dokument på byggeplass B kan få forvalgt A sin siste tegning når A er aktiv i toppmenyen. Forvalg, ikke låsing — «Bytt tegning» redder det. Bevisst speiling av eksisterende flate framfor ny modell; noteres som kjent kant.
 
+### 🔴 Reiseavstand i km avgjør timelønn vs. reisetid — A.Markussen-krav med frist september 2026
+
+> **Kenneth 2026-09-01:** *«A.Markussen sa de har grense målt i km for om timer er inkludert som
+> timelønn eller registrert som reisetid mellom kontorsted og byggeplass. Dette er et tillegg som
+> vi trenger. Vi trenger det ikke nå, men i løpet av denne måneden.»*
+
+**Kravet:** avstanden mellom **oppmøtested/kontorsted** og **byggeplass** sammenlignes med en
+firma-definert grense i km. Under grensen lønnes tiden som **timelønn**; over grensen registreres
+den som **reisetid** — altså en annen lønnsart.
+
+🔴 **Dette er lønn.** Feil klassifisering gir feil utbetaling, og A.Markussen er piloten (50
+ansatte, frist ~sept 2026). Det er ikke en visningssak.
+
+**Hva som allerede finnes (ikke verifisert i dybden — mål før ordre skrives):**
+
+- `Oppmotested` er en egen firma-flate (`/dashbord/firma/oppmotesteder`).
+- Byggeplass kan ha koordinater fra georeferert tegning; GPS-identifisering finnes på mobil
+  (`ByggeplassKontekst.tsx` — `identifiserByggeplass`).
+- Lønnsart-katalogen er per firma med nivå 1/2 (41 rader hos SITEDOC MYRHAUG på test).
+
+**Åpne spørsmål som må avklares før bygging — ikke gjett på disse:**
+
+1. Måles avstanden i **luftlinje** eller **kjørerute**? Kjørerute krever en ekstern tjeneste.
+2. Er grensen **én per firma**, eller per ansatt/avdeling/prosjekt?
+3. Beregnes den **automatisk** ved registrering, eller velger arbeideren og systemet
+   kontrollerer? (Jf. det bindende vedtaket om at uoppfordret automatikk aldri overskriver en
+   menneskelig handling — [domene-arbeidsflyt.md](domene-arbeidsflyt.md).)
+4. Hva skjer når oppmøtestedet **mangler koordinater**? Reisetid kan ikke bli en stille default.
+5. Er «reisetid» en egen **lønnsart** i dagens katalog, eller må den opprettes?
+
+**Hører hjemme i** [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md) — den
+utredningen samler allerede timer + GPS + prosjekt-tilknytning og venter på en dedikert sesjon.
+Dette kravet gir den en frist og en konkret kunde.
+
+⚠️ **Ikke bland med `Utleieobjekt.utleieEnhet`.** Km ble først nevnt i maskin-sammenheng; det er
+en annen sak. Se [maskin.md](maskin.md) § faktureringsenheten.
+
 ### 🟡 Oppgavens endringslogg skrives, men vises ingen steder i app-flatene (målt 2026-09-01)
 
 **Første målte brudd på flateparitet-vedtaket** — se [retningslinjer/ui-standarder.md § Flateparitet](retningslinjer/ui-standarder.md).

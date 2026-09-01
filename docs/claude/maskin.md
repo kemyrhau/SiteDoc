@@ -260,6 +260,45 @@ Maskin-sjekklister kan «trigges av varsel» (eks. EU-kontroll-frist nærmer seg
 
 **Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), Nye svakheter punkt 7 — konsolidert hit 2026-04-28.
 
+## 🔴 STYRENDE: faktureringsenheten avgjør om maskinen krever en operatør (Kenneth 2026-09-01)
+
+> *«En gravemaskin, dumper, veihøvel eller en hjullaster brukes ikke uten et menneske som kjører
+> den, spesielt dersom maskiner selges pr. time. Kun hvis den selges pr. døgn, eller pr. km, kan
+> maskiner faktureres uten menneske. En Heatwork selges pr. døgn. En meisel eller et aggregat
+> selges pr. døgn. Disse også uten mennesker.»*
+
+**Regelen:** `utleieEnhet` er ikke bare en prisakse — den avgjør om maskinlinja er **bundet til
+en persons timer** eller står alene.
+
+| `utleieEnhet` | Krever operatør | Eksempler | Konsekvens for linja |
+|---|---|---|---|
+| `"time"` | **Ja** | Gravemaskin, dumper, veihøvel, hjullaster | Maskintimene hører til **samme linje** som operatørens timer — de beskriver samme arbeid |
+| `"doegn"` | Nei | Heatwork, meisel, aggregat | Selvstendig linje. Maskinen går uten at noen står ved den |
+
+✅ **Feltet finnes allerede:** `Utleieobjekt.utleieEnhet` (`packages/db-maskin/prisma/schema.prisma:88`,
+`"doegn" | "time"`), ved siden av `utleieprisPerDogn` og `utleieprisPerTime`. **Ingen migrering
+kreves** for å bygge regelen.
+
+⚠️ **`"km"` finnes ikke som verdi**, og det er **uavklart om den trengs her.** Kenneth nevnte
+km i første omgang som en enhet der maskinen faktureres uten menneske, men presiserte samme dag
+at km-behovet han faktisk har gjelder **noe helt annet**: en avstandsgrense som avgjør om reise
+lønnes som timelønn eller reisetid. Det hører til **timer-modulen**, ikke maskin — se
+[BACKLOG.md](BACKLOG.md) § reiseavstand. **Ikke bygg `"km"` som `utleieEnhet` før noen har
+bekreftet at maskiner faktisk faktureres per kilometer hos en kunde.**
+
+### Målt konsekvens: timer-rapporten viser maskinlinja løsrevet
+
+**Kenneth 2026-09-01, på test:** en `Maskin`-rad (Volvo EC220E, 7,50 maskintimer) rendres som
+**egen linje rett under** timeraden den hører til, med alle andre kolonner tomme. *«Den ser
+unødvendig ut — den passer på samme linje som timer.»*
+
+Han har rett, og regelen over sier hvorfor: en gravemaskin solgt pr. time **er** operatørens
+timer sett fra maskinsiden. To linjer for én hendelse.
+
+⚠️ **Ikke bygget.** Sammenslåingen krever at presentasjonslaget slår sammen `SheetTimer` og
+`SheetMachine` når `utleieEnhet = "time"` og de deler dagsseddel — og lar dem stå adskilt når
+enheten er `"doegn"`. Egen runde; se [BACKLOG.md](BACKLOG.md).
+
 ## Tre kategorier
 
 ```
