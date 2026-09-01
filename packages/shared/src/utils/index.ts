@@ -65,6 +65,7 @@ export {
   losTimerKolonner,
   TIMER_KOL_KEYS,
   TIMER_KOL_I18N,
+  TIMER_KOL_BREDDE,
   INTERNE_TIMER_KOLONNER,
   ALLE_RADTYPER,
 } from "./timerDetaljRader";
@@ -77,6 +78,7 @@ export type {
   MaskinMerke,
   KolonneTilstedevaerelse,
   TimerKolKey,
+  TimerKolBredde,
   Gruppering,
   DetaljSubtotal,
   DetaljGruppe,

@@ -16,6 +16,7 @@ import {
   byggDetaljRader,
   grupperDetaljRader,
   ALLE_RADTYPER,
+  TIMER_KOL_BREDDE,
   type DetaljRadType,
   type Gruppering,
 } from "@sitedoc/shared";
@@ -440,14 +441,19 @@ export const rapportRouter = router({
         new Set(sedler.flatMap((s) => s.maskiner.map((m) => m.vehicleId))),
       );
       const utstyrMap = new Map<string, string>();
+      // utleieEnhet ("time" | "doegn" | null) styrer om en nøstet maskin foldes
+      // inn på operatørens timerad (maskin.md § faktureringsenheten). null =
+      // ukjent → ALDRI gjettet (byggDetaljRader lar den stå på egen linje).
+      const utleieEnhetMap = new Map<string, string | null>();
       if (vehicleIder.length > 0) {
         const utstyr = await ctx.prismaMaskin.equipment.findMany({
           where: { id: { in: vehicleIder } },
-          select: { id: true, merke: true, modell: true, internNavn: true },
+          select: { id: true, merke: true, modell: true, internNavn: true, utleieEnhet: true },
         });
         for (const e of utstyr) {
           const base = `${e.merke ?? ""} ${e.modell ?? ""}`.trim();
           utstyrMap.set(e.id, base || e.internNavn || e.id);
+          utleieEnhetMap.set(e.id, e.utleieEnhet ?? null);
         }
       }
 
@@ -489,6 +495,7 @@ export const rapportRouter = router({
               mengde: m.mengde === null ? null : Number(m.mengde),
               enhet: m.enhet,
               radstatus: m.attestertStatus ?? "pending",
+              utleieEnhet: utleieEnhetMap.get(m.vehicleId) ?? null,
             })),
         })),
       );
@@ -508,6 +515,9 @@ export const rapportRouter = router({
         mengde: m.mengde === null ? null : Number(m.mengde),
         enhet: m.enhet,
         radstatus: m.attestertStatus ?? "pending",
+        // Løse maskiner står på egen linje uansett enhet — men KildeMaskin-typen
+        // krever feltet, så vi bærer den ekte verdien (aldri brukt til folding her).
+        utleieEnhet: utleieEnhetMap.get(m.vehicleId) ?? null,
       });
 
       // Maskin-klassifisering i to «løse» bøtter (nøstede ligger i timerader):
@@ -676,6 +686,7 @@ export const rapportRouter = router({
           beskrivelse: r.beskrivelse,
           status: r.status,
           maskinMerke: r.maskinMerke,
+          maskinnavn: r.maskinnavn,
         })),
       }));
 
@@ -707,6 +718,13 @@ export const rapportRouter = router({
         ansattFilter,
         mottaker,
         valgteKolonner: input.kolonner,
+        // Bredde-vekt pr. kolonne (flateparitet): PDF importerer bevisst ikke
+        // @sitedoc/shared, så den delte bredde-intensjonen sendes inn som data.
+        // Vekt = min·(1+vekt) → fritekst-kolonner (Beskrivelse/Betegnelse) får mest
+        // plass, koder/tall holdes smale — samme intensjon som skjerm/Excel arver.
+        kolBredder: Object.fromEntries(
+          Object.entries(TIMER_KOL_BREDDE).map(([k, b]) => [k, b.min * (1 + b.vekt)]),
+        ),
         topptekstLinjer,
         ansatte: aggregat.ansatte.map((a) => ({
           navn: a.navn ?? a.email,
