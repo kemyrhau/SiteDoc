@@ -2,26 +2,23 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
-import {
-  CheckCircle2,
-  Circle,
-  ChevronLeft,
-  ChevronRight,
-  ArrowRight,
-  ExternalLink,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import {
   timerOnboardingWizard,
   førsteUfullførteSteg,
-  antallGjenstår,
-  erOnboardingFullført,
 } from "@/lib/onboarding-wizard";
+import {
+  OnboardingFremdrift,
+  OnboardingStegListe,
+  StegStatusMerke,
+  FerdigKvittering,
+  KatalogSteg,
+} from "@/components/onboarding/veiviser-ui";
 
 const config = timerOnboardingWizard;
 
@@ -104,9 +101,6 @@ function OppsettVeiviser() {
   const idx = config.steg.findIndex((s) => s.id === aktivSteg.id);
   const forrige = idx > 0 ? config.steg[idx - 1] : null;
   const neste = idx < config.steg.length - 1 ? config.steg[idx + 1] : null;
-  const gjenstår = antallGjenstår(config, status);
-  const fullført = erOnboardingFullført(config, status);
-  const nesteUfullført = førsteUfullførteSteg(config, status);
   const stegFerdig = aktivSteg.ferdig(status);
 
   return (
@@ -128,63 +122,20 @@ function OppsettVeiviser() {
       </div>
 
       {/* Fremdrift */}
-      {fullført ? (
-        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-4">
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
-          <span className="text-sm font-medium text-green-900">
-            {t("firma.timer.oppsett.fullfort")}
-          </span>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <span className="text-sm font-medium text-amber-900">
-            {t("firma.timer.oppsett.gjenstaar", {
-              antall: gjenstår,
-              totalt: config.steg.length,
-            })}
-          </span>
-          {nesteUfullført && nesteUfullført.id !== aktivSteg.id && (
-            <Button variant="secondary" onClick={() => gåTil(nesteUfullført.id)}>
-              {t("firma.timer.oppsett.hoppTilUfullfort")}
-              <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      )}
+      <OnboardingFremdrift
+        config={config}
+        status={status}
+        aktivStegId={aktivSteg.id}
+        onHopp={gåTil}
+      />
 
       {/* Steg-liste */}
-      <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {config.steg.map((steg, i) => {
-          const ferdig = steg.ferdig(status);
-          const aktiv = steg.id === aktivSteg.id;
-          return (
-            <li key={steg.id}>
-              <button
-                onClick={() => gåTil(steg.id)}
-                className={`flex w-full items-center gap-2 rounded-lg border p-3 text-left text-sm transition-colors ${
-                  aktiv
-                    ? "border-sitedoc-primary bg-blue-50 text-sitedoc-primary"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                {ferdig ? (
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
-                ) : (
-                  <Circle className="h-5 w-5 shrink-0 text-gray-300" />
-                )}
-                <span className="min-w-0">
-                  <span className="block text-xs text-gray-400">
-                    {t("firma.timer.oppsett.stegNr", { nr: i + 1 })}
-                  </span>
-                  <span className="block truncate font-medium">
-                    {t(steg.tittelKey)}
-                  </span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+      <OnboardingStegListe
+        config={config}
+        status={status}
+        aktivStegId={aktivSteg.id}
+        onVelg={gåTil}
+      />
 
       {/* Steg-innhold */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
@@ -300,70 +251,6 @@ function OppsettVeiviser() {
         ) : (
           <span />
         )}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Presentasjons-komponenter                                          */
-/* ------------------------------------------------------------------ */
-
-function StegStatusMerke({ ferdig }: { ferdig: boolean }) {
-  const { t } = useTranslation();
-  return ferdig ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
-      <CheckCircle2 className="h-3.5 w-3.5" />
-      {t("firma.timer.oppsett.ferdig")}
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
-      <Circle className="h-3.5 w-3.5" />
-      {t("firma.timer.oppsett.ikkeFerdig")}
-    </span>
-  );
-}
-
-function FerdigKvittering({ antall }: { antall: number }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">
-      <CheckCircle2 className="h-5 w-5 text-green-600" />
-      <span>{t("firma.timer.oppsett.antallRegistrert", { antall })}</span>
-    </div>
-  );
-}
-
-function KatalogSteg({
-  beskrivelse,
-  href,
-  lenkeTekst,
-  ferdig,
-  antall,
-}: {
-  beskrivelse: string;
-  href: string;
-  lenkeTekst: string;
-  ferdig: boolean;
-  antall: number;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div>
-      <p className="text-sm text-gray-600">{beskrivelse}</p>
-      {ferdig && (
-        <div className="mt-4">
-          <FerdigKvittering antall={antall} />
-        </div>
-      )}
-      <div className="mt-4">
-        <Link
-          href={href}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-sitedoc-primary transition-colors hover:bg-gray-50"
-        >
-          {t("firma.timer.oppsett.aapneSide", { side: lenkeTekst })}
-          <ExternalLink className="h-4 w-4" />
-        </Link>
       </div>
     </div>
   );

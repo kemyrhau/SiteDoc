@@ -264,6 +264,53 @@ export const organisasjonRouter = router({
     }));
   }),
 
+  // Firmanivå-onboarding-status (kun firmaadmin) — speiler prosjekt.hentOnboardingStatus:
+  // rene tellinger/felt-sjekker, INGEN lagret fremdrift (onboarding-wizard.ts § prinsipp).
+  //
+  // To GATING-steg (firmaOnboardingWizard.steg): firmaprofil (org.nr + fakturaadresse satt)
+  // og første prosjekt opprettet. Er begge på plass, ER firmaet onboardet og prosjekt-
+  // veiviseren tar over. De øvrige tellingene er VALGFRIE anbefalinger (hake, gater aldri)
+  // — et enmanns-firma uten avdelinger/moduler skal aldri stå ufullført for alltid.
+  // `count() > 0` er derfor bevisst IKKE ferdig-predikat for de valgfrie (fabel-fence 1);
+  // de vises kun som «gjort»-haker. OrganizationSeedPolicy gjelder katalog-datatyper
+  // (lønnsart m.m.), ikke disse firma-strukturstegene — den brukes ikke her.
+  hentOnboardingStatus: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+
+      const [org, prosjektAntall, ansattAntall, avdelingAntall, oppmoteAntall, modulAntall] =
+        await Promise.all([
+          ctx.prisma.organization.findUniqueOrThrow({
+            where: { id: orgId },
+            select: { organizationNumber: true, invoiceAddress: true },
+          }),
+          ctx.prisma.projectOrganization.count({ where: { organizationId: orgId } }),
+          ctx.prisma.organizationMember.count({ where: { organizationId: orgId } }),
+          ctx.prisma.avdeling.count({ where: { organizationId: orgId } }),
+          ctx.prisma.oppmotested.count({ where: { organizationId: orgId } }),
+          ctx.prisma.organizationModule.count({
+            where: { organizationId: orgId, status: "aktiv" },
+          }),
+        ]);
+
+      return {
+        // Gating-steg
+        harFirmaprofil: !!org.organizationNumber && !!org.invoiceAddress,
+        harProsjekt: prosjektAntall > 0,
+        // Valgfrie anbefalinger (gater aldri). Ansatte: > 1 = mer enn grunnleggeren selv,
+        // ellers grønt fra start og meningsløst som anbefaling.
+        antallAnsatte: ansattAntall,
+        harAnsatte: ansattAntall > 1,
+        antallAvdelinger: avdelingAntall,
+        harAvdelinger: avdelingAntall > 0,
+        antallOppmotesteder: oppmoteAntall,
+        harOppmotesteder: oppmoteAntall > 0,
+        antallModuler: modulAntall,
+        harModuler: modulAntall > 0,
+      };
+    }),
+
   // Hent organisasjonens ansatte (kun firmaadmin)
   // O-4b: leses via OrganizationMember + user-relasjon
   hentBrukere: protectedProcedure

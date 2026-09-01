@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 import { Card, Button } from "@sitedoc/ui";
-import { CheckCircle, Building2, Users, ClipboardCheck } from "lucide-react";
+import { CheckCircle, Building2, Users, ClipboardCheck, ArrowRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
@@ -136,6 +137,19 @@ export default function KomIGangSide() {
             </p>
           )}
         </Card>
+
+        {/* Vei videre: sett opp firmaet før første prosjekt (onboarding-veiviser). */}
+        {valgtFirma && kanAdministrereFirma && (
+          <div className="mt-4 text-center">
+            <Link
+              href="/dashbord/firma/oppsett"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-sitedoc-primary hover:underline"
+            >
+              {t("firma.onboarding.komIGangLenke")}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        )}
       </div>
     </main>
   );
