@@ -51,7 +51,10 @@ sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
 
-**Test: `12e34ceb`** — ett spor foran prod: ANSVARLIG-kolonnen (venter din gate).
+**Test: `5e57e45f`** (deployet 2026-09-01 18:03, verifisert med `/version`). Foran prod:
+ANSVARLIG-kolonnen · tegningsminne i repeater-raden · **modulhierarki steg 3** (flatene speiler
+resolveren) · endringslogg-speiling i oppgave. Migreringer: «No pending» på alle fire pakker.
+**Venter Kenneths gate** — særlig at HMS/3D/Økonomi/PSI/Kontrollplan er upåvirket av firmataket.
 
 **Ellers står test og prod på samme innhold.** Alt som lå her som «på test» er live:
 registreringsmodell fase 1 (ansatt-status-guard i 11 porter), ansattvelger, fundament ut

@@ -123,6 +123,65 @@ Da tegningsminnet ble koblet på repeater-flaten (`fix/tegningsminne-repeater`),
 
 **Kjent asymmetri (samme som `OpprettDokumentModal`):** minnet **leses** med global aktiv byggeplass og **skrives** med tegningens egen `byggeplassId`. Konsekvens: et dokument på byggeplass B kan få forvalgt A sin siste tegning når A er aktiv i toppmenyen. Forvalg, ikke låsing — «Bytt tegning» redder det. Bevisst speiling av eksisterende flate framfor ny modell; noteres som kjent kant.
 
+### 🟡 Oppgavens endringslogg skrives, men vises ingen steder i app-flatene (målt 2026-09-01)
+
+**Første målte brudd på flateparitet-vedtaket** — se [retningslinjer/ui-standarder.md § Flateparitet](retningslinjer/ui-standarder.md).
+
+`oppgave.ts` skriver `taskChangeLog`-rader ved hver verdiendring når malen har `enableChangeLog`.
+**Ingen app-flate leser dem.** Målt med grep over `apps/web` og `apps/mobile`:
+
+| Flate | Sjekkliste | Oppgave |
+|---|---|---|
+| Web-detaljside | ✅ `sjekklister/[sjekklisteId]/page.tsx` | ❌ ingen render |
+| Mobil | ✅ `apps/mobile/app/sjekkliste/[id].tsx` | ❌ ingen render |
+| Arkiv-PDF | ✅ | ✅ `services/arkiv/logg-lesere.ts` |
+
+Radene dukker altså først opp når dokumentet eksporteres.
+
+> **Kenneth 2026-09-01:** *«ikke slik at vi viser noe tilfeldig her og der bare fordi vi ikke
+> klarer å kode dette rett.»*
+
+⚠️ **RETNINGEN ER SNUDD SAMME DAG — les den nye, ikke den gamle.**
+
+> **Kenneth 2026-09-01, etter å ha sett loggen på tre flater:** *«endringslogg er ikke noe man
+> trenger hele tiden → det er noe man skal ta frem dersom det er konflikt/tvist i et prosjekt.»*
+> Og: *«det eneste som er rett i denne sjekklisten er faktisk PDF.»*
+
+**Ny retning:** endringsloggen er et **oppslagsverktøy**, ikke en fast seksjon. Den skal være
+tilgjengelig på alle flater, men **sammenslått som standard** — ikke rendret i full lengde i
+dokumentvisningen slik sjekklisten gjør i dag. **PDF-gjengivelsen er fasiten** for formatet;
+web og mobil skal justeres mot den, ikke omvendt. 🔴 **Utskriftens header røres ikke.**
+
+~~Gammel retning (skrevet før Kenneth så flatene, beholdt så ingen bygger den):~~
+~~vis loggen på oppgavens detaljside i web og mobil, slik sjekklisten gjør.~~
+
+**Tre målte gjengivelsesfeil (2026-09-01, sjekkliste BEF1 i prod):**
+
+1. **Rader der før og etter er IDENTISKE** rendres i full lengde — Rad 1/2/3 med samme
+   beskrivelse og samme bildeliste på begge sider. **Historiske rader** (16.08 og 21.08),
+   skrevet før `normaliserForDiff`-utvidelsen 31.08. Nye rader skal ikke oppstå — men de gamle
+   ligger i DB. Åpent: skal de ryddes?
+2. **Mobil og web gjengir samme rad ulikt.** Mobil: «Rad 4 (fjernet) fra «tom rad» til «»».
+   Web: «… til «Ikke utfylt»». Samme datarad, to tekster.
+3. **«fra «tom rad» til «»»** er meningsløst for en leser uansett flate.
+
+**🔴 Observert i PDF-en Kenneth kaller fasit (BEF-001, generert 01.09.2026 16:45):** den har
+**ingen endringslogg-seksjon i det hele tatt**. Den har **DOKUMENTHISTORIKK** — status-
+overgangene med tid, person og rolle — og så signaturblokka. Tom posisjon rendres som
+«Ikke utfylt», samme som web; mobilens «»» er den som avviker.
+
+⚠️ **Ikke oppklart:** `services/arkiv/logg-lesere.ts` leser `taskChangeLog`, så kodeveien
+finnes. Om denne PDF-en er arkivmalen eller den eldre utskriften er **ikke målt**. Avklar det
+før noen bygger — ikke anta at grep-treffet og det observerte dokumentet er samme vei.
+
+**Det PDF-en gjør er sannsynligvis svaret på hele saken:** historikk alltid synlig,
+felt-for-felt-endringslogg ikke. Det er nøyaktig Kenneths formulering om at loggen er noe man
+tar frem ved tvist.
+
+**Merk ved bygging:** loggen sammenligner kun feltets `verdi`. `kommentar` og `vedlegg` er
+«tilføyelser» og logges ikke — bevisst, og samme grunn til at de slipper gjennom append-only-
+vakten (`oppgave.ts:749`). Om kommentarer *skal* logges er en åpen produktbeslutning, ikke en bug.
+
 ### 🟢 Mobil dokumentflyt-auto-utledning traff aldri (`af.templates` vs `maler`) — LØST (fiks) + bevisst INGEN datarydding (2026-08-19)
 
 **Bug:** `apps/mobile/src/components/OppgaveModal.tsx` leste `af.templates` fra `dokumentflyt.hentForProsjekt`, men API-feltet har **alltid** hett `maler` (`apps/api/src/routes/dokumentflyt.ts` — `maler` siden første commit `7dd22fc4`; søk på `templates:` i API-en er tomt). Feltet ble skrevet feil i **`9e723690` (2026-03-06)** og brukte aldri `.maler` — altså **feil fra start, ikke en regresjon fra en omdøping.** `af.templates` var dermed alltid `undefined`.

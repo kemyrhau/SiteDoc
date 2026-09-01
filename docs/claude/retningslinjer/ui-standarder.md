@@ -1,14 +1,46 @@
 ---
 name: ui-standarder
 description: UI-designprinsipper, slett-bekreftelse, adaptive nedtrekk, filter-standard, toppbar-filtre og fargepalett. Flyttet ut av CLAUDE.md 2026-08-20 (størrelsesgrense).
-sist_verifisert_mot_kode: 2026-08-20
-sist_endret: 2026-08-20
+sist_verifisert_mot_kode: 2026-09-01
+sist_endret: 2026-09-01
 ---
 
 # UI-standarder
 
 > Flyttet ordrett fra `CLAUDE.md` 2026-08-20 fordi hovedfila nådde 40k-grensen.
 > Innholdet er uendret og fortsatt **styrende**.
+
+## 🔴 Flateparitet — mal, UI og PDF viser det samme (Kenneth-vedtak 2026-09-01)
+
+> **Kenneth 2026-09-01:** *«det vi viser på web/mobil → i mal, i ui og på pdf → vi må vise
+> samme informasjon på alle flater. Dersom vi ønsker ekstra logg på utskrift, skal dette
+> være et tillegg. Ikke slik at vi viser noe tilfeldig her og der bare fordi vi ikke klarer
+> å kode dette rett.»*
+
+**Regelen:** en informasjonsbærende seksjon som finnes for en dokumenttype, vises på **alle**
+flater den dokumenttypen lever på — malbygger, web, mobil og utskrift. Skal utskriften ha
+**mer** (revisjonshistorikk, signaturblokk, arkivmetadata), er det et bevisst **tillegg** som
+begrunnes — ikke et sted vi legger noe fordi visningen mangler i UI-et.
+
+**Konsekvens ved bygging:** legger du en seksjon på én flate, skal ordren si hva som skjer med
+de andre. «Vi tar mobil senere» er et svar, men det skal stå skrevet — ikke oppstå.
+
+### Målt brudd som utløste vedtaket (2026-09-01)
+
+**Endringsloggen er asymmetrisk mellom sjekkliste og oppgave:**
+
+| Flate | Sjekkliste | Oppgave |
+|---|---|---|
+| Web-detaljside | ✅ egen «Endringslogg»-seksjon (`sjekklister/[sjekklisteId]/page.tsx`) | ❌ rendres ikke |
+| Mobil | ✅ `apps/mobile/app/sjekkliste/[id].tsx` | ❌ rendres ikke |
+| Arkiv-PDF | ✅ | ✅ (`services/arkiv/logg-lesere.ts`) |
+
+`oppgave.ts` **skriver** `taskChangeLog`-rader, men ingen app-flate leser dem — de dukker først
+opp når dokumentet eksporteres. Det er nøyaktig mønsteret vedtaket forbyr: informasjonen finnes,
+men hvilken flate som viser den er tilfeldig.
+
+⚠️ **Ikke rettet.** Oppfølger ligger i [BACKLOG.md](../BACKLOG.md). Retningen er å vise loggen
+på oppgavens detaljside i web og mobil, slik sjekklisten gjør — ikke å fjerne den fra PDF-en.
 
 ## UI-designprinsipper
 
