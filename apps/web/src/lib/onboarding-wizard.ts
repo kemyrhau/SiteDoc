@@ -21,6 +21,17 @@ export interface OnboardingSteg<TStatus> {
   tittelKey: string;
   /** Datadrevet ferdig-predikat basert på modulens status. */
   ferdig: (status: TStatus) => boolean;
+  /**
+   * Valgfri i18n-nøkkel for hensikt-tekst (kan inneholde flere avsnitt skilt med
+   * `\n\n`). Brukt av prosjekt-banneret som forklarer HVORFOR steget finnes.
+   */
+  beskrivelseKey?: string;
+  /** Valgfri lenke steget peker til. */
+  href?: string;
+  /** Valgfri: steget vises kun når true (f.eks. betinget på aktiv modul). Default: alltid synlig. */
+  synlig?: (status: TStatus) => boolean;
+  /** Valgfri: dynamisk delstatus-tekst (i18n-nøkkel) når steget er delvis fullført, ellers null. */
+  undertekstKey?: (status: TStatus) => string | null;
 }
 
 /** Konfigurasjon for én moduls onboarding-wizard. */
@@ -85,6 +96,79 @@ export type TimerOnboardingStatus = RouterOutputs["timer"]["onboarding"]["status
  */
 export const MODUL_WIZARD_URL: Partial<Record<string, string>> = {
   timer: "/dashbord/firma/timer/oppsett",
+};
+
+/** Prosjekt-onboarding-status, avledet fra `prosjekt.hentOnboardingStatus`. */
+export type ProsjektOnboardingStatus = RouterOutputs["prosjekt"]["hentOnboardingStatus"];
+
+/**
+ * Prosjekt-onboarding-veiviser (masterplan punkt 1, andre halvdel).
+ *
+ * Migrerer prosjekt-dashbord-banneret fra et hardkodet JSX-array til den
+ * datadrevne modellen. Det NYE er ikke avhukingen, men FORKLARINGEN: hvert steg
+ * bærer `beskrivelseKey` som forteller HVORFOR steget finnes (Kenneth 2026-09-01).
+ *
+ * Målt (2026-09-01): for et normalt opprettet prosjekt seeder `prosjekt.opprett`
+ * dokumentflyt, brukergruppe OG begge mal-halvdeler grønne fra start — **Tegninger
+ * er det eneste ekte gatet**. Banneret er derfor i praksis en forklaringsflate med
+ * ett åpent punkt, ikke en sjekkliste. «Brukergrupper» er droppet som eget steg
+ * (alltid grønt = støy); deltakere foldes inn i dokumentflyt-forklaringen.
+ *
+ * Modul-stegene (timer/maskin/varelager) vises kun når modulen er aktiv (`synlig`),
+ * gating urørt (modulhierarkiet lukket 2026-09-01).
+ */
+export const prosjektOnboardingWizard: OnboardingWizardConfig<ProsjektOnboardingStatus> = {
+  modulSlug: "prosjekt",
+  steg: [
+    {
+      id: "dokumentflyt",
+      tittelKey: "onboarding.dokumentflyt",
+      beskrivelseKey: "onboarding.dokumentflytBeskrivelse",
+      href: "/dashbord/oppsett/produksjon/dokumentflyt",
+      ferdig: (s) => s.harDokumentflyt,
+    },
+    {
+      id: "tegninger",
+      tittelKey: "onboarding.tegninger",
+      beskrivelseKey: "onboarding.tegningerBeskrivelse",
+      href: "/dashbord/oppsett/byggeplasser",
+      // Krever BÅDE byggeplass OG tegning — én byggeplass uten tegning holder ikke.
+      ferdig: (s) => s.harLokasjon && s.harTegning,
+      undertekstKey: (s) => (s.harLokasjon && !s.harTegning ? "onboarding.tegningMangler" : null),
+    },
+    {
+      id: "maler",
+      tittelKey: "onboarding.malerTittel",
+      beskrivelseKey: "onboarding.malerBeskrivelse",
+      href: "/dashbord/oppsett/produksjon/dokumentflyt",
+      // Minst én sjekklistemal OG én oppgavemal koblet til flyt (Kenneth 2026-09-01).
+      ferdig: (s) => s.harSjekklisteMalKoblet && s.harOppgaveMalKoblet,
+    },
+    {
+      id: "timer",
+      tittelKey: "onboarding.timerOppsett",
+      beskrivelseKey: "onboarding.timerBeskrivelse",
+      href: "/dashbord/firma/timer",
+      synlig: (s) => s.timerAktiv,
+      ferdig: (s) => s.harTimerOppsett,
+    },
+    {
+      id: "maskin",
+      tittelKey: "onboarding.maskinregister",
+      beskrivelseKey: "onboarding.maskinBeskrivelse",
+      href: "/dashbord/maskin",
+      synlig: (s) => s.maskinAktiv,
+      ferdig: (s) => s.harMaskinregister,
+    },
+    {
+      id: "varelager",
+      tittelKey: "onboarding.varekatalog",
+      beskrivelseKey: "onboarding.varelagerBeskrivelse",
+      href: "/dashbord/firma/varelager",
+      synlig: (s) => s.varelagerAktiv,
+      ferdig: (s) => s.harVarekatalog,
+    },
+  ],
 };
 
 /** Firmanivå-onboarding-status, avledet fra `organisasjon.hentOnboardingStatus`. */

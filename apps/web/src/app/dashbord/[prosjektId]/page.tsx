@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { MoreVertical, Settings, Printer, Download, Check } from "lucide-react";
+import { MoreVertical, Settings, Printer, Download, Check, ArrowRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge } from "@sitedoc/ui";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { prosjektOnboardingWizard } from "@/lib/onboarding-wizard";
 
 export default function ProsjektOversikt() {
   useToppbarFiltre({ byggeplass: false });
@@ -117,98 +118,70 @@ export default function ProsjektOversikt() {
           </div>
         )}
         {erAdmin && onboardingStatus && (() => {
-          const steg: Array<{ label: string; ferdig: boolean; href: string; undertekst?: string }> = [
-            {
-              label: t("onboarding.dokumentflyt"),
-              ferdig: onboardingStatus.harDokumentflyt,
-              href: "/dashbord/oppsett/produksjon/dokumentflyt",
-            },
-            {
-              label: t("onboarding.brukergrupper"),
-              ferdig: onboardingStatus.harBrukergruppe,
-              href: "/dashbord/oppsett/brukere",
-            },
-            {
-              label: t("onboarding.maler"),
-              ferdig: onboardingStatus.harMalKobletTilFlyt,
-              href: "/dashbord/oppsett/produksjon/dokumentflyt",
-            },
-            {
-              // Steg 4 krever BÅDE byggeplass OG tegning — harLokasjon alene ble grønt
-              // av én byggeplass uten en eneste tegning. Delstatus vises når byggeplass
-              // finnes men tegning mangler (det halvgjorte tilfellet).
-              label: t("onboarding.lokasjoner"),
-              ferdig: onboardingStatus.harLokasjon && onboardingStatus.harTegning,
-              undertekst:
-                onboardingStatus.harLokasjon && !onboardingStatus.harTegning
-                  ? t("onboarding.tegningMangler")
-                  : undefined,
-              href: "/dashbord/oppsett/byggeplasser",
-            },
-            ...(onboardingStatus.timerAktiv
-              ? [
-                  {
-                    label: t("onboarding.timerOppsett"),
-                    ferdig: onboardingStatus.harTimerOppsett,
-                    href: "/dashbord/firma/timer",
-                  },
-                ]
-              : []),
-            ...(onboardingStatus.maskinAktiv
-              ? [
-                  {
-                    label: t("onboarding.maskinregister"),
-                    ferdig: onboardingStatus.harMaskinregister,
-                    href: "/dashbord/maskin",
-                  },
-                ]
-              : []),
-            ...(onboardingStatus.varelagerAktiv
-              ? [
-                  {
-                    label: t("onboarding.varekatalog"),
-                    ferdig: onboardingStatus.harVarekatalog,
-                    href: "/dashbord/firma/varelager",
-                  },
-                ]
-              : []),
-          ];
-          const alleFerdige = steg.every((s) => s.ferdig);
+          // Datadrevet fra prosjektOnboardingWizard. Det NYE er forklaringen: hvert
+          // steg bærer en hensikt-tekst (HVORFOR steget finnes), ikke bare en avhuking.
+          // Modul-steg vises kun når modulen er aktiv (`synlig`). Banneret forsvinner
+          // når alle synlige steg er ferdige, og vises kun for admin — uendret.
+          const synligeSteg = prosjektOnboardingWizard.steg.filter(
+            (s) => !s.synlig || s.synlig(onboardingStatus),
+          );
+          const alleFerdige = synligeSteg.every((s) => s.ferdig(onboardingStatus));
           if (alleFerdige) return null;
           return (
-            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-4">
+              <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-blue-700">
                 {t("onboarding.bannerTittel")}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {steg.map((s) => (
-                  <Link
-                    key={s.label}
-                    href={s.href}
-                    className={`inline-flex flex-col items-start gap-0.5 border px-3 py-1 text-xs font-medium transition-colors ${
-                      s.undertekst ? "rounded-lg" : "rounded-full"
-                    } ${
-                      s.ferdig
-                        ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                        : "border-gray-300 bg-white text-gray-600 hover:bg-gray-100"
-                    }`}
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      {s.ferdig ? (
-                        <Check className="h-3 w-3" />
-                      ) : (
-                        <span className="inline-block h-3 w-3 rounded-sm border border-gray-400" />
-                      )}
-                      {s.label}
-                    </span>
-                    {s.undertekst && (
-                      <span className="pl-[1.125rem] text-[10px] font-normal text-gray-400">
-                        {s.undertekst}
+              <ul className="space-y-1">
+                {synligeSteg.map((s) => {
+                  const ferdig = s.ferdig(onboardingStatus);
+                  const undertekst = s.undertekstKey?.(onboardingStatus) ?? null;
+                  const avsnitt = s.beskrivelseKey
+                    ? t(s.beskrivelseKey).split("\n\n")
+                    : [];
+                  const innhold = (
+                    <div className="flex items-start gap-2.5">
+                      <span className="mt-0.5 shrink-0">
+                        {ferdig ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <span className="inline-block h-4 w-4 rounded-sm border border-gray-400 bg-white" />
+                        )}
                       </span>
-                    )}
-                  </Link>
-                ))}
-              </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+                          {t(s.tittelKey)}
+                          {s.href && <ArrowRight className="h-3.5 w-3.5 text-blue-500" />}
+                        </div>
+                        {avsnitt.map((avsn, i) => (
+                          <p key={i} className="mt-1 text-xs leading-relaxed text-gray-600">
+                            {avsn}
+                          </p>
+                        ))}
+                        {undertekst && (
+                          <p className="mt-1 text-[11px] font-medium text-amber-700">
+                            {t(undertekst)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                  return (
+                    <li key={s.id}>
+                      {s.href ? (
+                        <Link
+                          href={s.href}
+                          className="-m-2 block rounded-md p-2 transition-colors hover:bg-blue-100/50"
+                        >
+                          {innhold}
+                        </Link>
+                      ) : (
+                        <div className="-m-2 p-2">{innhold}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           );
         })()}
