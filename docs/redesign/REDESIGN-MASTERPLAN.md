@@ -160,6 +160,15 @@ feilform tre ganger på én dag. Linje 100 i denne fila har halve regelen fra 27
 («develop-only rader eldre enn 27.07 skal antas prod»); den er nå generell:
 **tilstand måles mot git, ikke leses av en statuslinje.**
 
+## 📊 Lukket denne uken
+
+🔴 **Tallet som gjør drift synlig.** Føres av cowork ved hver merge som lukker et
+masterplan-punkt. Er linjen tom en hel uke, kjører vi reaktivt uten å vite det.
+
+| Uke | Lukket | Merget totalt | Kommentar |
+|---|---|---|---|
+| 30.–31.08 | **3** — REG fase 2 · O12 · modul-resolver | 9 | Seks av ni var feltfunn, en regresjon vi selv innførte, og opprydding. Utløste [arbeidsform-vedtaket](../claude/SAMARBEIDSREGLER.md) om plan-spor vs funn-spor |
+
 ## Neste konkrete steg (justert 2026-08-28)
 1. ✅ **Registrerings-sporet er gatet og i prod** (`ba234fd1`, 28.08) — deaktivering,
    tilgangstap og reaktivering verifisert av Kenneth på test før release

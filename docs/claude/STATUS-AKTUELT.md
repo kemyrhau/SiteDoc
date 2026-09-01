@@ -13,12 +13,30 @@ Neste økter startes ferskt — se køen under.
 i prod. Nå står kun det som faktisk er åpent. Åpne gater ingen tok, og arbeid som aldri ble
 startet, er høstet ut i egen seksjon under «Pågående arbeid».
 
-| Agent | Worktree | Tilstand | Neste ordre |
-|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Ledig. `feat/reg-fase2` (`578e2b67`) **merget til develop 30.08** (`355c200c`). Env symlinket fra hovedtreet | Ingen. Neste: `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (kjøres sammen) |
-| **simulator** | `SiteDoc-simulator` | Tre rent. To målinger levert 31.08, begge utslagsgivende. 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | 🟢 **`relay/inbox-simulator-roykliste-v1.md`** — bygger `roykliste-mobil.md`, lag 2 i kvalitetssikringsplanen. **Ny fast kontroll før hvert EAS-bygg** |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig, detached. **Sju leveranser merget 30.–31.08:** O12 · faggruppe-slettevakt · tegningsposisjon-fella · ModalFlate · modul-resolver · lint-grønn · endringslogg-støy. **Env symlinket** | Ingen. Kø: tegningsminne i repeater · flate-speiling (steg 3) · dok-sync (steg 4) · `oppgave.ts` → `likForDiff` |
-| **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
+🔴 **Sporfordeling (Kenneth-vedtak 2026-08-31, [SAMARBEIDSREGLER § Arbeidsform](SAMARBEIDSREGLER.md)):**
+**kontrollplan = PLAN-sporet** (masterplanens neste punkt, røres ikke av feltfunn) ·
+**dokgen = FUNN-sporet** (feltfunn, ellers BACKLOG) · **simulator = måling og røykliste**.
+Kun 🔴-blokkerere avbryter plan-sporet.
+
+| Agent | Spor | Worktree | Tilstand | Neste ordre |
+|---|---|---|---|---|
+| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | Sju leveranser merget 30.–31.08. Env symlinket | **`relay/inbox-modul-flatespeiling.md`** — branch `feat/modul-flatespeiling`. Modulhierarki **steg 3**: tre flater, tre svar → én kilde. Deretter steg 4 (dok-sync) |
+| **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | Ledig, detached. `feat/reg-fase2` merget 30.08 | **`relay/inbox-tegningsminne-repeater.md`** — branch `fix/tegningsminne-repeater`. Kø: `oppgave.ts` → `likForDiff` · `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
+| **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
+| **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
+
+### 📋 Feltfunn-liste (B — funn samles, blir ikke ordrer på minuttet)
+
+Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
+Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+| Funn | Alvorlighet | Status |
+|---|---|---|
+| Tegningsminne mangler i repeater-raden (fem trykk mot ett) | 🟡 skjemmer | Ordre klar, funn-sporet |
+| «Lagre» dekkes av tastaturet i dagsseddel (røykliste flyt 9) | 🟡 skjemmer | Ikke ordre |
+| «Bekreft»/«Opprett» disabled uten forklaring (røykliste flyt 3, 6) | 🟡 skjemmer | Ikke ordre |
+| Ingen lenke mellom firmamoduler og prosjektmoduler | 🟡 skjemmer | Venter modulhierarki steg 3 |
+| Fototilgang førstegang → app falt til hjemskjerm (én gang, ikke reprodusert) | 🔵 notert | Overvåkes i røyklisten |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
 kan utvikle mer fra masterplan først. Dette er små endringer som bare koster tid og er

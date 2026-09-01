@@ -32,6 +32,55 @@ cowork blir manglende oversikt hos ham.
 **Arbeidsdelingen:** fabel designer · cowork orkestrerer · kode-agentene koder · Kenneth
 kjører alt og relayer. Kenneth er eneste kanal mellom øktene.
 
+### 🔴 ARBEIDSFORM: ett plan-spor og ett funn-spor (Kenneth-vedtak 2026-08-31)
+
+> **Kenneth 2026-08-31:** *«Nå er vi mer opptatt av hva som er gjort enn å lukke oppgaver i
+> masterplanen.»*
+
+**Belegget, målt samme dag:** ni runder merget. **Tre** berørte masterplanen (REG fase 2, O12,
+modul-resolveren). De seks andre var feltfunn, en regresjon vi selv innførte, og opprydding
+etter oss selv. Dagen var ikke bortkastet — prod-fella låste piloten ute av mobilens viktigste
+flate — men **planen beveget seg nesten ikke**, og ingenting i arbeidsformen la merke til det.
+
+#### A — fast fordeling: én agent på planen, én på funn
+
+**Plan-agenten har alltid neste masterplan-punkt.** Den røres ikke av feltfunn.
+**Funn-agenten tar det som kommer fra felt.** Er det ingenting, tar den fra BACKLOG.
+
+Uten dette kjører begge agentene reaktivt så snart noe haster — som de gjorde 31.08 — og
+planen står stille en hel dag uten at noen merker det før kvelden.
+
+🔴 **Cowork skal si eksplisitt hvilket spor en ordre hører til**, i tavla og i ordrens
+første linje. En ordre uten spor er som regel et feltfunn som har snik-prioritert seg.
+
+#### B — feltfunn samles, de blir ikke ordrer på minuttet
+
+**Kenneth melder som før.** Cowork fører funnet i en liste med alvorlighet — **og skriver
+ikke ordre med det samme.**
+
+| Alvorlighet | Betyr | Handling |
+|---|---|---|
+| 🔴 **Blokkerer** | Bruker kommer ikke videre, data går tapt, eller flaten er ubrukelig | **Avbryter plan-sporet.** Ordre skrives nå |
+| 🟡 **Skjemmer** | Virker, men irriterer eller forvirrer | Til funn-sporet, tas i tur |
+| 🔵 **Notert** | Observasjon uten smerte i dag | BACKLOG |
+
+**Kontrollspørsmålet før noe avbryter planen:** *kommer noen ikke videre uten dette?*
+
+**Målt eksempel fra 31.08:** tegningsfella var 🔴 — Kenneth måtte drepe appen, og A.Markussen
+kunne ikke stedfeste befaringer. Den skulle avbrutt, og gjorde det. **Endringslogg-støyen var
+🟡** — irriterende, ikke blokkerende. Den ble ordre samme kveld, og det var feil prioritering,
+ikke feil arbeid.
+
+🔴 **Hvorfor dette er vanskelig og må stå skrevet:** Kenneth er både finneren, gaten og
+relayet. Når han oppdager noe, har han nettopp kjent smerten — da føles alt akutt. **Det er
+coworks jobb å holde skalaen**, ikke Kenneths.
+
+#### Konsekvens for tavla
+
+STATUS-AKTUELT skal vise **hvilket spor** hver agent kjører, og masterplanen skal ha en linje
+med **hva som faktisk ble lukket** siste uke. Uten det tallet gjentar 31.08 seg uten at noen
+ser det før det er kveld.
+
 ### Arbeidsrutiner for en fersk cowork (lærdommer 2026-08-13 → 08-20)
 
 **1. Statustavla først.** Se seksjonen under. Uten den vet du ikke hvem som finnes.
