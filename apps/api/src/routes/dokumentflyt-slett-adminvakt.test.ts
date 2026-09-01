@@ -22,6 +22,12 @@ vi.mock("@sitedoc/db", () => ({
     projectMember: { findUnique: (...a: unknown[]) => memberFindUnique(...a) },
     projectOrganization: { findMany: (...a: unknown[]) => orgFindMany(...a) },
     organizationMember: { findUnique: (...a: unknown[]) => orgMemberFindUnique(...a) },
+    // krevAktivAnsettelse (tilgangskontroll.ts, 2026-08-28) leser prosjektets eier-firma
+    // i alle prosjekt-porter. Standalone (primaryOrganizationId=null) er valgt BEVISST her
+    // for å no-op-e gaten og isolere admin-logikken disse scenariene tester.
+    // ⚠️ Ansettelses-gaten selv (deaktivert ansatt → FORBIDDEN) er dermed IKKE dekket av
+    // denne fila — den fortjener egne tester (registreringsmodell fase 1, kan FRATA tilgang).
+    project: { findUnique: () => Promise.resolve({ primaryOrganizationId: null }) },
   },
 }));
 
