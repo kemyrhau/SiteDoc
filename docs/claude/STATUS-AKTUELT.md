@@ -20,7 +20,7 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
-| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | Sju leveranser merget 30.–31.08. Env symlinket | **`relay/inbox-modul-flatespeiling.md`** — branch `feat/modul-flatespeiling`. Modulhierarki **steg 3**: tre flater, tre svar → én kilde. Deretter steg 4 (dok-sync) |
+| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | Modulhierarki **steg 3 levert** 01.09 (`97d074b8`). Sju leveranser merget 30.–31.08 | Modulhierarki **steg 4** (dok-sync: `terminologi.md`-diagram + schema-kommentar). Ordre ikke skrevet ennå |
 | **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | `fix/tegningsminne-repeater` merget 01.09 (`5b5f5442` i develop, verifisert med `merge-base`) | **`relay/inbox-oppgave-likfordiff.md`** — branch `fix/oppgave-likfordiff`. Kø: `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
@@ -36,7 +36,8 @@ Kontrollspørsmål: *kommer noen ikke videre uten dette?*
 | Endringslogg-støy i oppgave (rå `JSON.stringify` mot sjekklistens `likForDiff`) | 🟡 skjemmer | Ordre klar 01.09, funn-sporet |
 | «Lagre» dekkes av tastaturet i dagsseddel (røykliste flyt 9) | 🟡 skjemmer | Ikke ordre |
 | «Bekreft»/«Opprett» disabled uten forklaring (røykliste flyt 3, 6) | 🟡 skjemmer | Ikke ordre |
-| Ingen lenke mellom firmamoduler og prosjektmoduler | 🟡 skjemmer | Venter modulhierarki steg 3 |
+| Ingen lenke mellom firmamoduler og prosjektmoduler | 🟡 skjemmer | ✅ Levert i steg 3 (`97d074b8`) — toveis lenke + grå-under-tak. Gates på test |
+| `as unknown as ProjectModuleRad[]` (`oppsett/produksjon/moduler/page.tsx:90`) | 🔵 notert | Fra før steg 3. Mønsteret SAMARBEIDSREGLER flagger — cast som skjuler manglende felt |
 | Fototilgang førstegang → app falt til hjemskjerm (én gang, ikke reprodusert) | 🔵 notert | Overvåkes i røyklisten |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
