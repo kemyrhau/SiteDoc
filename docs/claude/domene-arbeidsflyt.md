@@ -474,6 +474,43 @@ skrive om historikken.
 kan altså IKKE slettes i alle statuser — den påstanden var doc-drift. Prinsippet over (endringslogg
 kontra kommentar som sikkerhetsnett) står som design-rasjonale, men slette-mekanikken er lik i dag.
 
+### 🔴 TREDJE FORSKJELL, tilkommet 2026-08-29: oppgaven er append-only etter sending
+
+Seksjonen over sier «to forskjeller». Det er ikke lenger sant — **Vedtak B (2026-08-29) innførte
+den tredje, og den er den største.** Ført her 2026-09-01 etter måling.
+
+| | Sjekkliste | Oppgave |
+|---|---|---|
+| **Redigering etter sending** | **Fritt** — ingen append-only-vakt | 🔴 **Låst.** Et felt som har en verdi kan ikke endres. Tomme felt kan fylles av den som har ballen |
+
+**Fire vakter håndhever det i `apps/api/src/routes/oppgave.ts`** (målt 2026-09-01):
+metadata `:680` · feltverdier `:741` · oversettelse/manuell overstyring `:951` · og
+`beregnLaasteFelter` som klient-speiling (best-effort UI, ikke håndhevelsen).
+
+**Kommentar og vedlegg slipper alltid gjennom** — de ligger i samme feltobjekt, og uendret
+`verdi` treffer ikke vakten. Det er hele poenget: *det som ikke kan rettes, må kunne utfylles.*
+
+🔴 **Ett unntak, Kenneth-vedtak samme dag:** `subject` (emne) kan rettes etter sending
+(`:674-679`) — det er en merkelapp for gjenfinning, ikke dokumentasjon av utført arbeid.
+Endringsloggen viser hvem som gjorde det.
+
+### 🔴 To utbredte misforståelser — begge målt som feil
+
+Begge har vært uttalt av Kenneth etter at koden sa noe annet. De står her fordi de kommer tilbake.
+
+| Påstand | Målt tilstand |
+|---|---|
+| «Sjekklister slettes av **administrator**, oppgaver kan ikke slettes» | **Slettereglene er identiske.** Begge: `draft` \|\| `closed`. Alt annet må **Lukkes** først, og **Lukk er KUN admin** — så «kun admin kan slette» gjelder *begge*, ikke bare sjekklister |
+| «Sendte oppgaver kan **ikke** slettes» | En sendt oppgave må **lukkes** først; en `closed` oppgave **kan** slettes (`oppgave.ts:1941`, Lukk-som-slette-port 2026-08-21). Deretter papirkurv med 90-dagers angrefrist |
+
+🔴 **Konsekvens for brukervendt tekst:** all onboarding, hjelpetekst og mikrotekst som forklarer
+forskjellen på sjekkliste og oppgave skal hente fra denne seksjonen — ikke fra hukommelse.
+Den ekte forskjellen å lære bort er **append-only**, ikke sletting.
+
+**Kenneth 2026-09-01 om hensikten, som er riktig og skal formidles:** *«Oppgaver er ment til
+mindre og konkrete registreringer/oppgaver/arbeidsordre.»* Sjekklisten dokumenterer en kontroll
+som er utført; oppgaven bestiller et stykke arbeid og bærer svaret tilbake.
+
 ## Arbeidsflyt — Leder/Prosjektleder
 
 ### Timer-attestering
