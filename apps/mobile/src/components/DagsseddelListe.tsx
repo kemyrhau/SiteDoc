@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { View, Text, FlatList, Pressable, RefreshControl } from "react-native";
+// eslint-disable-next-line no-restricted-imports -- skjerm-rot, ikke modal: rendret som rute (app/(tabs)/timer-oversikt + app/timer). SafeAreaView virker korrekt på skjermrot.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import {

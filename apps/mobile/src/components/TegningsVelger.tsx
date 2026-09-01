@@ -16,6 +16,7 @@ import {
   Map,
   MapPin,
 } from "lucide-react-native";
+// eslint-disable-next-line no-restricted-imports -- pageSheet — simulator-målt 2026-08-31 (direkte på denne fila): SafeAreaView anvender arkets egen topp-inset (~10 pt), «Ferdig» truffbar på første tapp. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 

@@ -8,6 +8,7 @@ import {
   StyleSheet,
   BackHandler,
 } from "react-native";
+// eslint-disable-next-line no-restricted-imports -- in-tree overlay (styles.overlay), ikke native <Modal>: ingen VC-inset-reset, SafeAreaView virker som på skjermrot.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X, ChevronDown, ChevronRight } from "lucide-react-native";
 import { trpc } from "../lib/trpc";

@@ -23,7 +23,7 @@ const MAL_FORHOLD = 5 / 4; // bredde:høyde
 type Orientering = "portrett" | "landskapVenstre" | "landskapHoyre";
 
 /** Bestem enhetens fysiske orientering fra akselerometerdata */
-function beregnOrientering(x: number, y: number): Orientering {
+function beregnOrientering(x: number, _y: number): Orientering {
   const terskel = 0.55;
   if (x > terskel) return "landskapVenstre";
   if (x < -terskel) return "landskapHoyre";
