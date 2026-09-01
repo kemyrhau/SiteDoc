@@ -129,9 +129,20 @@ Da tegningsminnet ble koblet på repeater-flaten (`fix/tegningsminne-repeater`),
 > timelønn eller registrert som reisetid mellom kontorsted og byggeplass. Dette er et tillegg som
 > vi trenger. Vi trenger det ikke nå, men i løpet av denne måneden.»*
 
-**Kravet:** avstanden mellom **oppmøtested/kontorsted** og **byggeplass** sammenlignes med en
-firma-definert grense i km. Under grensen lønnes tiden som **timelønn**; over grensen registreres
-den som **reisetid** — altså en annen lønnsart.
+🔴 **PRESISERT SAMME DAG — grensen er TID, ikke avstand.**
+
+> **Kenneth 2026-09-01, kort etter:** *«Foreløpig bruker vi den som gjelder → reisetid beregnes
+> over 30 minutter kjøretid.»*
+
+**Kravet slik det gjelder i dag:** er **kjøretiden** mellom oppmøtested/kontorsted og byggeplass
+**over 30 minutter**, registreres tiden som **reisetid** (egen lønnsart). Under: **timelønn**.
+
+~~Første formulering (beholdt så ingen bygger den): «avstanden … sammenlignes med en firma-definert
+grense i km».~~ Km var Kenneths første ordlyd; den gjeldende regelen måler tid.
+
+🔴 **Konsekvensen er teknisk stor:** kjøretid kan **ikke** utledes av luftlinje. Den krever en
+rute-tjeneste (eller en avtalt km→minutt-omregning, som da må vedtas eksplisitt). Det gjør åpent
+spørsmål 1 under til det dyreste valget i saken, ikke et detaljspørsmål.
 
 🔴 **Dette er lønn.** Feil klassifisering gir feil utbetaling, og A.Markussen er piloten (50
 ansatte, frist ~sept 2026). Det er ikke en visningssak.
@@ -145,8 +156,12 @@ ansatte, frist ~sept 2026). Det er ikke en visningssak.
 
 **Åpne spørsmål som må avklares før bygging — ikke gjett på disse:**
 
-1. Måles avstanden i **luftlinje** eller **kjørerute**? Kjørerute krever en ekstern tjeneste.
-2. Er grensen **én per firma**, eller per ansatt/avdeling/prosjekt?
+1. 🔴 **Hvor kommer kjøretiden fra?** Luftlinje duger ikke — regelen måler minutter. Alternativer:
+   ekstern rutetjeneste (nøyaktig, men ny avhengighet og kostnad), en vedtatt km→minutt-omregning
+   (billig, men en tilnærming noen må godkjenne som lønnsgrunnlag), eller at arbeideren oppgir
+   kjøretiden selv og systemet kun kontrollerer. **Dette valget styrer resten av designet.**
+2. Er grensen (30 min i dag) **én per firma**, eller per ansatt/avdeling/prosjekt? Og skal den
+   være redigerbar, eller er 30 min en konstant?
 3. Beregnes den **automatisk** ved registrering, eller velger arbeideren og systemet
    kontrollerer? (Jf. det bindende vedtaket om at uoppfordret automatikk aldri overskriver en
    menneskelig handling — [domene-arbeidsflyt.md](domene-arbeidsflyt.md).)
