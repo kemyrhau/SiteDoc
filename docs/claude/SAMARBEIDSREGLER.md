@@ -81,6 +81,68 @@ STATUS-AKTUELT skal vise **hvilket spor** hver agent kjører, og masterplanen sk
 med **hva som faktisk ble lukket** siste uke. Uten det tallet gjentar 31.08 seg uten at noen
 ser det før det er kveld.
 
+### 🔴 MERGE-AGENTEN SKAL BEMANNES — Kenneth kjører kun det som krever passord (vedtak 2026-09-01)
+
+> **Kenneth 2026-09-01, etter en dag med ~40 git-blokker:** *«Mange av disse kan gjøres av en
+> Opus. Hvorfor er det slik at jeg gjør dette? Alt jeg trenger å gate direkte er deploys — som
+> krever passord. På en måte er det mer effektivt om en Opus gjør dette og løser selv problemer.»*
+
+**Han har rett, og rollen sto allerede i denne fila** (§ Commit-orden: merge eies av
+«kontroll-Claude/Kenneth fra `SiteDoc-merge`»). Treet finnes. Det ble bare aldri bemannet — cowork
+ga Kenneth kjedene i stedet. 🔴 **Cowork skal opprette merge-agenten ved sesjonsstart, på lik
+linje med andre agenter, og føre raden på tavla.**
+
+#### Hvem gjør hva
+
+| Handling | Hvem |
+|---|---|
+| Gate koden mot faktisk kode før merge | **cowork** — uendret, dette delegeres ALDRI |
+| `fetch` · `merge --no-ff` · `push merge-restart:develop` · `merge-base`-verifisering · branch-opprydding | **merge-agent** i `SiteDoc-merge` |
+| `pnpm install` · `prisma generate` ×4 · web build · mobil typecheck · `pnpm test` | **merge-agent** |
+| Docs-commits i hovedtreet | **merge-agent**, som én operasjon: `add` → `commit` → `pull --rebase` → `push` |
+| `sudo docker` (test og prod), `deploy-test.sh`, EAS-bygg | 🔴 **Kenneth** — krever TTY og passord |
+| Prod-deploy, push til `main` | 🔴 **Kenneth**, på eksplisitt ordre |
+| Produktbeslutninger, gates i UI, relay mellom agenter | 🔴 **Kenneth** |
+
+**Cowork gir merge-agenten branch + hash + merge-melding. Agenten kjører kjeden, verifiserer,
+rydder og melder ÉTT svar tilbake** — ikke seks blokker Kenneth skal lime.
+
+🔴 **Mekanikken står ALLEREDE beskrevet — den gjentas ikke her.** Denne seksjonen sier bare *hvem
+som utfører*. Kommandoene selv har én kilde hver, og de skal ikke kopieres hit:
+
+| Hva | Hvor mekanikken bor |
+|---|---|
+| Den selv-gatende merge-kjeden (`rev-parse` → `! merge-base` → `reset` → `merge --no-ff` → `push merge-restart:develop`) | § Commit-orden → «Gaten skal ligge i kommandoen» |
+| Hvorfor `SiteDoc-merge` aldri kan stå på `develop` | § Commit-orden, samme sted |
+| Verifisering mot agentens hash, ikke merge-commitens | § Commit-orden → «Verifiser mergen mot agentens hash» |
+| Branch-opprydding (detach → `-d` → remote-slett) | § Opus-livssyklus **fase 4-mekanikk** |
+| Regel 10 + `prisma generate`-forsteget | § Commit-orden → **Regel 10** |
+| Deploy-kommandoene | [deploy-detaljer.md](deploy-detaljer.md) — **aldri skriv dem på nytt et annet sted** |
+
+Drifter en av dem, rettes den **der den står**, ikke her.
+
+#### 🔴 Fem fences merge-agenten alltid bærer
+
+1. **Aldri `main`. Aldri prod. Aldri `deploy-test.sh` eller noe med `sudo`.**
+2. **Aldri force-push. Aldri `git branch -D`** — kun `-d`, som nekter på umerget arbeid.
+3. **Aldri merge en branch cowork ikke har navngitt**, og aldri uten hashen cowork oppga.
+4. 🔴 **Aldri arbeide i hovedtreet `SiteDoc` uten at det er en docs-commit-operasjon.** Cowork
+   redigerer docs der; en `pull --rebase` midt i det stoppet Kenneth to ganger 01.09. Er treet
+   dirty av docs cowork nettopp skrev: commit dem som del av operasjonen, ikke stash dem bort.
+5. **Er noe uventet — konflikt, avvist push, rødt bygg — STOPP og meld.** Ikke improviser rundt
+   det. En merge som «ble løst underveis» er en merge ingen har gatet.
+
+#### Hvorfor dette ikke svekker gaten
+
+Cowork verifiserer fortsatt mot koden før merge-ordren gis. Det som flyttes er **utførelsen**,
+ikke vurderingen. Merge-agenten er hender, ikke dømmekraft.
+
+⚠️ **Én ting cowork mister, og skal kompensere for:** en feilende kommando i Kenneths terminal er
+synlig for cowork med én gang. 01.09 avslørte en avvist push at cowork hadde ukommitterte
+docs-filer liggende, og to falske «NEI» avslørte at `&&`-kjeden brøt før målingen kjørte. En agent
+løser slikt stille. **Derfor skal merge-agentens rapport alltid inneholde hva som IKKE gikk glatt**
+— ikke bare sluttresultatet.
+
 ### Arbeidsrutiner for en fersk cowork (lærdommer 2026-08-13 → 08-20)
 
 **1. Statustavla først.** Se seksjonen under. Uten den vet du ikke hvem som finnes.
@@ -378,7 +440,8 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 
 | Rolle | Ansvar | Kjører kommandoer | Kode/branch |
 |-------|--------|-------------------|-------------|
-| **Kenneth** | Eneste som kjører kommandoer (terminal/SSH/sudo). Tar produktbeslutninger (K-saker). Relayer alle meldinger mellom økter. Utfører + beslutter — koder ikke. | **Ja — alt** | — |
+| **Kenneth** | ⚠️ **Endret 2026-09-01:** kjører ikke lenger *alle* kommandoer — kun det som krever **TTY/passord** (`sudo docker` test+prod, `deploy-test.sh`, EAS-bygg, push til `main`), pluss produktbeslutninger, UI-gates og relay mellom økter. Git-mekanikk, bygg og tester er flyttet til merge-agenten. Koder ikke. | Ja — det som krever passord | — |
+| **merge-agent** | Utfører commit-orden cowork har gatet: merge til develop fra `SiteDoc-merge`, `merge-base`-verifisering, branch-opprydding, regel 10-bygget, docs-commits. **Hender, ikke dømmekraft** — gater aldri selv, merger aldri en branch cowork ikke har navngitt. Fem fences i § MERGE-AGENTEN. | Ja (git/bygg, aldri `sudo`) | `merge-restart` |
 | **cowork** | Eier **commit-orden** + tverr-koordinering: merge-rekkefølge, regel 9/10-håndheving, prod-løp, konfliktvakt (frossen sone), BACKLOG, deploy-disiplin. Skriver timer/PSI-kode + gate-verifiserer. Gir Kenneth kommandoer. **Alt som lander på develop/main passerer cowork.** | Nei (gir Kenneth) | pipeline + timer |
 | **fabel** | Eier redesignet. Skriver ordre til kode-agenter (hva kodes, designkrav, akseptkriterier) og leverer dem via `Fra fabel/til-repo-*`, designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering. **Rører aldri git-koreografi.** | Nei | redesign-retning |
 | **kode-agent** (oppgavenavngitt) | Koder ÉN oppgave i ETT worktree på EGEN branch. Får ordre fra cowork via `relay/inbox-<navn>.md`, eller fra fabel via `docs/redesign/`. Pusher egen branch, **aldri develop**. Rører ikke frossen sone (nav/layout). | Ja (egen branch) | egen feature-branch |
@@ -783,6 +846,10 @@ cd ~/Documents/Programmering/SiteDoc && git pull --ff-only && ./deploy-test.sh
 ```
 
 Linje 2 stopper hvis branchen ikke er pushet, linje 3 hvis den allerede er i develop. Uten dem bygger Kenneth uendret kode i seks minutter og tror knappen er på test.
+
+🔴 **Kjeden over er skrevet for Kenneth og ender i deploy. Merge-agenten kjører den KUN til og med
+`push origin merge-restart:develop`** (§ MERGE-AGENTEN, fence 1) — `deploy-test.sh` og alt med
+`sudo` er Kenneths, alltid. Kjører agenten siste ledd, har den deployet noe ingen har gatet.
 
 **Verifiser mergen mot agentens hash — ikke mot merge-commitens (2026-08-16).** Merge-commiten får alltid en **ny** hash; den skal ikke matche den agenten melder. Merge-commiten *peker på* agentens commit, den erstatter den ikke. Kenneth kunne derfor ikke selv se om en merge tok med arbeidet. Én kommando svarer:
 
