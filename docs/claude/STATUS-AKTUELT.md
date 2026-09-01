@@ -17,7 +17,7 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 |---|---|---|---|
 | **dokgen** | `SiteDoc-dokgen` | Ledig. `feat/reg-fase2` (`578e2b67`) **merget til develop 30.08** (`355c200c`). Env symlinket fra hovedtreet | Ingen. Neste: `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (kjøres sammen) |
 | **simulator** | `SiteDoc-simulator` | Tre rent. To målinger levert 31.08, begge utslagsgivende. 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | 🟢 **`relay/inbox-simulator-roykliste-v1.md`** — bygger `roykliste-mobil.md`, lag 2 i kvalitetssikringsplanen. **Ny fast kontroll før hvert EAS-bygg** |
-| **kontrollplan** | `SiteDoc-kontrollplan` | O12 · faggruppe-slettevakt · tegningsposisjon-fella · ModalFlate (`b852c2ea`) — alle merget 30.–31.08. **Env symlinket** | **`relay/inbox-modul-resolver.md`** — branch `feat/modul-resolver`. Én kilde for effektiv modultilstand; retter at firmataket aldri leses. Kø: tegningsminne · flate-speiling · dok-sync |
+| **kontrollplan** | `SiteDoc-kontrollplan` | Ledig, detached. **Sju leveranser merget 30.–31.08:** O12 · faggruppe-slettevakt · tegningsposisjon-fella · ModalFlate · modul-resolver · lint-grønn · endringslogg-støy. **Env symlinket** | Ingen. Kø: tegningsminne i repeater · flate-speiling (steg 3) · dok-sync (steg 4) · `oppgave.ts` → `likForDiff` |
 | **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
 
 🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi

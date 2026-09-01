@@ -3277,6 +3277,41 @@ umiddelbart. Det ga en prod-felle i bygg 46 der brukeren måtte drepe appen (luk
 eller in-tree-overlay og derfor ikke nødvendigvis er rammet. Én skjerm er målt; resten er
 hypotese.
 
+### 🔴 `oppgave.ts` bruker rå `JSON.stringify`-sammenligning — samme feilklasse som sjekkliste hadde (målt 2026-08-31)
+
+Sjekkliste-endringsloggen ble ryddet 31.08 ved å normalisere tomhet i `normaliserForDiff`
+(`packages/pdf`, delt lag). **Oppgave-siden bruker fortsatt rå
+`JSON.stringify(verdiFor) !== JSON.stringify(verdiEtter)`** (`oppgave.ts:982-985` + tilsvarende
+i `oppdaterData`), som har **tre gap** `likForDiff` lukker:
+
+1. **Tomhet** — `""` ↔ `null` ↔ `{}` ↔ manglende nøkkel teller som endring
+2. **Nøkkelrekkefølge** — samme objekt, ulik serialisering
+3. **Signert-URL-query** — `?exp=&sig=` varierer per lagring, samme bilde
+
+**Kontrollplans vurdering (bestilt, ikke bygget):** oppgave-data er **ikke** prinsipielt
+enklere — tasks bruker samme malbygger-objekter og kan ha repeatere med samme celle-form-drift.
+At støyen ikke har vist seg der skyldes trolig lagringsmønster, **ikke at koden er trygg**.
+
+**Fiks:** speil sjekkliste-strukturen — `kanonisk` for lagring, `likForDiff` for sammenligning.
+To skrivesteder (`oppdaterData` + `forbedreOversettelse`), begge trenger det, pluss en
+repeater/tomhet-testrunde. 🔴 **Egen liten ordre** — å samle begge dokumenttyper på én
+sammenligning dreper den stykkevise driften som ga tre runder 31.08.
+
+### 🟡 Halvbygd stillas i `OpprettDokumentModal` (mobil) — meldt 2026-08-31, ikke slettet
+
+Fire symboler `_`-prefikset under lint-oppryddingen. Kontrollplan målte hva de ser ut til å
+ha vært ment som, i stedet for å slette på gjetning:
+
+| Symbol | Hva som mangler |
+|---|---|
+| `_PRIORITETER` + `_PRIORITET_FARGER` | Prioritetsvelger med fargede merker (lav/middels/høy/kritisk → grå/blå/oransje/rød). **`prioritet`-state og `setPrioritet` FINNES og brukes** (default «medium») — det er velger-UI-et som aldri ble wiret inn i JSX. Konfigurasjonen står, knappene mangler |
+| `_visBygningListe` + `_visTegningListe` | To «adaptivt nedtrekk»-togglere, samme mønster som søsknene `visLokasjonListe`/`visOppretterListe` (som **er** ferdig og rendrer utvidbar liste ved `:902`). Setterne kalles (reset til false), getterne leses aldri — lista + åpne-knappen ble aldri bygget |
+
+Begge er **halvbygd UI der data- og state-laget står, men presentasjonen mangler**. Ingenting
+kjører i dag. Kilde: `apps/mobile/src/components/OpprettDokumentModal.tsx`.
+
+**Beslutning trengs:** bygg ferdig eller slett. `_`-prefikset holder dem synlige i mellomtiden.
+
 ### 🟡 Serverfeilmeldinger er ikke oversatt (målt 2026-08-30)
 
 UI-strenger går gjennom `t()` og finnes i 15 språk. **`TRPCError`-meldinger gjør ikke.**
