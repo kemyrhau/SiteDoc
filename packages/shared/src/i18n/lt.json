@@ -1134,6 +1134,7 @@
   "byggeplassVelger.favoritt": "Mėgstamiausias",
   "byggeplass.gpsPaaPlass": "GPS · esate svetainėje",
   "byggeplass.gpsForeslar": "GPS siūlo",
+  "byggeplass.filtrererListe": "Rodoma tik ši svetainė – bakstelėkite visam projektui",
   "bygg.stempel": "Sukurti {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Laukiama projekto prieigos",
   "dashbord.venterPaaTilgangBeskrivelse": "Dar neturite prieigos prie jokio projekto. Susisiekite su savo projekto vadovu.",

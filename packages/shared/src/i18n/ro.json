@@ -1134,6 +1134,7 @@
   "byggeplassVelger.favoritt": "Favorit",
   "byggeplass.gpsPaaPlass": "GPS · sunteți pe site",
   "byggeplass.gpsForeslar": "GPS sugerează",
+  "byggeplass.filtrererListe": "Se afișează numai acest site — atingeți pentru întregul proiect",
   "bygg.stempel": "Construiți {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Se așteaptă accesul la proiect",
   "dashbord.venterPaaTilgangBeskrivelse": "Nu aveți încă acces la niciun proiect. Contactați managerul de proiect.",
