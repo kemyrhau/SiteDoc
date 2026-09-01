@@ -51,10 +51,18 @@ sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
 
-**Test: `5e57e45f`** (deployet 2026-09-01 18:03, verifisert med `/version`). Foran prod:
-ANSVARLIG-kolonnen · tegningsminne i repeater-raden · **modulhierarki steg 3** (flatene speiler
-resolveren) · endringslogg-speiling i oppgave. Migreringer: «No pending» på alle fire pakker.
-**Venter Kenneths gate** — særlig at HMS/3D/Økonomi/PSI/Kontrollplan er upåvirket av firmataket.
+**Test: `7b413263`** (deployet 2026-09-01 21:19, verifisert med `/version`). Migreringer:
+«No pending» på alle fire pakker — settet har ingen schema-endringer (`db-timer/schema.prisma`
+ble kun kommentert om til v3).
+
+**Foran prod, web-synlig:** ANSVARLIG-kolonnen · modulhierarki steg 3 (✅ **gatet av Kenneth
+18:30** — familieskillet holder) · endringslogg-speiling i oppgave (⚠️ **ugatet** — loggen vises
+ikke i oppgavens UI, kun i arkiv-PDF, se BACKLOG) · **kolonnevelger + tabellbredder** (⚠️ venter
+gate).
+
+**Foran prod, kun mobil — når EAS-bygg fyres:** tegningsminne i repeater-raden · «Hele
+prosjektet»-utvei i byggeplass-chip · modulgating av Timer-flatene. Fire mobil-endringer
+uverifisert på enhet; røyklisten kjøres før bygget.
 
 **Ellers står test og prod på samme innhold.** Alt som lå her som «på test» er live:
 registreringsmodell fase 1 (ansatt-status-guard i 11 porter), ansattvelger, fundament ut
