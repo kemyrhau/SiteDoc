@@ -1134,6 +1134,7 @@
   "byggeplassVelger.favoritt": "Favoritin",
   "byggeplass.gpsPaaPlass": "GPS · Sie sind vor Ort",
   "byggeplass.gpsForeslar": "GPS schlägt vor",
+  "byggeplass.filtrererListe": "Nur diese Site anzeigen – tippen Sie für das gesamte Projekt",
   "bygg.stempel": "Baue {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Wartet auf Projektzugriff",
   "dashbord.venterPaaTilgangBeskrivelse": "Sie haben noch keinen Zugriff auf Projekte. Bitte wenden Sie sich an Ihren Projektleiter.",

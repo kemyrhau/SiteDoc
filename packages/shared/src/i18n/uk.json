@@ -1134,6 +1134,7 @@
   "byggeplassVelger.favoritt": "улюблений",
   "byggeplass.gpsPaaPlass": "GPS · ви на місці",
   "byggeplass.gpsForeslar": "Підказує GPS",
+  "byggeplass.filtrererListe": "Показано лише цей сайт — натисніть для всього проекту",
   "bygg.stempel": "Збірка {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Очікування доступу до проєкту",
   "dashbord.venterPaaTilgangBeskrivelse": "Ви ще не маєте доступу до жодного проєкту. Зв'яжіться зі своїм керівником проєкту.",

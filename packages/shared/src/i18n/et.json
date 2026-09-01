@@ -1134,6 +1134,7 @@
   "byggeplassVelger.favoritt": "Lemmik",
   "byggeplass.gpsPaaPlass": "GPS · olete kohapeal",
   "byggeplass.gpsForeslar": "GPS soovitab",
+  "byggeplass.filtrererListe": "Kuvatakse ainult see sait – puudutage kogu projekti jaoks",
   "bygg.stempel": "Järg {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Ootab projekti juurdepääsu",
   "dashbord.venterPaaTilgangBeskrivelse": "Teil pole veel ühelegi projektile juurdepääsu. Võtke ühendust oma projektijuhiga.",

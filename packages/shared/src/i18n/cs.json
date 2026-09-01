@@ -1134,6 +1134,7 @@
   "byggeplassVelger.favoritt": "Oblíbený",
   "byggeplass.gpsPaaPlass": "GPS · jste na místě",
   "byggeplass.gpsForeslar": "GPS doporučuje",
+  "byggeplass.filtrererListe": "Zobrazuje se pouze tento web – klepnutím zobrazíte celý projekt",
   "bygg.stempel": "Sestavit {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Čeká se na přístup k projektu",
   "dashbord.venterPaaTilgangBeskrivelse": "Zatím nemáte přístup k žádným projektům. Kontaktujte svého vedoucího projektu.",

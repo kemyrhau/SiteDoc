@@ -1134,6 +1134,7 @@
   "byggeplassVelger.favoritt": "Suosikki",
   "byggeplass.gpsPaaPlass": "GPS · olet paikalla",
   "byggeplass.gpsForeslar": "GPS ehdottaa",
+  "byggeplass.filtrererListe": "Näytetään vain tämä sivusto – napauta nähdäksesi koko projektin",
   "bygg.stempel": "Rakenna {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Odotetaan projektin käyttöoikeutta",
   "dashbord.venterPaaTilgangBeskrivelse": "Sinulla ei ole vielä pääsyä yhteenkään projektiin. Ota yhteyttä projektipäällikköösi.",

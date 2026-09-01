@@ -17,6 +17,11 @@ import {
 } from "../services/byggeplassKatalog";
 
 const BYGGEPLASS_MAP_KEY = "sitedoc_bygning_per_prosjekt";
+// Sentinel i bygningMap: brukeren har EKSPLISITT valgt «Hele prosjektet» (ingen
+// byggeplass-avgrensning). Må lagres som en verdi — ikke fravær av nøkkel — ellers
+// ville GPS-autovalget (D1: «auto-set kun når tom») fylle inn en byggeplass stille
+// igjen, som er nøyaktig feilen vi retter (feltarbeideren har ingen vei ut av filteret).
+const HELE_PROSJEKTET = "__hele_prosjektet__";
 // F1: per-byggeplass siste-tegning-minne. Erstatter de per-prosjekt-nøklede
 // `sitedoc_sist_tegning_{prosjektId}` i OpprettDokumentModal — flyttes hit så
 // ByggeplassKontekst er eneste kilde (mockup: «Husker siste tegning per byggeplass»).
@@ -43,8 +48,16 @@ async function hentVerdi(key: string): Promise<string | null> {
 }
 
 interface ByggeplassKontekstType {
+  /** Aktiv byggeplass-id, eller null når ingen avgrensning gjelder (uvalgt ELLER
+   *  «Hele prosjektet»). Lister sender denne som `byggeplassId` → null = hele prosjektet. */
   valgtBygningId: string | null;
   settBygning: (id: string) => void;
+  /** True når brukeren EKSPLISITT valgte «Hele prosjektet». Skiller det bevisste
+   *  valget fra «ingen valgt ennå» (som GPS fortsatt kan fylle inn). */
+  erHeleProsjektet: boolean;
+  /** Velg «Hele prosjektet» — nullstiller byggeplass-filteret og hindrer at GPS
+   *  autovalg setter en byggeplass stille igjen. */
+  velgHeleProsjektet: () => void;
   lasterBygningId: boolean;
   /** F1: siste brukte tegning for en gitt byggeplass (null hvis ingen). */
   hentSistTegning: (byggeplassId: string) => string | null;
@@ -62,6 +75,8 @@ interface ByggeplassKontekstType {
 const ByggeplassContext = createContext<ByggeplassKontekstType>({
   valgtBygningId: null,
   settBygning: () => {},
+  erHeleProsjektet: false,
+  velgHeleProsjektet: () => {},
   lasterBygningId: true,
   hentSistTegning: () => null,
   settSistTegning: () => {},
@@ -104,8 +119,15 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     lastLagret();
   }, []);
 
-  const valgtBygningId = useMemo(
-    () => (valgtProsjektId ? bygningMap[valgtProsjektId] ?? null : null),
+  // Sentinel-verdien HELE_PROSJEKTET betyr «ingen avgrensning» → valgtBygningId er
+  // null (lister sender ingen byggeplassId, akkurat som web «Hele prosjektet»).
+  const valgtBygningId = useMemo(() => {
+    const raa = valgtProsjektId ? bygningMap[valgtProsjektId] ?? null : null;
+    return raa === HELE_PROSJEKTET ? null : raa;
+  }, [valgtProsjektId, bygningMap]);
+
+  const erHeleProsjektet = useMemo(
+    () => (valgtProsjektId ? bygningMap[valgtProsjektId] === HELE_PROSJEKTET : false),
     [valgtProsjektId, bygningMap],
   );
 
@@ -120,6 +142,15 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     },
     [valgtProsjektId],
   );
+
+  const velgHeleProsjektet = useCallback(() => {
+    if (!valgtProsjektId) return;
+    setBygningMap((prev) => {
+      const neste = { ...prev, [valgtProsjektId]: HELE_PROSJEKTET };
+      lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+      return neste;
+    });
+  }, [valgtProsjektId]);
 
   // F3: GPS-identifiser byggeplass (best-effort — kun hvis posisjon ALLEREDE er
   // tillatt; prompter ikke fra provideren). D1: auto-set kun når ingen byggeplass
@@ -204,6 +235,8 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
       value={{
         valgtBygningId,
         settBygning,
+        erHeleProsjektet,
+        velgHeleProsjektet,
         lasterBygningId,
         hentSistTegning,
         settSistTegning,

@@ -1134,6 +1134,7 @@
   "byggeplassVelger.favoritt": "Ulubiony",
   "byggeplass.gpsPaaPlass": "GPS · jesteś na miejscu",
   "byggeplass.gpsForeslar": "GPS sugeruje",
+  "byggeplass.filtrererListe": "Wyświetlanie tylko tej witryny — kliknij, aby wyświetlić cały projekt",
   "bygg.stempel": "Zbuduj {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Oczekuje na dostęp do projektu",
   "dashbord.venterPaaTilgangBeskrivelse": "Nie masz jeszcze dostępu do żadnego projektu. Skontaktuj się z kierownikiem projektu.",
