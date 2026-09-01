@@ -20,8 +20,8 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
-| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | Steg 3 merget + **gatet på test av Kenneth 01.09** — familieskillet holder | **`relay/inbox-modulhierarki-doksync.md`** — branch `docs/modulhierarki-syncing`. Steg 4. Deretter **lag 3** (api test-script) |
-| **dokgen** | 🔴 **FUNN** | `SiteDoc-dokgen` | To merget 01.09: `5b5f5442` (tegningsminne) + `8c75948f` (endringslogg-speiling) | **`relay/inbox-mobil-hele-prosjektet.md`** — branch `fix/mobil-hele-prosjektet`. 🔴 mobilen skjuler dokumenter. Kø: `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
+| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | **Modulhierarkiet lukket på web:** steg 2 (`1266ac2a`), steg 3 (`97d074b8`, gatet på test), steg 4 (`7b9493b3`) | **`relay/inbox-api-testscript.md`** — branch `chore/api-testscript`. Lag 3: 27 api-testfiler som aldri har kjørt |
+| **dokgen** | 🟢 **PLAN** | `SiteDoc-dokgen` | Tre merget 01.09: `5b5f5442` · `8c75948f` · `fa06cd62` («Hele prosjektet») | **`relay/inbox-mobil-modulgating.md`** — branch `feat/mobil-modulgating`. Mobilen leser aldri firmataket. Kø: `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
 
