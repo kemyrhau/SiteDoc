@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import Link from "next/link";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
@@ -20,7 +21,20 @@ import {
   Settings,
   ShieldCheck,
   ExternalLink,
+  Clock,
+  Truck,
+  Lock,
 } from "lucide-react";
+
+/* Firmamodul-familien (timer/maskin/varelager) — styres per firma, ikke per
+   prosjekt. Prosjektoppsett speiler resolveren: grået «styres av firmaet» uten
+   firmatak, aktiv med. De ni prosjektmodulene grås ALDRI mot firmatak (designlås
+   2); standalone-prosjekt (uten eier-firma) viser ikke denne seksjonen (designlås 3). */
+const FIRMAMODULER: Array<{ slug: string; navnNoekkel: string; ikon: React.ReactNode }> = [
+  { slug: "timer", navnNoekkel: "firma.moduler.timer.navn", ikon: <Clock className="h-6 w-6" /> },
+  { slug: "maskin", navnNoekkel: "firma.moduler.maskin.navn", ikon: <Truck className="h-6 w-6" /> },
+  { slug: "varelager", navnNoekkel: "firma.moduler.varelager.navn", ikon: <Package className="h-6 w-6" /> },
+];
 import { useState } from "react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -46,7 +60,17 @@ const MOTOR_INFO: Record<string, { navn: string; beskrivelse: string; betalt: bo
 export default function ModulerSide() {
   useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
-  const { prosjektId } = useProsjekt();
+  const { prosjektId, valgtProsjekt } = useProsjekt();
+  // Prosjektets eier-firma. null = standalone (gyldig permanent tilstand) → ingen
+  // firmamodul-seksjon (designlås 3).
+  const orgId = valgtProsjekt?.primaryOrganizationId ?? null;
+
+  // Speiler resolveren for firmamodul-familien: firmatak (firmaId alene). Avgjør
+  // grå-under-tak. De ni prosjektmodulene bruker ProjectModule direkte (under).
+  const { data: firmatak } = trpc.modul.effektivTilstand.useQuery(
+    { firmaId: orgId!, slugs: FIRMAMODULER.map((m) => m.slug) },
+    { enabled: !!orgId },
+  );
 
   const KATEGORI_LABEL: Record<string, string> = {
     oppgave: t("moduler.oppgavemal"),
@@ -256,6 +280,67 @@ export default function ModulerSide() {
           );
         })}
       </div>
+
+      {/* Firmamodul-familien — kun prosjekter med eier-firma (designlås 3). Disse
+          brytes for hele firmaet; prosjektoppsett speiler firmatak og lenker til
+          firma/moduler (toveis lenke). Grås ALDRI de ni prosjektmodulene over. */}
+      {orgId && (
+        <div className="mt-8">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-gray-700">
+              {t("moduler.firmamodulSeksjon.tittel")}
+            </h3>
+            <p className="text-xs text-gray-500">
+              {t("moduler.firmamodulSeksjon.beskrivelse")}
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FIRMAMODULER.map((m) => {
+              const harTak = firmatak?.[m.slug] === true;
+              return (
+                <div
+                  key={m.slug}
+                  className={`relative flex flex-col rounded-xl border p-5 ${
+                    harTak
+                      ? "border-green-200 bg-green-50/50"
+                      : "border-gray-200 bg-gray-50 opacity-70"
+                  }`}
+                >
+                  <div className="mb-3 flex items-start gap-3">
+                    <div
+                      className={`rounded-lg p-2.5 ${
+                        harTak ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"
+                      }`}
+                    >
+                      {m.ikon}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{t(m.navnNoekkel)}</h3>
+                      <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                        <Lock className="h-3 w-3" />
+                        {t("moduler.styresAvFirmaet")}
+                      </span>
+                    </div>
+                    {harTak && (
+                      <div className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                        <Check className="h-3 w-3" />
+                        {t("moduler.aktiv")}
+                      </div>
+                    )}
+                  </div>
+                  <Link
+                    href="/dashbord/firma/moduler"
+                    className="mt-auto inline-flex items-center gap-1.5 text-sm font-medium text-sitedoc-primary hover:underline"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {t("moduler.gaaTilFirmaModuler")}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Bekreft deaktivering — erstatter native confirm() per CLAUDE.md */}
       <Modal
