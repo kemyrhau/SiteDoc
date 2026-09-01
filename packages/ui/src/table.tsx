@@ -15,6 +15,26 @@ interface KolonneDef<T> {
 
 type SorterRetning = "asc" | "desc";
 
+/**
+ * Default kolonnebredde når `bredde` mangler. Under `table-layout: fixed` deler
+ * breddeløse kolonner restplassen og krymper mot null når mange slås på — teksten
+ * renner da ut av cella og males oppå naboen. Ett tall her hindrer det for alle
+ * breddeløse kolonner uten å måtte sette `bredde:` per kolonne i hver sidefil.
+ * Målt mot lengste overskrift i bruk («Bestiller-faggruppe»).
+ */
+const DEFAULT_KOLONNE_BREDDE_PX = 160;
+
+/** Effektiv kolonnebredde i piksler: lagret drag-bredde → eksplisitt `bredde` → default. */
+function kolonneBreddePx<T>(kol: KolonneDef<T>, kolonneBredder?: Record<string, number>): number {
+  const lagret = kolonneBredder?.[kol.id];
+  if (typeof lagret === "number") return lagret;
+  if (kol.bredde) {
+    const parsed = parseInt(kol.bredde, 10);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return DEFAULT_KOLONNE_BREDDE_PX;
+}
+
 interface TableProps<T> {
   kolonner: KolonneDef<T>[];
   data: T[];
@@ -281,6 +301,14 @@ export function Table<T>({
     });
   }, [data, sorterKolonne, sorterRetning, kolonner]);
 
+  // Min-bredde på tabellen = summen av kolonnebreddene (+ evt. velg-kolonnen).
+  // Da slår wrapperens `overflow-auto` inn og gir horisontal scroll av seg selv
+  // i stedet for at `w-full` presser kolonnene sammen til de males oppå hverandre.
+  const minTabellBredde = useMemo(() => {
+    const sum = kolonner.reduce((acc, kol) => acc + kolonneBreddePx(kol, kolonneBredder), 0);
+    return sum + (velgbar ? 40 : 0);
+  }, [kolonner, kolonneBredder, velgbar]);
+
   if (data.length === 0) {
     return (
       <div className="py-12 text-center text-sm text-gray-500">
@@ -316,7 +344,7 @@ export function Table<T>({
 
   return (
     <div className="overflow-auto rounded-lg border border-gray-200 bg-white" style={resizeKolId ? { cursor: "col-resize" } : undefined}>
-      <table className="w-full text-left text-sm" style={{ tableLayout: "fixed" }}>
+      <table className="w-full text-left text-sm" style={{ tableLayout: "fixed", minWidth: `${minTabellBredde}px` }}>
         <thead className="sticky top-0 border-b-2 border-gray-200 bg-gray-100">
           <tr>
             {velgbar && (
@@ -330,7 +358,7 @@ export function Table<T>({
             )}
             {kolonner.map((kol) => {
               const lagretBredde = kolonneBredder?.[kol.id];
-              const stilBredde = lagretBredde ? `${lagretBredde}px` : kol.bredde;
+              const stilBredde = lagretBredde ? `${lagretBredde}px` : (kol.bredde ?? `${DEFAULT_KOLONNE_BREDDE_PX}px`);
               return (
                 <th
                   key={kol.id}
@@ -338,11 +366,11 @@ export function Table<T>({
                   className={`relative px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 ${
                     kol.sorterbar ? "cursor-pointer select-none hover:text-gray-700" : ""
                   }`}
-                  style={stilBredde ? { width: stilBredde } : undefined}
+                  style={{ width: stilBredde }}
                   onClick={kol.sorterbar ? () => handleSorter(kol.id) : undefined}
                 >
-                  <span className="inline-flex items-center gap-0.5">
-                    {kol.header}
+                  <span className="flex min-w-0 items-center gap-0.5">
+                    <span className="truncate">{kol.header}</span>
                     {kol.sorterbar && sorterKolonne === kol.id && (
                       sorterRetning === "asc"
                         ? <SorterPilOpp />
@@ -402,7 +430,7 @@ export function Table<T>({
                   </td>
                 )}
                 {kolonner.map((kol) => (
-                  <td key={kol.id} className="px-4 py-3">
+                  <td key={kol.id} className="truncate px-4 py-3">
                     {kol.celle(rad)}
                   </td>
                 ))}
