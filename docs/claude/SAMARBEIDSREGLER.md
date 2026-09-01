@@ -83,6 +83,28 @@ ikke, fotograferer agenten alt.
 fiksen var merget; hele runden gikk mot gammel kode og måtte gjentas. Sjekk
 `merge-base --is-ancestor <fiks> <bygget som kjører>` FØR ordren skrives.
 
+**10e. 🔴 Les funksjonen FRA TOPPEN — et `sed`-vindu er ikke en måling** (2026-08-31, tre
+brudd på én dag, alle av cowork, alle fanget av agentene).
+
+| Feil | Hva cowork gjorde | Hva som var sant |
+|---|---|---|
+| «Firmataket leses aldri» | `sed -n '40,75p' moduleGate.ts` → så `projectModule.findFirst` | Firmatak-sjekken lå på **linje 36**, fire linjer over vinduet. Filens toppkommentar sa det rett ut |
+| «16 lint-brudd» | `grep -c "import.*SafeAreaView"` | 23 brudd — 7 unused-var i tillegg. **Lint ble aldri kjørt** |
+| «Sammenligningen mangler i sjekkliste» | Leste ikke hele skrivestien | `likForDiff` på linje 757, og **bedre** enn den cowork ba om å kopiere |
+
+**Fellesnevner: et stedfortredertall ble rapportert som en måling.** Et grep-treff er ikke en
+lint-kjøring. Et vindu er ikke en funksjon. En linje er ikke en sti.
+
+**Regelen:** skal en påstand inn i en ordre eller et vedtak, må den komme fra **verktøyet som
+eier svaret** — `pnpm lint` for lint, hele funksjonen for kontrollflyt, hele skrivestien for
+«skjer dette». Er det for dyrt å måle ordentlig, skriv **«ikke målt»** i ordren i stedet for
+et tall.
+
+🔴 **Kostnaden var null fordi ordrene bar «mål premisset selv» + «SI DET, ikke gjett».** Alle
+tre ble fanget før kode ble skrevet — og i den tredje ville coworks «fiks» gjort loggen
+**dårligere**, fordi den ba om å kopiere den svakeste av to sammenligninger. **De to linjene
+skal stå i hver eneste ordre.**
+
 **10b. Et sidefunn er en påstand — gate det som alt annet før det blir en ordre.** Cowork
 gjorde to ordrer av uverifiserte premisser 2026-08-26: oppgave-PDF på mobil (serveren
 implementerer det ikke — `arkiv.ts:51` kaster) og «merge telles som falsk konflikt» (telleren

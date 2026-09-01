@@ -3443,7 +3443,12 @@ prosjektmoduler · (4) unntakslisten bor på modulkortet, aldri på ansattkortet
 
 **Rekkefølge (fabels § 4 — tre små ordrer, ikke én stor):**
 1. Delt resolver `modul.effektivTilstand(firmaId?, prosjektId?)` + `krev*Aktivert` leser den
-   → retter drift-punkt 3 (gaten leser kun `ProjectModule` i dag).
+   ✅ **LEVERT** `8f7ada26` → merge `1266ac2a`. ⚠️ **Drift-punkt 3 var feilbeskrevet av cowork**
+   — firmataket ble allerede lest (`erFirmamodulAktivert` kalles før `ProjectModule` i alle tre
+   gatene, siden 2026-05-05). Resolveren ble likevel riktig arbeid: den konsoliderer tre
+   nær-identiske `moduleGate.ts` + spredte inline-sjekker, og gir to-familie-formelen ett hjem.
+   **Det ekte hullet agenten fant:** rad-skrivende timer-mutasjoner var ugatet — `krevTimerAktivert`
+   sto kun 3 steder av ~12 i `dagsseddel.ts`. Nå gates nye rader; arbeid i gang låses aldri.
 2. Flatene speiler resolveren — firma/innstillinger, web-dagsseddel, prosjektoppsett med
    grå-under-tak + toveis lenke → drift-punkt 4 og 5.
 3. Dok-sync: `terminologi.md § 0`-diagram, schema-kommentar for varelager, peker fra

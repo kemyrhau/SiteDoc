@@ -113,8 +113,19 @@ prosjektbryteren står alene for prosjektmodulene, og firmamodul-familien er uti
 
 - Tak AV → modulen finnes ikke i produktet for det firmaet: ikke i prosjektoppsett, ikke på
   mobil, ingen skrivende API-kall. En `ProjectModule`-rad uten firmatak er meningsløs og skal
-  aldri leses alene (retter drift-punkt 3 — rotårsaken til at Kenneth kunne føre timer med
-  Timer avslått på firmasiden).
+  aldri leses alene (med standalone-carveout, se § 2).
+
+  ⚠️ **RETTET 2026-08-31:** denne setningen sa opprinnelig at regelen «retter drift-punkt 3 —
+  rotårsaken til at Kenneth kunne føre timer med Timer avslått». **Drift-punkt 3 var
+  feilmålt av cowork.** Firmataket ble allerede lest — `erFirmamodulAktivert` kalles før
+  `ProjectModule` i alle tre gatene, siden 2026-05-05. Cowork leste `moduleGate.ts` fra linje
+  40 og overså sjekken på linje 36.
+
+  **Resolveren er likevel riktig** (levert `1266ac2a`): den konsoliderer tre nær-identiske
+  gate-filer og gir to-familie-formelen ett hjem. **Og det ekte hullet ble funnet i samme
+  runde:** rad-skrivende timer-mutasjoner var ugatet (`krevTimerAktivert` i 3 av ~12 steder i
+  `dagsseddel.ts`). Kenneths symptom er derfor sannsynligvis et **flate-problem** — steg 3 —
+  ikke en server-mangel.
 - Tak PÅ, prosjektbryter AV → modulen finnes for firmaet, men er ikke i bruk på det
   prosjektet. Flater viser varelager-mønsteret: eksplisitt «modulen er ikke aktivert for
   dette prosjektet» (utredningen § 3.5), aldri tom seksjon eller tomt nedtrekk.

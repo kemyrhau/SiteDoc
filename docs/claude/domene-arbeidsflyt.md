@@ -309,10 +309,33 @@ tilfeldigvis finnes rader:
 | Firma | `OrganizationModule` (`schema.prisma:282`) | **Kjøpet** — har firmaet modulen i det hele tatt |
 | Prosjekt | `ProjectModule` (`schema.prisma:1491`) | **Bryteren** — er den slått på for dette prosjektet |
 
-🔴 **Målt luke 2026-08-31: firmanivået er ikke med i gaten.** `krevMaskinAktivert`
-(`services/maskin/moduleGate.ts:40`) slår kun opp i `ProjectModule` — `OrganizationModule`
-leses aldri. Det er derfor Kenneth kunne registrere timer mens Timer sto som «Aktiver»
-(altså av) på `/dashbord/firma/moduler`.
+⚠️ **RETTET 2026-08-31 — coworks måling var feil, og påstanden sto her i noen timer.**
+
+Den opprinnelige teksten sa: *«Målt luke: firmanivået er ikke med i gaten. `krevMaskinAktivert`
+slår kun opp i `ProjectModule` — `OrganizationModule` leses aldri.»*
+
+**Det stemmer ikke.** Kontrollplan målte 2026-08-31: alle tre firmagatene
+(`services/{timer,maskin,varelager}/moduleGate.ts`) kaller
+`erFirmamodulAktivert(orgId, slug)` — som leser `OrganizationModule` — **før** de sjekker
+`ProjectModule`. **Firmataket HAR vært i gaten siden «Steg 1e Fase B, 2026-05-05»**, og
+filens egen toppkommentar sier det: *«Sjekk er additiv: begge nivåer må være aktive.»*
+
+🔴 **Hvordan feilen oppsto:** cowork leste `moduleGate.ts` fra **linje 40** med `sed -n '40,75p'`,
+så `projectModule.findFirst` øverst i utsnittet, og konkluderte. Firmatak-sjekken ligger på
+**linje 36** — fire linjer over lesevinduet. *En konklusjon fra et utsnitt er ikke en måling.*
+
+**Vedtaket under står uendret** — «begge nivåer må være aktive» er riktig, og er nå
+implementert som delt resolver (`services/modul/resolver.ts`, merget `1266ac2a`). Det som var
+feil var påstanden om at koden ikke gjorde det allerede.
+
+**Det ekte hullet, funnet i samme runde:** rad-skrivende timer-mutasjoner var ugatet.
+`krevTimerAktivert` sto kun tre steder i `dagsseddel.ts` av ~tolv skrivende prosedyrer, så en
+sedel opprettet mens Timer var på kunne få nye rader etter at Timer ble slått av. Lukket i
+`8f7ada26` — nye rader stoppes, arbeid i gang låses aldri.
+
+**Kenneths symptom er dermed IKKE forklart av serversiden.** Mest sannsynlig hypotese
+(kontrollplan, ikke bekreftet): `OrganizationModule`-raden var faktisk aktiv mens
+`/dashbord/firma/moduler` viste «Aktiver» — altså et **flate-problem** som hører til steg 3.
 
 **En modul som ikke er kjøpt skal ikke kunne slås på per prosjekt heller.** Firmanivået er
 taket; prosjektnivået er bryteren under taket.
