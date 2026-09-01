@@ -113,14 +113,16 @@ interface OpprettDokumentModalProps {
   posisjon?: { drawingId: string; byggeplassId: string | null; x: number; y: number };
 }
 
-const PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
+// Halvbygd prioritetsvelger-stillas (aldri wiret inn i JSX) — `_`-prefiks holder
+// det synlig uten å bryte lint (husregel: no-unused-vars prefiks med _). Se BACKLOG.
+const _PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
   { verdi: "low", labelKey: "prioritet.lav" },
   { verdi: "medium", labelKey: "prioritet.middels" },
   { verdi: "high", labelKey: "prioritet.hoey" },
   { verdi: "critical", labelKey: "prioritet.kritisk" },
 ];
 
-const PRIORITET_FARGER: Record<Prioritet, string> = {
+const _PRIORITET_FARGER: Record<Prioritet, string> = {
   low: "bg-gray-200 text-gray-700",
   medium: "bg-blue-100 text-blue-700",
   high: "bg-orange-100 text-orange-700",
@@ -163,8 +165,10 @@ export function OpprettDokumentModal({
   const [visLokasjonListe, setVisLokasjonListe] = useState(false);
   const [visOppretterListe, setVisOppretterListe] = useState(false);
   const [visDokumentflytListe, setVisDokumentflytListe] = useState(false);
-  const [visBygningListe, setVisBygningListe] = useState(false);
-  const [visTegningListe, setVisTegningListe] = useState(false);
+  // Halvbygd bygning-/tegning-nedtrekk: setterne resettes, men getterne leses aldri
+  // (listen + åpne-knappen ble aldri bygget). `_`-prefiks til lint uten å slette. Se BACKLOG.
+  const [_visBygningListe, setVisBygningListe] = useState(false);
+  const [_visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
 
   // `internSynlig` speiler `synlig`-propen. (Historisk hadde denne en `onShow`/
