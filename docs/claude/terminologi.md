@@ -49,8 +49,8 @@ Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
 | **Dokumentflytmedlem** | `DokumentflytMedlem` | `dokumentflyt_medlemmer` | — | Person/gruppe koblet til rolle i dokumentflyt |
 | **Bestiller-faggruppe** | — | `bestiller_faggruppe_id` | `bestillerFaggruppeId` | Faggruppen som initierer sjekkliste/oppgave |
 | **Utfører-faggruppe** | — | `utforer_faggruppe_id` | `utforerFaggruppeId` | Faggruppen som mottar og besvarer |
-| **Prosjektmodul** | `ProjectModule` | `project_modules` | — | Modul av/på per prosjekt |
-| **Firmamodul** | (planlagt) | — | — | Modul av/på for hele firmaet, tverrgående |
+| **Prosjektmodul** | `ProjectModule` | `project_modules` | — | Prosjektbryter av/på per prosjekt |
+| **Firmamodul** | `OrganizationModule` | `organization_modules` | — | Firmatak av/på for hele firmaet, tverrgående. Bygget: timer/maskin/varelager (`apps/api/src/services/modul/resolver.ts:33`) |
 
 ### "Entreprise" brukes IKKE i koden
 
@@ -70,12 +70,16 @@ Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
 - Hvert prosjekt kan ha ulik konfigurasjon
 - Eksempler: Sjekklister, Oppgaver, Tegninger, Kontrollplan, Økonomi, PSI, 3D, AI-søk, HMS
 
-**Firmamoduler** (planlagt):
-- Slås av/på **én gang for hele firmaet** i Firmaadministrasjon
+**Firmamoduler** (bygget — `OrganizationModule`/`organization_modules`):
+- Slås av/på **én gang for hele firmaet** i Firmaadministrasjon (dette er *firmataket*)
 - Deler data på tvers av alle firmaets prosjekter
-- Eksempler: Timeregistrering, Maskinregistrering, Kompetanse (implementert), Fremdriftsplanlegging (planlagt). **Mannskap er ikke firmamodul** — det er en vy i PSI-modulen (Fase 4) per Mini-Nivå-1D-presisering (under).
-- Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
+- **Bygget og i drift** (resolver gatet på test 2026-09-01): **Timeregistrering, Maskinregistrering, Varelager** (`FIRMAMODUL_SLUGS`, `apps/api/src/services/modul/resolver.ts:33`) + **Kompetanse** (egne tabeller i `packages/db`, live prod 2026-05-01). **Fremdriftsplanlegging er 🟡 planlagt.** **Mannskap er ikke firmamodul** — det er en vy i PSI-modulen (Fase 4) per Mini-Nivå-1D-presisering (under).
+- Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/`, `packages/db-varelager/`)
 - App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
+
+> **🟢 To familier, to formler — null overlapp (bygget 2026-08-31, gatet på test 2026-09-01; kilde: `apps/api/src/services/modul/resolver.ts`).** Én resolver (`effektivTilstand`) er eneste kilde til effektiv modultilstand; flatene speiler den, avgjør aldri selv. Familiene er **disjunkte**: 3 firmamodul-slugs (timer/maskin/varelager, `FIRMAMODUL_SLUGS`) + 9 prosjektmodul-slugs (`PROSJEKT_MODULER`) — ingen slug ligger i begge. Det er selve poenget.
+> - **Firmamodul** = `firmatak (OrganizationModule) ∧ [prosjektbryter (ProjectModule) hvis prosjektId]`. Uten firma finnes intet kjøp → familien er utilgjengelig (standalone-carveout). ⚠️ Måltilstanden utvider til `firmatak ∧ underbryter ∧ prosjektbryter ∧ ikke-unntatt`, men **underbryterne** (maskin/varelager som underbrytere av Timer) og **unntakslisten** er vedtatt og **ikke bygget** (`resolver.ts:16-18`) — firmaformelen får leddene når de innføres.
+> - **Prosjektmodul** = `prosjektbryter (ProjectModule)` alene — intet firmatak, får det aldri. Gjelder også standalone-prosjekter: `ProjectModule.organizationId = null` er en gyldig permanent tilstand, ikke en mangel.
 
 > **§ OrganizationSeedPolicy — bevisst unntak fra «modul-tabeller ikke i `packages/db`» (2026-08-11).** Tabellen `OrganizationSeedPolicy` (`packages/db`, migrering `20260811120000`) registrerer eksplisitt seed-policy **per datatype per firma** (`standard` | `egen_katalog`) for modul-onboarding. Den ligger i kjernen (`packages/db`) — IKKE i en modul-db — fordi den er en policy **om en Organization** som per definisjon spenner flere moduler (lonnsart/utleggskategori i `db-timer`, varekategori i `db-varelager`) og derfor ikke kan bo i én modul-db. CLAUDE.md-regelen «nye modulers tabeller ALDRI i `packages/db`» verner mot at modul-**datamodeller** lekker inn i kjernen; en tverrgående firma-policy er ikke det. **Ikke «rett» dette til en modul-db.** Bakgrunn: [FABEL-RETNING-modul-onboarding.md](delplaner/FABEL-RETNING-modul-onboarding.md).
 

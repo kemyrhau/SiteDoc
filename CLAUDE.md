@@ -231,7 +231,7 @@ Full anker-tre med tre nivåer (Firma → Firmaadministrasjon → Prosjekter), b
 - **Firma (Organization)** eier prosjekter og firmamoduler. Firmaadmin (`User.role = "company_admin"`) ser alt firma-internt.
 - **Faggruppe** = deltaker i dokumentflyt på ett prosjekt (Byggherre, Tømrer). DB: `Faggruppe`. **«Entreprise»/«Enterprise» er forbudt i ny kode.**
 - **Prosjektmoduler** (`ProjectModule`): slås av/på per prosjekt — Sjekklister, Oppgaver, Tegninger, Kontrollplan, PSI, 3D, AI-søk, HMS, Økonomi, Mapper.
-- **Firmamoduler** (planlagt): slås av/på for hele firmaet — Timer, Maskin, Kompetanse (live), Planlegger, Varelager. Datalag-isolasjon i `packages/db-<modul>/`.
+- **Firmamoduler**: slås av/på for hele firmaet — Timer, Maskin, Varelager, Kompetanse bygget; Planlegger planlagt. Datalag-isolasjon i `packages/db-<modul>/`.
 
 > **📌 Mini-Nivå 1D-presiseringer (2026-04-28):** Ansatt-objektet eies av `User` i kjernen (HR-import via planlagt Import-modul), Mannskapsliste = vy i PSI-modulen (ikke egen modul), Kompetansematrise = egen firma-funksjon (live prod 2026-05-01, tabeller i `packages/db`).
 > Full utdyping: [terminologi.md § 0 → Mini-Nivå 1D-presiseringer](docs/claude/terminologi.md).

@@ -279,10 +279,13 @@ model OrganizationMember {
 // uten @relation (A.3-mønster) for å bevare audit-spor ved User-sletting.
 // ---------------------------------------------------------------------------
 
+// FIRMATAK for firmafamilien (timer/maskin/varelager). Leses av effektivTilstand()
+// i apps/api/src/services/modul/resolver.ts sammen med ProjectModule-bryteren.
+// Prosjektfamilien (de ni i PROSJEKT_MODULER) har INGEN rad her og får aldri et firmatak.
 model OrganizationModule {
   id                  String    @id @default(uuid())
   organizationId      String    @map("organization_id")
-  moduleSlug          String    @map("module_slug") // "timer" | "maskin" | (fremtidig: "kompetanse"/"fremdrift"/"varelager")
+  moduleSlug          String    @map("module_slug") // "timer" | "maskin" | "varelager" (fremtidig: "kompetanse"/"fremdrift")
   status              String    @default("aktiv") // "aktiv" | "arkivert"
   aktivertVed         DateTime  @default(now()) @map("aktivert_ved")
   aktivertAvUserId    String?   @map("aktivert_av_user_id") // ingen FK — A.3-mønster
@@ -1486,13 +1489,21 @@ model FlytRettighetLogg {
 // slettet). `active Boolean` droppet i Steg 1d (2026-05-03).
 // Cross-org-unique `(projectId, organizationId, moduleSlug)` utsatt til Steg 1e
 // når OrganizationModule-tabell lages og cross-org-flow er designet.
+// ⚠️ OPPDATERT 2026-09-01: OrganizationModule-tabellen FINNES nå (se over). Cross-org-
+//    unique ble likevel IKKE lagt på ProjectModule — nøkkelen er fortsatt
+//    `@@unique([projectId, moduleSlug])`. Firmataket bor i OrganizationModule, ikke i en
+//    utvidet ProjectModule-nøkkel. (Gammel tekst over står bevisst.)
 // ---------------------------------------------------------------------------
 
+// PROSJEKTBRYTER. Prosjektfamilien (de ni i PROSJEKT_MODULER) leses KUN herfra —
+// bryteren alene, intet firmatak. Firmafamilien (timer/maskin/varelager) bærer i tillegg
+// en rad her (med organizationId satt) OVER firmataket i OrganizationModule.
+// Effektiv tilstand avgjøres av effektivTilstand() i apps/api/src/services/modul/resolver.ts.
 model ProjectModule {
   id             String   @id @default(uuid())
   projectId      String   @map("project_id")
   moduleSlug     String   @map("module_slug")
-  organizationId String?  @map("organization_id") // Nullable for prosjektmoduler uten firma-eier
+  organizationId String?  @map("organization_id") // Nullbar: prosjektmoduler har ingen firma-eier. Standalone (organizationId = null) er en GYLDIG PERMANENT tilstand — ikke en mangel, ikke «rydd» den bort.
   status         String   @default("aktiv") // "aktiv" | "arkivert" | "slettet" (per A.17)
   config         Json? // Modulspesifikk konfigurasjon (f.eks. oversettelsesmotor)
   createdAt      DateTime @default(now()) @map("created_at")
