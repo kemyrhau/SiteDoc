@@ -39,8 +39,19 @@ async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<
  * De fire fase 4-feltene er valgfrie med v1-defaults, så en klient som fortsatt
  * sender v1-config (kun radTyper+format) validerer og leses som intern/ingen/auto/
  * ingen topptekst — ingen atferdsendring for eksisterende maler. configVersion
- * bumpes til 2 på alle skriv herfra.
+ * bumpes til 3 på alle skriv herfra (v3 la til `kolonner`, se under).
  */
+// configVersion 3 (2026-09-01): `kolonner` = valgt kolonnesett OG rekkefølge for
+// detalj-tabellen (rekkefølgen I arrayet ER kolonnerekkefølgen). JSONB → ingen
+// migrering. Utelatt/tom → dagens faste kolonnesett i dagens rekkefølge (uendret
+// atferd for eksisterende maler). Kolonnevalget bor i malen fordi malen styrer
+// skjermen og eksporten skriver ut det som vises (flateparitet-vedtaket).
+const KOLONNE_KEYS = [
+  "dato", "ansatt", "ansattnr", "prosjekt", "type", "betegnelse", "aktivitet",
+  "fraTid", "tilTid", "timer", "maskintimer", "antall", "belop", "mengde",
+  "enhet", "beskrivelse", "status",
+] as const;
+
 const configSchema = z.object({
   radTyper: z.array(z.enum(["timer", "maskin", "tillegg", "utlegg"])).min(1),
   format: z.enum(["xlsx", "pdf"]),
@@ -48,9 +59,10 @@ const configSchema = z.object({
   gruppering: z.enum(["ingen", "ansatt", "prosjekt"]).optional(),
   orientering: z.enum(["auto", "staaende", "liggende"]).optional(),
   topptekst: z.object({ linjer: z.array(z.string()) }).nullable().optional(),
+  kolonner: z.array(z.enum(KOLONNE_KEYS)).optional(),
 });
 
-const CONFIG_VERSION = 2;
+const CONFIG_VERSION = 3;
 
 const NIVAA = ["firma", "personlig"] as const;
 

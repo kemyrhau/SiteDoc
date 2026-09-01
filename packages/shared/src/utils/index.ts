@@ -62,6 +62,10 @@ export {
   kolonnerMedInnhold,
   grupperDetaljRader,
   flatDetaljRader,
+  losTimerKolonner,
+  TIMER_KOL_KEYS,
+  TIMER_KOL_I18N,
+  INTERNE_TIMER_KOLONNER,
   ALLE_RADTYPER,
 } from "./timerDetaljRader";
 export type {
@@ -72,6 +76,7 @@ export type {
   KildeLosMaskin,
   MaskinMerke,
   KolonneTilstedevaerelse,
+  TimerKolKey,
   Gruppering,
   DetaljSubtotal,
   DetaljGruppe,

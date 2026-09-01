@@ -606,6 +606,17 @@ export const rapportRouter = router({
         // Rå topptekst-linjer med flettefelt {firma}/{periode}/{prosjekt} — flettes
         // server-side fra rapportfilteret (én sannhet). Tom/utelatt → standard firmatopp.
         topptekstLinjer: z.array(z.string()).optional(),
+        // configVersion 3: malens valgte kolonner + rekkefølge (kanoniske nøkler).
+        // Tom/utelatt → dagens dynamiske sett. Ekstern-regelen håndheves i pdf-pakken.
+        kolonner: z
+          .array(
+            z.enum([
+              "dato", "ansatt", "ansattnr", "prosjekt", "type", "betegnelse",
+              "aktivitet", "fraTid", "tilTid", "timer", "maskintimer", "antall",
+              "belop", "mengde", "enhet", "beskrivelse", "status",
+            ]),
+          )
+          .optional(),
         tekster: teksterSchema,
       }),
     )
@@ -695,6 +706,7 @@ export const rapportRouter = router({
         prosjektFilter,
         ansattFilter,
         mottaker,
+        valgteKolonner: input.kolonner,
         topptekstLinjer,
         ansatte: aggregat.ansatte.map((a) => ({
           navn: a.navn ?? a.email,
