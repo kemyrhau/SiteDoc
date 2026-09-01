@@ -75,6 +75,7 @@ const timerRad: TimerRapportDetaljRad = {
   beskrivelse: "gravde grøft",
   status: "pending",
   maskinMerke: null,
+  maskinnavn: null,
 };
 
 const maskinUtenRad: TimerRapportDetaljRad = {

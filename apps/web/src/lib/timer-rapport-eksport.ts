@@ -14,6 +14,7 @@ import {
   losTimerKolonner,
   TIMER_KOL_KEYS,
   TIMER_KOL_I18N,
+  TIMER_KOL_BREDDE,
   INTERNE_TIMER_KOLONNER,
   ALLE_RADTYPER,
   type DetaljRad,
@@ -84,6 +85,7 @@ type LøsMaskinRad = {
   mengde: number | null;
   enhet: string | null;
   radstatus: string;
+  utleieEnhet: string | null;
 };
 
 /**
@@ -112,6 +114,8 @@ export type DetaljEksport = {
       mengde: number | null;
       enhet: string | null;
       radstatus: string;
+      // utleieEnhet ("time" → folder inn på timeraden; "doegn"/null → egen linje)
+      utleieEnhet: string | null;
     }>;
   }>;
   maskinUtenTimerad: LøsMaskinRad[];
@@ -366,7 +370,11 @@ export function byggStatusEtiketter(t: OversettFn): Record<string, string> {
  * Nøstingsmerket «↳» beholdes (rent visnings-innrykk, ikke et anomali-signal).
  */
 export function betegnelse(t: OversettFn, r: DetaljRad, ekstern: boolean): string {
-  if (r.type !== "maskin") return r.betegnelse;
+  if (r.type !== "maskin") {
+    // Time-maskin foldet inn på timeraden (maskin.md § faktureringsenheten):
+    // maskinnavnet som suffiks så identiteten ikke går tapt i fakturagrunnlaget.
+    return r.maskinnavn ? `${r.betegnelse} · ${r.maskinnavn}` : r.betegnelse;
+  }
   switch (r.maskinMerke) {
     case "noster":
       return t("timer.eksport.maskinNoster", { navn: r.betegnelse });
@@ -400,29 +408,32 @@ export function betegnelse(t: OversettFn, r: DetaljRad, ekstern: boolean): strin
  *  `TimerKolKey` (flateparitet). `id`-kolonnen håndteres separat (Excel-only). */
 type ExcelKolDesc = {
   i18n: string;
-  bredde: number;
   sum?: boolean;
   verdi: (r: DetaljRad, t: OversettFn, ekstern: boolean) => string | number;
 };
 
+// Kolonnebredden (i tegn) leses fra den DELTE bredde-intensjonen (TIMER_KOL_BREDDE
+// i @sitedoc/shared) — samme kilde som skjerm/PDF arver, så flatene ikke driver fra
+// hverandre (Kenneth flateparitet 2026-09-01). Her: kun i18n-nøkkel, sum-flagg og
+// celleverdi pr. kolonne.
 const EXCEL_KOL: Record<TimerKolKey, ExcelKolDesc> = {
-  dato: { i18n: "kolDato", bredde: 12, verdi: (r) => r.dato },
-  ansatt: { i18n: "kolAnsatt", bredde: 22, verdi: (r) => r.ansatt },
-  ansattnr: { i18n: "kolAnsattnr", bredde: 10, verdi: (r) => r.ansattnr ?? "" },
-  prosjekt: { i18n: "kolProsjekt", bredde: 22, verdi: (r) => r.prosjekt },
-  type: { i18n: "kolType", bredde: 10, verdi: (r, t) => typeEtikett(t, r.type) },
-  betegnelse: { i18n: "kolBetegnelse", bredde: 24, verdi: (r, t, ekstern) => betegnelse(t, r, ekstern) },
-  aktivitet: { i18n: "kolAktivitet", bredde: 18, verdi: (r) => r.aktivitet ?? "" },
-  fraTid: { i18n: "kolFra", bredde: 7, verdi: (r) => r.fraTid ?? "" },
-  tilTid: { i18n: "kolTil", bredde: 7, verdi: (r) => r.tilTid ?? "" },
-  timer: { i18n: "kolTimer", bredde: 9, sum: true, verdi: (r) => r.timer ?? "" },
-  maskintimer: { i18n: "kolMaskintimer", bredde: 11, sum: true, verdi: (r) => r.maskintimer ?? "" },
-  antall: { i18n: "kolAntall", bredde: 9, sum: true, verdi: (r) => r.antall ?? "" },
-  belop: { i18n: "kolBelop", bredde: 11, sum: true, verdi: (r) => r.belop ?? "" },
-  mengde: { i18n: "kolMengde", bredde: 10, verdi: (r) => r.mengde ?? "" },
-  enhet: { i18n: "kolEnhet", bredde: 8, verdi: (r) => r.enhet ?? "" },
-  beskrivelse: { i18n: "kolBeskrivelse", bredde: 34, verdi: (r) => r.beskrivelse ?? "" },
-  status: { i18n: "kolStatus", bredde: 12, verdi: (r, t) => statusEtikett(t, r.status) },
+  dato: { i18n: "kolDato", verdi: (r) => r.dato },
+  ansatt: { i18n: "kolAnsatt", verdi: (r) => r.ansatt },
+  ansattnr: { i18n: "kolAnsattnr", verdi: (r) => r.ansattnr ?? "" },
+  prosjekt: { i18n: "kolProsjekt", verdi: (r) => r.prosjekt },
+  type: { i18n: "kolType", verdi: (r, t) => typeEtikett(t, r.type) },
+  betegnelse: { i18n: "kolBetegnelse", verdi: (r, t, ekstern) => betegnelse(t, r, ekstern) },
+  aktivitet: { i18n: "kolAktivitet", verdi: (r) => r.aktivitet ?? "" },
+  fraTid: { i18n: "kolFra", verdi: (r) => r.fraTid ?? "" },
+  tilTid: { i18n: "kolTil", verdi: (r) => r.tilTid ?? "" },
+  timer: { i18n: "kolTimer", sum: true, verdi: (r) => r.timer ?? "" },
+  maskintimer: { i18n: "kolMaskintimer", sum: true, verdi: (r) => r.maskintimer ?? "" },
+  antall: { i18n: "kolAntall", sum: true, verdi: (r) => r.antall ?? "" },
+  belop: { i18n: "kolBelop", sum: true, verdi: (r) => r.belop ?? "" },
+  mengde: { i18n: "kolMengde", verdi: (r) => r.mengde ?? "" },
+  enhet: { i18n: "kolEnhet", verdi: (r) => r.enhet ?? "" },
+  beskrivelse: { i18n: "kolBeskrivelse", verdi: (r) => r.beskrivelse ?? "" },
+  status: { i18n: "kolStatus", verdi: (r, t) => statusEtikett(t, r.status) },
 };
 
 function byggDetaljerArk(
@@ -495,7 +506,8 @@ function byggDetaljerArk(
   leggTilSumrad(ws, antallKol, sumKol, førsteData, ws.rowCount, t("timer.eksport.sumKontroll"));
 
   // Bredder følger kolonnesettet 1:1 (ID = 14 til slutt i legacy intern-modus).
-  const bredder = koler.map((k) => EXCEL_KOL[k].bredde);
+  // Bredden leses fra den delte TIMER_KOL_BREDDE (flateparitet med skjerm/PDF).
+  const bredder = koler.map((k) => TIMER_KOL_BREDDE[k].excel);
   if (medId) bredder.push(14);
   settBredder(ws, bredder);
 }

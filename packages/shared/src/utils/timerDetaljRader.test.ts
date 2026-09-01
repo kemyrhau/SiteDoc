@@ -44,7 +44,7 @@ describe("byggDetaljRader", () => {
         timerader: [
           timerad({
             maskiner: [
-              { id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert" },
+              { id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: null },
             ],
           }),
         ],
@@ -66,7 +66,7 @@ describe("byggDetaljRader", () => {
         timerader: [
           timerad({
             maskiner: [
-              { id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert" },
+              { id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: null },
             ],
           }),
         ],
@@ -123,7 +123,7 @@ describe("byggDetaljRader", () => {
         timerader: [
           timerad({
             dato: "2026-08-10",
-            maskiner: [{ id: "m1", navn: "Gravemaskin", timer: 4, mengde: 100, enhet: "m3", radstatus: "attestert" }],
+            maskiner: [{ id: "m1", navn: "Gravemaskin", timer: 4, mengde: 100, enhet: "m3", radstatus: "attestert", utleieEnhet: null }],
           }),
         ],
         utlegg: [
@@ -139,15 +139,110 @@ describe("byggDetaljRader", () => {
   it("løse maskiner vises kun når maskin er valgt, med riktig merke", () => {
     const k = kilde({
       maskinUtenTimerad: [
-        { id: "m2", navn: "Hjullaster", timer: 2, mengde: null, enhet: null, radstatus: "sent", dato: "2026-08-09", ansatt: "Per", ansattnr: "9", prosjekt: "Kai 12" },
+        { id: "m2", navn: "Hjullaster", timer: 2, mengde: null, enhet: null, radstatus: "sent", utleieEnhet: null, dato: "2026-08-09", ansatt: "Per", ansattnr: "9", prosjekt: "Kai 12" },
       ],
       maskinIkkeEksporterbar: [
-        { id: "m3", navn: "Dumper", timer: 3, mengde: null, enhet: null, radstatus: "sent", dato: "2026-08-09", ansatt: "Per", ansattnr: "9", prosjekt: "Kai 12" },
+        { id: "m3", navn: "Dumper", timer: 3, mengde: null, enhet: null, radstatus: "sent", utleieEnhet: null, dato: "2026-08-09", ansatt: "Per", ansattnr: "9", prosjekt: "Kai 12" },
       ],
     });
     expect(byggDetaljRader(k, ["timer"])).toHaveLength(0);
     const rader = byggDetaljRader(k, ["maskin"]);
     expect(rader.map((r) => r.maskinMerke)).toEqual(["utenTimerad", "ikkeEksporterbar"]);
+  });
+});
+
+describe("byggDetaljRader — maskin foldet inn på timeraden (maskin.md § faktureringsenheten)", () => {
+  const timeMaskin = { id: "m1", navn: "Volvo EC220E", timer: 7.5, mengde: 100, enhet: "m3", radstatus: "attestert", utleieEnhet: "time" };
+  const doegnMaskin = { id: "m2", navn: "Heatwork", timer: 24, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: "doegn" };
+  const ukjentMaskin = { id: "m3", navn: "Aggregat", timer: 8, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: null };
+
+  it("utleieEnhet=time → maskintimene foldes inn PÅ timeraden (ingen egen linje)", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [timerad({ maskiner: [timeMaskin] })] }),
+      ALLE_RADTYPER,
+    );
+    // Kun ÉN rad (timeraden) — maskinen har ingen egen linje.
+    expect(rader.map((r) => r.type)).toEqual(["timer"]);
+    expect(rader[0]!.timer).toBe(7.5); // operatørens arbeidstimer
+    expect(rader[0]!.maskintimer).toBe(7.5); // maskintimene på samme linje
+    expect(rader[0]!.mengde).toBe(100); // mengde foldet inn (én maskin)
+    expect(rader[0]!.enhet).toBe("m3");
+    expect(rader[0]!.maskinnavn).toBe("Volvo EC220E"); // identiteten bevart
+  });
+
+  it("NEGATIV KONTROLL: utleieEnhet=doegn → egen nøstet linje, folder IKKE", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [timerad({ maskiner: [doegnMaskin] })] }),
+      ALLE_RADTYPER,
+    );
+    expect(rader.map((r) => r.type)).toEqual(["timer", "maskin"]);
+    expect(rader[0]!.maskintimer).toBeNull(); // ikke foldet inn
+    expect(rader[0]!.maskinnavn).toBeNull();
+    expect(rader[1]!.nivaa).toBe(1);
+    expect(rader[1]!.maskinMerke).toBe("noster");
+    expect(rader[1]!.maskintimer).toBe(24);
+  });
+
+  it("NEGATIV KONTROLL: utleieEnhet=null (ukjent) → ALDRI gjettet, egen nøstet linje", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [timerad({ maskiner: [ukjentMaskin] })] }),
+      ALLE_RADTYPER,
+    );
+    expect(rader.map((r) => r.type)).toEqual(["timer", "maskin"]);
+    expect(rader[0]!.maskintimer).toBeNull();
+    expect(rader[1]!.nivaa).toBe(1);
+  });
+
+  it("blandet: time-maskin foldes, døgn-maskin på egen linje samtidig", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [timerad({ maskiner: [timeMaskin, doegnMaskin] })] }),
+      ALLE_RADTYPER,
+    );
+    expect(rader.map((r) => r.type)).toEqual(["timer", "maskin"]);
+    expect(rader[0]!.maskintimer).toBe(7.5); // kun time-maskinen
+    expect(rader[0]!.maskinnavn).toBe("Volvo EC220E");
+    expect(rader[1]!.betegnelse).toBe("Heatwork"); // døgn-maskinen står alene
+  });
+
+  it("flere time-maskiner: maskintimer summeres, mengde blir tom (tvetydig), begge navn med", () => {
+    const rader = byggDetaljRader(
+      kilde({
+        timerader: [
+          timerad({
+            maskiner: [
+              timeMaskin,
+              { id: "m4", navn: "CAT 320", timer: 5, mengde: 50, enhet: "m3", radstatus: "attestert", utleieEnhet: "time" },
+            ],
+          }),
+        ],
+      }),
+      ALLE_RADTYPER,
+    );
+    expect(rader.map((r) => r.type)).toEqual(["timer"]);
+    expect(rader[0]!.maskintimer).toBe(12.5);
+    expect(rader[0]!.mengde).toBeNull(); // to maskiner → tvetydig sum
+    expect(rader[0]!.maskinnavn).toBe("Volvo EC220E, CAT 320");
+  });
+
+  it("time-maskin, men maskin-radtype avvalgt → ingen maskininfo på timeraden", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [timerad({ maskiner: [timeMaskin] })] }),
+      ["timer"],
+    );
+    expect(rader.map((r) => r.type)).toEqual(["timer"]);
+    expect(rader[0]!.maskintimer).toBeNull();
+    expect(rader[0]!.maskinnavn).toBeNull();
+  });
+
+  it("timer avvalgt + maskin valgt: time-maskinen blir egen rad (timeraden finnes ikke å folde inn på)", () => {
+    const rader = byggDetaljRader(
+      kilde({ timerader: [timerad({ maskiner: [timeMaskin] })] }),
+      ["maskin"],
+    );
+    expect(rader).toHaveLength(1);
+    expect(rader[0]!.type).toBe("maskin");
+    expect(rader[0]!.nivaa).toBe(0);
+    expect(rader[0]!.maskintimer).toBe(7.5);
   });
 });
 
@@ -173,7 +268,7 @@ describe("kolonnerMedInnhold", () => {
         timerader: [
           timerad({
             maskiner: [
-              { id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert" },
+              { id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: null },
             ],
           }),
         ],
@@ -198,7 +293,7 @@ describe("grupperDetaljRader (fase 4)", () => {
     kilde({
       timerader: [
         timerad({ id: "t1", dato: "2026-08-10", ansatt: "Ola", prosjekt: "Kai 12", timer: 7.5,
-          maskiner: [{ id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert" }] }),
+          maskiner: [{ id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: null }] }),
         timerad({ id: "t2", dato: "2026-08-11", ansatt: "Kari", prosjekt: "Bru 3", timer: 8 }),
         timerad({ id: "t3", dato: "2026-08-12", ansatt: "Ola", prosjekt: "Bru 3", timer: 5 }),
       ],
@@ -248,7 +343,7 @@ describe("flatDetaljRader (virtualiserings-flate)", () => {
     kilde({
       timerader: [
         timerad({ id: "t1", dato: "2026-08-10", ansatt: "Ola", prosjekt: "Kai 12", timer: 7.5,
-          maskiner: [{ id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert" }] }),
+          maskiner: [{ id: "m1", navn: "Gravemaskin", timer: 4, mengde: null, enhet: null, radstatus: "attestert", utleieEnhet: null }] }),
         timerad({ id: "t2", dato: "2026-08-11", ansatt: "Kari", prosjekt: "Bru 3", timer: 8 }),
         timerad({ id: "t3", dato: "2026-08-12", ansatt: "Ola", prosjekt: "Bru 3", timer: 5 }),
       ],

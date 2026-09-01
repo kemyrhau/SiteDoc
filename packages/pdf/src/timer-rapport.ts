@@ -67,6 +67,9 @@ export type TimerRapportDetaljRad = {
   beskrivelse: string | null;
   status: string;
   maskinMerke: TimerRapportMaskinMerke;
+  /** Navn på time-maskin(er) foldet inn på en timerad (maskin.md § faktureringsenheten)
+   *  — renderes som suffiks i Betegnelse. Kun på `type: "timer"`; ellers null. */
+  maskinnavn: string | null;
 };
 
 /** Subtotal for en gruppe (og grand total) — strukturelt lik @sitedoc/shared
@@ -106,6 +109,11 @@ export type TimerRapportData = {
    *  tom/utelatt → dagens dynamiske sett (tomme kolonner droppes). Ekstern-regelen
    *  (status/ansattnr) vinner uansett strukturelt (kolonnen bygges ikke). */
   valgteKolonner?: string[];
+  /** Bredde-vekt pr. kanonisk kolonnenøkkel (@sitedoc/shared `TIMER_KOL_BREDDE`,
+   *  sendt inn som data fordi pakken ikke importerer shared). Høyere vekt = bredere
+   *  kolonne; Detaljer-tabellen bygger en `<colgroup>` med prosentbredder fra de
+   *  aktive kolonnenes vekt. Utelatt ⇒ auto-layout (bakoverkompatibelt). */
+  kolBredder?: Record<string, number>;
   /** Fase 4: ferdig-flettet topptekst ({firma}/{periode}/{prosjekt} allerede satt inn).
    *  Tom liste ⇒ standard firmatopp (firmanavn + doktittel + meta). */
   topptekstLinjer: string[];
@@ -185,6 +193,10 @@ body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; fon
 .meta b { color: #111827; }
 h2 { font-size: 12px; color: #26327e; margin: 18px 0 6px; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; }
 table { width: 100%; border-collapse: collapse; }
+/* Detaljer med delte kolonnebredder: fast layout så <colgroup>-prosentene gjelder,
+   og fritekst brytes innenfor sin egen kolonne (ingen horisontal overflow). */
+table.fast { table-layout: fixed; }
+table.fast td, table.fast th { word-break: break-word; overflow-wrap: anywhere; }
 th { background: #f3f4f6; text-align: left; font-weight: 600; font-size: 8.5px; text-transform: uppercase; letter-spacing: .02em; color: #374151; padding: 4px 5px; border-bottom: 1px solid #d1d5db; }
 td { padding: 3px 5px; border-bottom: 1px solid #f0f1f3; vertical-align: top; }
 tr { break-inside: avoid; }
@@ -287,7 +299,13 @@ function betegnelseCelle(
   t: TimerRapportTekster,
   mottaker: TimerRapportMottaker,
 ): string {
-  if (r.type !== "maskin") return esc(r.betegnelse);
+  if (r.type !== "maskin") {
+    // Time-maskin foldet inn på timeraden (maskin.md § faktureringsenheten):
+    // maskinnavnet som suffiks så identiteten ikke går tapt i fakturagrunnlaget.
+    return r.maskinnavn
+      ? `${esc(r.betegnelse)} <span class="mrk">· ${esc(r.maskinnavn)}</span>`
+      : esc(r.betegnelse);
+  }
   const ekstern = mottaker === "ekstern";
   switch (r.maskinMerke) {
     case "utenTimerad":
@@ -426,6 +444,22 @@ function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
 
   const head = th(...kols.map((k) => k.header));
 
+  // Kolonnebredder (flateparitet): bygg en <colgroup> med prosentbredder fra de
+  // aktive kolonnenes delte bredde-vekt (`kolBredder`). table-layout:fixed gjør at
+  // fritekst-kolonnene (Beskrivelse/Betegnelse) faktisk får plassen — ikke auto-
+  // layoutens «lengste enkelt-token vinner». Uten kolBredder: auto-layout som før.
+  const bredder = d.kolBredder;
+  let colgroup = "";
+  let tabellKlasse = "";
+  if (bredder) {
+    const vekter = kols.map((k) => bredder[k.id] ?? 100);
+    const sum = vekter.reduce((s, v) => s + v, 0) || 1;
+    colgroup = `<colgroup>${vekter
+      .map((v) => `<col style="width:${((v / sum) * 100).toFixed(2)}%">`)
+      .join("")}</colgroup>`;
+    tabellKlasse = ' class="fast"';
+  }
+
   const radHtml = (r: TimerRapportDetaljRad): string => {
     const nest = r.type === "maskin" && r.nivaa === 1 ? " nest mrk" : "";
     const mrk = r.type === "maskin" && r.nivaa !== 1 ? " mrk" : "";
@@ -461,7 +495,7 @@ function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
     ? sumRadHtml(kols, "sum", t.sum, (k) => (k.sum ? k.sum(alleRader) : null))
     : "";
 
-  return `<table><thead>${head}</thead><tbody>${body}${grandRad}</tbody></table>`;
+  return `<table${tabellKlasse}>${colgroup}<thead>${head}</thead><tbody>${body}${grandRad}</tbody></table>`;
 }
 
 /* ------------------------------------------------------------------ */

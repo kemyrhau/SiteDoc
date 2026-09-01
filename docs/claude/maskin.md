@@ -295,9 +295,14 @@ unødvendig ut — den passer på samme linje som timer.»*
 Han har rett, og regelen over sier hvorfor: en gravemaskin solgt pr. time **er** operatørens
 timer sett fra maskinsiden. To linjer for én hendelse.
 
-⚠️ **Ikke bygget.** Sammenslåingen krever at presentasjonslaget slår sammen `SheetTimer` og
-`SheetMachine` når `utleieEnhet = "time"` og de deler dagsseddel — og lar dem stå adskilt når
-enheten er `"doegn"`. Egen runde; se [BACKLOG.md](BACKLOG.md).
+🟢 **Bygget 2026-09-01** (branch `feat/timerrapport-flate`). Presentasjonslaget folder en NØSTET
+`SheetMachine` inn PÅ operatørens `SheetTimer`-rad når `Equipment.utleieEnhet = "time"` — maskintimene
+havner i Maskintimer-kolonnen på timeraden, maskinnavnet som suffiks i Betegnelse (identiteten bevart
+for fakturagrunnlaget). `"doegn"` og **ukjent enhet (`null` — ALDRI gjettet)** beholder egen nøstet
+linje. Foldingen skjer i `byggDetaljRader` (`packages/shared/src/utils/timerDetaljRader.ts`, `type: "time"`-
+gren) → arvet likt av skjerm/PDF/Excel (flateparitet). Api-en bærer `utleieEnhet` ut via
+`detaljEksport` (`apps/api/src/routes/timer/rapport.ts`, `utleieEnhetMap`). Krever at maskinen har
+`sheetTimerId` satt (koblingen finnes) — rader ført før koblingen (`sheetTimerId = NULL`) står uendret.
 
 ## Tre kategorier
 

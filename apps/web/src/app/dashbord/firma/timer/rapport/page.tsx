@@ -346,6 +346,9 @@ export default function TimerRapportSide() {
   // detaljvisningen (skjerm) live og skrives ut av Excel/PDF (flateparitet).
   const [valgteKolonner, setValgteKolonner] = useState<TimerKolKey[]>([]);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
+  // Egen åpne-tilstand for velgeren i detalj-filterraden (samme `valgteKolonner`
+  // som mal-editoren, men egen popover så de to ikke slår hverandre av/på).
+  const [visKolonneVelgerDetalj, setVisKolonneVelgerDetalj] = useState(false);
   const [malNavn, setMalNavn] = useState("");
   const [redigererMalId, setRedigererMalId] = useState<string | null>(null);
   // 1c: try/finally uten catch svelget kastet → «virker ikke» uten spor. Vis
@@ -1103,6 +1106,16 @@ export default function TimerRapportSide() {
                 ]}
                 onVelg={setGruppering}
               />
+              {/* Kolonnevelger — der brukeren SER tabellen (Kenneth-gate 2026-09-01).
+                  Redigerer samme `valgteKolonner` som mal-editoren; ingen egen kilde. */}
+              <TimerKolonnePanel
+                valgteKolonner={valgteKolonner}
+                setValgteKolonner={setValgteKolonner}
+                mottaker={mottaker}
+                apen={visKolonneVelgerDetalj}
+                setApen={setVisKolonneVelgerDetalj}
+                t={t}
+              />
             </div>
           </div>
           {mottaker === "ekstern" && (
@@ -1149,6 +1162,93 @@ function Segment<T extends string>({
           {o.tekst}
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Kolonnevelger-knapp + panel for timer-detaljene. ÉN implementasjon delt av to
+ * innganger: detalj-tabellens filterrad (der brukeren SER tabellen) og mal-editoren.
+ * Begge redigerer SAMME `valgteKolonner` (malens `config.kolonner`) — ingen ny
+ * tilstand, ingen andre-kilde (Kenneth-gate 2026-09-01: velgeren skal være der du
+ * ser tabellen). Ekstern skjuler de interne kolonnene (status/ansattnr) fra lista —
+ * personvern-regelen, ikke en preferanse. Tom `valgteKolonner` seedes med
+ * standardsettet så velgeren har noe å vise; første endring materialiserer et
+ * eksplisitt sett. Dato er alltid-på (låst).
+ */
+function TimerKolonnePanel({
+  valgteKolonner,
+  setValgteKolonner,
+  mottaker,
+  apen,
+  setApen,
+  t,
+}: {
+  valgteKolonner: TimerKolKey[];
+  setValgteKolonner: (v: TimerKolKey[]) => void;
+  mottaker: Mottaker;
+  apen: boolean;
+  setApen: (v: boolean) => void;
+  t: (k: string) => string;
+}) {
+  const eksternMal = mottaker === "ekstern";
+  const tilgjengeligeKoler = TIMER_KOL_KEYS.filter(
+    (k) => !(eksternMal && INTERNE_TIMER_KOLONNER.includes(k)),
+  );
+  const effektivKolonner: TimerKolKey[] = (
+    valgteKolonner.length > 0 ? valgteKolonner : [...tilgjengeligeKoler]
+  ).filter((k) => tilgjengeligeKoler.includes(k));
+  const kolNavn = kolTekst(t);
+  const kolonneGrupper: KolonneVelgerGruppe[] = [
+    {
+      id: "kolonner",
+      navn: t("kolonne.kolonner"),
+      felter: tilgjengeligeKoler.map((k) => ({
+        id: k,
+        navn: kolNavn(TIMER_KOL_I18N[k]),
+        laast: k === "dato",
+      })),
+    },
+  ];
+  function kolToggle(id: string) {
+    if (id === "__reset__") {
+      setValgteKolonner([]); // tilbake til dynamisk standardsett
+      return;
+    }
+    const base = effektivKolonner;
+    const nøkkel = id as TimerKolKey;
+    setValgteKolonner(
+      base.includes(nøkkel) ? base.filter((k) => k !== nøkkel) : [...base, nøkkel],
+    );
+  }
+  function kolReorder(ny: string[]) {
+    setValgteKolonner(
+      ny.filter((k): k is TimerKolKey => (TIMER_KOL_KEYS as readonly string[]).includes(k)),
+    );
+  }
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setApen(!apen)}
+        className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+      >
+        {t("kolonne.velgParameter")}
+        <span className="text-gray-400">({effektivKolonner.length})</span>
+      </button>
+      <KolonneVelger
+        apen={apen}
+        onLukk={() => setApen(false)}
+        aktive={new Set(effektivKolonner)}
+        onToggle={kolToggle}
+        grupper={kolonneGrupper}
+        sokPlaceholder={t("firma.timer.rapport.tilpasset.kolonnerSok")}
+        nullstillTekst={t("handling.nullstill")}
+        okTekst={t("handling.ok")}
+        sorterbar
+        rekkefolge={effektivKolonner}
+        onRekkefolgeEndring={kolReorder}
+      />
     </div>
   );
 }
@@ -1467,46 +1567,6 @@ function TilpassetModal({
   const ingenValgt = valgteRadTyper.length === 0;
   const utenNavn = navn.trim().length === 0;
 
-  // Kolonnevelger (config v3). Ekstern skjuler de interne kolonnene (status/ansattnr)
-  // fra lista — personvern-regelen, ikke en preferanse. Tom `valgteKolonner` seedes
-  // med standardsettet så velgeren har noe å vise; første endring materialiserer et
-  // eksplisitt sett. Dato er alltid-på (låst); ansatt er default-på men fjernbar (B2).
-  const eksternMal = mottaker === "ekstern";
-  const tilgjengeligeKoler = TIMER_KOL_KEYS.filter(
-    (k) => !(eksternMal && INTERNE_TIMER_KOLONNER.includes(k)),
-  );
-  const effektivKolonner: TimerKolKey[] = (
-    valgteKolonner.length > 0 ? valgteKolonner : [...tilgjengeligeKoler]
-  ).filter((k) => tilgjengeligeKoler.includes(k));
-  const kolNavn = kolTekst(t);
-  const kolonneGrupper: KolonneVelgerGruppe[] = [
-    {
-      id: "kolonner",
-      navn: t("kolonne.kolonner"),
-      felter: tilgjengeligeKoler.map((k) => ({
-        id: k,
-        navn: kolNavn(TIMER_KOL_I18N[k]),
-        laast: k === "dato",
-      })),
-    },
-  ];
-  function kolToggle(id: string) {
-    if (id === "__reset__") {
-      setValgteKolonner([]); // tilbake til dynamisk standardsett
-      return;
-    }
-    const base = effektivKolonner;
-    const nøkkel = id as TimerKolKey;
-    setValgteKolonner(
-      base.includes(nøkkel) ? base.filter((k) => k !== nøkkel) : [...base, nøkkel],
-    );
-  }
-  function kolReorder(ny: string[]) {
-    setValgteKolonner(
-      ny.filter((k): k is TimerKolKey => (TIMER_KOL_KEYS as readonly string[]).includes(k)),
-    );
-  }
-
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white shadow-xl">
@@ -1588,34 +1648,20 @@ function TilpassetModal({
           </div>
 
           {/* Kolonner (config v3) — valgt sett + rekkefølge (drabar). Styrer skjerm,
-              Excel OG PDF likt (flateparitet). Ekstern skjuler de interne kolonnene. */}
+              Excel OG PDF likt (flateparitet). Samme velger som detalj-filterraden
+              (TimerKolonnePanel), redigerer samme `valgteKolonner`. */}
           <div>
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
               {t("firma.timer.rapport.tilpasset.kolonner")}
             </div>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setVisKolonneVelger(!visKolonneVelger)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-              >
-                {t("kolonne.velgParameter")}
-                <span className="text-gray-400">({effektivKolonner.length})</span>
-              </button>
-              <KolonneVelger
-                apen={visKolonneVelger}
-                onLukk={() => setVisKolonneVelger(false)}
-                aktive={new Set(effektivKolonner)}
-                onToggle={kolToggle}
-                grupper={kolonneGrupper}
-                sokPlaceholder={t("firma.timer.rapport.tilpasset.kolonnerSok")}
-                nullstillTekst={t("handling.nullstill")}
-                okTekst={t("handling.ok")}
-                sorterbar
-                rekkefolge={effektivKolonner}
-                onRekkefolgeEndring={kolReorder}
-              />
-            </div>
+            <TimerKolonnePanel
+              valgteKolonner={valgteKolonner}
+              setValgteKolonner={setValgteKolonner}
+              mottaker={mottaker}
+              apen={visKolonneVelger}
+              setApen={setVisKolonneVelger}
+              t={t}
+            />
             <p className="mt-1.5 text-xs text-gray-500">
               {t("firma.timer.rapport.tilpasset.kolonnerHjelp")}
             </p>
@@ -1710,6 +1756,15 @@ function TilpassetModal({
                 </button>
               )}
             </div>
+            {/* Si HVA som mangler når lagre-knappene er avslått — knappen forklarer
+                seg selv i stedet for å se ødelagt ut (Kenneth-gate 2026-09-01). */}
+            {(utenNavn || ingenValgt) && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                {utenNavn
+                  ? t("firma.timer.rapport.tilpasset.lagreKreverNavn")
+                  : t("firma.timer.rapport.tilpasset.lagreKreverRad")}
+              </p>
+            )}
           </div>
         </div>
 
@@ -1763,7 +1818,11 @@ function TilpassetModal({
               disabled={ingenValgt}
               className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {t("firma.timer.rapport.tilpasset.eksporter")}
+              {/* Knappen sier hva som faktisk skjer (du får en fil), ikke hva vi
+                  IKKE gjør (mikrotekst-standard). Teksten følger valgt filtype. */}
+              {format === "pdf"
+                ? t("firma.timer.rapport.tilpasset.lastNedPdf")
+                : t("firma.timer.rapport.tilpasset.lastNedExcel")}
             </button>
           </div>
         </div>
