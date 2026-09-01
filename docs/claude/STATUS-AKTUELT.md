@@ -21,7 +21,7 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | Sju leveranser merget 30.–31.08. Env symlinket | **`relay/inbox-modul-flatespeiling.md`** — branch `feat/modul-flatespeiling`. Modulhierarki **steg 3**: tre flater, tre svar → én kilde. Deretter steg 4 (dok-sync) |
-| **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | Ledig, detached. `feat/reg-fase2` merget 30.08 | **`relay/inbox-tegningsminne-repeater.md`** — branch `fix/tegningsminne-repeater`. Kø: `oppgave.ts` → `likForDiff` · `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
+| **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | `fix/tegningsminne-repeater` merget 01.09 (`5b5f5442` i develop, verifisert med `merge-base`) | **`relay/inbox-oppgave-likfordiff.md`** — branch `fix/oppgave-likfordiff`. Kø: `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
 
@@ -32,7 +32,8 @@ Kontrollspørsmål: *kommer noen ikke videre uten dette?*
 
 | Funn | Alvorlighet | Status |
 |---|---|---|
-| Tegningsminne mangler i repeater-raden (fem trykk mot ett) | 🟡 skjemmer | Ordre klar, funn-sporet |
+| Tegningsminne mangler i repeater-raden (fem trykk mot ett) | 🟡 skjemmer | ✅ Merget 01.09 (`5b5f5442`). **Ikke i noe bygg** — verifiseres av røykliste flyt 3 (kostet 7 trykk sist) |
+| Endringslogg-støy i oppgave (rå `JSON.stringify` mot sjekklistens `likForDiff`) | 🟡 skjemmer | Ordre klar 01.09, funn-sporet |
 | «Lagre» dekkes av tastaturet i dagsseddel (røykliste flyt 9) | 🟡 skjemmer | Ikke ordre |
 | «Bekreft»/«Opprett» disabled uten forklaring (røykliste flyt 3, 6) | 🟡 skjemmer | Ikke ordre |
 | Ingen lenke mellom firmamoduler og prosjektmoduler | 🟡 skjemmer | Venter modulhierarki steg 3 |
