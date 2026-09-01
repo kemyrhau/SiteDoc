@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
@@ -564,13 +565,29 @@ interface TilgangPolicyProps {
   beskrivelseNoekkel: string;
 }
 
+// Tilgangsvalget hører til en firmamodul. Feltet styrer hvem som kan REGISTRERE,
+// men valget gir bare mening når modulen faktisk er aktivert for firmaet. Slug-
+// mappingen lar seksjonen speile resolveren (modul.effektivTilstand) i stedet for
+// å vise tilgangsvalg som om modulen var på (steg 3, designnotat § 3).
+const TILGANG_FELT_TIL_SLUG: Record<TilgangFelt, "timer" | "varelager" | "maskin"> = {
+  timerTilgangDefault: "timer",
+  vareforbrukTilgangDefault: "varelager",
+  maskinbrukTilgangDefault: "maskin",
+};
+
 function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: TilgangPolicyProps) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
+  const slug = TILGANG_FELT_TIL_SLUG[felt];
 
   const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
     { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  // Speiler resolveren: firmatak for denne firmamodulen (ingen prosjektId → firmatak alene).
+  const { data: modulTilstand } = trpc.modul.effektivTilstand.useQuery(
+    { firmaId: orgId!, slugs: [slug] },
     { enabled: !!orgId },
   );
   const utils = trpc.useUtils();
@@ -589,6 +606,8 @@ function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: Tilga
 
   const verdier: TilgangVerdi[] = ["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"];
   const aktivVerdi = setting[felt] as TilgangVerdi;
+  // undefined mens spørringen laster → ikke vis noe forhastet; false = ikke aktivert.
+  const modulAktiv = modulTilstand?.[slug];
 
   return (
     <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
@@ -599,6 +618,19 @@ function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: Tilga
         {t(beskrivelseNoekkel)}
       </p>
 
+      {modulAktiv === false ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            {t("firma.innstillinger.modulIkkeAktivert")}
+          </p>
+          <Link
+            href="/dashbord/firma/moduler"
+            className="mt-2 inline-block text-sm font-medium text-sitedoc-primary hover:underline"
+          >
+            {t("firma.innstillinger.gaaTilModuler")}
+          </Link>
+        </div>
+      ) : (
       <div className="space-y-2">
         {verdier.map((v) => (
           <label
@@ -628,12 +660,12 @@ function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: Tilga
             </div>
           </label>
         ))}
+        {oppdater.isError && (
+          <p className="mt-3 text-sm text-red-500">
+            Kunne ikke lagre: {oppdater.error.message}
+          </p>
+        )}
       </div>
-
-      {oppdater.isError && (
-        <p className="mt-3 text-sm text-red-500">
-          Kunne ikke lagre: {oppdater.error.message}
-        </p>
       )}
     </div>
   );

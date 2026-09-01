@@ -2,7 +2,8 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserOrganisasjonTilgang } from "../trpc/tilgangskontroll";
+import { effektivTilstand, FIRMAMODUL_SLUGS } from "../services/modul";
 
 /**
  * Seeder HMS-spesifikk infrastruktur når hms-avvik-modulen aktiveres:
@@ -141,6 +142,63 @@ export const modulRouter = router({
         where: { projectId: input.projectId },
         orderBy: { createdAt: "asc" },
       });
+    }),
+
+  // Effektiv modultilstand — ÉN kilde, alle flater speiler den (steg 3,
+  // modulhierarki-designnotat § 3). Tynn tRPC-innpakning over den delte resolveren
+  // (services/modul). Flatene skal ALDRI regne modultilstand selv — de spør denne.
+  //
+  // To familier, to formler (resolveren avgjør ut fra slug):
+  //   Firmamoduler (timer/maskin/varelager): firmatak ∧ [prosjektbryter hvis prosjektId]
+  //   Prosjektmoduler (de ni):               prosjektbryter alene (intet firmatak)
+  //
+  // firmaId og prosjektId er begge valgfrie (standalone-carveout): uten firmaId er
+  // firmamodul-familien utilgjengelig og returnerer false — verken aktiv eller grået.
+  // Returnerer { slug: boolean } for de forespurte slugs (default: alle 3 + 9).
+  effektivTilstand: protectedProcedure
+    .input(
+      z.object({
+        firmaId: z.string().uuid().optional(),
+        prosjektId: z.string().uuid().optional(),
+        slugs: z.array(z.string()).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Tilgang: verifiser hver oppgitt kontekst for seg. prosjektId dekkes av
+      // prosjektmedlem-porten (sitedoc_admin-bypass innebygd); firmaId av org-
+      // tilgang (med sitedoc_admin-bypass her, siden Kenneth ikke er org-medlem).
+      if (input.prosjektId) {
+        await verifiserProsjektmedlem(ctx.userId, input.prosjektId);
+      }
+      if (input.firmaId) {
+        const bruker = await ctx.prisma.user.findUnique({
+          where: { id: ctx.userId },
+          select: { role: true },
+        });
+        if (bruker?.role !== "sitedoc_admin") {
+          await verifiserOrganisasjonTilgang(ctx.userId, input.firmaId);
+        }
+      }
+
+      const alleSlugs = [
+        ...FIRMAMODUL_SLUGS,
+        ...PROSJEKT_MODULER.map((m) => m.slug),
+      ];
+      const slugs = input.slugs ?? alleSlugs;
+
+      const par = await Promise.all(
+        slugs.map(
+          async (slug) =>
+            [
+              slug,
+              await effektivTilstand(slug, {
+                firmaId: input.firmaId,
+                prosjektId: input.prosjektId,
+              }),
+            ] as const,
+        ),
+      );
+      return Object.fromEntries(par) as Record<string, boolean>;
     }),
 
   // Aktiver en modul — oppretter maler og rapportobjekter automatisk

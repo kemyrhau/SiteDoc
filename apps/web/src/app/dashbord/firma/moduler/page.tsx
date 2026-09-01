@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -227,6 +228,15 @@ export default function FirmaModulerSide() {
           {settModul.error.message}
         </p>
       )}
+
+      {/* Toveis lenke til prosjektoppsett — der prosjektbryterne styres per prosjekt. */}
+      <Link
+        href="/dashbord/oppsett/produksjon/moduler"
+        className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-sitedoc-primary hover:underline"
+      >
+        <ArrowRight className="h-4 w-4" />
+        {t("firma.moduler.prosjektLenke")}
+      </Link>
 
       <Modal
         open={bekreftDeaktiver !== null}
