@@ -20,8 +20,8 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
-| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | Modulhierarki **steg 3 levert** 01.09 (`97d074b8`). Sju leveranser merget 30.–31.08 | Modulhierarki **steg 4** (dok-sync: `terminologi.md`-diagram + schema-kommentar). Ordre ikke skrevet ennå |
-| **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | `fix/tegningsminne-repeater` merget 01.09 (`5b5f5442` i develop, verifisert med `merge-base`) | **`relay/inbox-oppgave-likfordiff.md`** — branch `fix/oppgave-likfordiff`. Kø: `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
+| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | Steg 3 merget + **gatet på test av Kenneth 01.09** — familieskillet holder | **`relay/inbox-modulhierarki-doksync.md`** — branch `docs/modulhierarki-syncing`. Steg 4. Deretter **lag 3** (api test-script) |
+| **dokgen** | 🔴 **FUNN** | `SiteDoc-dokgen` | To merget 01.09: `5b5f5442` (tegningsminne) + `8c75948f` (endringslogg-speiling) | **`relay/inbox-mobil-hele-prosjektet.md`** — branch `fix/mobil-hele-prosjektet`. 🔴 mobilen skjuler dokumenter. Kø: `inbox-kolonnevelger` + `inbox-tabellbredder` (sammen) |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
 
