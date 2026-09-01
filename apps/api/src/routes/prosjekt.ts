@@ -212,7 +212,8 @@ export const prosjektRouter = router({
       const [
         dokumentflytAntall,
         brukergruppeAntall,
-        malKobletAntall,
+        sjekklisteMalAntall,
+        oppgaveMalAntall,
         lokasjonAntall,
         tegningAntall,
         prosjekt,
@@ -222,8 +223,14 @@ export const prosjektRouter = router({
         ctx.prisma.projectGroup.count({
           where: { projectId: input.projectId, category: "brukergrupper" },
         }),
+        // Maler-steget krever minst én sjekklistemal OG én oppgavemal koblet til flyt
+        // (Kenneth 2026-09-01). Typen bor på ReportTemplate.category — den bare
+        // `dokumentflytMal.count()` gamle predikatet skilte dem ikke.
         ctx.prisma.dokumentflytMal.count({
-          where: { dokumentflyt: { projectId: input.projectId } },
+          where: { dokumentflyt: { projectId: input.projectId }, template: { category: "sjekkliste" } },
+        }),
+        ctx.prisma.dokumentflytMal.count({
+          where: { dokumentflyt: { projectId: input.projectId }, template: { category: "oppgave" } },
         }),
         ctx.prisma.byggeplass.count({ where: { projectId: input.projectId } }),
         // Steg 4 «Lokasjoner + tegninger» krever en faktisk tegning, ikke bare en
@@ -264,7 +271,8 @@ export const prosjektRouter = router({
       return {
         harDokumentflyt: dokumentflytAntall > 0,
         harBrukergruppe: brukergruppeAntall > 0,
-        harMalKobletTilFlyt: malKobletAntall > 0,
+        harSjekklisteMalKoblet: sjekklisteMalAntall > 0,
+        harOppgaveMalKoblet: oppgaveMalAntall > 0,
         harLokasjon: lokasjonAntall > 0,
         harTegning: tegningAntall > 0,
         timerAktiv,
