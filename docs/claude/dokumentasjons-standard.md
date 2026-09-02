@@ -7,6 +7,40 @@ gjelder: alle filer i docs/claude/
 
 # Dokumentasjons-standard
 
+## 🔴 EN ⚠️ PÅ EN KOPI ER IKKE EN FIKS (Kenneth 2026-09-02)
+
+> *«Det er frustrerende at ved oppdatering av informasjon → så lages det nye dokumenter, og vi bryr
+> oss ikke om at det ligger feil informasjon i dokumentasjonen.»*
+
+**Målt tilfelle samme dag.** `simulator-opus-oppkobling.md` § 4 inneholdt en kopi av
+testbruker-tabellen og brukerbytte-fallgruvene fra `dev-login-agent.md` og `simulator-runbook.md`.
+Den som kopierte **visste det** — hver påstand sto med ⚠️ «kopiert, IKKE re-verifisert denne økta»,
+og fila hadde til og med en fil-index øverst merket *«ikke dupliser — pek hit»*.
+
+**Kostnaden:** simulator-Opus leste den degraderte kopien, fant ikke Release-fella som runbooken
+beskriver korrekt, bygde Release, mistet dev-login-knappene, pekte mot **prod**, og brukte en runde
+på å feilsøke en innlogging som aldri kunne virke.
+
+**Regelen:**
+
+🔴 **Finner du at et avsnitt er en kopi av noe som bor et annet sted — SLETT KOPIEN og sett inn en
+lenke. Ikke merk den ⚠️.** Merkelappen føles som håndtering, men den etterlater to versjoner der
+den ene råtner, og lesere lander tilfeldig på én av dem.
+
+**Skillet som avgjør:**
+
+| Situasjon | Riktig handling |
+|---|---|
+| Innholdet **bor et annet sted** | Slett her, lenk dit. Én eier. |
+| Innholdet **bor her**, men er ikke verifisert | ⚠️ er riktig — den sier «usikker», ikke «duplikat» |
+| Vedtaket er **snudd** | ⚠️-blokk med hva som gjelder nå, gammel tekst synlig under (§ snudde vedtak) |
+
+**⚠️ er for usikkerhet om SANNHET. Den er aldri et svar på duplisering.**
+
+**Og dette gjelder også når du skriver ordrer:** peker du en agent på ett dokument der kilden er et
+annet, arver han kopien. Cowork gjorde nettopp det 2026-09-02 — pekte på oppkoblingsdoken når
+løypa bor i runbooken.
+
 **Kort:** En setning i `docs/claude/` som sier at systemet *gjør* noe, må bære
 enten en kode-referanse eller en status-markør. Uten det leses den som fasit —
 også når den bare var en intensjon.
