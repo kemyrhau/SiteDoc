@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Saknat dokumentflöde",
   "opprettModal.manglerDokumentflytBeskrivelse": "Inget dokumentflöde är konfigurerat för denna mall och handelsgrupp. Konfigurera dokumentflödet i projektinställningar.",
   "opprettModal.velgDokumentflyt": "Välj dokumentflöde",
+  "opprettModal.hintVelgBestiller": "Välj en orderhandelsgrupp att skapa",
+  "opprettModal.hintVelgDokumentflyt": "Välj ett dokumentflöde att skapa",
   "psi.spraak": "Språk",
   "psi.oversett": "Översätt innehåll",
   "psi.oversattTil": "Översatt till {{antall}} språk",

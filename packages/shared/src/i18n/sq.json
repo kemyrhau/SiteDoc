@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Mungon rrjedha e dokumentit",
   "opprettModal.manglerDokumentflytBeskrivelse": "Asnjë rrjedhë dokumenti nuk është konfiguruar për këtë shabllon dhe grup tregtar. Konfiguro rrjedhën e dokumentit në cilësimet e projektit.",
   "opprettModal.velgDokumentflyt": "Zgjidhni rrjedhën e dokumentit",
+  "opprettModal.hintVelgBestiller": "Zgjidhni një grup tregtar porositësi për të krijuar",
+  "opprettModal.hintVelgDokumentflyt": "Zgjidhni një rrjedhë dokumenti për të krijuar",
   "psi.spraak": "Gjuhët",
   "psi.oversett": "Përkthe përmbajtje",
   "psi.oversattTil": "Përkthyer në {{antall}} gjuhë",

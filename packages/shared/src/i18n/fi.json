@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Asiakirjakulku puuttuu",
   "opprettModal.manglerDokumentflytBeskrivelse": "Asiakirjakulkua ei ole määritetty tälle mallille ja kaupparyhmälle. Määritä asiakirjan kulku projektiasetuksissa.",
   "opprettModal.velgDokumentflyt": "Valitse asiakirjakulku",
+  "opprettModal.hintVelgBestiller": "Valitse luotava tilaajan kaupparyhmä",
+  "opprettModal.hintVelgDokumentflyt": "Valitse luotava asiakirjakulku",
   "psi.spraak": "Kielet",
   "psi.oversett": "Käännä sisältöä",
   "psi.oversattTil": "Käännetty {{antall}} kielelle",

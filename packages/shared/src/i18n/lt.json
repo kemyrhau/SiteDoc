@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Trūksta dokumentų srauto",
   "opprettModal.manglerDokumentflytBeskrivelse": "Šiam šablonui ir prekybos grupei nesukonfigūruotas joks dokumentų srautas. Konfigūruokite dokumentų srautą projekto nustatymuose.",
   "opprettModal.velgDokumentflyt": "Pasirinkite dokumentų srautą",
+  "opprettModal.hintVelgBestiller": "Pasirinkite užsakovo prekybos grupę, kurią norite sukurti",
+  "opprettModal.hintVelgDokumentflyt": "Pasirinkite norimą sukurti dokumento srautą",
   "psi.spraak": "Kalbos",
   "psi.oversett": "Versti turinį",
   "psi.oversattTil": "Išversta į {{antall}} kalbas",

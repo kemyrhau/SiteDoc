@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Flux de documents manquant",
   "opprettModal.manglerDokumentflytBeskrivelse": "Aucun flux de documents n'est configuré pour ce modèle et ce groupe professionnel. Configurez le flux de documents dans les paramètres du projet.",
   "opprettModal.velgDokumentflyt": "Sélectionnez le flux de documents",
+  "opprettModal.hintVelgBestiller": "Sélectionnez un groupe professionnel de donneur d'ordre à créer",
+  "opprettModal.hintVelgDokumentflyt": "Sélectionnez un flux de documents à créer",
   "psi.spraak": "Langues",
   "psi.oversett": "Traduire le contenu",
   "psi.oversattTil": "Traduit en {{antall}} langues",

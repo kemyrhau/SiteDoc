@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Chybějící tok dokumentů",
   "opprettModal.manglerDokumentflytBeskrivelse": "Pro tuto šablonu a obchodní skupinu není nakonfigurován žádný tok dokumentů. Nakonfigurujte tok dokumentů v nastavení projektu.",
   "opprettModal.velgDokumentflyt": "Vyberte tok dokumentu",
+  "opprettModal.hintVelgBestiller": "Vyberte obchodní skupinu objednatele, kterou chcete vytvořit",
+  "opprettModal.hintVelgDokumentflyt": "Vyberte tok dokumentů, který chcete vytvořit",
   "psi.spraak": "Jazyky",
   "psi.oversett": "Přeložte obsah",
   "psi.oversattTil": "Přeloženo do {{antall}} jazyků",

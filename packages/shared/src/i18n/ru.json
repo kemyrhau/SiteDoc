@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Отсутствует документооборот",
   "opprettModal.manglerDokumentflytBeskrivelse": "Для этого шаблона и торговой группы не настроен документооборот. Настройте документооборот в настройках проекта.",
   "opprettModal.velgDokumentflyt": "Выберите документооборот",
+  "opprettModal.hintVelgBestiller": "Выберите торговую группу заказчика для создания",
+  "opprettModal.hintVelgDokumentflyt": "Выберите документооборот для создания",
   "psi.spraak": "Языки",
   "psi.oversett": "Перевести контент",
   "psi.oversattTil": "Переведено на {{antall}} языков",

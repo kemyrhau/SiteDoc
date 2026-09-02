@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Trūkst dokumentu plūsmas",
   "opprettModal.manglerDokumentflytBeskrivelse": "Šai veidnei un tirdzniecības grupai nav konfigurēta neviena dokumentu plūsma. Konfigurējiet dokumentu plūsmu projekta iestatījumos.",
   "opprettModal.velgDokumentflyt": "Izvēlieties dokumentu plūsmu",
+  "opprettModal.hintVelgBestiller": "Atlasiet izveidojamo pasūtītāja tirdzniecības grupu",
+  "opprettModal.hintVelgDokumentflyt": "Atlasiet izveidojamo dokumenta plūsmu",
   "psi.spraak": "Valodas",
   "psi.oversett": "Tulkot saturu",
   "psi.oversattTil": "Tulkots {{antall}} valodās",

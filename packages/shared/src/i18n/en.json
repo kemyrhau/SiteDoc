@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Missing document flow",
   "opprettModal.manglerDokumentflytBeskrivelse": "No document flow is configured for this template and trade group. Configure document flow in project settings.",
   "opprettModal.velgDokumentflyt": "Select document flow",
+  "opprettModal.hintVelgBestiller": "Select an orderer trade group to create",
+  "opprettModal.hintVelgDokumentflyt": "Select a document flow to create",
   "psi.spraak": "Languages",
   "psi.oversett": "Translate content",
   "psi.oversattTil": "Translated to {{antall}} languages",
