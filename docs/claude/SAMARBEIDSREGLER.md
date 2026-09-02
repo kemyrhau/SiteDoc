@@ -132,6 +132,32 @@ Drifter en av dem, rettes den **der den står**, ikke her.
 5. **Er noe uventet — konflikt, avvist push, rødt bygg — STOPP og meld.** Ikke improviser rundt
    det. En merge som «ble løst underveis» er en merge ingen har gatet.
 
+#### 🔴 MÅLT NESTEN-UHELL 2026-09-02 — docs-commits og merge er et kappløp
+
+Merge-agenten var i ferd med å pushe en merge der `docs/claude/SAMARBEIDSREGLER.md` sto med
+**−20 linjer** — en fil ordren ikke nevnte, og en sletting av regelen Kenneth hadde vedtatt tjue
+minutter før (destinasjonslinje på alt som limes).
+
+**Mekanikken:** agenten gjorde `reset --hard origin/develop`, merget, og **inspiserte diffen før
+push**. De 20 linjene var to nyere develop-commits som resetten var for gammel til å ha med. Den
+stoppet, sporet det, gjorde mergen på nytt mot fersk develop — og da falt fila ut av diffen.
+
+**Fence 5 fanget det.** Uten «ser du en fil du ikke ventet i diffen, STOPP og meld» ville regelen
+vært borte, og ingen ville lett etter den.
+
+🔴 **Rotårsaken er coworks arbeidsvane, ikke agentens:** cowork redigerer docs i hovedtreet og gir
+Kenneth commit-blokker, mens merge-agenten kjører i sitt eget tre. To skrivere mot `develop` uten
+koordinering.
+
+**Regelen som følger:** 🔴 **docs-commits går gjennom merge-agenten**, som rollen alltid har sagt —
+`add docs/` → `commit` → `pull --rebase` → `push` som én operasjon, i samme sekvens som mergene.
+Cowork gir **ikke** Kenneth løsrevne docs-commit-blokker mens en merge pågår. Da finnes ikke
+kappløpet.
+
+**Og alltid `git add docs/`, aldri enkeltfiler.** Cowork ga `git add docs/claude/BACKLOG.md`
+2026-09-02 mens en tidligere docs-endring lå ukommitert; neste `pull --rebase` stoppet på
+«unstaged changes». Fire ganger samme dag. Hele mappa sveiper med det som ble hoppet over.
+
 #### Hvorfor dette ikke svekker gaten
 
 Cowork verifiserer fortsatt mot koden før merge-ordren gis. Det som flyttes er **utførelsen**,
