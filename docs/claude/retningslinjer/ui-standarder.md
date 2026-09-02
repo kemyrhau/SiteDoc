@@ -25,6 +25,42 @@ begrunnes — ikke et sted vi legger noe fordi visningen mangler i UI-et.
 **Konsekvens ved bygging:** legger du en seksjon på én flate, skal ordren si hva som skjer med
 de andre. «Vi tar mobil senere» er et svar, men det skal stå skrevet — ikke oppstå.
 
+### 🔴 PDF-en er en godt målt REFERANSE, ikke en sannhetskilde (Kenneth-presisering 2026-09-02)
+
+> **Kenneth:** *«Jeg er redd du refererer til PDF som eneste sannhet — det er med forsiktighet vi
+> må vurdere det.»*
+
+🔴 **Generaliseringen var coworks, ikke Kenneths.** Kenneth sa to ting, begge kontekstbundne:
+*«det eneste som er rett i denne sjekklisten er faktisk PDF»* om **lokasjonsvisningen i ett
+dokument**, og *«endringslogg er noe man tar frem ved tvist»* om **loggen**. Ingen av dem var en
+generell fullmakt.
+
+Cowork gjorde dem om til prinsippet «PDF-en er fasit» og brukte det **fire ganger på én dag** — om
+lokasjonsvisning, endringsloggen, `harMarkor`-regelen og språkvalget i arkivdokumentet. Det er en
+snarvei, og den tåler ikke vekten.
+
+⚠️ **Feilformen er verdt å kjenne igjen for seg selv:** en observasjon om ÉN flate i ÉN sak ble til
+en regel om alle flater i alle saker. Det skjedde uten at noen bestemte det — hver gjenbruk føltes
+som en referanse til noe alt vedtatt.
+
+**Hvorfor PDF-en likevel har hatt rett så ofte:** den ble bygget mot en spec med en fasit å måle
+mot, mens web og mobil har vokst fram runde for runde. Det er en påstand om *hvordan den ble
+laget* — ikke en egenskap ved formatet.
+
+🔴 **Og PDF-ens begrensninger er ikke skjermens.** Papir kan ikke ekspandere, ikke reagere, ikke
+vise en mellomtilstand. **Når PDF-en utelater noe, kan det like gjerne være fordi den ikke KAN vise
+det som fordi det ikke hører hjemme.**
+
+**Målt eksempel:** PDF-ens dokumenthistorikk kollapser endringer til «Sendt (31 feltendringer)».
+Cowork kalte det fasit for alle flater. Men den kollapser fordi en utskrift ikke kan la deg klikke
+deg inn — på skjerm kan du det, og der kan sammenslåingen skjule noe leseren trengte.
+
+**Regelen når PDF og skjerm er uenige:** spør **hvilken begrensning som skapte forskjellen**, og om
+den begrensningen gjelder den andre flaten. Er svaret nei, er PDF-ens valg ikke overførbart.
+
+⚠️ **Dette opphever ikke flateparitet.** Samme *informasjon* på alle flater står. Men hvilken flate
+som har rett når de er ulike, avgjøres av begrunnelsen — ikke av at den ene er en PDF.
+
 ### Målt brudd som utløste vedtaket (2026-09-01)
 
 **Endringsloggen er asymmetrisk mellom sjekkliste og oppgave:**
