@@ -158,6 +158,21 @@ kappløpet.
 2026-09-02 mens en tidligere docs-endring lå ukommitert; neste `pull --rebase` stoppet på
 «unstaged changes». Fire ganger samme dag. Hele mappa sveiper med det som ble hoppet over.
 
+🔴 **Fast siste steg etter HVER merge: hent den inn i hovedtreet.**
+
+```sh
+cd ~/Documents/Programmering/SiteDoc && git pull --ff-only
+```
+
+Merge-agenten pusher fra `SiteDoc-merge`; i det øyeblikket ligger **hovedtreet bak sitt eget ferske
+arbeid**. Tar agenten en docs-commit rett etterpå, står den på en base som allerede er utdatert, og
+`pull --rebase` kan stoppe midt i og etterlate treet detached. Skjedde 2026-09-02 — agenten løste
+det riktig (`rebase --abort`, verifiserte at innholdet var unikt, kjørte på nytt), men steget over
+gjør at det ikke oppstår.
+
+**Merk formen:** `--ff-only`, ikke `--rebase`. Hovedtreet skal aldri ha egne commits å rebase — har
+det det, er noe annet galt og da skal agenten **stoppe og melde**, ikke rebase forbi det.
+
 #### Hvorfor dette ikke svekker gaten
 
 Cowork verifiserer fortsatt mot koden før merge-ordren gis. Det som flyttes er **utførelsen**,
