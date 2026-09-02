@@ -2,7 +2,7 @@
  * Sluttrapport PDF — kontrollplan per kontrollområde (SAK10 §14-7)
  */
 
-import { esc } from "./hjelpere";
+import { esc, formaterDatoKort } from "./hjelpere";
 import { prosjektReferanseForUtskrift } from "./header";
 import type { ProsjektForPdf, Utskriftsinnstillinger } from "./typer";
 
@@ -44,17 +44,14 @@ const STATUS_TEKST: Record<string, string> = {
   godkjent: "Godkjent",
 };
 
+/**
+ * «dd.mm.yyyy» i norsk tid. Delegerer til den delte, tidssone-korrekte
+ * `formaterDatoKort` (Europe/Oslo). Tidligere brukte denne `getDate()`/
+ * `getMonth()` = server-lokal tid, som på UTC-serveren ga feil dato nær
+ * midnatt — samme klasse som instant-buggen (funn 2026-09-02).
+ */
 function formaterDato(iso: string): string {
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${dd}.${mm}.${yyyy}`;
-  } catch {
-    return iso;
-  }
+  return formaterDatoKort(iso) || iso;
 }
 
 export function genererSluttrapportHtml(data: SluttrapportData): string {
