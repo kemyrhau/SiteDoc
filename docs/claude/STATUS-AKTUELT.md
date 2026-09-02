@@ -52,6 +52,14 @@ sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
 
+**Test: `d2b9d189`** (deployet 2026-09-02 00:09, verifisert med `/version`). Nytt siden `7b413263`:
+**firma-veiviser** + **prosjekt-oppsettveiviser** (masterplanens punkt 1, begge ugatet) og **fem
+timer-rapport-funn** fra Kenneths gate (velger i filterraden · innholdsbevisste bredder ·
+maskinlinje foldet når `utleieEnhet="time"` · disabled-knapper forklart · «Last ned PDF»).
+Migreringer: «No pending» på alle fire.
+
+⚠️ **Foreldet linje under — gjaldt forrige deploy, beholdt til gaten er kjørt:**
+
 **Test: `7b413263`** (deployet 2026-09-01 21:19, verifisert med `/version`). Migreringer:
 «No pending» på alle fire pakker — settet har ingen schema-endringer (`db-timer/schema.prisma`
 ble kun kommentert om til v3).
