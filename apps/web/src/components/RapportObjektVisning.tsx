@@ -383,12 +383,13 @@ function ObjektInnhold({
     }
 
     case "location": {
-      const tekst = typeof verdi === "string" && verdi ? verdi : (prosjektAdresse ?? "");
-      return (
-        <FeltRad label={label} tom={!tekst}>
-          <p className="text-sm text-gray-900">{tekst}</p>
-        </FeltRad>
-      );
+      // AVVIKLET 2026-09-02 (begrepsrydding): location-objektet er fjernet fra palett +
+      // seeds. Det viste tidligere prosjektadressen i lesevisning — en adresselinje PDF-en
+      // bevisst utelater (paritetsbrudd). Lesevisning skal følge PDF: render INGENTING.
+      // Byggeplass/adresse bæres av kontekstheaderen. LEGACY-VERN: casen står igjen (som
+      // no-op) fordi location-objekter fortsatt lever i eksisterende maler til malryddingen
+      // (D8/D9) fjerner dem — uten casen ville de falt til default og vist «ukjent felttype».
+      return null;
     }
 
     case "drawing_position": {

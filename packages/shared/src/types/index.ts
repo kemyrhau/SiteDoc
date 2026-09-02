@@ -250,6 +250,13 @@ export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeM
     category: "spesial",
     defaultConfig: {},
   },
+  // LEGACY-VERN "location": AVVIKLET 2026-09-02 (begrepsrydding) — tegningsmarkøren
+  // (drawing_position + Checklist.drawingId) dekker lokasjon; location-objektet var en
+  // relikvi som viste prosjektadresse i web-lesevisning men aldri i PDF (paritetsbrudd).
+  // Fjernet fra de fem seedene OG skjult fra malbygger-paletten (FeltPalett SKJULTE_TYPER)
+  // så ingen NYE opprettes. Meta-entryen STÅR fordi "location" fortsatt er en gyldig
+  // ReportObjectType for ≥9 objekter i eksisterende maler (målt lokal dev; prod trolig
+  // flere) — fjernes FØRST når D8/D9-malryddingen har fjernet objektene fra malene.
   location: {
     label: "Lokasjon",
     icon: "MapPin",
@@ -497,7 +504,6 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
         domain: "bygg",
         emner: ["Endringsmelding", "Varsel om krav", "Tilleggsarbeid", "Fradrag", "Regulering"],
         objekter: [
-          { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
           { type: "date", label: "Dato", sortOrder: 1, required: true, config: { zone: "topptekst" } },
           { type: "person", label: "Ansvarlig", sortOrder: 2, required: true, config: { zone: "topptekst" } },
           { type: "company", label: "Oppretter-faggruppe", sortOrder: 3, required: true, config: { role: "creator", zone: "topptekst" } },
@@ -535,7 +541,6 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
         hmsSynlighet: "privat",
         emner: ["Personskade", "Nestenulykke", "Farlig forhold", "Risikoobservasjon", "Miljøavvik"],
         objekter: [
-          { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
           { type: "date_time", label: "Tidspunkt for hendelse", sortOrder: 1, required: true, config: { zone: "topptekst" } },
           { type: "person", label: "Registrert av", sortOrder: 2, required: true, config: { zone: "topptekst" } },
           { type: "heading", label: "Hendelse", sortOrder: 10, config: { zone: "datafelter" } },
@@ -560,7 +565,6 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
         hmsSynlighet: "apen",
         emner: ["Arbeid i høyden", "Varme arbeider", "Gravearbeid", "Elektrisk arbeid", "Løft", "Trafikkfarlig arbeid"],
         objekter: [
-          { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
           { type: "date", label: "Dato", sortOrder: 1, required: true, config: { zone: "topptekst" } },
           { type: "person", label: "Arbeidsleder", sortOrder: 2, required: true, config: { zone: "topptekst" } },
           { type: "heading", label: "Arbeidsbeskrivelse", sortOrder: 10, config: { zone: "datafelter" } },
@@ -584,7 +588,6 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
         hmsSynlighet: "privat",
         emner: ["Nestenulykke", "Farlig forhold", "Risikoobservasjon", "Forbedringsforslag"],
         objekter: [
-          { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
           { type: "date_time", label: "Tidspunkt", sortOrder: 1, required: true, config: { zone: "topptekst" } },
           { type: "person", label: "Innmelder", sortOrder: 2, required: true, config: { zone: "topptekst" } },
           { type: "heading", label: "Observasjon", sortOrder: 10, config: { zone: "datafelter" } },
@@ -610,7 +613,6 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
         kategori: "sjekkliste",
         domain: "bygg",
         objekter: [
-          { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
           { type: "date", label: "Befaringsdato", sortOrder: 1, required: true, config: { zone: "topptekst" } },
           { type: "weather", label: "Vær", sortOrder: 2, config: { zone: "topptekst" } },
           { type: "persons", label: "Deltakere", sortOrder: 3, required: true, config: { zone: "topptekst" } },

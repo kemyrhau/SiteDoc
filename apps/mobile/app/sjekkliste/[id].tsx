@@ -851,7 +851,11 @@ export default function SjekklisteUtfylling() {
           if (repeaterBarnIder.has(objekt.id)) return null;
           // Sjekk synlighet (betinget felt)
           if (!erSynlig(objekt)) return null;
-          // Skip location — rendres som lokasjonsvelger ovenfor
+          // Skip location — rendres som lokasjonsvelger ovenfor.
+          // LEGACY-VERN: location er avviklet fra palett og seeds 2026-09-02, men ≥9
+          // objekter lever i eksisterende maler (målt lokal dev; prod trolig flere).
+          // Denne skippen holder dem skjult og krasjfrie. Fjernes FØRST når D8/D9-
+          // malryddingen har fjernet objektene fra malene.
           if (objekt.type === "location") return null;
 
           const erDisplay = DISPLAY_TYPER.has(objekt.type);

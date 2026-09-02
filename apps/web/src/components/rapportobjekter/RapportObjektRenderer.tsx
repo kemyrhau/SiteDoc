@@ -42,6 +42,12 @@ export const DISPLAY_TYPER = new Set([
 ]);
 
 // Typer som skjules i utfyllingsmodus (vises kun i print/lesemodus)
+// LEGACY-VERN "location": location er avviklet fra palett og seeds 2026-09-02, men ≥9
+// objekter lever i eksisterende maler (målt lokal dev; prod trolig flere). "location"
+// beholdes i web-rendererens sett (DISPLAY_TYPER, SKJULT_I_UTFYLLING, TILBEHOR_REN_FJERNING,
+// KOMPONENT_MAP) for å holde legacy-objektene skjult og krasjfrie i utfylling. Lesevisningen
+// (RapportObjektVisning) rendrer dem som INGENTING (paritetsbruddet lukket). Fjernes FØRST
+// når D8/D9-malryddingen har fjernet objektene fra malene.
 export const SKJULT_I_UTFYLLING = new Set(["location", "drawing_position"]);
 
 // Read-only typer (viser verdi men kan ikke endres av bruker)
@@ -93,6 +99,8 @@ const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   weather: VaerObjekt,
   signature: SignaturObjekt,
   repeater: RepeaterObjekt,
+  // LEGACY-VERN "location": avviklet 2026-09-02, men ≥9 objekter lever i legacy-maler.
+  // Uten mappingen ville de rendret som UkjentObjekt. Se SKJULT_I_UTFYLLING over.
   location: LokasjonObjekt,
   drawing_position: TegningPosisjonObjekt,
   quiz: QuizObjekt,

@@ -29,6 +29,11 @@ import { QuizObjekt } from "./QuizObjekt";
 import { UkjentObjekt } from "./UkjentObjekt";
 
 // Display-only typer som ikke wrappes med FeltDokumentasjon
+// LEGACY-VERN "location": location er avviklet fra palett og seeds 2026-09-02, men ≥9
+// objekter lever i eksisterende maler (målt lokal dev; prod trolig flere — hvert seedet
+// prosjekt fikk ett per seedet mal). "location" står igjen her (+ i KOMPONENT_MAP og
+// sjekkliste-skippen) for å holde dem skjult og krasjfrie. Fjernes FØRST når D8/D9-
+// malryddingen har fjernet objektene fra malene.
 export const DISPLAY_TYPER = new Set(["heading", "subtitle", "location", "info_text", "info_image"]);
 
 // Read-only typer (viser verdi men kan ikke endres av bruker)
@@ -37,6 +42,8 @@ export const READONLY_TYPER = new Set(["calculation"]);
 // Funn 6 (Kenneth-vedtak 2026-08-22): tilbehør (kommentar/bilde/vedlegg/tegning) fjernes fra
 // NYREGISTRERING på disse typene. «Øvrige felttyper beholder tilbehør» → deny-list PER felttype.
 // `weather` beholdes (var alt tilbehørsfri via SKJUL_VEDLEGG_TYPER — bevarer dagens oppførsel).
+// LEGACY-VERN "location": se DISPLAY_TYPER over — avviklet 2026-09-02, men ≥9 objekter
+// lever i legacy-maler. Beholdes til D8/D9-malryddingen fjerner objektene.
 const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "weather"]);
 
 /**
@@ -79,6 +86,9 @@ const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   weather: VaerObjekt,
   signature: SignaturObjekt,
   repeater: RepeaterObjekt,
+  // LEGACY-VERN "location": avviklet fra palett og seeds 2026-09-02, men ≥9 objekter lever
+  // i legacy-maler. Uten denne mappingen ville de rendret som UkjentObjekt («felttype ikke
+  // støttet»). Beholdes til D8/D9-malryddingen fjerner objektene fra malene.
   location: LokasjonObjekt,
   drawing_position: TegningPosisjonObjekt,
   info_text: InfoTekstObjekt,
