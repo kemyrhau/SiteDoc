@@ -175,6 +175,34 @@ Dette kravet gir den en frist og en konkret kunde.
 ⚠️ **Ikke bland med `Utleieobjekt.utleieEnhet`.** Km ble først nevnt i maskin-sammenheng; det er
 en annen sak. Se [maskin.md](maskin.md) § faktureringsenheten.
 
+### 🟡 Legacy-vern for `location`-objektet — ryddes FØRST i D8/D9-malryddingen (2026-09-02)
+
+`location`-rapportobjektet ble avviklet fra **palett og seeds** 2026-09-02
+(`feat/lokasjon-begrepsrydding`, Kenneth-vedtak). Ingen nye objekter oppstår.
+
+🔴 **Men eksisterende maler har dem.** Målt mot lokal dev-DB: **9 objekter i 9 distinkte maler**
+(8 i topptekst/rot). Prod har trolig flere — hvert seedet prosjekt fikk ett per seedet mal, og det
+var fem seeds.
+
+**Derfor står følgende kode bevisst igjen, som legacy-vern:**
+
+| Sted | Hva den gjør |
+|---|---|
+| `apps/mobile/app/sjekkliste/[id].tsx` (`type === "location"` → `return null`) | holder legacy-objektet skjult |
+| `apps/mobile/.../RapportObjektRenderer.tsx` — `DISPLAY_TYPER`, `TILBEHOR_REN_FJERNING`, `KOMPONENT_MAP` | hindrer «Felttype location ikke støttet» |
+| `packages/shared/src/utils/feltLaasing.ts` | låselogikk |
+| `packages/pdf` — `felt.ts`, `radkort.ts` | defensiv no-op for historiske dokumenter |
+
+⚠️ **Fjernes disse før objektene er ute av malene**, rendres de ni som `UkjentObjekt` på hver
+aktive sjekkliste fra en legacy-mal. Det er en regresjon i felt, ikke en opprydding.
+
+**Rydding skjer i D8/D9-malryddingen** — da fjernes objektene fra malene, og først etterpå kan
+vernet gå. **Denne posten er koblingen** mellom de to rundene; uten den leser noen vernet som død
+kode og sletter det i god tro.
+
+*Funnet av kontrollplan 2026-09-02 ved måling mot ekte DB — coworks ordre listet vernet som noe
+som skulle fjernes, i strid med sin egen fence om at eksisterende maler skulle stå urørt.*
+
 ### 🟡 Dokumentets lokasjon arves ikke ned i repeater-radene (P1, flagget 2026-09-02)
 
 Har en sjekkliste/oppgave lokasjon satt på **dokumentnivå** (`Checklist.drawingId`), foreslår
@@ -194,8 +222,26 @@ P1 er betingelsen som utløser P2, ikke et eget steg han ba om — cowork ekstra
 fanget det. P1 krever prop-threading fra mobilens detaljside ned i repeateren, en annen flate enn
 resten av runden.
 
-**Er den ønskelig?** Trolig ja: er dokumentet stedfestet på tegning A, vil radene som regel gjelde
-samme tegning med ulike punkter. Men det er ikke bekreftet av Kenneth — spør før bygging.
+✅ **BEKREFTET av Kenneth 2026-09-02: ja.**
+
+> *«Ja. Men vi kan også hente tegningen fra n−1 for repeater n. Her er det litt smak og behag, og
+> egentlig ikke så nøye hvilken regel vi setter. Risikoen er at vi kan ha forskjellige tegninger i
+> repeateren — det kan være helt rett, for dersom rapporten trenger å benytte mer enn én tegning
+> for å beskrive forholdet.»*
+
+**De to reglene komponerer — de konkurrerer ikke:**
+
+- **Rad 1** har ingen `n−1` → arver fra **dokumentets** lokasjon (P1), ellers per-byggeplass-minnet.
+- **Rad n** arver fra **rad n−1** (P2).
+- Endrer noen tegning på rad 2, følger rad 3 og utover den nye.
+
+🔴 **Det harde kravet er ikke defaulten — det er at variasjon skal være lett.** Kenneth sier
+eksplisitt at ulike tegninger i samme repeater kan være riktig, fordi ett forhold kan kreve flere
+tegninger å beskrive. **Forvalg, aldri låsing.** «Bytt tegning» skal være en normal handling, ikke
+et unntak man må lete etter.
+
+**Konsekvens for bygging:** P2-propen (`arvetDrawingId`) skal holdes generisk — P1 mater samme prop
+for rad 1 når den bygges. Ingen egen mekanisme.
 
 ### 🟡 Oppgavens endringslogg skrives, men vises ingen steder i app-flatene (målt 2026-09-01)
 

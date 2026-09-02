@@ -492,6 +492,19 @@ All merge-koreografi går gjennom cowork:
 
   > **Kjør `prisma generate` for de 4 db-pakkene FØR gaten** (`db`, `db-timer`, `db-maskin`, `db-varelager`) — ellers rapporterer tsc 400+ falske «implicit any»-feil fra ugenererte Prisma-klienter (`.prisma/*-client`), som maskerer de reelle. I Docker-deployen bakes generate inn; lokalt/i gaten er det et eksplisitt forsteg.
   >
+  > ✅ **MÅLT 2026-09-02 — web-halvdelen dekker `apps/api`, også ruter web aldri kaller.**
+  > Negativ kontroll (merge-agent): en bevisst typefeil injisert i
+  > `apps/api/src/routes/mannskap.ts:267` — en PSI-rute web ikke importerer direkte — gjorde
+  > `pnpm --filter @sitedoc/web build` **rød** (`exit=1`, «Type 'string' is not assignable to
+  > type 'number'»). `next build` typesjekker api-kilden transitivt gjennom `AppRouter`-
+  > importkjeden. Feilen revertert, tre rent.
+  >
+  > **Konsekvens:** regel 10 har **ikke** et hull for backend-logikk, og et eget
+  > `@sitedoc/api typecheck` er **ikke påkrevd** for dekning. Det gir raskere tilbakemelding når
+  > en runde tungt rører api — kjør det gjerne da, men vit at det er hastighet, ikke dekning.
+  > *(Bakgrunn: kontrollplan antok 2026-09-02 at web-bygget ikke nådde rutene hans. Målingen
+  > motbeviste det. Påstanden er nå avgjort — ikke re-litigér den.)*
+  >
   > 🔴 **Utvidet 2026-08-30 — gjelder `web build`, ikke bare mobil-typecheck.** Notatet sa
   > «før mobil-typecheck», og det leses som at web-bygget er upåvirket. Det er feil:
   > `next build` typesjekker `apps/api` gjennom importkjeden, så en stale klient feller
