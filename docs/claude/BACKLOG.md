@@ -194,12 +194,28 @@ dekket, og investeringen i 14 språk stopper derfor før den flaten som brukes m
 som hardkodet norsk for å matche filens konvensjon — **riktig valg**, ett ensomt `t()`-kall ville
 skjult problemet bak et tilsynelatende i18n-ført felt. Cowork målte etterpå at det gjaldt alle.
 
-🔴 **Åpent spørsmål til Kenneth — det avgjør alvorligheten:** har A.Markussen ansatte som ikke
-leser norsk? Er svaret ja, er dette pilotrelevant og ikke en ryddesak. Er svaret nei, kan det vente
-til en kunde faktisk trenger det.
+🔴 **BESVART av Kenneth 2026-09-02: JA — A.Markussen har ansatte som ikke leser norsk.**
+
+**Saken er dermed 🔴 og pilotrelevant, ikke en ryddesak.** Piloten er ~september, 50 ansatte, og
+mobil er den viktigste flaten. En feltarbeider som ikke leser norsk møter «Bekreft», «Marker
+posisjon» og «Bytt tegning» på et språk han ikke kan — i den flaten han bruker mest.
 
 **Omfang hvis det bygges:** ~20 komponenter, nøkler i `nb.json` + `en.json`, så 13-språk-generate.
 Mekanisk, men bredt — og det bør tas i én runde, ikke drypp per fil.
+
+### 🟡 Datoer vises på norsk uansett språkvalg — `toLocaleDateString("nb-NO")` hardkodet (2026-09-02)
+
+`DatoObjekt` og `DatoTidObjekt` på mobil formaterer med **hardkodet `"nb-NO"`**. En polsk eller
+litauisk arbeider som har byttet språk ser fortsatt «15. jan. 2026» med norske månedsnavn.
+
+**Ikke en `t()`-streng** — det er `Intl`-formatering. Å bytte til aktiv locale er en
+**atferdsendring**, og ble derfor holdt utenfor i18n-runden (`feat/mobil-i18n-rapportobjekter`,
+fence 1: ingen atferdsendring). Riktig avgrensning av kontrollplan; ført her så den ikke forsvinner.
+
+**Omfang:** små filer, men berører hvordan datoer *ser ut* i alle dokumenter — verdt en egen runde
+med en bevisst beslutning: skal datoformatet følge brukerens språk, firmaets land, eller alltid
+være norsk fordi dokumentene er norske myndighetsdokumenter? **Det siste er ikke utenkelig** og bør
+avgjøres av Kenneth før noen bygger.
 
 ### 🟡 Legacy-vern for `location`-objektet — ryddes FØRST i D8/D9-malryddingen (2026-09-02)
 
