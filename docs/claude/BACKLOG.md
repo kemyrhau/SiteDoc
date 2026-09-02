@@ -175,6 +175,32 @@ Dette kravet gir den en frist og en konkret kunde.
 ⚠️ **Ikke bland med `Utleieobjekt.utleieEnhet`.** Km ble først nevnt i maskin-sammenheng; det er
 en annen sak. Se [maskin.md](maskin.md) § faktureringsenheten.
 
+### 🟡 Mobilens rapportobjekter er hardkodet norsk — ~20 komponenter, null `t()` (målt 2026-09-02)
+
+**Målt:** `grep -c 't("'` over `apps/mobile/src/components/rapportobjekter/*.tsx` gir **0 for hver
+eneste fil** — `TegningPosisjonObjekt`, `DatoObjekt`, `EnkeltvalgObjekt`, `PersonObjekt`,
+`LokasjonObjekt`, `QuizObjekt` og resten. «Bekreft», «Marker posisjon», «Bytt tegning», «Lukk» er
+norsk i koden.
+
+**Det er feltarbeiderens hovedflate.** Alt utfylling av sjekklister og oppgaver på mobil skjer i
+disse komponentene.
+
+**Hvorfor det er en sak:** produktet har **14 brukervendte språkfiler** og ~2500 nøkler, og
+CLAUDE.md har en hard i18n-regel — men den er formulert for **web-appen**. Mobil har aldri vært
+dekket, og investeringen i 14 språk stopper derfor før den flaten som brukes mest i felt.
+
+**Funnet slik:** dokgen skulle legge en hint-tekst på en disabled knapp
+(`fix/deaktiverte-knapper`) og meldte at fila ikke hadde `t()` i det hele tatt. Han la hinten inn
+som hardkodet norsk for å matche filens konvensjon — **riktig valg**, ett ensomt `t()`-kall ville
+skjult problemet bak et tilsynelatende i18n-ført felt. Cowork målte etterpå at det gjaldt alle.
+
+🔴 **Åpent spørsmål til Kenneth — det avgjør alvorligheten:** har A.Markussen ansatte som ikke
+leser norsk? Er svaret ja, er dette pilotrelevant og ikke en ryddesak. Er svaret nei, kan det vente
+til en kunde faktisk trenger det.
+
+**Omfang hvis det bygges:** ~20 komponenter, nøkler i `nb.json` + `en.json`, så 13-språk-generate.
+Mekanisk, men bredt — og det bør tas i én runde, ikke drypp per fil.
+
 ### 🟡 Legacy-vern for `location`-objektet — ryddes FØRST i D8/D9-malryddingen (2026-09-02)
 
 `location`-rapportobjektet ble avviklet fra **palett og seeds** 2026-09-02
