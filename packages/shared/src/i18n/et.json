@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Puuduv dokumendivoog",
   "opprettModal.manglerDokumentflytBeskrivelse": "Selle malli ja kaubagrupi jaoks pole dokumendivoogu konfigureeritud. Konfigureerige dokumendivoogu projekti seadetes.",
   "opprettModal.velgDokumentflyt": "Valige dokumendivoog",
+  "opprettModal.hintVelgBestiller": "Valige loomiseks tellija kaubandusgrupp",
+  "opprettModal.hintVelgDokumentflyt": "Valige loomiseks dokumendivoog",
   "psi.spraak": "Keeled",
   "psi.oversett": "Tõlgi sisu",
   "psi.oversattTil": "Tõlgitud {{antall}} keelde",

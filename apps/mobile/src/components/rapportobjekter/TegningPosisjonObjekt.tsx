@@ -242,6 +242,17 @@ export function TegningPosisjonObjekt({
             </Pressable>
           </View>
 
+          {/* Deaktivert knapp skal si hva som mangler (ui-standarder). «Bekreft» er grå til
+              en markør er plassert — si det, ellers leses gråtonen som en feil. Forsvinner
+              idet tempPos settes (og knappen blir aktiv). */}
+          {valgtTegningId && !tempPos ? (
+            <View className="border-b border-gray-100 bg-amber-50 px-4 py-2">
+              <Text className="text-xs text-amber-700">
+                Trykk på tegningen for å plassere markøren
+              </Text>
+            </View>
+          ) : null}
+
           {valgtTegningId && tegningUrl ? (
             <View className="flex-1">
               {/* Indre X (TegningsVisnings header) lukker HELE modalen — samme som ytre X.

@@ -81,6 +81,24 @@ Nye sider deklarerer hvilke toppbar-filtre de bruker via `useToppbarFiltre`-hook
 
 Integrasjon: `toppbar-filtre-kontekst.tsx` + `ByggeplassVelger.tsx` (`disabled`-prop via `Toppbar.tsx`). Bakgrunn: byggeplass-velger viste seg uten effekt på 16/30 detalj-/11/14 oppsett-sider.
 
+### Deaktivert knapp skal si hva som mangler (funn 2026-09-01)
+
+En knapp som er `disabled` skal alltid si **hva som mangler** — i knappen, rett under den, eller som hjelpetekst. Gjelder web og mobil. Er betingelsen åpenbar av konteksten (f.eks. «Neste» på siste steg), kan den utelates — men det er unntaket, ikke normalen.
+
+Teksten følger mikrotekst-standarden: si **hva som mangler**, ikke hva knappen gjør. Den skal forsvinne når betingelsen er oppfylt og knappen blir aktiv — blir den stående, er den støy, ikke hjelp.
+
+Målt tre ganger før vedtaket, samme mønster hver gang:
+
+| Hvor | Knapp | Manglet |
+|---|---|---|
+| Røykliste flyt 3 (`TegningPosisjonObjekt.tsx`) | «Bekreft» | markør ikke plassert på tegningen |
+| Røykliste flyt 6 (`OpprettDokumentModal.tsx`) | «Opprett» | dokumentflyt ikke valgt |
+| Timer-rapportens mal-editor (web) | «Lagre som min/firma» | navnefeltet tomt |
+
+Den siste kostet konkret: Kenneth trodde funksjonen var ødelagt (01.09). En grå knapp uten begrunnelse leses som en **feil**, ikke som en betingelse.
+
+Dette er en **standard, ikke en mekanisme** — ingen delt `DisabledKnapp`-komponent, ingen sweep gjennom alle `disabled=`. Hver flate forklarer sin egen knapp, og betingelsen fjernes ikke — den forklares.
+
 ## Fargepalett
 
 | Farge | Hex | Bruk |

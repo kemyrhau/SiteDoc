@@ -532,6 +532,16 @@ export function OpprettDokumentModal({
 
   const kanOpprett = !!oppretterFaggruppeId && !!valgtKandidat && !erPending;
 
+  // Deaktivert «Opprett» skal si hva som mangler (ui-standarder: deaktivert knapp).
+  // Peker på det ene manglende valget; forsvinner idet det er gjort og knappen blir aktiv.
+  const opprettMangler = erPending
+    ? null
+    : !oppretterFaggruppeId
+      ? t("opprettModal.hintVelgBestiller")
+      : !valgtKandidat && matchendeKandidater.length > 0
+        ? t("opprettModal.hintVelgDokumentflyt")
+        : null;
+
   // P4a: skip bekreftelses-modalen når konteksten er entydig (faggruppe + flyt +
   // svarer utledet). Da opprettes utkast automatisk → trykk mal → rett i
   // utfyllingen, ingen «Opprett»-bekreftelse. Ved reell flertydighet (≥2
@@ -618,6 +628,12 @@ export function OpprettDokumentModal({
             )}
           </Pressable>
         </View>
+
+        {!kanOpprett && opprettMangler ? (
+          <View className="bg-amber-50 px-4 py-2">
+            <Text className="text-xs text-amber-700">{opprettMangler}</Text>
+          </View>
+        ) : null}
 
         <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
           {/* 1. Mal-info med prefix-badge */}

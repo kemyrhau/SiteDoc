@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Mangler dokumentflyt",
   "opprettModal.manglerDokumentflytBeskrivelse": "Det er ikke satt opp en dokumentflyt for denne malen og faggruppen. Konfigurer dokumentflyt i prosjektoppsettet.",
   "opprettModal.velgDokumentflyt": "Velg dokumentflyt",
+  "opprettModal.hintVelgBestiller": "Velg bestiller-faggruppe for å opprette",
+  "opprettModal.hintVelgDokumentflyt": "Velg dokumentflyt for å opprette",
   "psi.spraak": "Språk",
   "psi.oversett": "Oversett innhold",
   "psi.oversattTil": "Oversatt til {{antall}} språk",

@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Lipsește fluxul de documente",
   "opprettModal.manglerDokumentflytBeskrivelse": "Nu este configurat niciun flux de documente pentru acest șablon și grup comercial. Configurați fluxul de documente în setările proiectului.",
   "opprettModal.velgDokumentflyt": "Selectați fluxul de documente",
+  "opprettModal.hintVelgBestiller": "Selectați un grup de tranzacții de comandă pentru a crea",
+  "opprettModal.hintVelgDokumentflyt": "Selectați un flux de document pentru a crea",
   "psi.spraak": "Limbi",
   "psi.oversett": "Traduceți conținut",
   "psi.oversattTil": "Tradus în {{antall}} limbi",

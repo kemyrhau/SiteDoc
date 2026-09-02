@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Відсутній документообіг",
   "opprettModal.manglerDokumentflytBeskrivelse": "Для цього шаблону та торгової групи не налаштовано документообіг. Налаштувати документообіг в налаштуваннях проекту.",
   "opprettModal.velgDokumentflyt": "Виберіть документообіг",
+  "opprettModal.hintVelgBestiller": "Виберіть торгову групу замовника для створення",
+  "opprettModal.hintVelgDokumentflyt": "Виберіть потік документів для створення",
   "psi.spraak": "Мови",
   "psi.oversett": "Перекласти вміст",
   "psi.oversattTil": "Перекладено {{antall}} мовами",

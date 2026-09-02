@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Brak przepływu dokumentów",
   "opprettModal.manglerDokumentflytBeskrivelse": "Dla tego szablonu i grupy branżowej nie skonfigurowano żadnego przepływu dokumentów. Skonfiguruj obieg dokumentów w ustawieniach projektu.",
   "opprettModal.velgDokumentflyt": "Wybierz przepływ dokumentów",
+  "opprettModal.hintVelgBestiller": "Wybierz grupę handlową zleceniodawcy, którą chcesz utworzyć",
+  "opprettModal.hintVelgDokumentflyt": "Wybierz przepływ dokumentów do utworzenia",
   "psi.spraak": "Języki",
   "psi.oversett": "Przetłumacz treść",
   "psi.oversattTil": "Przetłumaczone na języki {{antall}}",

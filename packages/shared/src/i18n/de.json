@@ -2409,6 +2409,8 @@
   "opprettModal.manglerDokumentflyt": "Fehlender Dokumentenfluss",
   "opprettModal.manglerDokumentflytBeskrivelse": "Für diese Vorlage und Handelsgruppe ist kein Dokumentenfluss konfiguriert. Konfigurieren Sie den Dokumentenfluss in den Projekteinstellungen.",
   "opprettModal.velgDokumentflyt": "Dokumentenfluss auswählen",
+  "opprettModal.hintVelgBestiller": "Wählen Sie eine zu erstellende Besteller-Handelsgruppe aus",
+  "opprettModal.hintVelgDokumentflyt": "Wählen Sie einen zu erstellenden Dokumentenfluss aus",
   "psi.spraak": "Sprachen",
   "psi.oversett": "Inhalte übersetzen",
   "psi.oversattTil": "Übersetzt in {{antall}} Sprachen",
