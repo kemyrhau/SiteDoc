@@ -1,10 +1,12 @@
 import { View, Text, TouchableOpacity, Modal, FlatList, Pressable } from "react-native";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../../lib/trpc";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import type { RapportObjektProps } from "./typer";
 
 export function SoneEgenskapObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   // Prosjekt-id fra KONTEKST — ikke en prop (rendereren threader den ikke til repeater-barn).
   const { valgtProsjektId } = useProsjekt();
   const valgtId = typeof verdi === "string" ? verdi : "";
@@ -30,16 +32,16 @@ export function SoneEgenskapObjekt({ verdi, onEndreVerdi, leseModus }: RapportOb
         }`}
       >
         <Text className={`text-sm ${valgt ? "text-gray-900" : "text-gray-400"}`}>
-          {valgt ? `${valgt.byggeplass.name} — ${valgt.navn}` : "Velg område..."}
+          {valgt ? `${valgt.byggeplass.name} — ${valgt.navn}` : t("felt.velgOmradePlaceholder")}
         </Text>
       </TouchableOpacity>
 
       <Modal visible={visModal} animationType="slide" presentationStyle="pageSheet">
         <View className="flex-1 bg-white pt-4">
           <View className="flex-row items-center justify-between px-4 pb-3 border-b border-gray-200">
-            <Text className="text-lg font-semibold">Velg område</Text>
+            <Text className="text-lg font-semibold">{t("felt.velgOmradeTittel")}</Text>
             <Pressable onPress={() => setVisModal(false)}>
-              <Text className="text-blue-600 text-base">Lukk</Text>
+              <Text className="text-blue-600 text-base">{t("handling.lukk")}</Text>
             </Pressable>
           </View>
           <FlatList
@@ -55,7 +57,7 @@ export function SoneEgenskapObjekt({ verdi, onEndreVerdi, leseModus }: RapportOb
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              <Text className="px-4 py-8 text-center text-gray-400">Ingen områder opprettet</Text>
+              <Text className="px-4 py-8 text-center text-gray-400">{t("felt.ingenOmrader")}</Text>
             }
           />
         </View>

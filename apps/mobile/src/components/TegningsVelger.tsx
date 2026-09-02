@@ -16,6 +16,7 @@ import {
   Map,
   MapPin,
 } from "lucide-react-native";
+// eslint-disable-next-line no-restricted-imports -- pageSheet — simulator-målt 2026-08-31 (direkte på denne fila): SafeAreaView anvender arkets egen topp-inset (~10 pt), «Ferdig» truffbar på første tapp. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
@@ -111,7 +112,7 @@ export function TegningsVelger({
     const grupper: EtasjeGruppe[] = [];
 
     if (utomhus.length > 0) {
-      grupper.push({ etasje: "Utomhus", tegninger: utomhus, ikon: "utomhus" });
+      grupper.push({ etasje: t("tegningsvelger.utomhus"), tegninger: utomhus, ikon: "utomhus" });
     }
 
     const sortedEtasjer = Object.entries(etasjeMap).sort(([a], [b]) =>
@@ -122,11 +123,11 @@ export function TegningsVelger({
     }
 
     if (utenEtasje.length > 0) {
-      grupper.push({ etasje: "Uten etasje", tegninger: utenEtasje, ikon: "uten" });
+      grupper.push({ etasje: t("tegningsvelger.utenEtasje"), tegninger: utenEtasje, ikon: "uten" });
     }
 
     return grupper;
-  }, [filtreretTegninger]);
+  }, [filtreretTegninger, t]);
 
   // Finn gjeldende etasje/bygningsnavn for kollapset visning
   const valgtTegning = tegninger.find((t) => t.id === valgtTegningId);
@@ -135,7 +136,7 @@ export function TegningsVelger({
     ? valgtTegning.floor || valgtTegning.name
     : valgtBygning
       ? valgtBygning.name
-      : "Velg tegning";
+      : t("tegningsvelger.velgTegning");
 
   const toggleEtasje = useCallback((etasje: string) => {
     setÅpneEtasjer((prev) => {
@@ -267,13 +268,13 @@ export function TegningsVelger({
               className="flex-row items-center gap-1"
             >
               <Text className="text-sm font-semibold text-white">
-                {valgtBygning?.name ?? "Alle lokasjoner"}
+                {valgtBygning?.name ?? t("tegningsvelger.alleLokasjoner")}
               </Text>
               <ChevronDown size={16} color="#ffffff" />
             </Pressable>
 
             <Pressable onPress={() => setUtvidet(false)} hitSlop={8}>
-              <Text className="text-sm font-medium text-white">Ferdig</Text>
+              <Text className="text-sm font-medium text-white">{t("handling.ferdig")}</Text>
             </Pressable>
           </View>
 
@@ -290,7 +291,7 @@ export function TegningsVelger({
                 <Text
                   className={`flex-1 text-sm ${!valgtBygningId ? "font-semibold text-blue-700" : "text-gray-700"}`}
                 >
-                  Alle lokasjoner
+                  {t("tegningsvelger.alleLokasjoner")}
                 </Text>
                 {!valgtBygningId && <Check size={18} color="#1e40af" />}
               </Pressable>
@@ -322,7 +323,7 @@ export function TegningsVelger({
               <Search size={16} color="#9ca3af" />
               <TextInput
                 className="ml-2 flex-1 text-sm text-gray-800"
-                placeholder="Søk tegninger…"
+                placeholder={t("tegningsvelger.sokTegninger")}
                 placeholderTextColor="#9ca3af"
                 value={søkTekst}
                 onChangeText={setSøkTekst}
@@ -335,14 +336,14 @@ export function TegningsVelger({
           {/* Innhold */}
           {laster ? (
             <View className="flex-1 items-center justify-center py-8">
-              <Text className="text-sm text-gray-400">Henter tegninger…</Text>
+              <Text className="text-sm text-gray-400">{t("tegningsvelger.henterTegninger")}</Text>
             </View>
           ) : filtreretTegninger.length === 0 ? (
             <View className="flex-1 items-center justify-center py-8">
               <Text className="text-sm text-gray-400">
                 {søkTekst
-                  ? "Ingen tegninger funnet"
-                  : "Ingen tegninger tilgjengelig"}
+                  ? t("tegningsvelger.ingenTegningerFunnet")
+                  : t("tegningsvelger.ingenTegningerTilgjengelig")}
               </Text>
             </View>
           ) : (

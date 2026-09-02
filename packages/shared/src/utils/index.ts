@@ -22,6 +22,8 @@ export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } 
 export type { IfcOpprinnelse } from "./koordinatBro";
 export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
+export { harTegningsmarkor } from "./tegningsmarkor";
+export type { MarkorFelter } from "./tegningsmarkor";
 export {
   nesteLedd,
   forrigeBallLedd,
@@ -62,6 +64,11 @@ export {
   kolonnerMedInnhold,
   grupperDetaljRader,
   flatDetaljRader,
+  losTimerKolonner,
+  TIMER_KOL_KEYS,
+  TIMER_KOL_I18N,
+  TIMER_KOL_BREDDE,
+  INTERNE_TIMER_KOLONNER,
   ALLE_RADTYPER,
 } from "./timerDetaljRader";
 export type {
@@ -72,6 +79,8 @@ export type {
   KildeLosMaskin,
   MaskinMerke,
   KolonneTilstedevaerelse,
+  TimerKolKey,
+  TimerKolBredde,
   Gruppering,
   DetaljSubtotal,
   DetaljGruppe,

@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback } from "react";
-import { View, Text, Pressable, ActivityIndicator, SafeAreaView } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { ModalFlate } from "./ModalFlate";
 import ViewShot from "react-native-view-shot";
 import { Camera, X } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../lib/trpc";
 import { AUTH_CONFIG } from "../config/auth";
 import { TegningsVelger } from "./TegningsVelger";
@@ -29,6 +31,7 @@ interface TegningsSkjermbildeProps {
 }
 
 export function TegningsSkjermbilde({ prosjektId, onFerdig, onAvbryt }: TegningsSkjermbildeProps) {
+  const { t } = useTranslation();
   const [valgtBygningId, settValgtBygningId] = useState<string | null>(null);
   const [valgtTegningId, settValgtTegningId] = useState<string | null>(null);
   const viewShotRef = useRef<ViewShot>(null);
@@ -77,13 +80,13 @@ export function TegningsSkjermbilde({ prosjektId, onFerdig, onAvbryt }: Tegnings
   }, [onFerdig]);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-gray-50">
       {/* Header */}
       <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
         <Pressable onPress={onAvbryt} hitSlop={12}>
           <X size={22} color="#ffffff" />
         </Pressable>
-        <Text className="text-base font-semibold text-white">Velg tegning</Text>
+        <Text className="text-base font-semibold text-white">{t("tegningsvelger.velgTegning")}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -103,7 +106,7 @@ export function TegningsSkjermbilde({ prosjektId, onFerdig, onAvbryt }: Tegnings
               <ActivityIndicator size="large" color="#1e40af" />
             ) : (
               <Text className="text-sm text-gray-400">
-                Velg en tegning fra listen nedenfor
+                {t("tegningsvelger.velgFraListe")}
               </Text>
             )}
           </View>
@@ -119,7 +122,7 @@ export function TegningsSkjermbilde({ prosjektId, onFerdig, onAvbryt }: Tegnings
         >
           <Camera size={20} color="#ffffff" />
           <Text className="font-medium text-white">
-            {tarSkjermbilde ? "Tar bilde..." : "Ta skjermbilde"}
+            {tarSkjermbilde ? t("tegningsvelger.tarBilde") : t("tegningsvelger.taSkjermbilde")}
           </Text>
         </Pressable>
       )}
@@ -135,6 +138,6 @@ export function TegningsSkjermbilde({ prosjektId, onFerdig, onAvbryt }: Tegnings
         onAvbryt={() => {}}
         laster={bygningQuery.isLoading || tegningQuery.isLoading}
       />
-    </SafeAreaView>
+    </ModalFlate>
   );
 }

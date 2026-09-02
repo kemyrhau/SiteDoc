@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
+// eslint-disable-next-line no-restricted-imports -- pageSheet (5 modaler i fila; ProsjektByggeplassVelgerModal direkte simulator-målt 2026-08-31): SafeAreaView anvender arkets egen topp-inset (~10 pt), X truffbar på første tapp. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Plus,

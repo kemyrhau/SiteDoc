@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
+// eslint-disable-next-line no-restricted-imports -- pageSheet — simulator-målt 2026-08-31 (strukturell tvilling ProsjektByggeplassVelgerModal, edges=top): SafeAreaView anvender arkets egen topp-inset (~10 pt), X truffbar på første tapp. fullScreen-feilen gjelder ikke pageSheet.
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X, Check, Star } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,7 @@ export function ByggeplassVelgerModal({
   valgtId,
   gpsForeslagId,
   tillatIngen = false,
+  ingenLabel,
   onVelg,
   onLukk,
 }: {
@@ -38,10 +40,13 @@ export function ByggeplassVelgerModal({
   valgtId: string | null;
   /** F3: GPS-foreslått byggeplass — badges «du er her» på raden. */
   gpsForeslagId?: string | null;
-  /** Funn #2 (device 2026-08-08): vis «Ingen byggeplass»-rad som nullstiller.
-   *  Kun sedel-velgeren (dagsseddel) trenger den; den globale byggeplass-chipen
-   *  gjenbruker samme modal men skal ikke tilby «ingen» (default false). */
+  /** Vis en rad som nullstiller byggeplass-valget. Sedel-velgeren (dagsseddel)
+   *  bruker den som «Ingen byggeplass»; den globale byggeplass-chipen bruker den
+   *  som «Hele prosjektet»-utvei (default false → ikke vist). */
   tillatIngen?: boolean;
+  /** Etikett på nullstill-raden. Default «Ingen byggeplass» (sedel). Den globale
+   *  chipen sender «Hele prosjektet». */
+  ingenLabel?: string;
   /** Funn #2: `null` = «Ingen byggeplass» (nullstill). Sendes kun når
    *  `tillatIngen` er satt — ellers får kalleren aldri null. */
   onVelg: (id: string | null) => void;
@@ -167,7 +172,7 @@ export function ByggeplassVelgerModal({
             }`}
           >
             <Text className="flex-1 text-base text-gray-700">
-              {t("timer.byggeplass.ingenValgt")}
+              {ingenLabel ?? t("timer.byggeplass.ingenValgt")}
             </Text>
             {valgtId == null && <Check size={18} color="#1e40af" />}
           </Pressable>

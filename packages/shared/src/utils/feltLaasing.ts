@@ -50,6 +50,10 @@ export function harFeltVerdi(verdi: unknown): boolean {
 export const IKKE_UTFYLLBARE_FELTTYPER: ReadonlySet<string> = new Set([
   "heading",
   "subtitle",
+  // LEGACY-VERN "location": location er avviklet fra palett og seeds 2026-09-02, men ≥9
+  // objekter lever i eksisterende maler (målt lokal dev; prod trolig flere). Uten "location"
+  // her ville et legacy-objekt blitt regnet som et utfyllbart svar-felt (feilaktig
+  // append-only-lås / påkrevd-status). Beholdes til D8/D9-malryddingen fjerner objektene.
   "location",
   "drawing_position",
   "calculation",

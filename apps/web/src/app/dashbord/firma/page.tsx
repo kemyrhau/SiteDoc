@@ -2,14 +2,26 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
-import { FolderKanban, Users, Building2, Plug, Check, XCircle } from "lucide-react";
+import { FolderKanban, Users, Building2, Plug, Check, XCircle, Rocket, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import {
+  firmaOnboardingWizard,
+  erOnboardingFullført,
+  antallGjenstår,
+} from "@/lib/onboarding-wizard";
 
 export default function FirmaOversikt() {
+  const { t } = useTranslation();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
+
+  const { data: onboarding } = trpc.organisasjon.hentOnboardingStatus.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
 
   const { data: organisasjon, isLoading: orgLaster } =
     trpc.organisasjon.hentMedId.useQuery(
@@ -49,6 +61,35 @@ export default function FirmaOversikt() {
       <SonetonetSidehode sone="firma" className="mb-6">
         <h1 className="text-lg font-semibold text-gray-900">Oversikt</h1>
       </SonetonetSidehode>
+
+      {/* Onboarding-banner — skjules når begge gating-steg er fullført (datadrevet). */}
+      {onboarding && !erOnboardingFullført(firmaOnboardingWizard, onboarding) && (
+        <Link
+          href="/dashbord/firma/oppsett"
+          className="mb-6 flex items-center justify-between gap-4 rounded-lg border border-blue-200 bg-blue-50 p-4 transition-colors hover:bg-blue-100/60"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100">
+              <Rocket className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-blue-900">
+                {t("firma.onboarding.banner.tittel")}
+              </p>
+              <p className="text-sm text-blue-800">
+                {t("firma.onboarding.banner.gjenstaar", {
+                  antall: antallGjenstår(firmaOnboardingWizard, onboarding),
+                  totalt: firmaOnboardingWizard.steg.length,
+                })}
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-blue-700">
+            {t("firma.onboarding.banner.knapp")}
+            <ArrowRight className="h-4 w-4" />
+          </span>
+        </Link>
+      )}
 
       {/* Statistikk-kort */}
       <div className="mb-8 grid grid-cols-3 gap-4">

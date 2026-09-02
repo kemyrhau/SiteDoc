@@ -109,7 +109,7 @@ interface OmradeData {
 export default function LokasjonerSkjerm() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, settBygning, settSistTegning } = useByggeplass();
+  const { valgtBygningId, erHeleProsjektet, settBygning, settSistTegning } = useByggeplass();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
   const router = useRouter();
@@ -189,12 +189,15 @@ export default function LokasjonerSkjerm() {
   const kontrollpunktMarkører = (kontrollpunktQuery.data ?? []) as KontrollpunktMarkør[];
   const tegningOmrader = (omradeQuery.data ?? []) as OmradeData[];
 
-  // Auto-velg første bygning hvis ingen er valgt (og ingen dyplenke satte den)
+  // Auto-velg første bygning hvis ingen er valgt (og ingen dyplenke satte den).
+  // MEN ikke når brukeren eksplisitt valgte «Hele prosjektet» — da ville dette
+  // skjult-skrive en byggeplass til den globale konteksten og slå filteret på
+  // igjen på tvers av alle skjermer (nøyaktig feilen vi retter).
   useEffect(() => {
-    if (!valgtBygningId && bygninger.length > 0 && bygninger[0]) {
+    if (!valgtBygningId && !erHeleProsjektet && bygninger.length > 0 && bygninger[0]) {
       settBygning(bygninger[0].id);
     }
-  }, [valgtBygningId, bygninger, settBygning]);
+  }, [valgtBygningId, erHeleProsjektet, bygninger, settBygning]);
 
   const lasterData = bygningQuery.isLoading || tegningQuery.isLoading;
 

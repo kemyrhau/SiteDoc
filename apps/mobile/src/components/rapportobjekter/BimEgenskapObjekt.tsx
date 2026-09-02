@@ -1,8 +1,10 @@
 import { TextInput } from "react-native";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
 export function BimEgenskapObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
-  const placeholder = (objekt.config.propertyName as string) || "BIM-egenskap...";
+  const { t } = useTranslation();
+  const placeholder = (objekt.config.propertyName as string) || t("felt.bimEgenskapPlaceholder");
 
   return (
     <TextInput

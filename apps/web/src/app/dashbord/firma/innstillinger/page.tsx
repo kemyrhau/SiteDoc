@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
@@ -290,6 +291,9 @@ export default function FirmaInnstillinger() {
         beskrivelseNoekkel="firma.innstillinger.tilgangMaskinbruk.beskrivelse"
       />
 
+      {/* Prosjekttilgang-default (registreringsmodell fase 2) */}
+      <ProsjektTilgangDefaultSeksjon />
+
       {/* Kompetansematrise — registreringspolicy */}
       <KompetansePolicySeksjon />
 
@@ -561,13 +565,29 @@ interface TilgangPolicyProps {
   beskrivelseNoekkel: string;
 }
 
+// Tilgangsvalget hører til en firmamodul. Feltet styrer hvem som kan REGISTRERE,
+// men valget gir bare mening når modulen faktisk er aktivert for firmaet. Slug-
+// mappingen lar seksjonen speile resolveren (modul.effektivTilstand) i stedet for
+// å vise tilgangsvalg som om modulen var på (steg 3, designnotat § 3).
+const TILGANG_FELT_TIL_SLUG: Record<TilgangFelt, "timer" | "varelager" | "maskin"> = {
+  timerTilgangDefault: "timer",
+  vareforbrukTilgangDefault: "varelager",
+  maskinbrukTilgangDefault: "maskin",
+};
+
 function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: TilgangPolicyProps) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
+  const slug = TILGANG_FELT_TIL_SLUG[felt];
 
   const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
     { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  // Speiler resolveren: firmatak for denne firmamodulen (ingen prosjektId → firmatak alene).
+  const { data: modulTilstand } = trpc.modul.effektivTilstand.useQuery(
+    { firmaId: orgId!, slugs: [slug] },
     { enabled: !!orgId },
   );
   const utils = trpc.useUtils();
@@ -586,6 +606,8 @@ function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: Tilga
 
   const verdier: TilgangVerdi[] = ["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"];
   const aktivVerdi = setting[felt] as TilgangVerdi;
+  // undefined mens spørringen laster → ikke vis noe forhastet; false = ikke aktivert.
+  const modulAktiv = modulTilstand?.[slug];
 
   return (
     <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
@@ -596,6 +618,19 @@ function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: Tilga
         {t(beskrivelseNoekkel)}
       </p>
 
+      {modulAktiv === false ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            {t("firma.innstillinger.modulIkkeAktivert")}
+          </p>
+          <Link
+            href="/dashbord/firma/moduler"
+            className="mt-2 inline-block text-sm font-medium text-sitedoc-primary hover:underline"
+          >
+            {t("firma.innstillinger.gaaTilModuler")}
+          </Link>
+        </div>
+      ) : (
       <div className="space-y-2">
         {verdier.map((v) => (
           <label
@@ -621,6 +656,90 @@ function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: Tilga
               </div>
               <div className="text-xs text-gray-600">
                 {t(`firma.innstillinger.tilgangVerdi.${v}.beskrivelse`)}
+              </div>
+            </div>
+          </label>
+        ))}
+        {oppdater.isError && (
+          <p className="mt-3 text-sm text-red-500">
+            Kunne ikke lagre: {oppdater.error.message}
+          </p>
+        )}
+      </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  ProsjektTilgangDefaultSeksjon — registreringsmodell fase 2         */
+/*  Firmadefault for OrganizationMember.prosjektTilgang. Gjelder som   */
+/*  utgangspunkt for nye ansatte; per-ansatt-valg overstyrer. LAGRES,  */
+/*  evalueres i fase 3. Default 'manuell' (Kenneth-vedtak 2026-08-28). */
+/* ------------------------------------------------------------------ */
+
+type ProsjektTilgangVerdi = "alle" | "avdeling" | "manuell";
+
+function ProsjektTilgangDefaultSeksjon() {
+  const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const utils = trpc.useUtils();
+
+  const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  if (!setting || !orgId) return null;
+
+  function endre(verdi: ProsjektTilgangVerdi) {
+    oppdater.mutate({ prosjektTilgangDefault: verdi, organizationId: orgId! });
+  }
+
+  const verdier: ProsjektTilgangVerdi[] = ["alle", "avdeling", "manuell"];
+  const aktivVerdi = (setting.prosjektTilgangDefault ?? "manuell") as ProsjektTilgangVerdi;
+
+  return (
+    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-1 text-sm font-semibold text-gray-700">
+        {t("firma.innstillinger.prosjektTilgangDefault.tittel")}
+      </h2>
+      <p className="mb-4 text-xs text-gray-500">
+        {t("firma.innstillinger.prosjektTilgangDefault.beskrivelse")}
+      </p>
+
+      <div className="space-y-2">
+        {verdier.map((v) => (
+          <label
+            key={v}
+            className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+              aktivVerdi === v
+                ? "border-sitedoc-primary bg-sitedoc-primary/5"
+                : "border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            <input
+              type="radio"
+              name="prosjektTilgangDefault"
+              value={v}
+              checked={aktivVerdi === v}
+              onChange={() => endre(v)}
+              disabled={oppdater.isPending}
+              className="mt-0.5"
+            />
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                {t(`firma.innstillinger.prosjektTilgangVerdi.${v}.tittel`)}
+              </div>
+              <div className="text-xs text-gray-600">
+                {t(`firma.innstillinger.prosjektTilgangVerdi.${v}.beskrivelse`)}
               </div>
             </div>
           </label>

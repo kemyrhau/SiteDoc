@@ -67,6 +67,9 @@ export type TimerRapportDetaljRad = {
   beskrivelse: string | null;
   status: string;
   maskinMerke: TimerRapportMaskinMerke;
+  /** Navn på time-maskin(er) foldet inn på en timerad (maskin.md § faktureringsenheten)
+   *  — renderes som suffiks i Betegnelse. Kun på `type: "timer"`; ellers null. */
+  maskinnavn: string | null;
 };
 
 /** Subtotal for en gruppe (og grand total) — strukturelt lik @sitedoc/shared
@@ -101,6 +104,16 @@ export type TimerRapportData = {
   grupper: TimerRapportGruppe[];
   /** Fase 4: hvem dokumentet går til (ekstern skjuler status). */
   mottaker: TimerRapportMottaker;
+  /** configVersion 3: malens valgte kolonner + rekkefølge (kanoniske nøkler, som
+   *  @sitedoc/shared `TimerKolKey`). Satt → ordrett brukervalg (ingen drop-tom);
+   *  tom/utelatt → dagens dynamiske sett (tomme kolonner droppes). Ekstern-regelen
+   *  (status/ansattnr) vinner uansett strukturelt (kolonnen bygges ikke). */
+  valgteKolonner?: string[];
+  /** Bredde-vekt pr. kanonisk kolonnenøkkel (@sitedoc/shared `TIMER_KOL_BREDDE`,
+   *  sendt inn som data fordi pakken ikke importerer shared). Høyere vekt = bredere
+   *  kolonne; Detaljer-tabellen bygger en `<colgroup>` med prosentbredder fra de
+   *  aktive kolonnenes vekt. Utelatt ⇒ auto-layout (bakoverkompatibelt). */
+  kolBredder?: Record<string, number>;
   /** Fase 4: ferdig-flettet topptekst ({firma}/{periode}/{prosjekt} allerede satt inn).
    *  Tom liste ⇒ standard firmatopp (firmanavn + doktittel + meta). */
   topptekstLinjer: string[];
@@ -180,6 +193,10 @@ body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111827; fon
 .meta b { color: #111827; }
 h2 { font-size: 12px; color: #26327e; margin: 18px 0 6px; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; }
 table { width: 100%; border-collapse: collapse; }
+/* Detaljer med delte kolonnebredder: fast layout så <colgroup>-prosentene gjelder,
+   og fritekst brytes innenfor sin egen kolonne (ingen horisontal overflow). */
+table.fast { table-layout: fixed; }
+table.fast td, table.fast th { word-break: break-word; overflow-wrap: anywhere; }
 th { background: #f3f4f6; text-align: left; font-weight: 600; font-size: 8.5px; text-transform: uppercase; letter-spacing: .02em; color: #374151; padding: 4px 5px; border-bottom: 1px solid #d1d5db; }
 td { padding: 3px 5px; border-bottom: 1px solid #f0f1f3; vertical-align: top; }
 tr { break-inside: avoid; }
@@ -244,6 +261,10 @@ function sammendragTabell(d: TimerRapportData, t: TimerRapportTekster): string {
 /** Kolonne-descriptor: header, celle-verdi, evt. sum, og om den kan droppes når
  *  tom. `alltid` = identitets-/type-kolonner som aldri droppes. */
 type KolDef = {
+  /** Kanonisk kolonnenøkkel — matcher @sitedoc/shared `TimerKolKey` (holdt i sync
+   *  manuelt fordi denne pakken bevisst ikke importerer shared). Brukes til å
+   *  reordne/filtrere etter malens `config.kolonner`. */
+  id: string;
   header: string;
   num: boolean;
   alltid: boolean;
@@ -278,7 +299,13 @@ function betegnelseCelle(
   t: TimerRapportTekster,
   mottaker: TimerRapportMottaker,
 ): string {
-  if (r.type !== "maskin") return esc(r.betegnelse);
+  if (r.type !== "maskin") {
+    // Time-maskin foldet inn på timeraden (maskin.md § faktureringsenheten):
+    // maskinnavnet som suffiks så identiteten ikke går tapt i fakturagrunnlaget.
+    return r.maskinnavn
+      ? `${esc(r.betegnelse)} <span class="mrk">· ${esc(r.maskinnavn)}</span>`
+      : esc(r.betegnelse);
+  }
   const ekstern = mottaker === "ekstern";
   switch (r.maskinMerke) {
     case "utenTimerad":
@@ -302,66 +329,66 @@ const harTall = (v: number | null): boolean => v !== null;
 function kolonner(t: TimerRapportTekster, mottaker: TimerRapportMottaker): KolDef[] {
   const ekstern = mottaker === "ekstern";
   const kols: KolDef[] = [
-    { header: t.kolDato, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.dato) },
-    { header: t.ansatt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.ansatt) },
+    { id: "dato", header: t.kolDato, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.dato) },
+    { id: "ansatt", header: t.ansatt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.ansatt) },
     // Fase 4-oppfølger: Ansattnr (pseudonymiseringsnøkkel) ut av eksterne dokumenter.
     ...(ekstern
       ? []
-      : [{ header: t.kolAnsattnr, num: false, alltid: true, tilstede: () => true, celle: (r: TimerRapportDetaljRad) => esc(r.ansattnr ?? "") } as KolDef]),
-    { header: t.prosjekt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.prosjekt) },
-    { header: t.kolType, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => esc(typeEtikett(r, tk)) },
-    { header: t.kolBetegnelse, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => betegnelseCelle(r, tk, mottaker) },
+      : [{ id: "ansattnr", header: t.kolAnsattnr, num: false, alltid: true, tilstede: () => true, celle: (r: TimerRapportDetaljRad) => esc(r.ansattnr ?? "") } as KolDef]),
+    { id: "prosjekt", header: t.prosjekt, num: false, alltid: true, tilstede: () => true, celle: (r) => esc(r.prosjekt) },
+    { id: "type", header: t.kolType, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => esc(typeEtikett(r, tk)) },
+    { id: "betegnelse", header: t.kolBetegnelse, num: false, alltid: true, tilstede: () => true, celle: (r, tk) => betegnelseCelle(r, tk, mottaker) },
     {
-      header: t.kolAktivitet, num: false, alltid: false,
+      id: "aktivitet", header: t.kolAktivitet, num: false, alltid: false,
       tilstede: (rader) => rader.some((r) => harTekst(r.aktivitet)),
       celle: (r) => esc(r.aktivitet ?? ""),
     },
     {
-      header: t.kolFra, num: false, alltid: false,
+      id: "fraTid", header: t.kolFra, num: false, alltid: false,
       tilstede: (rader) => rader.some((r) => harTekst(r.fraTid)),
       celle: (r) => esc(r.fraTid ?? ""),
     },
     {
-      header: t.kolTil, num: false, alltid: false,
+      id: "tilTid", header: t.kolTil, num: false, alltid: false,
       tilstede: (rader) => rader.some((r) => harTekst(r.tilTid)),
       celle: (r) => esc(r.tilTid ?? ""),
     },
     {
-      header: t.kolTimer, num: true, alltid: false, felt: "timer",
+      id: "timer", header: t.kolTimer, num: true, alltid: false, felt: "timer",
       tilstede: (rader) => rader.some((r) => harTall(r.timer)),
       celle: (r) => tallEllerTom(r.timer),
       sum: (rader) => rader.reduce((s, r) => s + (r.timer ?? 0), 0),
     },
     {
-      header: t.kolMaskintimer, num: true, alltid: false, felt: "maskintimer",
+      id: "maskintimer", header: t.kolMaskintimer, num: true, alltid: false, felt: "maskintimer",
       tilstede: (rader) => rader.some((r) => harTall(r.maskintimer)),
       celle: (r) => tallEllerTom(r.maskintimer),
       sum: (rader) => rader.reduce((s, r) => s + (r.maskintimer ?? 0), 0),
     },
     {
-      header: t.kolAntall, num: true, alltid: false, felt: "antall",
+      id: "antall", header: t.kolAntall, num: true, alltid: false, felt: "antall",
       tilstede: (rader) => rader.some((r) => harTall(r.antall)),
       celle: (r) => tallEllerTom(r.antall),
       sum: (rader) => rader.reduce((s, r) => s + (r.antall ?? 0), 0),
     },
     {
-      header: t.kolBelop, num: true, alltid: false, felt: "belop",
+      id: "belop", header: t.kolBelop, num: true, alltid: false, felt: "belop",
       tilstede: (rader) => rader.some((r) => harTall(r.belop)),
       celle: (r) => tallEllerTom(r.belop),
       sum: (rader) => rader.reduce((s, r) => s + (r.belop ?? 0), 0),
     },
     {
-      header: t.kolMengde, num: true, alltid: false,
+      id: "mengde", header: t.kolMengde, num: true, alltid: false,
       tilstede: (rader) => rader.some((r) => harTall(r.mengde)),
       celle: (r) => tallEllerTom(r.mengde),
     },
     {
-      header: t.kolEnhet, num: false, alltid: false,
+      id: "enhet", header: t.kolEnhet, num: false, alltid: false,
       tilstede: (rader) => rader.some((r) => harTekst(r.enhet)),
       celle: (r) => esc(r.enhet ?? ""),
     },
     {
-      header: t.kolBeskrivelse, num: false, alltid: false,
+      id: "beskrivelse", header: t.kolBeskrivelse, num: false, alltid: false,
       tilstede: (rader) => rader.some((r) => harTekst(r.beskrivelse)),
       celle: (r) => esc(r.beskrivelse ?? ""),
     },
@@ -370,7 +397,7 @@ function kolonner(t: TimerRapportTekster, mottaker: TimerRapportMottaker): KolDe
   // ID er aldri i PDF (koblingsnøkkel) — så ekstern-regelen for PDF er kun status.
   if (mottaker !== "ekstern") {
     kols.push({
-      header: t.kolStatus, num: false, alltid: true, tilstede: () => true,
+      id: "status", header: t.kolStatus, num: false, alltid: true, tilstede: () => true,
       // Oversett rå status-verdi (pending/sent/…); ukjent → rå (skjul aldri en verdi).
       celle: (r) => esc(t.statusEtiketter[r.status] ?? r.status),
     });
@@ -401,11 +428,37 @@ function sumRadHtml(
 function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
   const alleRader = d.grupper.flatMap((g) => g.rader);
   if (alleRader.length === 0) return `<p class="tom">${esc(t.ingenData)}</p>`;
-  // Kolonne-tilstedeværelse måles over ALLE rader (uavhengig av gruppering), så
-  // kolonnesettet er stabilt på tvers av grupper.
-  const kols = kolonner(t, d.mottaker).filter((k) => k.alltid || k.tilstede(alleRader));
+  // Kolonnevalg (flateparitet, config v3): malens `valgteKolonner` styrer settet OG
+  // rekkefølgen ordrett (ingen drop-tom) — nøyaktig samme kolonner som skjerm/Excel.
+  // Mangler det: dagens dynamiske sett (alltid-kolonner + kolonner med innhold, tomme
+  // droppes for A4-lesbarhet). Ekstern-regelen er allerede anvendt i `kolonner()`
+  // (status/ansattnr bygges ikke), så et brukervalg som nevner dem faller bort her.
+  const alle = kolonner(t, d.mottaker);
+  const valgt = d.valgteKolonner;
+  const kols =
+    valgt && valgt.length > 0
+      ? (valgt
+          .map((id) => alle.find((k) => k.id === id))
+          .filter((k): k is KolDef => k !== undefined))
+      : alle.filter((k) => k.alltid || k.tilstede(alleRader));
 
   const head = th(...kols.map((k) => k.header));
+
+  // Kolonnebredder (flateparitet): bygg en <colgroup> med prosentbredder fra de
+  // aktive kolonnenes delte bredde-vekt (`kolBredder`). table-layout:fixed gjør at
+  // fritekst-kolonnene (Beskrivelse/Betegnelse) faktisk får plassen — ikke auto-
+  // layoutens «lengste enkelt-token vinner». Uten kolBredder: auto-layout som før.
+  const bredder = d.kolBredder;
+  let colgroup = "";
+  let tabellKlasse = "";
+  if (bredder) {
+    const vekter = kols.map((k) => bredder[k.id] ?? 100);
+    const sum = vekter.reduce((s, v) => s + v, 0) || 1;
+    colgroup = `<colgroup>${vekter
+      .map((v) => `<col style="width:${((v / sum) * 100).toFixed(2)}%">`)
+      .join("")}</colgroup>`;
+    tabellKlasse = ' class="fast"';
+  }
 
   const radHtml = (r: TimerRapportDetaljRad): string => {
     const nest = r.type === "maskin" && r.nivaa === 1 ? " nest mrk" : "";
@@ -442,7 +495,7 @@ function detaljerTabell(d: TimerRapportData, t: TimerRapportTekster): string {
     ? sumRadHtml(kols, "sum", t.sum, (k) => (k.sum ? k.sum(alleRader) : null))
     : "";
 
-  return `<table><thead>${head}</thead><tbody>${body}${grandRad}</tbody></table>`;
+  return `<table${tabellKlasse}>${colgroup}<thead>${head}</thead><tbody>${body}${grandRad}</tbody></table>`;
 }
 
 /* ------------------------------------------------------------------ */

@@ -7,11 +7,13 @@ import {
   byggDetaljRader,
   grupperDetaljRader,
   flatDetaljRader,
-  kolonnerMedInnhold,
+  losTimerKolonner,
+  TIMER_KOL_BREDDE,
   type DetaljRad,
   type DetaljRadType,
   type DetaljSubtotal,
   type Gruppering,
+  type TimerKolKey,
 } from "@sitedoc/shared";
 import {
   type DetaljEksport,
@@ -46,48 +48,30 @@ const TOM_KILDE: DetaljEksport = {
   utlegg: [],
 };
 
-type KolKey =
-  | "dato"
-  | "ansatt"
-  | "ansattnr"
-  | "prosjekt"
-  | "type"
-  | "betegnelse"
-  | "aktivitet"
-  | "fraTid"
-  | "tilTid"
-  | "timer"
-  | "maskintimer"
-  | "antall"
-  | "belop"
-  | "mengde"
-  | "enhet"
-  | "beskrivelse"
-  | "status";
+type KolKey = TimerKolKey;
 
-/** i18n-nøkkel (delt med Excel via `kolTekst`), bredde, høyrejustering (tall),
- *  og hvilket subtotal-felt kolonnen summerer (om noen). */
-const KOL_META: Record<
-  KolKey,
-  { i18n: string; bredde: number; num?: boolean; sub?: keyof DetaljSubtotal }
-> = {
-  dato: { i18n: "kolDato", bredde: 96 },
-  ansatt: { i18n: "kolAnsatt", bredde: 150 },
-  ansattnr: { i18n: "kolAnsattnr", bredde: 84 },
-  prosjekt: { i18n: "kolProsjekt", bredde: 150 },
-  type: { i18n: "kolType", bredde: 92 },
-  betegnelse: { i18n: "kolBetegnelse", bredde: 190 },
-  aktivitet: { i18n: "kolAktivitet", bredde: 130 },
-  fraTid: { i18n: "kolFra", bredde: 60 },
-  tilTid: { i18n: "kolTil", bredde: 60 },
-  timer: { i18n: "kolTimer", bredde: 78, num: true, sub: "timer" },
-  maskintimer: { i18n: "kolMaskintimer", bredde: 98, num: true, sub: "maskintimer" },
-  antall: { i18n: "kolAntall", bredde: 76, num: true, sub: "antall" },
-  belop: { i18n: "kolBelop", bredde: 92, num: true, sub: "belop" },
-  mengde: { i18n: "kolMengde", bredde: 78, num: true },
-  enhet: { i18n: "kolEnhet", bredde: 64 },
-  beskrivelse: { i18n: "kolBeskrivelse", bredde: 240 },
-  status: { i18n: "kolStatus", bredde: 104 },
+/** i18n-nøkkel (delt med Excel via `kolTekst`), høyrejustering (tall), og hvilket
+ *  subtotal-felt kolonnen summerer (om noen). Kolonnebredden bor IKKE her — den
+ *  leses fra den delte `TIMER_KOL_BREDDE` (@sitedoc/shared), samme kilde som PDF og
+ *  Excel arver, så flatene ikke driver fra hverandre (flateparitet 2026-09-01). */
+const KOL_META: Record<KolKey, { i18n: string; num?: boolean; sub?: keyof DetaljSubtotal }> = {
+  dato: { i18n: "kolDato" },
+  ansatt: { i18n: "kolAnsatt" },
+  ansattnr: { i18n: "kolAnsattnr" },
+  prosjekt: { i18n: "kolProsjekt" },
+  type: { i18n: "kolType" },
+  betegnelse: { i18n: "kolBetegnelse" },
+  aktivitet: { i18n: "kolAktivitet" },
+  fraTid: { i18n: "kolFra" },
+  tilTid: { i18n: "kolTil" },
+  timer: { i18n: "kolTimer", num: true, sub: "timer" },
+  maskintimer: { i18n: "kolMaskintimer", num: true, sub: "maskintimer" },
+  antall: { i18n: "kolAntall", num: true, sub: "antall" },
+  belop: { i18n: "kolBelop", num: true, sub: "belop" },
+  mengde: { i18n: "kolMengde", num: true },
+  enhet: { i18n: "kolEnhet" },
+  beskrivelse: { i18n: "kolBeskrivelse" },
+  status: { i18n: "kolStatus" },
 };
 
 interface Props {
@@ -96,6 +80,8 @@ interface Props {
   valgteRadTyper: DetaljRadType[];
   mottaker: Mottaker;
   gruppering: Gruppering;
+  /** Malens `config.kolonner` — valgt kolonnesett + rekkefølge. Tom → standardsett. */
+  valgteKolonner?: string[];
 }
 
 export function TimerRapportDetaljer({
@@ -104,6 +90,7 @@ export function TimerRapportDetaljer({
   valgteRadTyper,
   mottaker,
   gruppering,
+  valgteKolonner,
 }: Props) {
   const { t } = useTranslation();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -119,29 +106,27 @@ export function TimerRapportDetaljer({
     const grupper = grupperDetaljRader(byggeteRader, gruppering);
     const flatListe = flatDetaljRader(grupper);
 
-    // PDF-modell: alltid-kolonner + kolonner som har innhold i radsettet (tomme
-    // droppes for lesbarhet, som i dokumentet). Ansattnr/Status kun intern.
-    const innhold = kolonnerMedInnhold(byggeteRader);
-    const koler: KolKey[] = ["dato", "ansatt"];
-    if (!ekstern) koler.push("ansattnr");
-    koler.push("prosjekt", "type", "betegnelse");
-    if (innhold.aktivitet) koler.push("aktivitet");
-    if (innhold.fraTid) koler.push("fraTid");
-    if (innhold.tilTid) koler.push("tilTid");
-    if (innhold.timer) koler.push("timer");
-    if (innhold.maskintimer) koler.push("maskintimer");
-    if (innhold.antall) koler.push("antall");
-    if (innhold.belop) koler.push("belop");
-    if (innhold.mengde) koler.push("mengde");
-    if (innhold.enhet) koler.push("enhet");
-    if (innhold.beskrivelse) koler.push("beskrivelse");
-    if (!ekstern) koler.push("status");
+    // ÉN sannhet med PDF/Excel: malens kolonnevalg styrer settet + rekkefølgen
+    // (ordrett, ingen drop-tom); mangler det, dagens dynamiske sett (alltid-kolonner
+    // + kolonner med innhold). Ekstern-regelen (Ansattnr/Status) vinner strukturelt.
+    const koler = losTimerKolonner(byggeteRader, mottaker, valgteKolonner);
 
     return { rader: byggeteRader, flate: flatListe, aktiveKoler: koler };
-  }, [detalj, valgteRadTyper, gruppering, ekstern]);
+  }, [detalj, valgteRadTyper, gruppering, mottaker, valgteKolonner]);
 
-  const gridTemplate = aktiveKoler.map((k) => `${KOL_META[k].bredde}px`).join(" ");
-  const totalBredde = aktiveKoler.reduce((s, k) => s + KOL_META[k].bredde, 0);
+  // Bredden følger innholdstypen (delt `TIMER_KOL_BREDDE`): faste kolonner (vekt 0 —
+  // dato/klokkeslett/koder/tall) står på sin min-bredde; fritekst-kolonner
+  // (Beskrivelse/Betegnelse/Aktivitet/navn) deler ledig plass etter vekt via
+  // `minmax(min, vekt·fr)`. Grid-en fyller containeren når det er rom, og scroller
+  // horisontalt først når den kommer under summen av min-breddene. `truncate` er da
+  // et sikkerhetsnett, ikke normaltilstand (Kenneth 2026-09-01).
+  const gridTemplate = aktiveKoler
+    .map((k) => {
+      const b = TIMER_KOL_BREDDE[k];
+      return b.vekt === 0 ? `${b.min}px` : `minmax(${b.min}px, ${b.vekt}fr)`;
+    })
+    .join(" ");
+  const totalBredde = aktiveKoler.reduce((s, k) => s + TIMER_KOL_BREDDE[k].min, 0);
 
   const virtualizer = useVirtualizer({
     count: flate.length,
@@ -291,7 +276,7 @@ export function TimerRapportDetaljer({
                     return (
                       <div
                         key={k}
-                        className={`px-2 py-1.5 ${KOL_META[k].num ? "text-right tabular-nums" : "text-left"} ${
+                        className={`min-w-0 px-2 py-1.5 ${KOL_META[k].num ? "text-right tabular-nums" : "text-left"} ${
                           k === "beskrivelse" ? "whitespace-pre-wrap break-words" : "truncate"
                         } ${nøsting ? "pl-5 text-gray-500" : ""}`}
                         title={KOL_META[k].num ? undefined : celle(k, r)}

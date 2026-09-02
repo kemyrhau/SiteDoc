@@ -11,7 +11,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
-import { SafeAreaView } from "react-native";
+import { ModalFlate } from "./ModalFlate";
 import { ChevronDown, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import * as Location from "expo-location";
@@ -54,9 +54,8 @@ interface MalData {
   // mal.ts:84-95). Modalen bruker DENNE til flyt-valg — ikke en egen regel — så
   // «vist som opprettbar» og «kan faktisk opprettes» er én sannhet (paritet web).
   opprettbareFlytIder?: string[];
-  // Location-tvang (2026-08-19): server-avledet flagg — aktivt location-objekt i
-  // malen → posisjon (drawingId + punkt) er påkrevd for å opprette.
-  harAktivLocation?: boolean;
+  // harAktivLocation-propen er FJERNET 2026-09-02: location-tvangen er opphevet
+  // (Kenneth-vedtak), og propen ble aldri lest av noen logikk (deklarert, ubrukt).
 }
 
 interface DokumentflytData {
@@ -113,14 +112,16 @@ interface OpprettDokumentModalProps {
   posisjon?: { drawingId: string; byggeplassId: string | null; x: number; y: number };
 }
 
-const PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
+// Halvbygd prioritetsvelger-stillas (aldri wiret inn i JSX) — `_`-prefiks holder
+// det synlig uten å bryte lint (husregel: no-unused-vars prefiks med _). Se BACKLOG.
+const _PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
   { verdi: "low", labelKey: "prioritet.lav" },
   { verdi: "medium", labelKey: "prioritet.middels" },
   { verdi: "high", labelKey: "prioritet.hoey" },
   { verdi: "critical", labelKey: "prioritet.kritisk" },
 ];
 
-const PRIORITET_FARGER: Record<Prioritet, string> = {
+const _PRIORITET_FARGER: Record<Prioritet, string> = {
   low: "bg-gray-200 text-gray-700",
   medium: "bg-blue-100 text-blue-700",
   high: "bg-orange-100 text-orange-700",
@@ -163,8 +164,10 @@ export function OpprettDokumentModal({
   const [visLokasjonListe, setVisLokasjonListe] = useState(false);
   const [visOppretterListe, setVisOppretterListe] = useState(false);
   const [visDokumentflytListe, setVisDokumentflytListe] = useState(false);
-  const [visBygningListe, setVisBygningListe] = useState(false);
-  const [visTegningListe, setVisTegningListe] = useState(false);
+  // Halvbygd bygning-/tegning-nedtrekk: setterne resettes, men getterne leses aldri
+  // (listen + åpne-knappen ble aldri bygget). `_`-prefiks til lint uten å slette. Se BACKLOG.
+  const [_visBygningListe, setVisBygningListe] = useState(false);
+  const [_visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
 
   // `internSynlig` speiler `synlig`-propen. (Historisk hadde denne en `onShow`/
@@ -529,6 +532,16 @@ export function OpprettDokumentModal({
 
   const kanOpprett = !!oppretterFaggruppeId && !!valgtKandidat && !erPending;
 
+  // Deaktivert «Opprett» skal si hva som mangler (ui-standarder: deaktivert knapp).
+  // Peker på det ene manglende valget; forsvinner idet det er gjort og knappen blir aktiv.
+  const opprettMangler = erPending
+    ? null
+    : !oppretterFaggruppeId
+      ? t("opprettModal.hintVelgBestiller")
+      : !valgtKandidat && matchendeKandidater.length > 0
+        ? t("opprettModal.hintVelgDokumentflyt")
+        : null;
+
   // P4a: skip bekreftelses-modalen når konteksten er entydig (faggruppe + flyt +
   // svarer utledet). Da opprettes utkast automatisk → trykk mal → rett i
   // utfyllingen, ingen «Opprett»-bekreftelse. Ved reell flertydighet (≥2
@@ -584,7 +597,7 @@ export function OpprettDokumentModal({
       onRequestClose={onLukk}
       onDismiss={håndterDismiss}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
+      <ModalFlate kanter={["top", "bottom"]} className="bg-white">
         {visSpinner ? (
           <View className="flex-1 items-center justify-center gap-3">
             <ActivityIndicator size="large" color="#1e40af" />
@@ -615,6 +628,12 @@ export function OpprettDokumentModal({
             )}
           </Pressable>
         </View>
+
+        {!kanOpprett && opprettMangler ? (
+          <View className="bg-amber-50 px-4 py-2">
+            <Text className="text-xs text-amber-700">{opprettMangler}</Text>
+          </View>
+        ) : null}
 
         <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
           {/* 1. Mal-info med prefix-badge */}
@@ -963,7 +982,7 @@ export function OpprettDokumentModal({
         </ScrollView>
         </KeyboardAvoidingView>
         )}
-      </SafeAreaView>
+      </ModalFlate>
     </Modal>
   );
 }

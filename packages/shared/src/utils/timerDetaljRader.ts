@@ -24,6 +24,10 @@ export type KildeMaskin = {
   mengde: number | null;
   enhet: string | null;
   radstatus: string;
+  /** `Equipment.utleieEnhet` (`"time"` | `"doegn"` | null). Avgjør om en NØSTET
+   *  maskin foldes inn på operatørens timerad (`"time"`) eller står på egen linje
+   *  (`"doegn"`). null = ukjent enhet → ALDRI gjettet, står på egen linje. */
+  utleieEnhet: string | null;
 };
 
 /** Løs maskin (uten gyldig timerad, eller på ikke-eksporterbar timerad) — bærer
@@ -118,6 +122,11 @@ export type DetaljRad = {
   /** Koblingsnøkkel (sheetTimer.id/sheetMachine.id o.l.) — Excel-only, aldri PDF. */
   id: string;
   maskinMerke: MaskinMerke;
+  /** Navn på time-maskin(er) foldet inn PÅ en timerad (maskin.md § faktureringsenheten).
+   *  Kun satt på `type: "timer"`-rader der en `utleieEnhet="time"`-maskin er slått
+   *  sammen med operatørens timer; renderes som suffiks i Betegnelse-cellen så
+   *  maskinidentiteten ikke går tapt i lønns-/fakturagrunnlaget. Ellers null. */
+  maskinnavn: string | null;
 };
 
 /** Er alle fire radtyper alltid gyldige valg (rekkefølge = visningsrekkefølge). */
@@ -177,6 +186,7 @@ export function byggDetaljRader(
     status: m.radstatus,
     id: m.id,
     maskinMerke: merke,
+    maskinnavn: null,
   });
 
   // Timerader (+ nøstede maskiner). Behandles selv når «timer» er avvalgt, fordi
@@ -185,6 +195,24 @@ export function byggDetaljRader(
     const ident = { dato: r.dato, ansatt: r.ansatt, ansattnr: r.ansattnr, prosjekt: r.prosjekt };
     const rader: DetaljRad[] = [];
     if (vil("timer")) {
+      // Faktureringsenheten avgjør maskinlinjas skjebne (maskin.md § STYRENDE):
+      // en maskin solgt pr. TIME kjøres av et menneske og ER operatørens timer
+      // sett fra maskinsiden — den foldes inn PÅ timeraden (maskintimer-kolonnen +
+      // maskinnavn-suffiks) i stedet for en egen nær-tom linje. Døgn-maskiner (og
+      // maskiner uten kjent enhet — ALDRI gjettet) beholder egen nøstet linje.
+      // Foldingen skjer bare når maskin-radtypen faktisk vises (vil("maskin")).
+      const foldMaskiner = vil("maskin")
+        ? r.maskiner.filter((m) => m.utleieEnhet === "time")
+        : [];
+      const nostMaskiner = vil("maskin")
+        ? r.maskiner.filter((m) => m.utleieEnhet !== "time")
+        : [];
+      const foldMaskintimer =
+        foldMaskiner.length > 0
+          ? foldMaskiner.reduce((s, m) => s + m.timer, 0)
+          : null;
+      // Mengde/enhet foldes kun når det er ÉN maskin (flere = tvetydig sum → tom).
+      const enFold = foldMaskiner.length === 1 ? foldMaskiner[0]! : null;
       rader.push({
         type: "timer",
         nivaa: 0,
@@ -197,19 +225,21 @@ export function byggDetaljRader(
         fraTid: r.fraTid,
         tilTid: r.tilTid,
         timer: r.timer,
-        maskintimer: null,
+        maskintimer: foldMaskintimer,
         antall: null,
         belop: null,
-        mengde: null,
-        enhet: null,
+        mengde: enFold?.mengde ?? null,
+        enhet: enFold?.enhet ?? null,
         beskrivelse: r.beskrivelse,
         status: r.radstatus,
         id: r.id,
         maskinMerke: null,
+        maskinnavn:
+          foldMaskiner.length > 0
+            ? foldMaskiner.map((m) => m.navn).join(", ")
+            : null,
       });
-      if (vil("maskin")) {
-        for (const m of r.maskiner) rader.push(maskinRad(m, ident, 1, "noster"));
-      }
+      for (const m of nostMaskiner) rader.push(maskinRad(m, ident, 1, "noster"));
     } else if (vil("maskin")) {
       // Timeraden er skjult av valget → maskinen er en normal, egen rad.
       for (const m of r.maskiner) rader.push(maskinRad(m, ident, 0, null));
@@ -252,6 +282,7 @@ export function byggDetaljRader(
             status: r.radstatus,
             id: r.id,
             maskinMerke: null,
+            maskinnavn: null,
           },
         ],
       });
@@ -284,6 +315,7 @@ export function byggDetaljRader(
             status: r.seddelstatus,
             id: r.id,
             maskinMerke: null,
+            maskinnavn: null,
           },
         ],
       });
@@ -325,6 +357,152 @@ export function kolonnerMedInnhold(rader: DetaljRad[]): KolonneTilstedevaerelse 
     enhet: rader.some((r) => r.enhet !== null && r.enhet !== ""),
     beskrivelse: rader.some((r) => r.beskrivelse !== null && r.beskrivelse !== ""),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Kolonnevalg — ÉN sannhet for skjerm/PDF/Excel (flateparitet)       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Kanonisk kolonnesett + rekkefølge for detalj-tabellen. Rekkefølgen her ER
+ * standardrekkefølgen (brukt når en mal ikke har eksplisitt `config.kolonner`).
+ * Alle tre flater (skjerm/PDF/Excel) projiserer sine kolonner ut fra disse nøklene,
+ * så de aldri kan drive fra hverandre (Kenneth flateparitet-vedtak 2026-09-01).
+ * `id`-kolonnen (koblingsnøkkel) er bevisst IKKE her — den er Excel-only og ikke valgbar.
+ */
+export const TIMER_KOL_KEYS = [
+  "dato",
+  "ansatt",
+  "ansattnr",
+  "prosjekt",
+  "type",
+  "betegnelse",
+  "aktivitet",
+  "fraTid",
+  "tilTid",
+  "timer",
+  "maskintimer",
+  "antall",
+  "belop",
+  "mengde",
+  "enhet",
+  "beskrivelse",
+  "status",
+] as const;
+
+export type TimerKolKey = (typeof TIMER_KOL_KEYS)[number];
+
+/**
+ * Strukturelt interne kolonner — aldri i en ekstern rapport (designlås 1, personvern).
+ * Ansattnr er pseudonymiseringsnøkkelen; status er intern arbeidsflyt. Denne regelen
+ * VINNER over brukerens kolonnevalg — den kan ikke overstyres fra kolonnevelgeren.
+ * (ID er uansett ikke en valgbar kolonne, og aldri i PDF.)
+ */
+export const INTERNE_TIMER_KOLONNER: readonly TimerKolKey[] = ["ansattnr", "status"];
+
+/** i18n-nøkkel pr. kolonne (delt av skjerm/velger/Excel via `kolTekst`/`t`). */
+export const TIMER_KOL_I18N: Record<TimerKolKey, string> = {
+  dato: "kolDato",
+  ansatt: "kolAnsatt",
+  ansattnr: "kolAnsattnr",
+  prosjekt: "kolProsjekt",
+  type: "kolType",
+  betegnelse: "kolBetegnelse",
+  aktivitet: "kolAktivitet",
+  fraTid: "kolFra",
+  tilTid: "kolTil",
+  timer: "kolTimer",
+  maskintimer: "kolMaskintimer",
+  antall: "kolAntall",
+  belop: "kolBelop",
+  mengde: "kolMengde",
+  enhet: "kolEnhet",
+  beskrivelse: "kolBeskrivelse",
+  status: "kolStatus",
+};
+
+/**
+ * Bredde-intensjon pr. kolonne — ÉN kilde arvet av skjerm/PDF/Excel (Kenneth
+ * 2026-09-01: «bredden skal følge innholdstypen», ikke et flatt tall der Type og
+ * Antall får like mye som Beskrivelse). Flateparitet-vedtaket krever at de tre
+ * flatene ikke driver fra hverandre — derfor bor tallene her, ikke tre steder.
+ *
+ *  - `min`   = minimumsbredde i px (skjermens grid + PDF-kolonnens gulv).
+ *  - `vekt`  = relativ flex-vekt når det er ledig plass. **0 = fast** (vokser aldri):
+ *              datoer, klokkeslett, koder og tall holdes smale. Fritekst-kolonnene
+ *              (Beskrivelse/Betegnelse/Aktivitet/navn) deler den ledige plassen etter
+ *              vekt. Beskrivelse, betegnelse (lønnsart) og timer er de tre viktigste
+ *              (Kenneths ord) — Beskrivelse/Betegnelse får mest vekt, timer er et tall
+ *              som alltid vises (fast, men aldri droppet).
+ *  - `excel` = kolonnebredde i tegn (Excel har ikke flex — fast bredde pr. kolonne).
+ */
+export type TimerKolBredde = { min: number; vekt: number; excel: number };
+export const TIMER_KOL_BREDDE: Record<TimerKolKey, TimerKolBredde> = {
+  dato: { min: 90, vekt: 0, excel: 12 },
+  ansatt: { min: 120, vekt: 2, excel: 22 },
+  ansattnr: { min: 74, vekt: 0, excel: 10 },
+  prosjekt: { min: 120, vekt: 2, excel: 22 },
+  type: { min: 78, vekt: 0, excel: 10 },
+  betegnelse: { min: 150, vekt: 4, excel: 26 },
+  aktivitet: { min: 110, vekt: 2, excel: 18 },
+  fraTid: { min: 54, vekt: 0, excel: 7 },
+  tilTid: { min: 54, vekt: 0, excel: 7 },
+  timer: { min: 72, vekt: 0, excel: 9 },
+  maskintimer: { min: 92, vekt: 0, excel: 12 },
+  antall: { min: 68, vekt: 0, excel: 9 },
+  belop: { min: 88, vekt: 0, excel: 11 },
+  mengde: { min: 72, vekt: 0, excel: 10 },
+  enhet: { min: 56, vekt: 0, excel: 8 },
+  beskrivelse: { min: 200, vekt: 6, excel: 40 },
+  status: { min: 100, vekt: 0, excel: 12 },
+};
+
+/**
+ * Løs de aktive detalj-kolonnene, i rekkefølge. ÉN sannhet for alle tre flater.
+ *
+ *  - `valgteKolonner` satt (malens `config.kolonner`) → ordrett brukervalg, i den
+ *    rekkefølgen arrayet har. INGEN «drop tom» (B1, Kenneth 2026-09-01): en kolonne
+ *    brukeren eksplisitt har valgt vises selv om den er tom den dagen.
+ *  - `valgteKolonner` tom/utelatt → dagens dynamiske atferd: alltid-kolonner +
+ *    kolonner som faktisk har innhold (tomme droppes for lesbarhet). Uendret for
+ *    eksisterende maler.
+ *
+ * Ekstern-regelen (INTERNE_TIMER_KOLONNER) filtreres bort STRUKTURELT i begge veier
+ * — den vinner over brukervalget.
+ */
+export function losTimerKolonner(
+  rader: DetaljRad[],
+  mottaker: "intern" | "ekstern",
+  valgteKolonner?: readonly string[] | null,
+): TimerKolKey[] {
+  const ekstern = mottaker === "ekstern";
+  const strukturOk = (k: TimerKolKey): boolean =>
+    !(ekstern && INTERNE_TIMER_KOLONNER.includes(k));
+
+  if (valgteKolonner && valgteKolonner.length > 0) {
+    return valgteKolonner
+      .filter((k): k is TimerKolKey =>
+        (TIMER_KOL_KEYS as readonly string[]).includes(k),
+      )
+      .filter(strukturOk);
+  }
+
+  const innhold = kolonnerMedInnhold(rader);
+  const koler: TimerKolKey[] = ["dato", "ansatt"];
+  if (!ekstern) koler.push("ansattnr");
+  koler.push("prosjekt", "type", "betegnelse");
+  if (innhold.aktivitet) koler.push("aktivitet");
+  if (innhold.fraTid) koler.push("fraTid");
+  if (innhold.tilTid) koler.push("tilTid");
+  if (innhold.timer) koler.push("timer");
+  if (innhold.maskintimer) koler.push("maskintimer");
+  if (innhold.antall) koler.push("antall");
+  if (innhold.belop) koler.push("belop");
+  if (innhold.mengde) koler.push("mengde");
+  if (innhold.enhet) koler.push("enhet");
+  if (innhold.beskrivelse) koler.push("beskrivelse");
+  if (!ekstern) koler.push("status");
+  return koler;
 }
 
 /* ------------------------------------------------------------------ */

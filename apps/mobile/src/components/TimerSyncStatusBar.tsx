@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { Text, Pressable, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { CloudOff, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react-native";
 import { useTimerSync } from "../providers/TimerSyncProvider";

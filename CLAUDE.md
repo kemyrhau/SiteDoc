@@ -13,6 +13,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
 | [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
+| [docs/claude/kvalitetssikring-plan.md](docs/claude/kvalitetssikring-plan.md) | **🟢 VEDTATT 2026-08-31:** fire lag mot regresjoner. Lag 1 = gjør feilklassen ulovlig (lint) · lag 2 = simulator-røykliste FØR hvert EAS-bygg · lag 3 = slå på 29 ubrukte api-tester. Utløst av tre regresjoner på én dag som alle kompilerte grønt |
 | [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Deploy-bash, `.env`-krav, branching, mobil reload, prod-lærdommer |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
 | [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
@@ -230,7 +231,7 @@ Full anker-tre med tre nivåer (Firma → Firmaadministrasjon → Prosjekter), b
 - **Firma (Organization)** eier prosjekter og firmamoduler. Firmaadmin (`User.role = "company_admin"`) ser alt firma-internt.
 - **Faggruppe** = deltaker i dokumentflyt på ett prosjekt (Byggherre, Tømrer). DB: `Faggruppe`. **«Entreprise»/«Enterprise» er forbudt i ny kode.**
 - **Prosjektmoduler** (`ProjectModule`): slås av/på per prosjekt — Sjekklister, Oppgaver, Tegninger, Kontrollplan, PSI, 3D, AI-søk, HMS, Økonomi, Mapper.
-- **Firmamoduler** (planlagt): slås av/på for hele firmaet — Timer, Maskin, Kompetanse (live), Planlegger, Varelager. Datalag-isolasjon i `packages/db-<modul>/`.
+- **Firmamoduler**: slås av/på for hele firmaet — Timer, Maskin, Varelager, Kompetanse bygget; Planlegger planlagt. Datalag-isolasjon i `packages/db-<modul>/`.
 
 > **📌 Mini-Nivå 1D-presiseringer (2026-04-28):** Ansatt-objektet eies av `User` i kjernen (HR-import via planlagt Import-modul), Mannskapsliste = vy i PSI-modulen (ikke egen modul), Kompetansematrise = egen firma-funksjon (live prod 2026-05-01, tabeller i `packages/db`).
 > Full utdyping: [terminologi.md § 0 → Mini-Nivå 1D-presiseringer](docs/claude/terminologi.md).

@@ -98,26 +98,40 @@ iPhone 16 Plus: **430×932 punkter**, skjermbilde **1290×2796 px** (3× skala).
 dev-login-knapper (kun test-/dev-bygg: `erTestLoginAktiv || __DEV__`; fraværende i prod). ✓ **Verifisert
 2026-07-13: `apps/mobile/app/logg-inn.tsx:158`** (`(erTestLoginAktiv || __DEV__) && …`). Tap knappen → innlogget.
 
-⚠️ **Testbruker-tabellen under (roller/data + «admin-bypass-gap») er kopiert fra [dev-login-agent.md](dev-login-agent.md), IKKE re-verifisert mot kode/seed denne økta.**
+🔴 **DEBUG-BYGG, ALDRI RELEASE.** Dette er den enkeltfeilen som har kostet mest tid her:
 
-| Knapp | Rolle | Data |
-|---|---|---|
-| 🧪 SiteDoc-admin (`test-admin`) | `sitedoc_admin` | **Ingen prosjekter** (mobil prosjektliste er medlemskaps-basert — admin-bypass-gap) |
-| 🧪 Firma-admin (`test-firma`) | `company_admin` | Testfirma AS — firma-kontekst |
-| 🧪 Arbeider (`test-arbeider`) | `user` uten manage_field | Agentprosjekt-seed |
-| 👤 Egen bruker (`kemyrhau`) | `sitedoc_admin` **med** prosjektmedlemskap | Ekte data (Markussen Boligfelt B12 m/tegninger) |
+```sh
+cd apps/mobile && npx expo run:ios          # Debug — riktig
+```
 
-**For data-verifisering: bruk «Egen bruker (kemyrhau)»** — de seedede har ikke alltid prosjekttilknytning.
+`--configuration Release` gjør **to** ting stille: `__DEV__` blir `false` så dev-login-knappene
+forsvinner (kun OAuth igjen — en blindvei for en agent), **og** bygget laster `.env.production` og
+peker mot **PROD** (`api.sitedoc.no`). Debug laster `.env` → `localhost:3301` = test.
 
-**Brukerbytte gjør agenten selv:** Mer → Logg ut → velg annen dev-login-knapp. To fallgruver:
-1. ⚠️ **(kopiert fra runbook, IKKE kodeverifisert denne økta — grep `SecureStore|Keychain` i `AuthProvider.tsx`+`config/auth.ts` ga tomt treff)** **Sesjonen skal ligge i iOS-nøkkelringen og OVERLEVE app-sletting** — reinstall bytter da IKKE bruker.
-   Bytt via Logg ut (eller kandidat: `idb clear-keychain`, se § 2 — verifiser).
-2. ⚠️ **(kopiert fra runbook, IKKE verifisert denne økta)** **s3-bug:** etter «Logg ut» skal appen bli stående på Mer m/«Ukjent bruker». Workaround (fra Mac):
-   `xcrun simctl terminate booted com.kemyrhau.sitedoc && xcrun simctl launch booted com.kemyrhau.sitedoc`
-   → kaldstart uten token lander på innloggingsskjermen.
+**Symptom:** innloggingsskjermen viser bare «Logg inn med Google» og «Logg inn med Microsoft 365».
+Ser du det, har du bygget Release. Bygg på nytt — ikke feilsøk innloggingen.
+*(Kostet en runde 2026-09-02.)*
 
-**Whitelist/secret-teori:** [dev-login-agent.md](dev-login-agent.md). `401`/`SECRET_MANGLER` = `DEV_LOGIN_SECRET`
-matcher ikke mellom bundel og server-container (Kenneth-sak — sjekksum, aldri echo).
+---
+
+⚠️ **RESTEN AV DETTE AVSNITTET ER FJERNET 2026-09-02 — det var en KOPI.**
+
+Testbruker-tabellen, brukerbytte-fallgruvene og whitelist/secret-teorien sto her som kopier fra
+[dev-login-agent.md](dev-login-agent.md) og [simulator-runbook.md](simulator-runbook.md), hver med
+⚠️ «ikke re-verifisert». **En ⚠️ på en kopi er ikke en fiks — det er en kopi med en etikett.**
+Resultatet var at lesere landet på den degraderte versjonen i stedet for kilden, og at
+Release-fella (som runbooken beskriver korrekt) aldri ble lest.
+
+**Kildene, som er de eneste stedene dette skal stå:**
+
+| Hva du trenger | Hvor det bor |
+|---|---|
+| **Løypa: oppstart → innlogget, tastene, brukerbytte, feilsøkingstabell** | [simulator-runbook.md](simulator-runbook.md) ← **START HER** |
+| Testbrukere, whitelist, secret, `/dev-login`-endepunktet, tunnel-rotårsak | [dev-login-agent.md](dev-login-agent.md) |
+| «Henger på spinner» — AAAA/IPv6-rotårsak (sjekk FØR koden) | [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md) |
+
+Denne fila eier **rollen, kapabilitetsmatrisen (§2), koordinat-mappingen (§3) og
+handoff-protokollen (§7)** — ikke auth-detaljer.
 
 ---
 

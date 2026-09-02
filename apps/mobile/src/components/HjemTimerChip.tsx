@@ -12,6 +12,7 @@ import {
   formatIsoDato,
   tilHHMM,
 } from "../hooks/useArbeidsdag";
+import { useFirmamodulSkjult } from "../hooks/useFirmamodul";
 
 /**
  * HjemTimerChip (P3-hybrid): kompakt timer-inngang på hjem-skjermen. Erstatter
@@ -88,6 +89,8 @@ export function HjemTimerChip() {
   const router = useRouter();
   const { bruker } = useAuth();
   const { aktivDag, startDag, behandler } = useArbeidsdag();
+  // Firmatak-gate: skjul timer-inngangen på hjem når Timer er av for firmaet.
+  const timerSkjult = useFirmamodulSkjult("timer");
 
   const [naa, setNaa] = useState<number>(Date.now());
   const [dagskort, setDagskort] = useState<DagskortInfo | null>(null);
@@ -107,7 +110,7 @@ export function HjemTimerChip() {
     return () => clearInterval(id);
   }, [aktivDag]);
 
-  if (!bruker?.id) return null;
+  if (!bruker?.id || timerSkjult) return null;
 
   // Tilstand 2 — aktiv økt (vinner over dagskort). Trykk → timer-flaten.
   if (aktivDag) {

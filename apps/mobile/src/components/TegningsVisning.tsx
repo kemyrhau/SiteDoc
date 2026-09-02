@@ -11,6 +11,7 @@ import {
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import { X, AlertTriangle, RefreshCw } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 
 const LASTING_TIMEOUT_MS = 15_000;
 
@@ -110,12 +111,10 @@ function byggHtml(
   }
   .gps-inner { width:14px;height:14px;border-radius:50%;background:#3b82f6;border:2.5px solid #fff;box-shadow:0 0 6px rgba(59,130,246,0.5); }
   @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1)} 50%{transform:translate(-50%,-50%) scale(1.3)} }
-  #debug { position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.8);color:#0f0;font:10px monospace;padding:4px;z-index:999; }
 </style></head><body>
 <div id="container">
   <img id="tegning" src="${tegningUrl}" />
 </div>
-<div id="debug">Laster...</div>
 <script>
 var markører = ${markørData};
 var omrader = ${omradeData};
@@ -152,10 +151,6 @@ function plasser() {
   var dispW = img.clientWidth;
   var dispH = img.clientHeight;
   if (dispW <= 0 || dispH <= 0) return;
-
-  document.getElementById('debug').textContent =
-    'Bilde: ' + img.naturalWidth + 'x' + img.naturalHeight +
-    ' | Zoom: ' + currentZoom.toFixed(1) + 'x';
 
   document.querySelectorAll('.pin,.gps,#omradeSvg,.omrade-navn').forEach(function(e){e.remove()});
   var container = document.getElementById('container');
@@ -247,6 +242,7 @@ export function TegningsVisning({
   omrader = [],
   gpsMarkør,
 }: TegningsVisningProps) {
+  const { t } = useTranslation();
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState(false);
   const webViewRef = useRef<WebView>(null);
@@ -325,14 +321,14 @@ export function TegningsVisning({
       {feil ? (
         <View style={stiler.feilContainer}>
           <AlertTriangle size={48} color="#f59e0b" />
-          <Text style={stiler.feilTekst}>Kunne ikke laste tegningen</Text>
-          <Text style={stiler.feilBeskrivelse}>Sjekk nettverkstilkoblingen og prøv igjen</Text>
+          <Text style={stiler.feilTekst}>{t("tegningsvelger.kunneIkkeLaste")}</Text>
+          <Text style={stiler.feilBeskrivelse}>{t("tegningsvelger.sjekkNettverkProvIgjen")}</Text>
           <Pressable
             onPress={() => { setLaster(true); setFeil(false); }}
             style={stiler.prøvIgjenKnapp}
           >
             <RefreshCw size={16} color="#ffffff" />
-            <Text style={stiler.prøvIgjenTekst}>Prøv igjen</Text>
+            <Text style={stiler.prøvIgjenTekst}>{t("handling.provIgjen")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -340,7 +336,7 @@ export function TegningsVisning({
           {laster && (
             <View style={stiler.lastingContainer}>
               <ActivityIndicator size="large" color="#ffffff" />
-              <Text style={stiler.lastingTekst}>Laster tegning…</Text>
+              <Text style={stiler.lastingTekst}>{t("tegningsvelger.lasterTegning")}</Text>
             </View>
           )}
           <WebView

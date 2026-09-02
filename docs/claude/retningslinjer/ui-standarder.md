@@ -1,14 +1,82 @@
 ---
 name: ui-standarder
 description: UI-designprinsipper, slett-bekreftelse, adaptive nedtrekk, filter-standard, toppbar-filtre og fargepalett. Flyttet ut av CLAUDE.md 2026-08-20 (størrelsesgrense).
-sist_verifisert_mot_kode: 2026-08-20
-sist_endret: 2026-08-20
+sist_verifisert_mot_kode: 2026-09-01
+sist_endret: 2026-09-01
 ---
 
 # UI-standarder
 
 > Flyttet ordrett fra `CLAUDE.md` 2026-08-20 fordi hovedfila nådde 40k-grensen.
 > Innholdet er uendret og fortsatt **styrende**.
+
+## 🔴 Flateparitet — mal, UI og PDF viser det samme (Kenneth-vedtak 2026-09-01)
+
+> **Kenneth 2026-09-01:** *«det vi viser på web/mobil → i mal, i ui og på pdf → vi må vise
+> samme informasjon på alle flater. Dersom vi ønsker ekstra logg på utskrift, skal dette
+> være et tillegg. Ikke slik at vi viser noe tilfeldig her og der bare fordi vi ikke klarer
+> å kode dette rett.»*
+
+**Regelen:** en informasjonsbærende seksjon som finnes for en dokumenttype, vises på **alle**
+flater den dokumenttypen lever på — malbygger, web, mobil og utskrift. Skal utskriften ha
+**mer** (revisjonshistorikk, signaturblokk, arkivmetadata), er det et bevisst **tillegg** som
+begrunnes — ikke et sted vi legger noe fordi visningen mangler i UI-et.
+
+**Konsekvens ved bygging:** legger du en seksjon på én flate, skal ordren si hva som skjer med
+de andre. «Vi tar mobil senere» er et svar, men det skal stå skrevet — ikke oppstå.
+
+### 🔴 PDF-en er en godt målt REFERANSE, ikke en sannhetskilde (Kenneth-presisering 2026-09-02)
+
+> **Kenneth:** *«Jeg er redd du refererer til PDF som eneste sannhet — det er med forsiktighet vi
+> må vurdere det.»*
+
+🔴 **Generaliseringen var coworks, ikke Kenneths.** Kenneth sa to ting, begge kontekstbundne:
+*«det eneste som er rett i denne sjekklisten er faktisk PDF»* om **lokasjonsvisningen i ett
+dokument**, og *«endringslogg er noe man tar frem ved tvist»* om **loggen**. Ingen av dem var en
+generell fullmakt.
+
+Cowork gjorde dem om til prinsippet «PDF-en er fasit» og brukte det **fire ganger på én dag** — om
+lokasjonsvisning, endringsloggen, `harMarkor`-regelen og språkvalget i arkivdokumentet. Det er en
+snarvei, og den tåler ikke vekten.
+
+⚠️ **Feilformen er verdt å kjenne igjen for seg selv:** en observasjon om ÉN flate i ÉN sak ble til
+en regel om alle flater i alle saker. Det skjedde uten at noen bestemte det — hver gjenbruk føltes
+som en referanse til noe alt vedtatt.
+
+**Hvorfor PDF-en likevel har hatt rett så ofte:** den ble bygget mot en spec med en fasit å måle
+mot, mens web og mobil har vokst fram runde for runde. Det er en påstand om *hvordan den ble
+laget* — ikke en egenskap ved formatet.
+
+🔴 **Og PDF-ens begrensninger er ikke skjermens.** Papir kan ikke ekspandere, ikke reagere, ikke
+vise en mellomtilstand. **Når PDF-en utelater noe, kan det like gjerne være fordi den ikke KAN vise
+det som fordi det ikke hører hjemme.**
+
+**Målt eksempel:** PDF-ens dokumenthistorikk kollapser endringer til «Sendt (31 feltendringer)».
+Cowork kalte det fasit for alle flater. Men den kollapser fordi en utskrift ikke kan la deg klikke
+deg inn — på skjerm kan du det, og der kan sammenslåingen skjule noe leseren trengte.
+
+**Regelen når PDF og skjerm er uenige:** spør **hvilken begrensning som skapte forskjellen**, og om
+den begrensningen gjelder den andre flaten. Er svaret nei, er PDF-ens valg ikke overførbart.
+
+⚠️ **Dette opphever ikke flateparitet.** Samme *informasjon* på alle flater står. Men hvilken flate
+som har rett når de er ulike, avgjøres av begrunnelsen — ikke av at den ene er en PDF.
+
+### Målt brudd som utløste vedtaket (2026-09-01)
+
+**Endringsloggen er asymmetrisk mellom sjekkliste og oppgave:**
+
+| Flate | Sjekkliste | Oppgave |
+|---|---|---|
+| Web-detaljside | ✅ egen «Endringslogg»-seksjon (`sjekklister/[sjekklisteId]/page.tsx`) | ❌ rendres ikke |
+| Mobil | ✅ `apps/mobile/app/sjekkliste/[id].tsx` | ❌ rendres ikke |
+| Arkiv-PDF | ✅ | ✅ (`services/arkiv/logg-lesere.ts`) |
+
+`oppgave.ts` **skriver** `taskChangeLog`-rader, men ingen app-flate leser dem — de dukker først
+opp når dokumentet eksporteres. Det er nøyaktig mønsteret vedtaket forbyr: informasjonen finnes,
+men hvilken flate som viser den er tilfeldig.
+
+⚠️ **Ikke rettet.** Oppfølger ligger i [BACKLOG.md](../BACKLOG.md). Retningen er å vise loggen
+på oppgavens detaljside i web og mobil, slik sjekklisten gjør — ikke å fjerne den fra PDF-en.
 
 ## UI-designprinsipper
 
@@ -48,6 +116,24 @@ Nye sider deklarerer hvilke toppbar-filtre de bruker via `useToppbarFiltre`-hook
 - **Side som bruker byggeplass aktivt** (bilder, hms, kontrollplan, oppgaver/sjekklister, tegninger, tegning-3d, vareforbruk, lokasjoner): ikke kall hooken — default er aktiv; hooken resetter ved unmount.
 
 Integrasjon: `toppbar-filtre-kontekst.tsx` + `ByggeplassVelger.tsx` (`disabled`-prop via `Toppbar.tsx`). Bakgrunn: byggeplass-velger viste seg uten effekt på 16/30 detalj-/11/14 oppsett-sider.
+
+### Deaktivert knapp skal si hva som mangler (funn 2026-09-01)
+
+En knapp som er `disabled` skal alltid si **hva som mangler** — i knappen, rett under den, eller som hjelpetekst. Gjelder web og mobil. Er betingelsen åpenbar av konteksten (f.eks. «Neste» på siste steg), kan den utelates — men det er unntaket, ikke normalen.
+
+Teksten følger mikrotekst-standarden: si **hva som mangler**, ikke hva knappen gjør. Den skal forsvinne når betingelsen er oppfylt og knappen blir aktiv — blir den stående, er den støy, ikke hjelp.
+
+Målt tre ganger før vedtaket, samme mønster hver gang:
+
+| Hvor | Knapp | Manglet |
+|---|---|---|
+| Røykliste flyt 3 (`TegningPosisjonObjekt.tsx`) | «Bekreft» | markør ikke plassert på tegningen |
+| Røykliste flyt 6 (`OpprettDokumentModal.tsx`) | «Opprett» | dokumentflyt ikke valgt |
+| Timer-rapportens mal-editor (web) | «Lagre som min/firma» | navnefeltet tomt |
+
+Den siste kostet konkret: Kenneth trodde funksjonen var ødelagt (01.09). En grå knapp uten begrunnelse leses som en **feil**, ikke som en betingelse.
+
+Dette er en **standard, ikke en mekanisme** — ingen delt `DisabledKnapp`-komponent, ingen sweep gjennom alle `disabled=`. Hver flate forklarer sin egen knapp, og betingelsen fjernes ikke — den forklares.
 
 ## Fargepalett
 

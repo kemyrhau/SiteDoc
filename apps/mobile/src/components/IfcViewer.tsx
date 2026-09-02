@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import * as FileSystem from "expo-file-system/legacy";
-import { AUTH_CONFIG, hentWebUrl } from "../config/auth";
+import { hentWebUrl } from "../config/auth";
 import { hentSessionToken } from "../services/auth";
 import { lastNedIfc } from "../services/ifcCache";
 import { Box, Eye, EyeOff, Scissors, X, ChevronLeft, Download } from "lucide-react-native";

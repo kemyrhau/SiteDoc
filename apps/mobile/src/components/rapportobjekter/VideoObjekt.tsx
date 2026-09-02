@@ -2,11 +2,13 @@ import { useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { WebView } from "react-native-webview";
 import { Play, RotateCcw } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 import { hentWebUrl } from "../../config/auth";
 
 /** Video-avspiller via WebView (ingen native modul nødvendig) */
 export function VideoObjekt({ objekt, verdi, onEndreVerdi }: RapportObjektProps) {
+  const { t } = useTranslation();
   const url = (objekt.config.url as string) ?? (objekt.config.fileUrl as string) ?? "";
   const [erFerdig, setErFerdig] = useState(verdi === "watched");
   const [harStartet, setHarStartet] = useState(false);
@@ -17,7 +19,7 @@ export function VideoObjekt({ objekt, verdi, onEndreVerdi }: RapportObjektProps)
   if (!url) {
     return (
       <View className="my-3 items-center rounded-lg border border-gray-200 bg-gray-50 p-6">
-        <Text className="text-sm text-gray-400">Ingen video konfigurert</Text>
+        <Text className="text-sm text-gray-400">{t("felt.ingenVideo")}</Text>
       </View>
     );
   }
@@ -73,19 +75,19 @@ export function VideoObjekt({ objekt, verdi, onEndreVerdi }: RapportObjektProps)
           style={{ height: 220 }}
         >
           <Play size={48} color="#ffffff" />
-          <Text className="mt-2 text-sm text-white">Trykk for å spille av</Text>
+          <Text className="mt-2 text-sm text-white">{t("felt.trykkForAaSpille")}</Text>
         </TouchableOpacity>
       )}
 
       {erFerdig && (
         <View className="mt-2 flex-row items-center justify-center gap-2">
-          <Text className="text-sm text-green-600">✓ Video fullført</Text>
+          <Text className="text-sm text-green-600">✓ {t("felt.videoFullfort")}</Text>
           <TouchableOpacity
             onPress={() => { setErFerdig(false); setHarStartet(false); }}
             className="flex-row items-center gap-1"
           >
             <RotateCcw size={14} color="#6b7280" />
-            <Text className="text-xs text-gray-500">Se igjen</Text>
+            <Text className="text-xs text-gray-500">{t("felt.seIgjen")}</Text>
           </TouchableOpacity>
         </View>
       )}

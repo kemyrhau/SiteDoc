@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, Pressable, Modal, FlatList } from "react-native";
 import { Building2, X, Check } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../../lib/trpc";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import type { RapportObjektProps } from "./typer";
@@ -11,6 +12,7 @@ interface Faggruppe {
 }
 
 export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, tillatteFaggruppeIder }: RapportObjektProps) {
+  const { t } = useTranslation();
   const [visModal, settVisModal] = useState(false);
   const { valgtProsjektId } = useProsjekt();
   const valgtId = typeof verdi === "string" ? verdi : null;
@@ -44,25 +46,25 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, tillatteFaggruppeI
       >
         <Building2 size={18} color="#6b7280" />
         <Text className={`flex-1 text-sm ${valgtFaggruppe ? "text-gray-900" : "text-gray-400"}`}>
-          {valgtFaggruppe ? valgtFaggruppe.name : "Velg firma..."}
+          {valgtFaggruppe ? valgtFaggruppe.name : t("felt.velgFirmaPlaceholder")}
         </Text>
       </Pressable>
 
       {!scopet && (
         <Text className="mt-1 text-xs text-gray-400">
-          Dokumentet har ingen dokumentflyt — viser alle faggrupper.
+          {t("felt.ingenDokumentflyt")}
         </Text>
       )}
       {valgtErUtenfor && (
         <Text className="mt-1 text-xs text-amber-600">
-          Valgt faggruppe er ikke medlem av dokumentflyten. Behold eller velg en fra flyten.
+          {t("felt.faggruppeUtenforFlyt")}
         </Text>
       )}
 
       <Modal visible={visModal} animationType="slide" presentationStyle="pageSheet">
         <View className="flex-1 bg-white">
           <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
-            <Text className="text-lg font-semibold">Velg firma</Text>
+            <Text className="text-lg font-semibold">{t("felt.velgFirmaTittel")}</Text>
             <Pressable onPress={() => settVisModal(false)} hitSlop={12}>
               <X size={24} color="#6b7280" />
             </Pressable>
@@ -93,7 +95,7 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, tillatteFaggruppeI
                   </View>
                   <Text className="flex-1 text-sm font-medium text-gray-900">
                     {item.name}
-                    {utenfor ? " (utenfor flyten)" : ""}
+                    {utenfor ? ` ${t("felt.utenforFlyten")}` : ""}
                   </Text>
                   {erValgt && <Check size={20} color="#1e40af" />}
                 </Pressable>

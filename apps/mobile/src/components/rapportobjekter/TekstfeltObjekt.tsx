@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, Modal, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, Pressable, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { ModalFlate } from "../ModalFlate";
 import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
@@ -43,7 +44,7 @@ export function TekstfeltObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rapp
       </Pressable>
 
       <Modal visible={visModal} animationType="slide" onRequestClose={ferdig}>
-        <SafeAreaView className="flex-1 bg-white">
+        <ModalFlate kanter={["top", "bottom"]} className="flex-1 bg-white">
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             className="flex-1"
@@ -69,7 +70,7 @@ export function TekstfeltObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rapp
               className="flex-1 px-4 py-3 text-base text-gray-900"
             />
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </ModalFlate>
       </Modal>
     </>
   );

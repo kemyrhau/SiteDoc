@@ -2,6 +2,7 @@ import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useState, type ReactNode } from "react";
 import { Plus, Info, Globe } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 import { tilbehorVisning } from "./RapportObjektRenderer";
@@ -74,6 +75,8 @@ export function FeltWrapper({
   const { t } = useTranslation();
   const [visHjelpetekst, setVisHjelpetekst] = useState(false);
   const [visOversettelse, setVisOversettelse] = useState(false);
+  // Seedet standard type-default-label → oversett via i18n (skjul Globe — ikke firmainnhold).
+  const standardLabel = oversettStandardtekst(objekt.label, t, objekt.type as ReportObjectType);
   const oversattLabel = oversettelser?.[objekt.label];
   const oversattHjelpetekst = typeof objekt.config.helpText === "string" ? oversettelser?.[objekt.config.helpText] : undefined;
 
@@ -92,7 +95,7 @@ export function FeltWrapper({
     >
       {/* Label + påkrevd-badge + hjelpetekst + oversettelse */}
       <View className="mb-2 flex-row items-center gap-2">
-        <Text className="text-sm font-medium text-gray-900">{objekt.label}</Text>
+        <Text className="text-sm font-medium text-gray-900">{standardLabel ?? objekt.label}</Text>
         {objekt.required && (
           <View className="rounded bg-red-50 px-1.5 py-0.5">
             <Text className="text-[10px] font-medium text-red-600">{t("felt.paakrevd")}</Text>
@@ -103,7 +106,7 @@ export function FeltWrapper({
             <Info size={14} color="#60a5fa" />
           </Pressable>
         )}
-        {visOversettKnapp && (
+        {visOversettKnapp && !standardLabel && (
           <Pressable
             onPress={() => {
               if (!oversattLabel && onOversett) onOversett();

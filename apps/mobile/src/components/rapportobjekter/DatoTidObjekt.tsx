@@ -2,9 +2,11 @@ import { useState } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import { Calendar, Clock, X } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
 export function DatoTidObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const [visModus, settVisModus] = useState<"date" | "time" | null>(null);
   const datoVerdi = typeof verdi === "string" ? new Date(verdi) : null;
 
@@ -55,7 +57,7 @@ export function DatoTidObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektP
         </View>
         {!leseModus && (
           <Pressable onPress={settNaa} className="mt-1 ml-1">
-            <Text className="text-sm text-blue-600">Nå</Text>
+            <Text className="text-sm text-blue-600">{t("felt.naa")}</Text>
           </Pressable>
         )}
       </View>
@@ -72,11 +74,11 @@ export function DatoTidObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektP
             className="flex-row items-center rounded-lg border border-gray-300 bg-white px-3 py-2.5"
           >
             <Calendar size={18} color="#6b7280" />
-            <Text className="ml-2 text-sm text-gray-400">Velg dato og tid...</Text>
+            <Text className="ml-2 text-sm text-gray-400">{t("felt.velgDatoTid")}</Text>
           </Pressable>
           {!leseModus && (
             <Pressable onPress={settNaa} className="mt-1 ml-1">
-              <Text className="text-sm text-blue-600">Nå</Text>
+              <Text className="text-sm text-blue-600">{t("felt.naa")}</Text>
             </Pressable>
           )}
         </View>

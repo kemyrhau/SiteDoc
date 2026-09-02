@@ -241,6 +241,14 @@ model OrganizationMember {
   status             String    @default("aktiv")
   deaktivertVed      DateTime? @map("deaktivert_ved")
   deaktivertAvUserId String?   @map("deaktivert_av_user_id")
+  // Registreringsmodell fase 2 (2026-08-30).
+  // prosjektTilgang: regel for hvilke prosjekter personen blir medlem i.
+  // "alle" | "avdeling" | "manuell". NULL = arv OrganizationSetting.prosjektTilgangDefault
+  // (IKKE «ingen tilgang»). Lagt til fase 2. EVALUERES fra fase 3 (2026-09-02) av
+  // apps/api/src/services/prosjektTilgangEvaluator.ts, som kjører ved to hendelser:
+  // nytt prosjekt (prosjekt.opprett) og ny ansatt onboardes (organisasjon.inviterBruker).
+  // "avdeling" er BLOKKERT (Project mangler avdelingId) og behandles som "manuell".
+  prosjektTilgang    String?   @map("prosjekt_tilgang")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -272,10 +280,13 @@ model OrganizationMember {
 // uten @relation (A.3-mønster) for å bevare audit-spor ved User-sletting.
 // ---------------------------------------------------------------------------
 
+// FIRMATAK for firmafamilien (timer/maskin/varelager). Leses av effektivTilstand()
+// i apps/api/src/services/modul/resolver.ts sammen med ProjectModule-bryteren.
+// Prosjektfamilien (de ni i PROSJEKT_MODULER) har INGEN rad her og får aldri et firmatak.
 model OrganizationModule {
   id                  String    @id @default(uuid())
   organizationId      String    @map("organization_id")
-  moduleSlug          String    @map("module_slug") // "timer" | "maskin" | (fremtidig: "kompetanse"/"fremdrift"/"varelager")
+  moduleSlug          String    @map("module_slug") // "timer" | "maskin" | "varelager" (fremtidig: "kompetanse"/"fremdrift")
   status              String    @default("aktiv") // "aktiv" | "arkivert"
   aktivertVed         DateTime  @default(now()) @map("aktivert_ved")
   aktivertAvUserId    String?   @map("aktivert_av_user_id") // ingen FK — A.3-mønster
@@ -346,6 +357,18 @@ model OrganizationSetting {
   timerTilgangDefault       String @default("alle-ansatte") @map("timer_tilgang_default")
   vareforbrukTilgangDefault String @default("alle-ansatte") @map("vareforbruk_tilgang_default")
   maskinbrukTilgangDefault  String @default("sertifiserte") @map("maskinbruk_tilgang_default")
+
+  // Firmadefault for prosjekttilgang (registreringsmodell fase 2, 2026-08-30).
+  // Verdier: 'alle' | 'avdeling' | 'manuell'. Gjelder som utgangspunkt for nye
+  // ansatte; per-ansatt OrganizationMember.prosjektTilgang overstyrer.
+  // Default 'manuell' (Kenneth-vedtak 2026-08-28): prosjekttilgang gir innsyn i
+  // prosjektets DOKUMENTER, ikke bare timeføring. 'alle' ville gitt enhver ansatt
+  // innsyn i byggherre-korrespondanse på alle prosjekter. Friksjonen ved 'manuell'
+  // er synlig og rettes én gang; oversharing er usynlig og rettes aldri. Firmaet
+  // kan flytte defaulten til 'alle'/'avdeling' selv. Lagt til fase 2. EVALUERES fra
+  // fase 3 (2026-09-02) av prosjektTilgangEvaluator.ts som firmadefault når en ansatt
+  // har prosjektTilgang = NULL. 'avdeling' behandles som 'manuell' inntil Project.avdelingId finnes.
+  prosjektTilgangDefault    String @default("manuell") @map("prosjekt_tilgang_default")
 
   // Per Fase 0.5 § 2 — hvem kan registrere AnsattKompetanse-rader
   // Verdier: 'firma_admin' | 'bruker_egen' | 'alle'
@@ -1469,13 +1492,21 @@ model FlytRettighetLogg {
 // slettet). `active Boolean` droppet i Steg 1d (2026-05-03).
 // Cross-org-unique `(projectId, organizationId, moduleSlug)` utsatt til Steg 1e
 // når OrganizationModule-tabell lages og cross-org-flow er designet.
+// ⚠️ OPPDATERT 2026-09-01: OrganizationModule-tabellen FINNES nå (se over). Cross-org-
+//    unique ble likevel IKKE lagt på ProjectModule — nøkkelen er fortsatt
+//    `@@unique([projectId, moduleSlug])`. Firmataket bor i OrganizationModule, ikke i en
+//    utvidet ProjectModule-nøkkel. (Gammel tekst over står bevisst.)
 // ---------------------------------------------------------------------------
 
+// PROSJEKTBRYTER. Prosjektfamilien (de ni i PROSJEKT_MODULER) leses KUN herfra —
+// bryteren alene, intet firmatak. Firmafamilien (timer/maskin/varelager) bærer i tillegg
+// en rad her (med organizationId satt) OVER firmataket i OrganizationModule.
+// Effektiv tilstand avgjøres av effektivTilstand() i apps/api/src/services/modul/resolver.ts.
 model ProjectModule {
   id             String   @id @default(uuid())
   projectId      String   @map("project_id")
   moduleSlug     String   @map("module_slug")
-  organizationId String?  @map("organization_id") // Nullable for prosjektmoduler uten firma-eier
+  organizationId String?  @map("organization_id") // Nullbar: prosjektmoduler har ingen firma-eier. Standalone (organizationId = null) er en GYLDIG PERMANENT tilstand — ikke en mangel, ikke «rydd» den bort.
   status         String   @default("aktiv") // "aktiv" | "arkivert" | "slettet" (per A.17)
   config         Json? // Modulspesifikk konfigurasjon (f.eks. oversettelsesmotor)
   createdAt      DateTime @default(now()) @map("created_at")

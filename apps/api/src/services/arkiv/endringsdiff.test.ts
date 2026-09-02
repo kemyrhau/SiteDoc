@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ekspanderEndring, kanonisk, segmenterTilTekst, type KolonneDef, type DiffRad } from "@sitedoc/pdf";
+import { ekspanderEndring, kanonisk, likForDiff, segmenterTilTekst, type KolonneDef, type DiffRad } from "@sitedoc/pdf";
 
 /**
  * Rent lag — lesbar diff-transform for endringsloggen (F1, punkt 1–3).
@@ -251,5 +251,44 @@ describe("ord-nivå diff — endrede ord markeres (endret: true)", () => {
     const [rad] = ekspanderEndring("Notat", null, s("helt ny tekst"));
     expect(endredeOrd(rad!.tilVerdi)).toEqual([]);
     expect(tekst(rad!.tilVerdi)).toBe("helt ny tekst");
+  });
+});
+
+describe("tomhet — tom→tom er ingen endring, reell tømming er det (endringslogg-støy)", () => {
+  it("likForDiff: alle tomhets-former er like (null · \"\" · [] · {} · fraværende)", () => {
+    expect(likForDiff("", null)).toBe(true);
+    expect(likForDiff({}, [])).toBe(true);
+    expect(likForDiff([], undefined)).toBe(true);
+    expect(likForDiff({ verdi: "" }, {})).toBe(true);
+    expect(likForDiff(celle(""), undefined)).toBe(true);
+    expect(likForDiff(celle(null), celle(""))).toBe(true);
+  });
+
+  it("likForDiff: reell verdi er IKKE lik tom (tømming spores)", () => {
+    expect(likForDiff("Ja", "")).toBe(false);
+    expect(likForDiff({ verdi: "Ja" }, { verdi: "" })).toBe(false);
+    expect(likForDiff(celle("Ja"), celle(null))).toBe(false);
+  });
+
+  it("repeater-celle tom→tom (form-drift) → INGEN rad (symptomet: «Rad N — Kolonne til Ikke utfylt»)", () => {
+    // c1 uendret; c2 tom begge sider, men ulik form: {verdi:""} ↔ {}.
+    const fra = s([{ c1: celle("x"), c2: celle("") }]);
+    const til = s([{ c1: celle("x"), c2: {} }]);
+    expect(ekspanderEndring("K", fra, til, KOL)).toEqual([]);
+  });
+
+  it("repeater-celle reell tømming (Ja→tom) → ÉN rad «→ Ikke utfylt»", () => {
+    const fra = s([{ c1: celle("Ja") }]);
+    const til = s([{ c1: celle(null) }]);
+    expect(ekspanderEndring("K", fra, til, KOL).map(flat)).toEqual([
+      { felt: "Rad 1 — Beskrivelse", fraVerdi: "Ja", tilVerdi: null },
+    ]);
+  });
+
+  it("repeater-rad-identitet bevares: tom LEDENDE rad forskyver ikke «Rad 2»", () => {
+    // Tom rad 1 skal ikke kollapses bort (ellers blir rad 2 → rad 1 i loggen).
+    expect(
+      likForDiff([{}, { c1: { verdi: "x" } }], [{ c1: { verdi: "x" } }]),
+    ).toBe(false);
   });
 });

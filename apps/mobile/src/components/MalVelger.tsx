@@ -8,8 +8,10 @@ import {
   StyleSheet,
   BackHandler,
 } from "react-native";
-import { SafeAreaView } from "react-native";
+// eslint-disable-next-line no-restricted-imports -- in-tree overlay (styles.overlay), ikke native <Modal>: ingen VC-inset-reset, SafeAreaView virker som på skjermrot.
+import { SafeAreaView } from "react-native-safe-area-context";
 import { X, ChevronDown, ChevronRight } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
@@ -24,9 +26,8 @@ interface MalData {
   // Flytresolusjon: de opprettbare flyt-idene (delt regel) bæres videre til
   // opprett-modalen, som bruker dem til flyt-valg (én sannhet med velgeren).
   opprettbareFlytIder?: string[];
-  // Location-tvang (2026-08-19): server-avledet — malen har et aktivt (ubetinget)
-  // location-objekt → posisjon (punkt på tegning) er påkrevd ved opprettelse.
-  harAktivLocation?: boolean;
+  // harAktivLocation-propen er FJERNET 2026-09-02: location-tvangen er opphevet
+  // (Kenneth-vedtak), og propen ble aldri lest av noen logikk (deklarert, ubrukt).
 }
 
 interface MalVelgerProps {
@@ -37,6 +38,7 @@ interface MalVelgerProps {
 }
 
 export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) {
+  const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
 
   const malQuery = trpc.mal.hentForProsjekt.useQuery(
@@ -119,7 +121,7 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
         {/* Header */}
         <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
           <Text className="text-sm font-semibold text-white">
-            Velg {kategori === "sjekkliste" ? "sjekklistemal" : "oppgavemal"}
+            {kategori === "sjekkliste" ? t("malVelger.velgSjekklistemal") : t("malVelger.velgOppgavemal")}
           </Text>
           <Pressable onPress={onLukk} hitSlop={12}>
             <X size={20} color="#ffffff" />
@@ -129,12 +131,12 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
         {malQuery.isLoading ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#1e40af" />
-            <Text className="mt-3 text-sm text-gray-500">Henter maler...</Text>
+            <Text className="mt-3 text-sm text-gray-500">{t("malVelger.henter")}</Text>
           </View>
         ) : filtrerteMaler.length === 0 && utilgjengeligeMaler.length === 0 ? (
           <View className="flex-1 items-center justify-center px-4">
             <Text className="text-base text-gray-500">
-              Ingen {kategori === "sjekkliste" ? "sjekkliste" : "oppgave"}maler funnet
+              {kategori === "sjekkliste" ? t("malVelger.ingenSjekklistemaler") : t("malVelger.ingenOppgavemaler")}
             </Text>
           </View>
         ) : (
@@ -174,7 +176,7 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
                       <ChevronRight size={16} color="#9ca3af" />
                     )}
                     <Text className="text-xs font-semibold uppercase text-gray-400">
-                      Vis utilgjengelige ({utilgjengeligeMaler.length})
+                      {t("malVelger.visUtilgjengelige", { antall: utilgjengeligeMaler.length })}
                     </Text>
                   </Pressable>
                   {visUtilgjengelige &&
@@ -185,7 +187,7 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
                       >
                         <Text className="text-sm font-medium text-gray-500">{item.name}</Text>
                         <Text className="text-xs text-gray-400">
-                          Ingen av dine dokumentflyter bruker denne malen
+                          {t("malVelger.ingenFlytBrukerMal")}
                         </Text>
                       </View>
                     ))}

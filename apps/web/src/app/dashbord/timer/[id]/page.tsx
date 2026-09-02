@@ -718,6 +718,9 @@ export default function DagsseddelDetaljSide() {
       {aktivModal?.type === "timer" && (
         <TimerRadDialog
           sheetId={sheet.id}
+          // P1 (maskin-i-rad): firmaId for å speile resolveren (maskin-modulens
+          // firmatak). Uten firmatak skjules maskin-seksjonen.
+          organizationId={sheet.organizationId}
           projectId={aktivModal.projectId}
           prosjekter={prosjekterForVelger}
           defaultAktivitetId={sheetAktivitetId}
@@ -1557,6 +1560,7 @@ function RaderMaskinKompakt({
 
 function TimerRadDialog({
   sheetId,
+  organizationId,
   projectId,
   prosjekter,
   defaultAktivitetId,
@@ -1574,6 +1578,7 @@ function TimerRadDialog({
   onLukk,
 }: {
   sheetId: string;
+  organizationId: string;
   projectId: string;
   prosjekter: ProsjektRef[];
   defaultAktivitetId: string | null;
@@ -1707,6 +1712,15 @@ function TimerRadDialog({
         kategori: string | null;
       }>
     | undefined;
+  // Speiler resolveren: maskin-modulens firmatak (ingen prosjektId → firmatak
+  // alene; dagsseddelen spenner over prosjekter og kan være internt, så prosjekt-
+  // scoping ville skjult seksjonen feil). equipment.list gates ALDRI (designlås 1)
+  // — dette er en VISNINGS-sjekk i UI, ikke en gate på katalogen.
+  const { data: maskinModulTilstand } = trpc.modul.effektivTilstand.useQuery(
+    { firmaId: organizationId, slugs: ["maskin"] },
+    { enabled: !!organizationId },
+  );
+  const maskinAktiv = maskinModulTilstand?.maskin === true;
   const [visMaskin, setVisMaskin] = useState(false);
   const [maskinVehicleId, setMaskinVehicleId] = useState<string>("");
   const [maskinMengde, setMaskinMengde] = useState<string>("");
@@ -2115,8 +2129,9 @@ function TimerRadDialog({
         </div>
         {/* P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY rad.
             Maskintimer settes lik timer-radens antall; kortere drift redigeres
-            på maskin-raden etterpå. */}
-        {!rad && (
+            på maskin-raden etterpå. Speiler resolveren (maskinAktiv) + tom-liste-
+            sjekk, samme mønster som kostnadsbærer-feltet over (:2066). */}
+        {!rad && maskinAktiv && maskinEquipment && maskinEquipment.length > 0 && (
           <div className="rounded-lg border border-gray-200 bg-gray-50">
             <button
               type="button"

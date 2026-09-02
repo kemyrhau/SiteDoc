@@ -16,6 +16,7 @@ import {
   hentAktiveFirmamoduler,
 } from "../services/firmamodul";
 import { seedFirmamodulKatalog } from "../services/seed";
+import { provisjonerNyAnsattIProsjekter } from "../services/prosjektTilgangEvaluator";
 import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 
@@ -264,6 +265,53 @@ export const organisasjonRouter = router({
     }));
   }),
 
+  // Firmanivå-onboarding-status (kun firmaadmin) — speiler prosjekt.hentOnboardingStatus:
+  // rene tellinger/felt-sjekker, INGEN lagret fremdrift (onboarding-wizard.ts § prinsipp).
+  //
+  // To GATING-steg (firmaOnboardingWizard.steg): firmaprofil (org.nr + fakturaadresse satt)
+  // og første prosjekt opprettet. Er begge på plass, ER firmaet onboardet og prosjekt-
+  // veiviseren tar over. De øvrige tellingene er VALGFRIE anbefalinger (hake, gater aldri)
+  // — et enmanns-firma uten avdelinger/moduler skal aldri stå ufullført for alltid.
+  // `count() > 0` er derfor bevisst IKKE ferdig-predikat for de valgfrie (fabel-fence 1);
+  // de vises kun som «gjort»-haker. OrganizationSeedPolicy gjelder katalog-datatyper
+  // (lønnsart m.m.), ikke disse firma-strukturstegene — den brukes ikke her.
+  hentOnboardingStatus: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+
+      const [org, prosjektAntall, ansattAntall, avdelingAntall, oppmoteAntall, modulAntall] =
+        await Promise.all([
+          ctx.prisma.organization.findUniqueOrThrow({
+            where: { id: orgId },
+            select: { organizationNumber: true, invoiceAddress: true },
+          }),
+          ctx.prisma.projectOrganization.count({ where: { organizationId: orgId } }),
+          ctx.prisma.organizationMember.count({ where: { organizationId: orgId } }),
+          ctx.prisma.avdeling.count({ where: { organizationId: orgId } }),
+          ctx.prisma.oppmotested.count({ where: { organizationId: orgId } }),
+          ctx.prisma.organizationModule.count({
+            where: { organizationId: orgId, status: "aktiv" },
+          }),
+        ]);
+
+      return {
+        // Gating-steg
+        harFirmaprofil: !!org.organizationNumber && !!org.invoiceAddress,
+        harProsjekt: prosjektAntall > 0,
+        // Valgfrie anbefalinger (gater aldri). Ansatte: > 1 = mer enn grunnleggeren selv,
+        // ellers grønt fra start og meningsløst som anbefaling.
+        antallAnsatte: ansattAntall,
+        harAnsatte: ansattAntall > 1,
+        antallAvdelinger: avdelingAntall,
+        harAvdelinger: avdelingAntall > 0,
+        antallOppmotesteder: oppmoteAntall,
+        harOppmotesteder: oppmoteAntall > 0,
+        antallModuler: modulAntall,
+        harModuler: modulAntall > 0,
+      };
+    }),
+
   // Hent organisasjonens ansatte (kun firmaadmin)
   // O-4b: leses via OrganizationMember + user-relasjon
   hentBrukere: protectedProcedure
@@ -279,6 +327,7 @@ export const organisasjonRouter = router({
         avdelingId: true,
         ansattRolle: true,
         firmaRoller: true,
+        prosjektTilgang: true,
         status: true,
         deaktivertVed: true,
         user: {
@@ -307,6 +356,7 @@ export const organisasjonRouter = router({
       avdelingId: m.avdelingId,
       ansattRolle: m.ansattRolle,
       firmaRoller: m.firmaRoller,
+      prosjektTilgang: m.prosjektTilgang,
       status: m.status,
       deaktivertVed: m.deaktivertVed,
     }));
@@ -685,6 +735,8 @@ export const organisasjonRouter = router({
           },
         });
 
+        await provisjonerNyAnsattIProsjekter(ctx.prisma, orgId, adoptert.id);
+
         return adoptert;
       }
 
@@ -709,6 +761,8 @@ export const organisasjonRouter = router({
         },
       });
 
+      await provisjonerNyAnsattIProsjekter(ctx.prisma, orgId, opprettet.id);
+
       return opprettet;
     }),
 
@@ -727,6 +781,11 @@ export const organisasjonRouter = router({
         ansattRolle: z
           .enum(["ansatt", "bas", "prosjektleder", "daglig_leder"])
           .optional(),
+        // Registreringsmodell fase 2: avdeling + prosjekttilgang eies av
+        // OrganizationMember. null på avdelingId = «Uten avdeling»;
+        // null på prosjektTilgang = arv firmadefault.
+        avdelingId: z.string().uuid().nullable().optional(),
+        prosjektTilgang: z.enum(["alle", "avdeling", "manuell"]).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -784,11 +843,39 @@ export const organisasjonRouter = router({
         select: { id: true, name: true, email: true, phone: true, role: true },
       });
 
-      // ansattnummer + ansattRolle eies av OrganizationMember
-      if (input.ansattnummer !== undefined || input.ansattRolle !== undefined) {
-        const memberData: { ansattnummer?: string | null; ansattRolle?: string } = {};
+      // Avdeling må tilhøre samme firma (org-isolasjon). null = «Uten avdeling».
+      if (input.avdelingId) {
+        const avdeling = await ctx.prisma.avdeling.findFirst({
+          where: { id: input.avdelingId, organizationId: orgId },
+          select: { id: true },
+        });
+        if (!avdeling) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Avdelingen finnes ikke i firmaet",
+          });
+        }
+      }
+
+      // ansattnummer + ansattRolle + avdeling + prosjekttilgang eies av
+      // OrganizationMember. prosjektTilgang null = arv firmadefault;
+      // EVALUERES ikke i fase 2 (regelen kjører i fase 3).
+      if (
+        input.ansattnummer !== undefined ||
+        input.ansattRolle !== undefined ||
+        input.avdelingId !== undefined ||
+        input.prosjektTilgang !== undefined
+      ) {
+        const memberData: {
+          ansattnummer?: string | null;
+          ansattRolle?: string;
+          avdelingId?: string | null;
+          prosjektTilgang?: string | null;
+        } = {};
         if (input.ansattnummer !== undefined) memberData.ansattnummer = input.ansattnummer || null;
         if (input.ansattRolle !== undefined) memberData.ansattRolle = input.ansattRolle;
+        if (input.avdelingId !== undefined) memberData.avdelingId = input.avdelingId;
+        if (input.prosjektTilgang !== undefined) memberData.prosjektTilgang = input.prosjektTilgang;
         await ctx.prisma.organizationMember.updateMany({
           where: { userId: input.userId, organizationId: orgId },
           data: memberData,
@@ -797,13 +884,21 @@ export const organisasjonRouter = router({
 
       const medlem = await ctx.prisma.organizationMember.findUnique({
         where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
-        select: { ansattnummer: true, ansattRolle: true, firmaRoller: true },
+        select: {
+          ansattnummer: true,
+          ansattRolle: true,
+          firmaRoller: true,
+          avdelingId: true,
+          prosjektTilgang: true,
+        },
       });
       return {
         ...oppdatert,
         ansattnummer: medlem?.ansattnummer ?? null,
         ansattRolle: medlem?.ansattRolle ?? "ansatt",
         firmaRoller: medlem?.firmaRoller ?? [],
+        avdelingId: medlem?.avdelingId ?? null,
+        prosjektTilgang: medlem?.prosjektTilgang ?? null,
       };
     }),
 
@@ -952,6 +1047,10 @@ export const organisasjonRouter = router({
         maskinbrukTilgangDefault: z
           .enum(["alle-ansatte", "kun-prosjektmedlemmer", "sertifiserte"])
           .optional(),
+        // Registreringsmodell fase 2: firmadefault for prosjekttilgang. Gjelder som
+        // utgangspunkt for nye ansatte (per-ansatt prosjektTilgang overstyrer).
+        // Default 'manuell' (Kenneth-vedtak 2026-08-28); firmaet kan flytte den selv.
+        prosjektTilgangDefault: z.enum(["alle", "avdeling", "manuell"]).optional(),
         kompetanseRegistreringTilgang: z
           .enum(["firma_admin", "bruker_egen", "alle"])
           .optional(),

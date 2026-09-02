@@ -76,23 +76,42 @@ export function byggKolonnerPerFelt(tre: TreNode[]): Record<string, KolonneDef[]
 const MAKS_FILNAVN = 4;
 
 /**
- * Fjerner ikke-brukerinnhold før sammenligning: query-parametre på vedlegg-URL.
- * En signert URL (`?exp=&sig=`) varierer per lagring — samme bilde, ulik streng —
- * fordi klienten returnerer det den ble servert (signert). Uten dette teller hver
- * auto-vær-lagring de urørte repeater-bildene som «endret». Samme klasse som
- * nøkkelsorteringen: ulikt som streng, likt som informasjon.
+ * Fjerner ikke-brukerinnhold før sammenligning, slik at «likt som informasjon»
+ * teller som likt selv når strengen skiller seg:
  *
- * Interne tidsstempel-felt legges til her etter måling (Spørring 4).
- * Brukes KUN til sammenligning — visning og lagret verdi er uendret.
+ *  1. **Signert-URL-query** på vedlegg (`?exp=&sig=`) varierer per lagring — samme
+ *     bilde, ulik streng — fordi klienten returnerer det den ble servert (signert).
+ *     Uten dette teller hver auto-vær-lagring de urørte repeater-bildene som «endret».
+ *  2. **Tomhet** (`null` · `""` · `[]` · `{}` · manglende nøkkel) kollapses til
+ *     fraværende. En tom celle skifter form mellom autolagringer (`{verdi:""}` ↔
+ *     `{}` ↔ nøkkel-fraværende ↔ `{verdi:null}`); uten dette regnes tom→tom som en
+ *     endring og loggen spammes med «Rad N — Kolonne M til «Ikke utfylt»». Samme
+ *     tomhets-definisjon som `harFaktiskInnholdForObjekt` (mal.ts). Reell tømming
+ *     («Ja»→tom) består som endring: en ikke-tom verdi kollapser ikke.
+ *
+ * 🔴 Array-LENGDE og -rekkefølge BEVARES — repeater-rad-identitet er
+ * betydningsbærende. Vi kollapser tomhet i element-INNHOLD, aldri ved å fjerne
+ * elementer (ellers forskyves «Rad 3» til «Rad 2» og loggen lyver).
+ *
+ * Brukes KUN til sammenligning (`likForDiff`) — visning og lagret verdi er uendret.
  */
 export function normaliserForDiff(v: unknown): unknown {
-  if (Array.isArray(v)) return v.map(normaliserForDiff);
-  if (v != null && typeof v === "object") {
+  if (v == null) return undefined; // null → fraværende
+  if (typeof v === "string") return v === "" ? undefined : v; // "" → fraværende
+  if (Array.isArray(v)) {
+    if (v.length === 0) return undefined; // [] → fraværende
+    // Lengde/rekkefølge bevares: map, aldri filtrer. Tomt element → undefined
+    // (blir `null` i kanonisk JSON) → to tomme rader er fortsatt like.
+    return v.map(normaliserForDiff);
+  }
+  if (typeof v === "object") {
     const ut: Record<string, unknown> = {};
     for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
-      ut[k] = k === "url" && typeof x === "string" ? x.split("?")[0] : normaliserForDiff(x);
+      const rå = k === "url" && typeof x === "string" ? x.split("?")[0] : x;
+      const nx = normaliserForDiff(rå);
+      if (nx !== undefined) ut[k] = nx; // dropp tomme nøkler
     }
-    return ut;
+    return Object.keys(ut).length === 0 ? undefined : ut; // {} → fraværende
   }
   return v;
 }

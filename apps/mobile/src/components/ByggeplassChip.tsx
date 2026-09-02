@@ -18,7 +18,8 @@ import { ByggeplassVelgerModal } from "./timer-detalj/ByggeplassVelger";
 export function ByggeplassChip() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, settBygning, gpsByggeplassId } = useByggeplass();
+  const { valgtBygningId, erHeleProsjektet, settBygning, velgHeleProsjektet, gpsByggeplassId } =
+    useByggeplass();
   const [visVelger, setVisVelger] = useState(false);
 
   const byggeplasser = useMemo(
@@ -42,7 +43,9 @@ export function ByggeplassChip() {
   // Ingen kontekst (intet prosjekt) eller ingen byggeplasser i cache → ingen chip.
   if (!valgtProsjektId || byggeplasser.length === 0) return null;
 
-  const tittel = valgt?.navn ?? t("byggeplassVelger.velg");
+  const tittel = erHeleProsjektet
+    ? t("kontekstChip.heleProsjektet")
+    : valgt?.navn ?? t("byggeplassVelger.velg");
 
   return (
     <>
@@ -55,6 +58,14 @@ export function ByggeplassChip() {
           <Text className="text-sm font-semibold text-sitedoc-primary" numberOfLines={1}>
             {tittel}
           </Text>
+          {/* Når en byggeplass filtrerer lista, si det eksplisitt — feltarbeideren
+              skal aldri se et avkortet sett uten å vite at noe er skjult (mobil-
+              speiling av webs «Viser: <byggeplass> · Vis hele prosjektet»). */}
+          {valgtBygningId != null && (
+            <Text className="text-xs text-amber-600" numberOfLines={1}>
+              {t("byggeplass.filtrererListe")}
+            </Text>
+          )}
           {paaPlass && (
             <Text className="text-xs text-green-600" numberOfLines={1}>
               {t("byggeplass.gpsPaaPlass")}
@@ -74,10 +85,13 @@ export function ByggeplassChip() {
           projectId={valgtProsjektId}
           valgtId={valgtBygningId}
           gpsForeslagId={gpsByggeplassId}
+          tillatIngen
+          ingenLabel={t("kontekstChip.heleProsjektet")}
           onVelg={(id) => {
-            // Funn #2: den globale chipen tilbyr ikke «Ingen» (tillatIngen
-            // utelatt) → `id` er alltid satt her. Guard for type-sikkerhet.
+            // «Hele prosjektet»-raden (id === null) gir samme utvei som webs
+            // globale velger: nullstiller filteret OG blokkerer GPS-autovalg.
             if (id) settBygning(id);
+            else velgHeleProsjektet();
             setVisVelger(false);
           }}
           onLukk={() => setVisVelger(false)}

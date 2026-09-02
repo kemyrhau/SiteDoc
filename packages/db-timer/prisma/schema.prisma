@@ -531,8 +531,8 @@ model EksportOppsett {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id") // svak FK → organizations.id
   name           String
-  config         Json // v2: { radTyper[], format:"xlsx"|"pdf", mottaker:"intern"|"ekstern", gruppering:"ingen"|"ansatt"|"prosjekt", orientering:"auto"|"staaende"|"liggende", topptekst:{linjer:string[]}|null }
-  configVersion  Int      @default(1) @map("config_version") // 1 leses med v1-defaults; fase 4 skriver 2 (ingen migrering — JSONB)
+  config         Json // v3: { radTyper[], format:"xlsx"|"pdf", mottaker:"intern"|"ekstern", gruppering:"ingen"|"ansatt"|"prosjekt", orientering:"auto"|"staaende"|"liggende", topptekst:{linjer:string[]}|null, kolonner?:string[] (kolonnesett+rekkefølge, tom→standard) }
+  configVersion  Int      @default(1) @map("config_version") // 1 leses med v1-defaults; fase 4 skrev 2; v3 (2026-09-01) la til kolonner (ingen migrering — JSONB)
   eierId         String?  @map("eier_id") // null = firmamal; satt = personlig (svak FK → users.id)
   basertPaId     String?  @map("basert_pa_id") // firmamalen «Lagre som min» ble kopiert fra (SetNull i slett-prosedyren)
   opprettetAvId  String   @map("opprettet_av_id") // svak FK → users.id (attribusjon)

@@ -33,8 +33,10 @@ const kategoriRekkefølge: ReportObjectCategory[] = [
 // PSI-modus: kun innholdsrelevante typer
 const PSI_TYPER = new Set(["heading", "subtitle", "info_text", "info_image", "video", "quiz", "signature"]);
 
-// Skjult fra paletten — område/rom håndteres via kontrollplan, ikke som felt i malen
-const SKJULTE_TYPER = new Set(["zone_property", "room_property"]);
+// Skjult fra paletten — område/rom håndteres via kontrollplan, ikke som felt i malen.
+// "location" er AVVIKLET 2026-09-02 (begrepsrydding): ut av paletten så ingen NYE opprettes,
+// men den forblir en gyldig type for legacy-objekter (se REPORT_OBJECT_TYPE_META-kommentar).
+const SKJULTE_TYPER = new Set(["zone_property", "room_property", "location"]);
 
 // Felttyper som ikke lenger TILBYS for en gitt maltype (`category` er bryteren). En repeater
 // er en liste av N ting, mens en oppgave er ÉN ting med felles status (domene-arbeidsflyt.md

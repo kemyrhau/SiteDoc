@@ -13,9 +13,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
+import { ModalFlate } from "../../src/components/ModalFlate";
 import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
@@ -219,6 +220,15 @@ export default function SjekklisteUtfylling() {
       : sjekklisteDetalj.drawing.name)
     : null;
   const lokasjonTekst = [lokBygningNavn, lokTegningNavn].filter(Boolean).join(" · ") || null;
+  // Paritetsregel (2026-09-02): i lesevisning følger dokumentnivå-lokasjonen PDF-ens
+  // harMarkor — tegning uten punkt er en arbeidstilstand og vises som «ingen lokasjon».
+  // Redigering beholder mellomtilstanden (modalen viser «tegning valgt, punkt mangler»).
+  const harMarkorDok = harTegningsmarkor({
+    drawingId: sjekklisteDetalj?.drawingId,
+    positionX: sjekklisteDetalj?.positionX,
+    positionY: sjekklisteDetalj?.positionY,
+  });
+  // lokasjonTekstVist beregnes etter `leseModus` (deklarert lenger ned) — se der.
 
   // Hent faggrupper for redigering
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
@@ -682,6 +692,9 @@ export default function SjekklisteUtfylling() {
       hmsAktivPosisjon === 1 ||
       (hmsAktivPosisjon == null && sjekkliste.status === "responded"));
   const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
+  // Paritetsregel (2026-09-02): i lesevisning vises dokumentnivå-lokasjonen kun med
+  // komplett markør (harMarkorDok); tegning uten punkt leses som «ingen lokasjon».
+  const lokasjonTekstVist = leseModus && !harMarkorDok ? null : lokasjonTekst;
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
@@ -823,9 +836,9 @@ export default function SjekklisteUtfylling() {
           className="rounded-lg bg-white px-4 py-3"
         >
           <View className="flex-row items-center gap-2">
-            <MapPin size={14} color={lokasjonTekst ? "#1e40af" : "#9ca3af"} />
-            <Text className={`flex-1 text-sm ${lokasjonTekst ? "text-gray-800" : "text-gray-400"}`} numberOfLines={1}>
-              {lokasjonTekst ?? "Velg lokasjon…"}
+            <MapPin size={14} color={lokasjonTekstVist ? "#1e40af" : "#9ca3af"} />
+            <Text className={`flex-1 text-sm ${lokasjonTekstVist ? "text-gray-800" : "text-gray-400"}`} numberOfLines={1}>
+              {lokasjonTekstVist ?? "Velg lokasjon…"}
             </Text>
             {!leseModus && <ChevronDown size={14} color="#9ca3af" />}
           </View>
@@ -838,7 +851,11 @@ export default function SjekklisteUtfylling() {
           if (repeaterBarnIder.has(objekt.id)) return null;
           // Sjekk synlighet (betinget felt)
           if (!erSynlig(objekt)) return null;
-          // Skip location — rendres som lokasjonsvelger ovenfor
+          // Skip location — rendres som lokasjonsvelger ovenfor.
+          // LEGACY-VERN: location er avviklet fra palett og seeds 2026-09-02, men ≥9
+          // objekter lever i eksisterende maler (målt lokal dev; prod trolig flere).
+          // Denne skippen holder dem skjult og krasjfrie. Fjernes FØRST når D8/D9-
+          // malryddingen har fjernet objektene fra malene.
           if (objekt.type === "location") return null;
 
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
@@ -1170,7 +1187,7 @@ export default function SjekklisteUtfylling() {
 
       {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}
       <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }} edges={["top"]}>
+        <ModalFlate kanter={["top", "bottom"]} className="bg-white">
           {(() => {
             const aktivTegning = lokTempTegningId
               ? alleTegninger.find((t) => t.id === lokTempTegningId)
@@ -1338,7 +1355,7 @@ export default function SjekklisteUtfylling() {
               </View>
             );
           })()}
-        </SafeAreaView>
+        </ModalFlate>
       </Modal>
 
       {/* Malvelger for oppgave fra felt */}

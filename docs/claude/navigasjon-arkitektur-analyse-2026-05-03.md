@@ -57,8 +57,18 @@ Firma (Organization)
 
 | Side | Dagens plassering | Riktig plassering | Tiltak |
 |------|-------------------|-------------------|--------|
-| Faggrupper (read-only liste) | `/dashbord/[prosjektId]/faggrupper` | ⚠️ **Duplikat** med CRUD-side | **Konsolider** (allerede flagget i STATUS-AKTUELT) |
-| Faggrupper (CRUD-admin) | `/dashbord/prosjekter/[id]/faggrupper` | Alltid-på prosjekt-funksjon | Konsolider sammen med read-only |
+| Faggrupper (read-only liste) | `/dashbord/[prosjektId]/faggrupper` | ✅ **LØST** — se blokk under | Konsolidert; eneste faggruppe-side i dag |
+| ~~Faggrupper (CRUD-admin)~~ | ~~`/dashbord/prosjekter/[id]/faggrupper`~~ | ✅ **FINNES IKKE LENGER** | — |
+
+> ✅ **Målt 2026-08-30 (cowork): faggruppe-duplikatet er allerede ryddet.**
+> `find apps/web/src/app -ipath "*faggrupp*"` gir én side —
+> `dashbord/[prosjektId]/faggrupper/page.tsx` (392 linjer). Ruten
+> `/dashbord/prosjekter/[id]/faggrupper` eksisterer ikke; `prosjekter/[id]/` har kun
+> `maler`, `oppgaver`, `sjekklister` og `page.tsx`. De to radene over er beholdt
+> synlige fordi analysen er et historisk anker — men **påstanden om duplikat er ikke
+> lenger gyldig**, og skal ikke utløse en oppryddingsrunde.
+> *(Duplikatet som FAKTISK står åpent er `oppsett/firma` vs `firma/innstillinger` —
+> linje 92 i denne fila, ført som O12. Se `relay/inbox-o12-eier-firma.md`.)*
 | Dokumentflyt-konfig (kontakter) | `/dashbord/oppsett/produksjon/kontakter` | Alltid-på prosjekt-funksjon | Behold, men terminologi: «kontakter» → «dokumentflyt» |
 | Tegninger | `/dashbord/[prosjektId]/tegninger` | ✅ Korrekt | Behold |
 | Lokasjoner (Byggeplass) | `/dashbord/oppsett/lokasjoner` | Alltid-på prosjekt-funksjon | Behold |

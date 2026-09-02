@@ -135,6 +135,32 @@ ettertid.
 oppgaven til en melding arbeideren bare kunne kommentere på. Kenneths egne to formuleringer
 pekte hver sin vei; beskrivelsen over avgjorde det.
 
+### 🔴 Innhold låses, merkelapper gjør ikke (Kenneth 2026-08-29)
+
+Låsen over gjelder **feltverdier** — arbeiderens svar, som er bevis. Den gjelder **ikke**
+merkelapper som finnes for at noen skal finne dokumentet igjen.
+
+> **Kenneth:** *«En ansatt la ikke til emne på en oppgave. Lederen ønsker å legge til
+> emnefeltet fordi han trenger en søkestreng ekstra.»*
+
+**Vedtak: emne skal kunne ENDRES etter sending**, ikke bare fylles når det er tomt. En
+merkelapp som er satt feil er verdiløs hvis den ikke kan rettes, og endringsloggen viser
+hvem som gjorde det.
+
+| | Låses ved sending | Begrunnelse |
+|---|---|---|
+| **Feltverdi** | ✅ ja | arbeiderens svar — bevis, skrives én gang |
+| **Lokasjon** | ✅ ja | HVOR arbeidet ble utført er dokumentasjon |
+| **Emne** | ❌ nei | merkelapp for gjenfinning, ikke et svar |
+| **Kommentar / vedlegg** | ❌ nei | tilføyelser, tar ikke bort noe |
+
+⚠️ **Hullet ble laget av oss selv** i `fix/oppgave-datalaas` (i prod `3a2f7dc3`): `subject`
+lå inne i utkast-låsen på `oppgave.oppdater`, og klienten speilet den. Rettes i
+`relay/inbox-emne-alltid-redigerbart.md`.
+
+**Testen for nye felt:** dokumenterer feltet *hva som ble gjort*, eller hjelper det noen med
+å *finne dokumentet*? Det første låses, det andre ikke.
+
 ### 🔴 Repeater hører ikke hjemme i en oppgave (Kenneth 2026-08-29)
 
 > *«Kanskje vi må akseptere at repeater ikke tilhører i oppgave. Kanskje det objektet bør
@@ -264,6 +290,156 @@ fire ting før koding:
 3. Hva sier varselet konkret — hvilket felt, hvilken verdi, hva ble beholdt?
 4. Hvor ligger regelen? Delt kilde, aldri kopi per flate.
 
+## 🔴 BINDENDE VEDTAK: mangler prosjektet modulen, skal telefonen ikke tilby den (Kenneth 2026-08-31)
+
+> **Kenneth 2026-08-31:** *«Dersom et prosjekt ikke har en modul → da bør ikke telefonen
+> tilby modulen»* — og presisert samme dag: *«eller firma»*.
+
+**Dette snur dagens praksis.** Mobilen bruker i dag «soft-skjul»: seksjoner forsvinner når
+**datalisten er tom**, ikke når **modulen er av**. Konsekvensen er at «ikke kjøpt» og «ingen
+data ennå» ser helt like ut — dokumentert i
+[modulmodell-utredning-2026-08-30.md](modulmodell-utredning-2026-08-30.md), der målingen viste
+at `vareforbruk.ts` er det **eneste** stedet i kodebasen som skiller de to.
+
+**Regelen fra nå: BEGGE nivåer må være aktive.** Gatingen leser modultilstand, ikke om det
+tilfeldigvis finnes rader:
+
+| Nivå | Tabell | Betydning |
+|---|---|---|
+| Firma | `OrganizationModule` (`schema.prisma:282`) | **Kjøpet** — har firmaet modulen i det hele tatt |
+| Prosjekt | `ProjectModule` (`schema.prisma:1491`) | **Bryteren** — er den slått på for dette prosjektet |
+
+⚠️ **RETTET 2026-08-31 — coworks måling var feil, og påstanden sto her i noen timer.**
+
+Den opprinnelige teksten sa: *«Målt luke: firmanivået er ikke med i gaten. `krevMaskinAktivert`
+slår kun opp i `ProjectModule` — `OrganizationModule` leses aldri.»*
+
+**Det stemmer ikke.** Kontrollplan målte 2026-08-31: alle tre firmagatene
+(`services/{timer,maskin,varelager}/moduleGate.ts`) kaller
+`erFirmamodulAktivert(orgId, slug)` — som leser `OrganizationModule` — **før** de sjekker
+`ProjectModule`. **Firmataket HAR vært i gaten siden «Steg 1e Fase B, 2026-05-05»**, og
+filens egen toppkommentar sier det: *«Sjekk er additiv: begge nivåer må være aktive.»*
+
+🔴 **Hvordan feilen oppsto:** cowork leste `moduleGate.ts` fra **linje 40** med `sed -n '40,75p'`,
+så `projectModule.findFirst` øverst i utsnittet, og konkluderte. Firmatak-sjekken ligger på
+**linje 36** — fire linjer over lesevinduet. *En konklusjon fra et utsnitt er ikke en måling.*
+
+**Vedtaket under står uendret** — «begge nivåer må være aktive» er riktig, og er nå
+implementert som delt resolver (`services/modul/resolver.ts`, merget `1266ac2a`). Det som var
+feil var påstanden om at koden ikke gjorde det allerede.
+
+**Det ekte hullet, funnet i samme runde:** rad-skrivende timer-mutasjoner var ugatet.
+`krevTimerAktivert` sto kun tre steder i `dagsseddel.ts` av ~tolv skrivende prosedyrer, så en
+sedel opprettet mens Timer var på kunne få nye rader etter at Timer ble slått av. Lukket i
+`8f7ada26` — nye rader stoppes, arbeid i gang låses aldri.
+
+**Kenneths symptom er dermed IKKE forklart av serversiden.** Mest sannsynlig hypotese
+(kontrollplan, ikke bekreftet): `OrganizationModule`-raden var faktisk aktiv mens
+`/dashbord/firma/moduler` viste «Aktiver» — altså et **flate-problem** som hører til steg 3.
+
+**En modul som ikke er kjøpt skal ikke kunne slås på per prosjekt heller.** Firmanivået er
+taket; prosjektnivået er bryteren under taket.
+
+**Belegg fra felt (Kenneth 2026-08-31):** Timer sto som «Aktiver» (altså av) i firmamoduler,
+mens han samtidig registrerte timer på telefonen og innstillingssiden viste tilgangsvalg for
+tre moduler som ikke var på. Tre flater, tre ulike svar på om modulen finnes.
+
+### 🔴 Fella som må måles FØR dette bygges
+
+`TimerSyncProvider.tsx:104-108` henter **maskinkatalogen i samme `Promise.all` som
+timer-katalogen**. Det virker i dag kun fordi `equipment.list` **ikke** er modul-gatet.
+
+**Legger noen `krevMaskinAktivert` på den prosedyren, feiler hele timer-synken på mobil for
+et firma som har Timer uten Maskin.** Det er den eneste målte veien der «maskin mangler»
+faktisk kan velte timer, og den er én linje unna.
+
+Gating skal derfor skje **i UI-laget mot modultilstand**, ikke ved å gate katalog-prosedyrene
+serverside. Katalogen kan gjerne svare tomt — det er visningen som skal la være å spørre.
+
+## 🔴 BINDENDE VEDTAK: å avslutte et prosjekt er å FRYSE det, ikke å slette noe (Kenneth 2026-08-30)
+
+> **Kenneth 2026-08-30:** *«Hvordan kan vi avslutte et prosjekt når oppgaver ikke kan slettes?
+> Vi må ha en løsning for å avslutte et prosjekt!»*
+
+**Spørsmålet var feil stilt, og det er en god nyhet:** avslutning skal ikke kreve at noe
+slettes. Sjekklistene fra et ferdig byggeprosjekt er nettopp det kunden skal beholde — de
+**er** produktet. Det som mangler er ikke sletting, det er **frysing**.
+
+### 🔴 Målt 2026-08-30: `Project.status` håndhever ingenting
+
+| Lag | Tilstand |
+|---|---|
+| DB | `Project.status String @default("active")` (`schema.prisma:584`) |
+| API godtar | `active` · `archived` · `completed` · `deactivated` (`prosjekt.ts:606`) |
+| API **håndhever** | **ingenting** — ingen skrivevei leser `Project.status` |
+| UI lover | *«Prosjektet er arkivert og skrivebeskyttet»* (`nb.json:2218`) |
+
+**Negativ kontroll kjørt:** `tilgangskontroll.ts` leser `OrganizationMember.status` (ansatt),
+aldri `Project.status`. Ordet «skrivebeskytt»/`readOnly` finnes ikke i `apps/api`. Ingen
+`select` av prosjektstatus i skriveveiene.
+
+🔴 **Dette er en løftebrist mot kunden, ikke bare en manglende funksjon.** Velger man
+«Arkivert» i dag skjer ingenting: dokumenter kan fortsatt endres, sendes og opprettes.
+Det er samme form som «en kommentar som lover mer enn koden holder», men på en flate kunden
+leser.
+
+### Konsekvensen: frysing løser tre saker med ett grep
+
+Gjøres `archived` til en ekte skrivevakt i serverlaget, faller to beslektede spørsmål bort:
+
+1. **Ledd-vernet** (`dokumentflyt.fjernMedlem:370`) blokkerer fjerning av et flytmedlem så
+   lenge flyten har aktive dokumenter. I et **arkivert** prosjekt skal ingenting bevege seg,
+   så ingen trenger å fjernes. Problemet forsvinner der det gjorde mest vondt.
+2. **Sletting av flyt med lukkede dokumenter** — Kenneth var eksplisitt usikker. Med frysing
+   trenger spørsmålet ikke avgjøres: lukkede dokumenter i et arkivert prosjekt er urørlige
+   uansett, og flyten kan stå som historikk uten å være i veien.
+
+### Om ledd-vernet i et AKTIVT prosjekt (Kenneth 2026-08-30)
+
+> *«Fjerning av medlemmet skader ikke dokumentet som er laget — jeg mener det er feil
+> beslutning.»*
+
+**Han har rett, med én presisering.** Innholdet i et opprettet dokument er skrevet og
+uberørt. Det fjerning *kan* skade er et **åpent** dokuments evne til å finne neste mottaker,
+siden `nesteLedd` (`flytPosisjon.ts:172`) regnes ut fra levende `DokumentflytMedlem`-rader.
+
+Vernet sikter altså på noe ekte, men **treffer for bredt**: det blokkerer også når medlemmet
+ikke er alene i leddet, og når dokumentene er lukket. Riktig avgrensning er «dette leddet
+ville blitt tomt, og det finnes åpne dokumenter i det» — ikke «flyten har dokumenter».
+⚠️ Dette **reviderer**, men reverserer ikke, ledd-vernet Kenneth bestilte 2026-08-22; formålet
+består, treffbildet snevres.
+
+### Faggruppe-medlemskap er mange-til-mange (målt 2026-08-30)
+
+`FaggruppeKobling` har `@@unique([projectMemberId, faggruppeId])` (`schema.prisma:665`) — en
+sammensatt unik, som er nettopp det som gjør koblingen mange-til-mange.
+
+🔴 **Derfor kan «kontaktgruppe» aldri være det samme som faggruppe.** Spørsmålet «hvilken
+faggruppe tilhører denne kontakten» har ikke ett svar, og skal ikke stilles.
+Kenneth 2026-08-30: *«samme kontakt kan være medlem av flere faggrupper, det gjør at en
+kontaktgruppe og en faggruppe ikke kan være det samme.»*
+
+**Konsekvens for opprettelse fra en flytboks (Kenneth-vedtak 2026-08-30):**
+`Dokumentflyt.faggruppeId` (`schema.prisma:1366`) bærer konteksten, og en kontakt opprettet
+derfra skal **arve faggruppen stille — ikke vise hele hierarkiet**.
+
+Kenneth valgte den lette modalen framfor den fulle: står du i en flytboks, er faggruppe, flyt
+og rolle allerede bestemt av konteksten, og å be brukeren bekrefte dem er å spørre om noe
+systemet vet. Skjemaet forblir navn/e-post/telefon; koblingen skjer i bakgrunnen.
+
+🔴 **Arv er ikke låsing.** Medlemskapet er mange-til-mange, så kontakten kan senere legges i
+flere faggrupper fra kontaktsiden. Den stille arven setter den **første** tilknytningen, den
+definerer den ikke.
+
+⚠️ **Cowork foreslo først full modal med synlig forhåndsvalg; det ble avvist.** Rett ikke
+tilbake uten å lese dette avsnittet.
+
+🔴 **`Dokumentflyt.faggruppeId` er nullbar med vilje, ikke ved slurv.** `modul.ts:55-56`
+oppretter HMS-flyten som `{ projectId, name: "HMS" }` uten faggruppe når HMS-modulen slås på —
+HMS er tverrgående, ikke en part. Målt på test 2026-08-30: begge faggruppe-løse flyter heter
+«HMS». **Sett aldri feltet `NOT NULL`** — det ville stoppet HMS-modulen. En flytboks uten
+faggruppe må derfor spørre, ikke anta.
+
 ## 🟢 STYRENDE: oppgave og sjekkliste er grunnleggende like — to forskjeller (Kenneth 2026-08-19)
 
 > *«Oppgave og sjekkliste skal være grunnleggende lik. Forskjell: sjekkliste kan slettes →
@@ -297,6 +473,43 @@ skrive om historikken.
 (begge `draft` || `closed` etter H6-revisjonen; var begge `draft` || `cancelled` før). Sjekkliste
 kan altså IKKE slettes i alle statuser — den påstanden var doc-drift. Prinsippet over (endringslogg
 kontra kommentar som sikkerhetsnett) står som design-rasjonale, men slette-mekanikken er lik i dag.
+
+### 🔴 TREDJE FORSKJELL, tilkommet 2026-08-29: oppgaven er append-only etter sending
+
+Seksjonen over sier «to forskjeller». Det er ikke lenger sant — **Vedtak B (2026-08-29) innførte
+den tredje, og den er den største.** Ført her 2026-09-01 etter måling.
+
+| | Sjekkliste | Oppgave |
+|---|---|---|
+| **Redigering etter sending** | **Fritt** — ingen append-only-vakt | 🔴 **Låst.** Et felt som har en verdi kan ikke endres. Tomme felt kan fylles av den som har ballen |
+
+**Fire vakter håndhever det i `apps/api/src/routes/oppgave.ts`** (målt 2026-09-01):
+metadata `:680` · feltverdier `:741` · oversettelse/manuell overstyring `:951` · og
+`beregnLaasteFelter` som klient-speiling (best-effort UI, ikke håndhevelsen).
+
+**Kommentar og vedlegg slipper alltid gjennom** — de ligger i samme feltobjekt, og uendret
+`verdi` treffer ikke vakten. Det er hele poenget: *det som ikke kan rettes, må kunne utfylles.*
+
+🔴 **Ett unntak, Kenneth-vedtak samme dag:** `subject` (emne) kan rettes etter sending
+(`:674-679`) — det er en merkelapp for gjenfinning, ikke dokumentasjon av utført arbeid.
+Endringsloggen viser hvem som gjorde det.
+
+### 🔴 To utbredte misforståelser — begge målt som feil
+
+Begge har vært uttalt av Kenneth etter at koden sa noe annet. De står her fordi de kommer tilbake.
+
+| Påstand | Målt tilstand |
+|---|---|
+| «Sjekklister slettes av **administrator**, oppgaver kan ikke slettes» | **Slettereglene er identiske.** Begge: `draft` \|\| `closed`. Alt annet må **Lukkes** først, og **Lukk er KUN admin** — så «kun admin kan slette» gjelder *begge*, ikke bare sjekklister |
+| «Sendte oppgaver kan **ikke** slettes» | En sendt oppgave må **lukkes** først; en `closed` oppgave **kan** slettes (`oppgave.ts:1941`, Lukk-som-slette-port 2026-08-21). Deretter papirkurv med 90-dagers angrefrist |
+
+🔴 **Konsekvens for brukervendt tekst:** all onboarding, hjelpetekst og mikrotekst som forklarer
+forskjellen på sjekkliste og oppgave skal hente fra denne seksjonen — ikke fra hukommelse.
+Den ekte forskjellen å lære bort er **append-only**, ikke sletting.
+
+**Kenneth 2026-09-01 om hensikten, som er riktig og skal formidles:** *«Oppgaver er ment til
+mindre og konkrete registreringer/oppgaver/arbeidsordre.»* Sjekklisten dokumenterer en kontroll
+som er utført; oppgaven bestiller et stykke arbeid og bærer svaret tilbake.
 
 ## Arbeidsflyt — Leder/Prosjektleder
 

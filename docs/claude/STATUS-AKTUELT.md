@@ -13,18 +13,77 @@ Neste økter startes ferskt — se køen under.
 i prod. Nå står kun det som faktisk er åpent. Åpne gater ingen tok, og arbeid som aldri ble
 startet, er høstet ut i egen seksjon under «Pågående arbeid».
 
-| Agent | Worktree | Tilstand | Neste ordre |
-|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | Levert `feat/flytboks-stegvisning` + `feat/prosjektoppsett-veileder` (`214bae7f`). Dev-server stoppet. Env symlinket fra hovedtreet | rename `IKKE_I_PAPIRKURV` → `inbox-malklikk-eksporter.md` → `inbox-kolonnevelger.md` + `inbox-tabellbredder.md` (sammen) |
-| **simulator** | `SiteDoc-simulator` | Avsluttet, tre rent på `origin/develop`. **Tunnel 3301 oppe, Hermes-artefakt ekstraktert** → neste Release-bygg koster ett forsøk | Ingen. Neste mobil-runde |
-| **kontrollplan** | `SiteDoc-kontrollplan` | Levert fire brancher 29.08, alle merget. Ledig | Ingen ny ordre |
-| **fabel** | — | Leverte to designnotater + samlet ordre 29.08 (kopiert inn, committet). Usendt fra cowork: `relay/fabel-nav-gating-modellen.md` · `relay/fabel-eksport-arkivering.md` | Kenneth relayer |
+🔴 **Sporfordeling (Kenneth-vedtak 2026-08-31, [SAMARBEIDSREGLER § Arbeidsform](SAMARBEIDSREGLER.md)):**
+**kontrollplan = PLAN-sporet** (masterplanens neste punkt, røres ikke av feltfunn) ·
+**dokgen = FUNN-sporet** (feltfunn, ellers BACKLOG) · **simulator = måling og røykliste**.
+Kun 🔴-blokkerere avbryter plan-sporet.
+
+| Agent | Spor | Worktree | Tilstand | Neste ordre |
+|---|---|---|---|---|
+| **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
+| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | Ledig. Neste plan-punkt ikke valgt — kandidater: masterplan pkt 2 (REG fase 3) eller `timer-gps-prosjekt-utredning` (reisetid, A.Markussen-frist september) |
+| **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | Fem merget 01.09, sist `d394bdde` (kolonnevelger + tabellbredder) | **`relay/inbox-timerrapport-flate.md`** — branch `feat/timerrapport-flate`. Fem funn fra Kenneths gate: velger nåbar fra tabellen · innholdsbevisste bredder · maskinlinje slås sammen når `utleieEnhet="time"` · disabled-knapper uten forklaring · «Eksporter uten å lagre» |
+| **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
+| **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
+
+### 📋 Feltfunn-liste (B — funn samles, blir ikke ordrer på minuttet)
+
+Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
+Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+| Funn | Alvorlighet | Status |
+|---|---|---|
+| Tegningsminne mangler i repeater-raden (fem trykk mot ett) | 🟡 skjemmer | ✅ Merget 01.09 (`5b5f5442`). **Ikke i noe bygg** — verifiseres av røykliste flyt 3 (kostet 7 trykk sist) |
+| Endringslogg-støy i oppgave (rå `JSON.stringify` mot sjekklistens `likForDiff`) | 🟡 skjemmer | Ordre klar 01.09, funn-sporet |
+| «Lagre» dekkes av tastaturet i dagsseddel (røykliste flyt 9) | 🟡 skjemmer | Ikke ordre |
+| «Bekreft»/«Opprett» disabled uten forklaring (røykliste flyt 3, 6) | 🟡 skjemmer | Ikke ordre |
+| Ingen lenke mellom firmamoduler og prosjektmoduler | 🟡 skjemmer | ✅ Levert i steg 3 (`97d074b8`) — toveis lenke + grå-under-tak. Gates på test |
+| `as unknown as ProjectModuleRad[]` (`oppsett/produksjon/moduler/page.tsx:90`) | 🔵 notert | Fra før steg 3. Mønsteret SAMARBEIDSREGLER flagger — cast som skjuler manglende felt |
+| Fototilgang førstegang → app falt til hjemskjerm (én gang, ikke reprodusert) | 🔵 notert | Overvåkes i røyklisten |
+
+🔵 **DEPLOY-RYTME ENDRET (Kenneth 2026-08-29 kveld):** *«Det er ingen vits å deploye nå — vi
+kan utvikle mer fra masterplan først. Dette er små endringer som bare koster tid og er
+ineffektiv utvikling.»* Åtte test-deployer og to prod-releaser på én dag, flere for
+tofils-endringer. **Ny form: brancher merges til develop løpende** (så de ikke råtner — vi så
+i dag hva som skjer når 20 innslag blir stående), **men test-deploy skjer når det finnes et
+sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 
 ✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
 
-**Test: `12e34ceb`** — ett spor foran prod: ANSVARLIG-kolonnen (venter din gate).
+**Test: `345de5e3`** (deployet 2026-09-02 11:00, verifisert med `/version`). Nytt siden
+`d2b9d189`: **REG fase 3 — prosjekttilgang-evaluatoren** (`23a52504`) og **lokasjon-begrepsryddingen**
+(`81225a93` — paritetsregel, `location` avviklet fra palett+seeds, repeater arver tegning fra rad
+n−1). Migreringer: «No pending» på alle fire.
+
+🔴 **FEM ugatete runder på test nå.** Anbefalt rekkefølge (én handling gater to ting): opprett et
+prosjekt → tester **både** prosjekt-veiviserens tekst **og** at evaluatoren ikke slapp inn noen
+under default `manuell`. Sett så én ansatt til `alle` → nytt prosjekt → kun han med, som vanlig
+medlem. Deretter firma-veiviser, lokasjonsparitet og timer-rapporten.
+
+⚠️ **Foreldet linje under — gjaldt forrige deploy:**
+
+**Test: `d2b9d189`** (deployet 2026-09-02 00:09, verifisert med `/version`). Nytt siden `7b413263`:
+**firma-veiviser** + **prosjekt-oppsettveiviser** (masterplanens punkt 1, begge ugatet) og **fem
+timer-rapport-funn** fra Kenneths gate (velger i filterraden · innholdsbevisste bredder ·
+maskinlinje foldet når `utleieEnhet="time"` · disabled-knapper forklart · «Last ned PDF»).
+Migreringer: «No pending» på alle fire.
+
+⚠️ **Foreldet linje under — gjaldt forrige deploy, beholdt til gaten er kjørt:**
+
+**Test: `7b413263`** (deployet 2026-09-01 21:19, verifisert med `/version`). Migreringer:
+«No pending» på alle fire pakker — settet har ingen schema-endringer (`db-timer/schema.prisma`
+ble kun kommentert om til v3).
+
+**Foran prod, web-synlig:** ANSVARLIG-kolonnen · modulhierarki steg 3 (✅ **gatet av Kenneth
+18:30** — familieskillet holder) · endringslogg-speiling i oppgave (⚠️ **ugatet** — loggen vises
+ikke i oppgavens UI, kun i arkiv-PDF, se BACKLOG) · **kolonnevelger + tabellbredder** (⚠️ venter
+gate).
+
+**Foran prod, kun mobil — når EAS-bygg fyres:** tegningsminne i repeater-raden · «Hele
+prosjektet»-utvei i byggeplass-chip · modulgating av Timer-flatene. Fire mobil-endringer
+uverifisert på enhet; røyklisten kjøres før bygget.
 
 **Ellers står test og prod på samme innhold.** Alt som lå her som «på test» er live:
 registreringsmodell fase 1 (ansatt-status-guard i 11 porter), ansattvelger, fundament ut
@@ -220,12 +279,22 @@ Denne tavla er sannheten; statusfilene oppdateres av agentene selv og drifter.
 
 > Ordre 1 ([SAMARBEIDSREGLER § Cowork leveranse-ansvar](SAMARBEIDSREGLER.md#cowork-leveranse-ansvar-ordre-2026-07-14)): cowork sporer EAS-bygg her. Ved **12 bygg/mnd** → stopp + sjekk klar-tilstand + flagg i status før nytt bygg fyres. Dato/# bekreftes mot `eas build:list`.
 
-**August 2026 — 2 bygg brukt (av ~15), ~13 igjen. Reset 1. sep.**
+🔴 **DENNE TABELLEN ER FJERNET 2026-08-31 — den var et duplikat som drev.**
 
-| # | Dato | Commit | Profil | Formål |
-|---|------|--------|--------|--------|
-| 43 | 2026-08-08 | `6d9a7c9` | production | HMS 5a+5b + utlegg U1. **Bygget OK, men aldri sluppet til testere** — holdt tilbake da Kenneth utsatte for å få mer med i 44. Ingen «What to Test», ingen export compliance besvart |
-| 44 | 2026-08-09 | `2240f9f6` | production | **Bunt 44 → TestFlight.** HMS melder-flyt + tegnings-navigasjon + maskin ved redigering + seks katalog-cacher + åtte mobil-småfunn |
+**Kanonisk byggteller: [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).**
+Ikke før tall her; les dem der, og les dem der fra `eas build:list`.
+
+**Hva som skjedde:** tavla førte kun `production`-byggene og sa «2 brukt, ~13 igjen» for
+august. Veilederen var **allerede rettet 28.08** til «12 bygg, 11 tellende, ~4 igjen» — men
+cowork leste bare tavla, korrigerte den mot `eas build:list`, og kom til ~3 igjen fordi det
+errorede bygget 17.08 ble regnet som brukt. Veilederen visste at det var en CocoaPods 429 fra
+EAS-infra som eksplisitt *«does not count towards usage»*.
+
+**To registre for samme tall, og begge tok feil på hver sin måte.** Kenneth 2026-08-30:
+*«vi kan aldri duplisere hverken UI eller kode»* — det gjelder tellere også. Tavla peker nå,
+og teller ikke.
+
+**Status 2026-08-31: 12 bygg, 11 tellende, ~4 igjen. Reset 1. september.**
 
 **Lærdom 43→44:** to mislykkede fyringsforsøk på 43 brente **null kvote** — begge feilet under credential-validering før byggestart. Første: `~/.zshrc:17` manglet linjeskift mellom to `export`-linjer → `Invalid Apple Team Type: INDIVIDUALexport`. Andre: Apple 403 «This provider does not exist» da de nå korrekt parsede `EXPO_APPLE_*`-variablene ble sendt i stedet for EAS' lagrede credentials. Kvote telles først når bygget faktisk starter.
 
@@ -375,6 +444,126 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
+
+### 🔴 PROD-FELLE lukket 31.08 (`73b30e71`) — tegningsposisjon-modalen kunne ikke lukkes
+
+**Kenneth i felt på TestFlight-bygg 46 (`5605775d`):** *«eneste måten å komme ut av tegning →
+avslutte og restarte appen»*. Rammet alle som åpnet et `drawing_position`-felt i en repeater
+på iPhone med Dynamic Island — A.Markussen i produksjon.
+
+**Mekanismen, målt på simulator (iPhone 16 Plus / iOS 18.4):** `useSafeAreaInsets()` gir
+korrekt `top=59` inne i `<Modal presentationStyle="fullScreen">`, men `<SafeAreaView>`
+anvender **0** padding der. Headeren rendret på y≈32–54, inne i det 59 px høye island-båndet.
+`idb ui tap` på X-en ×3 lukket ikke; tap rett under båndet traff umiddelbart. Både «Lukk» og
+«Bekreft» var utenfor rekkevidde.
+
+🔴 **Cowork gjettet på tre mekanismer — alle tre var feil** (manglende provider · kontekst
+krysser ikke modalen · insets er null). Målingen fant den fjerde. En fiks skrevet på
+hypotesene ville bommet; runden var verdt kostnaden.
+
+**Levert (`73b30e71`):** «Lukk» i bunnlinjen (utgang uavhengig av insets) · indre X lukker nå
+hele modalen · `SafeAreaView` byttet mot `View` + `useSafeAreaInsets()`-padding ·
+prod-debug-linjen `Bilde: WxH | Zoom: Nx` fjernet fra WebView-en · sju filer rettet fra
+React Natives innebygde `SafeAreaView` til context-varianten.
+
+**Datatap målt, ikke antatt:** en påbegynt repeater-rad **overlever** app-drap (autolagring
+til SQLite, 2 s debounce i `useSjekklisteSkjema.ts:405-410`). Tapt går kun de siste ≤2
+sekundene og et ubekreftet modalvalg. Ingen save-on-background finnes.
+
+⚠️ **Cowork-gaten sendte første leveranse tilbake.** `dace662f` fjernet fella, men lot
+«Bekreft» ligge i det døde båndet — brukeren kom seg ut, men kunne fortsatt ikke sette en
+posisjon, som var Kenneths opprinnelige klage. Inset-fiksen kom i `20df827f`.
+
+### 🔴 REGRESJON i samme bygg (47) — vi ødela fire skjermer mens vi fikset én
+
+Kenneth testet bygg 47 og bekreftet at tegningsposisjonen virker: *«de nye plassene knappene
+har fått i fiksen fungerer svært bra»*. **Men tekstfelt-modalen var nå ødelagt** — «Ferdig»
+under Dynamic Island, vinduet låst.
+
+**Årsak, målt:** importbyttet erstattet React Natives innebygde `SafeAreaView` med
+context-varianten i sju filer. **Fire av dem er fullScreen-modaler**, der context-varianten
+anvender 0 padding: `TekstfeltObjekt` · `InfoBildeObjekt` · `FeltDokumentasjon` ·
+`OpprettDokumentModal`. De virket i bygg 46.
+
+🔴 **Rotårsaken er coworks rekkefølge, ikke koden.** Importbyttet ble bestilt i **samme runde**
+som fella — før simulator-målingen forelå. Ordren sa «mål hver fil»; det som ikke var målt
+ennå var at komponenten svikter i en hel modal-klasse. **Mål først, bestill så** gjelder også
+når endringen ser triviell ut.
+
+**Kartlagt 2026-08-31:** 9 fullScreen-modaler rammet (4 av oss, 5 fra før) · 15 pageSheet
+umålt · 1 fikset. 🔴 **`<Modal>` uten `presentationStyle` ER fullScreen på iOS** — derfor er
+`TekstfeltObjekt.tsx:46` rammet uten å se sånn ut.
+
+**Systemfiks bestilt** (Kenneth: *«ikke lapp sammen — lag en løsning som fungerer over alle
+flater»*): delt `ModalFlate`-komponent + `no-restricted-imports`-lint som forbyr
+`SafeAreaView` i `apps/mobile`. `relay/inbox-modalflate-systemfiks.md`.
+pageSheet måles parallelt før de røres — `relay/inbox-simulator-pagesheet.md`.
+
+### 🟢 TEST-DEPLOY 30.08 (`24bccbba`) — fire runder + REG fase 2-migreringen
+
+Stempel verifisert: `curl https://api-test.sitedoc.no/version` → `24bccbba`. Migrering
+`20260830120000_registrering_fase2_prosjekttilgang` applied på `sitedoc_test`; de tre andre
+db-pakkene svarte «No pending».
+
+🔴 **Migreringen ble nesten glemt — tredje gang samme feilklasse på tre dager.**
+`deploy-test.sh` skrev ut `up -d --build` **uten migrate-steget**. Blokken er raskere å lime
+enn den fulle sekvensen og fungerer ni av ti ganger, fordi det som regel ikke er noen
+migrering. Denne gangen kjørte test ny kode mot gammelt skjema i noen minutter —
+`organisasjon.hentMedlemmer` velger `prosjektTilgang`, som ikke fantes i `sitedoc_test`.
+
+Tre kilder, samme feil, tre dager: `deploy-prod.sh` hadde migrate utkommentert (rettet
+29.08) · `deploy-detaljer.md` sa «droppes når diffen ikke har migrering» (rettet 30.08) ·
+`deploy-test.sh` skrev ut en blokk uten den (rettet 30.08). **Skriptet er kilden Kenneth
+faktisk limer fra** — det skriver nå ut STEG 1 bygg → STEG 2 migrer (alle fire, med
+`sitedoc_test`-gate) → STEG 3 start. Utskriften er verifisert byte-identisk med kommandoen
+som virket.
+
+### 🟢 Fire brancher merget til develop 30.08 — deployet til test (se over)
+
+Merget i rekkefølge, alle disjunkte (verifisert med `merge-base`-diff, ingen delte filer):
+
+| Branch | Hash | Merge | Innhold |
+|---|---|---|---|
+| `fix/emne-alltid-redigerbart` | `f074f903` | `7b1a87c8` | Emne redigerbart etter sending på oppgave |
+| `fix/emne-sjekkliste` | `c18c01a5` | `14d8fcc7` | Samme regel på sjekkliste — Kenneth: *«øyeblikksbilde vs. levende dokument, det er jo det samme»* |
+| `feat/reg-fase2` | `578e2b67` | `355c200c` | REG fase 2: `prosjektTilgang` per ansatt + `prosjektTilgangDefault` firmadefault |
+| `fix/o12-eier-firma-lesevisning` | `0101bd25` | `964fdbfd` | **O12 — UI-duplikatet lukket.** `oppsett/firma` er ren lesevisning; Kenneth gatet i nettleser |
+| `fix/faggruppe-slettevakt` | `fc817801` | `661682c5` | Faggruppe-sletting teller nå medlemmer + flyter. **Merget ETTER test-deployen `24bccbba`** — ikke på test |
+
+**O12 i klartekst:** vedtaket ble tatt 2026-05-03 (`navigasjon-arkitektur-analyse`, linje 92)
+og **halvveis utført samme dag** — renamet gjort, redigeringen stående. I fire måneder skrev
+`oppsett/firma` og `firma/innstillinger` **samme rad med samme mutasjon**
+(`organisasjon.oppdater`), der prosjektsiden manglet validering, i18n og en fungerende
+gating på Rediger-knappen. Kenneth 30.08: *«vi kan aldri duplisere hverken UI eller kode.»*
+Fila gikk 180 → 113 linjer; `organisasjon.oppdater` har 0 treff der nå.
+
+🔴 **Cowork-gaten sendte den tilbake én gang, og det var riktig:** første leveranse hadde
+`const harFirmaTilgang = !!organisasjon || erSitedocAdmin` **etter** den tidlige returen på
+`!organisasjon` — altså konstant `true`. Oppførselen var riktig, konstruksjonen løy. Å levere
+en falsk gate i nettopp den runden som ryddet et halvutført vedtak ville vært samme feil i ny
+form. Nå er gaten den tidlige returen, og kommentaren sier det.
+
+✅ **Faggruppe-duplikatet fra samme mai-analyse (linje 60–61) er allerede ryddet** — målt
+30.08, `/dashbord/prosjekter/[id]/faggrupper` finnes ikke. Radene er merket i analysen.
+`oppsett/firma` var dermed det eneste bekreftede UI-duplikatet vi hadde.
+
+🔴 **REG fase 2 inneholder en migrering** (`20260830120000_registrering_fase2_prosjekttilgang`)
+— ren additiv, `ADD COLUMN` på `organization_members` + `organization_settings`, ingen DROP,
+ingen backfill. **Kjørt KUN lokalt.** Test og prod har den ikke. Neste deploy må kjøre
+`migrate deploy` for alle fire db-pakker.
+
+`modulNokler` ble tatt ut av fase 2 før commit — se [BACKLOG § 2 Modulmodellen](BACKLOG.md)
+og [modulmodell-utredning-2026-08-30.md](modulmodell-utredning-2026-08-30.md).
+
+**Cowork-gate på reg-fase2 (målt, ikke lest av rapport):** `modulNokler` har null levende
+referanser i kode/schema/migrering/15 språkfiler · begge mutasjoner er `verifiserFirmaAdmin`-
+gatet · `prosjektTilgang` evalueres ingen steder (fase 2-kravet holder) · alle 15 i18n-filer
+har 14 forekomster, ingen henger etter.
+
+**Falsk alarm som ble målt bort:** `git diff develop..branch` viste at alle tre «fjernet»
+tavle-radene og DEPLOY-RYTME-blokken. Mot egen merge-base rørte alle tre **null** linjer i
+`STATUS-AKTUELT.md` — de var bare bak på fila. 🔴 **`git diff develop..branch` svarer ikke på
+«hva endret branchen».** Det gjør `git diff $(git merge-base develop branch)..branch`.
 
 ### 🟢 Oppgave-datalås + repeater ut av oppgavemaler (MERGET develop `f61eb64b`) — PÅ TEST, GATET 3/3
 

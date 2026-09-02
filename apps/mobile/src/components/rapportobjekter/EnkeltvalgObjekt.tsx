@@ -1,4 +1,6 @@
 import { View, Text, Pressable } from "react-native";
+import { useTranslation } from "react-i18next";
+import { oversettStandardtekst } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
 // Normaliser opsjon — støtter både string og {value, label}-format
@@ -14,9 +16,12 @@ function normaliserOpsjon(opsjon: unknown): { value: string; label: string } {
 }
 
 export function EnkeltvalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const råOpsjoner = (objekt.config.options as unknown[]) ?? [];
   const alternativer = råOpsjoner.map(normaliserOpsjon);
   const valgtVerdi = typeof verdi === "string" ? verdi : null;
+  // Seedet standard-opsjon → oversett; firmaets egen streng → rå
+  const visLabel = (s: string) => oversettStandardtekst(s, t) ?? s;
 
   return (
     <View className="gap-2">
@@ -38,7 +43,7 @@ export function EnkeltvalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rap
             >
               {erValgt && <View className="h-2 w-2 rounded-full bg-white" />}
             </View>
-            <Text className="text-sm text-gray-900">{alt.label}</Text>
+            <Text className="text-sm text-gray-900">{visLabel(alt.label)}</Text>
           </Pressable>
         );
       })}

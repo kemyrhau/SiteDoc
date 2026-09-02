@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
+import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
 import { beregnHarBallen } from "@sitedoc/shared";
 
 // --- Typer ---
@@ -196,76 +197,6 @@ function hentFeltVerdi(
   if (typeof verdi === "boolean") return verdi ? "Ja" : "Nei";
   if (Array.isArray(verdi)) return verdi.map(String).join(", ");
   return String(verdi);
-}
-
-// --- KolonneVelger ---
-
-function KolonneVelger({
-  apen, onLukk, aktive, onToggle, verdiFelter,
-}: {
-  apen: boolean; onLukk: () => void; aktive: Set<string>; onToggle: (id: string) => void; verdiFelter: KolonneParam[];
-}) {
-  const { t } = useTranslation();
-  const [sok, setSok] = useState("");
-  const [apneGrupper, setApneGrupper] = useState<Set<string>>(new Set(["kolonner", "posisjon", "verdier"]));
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleKlikk(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onLukk();
-    }
-    if (apen) document.addEventListener("mousedown", handleKlikk);
-    return () => document.removeEventListener("mousedown", handleKlikk);
-  }, [apen, onLukk]);
-
-  if (!apen) return null;
-
-  const hentNavn = (p: KolonneParam) => p.navnKey ? t(p.navnKey) : (p.navn ?? p.id);
-  const sokLower = sok.toLowerCase();
-  const filtrer = (p: KolonneParam) => !sok || hentNavn(p).toLowerCase().includes(sokLower);
-  const grupper = [
-    { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => !k.fast).filter(filtrer) },
-    { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.filter(filtrer) },
-    { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.filter(filtrer) },
-  ].filter((g) => g.felter.length > 0);
-
-  const toggleGruppe = (id: string) => {
-    setApneGrupper((prev) => { const ny = new Set(prev); ny.has(id) ? ny.delete(id) : ny.add(id); return ny; });
-  };
-
-  return (
-    <div ref={ref} className="absolute left-0 top-full z-50 mt-1 w-[280px] rounded-lg border border-gray-200 bg-white shadow-xl">
-      <div className="p-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-          <input type="text" value={sok} onChange={(e) => setSok(e.target.value)} placeholder={t("sjekklister.sokPlaceholder")}
-            className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-xs focus:border-blue-500 focus:outline-none" autoFocus />
-        </div>
-      </div>
-      <div className="max-h-[400px] overflow-y-auto px-1 pb-2">
-        {grupper.map((gruppe) => (
-          <div key={gruppe.id}>
-            <button onClick={() => toggleGruppe(gruppe.id)}
-              className="flex w-full items-center gap-1 px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
-              {apneGrupper.has(gruppe.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              {gruppe.navn}
-            </button>
-            {apneGrupper.has(gruppe.id) && gruppe.felter.map((felt) => (
-              <label key={felt.id} className="flex cursor-pointer items-center gap-2 py-1 pl-6 pr-2 text-xs hover:bg-gray-50">
-                <input type="checkbox" checked={aktive.has(felt.id)} onChange={() => onToggle(felt.id)}
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600" />
-                <span className="truncate">{hentNavn(felt)}</span>
-              </label>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
-        <button onClick={() => onToggle("__reset__")} className="text-xs text-gray-500 hover:text-gray-700">{t("handling.nullstill")}</button>
-        <button onClick={onLukk} className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700">{t("handling.ok")}</button>
-      </div>
-    </div>
-  );
 }
 
 // --- Hovedkomponent ---
@@ -540,6 +471,16 @@ export default function SjekklisteSide() {
 
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
 
+  // Grupper for den delte kolonnevelgeren (faste kolonner utelates — de er alltid på).
+  const kolonneVelgerGrupper = useMemo<KolonneVelgerGruppe[]>(() => {
+    const oversett = (p: KolonneParam) => (p.navnKey ? t(p.navnKey) : (p.navn ?? p.id));
+    return [
+      { id: "kolonner", navn: t("kolonne.kolonner"), felter: SYSTEM_KOLONNER.filter((k) => !k.fast).map((k) => ({ id: k.id, navn: oversett(k) })) },
+      { id: "posisjon", navn: t("kolonne.posisjon"), felter: POSISJON_KOLONNER.map((k) => ({ id: k.id, navn: oversett(k) })) },
+      { id: "verdier", navn: t("kolonne.verdier"), felter: verdiFelter.map((k) => ({ id: k.id, navn: oversett(k) })) },
+    ].filter((g) => g.felter.length > 0);
+  }, [verdiFelter, t]);
+
   // Utled aktivt flyt-ledd for en rad (for filter/sortering)
   // Fase 4: aktiv boks fra posisjon (server-fakta), ikke recipient-heuristikk.
   const hentFlytLedd = useCallback(
@@ -798,8 +739,16 @@ export default function SjekklisteSide() {
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
               <Search className="h-3.5 w-3.5" /> {t("kolonne.velgParameter")}
             </button>
-            <KolonneVelger apen={visKolonneVelger} onLukk={() => setVisKolonneVelger(false)}
-              aktive={aktiveKolonner} onToggle={handleToggleKolonne} verdiFelter={verdiFelter} />
+            <KolonneVelger
+              apen={visKolonneVelger}
+              onLukk={() => setVisKolonneVelger(false)}
+              aktive={aktiveKolonner}
+              onToggle={handleToggleKolonne}
+              grupper={kolonneVelgerGrupper}
+              sokPlaceholder={t("sjekklister.sokPlaceholder")}
+              nullstillTekst={t("handling.nullstill")}
+              okTekst={t("handling.ok")}
+            />
           </div>
           {/* «Mine oppgaver»-toggle (Del 1d): kun dokumenter der jeg har ballen */}
           <button

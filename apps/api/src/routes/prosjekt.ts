@@ -12,6 +12,7 @@ import {
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
+import { provisjonerProsjektmedlemskap } from "../services/prosjektTilgangEvaluator";
 
 export const prosjektRouter = router({
   // Hent prosjekter der innlogget bruker er medlem — uavhengig av rolle.
@@ -212,7 +213,8 @@ export const prosjektRouter = router({
       const [
         dokumentflytAntall,
         brukergruppeAntall,
-        malKobletAntall,
+        sjekklisteMalAntall,
+        oppgaveMalAntall,
         lokasjonAntall,
         tegningAntall,
         prosjekt,
@@ -222,8 +224,14 @@ export const prosjektRouter = router({
         ctx.prisma.projectGroup.count({
           where: { projectId: input.projectId, category: "brukergrupper" },
         }),
+        // Maler-steget krever minst én sjekklistemal OG én oppgavemal koblet til flyt
+        // (Kenneth 2026-09-01). Typen bor på ReportTemplate.category — den bare
+        // `dokumentflytMal.count()` gamle predikatet skilte dem ikke.
         ctx.prisma.dokumentflytMal.count({
-          where: { dokumentflyt: { projectId: input.projectId } },
+          where: { dokumentflyt: { projectId: input.projectId }, template: { category: "sjekkliste" } },
+        }),
+        ctx.prisma.dokumentflytMal.count({
+          where: { dokumentflyt: { projectId: input.projectId }, template: { category: "oppgave" } },
         }),
         ctx.prisma.byggeplass.count({ where: { projectId: input.projectId } }),
         // Steg 4 «Lokasjoner + tegninger» krever en faktisk tegning, ikke bare en
@@ -264,7 +272,8 @@ export const prosjektRouter = router({
       return {
         harDokumentflyt: dokumentflytAntall > 0,
         harBrukergruppe: brukergruppeAntall > 0,
-        harMalKobletTilFlyt: malKobletAntall > 0,
+        harSjekklisteMalKoblet: sjekklisteMalAntall > 0,
+        harOppgaveMalKoblet: oppgaveMalAntall > 0,
         harLokasjon: lokasjonAntall > 0,
         harTegning: tegningAntall > 0,
         timerAktiv,
@@ -318,9 +327,10 @@ export const prosjektRouter = router({
         ? await hentAktiveFirmamoduler(valgtOrgId)
         : [];
 
-      // Strip organizationId fra input før spread til Project-data
-      // (det er ikke en kolonne på Project-modellen).
-      const { organizationId: _ignore, ...projectData } = input;
+      // Strip organizationId + medlemUserIds fra input før spread til Project-data
+      // (ingen av dem er kolonner på Project-modellen). medlemUserIds er fase 3-
+      // forhåndsvalg for prosjekttilgang-evaluatoren, ikke prosjektdata.
+      const { organizationId: _ignore, medlemUserIds, ...projectData } = input;
 
       return ctx.prisma.$transaction(async (tx) => {
         const prosjekt = await tx.project.create({
@@ -361,6 +371,16 @@ export const prosjektRouter = router({
         // B Kloss 2b: auto-legg firma-admins som prosjektadmin hvis firmaet
         // har slått på innstillingen. Dedup mot oppretteren (laget over).
         await autoLeggFirmaAdmins(tx, prosjekt.id, valgtOrgId);
+
+        // Registreringsmodell fase 3: provisjoner ansatte etter firmaets
+        // prosjekttilgang-regel (retning A). medlemUserIds = forhåndsvalg fra
+        // fremtidig avhukings-UI (ingen klient sender det ennå — se
+        // createProjectSchema); undefined → regelen alene bestemmer.
+        await provisjonerProsjektmedlemskap(tx, {
+          organizationId: valgtOrgId,
+          projectIds: [prosjekt.id],
+          kandidatUserIds: medlemUserIds,
+        });
 
         return prosjekt;
       });

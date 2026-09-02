@@ -24,6 +24,12 @@ vi.mock("@sitedoc/db", () => ({
     organizationMember: { findUnique: (...a: unknown[]) => findUnique(...a) },
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
     projectMember: { findUnique: (...a: unknown[]) => memberFindUnique(...a) },
+    // krevAktivAnsettelse (tilgangskontroll.ts, 2026-08-28) kjøres først i
+    // verifiserRetningsrett. Standalone (primaryOrganizationId=null) er valgt BEVISST her
+    // for å no-op-e gaten og isolere Lukk-guard-/retningsretts-logikken.
+    // ⚠️ Ansettelses-gaten selv (deaktivert ansatt → FORBIDDEN) er dermed IKKE dekket av
+    // denne fila — den fortjener egne tester (registreringsmodell fase 1, kan FRATA tilgang).
+    project: { findUnique: () => Promise.resolve({ primaryOrganizationId: null }) },
   },
 }));
 

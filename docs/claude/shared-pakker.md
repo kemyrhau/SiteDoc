@@ -56,6 +56,19 @@ To veier, begge riktige:
 - **Kirurgisk:** slett den ene nøkkelen fra de 13 målspråkene og kjør generatoren på nytt.
   Da fylles kun den, fra ny kilde.
 
+#### 🔴 `standardopsjon.*` er HÅNDKURATERT — ikke regenerer
+
+De 22 `standardopsjon.*`-nøklene (RUH-kategorier, alvorlighetsgrad, trafikklys-/status- og
+kontraktstermer) er oversatt med **bransjekontekst** (norsk → EU/ISO-begrep → landets etablerte
+HMS-/ISO-term), ikke via Google Translate. Maskinen ga ubrukelige treff her — «Nestenulykke» →
+polsk «Prawie panna» (= «nesten en frøken»). `pl`/`lt`/`sq` er faglig kuratert 2026-09-02; de ti
+øvrige gjenstår (se ordre `inbox-hms-terminologi-oversettelse.md`).
+
+🔴 **`generate.ts --force` vil OVERSKRIVE disse med maskinoversettelse igjen.** Kjør aldri `--force`
+uten å gjenopprette `standardopsjon.*` etterpå. Default-modus (uten `--force`) er trygg — den hopper
+over eksisterende nøkler. Ny standardopsjon-streng legges til i nb+en og oversettes **manuelt** per
+språk med samme begrunnelseskrav, ikke via generatoren.
+
 **Håndrediger aldri én målspråkfil for å «rette opp».** Da drifter den fra generatoren, og
 neste kjøring lar den stå fordi nøkkelen finnes.
 

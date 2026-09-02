@@ -2,10 +2,14 @@ import { Tabs } from "expo-router";
 import { Home, MapPin, FolderOpen, Menu, Layers, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useNyNavigasjon } from "../../src/hooks/useNyNavigasjon";
+import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 
 export default function TabsLayout() {
   const { t } = useTranslation();
   const nyNav = useNyNavigasjon();
+  // Firmatak-gate: er Timer deaktivert for firmaet, skal fanen ikke tilbys
+  // (fail-open — se useFirmamodulSkjult). Prosjektmodul-fanene er urørt.
+  const timerSkjult = useFirmamodulSkjult("timer");
 
   // Flagg PÅ: Hjem · Tegninger · Dokumenter · Timer · Mer.
   // Flagg AV: Hjem · Lokasjoner · Mapper · Mer (eksakt dagens UI).
@@ -64,7 +68,7 @@ export default function TabsLayout() {
         name="timer-oversikt"
         options={{
           title: t("nav.timer"),
-          href: nyNav ? undefined : null,
+          href: nyNav && !timerSkjult ? undefined : null,
           tabBarIcon: ({ color, size }) => <Clock size={size} color={color} />,
         }}
       />

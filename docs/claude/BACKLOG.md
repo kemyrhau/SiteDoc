@@ -117,6 +117,337 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 **Relatert — location-tvang-regelen (vedtatt 2026-08-19):** Kontekstkjeden nøkler bevisst på `type = "location"` (uten `parentId`/`conditionParentId`), IKKE `drawing_position`. Merk: regelen gir i dag **ingen** måte å ha et location-felt uten posisjons-tvang — legger man inn feltet, får man kravet. Dukker behovet for «location uten tvang» opp, er **`required`-flagget på location-objektet den naturlige bryteren** (i dag ignorert fordi location er en display-type).
 
+### 🟡 GPS-prioritert forvalg i `TegningPosisjonObjekt` — vurdert, ikke bygget (Kenneth-delt 2026-09-01)
+
+Da tegningsminnet ble koblet på repeater-flaten (`fix/tegningsminne-repeater`), ble kun ren minne-gjenbruk bygget. `OpprettDokumentModal:234-247` gjør mer: velger tegning fra **GPS-treff først** (`geoReference`-bounds via `erInnenforBounds`), og bruker minnet som tie-breaker blant treffene. **Vurdering (Opus, delt av Kenneth):** hører hjemme her også — en repeater-rad settes typisk i felt, der GPS er en sterkere «riktig tegning»-indikator enn sist brukt. **Men det er en egen endring** (permisjonsprompt + `geoReference`-bounds-sjekk), ikke noe som smugles inn i en minne-kobling. Egen ordre når det prioriteres.
+
+**Kjent asymmetri (samme som `OpprettDokumentModal`):** minnet **leses** med global aktiv byggeplass og **skrives** med tegningens egen `byggeplassId`. Konsekvens: et dokument på byggeplass B kan få forvalgt A sin siste tegning når A er aktiv i toppmenyen. Forvalg, ikke låsing — «Bytt tegning» redder det. Bevisst speiling av eksisterende flate framfor ny modell; noteres som kjent kant.
+
+### 🔴 Reiseavstand i km avgjør timelønn vs. reisetid — A.Markussen-krav med frist september 2026
+
+> **Kenneth 2026-09-01:** *«A.Markussen sa de har grense målt i km for om timer er inkludert som
+> timelønn eller registrert som reisetid mellom kontorsted og byggeplass. Dette er et tillegg som
+> vi trenger. Vi trenger det ikke nå, men i løpet av denne måneden.»*
+
+🔴 **PRESISERT SAMME DAG — grensen er TID, ikke avstand.**
+
+> **Kenneth 2026-09-01, kort etter:** *«Foreløpig bruker vi den som gjelder → reisetid beregnes
+> over 30 minutter kjøretid.»*
+
+**Kravet slik det gjelder i dag:** er **kjøretiden** mellom oppmøtested/kontorsted og byggeplass
+**over 30 minutter**, registreres tiden som **reisetid** (egen lønnsart). Under: **timelønn**.
+
+~~Første formulering (beholdt så ingen bygger den): «avstanden … sammenlignes med en firma-definert
+grense i km».~~ Km var Kenneths første ordlyd; den gjeldende regelen måler tid.
+
+🔴 **Konsekvensen er teknisk stor:** kjøretid kan **ikke** utledes av luftlinje. Den krever en
+rute-tjeneste (eller en avtalt km→minutt-omregning, som da må vedtas eksplisitt). Det gjør åpent
+spørsmål 1 under til det dyreste valget i saken, ikke et detaljspørsmål.
+
+🔴 **Dette er lønn.** Feil klassifisering gir feil utbetaling, og A.Markussen er piloten (50
+ansatte, frist ~sept 2026). Det er ikke en visningssak.
+
+**Hva som allerede finnes (ikke verifisert i dybden — mål før ordre skrives):**
+
+- `Oppmotested` er en egen firma-flate (`/dashbord/firma/oppmotesteder`).
+- Byggeplass kan ha koordinater fra georeferert tegning; GPS-identifisering finnes på mobil
+  (`ByggeplassKontekst.tsx` — `identifiserByggeplass`).
+- Lønnsart-katalogen er per firma med nivå 1/2 (41 rader hos SITEDOC MYRHAUG på test).
+
+**Åpne spørsmål som må avklares før bygging — ikke gjett på disse:**
+
+1. 🔴 **Hvor kommer kjøretiden fra?** Luftlinje duger ikke — regelen måler minutter. Alternativer:
+   ekstern rutetjeneste (nøyaktig, men ny avhengighet og kostnad), en vedtatt km→minutt-omregning
+   (billig, men en tilnærming noen må godkjenne som lønnsgrunnlag), eller at arbeideren oppgir
+   kjøretiden selv og systemet kun kontrollerer. **Dette valget styrer resten av designet.**
+2. Er grensen (30 min i dag) **én per firma**, eller per ansatt/avdeling/prosjekt? Og skal den
+   være redigerbar, eller er 30 min en konstant?
+3. Beregnes den **automatisk** ved registrering, eller velger arbeideren og systemet
+   kontrollerer? (Jf. det bindende vedtaket om at uoppfordret automatikk aldri overskriver en
+   menneskelig handling — [domene-arbeidsflyt.md](domene-arbeidsflyt.md).)
+4. Hva skjer når oppmøtestedet **mangler koordinater**? Reisetid kan ikke bli en stille default.
+5. Er «reisetid» en egen **lønnsart** i dagens katalog, eller må den opprettes?
+
+**Hører hjemme i** [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md) — den
+utredningen samler allerede timer + GPS + prosjekt-tilknytning og venter på en dedikert sesjon.
+Dette kravet gir den en frist og en konkret kunde.
+
+⚠️ **Ikke bland med `Utleieobjekt.utleieEnhet`.** Km ble først nevnt i maskin-sammenheng; det er
+en annen sak. Se [maskin.md](maskin.md) § faktureringsenheten.
+
+### 🟡 Mobilens rapportobjekter er hardkodet norsk — ~20 komponenter, null `t()` (målt 2026-09-02)
+
+**Målt:** `grep -c 't("'` over `apps/mobile/src/components/rapportobjekter/*.tsx` gir **0 for hver
+eneste fil** — `TegningPosisjonObjekt`, `DatoObjekt`, `EnkeltvalgObjekt`, `PersonObjekt`,
+`LokasjonObjekt`, `QuizObjekt` og resten. «Bekreft», «Marker posisjon», «Bytt tegning», «Lukk» er
+norsk i koden.
+
+**Det er feltarbeiderens hovedflate.** Alt utfylling av sjekklister og oppgaver på mobil skjer i
+disse komponentene.
+
+**Hvorfor det er en sak:** produktet har **14 brukervendte språkfiler** og ~2500 nøkler, og
+CLAUDE.md har en hard i18n-regel — men den er formulert for **web-appen**. Mobil har aldri vært
+dekket, og investeringen i 14 språk stopper derfor før den flaten som brukes mest i felt.
+
+**Funnet slik:** dokgen skulle legge en hint-tekst på en disabled knapp
+(`fix/deaktiverte-knapper`) og meldte at fila ikke hadde `t()` i det hele tatt. Han la hinten inn
+som hardkodet norsk for å matche filens konvensjon — **riktig valg**, ett ensomt `t()`-kall ville
+skjult problemet bak et tilsynelatende i18n-ført felt. Cowork målte etterpå at det gjaldt alle.
+
+🔴 **BESVART av Kenneth 2026-09-02: JA — A.Markussen har ansatte som ikke leser norsk.**
+
+**Saken er dermed 🔴 og pilotrelevant, ikke en ryddesak.** Piloten er ~september, 50 ansatte, og
+mobil er den viktigste flaten. En feltarbeider som ikke leser norsk møter «Bekreft», «Marker
+posisjon» og «Bytt tegning» på et språk han ikke kan — i den flaten han bruker mest.
+
+**Omfang hvis det bygges:** ~20 komponenter, nøkler i `nb.json` + `en.json`, så 13-språk-generate.
+Mekanisk, men bredt — og det bør tas i én runde, ikke drypp per fil.
+
+### 🔴 Våre seedede feltlabels er norske i alle språk — Kenneth-vedtak 2026-09-02: de SKAL oversettes
+
+**Symptom (målt på simulator, røykliste flyt 13, app satt til polsk):** feltet **«Dato og tid»**
+står på norsk. Det er ikke den eneste — alle seedede standardlabels gjør det.
+
+**Rotårsak (kontrollplan, målt 2026-09-02):** `FeltWrapper.tsx:95` rendrer `{objekt.label}` **rått**.
+Labelen er malfeltets **lagrede verdi**, seedet fra `RAPPORTOBJEKT_DEFINISJONER`
+(`packages/shared/src/types/index.ts:188`). Det er **data, ikke en streng** — `t()` kan ikke nå den.
+Feltlabels behandles i dag som **firmainnhold** og oversettes on-demand via Globe-knappen
+(`oversettelser`/`onOversett`), ikke via i18n.
+
+🔴 **Kenneth-vedtak 2026-09-02: JA — skillet skal gå mellom hvem som skrev labelen.**
+
+| Label | Eier | Skal |
+|---|---|---|
+| **Seedet av oss** («Dato og tid», «Beskrivelse», «Posisjon i tegning») | **produktet** | oversettes som resten av UI-et |
+| **Skrevet av firmaet** («Kum/sluk kontrollert») | **kunden** | forbli firmainnhold — Globe-knappen, aldri maskinoversatt av oss |
+
+**Begrunnelsen:** «Dato og tid» skrev ikke A.Markussen — det gjorde vi. Der er norsk *vårt* valg,
+ikke kundens.
+
+✅ **VEIEN ER VALGT — fabels designnotat 2026-09-02** (`designnotat-produkttekst-vs-firmainnhold-fabel-2026-09-02.md`).
+
+**Vei A: gjenkjenning ved rendering**, delt tabell i `@sitedoc/shared`. Operativ regel:
+
+> **En streng er produkttekst hvis og bare hvis den byte-for-byte er en streng vi selv har skipet**
+> (META, standard-opsjonssett, seed-defaults). Alt annet er firmainnhold — Globe-knappen, aldri
+> automatisk.
+
+**Tre grunner, alle målt i kode:**
+
+1. **Oversettelsene finnes alt** — `malbygger.datoOgTid` m.fl. ligger i alle 17 språkfiler
+   (palettens egne labels). Vei A trenger bare en mapping `type → eksisterende nøkkel`. **Null nye
+   strenger, null migrering.**
+2. 🔴 **«Falsk positiv» er ikke en svakhet — det er mekanismen.** Cowork innvendte at et firma kunne
+   skrive samme tekst ved et uhell. Fabel snudde det: den får da den *kuraterte menneskelige*
+   oversettelsen av akkurat den frasen, aldri maskinoversettelse. Og **redigerer firmaet labelen,
+   matcher den ikke lenger → firmainnhold igjen.** Likhetstesten løser altså vei B's vanskeligste
+   spørsmål av seg selv.
+3. **Problemet er bredere enn labels** — trafikklysets «Godkjent/Anmerkning/Avvik» seedes også som
+   data i `config.options`. Vei B måtte migrert dem; vei A dekker dem med samme regel.
+
+**Kostnaden:** standardstrengene blir **frosne**. Omdøpes én i META, må den gamle strengen stå som
+alias. Disiplin, ikke arkitektur.
+
+**Avgrenset ut i første omgang:** `seed-bibliotek.ts` og HMS-malene. De er «skrevet av oss», men er
+domeneinnhold firmaet adopterer og redigerer — nærmere kundens eierskap.
+
+**PDF:** forblir på **kildespråk**. Oversettelse er lesehjelp på skjerm, aldri lagret — konsistent
+med Globe-modellen, og hindrer at samme arkivdokument får språkavhengig innhold.
+⚠️ Flateparitet krever samme **informasjon**, ikke samme **språk**.
+
+**Blokkerer ikke EAS-bygget.** i18n-runden dekket alt som ER strenger; dette er den delen som er data.
+
+### 🔴 TIDSSONE følger PROSJEKTETS lokasjon, aldri telefonens — Kenneth-vedtak 2026-09-02
+
+> *«Alle prosjekter har en lokasjon. Hvis denne er satt for Tromsø → skal alle språk bruke
+> tidssonen til Tromsø.»*
+
+🔴 **Dette er lønn, ikke formatering.** En polsk arbeider i Tromsø som fører **07:00** mener
+07:00 norsk tid. Leser appen telefonens tidssone, blir timeføringen feil — og feil tid er feil
+utbetaling.
+
+**Skillet som må holdes fra hverandre:**
+
+| | Styres av | Eksempel |
+|---|---|---|
+| **Tidssone** — *hvilket øyeblikk* | 🔴 **prosjektets lokasjon** | 07:00 er alltid 07:00 på byggeplassen |
+| **Format** — *hvordan det skrives* | leserens språk (se saken under) | «15. jan.» vs «15 sty» |
+
+⚠️ **IKKE MÅLT: hva gjør koden i dag?** Cowork har ikke verifisert om timeregistreringen bruker
+enhetens tidssone eller prosjektets. **Det må måles før noe bygges** — og målingen er mer
+presserende enn resten av i18n-arbeidet, fordi konsekvensen er utbetaling og ikke lesbarhet.
+
+**Måles i:** `packages/db-timer` (lagres tid som UTC eller lokal?), mobilens dagsseddel-registrering
+(`fraTid`/`tilTid` er `String` HH:MM — hvilken sone tolkes de i?), og attestering/lønnseksport.
+
+**Henger sammen med** [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md) og
+reisetid-saken (30 min kjøretid) — begge handler om at prosjektets *sted* styrer hvordan tid
+regnes.
+
+### 🟡 Datoer vises på norsk uansett språkvalg — `toLocaleDateString("nb-NO")` hardkodet (2026-09-02)
+
+`DatoObjekt` og `DatoTidObjekt` på mobil formaterer med **hardkodet `"nb-NO"`**. En polsk eller
+litauisk arbeider som har byttet språk ser fortsatt «15. jan. 2026» med norske månedsnavn.
+
+**Ikke en `t()`-streng** — det er `Intl`-formatering. Å bytte til aktiv locale er en
+**atferdsendring**, og ble derfor holdt utenfor i18n-runden (`feat/mobil-i18n-rapportobjekter`,
+fence 1: ingen atferdsendring). Riktig avgrensning av kontrollplan; ført her så den ikke forsvinner.
+
+**Omfang:** små filer, men berører hvordan datoer *ser ut* i alle dokumenter — verdt en egen runde
+med en bevisst beslutning: skal datoformatet følge brukerens språk, firmaets land, eller alltid
+være norsk fordi dokumentene er norske myndighetsdokumenter? **Det siste er ikke utenkelig** og bør
+avgjøres av Kenneth før noen bygger.
+
+### 🟡 Legacy-vern for `location`-objektet — ryddes FØRST i D8/D9-malryddingen (2026-09-02)
+
+`location`-rapportobjektet ble avviklet fra **palett og seeds** 2026-09-02
+(`feat/lokasjon-begrepsrydding`, Kenneth-vedtak). Ingen nye objekter oppstår.
+
+🔴 **Men eksisterende maler har dem.** Målt mot lokal dev-DB: **9 objekter i 9 distinkte maler**
+(8 i topptekst/rot). Prod har trolig flere — hvert seedet prosjekt fikk ett per seedet mal, og det
+var fem seeds.
+
+**Derfor står følgende kode bevisst igjen, som legacy-vern:**
+
+| Sted | Hva den gjør |
+|---|---|
+| `apps/mobile/app/sjekkliste/[id].tsx` (`type === "location"` → `return null`) | holder legacy-objektet skjult |
+| `apps/mobile/.../RapportObjektRenderer.tsx` — `DISPLAY_TYPER`, `TILBEHOR_REN_FJERNING`, `KOMPONENT_MAP` | hindrer «Felttype location ikke støttet» |
+| `packages/shared/src/utils/feltLaasing.ts` | låselogikk |
+| `packages/pdf` — `felt.ts`, `radkort.ts` | defensiv no-op for historiske dokumenter |
+
+⚠️ **Fjernes disse før objektene er ute av malene**, rendres de ni som `UkjentObjekt` på hver
+aktive sjekkliste fra en legacy-mal. Det er en regresjon i felt, ikke en opprydding.
+
+**Rydding skjer i D8/D9-malryddingen** — da fjernes objektene fra malene, og først etterpå kan
+vernet gå. **Denne posten er koblingen** mellom de to rundene; uten den leser noen vernet som død
+kode og sletter det i god tro.
+
+*Funnet av kontrollplan 2026-09-02 ved måling mot ekte DB — coworks ordre listet vernet som noe
+som skulle fjernes, i strid med sin egen fence om at eksisterende maler skulle stå urørt.*
+
+### 🟡 Dokumentets lokasjon arves ikke ned i repeater-radene (P1, flagget 2026-09-02)
+
+Har en sjekkliste/oppgave lokasjon satt på **dokumentnivå** (`Checklist.drawingId`), foreslår
+repeater-radenes `drawing_position`-felt **ikke** den tegningen. Koden flagger det selv:
+`apps/mobile/src/components/rapportobjekter/TegningPosisjonObjekt.tsx:39-40` — *«krever en ny prop
+threadet fra detaljsiden»*.
+
+**Rangeringen slik den bør bli:**
+
+1. Dokumentets egen tegning → foreslås i radene. ⚠️ **Ikke bygget** (denne posten).
+2. Ellers, forrige repeater-rad → arves. ✅ Bygget i `feat/lokasjon-begrepsrydding` (Kenneth-vedtak
+   2026-09-02).
+3. Ellers, per-byggeplass-minne. ✅ Bygget `5b5f5442`.
+
+**Hvorfor den ble skilt ut:** Kenneths ordlyd gjaldt tilfellet der dokumentet *ikke* har lokasjon.
+P1 er betingelsen som utløser P2, ikke et eget steg han ba om — cowork ekstrapolerte, kontrollplan
+fanget det. P1 krever prop-threading fra mobilens detaljside ned i repeateren, en annen flate enn
+resten av runden.
+
+✅ **BEKREFTET av Kenneth 2026-09-02: ja.**
+
+> *«Ja. Men vi kan også hente tegningen fra n−1 for repeater n. Her er det litt smak og behag, og
+> egentlig ikke så nøye hvilken regel vi setter. Risikoen er at vi kan ha forskjellige tegninger i
+> repeateren — det kan være helt rett, for dersom rapporten trenger å benytte mer enn én tegning
+> for å beskrive forholdet.»*
+
+**De to reglene komponerer — de konkurrerer ikke:**
+
+- **Rad 1** har ingen `n−1` → arver fra **dokumentets** lokasjon (P1), ellers per-byggeplass-minnet.
+- **Rad n** arver fra **rad n−1** (P2).
+- Endrer noen tegning på rad 2, følger rad 3 og utover den nye.
+
+🔴 **Det harde kravet er ikke defaulten — det er at variasjon skal være lett.** Kenneth sier
+eksplisitt at ulike tegninger i samme repeater kan være riktig, fordi ett forhold kan kreve flere
+tegninger å beskrive. **Forvalg, aldri låsing.** «Bytt tegning» skal være en normal handling, ikke
+et unntak man må lete etter.
+
+**Konsekvens for bygging:** P2-propen (`arvetDrawingId`) skal holdes generisk — P1 mater samme prop
+for rad 1 når den bygges. Ingen egen mekanisme.
+
+### 🟡 Oppgavens endringslogg skrives, men vises ingen steder i app-flatene (målt 2026-09-01)
+
+**Første målte brudd på flateparitet-vedtaket** — se [retningslinjer/ui-standarder.md § Flateparitet](retningslinjer/ui-standarder.md).
+
+`oppgave.ts` skriver `taskChangeLog`-rader ved hver verdiendring når malen har `enableChangeLog`.
+**Ingen app-flate leser dem.** Målt med grep over `apps/web` og `apps/mobile`:
+
+| Flate | Sjekkliste | Oppgave |
+|---|---|---|
+| Web-detaljside | ✅ `sjekklister/[sjekklisteId]/page.tsx` | ❌ ingen render |
+| Mobil | ✅ `apps/mobile/app/sjekkliste/[id].tsx` | ❌ ingen render |
+| Arkiv-PDF | ✅ | ✅ `services/arkiv/logg-lesere.ts` |
+
+Radene dukker altså først opp når dokumentet eksporteres.
+
+> **Kenneth 2026-09-01:** *«ikke slik at vi viser noe tilfeldig her og der bare fordi vi ikke
+> klarer å kode dette rett.»*
+
+⚠️ **RETNINGEN ER SNUDD SAMME DAG — les den nye, ikke den gamle.**
+
+> **Kenneth 2026-09-01, etter å ha sett loggen på tre flater:** *«endringslogg er ikke noe man
+> trenger hele tiden → det er noe man skal ta frem dersom det er konflikt/tvist i et prosjekt.»*
+> Og: *«det eneste som er rett i denne sjekklisten er faktisk PDF.»*
+
+**Ny retning:** endringsloggen er et **oppslagsverktøy**, ikke en fast seksjon. Den skal være
+tilgjengelig på alle flater, men **sammenslått som standard** — ikke rendret i full lengde i
+dokumentvisningen slik sjekklisten gjør i dag. **PDF-gjengivelsen er fasiten** for formatet;
+web og mobil skal justeres mot den, ikke omvendt. 🔴 **Utskriftens header røres ikke.**
+
+~~Gammel retning (skrevet før Kenneth så flatene, beholdt så ingen bygger den):~~
+~~vis loggen på oppgavens detaljside i web og mobil, slik sjekklisten gjør.~~
+
+**Tre målte gjengivelsesfeil (2026-09-01, sjekkliste BEF1 i prod):**
+
+1. **Rader der før og etter er IDENTISKE** rendres i full lengde — Rad 1/2/3 med samme
+   beskrivelse og samme bildeliste på begge sider. **Historiske rader** (16.08 og 21.08),
+   skrevet før `normaliserForDiff`-utvidelsen 31.08. Nye rader skal ikke oppstå — men de gamle
+   ligger i DB. Åpent: skal de ryddes?
+2. **Mobil og web gjengir samme rad ulikt.** Mobil: «Rad 4 (fjernet) fra «tom rad» til «»».
+   Web: «… til «Ikke utfylt»». Samme datarad, to tekster.
+3. **«fra «tom rad» til «»»** er meningsløst for en leser uansett flate.
+
+**🔴 Observert i PDF-en Kenneth kaller fasit (BEF-001, generert 01.09.2026 16:45):** den har
+**ingen endringslogg-seksjon i det hele tatt**. Den har **DOKUMENTHISTORIKK** — status-
+overgangene med tid, person og rolle — og så signaturblokka. Tom posisjon rendres som
+«Ikke utfylt», samme som web; mobilens «»» er den som avviker.
+
+⚠️ **Ikke oppklart:** `services/arkiv/logg-lesere.ts` leser `taskChangeLog`, så kodeveien
+finnes. Om denne PDF-en er arkivmalen eller den eldre utskriften er **ikke målt**. Avklar det
+før noen bygger — ikke anta at grep-treffet og det observerte dokumentet er samme vei.
+
+**🟢 LØSNINGEN FINNES ALLEREDE — i PDF-ens dokumenthistorikk.** Målt på BEF_-004 (Lavangen
+Kommune, generert 01.09.2026 16:52):
+
+```
+01.09.2026 16:49   Kenneth Myrhaug (Bestiller)   Sendt (31 feltendringer)
+01.09.2026 16:49   Kenneth Myrhaug (Bestiller)   Mottatt
+```
+
+**Endringene kollapses til et TALL på statusovergangen.** Ikke 31 rader — én linje som sier at
+31 felt ble endret før dokumentet ble sendt. Leseren ser at det skjedde noe, og graver kun ved
+tvist. Det er presis Kenneths formulering, og det er allerede implementert.
+
+**Retningen er dermed konkret:** web og mobil skal vise dokumenthistorikk med
+feltendrings-**telling** per overgang, slik PDF-en gjør — ikke en flat liste med hver rad.
+Detaljene hentes fram på forespørsel.
+
+### Målt støy i dagens web-visning (samme dokument, 31.08)
+
+- **~25 rader «Rad 3 — Kolonne 2 til «Ikke utfylt»»** innenfor minutter (07:47–13:40). Autolagring
+  skriver en rad hver gang en repeater-rad berøres. Ingen «fra»-verdi — bare «til».
+- **Rå ISO-tidsstempler i verditeksten:** «Dato og tid fra «2026-08-28T12:46:36.857Z» til
+  «2026-08-28T12:30:36.857Z»». Ikke formatert dato, og differansen er 16 minutter bakover.
+- Radene er fra **før** `normaliserForDiff`-utvidelsen (merget 31.08 kveld). Nye rader skal være
+  langt færre — ikke verifisert i praksis ennå.
+
+> **Kenneth 2026-09-01:** *«mulig loggen som er søppel blir bedre i fremtiden.»*
+
+**Merk ved bygging:** loggen sammenligner kun feltets `verdi`. `kommentar` og `vedlegg` er
+«tilføyelser» og logges ikke — bevisst, og samme grunn til at de slipper gjennom append-only-
+vakten (`oppgave.ts:749`). Om kommentarer *skal* logges er en åpen produktbeslutning, ikke en bug.
+
 ### 🟢 Mobil dokumentflyt-auto-utledning traff aldri (`af.templates` vs `maler`) — LØST (fiks) + bevisst INGEN datarydding (2026-08-19)
 
 **Bug:** `apps/mobile/src/components/OppgaveModal.tsx` leste `af.templates` fra `dokumentflyt.hentForProsjekt`, men API-feltet har **alltid** hett `maler` (`apps/api/src/routes/dokumentflyt.ts` — `maler` siden første commit `7dd22fc4`; søk på `templates:` i API-en er tomt). Feltet ble skrevet feil i **`9e723690` (2026-03-06)** og brukte aldri `.maler` — altså **feil fra start, ikke en regresjon fra en omdøping.** `af.templates` var dermed alltid `undefined`.
@@ -3164,6 +3495,327 @@ Auto-oversettings-skriptet forvekslet engelsk «break» (pause) med «break» (k
 Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arbeid}}h» til «Machine {{maskin}}h / Work {{arbeid}}h» (kort, klar struktur med universell slash-separator). Norsk speilet: «Maskin {{maskin}}t / Arbeid {{arbeid}}t». Nøkkelen slettet i 12 språk og re-generert via `generate.ts` — alle oversettelser nå gramatisk korrekte. ro fikset manuelt (Google Translate hoppet over «Work»; satt til «Lucru»). fr beholdt sin manuelle verdi fra `baa462e1`.
 
 ## 2. Halvferdige features
+
+### 📋 REGRESJONSAUDIT mobil, bygg 44 → 31.08 — åtte fjernede funksjoner
+
+**Utløst av Kenneth 2026-08-31:** *«jeg sliter veldig med at Opus fikser noe → så forsvinner
+noe annet. Sjekk hva som er blitt borte siden bygg 44.»* Metode: 59 mobil-commits, kumulativ
+diff fil for fil + churn-analyse for funksjonalitet lagt til og fjernet *inne i* perioden.
+
+**Coworks vurdering: ingenting gjenopprettes blindt.** Sju av åtte er bevisste vedtak, og å
+reversere et vedtak uten å ta det opp igjen er nettopp den feilklassen
+[SAMARBEIDSREGLER § snudd vedtak](SAMARBEIDSREGLER.md) beskriver. Ett punkt hviler derimot på
+en **påstand** i stedet for en måling — det skal måles.
+
+| # | Fjernet | Commit | Vurdering |
+|---|---|---|---|
+| **A1** | Kommentar + bilde fra `location` og `drawing_position`; repeater-objektets tilbehør read-only | `ef8f1403` | ✅ **RIKTIG — Kenneth 2026-08-31.** Se under |
+| **A2** | Lokal/offline PDF + in-app forhåndsvisning. `PdfForhandsvisning.tsx` og `TegningsCapture.tsx` slettet | `0188b6b6` | ⏸️ Bevisst arkitekturvedtak (F2 «fjern klient-utskrift», levert 20.08). **Reverseres ikke — vedtaket tas eventuelt opp på nytt.** Feltkonsekvens: uten dekning finnes ingen PDF |
+| **A3** | «Videresend» skjult for flytbundne dokumenter | `a50a53c7` | ✅ Riktig — serveren avviste den uansett |
+| **A4** | Georef-punktene (P1/P2/P3) på tegningen | `6bb82aa0` | 🟡 Vurder som toggle. Logikken lever, kun visningen er borte |
+| **A5** | Dato prefylles ikke i maler med værfelt | `7e200820` | ⏸️ Bevisst, knyttet til værflyten. Reverseres ikke isolert |
+| **A6** | Annotering JPEG q0.92 i stedet for tapsfri PNG | `2ef13845` | ✅ Løste pilot-blokkeren (3,4 MB → ~1 MB) |
+| **A7** | Sveip-ned lukker MalVelger | `28e55ed5` | ✅ Pris for Fabric-frys-fiksen |
+| **A8** | Debug-overlay i tegningsvisning | `dace662f` | ✅ Skulle aldri vært i prod |
+
+🔴 **A1 — AVGJORT, og begrunnelsen i koden er den svakeste av to.**
+
+`RapportObjektRenderer.tsx:37-40` begrunner fjerningen med at det *«ikke fantes
+produksjonsdata»* på disse felttypene. Cowork flagget den som en påstand som burde måles —
+Kenneth avgjorde det på domenet i stedet:
+
+> **Kenneth 2026-08-31:** *«denne skal ikke reverseres. Denne produserte støy i felter som
+> ikke skal kommenteres eller ha ekstra vedlegg.»*
+
+**Det er den holdbare begrunnelsen.** En lokasjon og en tegningsposisjon er *hvor* noe er —
+de bærer ikke observasjoner. Kommentaren og bildet hører på feltet som beskriver funnet.
+
+⚠️ **Ikke mål prod-data på dette.** Datatellingen kan falsifiseres (finner noen én rad, ser
+det ut som fjerningen var feil), og da ville noen «gjenopprette» støyen i god tro.
+Domenegrunnen er uavhengig av hva som ligger i basen.
+
+**Avkreftet — ikke tap** (ført så ingen leter på nytt): oppgave-PDF lagt til og revertert
+*inne i* perioden (netto null) · `TegningsVelger` urørt · endringsloggen bevart og utvidet ·
+HMS-flatene urørt · kamera/opplasting kun tillegg · `prosjektId`-propen fjernet var en
+**fiks** (den ble aldri threadet ned → tom tegningsvelger).
+
+### 🟡 Halvdøde mekanismer funnet i samme audit (ingen er regresjoner)
+
+- **`lokasjoner.tsx:474` SKRIVER sist brukte tegning, men leser den aldri.** Kun
+  `tegninger.tsx:100` leser. Minnet oppfører seg derfor ulikt avhengig av hvor du kom fra.
+  Predaterer bygg 44 (`git log -S` gir kun `a46d58e9`, `6a25946f`).
+- **`harAktivLocation`** (`OpprettDokumentModal.tsx:59`, `MalVelger.tsx:29`) — prop lagt til i
+  `78fbc3b0`, **ingen sender den, ingen leser den**. Location-tvangen den skulle bære finnes
+  ikke.
+- **`lasterBygningId` / `lasterProsjektId`** — eksponert fra kontekstene, **0 brukere**.
+- **Død meny i Lokasjoner** (`:440-458`): «Tegningsinformasjon», «Forbered til offline»,
+  «Oppdatere oppgaver» — alle tre grenene er tomme. Sannsynligvis her `erTegningCachet` og
+  `hentTegningLokalSti` (0 brukere) skulle vært brukt.
+- **`B1` mistanke:** `OpprettDokumentModal:553-578` beregner `visSpinner`, men returnerer
+  `null` før render for to av tre tilfeller → ingen visuell tilbakemelding i 1–2 s ved
+  auto-opprettelse.
+
+### 🔴 PLANLAGT AUDIT: de 219 commitene UTENFOR `apps/mobile` (Kenneth-bestilt 2026-08-31)
+
+**Blindsonen mobil-auditen selv flagget.** Arkiv/PDF-rendring, flyt-rettigheter og
+dokumentgenerering bor på **serveren** — en mobilflate kan ha mistet oppførsel uten at én
+linje i `apps/mobile` er rørt. A2 (lokal PDF → `arkiv.rendr`) er nettopp et slikt tilfelle,
+og det er sannsynligvis flere.
+
+**Skal kjøres av en dedikert Opus i eget worktree.** Metode, ferdig utledet:
+
+1. Range: `9ee8242c..<develop-tip>` for `apps/api packages/shared packages/pdf packages/db`.
+2. **Samme metode som mobil-auditen** — kumulativ diff fil for fil, pluss churn-analyse
+   (sum slettede linjer per commit vs. netto per fil) for å fange det som ble lagt til og
+   fjernet igjen inne i perioden. Ren endepunkt-diff skjuler den klassen.
+3. Se etter: slettede tRPC-prosedyrer · innsnevrede Zod-input · fjernede `include`/`select`-felt
+   som klienten fortsatt leser · vakter som ble strengere uten at UI vet det · endrede
+   returtyper.
+4. 🔴 **Kryssjekk mot mobil:** for hver fjernet/endret API-flate, grep `apps/mobile` etter
+   kallstedet. Et felt som forsvant fra en respons gir `undefined` på mobil — stille.
+5. Rapporter i samme form: beviselig fjernet · mistanke · ubrukte mekanismer · avkreftet.
+
+**Forventet størrelse:** 219 commits over fire pakker. Én økt rekker det neppe — ordren skal
+be om at agenten sier hvor langt den kom framfor å hoppe over noe stille.
+
+### 🔴 `SafeAreaView` anvender 0 padding inne i `presentationStyle="fullScreen"` (målt 2026-08-31)
+
+**Simulator-måling, iPhone 16 Plus / iOS 18.4** (`relay/inbox-simulator-safearea-maaling.md`
+§ RESULTAT — full tallgrunnlag der):
+
+| Målepunkt | `top` | `bottom` |
+|---|---|---|
+| Utenfor modal | 59 | 34 |
+| **Inne i fullScreen-modal** | **59** | **34** |
+| Referanseskjerm | 59 | 34 |
+
+🔴 **Hooken er riktig, komponenten er feil.** `useSafeAreaInsets()` returnerer korrekt `59`
+inne i modalen — konteksten krysser `<Modal>` som den skal. Men
+`<SafeAreaView edges={["top"]}>` **anvender 0 topp-padding** der. Bevis: første barn under
+`SafeAreaView` lå på y=10, ikke y=59. På en vanlig pushet skjerm virker `SafeAreaView` (y=84).
+
+**Konsekvensen er ikke kosmetisk.** Kontroller i det 59 px høye båndet er **ikke truffbare** —
+`idb ui tap 25 43` ×3 lukket ikke modalen, mens `tap 215 85` rett under båndet traff
+umiddelbart. Det ga en prod-felle i bygg 46 der brukeren måtte drepe appen (lukket
+2026-08-31, `73b30e71`).
+
+**Løsning som er verifisert å virke:** `useSafeAreaInsets()` + manuell `paddingTop`/
+`paddingBottom` på en vanlig `View`, i stedet for `<SafeAreaView>`.
+
+**Gjenstår — eget spor:** kartlegg hvilke av de ~26 flatene som kombinerer `SafeAreaView` med
+`Modal` som faktisk bruker `presentationStyle="fullScreen"`, og migrer **kun de**.
+🔴 **Ikke rull ut bredt uten å måle.** Kontrollplan noterte at flere av dem bruker `pageSheet`
+eller in-tree-overlay og derfor ikke nødvendigvis er rammet. Én skjerm er målt; resten er
+hypotese.
+
+### 🔴 `oppgave.ts` bruker rå `JSON.stringify`-sammenligning — samme feilklasse som sjekkliste hadde (målt 2026-08-31)
+
+Sjekkliste-endringsloggen ble ryddet 31.08 ved å normalisere tomhet i `normaliserForDiff`
+(`packages/pdf`, delt lag). **Oppgave-siden bruker fortsatt rå
+`JSON.stringify(verdiFor) !== JSON.stringify(verdiEtter)`** (`oppgave.ts:982-985` + tilsvarende
+i `oppdaterData`), som har **tre gap** `likForDiff` lukker:
+
+1. **Tomhet** — `""` ↔ `null` ↔ `{}` ↔ manglende nøkkel teller som endring
+2. **Nøkkelrekkefølge** — samme objekt, ulik serialisering
+3. **Signert-URL-query** — `?exp=&sig=` varierer per lagring, samme bilde
+
+**Kontrollplans vurdering (bestilt, ikke bygget):** oppgave-data er **ikke** prinsipielt
+enklere — tasks bruker samme malbygger-objekter og kan ha repeatere med samme celle-form-drift.
+At støyen ikke har vist seg der skyldes trolig lagringsmønster, **ikke at koden er trygg**.
+
+**Fiks:** speil sjekkliste-strukturen — `kanonisk` for lagring, `likForDiff` for sammenligning.
+To skrivesteder (`oppdaterData` + `forbedreOversettelse`), begge trenger det, pluss en
+repeater/tomhet-testrunde. 🔴 **Egen liten ordre** — å samle begge dokumenttyper på én
+sammenligning dreper den stykkevise driften som ga tre runder 31.08.
+
+### 🟡 Halvbygd stillas i `OpprettDokumentModal` (mobil) — meldt 2026-08-31, ikke slettet
+
+Fire symboler `_`-prefikset under lint-oppryddingen. Kontrollplan målte hva de ser ut til å
+ha vært ment som, i stedet for å slette på gjetning:
+
+| Symbol | Hva som mangler |
+|---|---|
+| `_PRIORITETER` + `_PRIORITET_FARGER` | Prioritetsvelger med fargede merker (lav/middels/høy/kritisk → grå/blå/oransje/rød). **`prioritet`-state og `setPrioritet` FINNES og brukes** (default «medium») — det er velger-UI-et som aldri ble wiret inn i JSX. Konfigurasjonen står, knappene mangler |
+| `_visBygningListe` + `_visTegningListe` | To «adaptivt nedtrekk»-togglere, samme mønster som søsknene `visLokasjonListe`/`visOppretterListe` (som **er** ferdig og rendrer utvidbar liste ved `:902`). Setterne kalles (reset til false), getterne leses aldri — lista + åpne-knappen ble aldri bygget |
+
+Begge er **halvbygd UI der data- og state-laget står, men presentasjonen mangler**. Ingenting
+kjører i dag. Kilde: `apps/mobile/src/components/OpprettDokumentModal.tsx`.
+
+**Beslutning trengs:** bygg ferdig eller slett. `_`-prefikset holder dem synlige i mellomtiden.
+
+### 🟡 Serverfeilmeldinger er ikke oversatt (målt 2026-08-30)
+
+UI-strenger går gjennom `t()` og finnes i 15 språk. **`TRPCError`-meldinger gjør ikke.**
+Verifisert: `dokumentflyt.ts:187,223` og `faggruppe.ts` slett-vakten er hardkodede norske
+strenger i `message`.
+
+**Konsekvens:** en svensk, polsk eller litauisk bruker får norsk feilmelding når en handling
+blokkeres — og det er nettopp i de øyeblikkene språket betyr mest, fordi meldingen forklarer
+hva han må gjøre for å komme videre.
+
+Funnet av kontrollplan under slettevakt-runden 30.08, som **riktig speilet det eksisterende
+mønsteret framfor å innføre et nytt** for én melding. Krever en beslutning om form
+(nøkkel + parametre fra serveren, oversatt i klienten?) før noen begynner — ikke en
+opprydding man tar underveis.
+
+### ✅ LØST 2026-08-30 (`fc817801`, merge `661682c5`) — Slettevakter: dokumentflyt vernet i begge ender, faggruppe ikke
+
+Asymmetri mellom to strukturobjekter av samme klasse. Den ene fikk vakt fordi Kenneth ba om
+det 2026-08-22; den andre ble aldri nevnt.
+
+| Objekt | Vernet mot | Ikke vernet mot |
+|---|---|---|
+| `Dokumentflyt.slett` | dokumenter (`tellFlytDokumenter`, lesbar melding) | — medlemmer cascader, men et medlemskap har ingen selvstendig eksistens |
+| `Dokumentflyt.fjernMedlem` | aktive dokumenter i flyten | (for bredt — se under) |
+| **`Faggruppe.slett`** (`faggruppe.ts`) | sjekklister + oppgaver | 🔴 **medlemmer** (`FaggruppeKobling`, `Cascade`) · 🔴 **flyter** (`Dokumentflyt.faggruppeId`, `SetNull`) |
+
+**Reachbar tilstand:** en faggruppe med medlemmer og flyter, men ingen dokumenter ennå, kan
+slettes. Koblingene forsvinner med `Cascade`, flytene mister faggruppen sin med `SetNull` —
+stille, begge deler. 🔴 **Det er nøyaktig tilstanden til et nyoppsatt prosjekt**, altså når
+noen er mest tilbøyelig til å slette en faggruppe de opprettet feil.
+
+Historisk belegg for at `SetNull`-hullet biter: slett-vern-kommentaren i `dokumentflyt.ts`
+noterer *«prod: 1 av 16 sjekklister ER flyt-løs, kan være dette»*.
+
+**LØST:** `faggruppe.slett` teller nå aktive `FaggruppeKobling` (`periodeSlutt: null`, C.13 —
+historiske blokkerer ikke) + `Dokumentflyt` med `faggruppeId`, i egen `PRECONDITION_FAILED`-
+blokk med samme meldingsform. Sjekkliste-/oppgavetellingen urørt.
+
+**Målt effekt på test:** **én** faggruppe blir nytt blokkert — «Elektro» (april 2026,
+6 medlemmer, 2 flyter, null dokumenter). **Ingen vranglås:** begge flytene er tomme, så veien
+ut går (fjern koblinger → slett flyter → slett faggruppe).
+
+⚠️ **Kjent skavank, bevisst:** de to vaktene er separate blokker, så en faggruppe med *både*
+dokumenter og medlemmer gir to runder friksjon — rydd dokumentene, prøv igjen, bli stoppet av
+den andre. Ordren forbød å røre den eksisterende blokka; begge meldingene er sanne hver for
+seg. Slås de sammen, gjør det i en runde som eier hele prosedyren.
+
+### 🟡 Ledd-vernet treffer for bredt (Kenneth 2026-08-30 — revisjon, ikke reversering)
+
+`dokumentflyt.fjernMedlem` (`:370`) blokkerer fjerning så lenge **flyten** har aktive
+dokumenter. Kenneth: *«fjerning av medlemmet skader ikke dokumentet som er laget — jeg mener
+det er feil beslutning.»*
+
+Han har rett med én presisering: innholdet er skrevet og uberørt; det som kan skades er et
+**åpent** dokuments evne til å finne neste mottaker (`nesteLedd`, `flytPosisjon.ts:172`).
+Vernet sikter på noe ekte, men blokkerer også når medlemmet **ikke er alene i leddet** og når
+dokumentene er **lukket**.
+
+**Riktig avgrensning:** «dette leddet ville blitt tomt, og det finnes åpne dokumenter i det».
+Krever telling per ledd (`rolle` + `steg`), ikke per flyt. Praktisk konsekvens i dag: en
+ansatt som slutter kan ikke fjernes før alle flytens dokumenter er lukket.
+
+⚠️ **Reviderer ledd-vernet fra 2026-08-22 — formålet består.** Ført i
+[domene-arbeidsflyt.md](domene-arbeidsflyt.md); rett ikke tilbake uten å lese vedtaket der.
+
+### 🔴 i18n: prosjektstatus i firmalisten rendres rått (målt 2026-08-30)
+
+`apps/web/src/app/dashbord/firma/prosjekter/page.tsx:149` er
+`p.status === "active" ? "Aktiv" : p.status` — alt annet enn aktiv går **forbi `t()`** og
+vises på engelsk («archived», «completed») til kunden.
+
+Serveren har fire statuser (`prosjekt.ts:606`); to av dem har ingen norsk tekst noe sted i
+firmaflaten. `admin/prosjekter/page.tsx:311` har samme form, men dekker `deactivated` — også
+den uten `t()`.
+
+**Tas som ryddepunkt i FL-runden** (prosjekt-livssyklus på firmanivå), ikke som egen runde
+— fabel-anvisning 2026-08-30. Trenger nøkler for alle fire i `nb` + `en` + 13 genererte.
+
+### 🟡 `harFirmaTilgang` er to ulike inline-definisjoner (målt 2026-08-30)
+
+Ikke en delt hjelper. Regnes ut to steder, med ulik betydning:
+
+| Sted | Definisjon |
+|---|---|
+| `apps/web/src/components/layout/OppsettSidemeny.tsx:122` | `!!prosjektFirma \|\| !!erAdmin` |
+| `apps/web/src/lib/innstillinger-kort.tsx:78` | `!!prosjektFirma \|\| erSitedocAdmin` |
+
+Begge gater synlighet mot samme flater, men `erAdmin` og `erSitedocAdmin` er ikke samme
+sak. 🔴 **Merk at navnet lyver:** `!!prosjektFirma` betyr «prosjektet har et eier-firma»,
+ikke «du har firmatilgang». Fabels O12-ordre antok det siste og skrev en DoD som ville
+feilet på egne premisser (`relay/fabel-o12-gating-avvik.md`).
+
+Trekk ut én hjelper med et navn som beskriver hva den faktisk svarer på. **Ikke i O12-runden**
+— den er en rotårsaksfiks, og scope-utvidelse er grunnen til at O12 bare ble halvveis
+utført i mai.
+
+### 🟢 Modulmodellen — V1/V2/V3 VEDTATT 2026-08-31, venter fabel-revisjon på to punkter
+
+**Designnotat:** [modulhierarki-designnotat-fabel-2026-08-31.md](../redesign/modulhierarki-designnotat-fabel-2026-08-31.md)
+
+**Vedtatt av Kenneth 2026-08-31:**
+- **V1** — timer-familien er **ett kjøp** (Timer) med Maskin og Varelager som **underbrytere
+  på firmanivå**, default på. Stat/kommune dekkes av å ikke kjøpe Timer.
+- **V2** — per-ansatt begrensning finnes, men som **unntaksliste på modulkortet**
+  (firma/moduler → «Begrens tilgang»), aldri som felt på ansattkortet. 🔴 **Det er dette som
+  løser 50-ansatte-problemet:** nytt kjøp krever null kortredigeringer, kun unntak føres.
+  **`modulNokler` gjeninnføres ikke — REG fase 2 er endelig avblokkert.**
+- **V3** — prosjektbryteren er svaret på 3D-eksempelet: 3D slås på per prosjekt, under
+  firmataket.
+
+**Effektiv tilstand (firmamoduler):** `firmatak ∧ underbryter ∧ prosjektbryter ∧ ikke-unntatt`.
+
+✅ **Revisjon 1 mottatt og flettet inn 2026-08-31.** Fabel aksepterte begge coworks
+korreksjoner («feilen var min: jeg generaliserte timer-familiens formel til *moduler* uten å
+måle prosjektmodul-settet»). **Modellen er komplett — ordre kan skrives.**
+
+**To familier, to formler:**
+
+| | Firmamoduler | Prosjektmoduler |
+|---|---|---|
+| Slugs | `timer` + underbryterne `maskin`/`varelager` | ni: `oversettelse`, `godkjenning`, `hms-avvik`, `befaringsrapport`, `3d-visning`, `okonomi`, `dokumentsok`, `psi`, `kontrollplan` |
+| Formel | tak ∧ underbryter ∧ bryter ∧ ikke-unntatt | **bryter alene** |
+
+**Standalone-prosjekt** (`organizationId = null`): kun de ni vises. Ingen firmamodul-seksjon.
+
+🔴 **Fire designlås-punkter som HVER ordre i sporet skal sitere:** (1) `equipment.list` gates
+aldri · (2) de ni prosjektmodulene grås aldri ut mot firmatak · (3) standalone mister aldri
+prosjektmoduler · (4) unntakslisten bor på modulkortet, aldri på ansattkortet.
+
+**Rekkefølge (fabels § 4 — tre små ordrer, ikke én stor):**
+1. Delt resolver `modul.effektivTilstand(firmaId?, prosjektId?)` + `krev*Aktivert` leser den
+   ✅ **LEVERT** `8f7ada26` → merge `1266ac2a`. ⚠️ **Drift-punkt 3 var feilbeskrevet av cowork**
+   — firmataket ble allerede lest (`erFirmamodulAktivert` kalles før `ProjectModule` i alle tre
+   gatene, siden 2026-05-05). Resolveren ble likevel riktig arbeid: den konsoliderer tre
+   nær-identiske `moduleGate.ts` + spredte inline-sjekker, og gir to-familie-formelen ett hjem.
+   **Det ekte hullet agenten fant:** rad-skrivende timer-mutasjoner var ugatet — `krevTimerAktivert`
+   sto kun 3 steder av ~12 i `dagsseddel.ts`. Nå gates nye rader; arbeid i gang låses aldri.
+2. Flatene speiler resolveren — firma/innstillinger, web-dagsseddel, prosjektoppsett med
+   grå-under-tak + toveis lenke → drift-punkt 4 og 5.
+3. Dok-sync: `terminologi.md § 0`-diagram, schema-kommentar for varelager, peker fra
+   `domene-arbeidsflyt.md`.
+
+⚠️ **Enkeltmålt:** familie-inventaret (3 + 9 slugs) er målt én gang. Utfører verifiserer begge
+sett ved ordre-oppstart før tallene låses i `terminologi.md`.
+
+### ❓ Modulmodellen — hva en modul ER, og hva som skjer når en mangler (2026-08-30)
+
+**Blokkerer:** `modulNokler` på ansattkortet (tatt ut av REG fase 2 2026-08-30).
+**Utredning med måling:** [modulmodell-utredning-2026-08-30.md](modulmodell-utredning-2026-08-30.md)
+— **les den, ikke gjenta målingen herfra.**
+
+Kenneths premiss: *«Moduler → firma kjøper → firma tildeler ansattilgang. Kortet kan derfor
+bare speile hvilke tilganger firmaet eier.»* Og problemet som avgjør saken: *«Firmaet har 50
+ansatte og alle ferdig registrert → firmaet kjøper 2 nye moduler → må 50 ansattkort
+redigeres?»* Svaret kan ikke være ja.
+
+Tre åpne spørsmål til fabel: (1) er timer/maskin/varelager **ett** kjøp eller tre — Kenneth
+sier *«maskin og varelager tilhører modulen timer»*, koden har tre uavhengige flagg;
+(2) finnes det et reelt behov for å begrense en modul **per ansatt**; (3) hva står igjen på
+ansattkortet hvis `modulNokler` går ut.
+
+**Målt svar på Kenneths kontrollspørsmål «kollapser timer uten maskin?»: nei.** Datalaget
+tåler det, rapport og PDF dropper tomme kolonner, mobilen skjuler seksjonen og forklarer.
+**Men web viser en MASKIN-seksjon som ikke kan fylles**, og `vareforbruk.ts` er det eneste
+stedet i kodebasen som skiller «ikke kjøpt» fra «ingen data».
+
+🔴 **Målingen i utredningen er datert og skal gjøres på nytt før beslutning** — vi koder
+videre i timer-, maskin- og registreringsflatene. Bruk § 3 som liste over hvor man måler.
+
+🔴 **Ikke legg `krevMaskinAktivert` på `equipment.list`.** Mobilens `TimerSyncProvider`
+henter maskinkatalogen i samme `Promise.all` som timer-katalogen — en gate der brekker hele
+timer-synken for firmaer med timer uten maskin. Eneste målte vei der «maskin mangler»
+faktisk kan velte timer, og den er én linje unna.
 
 ### MalBygger felttype-restanser — fase M-3a del 2 (2026-07-16) 🟡
 
