@@ -203,6 +203,87 @@ posisjon» og «Bytt tegning» på et språk han ikke kan — i den flaten han b
 **Omfang hvis det bygges:** ~20 komponenter, nøkler i `nb.json` + `en.json`, så 13-språk-generate.
 Mekanisk, men bredt — og det bør tas i én runde, ikke drypp per fil.
 
+### 🔴 Våre seedede feltlabels er norske i alle språk — Kenneth-vedtak 2026-09-02: de SKAL oversettes
+
+**Symptom (målt på simulator, røykliste flyt 13, app satt til polsk):** feltet **«Dato og tid»**
+står på norsk. Det er ikke den eneste — alle seedede standardlabels gjør det.
+
+**Rotårsak (kontrollplan, målt 2026-09-02):** `FeltWrapper.tsx:95` rendrer `{objekt.label}` **rått**.
+Labelen er malfeltets **lagrede verdi**, seedet fra `RAPPORTOBJEKT_DEFINISJONER`
+(`packages/shared/src/types/index.ts:188`). Det er **data, ikke en streng** — `t()` kan ikke nå den.
+Feltlabels behandles i dag som **firmainnhold** og oversettes on-demand via Globe-knappen
+(`oversettelser`/`onOversett`), ikke via i18n.
+
+🔴 **Kenneth-vedtak 2026-09-02: JA — skillet skal gå mellom hvem som skrev labelen.**
+
+| Label | Eier | Skal |
+|---|---|---|
+| **Seedet av oss** («Dato og tid», «Beskrivelse», «Posisjon i tegning») | **produktet** | oversettes som resten av UI-et |
+| **Skrevet av firmaet** («Kum/sluk kontrollert») | **kunden** | forbli firmainnhold — Globe-knappen, aldri maskinoversatt av oss |
+
+**Begrunnelsen:** «Dato og tid» skrev ikke A.Markussen — det gjorde vi. Der er norsk *vårt* valg,
+ikke kundens.
+
+✅ **VEIEN ER VALGT — fabels designnotat 2026-09-02** (`designnotat-produkttekst-vs-firmainnhold-fabel-2026-09-02.md`).
+
+**Vei A: gjenkjenning ved rendering**, delt tabell i `@sitedoc/shared`. Operativ regel:
+
+> **En streng er produkttekst hvis og bare hvis den byte-for-byte er en streng vi selv har skipet**
+> (META, standard-opsjonssett, seed-defaults). Alt annet er firmainnhold — Globe-knappen, aldri
+> automatisk.
+
+**Tre grunner, alle målt i kode:**
+
+1. **Oversettelsene finnes alt** — `malbygger.datoOgTid` m.fl. ligger i alle 17 språkfiler
+   (palettens egne labels). Vei A trenger bare en mapping `type → eksisterende nøkkel`. **Null nye
+   strenger, null migrering.**
+2. 🔴 **«Falsk positiv» er ikke en svakhet — det er mekanismen.** Cowork innvendte at et firma kunne
+   skrive samme tekst ved et uhell. Fabel snudde det: den får da den *kuraterte menneskelige*
+   oversettelsen av akkurat den frasen, aldri maskinoversettelse. Og **redigerer firmaet labelen,
+   matcher den ikke lenger → firmainnhold igjen.** Likhetstesten løser altså vei B's vanskeligste
+   spørsmål av seg selv.
+3. **Problemet er bredere enn labels** — trafikklysets «Godkjent/Anmerkning/Avvik» seedes også som
+   data i `config.options`. Vei B måtte migrert dem; vei A dekker dem med samme regel.
+
+**Kostnaden:** standardstrengene blir **frosne**. Omdøpes én i META, må den gamle strengen stå som
+alias. Disiplin, ikke arkitektur.
+
+**Avgrenset ut i første omgang:** `seed-bibliotek.ts` og HMS-malene. De er «skrevet av oss», men er
+domeneinnhold firmaet adopterer og redigerer — nærmere kundens eierskap.
+
+**PDF:** forblir på **kildespråk**. Oversettelse er lesehjelp på skjerm, aldri lagret — konsistent
+med Globe-modellen, og hindrer at samme arkivdokument får språkavhengig innhold.
+⚠️ Flateparitet krever samme **informasjon**, ikke samme **språk**.
+
+**Blokkerer ikke EAS-bygget.** i18n-runden dekket alt som ER strenger; dette er den delen som er data.
+
+### 🔴 TIDSSONE følger PROSJEKTETS lokasjon, aldri telefonens — Kenneth-vedtak 2026-09-02
+
+> *«Alle prosjekter har en lokasjon. Hvis denne er satt for Tromsø → skal alle språk bruke
+> tidssonen til Tromsø.»*
+
+🔴 **Dette er lønn, ikke formatering.** En polsk arbeider i Tromsø som fører **07:00** mener
+07:00 norsk tid. Leser appen telefonens tidssone, blir timeføringen feil — og feil tid er feil
+utbetaling.
+
+**Skillet som må holdes fra hverandre:**
+
+| | Styres av | Eksempel |
+|---|---|---|
+| **Tidssone** — *hvilket øyeblikk* | 🔴 **prosjektets lokasjon** | 07:00 er alltid 07:00 på byggeplassen |
+| **Format** — *hvordan det skrives* | leserens språk (se saken under) | «15. jan.» vs «15 sty» |
+
+⚠️ **IKKE MÅLT: hva gjør koden i dag?** Cowork har ikke verifisert om timeregistreringen bruker
+enhetens tidssone eller prosjektets. **Det må måles før noe bygges** — og målingen er mer
+presserende enn resten av i18n-arbeidet, fordi konsekvensen er utbetaling og ikke lesbarhet.
+
+**Måles i:** `packages/db-timer` (lagres tid som UTC eller lokal?), mobilens dagsseddel-registrering
+(`fraTid`/`tilTid` er `String` HH:MM — hvilken sone tolkes de i?), og attestering/lønnseksport.
+
+**Henger sammen med** [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md) og
+reisetid-saken (30 min kjøretid) — begge handler om at prosjektets *sted* styrer hvordan tid
+regnes.
+
 ### 🟡 Datoer vises på norsk uansett språkvalg — `toLocaleDateString("nb-NO")` hardkodet (2026-09-02)
 
 `DatoObjekt` og `DatoTidObjekt` på mobil formaterer med **hardkodet `"nb-NO"`**. En polsk eller
