@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Modal, Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { harTegningsmarkor } from "@sitedoc/shared";
 import { MapPin, X, Plus, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
 interface LokasjonVelgerProps {
@@ -166,6 +167,11 @@ export function LokasjonVelger({
 
   const harLokasjon = !!tegningId;
   const harPunkt = positionX != null && positionY != null;
+  // Paritetsregel (2026-09-02): lesevisning følger PDF-ens harMarkor — tegning uten
+  // punkt er en arbeidstilstand, ikke dokumentinnhold, og vises som «ingen lokasjon».
+  // Redigering beholder mellomtilstanden («utenPunkt»), for det er der den er handlingbar.
+  const harMarkor = harTegningsmarkor({ drawingId: tegningId, positionX, positionY });
+  const visChip = harLokasjon && (!leseModus || harMarkor);
   const tegningTekst = `${bygningNavn ? bygningNavn + " · " : ""}${tegningNavn ?? t("lokasjonVelger.tegning")}`;
 
   return (
@@ -177,7 +183,7 @@ export function LokasjonVelger({
       <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
         {t("lokasjonVelger.etikett")}
       </div>
-      {harLokasjon ? (
+      {visChip ? (
         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
           <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
           <div className="min-w-0 flex-1">

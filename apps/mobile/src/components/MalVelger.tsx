@@ -25,9 +25,8 @@ interface MalData {
   // Flytresolusjon: de opprettbare flyt-idene (delt regel) bæres videre til
   // opprett-modalen, som bruker dem til flyt-valg (én sannhet med velgeren).
   opprettbareFlytIder?: string[];
-  // Location-tvang (2026-08-19): server-avledet — malen har et aktivt (ubetinget)
-  // location-objekt → posisjon (punkt på tegning) er påkrevd ved opprettelse.
-  harAktivLocation?: boolean;
+  // harAktivLocation-propen er FJERNET 2026-09-02: location-tvangen er opphevet
+  // (Kenneth-vedtak), og propen ble aldri lest av noen logikk (deklarert, ubrukt).
 }
 
 interface MalVelgerProps {

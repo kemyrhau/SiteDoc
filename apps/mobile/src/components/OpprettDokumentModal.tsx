@@ -54,9 +54,8 @@ interface MalData {
   // mal.ts:84-95). Modalen bruker DENNE til flyt-valg — ikke en egen regel — så
   // «vist som opprettbar» og «kan faktisk opprettes» er én sannhet (paritet web).
   opprettbareFlytIder?: string[];
-  // Location-tvang (2026-08-19): server-avledet flagg — aktivt location-objekt i
-  // malen → posisjon (drawingId + punkt) er påkrevd for å opprette.
-  harAktivLocation?: boolean;
+  // harAktivLocation-propen er FJERNET 2026-09-02: location-tvangen er opphevet
+  // (Kenneth-vedtak), og propen ble aldri lest av noen logikk (deklarert, ubrukt).
 }
 
 interface DokumentflytData {

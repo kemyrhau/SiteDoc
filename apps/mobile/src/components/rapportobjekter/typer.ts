@@ -43,6 +43,15 @@ export interface RapportObjektProps {
    * som ikke-valgbar (utenfor flyten), aldri skjult. Speiler web (apps/web/.../rapportobjekter/typer.ts).
    */
   tillatteFaggruppeIder?: string[] | null;
+  /**
+   * Arv-tegning fra forrige repeater-rad (Kenneth-vedtak 2026-09-02): når et
+   * drawing_position-barn rendres i repeater-rad n, sender RepeaterObjekt drawingId-en
+   * fra rad n−1 hit. TegningPosisjonObjekt bruker den som FORHÅNDSVALG (ikke låsing) når
+   * radens egen tegning mangler — så en befaring med ti funn på samme tegning krever ett
+   * valg, ikke ti. Tom rad n−1 → utelatt/null → faller til per-byggeplass-minnet.
+   * Kun repeater-barn får den; dokumentnivå-tegning (P1) er en navngitt oppfølger.
+   */
+  arvetDrawingId?: string | null;
 }
 
 /** Radens forhåndsposisjon (drawing_position-verdi ?? dokument-fallback avgjøres av kalleren). */

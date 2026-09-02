@@ -244,6 +244,17 @@ export function RepeaterObjekt({
                 );
               }
 
+              // Arv-tegning fra forrige rad (Kenneth-vedtak 2026-09-02): kun for
+              // drawing_position, kun rad ≥ 2. Forrige rads drawingId for SAMME barnefelt
+              // → forhåndsvalg i TegningPosisjonObjekt når denne raden ikke har egen tegning.
+              const arvetDrawingId =
+                barnObjekt.type === "drawing_position" && radIndeks > 0
+                  ? ((rader[radIndeks - 1]?.felter[barnObjekt.id]?.verdi as
+                      | { drawingId?: string | null }
+                      | null
+                      | undefined)?.drawingId ?? null)
+                  : null;
+
               return (
                 <View key={barnObjekt.id}>
                   <RapportObjektRenderer
@@ -254,6 +265,7 @@ export function RepeaterObjekt({
                     }
                     leseModus={leseModus}
                     tillatteFaggruppeIder={tillatteFaggruppeIder}
+                    arvetDrawingId={arvetDrawingId}
                   />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).

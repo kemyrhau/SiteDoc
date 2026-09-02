@@ -96,7 +96,7 @@ type MalListeElement = Prisma.ReportTemplateGetPayload<{
     _count: { select: { objects: true; checklists: true; tasks: true } };
     dokumentflytMaler: { select: { dokumentflytId: true } };
   };
-}> & { opprettbar: boolean; opprettbareFlytIder: string[]; harAktivLocation: boolean };
+}> & { opprettbar: boolean; opprettbareFlytIder: string[] };
 
 // Slett-vern (2026-08-10): tell mal-dokumenter — aktive og i papirkurv separat.
 // Papirkurv (KUN_SLETTET) teller med: 90-dagers gjenoppretting ville ellers gjort
@@ -213,27 +213,11 @@ export const malRouter = router({
           : [];
       const gyldigeFlytIder = new Set(flyterMedEierFaggruppe.map((f) => f.id));
 
-      // Location-tvang (vedtatt 2026-08-19): en mal har «aktiv location» hvis den har
-      // ≥1 report_object type='location' som IKKE er betinget (parentId=null OG ingen
-      // config.conditionParentId) — da kreves posisjon (punkt på tegning) ved
-      // opprettelse på mobil. Sone er irrelevant (begge soner rendres på mobil). Et
-      // betinget location kan ikke garantere synlighet ved opprettelse → teller ikke.
-      const malIds = maler.map((m) => m.id);
-      const locationObjekter = malIds.length > 0
-        ? await ctx.prisma.reportObject.findMany({
-            where: { templateId: { in: malIds }, type: "location", parentId: null },
-            select: { templateId: true, config: true },
-          })
-        : [];
-      const aktivLocationMalIds = new Set(
-        locationObjekter
-          .filter((o) => {
-            const c = o.config as { conditionParentId?: unknown } | null;
-            return !(typeof c?.conditionParentId === "string" && c.conditionParentId.length > 0);
-          })
-          .map((o) => o.templateId),
-      );
-
+      // Location-tvangen (vedtatt 2026-08-19) er OPPHEVET 2026-09-02 (Kenneth-vedtak:
+      // ingen tvang — har malen lokasjonsmulighet og brukeren lar den stå tom, har
+      // rapporten ingen tegning). Beregningen av aktivLocationMalIds + harAktivLocation
+      // var aldri koblet til noen håndhevelse (målt: ingen konsument leste feltet), så
+      // dette fjerner en halvbygd mekanisme, ikke en virkende regel.
       return maler.map((mal) => {
         const erHms = mal.domain === "hms";
         const opprettbareFlytIder = erHms
@@ -245,7 +229,6 @@ export const malRouter = router({
           ...mal,
           opprettbar: erHms || opprettbareFlytIder.length > 0,
           opprettbareFlytIder,
-          harAktivLocation: aktivLocationMalIds.has(mal.id),
         };
       });
     }),
