@@ -52,6 +52,18 @@ sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
 
+**Test: `345de5e3`** (deployet 2026-09-02 11:00, verifisert med `/version`). Nytt siden
+`d2b9d189`: **REG fase 3 — prosjekttilgang-evaluatoren** (`23a52504`) og **lokasjon-begrepsryddingen**
+(`81225a93` — paritetsregel, `location` avviklet fra palett+seeds, repeater arver tegning fra rad
+n−1). Migreringer: «No pending» på alle fire.
+
+🔴 **FEM ugatete runder på test nå.** Anbefalt rekkefølge (én handling gater to ting): opprett et
+prosjekt → tester **både** prosjekt-veiviserens tekst **og** at evaluatoren ikke slapp inn noen
+under default `manuell`. Sett så én ansatt til `alle` → nytt prosjekt → kun han med, som vanlig
+medlem. Deretter firma-veiviser, lokasjonsparitet og timer-rapporten.
+
+⚠️ **Foreldet linje under — gjaldt forrige deploy:**
+
 **Test: `d2b9d189`** (deployet 2026-09-02 00:09, verifisert med `/version`). Nytt siden `7b413263`:
 **firma-veiviser** + **prosjekt-oppsettveiviser** (masterplanens punkt 1, begge ugatet) og **fem
 timer-rapport-funn** fra Kenneths gate (velger i filterraden · innholdsbevisste bredder ·
