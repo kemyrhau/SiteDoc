@@ -245,7 +245,9 @@ export default function HjemSkjerm() {
         new Date(b.tidspunkt).getTime() - new Date(a.tidspunkt).getTime(),
     );
     return elementer;
-  }, [aktiveSjekklister, aktiveOppgaver]);
+    // `t` MÅ være med: undertekst bygges via t(PRIORITETS_NOEKLER[...]) inne i memo-en.
+    // Uten den henger prioritet-labelen ett språk bak ved språkbytte (data uendret → ingen re-beregning).
+  }, [aktiveSjekklister, aktiveOppgaver, t]);
 
   // Sist oppdatert timestamp
   const sistOppdatert = Math.max(
