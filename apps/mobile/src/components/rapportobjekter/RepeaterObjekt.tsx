@@ -197,7 +197,7 @@ export function RepeaterObjekt({
                           hitSlop={6}
                         >
                           <Text className="text-[11px] font-medium text-blue-700">
-                            {opg.nummer ?? t("oppgave.oppgave", "Oppgave")}
+                            {opg.nummer ?? t("felt.oppgave")}
                           </Text>
                         </Pressable>
                       ))}
@@ -209,7 +209,7 @@ export function RepeaterObjekt({
                         >
                           <Plus size={11} color="#6b7280" />
                           <Text className="text-[11px] text-gray-500">
-                            {t("oppgave.oppgave", "Oppgave")}
+                            {t("felt.oppgave")}
                           </Text>
                         </Pressable>
                       )}

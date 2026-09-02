@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { View, Text, Pressable, Modal, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Target, X, Check } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 import { harTegningsmarkor, type TegningPosisjonVerdi } from "@sitedoc/shared";
 import { trpc } from "../../lib/trpc";
@@ -45,6 +46,7 @@ export function TegningPosisjonObjekt({
   leseModus,
   arvetDrawingId,
 }: RapportObjektProps) {
+  const { t } = useTranslation();
   // Prosjekt-id fra KONTEKST, ikke `prosjektId`-propen — den threades ikke ned til felt
   // (rendereren sender den ikke), så propen var undefined → query disabled → 0 tegninger.
   // Samme kilde som TegningsSkjermbilde/FeltDokumentasjon bruker.
@@ -181,7 +183,7 @@ export function TegningPosisjonObjekt({
       </View>
       {harMarkor && (
         <Text className="text-xs text-gray-500">
-          Posisjon: {posisjon.positionX.toFixed(1)}%, {posisjon.positionY.toFixed(1)}%
+          {t("felt.posisjonXY", { x: posisjon.positionX.toFixed(1), y: posisjon.positionY.toFixed(1) })}
         </Text>
       )}
     </View>
@@ -191,7 +193,7 @@ export function TegningPosisjonObjekt({
     // Paritetsregel (2026-09-02): lesevisning følger PDF-ens harMarkor. Tegning uten
     // punkt er en arbeidstilstand → vis som «ingen lokasjon», ikke en halv oppsummering.
     return harMarkor ? oppsummering : (
-      <Text className="text-sm italic text-gray-400">Ingen posisjon valgt</Text>
+      <Text className="text-sm italic text-gray-400">{t("felt.ingenPosisjon")}</Text>
     );
   }
 
@@ -201,7 +203,7 @@ export function TegningPosisjonObjekt({
         <View className="gap-2">
           {oppsummering}
           <Pressable onPress={åpne} className="self-start rounded-lg bg-gray-100 px-3 py-1.5">
-            <Text className="text-xs font-medium text-gray-700">Endre posisjon</Text>
+            <Text className="text-xs font-medium text-gray-700">{t("felt.endrePosisjon")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -210,7 +212,7 @@ export function TegningPosisjonObjekt({
           className="items-center rounded-lg border border-dashed border-gray-300 px-4 py-6"
         >
           <Target size={24} color="#9ca3af" />
-          <Text className="mt-2 text-sm text-gray-600">Velg tegning og marker posisjon</Text>
+          <Text className="mt-2 text-sm text-gray-600">{t("felt.velgTegningMarker")}</Text>
         </Pressable>
       )}
 
@@ -228,7 +230,7 @@ export function TegningPosisjonObjekt({
             <Pressable onPress={() => setModalÅpen(false)} hitSlop={12}>
               <X size={22} color="#374151" />
             </Pressable>
-            <Text className="text-sm font-semibold text-gray-900">Marker posisjon</Text>
+            <Text className="text-sm font-semibold text-gray-900">{t("felt.markerPosisjon")}</Text>
             <Pressable
               onPress={bekreft}
               disabled={!valgtTegningId || !tempPos}
@@ -237,7 +239,7 @@ export function TegningPosisjonObjekt({
             >
               <Check size={14} color={valgtTegningId && tempPos ? "#ffffff" : "#9ca3af"} />
               <Text className={`text-xs font-medium ${valgtTegningId && tempPos ? "text-white" : "text-gray-400"}`}>
-                Bekreft
+                {t("handling.bekreft")}
               </Text>
             </Pressable>
           </View>
@@ -248,7 +250,7 @@ export function TegningPosisjonObjekt({
           {valgtTegningId && !tempPos ? (
             <View className="border-b border-gray-100 bg-amber-50 px-4 py-2">
               <Text className="text-xs text-amber-700">
-                Trykk på tegningen for å plassere markøren
+                {t("felt.trykkForAaPlassere")}
               </Text>
             </View>
           ) : null}
@@ -269,14 +271,14 @@ export function TegningPosisjonObjekt({
                   robust utgang uavhengig av safe-area-insets (hovedfiks mot innelåsing). */}
               <View className="flex-row items-center justify-between border-t border-gray-200 bg-white px-4 py-3">
                 <Pressable onPress={() => { setValgtTegningId(null); setTempPos(null); }} hitSlop={8}>
-                  <Text className="text-sm font-medium text-sitedoc-primary">Bytt tegning</Text>
+                  <Text className="text-sm font-medium text-sitedoc-primary">{t("felt.byttTegning")}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setModalÅpen(false)}
                   hitSlop={8}
                   className="rounded-full bg-gray-100 px-5 py-1.5"
                 >
-                  <Text className="text-sm font-medium text-gray-700">Lukk</Text>
+                  <Text className="text-sm font-medium text-gray-700">{t("handling.lukk")}</Text>
                 </Pressable>
               </View>
             </View>

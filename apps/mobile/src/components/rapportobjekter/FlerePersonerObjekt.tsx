@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, Pressable, Modal, FlatList } from "react-native";
 import { Users, X, Check } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { trpc } from "../../lib/trpc";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import type { RapportObjektProps } from "./typer";
@@ -11,6 +12,7 @@ interface Medlem {
 }
 
 export function FlerePersonerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const [visModal, settVisModal] = useState(false);
   const { valgtProsjektId } = useProsjekt();
   const valgteIder = Array.isArray(verdi) ? (verdi as string[]) : [];
@@ -40,14 +42,14 @@ export function FlerePersonerObjekt({ verdi, onEndreVerdi, leseModus }: RapportO
       >
         <Users size={18} color="#6b7280" />
         <Text className={`flex-1 text-sm ${valgteIder.length > 0 ? "text-gray-900" : "text-gray-400"}`}>
-          {valgteIder.length > 0 ? `${valgteIder.length} valgt` : "Velg personer..."}
+          {valgteIder.length > 0 ? t("felt.antallValgt", { antall: valgteIder.length }) : t("felt.velgPersonerPlaceholder")}
         </Text>
       </Pressable>
 
       <Modal visible={visModal} animationType="slide" presentationStyle="pageSheet">
         <View className="flex-1 bg-white">
           <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
-            <Text className="text-lg font-semibold">Velg personer</Text>
+            <Text className="text-lg font-semibold">{t("felt.velgPersonerTittel")}</Text>
             <Pressable onPress={() => settVisModal(false)} hitSlop={12}>
               <X size={24} color="#6b7280" />
             </Pressable>
@@ -71,7 +73,7 @@ export function FlerePersonerObjekt({ verdi, onEndreVerdi, leseModus }: RapportO
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm font-medium text-gray-900">
-                      {item.user.name ?? "Ukjent"}
+                      {item.user.name ?? t("brukere.ukjent")}
                     </Text>
                     <Text className="text-xs text-gray-500">{item.user.email}</Text>
                   </View>
@@ -84,7 +86,7 @@ export function FlerePersonerObjekt({ verdi, onEndreVerdi, leseModus }: RapportO
               onPress={() => settVisModal(false)}
               className="items-center rounded-lg bg-blue-600 py-3"
             >
-              <Text className="font-medium text-white">Ferdig ({valgteIder.length} valgt)</Text>
+              <Text className="font-medium text-white">{t("felt.ferdigAntallValgt", { antall: valgteIder.length })}</Text>
             </Pressable>
           </View>
         </View>
