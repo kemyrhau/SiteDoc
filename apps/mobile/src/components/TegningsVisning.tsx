@@ -11,6 +11,7 @@ import {
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import { X, AlertTriangle, RefreshCw } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 
 const LASTING_TIMEOUT_MS = 15_000;
 
@@ -241,6 +242,7 @@ export function TegningsVisning({
   omrader = [],
   gpsMarkør,
 }: TegningsVisningProps) {
+  const { t } = useTranslation();
   const [laster, setLaster] = useState(true);
   const [feil, setFeil] = useState(false);
   const webViewRef = useRef<WebView>(null);
@@ -319,14 +321,14 @@ export function TegningsVisning({
       {feil ? (
         <View style={stiler.feilContainer}>
           <AlertTriangle size={48} color="#f59e0b" />
-          <Text style={stiler.feilTekst}>Kunne ikke laste tegningen</Text>
-          <Text style={stiler.feilBeskrivelse}>Sjekk nettverkstilkoblingen og prøv igjen</Text>
+          <Text style={stiler.feilTekst}>{t("tegningsvelger.kunneIkkeLaste")}</Text>
+          <Text style={stiler.feilBeskrivelse}>{t("tegningsvelger.sjekkNettverkProvIgjen")}</Text>
           <Pressable
             onPress={() => { setLaster(true); setFeil(false); }}
             style={stiler.prøvIgjenKnapp}
           >
             <RefreshCw size={16} color="#ffffff" />
-            <Text style={stiler.prøvIgjenTekst}>Prøv igjen</Text>
+            <Text style={stiler.prøvIgjenTekst}>{t("handling.provIgjen")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -334,7 +336,7 @@ export function TegningsVisning({
           {laster && (
             <View style={stiler.lastingContainer}>
               <ActivityIndicator size="large" color="#ffffff" />
-              <Text style={stiler.lastingTekst}>Laster tegning…</Text>
+              <Text style={stiler.lastingTekst}>{t("tegningsvelger.lasterTegning")}</Text>
             </View>
           )}
           <WebView
