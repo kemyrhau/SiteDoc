@@ -12,6 +12,7 @@ import {
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
+import { provisjonerProsjektmedlemskap } from "../services/prosjektTilgangEvaluator";
 
 export const prosjektRouter = router({
   // Hent prosjekter der innlogget bruker er medlem — uavhengig av rolle.
@@ -326,9 +327,10 @@ export const prosjektRouter = router({
         ? await hentAktiveFirmamoduler(valgtOrgId)
         : [];
 
-      // Strip organizationId fra input før spread til Project-data
-      // (det er ikke en kolonne på Project-modellen).
-      const { organizationId: _ignore, ...projectData } = input;
+      // Strip organizationId + medlemUserIds fra input før spread til Project-data
+      // (ingen av dem er kolonner på Project-modellen). medlemUserIds er fase 3-
+      // forhåndsvalg for prosjekttilgang-evaluatoren, ikke prosjektdata.
+      const { organizationId: _ignore, medlemUserIds, ...projectData } = input;
 
       return ctx.prisma.$transaction(async (tx) => {
         const prosjekt = await tx.project.create({
@@ -369,6 +371,16 @@ export const prosjektRouter = router({
         // B Kloss 2b: auto-legg firma-admins som prosjektadmin hvis firmaet
         // har slått på innstillingen. Dedup mot oppretteren (laget over).
         await autoLeggFirmaAdmins(tx, prosjekt.id, valgtOrgId);
+
+        // Registreringsmodell fase 3: provisjoner ansatte etter firmaets
+        // prosjekttilgang-regel (retning A). medlemUserIds = forhåndsvalg fra
+        // fremtidig avhukings-UI (ingen klient sender det ennå — se
+        // createProjectSchema); undefined → regelen alene bestemmer.
+        await provisjonerProsjektmedlemskap(tx, {
+          organizationId: valgtOrgId,
+          projectIds: [prosjekt.id],
+          kandidatUserIds: medlemUserIds,
+        });
 
         return prosjekt;
       });

@@ -244,9 +244,10 @@ model OrganizationMember {
   // Registreringsmodell fase 2 (2026-08-30).
   // prosjektTilgang: regel for hvilke prosjekter personen blir medlem i.
   // "alle" | "avdeling" | "manuell". NULL = arv OrganizationSetting.prosjektTilgangDefault
-  // (IKKE «ingen tilgang»). LAGRES i fase 2, EVALUERES IKKE — regelen kjører ved
-  // to hendelser (nytt prosjekt / ny ansatt onboardes), begge fase 3. Uten firmamalen
-  // som gjør friksjonen liten blir halv-automatikk en daglig blokker (Kenneths rekkefølge).
+  // (IKKE «ingen tilgang»). Lagt til fase 2. EVALUERES fra fase 3 (2026-09-02) av
+  // apps/api/src/services/prosjektTilgangEvaluator.ts, som kjører ved to hendelser:
+  // nytt prosjekt (prosjekt.opprett) og ny ansatt onboardes (organisasjon.inviterBruker).
+  // "avdeling" er BLOKKERT (Project mangler avdelingId) og behandles som "manuell".
   prosjektTilgang    String?   @map("prosjekt_tilgang")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -364,7 +365,9 @@ model OrganizationSetting {
   // prosjektets DOKUMENTER, ikke bare timeføring. 'alle' ville gitt enhver ansatt
   // innsyn i byggherre-korrespondanse på alle prosjekter. Friksjonen ved 'manuell'
   // er synlig og rettes én gang; oversharing er usynlig og rettes aldri. Firmaet
-  // kan flytte defaulten til 'alle'/'avdeling' selv. LAGRES i fase 2, EVALUERES fase 3.
+  // kan flytte defaulten til 'alle'/'avdeling' selv. Lagt til fase 2. EVALUERES fra
+  // fase 3 (2026-09-02) av prosjektTilgangEvaluator.ts som firmadefault når en ansatt
+  // har prosjektTilgang = NULL. 'avdeling' behandles som 'manuell' inntil Project.avdelingId finnes.
   prosjektTilgangDefault    String @default("manuell") @map("prosjekt_tilgang_default")
 
   // Per Fase 0.5 § 2 — hvem kan registrere AnsattKompetanse-rader

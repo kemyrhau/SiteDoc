@@ -35,6 +35,17 @@ export const createProjectSchema = z.object({
   // registrert som firma. Eksisterende standalone-prosjekter beholdes
   // (schema fortsatt nullable), men nye kan ikke opprettes uten firma.
   organizationId: z.string().uuid(),
+  // 🔴 UBRUKT AV KLIENT (registreringsmodell fase 3, 2026-09-02). INGEN klient
+  // sender medlemUserIds ennå. Feltet er backend-forberedelse for fence D —
+  // avhukingslista i nytt-prosjekt-skjemaet. Er lista satt, brukes den som
+  // KANDIDATLISTE til provisjonerProsjektmedlemskap (avgrenser hvem som vurderes);
+  // firmaregelen «alle/avdeling/manuell» gjelder FORTSATT per person, så en avhuket
+  // ansatt med regel "manuell" legges ikke inn. Undefined (dagens eneste tilfelle)
+  // → alle aktive ansatte vurderes, regelen alene bestemmer. Om avhukingen skal
+  // kunne overstyre regelen («mennesket bestemmer» fullt ut) avgjøres når UI-en
+  // bygges — navngitt oppfølger: «REG fase 3 — avhukings-UI ved prosjektopprettelse».
+  // Ikke les dette feltet som bevis på at en UI finnes.
+  medlemUserIds: z.array(z.string().uuid()).optional(),
 });
 
 // Faggruppevalidering
