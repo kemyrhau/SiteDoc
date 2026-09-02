@@ -113,7 +113,11 @@ export interface ReportObjectTypeMeta {
   defaultConfig: Record<string, unknown>;
 }
 
-// Metadata-map for alle rapportobjekttyper
+// Metadata-map for alle rapportobjekttyper.
+// 🔴 PLIKT: default-labelene her + opsjonsstrengene i PROSJEKT_MODULER under er SEEDET
+// standardtekst. Endrer/omdøper du en label eller et opsjonssett, MÅ `standardtekster.ts`
+// (STANDARD_FELTLABELS / STANDARD_OPSJONER) oppdateres — ellers ryker gjenkjenning→i18n og
+// `standardtekster.test.ts` rødner. Se standardtekster.ts for renderregel og lagringsformat.
 export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeMeta> = {
   heading: {
     label: "Overskrift",

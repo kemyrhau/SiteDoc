@@ -1,5 +1,7 @@
 import { View, Text, Pressable } from "react-native";
 import { Check } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
+import { oversettStandardtekst } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
 // Normaliser opsjon — støtter både string og {value, label}-format
@@ -15,9 +17,12 @@ function normaliserOpsjon(opsjon: unknown): { value: string; label: string } {
 }
 
 export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const råOpsjoner = (objekt.config.options as unknown[]) ?? [];
   const alternativer = råOpsjoner.map(normaliserOpsjon);
   const valgteVerdier = Array.isArray(verdi) ? (verdi as string[]) : [];
+  // Seedet standard-opsjon → oversett; firmaets egen streng → rå
+  const visLabel = (s: string) => oversettStandardtekst(s, t) ?? s;
 
   const håndterToggle = (alternativVerdi: string) => {
     if (leseModus) return;
@@ -46,7 +51,7 @@ export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rappo
             >
               {erValgt && <Check size={14} color="#ffffff" />}
             </View>
-            <Text className="text-sm text-gray-900">{alt.label}</Text>
+            <Text className="text-sm text-gray-900">{visLabel(alt.label)}</Text>
           </Pressable>
         );
       })}
