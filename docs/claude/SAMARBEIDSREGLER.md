@@ -964,6 +964,36 @@ Cowork skal gi denne linjen med agentens hash **hver gang** en merge meldes ferd
 | Linje | Hva den fanget 2026-07-15/16 |
 |---|---|
 | «Din rapport/ordre er **input, ikke fasit** — mål premisset selv.» | Spor 4 motbeviste D's «mengde er neppe alene» ved måling. Spor A fanget at coworks telling motsa registerets egen regel. |
+| 🔴 «**Sjekk treets alder før du melder et fravær.**» *(lagt til 2026-09-02)* | Se § under — «det finnes ikke» og «treet mitt er gammelt» ser helt like ut |
+
+#### 🔴 «Finnes ikke» og «treet mitt er gammelt» ser helt like ut (2026-09-02)
+
+**Fast linje i enhver ordre der agenten skal konkludere om kode:**
+
+> Før du måler noe du skal konkludere på: `git log --oneline -1` og bekreft at du står på
+> `origin/develop`-tippen eller nyere. **Finner du ikke noe du forventet, sjekk treets alder FØR du
+> melder det som funn.**
+
+**Målt to ganger samme dag:**
+
+1. **Merge-agenten** gjorde `reset --hard origin/develop` før to docs-commits landet. Diffen viste
+   `SAMARBEIDSREGLER.md` med **−20 linjer** — det så ut som en sletting av en regel skrevet tjue
+   minutter før. Den **stoppet** fordi fence 5 krever det, sporet det, og gjorde mergen på nytt.
+2. **Simulator** kjørte røykliste flyt 13 på et tre fra dagen før, grepet etter en litauisk term,
+   fant den ikke, og **konkluderte** at RUH-kategoriene var hardkodet norsk uten i18n-kobling.
+   Målt på `origin/develop` samme time: strengen var der, og `EnkeltvalgObjekt.tsx:24` kalte
+   `oversettStandardtekst`. Konklusjonen var feil; målingen var ærlig.
+
+**Forskjellen på de to var ikke dyktighet — det var at den ene hadde en plikt til å verifisere
+tilstand før den handlet, og den andre ikke hadde det.**
+
+⚠️ **Merk asymmetrien mellom agenttypene:**
+
+- **Kodeagenter** får ferskt grunnlag hver runde (`fetch` + `checkout -B <branch> origin/develop`),
+  og integrasjonsfeil fanges uansett av at **merge-agenten kjører regel 10 på det SAMMENSLÅTTE
+  resultatet**. En agents grønne bygg på gammelt grunnlag er et signal, ikke en garanti.
+- **Simulator** står detached og flytter seg kun når noen sier fra. Han er derfor den mest utsatte,
+  og forutsetningen står nå fast i [roykliste-mobil.md](roykliste-mobil.md), ikke bare i ordrer.
 | «**Sjekk om et banner alt dekker det** før du kaller noe drift.» | Hindret at tre korrekt merkede filer ble «rettet» (`deploy-detaljer:9`, `VEILEDER:125`). |
 | «**Kjør negativ kontroll** — tom output kan bety at sjekken er død, ikke at den er grønn.» | Spor 1 og 4 gjorde det uoppfordret. Cowork gikk selv i fella samme kveld. |
 | «Er du usikker: **SI DET, ikke gjett.**» | Spor 3 lot UE stå → avdekket at arkitektur-ankeret motsa `schema.prisma:490`. |

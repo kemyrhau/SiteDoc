@@ -16,6 +16,36 @@ sist_verifisert_mot_kode: 2026-09-02
 > **Kjør den før hvert EAS-bygg.** Finner den en regresjon → bygget utsettes.
 > Grunnlag: [kvalitetssikring-plan.md](kvalitetssikring-plan.md) (Kenneth 2026-08-31).
 
+## 🔴 FORUTSETNING — verifiser treets alder FØR første måling
+
+**Simulator står detached og flytter seg kun når noen sier fra.** Han er derfor den mest utsatte
+for å måle på gammel kode — og en måling på et foreldet tre ser **identisk ut** med et ekte funn.
+
+**Kjør dette før hver kjøring, hver gang:**
+
+```sh
+cd ~/Documents/Programmering/SiteDoc-simulator
+git fetch origin && git checkout --detach origin/develop
+git log --oneline -1                          # noter hashen i rapporten
+```
+
+**Og før du melder at noe MANGLER:** bekreft at strengen/feltet faktisk finnes i kilden på det
+treet du står på. Er den ikke i kilden, kan den ikke rendres — og da måler du **treet ditt**, ikke
+koden.
+
+```sh
+grep -c '<forventet streng>' packages/shared/src/i18n/<sprak>.json
+```
+
+⚠️ **Målt 2026-09-02:** simulator kjørte flyt 13 på et tre fra dagen før, fant ikke en litauisk
+term, og konkluderte at RUH-kategoriene manglet i18n-kobling. På `origin/develop` samme time var
+strengen der, og `EnkeltvalgObjekt.tsx:24` kalte `oversettStandardtekst`. **Konklusjonen var feil;
+målingen var ærlig.** Forskjellen fra merge-agenten, som fanget samme feilklasse, var at den hadde
+en plikt til å verifisere tilstand før den handlet.
+
+🔴 **Rapporten skal alltid oppgi hashen som ble testet.** Uten den kan ingen skille «dette er en
+regresjon» fra «dette er ikke bygget ennå».
+
 ## Hva som er UTENFOR lista (les dette først)
 
 - **Femten flyter av flere hundre.** Grønn liste betyr **ikke** grønn app — den betyr at de
@@ -295,17 +325,45 @@ atferdsbrudd. Flyt 4-transienten overvåkes.
 | 10 | Drep app midt i utfylling → utkast består | ✅ | — | — | Committet (tekst+posisjon) bestod; ukommittert felt tomt |
 | 11 | Byggeplass-filter → «Hele prosjektet» | ✅ | 2 | ✅ | **Filtrert 8 / hele 9** (BEF1 på NRK legges til). Neg.kontroll: re-valg → 8 igjen. «Godkjent»-fane kun i hele-visning |
 | 12 | Modulgating av Timer | ✅ | — | ✅ | Round-trip: AV → tab/chip/Mer-rader borte, familie upåvirket; PÅ → alt tilbake. Fail-open (flymodus) OK. ⚠️ krevde pull-to-refresh |
-| 13 | Språk (polsk) | ✅ | — | ✅ | **Ingen rå nøkler.** Rest-norsk: «Dato og tid», «Medium prioritet»; måneder ikke lokalisert («aug.»/«september»); «In progress» (spinner). 🔴 prioritet-label henger ett språk bak språkbytte |
+| 13 | Språk (polsk) | ✅ | — | ✅ | **Etterkontroll på `22ef39a8`** (JS-fiks `d63937ab`, Metro fast refresh — ikke nytt native bygg). 🟢 **Prioritet-label FIKSET:** rundtur NO→PL→NO→PL gir «Medium prioritet»→«Średni priorytet»→«Medium prioritet»→«Średni priorytet», følger språket i samme render (hang ett steg bak før). **Ingen rå nøkler.** Gjenstående rest-norsk (nye funn, ikke de 3 tillatte): «Velg lokasjon…» (sjekkliste-header — inkonsistent, tegningsvelger oversetter «Alle lokasjoner»→«Wszystkie lokalizacje»); endringslogg-detalj «Zmieniono **Rad N — Kolonne M til …**»/«… **(lagt til) til «1 felt utfylt»**» (polsk verb, norsk detalj — kunne ikke legge til fersk rad for å bevise levende-vs-frossen). Tillatte (ikke meldt): «Dato og tid» feltlabel, måned «september», «In progress» |
 | 14 | Repeater arver tegning fra forrige rad | ✅ | rad3: 0 (tegning) | ✅ | Seed OK 2026-09-02 (mal «Beraringsrapport» BEF_ på Bygg B12, 2 tegninger). BEF_1: rad 1→A «Bygg B12 - Plantegning», rad 2 åpnet→**foreslo A** (arv), byttet manuelt→B «Skjermbilde 2026-09-02», rad 3 åpnet→**foreslo B, ikke A**. Arven leser **forrige rad (n−1)**, ikke rad 1. Tegningsvalg: 5 trykk (rad 1) → 0 (rad 3, beholdt arv). «Posisjon i tegning»-feltet rendret i repeater-raden (kritisk port bestått) |
 | 15 | Tegning uten punkt (paritet + krasj) | ✅ | — | ✅ | **Ingen krasj** i noen drawing-uten-punkt-vei (pid stabil). Dangling-tilstand ikke skapbar via UI (Lukk/X diskarder, Bekreft disabled) → krasjklassen forhindret ved kilden. BEF_2 lesevisning rendret 3 posisjoner uten krasj |
 
 **Sum:** **15/15 mål nådd** (flyt 14 låst opp av Kenneths seed 2026-09-02 og bestått —
-repeater-arven leser forrige rad, ikke rad 1). **Ingen atferdsregresjon som utsetter bygg.**
-Nye anmerkninger til cowork: (a) prioritet-label henger ett språk bak språkbytte, (b) rest-norsk
-«Dato og tid»/«Medium prioritet» + ulokaliserte måneder på polsk, (c) modulendring krever manuell
-refresh, (d) send-arktekst «…bytte til Send?», (e) innmelder-valg fester seg ikke, (f)
-prosjektvelger tom til firma valgt etter relaunch. Flyt 3 trykk-mål **7→4** (tegningsminnet
-virker). **Klar for EAS-bygg** mht. atferd.
+repeater-arven leser forrige rad, ikke rad 1). Flyt 13 etterkontrollert på `22ef39a8`:
+prioritet-label-buggen **fikset og verifisert**. **Ingen atferdsregresjon som utsetter bygg.**
+Nye anmerkninger til cowork: (a) 🟢 prioritet-label FIKSET (`d63937ab`), (b) gjenstående rest-norsk
+på polsk: «Velg lokasjon…» (sjekkliste-header) + endringslogg-detalj «Rad/Kolonne/lagt til/felt
+utfylt», (c) modulendring krever manuell refresh, (d) send-arktekst «…bytte til Send?», (e)
+innmelder-valg fester seg ikke, (f) prosjektvelger tom til firma valgt etter relaunch. Flyt 3
+trykk-mål **7→4** (tegningsminnet virker). **Klar for EAS-bygg** mht. atferd.
+
+### Målepunkt 13b — RUH observasjon-kategori på litauisk + albansk (2026-09-02, `75fd784b`)
+
+Cowork ba måle om den lange litauiske nestenulykke-labelen «Vos neįvykęs nelaimingas atsitikimas»
+(35 tegn) knekker layouten, og sjekke albansk «Incident pa pasoja» samme sted.
+
+🔴 **Historikk:** første forsøk ble gjort på `22ef39a8`, som var FØR HMS-terminologi-mergen —
+strengene fantes ikke i det treet, så kategoriene rendret norsk og målingen var ugyldig (målte
+treet, ikke koden). Kjørt på nytt på `75fd784b` etter pull. **Kilde-verifisering før måling:**
+`grep -c 'Vos neįvykęs' packages/shared/src/i18n/lt.json` = 1; mekanisme `oversettStandardtekst(s, t)
+?? s` i `apps/mobile/src/components/rapportobjekter/EnkeltvalgObjekt.tsx:24`.
+
+✅ **Resultat (gyldig, `75fd784b`):** kategoriene rendrer **oversatt** i RUH-registrering
+(HSE → + → RUH → «Observasjon» → «Type observasjon»):
+- **Litauisk:** «Vos neįvykęs nelaimingas atsitikimas» (35 tegn), «Pavojingos sąlygos»,
+  «Rizikos pastebėjimas».
+- **Albansk:** «Incident pa pasoja», «Gjendje e rrezikshme», «Vëzhgim rreziku».
+
+**35-tegns-svaret:** den lange litauiske strengen rendrer på **én linje** ved siden av
+radioknappen — **ingen ellipse, ingen ombrekk, ingen radsprengning** (~60 % av tilgjengelig
+bredde på iPhone 16 Plus, samme radhøyde som de andre valgene). **Lesbar — behold den lange
+termen; kortform-fallbacken «Riktas» er ikke nødvendig.** Albansk er kort og trivielt innafor.
+
+⚠️ **Ekte gjenstående (uendret av dette — kjent gap, egen oppfølger):** feltlabelen «Type
+observasjon» over kategoriene, samt «Tidspunkt» og «Innmelder», forblir norske på alle språk.
+Dette er 3 av 46 beskrivende seedede labels som ikke dekkes av type-gjenkjenningen — ikke
+kategori-verdiene, som nå er oversatt.
 
 ---
 
@@ -313,13 +371,18 @@ virker). **Klar for EAS-bygg** mht. atferd.
 
 - **Tunnel:** `3301` oppe (`ssh -f -N -L 3301:localhost:3301 server-ny`). 🔴 **Krever Tailscale
   oppe** — var stoppet ved øktstart (`sudo tailscale up`), ellers timer SSH til `server-ny` ut.
-- **Simulator:** iPhone 16 Plus (iOS 18.4) booted. **Appen er nå et lokalt Debug dev-bygg fra
-  `63109cf7`** (ikke Release, ikke `1a1844e8`). 🔴 Et Release-bygg (`.env.production` → **prod**)
-  ble startet ved en feil og terminert før interaksjon — installert app er nå Debug/test.
-- **Metro:** 8081 kjører (bakgrunn, dev-client). ⚠️ Krasjet 2× på `ws`-WebSocket-feil under
-  Node v25 og måtte restartes; appen overlever i minnet uten Metro (kun reload trenger den).
-  Reconnect: `xcrun simctl openurl booted "com.kemyrhau.sitedoc://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"`.
-- **Språk:** tilbakestilt til 🇳🇴 Norsk bokmål (var innom polsk i flyt 13).
+- **Simulator:** iPhone 16 Plus (iOS 18.4) booted. **Native Debug dev-shell fra `63109cf7`**
+  (versjonsstrengen i Mer viser `63109cf7`), men **JS-bundle er nå `75fd784b`** (develop-tip etter
+  HMS-terminologi-merge) — hentet via Metro `--clear` + deep-link-reload under målepunkt 13b.
+  Rene JS-endringer, intet nytt native bygg. 🔴 Ikke Release/prod.
+- **Git:** worktree på **detached HEAD `origin/develop` = `75fd784b`** (byttet fra `22ef39a8` for
+  målepunkt 13b etter HMS-terminologi-merge). Doc-edits ble stashet+poppet rent over.
+- **Metro:** 8081 **oppe** ved re-måling (`npx expo start --clear`), men bakgrunnstask stoppes
+  ofte → antatt **NEDE ved øktslutt**. Appen lever i minnet med `75fd784b`-JS; kun reload trenger
+  Metro. Start på nytt før reload: `cd apps/mobile && npx expo start` (Node v25 gir `ws`-krasj).
+  Reconnect:
+  `xcrun simctl openurl booted "com.kemyrhau.sitedoc://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"`.
+- **Språk:** tilbakestilt til 🇳🇴 Norsk bokmål (var innom polsk i flyt 13 + etterkontroll).
 - **Firma/prosjekt:** aktiv firma `SITEDOC MYRHAUG`, sist på prosjekt `Sitedoc Boligfelt B12`
   (byggeplass Bygg B12), åpent dokument **BEF_1 Beraringsrapport (Utkast)** fra flyt 14.
   **Timer-modulen: PÅ** (slått av/på under flyt 12, endte PÅ).
@@ -334,6 +397,8 @@ virker). **Klar for EAS-bygg** mht. atferd.
   - **BEF_1 Beraringsrapport** (Bygg B12, Utkast) — ny (flyt 14). 3 repeater-rader:
     rad 1 tegning A (Bygg B12 - Plantegning, 50.0/44.1 %), rad 2+3 tegning B
     (Skjermbilde 2026-09-02, 50.0/35.9 %). Beskrivelsesfelt tomme.
+  - **RUH10, RUH11, RUH12** (RUH, Utkast) — tomme utkast fra målepunkt 13b (LT/SQ, to kjøringer).
+    Kan forkastes; ikke forkastet i simulatoren for å unngå bekreftelsesdialog som blokkerer idb.
 - ✅ **Flyt 14 seedet av Kenneth 2026-09-02:** mal «Beraringsrapport» (BEF_) på Bygg B12 med
   repeater «Observasjon/kontroll/objekt» + `drawing_position`-felt «Posisjon i tegning», og 2
   tegninger på byggeplassen. Kritisk port (feltet rendrer i raden) bestått — feltene var merket
