@@ -65,7 +65,7 @@ Konsekvens for tidssone (§ 3): PDF-en viser prosjektets tid — som er samme re
 
 - **V1** (vei A, gjenkjenning ved rendering): ✅ vedtatt.
 - **V2** (standard-opsjonssett inkludert): ✅ vedtatt.
-- **V3** (PDF på kildespråk; oversettelse er skjermlesehjelp): rebegrunnet i § 4 uten «PDF er fasit» — til Kenneths bekreftelse.
+- **V3** (PDF på kildespråk; oversettelse er skjermlesehjelp): ✅ **vedtatt av Kenneth 2026-09-02** — *«ja til V3 → fabel mener den er ok»*. Rebegrunnet i § 4 uten «PDF er fasit»; de tre nye beina er arkivets språkuavhengighet, Globe-modellen (vises, lagres aldri) og at persistert maskinoversettelse får en autoritet den ikke har.
 - **V4** (dato-verdier følger leserens locale): ✅ vedtatt, skjerpet — tidssone følger prosjektets lokasjon (§ 3).
 
 Ved bekreftet V3 formulerer fabel ordre til redesign-Opus: oppslagstabell i shared (type → i18n-nøkkel + historiske aliaser), renderregel i FeltWrapper og mobil-ekvivalenten, tidssoneregel per § 3, verifisering mot «Dato og tid»-caset fra kontrollplanmålingen. Ingen migrering, ingen API-endring.
