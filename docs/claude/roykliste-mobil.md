@@ -1,13 +1,13 @@
 ---
 name: roykliste-mobil
-description: Kjørbar røykliste for mobil-appen (iOS-simulator, test-API) — ti flyter som fanger atferdsregresjoner typer og tester ikke ser. Kjøres FØR hvert EAS-bygg. Lag 2 i kvalitetssikring-plan.md.
+description: Kjørbar røykliste for mobil-appen (iOS-simulator, test-API) — femten flyter som fanger atferdsregresjoner typer og tester ikke ser. Kjøres FØR hvert EAS-bygg. Lag 2 i kvalitetssikring-plan.md.
 status: aktiv
-sist_verifisert_mot_kode: 2026-08-31
+sist_verifisert_mot_kode: 2026-09-02
 ---
 
 # Røykliste — mobil (iOS-simulator, test-API)
 
-> **Hva dette er:** en **kjørbar** liste, ikke en beskrivelse. Ti flyter drives med `idb`
+> **Hva dette er:** en **kjørbar** liste, ikke en beskrivelse. Femten flyter drives med `idb`
 > mot appen i iOS-simulatoren (test-API via tunnel `3301`). Formålet er å fange
 > **atferds**regresjoner som kompilerer grønt og passerer tester — de tre som slapp gjennom
 > 30. aug. (tegningsmodal kunne ikke lukkes, tekstfelt låst, timer kastet på manglende
@@ -18,7 +18,7 @@ sist_verifisert_mot_kode: 2026-08-31
 
 ## Hva som er UTENFOR lista (les dette først)
 
-- **Ti flyter av flere hundre.** Grønn liste betyr **ikke** grønn app — den betyr at de ti
+- **Femten flyter av flere hundre.** Grønn liste betyr **ikke** grønn app — den betyr at de
   mest brukte hovedveiene i utfyllings-appen sto oppreist på den testede hashen.
 - **Innlogging testes ikke reelt.** Sesjonen ligger i iOS-nøkkelringen og overlever
   app-drap/reinstall, så appen lander rett på dashbordet. Flyt 1 verifiserer at
@@ -87,7 +87,7 @@ SiteDoc Røstbakken».
 
 ---
 
-## De ti flytene
+## De femten flytene
 
 Hver flyt: **start → trykk → forventet**. Svar på de tre spørsmålene pr. flyt i tabellen:
 **mål nådd? · antall trykk · kontroller truffbare?** «Truffbar» = `idb ui tap` på hver
@@ -188,11 +188,61 @@ lå død på y=43 i bygg 46).
   blur/Ferdig) går tapt — forventet, auto-lagring skjer ved blur, ikke pr. tastetrykk.
   «Utkastet består» = det lagrede utkastet, ikke siste keystroke.
 
+### Flyt 11 — Byggeplass-filter → «Hele prosjektet» (måling + negativ kontroll)
+- **Start:** et prosjekt med sjekklister spredt på flere byggeplasser (test: `Test prosjekt
+  SiteDoc Røstbakken`, byggeplass-chip aktiv).
+- **Trykk:** les sjekkliste-antall i filtrert tilstand (byggeplass valgt) → tap chip → **«Hele
+  prosjektet»** → les antall på nytt.
+- **Forventet:** settet **utvides** når byggeplass-filteret fjernes, og chip-en sier **«Viser
+  kun denne byggeplassen — trykk for hele prosjektet»** når en byggeplass er valgt (skjermen
+  erkjenner at den er filtrert). **Tell begge tall.**
+- 🔴 **Negativ kontroll:** velg byggeplass igjen → settet skal **smalne på nytt**. Viser lista
+  det samme uansett valg, er filteret koblet fra i stedet for å ha en av-tilstand.
+
+### Flyt 12 — Modulgating av Timer (krever Kenneth-toggle)
+- **Start:** Timer-modulen **PÅ** for firmaet (baseline). Krever at Kenneth slår av/på på
+  `/dashbord/firma/moduler` i web — **be om det, ikke gjør det selv.**
+- **Trykk:** noter baseline (Timer-tab, «Start dag»-chip, Timer/Mine timer i Mer) → be Kenneth
+  slå **av** → refresh (pull-to-refresh; navigasjon alene refetcher ikke config) → mål → be
+  Kenneth slå **på** → refresh → mål.
+- **Forventet (av):** Timer-fanen borte fra tab-baren, «Start dag»-chipen borte fra dashbord,
+  Timer-radene borte fra «Mer». **(på):** alt tilbake.
+- 🔴 **Familieskillet:** Sjekklister, Oppgaver, HMS og Tegninger skal være **upåvirket** hele
+  veien — det er prøven som avslører om gating-en lekker.
+- 🔴 **Fail-open:** flymodus (kutt tunnel) med Timer **PÅ** → fanen skal fortsatt virke (lokal
+  cache).
+
+### Flyt 13 — Språk (polsk)
+- **Start:** Mer → Språk → **🇵🇱 Polski** (A.Markussen har flest fra Polen/Litauen/Albania).
+- **Trykk:** åpne dashbord, en sjekkliste, tegningsvelgeren; sett en tegningsposisjon.
+- **Forventet:** flyten virker på polsk uten krasj. **Se etter to ting og rapportér hver
+  ordrett:** (1) norsk tekst som står igjen, (2) rå i18n-nøkler (`felt.bekreft`-typen — en
+  manglende nøkkel vises som selve nøkkelen; hverken typecheck eller bygg fanger det).
+- *Rydd opp:* bytt språk tilbake til 🇳🇴 etter testen (clean state).
+
+### Flyt 14 — Repeater arver tegning fra forrige rad (negativ kontroll)
+- **Start:** en sjekkliste med repeater som har `drawing_position`, på en byggeplass med **to
+  distinkte tegninger** A og B (test-mål: `Sitedoc Boligfelt B12 → Bygg B12`).
+- **Trykk:** Rad 1 → velg tegning **A**, sett punkt, bekreft. Rad 2 → åpne (skal foreslå A) →
+  bytt til **B**, sett punkt, bekreft. Rad 3 → åpne.
+- **Forventet:** 🔴 **Rad 3 skal foreslå B, ikke A.** Arver den A, leser koden rad 1 i stedet
+  for forrige rad — regelen er feil bygget. **Tell trykk for rad 2 og 3** mot rad 1 (gevinsten).
+- ⚠️ **Datakrav:** dokumentet må ha BÅDE repeater-med-`drawing_position` OG en byggeplass med
+  2 valgbare tegninger. Finnes ikke den kombinasjonen → **BLOKKERT**, meld hvem som må seede.
+
+### Flyt 15 — Tegning uten punkt (paritetsregel + fikset krasj)
+- **Start:** et `drawing_position`-felt.
+- **Trykk:** velg en tegning men **sett IKKE punkt** → lukk uten å bekrefte.
+- **Forventet:** i **redigering** vises mellomtilstanden («tegning valgt, punkt mangler») eller
+  feltet forblir tomt (ingen halv visning); i **lesevisning** ser feltet ut som **ingen
+  lokasjon**. 🔴 **Appen skal ikke krasje** — fram til `81225a93` kalte lesevisningen
+  `positionX.toFixed(1)` på `null` her. Krasjer den, er fiksen ikke i bygget.
+
 ---
 
 ## Negativ kontroll (obligatorisk)
 
-Går alle ti grønt på første forsøk: **sjekk at du faktisk testet det du tror.** En liste som
+Går alle femten grønt på første forsøk: **sjekk at du faktisk testet det du tror.** En liste som
 aldri feiler måler ingenting. Konkret:
 - Traff idb-tappene ekte kontroller, eller falt de på tomt lerret / bak tastatur? (Fellene i
   flyt 3/9 gir «grønt» om du ikke leser tilbake — verifiser **effekten**, ikke bare at du taper.)
@@ -226,18 +276,60 @@ aldri feiler måler ingenting. Konkret:
 anmerkninger er kjente/forventede validerings- eller UX-forhold (flyt 3/6/9-feller), ikke
 atferdsbrudd. Flyt 4-transienten overvåkes.
 
+### Kjøring 2 — 2026-09-02 · develop `63109cf7` (simulator-worktree) · iPhone 16 Plus, iOS 18.4 · lokalt Debug-bygg (dev-client)
+
+> Lag-2-røyk FØR EAS-bygg (7 mobil-runder ventet). Alle 15 flyter. Dev-login «Egen bruker
+> (kemyrhau)», firma `SITEDOC MYRHAUG`, prosjekter Røstbakken + Boligfelt B12.
+
+| # | Flyt | Mål nådd? | Trykk | Kontroller truffbare? | Anmerkning |
+|---|------|-----------|-------|-----------------------|------------|
+| 1 | Innlogging → dashbord | ✅ | 0 (dev-login) | ✅ 5/5 tabs | Sesjon var tømt → logget inn via dev-login |
+| 2 | Sjekkliste tekstfelt består | ✅ | 2 | ✅ | «Flyt2 tekst 1547» bestod etter Ferdig |
+| 3 | Repeater → tegningsposisjon → Bekreft | ✅ | **4** | ✅ | 🔽 **7→4**: tegningsminnet åpnet direkte på Z-20-01 (sparte Velg tegning+kategori+tegning). Felle bekreftet |
+| 4 | Kommentar + bilde | ⚠️ | 2 (+rettighet) | ✅ | Kjent transient: 1. Galleri-tap droppet til hjemskjerm (førstegangs-rettighet, ferskt install); 2. forsøk OK. Opplasting 357670 B |
+| 5 | Forstørr bilde → lukk | ✅ | 3 | ✅ | Annoter (Pil/Sirkel/…) → Avbryt, pid uendret |
+| 6 | Nytt dokument fra «+» | ✅ | 5 | ✅ | BEF_10 opprettet; Opprett disabled til dokumentflyt valgt (felle bekreftet) |
+| 7 | Oppgave → send til neste ledd | ✅ | 4 | ✅ | BHO4: Utkast → Mottatt (mutert). ⚠️ arktekst «…bytte til Send?» ser rar ut |
+| 8 | HMS → opprett og lagre | ✅ | ~2 (+innmelder) | ✅ | RUH2 utkast består. ⚠️ innmelder-valg festet seg ikke i felt |
+| 9 | Timer → dagsseddel → ny rad → lagre | ✅ | 4 | ✅ | 15. juli 7.50→9.50 t; lønnsart forhåndsvalgt; Til kl. auto 15:00→17:00; lukket tastatur før Lagre |
+| 10 | Drep app midt i utfylling → utkast består | ✅ | — | — | Committet (tekst+posisjon) bestod; ukommittert felt tomt |
+| 11 | Byggeplass-filter → «Hele prosjektet» | ✅ | 2 | ✅ | **Filtrert 8 / hele 9** (BEF1 på NRK legges til). Neg.kontroll: re-valg → 8 igjen. «Godkjent»-fane kun i hele-visning |
+| 12 | Modulgating av Timer | ✅ | — | ✅ | Round-trip: AV → tab/chip/Mer-rader borte, familie upåvirket; PÅ → alt tilbake. Fail-open (flymodus) OK. ⚠️ krevde pull-to-refresh |
+| 13 | Språk (polsk) | ✅ | — | ✅ | **Ingen rå nøkler.** Rest-norsk: «Dato og tid», «Medium prioritet»; måneder ikke lokalisert («aug.»/«september»); «In progress» (spinner). 🔴 prioritet-label henger ett språk bak språkbytte |
+| 14 | Repeater arver tegning fra forrige rad | ⛔ BLOKKERT | — | — | Ingen `drawing_position`-repeater på en byggeplass med 2 tegninger. Bygg B12 har 2 tegninger men KB-maler uten repeater + Befaringsnotat ikke opprettbar; Røstbakken har repeater men 1 tegning. Mekanismen (tegningsminne) delvis bevist via flyt 3 |
+| 15 | Tegning uten punkt (paritet + krasj) | ✅ | — | ✅ | **Ingen krasj** i noen drawing-uten-punkt-vei (pid stabil). Dangling-tilstand ikke skapbar via UI (Lukk/X diskarder, Bekreft disabled) → krasjklassen forhindret ved kilden. BEF_2 lesevisning rendret 3 posisjoner uten krasj |
+
+**Sum:** **14/15 mål nådd** (flyt 14 blokkert av testdata-struktur, ikke regresjon). **Ingen
+atferdsregresjon som utsetter bygg.** Nye anmerkninger til cowork: (a) prioritet-label henger
+ett språk bak språkbytte, (b) rest-norsk «Dato og tid»/«Medium prioritet» + ulokaliserte
+måneder på polsk, (c) modulendring krever manuell refresh, (d) send-arktekst «…bytte til Send?»,
+(e) innmelder-valg fester seg ikke, (f) prosjektvelger tom til firma valgt etter relaunch. Flyt 3
+trykk-mål **7→4** (tegningsminnet virker). **Klar for EAS-bygg** mht. atferd; flyt 14 bør seedes
+for full dekning neste gang.
+
 ---
 
-## Tilstand etterlatt (neste kjøring starter på sekunder)
+## Tilstand etterlatt (neste kjøring starter på sekunder) — oppdatert Kjøring 2 (2026-09-02)
 
-- **Tunnel:** `3301` oppe (`ssh -f -N -L 3301:localhost:3301 server-ny`).
-- **Simulator:** iPhone 16 Plus (iOS 18.4) booted, appen installert (DEV-client fra `1a1844e8`).
-- **Metro:** 8081 kjører fra eget vindu.
-- **Fotobibliotek:** ett test-foto lagt til; SiteDoc har full fototilgang (`privacy grant photos`).
-- **Testdata skapt/endret denne kjøringen** (test-DB, greit å beholde):
-  - **BEF_9** (Befaringsnotat, Utkast) — ny; 1 repeater-rad med tegningsposisjon
-    (Grønnåsen 50/64 %), tekst «Royalist v1 test 2253», ett bilde.
-  - **RUH1** (RUH, Utkast) — ny; Nestenulykke, innmelder Kenneth Myrhaug.
-  - **BHO6** (Oppgave) — status endret **Utkast → Mottatt** (sendt).
-  - **Dagsseddel fre. 07. aug. 2026** — én ekstra Anleggsarbeid-rad (2 t), sum 7.50 → 9.50 t.
-  - **BEF_8** — arvet tom repeater-rad fra forrige runde (uendret).
+- **Tunnel:** `3301` oppe (`ssh -f -N -L 3301:localhost:3301 server-ny`). 🔴 **Krever Tailscale
+  oppe** — var stoppet ved øktstart (`sudo tailscale up`), ellers timer SSH til `server-ny` ut.
+- **Simulator:** iPhone 16 Plus (iOS 18.4) booted. **Appen er nå et lokalt Debug dev-bygg fra
+  `63109cf7`** (ikke Release, ikke `1a1844e8`). 🔴 Et Release-bygg (`.env.production` → **prod**)
+  ble startet ved en feil og terminert før interaksjon — installert app er nå Debug/test.
+- **Metro:** 8081 kjører (bakgrunn, dev-client). ⚠️ Krasjet 2× på `ws`-WebSocket-feil under
+  Node v25 og måtte restartes; appen overlever i minnet uten Metro (kun reload trenger den).
+  Reconnect: `xcrun simctl openurl booted "com.kemyrhau.sitedoc://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"`.
+- **Språk:** tilbakestilt til 🇳🇴 Norsk bokmål (var innom polsk i flyt 13).
+- **Firma/prosjekt:** aktiv firma `SITEDOC MYRHAUG`, sist på prosjekt `Sitedoc Boligfelt B12`
+  (byggeplass Bygg B12). **Timer-modulen: PÅ** (slått av/på under flyt 12, endte PÅ).
+- **Fotobibliotek:** ett test-foto lagt til; SiteDoc har full fototilgang.
+- **Testdata skapt/endret denne kjøringen** (test-DB `sitedoc_test`, greit å beholde):
+  - **BEF_8** (Røstbakken) — tekst «Flyt2 tekst 1547» + ett bilde på rad 1; rad 2 fikk
+    tegningsposisjon Z-20-01 (50.0/26.3 %); rad 3 lagt til (tom).
+  - **BEF_10** (Befaringsnotat, Utkast) — ny (flyt 6), flyt BL→BH.
+  - **RUH2** (RUH, Utkast) — ny (flyt 8).
+  - **BHO4** (Oppgave, Røstbakken) — status endret **Utkast → Mottatt** (sendt).
+  - **Dagsseddel ons. 15. juli 2026** — én ekstra Anleggsarbeid-rad (2 t), sum 7.50 → 9.50 t.
+- 🔴 **Flyt 14 mangler seed:** ingen `drawing_position`-repeater på en byggeplass med 2
+  tegninger. Neste gang: gjør Befaringsnotat opprettbar på B12, ELLER legg 2. tegning på
+  Røstbakken byggeplass 900512.
