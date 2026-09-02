@@ -6,6 +6,7 @@ import { normaliserOpsjon, normaliserRad } from "./rapportobjekter/typer";
 import type { RapportObjekt } from "./rapportobjekter/typer";
 import { formaterDato, formaterDatoTid } from "@sitedoc/pdf";
 import type { VaerVerdi } from "@sitedoc/pdf";
+import { harTegningsmarkor } from "@sitedoc/shared";
 
 // Trafikklys-farge → label + CSS-klasse (web bruker Tailwind-klasser, ikke hex)
 const TRAFIKKLYS: Record<string, { label: string; klasse: string }> = {
@@ -392,7 +393,9 @@ function ObjektInnhold({
 
     case "drawing_position": {
       const pos = verdi as TegningPosisjonVerdi | null;
-      if (!pos?.drawingId) {
+      // Paritetsregel (2026-09-02): lesevisning følger PDF-ens harMarkor. Tegning uten
+      // punkt dokumenterer ingenting → vis som «ingen lokasjon», ikke en tom kartboks.
+      if (!harTegningsmarkor(pos)) {
         return <FeltRad label={label} tom>{null}</FeltRad>;
       }
       return (

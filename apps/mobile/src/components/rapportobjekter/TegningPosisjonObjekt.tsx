@@ -3,7 +3,7 @@ import { View, Text, Pressable, Modal, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Target, X, Check } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
-import type { TegningPosisjonVerdi } from "@sitedoc/shared";
+import { harTegningsmarkor, type TegningPosisjonVerdi } from "@sitedoc/shared";
 import { trpc } from "../../lib/trpc";
 import { AUTH_CONFIG } from "../../config/auth";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
@@ -152,7 +152,12 @@ export function TegningPosisjonObjekt({
       : `${AUTH_CONFIG.apiUrl}${tegningDetalj.fileUrl}`
     : null;
 
-  // Visning av lagret posisjon (les + rediger deler samme oppsummering).
+  // Komplett markør (tegning + punkt)? Delt paritetsregel med web/PDF.
+  const harMarkor = harTegningsmarkor(posisjon);
+
+  // Visning av lagret posisjon (les + rediger deler samme oppsummering). Posisjon-linja
+  // rendres KUN med komplett markør — ellers er positionX/Y null (og `.toFixed` krasjer;
+  // funn 2026-09-02: mobil lesevisning krasjet i dag når punkt manglet).
   const oppsummering = posisjon ? (
     <View className="gap-2">
       <View className="flex-row items-center gap-2">
@@ -164,14 +169,20 @@ export function TegningPosisjonObjekt({
           </Pressable>
         )}
       </View>
-      <Text className="text-xs text-gray-500">
-        Posisjon: {posisjon.positionX.toFixed(1)}%, {posisjon.positionY.toFixed(1)}%
-      </Text>
+      {harMarkor && (
+        <Text className="text-xs text-gray-500">
+          Posisjon: {posisjon.positionX.toFixed(1)}%, {posisjon.positionY.toFixed(1)}%
+        </Text>
+      )}
     </View>
   ) : null;
 
   if (leseModus) {
-    return oppsummering ?? <Text className="text-sm italic text-gray-400">Ingen posisjon valgt</Text>;
+    // Paritetsregel (2026-09-02): lesevisning følger PDF-ens harMarkor. Tegning uten
+    // punkt er en arbeidstilstand → vis som «ingen lokasjon», ikke en halv oppsummering.
+    return harMarkor ? oppsummering : (
+      <Text className="text-sm italic text-gray-400">Ingen posisjon valgt</Text>
+    );
   }
 
   return (
