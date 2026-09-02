@@ -175,6 +175,28 @@ Dette kravet gir den en frist og en konkret kunde.
 ⚠️ **Ikke bland med `Utleieobjekt.utleieEnhet`.** Km ble først nevnt i maskin-sammenheng; det er
 en annen sak. Se [maskin.md](maskin.md) § faktureringsenheten.
 
+### 🟡 Dokumentets lokasjon arves ikke ned i repeater-radene (P1, flagget 2026-09-02)
+
+Har en sjekkliste/oppgave lokasjon satt på **dokumentnivå** (`Checklist.drawingId`), foreslår
+repeater-radenes `drawing_position`-felt **ikke** den tegningen. Koden flagger det selv:
+`apps/mobile/src/components/rapportobjekter/TegningPosisjonObjekt.tsx:39-40` — *«krever en ny prop
+threadet fra detaljsiden»*.
+
+**Rangeringen slik den bør bli:**
+
+1. Dokumentets egen tegning → foreslås i radene. ⚠️ **Ikke bygget** (denne posten).
+2. Ellers, forrige repeater-rad → arves. ✅ Bygget i `feat/lokasjon-begrepsrydding` (Kenneth-vedtak
+   2026-09-02).
+3. Ellers, per-byggeplass-minne. ✅ Bygget `5b5f5442`.
+
+**Hvorfor den ble skilt ut:** Kenneths ordlyd gjaldt tilfellet der dokumentet *ikke* har lokasjon.
+P1 er betingelsen som utløser P2, ikke et eget steg han ba om — cowork ekstrapolerte, kontrollplan
+fanget det. P1 krever prop-threading fra mobilens detaljside ned i repeateren, en annen flate enn
+resten av runden.
+
+**Er den ønskelig?** Trolig ja: er dokumentet stedfestet på tegning A, vil radene som regel gjelde
+samme tegning med ulike punkter. Men det er ikke bekreftet av Kenneth — spør før bygging.
+
 ### 🟡 Oppgavens endringslogg skrives, men vises ingen steder i app-flatene (målt 2026-09-01)
 
 **Første målte brudd på flateparitet-vedtaket** — se [retningslinjer/ui-standarder.md § Flateparitet](retningslinjer/ui-standarder.md).
