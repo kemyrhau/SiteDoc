@@ -1,6 +1,8 @@
 import { View, Text, TextInput, Pressable } from "react-native";
 import { Cloud, CloudOff, Pencil } from "lucide-react-native";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { RapportObjektProps } from "./typer";
 
 interface VaerVerdi {
@@ -12,16 +14,17 @@ interface VaerVerdi {
   status?: "venter";
 }
 
-function formaterVaerTekst(v: VaerVerdi): string {
+function formaterVaerTekst(v: VaerVerdi, t: TFunction): string {
   const deler: string[] = [];
   if (v.temp) deler.push(v.temp);
   if (v.conditions) deler.push(v.conditions.toLowerCase());
-  if (v.wind) deler.push(`vind ${v.wind}`);
-  if (v.precipitation && v.precipitation !== "0 mm") deler.push(`nedbør ${v.precipitation}`);
+  if (v.wind) deler.push(t("felt.vaerVindVerdi", { verdi: v.wind }));
+  if (v.precipitation && v.precipitation !== "0 mm") deler.push(t("felt.vaerNedborVerdi", { verdi: v.precipitation }));
   return deler.join(", ");
 }
 
 export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const vaerVerdi = (verdi as VaerVerdi) ?? {};
   const [redigerer, settRedigerer] = useState(false);
   const harVerdi = !!(vaerVerdi.temp || vaerVerdi.conditions || vaerVerdi.wind || vaerVerdi.precipitation);
@@ -39,7 +42,7 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
       <View className="flex-row items-center gap-2">
         <CloudOff size={16} color="#9ca3af" />
         <Text className="flex-1 text-sm text-gray-400">
-          Vær hentes når du er tilkoblet
+          {t("felt.vaerHentesTilkoblet")}
         </Text>
         {!leseModus && (
           <Pressable onPress={() => settRedigerer(true)} hitSlop={8}>
@@ -56,7 +59,7 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
       <View className="flex-row items-center gap-2">
         <Cloud size={16} color="#6b7280" />
         <Text className={`flex-1 text-sm ${harVerdi ? "text-gray-900" : "text-gray-400"}`}>
-          {harVerdi ? formaterVaerTekst(vaerVerdi) : "Ingen værdata"}
+          {harVerdi ? formaterVaerTekst(vaerVerdi, t) : t("felt.ingenVaerdata")}
         </Text>
         {!leseModus && (
           <Pressable onPress={() => settRedigerer(true)} hitSlop={8}>
@@ -73,33 +76,33 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
       <View className="flex-row gap-2">
         <TextInput
           value={vaerVerdi.temp ?? ""}
-          onChangeText={(t) => oppdater("temp", t)}
-          placeholder="Temp"
+          onChangeText={(tekst) => oppdater("temp", tekst)}
+          placeholder={t("felt.vaerTemp")}
           className="flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
         />
         <TextInput
           value={vaerVerdi.conditions ?? ""}
-          onChangeText={(t) => oppdater("conditions", t)}
-          placeholder="Forhold"
+          onChangeText={(tekst) => oppdater("conditions", tekst)}
+          placeholder={t("felt.vaerForhold")}
           className="flex-[2] rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
         />
       </View>
       <View className="flex-row gap-2">
         <TextInput
           value={vaerVerdi.wind ?? ""}
-          onChangeText={(t) => oppdater("wind", t)}
-          placeholder="Vind"
+          onChangeText={(tekst) => oppdater("wind", tekst)}
+          placeholder={t("felt.vaerVind")}
           className="flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
         />
         <TextInput
           value={vaerVerdi.precipitation ?? ""}
-          onChangeText={(t) => oppdater("precipitation", t)}
-          placeholder="Nedbør"
+          onChangeText={(tekst) => oppdater("precipitation", tekst)}
+          placeholder={t("felt.vaerNedbor")}
           className="flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
         />
       </View>
       <Pressable onPress={() => settRedigerer(false)}>
-        <Text className="text-sm text-blue-600">Ferdig</Text>
+        <Text className="text-sm text-blue-600">{t("felt.ferdig")}</Text>
       </Pressable>
     </View>
   );

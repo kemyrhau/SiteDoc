@@ -31,7 +31,7 @@ export function SignaturObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjekt
   if (leseModus && !harSignatur) {
     return (
       <View className="items-center rounded-lg border border-gray-200 bg-gray-50 py-6">
-        <Text className="text-sm text-gray-400">Ingen signatur</Text>
+        <Text className="text-sm text-gray-400">{t("felt.ingenSignatur")}</Text>
       </View>
     );
   }
@@ -55,7 +55,7 @@ export function SignaturObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjekt
             className="mt-2 flex-row items-center justify-center gap-1"
           >
             <RotateCcw size={14} color="#6b7280" />
-            <Text className="text-sm text-gray-500">Signer på nytt</Text>
+            <Text className="text-sm text-gray-500">{t("felt.signerPaaNytt")}</Text>
           </Pressable>
         )}
       </View>
@@ -80,7 +80,7 @@ export function SignaturObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjekt
             className="flex-row items-center gap-1 rounded-lg border border-gray-300 px-3 py-2"
           >
             <RotateCcw size={14} color="#6b7280" />
-            <Text className="text-sm text-gray-600">Tøm</Text>
+            <Text className="text-sm text-gray-600">{t("felt.tom")}</Text>
           </Pressable>
           <Pressable
             onPress={() => webViewRef.current?.injectJavaScript("lagreSignatur(); true;")}

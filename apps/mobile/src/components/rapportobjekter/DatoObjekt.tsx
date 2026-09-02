@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import { Calendar, X } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { DatoVelgerFelt } from "../DatoVelgerFelt";
 import type { RapportObjektProps } from "./typer";
 
 export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const [visVelger, settVisVelger] = useState(false);
   const datoVerdi = typeof verdi === "string" ? new Date(verdi) : null;
 
@@ -47,7 +49,7 @@ export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
       >
         <Calendar size={18} color="#6b7280" />
         <Text className={`ml-2 flex-1 text-sm ${datoVerdi ? "text-gray-900" : "text-gray-400"}`}>
-          {datoVerdi ? formaterDato(datoVerdi) : "Velg dato..."}
+          {datoVerdi ? formaterDato(datoVerdi) : t("felt.velgDato")}
         </Text>
         {datoVerdi && !leseModus && (
           <Pressable onPress={fjernVerdi} hitSlop={8}>
@@ -58,12 +60,12 @@ export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
 
       {!leseModus && !datoVerdi && (
         <Pressable onPress={settIDag} className="mt-1 ml-1">
-          <Text className="text-sm text-blue-600">I dag</Text>
+          <Text className="text-sm text-blue-600">{t("felt.idag")}</Text>
         </Pressable>
       )}
       {datoVerdi && !leseModus && !erIDag(datoVerdi) && (
         <Pressable onPress={settIDag} className="mt-1 ml-1">
-          <Text className="text-sm text-blue-600">I dag</Text>
+          <Text className="text-sm text-blue-600">{t("felt.idag")}</Text>
         </Pressable>
       )}
 

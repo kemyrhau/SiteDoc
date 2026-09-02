@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { CheckCircle, XCircle } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
 /** Quiz-spørsmål med riktig/feil-feedback — for PSI */
 export function QuizObjekt({ objekt, verdi, onEndreVerdi }: RapportObjektProps) {
+  const { t } = useTranslation();
   const spørsmål = (objekt.config.question as string) ?? objekt.label;
   const alternativer = (objekt.config.options as string[]) ?? [];
   const riktigIndex = (objekt.config.correctIndex as number) ?? 0;
@@ -72,19 +74,19 @@ export function QuizObjekt({ objekt, verdi, onEndreVerdi }: RapportObjektProps) 
           onPress={sjekk}
           className="mt-1 items-center rounded-lg bg-sitedoc-primary py-2.5"
         >
-          <Text className="text-sm font-medium text-white">Sjekk svar</Text>
+          <Text className="text-sm font-medium text-white">{t("quiz.sjekkSvar")}</Text>
         </TouchableOpacity>
       )}
 
       {harSjekket && !erRiktig && (
         <Text className="mt-2 text-center text-sm text-red-600">
-          Feil svar — prøv igjen
+          {t("quiz.feilSvar")}
         </Text>
       )}
 
       {harSjekket && erRiktig && (
         <Text className="mt-2 text-center text-sm text-green-600">
-          ✓ Riktig!
+          ✓ {t("quiz.riktig")}
         </Text>
       )}
     </View>
