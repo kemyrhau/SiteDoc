@@ -3,6 +3,20 @@
  * Null avhengigheter — kun TypeScript-strenger.
  */
 
+/**
+ * Fast tidssone for alle instant→tekst-formaterere her.
+ *
+ * 🔴 Hvorfor hardkodet: disse er rene strengfunksjoner uten firma-kontekst
+ * (pakken importerer bevisst ingenting, jf. @sitedoc/pdf CLAUDE.md), så de kan
+ * ikke lese `OrganizationSetting.timezone`. UTEN `timeZone` bruker de serverens
+ * default-sone — som er `Etc/UTC` på api-serveren — og alle stempler ble 2t bak
+ * norsk sommertid / 1t bak vintertid (funn 2026-09-02). «Europe/Oslo» stopper
+ * blødningen. Prosjekt-styrt sone (Kenneths regel) er en senere redesign, ikke
+ * denne runden. `fraTid`/`tilTid` er sonefrie veggur-strenger og går IKKE via
+ * disse funksjonene — de er urørt.
+ */
+const PDF_TIDSSONE = "Europe/Oslo";
+
 /** HTML-escape for sikker innbygging i HTML-strenger */
 export function esc(tekst: string): string {
   return tekst
@@ -49,6 +63,7 @@ export function formaterDato(v: unknown): string {
   if (typeof v !== "string") return "";
   try {
     return new Date(v).toLocaleDateString("nb-NO", {
+      timeZone: PDF_TIDSSONE,
       day: "numeric",
       month: "long",
       year: "numeric",
@@ -63,6 +78,7 @@ export function formaterDatoTid(v: unknown): string {
   if (typeof v !== "string") return "";
   try {
     return new Date(v).toLocaleString("nb-NO", {
+      timeZone: PDF_TIDSSONE,
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -79,6 +95,7 @@ export function formaterDatoTidKort(v: unknown): string {
   if (!v) return "";
   try {
     return new Date(String(v)).toLocaleString("nb-NO", {
+      timeZone: PDF_TIDSSONE,
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -104,6 +121,7 @@ export function formaterDatoKort(v: unknown): string {
   if (!v) return "";
   try {
     return new Date(String(v)).toLocaleDateString("nb-NO", {
+      timeZone: PDF_TIDSSONE,
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
