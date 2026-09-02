@@ -16,6 +16,7 @@ import {
   hentAktiveFirmamoduler,
 } from "../services/firmamodul";
 import { seedFirmamodulKatalog } from "../services/seed";
+import { provisjonerNyAnsattIProsjekter } from "../services/prosjektTilgangEvaluator";
 import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 
@@ -734,6 +735,8 @@ export const organisasjonRouter = router({
           },
         });
 
+        await provisjonerNyAnsattIProsjekter(ctx.prisma, orgId, adoptert.id);
+
         return adoptert;
       }
 
@@ -757,6 +760,8 @@ export const organisasjonRouter = router({
           firmaRoller,
         },
       });
+
+      await provisjonerNyAnsattIProsjekter(ctx.prisma, orgId, opprettet.id);
 
       return opprettet;
     }),
