@@ -43,6 +43,7 @@ export function TegningPosisjonObjekt({
   verdi,
   onEndreVerdi,
   leseModus,
+  arvetDrawingId,
 }: RapportObjektProps) {
   // Prosjekt-id fra KONTEKST, ikke `prosjektId`-propen — den threades ikke ned til felt
   // (rendereren sender den ikke), så propen var undefined → query disabled → 0 tegninger.
@@ -84,25 +85,33 @@ export function TegningPosisjonObjekt({
   const tegninger = (tegningQuery.data ?? []) as TegningData[];
   const tegningDetalj = tegningDetaljQuery.data as { name: string; fileUrl: string | null } | undefined;
 
-  // Forvalg fra minnet kjøres én gang per modal-åpning, ETTER at tegningslista er
-  // lastet (queryen er disabled til modalen åpnes). Ref-guard hindrer at et senere
-  // brukervalg overskrives av effekten.
+  // Forvalg kjøres én gang per modal-åpning, ETTER at tegningslista er lastet (queryen er
+  // disabled til modalen åpnes). Ref-guard hindrer at et senere brukervalg overskrives.
+  // Rangering (Kenneth-vedtak 2026-09-02): (a) radens egen tegning · (b) arv fra forrige
+  // repeater-rad · (c) per-byggeplass siste-tegning-minne. Alle er FORHÅNDSVALG — «Bytt
+  // tegning» virker uansett. (Dokumentets tegning som mellomnivå er en navngitt oppfølger.)
   const harForvalgt = useRef(false);
   useEffect(() => {
     if (!modalÅpen || harForvalgt.current) return;
-    // Rediger vinner: en rad som alt har en tegning bruker sin egen (satt i åpne()).
+    // (a) Rediger vinner: en rad som alt har en tegning bruker sin egen (satt i åpne()).
     if (posisjon?.drawingId) {
       harForvalgt.current = true;
       return;
     }
-    // Vent til lista er lastet så vi kan VALIDERE minnet mot den. Uten byggeplass i
-    // konteksten finnes ingen lesenøkkel → fall til velgeren (dagens oppførsel).
-    if (tegningQuery.isLoading || !kontekstBygningId) return;
+    // Vent til lista er lastet så vi kan VALIDERE forhåndsvalgene mot den.
+    if (tegningQuery.isLoading) return;
+    // (b) Arv fra forrige repeater-rad — validert mot lista (slettet/annet prosjekt → hopp).
+    if (arvetDrawingId && tegninger.some((t) => t.id === arvetDrawingId)) {
+      harForvalgt.current = true;
+      setValgtTegningId(arvetDrawingId);
+      return;
+    }
+    // (c) Per-byggeplass siste-tegning-minne. Uten byggeplass i konteksten finnes ingen
+    // lesenøkkel → vent (byggeplass kan komme senere); fall ellers til velgeren.
+    if (!kontekstBygningId) return;
     harForvalgt.current = true;
     const lagretTegningId = hentSistTegning(kontekstBygningId);
     if (!lagretTegningId) return;
-    // Fall-through til dagens oppførsel hvis minnet peker på en tegning som ikke er
-    // gyldig her (slettet / annet prosjekt) — ellers er fiksen verre enn problemet.
     if (!tegninger.some((t) => t.id === lagretTegningId)) return;
     setValgtTegningId(lagretTegningId);
   }, [
@@ -111,6 +120,7 @@ export function TegningPosisjonObjekt({
     tegninger,
     kontekstBygningId,
     posisjon?.drawingId,
+    arvetDrawingId,
     hentSistTegning,
   ]);
 
