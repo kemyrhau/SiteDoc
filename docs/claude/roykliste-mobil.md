@@ -296,16 +296,16 @@ atferdsbrudd. Flyt 4-transienten overvåkes.
 | 11 | Byggeplass-filter → «Hele prosjektet» | ✅ | 2 | ✅ | **Filtrert 8 / hele 9** (BEF1 på NRK legges til). Neg.kontroll: re-valg → 8 igjen. «Godkjent»-fane kun i hele-visning |
 | 12 | Modulgating av Timer | ✅ | — | ✅ | Round-trip: AV → tab/chip/Mer-rader borte, familie upåvirket; PÅ → alt tilbake. Fail-open (flymodus) OK. ⚠️ krevde pull-to-refresh |
 | 13 | Språk (polsk) | ✅ | — | ✅ | **Ingen rå nøkler.** Rest-norsk: «Dato og tid», «Medium prioritet»; måneder ikke lokalisert («aug.»/«september»); «In progress» (spinner). 🔴 prioritet-label henger ett språk bak språkbytte |
-| 14 | Repeater arver tegning fra forrige rad | ⛔ BLOKKERT | — | — | Ingen `drawing_position`-repeater på en byggeplass med 2 tegninger. Bygg B12 har 2 tegninger men KB-maler uten repeater + Befaringsnotat ikke opprettbar; Røstbakken har repeater men 1 tegning. Mekanismen (tegningsminne) delvis bevist via flyt 3 |
+| 14 | Repeater arver tegning fra forrige rad | ✅ | rad3: 0 (tegning) | ✅ | Seed OK 2026-09-02 (mal «Beraringsrapport» BEF_ på Bygg B12, 2 tegninger). BEF_1: rad 1→A «Bygg B12 - Plantegning», rad 2 åpnet→**foreslo A** (arv), byttet manuelt→B «Skjermbilde 2026-09-02», rad 3 åpnet→**foreslo B, ikke A**. Arven leser **forrige rad (n−1)**, ikke rad 1. Tegningsvalg: 5 trykk (rad 1) → 0 (rad 3, beholdt arv). «Posisjon i tegning»-feltet rendret i repeater-raden (kritisk port bestått) |
 | 15 | Tegning uten punkt (paritet + krasj) | ✅ | — | ✅ | **Ingen krasj** i noen drawing-uten-punkt-vei (pid stabil). Dangling-tilstand ikke skapbar via UI (Lukk/X diskarder, Bekreft disabled) → krasjklassen forhindret ved kilden. BEF_2 lesevisning rendret 3 posisjoner uten krasj |
 
-**Sum:** **14/15 mål nådd** (flyt 14 blokkert av testdata-struktur, ikke regresjon). **Ingen
-atferdsregresjon som utsetter bygg.** Nye anmerkninger til cowork: (a) prioritet-label henger
-ett språk bak språkbytte, (b) rest-norsk «Dato og tid»/«Medium prioritet» + ulokaliserte
-måneder på polsk, (c) modulendring krever manuell refresh, (d) send-arktekst «…bytte til Send?»,
-(e) innmelder-valg fester seg ikke, (f) prosjektvelger tom til firma valgt etter relaunch. Flyt 3
-trykk-mål **7→4** (tegningsminnet virker). **Klar for EAS-bygg** mht. atferd; flyt 14 bør seedes
-for full dekning neste gang.
+**Sum:** **15/15 mål nådd** (flyt 14 låst opp av Kenneths seed 2026-09-02 og bestått —
+repeater-arven leser forrige rad, ikke rad 1). **Ingen atferdsregresjon som utsetter bygg.**
+Nye anmerkninger til cowork: (a) prioritet-label henger ett språk bak språkbytte, (b) rest-norsk
+«Dato og tid»/«Medium prioritet» + ulokaliserte måneder på polsk, (c) modulendring krever manuell
+refresh, (d) send-arktekst «…bytte til Send?», (e) innmelder-valg fester seg ikke, (f)
+prosjektvelger tom til firma valgt etter relaunch. Flyt 3 trykk-mål **7→4** (tegningsminnet
+virker). **Klar for EAS-bygg** mht. atferd.
 
 ---
 
@@ -321,7 +321,8 @@ for full dekning neste gang.
   Reconnect: `xcrun simctl openurl booted "com.kemyrhau.sitedoc://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"`.
 - **Språk:** tilbakestilt til 🇳🇴 Norsk bokmål (var innom polsk i flyt 13).
 - **Firma/prosjekt:** aktiv firma `SITEDOC MYRHAUG`, sist på prosjekt `Sitedoc Boligfelt B12`
-  (byggeplass Bygg B12). **Timer-modulen: PÅ** (slått av/på under flyt 12, endte PÅ).
+  (byggeplass Bygg B12), åpent dokument **BEF_1 Beraringsrapport (Utkast)** fra flyt 14.
+  **Timer-modulen: PÅ** (slått av/på under flyt 12, endte PÅ).
 - **Fotobibliotek:** ett test-foto lagt til; SiteDoc har full fototilgang.
 - **Testdata skapt/endret denne kjøringen** (test-DB `sitedoc_test`, greit å beholde):
   - **BEF_8** (Røstbakken) — tekst «Flyt2 tekst 1547» + ett bilde på rad 1; rad 2 fikk
@@ -330,6 +331,10 @@ for full dekning neste gang.
   - **RUH2** (RUH, Utkast) — ny (flyt 8).
   - **BHO4** (Oppgave, Røstbakken) — status endret **Utkast → Mottatt** (sendt).
   - **Dagsseddel ons. 15. juli 2026** — én ekstra Anleggsarbeid-rad (2 t), sum 7.50 → 9.50 t.
-- 🔴 **Flyt 14 mangler seed:** ingen `drawing_position`-repeater på en byggeplass med 2
-  tegninger. Neste gang: gjør Befaringsnotat opprettbar på B12, ELLER legg 2. tegning på
-  Røstbakken byggeplass 900512.
+  - **BEF_1 Beraringsrapport** (Bygg B12, Utkast) — ny (flyt 14). 3 repeater-rader:
+    rad 1 tegning A (Bygg B12 - Plantegning, 50.0/44.1 %), rad 2+3 tegning B
+    (Skjermbilde 2026-09-02, 50.0/35.9 %). Beskrivelsesfelt tomme.
+- ✅ **Flyt 14 seedet av Kenneth 2026-09-02:** mal «Beraringsrapport» (BEF_) på Bygg B12 med
+  repeater «Observasjon/kontroll/objekt» + `drawing_position`-felt «Posisjon i tegning», og 2
+  tegninger på byggeplassen. Kritisk port (feltet rendrer i raden) bestått — feltene var merket
+  «Betinget» i malbyggeren, men rendret uten betingelse-blokkering.
