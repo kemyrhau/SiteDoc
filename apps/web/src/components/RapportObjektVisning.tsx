@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { normaliserOpsjon, normaliserRad } from "./rapportobjekter/typer";
 import type { RapportObjekt } from "./rapportobjekter/typer";
 import { formaterDato, formaterDatoTid } from "@sitedoc/pdf";
 import type { VaerVerdi } from "@sitedoc/pdf";
-import { harTegningsmarkor } from "@sitedoc/shared";
+import { harTegningsmarkor, oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
 
 // Trafikklys-farge → label + CSS-klasse (web bruker Tailwind-klasser, ikke hex)
 const TRAFIKKLYS: Record<string, { label: string; klasse: string }> = {
@@ -173,24 +174,28 @@ function ObjektInnhold({
   prosjektAdresse?: string | null;
 }) {
   const { type, label } = objekt;
+  const { t } = useTranslation();
+  // Seedet standardtekst → oversett; firmaets egne strenger → rå. Label tar type for presisjon.
+  const visLabel = oversettStandardtekst(label, t, type as ReportObjectType) ?? label;
+  const visOpsjon = (s: string) => oversettStandardtekst(s, t) ?? s;
 
   switch (type) {
     case "heading":
       return (
         <h3 className="mt-4 border-b border-gray-200 pb-1 text-base font-semibold text-gray-900">
-          {label}
+          {visLabel}
         </h3>
       );
 
     case "subtitle":
       return (
-        <h4 className="mt-2 text-sm font-medium text-gray-700">{label}</h4>
+        <h4 className="mt-2 text-sm font-medium text-gray-700">{visLabel}</h4>
       );
 
     case "text_field": {
       const tekst = typeof verdi === "string" ? verdi : "";
       return (
-        <FeltRad label={label} tom={!tekst}>
+        <FeltRad label={visLabel} tom={!tekst}>
           <p className="whitespace-pre-wrap text-sm text-gray-900">{tekst}</p>
         </FeltRad>
       );
@@ -204,8 +209,8 @@ function ObjektInnhold({
           ? alternativer.find((a) => a.value === verdi)?.label ?? verdi
           : null;
       return (
-        <FeltRad label={label} tom={!valgt}>
-          <p className="text-sm text-gray-900">{valgt}</p>
+        <FeltRad label={visLabel} tom={!valgt}>
+          <p className="text-sm text-gray-900">{valgt ? visOpsjon(valgt) : null}</p>
         </FeltRad>
       );
     }
@@ -215,11 +220,11 @@ function ObjektInnhold({
       const alternativer = råOpsjoner.map(normaliserOpsjon);
       const valgte = Array.isArray(verdi)
         ? (verdi as string[])
-            .map((v) => alternativer.find((a) => a.value === v)?.label ?? v)
+            .map((v) => visOpsjon(alternativer.find((a) => a.value === v)?.label ?? v))
             .join(", ")
         : null;
       return (
-        <FeltRad label={label} tom={!valgte}>
+        <FeltRad label={visLabel} tom={!valgte}>
           <p className="text-sm text-gray-900">{valgte}</p>
         </FeltRad>
       );
@@ -229,13 +234,13 @@ function ObjektInnhold({
       const farge = typeof verdi === "string" ? verdi : null;
       const tl = farge ? TRAFIKKLYS[farge] : null;
       return (
-        <FeltRad label={label} tom={!tl}>
+        <FeltRad label={visLabel} tom={!tl}>
           {tl && (
             <div className="flex items-center gap-2">
               <span
                 className={`inline-block h-4 w-4 rounded-full ${tl.klasse}`}
               />
-              <span className="text-sm text-gray-900">{tl.label}</span>
+              <span className="text-sm text-gray-900">{visOpsjon(tl.label)}</span>
             </div>
           )}
         </FeltRad>
@@ -247,7 +252,7 @@ function ObjektInnhold({
       const tall = verdi != null ? String(verdi) : "";
       const enhet = (objekt.config.enhet as string) ?? (objekt.config.unit as string) ?? "";
       return (
-        <FeltRad label={label} tom={!tall}>
+        <FeltRad label={visLabel} tom={!tall}>
           <p className="text-sm text-gray-900">
             {tall}
             {enhet ? ` ${enhet}` : ""}
@@ -260,7 +265,7 @@ function ObjektInnhold({
       const resultat = verdi != null ? String(verdi) : "";
       const enhet = (objekt.config.enhet as string) ?? (objekt.config.unit as string) ?? "";
       return (
-        <FeltRad label={label} tom={!resultat}>
+        <FeltRad label={visLabel} tom={!resultat}>
           <p className="text-sm text-gray-900">
             {resultat}
             {enhet ? ` ${enhet}` : ""}
@@ -271,7 +276,7 @@ function ObjektInnhold({
 
     case "date": {
       return (
-        <FeltRad label={label} tom={!verdi}>
+        <FeltRad label={visLabel} tom={!verdi}>
           <p className="text-sm text-gray-900">{formaterDato(verdi)}</p>
         </FeltRad>
       );
@@ -279,7 +284,7 @@ function ObjektInnhold({
 
     case "date_time": {
       return (
-        <FeltRad label={label} tom={!verdi}>
+        <FeltRad label={visLabel} tom={!verdi}>
           <p className="text-sm text-gray-900">{formaterDatoTid(verdi)}</p>
         </FeltRad>
       );
@@ -288,7 +293,7 @@ function ObjektInnhold({
     case "person": {
       const navn = typeof verdi === "string" ? verdi : "";
       return (
-        <FeltRad label={label} tom={!navn}>
+        <FeltRad label={visLabel} tom={!navn}>
           <p className="text-sm text-gray-900">{navn}</p>
         </FeltRad>
       );
@@ -297,7 +302,7 @@ function ObjektInnhold({
     case "persons": {
       const personer = Array.isArray(verdi) ? (verdi as string[]).join(", ") : "";
       return (
-        <FeltRad label={label} tom={!personer}>
+        <FeltRad label={visLabel} tom={!personer}>
           <p className="text-sm text-gray-900">{personer}</p>
         </FeltRad>
       );
@@ -306,7 +311,7 @@ function ObjektInnhold({
     case "company": {
       const firma = typeof verdi === "string" ? verdi : "";
       return (
-        <FeltRad label={label} tom={!firma}>
+        <FeltRad label={visLabel} tom={!firma}>
           <p className="text-sm text-gray-900">{firma}</p>
         </FeltRad>
       );
@@ -317,7 +322,7 @@ function ObjektInnhold({
       const bilder = vedlegg.filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn ?? ""));
       const filer = vedlegg.filter((v) => !bilder.includes(v));
       return (
-        <FeltRad label={label} tom={vedlegg.length === 0}>
+        <FeltRad label={visLabel} tom={vedlegg.length === 0}>
           <div>
             {bilder.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
@@ -361,7 +366,7 @@ function ObjektInnhold({
       if (v.precipitation) deler.push(`Nedbør ${v.precipitation}`);
       const tekst = deler.join(", ");
       return (
-        <FeltRad label={label} tom={!tekst}>
+        <FeltRad label={visLabel} tom={!tekst}>
           <p className="text-sm text-gray-900">{tekst}</p>
         </FeltRad>
       );
@@ -370,7 +375,7 @@ function ObjektInnhold({
     case "signature": {
       const harSignatur = typeof verdi === "string" && verdi.length > 0;
       return (
-        <FeltRad label={label} tom={!harSignatur}>
+        <FeltRad label={visLabel} tom={!harSignatur}>
           {harSignatur ? (
             <img
               src={verdi as string}
@@ -397,10 +402,10 @@ function ObjektInnhold({
       // Paritetsregel (2026-09-02): lesevisning følger PDF-ens harMarkor. Tegning uten
       // punkt dokumenterer ingenting → vis som «ingen lokasjon», ikke en tom kartboks.
       if (!harTegningsmarkor(pos)) {
-        return <FeltRad label={label} tom>{null}</FeltRad>;
+        return <FeltRad label={visLabel} tom>{null}</FeltRad>;
       }
       return (
-        <FeltRad label={label}>
+        <FeltRad label={visLabel}>
           <TegningPosisjonPrint pos={pos} />
         </FeltRad>
       );
@@ -412,7 +417,7 @@ function ObjektInnhold({
       const repeaterBarn = objekt.children ?? [];
 
       if (repeaterRader.length === 0) {
-        return <FeltRad label={label} tom>{null}</FeltRad>;
+        return <FeltRad label={visLabel} tom>{null}</FeltRad>;
       }
 
       return (
@@ -453,7 +458,7 @@ function ObjektInnhold({
     default: {
       const tekstVerdi = verdi != null ? String(verdi) : "";
       return (
-        <FeltRad label={label} tom={!tekstVerdi}>
+        <FeltRad label={visLabel} tom={!tekstVerdi}>
           <p className="text-sm text-gray-900">{tekstVerdi}</p>
         </FeltRad>
       );

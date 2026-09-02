@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Plus, Info, Globe, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
 import type { Vedlegg } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 import { tilbehorVisning } from "./RapportObjektRenderer";
@@ -61,7 +63,11 @@ export function FeltWrapper({
   originalData,
   children,
 }: FeltWrapperProps) {
+  const { t } = useTranslation();
   const [visOversettelse, setVisOversettelse] = useState(false);
+  // Seedet standard type-default-label → oversett via i18n (og skjul Globe — det er ikke firmainnhold).
+  // Firmaets egen label → rå streng + eksisterende Globe-flyt uendret.
+  const standardLabel = oversettStandardtekst(objekt.label, t, objekt.type as ReportObjectType);
   const oversattLabel = oversettelser?.[objekt.label];
   const oversattHjelpetekst = typeof objekt.config.helpText === "string" ? oversettelser?.[objekt.config.helpText] : undefined;
 
@@ -75,7 +81,7 @@ export function FeltWrapper({
     <div className={`rounded-lg bg-white p-4 shadow-sm ${marginKlasse} ${rammeKlasse}`}>
       {/* Label + påkrevd-badge + hjelpetekst + oversettelse */}
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-900">{objekt.label}</span>
+        <span className="text-sm font-medium text-gray-900">{standardLabel ?? objekt.label}</span>
         {objekt.required && (
           <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
             Påkrevd
@@ -92,7 +98,7 @@ export function FeltWrapper({
             </span>
           </span>
         )}
-        {visOversettKnapp && (
+        {visOversettKnapp && !standardLabel && (
           <button
             type="button"
             onClick={() => {

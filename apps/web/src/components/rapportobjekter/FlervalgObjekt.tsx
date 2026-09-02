@@ -1,12 +1,17 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { oversettStandardtekst } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 import { normaliserOpsjon } from "./typer";
 import { ChevronDown, X } from "lucide-react";
 
 export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const råOpsjoner = (objekt.config.options as unknown[]) ?? [];
   const alternativer = råOpsjoner.map(normaliserOpsjon);
   const valgteVerdier = Array.isArray(verdi) ? (verdi as string[]) : [];
+  // Seedet standard-opsjon → oversett; firmaets egen streng → rå
+  const visLabel = (s: string) => oversettStandardtekst(s, t) ?? s;
   const [åpen, setÅpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -47,7 +52,7 @@ export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rappo
           const label = alternativer.find((a) => a.value === v)?.label ?? v;
           return (
             <span key={v} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-              {label}
+              {visLabel(label)}
             </span>
           );
         })}
@@ -74,7 +79,7 @@ export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rappo
                   key={v}
                   className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
                 >
-                  {label}
+                  {visLabel(label)}
                   <span
                     role="button"
                     onClick={(e) => { e.stopPropagation(); fjern(v); }}
@@ -113,7 +118,7 @@ export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rappo
                     </svg>
                   )}
                 </span>
-                <span className="text-gray-900">{alt.label}</span>
+                <span className="text-gray-900">{visLabel(alt.label)}</span>
               </button>
             );
           })}

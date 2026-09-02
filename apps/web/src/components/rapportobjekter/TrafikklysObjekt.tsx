@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { oversettStandardtekst } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
 const FARGER: { farge: string; aktiv: string; inaktiv: string; label: string }[] = [
@@ -8,6 +10,7 @@ const FARGER: { farge: string; aktiv: string; inaktiv: string; label: string }[]
 ];
 
 export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const valgtVerdi = typeof verdi === "string" ? verdi : null;
 
   return (
@@ -24,7 +27,7 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
               onEndreVerdi(erValgt ? null : farge);
             }}
             disabled={leseModus}
-            title={label}
+            title={oversettStandardtekst(label, t) ?? label}
             className={`h-7 w-7 rounded-full ${fargeKlasse} transition-all disabled:cursor-not-allowed ${
               erValgt ? "ring-2 ring-gray-800 ring-offset-1" : "hover:ring-2 hover:ring-gray-300 hover:ring-offset-1"
             }`}
