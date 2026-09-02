@@ -365,6 +365,26 @@ Les ~/Documents/Programmering/SiteDoc/relay/inbox-<navn>.md og kjør den.
 Samme prinsipp som «si hvilken maskin kommandoen kjøres på»: den som limer skal
 aldri måtte utlede hvor noe hører hjemme.
 
+🔴 **UTVIDET 2026-09-02 — gjelder ALT Kenneth skal lime, ikke bare nudger.**
+
+> **Kenneth 2026-09-02:** *«Når du lager en ordre jeg gater — husk å si hvem den er til. Det er
+> lurt, og jeg reduserer faren for å gate feil.»*
+
+Regelen over dekket **nudger**. Cowork fulgte den der, men ga **svar-blokker** til agenter uten
+destinasjon — klarsignaler («Ja, commit og push …»), beslutninger på agentspørsmål, tillegg til
+en løpende ordre. De ser like limbare ut, og Kenneth må gjette hvilken terminal de hører til.
+
+**Hver blokk som skal limes starter med destinasjonen, alene på første linje:**
+
+```
+→ SiteDoc-dokgen
+Ja — commit og push …
+```
+
+🔴 **Og alt som er til Kenneth selv skal stå UNDER en tydelig strek**, ikke blandet inn i samme
+melding. Det skjedde 2026-09-01: et klarsignal til dokgen sto over avsnitt om merge-agenten og
+deploy som var til Kenneth. Han limte hele meldingen og måtte spørre om det var feil.
+
 **To ordrer til SAMME agent før den første er relayet — merk hvilken som gjelder**
 (Kenneth 2026-08-25). Rekker ikke Kenneth å sende den første, kan han ikke vite om den
 andre er et *tillegg* eller en *ny retning*. Skjedde tre ganger 2026-08-25; verste utfall
