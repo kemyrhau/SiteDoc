@@ -164,28 +164,57 @@ export async function taBilde(gpsAktivert = true): Promise<BildeResultat | null>
   };
 }
 
-export async function velgBilde(gpsAktivert = true): Promise<BildeResultat | null> {
+/**
+ * Velg flere bilder fra galleriet i ETT grep. `orderedSelection: true` gir trykk-
+ * rekkefølgen (iOS) i stedet for bibliotekets rekkefølge — slik at `bildeNr` følger
+ * rekkefølgen brukeren trykker bildene i, ikke opptakstidspunktet.
+ *
+ * `maksAntall` er selectionLimit (10 som default — ubegrenset valg over mobilnett
+ * fyller opplastingskøen). GPS hentes ÉN gang og settes likt på alle (dagens semantikk:
+ * posisjon ved valg, ikke ved opptak). Returnerer array i assets-rekkefølgen, som ER
+ * trykk-rekkefølgen når orderedSelection er satt — output-indeks = input-indeks.
+ *
+ * Android-forbehold: `orderedSelection` er dokumentert iOS-only. På Android kan Photo
+ * Picker returnere bibliotek-rekkefølge — ikke verifisert her.
+ */
+export async function velgBilder(
+  maksAntall = 10,
+  gpsAktivert = true,
+): Promise<BildeResultat[]> {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== "granted") return null;
+  if (status !== "granted") return [];
 
   const resultat = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     quality: 1,
     allowsEditing: false,
+    allowsMultipleSelection: true,
+    orderedSelection: true,
+    selectionLimit: maksAntall,
   });
 
-  if (resultat.canceled || !resultat.assets[0]) return null;
+  if (resultat.canceled || resultat.assets.length === 0) return [];
 
-  const komprimert = await komprimer(resultat.assets[0].uri);
+  // GPS: hent ÉN gang, ikke N kall i løkke.
   let gps: { lat: number; lng: number } | null = null;
   if (gpsAktivert) {
     gps = await hentGps();
   }
 
-  return {
+  // Indeksbevarende komprimering — Promise.all bevarer input-rekkefølge i output.
+  const komprimerte = await Promise.all(
+    resultat.assets.map((asset) => komprimer(asset.uri)),
+  );
+
+  return komprimerte.map((komprimert) => ({
     uri: komprimert.uri,
     filstorrelse: komprimert.filstorrelse,
     gpsLat: gps?.lat,
     gpsLng: gps?.lng,
-  };
+  }));
+}
+
+/** Tynn wrapper — ett bilde (TilleggSeksjon/UtleggSeksjon: ett bilde per utlegg). */
+export async function velgBilde(gpsAktivert = true): Promise<BildeResultat | null> {
+  return (await velgBilder(1, gpsAktivert))[0] ?? null;
 }

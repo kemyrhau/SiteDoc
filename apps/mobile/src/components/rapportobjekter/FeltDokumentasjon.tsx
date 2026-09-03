@@ -6,7 +6,7 @@ import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, 
 import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
-import { komprimer, hentGps, velgBilde } from "../../services/bilde";
+import { komprimer, hentGps, velgBilder } from "../../services/bilde";
 import { lastOppFil } from "../../services/opplasting";
 import { lagreLokaltBilde, hentFilstorrelse, lokalBildeSti } from "../../services/lokalBilde";
 import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
@@ -182,13 +182,17 @@ export function FeltDokumentasjon({
     håndterBilde(bildeUri);
   }, [håndterBilde]);
 
-  // Galleri-kobling: velgBilde komprimerer + henter GPS internt og returnerer et
-  // ferdig BildeResultat — mates rett inn i håndterBilde (ingen dobbel-komprimering).
+  // Galleri-kobling: velgBilder komprimerer + henter GPS internt og returnerer ferdige
+  // BildeResultat i trykk-rekkefølge (orderedSelection) — mates rett inn i håndterBilde
+  // (ingen dobbel-komprimering). Sekvensielt (await i løkke), ikke parallelt: hvert
+  // håndterBilde tildeler nesteBildeNr — parallelle kall ville race om nummeret.
   const håndterVelgGalleri = useCallback(async () => {
     settLasterOpp(true);
     try {
-      const res = await velgBilde();
-      if (res) await håndterBilde(res.uri, res.gpsLat, res.gpsLng);
+      const resultater = await velgBilder();
+      for (const res of resultater) {
+        await håndterBilde(res.uri, res.gpsLat, res.gpsLng);
+      }
     } finally {
       settLasterOpp(false);
     }

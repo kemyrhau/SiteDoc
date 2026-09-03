@@ -21,6 +21,19 @@ interface FeltVerdiLite {
   vedlegg?: VedleggLite[];
 }
 
+/**
+ * Felt-kartet i en repeater-rad. Produksjon: `{ _radId, felter: {...} }` → returner
+ * `felter`. Eldre/rå rad: `{ feltId: {...} }` → returner raden selv. `_radId` (streng)
+ * blir aldri lest som et felt siden vi kun leser `felter`-objektet når det finnes.
+ */
+function feltKart(rad: unknown): Record<string, unknown> {
+  const r = rad as Record<string, unknown>;
+  const felter = r.felter;
+  return felter && typeof felter === "object"
+    ? (felter as Record<string, unknown>)
+    : r;
+}
+
 /** Besøk alle bilde-vedlegg i ett dokument (topp-nivå-felt + repeater-rader). */
 function forHvertBilde(
   feltVerdier: Record<string, FeltVerdiLite | undefined>,
@@ -35,11 +48,14 @@ function forHvertBilde(
   for (const felt of Object.values(feltVerdier)) {
     if (!felt) continue;
     tellListe(felt.vedlegg);
-    // Repeater: verdi er en array av rader (record barnId -> { vedlegg }).
+    // Repeater: verdi er en array av rader. Produksjonsformen er
+    // `{ _radId, felter: { barnId -> { vedlegg } } }` (RepeaterObjekt.normaliserRad);
+    // eldre/rå rader er flate `{ barnId -> { vedlegg } }`. Pakk ut `felter` når den
+    // finnes, ellers behandle raden selv som felt-kartet.
     if (Array.isArray(felt.verdi)) {
       for (const rad of felt.verdi) {
         if (!rad || typeof rad !== "object") continue;
-        for (const barn of Object.values(rad as Record<string, unknown>)) {
+        for (const barn of Object.values(feltKart(rad))) {
           if (barn && typeof barn === "object") {
             tellListe((barn as FeltVerdiLite).vedlegg);
           }
@@ -79,11 +95,15 @@ export function nummererRepeaterBilder<T>(rader: T, startNr: number): T {
 
   const nyeRader = rader.map((rad) => {
     if (!rad || typeof rad !== "object") return rad;
+    const raaRad = rad as Record<string, unknown>;
+    // Produksjon: felt-kartet ligger under `felter`; eldre/rå rader er flate.
+    // Skriv tilbake i samme form (bevar `_radId` + `felter`-wrapperen).
+    const harFelter = raaRad.felter != null && typeof raaRad.felter === "object";
     let radEndret = false;
-    const nyRad: Record<string, unknown> = { ...(rad as Record<string, unknown>) };
+    const nyttKart: Record<string, unknown> = { ...feltKart(raaRad) };
 
-    for (const feltId of Object.keys(nyRad)) {
-      const felt = nyRad[feltId] as FeltVerdiLite | undefined;
+    for (const feltId of Object.keys(nyttKart)) {
+      const felt = nyttKart[feltId] as FeltVerdiLite | undefined;
       if (!felt || !Array.isArray(felt.vedlegg)) continue;
       const manglerNr = felt.vedlegg.some(
         (v) => v && v.type === "bilde" && v.bildeNr == null,
@@ -92,7 +112,7 @@ export function nummererRepeaterBilder<T>(rader: T, startNr: number): T {
 
       radEndret = true;
       noeEndret = true;
-      nyRad[feltId] = {
+      nyttKart[feltId] = {
         ...felt,
         vedlegg: felt.vedlegg.map((v) =>
           v && v.type === "bilde" && v.bildeNr == null
@@ -102,7 +122,8 @@ export function nummererRepeaterBilder<T>(rader: T, startNr: number): T {
       };
     }
 
-    return radEndret ? nyRad : rad;
+    if (!radEndret) return rad;
+    return harFelter ? { ...raaRad, felter: nyttKart } : nyttKart;
   });
 
   return (noeEndret ? nyeRader : rader) as T;
