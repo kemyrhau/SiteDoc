@@ -42,7 +42,28 @@ cd apps/mobile && eas env:list --environment preview   # test-profilen laster pr
 Differansen er en variabel appen leser som tom streng. **Symptomet er ikke en tydelig feil** —
 det blir en 401, en 404 eller en tom skjerm langt inne i appen, og det koster et bygg å oppdage.
 
-🔴 **På `production` er differansen ALLTID to variabler, og det er RIKTIG** (målt 2026-08-31).
+🔴 **PRESISERT 2026-09-02 — differansen mot `eas env:list` er TRE på production, ikke to.**
+
+**Kilden bygget faktisk bruker er `apps/mobile/eas.json` → `build.<profil>.env`**, ikke EAS' env-lager.
+`build.production.env` (linje 60-65) setter **alle fire**: `API_URL`, `GOOGLE_CLIENT_ID`,
+`GOOGLE_IOS_CLIENT_ID` og **`MICROSOFT_CLIENT_ID`**.
+
+⚠️ **`EXPO_PUBLIC_MICROSOFT_CLIENT_ID` finnes KUN i `eas.json`, aldri i env-lageret.** Sammenligner
+du kodens behov mot `eas env:list --environment production`, mangler den — og det er **ikke** en
+feil. Cowork stoppet et bygg på det 2026-09-02 før `eas.json` var lest.
+
+**Riktig sjekk: sammenlign mot `eas.json`-profilen, ikke mot env-lageret:**
+
+```sh
+grep -rhoE "EXPO_PUBLIC_[A-Z_]+" apps/mobile/src | sort -u        # hva koden trenger
+sed -n '/"production": {/,/}/p' apps/mobile/eas.json              # hva bygget får
+```
+
+Env-lageret er en **delvis overlappende** kilde og duger ikke alene som gate.
+
+Den opprinnelige formuleringen under gjelder fortsatt for de to dev-login-variablene:
+
+🔴 **På `production` skal `ENABLE_TEST_LOGIN` og `DEV_LOGIN_SECRET` mangle, og det er RIKTIG** (målt 2026-08-31).
 `EXPO_PUBLIC_ENABLE_TEST_LOGIN` og `EXPO_PUBLIC_DEV_LOGIN_SECRET` skal **ikke** finnes der:
 `auth.ts:19` er `=== "true"`, så fravær gir `false` og slår av test-innlogging i prod, og
 `devLoginSecret` faller til `""` i en sti som da er avslått. `test`-profilen har flagget
@@ -64,6 +85,7 @@ krever nytt bygg. Verifiser med `eas env:list` **før** du bygger, ikke etter.
 
 | Mnd | Brukt | Bygg |
 |-----|-------|------|
+| **September 2026** | **1 bygg** (~14 igjen). **#50** (`28f117a8-77f8-4844-9220-7b328af1abf4`, 02.09 23:43, production, finished → TestFlight). Fyrt etter prod-release `af49823f` (132 commits) — `modul.effektivTilstand` var den ene harde server-avhengigheten, og den måtte i prod FØR bygget. **Første bygg der hele settet var verifisert på simulator på forhånd** (røykliste 15/15 + målepunkt 13b, kvalitetssikringsplanens lag 2 slik den var tenkt). Innhold: tegningsminne i repeater (flyt 3: 7→4 trykk) · repeater arver tegning fra rad n−1 (5→0 trykk på rad 3) · «Hele prosjektet»-utvei i byggeplass-chip · modulgating av Timer m/fail-open · lokasjonsparitet · deaktiverte knapper forklarer seg · i18n rapportobjekter + tegningsvelger (72 nøkler × 15 språk) · HMS-terminologi pl/lt/sq med bransjekontekst. 🔴 **Nummeret ble 50, ikke 49** — `appVersionSource: "remote"` har egen teller som lå på 49; cowork gjettet fra siste *ferdige* bygg (48) + 1. **Les nummeret, ikke regn det ut.** |
 | **August 2026 — RETTET 2026-08-31 (var 12/11)** | **14 bygg, 13 tellende** (~2 igjen, reset 1. sept). 🔴 **#47 (31.08 12:57)** — tegningsposisjon-fella lukket (`0101bd25`); **innførte tekstfelt-regresjonen** via de sju `SafeAreaView`-importbyttene. 🔴 **#48 (31.08 17:42)** — `ModalFlate` + lint-vakt (`b852c2ea`), rettet regresjonen fra 47. **Cowork sa «bygg 47 er hos testerne» gjentatte ganger etter at 48 var fyrt** — Kenneth fanget det på ASC-skjermbildet. Bygg-nummer leses fra `eas build:list` eller App Store Connect, aldri fra hukommelse. Tidligere rad (før #47/#48): ⚠️ Raden sa tidligere «7 av ~15» — den var ført fra hukommelse og manglet **tre** test-bygg 17.–18.08 (`9d7d869f`, `dca69ffe`, `9942f178`). Samme feilklasse som nummererings-rettelsen 15.07. **Regel: tellingen leses fra `eas build:list`, aldri fra denne raden.** · **#46 (`5605775d`, 28.08, production, finished, 5m27s → TestFlight)** — første bygg etter prod-releasen `5dcdeb58`: H8-tegningsvelger, H1 HMS-behandling fra mobil, annoterings-JPEG (var 3,4 MB PNG — pilot-blokkeren), D3 aktivitetsfordeling i «Mine timer», D4 slettepropagering, og opprett-frysen (fire runder: `a29f89b2` → `df86b817` → `d4a76020` → `28e55ed5`; den fjerde traff fordi premisset «Fabric rendrer `<Modal>` inline» ble motbevist av en grabber i skjermbildet). Git ref viste `5605775*` — asterisken var én ucommittet docs-fil, ingen effekt på bundelen. Historikk under: | **#43** (`6d9a7c91`, 08.08, production) · **#44** (`9ee8242c`, 09.08, production) — begge før mobil-vinduet under. **17.–19.08, fem bygg på tre dager, alle for å jage samme frys:** `c88e160f` (17.08, test, **errored** — CocoaPods CDN 429, EAS-infra, *«does not count towards usage»*) · `1bfd3b53` (17.08, test, finished — dev-login 401, `EXPO_PUBLIC_DEV_LOGIN_SECRET` manglet i EAS) · `4c06948` (18.08, test) · `30825449` (19.08 13:23, test) · `0d9550cd` (19.08 16:54, test) · **#45 (`d2d25b03`, `8fdd82bc`, 19.08 19:38, production, finished, 6m49s → TestFlight)** — frys-fiks (modal-livssyklus under Fabric), lokasjonsvelger m/ortofoto + pin-treff, bilde-URL-fiks, OppgaveModal krasj-guard, georef-punkter skjult, dokumentflyt-auto-utledning (`templates`→`maler`, brutt siden 06.03), værsnapshot, `bildeNr` ved opptak, arkiv-PDF fase 1, `harAktivLocation`. **Lærdom: fire av byggene gikk til feilsøking, ikke verifisering** — se § FØR HVERT BYGG (env-diff) og § transient CocoaPods 429 |
 | Juli 2026 | 5 av ~15 (**~10 igjen, reset 1. aug**; #37-#40 bekreftet mot `eas build:list` 15.07, #41 lagt til 31.07) | #37 (`496b6a63`, `bc744f82`, 01.07, production, finished) — mobil-MS + F-G. #38 (`a61b924a`, `d1b96cd5`, 11.07→13.07, production, finished) — F4-serien (identitetsforsoning + attestering-deadlock + synk-robusthet). #39 (`47c22b1a`, `cd3efcb5`, 13.07→14.07, production, finished) — S-A tombstone-klient + del 6 (F-b/F-e/F-f/F-g) + footer. #40 (`15a47804`, `43299d03`, 15.07, production, finished) — timer F2/F3/F5 (byggeplass per rad + matpause-bærer) + edge #1 → TestFlight. **#41 (fingerprint `593d25c`, `88ce430`, 31.07, TEST-profil, internal distribution, finished, 5m18s)** — mobil-arbeid på develop: P4a iOS-modal + KB2-opprett-flyt-fiks + M4 Avbryt-sweep + M1-M3 detalj-redesign + mobil-typecheck-grønn + PSI-navnefiks → «SiteDoc TEST» mot api-test for **enhet-verifisering** (IKKE TestFlight/prod). Bygg-nr verifiseres mot `eas build:list` ved neste anledning |
 

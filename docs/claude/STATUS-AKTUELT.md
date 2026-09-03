@@ -48,6 +48,22 @@ tofils-endringer. **Ny form: brancher merges til develop løpende** (så de ikke
 i dag hva som skjer når 20 innslag blir stående), **men test-deploy skjer når det finnes et
 sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 
+✅ **PROD À JOUR 2026-09-02 21:11** — **`af49823f`** (132 commits, 175 filer, +10124/−1272).
+Én migrering: `20260830120000_registrering_fase2_prosjekttilgang` (rent additiv, to `ADD COLUMN`).
+De tre andre db-pakkene: «No pending». Migreringsgaten verifiserte `sitedoc`, ikke `sitedoc_test`.
+
+**Verifisert som innlogget bruker på A.Markussen-data:** eksisterende sjekklister rendrer uten
+«Felttype ikke støttet» (legacy-vernet for `location` holder) · nytt prosjekt fikk **ingen**
+automatiske medlemmer under default `manuell` · endringslogg og PDF-tidsstempler stemmer med
+veggklokka — **både formatereren og de lagrede øyeblikkene er riktige**, den fryktede
+dobbeltforskyvningen finnes ikke.
+
+📱 **TestFlight-bygg #50** (`28f117a8`, 02.09 23:43) — syv mobil-runder, alle verifisert på
+simulator FØR bygget. Se [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).
+
+⚠️ **Foreldet linje under — tavla sa `ba234fd1` mens prod faktisk var `3a2f7dc3` (29.08).
+En prod-deploy ble aldri ført.**
+
 ✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
