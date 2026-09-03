@@ -1,7 +1,7 @@
 ---
 name: eas-build-veileder
 status: aktiv
-sist_verifisert_mot_kode: 2026-06-12
+sist_verifisert_mot_kode: 2026-09-03
 ---
 
 # EAS Build-veileder (iOS) — credentials + bygg
@@ -334,6 +334,59 @@ Resultat: «SiteDoc TEST» installeres som **egen app** ved siden av prod-«Site
   sky-bygget** og en install-topologi-hammer som treffer hele workspacet. **Konklusjon: bruk SKY-bygg for
   iOS.** Ikke jag lokale bygg videre — hver ny «fant ikke modul X» er samme klasse. (`babel-preset-expo`-
   fiksen beholdes uansett — den er riktig for sky + dev og ufarlig.)
+
+## OTA-oppdateringer (expo-updates) — JS-fikser uten nytt bygg
+
+**Oppsett levert på branch `feat/expo-updates` (`app.config.js`, `apps/mobile/eas.json`,
+`VersjonsFooter.tsx`, 2026-09-03).** Første faktiske `eas update` er Kenneths beslutning —
+oppsettet gjør bare veien klar.
+
+**Hvorfor:** 3. september kostet fem rene JavaScript-funn tre av ~15 månedlige iOS-bygg. Ingen
+av dem trengte en ny binær — de trengte bare en vei til telefonen. `expo-updates` er den veien:
+en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også for testerne.
+
+**Konfigurasjon (kode er fasit):**
+- `runtimeVersion: { policy: "fingerprint" }` (`app.config.js`) — **IKKE `appVersion`**.
+  Fingerprint utledes av det native laget, så en JS-oppdatering kan aldri havne på en binær med
+  andre native moduler. Appen er `1.0.0` gjennom 51 bygg med skiftende native innhold; `appVersion`
+  ville tillatt nettopp den mismatchen.
+- `updates.fallbackToCacheTimeout: 0` + `checkAutomatically: "ON_LOAD"` — **offline-first er
+  ufravikelig.** Appen starter alltid umiddelbart fra cachet bundle og henter en ev. oppdatering i
+  bakgrunnen; ingen nett → oppstart som før, uten forsinkelse eller feilmelding.
+- **Én kanal pr. `eas.json`-profil** (`development`/`preview`/`test`/`production`). En
+  `preview`-oppdatering kan aldri nå et produksjonsbygg.
+- `VersjonsFooter` viser kjørende `Updates.updateId` (7 tegn) ved siden av byggets commit — når
+  JS-en er nyere enn binæren, lyver commit-hashen alene.
+
+**Datalaget er urørt:** `expo-updates` lagrer bundler i egen intern katalog, aldri
+`documentDirectory` der SQLite, opplastingskøen og SecureStore bor.
+
+### 🔴 Hva som IKKE kan sendes som oppdatering (den avgjørende grensen)
+
+Tror vi noe er ute når det ikke er det, er vi tilbake i feilklassen fra 3. september. Alt som
+rører **native laget** krever nytt bygg — fingerprinten endres, og oppdateringen leveres da rett
+og slett ikke til den gamle binæren (ingen krasj, men heller ingen oppdatering):
+
+- Ny/fjernet/oppgradert native modul (expo-camera, expo-sqlite, react-native-webview, expo-location …)
+- Native config i `app.json`/`app.config.js`: `permissions`, `plugins`, `bundleIdentifier`,
+  Info.plist/entitlements, ikon/splash, `scheme`
+- Expo SDK-oppgradering, native versjonsbump, nye native tillatelser
+
+**Kan** sendes OTA: ren JS/TS, React-komponenter, forretningslogikk, styling, i18n-strenger,
+JS-refererte assets.
+
+### Ikraftsetting, tilbakerulling, grenser
+
+- **Trer i kraft:** ett nytt bygg **pr. kanal** du vil OTA-e til. En oppdatering lander bare på en
+  binær bygget *etter* dette oppsettet (den må inneholde expo-updates-runtimen + matchende
+  fingerprint). Eksisterende bygg 51 kan **ikke** motta oppdateringer.
+- **Tilbakerulling:** `eas update:rollback` / republiser forrige gode update til kanalen. En bruker
+  som alt har hentet den dårlige: sjekker ved neste oppstart, henter rettelsen i bakgrunnen,
+  **anvender den ved oppstarten etter** — typisk to oppstarter. Faresone: en oppdatering som
+  krasjer *før* sjekken rekker å anvende rettelsen, blir stående (starter fra cachet dårlig bundel).
+  Derfor: test på `preview`/`test`-kanal først.
+- **Gratisplan:** ~50 brukere (A.Markussen-piloten) er komfortabelt innenfor. Gratis har historisk
+  ~1 000 MAU + båndbredde-tak — **verifiser gjeldende tall på expo.dev/pricing før pilot.**
 
 ## Se også
 

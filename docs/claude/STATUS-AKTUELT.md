@@ -518,6 +518,27 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟡 expo-updates — JS-fikser til telefonen uten nytt bygg (`feat/expo-updates`, `e498bb14`, PÅ BRANCH — venter gate, IKKE merget)
+
+**Bakgrunn (målt):** 3. september kostet fem rene JavaScript-funn tre av ~15 månedlige iOS-bygg.
+Ingen trengte en ny binær — bare en vei til telefonen (bygg 51 manglet en upushet fiks, preview-bygget
+testet en fiks som aldri var merget). Ordre `relay/inbox-expo-updates.md`, gatet av cowork mot kode.
+
+**Levert (`e498bb14`):** `expo-updates ~29.0.20` (SDK 54-matchet, via `expo install`) ·
+`runtimeVersion: fingerprint`-policy (ikke `appVersion` — JS kan aldri lande på binær med annet native
+lag) · `updates.fallbackToCacheTimeout: 0` + `checkAutomatically: ON_LOAD` (offline-first: starter alltid
+fra cachet bundle, henter i bakgrunnen) · én kanal pr. `eas.json`-profil · `VersjonsFooter` viser kjørende
+`Updates.updateId`. Datalaget urørt (bundler i egen katalog, ikke `documentDirectory`).
+
+**Gate grønn:** web build · mobil typecheck · mobil lint (0 errors). Kenneth verifiserte fingerprint,
+kanaler, offline-oppstart og updateId-visning mot kode 2026-09-03.
+
+**Grensen som avgjør (fra `eas-build-veileder.md § OTA`):** alt som rører native laget (native modul,
+`plugins`/`permissions`/`bundleIdentifier`/Info.plist, SDK-bump) krever nytt bygg — fingerprinten endres
+og OTA-en leveres ikke. Kan OTA-es: ren JS/TS, komponenter, logikk, styling, i18n. **Trer i kraft først
+ved ett nytt bygg pr. kanal** — bygg 51 kan ikke motta oppdateringer. Første `eas update` = Kenneths
+beslutning.
+
 ### 🔴 PROD-FELLE lukket 31.08 (`73b30e71`) — tegningsposisjon-modalen kunne ikke lukkes
 
 **Kenneth i felt på TestFlight-bygg 46 (`5605775d`):** *«eneste måten å komme ut av tegning →
