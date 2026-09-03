@@ -12,7 +12,7 @@ import {
 } from "../db/schema";
 import { lastOppFil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
-import { registrerBildeIDatabase } from "../services/bildeRegistrering";
+import { registrerBildeIDatabase, patchSjekklisteVedleggUrl } from "../services/bildeRegistrering";
 import { useNettverk } from "./NettverkProvider";
 import { AUTH_CONFIG } from "../config/auth";
 
@@ -204,17 +204,21 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // Returnerer `true` hvis server-URL-en faktisk ble skrevet inn i SQLite-blobben
+  // for dette vedlegget. Kalleren gater sletting av lokalfila på dette (SQLite
+  // overlever ikke reinstall, men er den kilden visningen leser samme-install, og
+  // et `false` betyr at korreksjonen ikke landet noe sted lokalt).
   const oppdaterFeltdataVedlegg = useCallback(
-    (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", vedleggId: string, serverUrl: string) => {
+    (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", vedleggId: string, serverUrl: string): boolean => {
       const db = hentDatabase();
-      if (!db) return;
+      if (!db) return false;
 
       // Hent riktig tabell basert på dokumenttype
       const rader = dokumentType === "sjekkliste"
         ? db.select().from(sjekklisteFeltdata).where(eq(sjekklisteFeltdata.sjekklisteId, dokumentId)).all()
         : db.select().from(oppgaveFeltdata).where(eq(oppgaveFeltdata.oppgaveId, dokumentId)).all();
 
-      if (rader.length === 0) return;
+      if (rader.length === 0) return false;
 
       const rad = rader[0]!;
       try {
@@ -273,8 +277,10 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
               .run();
           }
         }
+        return endret;
       } catch (feil) {
         console.warn("Kunne ikke oppdatere feltdata-vedlegg:", feil);
+        return false;
       }
     },
     [],
@@ -435,10 +441,10 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         const dokumentType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;
         const dokumentId = oppforing.oppgaveId ?? oppforing.sjekklisteId ?? "";
 
-        // Oppdater vedlegg-URL i feltdata
-        oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl);
+        // Oppdater vedlegg-URL i feltdata (SQLite — samme-install-kilde)
+        const sqliteOk = oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl);
 
-        // Publiser til aktive hooks
+        // Publiser til aktive hooks (live URL-oppdatering når skjermen er montert)
         publiserFullfort(
           dokumentId,
           dokumentType,
@@ -447,8 +453,30 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           resultat.fileUrl,
         );
 
-        // Slett lokal fil
-        await slettLokaltBilde(oppforing.lokalSti);
+        // Funn C: skriv den varige URL-en til server-JSON-en direkte — også når
+        // skjermen er demontert (da når publiserFullfort aldri hooken, og
+        // korreksjonen ville blitt liggende kun i SQLite, som viskes ved
+        // reinstall). Best-effort: tåler at prod-API-et ikke har prosedyren ennå.
+        let serverOk = false;
+        if (dokumentType === "sjekkliste" && oppforing.sjekklisteId) {
+          serverOk = await patchSjekklisteVedleggUrl({
+            checklistId: oppforing.sjekklisteId,
+            objektId: oppforing.objektId,
+            vedleggId: oppforing.vedleggId,
+            url: resultat.fileUrl,
+            filnavn: resultat.fileName,
+          });
+        }
+
+        // 🔴 Slett aldri lokalfila før erstatningen er persistert et sted som
+        // overlever behovet: server (reinstall-sikkert) ELLER SQLite
+        // (samme-install). Feiler begge — behold fila, så raden fortsatt viser
+        // det lokale bildet og ingenting går tapt.
+        if (sqliteOk || serverOk) {
+          await slettLokaltBilde(oppforing.lokalSti);
+        } else {
+          console.warn("[KØ] URL ikke persistert (SQLite+server feilet) — beholder lokalfil:", oppforing.filnavn);
+        }
 
         oppdaterTellere();
 

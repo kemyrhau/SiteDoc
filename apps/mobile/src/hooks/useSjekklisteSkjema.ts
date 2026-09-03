@@ -119,6 +119,45 @@ function erSQLiteSynkronisert(sjekklisteId: string): boolean {
   }
 }
 
+// Funn C: en lokal enhets-URL (file:// / /var/…) skal ALDRI persisteres på
+// server. Den er død for alle andre enn denne installasjonen, og overskriver den
+// varige `/uploads/privat/…`-URL-en som køen skriver via `settVedleggUrl`.
+function erLokalUrl(u: unknown): boolean {
+  return typeof u === "string" && (u.startsWith("file://") || u.startsWith("/var/"));
+}
+
+function harLokalUrl(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(harLokalUrl);
+  if (node !== null && typeof node === "object") {
+    const o = node as Record<string, unknown>;
+    if (erLokalUrl(o.url)) return true;
+    return Object.values(o).some(harLokalUrl);
+  }
+  return false;
+}
+
+/**
+ * Utelat felt som fortsatt bærer et vedlegg med lokal URL fra server-payloaden.
+ * `oppdaterData` merger feltvis (`{...eksisterende, ...innData}`), så et utelatt
+ * felt røres ikke på server — den varige URL-en køen la inn via `settVedleggUrl`
+ * klobbes ikke. Feltet synkes fullt så snart opplastingen gir det en server-URL.
+ * SQLite beholder alltid full data (samme-install-visning).
+ */
+function utelatFeltMedLokaleVedlegg(
+  data: Record<string, FeltVerdi>,
+): Record<string, FeltVerdi> {
+  let endret = false;
+  const ut: Record<string, FeltVerdi> = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (harLokalUrl(v)) {
+      endret = true;
+      continue;
+    }
+    ut[k] = v;
+  }
+  return endret ? ut : data;
+}
+
 function skrivTilSQLite(
   sjekklisteId: string,
   feltVerdier: Record<string, FeltVerdi>,
@@ -370,13 +409,15 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 2000);
 
-    // 2. Prøv server-sync hvis online
+    // 2. Prøv server-sync hvis online. Utelat felt med fortsatt-lokale vedlegg
+    //    (file://) — de skal aldri lande på server; køen skriver den varige
+    //    server-URL-en via `settVedleggUrl` når opplastingen er ferdig.
     if (erPaaNettet) {
       settSynkStatus("synkroniserer");
       try {
         await oppdaterDataMutasjon.mutateAsync({
           id: sjekklisteId,
-          data,
+          data: utelatFeltMedLokaleVedlegg(data),
         });
         await utils.sjekkliste.hentMedId.invalidate({ id: sjekklisteId });
         settHarEndringer(false);

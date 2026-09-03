@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, KeyboardAvoidingView, Platform } from "react-native";
 import { ModalFlate } from "../ModalFlate";
 import { useTranslation } from "react-i18next";
-import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight, ImageOff } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
@@ -51,6 +51,18 @@ export function FeltDokumentasjon({
   const [visKamera, settVisKamera] = useState(false);
   const gpsPromiseRef = useRef<Promise<{ lat: number; lng: number } | null> | null>(null);
   const [valgtVedleggId, settValgtVedleggId] = useState<string | null>(null);
+  // Funn C (req 3): bilder som ikke lar seg laste (død file://-sti etter
+  // reinstall, eller 401/404) skal vise «finnes, kunne ikke lastes» — aldri en
+  // tom ramme som leses som tapt arbeid.
+  const [feiletVedlegg, settFeiletVedlegg] = useState<Set<string>>(new Set());
+  const markerFeilet = useCallback((vedleggId: string) => {
+    settFeiletVedlegg((prev) => {
+      if (prev.has(vedleggId)) return prev;
+      const ny = new Set(prev);
+      ny.add(vedleggId);
+      return ny;
+    });
+  }, []);
   const [visKommentarModal, settVisKommentarModal] = useState(false);
   const [lokalKommentar, settLokalKommentar] = useState("");
   const { valgtProsjektId } = useProsjekt();
@@ -321,7 +333,19 @@ export function FeltDokumentasjon({
                   settValgtVedleggId(erValgt ? null : v.id);
                 }}
               >
-                {v.type === "bilde" ? (
+                {v.type === "bilde" && feiletVedlegg.has(v.id) ? (
+                  // Req 3: vedlegget finnes, men URL-en er død — vis det tydelig.
+                  <View
+                    className={`h-[72px] w-[72px] items-center justify-center rounded-lg bg-gray-100 px-1 ${
+                      erValgt ? "border-2 border-blue-500" : "border border-gray-300"
+                    }`}
+                  >
+                    <ImageOff size={20} color="#9ca3af" />
+                    <Text className="mt-1 text-center text-[9px] text-gray-500" numberOfLines={2}>
+                      {t("felt.vedleggKunneIkkeLastes")}
+                    </Text>
+                  </View>
+                ) : v.type === "bilde" ? (
                   <View className="h-[72px] w-[72px]">
                     <Image
                       source={{ uri: bildeUrl }}
@@ -329,6 +353,7 @@ export function FeltDokumentasjon({
                         erValgt ? "border-2 border-blue-500" : ""
                       }`}
                       resizeMode="cover"
+                      onError={() => markerFeilet(v.id)}
                     />
                     {/* Løpende bildenummer — refererbart i tekst («se bilde 07») */}
                     {v.bildeNr != null && (
