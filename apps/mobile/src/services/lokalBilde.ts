@@ -27,6 +27,16 @@ export async function lagreLokaltBilde(
 }
 
 /**
+ * Deterministisk lokal sti for et bilde lagret via `lagreLokaltBilde` (samme
+ * `filnavn`). Brukes i visning for å falle tilbake til lokalfila mens en fersk
+ * opplasting ennå bærer en usignert privat server-URL som 401-er i visning
+ * (se `utils/signerteUrler.ts` + funn C). Kun visning — aldri persistert.
+ */
+export function lokalBildeSti(filnavn: string): string {
+  return `${BILDE_MAPPE}${filnavn}`;
+}
+
+/**
  * Slett et lokalt bilde etter vellykket server-opplasting.
  */
 export async function slettLokaltBilde(lokalSti: string): Promise<void> {
