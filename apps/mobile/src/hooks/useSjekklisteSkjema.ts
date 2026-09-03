@@ -7,7 +7,7 @@ import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -301,15 +301,26 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
       }
     }
 
-    settFeltVerdier(initialisert);
+    // 🔴 Init-sammenstilling: server er base, MEN felt som fortsatt har et lokalt
+    // (uleverte) vedlegg tas fra SQLite. `utelatFeltMedLokaleVedlegg` holdt dem
+    // utenfor server-payloaden med vilje (funn C) — så serverens manglende/tomme
+    // versjon skal ikke overskrive det brukeren la inn. Uten dette forsvant fire
+    // bilder ved «pil tilbake» → gjeninngang (datatap, funn 2026-09-04).
+    const sammenstilt = sammenstillMedLokaleVedlegg(initialisert, sqliteData);
+    const harLokaleVedlegg = sammenstilt !== initialisert;
+
+    settFeltVerdier(sammenstilt);
     settErInitialisert(true);
 
-    // Lagre til SQLite (synkronisert med server-data, eller lokalt_lagret med auto-fill)
+    // Lagre til SQLite (synkronisert med server-data, eller lokalt_lagret med auto-fill).
+    // Har vi lokale vedlegg, er dokumentet IKKE fullt synket — så flagget ikke lyver
+    // og neste init tar SQLite-grenen (ellers gjentar tapet seg).
     const harAutoFylt = !harServerData && alleObjekter.some(
       (o) => !DISPLAY_TYPER.has(o.type) && AUTO_FILL_TYPER.has(o.type) && initialisert[o.id]?.verdi != null,
     );
-    skrivTilSQLite(sjekklisteId, initialisert, !harAutoFylt);
-    settSynkStatus(harAutoFylt ? "lokalt_lagret" : "synkronisert");
+    const altSynket = !harAutoFylt && !harLokaleVedlegg;
+    skrivTilSQLite(sjekklisteId, sammenstilt, altSynket);
+    settSynkStatus(altSynket ? "synkronisert" : "lokalt_lagret");
   }, [sjekkliste, alleObjekter, erInitialisert, sjekklisteId]);
 
   // Lytt på opplastingsfullføringer — oppdater vedlegg-URL i minnet
