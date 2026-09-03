@@ -3,6 +3,7 @@ import { View, Text, Pressable } from "react-native";
 import { Plus, Trash2 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
+import { leggTilVedleggIRad } from "@sitedoc/shared";
 import type { RapportObjektProps, RapportObjekt, OppgavePosisjon } from "./typer";
 import type { FeltVerdi } from "../../hooks/useSjekklisteSkjema";
 import { RapportObjektRenderer, DISPLAY_TYPER, tilbehorVisning } from "./RapportObjektRenderer";
@@ -119,21 +120,22 @@ export function RepeaterObjekt({
 
   const leggTilVedlegg = useCallback(
     (radIndeks: number, feltId: string, vedlegg: FeltVerdi["vedlegg"][number]) => {
-      const oppdatert = raderRef.current.map((rad, i) => {
-        if (i !== radIndeks) return rad;
-        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
-        return {
-          ...rad,
-          felter: {
-            ...rad.felter,
-            [feltId]: {
-              ...eksisterende,
-              vedlegg: [...(eksisterende.vedlegg ?? []), vedlegg],
-            },
-          },
-        };
-      });
-      onEndreVerdi(oppdatert);
+      // FUNKSJONELL append: transformér mot FORRIGE (nummererte) hook-state via en
+      // updater, ikke mot raderRef-snapshotet. En batch fra galleriet legger inn N
+      // bilder sekvensielt; med snapshot vant siste skriving (kun ett bilde overlevde),
+      // med updater akkumulerer alle N uansett render-timing. `leggTilVedleggIRad` er
+      // den delte, testede transformen (@sitedoc/shared). Faller tilbake til raderRef
+      // om forrige ikke er en array (skal ikke skje for en repeater).
+      onEndreVerdi((forrige: unknown) =>
+        leggTilVedleggIRad(
+          Array.isArray(forrige)
+            ? (forrige as unknown[]).map(normaliserRad)
+            : raderRef.current,
+          radIndeks,
+          feltId,
+          vedlegg,
+        ),
+      );
     },
     [onEndreVerdi],
   );

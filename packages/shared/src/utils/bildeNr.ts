@@ -128,3 +128,36 @@ export function nummererRepeaterBilder<T>(rader: T, startNr: number): T {
 
   return (noeEndret ? nyeRader : rader) as T;
 }
+
+/**
+ * Append ETT vedlegg til `rader[radIndeks].felter[feltId].vedlegg`, immutabelt.
+ * Ren transform — INGEN nummerering (kall `nummererRepeaterBilder` etterpå), ingen
+ * side-effekt. Håndterer produksjonsformen `{ _radId, felter }` og eldre/flat rad,
+ * og skriver tilbake i samme form.
+ *
+ * Skilt ut fra `RepeaterObjekt.leggTilVedlegg` (mobil) NETTOPP fordi batch-veien
+ * ikke kunne testes der den lå — transformen hører hjemme her, ved siden av
+ * nummereringen som forbruker den. Race-friheten ligger i KALLEREN: bruk denne
+ * inne i en funksjonell state-oppdatering (mot forrige, nummererte rader), ikke
+ * mot et render-snapshot — ellers taper sekvensiell batch alt utenom siste.
+ */
+export function leggTilVedleggIRad<T>(
+  rader: T,
+  radIndeks: number,
+  feltId: string,
+  vedlegg: unknown,
+): T {
+  if (!Array.isArray(rader)) return rader;
+  return rader.map((rad, i) => {
+    if (i !== radIndeks || !rad || typeof rad !== "object") return rad;
+    const raaRad = rad as Record<string, unknown>;
+    const harFelter = raaRad.felter != null && typeof raaRad.felter === "object";
+    const kilde = feltKart(raaRad);
+    const eks = (kilde[feltId] as { vedlegg?: unknown[] } | undefined) ?? {};
+    const nyttKart = {
+      ...kilde,
+      [feltId]: { ...eks, vedlegg: [...(eks.vedlegg ?? []), vedlegg] },
+    };
+    return (harFelter ? { ...raaRad, felter: nyttKart } : nyttKart) as unknown;
+  }) as T;
+}

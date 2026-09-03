@@ -4,7 +4,7 @@ export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller,
 export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst, finnVaerTimeIndeks, byggVaerSnapshot } from "./vaer";
 export type { VaerHourly, VaerSnapshot } from "./vaer";
-export { nesteBildeNr, nummererRepeaterBilder } from "./bildeNr";
+export { nesteBildeNr, nummererRepeaterBilder, leggTilVedleggIRad } from "./bildeNr";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
 export { hentStatusHandlinger, hentPosisjonFiltrertHandlinger } from "./statusHandlinger";

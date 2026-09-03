@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nesteBildeNr, nummererRepeaterBilder } from "./bildeNr";
+import { nesteBildeNr, nummererRepeaterBilder, leggTilVedleggIRad } from "./bildeNr";
 
 type V = { type: string; bildeNr?: number };
 type Rad = Record<string, { vedlegg: V[] }>;
@@ -100,8 +100,10 @@ describe("integrasjon: batch i rik repeater (produksjonsform { _radId, felter })
   type Rad = { _radId: string; felter: Record<string, { vedlegg: V[] }> };
   type FeltVerdier = Record<string, { verdi: Rad[] }>;
 
-  // Speiler oppdaterFelt for repeater: append ett bilde (uten nr) til rad.felter[feltId],
-  // deretter renummerer hele repeater-verdien mot resten av dokumentet.
+  // FUNKSJONELL append — speiler den FIKSEDE hooken (oppdaterFelt): for hvert nytt
+  // bilde appendes vedlegget via leggTilVedleggIRad mot FORRIGE (nummererte) state,
+  // deretter renummereres hele verdien. Slik akkumulerer sekvensiell batch uansett
+  // render-timing. Dette er veien velgBilder → håndterBilde ×N → onEndreVedlegg → state.
   function batchInn(
     fv: FeltVerdier,
     objektId: string,
@@ -110,19 +112,9 @@ describe("integrasjon: batch i rik repeater (produksjonsform { _radId, felter })
     antall: number,
   ): FeltVerdier {
     for (let i = 0; i < antall; i++) {
-      const rader = fv[objektId]!.verdi.map((rad, j) => {
-        if (j !== radIdx) return rad;
-        const eks = rad.felter[feltId] ?? { vedlegg: [] };
-        return {
-          ...rad,
-          felter: {
-            ...rad.felter,
-            [feltId]: { ...eks, vedlegg: [...eks.vedlegg, { type: "bilde" } as V] },
-          },
-        };
-      });
+      const rader = leggTilVedleggIRad(fv[objektId]!.verdi, radIdx, feltId, { type: "bilde" });
       const nummerert = nummererRepeaterBilder(rader, nesteBildeNr(fv));
-      fv = { ...fv, [objektId]: { ...fv[objektId]!, verdi: nummerert } };
+      fv = { ...fv, [objektId]: { ...fv[objektId]!, verdi: nummerert as Rad[] } };
     }
     return fv;
   }

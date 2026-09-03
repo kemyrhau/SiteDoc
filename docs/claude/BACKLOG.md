@@ -97,6 +97,16 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 Bilde-registrering er ikke idempotent — tapt-svar-retry gir duplikat `Image`-rad (målt 2026-09-03)
+
+`bilde.opprettForSjekkliste` og `opprettForOppgave` (`apps/api/src/routes/bilde.ts:146-205`) gjør blind `prisma.image.create` — input har **ingen `vedleggId`**, ingen upsert, ingen unik constraint, ingen dedup på `fileUrl`. Køen (`OpplastingsKoProvider`) retrier alle feilede opplastinger med backoff; en opplasting som **lyktes server-side men mistet svaret** blir retriet → ny `image.create` → **duplikat `Image`-rad**. Sjekklista/PDF-en rammes IKKE (de rendres fra `checklist.data`, nøklet på `vedleggId` via `patchSjekklisteVedleggUrl` — idempotent), men `Image`-tabellen (gallerivisning) får to rader.
+
+**Pre-eksisterende** — retry-stien finnes allerede uavhengig av kø-timeout-runden (2026-09-03). Timeouten som ble lagt til der trigger den samme stien oftere, men innfører den ikke.
+
+**Fiks (krever Kenneths DB-godkjenning):** `vedleggId` inn i `opprettFor*`-input + upsert på den, ELLER unik constraint på `Image`. Begge er Prisma-migrering på `Image`.
+
+🔴 **Migrerings-fella (skriv tellingen FØR constrainten):** en unik constraint på `Image` vil **feile ved migrering** hvis prod alt har duplikater. Steg 1: tell duplikater i prod (`SELECT checklistId/taskId, fileUrl, COUNT(*) ... GROUP BY ... HAVING COUNT(*)>1`) og rydd dem. Steg 2: legg constraint. Glemmes tellingen, ruller migreringen tilbake. Følg to-stegs migrations-policyen (CLAUDE.md).
+
 ### 🟡 En deaktivert firma-admin beholder admin-rettigheter (registreringsmodell fase 1-oppfølger, 2026-08-28)
 
 `verifiserFirmaAdmin` (routes-lokale kopier ×16) og `erFirmaAdmin`/`erFirmaAdminForProsjekt` (tilgangskontroll.ts) leser `firmaRoller`, ikke `status`. Fase 1 la `krevAktivAnsettelse` FØR firma-admin-bypass i de 11 prosjekt-portene (så en deaktivert firma_admin nektes prosjekttilgang der) og `status`-filter i `hentBrukersOrg` (så firma-nivå-medlemsveien, inkl. timeføring, stenger). Men de firma-admin-**spesifikke** rutene som gater direkte på `verifiserFirmaAdmin` (lønnsart-/eksport-oppsett-/onboarding-config m.m.) sjekker fortsatt ikke status. En deaktivert **ikke-admin** feiler disse uansett; hullet gjelder kun en deaktivert person som fortsatt har `firma_admin` i `firmaRoller`. Fiks: sentraliser `verifiserFirmaAdmin`-kopiene og legg status-sjekk der. Lav prioritet (lockout-guarden hindrer selv-deaktivering; scenariet krever at admin A deaktiverer admin B og lar B beholde rollen).
