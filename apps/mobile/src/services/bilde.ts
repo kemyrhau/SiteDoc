@@ -194,9 +194,37 @@ export async function velgBilder(
     allowsMultipleSelection: true,
     orderedSelection: true,
     selectionLimit: maksAntall,
+    exif: true, // 🔧 DIAG (wip/diag-exif — SKAL IKKE MERGES)
   });
 
   if (resultat.canceled || resultat.assets.length === 0) return [];
+
+  // 🔧 MIDLERTIDIG EXIF-DIAGNOSTIKK (wip/diag-exif — SKAL IKKE MERGES).
+  // Dumper den FAKTISKE exif-formen fra iOS 26 så parseren skrives mot ekte
+  // nøkkelnavn (DateTimeOriginal/GPS), ikke gjettede. Se på nøklene + dato/GPS.
+  if (__DEV__) {
+    resultat.assets.forEach((a, i) => {
+      const exif = a.exif ?? null;
+      console.log(`[EXIF-DIAG] bilde ${i + 1} nøkler:`, exif ? JSON.stringify(Object.keys(exif)) : "null");
+      if (exif) {
+        // Logg hele sekken (bilder-exif er små) + de mest sannsynlige feltene eksplisitt.
+        console.log(`[EXIF-DIAG] bilde ${i + 1} full:`, JSON.stringify(exif));
+        console.log(
+          `[EXIF-DIAG] bilde ${i + 1} kandidater:`,
+          JSON.stringify({
+            DateTimeOriginal: exif.DateTimeOriginal,
+            DateTime: exif.DateTime,
+            GPSLatitude: exif.GPSLatitude,
+            GPSLongitude: exif.GPSLongitude,
+            GPSLatitudeRef: exif.GPSLatitudeRef,
+            GPSLongitudeRef: exif.GPSLongitudeRef,
+            GPS: exif["{GPS}"] ?? exif.GPS,
+            Exif: exif["{Exif}"],
+          }),
+        );
+      }
+    });
+  }
 
   // GPS: hent ÉN gang, ikke N kall i løkke.
   let gps: { lat: number; lng: number } | null = null;
