@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, useEffect } from "react";
+import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
@@ -21,6 +21,7 @@ import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { HmsBehandlingsflate, type HmsHandlingType } from "../../src/components/HmsBehandlingsflate";
+import { ArkivPdfForhandsvisning } from "../../src/components/ArkivPdfForhandsvisning";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -112,6 +113,12 @@ export default function SjekklisteUtfylling() {
   // expo-print-veien (byggSjekklisteHtml) er fjernet — telefonen må uansett være på nett for
   // å hente bilder/tegninger til en PDF.
   const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
+  // Funn E: forhåndsvis den server-rendrede arkiv-PDF-en i appen. Samme motor
+  // (arkiv.rendr) — ett render kan enten deles (share sheet) eller vises i en
+  // WebView. `arkivIntensjonRef` styrer hva onSuccess gjør (ref → ingen stale
+  // closure i mutasjon-callbacken).
+  const arkivIntensjonRef = useRef<"del" | "forhandsvis">("del");
+  const [pdfForhandsvisFil, settPdfForhandsvisFil] = useState<string | null>(null);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
   // D (bygg 50): endringsloggen skal ikke stå åpen — sammenleggbar, lukket som standard.
@@ -559,13 +566,19 @@ export default function SjekklisteUtfylling() {
         await FileSystem.writeAsStringAsync(filsti, res.pdfBase64, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        await Sharing.shareAsync(filsti, {
-          mimeType: "application/pdf",
-          dialogTitle: `Del ${sjekkliste?.title ?? "sjekkliste"}`,
-          UTI: "com.adobe.pdf",
-        });
+        if (arkivIntensjonRef.current === "forhandsvis") {
+          // Funn E: vis PDF-en i appen (kontroll før sending) i stedet for å
+          // dele den ut. Del-knappen finnes inne i forhåndsvisningen.
+          settPdfForhandsvisFil(filsti);
+        } else {
+          await Sharing.shareAsync(filsti, {
+            mimeType: "application/pdf",
+            dialogTitle: `Del ${sjekkliste?.title ?? "sjekkliste"}`,
+            UTI: "com.adobe.pdf",
+          });
+        }
       } catch (feil) {
-        console.warn("Arkiv-PDF-deling feilet:", feil);
+        console.warn("Arkiv-PDF-håndtering feilet:", feil);
       }
       // Mangel-kontrakt (speiler web): timeout ≠ mangel. Ikke-blokkerende, inline.
       const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
@@ -589,9 +602,37 @@ export default function SjekklisteUtfylling() {
       settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
       return;
     }
+    arkivIntensjonRef.current = "del";
     settArkivMelding(null);
     rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
   }, [id, erPaaNettet, rendrArkiv, t]);
+
+  // Funn E: forhåndsvis PDF-en i appen (kontroll før sending). Samme server-
+  // render som deling, men vises i WebView i stedet for share sheet.
+  const håndterForhåndsvisPdf = useCallback(() => {
+    if (!id) return;
+    if (!erPaaNettet) {
+      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      return;
+    }
+    arkivIntensjonRef.current = "forhandsvis";
+    settArkivMelding(null);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
+  }, [id, erPaaNettet, rendrArkiv, t]);
+
+  // Del den allerede-forhåndsviste fila (samme PDF, ingen ny server-render).
+  const delForhåndsvistPdf = useCallback(async () => {
+    if (!pdfForhandsvisFil) return;
+    try {
+      await Sharing.shareAsync(pdfForhandsvisFil, {
+        mimeType: "application/pdf",
+        dialogTitle: `Del ${sjekkliste?.title ?? "sjekkliste"}`,
+        UTI: "com.adobe.pdf",
+      });
+    } catch (feil) {
+      console.warn("Deling fra forhåndsvisning feilet:", feil);
+    }
+  }, [pdfForhandsvisFil, sjekkliste?.title]);
 
   // Påkrevd-felt-teller (M2): live antall gjenstående påkrevde synlige felt. Deaktiverer
   // framover-primær (Send/Besvar) + caption. Read-only speiling av `valider()` — muterer ikke.
@@ -1125,6 +1166,30 @@ export default function SjekklisteUtfylling() {
           dedikert Send inn/Forkast/Send tilbake — mobil oppretter SJA via sjekkliste.opprett
           (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
       <View className="border-t border-gray-200 bg-white px-4 py-3">
+        {/* Funn E: kontroll før sending — forhåndsvis den server-rendrede
+            arkiv-PDF-en i appen. Ligger her, ved Send/Godkjenn, ikke bare som
+            ikon i toppbaren. */}
+        <Pressable
+          onPress={håndterForhåndsvisPdf}
+          disabled={rendrArkiv.isPending}
+          className="mb-3 flex-row items-center justify-center gap-2 rounded-lg border border-sitedoc-blue bg-white py-2.5"
+          style={rendrArkiv.isPending ? { opacity: 0.5 } : undefined}
+        >
+          {rendrArkiv.isPending ? (
+            <ActivityIndicator size="small" color="#1e40af" />
+          ) : (
+            <Eye size={16} color="#1e40af" />
+          )}
+          <Text className="text-sm font-semibold text-sitedoc-blue">
+            {t("arkiv.forhandsvis")}
+          </Text>
+        </Pressable>
+        {!erPaaNettet && (
+          // Req 3: si HVORFOR det ikke går offline, ikke bare et ikon.
+          <Text className="mb-3 text-center text-xs text-amber-700">
+            {t("arkiv.kreverTilkobling")}
+          </Text>
+        )}
         {erHms ? (
           erMelder && ballHosMelder ? (
           <View className="gap-2">
@@ -1198,6 +1263,15 @@ export default function SjekklisteUtfylling() {
       </View>
 
       </KeyboardAvoidingView>
+
+      {/* Funn E: forhåndsvisning av arkiv-PDF (alltid montert, styrt av `synlig`). */}
+      <ArkivPdfForhandsvisning
+        synlig={pdfForhandsvisFil != null}
+        filUri={pdfForhandsvisFil}
+        tittel={sjekkliste?.title ?? t("arkiv.forhandsvis")}
+        onDel={delForhåndsvistPdf}
+        onLukk={() => settPdfForhandsvisFil(null)}
+      />
 
       {/* Lokasjonsmodal — tegningsvisning med posisjonsprikk */}
       <Modal visible={visLokasjonModal} animationType="slide" onRequestClose={() => setVisLokasjonModal(false)}>

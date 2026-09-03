@@ -34,6 +34,41 @@ import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finaliserin
 // Felttyper der verdi er fritekst som skal oversettes
 const FRITEKST_TYPER = new Set(["text_field"]);
 
+/**
+ * Funn C (bilder i raden): sett `url` på ett vedlegg (matchet på `id`) hvor enn
+ * det ligger i `Checklist.data` — topp-nivå ELLER repeater-/attachments-nestet.
+ * Muterer `node` in place (kalleren jobber på en dyp kopi). Returnerer `true`
+ * hvis minst ett vedlegg ble truffet.
+ */
+function settUrlPaaVedlegg(
+  node: unknown,
+  vedleggId: string,
+  url: string,
+  filnavn: string | undefined,
+): boolean {
+  if (Array.isArray(node)) {
+    let endret = false;
+    for (const n of node) {
+      if (settUrlPaaVedlegg(n, vedleggId, url, filnavn)) endret = true;
+    }
+    return endret;
+  }
+  if (node !== null && typeof node === "object") {
+    const o = node as Record<string, unknown>;
+    let endret = false;
+    if (o.id === vedleggId && typeof o.url === "string") {
+      o.url = url;
+      if (filnavn) o.filnavn = filnavn;
+      endret = true;
+    }
+    for (const v of Object.values(o)) {
+      if (settUrlPaaVedlegg(v, vedleggId, url, filnavn)) endret = true;
+    }
+    return endret;
+  }
+  return false;
+}
+
 // ---------- Dedikert HMS-løp (D1/D2) ----------
 
 /**
@@ -852,6 +887,100 @@ export const sjekklisteRouter = router({
 
         // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
         return signerDataRad(oppdatert);
+      });
+    }),
+
+  // Funn C (bilder i raden): punkt-patch av ÉN vedlegg-URL i Checklist.data.
+  // Opplastingskøen kaller denne når et bilde er ferdig lastet opp, slik at
+  // server-JSON-en får den varige `/uploads/privat/…`-URL-en — også når skjermen
+  // er demontert (da når opplastings-callbacken aldri hooken, og korreksjonen ble
+  // liggende kun i mobilens SQLite, som viskes ved reinstall). Rent additivt:
+  // ingen skjemaendring, read-modify-write av ÉN URL. Mobil er skrevet slik at
+  // den tåler at prosedyren ikke finnes ennå (eldre prod-API) — kallet er
+  // best-effort og gater ikke sletting alene.
+  settVedleggUrl: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        objektId: z.string().min(1),
+        vedleggId: z.string().min(1),
+        url: z.string().min(1),
+        filnavn: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Aldri persistér en lokal enhets-URL (file://) på server — det er hele
+      // feilklassen. Kun server-relative /uploads/-stier slipper inn.
+      if (!input.url.startsWith("/uploads/")) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "settVedleggUrl krever en server-URL (/uploads/…)",
+        });
+      }
+
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          template: { select: { projectId: true, domain: true } },
+        },
+      });
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        sjekkliste.template.projectId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
+        sjekkliste.template.domain,
+        sjekkliste.id,
+        "checklist",
+      );
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const fersk = await tx.checklist.findUniqueOrThrow({
+          where: { id: input.id },
+          select: { data: true },
+        });
+        // Dyp kopi — vi muterer og skriver tilbake i én transaksjon.
+        const data = JSON.parse(JSON.stringify(fersk.data ?? {})) as Record<
+          string,
+          unknown
+        >;
+
+        // 1) Finnes vedlegget alt (topp-nivå eller repeater-nestet) — bytt URL-en.
+        const erstattet = settUrlPaaVedlegg(
+          data,
+          input.vedleggId,
+          input.url,
+          input.filnavn,
+        );
+
+        // 2) Rakk klienten aldri å synke feltet (mobil utelater felt med lokal
+        //    URL fra lagringen) — legg vedlegget til på topp-nivå under objektId.
+        //    Repeater-nesting kan ikke gjenskapes her; slike bilder synkes når
+        //    skjermen mountes igjen.
+        if (!erstattet) {
+          const raaFelt = data[input.objektId];
+          const felt =
+            raaFelt !== null && typeof raaFelt === "object"
+              ? (raaFelt as Record<string, unknown>)
+              : { verdi: null, kommentar: "" };
+          const vedlegg = Array.isArray(felt.vedlegg)
+            ? (felt.vedlegg as Array<Record<string, unknown>>)
+            : [];
+          vedlegg.push({
+            id: input.vedleggId,
+            type: "bilde",
+            url: input.url,
+            ...(input.filnavn ? { filnavn: input.filnavn } : {}),
+          });
+          felt.vedlegg = vedlegg;
+          data[input.objektId] = felt;
+        }
+
+        await tx.checklist.update({
+          where: { id: input.id },
+          data: { data: data as Prisma.InputJsonValue },
+        });
+        return { ok: true, erstattet };
       });
     }),
 
