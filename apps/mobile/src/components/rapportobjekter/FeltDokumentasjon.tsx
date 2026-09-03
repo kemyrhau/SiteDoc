@@ -8,7 +8,7 @@ import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
 import { komprimer, hentGps, velgBilde } from "../../services/bilde";
 import { lastOppFil } from "../../services/opplasting";
-import { lagreLokaltBilde, hentFilstorrelse } from "../../services/lokalBilde";
+import { lagreLokaltBilde, hentFilstorrelse, lokalBildeSti } from "../../services/lokalBilde";
 import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
 import { BildeAnnotering } from "../BildeAnnotering";
 import { KameraModal } from "../KameraModal";
@@ -319,12 +319,20 @@ export function FeltDokumentasjon({
         >
           {vedlegg.map((v) => {
             const erValgt = v.id === valgtVedleggId;
+            // Rå privat server-URL (uten sig=) 401-er i visning: opplastingen er
+            // ferdig, men server-data med signert URL er ikke refetchet ennå. Vis
+            // lokalfila i mellomtiden — den lever til persistering er bekreftet
+            // (funn C). KUN visning: v.url (det som persisteres) er urørt.
+            const erRaaPrivat =
+              v.url.startsWith("/uploads/privat/") && !v.url.includes("sig=");
             // Lokal fil → vis direkte, server-relativ → full URL
             const bildeUrl = v.url.startsWith("file://") || v.url.startsWith("/var/")
               ? v.url
-              : v.url.startsWith("/")
-                ? `${AUTH_CONFIG.apiUrl}${v.url}`
-                : v.url;
+              : erRaaPrivat
+                ? lokalBildeSti(v.filnavn)
+                : v.url.startsWith("/")
+                  ? `${AUTH_CONFIG.apiUrl}${v.url}`
+                  : v.url;
             return (
               <Pressable
                 key={v.id}
