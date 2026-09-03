@@ -518,6 +518,22 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟡 Kø-robusthet — opplastingskøen frøs i stillhet i 18 min (`fix/mobil-batch-opplasting`, PÅ BRANCH — venter gate, IKKE merget)
+
+**Avdekket av galleri-flervalg, men er en kø-robusthetssak, ikke en flervalg-sak.** Kenneth batchet 6 bilder i felt; de kom opp i sjekklista og til slutt på server — men det tok 18 min, og INGENTING sa at de var underveis. Målt årsak: `uploadAsync` hadde **ingen timeout**, så en hengende opplasting på tregt byggeplass-nett holdt `prosessererRef` true; 15s-sikkerhetsnettet er guardet på `!prosessererRef.current` og var dermed dødt. Bare reload (som nullstiller `laster_opp`→`venter` via `migreringer.ts:109` + fersk mount) løsnet den. Køen drenerte ikke av seg selv.
+
+**Levert:**
+- **Selv-drenering:** timeout (60s) på opplasting (`opplasting.ts`) + klassifisert feil (`OpplastingFeil` nett/hard). Nett/timeout/5xx retrier med backoff UTEN å telle mot `MAKS_FORSOK` (aldri permanent oppgitt på tregt nett); kun hard 4xx teller mot taket. Head-of-line-fri: per-oppføring backoff-kart, en feilende hopper bakover mens andre slipper fram.
+- **B — ingen stille sletting:** «fil mangler» → `console.warn`, ikke `log`.
+- **D — synlighet:** felt-badge «N vedlegg lastes opp» / «prøver fortsatt» (peker på hvilken rad), + persistent banner ved PDF/Send «kommer med når køen er ferdig». Køen eksponerer `feilendeVedleggIder` + `ventendePerDokument`.
+- **A (hygiene, IKKE årsaken):** unikt lagringsnavn `IMG_<ts>_<id8>.jpg` mot filnavn-kollisjon i rask løkke.
+- **C:** sekvensiell komprimering (dreper ~42-samtidige-native-kall-spiken) + per-bilde-isolasjon + catch + fremdrift.
+- **E:** append-race herdet — `leggTilVedleggIRad` skilt ut til `@sitedoc/shared` (testbar der batch-veien ikke kunne testes før), RepeaterObjekt appender funksjonelt mot forrige state.
+
+**Eget funn ført til BACKLOG:** `bilde.opprettFor*` er ikke idempotent (blind `image.create`, ingen `vedleggId`) → tapt-svar-retry gir duplikat `Image`-rad. Pre-eksisterende; krever DB-migrering + Kenneths godkjenning (med telling FØR unik constraint).
+
+**Gate grønn:** shared 621/621 (inkl. batch-integrasjonstest på ekte `{_radId,felter}`-form), pdf, mobil typecheck + lint 0, web build.
+
 ### 🟡 expo-updates — JS-fikser til telefonen uten nytt bygg (`feat/expo-updates`, `e498bb14`, PÅ BRANCH — venter gate, IKKE merget)
 
 **Bakgrunn (målt):** 3. september kostet fem rene JavaScript-funn tre av ~15 månedlige iOS-bygg.

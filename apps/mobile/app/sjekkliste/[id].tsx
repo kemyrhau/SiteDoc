@@ -194,7 +194,11 @@ export default function SjekklisteUtfylling() {
     return byggKolonnerPerFelt(byggObjektTre(objs) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]);
   }, [sjekklisteDetalj]);
 
-  const { ventende, erAktiv } = useOpplastingsKo();
+  const { ventende, erAktiv, ventendePerDokument } = useOpplastingsKo();
+  // D: vedlegg i DETTE dokumentet som ennå ikke er lastet opp → kommer ikke med
+  // i arkiv-PDF-en (server ekskluderer felt med lokale vedlegg, funn C). Vises
+  // ved PDF/Send så brukeren vet konsekvensen der den inntreffer.
+  const antallIkkeLastet = (id && ventendePerDokument.get(id)) || 0;
 
   // Bygninger og tegninger for lokasjonsvelger
   const bygningerQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -823,6 +827,16 @@ export default function SjekklisteUtfylling() {
           />
         )}
       </View>
+
+      {/* D: vedlegg som ennå lastes opp kommer ikke med i arkiv/PDF. Persistent
+          ved handlingene (PDF + Send) — forsvinner når køen har levert alt. */}
+      {antallIkkeLastet > 0 && (
+        <View className="bg-blue-50 px-3 py-2">
+          <Text className="text-xs text-blue-700">
+            {t("arkiv.vedleggIkkeLastetOpp", { antall: antallIkkeLastet })}
+          </Text>
+        </View>
+      )}
 
       {/* Arkiv-PDF-melding: inline, ikke-blokkerende (ingen toast). Trykk for å lukke. */}
       {arkivMelding && (

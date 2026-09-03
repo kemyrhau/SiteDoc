@@ -180,6 +180,9 @@ export async function taBilde(gpsAktivert = true): Promise<BildeResultat | null>
 export async function velgBilder(
   maksAntall = 10,
   gpsAktivert = true,
+  // Fremdrift per ferdig-komprimert bilde — lar UI vise «Behandler bilde i/N»
+  // gjennom hele den sekvensielle jobben (10 bilder × ~7 native kall tar tid).
+  onFremdrift?: (ferdig: number, total: number) => void,
 ): Promise<BildeResultat[]> {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== "granted") return [];
@@ -201,17 +204,30 @@ export async function velgBilder(
     gps = await hentGps();
   }
 
-  // Indeksbevarende komprimering — Promise.all bevarer input-rekkefølge i output.
-  const komprimerte = await Promise.all(
-    resultat.assets.map((asset) => komprimer(asset.uri)),
-  );
+  // Sekvensiell komprimering med per-bilde-isolasjon — IKKE Promise.all.
+  // Promise.all var alt-eller-intet: ett bilde som feiler (eller minnespress fra
+  // N × ~7 native ImageManipulator-kall samtidig) forkastet HELE batchen. Nå
+  // hoppes et feilende bilde over, resten overlever. Rekkefølge bevart.
+  const resultater: BildeResultat[] = [];
+  for (let i = 0; i < resultat.assets.length; i++) {
+    try {
+      const komprimert = await komprimer(resultat.assets[i]!.uri);
+      resultater.push({
+        uri: komprimert.uri,
+        filstorrelse: komprimert.filstorrelse,
+        gpsLat: gps?.lat,
+        gpsLng: gps?.lng,
+      });
+    } catch (feil) {
+      console.warn(
+        `[BILDE] Komprimering feilet for bilde ${i + 1}/${resultat.assets.length}, hopper over:`,
+        feil instanceof Error ? feil.message : feil,
+      );
+    }
+    onFremdrift?.(i + 1, resultat.assets.length);
+  }
 
-  return komprimerte.map((komprimert) => ({
-    uri: komprimert.uri,
-    filstorrelse: komprimert.filstorrelse,
-    gpsLat: gps?.lat,
-    gpsLng: gps?.lng,
-  }));
+  return resultater;
 }
 
 /** Tynn wrapper — ett bilde (TilleggSeksjon/UtleggSeksjon: ett bilde per utlegg). */
