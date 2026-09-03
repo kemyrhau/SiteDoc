@@ -21,8 +21,8 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
-| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | Ledig. Neste plan-punkt ikke valgt — kandidater: masterplan pkt 2 (REG fase 3) eller `timer-gps-prosjekt-utredning` (reisetid, A.Markussen-frist september) |
-| **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | Fem merget 01.09, sist `d394bdde` (kolonnevelger + tabellbredder) | **`relay/inbox-timerrapport-flate.md`** — branch `feat/timerrapport-flate`. Fem funn fra Kenneths gate: velger nåbar fra tabellen · innholdsbevisste bredder · maskinlinje slås sammen når `utleieEnhet="time"` · disabled-knapper uten forklaring · «Eksporter uten å lagre» |
+| **kontrollplan** | 🔴 **FUNN (plan-sporet avbrutt)** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | **`relay/inbox-mobil-byggeplasskontekst.md`** — branch `fix/mobil-byggeplasskontekst`. Funn A/B/D fra bygg 50: chip-kilden av timer-cachen · tegninger filtreres på byggeplass + søk · endringslogg lukket som standard. **Før neste EAS-bygg** |
+| **dokgen** | 🔴 **FUNN** | `SiteDoc-dokgen` | Fem merget 01.09, sist `d394bdde` (kolonnevelger + tabellbredder) | **`relay/inbox-mobil-vedlegg-pdf.md`** — branch `fix/mobil-vedlegg-pdf`. Funn C/E fra bygg 50: bilder som finnes på server vises ikke i raden · ingen PDF-forhåndsvisning før sending. **Før neste EAS-bygg.** ⏸️ `inbox-timerrapport-flate.md` satt på vent (web, haster ikke mot byggkvoten) |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
 
@@ -30,6 +30,34 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🔴 **Kenneth 2026-09-03: «fiks alle de feil jeg meldte inn før nytt EAS-bygg → #1-6.»**
+Seks funn fra bygg 50. **Byggkvoten gater rekkefølgen** — vi bruker ikke ett av ~15
+månedlige iOS-bygg på et halvt sett. To agenter i parallell, ett bygg når begge er merget.
+
+| Funn (bygg 50, 2026-09-03) | Alvorlighet | Status |
+|---|---|---|
+| **#1** Bilder tatt tidligere vises ikke i rapportobjekt-raden — ser ut som datatap | 🔴 blokkerer | Ordre C → **dokgen** |
+| **#2** Ingen PDF-kontroll før sending (finnes, men kun som iOS share sheet fra ett ikon) | 🔴 for dette bygget | Ordre E → **dokgen** |
+| **#3** Endringsloggen står åpen i UI og viser rå UUID-er | 🟡 skjemmer | Ordre D → **kontrollplan** |
+| **#4** Tegningslista ignorerer valgt byggeplass — kaos ved 30-40 tegninger | 🔴 blokkerer | Ordre B → **kontrollplan** |
+| **#5** Byggeplass-velgeren usynlig: chippen leser **timer-modulens** cache (`ByggeplassChip.tsx:26`, `:44`) | 🔴 blokkerer | Ordre A → **kontrollplan** |
+| **#6** Bekreftet at enheten kjører bygg 50 (`da0f018`) | — | Ingen feil |
+
+> 🔴 **Kenneths kritikk av arbeidsformen, 2026-09-03 — skal stå:**
+> *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass, så må man erkjenne at
+> vi endret ikke på riktig plass når enkel logikk ikke fører til målet.»*
+>
+> Cowork svarte først at chippen fantes på fem skjermer og at Kenneth hadde åpnet feil kontroll.
+> **Målingen ga ham rett:** chippen returnerer `null` uten feilmelding når timer-cachen er tom.
+> **Akseptkriteriet som følger:** en runde er ikke levert før noen som *ikke vet hva som er
+> endret* kan finne endringen. En komponent som finnes i koden er ikke en endring brukeren har fått.
+>
+> **Og modellen han beskrev — velg prosjekt + byggeplass på hjem, alt nedstrøms følger — er
+> allerede appens modell.** Ti skjermer sender `byggeplassId` fra `ByggeplassKontekst`.
+> Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
+
+### Eldre feltfunn
 
 | Funn | Alvorlighet | Status |
 |---|---|---|
@@ -58,8 +86,13 @@ automatiske medlemmer under default `manuell` · endringslogg og PDF-tidsstemple
 veggklokka — **både formatereren og de lagrede øyeblikkene er riktige**, den fryktede
 dobbeltforskyvningen finnes ikke.
 
-📱 **TestFlight-bygg #50** (`28f117a8`, 02.09 23:43) — syv mobil-runder, alle verifisert på
-simulator FØR bygget. Se [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).
+📱 ✅ **TestFlight-bygg #50 ER UTE** (`28f117a8`, commit `da0f0181`, 02.09 23:43 → TestFlight 03.09).
+Syv mobil-runder, **alle verifisert på simulator FØR bygget** — første gang
+[kvalitetssikringsplanens](kvalitetssikring-plan.md) lag 2 fungerte som tenkt.
+Se [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).
+
+**Hva testerne er bedt om å se på:** tegningsminne + repeater-arv (målt 7→4 og 5→0 trykk) ·
+«Hele prosjektet»-utveien i byggeplass-chip · språk pl/lt/sq med HMS-kategoriene.
 
 ⚠️ **Foreldet linje under — tavla sa `ba234fd1` mens prod faktisk var `3a2f7dc3` (29.08).
 En prod-deploy ble aldri ført.**
