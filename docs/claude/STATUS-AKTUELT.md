@@ -37,12 +37,36 @@ månedlige iOS-bygg på et halvt sett. To agenter i parallell, ett bygg når beg
 
 | Funn (bygg 50, 2026-09-03) | Alvorlighet | Status |
 |---|---|---|
-| **#1** Bilder tatt tidligere vises ikke i rapportobjekt-raden — ser ut som datatap | 🔴 blokkerer | Ordre C → **dokgen** |
-| **#2** Ingen PDF-kontroll før sending (finnes, men kun som iOS share sheet fra ett ikon) | 🔴 for dette bygget | Ordre E → **dokgen** |
-| **#3** Endringsloggen står åpen i UI og viser rå UUID-er | 🟡 skjemmer | Ordre D → **kontrollplan** |
+✅ **ALLE FEM ER PÅ DEVELOP** (`dc454d22`). A/B/D `f9ea2255` (kontrollplan) · C/E `da4d3035` (dokgen) ·
+safearea-fiks `dc454d22`. Venter på simulator-røyklisten før EAS-bygg 51.
+
+🔴 **Prosessfunn samme dag — lint er ikke i regel 10.** Bygg 50-E introduserte en `SafeAreaView`-import
+som lint-regelen fra 31.08 forbyr eksplisitt («0 padding inne i `<Modal>`»). Gaten kjører `web build` +
+`mobile typecheck`, **ikke `pnpm lint`** — så regelen fantes, var riktig, og fanget ingenting.
+Lukk/del-knappene i PDF-forhåndsvisningen lå under Dynamic Island. Fanget av dokgen som «preeksisterende
+støy», omklassifisert av cowork etter å ha lest regelmeldingen. **Samme mønster som `pnpm test`-fella i
+august: en gate ingen har målt er en påstand.** Eget punkt: lint inn i regel 10.
+
+| **#1** Bilder tatt tidligere vises ikke i rapportobjekt-raden — ser ut som datatap | 🔴 blokkerer | ✅ Ordre C → dokgen, merget `da4d3035`. Additiv `settVedleggUrl` + sletting gatet på server ELLER SQLite. ⚠️ Krever **prod-deploy** for full effekt hos testerne |
+| **#2** Ingen PDF-kontroll før sending (finnes, men kun som iOS share sheet fra ett ikon) | 🔴 for dette bygget | ✅ «Forhåndsvis PDF» rett over Send-knappen, WebView i appen. Merget `da4d3035` + insett-fiks `dc454d22` |
+| **#3** Endringsloggen står åpen i UI (mobil **og** web) og viser rå UUID-er | 🟡 skjemmer | Ordre D → **kontrollplan**. 🔴 **Loggen BEVARES** — skjules bak knapp, lukket som standard, på begge flater (Kenneth 03.09). UUID-visningen er eget funn: mobil bruker allerede delt `ekspanderEndring`, så det er kolonne-oppslaget som bommer |
 | **#4** Tegningslista ignorerer valgt byggeplass — kaos ved 30-40 tegninger | 🔴 blokkerer | Ordre B → **kontrollplan** |
 | **#5** Byggeplass-velgeren usynlig: chippen leser **timer-modulens** cache (`ByggeplassChip.tsx:26`, `:44`) | 🔴 blokkerer | Ordre A → **kontrollplan** |
 | **#6** Bekreftet at enheten kjører bygg 50 (`da0f018`) | — | Ingen feil |
+
+✅ **ALLE SEKS LUKKET OG SIMULATOR-VERIFISERT 2026-09-03** — develop `79540337`, test-API `dc454d22`.
+Røyklisten dekket A/B/D/E på `da4d3035`, C og miniatyr-fiksen på `451cbb3a`.
+
+🔴 **Simulatoren gjorde noe vi skal gjenta: den lette etter BILDET, ikke etter fravær av feilmelding.**
+Miniatyr-fiksen bygger den lokale stien av vedleggets filnavn; hadde navnet ikke matchet fila på disk,
+ville den falt stille tilbake til gammel oppførsel — grønt uten å være en fiks. Ordren ba eksplisitt om
+å se etter det positive beviset. **Formen bør inn i alle verifiseringsordrer:** si hva som skal SEES,
+ikke hva som skal være borte.
+
+🟡 **Åpent funn fra samme runde:** chippen sier «Viser kun denne byggeplassen», men `sjekkliste.ts:185`
+filtrerer **mykt** (`OR: byggeplassId = null`) — dokumenter uten byggeplass blir alltid med, så lista
+kan se uendret ut. Tegninger filtrerer hardt. Filteret er sannsynligvis riktig; teksten er det ikke.
+Ordre etter bygg 51.
 
 > 🔴 **Kenneths kritikk av arbeidsformen, 2026-09-03 — skal stå:**
 > *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass, så må man erkjenne at
