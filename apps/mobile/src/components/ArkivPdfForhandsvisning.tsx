@@ -2,7 +2,7 @@ import { Modal, View, Text, Pressable, ActivityIndicator } from "react-native";
 import { ModalFlate } from "./ModalFlate";
 import { WebView } from "react-native-webview";
 import { X, Share2 } from "lucide-react-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface ArkivPdfForhandsvisningProps {
@@ -30,7 +30,19 @@ export function ArkivPdfForhandsvisning({
   onLukk,
 }: ArkivPdfForhandsvisningProps) {
   const { t } = useTranslation();
-  const [laster, settLaster] = useState(true);
+
+  // Foreldre-skjermen rendrer ofte (2000 ms autolagring + hentMedId-invalidering).
+  // `laster` er derfor AVLEDET av hvilken filUri som er ferdig lastet — ikke en
+  // boolean som re-armeres av onShow/remontering. Da kan spinneren aldri bli
+  // stående over en allerede-lastet PDF: så snart gjeldende filUri har fyrt
+  // onLoadEnd, er laster=false uansett hvor mange ganger foreldren rendrer.
+  const [lastetUri, settLastetUri] = useState<string | null>(null);
+  const laster = filUri != null && lastetUri !== filUri;
+
+  // Stabil source-referanse per filUri. Native reloader kun ved verdi-endring
+  // (RNCWebViewImpl setSource: isEqualToDictionary), men et memoisert objekt
+  // holder også JS-laget/framtidige versjoner fra å reloade på identitet.
+  const kilde = useMemo(() => (filUri ? { uri: filUri } : undefined), [filUri]);
 
   return (
     <Modal
@@ -38,7 +50,6 @@ export function ArkivPdfForhandsvisning({
       animationType="slide"
       presentationStyle="fullScreen"
       onRequestClose={onLukk}
-      onShow={() => settLaster(true)}
     >
       {/* ModalFlate padder fra useSafeAreaInsets() — <SafeAreaView> gir 0 padding
           inne i <Modal> (målt 2026-08-31), som la lukk/del-knappene under Dynamic
@@ -92,13 +103,13 @@ export function ArkivPdfForhandsvisning({
               </Text>
             </View>
           )}
-          {filUri && (
+          {kilde && (
             <WebView
-              source={{ uri: filUri }}
+              source={kilde}
               originWhitelist={["*"]}
               allowFileAccess
               allowFileAccessFromFileURLs
-              onLoadEnd={() => settLaster(false)}
+              onLoadEnd={() => settLastetUri(filUri)}
               style={{ flex: 1 }}
             />
           )}
