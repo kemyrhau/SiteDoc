@@ -1,6 +1,7 @@
 import { Text } from "react-native";
 import Constants from "expo-constants";
 import * as Application from "expo-application";
+import * as Updates from "expo-updates";
 
 type BuildExtra = { gitCommit?: string; byggDato?: string };
 
@@ -11,6 +12,10 @@ type BuildExtra = { gitCommit?: string; byggDato?: string };
  *   TestFlight «Build N»). Kan være null i Expo Go/dev → «(build …)» utelates.
  * - commit (7 tegn) + byggDato fra app.config.js `extra` (EAS-build-tid).
  *   Lokalt vises commit fra `git rev-parse --short HEAD`, ev. "dev".
+ * - OTA-id: når en expo-updates-oppdatering kjører, kan JS-en være NYERE enn
+ *   binæren. Da lyver commit-hashen (den er byggets), så vi viser
+ *   `Updates.updateId` (7 tegn) i tillegg. Kjører den innebygde bundelen
+ *   (ingen oppdatering hentet) eller dev, er updateId null → utelates.
  *
  * Brukes nederst på «Mer»-skjermen og i login-footeren (synlig før
  * innlogging — nyttig ved feilsøking). Ingen i18n: innholdet er
@@ -22,10 +27,16 @@ export function VersjonsFooter({ className = "" }: { className?: string }) {
     {}) as BuildExtra;
   // nativeBuildVersion er null i Expo Go / dev-klient uten native build.
   const byggNr = Application.nativeBuildVersion;
+  // isEnabled er false i dev (ingen expo-updates-runtime) → updateId røres ikke.
+  const otaId =
+    Updates.isEnabled && Updates.updateId
+      ? Updates.updateId.slice(0, 7)
+      : null;
   return (
     <Text className={`text-center text-xs text-gray-400 ${className}`}>
       v{versjon}
       {byggNr ? ` (build ${byggNr})` : ""} · {gitCommit}
+      {otaId ? ` · OTA ${otaId}` : ""}
       {byggDato ? ` · ${byggDato}` : ""}
     </Text>
   );
