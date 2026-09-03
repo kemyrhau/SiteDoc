@@ -184,8 +184,16 @@ export async function velgBilder(
   // gjennom hele den sekvensielle jobben (10 bilder × ~7 native kall tar tid).
   onFremdrift?: (ferdig: number, total: number) => void,
 ): Promise<BildeResultat[]> {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== "granted") return [];
+  const tillatelse = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (tillatelse.status !== "granted") return [];
+  // 🔧 DIAG: tilgangsnivå avgjør om iOS stripper metadata. «limited» = begrenset
+  // bildebibliotek-tilgang, en kjent grunn til at EXIF forsvinner.
+  if (__DEV__) {
+    console.log(
+      "[EXIF-DIAG] tilgang:",
+      JSON.stringify({ status: tillatelse.status, accessPrivileges: (tillatelse as { accessPrivileges?: string }).accessPrivileges }),
+    );
+  }
 
   const resultat = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
@@ -198,6 +206,15 @@ export async function velgBilder(
   });
 
   if (resultat.canceled || resultat.assets.length === 0) return [];
+
+  // 🔧 DIAG: hvor ofte er EXIF borte, og henger det sammen med Live Photo?
+  if (__DEV__) {
+    const medExif = resultat.assets.filter((a) => a.exif && Object.keys(a.exif).length > 0).length;
+    console.log(
+      `[EXIF-DIAG] SAMMENDRAG: ${medExif}/${resultat.assets.length} bilder har EXIF · typer:`,
+      JSON.stringify(resultat.assets.map((a) => a.type)),
+    );
+  }
 
   // 🔧 MIDLERTIDIG EXIF-DIAGNOSTIKK (wip/diag-exif — SKAL IKKE MERGES).
   // Dumper den FAKTISKE exif-formen fra iOS 26 så parseren skrives mot ekte
