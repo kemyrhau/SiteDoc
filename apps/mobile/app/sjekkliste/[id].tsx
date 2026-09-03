@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
+import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
@@ -114,6 +114,8 @@ export default function SjekklisteUtfylling() {
   const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const [visLokasjonModal, setVisLokasjonModal] = useState(false);
   const [visLokByttTegning, setVisLokByttTegning] = useState(false);
+  // D (bygg 50): endringsloggen skal ikke stå åpen — sammenleggbar, lukket som standard.
+  const [visEndringslogg, setVisEndringslogg] = useState(false);
   const [lokTempPosX, setLokTempPosX] = useState<number | null>(null);
   const [lokTempPosY, setLokTempPosY] = useState<number | null>(null);
   const [lokTempTegningId, setLokTempTegningId] = useState<string | null>(null);
@@ -1000,13 +1002,24 @@ export default function SjekklisteUtfylling() {
           }}
         />
 
-        {/* Endringslogg */}
+        {/* Endringslogg — D (bygg 50): sammenleggbar, lukket som standard. Logg
+            trengs kun i en konflikt; den skal ikke fylle bunnen av hvert utkast. */}
         {sjekklisteDetalj?.template?.enableChangeLog && (sjekklisteDetalj?.changeLog ?? []).length > 0 && (
           <View className="mt-4">
-            <View className="flex-row items-center gap-2 px-1 pb-2">
+            <Pressable
+              onPress={() => setVisEndringslogg((v) => !v)}
+              className="flex-row items-center gap-2 px-1 pb-2"
+              hitSlop={8}
+            >
               <Clock size={16} color="#6b7280" />
-              <Text className="text-sm font-semibold text-gray-700">{t("dokument.endringslogg")}</Text>
-            </View>
+              <Text className="flex-1 text-sm font-semibold text-gray-700">{t("dokument.endringslogg")}</Text>
+              {visEndringslogg ? (
+                <ChevronDown size={16} color="#6b7280" />
+              ) : (
+                <ChevronRight size={16} color="#6b7280" />
+              )}
+            </Pressable>
+            {visEndringslogg && (
             <View className="rounded-lg bg-white">
               {(sjekklisteDetalj.changeLog ?? []).map((rad, i) => {
                 // H5: delt ekspanderEndring (som web/arkiv) — tolker repeater/vær korrekt og
@@ -1042,6 +1055,7 @@ export default function SjekklisteUtfylling() {
                 );
               })}
             </View>
+            )}
           </View>
         )}
 
