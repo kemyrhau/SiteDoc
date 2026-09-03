@@ -55,6 +55,40 @@ describe("nesteBildeNr", () => {
   });
 });
 
+describe("batch fra galleri-flervalg (trykk-rekkefølge → sammenhengende nr)", () => {
+  // Modellerer hookens leggTilVedlegg: for hvert nytt bilde uten nummer tildeles
+  // nesteBildeNr(prev) og vedlegget appendes — sekvensielt i input-rekkefølge.
+  // Beviser at en batch på 4 valgte bilder får 1–4 i rekkefølgen de ankommer i.
+  it("gir sammenhengende stigende nr i input-rekkefølge for en batch på 4", () => {
+    let felt: { verdi: null; vedlegg: V[] } = { verdi: null, vedlegg: [] };
+    const batch: V[] = [
+      { type: "bilde" },
+      { type: "bilde" },
+      { type: "bilde" },
+      { type: "bilde" },
+    ];
+    for (const nytt of batch) {
+      const nr = nesteBildeNr({ felt });
+      felt = { ...felt, vedlegg: [...felt.vedlegg, { ...nytt, bildeNr: nr }] };
+    }
+    expect(felt.vedlegg.map((v) => v.bildeNr)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("fortsetter tellingen for en andre batch etter første (05–08)", () => {
+    // Repeater 1 har allerede 4 bilder (01–04); ny batch i et annet felt fortsetter.
+    const felt1: { verdi: null; vedlegg: V[] } = {
+      verdi: null,
+      vedlegg: [1, 2, 3, 4].map((n) => ({ type: "bilde", bildeNr: n })),
+    };
+    let felt2: { verdi: null; vedlegg: V[] } = { verdi: null, vedlegg: [] };
+    for (let i = 0; i < 4; i++) {
+      const nr = nesteBildeNr({ f1: felt1, f2: felt2 });
+      felt2 = { ...felt2, vedlegg: [...felt2.vedlegg, { type: "bilde", bildeNr: nr }] };
+    }
+    expect(felt2.vedlegg.map((v) => v.bildeNr)).toEqual([5, 6, 7, 8]);
+  });
+});
+
 describe("nummererRepeaterBilder", () => {
   it("returnerer samme referanse når ingen bilder mangler nummer", () => {
     const rader: Rad[] = [{ barn1: { vedlegg: [{ type: "bilde", bildeNr: 1 }] } }];
