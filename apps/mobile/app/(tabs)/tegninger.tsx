@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
-import { View, Text, Pressable, SectionList, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  SectionList,
+  ActivityIndicator,
+  TextInput,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   FileText,
@@ -8,6 +15,8 @@ import {
   ChevronRight,
   Layers,
   History,
+  Search,
+  MapPin,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
@@ -22,6 +31,7 @@ type Modus = "2d" | "3d" | "2d3d";
 interface TegningRad {
   id: string;
   name: string;
+  drawingNumber: string | null;
   fileType: string | null;
   revision: string | null;
   byggeplass: { id: string; name: string } | null;
@@ -45,11 +55,19 @@ export default function TegningerTab() {
   const router = useRouter();
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, hentSistTegning } = useByggeplass();
+  const { valgtBygningId, velgHeleProsjektet, hentSistTegning } = useByggeplass();
   const [modus, setModus] = useState<Modus>("2d");
+  const [søk, setSøk] = useState("");
 
+  // B (bygg 50): tegninger var eneste skjerm som ignorerte den aktive byggeplassen.
+  // Send `byggeplassId` når en byggeplass er valgt (serveren filtrerer hardt,
+  // `tegning.ts:57`); ved «Hele prosjektet» (valgtBygningId == null) sendes den ikke,
+  // og dagens gruppering per byggeplass-navn beholdes.
   const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
-    { projectId: valgtProsjektId! },
+    {
+      projectId: valgtProsjektId!,
+      ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}),
+    },
     { enabled: !!valgtProsjektId },
   );
 
@@ -74,9 +92,19 @@ export default function TegningerTab() {
   );
   const kreverIfc = er3dAktiv && harIfc;
 
-  // 2D-tegninger gruppert per byggeplass (IFC vises som eget kort, ikke i lista)
+  // 2D-tegninger gruppert per byggeplass (IFC vises som eget kort, ikke i lista).
+  // Søk filtrerer på navn + tegningsnummer (samme predikat som TegningsVelger:76-91)
+  // — rører ikke IFC-deteksjon eller sist-tegning-snarveien, som leser `alle`.
   const seksjoner = useMemo(() => {
-    const to_d = alle.filter((tg) => (tg.fileType ?? "").toLowerCase() !== "ifc");
+    const q = søk.trim().toLowerCase();
+    const to_d = alle.filter((tg) => {
+      if ((tg.fileType ?? "").toLowerCase() === "ifc") return false;
+      if (!q) return true;
+      return (
+        tg.name.toLowerCase().includes(q) ||
+        (tg.drawingNumber ?? "").toLowerCase().includes(q)
+      );
+    });
     const grupper = new Map<string, TegningRad[]>();
     for (const tg of to_d) {
       const navn = tg.byggeplass?.name ?? t("tegninger.utenByggeplass");
@@ -88,7 +116,7 @@ export default function TegningerTab() {
       tittel,
       data,
     }));
-  }, [alle, t]);
+  }, [alle, t, søk]);
 
   // Del A pkt 3 — «Fortsett i …»-snarvei: sist valgte tegning for aktiv
   // byggeplass (F1-minnet i ByggeplassKontekst). Eksistens-guard: vises KUN når
@@ -153,6 +181,38 @@ export default function TegningerTab() {
           }}
         />
       </View>
+
+      {/* B Krav 2: si eksplisitt at lista er avkortet av byggeplass-filteret, med
+          vei ut til hele prosjektet. Gjenbruker chippens tekst + `velgHeleProsjektet`
+          (tegninger-tab-en monterer ikke selve ByggeplassChip). */}
+      {valgtBygningId != null && (
+        <Pressable
+          onPress={velgHeleProsjektet}
+          className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 active:bg-amber-100"
+        >
+          <MapPin size={14} color="#d97706" />
+          <Text className="flex-1 text-xs text-amber-700" numberOfLines={1}>
+            {t("byggeplass.filtrererListe")}
+          </Text>
+        </Pressable>
+      )}
+
+      {/* B Krav 3: søk på navn + tegningsnummer (prosjekter med 30-40 tegninger). */}
+      {alle.length > 0 && (
+        <View className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+          <Search size={16} color="#9ca3af" />
+          <TextInput
+            value={søk}
+            onChangeText={setSøk}
+            placeholder={t("tegninger.sok")}
+            placeholderTextColor="#9ca3af"
+            className="flex-1 py-0 text-sm text-gray-900"
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+          />
+        </View>
+      )}
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
