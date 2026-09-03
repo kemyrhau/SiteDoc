@@ -1,5 +1,5 @@
 import { Modal, View, Text, Pressable, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ModalFlate } from "./ModalFlate";
 import { WebView } from "react-native-webview";
 import { X, Share2 } from "lucide-react-native";
 import { useState } from "react";
@@ -40,7 +40,10 @@ export function ArkivPdfForhandsvisning({
       onRequestClose={onLukk}
       onShow={() => settLaster(true)}
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#1e40af" }} edges={["top", "bottom"]}>
+      {/* ModalFlate padder fra useSafeAreaInsets() — <SafeAreaView> gir 0 padding
+          inne i <Modal> (målt 2026-08-31), som la lukk/del-knappene under Dynamic
+          Island. bg-[#1e40af] gjenskaper den blå flaten bak top/bottom-insettene. */}
+      <ModalFlate kanter={["top", "bottom"]} className="bg-[#1e40af]">
         {/* Header: lukk · tittel · del */}
         <View
           style={{
@@ -100,7 +103,7 @@ export function ArkivPdfForhandsvisning({
             />
           )}
         </View>
-      </SafeAreaView>
+      </ModalFlate>
     </Modal>
   );
 }
