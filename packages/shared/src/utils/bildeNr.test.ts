@@ -89,6 +89,69 @@ describe("batch fra galleri-flervalg (trykk-rekkefølge → sammenhengende nr)",
   });
 });
 
+// INTEGRASJON: veien FRA velgBilder og inn — ikke tildelings-funksjonen isolert.
+// Bruker den EKTE produksjons-radformen `{ _radId, felter: { [feltId]: { vedlegg } } }`
+// (RepeaterObjekt.normaliserRad, radkort.ts:152 leser `rad.felter[b.id]`) og komponerer
+// nesteBildeNr + nummererRepeaterBilder NØYAKTIG som hookens oppdaterFelt gjør det:
+//   nummererRepeaterBilder(oppd.verdi, nesteBildeNr(prevFeltVerdier))
+// De isolerte testene over brukte en FLAT rad `{ feltId: { vedlegg } }` og traff aldri
+// `.felter`-wrapperen — derfor passerte de mens produksjon ga null. Det var testhullet.
+describe("integrasjon: batch i rik repeater (produksjonsform { _radId, felter })", () => {
+  type Rad = { _radId: string; felter: Record<string, { vedlegg: V[] }> };
+  type FeltVerdier = Record<string, { verdi: Rad[] }>;
+
+  // Speiler oppdaterFelt for repeater: append ett bilde (uten nr) til rad.felter[feltId],
+  // deretter renummerer hele repeater-verdien mot resten av dokumentet.
+  function batchInn(
+    fv: FeltVerdier,
+    objektId: string,
+    radIdx: number,
+    feltId: string,
+    antall: number,
+  ): FeltVerdier {
+    for (let i = 0; i < antall; i++) {
+      const rader = fv[objektId]!.verdi.map((rad, j) => {
+        if (j !== radIdx) return rad;
+        const eks = rad.felter[feltId] ?? { vedlegg: [] };
+        return {
+          ...rad,
+          felter: {
+            ...rad.felter,
+            [feltId]: { ...eks, vedlegg: [...eks.vedlegg, { type: "bilde" } as V] },
+          },
+        };
+      });
+      const nummerert = nummererRepeaterBilder(rader, nesteBildeNr(fv));
+      fv = { ...fv, [objektId]: { ...fv[objektId]!, verdi: nummerert } };
+    }
+    return fv;
+  }
+
+  it("fire bilder valgt i ett grep får 01–04 i en rik repeater-rad", () => {
+    let fv: FeltVerdier = {
+      rep: { verdi: [{ _radId: "r1", felter: { bilde1: { vedlegg: [] } } }] },
+    };
+    fv = batchInn(fv, "rep", 0, "bilde1", 4);
+    const nr = fv.rep!.verdi[0]!.felter.bilde1!.vedlegg.map((v) => v.bildeNr);
+    expect(nr).toEqual([1, 2, 3, 4]);
+  });
+
+  it("neste batch i en ny rad fortsetter 05–08", () => {
+    let fv: FeltVerdier = {
+      rep: {
+        verdi: [
+          { _radId: "r1", felter: { bilde1: { vedlegg: [] } } },
+          { _radId: "r2", felter: { bilde1: { vedlegg: [] } } },
+        ],
+      },
+    };
+    fv = batchInn(fv, "rep", 0, "bilde1", 4); // 01–04
+    fv = batchInn(fv, "rep", 1, "bilde1", 4); // 05–08
+    expect(fv.rep!.verdi[0]!.felter.bilde1!.vedlegg.map((v) => v.bildeNr)).toEqual([1, 2, 3, 4]);
+    expect(fv.rep!.verdi[1]!.felter.bilde1!.vedlegg.map((v) => v.bildeNr)).toEqual([5, 6, 7, 8]);
+  });
+});
+
 describe("nummererRepeaterBilder", () => {
   it("returnerer samme referanse når ingen bilder mangler nummer", () => {
     const rader: Rad[] = [{ barn1: { vedlegg: [{ type: "bilde", bildeNr: 1 }] } }];
