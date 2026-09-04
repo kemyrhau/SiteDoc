@@ -15,7 +15,7 @@
  * verifiseringslogg).
  */
 
-import { esc, fullBildeUrl, bildeOpptakTid } from "../hjelpere";
+import { esc, fullBildeUrl, bildeOpptakTid, harMeningsfullLabel } from "../hjelpere";
 import { byggDetaljUtsnitt } from "../tegning";
 import { skalarCelle, byggUtenforRaderBlokk } from "./repeater";
 import { normaliserRad } from "../typer";
@@ -39,6 +39,21 @@ function harMarkorVerdi(v: unknown): v is MarkorVerdi & { drawingId: string; pos
 
 function prosent(n: number): string {
   return `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+}
+
+/** Bærer feltets verdi informasjon? (per type — speiler tom-testene i skalarCelle/grenene). */
+function harFeltVerdi(barn: TreObjekt, verdi: unknown): boolean {
+  if (barn.type === "drawing_position" || barn.type === "location") return harMarkorVerdi(verdi);
+  if (barn.type === "repeater" || barn.type === "attachments" || barn.type === "list_multi" || barn.type === "persons")
+    return Array.isArray(verdi) && verdi.length > 0;
+  return verdi !== null && verdi !== undefined && verdi !== "";
+}
+
+/** Bærer feltet NOE informasjon — verdi, merknad eller vedlegg? Styrer om et navnløst felt utelates. */
+function feltHarInnhold(barn: TreObjekt, felt: FeltVerdi | undefined): boolean {
+  if (felt?.kommentar?.trim()) return true;
+  if (Array.isArray(felt?.vedlegg) && felt!.vedlegg.length > 0) return true;
+  return harFeltVerdi(barn, felt?.verdi);
 }
 
 /** Bilde-predikat (url + type/filnavn). */
@@ -96,8 +111,17 @@ function byggMerknad(felt: FeltVerdi | undefined): string {
     : "";
 }
 
-function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number): string {
-  const label = `<div class="ark-radkort-label">${esc(barn.label)}</div>`;
+function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number, ordinal: number): string {
+  // Funn 2026-09-04 (DATA, ikke render): et tekstfelt i malen har tom etikett —
+  // malbyggeren viser det som «—», arkiv-PDF-en rendret det trofast som en naken
+  // understrek som feltnavn. Kenneth retter selve malen; her handler det om
+  // robusthet. Betingelsen ligger på INNHOLD, ikke på navnet (cowork-vedtak, samme
+  // prinsipp som EXIF-linjen: skriv aldri en linje som ikke bærer informasjon):
+  //   - navnløst OG tomt  → utelates helt (ingen «— / Ikke utfylt»-støy)
+  //   - navnløst MED verdi → «Felt N» + verdien (aldri datatap)
+  if (!harMeningsfullLabel(barn.label) && !feltHarInnhold(barn, felt)) return "";
+  const visLabel = harMeningsfullLabel(barn.label) ? barn.label : `Felt ${ordinal}`;
+  const label = `<div class="ark-radkort-label">${esc(visLabel)}</div>`;
   let innhold: string;
 
   if (barn.type === "drawing_position" || barn.type === "location") {
@@ -155,7 +179,9 @@ function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number): strin
         `<span class="ark-radkort-tittel">${esc(objekt.label)} — rad ${radnr}</span>` +
         markorTekst +
         `</div>`;
-      const felter = barn.map((b) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde)).join("");
+      const felter = barn
+        .map((b, i) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde, i + 1))
+        .join("");
       return `<div class="ark-radkort">${header}<div class="ark-radkort-kropp">${felter}</div></div>`;
     })
     .join("");

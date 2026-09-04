@@ -15,7 +15,7 @@
  *    (punkt 1, render-siden — rydder allerede lagrede vær-rader i BEF-001).
  */
 
-import { kanonisk } from "../hjelpere";
+import { kanonisk, harMeningsfullLabel } from "../hjelpere";
 import { feltKartFraRad } from "./repeaterRad";
 import type { Segment } from "./typer";
 
@@ -331,7 +331,7 @@ function tilSegmenter(fra: string | null, til: string | null): { fraVerdi: Segme
  */
 function kolonneLabel(kolonner: KolonneDef[], id: string, ordinal: number): string {
   const label = kolonner.find((k) => k.id === id)?.label?.trim();
-  return label && /[\p{L}\p{N}]/u.test(label) ? label : `Kolonne ${ordinal}`;
+  return harMeningsfullLabel(label) ? label! : `Kolonne ${ordinal}`;
 }
 
 /** Én celles innhold delt i sammenlignbare deler (verdi · bilder · merknad). */

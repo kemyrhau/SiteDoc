@@ -182,6 +182,14 @@ thead{display:table-header-group}
 .ark-radkort-nested{margin-left:12px;padding-left:8px;border-left:2px solid ${f.radLinje}}
 /* Bildeblokk: egen (kan brytes mellom rekker); label + enkeltbilde holdes samlet. */
 .ark-radkort-bildefelt{margin-bottom:8px}
+/* «Bilder»-etiketten skal ALDRI bli stående alene nederst på en side mens bildene
+   flyter til neste (funn 2026-09-04, side 4 BEF_-002). break-after:avoid binder
+   etiketten til første bilderekke. Målt i Chromium (Chrome for Testing 1234):
+   fjerner foreldreløs etikett i alle testede sidebrekk, OG bildeblokken flyter
+   fortsatt rekke-for-rekke — kun etikett+første rekke flytter, aldri hele blokken
+   (ingen ny tomrom, jf. 6+-bilder-måling). break-inside:avoid på hele blokken ble
+   forkastet nettopp fordi den skjøv store seksjoner videre og laget mer luft. */
+.ark-radkort-bildefelt .ark-radkort-label{break-after:avoid;page-break-after:avoid}
 .ark-radkort-bilder{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .ark-radkort-bilde{break-inside:avoid;page-break-inside:avoid}
 .ark-radkort-bilde img{display:block;width:auto;height:auto;max-width:100%;max-height:60mm}
