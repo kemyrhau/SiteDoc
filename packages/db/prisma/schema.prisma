@@ -990,6 +990,9 @@ model ReportTemplate {
   // Mal-promotering (per fase-0-beslutninger.md § E steg 7 — forberedelse til Fase 2)
   organizationTemplateId String? @map("organization_template_id") // Peker oppover hvis kopiert fra firma-mal
   promotedToFirma        Boolean @default(false) @map("promoted_to_firma") // True hvis denne mal er promotert til firma-bibliotek
+  // Malarkiv (AM4, 2026-09-04): hvilken firmamal-versjon denne kopien stammer fra.
+  // Manuell versjonering (L6) — badge «X versjoner bak» = firmamal.version - versjonAvHovedmal.
+  versjonAvHovedmal      Int     @default(1) @map("versjon_av_hovedmal")
 
   project             Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   objects             ReportObject[]
@@ -1051,6 +1054,11 @@ model OrganizationTemplate {
   version                Int      @default(1)
   enableChangeLog        Boolean  @default(false) @map("enable_change_log")
   kontrollomrade         String?
+  // Malarkiv (AM4/B3, 2026-09-04): HMS-maler i firmaarkivet. Speiler ReportTemplate:973-974.
+  subdomain              String?  @map("subdomain") // "avvik" | "sja" | "ruh" — kun ved domain="hms"
+  hmsSynlighet           String?  @map("hms_synlighet") // "privat" | "apen" — kun ved domain="hms"
+  // Seeding-flagg (F4): seedes automatisk inn i nye prosjekter ved modulaktivering.
+  standardForNyeProsjekter Boolean @default(false) @map("standard_for_nye_prosjekter")
   promotedFromTemplateId String?  @map("promoted_from_template_id")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
