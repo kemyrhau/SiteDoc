@@ -30,7 +30,16 @@ Flagg på OrganizationTemplate: `standardForNyeProsjekter` (boolean, additivt). 
 Ikke ny modell. Bibliotek-modellen utvides til å bære oppgave-/HMS-maler (kategorifeltet finnes). Lånevei fase 1: **sentralt → firma-arkiv** (kopi m/avstamning); dagens sentralt → prosjekt (kontrollplan/NS 3420) består urørt. Kuratering: seed-script først, sitedoc_admin-UI i del 10/K11-fasen. → beslutningspunkt B2.
 
 ### F6. UI-flater (mockup viser alle)
-- **Ny side i FIRMA-sonen (amber):** `/dashbord/oppsett/firma/malarkiv` — tre faner (Sjekklister / Oppgaver / HMS), speiler produksjonssidenes tre-liste-prinsipp (MALBYGGER.md: typene blandes aldri).
+- **Ny side i FIRMA-sonen (amber):** 🔴 **STIEN RETTET 2026-09-04 → `/dashbord/firma/malarkiv`.**
+  Kenneth bekreftet samme dag: *«det er amber på firma malarkiv.»* Den opprinnelige stien
+  (`/dashbord/oppsett/firma/malarkiv`, strøket under) ville gitt **blå prosjekt-sone** — målt av
+  kontrollplan og verifisert av cowork: `ruteErFirmaKontekst` (`lib/ruteKontekst.ts:11-18`) er
+  true kun for `/dashbord/firma*` og `/dashbord/maskin*`. Riktig intensjon, feil hylle.
+  `/dashbord/firma/*` har i tillegg allerede layout som gater på `kanAdministrereFirma` — den
+  oppfyller altså både amber-kravet og L7 uten at noe i sone-logikken røres.
+  ⚠️ **`ruteKontekst.ts` skal IKKE endres** — den er én sannhetskilde og har hatt én regresjon før
+  (`a859b4f0`).
+  ~~`/dashbord/oppsett/firma/malarkiv`~~ — tre faner (Sjekklister / Oppgaver / HMS), speiler produksjonssidenes tre-liste-prinsipp (MALBYGGER.md: typene blandes aldri).
 - **Malbygger:** knapp «Send til firmaarkiv» (kun firma-admin) + badge «I firmaarkivet» / «Basert på firmamal: …».
 - **Ny mal-dialogen:** tre kilder — Tom / Fra firmaarkiv / Fra SiteDoc-arkiv.
 - Redigering av firmamal gjenbruker eksisterende MalBygger-komponent i firma-modus — ingen parallell malbygger (gjenbruksregelen).
