@@ -9,6 +9,7 @@
     "scheme": "sitedoc",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "platforms": ["ios", "android"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kemyrhau.sitedoc",
