@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: ukjent
-sist_endret: 2026-04-28
+sist_verifisert_mot_kode: 2026-09-04
+sist_endret: 2026-09-04
 gjelder_versjon: Fase 2
 avhenger_av:
   - arkitektur.md
@@ -13,7 +13,7 @@ påvirkes_av_beslutninger:
 
 # Migrering: ReportTemplate → OrganizationTemplate (planlagt)
 
-Skisse for å innføre firma-bibliotek av maler uten å bryte eksisterende prosjekt-maler. Ikke implementert.
+Skisse for å innføre firma-bibliotek av maler uten å bryte eksisterende prosjekt-maler. **Delvis implementert 2026-09-04** — se § Status.
 
 ## Mål
 
@@ -204,4 +204,11 @@ model ReportTemplate {
 
 ## Status
 
-Planlagt — ikke implementert. Beskrevet i [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper).
+**Delvis implementert (AM4 bolk 1, 2026-09-04).** Bygget på branch `feat/firma-malarkiv`:
+
+- **Additiv migrering** `20260904120000_malarkiv_hms_kolonner` (kun ADD COLUMN, to-stegs-policy): `organization_templates.subdomain` + `hms_synlighet` (B3/L4 HMS), `standard_for_nye_prosjekter` (F4-seeding-flagg), `laant_fra_bibliotek_mal_id` (B4 — strukturert avstamning til `BibliotekMal`, FK SetNull), `report_templates.versjon_av_hovedmal` (L6 manuell versjonering). Speiler `packages/db/prisma/schema.prisma:1038`/`:973-974`.
+- **`firmamal.*` tRPC-ruter** (`apps/api/src/routes/firmamal.ts`, registrert `trpc/router.ts`): `list`/`hent`/`opprett`/`oppdater`/`slett` (firma-admin per L7), `promoter` (ReportTemplate→OrganizationTemplate m/objekter+translations, to-pass parentId), `kopierTilProsjekt` (motsatt vei, setter `organizationTemplateId`-avstamning + `versjonAvHovedmal`, L5/L6), `laanFraSentralarkiv` (BibliotekMal→OrganizationTemplate, L3 — setter strukturert peker `laantFraBibliotekMalId` per B4, ikke fritekst i description). `config`/`config.zone` kopieres verbatim (MALBYGGER.md zone-regel).
+
+**Gjenstår (bolk 2):** firma-arkivsiden, promote-knapp/badges i MalBygger, ny-mal-dialogens kilder, seeding-veien i `modul.ts` (F4/L1/L2). Se `docs/redesign/ORDRE-am4-malarkiv-fabel-2026-09-04.md`.
+
+Beskrevet i [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper).
