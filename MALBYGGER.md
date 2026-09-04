@@ -168,10 +168,33 @@ Predikatet er `harMeningsfullLabel` (`packages/pdf/src/arkivmal/hjelpere.ts`), d
 `endringsdiff.kolonneLabel`. Det fanger både `_` og `""`, så koden er forover-kompatibel om
 representasjonen endres.
 
-🟡 **Åpen, ikke vedtatt:** om «uten navn» bør lagres som tom streng i stedet for den magiske
-strengen `_`. Fordelen ville vært én sannhet i data og ingen særhåndtering i tre flater —
-ulempen er at en bruker en dag faktisk kan ville ha `_` som etikett. **Egen runde, ikke gjort
-i vanvare.**
+### 🟢 VEDTATT 2026-09-04 (Kenneth) — «uten navn» lagres som TOM STRENG, ikke `_`
+
+> **Kenneth 2026-09-04:** *«hvis vi kan akseptere tom streng → så er det ok.»*
+
+`""` er den ærlige representasjonen av «uten navn». `_` var en brukerkonvensjon som hver
+konsument måtte særhåndtere, og den kolliderer med en bruker som en dag faktisk vil ha `_` som
+etikett.
+
+🔴 **Vedtaket har en betingelse som MÅ bygges samtidig — ellers er tom streng et tilbakeskritt.**
+`DraggbartFelt.tsx:132` rendrer `{objekt.label}` rått. Med `_` ser Kenneth feltet i maltreet;
+med tom streng blir kortet blankt og han mister oversikten over egne felt. **Det var derfor
+`_`-konvensjonen oppsto.**
+
+**Modellen: én sannhet i data, presentasjon per flate.**
+
+| Flate | Navnløst felt |
+|---|---|
+| **Data** (`ReportObject.label`) | `""` — ingen magisk streng |
+| **Malbygger** | Byggehint «(uten navn)», tydelig som hint, ikke som etikett |
+| **Web-utfylling** | Ingen etikettlinje — verdien står alene |
+| **Arkiv-PDF** | Verdien alene; **utelates helt** når feltet også er tomt (levert `f13b2421`) |
+
+**Ingen migrering.** `harMeningsfullLabel` fanger både `""` og `_`, så eksisterende maler med
+`_` fortsetter å virke uendret. Konvensjonen fases ut ved bruk, ikke ved skriv mot databasen.
+
+⚠️ **Fortsatt ingen påkrevd-etikett-validering.** Vedtaket endrer *representasjonen*, ikke at
+navnløse felt er tillatt. Se seksjonen over.
 
 ### Grenseverdier på tall-felt (`integer`/`decimal`) — norsk kanonisk (fase M-3a del 2, 2026-07-16)
 
