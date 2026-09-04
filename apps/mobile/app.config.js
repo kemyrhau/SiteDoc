@@ -38,7 +38,7 @@ module.exports = ({ config }) => {
   }
 
   // eas.projectId bæres videre fra app.json (extra.eas.projectId) — updates-URL
-  // og fingerprint-utledning krever den.
+  // krever den.
   const projectId = config.extra?.eas?.projectId;
 
   return {
@@ -56,13 +56,28 @@ module.exports = ({ config }) => {
       fallbackToCacheTimeout: 0,
       checkAutomatically: "ON_LOAD",
     },
-    // fingerprint-policy: runtimeVersion utledes av det NATIVE laget (moduler,
-    // native config). En JS-oppdatering kan derfor aldri havne på en binær med
-    // andre native moduler — mismatch gir ingen oppdatering, ikke en krasj.
-    // `appVersion` ville tillatt nettopp det: appen er på 1.0.0 og har vært det
-    // gjennom 51 bygg med skiftende native innhold. Kanal (per eas.json-profil)
-    // holder preview-oppdateringer unna produksjonsbygg.
-    runtimeVersion: { policy: "fingerprint" },
+    // Eksplisitt runtimeVersion-streng — vi styrer verdien selv.
+    //
+    // `{ policy: "fingerprint" }` ble forsøkt og forkastet 2026-09-04 etter to
+    // feilede bygg (52 + 53). Årsaken ligger IKKE i vår kode: 42 av 50 kilder i
+    // avtrykket er pnpm-stier med peer-avhengighetshash i katalognavnet (f.eks.
+    // node_modules/.pnpm/react-native-maps@1.20.1_<hash>/). EAS kjører
+    // `pnpm install` i sitt eget miljø og får andre stier → lokalt og EAS-avtrykk
+    // matcher aldri. Fingerprint-policy og pnpm-monorepo er ikke kompatible.
+    // (Kontrollmålt: avtrykket er identisk med og uten apps/mobile/ios/, så det
+    // native prosjektet er ikke årsaken.)
+    //
+    // Prisen for eksplisitt streng: disiplinen ligger nå hos oss. `appVersion`
+    // ble forkastet fordi appen har stått på 1.0.0 gjennom 53 bygg med skiftende
+    // native innhold — en JS-oppdatering kunne da landet på en binær med andre
+    // native moduler.
+    //
+    // 🔴 BUMP runtimeVersion ("1" → "2" → …) ved ENHVER endring i det native
+    // laget: ny/fjernet/oppgradert native modul, endret `plugins`, `infoPlist`,
+    // `permissions`, `bundleIdentifier`, ikon/splash, `scheme`, eller Expo
+    // SDK-oppgradering. En glemt bump betyr at en OTA JS-oppdatering kan lande på
+    // en binær den ikke passer til. Sjekklisten står i eas-build-veileder.md.
+    runtimeVersion: "1",
     ios: {
       ...config.ios,
       bundleIdentifier: erTest
