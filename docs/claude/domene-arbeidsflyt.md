@@ -56,6 +56,71 @@ Alle arkitektur-beslutninger skal kunne forklares tilbake til en arbeidsflyt her
 
 ---
 
+## 🔴 BINDENDE: byggeplass er et VALGFRITT oppdelingsnivå — «uten byggeplass» er normaltilstanden (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04, ordrett:**
+>
+> *«PSI og HMS gjelder som regel hele prosjektet. Noen ganger vil HMS og PSI deles opp i
+> byggeplasser, dersom prosjektet er felles, men byggeplassene har avstand internt. Andre ganger er
+> det kort avstand og PSI/HMS er felles.*
+>
+> *Et prosjekt kan ha flere byggetrinn → og er derfor oppdelt i flere byggeplasser → som medfører
+> at prosjektet kan vare i 5 år, med tre forskjellige bygg, som starter når det første er ferdig.*
+>
+> *Mange prosjekter har kun én byggeplass → da er byggeplass og prosjekt samme lokasjon.»*
+
+**Utløst av spørsmålet:** *«et dokument uten byggeplass bør ikke eksistere — kan det forsvares?»*
+Cowork målte modellen gjennom timer, maskin, varelager, prosjekt, tegninger og 3D. **Svaret er
+nei**, og Kenneths forklaring sier hvorfor.
+
+### Hva målingen viste
+
+`byggeplassId` er **nullable i alt** — `Checklist`, `Task`, `Drawing`, `PointCloud`, `Psi`,
+`FtdKontrakt`, timer (3 steder), maskin, varelager. Kun **`Omrade`** og **`Kontrollplan`** krever
+den, og de er strukturelle barn av byggeplassen, ikke dokumenter.
+
+To steder står betydningen allerede i schemaet: `Psi` (*«null = gjelder hele prosjektet»*) og
+varelager (*«NULL = hele prosjektet»*). **De to hadde rett hele tiden.**
+
+### Fire konsekvenser som binder
+
+1. 🔴 **Gjør ALDRI `byggeplassId` påkrevd på et dokument.** Det ville brutt PSI, HMS, timer,
+   maskin, varelager, tegninger og 3D samtidig — for å løse et problem som ikke finnes. «Uten
+   byggeplass» er ikke en mangel; det er det vanligste tilfellet.
+
+2. ✅ **Myk filtrering på byggeplass er RIKTIG — funnet fra 03.09 er dermed lukket.**
+   `sjekkliste.ts:185` gjør `OR: [{byggeplassId: valgt}, {byggeplassId: null}]`. Det ble ført som
+   mistenkelig («chippen sier *Viser kun denne byggeplassen*, men filteret slipper gjennom
+   null»). **Domenet bekrefter filteret:** et dokument som gjelder hele prosjektet gjelder også
+   denne byggeplassen, og skal være med. 🔴 **Det er CHIP-TEKSTEN som er feil**, ikke filteret —
+   den lover en avgrensning systemet med rett og vilje ikke gjør.
+   ⚠️ Tegninger filtrerer **hardt**. Det er sannsynligvis riktig (en tegning hører til ett sted),
+   men forskjellen er ikke vedtatt noe sted — eget spørsmål.
+
+3. 🔴 **Har prosjektet ÉN byggeplass, skal brukeren ikke spørres.** Da er byggeplass og prosjekt
+   samme lokasjon, og et valg mellom ett alternativ er et klikk uten informasjon. Direkte
+   anvendelse av effektivitets-gaten og A.Markussens hovedkritikk («mange klikk»).
+
+4. 🔴 **Byggeplasser har TID — dette er nytt og ikke modellert.** Et prosjekt kan vare fem år med
+   tre bygg som starter sekvensielt, hvert som sin byggeplass. Det betyr at byggeplasser kan være
+   *ikke startet*, *aktiv* eller *ferdig* mens prosjektet lever. **Ingenting i dagens modell bærer
+   det.** Konsekvenser som må utredes, ikke gjettes: skal ferdige byggeplasser skjules i velgere ·
+   skal dokumenter kunne opprettes på en byggeplass som ikke har startet · hva skjer med PSI og
+   mannskapslister når et byggetrinn avsluttes. **Eget funn — se BACKLOG.**
+
+### Nivåene et dokument kan gjelde
+
+```
+punkt på tegning     lokasjonOmfang = "punkt"        eksplisitt  ✅
+hele byggeplassen    lokasjonOmfang = "byggeplass"   eksplisitt  ✅ (bygget 04.09)
+hele prosjektet      byggeplassId = null             TVETYDIG    ⚠️
+```
+
+Det tredje nivået lider av samme feil som det andre gjorde før 04.09: `null` betyr både «ikke
+valgt ennå» og «gjelder hele prosjektet». Kenneths gatelys-eksempel gjelder ett trinn opp også —
+*«alle gatelysene i prosjektet mangler merking»* er et like gyldig funn som på én byggeplass.
+**Åpent til fabel; ikke bygget.**
+
 ## 🔴 BINDENDE VEDTAK: dokumentflyten er nøkkelen — faggruppe er avledet (Kenneth 2026-08-22)
 
 **Vedtaket:** et dokument tilhører alltid nøyaktig **én dokumentflyt**. Faggruppen er en

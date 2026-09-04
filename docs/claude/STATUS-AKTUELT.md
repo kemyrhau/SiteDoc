@@ -74,10 +74,22 @@ ville den falt stille tilbake til gammel oppførsel — grønt uten å være en 
 å se etter det positive beviset. **Formen bør inn i alle verifiseringsordrer:** si hva som skal SEES,
 ikke hva som skal være borte.
 
-🟡 **Åpent funn fra samme runde:** chippen sier «Viser kun denne byggeplassen», men `sjekkliste.ts:185`
-filtrerer **mykt** (`OR: byggeplassId = null`) — dokumenter uten byggeplass blir alltid med, så lista
-kan se uendret ut. Tegninger filtrerer hardt. Filteret er sannsynligvis riktig; teksten er det ikke.
-Ordre etter bygg 51.
+✅ **LUKKET 2026-09-04 — filteret var riktig, teksten er feil.** Chippen sier «Viser kun denne
+byggeplassen», mens `sjekkliste.ts:185` filtrerer **mykt** (`OR: byggeplassId = null`). Det ble ført
+som mistenkelig. **Kenneths domeneforklaring 04.09 avgjør det:** et dokument uten byggeplass gjelder
+*hele prosjektet* — altså også denne byggeplassen — og skal være med. Filteret er korrekt.
+🟡 **Gjenstår: chip-teksten**, som lover en avgrensning systemet med rett og vilje ikke gjør.
+⚠️ **Og et nytt spørsmål:** tegninger filtrerer **hardt**. Sannsynligvis riktig (en tegning hører til
+ett sted), men forskjellen er ikke vedtatt noe sted.
+Full begrunnelse: [domene-arbeidsflyt.md § byggeplass er et valgfritt oppdelingsnivå](domene-arbeidsflyt.md).
+
+🔴 **NYTT FUNN 2026-09-04 — byggeplasser har TID, og ingenting i modellen bærer det.**
+Kenneth: *«Et prosjekt kan ha flere byggetrinn → prosjektet kan vare i 5 år, med tre forskjellige
+bygg, som starter når det første er ferdig.»* En byggeplass kan altså være *ikke startet*, *aktiv*
+eller *ferdig* mens prosjektet lever. **Dagens `Byggeplass` har ingen slik tilstand.**
+Må utredes, ikke gjettes: skjules ferdige byggeplasser i velgere · kan dokumenter opprettes på en
+byggeplass som ikke har startet · hva skjer med PSI og mannskapsliste når et byggetrinn avsluttes.
+**Ikke ordre — fabels domene.**
 
 > 🔴 **Kenneths kritikk av arbeidsformen, 2026-09-03 — skal stå:**
 > *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass, så må man erkjenne at
