@@ -608,6 +608,33 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 > detach på `origin/develop`). En agent uten rad er en agent ingen har oversikt over.
 | **simulator-Opus** | Verifiserer på iOS-simulator (Metro @ develop) OG web. Kjører idb/simctl lokalt; leser test-DB via tunnel. Rapporterer observasjoner med kandidatmengde — konkluderer ikke om kode-atferd uten kodeverifisering. Skriver ikke produktkode; docs-endringer rutes via cowork. | Ja (simulator/lokalt) | — |
 
+### 🔴 «redesign-Opus» i en fabel-ordre = et worktree COWORK klargjør (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«Det refereres til redesign fra fabel — du må i din dokumentasjon
+> forstå det slik: cowork gater ordren til et worktree som cowork har klargjort for å utføre
+> oppgaven.»*
+
+Fabels ordrer er adressert «til redesign-Opus (relayes av Kenneth)». **Det er en rolle, ikke en
+instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har hett
+«redesign-Opus» på uker.
+
+**Hva det betyr i praksis, og hva cowork gjorde feil 04.09:**
+
+- Cowork skal **ikke lete etter** en agent med det navnet, og skal ikke vente på at noen andre
+  tildeler ordren. **Cowork velger worktree, klargjør branchen, gater ordren mot kode og skriver
+  tavle-raden.** Det er hele coworks jobb i den kjeden.
+- 🔴 **Mangler fabels ordrefil, skriver cowork den** — så lenge grunnlaget er gatet. Er
+  designnotatet vedtatt og tilleggene verifisert, finnes alt som trengs. Å vente på en fil er
+  ventetid uten verdi.
+  **Målt tilfelle:** 04.09 leverte fabel `TILLEGG-ordre-lokasjonomfang-L9` til en hovedordre som
+  ikke fantes i repoet eller i noen leveransepakke. Cowork stoppet og ba om den — men
+  designnotatet var vedtatt av Kenneth samme kveld, og tillegget var gatet. Ordren kunne vært
+  skrevet med det samme.
+- **Grensen består:** fabel eier *designet* — hva som skal bygges, akseptkriterier, designlås.
+  Cowork eier *utførelsen* — hvem, hvor, hvilken branch, i hvilken rekkefølge, og gating mot
+  faktisk kode før noe relayes. Cowork oppfinner ikke designbeslutninger; cowork skriver ned dem
+  som allerede er tatt.
+
 ## Meldingsflyt (ufravikelig)
 
 **Alle ordrer går via Kenneth — han limer, han ser alt. Ingen agent instruerer en annen direkte.**
