@@ -243,6 +243,9 @@ export const malRouter = router({
           objects: { orderBy: { sortOrder: "asc" } },
           project: true,
           dokumentflytMaler: { select: { dokumentflytId: true } },
+          // Malarkiv (AM4 steg 3): firmamalens gjeldende navn+versjon for badgen
+          // «Basert på firmamal … (X versjoner bak)» = version − versjonAvHovedmal (L6).
+          copiedFromOrgTemplate: { select: { id: true, name: true, version: true } },
         },
       });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
