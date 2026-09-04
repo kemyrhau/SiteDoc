@@ -71,7 +71,39 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 
 Restanser fra anker-dokumentet som IKKE er tatt (sjekkes mot kode før de køes): rename Firmainnstillinger→Prosjekteier · Box→Mapper-rename · HMS-avvik modul-avklaring · Maskin-plassering · testsider ut av prod. Tas som ryddepunkter i relevante delplaner, ikke som egen del.
 
+## 🔴 AVSTEMT MOT KODE 2026-09-04 — fem av åtte punkter var allerede levert
+
+Cowork målte hvert punkt i rekkefølgen under mot `develop` (`655c948b`). **Rekkefølgen var
+opptil fem uker bak koden.** Listen under er rettet; den gamle teksten står uendret så
+begrunnelsene ikke går tapt.
+
+| Punkt | Påstand i planen | Målt |
+|---|---|---|
+| 1. ON onboarding | «neste steg» | ✅ **LEVERT** `c48e6d44` + `b32326a8` — `firmaOnboardingWizard`, `organisasjon.hentOnboardingStatus` |
+| 2. REG fase 2–3 | gjenstår | ✅ **LEVERT** `578e2b67` (fase 2) + `23a52504` (`prosjektTilgangEvaluator.ts`) |
+| 3. AM 2 attestering | P0 | ❌ **IKKE BYGGET** — grep «40-timers» → 0 treff, negativ kontroll bestått |
+| 3. AM 3 KP-bugs | fikset 28.08 | ✅ **LEVERT** `180e9c61`; restfunnene i `inbox-kp-speiling.md` også levert (`b987d793`) |
+| 3. AM 4 malarkiv | P0 | ❌ **IKKE BYGGET** — grep «malarkiv» → 0 treff. 🔴 **Krever fabel-design først** |
+| 4. DG arkiv-PDF | gjenstår | ✅ **TOMT** — D2/D2b levert 21.08, F7 lukket 04.09, layoutfunn merget `655c948b` |
+| 6. Del 6b fase 2 | «ordre 28.07, aldri relayet» | ✅ **LEVERT `ee7d4e3e` — samme DAG ordren ble skrevet.** Filter, opprett-vei, HMS-mobil, kontrollplan-lese. Sto som åpen i fem uker |
+| 6b-x tabellbredder · PR kolonnevelger | «henger» | ✅ **LEVERT** `7b413263` + `d394bdde` |
+| 7. PM interim-guard | gjenstår | ⚠️ **IKKE MÅLT** — ikke anta noe |
+
+🔴 **Konsekvensen for køen:** det som faktisk gjenstår og som kan ordres til en kodeagent **uten
+fabel-design først, er ingenting.** AM 4 er en designsak; AM 2 er timer-arbeid som linje under
+nedprioriterer med målt begrunnelse. **Neste flaskehals er fabel, ikke koding.**
+
+⚠️ **Lærdom, ikke bokføring.** Kenneth 31.08: *«Nå er vi mer opptatt av hva som er gjort enn å
+lukke oppgaver i masterplanen.»* Denne målingen viser hvorfor det er vanskelig: en agent som
+leverte og ble avsluttet, etterlot ingen spor i planen. **Cowork brukte tre målerunder 04.09 på
+å oppdage at tre «åpne» ordrer var utført.** Fase 4 i Opus-livssyklusen skal lukke dette — raden
+fjernes ved merge — men den fanger ikke masterplanens egne linjer. Avstemming mot kode hører
+inn ved hver merge som lukker et planpunkt, ikke som en egen øvelse hver femte uke.
+
 ## Rekkefølge (justert 2026-08-28 — piloten har ingen blokkerere igjen)
+
+> ⚠️ **Se avstemmingen over — punkt 1, 2, 4 og 6 er levert.** Teksten står uendret fordi
+> begrunnelsene fortsatt gjelder for det som er igjen.
 
 **Målestokken er piloten (~sept 2026).** Pilot-triagen 26.08 gikk gjennom alle 42 åpne
 🔴 og fant **én** blokkerer — mobil-annotering som eksporterte 3,4 MB PNG. Den ligger i
