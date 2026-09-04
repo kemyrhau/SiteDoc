@@ -70,6 +70,13 @@ export interface Vedlegg {
   url: string;
   filnavn: string;
   opprettet?: string;
+  // Når bildet ble TATT (EXIF DateTimeOriginal), ikke når vedlegget ble lagt i
+  // dokumentet (det er `opprettet`). ISO-streng ved treff; `null` når EXIF-tid
+  // manglet. Nøkkelen finnes IKKE på vedlegg lagd før EXIF-runden (2026-09-04) —
+  // web skiller på det: undefined ⇒ historisk, vis ingenting; null ⇒ «ikke
+  // tilgjengelig». Bæres inline i Checklist.data (samme kilde som arkiv-PDF).
+  // Kun type "bilde".
+  opptakTidspunkt?: string | null;
   // Løpende bildenummer per dokument, tildelt ved opptak (kun type "bilde").
   // Dokgen leser dette; mangler det, faller den tilbake til dokumentrekkefølge.
   bildeNr?: number;

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Paperclip, Upload, Clipboard, Trash2, Map, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { formaterDatoTidPunkt } from "@sitedoc/pdf";
 import type { Vedlegg } from "./typer";
 import { TegningsModal } from "./TegningsModal";
 
@@ -44,6 +46,7 @@ export function FeltDokumentasjon({
   byggeplassId,
   standardTegningId,
 }: FeltDokumentasjonProps) {
+  const { t } = useTranslation();
   const [visVedleggMeny, settVisVedleggMeny] = useState(false);
   const [valgtVedlegg, settValgtVedlegg] = useState<string | null>(null);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
@@ -148,9 +151,21 @@ export function FeltDokumentasjon({
         <div className="print-skjul mb-2 flex flex-wrap gap-2">
           {vedlegg.map((v) => {
             const erValgt = valgtVedlegg === v.id;
+            // Opptakstidspunkt (EXIF) under bildet — flateparitet med mobil + arkiv-PDF
+            // (samme kilde: opptakTidspunkt i Checklist.data). Tre tilstander:
+            //  - undefined ⇒ historisk bilde (før EXIF-runden) ⇒ vis ingenting (uendret).
+            //  - null/"" ⇒ nytt bilde uten EXIF-tid ⇒ ærlig «ikke tilgjengelig»,
+            //    aldri innleggingstid (opprettet) — et tomt felt er sant, et feil verre.
+            //  - ISO-streng ⇒ opptakstidspunktet, samme format som arkiv-PDF.
+            const opptakTekst =
+              v.type !== "bilde" || v.opptakTidspunkt === undefined
+                ? null
+                : v.opptakTidspunkt === null || v.opptakTidspunkt === ""
+                  ? t("felt.opptakTidMangler")
+                  : formaterDatoTidPunkt(v.opptakTidspunkt);
             return (
+              <div key={v.id} className="flex flex-col" style={{ width: 72 }}>
               <div
-                key={v.id}
                 className={`relative cursor-pointer overflow-hidden rounded border-2 ${
                   erValgt ? "border-blue-500" : "border-gray-200"
                 }`}
@@ -198,6 +213,12 @@ export function FeltDokumentasjon({
                     <Trash2 size={12} className="text-white" />
                   </button>
                 )}
+              </div>
+              {opptakTekst && (
+                <span className="mt-0.5 text-center text-[9px] leading-tight text-gray-500">
+                  {opptakTekst}
+                </span>
+              )}
               </div>
             );
           })}
