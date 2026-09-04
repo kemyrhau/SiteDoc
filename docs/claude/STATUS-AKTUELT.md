@@ -92,22 +92,32 @@ Ordre etter bygg 51.
 > allerede appens modell.** Ti skjermer sender `byggeplassId` fra `ByggeplassKontekst`.
 > Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
 
-### 🔴 UAVKLART 2026-09-04 — hvilke dokumenttyper kan i det hele tatt bli PDF?
+### 🔴 AVKLART 2026-09-04 — RUH og avvik kan IKKE leveres som PDF (lovpålagt dokumentasjon)
 
-**Målt sikkert:** `arkiv.rendr` (`apps/api/src/routes/arkiv.ts:51`) godtar `type: "sjekkliste" |
-"oppgave"` i kontrakten, men `services/arkiv/render.ts:94` **kaster** for alt annet enn sjekkliste
-(«task-innholdsleser mangler»). **HMS står ikke i enum-en i det hele tatt.**
+**Målt i `hms.ts:221-269` — hvilken Prisma-modell hver HMS-type faktisk bruker:**
 
-⚠️ **IKKE MÅLT — og det avgjør alvorlighetsgraden:** er en RUH/SJA/avvik en `Checklist` eller en
-`Task`? `hms.ts` bruker begge (2 checklist-treff, 6 task-treff — en grep-telling, ikke en måling).
+| Dokumenttype | Modell | Arkiv-PDF i dag | Web | Mobil |
+|---|---|---|---|---|
+| Sjekkliste | `Checklist` | ✅ | ✅ | ✅ |
+| HMS **SJA** | `Checklist` | ✅ | ✅ | ✅ |
+| **Oppgave** | `Task` | ❌ | ❌ | ❌ |
+| **HMS avvik** | `Task` | ❌ | ❌ | ❌ |
+| **HMS RUH** | `Task` | ❌ | ❌ | ❌ |
 
-| Hvis HMS-dokumenter er… | Konsekvens |
-|---|---|
-| `Checklist` | 🟡 Kun oppgave mangler PDF. Skjemmende, ikke blokkerende |
-| `Task` | 🔴 **Lovpålagt HMS-dokumentasjon kan ikke leveres som PDF.** Blokkerer piloten |
+🔴 **RUH og avvik er lovpålagt HMS-dokumentasjon.** At de ikke kan leveres som PDF er en
+pilotblokkerer, ikke en skjønnhetsfeil.
 
-🔴 **Mål dette FØR noe annet PDF-arbeid bestilles.** Spørsmålet er hvilken Prisma-modell en RUH
-faktisk opprettes i — ikke hvor mange grep-treff hver modell har.
+**Rotårsaken er ÉN:** `services/arkiv/render.ts:94` kaster for alt annet enn sjekkliste
+(«task-innholdsleser mangler»). `arkiv.rendr` godtar allerede `type: "oppgave"` i kontrakten
+(`arkiv.ts:51`) — kun leseren mangler.
+
+✅ **Flate-pariteten er derimot allerede på plass.** Web og mobil kaller samme `arkiv.rendr`; begge
+har PDF for sjekkliste, begge mangler for task. **Kenneths premiss «web tilbyr et sett utskrifter,
+det samme bør gjelde app» er målt — hullet er dokumenttype, ikke flate.** Bygges task-leseren, får
+tre dokumenttyper PDF på to flater i samme runde.
+
+*(Web har i tillegg timer-rapportens printmotor. Den er en firmaflate og hører i web —
+[feltarbeid-skillet](SAMARBEIDSREGLER.md), Kenneth 04.09.)*
 
 Funnet kom fram fordi dokgen rapporterte et sidefunn i stedet for å la det passere
 (lokasjonOmfang-runden, 04.09), og fordi Kenneth samme kveld påpekte at han sier «sjekklister» om
