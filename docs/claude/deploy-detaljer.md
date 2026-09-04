@@ -215,6 +215,19 @@ Fra bygg-stempel-landingen (`/version` + Innstillinger-linje) bærer imaget comm
 
 **Endret 2026-08-11:** build-args ligger nå i `docker-compose.yml` + `.test.yml` under `build.args` (`GIT_SHA`/`BUILD_TID` på api, `NEXT_PUBLIC_BUILD_SHA`/`NEXT_PUBLIC_BUILD_TID` på web — **begge interpolert fra SAMME env-par `GIT_SHA`/`BUILD_TID`**). Derfor: sett **ett env-prefiks** foran `sudo docker compose build`, ikke fire `--build-arg`-flagg. Ett par driver både api og web → de kan aldri stemples ulikt.
 
+> 🔴 **RETTET 2026-09-04 — bruk `./deploy-test.sh`, ikke blokken under.** Skriptet er **mer
+> komplett enn dokumentasjonen her**: det rsyncer, og skriver deretter ut alle sudo-kommandoene
+> ferdig utfylt — inkludert **migrate-steget for alle fire db-pakker** med gaten
+> `grep -q sitedoc_test || ABORT`, som blokken under aldri har hatt. Samme asymmetri som
+> prod-blokken hadde til 04.09: regelen «migrate droppes ALDRI» sto i prosaen, ikke i kommandoen.
+>
+> ```sh
+> cd ~/Documents/Programmering/SiteDoc && git checkout develop && git pull --ff-only origin develop && ./deploy-test.sh
+> ```
+>
+> Skriptet kjører ikke `sudo` selv (krever TTY) — det skriver ut linjene Kenneth limer. Blokken
+> under beholdes som referanse for hva stemplingen gjør, ikke som noe å kopiere.
+
 **Test — bygg m/ stempel + up (fra Mac, erstatter de rene `build`-linjene over når api+web endret):**
 ```
 cd ~/Documents/Programmering/SiteDoc && git checkout develop && git pull --ff-only origin develop && ./deploy-test.sh
