@@ -26,7 +26,11 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { autoriserAdminForFirma, verifiserAdmin } from "../trpc/tilgangskontroll";
+import {
+  autoriserAdminForFirma,
+  verifiserAdmin,
+  erFirmaAdminForProsjekt,
+} from "../trpc/tilgangskontroll";
 import { finnLedigeMalVerdier } from "./mal";
 
 // Faner (L9). Firmaarkivet blander aldri de tre kategoriene i én liste.
@@ -118,6 +122,23 @@ export const firmamalRouter = router({
         include: { _count: { select: { objects: true, copiedTo: true } } },
         orderBy: { updatedAt: "desc" },
       });
+    }),
+
+  /**
+   * Klient-signal: kan innlogget bruker PROMOTERE prosjektmaler til firmaarkivet
+   * (dvs. er firma-admin for prosjektets firma)? Speiler promoter-gaten uten å kaste,
+   * så MalBygger kan skjule «Send til firmaarkiv» for ikke-firma-admin. Query, ikke
+   * admin-gatet: alle prosjektmedlemmer må kunne spørre «har jeg lov?».
+   */
+  kanPromotere: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker?.role === "sitedoc_admin") return true;
+      return erFirmaAdminForProsjekt(ctx.userId, input.projectId);
     }),
 
   /** Én firmamal med hele objekt-treet (for redigering/preview i firma-modus). */
@@ -393,6 +414,97 @@ export const firmamalRouter = router({
       });
 
       return { id: nyId };
+    }),
+
+  /**
+   * Firmamaler tilgjengelig å HENTE NED i et gitt prosjekt (steg 4, «Fra
+   * firmaarkivet»-kilden). Gatet på prosjektadmin (L7 — henting er gjenbruk, ikke
+   * firma-styring), så en prosjektadmin som IKKE er firma-admin også ser dem.
+   * Firma-isolasjon: kun maler eid av prosjektets firma(er).
+   */
+  listeForProsjekt: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        fane: z.enum(FANER).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      const orgIder = new Set<string>();
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+      if (prosjekt.primaryOrganizationId) orgIder.add(prosjekt.primaryOrganizationId);
+      const koblinger = await ctx.prisma.projectOrganization.findMany({
+        where: { projectId: input.projectId },
+        select: { organizationId: true },
+      });
+      for (const k of koblinger) orgIder.add(k.organizationId);
+      if (orgIder.size === 0) return [];
+
+      return ctx.prisma.organizationTemplate.findMany({
+        where: {
+          organizationId: { in: [...orgIder] },
+          ...(input.fane ? faneWhere(input.fane) : {}),
+        },
+        include: { _count: { select: { objects: true } } },
+        orderBy: { name: "asc" },
+      });
+    }),
+
+  /**
+   * L6 «Oppdater» — synk en prosjektmal-kopi til firmamalens GJELDENDE versjon.
+   * Bevisst manuell handling (aldri auto-sync): erstatter objekt-treet med
+   * firmamalens nåværende og setter `versjonAvHovedmal = firmamal.version` slik at
+   * «X versjoner bak»-badgen nullstilles. Prosjektadmin-gatet.
+   *
+   * MVP-semantikk (L6): full erstatning av objekt-treet, ikke diff/merge (backlog).
+   * 🔴 Erstatningen fjerner gamle objekt-id-er → dokumentdata knyttet til dem blir
+   * foreldreløs. Derfor bevisst handling bak eksplisitt knapp, aldri automatisk.
+   */
+  oppdaterKopiFraHovedmal: protectedProcedure
+    .input(z.object({ templateId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
+        where: { id: input.templateId },
+        select: { id: true, projectId: true, organizationTemplateId: true },
+      });
+      await verifiserAdmin(ctx.userId, mal.projectId);
+
+      if (!mal.organizationTemplateId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Malen har ingen firmamal-avstamning å oppdatere fra",
+        });
+      }
+
+      const firmamal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
+        where: { id: mal.organizationTemplateId },
+        include: { objects: { orderBy: { sortOrder: "asc" } } },
+      });
+
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.reportObject.deleteMany({ where: { templateId: mal.id } });
+        await kopierObjektTre(
+          firmamal.objects,
+          (data) =>
+            tx.reportObject.create({
+              data: { templateId: mal.id, ...data },
+              select: { id: true },
+            }),
+          (id, parentId) =>
+            tx.reportObject.update({ where: { id }, data: { parentId } }).then(() => undefined),
+        );
+        await tx.reportTemplate.update({
+          where: { id: mal.id },
+          data: { versjonAvHovedmal: firmamal.version },
+        });
+      });
+
+      return { id: mal.id, versjonAvHovedmal: firmamal.version };
     }),
 
   /**

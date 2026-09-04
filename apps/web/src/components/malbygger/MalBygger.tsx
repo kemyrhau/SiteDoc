@@ -22,7 +22,7 @@ import {
   type TemplateZone,
   type EmneKategori,
 } from "@sitedoc/shared";
-import { Modal, Button, Spinner } from "@sitedoc/ui";
+import { Modal, Button, Spinner, Badge } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { FeltPalett } from "./FeltPalett";
 import { DropSone } from "./DropSone";
@@ -30,7 +30,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
-import { MapPin, Pencil, FileText, Eye, EyeOff, AlertTriangle, Globe, Check } from "lucide-react";
+import { MapPin, Pencil, FileText, Eye, EyeOff, AlertTriangle, Globe, Check, Building2, RefreshCw } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
 function opsjonTilStreng(opsjon: unknown): string {
@@ -54,6 +54,12 @@ interface MalData {
   showFaggruppe?: boolean;
   showLocation?: boolean;
   showPriority?: boolean;
+  // Malarkiv (AM4 steg 3) — firma-avstamning. Alle valgfrie: prosjektmaler uten
+  // firma-tilknytning har dem null/false (default = uendret oppførsel).
+  promotedToFirma?: boolean;
+  organizationTemplateId?: string | null;
+  versjonAvHovedmal?: number;
+  copiedFromOrgTemplate?: { id: string; name: string; version: number } | null;
   objects: Array<{
     id: string;
     type: string;
@@ -201,6 +207,32 @@ export function MalBygger({ mal }: MalByggerProps) {
       utils.mal.hentForProsjekt.invalidate();
     },
   });
+
+  // Malarkiv (AM4 steg 3) — promotering + firma-avstamnings-badges. Ikke for PSI.
+  const [firmaFeil, setFirmaFeil] = useState<string | null>(null);
+  const kanPromotereQuery = trpc.firmamal.kanPromotere.useQuery(
+    { projectId: mal.projectId ?? "" },
+    { enabled: !!mal.projectId && !psiModus },
+  );
+  const promoterMutation = trpc.firmamal.promoter.useMutation({
+    onSuccess: () => {
+      utils.mal.hentMedId.invalidate({ id: mal.id });
+      utils.mal.hentForProsjekt.invalidate();
+    },
+    onError: (e: { message?: string }) => setFirmaFeil(e.message ?? null),
+  });
+  const oppdaterFraHovedmalMutation = trpc.firmamal.oppdaterKopiFraHovedmal.useMutation({
+    onSuccess: () => {
+      utils.mal.hentMedId.invalidate({ id: mal.id });
+      utils.mal.hentForProsjekt.invalidate();
+      refetchMal();
+    },
+    onError: (e: { message?: string }) => setFirmaFeil(e.message ?? null),
+  });
+  // «X versjoner bak» (L6): firmamalens gjeldende versjon − versjonen kopien fryste.
+  const versjonerBak = mal.copiedFromOrgTemplate
+    ? Math.max(0, mal.copiedFromOrgTemplate.version - (mal.versjonAvHovedmal ?? 1))
+    : 0;
 
   const lagreNavn = useCallback(() => {
     const trimmet = malNavn.trim();
@@ -690,6 +722,61 @@ export function MalBygger({ mal }: MalByggerProps) {
             {mal.description && (
               <p className="text-sm text-gray-500">{mal.description}</p>
             )}
+
+            {/* Malarkiv (AM4 steg 3) — firma-avstamning + promotering. Ikke for PSI. */}
+            {!psiModus && mal.projectId && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {mal.promotedToFirma && (
+                  <Badge variant="success">
+                    <Building2 className="mr-1 inline h-3 w-3" />
+                    {t("malbygger.firmaarkiv.iArkivet")}
+                  </Badge>
+                )}
+                {mal.copiedFromOrgTemplate && (
+                  <Badge variant={versjonerBak > 0 ? "warning" : "default"}>
+                    {versjonerBak > 0
+                      ? t("malbygger.firmaarkiv.basertPaBak", {
+                          navn: mal.copiedFromOrgTemplate.name,
+                          antall: versjonerBak,
+                        })
+                      : t("malbygger.firmaarkiv.basertPa", {
+                          navn: mal.copiedFromOrgTemplate.name,
+                        })}
+                  </Badge>
+                )}
+                {mal.copiedFromOrgTemplate && versjonerBak > 0 && (
+                  <button
+                    onClick={() =>
+                      oppdaterFraHovedmalMutation.mutate({ templateId: mal.id })
+                    }
+                    disabled={oppdaterFraHovedmalMutation.isPending}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    {oppdaterFraHovedmalMutation.isPending
+                      ? t("handling.prosesserer")
+                      : t("malbygger.firmaarkiv.oppdater")}
+                  </button>
+                )}
+                {!mal.promotedToFirma && kanPromotereQuery.data && (
+                  <button
+                    onClick={() => {
+                      setFirmaFeil(null);
+                      promoterMutation.mutate({ templateId: mal.id });
+                    }}
+                    disabled={promoterMutation.isPending}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <Building2 className="h-3.5 w-3.5" />
+                    {promoterMutation.isPending
+                      ? t("handling.prosesserer")
+                      : t("malbygger.firmaarkiv.sendTil")}
+                  </button>
+                )}
+                {firmaFeil && <span className="text-xs text-red-600">{firmaFeil}</span>}
+              </div>
+            )}
+
             {psiModus && (
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <button

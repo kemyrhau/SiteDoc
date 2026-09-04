@@ -271,6 +271,99 @@ export const modulRouter = router({
           });
         }
 
+        // Firmamal-seeding (AM4/F4/L1/L2) — ADDITIVT, kjører FØR standardmal-løkken.
+        // Firmaets flaggede maler (standardForNyeProsjekter) seedes som snapshot-kopier
+        // m/avstamning. Relevans: kun maler hvis (category, domain) matcher modulens
+        // mal-fotavtrykk — HMS-firmamaler seedes derfor bare når hms-modulen aktiveres.
+        // L1 (firmamalen VINNER ved prefix-kollisjon) faller ut GRATIS: kopien tar
+        // prefikset her, så standardmal-løkken under skipper det via sin idempotent-sjekk.
+        // Idempotent på (organizationTemplateId, prefix) → reaktivering dupliserer ikke.
+        const prosjektForFirma = await tx.project.findUnique({
+          where: { id: input.projectId },
+          select: { primaryOrganizationId: true },
+        });
+        if (prosjektForFirma?.primaryOrganizationId && modulDef.maler.length > 0) {
+          const modulFotavtrykk = new Set(
+            modulDef.maler.map((m) => `${m.kategori}|${m.domain}`),
+          );
+          const flaggedeFirmamaler = await tx.organizationTemplate.findMany({
+            where: {
+              organizationId: prosjektForFirma.primaryOrganizationId,
+              standardForNyeProsjekter: true,
+            },
+            include: { objects: { orderBy: { sortOrder: "asc" } } },
+          });
+          for (const fm of flaggedeFirmamaler) {
+            if (!modulFotavtrykk.has(`${fm.category}|${fm.domain}`)) continue;
+            // Allerede kopiert til dette prosjektet → skip (sann idempotens-nøkkel,
+            // uavhengig av prefix).
+            const alleredeKopiert = await tx.reportTemplate.findFirst({
+              where: { projectId: input.projectId, organizationTemplateId: fm.id },
+              select: { id: true },
+            });
+            if (alleredeKopiert) continue;
+            // Prefiks allerede opptatt (av standard eller annen mal) → skip for å
+            // ikke bryte (projectId, prefix)-sperren. L1 gjelder ved førstegangs-seed.
+            if (fm.prefix) {
+              const prefiksTatt = await tx.reportTemplate.findFirst({
+                where: { projectId: input.projectId, prefix: fm.prefix },
+                select: { id: true },
+              });
+              if (prefiksTatt) continue;
+            }
+            const kopi = await tx.reportTemplate.create({
+              data: {
+                projectId: input.projectId,
+                name: fm.name,
+                description: fm.description,
+                prefix: fm.prefix,
+                category: fm.category,
+                domain: fm.domain,
+                subdomain: fm.subdomain,
+                hmsSynlighet: fm.hmsSynlighet,
+                subjects: (fm.subjects ?? []) as Prisma.InputJsonValue,
+                showSubject: fm.showSubject,
+                showLocation: fm.showLocation,
+                showPriority: fm.showPriority,
+                enableChangeLog: fm.enableChangeLog,
+                kontrollomrade: fm.kontrollomrade,
+                organizationTemplateId: fm.id, // avstamning (L5)
+                versjonAvHovedmal: fm.version, // fryser versjon (L6)
+                version: 1,
+              },
+              select: { id: true },
+            });
+            // Objekt-tre to-pass (config/config.zone kopieres verbatim — zone-regelen).
+            const idMap = new Map<string, string>();
+            for (const obj of fm.objects) {
+              const nyttObj = await tx.reportObject.create({
+                data: {
+                  templateId: kopi.id,
+                  type: obj.type,
+                  label: obj.label,
+                  config: (obj.config ?? {}) as Prisma.InputJsonValue,
+                  translations: (obj.translations ?? {}) as Prisma.InputJsonValue,
+                  sortOrder: obj.sortOrder,
+                  required: obj.required,
+                },
+                select: { id: true },
+              });
+              idMap.set(obj.id, nyttObj.id);
+            }
+            for (const obj of fm.objects) {
+              if (!obj.parentId) continue;
+              const nyId = idMap.get(obj.id);
+              const nyParentId = idMap.get(obj.parentId);
+              if (nyId && nyParentId) {
+                await tx.reportObject.update({
+                  where: { id: nyId },
+                  data: { parentId: nyParentId },
+                });
+              }
+            }
+          }
+        }
+
         // Opprett maler med rapportobjekter (idempotent på prefix)
         for (const malDef of modulDef.maler) {
           const eksisterendeMal = await tx.reportTemplate.findFirst({

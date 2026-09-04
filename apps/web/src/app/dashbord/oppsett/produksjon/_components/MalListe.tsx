@@ -4,13 +4,23 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
-import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput } from "@sitedoc/ui";
+import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Library } from "lucide-react";
+import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { BibliotekPanel } from "@/components/bibliotek/BibliotekPanel";
 
 type MalKategori = "oppgave" | "sjekkliste" | "hms";
+
+// L2 (AM4): prefikser som PROSJEKT_MODULER seeder som standardmaler. En prosjektmal
+// med firma-avstamning (organizationTemplateId) OG et av disse prefiksene har erstattet
+// en standardmal ved seeding — badge «Erstatter standardmal {prefix}». Beregnet ved
+// visning (ikke lagret seeding-resultat): fjernes standarden fra PROSJEKT_MODULER
+// forsvinner badgen — bevisst nyanse, gatet av fabel.
+const STANDARD_PREFIKSER = new Set(
+  PROSJEKT_MODULER.flatMap((m) => m.maler.map((mal) => mal.prefix.toUpperCase())),
+);
 
 interface MalListeProps {
   kategori: MalKategori;
@@ -36,6 +46,9 @@ type MalRad = {
   version: number;
   subjects: unknown;
   enableChangeLog: boolean;
+  // Malarkiv (AM4) — firma-avstamning (valgfrie; prosjekt-egne maler har dem null/false)
+  organizationTemplateId?: string | null;
+  promotedToFirma?: boolean;
   _count: { objects: number; checklists: number; tasks: number };
 };
 
@@ -140,6 +153,7 @@ export function MalListe({
   // Unikhet (2026-08-10): server-CONFLICT (navn/prefiks) vises i opprett/rediger-modalen.
   const [malFeil, setMalFeil] = useState<string | null>(null);
   const [visBibliotek, setVisBibliotek] = useState(false);
+  const [visFirmaarkiv, setVisFirmaarkiv] = useState(false);
 
   // Opprett-felter
   const [navn, setNavn] = useState("");
@@ -375,7 +389,9 @@ export function MalListe({
             </DropdownItem>
           )}
           <DropdownItem disabled>{t("maler.importerFraProsjekt")}</DropdownItem>
-          <DropdownItem disabled>{t("maler.importerFraFirma")}</DropdownItem>
+          <DropdownItem onClick={() => setVisFirmaarkiv(true)}>
+            <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{t("maler.importerFraFirma")}</span>
+          </DropdownItem>
           <DropdownItem disabled>{t("maler.opprettFraPdf")}</DropdownItem>
         </Dropdown>
 
@@ -519,6 +535,19 @@ export function MalListe({
                       <span className="font-medium text-gray-900">
                         {mal.name}
                       </span>
+                      {mal.organizationTemplateId && (
+                        <Badge variant="default">{t("maler.badge.fraFirmaarkiv")}</Badge>
+                      )}
+                      {mal.organizationTemplateId &&
+                        mal.prefix &&
+                        STANDARD_PREFIKSER.has(mal.prefix.toUpperCase()) && (
+                          <Badge variant="warning">
+                            {t("maler.badge.erstatterStandard", { prefix: mal.prefix })}
+                          </Badge>
+                        )}
+                      {mal.promotedToFirma && (
+                        <Badge variant="success">{t("maler.badge.iFirmaarkivet")}</Badge>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-600">
@@ -1130,6 +1159,100 @@ export function MalListe({
           onImportert={() => utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId })}
         />
       )}
+
+      {/* Firmaarkiv-velger (AM4 steg 4 — «Fra firmaarkivet») */}
+      {visFirmaarkiv && prosjektId && (
+        <FirmaarkivVelger
+          projectId={prosjektId}
+          fane={kategori}
+          onLukk={() => setVisFirmaarkiv(false)}
+          onImportert={() => utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId })}
+        />
+      )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  FirmaarkivVelger — hent firmamal ned i prosjektet (steg 4, ≤3 klikk) */
+/* ------------------------------------------------------------------ */
+
+function FirmaarkivVelger({
+  projectId,
+  fane,
+  onLukk,
+  onImportert,
+}: {
+  projectId: string;
+  fane: MalKategori;
+  onLukk: () => void;
+  onImportert: () => void;
+}) {
+  const { t } = useTranslation();
+  const { data: firmamaler, isLoading } = trpc.firmamal.listeForProsjekt.useQuery({
+    projectId,
+    fane,
+  });
+  const [hentetId, setHentetId] = useState<string | null>(null);
+  const [feil, setFeil] = useState<string | null>(null);
+
+  const kopierMutation = trpc.firmamal.kopierTilProsjekt.useMutation({
+    onSuccess: () => {
+      onImportert();
+      onLukk();
+    },
+    onError: (e) => setFeil(e.message),
+    onSettled: () => setHentetId(null),
+  });
+
+  return (
+    <Modal open onClose={onLukk} title={t("maler.firmaarkiv.tittel")} className="max-w-lg">
+      <p className="mb-3 text-sm text-gray-600">{t("maler.firmaarkiv.beskrivelse")}</p>
+      {feil && <p className="mb-3 text-sm text-red-600">{feil}</p>}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Spinner />
+        </div>
+      ) : !firmamaler || firmamaler.length === 0 ? (
+        <p className="py-6 text-center text-sm text-gray-500">
+          {t("maler.firmaarkiv.ingen")}
+        </p>
+      ) : (
+        <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
+          {firmamaler.map((fm) => (
+            <li
+              key={fm.id}
+              className="flex items-center justify-between rounded border border-gray-100 px-3 py-2"
+            >
+              <span className="text-sm text-gray-700">
+                {fm.name}
+                {fm.prefix && <span className="ml-1.5 text-gray-400">{fm.prefix}</span>}
+                <span className="ml-1.5 text-xs text-gray-400">
+                  {t("maler.firmaarkiv.punkter", { antall: fm._count.objects })}
+                </span>
+              </span>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setHentetId(fm.id);
+                  setFeil(null);
+                  kopierMutation.mutate({ organizationTemplateId: fm.id, projectId });
+                }}
+                disabled={kopierMutation.isPending && hentetId === fm.id}
+              >
+                {kopierMutation.isPending && hentetId === fm.id
+                  ? t("maler.firmaarkiv.henter")
+                  : t("maler.firmaarkiv.hent")}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-4 flex justify-end">
+        <Button variant="secondary" onClick={onLukk}>
+          {t("handling.lukk")}
+        </Button>
+      </div>
+    </Modal>
   );
 }
