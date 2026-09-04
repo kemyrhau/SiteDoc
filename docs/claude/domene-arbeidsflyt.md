@@ -618,22 +618,59 @@ Det er koden som ikke oppfyller intensjonen, ikke hukommelsen som svikter.
 
 **Slette betyr HARD sletting** (Kenneth 04.09): papirkurv i 90 dager, deretter borte.
 
-#### Hvorfor dette ikke bare er en preferanse — lovfunn 2026-09-04
+#### Begrunnelsen — og en ansvarsgrense som må stå tydelig
 
-Cowork søkte etter oppbevaringskrav. **Ingen generell frist finnes** for HMS-avvik;
-internkontrollforskriften krever dokumentasjon *«i den form og det omfang som er nødvendig»*.
-Men tre konkrete krav treffer:
+**Hovedgrunnen er sporbarhet, ikke lovkrav:** et dokument som er *sendt*, har en annen part sett
+og handlet på. Å slette det fjerner noe mottakeren forholdt seg til. Et kvalitetssystem der
+sendte dokumenter kan forsvinne, har svakere bevisverdi — uavhengig av hvilken frist som gjelder.
 
-- **Personskader skal registreres**, uansett sykefravær, og registeret skal være **tilgjengelig
-  for Arbeidstilsynet, verneombud, BHT og AMU** ([Arbeidstilsynet](https://www.arbeidstilsynet.no/hms/roller-i-hms-arbeidet/arbeidsgiver/registrere-skader-og-sykdom/))
-- **Yrkesskade meldes NAV inntil 1 år** etter ulykken
-- **Eksponeringsregister: 40–60 år**, minst 60 år etter endt eksponering ([forskrift om utførelse av arbeid kap. 31](https://lovdata.no/dokument/LTI/forskrift/2011-12-06-1357/KAPITTEL_5-1))
+🔴 **ANSVARSGRENSE (Kenneth 2026-09-04): eksponeringsregister er BEDRIFTENS ansvar, ikke
+SiteDocs.**
 
-🔴 **90 dagers hard sletting er kortere enn alle tre.** Dokumenterer en RUH eksponering, er
-avstanden 90 dager mot 60 år.
+> **Kenneth:** *«Eksponeringsregister krever 40–60 år → dette skal være bedriftens ansvar.»*
 
-⚠️ **Ikke juridisk rådgivning** — fristene bør bekreftes av noen med fagansvar før SiteDoc selges
-inn som kvalitetssystem. Men retningen er entydig uavhengig av presisjonen.
+Cowork fant 04.09 at eksponeringsregister krever **40–60 år**
+([forskrift om utførelse av arbeid kap. 31](https://lovdata.no/dokument/LTI/forskrift/2011-12-06-1357/KAPITTEL_5-1))
+og brukte det som argument for sletteregelen. **Det var å strekke det for langt.** SiteDoc er et
+rapport- og kvalitetssystem, ikke et eksponeringsregister. Kravet hviler på bedriften, i deres
+eget register.
+
+⚠️ **Hvorfor grensen må stå skrevet:** et argument som overdriver hva systemet må oppfylle, blir
+brukt til å love kunder noe vi ikke leverer — og til å presse fram feil prioriteringer senere.
+**SiteDoc lover sporbarhet på dokumentene som ligger her. Ikke lovpålagt langtidsarkiv.**
+
+**Det som likevel er verdt å vite** (kontekst, ikke krav mot SiteDoc): personskader skal
+registreres uansett sykefravær, og registeret skal være tilgjengelig for Arbeidstilsynet,
+verneombud, BHT og AMU ([Arbeidstilsynet](https://www.arbeidstilsynet.no/hms/roller-i-hms-arbeidet/arbeidsgiver/registrere-skader-og-sykdom/)).
+Yrkesskade meldes NAV inntil 1 år etter ulykken. Internkontrollforskriften har **ingen tallfestet
+frist** — dokumentasjon kreves *«i den form og det omfang som er nødvendig»*.
+
+⚠️ **Ikke juridisk rådgivning.** Skal SiteDoc selges inn som kvalitetssystem, må ansvarsgrensen
+mot kundens egne plikter være avklart av noen med fagansvar — ikke av oss.
+
+#### 🔴 PRODUKTKRAV: SiteDoc skal OPPLYSE om grensen, ikke bare respektere den
+
+> **Kenneth 2026-09-04:** *«SiteDoc må selvsagt opplyse bedriften om deres ansvar og hva SiteDoc
+> leverer.»*
+
+Ansvarsgrensen over er ikke bare en intern regel for hvordan vi argumenterer. **Kunden skal få
+vite den, i produktet.** En bedrift som tror SiteDoc holder deres lovpålagte arkiv, oppdager det
+først den dagen noen ber om dokumentasjonen.
+
+**To ting som skal formidles, og de er forskjellige:**
+
+| | Innhold |
+|---|---|
+| **Hva SiteDoc leverer** | Dokumentene som registreres her, med sporbarhet: hvem gjorde hva, når, og hva som ble sendt til hvem. Sendte oppgaver og HMS-dokumenter består (vedtaket over) |
+| **Hva bedriften selv har ansvar for** | Egne lovpålagte registre og oppbevaringsfrister — eksponeringsregister (40–60 år), personskaderegister, meldinger til NAV og Arbeidstilsynet |
+
+🔴 **Åpent — fabels domene, ingen ordre skrevet:** *hvor* dette står. Kandidater: firma-onboarding
+(ON-sporet, levert 04.09), hjelpetekst på HMS-flaten, egen side under firmaoppsett, eller
+vilkårene. **Feil sted er like ille som ingen tekst** — en ansvarsgrense begravd i et vilkårsdokument
+ingen leser, er ikke opplysning.
+
+⚠️ **Teksten skal ikke skrives av cowork eller en kodeagent.** Den grenser mot juridisk ansvar, og
+formuleringen avgjør hva kunden med rette kan forvente. Fabel eier den; Kenneth gater den.
 
 #### ⚠️ Åpent, ikke vedtatt: mangler vi «annuller» ved siden av «slett»?
 
