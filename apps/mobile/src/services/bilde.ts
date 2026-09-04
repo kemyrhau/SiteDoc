@@ -164,28 +164,73 @@ export async function taBilde(gpsAktivert = true): Promise<BildeResultat | null>
   };
 }
 
-export async function velgBilde(gpsAktivert = true): Promise<BildeResultat | null> {
+/**
+ * Velg flere bilder fra galleriet i ETT grep. `orderedSelection: true` gir trykk-
+ * rekkefølgen (iOS) i stedet for bibliotekets rekkefølge — slik at `bildeNr` følger
+ * rekkefølgen brukeren trykker bildene i, ikke opptakstidspunktet.
+ *
+ * `maksAntall` er selectionLimit (10 som default — ubegrenset valg over mobilnett
+ * fyller opplastingskøen). GPS hentes ÉN gang og settes likt på alle (dagens semantikk:
+ * posisjon ved valg, ikke ved opptak). Returnerer array i assets-rekkefølgen, som ER
+ * trykk-rekkefølgen når orderedSelection er satt — output-indeks = input-indeks.
+ *
+ * Android-forbehold: `orderedSelection` er dokumentert iOS-only. På Android kan Photo
+ * Picker returnere bibliotek-rekkefølge — ikke verifisert her.
+ */
+export async function velgBilder(
+  maksAntall = 10,
+  gpsAktivert = true,
+  // Fremdrift per ferdig-komprimert bilde — lar UI vise «Behandler bilde i/N»
+  // gjennom hele den sekvensielle jobben (10 bilder × ~7 native kall tar tid).
+  onFremdrift?: (ferdig: number, total: number) => void,
+): Promise<BildeResultat[]> {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== "granted") return null;
+  if (status !== "granted") return [];
 
   const resultat = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     quality: 1,
     allowsEditing: false,
+    allowsMultipleSelection: true,
+    orderedSelection: true,
+    selectionLimit: maksAntall,
   });
 
-  if (resultat.canceled || !resultat.assets[0]) return null;
+  if (resultat.canceled || resultat.assets.length === 0) return [];
 
-  const komprimert = await komprimer(resultat.assets[0].uri);
+  // GPS: hent ÉN gang, ikke N kall i løkke.
   let gps: { lat: number; lng: number } | null = null;
   if (gpsAktivert) {
     gps = await hentGps();
   }
 
-  return {
-    uri: komprimert.uri,
-    filstorrelse: komprimert.filstorrelse,
-    gpsLat: gps?.lat,
-    gpsLng: gps?.lng,
-  };
+  // Sekvensiell komprimering med per-bilde-isolasjon — IKKE Promise.all.
+  // Promise.all var alt-eller-intet: ett bilde som feiler (eller minnespress fra
+  // N × ~7 native ImageManipulator-kall samtidig) forkastet HELE batchen. Nå
+  // hoppes et feilende bilde over, resten overlever. Rekkefølge bevart.
+  const resultater: BildeResultat[] = [];
+  for (let i = 0; i < resultat.assets.length; i++) {
+    try {
+      const komprimert = await komprimer(resultat.assets[i]!.uri);
+      resultater.push({
+        uri: komprimert.uri,
+        filstorrelse: komprimert.filstorrelse,
+        gpsLat: gps?.lat,
+        gpsLng: gps?.lng,
+      });
+    } catch (feil) {
+      console.warn(
+        `[BILDE] Komprimering feilet for bilde ${i + 1}/${resultat.assets.length}, hopper over:`,
+        feil instanceof Error ? feil.message : feil,
+      );
+    }
+    onFremdrift?.(i + 1, resultat.assets.length);
+  }
+
+  return resultater;
+}
+
+/** Tynn wrapper — ett bilde (TilleggSeksjon/UtleggSeksjon: ett bilde per utlegg). */
+export async function velgBilde(gpsAktivert = true): Promise<BildeResultat | null> {
+  return (await velgBilder(1, gpsAktivert))[0] ?? null;
 }

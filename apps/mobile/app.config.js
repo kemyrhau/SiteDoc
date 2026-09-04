@@ -37,9 +37,32 @@ module.exports = ({ config }) => {
     }
   }
 
+  // eas.projectId bæres videre fra app.json (extra.eas.projectId) — updates-URL
+  // og fingerprint-utledning krever den.
+  const projectId = config.extra?.eas?.projectId;
+
   return {
     ...config,
     name: erTest ? "SiteDoc TEST" : config.name,
+
+    // --- OTA-oppdateringer (expo-updates) ---
+    // Lar JS-fikser nå telefonen uten nytt binærbygg. Native laget røres ikke.
+    updates: {
+      ...config.updates,
+      url: `https://u.expo.dev/${projectId}`,
+      // Offline-first er hele premisset for byggeplassbruk: start ALLTID
+      // umiddelbart fra cachet bundle, hent en ev. oppdatering i bakgrunnen.
+      // Ingen nett → appen starter som før, uten forsinkelse eller feilmelding.
+      fallbackToCacheTimeout: 0,
+      checkAutomatically: "ON_LOAD",
+    },
+    // fingerprint-policy: runtimeVersion utledes av det NATIVE laget (moduler,
+    // native config). En JS-oppdatering kan derfor aldri havne på en binær med
+    // andre native moduler — mismatch gir ingen oppdatering, ikke en krasj.
+    // `appVersion` ville tillatt nettopp det: appen er på 1.0.0 og har vært det
+    // gjennom 51 bygg med skiftende native innhold. Kanal (per eas.json-profil)
+    // holder preview-oppdateringer unna produksjonsbygg.
+    runtimeVersion: { policy: "fingerprint" },
     ios: {
       ...config.ios,
       bundleIdentifier: erTest

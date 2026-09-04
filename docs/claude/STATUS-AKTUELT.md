@@ -21,8 +21,8 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
-| **kontrollplan** | 🟢 **PLAN** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | Ledig. Neste plan-punkt ikke valgt — kandidater: masterplan pkt 2 (REG fase 3) eller `timer-gps-prosjekt-utredning` (reisetid, A.Markussen-frist september) |
-| **dokgen** | 🟡 **FUNN** | `SiteDoc-dokgen` | Fem merget 01.09, sist `d394bdde` (kolonnevelger + tabellbredder) | **`relay/inbox-timerrapport-flate.md`** — branch `feat/timerrapport-flate`. Fem funn fra Kenneths gate: velger nåbar fra tabellen · innholdsbevisste bredder · maskinlinje slås sammen når `utleieEnhet="time"` · disabled-knapper uten forklaring · «Eksporter uten å lagre» |
+| **kontrollplan** | 🔴 **FUNN (plan-sporet avbrutt)** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | **`relay/inbox-mobil-byggeplasskontekst.md`** — branch `fix/mobil-byggeplasskontekst`. Funn A/B/D fra bygg 50: chip-kilden av timer-cachen · tegninger filtreres på byggeplass + søk · endringslogg lukket som standard. **Før neste EAS-bygg** |
+| **dokgen** | 🔴 **FUNN** | `SiteDoc-dokgen` | Fem merget 01.09, sist `d394bdde` (kolonnevelger + tabellbredder) | **`relay/inbox-mobil-vedlegg-pdf.md`** — branch `fix/mobil-vedlegg-pdf`. Funn C/E fra bygg 50: bilder som finnes på server vises ikke i raden · ingen PDF-forhåndsvisning før sending. **Før neste EAS-bygg.** ⏸️ `inbox-timerrapport-flate.md` satt på vent (web, haster ikke mot byggkvoten) |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
 
@@ -30,6 +30,58 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🔴 **Kenneth 2026-09-03: «fiks alle de feil jeg meldte inn før nytt EAS-bygg → #1-6.»**
+Seks funn fra bygg 50. **Byggkvoten gater rekkefølgen** — vi bruker ikke ett av ~15
+månedlige iOS-bygg på et halvt sett. To agenter i parallell, ett bygg når begge er merget.
+
+| Funn (bygg 50, 2026-09-03) | Alvorlighet | Status |
+|---|---|---|
+✅ **ALLE FEM ER PÅ DEVELOP** (`dc454d22`). A/B/D `f9ea2255` (kontrollplan) · C/E `da4d3035` (dokgen) ·
+safearea-fiks `dc454d22`. Venter på simulator-røyklisten før EAS-bygg 51.
+
+🔴 **Prosessfunn samme dag — lint er ikke i regel 10.** Bygg 50-E introduserte en `SafeAreaView`-import
+som lint-regelen fra 31.08 forbyr eksplisitt («0 padding inne i `<Modal>`»). Gaten kjører `web build` +
+`mobile typecheck`, **ikke `pnpm lint`** — så regelen fantes, var riktig, og fanget ingenting.
+Lukk/del-knappene i PDF-forhåndsvisningen lå under Dynamic Island. Fanget av dokgen som «preeksisterende
+støy», omklassifisert av cowork etter å ha lest regelmeldingen. **Samme mønster som `pnpm test`-fella i
+august: en gate ingen har målt er en påstand.** Eget punkt: lint inn i regel 10.
+
+| **#1** Bilder tatt tidligere vises ikke i rapportobjekt-raden — ser ut som datatap | 🔴 blokkerer | ✅ Ordre C → dokgen, merget `da4d3035`. Additiv `settVedleggUrl` + sletting gatet på server ELLER SQLite. ⚠️ Krever **prod-deploy** for full effekt hos testerne |
+| **#2** Ingen PDF-kontroll før sending (finnes, men kun som iOS share sheet fra ett ikon) | 🔴 for dette bygget | ✅ «Forhåndsvis PDF» rett over Send-knappen, WebView i appen. Merget `da4d3035` + insett-fiks `dc454d22` |
+| **#3** Endringsloggen står åpen i UI (mobil **og** web) og viser rå UUID-er | 🟡 skjemmer | Ordre D → **kontrollplan**. 🔴 **Loggen BEVARES** — skjules bak knapp, lukket som standard, på begge flater (Kenneth 03.09). UUID-visningen er eget funn: mobil bruker allerede delt `ekspanderEndring`, så det er kolonne-oppslaget som bommer |
+| **#4** Tegningslista ignorerer valgt byggeplass — kaos ved 30-40 tegninger | 🔴 blokkerer | Ordre B → **kontrollplan** |
+| **#5** Byggeplass-velgeren usynlig: chippen leser **timer-modulens** cache (`ByggeplassChip.tsx:26`, `:44`) | 🔴 blokkerer | Ordre A → **kontrollplan** |
+| **#6** Bekreftet at enheten kjører bygg 50 (`da0f018`) | — | Ingen feil |
+
+✅ **ALLE SEKS LUKKET OG SIMULATOR-VERIFISERT 2026-09-03** — develop `79540337`, test-API `dc454d22`.
+Røyklisten dekket A/B/D/E på `da4d3035`, C og miniatyr-fiksen på `451cbb3a`.
+
+🔴 **Simulatoren gjorde noe vi skal gjenta: den lette etter BILDET, ikke etter fravær av feilmelding.**
+Miniatyr-fiksen bygger den lokale stien av vedleggets filnavn; hadde navnet ikke matchet fila på disk,
+ville den falt stille tilbake til gammel oppførsel — grønt uten å være en fiks. Ordren ba eksplisitt om
+å se etter det positive beviset. **Formen bør inn i alle verifiseringsordrer:** si hva som skal SEES,
+ikke hva som skal være borte.
+
+🟡 **Åpent funn fra samme runde:** chippen sier «Viser kun denne byggeplassen», men `sjekkliste.ts:185`
+filtrerer **mykt** (`OR: byggeplassId = null`) — dokumenter uten byggeplass blir alltid med, så lista
+kan se uendret ut. Tegninger filtrerer hardt. Filteret er sannsynligvis riktig; teksten er det ikke.
+Ordre etter bygg 51.
+
+> 🔴 **Kenneths kritikk av arbeidsformen, 2026-09-03 — skal stå:**
+> *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass, så må man erkjenne at
+> vi endret ikke på riktig plass når enkel logikk ikke fører til målet.»*
+>
+> Cowork svarte først at chippen fantes på fem skjermer og at Kenneth hadde åpnet feil kontroll.
+> **Målingen ga ham rett:** chippen returnerer `null` uten feilmelding når timer-cachen er tom.
+> **Akseptkriteriet som følger:** en runde er ikke levert før noen som *ikke vet hva som er
+> endret* kan finne endringen. En komponent som finnes i koden er ikke en endring brukeren har fått.
+>
+> **Og modellen han beskrev — velg prosjekt + byggeplass på hjem, alt nedstrøms følger — er
+> allerede appens modell.** Ti skjermer sender `byggeplassId` fra `ByggeplassKontekst`.
+> Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
+
+### Eldre feltfunn
 
 | Funn | Alvorlighet | Status |
 |---|---|---|
@@ -47,6 +99,27 @@ ineffektiv utvikling.»* Åtte test-deployer og to prod-releaser på én dag, fl
 tofils-endringer. **Ny form: brancher merges til develop løpende** (så de ikke råtner — vi så
 i dag hva som skjer når 20 innslag blir stående), **men test-deploy skjer når det finnes et
 sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
+
+✅ **PROD À JOUR 2026-09-02 21:11** — **`af49823f`** (132 commits, 175 filer, +10124/−1272).
+Én migrering: `20260830120000_registrering_fase2_prosjekttilgang` (rent additiv, to `ADD COLUMN`).
+De tre andre db-pakkene: «No pending». Migreringsgaten verifiserte `sitedoc`, ikke `sitedoc_test`.
+
+**Verifisert som innlogget bruker på A.Markussen-data:** eksisterende sjekklister rendrer uten
+«Felttype ikke støttet» (legacy-vernet for `location` holder) · nytt prosjekt fikk **ingen**
+automatiske medlemmer under default `manuell` · endringslogg og PDF-tidsstempler stemmer med
+veggklokka — **både formatereren og de lagrede øyeblikkene er riktige**, den fryktede
+dobbeltforskyvningen finnes ikke.
+
+📱 ✅ **TestFlight-bygg #50 ER UTE** (`28f117a8`, commit `da0f0181`, 02.09 23:43 → TestFlight 03.09).
+Syv mobil-runder, **alle verifisert på simulator FØR bygget** — første gang
+[kvalitetssikringsplanens](kvalitetssikring-plan.md) lag 2 fungerte som tenkt.
+Se [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).
+
+**Hva testerne er bedt om å se på:** tegningsminne + repeater-arv (målt 7→4 og 5→0 trykk) ·
+«Hele prosjektet»-utveien i byggeplass-chip · språk pl/lt/sq med HMS-kategoriene.
+
+⚠️ **Foreldet linje under — tavla sa `ba234fd1` mens prod faktisk var `3a2f7dc3` (29.08).
+En prod-deploy ble aldri ført.**
 
 ✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
@@ -444,6 +517,43 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
+
+### 🟡 Kø-robusthet — opplastingskøen frøs i stillhet i 18 min (`fix/mobil-batch-opplasting`, PÅ BRANCH — venter gate, IKKE merget)
+
+**Avdekket av galleri-flervalg, men er en kø-robusthetssak, ikke en flervalg-sak.** Kenneth batchet 6 bilder i felt; de kom opp i sjekklista og til slutt på server — men det tok 18 min, og INGENTING sa at de var underveis. Målt årsak: `uploadAsync` hadde **ingen timeout**, så en hengende opplasting på tregt byggeplass-nett holdt `prosessererRef` true; 15s-sikkerhetsnettet er guardet på `!prosessererRef.current` og var dermed dødt. Bare reload (som nullstiller `laster_opp`→`venter` via `migreringer.ts:109` + fersk mount) løsnet den. Køen drenerte ikke av seg selv.
+
+**Levert:**
+- **Selv-drenering:** timeout (60s) på opplasting (`opplasting.ts`) + klassifisert feil (`OpplastingFeil` nett/hard). Nett/timeout/5xx retrier med backoff UTEN å telle mot `MAKS_FORSOK` (aldri permanent oppgitt på tregt nett); kun hard 4xx teller mot taket. Head-of-line-fri: per-oppføring backoff-kart, en feilende hopper bakover mens andre slipper fram.
+- **B — ingen stille sletting:** «fil mangler» → `console.warn`, ikke `log`.
+- **D — synlighet:** felt-badge «N vedlegg lastes opp» / «prøver fortsatt» (peker på hvilken rad), + persistent banner ved PDF/Send «kommer med når køen er ferdig». Køen eksponerer `feilendeVedleggIder` + `ventendePerDokument`.
+- **A (hygiene, IKKE årsaken):** unikt lagringsnavn `IMG_<ts>_<id8>.jpg` mot filnavn-kollisjon i rask løkke.
+- **C:** sekvensiell komprimering (dreper ~42-samtidige-native-kall-spiken) + per-bilde-isolasjon + catch + fremdrift.
+- **E:** append-race herdet — `leggTilVedleggIRad` skilt ut til `@sitedoc/shared` (testbar der batch-veien ikke kunne testes før), RepeaterObjekt appender funksjonelt mot forrige state.
+
+**Eget funn ført til BACKLOG:** `bilde.opprettFor*` er ikke idempotent (blind `image.create`, ingen `vedleggId`) → tapt-svar-retry gir duplikat `Image`-rad. Pre-eksisterende; krever DB-migrering + Kenneths godkjenning (med telling FØR unik constraint).
+
+**Gate grønn:** shared 621/621 (inkl. batch-integrasjonstest på ekte `{_radId,felter}`-form), pdf, mobil typecheck + lint 0, web build.
+
+### 🟡 expo-updates — JS-fikser til telefonen uten nytt bygg (`feat/expo-updates`, `e498bb14`, PÅ BRANCH — venter gate, IKKE merget)
+
+**Bakgrunn (målt):** 3. september kostet fem rene JavaScript-funn tre av ~15 månedlige iOS-bygg.
+Ingen trengte en ny binær — bare en vei til telefonen (bygg 51 manglet en upushet fiks, preview-bygget
+testet en fiks som aldri var merget). Ordre `relay/inbox-expo-updates.md`, gatet av cowork mot kode.
+
+**Levert (`e498bb14`):** `expo-updates ~29.0.20` (SDK 54-matchet, via `expo install`) ·
+`runtimeVersion: fingerprint`-policy (ikke `appVersion` — JS kan aldri lande på binær med annet native
+lag) · `updates.fallbackToCacheTimeout: 0` + `checkAutomatically: ON_LOAD` (offline-first: starter alltid
+fra cachet bundle, henter i bakgrunnen) · én kanal pr. `eas.json`-profil · `VersjonsFooter` viser kjørende
+`Updates.updateId`. Datalaget urørt (bundler i egen katalog, ikke `documentDirectory`).
+
+**Gate grønn:** web build · mobil typecheck · mobil lint (0 errors). Kenneth verifiserte fingerprint,
+kanaler, offline-oppstart og updateId-visning mot kode 2026-09-03.
+
+**Grensen som avgjør (fra `eas-build-veileder.md § OTA`):** alt som rører native laget (native modul,
+`plugins`/`permissions`/`bundleIdentifier`/Info.plist, SDK-bump) krever nytt bygg — fingerprinten endres
+og OTA-en leveres ikke. Kan OTA-es: ren JS/TS, komponenter, logikk, styling, i18n. **Trer i kraft først
+ved ett nytt bygg pr. kanal** — bygg 51 kan ikke motta oppdateringer. Første `eas update` = Kenneths
+beslutning.
 
 ### 🔴 PROD-FELLE lukket 31.08 (`73b30e71`) — tegningsposisjon-modalen kunne ikke lukkes
 

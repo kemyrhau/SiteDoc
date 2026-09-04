@@ -2,19 +2,25 @@ import { useState, useCallback, useRef } from "react";
 import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, KeyboardAvoidingView, Platform } from "react-native";
 import { ModalFlate } from "../ModalFlate";
 import { useTranslation } from "react-i18next";
-import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight, ImageOff } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
-import { komprimer, hentGps, velgBilde } from "../../services/bilde";
+import { komprimer, hentGps, velgBilder } from "../../services/bilde";
 import { lastOppFil } from "../../services/opplasting";
-import { lagreLokaltBilde, hentFilstorrelse } from "../../services/lokalBilde";
+import { lagreLokaltBilde, hentFilstorrelse, lokalBildeSti } from "../../services/lokalBilde";
 import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
 import { BildeAnnotering } from "../BildeAnnotering";
 import { KameraModal } from "../KameraModal";
 import { TegningsSkjermbilde } from "../TegningsSkjermbilde";
 import { useProsjekt } from "../../kontekst/ProsjektKontekst";
 import { AUTH_CONFIG } from "../../config/auth";
+
+// Et vedlegg med lokal URL er ikke lastet opp ennå (køen har ikke gitt det en
+// server-URL). Speiler `erLokalUrl` i useSjekklisteSkjema.
+function erLokalUrl(u: unknown): boolean {
+  return typeof u === "string" && (u.startsWith("file://") || u.startsWith("/var/"));
+}
 
 interface FeltDokumentasjonProps {
   kommentar: string;
@@ -46,15 +52,36 @@ export function FeltDokumentasjon({
   skjulKommentar,
 }: FeltDokumentasjonProps) {
   const [lasterOpp, settLasterOpp] = useState(false);
+  // Fremdrift for galleri-batch (sekvensiell komprimering kan ta tid på enhet) —
+  // så «Behandler bilde i/N» står synlig hele veien, ikke bare ved første.
+  const [fremdrift, settFremdrift] = useState<{ ferdig: number; total: number } | null>(null);
   const [annoteringBilde, settAnnoteringBilde] = useState<string | null>(null);
   const [visTegningsModal, settVisTegningsModal] = useState(false);
   const [visKamera, settVisKamera] = useState(false);
   const gpsPromiseRef = useRef<Promise<{ lat: number; lng: number } | null> | null>(null);
   const [valgtVedleggId, settValgtVedleggId] = useState<string | null>(null);
+  // Funn C (req 3): bilder som ikke lar seg laste (død file://-sti etter
+  // reinstall, eller 401/404) skal vise «finnes, kunne ikke lastes» — aldri en
+  // tom ramme som leses som tapt arbeid.
+  const [feiletVedlegg, settFeiletVedlegg] = useState<Set<string>>(new Set());
+  const markerFeilet = useCallback((vedleggId: string) => {
+    settFeiletVedlegg((prev) => {
+      if (prev.has(vedleggId)) return prev;
+      const ny = new Set(prev);
+      ny.add(vedleggId);
+      return ny;
+    });
+  }, []);
   const [visKommentarModal, settVisKommentarModal] = useState(false);
   const [lokalKommentar, settLokalKommentar] = useState("");
   const { valgtProsjektId } = useProsjekt();
-  const { leggIKo } = useOpplastingsKo();
+  const { leggIKo, feilendeVedleggIder } = useOpplastingsKo();
+
+  // Felt-badge (D): vedlegg med lokal URL er ikke lastet opp ennå → kommer ikke
+  // med i arkiv/PDF før køen har levert. Peker på HVILKEN rad som mangler noe.
+  const lokaleVedlegg = vedlegg.filter((v) => erLokalUrl(v.url));
+  const antallIkkeLastet = lokaleVedlegg.length;
+  const noenFeilerVedvarende = lokaleVedlegg.some((v) => feilendeVedleggIder.has(v.id));
   const { t } = useTranslation();
 
   // Refs for callbacks — stabiliserer håndterBilde/håndterKameraBilde slik at
@@ -67,7 +94,12 @@ export function FeltDokumentasjon({
   const håndterBilde = useCallback(async (bildeUri: string, gpsLat?: number, gpsLng?: number) => {
     try {
       console.log("[BILDE] håndterBilde kalt, sjekklisteId:", sjekklisteId, "oppgaveId:", oppgaveIdForKo, "objektId:", objektId);
-      const filnavn = `IMG_${Date.now()}.jpg`;
+      // Unikt lagringsnavn per bilde (vedleggId, ikke bare Date.now()): i en rask
+      // batch-løkke kan to iterasjoner treffe samme millisekund → samme lokalSti →
+      // filene overskriver hverandre. Hygiene mot data-tap; visningsnavn er et eget
+      // spørsmål (BACKLOG: lagringsnavn UUID vs. visningsnavn doknr_rad_bildenr).
+      const vedleggId = randomUUID();
+      const filnavn = `IMG_${Date.now()}_${vedleggId.slice(0, 8)}.jpg`;
 
       // 1. Lagre lokalt (instant, ~5ms)
       const lokalSti = await lagreLokaltBilde(bildeUri, filnavn);
@@ -82,7 +114,6 @@ export function FeltDokumentasjon({
       });
 
       // 4. Legg til vedlegg med LOKAL URI (vises umiddelbart i filmrullen)
-      const vedleggId = randomUUID();
       onLeggTilVedleggRef.current({
         id: vedleggId,
         type: "bilde",
@@ -170,15 +201,26 @@ export function FeltDokumentasjon({
     håndterBilde(bildeUri);
   }, [håndterBilde]);
 
-  // Galleri-kobling: velgBilde komprimerer + henter GPS internt og returnerer et
-  // ferdig BildeResultat — mates rett inn i håndterBilde (ingen dobbel-komprimering).
+  // Galleri-kobling: velgBilder komprimerer + henter GPS internt og returnerer ferdige
+  // BildeResultat i trykk-rekkefølge (orderedSelection) — mates rett inn i håndterBilde
+  // (ingen dobbel-komprimering). Sekvensielt (await i løkke), ikke parallelt: hvert
+  // håndterBilde tildeler nesteBildeNr — parallelle kall ville race om nummeret.
   const håndterVelgGalleri = useCallback(async () => {
     settLasterOpp(true);
     try {
-      const res = await velgBilde();
-      if (res) await håndterBilde(res.uri, res.gpsLat, res.gpsLng);
+      const resultater = await velgBilder(10, true, (ferdig, total) =>
+        settFremdrift({ ferdig, total }),
+      );
+      for (const res of resultater) {
+        await håndterBilde(res.uri, res.gpsLat, res.gpsLng);
+      }
+    } catch (feil) {
+      // En batch-feil skal si fra, ikke svelges stille (før fanget finally kun
+      // spinneren, og en kastet velgBilder forsvant uten spor).
+      console.error("[BILDE] Galleri-batch feilet:", feil instanceof Error ? feil.message : feil);
     } finally {
       settLasterOpp(false);
+      settFremdrift(null);
     }
   }, [håndterBilde]);
 
@@ -307,12 +349,20 @@ export function FeltDokumentasjon({
         >
           {vedlegg.map((v) => {
             const erValgt = v.id === valgtVedleggId;
+            // Rå privat server-URL (uten sig=) 401-er i visning: opplastingen er
+            // ferdig, men server-data med signert URL er ikke refetchet ennå. Vis
+            // lokalfila i mellomtiden — den lever til persistering er bekreftet
+            // (funn C). KUN visning: v.url (det som persisteres) er urørt.
+            const erRaaPrivat =
+              v.url.startsWith("/uploads/privat/") && !v.url.includes("sig=");
             // Lokal fil → vis direkte, server-relativ → full URL
             const bildeUrl = v.url.startsWith("file://") || v.url.startsWith("/var/")
               ? v.url
-              : v.url.startsWith("/")
-                ? `${AUTH_CONFIG.apiUrl}${v.url}`
-                : v.url;
+              : erRaaPrivat
+                ? lokalBildeSti(v.filnavn)
+                : v.url.startsWith("/")
+                  ? `${AUTH_CONFIG.apiUrl}${v.url}`
+                  : v.url;
             return (
               <Pressable
                 key={v.id}
@@ -321,7 +371,19 @@ export function FeltDokumentasjon({
                   settValgtVedleggId(erValgt ? null : v.id);
                 }}
               >
-                {v.type === "bilde" ? (
+                {v.type === "bilde" && feiletVedlegg.has(v.id) ? (
+                  // Req 3: vedlegget finnes, men URL-en er død — vis det tydelig.
+                  <View
+                    className={`h-[72px] w-[72px] items-center justify-center rounded-lg bg-gray-100 px-1 ${
+                      erValgt ? "border-2 border-blue-500" : "border border-gray-300"
+                    }`}
+                  >
+                    <ImageOff size={20} color="#9ca3af" />
+                    <Text className="mt-1 text-center text-[9px] text-gray-500" numberOfLines={2}>
+                      {t("felt.vedleggKunneIkkeLastes")}
+                    </Text>
+                  </View>
+                ) : v.type === "bilde" ? (
                   <View className="h-[72px] w-[72px]">
                     <Image
                       source={{ uri: bildeUrl }}
@@ -329,6 +391,7 @@ export function FeltDokumentasjon({
                         erValgt ? "border-2 border-blue-500" : ""
                       }`}
                       resizeMode="cover"
+                      onError={() => markerFeilet(v.id)}
                     />
                     {/* Løpende bildenummer — refererbart i tekst («se bilde 07») */}
                     {v.bildeNr != null && (
@@ -402,7 +465,27 @@ export function FeltDokumentasjon({
       )}
 
       {lasterOpp && (
-        <Text className="text-center text-xs text-gray-400">{t("felt.lasterOppFil")}</Text>
+        <Text className="text-center text-xs text-gray-400">
+          {fremdrift
+            ? t("felt.behandlerBilde", { ferdig: fremdrift.ferdig, total: fremdrift.total })
+            : t("felt.lasterOppFil")}
+        </Text>
+      )}
+
+      {/* Felt-badge (D): vedlegg som ennå ligger lokalt kommer ikke med i arkiv/PDF
+          før køen har levert. Peker på hvilket felt/rad som mangler noe. */}
+      {antallIkkeLastet > 0 && !leseModus && (
+        <View
+          className={`mt-1 flex-row items-center gap-1 self-start rounded px-2 py-1 ${
+            noenFeilerVedvarende ? "bg-amber-50" : "bg-blue-50"
+          }`}
+        >
+          <Text className={`text-xs ${noenFeilerVedvarende ? "text-amber-700" : "text-blue-600"}`}>
+            {noenFeilerVedvarende
+              ? t("felt.vedleggProverFortsatt", { count: antallIkkeLastet })
+              : t("felt.vedleggLastesOpp", { count: antallIkkeLastet })}
+          </Text>
+        </View>
       )}
 
       {/* Bildeannotering modal */}

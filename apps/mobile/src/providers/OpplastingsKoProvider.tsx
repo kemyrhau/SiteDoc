@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { eq, or, and, lt } from "drizzle-orm";
+import { eq, or, and, lt, asc } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../db/database";
 import {
@@ -10,9 +10,9 @@ import {
   sheetTilleggVedleggLocal,
   sheetUtleggVedleggLocal,
 } from "../db/schema";
-import { lastOppFil } from "../services/opplasting";
+import { lastOppFil, OpplastingFeil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
-import { registrerBildeIDatabase } from "../services/bildeRegistrering";
+import { registrerBildeIDatabase, patchSjekklisteVedleggUrl } from "../services/bildeRegistrering";
 import { useNettverk } from "./NettverkProvider";
 import { AUTH_CONFIG } from "../config/auth";
 
@@ -62,6 +62,10 @@ interface OpplastingsKoKontekst {
   ventende: number;
   totalt: number;
   erAktiv: boolean;
+  // D: vedleggId-er som har feilet gjentatte ganger — UI viser «prøver fortsatt».
+  feilendeVedleggIder: Set<string>;
+  // D: antall ikke-fullførte vedlegg pr. dokument (sjekklisteId/oppgaveId).
+  ventendePerDokument: Map<string, number>;
   registrerCallback: (cb: OpplastingFullfortCallback) => () => void;
   registrerTilleggVedleggCallback: (
     cb: TilleggVedleggFullfortCallback,
@@ -76,6 +80,8 @@ const OpplastingsKoContext = createContext<OpplastingsKoKontekst>({
   ventende: 0,
   totalt: 0,
   erAktiv: false,
+  feilendeVedleggIder: new Set(),
+  ventendePerDokument: new Map(),
   registrerCallback: () => () => {},
   registrerTilleggVedleggCallback: () => () => {},
   registrerUtleggVedleggCallback: () => () => {},
@@ -86,14 +92,25 @@ export function useOpplastingsKo() {
 }
 
 const MAKS_FORSOK = 5;
+// Antall forsøk før et vedlegg regnes som «vedvarende feilende» og blir synlig i UI.
+const FEIL_TERSKEL = 3;
 
 export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   const { erPaaNettet } = useNettverk();
   const [ventende, settVentende] = useState(0);
   const [totalt, settTotalt] = useState(0);
   const [erAktiv, settErAktiv] = useState(false);
+  // vedleggId-er som har feilet gjentatte ganger (D — «prøver fortsatt»).
+  const [feilendeVedlegg, settFeilendeVedlegg] = useState<Set<string>>(new Set());
+  // Ikke-fullførte vedlegg pr. dokument (D — banner + PDF/Send-advarsel).
+  const [ventendePerDokument, settVentendePerDokument] = useState<Map<string, number>>(new Map());
   const prosessererRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Head-of-line-fri backoff: oppføring-id → tidspunkt (ms) den tidligst kan
+  // forsøkes igjen. En feilende oppføring hoppes over til ventetiden er ute, så
+  // de andre i køen slipper fram. In-memory (nullstilles ved reload — greit,
+  // reload re-forsøker uansett). Skiller nett-feil (retry uten tak) fra harde.
+  const nesteForsokRef = useRef<Map<string, number>>(new Map());
   const callbacksRef = useRef<Set<OpplastingFullfortCallback>>(new Set());
   // Funn #2: dedikert callback-sett for tillegg-vedlegg.
   const tilleggCallbacksRef = useRef<Set<TilleggVedleggFullfortCallback>>(
@@ -124,6 +141,20 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     const totaltRader = db.select().from(opplastingsKo).all();
     settVentende(ventendeRader.length);
     settTotalt(totaltRader.length);
+    // D (sentinel b): vedlegg som har feilet gjentatte ganger (nett eller hardt)
+    // skal bli SYNLIG — «prøver fortsatt», ikke telle i stillhet. Terskel = 3
+    // forsøk. Ikke-fullførte rader (venter/laster_opp/feilet) over terskelen.
+    const feilende = new Set<string>();
+    const perDokument = new Map<string, number>();
+    for (const r of ventendeRader) {
+      if ((r.forsok ?? 0) >= FEIL_TERSKEL && r.vedleggId) feilende.add(r.vedleggId);
+      // Per-dokument-teller (D): brukes til banner + PDF/Send-advarsel på
+      // dokumentnivå. Nøkkel = sjekklisteId ELLER oppgaveId.
+      const dokId = r.sjekklisteId ?? r.oppgaveId;
+      if (dokId) perDokument.set(dokId, (perDokument.get(dokId) ?? 0) + 1);
+    }
+    settFeilendeVedlegg(feilende);
+    settVentendePerDokument(perDokument);
   }, []);
 
   // Initialiser tellere ved mount
@@ -204,17 +235,21 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // Returnerer `true` hvis server-URL-en faktisk ble skrevet inn i SQLite-blobben
+  // for dette vedlegget. Kalleren gater sletting av lokalfila på dette (SQLite
+  // overlever ikke reinstall, men er den kilden visningen leser samme-install, og
+  // et `false` betyr at korreksjonen ikke landet noe sted lokalt).
   const oppdaterFeltdataVedlegg = useCallback(
-    (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", vedleggId: string, serverUrl: string) => {
+    (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", vedleggId: string, serverUrl: string): boolean => {
       const db = hentDatabase();
-      if (!db) return;
+      if (!db) return false;
 
       // Hent riktig tabell basert på dokumenttype
       const rader = dokumentType === "sjekkliste"
         ? db.select().from(sjekklisteFeltdata).where(eq(sjekklisteFeltdata.sjekklisteId, dokumentId)).all()
         : db.select().from(oppgaveFeltdata).where(eq(oppgaveFeltdata.oppgaveId, dokumentId)).all();
 
-      if (rader.length === 0) return;
+      if (rader.length === 0) return false;
 
       const rad = rader[0]!;
       try {
@@ -273,8 +308,10 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
               .run();
           }
         }
+        return endret;
       } catch (feil) {
         console.warn("Kunne ikke oppdatere feltdata-vedlegg:", feil);
+        return false;
       }
     },
     [],
@@ -295,8 +332,11 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Hent neste oppføring som er klar for opplasting
-      const nesteRader = db
+      // Kandidater: 'venter' (inkl. nett-feilede, som settes tilbake til venter)
+      // ELLER 'feilet' under taket (harde feil). Sortert på forsøk stigende, så
+      // ferske oppføringer går FØRST og en gjentatt-feilende sakker bakover
+      // (head-of-line-fri). Hent flere så vi kan hoppe over dem i backoff.
+      const kandidater = db
         .select()
         .from(opplastingsKo)
         .where(
@@ -308,17 +348,37 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             ),
           ),
         )
-        .limit(1)
+        .orderBy(asc(opplastingsKo.forsok))
+        .limit(25)
         .all();
 
-      if (nesteRader.length === 0) {
-        console.log("[KØ] Ingen oppføringer i kø");
+      const naa = Date.now();
+      const oppforing = kandidater.find(
+        (k) => (nesteForsokRef.current.get(k.id) ?? 0) <= naa,
+      );
+
+      if (!oppforing) {
+        // Ingen klar akkurat nå: enten tom kø, eller alle i backoff.
         prosessererRef.current = false;
-        settErAktiv(false);
+        settErAktiv(kandidater.length > 0);
+        if (kandidater.length > 0) {
+          const tidligste = Math.min(
+            ...kandidater.map((k) => nesteForsokRef.current.get(k.id) ?? 0),
+          );
+          const ventetid = Math.max(500, tidligste - naa);
+          console.log(`[KØ] Alle ${kandidater.length} i backoff — planlegger om ${ventetid}ms`);
+          if (timerRef.current) clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(() => {
+            prosesserNeste().catch((f) => console.error("[KØ] Backoff-retrigger feilet:", f));
+          }, ventetid);
+        } else {
+          console.log("[KØ] Ingen oppføringer i kø");
+          settErAktiv(false);
+        }
         return;
       }
-
-      const oppforing = nesteRader[0]!;
+      // Rydd backoff-markøren — den settes på nytt bare hvis dette forsøket feiler.
+      nesteForsokRef.current.delete(oppforing.id);
       console.log("[KØ] Prosesserer:", oppforing.filnavn, "status:", oppforing.status, "forsøk:", oppforing.forsok, "sti:", oppforing.lokalSti.slice(-50));
 
       // Sjekk om lokal fil finnes — ellers slett oppføringen (gammel container/avinstallert)
@@ -326,10 +386,18 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
       const filInfo = await getInfoAsync(oppforing.lokalSti);
       console.log("[KØ] Fil finnes:", filInfo.exists, oppforing.lokalSti.slice(-50));
       if (!filInfo.exists) {
-        console.log("[KØ] Sletter oppføring — fil mangler");
+        // 🔴 Aldri stille: en forkastet oppføring skal si fra (før var dette en
+        // console.log — en batch kunne forsvinne uten spor). Fila finnes ikke,
+        // så bildet er uansett tapt for denne oppføringen; vi rydder den bort.
+        console.warn(
+          "[KØ] Forkaster oppføring — lokalfil mangler:",
+          oppforing.filnavn,
+          oppforing.lokalSti.slice(-50),
+        );
         db.delete(opplastingsKo)
           .where(eq(opplastingsKo.id, oppforing.id))
           .run();
+        nesteForsokRef.current.delete(oppforing.id);
         oppdaterTellere();
         prosessererRef.current = false;
         prosesserNeste().catch((f) => console.error("[KØ] Rekursiv prosesserNeste feilet:", f));
@@ -435,10 +503,10 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         const dokumentType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;
         const dokumentId = oppforing.oppgaveId ?? oppforing.sjekklisteId ?? "";
 
-        // Oppdater vedlegg-URL i feltdata
-        oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl);
+        // Oppdater vedlegg-URL i feltdata (SQLite — samme-install-kilde)
+        const sqliteOk = oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl);
 
-        // Publiser til aktive hooks
+        // Publiser til aktive hooks (live URL-oppdatering når skjermen er montert)
         publiserFullfort(
           dokumentId,
           dokumentType,
@@ -447,8 +515,30 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           resultat.fileUrl,
         );
 
-        // Slett lokal fil
-        await slettLokaltBilde(oppforing.lokalSti);
+        // Funn C: skriv den varige URL-en til server-JSON-en direkte — også når
+        // skjermen er demontert (da når publiserFullfort aldri hooken, og
+        // korreksjonen ville blitt liggende kun i SQLite, som viskes ved
+        // reinstall). Best-effort: tåler at prod-API-et ikke har prosedyren ennå.
+        let serverOk = false;
+        if (dokumentType === "sjekkliste" && oppforing.sjekklisteId) {
+          serverOk = await patchSjekklisteVedleggUrl({
+            checklistId: oppforing.sjekklisteId,
+            objektId: oppforing.objektId,
+            vedleggId: oppforing.vedleggId,
+            url: resultat.fileUrl,
+            filnavn: resultat.fileName,
+          });
+        }
+
+        // 🔴 Slett aldri lokalfila før erstatningen er persistert et sted som
+        // overlever behovet: server (reinstall-sikkert) ELLER SQLite
+        // (samme-install). Feiler begge — behold fila, så raden fortsatt viser
+        // det lokale bildet og ingenting går tapt.
+        if (sqliteOk || serverOk) {
+          await slettLokaltBilde(oppforing.lokalSti);
+        } else {
+          console.warn("[KØ] URL ikke persistert (SQLite+server feilet) — beholder lokalfil:", oppforing.filnavn);
+        }
 
         oppdaterTellere();
 
@@ -456,28 +546,38 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         prosessererRef.current = false;
         prosesserNeste().catch((f) => console.error("[KØ] Neste etter suksess feilet:", f));
       } catch (feil) {
+        // Klassifiser: nett/timeout/5xx = forbigående (retry UTEN tak, tregt
+        // byggeplass-nett er normalen); hard 4xx = ugyldig fil/permission (teller
+        // mot taket). Ukjent → nett (tryggest: retry, ikke tap).
+        const kategori = feil instanceof OpplastingFeil ? feil.kategori : "nett";
         const forsok = (oppforing.forsok ?? 0) + 1;
         const melding = feil instanceof Error ? feil.message : "Ukjent feil";
-        console.error("[KØ] Opplasting feilet:", melding, "forsøk:", forsok);
 
-        db.update(opplastingsKo)
-          .set({
-            status: "feilet",
-            forsok,
-            feilmelding: melding,
-          })
-          .where(eq(opplastingsKo.id, oppforing.id))
-          .run();
+        // Backoff per oppføring (in-memory) — den feilede hoppes over til
+        // ventetiden er ute, køen går videre til andre imens (head-of-line-fri).
+        const ventetid = Math.min(Math.pow(2, forsok) * 1000, 30000);
+        nesteForsokRef.current.set(oppforing.id, Date.now() + ventetid);
+
+        if (kategori === "hard") {
+          console.error("[KØ] Opplasting feilet (hard):", melding, "forsøk:", forsok, "/", MAKS_FORSOK);
+          db.update(opplastingsKo)
+            .set({ status: "feilet", forsok, feilmelding: melding })
+            .where(eq(opplastingsKo.id, oppforing.id))
+            .run();
+        } else {
+          // Nett: tilbake til 'venter' (alltid re-spørrbar, aldri permanent).
+          // `forsok` vokser kun for backoff + synliggjøring av vedvarende feil (D).
+          console.warn("[KØ] Opplasting nett-feil (retry uten tak):", melding, "forsøk:", forsok);
+          db.update(opplastingsKo)
+            .set({ status: "venter", forsok, feilmelding: melding })
+            .where(eq(opplastingsKo.id, oppforing.id))
+            .run();
+        }
 
         oppdaterTellere();
-
-        // Eksponentiell backoff: min(2^forsøk * 1000, 30000)ms
-        const ventetid = Math.min(Math.pow(2, forsok) * 1000, 30000);
         prosessererRef.current = false;
-
-        timerRef.current = setTimeout(() => {
-          prosesserNeste().catch((f) => console.error("[KØ] Retry prosesserNeste feilet:", f));
-        }, ventetid);
+        // Gå til NESTE klare oppføring med en gang; den feilede er i backoff.
+        prosesserNeste().catch((f) => console.error("[KØ] Neste etter feil feilet:", f));
       }
     } catch (feil) {
       console.error("[KØ] Køprosessering feilet helt:", feil);
@@ -568,6 +668,8 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         ventende,
         totalt,
         erAktiv,
+        feilendeVedleggIder: feilendeVedlegg,
+        ventendePerDokument,
         registrerCallback,
         registrerTilleggVedleggCallback,
         registrerUtleggVedleggCallback,

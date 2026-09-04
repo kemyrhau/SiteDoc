@@ -453,6 +453,13 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     (objektId: string, oppdatering: Partial<FeltVerdi>) => {
       settFeltVerdier((prev) => {
         let oppd = oppdatering;
+        // Funksjonell verdi (updater): løs mot FORRIGE verdi. Race-fri append fra
+        // repeater — sekvensiell batch akkumulerer uansett render-timing. Brukes av
+        // RepeaterObjekt.leggTilVedlegg (delt komponent, samme sti for oppgave).
+        if (typeof oppd.verdi === "function") {
+          const forrige = prev[objektId]?.verdi;
+          oppd = { ...oppd, verdi: (oppd.verdi as (p: unknown) => unknown)(forrige) };
+        }
         // Repeater-verdi (array av rader): tildel løpende bildeNr til nye bilder i radene.
         if (Array.isArray(oppd.verdi)) {
           const nyeRader = nummererRepeaterBilder(oppd.verdi, nesteBildeNr(prev));

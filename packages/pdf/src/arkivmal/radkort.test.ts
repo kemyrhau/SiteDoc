@@ -72,11 +72,22 @@ describe("byggRadkort — mockup 2a (BEF-002)", () => {
     expect(html).toContain("Ingen rader");
   });
 
-  it("bilder hos SITT felt: 2×2-blokk m/ bildetekst «Bilde NN — filnavn · dato»", () => {
+  it("bilder hos SITT felt: 2×2-blokk m/ bildetekst «Bilde NN · dato», UTEN internt filnavn", () => {
     expect(html).toContain("ark-radkort-bildefelt");
-    expect(html).toContain("Bilde 10 — IMG_4821.jpg");
-    expect(html).toMatch(/Bilde 10 — IMG_4821\.jpg · 21\.08\.2026/); // tidssone-uavhengig dato
+    expect(html).toMatch(/Bilde 10 · 21\.08\.2026/); // null-padet løpenr + tidssone-uavhengig dato
+    // Filnavnet er internt og utgår (vedtak 2026-08-16) — skal ALDRI i PDF-en.
+    // IMG_<epoch>.jpg er kilden til «13-sifret tall»-funnet (Kenneth, bygg 51).
+    expect(html).not.toContain("IMG_4821.jpg");
+    expect(html).not.toContain(".jpg");
     expect(html).not.toMatch(/https?:\/\//);
+  });
+
+  it("løpenr null-pades til to siffer og filnavnets talldel lekker aldri", () => {
+    const rad = { txt: fv("x"), dp: markor(), calc: fv(null), nrep: fv([]) };
+    rad.txt = fv("x", "", [bilde(3, "IMG_1788458160749.jpg")]);
+    const h = byggRadkort(BEFARING, [rad], "Befaring");
+    expect(h).toContain("Bilde 03");
+    expect(h).not.toContain("1788458160749");
   });
 
   it("tom repeater → «Ingen rader registrert»", () => {

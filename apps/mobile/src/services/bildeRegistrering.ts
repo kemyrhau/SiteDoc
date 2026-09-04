@@ -125,6 +125,58 @@ export async function registrerBildeIDatabase(params: {
 }
 
 /**
+ * Funn C: patch ÉN vedlegg-URL i Checklist.data på server etter vellykket
+ * opplasting. Skrives selv når skjermen er demontert (køen kaller dette utenfor
+ * React-treet), så server-JSON-en får den varige `/uploads/privat/…`-URL-en og
+ * raden ikke blir tom ved reinstall.
+ *
+ * 🔴 Best-effort og reinstall-kritisk toleranse: PROD-API-et har ikke prosedyren
+ * før vi deployer. Et manglende endepunkt (404) eller nettfeil skal returnere
+ * `false` UTEN å kaste — kalleren gater sletting på (SQLite ELLER server), så
+ * lokalfila slettes fortsatt når SQLite tok korreksjonen. Returnerer `true` kun
+ * når serveren faktisk bekreftet skrivingen.
+ */
+export async function patchSjekklisteVedleggUrl(params: {
+  checklistId: string;
+  objektId: string;
+  vedleggId: string;
+  url: string;
+  filnavn?: string;
+}): Promise<boolean> {
+  const token = await hentSessionToken();
+  if (!token) return false;
+  try {
+    const url = `${AUTH_CONFIG.apiUrl}/trpc/sjekkliste.settVedleggUrl`;
+    const respons = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        id: params.checklistId,
+        objektId: params.objektId,
+        vedleggId: params.vedleggId,
+        url: params.url,
+        ...(params.filnavn ? { filnavn: params.filnavn } : {}),
+      }),
+    });
+    if (!respons.ok) {
+      // 404 = eldre prod-API uten prosedyren. Ikke en feil å rope om.
+      console.warn("[BILDE-REG] settVedleggUrl svarte", respons.status);
+      return false;
+    }
+    return true;
+  } catch (feil) {
+    console.warn(
+      "[BILDE-REG] settVedleggUrl nettfeil:",
+      feil instanceof Error ? feil.message : feil,
+    );
+    return false;
+  }
+}
+
+/**
  * Funn #2: slett et opplastet tillegg-vedlegg på server (best-effort, online).
  * Lokal sletting håndteres av kalleren; denne fjerner server-recorden.
  * Offline → server-raden blir kortvarig foreldreløs (akseptabel MVP-tradeoff).

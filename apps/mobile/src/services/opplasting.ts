@@ -25,6 +25,27 @@ export interface OpplastingsResultat {
  * hadde trolig vaert rammet i det stille før det. `uploadAsync` leser fila fra
  * `uri` i native-laget og er upåvirket av fetch/arkitektur.
  */
+/** Opplastings-timeout. Tregt byggeplass-nett er normalen — en hengende
+ *  opplasting skal ikke fryse køen (før dette manglet timeout helt, og en
+ *  hengende `uploadAsync` holdt `prosessererRef` true til en reload). */
+export const OPPLASTING_TIMEOUT_MS = 60_000;
+
+/**
+ * Klassifisert opplastingsfeil. `kategori: "nett"` = tregt nett / timeout / 5xx /
+ * 408 / 429 → køen retrier med backoff UTEN å telle mot forsøkstaket (aldri
+ * permanent oppgitt). `kategori: "hard"` = 4xx (ugyldig fil, permission) → teller
+ * mot taket. Ukjent → behandles som "nett" (tryggest: retry, ikke tap).
+ */
+export class OpplastingFeil extends Error {
+  constructor(
+    message: string,
+    public readonly kategori: "nett" | "hard",
+  ) {
+    super(message);
+    this.name = "OpplastingFeil";
+  }
+}
+
 export async function lastOppFil(
   uri: string,
   filnavn: string,
@@ -57,12 +78,29 @@ export async function lastOppFil(
     await FileSystem.makeDirectoryAsync(kopiKatalog, { intermediates: true });
     await FileSystem.copyAsync({ from: uri, to: opplastingsUri });
 
-    const respons = await FileSystem.uploadAsync(url, opplastingsUri, {
-      httpMethod: "POST",
-      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-      fieldName: "file",
-      mimeType,
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    // Timeout-vakt: `uploadAsync` har ingen egen timeout, så en hengende
+    // opplasting ville ellers holdt køen fryst til reload. Race-en gir opp etter
+    // OPPLASTING_TIMEOUT_MS; den underliggende opplastingen kan fortsette i
+    // bakgrunnen (kan ikke kanselleres) — køen behandler den som nett-feil og
+    // retrier. (Lyktes den likevel server-side, er duplikat-risikoen den
+    // pre-eksisterende, ikke-idempotente registreringen — se BACKLOG.)
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const respons = await Promise.race([
+      FileSystem.uploadAsync(url, opplastingsUri, {
+        httpMethod: "POST",
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: "file",
+        mimeType,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }),
+      new Promise<never>((_, avvis) => {
+        timeoutId = setTimeout(
+          () => avvis(new OpplastingFeil(`Opplasting timet ut etter ${OPPLASTING_TIMEOUT_MS / 1000}s`, "nett")),
+          OPPLASTING_TIMEOUT_MS,
+        );
+      }),
+    ]).finally(() => {
+      if (timeoutId) clearTimeout(timeoutId);
     });
 
     console.log("[OPPL] Respons status:", respons.status);
@@ -75,7 +113,10 @@ export async function lastOppFil(
         // ikke-JSON kropp
       }
       console.error("[OPPL] Opplasting feilet:", respons.status, respons.body?.slice(0, 200));
-      throw new Error(feilmelding);
+      // 4xx (untatt 408 timeout / 429 rate) = hard: ugyldig fil/permission, nytt
+      // forsøk hjelper ikke. 5xx/408/429 = nett: forbigående, retry uten tak.
+      const hard = respons.status >= 400 && respons.status < 500 && respons.status !== 408 && respons.status !== 429;
+      throw new OpplastingFeil(feilmelding, hard ? "hard" : "nett");
     }
 
     const resultat = JSON.parse(respons.body) as OpplastingsResultat;

@@ -7,7 +7,7 @@ import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -117,6 +117,45 @@ function erSQLiteSynkronisert(sjekklisteId: string): boolean {
   } catch {
     return true;
   }
+}
+
+// Funn C: en lokal enhets-URL (file:// / /var/…) skal ALDRI persisteres på
+// server. Den er død for alle andre enn denne installasjonen, og overskriver den
+// varige `/uploads/privat/…`-URL-en som køen skriver via `settVedleggUrl`.
+function erLokalUrl(u: unknown): boolean {
+  return typeof u === "string" && (u.startsWith("file://") || u.startsWith("/var/"));
+}
+
+function harLokalUrl(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(harLokalUrl);
+  if (node !== null && typeof node === "object") {
+    const o = node as Record<string, unknown>;
+    if (erLokalUrl(o.url)) return true;
+    return Object.values(o).some(harLokalUrl);
+  }
+  return false;
+}
+
+/**
+ * Utelat felt som fortsatt bærer et vedlegg med lokal URL fra server-payloaden.
+ * `oppdaterData` merger feltvis (`{...eksisterende, ...innData}`), så et utelatt
+ * felt røres ikke på server — den varige URL-en køen la inn via `settVedleggUrl`
+ * klobbes ikke. Feltet synkes fullt så snart opplastingen gir det en server-URL.
+ * SQLite beholder alltid full data (samme-install-visning).
+ */
+function utelatFeltMedLokaleVedlegg(
+  data: Record<string, FeltVerdi>,
+): Record<string, FeltVerdi> {
+  let endret = false;
+  const ut: Record<string, FeltVerdi> = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (harLokalUrl(v)) {
+      endret = true;
+      continue;
+    }
+    ut[k] = v;
+  }
+  return endret ? ut : data;
 }
 
 function skrivTilSQLite(
@@ -262,15 +301,26 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
       }
     }
 
-    settFeltVerdier(initialisert);
+    // 🔴 Init-sammenstilling: server er base, MEN felt som fortsatt har et lokalt
+    // (uleverte) vedlegg tas fra SQLite. `utelatFeltMedLokaleVedlegg` holdt dem
+    // utenfor server-payloaden med vilje (funn C) — så serverens manglende/tomme
+    // versjon skal ikke overskrive det brukeren la inn. Uten dette forsvant fire
+    // bilder ved «pil tilbake» → gjeninngang (datatap, funn 2026-09-04).
+    const sammenstilt = sammenstillMedLokaleVedlegg(initialisert, sqliteData);
+    const harLokaleVedlegg = sammenstilt !== initialisert;
+
+    settFeltVerdier(sammenstilt);
     settErInitialisert(true);
 
-    // Lagre til SQLite (synkronisert med server-data, eller lokalt_lagret med auto-fill)
+    // Lagre til SQLite (synkronisert med server-data, eller lokalt_lagret med auto-fill).
+    // Har vi lokale vedlegg, er dokumentet IKKE fullt synket — så flagget ikke lyver
+    // og neste init tar SQLite-grenen (ellers gjentar tapet seg).
     const harAutoFylt = !harServerData && alleObjekter.some(
       (o) => !DISPLAY_TYPER.has(o.type) && AUTO_FILL_TYPER.has(o.type) && initialisert[o.id]?.verdi != null,
     );
-    skrivTilSQLite(sjekklisteId, initialisert, !harAutoFylt);
-    settSynkStatus(harAutoFylt ? "lokalt_lagret" : "synkronisert");
+    const altSynket = !harAutoFylt && !harLokaleVedlegg;
+    skrivTilSQLite(sjekklisteId, sammenstilt, altSynket);
+    settSynkStatus(altSynket ? "synkronisert" : "lokalt_lagret");
   }, [sjekkliste, alleObjekter, erInitialisert, sjekklisteId]);
 
   // Lytt på opplastingsfullføringer — oppdater vedlegg-URL i minnet
@@ -370,13 +420,15 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 2000);
 
-    // 2. Prøv server-sync hvis online
+    // 2. Prøv server-sync hvis online. Utelat felt med fortsatt-lokale vedlegg
+    //    (file://) — de skal aldri lande på server; køen skriver den varige
+    //    server-URL-en via `settVedleggUrl` når opplastingen er ferdig.
     if (erPaaNettet) {
       settSynkStatus("synkroniserer");
       try {
         await oppdaterDataMutasjon.mutateAsync({
           id: sjekklisteId,
-          data,
+          data: utelatFeltMedLokaleVedlegg(data),
         });
         await utils.sjekkliste.hentMedId.invalidate({ id: sjekklisteId });
         settHarEndringer(false);
@@ -432,6 +484,13 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     (objektId: string, oppdatering: Partial<FeltVerdi>) => {
       settFeltVerdier((prev) => {
         let oppd = oppdatering;
+        // Funksjonell verdi (updater): løs mot FORRIGE verdi. Race-fri append fra
+        // repeater — sekvensiell batch akkumulerer uansett render-timing (i stedet
+        // for et snapshot der siste skriving vant). Brukes av RepeaterObjekt.leggTilVedlegg.
+        if (typeof oppd.verdi === "function") {
+          const forrige = prev[objektId]?.verdi;
+          oppd = { ...oppd, verdi: (oppd.verdi as (p: unknown) => unknown)(forrige) };
+        }
         // Repeater-verdi (array av rader): tildel løpende bildeNr til nye bilder i radene.
         if (Array.isArray(oppd.verdi)) {
           const nyeRader = nummererRepeaterBilder(oppd.verdi, nesteBildeNr(prev));

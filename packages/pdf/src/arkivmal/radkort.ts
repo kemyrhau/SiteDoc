@@ -63,11 +63,16 @@ export function repeaterErRik(objekt: TreObjekt): boolean {
 function byggBildeblokk(vedlegg: Vedlegg[] | undefined): string {
   const bilder = Array.isArray(vedlegg) ? vedlegg.filter(erBilde) : [];
   if (bilder.length === 0) return "";
+  // «Bilde 01 · tid» — løpenr fra appen (null-padet), dokumentrekkefølge som
+  // fallback. IKKE filnavnet: `IMG_<epoch>.jpg` er internt og utgår (vedtak
+  // 2026-08-16); søster-rendereren byggBilderader (repeater.ts) gjør det samme.
+  let nr = 1;
   const kort = bilder
     .map((b) => {
-      const nr = b.bildeNr != null ? `Bilde ${b.bildeNr}` : "Bilde";
-      const tid = b.opprettet ? ` · ${formaterDatoTidPunkt(b.opprettet)}` : "";
-      const tekst = `${nr} — ${esc(b.filnavn ?? "")}${esc(tid)}`;
+      const visNr = b.bildeNr ?? nr;
+      nr += 1;
+      const tid = b.opprettet ? ` · ${esc(formaterDatoTidPunkt(b.opprettet))}` : "";
+      const tekst = `Bilde ${String(visNr).padStart(2, "0")}${tid}`;
       return `<div class="ark-radkort-bilde"><img src="${esc(fullBildeUrl(b.url, ""))}" /><div class="ark-radkort-bildetekst">${tekst}</div></div>`;
     })
     .join("");
