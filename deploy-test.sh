@@ -13,8 +13,49 @@
 
 set -euo pipefail
 
-# --- Branch-guard: test skal deploye develop -------------------------------
 cd "$(git rev-parse --show-toplevel)"
+
+# --- Innhold-guard: hva TROR du at du deployer? (påkrevd, Kenneth-vedtak 2026-09-04)
+#
+# Rotårsak: ajour-guarden under måler at treet ikke er BAK origin/develop. Den sier
+# ingenting om hvorvidt arbeidet du vil teste faktisk ER i develop. 2026-09-04 var
+# treet perfekt à jour — med kode som ikke inneholdt runden som skulle gates. Bygg,
+# migrering og tre passord gikk med; migrate svarte «No pending» fordi migreringen
+# lå på en ubrukt feature-branch. Femte gang samme feilklasse ble ført.
+#
+# Regelen fantes i SAMARBEIDSREGLER § Arbeidsrutiner punkt 5 og ble lest samme kveld
+# den ble brutt. Derfor ligger gaten nå i KOMMANDOEN, ikke i noens hukommelse —
+# samme prinsipp som merge-kjeden, migrate-gaten og prod-DB-sjekken.
+#
+# Bruk:  ./deploy-test.sh <hash>     hash = commiten du forventer å deploye
+#        ./deploy-test.sh HEAD       når du bevisst deployer det treet står på
+if [ $# -lt 1 ]; then
+  echo "⚠️  Mangler forventet commit."
+  echo
+  echo "    Bruk:  ./deploy-test.sh <hash>"
+  echo "           <hash> = commiten du forventer å teste (agentens hash, ikke merge-commitens)."
+  echo "           Bruk 'HEAD' hvis du bevisst deployer det treet allerede står på."
+  echo
+  echo "    Hvorfor: uten dette kan et bygg + tre passord gå med på kode som ikke"
+  echo "    inneholder det du skulle teste. Skjedde 2026-09-04. Avbryter."
+  exit 1
+fi
+FORVENTET="$1"
+if ! git rev-parse --verify --quiet "$FORVENTET^{commit}" >/dev/null; then
+  echo "⚠️  '$FORVENTET' finnes ikke i dette treet."
+  echo "    Er branchen pushet og merget? Sjekk:  git fetch origin && git branch -r"
+  echo "    Avbryter FØR rsync — ingen bygg, ingen passord."
+  exit 1
+fi
+if ! git merge-base --is-ancestor "$FORVENTET" HEAD; then
+  echo "⚠️  $FORVENTET er IKKE i dette treet ($(git rev-parse --short HEAD))."
+  echo "    Deploy ville bygget uten den — syv minutter og tre passord til ingen nytte."
+  echo "    Mangler en merge? Avbryter FØR rsync."
+  exit 1
+fi
+echo "✓ Innhold-guard: $(git rev-parse --short "$FORVENTET") er i treet."
+
+# --- Branch-guard: test skal deploye develop -------------------------------
 BRANCH="$(git branch --show-current)"
 if [ "$BRANCH" != "develop" ]; then
   echo "⚠️  Du står på '$BRANCH', ikke develop. Test-deploy skal deploye develop."
