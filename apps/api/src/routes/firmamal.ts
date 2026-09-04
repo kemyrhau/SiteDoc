@@ -400,9 +400,9 @@ export const firmamalRouter = router({
    * OrganizationTemplate). Fase 1-lånevei (L3): KUN sentralt→firma. Objekter bygges
    * fra `malInnhold` med eksplisitt zone (som bibliotek.ts importerMal).
    *
-   * Avstamning: OrganizationTemplate har ingen strukturert peker til BibliotekMal
-   * (kun `promotedFromTemplateId` → ReportTemplate). Kilden bæres derfor i
-   * `description` — se rapportens designavvik-notat.
+   * Avstamning (B4, Kenneth-vedtak 2026-09-04): STRUKTURERT peker
+   * `laantFraBibliotekMalId` — spørrbar, ikke fritekst i description. SetNull-FK
+   * (schema) beholder lånet om bibliotekmalen slettes.
    */
   laanFraSentralarkiv: protectedProcedure
     .input(
@@ -433,11 +433,14 @@ export const firmamalRouter = router({
           data: {
             organizationId: input.organizationId,
             name: bibMal.navn,
+            // Beskrivelse = ren referanse-tekst. Avstamningen ligger i den
+            // strukturerte pekeren under (B4), ikke gjemt i fritekst.
             description: `${bibMal.kapittel.standard.kode} ${bibMal.referanse}${
               bibMal.beskrivelse ? " — " + bibMal.beskrivelse : ""
-            } (lånt fra SiteDoc-arkivet)`,
+            }`,
             category: bibMal.kategori,
             domain: bibMal.domene,
+            laantFraBibliotekMalId: bibMal.id, // strukturert avstamning (B4)
           },
           select: { id: true },
         });

@@ -1060,16 +1060,22 @@ model OrganizationTemplate {
   // Seeding-flagg (F4): seedes automatisk inn i nye prosjekter ved modulaktivering.
   standardForNyeProsjekter Boolean @default(false) @map("standard_for_nye_prosjekter")
   promotedFromTemplateId String?  @map("promoted_from_template_id")
+  // Malarkiv (AM4/B4, 2026-09-04): STRUKTURERT avstamning når firmamalen er lånt fra
+  // SiteDoc-sentralarkivet (BibliotekMal). Spørrbar peker, aldri fritekst i description.
+  // SetNull ved sletting av bibliotekmalen (samme semantikk som L5) — lånet består.
+  laantFraBibliotekMalId String?  @map("laant_fra_bibliotek_mal_id")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
-  organization Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  promotedFrom ReportTemplate?              @relation("PromotedTemplate", fields: [promotedFromTemplateId], references: [id], onDelete: SetNull)
-  objects      OrganizationTemplateObject[]
-  copiedTo     ReportTemplate[]             @relation("CopiedFromOrgTemplate")
+  organization       Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  promotedFrom       ReportTemplate?              @relation("PromotedTemplate", fields: [promotedFromTemplateId], references: [id], onDelete: SetNull)
+  laantFraBibliotek  BibliotekMal?                @relation("LaantFraBibliotek", fields: [laantFraBibliotekMalId], references: [id], onDelete: SetNull)
+  objects            OrganizationTemplateObject[]
+  copiedTo           ReportTemplate[]             @relation("CopiedFromOrgTemplate")
 
   @@index([organizationId])
   @@index([promotedFromTemplateId])
+  @@index([laantFraBibliotekMalId])
   @@map("organization_templates")
 }
 
@@ -2045,6 +2051,8 @@ model BibliotekMal {
   opprettet      DateTime                @default(now()) @map("opprettet")
   malInnhold     Json                    @map("mal_innhold")
   prosjektValg   ProsjektBibliotekValg[]
+  // AM4/B4: firmamaler lånt fra denne sentralmalen (avstamning, SetNull ved sletting)
+  laantAvOrgTemplates OrganizationTemplate[] @relation("LaantFraBibliotek")
 
   @@index([kapittelId])
   @@map("bibliotek_maler")
