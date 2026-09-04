@@ -95,6 +95,59 @@ describe("byggRadkort — mockup 2a (BEF-002)", () => {
   });
 });
 
+describe("funn 2026-09-04 — navnløs feltlabel («_») vises aldri rått", () => {
+  // Malbyggeren lagrer tom feltlabel som «_». Rått gir det en naken understrek som feltnavn.
+  const MEDNAVNLOS: TreObjekt = {
+    id: "rep", type: "repeater", label: "Befaring", required: false, config: {}, sortOrder: 0, parentId: null,
+    children: [
+      barn("txt", "text_field", "Beskrivelse", 0),
+      barn("blank", "text_field", "_", 1),
+      barn("dp", "drawing_position", "Posisjon i tegning", 2),
+    ],
+  } as TreObjekt;
+
+  it("navnløst felt MED verdi → verdien ALENE, ingen etikettlinje, aldri understrek", () => {
+    const rad = { txt: fv("A"), blank: fv("En verdi som må bevares"), dp: fv(null) };
+    const html = byggRadkort(MEDNAVNLOS, [rad], "Befaring");
+    // Understreken skal ikke stå som label (strengen «_»).
+    expect(html).not.toContain(`>_</div>`);
+    // Ingen påført etikett — brukeren valgte navnet bort bevisst.
+    expect(html).not.toContain("Felt 2");
+    // Verdien tapes ALDRI (ikke datatap i byggherre-leveransen).
+    expect(html).toContain("En verdi som må bevares");
+    // Feltet finnes fortsatt (verdi-node), bare uten label-node for dette feltet.
+    const kropp = html.slice(html.indexOf("ark-radkort-kropp"));
+    const labels = (kropp.match(/ark-radkort-label/g) ?? []).length;
+    // Kun «Beskrivelse» og «Posisjon i tegning» har label — det navnløse har ingen.
+    expect(labels).toBe(2);
+  });
+
+  it("navnløst felt MED merknad (uten verdi) beholdes — merknaden er innhold", () => {
+    const rad = { txt: fv("A"), blank: fv(null, "En merknad bærer informasjon"), dp: fv(null) };
+    const html = byggRadkort(MEDNAVNLOS, [rad], "Befaring");
+    expect(html).toContain("En merknad bærer informasjon");
+    expect(html).not.toContain(`>_</div>`);
+  });
+
+  it("navnløst OG tomt felt → utelates helt (ingen «_», ingen tom «Ikke utfylt»-støy)", () => {
+    const rad = { txt: fv("A"), blank: fv(null), dp: fv(null) };
+    const html = byggRadkort(MEDNAVNLOS, [rad], "Befaring");
+    expect(html).not.toContain(`>_</div>`);
+    // Kontroll: navngitte tomme felt vises fortsatt (Posisjon i tegning).
+    expect(html).toContain("Posisjon i tegning");
+    // Det navnløse tomme feltet gir verken label eller verdi-node utover de navngitte.
+    const kropp = html.slice(html.indexOf("ark-radkort-kropp"));
+    expect((kropp.match(/ark-radkort-label/g) ?? []).length).toBe(2);
+  });
+
+  it("navngitt tomt felt påvirkes ikke (vises som før)", () => {
+    // «Beskrivelse» har navn og er tom → skal fortsatt vises med «Ikke utfylt».
+    const rad = { txt: fv(null), blank: fv("x"), dp: fv(null) };
+    const html = byggRadkort(MEDNAVNLOS, [rad], "Befaring");
+    expect(html).toContain("Beskrivelse");
+  });
+});
+
 describe("funn #4 (hull 1) — skalar-rad-kommentar rendres (var tapt i radkort)", () => {
   it("skalar-felt med kommentar → «Merknad: …» under verdien", () => {
     const rad = { txt: fv("En verdi", "Skalar-kommentar her"), dp: fv(null), calc: fv(null), nrep: fv([]) };

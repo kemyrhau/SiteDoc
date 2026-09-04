@@ -48,6 +48,17 @@ function sorterNøkler(v: unknown): unknown {
   return v;
 }
 
+/**
+ * En label er MENINGSFULL når den har minst ett alfanumerisk tegn. Malbyggeren
+ * lagrer en tom feltlabel som en ren plassholder («_»), og `"_".trim()` er ikke
+ * tom — så en trim-sjekk alene slipper den gjennom og PDF-en viser en naken
+ * understrek som feltnavn (funn 2026-09-04). Endringsdiffen har brukt samme regel
+ * for kolonneoverskrifter; nå er den ÉN kilde, delt av radkortet og diffen.
+ */
+export function harMeningsfullLabel(label: string | null | undefined): boolean {
+  return !!label && /[\p{L}\p{N}]/u.test(label);
+}
+
 /** Normaliser opsjon — støtter både "streng" og {value,label}-format */
 export function normaliserOpsjon(raw: unknown): { value: string; label: string } {
   if (typeof raw === "string") return { value: raw, label: raw };
