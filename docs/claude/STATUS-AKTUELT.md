@@ -22,7 +22,7 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 |---|---|---|---|---|
 | **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
 | **kontrollplan** | 🔴 **FUNN (plan-sporet avbrutt)** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | **`relay/inbox-mobil-byggeplasskontekst.md`** — branch `fix/mobil-byggeplasskontekst`. Funn A/B/D fra bygg 50: chip-kilden av timer-cachen · tegninger filtreres på byggeplass + søk · endringslogg lukket som standard. **Før neste EAS-bygg** |
-| **dokgen** | 🔴 **FUNN** | `SiteDoc-dokgen` | Fem merget 01.09, sist `d394bdde` (kolonnevelger + tabellbredder) | **`relay/inbox-mobil-vedlegg-pdf.md`** — branch `fix/mobil-vedlegg-pdf`. Funn C/E fra bygg 50: bilder som finnes på server vises ikke i raden · ingen PDF-forhåndsvisning før sending. **Før neste EAS-bygg.** ⏸️ `inbox-timerrapport-flate.md` satt på vent (web, haster ikke mot byggkvoten) |
+| **dokgen** | 🔴 **FUNN** | `SiteDoc-dokgen` | **Oppdatert 04.09:** sist merget `2b73ae68` (web ut av `platforms` — åpnet OTA-veien). Døgnet 03/04.09: vedlegg-forsvinner, `settVedleggUrl`, EXIF-opptaksmetadata, kø-robusthet | **Ledig.** ⏸️ `inbox-timerrapport-flate.md` fortsatt på vent (web, haster ikke mot byggkvoten) |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
 
@@ -111,7 +111,21 @@ tofils-endringer. **Ny form: brancher merges til develop løpende** (så de ikke
 i dag hva som skjer når 20 innslag blir stående), **men test-deploy skjer når det finnes et
 sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 
-✅ **PROD À JOUR 2026-09-02 21:11** — **`af49823f`** (132 commits, 175 filer, +10124/−1272).
+✅ **PROD À JOUR 2026-09-04** — **`96eebc13`** (14 commits, 38 filer, +803/−209): EXIF-opptakstid
+og -sted på bilder · lesbar endringslogg (kolonnenavn + fra→til, rå UUID skjult) · kanonisk
+`repeaterRad`-tvilling. **Ingen migreringer** («No pending migrations to apply»). Api og web
+bygget sekvensielt, begge oppe.
+⚠️ **Ustemplet deploy** — `/version` svarer `{"gitSha":"dev"}` fordi den lim-klare prod-blokken
+manglet `GIT_SHA`/`BUILD_TID`. Rettet i [deploy-detaljer.md § PROD-deploy](deploy-detaljer.md)
+samme dag; prod er stemplet fra og med neste deploy.
+
+✅ **OTA I DRIFT fra 2026-09-04** — første `eas update` publisert til kanal `production`,
+runtime `1`, commit `cdb53296`, verifisert på Kenneths iPhone mot bygg 54. **JS-fikser koster
+ikke lenger byggkvote.** Web måtte tas ut av `platforms` (`app.json`, `2b73ae68`) — `eas update`
+kaller eksporten med `--platform=all`, og web-bundelen har to uavhengige feil. Full mekanikk:
+[eas-build-veileder.md § OTA](eas-build-veileder.md).
+
+📌 **Historikk:** prod sto på `af49823f` fra 2026-09-02 21:11 (132 commits, 175 filer, +10124/−1272).
 Én migrering: `20260830120000_registrering_fase2_prosjekttilgang` (rent additiv, to `ADD COLUMN`).
 De tre andre db-pakkene: «No pending». Migreringsgaten verifiserte `sitedoc`, ikke `sitedoc_test`.
 
