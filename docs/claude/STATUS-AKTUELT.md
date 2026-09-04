@@ -645,7 +645,32 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
-### 🟡 lokasjonOmfang — «Gjelder hele byggeplassen» som eksplisitt svar + L9 sticky tegning (`feat/lokasjonomfang`, PÅ BRANCH — gatet lokalt, IKKE merget)
+### 🟡 Arkiv-PDF for oppgave + HMS avvik/RUH — task-innholdsleser (`feat/arkiv-pdf-task`, PÅ BRANCH — gatet lokalt, IKKE merget)
+
+**Ordre:** `relay/inbox-arkiv-pdf-oppgave-hms.md`, gatet av cowork 04.09, Kenneth-bestilt. **RUH og avvik er lovpålagt HMS-dokumentasjon som ikke kunne leveres som PDF** — de er `Task`, og `render.ts` kastet for alt annet enn sjekkliste. SJA slapp unna fordi den er `Checklist`. Pilotblokkerer for A.Markussen.
+
+**Én rot, tre dokumenttyper, to flater:** `arkiv.rendr` godtok allerede `type:"oppgave"`; kun task-leseren manglet. Web + mobil kaller samme prosedyre.
+
+**Levert:**
+- **Task-innholdsleser (delt kjerne, krav 1):** `sammenstilling.ts` refaktorert til `byggArkivHtmlKjerne(norm)` + tynne `byggSjekkliste…`/`byggOppgave…`-adaptere over en `NormalisertArkivDok`. ~85 % delt (forskjellen liten → delt leser med type-diskriminant, ikke duplikat). Sjekkliste-utskrift **uendret** (151 arkiv-tester + 3 sjekkliste-orkestrator-tester grønne). Gjenbruker kanonisk repeater-traversering (`byggObjektTre`/`samleRepeaterMarkorer`/`byggInnhold`) — ingen tredje traversering.
+- **HMS virker, ikke bare oppgave (krav 2):** avvik/RUH (`Task`, `template.domain="hms"`, subdomain avvik/ruh) trenger **ingenting** utover task-leseren — kun standard felttyper, ingen HMS-egne kolonner. Målt funn: status/signatur var sjekkliste-semantisk (`/godkjent/`); task/HMS-terminalen er «Lukket» (`tilStatus==="closed"`). Egen `signaturStrategi`: sjekkliste = Utført/Godkjent · oppgave/HMS = Opprettet/Behandlet.
+- **`arkiv.rendr` (krav 3):** enum forblir `"sjekkliste" | "oppgave"` — **ingen egen `"hms"`-type.** Avvik/RUH ER tasks → «oppgave»-grenen dekker dem; domenet ligger på malen og styrer semantikk i leseren. En «hms»-type ville vært en redundant kontraktsendring mobilklienter i drift måtte lære. Tilgangskontroll + activity forgrenet på type (`task`/`checklist` + hmsSynlighet).
+- **Begge flater (krav 4):** PDF-nedlasting på web oppgave-side; del-ikon + «Forhåndsvis» + `ArkivPdfForhandsvisning` (WebView) på mobil oppgave-side. Komponenten var allerede type-agnostisk.
+- **Krav 5:** `ArkivPdfForhandsvisning` bruker allerede `ModalFlate` (ikke `SafeAreaView` i Modal).
+
+**Paritetsmatrise (etter denne runden):**
+
+| | Web | Mobil-app | Arkiv-PDF |
+|---|---|---|---|
+| Sjekkliste | ✅ | ✅ | ✅ |
+| Oppgave | ✅ (+ PDF-knapp) | ✅ (+ PDF/forhåndsvis) | ✅ (ny task-leser) |
+| HMS (avvik/SJA/RUH) | ✅ | ✅ | ✅ (SJA=Checklist fra før · avvik/RUH=task-leser) |
+
+**Målt avvik meldt:** mobil oppgave-detalj viste ingen dokumentlokasjon fra før (kun tegning-chip); ikke rørt utover PDF-knappen (egen sak). **Leveringsvei:** server-PDF + web → prod-deploy; mobil-UI via `eas update`.
+
+**Gate grønn (lokalt):** web build · api+mobil typecheck · mobil lint 0 · api 277/277 · pdf 97/97 · shared 636/636.
+
+### 🟢 lokasjonOmfang — «Gjelder hele byggeplassen» som eksplisitt svar + L9 sticky tegning (`feat/lokasjonomfang`, MERGET develop `ea66590b`)
 
 **Ordre:** `docs/redesign/ORDRE-lokasjonomfang-2026-09-04.md` (+ L9-tillegg), fabel-vedtatt av Kenneth 04.09. Forankring: «alle gatelysene mangler merking» er én observasjon om hundre lyspunkt — en pin ville påstått at funnet gjelder ett sted. I dag skriver PDF-en «Ikke utfylt» der «gjelder alt» var ment; et tomt felt der noe var ment er en usann påstand.
 
