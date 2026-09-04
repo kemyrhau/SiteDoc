@@ -346,10 +346,15 @@ av dem trengte en ny binær — de trengte bare en vei til telefonen. `expo-upda
 en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også for testerne.
 
 **Konfigurasjon (kode er fasit):**
-- `runtimeVersion: { policy: "fingerprint" }` (`app.config.js`) — **IKKE `appVersion`**.
-  Fingerprint utledes av det native laget, så en JS-oppdatering kan aldri havne på en binær med
-  andre native moduler. Appen er `1.0.0` gjennom 51 bygg med skiftende native innhold; `appVersion`
-  ville tillatt nettopp den mismatchen.
+- `runtimeVersion: "1"` (`app.config.js`) — **eksplisitt streng, IKKE `{ policy: "fingerprint" }`
+  og IKKE `appVersion`.** Fingerprint-policy ble forsøkt og forkastet 2026-09-04 etter to feilede
+  bygg (52 + 53): 42 av 50 kilder i avtrykket er pnpm-stier med peer-avhengighetshash i
+  katalognavnet, og EAS kjører `pnpm install` i sitt eget miljø → lokalt og EAS-avtrykk matcher
+  aldri. Fingerprint-policy og pnpm-monorepo er ikke kompatible. `appVersion` ble også forkastet
+  (appen er `1.0.0` gjennom 53 bygg med skiftende native innhold → mismatch). Med eksplisitt streng
+  ligger disiplinen hos oss: **strengen MÅ bumpes manuelt ved enhver native-endring** (se
+  sjekklisten under). `@expo/fingerprint` beholdes som avhengighet for diagnostikk
+  (`eas fingerprint:generate`), men policyen brukes ikke.
 - `updates.fallbackToCacheTimeout: 0` + `checkAutomatically: "ON_LOAD"` — **offline-first er
   ufravikelig.** Appen starter alltid umiddelbart fra cachet bundle og henter en ev. oppdatering i
   bakgrunnen; ingen nett → oppstart som før, uten forsinkelse eller feilmelding.
@@ -364,8 +369,8 @@ en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også f
 ### 🔴 Hva som IKKE kan sendes som oppdatering (den avgjørende grensen)
 
 Tror vi noe er ute når det ikke er det, er vi tilbake i feilklassen fra 3. september. Alt som
-rører **native laget** krever nytt bygg — fingerprinten endres, og oppdateringen leveres da rett
-og slett ikke til den gamle binæren (ingen krasj, men heller ingen oppdatering):
+rører **native laget** krever nytt bygg **og en `runtimeVersion`-bump** (se sjekklisten under) —
+uten bump kan en JS-oppdatering lande på en binær den ikke passer til:
 
 - Ny/fjernet/oppgradert native modul (expo-camera, expo-sqlite, react-native-webview, expo-location …)
 - Native config i `app.json`/`app.config.js`: `permissions`, `plugins`, `bundleIdentifier`,
@@ -375,11 +380,30 @@ og slett ikke til den gamle binæren (ingen krasj, men heller ingen oppdatering)
 **Kan** sendes OTA: ren JS/TS, React-komponenter, forretningslogikk, styling, i18n-strenger,
 JS-refererte assets.
 
+### 🔴 `runtimeVersion`-bump — sjekkliste før hvert bygg
+
+`runtimeVersion` er en fast streng (`"1"`) vi styrer selv. **Bump den (`"1"` → `"2"` → …) i
+`app.config.js` FØR bygg dersom noe av dette er endret siden forrige bygg.** En glemt bump betyr
+at en OTA JS-oppdatering kan lande på en binær den ikke passer til.
+
+- [ ] Ny/fjernet/oppgradert native modul (expo-camera, expo-sqlite, react-native-webview, expo-location …)
+- [ ] Endret `plugins` i `app.json`/`app.config.js`
+- [ ] Endret `infoPlist` / entitlements
+- [ ] Endret `permissions`
+- [ ] Endret `bundleIdentifier`
+- [ ] Endret ikon eller splash
+- [ ] Endret `scheme`
+- [ ] Expo SDK-oppgradering (eller native versjonsbump)
+
+Kun JS/TS/styling/i18n endret → **ikke bump** (da er hele poenget at OTA når den eksisterende
+binæren). Bump ↔ nytt bygg går hånd i hånd: bumper du, MÅ du bygge; bygger du med native-endring,
+MÅ du ha bumpet.
+
 ### Ikraftsetting, tilbakerulling, grenser
 
 - **Trer i kraft:** ett nytt bygg **pr. kanal** du vil OTA-e til. En oppdatering lander bare på en
   binær bygget *etter* dette oppsettet (den må inneholde expo-updates-runtimen + matchende
-  fingerprint). Eksisterende bygg 51 kan **ikke** motta oppdateringer.
+  `runtimeVersion`). Eksisterende bygg 51 kan **ikke** motta oppdateringer.
 - **Tilbakerulling:** `eas update:rollback` / republiser forrige gode update til kanalen. En bruker
   som alt har hentet den dårlige: sjekker ved neste oppstart, henter rettelsen i bakgrunnen,
   **anvender den ved oppstarten etter** — typisk to oppstarter. Faresone: en oppdatering som
