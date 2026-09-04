@@ -50,6 +50,7 @@ export {
   formaterDato,
   formaterDatoTid,
   formaterDatoTidKort,
+  formaterDatoTidPunkt,
   formaterDatoKort,
   fullBildeUrl,
   formaterNummer,
