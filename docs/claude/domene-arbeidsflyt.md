@@ -101,12 +101,35 @@ varelager (*«NULL = hele prosjektet»*). **De to hadde rett hele tiden.**
    samme lokasjon, og et valg mellom ett alternativ er et klikk uten informasjon. Direkte
    anvendelse av effektivitets-gaten og A.Markussens hovedkritikk («mange klikk»).
 
-4. 🔴 **Byggeplasser har TID — dette er nytt og ikke modellert.** Et prosjekt kan vare fem år med
-   tre bygg som starter sekvensielt, hvert som sin byggeplass. Det betyr at byggeplasser kan være
-   *ikke startet*, *aktiv* eller *ferdig* mens prosjektet lever. **Ingenting i dagens modell bærer
-   det.** Konsekvenser som må utredes, ikke gjettes: skal ferdige byggeplasser skjules i velgere ·
-   skal dokumenter kunne opprettes på en byggeplass som ikke har startet · hva skjer med PSI og
-   mannskapslister når et byggetrinn avsluttes. **Eget funn — se BACKLOG.**
+4. 🔴 **Byggeplasser har TID og ANTALL — dette er nytt og ikke modellert.**
+
+   > **Kenneth 2026-09-04:** *«Et prosjekt kan ha flere byggetrinn → prosjektet kan vare i 5 år,
+   > med tre forskjellige bygg, som starter når det første er ferdig.»*
+   >
+   > *«Et prosjekt kan leve i 30 år eller mer — men bestå av mange kortvarige prosjekter som varer
+   > en uke eller en måned. Kanskje vi må skjule og lukke disse etter behov.»*
+
+   **To skalaer, ikke én.** Byggetrinn-tilfellet er tre enheter over fem år. Det andre er en
+   beholder som lever i tiår og fylles med ukelange jobber — en rammeavtale, en driftskontrakt, et
+   vedlikeholdsoppdrag. Der snakker vi **hundrevis av enheter i ett prosjekt.**
+
+   🔴 **Ingenting i dagens modell bærer noen av dem.** `Byggeplass` har ingen tilstand, ingen
+   start/slutt, ingen arkivering.
+
+   **Hva som brekker ved den store skalaen — ikke gjettet, men forutsigbart:**
+   - Byggeplass-velgeren (`ByggeplassChip` + dokumentskjemaer) med 500 valg er ubrukelig i felt
+   - Dokumentlister og filtre vokser uten grense
+   - «Vis kun aktive» går fra å være en bekvemmelighet til å være en forutsetning
+
+   **Spørsmål som må UTREDES, ikke besvares av oss:**
+   - Skal en avsluttet byggeplass skjules i velgere, eller kun i lister? Kan den gjenåpnes?
+   - Kan dokumenter opprettes på en byggeplass som ikke har startet?
+   - Hva skjer med PSI og mannskapsliste når et trinn avsluttes og folkene flyttes videre?
+   - 🔴 **Er en ukelang jobb i en 30-årig avtale egentlig en `Byggeplass`, eller er den et
+     `Project` med avtalen som et nivå over?** Kenneth sier «kortvarige prosjekter» — ikke
+     «byggeplasser». Det kan være presist språk, og da mangler modellen et nivå.
+
+   **Fabels domene. Ingen ordre skrevet — dette er en modellsak, ikke en kodeoppgave.**
 
 ### Nivåene et dokument kan gjelde
 

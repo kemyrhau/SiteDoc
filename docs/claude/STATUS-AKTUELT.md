@@ -83,13 +83,29 @@ som mistenkelig. **Kenneths domeneforklaring 04.09 avgjør det:** et dokument ut
 ett sted), men forskjellen er ikke vedtatt noe sted.
 Full begrunnelse: [domene-arbeidsflyt.md § byggeplass er et valgfritt oppdelingsnivå](domene-arbeidsflyt.md).
 
-🔴 **NYTT FUNN 2026-09-04 — byggeplasser har TID, og ingenting i modellen bærer det.**
-Kenneth: *«Et prosjekt kan ha flere byggetrinn → prosjektet kan vare i 5 år, med tre forskjellige
-bygg, som starter når det første er ferdig.»* En byggeplass kan altså være *ikke startet*, *aktiv*
-eller *ferdig* mens prosjektet lever. **Dagens `Byggeplass` har ingen slik tilstand.**
-Må utredes, ikke gjettes: skjules ferdige byggeplasser i velgere · kan dokumenter opprettes på en
-byggeplass som ikke har startet · hva skjer med PSI og mannskapsliste når et byggetrinn avsluttes.
-**Ikke ordre — fabels domene.**
+🔴 **NYTT FUNN 2026-09-04 — byggeplasser har TID og ANTALL. Modellen bærer ingen av delene.**
+
+Kenneth, to utsagn samme kveld:
+> *«Et prosjekt kan ha flere byggetrinn → prosjektet kan vare i 5 år, med tre forskjellige bygg,
+> som starter når det første er ferdig.»*
+>
+> *«Et prosjekt kan leve i 30 år eller mer — men bestå av mange kortvarige prosjekter som varer en
+> uke eller en måned. Kanskje vi må skjule og lukke disse etter behov.»*
+
+**To skalaer.** Byggetrinn = tre enheter over fem år. Rammeavtale/driftskontrakt = **hundrevis av
+ukelange enheter i én beholder over tiår.** `Byggeplass` har i dag verken tilstand, start/slutt
+eller arkivering.
+
+**Forutsigbart brudd ved stor skala:** byggeplass-velgeren (`ByggeplassChip` + dokumentskjemaer) er
+ubrukelig i felt med 500 valg · dokumentlister vokser uten grense · «vis kun aktive» går fra
+bekvemmelighet til forutsetning.
+
+🔴 **Og et modellspørsmål som må stilles før noe bygges:** Kenneth sier *«kortvarige prosjekter»*,
+ikke «byggeplasser». Er en ukelang jobb i en 30-årig avtale egentlig en `Byggeplass` — eller et
+`Project`, med avtalen som et nivå OVER? Er språket presist, mangler modellen et nivå.
+
+**Fabels domene. Ingen ordre skrevet.** Full utredning:
+[domene-arbeidsflyt.md § byggeplass er et valgfritt oppdelingsnivå](domene-arbeidsflyt.md).
 
 > 🔴 **Kenneths kritikk av arbeidsformen, 2026-09-03 — skal stå:**
 > *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass, så må man erkjenne at
