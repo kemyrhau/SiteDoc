@@ -1125,6 +1125,30 @@ Cowork skal gi denne linjen med agentens hash **hver gang** en merge meldes ferd
 | «Din rapport/ordre er **input, ikke fasit** — mål premisset selv.» | Spor 4 motbeviste D's «mengde er neppe alene» ved måling. Spor A fanget at coworks telling motsa registerets egen regel. |
 | 🔴 «**Sjekk treets alder før du melder et fravær.**» *(lagt til 2026-09-02)* | Se § under — «det finnes ikke» og «treet mitt er gammelt» ser helt like ut |
 
+#### 🔴 `git diff develop..branch` viser IKKE hva branchen gjorde — bruk TRE punktum (2026-09-04)
+
+**To punktum sammenligner to punkter.** Er branchen bak develop, dukker develops nyere commits opp
+som **slettinger** i diffen — som om branchen fjernet dem.
+
+**Målt 04.09:** cowork gatet `feat/lokasjonomfang` og så at den «fjernet» hele sti-rettingen i
+`designnotat-malarkiv`. Konklusjonen var at agenten hadde reversert en beslutning fra samme kveld,
+og mergen ble stoppet. `git log develop..branch -- <fila>` viste tomt: **agenten hadde aldri rørt
+den.** Han lå én commit bak, og det var akkurat den commiten.
+
+```sh
+git diff origin/develop...origin/<branch>    # TRE punktum — endringene FRA forgreningspunktet
+git log origin/develop..origin/<branch> -- <fil>   # rørte branchen fila i det hele tatt?
+```
+
+**Ved `merge --no-ff` er dette uansett ufarlig** — git tar develops versjon av en fil branchen ikke
+rørte. Men den feilaktige lesningen kostet en gate-runde og en anklage mot en agent som hadde gjort
+alt riktig.
+
+⚠️ **Samme sak fra motsatt kant:** nesten-uhellet 02.09 (§ MERGE-AGENTEN) var en **ekte** −20-linjers
+sletting i et merge-resultat. Forskjellen: der var det diffen av selve mergen, ikke en
+to-punktums-sammenligning mot en branch som lå bak. **Fence 5 står** — se en uventet fil i diffen,
+STOPP og meld. Men mål med tre punktum før du konkluderer om hvem som gjorde hva.
+
 #### 🔴 «Finnes ikke» og «treet mitt er gammelt» ser helt like ut (2026-09-02)
 
 **Fast linje i enhver ordre der agenten skal konkludere om kode:**
