@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, useEffect } from "react";
+import { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,11 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system/legacy";
 import { ModalFlate } from "../../src/components/ModalFlate";
+import { ArkivPdfForhandsvisning } from "../../src/components/ArkivPdfForhandsvisning";
+import { useNettverk } from "../../src/providers/NettverkProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft,
@@ -28,6 +32,8 @@ import {
   ChevronDown,
   MessageCircle,
   Send,
+  Share2,
+  Eye,
 } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
@@ -401,6 +407,86 @@ export default function OppgaveDetalj() {
     synkStatus,
   } = useOppgaveSkjema(id!, rettighetInput);
 
+  // Arkiv-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF + in-app
+  // forhåndsvisning som sjekkliste (speiler sjekkliste/[id].tsx). Ingen lokal HTML-bygging.
+  const { erPaaNettet } = useNettverk();
+  const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
+  const arkivIntensjonRef = useRef<"del" | "forhandsvis">("del");
+  const [pdfForhandsvisFil, settPdfForhandsvisFil] = useState<string | null>(null);
+  const rendrArkiv = trpc.arkiv.rendr.useMutation({
+    onSuccess: async (res: {
+      pdfBase64: string;
+      filnavn: string;
+      komplett: boolean;
+      renderTimeout: boolean;
+      dokumenter: { manglendeVedlegg: string[] }[];
+    }) => {
+      try {
+        const filsti = `${FileSystem.cacheDirectory}${res.filnavn}`;
+        await FileSystem.writeAsStringAsync(filsti, res.pdfBase64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        if (arkivIntensjonRef.current === "forhandsvis") {
+          settPdfForhandsvisFil(filsti);
+        } else {
+          await Sharing.shareAsync(filsti, {
+            mimeType: "application/pdf",
+            dialogTitle: `Del ${oppgave?.title ?? "oppgave"}`,
+            UTI: "com.adobe.pdf",
+          });
+        }
+      } catch (feil) {
+        console.warn("Arkiv-PDF-håndtering feilet:", feil);
+      }
+      const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
+      if (res.renderTimeout) {
+        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselTimeout") });
+      } else if (antallMangler > 0) {
+        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselMangler", { antall: antallMangler }) });
+      } else {
+        settArkivMelding(null);
+      }
+    },
+    onError: (error: { message?: string }) => {
+      settArkivMelding({ type: "feil", tekst: error.message ?? t("arkiv.feil") });
+    },
+  });
+
+  const håndterArkivPdf = useCallback(() => {
+    if (!id) return;
+    if (!erPaaNettet) {
+      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      return;
+    }
+    arkivIntensjonRef.current = "del";
+    settArkivMelding(null);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "oppgave" }] });
+  }, [id, erPaaNettet, rendrArkiv, t]);
+
+  const håndterForhåndsvisPdf = useCallback(() => {
+    if (!id) return;
+    if (!erPaaNettet) {
+      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      return;
+    }
+    arkivIntensjonRef.current = "forhandsvis";
+    settArkivMelding(null);
+    rendrArkiv.mutate({ dokumenter: [{ id, type: "oppgave" }] });
+  }, [id, erPaaNettet, rendrArkiv, t]);
+
+  const delForhåndsvistPdf = useCallback(async () => {
+    if (!pdfForhandsvisFil) return;
+    try {
+      await Sharing.shareAsync(pdfForhandsvisFil, {
+        mimeType: "application/pdf",
+        dialogTitle: `Del ${oppgave?.title ?? "oppgave"}`,
+        UTI: "com.adobe.pdf",
+      });
+    } catch (feil) {
+      console.warn("Deling fra forhåndsvisning feilet:", feil);
+    }
+  }, [pdfForhandsvisFil, oppgave?.title]);
+
   // On-demand oversettelse av firmainnhold
   const prosjektKildesprak = (detaljQuery.data as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
   const {
@@ -591,6 +677,20 @@ export default function OppgaveDetalj() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
+            {/* Server-generert arkiv-PDF (samme motor som web + sjekkliste). Offline:
+                CloudOff signaliserer FØR tap at PDF krever nett. */}
+            <Pressable
+              onPress={håndterArkivPdf}
+              hitSlop={12}
+              disabled={rendrArkiv.isPending}
+              accessibilityLabel={erPaaNettet ? t("handling.lastNedArkivPdf") : t("arkiv.kreverTilkobling")}
+            >
+              {rendrArkiv.isPending
+                ? <ActivityIndicator size="small" color="#ffffff" />
+                : !erPaaNettet
+                  ? <CloudOff size={18} color="#fbbf24" />
+                  : <Share2 size={18} color="#ffffff" />}
+            </Pressable>
             <StatusMerkelapp status={oppgave.status} />
             {(() => {
               const recipientGroup = (oppgaveDetalj as { recipientGroup?: { id: string; name: string | null } | null } | undefined)?.recipientGroup;
@@ -926,6 +1026,28 @@ export default function OppgaveDetalj() {
           Send tilbake i stedet for den generelle statuslinja — mobil oppretter HMS via
           oppgave.opprett (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
       <View className="border-t border-gray-200 bg-white px-4 py-3">
+        {/* Kontroll før sending: forhåndsvis den server-rendrede arkiv-PDF-en i appen
+            (speiler sjekkliste). Dekker oppgave + HMS avvik/RUH. */}
+        <Pressable
+          onPress={håndterForhåndsvisPdf}
+          disabled={rendrArkiv.isPending}
+          className="mb-3 flex-row items-center justify-center gap-2 rounded-lg border border-sitedoc-blue bg-white py-2.5"
+          style={rendrArkiv.isPending ? { opacity: 0.5 } : undefined}
+        >
+          {rendrArkiv.isPending ? (
+            <ActivityIndicator size="small" color="#1e40af" />
+          ) : (
+            <Eye size={16} color="#1e40af" />
+          )}
+          <Text className="text-sm font-semibold text-sitedoc-blue">{t("arkiv.forhandsvis")}</Text>
+        </Pressable>
+        {arkivMelding && (
+          <Text
+            className={`mb-3 text-center text-xs ${arkivMelding.type === "feil" ? "text-red-600" : "text-amber-700"}`}
+          >
+            {arkivMelding.tekst}
+          </Text>
+        )}
         {erHms && erMelder && ballHosMelder ? (
           <View className="gap-2">
             <Text className="text-sm leading-relaxed text-gray-600">
@@ -987,6 +1109,15 @@ export default function OppgaveDetalj() {
       </View>
 
       </KeyboardAvoidingView>
+
+      {/* Forhåndsvisning av arkiv-PDF (alltid montert, styrt av `synlig`) — speiler sjekkliste. */}
+      <ArkivPdfForhandsvisning
+        synlig={pdfForhandsvisFil != null}
+        filUri={pdfForhandsvisFil}
+        tittel={oppgave?.title ?? t("arkiv.forhandsvis")}
+        onDel={delForhåndsvistPdf}
+        onLukk={() => settPdfForhandsvisFil(null)}
+      />
 
       {/* Tittel-redigeringsmodal */}
       <Modal visible={visTittelModal} animationType="slide" onRequestClose={() => settVisTittelModal(false)}>

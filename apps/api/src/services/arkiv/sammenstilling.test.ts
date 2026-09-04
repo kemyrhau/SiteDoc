@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import sharp from "sharp";
 import type { PrismaClient } from "@sitedoc/db";
-import { byggSjekklisteArkivHtml } from "./sammenstilling";
+import { byggSjekklisteArkivHtml, byggOppgaveArkivHtml } from "./sammenstilling";
 
 async function png(): Promise<Buffer> {
   return sharp({ create: { width: 16, height: 16, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 0.4 } } }).png().toBuffer();
@@ -137,5 +137,107 @@ describe("byggSjekklisteArkivHtml — orkestrator", () => {
     });
     expect(r.html).toContain("Dokumenthistorikk");
     expect(r.html).not.toContain('ark-seksjon">Endringslogg');
+  });
+});
+
+describe("byggOppgaveArkivHtml — task/HMS-adapter", () => {
+  it("HMS RUH (Task, domain=hms): «Oppgave», terminal «Behandlet av» fra closed-transfer, byggeplass via tegning", async () => {
+    const prisma = {
+      task: {
+        findUniqueOrThrow: async () => ({
+          id: "t1",
+          title: "RUH — nestenulykke stige",
+          number: 7,
+          status: "closed",
+          createdAt: new Date("2026-09-01T08:00:00.000Z"),
+          subject: "Fallfare",
+          drawingId: null,
+          positionX: null,
+          positionY: null,
+          lokasjonOmfang: null,
+          data: { f1: { verdi: "Stige ikke sikret", kommentar: "", vedlegg: [] } },
+          template: {
+            projectId: "p1",
+            prefix: "RUH",
+            enableChangeLog: false,
+            domain: "hms",
+            objects: [{ id: "f1", type: "text_field", label: "Beskrivelse", required: false, config: {}, sortOrder: 0, parentId: null }],
+          },
+          bestiller: { name: "Ola Melder" },
+          utforerFaggruppe: { name: "HMS" },
+          bestillerFaggruppe: { name: "HMS", projectId: "p1" },
+          drawing: { byggeplass: { name: "Tunnel Nord" } },
+        }),
+      },
+      project: {
+        findUnique: async () => ({
+          name: "E6 Nord",
+          projectNumber: "5501",
+          primaryOrganization: { name: "Markussen AS", organizationNumber: "111 222 333", logoUrl: null },
+        }),
+      },
+      drawing: { findMany: async () => [] },
+      documentTransfer: {
+        findMany: async () => [
+          { createdAt: new Date("2026-09-01T08:00:00.000Z"), sender: { name: "Ola Melder" }, recipientUser: null, recipientGroup: { name: "HMS" }, recipientEnterpriseName: null, senderRolle: "melder", fromStatus: "draft", toStatus: "received", comment: null, dokumentflytName: null },
+          { createdAt: new Date("2026-09-02T10:00:00.000Z"), sender: { name: "Kari Behandler" }, recipientUser: null, recipientGroup: null, recipientEnterpriseName: null, senderRolle: "behandler", fromStatus: "responded", toStatus: "closed", comment: "Tiltak iverksatt", dokumentflytName: null },
+        ],
+      },
+      taskComment: { findMany: async () => [] },
+      taskChangeLog: { findMany: async () => [] },
+      user: { findMany: async () => [] },
+    } as unknown as PrismaClient;
+
+    const r = await byggOppgaveArkivHtml(prisma, "t1", { hentBildeBytes: async () => null, generertTekst: "x" });
+
+    // Dokumenttype = Oppgave (topptekst + ramme)
+    expect(r.html).toContain("Oppgave");
+    // Task-semantikk: «Opprettet av»/«Behandlet av», ikke «Utført av»/«Godkjent av»
+    expect(r.html).toContain("Opprettet av");
+    expect(r.html).toContain("Behandlet av");
+    expect(r.html).not.toContain("Utført av");
+    // Terminal-signaturen hentes fra closed-transferen (behandler), ikke fra melder
+    expect(r.html).toContain("Kari Behandler");
+    // Dokumentnr fra number+prefix, filnavn med prefix
+    expect(r.html).toContain("RUH-007");
+    expect(r.filnavn).toBe("RUH-007.pdf");
+    // Innhold rendret
+    expect(r.html).toContain("Stige ikke sikret");
+  });
+
+  it("Task uten mal/data → tom innholdsseksjon uten kast; prosjekt hentes fra bestiller-faggruppe", async () => {
+    const prisma = {
+      task: {
+        findUniqueOrThrow: async () => ({
+          id: "t2",
+          title: "Løs oppgave",
+          number: null,
+          status: "draft",
+          createdAt: new Date("2026-09-01T08:00:00.000Z"),
+          subject: null,
+          drawingId: null,
+          positionX: null,
+          positionY: null,
+          lokasjonOmfang: null,
+          data: null,
+          template: null,
+          bestiller: { name: "Per" },
+          utforerFaggruppe: null,
+          bestillerFaggruppe: { name: "Drift", projectId: "p9" },
+          drawing: null,
+        }),
+      },
+      project: { findUnique: async () => ({ name: "P9", projectNumber: "9", primaryOrganization: null }) },
+      drawing: { findMany: async () => [] },
+      documentTransfer: { findMany: async () => [] },
+      taskComment: { findMany: async () => [] },
+      taskChangeLog: { findMany: async () => [] },
+      user: { findMany: async () => [] },
+    } as unknown as PrismaClient;
+
+    const r = await byggOppgaveArkivHtml(prisma, "t2", { hentBildeBytes: async () => null, generertTekst: "x" });
+    // Ingen kast, dokument bygget, filnavn faller til oppgave-prefiks + id.
+    expect(r.filnavn).toBe("oppgave-t2.pdf");
+    expect(r.html).toContain("Oppgave");
   });
 });

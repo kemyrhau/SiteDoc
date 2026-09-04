@@ -56,40 +56,63 @@ export const arkivRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Oppgave-rendring er ikke bygget ennå (task-innholdsleser mangler). Kontrakten
-      // godtar typen for N1, men avvis rendring med tydelig melding til den kommer.
-      const oppgave = input.dokumenter.find((d) => d.type === "oppgave");
-      if (oppgave) {
-        throw new TRPCError({
-          code: "NOT_IMPLEMENTED",
-          message: "Arkiv-PDF for oppgaver er ikke bygget ennå — kun sjekklister støttes.",
-        });
-      }
-
-      // Tilgang PER dokument: samme dokumenttilgang som lesing. Samle prosjekt-
-      // organisasjon for activity-loggen i samme sving.
+      // Tilgang PER dokument: samme dokumenttilgang som lesing. Forgrenet på type — oppgave/HMS
+      // er `Task` (avvik/RUH har `template.domain="hms"`), sjekkliste/SJA er `Checklist`. Samle
+      // prosjekt-organisasjon for activity-loggen i samme sving. Task.templateId er nullable →
+      // prosjekt/domenet hentes fra mal om den finnes, ellers bestiller-faggruppens prosjekt.
       const prosjektForDok = new Map<string, string | null>();
       for (const dok of input.dokumenter) {
-        const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
-          where: { id: dok.id },
-          select: {
-            id: true,
-            bestillerFaggruppeId: true,
-            utforerFaggruppeId: true,
-            template: { select: { projectId: true, domain: true, hmsSynlighet: true } },
-          },
-        });
-        await verifiserDokumentTilgang(
-          ctx.userId,
-          sjekkliste.template.projectId,
-          sjekkliste.bestillerFaggruppeId,
-          sjekkliste.utforerFaggruppeId,
-          sjekkliste.template.domain,
-          sjekkliste.id,
-          "checklist",
-          sjekkliste.template.hmsSynlighet,
-        );
-        prosjektForDok.set(dok.id, sjekkliste.template.projectId);
+        if (dok.type === "oppgave") {
+          const oppgave = await ctx.prisma.task.findUniqueOrThrow({
+            where: { id: dok.id },
+            select: {
+              id: true,
+              bestillerFaggruppeId: true,
+              utforerFaggruppeId: true,
+              bestillerFaggruppe: { select: { projectId: true } },
+              template: { select: { projectId: true, domain: true, hmsSynlighet: true } },
+            },
+          });
+          const projectId = oppgave.template?.projectId ?? oppgave.bestillerFaggruppe?.projectId ?? null;
+          if (!projectId) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Oppgaven mangler prosjekt-kontekst — kan ikke generere arkiv-PDF.",
+            });
+          }
+          await verifiserDokumentTilgang(
+            ctx.userId,
+            projectId,
+            oppgave.bestillerFaggruppeId,
+            oppgave.utforerFaggruppeId,
+            oppgave.template?.domain ?? null,
+            oppgave.id,
+            "task",
+            oppgave.template?.hmsSynlighet ?? null,
+          );
+          prosjektForDok.set(dok.id, projectId);
+        } else {
+          const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+            where: { id: dok.id },
+            select: {
+              id: true,
+              bestillerFaggruppeId: true,
+              utforerFaggruppeId: true,
+              template: { select: { projectId: true, domain: true, hmsSynlighet: true } },
+            },
+          });
+          await verifiserDokumentTilgang(
+            ctx.userId,
+            sjekkliste.template.projectId,
+            sjekkliste.bestillerFaggruppeId,
+            sjekkliste.utforerFaggruppeId,
+            sjekkliste.template.domain,
+            sjekkliste.id,
+            "checklist",
+            sjekkliste.template.hmsSynlighet,
+          );
+          prosjektForDok.set(dok.id, sjekkliste.template.projectId);
+        }
       }
 
       // Ruting på mal (N2). Bare «arkiv» finnes nå; nye former blir egne grener.
@@ -122,7 +145,7 @@ export const arkivRouter = router({
             action: "rendret",
             payload: {
               mal: input.mal,
-              dokumentType: "checklist",
+              dokumentType: dokStatus.type === "oppgave" ? "task" : "checklist",
               komplett: resultat.komplett,
               renderTimeout: resultat.renderTimeout,
               manglendeVedlegg: dokStatus.manglendeVedlegg,
