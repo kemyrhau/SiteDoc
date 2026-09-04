@@ -83,7 +83,7 @@ begrunnelsene ikke går tapt.
 | 2. REG fase 2–3 | gjenstår | ✅ **LEVERT** `578e2b67` (fase 2) + `23a52504` (`prosjektTilgangEvaluator.ts`) |
 | 3. AM 2 attestering | P0 | ❌ **IKKE BYGGET** — grep «40-timers» → 0 treff, negativ kontroll bestått |
 | 3. AM 3 KP-bugs | fikset 28.08 | ✅ **LEVERT** `180e9c61`; restfunnene i `inbox-kp-speiling.md` også levert (`b987d793`) |
-| 3. AM 4 malarkiv | P0 | ❌ **IKKE BYGGET** — grep «malarkiv» → 0 treff. 🔴 **Krever fabel-design først** |
+| 3. AM 4 malarkiv | P0 | ❌ **IKKE BYGGET** — grep «malarkiv» → 0 treff. ✅ **Designsak LEVERT 2026-09-04** ([designnotat-malarkiv](designnotat-malarkiv-fabel-2026-09-04.md)) — venter Kenneth-gate på mockup (B1–B3) før ordre. **Funn: `OrganizationTemplate`-datamodellen finnes allerede** (`schema.prisma:1038`, steg 1 av `migrering-reporttemplate.md` bygget, delvis i bruk i `mal.ts` + `kontrollplanKobling.ts`) — det som mangler er API, UI og seeding. Mindre sak enn antatt |
 | 4. DG arkiv-PDF | gjenstår | ✅ **TOMT** — D2/D2b levert 21.08, F7 lukket 04.09, layoutfunn merget `655c948b` |
 | 6. Del 6b fase 2 | «ordre 28.07, aldri relayet» | ✅ **LEVERT `ee7d4e3e` — samme DAG ordren ble skrevet.** Filter, opprett-vei, HMS-mobil, kontrollplan-lese. Sto som åpen i fem uker |
 | 6b-x tabellbredder · PR kolonnevelger | «henger» | ✅ **LEVERT** `7b413263` + `d394bdde` |
@@ -147,6 +147,8 @@ Mye «ikke prod» ble LIVE: statusmaskin-redesign F0–F6, flytrettigheter H3/H6
   tegning ved manglende markering) — den er ⛔ ON HOLD til modellen er avklart, ellers ber
   systemet om en pin på dokumenter som ikke skal ha en. **Hører sammen med punktet under: dette
   er samme rot.** Fabels domene — begrepsavklaring før mer bygges.
+- ✅ **AVKLART 2026-09-04 — vedtaksforslag levert:** [designnotat-lokasjonsmodellen](designnotat-lokasjonsmodellen-fabel-2026-09-04.md). Begrepssett (dokumentlokasjon / lokasjonstekst / feltpin / lokasjonsbryter) + nytt felt `lokasjonOmfang: "punkt" | "byggeplass" | null`. **Låser opp `inbox-lokasjon-autoapne.md`.**
+  🔴 **Coworks premiss «rendres ubetinget» var STALE — verifisert av cowork 04.09:** sjekkliste-detalj gater allerede på `showLocation` (`dashbord/[prosjektId]/sjekklister/[sjekklisteId]/page.tsx:873-874`, `!== false`). **Oppgavesiden mangler gaten** — null treff på `showLocation` utenfor sjekkliste-detalj og malbyggeren. Paritetsfiks hører i ordren.
 - **Begrepsforvirring «lokasjon» i malbyggeren:** TRE ulike ting bærer navnet — `ReportTemplate.showLocation` (fast felt, auto fra bygning/tegning) · `location`-rapportobjekt (ren tekst, prosjektadresse som fallback) · `drawing_position`-rapportobjekt (bærer `drawingId` + koordinater). Byggeplass ER lokasjonen: den eier tegningene (`Drawing.byggeplassId`) og har koordinater fra georeferert tegning. Fabels domene — begrepsavklaring før flere felt bygges.
 - **Lokasjon/tegningspunkt — fire funn (prod 2026-08-13):** (1) dokumentsiden viser ikke valgt lokasjon etter lagring, mens utskriften gjør det (manglende query-invalidering) · (2) detaljutsnitt mangler — `RapportObjektVisning.tsx:550-554` har 3 s fallback-timer som setter `klar=true` UTEN detalj · (3) de to bildene skal stå side ved side, innzoomet til høyre · (4) tegning skal åpne automatisk ved ny sjekkliste når malen har lokasjonsfelt.
 - **Værdata bør hentes fra byggeplassen:** `useAutoVaer.ts:58-64` bruker prosjektets koordinater. `Byggeplass.latitude/longitude` finnes. Et prosjekt kan strekke seg over kilometer; for en befaringsrapport er været på byggeplassen dokumentasjon.
