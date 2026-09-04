@@ -5,6 +5,7 @@ export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst, finnVaerTimeIndeks, byggVaerSnapshot } from "./vaer";
 export type { VaerHourly, VaerSnapshot } from "./vaer";
 export { nesteBildeNr, nummererRepeaterBilder, leggTilVedleggIRad } from "./bildeNr";
+export { erLokalVedleggUrl, harLokaltVedlegg, sammenstillMedLokaleVedlegg } from "./vedleggLokal";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
 export { hentStatusHandlinger, hentPosisjonFiltrertHandlinger } from "./statusHandlinger";

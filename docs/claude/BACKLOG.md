@@ -97,6 +97,12 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟠 Oppgave-hooken mangler funn C — sender `file://` rått til server (asymmetri, målt 2026-09-04)
+
+`useOppgaveSkjema.lagreIntern` (`:405-408`) sender `data` **rått** til `oppdaterData` — ingen `utelatFeltMedLokaleVedlegg`. Funn C (`da4d3035`) ble bare lagt i `useSjekklisteSkjema`, ikke oppgave. Konsekvens: oppgave lider fortsatt den ELDRE feilen funn C fikset — en `file://`-URL persisteres på server → tomme bilderammer (401 i visning på annen enhet / etter reinstall), inntil køens SQLite-writeback + en ny full lagre erstatter den. Oppgave har derfor **ikke** forsvinnings-bugen (`fix/vedlegg-forsvinner`, 2026-09-04) — den holder ikke feltet tilbake, så init fra server har vedleggene (med dårlige URL-er).
+
+🔴 **Koblet fiks — kan ikke gjøres halvt:** å legge funn C i oppgave (slutte å sende `file://`) UTEN samtidig å legge init-overlayen (`sammenstillMedLokaleVedlegg`) ville gitt oppgave nøyaktig forsvinnings-bugen sjekkliste nettopp ble kvitt. Bring oppgave til paritet med BEGGE deler i én endring: utelatelse ved lagring + overlay ved init. Verktøyene finnes delt (`@sitedoc/shared`: `harLokaltVedlegg`, `sammenstillMedLokaleVedlegg`). Merk også at køens server-patch (`patchSjekklisteVedleggUrl`) er sjekkliste-only — oppgave trenger tilsvarende, ellers når aldri server-URL-en oppgavens server-data.
+
 ### 🔴 Bilde-registrering er ikke idempotent — tapt-svar-retry gir duplikat `Image`-rad (målt 2026-09-03)
 
 `bilde.opprettForSjekkliste` og `opprettForOppgave` (`apps/api/src/routes/bilde.ts:146-205`) gjør blind `prisma.image.create` — input har **ingen `vedleggId`**, ingen upsert, ingen unik constraint, ingen dedup på `fileUrl`. Køen (`OpplastingsKoProvider`) retrier alle feilede opplastinger med backoff; en opplasting som **lyktes server-side men mistet svaret** blir retriet → ny `image.create` → **duplikat `Image`-rad**. Sjekklista/PDF-en rammes IKKE (de rendres fra `checklist.data`, nøklet på `vedleggId` via `patchSjekklisteVedleggUrl` — idempotent), men `Image`-tabellen (gallerivisning) får to rader.
