@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Přidat umístění",
   "lokasjonVelger.fjern": "Odebrat umístění",
   "lokasjonVelger.velgLokasjon": "Vyberte umístění",
+  "lokasjonVelger.gjelderByggeplass": "Platí pro celý web",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Zpráva se vztahuje na celý web, nikoli na jeden bod. Vytištěno místo prázdného pole umístění.",
   "emneVelger.etikett": "Podrobit",
   "emneVelger.leggTil": "Přidat předmět",
   "emneVelger.fjern": "Odebrat předmět",

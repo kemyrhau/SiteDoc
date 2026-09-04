@@ -13,6 +13,7 @@ describe("lesDokumentLokasjon", () => {
       drawingId: "d-1",
       positionX: 19.36,
       positionY: 73.7,
+      lokasjonOmfang: "punkt",
       drawing: { name: "Z-20-01", byggeplass: { name: "900512 Røstbakken" } },
     };
     expect(lesDokumentLokasjon(raa)).toEqual({
@@ -21,6 +22,18 @@ describe("lesDokumentLokasjon", () => {
       bygningNavn: "900512 Røstbakken",
       positionX: 19.36,
       positionY: 73.7,
+      lokasjonOmfang: "punkt",
+    });
+  });
+
+  it("lokasjonOmfang=byggeplass (uten tegning) → omfang hentes, resten null", () => {
+    expect(lesDokumentLokasjon({ lokasjonOmfang: "byggeplass" })).toEqual({
+      tegningId: null,
+      tegningNavn: null,
+      bygningNavn: null,
+      positionX: null,
+      positionY: null,
+      lokasjonOmfang: "byggeplass",
     });
   });
 
@@ -32,6 +45,7 @@ describe("lesDokumentLokasjon", () => {
       bygningNavn: null,
       positionX: null,
       positionY: null,
+      lokasjonOmfang: null,
     });
   });
 
@@ -42,6 +56,7 @@ describe("lesDokumentLokasjon", () => {
       bygningNavn: null,
       positionX: null,
       positionY: null,
+      lokasjonOmfang: null,
     });
   });
 

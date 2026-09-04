@@ -13,6 +13,7 @@ export function TegningPosisjonObjekt({
   onEndreVerdi,
   leseModus,
   feltNokkel,
+  stickyTegning,
 }: RapportObjektProps) {
   const posisjon = verdi as TegningPosisjonVerdi | null;
   const params = useParams<{ prosjektId: string }>();
@@ -54,6 +55,13 @@ export function TegningPosisjonObjekt({
       if (posisjon.drawingName) sp.set("tegningNavn", posisjon.drawingName);
       sp.set("px", String(posisjon.positionX));
       sp.set("py", String(posisjon.positionY));
+    } else if (stickyTegning?.drawingId) {
+      // L9 (2026-09-04): tom rad → forhåndsvelg sist brukte tegning i SAMME dokument. KUN
+      // tegningen (ingen px/py) — en arvet pin ville påstått en plassering ingen har satt.
+      // Samme mekanikk som F1-«Endre», men uten koordinater: tegningssiden setter `aktivTegning`
+      // fra `tegning`-parameteren og tegner ingen markør (den vises kun med px/py).
+      sp.set("tegning", stickyTegning.drawingId);
+      if (stickyTegning.drawingName) sp.set("tegningNavn", stickyTegning.drawingName);
     }
     router.push(`/dashbord/${params.prosjektId}/tegninger?${sp.toString()}`);
   }

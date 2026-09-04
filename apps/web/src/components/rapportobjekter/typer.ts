@@ -32,6 +32,19 @@ export interface RapportObjektProps {
    */
   radOppgaver?: RadOppgaveAdapter;
   /**
+   * L9 (2026-09-04): dokumentets dokumentlokasjon-tegning. Kalleren (detaljsiden) fyller den for
+   * repeateren; brukes KUN som siste fallback når «sist brukte tegning» skal forhåndsvelges i en
+   * tom repeater-rads feltpin-velger. Kun tegningen — aldri pin. Innenfor samme dokument, aldri på
+   * tvers (en «sist brukt» fra et annet dokument kan peke på feil byggeplass).
+   */
+  dokumentTegning?: { drawingId: string; drawingName?: string | null } | null;
+  /**
+   * L9 (2026-09-04): forhåndsvalgt «sist brukte» tegning for DENNE feltpin-velgeren, utledet av
+   * `RepeaterObjekt` per rad (forrige rads tegning → ellers dokumentTegning). `TegningPosisjonObjekt`
+   * bruker den kun når raden er tom: åpner tegningssiden på tegningen UTEN å sette pin/koordinater.
+   */
+  stickyTegning?: { drawingId: string; drawingName?: string | null } | null;
+  /**
    * 4b (bindende vedtak `domene-arbeidsflyt.md`: dokumentflyten er nøkkelen): faggruppe-id-ene som
    * er MEDLEM av dokumentets dokumentflyt. `company`-feltet (FirmaObjekt) begrenser valgene til
    * disse — ikke prosjektets alle. `null`/utelatt = flyt-løst dokument (gyldig) → FirmaObjekt faller

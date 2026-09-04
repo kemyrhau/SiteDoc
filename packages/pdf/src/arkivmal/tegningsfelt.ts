@@ -80,6 +80,12 @@ export interface LokasjonsData {
   /** Tekstlinje-deler under utsnittet (byggeplass · tegningsnavn). Falsy filtreres bort. */
   byggeplassNavn?: string | null;
   tegningNavn?: string | null;
+  /**
+   * Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen → egen tekstlinje
+   * som ALDRI utelates stille (et tomt felt der «gjelder alt» var ment er en usann påstand).
+   * "punkt"/null → dagens markør-regel (utsnitt vises kun med komplett markør).
+   */
+  lokasjonOmfang?: string | null;
 }
 
 /**
@@ -93,6 +99,12 @@ export function byggLokasjonsblokk(
   data: LokasjonsData,
   oppslag: PdfConfig["tegningsOppslag"],
 ): string {
+  // «Gjelder hele byggeplassen» er et bevisst svar, ikke en manglende pin. Seksjonen skrives
+  // ALLTID når omfanget er satt til byggeplass — også uten markør (det er nettopp poenget):
+  // en byggherre skal ikke lese «Ikke utfylt» der utføreren mente hele anlegget.
+  if (data.lokasjonOmfang === "byggeplass") {
+    return `<div class="ark-lokasjon"><div class="ark-lokasjon-tittel">Lokasjon</div><div style="font-size:11px;color:#374151;">Gjelder hele byggeplassen</div></div>`;
+  }
   if (!harMarkor(data)) return "";
   const t = oppslag?.[data.drawingId];
   if (!t?.dataUrl) return "";

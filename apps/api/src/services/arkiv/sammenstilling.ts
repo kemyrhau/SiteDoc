@@ -292,6 +292,7 @@ export async function byggSjekklisteArkivHtml(
       positionY: sjekkliste.positionY,
       byggeplassNavn: sjekkliste.byggeplass?.name ?? null,
       tegningNavn: docTegning ? tegningNavn(docTegning) : null,
+      lokasjonOmfang: sjekkliste.lokasjonOmfang,
     },
     tegningsOppslag,
   );

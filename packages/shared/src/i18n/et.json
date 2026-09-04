@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Lisa asukoht",
   "lokasjonVelger.fjern": "Eemalda asukoht",
   "lokasjonVelger.velgLokasjon": "Valige asukoht",
+  "lokasjonVelger.gjelderByggeplass": "Kehtib kogu saidi kohta",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Aruanne kehtib kogu saidi, mitte ühe punkti kohta. Trükitakse tühja asukohavälja asemel.",
   "emneVelger.etikett": "Teema",
   "emneVelger.leggTil": "Lisa teema",
   "emneVelger.fjern": "Eemalda teema",

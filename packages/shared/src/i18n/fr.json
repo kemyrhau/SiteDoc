@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Ajouter un emplacement",
   "lokasjonVelger.fjern": "Supprimer l'emplacement",
   "lokasjonVelger.velgLokasjon": "Sélectionnez un emplacement",
+  "lokasjonVelger.gjelderByggeplass": "S'applique à l'ensemble du site",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Le rapport s'applique à l'ensemble du site, pas à un seul point. Imprimé à la place d'un champ d'emplacement vide.",
   "emneVelger.etikett": "Sujette",
   "emneVelger.leggTil": "Ajouter un sujet",
   "emneVelger.fjern": "Supprimer le sujet",

@@ -241,6 +241,17 @@ Begrepene var tvetydige: terminologien sa «kundens/byggherrens referanse» om e
 - **Similaritetstransformasjon:** 2D-mapping mellom tegningskoordinater og GPS
 - **WMO-værkode:** Standard for værforhold som tall → norsk tekst
 
+### Lokasjon — fire ting, fire navn (vedtatt 2026-09-04, lukker masterplan-restansen «tre ting heter lokasjon»)
+
+Ingen nye felt får hete «lokasjon» uten ett av disse begrepene.
+
+| Kode | Begrep | Betyr |
+|---|---|---|
+| `Checklist/Task.drawingId/positionX/Y` + `lokasjonOmfang` | **dokumentlokasjon** | Det faste dokumentnivå-feltet, styrt av `showLocation`. `lokasjonOmfang` ("punkt" \| "byggeplass" \| null) skiller «bevisst hele byggeplassen» fra «ikke valgt ennå» — et tomt felt der noe var ment er en usann påstand |
+| `location`-rapportobjekt (fritekst) | **lokasjonstekst** | Fritekstfelt i mal (legacy, avviklet fra palett 2026-09-02) |
+| `drawing_position`-rapportobjekt (per felt) | **feltpin** | Tegningsmarkør per skjemafelt/repeater-rad |
+| `ReportTemplate.showLocation` | **lokasjonsbryter** | Mal-nivå: vis/skjul dokumentlokasjon |
+
 ---
 
 

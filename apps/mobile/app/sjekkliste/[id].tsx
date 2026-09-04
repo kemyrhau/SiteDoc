@@ -741,7 +741,13 @@ export default function SjekklisteUtfylling() {
   const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
   // Paritetsregel (2026-09-02): i lesevisning vises dokumentnivå-lokasjonen kun med
   // komplett markør (harMarkorDok); tegning uten punkt leses som «ingen lokasjon».
-  const lokasjonTekstVist = leseModus && !harMarkorDok ? null : lokasjonTekst;
+  // Lokasjonsomfang (2026-09-04): «Gjelder hele byggeplassen» er et eksplisitt svar og vises
+  // på tvers av flater (web/PDF/mobil) — aldri som tomt felt. Har forrang over markør-teksten.
+  const erByggeplassDok =
+    (sjekklisteDetalj as { lokasjonOmfang?: string | null } | undefined)?.lokasjonOmfang === "byggeplass";
+  const lokasjonTekstVist = erByggeplassDok
+    ? t("lokasjonVelger.gjelderByggeplass")
+    : (leseModus && !harMarkorDok ? null : lokasjonTekst);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>

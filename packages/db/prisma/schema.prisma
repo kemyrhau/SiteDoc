@@ -1119,6 +1119,11 @@ model Checklist {
   drawingId            String?   @map("drawing_id")
   positionX            Float?    @map("position_x")
   positionY            Float?    @map("position_y")
+  // Lokasjonsomfang (2026-09-04): "punkt" = pin/tegning satt · "byggeplass" = bevisst hele
+  // byggeplassen (én observasjon om hele anlegget, f.eks. «alle gatelysene mangler merking»)
+  // · null = ikke valgt ennå (auto-åpning kan trigge i utkast). PDF/web skiller byggeplass fra
+  // et tomt felt — et tomt felt der noe var ment er en usann påstand.
+  lokasjonOmfang       String?   @map("lokasjon_omfang")
   recipientUserId      String?   @map("recipient_user_id")
   recipientGroupId     String?   @map("recipient_group_id")
   lestAvMottakerVed    DateTime? @map("lest_av_mottaker_ved")
@@ -1178,6 +1183,8 @@ model Task {
   drawingId            String?   @map("drawing_id")
   positionX            Float?    @map("position_x")
   positionY            Float?    @map("position_y")
+  // Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | null — speiler Checklist.lokasjonOmfang.
+  lokasjonOmfang       String?   @map("lokasjon_omfang")
   dokumentflytId       String?   @map("dokumentflyt_id")
   checklistId          String?   @map("checklist_id")
   checklistFieldId     String?   @map("checklist_field_id")

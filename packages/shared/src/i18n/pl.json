@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Dodaj lokalizację",
   "lokasjonVelger.fjern": "Usuń lokalizację",
   "lokasjonVelger.velgLokasjon": "Wybierz lokalizację",
+  "lokasjonVelger.gjelderByggeplass": "Dotyczy całej witryny",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Raport dotyczy całego serwisu, a nie pojedynczego punktu. Drukowane zamiast pustego pola lokalizacji.",
   "emneVelger.etikett": "Temat",
   "emneVelger.leggTil": "Dodaj temat",
   "emneVelger.fjern": "Usuń temat",
