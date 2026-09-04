@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "Вложений: {{count}} – все еще пытается загрузить",
   "felt.kunneIkkeLasteOpp": "Не удалось загрузить файл",
   "felt.vedleggKunneIkkeLastes": "Не удалось загрузить",
+  "felt.opptakTidMangler": "Время недоступно",
   "felt.paakrevd": "Необходимый",
   "felt.original": "Оригинал ({{spraak}})",
   "felt.oppgave": "Задача",

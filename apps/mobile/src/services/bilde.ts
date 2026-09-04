@@ -8,6 +8,92 @@ export interface BildeResultat {
   filstorrelse: number;
   gpsLat?: number;
   gpsLng?: number;
+  // Når bildet ble TATT (EXIF DateTimeOriginal), ikke når det ble lagt i appen.
+  // ISO-streng ved treff; `null` når bildet ikke bar EXIF-tid (skjermbilde,
+  // strippet ved deling) — et tomt felt er sant, innleggingstid ville vært løgn.
+  // `undefined` betyr «ikke målt» (f.eks. kamerabilder, som stemples i UI-laget).
+  opptakTidspunkt?: string | null;
+}
+
+/**
+ * EXIF `DateTimeOriginal` → ISO-streng. EXIF-formatet er «YYYY:MM:DD HH:MM:SS»
+ * (kolon også i datoen, ingen tidssone) og er veggklokke-tid på opptaksstedet.
+ * Vi tolker den i ENHETENS lokale tidssone her på mobilen — for en norsk
+ * anleggsarbeider er det byggeplassens sone, og `.toISOString()` gir da riktig
+ * UTC-øyeblikk som PDF/app formaterer tilbake til samme veggklokke (PDF låser
+ * «Europe/Oslo»). Samme prinsipp som tidssone-vedtaket 2026-09-03: tidspunktet
+ * er et faktum om hendelsen, ikke presentasjon.
+ * Returnerer `null` når EXIF-tid mangler eller er uparsbar — aldri innleggingstid.
+ */
+export function exifOpptakTidspunkt(exif: Record<string, unknown> | null | undefined): string | null {
+  const rå = exif?.DateTimeOriginal ?? exif?.DateTimeDigitized ?? exif?.DateTime;
+  if (typeof rå !== "string") return null;
+  const m = rå.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return null;
+  const [, år, mnd, dag, t, min, s] = m;
+  const d = new Date(Number(år), Number(mnd) - 1, Number(dag), Number(t), Number(min), Number(s));
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/**
+ * EXIF GPS → { lat, lng } i desimalgrader, eller `null`.
+ *
+ * 🔴 UAVKLART FORM (måles av Kenneth på ekte iOS 26, jf. ordren): iOS/expo kan gi
+ * GPS enten flatt (`GPSLatitude` + `GPSLatitudeRef`) eller nøstet (`GPS.Latitude`).
+ * Denne leser BEGGE former og bruker Ref (N/S/E/W) til fortegn. Verdien måles og
+ * bekreftes før vi stoler på den.
+ *
+ * Merk: PHPicker (uten full bibliotektilgang) STRIPPER ofte GPS av personvern.
+ * Skjer det, returnerer denne `null` → galleribildet får tomt opptakssted. Det er
+ * et akseptert utfall (Kenneth 2026-09-04) — vi ber IKKE om bredere tilgang.
+ */
+export function exifOpptakPosisjon(
+  exif: Record<string, unknown> | null | undefined,
+): { lat: number; lng: number } | null {
+  if (!exif) return null;
+  const gpsObj = (exif.GPS && typeof exif.GPS === "object" ? exif.GPS : exif) as Record<string, unknown>;
+
+  const tallFra = (v: unknown): number | null => {
+    const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+    return Number.isFinite(n) ? n : null;
+  };
+
+  let lat = tallFra(gpsObj.GPSLatitude ?? gpsObj.Latitude);
+  let lng = tallFra(gpsObj.GPSLongitude ?? gpsObj.Longitude);
+  if (lat == null || lng == null) return null;
+
+  const latRef = String(gpsObj.GPSLatitudeRef ?? gpsObj.LatitudeRef ?? "").toUpperCase();
+  const lngRef = String(gpsObj.GPSLongitudeRef ?? gpsObj.LongitudeRef ?? "").toUpperCase();
+  if (latRef === "S") lat = -Math.abs(lat);
+  if (lngRef === "W") lng = -Math.abs(lng);
+
+  // Utenfor gyldig intervall = søppel, ikke posisjon.
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+/** Diagnostikk (kun __DEV__): logg rå EXIF så Kenneth kan måle nøkkelnavn/form på ekte iOS. */
+function loggExifDiag(kilde: string, exif: Record<string, unknown> | null | undefined): void {
+  if (!__DEV__) return;
+  const gpsNøkler = exif
+    ? Object.keys(exif).filter((k) => /gps/i.test(k) || /date/i.test(k))
+    : [];
+  console.log(
+    `[EXIF-DIAG] ${kilde}`,
+    JSON.stringify({
+      harExif: !!exif,
+      alleNøkler: exif ? Object.keys(exif) : null,
+      tid_ogsted_nøkler: gpsNøkler,
+      DateTimeOriginal: exif?.DateTimeOriginal ?? null,
+      GPS: exif?.GPS ?? null,
+      GPSLatitude: exif?.GPSLatitude ?? null,
+      GPSLatitudeRef: exif?.GPSLatitudeRef ?? null,
+      GPSLongitude: exif?.GPSLongitude ?? null,
+      GPSLongitudeRef: exif?.GPSLongitudeRef ?? null,
+      tolketTid: exifOpptakTidspunkt(exif),
+      tolketPosisjon: exifOpptakPosisjon(exif),
+    }),
+  );
 }
 
 const MAKS_BREDDE = 1920;
@@ -170,9 +256,15 @@ export async function taBilde(gpsAktivert = true): Promise<BildeResultat | null>
  * rekkefølgen brukeren trykker bildene i, ikke opptakstidspunktet.
  *
  * `maksAntall` er selectionLimit (10 som default — ubegrenset valg over mobilnett
- * fyller opplastingskøen). GPS hentes ÉN gang og settes likt på alle (dagens semantikk:
- * posisjon ved valg, ikke ved opptak). Returnerer array i assets-rekkefølgen, som ER
- * trykk-rekkefølgen når orderedSelection er satt — output-indeks = input-indeks.
+ * fyller opplastingskøen). Returnerer array i assets-rekkefølgen, som ER trykk-
+ * rekkefølgen når orderedSelection er satt — output-indeks = input-indeks.
+ *
+ * Opptaks-metadata (endret 2026-09-04): tid OG sted leses fra bildets EXIF PER
+ * bilde (`exif: true`) — ikke lenger enhetens posisjon ved valg, som var feil for
+ * galleribilder (opptak ≠ innlegging). `komprimer()` stripper EXIF fra fila, men vi
+ * leser `asset.exif` fra picker-objektet FØR komprimering, så det spiller ingen
+ * rolle. Mangler EXIF (tid og/eller sted), blir feltet tomt — aldri fylt med
+ * innleggings-verdi. `gpsAktivert=false` (personvern) slår av sted-lesing også.
  *
  * Android-forbehold: `orderedSelection` er dokumentert iOS-only. På Android kan Photo
  * Picker returnere bibliotek-rekkefølge — ikke verifisert her.
@@ -194,15 +286,10 @@ export async function velgBilder(
     allowsMultipleSelection: true,
     orderedSelection: true,
     selectionLimit: maksAntall,
+    exif: true,
   });
 
   if (resultat.canceled || resultat.assets.length === 0) return [];
-
-  // GPS: hent ÉN gang, ikke N kall i løkke.
-  let gps: { lat: number; lng: number } | null = null;
-  if (gpsAktivert) {
-    gps = await hentGps();
-  }
 
   // Sekvensiell komprimering med per-bilde-isolasjon — IKKE Promise.all.
   // Promise.all var alt-eller-intet: ett bilde som feiler (eller minnespress fra
@@ -211,12 +298,18 @@ export async function velgBilder(
   const resultater: BildeResultat[] = [];
   for (let i = 0; i < resultat.assets.length; i++) {
     try {
-      const komprimert = await komprimer(resultat.assets[i]!.uri);
+      const asset = resultat.assets[i]!;
+      const exif = asset.exif as Record<string, unknown> | null | undefined;
+      loggExifDiag(`galleri ${i + 1}/${resultat.assets.length}`, exif);
+      const opptakTidspunkt = exifOpptakTidspunkt(exif);
+      const posisjon = gpsAktivert ? exifOpptakPosisjon(exif) : null;
+      const komprimert = await komprimer(asset.uri);
       resultater.push({
         uri: komprimert.uri,
         filstorrelse: komprimert.filstorrelse,
-        gpsLat: gps?.lat,
-        gpsLng: gps?.lng,
+        gpsLat: posisjon?.lat,
+        gpsLng: posisjon?.lng,
+        opptakTidspunkt,
       });
     } catch (feil) {
       console.warn(

@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} вкладених файлів – досі намагаються завантажити",
   "felt.kunneIkkeLasteOpp": "Не вдалося завантажити файл",
   "felt.vedleggKunneIkkeLastes": "Не вдалося завантажити",
+  "felt.opptakTidMangler": "Час недоступний",
   "felt.paakrevd": "Обов'язковий",
   "felt.original": "Оригінал ({{spraak}})",
   "felt.oppgave": "завдання",
