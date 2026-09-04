@@ -92,6 +92,18 @@ Ordre etter bygg 51.
 > allerede appens modell.** Ti skjermer sender `byggeplassId` fra `ByggeplassKontekst`.
 > Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
 
+### Feltfunn 2026-09-04 (prod-verifisering av `96eebc13`)
+
+Kenneth sammenlignet samme befaringsnotat i mobil, web og arkiv-PDF etter prod-deployen.
+
+| Funn | Alvorlighet | Status |
+|---|---|---|
+| Web viste ikke bildets opptakstidspunkt — mobil og PDF gjorde. Målt: **null treff på `opptakTidspunkt` i `apps/web`** | 🟡 skjemmer | ✅ Merget `d610acb8`. Gjenbruker `formaterDatoTidPunkt` fra `@sitedoc/pdf` (ingen tredje kopi); `undefined` ⇒ tomt (historiske bilder urørt), `null` ⇒ `felt.opptakTidMangler` (15/15 språk), aldri innleggingstid. **Web — når ikke brukeren via OTA, venter på neste prod-deploy** |
+| `RapportObjektVisning.tsx:143` (oppgave-detalj + web-utskrift) viser fortsatt `opprettet` = innleggingstid | 🟡 skjemmer | Samme paritetsbrudd, annen flate med egen vedleggstype uten `opptakTidspunkt`. Ikke ordre — hører sammen med den flatens egen opprydding |
+| Arkiv-PDF: overskriften «BILDER» står alene med ~halv side tomrom, bildene rendres på neste side | 🔵 notert | Sidebrekk-regelen holder ikke overskrift og innhold sammen. Rotårsak ikke funnet (dokgen var ikke i arkivmal-layouten og gjettet ikke) |
+| Arkiv-PDF: felt vises som `_` med «Ikke utfylt» — etikett mangler eller er tom | 🔵 notert | Rotårsak ikke funnet |
+| Bildeteksten i web er satt til **9 px** — PDF og mobil bruker vesentlig større | 🔵 notert | Vurderes visuelt når endringen er på test; justeres hvis den er for smått til å leses før godkjenning |
+
 ### Eldre feltfunn
 
 | Funn | Alvorlighet | Status |
