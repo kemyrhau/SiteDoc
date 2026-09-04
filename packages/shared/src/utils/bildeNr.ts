@@ -11,6 +11,10 @@
  * ikke kopiert per hook (hooks/CLAUDE.md § «Deler logikk skal ligge i @sitedoc/shared»).
  */
 
+// Repeater-rad-traversering: kanonisk kilde i `repeaterRad.ts` (feltKartFraRad).
+// Ikke lag en lokal kopi — det var nettopp den duplikasjonen som ga tre bugs.
+import { feltKartFraRad } from "./repeaterRad";
+
 interface VedleggLite {
   type?: string;
   bildeNr?: number;
@@ -19,19 +23,6 @@ interface VedleggLite {
 interface FeltVerdiLite {
   verdi?: unknown;
   vedlegg?: VedleggLite[];
-}
-
-/**
- * Felt-kartet i en repeater-rad. Produksjon: `{ _radId, felter: {...} }` → returner
- * `felter`. Eldre/rå rad: `{ feltId: {...} }` → returner raden selv. `_radId` (streng)
- * blir aldri lest som et felt siden vi kun leser `felter`-objektet når det finnes.
- */
-function feltKart(rad: unknown): Record<string, unknown> {
-  const r = rad as Record<string, unknown>;
-  const felter = r.felter;
-  return felter && typeof felter === "object"
-    ? (felter as Record<string, unknown>)
-    : r;
 }
 
 /** Besøk alle bilde-vedlegg i ett dokument (topp-nivå-felt + repeater-rader). */
@@ -55,7 +46,7 @@ function forHvertBilde(
     if (Array.isArray(felt.verdi)) {
       for (const rad of felt.verdi) {
         if (!rad || typeof rad !== "object") continue;
-        for (const barn of Object.values(feltKart(rad))) {
+        for (const barn of Object.values(feltKartFraRad(rad))) {
           if (barn && typeof barn === "object") {
             tellListe((barn as FeltVerdiLite).vedlegg);
           }
@@ -100,7 +91,7 @@ export function nummererRepeaterBilder<T>(rader: T, startNr: number): T {
     // Skriv tilbake i samme form (bevar `_radId` + `felter`-wrapperen).
     const harFelter = raaRad.felter != null && typeof raaRad.felter === "object";
     let radEndret = false;
-    const nyttKart: Record<string, unknown> = { ...feltKart(raaRad) };
+    const nyttKart: Record<string, unknown> = { ...feltKartFraRad(raaRad) };
 
     for (const feltId of Object.keys(nyttKart)) {
       const felt = nyttKart[feltId] as FeltVerdiLite | undefined;
@@ -152,7 +143,7 @@ export function leggTilVedleggIRad<T>(
     if (i !== radIndeks || !rad || typeof rad !== "object") return rad;
     const raaRad = rad as Record<string, unknown>;
     const harFelter = raaRad.felter != null && typeof raaRad.felter === "object";
-    const kilde = feltKart(raaRad);
+    const kilde = feltKartFraRad(raaRad);
     const eks = (kilde[feltId] as { vedlegg?: unknown[] } | undefined) ?? {};
     const nyttKart = {
       ...kilde,

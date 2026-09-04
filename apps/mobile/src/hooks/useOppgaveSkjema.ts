@@ -8,7 +8,7 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, settVedleggUrlIDokument } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi } from "./useSjekklisteSkjema";
 
@@ -311,54 +311,10 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       (dokumentId, dokumentType, _objektId, vedleggId, serverUrl) => {
         if (dokumentType !== "oppgave" || dokumentId !== oppgaveId) return;
 
-        settFeltVerdier((prev) => {
-          const oppdatert = { ...prev };
-          let endret = false;
-          for (const feltId of Object.keys(oppdatert)) {
-            const felt = oppdatert[feltId];
-            if (!felt) continue;
-
-            // Søk i toppnivå-vedlegg
-            const vedleggIdx = felt.vedlegg.findIndex((v) => v.id === vedleggId);
-            if (vedleggIdx >= 0) {
-              oppdatert[feltId] = {
-                ...felt,
-                vedlegg: felt.vedlegg.map((v) =>
-                  v.id === vedleggId ? { ...v, url: serverUrl } : v,
-                ),
-              };
-              endret = true;
-            }
-
-            // Søk i repeater-data (nestet i verdi-arrayen)
-            if (Array.isArray(felt.verdi)) {
-              let repeaterEndret = false;
-              const oppdatertRader = (felt.verdi as Record<string, { vedlegg?: Array<{ id: string; url: string }> }>[]).map((rad) => {
-                const nyRad = { ...rad };
-                for (const barnId of Object.keys(nyRad)) {
-                  const barn = nyRad[barnId];
-                  if (!barn?.vedlegg) continue;
-                  const idx = barn.vedlegg.findIndex((v) => v.id === vedleggId);
-                  if (idx >= 0) {
-                    nyRad[barnId] = {
-                      ...barn,
-                      vedlegg: barn.vedlegg.map((v) =>
-                        v.id === vedleggId ? { ...v, url: serverUrl } : v,
-                      ),
-                    };
-                    repeaterEndret = true;
-                  }
-                }
-                return nyRad;
-              });
-              if (repeaterEndret) {
-                oppdatert[feltId] = { ...oppdatert[feltId]!, verdi: oppdatertRader };
-                endret = true;
-              }
-            }
-          }
-          return endret ? oppdatert : prev;
-        });
+        // Kanonisk vedlegg-URL-oppdatering (topp-nivå + repeater-rader, begge
+        // radformer). Den gamle hånd-traverseringen traff ALDRI repeater-vedlegg
+        // i `{ _radId, felter }`-form. Se `@sitedoc/shared` repeaterRad.ts.
+        settFeltVerdier((prev) => settVedleggUrlIDokument(prev, vedleggId, serverUrl));
         // Trigger server-synk slik at oppdatert URL lagres i PostgreSQL
         planleggLagringRef.current?.();
       },

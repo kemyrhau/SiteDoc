@@ -97,6 +97,15 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 `endringsdiff.ts` teller repeater-rad-celler feil (samme formklasse, målt 2026-09-04)
+
+`radSammendrag`/`tellBilder` (`packages/pdf/src/arkivmal/endringsdiff.ts:230-232`) gjør `Object.values(rad)` på en repeater-rad. På produksjonsformen `{ _radId, felter }` blir det `[_radId-streng, felter-objekt]` → teller wrapperen i stedet for de faktiske cellene. Kosmetisk (endringslogg-sammendrag «N felt utfylt»), ikke datatap. **Fiks:** rut gjennom `feltKartFraRad` (@sitedoc/shared, `repeaterRad.ts`) — den kanoniske traverseringen. Del av samme feilklasse som traff callbacken/bildeNr/append; listet, ikke fikset i denne runden fordi den ikke er brukervendt.
+
+### 🟡 11 foreldreløse lokalbilder i `sitedoc-bilder/` (målt fra enhet-logg 2026-09-04)
+
+`[RYDD] Hopper over opprydding — kø tom men 11 lokale bilder finnes (migreringsfase)`. Elleve filer uten kø-oppføring — sannsynlig levning fra tidligere vedlegg-tap (feltet klobbet ved gjeninngang før `fix/vedlegg-forsvinner`, filen ble igjen). Ufarlig (disk), men bør ryddes når oppryddingslogikken er trygg. Ikke fikset nå.
+
+
 ### 🟠 Oppgave-hooken mangler funn C — sender `file://` rått til server (asymmetri, målt 2026-09-04)
 
 `useOppgaveSkjema.lagreIntern` (`:405-408`) sender `data` **rått** til `oppdaterData` — ingen `utelatFeltMedLokaleVedlegg`. Funn C (`da4d3035`) ble bare lagt i `useSjekklisteSkjema`, ikke oppgave. Konsekvens: oppgave lider fortsatt den ELDRE feilen funn C fikset — en `file://`-URL persisteres på server → tomme bilderammer (401 i visning på annen enhet / etter reinstall), inntil køens SQLite-writeback + en ny full lagre erstatter den. Oppgave har derfor **ikke** forsvinnings-bugen (`fix/vedlegg-forsvinner`, 2026-09-04) — den holder ikke feltet tilbake, så init fra server har vedleggene (med dårlige URL-er).
