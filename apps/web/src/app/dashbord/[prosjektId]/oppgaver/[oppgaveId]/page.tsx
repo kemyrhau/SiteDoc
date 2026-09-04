@@ -230,6 +230,11 @@ export default function OppgaveDetaljSide() {
   );
   // Dokument-lokasjon fra RÅ hentMedId (se lesDokumentLokasjon) — IKKE fra det omformede `oppgave`.
   const oppgaveLokasjon = lesDokumentLokasjon(fullOppgaveRå);
+  // L9 (2026-09-04): dokumentets dokumentlokasjon-tegning — siste fallback for «sist brukte»
+  // tegning i en repeater-feltpin. KUN tegning + navn, aldri pin.
+  const oppgaveDokumentTegning = oppgaveLokasjon.tegningId
+    ? { drawingId: oppgaveLokasjon.tegningId, drawingName: oppgaveLokasjon.tegningNavn }
+    : null;
   // A (2026-08-22): `returnerTil` (URL) peker tilbake til dokumentet som opprettet oppgaven — så
   // «tilbake» går dit, ikke til oppgavelista. Bæres i URL → overlever full last. Kun interne stier
   // godtas (må starte med «/» og ikke «//») så en manipulert param ikke kan redirecte ut av appen.
@@ -798,7 +803,10 @@ export default function OppgaveDetaljSide() {
           </div>
         )}
 
-        {/* Lokasjon */}
+        {/* Lokasjon (paritetsfiks krav 4 2026-09-04): oppgavesiden gater nå på malens
+            showLocation, likt sjekklisten. Tidligere rendret velgeren ubetinget — et hull,
+            ikke en modellbeslutning. `template` følger med `oppgave.hentMedId` (skalar). */}
+        {(fullOppgaveRå as unknown as { template?: { showLocation?: boolean } | null })?.template?.showLocation !== false && (
         <div className="mt-2 max-w-md print-skjul">
           {/* 🔴 Lokasjonsvisning-bug (2026-08-23): les fra RÅ hentMedId via lesDokumentLokasjon —
               det omformede `oppgave` (useOppgaveSkjema) dropper drawingId/positionX/positionY/drawing
@@ -810,6 +818,7 @@ export default function OppgaveDetaljSide() {
             bygningNavn={oppgaveLokasjon.bygningNavn ?? undefined}
             positionX={oppgaveLokasjon.positionX ?? undefined}
             positionY={oppgaveLokasjon.positionY ?? undefined}
+            lokasjonOmfang={oppgaveLokasjon.lokasjonOmfang}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -817,13 +826,21 @@ export default function OppgaveDetaljSide() {
                 drawingId: data.drawingId,
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
+                lokasjonOmfang: data.lokasjonOmfang ?? null,
               });
             }}
             // Cowork-vedtak 2026-08-29: speil server-vakten (oppgave.ts:670, draft-only) —
             // ikke ["closed","approved"], som viste velgeren redigerbar i sent men fikk stille avvisning.
             leseModus={(oppgave.status ?? "") !== "draft"}
+            /* Auto-åpning (krav 3): kun utkast, omfang ikke valgt, ingen tegning fra før. */
+            autoÅpne={
+              (oppgave.status ?? "") === "draft" &&
+              oppgaveLokasjon.lokasjonOmfang == null &&
+              !oppgaveLokasjon.tegningId
+            }
           />
         </div>
+        )}
       </div>
 
       {/* Spor 2 / 5a: HMS melder-handlingsbanner — Send inn/Forkast (utkast) eller
@@ -897,6 +914,7 @@ export default function OppgaveDetaljSide() {
                     prosjektId={params.prosjektId}
                     barneObjekter={barneObjekterMap.get(objekt.id)}
                     tillatteFaggruppeIder={tillatteFaggruppeIder}
+                    dokumentTegning={oppgaveDokumentTegning}
                   />
                 </FeltWrapper>
               </div>

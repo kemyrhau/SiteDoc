@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Shto vendndodhje",
   "lokasjonVelger.fjern": "Hiq vendndodhjen",
   "lokasjonVelger.velgLokasjon": "Zgjidhni vendndodhjen",
+  "lokasjonVelger.gjelderByggeplass": "Zbatohet në të gjithë faqen",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Raporti vlen për të gjithë faqen, jo për një pikë të vetme. Shtypur në vend të një fushe të zbrazët të vendndodhjes.",
   "emneVelger.etikett": "Subjekti",
   "emneVelger.leggTil": "Shto subjekt",
   "emneVelger.fjern": "Hiq subjektin",

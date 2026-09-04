@@ -15,6 +15,8 @@ export interface DokumentLokasjon {
   bygningNavn: string | null;
   positionX: number | null;
   positionY: number | null;
+  /** Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | null. */
+  lokasjonOmfang: "punkt" | "byggeplass" | null;
 }
 
 export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
@@ -23,6 +25,7 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
         drawingId?: string | null;
         positionX?: number | null;
         positionY?: number | null;
+        lokasjonOmfang?: "punkt" | "byggeplass" | null;
         drawing?: { name?: string | null; byggeplass?: { name?: string | null } | null } | null;
       }
     | undefined;
@@ -32,5 +35,6 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
     bygningNavn: d?.drawing?.byggeplass?.name ?? null,
     positionX: d?.positionX ?? null,
     positionY: d?.positionY ?? null,
+    lokasjonOmfang: d?.lokasjonOmfang ?? null,
   };
 }

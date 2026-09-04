@@ -123,4 +123,23 @@ describe("byggLokasjonsblokk — dokumentnivå lokasjon (D2)", () => {
       ),
     ).toBe("");
   });
+
+  it("lokasjonOmfang=byggeplass → «Gjelder hele byggeplassen», ALDRI utelatt (2026-09-04)", () => {
+    // Uten markør ville dagens regel gitt "". Byggeplass er et bevisst svar, ikke en manglende pin.
+    const html = byggLokasjonsblokk({ lokasjonOmfang: "byggeplass" }, OPPSLAG);
+    expect(html).toContain("Gjelder hele byggeplassen");
+    expect(html).not.toBe("");
+  });
+
+  it("lokasjonOmfang=byggeplass vinner over manglende markør (ingen tegning kreves)", () => {
+    const html = byggLokasjonsblokk(
+      { lokasjonOmfang: "byggeplass", drawingId: null, positionX: null, positionY: null },
+      OPPSLAG,
+    );
+    expect(html).toContain("Gjelder hele byggeplassen");
+  });
+
+  it("lokasjonOmfang=punkt uten markør → \"\" (som i dag)", () => {
+    expect(byggLokasjonsblokk({ lokasjonOmfang: "punkt" }, OPPSLAG)).toBe("");
+  });
 });

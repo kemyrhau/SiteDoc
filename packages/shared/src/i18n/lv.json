@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Pievienot atrašanās vietu",
   "lokasjonVelger.fjern": "Noņemt atrašanās vietu",
   "lokasjonVelger.velgLokasjon": "Izvēlieties atrašanās vietu",
+  "lokasjonVelger.gjelderByggeplass": "Attiecas uz visu vietni",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Ziņojums attiecas uz visu vietni, nevis uz vienu punktu. Drukāts tukša atrašanās vietas lauka vietā.",
   "emneVelger.etikett": "Priekšmets",
   "emneVelger.leggTil": "Pievienot tēmu",
   "emneVelger.fjern": "Noņemt tēmu",

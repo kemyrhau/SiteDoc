@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Add location",
   "lokasjonVelger.fjern": "Remove location",
   "lokasjonVelger.velgLokasjon": "Select location",
+  "lokasjonVelger.gjelderByggeplass": "Applies to the entire site",
+  "lokasjonVelger.gjelderByggeplassHjelp": "The report applies to the whole site, not a single point. Printed instead of an empty location field.",
   "emneVelger.etikett": "Subject",
   "emneVelger.leggTil": "Add subject",
   "emneVelger.fjern": "Remove subject",

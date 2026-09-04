@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Додайте місцезнаходження",
   "lokasjonVelger.fjern": "Видалити місцезнаходження",
   "lokasjonVelger.velgLokasjon": "Виберіть розташування",
+  "lokasjonVelger.gjelderByggeplass": "Стосується всього сайту",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Звіт стосується всього сайту, а не окремого пункту. Друкується замість порожнього поля розташування.",
   "emneVelger.etikett": "Тема",
   "emneVelger.leggTil": "Додайте тему",
   "emneVelger.fjern": "Видалити тему",

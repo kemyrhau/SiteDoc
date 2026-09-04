@@ -580,6 +580,24 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟡 lokasjonOmfang — «Gjelder hele byggeplassen» som eksplisitt svar + L9 sticky tegning (`feat/lokasjonomfang`, PÅ BRANCH — gatet lokalt, IKKE merget)
+
+**Ordre:** `docs/redesign/ORDRE-lokasjonomfang-2026-09-04.md` (+ L9-tillegg), fabel-vedtatt av Kenneth 04.09. Forankring: «alle gatelysene mangler merking» er én observasjon om hundre lyspunkt — en pin ville påstått at funnet gjelder ett sted. I dag skriver PDF-en «Ikke utfylt» der «gjelder alt» var ment; et tomt felt der noe var ment er en usann påstand.
+
+**Levert (8 krav):**
+- **Modell:** nytt nullable `lokasjonOmfang` ("punkt" | "byggeplass" | null) på `Checklist` + `Task` (migrering `20260904140000_lokasjon_omfang` — kun ADD COLUMN, ingen backfill, forhåndsgodkjent). Eksponert i `sjekkliste.opprett/oppdater` + `oppgave.opprett/oppdater` (omfang er låst etter godkjenning via `rørerLaastFelt`).
+- **Visning (paritet web + PDF + mobil):** «Gjelder hele byggeplassen» i `LokasjonVelger` (web), `byggLokasjonsblokk` (PDF — skrives ALLTID ved byggeplass, aldri stille utelatt), mobil sjekkliste- + oppgave-detalj.
+- **Krav 2:** «Gjelder hele byggeplassen» som ett-trykk-affordance i `LokasjonVelger` (passiv tilstand + modal), ingen obligatorisk bekreftelse.
+- **Krav 3:** auto-åpning av tegning kun `status=draft` **OG** `lokasjonOmfang==null` **OG** ingen tegning fra før; synlig utvei (Avbryt), lukking lagrer ingenting. Nye lagringer setter `lokasjonOmfang="punkt"` → konsistent framover.
+- **Krav 4 (paritetsfiks):** oppgavesiden fikk `showLocation`-gate (rendret før velgeren ubetinget — et hull). Ingen API-endring: `template` følger `oppgave.hentMedId`.
+- **Krav 5 (L9):** sticky tegning i repeater-feltpin — tom rad forhåndsvelger sist brukte tegning i SAMME dokument (forrige rad → dokumentets tegning → ingen). **Kun tegning, aldri pin.** Kilden er dokument-avgrenset (ny prop `dokumentTegning`/`stickyTegning`), IKKE `byggeplass-kontekst.aktivTegning` (sesjonstilstand på tvers av dokumenter — svakheten Kenneth 04.09 ba om å rette). Atferden «rad 2 lander på rad 1s tegning» bevart.
+
+**Målt avvik (rapportert):** oppgave har ingen arkiv-PDF ennå (`arkiv/render.ts` kaster) → PDF-visningen gjelder i praksis kun sjekkliste; oppgave-PDF arver regelen når den bygges. Web + mobil dekker oppgave.
+
+**Begrepsrydding (lukker masterplan-restansen «tre ting heter lokasjon»):** dokumentlokasjon / lokasjonstekst / feltpin / lokasjonsbryter — se [terminologi.md](terminologi.md).
+
+**Gate grønn (lokalt):** web build (typecheck+lint+next), api typecheck, mobil typecheck + lint 0 errors, pdf 97/97, shared 636/636, web 193/193 (inkl. tre navngitte repeater-regresjonstester + ny L9-test). **Leveringsvei:** web + server-PDF → prod-deploy; mobil-delen via OTA.
+
 ### 🟡 Kø-robusthet — opplastingskøen frøs i stillhet i 18 min (`fix/mobil-batch-opplasting`, PÅ BRANCH — venter gate, IKKE merget)
 
 **Avdekket av galleri-flervalg, men er en kø-robusthetssak, ikke en flervalg-sak.** Kenneth batchet 6 bilder i felt; de kom opp i sjekklista og til slutt på server — men det tok 18 min, og INGENTING sa at de var underveis. Målt årsak: `uploadAsync` hadde **ingen timeout**, så en hengende opplasting på tregt byggeplass-nett holdt `prosessererRef` true; 15s-sikkerhetsnettet er guardet på `!prosessererRef.current` og var dermed dødt. Bare reload (som nullstiller `laster_opp`→`venter` via `migreringer.ts:109` + fersk mount) løsnet den. Køen drenerte ikke av seg selv.

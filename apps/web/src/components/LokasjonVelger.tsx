@@ -8,6 +8,8 @@ import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { harTegningsmarkor } from "@sitedoc/shared";
 import { MapPin, X, Plus, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
+type LokasjonOmfang = "punkt" | "byggeplass";
+
 interface LokasjonVelgerProps {
   prosjektId: string;
   tegningId?: string | null;
@@ -15,14 +17,26 @@ interface LokasjonVelgerProps {
   bygningNavn?: string | null;
   positionX?: number | null;
   positionY?: number | null;
+  /**
+   * Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen (egen visning),
+   * "punkt" = pin/tegning satt, null = ikke valgt ennå.
+   */
+  lokasjonOmfang?: LokasjonOmfang | null;
   visPosisjon?: boolean;
   onLagre: (data: {
     drawingId: string | null;
     byggeplassId?: string | null;
     positionX?: number | null;
     positionY?: number | null;
+    lokasjonOmfang?: LokasjonOmfang | null;
   }) => void;
   leseModus?: boolean;
+  /**
+   * Auto-åpning (2026-09-04, krav 3): åpner velgeren én gang ved montering. Kalleren gater på
+   * `showLocation` + `lokasjonOmfang == null` + `status == draft` (+ ingen tegning fra før).
+   * Modalen har synlig utvei (Avbryt), og å lukke uten valg lagrer INGENTING — lukking ≠ byggeplass.
+   */
+  autoÅpne?: boolean;
 }
 
 export function LokasjonVelger({
@@ -32,9 +46,11 @@ export function LokasjonVelger({
   bygningNavn,
   positionX,
   positionY,
+  lokasjonOmfang,
   visPosisjon,
   onLagre,
   leseModus,
+  autoÅpne,
 }: LokasjonVelgerProps) {
   const { t } = useTranslation();
   const { aktivByggeplass, standardTegning } = useByggeplass();
@@ -104,14 +120,24 @@ export function LokasjonVelger({
   // Pin-plassering aktiveres kun for bilde-filer (ikke PDF)
   const kanPlasserPin = visPosisjon && !erPdf;
 
-  function åpne() {
+  const åpne = useCallback(() => {
     setValgtBygningId(aktivByggeplass?.id ?? "");
     setValgtTegningId(tegningId ?? standardTegning?.id ?? "");
     setPunkt(positionX != null && positionY != null ? { x: positionX, y: positionY } : null);
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setOpen(true);
-  }
+  }, [aktivByggeplass?.id, tegningId, standardTegning?.id, positionX, positionY]);
+
+  // Auto-åpning (krav 3): åpne velgeren én gang når kalleren ber om det (utkast uten valgt
+  // omfang). Ref-guard så den ikke åpner på nytt ved re-render. Lukking lagrer ingenting.
+  const harAutoÅpnet = useRef(false);
+  useEffect(() => {
+    if (autoÅpne && !leseModus && !harAutoÅpnet.current) {
+      harAutoÅpnet.current = true;
+      åpne();
+    }
+  }, [autoÅpne, leseModus, åpne]);
 
   const handleImgKlikk = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -151,17 +177,27 @@ export function LokasjonVelger({
 
   function handleLagre() {
     const tegning = tegninger.find((t) => t.id === valgtTegningId);
+    // En valgt tegning/pin er punkt-basert lokasjon → omfang "punkt". Dermed forblir
+    // `lokasjonOmfang == null` forbeholdt «ikke valgt ennå», og auto-åpningen nages ikke.
     onLagre({
       drawingId: valgtTegningId || null,
       byggeplassId: tegning?.byggeplassId ?? null,
       positionX: visPosisjon ? (punkt?.x ?? null) : undefined,
       positionY: visPosisjon ? (punkt?.y ?? null) : undefined,
+      lokasjonOmfang: valgtTegningId ? "punkt" : null,
     });
     setOpen(false);
   }
 
   function handleFjern() {
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null });
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: null });
+    setOpen(false);
+  }
+
+  // «Gjelder hele byggeplassen» (krav 2): ett trykk, ingen obligatorisk bekreftelse. Nullstiller
+  // tegning/pin — omfanget ER svaret. Fungerer både fra passiv tilstand og inne i (auto-)åpnet modal.
+  function handleByggeplass() {
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass" });
     setOpen(false);
   }
 
@@ -172,6 +208,7 @@ export function LokasjonVelger({
   // Redigering beholder mellomtilstanden («utenPunkt»), for det er der den er handlingbar.
   const harMarkor = harTegningsmarkor({ drawingId: tegningId, positionX, positionY });
   const visChip = harLokasjon && (!leseModus || harMarkor);
+  const erByggeplass = lokasjonOmfang === "byggeplass";
   const tegningTekst = `${bygningNavn ? bygningNavn + " · " : ""}${tegningNavn ?? t("lokasjonVelger.tegning")}`;
 
   return (
@@ -183,7 +220,33 @@ export function LokasjonVelger({
       <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
         {t("lokasjonVelger.etikett")}
       </div>
-      {visChip ? (
+      {erByggeplass ? (
+        /* Bevisst hele byggeplassen — et svar, ikke et tomt felt. Egen chip så den aldri
+           forveksles med «ingen lokasjon». Endre (→ velg tegning) / Fjern kun i redigering. */
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+          <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-gray-800">{t("lokasjonVelger.gjelderByggeplass")}</div>
+          </div>
+          {!leseModus && (
+            <>
+              <button
+                onClick={åpne}
+                className="rounded px-2 py-1 text-xs font-medium text-sitedoc-secondary hover:bg-gray-100"
+              >
+                {t("handling.endre")}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleFjern(); }}
+                className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                title={t("lokasjonVelger.fjern")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      ) : visChip ? (
         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
           <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
           <div className="min-w-0 flex-1">
@@ -213,13 +276,25 @@ export function LokasjonVelger({
       ) : leseModus ? (
         <div className="text-sm italic text-gray-400">{t("lokasjonVelger.ingenLokasjon")}</div>
       ) : (
-        <button
-          onClick={åpne}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-sitedoc-secondary hover:bg-gray-50"
-        >
-          <Plus className="h-4 w-4" />
-          {t("lokasjonVelger.leggTil")}
-        </button>
+        /* Passiv tilstand: to sidestilte affordancer — sett pin/tegning, ELLER erklær hele
+           byggeplassen (krav 2, ett trykk, ingen bekreftelse). */
+        <div className="flex flex-wrap items-center gap-1">
+          <button
+            onClick={åpne}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-sitedoc-secondary hover:bg-gray-50"
+          >
+            <Plus className="h-4 w-4" />
+            {t("lokasjonVelger.leggTil")}
+          </button>
+          <button
+            onClick={handleByggeplass}
+            title={t("lokasjonVelger.gjelderByggeplassHjelp")}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-sitedoc-secondary hover:bg-gray-50"
+          >
+            <MapPin className="h-4 w-4" />
+            {t("lokasjonVelger.gjelderByggeplass")}
+          </button>
+        </div>
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title={t("lokasjonVelger.velgLokasjon")}>
@@ -336,13 +411,23 @@ export function LokasjonVelger({
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-3 pt-2">
             <Button onClick={handleLagre} disabled={!valgtTegningId}>
               Lagre
             </Button>
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Avbryt
             </Button>
+            {/* Alternativ til pin: erklær hele byggeplassen (krav 2). Auto-åpnet velger →
+                ett trykk her er nok. Ingen bekreftelse. */}
+            <button
+              type="button"
+              onClick={handleByggeplass}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-sitedoc-secondary hover:bg-gray-50"
+            >
+              <MapPin className="h-4 w-4" />
+              {t("lokasjonVelger.gjelderByggeplass")}
+            </button>
           </div>
         </div>
       </Modal>

@@ -22,6 +22,20 @@ function posisjonFraRad(rad: Rad, barn: RapportObjekt[]): OppgavePosisjon | null
   return { drawingId: pos.drawingId, positionX: pos.positionX ?? null, positionY: pos.positionY ?? null };
 }
 
+/**
+ * L9 (2026-09-04): tegningen (uten pin) en rad allerede peker på — for å forhåndsvelge «sist brukte»
+ * tegning i neste rads feltpin-velger. Kun tegning + navn; koordinater bæres aldri videre.
+ */
+function tegningFraRad(rad: Rad, barn: RapportObjekt[]): { drawingId: string; drawingName?: string | null } | null {
+  const posBarn = barn.find((b) => b.type === "drawing_position");
+  const pos = posBarn ? (rad.felter[posBarn.id]?.verdi as
+    | { drawingId?: string; drawingName?: string | null }
+    | null
+    | undefined) : null;
+  if (!pos || !pos.drawingId) return null;
+  return { drawingId: pos.drawingId, drawingName: pos.drawingName ?? null };
+}
+
 export function RepeaterObjekt({
   objekt,
   verdi,
@@ -31,6 +45,7 @@ export function RepeaterObjekt({
   barneObjekter,
   radOppgaver,
   tillatteFaggruppeIder,
+  dokumentTegning,
 }: RapportObjektProps) {
   // Rad-id (2026-08-22, variant omslutting): normaliser gammel/ny radform ved lesing →
   // { _radId, felter }. Memoisert på `verdi`-referansen så id-ene er STABILE på tvers av
@@ -41,6 +56,21 @@ export function RepeaterObjekt({
     [verdi],
   );
   const barn = barneObjekter ?? [];
+
+  // L9 (2026-09-04): «sist brukte» tegning for rad `radIndeks` — kildeprioritet (dokument-avgrenset,
+  // aldri sesjonstilstand): (1) siste FORrige rad med en tegning, (2) ellers dokumentets
+  // dokumentlokasjon-tegning, (3) ellers ingen. Kun tegning, aldri pin. Bevarer atferden «rad 2
+  // lander på rad 1s tegning», men kilden er nå forutsigbar og innenfor dette dokumentet.
+  const stickyForRad = useCallback(
+    (radIndeks: number): { drawingId: string; drawingName?: string | null } | null => {
+      for (let i = radIndeks - 1; i >= 0; i--) {
+        const t = tegningFraRad(rader[i]!, barn);
+        if (t) return t;
+      }
+      return dokumentTegning ?? null;
+    },
+    [rader, barn, dokumentTegning],
+  );
 
   const leggTilRad = useCallback(() => {
     const felter: Record<string, FeltVerdi> = {};
@@ -243,6 +273,9 @@ export function RepeaterObjekt({
                     prosjektId={prosjektId}
                     feltNokkel={feltNokkel}
                     tillatteFaggruppeIder={tillatteFaggruppeIder}
+                    stickyTegning={
+                      barnObjekt.type === "drawing_position" ? stickyForRad(radIndeks) : undefined
+                    }
                   />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).

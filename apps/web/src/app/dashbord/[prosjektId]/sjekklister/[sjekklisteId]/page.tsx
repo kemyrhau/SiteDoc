@@ -416,6 +416,17 @@ export default function SjekklisteDetaljSide() {
     positionY: fullSjekkliste?.positionY ?? null,
   };
 
+  // L9 (2026-09-04): dokumentets dokumentlokasjon-tegning — siste fallback for «sist brukte»
+  // tegning i en repeater-feltpin (etter forrige rads tegning). KUN tegning + navn, aldri pin.
+  const dokumentTegning = fullSjekkliste?.drawingId
+    ? {
+        drawingId: fullSjekkliste.drawingId,
+        drawingName: fullSjekkliste.drawing?.drawingNumber
+          ? `${fullSjekkliste.drawing.drawingNumber} ${fullSjekkliste.drawing.name}`
+          : (fullSjekkliste.drawing?.name ?? null),
+      }
+    : null;
+
   // Bygg trestruktur og flat ut i DFS-rekkefølge (forelder → barn → neste forelder)
   const objekter = useMemo(() => {
     const rå = (sjekkliste?.template?.objects ?? []) as RapportObjekt[];
@@ -880,6 +891,7 @@ export default function SjekklisteDetaljSide() {
             bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
             positionX={(sjekkliste as unknown as { positionX?: number | null }).positionX}
             positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
+            lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -888,9 +900,17 @@ export default function SjekklisteDetaljSide() {
                 byggeplassId: data.byggeplassId ?? undefined,
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
+                lokasjonOmfang: data.lokasjonOmfang ?? null,
               });
             }}
             leseModus={["closed", "approved"].includes(sjekkliste.status)}
+            /* Auto-åpning (krav 3): kun utkast, omfang ikke valgt, ingen tegning fra før.
+               showLocation-gaten wrapper allerede blokka. Lukking uten valg lagrer ingenting. */
+            autoÅpne={
+              sjekkliste.status === "draft" &&
+              ((fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null) == null &&
+              !(sjekkliste as unknown as { drawingId?: string | null }).drawingId
+            }
           />
         </div>
         )}
@@ -1028,6 +1048,7 @@ export default function SjekklisteDetaljSide() {
                   barneObjekter={barneObjekterMap.get(objekt.id)}
                   radOppgaver={radOppgaver}
                   tillatteFaggruppeIder={tillatteFaggruppeIder}
+                  dokumentTegning={dokumentTegning}
                 />
               </FeltWrapper>
             </div>

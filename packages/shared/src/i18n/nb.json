@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Legg til lokasjon",
   "lokasjonVelger.fjern": "Fjern lokasjon",
   "lokasjonVelger.velgLokasjon": "Velg lokasjon",
+  "lokasjonVelger.gjelderByggeplass": "Gjelder hele byggeplassen",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Rapporten gjelder hele byggeplassen, ikke ett punkt. Skrives ut i stedet for et tomt lokasjonsfelt.",
   "emneVelger.etikett": "Emne",
   "emneVelger.leggTil": "Legg til emne",
   "emneVelger.fjern": "Fjern emne",

@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Adăugați locația",
   "lokasjonVelger.fjern": "Eliminați locația",
   "lokasjonVelger.velgLokasjon": "Selectați locația",
+  "lokasjonVelger.gjelderByggeplass": "Se aplică întregului site",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Raportul se aplică întregului site, nu unui singur punct. Tipărit în loc de un câmp de locație gol.",
   "emneVelger.etikett": "Subiect",
   "emneVelger.leggTil": "Adăugați subiect",
   "emneVelger.fjern": "Eliminați subiectul",

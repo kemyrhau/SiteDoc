@@ -305,6 +305,8 @@ export const sjekklisteRouter = router({
         // plassering på tegning/kart — speiler oppgave.opprett-kontrakten.
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
+        // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
+        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
         dueDate: z.string().datetime().optional(),
         // Kontrollplan: er dette settet, kobles den nye sjekklisten atomisk til
         // kontrollpunktet (fyller punkt.sjekklisteId, løfter planlagt→pagar) i samme
@@ -564,6 +566,7 @@ export const sjekklisteRouter = router({
             drawingId: input.drawingId,
             positionX: input.positionX,
             positionY: input.positionY,
+            lokasjonOmfang: input.lokasjonOmfang,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             // Spor 2 / 5a: HMS (SJA) opprettes nå som UTKAST (draft), ikke auto-sendt. Melder
             // eier innholdet og sender selv via hmsSendInn (→ Behandler-ledd + feltlås 5b).
@@ -614,6 +617,7 @@ export const sjekklisteRouter = router({
         byggeplassId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
+        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -652,7 +656,8 @@ export const sjekklisteRouter = router({
       // (arkiv.rendr, ingen lagret kopi), så «øyeblikksbilde» finnes ikke som teknisk størrelse.
       const rørerLaastFelt =
         input.drawingId !== undefined || input.positionX !== undefined ||
-        input.positionY !== undefined || input.byggeplassId !== undefined;
+        input.positionY !== undefined || input.byggeplassId !== undefined ||
+        input.lokasjonOmfang !== undefined;
       if (rørerLaastFelt && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
         throw new TRPCError({
           code: "BAD_REQUEST",

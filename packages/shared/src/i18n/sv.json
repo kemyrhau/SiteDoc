@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Lägg till plats",
   "lokasjonVelger.fjern": "Ta bort plats",
   "lokasjonVelger.velgLokasjon": "Välj plats",
+  "lokasjonVelger.gjelderByggeplass": "Gäller hela sajten",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Rapporten gäller hela sajten, inte en enda punkt. Skrivs ut istället för ett tomt platsfält.",
   "emneVelger.etikett": "Ämne",
   "emneVelger.leggTil": "Lägg till ämne",
   "emneVelger.fjern": "Ta bort ämne",

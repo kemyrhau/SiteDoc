@@ -427,6 +427,8 @@ export const oppgaveRouter = router({
         drawingId: z.string().uuid().optional(),
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
+        // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
+        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
         dokumentflytId: z.string().uuid().optional(),
         checklistId: z.string().uuid().optional(),
         checklistFieldId: z.string().optional(),
@@ -605,6 +607,7 @@ export const oppgaveRouter = router({
             drawingId: input.drawingId,
             positionX: input.positionX,
             positionY: input.positionY,
+            lokasjonOmfang: input.lokasjonOmfang,
             dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
             checklistId: input.checklistId,
             checklistFieldId: input.checklistFieldId,
@@ -648,6 +651,7 @@ export const oppgaveRouter = router({
         drawingId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
+        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

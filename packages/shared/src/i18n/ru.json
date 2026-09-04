@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Добавить местоположение",
   "lokasjonVelger.fjern": "Удалить местоположение",
   "lokasjonVelger.velgLokasjon": "Выберите местоположение",
+  "lokasjonVelger.gjelderByggeplass": "Применяется ко всему сайту",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Отчет применяется ко всему сайту, а не к отдельной точке. Печатается вместо пустого поля местоположения.",
   "emneVelger.etikett": "Предмет",
   "emneVelger.leggTil": "Добавить тему",
   "emneVelger.fjern": "Удалить тему",

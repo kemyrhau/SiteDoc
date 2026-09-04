@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Lisää sijainti",
   "lokasjonVelger.fjern": "Poista sijainti",
   "lokasjonVelger.velgLokasjon": "Valitse sijainti",
+  "lokasjonVelger.gjelderByggeplass": "Koskee koko sivustoa",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Raportti koskee koko sivustoa, ei yhtä kohtaa. Tulostettu tyhjän sijaintikentän sijaan.",
   "emneVelger.etikett": "Aihe",
   "emneVelger.leggTil": "Lisää aihe",
   "emneVelger.fjern": "Poista aihe",

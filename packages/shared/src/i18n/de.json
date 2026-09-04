@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Standort hinzufügen",
   "lokasjonVelger.fjern": "Standort entfernen",
   "lokasjonVelger.velgLokasjon": "Standort auswählen",
+  "lokasjonVelger.gjelderByggeplass": "Gilt für die gesamte Website",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Der Bericht gilt für die gesamte Website, nicht für einen einzelnen Punkt. Wird anstelle eines leeren Standortfelds gedruckt.",
   "emneVelger.etikett": "Thema",
   "emneVelger.leggTil": "Betreff hinzufügen",
   "emneVelger.fjern": "Betreff entfernen",

@@ -720,6 +720,16 @@ export default function OppgaveDetalj() {
           </View>
         )}
 
+        {/* Lokasjonsomfang (2026-09-04): «Gjelder hele byggeplassen» — paritet med web/PDF. Vises
+            når omfanget er byggeplass (uten tegning); et eksplisitt svar, aldri et tomt felt. */}
+        {!oppgave.drawing &&
+          (oppgave as { lokasjonOmfang?: string | null }).lokasjonOmfang === "byggeplass" && (
+          <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
+            <MapPin size={18} color="#7c3aed" />
+            <Text className="flex-1 text-sm text-purple-800">{t("lokasjonVelger.gjelderByggeplass")}</Text>
+          </View>
+        )}
+
         {/* Malobjekter */}
         <UtfyllingSeksjoner
           objekter={objekter}

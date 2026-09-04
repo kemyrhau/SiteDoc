@@ -2237,6 +2237,8 @@
   "lokasjonVelger.leggTil": "Pridėti vietą",
   "lokasjonVelger.fjern": "Pašalinti vietą",
   "lokasjonVelger.velgLokasjon": "Pasirinkite vietą",
+  "lokasjonVelger.gjelderByggeplass": "Taikoma visai svetainei",
+  "lokasjonVelger.gjelderByggeplassHjelp": "Ataskaita taikoma visai svetainei, o ne vienam taškui. Išspausdinta vietoj tuščio vietos lauko.",
   "emneVelger.etikett": "Tema",
   "emneVelger.leggTil": "Pridėti temą",
   "emneVelger.fjern": "Pašalinti temą",
