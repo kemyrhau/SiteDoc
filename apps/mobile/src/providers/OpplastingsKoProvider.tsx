@@ -319,7 +319,13 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
 
   const prosesserNeste = useCallback(async () => {
     console.log("[KØ] prosesserNeste kalt, erPaaNettet:", erPaaNettet, "prosesserer:", prosessererRef.current);
-    if (prosessererRef.current || !erPaaNettet) return;
+    if (prosessererRef.current || !erPaaNettet) {
+      // 🔧 DIAG (wip/diag-ko-trigger — SKAL IKKE MERGES): hvorfor tidlig retur.
+      console.log(
+        `[KØ-DIAG] prosesserNeste TIDLIG RETUR — prosesserer=${prosessererRef.current} erPaaNettet=${erPaaNettet}`,
+      );
+      return;
+    }
     prosessererRef.current = true;
     settErAktiv(true);
 
@@ -588,6 +594,11 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
 
   // Start/stopp prosessering basert på nettverkstilstand
   useEffect(() => {
+    // 🔧 DIAG (wip/diag-ko-trigger — SKAL IKKE MERGES): viser om nett-effekten
+    // fyrer og hvorfor. Trigger den ikke ved staying-online, er dette stedet.
+    console.log(
+      `[KØ-DIAG] nett-effekt: erPaaNettet=${erPaaNettet} ventende=${ventende} prosesserer=${prosessererRef.current} → kaller=${erPaaNettet && ventende > 0}`,
+    );
     if (erPaaNettet && ventende > 0) {
       prosesserNeste().catch((f) => console.error("[KØ] prosesserNeste feilet i useEffect:", f));
     }
@@ -603,6 +614,11 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!erPaaNettet) return;
     const intervall = setInterval(() => {
+      // 🔧 DIAG (wip/diag-ko-trigger — SKAL IKKE MERGES): 15s-tick m/ full tilstand.
+      // `ventende`/`prosessererRef` her er fra effektens closure — avslører stale-verdi.
+      console.log(
+        `[KØ-DIAG] 15s-tick: erPaaNettet=${erPaaNettet} ventende=${ventende} prosesserer=${prosessererRef.current}`,
+      );
       if (ventende > 0 && !prosessererRef.current) {
         console.log("[KØ] Sikkerhetsnett: re-trigger prosessering, ventende:", ventende);
         prosesserNeste().catch((f) => console.error("[KØ] Sikkerhetsnett feilet:", f));
