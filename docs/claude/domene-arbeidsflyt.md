@@ -125,9 +125,22 @@ varelager (*«NULL = hele prosjektet»*). **De to hadde rett hele tiden.**
    - Skal en avsluttet byggeplass skjules i velgere, eller kun i lister? Kan den gjenåpnes?
    - Kan dokumenter opprettes på en byggeplass som ikke har startet?
    - Hva skjer med PSI og mannskapsliste når et trinn avsluttes og folkene flyttes videre?
-   - 🔴 **Er en ukelang jobb i en 30-årig avtale egentlig en `Byggeplass`, eller er den et
-     `Project` med avtalen som et nivå over?** Kenneth sier «kortvarige prosjekter» — ikke
-     «byggeplasser». Det kan være presist språk, og da mangler modellen et nivå.
+   ✅ **AVKLART av Kenneth samme kveld — modellen holder, intet nytt nivå trengs:**
+
+   > *«En SiteDoc-kunde har et prosjektnummer 100 → dette prosjektet heter «Småprosjekter» → det er
+   > diverse små kortvarige prosjekter → i SiteDoc heter disse byggeplasser.»*
+
+   Cowork spurte om en ukelang jobb egentlig var et `Project` med avtalen som et nivå over
+   (Firma → Avtale → Prosjekt → Byggeplass). **Svaret er nei:** `Project` ER beholderen, og
+   kundens «småprosjekter» er `Byggeplass`. Dagens tre nivåer dekker tilfellet.
+
+   🔴 **Men da står skalaproblemet desto skarpere, og det er hele saken:** prosjekt 100 samler
+   hundrevis av byggeplasser over tiår, og ingen av dem kan avsluttes eller skjules. Det er ikke en
+   strukturmangel — det er en **livssyklus-mangel på `Byggeplass`.**
+
+   ⚠️ **Terminologi-knirk, notert, ikke et problem Kenneth ber om å løse:** kunden sier
+   «småprosjekt», systemet sier «byggeplass». Kenneth aksepterer navnet («i SiteDoc heter disse
+   byggeplasser»). Verdt å vite når kundetekst skrives — ikke verdt en rename.
 
    **Fabels domene. Ingen ordre skrevet — dette er en modellsak, ikke en kodeoppgave.**
 

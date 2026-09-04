@@ -100,9 +100,14 @@ eller arkivering.
 ubrukelig i felt med 500 valg · dokumentlister vokser uten grense · «vis kun aktive» går fra
 bekvemmelighet til forutsetning.
 
-🔴 **Og et modellspørsmål som må stilles før noe bygges:** Kenneth sier *«kortvarige prosjekter»*,
-ikke «byggeplasser». Er en ukelang jobb i en 30-årig avtale egentlig en `Byggeplass` — eller et
-`Project`, med avtalen som et nivå OVER? Er språket presist, mangler modellen et nivå.
+✅ **Modellspørsmålet er AVKLART — intet nytt nivå trengs.** Cowork spurte om en ukelang jobb egentlig
+var et `Project` med avtalen over. Kenneth: *«En SiteDoc-kunde har prosjektnummer 100 → dette
+prosjektet heter «Småprosjekter» → i SiteDoc heter disse byggeplasser.»* `Project` ER beholderen.
+
+🔴 **Da er saken ren: `Byggeplass` mangler LIVSSYKLUS, ikke struktur.** Prosjekt 100 samler
+hundrevis av byggeplasser over tiår, og ingen kan avsluttes eller skjules. Det gjør funnet konkret
+nok til å bli en ordre — men modellen og UI-et (hva skjer med PSI, mannskapsliste, velgere) hører
+til fabel først.
 
 **Fabels domene. Ingen ordre skrevet.** Full utredning:
 [domene-arbeidsflyt.md § byggeplass er et valgfritt oppdelingsnivå](domene-arbeidsflyt.md).
