@@ -55,6 +55,18 @@ migrering-reporttemplate.md § Konflikt-regel (én mal-rad i både KontrollplanP
 - **B2 SiteDoc-lånevei fase 1:** ✅ **VEDTATT — kun sentralt→firma.** Dagens sentralt→prosjekt
   (kontrollplan / NS 3420) består urørt, så ingenting tapes ved å utsette en tredje vei til den
   første virker.
+- **B4 bibliotek-avstamning:** ✅ **VEDTATT AV KENNETH 2026-09-04 — strukturert peker, lagt i
+  bolk 1.** Femte kolonne `organization_templates.laant_fra_bibliotek_mal_id` (nullable, additiv,
+  FK til `BibliotekMal` med `onDelete: SetNull` — samme semantikk som L5).
+  **Bakgrunn:** kontrollplan målte at `OrganizationTemplate` har `promotedFromTemplateId` mot
+  `ReportTemplate`, men ingen peker mot `BibliotekMal`. L3 krever «kopi m/avstamning», og de fire
+  godkjente kolonnene dekket den ikke. Første løsning bar kilden i `description`-teksten, slik
+  `bibliotek.ts importerMal` gjør i dag.
+  🔴 **Forkastet fordi det er samme feilklasse som `_`-etiketten** ryddet samme døgn: semantikk
+  gjemt i en fritekst ingen kode kan spørre på, som hver flate må særhåndtere, og som forsvinner
+  hvis noen redigerer teksten. Presedensen i `bibliotek.ts` er en observasjon, ikke et vedtak.
+  **Hvorfor bolk 1 og ikke 2:** bolk 1 ER migreringsbolken. Med skjemaet ferdig der blir bolk 2
+  ren UI — som var hele grunnen til delingen — og bolk 2 slipper en egen migreringsgate på test.
 - **B3 HMS i fase 1:** ✅ **VEDTATT — HMS er med fra start.** Kundekravet nevner HMS eksplisitt.
   🔴 **DB-migreringen er dermed godkjent av Kenneth** (additive kolonner `subdomain` +
   `hmsSynlighet` på `OrganizationTemplate`) — han fikk konsekvensen forelagt før han svarte.
