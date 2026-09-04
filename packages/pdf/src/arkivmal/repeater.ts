@@ -12,7 +12,7 @@
  * er arkiv-lokal. Tom repeater → «Ingen rader registrert» (skjules aldri).
  */
 
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, formaterDatoTidPunkt } from "../hjelpere";
+import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, bildeOpptakTid } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
 import { normaliserRad } from "../typer";
@@ -167,7 +167,8 @@ export function byggUtenforRaderBlokk(
     const visNr = b.bildeNr ?? nr;
     nr += 1;
     let merke = `Bilde ${String(visNr).padStart(2, "0")}`;
-    if (b.opprettet) merke += ` · ${esc(formaterDatoTidPunkt(b.opprettet))}`;
+    const tidTekst = bildeOpptakTid(b);
+    if (tidTekst) merke += ` · ${esc(tidTekst)}`;
     // A4-kvittering (2026-08-22): IKKE tvungen 4:3-ramme. `.ark-bilde-img` er den DELTE
     // radbilde-primitiven (object-fit:contain, bildeforhold ALLTID bevart, aldri oppskalert
     // — fabels radkort-designlås). Fasitens «Bilde 4:3 (mobilformat)» er en plassholder-
@@ -267,7 +268,8 @@ function byggBilderader(
     const visNr = b.bildeNr ?? nr;
     nr += 1;
     let merke = `Bilde ${String(visNr).padStart(2, "0")}`;
-    if (b.opprettet) merke += ` · ${esc(formaterDatoTidPunkt(b.opprettet))}`;
+    const tidTekst = bildeOpptakTid(b);
+    if (tidTekst) merke += ` · ${esc(tidTekst)}`;
     return (
       `<div class="ark-bilde">` +
         `<img class="ark-bilde-img" src="${esc(b.url)}" alt="">` +

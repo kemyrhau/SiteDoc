@@ -7,6 +7,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
 import { komprimer, hentGps, velgBilder } from "../../services/bilde";
+import { formatOpptakKort } from "../../utils/dato";
 import { lastOppFil } from "../../services/opplasting";
 import { lagreLokaltBilde, hentFilstorrelse, lokalBildeSti } from "../../services/lokalBilde";
 import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
@@ -91,7 +92,7 @@ export function FeltDokumentasjon({
   const leggIKoRef = useRef(leggIKo);
   leggIKoRef.current = leggIKo;
 
-  const håndterBilde = useCallback(async (bildeUri: string, gpsLat?: number, gpsLng?: number) => {
+  const håndterBilde = useCallback(async (bildeUri: string, gpsLat?: number, gpsLng?: number, opptakTidspunkt?: string | null) => {
     try {
       console.log("[BILDE] håndterBilde kalt, sjekklisteId:", sjekklisteId, "oppgaveId:", oppgaveIdForKo, "objektId:", objektId);
       // Unikt lagringsnavn per bilde (vedleggId, ikke bare Date.now()): i en rask
@@ -119,7 +120,13 @@ export function FeltDokumentasjon({
         type: "bilde",
         url: lokalSti,
         filnavn,
+        // Når vedlegget ble lagt i dokumentet (prosess-metadata + endringslogg).
         opprettet: new Date().toISOString(),
+        // Når bildet ble TATT. Galleri: EXIF (string) eller null når EXIF mangler.
+        // Kamera/tegning: opptak = nå, sendes eksplisitt fra kaller. Utelates
+        // opptakTidspunkt (undefined), regnes vedlegget som «før feltet» — men det
+        // skjer ikke for nye bilder, alle bilde-kallere sender en verdi.
+        opptakTidspunkt,
       });
 
       // 5. Legg i bakgrunnskø (asynkront, ikke-blokkerende)
@@ -153,7 +160,9 @@ export function FeltDokumentasjon({
           komprimer(uri),
           gpsPromise,
         ]);
-        await håndterBilde(komprimert.uri, gps?.lat, gps?.lng);
+        // Kamerabilde: opptak = nå. Enhets-GPS er riktig kilde her (bildet tas i
+        // dette øyeblikket på dette stedet) — kamera-veien er bevisst uendret.
+        await håndterBilde(komprimert.uri, gps?.lat, gps?.lng, new Date().toISOString());
       } catch (e) {
         console.error("Kamerabilde feilet:", e);
       }
@@ -198,7 +207,8 @@ export function FeltDokumentasjon({
 
   const håndterTegningsSkjermbilde = useCallback((bildeUri: string) => {
     settVisTegningsModal(false);
-    håndterBilde(bildeUri);
+    // Tegnings-skjermbilde lages nå → opptak = nå.
+    håndterBilde(bildeUri, undefined, undefined, new Date().toISOString());
   }, [håndterBilde]);
 
   // Galleri-kobling: velgBilder komprimerer + henter GPS internt og returnerer ferdige
@@ -212,7 +222,9 @@ export function FeltDokumentasjon({
         settFremdrift({ ferdig, total }),
       );
       for (const res of resultater) {
-        await håndterBilde(res.uri, res.gpsLat, res.gpsLng);
+        // Galleri: tid og sted fra EXIF (opptak), ikke fra valgtidspunktet.
+        // opptakTidspunkt er string (EXIF) eller null (EXIF manglet) — begge sanne.
+        await håndterBilde(res.uri, res.gpsLat, res.gpsLng, res.opptakTidspunkt ?? null);
       }
     } catch (feil) {
       // En batch-feil skal si fra, ikke svelges stille (før fanget finally kun
@@ -363,6 +375,18 @@ export function FeltDokumentasjon({
                 : v.url.startsWith("/")
                   ? `${AUTH_CONFIG.apiUrl}${v.url}`
                   : v.url;
+            // Opptaks-tid UNDER hvert bilde (Kenneth-vedtak 2026-09-04). Nøkkel-
+            // tilstedeværelse skiller som i dokgen: undefined = vedlegg lagd før
+            // feltet → vis historisk `opprettet`; null/"" = nytt bilde uten EXIF →
+            // «Tidspunkt ikke tilgjengelig»; streng = opptakstidspunktet.
+            const opptakTekst =
+              v.type !== "bilde"
+                ? ""
+                : v.opptakTidspunkt === undefined
+                  ? (v.opprettet ? formatOpptakKort(v.opprettet) : "")
+                  : v.opptakTidspunkt === null || v.opptakTidspunkt === ""
+                    ? t("felt.opptakTidMangler")
+                    : formatOpptakKort(v.opptakTidspunkt);
             return (
               <Pressable
                 key={v.id}
@@ -371,6 +395,7 @@ export function FeltDokumentasjon({
                   settValgtVedleggId(erValgt ? null : v.id);
                 }}
               >
+                <View className="w-[72px]">
                 {v.type === "bilde" && feiletVedlegg.has(v.id) ? (
                   // Req 3: vedlegget finnes, men URL-en er død — vis det tydelig.
                   <View
@@ -414,6 +439,15 @@ export function FeltDokumentasjon({
                     </Text>
                   </View>
                 )}
+                {opptakTekst !== "" && (
+                  <Text
+                    className="mt-0.5 text-center text-[9px] leading-tight text-gray-500"
+                    numberOfLines={2}
+                  >
+                    {opptakTekst}
+                  </Text>
+                )}
+                </View>
               </Pressable>
             );
           })}

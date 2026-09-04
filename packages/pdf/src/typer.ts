@@ -28,6 +28,16 @@ export interface Vedlegg {
   filnavn: string;
   opprettet?: string;
   /**
+   * Når bildet ble TATT (EXIF DateTimeOriginal), ikke når vedlegget ble lagt i
+   * dokumentet (`opprettet`). Innført 2026-09-04. Tre tilstander som STYRER
+   * utskriften (se `bildeOpptakTid` i hjelpere):
+   *   - `undefined` = nøkkelen finnes ikke ⇒ vedlegg lagd før feltet ⇒ vis
+   *     historisk `opprettet` (endrer ikke arkiverte dokumenter).
+   *   - `null` (eller "") = nytt bilde uten EXIF-tid ⇒ «Tidspunkt ikke tilgjengelig».
+   *   - ISO-streng ⇒ vis opptakstidspunktet.
+   */
+  opptakTidspunkt?: string | null;
+  /**
    * Løpende bildenummer tildelt i appen ved opptak (vedtak 2026-08-16), synlig
    * for brukeren og refererbart i tekst. Utskriften rendrer dette LAGREDE
    * nummeret; mangler det (arkiverte dokumenter fra før feltet), faller dokgen

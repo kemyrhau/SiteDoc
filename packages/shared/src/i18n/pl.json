@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "Załączniki: {{count}} – nadal próbuję przesłać",
   "felt.kunneIkkeLasteOpp": "Nie można przesłać pliku",
   "felt.vedleggKunneIkkeLastes": "Nie udało się załadować",
+  "felt.opptakTidMangler": "Czas niedostępny",
   "felt.paakrevd": "Wymagany",
   "felt.original": "Oryginał ({{spraak}})",
   "felt.oppgave": "Zadanie",

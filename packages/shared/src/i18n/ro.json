@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} atașamente – încă se încearcă încărcare",
   "felt.kunneIkkeLasteOpp": "Nu s-a putut încărca fișierul",
   "felt.vedleggKunneIkkeLastes": "Nu s-a putut încărca",
+  "felt.opptakTidMangler": "Timpul nu este disponibil",
   "felt.paakrevd": "Necesar",
   "felt.original": "Original ({{spraak}})",
   "felt.oppgave": "Sarcină",

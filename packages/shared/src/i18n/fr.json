@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} attachment(s) – still trying to upload",
   "felt.kunneIkkeLasteOpp": "Impossible de télécharger le fichier",
   "felt.vedleggKunneIkkeLastes": "Impossible de charger",
+  "felt.opptakTidMangler": "Temps non disponible",
   "felt.paakrevd": "Requis",
   "felt.original": "Original ({{texte}})",
   "felt.oppgave": "Tâche",

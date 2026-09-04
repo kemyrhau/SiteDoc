@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} příloh – stále se pokouší nahrát",
   "felt.kunneIkkeLasteOpp": "Soubor nelze nahrát",
   "felt.vedleggKunneIkkeLastes": "Nelze načíst",
+  "felt.opptakTidMangler": "Čas není k dispozici",
   "felt.paakrevd": "Požadovaný",
   "felt.original": "Originál ({{spraak}})",
   "felt.oppgave": "Úkol",

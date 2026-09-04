@@ -15,7 +15,7 @@
  * verifiseringslogg).
  */
 
-import { esc, fullBildeUrl, formaterDatoTidPunkt } from "../hjelpere";
+import { esc, fullBildeUrl, bildeOpptakTid } from "../hjelpere";
 import { byggDetaljUtsnitt } from "../tegning";
 import { skalarCelle, byggUtenforRaderBlokk } from "./repeater";
 import { normaliserRad } from "../typer";
@@ -71,7 +71,8 @@ function byggBildeblokk(vedlegg: Vedlegg[] | undefined): string {
     .map((b) => {
       const visNr = b.bildeNr ?? nr;
       nr += 1;
-      const tid = b.opprettet ? ` · ${esc(formaterDatoTidPunkt(b.opprettet))}` : "";
+      const tidTekst = bildeOpptakTid(b);
+      const tid = tidTekst ? ` · ${esc(tidTekst)}` : "";
       const tekst = `Bilde ${String(visNr).padStart(2, "0")}${tid}`;
       return `<div class="ark-radkort-bilde"><img src="${esc(fullBildeUrl(b.url, ""))}" /><div class="ark-radkort-bildetekst">${tekst}</div></div>`;
     })

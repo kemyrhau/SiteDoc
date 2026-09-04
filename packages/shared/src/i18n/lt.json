@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} priedas (-ai) – vis dar bandoma įkelti",
   "felt.kunneIkkeLasteOpp": "Nepavyko įkelti failo",
   "felt.vedleggKunneIkkeLastes": "Nepavyko įkelti",
+  "felt.opptakTidMangler": "Laikas nepasiekiamas",
   "felt.paakrevd": "Privaloma",
   "felt.original": "Originalus ({{spraak}})",
   "felt.oppgave": "Užduotis",

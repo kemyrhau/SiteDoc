@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} vedlegg – prøver fortsatt å laste opp",
   "felt.kunneIkkeLasteOpp": "Kunne ikke laste opp filen",
   "felt.vedleggKunneIkkeLastes": "Kunne ikke laste",
+  "felt.opptakTidMangler": "Tidspunkt ikke tilgjengelig",
   "felt.paakrevd": "Påkrevd",
   "felt.original": "Original ({{spraak}})",
   "felt.oppgave": "Oppgave",
