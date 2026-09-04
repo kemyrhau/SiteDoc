@@ -4,6 +4,30 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 📅 DØGNET 2026-09-04 — ti merger, to prod-deployer, OTA i drift
+
+**develop `3c905298` · prod `96eebc13` · test `ea729ced` · TestFlight bygg 54 + OTA**
+
+| Runde | Hash | Ute hos |
+|---|---|---|
+| EXIF opptakstid og -sted på bilder | `c6de4385` | **prod + testerne (OTA)** |
+| Lesbar endringslogg (kolonnenavn, fra→til, UUID skjult) | — | **prod + testerne (OTA)** |
+| Opptakstidspunkt i web | `d610acb8` | develop |
+| Sidebrekk «BILDER» + navnløst felt i PDF | `f13b2421` | develop |
+| Navnløst felt lagres som tom streng | `09102794` | develop |
+| Web ut av `platforms` (åpnet OTA-veien) | `2b73ae68` | develop |
+| AM4 malarkiv **bolk 1** — migrering + `firmamal.*` | `91e3e5a6` | **test** |
+| lokasjonOmfang + L9 + paritetsfiks | `9a94a249` | **test** |
+| AM4 malarkiv **bolk 2** — firma-arkiv UI | `2cfdbaea` | **test** |
+| Arkiv-PDF for oppgave + HMS avvik/RUH | `a2c7edc9` | develop |
+
+**Tre migreringer, alle additive:** `20260904120000_malarkiv_hms_kolonner` (5 kolonner) ·
+`20260904140000_lokasjon_omfang` (2 kolonner). Begge anvendt på test, ingen på prod ennå.
+
+🔴 **Venter prod-deploy:** web-opptakstidspunkt · PDF-sidebrekk · navnløst felt · malarkiv (bolk
+1+2) · lokasjonOmfang · arkiv-PDF for oppgave/HMS. **Verifiser på test som innlogget først** —
+malbyggeren fikk 91 nye linjer og brukes av alt.
+
 ## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-28 kl. 18)
 
 **Alle agenter er avsluttet.** Alt som lå i agenthodene er skrevet til `relay/`-ordrer.
@@ -645,7 +669,14 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
-### 🟡 Arkiv-PDF for oppgave + HMS avvik/RUH — task-innholdsleser (`feat/arkiv-pdf-task`, PÅ BRANCH — gatet lokalt, IKKE merget)
+### ✅ Arkiv-PDF for oppgave + HMS avvik/RUH — task-innholdsleser (`a2c7edc9` → develop `3c905298`, MERGET 04.09)
+
+> ⚠️ **Merk om lokasjonOmfang-raden som sto her:** den ble erstattet av denne i dokgens commit.
+> `feat/lokasjonomfang` (`9a94a249`) er **merget** til develop 04.09 — «Gjelder hele byggeplassen»
+> som eksplisitt valg, L9 sticky tegning, `showLocation`-paritetsfiks på oppgavesiden, migrering
+> `20260904140000_lokasjon_omfang` anvendt på test. Raden sto som «IKKE merget» i to timer etter
+> mergen fordi **cowork ikke oppdaterte tavla** — agenten ryddet den bort med rette.
+> 🔴 **Regelen «tavla har én skribent» virker bare hvis den ene skriver.**
 
 **Ordre:** `relay/inbox-arkiv-pdf-oppgave-hms.md`, gatet av cowork 04.09, Kenneth-bestilt. **RUH og avvik er lovpålagt HMS-dokumentasjon som ikke kunne leveres som PDF** — de er `Task`, og `render.ts` kastet for alt annet enn sjekkliste. SJA slapp unna fordi den er `Checklist`. Pilotblokkerer for A.Markussen.
 
@@ -688,7 +719,7 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 **Gate grønn (lokalt):** web build (typecheck+lint+next), api typecheck, mobil typecheck + lint 0 errors, pdf 97/97, shared 636/636, web 193/193 (inkl. tre navngitte repeater-regresjonstester + ny L9-test). **Leveringsvei:** web + server-PDF → prod-deploy; mobil-delen via OTA.
 
-### 🟡 Kø-robusthet — opplastingskøen frøs i stillhet i 18 min (`fix/mobil-batch-opplasting`, PÅ BRANCH — venter gate, IKKE merget)
+### ✅ Kø-robusthet — opplastingskøen frøs i stillhet i 18 min (`fix/mobil-batch-opplasting`, MERGET — branch ryddet)
 
 **Avdekket av galleri-flervalg, men er en kø-robusthetssak, ikke en flervalg-sak.** Kenneth batchet 6 bilder i felt; de kom opp i sjekklista og til slutt på server — men det tok 18 min, og INGENTING sa at de var underveis. Målt årsak: `uploadAsync` hadde **ingen timeout**, så en hengende opplasting på tregt byggeplass-nett holdt `prosessererRef` true; 15s-sikkerhetsnettet er guardet på `!prosessererRef.current` og var dermed dødt. Bare reload (som nullstiller `laster_opp`→`venter` via `migreringer.ts:109` + fersk mount) løsnet den. Køen drenerte ikke av seg selv.
 
@@ -704,7 +735,7 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 **Gate grønn:** shared 621/621 (inkl. batch-integrasjonstest på ekte `{_radId,felter}`-form), pdf, mobil typecheck + lint 0, web build.
 
-### 🟡 expo-updates — JS-fikser til telefonen uten nytt bygg (`feat/expo-updates`, `e498bb14`, PÅ BRANCH — venter gate, IKKE merget)
+### ✅ expo-updates — JS-fikser til telefonen uten nytt bygg (`e498bb14`, MERGET — **OTA I DRIFT fra 04.09**)
 
 **Bakgrunn (målt):** 3. september kostet fem rene JavaScript-funn tre av ~15 månedlige iOS-bygg.
 Ingen trengte en ny binær — bare en vei til telefonen (bygg 51 manglet en upushet fiks, preview-bygget
