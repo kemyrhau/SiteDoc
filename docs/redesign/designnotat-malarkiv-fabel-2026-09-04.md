@@ -43,10 +43,23 @@ migrering-reporttemplate.md § Konflikt-regel (én mal-rad i både KontrollplanP
 - Hente én firmamal inn i eksisterende prosjekt: **maks 3 klikk** (Ny mal → Fra firmaarkiv → velg mal).
 - Promotere prosjektmal til firmaarkiv: **maks 2 klikk** (Send til firmaarkiv → bekreft-fri; angring = slett i arkivet).
 
-## Beslutningspunkter til Kenneth (vises i mockupen)
-- **B1 prefix-kollisjon:** firmamal erstatter standardmal med samme prefix (innstilling) — eller kun supplere?
-- **B2 SiteDoc-lånevei fase 1:** kun sentralt→firma (innstilling) — eller også sentralt→prosjekt direkte for alle maltyper?
-- **B3 HMS i fase 1:** ta HMS-kolonnene (subdomain/hmsSynlighet) med fra start (innstilling — kundekravet nevner HMS eksplisitt) — eller sjekkliste/oppgave først?
+## 🟢 Beslutningspunkter — ALLE TRE GATET AV KENNETH 2026-09-04
+
+- **B1 prefix-kollisjon:** ✅ **VEDTATT — firmamalen VINNER** over standardmalen med samme prefix.
+  Det er firmaets versjon av standarden; A.Markussen skal ikke ha begge.
+  🔴 **Cowork-tilføyelse, bindende for ordren: erstatningen skal være SYNLIG.** En stille
+  overstyring er samme feilklasse som kostet tre runder 04.09 (byggeplass-chippen som returnerte
+  `null` uten melding, vedlegg som forsvant uten varsel, `_` som lekket til kundedokumentet).
+  Malen skal vise at den har erstattet en standardmal — ikke bare oppføre seg som om standarden
+  aldri fantes.
+- **B2 SiteDoc-lånevei fase 1:** ✅ **VEDTATT — kun sentralt→firma.** Dagens sentralt→prosjekt
+  (kontrollplan / NS 3420) består urørt, så ingenting tapes ved å utsette en tredje vei til den
+  første virker.
+- **B3 HMS i fase 1:** ✅ **VEDTATT — HMS er med fra start.** Kundekravet nevner HMS eksplisitt.
+  🔴 **DB-migreringen er dermed godkjent av Kenneth** (additive kolonner `subdomain` +
+  `hmsSynlighet` på `OrganizationTemplate`) — han fikk konsekvensen forelagt før han svarte.
+  Den følger to-stegs migrasjons-policyen: kun `ADD COLUMN`, ingen `DROP`, ingen NOT NULL i
+  steg 1 ([CLAUDE.md § To-stegs migrations-policy](../../CLAUDE.md)).
 
 ## Ordre-rekkefølge etter godkjenning (til redesign-Opus, relayes av Kenneth)
 1. `firmamal.*` tRPC-ruter + HMS-kolonner (additiv migrering) 2. Firma-arkivsiden 3. Promote-knapp + badges 4. Ny mal-dialogens kilder 5. Seeding-veien (F4) 6. Versjonering (F2). Ordren skal bære designlås-blokk, funksjonsinventar (rører modul.ts-seedingen) og klikk-budsjettet over.
