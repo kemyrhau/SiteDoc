@@ -72,7 +72,12 @@ export function exifOpptakPosisjon(
   return { lat, lng };
 }
 
-/** Diagnostikk (kun __DEV__): logg rå EXIF så Kenneth kan måle nøkkelnavn/form på ekte iOS. */
+/**
+ * Diagnostikk (kun __DEV__, strippes i prod-bundlen): logger rå EXIF + tolket tid/
+ * posisjon per galleribilde. Beholdt bevisst — EXIF-nøkkelnavn/-form varierer mellom
+ * iOS-versjoner og bildekilder, og denne linja sparer feilsøkingsrunder når et bilde
+ * gir uventet tomt tids-/stedsfelt. Verifisert nyttig ved førstegangs-målingen 2026-09-04.
+ */
 function loggExifDiag(kilde: string, exif: Record<string, unknown> | null | undefined): void {
   if (!__DEV__) return;
   const gpsNøkler = exif
