@@ -362,6 +362,58 @@ Det som gjør det trygt å avslutte, er **filene** — men hvilken fil avgjør h
   `canLogin` og `status` skal ikke konsolideres. Alle fem er ting noen ellers rydder bort i
   god tro.
 
+### 🔴 KODEN ER ALDRI FROSSET — det er FUNKSJONENE vi bevarer (Kenneth-vedtak 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«Vi må tilpasse for å gjøre koden sterkere og mer robust, samtidig som
+> vi leverer funksjonene som lever i den.»*
+>
+> *«Koden er aldri frosset → det er funksjonene vi må bevare → funksjoner som er feil må vi
+> korrigere → men jeg vil ha tilbakemelding dersom vi fjerner funksjoner som ikke har vært
+> diskutert.»*
+
+Tre regler, i denne rekkefølgen:
+
+1. **Ingen kode er fredet.** Et *«ikke rør den»* fra Kenneth gjelder det brukeren opplever, ikke
+   implementasjonen under. Er mekanismen svak, skal den forbedres.
+2. **Er funksjonen feil, skal den korrigeres** — ikke vernes fordi den har stått lenge. Bevaring
+   gjelder det som er riktig, ikke det som er gammelt.
+3. 🔴 **Fjerner du en funksjon som ikke har vært diskutert — STOPP og meld.** Ikke etterpå, ikke i
+   en fotnote i leveransen. Dette er det operative kravet, og det er Kenneths eneste betingelse
+   for at punkt 1 og 2 skal gjelde fritt.
+
+**Hva punkt 3 betyr i praksis:** oppdager du under arbeidet at en kodevei bærer en funksjon ordren
+ikke nevner, er den ikke «utenfor scope å beholde». Den er et funn. Meld den, og la cowork eller
+Kenneth avgjøre — også når den ser ubrukt ut. Særlig da: *«ingen klient gjør dette i dag» er en
+observasjon, ikke en garanti.*
+
+**Verktøyet finnes allerede og skal brukes bredere: funksjonsinventar.** Fabels AM4-ordre lister
+`modul.ts`-seedingens syv linjer med et eksplisitt vedtak per linje (alle BEVART, med
+presisering). Det mønsteret hører i **enhver ordre som rører en eksisterende kodevei** — ikke bare
+de store. Da er «fjernet ved uhell» umulig ved konstruksjon i stedet for avhengig av at noen
+husker.
+
+**Utløst av en ekte konflikt 04.09.** Kenneth fredet repeater-lokasjonen 28.08: *«Uansett hva
+målingen sier om mekanismen bak (kobling eller sesjonstilstand), skal dagens oppførsel bevares.»*
+Samme mann bestilte L9 (sticky tegning) 04.09 — og L9 kan ikke bygges uten å røre nettopp den
+mekanismen. Målingen viste hvorfor det er riktig: dagens «sticky» kommer fra `aktivTegning` i
+`ByggeplassKontekst`, en **sesjonstilstand som virker på tvers av dokumenter** og kan peke på feil
+byggeplass.
+
+**Regelen som følger, og som gjelder alle fredninger:**
+
+| Bevares (hvis riktig) | Fritt å endre |
+|---|---|
+| Det brukeren ser og gjør — rad 2 lander på rad 1s tegning | Hvor verdien kommer fra |
+| Antall trykk, rekkefølge, hva som huskes | Datastruktur, kontekst, cache-strategi |
+| At funksjonen finnes og virker | Robusthet, prosjekt-/dokumentavgrensning, testdekning |
+
+🔴 **Det motsatte er også sant:** en refaktorering som gjør koden penere og samtidig fjerner et
+trykk brukeren var vant til, har **brutt** fredningen — selv om ingen funksjon forsvant.
+
+**Krav til ordrer som rører fredet område:** navngi filene som bærer dagens atferd, krev at
+agenten sier hvilke han rørte, og pek på regresjonstestene. Står de ikke i ordren, er «atferden er
+bevart» en påstand ingen har målt.
+
 🔴 **Et SNUDD vedtak rettes DER DET STO — ikke bare der det ble snudd.**
 (Kenneth 2026-08-28: *«en alvorlig risiko er at vi om en uke starter å endre tilbake på noe
 som virker til noe som ikke virker — fjerner funksjoner vi har måttet legge til
