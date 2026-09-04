@@ -595,14 +595,65 @@ metadata `:680` · feltverdier `:741` · oversettelse/manuell overstyring `:951`
 (`:674-679`) — det er en merkelapp for gjenfinning, ikke dokumentasjon av utført arbeid.
 Endringsloggen viser hvem som gjorde det.
 
-### 🔴 To utbredte misforståelser — begge målt som feil
+### 🔴 VEDTAK 2026-09-04: oppgave og HMS kan KUN slettes som utkast — sjekkliste beholder begge
 
-Begge har vært uttalt av Kenneth etter at koden sa noe annet. De står her fordi de kommer tilbake.
+> **Kenneth 2026-09-04:**
+> *«Sjekkliste → kan slettes etter at den er sendt. Oppgave → kan ikke slettes (kun som utkast)
+> → men skal kunne få tilføyd informasjon. HMS → samme som oppgave.»*
+>
+> *«En oppgave/HMS kan ikke slettes etter at den er sendt — kun få tilleggsinformasjon.»*
 
-| Påstand | Målt tilstand |
-|---|---|
-| «Sjekklister slettes av **administrator**, oppgaver kan ikke slettes» | **Slettereglene er identiske.** Begge: `draft` \|\| `closed`. Alt annet må **Lukkes** først, og **Lukk er KUN admin** — så «kun admin kan slette» gjelder *begge*, ikke bare sjekklister |
-| «Sendte oppgaver kan **ikke** slettes» | En sendt oppgave må **lukkes** først; en `closed` oppgave **kan** slettes (`oppgave.ts:1941`, Lukk-som-slette-port 2026-08-21). Deretter papirkurv med 90-dagers angrefrist |
+| Dokumenttype | Kan slettes fra | Status |
+|---|---|---|
+| **Sjekkliste** | `draft` **og** `closed` | ✅ Uendret — dagens kode er riktig |
+| **Oppgave** | `draft` **alene** | 🔴 **Kode må endres** — tillater i dag også `closed` |
+| **HMS** (avvik/SJA/RUH) | `draft` **alene** | 🔴 **Kode må endres** — samme |
+
+⚠️ **Denne seksjonen sto tidligere som «to utbredte misforståelser» og påsto at Kenneth husket
+feil.** Det var feil merkelapp. Koden implementerer `draft || closed` for begge
+(`oppgave.ts:1943`, `sjekkliste.ts:1903`, kommentert som «Lukk-som-slette-port, Kenneth-vedtak
+2026-08-21»), men Kenneths regel har vært konsistent: **oppgave og HMS består etter sending.**
+Det er koden som ikke oppfyller intensjonen, ikke hukommelsen som svikter.
+**Gammel tekst beholdt under, så begrunnelsen for 21.08-porten ikke går tapt.**
+
+**Slette betyr HARD sletting** (Kenneth 04.09): papirkurv i 90 dager, deretter borte.
+
+#### Hvorfor dette ikke bare er en preferanse — lovfunn 2026-09-04
+
+Cowork søkte etter oppbevaringskrav. **Ingen generell frist finnes** for HMS-avvik;
+internkontrollforskriften krever dokumentasjon *«i den form og det omfang som er nødvendig»*.
+Men tre konkrete krav treffer:
+
+- **Personskader skal registreres**, uansett sykefravær, og registeret skal være **tilgjengelig
+  for Arbeidstilsynet, verneombud, BHT og AMU** ([Arbeidstilsynet](https://www.arbeidstilsynet.no/hms/roller-i-hms-arbeidet/arbeidsgiver/registrere-skader-og-sykdom/))
+- **Yrkesskade meldes NAV inntil 1 år** etter ulykken
+- **Eksponeringsregister: 40–60 år**, minst 60 år etter endt eksponering ([forskrift om utførelse av arbeid kap. 31](https://lovdata.no/dokument/LTI/forskrift/2011-12-06-1357/KAPITTEL_5-1))
+
+🔴 **90 dagers hard sletting er kortere enn alle tre.** Dokumenterer en RUH eksponering, er
+avstanden 90 dager mot 60 år.
+
+⚠️ **Ikke juridisk rådgivning** — fristene bør bekreftes av noen med fagansvar før SiteDoc selges
+inn som kvalitetssystem. Men retningen er entydig uavhengig av presisjonen.
+
+#### ⚠️ Åpent, ikke vedtatt: mangler vi «annuller» ved siden av «slett»?
+
+Et sendt dokument som viser seg feil kan i dag verken fjernes eller merkes ugyldig. To behov
+presses inn i én mekanisme — samme form som `null` gjorde for lokasjon før 04.09:
+
+| Handling | Betyr | Når |
+|---|---|---|
+| **Slett** | skulle aldri eksistert | utkast, dublett, feilopprettet |
+| **Annuller** | gjaldt, men gjelder ikke lenger | sendt, men feil — sporet består, merket ugyldig |
+
+Kenneth sier tilleggsinformasjon er veien i dag. **Fabels domene — ingen ordre skrevet.**
+
+#### Gammel tekst (beholdt — begrunnelsen for 21.08-porten)
+
+~~«Sjekklister slettes av administrator, oppgaver kan ikke slettes» → Slettereglene er identiske.
+Begge: `draft` || `closed`. Alt annet må Lukkes først, og Lukk er KUN admin.~~
+~~«Sendte oppgaver kan ikke slettes» → En sendt oppgave må lukkes først; en `closed` oppgave kan
+slettes (`oppgave.ts:1941`, Lukk-som-slette-port 2026-08-21). Deretter papirkurv med 90-dagers
+angrefrist.~~
 
 🔴 **Konsekvens for brukervendt tekst:** all onboarding, hjelpetekst og mikrotekst som forklarer
 forskjellen på sjekkliste og oppgave skal hente fra denne seksjonen — ikke fra hukommelse.
