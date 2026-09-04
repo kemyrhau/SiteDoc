@@ -7,6 +7,27 @@
 Cowork-notatet sier `LokasjonVelger` «rendres ubetinget» på sjekklistens detaljside. **Målt 2026-09-04:** sjekkliste-detaljsiden gater den på malens `showLocation !== false` (`sjekklister/[sjekklisteId]/page.tsx:873–876`, «FASTE FELT Del B#2»), og malbyggeren har vis/skjul-toggle for lokasjonsfeltet (`MalBygger.tsx:865–875`). **Retning 3 («malen bestemmer») finnes altså allerede for sjekklister.**
 Derimot: **oppgavesiden rendrer LokasjonVelger ubetinget** (`oppgaver/[oppgaveId]/page.tsx:806` — ingen showLocation-sjekk). Det er et paritetshull, ikke en modellbeslutning. *Cowork verifiserer begge målinger.*
 
+## 🟢 VEDTATT AV KENNETH 2026-09-04 — med forankringen som gjør regelen forståelig
+
+> **Kenneth 2026-09-04, om når «hele byggeplassen» er riktig svar:**
+> *«Denne observasjonen gjelder ikke ett punkt — den gjelder hele anlegget. Dette kan være rett
+> for f.eks. → alle gatelysene mangler merking.»*
+
+🔴 **Dette eksempelet er styrende, og skal med i ordren.** «Alle gatelysene mangler merking» er
+én observasjon om hundre lyspunkt. En pin ville vært feil — ikke fordi den mangler, men fordi
+den ville påstått at funnet gjelder ett sted. Samme klasse: feil armaturtype gjennom hele
+anlegget, en strekning som ikke er kostdekket, manglende skilting langs en vei.
+
+**Konsekvensen for PDF-en er hele poenget:** i dag skriver den «Ikke utfylt» der Kenneth mente
+«gjelder alt». En byggherre leser det som en glipp. Etter endringen står det at rapporten gjelder
+hele byggeplassen — et svar, ikke et hull.
+
+Samme prinsipp som EXIF-vedtaket samme døgn: **et dokument skal ikke påstå noe usant om
+virkeligheten, og et tomt felt der noe var ment er en usann påstand.**
+
+Auto-åpning: ✅ **kun `status=draft`** (Kenneth 04.09) — et godkjent eller sendt dokument skal
+aldri nages om en pin. Det er ferdig.
+
 ## Vedtaksforslag: retning 3 + retning 1 kombinert
 
 **Malen bestemmer OM dokumentet har lokasjon (finnes). Dokumentet bærer eksplisitt HVILKET omfang (nytt).**
