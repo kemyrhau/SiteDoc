@@ -92,6 +92,27 @@ Ordre etter bygg 51.
 > allerede appens modell.** Ti skjermer sender `byggeplassId` fra `ByggeplassKontekst`.
 > Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
 
+### 🔴 UAVKLART 2026-09-04 — hvilke dokumenttyper kan i det hele tatt bli PDF?
+
+**Målt sikkert:** `arkiv.rendr` (`apps/api/src/routes/arkiv.ts:51`) godtar `type: "sjekkliste" |
+"oppgave"` i kontrakten, men `services/arkiv/render.ts:94` **kaster** for alt annet enn sjekkliste
+(«task-innholdsleser mangler»). **HMS står ikke i enum-en i det hele tatt.**
+
+⚠️ **IKKE MÅLT — og det avgjør alvorlighetsgraden:** er en RUH/SJA/avvik en `Checklist` eller en
+`Task`? `hms.ts` bruker begge (2 checklist-treff, 6 task-treff — en grep-telling, ikke en måling).
+
+| Hvis HMS-dokumenter er… | Konsekvens |
+|---|---|
+| `Checklist` | 🟡 Kun oppgave mangler PDF. Skjemmende, ikke blokkerende |
+| `Task` | 🔴 **Lovpålagt HMS-dokumentasjon kan ikke leveres som PDF.** Blokkerer piloten |
+
+🔴 **Mål dette FØR noe annet PDF-arbeid bestilles.** Spørsmålet er hvilken Prisma-modell en RUH
+faktisk opprettes i — ikke hvor mange grep-treff hver modell har.
+
+Funnet kom fram fordi dokgen rapporterte et sidefunn i stedet for å la det passere
+(lokasjonOmfang-runden, 04.09), og fordi Kenneth samme kveld påpekte at han sier «sjekklister» om
+funksjoner som er generelle. Se [SAMARBEIDSREGLER § «sjekkliste» betyr ofte «dokument»](SAMARBEIDSREGLER.md).
+
 ### Feltfunn 2026-09-04 (prod-verifisering av `96eebc13`)
 
 Kenneth sammenlignet samme befaringsnotat i mobil, web og arkiv-PDF etter prod-deployen.

@@ -362,6 +362,78 @@ Det som gjør det trygt å avslutte, er **filene** — men hvilken fil avgjør h
   `canLogin` og `status` skal ikke konsolideres. Alle fem er ting noen ellers rydder bort i
   god tro.
 
+### 🔴 «SJEKKLISTE» I EN BESTILLING BETYR OFTE «DOKUMENT» (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«Det er et generelt problem at jeg sier sjekklister for funksjoner som
+> er generelle for sjekkliste/oppgave/HMS.»*
+
+**Standardtolkningen snus:** når Kenneth sier «sjekkliste» om en funksjon, **antar cowork at den
+gjelder alle dokumenttyper** — sjekkliste, oppgave og HMS — med mindre noe er spesifikt for én.
+Er det tvil, er det ett spørsmål, ikke en antakelse.
+
+**Fire målte tilfeller på fire dager, alle samme form:**
+
+| Funksjon | Bygget for | Manglet i |
+|---|---|---|
+| Lokasjonsgaten (`showLocation`) | sjekkliste | oppgave — funnet 04.09, rettet i `ea66590b` |
+| Lesbar endringslogg | sjekkliste | oppgave hadde rå `JSON.stringify` (eget funn, åpent) |
+| Arkiv-PDF (`arkiv.rendr`) | sjekkliste | oppgave kaster; HMS uavklart — se BACKLOG |
+| EXIF-opptakstid i web | sjekkliste-detalj | `RapportObjektVisning` (oppgave + utskrift) viser fortsatt `opprettet` |
+
+**Ingen av dem var uenighet om hva som skulle bygges.** Hver gang traff koden bestillingens
+ordlyd, og bommet på intensjonen.
+
+### 🔴 PARITET GJELDER TO AKSER — dokumenttype OG flate (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«Ta med web og app på mobil → det skal være felles.»*
+
+Paritetsregelen (`retningslinjer/ui-standarder.md`) dekket mal/UI/PDF. **Kenneth utvider den til
+begge akser, eksplisitt.** En funksjon er ikke levert før den finnes i hver rute den logisk hører
+hjemme i:
+
+| | Web | Mobil-app | Arkiv-PDF |
+|---|---|---|---|
+| **Sjekkliste** | | | |
+| **Oppgave** | | | |
+| **HMS** (avvik/SJA/RUH) | | | |
+
+🔴 **Operativt krav til enhver ordre: fyll ut denne matrisen.** Hver rute er ✅ (bygges), ❌ (gjelder
+ikke — med grunn) eller ⚠️ (finnes ikke i dag — eget funn). **Tomme ruter er ikke tillatt** — en tom
+rute er noe ingen har tatt stilling til, og det er nøyaktig slik alle fire tilfellene over oppsto.
+
+«Kun sjekkliste, kun web» er et gyldig svar. Men det skal være et **valg**, ikke noe som følger av
+at bestillingen tilfeldigvis nevnte én type på én flate.
+
+**Mobil er ikke en andrerangs flate her.** Pilotens målestokk er *«50 ansatte, mobil viktigst»*
+(REDESIGN-MASTERPLAN § Rekkefølge). En funksjon som kun finnes i web er, for A.Markussens
+anleggsarbeidere, en funksjon som ikke finnes.
+
+#### 🔴 Men paritet er ikke likhet — mobil får det som hører i felt (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«I den grad det er hensiktsmessig at vi gjør via app på mobil →
+> avanserte funksjoner overlater vi til web.»*
+
+**Skillet er hvor arbeidet faktisk skjer, ikke hvor vanskelig det er å bygge:**
+
+| Hører på MOBIL — feltarbeid | Hører i WEB — kontorarbeid |
+|---|---|
+| Registrere observasjon, avvik, RUH | Bygge og redigere maler |
+| Ta bilde, sette pin, velge tegning | Firmaadministrasjon, malarkiv, moduloppsett |
+| Fylle ut og sende dokument | Rapportering, analyse, eksport-oppsett |
+| Se og kontrollere eget arbeid | Attestering i volum, kolonnevalg, bulk-operasjoner |
+
+🔴 **`❌ gjelder ikke` er derfor et RIKTIG svar for mobil på avanserte funksjoner** — men det skal
+begrunnes med *hvor arbeidet skjer*, ikke med at det ble for tungt å bygge. «Vi rakk ikke mobil» er
+ikke samme sak som «dette gjøres ikke i felt».
+
+**Prøven:** ville en anleggsarbeider med hansker, i regn, gjort dette på en telefon? Er svaret nei,
+hører det i web. Er svaret ja, er mobil ikke valgfritt.
+
+⚠️ **Leveringsveien er ikke en unnskyldning for å hoppe over en rute.** Mobil når brukeren via
+`eas update` (minutter, ingen byggkvote); web og server-rendret PDF krever prod-deploy. **Ulik
+leveringsvei betyr ulik TIMING, ikke ulikt omfang.** Bygg alle rutene; deploy dem i den takten
+veiene tillater.
+
 ### 🔴 KODEN ER ALDRI FROSSET — det er FUNKSJONENE vi bevarer (Kenneth-vedtak 2026-09-04)
 
 > **Kenneth 2026-09-04:** *«Vi må tilpasse for å gjøre koden sterkere og mer robust, samtidig som
