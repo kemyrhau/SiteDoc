@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Plus, Info, Globe, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
+import { harMeningsfullLabel } from "@sitedoc/pdf";
 import type { Vedlegg } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 import { tilbehorVisning } from "./RapportObjektRenderer";
@@ -77,9 +78,16 @@ export function FeltWrapper({
     : "";
   const rammeKlasse = "";
 
+  // Navnløst felt (tom label lagres som "") vises som i arkiv-PDF-en: verdien
+  // alene, ingen etikettlinje. Brukeren valgte bort navnet bevisst — en blank
+  // linje (eller påført «Felt N») ville vært støy. Speiler radkort.ts.
+  const harLabel = harMeningsfullLabel(objekt.label);
+
   return (
     <div className={`rounded-lg bg-white p-4 shadow-sm ${marginKlasse} ${rammeKlasse}`}>
-      {/* Label + påkrevd-badge + hjelpetekst + oversettelse */}
+      {/* Label + påkrevd-badge + hjelpetekst + oversettelse — kun for navngitte felt */}
+      {harLabel && (
+      <>
       <div className="mb-2 flex items-center gap-2">
         <span className="text-sm font-medium text-gray-900">{standardLabel ?? objekt.label}</span>
         {objekt.required && (
@@ -117,6 +125,8 @@ export function FeltWrapper({
       </div>
       {visOversettelse && oversattLabel && (
         <p className="mb-1 text-xs italic text-blue-600">{oversattLabel}</p>
+      )}
+      </>
       )}
 
       {/* Typespesifikk input */}

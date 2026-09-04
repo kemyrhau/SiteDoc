@@ -2223,6 +2223,7 @@
   "malbygger.markerRiktigHjelp": "Mark the correct answer with the radio button on the left",
   "malbygger.tilhoerer": "Belongs to:",
   "malbygger.utloserverdier": "Trigger values:",
+  "malbygger.utenNavn": "(no name)",
   "malbygger.redigerMalnavn": "Edit template name",
   "malbygger.emne": "Subject",
   "malbygger.emneBeskrivelse": "Keyword about the content — searchable and its own column in the list",

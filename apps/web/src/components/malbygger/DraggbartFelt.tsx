@@ -3,6 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { REPORT_OBJECT_TYPE_META, type ReportObjectType, erKontainerType } from "@sitedoc/shared";
+import { harMeningsfullLabel } from "@sitedoc/pdf";
 import { Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
@@ -129,7 +130,13 @@ export function DraggbartFelt({
           className="flex flex-1 flex-col items-start text-left"
           onClick={onClick}
         >
-          <span className="text-xs font-medium text-gray-800">{objekt.label}</span>
+          {harMeningsfullLabel(objekt.label) ? (
+            <span className="text-xs font-medium text-gray-800">{objekt.label}</span>
+          ) : (
+            // Byggehint, ikke etikett: feltet er navnløst med vilje (tom label lagres
+            // som ""). Dempet + kursiv så ingen tror feltet faktisk heter dette.
+            <span className="text-xs italic text-gray-400">{t("malbygger.utenNavn")}</span>
+          )}
           <span className="text-[11px] text-gray-400">
             {meta?.label ?? objekt.type}
           </span>
