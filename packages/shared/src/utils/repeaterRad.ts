@@ -16,6 +16,12 @@
  *      ikke laste» til man gikk ut og inn
  * Derfor: ÉN kanonisk traversering, her, med navn som er lette å finne. Nye
  * steder som rører repeater-rader SKAL gå gjennom `feltKartFraRad`.
+ *
+ * 🔴 PDF HAR EN KANONISK TVILLING: `packages/pdf/src/arkivmal/repeaterRad.ts`
+ * (`feltKartFraRad`) fordi `@sitedoc/pdf` er null-runtime-avhengighet og ikke kan
+ * importere shared (se den fila + packages/pdf/CLAUDE.md). To varianter avgrenset
+ * av dep-regelen er tilsiktet — ikke to løsrevne kopier. Rører du den ene, hold
+ * dem like (samme mønster som `tegningsmarkor.ts` ↔ pdf `tegningsfelt.ts`).
  */
 
 /**

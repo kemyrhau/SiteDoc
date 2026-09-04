@@ -16,6 +16,7 @@
  */
 
 import { kanonisk } from "../hjelpere";
+import { feltKartFraRad } from "./repeaterRad";
 import type { Segment } from "./typer";
 
 export type { Segment };
@@ -182,10 +183,23 @@ function prosent(n: number): string {
   return `${n.toLocaleString("nb-NO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
 }
 
+/** Bar UUID (v1–5). En rå id er en maskinreferanse, aldri menneskelesbart innhold. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** En rå verdi → lesbar streng. Null/tom → null («Ikke utfylt» ved render). */
 function lesbarVerdi(v: unknown): string | null {
   if (v == null) return null;
-  if (typeof v === "string") return v.trim() === "" ? null : v;
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (t === "") return null;
+    // Funn 3: historiske tegningsfelt lagret verdien som bar drawingId-streng (uten
+    // navn/koordinat). En rå UUID skal ALDRI stå i et kvalitetsdokument — den ser ut
+    // som informasjon, men er støy ingen kan lese. Ny data lagrer {drawingId,pos,navn}
+    // og vises korrekt over. Transformen kan ikke slå opp navnet (avhengighetsfri),
+    // så vi er ærlige: vi vet det er en tegningsreferanse, ikke hvilken.
+    if (UUID_RE.test(t)) return "(tegningsreferanse)";
+    return v;
+  }
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   if (Array.isArray(v)) {
     if (v.length === 0) return null;
@@ -228,8 +242,9 @@ function lesbarCelle(celle: unknown): string | null {
 
 /** Kompakt oppsummering av en hel rad (lagt til/fjernet). */
 function radSammendrag(rad: Record<string, unknown>): string {
-  const utfylte = Object.values(rad).filter((c) => lesbarCelle(c) != null).length;
-  const bilder = tellBilder(rad);
+  const celler = feltKartFraRad(rad); // produksjonsform { _radId, felter } → cellene, ellers raden selv
+  const utfylte = Object.values(celler).filter((c) => lesbarCelle(c) != null).length;
+  const bilder = tellBilder(celler);
   const deler: string[] = [];
   if (utfylte > 0) deler.push(`${utfylte} felt utfylt`);
   if (bilder > 0) deler.push(`${bilder} bilde${bilder === 1 ? "" : "r"}`);
@@ -395,10 +410,14 @@ function diffRepeater(
       continue;
     }
     if (fRad === undefined || tRad === undefined) continue;
-    const nøkler = new Set([...Object.keys(fRad), ...Object.keys(tRad)]);
+    // Produksjonsform: cellene bor i `.felter` ({ _radId, felter }), ikke på raden.
+    // Uten uttrekket ble nøklene «_radId»/«felter» → «Kolonne 2» + tom celle-diff.
+    const fCeller = feltKartFraRad(fRad);
+    const tCeller = feltKartFraRad(tRad);
+    const nøkler = new Set([...Object.keys(fCeller), ...Object.keys(tCeller)]);
     ordneNøkler(nøkler, kolonner).forEach((k, ki) => {
-      if (likForDiff(fRad[k], tRad[k])) return; // uendret celle (etter normalisering)
-      const diff = lesbarCelleDiff(fRad[k], tRad[k]);
+      if (likForDiff(fCeller[k], tCeller[k])) return; // uendret celle (etter normalisering)
+      const diff = lesbarCelleDiff(fCeller[k], tCeller[k]);
       ut.push({
         felt: `Rad ${nr} — ${kolonneLabel(kolonner, k, ki + 1)}`,
         ...tilSegmenter(diff.fra, diff.til),
