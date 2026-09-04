@@ -1197,6 +1197,37 @@ Cowork skal gi denne linjen med agentens hash **hver gang** en merge meldes ferd
 | «Din rapport/ordre er **input, ikke fasit** — mål premisset selv.» | Spor 4 motbeviste D's «mengde er neppe alene» ved måling. Spor A fanget at coworks telling motsa registerets egen regel. |
 | 🔴 «**Sjekk treets alder før du melder et fravær.**» *(lagt til 2026-09-02)* | Se § under — «det finnes ikke» og «treet mitt er gammelt» ser helt like ut |
 
+#### 🔴 Før du BERGER noe som ser tapt ut: mål om det allerede er levert (2026-09-04)
+
+**Tre ganger på én kveld konkluderte cowork «tapt» og tok feil hver gang:**
+
+| Påstand | Målingen |
+|---|---|
+| «Agenten fjernet coworks sti-retting» | Han lå én commit bak og rørte aldri fila |
+| «Agenten fjernet Legg til-knappen» | Omstrukturert til `useCallback` — knappen står |
+| «Stashen bærer 117 tapte røykliste-linjer» | Innholdet lå i develop i en **nyere** versjon (`228e406a`, `ea2708cb`) — develop 405 linjer mot stashens 341 |
+
+Ingen gjorde skade, fordi alle tre ble målt før handling. Men den tredje kostet en `stash pop`
+som endte i konflikt, og de to første kostet gate-runder og en uberettiget anklage mot en agent
+som hadde gjort alt riktig.
+
+🔴 **Fast første steg når noe ser fjernet, tapt eller foreldreløst ut — FØR du foreslår berging:**
+
+```sh
+git log --oneline --since=<dato> -- <fila>        # er innholdet committet i mellomtiden?
+git show origin/develop:<fila> | grep -c <markør> # har develop det allerede — og MER?
+```
+
+**Asymmetrien som gjør dette viktig:** å overse ekte tap er dyrt, så instinktet om å berge er
+riktig. Men å «berge» noe som allerede finnes drar inn en **eldre** versjon — og den ville
+overskrevet nyere arbeid hvis konflikten ikke hadde stoppet den. **Falsk berging er en
+regresjonsvei, ikke en ufarlig ekstrarunde.**
+
+⚠️ **Beslektet, og det som gjorde funnet vanskelig:** stashen het `metro-nede-notat (foreldes ved
+metro-start)` og inneholdt 117 linjer røykliste. **En stash-melding som ikke beskriver innholdet
+gjør arbeidet usynlig** — den ble hverken funnet eller vurdert på to dager. Navngi stash etter
+innhold, ikke etter situasjonen den oppsto i.
+
 #### 🔴 `git diff develop..branch` viser IKKE hva branchen gjorde — bruk TRE punktum (2026-09-04)
 
 **To punktum sammenligner to punkter.** Er branchen bak develop, dukker develops nyere commits opp
