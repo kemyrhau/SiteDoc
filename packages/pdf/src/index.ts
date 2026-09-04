@@ -46,6 +46,7 @@ export {
 export {
   esc,
   kanonisk,
+  harMeningsfullLabel,
   normaliserOpsjon,
   formaterDato,
   formaterDatoTid,

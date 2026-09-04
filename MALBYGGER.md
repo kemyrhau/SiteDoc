@@ -161,17 +161,21 @@ videre. At PDF-en rendret en bokstavelig `_` beviser at strengen ligger i `label
 | Flate | Navnløst felt MED innhold | Navnløst felt UTEN innhold |
 |---|---|---|
 | **Arkiv-PDF** (`arkivmal/radkort.ts`) | Verdien alene, **ingen etikettlinje** | **Utelates helt** |
-| Malbygger | Byggehint (`—`/«uten navn») så feltet er synlig i treet | Samme |
-| Web-utfylling | ⚠️ Viser i dag blank etikettlinje uten markør — eget funn, ikke rettet |  |
+| Malbygger | Byggehint «(uten navn)» dempet/kursiv (`DraggbartFelt`, `DragOverlay_`, forelder-badge i `FeltKonfigurasjon`) så feltet er synlig i treet | Samme |
+| Web-utfylling (`rapportobjekter/FeltWrapper.tsx`) | Verdien alene, **ingen etikettlinje** (som arkiv-PDF) | — |
 
-Predikatet er `harMeningsfullLabel` (`packages/pdf/src/arkivmal/hjelpere.ts`), delt kilde med
-`endringsdiff.kolonneLabel`. Det fanger både `_` og `""`, så koden er forover-kompatibel om
-representasjonen endres.
+Predikatet er `harMeningsfullLabel` (`packages/pdf/src/hjelpere.ts`), delt kilde med
+`endringsdiff.kolonneLabel` og radkortet. Det fanger både `_` og `""`. Web-flatene importerer det
+via `@sitedoc/pdf`-indeksen (re-eksportert der). Det fanger begge representasjoner, så koden er
+forover-kompatibel.
 
-🟡 **Åpen, ikke vedtatt:** om «uten navn» bør lagres som tom streng i stedet for den magiske
-strengen `_`. Fordelen ville vært én sannhet i data og ingen særhåndtering i tre flater —
-ulempen er at en bruker en dag faktisk kan ville ha `_` som etikett. **Egen runde, ikke gjort
-i vanvare.**
+🟢 **VEDTATT + implementert 2026-09-04** (branch `fix/navnlost-felt-tom-streng`): «uten navn»
+lagres som **tom streng** — ikke den magiske `_`. Én sannhet i data, ingen særhåndtering.
+Server-validering løsnet fra `label: z.string().min(1)` til `.optional()` i
+`mal.oppdaterObjekt` så en eksisterende etikett faktisk kan tømmes og lagres. **Ingen migrering
+av eksisterende `_`-verdier** — `harMeningsfullLabel` fanger begge, konvensjonen fases ut ved
+bruk. Kenneths andre forslag (påkrevd-etikett-validering) ble **avvist**: det ville fjernet
+funksjonen.
 
 ### Grenseverdier på tall-felt (`integer`/`decimal`) — norsk kanonisk (fase M-3a del 2, 2026-07-16)
 
