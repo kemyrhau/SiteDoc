@@ -57,6 +57,17 @@ august: en gate ingen har målt er en påstand.** Eget punkt: lint inn i regel 1
 ✅ **ALLE SEKS LUKKET OG SIMULATOR-VERIFISERT 2026-09-03** — develop `79540337`, test-API `dc454d22`.
 Røyklisten dekket A/B/D/E på `da4d3035`, C og miniatyr-fiksen på `451cbb3a`.
 
+🟢 **Funn #3 «eget funn» (endringsloggen sa ikke HVA som ble endret) løst — branch `fix/endringslogg-innhold`:**
+Rot målt: `diffRepeater` (`packages/pdf/src/arkivmal/endringsdiff.ts`) leste `Object.keys` på den innpakkede
+rad-formen `{_radId, felter}` i stedet for `.felter` → «Kolonne N» (posisjon, ikke navn) OG tom celle-diff
+(«til «Ikke utfylt»» uten «fra»). Ett symptom, én fiks: uttrekk via **kanonisk tvilling** `feltKartFraRad`
+(`packages/pdf/src/arkivmal/repeaterRad.ts`, null-dep-tvilling av `@sitedoc/shared/utils/repeaterRad.ts`,
+toveis-peker) → riktig kolonnenavn + fra/til på web + mobil + arkiv-PDF samtidig. Bar UUID-verdi (historisk
+tegningsreferanse) skjules som «(tegningsreferanse)» i `lesbarVerdi` — aldri rå UUID i et kvalitetsdokument.
+Lærdom: repeater-testene traff aldri produksjonsformen (flat legacy) — nå testes `{_radId, felter}` FØRST.
+Gate: web build + mobil typecheck grønt, api-arkiv 41 + pdf 90 + shared 7 + web 189. OTA-kandidat (ren JS).
+Tidslinje-fletting (mangel 4) skilt ut til fabel — informasjonsarkitektur, egen designbeslutning. Ikke deployet.
+
 🔴 **Simulatoren gjorde noe vi skal gjenta: den lette etter BILDET, ikke etter fravær av feilmelding.**
 Miniatyr-fiksen bygger den lokale stien av vedleggets filnavn; hadde navnet ikke matchet fila på disk,
 ville den falt stille tilbake til gammel oppførsel — grønt uten å være en fiks. Ordren ba eksplisitt om
