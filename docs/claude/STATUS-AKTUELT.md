@@ -116,12 +116,21 @@ med nummerering, kø-robusthet, vedlegg som overlever gjeninngang, og repeater-t
 **Forutsetning som måtte i prod først:** `settVedleggUrl` (prod-deploy `4eb05f73`) — uten den svarte
 serveren 404 og vedlegg nådde aldri dokumentet.
 
-🔴 **RETTELSE 2026-09-04 — «bygg 51 er ute hos testerne» var FEIL.** `eas build:list` viser at **#51 var
-`preview`-bygget** (internal distribution, Runtime `None`), ikke et produksjonsbygg. De seks funnene fra
-bygg 50 nådde derfor **aldri** testerne før #54. Cowork førte det i tavla og gjentok det i flere meldinger
-03.–04.09; Kenneth fanget det på EAS-skjermbildet. **Samme feilklasse som 31.08** («bygg 47 er hos
-testerne» etter at 48 var fyrt). Byggnummer OG profil leses fra `eas build:list` — aldri fra hukommelsen
-om hva som ble startet.
+⚠️ **BYGG 51 — to målinger som ikke lar seg forene, og cowork har tatt feil om den TO ganger.**
+
+| Kilde | Hva den viser |
+|---|---|
+| `eas build:list` (04.09) | #51 = «iOS internal distribution build», profil `preview`, Runtime `None`, Channel `None` |
+| App Store Connect → TestFlight (04.09) | #51 står som **«Testing»**, 5 invites, **2 installs, 53 økter** |
+
+**Testerne HAR altså brukt bygg 51.** Cowork påsto først at den var et produksjonsbygg (feil grunnlag),
+så at den aldri nådde testerne (også feil — TestFlight viser bruk). **Hvordan et internal
+distribution-bygg havnet i TestFlight er ikke forstått, og skal ikke gjettes på.**
+
+🔴 **Lærdommen, som gjelder uansett hvilken av de to som er «riktig»:** cowork førte begge påstandene
+fra hukommelsen om hva som ble *startet*, ikke fra en kilde. Samme feilklasse som 31.08 («bygg 47 er hos
+testerne» etter at 48 var fyrt). **Byggnummer, profil OG distribusjon leses fra `eas build:list` +
+App Store Connect — og når de to er uenige, står begge i loggen til noen har målt hvorfor.**
 
 ⚠️ **Foreldet linje under — gjaldt bygg 50:**
 
