@@ -33,6 +33,22 @@ klient-knapp, bilder under egen rad, løpenummer, seks-funn-runden.
 **Det eneste Kenneth fant som ikke gir mening etter siste deploy:**
 endringsloggen.
 
+## 🔴 Ikke «rett» disse — de ser ut som feil og er det ikke
+
+- **Felt uten etikett er en ØNSKET funksjon** (Kenneth 2026-09-04). Arkiv-PDF viser derfor
+  verdien alene uten etikettlinje når feltet er navnløst, og **utelater feltet helt** når det
+  også er tomt. Predikat: `harMeningsfullLabel` (`arkivmal/hjelpere.ts`, delt kilde med
+  `endringsdiff.kolonneLabel`). Full begrunnelse, målingene og hva som IKKE skal bygges:
+  [MALBYGGER.md § Felt UTEN etikett](../../MALBYGGER.md). **Ingen påkrevd-etikett-validering** —
+  den ville fjernet funksjonen.
+- **F7-blokken «Registrert utenfor rader»** ✅ **LUKKET 2026-09-04.** Koden er levert
+  (`fix/arkivmal-funn-3-4`, 22.08, 14 enhetstester), men DoD-ens skjermbevis kunne aldri kjøres:
+  målt 04.09 at **hverken web eller mobil har en vei** til å feste kommentar/vedlegg utenfor en
+  rad — `RepeaterObjekt.tsx` kaller `FeltDokumentasjon` kun inne i `rader.map()`, og alle
+  callbacks tar `radIndeks`. Tilstanden kan ikke oppstå i nye dokumenter; blokken står som vern
+  for historiske. **Ikke bestill verifiseringen på nytt** — den ventet i to uker på en test som
+  ikke var mulig.
+
 ## Faser
 
 ### F1 — Endringsloggen blir lesbar ✅ LEVERT (merget develop 2026-08-20)
@@ -146,7 +162,19 @@ knappe-duplikatet på sjekklistedetalj.
 > **Lærdom:** «lukker N saker uten ny kode» skal måles mot koden før det skrives i en
 > plan, ikke anslås. Anslaget sto i både planen og `CLAUDE.md`-indeksen i fire dager.
 
-### 🔴 F7 — arkiv-PDF taper innhold festet på repeater-OBJEKTET (funnet i prod 2026-08-21)
+### ✅ F7 — arkiv-PDF taper innhold festet på repeater-OBJEKTET (funnet i prod 2026-08-21) — LUKKET 2026-09-04
+
+> ⚠️ **LUKKET 2026-09-04 (cowork).** Koden ble levert 22.08. De to DoD-punktene som krevde
+> skjermbevis sto åpne i to uker — og målingen 04.09 viser hvorfor: **handlingen de ba om
+> finnes ikke i UI-et.** `RepeaterObjekt.tsx` (web **og** mobil) kaller `FeltDokumentasjon` kun
+> inne i `rader.map()`, og alle kommentar/vedlegg-callbacks tar `radIndeks` som første argument.
+> Det er ingen vei til å feste innhold utenfor en rad.
+>
+> **Konsekvens:** tilstanden kan ikke oppstå i nye dokumenter. BHO-002 var et eldre dokument.
+> Blokken `byggUtenforRaderBlokk` står som **vern for historiske dokumenter**, dekket av 14
+> enhetstester. **Ikke bestill skjermverifiseringen på nytt.**
+>
+> Teksten under står uendret — den er begrunnelsen for at vernet finnes, og skal ikke slettes.
 
 **Symptom:** BHO-002 (prod) viser kommentar «Testbilde» og ett bilde på web. Arkiv-PDF-en
 skriver «Ingen rader registrert» og utelater både kommentar og bilde.

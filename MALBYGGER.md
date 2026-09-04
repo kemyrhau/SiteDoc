@@ -136,6 +136,43 @@ seed-script. Ført i [BACKLOG](docs/claude/BACKLOG.md).
 | Vær | `weather` |
 | Container | `repeater` (barn), `list_single/multi` (betinget) |
 
+### 🔴 STYRENDE: felt UTEN etikett er en ØNSKET funksjon — ikke en datafeil (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«jeg har lagt inn et felt uten navn med vilje → det er en ønsket
+> handling.»*
+
+Et felt kan stå uten etikett når **sammenhengen over det allerede forklarer innholdet** — for
+eksempel et fritekstfelt rett under `drawing_position` i en repeater-rad. En etikett ville vært
+støy i et dokument byggherren leser.
+
+🔴 **Ikke «rett» dette.** Det finnes ingen påkrevd-validering på etikett i dag
+(`FeltKonfigurasjon.handleLagre` sender `label` uten trim/tom-sjekk, `<Input>` er ikke
+`required`, og lagre-knappens disable-vilkår sjekker kun *endring*, ikke *utfylt*). Fraværet er
+**ikke et hull som skal tettes** — å innføre en påkrevd-etikett-validering ville fjernet en
+funksjon Kenneth bruker bevisst.
+
+**Dagens representasjon, målt 2026-09-04 (dokgen):** ingen kode noe sted genererer `_` eller
+`—`. Nytt felt får `label: meta.label` (typenavnet), og editoren sender `data.label` rått
+videre. At PDF-en rendret en bokstavelig `_` beviser at strengen ligger i `label` — den er
+**skrevet for hånd som en brukerkonvensjon** for «uten navn», ikke satt av systemet.
+
+**Hvordan flatene skal oppføre seg:**
+
+| Flate | Navnløst felt MED innhold | Navnløst felt UTEN innhold |
+|---|---|---|
+| **Arkiv-PDF** (`arkivmal/radkort.ts`) | Verdien alene, **ingen etikettlinje** | **Utelates helt** |
+| Malbygger | Byggehint (`—`/«uten navn») så feltet er synlig i treet | Samme |
+| Web-utfylling | ⚠️ Viser i dag blank etikettlinje uten markør — eget funn, ikke rettet |  |
+
+Predikatet er `harMeningsfullLabel` (`packages/pdf/src/arkivmal/hjelpere.ts`), delt kilde med
+`endringsdiff.kolonneLabel`. Det fanger både `_` og `""`, så koden er forover-kompatibel om
+representasjonen endres.
+
+🟡 **Åpen, ikke vedtatt:** om «uten navn» bør lagres som tom streng i stedet for den magiske
+strengen `_`. Fordelen ville vært én sannhet i data og ingen særhåndtering i tre flater —
+ulempen er at en bruker en dag faktisk kan ville ha `_` som etikett. **Egen runde, ikke gjort
+i vanvare.**
+
 ### Grenseverdier på tall-felt (`integer`/`decimal`) — norsk kanonisk (fase M-3a del 2, 2026-07-16)
 
 `config`-nøklene for grenseverdier har **norsk kanonisk form** som skrives fra
