@@ -106,31 +106,38 @@ describe("funn 2026-09-04 — navnløs feltlabel («_») vises aldri rått", () 
     ],
   } as TreObjekt;
 
-  it("navnløst felt MED verdi → «Felt N» + verdien (aldri datatap), aldri understrek", () => {
+  it("navnløst felt MED verdi → verdien ALENE, ingen etikettlinje, aldri understrek", () => {
     const rad = { txt: fv("A"), blank: fv("En verdi som må bevares"), dp: fv(null) };
     const html = byggRadkort(MEDNAVNLOS, [rad], "Befaring");
     // Understreken skal ikke stå som label (strengen «_»).
     expect(html).not.toContain(`>_</div>`);
-    // Navnløst felt nr 2 i rekkefølgen → «Felt 2».
-    expect(html).toContain("Felt 2");
+    // Ingen påført etikett — brukeren valgte navnet bort bevisst.
+    expect(html).not.toContain("Felt 2");
     // Verdien tapes ALDRI (ikke datatap i byggherre-leveransen).
     expect(html).toContain("En verdi som må bevares");
+    // Feltet finnes fortsatt (verdi-node), bare uten label-node for dette feltet.
+    const kropp = html.slice(html.indexOf("ark-radkort-kropp"));
+    const labels = (kropp.match(/ark-radkort-label/g) ?? []).length;
+    // Kun «Beskrivelse» og «Posisjon i tegning» har label — det navnløse har ingen.
+    expect(labels).toBe(2);
   });
 
   it("navnløst felt MED merknad (uten verdi) beholdes — merknaden er innhold", () => {
     const rad = { txt: fv("A"), blank: fv(null, "En merknad bærer informasjon"), dp: fv(null) };
     const html = byggRadkort(MEDNAVNLOS, [rad], "Befaring");
-    expect(html).toContain("Felt 2");
     expect(html).toContain("En merknad bærer informasjon");
+    expect(html).not.toContain(`>_</div>`);
   });
 
-  it("navnløst OG tomt felt → utelates helt (ingen «Felt N», ingen «_», ingen tom «Ikke utfylt»-støy)", () => {
+  it("navnløst OG tomt felt → utelates helt (ingen «_», ingen tom «Ikke utfylt»-støy)", () => {
     const rad = { txt: fv("A"), blank: fv(null), dp: fv(null) };
     const html = byggRadkort(MEDNAVNLOS, [rad], "Befaring");
-    expect(html).not.toContain("Felt 2");
     expect(html).not.toContain(`>_</div>`);
     // Kontroll: navngitte tomme felt vises fortsatt (Posisjon i tegning).
     expect(html).toContain("Posisjon i tegning");
+    // Det navnløse tomme feltet gir verken label eller verdi-node utover de navngitte.
+    const kropp = html.slice(html.indexOf("ark-radkort-kropp"));
+    expect((kropp.match(/ark-radkort-label/g) ?? []).length).toBe(2);
   });
 
   it("navngitt tomt felt påvirkes ikke (vises som før)", () => {

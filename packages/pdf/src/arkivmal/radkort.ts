@@ -111,17 +111,19 @@ function byggMerknad(felt: FeltVerdi | undefined): string {
     : "";
 }
 
-function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number, ordinal: number): string {
-  // Funn 2026-09-04 (DATA, ikke render): et tekstfelt i malen har tom etikett —
-  // malbyggeren viser det som «—», arkiv-PDF-en rendret det trofast som en naken
-  // understrek som feltnavn. Kenneth retter selve malen; her handler det om
-  // robusthet. Betingelsen ligger på INNHOLD, ikke på navnet (cowork-vedtak, samme
-  // prinsipp som EXIF-linjen: skriv aldri en linje som ikke bærer informasjon):
-  //   - navnløst OG tomt  → utelates helt (ingen «— / Ikke utfylt»-støy)
-  //   - navnløst MED verdi → «Felt N» + verdien (aldri datatap)
-  if (!harMeningsfullLabel(barn.label) && !feltHarInnhold(barn, felt)) return "";
-  const visLabel = harMeningsfullLabel(barn.label) ? barn.label : `Felt ${ordinal}`;
-  const label = `<div class="ark-radkort-label">${esc(visLabel)}</div>`;
+function byggRadkortFelt(barn: TreObjekt, felt: FeltVerdi | undefined, dybde: number): string {
+  // Funn 2026-09-04: et felt i malen er navnløst MED VILJE — «_» er systemets
+  // plassholder for tomt navn, ikke en datafeil. Sammenhengen over feltet
+  // (f.eks. posisjon i tegning) bærer betydningen, så en etikett ville vært støy.
+  // Arkiv-PDF-en rendret plassholderen rått som en naken understrek. Regel
+  // (cowork-vedtak, betingelse på INNHOLD, ikke navn — som EXIF-linjen: skriv
+  // aldri en linje som ikke bærer informasjon):
+  //   - navnløst OG tomt  → utelates helt
+  //   - navnløst MED verdi → vis VERDIEN ALENE, ingen etikettlinje (brukeren valgte
+  //     bort navnet bevisst; en påført «Felt N» ville overstyrt det valget)
+  const meningsfull = harMeningsfullLabel(barn.label);
+  if (!meningsfull && !feltHarInnhold(barn, felt)) return "";
+  const label = meningsfull ? `<div class="ark-radkort-label">${esc(barn.label)}</div>` : "";
   let innhold: string;
 
   if (barn.type === "drawing_position" || barn.type === "location") {
@@ -179,9 +181,7 @@ function byggRadkortRader(objekt: TreObjekt, rader: Rad[], dybde: number): strin
         `<span class="ark-radkort-tittel">${esc(objekt.label)} — rad ${radnr}</span>` +
         markorTekst +
         `</div>`;
-      const felter = barn
-        .map((b, i) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde, i + 1))
-        .join("");
+      const felter = barn.map((b) => byggRadkortFelt(b, rad.felter[b.id] as FeltVerdi | undefined, dybde)).join("");
       return `<div class="ark-radkort">${header}<div class="ark-radkort-kropp">${felter}</div></div>`;
     })
     .join("");
