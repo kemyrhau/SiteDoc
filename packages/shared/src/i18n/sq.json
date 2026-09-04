@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} bashkëngjitje - ende duke u përpjekur për të ngarkuar",
   "felt.kunneIkkeLasteOpp": "Skedari nuk mund të ngarkohej",
   "felt.vedleggKunneIkkeLastes": "Nuk mund të ngarkohej",
+  "felt.opptakTidMangler": "Koha nuk është e disponueshme",
   "felt.paakrevd": "E detyrueshme",
   "felt.original": "Origjinali ({{spraak}})",
   "felt.oppgave": "Detyrë",

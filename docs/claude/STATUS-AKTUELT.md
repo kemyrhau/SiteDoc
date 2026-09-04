@@ -57,6 +57,17 @@ august: en gate ingen har målt er en påstand.** Eget punkt: lint inn i regel 1
 ✅ **ALLE SEKS LUKKET OG SIMULATOR-VERIFISERT 2026-09-03** — develop `79540337`, test-API `dc454d22`.
 Røyklisten dekket A/B/D/E på `da4d3035`, C og miniatyr-fiksen på `451cbb3a`.
 
+🟢 **Funn #3 «eget funn» (endringsloggen sa ikke HVA som ble endret) løst — branch `fix/endringslogg-innhold`:**
+Rot målt: `diffRepeater` (`packages/pdf/src/arkivmal/endringsdiff.ts`) leste `Object.keys` på den innpakkede
+rad-formen `{_radId, felter}` i stedet for `.felter` → «Kolonne N» (posisjon, ikke navn) OG tom celle-diff
+(«til «Ikke utfylt»» uten «fra»). Ett symptom, én fiks: uttrekk via **kanonisk tvilling** `feltKartFraRad`
+(`packages/pdf/src/arkivmal/repeaterRad.ts`, null-dep-tvilling av `@sitedoc/shared/utils/repeaterRad.ts`,
+toveis-peker) → riktig kolonnenavn + fra/til på web + mobil + arkiv-PDF samtidig. Bar UUID-verdi (historisk
+tegningsreferanse) skjules som «(tegningsreferanse)» i `lesbarVerdi` — aldri rå UUID i et kvalitetsdokument.
+Lærdom: repeater-testene traff aldri produksjonsformen (flat legacy) — nå testes `{_radId, felter}` FØRST.
+Gate: web build + mobil typecheck grønt, api-arkiv 41 + pdf 90 + shared 7 + web 189. OTA-kandidat (ren JS).
+Tidslinje-fletting (mangel 4) skilt ut til fabel — informasjonsarkitektur, egen designbeslutning. Ikke deployet.
+
 🔴 **Simulatoren gjorde noe vi skal gjenta: den lette etter BILDET, ikke etter fravær av feilmelding.**
 Miniatyr-fiksen bygger den lokale stien av vedleggets filnavn; hadde navnet ikke matchet fila på disk,
 ville den falt stille tilbake til gammel oppførsel — grønt uten å være en fiks. Ordren ba eksplisitt om
@@ -109,6 +120,30 @@ De tre andre db-pakkene: «No pending». Migreringsgaten verifiserte `sitedoc`, 
 automatiske medlemmer under default `manuell` · endringslogg og PDF-tidsstempler stemmer med
 veggklokka — **både formatereren og de lagrede øyeblikkene er riktige**, den fryktede
 dobbeltforskyvningen finnes ikke.
+
+📱 ✅ **TestFlight-bygg #54 ER UTE** (`d9ce38c0`, 04.09 12:36, 6m 9s, runtime `1` → TestFlight «Processing»).
+Bærer alle seks funnene fra bygg 50, PDF-forhåndsvisning som virker, `expo-updates`, galleri-flervalg
+med nummerering, kø-robusthet, vedlegg som overlever gjeninngang, og repeater-traverseringen.
+**Forutsetning som måtte i prod først:** `settVedleggUrl` (prod-deploy `4eb05f73`) — uten den svarte
+serveren 404 og vedlegg nådde aldri dokumentet.
+
+⚠️ **BYGG 51 — to målinger som ikke lar seg forene, og cowork har tatt feil om den TO ganger.**
+
+| Kilde | Hva den viser |
+|---|---|
+| `eas build:list` (04.09) | #51 = «iOS internal distribution build», profil `preview`, Runtime `None`, Channel `None` |
+| App Store Connect → TestFlight (04.09) | #51 står som **«Testing»**, 5 invites, **2 installs, 53 økter** |
+
+**Testerne HAR altså brukt bygg 51.** Cowork påsto først at den var et produksjonsbygg (feil grunnlag),
+så at den aldri nådde testerne (også feil — TestFlight viser bruk). **Hvordan et internal
+distribution-bygg havnet i TestFlight er ikke forstått, og skal ikke gjettes på.**
+
+🔴 **Lærdommen, som gjelder uansett hvilken av de to som er «riktig»:** cowork førte begge påstandene
+fra hukommelsen om hva som ble *startet*, ikke fra en kilde. Samme feilklasse som 31.08 («bygg 47 er hos
+testerne» etter at 48 var fyrt). **Byggnummer, profil OG distribusjon leses fra `eas build:list` +
+App Store Connect — og når de to er uenige, står begge i loggen til noen har målt hvorfor.**
+
+⚠️ **Foreldet linje under — gjaldt bygg 50:**
 
 📱 ✅ **TestFlight-bygg #50 ER UTE** (`28f117a8`, commit `da0f0181`, 02.09 23:43 → TestFlight 03.09).
 Syv mobil-runder, **alle verifisert på simulator FØR bygget** — første gang
@@ -550,10 +585,33 @@ fra cachet bundle, henter i bakgrunnen) · én kanal pr. `eas.json`-profil · `V
 kanaler, offline-oppstart og updateId-visning mot kode 2026-09-03.
 
 **Grensen som avgjør (fra `eas-build-veileder.md § OTA`):** alt som rører native laget (native modul,
-`plugins`/`permissions`/`bundleIdentifier`/Info.plist, SDK-bump) krever nytt bygg — fingerprinten endres
-og OTA-en leveres ikke. Kan OTA-es: ren JS/TS, komponenter, logikk, styling, i18n. **Trer i kraft først
-ved ett nytt bygg pr. kanal** — bygg 51 kan ikke motta oppdateringer. Første `eas update` = Kenneths
-beslutning.
+`plugins`/`permissions`/`bundleIdentifier`/Info.plist, SDK-bump) krever nytt bygg. Kan OTA-es: ren
+JS/TS, komponenter, logikk, styling, i18n. **Trer i kraft først ved ett nytt bygg pr. kanal** — bygg 51
+kan ikke motta oppdateringer. Første `eas update` = Kenneths beslutning.
+
+> ⚠️ **VEDTAKET OVER ER SNUDD 2026-09-04 — `fingerprint` er forkastet (`e59bd7e8`, merget `d9ce38c0`).**
+> Teksten over står uendret med vilje: den som leser den først skal ikke bygge det forkastede.
+>
+> **`runtimeVersion` er nå den eksplisitte strengen `"1"`, ikke en policy.**
+>
+> **Hvorfor:** fingerprint-policyen kostet to feilede bygg (52 og 53) i «Configure expo-updates».
+> Bygg 52: `@expo/fingerprint` kunne ikke resolves lokalt → plassholderen `file:fingerprint` (rettet i
+> `3aca2d5a`). Bygg 53: begge sider regnet ekte avtrykk, men ulike, og EAS' diff-seksjon var **tom**.
+>
+> **Målt rotårsak** (`eas fingerprint:generate --json`, cowork 2026-09-04): **42 av 50 kilder i
+> avtrykket er pnpm-stier med peer-avhengighetshash i katalognavnet**, f.eks.
+> `node_modules/.pnpm/react-native-maps@1.20.1_…_lyl6n7iahbvyhr2rfdmu4zmbky/`. EAS kjører `pnpm install`
+> i sitt eget miljø og får ikke identiske stier. **Ikke fiksbart i vår kode.** Kontrollmåling:
+> avtrykket var identisk med og uten `apps/mobile/ios/` — det native prosjektet var ikke årsaken.
+>
+> 🔴 **Prisen, og den er reell:** setningen «fingerprinten endres og OTA-en leveres ikke» gjaldt et
+> sikkerhetsnett vi ikke lenger har. Med fingerprint **nektet** EAS å levere til en binær med annet
+> native-lag. Med fast streng **leverer** EAS oppdateringen — glemmer vi å bumpe, lander JS-en på en app
+> den ikke passer til.
+>
+> **Derfor: `runtimeVersion` bumpes manuelt («1» → «2» …) ved enhver native-endring før bygg.**
+> Sjekklisten med de åtte triggerne står i [eas-build-veileder.md § OTA](eas-build-veileder.md).
+> `@expo/fingerprint` er beholdt som avhengighet — nyttig til diagnostikk, ikke lenger til policy.
 
 ### 🔴 PROD-FELLE lukket 31.08 (`73b30e71`) — tegningsposisjon-modalen kunne ikke lukkes
 

@@ -7,7 +7,7 @@ import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, settVedleggUrlIDokument } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -20,6 +20,12 @@ export interface Vedlegg {
   url: string;
   filnavn: string;
   opprettet?: string;
+  // Når bildet ble TATT (EXIF DateTimeOriginal), ikke når vedlegget ble lagt i
+  // dokumentet (det er `opprettet`). ISO-streng ved treff; `null` når EXIF-tid
+  // manglet (galleribilde uten metadata). Nøkkelen finnes IKKE på vedlegg lagd
+  // før 2026-09-04 — dokgen skiller på det (undefined ⇒ vis historisk `opprettet`,
+  // null ⇒ «Tidspunkt ikke tilgjengelig»). Kun type "bilde".
+  opptakTidspunkt?: string | null;
   // Løpende bildenummer per dokument, tildelt ved opptak (kun type "bilde").
   // Dokgen leser dette; mangler det, faller den tilbake til dokumentrekkefølge.
   bildeNr?: number;
@@ -329,54 +335,11 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
       (dokumentId, dokumentType, _objektId, vedleggId, serverUrl) => {
         if (dokumentType !== "sjekkliste" || dokumentId !== sjekklisteId) return;
 
-        settFeltVerdier((prev) => {
-          const oppdatert = { ...prev };
-          let endret = false;
-          for (const feltId of Object.keys(oppdatert)) {
-            const felt = oppdatert[feltId];
-            if (!felt) continue;
-
-            // Søk i toppnivå-vedlegg
-            const vedleggIdx = felt.vedlegg.findIndex((v) => v.id === vedleggId);
-            if (vedleggIdx >= 0) {
-              oppdatert[feltId] = {
-                ...felt,
-                vedlegg: felt.vedlegg.map((v) =>
-                  v.id === vedleggId ? { ...v, url: serverUrl } : v,
-                ),
-              };
-              endret = true;
-            }
-
-            // Søk i repeater-data (nestet i verdi-arrayen)
-            if (Array.isArray(felt.verdi)) {
-              let repeaterEndret = false;
-              const oppdatertRader = (felt.verdi as Record<string, { vedlegg?: Array<{ id: string; url: string }> }>[]).map((rad) => {
-                const nyRad = { ...rad };
-                for (const barnId of Object.keys(nyRad)) {
-                  const barn = nyRad[barnId];
-                  if (!barn?.vedlegg) continue;
-                  const idx = barn.vedlegg.findIndex((v) => v.id === vedleggId);
-                  if (idx >= 0) {
-                    nyRad[barnId] = {
-                      ...barn,
-                      vedlegg: barn.vedlegg.map((v) =>
-                        v.id === vedleggId ? { ...v, url: serverUrl } : v,
-                      ),
-                    };
-                    repeaterEndret = true;
-                  }
-                }
-                return nyRad;
-              });
-              if (repeaterEndret) {
-                oppdatert[feltId] = { ...oppdatert[feltId]!, verdi: oppdatertRader };
-                endret = true;
-              }
-            }
-          }
-          return endret ? oppdatert : prev;
-        });
+        // Kanonisk vedlegg-URL-oppdatering (topp-nivå + repeater-rader, begge
+        // radformer). Den gamle hånd-traverseringen her traff ALDRI repeater-
+        // vedlegg i `{ _radId, felter }`-form → «Kunne ikke laste» til man gikk
+        // ut og inn. Se `@sitedoc/shared` repeaterRad.ts.
+        settFeltVerdier((prev) => settVedleggUrlIDokument(prev, vedleggId, serverUrl));
         // Trigger server-synk slik at oppdatert URL lagres i PostgreSQL
         planleggLagringRef.current?.();
       },

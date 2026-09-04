@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} bilaga(r) – försöker fortfarande ladda upp",
   "felt.kunneIkkeLasteOpp": "Det gick inte att ladda upp filen",
   "felt.vedleggKunneIkkeLastes": "Kunde inte ladda",
+  "felt.opptakTidMangler": "Tid ej tillgänglig",
   "felt.paakrevd": "Nödvändig",
   "felt.original": "Original ({{spraak}})",
   "felt.oppgave": "Uppgift",

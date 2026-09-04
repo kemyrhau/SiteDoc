@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} manus(t) – ikka üritatakse üles laadida",
   "felt.kunneIkkeLasteOpp": "Faili ei saanud üles laadida",
   "felt.vedleggKunneIkkeLastes": "Ei saanud laadida",
+  "felt.opptakTidMangler": "Aeg pole saadaval",
   "felt.paakrevd": "Nõutav",
   "felt.original": "Algne ({{spraak}})",
   "felt.oppgave": "Ülesanne",

@@ -184,6 +184,86 @@ docs-filer liggende, og to falske «NEI» avslørte at `&&`-kjeden brøt før m�
 løser slikt stille. **Derfor skal merge-agentens rapport alltid inneholde hva som IKKE gikk glatt**
 — ikke bare sluttresultatet.
 
+### 🔴 FEM LÆRDOMMER FRA DØGNET 2026-09-03/04 — alle med målt belegg
+
+Et døgn med seks feltfunn, seks merger, to feilede bygg og ett vellykket. **Fem av feilene var
+coworks, og alle fem har samme form: en påstand ble ført videre uten at kilden ble sjekket.**
+
+#### 1. 🔴 Be ALDRI om verifisering av kode uten å måle hva den inneholder — tre ganger på ett døgn
+
+| Hendelse | Hva cowork ba om | Hva som faktisk var i koden |
+|---|---|---|
+| Bygg 51 | «test PDF-forhåndsvisningen» | Reload-fiksen `d1333599` lå **pushet, aldri merget** — ikke i bygget |
+| Preview-bygg | «test at fiksen virker» | Samme fiks, samme fravær. **Et bygg av kvoten brukt på å bekrefte en fiks som ikke var med** |
+| `feat/galleri-flervalg` | «test flervalget» | Branchen var bygget på et fire timer gammelt grunnlag og manglet **alle tre** fiksene fra samme kveld |
+
+Regel 10b sa «mål premisset før du skriver ORDREN». Den var for smal.
+
+🔴 **Utvidet: mål premisset før du ber noen TESTE noe.** Og konkret:
+**rebas en branch på `origin/develop` FØR du ber om test.** Én kommando fjerner hele klassen.
+Uten den tester noen «to halve verdier» — én med den nye funksjonen og gamle feil, én med
+fiksene og uten funksjonen — og bruker en time på å forstå hvorfor.
+
+#### 2. 🔴 Byggnummer, profil OG distribusjon leses fra kilden — cowork tok feil om bygg 51 to ganger på én time
+
+Først: «bygg 51 er ute hos testerne med de seks funnene» (ført i tavla, gjentatt i flere meldinger).
+Så, da `eas build:list` viste «internal distribution / preview»: «den nådde aldri testerne».
+Så viste App Store Connect **2 installasjoner og 53 økter** på nettopp bygg 51.
+
+**Begge påstandene kom fra hukommelsen om hva som ble *startet*.** Samme feilklasse som 31.08
+(«bygg 47 er hos testerne» etter at 48 var fyrt).
+
+**Regelen:** `eas build:list` **og** App Store Connect. Er de uenige — og det var de her — **står
+begge målingene i loggen til noen har målt hvorfor.** Ingen velges bort for å få en ryddig fortelling.
+
+#### 3. 🔴 En grønn test mot en datastruktur produksjonen ikke bruker, måler ingenting
+
+**Fire feil av samme klasse sto bak en grønn gate i to døgn:** `bildeNr` uteble i rike repeatere ·
+append-racet · opplastings-callbacken som aldri oppdaterte vedleggets URL · endringsloggens
+«Kolonne 2».
+
+Alle fire fordi kode itererte `Object.keys(rad)` og forventet flat form, mens produksjonen lagrer
+repeater-rader innpakket som `{ _radId, felter }` (rad-id-vedtak 2026-08-22).
+
+🔴 **Og testene var grønne fordi de bygde den FLATE legacy-formen.** De traff aldri
+produksjonsformen. Ikke for få tester — tester mot en form som ikke finnes.
+
+**Regelen: produksjonsformen testes FØRST.** Legacy-former beholdes i egen, navngitt
+bakoverkompatibilitet-blokk. Skriv én linje i testfila om hvilken form som er produksjonens og
+hvorfor. Kanonisk traversering ligger i `@sitedoc/shared/utils/repeaterRad.ts` med tvilling i
+`packages/pdf/src/arkivmal/repeaterRad.ts` (dep-regelen tvinger to; **ikke lag en tredje**).
+
+#### 4. 🔴 Simulatoren er ikke telefonen — lag 2 slapp gjennom to ting på ett døgn
+
+**PDF-forhåndsvisningen** ble meldt grønn på simulator og hang på Kenneths iPhone.
+**Kø-robusthetsrunden** var kodegjennomgått, gatet og verifisert — og køen leverte likevel ikke
+uten `r` på enhet.
+
+Simulatoren er fortsatt riktig port før bygg (den fanget mye), men **en flate som handler om
+timing, nett eller WebView-livssyklus er ikke verifisert før den er sett på en fysisk enhet.**
+
+Kenneth satte opp lokal Xcode-signering 03.–04.09 nettopp for dette. Sløyfen er nå:
+kode → `r` i Metro → ekte telefon, uten byggkvote. **Bruk den.**
+
+#### 5. 🔴 Mildne aldri et funn til noe mindre enn utfallet brukeren opplever
+
+Tre ganger samme døgn beskrev cowork et funn som mindre enn det var:
+
+- «Badgen viser at vedlegg lastes opp» — sagt om en skjerm der fire bilder var i ferd med å
+  forsvinne. Kenneth: *«bare fortsett å forsvare feil.»*
+- «Visning, ikke datatap» — fordi radene fantes i SQLite. Kenneth: `r` finnes ikke for en tømrer;
+  for brukeren var bildene borte.
+- «Du leter på feil sted» — om en byggeplass-chip som returnerte `null` uten feilmelding når
+  timer-cachen var tom.
+
+> **Kenneth 2026-09-03:** *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass,
+> så må man erkjenne at vi endret ikke på riktig plass når enkel logikk ikke fører til målet.»*
+
+🔴 **Akseptkriteriet som følger, og som gjelder hver runde:** en endring er ikke levert før noen
+som **ikke vet hva som ble endret** kan finne den. En komponent som finnes i koden er ikke en
+endring brukeren har fått. Verifiseringsordrer skal derfor be om **hvor** noe ble funnet og **hvor
+mange trykk** det tok — ikke bare om det virker.
+
 ### Arbeidsrutiner for en fersk cowork (lærdommer 2026-08-13 → 08-20)
 
 **1. Statustavla først.** Se seksjonen under. Uten den vet du ikke hvem som finnes.

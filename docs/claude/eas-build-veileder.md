@@ -1,7 +1,7 @@
 ---
 name: eas-build-veileder
 status: aktiv
-sist_verifisert_mot_kode: 2026-09-03
+sist_verifisert_mot_kode: 2026-09-04
 ---
 
 # EAS Build-veileder (iOS) — credentials + bygg
@@ -85,7 +85,7 @@ krever nytt bygg. Verifiser med `eas env:list` **før** du bygger, ikke etter.
 
 | Mnd | Brukt | Bygg |
 |-----|-------|------|
-| **September 2026** | **1 bygg** (~14 igjen). **#50** (build-id `28f117a8`, **commit `da0f0181`** — develop-tip, ikke main; koden er lik `af49823f` bortsett fra docs. 02.09 23:43, production, finished → TestFlight 03.09). ⚠️ **Innsendingen sto «in queue» i EAS over natta** — det er gratisplanens kø, ikke en feil. `Ctrl+C` avbryter ikke: innsendingen kjører serverside. Til sammenligning tok #47 seksten sekunder og #48 tjuesju minutter. 🔴 **Byggnummer 49 ble brukt opp av et avbrutt forsøk** (feil valg på «Apple Team Type» → Enterprise i stedet for Individual); ingen artefakt, derfor ingen 49 i ASC. Fyrt etter prod-release `af49823f` (132 commits) — `modul.effektivTilstand` var den ene harde server-avhengigheten, og den måtte i prod FØR bygget. **Første bygg der hele settet var verifisert på simulator på forhånd** (røykliste 15/15 + målepunkt 13b, kvalitetssikringsplanens lag 2 slik den var tenkt). Innhold: tegningsminne i repeater (flyt 3: 7→4 trykk) · repeater arver tegning fra rad n−1 (5→0 trykk på rad 3) · «Hele prosjektet»-utvei i byggeplass-chip · modulgating av Timer m/fail-open · lokasjonsparitet · deaktiverte knapper forklarer seg · i18n rapportobjekter + tegningsvelger (72 nøkler × 15 språk) · HMS-terminologi pl/lt/sq med bransjekontekst. 🔴 **Nummeret ble 50, ikke 49** — `appVersionSource: "remote"` har egen teller som lå på 49; cowork gjettet fra siste *ferdige* bygg (48) + 1. **Les nummeret, ikke regn det ut.** |
+| **September 2026** | **Les tellingen fra `eas build:list` — denne raden er en logg, ikke en fasit.** **#54** (04.09, production — fyrt etter at `runtimeVersion` ble eksplisitt; innhold: alle seks bygg-50-funn + expo-updates + galleri-flervalg + kø-robusthet + vedlegg-forsvinner + repeater-traversering, prod-deployet `4eb05f73` som forutsetning). 🔴 **#53 (04.09 12:05, ERRORED i «Configure expo-updates»)** — fingerprint-mismatch: lokalt `5cb93609…`, EAS `a09f46b8…`, og EAS' diff-seksjon var **tom**. 🔴 **#52 (04.09 11:20, ERRORED i samme fase)** — lokalt `file:fingerprint` (plassholder: `@expo/fingerprint` kunne ikke resolves fra `apps/mobile` i pnpm-treet; rettet i `3aca2d5a`). **Begge feilet FØR selve bygget** (~2 min hver, «Errored» i `eas build:list`) — om errored bygg teller mot kvoten er ikke verifisert. **Rotårsak og vedtak: se § OTA → runtimeVersion.** ⚠️ **#51 — de to kildene er UENIGE, og det er ikke oppklart.** `eas build:list` (04.09): `9a69bf7`, 03.09, «iOS internal distribution build», profil `preview`, Runtime `None`, Channel `None`. **App Store Connect samme dag: #51 står som «Testing» med 2 installasjoner og 53 økter** — testerne har altså brukt den. Hvordan et internal distribution-bygg havnet i TestFlight er **ikke forstått**. 🔴 **Cowork tok feil om denne to ganger på én time** — først at den var et produksjonsbygg, så at den aldri nådde testerne. Begge påstandene kom fra hukommelsen om hva som ble *startet*. **Regel: byggnummer, profil OG distribusjon leses fra `eas build:list` + ASC. Er de uenige, står begge i loggen til noen har målt hvorfor — ingen av dem velges bort for å få en ryddig fortelling.** **#50** (build-id `28f117a8`, **commit `da0f0181`** — develop-tip, ikke main; koden er lik `af49823f` bortsett fra docs. 02.09 23:43, production, finished → TestFlight 03.09). ⚠️ **Innsendingen sto «in queue» i EAS over natta** — det er gratisplanens kø, ikke en feil. `Ctrl+C` avbryter ikke: innsendingen kjører serverside. Til sammenligning tok #47 seksten sekunder og #48 tjuesju minutter. 🔴 **Byggnummer 49 ble brukt opp av et avbrutt forsøk** (feil valg på «Apple Team Type» → Enterprise i stedet for Individual); ingen artefakt, derfor ingen 49 i ASC. Fyrt etter prod-release `af49823f` (132 commits) — `modul.effektivTilstand` var den ene harde server-avhengigheten, og den måtte i prod FØR bygget. **Første bygg der hele settet var verifisert på simulator på forhånd** (røykliste 15/15 + målepunkt 13b, kvalitetssikringsplanens lag 2 slik den var tenkt). Innhold: tegningsminne i repeater (flyt 3: 7→4 trykk) · repeater arver tegning fra rad n−1 (5→0 trykk på rad 3) · «Hele prosjektet»-utvei i byggeplass-chip · modulgating av Timer m/fail-open · lokasjonsparitet · deaktiverte knapper forklarer seg · i18n rapportobjekter + tegningsvelger (72 nøkler × 15 språk) · HMS-terminologi pl/lt/sq med bransjekontekst. 🔴 **Nummeret ble 50, ikke 49** — `appVersionSource: "remote"` har egen teller som lå på 49; cowork gjettet fra siste *ferdige* bygg (48) + 1. **Les nummeret, ikke regn det ut.** |
 | **August 2026 — RETTET 2026-08-31 (var 12/11)** | **14 bygg, 13 tellende** (~2 igjen, reset 1. sept). 🔴 **#47 (31.08 12:57)** — tegningsposisjon-fella lukket (`0101bd25`); **innførte tekstfelt-regresjonen** via de sju `SafeAreaView`-importbyttene. 🔴 **#48 (31.08 17:42)** — `ModalFlate` + lint-vakt (`b852c2ea`), rettet regresjonen fra 47. **Cowork sa «bygg 47 er hos testerne» gjentatte ganger etter at 48 var fyrt** — Kenneth fanget det på ASC-skjermbildet. Bygg-nummer leses fra `eas build:list` eller App Store Connect, aldri fra hukommelse. Tidligere rad (før #47/#48): ⚠️ Raden sa tidligere «7 av ~15» — den var ført fra hukommelse og manglet **tre** test-bygg 17.–18.08 (`9d7d869f`, `dca69ffe`, `9942f178`). Samme feilklasse som nummererings-rettelsen 15.07. **Regel: tellingen leses fra `eas build:list`, aldri fra denne raden.** · **#46 (`5605775d`, 28.08, production, finished, 5m27s → TestFlight)** — første bygg etter prod-releasen `5dcdeb58`: H8-tegningsvelger, H1 HMS-behandling fra mobil, annoterings-JPEG (var 3,4 MB PNG — pilot-blokkeren), D3 aktivitetsfordeling i «Mine timer», D4 slettepropagering, og opprett-frysen (fire runder: `a29f89b2` → `df86b817` → `d4a76020` → `28e55ed5`; den fjerde traff fordi premisset «Fabric rendrer `<Modal>` inline» ble motbevist av en grabber i skjermbildet). Git ref viste `5605775*` — asterisken var én ucommittet docs-fil, ingen effekt på bundelen. Historikk under: | **#43** (`6d9a7c91`, 08.08, production) · **#44** (`9ee8242c`, 09.08, production) — begge før mobil-vinduet under. **17.–19.08, fem bygg på tre dager, alle for å jage samme frys:** `c88e160f` (17.08, test, **errored** — CocoaPods CDN 429, EAS-infra, *«does not count towards usage»*) · `1bfd3b53` (17.08, test, finished — dev-login 401, `EXPO_PUBLIC_DEV_LOGIN_SECRET` manglet i EAS) · `4c06948` (18.08, test) · `30825449` (19.08 13:23, test) · `0d9550cd` (19.08 16:54, test) · **#45 (`d2d25b03`, `8fdd82bc`, 19.08 19:38, production, finished, 6m49s → TestFlight)** — frys-fiks (modal-livssyklus under Fabric), lokasjonsvelger m/ortofoto + pin-treff, bilde-URL-fiks, OppgaveModal krasj-guard, georef-punkter skjult, dokumentflyt-auto-utledning (`templates`→`maler`, brutt siden 06.03), værsnapshot, `bildeNr` ved opptak, arkiv-PDF fase 1, `harAktivLocation`. **Lærdom: fire av byggene gikk til feilsøking, ikke verifisering** — se § FØR HVERT BYGG (env-diff) og § transient CocoaPods 429 |
 | Juli 2026 | 5 av ~15 (**~10 igjen, reset 1. aug**; #37-#40 bekreftet mot `eas build:list` 15.07, #41 lagt til 31.07) | #37 (`496b6a63`, `bc744f82`, 01.07, production, finished) — mobil-MS + F-G. #38 (`a61b924a`, `d1b96cd5`, 11.07→13.07, production, finished) — F4-serien (identitetsforsoning + attestering-deadlock + synk-robusthet). #39 (`47c22b1a`, `cd3efcb5`, 13.07→14.07, production, finished) — S-A tombstone-klient + del 6 (F-b/F-e/F-f/F-g) + footer. #40 (`15a47804`, `43299d03`, 15.07, production, finished) — timer F2/F3/F5 (byggeplass per rad + matpause-bærer) + edge #1 → TestFlight. **#41 (fingerprint `593d25c`, `88ce430`, 31.07, TEST-profil, internal distribution, finished, 5m18s)** — mobil-arbeid på develop: P4a iOS-modal + KB2-opprett-flyt-fiks + M4 Avbryt-sweep + M1-M3 detalj-redesign + mobil-typecheck-grønn + PSI-navnefiks → «SiteDoc TEST» mot api-test for **enhet-verifisering** (IKKE TestFlight/prod). Bygg-nr verifiseres mot `eas build:list` ved neste anledning |
 
@@ -346,10 +346,15 @@ av dem trengte en ny binær — de trengte bare en vei til telefonen. `expo-upda
 en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også for testerne.
 
 **Konfigurasjon (kode er fasit):**
-- `runtimeVersion: { policy: "fingerprint" }` (`app.config.js`) — **IKKE `appVersion`**.
-  Fingerprint utledes av det native laget, så en JS-oppdatering kan aldri havne på en binær med
-  andre native moduler. Appen er `1.0.0` gjennom 51 bygg med skiftende native innhold; `appVersion`
-  ville tillatt nettopp den mismatchen.
+- `runtimeVersion: "1"` (`app.config.js`) — **eksplisitt streng, IKKE `{ policy: "fingerprint" }`
+  og IKKE `appVersion`.** Fingerprint-policy ble forsøkt og forkastet 2026-09-04 etter to feilede
+  bygg (52 + 53): 42 av 50 kilder i avtrykket er pnpm-stier med peer-avhengighetshash i
+  katalognavnet, og EAS kjører `pnpm install` i sitt eget miljø → lokalt og EAS-avtrykk matcher
+  aldri. Fingerprint-policy og pnpm-monorepo er ikke kompatible. `appVersion` ble også forkastet
+  (appen er `1.0.0` gjennom 53 bygg med skiftende native innhold → mismatch). Med eksplisitt streng
+  ligger disiplinen hos oss: **strengen MÅ bumpes manuelt ved enhver native-endring** (se
+  sjekklisten under). `@expo/fingerprint` beholdes som avhengighet for diagnostikk
+  (`eas fingerprint:generate`), men policyen brukes ikke.
 - `updates.fallbackToCacheTimeout: 0` + `checkAutomatically: "ON_LOAD"` — **offline-first er
   ufravikelig.** Appen starter alltid umiddelbart fra cachet bundle og henter en ev. oppdatering i
   bakgrunnen; ingen nett → oppstart som før, uten forsinkelse eller feilmelding.
@@ -364,8 +369,8 @@ en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også f
 ### 🔴 Hva som IKKE kan sendes som oppdatering (den avgjørende grensen)
 
 Tror vi noe er ute når det ikke er det, er vi tilbake i feilklassen fra 3. september. Alt som
-rører **native laget** krever nytt bygg — fingerprinten endres, og oppdateringen leveres da rett
-og slett ikke til den gamle binæren (ingen krasj, men heller ingen oppdatering):
+rører **native laget** krever nytt bygg **og en `runtimeVersion`-bump** (se sjekklisten under) —
+uten bump kan en JS-oppdatering lande på en binær den ikke passer til:
 
 - Ny/fjernet/oppgradert native modul (expo-camera, expo-sqlite, react-native-webview, expo-location …)
 - Native config i `app.json`/`app.config.js`: `permissions`, `plugins`, `bundleIdentifier`,
@@ -375,11 +380,30 @@ og slett ikke til den gamle binæren (ingen krasj, men heller ingen oppdatering)
 **Kan** sendes OTA: ren JS/TS, React-komponenter, forretningslogikk, styling, i18n-strenger,
 JS-refererte assets.
 
+### 🔴 `runtimeVersion`-bump — sjekkliste før hvert bygg
+
+`runtimeVersion` er en fast streng (`"1"`) vi styrer selv. **Bump den (`"1"` → `"2"` → …) i
+`app.config.js` FØR bygg dersom noe av dette er endret siden forrige bygg.** En glemt bump betyr
+at en OTA JS-oppdatering kan lande på en binær den ikke passer til.
+
+- [ ] Ny/fjernet/oppgradert native modul (expo-camera, expo-sqlite, react-native-webview, expo-location …)
+- [ ] Endret `plugins` i `app.json`/`app.config.js`
+- [ ] Endret `infoPlist` / entitlements
+- [ ] Endret `permissions`
+- [ ] Endret `bundleIdentifier`
+- [ ] Endret ikon eller splash
+- [ ] Endret `scheme`
+- [ ] Expo SDK-oppgradering (eller native versjonsbump)
+
+Kun JS/TS/styling/i18n endret → **ikke bump** (da er hele poenget at OTA når den eksisterende
+binæren). Bump ↔ nytt bygg går hånd i hånd: bumper du, MÅ du bygge; bygger du med native-endring,
+MÅ du ha bumpet.
+
 ### Ikraftsetting, tilbakerulling, grenser
 
 - **Trer i kraft:** ett nytt bygg **pr. kanal** du vil OTA-e til. En oppdatering lander bare på en
   binær bygget *etter* dette oppsettet (den må inneholde expo-updates-runtimen + matchende
-  fingerprint). Eksisterende bygg 51 kan **ikke** motta oppdateringer.
+  `runtimeVersion`). Eksisterende bygg 51 kan **ikke** motta oppdateringer.
 - **Tilbakerulling:** `eas update:rollback` / republiser forrige gode update til kanalen. En bruker
   som alt har hentet den dårlige: sjekker ved neste oppstart, henter rettelsen i bakgrunnen,
   **anvender den ved oppstarten etter** — typisk to oppstarter. Faresone: en oppdatering som

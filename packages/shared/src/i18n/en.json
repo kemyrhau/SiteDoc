@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} attachment(s) – still trying to upload",
   "felt.kunneIkkeLasteOpp": "Could not upload the file",
   "felt.vedleggKunneIkkeLastes": "Could not load",
+  "felt.opptakTidMangler": "Time not available",
   "felt.paakrevd": "Required",
   "felt.original": "Original ({{spraak}})",
   "felt.oppgave": "Task",

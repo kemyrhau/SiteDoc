@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} pielikums(-i) — joprojām tiek mēģināts augšupielādēt",
   "felt.kunneIkkeLasteOpp": "Nevarēja augšupielādēt failu",
   "felt.vedleggKunneIkkeLastes": "Nevarēja ielādēt",
+  "felt.opptakTidMangler": "Laiks nav pieejams",
   "felt.paakrevd": "Obligāti",
   "felt.original": "Oriģināls ({{spraak}})",
   "felt.oppgave": "Uzdevums",

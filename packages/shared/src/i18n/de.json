@@ -2589,6 +2589,7 @@
   "felt.vedleggProverFortsatt": "{{count}} Anhänge – versucht immer noch hochzuladen",
   "felt.kunneIkkeLasteOpp": "Die Datei konnte nicht hochgeladen werden",
   "felt.vedleggKunneIkkeLastes": "Konnte nicht geladen werden",
+  "felt.opptakTidMangler": "Zeit nicht verfügbar",
   "felt.paakrevd": "Erforderlich",
   "felt.original": "Original ({{spraak}})",
   "felt.oppgave": "Aufgabe",

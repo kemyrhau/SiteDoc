@@ -116,6 +116,27 @@ export function formaterDatoTidPunkt(v: unknown): string {
   return formaterDatoTidKort(v).replace(", ", " ");
 }
 
+/**
+ * Bildetekstens tidsdel: OPPTAKS-tidspunkt (når bildet ble tatt), ikke innleggings-
+ * tidspunkt. Tre tilstander styrt av `opptakTidspunkt` (se Vedlegg-typen):
+ *   - nøkkel finnes ikke (`undefined`) ⇒ vedlegg lagd før feltet (2026-09-04) ⇒
+ *     vis historisk `opprettet` uendret, så arkiverte dokumenter ser like ut.
+ *   - `null`/"" ⇒ nytt bilde uten EXIF-tid ⇒ ærlig «Tidspunkt ikke tilgjengelig»
+ *     (aldri innleggingstid — et tomt felt er sant, et feil felt er verre).
+ *   - ISO-streng ⇒ opptakstidspunktet.
+ * Tom retur = ingen tidsdel i bildeteksten (vedlegg helt uten tidsinfo).
+ * Strengen er norsk (arkiv-PDF er nb-only for disse etikettene, jf. «Bilder»/«Bilde»).
+ */
+export function bildeOpptakTid(b: { opptakTidspunkt?: string | null; opprettet?: string }): string {
+  if (b.opptakTidspunkt === undefined) {
+    return b.opprettet ? formaterDatoTidPunkt(b.opprettet) : "";
+  }
+  if (b.opptakTidspunkt === null || b.opptakTidspunkt === "") {
+    return "Tidspunkt ikke tilgjengelig";
+  }
+  return formaterDatoTidPunkt(b.opptakTidspunkt);
+}
+
 /** Formater dato kort (f.eks. "03.04.2026") */
 export function formaterDatoKort(v: unknown): string {
   if (!v) return "";
