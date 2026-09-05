@@ -370,6 +370,54 @@ en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også f
 **Datalaget er urørt:** `expo-updates` lagrer bundler i egen intern katalog, aldri
 `documentDirectory` der SQLite, opplastingskøen og SecureStore bor.
 
+### 🔴 ROTÅRSAK FUNNET 2026-09-05 — `@babel/plugin-transform-react-jsx` må være EKSPLISITT
+
+**To dager, fem feilhypoteser, én rotårsak.** Feilen så slik ut:
+
+```
+SyntaxError: [BABEL] app/oppgave/[id].tsx:
+  Cannot find module '@babel/plugin-transform-react-jsx'
+Require stack: node_modules/.pnpm/@babel+core@7.29.0/.../config/files/plugins.js
+```
+
+**Målt tilstand:**
+
+| | |
+|---|---|
+| Pakken i `.pnpm` | ✅ `@babel+plugin-transform-react-jsx@7.28.6_@babel+core@7.29.0` |
+| Deklarert av | `@react-native/babel-preset` (transitivt) |
+| Nåbar fra `apps/mobile` | ❌ `apps/mobile/node_modules/@babel/` hadde **kun `runtime`** |
+| I `apps/mobile/package.json` | ❌ Ikke deklarert |
+
+🔴 **Pnpm lenker en pakke KUN der den er deklarert.** Babel resolver plugins fra prosjektroten,
+finner den ikke, og feiler. Fikset ved å legge den eksplisitt inn:
+
+```sh
+pnpm --filter @sitedoc/mobile add -D @babel/plugin-transform-react-jsx@7.28.6
+```
+
+**Samme klasse som `@expo/fingerprint`** (bygg 52, `3aca2d5a`) — tredje gang pnpm-strict brøt et
+Expo-verktøy som slår opp fra sin egen plassering. **EAS-bygg merker det ikke** (de installerer i
+eget miljø); det rammer kun lokal eksport, altså `eas update`.
+
+#### ⚠️ Fem hypoteser som var feil — les dette før du feilsøker en lignende feil
+
+| Hypotese | Hvorfor den holdt en stund |
+|---|---|
+| «Katalogen» — hovedtre vs worktree | Eksport virket i ett tre, feilet i et annet |
+| «Web-spesifikk» | `--platform=all` feilet først på web |
+| «Android-spesifikk» | Etter `platforms: ["ios","android"]` feilet Android først |
+| «pnpm install var bak» | `Already up to date` — treet var i takt |
+| «Forbigående node_modules-tilstand» | Én eksport lyktes, sannsynligvis på Metro-cache |
+
+🔴 **Alle fem forklarte symptomet som kom sist, ikke hva som skilte de to tilfellene.** Én
+`ls apps/mobile/node_modules/@babel/` avgjorde saken på ett sekund. **Mål hvor pakken FAKTISK er
+lenket før du forklarer hvorfor den mangler.**
+
+⚠️ **`platforms: ["ios","android"]` i `app.json`** (fra `2b73ae68`) ble lagt til på hypotese 2 og
+løste ikke feilen. Den er beholdt — web bundles ikke, og det er riktig for en app vi ikke
+distribuerer på web — men den var ikke fiksen.
+
 ### Slik publiserer du en oppdatering (målt 2026-09-04)
 
 ```sh
