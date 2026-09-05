@@ -943,6 +943,22 @@ export default function OppgaveDetaljSide() {
             const feltLåst = erFeltLåst(objekt.id);
             const verdiLeseModus = leseModus || feltLåst;
 
+            // Signaturliste (SJA/HMS-runder): egen server-drevet ramme, ingen FeltWrapper.
+            if (objekt.type === "signature_list") {
+              return (
+                <div key={objekt.id} className="print-no-break">
+                  <RapportObjektRenderer
+                    objekt={objekt}
+                    verdi={null}
+                    onEndreVerdi={() => {}}
+                    leseModus={verdiLeseModus}
+                    prosjektId={params.prosjektId}
+                    dokumentRef={{ taskId: params.oppgaveId }}
+                  />
+                </div>
+              );
+            }
+
             if (erDisplay) {
               const marginKlasse = nestingNivå > 0
                 ? nestingNivå === 1 ? "ml-4" : nestingNivå === 2 ? "ml-8" : "ml-12"

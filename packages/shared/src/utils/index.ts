@@ -304,3 +304,6 @@ const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
 export function statusKreverBegrunnelse(nyStatus: string): boolean {
   return STATUS_KREVER_BEGRUNNELSE.has(nyStatus);
 }
+
+export { beregnSignaturStatus, delSignertManko } from "./signaturliste";
+export type { SignaturChipStatus, SisteRundeSammendrag, SignaturStatus } from "./signaturliste";

@@ -68,7 +68,7 @@ Feltdefinisjon. Flat lagring med `parentId` for hierarki.
 
 | Felt | Rolle |
 |------|-------|
-| `type` | En av 23 felttyper (se under) |
+| `type` | En av 24 felttyper (se under) |
 | `config` | JSON — type-spesifikk konfigurasjon (`options`, grenseverdier, `multiline`, `zone` — se Grenseverdier under) |
 | `sortOrder` | Global sorteringsrekkefølge innenfor malen |
 | `parentId` | Nesting under `repeater` eller betingede `list_single/list_multi` |
@@ -120,7 +120,7 @@ oppførte seg ulikt der og i et ekte prosjekt. Se
 henge. En mal fra import eller en tredjepart kan mangle feltet like gjerne som et
 seed-script. Ført i [BACKLOG](docs/claude/BACKLOG.md).
 
-### 23 felttyper
+### 24 felttyper
 
 | Gruppe | Typer |
 |--------|-------|
@@ -133,8 +133,29 @@ seed-script. Ført i [BACKLOG](docs/claude/BACKLOG.md).
 | Posisjon | `location`, `drawing_position` |
 | BIM | `bim_property`, `zone_property`, `room_property` |
 | Signatur | `signature` |
+| Signaturliste | `signature_list` |
 | Vær | `weather` |
 | Container | `repeater` (barn), `list_single/multi` (betinget) |
+
+#### `signature_list` — SJA/HMS-signaturrunder (fabel-ordre 2026-09-06)
+
+Objekt for «hvem har signert, hvem mangler» på gjenbrukt SJA. Skiller seg fra alle andre
+felttyper: **verdien bor ikke i `Checklist.data`**, men i tre egne tabeller
+(`signatur_runder`/`dokument_deltakere`/`dokument_signaturer`) keyet til DOKUMENTET
+(`checklistId` XOR `taskId`, cascade). Rundenummer ER versjonen (ingen versjonskolonne;
+speiler `PsiSignatur.psiVersion`). `antallDeltakere` fryses ved «Avslutt runde».
+
+- **Én pr. mal (håndhevet):** MalBygger nekter et andre `signature_list`-objekt med klartekst
+  «Dokumentet har allerede en signaturliste» — modellen keyer til dokumentet, ikke feltet.
+- **Ingen tilbehør** (Kenneth-vedtak 2026-09-06): ingen kommentar/bilde/vedlegg/oppgave. I
+  `TILBEHOR_REN_FJERNING` på web + mobil.
+- **Ingen config.** Deltakere/runder/signaturer fylles ut i dokumentet, ikke i malen.
+- **API:** `signatur`-routeren (`startRunde`/`avsluttRunde`/`signer`/`hentRunder`/
+  `hentManko`/`deltakerLeggTil`/`deltakerFjern`) — speiler `psi.ts`. Chip «X av Y» i HMS-lista
+  via nøstet `take:1`+`_count` i `CHECKLIST_SELECT`/`TASK_SELECT`.
+- **PDF:** hovedtabell = gjeldende runde; «IKKE SIGNERT» + forrige-runde-rader ALLTID med
+  (F7). «Med logg»-seksjon = alle runder. Delt manko-/statuslogikk i `@sitedoc/shared`
+  (`beregnSignaturStatus`/`delSignertManko`).
 
 ### 🔴 STYRENDE: maler bygges av MALBYGGER-OBJEKTENE — aldri hardkodet (Kenneth 2026-09-05)
 
@@ -306,7 +327,7 @@ Moduler (definert i `PROSJEKT_MODULER`) auto-oppretter maler med forhåndskonfig
 
 | Funksjon | Beskrivelse |
 |----------|-------------|
-| **Feltpalett** | Dra-og-slipp fra 23 felttyper — identisk for alle dokumenttyper |
+| **Feltpalett** | Dra-og-slipp fra 24 felttyper — identisk for alle dokumenttyper |
 | **Sonemodell** | Topptekst (zone 0) + Datafelter (zone 1) — alle typer |
 | **Hierarki** | `parentId`-nesting, `repeater`-barn, betingede containere — alle typer |
 | **Feltkonfigurasjon** | Høyrepanel for label, required, config-opsjoner — alle typer |
@@ -354,7 +375,7 @@ Ligger i `apps/web/src/components/malbygger/` med 9 filer:
 | Fil | Ansvar |
 |-----|--------|
 | `MalBygger.tsx` | Orkestrator (~1900 linjer), dnd-kit, tilstandshåndtering |
-| `FeltPalett.tsx` | Venstre panel — 23 draggbare felttyper |
+| `FeltPalett.tsx` | Venstre panel — 24 draggbare felttyper |
 | `DropSone.tsx` | Senterpanel — topptekst + datafelter-soner |
 | `DraggbartFelt.tsx` | Sorterbart felt med `useSortable` |
 | `FeltKonfigurasjon.tsx` | Høyrepanel — rediger valgt felt |
@@ -428,7 +449,7 @@ Tidligere absolutt-forbud erstattet 2026-05-26 etter at felt-lås-prinsippet (§
 
 ### 5. Feltpalett — sidepanel
 
-Feltpaletten vises som sidepanel (venstre) i malbyggeren. Kan minimeres. Ikke modal. Alle 23 felttyper vises alltid — type-irrelevante felter (f.eks. `enableChangeLog` for oppgaver) er metadata-innstillinger, ikke felttyper i paletten.
+Feltpaletten vises som sidepanel (venstre) i malbyggeren. Kan minimeres. Ikke modal. Alle 24 felttyper vises alltid — type-irrelevante felter (f.eks. `enableChangeLog` for oppgaver) er metadata-innstillinger, ikke felttyper i paletten.
 
 ### 6. Forhåndsvisning — gjenspeiler låseregler og flyt
 

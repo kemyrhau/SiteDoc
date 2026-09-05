@@ -844,6 +844,21 @@ export default function OppgaveDetalj() {
           // Sjekk synlighet (betinget felt)
           if (!erSynlig(objekt)) return null;
 
+          // Signaturliste (SJA/HMS-runder): egen server-drevet ramme, ingen FeltWrapper.
+          if (objekt.type === "signature_list") {
+            return (
+              <View key={objekt.id}>
+                <RapportObjektRenderer
+                  objekt={objekt}
+                  verdi={null}
+                  onEndreVerdi={() => {}}
+                  leseModus={leseModus}
+                  oppgaveIdForKo={oppgave.id}
+                />
+              </View>
+            );
+          }
+
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           // Bruk parentId fra DB (ny) med fallback til config (gammel)
           const erBetinget = harForelderObjekt(objekt) || harBetingelse(objekt.config);

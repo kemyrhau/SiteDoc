@@ -949,6 +949,23 @@ export default function SjekklisteDetaljSide() {
           // lesemodus; enkeltfelt låses ikke etter innsending.
           const verdiLeseModus = leseModus;
 
+          // Signaturliste (SJA/HMS-runder): egen server-drevet ramme, ingen FeltWrapper
+          // (Kenneth-vedtak: ingen tilbehør). Bærer dokument-referansen ned.
+          if (objekt.type === "signature_list") {
+            return (
+              <div key={objekt.id} className="print-no-break">
+                <RapportObjektRenderer
+                  objekt={objekt}
+                  verdi={null}
+                  onEndreVerdi={() => {}}
+                  leseModus={verdiLeseModus}
+                  prosjektId={params.prosjektId}
+                  dokumentRef={{ checklistId: params.sjekklisteId }}
+                />
+              </div>
+            );
+          }
+
           // Display-typer rendres uten wrapper
           if (erDisplay) {
             const marginKlasse = nestingNivå > 0

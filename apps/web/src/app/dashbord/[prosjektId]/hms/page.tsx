@@ -119,6 +119,18 @@ export default function HmsSide() {
     | { avvik: DokumentRad[]; sja: DokumentRad[]; ruh: DokumentRad[] }
     | undefined;
 
+  // Signaturliste-chip per SJA — flatt oppslag (checklist-id → «X av Y» + status).
+  // Egen spørring for å holde CHECKLIST_SELECT grunn (TS2589, se hms.ts § SIGNATUR_CHIP).
+  const { data: signaturChipListe } = trpc.signatur.hentChips.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const signaturChips = useMemo(() => {
+    const map: Record<string, { signert: number; av: number; status: "ingen_runde" | "mangler" | "komplett" }> = {};
+    for (const c of signaturChipListe ?? []) map[c.checklistId] = { signert: c.signert, av: c.av, status: c.status };
+    return map;
+  }, [signaturChipListe]);
+
   // Navne-lookup for person-/firma-felt (f.eks. RUH «Innmelder») — speiler
   // mønsteret i oppgave-/sjekkliste-lista: bruker-ID → navn.
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
@@ -472,6 +484,7 @@ export default function HmsSide() {
           onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
           visHosKolonne
           mineIder={mineIder}
+          signaturChips={signaturChips}
         />
       )}
       {aktivTab === "ruh" && (

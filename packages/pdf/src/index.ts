@@ -32,6 +32,10 @@ export type {
   Utskriftsinnstillinger,
   PdfConfig,
   TegningsOppslagOppf,
+  SignaturListeData,
+  SignaturListeDeltakerData,
+  SignaturListeRundeData,
+  SignaturListeSignaturData,
 } from "./typer";
 
 // Konstanter

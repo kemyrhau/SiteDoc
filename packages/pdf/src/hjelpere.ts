@@ -207,6 +207,20 @@ export function formaterSignaturLinjePdf(sig: SignaturVerdiPdf): string | null {
   return `${sig.navn ?? "Ukjent"} · ${dag}.${maaned}.${aar} kl. ${time}:${minutt}`;
 }
 
+/**
+ * Formatér et signeringstidspunkt (lokal ISO-8601 med offset) til
+ * «dd.mm.åååå kl. hh:mm». Speiler @sitedoc/shared formaterSignaturTidspunkt —
+ * parser veggklokka DIREKTE fra strengen, tz-uavhengig av render-miljøet.
+ * Brukes av signaturliste-renderer (SJA/HMS-runder). `null` for manglende tid.
+ */
+export function formaterSignaturTidspunktPdf(tidspunkt: string | null): string | null {
+  if (!tidspunkt) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(tidspunkt);
+  if (!m) return null;
+  const [, aar, maaned, dag, time, minutt] = m;
+  return `${dag}.${maaned}.${aar} kl. ${time}:${minutt}`;
+}
+
 /** Gjør relativ bilde-URL om til full URL basert på bildeBaseUrl */
 export function fullBildeUrl(url: string, bildeBaseUrl: string): string {
   if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;

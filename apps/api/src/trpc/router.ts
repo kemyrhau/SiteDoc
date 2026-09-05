@@ -26,6 +26,7 @@ import { kontraktRouter } from "../routes/kontrakt";
 import { aiSokRouter } from "../routes/aiSok";
 import { brukerRouter } from "../routes/bruker";
 import { psiRouter } from "../routes/psi";
+import { signaturRouter } from "../routes/signatur";
 import { mannskapRouter } from "../routes/mannskap";
 import { bibliotekRouter } from "../routes/bibliotek";
 import { omradeRouter } from "../routes/omrade";
@@ -80,6 +81,7 @@ export const appRouter = router({
   aiSok: aiSokRouter,
   bruker: brukerRouter,
   psi: psiRouter,
+  signatur: signaturRouter,
   mannskap: mannskapRouter,
   bibliotek: bibliotekRouter,
   omrade: omradeRouter,

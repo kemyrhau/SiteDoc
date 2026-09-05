@@ -19,6 +19,7 @@ import { SoneEgenskapObjekt } from "./SoneEgenskapObjekt";
 import { RomEgenskapObjekt } from "./RomEgenskapObjekt";
 import { VaerObjekt } from "./VaerObjekt";
 import { SignaturObjekt } from "./SignaturObjekt";
+import { SignaturListeObjekt } from "./SignaturListeObjekt";
 import { RepeaterObjekt } from "./RepeaterObjekt";
 import { LokasjonObjekt } from "./LokasjonObjekt";
 import { TegningPosisjonObjekt } from "./TegningPosisjonObjekt";
@@ -58,8 +59,10 @@ export const READONLY_TYPER = new Set(["calculation"]);
 // (gjelder også barnefelt i repeater-rader: et text_field-barn beholder sitt celle-tilbehør).
 // `signature` (Kenneth-krav 2026-09-05): en signatur trenger ikke bilde/galleri/+Oppgave/
 // filopplasting — den ER sin egen dokumentasjon. Navn + tidspunkt hører til feltet (fabels
-// SJA-vedtak 05.09 pkt 4), men bygges som modellendring i egen runde — ikke som tilbehør her.
-const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "signature"]);
+// SJA-vedtak 05.09 pkt 4).
+// `signature_list` (Kenneth-vedtak 2026-09-06): signaturlista er selvstendig dokumentasjon
+// → INGEN tilbehør (kommentar/bilde/vedlegg/oppgave).
+const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "signature", "signature_list"]);
 
 /**
  * Hvordan tilbehøret (FeltDokumentasjon) skal vises for en felttype (funn 6):
@@ -101,6 +104,7 @@ const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   room_property: RomEgenskapObjekt,
   weather: VaerObjekt,
   signature: SignaturObjekt,
+  signature_list: SignaturListeObjekt,
   repeater: RepeaterObjekt,
   // LEGACY-VERN "location": avviklet 2026-09-02, men ≥9 objekter lever i legacy-maler.
   // Uten mappingen ville de rendret som UkjentObjekt. Se SKJULT_I_UTFYLLING over.
