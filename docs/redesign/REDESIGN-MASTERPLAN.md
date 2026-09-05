@@ -51,6 +51,41 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 | DG | **Dokumentgenerering / arkiv-PDF (nytt spor 2026-08-21 — leveransen kunden faktisk mottar)** | Prod-funn 20.–21.08 (BHO-002): arkiv-PDF taper innhold stille. Kodeverifisert mot `packages/pdf` 21.08: `felt.ts` returnerer tom streng for `location` og `drawing_position` (tegningsrenderer finnes ferdig i `tegning.ts` men kalles aldri fra arkivstien) + instruksjonstypene (info_text/info_image/video/quiz); **F7**: kommentar/vedlegg festet på repeater-OBJEKT (uten «Legg til rad») faller ut av arkivet — web viser dem. Design vedtatt i `Arkivmal PDF Mockup.dc.html` (rev. 21.08, 14 sider): malobjekt-revisjon alle 26 typer · tegninger i arkivet (drawing_position oversikt+4×detalj, dokumentnivå-lokasjon m/kartpunkt; uten markering utelates seksjonen) · **helside tegningsprint per tegning m/alle markører nummerert mot punktnumrene (D2b, Kenneth-funn 21.08)** · Oppgave-PDF · F7 = egen blokk «Registrert utenfor rader» OVER tabellen (aldri rad 0, aldri utelatt) · knapp renames «Last ned arkiv-PDF»→«Last ned PDF» (splittknapp: Med logg (standard)/Uten logg/Send til) · samlerapport blandet SJ+OPG+HMS · sluttoppgjør-oppgaveliste m/kilde-kolonne. Designnotat: `docs/redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md`. **D8/D9 (beslutning 21.08, cowork-gatet):** repeater = rader × kolonner, barn-labels styrer begge flater; web-utfylling skal vise barn-labels — MEN malrydding først (4 funn: «_ opus»-notis + tre «-»-labels; 999-navn = Kenneth, inkl. «Beraringsrapport»-stavefeil). Veiledning = `config.helpText` (wiret ende-til-ende, rendres ikke i PDF i dag) + `info_text`; én utskriftsbryter «Ta med veiledningstekster», av som standard. Beslutningsdok: `docs/redesign/beslutning-repeater-label-modell-fabel-2026-08-21.md`. **Krav (Kenneth 21.08): PDF-motoren skal virke for både web og mobil** — alt bygges i delt `packages/pdf`-sti, verifiseres fra begge flater. **Gatet av cowork 21.08; design Kenneth-godkjent 21.08, notat committet develop.** Måling (cowork): `arkivmal/innhold.ts:13` importerer `renderFelt` fra delt `felt.ts` — arkivet har ingen egen feltrenderer; tegningsrendering i felt.ts ville truffet mobil-PDF udesignet → bindende: overstyring i `arkivmal/` (repeater-mønsteret), felt.ts røres ikke. **Ordre D2/D2b skrevet 21.08:** `docs/redesign/ordre-arkivmal-tegning-d2-d2b-fabel-2026-08-21.md` — DoD krever bevis fra BEGGE flater (jf. 24 paritetsavvik: «fiks landet på én flate, aldri portert»). Prioritet: tegning (D2/D2b) FØRST, ubetinget — klient-utskriften fjernet 20.08 (F2, d92ece42) var eneste vei til tegningsutskrift. Deretter F7 — **avklart 21.08: BEF-001-test kjørt, bildene kom med → eksisterende mangel, ikke regresjon; ordre skrevet:** `docs/redesign/ordre-arkivmal-f7-objektniva-fabel-2026-08-21.md`. Så variantene. Kodesporet lever i `docs/claude/dokumentgenerering-plan.md` (F1b–F7) — dette sporet gir det plass i rekkefølgen | mockupen + designnotatet |
 | FL | **Prosjekt-livssyklus på firmanivå (målt 2026-08-30)** | Firmalisten `/dashbord/firma/prosjekter` viser status men kan ikke endre den — verken aktivere, deaktivere, avslutte eller arkivere. **Statusmodellen spriker per lag:** DB `String @default("active")` (`schema.prisma:584`) · API tar imot **fire** (`prosjekt.ts:606`, inkl. `deactivated`) · prosjektoppsettet tilbyr **tre** (`oppsett/prosjektoppsett/page.tsx:35-60` — deaktivering er sitedoc-admin-only) · firmalisten **null** (kun visning, og rendrer «archived»/«completed» rått forbi `t()`, `firma/prosjekter/page.tsx:149`). **Konsekvens:** et firma som vil fryse et prosjekt må be SiteDoc om det; arkivering av N avsluttede prosjekter = N sidebesøk innenfra, mens den ene flaten som ser alle N samtidig ikke kan gjøre noe. Strider mot [terminologi.md § 0](../claude/terminologi.md) (firmaet eier prosjektene sine). 🔴 **UTVIDET FUNN 2026-08-30 — verre enn manglende knapper: `Project.status` HÅNDHEVER INGENTING.** Ingen skrivevei i `apps/api` leser den (negativ kontroll: `tilgangskontroll.ts` leser `OrganizationMember.status`, aldri prosjektets; «skrivebeskytt»/`readOnly` finnes ikke i api-et). Samtidig lover UI-et `nb.json:2218` *«Prosjektet er arkivert og skrivebeskyttet»*. **Knappen finnes — den gjør bare ingenting.** Det er en løftebrist mot kunden, ikke en manglende funksjon. Kenneth 2026-08-30: *«vi må ha en løsning for å avslutte et prosjekt!»* → **vedtatt at avslutning er FRYSING, ikke sletting** ([domene-arbeidsflyt.md § BINDENDE VEDTAK 2026-08-30](../claude/domene-arbeidsflyt.md)) — sjekklistene fra et ferdig prosjekt er det kunden skal beholde. Frysing løser samtidig ledd-vernet og «slette flyt med lukkede dokumenter». 🔴 **Designes i prosjekt- vs firma-innstillinger-sesjonen (pkt 7) — ikke som løsordre.** Måling: `relay/fabel-firmanivaaet-mangler-styring.md` | notatet |
 | PM | Produktmodell-rearkitektur: prosjekt- → firmaorientert | Utredning levert (`delplaner/firma-produktmodell-utredning-2026-07-26.md`) + 3 Kenneth-beslutninger: firma påkrevd v/onboarding (auto-enmannsfirma) · én «prosjekt»-slug (OrganizationModule, rent eierskapssignal) · 10-grense hengt på modul-eierskap + 30d trialExpiresAt. Byggeordre (§2+3+5) **parkert** til interim-guard + admin lander — **scope-tillegg (cowork-rutet 2026-07-28): funn A fra `dokumentflyt-medlem-analyse-2026-07-28.md`** (flyt-invitasjon lager firma-løse brukere uten gruppe-kobling; fiks = én delt invitasjonsmodal, firma-krevende `medlem.leggTil` + `groupId` i samme transaksjon). Interim: sjekklistegrense gates på firma-tilknytning (`feat/sjekklistegrense-firma`) — låser opp pilot-blokkeren | `delplaner/firma-produktmodell-utredning-2026-07-26.md` |
+| **LP** | **lokasjonOmfang nivå 3 — «hele prosjektet»** | Designsak hos fabel. I dag er `byggeplassId = null` tvetydig; gatelys-eksempelet gjelder ett trinn opp. **Liten** — additivt på lokasjonOmfang-sporet levert 04.09. Fakta: [BESTILLING § 2C](til-fabel/BESTILLING-masterplan-2026-09-04.md) | tillegg til lokasjon-ordren (fabel) |
+| **EX** | **Eksport og navngiving** — PDF/Excel/CSV fra app OG web, med velge/preview/dele · rename «Arkiv-PDF» → eksport-språk · **«arkiver» reserveres** for fremtidig handling (= PR-sporet) | Designsak hos fabel. Fakta og Kenneth-sitater: [BESTILLING § 2A](til-fabel/BESTILLING-masterplan-2026-09-04.md) | designnotat kommer (fabel) |
+| **AG** | **Ansvarsgrensen** — produkttekst om hva SiteDoc leverer vs. hva bedriften eier selv | 🔴 **Teksten skrives av FABEL, gates av Kenneth — aldri cowork eller kodeagent** (juridisk-nær). Plassering avgjøres i notatet. Utløst av eksponeringsregister-korreksjonen: [BESTILLING § 2D](til-fabel/BESTILLING-masterplan-2026-09-04.md) + [domene-arbeidsflyt.md](../claude/domene-arbeidsflyt.md) | designnotat kommer (fabel) |
+| **BL** | **Byggeplass-livssyklus** — tilstand/start/slutt/arkivering · velger-skala ved 500 byggeplasser · PSI og mannskap ved avslutning | Designsak hos fabel. Premiss avklart: `Project` ER beholderen, intet nytt nivå. **Sluker to åpne funn:** chip-teksten som lover en avgrensning systemet ikke gjør, og tegninger-hardt/dokumenter-mykt filter — samme scoping-modell. Utredning: [domene-arbeidsflyt.md](../claude/domene-arbeidsflyt.md) | designsak kommer (fabel) |
+
+## 🔴 REKKEFØLGE (fabel 2026-09-05) — erstatter punktlisten under
+
+> Bygger på [§ AVSTEMT MOT KODE 2026-09-04](#-avstemt-mot-kode-2026-09-04--fem-av-åtte-punkter-var-allerede-levert).
+> Alt er design-først; køen til kodeagentene fylles i denne rekkefølgen.
+>
+> 🔴 **OTA er priset inn.** I drift fra 04.09: mobilarbeid i JS koster ikke lenger byggkvote.
+> **Derfor designes alle brukervendte saker for web + mobil SAMTIDIG — aldri «web først, mobil
+> senere».**
+
+1. **LP — «hele prosjektet»-omfang.** Først fordi den rir på det ferske lokasjonOmfang-sporet
+   (samme utfører-kontekst, samme testmatrise utvides) og lukker siste null-tvetydighet mens
+   modellen er varm.
+2. **EX — eksport-designsak.** Størst pilot-verdi: PDF-en er leveransen kunden faktisk mottar, og
+   eksport fra app er nettopp blitt billig (OTA + delt `packages/pdf`). **To ledd:** navnevedtaket
+   først (låser språket før flere flater bygger på «arkiv») → så flaten (velge/preview/dele,
+   web+mobil i SAMME ordre). PR-sporets «arkivering framfor nedlasting» folder inn som
+   navnereservasjon; egen bygging fortsatt nedprioritert (timer-flaten ubrukt, målt 27.08).
+3. **AG — ansvarsgrense-notatet.** Parallelt med EX (blokkerer ingen kode). Foran BL fordi piloten
+   møter HMS-flatene fra dag én.
+4. **BL — byggeplass-livssyklus.** Designsak med kodeverifisert nå-rapport først (Byggeplass-
+   modellens faktiske felter + alle velger-/filter-lesere). **Første reelle bruk av det reserverte
+   «arkiver»-ordet — derfor ETTER navnevedtaket, aldri før.**
+5. **AM 2 attestering / 40-timers** — nedprioritert med målt begrunnelse (se «Ikke prioritert
+   nå»-avsnittet under). Re-vurderes når piloten fører timer.
+6. **Restkø uendret:** PM interim-guard → 10a fase 2 · P2 · Del 7 · Del 8 · Del 9, 10/K11 (+K14),
+   K15. Begrunnelsene står i rekkefølge-teksten under.
+
+**Fabels egen kø:** tidslinje + endringslogg-fletting (én kronologisk logg) tas som del av
+EX-designsaken **hvis** loggvalget «Med logg / Uten logg» berører samme utskriftsflate — ellers
+egen sak etter BL.
 
 ## Flate-inventar — alle websider, gruppert (fakta: anker-dok 2026-05-03 + K13-inventar 94 ruter)
 
@@ -83,7 +118,7 @@ begrunnelsene ikke går tapt.
 | 2. REG fase 2–3 | gjenstår | ✅ **LEVERT** `578e2b67` (fase 2) + `23a52504` (`prosjektTilgangEvaluator.ts`) |
 | 3. AM 2 attestering | P0 | ❌ **IKKE BYGGET** — grep «40-timers» → 0 treff, negativ kontroll bestått |
 | 3. AM 3 KP-bugs | fikset 28.08 | ✅ **LEVERT** `180e9c61`; restfunnene i `inbox-kp-speiling.md` også levert (`b987d793`) |
-| 3. AM 4 malarkiv | P0 | ❌ **IKKE BYGGET** — grep «malarkiv» → 0 treff. ✅ **Designsak LEVERT 2026-09-04** ([designnotat-malarkiv](designnotat-malarkiv-fabel-2026-09-04.md)) — venter Kenneth-gate på mockup (B1–B3) før ordre. **Funn: `OrganizationTemplate`-datamodellen finnes allerede** (`schema.prisma:1038`, steg 1 av `migrering-reporttemplate.md` bygget, delvis i bruk i `mal.ts` + `kontrollplanKobling.ts`) — det som mangler er API, UI og seeding. Mindre sak enn antatt |
+| 3. AM 4 malarkiv | P0 | ✅ **BOLK 1+2 PÅ TEST 04.09** (`91e3e5a6` + `2cfdbaea`) — **venter fabel-designgate (DoD pkt 3): skjermbilder fra test.** Designsak levert 2026-09-04 ([designnotat-malarkiv](designnotat-malarkiv-fabel-2026-09-04.md)) — venter Kenneth-gate på mockup (B1–B3) før ordre. **Funn: `OrganizationTemplate`-datamodellen finnes allerede** (`schema.prisma:1038`, steg 1 av `migrering-reporttemplate.md` bygget, delvis i bruk i `mal.ts` + `kontrollplanKobling.ts`) — det som mangler er API, UI og seeding. Mindre sak enn antatt |
 | 4. DG arkiv-PDF | gjenstår | ✅ **TOMT** — D2/D2b levert 21.08, F7 lukket 04.09, layoutfunn merget `655c948b` |
 | 6. Del 6b fase 2 | «ordre 28.07, aldri relayet» | ✅ **LEVERT `ee7d4e3e` — samme DAG ordren ble skrevet.** Filter, opprett-vei, HMS-mobil, kontrollplan-lese. Sto som åpen i fem uker |
 | 6b-x tabellbredder · PR kolonnevelger | «henger» | ✅ **LEVERT** `7b413263` + `d394bdde` |
@@ -100,10 +135,12 @@ leverte og ble avsluttet, etterlot ingen spor i planen. **Cowork brukte tre mål
 fjernes ved merge — men den fanger ikke masterplanens egne linjer. Avstemming mot kode hører
 inn ved hver merge som lukker et planpunkt, ikke som en egen øvelse hver femte uke.
 
-## Rekkefølge (justert 2026-08-28 — piloten har ingen blokkerere igjen)
+## ~~Rekkefølge (justert 2026-08-28)~~ — ERSTATTET 2026-09-05
 
-> ⚠️ **Se avstemmingen over — punkt 1, 2, 4 og 6 er levert.** Teksten står uendret fordi
-> begrunnelsene fortsatt gjelder for det som er igjen.
+> ⚠️ **Gjeldende rekkefølge står i [§ REKKEFØLGE (fabel 2026-09-05)](#-rekkefølge-fabel-2026-09-05--erstatter-punktlisten-under).**
+> Punktlisten under er beholdt fordi **begrunnelsene** fortsatt gjelder for restkøen (punkt 5–8),
+> og fordi den forklarer hvorfor ting ble prioritert som de ble. **Punkt 1, 2, 4 og 6 var levert
+> allerede da den ble skrevet** — se avstemmingen over. Ikke plukk oppgaver herfra.
 
 **Målestokken er piloten (~sept 2026).** Pilot-triagen 26.08 gikk gjennom alle 42 åpne
 🔴 og fant **én** blokkerer — mobil-annotering som eksporterte 3,4 MB PNG. Den ligger i
