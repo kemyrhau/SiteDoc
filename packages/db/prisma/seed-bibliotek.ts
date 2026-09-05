@@ -2,10 +2,93 @@
  * Seed: Sjekklistebibliotek — NS 3420-K og NS 3420-F
  *
  * Kjør: npx tsx prisma/seed-bibliotek.ts
+ *
+ * IDEMPOTENT: seeden bruker upsert/find-or-create på naturlige nøkler, aldri
+ * deleteMany. Gjentatt kjøring oppdaterer referansedata uten å røre kundedata.
+ * ProsjektBibliotekValg (kundens valgte bibliotekmaler) og avstamnings-pekere
+ * fra OrganizationTemplate.laantFraBibliotekMalId (SetNull ved sletting) blir
+ * stående. Se relay/inbox-seed-bibliotek-idempotent.md.
  */
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+/**
+ * Miljø-guard — samme prinsipp som deploy-kjedens migrerings-gate
+ * (`echo "$DATABASE_URL" | grep -qE "/sitedoc([?]|$)"`). Peker DATABASE_URL mot
+ * prod-databasen, kreves en eksplisitt, bevisst bekreftelse — ikke et flagg som
+ * er lett å gjenta av vane.
+ *
+ * MERK (cowork gater formen): lokal sandbox-DB heter også `sitedoc`
+ * (`localhost:5432/sitedoc`), så navnet alene skiller ikke prod fra lokal —
+ * bare prod fra `sitedoc_test`. Prod nås derfor på VERT, ikke localhost. Guarden
+ * regner en localhost/127.0.0.1-vert som lokal sandbox og slipper igjennom;
+ * ellers (fjernvert med prod-navnet `sitedoc`) kreves bekreftelse.
+ *
+ * Bekreftelsen krever `SEED_CONFIRM_DB=<faktisk DB-navn>`, ikke en fast streng.
+ * En fast sentinel (f.eks. `JA_JEG_VET`) virker likt mot enhver DB og gjentas lett
+ * av vane; et kopiert kall med utelatt/feil DB-navn ABORTERER. Å skrive DB-navnet
+ * for hånd er en bevisst handling (Kenneth-vedtak 2026-09-05).
+ *
+ * Restrisiko å ta stilling til: nås prod via SSH-tunnel til localhost:PORT,
+ * regnes den som lokal. Ønsker cowork strengere (f.eks. positiv «jeg er
+ * lokal»-markør, eller portkrav 5432) er det en policy-beslutning, ikke en bug.
+ */
+function avbrytHvisProdUtenBekreftelse(): void {
+  const url = process.env.DATABASE_URL ?? "";
+  const prodNavn = /\/sitedoc(\?|$)/.test(url); // prod-db-navnet, IKKE /sitedoc_test
+  const lokalVert = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+  const erProd = prodNavn && !lokalVert;
+  if (!erProd) return;
+
+  const dbNavn = url.match(/\/([^/?]+)(?:\?|$)/)?.[1] ?? "sitedoc";
+  if (process.env.SEED_CONFIRM_DB !== dbNavn) {
+    console.error("⛔ DATABASE_URL peker mot prod-databasen (fjernvert + /sitedoc). Seed avbrutt.");
+    console.error("   Selv om seeden er idempotent skal referansedata bygges på test/lokal først.");
+    console.error(`   For bevisst prod-kjøring: sett SEED_CONFIRM_DB=${dbNavn} (må matche faktisk DB-navn).`);
+    process.exit(1);
+  }
+  console.warn(`⚠️  Seeder mot prod-databasen «${dbNavn}» (bekreftet via SEED_CONFIRM_DB).`);
+}
+
+/** find-or-create på (standardId, kode) — ingen unik indeks finnes for compound-nøkkelen. */
+async function upsertKapittel(
+  standardId: string,
+  k: { kode: string; navn: string; sortering: number },
+): Promise<string> {
+  const eksisterende = await prisma.bibliotekKapittel.findFirst({ where: { standardId, kode: k.kode } });
+  if (eksisterende) {
+    await prisma.bibliotekKapittel.update({
+      where: { id: eksisterende.id },
+      data: { navn: k.navn, sortering: k.sortering },
+    });
+    return eksisterende.id;
+  }
+  const opprettet = await prisma.bibliotekKapittel.create({ data: { ...k, standardId } });
+  return opprettet.id;
+}
+
+/** find-or-create på (kapittelId, referanse) — ingen unik indeks finnes for compound-nøkkelen. */
+async function upsertMal(
+  kapittelId: string,
+  mal: { navn: string; referanse: string; beskrivelse: string | null; prioritet: number; malInnhold: unknown },
+): Promise<void> {
+  const data = {
+    navn: mal.navn,
+    beskrivelse: mal.beskrivelse,
+    prioritet: mal.prioritet,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    malInnhold: mal.malInnhold as any,
+  };
+  const eksisterende = await prisma.bibliotekMal.findFirst({
+    where: { kapittelId, referanse: mal.referanse },
+  });
+  if (eksisterende) {
+    await prisma.bibliotekMal.update({ where: { id: eksisterende.id }, data });
+    return;
+  }
+  await prisma.bibliotekMal.create({ data: { kapittelId, referanse: mal.referanse, ...data } });
+}
 
 interface FeltDef {
   label: string;
@@ -32,15 +115,14 @@ function desimal(label: string, fase: string, config: Record<string, unknown>, h
 }
 
 async function main() {
-  console.log("Seeder sjekklistebibliotek...");
+  console.log("Seeder sjekklistebibliotek (idempotent)...");
 
-  await prisma.prosjektBibliotekValg.deleteMany({});
-  await prisma.bibliotekMal.deleteMany({});
-  await prisma.bibliotekKapittel.deleteMany({});
-  await prisma.bibliotekStandard.deleteMany({});
+  avbrytHvisProdUtenBekreftelse();
 
-  const standard = await prisma.bibliotekStandard.create({
-    data: { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
+  const standard = await prisma.bibliotekStandard.upsert({
+    where: { kode: "NS3420-K" },
+    update: { navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
+    create: { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
   });
 
   const kapittelData = [
@@ -52,8 +134,7 @@ async function main() {
 
   const kap: Record<string, string> = {};
   for (const k of kapittelData) {
-    const o = await prisma.bibliotekKapittel.create({ data: { ...k, standardId: standard.id } });
-    kap[k.kode] = o.id;
+    kap[k.kode] = await upsertKapittel(standard.id, k);
   }
 
   interface MalDef {
@@ -228,8 +309,10 @@ async function main() {
 
   // ── NS 3420-F:2024 Grunnarbeider ──────────────────────────────────
 
-  const standardF = await prisma.bibliotekStandard.create({
-    data: { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
+  const standardF = await prisma.bibliotekStandard.upsert({
+    where: { kode: "NS3420-F" },
+    update: { navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
+    create: { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
   });
 
   const kapittelDataF = [
@@ -241,8 +324,7 @@ async function main() {
 
   const kapF: Record<string, string> = {};
   for (const k of kapittelDataF) {
-    const o = await prisma.bibliotekKapittel.create({ data: { ...k, standardId: standardF.id } });
-    kapF[k.kode] = o.id;
+    kapF[k.kode] = await upsertKapittel(standardF.id, k);
   }
 
   const malerF: MalDef[] = [
@@ -536,10 +618,13 @@ async function main() {
 
   for (const mal of [...maler, ...malerF]) {
     const kapittelId = (mal.kapittelKode.startsWith("K") ? kap : kapF)[mal.kapittelKode]!;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const malInnhold = mal.felter.map((f, i) => ({ ...f, sortOrder: i + 1 })) as any;
-    await prisma.bibliotekMal.create({
-      data: { kapittelId, navn: mal.navn, referanse: mal.referanse, beskrivelse: mal.beskrivelse ?? null, prioritet: mal.prioritet ?? 1, malInnhold },
+    const malInnhold = mal.felter.map((f, i) => ({ ...f, sortOrder: i + 1 }));
+    await upsertMal(kapittelId, {
+      navn: mal.navn,
+      referanse: mal.referanse,
+      beskrivelse: mal.beskrivelse ?? null,
+      prioritet: mal.prioritet ?? 1,
+      malInnhold,
     });
     console.log(`  ✓ ${mal.navn}`);
   }
