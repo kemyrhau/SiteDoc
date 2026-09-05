@@ -419,7 +419,26 @@ En prod-deploy ble aldri ført.**
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
 
-**Test: `345de5e3`** (deployet 2026-09-02 11:00, verifisert med `/version`). Nytt siden
+**Test: `7a02a3d0`** (deployet 2026-09-05 21:03, verifisert: `/version` → `7a02a3d0`).
+🔴 **Hele SJA-signaturrunde-settet er nå på test** — rundene 2–5 merget 05/06.09: signatur bærer
+navn+tidspunkt · kollapset signaturflate · tre nye tabeller + felttypen `signature_list` + PDF +
+manko-chip · serverlås mot skriving på avsluttet runde · malrevisjon D · drift-konsolidering.
+
+🟢 **Migreringen `20260906000000_sja_signaturrunder` ANVENDT** mot `sitedoc_test` — første og
+eneste gang den har møtt en database. Den var generert offline (`migrate diff`) fordi lokal DB
+har historikk-drift og mangler pgvector i shadow-basen; **den gikk gjennom på første forsøk.**
+Øvrige tre db-pakker: «No pending».
+
+🟢 **Testdata seedet** (`seed:sja`): prosjekt `SD-DEMO-SJA-0001`, SJA «Løft mobilkran — Akse 4»,
+fire deltakere (tre ansatte + gjest Truls Kranfører), runde 1 avsluttet m/alle signert, runde 2
+åpen på 2 av 4. Innlogginger: `sja.ansvarlig@demo.sitedoc.no` (ser «Start ny runde») ·
+`nina.elektro@demo.sitedoc.no` (ser «Signer» på egen manko-rad).
+
+🔴 **VENTER: fabels skjermbilde-gate.** Underlaget lister åtte flater
+(`docs/redesign/til-fabel/skjermbilde-underlag-sja-signaturrunder-2026-09-06.md`).
+**Ingenting av dette går til prod før gaten er kjørt.**
+
+**Forrige test: `345de5e3`** (deployet 2026-09-02 11:00). Nytt siden
 `d2b9d189`: **REG fase 3 — prosjekttilgang-evaluatoren** (`23a52504`) og **lokasjon-begrepsryddingen**
 (`81225a93` — paritetsregel, `location` avviklet fra palett+seeds, repeater arver tegning fra rad
 n−1). Migreringer: «No pending» på alle fire.
