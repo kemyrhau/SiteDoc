@@ -50,21 +50,14 @@ export function grupperMedOverskrift<
 /**
  * Felttyper som IKKE er kontrollpunkt og derfor ikke telles i seksjonsstatusen.
  *
- * Superset av `IKKE_UTFYLLBARE_FELTTYPER` (append-only/P2-guarden): den delte lista
- * dekker `heading/subtitle/location/drawing_position/calculation`, men rendrerne la til
- * de rene instruksjons-/visnings-typene `info_text`/`info_image`/`video` (F2-rest
- * 2026-08-23) UTEN å backporte dem hit, selv om `feltLaasing`-kommentaren sier lista skal
- * speile «RapportObjektRenderer DISPLAY/SKJULT/READONLY». En seksjon med kun lesetekst
- * ville ellers vist «0 av 1 ⚠» permanent. Vi utvider derfor LOKALT for telleren og rører
- * ikke basislista (P2-guarden er urørt). Drift flagget til fabel — når basislista
- * konsolideres kollapser dette settet til å være likt den.
+ * KONSOLIDERT 2026-09-06: `info_text`/`info_image`/`video` lå tidligere som et lokalt
+ * superset her fordi de manglet i basislista (`IKKE_UTFYLLBARE_FELTTYPER`). Nå er de
+ * flyttet inn i basislista, så settet er identisk med den — akkurat den kollapsen den
+ * gamle kommentaren forutså. Beholdt som eget navn for teller-call-sites; skulle telleren
+ * en dag måtte ekskludere et FAKTISK svar-felt (som basislista ikke kan røre uten å endre
+ * P2-guarden), utvides det her igjen.
  */
-export const IKKE_TELLBARE_FELTTYPER: ReadonlySet<string> = new Set([
-  ...IKKE_UTFYLLBARE_FELTTYPER,
-  "info_text",
-  "info_image",
-  "video",
-]);
+export const IKKE_TELLBARE_FELTTYPER: ReadonlySet<string> = IKKE_UTFYLLBARE_FELTTYPER;
 
 /** Utfyllingsgrad for én seksjon — `totalt === 0` betyr «ingen kontrollpunkt» (ingen badge). */
 export interface SeksjonUtfylling {
