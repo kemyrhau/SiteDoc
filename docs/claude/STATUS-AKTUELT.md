@@ -149,6 +149,34 @@ til fabel først.
 > allerede appens modell.** Ti skjermer sender `byggeplassId` fra `ByggeplassKontekst`.
 > Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
 
+### 🟡 FUNN 2026-09-05 — malarkivet mangler INNHOLD, og feltet for å kvalitetssikre det er dødt
+
+Kenneth lastet opp **NS 3420-kildedokumentene** til prosjektets mappestruktur 05.09 (ti kapitler
+som PDF: a, cd, d, f, gu, j, k, l, z, 1 — alle `_2024_`). Det svarer på hvor ekte maler skal komme
+fra, men avdekker tre ting som henger sammen:
+
+| | Målt |
+|---|---|
+| **Sentralarkivet** | 13 maler, alle fra `seed-bibliotek.ts` (håndskrevet) |
+| **`BibliotekMal.verifisert`** | 🔴 **Død kolonne.** Finnes i schema med kommentaren *«True når malen er verifisert mot kilde-norm»* — settes ikke i seed, leses ikke i `apps/api` eller `apps/web`. Samme klasse som `ansvarsmerke` |
+| **Kilde-normen** | Ligger nå i systemet, men **ingen kobling** til `BibliotekMal` finnes |
+
+🔴 **Malarkivet mangler innhold, ikke funksjonalitet.** AM 4b (`51bad500`) gjorde flaten brukbar
+ved hundrevis av maler — vi har tretten, og ingen av dem er merket kontrollert mot normen.
+
+**Spørsmål som hører til fabel, ikke til en kodeordre:**
+- Skal maler lages **fra** NS 3420-postene, og i så fall av hvem? Det er domenearbeid — noen må
+  avgjøre hvilke felter en sjekkliste for «KB4 Grasdekke» skal ha.
+- Kan SiteDocs egen AI-søk/embedding brukes til å foreslå malstruktur fra en NS 3420-post?
+  **Ikke utredet — ikke anta at det er lett.**
+- Skal `verifisert` tas i bruk, eller strykes som `ansvarsmerke`? En død kolonne som beskriver en
+  kvalitetsprosess vi ikke har, lover mer enn systemet holder.
+- 🔴 **Lisens:** NS 3420 er en betalt standard. Hva vi kan legge i et sentralarkiv som deles med
+  alle kunder, er et juridisk spørsmål — ikke et teknisk. Samme familie som ansvarsgrensen (AG).
+
+⚠️ **Blokkerer ikke piloten i seg selv**, men et malarkiv med tretten maler er ikke et arkiv.
+Hører sammen med EX og BL på fabels bord.
+
 ### 🔴 AVKLART 2026-09-04 — RUH og avvik kan IKKE leveres som PDF (lovpålagt dokumentasjon)
 
 **Målt i `hms.ts:221-269` — hvilken Prisma-modell hver HMS-type faktisk bruker:**
