@@ -72,3 +72,8 @@ docs/claude/delplaner/verifisering/**/*.png
 docs/claude/delplaner/verifisering/**/*.jpg
 *-bevis/
 tests/e2e/*-state.json
+
+# Kildedokumenter (NS 3420 m.fl.) — opphavsrettsbeskyttet, ALDRI i git.
+# Se kilder/LES-MEG.md (den ene fila som versjoneres).
+kilder/*
+!kilder/LES-MEG.md
