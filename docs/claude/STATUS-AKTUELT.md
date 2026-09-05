@@ -149,6 +149,47 @@ til fabel først.
 > allerede appens modell.** Ti skjermer sender `byggeplassId` fra `ByggeplassKontekst`.
 > Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
 
+### 🔴 FUNN 2026-09-05 — PROD har tomt sentralarkiv OG tom dokumentsøk-indeks
+
+Målt i tre miljøer 05.09 mens malverkstedet ble kartlagt:
+
+| Database | Bibliotekmaler | Chunks | Med embedding | Dokumenter |
+|---|---|---|---|---|
+| **`sitedoc_test`** (server-ny) | 6 | 6 389 | **5 745** | 277 |
+| **`sitedoc`** (PROD) | **0** | **0** | **0** | **0** |
+| `sitedoc` (Kenspill, legacy) | 0 | — | 0 | — |
+
+🔴 **Logger A.Markussen inn i prod i dag, er «Lån fra SiteDoc-arkivet» TOM, og AI-søket har
+ingenting å søke i.** Malarkivet som ble bygget 04.–05.09 (`91e3e5a6`, `2cfdbaea`, `51bad500`) er
+en tom hylle i produksjon.
+
+**Ikke en kodefeil:** `seed-bibliotek.ts` er aldri kjørt mot prod, og dokumentene er aldri lastet
+opp dit. Men det må lukkes før pilot.
+
+⚠️ **Kan ikke lukkes ved å kjøre seeden som den står** — se § seed-bibliotek under: den sletter
+`ProsjektBibliotekValg` og nuller B4-avstamningen. Ordre skrevet
+(`relay/inbox-seed-bibliotek-idempotent.md`).
+
+### ✅ FUNN 2026-09-05 — malverkstedet finnes allerede: `sitedoc_test`
+
+Kenneth foreslo å gjenåpne Kenspill (legacy) som verksted for malbygging, fordi Opus der hadde fri
+DB-tilgang. **Målingen gjorde det unødvendig.**
+
+`sitedoc_test` på server-ny har alt: pgvector, kjørende AI-søk, ingen kundedata — og
+**NS 3420 komplett vektorisert**, ti dokumenter fra del A til Z:
+
+```
+f: 332 · k: 178 · l: 166 · z: 100 · j: 89 · a: 76 · gu: 57 · 1: 56 · d: 62 · cd: 55
+```
+
+⚠️ **Dublett funnet:** `NS 3420 Del K Anleggsgartnerarbeider.pdf` har **0 chunks** — samme
+dokument som den vektoriserte `…ns-3420-k_2024_no_001.pdf` (178). Ufarlig, men bør ryddes så
+ingen søker i feil kopi.
+
+🔴 **Kenspill er MÅLT UEGNET, ikke bare unødvendig:** kode fra juni (`aed86d0f`, branch `main`),
+`bibliotek_maler` = 0, embeddings = 0. Å bruke den ville krevd kodeoppdatering **og**
+dataflytting. **Ikke ta den opp igjen.**
+
 ### 🟡 FUNN 2026-09-05 — malarkivet mangler INNHOLD, og feltet for å kvalitetssikre det er dødt
 
 Kenneth lastet opp **NS 3420-kildedokumentene** til prosjektets mappestruktur 05.09 (ti kapitler
