@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Antraštės tekstas",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Viena eilutė vienoje eilutėje…",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Sujungti laukus: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Paskutinis naudotas"
+  "firma.timer.rapport.maler.sistBrukt": "Paskutinis naudotas",
+  "firma.malarkiv.laanSokPlassholder": "Ieškokite pagal pavadinimą arba kodą",
+  "firma.malarkiv.laanIngenTreff": "Jokie šablonai neatitinka jūsų paieškos.",
+  "firma.malarkiv.laanTomt": "Centrinis archyvas tuščias.",
+  "firma.malarkiv.inspiserVis": "Rodyti laukus",
+  "firma.malarkiv.inspiserSkjul": "Slėpti laukus",
+  "firma.malarkiv.inspiserTomt": "Šiame šablone dar nėra laukų.",
+  "firma.malarkiv.fase.for": "Prieš vykdymą",
+  "firma.malarkiv.fase.under": "Vykdymo metu",
+  "firma.malarkiv.fase.etter": "Po egzekucijos"
 }

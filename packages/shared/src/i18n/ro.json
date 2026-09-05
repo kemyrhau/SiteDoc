@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Textul antetului",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "O linie pe rând...",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Îmbinați câmpurile: {firma} · {periodă} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Ultima utilizare"
+  "firma.timer.rapport.maler.sistBrukt": "Ultima utilizare",
+  "firma.malarkiv.laanSokPlassholder": "Căutați după nume sau cod",
+  "firma.malarkiv.laanIngenTreff": "Niciun șablon nu corespunde căutării dvs.",
+  "firma.malarkiv.laanTomt": "Arhiva centrală este goală.",
+  "firma.malarkiv.inspiserVis": "Afișați câmpurile",
+  "firma.malarkiv.inspiserSkjul": "Ascunde câmpurile",
+  "firma.malarkiv.inspiserTomt": "Acest șablon nu are încă câmpuri.",
+  "firma.malarkiv.fase.for": "Înainte de execuție",
+  "firma.malarkiv.fase.under": "În timpul execuției",
+  "firma.malarkiv.fase.etter": "După execuție"
 }

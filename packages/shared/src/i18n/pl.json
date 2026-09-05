@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Tekst nagłówka",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Jedna linia w każdym rzędzie…",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Połącz pola: {firma} · {okres} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Ostatnio używany"
+  "firma.timer.rapport.maler.sistBrukt": "Ostatnio używany",
+  "firma.malarkiv.laanSokPlassholder": "Szukaj według nazwy lub kodu",
+  "firma.malarkiv.laanIngenTreff": "Żaden szablon nie pasuje do Twojego wyszukiwania.",
+  "firma.malarkiv.laanTomt": "Archiwum centralne jest puste.",
+  "firma.malarkiv.inspiserVis": "Pokaż pola",
+  "firma.malarkiv.inspiserSkjul": "Ukryj pola",
+  "firma.malarkiv.inspiserTomt": "Ten szablon nie ma jeszcze pól.",
+  "firma.malarkiv.fase.for": "Przed egzekucją",
+  "firma.malarkiv.fase.under": "Podczas egzekucji",
+  "firma.malarkiv.fase.etter": "Po wykonaniu"
 }

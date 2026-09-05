@@ -39,8 +39,9 @@ const ikonMap: Record<string, string> = {
   HelpCircle: "❓",
 };
 
-// i18n-nøkler for felttyper (type → nøkkel)
-const felttypeNokler: Record<string, string> = {
+// i18n-nøkler for felttyper (type → nøkkel). Eksportert for gjenbruk i
+// lån-dialogens felt-forhåndsvisning (AM4b) — samme etiketter, ikke duplisert.
+export const felttypeNokler: Record<string, string> = {
   heading: "malbygger.overskrift",
   subtitle: "malbygger.undertittel",
   text_field: "malbygger.tekstfelt",

@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner, Badge } from "@sitedoc/ui";
-import { Plus, Pencil, Trash2, Library, Star } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Library,
+  Star,
+  Search,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { felttypeNokler } from "@/components/malbygger/PalettElement";
 
 // L9 tre-liste-prinsippet: sjekkliste / oppgave / HMS blandes aldri i én liste.
 type Fane = "sjekkliste" | "oppgave" | "hms";
@@ -439,8 +449,15 @@ function RedigerFirmamalDialog({
 }
 
 /* ------------------------------------------------------------------ */
-/*  LaanFraSentralarkivDialog — BibliotekMal → firmaarkiv (L3)            */
+/*  LaanFraSentralarkivDialog — BibliotekMal → firmaarkiv                 */
+/*                                                                        */
+/*  «Velger ved skala»-mønsteret (L4): kollapsbare kapitler (L2), søk     */
+/*  over navn+kode (L3) og inspiser-før-lån (L1) — alt uten å forlate     */
+/*  dialogen. Ingen delt komponent bygges nå (fabel-vedtak 05.09); BL-    */
+/*  designsaken gjenbruker spesifikasjonen, ikke koden.                   */
 /* ------------------------------------------------------------------ */
+
+const KOLLAPS_TERSKEL = 20; // >20 maler totalt → start kollapset (L2)
 
 function LaanFraSentralarkivDialog({
   organizationId,
@@ -454,6 +471,10 @@ function LaanFraSentralarkivDialog({
   const { data: standarder, isLoading } = trpc.bibliotek.hentStandarder.useQuery();
   const [laantId, setLaantId] = useState<string | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
+  const [sok, setSok] = useState("");
+  // Kapitler brukeren har utbrettet. Kun økt-tilstand (L2) — ikke localStorage/DB.
+  // null = ennå ikke initialisert fra data.
+  const [utbrettede, setUtbrettede] = useState<Set<string> | null>(null);
 
   const laanMutation = trpc.firmamal.laanFraSentralarkiv.useMutation({
     onSuccess: () => utils.firmamal.list.invalidate(),
@@ -461,54 +482,134 @@ function LaanFraSentralarkivDialog({
     onSettled: () => setLaantId(null),
   });
 
+  const totaltAntall = useMemo(
+    () =>
+      (standarder ?? []).reduce(
+        (sum, s) => sum + s.kapitler.reduce((k, kap) => k + kap.maler.length, 0),
+        0,
+      ),
+    [standarder],
+  );
+  const startKollapset = totaltAntall > KOLLAPS_TERSKEL;
+
+  // Init én gang når data er lastet: alle utbrettet hvis under terskel, ellers
+  // alle kollapset. Deretter styrer brukeren selv (økt-tilstand).
+  if (standarder && utbrettede === null) {
+    const start = new Set<string>();
+    if (!startKollapset) {
+      for (const s of standarder) for (const kap of s.kapitler) start.add(kap.id);
+    }
+    setUtbrettede(start);
+  }
+
+  const sokNormalisert = sok.trim().toLowerCase();
+  const harSok = sokNormalisert.length > 0;
+
+  function malMatcher(bm: { navn: string; referanse: string }) {
+    return (
+      bm.navn.toLowerCase().includes(sokNormalisert) ||
+      bm.referanse.toLowerCase().includes(sokNormalisert)
+    );
+  }
+
+  function toggleKapittel(id: string) {
+    setUtbrettede((prev) => {
+      const neste = new Set(prev ?? []);
+      if (neste.has(id)) neste.delete(id);
+      else neste.add(id);
+      return neste;
+    });
+  }
+
+  function laan(bibliotekMalId: string) {
+    setLaantId(bibliotekMalId);
+    setFeil(null);
+    laanMutation.mutate({ organizationId, bibliotekMalId });
+  }
+
+  // Filtrer per søk: behold kun matchende maler, og skjul kapitler uten treff.
+  const synligeStandarder = (standarder ?? [])
+    .map((standard) => ({
+      ...standard,
+      kapitler: standard.kapitler
+        .map((kap) => ({
+          ...kap,
+          synligeMaler: harSok ? kap.maler.filter(malMatcher) : kap.maler,
+        }))
+        .filter((kap) => !harSok || kap.synligeMaler.length > 0),
+    }))
+    .filter((s) => s.kapitler.length > 0);
+
   return (
     <Modal open onClose={onLukk} title={t("firma.malarkiv.laanTittel")} className="max-w-2xl">
       <p className="mb-3 text-sm text-gray-600">{t("firma.malarkiv.laanBeskrivelse")}</p>
+
+      {/* Søk (L3) */}
+      <div className="relative mb-3">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Input
+          value={sok}
+          onChange={(e) => setSok(e.target.value)}
+          placeholder={t("firma.malarkiv.laanSokPlassholder")}
+          className="pl-9"
+        />
+      </div>
+
       {feil && <p className="mb-3 text-sm text-red-600">{feil}</p>}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
           <Spinner />
         </div>
+      ) : synligeStandarder.length === 0 ? (
+        <p className="py-8 text-center text-sm text-gray-500">
+          {harSok ? t("firma.malarkiv.laanIngenTreff") : t("firma.malarkiv.laanTomt")}
+        </p>
       ) : (
         <div className="max-h-[60vh] space-y-4 overflow-y-auto">
-          {(standarder ?? []).map((standard) => (
+          {synligeStandarder.map((standard) => (
             <div key={standard.id}>
-              <h3 className="text-sm font-semibold text-gray-800">
+              <h3 className="mb-1 text-sm font-semibold text-gray-800">
                 {standard.kode} — {standard.navn}
               </h3>
-              {standard.kapitler.map((kapittel) => (
-                <div key={kapittel.id} className="mt-1">
-                  <p className="text-xs font-medium text-gray-500">
-                    {kapittel.kode} {kapittel.navn}
-                  </p>
-                  <ul className="mt-1 space-y-1">
-                    {kapittel.maler.map((bm) => (
-                      <li
-                        key={bm.id}
-                        className="flex items-center justify-between rounded border border-gray-100 px-3 py-1.5"
+              <div className="space-y-1">
+                {standard.kapitler.map((kap) => {
+                  // Søk auto-utbretter treff (L3); ellers økt-tilstanden (L2).
+                  const apen = harSok || (utbrettede?.has(kap.id) ?? false);
+                  return (
+                    <div key={kap.id} className="rounded border border-gray-100">
+                      <button
+                        type="button"
+                        onClick={() => !harSok && toggleKapittel(kap.id)}
+                        disabled={harSok}
+                        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent"
                       >
-                        <span className="text-sm text-gray-700">
-                          {bm.navn}{" "}
-                          <span className="text-gray-400">{bm.referanse}</span>
+                        {apen ? (
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                        )}
+                        <span>
+                          {kap.kode} {kap.navn}
                         </span>
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setLaantId(bm.id);
-                            setFeil(null);
-                            laanMutation.mutate({ organizationId, bibliotekMalId: bm.id });
-                          }}
-                          disabled={laanMutation.isPending && laantId === bm.id}
-                        >
-                          {laanMutation.isPending && laantId === bm.id
-                            ? t("firma.malarkiv.laaner")
-                            : t("firma.malarkiv.laanKnapp")}
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+                        <span className="text-gray-400">· {kap.synligeMaler.length}</span>
+                      </button>
+                      {apen && (
+                        <ul className="space-y-1 px-2 pb-2">
+                          {kap.synligeMaler.map((bm) => (
+                            <MalRad
+                              key={bm.id}
+                              bm={bm}
+                              laaner={laanMutation.isPending && laantId === bm.id}
+                              onLaan={() => laan(bm.id)}
+                            />
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
@@ -519,5 +620,126 @@ function LaanFraSentralarkivDialog({
         </Button>
       </div>
     </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  MalRad — én sentralmal i lån-dialogen, med inspiser-før-lån (L1)      */
+/* ------------------------------------------------------------------ */
+
+function MalRad({
+  bm,
+  laaner,
+  onLaan,
+}: {
+  bm: { id: string; navn: string; referanse: string };
+  laaner: boolean;
+  onLaan: () => void;
+}) {
+  const { t } = useTranslation();
+  const [apen, setApen] = useState(false);
+  // Lazy: feltinnhold hentes først når forhåndsvisningen åpnes — aldri eager
+  // for alle maler (skala-regelen, AM4b gate-funn).
+  const { data: innhold, isLoading } = trpc.bibliotek.hentMalInnhold.useQuery(
+    { bibliotekMalId: bm.id },
+    { enabled: apen },
+  );
+
+  const laanKnapp = (
+    <Button variant="secondary" onClick={onLaan} disabled={laaner}>
+      {laaner ? t("firma.malarkiv.laaner") : t("firma.malarkiv.laanKnapp")}
+    </Button>
+  );
+
+  return (
+    <li className="rounded border border-gray-100">
+      <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+        <button
+          type="button"
+          onClick={() => setApen((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+          aria-expanded={apen}
+          title={apen ? t("firma.malarkiv.inspiserSkjul") : t("firma.malarkiv.inspiserVis")}
+        >
+          {apen ? (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          )}
+          <span className="truncate text-sm text-gray-700">
+            {bm.navn} <span className="text-gray-400">{bm.referanse}</span>
+          </span>
+        </button>
+        {laanKnapp}
+      </div>
+      {apen && (
+        <div className="border-t border-gray-100 bg-gray-50 px-3 py-2">
+          {isLoading ? (
+            <div className="flex justify-center py-2">
+              <Spinner />
+            </div>
+          ) : !innhold || innhold.felter.length === 0 ? (
+            <p className="text-xs text-gray-500">{t("firma.malarkiv.inspiserTomt")}</p>
+          ) : (
+            <FeltForhandsvisning felter={innhold.felter} />
+          )}
+          <div className="mt-2 flex justify-end">{laanKnapp}</div>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  FeltForhandsvisning — read-only feltliste, i rekkefølge, per fase     */
+/* ------------------------------------------------------------------ */
+
+function FeltForhandsvisning({
+  felter,
+}: {
+  felter: { label: string; type: string; fase: string | null }[];
+}) {
+  const { t } = useTranslation();
+  const faseEtikett: Record<string, string> = {
+    FØR: t("firma.malarkiv.fase.for"),
+    UNDER: t("firma.malarkiv.fase.under"),
+    ETTER: t("firma.malarkiv.fase.etter"),
+  };
+
+  // Grupper som lån-mutasjonen bygger malen: faser i første-forekomst-rekkefølge,
+  // felt uten fase til slutt. Forhåndsvisningen speiler dermed resultatet av lån.
+  const faser = [...new Set(felter.map((f) => f.fase).filter(Boolean))] as string[];
+  const grupper: { fase: string | null; felter: typeof felter }[] = faser.map((fase) => ({
+    fase,
+    felter: felter.filter((f) => f.fase === fase),
+  }));
+  const utenFase = felter.filter((f) => !f.fase);
+  if (utenFase.length > 0) grupper.push({ fase: null, felter: utenFase });
+
+  return (
+    <div className="space-y-2">
+      {grupper.map((g, i) => (
+        <div key={i}>
+          {g.fase && (
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              {faseEtikett[g.fase] ?? g.fase}
+            </p>
+          )}
+          <ol className="space-y-0.5">
+            {g.felter.map((f, j) => {
+              const typeNokkel = felttypeNokler[f.type];
+              return (
+                <li key={j} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate text-gray-700">{f.label}</span>
+                  <span className="shrink-0 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-600">
+                    {typeNokkel ? t(typeNokkel) : f.type}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      ))}
+    </div>
   );
 }

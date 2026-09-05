@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Topptekst",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Én linje pr. rad …",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Flettefelt: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Sist brukt"
+  "firma.timer.rapport.maler.sistBrukt": "Sist brukt",
+  "firma.malarkiv.laanSokPlassholder": "Søk etter navn eller kode",
+  "firma.malarkiv.laanIngenTreff": "Ingen maler matcher søket.",
+  "firma.malarkiv.laanTomt": "Sentralarkivet er tomt.",
+  "firma.malarkiv.inspiserVis": "Vis felt",
+  "firma.malarkiv.inspiserSkjul": "Skjul felt",
+  "firma.malarkiv.inspiserTomt": "Denne malen har ingen felt ennå.",
+  "firma.malarkiv.fase.for": "Før utførelse",
+  "firma.malarkiv.fase.under": "Under utførelse",
+  "firma.malarkiv.fase.etter": "Etter utførelse"
 }

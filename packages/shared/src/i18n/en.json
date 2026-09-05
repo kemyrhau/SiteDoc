@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Header text",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "One line per row …",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Merge fields: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Last used"
+  "firma.timer.rapport.maler.sistBrukt": "Last used",
+  "firma.malarkiv.laanSokPlassholder": "Search by name or code",
+  "firma.malarkiv.laanIngenTreff": "No templates match your search.",
+  "firma.malarkiv.laanTomt": "The central archive is empty.",
+  "firma.malarkiv.inspiserVis": "Show fields",
+  "firma.malarkiv.inspiserSkjul": "Hide fields",
+  "firma.malarkiv.inspiserTomt": "This template has no fields yet.",
+  "firma.malarkiv.fase.for": "Before execution",
+  "firma.malarkiv.fase.under": "During execution",
+  "firma.malarkiv.fase.etter": "After execution"
 }

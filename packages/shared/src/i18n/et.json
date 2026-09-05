@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Päise tekst",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Üks rida rea ​​kohta…",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Ühenda väljad: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Viimati kasutatud"
+  "firma.timer.rapport.maler.sistBrukt": "Viimati kasutatud",
+  "firma.malarkiv.laanSokPlassholder": "Otsige nime või koodi järgi",
+  "firma.malarkiv.laanIngenTreff": "Teie otsingule ei vasta ükski mall.",
+  "firma.malarkiv.laanTomt": "Keskarhiiv on tühi.",
+  "firma.malarkiv.inspiserVis": "Kuva väljad",
+  "firma.malarkiv.inspiserSkjul": "Peida väljad",
+  "firma.malarkiv.inspiserTomt": "Sellel mallil pole veel välju.",
+  "firma.malarkiv.fase.for": "Enne hukkamist",
+  "firma.malarkiv.fase.under": "Täitmise ajal",
+  "firma.malarkiv.fase.etter": "Pärast hukkamist"
 }

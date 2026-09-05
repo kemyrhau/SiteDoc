@@ -32,6 +32,36 @@ export const bibliotekRouter = router({
       });
     }),
 
+  /**
+   * Feltlisten for ÉN sentralmal — for «inspiser før lån» (L1, AM4b).
+   *
+   * Lazy med vilje: `hentStandarder` selecter IKKE `malInnhold`, og skal ikke.
+   * Å laste malInnhold for alle maler ved dialog-åpning skalerer med totalt
+   * antall felt i HELE arkivet (regresjonen ordren skal hindre). Denne henter
+   * innhold for kun den malen brukeren faktisk åpner forhåndsvisningen på.
+   * Returnerer felt uten fase-overskrifter (de bygges ved lån), sortert på
+   * sortOrder og med fase for gruppering i UI.
+   */
+  hentMalInnhold: protectedProcedure
+    .input(z.object({ bibliotekMalId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const mal = await ctx.prisma.bibliotekMal.findUniqueOrThrow({
+        where: { id: input.bibliotekMalId },
+        select: { id: true, navn: true, referanse: true, malInnhold: true },
+      });
+      const raw = (mal.malInnhold ?? []) as Array<{
+        label: string;
+        type: string;
+        fase?: string | null;
+        sortOrder?: number;
+      }>;
+      const felter = [...raw]
+        .filter((f) => f && f.type !== "heading")
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .map((f) => ({ label: f.label, type: f.type, fase: f.fase ?? null }));
+      return { id: mal.id, navn: mal.navn, referanse: mal.referanse, felter };
+    }),
+
   /** Hvilke bibliotekmaler prosjektet har aktivert */
   hentProsjektValg: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
