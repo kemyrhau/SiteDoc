@@ -428,7 +428,7 @@ En prod-deploy ble aldri ført.**
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
 
-**Test: `7a02a3d0`** (deployet 2026-09-05 21:03, verifisert: `/version` → `7a02a3d0`).
+**Test: `1e259d55`** (deployet 2026-09-05 21:38, verifisert: `/version` → `1e259d55`).
 🔴 **Hele SJA-signaturrunde-settet er nå på test** — rundene 2–5 merget 05/06.09: signatur bærer
 navn+tidspunkt · kollapset signaturflate · tre nye tabeller + felttypen `signature_list` + PDF +
 manko-chip · serverlås mot skriving på avsluttet runde · malrevisjon D · drift-konsolidering.
@@ -438,10 +438,16 @@ eneste gang den har møtt en database. Den var generert offline (`migrate diff`)
 har historikk-drift og mangler pgvector i shadow-basen; **den gikk gjennom på første forsøk.**
 Øvrige tre db-pakker: «No pending».
 
-🟢 **Testdata seedet** (`seed:sja`): prosjekt `SD-DEMO-SJA-0001`, SJA «Løft mobilkran — Akse 4»,
-fire deltakere (tre ansatte + gjest Truls Kranfører), runde 1 avsluttet m/alle signert, runde 2
-åpen på 2 av 4. Innlogginger: `sja.ansvarlig@demo.sitedoc.no` (ser «Start ny runde») ·
-`nina.elektro@demo.sitedoc.no` (ser «Signer» på egen manko-rad).
+🟢 **Testdata seedet 21:42** (`SEED_SJA_BRUKER=kemyrhau@gmail.com`): firma **SITEDOC MYRHAUG**,
+prosjekt `SD-DEMO-SJA-0001`, SJA «Løft mobilkran — Akse 4». Deltakere: Kenneth (ansvarlig/admin),
+Ola Tømrer, Nina Elektriker, gjest Truls Kranfører. Runde 1 avsluttet m/alle fire signert
+(`antallDeltakere` frosset), **runde 2 åpen på 1 av 4** — Kenneths egen rad står usignert.
+🔴 **Kenneth logger inn som seg selv via OAuth** — ingen demo-bruker kan logge inn.
+
+⚠️ **Første seed-forsøk (21:15) lagde et ORPHAN-prosjekt** uten firma, og brukere uten
+OAuth-kobling som aldri kunne logge inn. Rettet i `8b3110b8`; den idempotente `update`-grenen
+reparerte raden på stedet. **Cowork gatet branchen, leste seed-fila og sjekket prod-guarden i
+stedet for firmaregelen** — gaten sviktet, ikke bare koden.
 
 🔴 **VENTER: fabels skjermbilde-gate.** Underlaget lister åtte flater
 (`docs/redesign/til-fabel/skjermbilde-underlag-sja-signaturrunder-2026-09-06.md`).
