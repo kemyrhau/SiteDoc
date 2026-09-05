@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Otsikkoteksti",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Yksi rivi per rivi…",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Yhdistä kentät: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Viimeksi käytetty"
+  "firma.timer.rapport.maler.sistBrukt": "Viimeksi käytetty",
+  "firma.malarkiv.laanSokPlassholder": "Hae nimellä tai koodilla",
+  "firma.malarkiv.laanIngenTreff": "Mikään malli ei vastaa hakuasi.",
+  "firma.malarkiv.laanTomt": "Keskusarkisto on tyhjä.",
+  "firma.malarkiv.inspiserVis": "Näytä kentät",
+  "firma.malarkiv.inspiserSkjul": "Piilota kentät",
+  "firma.malarkiv.inspiserTomt": "Tässä mallissa ei ole vielä kenttiä.",
+  "firma.malarkiv.fase.for": "Ennen toteutusta",
+  "firma.malarkiv.fase.under": "Toteutuksen aikana",
+  "firma.malarkiv.fase.etter": "Suorituksen jälkeen"
 }

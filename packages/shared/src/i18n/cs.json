@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Text záhlaví",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Jeden řádek na řádek…",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Sloučit pole: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Naposledy použité"
+  "firma.timer.rapport.maler.sistBrukt": "Naposledy použité",
+  "firma.malarkiv.laanSokPlassholder": "Hledejte podle jména nebo kódu",
+  "firma.malarkiv.laanIngenTreff": "Vašemu hledání neodpovídají žádné šablony.",
+  "firma.malarkiv.laanTomt": "Centrální archiv je prázdný.",
+  "firma.malarkiv.inspiserVis": "Zobrazit pole",
+  "firma.malarkiv.inspiserSkjul": "Skrýt pole",
+  "firma.malarkiv.inspiserTomt": "Tato šablona zatím neobsahuje žádná pole.",
+  "firma.malarkiv.fase.for": "Před popravou",
+  "firma.malarkiv.fase.under": "Během provádění",
+  "firma.malarkiv.fase.etter": "Po provedení"
 }

@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Rubriktext",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "En rad per rad...",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Slå samman fält: {firma} · {period} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Senast använd"
+  "firma.timer.rapport.maler.sistBrukt": "Senast använd",
+  "firma.malarkiv.laanSokPlassholder": "Sök på namn eller kod",
+  "firma.malarkiv.laanIngenTreff": "Inga mallar matchar din sökning.",
+  "firma.malarkiv.laanTomt": "Centralarkivet är tomt.",
+  "firma.malarkiv.inspiserVis": "Visa fält",
+  "firma.malarkiv.inspiserSkjul": "Göm fält",
+  "firma.malarkiv.inspiserTomt": "Denna mall har inga fält ännu.",
+  "firma.malarkiv.fase.for": "Innan avrättningen",
+  "firma.malarkiv.fase.under": "Under utförandet",
+  "firma.malarkiv.fase.etter": "Efter avrättning"
 }

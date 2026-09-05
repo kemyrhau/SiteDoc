@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Texte d'en-tête",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Une ligne par ligne…",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Fusionner les champs : {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Dernière utilisation"
+  "firma.timer.rapport.maler.sistBrukt": "Dernière utilisation",
+  "firma.malarkiv.laanSokPlassholder": "Rechercher par nom ou code",
+  "firma.malarkiv.laanIngenTreff": "Aucun modèle ne correspond à votre recherche.",
+  "firma.malarkiv.laanTomt": "Les archives centrales sont vides.",
+  "firma.malarkiv.inspiserVis": "Afficher les champs",
+  "firma.malarkiv.inspiserSkjul": "Masquer les champs",
+  "firma.malarkiv.inspiserTomt": "Ce modèle n'a pas encore de champs.",
+  "firma.malarkiv.fase.for": "Avant l'exécution",
+  "firma.malarkiv.fase.under": "Pendant l'exécution",
+  "firma.malarkiv.fase.etter": "Après l'exécution"
 }

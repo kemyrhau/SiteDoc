@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Teksti i titullit",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Një rresht për rresht…",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Bashkoni fushat: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Përdorur për herë të fundit"
+  "firma.timer.rapport.maler.sistBrukt": "Përdorur për herë të fundit",
+  "firma.malarkiv.laanSokPlassholder": "Kërkoni sipas emrit ose kodit",
+  "firma.malarkiv.laanIngenTreff": "Asnjë shabllon nuk përputhet me kërkimin tuaj.",
+  "firma.malarkiv.laanTomt": "Arkivi qendror është bosh.",
+  "firma.malarkiv.inspiserVis": "Trego fushat",
+  "firma.malarkiv.inspiserSkjul": "Fshih fushat",
+  "firma.malarkiv.inspiserTomt": "Ky shabllon nuk ka ende fusha.",
+  "firma.malarkiv.fase.for": "Para ekzekutimit",
+  "firma.malarkiv.fase.under": "Gjatë ekzekutimit",
+  "firma.malarkiv.fase.etter": "Pas ekzekutimit"
 }

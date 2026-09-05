@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Kopfzeilentext",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Eine Zeile pro Zeile …",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Felder zusammenführen: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Zuletzt verwendet"
+  "firma.timer.rapport.maler.sistBrukt": "Zuletzt verwendet",
+  "firma.malarkiv.laanSokPlassholder": "Suchen Sie nach Name oder Code",
+  "firma.malarkiv.laanIngenTreff": "Keine Vorlage entspricht Ihrer Suche.",
+  "firma.malarkiv.laanTomt": "Das Zentralarchiv ist leer.",
+  "firma.malarkiv.inspiserVis": "Felder anzeigen",
+  "firma.malarkiv.inspiserSkjul": "Felder ausblenden",
+  "firma.malarkiv.inspiserTomt": "Diese Vorlage enthält noch keine Felder.",
+  "firma.malarkiv.fase.for": "Vor der Hinrichtung",
+  "firma.malarkiv.fase.under": "Während der Ausführung",
+  "firma.malarkiv.fase.etter": "Nach der Hinrichtung"
 }

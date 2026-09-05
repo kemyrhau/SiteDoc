@@ -4014,5 +4014,14 @@
   "firma.timer.rapport.tilpasset.topptekst": "Текст заголовка",
   "firma.timer.rapport.tilpasset.topptekstPlaceholder": "Один рядок на рядок…",
   "firma.timer.rapport.tilpasset.topptekstHjelp": "Об’єднати поля: {firma} · {periode} · {prosjekt}",
-  "firma.timer.rapport.maler.sistBrukt": "Останнє використання"
+  "firma.timer.rapport.maler.sistBrukt": "Останнє використання",
+  "firma.malarkiv.laanSokPlassholder": "Пошук за назвою або кодом",
+  "firma.malarkiv.laanIngenTreff": "Жоден шаблон не відповідає вашому пошуку.",
+  "firma.malarkiv.laanTomt": "Центральний архів порожній.",
+  "firma.malarkiv.inspiserVis": "Показати поля",
+  "firma.malarkiv.inspiserSkjul": "Приховати поля",
+  "firma.malarkiv.inspiserTomt": "Цей шаблон ще не має полів.",
+  "firma.malarkiv.fase.for": "Перед стратою",
+  "firma.malarkiv.fase.under": "Під час виконання",
+  "firma.malarkiv.fase.etter": "Після виконання"
 }
