@@ -45,15 +45,24 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
-| **kontrollplan** | 🔴 **FUNN (plan-sporet avbrutt)** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | **`relay/inbox-mobil-byggeplasskontekst.md`** — branch `fix/mobil-byggeplasskontekst`. Funn A/B/D fra bygg 50: chip-kilden av timer-cachen · tegninger filtreres på byggeplass + søk · endringslogg lukket som standard. **Før neste EAS-bygg** |
-| **dokgen** | 🔴 **FUNN** | `SiteDoc-dokgen` | **Oppdatert 04.09:** sist merget `2b73ae68` (web ut av `platforms` — åpnet OTA-veien). Døgnet 03/04.09: vedlegg-forsvinner, `settVedleggUrl`, EXIF-opptaksmetadata, kø-robusthet | **Ledig.** ⏸️ `inbox-timerrapport-flate.md` fortsatt på vent (web, haster ikke mot byggkvoten) |
+| **kontrollplan** | 🟢 **LEVERT — venter gate** | `SiteDoc-kontrollplan` | **`feat/malrevisjon-d` @ `3c40df3e`** (2 commits, 20 filer inkl. alle 14 i18n-språk): status ut av kundetekst + `verifisert` i bruk + utkast-badge på malkort i lån-dialogen. Tidligere: idempotent seed `0bd7941a`, veivisere `c48e6d44`/`b32326a8` | **Gate + merge.** Deretter ledig — ⏸️ `inbox-mobil-byggeplasskontekst.md` står på vent |
+| **dokgen** | 🟡 **ARBEID** | `SiteDoc-dokgen` | `fix/signatur-kollaps` — **ingen commits ennå** (målt 06.09 00:40, treet står på `d73c445a`). Tredje signaturtilstand (tom+lukket) + `signature` inn i `TILBEHOR_REN_FJERNING` | **`relay/inbox-signatur-navn-tidspunkt.md`** — tillegg på SAMME branch. Fabels delleveranse 2: signaturen skal bære navn + tidspunkt på web/mobil/PDF. Rutet hit fordi han står i fila |
+| **redesign** | 🔴 **NY — SJA-signaturrunder** | `SiteDoc-redesign` | Tre opprettet 06.09 fra `origin/develop`, branch `feat/sja-signaturrunder`. Tomt `node_modules` — `pnpm install` først | **`relay/inbox-sja-signaturrunder.md`** — tre nye tabeller (Kenneth-gatet migrering) + felttypen `signature_list` + PDF + chip. 🔴 **Grensen mot dokgen går ved `SignaturObjekt.tsx`** |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
-| **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
+| **fabel** | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
 
 ### 📋 Feltfunn-liste (B — funn samles, blir ikke ordrer på minuttet)
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🟡 **Drift målt 2026-09-05 under SJA-målingen: `TILBEHOR_REN_FJERNING` har FIRE typer i web
+og FEM i mobil** (`weather` ekstra på mobil). `RapportObjektRenderer.tsx:59` vs `:47`.
+To sett som skal være ett — samme klasse som `IKKE_UTFYLLBARE_FELTTYPER`-driften dokgen fant.
+**Fiks = ÉN delt kilde i `@sitedoc/shared`**, og `weather`-avviket avklares mot Kenneth
+(er vær-tilbehør bevisst av på mobil, eller glemt?). Egen liten sak — ingen agent tildelt.
+⚠️ **Dokgen legger `signature` inn i begge sett nå** — driften vokser til to sett à 5/6 hvis
+den ikke lukkes snart.
 
 🔴 **Kenneth 2026-09-03: «fiks alle de feil jeg meldte inn før nytt EAS-bygg → #1-6.»**
 Seks funn fra bygg 50. **Byggkvoten gater rekkefølgen** — vi bruker ikke ett av ~15
