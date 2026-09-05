@@ -68,6 +68,15 @@ ledd vært involvert.
 kommando CI kjører — kostnaden er ventetid hos agenten, som er billigere enn en runde
 gjennom Kenneth.
 
+🔴 **`seed.ts` PRODUSERER ORPHAN-PROSJEKTER (funn 2026-09-05, redesign-Opus).**
+CLAUDE.md-regelen fra 2026-05-20 sier at prosjekt-opprettelse **må** kreve firma. Regelen er
+håndhevet i API-mutasjonene, men **hoved-seeden bryter den selv** — den setter ikke
+`primaryOrganizationId`. Funnet da `seed:sja` gjorde samme feil og Kenneth ikke fant
+demo-prosjektet fra sin firmakontekst på test.
+⚠️ **Merk feltnavnet:** `Project.primaryOrganizationId`, **ikke** `organizationId` — firmakontekst
+lister på det feltet (`prosjekt.ts:30/56/90`). `ProjectOrganization`-join er kun visning.
+**Egen sak, ingen agent tildelt.** `seed:sja` er rettet (`8b3110b8`).
+
 🟡 **Tvilling-paritetstest mangler (dokgen-funn 2026-09-06).** `packages/pdf/src/hjelpere.ts`
 speiler `packages/shared/src/utils/signaturVerdi.ts` fordi `@sitedoc/pdf` har dokumenterte
 null-avhengigheter. Speilet har peker-kommentar, men **ingen test som fanger drift** — endres
