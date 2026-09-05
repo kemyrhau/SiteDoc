@@ -23,6 +23,8 @@ export type {
 } from "./typer";
 
 // Innholds-renderer (Stage 2)
+// feltKartFraRad — tvilling av @sitedoc/shared/repeaterRad, eksponert for paritetstest
+export { feltKartFraRad as feltKartFraRadPdf } from "./repeaterRad";
 export { byggInnhold } from "./innhold";
 export { byggRepeaterTabell, skalarCelle } from "./repeater";
 export { byggRadkort, repeaterErRik } from "./radkort";

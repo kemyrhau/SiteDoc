@@ -59,6 +59,9 @@ export {
   formaterDatoKort,
   fullBildeUrl,
   formaterNummer,
+  // Signatur-tvillingen (speiler @sitedoc/shared/signaturVerdi) — eksponert for paritetstest
+  lesSignaturVerdiPdf,
+  formaterSignaturLinjePdf,
 } from "./hjelpere";
 
 // CSS
