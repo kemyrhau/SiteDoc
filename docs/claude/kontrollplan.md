@@ -803,9 +803,25 @@ Før en mal publiseres i biblioteket:
 # Migrering
 pnpm --filter @sitedoc/db exec prisma migrate dev --name add-sjekklistebibliotek
 
-# Seed NS 3420-K data
+# Seed NS 3420-K/-F data
 npx tsx prisma/seed-bibliotek.ts
 ```
+
+**`seed-bibliotek.ts` er idempotent** (`seed-bibliotek.ts`, `main()` fra 2026-09-05).
+Ingen `deleteMany` — upsert på naturlige nøkler:
+- `BibliotekStandard` via ekte Prisma-`upsert` på `kode` (`@unique`).
+- `BibliotekKapittel` (standardId, kode) og `BibliotekMal` (kapittelId, referanse) via
+  `findFirst` + `update`/`create` — DB-unique på disse compound-nøklene mangler (kun `@@index`);
+  ført som BACKLOG-kandidat, endres til ekte `upsert` når indeksene finnes.
+
+Bevisste valg: **`ProsjektBibliotekValg` (kundevalg) røres ALDRI**; eksisterende mal-`id` bevares
+→ `OrganizationTemplate.laantFraBibliotekMalId`-avstamningen (`onDelete: SetNull`) kan ikke nulles
+av en re-seed; en mal fjernet fra seed-fila blir stående (ingen auto-`aktiv:false`).
+
+**Host-bevisst prod-guard** (`avbrytHvisProdUtenBekreftelse`): localhost/`127.0.0.1` og `sitedoc_test`
+kjører fritt; fjernvert med prod-navnet `/sitedoc` krever `SEED_CONFIRM_DB=<faktisk DB-navn>` — ikke
+en fast streng (kopiert kall med feil/utelatt navn aborterer). Guarden ser på **host**, ikke DB-navn,
+fordi lokal dev-DB også heter `sitedoc`.
 
 ## Viktige prinsipper
 

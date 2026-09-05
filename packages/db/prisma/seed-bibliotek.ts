@@ -25,6 +25,11 @@ const prisma = new PrismaClient();
  * regner en localhost/127.0.0.1-vert som lokal sandbox og slipper igjennom;
  * ellers (fjernvert med prod-navnet `sitedoc`) kreves bekreftelse.
  *
+ * Bekreftelsen krever `SEED_CONFIRM_DB=<faktisk DB-navn>`, ikke en fast streng.
+ * En fast sentinel (f.eks. `JA_JEG_VET`) virker likt mot enhver DB og gjentas lett
+ * av vane; et kopiert kall med utelatt/feil DB-navn ABORTERER. Å skrive DB-navnet
+ * for hånd er en bevisst handling (Kenneth-vedtak 2026-09-05).
+ *
  * Restrisiko å ta stilling til: nås prod via SSH-tunnel til localhost:PORT,
  * regnes den som lokal. Ønsker cowork strengere (f.eks. positiv «jeg er
  * lokal»-markør, eller portkrav 5432) er det en policy-beslutning, ikke en bug.
@@ -34,12 +39,16 @@ function avbrytHvisProdUtenBekreftelse(): void {
   const prodNavn = /\/sitedoc(\?|$)/.test(url); // prod-db-navnet, IKKE /sitedoc_test
   const lokalVert = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
   const erProd = prodNavn && !lokalVert;
-  if (erProd && process.env.SEED_BIBLIOTEK_TILLAT_PROD !== "JA_JEG_VET") {
+  if (!erProd) return;
+
+  const dbNavn = url.match(/\/([^/?]+)(?:\?|$)/)?.[1] ?? "sitedoc";
+  if (process.env.SEED_CONFIRM_DB !== dbNavn) {
     console.error("⛔ DATABASE_URL peker mot prod-databasen (fjernvert + /sitedoc). Seed avbrutt.");
     console.error("   Selv om seeden er idempotent skal referansedata bygges på test/lokal først.");
-    console.error("   For bevisst prod-kjøring: sett SEED_BIBLIOTEK_TILLAT_PROD=JA_JEG_VET");
+    console.error(`   For bevisst prod-kjøring: sett SEED_CONFIRM_DB=${dbNavn} (må matche faktisk DB-navn).`);
     process.exit(1);
   }
+  console.warn(`⚠️  Seeder mot prod-databasen «${dbNavn}» (bekreftet via SEED_CONFIRM_DB).`);
 }
 
 /** find-or-create på (standardId, kode) — ingen unik indeks finnes for compound-nøkkelen. */
