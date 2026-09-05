@@ -210,6 +210,9 @@ export function MalBygger({ mal }: MalByggerProps) {
 
   // Malarkiv (AM4 steg 3) — promotering + firma-avstamnings-badges. Ikke for PSI.
   const [firmaFeil, setFirmaFeil] = useState<string | null>(null);
+  // Guard: én signaturliste pr. mal (SJA/HMS-runder keyer til dokumentet, ikke
+  // feltet — to lister ville delt runder/deltakere). Klartekst, ikke grået knapp.
+  const [guardFeil, setGuardFeil] = useState<string | null>(null);
   const kanPromotereQuery = trpc.firmamal.kanPromotere.useQuery(
     { projectId: mal.projectId ?? "" },
     { enabled: !!mal.projectId && !psiModus },
@@ -479,6 +482,14 @@ export function MalBygger({ mal }: MalByggerProps) {
     if (data?.fraKilde === "palett") {
       const type = data.type as ReportObjectType;
       const meta = REPORT_OBJECT_TYPE_META[type];
+
+      // Guard: kun én signaturliste pr. mal. Runder/deltakere keyer til dokumentet,
+      // så to lister ville delt data (og gjort manko-chippen tvetydig).
+      if (type === "signature_list" && objekter.some((o) => o.type === "signature_list")) {
+        setGuardFeil(t("malbygger.signaturlisteFinnes", "Dokumentet har allerede en signaturliste"));
+        return;
+      }
+
       const målSone = finnMålSone(over.id as string) ?? "datafelter";
 
       // Finn posisjon og mulig forelder
@@ -1053,6 +1064,18 @@ export function MalBygger({ mal }: MalByggerProps) {
         />
       )}
 
+      {/* Guard: én signaturliste pr. mal — klartekst-forklaring med Avbryt/Lukk */}
+      {guardFeil && (
+        <Modal open title={t("malbygger.signaturlisteFinnesTittel", "Kan ikke legge til")} onClose={() => setGuardFeil(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{guardFeil}</p>
+            <div className="flex justify-end">
+              <Button onClick={() => setGuardFeil(null)}>{t("handling.lukk")}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Sletting feilet — vis serverens forklaring (ikke stille rollback) */}
       {slettFeil && (
         <Modal open title={t("malbygger.slettFeiletTittel")} onClose={() => setSlettFeil(null)}>
@@ -1230,6 +1253,16 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
         <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
           <div className="mx-auto h-20 w-full max-w-xs rounded border border-dashed border-gray-300 bg-white" />
           <p className="mt-2 text-xs text-gray-500">{t("malbygger.signaturLabel")}</p>
+        </div>
+      );
+    case "signature_list":
+      // Ingen config (Kenneth-vedtak: signaturlista er selvstendig). Preview av
+      // runde-lista — utfylles i dokumentet, ikke i malen.
+      return (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="mb-2 text-xs font-medium text-gray-500">{t("malbygger.signaturliste", "Signaturliste")} · 0 {t("signaturliste.avSignertKort", "av 0")}</p>
+          <div className="h-2 rounded bg-amber-200" />
+          <p className="mt-2 text-xs text-gray-400">{t("malbygger.signaturlisteHjelp", "Deltakere og signaturer fylles ut i dokumentet — én runde pr. gjennomføring.")}</p>
         </div>
       );
     case "subtitle":

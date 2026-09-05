@@ -6,8 +6,16 @@ import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Printer, ArrowLeft } from "lucide-react";
 import { PrintHeader } from "@/components/PrintHeader";
-import { RapportObjektVisning } from "@/components/RapportObjektVisning";
+import { RapportObjektVisning, type SignaturListeVisning } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
+import { formaterSignaturTidspunkt } from "@sitedoc/shared";
+
+/** Veggklokke fra signertTidspunkt, fallback completedAt (UTC) — ferdigformatert. */
+function sigTid(s: { signertTidspunkt?: string | null; completedAt?: string | Date | null }): string | null {
+  const lokal = formaterSignaturTidspunkt(s.signertTidspunkt ?? null);
+  if (lokal) return lokal;
+  return s.completedAt ? new Date(s.completedAt).toLocaleString("nb-NO", { dateStyle: "short", timeStyle: "short" }) : null;
+}
 import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
 import type { RapportObjekt, ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -207,6 +215,48 @@ function SjekklistePrint({
     return deler.length > 0 ? deler.join(", ") : null;
   }, [sjekkliste.template.objects, data]);
 
+  // Signaturliste (SJA/HMS-runder): data bor server-side. Hent én gang og bygg
+  // read-only visning per signature_list-objekt. F7: manko + forrige-runde alltid med.
+  const harSignaturListe = sjekkliste.template.objects.some((o) => o.type === "signature_list");
+  const { data: signaturRunder } = trpc.signatur.hentRunder.useQuery(
+    { checklistId: sjekkliste.id },
+    { enabled: harSignaturListe },
+  );
+  const signaturData = useMemo<Record<string, SignaturListeVisning> | undefined>(() => {
+    if (!signaturRunder) return undefined;
+    const gjeldende = signaturRunder.runder.find((r) => r.erGjeldende) ?? null;
+    if (!gjeldende) return undefined;
+    const sigFor = new Map(gjeldende.signaturer.map((s) => [s.deltakerId, s]));
+    const forrige = new Map<string, { rundeNr: number; hmsKortNr: string | null; tidspunkt: string | null }>();
+    for (const r of signaturRunder.runder) {
+      if (r.erGjeldende) continue;
+      for (const s of r.signaturer) {
+        const eks = forrige.get(s.deltakerId);
+        if (!eks || r.rundeNr > eks.rundeNr) forrige.set(s.deltakerId, { rundeNr: r.rundeNr, hmsKortNr: s.hmsKortNr, tidspunkt: sigTid(s) });
+      }
+    }
+    // Veggklokke fra signertTidspunkt, fallback completedAt (UTC ISO for legacy).
+    const rader = signaturRunder.deltakere
+      .filter((d) => d.aktiv)
+      .map((d) => {
+        const g = sigFor.get(d.id);
+        if (g) return { navn: d.navn, firma: d.firma, tidspunkt: sigTid(g), hmsKort: g.hmsKortNr ?? (g.harIkkeHmsKort ? "—" : null), tilstand: "signert" as const, rundeNr: gjeldende.rundeNr };
+        const f = forrige.get(d.id);
+        if (f) return { navn: d.navn, firma: d.firma, tidspunkt: f.tidspunkt, hmsKort: f.hmsKortNr, tilstand: "forrige" as const, rundeNr: f.rundeNr };
+        return { navn: d.navn, firma: d.firma, tidspunkt: null, hmsKort: null, tilstand: "mangler" as const, rundeNr: gjeldende.rundeNr };
+      });
+    const visning: SignaturListeVisning = {
+      status: signaturRunder.status,
+      laast: gjeldende.avsluttetAt != null,
+      rader,
+    };
+    const map: Record<string, SignaturListeVisning> = {};
+    for (const o of sjekkliste.template.objects) {
+      if (o.type === "signature_list") map[o.id] = visning;
+    }
+    return map;
+  }, [signaturRunder, sjekkliste.template.objects]);
+
   return (
     <div className={erSiste ? "" : "print-sideskift"}>
       <div className="mx-auto max-w-3xl pb-8">
@@ -252,6 +302,7 @@ function SjekklistePrint({
                 verdi={data[objekt.id]?.verdi ?? null}
                 nestingNivå={0}
                 data={data}
+                signaturData={signaturData}
               />
             </div>
           ))}

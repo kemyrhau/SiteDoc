@@ -36,7 +36,9 @@ import {
   type TegningsOppslagOppf,
   type TegningssideData,
   type HendelseRad,
+  type SignaturListeData,
 } from "@sitedoc/pdf";
+import { hentSignaturListeData } from "../signaturliste";
 import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
 import { lesHendelseslogg, lesEndringslogg } from "./logg-lesere";
@@ -354,12 +356,30 @@ async function byggArkivHtmlKjerne(
     if (crop) m.markorObj.utsnittDataUrl = crop;
   }
 
+  // 3d) Signaturliste (SJA/HMS-runder): data bor i egne tabeller, ikke i
+  // felt-verdien. Bygg dokument-data én gang og map hvert signature_list-objekts
+  // id → samme data (MalBygger sikrer én pr. dokument). Arkiv-PDF bærer full
+  // logg — byggherren skal se at laget signerte ved hver runde.
+  const signaturOppslag: Record<string, SignaturListeData> = {};
+  const harSignaturListe = norm.objects.some((o) => o.type === "signature_list");
+  if (harSignaturListe) {
+    const signaturData = await hentSignaturListeData(prisma, norm.loggRef);
+    if (signaturData) {
+      for (const o of norm.objects) {
+        if (o.type === "signature_list") signaturOppslag[o.id] = signaturData;
+      }
+    }
+  }
+
   // 4) Innhold (tre-bevisst, tomme strukturer synlig). `treObjekter` bygget over.
   // Repeater-cellene bærer nå injiserte detaljutsnitt.
   const innholdHtml = byggInnhold(treObjekter, dataInlinet, {
     bildeBaseUrl: "",
     visTommeStrukturer: true,
     tegningsOppslag,
+    signaturOppslag,
+    signaturMedLogg: true,
+    signaturGenerertTidspunkt: new Date().toISOString(),
   });
 
   // 4b) D2: dokument-lokasjon (tegningsmarkør) øverst side 1. Tekstlinje under:

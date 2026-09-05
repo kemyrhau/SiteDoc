@@ -19,6 +19,7 @@ import { SoneEgenskapObjekt } from "./SoneEgenskapObjekt";
 import { RomEgenskapObjekt } from "./RomEgenskapObjekt";
 import { VaerObjekt } from "./VaerObjekt";
 import { SignaturObjekt } from "./SignaturObjekt";
+import { SignaturListeObjekt } from "./SignaturListeObjekt";
 import { RepeaterObjekt } from "./RepeaterObjekt";
 import { LokasjonObjekt } from "./LokasjonObjekt";
 import { TegningPosisjonObjekt } from "./TegningPosisjonObjekt";
@@ -47,7 +48,9 @@ export const READONLY_TYPER = new Set(["calculation"]);
 // pkt 4), men bygges som modellendring i egen runde — ikke som tilbehør her.
 // LEGACY-VERN "location": se DISPLAY_TYPER over — avviklet 2026-09-02, men ≥9 objekter
 // lever i legacy-maler. Beholdes til D8/D9-malryddingen fjerner objektene.
-const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "weather", "signature"]);
+// `signature_list` (Kenneth-vedtak 2026-09-06): signaturlista er selvstendig
+// dokumentasjon → INGEN tilbehør.
+const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "weather", "signature", "signature_list"]);
 
 /**
  * Hvordan tilbehøret (FeltDokumentasjon) skal vises for en felttype (funn 6, speiler web):
@@ -88,6 +91,7 @@ const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   room_property: RomEgenskapObjekt,
   weather: VaerObjekt,
   signature: SignaturObjekt,
+  signature_list: SignaturListeObjekt,
   repeater: RepeaterObjekt,
   // LEGACY-VERN "location": avviklet fra palett og seeds 2026-09-02, men ≥9 objekter lever
   // i legacy-maler. Uten denne mappingen ville de rendret som UkjentObjekt («felttype ikke

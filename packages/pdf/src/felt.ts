@@ -13,6 +13,7 @@ import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl, les
 // importerer verken felt eller innhold.
 import { byggArkivTegningsposisjon } from "./arkivmal/tegningsfelt";
 import { byggInstruksjonsfelt } from "./arkivmal/instruksjonsfelt";
+import { byggSignaturListe } from "./arkivmal/signaturliste";
 
 // ---------------------------------------------------------------------------
 //  Hovedfunksjon
@@ -46,6 +47,11 @@ export function renderFelt(
   // D3: instruksjonstyper (info_text/info_image/video/quiz) — dokumentasjonsdata (quiz-svar).
   const instruksjon = byggInstruksjonsfelt(objekt, felt);
   if (instruksjon !== null) return instruksjon;
+
+  // Signaturliste (SJA/HMS-runder): data bor i egne tabeller, ikke i felt.verdi
+  // — rendres fra config.signaturOppslag[objektId]. F7: viser IKKE SIGNERT +
+  // forrige-runde-rader. Kun arkiv (config har oppslaget); mobil setter det aldri.
+  if (type === "signature_list") return byggSignaturListe(label, objekt.id, config);
 
   // Verdi-HTML per type
   let verdiHtml = "";

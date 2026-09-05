@@ -77,6 +77,7 @@ export const STANDARD_FELTLABELS: StandardFeltLabel[] = [
   { type: "room_property", nokkel: "malbygger.rom", gjeldende: "Rom", aliaser: [] },
   { type: "weather", nokkel: "malbygger.vaer", gjeldende: "Vær", aliaser: [] },
   { type: "signature", nokkel: "malbygger.signatur", gjeldende: "Signatur", aliaser: [] },
+  { type: "signature_list", nokkel: "malbygger.signaturliste", gjeldende: "Signaturliste", aliaser: [] },
   { type: "repeater", nokkel: "malbygger.repeater", gjeldende: "Repeater", aliaser: [] },
   { type: "drawing_position", nokkel: "malbygger.posisjonITegning", gjeldende: "Posisjon i tegning", aliaser: [] },
   { type: "info_text", nokkel: "malbygger.lesetekst", gjeldende: "Lesetekst", aliaser: [] },

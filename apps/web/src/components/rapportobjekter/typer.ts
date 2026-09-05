@@ -52,6 +52,13 @@ export interface RapportObjektProps {
    * READ-ONLY, aldri skjult.
    */
   tillatteFaggruppeIder?: string[] | null;
+  /**
+   * Dokument-referanse for `signature_list` (SJA/HMS-runder). Signaturlista bor
+   * ikke i `felt.verdi` men i egne tabeller keyet til dokumentet — kalleren
+   * (sjekkliste-/oppgave-siden) fyller checklistId/taskId. Utelatt for andre
+   * felttyper.
+   */
+  dokumentRef?: { checklistId?: string; taskId?: string };
 }
 
 /**

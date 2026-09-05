@@ -69,6 +69,7 @@ model User {
   taskChangeLogs          TaskChangeLog[]
   ansvarligFaggrupper     Faggruppe[]             @relation("FaggruppeAnsvarlig")
   psiSignaturer           PsiSignatur[]
+  dokumentDeltakelser     DokumentDeltaker[]
   tilstedevarelser        PsiTilstedevarelse[]
   godkjenteKontrollplaner Kontrollplan[]          @relation("KontrollplanGodkjenner")
   kontrollplanHistorikk   KontrollplanHistorikk[]
@@ -1155,6 +1156,8 @@ model Checklist {
   tasks              Task[]
   changeLog          ChecklistChangeLog[]
   kontrollplanPunkt  KontrollplanPunkt?
+  signaturRunder     SignaturRunde[]
+  signaturDeltakere  DokumentDeltaker[]
 
   @@index([templateId])
   @@index([bestillerUserId])
@@ -1221,6 +1224,8 @@ model Task {
   images             Image[]
   comments           TaskComment[]
   changeLog          TaskChangeLog[]
+  signaturRunder     SignaturRunde[]
+  signaturDeltakere  DokumentDeltaker[]
 
   @@index([templateId])
   @@index([bestillerUserId])
@@ -1966,6 +1971,100 @@ model PsiSignatur {
   @@unique([psiId, userId])
   @@index([psiId])
   @@map("psi_signaturer")
+}
+
+// ---------------------------------------------------------------------------
+// Signaturrunder (SJA/HMS) — «hvem har signert, hvem mangler» på gjenbrukt SJA.
+// Fabel-ordre 2026-09-06 (docs/redesign/ORDRE-sja-signaturrunder-2026-09-06.md).
+//
+// Modellen keyer til DOKUMENTET (checklistId XOR taskId), ikke til feltet:
+// MalBygger håndhever én signature_list pr. mal (guard), så «én pr. dokument» er
+// sikret i UI — ikke antatt her. Vei 2 (to nullbare FK-er, onDelete: Cascade)
+// valgt over svakt dokumentId: cascade rydder runder/deltakere/signaturer når
+// SJA (Checklist) eller avvik/RUH (Task) slettes — ingen foreldreløse HMS-rader
+// som papirkurv.ts ikke rører. XOR-guard (nøyaktig én FK satt) håndheves via
+// CHECK-constraint i migreringen.
+//
+// Rundenummer ER versjonen (forenkling mot PsiSignatur.psiVersion — psi.ts:423);
+// ingen versjonskolonne. antallDeltakere fryses ved «Avslutt runde» (snapshot-
+// prinsippet fra PSI) slik at historiske runder ikke drifter når deltakere
+// fjernes etterpå.
+// ---------------------------------------------------------------------------
+
+model SignaturRunde {
+  id              String    @id @default(uuid())
+  checklistId     String?   @map("checklist_id")
+  taskId          String?   @map("task_id")
+  rundeNr         Int       @map("runde_nr")
+  startetAt       DateTime  @default(now()) @map("startet_at")
+  startetAv       String    @map("startet_av") // userId — svakt felt, ingen @relation
+  avsluttetAt     DateTime? @map("avsluttet_at")
+  avsluttetAv     String?   @map("avsluttet_av") // userId
+  aarsak          String?   @map("aarsak")
+  // Frys ved «Avslutt runde» = antall aktive deltakere da runden ble lukket.
+  // null = åpen runde (les live _count deltakere med fjernetAt=null i stedet).
+  antallDeltakere Int?      @map("antall_deltakere")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  checklist  Checklist?         @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  task       Task?              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  signaturer DokumentSignatur[]
+
+  @@unique([checklistId, rundeNr])
+  @@unique([taskId, rundeNr])
+  @@index([checklistId])
+  @@index([taskId])
+  @@map("signatur_runder")
+}
+
+model DokumentDeltaker {
+  id           String    @id @default(uuid())
+  checklistId  String?   @map("checklist_id")
+  taskId       String?   @map("task_id")
+  // Innlogget prosjektmedlem ELLER gjest (XOR — samme mønster som PsiSignatur).
+  userId       String?   @map("user_id")
+  guestName    String?   @map("guest_name")
+  guestCompany String?   @map("guest_company")
+  guestPhone   String?   @map("guest_phone")
+  lagtTilAt    DateTime  @default(now()) @map("lagt_til_at")
+  lagtTilAv    String    @map("lagt_til_av") // userId
+  // Soft-fjern — aldri hard delete (historikk består). fjernetAt=null = aktiv.
+  fjernetAt    DateTime? @map("fjernet_at")
+  fjernetAv    String?   @map("fjernet_av")
+
+  checklist  Checklist?         @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  task       Task?              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  signaturer DokumentSignatur[]
+
+  @@index([checklistId])
+  @@index([taskId])
+  @@index([userId])
+  @@map("dokument_deltakere")
+}
+
+model DokumentSignatur {
+  id             String   @id @default(uuid())
+  rundeId        String   @map("runde_id")
+  deltakerId     String   @map("deltaker_id")
+  // Identitet bor på deltakeren; signaturen bærer kort/bilde/tidspunkt.
+  hmsKortNr      String?  @map("hms_kort_nr")
+  harIkkeHmsKort Boolean  @default(false) @map("har_ikke_hms_kort")
+  signaturbilde  String?  @map("signaturbilde")
+  // Server-tidspunkt (UTC) for ordering/audit.
+  completedAt    DateTime @default(now()) @map("completed_at")
+  // Signeringstidspunkt som lokal ISO-8601 med offset (klientens signaturTidspunktNaa()).
+  // Veggklokka er innbakt → vises identisk på tvers av flater/tidssoner via @sitedoc/shared
+  // formaterSignaturTidspunkt («dd.mm.åååå kl. hh:mm») — samme form som signaturfeltet.
+  signertTidspunkt String? @map("signert_tidspunkt")
+
+  runde    SignaturRunde    @relation(fields: [rundeId], references: [id], onDelete: Cascade)
+  deltaker DokumentDeltaker @relation(fields: [deltakerId], references: [id], onDelete: Cascade)
+
+  @@unique([rundeId, deltakerId])
+  @@index([rundeId])
+  @@index([deltakerId])
+  @@map("dokument_signaturer")
 }
 
 // PsiTilstedevarelse — §15-innsjekk/utsjekk per byggeplass (Fase 4 Mannskap).

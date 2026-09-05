@@ -926,6 +926,21 @@ export default function SjekklisteUtfylling() {
           // malryddingen har fjernet objektene fra malene.
           if (objekt.type === "location") return null;
 
+          // Signaturliste (SJA/HMS-runder): egen server-drevet ramme, ingen FeltWrapper.
+          if (objekt.type === "signature_list") {
+            return (
+              <View key={objekt.id}>
+                <RapportObjektRenderer
+                  objekt={objekt}
+                  verdi={null}
+                  onEndreVerdi={() => {}}
+                  leseModus={leseModus}
+                  sjekklisteId={sjekkliste.id}
+                />
+              </View>
+            );
+          }
+
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           // Bruk parentId fra DB (ny) med fallback til config (gammel)
           const erBetinget = harForelderObjekt(objekt) || harBetingelse(objekt.config);
