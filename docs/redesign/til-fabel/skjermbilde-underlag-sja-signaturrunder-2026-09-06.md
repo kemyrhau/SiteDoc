@@ -13,13 +13,19 @@ Branch: `feat/sja-signaturrunder` (`f5d75571`, på develop `276e8357`).
 
 ```sh
 # LOKAL eller TEST (aldri prod — guarden nekter fjernvert+/sitedoc uten SEED_CONFIRM_DB):
-pnpm --filter @sitedoc/db seed:sja
+SEED_SJA_BRUKER=<din-epost> pnpm --filter @sitedoc/db seed:sja
 ```
 
-Forutsetning: DB-en må ha migreringen `20260906000000_sja_signaturrunder` **og** develop-
-kolonnene (test.sitedoc.no har begge etter test-deploy; en lokal DB må være à jour med
-`develop`). Seeden er **idempotent** — kjør på nytt så mange ganger du vil; runder + deltakere
-for demo-SJA-en nullstilles og bygges på nytt, prosjekt/mal/brukere gjenbrukes.
+🔴 **`SEED_SJA_BRUKER` er påkrevd** — e-posten til brukeren som skal logge inn og teste «Signer».
+Den brukeren må allerede finnes i mål-DB-en (innlogging er OAuth — Google/Entra — så en seedet
+demo-bruker kan aldri autentiseres) **og** være aktivt medlem av et firma. Demo-prosjektet festes
+til DEN brukerens firma (`primaryOrganizationId`), så det er synlig i firmakontekst. Tydelig
+feilmelding hvis brukeren/firmaet mangler eller env-varen ikke er satt.
+
+Forutsetning ellers: DB-en må ha migreringen `20260906000000_sja_signaturrunder` **og** develop-
+kolonnene (test.sitedoc.no har begge etter test-deploy). Seeden er **idempotent** — kjør på nytt
+så mange ganger du vil; en tidligere ORPHAN demo-prosjekt-rad **repareres** (firma settes), runder
++ deltakere bygges på nytt, prosjekt/mal/brukere gjenbrukes.
 
 **Kilde:** `packages/db/prisma/seed-sja-signaturrunder.ts` (prod-guard speiler `seed-bibliotek.ts`).
 
@@ -35,32 +41,34 @@ for demo-SJA-en nullstilles og bygges på nytt, prosjekt/mal/brukere gjenbrukes.
 
 | Entitet | Verdi |
 |---|---|
-| Prosjekt | «SJA-signaturrunder demo» (`SD-DEMO-SJA-0001`) |
+| Firma | Den innloggende brukerens (`SEED_SJA_BRUKER`) eksisterende `Organization` |
+| Prosjekt | «SJA-signaturrunder demo» (`SD-DEMO-SJA-0001`) — festet til firmaet, synlig i firmakontekst |
 | Mal | «SJA — Løft med mobilkran» (`category=hms`, `subdomain=sja`) med ett `signature_list`-objekt |
-| SJA-dokument | «SJA Løft mobilkran — Akse 4» |
-| Deltakere (levende liste) | Kari Ansvarlig (admin), Ola Tømrer, Nina Elektriker, **gjest** Truls Kranfører (Kranutleie Øst AS) |
+| SJA-dokument | «SJA Løft mobilkran — Akse 4» (bestiller/ansvarlig = den innloggende brukeren) |
+| Deltakere (levende liste) | **Deg selv** (admin/ansvarlig), Ola Tømrer, Nina Elektriker, **gjest** Truls Kranfører (Kranutleie Øst AS) |
 | **Runde 1 — AVSLUTTET** | alle 4 signert, `antallDeltakere` frosset = 4, HMS-kort på medlemmer, gjest «har ikke» |
-| **Runde 2 — ÅPEN** | 2 av 4 signert (Kari + Ola). Manko: Nina (signerte forrige runde → amber forrige-rad) + Truls (gjest, aldri signert) |
+| **Runde 2 — ÅPEN** | 1 av 4 signert (Ola). 🔴 **Din egen rad står USIGNERT** → «Signer». Øvrig manko: Nina (signerte forrige runde → amber forrige-rad) + Truls (gjest) |
 
-**Innlogging:**
-- `sja.ansvarlig@demo.sitedoc.no` = ansvarlig/admin → ser «Start ny runde», «Legg til deltaker», «Avslutt runde».
-- `nina.elektro@demo.sitedoc.no` → ser **«Signer»** på egen manko-rad (gating: innlogget = deltakers userId).
+**Innlogging:** Logg inn som **deg selv** (`SEED_SJA_BRUKER`) via OAuth. Du er både ansvarlig/admin
+(ser «Start ny runde», «Legg til deltaker», «Avslutt runde») **og** deltaker med usignert rad i
+runde 2 → ser **«Signer»** på din egen rad (gating: innlogget bruker = deltakers userId). Ingen
+demo-bruker trenger å logge inn — de fyller bare deltakerlista.
 
 ---
 
 ## Flater å fange (mot mockupen)
 
-1. **HMS-lista → SJA-fane:** SJA-kortet med chip `2/4` (amber). — *Verifiser: amber til komplett, grønn ved alle-signert.*
-2. **SJA åpnet (som ansvarlig):** objekt-leder «Runde 2 · 2 av 4 signert» →
-   - **manko FØRST** i amber boks: Nina (m/ «Signer» skjult for ansvarlig — ikke egen rad) + gjest-rad «signer på ansvarliges enhet».
-   - signerte under (Kari, Ola) med tidspunkt + HMS-kort.
+1. **HMS-lista → SJA-fane:** SJA-kortet med chip `1/4` (amber). — *Verifiser: amber til komplett, grønn ved alle-signert.*
+2. **SJA åpnet (som deg selv = ansvarlig + deltaker):** objekt-leder «Runde 2 · 1 av 4 signert» →
+   - **manko FØRST** i amber boks: **din egen rad m/ «Signer»** + Nina + gjest-rad «signer på ansvarliges enhet».
+   - signert under (Ola) med tidspunkt + HMS-kort.
    - «Tidligere runder» amber (Nina fra runde 1) — teller ikke i X.
    - handlinger: «Legg til deltaker», «Avslutt runde».
-3. **SJA åpnet (som Nina):** «Signer»-knapp på egen manko-rad. *Verifiser klikk-budsjett: 1 klikk signerer.*
+3. **Signer egen rad:** klikk «Signer» på din rad → raden flytter til signert, teller blir `2/4`. *Verifiser klikk-budsjett: 1 klikk signerer.*
 4. **«Legg til deltaker»-modal:** prosjektmedlem-nedtrekk + gjest-skjema, Avbryt til stede.
 5. **Avslutt runde → Start ny runde:** låst dokument VISER låsen («Låst — runde N avsluttet …»), «Start ny runde»-modal m/ valgfri årsak + Avbryt.
 6. **MalBygger-guard:** dra et andre `signature_list` inn i malen → klartekst-modal «Dokumentet har allerede en signaturliste».
-7. **Arkiv-PDF** (Skriv ut / rendrArkiv): hovedtabell = gjeldende runde med **«IKKE SIGNERT»** (Truls) + **forrige-runde-rad** (Nina, amber) ALLTID med (F7); topplinje «Runde 2 (startet …) · 2 av 4 signert · generert …»; «Med logg»-seksjon = begge runder m/ dato/årsak.
+7. **Arkiv-PDF** (Skriv ut / rendrArkiv): hovedtabell = gjeldende runde med **«IKKE SIGNERT»** (du selv + Truls, før du signerer) + **forrige-runde-rad** (Nina, amber) ALLTID med (F7); topplinje «Runde 2 (startet …) · 1 av 4 signert · generert …»; «Med logg»-seksjon = begge runder m/ dato/årsak.
 8. **Mobil:** samme objekt i sjekkliste-detalj (SignaturListeObjekt) — leder, manko, Signer.
 
 ---
