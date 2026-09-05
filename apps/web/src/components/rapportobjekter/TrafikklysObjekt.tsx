@@ -28,7 +28,7 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
             }}
             disabled={leseModus}
             title={oversettStandardtekst(label, t) ?? label}
-            className={`h-7 w-7 rounded-full ${fargeKlasse} transition-all disabled:cursor-not-allowed ${
+            className={`h-5 w-5 rounded-full ${fargeKlasse} transition-all disabled:cursor-not-allowed ${
               erValgt ? "ring-2 ring-gray-800 ring-offset-1" : "hover:ring-2 hover:ring-gray-300 hover:ring-offset-1"
             }`}
           />
