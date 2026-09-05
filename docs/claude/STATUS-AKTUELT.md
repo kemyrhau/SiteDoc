@@ -212,8 +212,25 @@ ved hundrevis av maler — vi har tretten, og ingen av dem er merket kontrollert
   **Ikke utredet — ikke anta at det er lett.**
 - Skal `verifisert` tas i bruk, eller strykes som `ansvarsmerke`? En død kolonne som beskriver en
   kvalitetsprosess vi ikke har, lover mer enn systemet holder.
-- 🔴 **Lisens:** NS 3420 er en betalt standard. Hva vi kan legge i et sentralarkiv som deles med
-  alle kunder, er et juridisk spørsmål — ikke et teknisk. Samme familie som ansvarsgrensen (AG).
+- ✅ **LISENS AVKLART 2026-09-05 (Kenneth) — ikke en blokkerer.**
+  > *«Jeg har tilgang hver dag til disse dokumentene og kan lese selv. Vi skal bygge våre egne
+  > sjekklister basert på NS 3420. Om jeg gjør det manuelt eller en agent gjør det for meg er det
+  > samme. Vi lager ikke en kopi av NS 3420.»*
+  >
+  > *(Kenneth sa først «tester» og korrigerte til «sjekklister» — **«test» er ikke et
+  > SiteDoc-begrep.** Se [terminologi.md](terminologi.md). Malene vi bygger er sjekklistemaler.)*
+
+  🔴 **Den operative regelen for den som bygger maler:** en sjekkliste som **kontrollerer mot** et
+  krav er vårt eget verk. En som **gjengir kravteksten** er en kopi.
+
+  | Lov | Ikke lov |
+  |---|---|
+  | «Kontroller at jordblanding tilfredsstiller NS 3420-K **KB2.1**» + felt for måling og avvik | Å lime inn kravtekst, tabeller eller toleranseverdier ordrett fra standarden |
+  | Referere til punktkode som kilde | Gjengi standarden slik at malen erstatter den |
+
+  **Cowork overvurderte dette 04.09** — samme feil som med eksponeringsregisteret (se
+  [domene-arbeidsflyt.md § ansvarsgrense](domene-arbeidsflyt.md)). To juridiske hensyn blåst opp
+  på to dager. **Mål før du kaller noe en blokkerer.**
 
 ⚠️ **Blokkerer ikke piloten i seg selv**, men et malarkiv med tretten maler er ikke et arkiv.
 Hører sammen med EX og BL på fabels bord.
