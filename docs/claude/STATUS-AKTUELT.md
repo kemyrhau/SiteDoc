@@ -235,6 +235,37 @@ ved hundrevis av maler — vi har tretten, og ingen av dem er merket kontrollert
 ⚠️ **Blokkerer ikke piloten i seg selv**, men et malarkiv med tretten maler er ikke et arkiv.
 Hører sammen med EX og BL på fabels bord.
 
+### 🔴 FUNN 2026-09-05 — SJA kan ikke dokumentere HVEM som har signert
+
+Kenneth: *«Jeg trodde vi hadde kontroll → Opus sa tidligere at alle 7 arbeiderne kunne signere →
+jeg tok det for gitt at vi også dokumenterte at alle 7 hadde signert.»*
+
+**Målt: tre mekanismer, ingen løser det.**
+
+| Mekanisme | Hva den gir |
+|---|---|
+| `signature`-rapportobjekt (`felt.ts:131`) | **Kun bildet.** Ingen navn, tidspunkt eller identitet — anonym strek |
+| Signaturseksjon i arkiv-PDF (`arkivmal/signatur.ts`) | **Maks to navngitte**, og de er dokumentflyt-roller («Utført av»/«Godkjent av») |
+| `persons`-felttype (`felt.ts:112`) | Syv navn i en liste — **deltakerliste, ikke signaturer**. ⚠️ Skriver i tillegg ut rå UUID-er (åpent backlog-funn) |
+
+🔴 **Kun ÉN signatur-modell i hele schemaet: `PsiSignatur`.** Ingen deltaker-modell.
+
+**Sannsynlig kilde til misforståelsen:** `persons` lar syv personer legges til. «Syv kan legges
+til» og «syv kan signere» ligner hverandre, og grensesnittet skiller dem ikke.
+
+**Konsekvens i felt:** en SHA-koordinator som tar med utskrevet SJA ut på plassen for å
+kontrollere at alle har signert, **finner ikke svaret der.**
+
+🟢 **Mønsteret finnes:** `PsiSignatur` (`schema.prisma:1942`) har userId ELLER gjest
+(navn/firma/telefon), HMS-kortnr, `completedAt`, unik per person — og
+`gjeldende: psiVersion === psi.version`, som **viser om signaturen gjelder dokumentet slik det er
+nå.** Kritisk for SJA: endres risikovurderingen, er tidligere signaturer på feil dokument.
+
+**Fabels domene — bestilling sendt 05.09**
+([BESTILLING-sja-signaturer](../redesign/til-fabel/BESTILLING-sja-signaturer-2026-09-05.md)).
+Ingen ordre skrevet. ⚠️ **Cowork vurderer dette som høyere pilotprioritet enn resten av
+malarbeidet** — SJA er lovpålagt, og A.Markussen bruker innleid mannskap.
+
 ### 🔴 AVKLART 2026-09-04 — RUH og avvik kan IKKE leveres som PDF (lovpålagt dokumentasjon)
 
 **Målt i `hms.ts:221-269` — hvilken Prisma-modell hver HMS-type faktisk bruker:**
