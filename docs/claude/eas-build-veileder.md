@@ -349,6 +349,35 @@ tar nå minutter og koster null byggkvote.**
 av dem trengte en ny binær — de trengte bare en vei til telefonen. `expo-updates` er den veien:
 en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også for testerne.
 
+### 🔴 OTA-logg — hva som ligger på telefonen NÅ (cowork vedlikeholder)
+
+**Regelen, samme som for bygg: LES, ikke regn ut.** Sannhetskilden er
+`eas update:list --branch production`. Denne tabellen er en logg over hva som ble sendt og
+hvorfor — den erstatter ikke kommandoen.
+
+> ⚠️ **Hvorfor denne tabellen finnes (Kenneth 2026-09-06):** cowork sa «bygg 51» da fasit var
+> **54**, og påstanden kom fra hukommelse i stedet for fra bygg-loggen ti linjer unna. Samtidig
+> fantes det **ingen** logg over OTA-publiseringer i det hele tatt — så etter at OTA ble
+> hovedveien til telefonen 04.09, var det ingen som kunne svare på hva testerne faktisk kjørte.
+>
+> **Kenneths poeng, som gjelder bredere enn denne tabellen:** *«hver gang cowork oppdaterer sine
+> egne feil fra forrige compact, så glemmer cowork å fortsette oppdatering av egne filer.»*
+> Vedlikehold er ikke en opprydding etter compact — det er en løpende plikt.
+
+| Dato | Runtime | Commit | Kanal | Innhold |
+|---|---|---|---|---|
+| 2026-09-04 | `1` | `cdb53296` | production | Første OTA. EXIF-opptakstid på galleribilder + lesbar endringslogg |
+| 2026-09-04 | `1` | `9f49c1ff` | production | Oppfølger samme døgn |
+
+🔴 **Ny rad skrives i SAMME runde som publiseringen** — ikke «etterpå».
+Rad skal ha: dato · runtime · commit · kanal · hva testeren faktisk merker.
+
+**Bærebjelken:** binæren på telefonen (`#54`) og JS-bundelen den kjører er **to forskjellige
+ting**. Uten begge loggene kan ingen svare på hva en tester som melder en feil faktisk har.
+
+⚠️ **Test-appen er en egen binær på kanal `test`** og mottar IKKE `production`-OTA.
+Publiseres det til bare én kanal, spriker flatene.
+
 **Konfigurasjon (kode er fasit):**
 - `runtimeVersion: "1"` (`app.config.js`) — **eksplisitt streng, IKKE `{ policy: "fingerprint" }`
   og IKKE `appVersion`.** Fingerprint-policy ble forsøkt og forkastet 2026-09-04 etter to feilede
