@@ -59,7 +59,7 @@ RapportObjektRenderer (dispatcher)
 |-----------|------|-------|-------------|
 | `EnkeltvalgObjekt` | `list_single` | `string` | Radioknapper, toggle-deselect, normaliserer opsjoner |
 | `FlervalgObjekt` | `list_multi` | `string[]` | Avkrysningsbokser, normaliserer opsjoner |
-| `TrafikklysObjekt` | `traffic_light` | `string` | 3 fargesirkler (grønn/gul/rød), 48×48px |
+| `TrafikklysObjekt` | `traffic_light` | `string` | 4 fargesirkler (grønn/gul/rød/grå «Ikke relevant»), 24px prikk i 44px trykkflate |
 
 ### Tall
 
@@ -142,5 +142,4 @@ Mest kompleks komponent. Hver rad inneholder verdier for alle barnefelt:
 - `FeltDokumentasjon` skjules for `date_time` (dato+tid inline i samme komponent)
 - `skjulKommentar: true` sendes for `text_field` (unngå dobbelt kommentarfelt)
 - SignaturObjekt bruker `webViewRef.current?.injectJavaScript()` — WebView MÅ være montert
-- TrafikklysObjekt har kun 3 farger i mobil — grå/"Ikke relevant" er TODO
 - Server-URL-er (`/uploads/...`) MÅ prefikses med `AUTH_CONFIG.apiUrl`
