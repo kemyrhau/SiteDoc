@@ -13,6 +13,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
+    "seed:sja": "tsx prisma/seed-sja-signaturrunder.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/"
   },
