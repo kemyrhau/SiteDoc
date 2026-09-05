@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Sigur doriți să ștergeți această sarcină?",
   "oppgaver.sokPlaceholder": "Sarcini de căutare...",
   "oppgaver.ikkeFunnet": "Sarcina nu a fost găsită.",
+  "seksjonsstatus.utfylt": "{{utfylt}} din {{totalt}} completate",
+  "seksjonsstatus.urort": "{{utfylt}} din {{total}}",
   "sjekklister.tittel": "Liste de verificare",
   "sjekklister.ny": "Listă de verificare nouă",
   "sjekklister.opprett": "Creați o listă de verificare",

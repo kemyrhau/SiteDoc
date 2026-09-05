@@ -142,8 +142,12 @@ export {
   formaterGrense,
 } from "./grenseSjekk";
 export type { Grense, GrenseStatus } from "./grenseSjekk";
-export { grupperMedOverskrift } from "./seksjoner";
-export type { Seksjon } from "./seksjoner";
+export {
+  grupperMedOverskrift,
+  beregnSeksjonUtfylling,
+  IKKE_TELLBARE_FELTTYPER,
+} from "./seksjoner";
+export type { Seksjon, SeksjonUtfylling } from "./seksjoner";
 export {
   HURTIGVALG_STANDARD,
   PERIODE_NOEKKEL,

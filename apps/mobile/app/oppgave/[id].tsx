@@ -35,7 +35,7 @@ import {
   Share2,
   Eye,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -833,6 +833,11 @@ export default function OppgaveDetalj() {
         {/* Malobjekter */}
         <UtfyllingSeksjoner
           objekter={objekter}
+          feltStatus={(objekt) => {
+            // Repeater-barn telles ikke som eget kontrollpunkt (repeateren teller for hele raden).
+            if (repeaterBarnIder.has(objekt.id)) return null;
+            return { synlig: erSynlig(objekt), harVerdi: harFeltVerdi(hentFeltVerdi(objekt.id).verdi) };
+          }}
           render={(objekt) => {
           // Skip barn av repeatere — rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;

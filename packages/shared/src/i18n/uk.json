@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Ви впевнені, що хочете видалити це завдання?",
   "oppgaver.sokPlaceholder": "Пошукові завдання...",
   "oppgaver.ikkeFunnet": "Завдання не знайдено.",
+  "seksjonsstatus.utfylt": "{{utfylt}} із {{totalt}} заповнено",
+  "seksjonsstatus.urort": "{{utfylt}} із {{totalt}}",
   "sjekklister.tittel": "Контрольні списки",
   "sjekklister.ny": "Новий контрольний список",
   "sjekklister.opprett": "Створіть контрольний список",

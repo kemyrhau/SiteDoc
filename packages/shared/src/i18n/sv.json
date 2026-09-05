@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Är du säker på att du vill ta bort den här uppgiften?",
   "oppgaver.sokPlaceholder": "Sök uppgifter...",
   "oppgaver.ikkeFunnet": "Uppgiften hittades inte.",
+  "seksjonsstatus.utfylt": "{{utfylt}} av {{totalt}} ifyllda",
+  "seksjonsstatus.urort": "{{utfylt}} av {{totalt}}",
   "sjekklister.tittel": "Checklistor",
   "sjekklister.ny": "Ny checklista",
   "sjekklister.opprett": "Skapa checklista",

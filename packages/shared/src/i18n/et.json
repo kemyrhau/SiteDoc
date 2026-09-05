@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Kas olete kindel, et soovite selle ülesande kustutada?",
   "oppgaver.sokPlaceholder": "Otsi ülesandeid...",
   "oppgaver.ikkeFunnet": "Ülesannet ei leitud.",
+  "seksjonsstatus.utfylt": "{{utfylt}}/{{totalt}} täidetud",
+  "seksjonsstatus.urort": "{{utfylt}}/{{totalt}}",
   "sjekklister.tittel": "Kontrollnimekirjad",
   "sjekklister.ny": "Uus kontrollnimekiri",
   "sjekklister.opprett": "Loo kontrollnimekiri",

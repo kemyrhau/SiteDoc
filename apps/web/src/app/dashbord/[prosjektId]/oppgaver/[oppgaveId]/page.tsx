@@ -13,7 +13,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsFlytStripe } from "@/components/HmsFlytStripe";
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
-import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -926,6 +926,11 @@ export default function OppgaveDetaljSide() {
       {objekter.length > 0 && (
         <UtfyllingSeksjoner
           objekter={objekter}
+          feltStatus={(objekt) => {
+            // Repeater-barn telles ikke som eget kontrollpunkt (repeateren teller for hele raden).
+            if (repeaterBarnIder.has(objekt.id)) return null;
+            return { synlig: erSynlig(objekt), harVerdi: harFeltVerdi(hentFeltVerdi(objekt.id).verdi) };
+          }}
           render={(objekt) => {
             if (repeaterBarnIder.has(objekt.id)) return null;
             if (!erSynlig(objekt)) return null;

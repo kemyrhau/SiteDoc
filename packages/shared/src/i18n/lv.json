@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Vai tiešām vēlaties dzēst šo uzdevumu?",
   "oppgaver.sokPlaceholder": "Meklēt uzdevumus...",
   "oppgaver.ikkeFunnet": "Uzdevums nav atrasts.",
+  "seksjonsstatus.utfylt": "Aizpildīti {{utfylt}} no {{totalt}}",
+  "seksjonsstatus.urort": "{{utfylt}} no {{totalt}}",
   "sjekklister.tittel": "Kontrolsaraksti",
   "sjekklister.ny": "Jauns kontrolsaraksts",
   "sjekklister.opprett": "Izveidojiet kontrolsarakstu",
