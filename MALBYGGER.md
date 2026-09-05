@@ -136,6 +136,32 @@ seed-script. Ført i [BACKLOG](docs/claude/BACKLOG.md).
 | Vær | `weather` |
 | Container | `repeater` (barn), `list_single/multi` (betinget) |
 
+### 🔴 STYRENDE: maler bygges av MALBYGGER-OBJEKTENE — aldri hardkodet (Kenneth 2026-09-05)
+
+> **Kenneth 2026-09-05:** *«Malene vi bygger må bruke de malene som finnes i malbyggeren → vi må
+> ikke benytte snarveger og hardkode for å løse et problem. Det er OK å forbedre funksjon til
+> eksisterende mal-objekter.»*
+
+Gjelder **alle** maler — bibliotekmaler (NS 3420), firmamaler, prosjektmaler. En mal er en samling
+`ReportObject` av de typene malbyggeren tilbyr. Ingenting annet.
+
+| ✅ Lov | ❌ Ikke lov |
+|---|---|
+| Bruke `list_single`, `decimal`, `traffic_light`, `heading`, `text_field` slik de er | Egne felttyper som kun finnes i seed eller i én mal |
+| **Forbedre en eksisterende objekt-type** så den dekker behovet | Spesialkode i utfyllingen for å få én mal til å oppføre seg riktig |
+| Legge til `config`-nøkler en type allerede leser | Hardkodet logikk som «hvis malen heter KB2, gjør X» |
+
+🔴 **Trenger en mal noe typene ikke kan — er det typen som skal utvides, ikke malen som skal
+jukse.** Da treffer forbedringen alle maler, og malbyggeren fortsetter å være sannheten om hva et
+felt kan.
+
+**Målt konsekvens 2026-09-05:** funnet at betinget *konfigurasjon* mangler (et valg som setter
+`min`/`maks` på et annet felt) ble først foreslått løst med åtte hardkodede feltvarianter i seed
+— «vei A». **Vedtaket avviser den veien**, også som midlertidig fiks. Riktig løsning er å utvide
+betinget-mekanismen, og **MalBygger-UI er da del av leveransen** — ikke bare seed-data. Se
+[kontrollplan.md § Felttype-regler](docs/claude/kontrollplan.md) og fabels svar
+`docs/redesign/kp-malkvalitet-svar-fabel-2026-09-05.md`.
+
 ### 🔴 STYRENDE: felt UTEN etikett er en ØNSKET funksjon — ikke en datafeil (Kenneth 2026-09-04)
 
 > **Kenneth 2026-09-04:** *«jeg har lagt inn et felt uten navn med vilje → det er en ønsket
