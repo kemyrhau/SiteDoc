@@ -51,6 +51,8 @@ export type {
   Mottaker,
 } from "./flytPosisjon";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
+export { lesSignaturVerdi, formaterSignaturLinje, formaterSignaturTidspunkt, signaturTidspunktNaa } from "./signaturVerdi";
+export type { SignaturVerdi } from "./signaturVerdi";
 export { resolverNyNavigasjon } from "./nyNavigasjon";
 export type { NyNavigasjonKilde } from "./nyNavigasjon";
 export {

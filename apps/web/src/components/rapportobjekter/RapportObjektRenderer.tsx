@@ -56,7 +56,10 @@ export const READONLY_TYPER = new Set(["calculation"]);
 // Funn 6 (Kenneth-vedtak 2026-08-22): tilbehør (kommentar/bilde/vedlegg/tegning) fjernes fra
 // NYREGISTRERING på disse typene. «Øvrige felttyper beholder tilbehør» → deny-list PER felttype
 // (gjelder også barnefelt i repeater-rader: et text_field-barn beholder sitt celle-tilbehør).
-const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location"]);
+// `signature` (Kenneth-krav 2026-09-05): en signatur trenger ikke bilde/galleri/+Oppgave/
+// filopplasting — den ER sin egen dokumentasjon. Navn + tidspunkt hører til feltet (fabels
+// SJA-vedtak 05.09 pkt 4), men bygges som modellendring i egen runde — ikke som tilbehør her.
+const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "signature"]);
 
 /**
  * Hvordan tilbehøret (FeltDokumentasjon) skal vises for en felttype (funn 6):

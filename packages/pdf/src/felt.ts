@@ -5,7 +5,7 @@
 
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl } from "./hjelpere";
+import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf } from "./hjelpere";
 // D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
 // felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
 // arkivmal-overgangen), så den er nå ren server/arkiv-renderer. Intercept-i-innhold.ts droppet;
@@ -128,13 +128,19 @@ export function renderFelt(
       break;
     }
 
-    case "signature":
-      if (typeof verdi === "string" && verdi.startsWith("data:")) {
-        verdiHtml = `<img src="${verdi}" style="max-height:60px;" />`;
+    case "signature": {
+      const sig = lesSignaturVerdiPdf(verdi);
+      if (sig) {
+        verdiHtml = `<img src="${sig.dataUrl}" style="max-height:60px;" />`;
+        // Navn + tidspunkt under signaturen (fabel-vedtak 05.09). Legacy-signaturer
+        // (rå streng, ingen tidspunkt) → linjen er null → bildet vises som før.
+        const linje = formaterSignaturLinjePdf(sig);
+        if (linje) verdiHtml += `<div style="font-size:11px;color:#666;margin-top:2px;">${esc(linje)}</div>`;
       } else {
         verdiHtml = `<span class="tom">Ikke signert</span>`;
       }
       break;
+    }
 
     case "attachments": {
       // Frittstående vedlegg-felt (ikke per-felt-vedlegg)
