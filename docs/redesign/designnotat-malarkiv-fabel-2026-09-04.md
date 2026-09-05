@@ -52,6 +52,33 @@ migrering-reporttemplate.md § Konflikt-regel (én mal-rad i både KontrollplanP
 - Hente én firmamal inn i eksisterende prosjekt: **maks 3 klikk** (Ny mal → Fra firmaarkiv → velg mal).
 - Promotere prosjektmal til firmaarkiv: **maks 2 klikk** (Send til firmaarkiv → bekreft-fri; angring = slett i arkivet).
 
+## 🔴 DESIGNGATE-FUNN 2026-09-05 (Kenneth, på test) — to krav for skala
+
+Kenneth verifiserte `/dashbord/firma/malarkiv` på test og godkjente flaten:
+*«Dette ser veldig bra ut.»* To krav følger når arkivet fylles:
+
+> *«Når det blir flere hundre maler, og Kapittel A→Z, og en trenger:
+> → å inspisere en mal for å se om den har riktige felter
+> → at f.eks. kapittel K er minimert slik at listen blir mer oversiktlig.»*
+
+**1. Inspiser før lån.** «Lån fra SiteDoc-arkivet» viser i dag navn og kode (`KB4 – Grasdekke`).
+Brukeren kan ikke se hvilke felter malen inneholder før den er kopiert inn. Ved hundrevis av maler
+blir lån-og-se-etterpå en ryddejobb: feil mal må slettes fra arkivet igjen.
+
+**2. Kapitler skal kunne minimeres.** NS 3420-K vises i dag med alle kapitler utbrettet (KA, KB,
+KC, KD …). Med A→Z og mange poster per kapittel er lista uleselig. Kollaps per kapittel, og
+sannsynligvis søk.
+
+🔴 **Dette er SAMME designproblem som BL-sporet** (byggeplass-livssyklus, «velger-skala ved 500
+byggeplasser»). To flater, én modell: **en velger som virker med ti elementer, brekker ved fem
+hundre.** Løs dem likt — en tredje variant senere er en tredje ting å vedlikeholde.
+
+**Fabels domene. Hører i AM 4-designgaten, ikke som egen sak.**
+
+✅ **Verifisert samtidig, på test:** amber FIRMA-sone (stien flyttet 04.09) · «Lånt fra
+SiteDoc»-merket = B4-avstamningen synlig i UI · tre faner (L9) · lån fra sentralarkivet fungerer
+ende-til-ende (KB4 hentet inn).
+
 ## 🟢 Beslutningspunkter — ALLE TRE GATET AV KENNETH 2026-09-04
 
 - **B1 prefix-kollisjon:** ✅ **VEDTATT — firmamalen VINNER** over standardmalen med samme prefix.
