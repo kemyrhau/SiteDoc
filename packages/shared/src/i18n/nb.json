@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Er du sikker på at du vil slette denne oppgaven?",
   "oppgaver.sokPlaceholder": "Søk oppgaver...",
   "oppgaver.ikkeFunnet": "Oppgaven ble ikke funnet.",
+  "seksjonsstatus.utfylt": "{{utfylt}} av {{totalt}} utfylt",
+  "seksjonsstatus.urort": "{{utfylt}} av {{totalt}}",
   "sjekklister.tittel": "Sjekklister",
   "sjekklister.ny": "Ny sjekkliste",
   "sjekklister.opprett": "Opprett sjekkliste",

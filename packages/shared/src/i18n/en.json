@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Are you sure you want to delete this task?",
   "oppgaver.sokPlaceholder": "Search tasks...",
   "oppgaver.ikkeFunnet": "Task not found.",
+  "seksjonsstatus.utfylt": "{{utfylt}} of {{totalt}} filled in",
+  "seksjonsstatus.urort": "{{utfylt}} of {{totalt}}",
   "sjekklister.tittel": "Checklists",
   "sjekklister.ny": "New checklist",
   "sjekklister.opprett": "Create checklist",

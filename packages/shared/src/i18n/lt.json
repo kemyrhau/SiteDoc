@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Ar tikrai norite ištrinti šią užduotį?",
   "oppgaver.sokPlaceholder": "Ieškoti užduočių...",
   "oppgaver.ikkeFunnet": "Užduotis nerasta.",
+  "seksjonsstatus.utfylt": "Užpildyta {{utfylt}} iš {{totalt}}",
+  "seksjonsstatus.urort": "{{utfylt}} iš {{totalt}}",
   "sjekklister.tittel": "Kontroliniai sąrašai",
   "sjekklister.ny": "Naujas kontrolinis sąrašas",
   "sjekklister.opprett": "Sukurkite kontrolinį sąrašą",

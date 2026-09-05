@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Czy na pewno chcesz usunąć to zadanie?",
   "oppgaver.sokPlaceholder": "Wyszukaj zadania...",
   "oppgaver.ikkeFunnet": "Nie znaleziono zadania.",
+  "seksjonsstatus.utfylt": "Wypełniono {{utfylt}} z {{totalt}}",
+  "seksjonsstatus.urort": "{{utfylt}} z {{totalt}}",
   "sjekklister.tittel": "Listy kontrolne",
   "sjekklister.ny": "Nowa lista kontrolna",
   "sjekklister.opprett": "Utwórz listę kontrolną",

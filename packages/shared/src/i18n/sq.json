@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Je i sigurt që dëshiron ta fshish këtë detyrë?",
   "oppgaver.sokPlaceholder": "Kërko detyrat...",
   "oppgaver.ikkeFunnet": "Detyra nuk u gjet.",
+  "seksjonsstatus.utfylt": "{{utfylt}} nga {{totalt}} të plotësuara",
+  "seksjonsstatus.urort": "{{utfylt}} nga {{totalt}}",
   "sjekklister.tittel": "Listat e kontrollit",
   "sjekklister.ny": "Lista e re e kontrollit",
   "sjekklister.opprett": "Krijo listë kontrolli",

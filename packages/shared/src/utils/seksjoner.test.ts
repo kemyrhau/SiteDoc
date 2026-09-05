@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { grupperMedOverskrift } from "./seksjoner";
+import { grupperMedOverskrift, beregnSeksjonUtfylling } from "./seksjoner";
 
 type O = { id: string; type: string; parentId?: string | null };
 const o = (id: string, type: string, parentId: string | null = null): O => ({ id, type, parentId });
@@ -49,5 +49,76 @@ describe("grupperMedOverskrift", () => {
 
   it("tom liste → ingen seksjoner", () => {
     expect(grupperMedOverskrift([])).toEqual([]);
+  });
+});
+
+describe("beregnSeksjonUtfylling", () => {
+  // Default: alle felt synlige, ingen verdi. Overstyr per test via `verdier`/`skjult`.
+  const status =
+    (verdier: Set<string> = new Set(), skjult: Set<string> = new Set()) =>
+    (felt: O) =>
+      skjult.has(felt.id)
+        ? { synlig: false, harVerdi: false }
+        : { synlig: true, harVerdi: verdier.has(felt.id) };
+
+  it("urørt: tellbare felt uten verdi → 0 av N, tilstand urort", () => {
+    const r = beregnSeksjonUtfylling([o("a", "decimal"), o("b", "text_field")], status());
+    expect(r).toEqual({ utfylt: 0, totalt: 2, tilstand: "urort" });
+  });
+
+  it("delvis: noen verdier", () => {
+    const r = beregnSeksjonUtfylling(
+      [o("a", "decimal"), o("b", "text_field"), o("c", "integer")],
+      status(new Set(["a"])),
+    );
+    expect(r).toEqual({ utfylt: 1, totalt: 3, tilstand: "delvis" });
+  });
+
+  it("komplett: alle synlige felt har verdi", () => {
+    const r = beregnSeksjonUtfylling(
+      [o("a", "decimal"), o("b", "text_field")],
+      status(new Set(["a", "b"])),
+    );
+    expect(r).toEqual({ utfylt: 2, totalt: 2, tilstand: "komplett" });
+  });
+
+  it("display-/visnings-typer teller ikke (heading/subtitle/calculation/info_text/video)", () => {
+    const r = beregnSeksjonUtfylling(
+      [
+        o("h", "heading"),
+        o("s", "subtitle"),
+        o("calc", "calculation"),
+        o("info", "info_text"),
+        o("img", "info_image"),
+        o("vid", "video"),
+        o("loc", "location"),
+        o("pos", "drawing_position"),
+        o("a", "decimal"),
+      ],
+      status(new Set(["a"])),
+    );
+    expect(r).toEqual({ utfylt: 1, totalt: 1, tilstand: "komplett" });
+  });
+
+  it("betinget skjulte felt teller ikke i nevneren", () => {
+    // b er skjult → nevner = 1 (kun a). a har verdi → komplett, ikke «1 av 2».
+    const r = beregnSeksjonUtfylling(
+      [o("a", "decimal"), o("b", "text_field")],
+      status(new Set(["a"]), new Set(["b"])),
+    );
+    expect(r).toEqual({ utfylt: 1, totalt: 1, tilstand: "komplett" });
+  });
+
+  it("felt som returnerer null (repeater-barn) teller ikke", () => {
+    const r = beregnSeksjonUtfylling(
+      [o("rep", "repeater"), o("barn", "text_field", "rep")],
+      (felt) => (felt.parentId ? null : { synlig: true, harVerdi: false }),
+    );
+    expect(r).toEqual({ utfylt: 0, totalt: 1, tilstand: "urort" });
+  });
+
+  it("kun display-felt → totalt 0, tilstand tom (ingen badge)", () => {
+    const r = beregnSeksjonUtfylling([o("h", "heading"), o("info", "info_text")], status());
+    expect(r).toEqual({ utfylt: 0, totalt: 0, tilstand: "tom" });
   });
 });

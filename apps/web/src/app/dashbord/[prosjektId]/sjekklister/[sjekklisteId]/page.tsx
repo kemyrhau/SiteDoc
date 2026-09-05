@@ -23,7 +23,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -930,6 +930,11 @@ export default function SjekklisteDetaljSide() {
       {/* Rapportobjekter */}
       <UtfyllingSeksjoner
         objekter={objekter}
+        feltStatus={(objekt) => {
+          // Repeater-barn telles ikke som eget kontrollpunkt (repeateren teller for hele raden).
+          if (repeaterBarnIder.has(objekt.id)) return null;
+          return { synlig: erSynlig(objekt), harVerdi: harFeltVerdi(hentFeltVerdi(objekt.id).verdi) };
+        }}
         render={(objekt) => {
           // Skip barn av repeatere — de rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;

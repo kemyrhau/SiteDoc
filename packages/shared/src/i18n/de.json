@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?",
   "oppgaver.sokPlaceholder": "Suchaufgaben...",
   "oppgaver.ikkeFunnet": "Aufgabe nicht gefunden.",
+  "seksjonsstatus.utfylt": "{{utfylt}} von {{totalt}} ausgefüllt",
+  "seksjonsstatus.urort": "{{utfylt}} von {{totalt}}",
   "sjekklister.tittel": "Checklisten",
   "sjekklister.ny": "Neue Checkliste",
   "sjekklister.opprett": "Checkliste erstellen",

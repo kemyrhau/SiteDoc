@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Êtes-vous sûr de vouloir supprimer cette tâche ?",
   "oppgaver.sokPlaceholder": "Rechercher des tâches...",
   "oppgaver.ikkeFunnet": "Tâche introuvable.",
+  "seksjonsstatus.utfylt": "{{utfylt}} sur {{totalt}} remplis",
+  "seksjonsstatus.urort": "{{utfylt}} sur {{totalt}}",
   "sjekklister.tittel": "Listes de contrôle",
   "sjekklister.ny": "Nouvelle liste de contrôle",
   "sjekklister.opprett": "Créer une liste de contrôle",

@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Haluatko varmasti poistaa tämän tehtävän?",
   "oppgaver.sokPlaceholder": "Hae tehtäviä...",
   "oppgaver.ikkeFunnet": "Tehtävää ei löydy.",
+  "seksjonsstatus.utfylt": "{{utfylt}}/{{totalt}} täytetty",
+  "seksjonsstatus.urort": "{{utfylt}} / {{totalt}}",
   "sjekklister.tittel": "Tarkistuslistat",
   "sjekklister.ny": "Uusi tarkistuslista",
   "sjekklister.opprett": "Luo tarkistuslista",

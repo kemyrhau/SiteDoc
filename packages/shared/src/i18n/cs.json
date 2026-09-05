@@ -871,6 +871,8 @@
   "oppgaver.slettBekreftelse": "Opravdu chcete tento úkol smazat?",
   "oppgaver.sokPlaceholder": "Hledat úkoly...",
   "oppgaver.ikkeFunnet": "Úkol nenalezen.",
+  "seksjonsstatus.utfylt": "Vyplněno {{utfylt}} z {{totalt}}",
+  "seksjonsstatus.urort": "{{utfylt}} z {{totalt}}",
   "sjekklister.tittel": "Kontrolní seznamy",
   "sjekklister.ny": "Nový kontrolní seznam",
   "sjekklister.opprett": "Vytvořte kontrolní seznam",
