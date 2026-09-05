@@ -163,6 +163,50 @@ export function formaterDatoKort(v: unknown): string {
   }
 }
 
+/**
+ * Signaturfelt-lesning + meta-linje — SPEIL av @sitedoc/shared
+ * `lesSignaturVerdi`/`formaterSignaturLinje`. packages/pdf importerer bevisst
+ * ingenting (null-avhengigheter, jf. CLAUDE.md + felt.ts:90), så den delte leseren
+ * dupliseres her. Kanonisk kilde: `packages/shared/src/utils/signaturVerdi.ts` —
+ * endres den, endres denne.
+ *
+ * Legacy: rå data-URL-streng (pre 2026-09-05) → bildet uten meta-linje. Nytt format:
+ * objekt med snapshot av hvem/når. Tidspunktet parses DIREKTE fra ISO-strengen
+ * (lokal-ISO med offset fra `signaturTidspunktNaa`), så veggklokken vises likt som
+ * på web/mobil selv når PDF rendres på en UTC-server — derfor IKKE via PDF_TIDSSONE.
+ */
+interface SignaturVerdiPdf {
+  dataUrl: string;
+  navn: string | null;
+  tidspunkt: string | null;
+}
+
+export function lesSignaturVerdiPdf(verdi: unknown): SignaturVerdiPdf | null {
+  if (typeof verdi === "string") {
+    return verdi.startsWith("data:") ? { dataUrl: verdi, navn: null, tidspunkt: null } : null;
+  }
+  if (verdi && typeof verdi === "object" && !Array.isArray(verdi)) {
+    const o = verdi as Record<string, unknown>;
+    const dataUrl = typeof o.dataUrl === "string" ? o.dataUrl : null;
+    if (!dataUrl || !dataUrl.startsWith("data:")) return null;
+    return {
+      dataUrl,
+      navn: typeof o.navn === "string" ? o.navn : null,
+      tidspunkt: typeof o.tidspunkt === "string" ? o.tidspunkt : null,
+    };
+  }
+  return null;
+}
+
+/** Meta-linjen «navn ?? Ukjent · dd.mm.åååå kl. hh:mm». `null` for legacy (ingen linje). */
+export function formaterSignaturLinjePdf(sig: SignaturVerdiPdf): string | null {
+  if (!sig.tidspunkt) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(sig.tidspunkt);
+  if (!m) return null;
+  const [, aar, maaned, dag, time, minutt] = m;
+  return `${sig.navn ?? "Ukjent"} · ${dag}.${maaned}.${aar} kl. ${time}:${minutt}`;
+}
+
 /** Gjør relativ bilde-URL om til full URL basert på bildeBaseUrl */
 export function fullBildeUrl(url: string, bildeBaseUrl: string): string {
   if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;

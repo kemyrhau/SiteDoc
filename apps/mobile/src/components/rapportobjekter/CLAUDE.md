@@ -17,7 +17,7 @@ RapportObjektRenderer (dispatcher)
 
 **FeltDokumentasjon** håndterer kamera, dokumentvelger, tegningsskjermbilde, bildeannotering, filmrull-thumbnails og kommentarfelt. Bruker refs (`onLeggTilVedleggRef`, `leggIKoRef`) for å unngå stale closures i asynkrone kamera-callbacks.
 
-**Funn 6 (Kenneth-vedtak 2026-08-22):** `tilbehorVisning(type, globalLeseModus, harData)` i `RapportObjektRenderer.tsx` gater FeltDokumentasjon på BEGGE monteringssteder (`FeltWrapper.tsx` + `RepeaterObjekt.tsx`). `date`/`date_time`/`drawing_position`/`location`/`weather` → ingen tilbehør i nyregistrering (ren fjerning); `repeater` → objektnivå-tilbehør read-only KUN når `harData` (mobil FeltDokumentasjon self-hider IKKE en tom kommentar-boks, derfor has-data-gate). Deny-list PER felttype: et `text_field`-barn i en repeater-rad beholder tilbehøret. Print-veien (arkiv-PDF F7) er urørt.
+**Funn 6 (Kenneth-vedtak 2026-08-22):** `tilbehorVisning(type, globalLeseModus, harData)` i `RapportObjektRenderer.tsx` gater FeltDokumentasjon på BEGGE monteringssteder (`FeltWrapper.tsx` + `RepeaterObjekt.tsx`). `date`/`date_time`/`drawing_position`/`location`/`weather`/`signature` → ingen tilbehør i nyregistrering (ren fjerning; `signature` lagt til 2026-09-05 — en signatur ER sin egen dokumentasjon; navn+tidspunkt bæres nå i selve feltverdien, ikke som tilbehør, se `SignaturObjekt` under); `repeater` → objektnivå-tilbehør read-only KUN når `harData` (mobil FeltDokumentasjon self-hider IKKE en tom kommentar-boks, derfor has-data-gate). Deny-list PER felttype: et `text_field`-barn i en repeater-rad beholder tilbehøret. Print-veien (arkiv-PDF F7) er urørt.
 
 ## Props-kontrakt (`RapportObjektProps`)
 
@@ -89,7 +89,7 @@ RapportObjektRenderer (dispatcher)
 |-----------|------|-------|-------------|
 | `VedleggObjekt` | `attachments` | — | Placeholder-tekst, faktisk UI i FeltDokumentasjon |
 | `VaerObjekt` | `weather` | `{temp?, conditions?, wind?, precipitation?}` | 4 TextInputs, auto-henting styrt av hook |
-| `SignaturObjekt` | `signature` | `string` (dataURL) | WebView + Fabric.js canvas, 3 states (tom/signert/redigerer) |
+| `SignaturObjekt` | `signature` | `SignaturVerdi` (objekt) el. `string` (legacy) | WebView-canvas, 4 tilstander: tom-lukket («Signer her»-knapp ≥44px), redigerer (Tøm·Avbryt·Lagre), signert (bilde + «navn · dato kl.»), lesemodus-tom. Verdi bærer `{dataUrl, brukerId, navn, tidspunkt}` — snapshot fanget ved Lagre. Les alltid via `@sitedoc/shared` `lesSignaturVerdi` (bakoverkompat: legacy rå data-URL-streng → bilde uten linje) |
 | `TegningPosisjonObjekt` | `drawing_position` | `{drawingId, positionX, positionY, drawingName}` | Placeholder — full tegningsvelger kommer |
 | `RepeaterObjekt` | `repeater` | `Array<Record<feltId, FeltVerdi>>` | Dupliserbare rader med barnefelt, refs mot stale closures |
 
@@ -115,7 +115,8 @@ Config `options` kan være strenger (`"Ja"`) eller objekter (`{value: "green", l
 
 | Kategori | Format |
 |----------|--------|
-| Tekst, enkeltvalg, dato, signatur | `string` |
+| Tekst, enkeltvalg, dato | `string` |
+| Signatur | `{dataUrl, brukerId, navn, tidspunkt}` (nytt) el. `string` (legacy data-URL) |
 | Tall (heltall, desimal) | `number` |
 | Flervalg, flere personer | `string[]` |
 | Vær, tegningsposisjon | objekt |
