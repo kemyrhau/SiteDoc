@@ -55,11 +55,23 @@ if ! git merge-base --is-ancestor "$FORVENTET" HEAD; then
 fi
 echo "✓ Innhold-guard: $(git rev-parse --short "$FORVENTET") er i treet."
 
-# --- Branch-guard: test skal deploye develop -------------------------------
+# --- Branch-guard: test skal deploye develops INNHOLD ----------------------
+# 2026-09-06: guarden krevde branch-NAVNET «develop» og avviste detached HEAD.
+# Men deploy-treet KAN ikke stå på branchen develop — git tillater ikke samme
+# branch i to worktrees, og hovedtreet holder den. Detached på develop-tippen er
+# derfor den riktige tilstanden for et deploy-tre, ikke en nødløsning.
+# Guardens egentlige spørsmål er «er dette develops innhold», ikke «heter
+# branchen develop» — så den spør nå om det.
 BRANCH="$(git branch --show-current)"
-if [ "$BRANCH" != "develop" ]; then
-  echo "⚠️  Du står på '$BRANCH', ikke develop. Test-deploy skal deploye develop."
-  echo "    Bytt til develop (eller develop-worktreet) og kjør på nytt. Avbryter."
+if [ "$BRANCH" = "develop" ]; then
+  : # på branchen selv — ok
+elif [ -z "$BRANCH" ] && [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/develop)" ]; then
+  echo "✓ Detached på origin/develop-tippen ($(git rev-parse --short HEAD))."
+else
+  echo "⚠️  Treet er verken på develop eller detached på origin/develop-tippen."
+  echo "    Står på: '${BRANCH:-detached $(git rev-parse --short HEAD)}'"
+  echo "    Fiks:    git fetch origin && git checkout --detach origin/develop"
+  echo "    Avbryter."
   exit 1
 fi
 
