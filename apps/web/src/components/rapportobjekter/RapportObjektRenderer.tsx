@@ -1,3 +1,4 @@
+import { TILBEHOR_REN_FJERNING_BASE } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 import { OverskriftObjekt } from "./OverskriftObjekt";
 import { UndertittelObjekt } from "./UndertittelObjekt";
@@ -57,12 +58,9 @@ export const READONLY_TYPER = new Set(["calculation"]);
 // Funn 6 (Kenneth-vedtak 2026-08-22): tilbehør (kommentar/bilde/vedlegg/tegning) fjernes fra
 // NYREGISTRERING på disse typene. «Øvrige felttyper beholder tilbehør» → deny-list PER felttype
 // (gjelder også barnefelt i repeater-rader: et text_field-barn beholder sitt celle-tilbehør).
-// `signature` (Kenneth-krav 2026-09-05): en signatur trenger ikke bilde/galleri/+Oppgave/
-// filopplasting — den ER sin egen dokumentasjon. Navn + tidspunkt hører til feltet (fabels
-// SJA-vedtak 05.09 pkt 4).
-// `signature_list` (Kenneth-vedtak 2026-09-06): signaturlista er selvstendig dokumentasjon
-// → INGEN tilbehør (kommentar/bilde/vedlegg/oppgave).
-const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "signature", "signature_list"]);
+// Delt basissett i @sitedoc/shared (`TILBEHOR_REN_FJERNING_BASE`) — web og mobil delte tidligere
+// to kopier. Rasjonale per felttype (inkl. signature/signature_list + `weather`-avviket) ligger der.
+const TILBEHOR_REN_FJERNING = TILBEHOR_REN_FJERNING_BASE;
 
 /**
  * Hvordan tilbehøret (FeltDokumentasjon) skal vises for en felttype (funn 6):

@@ -1,3 +1,4 @@
+import { TILBEHOR_REN_FJERNING_BASE } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 import { OverskriftObjekt } from "./OverskriftObjekt";
 import { UndertittelObjekt } from "./UndertittelObjekt";
@@ -41,16 +42,12 @@ export const DISPLAY_TYPER = new Set(["heading", "subtitle", "location", "info_t
 export const READONLY_TYPER = new Set(["calculation"]);
 
 // Funn 6 (Kenneth-vedtak 2026-08-22): tilbehør (kommentar/bilde/vedlegg/tegning) fjernes fra
-// NYREGISTRERING på disse typene. «Øvrige felttyper beholder tilbehør» → deny-list PER felttype.
-// `weather` beholdes (var alt tilbehørsfri via SKJUL_VEDLEGG_TYPER — bevarer dagens oppførsel).
-// `signature` (Kenneth-krav 2026-09-05): en signatur ER sin egen dokumentasjon — ikke bilde/
-// galleri/+Oppgave/filopplasting. Navn + tidspunkt hører til feltet (fabels SJA-vedtak 05.09
-// pkt 4), men bygges som modellendring i egen runde — ikke som tilbehør her.
-// LEGACY-VERN "location": se DISPLAY_TYPER over — avviklet 2026-09-02, men ≥9 objekter
-// lever i legacy-maler. Beholdes til D8/D9-malryddingen fjerner objektene.
-// `signature_list` (Kenneth-vedtak 2026-09-06): signaturlista er selvstendig
-// dokumentasjon → INGEN tilbehør.
-const TILBEHOR_REN_FJERNING = new Set(["date", "date_time", "drawing_position", "location", "weather", "signature", "signature_list"]);
+// NYREGISTRERING på disse typene. Delt basissett i @sitedoc/shared (`TILBEHOR_REN_FJERNING_BASE`,
+// felles med web — rasjonale per felttype ligger der).
+// `weather` er mobil-LOKAL: web har den ikke i sitt sett. Om vær-tilbehør skal fjernes på BEGGE
+// (harmonisering) er et åpent produktspørsmål til Kenneth (2026-09-06) — til svaret kommer beholdes
+// dagens oppførsel (mobil har weather, web ikke), ingen gjettet harmonisering.
+const TILBEHOR_REN_FJERNING = new Set([...TILBEHOR_REN_FJERNING_BASE, "weather"]);
 
 /**
  * Hvordan tilbehøret (FeltDokumentasjon) skal vises for en felttype (funn 6, speiler web):

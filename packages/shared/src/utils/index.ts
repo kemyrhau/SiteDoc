@@ -135,6 +135,7 @@ export {
   harMinstEttUtfyltFelt,
   IKKE_UTFYLLBARE_FELTTYPER,
 } from "./feltLaasing";
+export { TILBEHOR_REN_FJERNING_BASE } from "./rapportobjektTilbehor";
 export { avgjorDokumentTilgang } from "./avgjorDokumentTilgang";
 export type { TilgangsFakta, TilgangsResultat } from "./avgjorDokumentTilgang";
 export {
