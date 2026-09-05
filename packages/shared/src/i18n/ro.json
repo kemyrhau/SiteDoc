@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Import din bibliotecă",
   "bibliotek.ingenStandarder": "Nu există standarde disponibile.",
   "bibliotek.seMal": "Vizualizați șablonul",
+  "bibliotek.utkastBadge": "Ciornă – nu este verificată de experți",
+  "bibliotek.utkastForklaring": "Acest șablon nu a fost încă verificat de experți în raport cu standardul sursă. Poate fi împrumutat și utilizat, dar conținutul ar trebui revizuit.",
   "maler.kopierMal": "Copiați șablonul",
   "maler.redigerMal": "Editați șablonul",
   "maler.slettMal": "Ștergeți șablonul",

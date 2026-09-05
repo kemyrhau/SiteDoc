@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Tuo kirjastosta",
   "bibliotek.ingenStandarder": "Standardeja ei ole saatavilla.",
   "bibliotek.seMal": "Näytä malli",
+  "bibliotek.utkastBadge": "Luonnos – ei asiantuntijan vahvistama",
+  "bibliotek.utkastForklaring": "Tätä mallia ei ole vielä tarkastettu lähdestandardin asiantuntijoiden kanssa. Sitä voi lainata ja käyttää, mutta sisältö kannattaa tarkistaa.",
   "maler.kopierMal": "Kopioi malli",
   "maler.redigerMal": "Muokkaa mallia",
   "maler.slettMal": "Poista malli",

@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Import from library",
   "bibliotek.ingenStandarder": "No standards available.",
   "bibliotek.seMal": "View template",
+  "bibliotek.utkastBadge": "Entwurf – nicht von Experten überprüft",
+  "bibliotek.utkastForklaring": "Diese Vorlage wurde noch nicht von Experten anhand des Quellstandards überprüft. Es kann ausgeliehen und verwendet werden, der Inhalt sollte jedoch überprüft werden.",
   "maler.kopierMal": "Vorlage kopieren",
   "maler.redigerMal": "Vorlage bearbeiten",
   "maler.slettMal": "Vorlage löschen",

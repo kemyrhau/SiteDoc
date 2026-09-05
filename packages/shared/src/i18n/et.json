@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Impordi raamatukogust",
   "bibliotek.ingenStandarder": "Standardeid pole saadaval.",
   "bibliotek.seMal": "Vaata malli",
+  "bibliotek.utkastBadge": "Eelnõu – ekspertide poolt kontrollimata",
+  "bibliotek.utkastForklaring": "See mall ei ole veel lähtestandardi suhtes ekspertide poolt kontrollitud. Seda saab laenutada ja kasutada, kuid sisu tuleks üle vaadata.",
   "maler.kopierMal": "Kopeeri mall",
   "maler.redigerMal": "Muuda malli",
   "maler.slettMal": "Kustuta mall",

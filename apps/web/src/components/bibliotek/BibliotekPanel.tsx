@@ -148,6 +148,14 @@ export function BibliotekPanel({ projectId, open, onClose, onImportert }: Biblio
                                         <span className="font-mono">{mal.referanse}</span>
                                         {mal.beskrivelse && <span>· {mal.beskrivelse}</span>}
                                       </div>
+                                      {!mal.verifisert && (
+                                        <span
+                                          className="mt-1 inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+                                          title={t("bibliotek.utkastForklaring")}
+                                        >
+                                          {t("bibliotek.utkastBadge")}
+                                        </span>
+                                      )}
                                     </div>
 
                                     {/* Lenke til importert mal */}

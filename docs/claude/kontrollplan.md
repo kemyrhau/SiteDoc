@@ -4,7 +4,12 @@
 
 SiteDoc skal ha et **sentralarkiv for sjekklister** basert på norske byggstandarder (NS 3420 som første standard). Prosjekter velger hvilke sjekklister de vil bruke ved å huke av i biblioteket. Valgte sjekklister importeres som vanlige SjekklisteMaler (`ReportTemplate` + `ReportObjects`), fullt redigerbare i malbyggeren — inntil brukeren valgfritt kobler dem til kontrollplan eller dokumentflyt.
 
-**Merk:** De ferdigbygde NS 3420-K malene er et utkast og skal forbedres.
+**Merk:** Alle 12 ferdigbygde NS 3420-K/-F-maler er **AI-utkast** — `seed-bibliotek.ts` setter
+`verifisert: false` eksplisitt (2026-09-05). Status ligger aldri i kundesynlig fritekst («(AI-utkast)»
+er fjernet fra `beskrivelse`); i stedet vises malen med amber badge «Utkast — ikke fagverifisert»
+(`bibliotek.utkastBadge`) i lån-dialogen. **Prod-gate:** uverifiserte maler seedes ikke i prod —
+prod holdes på 0 til en fagkontroll er registrert (`verifisertAv`/`verifisertDato` kommer med den
+fremtidige «Merk verifisert»-handlingen, ikke ennå).
 
 ## Fullstendig flyt
 
@@ -328,6 +333,11 @@ Flat array med feltdefinisjoner som konverteres til ReportObjects ved import:
 | KD | KD1 – Utendørsbelegg | 7 | Tabell K11 fall, Tabell K12 planhet ±3 mm |
 
 ### Detaljerte sjekklister per mal
+
+> ⚠️ **Drift — fasit er koden.** Feltinnholdet defineres i `packages/db/prisma/seed-bibliotek.ts`.
+> K-listene nedenfor er håndvedlikeholdt og stemmer **ikke** felt-for-felt med seed (flere felt er
+> `list_single`/`decimal` i koden, ikke `traffic_light`; enkelte oppførte felt finnes ikke i malen).
+> Verifiser mot seed før du stoler på dem. F-listene lenger ned er nyere og ligger nærmere koden.
 
 #### KB2.2 – Jordarbeider, utlegging av eksterne masser (ref: KB2.2 / KB2.5)
 

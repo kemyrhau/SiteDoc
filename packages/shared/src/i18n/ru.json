@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Импорт из библиотеки",
   "bibliotek.ingenStandarder": "Нет доступных стандартов.",
   "bibliotek.seMal": "Посмотреть шаблон",
+  "bibliotek.utkastBadge": "Проект — не проверен экспертами",
+  "bibliotek.utkastForklaring": "Этот шаблон еще не прошел экспертную проверку на соответствие исходному стандарту. Его можно позаимствовать и использовать, но содержание следует просмотреть.",
   "maler.kopierMal": "Копировать шаблон",
   "maler.redigerMal": "Редактировать шаблон",
   "maler.slettMal": "Удалить шаблон",

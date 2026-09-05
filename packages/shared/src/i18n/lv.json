@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Importēt no bibliotēkas",
   "bibliotek.ingenStandarder": "Nav pieejami standarti.",
   "bibliotek.seMal": "Skatīt veidni",
+  "bibliotek.utkastBadge": "Projekts — nav ekspertu pārbaudīts",
+  "bibliotek.utkastForklaring": "Šo veidni eksperts vēl nav pārbaudījis atbilstoši avota standartam. To var aizņemties un lietot, bet saturu vajadzētu pārskatīt.",
   "maler.kopierMal": "Kopēt veidni",
   "maler.redigerMal": "Rediģēt veidni",
   "maler.slettMal": "Dzēst veidni",

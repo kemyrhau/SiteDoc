@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Importuoti iš bibliotekos",
   "bibliotek.ingenStandarder": "Nėra jokių standartų.",
   "bibliotek.seMal": "Žiūrėti šabloną",
+  "bibliotek.utkastBadge": "Projektas – nepatvirtintas ekspertų",
+  "bibliotek.utkastForklaring": "Šio šablono ekspertai dar nepatvirtino pagal šaltinio standartą. Ją galima pasiskolinti ir panaudoti, tačiau reikėtų peržiūrėti turinį.",
   "maler.kopierMal": "Kopijuoti šabloną",
   "maler.redigerMal": "Redaguoti šabloną",
   "maler.slettMal": "Ištrinti šabloną",

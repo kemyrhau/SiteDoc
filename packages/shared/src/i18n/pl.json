@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Importuj z biblioteki",
   "bibliotek.ingenStandarder": "Brak dostępnych standardów.",
   "bibliotek.seMal": "Zobacz szablon",
+  "bibliotek.utkastBadge": "Wersja robocza — niezweryfikowana przez eksperta",
+  "bibliotek.utkastForklaring": "Ten szablon nie został jeszcze zweryfikowany przez eksperta w odniesieniu do standardu źródłowego. Można go wypożyczać i używać, ale należy sprawdzić jego zawartość.",
   "maler.kopierMal": "Skopiuj szablon",
   "maler.redigerMal": "Edytuj szablon",
   "maler.slettMal": "Usuń szablon",
