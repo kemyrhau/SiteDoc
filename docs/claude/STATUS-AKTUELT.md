@@ -45,8 +45,9 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
-| **kontrollplan** | 🟢 **LEVERT — venter gate** | `SiteDoc-kontrollplan` | **`feat/malrevisjon-d` @ `3c40df3e`** (2 commits, 20 filer inkl. alle 14 i18n-språk): status ut av kundetekst + `verifisert` i bruk + utkast-badge på malkort i lån-dialogen. Tidligere: idempotent seed `0bd7941a`, veivisere `c48e6d44`/`b32326a8` | **Gate + merge.** Deretter ledig — ⏸️ `inbox-mobil-byggeplasskontekst.md` står på vent |
-| **dokgen** | 🟡 **ARBEID** | `SiteDoc-dokgen` | `fix/signatur-kollaps` — **ingen commits ennå** (målt 06.09 00:40, treet står på `d73c445a`). Tredje signaturtilstand (tom+lukket) + `signature` inn i `TILBEHOR_REN_FJERNING` | **`relay/inbox-signatur-navn-tidspunkt.md`** — tillegg på SAMME branch. Fabels delleveranse 2: signaturen skal bære navn + tidspunkt på web/mobil/PDF. Rutet hit fordi han står i fila |
+| **kontrollplan** | 🟢 **LEDIG** | `SiteDoc-kontrollplan` | ✅ **Malrevisjon D merget** 06.09 (`3c40df3e` → `6540c141`): status ut av kundetekst, `verifisert` i bruk, utkast-badge. Tidligere: idempotent seed `0bd7941a`, veivisere `c48e6d44`/`b32326a8` | ⏸️ `inbox-mobil-byggeplasskontekst.md` står på vent. **Kandidat: tvilling-paritetstest** (se feltfunn) |
+| **dokgen** | 🟢 **LEDIG** | `SiteDoc-dokgen` | ✅ **Signatur merget** 06.09 (`5dc04240` → `276e8357`): navn+tidspunkt `{dataUrl, brukerId, navn, tidspunkt}` m/legacy-lesing, delt leser i `@sitedoc/shared`, PDF-speil, kollapset «Signer her»-tilstand. **Option A vedtatt** — tilbehør av i utfylling, historisk tilbehør bevart i lesemodus (`FeltDokumentasjon.tsx:126` self-hider når tomt) | **Ledig.** ⏸️ `inbox-timerrapport-flate.md` |
+| **merge-agent** | 🟢 **BEMANNET** | `SiteDoc-merge` | Kjørte 06.09-kjeden. 🔴 **Stoppet FØR push** på rot-testbrudd `pnpm test` fant og gaten i ordren ikke fanget — se prosessfunnet under. Regenererte db-klienter mot falske Prisma-typefeil | Ledig |
 | **redesign** | 🔴 **NY — SJA-signaturrunder** | `SiteDoc-redesign` | Tre opprettet 06.09 fra `origin/develop`, branch `feat/sja-signaturrunder`. Tomt `node_modules` — `pnpm install` først | **`relay/inbox-sja-signaturrunder.md`** — tre nye tabeller (Kenneth-gatet migrering) + felttypen `signature_list` + PDF + chip. 🔴 **Grensen mot dokgen går ved `SignaturObjekt.tsx`** |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
 | **fabel** | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
@@ -55,6 +56,24 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🔴 **PROSESSFUNN 2026-09-06 — ANDRE GANG: standardgaten mangler `pnpm test`.**
+Gate-kjeden i coworks ordrer er `install → prisma generate ×4 → web build → mobil typecheck
+→ mobil lint`. **Ingen tester.** Dokgens `e49e8ea3` passerte hele gaten og brakk likevel
+`tilbehorVisning.test.ts` — testen forventet `vis: true` for `signature` etter at typen ble
+lagt i deny-lista. Merge-agenten fanget det og stoppet før push, men da hadde allerede tre
+ledd vært involvert.
+**Samme hull som 03.09** (SafeAreaView-importen som lint forbød, men gaten ikke kjørte).
+🟢 **Rettet: `pnpm test` fra ROT er nå del av standardgaten i alle nye ordrer.** Samme
+kommando CI kjører — kostnaden er ventetid hos agenten, som er billigere enn en runde
+gjennom Kenneth.
+
+🟡 **Tvilling-paritetstest mangler (dokgen-funn 2026-09-06).** `packages/pdf/src/hjelpere.ts`
+speiler `packages/shared/src/utils/signaturVerdi.ts` fordi `@sitedoc/pdf` har dokumenterte
+null-avhengigheter. Speilet har peker-kommentar, men **ingen test som fanger drift** — endres
+den kanoniske leseren, sier ingenting fra. Gjelder også den eldre `repeaterRad`-tvillingen.
+**Fiks: én test som kjører begge implementasjonene på samme inndata og krever likt svar.**
+Liten sak — kandidat for kontrollplan eller dokgen.
 
 🟡 **Drift målt 2026-09-05 under SJA-målingen: `TILBEHOR_REN_FJERNING` har FIRE typer i web
 og FEM i mobil** (`weather` ekstra på mobil). `RapportObjektRenderer.tsx:59` vs `:47`.

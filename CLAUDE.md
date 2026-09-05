@@ -308,6 +308,7 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 → Se [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md)
 
 **Sesjonstart:**
+- 🔴 **COWORK LESER [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) FØRST — før den sier noe.** Ufravikelig, gjelder også etter compact. Den bærer coworks rolle som orkestrator, statustavle-plikten, ordreformatet og merge-eierskapet. **Uten den gir cowork Kenneth beslutninger som er coworks egne** — målt to ganger 06.09: «venter gate» på noe cowork selv skulle gatet, og «når du vil at han skal rebase» på en ren timing-beslutning. Deretter: tavla øverst i STATUS-AKTUELT, som sier hvem som sitter hvor.
 - Les [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) eksplisitt ved behov
 - Les [BACKLOG.md](docs/claude/BACKLOG.md) kun ved strategisk planlegging
 
