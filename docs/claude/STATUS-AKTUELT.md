@@ -68,6 +68,15 @@ ledd vært involvert.
 kommando CI kjører — kostnaden er ventetid hos agenten, som er billigere enn en runde
 gjennom Kenneth.
 
+🟡 **Status-brudd i endringslogg-koalesceringen — bevisst utsatt (2026-09-05).**
+Koalesceringen bryter vinduet på tid (10 min) og bruker, **men ikke på statusskifte** — fordi
+`endreStatus` ikke skriver noen loggrad, så det finnes intet lagret signal. Det riktige fikset er
+`statusEndretAt` på `Checklist` + `Task`, altså **en migrering på produktets to mest sentrale
+tabeller, rett før pilot**. Cowork utsatte den bevisst framfor å smugle den inn i en bugfiks.
+Eksponering lav: krever samme bruker, samme felt, før OG etter statusskifte, innen ti minutter —
+konsekvens er én sammenslått rad, aldri tapt data. **Egen beslutning når noen vil ta den.**
+Dokumentert i `apps/api/src/services/endringslogg.ts:27-34`.
+
 🔴 **`seed.ts` PRODUSERER ORPHAN-PROSJEKTER (funn 2026-09-05, redesign-Opus).**
 CLAUDE.md-regelen fra 2026-05-20 sier at prosjekt-opprettelse **må** kreve firma. Regelen er
 håndhevet i API-mutasjonene, men **hoved-seeden bryter den selv** — den setter ikke
