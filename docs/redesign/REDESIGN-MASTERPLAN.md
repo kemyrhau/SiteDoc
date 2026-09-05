@@ -55,8 +55,36 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 | **EX** | **Eksport og navngiving** — PDF/Excel/CSV fra app OG web, med velge/preview/dele · rename «Arkiv-PDF» → eksport-språk · **«arkiver» reserveres** for fremtidig handling (= PR-sporet) | Designsak hos fabel. Fakta og Kenneth-sitater: [BESTILLING § 2A](til-fabel/BESTILLING-masterplan-2026-09-04.md) | designnotat kommer (fabel) |
 | **AG** | **Ansvarsgrensen** — produkttekst om hva SiteDoc leverer vs. hva bedriften eier selv | 🔴 **Teksten skrives av FABEL, gates av Kenneth — aldri cowork eller kodeagent** (juridisk-nær). Plassering avgjøres i notatet. Utløst av eksponeringsregister-korreksjonen: [BESTILLING § 2D](til-fabel/BESTILLING-masterplan-2026-09-04.md) + [domene-arbeidsflyt.md](../claude/domene-arbeidsflyt.md) | designnotat kommer (fabel) |
 | **BL** | **Byggeplass-livssyklus** — tilstand/start/slutt/arkivering · velger-skala ved 500 byggeplasser · PSI og mannskap ved avslutning | Designsak hos fabel. Premiss avklart: `Project` ER beholderen, intet nytt nivå. **Sluker to åpne funn:** chip-teksten som lover en avgrensning systemet ikke gjør, og tegninger-hardt/dokumenter-mykt filter — samme scoping-modell. Utredning: [domene-arbeidsflyt.md](../claude/domene-arbeidsflyt.md) | designsak kommer (fabel) |
+| **MK** | **NS 3420-malkvalitet (Kenneth-bestilling 05.09, funn A–D)** | Bestilling: `til-fabel/BESTILLING-malkvalitet-2026-09-05.md`. Faktagrunnlag: 12 maler (6 K, 6 F) i seed. **Kenneth-vedtak 05.09 (binder ALLE malordrer): maler bygges av MalBygger-objektene — aldri hardkodet; funksjonsforbedring av objektene er OK** (ført i MALBYGGER.md). ✅ **B+D LEVERT OG MERGET 06.09** (`3c40df3e`): «(AI-utkast)» ut av kundetekst, `verifisert: false` eksplisitt + prod-gate, utkast-badge på malkort begge lånevinduer, F-malene seedet, `kontrollplan.md` renset (`2df3d47d`-runden). ✅ **Trafikklys slanket 28→22px** (`cd3c1f84`), mobil fikk grå «Ikke relevant» for paritet. **A seksjonsstatus:** kollaps fantes (`56cb0cfa`); status-header «X av Y utfylt» levert `6458a704`. 🟡 **C Vei B (betingede grenser) GJENSTÅR** — kostnadsmålt: delt resolver + 4 lesere (kun integer/decimal) + MalBygger-UI (fabel-designsak før ordre); premiss 3 UTSKILT → DG | svar-dokumentene (`docs/redesign/kp-malkvalitet-*`) |
+| **SJA** | **SJA-signaturrunder (Kenneth-funn 05.09, P0 — lovpålagt dok kunne ikke dokumentere hvem som signerte)** | Designet ferdig på én kveld: gjenbruk som ramme (én SJA per arbeidsoperasjon, signert per RUNDE — ikke versjoner) · modell `SignaturRunde`+`DokumentDeltaker`+`DokumentSignatur` (vei 2-FK-er m/cascade, frys `antallDeltakere`, ingen kolonne på Checklist/Task) · lås = handling «Avslutt runde», gjenåpning = «Start ny runde» · gjest påkrevd (PSI-mønsteret) · manko først i UI + chip i lista (énspørring) · PDF: gjeldende runde + «Med logg», manko aldri utelatt. ✅ **LEVERT OG MERGET 06.09** (`f5d75571` → `e2e87123`): felttypen `signature_list`, tre tabeller, migrering `20260906000000` **anvendt mot `sitedoc_test`**, MalBygger-guard mot to lister, serverlås mot skriving på avsluttet runde (`5e13c43e`). Delleveranse 2 levert (`5dc04240`): `signature`-feltet bærer `{dataUrl, brukerId, navn, tidspunkt}` med legacy-lesing, delt leser i `@sitedoc/shared` + bevisst PDF-speil. Testdata seedet på test (`SD-DEMO-SJA-0001`). 🔴 **VENTER: fabels skjermbilde-gate — åtte flater, underlag `til-fabel/skjermbilde-underlag-sja-signaturrunder-2026-09-06.md`. Ingenting til prod før den er kjørt.** 🟡 Åpne designspørsmål til gaten: 1-klikks attest uten signaturpad/HMS-kort · medlemsdeltakeres firma vises ikke (`guestCompany` kun på gjest) · om et automatisk værsnapshot i `endreStatus` skal regnes som innhold i låsens forstand | designdok 2015/2130/2300/2345 + nå-rapport `til-fabel/MAALING-sja-signaturmodell-2026-09-05.md` |
 
-## 🔴 REKKEFØLGE (fabel 2026-09-05) — erstatter punktlisten under
+## 🔴 REKKEFØLGE (fabel 2026-09-06) — erstatter blokken under
+
+> **Cowork-avstemt mot kode 2026-09-06.** Fabels leverte rekkefølge var skrevet før
+> natten 05/06.09, da åtte merge-runder landet. Punktene under er hans, med målt status.
+
+- ~~**0a. SJA-signaturrunder**~~ ✅ **LEVERT OG MERGET** (`e2e87123`), på test. **Venter kun fabels skjermbilde-gate.**
+- ~~**0b. MK B+D malrevisjon**~~ ✅ **LEVERT OG MERGET** (`3c40df3e`). **MK C (Vei B) gjenstår** og trenger MalBygger-UI-design først.
+- **0c. DG-tillegg: PDF viser grensekrav** (premiss 3-utskillelsen — arkiv-PDF viser i dag målt verdi uten kravet; snapshot-spørsmålet bor her). 🔴 **Nå øverst i køen** — eneste gjenstående punkt fra fabels egen rekkefølge.
+
+⚠️ **Fabels caveat, gjentatt fordi den gjelder:** hendelser mellom 20.08 og 04.09 som ikke gikk
+gjennom fabel er ikke oppdatert i radene hans — særlig DG-status etter HMS-PDF-en 04.09.
+**Cowork supplerer ved neste sync.**
+
+🔴 **Merk om vedlikehold (hendelse 2026-09-06):** fabel leverte denne revisjonen som **helfil**,
+bygget på en versjon fra ~21.08. Hans fil var **24 kB mot repoets 49 kB** og manglet seks rader
+— `6b-x`, `UT`, `PR`, `REG`, `ON`, `FL` — altså all målt status fra 28.–30.08. Hadde cowork
+kopiert fila inn, var alt det tapt. **Kun MK, SJA, rekkefølgen og backlog-postene ble flettet
+inn.** Regelen i toppen av denne fila står ved lag: fabel leverer notater, cowork fører dem inn.
+
+## Nye backlog-saker (2026-09-05-runden, kodeverifisert)
+
+- ~~**TILBEHOR_REN_FJERNING-divergens**~~ ✅ **LUKKET** (`85c8ecd5`): `TILBEHOR_REN_FJERNING_BASE` i `@sitedoc/shared`, begge renderere leser den. 🟡 **`weather` er IKKE harmonisert** — mobil har den, web ikke; begrunnelsen står i koden og venter Kenneths produktsvar: *skal en værobservasjon kunne bære kommentar og bilde i felt?*
+- **«+ Oppgave»-gating per felttype:** fortsatt ikke målt.
+- ~~**F-malene aldri seedet + `kontrollplan.md` uten NS 3420-F**~~ ✅ **LUKKET** i MK B+D. (Merk: påstanden om at F manglet i `kontrollplan.md` var **feil** — den sto der hele tiden, `kontrollplan.md:394`. Coworks premiss, målt bort av kontrollplan.)
+- **PSI-migrering til felles signaturmodell:** senere sak — `PsiSignatur` røres ikke.
+
+## Rekkefølge (fabel 2026-09-05) — historikk
 
 > Bygger på [§ AVSTEMT MOT KODE 2026-09-04](#-avstemt-mot-kode-2026-09-04--fem-av-åtte-punkter-var-allerede-levert).
 > Alt er design-først; køen til kodeagentene fylles i denne rekkefølgen.
