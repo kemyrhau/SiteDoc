@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
-import { kanonisk, likForDiff } from "@sitedoc/pdf";
+import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
@@ -760,56 +760,16 @@ export const sjekklisteRouter = router({
         }
       }
 
-      // Generer endringslogg hvis aktivert på malen
-      const endringsloggRader: {
-        checklistId: string;
-        userId: string;
-        fieldId: string;
-        fieldLabel: string;
-        oldValue: string | null;
-        newValue: string | null;
-      }[] = [];
-
-      if (sjekkliste.template.enableChangeLog) {
-        const gammelData = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
-        const nyData = innData as Record<string, Record<string, unknown>>;
-        const displayTyper = new Set(["heading", "subtitle"]);
-
-        const objektMap = new Map(
-          sjekkliste.template.objects
-            .filter((o) => !displayTyper.has(o.type))
-            .map((o) => [o.id, o.label]),
-        );
-
-        for (const [feltId, nyVerdi] of Object.entries(nyData)) {
-          const label = objektMap.get(feltId);
-          if (!label) continue;
-
-          const gammelVerdi = gammelData[feltId];
-          const gammelV = gammelVerdi?.verdi ?? null;
-          const nyV = nyVerdi?.verdi ?? null;
-
-          // Endring bestemmes av NORMALISERT innhold: lik verdi med ulik
-          // nøkkelrekkefølge ELLER kun ulik signert-URL-query er IKKE en endring
-          // (punkt 1 + rotårsak: auto-vær-lagring returnerer ferskt signerte
-          // bilde-URL-er på urørte repeater-celler). Lagrer kanonisk original.
-          // Selve sjekkliste-dataen lagres uendret (se `merged` under); dette
-          // styrer kun changelog-radene + hva som regnes som endring.
-          const gammelStr = gammelV != null ? kanonisk(gammelV) : null;
-          const nyStr = nyV != null ? kanonisk(nyV) : null;
-
-          if (!likForDiff(gammelV, nyV)) {
-            endringsloggRader.push({
-              checklistId: input.id,
-              userId: ctx.userId,
-              fieldId: feltId,
-              fieldLabel: label,
-              oldValue: gammelStr,
-              newValue: nyStr,
-            });
-          }
-        }
-      }
+      // Generer endringslogg-innslag hvis aktivert på malen. Genereringen +
+      // koalesceringen er delt med oppgave-veien i services/endringslogg.ts —
+      // se fil-headeren der for hvorfor (håndspeilet kopi bar samme bug-klasse).
+      const endringsloggInnslag = sjekkliste.template.enableChangeLog
+        ? await byggEndringsloggInnslag(ctx.prisma, {
+            gammelData: (sjekkliste.data ?? {}) as Record<string, { verdi?: unknown }>,
+            nyData: innData as Record<string, { verdi?: unknown }>,
+            objekter: sjekkliste.template.objects,
+          })
+        : [];
 
       // Fritekst-oversettelse Lag 3: auto-oversett når brukerens språk != prosjektspråk
       const prosjekt = await ctx.prisma.project.findUnique({
@@ -890,9 +850,7 @@ export const sjekklisteRouter = router({
           data: { data: merget as Prisma.InputJsonValue },
         });
 
-        if (endringsloggRader.length > 0) {
-          await tx.checklistChangeLog.createMany({ data: endringsloggRader });
-        }
+        await skrivEndringslogg(tx, { checklistId: input.id }, ctx.userId, endringsloggInnslag);
 
         // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
         return signerDataRad(oppdatert);

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
-import { kanonisk, likForDiff } from "@sitedoc/pdf";
+import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { documentStatusSchema } from "@sitedoc/shared";
@@ -779,57 +779,16 @@ export const oppgaveRouter = router({
         }
       }
 
-      // Generer endringslogg hvis aktivert på malen (speil av sjekkliste.oppdaterData:374-407)
-      const endringsloggRader: {
-        taskId: string;
-        userId: string;
-        fieldId: string;
-        fieldLabel: string;
-        oldValue: string | null;
-        newValue: string | null;
-      }[] = [];
-
-      if (oppgave.template?.enableChangeLog) {
-        const gammelData = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
-        const nyData = innData as Record<string, Record<string, unknown>>;
-        const displayTyper = new Set(["heading", "subtitle"]);
-
-        const objektMap = new Map(
-          oppgave.template.objects
-            .filter((o) => !displayTyper.has(o.type))
-            .map((o) => [o.id, o.label]),
-        );
-
-        for (const [feltId, nyVerdi] of Object.entries(nyData)) {
-          const label = objektMap.get(feltId);
-          if (!label) continue;
-
-          const gammelVerdi = gammelData[feltId];
-          const gammelV = gammelVerdi?.verdi ?? null;
-          const nyV = nyVerdi?.verdi ?? null;
-
-          // Endring bestemmes av NORMALISERT innhold: lik verdi med ulik
-          // nøkkelrekkefølge ELLER kun ulik signert-URL-query er IKKE en endring
-          // (punkt 1 + rotårsak: auto-vær-lagring returnerer ferskt signerte
-          // bilde-URL-er på urørte repeater-celler). Lagrer kanonisk original.
-          // Selve oppgave-dataen lagres uendret (se innData under); dette styrer
-          // kun changelog-radene + hva som regnes som endring. Speiler
-          // sjekkliste.ts:754-757.
-          const gammelStr = gammelV != null ? kanonisk(gammelV) : null;
-          const nyStr = nyV != null ? kanonisk(nyV) : null;
-
-          if (!likForDiff(gammelV, nyV)) {
-            endringsloggRader.push({
-              taskId: input.id,
-              userId: ctx.userId,
-              fieldId: feltId,
-              fieldLabel: label,
-              oldValue: gammelStr,
-              newValue: nyStr,
-            });
-          }
-        }
-      }
+      // Generer endringslogg-innslag hvis aktivert på malen. Delt med
+      // sjekkliste-veien i services/endringslogg.ts (tidligere en håndspeilet
+      // kopi her — se fil-headeren der).
+      const endringsloggInnslag = oppgave.template?.enableChangeLog
+        ? await byggEndringsloggInnslag(ctx.prisma, {
+            gammelData: (oppgave.data ?? {}) as Record<string, { verdi?: unknown }>,
+            nyData: innData as Record<string, { verdi?: unknown }>,
+            objekter: oppgave.template.objects,
+          })
+        : [];
 
       // Fritekst-oversettelse Lag 3
       const projectId = hentProjectId(oppgave);
@@ -902,9 +861,7 @@ export const oppgaveRouter = router({
           data: { data: merget as Prisma.InputJsonValue },
         });
 
-        if (endringsloggRader.length > 0) {
-          await tx.taskChangeLog.createMany({ data: endringsloggRader });
-        }
+        await skrivEndringslogg(tx, { taskId: input.id }, ctx.userId, endringsloggInnslag);
 
         // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
         return signerDataRad(oppdatert);
@@ -1012,17 +969,12 @@ export const oppgaveRouter = router({
           data: { data: data as Prisma.InputJsonValue },
         });
 
+        // Samme koalescerende skriver som autolagringen — ellers var dette en
+        // fjerde kopi av logg-skrivingen (manuell oversettelse/overstyring).
         if (skalLogge && feltLabel) {
-          await tx.taskChangeLog.create({
-            data: {
-              taskId: input.id,
-              userId: ctx.userId,
-              fieldId: input.feltId,
-              fieldLabel: feltLabel,
-              oldValue: verdiForStr,
-              newValue: verdiEtterStr,
-            },
-          });
+          await skrivEndringslogg(tx, { taskId: input.id }, ctx.userId, [
+            { fieldId: input.feltId, fieldLabel: feltLabel, oldValue: verdiForStr, newValue: verdiEtterStr },
+          ]);
         }
 
         return oppdatert;
