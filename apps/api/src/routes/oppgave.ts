@@ -24,6 +24,7 @@ import {
   kanByttFlyt,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
+import { verifiserRundeIkkeLaast } from "../services/signaturliste";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 
@@ -736,6 +737,11 @@ export const oppgaveRouter = router({
         "task",
       );
 
+      // Serverlås: avvis skriving når gjeldende signaturrunde er avsluttet (SJA-lås).
+      // Fabels designlås: dokumentet er da HELT lukket, også for tilbehør — derfor før
+      // append-only-vakten, som ellers slipper kommentar/vedlegg-tilføyelser gjennom.
+      await verifiserRundeIkkeLaast(ctx.prisma, { taskId: input.id });
+
       // Append-only-vakt (Vedtak B, 2026-08-29): en oppgave er en arbeidsordre — den som
       // har ballen fyller TOMME felt, men et felt som ALLEREDE har en verdi kan ikke endres
       // etter at oppgaven er sendt. Hvert felt skrives én gang, av den som eide dokumentet da.
@@ -937,6 +943,9 @@ export const oppgaveRouter = router({
         oppgave.id,
         "task",
       );
+
+      // Serverlås: avvis oversettelse-redigering når gjeldende signaturrunde er avsluttet.
+      await verifiserRundeIkkeLaast(ctx.prisma, { taskId: input.id });
 
       const data = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
       const felt = data[input.feltId];

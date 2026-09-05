@@ -28,6 +28,7 @@ import { IKKE_SLETTET } from "../utils/softDelete";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
+import { verifiserRundeIkkeLaast } from "../services/signaturliste";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
 
@@ -742,6 +743,9 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
+      // Serverlås: avvis skriving når gjeldende signaturrunde er avsluttet (SJA-lås).
+      await verifiserRundeIkkeLaast(ctx.prisma, { checklistId: input.id });
+
       // Guard (funn d): et finalisert dokument har frosset værsnapshot ved signering.
       // Vær-køen (VaerKoProvider) kan komme online ETTER finalisering og forsøke å synke
       // et snapshot — det skal aldri overskrive den finaliserte verdien. Slipp øvrige felt
@@ -939,6 +943,9 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
+      // Serverlås: avvis vedlegg-URL-patch når gjeldende signaturrunde er avsluttet.
+      await verifiserRundeIkkeLaast(ctx.prisma, { checklistId: input.id });
+
       return ctx.prisma.$transaction(async (tx) => {
         const fersk = await tx.checklist.findUniqueOrThrow({
           where: { id: input.id },
@@ -1011,6 +1018,9 @@ export const sjekklisteRouter = router({
         sjekkliste.id,
         "checklist",
       );
+
+      // Serverlås: avvis oversettelse-redigering når gjeldende signaturrunde er avsluttet.
+      await verifiserRundeIkkeLaast(ctx.prisma, { checklistId: input.id });
 
       const data = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
       const felt = data[input.feltId];
