@@ -23,7 +23,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -1177,7 +1177,7 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
   const kolonnerPerFelt = useMemo(() => {
     // byggObjektTre-returtypen er ikke rekursiv (dyp `children: unknown[]`) —
     // cast som i sammenstilling.ts. byggKolonnerPerFelt leser kun id/label/children.
-    return byggKolonnerPerFelt(byggObjektTre(template?.objects ?? []) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]);
+    return byggKolonnerPerFelt(byggObjektTre(template?.objects ?? []) as unknown as Parameters<typeof byggKolonnerPerFelt>[0], standardFeltNavn);
   }, [template]);
 
   const rader = useMemo(() => {

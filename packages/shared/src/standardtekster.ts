@@ -86,6 +86,19 @@ export const STANDARD_FELTLABELS: StandardFeltLabel[] = [
   { type: "quiz", nokkel: "malbygger.quiz", gjeldende: "Quiz-spørsmål", aliaser: [] },
 ];
 
+/**
+ * Felttypens standardnavn (`STANDARD_FELTLABELS.gjeldende`) — fallback når et felt/
+ * repeater-barn mangler egen label. En tom label er en ØNSKET funksjon (MALBYGGER.md),
+ * så den kan ikke forbys; endringsloggen bruker dette i stedet for «Kolonne N» slik at
+ * en repeater-kolonne uten navn vises som f.eks. «Posisjon i tegning».
+ *
+ * Injiseres i pdf-`byggKolonnerPerFelt` (pakken `@sitedoc/pdf` er null-runtime-
+ * avhengigheter og kan ikke slå opp navnet selv). Én kilde — ingen tvilling.
+ */
+export function standardFeltNavn(type: string): string | null {
+  return STANDARD_FELTLABELS.find((f) => f.type === type)?.gjeldende ?? null;
+}
+
 export const STANDARD_OPSJONER: StandardOpsjon[] = [
   // Godkjenning «Type» (types/index.ts:516)
   { nokkel: "standardopsjon.tillegg", gjeldende: "Tillegg", aliaser: [] },

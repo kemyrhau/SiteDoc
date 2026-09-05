@@ -11,6 +11,7 @@
 
 import type { PrismaClient } from "@sitedoc/db";
 import { byggObjektTre } from "@sitedoc/shared/types";
+import { standardFeltNavn } from "@sitedoc/shared";
 import {
   byggInnhold,
   byggArkivLogg,
@@ -426,7 +427,7 @@ async function byggArkivHtmlKjerne(
   // 5) Logg (lag 1 alltid, lag 2 på malens enableChangeLog). Kolonne-map lar
   // endringsloggen ekspandere repeater-endringer til «Rad N — kolonne»-rader.
   const endringsloggAktivert = norm.enableChangeLog;
-  const kolonnerPerFelt = byggKolonnerPerFelt(treObjekter);
+  const kolonnerPerFelt = byggKolonnerPerFelt(treObjekter, standardFeltNavn);
   const hendelser = await lesHendelseslogg(prisma, norm.loggRef);
   const endringer = await lesEndringslogg(prisma, norm.loggRef, endringsloggAktivert);
   const logg = byggArkivLogg({ hendelser, endringer, endringsloggAktivert, kolonnerPerFelt });

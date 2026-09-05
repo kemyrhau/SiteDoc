@@ -39,7 +39,7 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
 import { ekspanderEndring, byggKolonnerPerFelt, segmenterTilTekst } from "@sitedoc/pdf";
-import { byggObjektTre } from "@sitedoc/shared";
+import { byggObjektTre, standardFeltNavn } from "@sitedoc/shared";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
@@ -191,7 +191,7 @@ export default function SjekklisteUtfylling() {
       parentId?: string | null;
       sortOrder: number;
     }[];
-    return byggKolonnerPerFelt(byggObjektTre(objs) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]);
+    return byggKolonnerPerFelt(byggObjektTre(objs) as unknown as Parameters<typeof byggKolonnerPerFelt>[0], standardFeltNavn);
   }, [sjekklisteDetalj]);
 
   const { ventende, erAktiv, ventendePerDokument } = useOpplastingsKo();

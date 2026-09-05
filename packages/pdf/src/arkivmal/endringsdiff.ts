@@ -25,6 +25,8 @@ export type { Segment };
 export interface KolonneDef {
   id: string;
   label: string;
+  /** Felttypens standardnavn (fra kallerens resolver) — fallback når `label` er tom. */
+  standardNavn?: string | null;
 }
 
 /**
@@ -48,6 +50,7 @@ export function segmenterTilTekst(segs: Segment[] | null): string | null {
 interface TreNode {
   id: string;
   label: string;
+  type?: string;
   children?: TreNode[];
 }
 
@@ -58,13 +61,22 @@ interface TreNode {
  * kolonnenavn» i stedet for barn-UUID. Rent lag; kalleren bygger treet
  * (`byggObjektTre`) og sender det inn.
  */
-export function byggKolonnerPerFelt(tre: TreNode[]): Record<string, KolonneDef[]> {
+export function byggKolonnerPerFelt(
+  tre: TreNode[],
+  // Injisert resolver felttype→standardnavn (shared `standardFeltNavn`). Utelates i
+  // pdf-interne tester; da faller tomme labels tilbake på «Kolonne N» som før.
+  standardNavn?: (type: string) => string | null,
+): Record<string, KolonneDef[]> {
   const kart: Record<string, KolonneDef[]> = {};
   const walk = (noder: TreNode[]): void => {
     for (const n of noder) {
       const barn = n.children ?? [];
       if (barn.length > 0) {
-        kart[n.id] = barn.map((b) => ({ id: b.id, label: b.label }));
+        kart[n.id] = barn.map((b) => ({
+          id: b.id,
+          label: b.label,
+          standardNavn: b.type && standardNavn ? standardNavn(b.type) : null,
+        }));
         walk(barn);
       }
     }
@@ -323,15 +335,20 @@ function tilSegmenter(fra: string | null, til: string | null): { fraVerdi: Segme
 }
 
 /**
- * Kolonne-label for et barn-id. Faller tilbake til «Kolonne N» (posisjon) når
- * mappingen ikke finner navnet ELLER labelen er meningsløs — aldri rå barn-UUID
- * og aldri en ren plassholder som «_» (en tom label bruker malbyggeren, og
- * `"_".trim()` er ikke tom, så trim alene fanget den ikke). En label uten noe
- * alfanumerisk tegn regnes som meningsløs.
+ * Kolonne-label for et barn-id. Rekkefølge: egen label → felttypens standardnavn
+ * (injisert resolver, f.eks. «Posisjon i tegning») → «Kolonne N» (posisjon). Aldri
+ * rå barn-UUID og aldri en ren plassholder som «_» (en tom label bruker malbyggeren,
+ * og `"_".trim()` er ikke tom, så trim alene fanget den ikke). En label uten noe
+ * alfanumerisk tegn regnes som meningsløs. Standardnavn-fallbacken (bygg 50) erstatter
+ * «Kolonne N» for repeater-barn uten label, som ellers ga byggherren «Kolonne 3».
  */
 function kolonneLabel(kolonner: KolonneDef[], id: string, ordinal: number): string {
-  const label = kolonner.find((k) => k.id === id)?.label?.trim();
-  return harMeningsfullLabel(label) ? label! : `Kolonne ${ordinal}`;
+  const def = kolonner.find((k) => k.id === id);
+  const label = def?.label?.trim();
+  if (harMeningsfullLabel(label)) return label!;
+  const std = def?.standardNavn?.trim();
+  if (harMeningsfullLabel(std)) return std!;
+  return `Kolonne ${ordinal}`;
 }
 
 /** Én celles innhold delt i sammenlignbare deler (verdi · bilder · merknad). */
