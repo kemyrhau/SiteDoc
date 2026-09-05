@@ -334,72 +334,40 @@ Flat array med feltdefinisjoner som konverteres til ReportObjects ved import:
 
 ### Detaljerte sjekklister per mal
 
-> ⚠️ **Drift — fasit er koden.** Feltinnholdet defineres i `packages/db/prisma/seed-bibliotek.ts`.
-> K-listene nedenfor er håndvedlikeholdt og stemmer **ikke** felt-for-felt med seed (flere felt er
-> `list_single`/`decimal` i koden, ikke `traffic_light`; enkelte oppførte felt finnes ikke i malen).
-> Verifiser mot seed før du stoler på dem. F-listene lenger ned er nyere og ligger nærmere koden.
+> **Fasit: `packages/db/prisma/seed-bibliotek.ts`** (K-malenes `MalDef[]` i `main()`). Oversikten
+> under er avledet og regenerert mot seed 2026-09-06 (etter malrevisjon B/D) — endres seed, er seed
+> som gjelder. Alle 12 maler er AI-utkast (`verifisert: false`). Felttypene er en bevisst blanding:
+> `list_single` (navngitte utfall der utfallet bærer informasjon), `traffic_light` (binær
+> bekreftelse) og `decimal` (måleverdi med enhet/toleranse), gruppert i fasene FØR/UNDER/ETTER.
 
-#### KB2.2 – Jordarbeider, utlegging av eksterne masser (ref: KB2.2 / KB2.5)
+#### KA7 – Gjenbruk av materialer (4 felt)
+- **FØR:** Materialstatus `[list_single]` · Dokumentasjon på opprinnelse `[traffic_light]` · Lagringsplass godkjent `[traffic_light]`
+- **UNDER:** Materialer rengjort `[traffic_light]`
 
-**FØR:**
-- Underlag kontrollert og godkjent `[traffic_light]` — Fri for is, snø, organisk materiale og stående vann
-- Leveringsdokument kontrollert `[traffic_light]` — Vareseddel stemmer med spesifisert jordtype
+#### KB2 – Jordarbeider, utlegging av vekstjord (Tabell K4) (9 felt)
+- **FØR:** Formål / planteformål `[list_single]` · Underlag `[list_single]` · Leveringsdokument kontrollert `[traffic_light]`
+- **UNDER:** Lagtykkelse vekstjord (cm) `[decimal]` · Maks steinstørrelse `[list_single]` · Jord ikke komprimert `[traffic_light]`
+- **ETTER:** Planhet – avvik (mm) `[decimal, tol ±30]` · Fall (%) `[decimal, min 2.0]` · Overflate jevn, fritt for ugras `[traffic_light]`
 
-**UNDER:**
-- Lagtykkelse vekstjord `[decimal, enhet: cm, min: 20]` — Krav per prosjekt – Tabell K4 NS 3420-K
-- Ingen komprimering av vekstjord `[traffic_light]` — Ikke kjøre med tunge maskiner på utlagt jordlag
+#### KB4 – Grasdekke (7 felt)
+- **FØR:** Type etablering `[list_single]` · Jordlag løsgjort og finplanert `[traffic_light]` · Fall (%) `[decimal, min 2.0]`
+- **UNDER:** God kontakt frø/plen mot jord `[traffic_light]` · Vannet etter legging/såing `[traffic_light]`
+- **ETTER:** Markdekningsgrad (%) `[decimal, min 95]` · Klippet jevnlig frem til overtakelse `[traffic_light]`
 
-**ETTER:**
-- Planhet – avvik fra planlagt nivå `[decimal, enhet: mm, toleranse: ±30]` — Mål med 3 m rettholt · ref KB2.5
-- Fritt for stein >30 mm og fremmedlegemer `[traffic_light]` — Visuell kontroll over hele arealet
-- Ugrasbekjempelse utført `[traffic_light]` — KB2.4 – kjemisk eller mekanisk metode
+#### KB6 – Planting, trær/busker/stauder (NS 4400) (8 felt)
+- **FØR:** Plantekvalitet `[list_single]` · Saftspente og fuktige ved ankomst `[traffic_light]` · Plantehull `[list_single]`
+- **UNDER:** Rothalsen over jordoverflate `[traffic_light]` · God kontakt rot og jord `[traffic_light]` · Rotbløyte utført `[traffic_light]`
+- **ETTER:** Plantefelt fritt for ugras `[traffic_light]` · Oppbinding/støtte montert `[traffic_light]`
 
-#### KB4 – Grasdekke, etablering og kontroll (ref: KB4)
+#### KC3.1 – Oppstøtting av trær (4 felt)
+- **FØR:** Støttetype `[list_single]`
+- **UNDER:** Støtte plassert korrekt `[traffic_light]` · Bindmateriale skadefritt for bark `[traffic_light]`
+- **ETTER:** Kontrollert etter 1 sesong `[traffic_light]`
 
-**FØR:**
-- Frøblanding/rullegress dokumentert `[traffic_light]` — Emballasje merket – opphav og art kontrollerbart (KB4 b1)
-- Jordlag løsgjort og finplanert `[traffic_light]` — KB2.5 – ingen store klumper, stein < 30 mm
-- Fall/helning kontrollert `[decimal, enhet: %, min: 2.0]` — Avrenning sikret – min. 2 % mot sluk/kant
-
-**UNDER:**
-- God kontakt frø/plen mot jord `[traffic_light]` — Rullegress i forband, tett sammensatt (KB4 c2)
-- Vannet etter legging/såing `[traffic_light]` — Rotbløyte / jevn fuktighet sikret
-
-**ETTER:**
-- Markdekningsgrad `[decimal, enhet: %, min: 95]` — KB4 c4 – ingen åpne flekker > 1,0 dm²
-- Klippet jevnlig frem til overtakelse `[traffic_light]` — KB4 c3 – homogen og i god vekst
-
-#### KB6 – Planting, trær busker og stauder (ref: KB6 / NS 4400)
-
-**FØR:**
-- Planter i henhold til NS 4400 `[traffic_light]` — Art, sort, størrelse og leveringsform som spesifisert
-- Planter saftspente og fuktige ved ankomst `[traffic_light]` — KB6 c1 – barrotsplanter i hvile (KB6 c2)
-- Plantehull riktig dimensjon `[traffic_light]` — Min. 2× rotklumpdiameter · dybde = rotklumphøyde
-
-**UNDER:**
-- Rothalsen over jordoverflate `[traffic_light]` — KB6.1 c1 – tre plantes med noe overhøyde (KB6.1 c2)
-- God kontakt mellom rot og jord `[traffic_light]` — KB6 c3 – uten luftlommer
-- Rotbløyte utført etter planting `[traffic_light]` — KB6 c4 – grundig vanning
-
-**ETTER:**
-- Plantefelt fritt for ugras `[traffic_light]` — KB6 c5 – ved overtakelse
-- Oppbinding og støtte montert `[traffic_light]` — KC3.1 – midlertidig oppstøtting av trær
-
-#### KD1 – Utendørsbelegg, legging og kontroll (ref: KD1 · Tabell K11/K12)
-
-**FØR:**
-- Underlag kontrollert og komprimert `[traffic_light]` — Jevnt, stabilt – ingen telehiv-risiko
-- Belegningstype som spesifisert `[traffic_light]` — Farge, mønster, kornstruktur – visuell kontroll
-
-**UNDER:**
-- Fall gangarealer `[decimal, enhet: %, min: 2.0]` — Tabell K11 – annet belegg, gangarealer
-- Fall kjørearealer `[decimal, enhet: %, min: 2.5]` — Tabell K11 – kjørearealer
-- Fuger rette linjer/jevne kurver `[traffic_light]` — KD1 c5 – gjennomgående fuger uten hakk
-
-**ETTER:**
-- Planhet over 3 m målelengde `[decimal, enhet: mm, toleranse: ±3]` — Tabell K12 – belegningsstein betong/heller gangarealer
-- Vertikalt sprang ved fuger `[decimal, enhet: mm, maks: 2]` — Tabell K12 – gangarealer betong/heller
-- Steiner rengjort for fugemateriale `[traffic_light]` — KD1 c7 – etter fuging
+#### KD1 – Utendørsbelegg (Tabell K11/K12) (7 felt)
+- **FØR:** Underlag `[list_single]` · Belegningstype `[list_single]`
+- **UNDER:** Fall gangarealer (%) `[decimal, min 2.0]` · Fall kjørearealer (%) `[decimal, min 2.5]` · Fuger – rette linjer/jevne kurver `[traffic_light]`
+- **ETTER:** Planhet over 3 m (mm) `[decimal, tol ±3]` · Vertikalt sprang fuger (mm) `[decimal, maks 2]`
 
 ### NS 3420-F:2024 – Grunnarbeider (4 kapitler, 6 maler)
 
