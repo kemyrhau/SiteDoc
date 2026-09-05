@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Import z knihovny",
   "bibliotek.ingenStandarder": "Nejsou k dispozici žádné normy.",
   "bibliotek.seMal": "Zobrazit šablonu",
+  "bibliotek.utkastBadge": "Koncept – neověřeno odborníkem",
+  "bibliotek.utkastForklaring": "Tato šablona dosud nebyla odborně ověřena proti zdrojovému standardu. Dá se půjčit a používat, ale obsah by měl být přezkoumán.",
   "maler.kopierMal": "Kopírovat šablonu",
   "maler.redigerMal": "Upravit šablonu",
   "maler.slettMal": "Smazat šablonu",

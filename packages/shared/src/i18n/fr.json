@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Importer depuis la bibliothèque",
   "bibliotek.ingenStandarder": "Aucune norme disponible.",
   "bibliotek.seMal": "Afficher le modèle",
+  "bibliotek.utkastBadge": "Projet – non vérifié par des experts",
+  "bibliotek.utkastForklaring": "Ce modèle n'a pas encore été vérifié par des experts par rapport à la norme source. Il peut être emprunté et utilisé, mais son contenu doit être revu.",
   "maler.kopierMal": "Copier le modèle",
   "maler.redigerMal": "Modifier le modèle",
   "maler.slettMal": "Supprimer le modèle",

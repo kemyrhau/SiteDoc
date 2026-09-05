@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Importi nga biblioteka",
   "bibliotek.ingenStandarder": "Nuk ka standarde të disponueshme.",
   "bibliotek.seMal": "Shiko shabllonin",
+  "bibliotek.utkastBadge": "Drafti - jo i verifikuar nga eksperti",
+  "bibliotek.utkastForklaring": "Ky shabllon ende nuk është verifikuar nga eksperti kundrejt standardit burimor. Mund të huazohet dhe përdoret, por përmbajtja duhet rishikuar.",
   "maler.kopierMal": "Kopjoni shabllonin",
   "maler.redigerMal": "Redakto shabllonin",
   "maler.slettMal": "Fshi shabllonin",

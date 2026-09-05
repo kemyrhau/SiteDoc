@@ -632,7 +632,7 @@ function MalRad({
   laaner,
   onLaan,
 }: {
-  bm: { id: string; navn: string; referanse: string };
+  bm: { id: string; navn: string; referanse: string; verifisert: boolean };
   laaner: boolean;
   onLaan: () => void;
 }) {
@@ -670,6 +670,14 @@ function MalRad({
             {bm.navn} <span className="text-gray-400">{bm.referanse}</span>
           </span>
         </button>
+        {!bm.verifisert && (
+          <span
+            className="inline-flex shrink-0 items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+            title={t("bibliotek.utkastForklaring")}
+          >
+            {t("bibliotek.utkastBadge")}
+          </span>
+        )}
         {laanKnapp}
       </div>
       {apen && (

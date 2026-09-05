@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Hent fra bibliotek",
   "bibliotek.ingenStandarder": "Ingen standarder tilgjengelig.",
   "bibliotek.seMal": "Se mal",
+  "bibliotek.utkastBadge": "Utkast — ikke fagverifisert",
+  "bibliotek.utkastForklaring": "Malen er ikke fagverifisert mot kilde-normen ennå. Den kan lånes og brukes, men innholdet bør kontrolleres.",
   "maler.kopierMal": "Kopier mal",
   "maler.redigerMal": "Rediger mal",
   "maler.slettMal": "Slett mal",

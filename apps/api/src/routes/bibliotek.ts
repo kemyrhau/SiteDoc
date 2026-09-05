@@ -24,6 +24,7 @@ export const bibliotekRouter = router({
                   referanse: true,
                   beskrivelse: true,
                   versjon: true,
+                  verifisert: true,
                 },
               },
             },

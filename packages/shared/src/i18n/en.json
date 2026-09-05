@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Import from library",
   "bibliotek.ingenStandarder": "No standards available.",
   "bibliotek.seMal": "View template",
+  "bibliotek.utkastBadge": "Draft — not expert-verified",
+  "bibliotek.utkastForklaring": "This template has not yet been expert-verified against the source standard. It can be borrowed and used, but the content should be reviewed.",
   "maler.kopierMal": "Copy template",
   "maler.redigerMal": "Edit template",
   "maler.slettMal": "Delete template",

@@ -1966,6 +1966,8 @@
   "bibliotek.hentFraBibliotek": "Importera från biblioteket",
   "bibliotek.ingenStandarder": "Inga standarder tillgängliga.",
   "bibliotek.seMal": "Visa mall",
+  "bibliotek.utkastBadge": "Utkast — inte expertverifierad",
+  "bibliotek.utkastForklaring": "Denna mall har ännu inte expertverifierats mot källstandarden. Den kan lånas och användas, men innehållet bör ses över.",
   "maler.kopierMal": "Kopiera mall",
   "maler.redigerMal": "Redigera mall",
   "maler.slettMal": "Ta bort mall",
