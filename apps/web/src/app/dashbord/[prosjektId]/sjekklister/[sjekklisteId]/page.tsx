@@ -7,7 +7,7 @@ import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift, ekspanderEndring, byggKolonnerPerFelt } from "@sitedoc/pdf";
 import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/pdf";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
+import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -1162,6 +1162,10 @@ function RenderSegmenter({ segs }: { segs: Segment[] }) {
  * og dropper kanoniske no-ops (vær-rekkefølge).
  */
 function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
+  const { t } = useTranslation();
+  // D (bygg 50): loggen skal ikke stå åpen — sammenleggbar, lukket som standard
+  // (speiler mobil `sjekkliste/[id].tsx`). enableChangeLog og radene er urørt.
+  const [visLogg, setVisLogg] = useState(false);
   const { data: sjekkliste } = trpc.sjekkliste.hentMedId.useQuery({ id: sjekklisteId });
 
   // Smale refs (ikke hele `sjekkliste`) i dep-arrayene — den tRPC-infererte typen
@@ -1193,8 +1197,22 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
 
   return (
     <Card className="mt-6">
-      <h4 className="mb-3 text-sm font-medium text-gray-500">Endringslogg</h4>
-      <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() => setVisLogg((v) => !v)}
+        className="flex w-full items-center gap-2 text-left"
+        aria-expanded={visLogg}
+      >
+        <Clock className="h-4 w-4 shrink-0 text-gray-500" />
+        <span className="flex-1 text-sm font-medium text-gray-500">{t("dokument.endringslogg")}</span>
+        {visLogg ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+        )}
+      </button>
+      {visLogg && (
+      <div className="mt-3 flex flex-col gap-1.5">
         {rader.map((rad) => (
           <div key={rad.key} className="flex items-start gap-2 text-xs print-no-break">
             <span className="shrink-0 text-gray-400">
@@ -1215,6 +1233,7 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
           </div>
         ))}
       </div>
+      )}
     </Card>
   );
 }
