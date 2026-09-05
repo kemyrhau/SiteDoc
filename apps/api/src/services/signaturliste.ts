@@ -1,6 +1,48 @@
 import type { PrismaClient } from "@sitedoc/db";
 import type { SignaturListeData } from "@sitedoc/pdf";
 import { beregnSignaturStatus } from "@sitedoc/shared";
+import { TRPCError } from "@trpc/server";
+
+/**
+ * Serverlås: avvis verdiskriving når dokumentets GJELDENDE (siste) SignaturRunde
+ * er avsluttet. En SJA-lås er hele det juridiske poenget — beviset på at innholdet
+ * de signerte ikke er rørt etterpå — så den må håndheves på serveren, ikke bare i UI.
+ *
+ * Gjeldende runde = høyeste `rundeNr` for dokumentet. `avsluttetAt` satt → låst.
+ * «Start ny runde» oppretter en ny runde (høyere `rundeNr`, `avsluttetAt=null`) →
+ * gjeldende runde er da åpen igjen → låst opp. Vakten rammer derfor ikke den veien.
+ *
+ * Billig no-op for de aller fleste dokumenter (ingen runder): ett indeksert
+ * `findFirst` på `signatur_runder` (dekket av `@@unique([checklistId, rundeNr])`)
+ * som returnerer `null`. Kalles ETTER tilgangssjekk, FØR skriving.
+ *
+ * Etter fabels designlås (2026-09-06) er et dokument med avsluttet runde HELT
+ * lukket — også for tilbehør (kommentar/vedlegg). Nye observasjoner hører i
+ * avvik/RUH eller en ny runde. Derfor blokkeres hele `oppdaterData`, ikke bare
+ * verdi-delen.
+ */
+export async function verifiserRundeIkkeLaast(
+  prisma: PrismaClient,
+  ref: { checklistId: string } | { taskId: string },
+): Promise<void> {
+  const gjeldende = await prisma.signaturRunde.findFirst({
+    where: ref,
+    orderBy: { rundeNr: "desc" },
+    select: { avsluttetAt: true },
+  });
+  if (gjeldende?.avsluttetAt) {
+    const dato = gjeldende.avsluttetAt.toLocaleDateString("nb-NO", {
+      timeZone: "Europe/Oslo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Runden ble avsluttet ${dato}. Innholdet er låst — ansvarlig må starte ny runde for å endre.`,
+    });
+  }
+}
 
 /**
  * Bygg signaturliste-data (SJA/HMS-runder) på dokument-PDF-form. Delt kilde for
