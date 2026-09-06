@@ -308,6 +308,8 @@ export const sjekklisteRouter = router({
         positionY: z.number().min(0).max(100).optional(),
         // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
         lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass når tegning mangler.
+        lokasjonFritekst: z.string().max(200).nullable().optional(),
         dueDate: z.string().datetime().optional(),
         // Kontrollplan: er dette settet, kobles den nye sjekklisten atomisk til
         // kontrollpunktet (fyller punkt.sjekklisteId, løfter planlagt→pagar) i samme
@@ -568,6 +570,7 @@ export const sjekklisteRouter = router({
             positionX: input.positionX,
             positionY: input.positionY,
             lokasjonOmfang: input.lokasjonOmfang,
+            lokasjonFritekst: input.lokasjonFritekst,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             // Spor 2 / 5a: HMS (SJA) opprettes nå som UTKAST (draft), ikke auto-sendt. Melder
             // eier innholdet og sender selv via hmsSendInn (→ Behandler-ledd + feltlås 5b).
@@ -619,6 +622,7 @@ export const sjekklisteRouter = router({
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
         lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -658,7 +662,7 @@ export const sjekklisteRouter = router({
       const rørerLaastFelt =
         input.drawingId !== undefined || input.positionX !== undefined ||
         input.positionY !== undefined || input.byggeplassId !== undefined ||
-        input.lokasjonOmfang !== undefined;
+        input.lokasjonOmfang !== undefined || input.lokasjonFritekst !== undefined;
       if (rørerLaastFelt && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
         throw new TRPCError({
           code: "BAD_REQUEST",

@@ -126,9 +126,9 @@ export default function HmsSide() {
     { enabled: !!params.prosjektId },
   );
   const signaturChips = useMemo(() => {
-    const map: Record<string, { signert: number; av: number; signertFørEndring: number; status: "ingen_runde" | "mangler" | "komplett" }> = {};
+    const map: Record<string, { signert: number; bekreftet: number; av: number; signertFørEndring: number; status: "ingen_runde" | "mangler" | "komplett" }> = {};
     for (const c of signaturChipListe ?? [])
-      map[c.checklistId] = { signert: c.signert, av: c.av, signertFørEndring: c.signertFørEndring, status: c.status };
+      map[c.checklistId] = { signert: c.signert, bekreftet: c.bekreftet, av: c.av, signertFørEndring: c.signertFørEndring, status: c.status };
     return map;
   }, [signaturChipListe]);
 

@@ -170,6 +170,7 @@ export const signaturRouter = router({
                 signertVersjon: true,
                 nySignaturKrevdAt: true,
                 nySignaturKrevdAv: true,
+                bekreftetAvUserId: true,
               },
             },
           },
@@ -180,8 +181,9 @@ export const signaturRouter = router({
 
       const aktiveDeltakere = deltakere.filter((d) => d.fjernetAt === null);
       const gjeldende = runder.length > 0 ? runder[runder.length - 1] : null;
-      // Tellende signaturer = de som IKKE er krevd ny (krevd-ny er flyttet til
-      // manko). Av dem: hvor mange signerte før en senere innholdsendring → amber.
+      // Tellende attestasjoner = de som IKKE er krevd ny (krevd-ny er flyttet til
+      // manko). 🔴 Signert (egen rad) og bekreftet (gjest bekreftet av ansvarlig)
+      // holdes fra hverandre — de blandes aldri i dokumentet.
       const tellende = gjeldende?.signaturer.filter((s) => s.nySignaturKrevdAt === null) ?? [];
       const antallFørEndring = tellende.filter((s) => s.signertVersjon < innholdsVersjon).length;
       const status = beregnSignaturStatus(
@@ -189,7 +191,8 @@ export const signaturRouter = router({
           ? {
               rundeNr: gjeldende.rundeNr,
               avsluttet: gjeldende.avsluttetAt !== null,
-              antallSignert: tellende.length,
+              antallSignert: tellende.filter((s) => !s.bekreftetAvUserId).length,
+              antallBekreftet: tellende.filter((s) => s.bekreftetAvUserId).length,
               antallSignertFørEndring: antallFørEndring,
               antallDeltakere: gjeldende.antallDeltakere,
             }
@@ -199,19 +202,22 @@ export const signaturRouter = router({
 
       const minDeltaker = aktiveDeltakere.find((d) => d.userId === ctx.userId);
 
-      // Løs opp navn for «Krev ny signatur»-sporet («ny signatur krevd <dato> av <navn>»).
-      const krevdAvIder = [
+      // Løs opp navn for «Krev ny signatur»-sporet OG «bekreftet av <navn>» (gjest
+      // bekreftet av ansvarlig) — ett samlet oppslag.
+      const bekreftIder = [
         ...new Set(
-          runder.flatMap((r) => r.signaturer.map((s) => s.nySignaturKrevdAv).filter((x): x is string => !!x)),
+          runder.flatMap((r) =>
+            r.signaturer.flatMap((s) => [s.nySignaturKrevdAv, s.bekreftetAvUserId].filter((x): x is string => !!x)),
+          ),
         ),
       ];
-      const krevdAvNavn = new Map<string, string>();
-      if (krevdAvIder.length > 0) {
+      const brukerNavn = new Map<string, string>();
+      if (bekreftIder.length > 0) {
         const brukere = await ctx.prisma.user.findMany({
-          where: { id: { in: krevdAvIder } },
+          where: { id: { in: bekreftIder } },
           select: { id: true, name: true },
         });
-        for (const u of brukere) krevdAvNavn.set(u.id, u.name ?? "Ukjent");
+        for (const u of brukere) brukerNavn.set(u.id, u.name ?? "Ukjent");
       }
 
       return {
@@ -244,7 +250,9 @@ export const signaturRouter = router({
             signertVersjon: s.signertVersjon,
             // Krevd ny signatur → deltakeren er flyttet til manko; raden bæres for sporet.
             nySignaturKrevdAt: s.nySignaturKrevdAt,
-            nySignaturKrevdAvNavn: s.nySignaturKrevdAv ? krevdAvNavn.get(s.nySignaturKrevdAv) ?? null : null,
+            nySignaturKrevdAvNavn: s.nySignaturKrevdAv ? brukerNavn.get(s.nySignaturKrevdAv) ?? null : null,
+            // Gjest bekreftet av ansvarlig → «bekreftet av <navn>» (aldri utelatt).
+            bekreftetAvNavn: s.bekreftetAvUserId ? brukerNavn.get(s.bekreftetAvUserId) ?? "Ukjent" : null,
           })),
         })),
         status,
@@ -282,9 +290,10 @@ export const signaturRouter = router({
               rundeNr: true,
               avsluttetAt: true,
               antallDeltakere: true,
-              // Krevd-ny teller ikke; før-endring gir amber → trenger versjonene,
-              // ikke bare _count. Bundet av antall deltakere per runde (lite).
-              signaturer: { select: { signertVersjon: true, nySignaturKrevdAt: true } },
+              // Krevd-ny teller ikke; før-endring gir amber; signert/bekreftet splittes
+              // → trenger versjon + bekreftet-flagg, ikke bare _count. Bundet av antall
+              // deltakere per runde (lite).
+              signaturer: { select: { signertVersjon: true, nySignaturKrevdAt: true, bekreftetAvUserId: true } },
             },
           },
           _count: { select: { signaturDeltakere: { where: { fjernetAt: null } } } },
@@ -299,7 +308,8 @@ export const signaturRouter = router({
             ? {
                 rundeNr: siste.rundeNr,
                 avsluttet: siste.avsluttetAt !== null,
-                antallSignert: tellende.length,
+                antallSignert: tellende.filter((x) => !x.bekreftetAvUserId).length,
+                antallBekreftet: tellende.filter((x) => x.bekreftetAvUserId).length,
                 antallSignertFørEndring: antallFørEndring,
                 antallDeltakere: siste.antallDeltakere,
               }
@@ -309,6 +319,7 @@ export const signaturRouter = router({
         return {
           checklistId: r.id,
           signert: s.signert,
+          bekreftet: s.bekreftet,
           av: s.av,
           signertFørEndring: s.signertFørEndring,
           status: s.status,
@@ -571,13 +582,16 @@ export const signaturRouter = router({
         select: { id: true, nySignaturKrevdAt: true },
       });
       // Signaturen bærer versjonen den ble avgitt på (`signertVersjon`) → «signert
-      // før endring» kan avgjøres senere.
+      // før endring» kan avgjøres senere. `bekreftetAvUserId` settes KUN for gjester
+      // (deltaker.userId === null): da er dette en bekreftelse FRA ansvarlig, ikke en
+      // signatur av gjesten (Kenneth-vedtak 2026-09-06). Egen rad → forblir null.
       const signaturData = {
         hmsKortNr: input.hmsKortNr ?? null,
         harIkkeHmsKort: input.harIkkeHmsKort,
         signaturbilde: input.signaturbilde ?? null,
         signertTidspunkt: input.signertTidspunkt ?? null,
         signertVersjon: innholdsVersjon,
+        bekreftetAvUserId: deltaker.userId ? null : ctx.userId,
       };
       if (finnes) {
         // Re-signering er tillatt KUN når ansvarlig har krevd ny signatur (raden er

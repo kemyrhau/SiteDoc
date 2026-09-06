@@ -162,9 +162,16 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId }: Rapport
           ) : (
             <AlertTriangle className="h-3.5 w-3.5" />
           )}
-          {t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
+          {/* 🔴 Signert og bekreftet står fra hverandre når begge finnes. */}
+          {status.bekreftet > 0
+            ? t("signaturliste.statusSplitt", "{{signert}} signert + {{bekreftet}} bekreftet av {{av}}", {
+                signert: status.signert,
+                bekreftet: status.bekreftet,
+                av: status.av,
+              })
+            : t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
           {status.signertFørEndring > 0 &&
-            ` — ${t("signaturliste.signertFørEndring", "{{n}} signert før endring", { n: status.signertFørEndring })}`}
+            ` — ${t("signaturliste.foerEndring", "{{n}} før endring", { n: status.signertFørEndring })}`}
         </span>
       </div>
 
@@ -219,8 +226,20 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId }: Rapport
                         variant="primary"
                         loading={signerMut.isPending && signerMut.variables?.deltakerId === d.id}
                         onClick={() => signerMut.mutate({ deltakerId: d.id, signertTidspunkt: signaturTidspunktNaa() })}
+                        // Gjest signeres på ansvarliges enhet → handlingen er en bekreftelse
+                        // FRA ansvarlig, ikke gjestens signatur. Hjelpeteksten sier hva det betyr.
+                        title={
+                          d.erGjest
+                            ? t(
+                                "signaturliste.bekreftDeltakelseHjelp",
+                                "Du bekrefter at personen deltok i gjennomgangen. Bekreftelsen registreres på ditt navn.",
+                              )
+                            : undefined
+                        }
                       >
-                        {t("signaturliste.signer", "Signer")}
+                        {d.erGjest
+                          ? t("signaturliste.bekreftDeltakelse", "Bekreft deltakelse")
+                          : t("signaturliste.signer", "Signer")}
                       </Button>
                     )}
                     {kanRedigere && (
@@ -256,13 +275,18 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId }: Rapport
                   )}
                   {d.navn}
                   {d.firma && <span className="opacity-70"> · {d.firma}</span>}
+                  {sig?.bekreftetAvNavn && (
+                    <span className="text-gray-500">
+                      {" "}· {t("signaturliste.bekreftetAv", "bekreftet av {{navn}}", { navn: sig.bekreftetAvNavn })}
+                    </span>
+                  )}
                 </span>
                 <span className={`text-xs ${førEndring ? "text-amber-700" : "text-gray-500"}`}>
                   {visTid(sig)}
                   {hmsKortTekst(sig) && <span className="ml-2">· {hmsKortTekst(sig)}</span>}
                   {førEndring && (
                     <span className="ml-2 font-medium">
-                      · {t("signaturliste.signertFørEndringDato", "signert før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}
+                      · {t("signaturliste.foerEndringDato", "før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}
                     </span>
                   )}
                 </span>

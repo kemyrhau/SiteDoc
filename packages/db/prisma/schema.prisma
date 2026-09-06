@@ -1125,6 +1125,11 @@ model Checklist {
   // · null = ikke valgt ennå (auto-åpning kan trigge i utkast). PDF/web skiller byggeplass fra
   // et tomt felt — et tomt felt der noe var ment er en usann påstand.
   lokasjonOmfang       String?   @map("lokasjon_omfang")
+  // Fritekst-lokasjon (2026-09-06): en PRESISERING innenfor byggeplassen når det ikke
+  // finnes tegning å pinne på — «Akse 4», «Nordre rampe». Påheng på byggeplass-valget
+  // (settes SAMMEN med lokasjonOmfang="byggeplass"), ikke et fjerde omfangsnivå — arver
+  // dermed all byggeplass-filtrering. Tegning forblir førstevalget; dette er utveien.
+  lokasjonFritekst     String?   @map("lokasjon_fritekst")
   recipientUserId      String?   @map("recipient_user_id")
   recipientGroupId     String?   @map("recipient_group_id")
   lestAvMottakerVed    DateTime? @map("lest_av_mottaker_ved")
@@ -1194,6 +1199,8 @@ model Task {
   positionY            Float?    @map("position_y")
   // Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | null — speiler Checklist.lokasjonOmfang.
   lokasjonOmfang       String?   @map("lokasjon_omfang")
+  // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass-valget. Se Checklist.
+  lokasjonFritekst     String?   @map("lokasjon_fritekst")
   dokumentflytId       String?   @map("dokumentflyt_id")
   checklistId          String?   @map("checklist_id")
   checklistFieldId     String?   @map("checklist_field_id")
@@ -2074,6 +2081,12 @@ model DokumentSignatur {
   // Menneskets kall, aldri automatikk — derfor egen tilstand, ikke avledet av versjon.
   nySignaturKrevdAt DateTime? @map("ny_signatur_krevd_at")
   nySignaturKrevdAv String?   @map("ny_signatur_krevd_av") // userId — svakt felt, ingen @relation
+  // Satt KUN når ansvarlig bekrefter deltakelse på vegne av en GJEST (2026-09-06):
+  // handlingen er en bekreftelse FRA ansvarlig, ikke en signatur av gjesten. Dokumentet
+  // skal si «bekreftet av <navn>», aldri påstå at gjesten selv signerte. Signerer man
+  // sin egen rad forblir feltet null (signaturen er sin egen). userId — svakt felt,
+  // ingen @relation. Ingen backfill: eldre rader er null = vises som før.
+  bekreftetAvUserId String?  @map("bekreftet_av_user_id")
 
   runde    SignaturRunde    @relation(fields: [rundeId], references: [id], onDelete: Cascade)
   deltaker DokumentDeltaker @relation(fields: [deltakerId], references: [id], onDelete: Cascade)

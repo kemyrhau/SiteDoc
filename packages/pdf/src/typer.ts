@@ -242,6 +242,8 @@ export interface SignaturListeSignaturData {
   signertVersjon: number;
   /** Satt = «Krev ny signatur» — teller ikke, deltakeren står som IKKE SIGNERT. */
   nySignaturKrevdAt: string | null;
+  /** Gjest bekreftet av ansvarlig → «bekreftet av <navn>». null = signerte selv. */
+  bekreftetAvNavn: string | null;
 }
 
 export interface SignaturListeRundeData {
@@ -254,8 +256,12 @@ export interface SignaturListeRundeData {
 }
 
 export interface SignaturListeData {
-  /** «X av Y signert» for gjeldende runde (frys-bevisst — regnet i api-laget). */
-  status: { signert: number; av: number; rundeNr: number | null };
+  /**
+   * Dekning for gjeldende runde (frys-bevisst — regnet i api-laget). 🔴 `signert`
+   * (egen rad) og `bekreftet` (gjest bekreftet av ansvarlig) står ALLTID fra
+   * hverandre i dokumentet — topplinja splittes «X signert + Y bekreftet av Z».
+   */
+  status: { signert: number; bekreftet: number; av: number; rundeNr: number | null };
   /** Dokumentets nåværende innholdsversjon — signatur med lavere = «før endring». */
   innholdsVersjon: number;
   /** Når innholdet sist ble endret (fra endringsloggen) — datoen i «før endring <dato>». */

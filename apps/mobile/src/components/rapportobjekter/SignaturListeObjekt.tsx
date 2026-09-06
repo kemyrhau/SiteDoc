@@ -126,9 +126,15 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
         <View className={`flex-row items-center gap-1 rounded-full px-2.5 py-1 ${komplett ? "bg-green-100" : "bg-amber-100"}`}>
           {komplett ? <CheckCircle2 size={14} color="#166534" /> : <AlertTriangle size={14} color="#92400e" />}
           <Text className={`text-xs font-semibold ${komplett ? "text-green-800" : "text-amber-800"}`}>
-            {t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
+            {status.bekreftet > 0
+              ? t("signaturliste.statusSplitt", "{{signert}} signert + {{bekreftet}} bekreftet av {{av}}", {
+                  signert: status.signert,
+                  bekreftet: status.bekreftet,
+                  av: status.av,
+                })
+              : t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
             {status.signertFørEndring > 0
-              ? ` — ${t("signaturliste.signertFørEndring", "{{n}} signert før endring", { n: status.signertFørEndring })}`
+              ? ` — ${t("signaturliste.foerEndring", "{{n}} før endring", { n: status.signertFørEndring })}`
               : ""}
           </Text>
         </View>
@@ -184,7 +190,12 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
                     disabled={signerMut.isPending}
                     className="rounded-lg bg-blue-600 px-3 py-1.5"
                   >
-                    <Text className="text-sm font-medium text-white">{t("signaturliste.signer", "Signer")}</Text>
+                    {/* Gjest → bekreftelse fra ansvarlig, ikke gjestens signatur. */}
+                    <Text className="text-sm font-medium text-white">
+                      {d.erGjest
+                        ? t("signaturliste.bekreftDeltakelse", "Bekreft deltakelse")
+                        : t("signaturliste.signer", "Signer")}
+                    </Text>
                   </Pressable>
                 )}
               </View>
@@ -204,13 +215,16 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
               <Text className={`text-sm ${førEndring ? "text-amber-700" : "text-gray-900"}`}>
                 {d.navn}
                 {d.firma ? <Text className="opacity-70"> · {d.firma}</Text> : null}
+                {sig?.bekreftetAvNavn ? (
+                  <Text className="text-gray-500"> · {t("signaturliste.bekreftetAv", "bekreftet av {{navn}}", { navn: sig.bekreftetAvNavn })}</Text>
+                ) : null}
               </Text>
             </View>
             <Text className={`text-xs ${førEndring ? "text-amber-700" : "text-gray-500"}`}>
               {visTid(sig)}
               {sig?.hmsKortNr ? ` · ${sig.hmsKortNr}` : ""}
               {førEndring
-                ? ` · ${t("signaturliste.signertFørEndringDato", "signert før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}`
+                ? ` · ${t("signaturliste.foerEndringDato", "før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}`
                 : ""}
             </Text>
           </View>

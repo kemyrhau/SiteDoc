@@ -111,6 +111,7 @@ export async function hentSignaturListeData(
             signertTidspunkt: true,
             signertVersjon: true,
             nySignaturKrevdAt: true,
+            bekreftetAvUserId: true,
           },
         },
       },
@@ -125,16 +126,30 @@ export async function hentSignaturListeData(
 
   if (runder.length === 0) return null;
 
+  // «bekreftet av <navn>» for gjester bekreftet av ansvarlig — ett samlet oppslag.
+  const bekreftIder = [
+    ...new Set(
+      runder.flatMap((r) => r.signaturer.map((s) => s.bekreftetAvUserId).filter((x): x is string => !!x)),
+    ),
+  ];
+  const bekreftetNavn = new Map<string, string>();
+  if (bekreftIder.length > 0) {
+    const brukere = await prisma.user.findMany({ where: { id: { in: bekreftIder } }, select: { id: true, name: true } });
+    for (const u of brukere) bekreftetNavn.set(u.id, u.name ?? "Ukjent");
+  }
+
   const innholdsVersjon = dok.innholdsVersjon;
   const aktive = deltakere.filter((d) => d.fjernetAt === null).length;
   const gjeldende = runder[runder.length - 1]!; // ikke-tom (guardet over)
-  // Krevd-ny teller ikke; av de tellende: hvor mange signerte før siste endring.
+  // Krevd-ny teller ikke. 🔴 Signert (egen rad) og bekreftet (gjest bekreftet av
+  // ansvarlig) holdes fra hverandre — dokumentet blander dem aldri.
   const tellende = gjeldende.signaturer.filter((s) => s.nySignaturKrevdAt === null);
   const status = beregnSignaturStatus(
     {
       rundeNr: gjeldende.rundeNr,
       avsluttet: gjeldende.avsluttetAt !== null,
-      antallSignert: tellende.length,
+      antallSignert: tellende.filter((s) => !s.bekreftetAvUserId).length,
+      antallBekreftet: tellende.filter((s) => s.bekreftetAvUserId).length,
       antallSignertFørEndring: tellende.filter((s) => s.signertVersjon < innholdsVersjon).length,
       antallDeltakere: gjeldende.antallDeltakere,
     },
@@ -142,7 +157,7 @@ export async function hentSignaturListeData(
   );
 
   return {
-    status: { signert: status.signert, av: status.av, rundeNr: status.rundeNr },
+    status: { signert: status.signert, bekreftet: status.bekreftet, av: status.av, rundeNr: status.rundeNr },
     innholdsVersjon,
     innholdEndretAt: innholdEndretAt?.createdAt ? innholdEndretAt.createdAt.toISOString() : null,
     deltakere: deltakere.map((d) => ({
@@ -166,6 +181,7 @@ export async function hentSignaturListeData(
         signertTidspunkt: s.signertTidspunkt,
         signertVersjon: s.signertVersjon,
         nySignaturKrevdAt: s.nySignaturKrevdAt ? s.nySignaturKrevdAt.toISOString() : null,
+        bekreftetAvNavn: s.bekreftetAvUserId ? bekreftetNavn.get(s.bekreftetAvUserId) ?? "Ukjent" : null,
       })),
     })),
   };

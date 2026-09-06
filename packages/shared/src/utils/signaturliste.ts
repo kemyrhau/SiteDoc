@@ -17,15 +17,22 @@ export interface SisteRundeSammendrag {
   /** `avsluttetAt` fra runden — `null`/undefined = åpen runde. */
   avsluttet: boolean;
   /**
-   * Signaturer som TELLER i denne runden. Signaturer der «Krev ny signatur» er
-   * satt (`nySignaturKrevdAt != null`) er allerede flyttet til manko og skal IKKE
-   * med i dette tallet — de teller heller ikke i «X av Y».
+   * EKTE signaturer som teller — deltakeren signerte SIN EGEN rad (`bekreftetAvUserId`
+   * er null). Signaturer der «Krev ny signatur» er satt er flyttet til manko og
+   * teller ikke. 🔴 «signert» og «bekreftet» blandes ALDRI (fabel-designvakt): en
+   * bekreftelse fra ansvarlig på vegne av en gjest er IKKE en signatur.
    */
   antallSignert: number;
   /**
-   * Delmengde av `antallSignert` som ble signert på en ELDRE innholdsversjon enn
-   * dokumentets nåværende (SJA varig arbeid, fabel 2026-09-06). Teller fortsatt i
-   * «X av Y» (invalidering er menneskets kall), men gir chip amber-tilstand.
+   * Bekreftelser som teller — ansvarlig bekreftet en gjests deltakelse
+   * (`bekreftetAvUserId` satt). Egen teller, aldri slått sammen med `antallSignert`
+   * i dokumentet. Dekningsgrad (chip i lista) = signert + bekreftet.
+   */
+  antallBekreftet?: number;
+  /**
+   * Delmengde av (signert + bekreftet) som ble attestert på en ELDRE innholdsversjon
+   * enn dokumentets nåværende. Teller fortsatt i dekningen (invalidering er menneskets
+   * kall), men gir chip amber-tilstand.
    */
   antallSignertFørEndring?: number;
   /** Frosset ved «Avslutt runde». `null` for åpen runde. */
@@ -35,36 +42,44 @@ export interface SisteRundeSammendrag {
 export interface SignaturStatus {
   /** Gjeldende rundenummer, eller `null` når objektet ikke er tatt i bruk. */
   rundeNr: number | null;
+  /** EKTE signaturer (egen rad). */
   signert: number;
+  /** Bekreftelser (gjest bekreftet av ansvarlig). Aldri slått sammen med `signert` i dokumentet. */
+  bekreftet: number;
   av: number;
   /**
-   * Antall av `signert` som signerte før en senere innholdsendring. > 0 → chip
-   * skal vises amber selv om alle har signert («X av Y — N signert før endring»).
+   * Antall av (signert + bekreftet) som ble attestert før en senere innholdsendring.
+   * > 0 → chip amber selv om dekningen er full («… — N før endring»).
    */
   signertFørEndring: number;
+  /** komplett = FULL DEKNING (signert + bekreftet ≥ av). Chip-fargen skiller amber ut separat. */
   status: SignaturChipStatus;
 }
 
 /**
- * Beregn «X av Y signert» + chip-status fra siste runde og live antall aktive
- * deltakere. `aktiveDeltakere` brukes kun for åpen runde; for avsluttet runde
- * leses det frosne tallet fra runden slik at historikk ikke drifter.
+ * Beregn dekning + chip-status fra siste runde og live antall aktive deltakere.
+ * `aktiveDeltakere` brukes kun for åpen runde; for avsluttet runde leses det frosne
+ * tallet fra runden slik at historikk ikke drifter. `status = komplett` betyr FULL
+ * DEKNING (signert + bekreftet ≥ av) — men signert og bekreftet returneres hver for
+ * seg, og dokumentet (PDF) skal alltid vise dem fra hverandre.
  */
 export function beregnSignaturStatus(
   sisteRunde: SisteRundeSammendrag | null | undefined,
   aktiveDeltakere: number,
 ): SignaturStatus {
   if (!sisteRunde) {
-    return { rundeNr: null, signert: 0, av: 0, signertFørEndring: 0, status: "ingen_runde" };
+    return { rundeNr: null, signert: 0, bekreftet: 0, av: 0, signertFørEndring: 0, status: "ingen_runde" };
   }
   const av = sisteRunde.avsluttet
     ? sisteRunde.antallDeltakere ?? aktiveDeltakere
     : aktiveDeltakere;
   const signert = sisteRunde.antallSignert;
+  const bekreftet = sisteRunde.antallBekreftet ?? 0;
   const signertFørEndring = sisteRunde.antallSignertFørEndring ?? 0;
+  const dekket = signert + bekreftet;
   const status: SignaturChipStatus =
-    av > 0 && signert >= av ? "komplett" : "mangler";
-  return { rundeNr: sisteRunde.rundeNr, signert, av, signertFørEndring, status };
+    av > 0 && dekket >= av ? "komplett" : "mangler";
+  return { rundeNr: sisteRunde.rundeNr, signert, bekreftet, av, signertFørEndring, status };
 }
 
 /**

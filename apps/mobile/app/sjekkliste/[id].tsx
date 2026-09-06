@@ -745,8 +745,11 @@ export default function SjekklisteUtfylling() {
   // på tvers av flater (web/PDF/mobil) — aldri som tomt felt. Har forrang over markør-teksten.
   const erByggeplassDok =
     (sjekklisteDetalj as { lokasjonOmfang?: string | null } | undefined)?.lokasjonOmfang === "byggeplass";
+  // Fritekst-sted (2026-09-06): vises som stedet når satt, ellers «hele byggeplassen».
+  const lokasjonFritekstDok =
+    (sjekklisteDetalj as { lokasjonFritekst?: string | null } | undefined)?.lokasjonFritekst ?? null;
   const lokasjonTekstVist = erByggeplassDok
-    ? t("lokasjonVelger.gjelderByggeplass")
+    ? lokasjonFritekstDok || t("lokasjonVelger.gjelderByggeplass")
     : (leseModus && !harMarkorDok ? null : lokasjonTekst);
 
   return (
