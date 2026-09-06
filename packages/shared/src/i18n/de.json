@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "GPS schlägt vor",
   "byggeplass.ingenPaaProsjekt": "Keine Websites zu diesem Projekt",
   "byggeplass.filtrererListe": "Zeigt diese Website + Dokumente für das gesamte Projekt",
+  "byggeplass.filtrererListeKort": "+ die gesamten Projektunterlagen",
   "bygg.stempel": "Baue {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Wartet auf Projektzugriff",
   "dashbord.venterPaaTilgangBeskrivelse": "Sie haben noch keinen Zugriff auf Projekte. Bitte wenden Sie sich an Ihren Projektleiter.",

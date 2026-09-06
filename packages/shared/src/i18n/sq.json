@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "GPS sugjeron",
   "byggeplass.ingenPaaProsjekt": "Nuk ka faqe në këtë projekt",
   "byggeplass.filtrererListe": "Duke shfaqur këtë faqe + dokumente për të gjithë projektin",
+  "byggeplass.filtrererListeKort": "+ të gjithë dokumentet e projektit",
   "bygg.stempel": "Ndërtimi {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Në pritje të qasjes në projekt",
   "dashbord.venterPaaTilgangBeskrivelse": "Nuk keni ende akses në asnjë projekt. Kontaktoni menaxherin e projektit tuaj.",

@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "GPS föreslår",
   "byggeplass.ingenPaaProsjekt": "Inga webbplatser i det här projektet",
   "byggeplass.filtrererListe": "Visar denna sida + dokument för hela projektet",
+  "byggeplass.filtrererListeKort": "+ hela projektets dokument",
   "bygg.stempel": "Bygg {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Väntar på projektåtkomst",
   "dashbord.venterPaaTilgangBeskrivelse": "Du har inte åtkomst till några projekt ännu. Kontakta din projektledare.",

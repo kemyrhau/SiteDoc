@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "Le GPS suggère",
   "byggeplass.ingenPaaProsjekt": "Aucun site sur ce projet",
   "byggeplass.filtrererListe": "Affichage de ce site + documents pour l'ensemble du projet",
+  "byggeplass.filtrererListeKort": "+ l'ensemble des documents du projet",
   "bygg.stempel": "Construire {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "En attente d'accès au projet",
   "dashbord.venterPaaTilgangBeskrivelse": "Vous n'avez encore accès à aucun projet. Contactez votre chef de projet.",

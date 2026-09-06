@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "GPS soovitab",
   "byggeplass.ingenPaaProsjekt": "Sellel projektil pole saite",
   "byggeplass.filtrererListe": "Kuvatakse see sait + kogu projekti dokumendid",
+  "byggeplass.filtrererListeKort": "+ kogu projekti dokumendid",
   "bygg.stempel": "Järg {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Ootab projekti juurdepääsu",
   "dashbord.venterPaaTilgangBeskrivelse": "Teil pole veel ühelegi projektile juurdepääsu. Võtke ühendust oma projektijuhiga.",

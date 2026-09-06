@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "GPS sugerează",
   "byggeplass.ingenPaaProsjekt": "Nu există site-uri în acest proiect",
   "byggeplass.filtrererListe": "Afișează acest site + documente pentru întregul proiect",
+  "byggeplass.filtrererListeKort": "+ documentele întregului proiect",
   "bygg.stempel": "Construiți {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Se așteaptă accesul la proiect",
   "dashbord.venterPaaTilgangBeskrivelse": "Nu aveți încă acces la niciun proiect. Contactați managerul de proiect.",

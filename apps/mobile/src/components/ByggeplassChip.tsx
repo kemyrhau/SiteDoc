@@ -95,8 +95,11 @@ export function ByggeplassChip() {
               skal aldri se et avkortet sett uten å vite at noe er skjult (mobil-
               speiling av webs «Viser: <byggeplass> · Vis hele prosjektet»). */}
           {valgtBygningId != null && (
+            // Kortform (fabel-mockup panel 1): den lange «Viser denne byggeplassen
+            // + dokumenter for hele prosjektet» trunkeres til «…hele prosje…» på
+            // mobilbredde (Kenneth-skjermbilde). Kortformen overlever numberOfLines=1.
             <Text className="text-xs text-amber-600" numberOfLines={1}>
-              {t("byggeplass.filtrererListe")}
+              {t("byggeplass.filtrererListeKort")}
             </Text>
           )}
           {paaPlass && (

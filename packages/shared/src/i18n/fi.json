@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "GPS ehdottaa",
   "byggeplass.ingenPaaProsjekt": "Ei sivustoja tässä projektissa",
   "byggeplass.filtrererListe": "Näytetään tämä sivusto + koko projektin asiakirjat",
+  "byggeplass.filtrererListeKort": "+ koko projektin asiakirjat",
   "bygg.stempel": "Rakenna {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Odotetaan projektin käyttöoikeutta",
   "dashbord.venterPaaTilgangBeskrivelse": "Sinulla ei ole vielä pääsyä yhteenkään projektiin. Ota yhteyttä projektipäällikköösi.",

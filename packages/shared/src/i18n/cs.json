@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "GPS doporučuje",
   "byggeplass.ingenPaaProsjekt": "V tomto projektu nejsou žádné stránky",
   "byggeplass.filtrererListe": "Zobrazuji tento web + dokumenty k celému projektu",
+  "byggeplass.filtrererListeKort": "+ dokumentace celého projektu",
   "bygg.stempel": "Sestavit {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Čeká se na přístup k projektu",
   "dashbord.venterPaaTilgangBeskrivelse": "Zatím nemáte přístup k žádným projektům. Kontaktujte svého vedoucího projektu.",

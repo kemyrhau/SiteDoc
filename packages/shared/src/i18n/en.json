@@ -1203,6 +1203,7 @@
   "byggeplass.gpsForeslar": "GPS suggests",
   "byggeplass.ingenPaaProsjekt": "No sites on this project",
   "byggeplass.filtrererListe": "Showing this site + documents for the entire project",
+  "byggeplass.filtrererListeKort": "+ the entire project's documents",
   "bygg.stempel": "Build {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Waiting for project access",
   "dashbord.venterPaaTilgangBeskrivelse": "You don't have access to any projects yet. Contact your project manager.",
