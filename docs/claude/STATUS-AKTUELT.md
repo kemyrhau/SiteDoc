@@ -65,7 +65,7 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 |---|---|---|---|---|
 | **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` | **17 runder 05/06.09**, i synk med develop `09fc817c`. Stoppet FØR push på et rot-testbrudd gaten ikke fanget · korrigerte coworks testtall (277→284) · håndterte push-kollisjon med reset+re-merge, ikke force · fanget to foreldede ordrefiler ved å måle i stedet for å handle | Runde 18 når dokgen leverer på nytt |
 | **kontrollplan** | 🟡 **ARBEID** | `SiteDoc-kontrollplan` | Grense-resolveren trinn 0–2 merget (`d849a163`) + tabellrevisjon (`18d49186`) etter fabels designgate. 🟢 **Gaten passert på test — Kenneth satte en variant uten å prøve seg fram.** Fire `normaliserOpsjon`-kopier ned til to. Tidligere: malrevisjon D, drift-konsolidering, idempotent seed | `feat/grenseresolver-trinn3` — PDF-krav + avviksfelt. **Fabel-designgate** |
-| **dokgen** | 🔴 **GATE: RETUR** | `SiteDoc-dokgen` | `fix/bilde-mykt-filter` (`cf0fbfb9`) — sjekkliste-veien myknet korrekt + tilhørighets-badge i galleriet. 🔴 **Coworks gate fant ett hull:** oppgave-veien (`bilde.ts:88`) er myk for `drawingId: null`, men **ikke** for oppgave på en PROSJEKT-tegning. Tidligere: dokumentsøk mobil (`31002232`), serverlås SJA, signatur navn+tidspunkt, byggeplass-tilhørighet | `relay/inbox-bilde-mykt-filter.md` § RETUR — én linje |
+| **dokgen** | 🟢 **LEVERT — venter merge** | `SiteDoc-dokgen` | `fix/bilde-mykt-filter` (`5660ce53`) — begge bildeveier myke + tilhørighets-badge. 🔴 **Fant og meldte imot coworks gate:** «bare to steder» var feil — `drawing:{byggeplassId}` finnes **fire** steder, tre fortsatt ødelagte. Tidligere: dokumentsøk mobil (`31002232`), serverlås SJA, byggeplass-tilhørighet | Merge runde 18, så `relay/inbox-byggeplassfilter-uttrekk.md` |
 | **redesign** | 🟢 **LEDIG** | `SiteDoc-redesign` | `fix/innboks-pil` (`491ec481`) merget i runde 17 — falskt navigasjonsløfte fjernet, hardt tak på 10 målt og meldt. Tidligere: SJA-signaturrunder (`e2e87123`), bekreftet-av + fritekst-lokasjon (`333359a6`) | `relay/inbox-prosjekt-livssyklus.md` — FL, fabels designlås. **Ikke relayet ennå** |
 | **fabel** | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
 
@@ -73,6 +73,25 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🔴 **BYGGEPLASSFILTERET ER NI KOPIER — TRE AV DEM ØDELAGTE (målt 2026-09-06, dokgen).**
+Regelen «et objekt uten byggeplass gjelder der du står» er håndspeilet ni steder i `apps/api`
+over **to former**: via tegning (`drawing: { byggeplassId }`, 4 kopier) og direkte
+(`byggeplassId`, 5 kopier). 🔴 **Tre av via-tegning-kopiene mangler tredje ledd** —
+`oppgave.ts:168`, `hms.ts:213`, `hms.ts:373`. **En oppgave eller RUH på en PROSJEKT-tegning
+forsvinner fra lista når en byggeplass velges.**
+⚠️ **`hms.ts:207-209` bærer en kommentar som lover oppførselen koden ikke gir** — samme
+løftebrist-klasse som Innboks-pila og «arkivert og skrivebeskyttet».
+🟢 Ordre skrevet: `relay/inbox-byggeplassfilter-uttrekk.md` (uttrekk 9 → 1, buggene lukkes som
+bivirkning, én test på setningen som ikke holdt).
+🔴 **Coworks gate sa «bare to steder, ingen klasse» — det var feil.** Cowork lot dokgens måling
+av andre BILDE-veier svare på et spørsmål om `drawing:{byggeplassId}`-mønsteret. **Agenten målte,
+sa imot, og hadde rett.** Fjerde runde på byggeplass-tilhørighet.
+
+🟡 **Task har ingen egen `byggeplassId`** — tilhørighet finnes kun via tegningen, og det er
+roten til hele asymmetrien over. Å legge feltet på `Task` ville fjernet den, men er **en
+migrering på produktets nest mest sentrale tabell rett før pilot**. **Egen beslutning når noen
+vil ta den** — ikke smuglet inn i en bugfiks.
 
 🟡 **Innboksen har et HARDT TAK på 10 rader (målt 2026-09-06, redesign-Opus).**
 `hjem.tsx:472` — `.slice(0, visAlleInnboks ? 10 : INNBOKS_MAKS)`. Ved 40 aktive dokumenter viser
