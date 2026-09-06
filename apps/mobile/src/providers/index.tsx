@@ -50,6 +50,10 @@ export function Providers({ children }: { children: ReactNode }) {
               if (erUautorisert) {
                 if (!harLoggetUtRef.current) {
                   harLoggetUtRef.current = true;
+                  // To logout-veier ved design: denne bruker service-`loggUt` (rører
+                  // IKKE AuthProvider-staten), så rot-gaten i app/_layout.tsx — som
+                  // reagerer på `erInnlogget` — fyrer ikke her. Derfor navigerer vi
+                  // SELV. Den state-baserte veien (logout-knappen) går via gaten.
                   loggUt().then(() => {
                     router.replace("/logg-inn");
                   });
