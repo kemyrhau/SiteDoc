@@ -43,7 +43,13 @@ export const bildeRouter = router({
           checklistId: { not: null },
           checklist: {
             template: { projectId: input.projectId },
-            ...(input.byggeplassId ? { byggeplassId: input.byggeplassId } : {}),
+            // Mykt filter (byggeplass-tilhørighet, dokument-formen): et bilde på en
+            // PROSJEKT-sjekkliste (uten byggeplass) gjelder der du står og skal ikke
+            // forsvinne når en byggeplass velges. Speiler sjekkliste.ts:186 og
+            // tegning.ts:57.
+            ...(input.byggeplassId
+              ? { OR: [{ byggeplassId: input.byggeplassId }, { byggeplassId: null }] }
+              : {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -86,7 +92,20 @@ export const bildeRouter = router({
           taskId: { not: null },
           task: {
             template: { projectId: input.projectId },
-            ...(input.byggeplassId ? { OR: [{ drawing: { byggeplassId: input.byggeplassId } }, { drawingId: null }] } : {}),
+            // Mykt filter, TRE ledd — Task har ingen egen byggeplassId, tilhørighet
+            // finnes kun via tegningen: (1) oppgave på valgt byggeplass' tegning,
+            // (2) oppgave på en PROSJEKT-tegning (drawing.byggeplassId = null) —
+            // nettopp det tegning.ts:57 ble myknet for å bevare, (3) oppgave helt uten
+            // tegning. Uten ledd (2) forsvant prosjekt-tegning-oppgavene (gate-funn).
+            ...(input.byggeplassId
+              ? {
+                  OR: [
+                    { drawing: { byggeplassId: input.byggeplassId } },
+                    { drawing: { byggeplassId: null } },
+                    { drawingId: null },
+                  ],
+                }
+              : {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -109,6 +128,9 @@ export const bildeRouter = router({
                   fileUrl: true,
                   fileType: true,
                   byggeplassId: true,
+                  // Byggeplass-navn for tilhørighets-badge i galleriet (oppgave-veien
+                  // har byggeplass via tegning, ikke direkte) — se bilder/page.tsx.
+                  byggeplass: { select: { id: true, name: true } },
                 },
               },
               template: {
