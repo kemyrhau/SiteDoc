@@ -413,11 +413,11 @@ export function MalBygger({ mal }: MalByggerProps) {
   }
 
   function handleFjernBetingelse(parentId: string) {
-    // Fjern conditionActive/conditionValues fra forelder, og frigjør alle direkte barn
+    // Fjern conditionActive/conditionValues/conditionType fra forelder, og frigjør alle direkte barn
     setObjekter((prev) => {
       return prev.map((o) => {
         if (o.id === parentId) {
-          const { conditionActive: _, conditionValues: __, ...restConfig } = o.config;
+          const { conditionActive: _, conditionValues: __, conditionType: ___, ...restConfig } = o.config;
           return { ...o, config: restConfig };
         }
         // Direkte barn → frigjør fra kontaineren (sett parentId = null)
@@ -431,7 +431,7 @@ export function MalBygger({ mal }: MalByggerProps) {
     // Lagre forelder config til server
     const forelder = objekter.find((o) => o.id === parentId);
     if (forelder) {
-      const { conditionActive: _, conditionValues: __, ...restConfig } = forelder.config;
+      const { conditionActive: _, conditionValues: __, conditionType: ___, ...restConfig } = forelder.config;
       oppdaterObjektMutation.mutate({
         id: parentId,
         config: restConfig,
@@ -444,6 +444,30 @@ export function MalBygger({ mal }: MalByggerProps) {
       oppdaterObjektMutation.mutate({
         id: b.id,
         parentId: null,
+      });
+    }
+  }
+
+  // Avviksfelt-utløser (grenseresolver trinn 3 del C): et tallfelt (integer/decimal) blir
+  // kontainer med utløser «utenfor krav» i stedet for en verdiliste. På = sett conditionActive +
+  // conditionType; av = handleFjernBetingelse (frigjør barn òg). Ett bryter, retningen er tilstand.
+  function handleSettUtenforKrav(objektId: string, på: boolean) {
+    if (!på) {
+      handleFjernBetingelse(objektId);
+      return;
+    }
+    setObjekter((prev) =>
+      prev.map((o) =>
+        o.id === objektId
+          ? { ...o, config: { ...o.config, conditionActive: true, conditionType: "utenfor_krav" } }
+          : o,
+      ),
+    );
+    const forelder = objekter.find((o) => o.id === objektId);
+    if (forelder) {
+      oppdaterObjektMutation.mutate({
+        id: objektId,
+        config: { ...forelder.config, conditionActive: true, conditionType: "utenfor_krav" },
       });
     }
   }
@@ -1044,6 +1068,7 @@ export function MalBygger({ mal }: MalByggerProps) {
           erLagrer={oppdaterObjektMutation.isPending}
           onFjernBetingelse={handleFjernBetingelse}
           onFjernBarnFraKontainer={handleFjernBarnFraKontainer}
+          onSettUtenforKrav={handleSettUtenforKrav}
           psiModus={psiModus}
         />
       ) : (

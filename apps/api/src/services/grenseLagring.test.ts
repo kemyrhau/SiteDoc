@@ -21,6 +21,7 @@ describe("frysGrenseSnapshots — server-frys ved lagring", () => {
     expect((merget.h as Record<string, unknown>).grenseSnapshot).toEqual({
       kravTekst: "≤ 10 mm",
       status: "over",
+      avvikTekst: "Avvik: 4 mm over krav",
     });
   });
 
@@ -43,6 +44,7 @@ describe("frysGrenseSnapshots — server-frys ved lagring", () => {
     expect((merget.h as Record<string, unknown>).grenseSnapshot).toEqual({
       kravTekst: "≤ 10 mm",
       status: "over",
+      avvikTekst: "Avvik: 4 mm over krav",
     });
   });
 
@@ -88,7 +90,11 @@ describe("frysGrenseSnapshots — server-frys ved lagring", () => {
     frysGrenseSnapshots(merget, eksisterende, objekter);
     const rader = (merget.rep as { verdi: Array<{ felter: Record<string, { grenseSnapshot?: unknown }> }> }).verdi;
     expect(rader[0]!.felter.h!.grenseSnapshot).toEqual({ kravTekst: "≤ 10 mm", status: "ok" });
-    expect(rader[1]!.felter.h!.grenseSnapshot).toEqual({ kravTekst: "≤ 10 mm", status: "over" });
+    expect(rader[1]!.felter.h!.grenseSnapshot).toEqual({
+      kravTekst: "≤ 10 mm",
+      status: "over",
+      avvikTekst: "Avvik: 4 mm over krav",
+    });
   });
 
   it("mal uten tallfelt: no-op (returnerer uten å røre data)", () => {

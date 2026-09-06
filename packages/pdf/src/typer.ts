@@ -63,6 +63,8 @@ export type GrenseStatusPdf = "under" | "over" | "utenfor_toleranse" | "ok";
 export interface GrenseSnapshot {
   kravTekst: string;
   status: GrenseStatusPdf | null;
+  /** Beregnet avvik ved brudd, ferdig formatert («Avvik: 4 mm over krav»). Utelates når innenfor. */
+  avvikTekst?: string;
 }
 
 export interface FeltVerdi {

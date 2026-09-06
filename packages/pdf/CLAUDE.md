@@ -16,7 +16,9 @@ Motoren (Playwright `page.pdf`) bor i den interne **pdf-render-containeren**; de
   status}` (søsken til `verdi`, aldri inni). api-laget bygger snapshotet (`services/arkiv/
   grensesnapshot.ts` → `injiserGrenseSnapshot`, rekonstruerer via `@sitedoc/shared/løsGrense`;
   del B lagrer et frosset snapshot ved lagring som vinner). `felt.ts` (rot) + `repeater.ts`
-  `skalarCelle` (kompakt, brudd-ord i kolonnen) rendrer strengene.
+  `skalarCelle` (kompakt, brudd-ord i kolonnen) rendrer strengene. **Del C:** ved brudd bærer
+  snapshotet også `avvikTekst` («Avvik: 4 mm over krav»), rendret som egen amber linje under verdien
+  i `felt.ts` (rot). Avviksfeltene (Årsak/Tiltak) er vanlige barn-malobjekter — rendres som vanlige felt.
 - `timer-rapport.ts` — timer-rapport-dokument (firmatopp + sammendrag + detaljtabeller). Overskrifter injiseres oversatt (`TimerRapportTekster`) — ingen i18n i pakken.
 - `hjelpere.ts` — `esc`, `formaterDato` m.fl.
 

@@ -17,7 +17,11 @@ describe("injiserGrenseSnapshot — kravsnapshot sidestilt med verdi", () => {
     const data: Record<string, FeltVerdi> = { h: fv(14) };
     injiserGrenseSnapshot([felt], data);
     expect(data.h!.verdi).toBe(14); // verdi aldri rørt
-    expect(data.h!.grenseSnapshot).toEqual({ kravTekst: "≤ 10 mm", status: "over" });
+    expect(data.h!.grenseSnapshot).toEqual({
+      kravTekst: "≤ 10 mm",
+      status: "over",
+      avvikTekst: "Avvik: 4 mm over krav",
+    });
   });
 
   it("tomt felt med grense: kravet snapshotes likevel (F7), status null", () => {
@@ -74,7 +78,11 @@ describe("injiserGrenseSnapshot — kravsnapshot sidestilt med verdi", () => {
     };
     injiserGrenseSnapshot([rep], data);
     const rader = data.rep!.verdi as Array<{ felter: Record<string, FeltVerdi> }>;
-    expect(rader[0]!.felter.h!.grenseSnapshot).toEqual({ kravTekst: "≤ 10 mm", status: "over" });
+    expect(rader[0]!.felter.h!.grenseSnapshot).toEqual({
+      kravTekst: "≤ 10 mm",
+      status: "over",
+      avvikTekst: "Avvik: 4 mm over krav",
+    });
     expect(rader[1]!.felter.h!.grenseSnapshot).toEqual({ kravTekst: "≤ 25 mm", status: "ok" });
   });
 });

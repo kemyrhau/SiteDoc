@@ -102,6 +102,10 @@ export function renderFelt(
         tom ? null : `${verdi}${enhet ? ` ${enhet}` : ""}`,
         felt?.grenseSnapshot,
       );
+      // Del C: beregnet avvik som egen linje under verdien (mockup panel 3).
+      if (!tom && felt?.grenseSnapshot?.avvikTekst) {
+        verdiHtml += `<div style="font-size:11px;font-weight:700;color:#b45309;margin-top:2px;">${esc(felt.grenseSnapshot.avvikTekst)}</div>`;
+      }
       break;
     }
 

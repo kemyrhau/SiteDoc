@@ -15,9 +15,16 @@
 
 import { normaliserRad } from "@sitedoc/pdf";
 import type { TreObjekt, FeltVerdi, GrenseSnapshot } from "@sitedoc/pdf";
-import { løsGrense, grenseStatus, formaterGrense, harGrense } from "@sitedoc/shared";
+import { løsGrense, grenseStatus, formaterGrense, harGrense, beregnAvvik } from "@sitedoc/shared";
 
 export const TALL_TYPER = new Set(["integer", "decimal", "calculation"]);
+
+// Retningstekst i arkiv-PDF (norsk — pakken er ikke i18n; se felt.ts s/h-regel).
+const AVVIK_RETNING_PDF: Record<"under" | "over" | "utenfor_toleranse", string> = {
+  under: "under krav",
+  over: "over krav",
+  utenfor_toleranse: "utenfor toleranse",
+};
 
 /**
  * Kravsnapshot for ett tallfelt — den delte kjernen for både PDF-rekonstruksjon (del A) og
@@ -32,7 +39,17 @@ export function beregnGrenseSnapshot(
 ): GrenseSnapshot | undefined {
   const grense = løsGrense({ config }, forelderVerdi);
   if (!harGrense(grense)) return undefined;
-  return { kravTekst: formaterGrense(grense), status: grenseStatus(verdi, grense) };
+  const snapshot: GrenseSnapshot = {
+    kravTekst: formaterGrense(grense),
+    status: grenseStatus(verdi, grense),
+  };
+  // Målt avvik ved brudd (trinn 3 del C): «Avvik: 4 mm over krav» — beregnet, står i arkivet.
+  const avvik = beregnAvvik(verdi, grense);
+  if (avvik) {
+    const tall = grense.enhet ? `${avvik.avvik} ${grense.enhet}` : String(avvik.avvik);
+    snapshot.avvikTekst = `Avvik: ${tall} ${AVVIK_RETNING_PDF[avvik.retning]}`;
+  }
+  return snapshot;
 }
 
 /**
