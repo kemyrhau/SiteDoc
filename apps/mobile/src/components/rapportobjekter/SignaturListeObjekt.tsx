@@ -26,7 +26,9 @@ interface Medlem {
  * (gated), gjest signeres på ansvarliges enhet, låst runde vist. Data server-side
  * (trpc.signatur) — krever tilkobling (felt-signering skjer der og da).
  */
-export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, leseModus }: RapportObjektProps) {
+export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: RapportObjektProps) {
+  // 🔴 Signering er IKKE innholdsredigering (fabel-designlås 2026-09-06) — flyt-låsen
+  // (`leseModus`) gjelder ALDRI signaturlista. Speiler web. Kun runde-låsen stopper.
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const utils = trpc.useUtils();
@@ -62,6 +64,7 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, lese
       setGjestFirma("");
     },
   });
+  const krevNyMut = trpc.signatur.krevNySignatur.useMutation({ onSuccess: invalider });
 
   if (!ref) return null;
   if (runderQuery.isLoading || !runderQuery.data) {
@@ -72,9 +75,14 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, lese
     );
   }
 
-  const { status, runder, deltakere, kanRedigere, minDeltakerId, gjeldendeRundeLaast } = runderQuery.data;
+  const { status, runder, deltakere, kanRedigere, minDeltakerId, gjeldendeRundeLaast, innholdsVersjon } = runderQuery.data;
   const gjeldende = runder.find((r) => r.erGjeldende) ?? null;
   const aktive = deltakere.filter((d) => d.aktiv);
+  const erFørEndring = (sig: { signertVersjon: number; nySignaturKrevdAt: string | null } | undefined) =>
+    !!sig && sig.nySignaturKrevdAt === null && sig.signertVersjon < innholdsVersjon;
+  const endretDato = runderQuery.data.innholdEndretAt
+    ? new Date(runderQuery.data.innholdEndretAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" })
+    : "";
 
   if (!gjeldende) {
     return (
@@ -84,7 +92,7 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, lese
           <Text className="text-sm font-semibold text-gray-900">{objekt.label}</Text>
         </View>
         <Text className="text-sm text-gray-500">{t("signaturliste.ingenRunde", "Ingen signaturrunde startet")}</Text>
-        {kanRedigere && !leseModus && (
+        {kanRedigere && (
           <Pressable
             onPress={() => startRundeMut.mutate(ref)}
             className="mt-3 self-start rounded-lg bg-blue-600 px-3 py-2"
@@ -96,12 +104,15 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, lese
     );
   }
 
-  const signertIds = new Set(gjeldende.signaturer.map((s) => s.deltakerId));
   const sigFor = new Map(gjeldende.signaturer.map((s) => [s.deltakerId, s]));
+  // Krevd-ny teller ikke som signert → deltakeren står i manko igjen (med spor).
+  const signertIds = new Set(
+    gjeldende.signaturer.filter((s) => s.nySignaturKrevdAt === null).map((s) => s.deltakerId),
+  );
   const manko = aktive.filter((d) => !signertIds.has(d.id));
   const signerte = aktive.filter((d) => signertIds.has(d.id));
 
-  const komplett = status.status === "komplett";
+  const komplett = status.status === "komplett" && status.signertFørEndring === 0;
 
   return (
     <View className="rounded-lg border border-gray-200 p-4">
@@ -116,6 +127,9 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, lese
           {komplett ? <CheckCircle2 size={14} color="#166534" /> : <AlertTriangle size={14} color="#92400e" />}
           <Text className={`text-xs font-semibold ${komplett ? "text-green-800" : "text-amber-800"}`}>
             {t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
+            {status.signertFørEndring > 0
+              ? ` — ${t("signaturliste.signertFørEndring", "{{n}} signert før endring", { n: status.signertFørEndring })}`
+              : ""}
           </Text>
         </View>
       </View>
@@ -141,7 +155,15 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, lese
           </Text>
           {manko.map((d) => {
             const egenRad = minDeltakerId === d.id;
-            const kanSignere = !leseModus && !gjeldendeRundeLaast && (egenRad || (d.erGjest && kanRedigere));
+            const kanSignere = !gjeldendeRundeLaast && (egenRad || (d.erGjest && kanRedigere));
+            const krevdSig = sigFor.get(d.id);
+            const krevdSpor =
+              krevdSig?.nySignaturKrevdAt != null
+                ? t("signaturliste.nySignaturKrevd", "ny signatur krevd {{dato}}{{av}}", {
+                    dato: new Date(krevdSig.nySignaturKrevdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" }),
+                    av: krevdSig.nySignaturKrevdAvNavn ? ` av ${krevdSig.nySignaturKrevdAvNavn}` : "",
+                  })
+                : null;
             return (
               <View key={d.id} className="mb-2 flex-row items-center justify-between">
                 <View className="flex-1 pr-2">
@@ -154,6 +176,7 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, lese
                       {t("signaturliste.signerPaaAnsvarlig", "signer på ansvarliges enhet")}
                     </Text>
                   )}
+                  {krevdSpor && <Text className="text-xs font-medium text-amber-700">{krevdSpor}</Text>}
                 </View>
                 {kanSignere && (
                   <Pressable
@@ -173,30 +196,46 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo, lese
       {/* Signerte */}
       {signerte.map((d) => {
         const sig = sigFor.get(d.id);
+        const førEndring = erFørEndring(sig);
         return (
           <View key={d.id} className="mb-1.5 flex-row items-center justify-between">
             <View className="flex-1 flex-row items-center gap-2">
-              <CheckCircle2 size={16} color="#16a34a" />
-              <Text className="text-sm text-gray-900">
+              {førEndring ? <AlertTriangle size={16} color="#d97706" /> : <CheckCircle2 size={16} color="#16a34a" />}
+              <Text className={`text-sm ${førEndring ? "text-amber-700" : "text-gray-900"}`}>
                 {d.navn}
-                {d.firma ? <Text className="text-gray-500"> · {d.firma}</Text> : null}
+                {d.firma ? <Text className="opacity-70"> · {d.firma}</Text> : null}
               </Text>
             </View>
-            <Text className="text-xs text-gray-500">
+            <Text className={`text-xs ${førEndring ? "text-amber-700" : "text-gray-500"}`}>
               {visTid(sig)}
               {sig?.hmsKortNr ? ` · ${sig.hmsKortNr}` : ""}
+              {førEndring
+                ? ` · ${t("signaturliste.signertFørEndringDato", "signert før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}`
+                : ""}
             </Text>
           </View>
         );
       })}
 
       {/* Ansvarlig-handlinger */}
-      {kanRedigere && !leseModus && (
+      {kanRedigere && (
         <View className="mt-3 flex-row flex-wrap gap-2 border-t border-gray-100 pt-3">
           {!gjeldendeRundeLaast && (
             <Pressable onPress={() => setVisLeggTil(true)} className="flex-row items-center gap-1 rounded-lg border border-gray-300 px-3 py-2">
               <UserPlus size={16} color="#374151" />
               <Text className="text-sm text-gray-700">{t("signaturliste.leggTilDeltaker", "Legg til deltaker")}</Text>
+            </Pressable>
+          )}
+          {!gjeldendeRundeLaast && status.signertFørEndring > 0 && (
+            <Pressable
+              onPress={() => krevNyMut.mutate(ref)}
+              disabled={krevNyMut.isPending}
+              className="flex-row items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
+            >
+              <AlertTriangle size={16} color="#b45309" />
+              <Text className="text-sm font-medium text-amber-800">
+                {t("signaturliste.krevNySignatur", "Krev ny signatur ({{n}})", { n: status.signertFørEndring })}
+              </Text>
             </Pressable>
           )}
           {!gjeldendeRundeLaast ? (

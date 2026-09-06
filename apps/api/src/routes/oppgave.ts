@@ -24,7 +24,7 @@ import {
   kanByttFlyt,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
-import { verifiserRundeIkkeLaast } from "../services/signaturliste";
+import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 
@@ -856,9 +856,18 @@ export const oppgaveRouter = router({
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
         const merget = { ...eksisterende, ...innData };
 
+        // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
+        // med ≥1 signatur — speiler sjekkliste.oppdaterData (delt regel).
+        const skalBumpe =
+          endringsloggInnslag.length > 0 &&
+          (await harÅpenRundeMedSignatur(tx, { taskId: input.id }));
+
         const oppdatert = await tx.task.update({
           where: { id: input.id },
-          data: { data: merget as Prisma.InputJsonValue },
+          data: {
+            data: merget as Prisma.InputJsonValue,
+            ...(skalBumpe ? { innholdsVersjon: { increment: 1 } } : {}),
+          },
         });
 
         await skrivEndringslogg(tx, { taskId: input.id }, ctx.userId, endringsloggInnslag);

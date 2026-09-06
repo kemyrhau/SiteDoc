@@ -165,13 +165,21 @@ async function seed() {
 
   // 5) SJA-dokument. Innloggingsbrukeren er bestiller/ansvarlig.
   const tittel = "SJA Løft mobilkran — Akse 4";
+  // 🔴 UTKAST, ikke «sent» (fabel 2026-09-06): et sendt dokument var den skjulte
+  // blokkeren i Del 1 (flyt-låsen sperret signering). Signering er nå unntatt
+  // flyt-låsen, men demo-SJA-en holdes som utkast så den er signerbar uansett.
+  // innholdsVersjon=2: dokumentet er endret ÉN gang etter at runde 2 startet →
+  // Ola (signerte på v1) vises «signert før endring» = amber-tilstanden testbar.
   let sja = await prisma.checklist.findFirst({ where: { templateId: mal.id, title: tittel } });
   if (!sja) {
     sja = await prisma.checklist.create({
-      data: { templateId: mal.id, bestillerUserId: bruker.id, title: tittel, number: 1, status: "sent", sendt: true },
+      data: { templateId: mal.id, bestillerUserId: bruker.id, title: tittel, number: 1, status: "draft", sendt: false, innholdsVersjon: 2 },
     });
   } else {
-    sja = await prisma.checklist.update({ where: { id: sja.id }, data: { bestillerUserId: bruker.id } });
+    sja = await prisma.checklist.update({
+      where: { id: sja.id },
+      data: { bestillerUserId: bruker.id, status: "draft", sendt: false, innholdsVersjon: 2 },
+    });
   }
 
   // 6) Nullstill runder + deltakere for demo-SJA-en (idempotent re-seed).
@@ -194,6 +202,17 @@ async function seed() {
       guestName: "Truls Kranfører",
       guestCompany: "Kranutleie Øst AS",
       guestPhone: "90011223",
+      lagtTilAv: bruker.id,
+    },
+  });
+  // 🔴 Deltaker som ALDRI signerer noen runde → «IKKE SIGNERT»-raden i PDF blir
+  // testbar (fabel Del 3 — samme utestet-hull som amber-tilstanden var).
+  await prisma.dokumentDeltaker.create({
+    data: {
+      checklistId: sja.id,
+      guestName: "Kari Hjelpemann",
+      guestCompany: "Grunnarbeid AS",
+      guestPhone: "90055667",
       lagtTilAv: bruker.id,
     },
   });
@@ -240,8 +259,10 @@ async function seed() {
   console.log(`   Prosjekt: ${prosjekt.name} (${prosjekt.projectNumber})  — synlig i firmakontekst`);
   console.log(`   HMS → SJA → «${tittel}»`);
   console.log(`   🔴 Logg inn som DEG SELV (${brukerEpost}) via OAuth.`);
-  console.log(`      Runde 2 er åpen (1 av 4 signert). Din egen rad står USIGNERT → «Signer».`);
-  console.log(`      Andre manko: Nina Elektriker (amber forrige-runde) + Truls Kranfører (gjest).`);
+  console.log(`      Runde 2 er åpen (1 av 5 signert). Din egen rad står USIGNERT → «Signer».`);
+  console.log(`      Ola signerte på innholdsVersjon 1 (dok er nå 2) → AMBER «signert før endring».`);
+  console.log(`      → Chip: «1 av 5 — 1 signert før endring». Ansvarlig ser «Krev ny signatur (1)».`);
+  console.log(`      Manko: Nina (amber forrige-runde), Truls (gjest), Kari Hjelpemann (aldri signert → IKKE SIGNERT i PDF).`);
   console.log(`      Som admin/ansvarlig ser du også «Legg til deltaker», «Avslutt runde».`);
 }
 
