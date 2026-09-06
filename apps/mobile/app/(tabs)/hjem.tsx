@@ -439,20 +439,21 @@ export default function HjemSkjerm() {
               <PsiStatusKort psiListe={psiListe} />
             )}
 
-            {/* Innboks-seksjon */}
-            <Pressable className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-              <View className="flex-row items-center gap-2">
-                <Text className="text-base font-semibold text-gray-900">
-                  {t("hjem.innboks")}
+            {/* Innboks-seksjon. Ren tekst-header, ikke Pressable: «innboksen» er
+                ingen egen rute — den er den avledede lista rett under (aktive
+                sjekklister + oppgaver). Radene navigerer hver for seg, «Se alle»
+                folder ut inline. En chevron her lovet en destinasjon som ikke
+                finnes. */}
+            <View className="flex-row items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
+              <Text className="text-base font-semibold text-gray-900">
+                {t("hjem.innboks")}
+              </Text>
+              <View className="rounded-full bg-gray-100 px-2 py-0.5">
+                <Text className="text-xs font-medium text-gray-600">
+                  {innboksAntall}
                 </Text>
-                <View className="rounded-full bg-gray-100 px-2 py-0.5">
-                  <Text className="text-xs font-medium text-gray-600">
-                    {innboksAntall}
-                  </Text>
-                </View>
               </View>
-              <ChevronRight size={20} color="#9ca3af" />
-            </Pressable>
+            </View>
 
             {/* Innbokselementer */}
             {innboksElementer.length === 0 ? (
