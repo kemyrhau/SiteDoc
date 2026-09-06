@@ -1,13 +1,16 @@
 import { AlertTriangle } from "lucide-react";
-import { løsGrense, formaterGrense, grenseStatus } from "@sitedoc/shared";
+import { useTranslation } from "react-i18next";
+import { løsGrense, formaterGrense, grenseStatus, byggAvvikLinje } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
 export function HeltallObjekt({ objekt, verdi, onEndreVerdi, leseModus, forelderVerdi }: RapportObjektProps) {
+  const { t } = useTranslation();
   const tallVerdi = typeof verdi === "number" ? String(verdi) : "";
   const grense = løsGrense(objekt, forelderVerdi);
   const status = grenseStatus(verdi, grense);
   const utenfor = status !== null && status !== "ok";
   const grenseTekst = formaterGrense(grense);
+  const avvikTekst = byggAvvikLinje(t, verdi, grense);
 
   return (
     <div className="flex flex-col gap-1">
@@ -39,6 +42,9 @@ export function HeltallObjekt({ objekt, verdi, onEndreVerdi, leseModus, forelder
           {utenfor && <AlertTriangle className="h-3 w-3 shrink-0" />}
           {grenseTekst}
         </span>
+      )}
+      {avvikTekst && (
+        <span className="text-xs font-medium text-amber-600">{avvikTekst}</span>
       )}
     </div>
   );

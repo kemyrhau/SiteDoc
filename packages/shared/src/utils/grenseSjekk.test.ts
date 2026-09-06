@@ -4,6 +4,9 @@ import {
   harGrense,
   grenseStatus,
   formaterGrense,
+  beregnAvvik,
+  byggAvvikLinje,
+  utenforKravOppfylt,
   lesKravType,
   løsGrense,
 } from "./grenseSjekk";
@@ -223,5 +226,56 @@ describe("løsGrense — bakoverkompatibel, variant-matching", () => {
     expect(løsGrense({ config }, "B")).toEqual(normaliserGrense(config)); // ingen treff → std
     expect(løsGrense({ config }, "A").maks).toBe(4);
     expect(løsGrense({ config }, "A").enhet).toBe("mm");
+  });
+});
+
+describe("beregnAvvik — målt avvik + retning (trinn 3 del C)", () => {
+  const g = (o: Record<string, unknown>) => normaliserGrense(o);
+  it("over maks → avvik = verdi − maks", () => {
+    expect(beregnAvvik(14, g({ maks: 10, enhet: "mm" }))).toEqual({ avvik: 4, retning: "over" });
+  });
+  it("under min → avvik = min − verdi", () => {
+    expect(beregnAvvik(93, g({ min: 95, enhet: "%" }))).toEqual({ avvik: 2, retning: "under" });
+  });
+  it("utenfor toleranse → avvik = |verdi| − toleranse", () => {
+    expect(beregnAvvik(5, g({ toleranse: 3 }))).toEqual({ avvik: 2, retning: "utenfor_toleranse" });
+  });
+  it("innenfor / tom → null", () => {
+    expect(beregnAvvik(8, g({ maks: 10 }))).toBeNull();
+    expect(beregnAvvik(null, g({ maks: 10 }))).toBeNull();
+  });
+  it("float-støy rundes til desimaler", () => {
+    expect(beregnAvvik(0.3, g({ maks: 0.1, desimaler: 1 }))?.avvik).toBe(0.2);
+  });
+});
+
+describe("byggAvvikLinje — i18n-linje via t-callback", () => {
+  const t = (key: string, opts?: Record<string, unknown>) =>
+    key === "grense.avvikLinje" ? `Avvik: ${opts!.avvik} ${opts!.retning}` : `<${key}>`;
+  it("bygger linje med enhet + retningsnøkkel", () => {
+    expect(byggAvvikLinje(t, 14, normaliserGrense({ maks: 10, enhet: "mm" }))).toBe(
+      "Avvik: 4 mm <grense.avvikOver>",
+    );
+  });
+  it("innenfor → null", () => {
+    expect(byggAvvikLinje(t, 8, normaliserGrense({ maks: 10 }))).toBeNull();
+  });
+});
+
+describe("utenforKravOppfylt — avviksfelt-utløser (trinn 3 del C)", () => {
+  const hent = () => undefined;
+  it("verdi bryter kravet → true", () => {
+    expect(utenforKravOppfylt({ config: { maks: 10 } }, 14, hent)).toBe(true);
+  });
+  it("verdi innenfor → false", () => {
+    expect(utenforKravOppfylt({ config: { maks: 10 } }, 8, hent)).toBe(false);
+  });
+  it("tom verdi → false (ingen utløsning)", () => {
+    expect(utenforKravOppfylt({ config: { maks: 10 } }, null, hent)).toBe(false);
+  });
+  it("Vei B: styrende felt løser grensen først", () => {
+    const config = { maks: 10, styrendeFeltId: "u", grenseVarianter: [{ valg: "sp", maks: 25 }] };
+    expect(utenforKravOppfylt({ config }, 20, (id) => (id === "u" ? "sp" : undefined))).toBe(false);
+    expect(utenforKravOppfylt({ config }, 20, () => "pukk")).toBe(true); // std maks 10
   });
 });

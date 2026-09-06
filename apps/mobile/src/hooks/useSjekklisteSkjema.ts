@@ -7,7 +7,7 @@ import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, settVedleggUrlIDokument } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -586,6 +586,11 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
 
         // Sjekk at forelderens betingelse er oppfylt
         if (!forelder.config.conditionActive) return true;
+
+        // Avviksfelt-utløser (trinn 3 del C): tallfelt-forelder → vis barn når verdien bryter kravet.
+        if (forelder.config.conditionType === "utenfor_krav") {
+          return utenforKravOppfylt(forelder, hentFeltVerdi(parentId).verdi, (id) => hentFeltVerdi(id).verdi);
+        }
 
         const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
         const forelderVerdi = hentFeltVerdi(parentId).verdi;

@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -254,6 +254,11 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
 
         // Sjekk at forelderens betingelse er oppfylt
         if (!forelder.config.conditionActive) return true;
+
+        // Avviksfelt-utløser (trinn 3 del C): tallfelt-forelder → vis barn når verdien bryter kravet.
+        if (forelder.config.conditionType === "utenfor_krav") {
+          return utenforKravOppfylt(forelder, hentFeltVerdi(parentId).verdi, (id) => hentFeltVerdi(id).verdi);
+        }
 
         const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
         const forelderVerdi = hentFeltVerdi(parentId).verdi;

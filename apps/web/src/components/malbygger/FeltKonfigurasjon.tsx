@@ -35,6 +35,7 @@ interface FeltKonfigurasjonProps {
   erLagrer: boolean;
   onFjernBetingelse?: (parentId: string) => void;
   onFjernBarnFraKontainer?: (barnId: string) => void;
+  onSettUtenforKrav?: (objektId: string, på: boolean) => void;
   psiModus?: boolean;
 }
 
@@ -45,6 +46,7 @@ export function FeltKonfigurasjon({
   erLagrer,
   onFjernBetingelse,
   onFjernBarnFraKontainer,
+  onSettUtenforKrav,
   psiModus,
 }: FeltKonfigurasjonProps) {
   const { t } = useTranslation();
@@ -154,6 +156,7 @@ export function FeltKonfigurasjon({
             alleObjekter={alleObjekter}
             config={config}
             setConfig={setConfig}
+            onSettUtenforKrav={onSettUtenforKrav}
           />
         )}
 
@@ -451,11 +454,13 @@ function GrenseKonfig({
   alleObjekter,
   config,
   setConfig,
+  onSettUtenforKrav,
 }: {
   objekt: MalObjekt;
   alleObjekter: MalObjekt[];
   config: Record<string, unknown>;
   setConfig: (c: Record<string, unknown>) => void;
+  onSettUtenforKrav?: (objektId: string, på: boolean) => void;
 }) {
   const { t } = useTranslation();
   const grense = normaliserGrense(config);
@@ -809,6 +814,26 @@ function GrenseKonfig({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Avviksfelt-utløser (trinn 3 del C): tallfeltet blir kontainer for avviksfelt ved brudd.
+          Én bryter «utenfor krav» — retningen (over/under) er tilstand, ikke to separate utløsere.
+          Barna dras inn som vanlige malobjekter i treet (Kenneth-vedtak: ingen hardkoding). */}
+      {kravType && onSettUtenforKrav && (
+        <div className="mt-1 flex flex-col gap-1 border-t border-gray-200 pt-3">
+          <label className="flex items-start gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={config.conditionActive === true && config.conditionType === "utenfor_krav"}
+              onChange={(ev) => onSettUtenforKrav(objekt.id, ev.target.checked)}
+              className="mt-0.5 rounded border-gray-300"
+            />
+            <span className="flex flex-col">
+              <span className="font-medium">{t("malbygger.avviksfeltUtloser")}</span>
+              <span className="text-[10px] text-gray-400">{t("malbygger.avviksfeltUtloserHjelp")}</span>
+            </span>
+          </label>
         </div>
       )}
 

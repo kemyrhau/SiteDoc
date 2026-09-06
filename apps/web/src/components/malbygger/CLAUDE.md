@@ -97,6 +97,16 @@ Kun tallene kravtypen trenger vises (2 for «Mellom», 1 ellers). Skriver `confi
   kvitteringslinje: «valg: krav · … · ellers krav».
 - Resolveren `løsGrense` (`@sitedoc/shared`) er eneste inngang; utfylling (web+mobil Heltall/Desimal)
   får styrende felts verdi via `forelderVerdi`-prop. Mockup: `docs/redesign/mockups/MalBygger Grensevarianter Mockup.dc.html`.
+- **Avviksfelt-utløser (trinn 3 del C):** et tallfelt kan bli kontainer med utløser «utenfor krav»
+  i stedet for en verdiliste. Bryter i `GrenseKonfig` («Vis felt ved verdi utenfor krav», vises når
+  det finnes et krav) → `handleSettUtenforKrav` setter `config.conditionActive` + `config.conditionType
+  = "utenfor_krav"` (av → `handleFjernBetingelse`, frigjør barn). Ny `conditionType` (default fravær =
+  `"verdi"` = dagens verdimatch); ingen migrering. `akseptererBarn` slapp alt tallfelt gjennom
+  (spør kun `conditionActive`). `DropSone` viser en amber statisk bjelke (ikke verdi-chip-`BetingelseBjelke`)
+  når `conditionType === "utenfor_krav"`. Synlighet evalueres i alle fire hooks via delt
+  `utenforKravOppfylt` (`grenseStatus(...) ≠ ok`). Én utløser, retningen er tilstand. Avviksfeltene
+  (Årsak/Tiltak) er vanlige barn-malobjekter. Beregnet avvik vises i utfylling (`byggAvvikLinje`) og
+  arkiv-PDF (`grenseSnapshot.avvikTekst`). Mockup: `docs/redesign/mockups/Avviksfelt Mockup.dc.html`.
 - **Avvik fra mockup (meldt):** mockupen skjuler enhet ved «Ingen krav»; her beholdes enhet alltid
   så et måltall uten krav ikke mister enheten. Avviksfelt-utløseren (panel C i mockup) er trinn 3.
 

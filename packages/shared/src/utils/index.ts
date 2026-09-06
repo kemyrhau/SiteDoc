@@ -143,6 +143,9 @@ export {
   harGrense,
   grenseStatus,
   formaterGrense,
+  beregnAvvik,
+  byggAvvikLinje,
+  utenforKravOppfylt,
   lesKravType,
   løsGrense,
 } from "./grenseSjekk";

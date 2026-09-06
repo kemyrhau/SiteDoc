@@ -1,13 +1,16 @@
 import { View, Text, TextInput } from "react-native";
 import { AlertTriangle } from "lucide-react-native";
-import { løsGrense, formaterGrense, grenseStatus } from "@sitedoc/shared";
+import { useTranslation } from "react-i18next";
+import { løsGrense, formaterGrense, grenseStatus, byggAvvikLinje } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
 export function HeltallObjekt({ objekt, verdi, onEndreVerdi, leseModus, forelderVerdi }: RapportObjektProps) {
+  const { t } = useTranslation();
   const grense = løsGrense(objekt, forelderVerdi);
   const status = grenseStatus(verdi, grense);
   const utenfor = status !== null && status !== "ok";
   const grenseTekst = formaterGrense(grense);
+  const avvikTekst = byggAvvikLinje(t, verdi, grense);
 
   return (
     <View className="gap-1">
@@ -39,6 +42,9 @@ export function HeltallObjekt({ objekt, verdi, onEndreVerdi, leseModus, forelder
             {grenseTekst}
           </Text>
         </View>
+      ) : null}
+      {avvikTekst ? (
+        <Text className="text-xs font-medium text-amber-600">{avvikTekst}</Text>
       ) : null}
     </View>
   );

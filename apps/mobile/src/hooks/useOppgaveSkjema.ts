@@ -8,7 +8,7 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, settVedleggUrlIDokument } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi } from "./useSjekklisteSkjema";
 
@@ -558,6 +558,11 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
 
         // Sjekk at forelderens betingelse er oppfylt
         if (!forelder.config.conditionActive) return true;
+
+        // Avviksfelt-utløser (trinn 3 del C): tallfelt-forelder → vis barn når verdien bryter kravet.
+        if (forelder.config.conditionType === "utenfor_krav") {
+          return utenforKravOppfylt(forelder, hentFeltVerdi(parentId).verdi, (id) => hentFeltVerdi(id).verdi);
+        }
 
         const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
         const forelderVerdi = hentFeltVerdi(parentId).verdi;

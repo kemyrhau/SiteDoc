@@ -5,6 +5,7 @@ import {
   formaterDatoTidPunkt,
   formaterDato,
   formaterDatoKort,
+  byggGrenseVerdi,
 } from "./hjelpere";
 import { genererSluttrapportHtml } from "./sluttrapport";
 
@@ -81,5 +82,53 @@ describe("tidssone — sluttrapport godkjent-dato skal vise norsk dato", () => {
     });
     expect(html).toContain("13.08.2026");
     expect(html).not.toContain("12.08.2026");
+  });
+});
+
+/**
+ * Grenseresolver trinn 3 del A — tre tilstander (mockup `PDF Grensekrav Mockup`).
+ * «UTENFOR KRAV»-semantikken skal bæres av ORDET, ikke fargen (s/h-print).
+ */
+describe("byggGrenseVerdi — kravsnapshot i tre tilstander", () => {
+  it("innenfor: verdi + dempet «· krav …», ingen brudd-ord", () => {
+    const html = byggGrenseVerdi("148 mm", { kravTekst: "140–160 mm", status: "ok" });
+    expect(html).toContain("148 mm");
+    expect(html).toContain("· krav 140–160 mm");
+    expect(html).not.toMatch(/KRAV<|OVER|UNDER|UTENFOR/);
+  });
+
+  it("utenfor (over): verdi + «— OVER KRAV» fet amber + dempet «(krav …)»", () => {
+    const html = byggGrenseVerdi("14 mm", { kravTekst: "≤ 10 mm", status: "over" });
+    expect(html).toContain("14 mm — OVER KRAV");
+    expect(html).toContain("(krav ≤ 10 mm)");
+    expect(html).toContain("font-weight:700"); // ordet er fett — s/h-trygt
+  });
+
+  it("retningen skilles: under → UNDER KRAV, toleranse → UTENFOR TOLERANSE", () => {
+    expect(byggGrenseVerdi("93 %", { kravTekst: "≥ 95 %", status: "under" })).toContain("UNDER KRAV");
+    expect(byggGrenseVerdi("5 mm", { kravTekst: "± 3 mm", status: "utenfor_toleranse" })).toContain(
+      "UTENFOR TOLERANSE",
+    );
+  });
+
+  it("tom med grense: «Ikke utfylt» + kravet vises likevel (F7)", () => {
+    const html = byggGrenseVerdi(null, { kravTekst: "≤ 15 mm", status: null });
+    expect(html).toContain("Ikke utfylt");
+    expect(html).toContain("(krav ≤ 15 mm)");
+  });
+
+  it("uten snapshot: ren verdi (eldre maler uten grense)", () => {
+    expect(byggGrenseVerdi("42 mm", undefined)).toBe("42 mm");
+    expect(byggGrenseVerdi(null, undefined)).toContain("Ikke utfylt");
+  });
+
+  it("kompakt (repeater-celle): behold brudd-ord, dropp kravtekst", () => {
+    const html = byggGrenseVerdi("14 mm", { kravTekst: "≤ 10 mm", status: "over" }, { kompakt: true });
+    expect(html).toContain("14 mm — OVER KRAV");
+    expect(html).not.toContain("(krav");
+    // innenfor kompakt → ren verdi, ingen krav-støy i tabellen
+    expect(byggGrenseVerdi("148 mm", { kravTekst: "140–160 mm", status: "ok" }, { kompakt: true })).toBe(
+      "148 mm",
+    );
   });
 });

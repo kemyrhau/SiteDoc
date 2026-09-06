@@ -3,6 +3,8 @@
  * Null avhengigheter — kun TypeScript-strenger.
  */
 
+import type { GrenseSnapshot } from "./typer";
+
 /**
  * Fast tidssone for alle instant→tekst-formaterere her.
  *
@@ -24,6 +26,53 @@ export function esc(tekst: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * Status → arkiv-ord (grenseresolver trinn 3). 🔴 S/h-trygt: ordet bærer semantikken,
+ * ikke fargen — arkiv-PDF-er printes i s/h. Retningen skilles (under/over/utenfor toleranse).
+ */
+const GRENSE_STATUSORD: Record<"under" | "over" | "utenfor_toleranse", string> = {
+  under: "UNDER KRAV",
+  over: "OVER KRAV",
+  utenfor_toleranse: "UTENFOR TOLERANSE",
+};
+
+/**
+ * Verdi + kravsnapshot → HTML (grenseresolver trinn 3 del A). Tre tilstander, mockup-fasit
+ * `PDF Grensekrav Mockup`:
+ * - innenfor: `148 mm · krav 140–160 mm` (kravet dempet)
+ * - utenfor:  `14 mm — OVER KRAV (krav ≤ 10 mm)` (verdi+ord fet amber, kravet dempet)
+ * - tom:      `Ikke utfylt (krav ≤ 15 mm)` — kravet vises likevel (F7)
+ *
+ * `verdiTekst === null` = tomt felt. `kompakt` (repeater-celle): behold brudd-ordet, men dropp
+ * kravteksten ved innenfor/tom så tabellkolonnen holder seg smal. Regner ingenting — snapshotet
+ * er ferdig beregnet (server ved lagring / rekonstruert i sammenstilling.ts).
+ */
+export function byggGrenseVerdi(
+  verdiTekst: string | null,
+  snapshot: GrenseSnapshot | undefined,
+  opts?: { kompakt?: boolean },
+): string {
+  const kravTekst = snapshot?.kravTekst;
+  const status = snapshot?.status ?? null;
+  const kompakt = opts?.kompakt ?? false;
+  const dempet = (s: string): string => `<span style="color:#6b7280;font-weight:400">${s}</span>`;
+
+  if (verdiTekst === null) {
+    const tomHtml = `<span class="tom">Ikke utfylt</span>`;
+    if (!kravTekst || kompakt) return tomHtml;
+    return `${tomHtml} ${dempet(`(krav ${esc(kravTekst)})`)}`;
+  }
+  const v = esc(verdiTekst);
+  if (kravTekst && status && status !== "ok") {
+    const kravDel = kompakt ? "" : ` ${dempet(`(krav ${esc(kravTekst)})`)}`;
+    return `<span style="color:#b45309;font-weight:700">${v} — ${GRENSE_STATUSORD[status]}</span>${kravDel}`;
+  }
+  if (kravTekst && !kompakt) {
+    return `${v} ${dempet(`· krav ${esc(kravTekst)}`)}`;
+  }
+  return v;
 }
 
 /**

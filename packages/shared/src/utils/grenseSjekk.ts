@@ -106,6 +106,67 @@ export function formaterGrense(grense: Grense): string {
 }
 
 /**
+ * Avviksfelt-utløser (grenseresolver trinn 3 del C): er forelderens (tallfeltets) målte verdi
+ * UTENFOR kravet? Delt av alle fire synlighets-hooks (web+mobil × sjekkliste+oppgave) så
+ * evalueringen ikke skrives fire ganger. `forelderVerdi` er tallfeltets egen verdi; `hentVerdi`
+ * gir styrende felts verdi i samme scope (Vei B). True = vis avviksfeltene (status ≠ ok/tom).
+ */
+export function utenforKravOppfylt(
+  forelder: { config: Record<string, unknown> },
+  forelderVerdi: unknown,
+  hentVerdi: (feltId: string) => unknown,
+): boolean {
+  const styrendeId = forelder.config.styrendeFeltId;
+  const styrendeVerdi = typeof styrendeId === "string" ? hentVerdi(styrendeId) : undefined;
+  const status = grenseStatus(forelderVerdi, løsGrense(forelder, styrendeVerdi));
+  return status !== null && status !== "ok";
+}
+
+/**
+ * Målt avvik fra kravet (grenseresolver trinn 3 del C). Returnerer avvikstallet + retningen når
+ * verdien bryter kravet; `null` når innenfor, tom eller uten grense. Tallet er BEREGNET (verdi
+ * minus grensen den brøt) — utfylling viser det som lesetekst «Avvik: 4 mm over krav», aldri et
+ * felt brukeren kan motsi. Rundet til feltets desimaler (float-støy fjernes).
+ */
+export function beregnAvvik(
+  verdi: unknown,
+  grense: Grense,
+): { avvik: number; retning: "under" | "over" | "utenfor_toleranse" } | null {
+  const tall = tilTall(verdi);
+  const status = grenseStatus(verdi, grense);
+  if (tall === null || status === null || status === "ok") return null;
+  const d = grense.desimaler ?? 2;
+  const rund = (n: number): number => Number(n.toFixed(d));
+  if (status === "under" && grense.min !== null) return { avvik: rund(grense.min - tall), retning: "under" };
+  if (status === "over" && grense.maks !== null) return { avvik: rund(tall - grense.maks), retning: "over" };
+  if (status === "utenfor_toleranse" && grense.toleranse !== null)
+    return { avvik: rund(Math.abs(tall) - grense.toleranse), retning: "utenfor_toleranse" };
+  return null;
+}
+
+const AVVIK_RETNING_NOKKEL: Record<"under" | "over" | "utenfor_toleranse", string> = {
+  under: "grense.avvikUnder",
+  over: "grense.avvikOver",
+  utenfor_toleranse: "grense.avvikToleranse",
+};
+
+/**
+ * Beregnet avviklinje for utfylling (trinn 3 del C): «Avvik: 4 mm over krav — beregnet, kan ikke
+ * endres». Delt av web + mobil (Heltall/Desimal) — tar en `t`-callback så pakken ikke importerer
+ * i18n. `null` når verdien er innenfor/tom. Tallet er BEREGNET (`beregnAvvik`), aldri brukerskrevet.
+ */
+export function byggAvvikLinje(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  verdi: unknown,
+  grense: Grense,
+): string | null {
+  const a = beregnAvvik(verdi, grense);
+  if (!a) return null;
+  const tall = grense.enhet ? `${a.avvik} ${grense.enhet}` : String(a.avvik);
+  return t("grense.avvikLinje", { avvik: tall, retning: t(AVVIK_RETNING_NOKKEL[a.retning]) });
+}
+
+/**
  * Kravets form — hvilke tallfelter feltet bruker. MalByggeren skriver den EKSPLISITT
  * (`config.kravType`, trinn 2) i klarspråk (Minst/Høyst/Mellom/Pluss-minus), aldri symboler.
  */

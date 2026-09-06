@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
+import { frysGrenseSnapshots } from "../services/grenseLagring";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { documentStatusSchema } from "@sitedoc/shared";
@@ -727,7 +728,8 @@ export const oppgaveRouter = router({
               domain: true,
               projectId: true,
               enableChangeLog: true,
-              objects: { select: { id: true, label: true, type: true } },
+              // config: trinn 3 del B — grense-frys trenger min/maks/kravType/styrendeFeltId.
+              objects: { select: { id: true, label: true, type: true, config: true } },
             },
           },
         },
@@ -860,6 +862,12 @@ export const oppgaveRouter = router({
         });
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
         const merget = { ...eksisterende, ...innData };
+
+        // Trinn 3 del B: frys kravsnapshot sidestilt med verdi på tallfelt (server-frys ved
+        // lagring). Speiler sjekkliste.oppdaterData — samme delte helper.
+        if (oppgave.template?.objects) {
+          frysGrenseSnapshots(merget, eksisterende, oppgave.template.objects);
+        }
 
         // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
         // med ≥1 signatur — speiler sjekkliste.oppdaterData (delt regel).

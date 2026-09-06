@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
+import { frysGrenseSnapshots } from "../services/grenseLagring";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
@@ -734,7 +735,8 @@ export const sjekklisteRouter = router({
               projectId: true,
               domain: true,
               enableChangeLog: true,
-              objects: { select: { id: true, label: true, type: true } },
+              // config: trinn 3 del B — grense-frys trenger min/maks/kravType/styrendeFeltId.
+              objects: { select: { id: true, label: true, type: true, config: true } },
             },
           },
         },
@@ -850,6 +852,10 @@ export const sjekklisteRouter = router({
         });
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
         const merget = { ...eksisterende, ...innData };
+
+        // Trinn 3 del B: frys kravsnapshot sidestilt med verdi på tallfelt (server-frys ved
+        // lagring — endret verdi får nytt krav mot gjeldende mal, uendret bærer frem det frosne).
+        frysGrenseSnapshots(merget, eksisterende, sjekkliste.template.objects);
 
         // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
         // med ≥1 signatur — da blir allerede avgitte signaturer «signert før endring».
