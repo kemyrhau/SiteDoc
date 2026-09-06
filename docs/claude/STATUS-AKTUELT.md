@@ -64,9 +64,10 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` | **17 runder 05/06.09**, i synk med develop `09fc817c`. Stoppet FØR push på et rot-testbrudd gaten ikke fanget · korrigerte coworks testtall (277→284) · håndterte push-kollisjon med reset+re-merge, ikke force · fanget to foreldede ordrefiler ved å måle i stedet for å handle | Runde 18 når dokgen leverer på nytt |
-| **kontrollplan** | 🟡 **ARBEID** | `SiteDoc-kontrollplan` | Grense-resolveren trinn 0–2 merget (`d849a163`) + tabellrevisjon (`18d49186`) etter fabels designgate. 🟢 **Gaten passert på test — Kenneth satte en variant uten å prøve seg fram.** Fire `normaliserOpsjon`-kopier ned til to. Tidligere: malrevisjon D, drift-konsolidering, idempotent seed | `feat/grenseresolver-trinn3` — PDF-krav + avviksfelt. **Fabel-designgate** |
+| **kontrollplan** | 🟢 **LEVERT — venter merge** | `SiteDoc-kontrollplan` | **Trinn 3 komplett** (`eac7b175`): PDF viser kravet · server-frys av snapshot · avviksfelt ved brudd. Landminen unngått, delt logikk navngitt (`utenforKravOppfylt` × 4 hooks, `byggAvvikLinje` × 4 komponenter). ⚠️ 14 commits bak develop — rebase i runde 20. **Venter fabels atferdsgate** | Etter merge: PDF-underlag til fabel |
+| ~~kontrollplan (historikk)~~ | — | — | Grense-resolveren trinn 0–2 merget (`d849a163`) + tabellrevisjon (`18d49186`) etter fabels designgate. 🟢 **Gaten passert på test — Kenneth satte en variant uten å prøve seg fram.** Fire `normaliserOpsjon`-kopier ned til to. Tidligere: malrevisjon D, drift-konsolidering, idempotent seed | `feat/grenseresolver-trinn3` — PDF-krav + avviksfelt. **Fabel-designgate** |
 | **dokgen** | 🟢 **LEVERT — venter merge** | `SiteDoc-dokgen` | `fix/byggeplassfilter-uttrekk` (`a076236f`) — ni kopier → én kilde, tre bugger lukket, api-test 284→291. 🔴 **Fant og meldte imot coworks gate** dagen før: «bare to steder» var feil. Tidligere: mykt bildefilter (`5660ce53`), dokumentsøk mobil (`31002232`), serverlås SJA | Merge runde 19, så ledig |
-| **redesign** | 🔴 **SIKKERHET** | `SiteDoc-redesign` | 🔴 **Fant fire skriveveier uten firma-/prosjektsjekk** mens han målte FL-ordrens guard-kostnad. Cowork snudde rekkefølgen: `fix/ftd-tenantgrense` FØR FL. Tidligere: innboks-pila (`491ec481`), SJA-signaturrunder (`e2e87123`) | `fix/ftd-tenantgrense`, så `relay/inbox-prosjekt-livssyklus.md` |
+| **redesign** | 🟢 **LEVERT — venter merge** | `SiteDoc-redesign` | 🔴 `fix/ftd-tenantgrense` (`d58e080f`): **fem tenant-hull lukket + uautentisert endepunkt fjernet.** Fant dem selv som bifangst da han målte FL-ordrens guard-kostnad. Målte at HTTP-selvkallet gikk til samme prosess → in-process, flaten borte. Tidligere: innboks-pila (`491ec481`), SJA-signaturrunder (`e2e87123`) | `relay/inbox-prosjekt-livssyklus.md` (FL) |
 | **fabel** | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
 
 ### 📋 Feltfunn-liste (B — funn samles, blir ikke ordrer på minuttet)
@@ -93,7 +94,12 @@ bivirkning, én test på setningen som ikke holdt).
 av andre BILDE-veier svare på et spørsmål om `drawing:{byggeplassId}`-mønsteret. **Agenten målte,
 sa imot, og hadde rett.** Fjerde runde på byggeplass-tilhørighet.
 
-🔴 **FIRMAGRENSEN ER ÅPEN PÅ FIRE SKRIVEVEIER (målt 2026-09-06, redesign).**
+🟢 **LUKKET SAMME DØGN — `d58e080f`.** Fem prosedyrer gates nå på `verifiserProsjektmedlem` via
+resolvert `projectId`; `prosesser.ts` slettet og den offentlige flaten finnes ikke lenger.
+Detaljer + metode i [`sikkerhet.md`](sikkerhet.md). **Historikken under står fordi den viser hvor
+funnet kom fra: bifangst fra en kostnadsmåling ingen hadde bedt om.**
+
+🔴 **FIRMAGRENSEN VAR ÅPEN PÅ FIRE SKRIVEVEIER (målt 2026-09-06, redesign).**
 `kontrakt.oppdater`/`kontrakt.slett` og `mengde.lagreNotat`/`mengde.slettPeriode` er
 `protectedProcedure` — innlogget, men **uten firma- eller prosjektsjekk**. De gjør
 `update({ where: { id } })` rått. **Enhver innlogget SiteDoc-bruker kan endre eller slette et
