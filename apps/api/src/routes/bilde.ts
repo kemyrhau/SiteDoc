@@ -43,7 +43,13 @@ export const bildeRouter = router({
           checklistId: { not: null },
           checklist: {
             template: { projectId: input.projectId },
-            ...(input.byggeplassId ? { byggeplassId: input.byggeplassId } : {}),
+            // Mykt filter (byggeplass-tilhørighet, dokument-formen): et bilde på en
+            // PROSJEKT-sjekkliste (uten byggeplass) gjelder der du står og skal ikke
+            // forsvinne når en byggeplass velges. Speiler sjekkliste.ts:186 og
+            // tegning.ts:57. Oppgave-veien under er allerede myk (via drawing).
+            ...(input.byggeplassId
+              ? { OR: [{ byggeplassId: input.byggeplassId }, { byggeplassId: null }] }
+              : {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -109,6 +115,9 @@ export const bildeRouter = router({
                   fileUrl: true,
                   fileType: true,
                   byggeplassId: true,
+                  // Byggeplass-navn for tilhørighets-badge i galleriet (oppgave-veien
+                  // har byggeplass via tegning, ikke direkte) — se bilder/page.tsx.
+                  byggeplass: { select: { id: true, name: true } },
                 },
               },
               template: {
