@@ -3,6 +3,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { byggTilgangsFilter } from "../trpc/tilgangskontroll";
 import { signerBilder } from "../utils/vedleggSignering";
+import { byggeplassFilterViaTegning, byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { normaliserFilSti } from "../utils/hmac";
 
 /**
@@ -43,13 +44,8 @@ export const bildeRouter = router({
           checklistId: { not: null },
           checklist: {
             template: { projectId: input.projectId },
-            // Mykt filter (byggeplass-tilhørighet, dokument-formen): et bilde på en
-            // PROSJEKT-sjekkliste (uten byggeplass) gjelder der du står og skal ikke
-            // forsvinne når en byggeplass velges. Speiler sjekkliste.ts:186 og
-            // tegning.ts:57.
-            ...(input.byggeplassId
-              ? { OR: [{ byggeplassId: input.byggeplassId }, { byggeplassId: null }] }
-              : {}),
+            // Byggeplass-tilhørighet (mykt), regel i byggeplassFilter.ts.
+            ...(byggeplassFilterDirekte(input.byggeplassId) ?? {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -92,20 +88,8 @@ export const bildeRouter = router({
           taskId: { not: null },
           task: {
             template: { projectId: input.projectId },
-            // Mykt filter, TRE ledd — Task har ingen egen byggeplassId, tilhørighet
-            // finnes kun via tegningen: (1) oppgave på valgt byggeplass' tegning,
-            // (2) oppgave på en PROSJEKT-tegning (drawing.byggeplassId = null) —
-            // nettopp det tegning.ts:57 ble myknet for å bevare, (3) oppgave helt uten
-            // tegning. Uten ledd (2) forsvant prosjekt-tegning-oppgavene (gate-funn).
-            ...(input.byggeplassId
-              ? {
-                  OR: [
-                    { drawing: { byggeplassId: input.byggeplassId } },
-                    { drawing: { byggeplassId: null } },
-                    { drawingId: null },
-                  ],
-                }
-              : {}),
+            // Byggeplass-tilhørighet via tegning (mykt, 3 ledd), regel i byggeplassFilter.ts.
+            ...(byggeplassFilterViaTegning(input.byggeplassId) ?? {}),
             ...(tilgangsFilter ?? {}),
           },
         },
