@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "понад вимогу",
   "grense.avvikUnder": "відповідно до вимоги",
   "grense.avvikToleranse": "зовнішня толерантність",
+  "grense.herkomst": "Вимога {{krav}} — випливає з {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Поле не має мітки — дайте йому назву, щоб особа, яка його заповнює, могла бачити, що вимірюється.",
   "malbygger.styrendeFelt": "Поле управління",
   "malbygger.variantValg": "Вибір",
   "malbygger.variantIntro": "Кожен вибір може отримати свій номер. Залиште поле порожнім, щоб використовувати стандартну вимогу {{krav}}.",

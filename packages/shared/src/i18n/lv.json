@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "pāri prasībai",
   "grense.avvikUnder": "saskaņā ar prasību",
   "grense.avvikToleranse": "ārējā tolerance",
+  "grense.herkomst": "Prasība {{krav}} — izriet no {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Laukam nav etiķetes — piešķiriet tam nosaukumu, lai persona, kas to aizpilda, varētu redzēt, kas tiek mērīts.",
   "malbygger.styrendeFelt": "Pārvaldes lauks",
   "malbygger.variantValg": "Izvēle",
   "malbygger.variantIntro": "Katra izvēle var iegūt savu numuru. Atstājiet lauku tukšu, lai izmantotu noklusējuma prasību {{krav}}.",

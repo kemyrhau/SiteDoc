@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "über der Anforderung",
   "grense.avvikUnder": "unter der Anforderung",
   "grense.avvikToleranse": "außerhalb der Toleranz",
+  "grense.herkomst": "Anforderung {{krav}} – folgt aus {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Das Feld hat keine Beschriftung – geben Sie ihm einen Namen, damit die Person, die es ausfüllt, sehen kann, was gemessen wird.",
   "malbygger.styrendeFelt": "Regierendes Feld",
   "malbygger.variantValg": "Auswahl",
   "malbygger.variantIntro": "Jede Auswahl kann eine eigene Nummer erhalten. Lassen Sie das Feld leer, um die Standardanforderung {{krav}} zu verwenden.",

@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "сверх требования",
   "grense.avvikUnder": "по требованию",
   "grense.avvikToleranse": "внешняя толерантность",
+  "grense.herkomst": "Требование {{krav}} — следует из {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Поле не имеет метки — дайте ему имя, чтобы человек, заполняющий его, мог видеть, что измеряется.",
   "malbygger.styrendeFelt": "Руководящее поле",
   "malbygger.variantValg": "Выбор",
   "malbygger.variantIntro": "Каждый выбор может получить свой номер. Оставьте поле пустым, чтобы использовать требование по умолчанию {{krav}}.",

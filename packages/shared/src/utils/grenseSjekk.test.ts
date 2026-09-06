@@ -6,6 +6,7 @@ import {
   formaterGrense,
   beregnAvvik,
   byggAvvikLinje,
+  byggKravHerkomst,
   utenforKravOppfylt,
   lesKravType,
   løsGrense,
@@ -279,3 +280,23 @@ describe("utenforKravOppfylt — avviksfelt-utløser (trinn 3 del C)", () => {
     expect(utenforKravOppfylt({ config }, 20, () => "pukk")).toBe(true); // std maks 10
   });
 });
+
+describe("byggKravHerkomst — hvor et betinget krav kom fra (2026-09-07)", () => {
+  const t = (key: string, opts?: Record<string, unknown>) =>
+    key === "grense.herkomst" ? `Krav ${opts!.krav} — følger av ${opts!.felt}: ${opts!.valg}.` : `<${key}>`;
+  const objekt = { config: { maks: 35, enhet: "mm", styrendeFeltId: "mat", grenseVarianter: [{ valg: "delvis", maks: 25 }] } };
+  const styrende = { label: "Materialstatus", config: { options: [{ value: "delvis", label: "Delvis sortert" }, { value: "sortert", label: "Sortert" }] } };
+
+  it("variant traff → herkomstlinje med det løste kravet + valgets label", () => {
+    expect(byggKravHerkomst(t, objekt, "delvis", styrende)).toBe("Krav ≤ 25 mm — følger av Materialstatus: Delvis sortert.");
+  });
+  it("standardkravet gjelder (ingen variant traff) → null", () => {
+    expect(byggKravHerkomst(t, objekt, "sortert", styrende)).toBeNull();
+  });
+  it("ikke betinget (uten styrendeFeltId) → null", () => {
+    expect(byggKravHerkomst(t, { config: { maks: 10 } }, undefined, undefined)).toBeNull();
+  });
+  it("navnløst styrende felt → null (herkomsten ville pekt i løse lufta)", () => {
+    expect(byggKravHerkomst(t, objekt, "delvis", { label: "  ", config: styrende.config })).toBeNull();
+  });
+})

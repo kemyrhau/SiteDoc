@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "nad požadavkem",
   "grense.avvikUnder": "podle požadavku",
   "grense.avvikToleranse": "vnější toleranci",
+  "grense.herkomst": "Požadavek {{krav}} — vyplývá z {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Pole nemá štítek – pojmenujte jej, aby osoba, která jej vyplňuje, viděla, co se měří.",
   "malbygger.styrendeFelt": "Řídící pole",
   "malbygger.variantValg": "Výběr",
   "malbygger.variantIntro": "Každá volba může mít své vlastní číslo. Chcete-li použít výchozí požadavek {{krav}}, nechte pole prázdné.",
