@@ -19,6 +19,7 @@ import {
   verifiserRetningsrett,
   byggFlytBruker,
   verifiserProsjektmedlem,
+  verifiserProsjektIkkeFrosset,
   verifiserHmsHandling,
   hentBrukerTillatelser,
   hentBrukerProsjektTilgang,
@@ -1958,6 +1959,10 @@ export const oppgaveRouter = router({
       });
 
       const projectId = hentProjectId(oppgave);
+
+      // FL: eierbytte er en skrivehandling — sperret på et avsluttet prosjekt
+      // (går ikke via en prosjekt-port; inline-admin-sjekk under).
+      await verifiserProsjektIkkeFrosset(ctx.userId, projectId);
 
       // Sjekk at bruker er admin eller registrator
       const bruker = await ctx.prisma.user.findUniqueOrThrow({

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { terminalFraStatus, avledetStatus } from "../services/flytFakta";
 import { byggeplassFilterViaTegning, byggeplassFilterDirekte } from "../services/byggeplassFilter";
@@ -589,6 +589,14 @@ export const hmsRouter = router({
           message: "Oppgave hører ikke til firmaet",
         });
       }
+
+      // FL (målt 2026-09-06): denne veien gates på harFirmaHmsTilgang, som slipper
+      // gjennom hms_ansvarlig — en DELEGERT firma-HMS-rolle som IKKE er firma-admin.
+      // Kenneths regel er at kun firma-admin + sitedoc-admin beholder tilgang på et
+      // avsluttet prosjekt, ikke «firma-nivå» som kategori. En hms_ansvarlig faller
+      // derfor utenfor unntaket og skal fryses ut som alle andre. Guarden slipper
+      // firma-admin/sitedoc-admin gjennom, hms_ansvarlig blokkeres.
+      await verifiserProsjektIkkeFrosset(ctx.userId, projectId);
 
       // Begrens til HMS-domene (avvik er HMS i firma-dashbordet)
       if (oppgave.template?.domain !== "hms") {

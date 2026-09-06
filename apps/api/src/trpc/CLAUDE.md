@@ -99,6 +99,29 @@ user:{ canLogin: true } }`. To ADSKILTE nivåer (skrevet inn i schema ved begge 
   regelen, oppretter manglende ProjectMember, returnerer projectMemberId + tellinger.
   Brukt av `medlem.leggTilEksisterendeMange` og `dokumentflyt.leggTilAnsatteIRolle`.
 
+## Prosjekt-livssyklus-guard (FL, Kenneth-vedtak 2026-09-06)
+
+`verifiserProsjektIkkeFrosset(userId, projectId)` sperrer ALL tilgang (les + skriv) på et
+avsluttet/arkivert/deaktivert prosjekt for vanlige brukere. Kalt ved siden av
+`krevAktivAnsettelse` i alle 11 prosjekt-porter — begge lese- og skriveveier går gjennom
+portene, så ett sted dekker begge (Kenneth-vedtaket gjorde lese/skrive-skillet irrelevant).
+
+- **Bypass:** `sitedoc_admin` alltid; **firma-admin** på `completed`/`archived` (han
+  gjenåpner). `deactivated` = leverandør-sperre → KUN `sitedoc_admin` (firma-admin blokkeres).
+- **Stragglere utenom portene** (inline-/gjeste-/firma-HMS-gatet) fikk eksplisitt kall:
+  `oppgave/sjekkliste.byttEier`, `tegning.rekonverterPdf`, hele `psi.ts` sine skriveveier
+  (inkl. gjeste-signering), og `hms.firmaBehandleAvvik` (målt: slapp `hms_ansvarlig` som
+  IKKE er firma-admin → faller utenfor unntaket, fryses ut).
+- **Timer er UTENFOR** (Kenneth): `db-timer` og dagsseddel-veiene røres ikke — en ansatt skal
+  kunne føre glemte timer på et arkivert prosjekt.
+- **Proaktiv skjuling:** `prosjekt.hentAlle`/`hentMine` skjuler frosne for vanlige brukere
+  (`status:"active"`), med `inkluderFrosne`-flagg som timer-flater opt-er inn på.
+- **Stoppside, ikke 404:** `prosjekt.hentStoppside` returnerer metadata (navn/status/firmanavn)
+  UTEN frysevakt, så web-klienten kan vise «avsluttet av [firma]» når `hentMedId` kaster.
+- **Mutasjon:** `prosjekt.settLivssyklus` (firma-admin-gate, deactivated=sitedoc-admin,
+  «Avslutt» gater på et ferdig `EksportJobb`-arkiv, Activity-spor). `prosjekt.oppdater` tar
+  IKKE lenger imot `status` (gapet der firma-admin kunne sette `deactivated` er lukket).
+
 ## Fallgruver
 
 - `null`-retur fra `byggTilgangsFilter` betyr admin — IKKE tomt filter

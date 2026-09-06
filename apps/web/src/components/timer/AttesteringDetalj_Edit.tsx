@@ -98,8 +98,10 @@ export function AttesteringDetaljEdit({
   const { t } = useTranslation();
   const utils = trpc.useUtils();
 
+  // Timer er utenfor prosjekt-frysen — attestering må se også avsluttede/arkiverte
+  // prosjekter (glemte timer på et arkivert prosjekt skal fortsatt kunne behandles).
   const { data: prosjekter } = trpc.prosjekt.hentAlle.useQuery(
-    { organizationId },
+    { organizationId, inkluderFrosne: true },
     { enabled: !!organizationId },
   );
 

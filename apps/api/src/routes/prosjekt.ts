@@ -9,6 +9,7 @@ import {
   verifiserAdmin,
   hentBrukersOrg,
   hentDeaktiverteOrgIder,
+  erFirmaAdminForProsjekt,
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
@@ -22,10 +23,13 @@ export const prosjektRouter = router({
   // organizationId-input snevrer videre til prosjekter med matchende
   // primaryOrganizationId (brukes når sitedoc_admin har firma valgt).
   hentMine: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .input(z.object({ organizationId: z.string().uuid().optional(), inkluderFrosne: z.boolean().optional() }).optional())
     .query(async ({ ctx, input }) => {
       const where: Prisma.ProjectWhereInput = {
         members: { some: { userId: ctx.userId } },
+        // FL: navigasjon skjuler frosne prosjekter; timer-flater (mobil dagsseddel-
+        // katalog) opt-er inn via inkluderFrosne — timer er utenfor frysen.
+        ...(input?.inkluderFrosne ? {} : { status: "active" }),
         ...(input?.organizationId
           ? { primaryOrganizationId: input.organizationId }
           : {}),
@@ -68,8 +72,11 @@ export const prosjektRouter = router({
     }),
 
   // Hent alle prosjekter (sitedoc_admin ser alle, kan filtreres på firma).
+  // `inkluderFrosne`: timer-flater trenger avsluttede/arkiverte prosjekter (en ansatt
+  // skal kunne føre glemte timer selv om prosjektet ble arkivert). Navigasjonslister
+  // lar det stå av (default) → frosne skjules for vanlige brukere (FL-vedtak 2026-09-06).
   hentAlle: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .input(z.object({ organizationId: z.string().uuid().optional(), inkluderFrosne: z.boolean().optional() }).optional())
     .query(async ({ ctx, input }) => {
       const bruker = await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { role: true } });
       const erSitedocAdmin = bruker.role === "sitedoc_admin";
@@ -92,6 +99,11 @@ export const prosjektRouter = router({
         : {
             type: "kunde",
             members: { some: { userId: ctx.userId } },
+            // FL (Kenneth-vedtak 2026-09-06): frosne prosjekter (avsluttet/arkivert/
+            // deaktivert) er borte for vanlige brukere. Firma-admin finner dem i
+            // firmalisten (organisasjon.hentProsjekter), ikke her — to steder å se det
+            // samme er verre enn ett. Timer-flater opt-er inn via inkluderFrosne.
+            ...(input?.inkluderFrosne ? {} : { status: "active" }),
             ...(deaktiverteOrgIder.length > 0
               ? { NOT: { primaryOrganizationId: { in: deaktiverteOrgIder } } }
               : {}),
@@ -157,7 +169,7 @@ export const prosjektRouter = router({
         id: { in: distinkte },
         type: "kunde",
         ...(input?.organizationId ? { primaryOrganizationId: input.organizationId } : {}),
-        ...(erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } }),
+        ...(erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } }, status: "active" }),
         ...(deaktiverteOrgIder.length > 0
           ? { NOT: { primaryOrganizationId: { in: deaktiverteOrgIder } } }
           : {}),
@@ -623,7 +635,10 @@ export const prosjektRouter = router({
           vaer: z.boolean(),
         }).optional(),
         sourceLanguage: z.string().min(2).max(5).optional(),
-        status: z.enum(["active", "archived", "completed", "deactivated"]).optional(),
+        // status er BEVISST fjernet herfra (FL 2026-09-06): livssyklus eies av
+        // `settLivssyklus`, som håndhever firma-admin-gaten, deactivated =
+        // leverandør-sperre og arkiv-før-avslutning. Tidligere slapp `oppdater`
+        // (verifiserAdmin) en firma-admin til å sette `deactivated` — det gapet er lukket.
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -656,5 +671,138 @@ export const prosjektRouter = router({
       }
 
       return result;
+    }),
+
+  /**
+   * FL — prosjekt-livssyklus (Kenneth-vedtak 2026-09-06). Delt mutasjon for
+   * firmaliste-⋮-menyen og prosjektoppsettet. Firma-admin eier Aktivt ↔ Avsluttet
+   * ↔ Arkivert (symmetrisk gjenåpning, ingen bekreftelsesmodal). `deactivated` er
+   * leverandør-sperre: kun sitedoc-admin kan sette ELLER løfte den. «Avslutt»/
+   * «Arkiver» fra aktiv gater på at et dataeksport-arkiv (`EksportJobb` status
+   * «klar») finnes — etter avslutning er dokumentene utilgjengelige for deltakerne.
+   * Sporet skrives til Activity (kilde for «Avsluttet DD.MM av X» i menyen).
+   */
+  settLivssyklus: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        status: z.enum(["active", "completed", "archived", "deactivated"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.userId! },
+        select: { role: true, name: true },
+      });
+      const erSitedocAdmin = bruker.role === "sitedoc_admin";
+
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { status: true, name: true, primaryOrganizationId: true },
+      });
+
+      // deactivated = leverandør-sperre: kun sitedoc-admin kan sette den.
+      if (input.status === "deactivated" && !erSitedocAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun SiteDoc-administrator kan deaktivere et prosjekt",
+        });
+      }
+      // ...og kun sitedoc-admin kan løfte en eksisterende leverandør-sperre.
+      if (prosjekt.status === "deactivated" && !erSitedocAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Prosjektet er sperret av SiteDoc. Kontakt SiteDoc for å gjenåpne.",
+        });
+      }
+
+      // Firma-admin eier livssyklusen (sitedoc-admin passerer alltid).
+      if (!erSitedocAdmin && !(await erFirmaAdminForProsjekt(ctx.userId!, input.id))) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun firmaadministrator kan endre prosjektets livssyklus",
+        });
+      }
+
+      // «Avslutt»/«Arkiver» fra aktiv krever et ferdig dataeksport-arkiv. sitedoc-admin
+      // (nødutgang) unntas. Overgang mellom to frosne tilstander (completed→archived)
+      // krever ikke nytt arkiv — det ble laget ved avslutning.
+      const gårTilFrossen = input.status === "completed" || input.status === "archived";
+      if (gårTilFrossen && prosjekt.status === "active" && !erSitedocAdmin) {
+        const arkiv = await ctx.prisma.eksportJobb.findFirst({
+          where: { projectId: input.id, status: "klar" },
+          select: { id: true },
+        });
+        if (!arkiv) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Lag et dataeksport-arkiv før du avslutter prosjektet — etter avslutning er dokumentene utilgjengelige for prosjektdeltakerne.",
+          });
+        }
+      }
+
+      const oppdatert = await ctx.prisma.project.update({
+        where: { id: input.id },
+        data: { status: input.status },
+      });
+
+      await ctx.prisma.activity.create({
+        data: {
+          actorUserId: ctx.userId,
+          actorNavnSnapshot: bruker.name ?? null,
+          organizationId: prosjekt.primaryOrganizationId,
+          projectId: input.id,
+          targetType: "project",
+          targetId: input.id,
+          action: `prosjekt_status_${input.status}`,
+          payload: { fraStatus: prosjekt.status, tilStatus: input.status, prosjektNavn: prosjekt.name },
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
+        },
+      });
+
+      return oppdatert;
+    }),
+
+  /**
+   * FL — lettvekts-oppslag for stoppsiden når en vanlig bruker treffer et avsluttet
+   * prosjekt via gammel lenke. Kaller BEVISST ikke frysevakten (den ville kastet) —
+   * returnerer kun metadata (navn, status, firmanavn) så klienten kan vise «avsluttet
+   * av [firma]», aldri 404/403. Medlemskaps-gatet for å ikke lekke firmanavn til
+   * utenforstående.
+   */
+  hentStoppside: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: input.id },
+        select: {
+          name: true,
+          status: true,
+          primaryOrganization: { select: { name: true } },
+        },
+      });
+      if (!prosjekt) throw new TRPCError({ code: "NOT_FOUND", message: "Prosjektet finnes ikke" });
+
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId! },
+        select: { role: true },
+      });
+      if (bruker?.role !== "sitedoc_admin") {
+        const medlem = await ctx.prisma.projectMember.findUnique({
+          where: { userId_projectId: { userId: ctx.userId!, projectId: input.id } },
+          select: { id: true },
+        });
+        if (!medlem && !(await erFirmaAdminForProsjekt(ctx.userId!, input.id))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Prosjektet finnes ikke" });
+        }
+      }
+
+      return {
+        prosjektNavn: prosjekt.name,
+        status: prosjekt.status,
+        firmanavn: prosjekt.primaryOrganization?.name ?? null,
+      };
     }),
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure, publicProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
 import { oversettFritekst } from "../services/oversettelse-service";
 
 // Hjelpefunksjon for å finne PSI med prosjekt + bygning (null = prosjektnivå)
@@ -52,6 +52,7 @@ export const psiRouter = router({
       byggeplassId: z.string().uuid().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await verifiserProsjektIkkeFrosset(ctx.userId, input.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: input.projectId, role: "admin" },
       });
@@ -220,6 +221,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
@@ -239,6 +241,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
@@ -255,6 +258,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
@@ -267,6 +271,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
@@ -279,6 +284,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid(), guestMessage: z.string().max(2000).nullable() }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
@@ -291,6 +297,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid(), languages: z.array(z.string().min(2).max(5)) }))
     .mutation(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
@@ -309,6 +316,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
         where: { id: input.psiId },
         include: { template: { include: { objects: { orderBy: { sortOrder: "asc" } } } } },
       });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
@@ -401,6 +409,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: psi.projectId, role: "admin" },
       });
@@ -438,6 +447,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ psiId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const psi = await ctx.prisma.psi.findUniqueOrThrow({ where: { id: input.psiId } });
+      await verifiserProsjektIkkeFrosset(ctx.userId, psi.projectId);
       await verifiserProsjektmedlem(ctx.userId, psi.projectId);
 
       const signatur = await ctx.prisma.psiSignatur.findUnique({
@@ -481,6 +491,10 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ signaturId: z.string().uuid(), progress: z.number().int().min(0), data: z.record(z.unknown()).optional() }))
     .mutation(async ({ ctx, input }) => {
       const signatur = await ctx.prisma.psiSignatur.findUniqueOrThrow({ where: { id: input.signaturId } });
+      // FL: en signering (også gjest via QR) er skriving — sperret på et avsluttet
+      // prosjekt. Resolver projectId via PSI-en signaturen hører til.
+      const psiFrys = await ctx.prisma.psi.findUnique({ where: { id: signatur.psiId }, select: { projectId: true } });
+      if (psiFrys) await verifiserProsjektIkkeFrosset(ctx.userId, psiFrys.projectId);
       if (signatur.userId !== ctx.userId) throw new TRPCError({ code: "FORBIDDEN" });
       if (signatur.completedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Allerede fullført" });
       return ctx.prisma.psiSignatur.update({
@@ -499,6 +513,10 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     }))
     .mutation(async ({ ctx, input }) => {
       const signatur = await ctx.prisma.psiSignatur.findUniqueOrThrow({ where: { id: input.signaturId } });
+      // FL: en signering (også gjest via QR) er skriving — sperret på et avsluttet
+      // prosjekt. Resolver projectId via PSI-en signaturen hører til.
+      const psiFrys = await ctx.prisma.psi.findUnique({ where: { id: signatur.psiId }, select: { projectId: true } });
+      if (psiFrys) await verifiserProsjektIkkeFrosset(ctx.userId, psiFrys.projectId);
       if (signatur.userId !== ctx.userId) throw new TRPCError({ code: "FORBIDDEN" });
       if (signatur.completedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Allerede fullført" });
       return ctx.prisma.psiSignatur.update({
@@ -548,6 +566,10 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     .input(z.object({ signaturId: z.string().uuid(), progress: z.number().int().min(0), data: z.record(z.unknown()).optional() }))
     .mutation(async ({ ctx, input }) => {
       const signatur = await ctx.prisma.psiSignatur.findUniqueOrThrow({ where: { id: input.signaturId } });
+      // FL: en signering (også gjest via QR) er skriving — sperret på et avsluttet
+      // prosjekt. Resolver projectId via PSI-en signaturen hører til.
+      const psiFrys = await ctx.prisma.psi.findUnique({ where: { id: signatur.psiId }, select: { projectId: true } });
+      if (psiFrys) await verifiserProsjektIkkeFrosset(ctx.userId, psiFrys.projectId);
       if (signatur.userId) throw new TRPCError({ code: "FORBIDDEN", message: "Ikke en gjest-signatur" });
       if (signatur.completedAt) throw new TRPCError({ code: "BAD_REQUEST" });
       return ctx.prisma.psiSignatur.update({
@@ -567,6 +589,10 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
     }))
     .mutation(async ({ ctx, input }) => {
       const signatur = await ctx.prisma.psiSignatur.findUniqueOrThrow({ where: { id: input.signaturId } });
+      // FL: en signering (også gjest via QR) er skriving — sperret på et avsluttet
+      // prosjekt. Resolver projectId via PSI-en signaturen hører til.
+      const psiFrys = await ctx.prisma.psi.findUnique({ where: { id: signatur.psiId }, select: { projectId: true } });
+      if (psiFrys) await verifiserProsjektIkkeFrosset(ctx.userId, psiFrys.projectId);
       if (signatur.userId) throw new TRPCError({ code: "FORBIDDEN" });
       if (signatur.completedAt) throw new TRPCError({ code: "BAD_REQUEST" });
       return ctx.prisma.psiSignatur.update({
@@ -613,6 +639,7 @@ Risikovurderinger (SJA) for ditt arbeidsområde finnes i HMS-dokumentasjonen i S
           byggeplass: { select: { name: true } },
         },
       });
+      await verifiserProsjektIkkeFrosset(ctx.userId, kildePsi.projectId);
 
       const medlem = await ctx.prisma.projectMember.findFirst({
         where: { userId: ctx.userId, projectId: kildePsi.projectId, role: "admin" },

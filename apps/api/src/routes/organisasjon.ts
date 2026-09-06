@@ -253,6 +253,31 @@ export const organisasjonRouter = router({
       orderBy: { project: { createdAt: "desc" } },
     });
 
+    // FL: siste livssyklus-endring per prosjekt — kilde for «Avsluttet DD.MM av X»
+    // i firmaliste-menyen. Ett samlet oppslag, nyeste først; vi plukker første treff
+    // per prosjekt. Kun frosne prosjekter viser sporet i UI, men vi henter for alle
+    // (billig: indeksert på [projectId, createdAt]).
+    const projektIder = orgProsjekter.map((op) => op.project.id);
+    const statusAktivitet = await ctx.prisma.activity.findMany({
+      where: {
+        projectId: { in: projektIder },
+        targetType: "project",
+        action: { startsWith: "prosjekt_status_" },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { projectId: true, action: true, createdAt: true, actorNavnSnapshot: true },
+    });
+    const sisteEndring = new Map<string, { tilStatus: string; dato: Date; av: string | null }>();
+    for (const a of statusAktivitet) {
+      if (a.projectId && !sisteEndring.has(a.projectId)) {
+        sisteEndring.set(a.projectId, {
+          tilStatus: a.action.replace("prosjekt_status_", ""),
+          dato: a.createdAt,
+          av: a.actorNavnSnapshot,
+        });
+      }
+    }
+
     return orgProsjekter.map((op) => ({
       id: op.project.id,
       projectNumber: op.project.projectNumber,
@@ -262,6 +287,7 @@ export const organisasjonRouter = router({
       antallMedlemmer: op.project.members.length,
       antallFaggrupper: op.project.faggrupper.length,
       createdAt: op.project.createdAt,
+      sisteStatusEndring: sisteEndring.get(op.project.id) ?? null,
     }));
   }),
 

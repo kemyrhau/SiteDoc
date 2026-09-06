@@ -13,7 +13,7 @@ import {
   drawingStatusSchema,
   geoReferanseSchema,
 } from "@sitedoc/shared";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
@@ -582,6 +582,9 @@ export const tegningRouter = router({
   rekonverterPdf: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      // FL: re-konvertering er en skrivehandling — sperret på et avsluttet prosjekt
+      // (går ikke via en prosjekt-port; inline-admin-sjekk under).
+      await verifiserProsjektIkkeFrosset(ctx.userId, input.projectId);
       // Kun sitedoc_admin eller prosjektadmin
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
       if (bruker?.role !== "sitedoc_admin") {
