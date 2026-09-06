@@ -58,6 +58,14 @@ export const kontraktRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
+      // Firmagrense: resolver projectId fra kontrakten og verifiser medlemskap.
+      // Uten dette kunne enhver innlogget bruker endre et annet firmas kontrakt
+      // ved å kjenne id-en (tenant-lekkasje funnet 2026-09-06).
+      const kontrakt = await ctx.prisma.ftdKontrakt.findUniqueOrThrow({
+        where: { id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kontrakt.projectId);
       return ctx.prisma.ftdKontrakt.update({
         where: { id },
         data,
@@ -67,6 +75,14 @@ export const kontraktRouter = router({
   slett: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Firmagrense FØR kaskaden: sletting nuller kontraktId på faggrupper og
+      // dokumenter, så en uautorisert id kunne løsrevet et annet firmas koblinger
+      // (tenant-lekkasje funnet 2026-09-06).
+      const kontrakt = await ctx.prisma.ftdKontrakt.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kontrakt.projectId);
       // Fjern kontrakt-kobling fra faggrupper og dokumenter først
       await ctx.prisma.faggruppe.updateMany({
         where: { kontraktId: input.id },

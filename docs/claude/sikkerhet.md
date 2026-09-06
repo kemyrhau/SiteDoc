@@ -2,7 +2,7 @@
 name: sikkerhet
 description: Samlet sikkerhetsvurdering — hva er målt, hva er åpent, hva er avgjort. Erstatter spredte punkter i STATUS-AKTUELT og containertopologi-notatet.
 status: 🟠 LEVENDE — oppdateres ved hvert funn og hver lukking
-sist_verifisert_mot_kode: 2026-08-28
+sist_verifisert_mot_kode: 2026-09-06
 ---
 
 # Sikkerhet — samlet vurdering
@@ -103,6 +103,41 @@ Eies av [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling
 
 ---
 
+## ✅ Lukket 2026-09-06 — FTD tenant-grense + uautentisert prosessering-endepunkt
+
+**Funn (metode: skrivevei-folketelling av `apps/api` mot de 12 prosjekt-portene i
+`tilgangskontroll.ts`, 2026-09-06).** Fem skriveveier mot FTD-/økonomidata gikk utenom
+firma- og prosjektsjekk:
+
+| Vei | Før | Skade |
+|---|---|---|
+| `kontrakt.oppdater` / `kontrakt.slett` (`kontrakt.ts:47/67`) | kun innlogget (`protectedProcedure`), ingen firmasjekk | enhver SiteDoc-bruker kunne endre/slette **et annet firmas kontrakt** med bare id-en. `slett` nuller i tillegg `kontraktId` på faggrupper og dokumenter → løsrev koblinger på tvers av firma |
+| `mengde.lagreNotat` / `slettPeriode` / `fjernFraOkonomi` (`mengde.ts:323/332/460`) | kun innlogget | endre/slette et annet firmas spec-notat, nota-periode og økonomi-kobling med rå id |
+| `POST /prosesser/:documentId` (`prosesser.ts`) | **ingen auth i det hele tatt**, servert på `0.0.0.0` → offentlig på api.sitedoc.no | hvem som helst kunne trigge dokumentprosessering på et vilkårlig dokument-id |
+
+Dette brøt den ufravikelige firmaisolerings-regelen i CLAUDE.md (firma-admin/medlem
+skal **kun** nå eget firmas data; firma-grense-sjekk skal ligge i server-laget).
+
+**Fiks (`fix/ftd-tenantgrense`, 2026-09-06):**
+- De fire tRPC-veiene resolver nå `projectId` fra entiteten (`FtdKontrakt`/`FtdSpecPost`/
+  `FtdNotaPeriod`/`FtdDocument` har alle direkte `projectId`) og kaller
+  `verifiserProsjektmedlem` — samme mønster som de dekkede prosedyrene i samme routere
+  (`reprosesser`, `oppdaterDokument`).
+- `/prosesser/:documentId`-endepunktet er **fjernet**. Kallerne (`mengde.ts`, `mappe.ts`)
+  gjorde et HTTP-selvkall til `localhost` — tRPC kjører i samme API-prosess, så hoppet ga
+  ingen isolasjon. `triggerProsessering` kaller nå `prosesserDokument` direkte in-process
+  (samme fire-and-forget, ikke await-et); autorisasjon skjer i tRPC-kalleren før triggeren.
+  Den offentlige flaten finnes ikke lenger — ingen ny secret/env introdusert.
+
+**Ikke i denne runden (målt, egen sak):** de øvrige ugatede/inline-gatede skriveveiene
+folketellingen fant — PSI-gjesteveier (`psi.ts:516/547/560`), inline-admin i `psi.ts`,
+`oppgave/sjekkliste.byttEier`, `hms.firmaBehandleAvvik`, og hele `timer/dagsseddel.ts`
+(firma-scope mot svak FK `SheetTimer.projectId`). Disse er dekket av firma-/eierskaps-
+sjekker på andre akser (ikke tenant-hull som de fem over), og vurderes i frys-vakt-sporet
+(FL — prosjekt-livssyklus).
+
+---
+
 ## ✅ Verifisert trygt — med dato og metode
 
 | Påstand | Hvordan målt | Dato |
@@ -117,6 +152,8 @@ Eies av [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling
 | 14 funn fra sikkerhets-audit adressert i prod | Se [historikk-2026-05.md](historikk-2026-05.md) | 2026-05-27 |
 | Ingen passord-innlogging finnes | `auth.ts` har kun Google + Microsoft Entra ID, ingen Credentials-provider | 2026-08-28 |
 | Deaktivert ansatt mister prosjekttilgang | `krevAktivAnsettelse` i alle prosjekt-porter + `status`-filter i `hentBrukersOrg` | 2026-08-28 |
+| FTD-kontrakt/-økonomi-skriving er firma-gatet | `kontrakt.oppdater/slett` + `mengde.lagreNotat/slettPeriode/fjernFraOkonomi` resolver `projectId` → `verifiserProsjektmedlem` | 2026-09-06 |
+| Ingen uautentisert prosessering-endepunkt | `/prosesser/:documentId` fjernet; `triggerProsessering` kaller `prosesserDokument` in-process | 2026-09-06 |
 
 ---
 

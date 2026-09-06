@@ -6,11 +6,15 @@ import {
   hentTilgjengeligeMappeIder,
   byggMappeTilgangsFilter,
 } from "../services/folder-tilgang";
-// Prosessering kjøres på API-serveren (ren Node) — ikke i Next.js
-const API_INTERN_URL = `http://localhost:${process.env.API_PORT ?? process.env.PORT ?? "3001"}`;
-
+import { prisma } from "@sitedoc/db";
+import { prosesserDokument } from "../services/ftd-prosessering";
+// Fire-and-forget dokumentprosessering, in-process. Tidligere gikk dette via et
+// HTTP-selvkall til /prosesser/:documentId — et uautentisert, offentlig endepunkt
+// på api.sitedoc.no (funnet 2026-09-06). tRPC kjører i samme API-prosess, så
+// selvkallet ga ingen isolasjon; det direkte kallet er identisk fire-and-forget
+// (ikke await-et) men uten den åpne flaten. Autorisasjon er gjort i kalleren.
 function triggerProsessering(documentId: string) {
-  fetch(`${API_INTERN_URL}/prosesser/${documentId}`, { method: "POST" }).catch(
+  prosesserDokument(prisma, documentId).catch(
     (err) => console.error(`Kunne ikke trigge prosessering for ${documentId}:`, err),
   );
 }
@@ -323,6 +327,13 @@ export const mengdeRouter = router({
   lagreNotat: protectedProcedure
     .input(z.object({ specPostId: z.string(), tekst: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Firmagrense: resolver projectId fra spec-posten og verifiser medlemskap
+      // (tenant-lekkasje funnet 2026-09-06 — var kun innlogget-gatet).
+      const post = await ctx.prisma.ftdSpecPost.findUniqueOrThrow({
+        where: { id: input.specPostId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, post.projectId);
       return ctx.prisma.ftdSpecPost.update({
         where: { id: input.specPostId },
         data: { eksternNotat: input.tekst },
@@ -332,6 +343,13 @@ export const mengdeRouter = router({
   slettPeriode: protectedProcedure
     .input(z.object({ periodId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Firmagrense: resolver projectId fra perioden og verifiser medlemskap
+      // (tenant-lekkasje funnet 2026-09-06 — var kun innlogget-gatet).
+      const periode = await ctx.prisma.ftdNotaPeriod.findUniqueOrThrow({
+        where: { id: input.periodId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, periode.projectId);
       return ctx.prisma.ftdNotaPeriod.delete({
         where: { id: input.periodId },
       });
@@ -460,6 +478,13 @@ export const mengdeRouter = router({
   fjernFraOkonomi: protectedProcedure
     .input(z.object({ documentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Firmagrense: resolver projectId fra dokumentet og verifiser medlemskap
+      // (tenant-lekkasje funnet 2026-09-06 — var kun innlogget-gatet).
+      const doc = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, doc.projectId);
       // Fjern økonomi-kobling — dokumentet beholdes i mapper
       await ctx.prisma.ftdSpecPost.deleteMany({ where: { documentId: input.documentId } });
       return ctx.prisma.ftdDocument.update({
