@@ -139,6 +139,19 @@ importerer herfra. **PDF speiler logikken lokalt** (`packages/pdf/src/hjelpere.t
 `lesSignaturVerdiPdf`/`formaterSignaturLinjePdf`) fordi `packages/pdf` er null-avhengigheter
 (felt.ts:90) — endres denne, endres speilet.
 
+### Opsjon-normalisering (`opsjon.ts`)
+
+`normaliserOpsjon(opsjon)` → `{ value, label }`. Delt kilde for valg-opsjoner
+(`list_single`/`list_multi`/trafikklys `config.options`) og grense-resolverens
+variant-matching. Godtar strenger (`"Ja"`) og objekter (`{value, label}`); gir alltid
+`{ value, label }` slik at flatene og resolveren har ETT sannhetsbegrep om en opsjon.
+
+Trukket hit 2026-09-06 fra fire uavhengige kopier (web `rapportobjekter/typer.ts`, de to
+mobil-komponentene `EnkeltvalgObjekt`/`FlervalgObjekt`, PDF `hjelpere.ts`). Web + mobil
+importerer herfra. **PDF speiler logikken lokalt** (`packages/pdf/src/hjelpere.ts`) fordi
+`packages/pdf` er null-avhengigheter — voktet av paritetstest
+(`apps/web/src/__tests__/pdf-shared-tvilling-paritet.test.ts`). Endres denne, endres speilet.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først

@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { oversettStandardtekst } from "@sitedoc/shared";
+import { normaliserOpsjon, oversettStandardtekst } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
-import { normaliserOpsjon } from "./typer";
 import { ChevronDown, X } from "lucide-react";
 
 export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {

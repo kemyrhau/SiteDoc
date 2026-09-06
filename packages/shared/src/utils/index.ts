@@ -308,3 +308,5 @@ export function statusKreverBegrunnelse(nyStatus: string): boolean {
 
 export { beregnSignaturStatus, delSignertManko } from "./signaturliste";
 export type { SignaturChipStatus, SisteRundeSammendrag, SignaturStatus } from "./signaturliste";
+
+export { normaliserOpsjon } from "./opsjon";

@@ -59,12 +59,19 @@ export function harMeningsfullLabel(label: string | null | undefined): boolean {
   return !!label && /[\p{L}\p{N}]/u.test(label);
 }
 
-/** Normaliser opsjon — støtter både "streng" og {value,label}-format */
+/**
+ * Normaliser opsjon — SPEIL av @sitedoc/shared `normaliserOpsjon`. `packages/pdf`
+ * er null-avhengigheter og kan ikke importere shared; drift voktes av paritetstest
+ * i `apps/web/src/__tests__/pdf-shared-tvilling-paritet.test.ts`. Endres denne,
+ * endres speilet — og omvendt.
+ */
 export function normaliserOpsjon(raw: unknown): { value: string; label: string } {
   if (typeof raw === "string") return { value: raw, label: raw };
-  if (raw && typeof raw === "object" && "value" in raw) {
-    const o = raw as { value: string; label?: string };
-    return { value: o.value, label: o.label ?? o.value };
+  if (typeof raw === "object" && raw !== null) {
+    const obj = raw as Record<string, unknown>;
+    const value = typeof obj.value === "string" ? obj.value : String(obj.value ?? "");
+    const label = typeof obj.label === "string" ? obj.label : value;
+    return { value, label };
   }
   return { value: String(raw), label: String(raw) };
 }

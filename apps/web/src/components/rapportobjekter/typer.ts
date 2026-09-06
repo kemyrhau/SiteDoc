@@ -138,14 +138,5 @@ export function normaliserRad(raa: unknown): Rad {
   return { _radId: nyRadId(), felter: (raa ?? {}) as Record<string, FeltVerdi> };
 }
 
-// Normaliser opsjon — støtter både string og {value, label}-format
-export function normaliserOpsjon(opsjon: unknown): { value: string; label: string } {
-  if (typeof opsjon === "string") return { value: opsjon, label: opsjon };
-  if (typeof opsjon === "object" && opsjon !== null) {
-    const obj = opsjon as Record<string, unknown>;
-    const value = typeof obj.value === "string" ? obj.value : String(obj.value ?? "");
-    const label = typeof obj.label === "string" ? obj.label : value;
-    return { value, label };
-  }
-  return { value: String(opsjon), label: String(opsjon) };
-}
+// normaliserOpsjon er flyttet til @sitedoc/shared (trinn 0, 2026-09-06) —
+// importer den derfra.
