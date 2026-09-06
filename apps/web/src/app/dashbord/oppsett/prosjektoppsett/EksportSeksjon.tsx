@@ -3,6 +3,7 @@
 import { trpc } from "@/lib/trpc";
 import { Button } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
+import { useFirma } from "@/kontekst/firma-kontekst";
 import {
   Archive,
   Download,
@@ -55,10 +56,11 @@ function formaterDatoTid(d: string | Date): string {
 export function EksportSeksjon({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  const { kanAdministrereFirma } = useFirma();
 
   const jobberQuery = trpc.eksport.hentForProsjekt.useQuery(
     { projectId: prosjektId },
-    { enabled: !!prosjektId },
+    { enabled: !!prosjektId && kanAdministrereFirma },
   );
   const jobber = (jobberQuery.data ?? []) as EksportJobbRad[];
   const aktivJobb = jobber.find((j) => AKTIVE_STATUSER.includes(j.status)) ?? null;
@@ -68,7 +70,10 @@ export function EksportSeksjon({ prosjektId }: { prosjektId: string }) {
   // recomputes når data endres → intervallet stopper av seg selv når jobben er klar.
   trpc.eksport.hentForProsjekt.useQuery(
     { projectId: prosjektId },
-    { enabled: !!prosjektId && !!aktivJobb, refetchInterval: aktivJobb ? 3000 : false },
+    {
+      enabled: !!prosjektId && kanAdministrereFirma && !!aktivJobb,
+      refetchInterval: aktivJobb ? 3000 : false,
+    },
   );
 
   const bestill = trpc.eksport.bestill.useMutation({
@@ -82,6 +87,12 @@ export function EksportSeksjon({ prosjektId }: { prosjektId: string }) {
       window.location.href = `/api${url}`;
     },
   });
+
+  // Firma-admin-only (Kenneth-vedtak 2026-09-06): arkivet er firmadata. Skjul hele
+  // seksjonen for den serveren uansett avviser (verifiserKanEksportere) — en
+  // FORBIDDEN-toast på et arkiv er en dårlig førsteopplevelse. Server er fasit;
+  // dette speiler bare regelen (`kanAdministrereFirma` = sitedoc_admin ∨ firma_admin).
+  if (!kanAdministrereFirma) return null;
 
   function statusLinje(j: EksportJobbRad): React.ReactNode {
     switch (j.status) {
