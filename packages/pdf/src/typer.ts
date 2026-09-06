@@ -46,10 +46,31 @@ export interface Vedlegg {
   bildeNr?: number;
 }
 
+/**
+ * Grense-status mot verdien — speiler `GrenseStatus` i `@sitedoc/shared/grenseSjekk`.
+ * Deklarert LOKALT (packages/pdf importerer bevisst ikke @sitedoc/shared, felt.ts:79).
+ * `null` = tomt/ikke-tall (kravet vises likevel, F7).
+ */
+export type GrenseStatusPdf = "under" | "over" | "utenfor_toleranse" | "ok";
+
+/**
+ * Kravsnapshot lagret SIDESTILT med `verdi` (grenseresolver trinn 3). ALDRI inni `verdi`
+ * — `harFeltVerdi` tester `verdi` direkte, så et snapshot inni ville telt et tomt felt som
+ * besvart. `kravTekst` er `formaterGrense`-formatet («≤ 10 mm»); `status` er retningen.
+ * Skrives av api-laget (server-snapshot ved lagring, ellers rekonstruert ved PDF-bygging
+ * i sammenstilling.ts). felt.ts/skalarCelle RENDRER kun — regner ingenting.
+ */
+export interface GrenseSnapshot {
+  kravTekst: string;
+  status: GrenseStatusPdf | null;
+}
+
 export interface FeltVerdi {
   verdi: unknown;
   kommentar: string;
   vedlegg: Vedlegg[];
+  /** Kravsnapshot (trinn 3) — søsken til `verdi`, aldri inni. */
+  grenseSnapshot?: GrenseSnapshot;
 }
 
 /**

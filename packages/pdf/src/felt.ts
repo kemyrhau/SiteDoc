@@ -5,7 +5,7 @@
 
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf } from "./hjelpere";
+import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi } from "./hjelpere";
 // D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
 // felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
 // arkivmal-overgangen), så den er nå ren server/arkiv-renderer. Intercept-i-innhold.ts droppet;
@@ -96,9 +96,12 @@ export function renderFelt(
       // eldre maler. Duplisert `??` — IKKE importér @sitedoc/shared: packages/pdf
       // er dokumentert null-avhengigheter (CLAUDE.md § Prosjektstruktur).
       const enhet = (objekt.config.enhet as string) ?? (objekt.config.unit as string) ?? "";
-      verdiHtml = tom
-        ? `<span class="tom">Ikke utfylt</span>`
-        : esc(`${verdi}${enhet ? ` ${enhet}` : ""}`);
+      // Grenseresolver trinn 3 del A: verdi + kravsnapshot (tre tilstander). Snapshotet
+      // er ferdig beregnet (sammenstilling.ts) — felt.ts regner ingenting.
+      verdiHtml = byggGrenseVerdi(
+        tom ? null : `${verdi}${enhet ? ` ${enhet}` : ""}`,
+        felt?.grenseSnapshot,
+      );
       break;
     }
 
