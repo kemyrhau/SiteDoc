@@ -433,7 +433,14 @@ Se [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).
 ⚠️ **Foreldet linje under — tavla sa `ba234fd1` mens prod faktisk var `3a2f7dc3` (29.08).
 En prod-deploy ble aldri ført.**
 
-✅ **PROD À JOUR 2026-09-06 13:40** — `ad18df93` (over tjue merger fra to døgn).
+✅ **PROD À JOUR 2026-09-06 17:15** — `82cd4459`. Verifisert: `/version` → `82cd4459`.
+Migreringer: «No pending» (ingen nye siden `ad18df93`). **Innhold:** byggeplass-tilhørighet på
+raden · ærlig chip-tekst · mykt tegningsfilter · «bekreftet av» på gjestesignatur · splittet
+teller «X signert + Y bekreftet» · fritekst-lokasjon.
+🟢 **OTA `c0d556ce`** publisert etter (api-filteret måtte ut først), pluss `42ef3059` tidligere
+samme dag (utlogging + byggeplass-velger).
+
+**Forrige prod: `ad18df93`** (2026-09-06 13:40, over tjue merger fra to døgn).
 Stempel verifisert: `curl https://api.sitedoc.no/version` → `ad18df93`.
 **Tre migreringer anvendt mot prod-DB:** `20260906000000_sja_signaturrunder` ·
 `20260906120000_sja_innholdsversjon` · `20260906130000_signatur_bekreftet_av` ·
