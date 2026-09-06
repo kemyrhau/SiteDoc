@@ -375,6 +375,11 @@ export default function PsiLeser() {
               verdi={feltVerdier[objekt.id] ?? null}
               onEndreVerdi={(v) => settFeltVerdi(objekt.id, v)}
               leseModus={DISPLAY_TYPER.has(objekt.type)}
+              forelderVerdi={
+                typeof objekt.config.styrendeFeltId === "string"
+                  ? feltVerdier[objekt.config.styrendeFeltId as string]
+                  : undefined
+              }
             />
           );
         })}

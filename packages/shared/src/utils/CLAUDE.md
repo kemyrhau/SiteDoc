@@ -139,6 +139,33 @@ importerer herfra. **PDF speiler logikken lokalt** (`packages/pdf/src/hjelpere.t
 `lesSignaturVerdiPdf`/`formaterSignaturLinjePdf`) fordi `packages/pdf` er null-avhengigheter
 (felt.ts:90) — endres denne, endres speilet.
 
+### Opsjon-normalisering (`opsjon.ts`)
+
+`normaliserOpsjon(opsjon)` → `{ value, label }`. Delt kilde for valg-opsjoner
+(`list_single`/`list_multi`/trafikklys `config.options`) og grense-resolverens
+variant-matching. Godtar strenger (`"Ja"`) og objekter (`{value, label}`); gir alltid
+`{ value, label }` slik at flatene og resolveren har ETT sannhetsbegrep om en opsjon.
+
+Trukket hit 2026-09-06 fra fire uavhengige kopier (web `rapportobjekter/typer.ts`, de to
+mobil-komponentene `EnkeltvalgObjekt`/`FlervalgObjekt`, PDF `hjelpere.ts`). Web + mobil
+importerer herfra. **PDF speiler logikken lokalt** (`packages/pdf/src/hjelpere.ts`) fordi
+`packages/pdf` er null-avhengigheter — voktet av paritetstest
+(`apps/web/src/__tests__/pdf-shared-tvilling-paritet.test.ts`). Endres denne, endres speilet.
+
+### Grense + resolver (`grenseSjekk.ts`)
+
+Grenseverdier for `integer`/`decimal` — delt kilde for MalBygger-editor, utfyllings-rendering
+(web + mobil) og PDF-oppslagsbyggeren.
+
+| Funksjon | Beskrivelse |
+|----------|-------------|
+| `normaliserGrense(config)` → `Grense` | Norsk kanonisk (`min/maks/toleranse/desimaler/enhet`), engelsk (`max/unit/decimals`) som fallback |
+| `harGrense` / `grenseStatus` / `formaterGrense` | Aktiv grense? · status mot verdi (`under/over/utenfor_toleranse/ok`) · språknøytral etikett (`≥/≤/±/–`) |
+| `lesKravType(config)` → `KravType \| null` | Eksplisitt `config.kravType` (`minst/hoyst/mellom/toleranse`) vinner; ellers UTLEDES fra satte felter (bakoverkompat, ingen backfill). Utledning kan ikke skille «Minst 30» fra «glemte maks» → MalByggeren skriver den eksplisitt (trinn 2) |
+| `løsGrense(objekt, forelderVerdi)` → `Grense` | **Vei B-resolver — eneste inngang** for utfylling (web+mobil) og PDF-oppslag. Tar **verdien** til styrende felt, ikke konteksten (kallstedet henter fra `rad.felter[styrendeId].verdi` i repeater / `hentFeltVerdi(styrendeId).verdi` på rot). Uten `styrendeFeltId`/`grenseVarianter` → standardgrense (identisk med `normaliserGrense`, bakoverkompat). Med varianter: matcher styrende verdi mot varianttabellen (`normaliserOpsjon` på begge sider), overstyrer TALLENE; tom celle arver standard; `enhet`/`desimaler` alltid felles. Ingen treff → standard (aldri stille sletting; foreldreløse varianter vises i MalBygger, trinn 2) |
+
+Grensene BLOKKERER aldri innsending — et avvik er et gyldig funn.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først

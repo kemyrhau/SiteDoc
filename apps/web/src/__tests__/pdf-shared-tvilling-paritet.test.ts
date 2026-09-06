@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad } from "@sitedoc/shared";
-import { lesSignaturVerdiPdf, formaterSignaturLinjePdf, feltKartFraRadPdf } from "@sitedoc/pdf";
+import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad, normaliserOpsjon } from "@sitedoc/shared";
+import {
+  lesSignaturVerdiPdf,
+  formaterSignaturLinjePdf,
+  feltKartFraRadPdf,
+  normaliserOpsjon as normaliserOpsjonPdf,
+} from "@sitedoc/pdf";
 
 /**
  * Drift-vakt for de TILSIKTEDE tvillingene mellom @sitedoc/shared (kanonisk leser)
@@ -61,6 +66,28 @@ describe("signatur-tvilling: formaterSignaturLinje ↔ formaterSignaturLinjePdf"
       const linjeShared = formaterSignaturLinje({ ...sig, brukerId: null });
       const linjePdf = formaterSignaturLinjePdf(sig);
       expect(linjePdf).toBe(linjeShared);
+    });
+  }
+});
+
+describe("opsjon-tvilling: normaliserOpsjon ↔ normaliserOpsjonPdf", () => {
+  // Ordrens påkrevde tilfeller (trinn 0): streng, {label,value}, {label} uten value,
+  // tom/null, verdi med mellomrom — pluss defensiv coercion.
+  const tilfeller: { navn: string; inn: unknown }[] = [
+    { navn: "streng-opsjon", inn: "Ja" },
+    { navn: "{ value, label }", inn: { value: "green", label: "Godkjent" } },
+    { navn: "{ value } uten label", inn: { value: "rod" } },
+    { navn: "{ label } uten value", inn: { label: "Bare label" } },
+    { navn: "tom streng", inn: "" },
+    { navn: "null", inn: null },
+    { navn: "undefined", inn: undefined },
+    { navn: "verdi med mellomrom (streng)", inn: "Ikke relevant" },
+    { navn: "verdi med mellomrom (objekt)", inn: { value: "ikke ok", label: "Ikke OK" } },
+    { navn: "ikke-streng value", inn: { value: 3, label: "Tre" } },
+  ];
+  for (const { navn, inn } of tilfeller) {
+    it(`gir identisk opsjon: ${navn}`, () => {
+      expect(normaliserOpsjonPdf(inn)).toEqual(normaliserOpsjon(inn));
     });
   }
 });

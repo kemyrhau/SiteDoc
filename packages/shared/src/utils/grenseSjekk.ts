@@ -16,6 +16,8 @@
  * viser grensen og markerer verdi utenfor visuelt.
  */
 
+import { normaliserOpsjon } from "./opsjon";
+
 export interface Grense {
   /** Nedre grense — verdi < min er «under». */
   min: number | null;
@@ -101,4 +103,100 @@ export function formaterGrense(grense: Grense): string {
     deler.push(`± ${grense.toleranse}${e}`);
   }
   return deler.join(" · ");
+}
+
+/**
+ * Kravets form — hvilke tallfelter feltet bruker. MalByggeren skriver den EKSPLISITT
+ * (`config.kravType`, trinn 2) i klarspråk (Minst/Høyst/Mellom/Pluss-minus), aldri symboler.
+ */
+export type KravType = "minst" | "hoyst" | "mellom" | "toleranse";
+
+/** Én variantrad i Vei B: styrende felts opsjonsverdi + tallene den overstyrer. */
+export interface GrenseVariant {
+  /** Styrende felts opsjonsverdi. Normaliseres (`normaliserOpsjon`) ved match. */
+  valg: unknown;
+  /** Tom (undefined/null/"") = arv standard; ellers overstyr. */
+  min?: unknown;
+  maks?: unknown;
+  toleranse?: unknown;
+}
+
+/**
+ * Kravtype for et felt — eksplisitt `config.kravType` vinner; ellers UTLEDES den fra hvilke
+ * grensefelter som er satt. Bakoverkompatibel lesing for maler laget før nøkkelen fantes
+ * (Kenneth-vedtak: ingen backfill) — samme mønster som `normaliserGrense`s alias-lesing.
+ *
+ * ⚠️ Utledning kan IKKE skille «Minst 30» fra «forfatteren glemte maks» — derfor skriver
+ * MalByggeren kravType eksplisitt (trinn 2), så en glemt verdi kan VARSLES i kvitteringslinja.
+ * Utledningen er kun for eldre config og for visning.
+ *
+ * Presedens ved utledning: toleranse → mellom (min+maks) → minst (kun min) → hoyst (kun maks).
+ * Ingen grense → null.
+ */
+export function lesKravType(config: Record<string, unknown>): KravType | null {
+  const eksplisitt = config.kravType;
+  if (
+    eksplisitt === "minst" ||
+    eksplisitt === "hoyst" ||
+    eksplisitt === "mellom" ||
+    eksplisitt === "toleranse"
+  ) {
+    return eksplisitt;
+  }
+  const g = normaliserGrense(config);
+  if (g.toleranse !== null) return "toleranse";
+  if (g.min !== null && g.maks !== null) return "mellom";
+  if (g.min !== null) return "minst";
+  if (g.maks !== null) return "hoyst";
+  return null;
+}
+
+/** Variantcelle: tom (undefined/null/"") arver standard; ellers coerces til tall. */
+function variantTall(celle: unknown, standard: number | null): number | null {
+  if (celle === undefined || celle === null || celle === "") return standard;
+  return tilTall(celle);
+}
+
+/**
+ * Delt grense-resolver (Vei B) — ENESTE inngang for web-utfylling, mobil-utfylling og
+ * PDF-oppslagsbyggeren. Tar VERDIEN til det styrende feltet, ikke konteksten: kallstedet
+ * henter den fra `rad.felter[styrendeId].verdi` i repeater eller
+ * `hentFeltVerdi(styrendeId).verdi` på rot. Resolveren trenger ikke vite om den står i en rad.
+ *
+ * - Uten `config.styrendeFeltId`/`config.grenseVarianter` (alle eksisterende maler) →
+ *   feltets standardgrense, identisk med `normaliserGrense(config)`. Bakoverkompatibelt.
+ * - Med varianter: matcher styrende felts verdi mot varianttabellen med `normaliserOpsjon`
+ *   på BEGGE sider (opsjon-normaliseringsregelen), og overstyrer TALLENE. Tom variantcelle
+ *   arver standard; `enhet`/`desimaler` er ALLTID felles (kravtypen er felles for feltet,
+ *   varianter endrer ikke kravets form).
+ * - Ingen treff (foreldreløs variant: opsjon omdøpt/slettet, eller ukjent verdi) → standard.
+ *   Aldri stille sletting — foreldreløse varianter vises som amber linje i MalBygger (trinn 2).
+ */
+export function løsGrense(
+  objekt: { config: Record<string, unknown> },
+  forelderVerdi: unknown,
+): Grense {
+  const standard = normaliserGrense(objekt.config);
+  const styrendeFeltId = objekt.config.styrendeFeltId;
+  const varianter = objekt.config.grenseVarianter;
+  if (typeof styrendeFeltId !== "string" || styrendeFeltId === "") return standard;
+  if (!Array.isArray(varianter) || varianter.length === 0) return standard;
+  if (forelderVerdi === null || forelderVerdi === undefined) return standard;
+
+  const mål = normaliserOpsjon(forelderVerdi).value;
+  const treff = varianter.find(
+    (v): v is GrenseVariant =>
+      !!v &&
+      typeof v === "object" &&
+      normaliserOpsjon((v as GrenseVariant).valg).value === mål,
+  );
+  if (!treff) return standard;
+
+  return {
+    min: variantTall(treff.min, standard.min),
+    maks: variantTall(treff.maks, standard.maks),
+    toleranse: variantTall(treff.toleranse, standard.toleranse),
+    desimaler: standard.desimaler,
+    enhet: standard.enhet,
+  };
 }

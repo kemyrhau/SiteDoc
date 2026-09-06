@@ -59,6 +59,13 @@ export interface RapportObjektProps {
    * felttyper.
    */
   dokumentRef?: { checklistId?: string; taskId?: string };
+  /**
+   * Vei B (grenseresolver): verdien til feltets styrende felt (`config.styrendeFeltId`), som
+   * `løsGrense` matcher mot varianttabellen. Kalleren henter den fra samme kontekst — repeater:
+   * `rad.felter[styrendeId].verdi`; rot: `hentFeltVerdi(styrendeId).verdi`. Kun integer/decimal
+   * bruker den; utelatt → standardgrense (identisk med tidligere atferd).
+   */
+  forelderVerdi?: unknown;
 }
 
 /**
@@ -138,14 +145,5 @@ export function normaliserRad(raa: unknown): Rad {
   return { _radId: nyRadId(), felter: (raa ?? {}) as Record<string, FeltVerdi> };
 }
 
-// Normaliser opsjon — støtter både string og {value, label}-format
-export function normaliserOpsjon(opsjon: unknown): { value: string; label: string } {
-  if (typeof opsjon === "string") return { value: opsjon, label: opsjon };
-  if (typeof opsjon === "object" && opsjon !== null) {
-    const obj = opsjon as Record<string, unknown>;
-    const value = typeof obj.value === "string" ? obj.value : String(obj.value ?? "");
-    const label = typeof obj.label === "string" ? obj.label : value;
-    return { value, label };
-  }
-  return { value: String(opsjon), label: String(opsjon) };
-}
+// normaliserOpsjon er flyttet til @sitedoc/shared (trinn 0, 2026-09-06) —
+// importer den derfra.

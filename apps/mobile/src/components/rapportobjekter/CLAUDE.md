@@ -109,7 +109,7 @@ RapportObjektRenderer (dispatcher)
 
 ## Opsjon-normalisering
 
-Config `options` kan være strenger (`"Ja"`) eller objekter (`{value: "green", label: "Godkjent"}`). `EnkeltvalgObjekt` og `FlervalgObjekt` normaliserer automatisk — begge formater støttes.
+Config `options` kan være strenger (`"Ja"`) eller objekter (`{value: "green", label: "Godkjent"}`). `EnkeltvalgObjekt` og `FlervalgObjekt` normaliserer automatisk — begge formater støttes. `normaliserOpsjon` bor i `@sitedoc/shared` (delt kilde, trukket dit 2026-09-06 fra fire kopier) — komponentene importerer den, definerer den ikke lokalt.
 
 ## Verdi-lagring per type
 

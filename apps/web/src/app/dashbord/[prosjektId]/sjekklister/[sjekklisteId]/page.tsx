@@ -1073,6 +1073,12 @@ export default function SjekklisteDetaljSide() {
                   radOppgaver={radOppgaver}
                   tillatteFaggruppeIder={tillatteFaggruppeIder}
                   dokumentTegning={dokumentTegning}
+                  forelderVerdi={
+                    // Vei B: styrende felt på rot → dokumentets verdisett (samme kontekst)
+                    typeof objekt.config.styrendeFeltId === "string"
+                      ? hentFeltVerdi(objekt.config.styrendeFeltId as string).verdi
+                      : undefined
+                  }
                 />
               </FeltWrapper>
             </div>

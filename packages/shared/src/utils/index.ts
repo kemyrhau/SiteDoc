@@ -143,8 +143,10 @@ export {
   harGrense,
   grenseStatus,
   formaterGrense,
+  lesKravType,
+  løsGrense,
 } from "./grenseSjekk";
-export type { Grense, GrenseStatus } from "./grenseSjekk";
+export type { Grense, GrenseStatus, KravType, GrenseVariant } from "./grenseSjekk";
 export {
   grupperMedOverskrift,
   beregnSeksjonUtfylling,
@@ -308,3 +310,5 @@ export function statusKreverBegrunnelse(nyStatus: string): boolean {
 
 export { beregnSignaturStatus, delSignertManko } from "./signaturliste";
 export type { SignaturChipStatus, SisteRundeSammendrag, SignaturStatus } from "./signaturliste";
+
+export { normaliserOpsjon } from "./opsjon";
