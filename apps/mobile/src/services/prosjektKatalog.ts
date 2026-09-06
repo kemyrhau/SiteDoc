@@ -36,7 +36,9 @@ export async function refreshProsjektKatalog(klient: TrpcKlient): Promise<{
   // Tidligere `.catch(() => [])` tømte prosjekt-cachen ved enhver transient feil,
   // og en offline kaldstart ga rå UUID-er i dagsseddel-raden (finnProsjektLokalt
   // → null) fordi cachen var slettet.
-  const prosjekter = await klient.prosjekt.hentMine.query();
+  // Timer er utenfor prosjekt-frysen: en ansatt skal kunne føre glemte timer selv om
+  // prosjektet ble arkivert. inkluderFrosne henter derfor også frosne prosjekter.
+  const prosjekter = await klient.prosjekt.hentMine.query({ inkluderFrosne: true });
 
   const naa = Date.now();
 
