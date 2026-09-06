@@ -59,6 +59,13 @@ export interface RapportObjektProps {
    * felttyper.
    */
   dokumentRef?: { checklistId?: string; taskId?: string };
+  /**
+   * Vei B (grenseresolver): verdien til feltets styrende felt (`config.styrendeFeltId`), som
+   * `løsGrense` matcher mot varianttabellen. Kalleren henter den fra samme kontekst — repeater:
+   * `rad.felter[styrendeId].verdi`; rot: `hentFeltVerdi(styrendeId).verdi`. Kun integer/decimal
+   * bruker den; utelatt → standardgrense (identisk med tidligere atferd).
+   */
+  forelderVerdi?: unknown;
 }
 
 /**

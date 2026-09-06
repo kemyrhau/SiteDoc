@@ -1,10 +1,10 @@
 import { View, Text, TextInput } from "react-native";
 import { AlertTriangle } from "lucide-react-native";
-import { normaliserGrense, formaterGrense, grenseStatus } from "@sitedoc/shared";
+import { løsGrense, formaterGrense, grenseStatus } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
-export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
-  const grense = normaliserGrense(objekt.config);
+export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus, forelderVerdi }: RapportObjektProps) {
+  const grense = løsGrense(objekt, forelderVerdi);
   const status = grenseStatus(verdi, grense);
   const utenfor = status !== null && status !== "ok";
   const grenseTekst = formaterGrense(grense);

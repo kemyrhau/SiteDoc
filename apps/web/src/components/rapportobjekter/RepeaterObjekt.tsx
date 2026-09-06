@@ -276,6 +276,12 @@ export function RepeaterObjekt({
                     stickyTegning={
                       barnObjekt.type === "drawing_position" ? stickyForRad(radIndeks) : undefined
                     }
+                    forelderVerdi={
+                      // Vei B: styrende felt er et søsken i SAMME rad → radens verdisett
+                      typeof barnObjekt.config.styrendeFeltId === "string"
+                        ? rad.felter[barnObjekt.config.styrendeFeltId as string]?.verdi
+                        : undefined
+                    }
                   />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).

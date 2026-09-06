@@ -52,6 +52,13 @@ export interface RapportObjektProps {
    * Kun repeater-barn får den; dokumentnivå-tegning (P1) er en navngitt oppfølger.
    */
   arvetDrawingId?: string | null;
+  /**
+   * Vei B (grenseresolver): verdien til feltets styrende felt (`config.styrendeFeltId`), som
+   * `løsGrense` matcher mot varianttabellen. Kalleren henter den fra samme kontekst — repeater:
+   * `rad.felter[styrendeId].verdi`; rot: `hentFeltVerdi(styrendeId).verdi`. Kun integer/decimal
+   * bruker den; utelatt → standardgrense (identisk med tidligere atferd). Speiler web.
+   */
+  forelderVerdi?: unknown;
 }
 
 /** Radens forhåndsposisjon (drawing_position-verdi ?? dokument-fallback avgjøres av kalleren). */

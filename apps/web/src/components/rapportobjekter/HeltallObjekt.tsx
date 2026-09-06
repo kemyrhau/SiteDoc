@@ -1,10 +1,10 @@
 import { AlertTriangle } from "lucide-react";
-import { normaliserGrense, formaterGrense, grenseStatus } from "@sitedoc/shared";
+import { løsGrense, formaterGrense, grenseStatus } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
-export function HeltallObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+export function HeltallObjekt({ objekt, verdi, onEndreVerdi, leseModus, forelderVerdi }: RapportObjektProps) {
   const tallVerdi = typeof verdi === "number" ? String(verdi) : "";
-  const grense = normaliserGrense(objekt.config);
+  const grense = løsGrense(objekt, forelderVerdi);
   const status = grenseStatus(verdi, grense);
   const utenfor = status !== null && status !== "ok";
   const grenseTekst = formaterGrense(grense);

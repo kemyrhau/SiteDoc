@@ -73,7 +73,27 @@ Sletting av rapportobjekter blokkeres hvis **faktisk innhold** finnes:
 
 ## Opsjon-normalisering
 
-Config `options` kan være strenger (`"Ja"`) eller objekter (`{value: "green", label: "Godkjent"}`). ALL rendering MÅ normalisere.
+Config `options` kan være strenger (`"Ja"`) eller objekter (`{value: "green", label: "Godkjent"}`). ALL rendering MÅ normalisere. `normaliserOpsjon` bor i `@sitedoc/shared` (trinn 0-flytting 2026-09-06).
+
+## Grense-konfig (integer/decimal) — `GrenseKonfig` i `FeltKonfigurasjon.tsx`
+
+Grenseresolver-ordre trinn 2. Erstatter de fire frie tallfeltene med **kravtype i klarspråk**
+(nedtrekk «Krav til verdien»: Ingen krav / Minst / Høyst / Mellom / Innenfor ±) — aldri symboler.
+Kun tallene kravtypen trenger vises (2 for «Mellom», 1 ellers). Skriver `config.kravType`
+(`minst|hoyst|mellom|toleranse`); eldre maler uten nøkkel utledes av `lesKravType` (ingen backfill).
+
+- **Live kvitteringslinje** (hvit boks): «Vises som «≤ 10 mm» — avvik når målt verdi er over 10.»
+  Symbolformen bygges av `formaterGrenseKrav` — forfatteren skriver aldri symbolet.
+- **Vei B — «Grensen avhenger av et valg»:** checkbox (disabled uten kandidater) → styrende-felt-
+  nedtrekk (`list_single` i samme kontekst, lavere sortOrder) → varianttabell. Skriver
+  `config.styrendeFeltId` + `config.grenseVarianter: [{valg,min?,maks?,toleranse?}]`. Kolonner
+  følger kravtype. Tom celle arver standard. Fast siste rad «Ellers (standard)» (grå, ikke redigerbar).
+  **Foreldreløse varianter** (omdøpt/slettet opsjon) blir stående som amber linje med Fjern — aldri
+  stille sletting. Vei B har egen kvitteringslinje: «valg: krav · … · ellers krav».
+- Resolveren `løsGrense` (`@sitedoc/shared`) er eneste inngang; utfylling (web+mobil Heltall/Desimal)
+  får styrende felts verdi via `forelderVerdi`-prop. Mockup: `docs/redesign/mockups/MalBygger Grensevarianter Mockup.dc.html`.
+- **Avvik fra mockup (meldt):** mockupen skjuler enhet ved «Ingen krav»; her beholdes enhet alltid
+  så et måltall uten krav ikke mister enheten. Avviksfelt-utløseren (panel C i mockup) er trinn 3.
 
 ## Fallgruver
 

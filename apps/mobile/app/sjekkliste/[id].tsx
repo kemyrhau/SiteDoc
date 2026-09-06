@@ -1080,6 +1080,11 @@ export default function SjekklisteUtfylling() {
                 sjekklisteId={sjekkliste.id}
                 radOppgaver={radOppgaver}
                 tillatteFaggruppeIder={tillatteFaggruppeIder}
+                forelderVerdi={
+                  typeof objekt.config.styrendeFeltId === "string"
+                    ? hentFeltVerdi(objekt.config.styrendeFeltId as string).verdi
+                    : undefined
+                }
               />
             </FeltWrapper>
           );

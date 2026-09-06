@@ -1006,6 +1006,11 @@ export default function OppgaveDetaljSide() {
                     barneObjekter={barneObjekterMap.get(objekt.id)}
                     tillatteFaggruppeIder={tillatteFaggruppeIder}
                     dokumentTegning={oppgaveDokumentTegning}
+                    forelderVerdi={
+                      typeof objekt.config.styrendeFeltId === "string"
+                        ? hentFeltVerdi(objekt.config.styrendeFeltId as string).verdi
+                        : undefined
+                    }
                   />
                 </FeltWrapper>
               </div>

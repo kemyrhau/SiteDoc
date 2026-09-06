@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { REPORT_OBJECT_TYPE_META, type ReportObjectType, normaliserGrense } from "@sitedoc/shared";
+import { useState, useEffect, Fragment } from "react";
+import {
+  REPORT_OBJECT_TYPE_META,
+  type ReportObjectType,
+  normaliserGrense,
+  lesKravType,
+  løsGrense,
+  normaliserOpsjon,
+  type KravType,
+  type Grense,
+  type GrenseVariant,
+} from "@sitedoc/shared";
 import { harMeningsfullLabel } from "@sitedoc/pdf";
 import { Input, Button, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
@@ -54,21 +64,6 @@ export function FeltKonfigurasjon({
   function handleLagre() {
     onLagre({ label, required: påkrevd, config });
   }
-
-  // Skriv norsk kanonisk grense-nøkkel, fjern engelsk alias (unit/max/decimals)
-  // så eldre data ikke etterlater to konkurrerende nøkler. Tom → fjern nøkkel.
-  function settGrenseTall(norskKey: string, engelskAlias: string | null, raa: string) {
-    const neste = { ...config };
-    delete neste[norskKey];
-    if (engelskAlias) delete neste[engelskAlias];
-    if (raa.trim() !== "") {
-      const n = parseFloat(raa);
-      if (Number.isFinite(n)) neste[norskKey] = n;
-    }
-    setConfig(neste);
-  }
-
-  const grense = normaliserGrense(config);
 
   const harEndringer =
     label !== objekt.label ||
@@ -154,56 +149,12 @@ export function FeltKonfigurasjon({
         )}
 
         {(objekt.type === "integer" || objekt.type === "decimal") && (
-          <div className="flex flex-col gap-2">
-            <Input
-              label={t("malbygger.enhet")}
-              placeholder={t("malbygger.enhetPlaceholder")}
-              value={grense.enhet}
-              onChange={(e) => {
-                const neste = { ...config };
-                delete neste.unit;
-                if (e.target.value) neste.enhet = e.target.value;
-                else delete neste.enhet;
-                setConfig(neste);
-              }}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                label={t("malbygger.minVerdi")}
-                type="number"
-                placeholder={t("malbygger.grensePlaceholder")}
-                value={grense.min ?? ""}
-                onChange={(e) => settGrenseTall("min", null, e.target.value)}
-              />
-              <Input
-                label={t("malbygger.maksVerdi")}
-                type="number"
-                placeholder={t("malbygger.grensePlaceholder")}
-                value={grense.maks ?? ""}
-                onChange={(e) => settGrenseTall("maks", "max", e.target.value)}
-              />
-            </div>
-            {objekt.type === "decimal" && (
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  label={t("malbygger.toleranse")}
-                  type="number"
-                  placeholder={t("malbygger.grensePlaceholder")}
-                  value={grense.toleranse ?? ""}
-                  onChange={(e) => settGrenseTall("toleranse", null, e.target.value)}
-                />
-                <Input
-                  label={t("malbygger.desimaler")}
-                  type="number"
-                  min={0}
-                  max={6}
-                  value={grense.desimaler ?? ""}
-                  onChange={(e) => settGrenseTall("desimaler", "decimals", e.target.value)}
-                />
-              </div>
-            )}
-            <p className="text-[10px] text-gray-400">{t("malbygger.grenseHjelp")}</p>
-          </div>
+          <GrenseKonfig
+            objekt={objekt}
+            alleObjekter={alleObjekter}
+            config={config}
+            setConfig={setConfig}
+          />
         )}
 
         {(objekt.type === "person" || objekt.type === "persons" || objekt.type === "company") && (
@@ -471,6 +422,385 @@ export function FeltKonfigurasjon({
       </div>
     </aside>
   );
+}
+
+// Hvilke tallfelter hver kravtype bruker (2 for «mellom», 1 ellers). Styrer både
+// hvilke input som vises og variantkolonnene. Grenseresolver-ordre trinn 2.
+const KRAVTYPE_FELTER: Record<KravType, ("min" | "maks" | "toleranse")[]> = {
+  minst: ["min"],
+  hoyst: ["maks"],
+  mellom: ["min", "maks"],
+  toleranse: ["toleranse"],
+};
+
+// Tallfelt-etikett per kravtype (klarspråk, matcher mockup): Minst/Høyst/±, «Fra»+«og» for mellom.
+function kravFeltNokkel(kravType: KravType, k: "min" | "maks" | "toleranse"): string {
+  if (kravType === "mellom") return k === "min" ? "malbygger.kravFeltFra" : "malbygger.kravFeltOg";
+  if (kravType === "minst") return "malbygger.kravFeltMinst";
+  if (kravType === "hoyst") return "malbygger.kravFeltHoyst";
+  return "malbygger.kravFeltToleranse";
+}
+
+// Grense-konfigurasjon for integer/decimal: enhet + desimaler (felt-nivå), kravtype
+// i klarspråk (aldri symboler), live kvitteringslinje, og Vei B — betinget grense per
+// styrende enkeltvalg. Mockup «MalBygger Grensevarianter Mockup» er visuell fasit;
+// bygget mot de ti tekstlige designlås-punktene (spredt: hoved-notat + tillegg-klarspråk
+// + tillegg2-kravtype). Panelbredde w-72.
+function GrenseKonfig({
+  objekt,
+  alleObjekter,
+  config,
+  setConfig,
+}: {
+  objekt: MalObjekt;
+  alleObjekter: MalObjekt[];
+  config: Record<string, unknown>;
+  setConfig: (c: Record<string, unknown>) => void;
+}) {
+  const { t } = useTranslation();
+  const grense = normaliserGrense(config);
+  const kravType = lesKravType(config); // eksplisitt vinner, ellers utledet (ingen backfill)
+
+  const felt = (k: "min" | "maks" | "toleranse"): number | null => grense[k];
+
+  function settEnhet(v: string) {
+    const neste = { ...config };
+    delete neste.unit;
+    if (v) neste.enhet = v;
+    else delete neste.enhet;
+    setConfig(neste);
+  }
+
+  function settDesimaler(raw: string) {
+    const neste = { ...config };
+    delete neste.decimals;
+    if (raw.trim() === "") delete neste.desimaler;
+    else {
+      const n = parseInt(raw, 10);
+      if (Number.isFinite(n)) neste.desimaler = n;
+    }
+    setConfig(neste);
+  }
+
+  function settKravType(ny: KravType | "ingen") {
+    const neste = { ...config };
+    delete neste.max; // rydd engelsk alias
+    if (ny === "ingen") {
+      // «Ingen krav» skjuler begge bryterne (punkt 10) → fjern krav + variant-konfig
+      for (const k of ["kravType", "min", "maks", "toleranse", "styrendeFeltId", "grenseVarianter"]) {
+        delete neste[k];
+      }
+      setConfig(neste);
+      return;
+    }
+    neste.kravType = ny;
+    // Behold kun tallene den nye kravtypen bruker (bytter mellom→høyst dropper min)
+    const beholder = KRAVTYPE_FELTER[ny];
+    for (const k of ["min", "maks", "toleranse"] as const) {
+      if (!beholder.includes(k)) delete neste[k];
+    }
+    setConfig(neste);
+  }
+
+  function settTall(k: "min" | "maks" | "toleranse", raw: string) {
+    const neste = { ...config };
+    if (k === "maks") delete neste.max;
+    if (raw.trim() === "") delete neste[k];
+    else {
+      const n = parseFloat(raw.replace(",", "."));
+      if (Number.isFinite(n)) neste[k] = n;
+    }
+    setConfig(neste);
+  }
+
+  // Kvitteringslinje (panel A): samme tekst forfatteren ser som konsekvens av valget.
+  const krav = kravType ? formaterGrenseKrav(grense, kravType) : "";
+  let kvitteringTekst: string | null = null;
+  if (kravType === "minst" && grense.min !== null) kvitteringTekst = t("malbygger.kvitteringMinst", { krav, verdi: grense.min });
+  else if (kravType === "hoyst" && grense.maks !== null) kvitteringTekst = t("malbygger.kvitteringHoyst", { krav, verdi: grense.maks });
+  else if (kravType === "mellom" && grense.min !== null && grense.maks !== null) kvitteringTekst = t("malbygger.kvitteringMellom", { krav });
+  else if (kravType === "toleranse" && grense.toleranse !== null) kvitteringTekst = t("malbygger.kvitteringToleranse", { krav, verdi: grense.toleranse });
+
+  // Varsel: «mellom» med bare én verdi (dekket av tillegg2 § 1, ikke de ti hoved-punktene).
+  const mellomMangler = kravType === "mellom" && (grense.min === null) !== (grense.maks === null);
+
+  // Styrende-felt-kandidater: list_single i samme kontekst (samme forelder) med lavere sortOrder
+  const kandidater = alleObjekter.filter(
+    (o) => o.type === "list_single" && o.parentId === objekt.parentId && o.sortOrder < objekt.sortOrder,
+  );
+  const styrendeFeltId = typeof config.styrendeFeltId === "string" ? config.styrendeFeltId : null;
+  const betingetPå = styrendeFeltId !== null;
+  const varianter: GrenseVariant[] = Array.isArray(config.grenseVarianter)
+    ? (config.grenseVarianter as GrenseVariant[])
+    : [];
+
+  function toggleBetinget(på: boolean) {
+    const neste = { ...config };
+    if (på && kandidater[0]) neste.styrendeFeltId = kandidater[0].id;
+    else {
+      delete neste.styrendeFeltId;
+      delete neste.grenseVarianter;
+    }
+    setConfig(neste);
+  }
+
+  // Bytte styrende felt beholder grenseVarianter → gamle overstyringer vises som foreldreløse
+  // (amber, med Fjern) i stedet for stille sletting.
+  function settStyrende(id: string) {
+    setConfig({ ...config, styrendeFeltId: id });
+  }
+
+  const styrendeFelt = alleObjekter.find((o) => o.id === styrendeFeltId);
+  const opsjoner = ((styrendeFelt?.config.options as unknown[]) ?? []).map(normaliserOpsjon);
+  const opsjonVerdier = new Set(opsjoner.map((o) => o.value));
+  const foreldrelose = varianter.filter((v) => !opsjonVerdier.has(normaliserOpsjon(v.valg).value));
+
+  function settVariantCelle(opsjonValue: string, k: "min" | "maks" | "toleranse", raw: string) {
+    const neste = [...varianter];
+    let idx = neste.findIndex((v) => normaliserOpsjon(v.valg).value === opsjonValue);
+    if (idx === -1) {
+      neste.push({ valg: opsjonValue });
+      idx = neste.length - 1;
+    }
+    const rad: GrenseVariant = { ...neste[idx]! };
+    if (raw.trim() === "") delete rad[k];
+    else {
+      const n = parseFloat(raw.replace(",", "."));
+      if (Number.isFinite(n)) rad[k] = n;
+    }
+    // Ren rad uten overstyringer fjernes (arver standard uansett)
+    if (rad.min === undefined && rad.maks === undefined && rad.toleranse === undefined) {
+      neste.splice(idx, 1);
+    } else {
+      neste[idx] = rad;
+    }
+    setConfig({ ...config, grenseVarianter: neste });
+  }
+
+  function fjernForeldrelos(mål: GrenseVariant) {
+    setConfig({ ...config, grenseVarianter: varianter.filter((v) => v !== mål) });
+  }
+
+  const kolonner = kravType ? KRAVTYPE_FELTER[kravType] : [];
+
+  // Vei B-kvittering (mockup, bunn av panel B): per overstyrt valg + «ellers standard».
+  // Bruker den delte resolveren (trinn 1) så kvitteringen er samme grensen utfylling løser.
+  const veiBDeler = kravType
+    ? opsjoner
+        .filter((o) => varianter.some((v) => normaliserOpsjon(v.valg).value === o.value))
+        .map((o) => `${o.label}: ${formaterGrenseKrav(løsGrense({ config }, o.value), kravType)}`)
+    : [];
+  const veiBKvittering = kravType && krav ? [...veiBDeler, t("malbygger.veiBEllers", { krav })].join(" · ") : "";
+
+  const enhetInput = (
+    <Input
+      label={t("malbygger.enhet")}
+      placeholder={t("malbygger.enhetPlaceholder")}
+      value={grense.enhet}
+      onChange={(ev) => settEnhet(ev.target.value)}
+    />
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Kravtype i klarspråk — aldri symboler */}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-gray-600">{t("malbygger.kravTypeLabel")}</label>
+        <select
+          value={kravType ?? "ingen"}
+          onChange={(ev) => settKravType(ev.target.value as KravType | "ingen")}
+          className="rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+        >
+          <option value="ingen">{t("malbygger.kravIngen")}</option>
+          <option value="minst">{t("malbygger.kravMinst")}</option>
+          <option value="hoyst">{t("malbygger.kravHoyst")}</option>
+          <option value="mellom">{t("malbygger.kravMellom")}</option>
+          <option value="toleranse">{t("malbygger.kravToleranse")}</option>
+        </select>
+      </div>
+
+      {/* Tallene kravtypen trenger + enhet på samme rad (mockup). «Ingen krav» skjuler raden. */}
+      {kravType ? (
+        <div className="flex items-end gap-2">
+          {kolonner.map((k) => (
+            <Input
+              key={k}
+              className="flex-1"
+              label={t(kravFeltNokkel(kravType, k))}
+              type="number"
+              placeholder={t("malbygger.grensePlaceholder")}
+              value={felt(k) ?? ""}
+              onChange={(ev) => settTall(k, ev.target.value)}
+            />
+          ))}
+          <div className="w-[72px] shrink-0">{enhetInput}</div>
+        </div>
+      ) : (
+        // Avvik fra mockup (meldt): mockupen nester enhet i «har krav» og skjuler den ved
+        // «Ingen krav». Enhet beholdes her så et måltall uten krav ikke mister enheten sin.
+        enhetInput
+      )}
+
+      {/* Live kvitteringslinje (panel A) — hvit boks som mockup. Vei B har egen linje nederst. */}
+      {kravType && kvitteringTekst && !betingetPå && (
+        <div className="rounded border border-gray-200 bg-white px-2 py-1.5 text-[11px] leading-relaxed text-gray-500">
+          {kvitteringTekst}
+        </div>
+      )}
+      {mellomMangler && (
+        <p className="text-[11px] font-medium text-amber-600">{t("malbygger.mellomMangler")}</p>
+      )}
+
+      {/* Desimaler (kun decimal) — felt-nivå, alltid synlig (mockup: egen rad) */}
+      {objekt.type === "decimal" && (
+        <div className="w-20">
+          <Input
+            label={t("malbygger.desimaler")}
+            type="number"
+            min={0}
+            max={6}
+            value={grense.desimaler ?? ""}
+            onChange={(ev) => settDesimaler(ev.target.value)}
+          />
+        </div>
+      )}
+
+      {/* Vei B — betinget grense per styrende enkeltvalg. Vises kun når det finnes et krav. */}
+      {kravType && (
+        <div className="mt-1 flex flex-col gap-2 border-t border-gray-200 pt-3">
+          <label
+            className={`flex items-start gap-2 text-sm ${kandidater.length === 0 ? "text-gray-400" : "text-gray-700"}`}
+          >
+            <input
+              type="checkbox"
+              checked={betingetPå}
+              disabled={kandidater.length === 0}
+              onChange={(ev) => toggleBetinget(ev.target.checked)}
+              className="mt-0.5 rounded border-gray-300"
+            />
+            <span className="flex flex-col">
+              <span className={betingetPå ? "font-semibold" : ""}>{t("malbygger.betingetGrense")}</span>
+              {kandidater.length === 0 && (
+                <span className="text-[10px] text-gray-400">{t("malbygger.betingetGrenseHjelp")}</span>
+              )}
+            </span>
+          </label>
+
+          {betingetPå && (
+            <div className="flex flex-col gap-2">
+              {/* Styrende felt */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-gray-600">{t("malbygger.styrendeFelt")}</label>
+                <select
+                  value={styrendeFeltId ?? ""}
+                  onChange={(ev) => settStyrende(ev.target.value)}
+                  className="rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                >
+                  {kandidater.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {harMeningsfullLabel(k.label) ? k.label : t("malbygger.utenNavn")}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-gray-400">{t("malbygger.betingetGrenseHjelp")}</span>
+              </div>
+
+              {/* Varianttabell (grid): én rad per opsjon + fast «Ellers (standard)» */}
+              <div
+                className="grid items-center gap-x-2 gap-y-1.5 rounded border border-gray-200 bg-white p-2"
+                style={{ gridTemplateColumns: `1fr ${kolonner.map(() => "76px").join(" ")}` }}
+              >
+                <span className="text-[11px] font-semibold text-gray-500">{t("malbygger.variantValg")}</span>
+                {kolonner.map((k) => (
+                  <span key={k} className="text-[11px] font-semibold text-gray-500">
+                    {t(kravFeltNokkel(kravType, k))}
+                    {grense.enhet ? ` (${grense.enhet})` : ""}
+                  </span>
+                ))}
+                {opsjoner.map((o) => {
+                  const v = varianter.find((x) => normaliserOpsjon(x.valg).value === o.value);
+                  return (
+                    <Fragment key={o.value}>
+                      <span className="truncate text-[13px] text-gray-900" title={o.label}>{o.label}</span>
+                      {kolonner.map((k) => (
+                        <input
+                          key={k}
+                          type="number"
+                          value={v && v[k] !== undefined ? String(v[k]) : ""}
+                          placeholder={felt(k) !== null ? String(felt(k)) : "—"}
+                          onChange={(ev) => settVariantCelle(o.value, k, ev.target.value)}
+                          className="w-full rounded border border-gray-200 px-2 py-1 text-[13px] text-gray-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                      ))}
+                    </Fragment>
+                  );
+                })}
+                {/* Fast siste rad: arver standard, ikke redigerbar */}
+                <span className="truncate text-[13px] italic text-gray-500">{t("malbygger.variantEllers")}</span>
+                {kolonner.map((k) => (
+                  <span key={k} className="rounded border border-gray-200 bg-gray-100 px-2 py-1 text-[13px] text-gray-500">
+                    {felt(k) !== null ? felt(k) : "—"}
+                  </span>
+                ))}
+              </div>
+
+              {/* Foreldreløse varianter — aldri stille sletting */}
+              {foreldrelose.map((v, i) => (
+                <div
+                  key={`fl-${i}`}
+                  className="flex items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[12px] text-amber-700"
+                >
+                  <span className="truncate">
+                    {t("malbygger.variantForeldrelos", {
+                      valg: normaliserOpsjon(v.valg).value,
+                      felt: harMeningsfullLabel(styrendeFelt?.label) ? styrendeFelt!.label : t("malbygger.utenNavn"),
+                    })}
+                    {" · "}
+                    {foreldrelosTall(v, kravType)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => fjernForeldrelos(v)}
+                    className="shrink-0 font-bold hover:text-amber-900"
+                  >
+                    {t("malbygger.variantFjern")}
+                  </button>
+                </div>
+              ))}
+
+              {/* Vei B-kvittering: per valg + ellers */}
+              {veiBKvittering && (
+                <div className="rounded border border-gray-200 bg-white px-2 py-1.5 text-[11px] leading-relaxed text-gray-500">
+                  {veiBKvittering}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <p className="text-[10px] text-gray-400">{t("malbygger.grenseHjelp")}</p>
+    </div>
+  );
+}
+
+// «Vises som»-krav i kvitteringslinja: symbolformen (kompakt visningsform), bygget av
+// tallene kravtypen bruker. Forfatteren skriver aldri symbolet selv.
+function formaterGrenseKrav(grense: Grense, kravType: KravType): string {
+  const e = grense.enhet ? ` ${grense.enhet}` : "";
+  if (kravType === "minst" && grense.min !== null) return `≥ ${grense.min}${e}`;
+  if (kravType === "hoyst" && grense.maks !== null) return `≤ ${grense.maks}${e}`;
+  if (kravType === "mellom" && grense.min !== null && grense.maks !== null) return `${grense.min}–${grense.maks}${e}`;
+  if (kravType === "toleranse" && grense.toleranse !== null) return `± ${grense.toleranse}${e}`;
+  return "";
+}
+
+// Kompakt tallvisning for en foreldreløs variant (de tallene den overstyrer).
+function foreldrelosTall(v: GrenseVariant, kravType: KravType): string {
+  const deler = KRAVTYPE_FELTER[kravType]
+    .map((k) => (v[k] !== undefined && v[k] !== null && v[k] !== "" ? String(v[k]) : null))
+    .filter((x): x is string => x !== null);
+  return deler.length > 0 ? deler.join("–") : "—";
 }
 
 // Underkomponent for valgliste-konfigurasjon
