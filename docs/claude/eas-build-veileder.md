@@ -542,10 +542,36 @@ uavhengige feil i dette monorepoet:
 `app.json` den varige løsningen (levert 2026-09-04) — da expanderer `--platform=all` til kun
 ios+android og web bundles aldri. `--platform ios` fungerer uansett som eksplisitt fallback.
 
+#### 🔴 STEG 3b — LES COMMIT-LINJA I UTSKRIFTEN FØR DU ÅPNER APPEN
+
+`eas update` skriver ut **hvilken commit bundelen ble bygget fra**. Den skal være den du
+forventer, **uten `*`** — stjernen betyr ucommittede endringer i treet.
+
+```
+Commit    f845df6ec3d3e973808588b74399ada6e105e345      ← riktig
+Commit    140f35b4d7dcc1b3b8e5e8beabc41c9df917a6c9*     ← 🔴 feil commit OG skitten
+```
+
+⚠️ **Hendelse 2026-09-06:** første test-OTA ble publisert fra `140f35b` — en docs-commit i
+hovedtreet — mens funksjonen som skulle testes lå på `4d00e94f`. **`git pull --ff-only` gjorde
+ingenting** fordi treet hadde en lokal commit `develop` ikke hadde, og kommandoen svarte
+«Already up to date» uten å flytte noe. **Testappen fikk en bundel uten funksjonen den skulle
+teste.**
+
+**Verifiser treet FØR publisering når du er usikker:**
+
+```sh
+git -C ~/Documents/Programmering/SiteDoc log --oneline -1
+git -C ~/Documents/Programmering/SiteDoc merge-base --is-ancestor <hash-du-vil-teste> HEAD \
+  && echo "HAR DEN" || echo "MANGLER"
+```
+
 #### 🔴 STEG 4 — VERIFISER PÅ TELEFONEN. Publisering er ikke verifisering.
 
-Tvangslukk appen **to ganger** — `expo-updates` laster ned i bakgrunnen ved én oppstart og
-bytter bundel ved **neste**. Sjekk så **Mer**-skjermen nederst:
+Tvangslukk appen **to til tre ganger** — `expo-updates` laster ned i bakgrunnen ved én oppstart
+og bytter bundel ved **neste**. ⚠️ **Målt 2026-09-06: tredje omstart var den som traff.**
+Prosedyren sa to; det holdt ikke. **Sjekk hashen, ikke antall omstarter.**
+Sjekk så **Mer**-skjermen nederst:
 
 - **Commit-hashen** skal være den du publiserte
 - 🔴 **Prosjektlista skal vise PROD-prosjekter.** Ser du et prosjekt som bare finnes på test —
