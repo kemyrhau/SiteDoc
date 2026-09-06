@@ -54,7 +54,11 @@ export const tegningRouter = router({
           projectId,
           ...(discipline ? { discipline } : {}),
           ...(status ? { status } : {}),
-          ...(byggeplassId ? { byggeplassId } : {}),
+          // Mykt filter (byggeplass-tilhørighet, dokument-formen): en tegning uten
+          // byggeplass er en PROSJEKT-tegning og gjelder der du står — den skal ikke
+          // forsvinne uten spor når en byggeplass velges. Speiler sjekkliste.ts:186.
+          // Byggeplass-løse tegninger merkes «Hele prosjektet» i lista (klient).
+          ...(byggeplassId ? { OR: [{ byggeplassId }, { byggeplassId: null }] } : {}),
           ...(floor ? { floor } : {}),
         },
         include: {

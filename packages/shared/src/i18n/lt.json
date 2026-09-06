@@ -1202,7 +1202,7 @@
   "byggeplass.gpsPaaPlass": "GPS · esate svetainėje",
   "byggeplass.gpsForeslar": "GPS siūlo",
   "byggeplass.ingenPaaProsjekt": "Šiame projekte nėra svetainių",
-  "byggeplass.filtrererListe": "Rodoma tik ši svetainė – bakstelėkite visam projektui",
+  "byggeplass.filtrererListe": "Rodoma ši svetainė + viso projekto dokumentai",
   "bygg.stempel": "Sukurti {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Laukiama projekto prieigos",
   "dashbord.venterPaaTilgangBeskrivelse": "Dar neturite prieigos prie jokio projekto. Susisiekite su savo projekto vadovu.",

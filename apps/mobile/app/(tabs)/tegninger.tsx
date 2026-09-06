@@ -105,6 +105,15 @@ export default function TegningerTab() {
         (tg.drawingNumber ?? "").toLowerCase().includes(q)
       );
     });
+    // Filtrert visning (byggeplass valgt): flat liste uten gruppering. Byggeplass-
+    // løse tegninger dukker nå opp (mykt filter) og merkes «Hele prosjektet» på raden
+    // — et eget «Uten byggeplass»-gruppehode I TILLEGG til badge ville vært dobbel-
+    // merking (avvik 3, godkjent). Tom tittel → intet seksjonshode.
+    if (valgtBygningId != null) {
+      return [{ tittel: "", data: to_d }];
+    }
+    // «Hele prosjektet»: behold grupperingen per byggeplass — gruppehodene ER
+    // tilhørigheten, så radene bærer ingen badge her.
     const grupper = new Map<string, TegningRad[]>();
     for (const tg of to_d) {
       const navn = tg.byggeplass?.name ?? t("tegninger.utenByggeplass");
@@ -116,7 +125,7 @@ export default function TegningerTab() {
       tittel,
       data,
     }));
-  }, [alle, t, søk]);
+  }, [alle, t, søk, valgtBygningId]);
 
   // Del A pkt 3 — «Fortsett i …»-snarvei: sist valgte tegning for aktiv
   // byggeplass (F1-minnet i ByggeplassKontekst). Eksistens-guard: vises KUN når
@@ -262,13 +271,15 @@ export default function TegningerTab() {
               </Text>
             </View>
           )}
-          renderSectionHeader={({ section }) => (
-            <View className="bg-gray-50 px-4 pb-1.5 pt-4">
-              <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {section.tittel}
-              </Text>
-            </View>
-          )}
+          renderSectionHeader={({ section }) =>
+            section.tittel ? (
+              <View className="bg-gray-50 px-4 pb-1.5 pt-4">
+                <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {section.tittel}
+                </Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => {
             const Ikon = ikonForFiltype(item.fileType);
             return (
@@ -292,6 +303,14 @@ export default function TegningerTab() {
                       ? ` · ${t("tegninger.rev", { rev: item.revision })}`
                       : ""}
                   </Text>
+                  {/* Filtrert visning: byggeplass-løse tegninger merkes «Hele
+                      prosjektet» (grå). Selve byggeplassens tegninger er hjemme →
+                      ingen badge. I gruppert visning gjør gruppehodet jobben. */}
+                  {valgtBygningId != null && item.byggeplass == null ? (
+                    <Text className="mt-1 self-start rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500">
+                      {t("kontekstChip.heleProsjektet")}
+                    </Text>
+                  ) : null}
                 </View>
                 <ChevronRight size={16} color="#9ca3af" />
               </Pressable>

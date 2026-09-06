@@ -98,11 +98,19 @@ export default function SjekklisteListe() {
       const undertekst = [
         // Undertrykk mal-navnet når det er identisk med tittelen (unngå dobbeltnavn).
         item.template?.name === item.title ? null : item.template?.name,
-        item.byggeplass?.name,
+        // Byggeplassnavnet er flyttet UT av underteksten til en egen tilhørighets-
+        // pille (Del 1) — ellers ville tilhørigheten stått to steder på raden.
         item.utforerFaggruppe?.name,
       ]
         .filter(Boolean)
         .join(" · ");
+
+      // W1-paritet, kontekst-regel: raden viser tilhørighet når konteksten er bredere
+      // enn objektets hjem. «Hele prosjektet» valgt (valgtBygningId null) → HVER rad
+      // merkes (blå = byggeplass, grå = prosjekt-dokument). Byggeplass valgt → kun
+      // prosjekt-dokumenter merkes grå; byggeplass-egne rader er hjemme og bærer ikke støy.
+      const erProsjektDok = item.byggeplass == null;
+      const visBadge = valgtBygningId == null || erProsjektDok;
 
       return (
         <Pressable
@@ -118,12 +126,23 @@ export default function SjekklisteListe() {
                 {undertekst}
               </Text>
             ) : null}
+            {visBadge ? (
+              <Text
+                className={
+                  erProsjektDok
+                    ? "mt-1 self-start rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500"
+                    : "mt-1 self-start rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
+                }
+              >
+                {erProsjektDok ? t("kontekstChip.heleProsjektet") : item.byggeplass!.name}
+              </Text>
+            ) : null}
           </View>
           <StatusMerkelapp status={item.status} />
         </Pressable>
       );
     },
-    [router],
+    [router, t, valgtBygningId],
   );
 
   return (
