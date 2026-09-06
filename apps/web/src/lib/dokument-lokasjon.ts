@@ -17,6 +17,8 @@ export interface DokumentLokasjon {
   positionY: number | null;
   /** Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | null. */
   lokasjonOmfang: "punkt" | "byggeplass" | null;
+  /** Fritekst-sted (2026-09-06) — påheng på byggeplass når tegning mangler. */
+  lokasjonFritekst: string | null;
 }
 
 export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
@@ -26,6 +28,7 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
         positionX?: number | null;
         positionY?: number | null;
         lokasjonOmfang?: "punkt" | "byggeplass" | null;
+        lokasjonFritekst?: string | null;
         drawing?: { name?: string | null; byggeplass?: { name?: string | null } | null } | null;
       }
     | undefined;
@@ -36,5 +39,6 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
     positionX: d?.positionX ?? null,
     positionY: d?.positionY ?? null,
     lokasjonOmfang: d?.lokasjonOmfang ?? null,
+    lokasjonFritekst: d?.lokasjonFritekst ?? null,
   };
 }

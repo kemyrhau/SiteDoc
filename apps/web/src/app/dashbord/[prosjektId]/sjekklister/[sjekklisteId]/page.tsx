@@ -892,6 +892,7 @@ export default function SjekklisteDetaljSide() {
             positionX={(sjekkliste as unknown as { positionX?: number | null }).positionX}
             positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
             lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null}
+            lokasjonFritekst={(fullSjekkliste as unknown as { lokasjonFritekst?: string | null }).lokasjonFritekst ?? null}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -901,6 +902,7 @@ export default function SjekklisteDetaljSide() {
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
                 lokasjonOmfang: data.lokasjonOmfang ?? null,
+                lokasjonFritekst: data.lokasjonFritekst ?? null,
               });
             }}
             leseModus={["closed", "approved"].includes(sjekkliste.status)}

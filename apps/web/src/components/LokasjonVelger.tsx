@@ -22,6 +22,8 @@ interface LokasjonVelgerProps {
    * "punkt" = pin/tegning satt, null = ikke valgt ennå.
    */
   lokasjonOmfang?: LokasjonOmfang | null;
+  /** Fritekst-sted (2026-09-06) — påheng på byggeplass når tegning mangler («Akse 4»). */
+  lokasjonFritekst?: string | null;
   visPosisjon?: boolean;
   onLagre: (data: {
     drawingId: string | null;
@@ -29,6 +31,7 @@ interface LokasjonVelgerProps {
     positionX?: number | null;
     positionY?: number | null;
     lokasjonOmfang?: LokasjonOmfang | null;
+    lokasjonFritekst?: string | null;
   }) => void;
   leseModus?: boolean;
   /**
@@ -47,6 +50,7 @@ export function LokasjonVelger({
   positionX,
   positionY,
   lokasjonOmfang,
+  lokasjonFritekst,
   visPosisjon,
   onLagre,
   leseModus,
@@ -55,6 +59,7 @@ export function LokasjonVelger({
   const { t } = useTranslation();
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [open, setOpen] = useState(false);
+  const [fritekst, setFritekst] = useState(lokasjonFritekst ?? "");
   const [valgtBygningId, setValgtBygningId] = useState<string>("");
   const [valgtTegningId, setValgtTegningId] = useState<string>("");
   const [punkt, setPunkt] = useState<{ x: number; y: number } | null>(null);
@@ -185,19 +190,31 @@ export function LokasjonVelger({
       positionX: visPosisjon ? (punkt?.x ?? null) : undefined,
       positionY: visPosisjon ? (punkt?.y ?? null) : undefined,
       lokasjonOmfang: valgtTegningId ? "punkt" : null,
+      // Presis pin → ingen fritekst-presisering (stedet ER pinnen).
+      lokasjonFritekst: null,
     });
     setOpen(false);
   }
 
   function handleFjern() {
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: null });
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: null, lokasjonFritekst: null });
     setOpen(false);
   }
 
   // «Gjelder hele byggeplassen» (krav 2): ett trykk, ingen obligatorisk bekreftelse. Nullstiller
   // tegning/pin — omfanget ER svaret. Fungerer både fra passiv tilstand og inne i (auto-)åpnet modal.
   function handleByggeplass() {
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass" });
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: null });
+    setOpen(false);
+  }
+
+  // Fritekst-sted (2026-09-06): utvei når tegning mangler. En PRESISERING innenfor
+  // byggeplassen — lagres SAMMEN med omfang "byggeplass", ikke som eget nivå. Tegning
+  // forblir førstevalget; dette er stedet «Akse 4» får stå når det ikke er noe å pinne på.
+  function handleFritekst() {
+    const tekst = fritekst.trim();
+    if (!tekst) return;
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: tekst });
     setOpen(false);
   }
 
@@ -226,7 +243,11 @@ export function LokasjonVelger({
         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
           <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
           <div className="min-w-0 flex-1">
-            <div className="truncate text-gray-800">{t("lokasjonVelger.gjelderByggeplass")}</div>
+            {/* Fritekst-sted vises som stedet; ellers «hele byggeplassen». */}
+            <div className="truncate text-gray-800">{lokasjonFritekst || t("lokasjonVelger.gjelderByggeplass")}</div>
+            {lokasjonFritekst && (
+              <div className="truncate text-xs text-gray-400">{t("lokasjonVelger.gjelderByggeplass")}</div>
+            )}
           </div>
           {!leseModus && (
             <>
@@ -321,8 +342,13 @@ export function LokasjonVelger({
 
           {/* Tegning — info hvis ingen, dropdown hvis flere. Én tegning auto-selectes. */}
           {tegninger.length === 0 ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              Ingen tegning tilgjengelig. Last opp tegning under Innstillinger → Lokasjoner først.
+            // Et fravær er ikke et problem når et gyldig valg står i samme dialog:
+            // fritekst-feltet + «hele byggeplassen» under er begge veier ut.
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              {t(
+                "lokasjonVelger.ingenTegning",
+                "Ingen tegninger i dette prosjektet. Velg hele byggeplassen, skriv inn et sted, eller last opp tegning under Innstillinger → Lokasjoner.",
+              )}
             </div>
           ) : tegninger.length > 1 ? (
             <div>
@@ -341,6 +367,30 @@ export function LokasjonVelger({
               </select>
             </div>
           ) : null}
+
+          {/* Fritekst-sted — utvei når tegning mangler (tegning er førstevalget over).
+              En presisering innenfor byggeplassen; lagres med omfang "byggeplass". */}
+          <div className="border-t border-gray-100 pt-3">
+            <label className="mb-1 block text-xs font-medium text-gray-500">
+              {t("lokasjonVelger.fritekstSted", "Eller skriv inn et sted")}
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={fritekst}
+                onChange={(e) => setFritekst(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleFritekst(); }}
+                placeholder={t("lokasjonVelger.fritekstPlassholder", "F.eks. «Akse 4», «Nordre rampe»")}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+              <Button variant="secondary" disabled={!fritekst.trim()} onClick={handleFritekst}>
+                {t("lokasjonVelger.lagreSted", "Lagre sted")}
+              </Button>
+            </div>
+            <p className="mt-1 text-[10px] text-gray-400">
+              {t("lokasjonVelger.fritekstHjelp", "Presiserer stedet innenfor byggeplassen. Søkbart og filtrerbart — i motsetning til å skrive stedet i tittelen.")}
+            </p>
+          </div>
 
           {/* Tegningsvisning */}
           {tegningUrl && (

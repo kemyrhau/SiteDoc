@@ -188,6 +188,7 @@ interface NormalisertArkivDok {
   positionX: number | null;
   positionY: number | null;
   lokasjonOmfang: string | null;
+  lokasjonFritekst: string | null;
   byggeplassNavn: string | null;
   // Metadata
   title: string;
@@ -394,6 +395,7 @@ async function byggArkivHtmlKjerne(
       byggeplassNavn: norm.byggeplassNavn,
       tegningNavn: docTegning ? tegningNavn(docTegning) : null,
       lokasjonOmfang: norm.lokasjonOmfang,
+      lokasjonFritekst: norm.lokasjonFritekst,
     },
     tegningsOppslag,
   );
@@ -527,6 +529,7 @@ export async function byggSjekklisteArkivHtml(
     positionX: sjekkliste.positionX,
     positionY: sjekkliste.positionY,
     lokasjonOmfang: sjekkliste.lokasjonOmfang,
+    lokasjonFritekst: sjekkliste.lokasjonFritekst,
     byggeplassNavn: sjekkliste.byggeplass?.name ?? null,
     title: sjekkliste.title,
     number: sjekkliste.number,
@@ -587,6 +590,7 @@ export async function byggOppgaveArkivHtml(
     positionX: oppgave.positionX,
     positionY: oppgave.positionY,
     lokasjonOmfang: oppgave.lokasjonOmfang,
+    lokasjonFritekst: oppgave.lokasjonFritekst,
     byggeplassNavn: oppgave.drawing?.byggeplass?.name ?? null,
     title: oppgave.title,
     number: oppgave.number,

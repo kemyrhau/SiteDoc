@@ -23,6 +23,7 @@ describe("lesDokumentLokasjon", () => {
       positionX: 19.36,
       positionY: 73.7,
       lokasjonOmfang: "punkt",
+      lokasjonFritekst: null,
     });
   });
 
@@ -34,6 +35,7 @@ describe("lesDokumentLokasjon", () => {
       positionX: null,
       positionY: null,
       lokasjonOmfang: "byggeplass",
+      lokasjonFritekst: null,
     });
   });
 
@@ -46,6 +48,7 @@ describe("lesDokumentLokasjon", () => {
       positionX: null,
       positionY: null,
       lokasjonOmfang: null,
+      lokasjonFritekst: null,
     });
   });
 
@@ -57,6 +60,7 @@ describe("lesDokumentLokasjon", () => {
       positionX: null,
       positionY: null,
       lokasjonOmfang: null,
+      lokasjonFritekst: null,
     });
   });
 

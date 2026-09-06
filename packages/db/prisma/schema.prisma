@@ -1125,6 +1125,11 @@ model Checklist {
   // · null = ikke valgt ennå (auto-åpning kan trigge i utkast). PDF/web skiller byggeplass fra
   // et tomt felt — et tomt felt der noe var ment er en usann påstand.
   lokasjonOmfang       String?   @map("lokasjon_omfang")
+  // Fritekst-lokasjon (2026-09-06): en PRESISERING innenfor byggeplassen når det ikke
+  // finnes tegning å pinne på — «Akse 4», «Nordre rampe». Påheng på byggeplass-valget
+  // (settes SAMMEN med lokasjonOmfang="byggeplass"), ikke et fjerde omfangsnivå — arver
+  // dermed all byggeplass-filtrering. Tegning forblir førstevalget; dette er utveien.
+  lokasjonFritekst     String?   @map("lokasjon_fritekst")
   recipientUserId      String?   @map("recipient_user_id")
   recipientGroupId     String?   @map("recipient_group_id")
   lestAvMottakerVed    DateTime? @map("lest_av_mottaker_ved")
@@ -1194,6 +1199,8 @@ model Task {
   positionY            Float?    @map("position_y")
   // Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | null — speiler Checklist.lokasjonOmfang.
   lokasjonOmfang       String?   @map("lokasjon_omfang")
+  // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass-valget. Se Checklist.
+  lokasjonFritekst     String?   @map("lokasjon_fritekst")
   dokumentflytId       String?   @map("dokumentflyt_id")
   checklistId          String?   @map("checklist_id")
   checklistFieldId     String?   @map("checklist_field_id")

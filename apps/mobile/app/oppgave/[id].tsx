@@ -826,7 +826,15 @@ export default function OppgaveDetalj() {
           (oppgave as { lokasjonOmfang?: string | null }).lokasjonOmfang === "byggeplass" && (
           <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
             <MapPin size={18} color="#7c3aed" />
-            <Text className="flex-1 text-sm text-purple-800">{t("lokasjonVelger.gjelderByggeplass")}</Text>
+            {/* Fritekst-sted (2026-09-06): stedet når satt, ellers «hele byggeplassen». */}
+            <View className="flex-1">
+              <Text className="text-sm text-purple-800">
+                {(oppgave as { lokasjonFritekst?: string | null }).lokasjonFritekst || t("lokasjonVelger.gjelderByggeplass")}
+              </Text>
+              {(oppgave as { lokasjonFritekst?: string | null }).lokasjonFritekst && (
+                <Text className="text-xs text-purple-500">{t("lokasjonVelger.gjelderByggeplass")}</Text>
+              )}
+            </View>
           </View>
         )}
 
