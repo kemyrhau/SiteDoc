@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; background: #e5e7eb; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #1e40af; } a:hover { color: #1e3a8a; }
+</style>
+</helmet>
+<div style="padding: 24px 16px 48px; max-width: 1280px; margin: 0 auto;">
+  <div style="margin-bottom: 16px;">
+    <div style="font-size: 18px; font-weight: 700; color: #111827;">SJA-signaturer — mockup (svar-dok 2015, spørsmål 3 + 5)</div>
+    <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Manko først · utdatert teller ikke som gjeldende · PDF viser fravær. Trykk «Signer» på egen rad for å teste.</div>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+    <div style="width: 375px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">1 · Mobil — Signaturliste i SJA-dokumentet</div>
+      <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; overflow: hidden;">
+        <div style="background: #1e40af; color: #ffffff; padding: 12px 16px;">
+          <div style="font-size: 11px; opacity: 0.8;">SJA · Runde 3</div>
+          <div style="font-size: 15px; font-weight: 600;">Graving nær kabeltrasé — Felt B</div>
+        </div>
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 14px; font-weight: 600; color: #111827;">Signaturer</span>
+            <span style="font-size: 13px; font-weight: 600; color: {{ statusFarge }};">{{ statusTekst }}</span>
+          </div>
+          <sc-if value="{{ harManko }}" hint-placeholder-val="{{ true }}">
+            <div style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 12px; font-weight: 600; color: #b45309;">⚠ Mangler ({{ mankoAntall }})</span>
+              <sc-for list="{{ manko }}" as="p" hint-placeholder-count="2">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <span style="font-size: 13px; color: #111827;">{{ p.navn }} <span style="color: #6b7280; font-size: 12px;">{{ p.firma }}</span></span>
+                  <sc-if value="{{ p.kanSignere }}" hint-placeholder-val="{{ false }}">
+                    <span role="button" onClick="{{ p.signer }}" style="background: #1e40af; color: #ffffff; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 6px 14px; cursor: pointer;" style-hover="background: #1e3a8a;">Signer</span>
+                  </sc-if>
+                  <sc-if value="{{ p.erGjest }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 11px; color: #6b7280; border: 1px solid #d1d5db; border-radius: 999px; padding: 5px 10px;">Gjest — signer på ansvarliges enhet</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ komplett }}" hint-placeholder-val="{{ false }}">
+            <div style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 8px; padding: 10px 12px; font-size: 13px; font-weight: 600; color: #15803d;">✓ Alle har signert gjeldende versjon</div>
+          </sc-if>
+          <div style="display: flex; gap: 8px;">
+            <span style="flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 0; cursor: pointer;" style-hover="background: #eff6ff;">+ Legg til deltaker</span>
+            <span style="flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 0; cursor: pointer;" style-hover="background: #eff6ff;">↻ Start ny runde (4)</span>
+          </div>
+          <div style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; color: #92400e;">Innholdet ble endret 07.09 — 2 signerte før endringen (merket under).</span>
+            <span style="align-self: flex-start; font-size: 12px; font-weight: 600; color: #92400e; border: 1px solid #f59e0b; border-radius: 999px; padding: 5px 12px; cursor: pointer;" style-hover="background: #fef3c7;">Krev ny signatur fra de 2</span>
+            <span style="font-size: 11px; color: #92400e;">Ansvarlig avgjør — systemet merker, men dømmer aldri vesentlighet.</span>
+          </div>
+          <div style="font-size: 11px; color: #6b7280; line-height: 1.5;">«Avslutt runde» (dagens slutt) låser innholdet. «Start ny runde» gjenåpner: samme jobb, ny dag/nytt mannskap — hele laget signerer på nytt. Tidligere runder består i loggen; deltakerlisten består.</div>
+          <div style="display: flex; flex-direction: column;">
+            <sc-for list="{{ signerte }}" as="s" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 2px; border-bottom: 1px solid #f3f4f6;">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 13px; color: #111827;">{{ s.navn }} <span style="color: #6b7280; font-size: 12px;">{{ s.firma }}</span></span>
+                  <span style="font-size: 11px; color: {{ s.detaljFarge }};">{{ s.detalj }}</span>
+                </div>
+                <span style="font-size: 14px; color: {{ s.ikonFarge }};">{{ s.ikon }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="width: 375px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">2 · Mobil — chip på SJA-kortet i HMS-lista</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <sc-for list="{{ kort }}" as="k" hint-placeholder-count="3">
+          <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 14px; font-weight: 600; color: #111827;">{{ k.tittel }}</span>
+              <span style="font-size: 12px; color: #6b7280;">{{ k.meta }}</span>
+            </div>
+            <span style="font-size: 12px; font-weight: 700; color: {{ k.chipTekst }}; background: {{ k.chipBg }}; border-radius: 999px; padding: 5px 11px; white-space: nowrap;">{{ k.chip }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top: 10px; font-size: 12px; color: #6b7280; line-height: 1.5;">SHA-KU finner manko uten å åpne dokumentet: amber til komplett, grønn når alle har signert gjeldende versjon.</div>
+    </div>
+
+    <div style="width: 480px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">3 · Arkiv-PDF — signaturtabell</div>
+      <div style="background: #ffffff; border: 1px solid #d1d5db; padding: 24px 28px; font-size: 12px; color: #111827;">
+        <div style="font-size: 14px; font-weight: 700; margin-bottom: 2px;">Signaturer</div>
+        <div style="color: #6b7280; margin-bottom: 12px;">Runde 3 (startet 05.09.2026) · 3 av 6 signert · generert 05.09.2026 20:40</div>
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr 0.8fr 1fr 0.9fr; border-top: 1.5px solid #111827;">
+          <sc-for list="{{ pdfHode }}" as="h" hint-placeholder-count="5">
+            <div style="font-weight: 700; padding: 6px 8px 6px 0; border-bottom: 1px solid #111827; font-size: 11px;">{{ h }}</div>
+          </sc-for>
+          <sc-for list="{{ pdfCeller }}" as="c" hint-placeholder-count="15">
+            <div style="padding: 6px 8px 6px 0; border-bottom: 1px solid #e5e7eb; color: {{ c.farge }}; font-weight: {{ c.vekt }};">{{ c.tekst }}</div>
+          </sc-for>
+        </div>
+        <div style="margin-top: 10px; font-size: 10px; color: #6b7280;">Manko og forrige runders signaturer står alltid i dokumentasjonen — fravær skal synes i arkivet (jf. F7-prinsippet). Tidligere runder følger i «Med logg»-varianten.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1320, &quot;height&quot;: 780}}">
+class Component extends DCLogic {
+  state = { minSignert: false };
+  renderVals() {
+    const minSignert = this.state.minSignert;
+    const signerte = [
+      { navn: "Kenneth Myrhaug", firma: "HE-Ansatte", detalj: "Signert runde 3 · 05.09 07:12 · HMS-kort 0451 8823", detaljFarge: "#6b7280", ikon: "✓", ikonFarge: "#16a34a" },
+      { navn: "Ola Berntsen", firma: "HE-Ansatte", detalj: "⚠ Signert 05.09 — før endring 07.09. Teller, men er merket.", detaljFarge: "#b45309", ikon: "⚠", ikonFarge: "#d97706" },
+      { navn: "Piotr Nowak", firma: "Innleid — BygdeCrew AS", detalj: "Signert runde 3 · 05.09 07:21 · Gjest · tlf 912 34 567", detaljFarge: "#6b7280", ikon: "✓", ikonFarge: "#16a34a" },
+      { navn: "Jan Eriksen", firma: "HE-Ansatte", detalj: "⚠ Signert runde 2 — runde 3 pågår. Må signere på nytt.", detaljFarge: "#b45309", ikon: "⚠", ikonFarge: "#d97706" },
+    ];
+    if (minSignert) signerte.unshift({ navn: "Du (Ali Hassan)", firma: "HE-Ansatte", detalj: "Signert runde 3 · nå nettopp · HMS-kort 0452 0017", detaljFarge: "#6b7280", ikon: "✓", ikonFarge: "#16a34a" });
+    const manko = [];
+    if (!minSignert) manko.push({ navn: "Ali Hassan (deg)", firma: "HE-Ansatte", kanSignere: true, signer: () => this.setState({ minSignert: true }) });
+    manko.push({ navn: "Sergei Volkov", firma: "Innleid — BygdeCrew AS", erGjest: true });
+    const gjeldende = 3 + (minSignert ? 1 : 0);
+    return {
+      signerte, manko,
+      mankoAntall: manko.length,
+      harManko: manko.length > 0,
+      komplett: false,
+      statusTekst: gjeldende + " av 6 signert",
+      statusFarge: "#b45309",
+      kort: [
+        { tittel: "SJA — Graving nær kabeltrasé", meta: "Felt B · i dag", chip: gjeldende + "/6", chipTekst: "#b45309", chipBg: "#fef3c7" },
+        { tittel: "SJA — Kranløft prefab-elementer", meta: "Felt A · i går", chip: "5/5 ✓", chipTekst: "#15803d", chipBg: "#dcfce7" },
+        { tittel: "Vernerunde uke 36", meta: "Hele plassen · 03.09", chip: "2/8", chipTekst: "#b45309", chipBg: "#fef3c7" },
+      ],
+      pdfHode: ["Navn", "Firma", "HMS-kort", "Signert", "Runde"],
+      pdfCeller: [
+        { tekst: "Kenneth Myrhaug" }, { tekst: "HE-Ansatte" }, { tekst: "0451 8823" }, { tekst: "05.09.26 07:12" }, { tekst: "3 (gjeldende)" },
+        { tekst: "Ola Berntsen" }, { tekst: "HE-Ansatte" }, { tekst: "0451 9102" }, { tekst: "05.09.26 07:15" }, { tekst: "3 (gjeldende)" },
+        { tekst: "Piotr Nowak (gjest)" }, { tekst: "BygdeCrew AS" }, { tekst: "0453 1188" }, { tekst: "05.09.26 07:21" }, { tekst: "3 (gjeldende)" },
+        { tekst: "Jan Eriksen" }, { tekst: "HE-Ansatte" }, { tekst: "0451 7740" }, { tekst: "04.09.26 14:02" }, { tekst: "2 — FORRIGE RUNDE", farge: "#b45309", vekt: 700 },
+        { tekst: "Ali Hassan" }, { tekst: "HE-Ansatte" }, { tekst: "—" }, { tekst: "IKKE SIGNERT", farge: "#b45309", vekt: 700 }, { tekst: "—" },
+        { tekst: "Sergei Volkov (gjest)" }, { tekst: "BygdeCrew AS" }, { tekst: "—" }, { tekst: "IKKE SIGNERT", farge: "#b45309", vekt: 700 }, { tekst: "—" },
+      ].map((c) => ({ farge: c.farge ?? "#111827", vekt: c.vekt ?? 400, tekst: c.tekst })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

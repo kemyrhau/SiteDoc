@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; background: #f3f4f6; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #1e40af; } a:hover { color: #1e3a8a; }
+</style>
+</helmet>
+<div style="max-width: 720px; margin: 0 auto; padding: 24px 16px 48px;">
+  <div style="margin-bottom: 16px;">
+    <div style="font-size: 18px; font-weight: 700; color: #111827;">KB2 — Utlegging av vekstjord</div>
+    <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Mockup: seksjonsstatus på header (funn A) · ✓ = alt utfylt · tall alene = delvis · ⚠ = urørt</div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <sc-for list="{{ seksjoner }}" as="sek" hint-placeholder-count="3">
+      <div style="overflow: hidden; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff;">
+        <div role="button" onClick="{{ sek.veksle }}" style="box-sizing: border-box; display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; background: #f9fafb; padding: 12px 16px; cursor: pointer;" style-hover="background: #f3f4f6;">
+          <span style="font-size: 16px; font-weight: 600; color: #111827;">{{ sek.tittel }}</span>
+          <span style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 13px; color: {{ sek.statusFarge }}; font-weight: {{ sek.statusVekt }};">{{ sek.statusTekst }}</span>
+            <span style="font-size: 14px; width: 16px; text-align: center;">{{ sek.ikon }}</span>
+            <span style="color: #6b7280; font-size: 12px; transition: transform 0.15s; display: inline-block; transform: rotate({{ sek.chevron }}deg);">▼</span>
+          </span>
+        </div>
+        <sc-if value="{{ sek.apen }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 14px; padding: 14px 16px;">
+            <sc-for list="{{ sek.felter }}" as="felt" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <span style="font-size: 13px; font-weight: 500; color: #374151;">{{ felt.label }}</span>
+                <sc-if value="{{ felt.erTrafikklys }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; gap: 7px;">
+                    <span style="height: 22px; width: 22px; border-radius: 999px; background: {{ felt.gronn }};"></span>
+                    <span style="height: 22px; width: 22px; border-radius: 999px; background: #fef08a;"></span>
+                    <span style="height: 22px; width: 22px; border-radius: 999px; background: #fecaca;"></span>
+                    <span style="height: 22px; width: 22px; border-radius: 999px; background: #e5e7eb;"></span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ felt.erValg }}" hint-placeholder-val="{{ false }}">
+                  <div style="box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 14px; color: {{ felt.verdiFarge }}; background: #ffffff;">
+                    <span>{{ felt.verdi }}</span><span style="color: #9ca3af; font-size: 11px;">▼</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ felt.visTilbehor }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                    <span style="font-size: 11px; color: #6b7280; background: #f3f4f6; border-radius: 999px; padding: 4px 10px;">💬 Kommentar</span>
+                    <span style="font-size: 11px; color: #6b7280; background: #f3f4f6; border-radius: 999px; padding: 4px 10px;">📷 Legg til bilde</span>
+                    <span style="font-size: 11px; color: #6b7280; background: #f3f4f6; border-radius: 999px; padding: 4px 10px;">+ Oppgave</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ felt.erTall }}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="box-sizing: border-box; flex: 1; min-width: 0; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 14px; color: {{ felt.verdiFarge }}; background: #ffffff;">{{ felt.verdi }}</div>
+                    <span style="font-size: 13px; color: #6b7280;">cm</span>
+                  </div>
+                  <span style="font-size: 11px; color: #9ca3af;">{{ felt.grense }}</span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+  </div>
+  <div style="margin-top: 20px; font-size: 12px; color: #6b7280; line-height: 1.6;">
+    Kollaps-komponenten (<span style="font-family: ui-monospace, monospace;">UtfyllingSeksjoner.tsx</span>, M-3a del 2) finnes allerede på alle fire flater — mockupen viser kun det NYE: status høyrestilt på headeren. Klikk headerne for å teste kollaps.
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 760, &quot;height&quot;: 900}}">
+class Component extends DCLogic {
+  state = { apne: { FØR: true, UNDER: true, ETTER: false } };
+  renderVals() {
+    const data = [
+      { tittel: "FØR", felter: [
+        { label: "Leveringsdokument kontrollert", erValg: true, verdi: "Kontrollert – i samsvar med Tabell K2", fylt: true },
+        { label: "Jordkvalitet iht. NS 2890", erValg: true, verdi: "Godkjent analyse foreligger", fylt: true },
+        { label: "Underlag klargjort", erTrafikklys: true, fylt: true, visTilbehor: true },
+      ]},
+      { tittel: "UNDER", felter: [
+        { label: "Lagtykkelse", erTall: true, verdi: "15", grense: "≥ 15 cm (Grasplen)", fylt: true },
+        { label: "Komprimering", erValg: true, verdi: "Velg …", fylt: false },
+        { label: "Utlegging i tørt vær", erTrafikklys: true, tom: true, fylt: false },
+      ]},
+      { tittel: "ETTER", felter: [
+        { label: "Overflatejevnhet", erTall: true, verdi: "", grense: "± 3 cm", fylt: false },
+        { label: "Fall fra bygg", erTall: true, verdi: "", grense: "≥ 2 %", fylt: false },
+        { label: "Avslutning mot kantstein", erValg: true, verdi: "Velg …", fylt: false },
+      ]},
+    ];
+    const seksjoner = data.map((s) => {
+      const y = s.felter.length, x = s.felter.filter((f) => f.fylt).length;
+      const apen = this.state.apne[s.tittel];
+      const komplett = x === y, urort = x === 0;
+      return {
+        tittel: s.tittel, apen, chevron: apen ? 0 : -90,
+        statusTekst: urort ? "0 av " + y : x + " av " + y + " utfylt",
+        statusFarge: komplett ? "#16a34a" : urort ? "#d97706" : "#6b7280",
+        statusVekt: komplett || urort ? 600 : 400,
+        ikon: komplett ? "✓" : urort ? "⚠" : "",
+        veksle: () => this.setState((st) => ({ apne: { ...st.apne, [s.tittel]: !st.apne[s.tittel] } })),
+        felter: s.felter.map((f) => ({
+          ...f,
+          gronn: f.tom ? "#bbf7d0" : "#22c55e",
+          verdiFarge: f.fylt ? "#111827" : "#9ca3af",
+        })),
+      };
+    });
+    return { seksjoner };
+  }
+}
+
+</script>
+</body>
+</html>
