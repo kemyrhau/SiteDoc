@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -33,6 +33,7 @@ export function ByggeplassVelgerModal({
   gpsForeslagId,
   tillatIngen = false,
   ingenLabel,
+  eksterneByggeplasser,
   onVelg,
   onLukk,
 }: {
@@ -40,6 +41,21 @@ export function ByggeplassVelgerModal({
   valgtId: string | null;
   /** F3: GPS-foreslått byggeplass — badges «du er her» på raden. */
   gpsForeslagId?: string | null;
+  /**
+   * Prosjekt-scopet byggeplass-liste levert av kalleren (den globale
+   * `ByggeplassChip` sender `bygning.hentForProsjekt`-dataene). Når satt bruker
+   * modalen den DIREKTE og hopper over hele den interne timer-SQLite-/org-veien.
+   * Rotårsak (device-funn 2026-09-06): den interne veien resolver `organizationId`
+   * fra timer-cachen `prosjektLocal`, som ved design (prosjektKatalog.ts:45,
+   * `if (!p.primaryOrganizationId) continue`) UTELATER standalone-prosjekter —
+   * velgeren fikk da aldri en kilde. Timer-sedelen lar proppen være udefinert og
+   * beholder offline-first-SQLite-veien.
+   */
+  eksterneByggeplasser?: Array<{
+    id: string;
+    navn: string | null;
+    number: number | null;
+  }>;
   /** Vis en rad som nullstiller byggeplass-valget. Sedel-velgeren (dagsseddel)
    *  bruker den som «Ingen byggeplass»; den globale byggeplass-chipen bruker den
    *  som «Hele prosjektet»-utvei (default false → ikke vist). */
@@ -61,18 +77,28 @@ export function ByggeplassVelgerModal({
   const [laster, setLaster] = useState(false);
   const [refreshFullført, setRefreshFullført] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  // Re-entry-vakt for det interne refreshet. ERSTATTER `laster`-i-dep-array +
+  // avbrutt-cleanup, som ga evig spinner (se fetch-effekten under).
+  const henterRef = useRef(false);
+  // Generasjonsvakt: `.finally` skal ikke markere «fullført» for et prosjekt som
+  // ble byttet under henting (F3 inline-bytte). `laster` nullstilles uansett.
+  const aktivtProsjektRef = useRef(projectId);
 
   const byggeplasser = useMemo(() => {
+    // Prop-drevet (chip): kalleren eier lista → bruk den direkte.
+    if (eksterneByggeplasser) return eksterneByggeplasser;
     if (!projectId) return [];
     return hentByggeplasserForProsjektLokalt(projectId);
     // refreshNonce tvinger re-lesing etter at et byggeplass-refresh fullførte.
-  }, [projectId, refreshNonce]);
+  }, [eksterneByggeplasser, projectId, refreshNonce]);
 
   // F3-forberedelse (fabels catch): når modalen tillater prosjektbytte inline
   // endres `projectId` uten remount → nullstill refresh-tilstand + søk, ellers
   // ville et nytt prosjekt vist «bekreftet tomt» basert på FORRIGE prosjekts
   // fullførte refresh. Kjører også ved mount (verdiene er allerede default).
   useEffect(() => {
+    aktivtProsjektRef.current = projectId;
+    henterRef.current = false;
     setLaster(false);
     setRefreshFullført(false);
     setSok("");
@@ -83,40 +109,55 @@ export function ByggeplassVelgerModal({
   // LEGITIMT vindu (offline / før første sync). «Bekreftet tomt» (tilstand 3)
   // vises kun ETTER at et refresh har fullført tomt — aldri før.
   useEffect(() => {
+    // Prop-drevet (global byggeplass-chip): kalleren eier den prosjekt-scopede
+    // lista → ingen intern henting. Fjerner orgId-avhengigheten helt.
+    if (eksterneByggeplasser) return;
     if (
       !projectId ||
       byggeplasser.length > 0 ||
       !erPaaNettet ||
-      laster ||
-      refreshFullført
+      refreshFullført ||
+      henterRef.current
     ) {
       return;
     }
     const orgId = finnProsjektLokalt(projectId)?.organizationId;
-    if (!orgId) return;
-    let avbrutt = false;
+    if (!orgId) {
+      // Ingen firma-kontekst i timer-cachen (standalone-prosjekt, eller ikke
+      // synket ennå). Marker som fullført → forklart «prosjektMangler»-tekst,
+      // ALDRI evig spinner. (Chip-veien treffer aldri hit — den er prop-drevet;
+      // dette er sedel-velgerens sikkerhetsnett.)
+      setRefreshFullført(true);
+      return;
+    }
+    // `laster` er BEVISST ute av dep-arrayet. Tidligere var den med: setLaster(true)
+    // re-kjørte effekten, cleanup satte `avbrutt=true` FØR nett-promiset resolverte,
+    // og `.finally` hoppet da over setLaster(false) → evig spinner (device-funn
+    // 2026-09-06). `henterRef` vokter re-entry i stedet, og `.finally` nullstiller
+    // ALLTID `laster` — spinneren kan ikke lenger henge.
+    henterRef.current = true;
     setLaster(true);
     refreshByggeplassKatalog(utils.client, orgId)
       .catch(() => {
         // Feil svelges (samme som TimerSyncProvider) — velgeren faller tilbake
-        // til «bekreftet tomt»/eksisterende cache; ikke kritisk sti.
+        // til «prosjektMangler»/eksisterende cache; ikke kritisk sti.
       })
       .finally(() => {
-        if (avbrutt) return;
+        henterRef.current = false;
         setLaster(false);
+        // Prosjektet ble byttet under henting (F3) → dropp markering; men laster
+        // er alt nullstilt over, så ingen spinner blir hengende.
+        if (aktivtProsjektRef.current !== projectId) return;
         setRefreshFullført(true);
         setRefreshNonce((n) => n + 1);
       });
-    return () => {
-      avbrutt = true;
-    };
   }, [
     projectId,
     byggeplasser.length,
     erPaaNettet,
-    laster,
     refreshFullført,
     utils.client,
+    eksterneByggeplasser,
   ]);
 
   const filtrert = useMemo(() => {
