@@ -984,6 +984,33 @@ Tiltak fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-202
 
 ---
 
+## 🔴 BINDENDE VEDTAK 2026-09-06 — hva det betyr å avslutte et prosjekt
+
+> **Kenneth:** *«Et prosjekt avsluttes → ingen lesing, ingen skriving. Gjenåpning → fører til at
+> et prosjekt får full les og skriv.»*
+> *«At et prosjekt stenger betyr ikke at prosjektet stopper timeregistrering. Det betyr bare at
+> firmaet har fjernet tilgang på dokumenter og registreringer.»*
+
+**Avslutning er en TILGANGSBESLUTNING firmaet tar — ikke en livssyklus-tilstand for arbeidet.**
+
+| Følge | Konsekvens |
+|---|---|
+| Avsluttet/arkivert | Vanlige brukere mister **både** lesing og skriving. Firma-admin beholder tilgang — han er den som gjenåpner |
+| Gjenåpning | Symmetrisk, full les og skriv tilbake. Reversibel → **ingen bekreftelsesmodal** |
+| **Timer** | 🔴 **UTENFOR.** `db-timer` isolerer på `organizationId`; ~35 muterende prosedyrer inkl. mobil-sync røres ikke. En ansatt som glemte fredagens timer skal ikke blokkeres av at prosjektet ble arkivert mandag — konsekvensen ville vært lønn, ikke dokumentasjon |
+| **Arkiv først** | 🔴 Kunden kan ikke hente dokumentasjonen sin etter avslutning. **«Avslutt» gater derfor på at et arkiv er laget** (`eksport.bestill`, se `relay/inbox-prosjektarkiv-ui.md`) |
+
+⛔ **Sletting er IKKE vedtatt.** 90 dager / 6 måneder ble nevnt i samme samtale, men er ikke
+skrevet ned noe sted som en beslutning — det som finnes er 90 dagers **papirkurv for
+enkeltdokumenter** (vedtak 04.09) og 6 måneder for **mannskapsdata** (`mannskap.md:35`).
+🔴 [`gdpr-kartlegging.md`](gdpr-kartlegging.md) krever at oppbevaringsplikt avklares **før** en
+sletteløsning bygges, og § over lister eksponeringsregister med **40–60 års** oppbevaring blant
+bedriftens eget ansvar. **Ingen sletting bygges før jussen er avklart.**
+
+⚠️ **Dette overstyrer fabels designlås** (`docs/redesign/fl-prosjektlivssyklus-fabel-2026-09-06.md`),
+som sa «lesing og PDF alltid åpent». Fabel er varslet. Låsen gjelder fortsatt for enum-verdiene,
+⋮-radmenyen, banneret og randsonene.
+
 ## 🔴 BINDENDE VEDTAK 2026-09-06 — risikovurdering: hvem gjør hva
 
 > **Kenneth 2026-09-06, korrigerte cowork:** *«Det er ikke byggherre som skal godkjenne en
