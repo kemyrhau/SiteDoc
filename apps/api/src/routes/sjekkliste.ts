@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
+import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
@@ -183,7 +184,8 @@ export const sjekklisteRouter = router({
           ...IKKE_SLETTET,
           template: { projectId: input.projectId, ...templateDomainFilter },
           ...(input.status ? { status: input.status } : {}),
-          ...(input.byggeplassId ? { OR: [{ byggeplassId: input.byggeplassId }, { byggeplassId: null }] } : {}),
+          // Byggeplass-tilhørighet (mykt), regel i byggeplassFilter.ts.
+          ...(byggeplassFilterDirekte(input.byggeplassId) ?? {}),
           ...(tilgangsFilter ?? {}),
         },
         include: {

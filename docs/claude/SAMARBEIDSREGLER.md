@@ -955,6 +955,7 @@ gatet trinn i ordren**, før funksjonaliteten bygges.
 | `TILBEHOR_REN_FJERNING` | 2 sett (web 4 typer, mobil 5) | `85c8ecd5` |
 | PDF-tvillingen `signaturVerdi` | 2, uten vakt | paritetstest `53890c1b` |
 | `normaliserOpsjon` | **4** — web, PDF, og to lokale funksjoner i mobilkomponenter | trinn 0 i `feat/grenseresolver` |
+| Byggeplass-filteret | **9 → 1**, to former (4 via tegning m/3 ødelagte, 5 direkte) | `byggeplassFilter.ts` (`apps/api/src/services/`) |
 
 **Årsaken er alltid den samme:** delt logikk **fødes i en komponent** fordi den trengtes der
 først, og **kopieres når neste flate trenger den** — fordi det er billigere i øyeblikket enn å

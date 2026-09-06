@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
+import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { documentStatusSchema } from "@sitedoc/shared";
@@ -165,7 +166,8 @@ export const oppgaveRouter = router({
             domainFilter,
           ],
           ...(input.status ? { status: input.status } : {}),
-          ...(input.byggeplassId ? { OR: [{ drawing: { byggeplassId: input.byggeplassId } }, { drawingId: null }] } : {}),
+          // Byggeplass-tilhørighet via tegning (mykt, 3 ledd), regel i byggeplassFilter.ts.
+          ...(byggeplassFilterViaTegning(input.byggeplassId) ?? {}),
           ...(tilgangsFilter ?? {}),
         },
         include: {
