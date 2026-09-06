@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="nb"><head><meta charset="UTF-8"><style>*{box-sizing:border-box}
+body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:#111827;font-size:10.5px;line-height:1.45}
+/* Ingen egen side-padding: rendrer-containeren (server.mjs) setter A4-margen via
+   Playwright (16mm topp/side, 14mm bunn) på HVER side. Egen padding her ble lagt
+   OPPÅ den → side 1 fikk dobbel marg (~31mm topp / 32mm side) mens innholdssider
+   hadde 16mm (vedtak 2026-08-16, funn 4). Margen eies nå kun av containeren, så
+   side 1 flukter med innholdssidene og kortet starter nær sidehodet. */
+.ark-side{color:#111827;font-size:10.5px;line-height:1.45}
+/* Samleutskrift (N1): hvert dokument etter det første starter på ny side. */
+.ark-side + .ark-side{break-before:page;page-break-before:always}
+
+/* Topptekst (side 1) */
+.ark-topptekst{display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px}
+.ark-tt-venstre{display:flex;align-items:center;gap:12px}
+.ark-logo{width:38px;height:38px;border-radius:8px;object-fit:contain}
+.ark-firmanavn{font-size:13px;font-weight:700}
+.ark-orgnr{font-size:9.5px;color:#6b7280}
+.ark-tt-hoyre{text-align:right}
+.ark-dok-type{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600}
+.ark-dok-navn{font-size:13px;font-weight:700}
+.ark-dok-nr{font-size:9.5px;color:#6b7280}
+
+/* Prosjektblokk — komprimeres (auto-fit) når kolonner faller bort */
+.ark-prosjektblokk{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 20px}
+.ark-etikett{color:#6b7280}
+
+/* Statusblokk */
+.ark-statusblokk{display:flex;gap:16px;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;background:#f5f6f9}
+.ark-status-celle{flex:1}
+.ark-gronn{color:#15803d}
+.ark-rod{color:#b91c1c}
+
+/* Seksjonsheading (innhold + logg) */
+.ark-seksjon{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px}
+.ark-seksjon-note{text-transform:none;letter-spacing:0;color:#6b7280;font-weight:400}
+
+/* Fortsettelses-header (slank, side 2+) — brukes som Playwright headerTemplate */
+.ark-fortsettelse{display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:8px 14px}
+.ark-fs-venstre{display:flex;align-items:center;gap:10px}
+.ark-fs-logo{width:28px;height:28px;border-radius:6px;object-fit:contain}
+.ark-fs-firma{font-size:11px;font-weight:700}
+.ark-fs-hoyre{text-align:right;font-size:9.5px;color:#6b7280}
+
+/* Bunntekst — generert-stempel (sporbarhet, kan ikke velges bort; intern DB-nøkkel utgått, funn 3) */
+.ark-footer{display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;padding-top:5px;font-size:8.5px;color:#9ca3af}
+
+/* Innhold — generiske felt (felt.ts-output), stylet i arkiv-uttrykk */
+.felt-blokk{margin-top:10px}
+.felt-label{font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:#6b7280;margin-bottom:2px}
+.felt-verdi{color:#374151}
+.tom{color:#9ca3af}
+.tekst-verdi{color:#374151}
+.kommentar{font-size:9.5px;color:#6b7280;margin-top:2px}
+.ark-utenfor-rader{margin-bottom:10px}
+.ark-utenfor-merke{font-size:8.5px;font-weight:600;font-style:italic;color:#6b7280;margin-bottom:4px}
+.heading{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px;margin-top:14px}
+.subtitle{font-size:10px;font-weight:600;color:#374151;margin-top:8px}
+.trafikklys{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
+.vedlegg-teller{font-size:9.5px;color:#6b7280;margin-top:4px}
+
+/* Repeater som tabell (arkiv-override) */
+.ark-repeater{width:100%;border-collapse:collapse;margin-top:6px;font-size:10.5px}
+.ark-repeater th{text-align:left;color:#26327e;border-bottom:2px solid #26327e;padding:5px 8px}
+.ark-repeater td{border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151;vertical-align:top}
+.ark-rad-nr{width:24px;color:#6b7280}
+
+/* Bilder — inline i lesbar størrelse, 2-kolonners */
+.bilde-rutenett{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.bilde-kort{flex:1;min-width:45%;border:1px solid #e2e4ea;padding:8px 10px;position:relative}
+.bilde-img{max-width:100%;height:auto;display:block}
+.bilde-nr{position:absolute;top:4px;right:6px;font-size:9px;color:#9ca3af}
+
+/* Repeater-bilder (vedtak 2026-08-15) — full spaltebredde i egen <tr> rett under
+   raden, 1fr 1fr-grid (2 stående per rekke). Hver rekke er sin egen <tr>: den
+   globale tr-regelen (break-inside:avoid) holder ÉN rekke samlet, men blokken kan
+   BRYTE mellom rekker → store rader flyter over sider (ingen 40 %-luft). Merking
+   under bildet: løpenr + filnavn + tid, liten tekst. Bilde cappes til ~1/3 side. */
+.ark-bilde-celle{padding:4px 8px 8px}
+.ark-bilde-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ark-bilde-img{display:block;width:100%;height:auto;max-height:320px;object-fit:contain;background:#eef0f4}
+.ark-bilde-tekst{font-size:8.5px;color:#9ca3af;margin-top:3px}
+
+/* Instruksjonsfelt (F2-rest 2026-08-23) — info_text/info_image/video som grå
+   instruksjonskontekst (byggherre ser hva utfører fikk instruks om). felt.ts
+   dropper dem (frosset); rendres via arkiv-override (D2-mønster). */
+.ark-instruksjon{margin-top:10px;border-left:3px solid #c7cbd4;background:#eef0f4;padding:8px 12px}
+.ark-instruksjon-tittel{font-size:8.5px;letter-spacing:0.06em;text-transform:uppercase;color:#6b7280;font-weight:600;margin-bottom:3px}
+.ark-instruksjon-tekst{font-size:10px;color:#374151;white-space:pre-wrap}
+.ark-instruksjon-bilde{max-width:100%;height:auto;max-height:260px;object-fit:contain;display:block;margin-top:2px}
+.ark-instruksjon-caption{font-size:9px;font-style:italic;color:#6b7280;margin-top:3px}
+.ark-instruksjon-ref{font-size:9.5px;color:#6b7280;word-break:break-all;margin-top:2px}
+
+/* Quiz-svar (F2-rest) — spørsmål + avgitt svar + riktig/feil. Svaret er
+   DOKUMENTASJONSDATA; å droppe det var datatap i byggherre-leveransen (F7-klasse). */
+.ark-quiz{margin-top:10px;border:1px solid #e2e4ea;padding:8px 12px}
+.ark-quiz-sp{font-weight:600;color:#111827;margin-bottom:4px}
+.ark-quiz-linje{font-size:10px;color:#374151;margin-top:2px}
+.ark-quiz-rett{color:#15803d;font-weight:600}
+.ark-quiz-feil{color:#b91c1c;font-weight:600}
+
+/* Loggseksjon — Dokumenthistorikk + Endringslogg (økt-gruppert) */
+.ark-logg{width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px}
+.ark-logg td{padding:4px 8px;border-bottom:1px solid #eef0f4}
+.ark-logg-tid{color:#6b7280;white-space:nowrap}
+.ark-okt{padding:6px 8px 4px !important;background:#f5f6f9;border-bottom:1px solid #e2e4ea;font-weight:700;color:#111827}
+
+/* Signaturblokk */
+.ark-signatur{display:flex;gap:10px;margin-top:16px;padding-top:16px}
+.ark-sign-felt{flex:1}
+.ark-sign-navn{font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px;min-height:26px}
+.ark-sign-tom{min-height:26px}
+.ark-sign-strek{border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280}
+.ark-svak{color:#9ca3af}
+
+/* Mangel-merknad (vedtak c) — utvetydig, S/H-lesbar (border+tekst bærer, ikke bare farge) */
+.ark-mangel{margin-top:12px;border:1.5px solid #b91c1c;padding:8px 12px;font-size:10px;font-weight:600;color:#b91c1c}
+
+/* Sideskift — ingen radbryting midt i tabellrad ved paginering */
+tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
+thead{display:table-header-group}
+
+/* D2b helside tegningsprint (fabel 2026-08-21, revidert). Ligger nå I rapportkroppen
+   (mellom innhold og logg), ikke som egen ark-side til slutt, derfor break-before:page
+   her. Detaljutsnittet er flyttet inn i repeater-cella (ark-celle-utsnitt), så
+   helsidens markor-punkt-tabell er fjernet — helsiden = tegning + nummererte markorer.
+   Drawing-sizing/liggende-rotasjon finpusses ved visuell gate. */
+.ark-tegningsside{break-before:page;page-break-before:always}
+.ark-tegningsside .ark-seksjon{margin-bottom:6px}
+.ark-tegning-full{margin:8px 0 10px;text-align:center}
+.ark-tegning-full svg{display:inline-block;width:100%;height:auto;max-height:210mm;border:1px solid #e2e4ea;border-radius:4px}
+.ark-tegning-liggende{position:relative;width:100%;height:230mm;overflow:hidden}
+.ark-tegning-liggende svg{position:absolute;top:50%;left:50%;width:230mm;max-height:none;height:auto;transform:translate(-50%,-50%) rotate(90deg)}
+/* Detaljutsnitt i repeater-cella (Kenneth-vedtak 2026-08-21). Gate 1: raden med
+   utsnitt splittes aldri (global tr{break-inside:avoid}). */
+.ark-celle-koord{margin-bottom:4px}
+.ark-celle-utsnitt{max-width:150px}
+
+/* Radkort (mockup 2a, Kenneth-vedtak 2026-08-21) — rik repeater. Paginering (pkt 7):
+   kortet har IKKE break-inside:avoid (kan brytes MELLOM felt); hvert felt og hvert
+   enkeltbilde holdes samlet; bildeblokken kan brytes mellom rekker. */
+.ark-radkort{border:1px solid #e2e4ea;border-radius:6px;margin:8px 0}
+.ark-radkort-header{display:flex;align-items:center;gap:8px;background:#f8fafc;border-bottom:1px solid #e2e4ea;padding:6px 10px;border-radius:6px 6px 0 0}
+.ark-radkort-nr{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#26327e;color:#fff;font-size:11px;font-weight:700;flex:0 0 auto}
+.ark-radkort-tittel{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#26327e}
+.ark-radkort-markor{margin-left:auto;font-size:9px;color:#6b7280;text-align:right}
+.ark-radkort-kropp{padding:8px 10px}
+.ark-radkort-felt{margin-bottom:8px;break-inside:avoid;page-break-inside:avoid}
+.ark-radkort-label{font-size:8.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#6b7280;margin-bottom:2px}
+.ark-radkort-posisjon{display:flex;gap:10px;align-items:flex-start}
+.ark-radkort-utsnitt{width:40mm;flex:0 0 auto}
+.ark-radkort-posisjon-tekst{padding-top:2px}
+.ark-radkort-merknad{font-style:italic;color:#6b7280;font-size:9.5px;margin-top:2px}
+.ark-radkort-nested{margin-left:12px;padding-left:8px;border-left:2px solid #e2e4ea}
+/* Bildeblokk: egen (kan brytes mellom rekker); label + enkeltbilde holdes samlet. */
+.ark-radkort-bildefelt{margin-bottom:8px}
+/* «Bilder»-etiketten skal ALDRI bli stående alene nederst på en side mens bildene
+   flyter til neste (funn 2026-09-04, side 4 BEF_-002). break-after:avoid binder
+   etiketten til første bilderekke. Målt i Chromium (Chrome for Testing 1234):
+   fjerner foreldreløs etikett i alle testede sidebrekk, OG bildeblokken flyter
+   fortsatt rekke-for-rekke — kun etikett+første rekke flytter, aldri hele blokken
+   (ingen ny tomrom, jf. 6+-bilder-måling). break-inside:avoid på hele blokken ble
+   forkastet nettopp fordi den skjøv store seksjoner videre og laget mer luft. */
+.ark-radkort-bildefelt .ark-radkort-label{break-after:avoid;page-break-after:avoid}
+.ark-radkort-bilder{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ark-radkort-bilde{break-inside:avoid;page-break-inside:avoid}
+.ark-radkort-bilde img{display:block;width:auto;height:auto;max-width:100%;max-height:60mm}
+.ark-radkort-bildetekst{font-size:8.5px;color:#6b7280;margin-top:3px}
+
+/* Merk: ingen @page :first-regel. Verifisert 2026-08-15 at page.pdf({ margin })
+   i pdf-render-containeren overstyrer @page-margin, så CSS kan ikke skjule
+   margin-headeren på side 1. Dubleringen er i stedet løst ved at margin-headeren
+   bærer kun dokumentreferanse (render-templates.ts), ikke firma/prosjekt. */</style></head>
+<body><div class="ark-side"><div class="ark-topptekst">
+  <div class="ark-tt-venstre">
+    
+    <div>
+      <div class="ark-firmanavn">SiteDoc AS</div>
+      <div class="ark-orgnr">Org.nr 923 456 789</div>
+    </div>
+  </div>
+  <div class="ark-tt-hoyre">
+    <div class="ark-dok-type">Sjekkliste</div>
+    <div class="ark-dok-navn">Underbygning — komprimering</div>
+    <div class="ark-dok-nr">Dokumentnr. SJ-042</div>
+  </div>
+</div>
+<div class="ark-prosjektblokk"><div><span class="ark-etikett">Prosjekt</span><br><strong>E6 Kvål–Melhus</strong></div><div><span class="ark-etikett">Byggeplass</span><br><strong>Parsell 3</strong></div><div><span class="ark-etikett">Byggherre</span><br><strong>Nye Veier AS</strong></div></div>
+<div class="ark-statusblokk"><div class="ark-status-celle"><span class="ark-etikett">Status</span><br><strong style="color:#15803d">Godkjent</strong></div></div>
+<div class="heading">3.2 Komprimering og toleranser</div><div class="felt-blokk"><div class="felt-label">Lagtykkelse etter komprimering</div><div class="felt-verdi">148 mm <span style="color:#6b7280;font-weight:400">· krav 140–160 mm</span></div></div><div class="felt-blokk"><div class="felt-label">Komprimeringsgrad</div><div class="felt-verdi"><span style="color:#b45309;font-weight:700">93 % — UNDER KRAV</span> <span style="color:#6b7280;font-weight:400">(krav ≥ 95 %)</span><div style="font-size:11px;font-weight:700;color:#b45309;margin-top:2px;">Avvik: 2 % under krav</div></div></div><div class="felt-blokk"><div class="felt-label">Avvik fra prosjektert høyde</div><div class="felt-verdi"><span style="color:#b45309;font-weight:700">14 mm — OVER KRAV</span> <span style="color:#6b7280;font-weight:400">(krav ≤ 10 mm)</span><div style="font-size:11px;font-weight:700;color:#b45309;margin-top:2px;">Avvik: 4 mm over krav</div></div></div><div class="felt-blokk"><div class="felt-label">Årsak til avvik</div><div class="felt-verdi">Setning i underlag</div></div><div class="felt-blokk"><div class="felt-label">Tiltak</div><div class="felt-verdi"><span class="tekst-verdi">Reetablert og komprimert på nytt</span></div></div><div class="felt-blokk"><div class="felt-label">Planhet (rettholt 2 m)</div><div class="felt-verdi"><span style="color:#b45309;font-weight:700">5 mm — UTENFOR TOLERANSE</span> <span style="color:#6b7280;font-weight:400">(krav ± 3 mm)</span><div style="font-size:11px;font-weight:700;color:#b45309;margin-top:2px;">Avvik: 2 mm utenfor toleranse</div></div></div><div class="felt-blokk"><div class="felt-label">Fall mot sluk</div><div class="felt-verdi"><span class="tom">Ikke utfylt</span> <span style="color:#6b7280;font-weight:400">(krav ± 3 mm)</span></div></div>
+<div class="ark-footer"><span>Generert fra SiteDoc 06.09.2026 22:10</span><span></span></div></div></body></html>
