@@ -10,6 +10,7 @@ import { EmptyState, StatusBadge, Table } from "@sitedoc/ui";
 import { formaterDato, formaterLopenummer, hentDataVerdi } from "./visning";
 import { hosPosisjon, type MineIder } from "@/lib/hms-hos";
 import type { SignaturChipStatus } from "@sitedoc/shared";
+import { filtrerRader as filtrerRaderDelt } from "@sitedoc/shared";
 import type { DokumentRad } from "./types";
 
 /**
@@ -127,21 +128,18 @@ function byggeplassNavnSjekkliste(r: DokumentRad): string {
   return r.byggeplass?.name ?? "—";
 }
 
-// Generisk filtrerings-funksjon — kalt med kolonne-id → rad-verdi-mapping
+// Tynn adapter til det DELTE filterpredikatet (@sitedoc/shared/tabellFilter) —
+// HMS-tabellene har intet `felt:`/`frist`-behov, kun enkel kolonne→verdi-mapping.
+// Selve løkka bor nå ett sted (trinn 0, dokumentsøk-mobil). `feltMapping[kolId]`
+// mangler for ukjent kolonne → `hentVerdi` returnerer undefined → ingen filtrering.
 function filtrerRader(
   rader: DokumentRad[],
   filterVerdier: Record<string, string>,
   feltMapping: Record<string, (r: DokumentRad) => string>,
 ): DokumentRad[] {
-  let resultat = rader;
-  for (const [kolId, verdi] of Object.entries(filterVerdier)) {
-    if (!verdi) continue;
-    const valgteSet = new Set(verdi.split(","));
-    const hentFelt = feltMapping[kolId];
-    if (!hentFelt) continue;
-    resultat = resultat.filter((r) => valgteSet.has(hentFelt(r)));
-  }
-  return resultat;
+  return filtrerRaderDelt(rader, filterVerdier, {
+    hentVerdi: (r, kolId) => feltMapping[kolId]?.(r),
+  });
 }
 
 /* ============================================================================
