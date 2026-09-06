@@ -1202,7 +1202,7 @@
   "byggeplass.gpsPaaPlass": "GPS · du er på plass",
   "byggeplass.gpsForeslar": "GPS foreslår",
   "byggeplass.ingenPaaProsjekt": "Ingen byggeplasser på prosjektet",
-  "byggeplass.filtrererListe": "Viser kun denne byggeplassen — trykk for hele prosjektet",
+  "byggeplass.filtrererListe": "Viser denne byggeplassen + dokumenter for hele prosjektet",
   "bygg.stempel": "Bygg {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Venter på prosjekttilgang",
   "dashbord.venterPaaTilgangBeskrivelse": "Du har ikke tilgang til noen prosjekter ennå. Ta kontakt med din prosjektleder.",

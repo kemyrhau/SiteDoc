@@ -1202,7 +1202,7 @@
   "byggeplass.gpsPaaPlass": "GPS · jūs esat uz vietas",
   "byggeplass.gpsForeslar": "GPS iesaka",
   "byggeplass.ingenPaaProsjekt": "Šajā projektā nav vietņu",
-  "byggeplass.filtrererListe": "Tiek rādīta tikai šī vietne — pieskarieties visam projektam",
+  "byggeplass.filtrererListe": "Tiek rādīta šī vietne + dokumenti visam projektam",
   "bygg.stempel": "Būvējums {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Gaida projekta piekļuvi",
   "dashbord.venterPaaTilgangBeskrivelse": "Jums vēl nav piekļuves nevienam projektam. Sazinieties ar savu projekta vadītāju.",

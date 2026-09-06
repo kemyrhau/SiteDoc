@@ -1202,7 +1202,7 @@
   "byggeplass.gpsPaaPlass": "GPS · ви на місці",
   "byggeplass.gpsForeslar": "Підказує GPS",
   "byggeplass.ingenPaaProsjekt": "У цьому проекті немає сайтів",
-  "byggeplass.filtrererListe": "Показано лише цей сайт — натисніть для всього проекту",
+  "byggeplass.filtrererListe": "Показано цей сайт + документи для всього проекту",
   "bygg.stempel": "Збірка {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Очікування доступу до проєкту",
   "dashbord.venterPaaTilgangBeskrivelse": "Ви ще не маєте доступу до жодного проєкту. Зв'яжіться зі своїм керівником проєкту.",
