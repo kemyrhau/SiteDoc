@@ -368,7 +368,10 @@ hvorfor — den erstatter ikke kommandoen.
 |---|---|---|---|---|
 | 2026-09-04 | `1` | `cdb53296` | production | Første OTA. EXIF-opptakstid på galleribilder + lesbar endringslogg |
 | 2026-09-04 | `1` | `9f49c1ff` | production | Oppfølger samme døgn |
-| 2026-09-06 | `1` | `333359a6` | production | **Stor runde.** Signaturfeltet bærer navn + tidspunkt · kollapset signaturflate («Signer her», scroll lager ikke streker) · endringsloggen lukket som standard · seksjonsstatus «X av Y utfylt» · `signature_list`-felttypen (inert til en mal bruker den). Update group `523c0f61`. Fyrt etter prod-deploy `ad18df93` — schema+api måtte være ute FØRST |
+| 2026-09-05 17:29 | `1` | — | production | Trafikklys slanket + utfyllingsstatus på seksjoner. ⚠️ **Manglet i denne loggen til 06.09** — ført inn da `eas update:rollback` viste den i lista. Cowork skrev regelen «ny rad i SAMME runde» og brøt den samme døgn |
+| 2026-09-06 14:33 | `1` | `333359a6` | production | 🔴 **FORGIFTET — RULLET TILBAKE ETTER ~25 MIN.** Bundelen pekte på `api-test.sitedoc.no` fordi `.env.local` lå igjen etter et avbrutt Expo-forsøk. Update group `523c0f61`. **Se § Slik publiserer du en oppdatering** — hendelsen er hele grunnen til at steg 1–2 finnes |
+| 2026-09-06 ~15:05 | `1` | `9f49c1ff` | production | **ROLLBACK** til 05.09-bundelen (republisert, group `55cad71f`). Verifisert på telefon: prosjektlista viste prod-prosjekter igjen |
+| 2026-09-06 (etter rens) | `1` | `333359a6` | production | Ny publisering etter at `.env.local` + Metro-cache var fjernet og bundelen målt ren. **Innhold:** signaturfeltet bærer navn + tidspunkt · kollapset signaturflate · endringsloggen lukket som standard · seksjonsstatus · `signature_list` (inert til en mal bruker den). Fyrt etter prod-deploy `ad18df93` — schema+api måtte være ute FØRST |
 
 🔴 **Ny rad skrives i SAMME runde som publiseringen** — ikke «etterpå».
 Rad skal ha: dato · runtime · commit · kanal · hva testeren faktisk merker.
@@ -448,11 +451,53 @@ lenket før du forklarer hvorfor den mangler.**
 løste ikke feilen. Den er beholdt — web bundles ikke, og det er riktig for en app vi ikke
 distribuerer på web — men den var ikke fiksen.
 
-### Slik publiserer du en oppdatering (målt 2026-09-04)
+### Slik publiserer du en oppdatering (målt 2026-09-04, utvidet med målesteg 2026-09-06)
+
+🔴 **DET ER TO APPER PÅ KENNETHS TELEFON, OG DE LYTTER PÅ HVER SIN KANAL.**
+
+| App | Kanal | API |
+|---|---|---|
+| Produksjonsappen (bygg 54) | `production` | `api.sitedoc.no` |
+| Testappen | `test` | `api-test.sitedoc.no` |
+
+**En OTA til `production` treffer produksjonsappen — også hos A.Markussen.** Peker den bundelen
+på test-API-et, skriver piloten HMS-data inn i testdatabasen uten å vite det.
+
+#### 🔴 STEG 1 — RYDD MILJØET. Dette er ikke valgfritt.
 
 ```sh
 cd ~/Documents/Programmering/SiteDoc/apps/mobile
-eas update --platform ios --channel production --message "<hva som er fikset>"
+ls -a | grep env          # SKAL vise .env.production og .env.test — IKKE .env.local
+rm -f .env.local          # finnes den, slett den
+```
+
+**Hvorfor:** `.env.local` har **høyere prioritet enn `.env.production`** i Expos
+dotenv-rekkefølge. En `.env.local` som peker på test forgifter en produksjons-OTA i stillhet —
+kommandoen sier «Published!» og alt ser riktig ut.
+
+⚠️ **`.env.local` opprettes typisk for å teste mobil mot test via Expo.** Det er en legitim
+grunn til å lage den — og nøyaktig derfor må den slettes før publisering.
+
+#### 🔴 STEG 2 — MÅL BUNDELEN FØR DU PUBLISERER
+
+```sh
+rm -rf /tmp/otacheck node_modules/.cache .expo
+npx expo export --clear --platform ios --output-dir /tmp/otacheck
+strings /tmp/otacheck/_expo/static/js/ios/*.hbc | grep -o "https://api[a-z.-]*sitedoc\.no" | sort | uniq -c
+```
+
+**Forventet for produksjon: kun `https://api.sitedoc.no`.**
+Ser du `api-test`, **STOPP** — miljøet er ikke rent.
+
+🔴 **`node_modules/.cache` og `.expo` MÅ slettes.** Metro gjenbruker en cachet bundel selv
+etter at `.env.local` er fjernet — målt 2026-09-06: eksport etter sletting ga **samme
+bundel-hash** som den forgiftede, og målingen så «fortsatt forgiftet» ut når den egentlig var
+utdatert.
+
+#### STEG 3 — publiser
+
+```sh
+eas update --platform ios --channel production --clear-cache --message "<hva som er fikset>"
 ```
 
 🔴 **`--platform ios` er ikke valgfritt — uten det feiler kommandoen.** `eas update` kaller
@@ -466,6 +511,41 @@ uavhengige feil i dette monorepoet:
 **Fikser du den ene, står den andre igjen.** Derfor er `platforms: ["ios", "android"]` i
 `app.json` den varige løsningen (levert 2026-09-04) — da expanderer `--platform=all` til kun
 ios+android og web bundles aldri. `--platform ios` fungerer uansett som eksplisitt fallback.
+
+#### 🔴 STEG 4 — VERIFISER PÅ TELEFONEN. Publisering er ikke verifisering.
+
+Tvangslukk appen **to ganger** — `expo-updates` laster ned i bakgrunnen ved én oppstart og
+bytter bundel ved **neste**. Sjekk så **Mer**-skjermen nederst:
+
+- **Commit-hashen** skal være den du publiserte
+- 🔴 **Prosjektlista skal vise PROD-prosjekter.** Ser du et prosjekt som bare finnes på test —
+  det sikreste tegnet — er bundelen forgiftet. Rull tilbake **nå**, ikke feilsøk på telefonen.
+
+#### Tilbakerulling — minutter, ingen byggkvote
+
+```sh
+eas update:rollback
+```
+
+Valgene, i rekkefølge: **Published Update** → **Channel** → **production** → *den nyeste rene
+gruppa* → skriv en melding som sier HVORFOR («ROLLBACK: forrige bundel pekte mot api-test»).
+
+**«Published Update» framfor «Embedded Update»:** den første går til forrige publiserte bundel
+og beholder fiksene i den. Den andre går helt tilbake til JS-en i binæren og kaster dem bort.
+
+> 🔴 **Hendelsen som ga disse fire stegene (2026-09-06).** Cowork ba Kenneth kopiere `.env.test`
+> til `.env.local` for å teste mobil mot test via Expo. Expo Go viste seg inkompatibel (SDK 57
+> mot prosjektets 54), så testen ble aldri kjørt — men **fila ble liggende**, og neste kommando
+> i samme mappe var `eas update --channel production`.
+>
+> Produksjonsbundelen fikk `api-test.sitedoc.no`. Kenneth oppdaget det selv da prosjektlista i
+> produksjonsappen viste testprosjekter: *«hvis dette skjer med A.Markussen er dette skikkelig
+> kritisk.»* Han har rett — 50 ansatte ville ført lovpålagt HMS-dokumentasjon inn i en database
+> som slettes.
+>
+> **Feilen var coworks instruks, ikke Kenneths kjøring:** to kommandoer fra samme mappe, der den
+> første forgiftet den andre. **Lærdommen er ikke «vær forsiktig» — den er at publisering skal
+> ha et målesteg som gjør feilen synlig før den når noen.** Det er steg 2.
 
 ⚠️ **Feilsøkingsfelle vi brukte en time på:** feilen ser ut som en pnpm-oppløsningsfeil og
 ligner `@expo/fingerprint`-feilen fra bygg 52. Det er den ikke. `npx expo export --platform ios`
