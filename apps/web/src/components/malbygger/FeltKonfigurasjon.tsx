@@ -705,10 +705,17 @@ function GrenseKonfig({
                 <span className="text-[10px] text-gray-400">{t("malbygger.betingetGrenseHjelp")}</span>
               </div>
 
-              {/* Varianttabell (grid): én rad per opsjon + fast «Ellers (standard)» */}
+              {/* Intro (vedtak 3): lærer bort modellen FØR utfylling — lys blå infoboks */}
+              <div className="rounded border border-blue-200 bg-blue-50 px-2 py-1.5 text-[11px] leading-relaxed text-gray-600">
+                {krav
+                  ? t("malbygger.variantIntro", { krav })
+                  : t("malbygger.variantIntroUtenKrav")}
+              </div>
+
+              {/* Varianttabell (grid): én rad per opsjon. Satt vs. arvet skilles på FORM. */}
               <div
                 className="grid items-center gap-x-2 gap-y-1.5 rounded border border-gray-200 bg-white p-2"
-                style={{ gridTemplateColumns: `1fr ${kolonner.map(() => "76px").join(" ")}` }}
+                style={{ gridTemplateColumns: `1fr ${kolonner.map(() => "84px").join(" ")}` }}
               >
                 <span className="text-[11px] font-semibold text-gray-500">{t("malbygger.variantValg")}</span>
                 {kolonner.map((k) => (
@@ -722,26 +729,52 @@ function GrenseKonfig({
                   return (
                     <Fragment key={o.value}>
                       <span className="truncate text-[13px] text-gray-900" title={o.label}>{o.label}</span>
-                      {kolonner.map((k) => (
-                        <input
-                          key={k}
-                          type="number"
-                          value={v && v[k] !== undefined ? String(v[k]) : ""}
-                          placeholder={felt(k) !== null ? String(felt(k)) : "—"}
-                          onChange={(ev) => settVariantCelle(o.value, k, ev.target.value)}
-                          className="w-full rounded border border-gray-200 px-2 py-1 text-[13px] text-gray-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                        />
-                      ))}
+                      {kolonner.map((k) => {
+                        const satt = v != null && v[k] !== undefined && v[k] !== null;
+                        return (
+                          // ✕ ligger som søsken ETTER input → input remountes ikke når
+                          // «arvet» blir «satt», og fokus bevares mens man skriver.
+                          <span
+                            key={k}
+                            className={`flex items-center gap-1 rounded border bg-white px-2 py-1 ${
+                              satt ? "border-sitedoc-primary" : "border-dashed border-gray-300"
+                            }`}
+                          >
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              value={satt ? String(v![k]) : ""}
+                              placeholder={variantArvetPlaceholder(felt(k), kravType)}
+                              onChange={(ev) => settVariantCelle(o.value, k, ev.target.value)}
+                              className={`w-full min-w-0 bg-transparent text-[13px] focus:outline-none ${
+                                satt
+                                  ? "font-semibold text-gray-900"
+                                  : "italic text-gray-400 placeholder:italic placeholder:text-gray-400"
+                              }`}
+                            />
+                            {satt && (
+                              <button
+                                type="button"
+                                onClick={() => settVariantCelle(o.value, k, "")}
+                                title={t("malbygger.variantFjernOverstyring")}
+                                className="shrink-0 text-gray-400 hover:text-gray-600"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </span>
+                        );
+                      })}
                     </Fragment>
                   );
                 })}
-                {/* Fast siste rad: arver standard, ikke redigerbar */}
-                <span className="truncate text-[13px] italic text-gray-500">{t("malbygger.variantEllers")}</span>
-                {kolonner.map((k) => (
-                  <span key={k} className="rounded border border-gray-200 bg-gray-100 px-2 py-1 text-[13px] text-gray-500">
-                    {felt(k) !== null ? felt(k) : "—"}
-                  </span>
-                ))}
+              </div>
+
+              {/* «Ellers (standard)» (vedtak 2): tekstlinje under tabellen, ikke en rad */}
+              <div className="px-0.5 text-[11px] leading-relaxed text-gray-500">
+                {krav
+                  ? t("malbygger.variantStandardlinje", { krav })
+                  : t("malbygger.variantStandardlinjeUtenKrav")}
               </div>
 
               {/* Foreldreløse varianter — aldri stille sletting */}
@@ -793,6 +826,18 @@ function formaterGrenseKrav(grense: Grense, kravType: KravType): string {
   if (kravType === "mellom" && grense.min !== null && grense.maks !== null) return `${grense.min}–${grense.maks}${e}`;
   if (kravType === "toleranse" && grense.toleranse !== null) return `± ${grense.toleranse}${e}`;
   return "";
+}
+
+// Placeholder for en arvet (ikke overstyrt) variantcelle: standardens symbolform for
+// kolonnens kravtype, uten enhet (enheten står i kolonneoverskriften). «≤ 10» for høyst,
+// «≥»/«±» for minst/toleranse; bare tall for «mellom» (Fra/og — symbol gir ikke mening).
+// «—» når feltet ikke har noe standardtall å arve.
+function variantArvetPlaceholder(standardVerdi: number | null, kravType: KravType): string {
+  if (standardVerdi === null) return "—";
+  if (kravType === "minst") return `≥ ${standardVerdi}`;
+  if (kravType === "hoyst") return `≤ ${standardVerdi}`;
+  if (kravType === "toleranse") return `± ${standardVerdi}`;
+  return String(standardVerdi);
 }
 
 // Kompakt tallvisning for en foreldreløs variant (de tallene den overstyrer).
