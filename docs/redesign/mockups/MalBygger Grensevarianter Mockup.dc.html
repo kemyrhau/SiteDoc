@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; background: #e5e7eb; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #1e40af; } a:hover { color: #1e3a8a; }
+</style>
+</helmet>
+<div style="padding: 24px 16px 48px; max-width: 1280px; margin: 0 auto;">
+  <div style="margin-bottom: 16px;">
+    <div style="font-size: 18px; font-weight: 700; color: #111827;">MalBygger — grense-konfig for Vei B (høyre panel, faktisk bredde 288px)</div>
+    <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Tre tilstander av samme blokk i FeltKonfigurasjon. Panel A er interaktivt: bytt kravtype og se felt + kvitteringslinje endre seg.</div>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+    <div style="width: 288px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">A · Standard — kravtype-nedtrekk (interaktiv)</div>
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div>
+          <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Konfigurasjon</div>
+          <div style="font-size: 12px; color: #9ca3af; margin-top: 2px;">Desimaltall</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; font-weight: 500; color: #4b5563;">Etikett</span>
+          <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827;">Avvik fra prosjektert høyde</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; font-weight: 500; color: #4b5563;">Krav til verdien</span>
+          <select value="{{ kravType }}" onChange="{{ settKravType }}" style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827;">
+            <option value="ingen">Ingen krav</option>
+            <option value="minst">Minst … (minimum)</option>
+            <option value="hoyst">Høyst … (maksimum)</option>
+            <option value="mellom">Mellom … og …</option>
+            <option value="toleranse">Innenfor ± … (toleranse)</option>
+          </select>
+        </div>
+        <sc-if value="{{ harKrav }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+              <span style="font-size: 12px; font-weight: 500; color: #4b5563;">{{ tallLabel1 }}</span>
+              <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827;">10</span>
+            </div>
+            <sc-if value="{{ toTall }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+                <span style="font-size: 12px; font-weight: 500; color: #4b5563;">og</span>
+                <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827;">15</span>
+              </div>
+            </sc-if>
+            <div style="display: flex; flex-direction: column; gap: 4px; width: 72px;">
+              <span style="font-size: 12px; font-weight: 500; color: #4b5563;">Enhet</span>
+              <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827;">mm</span>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: #6b7280; line-height: 1.5; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px;">{{ kvittering }}</div>
+        </sc-if>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; font-weight: 500; color: #4b5563;">Desimaler</span>
+          <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827; width: 64px;">1</span>
+        </div>
+        <sc-if value="{{ harKrav }}" hint-placeholder-val="{{ true }}">
+          <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; color: #374151;">
+            <input type="checkbox" style="margin-top: 2px;"></input>
+            <span>Grensen avhenger av et valg</span>
+          </label>
+          <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; color: #374151;">
+            <input type="checkbox" style="margin-top: 2px;"></input>
+            <span>Vis felt ved verdi utenfor krav</span>
+          </label>
+        </sc-if>
+      </div>
+      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">Erstatter dagens fire frie tallfelt (min/maks/toleranse/desimaler). Kun tallene kravtypen trenger vises. «Ingen krav» skjuler også de to bryterne — de gir bare mening med krav.</div>
+    </div>
+
+    <div style="width: 288px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">B · Grensen avhenger av et valg (Vei B)</div>
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; font-weight: 500; color: #4b5563;">Krav til verdien</span>
+          <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827;">Høyst … (maksimum) ▾</span>
+        </div>
+        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; color: #374151;">
+          <input type="checkbox" checked="{{ true }}" readOnly="{{ true }}" style="margin-top: 2px;"></input>
+          <span style="font-weight: 600;">Grensen avhenger av et valg</span>
+        </label>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 12px; font-weight: 500; color: #4b5563;">Styrende felt</span>
+          <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827;">Underlagstype (liste, ett valg) ▾</span>
+          <span style="font-size: 10px; color: #9ca3af;">Kun liste-felt (ett valg) som står før dette feltet</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: grid; grid-template-columns: 1fr 76px; gap: 6px; align-items: center;">
+            <span style="font-size: 11px; font-weight: 600; color: #6b7280;">Valg</span>
+            <span style="font-size: 11px; font-weight: 600; color: #6b7280;">Høyst (mm)</span>
+            <span style="font-size: 13px; color: #111827;">Komprimert pukk</span>
+            <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #111827;">10</span>
+            <span style="font-size: 13px; color: #111827;">Sprengsteinsfylling</span>
+            <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #111827;">25</span>
+            <span style="font-size: 13px; color: #111827;">Leirholdig grunn</span>
+            <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #9ca3af;">—</span>
+            <span style="font-size: 13px; color: #6b7280; font-style: italic;">Ellers (standard)</span>
+            <span style="background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #6b7280;">10</span>
+          </div>
+          <div style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 6px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; color: #b45309;">«Leire» finnes ikke lenger i Underlagstype · 8</span>
+            <span role="button" style="font-size: 12px; color: #b45309; font-weight: 700; cursor: pointer;">Fjern</span>
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #6b7280; line-height: 1.5; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px;">Komprimert pukk: ≤ 10 mm · Sprengsteinsfylling: ≤ 25 mm · ellers ≤ 10 mm</div>
+      </div>
+      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">Kravtypen er felles for feltet — variantene overstyrer bare tallene. Én rad per valg i styrende felt; tom celle arver standard. Omdøpt/slettet valg blir stående som merket rad med Fjern — aldri stille sletting.</div>
+    </div>
+
+    <div style="width: 288px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">C · Avviksfelt-utløser</div>
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 14px; color: #374151;">
+          <input type="checkbox" checked="{{ true }}" readOnly="{{ true }}" style="margin-top: 2px;"></input>
+          <span style="font-weight: 600;">Vis felt ved verdi utenfor krav</span>
+        </label>
+        <div style="font-size: 11px; color: #6b7280; line-height: 1.5;">Feltet får en betingelses-sone i midtkolonnen — dra inn feltene som skal vises ved avvik, som for valglister.</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-left: 10px; border-left: 2px solid #fcd34d;">
+          <span style="font-size: 13px; color: #111827;">↳ Årsak til avvik <span style="color: #9ca3af;">(liste, ett valg)</span></span>
+          <span style="font-size: 13px; color: #111827;">↳ Tiltak <span style="color: #9ca3af;">(tekstfelt)</span></span>
+        </div>
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">Betingelse</span>
+          <div style="font-size: 13px; color: #4b5563;">Utløses av: <span style="background: #fef3c7; color: #b45309; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600;">Utenfor krav</span></div>
+          <div style="font-size: 13px; color: #6b7280;">Betingede felter: 2</div>
+          <span role="button" style="border: 1px solid #d1d5db; background: #ffffff; border-radius: 6px; padding: 6px 0; text-align: center; font-size: 13px; color: #374151; cursor: pointer;">Fjern betingelse</span>
+        </div>
+        <span role="button" style="background: #1e40af; color: #ffffff; border-radius: 6px; padding: 8px 0; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer;">Lagre endringer</span>
+      </div>
+      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">Ny utløsertype ved siden av dagens trigger-verdier: tallfeltet blir kontainer, barna er vanlige malobjekter (parentId — mekanikken finnes). Amber i betingelses-sonen skiller den fra valgliste-blå. Veiledende semantikk uendret — blokkerer aldri innsending.</div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1020, &quot;height&quot;: 900}}">
+class Component extends DCLogic {
+  state = { kravType: "hoyst" };
+  renderVals() {
+    const k = this.state.kravType;
+    const tekster = {
+      ingen: "",
+      minst: "Vises som «≥ 10 mm» — avvik når målt verdi er under 10.",
+      hoyst: "Vises som «≤ 10 mm» — avvik når målt verdi er over 10.",
+      mellom: "Vises som «10–15 mm» — avvik når målt verdi er utenfor intervallet.",
+      toleranse: "Vises som «± 10 mm» — avvik når verdien avviker mer enn 10 fra 0.",
+    };
+    return {
+      kravType: k,
+      harKrav: k !== "ingen",
+      toTall: k === "mellom",
+      tallLabel1: k === "minst" ? "Minst" : k === "hoyst" ? "Høyst" : k === "mellom" ? "Fra" : "±",
+      kvittering: tekster[k],
+      settKravType: (e) => this.setState({ kravType: e.target.value }),
+    };
+  }
+}
+</script>
+</body>
+</html>

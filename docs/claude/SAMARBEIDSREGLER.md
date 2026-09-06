@@ -930,6 +930,43 @@ neste leser, og da slutter noen å måle. Alle tre tilfellene ble funnet ved må
 lesing. Den sterkeste formen er en garanti ved konstruksjon — som `SheetUtleggVedlegg`, der svak
 FK uten `@relation` gjør vedlegg umulig å dra med. Da er kommentaren en observasjon, ikke et løfte.
 
+### 🔴 DELT LOGIKK SKAL NAVNGIS I ORDREN — ellers fødes den femte kopien (2026-09-06)
+
+**Regelen:** enhver ordre som lar en flate **lese eller tolke mal-config** skal **navngi den
+delte kilden i `@sitedoc/shared`**. Finnes den ikke der — er **utpakking til shared et eget,
+gatet trinn i ordren**, før funksjonaliteten bygges.
+
+**Mekanismen, ikke bare prinsippet** (regler uten mekanisme utføres ikke):
+
+1. **Cowork navngir kilden i ordren.** Ikke «bruk den delte funksjonen» — filnavn og
+   funksjonsnavn.
+2. **Finnes den ikke: trinn 0.** Utpakkingen gates for seg, og ordren sier eksplisitt at de
+   gamle kopiene **slettes i samme trinn** — ikke «importeres etter hvert».
+3. **En ny kopi i senere trinn er ordre-brudd**, ikke en skjønnssak.
+4. **Sanksjonert tvilling krever paritetstest.** `@sitedoc/pdf` har dokumenterte
+   null-avhengigheter og skal speile — men speilet får en test som kjører begge
+   implementasjonene på samme inndata og krever likt svar (mønster: `85c8ecd5`).
+
+🔴 **Mønsteret, målt fire ganger på ett døgn 05/06.09:**
+
+| Kopi-klasse | Antall | Ryddet i |
+|---|---|---|
+| Endringslogg-generatoren | 3 håndspeilede skrivestier | `315f2515` |
+| `TILBEHOR_REN_FJERNING` | 2 sett (web 4 typer, mobil 5) | `85c8ecd5` |
+| PDF-tvillingen `signaturVerdi` | 2, uten vakt | paritetstest `53890c1b` |
+| `normaliserOpsjon` | **4** — web, PDF, og to lokale funksjoner i mobilkomponenter | trinn 0 i `feat/grenseresolver` |
+
+**Årsaken er alltid den samme:** delt logikk **fødes i en komponent** fordi den trengtes der
+først, og **kopieres når neste flate trenger den** — fordi det er billigere i øyeblikket enn å
+pakke den ut.
+
+**Hvorfor det ikke er kosmetikk:** `normaliserOpsjon` skulle bære variant-matching i
+grense-resolveren. Matcher resolveren med én normalisering mens en flate **viser** opsjonene med
+en annen, løses grensen mot en verdi brukeren ikke ser — **stille feil i et dokument byggherren
+mottar.** Kopiene er ikke like lenge.
+
+*(Fabel foreslo regelen etter den fjerde; formuleringen er coworks.)*
+
 ### 🔴 Kollisjonssjekken gjelder ORDRER, ikke bare arbeidstrær (2026-08-23)
 
 Cowork ga dokgen og kontrollplan hver sin ordre samme kveld — «tillegg/utlegg i dagskortet» og

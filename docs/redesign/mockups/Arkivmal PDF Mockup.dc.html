@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<style>
+doc-page:not(:defined){visibility:hidden}
+body{margin:0;font-family:'IBM Plex Sans',sans-serif}
+a{color:#26327e}a:hover{color:#1a2258}
+</style>
+<script src="./doc-page.js"></script>
+<script src="./kick.js"></script>
+</helmet>
+<doc-page size="a4">
+<section class="page" id="p1" data-screen-label="Sjekkliste-PDF">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:38px;height:38px;border-radius:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">SiteDoc AS</div>
+          <div style="font-size:9.5px;color:#6b7280">Org.nr 923 456 789</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">Sjekkliste</div>
+        <div style="font-size:12.5px;font-weight:700;line-height:1.3">Betongarbeider — dekke 3. etasje</div>
+        <div style="font-size:9.5px;color:#6b7280">Dokumentnr. SJ-2026-0142</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 20px">
+      <div><span style="color:#6b7280">Prosjekt</span><br><strong>998 Instinniforbotn</strong></div>
+      <div><span style="color:#6b7280">Byggeplass</span><br><strong>Blokk B — Instinniforbotn</strong></div>
+      <div><span style="color:#6b7280">Byggherre</span><br><strong>Fjordbygg Eiendom AS</strong></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1.1fr 0.9fr 0.9fr 1.1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 16px;background:#f5f6f9">
+      <div><span style="color:#6b7280">Status</span><br><strong style="color:#15803d">Godkjent</strong></div>
+      <div><span style="color:#6b7280">Utført av</span><br><strong>Mathias Berg</strong> <span style="color:#6b7280">(bas)</span></div>
+      <div><span style="color:#6b7280">Utført dato</span><br><strong>07.08.2026</strong></div>
+      <div><span style="color:#6b7280">Godkjent dato</span><br><strong>08.08.2026</strong></div>
+      <div><span style="color:#6b7280">Sist endret</span><br><strong>Silje Havstad</strong> <span style="color:#6b7280">08.08.2026</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border:1px solid #c7cbd4;border-top:none;padding:8px 14px">
+      <div style="border:1px solid #e2e4ea;overflow:hidden">
+        <div style="position:relative;aspect-ratio:14/9;background:#e8ede6">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9px">Hele tegningen gjengis her</div>
+          <div style="position:absolute;left:48%;top:56%;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+          <div style="position:absolute;left:38%;top:38%;width:20%;height:36%;border:1.5px solid #f87171"></div>
+        </div>
+        <div style="font-size:8.5px;color:#6b7280;padding:2px 5px">Lokasjon — oversikt · Skole · sjømannskolen</div>
+      </div>
+      <div style="border:1px solid #e2e4ea;overflow:hidden">
+        <div style="position:relative;aspect-ratio:14/9;background:#dfe5dc">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9px">Innzoomet utsnitt rundt markøren</div>
+          <div style="position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+        </div>
+        <div style="font-size:8.5px;color:#6b7280;padding:2px 5px">Detalj — 4× rundt markøren</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:10.5px">
+      <thead>
+        <tr style="text-align:left;color:#26327e">
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:24px">#</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px">Kontrollpunkt</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:64px">Resultat</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:38%">Kommentar / dokumentasjon</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">1</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Armering iht. arbeidstegning K30-201 rev. C</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#15803d">OK</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Kontrollmålt overdekning 35 mm</td></tr>
+        <tr><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">2</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Utsparinger og gjennomføringer plassert og sikret</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#15803d">OK</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">—</td></tr>
+        <tr>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">3</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Forskaling rengjort og fri for is/vann før støp</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#b91c1c">Avvik</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Vann i felt B3, lenset før støp. Godkjent etter retting 08.08.</td>
+        </tr>
+        <tr><td colspan="4" style="padding:4px 8px 10px;border-bottom:1px solid #e2e4ea"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 01 — IMG_4821.jpg · 07.08.2026 09:41</div></div>
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 02 — IMG_4822.jpg · 07.08.2026 09:42</div></div>
+        </div></td></tr>
+        <tr><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">4</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Betongkvalitet B35 M45 bekreftet mot følgeseddel</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#15803d">OK</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Følgeseddel 88412, Unicon</td></tr>
+        <tr><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">5</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Herdetiltak etablert (vintermatter, temperaturlogg)</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#15803d">OK</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Logger 72 t, se vedlegg temperaturlogg.csv</td></tr>
+        
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 11.08.2026 14:32 · dokument-id sj_9f2c41d8</span>
+      <span>Side 1 av 2</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p1b" data-screen-label="Sjekkliste-PDF side 2 — dokumenthistorikk og signaturer">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:8px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:28px;height:28px;border-radius:6px">
+        <div style="font-size:11px;font-weight:700">SiteDoc AS <span style="font-weight:400;color:#6b7280">· Org.nr 923 456 789</span></div>
+      </div>
+      <div style="text-align:right;font-size:9.5px;color:#6b7280">Sjekkliste — Betongarbeider dekke 3. etasje · <strong style="color:#111827">SJ-2026-0142</strong> · 998 Instinniforbotn</div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Dokumenthistorikk</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px">
+        <thead>
+          <tr style="text-align:left;color:#6b7280">
+            <th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:104px">Tidspunkt</th>
+            <th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:120px">Hvem</th>
+            <th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500">Hendelse</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">05.08.2026 07:12</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Mathias Berg <span style="color:#9ca3af">(bas)</span></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151">Opprettet fra mal «Betongarbeider»</td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">05.08.2026 11:10</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Mathias Berg <span style="color:#9ca3af">(bas)</span></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151">Sendt til godkjenning <span style="color:#9ca3af">(6 feltendringer)</span></td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">06.08.2026 08:20</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Silje Havstad <span style="color:#9ca3af">(anleggsleder)</span></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151"><span style="color:#b91c1c;font-weight:600">Returnert</span> — «Punkt 1: overdekning må re-måles» <span style="color:#9ca3af">(1 feltendring)</span></td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">07.08.2026 14:52</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Mathias Berg <span style="color:#9ca3af">(bas)</span></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151">Sendt til godkjenning · signert <span style="color:#9ca3af">(4 feltendringer)</span></td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">08.08.2026 09:14</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Silje Havstad <span style="color:#9ca3af">(anleggsleder)</span></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151"><span style="color:#15803d;font-weight:600">Godkjent</span> · signert <span style="color:#9ca3af">(1 feltendring samme dag)</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:14px;padding:10px 12px;border:1px dashed #c7cbd4;font-size:9.5px;color:#6b7280;line-height:1.5"><strong style="color:#111827">Endringslogg utgår fra PDF-en</strong> — Kenneth-vedtak 22.08: feltendringene (hva ble endret, når, av hvem) er et UI-verktøy for å undersøke konflikt i utfyllingen og skrives aldri ut. Dokumenthistorikken over — flytsporet fra hvem til hvem, med tilhørende kommentar — skrives alltid. Feltendrings-tallene i historikkradene beholdes, men uten «se Endringslogg»-henvisning: tallet sier at noe ble endret før sending; henvisningen ville pekt på en seksjon som ikke finnes.</div>
+    <div style="display:flex;gap:10px;margin-top:auto;padding-top:16px">
+      <div style="flex:1">
+        <div style="font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px">Mathias Berg</div>
+        <div style="border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280">Utført av — Mathias Berg, bas · signert i SiteDoc 07.08.2026 14:52</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px">Silje Havstad</div>
+        <div style="border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280">Godkjent av — Silje Havstad, anleggsleder · signert i SiteDoc 08.08.2026 09:14</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:10px;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 11.08.2026 14:32 · dokument-id sj_9f2c41d8</span>
+      <span>Side 2 av 2</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p1c" data-screen-label="Befaringsrapport-PDF — punkt med tekst og tre bilderader">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:8px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:28px;height:28px;border-radius:6px">
+        <div style="font-size:11px;font-weight:700">SiteDoc AS <span style="font-weight:400;color:#6b7280">· Org.nr 923 456 789</span></div>
+      </div>
+      <div style="text-align:right;font-size:9.5px;color:#6b7280">Befaringsrapport — Lakselv Lufthavn · <strong style="color:#111827">BEF-2026-001</strong></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:14px;font-size:10.5px">
+      <thead>
+        <tr style="text-align:left;color:#26327e">
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:24px">#</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px">Observasjon</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:64px">Resultat</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:38%">Kommentar / dokumentasjon</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">7</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Drenering langs taksebane C — tilstand etter vårsmelting</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#b91c1c">Avvik</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Setninger i grøftekant over ~40 m, stedvis stående vann mot kum K7. Dokumentert med seks bilder langs strekket. Utbedring meldt HE.</td>
+        </tr>
+        <tr><td colspan="4" style="padding:4px 8px 10px;border-bottom:1px solid #e2e4ea"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 01 — IMG_5102.jpg · 14.08.2026 10:12</div></div>
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 02 — IMG_5103.jpg · 14.08.2026 10:13</div></div>
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 03 — IMG_5104.jpg · 14.08.2026 10:15</div></div>
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 04 — IMG_5106.jpg · 14.08.2026 10:18</div></div>
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 05 — IMG_5109.jpg · 14.08.2026 10:24</div></div>
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 06 — IMG_5111.jpg · 14.08.2026 10:26</div></div>
+        </div></td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 15.08.2026 · dokument-id bef_2c88a1e4</span>
+      <span>Side 2 av 3</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p3" data-screen-label="Sjekkliste-PDF kompakt én side — vedtatt innhold: historikk alltid, endringslogg aldri">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px">
+      <div>
+        <div style="font-size:13px;font-weight:700">SiteDoc AS</div>
+        <div style="font-size:9.5px;color:#6b7280">Org.nr 923 456 789</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">Sjekkliste</div>
+        <div style="font-size:13px;font-weight:700">Betongarbeider — dekke 3. etasje</div>
+        <div style="font-size:9.5px;color:#6b7280">Dokumentnr. SJ-2026-0142</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 20px">
+      <div><span style="color:#6b7280">Prosjekt</span><br><strong>SD-998</strong></div>
+      <div><span style="color:#6b7280">Byggherre</span><br><strong>Fjordbygg Eiendom AS</strong></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 20px;background:#f5f6f9">
+      <div><span style="color:#6b7280">Status</span><br><strong style="color:#15803d">Godkjent</strong></div>
+      <div><span style="color:#6b7280">Utført av</span><br><strong>Mathias Berg</strong> <span style="color:#6b7280">(bas)</span></div>
+      <div><span style="color:#6b7280">Utført dato</span><br><strong>07.08.2026</strong></div>
+      <div><span style="color:#6b7280">Godkjent dato</span><br><strong>08.08.2026</strong></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border:1px solid #c7cbd4;border-top:none;padding:8px 14px">
+      <div style="border:1px solid #e2e4ea;overflow:hidden">
+        <div style="position:relative;aspect-ratio:14/9;background:#e8ede6">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9px">Hele tegningen gjengis her</div>
+          <div style="position:absolute;left:48%;top:56%;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+          <div style="position:absolute;left:38%;top:38%;width:20%;height:36%;border:1.5px solid #f87171"></div>
+        </div>
+        <div style="font-size:8.5px;color:#6b7280;padding:2px 5px">Lokasjon — oversikt · Skole · sjømannskolen</div>
+      </div>
+      <div style="border:1px solid #e2e4ea;overflow:hidden">
+        <div style="position:relative;aspect-ratio:14/9;background:#dfe5dc">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9px">Innzoomet utsnitt rundt markøren</div>
+          <div style="position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+        </div>
+        <div style="font-size:8.5px;color:#6b7280;padding:2px 5px">Detalj — 4× rundt markøren</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:10.5px">
+      <thead>
+        <tr style="text-align:left;color:#26327e">
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:24px">#</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px">Kontrollpunkt</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:64px">Resultat</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:38%">Kommentar / dokumentasjon</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">1</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Armering iht. arbeidstegning K30-201 rev. C</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#15803d">OK</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Kontrollmålt overdekning 35 mm</td></tr>
+        <tr><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">2</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Utsparinger og gjennomføringer plassert og sikret</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#15803d">OK</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">—</td></tr>
+        <tr>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">3</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Forskaling rengjort og fri for is/vann før støp</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#b91c1c">Avvik</td>
+          <td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Vann i felt B3, lenset før støp. Godkjent etter retting 08.08.</td>
+        </tr>
+        <tr><td colspan="4" style="padding:4px 8px 4px;border-bottom:1px solid #e2e4ea"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 01 — IMG_4821.jpg · 07.08.2026 09:41</div></div>
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 02 — IMG_4822.jpg · 07.08.2026 09:42</div></div>
+        </div></td></tr>
+        <tr><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">4</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Betongkvalitet B35 M45 bekreftet mot følgeseddel</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#15803d">OK</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Følgeseddel 88412, Unicon</td></tr>
+        <tr><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#6b7280">5</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px">Herdetiltak etablert (vintermatter, temperaturlogg)</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;font-weight:600;color:#15803d">OK</td><td style="border-bottom:1px solid #e2e4ea;padding:6px 8px;color:#374151">Logger 72 t, se vedlegg temperaturlogg.csv</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:6px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Dokumenthistorikk</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px">
+        <tbody>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#6b7280;width:104px">05.08.2026 07:12</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;width:120px">Mathias Berg <span style="color:#9ca3af">(bas)</span></td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#374151">Opprettet fra mal «Betongarbeider»</td></tr>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">05.08.2026 11:10</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4">Mathias Berg <span style="color:#9ca3af">(bas)</span></td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#374151">Sendt til godkjenning</td></tr>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">06.08.2026 08:20</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4">Silje Havstad <span style="color:#9ca3af">(anleggsleder)</span></td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#374151"><span style="color:#b91c1c;font-weight:600">Returnert</span> — «Punkt 1: overdekning må re-måles»</td></tr>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">07.08.2026 14:52</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4">Mathias Berg <span style="color:#9ca3af">(bas)</span></td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#374151">Sendt til godkjenning · signert</td></tr>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">08.08.2026 09:14</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4">Silje Havstad <span style="color:#9ca3af">(anleggsleder)</span></td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;color:#374151"><span style="color:#15803d;font-weight:600">Godkjent</span> · signert</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:auto;padding-top:6px">
+      <div style="flex:1">
+        <div style="font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px">Mathias Berg</div>
+        <div style="border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280">Utført av — Mathias Berg, bas · signert i SiteDoc 07.08.2026 14:52</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px">Silje Havstad</div>
+        <div style="border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280">Godkjent av — Silje Havstad, anleggsleder · signert i SiteDoc 08.08.2026 09:14</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:6px;padding-top:4px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 11.08.2026 14:32 · dokument-id sj_9f2c41d8</span>
+      <span>Side 1 av 1</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p4" data-screen-label="Utskriftsform: dokumentliste">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:38px;height:38px;border-radius:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">SiteDoc AS</div>
+          <div style="font-size:9.5px;color:#6b7280">Org.nr 923 456 789</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">Sjekklister — dokumentliste</div>
+        <div style="font-size:13px;font-weight:700">998 Instinniforbotn · Blokk B</div>
+        <div style="font-size:9.5px;color:#6b7280">Byggherre Fjordbygg Eiendom AS · 12 dokumenter · uttrekk 12.08.2026</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;border:1px solid #c7cbd4">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#f5f6f9;padding:6px 12px;border-bottom:1px solid #e2e4ea">
+        <div><strong>SJ-2026-0142</strong> · Betongarbeider — dekke 3. etasje <span style="color:#15803d;font-weight:600;margin-left:8px">Godkjent</span></div>
+        <div style="font-size:9.5px;color:#6b7280">Utført Mathias Berg 07.08 · godkjent Silje Havstad 08.08 · signert i SiteDoc</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:9.5px">
+        <tbody>
+          <tr><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#6b7280;width:20px">1</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4">Armering iht. arbeidstegning K30-201 rev. C</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d;width:56px">OK</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#374151;width:40%">Kontrollmålt overdekning 35 mm</td></tr>
+          <tr><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#6b7280">2</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4">Utsparinger og gjennomføringer plassert og sikret</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d">OK</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#374151">—</td></tr>
+          <tr><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#6b7280">3</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4">Forskaling rengjort og fri for is/vann før støp</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;font-weight:600;color:#b91c1c">Avvik</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#374151">Vann i felt B3, lenset før støp. Godkjent etter retting 08.08.</td></tr>
+          <tr><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#6b7280">4</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4">Betongkvalitet B35 M45 bekreftet mot følgeseddel</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d">OK</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#374151">Følgeseddel 88412, Unicon</td></tr>
+          <tr><td style="padding:4px 12px;color:#6b7280">5</td><td style="padding:4px 12px">Herdetiltak etablert (vintermatter, temperaturlogg)</td><td style="padding:4px 12px;font-weight:600;color:#15803d">OK</td><td style="padding:4px 12px;color:#374151">Logger 72 t, se vedlegg</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;border:1px solid #c7cbd4">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#f5f6f9;padding:6px 12px;border-bottom:1px solid #e2e4ea">
+        <div><strong>SJ-2026-0147</strong> · Betongarbeider — dekke 4. etasje <span style="color:#b45309;font-weight:600;margin-left:8px">Til godkjenning</span> <span style="font-size:9px;font-weight:600;color:#26327e;background:#eef0f8;border-radius:999px;padding:2px 8px;margin-left:6px">HOS SILJE HAVSTAD</span></div>
+        <div style="font-size:9.5px;color:#6b7280">Utført Mathias Berg 11.08 · sendt 11.08 15:10</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:9.5px">
+        <tbody>
+          <tr><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#6b7280;width:20px">1</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4">Armering iht. arbeidstegning K30-202 rev. A</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d;width:56px">OK</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#374151;width:40%">Kontrollmålt overdekning 34 mm</td></tr>
+          <tr><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#6b7280">2</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4">Utsparinger og gjennomføringer plassert og sikret</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d">OK</td><td style="padding:4px 12px;border-bottom:1px solid #eef0f4;color:#374151">—</td></tr>
+          <tr><td style="padding:4px 12px;color:#6b7280">3</td><td style="padding:4px 12px">Forskaling rengjort og fri for is/vann før støp</td><td style="padding:4px 12px;font-weight:600;color:#15803d">OK</td><td style="padding:4px 12px;color:#374151">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;border:1px dashed #c7cbd4;color:#9ca3af;font-size:9.5px;text-align:center">… 10 flere dokumenter følger på neste sider — samme kompaktform, aldri endringslogg eller signaturblokk</div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 12.08.2026 · arbeidskopi — arkivversjon skrives ut per dokument</span>
+      <span>Side 1 av 6</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p5" data-screen-label="Utskriftsform: tabellrapport">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:38px;height:38px;border-radius:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">SiteDoc AS</div>
+          <div style="font-size:9.5px;color:#6b7280">Org.nr 923 456 789</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">Sjekklister — tabellrapport</div>
+        <div style="font-size:13px;font-weight:700">998 Instinniforbotn · Blokk B</div>
+        <div style="font-size:9.5px;color:#6b7280">Byggherre Fjordbygg Eiendom AS · 12 dokumenter · uttrekk 12.08.2026</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:9.5px">
+      <thead>
+        <tr style="text-align:left;color:#26327e">
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:70px">Dok.nr</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px">Tittel</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:76px">Status</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:96px">Hos</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:92px">Utført av</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:54px">Dato</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:74px">Bilde</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">SJ-0139</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Betongarbeider — dekke 2. etasje</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Godkjent</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#9ca3af">Arkivert</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Mathias Berg</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">31.07</td><td style="padding:4px 8px;border-bottom:1px solid #e2e4ea"><div style="width:64px;height:44px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Første bilde</div></td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">SJ-0142</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Betongarbeider — dekke 3. etasje</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Godkjent</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#9ca3af">Arkivert</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Mathias Berg</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">07.08</td><td style="padding:4px 8px;border-bottom:1px solid #e2e4ea"><div style="width:64px;height:44px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Første bilde</div></td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">SJ-0144</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Utsparinger — teknisk rom U1</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#b91c1c">Returnert</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#26327e">Jonas Vik</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Jonas Vik</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">09.08</td><td style="padding:4px 8px;border-bottom:1px solid #e2e4ea"><div style="width:64px;height:44px;border:1px dashed #d6d9e0;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Ingen bilde</div></td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">SJ-0147</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Betongarbeider — dekke 4. etasje</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#b45309">Til godkj.</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#26327e">Silje Havstad</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Mathias Berg</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">11.08</td><td style="padding:4px 8px;border-bottom:1px solid #e2e4ea"><div style="width:64px;height:44px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Første bilde</div></td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">SJ-0148</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Herdetiltak — dekke 4. etasje</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">Under arbeid</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#26327e">Mathias Berg</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">—</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">—</td><td style="padding:4px 8px;border-bottom:1px solid #e2e4ea"><div style="width:64px;height:44px;border:1px dashed #d6d9e0;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Ingen bilde</div></td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">SJ-0151</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Armering — trapperom akse C</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Godkjent</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#9ca3af">Arkivert</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Jonas Vik</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">10.08</td><td style="padding:4px 8px;border-bottom:1px solid #e2e4ea"><div style="width:64px;height:44px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Første bilde</div></td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:8px;padding:6px 10px;border:1px dashed #c7cbd4;color:#9ca3af;font-size:9.5px;text-align:center">… 6 flere rader — maks 10 rader per A4-side med bildekolonne, kolonnehode gjentas per side</div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 12.08.2026 · statusrapport — arkivversjon skrives ut per dokument</span>
+      <span>Side 1 av 2</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p2" data-screen-label="RUH-PDF">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:38px;height:38px;border-radius:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">SiteDoc AS</div>
+          <div style="font-size:9.5px;color:#6b7280">Org.nr 923 456 789</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">HMS — Rapport om uønsket hendelse</div>
+        <div style="font-size:13px;font-weight:700">Fall av materiell fra stillas</div>
+        <div style="font-size:9.5px;color:#6b7280">Dokumentnr. RUH-2026-0037</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 20px">
+      <div><span style="color:#6b7280">Prosjekt</span><br><strong>998 Instinniforbotn</strong></div>
+      <div><span style="color:#6b7280">Byggeplass</span><br><strong>Blokk B — Instinniforbotn</strong></div>
+      <div><span style="color:#6b7280">Byggherre</span><br><strong>Fjordbygg Eiendom AS</strong></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 20px;background:#f5f6f9">
+      <div><span style="color:#6b7280">Status</span><br><strong style="color:#15803d">Lukket</strong></div>
+      <div><span style="color:#6b7280">Meldt av</span><br><strong>Jonas Vik</strong> <span style="color:#6b7280">(tømrer)</span></div>
+      <div><span style="color:#6b7280">Hendelsesdato</span><br><strong>05.08.2026 · 11:20</strong></div>
+      <div><span style="color:#6b7280">Lukket dato</span><br><strong>09.08.2026</strong></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;border:1px solid #c7cbd4;border-top:none;padding:8px 14px">
+      <div style="border:1px solid #e2e4ea;overflow:hidden">
+        <div style="position:relative;aspect-ratio:14/9;background:#e8ede6">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9px">Hele tegningen gjengis her</div>
+          <div style="position:absolute;left:41%;top:52%;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+          <div style="position:absolute;left:31%;top:34%;width:20%;height:36%;border:1.5px solid #f87171"></div>
+        </div>
+        <div style="font-size:8.5px;color:#6b7280;padding:2px 5px">Lokasjon — oversikt · Blokk B, fasade sør</div>
+      </div>
+      <div style="border:1px solid #e2e4ea;overflow:hidden">
+        <div style="position:relative;aspect-ratio:14/9;background:#dfe5dc">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9px">Innzoomet utsnitt rundt markøren</div>
+          <div style="position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+        </div>
+        <div style="font-size:8.5px;color:#6b7280;padding:2px 5px">Detalj — 4× rundt markøren</div>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Beskrivelse av hendelsen</div>
+      <p style="margin:8px 0 0;color:#374151">Under riving av forskaling i 2. etasje falt en bordbit (ca. 1,2 m) fra stillasnivå 2 og landet ca. 1,5 m fra passerende personell på bakkenivå. Ingen personskade. Sperringen under arbeidsområdet var delvis fjernet for varelevering og ikke satt tilbake.</p>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Strakstiltak</div>
+      <p style="margin:8px 0 0;color:#374151">Arbeidet stanset. Sperring reetablert og området under stillaset avstengt. Verneombud varslet umiddelbart.</p>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Korrigerende tiltak</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px">
+        <thead><tr style="text-align:left;color:#6b7280"><th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500">Tiltak</th><th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:120px">Ansvarlig</th><th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:80px">Frist</th><th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:70px">Status</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#374151">Rutine for midlertidig fjerning av sperring: krever avklaring med bas før fjerning</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Silje Havstad</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">08.08.2026</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Utført</td></tr>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#374151">Gjennomgang av hendelsen på ukesmøte med alle lag</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Mathias Berg</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">12.08.2026</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Utført</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <div style="flex:1;border:1px solid #e2e4ea;padding:8px 10px">
+        <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Bilde — hendelsessted (IMG_5102.jpg)</div>
+        <div style="height:110px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde gjengis her i lesbar størrelse — original følger pakken</div>
+      </div>
+      <div style="flex:1;border:1px solid #e2e4ea;padding:8px 10px">
+        <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Plassering på tegning — K20-102</div>
+        <div style="height:110px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Tegningsutsnitt med markør gjengis her</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:auto;padding-top:16px">
+      <div style="flex:1">
+        <div style="font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px">Jonas Vik</div>
+        <div style="border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280">Meldt av — Jonas Vik, tømrer · registrert i SiteDoc 05.08.2026 11:41</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px">Silje Havstad</div>
+        <div style="border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280">Lukket av — Silje Havstad, HMS-ansvarlig · signert i SiteDoc 09.08.2026 13:07</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:10px;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 11.08.2026 14:32 · dokument-id ruh_c81b22e4</span>
+      <span>Side 1 av 1</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p6" data-screen-label="Malobjekt-revisjon — 26 typer mot felt.ts">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:8px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:28px;height:28px;border-radius:6px">
+        <div style="font-size:11px;font-weight:700">SiteDoc AS <span style="font-weight:400;color:#6b7280">· Arkivmal — designgrunnlag</span></div>
+      </div>
+      <div style="text-align:right;font-size:9.5px;color:#6b7280">Malobjekt-revisjon · <strong style="color:#111827">alle 26 typer målt mot felt.ts</strong></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:9px">
+      <thead>
+        <tr style="text-align:left;color:#26327e">
+          <th style="border-bottom:2px solid #26327e;padding:4px 6px;width:150px">Malobjekt</th>
+          <th style="border-bottom:2px solid #26327e;padding:4px 6px;width:190px">Dagens arkiv-PDF (målt)</th>
+          <th style="border-bottom:2px solid #26327e;padding:4px 6px">Arkivmal — vedtatt form</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="3" style="padding:4px 6px;background:#f5f6f9;font-weight:700;border-bottom:1px solid #e2e4ea">Tekst</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Overskrift</strong> · heading</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Seksjonslinje med navy understrek — også når alle barn er tomme</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Undertittel</strong> · subtitle</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Mindre grad av samme form</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Tekstfelt</strong> · text_field</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Label + verdi; tom → «Ikke utfylt»</td></tr>
+        <tr><td colspan="3" style="padding:4px 6px;background:#f5f6f9;font-weight:700;border-bottom:1px solid #e2e4ea">Valg</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Enkeltvalg</strong> · list_single</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Valgt label; betingede barnefelt rendres KUN når trigget (som i skjema)</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Flervalg</strong> · list_multi</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Kommaliste av valgte labels</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Trafikklys</strong> · traffic_light</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#15803d;vertical-align:middle"></span> Farget punkt + label; i repeater-celle farget tekst</td></tr>
+        <tr><td colspan="3" style="padding:4px 6px;background:#f5f6f9;font-weight:700;border-bottom:1px solid #e2e4ea">Tall og dato</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Heltall / Desimaltall / Beregning</strong></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Verdi + enhet («35 mm»); norsk `enhet` med `unit`-fallback</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Dato / Dato og tid</strong></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">dd.mm.åååå · hh:mm</td></tr>
+        <tr><td colspan="3" style="padding:4px 6px;background:#f5f6f9;font-weight:700;border-bottom:1px solid #e2e4ea">Person og fil</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Person / Flere personer / Firma</strong></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Navn (kommaliste for flere)</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Vedlegg</strong> · attachments</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Bilderutenett 2 pr. rekke med løpenr + tid; filer som teller; tomt felt vises («Ingen vedlegg»)</td></tr>
+        <tr><td colspan="3" style="padding:4px 6px;background:#f5f6f9;font-weight:700;border-bottom:1px solid #e2e4ea">Spesial</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>BIM / Område / Rom</strong></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Råverdi som tekst</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Vær</strong> · weather</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">«4 °C, lettskyet, Vind 6 m/s»; tomt snapshot → «Ikke registrert» (aldri dagens vær)</td></tr>
+        <tr><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Signatur</strong> · signature</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#15803d">Rendres</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Signaturbilde maks 60px + «Ikke signert»-tom</td></tr>
+        <tr style="background:#fef2f2"><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Repeater</strong> · repeater</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><span style="color:#b91c1c;font-weight:600">Delvis</span> — objektnivå-innhold faller ut (F7)</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Tabellform + <strong>egen blokk «Registrert utenfor rader»</strong> over tabellen — se side «Repeater F7»</td></tr>
+        <tr style="background:#fef2f2"><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Lokasjon</strong> · location</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><span style="color:#b91c1c;font-weight:600">Faller ut</span> — <code style="font-size:8.5px">return ""</code></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Tegningsmarkør (drawingId + posX/Y) — samme form som drawing_position; se «Tegninger i arkivet»</td></tr>
+        <tr style="background:#fef2f2"><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Posisjon i tegning</strong> · drawing_position</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><span style="color:#b91c1c;font-weight:600">Faller ut</span> — renderer finnes i tegning.ts, kalles aldri</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Oversikt + detaljutsnitt (4×) pr. markering — gjenbruk byggTegningPosisjon</td></tr>
+        <tr><td colspan="3" style="padding:4px 6px;background:#f5f6f9;font-weight:700;border-bottom:1px solid #e2e4ea">Instruksjon</td></tr>
+        <tr style="background:#fef2f2"><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Lesetekst / Bilde med tekst</strong></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><span style="color:#b91c1c;font-weight:600">Faller ut</span></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Vises grått som instruksjonskontekst — byggherre skal se hva utfører leste</td></tr>
+        <tr style="background:#fef2f2"><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Video</strong> · video</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><span style="color:#b91c1c;font-weight:600">Faller ut</span></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Referanselinje: tittel + URL (kan ikke gjengis på papir)</td></tr>
+        <tr style="background:#fef2f2"><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><strong>Quiz-spørsmål</strong> · quiz</td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4"><span style="color:#b91c1c;font-weight:600">Faller ut</span></td><td style="padding:3px 6px;border-bottom:1px solid #eef0f4;color:#374151">Spørsmål + avgitt svar + riktig/feil — avgitt svar er dokumentasjonsdata</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:8px;padding:6px 10px;background:#f5f6f9;border-left:none;font-size:9px;color:#6b7280">Rød bakgrunn = innhold som i dag tapes stille i arkiv-PDF-en. Kilde: packages/pdf/src/felt.ts + arkivmal/innhold.ts + arkivmal/repeater.ts, målt 21.08.2026.</div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Arkivmal — designgrunnlag · fabel 21.08.2026</span>
+      <span>Revisjon 1 av 1</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p7" data-screen-label="Tegninger i arkivet — drawing_position og lokasjon">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:8px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:28px;height:28px;border-radius:6px">
+        <div style="font-size:11px;font-weight:700">SiteDoc AS <span style="font-weight:400;color:#6b7280">· Org.nr 923 456 789</span></div>
+      </div>
+      <div style="text-align:right;font-size:9.5px;color:#6b7280">Sjekkliste — Betongarbeider dekke 3. etasje · <strong style="color:#111827">SJ-2026-0142</strong></div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Lokasjon <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#6b7280">— alltid øverst i PDF-en, rett under dokumenthodet</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div style="border:1px solid #e2e4ea;overflow:hidden">
+          <div style="position:relative;aspect-ratio:14/9;background:#e8ede6">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Hele tegningen (georeferert flyfoto) gjengis her</div>
+            <div style="position:absolute;left:48%;top:58%;width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+            <div style="position:absolute;left:36%;top:44%;width:24%;height:28%;border:1.5px solid #f87171"></div>
+          </div>
+          <div style="font-size:9px;color:#6b7280;padding:3px 6px">Oversikt — hele området med punkt og utsnittsramme</div>
+        </div>
+        <div style="border:1px solid #e2e4ea;overflow:hidden">
+          <div style="position:relative;aspect-ratio:14/9;background:#dfe5dc">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Innzoomet utsnitt rundt markøren</div>
+            <div style="position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+          </div>
+          <div style="font-size:9px;color:#6b7280;padding:3px 6px">Detalj — Skole · sjømannskolen</div>
+        </div>
+      </div>
+      <div style="font-size:9px;color:#6b7280;margin-top:4px">Bygning: Alle bygninger · Byggeplass: Skole · Tegning: Situasjonsplan (georeferert flyfoto). Dokument-lokasjon ER en tegningsmarkør (drawingId + positionX/Y) — ingen GPS-koordinat finnes eller skrives ut. Uten markering utelates hele seksjonen — aldri en tom boks.</div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Punkt 3 — Posisjon i tegning <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#6b7280">— skrives ut når markering finnes; ellers utelates seksjonen</span></div>
+      <div style="font-size:9.5px;font-weight:500;color:#374151;margin:8px 0 6px">K30-201 rev. C — Dekke 3. etasje</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="border:1px solid #e2e4ea;overflow:hidden">
+          <div style="position:relative;aspect-ratio:14/9;background:#eef0f4">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Plantegning gjengis her (full bredde)</div>
+            <div style="position:absolute;left:62%;top:44%;width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+            <div style="position:absolute;left:50%;top:31%;width:24%;height:26%;border:1.5px solid #f87171"></div>
+          </div>
+          <div style="font-size:9px;color:#6b7280;padding:3px 6px">Oversikt — markør + utsnittsramme</div>
+        </div>
+        <div style="border:1px solid #e2e4ea;overflow:hidden">
+          <div style="position:relative;aspect-ratio:14/9;background:#e6e9ef">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Utsnitt rundt markøren, 4× zoom</div>
+            <div style="position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+          </div>
+          <div style="font-size:9px;color:#6b7280;padding:3px 6px">Detalj — felt B3, vann i forskaling</div>
+        </div>
+      </div>
+      <div style="font-size:9px;color:#9ca3af;margin-top:4px">Gjenbruker byggTegningPosisjon (tegning.ts) — rendereren finnes; arkivstien har aldri kalt den. Flere markeringer i samme dokument → én oversikt/detalj-blokk per markering, gruppert per tegning.</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 21.08.2026 · dokument-id sj_9f2c41d8</span>
+      <span>Side 3 av 4</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p7b" data-screen-label="Helside tegningsprint — alle markører">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:8px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:28px;height:28px;border-radius:6px">
+        <div style="font-size:11px;font-weight:700">SiteDoc AS <span style="font-weight:400;color:#6b7280">· Org.nr 923 456 789</span></div>
+      </div>
+      <div style="text-align:right;font-size:9.5px;color:#6b7280">Befaringsrapport — Lakselv Lufthavn · <strong style="color:#111827">BEF-2026-001</strong></div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Tegning K20-102 — Utomhusplan <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#6b7280">— helside, alle markører i dokumentet · én side per tegning som har markeringer</span></div>
+      <div style="border:1px solid #e2e4ea;overflow:hidden;margin-top:8px">
+        <div style="position:relative;aspect-ratio:5/4;background:#eef0f4">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:10px">Hele tegningen gjengis her i størst mulig format (roteres til liggende når tegningen er bredere enn høy)</div>
+          <div style="position:absolute;left:22%;top:30%;width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid #fff;color:#fff;font-size:8.5px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)">2</div>
+          <div style="position:absolute;left:47%;top:52%;width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid #fff;color:#fff;font-size:8.5px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)">4</div>
+          <div style="position:absolute;left:34%;top:66%;width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid #fff;color:#fff;font-size:8.5px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)">7</div>
+          <div style="position:absolute;left:71%;top:38%;width:16px;height:16px;border-radius:50%;background:#ef4444;border:2px solid #fff;color:#fff;font-size:8.5px;font-weight:700;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)">5</div>
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:9.5px">
+        <thead><tr style="text-align:left;color:#6b7280"><th style="padding:3px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:44px">Markør</th><th style="padding:3px 8px;border-bottom:1px solid #e2e4ea;font-weight:500">Punkt</th><th style="padding:3px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:80px">Resultat</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;font-weight:700;color:#ef4444">2</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4">Skadet rekkverksstolpe — fasade sør</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#b91c1c">Avvik</td></tr>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;font-weight:700;color:#ef4444">4</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4">Fuging vindu akse B2–B4</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#b91c1c">Avvik</td></tr>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;font-weight:700;color:#ef4444">5</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4">Overvannsrist kum K4 — delvis tett</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#b45309">Anmerkning</td></tr>
+          <tr><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;font-weight:700;color:#ef4444">7</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4">Drenering taksebane C — setninger mot kum K7</td><td style="padding:3px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#b91c1c">Avvik</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:9px;color:#9ca3af;margin-top:6px">Markørnummer = punktnummer i rapporten — hele poenget med georefereringen er at kontrollpunktene kan finnes igjen på tegningen. Helsiden viser ALLE markører samlet; oversikt/detalj-blokkene (forrige side) supplerer per punkt. Uten markeringer på en tegning skrives ingen tegningsside.</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 21.08.2026 · dokument-id bef_2c88a1e4</span>
+      <span>Side 3 av 4</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p8" data-screen-label="Oppgave-PDF">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:38px;height:38px;border-radius:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">SiteDoc AS</div>
+          <div style="font-size:9.5px;color:#6b7280">Org.nr 923 456 789</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">Oppgave</div>
+        <div style="font-size:13px;font-weight:700">Utbedre drenering — taksebane C</div>
+        <div style="font-size:9.5px;color:#6b7280">Dokumentnr. OPG-2026-0088</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 20px">
+      <div><span style="color:#6b7280">Prosjekt</span><br><strong>998 Instinniforbotn</strong></div>
+      <div><span style="color:#6b7280">Byggeplass</span><br><strong>Blokk B — Instinniforbotn</strong></div>
+      <div><span style="color:#6b7280">Opprettet fra</span><br><strong>BEF-2026-001, punkt 7</strong></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;gap:4px 20px;background:#f5f6f9">
+      <div><span style="color:#6b7280">Status</span><br><strong style="color:#b45309">Under arbeid</strong></div>
+      <div><span style="color:#6b7280">Ansvarlig</span><br><strong>Jonas Vik</strong> <span style="color:#6b7280">(tømrer)</span></div>
+      <div><span style="color:#6b7280">Frist</span><br><strong>28.08.2026</strong></div>
+      <div><span style="color:#6b7280">Prioritet</span><br><strong style="color:#b91c1c">Høy</strong></div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Beskrivelse</div>
+      <p style="margin:8px 0 0;color:#374151">Setninger i grøftekant over ~40 m langs taksebane C, stedvis stående vann mot kum K7. Grøft skal renskes, masser skiftes og fall reetableres mot kum. Se befaringsrapport BEF-2026-001, punkt 7, for full dokumentasjon.</p>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Posisjon i tegning — K20-102 Utomhusplan</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div style="border:1px solid #e2e4ea;overflow:hidden">
+          <div style="position:relative;aspect-ratio:14/9;background:#eef0f4">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Utomhusplan gjengis her</div>
+            <div style="position:absolute;left:34%;top:62%;width:10px;height:10px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+            <div style="position:absolute;left:22%;top:49%;width:24%;height:26%;border:1.5px solid #f87171"></div>
+          </div>
+          <div style="font-size:9px;color:#6b7280;padding:3px 6px">Oversikt</div>
+        </div>
+        <div style="border:1px solid #e2e4ea;overflow:hidden">
+          <div style="position:relative;aspect-ratio:14/9;background:#e6e9ef">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Utsnitt 4× — grøftekant mot kum K7</div>
+            <div style="position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div>
+          </div>
+          <div style="font-size:9px;color:#6b7280;padding:3px 6px">Detalj</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Dokumentasjon</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 01 · 14.08.2026 10:24</div></div>
+        <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 02 · 14.08.2026 10:26</div></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:auto;padding-top:16px">
+      <div style="flex:1">
+        <div style="font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px">Silje Havstad</div>
+        <div style="border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280">Opprettet av — Silje Havstad, anleggsleder · 15.08.2026 09:02</div>
+      </div>
+      <div style="flex:1">
+        <div style="border-top:1px solid #1f2937;margin-top:24px;padding-top:3px;font-size:9px;color:#6b7280">Lukket av — <span style="color:#9ca3af">ikke lukket</span></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:10px;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 21.08.2026 · dokument-id opg_44d19ab2</span>
+      <span>Side 1 av 1</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p9" data-screen-label="Repeater F7 — innhold på objektnivå">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:8px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:28px;height:28px;border-radius:6px">
+        <div style="font-size:11px;font-weight:700">A.Markussen AS <span style="font-weight:400;color:#6b7280">· Org.nr 835 000 702</span></div>
+      </div>
+      <div style="text-align:right;font-size:9.5px;color:#6b7280">Sjekkliste — Byggelerers dagbok/kontroll · <strong style="color:#111827">BHO-002</strong></div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Kontroll av byggeplass — Observasjon/kontroll/objekt</div>
+      <div style="border:1px solid #e2e4ea;background:#fafafa;padding:8px 10px;margin-top:8px">
+        <div style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;margin-bottom:6px">Registrert utenfor rader <span style="text-transform:none;letter-spacing:0">— kommentar og vedlegg festet direkte på skjemaet, uten «Legg til rad»</span></div>
+        <div style="color:#374151;margin-bottom:8px">«Testbilde»</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 01 · 20.08.2026 13:00 · med tegningsmarkering — se tegningsseksjon</div></div>
+        </div>
+      </div>
+      <div style="margin-top:8px;color:#6b7280;font-size:9.5px"><span class="tom" style="color:#9ca3af">Ingen rader registrert</span></div>
+      <div style="font-size:9px;color:#9ca3af;margin-top:6px">F7-beslutning: innhold på objektnivå vises som egen merket blokk OVER tabellen — aldri som «rad 0» (ville forfalsket radtellingen) og aldri utelatt (stille datatap i kundeleveransen). Finnes både rader og objektnivå-innhold, står blokken over tabellen med samme merking.</div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Samme repeater med rader — til sammenligning</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px">
+        <thead><tr style="text-align:left;color:#26327e"><th style="border-bottom:2px solid #26327e;padding:4px 8px;width:24px">#</th><th style="border-bottom:2px solid #26327e;padding:4px 8px">Observasjon</th><th style="border-bottom:2px solid #26327e;padding:4px 8px;width:70px">Resultat</th><th style="border-bottom:2px solid #26327e;padding:4px 8px;width:36%">Kommentar</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">1</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Rekkverk fasade sør komplett</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Godkjent</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#374151">—</td></tr>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">2</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Adkomst ryddet for materiell</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#b91c1c">Avvik</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#374151">Palle sperrer rømningsvei — flyttet på stedet</td></tr>
+          <tr><td colspan="4" style="padding:4px 8px 10px;border-bottom:1px solid #e2e4ea"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><div style="aspect-ratio:4/3;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:9.5px">Bilde 4:3 (mobilformat)</div><div style="font-size:8.5px;color:#9ca3af;margin-top:3px">Bilde 02 · 20.08.2026 13:04</div></div>
+          </div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 21.08.2026 · dokument-id bho_002</span>
+      <span>Side 1 av 2</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p10" data-screen-label="Nedlastingsvalg — «Last ned PDF» med varianter">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:8px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:28px;height:28px;border-radius:6px">
+        <div style="font-size:11px;font-weight:700">SiteDoc AS <span style="font-weight:400;color:#6b7280">· Arkivmal — designgrunnlag</span></div>
+      </div>
+      <div style="text-align:right;font-size:9.5px;color:#6b7280">Nedlastingsvalg · <strong style="color:#111827">knapp og varianter</strong></div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Knappen <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#6b7280">— «Last ned arkiv-PDF» utgår; navnet er internt sjargong. Brukeren laster ned en PDF.</span></div>
+      <div style="display:flex;gap:24px;align-items:flex-start;margin-top:10px">
+        <div>
+          <div style="font-size:9px;color:#b91c1c;margin-bottom:4px">Før</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;border:1px solid #c7cbd4;padding:7px 14px;font-size:10.5px;color:#374151;text-decoration:line-through">⤓ Last ned arkiv-PDF</div>
+        </div>
+        <div>
+          <div style="font-size:9px;color:#15803d;margin-bottom:4px">Etter — splittknapp: klikk laster ned PDF-en (én variant), pilen åpner menyen</div>
+          <div style="display:inline-flex;align-items:stretch">
+            <div style="display:inline-flex;align-items:center;gap:6px;border:1px solid #26327e;background:#26327e;color:#fff;padding:7px 14px;font-size:10.5px;font-weight:600">⤓ Last ned PDF</div>
+            <div style="display:inline-flex;align-items:center;border:1px solid #26327e;border-left:1px solid #4b5aa8;background:#26327e;color:#fff;padding:7px 9px;font-size:9px">▾</div>
+          </div>
+          <div style="border:1px solid #c7cbd4;box-shadow:0 4px 12px rgba(17,24,39,0.08);margin-top:6px;width:340px;background:#fff">
+            <div style="padding:8px 12px;border-bottom:1px solid #eef0f4">
+              <div style="font-weight:600">Lagre i prosjektmappe</div>
+              <div style="font-size:9px;color:#6b7280">PDF-en arkiveres i dokumentmappen i prosjektet — ingen nedlasting</div>
+            </div>
+            <div style="padding:8px 12px;border-bottom:1px solid #eef0f4">
+              <div style="font-weight:600;color:#6b7280">Send til …</div>
+              <div style="font-size:9px;color:#9ca3af">E-post med PDF som vedlegg (eksisterende funksjon, flyttes hit)</div>
+            </div>
+            <div style="padding:8px 12px;background:#fafafa">
+              <div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:10px;height:10px;border:1.2px solid #6b7280"></span><span style="font-weight:600">Ta med veiledningstekster</span></div>
+              <div style="font-size:9px;color:#6b7280;margin-left:16px">Informasjonsfeltene (veiledning under utfylling) — av som standard, valgfritt med på utskrift</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:9px;color:#9ca3af;margin-top:8px">Samme knapp på sjekkliste, oppgave og HMS-dokument. «Med logg / Uten logg» utgikk 22.08: dokumenthistorikken skrives alltid, endringsloggen aldri (UI-verktøy ved konflikt) — dermed finnes bare én PDF-variant, vist på siden «kompakt én side».</div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Samlerapporter <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#6b7280">— flere dokumenter i én PDF, startes fra liste-visningen (ikke fra enkeltdokumentet)</span></div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px">
+        <thead><tr style="text-align:left;color:#6b7280"><th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:160px">Rapport</th><th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500">Innhold</th><th style="padding:4px 8px;border-bottom:1px solid #e2e4ea;font-weight:500;width:130px">Mockupside</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600">Dokumentliste</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151">Valgte dokumenter i kompaktform, uten logg og signaturblokk</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">«dokumentliste»</td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600">Tabellrapport</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151">Én rad per dokument — status, hos, dato, første bilde</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">«tabellrapport»</td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600">Samlerapport (blandet)</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151">Sjekklister + oppgaver + HMS i én PDF, gruppert per dokumenttype</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">neste side</td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600">Sluttoppgjør — oppgaveliste</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151">Alle oppgaver knyttet til sluttoppgjøret, med kilde og lukket-status</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">egen side</td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600">Arbeidsliste (håndverker)</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#374151">6 oppgaver per A4 liggende — emne/første tekstblokk + første bilde + tegningsutsnitt (~3 cm høyde). «Gå ut og fiks disse»</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">siste side</td></tr>
+          <tr><td style="padding:4px 8px;font-weight:600">Excel-eksport</td><td style="padding:4px 8px;color:#374151">Samme utvalg som tabellrapporten som .xlsx — kun data: dok.nr, tittel, status, hos, ansvarlig, datoer, punktverdier. Bilder og tegninger utelates (refereres med bildeNr/tegningsnavn)</td><td style="padding:4px 8px;color:#6b7280">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Arkivmal — designgrunnlag · fabel 21.08.2026</span>
+      <span>Nedlastingsvalg</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p11" data-screen-label="Samlerapport — blandet sjekklister/oppgaver/HMS">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:38px;height:38px;border-radius:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">SiteDoc AS</div>
+          <div style="font-size:9.5px;color:#6b7280">Org.nr 923 456 789</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">Samlerapport</div>
+        <div style="font-size:13px;font-weight:700">998 Instinniforbotn · Blokk B · uke 32–33</div>
+        <div style="font-size:9.5px;color:#6b7280">Byggherre Fjordbygg Eiendom AS · 3 sjekklister, 2 oppgaver, 1 HMS · uttrekk 21.08.2026</div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Sjekklister — 3</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px">
+        <tbody>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;width:70px"><strong>SJ-0142</strong></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Betongarbeider — dekke 3. etasje</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d;width:80px">Godkjent</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280;width:180px">Mathias Berg · 07.08</td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4"><strong>SJ-0147</strong></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Betongarbeider — dekke 4. etasje</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#b45309">Til godkj.</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">Mathias Berg · 11.08</td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4"><strong>SJ-0151</strong></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Armering — trapperom akse C</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d">Godkjent</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">Jonas Vik · 10.08</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">Oppgaver — 2</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px">
+        <tbody>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;width:70px"><strong>OPG-0088</strong></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Utbedre drenering — taksebane C</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#b45309;width:80px">Under arbeid</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280;width:180px">Jonas Vik · frist 28.08</td></tr>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4"><strong>OPG-0091</strong></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Reetablere sperring under stillas — fasade sør</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d">Lukket</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280">Mathias Berg · 09.08</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding-bottom:4px">HMS — 1</div>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px">
+        <tbody>
+          <tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;width:70px"><strong>RUH-0037</strong></td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4">Fall av materiell fra stillas</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;font-weight:600;color:#15803d;width:80px">Lukket</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f4;color:#6b7280;width:180px">Jonas Vik · 05.08 · lukket 09.08</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;border:1px dashed #c7cbd4;color:#9ca3af;font-size:9.5px;text-align:center">Etter oversikten følger hvert dokument i kompaktform (som dokumentlisten) — gruppert i samme rekkefølge, aldri logg eller signaturblokk. Full arkivversjon skrives fortsatt ut per dokument.</div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 21.08.2026 · samlerapport</span>
+      <span>Side 1 av 5</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p12" data-screen-label="Sluttoppgjør — tilhørende oppgaver">
+  <div style="height:100%;display:flex;flex-direction:column;padding:15mm 16mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:38px;height:38px;border-radius:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">SiteDoc AS</div>
+          <div style="font-size:9.5px;color:#6b7280">Org.nr 923 456 789</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">Sluttoppgjør — tilhørende oppgaver</div>
+        <div style="font-size:13px;font-weight:700">998 Instinniforbotn · Blokk B</div>
+        <div style="font-size:9.5px;color:#6b7280">Byggherre Fjordbygg Eiendom AS · 8 oppgaver · uttrekk 21.08.2026</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;border:1px solid #c7cbd4;border-top:none;padding:8px 14px;background:#f5f6f9">
+      <div><span style="color:#6b7280">Lukket</span> <strong style="color:#15803d">6</strong></div>
+      <div><span style="color:#6b7280">Under arbeid</span> <strong style="color:#b45309">1</strong></div>
+      <div><span style="color:#6b7280">Åpen</span> <strong style="color:#b91c1c">1</strong></div>
+      <div style="margin-left:auto;color:#6b7280">Åpne oppgaver hindrer ikke utskrift — de vises med rød status så listen kan brukes i forhandlingen</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:9.5px">
+      <thead>
+        <tr style="text-align:left;color:#26327e">
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:70px">Oppg.nr</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px">Tittel</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:120px">Kilde</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:92px">Ansvarlig</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:54px">Frist</th>
+          <th style="border-bottom:2px solid #26327e;padding:5px 8px;width:86px">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">OPG-0071</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Utbedre membran våtrom U1-04</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">SJ-0139, pkt. 3</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Jonas Vik</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">05.08</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Lukket 04.08</td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">OPG-0076</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Skifte skadet rekkverksstolpe — fasade sør</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">BEF-001, pkt. 2</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Mathias Berg</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">08.08</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Lukket 07.08</td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">OPG-0079</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Fuge vindu akse B2–B4</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">BEF-001, pkt. 4</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Jonas Vik</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">12.08</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Lukket 11.08</td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">OPG-0083</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Justere dørpumpe rømningsvei U1</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">RUH-0035</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Mathias Berg</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">14.08</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Lukket 13.08</td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">OPG-0088</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Utbedre drenering — taksebane C</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">BEF-001, pkt. 7</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Jonas Vik</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">28.08</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#b45309">Under arbeid</td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">OPG-0091</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Reetablere sperring under stillas — fasade sør</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">RUH-0037</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Mathias Berg</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">09.08</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Lukket 09.08</td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">OPG-0094</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Etterstramme boltegruppe akse C — trapperom</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">SJ-0151, pkt. 2</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Jonas Vik</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">18.08</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#15803d">Lukket 17.08</td></tr>
+        <tr><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">OPG-0097</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Levere FDV-dokumentasjon ventilasjon</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;color:#6b7280">Manuelt opprettet</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">Silje Havstad</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea">25.08</td><td style="padding:5px 8px;border-bottom:1px solid #e2e4ea;font-weight:600;color:#b91c1c">Åpen</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:9px;color:#9ca3af;margin-top:6px">Kilde-kolonnen viser hvor oppgaven oppsto (sjekklistepunkt, befaringspunkt, RUH eller manuell). Hver oppgave kan i tillegg skrives ut i full form («Last ned PDF» på oppgaven).</div>
+    <div style="display:flex;gap:10px;margin-top:auto;padding-top:16px">
+      <div style="flex:1">
+        <div style="font-family:'Caveat',cursive;font-size:22px;color:#1f2937;padding:0 4px 2px">Silje Havstad</div>
+        <div style="border-top:1px solid #1f2937;padding-top:3px;font-size:9px;color:#6b7280">Uttrekk bekreftet — Silje Havstad, anleggsleder · 21.08.2026</div>
+      </div>
+      <div style="flex:1"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:10px;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Generert fra SiteDoc 21.08.2026 · sluttoppgjør — oppgaveliste</span>
+      <span>Side 1 av 1</span>
+    </div>
+  </div>
+</section>
+<section class="page" id="p13" data-screen-label="Arbeidsliste håndverker — 6 oppgaver, A4 liggende">
+  <div style="height:100%;display:flex;flex-direction:column;padding:12mm 14mm 10mm;box-sizing:border-box;color:#111827;font-size:10.5px;line-height:1.45;font-family:'IBM Plex Sans',sans-serif">
+    <div style="font-size:9px;color:#9ca3af;margin-bottom:6px">Vises her som ark-i-ark: rapporten skrives ut LIGGENDE (A4 297×210) — «gå ut og fiks disse»-listen til håndverkeren. 6 oppgaver per side; bilde- og tegningshøyde ~3 cm.</div>
+    <div style="border:1px solid #c7cbd4;width:100%;aspect-ratio:297/210;box-sizing:border-box;padding:16px 18px;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(17,24,39,0.06)">
+      <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #c7cbd4;padding:6px 10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <img src="assets/sitedoc-logo.png" alt="Firmalogo" style="width:22px;height:22px;border-radius:5px">
+          <div style="font-size:10px;font-weight:700">SiteDoc AS <span style="font-weight:400;color:#6b7280">· Org.nr 923 456 789</span></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:#26327e;font-weight:600">Arbeidsliste — oppgaver</div>
+          <div style="font-size:9.5px;color:#6b7280">998 Instinniforbotn · Blokk B · tildelt <strong style="color:#111827">Jonas Vik</strong> · 6 oppgaver · uttrekk 21.08.2026</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:52px 1fr 88px 88px 190px;gap:0 10px;font-size:8px;color:#26327e;font-weight:600;border-bottom:2px solid #26327e;padding:4px 4px;margin-top:8px">
+        <div>Oppg.nr</div><div>Emne / beskrivelse</div><div>Bilde</div><div>Tegning</div><div>Utført / kommentar (fylles ut for hånd)</div>
+      </div>
+      <div style="display:grid;grid-template-columns:52px 1fr 88px 88px 190px;gap:0 10px;align-items:center;border-bottom:1px solid #e2e4ea;padding:4px 4px;flex:1">
+        <div style="font-weight:700;font-size:9px">OPG-0076</div>
+        <div style="font-size:8.5px;color:#374151"><strong>Skifte skadet rekkverksstolpe — fasade sør.</strong> Stolpe nr. 4 fra hjørnet bøyd etter påkjørsel, fester intakte. Ny stolpe ligger i container B.</div>
+        <div style="position:relative;height:66px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:8px">Bilde (~3 cm)</div>
+        <div style="position:relative;height:66px;background:#e6e9ef"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:8px">Utsnitt m/markør</div><div style="position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div></div>
+<div style="height:66px;display:flex;flex-direction:column;font-size:8px;color:#374151"><div style="display:flex;gap:8px;align-items:center"><span style="font-weight:600">Utført:</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280"></span><span>Ja</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280;margin-left:6px"></span><span>Nei</span></div><div style="border-bottom:1px solid #c7cbd4;flex:1;margin-top:8px"></div><div style="border-bottom:1px solid #c7cbd4;flex:1"></div><div style="font-size:7px;color:#9ca3af;margin-top:2px">Kommentar</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:52px 1fr 88px 88px 190px;gap:0 10px;align-items:center;border-bottom:1px solid #e2e4ea;padding:4px 4px;flex:1">
+        <div style="font-weight:700;font-size:9px">OPG-0079</div>
+        <div style="font-size:8.5px;color:#374151"><strong>Fuge vindu akse B2–B4.</strong> Manglende utvendig fuging tre vinduer, 2. etasje. Fugemasse: Sikaflex, grå.</div>
+        <div style="position:relative;height:66px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:8px">Bilde (~3 cm)</div>
+        <div style="position:relative;height:66px;background:#e6e9ef"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:8px">Utsnitt m/markør</div><div style="position:absolute;left:42%;top:38%;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div></div>
+<div style="height:66px;display:flex;flex-direction:column;font-size:8px;color:#374151"><div style="display:flex;gap:8px;align-items:center"><span style="font-weight:600">Utført:</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280"></span><span>Ja</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280;margin-left:6px"></span><span>Nei</span></div><div style="border-bottom:1px solid #c7cbd4;flex:1;margin-top:8px"></div><div style="border-bottom:1px solid #c7cbd4;flex:1"></div><div style="font-size:7px;color:#9ca3af;margin-top:2px">Kommentar</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:52px 1fr 88px 88px 190px;gap:0 10px;align-items:center;border-bottom:1px solid #e2e4ea;padding:4px 4px;flex:1">
+        <div style="font-weight:700;font-size:9px">OPG-0083</div>
+        <div style="font-size:8.5px;color:#374151"><strong>Justere dørpumpe rømningsvei U1.</strong> Døren lukker ikke helt igjen — juster lukkekraft og hastighet iht. merking på pumpen.</div>
+        <div style="position:relative;height:66px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:8px">Bilde (~3 cm)</div>
+        <div style="position:relative;height:66px;border:1px dashed #d6d9e0;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Ingen markering</div>
+<div style="height:66px;display:flex;flex-direction:column;font-size:8px;color:#374151"><div style="display:flex;gap:8px;align-items:center"><span style="font-weight:600">Utført:</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280"></span><span>Ja</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280;margin-left:6px"></span><span>Nei</span></div><div style="border-bottom:1px solid #c7cbd4;flex:1;margin-top:8px"></div><div style="border-bottom:1px solid #c7cbd4;flex:1"></div><div style="font-size:7px;color:#9ca3af;margin-top:2px">Kommentar</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:52px 1fr 88px 88px 190px;gap:0 10px;align-items:center;border-bottom:1px solid #e2e4ea;padding:4px 4px;flex:1">
+        <div style="font-weight:700;font-size:9px">OPG-0088</div>
+        <div style="font-size:8.5px;color:#374151"><strong>Utbedre drenering — taksebane C.</strong> Setninger i grøftekant over ~40 m, stående vann mot kum K7. Rensk, masseskift, fall mot kum.</div>
+        <div style="position:relative;height:66px;background:#eef0f4;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:8px">Bilde (~3 cm)</div>
+        <div style="position:relative;height:66px;background:#e6e9ef"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:8px">Utsnitt m/markør</div><div style="position:absolute;left:56%;top:60%;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div></div>
+<div style="height:66px;display:flex;flex-direction:column;font-size:8px;color:#374151"><div style="display:flex;gap:8px;align-items:center"><span style="font-weight:600">Utført:</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280"></span><span>Ja</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280;margin-left:6px"></span><span>Nei</span></div><div style="border-bottom:1px solid #c7cbd4;flex:1;margin-top:8px"></div><div style="border-bottom:1px solid #c7cbd4;flex:1"></div><div style="font-size:7px;color:#9ca3af;margin-top:2px">Kommentar</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:52px 1fr 88px 88px 190px;gap:0 10px;align-items:center;border-bottom:1px solid #e2e4ea;padding:4px 4px;flex:1">
+        <div style="font-weight:700;font-size:9px">OPG-0094</div>
+        <div style="font-size:8.5px;color:#374151"><strong>Etterstramme boltegruppe akse C — trapperom.</strong> Moment 120 Nm, dokumenter med momentnøkkel-kvittering.</div>
+        <div style="position:relative;height:66px;border:1px dashed #d6d9e0;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Ingen bilde</div>
+        <div style="position:relative;height:66px;background:#e6e9ef"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:8px">Utsnitt m/markør</div><div style="position:absolute;left:48%;top:46%;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid #fff;transform:translate(-50%,-50%)"></div></div>
+<div style="height:66px;display:flex;flex-direction:column;font-size:8px;color:#374151"><div style="display:flex;gap:8px;align-items:center"><span style="font-weight:600">Utført:</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280"></span><span>Ja</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280;margin-left:6px"></span><span>Nei</span></div><div style="border-bottom:1px solid #c7cbd4;flex:1;margin-top:8px"></div><div style="border-bottom:1px solid #c7cbd4;flex:1"></div><div style="font-size:7px;color:#9ca3af;margin-top:2px">Kommentar</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:52px 1fr 88px 88px 190px;gap:0 10px;align-items:center;padding:4px 4px;flex:1">
+        <div style="font-weight:700;font-size:9px">OPG-0097</div>
+        <div style="font-size:8.5px;color:#374151"><strong>Levere FDV-dokumentasjon ventilasjon.</strong> Komplett FDV-perm for aggregat 1–3 leveres anleggsleder.</div>
+        <div style="position:relative;height:66px;border:1px dashed #d6d9e0;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Ingen bilde</div>
+        <div style="position:relative;height:66px;border:1px dashed #d6d9e0;display:flex;align-items:center;justify-content:center;color:#c3c8d1;font-size:8px">Ingen markering</div>
+<div style="height:66px;display:flex;flex-direction:column;font-size:8px;color:#374151"><div style="display:flex;gap:8px;align-items:center"><span style="font-weight:600">Utført:</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280"></span><span>Ja</span><span style="display:inline-block;width:9px;height:9px;border:1.2px solid #6b7280;margin-left:6px"></span><span>Nei</span></div><div style="border-bottom:1px solid #c7cbd4;flex:1;margin-top:8px"></div><div style="border-bottom:1px solid #c7cbd4;flex:1"></div><div style="font-size:7px;color:#9ca3af;margin-top:2px">Kommentar</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:4px;padding-top:3px;font-size:7.5px;color:#9ca3af">
+        <span>Generert fra SiteDoc 21.08.2026 · arbeidsliste — arbeidskopi, ikke arkivversjon</span>
+        <span>Side 1 av 1</span>
+      </div>
+    </div>
+    <div style="font-size:9px;color:#9ca3af;margin-top:6px">Emne = oppgavetittel; beskrivelse = første tekstblokk i rapporten, avkortet. Bilde og tegningsutsnitt beholder opprinnelig format (4:3), ~3 cm høye. Utført/kommentar-kolonnen fylles ut FOR HÅND — listen er laget for håndverkere utenfor prosjektet, uten SiteDoc-tilgang. Mangler bilde/markering vises stiplet tom celle — raden beholder høyden så listen er skannbar.</div>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e4ea;margin-top:auto;padding-top:5px;font-size:8.5px;color:#9ca3af">
+      <span>Arkivmal — designgrunnlag · fabel 21.08.2026</span>
+      <span>Arbeidsliste</span>
+    </div>
+  </div>
+</section>
+</doc-page>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

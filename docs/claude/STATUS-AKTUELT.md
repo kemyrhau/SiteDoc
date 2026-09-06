@@ -433,9 +433,30 @@ Se [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).
 ⚠️ **Foreldet linje under — tavla sa `ba234fd1` mens prod faktisk var `3a2f7dc3` (29.08).
 En prod-deploy ble aldri ført.**
 
-✅ **PROD À JOUR 2026-08-28 16:00** — `ba234fd1` (26 commits). Migreringene kjørt for
-alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
-sendt inn i forrige runde (`5dcdeb58`).
+✅ **PROD À JOUR 2026-09-06 13:40** — `ad18df93` (over tjue merger fra to døgn).
+Stempel verifisert: `curl https://api.sitedoc.no/version` → `ad18df93`.
+**Tre migreringer anvendt mot prod-DB:** `20260906000000_sja_signaturrunder` ·
+`20260906120000_sja_innholdsversjon` · `20260906130000_signatur_bekreftet_av` ·
+`20260906140000_lokasjon_fritekst` — alle additive, ingen kolonner slettet.
+
+**Innhold:** SJA-signaturrunder (tre tabeller, felttypen `signature_list`, manko-liste,
+serverlås, innholdsversjon per signatur, «bekreftet av» for gjest) · signaturfeltet bærer navn
+og tidspunkt · kollapset signaturflate · endringsloggen koalescert + lukket som standard ·
+malrevisjon D med utkast-badge · fritekst-lokasjon · delt `TILBEHOR_REN_FJERNING_BASE` ·
+paritetsvakt på PDF-tvillingen.
+
+🟢 **OTA publisert samme runde** (`333359a6`, runtime `1`, kanal `production`, update group
+`523c0f61`) — rekkefølgen var **prod-deploy FØRST, så OTA**, fordi mobilkoden leser tabeller
+som måtte finnes i prod-DB-en først.
+
+⚠️ **Mobilflaten er IKKE verifisert av et menneske ennå.** Expo Go på Kenneths telefon er
+SDK 57, prosjektet er SDK 54 — iOS tillater ikke eldre Expo Go, så test mot `sitedoc_test` var
+en blindvei. Valgt vei: prod → OTA → verifiser på den ekte appen, med `eas update:rollback` som
+nett (minutter, ingen byggkvote). **Risikoen ble vurdert lav fordi `signature_list` er inert i
+prod til en mal bruker objektet.**
+
+**Forrige prod: `ba234fd1`** (2026-08-28 16:00, 26 commits). **TestFlight-bygg #46** (`5605775d`)
+sendt inn i runden før (`5dcdeb58`).
 
 **Test: `1e259d55`** (deployet 2026-09-05 21:38, verifisert: `/version` → `1e259d55`).
 🔴 **Hele SJA-signaturrunde-settet er nå på test** — rundene 2–5 merget 05/06.09: signatur bærer

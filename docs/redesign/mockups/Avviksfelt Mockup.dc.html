@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; background: #e5e7eb; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #1e40af; } a:hover { color: #1e3a8a; }
+</style>
+</helmet>
+<div style="padding: 24px 16px 48px; max-width: 1280px; margin: 0 auto;">
+  <div style="margin-bottom: 16px;">
+    <div style="font-size: 18px; font-weight: 700; color: #111827;">Grense-resolver-familien — Vei B + avviksfelt + PDF (designnotat 0230)</div>
+    <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Panel 2 er interaktiv: endre målt verdi og styrende valg — kravet løses via resolveren, avviksfeltene utløses ved brudd.</div>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+    <div style="width: 400px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">1 · MalBygger — tallfelt-konfig (Vei B + utløser)</div>
+      <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: #111827;">
+        <div style="font-weight: 600;">Desimaltall · «Avvik fra prosjektert høyde»</div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="color: #6b7280; width: 110px;">Krav til verdien</span>
+          <span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 10px; flex: 1;">Høyst … (maksimum) ▾</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="color: #6b7280; width: 110px;"></span>
+          <span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 10px;">10</span>
+          <span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 10px;">enhet mm</span>
+        </div>
+        <div style="font-size: 11px; color: #6b7280; padding-left: 118px;">Vises som: krav ≤ 10 mm · avvik når målt verdi er OVER 10</div>
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 34px; height: 20px; border-radius: 999px; background: #1e40af; position: relative;"><span style="position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 999px; background: #ffffff;"></span></span>
+            <span style="font-weight: 600;">Grense avhenger av et valg</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="color: #6b7280; width: 110px;">Styrende felt</span>
+            <span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 10px; flex: 1;">Underlagstype (list_single) ▾</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1.2fr 0.7fr 0.7fr 0.7fr; gap: 4px; font-size: 12px;">
+            <span style="color: #6b7280; font-weight: 600;">Valg</span><span style="color: #6b7280; font-weight: 600;">Min</span><span style="color: #6b7280; font-weight: 600;">Maks</span><span style="color: #6b7280; font-weight: 600;">±</span>
+            <span>Komprimert pukk</span><span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px;">—</span><span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px;">10</span><span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px;">—</span>
+            <span>Sprengsteinsfylling</span><span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px;">—</span><span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px;">25</span><span style="border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px;">—</span>
+          </div>
+        </div>
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 34px; height: 20px; border-radius: 999px; background: #1e40af; position: relative;"><span style="position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 999px; background: #ffffff;"></span></span>
+            <span style="font-weight: 600;">Vis felt ved «utenfor krav»</span>
+          </div>
+          <div style="font-size: 12px; color: #6b7280;">Barn (vanlige malobjekter, dratt inn):</div>
+          <div style="display: flex; flex-direction: column; gap: 4px; padding-left: 12px; border-left: 2px solid #e5e7eb;">
+            <span style="font-size: 12px;">↳ Årsak til avvik (liste, ett valg)</span>
+            <span style="font-size: 12px;">↳ Tiltak (tekstfelt)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="width: 400px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">2 · Utfylling — utløst ved brudd (interaktiv)</div>
+      <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: #111827;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-weight: 600;">Underlagstype</span>
+          <div style="display: flex; gap: 8px;">
+            <span role="button" onClick="{{ velgPukk }}" style="border: 1px solid {{ pukkKant }}; background: {{ pukkBg }}; border-radius: 8px; padding: 7px 14px; cursor: pointer;">Komprimert pukk</span>
+            <span role="button" onClick="{{ velgSprengstein }}" style="border: 1px solid {{ spKant }}; background: {{ spBg }}; border-radius: 8px; padding: 7px 14px; cursor: pointer;">Sprengsteinsfylling</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span style="font-weight: 600;">Avvik fra prosjektert høyde</span>
+            <span style="font-size: 12px; color: #6b7280;">krav {{ kravTekst }}</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span role="button" onClick="{{ minus }}" style="border: 1px solid #d1d5db; border-radius: 8px; width: 34px; text-align: center; padding: 7px 0; cursor: pointer; font-weight: 700;">−</span>
+            <span style="border: 1px solid {{ verdiKant }}; border-radius: 8px; padding: 7px 0; flex: 1; text-align: center; font-weight: 600;">{{ verdi }} mm</span>
+            <span role="button" onClick="{{ pluss }}" style="border: 1px solid #d1d5db; border-radius: 8px; width: 34px; text-align: center; padding: 7px 0; cursor: pointer; font-weight: 700;">+</span>
+          </div>
+          <sc-if value="{{ brudd }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size: 12px; font-weight: 700; color: #b45309;">Avvik: {{ avvikTekst }} — beregnet, kan ikke endres</div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ brudd }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+            <span style="font-size: 12px; font-weight: 600; color: #b45309;">⚠ Utenfor krav — avviksfelt</span>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 12px; font-weight: 600;">Årsak til avvik</span>
+              <span style="border: 1px solid #d1d5db; background: #ffffff; border-radius: 8px; padding: 7px 10px; color: #6b7280;">Velg årsak ▾</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 12px; font-weight: 600;">Tiltak</span>
+              <span style="border: 1px solid #d1d5db; background: #ffffff; border-radius: 8px; padding: 7px 10px; color: #6b7280;">Beskriv tiltak…</span>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ ok }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size: 12px; color: #15803d; font-weight: 600;">✓ Innenfor krav — ingen avviksfelt</div>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="width: 400px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">3 · Arkiv-PDF — samme resolver, samme tekst</div>
+      <div style="background: #ffffff; border: 1px solid #d1d5db; padding: 22px 24px; font-size: 12px; color: #111827;">
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+          <span style="color: #374151;">Underlagstype</span><span>Komprimert pukk</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+          <span style="color: #374151;">Avvik fra prosjektert høyde</span>
+          <span style="white-space: nowrap; font-weight: 700; color: #b45309;">14 mm — UTENFOR KRAV <span style="font-weight: 400; color: #6b7280;">(krav ≤ 10 mm)</span></span>
+        </div>
+        <div style="padding: 6px 0 8px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-weight: 700; color: #b45309;">Avvik: 4 mm over krav (snapshotet ved lagring)</div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 0 8px 14px; border-bottom: 1px solid #e5e7eb;">
+          <span style="color: #374151;">↳ Årsak til avvik</span><span>Setning i underlag</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 8px 0 8px 14px; border-bottom: 1px solid #e5e7eb;">
+          <span style="color: #374151;">↳ Tiltak</span><span>Reetablert og komprimert på nytt</span>
+        </div>
+        <div style="margin-top: 10px; font-size: 10px; color: #6b7280; line-height: 1.5;">Kravtekst + avvik fra samme snapshot som visningen (variant B, søsken i FeltVerdi). Barn rendres som vanlige felt via parentId — finnes allerede.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1320, &quot;height&quot;: 720}}">
+class Component extends DCLogic {
+  state = { verdi: 14, underlag: "pukk" };
+  renderVals() {
+    const { verdi, underlag } = this.state;
+    const maks = underlag === "pukk" ? 10 : 25;
+    const brudd = verdi > maks;
+    return {
+      verdi,
+      kravTekst: "≤ " + maks + " mm",
+      brudd, ok: !brudd,
+      avvikTekst: (verdi - maks) + " mm over krav (≤ " + maks + " mm)",
+      verdiKant: brudd ? "#f59e0b" : "#d1d5db",
+      pukkKant: underlag === "pukk" ? "#1e40af" : "#d1d5db",
+      pukkBg: underlag === "pukk" ? "#eff6ff" : "#ffffff",
+      spKant: underlag === "sp" ? "#1e40af" : "#d1d5db",
+      spBg: underlag === "sp" ? "#eff6ff" : "#ffffff",
+      velgPukk: () => this.setState({ underlag: "pukk" }),
+      velgSprengstein: () => this.setState({ underlag: "sp" }),
+      pluss: () => this.setState(s => ({ verdi: s.verdi + 1 })),
+      minus: () => this.setState(s => ({ verdi: Math.max(0, s.verdi - 1) })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -35,7 +35,11 @@ export function ByggeplassChip() {
     { enabled: !!valgtProsjektId },
   );
   // Lean cast (TS2589) — samme mønster som hjem.tsx/lokasjoner.tsx.
-  const byggeplasser = (bygningQuery.data ?? []) as Array<{ id: string; name: string }>;
+  const byggeplasser = (bygningQuery.data ?? []) as Array<{
+    id: string;
+    name: string;
+    number: number | null;
+  }>;
 
   const valgt = useMemo(
     () => byggeplasser.find((b) => b.id === valgtBygningId) ?? null,
@@ -116,6 +120,13 @@ export function ByggeplassChip() {
           gpsForeslagId={gpsByggeplassId}
           tillatIngen
           ingenLabel={t("kontekstChip.heleProsjektet")}
+          // Prosjekt-scopet server-kilde (samme som chippen viser) → velgeren er
+          // uavhengig av timer-cachens org-oppslag, som var tomt for standalone.
+          eksterneByggeplasser={byggeplasser.map((b) => ({
+            id: b.id,
+            navn: b.name,
+            number: b.number ?? null,
+          }))}
           onVelg={(id) => {
             // «Hele prosjektet»-raden (id === null) gir samme utvei som webs
             // globale velger: nullstiller filteret OG blokkerer GPS-autovalg.

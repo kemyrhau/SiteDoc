@@ -699,8 +699,14 @@ export default function SjekklisteSide() {
         />,
         bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
         filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [] },
+      // W1 (byggeplass-tilhørighet): tilhørighet vises som pille på raden — blå =
+      // byggeplassnavn, grå outline «Hele prosjektet» = prosjekt-dokument (byggeplassId
+      // null). Regelen «et objekt vises der det gjelder; raden viser tilhørighet når
+      // konteksten er bredere enn objektets hjem». På web bor pilla i den alltid-på
+      // «Bygning»-kolonnen (kolonnetabell-idiom — samme informasjon, ny form).
       bygning: { id: "bygning", header: t("tabell.bygning"), celle: (rad) => rad.byggeplass?.name
-        ? <span className="text-xs text-gray-600">{rad.byggeplass.name}</span> : <span className="text-gray-300">—</span>,
+        ? <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{rad.byggeplass.name}</span>
+        : <span className="inline-flex items-center rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500">{t("kontekstChip.heleProsjektet")}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.byggeplass?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.bygning ?? [] },
       etasje: { id: "etasje", header: t("tabell.etasje"), celle: (rad) => rad.drawing?.floor
         ? <span className="text-xs text-gray-600">{rad.drawing.floor}</span> : <span className="text-gray-300">—</span>,
@@ -805,10 +811,17 @@ export default function SjekklisteSide() {
         <div className="mb-2 flex items-center gap-2 text-xs text-gray-500">
           <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
           <span>
-            {t("sjekklister.viser")}:{" "}
-            <span className="font-medium text-gray-700">
-              {byggeplassFilterAv ? t("kontekstChip.heleProsjektet") : aktivByggeplass.name}
-            </span>
+            {/* Del 2 (ærlig chip/banner): default-tilstanden viser byggeplassen PLUSS
+                prosjekt-dokumenter (mykt filter) — teksten skal ikke love en avgrensning
+                systemet ikke gjør. Toggle-tilstanden («Hele prosjektet») er allerede sann. */}
+            {byggeplassFilterAv ? (
+              <>
+                {t("sjekklister.viser")}:{" "}
+                <span className="font-medium text-gray-700">{t("kontekstChip.heleProsjektet")}</span>
+              </>
+            ) : (
+              t("byggeplass.filtrererListe")
+            )}
           </span>
           <button
             type="button"
