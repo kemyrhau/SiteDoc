@@ -123,6 +123,22 @@ Delt kilde for append-only-låsing i **oppgave**-hookene (web + mobil). **Sjekkl
 
 **Kritisk (mobil):** kall `beregnLaasteFelter` med SERVER-data, aldri lokal usynket SQLite — ellers låses egen offline-kladd. Klient-lås; server håndhever ikke append-only. Se `apps/mobile/src/hooks/CLAUDE.md`.
 
+### Signaturfelt (`signaturVerdi.ts`)
+
+Én delt kilde for lesning + visning av `signature`-feltverdier (web + mobil). Fabel-vedtak
+2026-09-05: signaturen bærer nå navn + tidspunkt, ikke bare bildet.
+
+| Funksjon | Input | Output | Beskrivelse |
+|----------|-------|--------|-------------|
+| `lesSignaturVerdi(verdi)` | `unknown` | `SignaturVerdi \| null` | Bakoverkompat: legacy rå data-URL-**streng** → `{dataUrl, alt null}`; nytt **objekt** → validert. Tomt/ugyldig → `null` |
+| `formaterSignaturLinje(sig)` | `SignaturVerdi` | `string \| null` | «navn ?? Ukjent · dd.mm.åååå kl. hh:mm». `null` for legacy (streng uten tidspunkt) → ingen linje |
+| `signaturTidspunktNaa(dato?)` | `Date` | `string` | Lokal ISO-8601 med offset — brukes ved signering så veggklokken vises likt på tvers av flater/tidssoner |
+
+**KRAV (fabel):** tre flater skal ikke hver for seg avgjøre streng-vs-objekt. Web + mobil
+importerer herfra. **PDF speiler logikken lokalt** (`packages/pdf/src/hjelpere.ts` →
+`lesSignaturVerdiPdf`/`formaterSignaturLinjePdf`) fordi `packages/pdf` er null-avhengigheter
+(felt.ts:90) — endres denne, endres speilet.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først

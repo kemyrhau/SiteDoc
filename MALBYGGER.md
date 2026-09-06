@@ -68,7 +68,7 @@ Feltdefinisjon. Flat lagring med `parentId` for hierarki.
 
 | Felt | Rolle |
 |------|-------|
-| `type` | En av 23 felttyper (se under) |
+| `type` | En av 24 felttyper (se under) |
 | `config` | JSON — type-spesifikk konfigurasjon (`options`, grenseverdier, `multiline`, `zone` — se Grenseverdier under) |
 | `sortOrder` | Global sorteringsrekkefølge innenfor malen |
 | `parentId` | Nesting under `repeater` eller betingede `list_single/list_multi` |
@@ -120,7 +120,7 @@ oppførte seg ulikt der og i et ekte prosjekt. Se
 henge. En mal fra import eller en tredjepart kan mangle feltet like gjerne som et
 seed-script. Ført i [BACKLOG](docs/claude/BACKLOG.md).
 
-### 23 felttyper
+### 24 felttyper
 
 | Gruppe | Typer |
 |--------|-------|
@@ -133,8 +133,124 @@ seed-script. Ført i [BACKLOG](docs/claude/BACKLOG.md).
 | Posisjon | `location`, `drawing_position` |
 | BIM | `bim_property`, `zone_property`, `room_property` |
 | Signatur | `signature` |
+| Signaturliste | `signature_list` |
 | Vær | `weather` |
 | Container | `repeater` (barn), `list_single/multi` (betinget) |
+
+#### `signature_list` — SJA/HMS-signaturrunder (fabel-ordre 2026-09-06)
+
+Objekt for «hvem har signert, hvem mangler» på gjenbrukt SJA. Skiller seg fra alle andre
+felttyper: **verdien bor ikke i `Checklist.data`**, men i tre egne tabeller
+(`signatur_runder`/`dokument_deltakere`/`dokument_signaturer`) keyet til DOKUMENTET
+(`checklistId` XOR `taskId`, cascade). Rundenummer ER versjonen (ingen versjonskolonne;
+speiler `PsiSignatur.psiVersion`). `antallDeltakere` fryses ved «Avslutt runde».
+
+- **Én pr. mal (håndhevet):** MalBygger nekter et andre `signature_list`-objekt med klartekst
+  «Dokumentet har allerede en signaturliste» — modellen keyer til dokumentet, ikke feltet.
+- **Ingen tilbehør** (Kenneth-vedtak 2026-09-06): ingen kommentar/bilde/vedlegg/oppgave. I
+  `TILBEHOR_REN_FJERNING` på web + mobil.
+- **Ingen config.** Deltakere/runder/signaturer fylles ut i dokumentet, ikke i malen.
+- **API:** `signatur`-routeren (`startRunde`/`avsluttRunde`/`signer`/`hentRunder`/
+  `hentManko`/`deltakerLeggTil`/`deltakerFjern`) — speiler `psi.ts`. Chip «X av Y» i HMS-lista
+  via nøstet `take:1`+`_count` i `CHECKLIST_SELECT`/`TASK_SELECT`.
+- **PDF:** hovedtabell = gjeldende runde; «IKKE SIGNERT» + forrige-runde-rader ALLTID med
+  (F7). «Med logg»-seksjon = alle runder. Delt manko-/statuslogikk i `@sitedoc/shared`
+  (`beregnSignaturStatus`/`delSignertManko`).
+
+### 🔴 STYRENDE: maler bygges av MALBYGGER-OBJEKTENE — aldri hardkodet (Kenneth 2026-09-05)
+
+> **Kenneth 2026-09-05:** *«Malene vi bygger må bruke de malene som finnes i malbyggeren → vi må
+> ikke benytte snarveger og hardkode for å løse et problem. Det er OK å forbedre funksjon til
+> eksisterende mal-objekter.»*
+
+Gjelder **alle** maler — bibliotekmaler (NS 3420), firmamaler, prosjektmaler. En mal er en samling
+`ReportObject` av de typene malbyggeren tilbyr. Ingenting annet.
+
+| ✅ Lov | ❌ Ikke lov |
+|---|---|
+| Bruke `list_single`, `decimal`, `traffic_light`, `heading`, `text_field` slik de er | Egne felttyper som kun finnes i seed eller i én mal |
+| **Forbedre en eksisterende objekt-type** så den dekker behovet | Spesialkode i utfyllingen for å få én mal til å oppføre seg riktig |
+| Legge til `config`-nøkler en type allerede leser | Hardkodet logikk som «hvis malen heter KB2, gjør X» |
+
+🔴 **Trenger en mal noe typene ikke kan — er det typen som skal utvides, ikke malen som skal
+jukse.** Da treffer forbedringen alle maler, og malbyggeren fortsetter å være sannheten om hva et
+felt kan.
+
+**Målt konsekvens 2026-09-05:** funnet at betinget *konfigurasjon* mangler (et valg som setter
+`min`/`maks` på et annet felt) ble først foreslått løst med åtte hardkodede feltvarianter i seed
+— «vei A». **Vedtaket avviser den veien**, også som midlertidig fiks. Riktig løsning er å utvide
+betinget-mekanismen, og **MalBygger-UI er da del av leveransen** — ikke bare seed-data. Se
+[kontrollplan.md § Felttype-regler](docs/claude/kontrollplan.md) og fabels svar
+`docs/redesign/kp-malkvalitet-svar-fabel-2026-09-05.md`.
+
+### 🔴 STYRENDE: felt UTEN etikett er en ØNSKET funksjon — ikke en datafeil (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«jeg har lagt inn et felt uten navn med vilje → det er en ønsket
+> handling.»*
+
+Et felt kan stå uten etikett når **sammenhengen over det allerede forklarer innholdet** — for
+eksempel et fritekstfelt rett under `drawing_position` i en repeater-rad. En etikett ville vært
+støy i et dokument byggherren leser.
+
+🔴 **Ikke «rett» dette.** Det finnes ingen påkrevd-validering på etikett i dag
+(`FeltKonfigurasjon.handleLagre` sender `label` uten trim/tom-sjekk, `<Input>` er ikke
+`required`, og lagre-knappens disable-vilkår sjekker kun *endring*, ikke *utfylt*). Fraværet er
+**ikke et hull som skal tettes** — å innføre en påkrevd-etikett-validering ville fjernet en
+funksjon Kenneth bruker bevisst.
+
+**Dagens representasjon, målt 2026-09-04 (dokgen):** ingen kode noe sted genererer `_` eller
+`—`. Nytt felt får `label: meta.label` (typenavnet), og editoren sender `data.label` rått
+videre. At PDF-en rendret en bokstavelig `_` beviser at strengen ligger i `label` — den er
+**skrevet for hånd som en brukerkonvensjon** for «uten navn», ikke satt av systemet.
+
+**Hvordan flatene skal oppføre seg:**
+
+| Flate | Navnløst felt MED innhold | Navnløst felt UTEN innhold |
+|---|---|---|
+| **Arkiv-PDF** (`arkivmal/radkort.ts`) | Verdien alene, **ingen etikettlinje** | **Utelates helt** |
+| Malbygger | Byggehint «(uten navn)» dempet/kursiv (`DraggbartFelt`, `DragOverlay_`, forelder-badge i `FeltKonfigurasjon`) så feltet er synlig i treet | Samme |
+| Web-utfylling (`rapportobjekter/FeltWrapper.tsx`) | Verdien alene, **ingen etikettlinje** (som arkiv-PDF) | — |
+
+Predikatet er `harMeningsfullLabel` (`packages/pdf/src/hjelpere.ts`), delt kilde med
+`endringsdiff.kolonneLabel` og radkortet. Det fanger både `_` og `""`. Web-flatene importerer det
+via `@sitedoc/pdf`-indeksen (re-eksportert der). Det fanger begge representasjoner, så koden er
+forover-kompatibel.
+
+### 🟢 VEDTATT + IMPLEMENTERT 2026-09-04 — «uten navn» lagres som TOM STRENG, ikke `_`
+
+> **Kenneth 2026-09-04:** *«hvis vi kan akseptere tom streng → så er det ok.»*
+
+`""` er den ærlige representasjonen av «uten navn». `_` var en brukerkonvensjon som hver
+konsument måtte særhåndtere, og den kolliderer med en bruker som en dag faktisk vil ha `_` som
+etikett.
+
+**Levert på branch `fix/navnlost-felt-tom-streng`:** server-valideringen løsnet fra
+`label: z.string().min(1)` til `.optional()` i `mal.oppdaterObjekt` (`apps/api/src/routes/mal.ts`)
+— det var *der* blokkeringen lå, ikke i klientens disable-vilkår. `mal.opprettObjekt` beholder
+`.min(1)` med vilje: et nytt felt får alltid typenavnet, så et program kan ikke lage navnløse
+felt utilsiktet. Kun den menneskelige tømmingen er tillatt.
+
+🔴 **Byggehintet er ikke pynt — det er vedtakets forutsetning.** `DraggbartFelt` rendret
+`{objekt.label}` rått. Med `_` **så** Kenneth feltet i maltreet; med tom streng blir kortet
+blankt og han mister oversikten over egne felt. **Det var derfor `_`-konvensjonen oppsto.**
+Fjernes hintet, er tom streng et tilbakeskritt — ikke en forenkling.
+
+**Modellen: én sannhet i data, presentasjon per flate.**
+
+| Flate | Navnløst felt |
+|---|---|
+| **Data** (`ReportObject.label`) | `""` — ingen magisk streng |
+| **Malbygger** | Byggehint «(uten navn)» (`malbygger.utenNavn`, 15/15 språk), dempet/kursiv — tydelig som hint, ikke som etikett |
+| **Web-utfylling** | Ingen etikettlinje — verdien står alene |
+| **Arkiv-PDF** | Verdien alene; **utelates helt** når feltet også er tomt (levert `f13b2421`) |
+
+**Ingen migrering.** `harMeningsfullLabel` fanger både `""` og `_`, så eksisterende maler med
+`_` fortsetter å virke uendret. Konvensjonen fases ut ved bruk, ikke ved skriv mot databasen.
+
+⚠️ **Fortsatt ingen påkrevd-etikett-validering.** Vedtaket endrer *representasjonen*, ikke at
+navnløse felt er tillatt. Forslaget om en slik validering kom fra **dokgen** som «rot-fiks» og
+ble **avvist av cowork** — den ville fjernet funksjonen Kenneth bruker bevisst. Se seksjonen
+over.
 
 ### Grenseverdier på tall-felt (`integer`/`decimal`) — norsk kanonisk (fase M-3a del 2, 2026-07-16)
 
@@ -211,7 +327,7 @@ Moduler (definert i `PROSJEKT_MODULER`) auto-oppretter maler med forhåndskonfig
 
 | Funksjon | Beskrivelse |
 |----------|-------------|
-| **Feltpalett** | Dra-og-slipp fra 23 felttyper — identisk for alle dokumenttyper |
+| **Feltpalett** | Dra-og-slipp fra 24 felttyper — identisk for alle dokumenttyper |
 | **Sonemodell** | Topptekst (zone 0) + Datafelter (zone 1) — alle typer |
 | **Hierarki** | `parentId`-nesting, `repeater`-barn, betingede containere — alle typer |
 | **Feltkonfigurasjon** | Høyrepanel for label, required, config-opsjoner — alle typer |
@@ -259,7 +375,7 @@ Ligger i `apps/web/src/components/malbygger/` med 9 filer:
 | Fil | Ansvar |
 |-----|--------|
 | `MalBygger.tsx` | Orkestrator (~1900 linjer), dnd-kit, tilstandshåndtering |
-| `FeltPalett.tsx` | Venstre panel — 23 draggbare felttyper |
+| `FeltPalett.tsx` | Venstre panel — 24 draggbare felttyper |
 | `DropSone.tsx` | Senterpanel — topptekst + datafelter-soner |
 | `DraggbartFelt.tsx` | Sorterbart felt med `useSortable` |
 | `FeltKonfigurasjon.tsx` | Høyrepanel — rediger valgt felt |
@@ -333,7 +449,7 @@ Tidligere absolutt-forbud erstattet 2026-05-26 etter at felt-lås-prinsippet (§
 
 ### 5. Feltpalett — sidepanel
 
-Feltpaletten vises som sidepanel (venstre) i malbyggeren. Kan minimeres. Ikke modal. Alle 23 felttyper vises alltid — type-irrelevante felter (f.eks. `enableChangeLog` for oppgaver) er metadata-innstillinger, ikke felttyper i paletten.
+Feltpaletten vises som sidepanel (venstre) i malbyggeren. Kan minimeres. Ikke modal. Alle 24 felttyper vises alltid — type-irrelevante felter (f.eks. `enableChangeLog` for oppgaver) er metadata-innstillinger, ikke felttyper i paletten.
 
 ### 6. Forhåndsvisning — gjenspeiler låseregler og flyt
 

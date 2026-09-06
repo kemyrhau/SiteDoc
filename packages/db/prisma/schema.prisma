@@ -69,6 +69,7 @@ model User {
   taskChangeLogs          TaskChangeLog[]
   ansvarligFaggrupper     Faggruppe[]             @relation("FaggruppeAnsvarlig")
   psiSignaturer           PsiSignatur[]
+  dokumentDeltakelser     DokumentDeltaker[]
   tilstedevarelser        PsiTilstedevarelse[]
   godkjenteKontrollplaner Kontrollplan[]          @relation("KontrollplanGodkjenner")
   kontrollplanHistorikk   KontrollplanHistorikk[]
@@ -990,6 +991,9 @@ model ReportTemplate {
   // Mal-promotering (per fase-0-beslutninger.md § E steg 7 — forberedelse til Fase 2)
   organizationTemplateId String? @map("organization_template_id") // Peker oppover hvis kopiert fra firma-mal
   promotedToFirma        Boolean @default(false) @map("promoted_to_firma") // True hvis denne mal er promotert til firma-bibliotek
+  // Malarkiv (AM4, 2026-09-04): hvilken firmamal-versjon denne kopien stammer fra.
+  // Manuell versjonering (L6) — badge «X versjoner bak» = firmamal.version - versjonAvHovedmal.
+  versjonAvHovedmal      Int     @default(1) @map("versjon_av_hovedmal")
 
   project             Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   objects             ReportObject[]
@@ -1051,17 +1055,28 @@ model OrganizationTemplate {
   version                Int      @default(1)
   enableChangeLog        Boolean  @default(false) @map("enable_change_log")
   kontrollomrade         String?
+  // Malarkiv (AM4/B3, 2026-09-04): HMS-maler i firmaarkivet. Speiler ReportTemplate:973-974.
+  subdomain              String?  @map("subdomain") // "avvik" | "sja" | "ruh" — kun ved domain="hms"
+  hmsSynlighet           String?  @map("hms_synlighet") // "privat" | "apen" — kun ved domain="hms"
+  // Seeding-flagg (F4): seedes automatisk inn i nye prosjekter ved modulaktivering.
+  standardForNyeProsjekter Boolean @default(false) @map("standard_for_nye_prosjekter")
   promotedFromTemplateId String?  @map("promoted_from_template_id")
+  // Malarkiv (AM4/B4, 2026-09-04): STRUKTURERT avstamning når firmamalen er lånt fra
+  // SiteDoc-sentralarkivet (BibliotekMal). Spørrbar peker, aldri fritekst i description.
+  // SetNull ved sletting av bibliotekmalen (samme semantikk som L5) — lånet består.
+  laantFraBibliotekMalId String?  @map("laant_fra_bibliotek_mal_id")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
-  organization Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  promotedFrom ReportTemplate?              @relation("PromotedTemplate", fields: [promotedFromTemplateId], references: [id], onDelete: SetNull)
-  objects      OrganizationTemplateObject[]
-  copiedTo     ReportTemplate[]             @relation("CopiedFromOrgTemplate")
+  organization       Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  promotedFrom       ReportTemplate?              @relation("PromotedTemplate", fields: [promotedFromTemplateId], references: [id], onDelete: SetNull)
+  laantFraBibliotek  BibliotekMal?                @relation("LaantFraBibliotek", fields: [laantFraBibliotekMalId], references: [id], onDelete: SetNull)
+  objects            OrganizationTemplateObject[]
+  copiedTo           ReportTemplate[]             @relation("CopiedFromOrgTemplate")
 
   @@index([organizationId])
   @@index([promotedFromTemplateId])
+  @@index([laantFraBibliotekMalId])
   @@map("organization_templates")
 }
 
@@ -1105,6 +1120,16 @@ model Checklist {
   drawingId            String?   @map("drawing_id")
   positionX            Float?    @map("position_x")
   positionY            Float?    @map("position_y")
+  // Lokasjonsomfang (2026-09-04): "punkt" = pin/tegning satt · "byggeplass" = bevisst hele
+  // byggeplassen (én observasjon om hele anlegget, f.eks. «alle gatelysene mangler merking»)
+  // · null = ikke valgt ennå (auto-åpning kan trigge i utkast). PDF/web skiller byggeplass fra
+  // et tomt felt — et tomt felt der noe var ment er en usann påstand.
+  lokasjonOmfang       String?   @map("lokasjon_omfang")
+  // Fritekst-lokasjon (2026-09-06): en PRESISERING innenfor byggeplassen når det ikke
+  // finnes tegning å pinne på — «Akse 4», «Nordre rampe». Påheng på byggeplass-valget
+  // (settes SAMMEN med lokasjonOmfang="byggeplass"), ikke et fjerde omfangsnivå — arver
+  // dermed all byggeplass-filtrering. Tegning forblir førstevalget; dette er utveien.
+  lokasjonFritekst     String?   @map("lokasjon_fritekst")
   recipientUserId      String?   @map("recipient_user_id")
   recipientGroupId     String?   @map("recipient_group_id")
   lestAvMottakerVed    DateTime? @map("lest_av_mottaker_ved")
@@ -1113,6 +1138,12 @@ model Checklist {
   retning              String?   @map("retning") // "frem" | "tilbake" | "paatvers" (siste bevegelse)
   terminal             String?   @map("terminal") // "godkjent" | "avvist" | "lukket" | "avbrutt" | null (åpent felt, ikke tilstandsmaskin)
   sendt                Boolean   @default(false) @map("sendt") // Har forlatt ledd 1. Egen kilde — draft ≠ aldri sendt
+  // Innholdsversjon (SJA varig arbeid, fabel 2026-09-06). Telles opp ved lagring
+  // av innholdsendring i åpen signaturrunde MED ≥1 signatur — signaturer bærer
+  // versjonen de signerte på (`DokumentSignatur.signertVersjon`), så en signatur
+  // fra før en endring vises «signert før endring». Egen størrelse fra runde-
+  // telleren (2300-vedtaket «ingen runde-kolonne» står; dette er innhold, ikke runde).
+  innholdsVersjon      Int       @default(1) @map("innholds_versjon")
   // Soft delete (F0 — 90-dagers papirkurv). Slett setter deletedAt/deletedById;
   // guard-filteret `deletedAt IS NULL` skjuler slettede rader fra alle lister.
   // deletedById er svakt String-felt uten @relation (bevisst — ingen FK-kobling til User).
@@ -1136,6 +1167,8 @@ model Checklist {
   tasks              Task[]
   changeLog          ChecklistChangeLog[]
   kontrollplanPunkt  KontrollplanPunkt?
+  signaturRunder     SignaturRunde[]
+  signaturDeltakere  DokumentDeltaker[]
 
   @@index([templateId])
   @@index([bestillerUserId])
@@ -1164,6 +1197,10 @@ model Task {
   drawingId            String?   @map("drawing_id")
   positionX            Float?    @map("position_x")
   positionY            Float?    @map("position_y")
+  // Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | null — speiler Checklist.lokasjonOmfang.
+  lokasjonOmfang       String?   @map("lokasjon_omfang")
+  // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass-valget. Se Checklist.
+  lokasjonFritekst     String?   @map("lokasjon_fritekst")
   dokumentflytId       String?   @map("dokumentflyt_id")
   checklistId          String?   @map("checklist_id")
   checklistFieldId     String?   @map("checklist_field_id")
@@ -1176,6 +1213,8 @@ model Task {
   retning              String?   @map("retning") // "frem" | "tilbake" | "paatvers" (siste bevegelse)
   terminal             String?   @map("terminal") // "godkjent" | "avvist" | "lukket" | "avbrutt" | null (åpent felt, ikke tilstandsmaskin)
   sendt                Boolean   @default(false) @map("sendt") // Har forlatt ledd 1. Egen kilde — draft ≠ aldri sendt
+  // Innholdsversjon (SJA varig arbeid, fabel 2026-09-06) — se Checklist for forklaring.
+  innholdsVersjon      Int       @default(1) @map("innholds_versjon")
   // Soft delete (F0 — 90-dagers papirkurv). Se Checklist for forklaring.
   deletedAt            DateTime? @map("deleted_at")
   deletedById          String?   @map("deleted_by_id")
@@ -1200,6 +1239,8 @@ model Task {
   images             Image[]
   comments           TaskComment[]
   changeLog          TaskChangeLog[]
+  signaturRunder     SignaturRunde[]
+  signaturDeltakere  DokumentDeltaker[]
 
   @@index([templateId])
   @@index([bestillerUserId])
@@ -1947,6 +1988,115 @@ model PsiSignatur {
   @@map("psi_signaturer")
 }
 
+// ---------------------------------------------------------------------------
+// Signaturrunder (SJA/HMS) — «hvem har signert, hvem mangler» på gjenbrukt SJA.
+// Fabel-ordre 2026-09-06 (docs/redesign/ORDRE-sja-signaturrunder-2026-09-06.md).
+//
+// Modellen keyer til DOKUMENTET (checklistId XOR taskId), ikke til feltet:
+// MalBygger håndhever én signature_list pr. mal (guard), så «én pr. dokument» er
+// sikret i UI — ikke antatt her. Vei 2 (to nullbare FK-er, onDelete: Cascade)
+// valgt over svakt dokumentId: cascade rydder runder/deltakere/signaturer når
+// SJA (Checklist) eller avvik/RUH (Task) slettes — ingen foreldreløse HMS-rader
+// som papirkurv.ts ikke rører. XOR-guard (nøyaktig én FK satt) håndheves via
+// CHECK-constraint i migreringen.
+//
+// Rundenummer ER versjonen (forenkling mot PsiSignatur.psiVersion — psi.ts:423);
+// ingen versjonskolonne. antallDeltakere fryses ved «Avslutt runde» (snapshot-
+// prinsippet fra PSI) slik at historiske runder ikke drifter når deltakere
+// fjernes etterpå.
+// ---------------------------------------------------------------------------
+
+model SignaturRunde {
+  id              String    @id @default(uuid())
+  checklistId     String?   @map("checklist_id")
+  taskId          String?   @map("task_id")
+  rundeNr         Int       @map("runde_nr")
+  startetAt       DateTime  @default(now()) @map("startet_at")
+  startetAv       String    @map("startet_av") // userId — svakt felt, ingen @relation
+  avsluttetAt     DateTime? @map("avsluttet_at")
+  avsluttetAv     String?   @map("avsluttet_av") // userId
+  aarsak          String?   @map("aarsak")
+  // Frys ved «Avslutt runde» = antall aktive deltakere da runden ble lukket.
+  // null = åpen runde (les live _count deltakere med fjernetAt=null i stedet).
+  antallDeltakere Int?      @map("antall_deltakere")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  checklist  Checklist?         @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  task       Task?              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  signaturer DokumentSignatur[]
+
+  @@unique([checklistId, rundeNr])
+  @@unique([taskId, rundeNr])
+  @@index([checklistId])
+  @@index([taskId])
+  @@map("signatur_runder")
+}
+
+model DokumentDeltaker {
+  id           String    @id @default(uuid())
+  checklistId  String?   @map("checklist_id")
+  taskId       String?   @map("task_id")
+  // Innlogget prosjektmedlem ELLER gjest (XOR — samme mønster som PsiSignatur).
+  userId       String?   @map("user_id")
+  guestName    String?   @map("guest_name")
+  guestCompany String?   @map("guest_company")
+  guestPhone   String?   @map("guest_phone")
+  lagtTilAt    DateTime  @default(now()) @map("lagt_til_at")
+  lagtTilAv    String    @map("lagt_til_av") // userId
+  // Soft-fjern — aldri hard delete (historikk består). fjernetAt=null = aktiv.
+  fjernetAt    DateTime? @map("fjernet_at")
+  fjernetAv    String?   @map("fjernet_av")
+
+  checklist  Checklist?         @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  task       Task?              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  signaturer DokumentSignatur[]
+
+  @@index([checklistId])
+  @@index([taskId])
+  @@index([userId])
+  @@map("dokument_deltakere")
+}
+
+model DokumentSignatur {
+  id             String   @id @default(uuid())
+  rundeId        String   @map("runde_id")
+  deltakerId     String   @map("deltaker_id")
+  // Identitet bor på deltakeren; signaturen bærer kort/bilde/tidspunkt.
+  hmsKortNr      String?  @map("hms_kort_nr")
+  harIkkeHmsKort Boolean  @default(false) @map("har_ikke_hms_kort")
+  signaturbilde  String?  @map("signaturbilde")
+  // Server-tidspunkt (UTC) for ordering/audit.
+  completedAt    DateTime @default(now()) @map("completed_at")
+  // Signeringstidspunkt som lokal ISO-8601 med offset (klientens signaturTidspunktNaa()).
+  // Veggklokka er innbakt → vises identisk på tvers av flater/tidssoner via @sitedoc/shared
+  // formaterSignaturTidspunkt («dd.mm.åååå kl. hh:mm») — samme form som signaturfeltet.
+  signertTidspunkt String? @map("signert_tidspunkt")
+  // Dokumentets innholdsVersjon da signaturen ble avgitt (SJA varig arbeid, fabel
+  // 2026-09-06). `signertVersjon < dokumentets innholdsVersjon` = signert før en
+  // senere endring → vises amber. Default 1 = eksisterende rader ved innføring.
+  signertVersjon   Int      @default(1) @map("signert_versjon")
+  // «Krev ny signatur» (ansvarlig): flytter en signatur avgitt før endring TILBAKE
+  // til manko UTEN å slette den (består i logg/PDF for sin versjon). null = gjelder.
+  // Menneskets kall, aldri automatikk — derfor egen tilstand, ikke avledet av versjon.
+  nySignaturKrevdAt DateTime? @map("ny_signatur_krevd_at")
+  nySignaturKrevdAv String?   @map("ny_signatur_krevd_av") // userId — svakt felt, ingen @relation
+  // Satt KUN når ansvarlig bekrefter deltakelse på vegne av en GJEST (2026-09-06):
+  // handlingen er en bekreftelse FRA ansvarlig, ikke en signatur av gjesten. Dokumentet
+  // skal si «bekreftet av <navn>», aldri påstå at gjesten selv signerte. Signerer man
+  // sin egen rad forblir feltet null (signaturen er sin egen). userId — svakt felt,
+  // ingen @relation. Ingen backfill: eldre rader er null = vises som før.
+  bekreftetAvUserId String?  @map("bekreftet_av_user_id")
+
+  runde    SignaturRunde    @relation(fields: [rundeId], references: [id], onDelete: Cascade)
+  deltaker DokumentDeltaker @relation(fields: [deltakerId], references: [id], onDelete: Cascade)
+
+  @@unique([rundeId, deltakerId])
+  @@index([rundeId])
+  @@index([deltakerId])
+  @@map("dokument_signaturer")
+}
+
 // PsiTilstedevarelse — §15-innsjekk/utsjekk per byggeplass (Fase 4 Mannskap).
 // Event-tidsserie (mange rader per person/dag), IKKE unik per (bruker,psi).
 // Mannskaps-vyen aggregerer disse per byggeplass. Byggherreforskriften §15,
@@ -2037,6 +2187,8 @@ model BibliotekMal {
   opprettet      DateTime                @default(now()) @map("opprettet")
   malInnhold     Json                    @map("mal_innhold")
   prosjektValg   ProsjektBibliotekValg[]
+  // AM4/B4: firmamaler lånt fra denne sentralmalen (avstamning, SetNull ved sletting)
+  laantAvOrgTemplates OrganizationTemplate[] @relation("LaantFraBibliotek")
 
   @@index([kapittelId])
   @@map("bibliotek_maler")

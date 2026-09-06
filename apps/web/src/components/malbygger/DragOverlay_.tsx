@@ -3,6 +3,8 @@
 import { DragOverlay as DndDragOverlay } from "@dnd-kit/core";
 import type { Active } from "@dnd-kit/core";
 import { REPORT_OBJECT_TYPE_META, type ReportObjectType } from "@sitedoc/shared";
+import { harMeningsfullLabel } from "@sitedoc/pdf";
+import { useTranslation } from "react-i18next";
 import type { MalObjekt } from "./DraggbartFelt";
 
 const ikonMap: Record<string, string> = {
@@ -35,6 +37,7 @@ interface DragOverlayProps {
 }
 
 export function DragOverlayKomponent({ aktivt }: DragOverlayProps) {
+  const { t } = useTranslation();
   if (!aktivt) return <DndDragOverlay />;
 
   const data = aktivt.data.current;
@@ -66,7 +69,11 @@ export function DragOverlayKomponent({ aktivt }: DragOverlayProps) {
             {meta ? ikonMap[meta.icon] ?? "?" : "?"}
           </span>
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-800">{objekt.label}</span>
+            {harMeningsfullLabel(objekt.label) ? (
+              <span className="text-sm font-medium text-gray-800">{objekt.label}</span>
+            ) : (
+              <span className="text-sm italic text-gray-400">{t("malbygger.utenNavn")}</span>
+            )}
             <span className="text-xs text-gray-400">{meta?.label ?? objekt.type}</span>
           </div>
         </div>

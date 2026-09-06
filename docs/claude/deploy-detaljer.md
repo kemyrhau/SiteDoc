@@ -215,6 +215,19 @@ Fra bygg-stempel-landingen (`/version` + Innstillinger-linje) bærer imaget comm
 
 **Endret 2026-08-11:** build-args ligger nå i `docker-compose.yml` + `.test.yml` under `build.args` (`GIT_SHA`/`BUILD_TID` på api, `NEXT_PUBLIC_BUILD_SHA`/`NEXT_PUBLIC_BUILD_TID` på web — **begge interpolert fra SAMME env-par `GIT_SHA`/`BUILD_TID`**). Derfor: sett **ett env-prefiks** foran `sudo docker compose build`, ikke fire `--build-arg`-flagg. Ett par driver både api og web → de kan aldri stemples ulikt.
 
+> 🔴 **RETTET 2026-09-04 — bruk `./deploy-test.sh`, ikke blokken under.** Skriptet er **mer
+> komplett enn dokumentasjonen her**: det rsyncer, og skriver deretter ut alle sudo-kommandoene
+> ferdig utfylt — inkludert **migrate-steget for alle fire db-pakker** med gaten
+> `grep -q sitedoc_test || ABORT`, som blokken under aldri har hatt. Samme asymmetri som
+> prod-blokken hadde til 04.09: regelen «migrate droppes ALDRI» sto i prosaen, ikke i kommandoen.
+>
+> ```sh
+> cd ~/Documents/Programmering/SiteDoc && git checkout develop && git pull --ff-only origin develop && ./deploy-test.sh
+> ```
+>
+> Skriptet kjører ikke `sudo` selv (krever TTY) — det skriver ut linjene Kenneth limer. Blokken
+> under beholdes som referanse for hva stemplingen gjør, ikke som noe å kopiere.
+
 **Test — bygg m/ stempel + up (fra Mac, erstatter de rene `build`-linjene over når api+web endret):**
 ```
 cd ~/Documents/Programmering/SiteDoc && git checkout develop && git pull --ff-only origin develop && ./deploy-test.sh
@@ -245,17 +258,23 @@ ssh -t server-ny "cd ~/stack/sitedoc && sudo GIT_SHA=$SHA BUILD_TID=$TID docker 
 cd ~/Documents/Programmering/SiteDoc-deploy && git checkout main && git pull --ff-only origin main && rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env --exclude uploads --exclude 'apps/mobile/node_modules' ~/Documents/Programmering/SiteDoc-deploy/ server-ny:stack/sitedoc/
 ```
 
-**Server (`ssh server-ny`, lim blokken):**
+**Bygg + migrate + up — fra Mac, med stempel (én blokk, `ssh -t` innebygd):**
 ```
-cd ~/stack/sitedoc
-sudo docker compose -f docker/docker-compose.yml build sitedoc-api
-sudo docker compose -f docker/docker-compose.yml build sitedoc-web
-sudo docker compose -p docker -f docker/docker-compose.yml run --rm --no-deps --entrypoint sh sitedoc-api -c 'echo "$DATABASE_URL" | grep -qE "/sitedoc([?]|$)" || { echo "ABORT ikke prod-DB"; exit 1; }; pnpm --filter @sitedoc/db exec prisma migrate deploy'
-sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-api sitedoc-web
-sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'
+SHA=$(git -C ~/Documents/Programmering/SiteDoc-deploy rev-parse --short HEAD); TID=$(date -u +%FT%TZ); echo "Stempler $SHA · $TID"
+ssh -t server-ny "cd ~/stack/sitedoc && sudo GIT_SHA=$SHA BUILD_TID=$TID docker compose -f docker/docker-compose.yml build sitedoc-api && sudo GIT_SHA=$SHA BUILD_TID=$TID docker compose -f docker/docker-compose.yml build sitedoc-web && sudo docker compose -p docker -f docker/docker-compose.yml run --rm --no-deps --entrypoint sh sitedoc-api -c 'echo \"\$DATABASE_URL\" | grep -qE \"/sitedoc([?]|\$)\" || { echo ABORT-ikke-prod-DB; exit 1; }; pnpm --filter @sitedoc/db exec prisma migrate deploy' && sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-api sitedoc-web && sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'"
 ```
+- 🔴 **RETTET 2026-09-04 — blokken sto tidligere som løse serverlinjer uten `ssh` og uten
+  stempel.** To målte konsekvenser: (1) blokken ble limt på Macen og feilet mot lokal Docker
+  («Cannot connect to the Docker daemon at unix:///Users/…»), fordi «`ssh server-ny` først»
+  bare sto i prosaen — **gaten skal ligge i kommandoen**; (2) prod-imaget fikk aldri
+  `GIT_SHA`/`BUILD_TID`, så `https://api.sitedoc.no/version` svarte `{"gitSha":"dev"}` og prod
+  kunne ikke svare på hvilken kode den kjørte. **Test-blokken over hadde begge deler hele
+  tiden** — samme asymmetri som ajour-guarden i `deploy-test.sh`: løst ett sted, ikke det andre.
+- SHA leses fra **`SiteDoc-deploy`** (main-checkout), ikke fra hovedtreet (som står på develop).
 - Migrate bruker **`-p docker`** (engangs `run --rm`); **`up` for api/web bruker IKKE `-p`** (api/web tilhører prosjekt `sitedoc` etter reconcile 2026-07-09 — `-p docker` gir «container name in use»).
-- Verifiser som INNLOGGET bruker på sitedoc.no.
+- **Migrate-linja droppes ALDRI** — kommandoen er idempotent og svarer «No pending migrations» når det ikke er noe å kjøre.
+- **Verifiser stemplet:** `curl https://api.sitedoc.no/version` → `{gitSha, byggTid, node}`. Står `gitSha` på `"dev"`, ble env-prefikset utelatt.
+- **Verifiser som INNLOGGET bruker på sitedoc.no** — HTTP 200 er ikke verifisering.
 
 ### ⚠️ `deploy.sh` er en FELLE — IKKE bruk (bør slettes/omskrives)
 `deploy.sh` rsyncer fra `~/Documents/Programmering/SiteDoc/` (som står på **develop**) og kjører `up -d --build` (bygger api+web parallelt → **OOM tar ned prod**). Den ville deployet develop-kode inn i prod med OOM-risiko — motsatt av prod-blokken over. Bruk blokkene i denne seksjonen.

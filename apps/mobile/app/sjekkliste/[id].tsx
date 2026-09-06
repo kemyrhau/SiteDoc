@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
@@ -39,7 +39,7 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
 import { ekspanderEndring, byggKolonnerPerFelt, segmenterTilTekst } from "@sitedoc/pdf";
-import { byggObjektTre } from "@sitedoc/shared";
+import { byggObjektTre, standardFeltNavn } from "@sitedoc/shared";
 import { TegningsVisning } from "../../src/components/TegningsVisning";
 import type { Markør } from "../../src/components/TegningsVisning";
 import { AUTH_CONFIG } from "../../src/config/auth";
@@ -191,7 +191,7 @@ export default function SjekklisteUtfylling() {
       parentId?: string | null;
       sortOrder: number;
     }[];
-    return byggKolonnerPerFelt(byggObjektTre(objs) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]);
+    return byggKolonnerPerFelt(byggObjektTre(objs) as unknown as Parameters<typeof byggKolonnerPerFelt>[0], standardFeltNavn);
   }, [sjekklisteDetalj]);
 
   const { ventende, erAktiv, ventendePerDokument } = useOpplastingsKo();
@@ -741,7 +741,16 @@ export default function SjekklisteUtfylling() {
   const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
   // Paritetsregel (2026-09-02): i lesevisning vises dokumentnivå-lokasjonen kun med
   // komplett markør (harMarkorDok); tegning uten punkt leses som «ingen lokasjon».
-  const lokasjonTekstVist = leseModus && !harMarkorDok ? null : lokasjonTekst;
+  // Lokasjonsomfang (2026-09-04): «Gjelder hele byggeplassen» er et eksplisitt svar og vises
+  // på tvers av flater (web/PDF/mobil) — aldri som tomt felt. Har forrang over markør-teksten.
+  const erByggeplassDok =
+    (sjekklisteDetalj as { lokasjonOmfang?: string | null } | undefined)?.lokasjonOmfang === "byggeplass";
+  // Fritekst-sted (2026-09-06): vises som stedet når satt, ellers «hele byggeplassen».
+  const lokasjonFritekstDok =
+    (sjekklisteDetalj as { lokasjonFritekst?: string | null } | undefined)?.lokasjonFritekst ?? null;
+  const lokasjonTekstVist = erByggeplassDok
+    ? lokasjonFritekstDok || t("lokasjonVelger.gjelderByggeplass")
+    : (leseModus && !harMarkorDok ? null : lokasjonTekst);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
@@ -903,6 +912,11 @@ export default function SjekklisteUtfylling() {
 
         <UtfyllingSeksjoner
           objekter={objekter}
+          feltStatus={(objekt) => {
+            // Repeater-barn telles ikke som eget kontrollpunkt (repeateren teller for hele raden).
+            if (repeaterBarnIder.has(objekt.id)) return null;
+            return { synlig: erSynlig(objekt), harVerdi: harFeltVerdi(hentFeltVerdi(objekt.id).verdi) };
+          }}
           render={(objekt) => {
           // Skip barn av repeatere — rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
@@ -914,6 +928,21 @@ export default function SjekklisteUtfylling() {
           // Denne skippen holder dem skjult og krasjfrie. Fjernes FØRST når D8/D9-
           // malryddingen har fjernet objektene fra malene.
           if (objekt.type === "location") return null;
+
+          // Signaturliste (SJA/HMS-runder): egen server-drevet ramme, ingen FeltWrapper.
+          if (objekt.type === "signature_list") {
+            return (
+              <View key={objekt.id}>
+                <RapportObjektRenderer
+                  objekt={objekt}
+                  verdi={null}
+                  onEndreVerdi={() => {}}
+                  leseModus={leseModus}
+                  sjekklisteId={sjekkliste.id}
+                />
+              </View>
+            );
+          }
 
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           // Bruk parentId fra DB (ny) med fallback til config (gammel)

@@ -51,6 +51,69 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 | DG | **Dokumentgenerering / arkiv-PDF (nytt spor 2026-08-21 — leveransen kunden faktisk mottar)** | Prod-funn 20.–21.08 (BHO-002): arkiv-PDF taper innhold stille. Kodeverifisert mot `packages/pdf` 21.08: `felt.ts` returnerer tom streng for `location` og `drawing_position` (tegningsrenderer finnes ferdig i `tegning.ts` men kalles aldri fra arkivstien) + instruksjonstypene (info_text/info_image/video/quiz); **F7**: kommentar/vedlegg festet på repeater-OBJEKT (uten «Legg til rad») faller ut av arkivet — web viser dem. Design vedtatt i `Arkivmal PDF Mockup.dc.html` (rev. 21.08, 14 sider): malobjekt-revisjon alle 26 typer · tegninger i arkivet (drawing_position oversikt+4×detalj, dokumentnivå-lokasjon m/kartpunkt; uten markering utelates seksjonen) · **helside tegningsprint per tegning m/alle markører nummerert mot punktnumrene (D2b, Kenneth-funn 21.08)** · Oppgave-PDF · F7 = egen blokk «Registrert utenfor rader» OVER tabellen (aldri rad 0, aldri utelatt) · knapp renames «Last ned arkiv-PDF»→«Last ned PDF» (splittknapp: Med logg (standard)/Uten logg/Send til) · samlerapport blandet SJ+OPG+HMS · sluttoppgjør-oppgaveliste m/kilde-kolonne. Designnotat: `docs/redesign/designnotat-arkivmal-pdf-fabel-2026-08-21.md`. **D8/D9 (beslutning 21.08, cowork-gatet):** repeater = rader × kolonner, barn-labels styrer begge flater; web-utfylling skal vise barn-labels — MEN malrydding først (4 funn: «_ opus»-notis + tre «-»-labels; 999-navn = Kenneth, inkl. «Beraringsrapport»-stavefeil). Veiledning = `config.helpText` (wiret ende-til-ende, rendres ikke i PDF i dag) + `info_text`; én utskriftsbryter «Ta med veiledningstekster», av som standard. Beslutningsdok: `docs/redesign/beslutning-repeater-label-modell-fabel-2026-08-21.md`. **Krav (Kenneth 21.08): PDF-motoren skal virke for både web og mobil** — alt bygges i delt `packages/pdf`-sti, verifiseres fra begge flater. **Gatet av cowork 21.08; design Kenneth-godkjent 21.08, notat committet develop.** Måling (cowork): `arkivmal/innhold.ts:13` importerer `renderFelt` fra delt `felt.ts` — arkivet har ingen egen feltrenderer; tegningsrendering i felt.ts ville truffet mobil-PDF udesignet → bindende: overstyring i `arkivmal/` (repeater-mønsteret), felt.ts røres ikke. **Ordre D2/D2b skrevet 21.08:** `docs/redesign/ordre-arkivmal-tegning-d2-d2b-fabel-2026-08-21.md` — DoD krever bevis fra BEGGE flater (jf. 24 paritetsavvik: «fiks landet på én flate, aldri portert»). Prioritet: tegning (D2/D2b) FØRST, ubetinget — klient-utskriften fjernet 20.08 (F2, d92ece42) var eneste vei til tegningsutskrift. Deretter F7 — **avklart 21.08: BEF-001-test kjørt, bildene kom med → eksisterende mangel, ikke regresjon; ordre skrevet:** `docs/redesign/ordre-arkivmal-f7-objektniva-fabel-2026-08-21.md`. Så variantene. Kodesporet lever i `docs/claude/dokumentgenerering-plan.md` (F1b–F7) — dette sporet gir det plass i rekkefølgen | mockupen + designnotatet |
 | FL | **Prosjekt-livssyklus på firmanivå (målt 2026-08-30)** | Firmalisten `/dashbord/firma/prosjekter` viser status men kan ikke endre den — verken aktivere, deaktivere, avslutte eller arkivere. **Statusmodellen spriker per lag:** DB `String @default("active")` (`schema.prisma:584`) · API tar imot **fire** (`prosjekt.ts:606`, inkl. `deactivated`) · prosjektoppsettet tilbyr **tre** (`oppsett/prosjektoppsett/page.tsx:35-60` — deaktivering er sitedoc-admin-only) · firmalisten **null** (kun visning, og rendrer «archived»/«completed» rått forbi `t()`, `firma/prosjekter/page.tsx:149`). **Konsekvens:** et firma som vil fryse et prosjekt må be SiteDoc om det; arkivering av N avsluttede prosjekter = N sidebesøk innenfra, mens den ene flaten som ser alle N samtidig ikke kan gjøre noe. Strider mot [terminologi.md § 0](../claude/terminologi.md) (firmaet eier prosjektene sine). 🔴 **UTVIDET FUNN 2026-08-30 — verre enn manglende knapper: `Project.status` HÅNDHEVER INGENTING.** Ingen skrivevei i `apps/api` leser den (negativ kontroll: `tilgangskontroll.ts` leser `OrganizationMember.status`, aldri prosjektets; «skrivebeskytt»/`readOnly` finnes ikke i api-et). Samtidig lover UI-et `nb.json:2218` *«Prosjektet er arkivert og skrivebeskyttet»*. **Knappen finnes — den gjør bare ingenting.** Det er en løftebrist mot kunden, ikke en manglende funksjon. Kenneth 2026-08-30: *«vi må ha en løsning for å avslutte et prosjekt!»* → **vedtatt at avslutning er FRYSING, ikke sletting** ([domene-arbeidsflyt.md § BINDENDE VEDTAK 2026-08-30](../claude/domene-arbeidsflyt.md)) — sjekklistene fra et ferdig prosjekt er det kunden skal beholde. Frysing løser samtidig ledd-vernet og «slette flyt med lukkede dokumenter». 🔴 **Designes i prosjekt- vs firma-innstillinger-sesjonen (pkt 7) — ikke som løsordre.** Måling: `relay/fabel-firmanivaaet-mangler-styring.md` | notatet |
 | PM | Produktmodell-rearkitektur: prosjekt- → firmaorientert | Utredning levert (`delplaner/firma-produktmodell-utredning-2026-07-26.md`) + 3 Kenneth-beslutninger: firma påkrevd v/onboarding (auto-enmannsfirma) · én «prosjekt»-slug (OrganizationModule, rent eierskapssignal) · 10-grense hengt på modul-eierskap + 30d trialExpiresAt. Byggeordre (§2+3+5) **parkert** til interim-guard + admin lander — **scope-tillegg (cowork-rutet 2026-07-28): funn A fra `dokumentflyt-medlem-analyse-2026-07-28.md`** (flyt-invitasjon lager firma-løse brukere uten gruppe-kobling; fiks = én delt invitasjonsmodal, firma-krevende `medlem.leggTil` + `groupId` i samme transaksjon). Interim: sjekklistegrense gates på firma-tilknytning (`feat/sjekklistegrense-firma`) — låser opp pilot-blokkeren | `delplaner/firma-produktmodell-utredning-2026-07-26.md` |
+| **LP** | **lokasjonOmfang nivå 3 — «hele prosjektet»** | Designsak hos fabel. I dag er `byggeplassId = null` tvetydig; gatelys-eksempelet gjelder ett trinn opp. **Liten** — additivt på lokasjonOmfang-sporet levert 04.09. Fakta: [BESTILLING § 2C](til-fabel/BESTILLING-masterplan-2026-09-04.md) | tillegg til lokasjon-ordren (fabel) |
+| **EX** | **Eksport og navngiving** — PDF/Excel/CSV fra app OG web, med velge/preview/dele · rename «Arkiv-PDF» → eksport-språk · **«arkiver» reserveres** for fremtidig handling (= PR-sporet) | Designsak hos fabel. Fakta og Kenneth-sitater: [BESTILLING § 2A](til-fabel/BESTILLING-masterplan-2026-09-04.md) | designnotat kommer (fabel) |
+| **AG** | **Ansvarsgrensen** — produkttekst om hva SiteDoc leverer vs. hva bedriften eier selv | 🔴 **Teksten skrives av FABEL, gates av Kenneth — aldri cowork eller kodeagent** (juridisk-nær). Plassering avgjøres i notatet. Utløst av eksponeringsregister-korreksjonen: [BESTILLING § 2D](til-fabel/BESTILLING-masterplan-2026-09-04.md) + [domene-arbeidsflyt.md](../claude/domene-arbeidsflyt.md) | designnotat kommer (fabel) |
+| **BL** | **Byggeplass-livssyklus** — tilstand/start/slutt/arkivering · velger-skala ved 500 byggeplasser · PSI og mannskap ved avslutning | Designsak hos fabel. Premiss avklart: `Project` ER beholderen, intet nytt nivå. **Sluker to åpne funn:** chip-teksten som lover en avgrensning systemet ikke gjør, og tegninger-hardt/dokumenter-mykt filter — samme scoping-modell. Utredning: [domene-arbeidsflyt.md](../claude/domene-arbeidsflyt.md) | designsak kommer (fabel) |
+| **MK** | **NS 3420-malkvalitet (Kenneth-bestilling 05.09, funn A–D)** | Bestilling: `til-fabel/BESTILLING-malkvalitet-2026-09-05.md`. Faktagrunnlag: 12 maler (6 K, 6 F) i seed. **Kenneth-vedtak 05.09 (binder ALLE malordrer): maler bygges av MalBygger-objektene — aldri hardkodet; funksjonsforbedring av objektene er OK** (ført i MALBYGGER.md). ✅ **B+D LEVERT OG MERGET 06.09** (`3c40df3e`): «(AI-utkast)» ut av kundetekst, `verifisert: false` eksplisitt + prod-gate, utkast-badge på malkort begge lånevinduer, F-malene seedet, `kontrollplan.md` renset (`2df3d47d`-runden). ✅ **Trafikklys slanket 28→22px** (`cd3c1f84`), mobil fikk grå «Ikke relevant» for paritet. **A seksjonsstatus:** kollaps fantes (`56cb0cfa`); status-header «X av Y utfylt» levert `6458a704`. 🔴 **SEKVENS-LÅS (fabel 2026-09-06): konverteringslista for de 34 trafikklysene skal IKKE låses før grense-resolver-ordren er bestilt.** Måling-først-kriteriet — *kan utfallet måles? → tall + grense · ellers navngis? → `list_single` · ellers består trafikklyset* — betyr at noen av de 34 er **målinger, ikke valg**. Låses lista først, konverteres de til `list_single` og må konverteres **igjen** til tallfelt med grense når resolveren kommer. **Cowork sekvenserer: resolver-ordre → så konverteringsliste.** 🟡 **C Vei B (betingede grenser) GJENSTÅR** — kostnadsmålt: delt resolver + 4 lesere (kun integer/decimal) + MalBygger-UI (fabel-designsak før ordre); premiss 3 UTSKILT → DG | svar-dokumentene (`docs/redesign/kp-malkvalitet-*`) |
+| **SJA** | **SJA-signaturrunder (Kenneth-funn 05.09, P0 — lovpålagt dok kunne ikke dokumentere hvem som signerte)** | Designet ferdig på én kveld: gjenbruk som ramme (én SJA per arbeidsoperasjon, signert per RUNDE — ikke versjoner) · modell `SignaturRunde`+`DokumentDeltaker`+`DokumentSignatur` (vei 2-FK-er m/cascade, frys `antallDeltakere`, ingen kolonne på Checklist/Task) · lås = handling «Avslutt runde», gjenåpning = «Start ny runde» · gjest påkrevd (PSI-mønsteret) · manko først i UI + chip i lista (énspørring) · PDF: gjeldende runde + «Med logg», manko aldri utelatt. ✅ **LEVERT OG MERGET 06.09** (`f5d75571` → `e2e87123`): felttypen `signature_list`, tre tabeller, migrering `20260906000000` **anvendt mot `sitedoc_test`**, MalBygger-guard mot to lister, serverlås mot skriving på avsluttet runde (`5e13c43e`). Delleveranse 2 levert (`5dc04240`): `signature`-feltet bærer `{dataUrl, brukerId, navn, tidspunkt}` med legacy-lesing, delt leser i `@sitedoc/shared` + bevisst PDF-speil. Testdata seedet på test (`SD-DEMO-SJA-0001`). 🔴 **VENTER: fabels skjermbilde-gate — åtte flater, underlag `til-fabel/skjermbilde-underlag-sja-signaturrunder-2026-09-06.md`. Ingenting til prod før den er kjørt.** 🟡 Åpne designspørsmål til gaten: 1-klikks attest uten signaturpad/HMS-kort · medlemsdeltakeres firma vises ikke (`guestCompany` kun på gjest) · om et automatisk værsnapshot i `endreStatus` skal regnes som innhold i låsens forstand | designdok 2015/2130/2300/2345 + nå-rapport `til-fabel/MAALING-sja-signaturmodell-2026-09-05.md` |
+
+## 🔴 REKKEFØLGE (fabel 2026-09-06) — erstatter blokken under
+
+> **Cowork-avstemt mot kode 2026-09-06.** Fabels leverte rekkefølge var skrevet før
+> natten 05/06.09, da åtte merge-runder landet. Punktene under er hans, med målt status.
+
+- ~~**0a. SJA-signaturrunder**~~ ✅ **LEVERT OG MERGET** (`e2e87123`), på test. **Venter kun fabels skjermbilde-gate.**
+- ~~**0b. MK B+D malrevisjon**~~ ✅ **LEVERT OG MERGET** (`3c40df3e`). **MK C (Vei B) gjenstår** og trenger MalBygger-UI-design først.
+- **0c. DG-tillegg: PDF viser grensekrav** (premiss 3-utskillelsen — arkiv-PDF viser i dag målt verdi uten kravet; snapshot-spørsmålet bor her). 🔴 **Nå øverst i køen** — eneste gjenstående punkt fra fabels egen rekkefølge.
+
+⚠️ **Fabels caveat, gjentatt fordi den gjelder:** hendelser mellom 20.08 og 04.09 som ikke gikk
+gjennom fabel er ikke oppdatert i radene hans — særlig DG-status etter HMS-PDF-en 04.09.
+**Cowork supplerer ved neste sync.**
+
+🔴 **Merk om vedlikehold (hendelse 2026-09-06):** fabel leverte denne revisjonen som **helfil**,
+bygget på en versjon fra ~21.08. Hans fil var **24 kB mot repoets 49 kB** og manglet seks rader
+— `6b-x`, `UT`, `PR`, `REG`, `ON`, `FL` — altså all målt status fra 28.–30.08. Hadde cowork
+kopiert fila inn, var alt det tapt. **Kun MK, SJA, rekkefølgen og backlog-postene ble flettet
+inn.** Regelen i toppen av denne fila står ved lag: fabel leverer notater, cowork fører dem inn.
+
+## Nye backlog-saker (2026-09-05-runden, kodeverifisert)
+
+- ~~**TILBEHOR_REN_FJERNING-divergens**~~ ✅ **LUKKET** (`85c8ecd5`): `TILBEHOR_REN_FJERNING_BASE` i `@sitedoc/shared`, begge renderere leser den. 🟡 **`weather` er IKKE harmonisert** — mobil har den, web ikke; begrunnelsen står i koden og venter Kenneths produktsvar: *skal en værobservasjon kunne bære kommentar og bilde i felt?*
+- **«+ Oppgave»-gating per felttype:** fortsatt ikke målt.
+- ~~**F-malene aldri seedet + `kontrollplan.md` uten NS 3420-F**~~ ✅ **LUKKET** i MK B+D. (Merk: påstanden om at F manglet i `kontrollplan.md` var **feil** — den sto der hele tiden, `kontrollplan.md:394`. Coworks premiss, målt bort av kontrollplan.)
+- **PSI-migrering til felles signaturmodell:** senere sak — `PsiSignatur` røres ikke.
+
+## Rekkefølge (fabel 2026-09-05) — historikk
+
+> Bygger på [§ AVSTEMT MOT KODE 2026-09-04](#-avstemt-mot-kode-2026-09-04--fem-av-åtte-punkter-var-allerede-levert).
+> Alt er design-først; køen til kodeagentene fylles i denne rekkefølgen.
+>
+> 🔴 **OTA er priset inn.** I drift fra 04.09: mobilarbeid i JS koster ikke lenger byggkvote.
+> **Derfor designes alle brukervendte saker for web + mobil SAMTIDIG — aldri «web først, mobil
+> senere».**
+
+1. **LP — «hele prosjektet»-omfang.** Først fordi den rir på det ferske lokasjonOmfang-sporet
+   (samme utfører-kontekst, samme testmatrise utvides) og lukker siste null-tvetydighet mens
+   modellen er varm.
+2. **EX — eksport-designsak.** Størst pilot-verdi: PDF-en er leveransen kunden faktisk mottar, og
+   eksport fra app er nettopp blitt billig (OTA + delt `packages/pdf`). **To ledd:** navnevedtaket
+   først (låser språket før flere flater bygger på «arkiv») → så flaten (velge/preview/dele,
+   web+mobil i SAMME ordre). PR-sporets «arkivering framfor nedlasting» folder inn som
+   navnereservasjon; egen bygging fortsatt nedprioritert (timer-flaten ubrukt, målt 27.08).
+3. **AG — ansvarsgrense-notatet.** Parallelt med EX (blokkerer ingen kode). Foran BL fordi piloten
+   møter HMS-flatene fra dag én.
+4. **BL — byggeplass-livssyklus.** Designsak med kodeverifisert nå-rapport først (Byggeplass-
+   modellens faktiske felter + alle velger-/filter-lesere). **Første reelle bruk av det reserverte
+   «arkiver»-ordet — derfor ETTER navnevedtaket, aldri før.**
+5. **AM 2 attestering / 40-timers** — nedprioritert med målt begrunnelse (se «Ikke prioritert
+   nå»-avsnittet under). Re-vurderes når piloten fører timer.
+6. **Restkø uendret:** PM interim-guard → 10a fase 2 · P2 · Del 7 · Del 8 · Del 9, 10/K11 (+K14),
+   K15. Begrunnelsene står i rekkefølge-teksten under.
+
+**Fabels egen kø:** tidslinje + endringslogg-fletting (én kronologisk logg) tas som del av
+EX-designsaken **hvis** loggvalget «Med logg / Uten logg» berører samme utskriftsflate — ellers
+egen sak etter BL.
 
 ## Flate-inventar — alle websider, gruppert (fakta: anker-dok 2026-05-03 + K13-inventar 94 ruter)
 
@@ -71,7 +134,41 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 
 Restanser fra anker-dokumentet som IKKE er tatt (sjekkes mot kode før de køes): rename Firmainnstillinger→Prosjekteier · Box→Mapper-rename · HMS-avvik modul-avklaring · Maskin-plassering · testsider ut av prod. Tas som ryddepunkter i relevante delplaner, ikke som egen del.
 
-## Rekkefølge (justert 2026-08-28 — piloten har ingen blokkerere igjen)
+## 🔴 AVSTEMT MOT KODE 2026-09-04 — fem av åtte punkter var allerede levert
+
+Cowork målte hvert punkt i rekkefølgen under mot `develop` (`655c948b`). **Rekkefølgen var
+opptil fem uker bak koden.** Listen under er rettet; den gamle teksten står uendret så
+begrunnelsene ikke går tapt.
+
+| Punkt | Påstand i planen | Målt |
+|---|---|---|
+| 1. ON onboarding | «neste steg» | ✅ **LEVERT** `c48e6d44` + `b32326a8` — `firmaOnboardingWizard`, `organisasjon.hentOnboardingStatus` |
+| 2. REG fase 2–3 | gjenstår | ✅ **LEVERT** `578e2b67` (fase 2) + `23a52504` (`prosjektTilgangEvaluator.ts`) |
+| 3. AM 2 attestering | P0 | ❌ **IKKE BYGGET** — grep «40-timers» → 0 treff, negativ kontroll bestått |
+| 3. AM 3 KP-bugs | fikset 28.08 | ✅ **LEVERT** `180e9c61`; restfunnene i `inbox-kp-speiling.md` også levert (`b987d793`) |
+| 3. AM 4 malarkiv | P0 | ✅ **BOLK 1+2 PÅ TEST 04.09** (`91e3e5a6` + `2cfdbaea`) — **venter fabel-designgate (DoD pkt 3): skjermbilder fra test.** Designsak levert 2026-09-04 ([designnotat-malarkiv](designnotat-malarkiv-fabel-2026-09-04.md)) — venter Kenneth-gate på mockup (B1–B3) før ordre. **Funn: `OrganizationTemplate`-datamodellen finnes allerede** (`schema.prisma:1038`, steg 1 av `migrering-reporttemplate.md` bygget, delvis i bruk i `mal.ts` + `kontrollplanKobling.ts`) — det som mangler er API, UI og seeding. Mindre sak enn antatt |
+| 4. DG arkiv-PDF | gjenstår | ✅ **TOMT** — D2/D2b levert 21.08, F7 lukket 04.09, layoutfunn merget `655c948b` |
+| 6. Del 6b fase 2 | «ordre 28.07, aldri relayet» | ✅ **LEVERT `ee7d4e3e` — samme DAG ordren ble skrevet.** Filter, opprett-vei, HMS-mobil, kontrollplan-lese. Sto som åpen i fem uker |
+| 6b-x tabellbredder · PR kolonnevelger | «henger» | ✅ **LEVERT** `7b413263` + `d394bdde` |
+| 7. PM interim-guard | gjenstår | ⚠️ **IKKE MÅLT** — ikke anta noe |
+
+🔴 **Konsekvensen for køen:** det som faktisk gjenstår og som kan ordres til en kodeagent **uten
+fabel-design først, er ingenting.** AM 4 er en designsak; AM 2 er timer-arbeid som linje under
+nedprioriterer med målt begrunnelse. **Neste flaskehals er fabel, ikke koding.**
+
+⚠️ **Lærdom, ikke bokføring.** Kenneth 31.08: *«Nå er vi mer opptatt av hva som er gjort enn å
+lukke oppgaver i masterplanen.»* Denne målingen viser hvorfor det er vanskelig: en agent som
+leverte og ble avsluttet, etterlot ingen spor i planen. **Cowork brukte tre målerunder 04.09 på
+å oppdage at tre «åpne» ordrer var utført.** Fase 4 i Opus-livssyklusen skal lukke dette — raden
+fjernes ved merge — men den fanger ikke masterplanens egne linjer. Avstemming mot kode hører
+inn ved hver merge som lukker et planpunkt, ikke som en egen øvelse hver femte uke.
+
+## ~~Rekkefølge (justert 2026-08-28)~~ — ERSTATTET 2026-09-05
+
+> ⚠️ **Gjeldende rekkefølge står i [§ REKKEFØLGE (fabel 2026-09-05)](#-rekkefølge-fabel-2026-09-05--erstatter-punktlisten-under).**
+> Punktlisten under er beholdt fordi **begrunnelsene** fortsatt gjelder for restkøen (punkt 5–8),
+> og fordi den forklarer hvorfor ting ble prioritert som de ble. **Punkt 1, 2, 4 og 6 var levert
+> allerede da den ble skrevet** — se avstemmingen over. Ikke plukk oppgaver herfra.
 
 **Målestokken er piloten (~sept 2026).** Pilot-triagen 26.08 gikk gjennom alle 42 åpne
 🔴 og fant **én** blokkerer — mobil-annotering som eksporterte 3,4 MB PNG. Den ligger i
@@ -115,6 +212,8 @@ Mye «ikke prod» ble LIVE: statusmaskin-redesign F0–F6, flytrettigheter H3/H6
   tegning ved manglende markering) — den er ⛔ ON HOLD til modellen er avklart, ellers ber
   systemet om en pin på dokumenter som ikke skal ha en. **Hører sammen med punktet under: dette
   er samme rot.** Fabels domene — begrepsavklaring før mer bygges.
+- ✅ **AVKLART 2026-09-04 — vedtaksforslag levert:** [designnotat-lokasjonsmodellen](designnotat-lokasjonsmodellen-fabel-2026-09-04.md). Begrepssett (dokumentlokasjon / lokasjonstekst / feltpin / lokasjonsbryter) + nytt felt `lokasjonOmfang: "punkt" | "byggeplass" | null`. **Låser opp `inbox-lokasjon-autoapne.md`.**
+  🔴 **Coworks premiss «rendres ubetinget» var STALE — verifisert av cowork 04.09:** sjekkliste-detalj gater allerede på `showLocation` (`dashbord/[prosjektId]/sjekklister/[sjekklisteId]/page.tsx:873-874`, `!== false`). **Oppgavesiden mangler gaten** — null treff på `showLocation` utenfor sjekkliste-detalj og malbyggeren. Paritetsfiks hører i ordren.
 - **Begrepsforvirring «lokasjon» i malbyggeren:** TRE ulike ting bærer navnet — `ReportTemplate.showLocation` (fast felt, auto fra bygning/tegning) · `location`-rapportobjekt (ren tekst, prosjektadresse som fallback) · `drawing_position`-rapportobjekt (bærer `drawingId` + koordinater). Byggeplass ER lokasjonen: den eier tegningene (`Drawing.byggeplassId`) og har koordinater fra georeferert tegning. Fabels domene — begrepsavklaring før flere felt bygges.
 - **Lokasjon/tegningspunkt — fire funn (prod 2026-08-13):** (1) dokumentsiden viser ikke valgt lokasjon etter lagring, mens utskriften gjør det (manglende query-invalidering) · (2) detaljutsnitt mangler — `RapportObjektVisning.tsx:550-554` har 3 s fallback-timer som setter `klar=true` UTEN detalj · (3) de to bildene skal stå side ved side, innzoomet til høyre · (4) tegning skal åpne automatisk ved ny sjekkliste når malen har lokasjonsfelt.
 - **Værdata bør hentes fra byggeplassen:** `useAutoVaer.ts:58-64` bruker prosjektets koordinater. `Byggeplass.latitude/longitude` finnes. Et prosjekt kan strekke seg over kilometer; for en befaringsrapport er været på byggeplassen dokumentasjon.

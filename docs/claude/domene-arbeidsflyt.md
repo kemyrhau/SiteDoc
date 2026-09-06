@@ -56,6 +56,107 @@ Alle arkitektur-beslutninger skal kunne forklares tilbake til en arbeidsflyt her
 
 ---
 
+## 🔴 BINDENDE: byggeplass er et VALGFRITT oppdelingsnivå — «uten byggeplass» er normaltilstanden (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04, ordrett:**
+>
+> *«PSI og HMS gjelder som regel hele prosjektet. Noen ganger vil HMS og PSI deles opp i
+> byggeplasser, dersom prosjektet er felles, men byggeplassene har avstand internt. Andre ganger er
+> det kort avstand og PSI/HMS er felles.*
+>
+> *Et prosjekt kan ha flere byggetrinn → og er derfor oppdelt i flere byggeplasser → som medfører
+> at prosjektet kan vare i 5 år, med tre forskjellige bygg, som starter når det første er ferdig.*
+>
+> *Mange prosjekter har kun én byggeplass → da er byggeplass og prosjekt samme lokasjon.»*
+
+**Utløst av spørsmålet:** *«et dokument uten byggeplass bør ikke eksistere — kan det forsvares?»*
+Cowork målte modellen gjennom timer, maskin, varelager, prosjekt, tegninger og 3D. **Svaret er
+nei**, og Kenneths forklaring sier hvorfor.
+
+### Hva målingen viste
+
+`byggeplassId` er **nullable i alt** — `Checklist`, `Task`, `Drawing`, `PointCloud`, `Psi`,
+`FtdKontrakt`, timer (3 steder), maskin, varelager. Kun **`Omrade`** og **`Kontrollplan`** krever
+den, og de er strukturelle barn av byggeplassen, ikke dokumenter.
+
+To steder står betydningen allerede i schemaet: `Psi` (*«null = gjelder hele prosjektet»*) og
+varelager (*«NULL = hele prosjektet»*). **De to hadde rett hele tiden.**
+
+### Fire konsekvenser som binder
+
+1. 🔴 **Gjør ALDRI `byggeplassId` påkrevd på et dokument.** Det ville brutt PSI, HMS, timer,
+   maskin, varelager, tegninger og 3D samtidig — for å løse et problem som ikke finnes. «Uten
+   byggeplass» er ikke en mangel; det er det vanligste tilfellet.
+
+2. ✅ **Myk filtrering på byggeplass er RIKTIG — funnet fra 03.09 er dermed lukket.**
+   `sjekkliste.ts:185` gjør `OR: [{byggeplassId: valgt}, {byggeplassId: null}]`. Det ble ført som
+   mistenkelig («chippen sier *Viser kun denne byggeplassen*, men filteret slipper gjennom
+   null»). **Domenet bekrefter filteret:** et dokument som gjelder hele prosjektet gjelder også
+   denne byggeplassen, og skal være med. 🔴 **Det er CHIP-TEKSTEN som er feil**, ikke filteret —
+   den lover en avgrensning systemet med rett og vilje ikke gjør.
+   ⚠️ Tegninger filtrerer **hardt**. Det er sannsynligvis riktig (en tegning hører til ett sted),
+   men forskjellen er ikke vedtatt noe sted — eget spørsmål.
+
+3. 🔴 **Har prosjektet ÉN byggeplass, skal brukeren ikke spørres.** Da er byggeplass og prosjekt
+   samme lokasjon, og et valg mellom ett alternativ er et klikk uten informasjon. Direkte
+   anvendelse av effektivitets-gaten og A.Markussens hovedkritikk («mange klikk»).
+
+4. 🔴 **Byggeplasser har TID og ANTALL — dette er nytt og ikke modellert.**
+
+   > **Kenneth 2026-09-04:** *«Et prosjekt kan ha flere byggetrinn → prosjektet kan vare i 5 år,
+   > med tre forskjellige bygg, som starter når det første er ferdig.»*
+   >
+   > *«Et prosjekt kan leve i 30 år eller mer — men bestå av mange kortvarige prosjekter som varer
+   > en uke eller en måned. Kanskje vi må skjule og lukke disse etter behov.»*
+
+   **To skalaer, ikke én.** Byggetrinn-tilfellet er tre enheter over fem år. Det andre er en
+   beholder som lever i tiår og fylles med ukelange jobber — en rammeavtale, en driftskontrakt, et
+   vedlikeholdsoppdrag. Der snakker vi **hundrevis av enheter i ett prosjekt.**
+
+   🔴 **Ingenting i dagens modell bærer noen av dem.** `Byggeplass` har ingen tilstand, ingen
+   start/slutt, ingen arkivering.
+
+   **Hva som brekker ved den store skalaen — ikke gjettet, men forutsigbart:**
+   - Byggeplass-velgeren (`ByggeplassChip` + dokumentskjemaer) med 500 valg er ubrukelig i felt
+   - Dokumentlister og filtre vokser uten grense
+   - «Vis kun aktive» går fra å være en bekvemmelighet til å være en forutsetning
+
+   **Spørsmål som må UTREDES, ikke besvares av oss:**
+   - Skal en avsluttet byggeplass skjules i velgere, eller kun i lister? Kan den gjenåpnes?
+   - Kan dokumenter opprettes på en byggeplass som ikke har startet?
+   - Hva skjer med PSI og mannskapsliste når et trinn avsluttes og folkene flyttes videre?
+   ✅ **AVKLART av Kenneth samme kveld — modellen holder, intet nytt nivå trengs:**
+
+   > *«En SiteDoc-kunde har et prosjektnummer 100 → dette prosjektet heter «Småprosjekter» → det er
+   > diverse små kortvarige prosjekter → i SiteDoc heter disse byggeplasser.»*
+
+   Cowork spurte om en ukelang jobb egentlig var et `Project` med avtalen som et nivå over
+   (Firma → Avtale → Prosjekt → Byggeplass). **Svaret er nei:** `Project` ER beholderen, og
+   kundens «småprosjekter» er `Byggeplass`. Dagens tre nivåer dekker tilfellet.
+
+   🔴 **Men da står skalaproblemet desto skarpere, og det er hele saken:** prosjekt 100 samler
+   hundrevis av byggeplasser over tiår, og ingen av dem kan avsluttes eller skjules. Det er ikke en
+   strukturmangel — det er en **livssyklus-mangel på `Byggeplass`.**
+
+   ⚠️ **Terminologi-knirk, notert, ikke et problem Kenneth ber om å løse:** kunden sier
+   «småprosjekt», systemet sier «byggeplass». Kenneth aksepterer navnet («i SiteDoc heter disse
+   byggeplasser»). Verdt å vite når kundetekst skrives — ikke verdt en rename.
+
+   **Fabels domene. Ingen ordre skrevet — dette er en modellsak, ikke en kodeoppgave.**
+
+### Nivåene et dokument kan gjelde
+
+```
+punkt på tegning     lokasjonOmfang = "punkt"        eksplisitt  ✅
+hele byggeplassen    lokasjonOmfang = "byggeplass"   eksplisitt  ✅ (bygget 04.09)
+hele prosjektet      byggeplassId = null             TVETYDIG    ⚠️
+```
+
+Det tredje nivået lider av samme feil som det andre gjorde før 04.09: `null` betyr både «ikke
+valgt ennå» og «gjelder hele prosjektet». Kenneths gatelys-eksempel gjelder ett trinn opp også —
+*«alle gatelysene i prosjektet mangler merking»* er et like gyldig funn som på én byggeplass.
+**Åpent til fabel; ikke bygget.**
+
 ## 🔴 BINDENDE VEDTAK: dokumentflyten er nøkkelen — faggruppe er avledet (Kenneth 2026-08-22)
 
 **Vedtaket:** et dokument tilhører alltid nøyaktig **én dokumentflyt**. Faggruppen er en
@@ -494,14 +595,102 @@ metadata `:680` · feltverdier `:741` · oversettelse/manuell overstyring `:951`
 (`:674-679`) — det er en merkelapp for gjenfinning, ikke dokumentasjon av utført arbeid.
 Endringsloggen viser hvem som gjorde det.
 
-### 🔴 To utbredte misforståelser — begge målt som feil
+### 🔴 VEDTAK 2026-09-04: oppgave og HMS kan KUN slettes som utkast — sjekkliste beholder begge
 
-Begge har vært uttalt av Kenneth etter at koden sa noe annet. De står her fordi de kommer tilbake.
+> **Kenneth 2026-09-04:**
+> *«Sjekkliste → kan slettes etter at den er sendt. Oppgave → kan ikke slettes (kun som utkast)
+> → men skal kunne få tilføyd informasjon. HMS → samme som oppgave.»*
+>
+> *«En oppgave/HMS kan ikke slettes etter at den er sendt — kun få tilleggsinformasjon.»*
 
-| Påstand | Målt tilstand |
+| Dokumenttype | Kan slettes fra | Status |
+|---|---|---|
+| **Sjekkliste** | `draft` **og** `closed` | ✅ Uendret — dagens kode er riktig |
+| **Oppgave** | `draft` **alene** | 🔴 **Kode må endres** — tillater i dag også `closed` |
+| **HMS** (avvik/SJA/RUH) | `draft` **alene** | 🔴 **Kode må endres** — samme |
+
+⚠️ **Denne seksjonen sto tidligere som «to utbredte misforståelser» og påsto at Kenneth husket
+feil.** Det var feil merkelapp. Koden implementerer `draft || closed` for begge
+(`oppgave.ts:1943`, `sjekkliste.ts:1903`, kommentert som «Lukk-som-slette-port, Kenneth-vedtak
+2026-08-21»), men Kenneths regel har vært konsistent: **oppgave og HMS består etter sending.**
+Det er koden som ikke oppfyller intensjonen, ikke hukommelsen som svikter.
+**Gammel tekst beholdt under, så begrunnelsen for 21.08-porten ikke går tapt.**
+
+**Slette betyr HARD sletting** (Kenneth 04.09): papirkurv i 90 dager, deretter borte.
+
+#### Begrunnelsen — og en ansvarsgrense som må stå tydelig
+
+**Hovedgrunnen er sporbarhet, ikke lovkrav:** et dokument som er *sendt*, har en annen part sett
+og handlet på. Å slette det fjerner noe mottakeren forholdt seg til. Et kvalitetssystem der
+sendte dokumenter kan forsvinne, har svakere bevisverdi — uavhengig av hvilken frist som gjelder.
+
+🔴 **ANSVARSGRENSE (Kenneth 2026-09-04): eksponeringsregister er BEDRIFTENS ansvar, ikke
+SiteDocs.**
+
+> **Kenneth:** *«Eksponeringsregister krever 40–60 år → dette skal være bedriftens ansvar.»*
+
+Cowork fant 04.09 at eksponeringsregister krever **40–60 år**
+([forskrift om utførelse av arbeid kap. 31](https://lovdata.no/dokument/LTI/forskrift/2011-12-06-1357/KAPITTEL_5-1))
+og brukte det som argument for sletteregelen. **Det var å strekke det for langt.** SiteDoc er et
+rapport- og kvalitetssystem, ikke et eksponeringsregister. Kravet hviler på bedriften, i deres
+eget register.
+
+⚠️ **Hvorfor grensen må stå skrevet:** et argument som overdriver hva systemet må oppfylle, blir
+brukt til å love kunder noe vi ikke leverer — og til å presse fram feil prioriteringer senere.
+**SiteDoc lover sporbarhet på dokumentene som ligger her. Ikke lovpålagt langtidsarkiv.**
+
+**Det som likevel er verdt å vite** (kontekst, ikke krav mot SiteDoc): personskader skal
+registreres uansett sykefravær, og registeret skal være tilgjengelig for Arbeidstilsynet,
+verneombud, BHT og AMU ([Arbeidstilsynet](https://www.arbeidstilsynet.no/hms/roller-i-hms-arbeidet/arbeidsgiver/registrere-skader-og-sykdom/)).
+Yrkesskade meldes NAV inntil 1 år etter ulykken. Internkontrollforskriften har **ingen tallfestet
+frist** — dokumentasjon kreves *«i den form og det omfang som er nødvendig»*.
+
+⚠️ **Ikke juridisk rådgivning.** Skal SiteDoc selges inn som kvalitetssystem, må ansvarsgrensen
+mot kundens egne plikter være avklart av noen med fagansvar — ikke av oss.
+
+#### 🔴 PRODUKTKRAV: SiteDoc skal OPPLYSE om grensen, ikke bare respektere den
+
+> **Kenneth 2026-09-04:** *«SiteDoc må selvsagt opplyse bedriften om deres ansvar og hva SiteDoc
+> leverer.»*
+
+Ansvarsgrensen over er ikke bare en intern regel for hvordan vi argumenterer. **Kunden skal få
+vite den, i produktet.** En bedrift som tror SiteDoc holder deres lovpålagte arkiv, oppdager det
+først den dagen noen ber om dokumentasjonen.
+
+**To ting som skal formidles, og de er forskjellige:**
+
+| | Innhold |
 |---|---|
-| «Sjekklister slettes av **administrator**, oppgaver kan ikke slettes» | **Slettereglene er identiske.** Begge: `draft` \|\| `closed`. Alt annet må **Lukkes** først, og **Lukk er KUN admin** — så «kun admin kan slette» gjelder *begge*, ikke bare sjekklister |
-| «Sendte oppgaver kan **ikke** slettes» | En sendt oppgave må **lukkes** først; en `closed` oppgave **kan** slettes (`oppgave.ts:1941`, Lukk-som-slette-port 2026-08-21). Deretter papirkurv med 90-dagers angrefrist |
+| **Hva SiteDoc leverer** | Dokumentene som registreres her, med sporbarhet: hvem gjorde hva, når, og hva som ble sendt til hvem. Sendte oppgaver og HMS-dokumenter består (vedtaket over) |
+| **Hva bedriften selv har ansvar for** | Egne lovpålagte registre og oppbevaringsfrister — eksponeringsregister (40–60 år), personskaderegister, meldinger til NAV og Arbeidstilsynet |
+
+🔴 **Åpent — fabels domene, ingen ordre skrevet:** *hvor* dette står. Kandidater: firma-onboarding
+(ON-sporet, levert 04.09), hjelpetekst på HMS-flaten, egen side under firmaoppsett, eller
+vilkårene. **Feil sted er like ille som ingen tekst** — en ansvarsgrense begravd i et vilkårsdokument
+ingen leser, er ikke opplysning.
+
+⚠️ **Teksten skal ikke skrives av cowork eller en kodeagent.** Den grenser mot juridisk ansvar, og
+formuleringen avgjør hva kunden med rette kan forvente. Fabel eier den; Kenneth gater den.
+
+#### ⚠️ Åpent, ikke vedtatt: mangler vi «annuller» ved siden av «slett»?
+
+Et sendt dokument som viser seg feil kan i dag verken fjernes eller merkes ugyldig. To behov
+presses inn i én mekanisme — samme form som `null` gjorde for lokasjon før 04.09:
+
+| Handling | Betyr | Når |
+|---|---|---|
+| **Slett** | skulle aldri eksistert | utkast, dublett, feilopprettet |
+| **Annuller** | gjaldt, men gjelder ikke lenger | sendt, men feil — sporet består, merket ugyldig |
+
+Kenneth sier tilleggsinformasjon er veien i dag. **Fabels domene — ingen ordre skrevet.**
+
+#### Gammel tekst (beholdt — begrunnelsen for 21.08-porten)
+
+~~«Sjekklister slettes av administrator, oppgaver kan ikke slettes» → Slettereglene er identiske.
+Begge: `draft` || `closed`. Alt annet må Lukkes først, og Lukk er KUN admin.~~
+~~«Sendte oppgaver kan ikke slettes» → En sendt oppgave må lukkes først; en `closed` oppgave kan
+slettes (`oppgave.ts:1941`, Lukk-som-slette-port 2026-08-21). Deretter papirkurv med 90-dagers
+angrefrist.~~
 
 🔴 **Konsekvens for brukervendt tekst:** all onboarding, hjelpetekst og mikrotekst som forklarer
 forskjellen på sjekkliste og oppgave skal hente fra denne seksjonen — ikke fra hukommelse.
@@ -794,6 +983,46 @@ Tiltak fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-202
 **Status etter Blokk A+B+C + P1 Fase 2 (2026-05-04/05):** P1+P2 fullt lukket. Sitedoc_admin med valgt firma ser kun det firmaets prosjekter overalt; admin/firmaer-listen viser kun reelle kunde-firmaer; Timer-modul synlig på linje med Maskin; konflikt mellom valgt firma og aktivt prosjekt løses automatisk via reset+redirect. Gjenstår: kosmetisk rename (P3) og større designrunder (P4+P5) som ikke blokkerer kundevisning.
 
 ---
+
+## 🔴 BINDENDE VEDTAK 2026-09-06 — risikovurdering: hvem gjør hva
+
+> **Kenneth 2026-09-06, korrigerte cowork:** *«Det er ikke byggherre som skal godkjenne en
+> risikovurdering → byggherreforskriften sier at byggherre skal påse at en risikovurdering
+> utføres.»*
+
+**Arbeidsgiver vurderer. Byggherre påser.** SJA-en er arbeidsgivers dokument.
+
+⚠️ **Cowork hadde skrevet «byggherren godkjenner risikovurderingen» i en fabel-bestilling.**
+Feil, og den feilen ville formet designet: den gjorde «Godkjent» til en naturlig lås-utløser.
+
+**Tre konsekvenser som styrer produktvalg:**
+
+1. **«Godkjent» duger ikke som lås-utløser på en SJA.** Det finnes ingen ekstern godkjenning å
+   låse på. Låsen tilhører arbeidsgiver — det er «Avslutt runde», arbeidsgivers egen beslutning
+   om at økten er ferdig dokumentert.
+2. 🔴 **Manko-lista har en juridisk funksjon.** Byggherrens påse-plikt oppfylles ved å
+   kontrollere at vurderingen er gjort **av dem som gjør jobben**. En SJA der fire av seks har
+   signert dokumenterer at to ikke har lest den. **Uten manko-lista kan byggherre ikke påse noe
+   — bare bekrefte at et dokument finnes.** Derfor: manko utelates ALDRI fra utskrift (F7).
+3. **Styrer ansvarsgrense-saken (AG).** Hva SiteDoc leverer vs. hva bedriften eier: SiteDoc
+   leverer dokumentasjonsverktøyet og sporet. Vurderingens innhold og kvalitet er arbeidsgivers.
+
+### Gjennomgang av SJA underveis — ingen egen funksjon
+
+> **Kenneth 2026-09-06, på spørsmål om daglig gjennomgang:** *«Nei, ikke daglig → kun ved
+> farlig arbeid som krever ekstra oppmerksomhet.»*
+
+🔴 **Ingen egen «daglig gjennomgang»-logglinje skal bygges.** Signaturrunden ER mekanismen:
+krever arbeidet ny oppmerksomhet, kjører bedriften en ny runde — folk leser og signerer på
+nytt, og sporet blir det samme som all annen signering.
+
+**Rundefrekvensen er bedriftens risikovurdering, ikke en systemregel.** Et pålagt daglig
+kvitteringssteg ville gitt tom seremoni på ordinært arbeid og en svakere registrering enn en
+ekte runde på det farlige.
+
+**Følger av samme vedtak:** en runde avsluttes av **arbeidsoperasjonen**, ikke av døgnet.
+Formuleringen «lås ved dagens slutt» (Kenneth 05.09) var et spesialtilfelle — en jobb som varte
+én dag. Ti dagers kranarbeid er ÉN runde; ny mann på dag 5 legges til og signerer inn i den.
 
 ## Koblinger til tekniske dokumenter
 

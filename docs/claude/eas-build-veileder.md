@@ -338,12 +338,45 @@ Resultat: «SiteDoc TEST» installeres som **egen app** ved siden av prod-«Site
 ## OTA-oppdateringer (expo-updates) — JS-fikser uten nytt bygg
 
 **Oppsett levert på branch `feat/expo-updates` (`app.config.js`, `apps/mobile/eas.json`,
-`VersjonsFooter.tsx`, 2026-09-03).** Første faktiske `eas update` er Kenneths beslutning —
-oppsettet gjør bare veien klar.
+`VersjonsFooter.tsx`, 2026-09-03).**
+
+✅ **I DRIFT fra 2026-09-04.** Første `eas update` publisert til kanal `production`,
+runtime `1`, commit `cdb53296` — verifisert på Kenneths iPhone mot bygg 54: EXIF-opptakstid
+på galleribilder og lesbar endringslogg kom fram uten nytt bygg. **Sløyfen kode → telefon
+tar nå minutter og koster null byggkvote.**
 
 **Hvorfor:** 3. september kostet fem rene JavaScript-funn tre av ~15 månedlige iOS-bygg. Ingen
 av dem trengte en ny binær — de trengte bare en vei til telefonen. `expo-updates` er den veien:
 en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også for testerne.
+
+### 🔴 OTA-logg — hva som ligger på telefonen NÅ (cowork vedlikeholder)
+
+**Regelen, samme som for bygg: LES, ikke regn ut.** Sannhetskilden er
+`eas update:list --branch production`. Denne tabellen er en logg over hva som ble sendt og
+hvorfor — den erstatter ikke kommandoen.
+
+> ⚠️ **Hvorfor denne tabellen finnes (Kenneth 2026-09-06):** cowork sa «bygg 51» da fasit var
+> **54**, og påstanden kom fra hukommelse i stedet for fra bygg-loggen ti linjer unna. Samtidig
+> fantes det **ingen** logg over OTA-publiseringer i det hele tatt — så etter at OTA ble
+> hovedveien til telefonen 04.09, var det ingen som kunne svare på hva testerne faktisk kjørte.
+>
+> **Kenneths poeng, som gjelder bredere enn denne tabellen:** *«hver gang cowork oppdaterer sine
+> egne feil fra forrige compact, så glemmer cowork å fortsette oppdatering av egne filer.»*
+> Vedlikehold er ikke en opprydding etter compact — det er en løpende plikt.
+
+| Dato | Runtime | Commit | Kanal | Innhold |
+|---|---|---|---|---|
+| 2026-09-04 | `1` | `cdb53296` | production | Første OTA. EXIF-opptakstid på galleribilder + lesbar endringslogg |
+| 2026-09-04 | `1` | `9f49c1ff` | production | Oppfølger samme døgn |
+
+🔴 **Ny rad skrives i SAMME runde som publiseringen** — ikke «etterpå».
+Rad skal ha: dato · runtime · commit · kanal · hva testeren faktisk merker.
+
+**Bærebjelken:** binæren på telefonen (`#54`) og JS-bundelen den kjører er **to forskjellige
+ting**. Uten begge loggene kan ingen svare på hva en tester som melder en feil faktisk har.
+
+⚠️ **Test-appen er en egen binær på kanal `test`** og mottar IKKE `production`-OTA.
+Publiseres det til bare én kanal, spriker flatene.
 
 **Konfigurasjon (kode er fasit):**
 - `runtimeVersion: "1"` (`app.config.js`) — **eksplisitt streng, IKKE `{ policy: "fingerprint" }`
@@ -365,6 +398,92 @@ en publisert JS-bundel byttes ved neste oppstart, uten TestFlight-runde, også f
 
 **Datalaget er urørt:** `expo-updates` lagrer bundler i egen intern katalog, aldri
 `documentDirectory` der SQLite, opplastingskøen og SecureStore bor.
+
+### 🔴 ROTÅRSAK FUNNET 2026-09-05 — `@babel/plugin-transform-react-jsx` må være EKSPLISITT
+
+**To dager, fem feilhypoteser, én rotårsak.** Feilen så slik ut:
+
+```
+SyntaxError: [BABEL] app/oppgave/[id].tsx:
+  Cannot find module '@babel/plugin-transform-react-jsx'
+Require stack: node_modules/.pnpm/@babel+core@7.29.0/.../config/files/plugins.js
+```
+
+**Målt tilstand:**
+
+| | |
+|---|---|
+| Pakken i `.pnpm` | ✅ `@babel+plugin-transform-react-jsx@7.28.6_@babel+core@7.29.0` |
+| Deklarert av | `@react-native/babel-preset` (transitivt) |
+| Nåbar fra `apps/mobile` | ❌ `apps/mobile/node_modules/@babel/` hadde **kun `runtime`** |
+| I `apps/mobile/package.json` | ❌ Ikke deklarert |
+
+🔴 **Pnpm lenker en pakke KUN der den er deklarert.** Babel resolver plugins fra prosjektroten,
+finner den ikke, og feiler. Fikset ved å legge den eksplisitt inn:
+
+```sh
+pnpm --filter @sitedoc/mobile add -D @babel/plugin-transform-react-jsx@7.28.6
+```
+
+**Samme klasse som `@expo/fingerprint`** (bygg 52, `3aca2d5a`) — tredje gang pnpm-strict brøt et
+Expo-verktøy som slår opp fra sin egen plassering. **EAS-bygg merker det ikke** (de installerer i
+eget miljø); det rammer kun lokal eksport, altså `eas update`.
+
+#### ⚠️ Fem hypoteser som var feil — les dette før du feilsøker en lignende feil
+
+| Hypotese | Hvorfor den holdt en stund |
+|---|---|
+| «Katalogen» — hovedtre vs worktree | Eksport virket i ett tre, feilet i et annet |
+| «Web-spesifikk» | `--platform=all` feilet først på web |
+| «Android-spesifikk» | Etter `platforms: ["ios","android"]` feilet Android først |
+| «pnpm install var bak» | `Already up to date` — treet var i takt |
+| «Forbigående node_modules-tilstand» | Én eksport lyktes, sannsynligvis på Metro-cache |
+
+🔴 **Alle fem forklarte symptomet som kom sist, ikke hva som skilte de to tilfellene.** Én
+`ls apps/mobile/node_modules/@babel/` avgjorde saken på ett sekund. **Mål hvor pakken FAKTISK er
+lenket før du forklarer hvorfor den mangler.**
+
+⚠️ **`platforms: ["ios","android"]` i `app.json`** (fra `2b73ae68`) ble lagt til på hypotese 2 og
+løste ikke feilen. Den er beholdt — web bundles ikke, og det er riktig for en app vi ikke
+distribuerer på web — men den var ikke fiksen.
+
+### Slik publiserer du en oppdatering (målt 2026-09-04)
+
+```sh
+cd ~/Documents/Programmering/SiteDoc/apps/mobile
+eas update --platform ios --channel production --message "<hva som er fikset>"
+```
+
+🔴 **`--platform ios` er ikke valgfritt — uten det feiler kommandoen.** `eas update` kaller
+eksporten med `--platform=all`, som inkluderer **web**, og web-bundelen har (minst) to
+uavhengige feil i dette monorepoet:
+
+1. `Cannot find module '@babel/plugin-transform-react-jsx'` — pluginen resolver fint fra
+   `@react-native/babel-preset` (native-veien), men ikke fra `@babel/core` (web-veien).
+2. `wa-sqlite.wasm` fra `expo-sqlite/web` — appen bruker expo-sqlite native-only.
+
+**Fikser du den ene, står den andre igjen.** Derfor er `platforms: ["ios", "android"]` i
+`app.json` den varige løsningen (levert 2026-09-04) — da expanderer `--platform=all` til kun
+ios+android og web bundles aldri. `--platform ios` fungerer uansett som eksplisitt fallback.
+
+⚠️ **Feilsøkingsfelle vi brukte en time på:** feilen ser ut som en pnpm-oppløsningsfeil og
+ligner `@expo/fingerprint`-feilen fra bygg 52. Det er den ikke. `npx expo export --platform ios`
+gir exit 0 i samme tre der `eas update` feiler — forskjellen er utelukkende web. **Mål med og
+uten web før du mistenker node_modules.**
+
+🔴 **Publiser fra et rent tre.** Er treet dirty, får update-en commit-hash med `*` og bundelen
+kan inneholde ukommittert kode. Da vet ingen etterpå hva som faktisk ble sendt.
+
+**Verifisering på enhet — det tar TO oppstarter.** `checkAutomatically: "ON_LOAD"` betyr at
+første oppstart *laster ned* oppdateringen i bakgrunnen; den *anvendes* ved neste. Drep appen
+helt, åpne, drep, åpne igjen. Ser du ingen endring etter én oppstart, er det forventet
+oppførsel — ikke en feilet update.
+
+🔴 **En OTA leverer bare klienten.** Arkiv-PDF-en rendres på server (`arkiv.rendr` i
+`sitedoc-api`), så en endring i `packages/pdf` når IKKE brukeren via `eas update` — den krever
+prod-deploy. Rører runden både mobil-UI og PDF, er halve endringen ute til serveren er deployet,
+og appen og det arkiverte dokumentet kan si to forskjellige ting om samme sak. Sjekk diffen mot
+`packages/pdf/` og `apps/api/` før du melder en runde som levert.
 
 ### 🔴 Hva som IKKE kan sendes som oppdatering (den avgjørende grensen)
 
@@ -403,7 +522,8 @@ MÅ du ha bumpet.
 
 - **Trer i kraft:** ett nytt bygg **pr. kanal** du vil OTA-e til. En oppdatering lander bare på en
   binær bygget *etter* dette oppsettet (den må inneholde expo-updates-runtimen + matchende
-  `runtimeVersion`). Eksisterende bygg 51 kan **ikke** motta oppdateringer.
+  `runtimeVersion`). Eksisterende bygg 51 kan **ikke** motta oppdateringer. **Bygg 54
+  (runtime `1`) kan — og har gjort det, verifisert 2026-09-04.**
 - **Tilbakerulling:** `eas update:rollback` / republiser forrige gode update til kanalen. En bruker
   som alt har hentet den dårlige: sjekker ved neste oppstart, henter rettelsen i bakgrunnen,
   **anvender den ved oppstarten etter** — typisk to oppstarter. Faresone: en oppdatering som

@@ -32,6 +32,19 @@ export interface RapportObjektProps {
    */
   radOppgaver?: RadOppgaveAdapter;
   /**
+   * L9 (2026-09-04): dokumentets dokumentlokasjon-tegning. Kalleren (detaljsiden) fyller den for
+   * repeateren; brukes KUN som siste fallback når «sist brukte tegning» skal forhåndsvelges i en
+   * tom repeater-rads feltpin-velger. Kun tegningen — aldri pin. Innenfor samme dokument, aldri på
+   * tvers (en «sist brukt» fra et annet dokument kan peke på feil byggeplass).
+   */
+  dokumentTegning?: { drawingId: string; drawingName?: string | null } | null;
+  /**
+   * L9 (2026-09-04): forhåndsvalgt «sist brukte» tegning for DENNE feltpin-velgeren, utledet av
+   * `RepeaterObjekt` per rad (forrige rads tegning → ellers dokumentTegning). `TegningPosisjonObjekt`
+   * bruker den kun når raden er tom: åpner tegningssiden på tegningen UTEN å sette pin/koordinater.
+   */
+  stickyTegning?: { drawingId: string; drawingName?: string | null } | null;
+  /**
    * 4b (bindende vedtak `domene-arbeidsflyt.md`: dokumentflyten er nøkkelen): faggruppe-id-ene som
    * er MEDLEM av dokumentets dokumentflyt. `company`-feltet (FirmaObjekt) begrenser valgene til
    * disse — ikke prosjektets alle. `null`/utelatt = flyt-løst dokument (gyldig) → FirmaObjekt faller
@@ -39,6 +52,13 @@ export interface RapportObjektProps {
    * READ-ONLY, aldri skjult.
    */
   tillatteFaggruppeIder?: string[] | null;
+  /**
+   * Dokument-referanse for `signature_list` (SJA/HMS-runder). Signaturlista bor
+   * ikke i `felt.verdi` men i egne tabeller keyet til dokumentet — kalleren
+   * (sjekkliste-/oppgave-siden) fyller checklistId/taskId. Utelatt for andre
+   * felttyper.
+   */
+  dokumentRef?: { checklistId?: string; taskId?: string };
 }
 
 /**
@@ -70,6 +90,13 @@ export interface Vedlegg {
   url: string;
   filnavn: string;
   opprettet?: string;
+  // Når bildet ble TATT (EXIF DateTimeOriginal), ikke når vedlegget ble lagt i
+  // dokumentet (det er `opprettet`). ISO-streng ved treff; `null` når EXIF-tid
+  // manglet. Nøkkelen finnes IKKE på vedlegg lagd før EXIF-runden (2026-09-04) —
+  // web skiller på det: undefined ⇒ historisk, vis ingenting; null ⇒ «ikke
+  // tilgjengelig». Bæres inline i Checklist.data (samme kilde som arkiv-PDF).
+  // Kun type "bilde".
+  opptakTidspunkt?: string | null;
   // Løpende bildenummer per dokument, tildelt ved opptak (kun type "bilde").
   // Dokgen leser dette; mangler det, faller den tilbake til dokumentrekkefølge.
   bildeNr?: number;

@@ -4,6 +4,30 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 📅 DØGNET 2026-09-04 — ti merger, to prod-deployer, OTA i drift
+
+**develop `3c905298` · prod `96eebc13` · test `ea729ced` · TestFlight bygg 54 + OTA**
+
+| Runde | Hash | Ute hos |
+|---|---|---|
+| EXIF opptakstid og -sted på bilder | `c6de4385` | **prod + testerne (OTA)** |
+| Lesbar endringslogg (kolonnenavn, fra→til, UUID skjult) | — | **prod + testerne (OTA)** |
+| Opptakstidspunkt i web | `d610acb8` | develop |
+| Sidebrekk «BILDER» + navnløst felt i PDF | `f13b2421` | develop |
+| Navnløst felt lagres som tom streng | `09102794` | develop |
+| Web ut av `platforms` (åpnet OTA-veien) | `2b73ae68` | develop |
+| AM4 malarkiv **bolk 1** — migrering + `firmamal.*` | `91e3e5a6` | **test** |
+| lokasjonOmfang + L9 + paritetsfiks | `9a94a249` | **test** |
+| AM4 malarkiv **bolk 2** — firma-arkiv UI | `2cfdbaea` | **test** |
+| Arkiv-PDF for oppgave + HMS avvik/RUH | `a2c7edc9` | develop |
+
+**Tre migreringer, alle additive:** `20260904120000_malarkiv_hms_kolonner` (5 kolonner) ·
+`20260904140000_lokasjon_omfang` (2 kolonner). Begge anvendt på test, ingen på prod ennå.
+
+🔴 **Venter prod-deploy:** web-opptakstidspunkt · PDF-sidebrekk · navnløst felt · malarkiv (bolk
+1+2) · lokasjonOmfang · arkiv-PDF for oppgave/HMS. **Verifiser på test som innlogget først** —
+malbyggeren fikk 91 nye linjer og brukes av alt.
+
 ## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-28 kl. 18)
 
 **Alle agenter er avsluttet.** Alt som lå i agenthodene er skrevet til `relay/`-ordrer.
@@ -21,15 +45,61 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
-| **kontrollplan** | 🔴 **FUNN (plan-sporet avbrutt)** | `SiteDoc-kontrollplan` | **Masterplanens punkt 1 ferdig:** firma-veiviser (`c48e6d44`) + prosjekt-oppsettveiviser (`b32326a8`). Modulhierarkiet lukket, lag 3 levert (`b56cf1f0`) | **`relay/inbox-mobil-byggeplasskontekst.md`** — branch `fix/mobil-byggeplasskontekst`. Funn A/B/D fra bygg 50: chip-kilden av timer-cachen · tegninger filtreres på byggeplass + søk · endringslogg lukket som standard. **Før neste EAS-bygg** |
-| **dokgen** | 🔴 **FUNN** | `SiteDoc-dokgen` | Fem merget 01.09, sist `d394bdde` (kolonnevelger + tabellbredder) | **`relay/inbox-mobil-vedlegg-pdf.md`** — branch `fix/mobil-vedlegg-pdf`. Funn C/E fra bygg 50: bilder som finnes på server vises ikke i raden · ingen PDF-forhåndsvisning før sending. **Før neste EAS-bygg.** ⏸️ `inbox-timerrapport-flate.md` satt på vent (web, haster ikke mot byggkvoten) |
+| **kontrollplan** | 🟢 **LEDIG — ordre venter gate** | `SiteDoc-kontrollplan` | ✅ Alt levert og merget: drift-konsolidering A+B+C (`85c8ecd5`), malrevisjon D (`3c40df3e`), idempotent seed (`0bd7941a`) | 🔴 **`relay/inbox-mobil-byggeplasskontekst.md` — SKREVET, IKKE RELAYET.** Bygg 50 funn A/B/D. Gatet mot `8c0ae787` 03.09, linjenumre foreldet | (`3c40df3e` → `6540c141`): status ut av kundetekst, `verifisert` i bruk, utkast-badge. Tidligere: idempotent seed `0bd7941a`, veivisere `c48e6d44`/`b32326a8` | ⏸️ `inbox-mobil-byggeplasskontekst.md` står på vent. **Kandidat: tvilling-paritetstest** (se feltfunn) |
+| **dokgen** | 🟢 **LEDIG — ordre venter gate** | `SiteDoc-dokgen` | ✅ Alt levert og merget: serverlås SJA (`5e13c43e`), signatur navn+tidspunkt + kollaps (`5dc04240`) | 🔴 **`relay/inbox-mobil-vedlegg-pdf.md` — SKREVET, IKKE RELAYET.** Bygg 50 funn C/E. Samme bygg som kontrollplans A/B/D | (`5dc04240` → `276e8357`): navn+tidspunkt `{dataUrl, brukerId, navn, tidspunkt}` m/legacy-lesing, delt leser i `@sitedoc/shared`, PDF-speil, kollapset «Signer her»-tilstand. **Option A vedtatt** — tilbehør av i utfylling, historisk tilbehør bevart i lesemodus (`FeltDokumentasjon.tsx:126` self-hider når tomt) | **Ledig.** ⏸️ `inbox-timerrapport-flate.md` |
+| **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` | **Syv runder 05/06.09, alle inne.** 🔴 Stoppet FØR push på et rot-testbrudd gaten ikke fanget · korrigerte coworks testtall (277→284, ikke 284→291 — cowork hadde kopiert et tall fra en agentrapport) · håndterte push-kollisjon med reset+re-merge, ikke force. **Ordrefiler har eget rundenummer** fra runde 4 — uten det ble runde 3 besvart med runde 2s rapport | Ledig |
+| **redesign** | 🟢 **LEDIG** | `SiteDoc-redesign` | ✅ **SJA-signaturrunder merget** (`f5d75571` → `e2e87123`) + **skjermbilde-underlag** (`1598bd08` → `223f2b5e`). Tre tabeller, felttypen `signature_list`, PDF m/F7, manko-chip i én spørring, MalBygger-guard mot to lister. TS2589 løst ved kilden (chip-select ut av eksponert AppRouter-type, ikke cast) | **Ledig.** Skal ikke bygge serverlåsen — den gikk til dokgen |
 | **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
-| **fabel** | — | — | Modulhierarki-notatet komplett + revisjon 1 flettet inn 31.08. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` | Kenneth relayer |
+| **fabel** | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
 
 ### 📋 Feltfunn-liste (B — funn samles, blir ikke ordrer på minuttet)
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🔴 **PROSESSFUNN 2026-09-06 — ANDRE GANG: standardgaten mangler `pnpm test`.**
+Gate-kjeden i coworks ordrer er `install → prisma generate ×4 → web build → mobil typecheck
+→ mobil lint`. **Ingen tester.** Dokgens `e49e8ea3` passerte hele gaten og brakk likevel
+`tilbehorVisning.test.ts` — testen forventet `vis: true` for `signature` etter at typen ble
+lagt i deny-lista. Merge-agenten fanget det og stoppet før push, men da hadde allerede tre
+ledd vært involvert.
+**Samme hull som 03.09** (SafeAreaView-importen som lint forbød, men gaten ikke kjørte).
+🟢 **Rettet: `pnpm test` fra ROT er nå del av standardgaten i alle nye ordrer.** Samme
+kommando CI kjører — kostnaden er ventetid hos agenten, som er billigere enn en runde
+gjennom Kenneth.
+
+🟡 **Status-brudd i endringslogg-koalesceringen — bevisst utsatt (2026-09-05).**
+Koalesceringen bryter vinduet på tid (10 min) og bruker, **men ikke på statusskifte** — fordi
+`endreStatus` ikke skriver noen loggrad, så det finnes intet lagret signal. Det riktige fikset er
+`statusEndretAt` på `Checklist` + `Task`, altså **en migrering på produktets to mest sentrale
+tabeller, rett før pilot**. Cowork utsatte den bevisst framfor å smugle den inn i en bugfiks.
+Eksponering lav: krever samme bruker, samme felt, før OG etter statusskifte, innen ti minutter —
+konsekvens er én sammenslått rad, aldri tapt data. **Egen beslutning når noen vil ta den.**
+Dokumentert i `apps/api/src/services/endringslogg.ts:27-34`.
+
+🔴 **`seed.ts` PRODUSERER ORPHAN-PROSJEKTER (funn 2026-09-05, redesign-Opus).**
+CLAUDE.md-regelen fra 2026-05-20 sier at prosjekt-opprettelse **må** kreve firma. Regelen er
+håndhevet i API-mutasjonene, men **hoved-seeden bryter den selv** — den setter ikke
+`primaryOrganizationId`. Funnet da `seed:sja` gjorde samme feil og Kenneth ikke fant
+demo-prosjektet fra sin firmakontekst på test.
+⚠️ **Merk feltnavnet:** `Project.primaryOrganizationId`, **ikke** `organizationId` — firmakontekst
+lister på det feltet (`prosjekt.ts:30/56/90`). `ProjectOrganization`-join er kun visning.
+**Egen sak, ingen agent tildelt.** `seed:sja` er rettet (`8b3110b8`).
+
+🟡 **Tvilling-paritetstest mangler (dokgen-funn 2026-09-06).** `packages/pdf/src/hjelpere.ts`
+speiler `packages/shared/src/utils/signaturVerdi.ts` fordi `@sitedoc/pdf` har dokumenterte
+null-avhengigheter. Speilet har peker-kommentar, men **ingen test som fanger drift** — endres
+den kanoniske leseren, sier ingenting fra. Gjelder også den eldre `repeaterRad`-tvillingen.
+**Fiks: én test som kjører begge implementasjonene på samme inndata og krever likt svar.**
+Liten sak — kandidat for kontrollplan eller dokgen.
+
+🟡 **Drift målt 2026-09-05 under SJA-målingen: `TILBEHOR_REN_FJERNING` har FIRE typer i web
+og FEM i mobil** (`weather` ekstra på mobil). `RapportObjektRenderer.tsx:59` vs `:47`.
+To sett som skal være ett — samme klasse som `IKKE_UTFYLLBARE_FELTTYPER`-driften dokgen fant.
+**Fiks = ÉN delt kilde i `@sitedoc/shared`**, og `weather`-avviket avklares mot Kenneth
+(er vær-tilbehør bevisst av på mobil, eller glemt?). Egen liten sak — ingen agent tildelt.
+⚠️ **Dokgen legger `signature` inn i begge sett nå** — driften vokser til to sett à 5/6 hvis
+den ikke lukkes snart.
 
 🔴 **Kenneth 2026-09-03: «fiks alle de feil jeg meldte inn før nytt EAS-bygg → #1-6.»**
 Seks funn fra bygg 50. **Byggkvoten gater rekkefølgen** — vi bruker ikke ett av ~15
@@ -74,10 +144,43 @@ ville den falt stille tilbake til gammel oppførsel — grønt uten å være en 
 å se etter det positive beviset. **Formen bør inn i alle verifiseringsordrer:** si hva som skal SEES,
 ikke hva som skal være borte.
 
-🟡 **Åpent funn fra samme runde:** chippen sier «Viser kun denne byggeplassen», men `sjekkliste.ts:185`
-filtrerer **mykt** (`OR: byggeplassId = null`) — dokumenter uten byggeplass blir alltid med, så lista
-kan se uendret ut. Tegninger filtrerer hardt. Filteret er sannsynligvis riktig; teksten er det ikke.
-Ordre etter bygg 51.
+✅ **LUKKET 2026-09-04 — filteret var riktig, teksten er feil.** Chippen sier «Viser kun denne
+byggeplassen», mens `sjekkliste.ts:185` filtrerer **mykt** (`OR: byggeplassId = null`). Det ble ført
+som mistenkelig. **Kenneths domeneforklaring 04.09 avgjør det:** et dokument uten byggeplass gjelder
+*hele prosjektet* — altså også denne byggeplassen — og skal være med. Filteret er korrekt.
+🟡 **Gjenstår: chip-teksten**, som lover en avgrensning systemet med rett og vilje ikke gjør.
+⚠️ **Og et nytt spørsmål:** tegninger filtrerer **hardt**. Sannsynligvis riktig (en tegning hører til
+ett sted), men forskjellen er ikke vedtatt noe sted.
+Full begrunnelse: [domene-arbeidsflyt.md § byggeplass er et valgfritt oppdelingsnivå](domene-arbeidsflyt.md).
+
+🔴 **NYTT FUNN 2026-09-04 — byggeplasser har TID og ANTALL. Modellen bærer ingen av delene.**
+
+Kenneth, to utsagn samme kveld:
+> *«Et prosjekt kan ha flere byggetrinn → prosjektet kan vare i 5 år, med tre forskjellige bygg,
+> som starter når det første er ferdig.»*
+>
+> *«Et prosjekt kan leve i 30 år eller mer — men bestå av mange kortvarige prosjekter som varer en
+> uke eller en måned. Kanskje vi må skjule og lukke disse etter behov.»*
+
+**To skalaer.** Byggetrinn = tre enheter over fem år. Rammeavtale/driftskontrakt = **hundrevis av
+ukelange enheter i én beholder over tiår.** `Byggeplass` har i dag verken tilstand, start/slutt
+eller arkivering.
+
+**Forutsigbart brudd ved stor skala:** byggeplass-velgeren (`ByggeplassChip` + dokumentskjemaer) er
+ubrukelig i felt med 500 valg · dokumentlister vokser uten grense · «vis kun aktive» går fra
+bekvemmelighet til forutsetning.
+
+✅ **Modellspørsmålet er AVKLART — intet nytt nivå trengs.** Cowork spurte om en ukelang jobb egentlig
+var et `Project` med avtalen over. Kenneth: *«En SiteDoc-kunde har prosjektnummer 100 → dette
+prosjektet heter «Småprosjekter» → i SiteDoc heter disse byggeplasser.»* `Project` ER beholderen.
+
+🔴 **Da er saken ren: `Byggeplass` mangler LIVSSYKLUS, ikke struktur.** Prosjekt 100 samler
+hundrevis av byggeplasser over tiår, og ingen kan avsluttes eller skjules. Det gjør funnet konkret
+nok til å bli en ordre — men modellen og UI-et (hva skjer med PSI, mannskapsliste, velgere) hører
+til fabel først.
+
+**Fabels domene. Ingen ordre skrevet.** Full utredning:
+[domene-arbeidsflyt.md § byggeplass er et valgfritt oppdelingsnivå](domene-arbeidsflyt.md).
 
 > 🔴 **Kenneths kritikk av arbeidsformen, 2026-09-03 — skal stå:**
 > *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass, så må man erkjenne at
@@ -91,6 +194,166 @@ Ordre etter bygg 51.
 > **Og modellen han beskrev — velg prosjekt + byggeplass på hjem, alt nedstrøms følger — er
 > allerede appens modell.** Ti skjermer sender `byggeplassId` fra `ByggeplassKontekst`.
 > Tegninger er den ene som meldte seg ut. Vi innfører ingenting; vi tetter.
+
+### 🔴 FUNN 2026-09-05 — PROD har tomt sentralarkiv OG tom dokumentsøk-indeks
+
+Målt i tre miljøer 05.09 mens malverkstedet ble kartlagt:
+
+| Database | Bibliotekmaler | Chunks | Med embedding | Dokumenter |
+|---|---|---|---|---|
+| **`sitedoc_test`** (server-ny) | 6 | 6 389 | **5 745** | 277 |
+| **`sitedoc`** (PROD) | **0** | **0** | **0** | **0** |
+| `sitedoc` (Kenspill, legacy) | 0 | — | 0 | — |
+
+🔴 **Logger A.Markussen inn i prod i dag, er «Lån fra SiteDoc-arkivet» TOM, og AI-søket har
+ingenting å søke i.** Malarkivet som ble bygget 04.–05.09 (`91e3e5a6`, `2cfdbaea`, `51bad500`) er
+en tom hylle i produksjon.
+
+**Ikke en kodefeil:** `seed-bibliotek.ts` er aldri kjørt mot prod, og dokumentene er aldri lastet
+opp dit. Men det må lukkes før pilot.
+
+⚠️ **Kan ikke lukkes ved å kjøre seeden som den står** — se § seed-bibliotek under: den sletter
+`ProsjektBibliotekValg` og nuller B4-avstamningen. Ordre skrevet
+(`relay/inbox-seed-bibliotek-idempotent.md`).
+
+### ✅ FUNN 2026-09-05 — malverkstedet finnes allerede: `sitedoc_test`
+
+Kenneth foreslo å gjenåpne Kenspill (legacy) som verksted for malbygging, fordi Opus der hadde fri
+DB-tilgang. **Målingen gjorde det unødvendig.**
+
+`sitedoc_test` på server-ny har alt: pgvector, kjørende AI-søk, ingen kundedata — og
+**NS 3420 komplett vektorisert**, ti dokumenter fra del A til Z:
+
+```
+f: 332 · k: 178 · l: 166 · z: 100 · j: 89 · a: 76 · gu: 57 · 1: 56 · d: 62 · cd: 55
+```
+
+⚠️ **Dublett funnet:** `NS 3420 Del K Anleggsgartnerarbeider.pdf` har **0 chunks** — samme
+dokument som den vektoriserte `…ns-3420-k_2024_no_001.pdf` (178). Ufarlig, men bør ryddes så
+ingen søker i feil kopi.
+
+🔴 **Kenspill er MÅLT UEGNET, ikke bare unødvendig:** kode fra juni (`aed86d0f`, branch `main`),
+`bibliotek_maler` = 0, embeddings = 0. Å bruke den ville krevd kodeoppdatering **og**
+dataflytting. **Ikke ta den opp igjen.**
+
+### 🟡 FUNN 2026-09-05 — malarkivet mangler INNHOLD, og feltet for å kvalitetssikre det er dødt
+
+Kenneth lastet opp **NS 3420-kildedokumentene** til prosjektets mappestruktur 05.09 (ti kapitler
+som PDF: a, cd, d, f, gu, j, k, l, z, 1 — alle `_2024_`). Det svarer på hvor ekte maler skal komme
+fra, men avdekker tre ting som henger sammen:
+
+| | Målt |
+|---|---|
+| **Sentralarkivet** | 13 maler, alle fra `seed-bibliotek.ts` (håndskrevet) |
+| **`BibliotekMal.verifisert`** | 🔴 **Død kolonne.** Finnes i schema med kommentaren *«True når malen er verifisert mot kilde-norm»* — settes ikke i seed, leses ikke i `apps/api` eller `apps/web`. Samme klasse som `ansvarsmerke` |
+| **Kilde-normen** | Ligger nå i systemet, men **ingen kobling** til `BibliotekMal` finnes |
+
+🔴 **Malarkivet mangler innhold, ikke funksjonalitet.** AM 4b (`51bad500`) gjorde flaten brukbar
+ved hundrevis av maler — vi har tretten, og ingen av dem er merket kontrollert mot normen.
+
+**Spørsmål som hører til fabel, ikke til en kodeordre:**
+- Skal maler lages **fra** NS 3420-postene, og i så fall av hvem? Det er domenearbeid — noen må
+  avgjøre hvilke felter en sjekkliste for «KB4 Grasdekke» skal ha.
+- Kan SiteDocs egen AI-søk/embedding brukes til å foreslå malstruktur fra en NS 3420-post?
+  **Ikke utredet — ikke anta at det er lett.**
+- Skal `verifisert` tas i bruk, eller strykes som `ansvarsmerke`? En død kolonne som beskriver en
+  kvalitetsprosess vi ikke har, lover mer enn systemet holder.
+- ✅ **LISENS AVKLART 2026-09-05 (Kenneth) — ikke en blokkerer.**
+  > *«Jeg har tilgang hver dag til disse dokumentene og kan lese selv. Vi skal bygge våre egne
+  > sjekklister basert på NS 3420. Om jeg gjør det manuelt eller en agent gjør det for meg er det
+  > samme. Vi lager ikke en kopi av NS 3420.»*
+  >
+  > *(Kenneth sa først «tester» og korrigerte til «sjekklister» — **«test» er ikke et
+  > SiteDoc-begrep.** Se [terminologi.md](terminologi.md). Malene vi bygger er sjekklistemaler.)*
+
+  🔴 **Den operative regelen for den som bygger maler:** en sjekkliste som **kontrollerer mot** et
+  krav er vårt eget verk. En som **gjengir kravteksten** er en kopi.
+
+  | Lov | Ikke lov |
+  |---|---|
+  | «Kontroller at jordblanding tilfredsstiller NS 3420-K **KB2.1**» + felt for måling og avvik | Å lime inn kravtekst, tabeller eller toleranseverdier ordrett fra standarden |
+  | Referere til punktkode som kilde | Gjengi standarden slik at malen erstatter den |
+
+  **Cowork overvurderte dette 04.09** — samme feil som med eksponeringsregisteret (se
+  [domene-arbeidsflyt.md § ansvarsgrense](domene-arbeidsflyt.md)). To juridiske hensyn blåst opp
+  på to dager. **Mål før du kaller noe en blokkerer.**
+
+⚠️ **Blokkerer ikke piloten i seg selv**, men et malarkiv med tretten maler er ikke et arkiv.
+Hører sammen med EX og BL på fabels bord.
+
+### 🔴 FUNN 2026-09-05 — SJA kan ikke dokumentere HVEM som har signert
+
+Kenneth: *«Jeg trodde vi hadde kontroll → Opus sa tidligere at alle 7 arbeiderne kunne signere →
+jeg tok det for gitt at vi også dokumenterte at alle 7 hadde signert.»*
+
+**Målt: tre mekanismer, ingen løser det.**
+
+| Mekanisme | Hva den gir |
+|---|---|
+| `signature`-rapportobjekt (`felt.ts:131`) | **Kun bildet.** Ingen navn, tidspunkt eller identitet — anonym strek |
+| Signaturseksjon i arkiv-PDF (`arkivmal/signatur.ts`) | **Maks to navngitte**, og de er dokumentflyt-roller («Utført av»/«Godkjent av») |
+| `persons`-felttype (`felt.ts:112`) | Syv navn i en liste — **deltakerliste, ikke signaturer**. ⚠️ Skriver i tillegg ut rå UUID-er (åpent backlog-funn) |
+
+🔴 **Kun ÉN signatur-modell i hele schemaet: `PsiSignatur`.** Ingen deltaker-modell.
+
+**Sannsynlig kilde til misforståelsen:** `persons` lar syv personer legges til. «Syv kan legges
+til» og «syv kan signere» ligner hverandre, og grensesnittet skiller dem ikke.
+
+**Konsekvens i felt:** en SHA-koordinator som tar med utskrevet SJA ut på plassen for å
+kontrollere at alle har signert, **finner ikke svaret der.**
+
+🟢 **Mønsteret finnes:** `PsiSignatur` (`schema.prisma:1942`) har userId ELLER gjest
+(navn/firma/telefon), HMS-kortnr, `completedAt`, unik per person — og
+`gjeldende: psiVersion === psi.version`, som **viser om signaturen gjelder dokumentet slik det er
+nå.** Kritisk for SJA: endres risikovurderingen, er tidligere signaturer på feil dokument.
+
+**Fabels domene — bestilling sendt 05.09**
+([BESTILLING-sja-signaturer](../redesign/til-fabel/BESTILLING-sja-signaturer-2026-09-05.md)).
+Ingen ordre skrevet. ⚠️ **Cowork vurderer dette som høyere pilotprioritet enn resten av
+malarbeidet** — SJA er lovpålagt, og A.Markussen bruker innleid mannskap.
+
+### 🔴 AVKLART 2026-09-04 — RUH og avvik kan IKKE leveres som PDF (lovpålagt dokumentasjon)
+
+**Målt i `hms.ts:221-269` — hvilken Prisma-modell hver HMS-type faktisk bruker:**
+
+| Dokumenttype | Modell | Arkiv-PDF i dag | Web | Mobil |
+|---|---|---|---|---|
+| Sjekkliste | `Checklist` | ✅ | ✅ | ✅ |
+| HMS **SJA** | `Checklist` | ✅ | ✅ | ✅ |
+| **Oppgave** | `Task` | ❌ | ❌ | ❌ |
+| **HMS avvik** | `Task` | ❌ | ❌ | ❌ |
+| **HMS RUH** | `Task` | ❌ | ❌ | ❌ |
+
+🔴 **RUH og avvik er lovpålagt HMS-dokumentasjon.** At de ikke kan leveres som PDF er en
+pilotblokkerer, ikke en skjønnhetsfeil.
+
+**Rotårsaken er ÉN:** `services/arkiv/render.ts:94` kaster for alt annet enn sjekkliste
+(«task-innholdsleser mangler»). `arkiv.rendr` godtar allerede `type: "oppgave"` i kontrakten
+(`arkiv.ts:51`) — kun leseren mangler.
+
+✅ **Flate-pariteten er derimot allerede på plass.** Web og mobil kaller samme `arkiv.rendr`; begge
+har PDF for sjekkliste, begge mangler for task. **Kenneths premiss «web tilbyr et sett utskrifter,
+det samme bør gjelde app» er målt — hullet er dokumenttype, ikke flate.** Bygges task-leseren, får
+tre dokumenttyper PDF på to flater i samme runde.
+
+*(Web har i tillegg timer-rapportens printmotor. Den er en firmaflate og hører i web —
+[feltarbeid-skillet](SAMARBEIDSREGLER.md), Kenneth 04.09.)*
+
+Funnet kom fram fordi dokgen rapporterte et sidefunn i stedet for å la det passere
+(lokasjonOmfang-runden, 04.09), og fordi Kenneth samme kveld påpekte at han sier «sjekklister» om
+funksjoner som er generelle. Se [SAMARBEIDSREGLER § «sjekkliste» betyr ofte «dokument»](SAMARBEIDSREGLER.md).
+
+### Feltfunn 2026-09-04 (prod-verifisering av `96eebc13`)
+
+Kenneth sammenlignet samme befaringsnotat i mobil, web og arkiv-PDF etter prod-deployen.
+
+| Funn | Alvorlighet | Status |
+|---|---|---|
+| Web viste ikke bildets opptakstidspunkt — mobil og PDF gjorde. Målt: **null treff på `opptakTidspunkt` i `apps/web`** | 🟡 skjemmer | ✅ Merget `d610acb8`. Gjenbruker `formaterDatoTidPunkt` fra `@sitedoc/pdf` (ingen tredje kopi); `undefined` ⇒ tomt (historiske bilder urørt), `null` ⇒ `felt.opptakTidMangler` (15/15 språk), aldri innleggingstid. **Web — når ikke brukeren via OTA, venter på neste prod-deploy** |
+| `RapportObjektVisning.tsx:143` (oppgave-detalj + web-utskrift) viser fortsatt `opprettet` = innleggingstid | 🟡 skjemmer | Samme paritetsbrudd, annen flate med egen vedleggstype uten `opptakTidspunkt`. Ikke ordre — hører sammen med den flatens egen opprydding |
+| Arkiv-PDF: overskriften «BILDER» står alene med ~halv side tomrom, bildene rendres på neste side | 🔵 notert | Sidebrekk-regelen holder ikke overskrift og innhold sammen. Rotårsak ikke funnet (dokgen var ikke i arkivmal-layouten og gjettet ikke) |
+| Arkiv-PDF: felt vises som `_` med «Ikke utfylt» — etikett mangler eller er tom | 🔵 notert | Rotårsak ikke funnet |
+| Bildeteksten i web er satt til **9 px** — PDF og mobil bruker vesentlig større | 🔵 notert | Vurderes visuelt når endringen er på test; justeres hvis den er for smått til å leses før godkjenning |
 
 ### Eldre feltfunn
 
@@ -111,7 +374,21 @@ tofils-endringer. **Ny form: brancher merges til develop løpende** (så de ikke
 i dag hva som skjer når 20 innslag blir stående), **men test-deploy skjer når det finnes et
 sett verdt å gate.** Cowork eier vurderingen av når settet er stort nok.
 
-✅ **PROD À JOUR 2026-09-02 21:11** — **`af49823f`** (132 commits, 175 filer, +10124/−1272).
+✅ **PROD À JOUR 2026-09-04** — **`96eebc13`** (14 commits, 38 filer, +803/−209): EXIF-opptakstid
+og -sted på bilder · lesbar endringslogg (kolonnenavn + fra→til, rå UUID skjult) · kanonisk
+`repeaterRad`-tvilling. **Ingen migreringer** («No pending migrations to apply»). Api og web
+bygget sekvensielt, begge oppe.
+⚠️ **Ustemplet deploy** — `/version` svarer `{"gitSha":"dev"}` fordi den lim-klare prod-blokken
+manglet `GIT_SHA`/`BUILD_TID`. Rettet i [deploy-detaljer.md § PROD-deploy](deploy-detaljer.md)
+samme dag; prod er stemplet fra og med neste deploy.
+
+✅ **OTA I DRIFT fra 2026-09-04** — første `eas update` publisert til kanal `production`,
+runtime `1`, commit `cdb53296`, verifisert på Kenneths iPhone mot bygg 54. **JS-fikser koster
+ikke lenger byggkvote.** Web måtte tas ut av `platforms` (`app.json`, `2b73ae68`) — `eas update`
+kaller eksporten med `--platform=all`, og web-bundelen har to uavhengige feil. Full mekanikk:
+[eas-build-veileder.md § OTA](eas-build-veileder.md).
+
+📌 **Historikk:** prod sto på `af49823f` fra 2026-09-02 21:11 (132 commits, 175 filer, +10124/−1272).
 Én migrering: `20260830120000_registrering_fase2_prosjekttilgang` (rent additiv, to `ADD COLUMN`).
 De tre andre db-pakkene: «No pending». Migreringsgaten verifiserte `sitedoc`, ikke `sitedoc_test`.
 
@@ -160,7 +437,32 @@ En prod-deploy ble aldri ført.**
 alle fire db-pakker, verifisert som innlogget bruker. **TestFlight-bygg #46** (`5605775d`)
 sendt inn i forrige runde (`5dcdeb58`).
 
-**Test: `345de5e3`** (deployet 2026-09-02 11:00, verifisert med `/version`). Nytt siden
+**Test: `1e259d55`** (deployet 2026-09-05 21:38, verifisert: `/version` → `1e259d55`).
+🔴 **Hele SJA-signaturrunde-settet er nå på test** — rundene 2–5 merget 05/06.09: signatur bærer
+navn+tidspunkt · kollapset signaturflate · tre nye tabeller + felttypen `signature_list` + PDF +
+manko-chip · serverlås mot skriving på avsluttet runde · malrevisjon D · drift-konsolidering.
+
+🟢 **Migreringen `20260906000000_sja_signaturrunder` ANVENDT** mot `sitedoc_test` — første og
+eneste gang den har møtt en database. Den var generert offline (`migrate diff`) fordi lokal DB
+har historikk-drift og mangler pgvector i shadow-basen; **den gikk gjennom på første forsøk.**
+Øvrige tre db-pakker: «No pending».
+
+🟢 **Testdata seedet 21:42** (`SEED_SJA_BRUKER=kemyrhau@gmail.com`): firma **SITEDOC MYRHAUG**,
+prosjekt `SD-DEMO-SJA-0001`, SJA «Løft mobilkran — Akse 4». Deltakere: Kenneth (ansvarlig/admin),
+Ola Tømrer, Nina Elektriker, gjest Truls Kranfører. Runde 1 avsluttet m/alle fire signert
+(`antallDeltakere` frosset), **runde 2 åpen på 1 av 4** — Kenneths egen rad står usignert.
+🔴 **Kenneth logger inn som seg selv via OAuth** — ingen demo-bruker kan logge inn.
+
+⚠️ **Første seed-forsøk (21:15) lagde et ORPHAN-prosjekt** uten firma, og brukere uten
+OAuth-kobling som aldri kunne logge inn. Rettet i `8b3110b8`; den idempotente `update`-grenen
+reparerte raden på stedet. **Cowork gatet branchen, leste seed-fila og sjekket prod-guarden i
+stedet for firmaregelen** — gaten sviktet, ikke bare koden.
+
+🔴 **VENTER: fabels skjermbilde-gate.** Underlaget lister åtte flater
+(`docs/redesign/til-fabel/skjermbilde-underlag-sja-signaturrunder-2026-09-06.md`).
+**Ingenting av dette går til prod før gaten er kjørt.**
+
+**Forrige test: `345de5e3`** (deployet 2026-09-02 11:00). Nytt siden
 `d2b9d189`: **REG fase 3 — prosjekttilgang-evaluatoren** (`23a52504`) og **lokasjon-begrepsryddingen**
 (`81225a93` — paritetsregel, `location` avviklet fra palett+seeds, repeater arver tegning fra rad
 n−1). Migreringer: «No pending» på alle fire.
@@ -454,6 +756,9 @@ står nå samlet i [sikkerhet.md](sikkerhet.md). **Ikke dupliser hit.**
 
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
+| **Malarkiv AM4b (lån-dialog ved skala)** | `SiteDoc-kontrollplan` | `feat/malarkiv-skala` | `apps/api/src/routes/bibliotek.ts` (ny `hentMalInnhold`) · `apps/web/.../firma/malarkiv/page.tsx` (lån-dialog: `LaanFraSentralarkivDialog` + `MalRad` + `FeltForhandsvisning`) · `apps/web/.../malbygger/PalettElement.tsx` (eksporter `felttypeNokler`) · i18n (9 nøkler × 15) | 2026-09-05 | 🟢 **Kodet, pushet (fra develop `a7f112da`).** «Velger ved skala»-mønsteret (L4) i lån-dialogen: **L1** inspiser-før-lån (rad → read-only feltliste, feltnavn+type i rekkefølge gruppert på FØR/UNDER/ETTER slik lån-mutasjonen bygger malen; lån-knapp i preview + på rad) · **L2** kollapsbare kapitler med antall-header, start kollapset >20 maler, kun økt-tilstand (`useState<Set>`, ikke localStorage/DB) · **L3** søk over navn+kode, treff auto-utbrettes, tomt søk → kollaps-tilstand. **🔴 Gate-funn løst (målt):** `hentStandarder` selecter IKKE `malInnhold`; eager-lasting = O(alle felt i hele arkivet) per dialog-åpning → ny **lazy** `bibliotek.hentMalInnhold` henter felt for ÉN mal, kalt først når previewen åpnes. **Ingen delt komponent** (fabel-vedtak 05.09) — BL gjenbruker spesifikasjonen. web build + mobil typecheck + lint (0 errors) + shared 636 grønt, i18n 13-generert. Ingen migrering. **Ingen prod/test-deploy ennå. DoD ÅPEN:** skjermbilder til fabel-gate med seedet arkiv >20 maler (kollapset start, søk, inspiser, lån) + klikk-tall — venter Kenneths test-deploy + >20-seed. |
+| **Malarkiv AM4 (bolk 2 UI)** | `SiteDoc-kontrollplan` | `feat/firma-malarkiv-ui` | `apps/api/src/routes/firmamal.ts` (+3 ruter) + `mal.ts` (include) + `modul.ts` (steg 5-seeding) · `apps/web/.../firma/malarkiv/page.tsx` (ny) + `MalBygger.tsx` + `MalListe.tsx` + `firma-nav.tsx` + `firma/layout.tsx` · i18n (57 nøkler × 15) · `docs/claude/migrering-reporttemplate.md` | 2026-09-04 | 🟢 **Bolk 2 committet (fra develop `ca83c9a2`).** Steg 2 (arkivsiden, amber `/dashbord/firma/malarkiv` — rute-avvik fra `/oppsett/firma/*` gatet av Kenneth: den ga prosjekt-sone) + steg 3 (promoter + badges + L6 «Oppdater» i MalBygger) + steg 4 (ny-mal «Fra firmaarkivet» + L2-badges i MalListe) + steg 5 (firmamal-seeding i `modul.aktiver`, additivt, syv inventar-linjer bevart, ingen åttende funksjon). Nye ruter: `kanPromotere`/`listeForProsjekt`/`oppdaterKopiFraHovedmal`. API-typecheck + web build + 189 web-tester + i18n 13-generert grønt. **🔴 L2-nyanse til fabel-gate:** «Erstatter standardmal»-badge er BEREGNET ved visning (ikke lagret). **L8 (full firma-modus i MalBygger) = egen branch `feat/malbygger-firmamodus` etter dette** (Kenneth-vedtak, egen gate). Ingen migrering i denne branchen. Ingen prod/test-deploy ennå. **Venter test-deploy for E2E + skjermbilder til fabel-gate.** |
+| **Malarkiv AM4 (bolk 1)** | `SiteDoc-kontrollplan` | `feat/firma-malarkiv` | `packages/db/prisma/schema.prisma` + migrering `20260904120000_malarkiv_hms_kolonner` · `apps/api/src/routes/firmamal.ts` (ny) + `trpc/router.ts` · `docs/claude/migrering-reporttemplate.md` | 2026-09-04 | 🟢 **Bolk 1 committet (fra develop `171995ef`).** Additiv migrering (5 kolonner: `organization_templates.subdomain`/`hms_synlighet`/`standard_for_nye_prosjekter`/`laant_fra_bibliotek_mal_id` (B4, FK SetNull→BibliotekMal) + `report_templates.versjon_av_hovedmal`; kun ADD COLUMN, to-stegs-policy) + `firmamal.*` tRPC-ruter (`list`/`hent`/`opprett`/`oppdater`/`slett`/`promoter`/`kopierTilProsjekt`/`laanFraSentralarkiv`). L5 avstamning via `organizationTemplateId`+`versjonAvHovedmal`; slett→SetNull via schema-FK; firma-admin-gate (L7) på skriv/promoter/lån, prosjektadmin-gate på henting; L9 fane-filter; `config.zone` verbatim i begge kopiretninger. **B4 (Kenneth 04.09): `laanFraSentralarkiv` setter strukturert peker `laantFraBibliotekMalId`, ikke fritekst i description** — avviket fra første rapport lukket i bolk 1 (skjemaet ferdig ⇒ bolk 2 = ren UI). API-typecheck + `@sitedoc/web` build + rot-testsuite (189 web) grønt. Ingen prod, ingen test-deploy ennå. **Bolk 2 (UI, steg 2-5) = egen branch etter test-gate.** |
 | **Mobil arkiv-PDF (Fase 1)** | `SiteDoc-mobil-device` | `feat/mobil-arkiv-pdf` | `apps/mobile/app/sjekkliste/[id].tsx` · `packages/shared/src/i18n/*.json` (2 nøkler × 15) · `docs/claude/dokumentgenerering-plan.md` (felt.ts-presisering) | 2026-08-18 | 🟢 **Fase 1 committet — additivt.** Mobil kaller nå `trpc.arkiv.rendr` (server-generert arkiv-PDF, samme motor som web) som **primær** vei: base64 → `cacheDirectory` via `expo-file-system/legacy` → deles med eksisterende `expo-sharing`. Mangel-kontrakt speiler web (`renderTimeout`→«prøv igjen», `manglendeVedlegg`→«N mangler», `komplett`→stille; inline, ingen toast). Offline (`useNettverk`) → «PDF krever tilkobling», mutasjon fyres ikke. Header: primær `Share2`=arkiv + fallback-pill «Lokal» (`Printer`-ikon) = urørt `expo-print`-vei. **`expo-print`-koden røres ikke** (Fase 3, egen gate). **Måling meldt:** `felt.ts` kan IKKE avfryses selv etter Fase 3 (`renderFelt` lever i `arkivmal/innhold.ts` = server-arkiv); det er `byggSjekklisteHtml`-grenen i `sjekkliste.ts` som dør. Én PDF-vei i mobil (kun sjekkliste). Auth = Bearer på tRPC-klienten (bekreftet mot `context.ts`). typecheck mobil grønt, i18n +2×15. **⏳ Venter enhets-verifisering i Fase 2 (EAS-bygg, batches — ikke fyrt).** Ingen migrering. Ingen prod. |
 | **App-felt (vær + bildeNr)** | `SiteDoc-mobil-device` | `feat/app-vaer-bildenr` | Sak B: `FeltDokumentasjon.tsx` (web+mobil) · 4 skjema-hooks · `shared/utils/bildeNr.ts`. Sak A: `useAutoVaer.ts` (web+mobil) · mobil-prefyll (2 hooks) · `VaerObjekt.tsx` (mobil) · `providers/VaerKoProvider.tsx` (ny) · `lib/trpc.ts` (vanilla) · `shared/utils/vaer.ts` | 2026-08-16 | 🟢 **Sak B committet** (`ead0179b`, pushet). 🟢 **Sak A committet:** målrettet prefyll-fjerning (kun vær-anker; prod: 1 væranker i Befaringsrapport-malen, 22 datofelter urørt), umiddelbar henting ved satt/endret tidspunkt (time nærmest klokkeslett, delt `byggVaerSnapshot`), offline vær-kø (`VaerKoProvider` — «venter»-markør på feltet ER køen; reconnect-sweep henter for LAGRET tidspunkt via archive-API + vanilla-tRPC), tre UI-tilstander. No-op verifisert (`likForDiff`, `sjekkliste.ts:676`). typecheck web+mobil+shared + 475 shared-tester grønt. 🟢 **(d) PDF-resolve ved finalisering committet (isolert):** ved terminal-transisjon (`endreStatus`, sjekkliste+oppgave) løses «venter»-vær-felt server-side for det LAGREDE tidspunktet (archive-vær) og persisteres i `data` — merkes `hentetIEttertid`; feilet henting → `status:"ikke_registrert"` permanent (`services/vaer-finalisering.ts`, 7 tester). Guard i `oppdaterData` (begge): finalisert dokument dropper vær-felt-skriving stille → vær-køen kan aldri overskrive frosset snapshot. `felt.ts` fallback «Ingen værdata»→«Ikke registrert». Server-side vær-henting ekstrahert til `services/vaer.ts`. typecheck+lint+vitest grønt. 🟢 **Simulator-verifisering BESTÅTT (2026-08-16, iOS-sim mot api-test, orakel via dev-login):** (1) online snapshot for satt tidspunkt — befaringstidspunkt 14.08 kl 20:44 → Vær = 12 °C/overskyet/0.76 m/s/7.9 mm = eksakt archive-fasit for 14.08 kl 20, IKKE i dag (16.08: 14.2 °C/0 mm); (2) `VaerKoProvider`-sweepen — plantet «venter»-markør (lagret tidspunkt 15.08 kl 14) resolvet på ~8 s til 15.4 °C/Lett yr/1.41 m/s/8.1 mm = eksakt fasit for 15.08 kl 14, synket til SQLite + server. Begge resolve-veier hentet for LAGRET tidspunkt, ikke tilkoblingstidspunkt. **⚠️ Forbehold:** simulatoren kan ikke gjøres NetInfo-offline (deler Mac-nettet), så `useAutoVaer` sin offline-**skrivegren** ble ikke trigget av ekte offline — «venter»-markøren ble **plantet** for å kjøre sweepen. Begge resolve-veier er dermed enhet-verifisert; residualet er selve markør-skrivingen (dekket av logikk + at sweepen konsumerte nøyaktig markør-formen). Faithful ekte-offline-test krever ekte enhet i flymodus. **Fil-overlapp med «S1 Fase 1b» på web `FeltDokumentasjon.tsx`.** Ingen migrering. **Ingen prod.** |
 | **Modul-onboarding (seed-policy)** | `SiteDoc-mobil-device` | `feat/seed-dispatch-settfirmamodul` (steg 3+4) | `apps/api/src/services/seed/index.ts` · `apps/api/src/routes/organisasjon.ts` · `apps/api/src/routes/timer/onboarding.ts` | 2026-08-11 | 🟢 **Steg 1 (`921a221e`) + steg 2 (`2fde8565`) MERGET develop + test-verifisert**; backfill kjørt prod (1 rad: A.Markussen-lonnsart). **Steg 3+4 (generisk seed-dispatch) diff-klar** (ORDRE blokk 24/25): ny `seedFirmamodulKatalog(slug, org)` kalles fra `settFirmamodul` ETTER kjerne-tx commit (kryss-DB → kan ikke være i tx-en). Per-datatype `try/catch` → `feil[]` (én feilende datatype blokkerer ikke resten); logges tydelig med org+datatype, aldri svelget. `aktiverNivaa1` = tynn inngang (base via dispatch + Nivå 2 kun ved `inkluderNivaa2`); `seedTimerForOrganization` retiret. `aktiverTomKatalog` uendret (kun interne prosjekter, ingen katalog). **maskin + varelager: ingen hook** — begge dokumentert i dispatch-koden (maskin=enums; varelager=firma-definert uten universell default, steg-4b Beslutning 8). 4 nye unit-tester (feil-isolasjon + no-op-moduler). Api-only, ingen migrering, ingen prod. **Steg 5** (onboarding.status 3-verdi + `mangler`-rapportering) egen gate. **Navngitt oppfølger:** `aktiverTomKatalog` bør selv skrive `egen_katalog`-policy-rader; datatype `varekategori` reservert for evt. framtidig varelager-hook. |
@@ -553,7 +858,57 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
-### 🟡 Kø-robusthet — opplastingskøen frøs i stillhet i 18 min (`fix/mobil-batch-opplasting`, PÅ BRANCH — venter gate, IKKE merget)
+### ✅ Arkiv-PDF for oppgave + HMS avvik/RUH — task-innholdsleser (`a2c7edc9` → develop `3c905298`, MERGET 04.09)
+
+> ⚠️ **Merk om lokasjonOmfang-raden som sto her:** den ble erstattet av denne i dokgens commit.
+> `feat/lokasjonomfang` (`9a94a249`) er **merget** til develop 04.09 — «Gjelder hele byggeplassen»
+> som eksplisitt valg, L9 sticky tegning, `showLocation`-paritetsfiks på oppgavesiden, migrering
+> `20260904140000_lokasjon_omfang` anvendt på test. Raden sto som «IKKE merget» i to timer etter
+> mergen fordi **cowork ikke oppdaterte tavla** — agenten ryddet den bort med rette.
+> 🔴 **Regelen «tavla har én skribent» virker bare hvis den ene skriver.**
+
+**Ordre:** `relay/inbox-arkiv-pdf-oppgave-hms.md`, gatet av cowork 04.09, Kenneth-bestilt. **RUH og avvik er lovpålagt HMS-dokumentasjon som ikke kunne leveres som PDF** — de er `Task`, og `render.ts` kastet for alt annet enn sjekkliste. SJA slapp unna fordi den er `Checklist`. Pilotblokkerer for A.Markussen.
+
+**Én rot, tre dokumenttyper, to flater:** `arkiv.rendr` godtok allerede `type:"oppgave"`; kun task-leseren manglet. Web + mobil kaller samme prosedyre.
+
+**Levert:**
+- **Task-innholdsleser (delt kjerne, krav 1):** `sammenstilling.ts` refaktorert til `byggArkivHtmlKjerne(norm)` + tynne `byggSjekkliste…`/`byggOppgave…`-adaptere over en `NormalisertArkivDok`. ~85 % delt (forskjellen liten → delt leser med type-diskriminant, ikke duplikat). Sjekkliste-utskrift **uendret** (151 arkiv-tester + 3 sjekkliste-orkestrator-tester grønne). Gjenbruker kanonisk repeater-traversering (`byggObjektTre`/`samleRepeaterMarkorer`/`byggInnhold`) — ingen tredje traversering.
+- **HMS virker, ikke bare oppgave (krav 2):** avvik/RUH (`Task`, `template.domain="hms"`, subdomain avvik/ruh) trenger **ingenting** utover task-leseren — kun standard felttyper, ingen HMS-egne kolonner. Målt funn: status/signatur var sjekkliste-semantisk (`/godkjent/`); task/HMS-terminalen er «Lukket» (`tilStatus==="closed"`). Egen `signaturStrategi`: sjekkliste = Utført/Godkjent · oppgave/HMS = Opprettet/Behandlet.
+- **`arkiv.rendr` (krav 3):** enum forblir `"sjekkliste" | "oppgave"` — **ingen egen `"hms"`-type.** Avvik/RUH ER tasks → «oppgave»-grenen dekker dem; domenet ligger på malen og styrer semantikk i leseren. En «hms»-type ville vært en redundant kontraktsendring mobilklienter i drift måtte lære. Tilgangskontroll + activity forgrenet på type (`task`/`checklist` + hmsSynlighet).
+- **Begge flater (krav 4):** PDF-nedlasting på web oppgave-side; del-ikon + «Forhåndsvis» + `ArkivPdfForhandsvisning` (WebView) på mobil oppgave-side. Komponenten var allerede type-agnostisk.
+- **Krav 5:** `ArkivPdfForhandsvisning` bruker allerede `ModalFlate` (ikke `SafeAreaView` i Modal).
+
+**Paritetsmatrise (etter denne runden):**
+
+| | Web | Mobil-app | Arkiv-PDF |
+|---|---|---|---|
+| Sjekkliste | ✅ | ✅ | ✅ |
+| Oppgave | ✅ (+ PDF-knapp) | ✅ (+ PDF/forhåndsvis) | ✅ (ny task-leser) |
+| HMS (avvik/SJA/RUH) | ✅ | ✅ | ✅ (SJA=Checklist fra før · avvik/RUH=task-leser) |
+
+**Målt avvik meldt:** mobil oppgave-detalj viste ingen dokumentlokasjon fra før (kun tegning-chip); ikke rørt utover PDF-knappen (egen sak). **Leveringsvei:** server-PDF + web → prod-deploy; mobil-UI via `eas update`.
+
+**Gate grønn (lokalt):** web build · api+mobil typecheck · mobil lint 0 · api 277/277 · pdf 97/97 · shared 636/636.
+
+### 🟢 lokasjonOmfang — «Gjelder hele byggeplassen» som eksplisitt svar + L9 sticky tegning (`feat/lokasjonomfang`, MERGET develop `ea66590b`)
+
+**Ordre:** `docs/redesign/ORDRE-lokasjonomfang-2026-09-04.md` (+ L9-tillegg), fabel-vedtatt av Kenneth 04.09. Forankring: «alle gatelysene mangler merking» er én observasjon om hundre lyspunkt — en pin ville påstått at funnet gjelder ett sted. I dag skriver PDF-en «Ikke utfylt» der «gjelder alt» var ment; et tomt felt der noe var ment er en usann påstand.
+
+**Levert (8 krav):**
+- **Modell:** nytt nullable `lokasjonOmfang` ("punkt" | "byggeplass" | null) på `Checklist` + `Task` (migrering `20260904140000_lokasjon_omfang` — kun ADD COLUMN, ingen backfill, forhåndsgodkjent). Eksponert i `sjekkliste.opprett/oppdater` + `oppgave.opprett/oppdater` (omfang er låst etter godkjenning via `rørerLaastFelt`).
+- **Visning (paritet web + PDF + mobil):** «Gjelder hele byggeplassen» i `LokasjonVelger` (web), `byggLokasjonsblokk` (PDF — skrives ALLTID ved byggeplass, aldri stille utelatt), mobil sjekkliste- + oppgave-detalj.
+- **Krav 2:** «Gjelder hele byggeplassen» som ett-trykk-affordance i `LokasjonVelger` (passiv tilstand + modal), ingen obligatorisk bekreftelse.
+- **Krav 3:** auto-åpning av tegning kun `status=draft` **OG** `lokasjonOmfang==null` **OG** ingen tegning fra før; synlig utvei (Avbryt), lukking lagrer ingenting. Nye lagringer setter `lokasjonOmfang="punkt"` → konsistent framover.
+- **Krav 4 (paritetsfiks):** oppgavesiden fikk `showLocation`-gate (rendret før velgeren ubetinget — et hull). Ingen API-endring: `template` følger `oppgave.hentMedId`.
+- **Krav 5 (L9):** sticky tegning i repeater-feltpin — tom rad forhåndsvelger sist brukte tegning i SAMME dokument (forrige rad → dokumentets tegning → ingen). **Kun tegning, aldri pin.** Kilden er dokument-avgrenset (ny prop `dokumentTegning`/`stickyTegning`), IKKE `byggeplass-kontekst.aktivTegning` (sesjonstilstand på tvers av dokumenter — svakheten Kenneth 04.09 ba om å rette). Atferden «rad 2 lander på rad 1s tegning» bevart.
+
+**Målt avvik (rapportert):** oppgave har ingen arkiv-PDF ennå (`arkiv/render.ts` kaster) → PDF-visningen gjelder i praksis kun sjekkliste; oppgave-PDF arver regelen når den bygges. Web + mobil dekker oppgave.
+
+**Begrepsrydding (lukker masterplan-restansen «tre ting heter lokasjon»):** dokumentlokasjon / lokasjonstekst / feltpin / lokasjonsbryter — se [terminologi.md](terminologi.md).
+
+**Gate grønn (lokalt):** web build (typecheck+lint+next), api typecheck, mobil typecheck + lint 0 errors, pdf 97/97, shared 636/636, web 193/193 (inkl. tre navngitte repeater-regresjonstester + ny L9-test). **Leveringsvei:** web + server-PDF → prod-deploy; mobil-delen via OTA.
+
+### ✅ Kø-robusthet — opplastingskøen frøs i stillhet i 18 min (`fix/mobil-batch-opplasting`, MERGET — branch ryddet)
 
 **Avdekket av galleri-flervalg, men er en kø-robusthetssak, ikke en flervalg-sak.** Kenneth batchet 6 bilder i felt; de kom opp i sjekklista og til slutt på server — men det tok 18 min, og INGENTING sa at de var underveis. Målt årsak: `uploadAsync` hadde **ingen timeout**, så en hengende opplasting på tregt byggeplass-nett holdt `prosessererRef` true; 15s-sikkerhetsnettet er guardet på `!prosessererRef.current` og var dermed dødt. Bare reload (som nullstiller `laster_opp`→`venter` via `migreringer.ts:109` + fersk mount) løsnet den. Køen drenerte ikke av seg selv.
 
@@ -569,7 +924,7 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 **Gate grønn:** shared 621/621 (inkl. batch-integrasjonstest på ekte `{_radId,felter}`-form), pdf, mobil typecheck + lint 0, web build.
 
-### 🟡 expo-updates — JS-fikser til telefonen uten nytt bygg (`feat/expo-updates`, `e498bb14`, PÅ BRANCH — venter gate, IKKE merget)
+### ✅ expo-updates — JS-fikser til telefonen uten nytt bygg (`e498bb14`, MERGET — **OTA I DRIFT fra 04.09**)
 
 **Bakgrunn (målt):** 3. september kostet fem rene JavaScript-funn tre av ~15 månedlige iOS-bygg.
 Ingen trengte en ny binær — bare en vei til telefonen (bygg 51 manglet en upushet fiks, preview-bygget

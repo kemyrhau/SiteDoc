@@ -48,6 +48,17 @@ function sorterNøkler(v: unknown): unknown {
   return v;
 }
 
+/**
+ * En label er MENINGSFULL når den har minst ett alfanumerisk tegn. Malbyggeren
+ * lagrer en tom feltlabel som en ren plassholder («_»), og `"_".trim()` er ikke
+ * tom — så en trim-sjekk alene slipper den gjennom og PDF-en viser en naken
+ * understrek som feltnavn (funn 2026-09-04). Endringsdiffen har brukt samme regel
+ * for kolonneoverskrifter; nå er den ÉN kilde, delt av radkortet og diffen.
+ */
+export function harMeningsfullLabel(label: string | null | undefined): boolean {
+  return !!label && /[\p{L}\p{N}]/u.test(label);
+}
+
 /** Normaliser opsjon — støtter både "streng" og {value,label}-format */
 export function normaliserOpsjon(raw: unknown): { value: string; label: string } {
   if (typeof raw === "string") return { value: raw, label: raw };
@@ -150,6 +161,64 @@ export function formaterDatoKort(v: unknown): string {
   } catch {
     return String(v);
   }
+}
+
+/**
+ * Signaturfelt-lesning + meta-linje — SPEIL av @sitedoc/shared
+ * `lesSignaturVerdi`/`formaterSignaturLinje`. packages/pdf importerer bevisst
+ * ingenting (null-avhengigheter, jf. CLAUDE.md + felt.ts:90), så den delte leseren
+ * dupliseres her. Kanonisk kilde: `packages/shared/src/utils/signaturVerdi.ts` —
+ * endres den, endres denne.
+ *
+ * Legacy: rå data-URL-streng (pre 2026-09-05) → bildet uten meta-linje. Nytt format:
+ * objekt med snapshot av hvem/når. Tidspunktet parses DIREKTE fra ISO-strengen
+ * (lokal-ISO med offset fra `signaturTidspunktNaa`), så veggklokken vises likt som
+ * på web/mobil selv når PDF rendres på en UTC-server — derfor IKKE via PDF_TIDSSONE.
+ */
+interface SignaturVerdiPdf {
+  dataUrl: string;
+  navn: string | null;
+  tidspunkt: string | null;
+}
+
+export function lesSignaturVerdiPdf(verdi: unknown): SignaturVerdiPdf | null {
+  if (typeof verdi === "string") {
+    return verdi.startsWith("data:") ? { dataUrl: verdi, navn: null, tidspunkt: null } : null;
+  }
+  if (verdi && typeof verdi === "object" && !Array.isArray(verdi)) {
+    const o = verdi as Record<string, unknown>;
+    const dataUrl = typeof o.dataUrl === "string" ? o.dataUrl : null;
+    if (!dataUrl || !dataUrl.startsWith("data:")) return null;
+    return {
+      dataUrl,
+      navn: typeof o.navn === "string" ? o.navn : null,
+      tidspunkt: typeof o.tidspunkt === "string" ? o.tidspunkt : null,
+    };
+  }
+  return null;
+}
+
+/** Meta-linjen «navn ?? Ukjent · dd.mm.åååå kl. hh:mm». `null` for legacy (ingen linje). */
+export function formaterSignaturLinjePdf(sig: SignaturVerdiPdf): string | null {
+  if (!sig.tidspunkt) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(sig.tidspunkt);
+  if (!m) return null;
+  const [, aar, maaned, dag, time, minutt] = m;
+  return `${sig.navn ?? "Ukjent"} · ${dag}.${maaned}.${aar} kl. ${time}:${minutt}`;
+}
+
+/**
+ * Formatér et signeringstidspunkt (lokal ISO-8601 med offset) til
+ * «dd.mm.åååå kl. hh:mm». Speiler @sitedoc/shared formaterSignaturTidspunkt —
+ * parser veggklokka DIREKTE fra strengen, tz-uavhengig av render-miljøet.
+ * Brukes av signaturliste-renderer (SJA/HMS-runder). `null` for manglende tid.
+ */
+export function formaterSignaturTidspunktPdf(tidspunkt: string | null): string | null {
+  if (!tidspunkt) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(tidspunkt);
+  if (!m) return null;
+  const [, aar, maaned, dag, time, minutt] = m;
+  return `${dag}.${maaned}.${aar} kl. ${time}:${minutt}`;
 }
 
 /** Gjør relativ bilde-URL om til full URL basert på bildeBaseUrl */

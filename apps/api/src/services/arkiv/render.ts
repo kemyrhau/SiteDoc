@@ -17,7 +17,7 @@
  *      innen tidsvakten (gjelder hele PDF-en).
  */
 import { byggArkivSamling } from "@sitedoc/pdf";
-import { byggSjekklisteArkivHtml, type RammeData } from "./sammenstilling";
+import { byggSjekklisteArkivHtml, byggOppgaveArkivHtml, type RammeData, type SammenstillingResultat, type SammenstillingOpts } from "./sammenstilling";
 import { hentBildeBytesFraDisk } from "./disk-bilde";
 import { byggRenderHeader, byggRenderFooter } from "./render-templates";
 import type { PrismaClient } from "@sitedoc/db";
@@ -26,8 +26,17 @@ import type { PrismaClient } from "@sitedoc/db";
 // føyes til her, samme mønster som oversettelse-service kaller /translate.
 const PDF_BASE_URL = process.env.PDF_URL || "http://pdf-render:3304";
 
-/** Dokumenttyper arkivmalen kan rendre. «oppgave» følger når task-leseren er bygget. */
+/** Dokumenttyper arkivmalen kan rendre. «oppgave» dekker også HMS avvik/RUH (Task, domain=hms). */
 export type ArkivDokumentType = "sjekkliste" | "oppgave";
+
+/** Leser per dokumenttype → normalisert arkiv-HTML. Ny type = ny rad her, ikke ny if-kjede. */
+const LESER_PER_TYPE: Record<
+  ArkivDokumentType,
+  (prisma: PrismaClient, id: string, opts: SammenstillingOpts) => Promise<SammenstillingResultat>
+> = {
+  sjekkliste: byggSjekklisteArkivHtml,
+  oppgave: byggOppgaveArkivHtml,
+};
 
 export interface ArkivDokumentRef {
   id: string;
@@ -79,9 +88,9 @@ function byggSamleramme(første: RammeData, antall: number): RammeData {
 }
 
 /**
- * Rendr én eller flere dokumenter til ÉN arkiv-PDF. Ruting på dokumenttype;
- * bare «sjekkliste» er bygget nå (oppgave-leseren følger). Returnerer PDF-en
- * (base64 legges på i tRPC-laget) + per-dokument mangel-status.
+ * Rendr én eller flere dokumenter til ÉN arkiv-PDF. Ruting på dokumenttype via
+ * `LESER_PER_TYPE` (sjekkliste + oppgave/HMS). Returnerer PDF-en (base64 legges på
+ * i tRPC-laget) + per-dokument mangel-status.
  */
 export async function rendrArkivPdf(
   prisma: PrismaClient,
@@ -90,10 +99,11 @@ export async function rendrArkivPdf(
 ): Promise<RenderResultat> {
   const bygde = [];
   for (const dok of dokumenter) {
-    if (dok.type !== "sjekkliste") {
-      throw new Error(`Arkivmal kan ikke rendre dokumenttype «${dok.type}» ennå (kun sjekkliste).`);
+    const leser = LESER_PER_TYPE[dok.type];
+    if (!leser) {
+      throw new Error(`Arkivmal kan ikke rendre dokumenttype «${dok.type}».`);
     }
-    const r = await byggSjekklisteArkivHtml(prisma, dok.id, {
+    const r = await leser(prisma, dok.id, {
       hentBildeBytes: hentBildeBytesFraDisk,
       generertTekst: opts.generertTekst,
       eksport: opts.eksport,

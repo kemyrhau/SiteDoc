@@ -68,6 +68,7 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@babel/plugin-transform-react-jsx": "7.28.6",
     "@sitedoc/api": "workspace:*",
     "@types/react": "^19.1.17",
     "babel-preset-expo": "~54.0.10",

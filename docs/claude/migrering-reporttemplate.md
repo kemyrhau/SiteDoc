@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: ukjent
-sist_endret: 2026-04-28
+sist_verifisert_mot_kode: 2026-09-04
+sist_endret: 2026-09-04
 gjelder_versjon: Fase 2
 avhenger_av:
   - arkitektur.md
@@ -13,7 +13,7 @@ påvirkes_av_beslutninger:
 
 # Migrering: ReportTemplate → OrganizationTemplate (planlagt)
 
-Skisse for å innføre firma-bibliotek av maler uten å bryte eksisterende prosjekt-maler. Ikke implementert.
+Skisse for å innføre firma-bibliotek av maler uten å bryte eksisterende prosjekt-maler. **Delvis implementert 2026-09-04** — se § Status.
 
 ## Mål
 
@@ -204,4 +204,20 @@ model ReportTemplate {
 
 ## Status
 
-Planlagt — ikke implementert. Beskrevet i [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper).
+**Delvis implementert (AM4 bolk 1, 2026-09-04).** Bygget på branch `feat/firma-malarkiv`:
+
+- **Additiv migrering** `20260904120000_malarkiv_hms_kolonner` (kun ADD COLUMN, to-stegs-policy): `organization_templates.subdomain` + `hms_synlighet` (B3/L4 HMS), `standard_for_nye_prosjekter` (F4-seeding-flagg), `laant_fra_bibliotek_mal_id` (B4 — strukturert avstamning til `BibliotekMal`, FK SetNull), `report_templates.versjon_av_hovedmal` (L6 manuell versjonering). Speiler `packages/db/prisma/schema.prisma:1038`/`:973-974`.
+- **`firmamal.*` tRPC-ruter** (`apps/api/src/routes/firmamal.ts`, registrert `trpc/router.ts`): `list`/`hent`/`opprett`/`oppdater`/`slett` (firma-admin per L7), `promoter` (ReportTemplate→OrganizationTemplate m/objekter+translations, to-pass parentId), `kopierTilProsjekt` (motsatt vei, setter `organizationTemplateId`-avstamning + `versjonAvHovedmal`, L5/L6), `laanFraSentralarkiv` (BibliotekMal→OrganizationTemplate, L3 — setter strukturert peker `laantFraBibliotekMalId` per B4, ikke fritekst i description). `config`/`config.zone` kopieres verbatim (MALBYGGER.md zone-regel).
+
+**AM4 bolk 2 UI (2026-09-04, branch `feat/firma-malarkiv-ui`).** Bygget på develop `ca83c9a2`:
+
+- **Steg 2 — firma-arkivsiden** `apps/web/src/app/dashbord/firma/malarkiv/page.tsx` (amber FIRMA-sone, ikke `/oppsett/firma/*` — den ga prosjekt-sone; rute-avvik gatet av Kenneth). Tre faner (L9), tabell m/versjon + bruk-teller (`_count.copiedTo`) + «Standard for nye»-toggle + «Lån fra SiteDoc-arkivet» + «+ Ny firmamal». Nav: `firma-nav.tsx` + `firma/layout.tsx`. «Rediger» = metadata (påkoblingspunkt for firma-modus).
+- **Steg 3 — promotering i MalBygger** (`MalBygger.tsx`): «Send til firmaarkiv» (gatet på ny `firmamal.kanPromotere`), badges «I firmaarkivet»/«Basert på firmamal … (X versjoner bak)», «Oppdater» (L6, ny `firmamal.oppdaterKopiFraHovedmal` — full erstatning, ikke diff/merge). `mal.hentMedId` utvidet m/ `copiedFromOrgTemplate {name, version}`.
+- **Steg 4 — ny-mal-dialog** (`MalListe.tsx`): «Fra firmaarkivet» aktivert (ny `firmamal.listeForProsjekt` prosjektadmin-gatet + `kopierTilProsjekt`). L2-badge «Fra firmaarkivet» + «Erstatter standardmal {prefix}» (avledet mot `PROSJEKT_MODULER`-prefikser).
+- **Steg 5 — seeding** i `modul.aktiver`: flaggede firmamaler seedes FØR standardmal-løkken, (category,domain)-matchet mot modulens fotavtrykk; L1 (firmamal vinner) faller ut av idempotent prefix-sjekk; idempotent på (organizationTemplateId, prefix). De syv inventar-linjene bevart additivt. Reell `prosjekt.opprett` seeder ingen prosjektmaler → seeding-hooken hører i `aktiver` alene; `opprettTestprosjekt` urørt (oppfølger).
+
+**🔴 L2-nyanse (til fabel-gate):** «Erstatter standardmal»-badgen er BEREGNET ved visning mot `PROSJEKT_MODULER`, ikke et lagret seeding-resultat — fjernes standarden fra `PROSJEKT_MODULER` forsvinner badgen.
+
+**Gjenstår:** L8 full firma-modus i MalBygger (direkte innholds-redigering av firmamal) — **egen branch `feat/malbygger-firmamodus`** (Kenneth-vedtak: egen gate; default MÅ være uendret prod-oppførsel).
+
+Beskrevet i [arkitektur.md § Datamodell-prinsipper](arkitektur.md#datamodell-prinsipper).

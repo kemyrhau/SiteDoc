@@ -8,7 +8,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 |-----|---------|
 | [docs/claude/SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) | **Veileder Opus:** sesjonsoppstart-veileder — vis ved sesjon-start |
 | [docs/claude/kontroll-claude-veileder.md](docs/claude/kontroll-claude-veileder.md) | **Veileder kontroll-Claude:** arbeidsmåte for verifiseringslaget over Opus — les `parallell-arbeid-lock.md` først |
-| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — cowork leser FØRST hver sesjon:** coworks rolle som orkestrator (merge/deploy, hvem gjør hva, kontroll mot kode før iverksetting), 10 arbeidsrutiner for fersk cowork, statustavle-plikt, lesekart, ordreformat hvem→hva→hvor→når, merge-mekanikk. **Agentene er dynamiske — tavla i STATUS-AKTUELT er registeret** |
+| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — cowork leser FØRST hver sesjon:** coworks rolle som orkestrator (merge/deploy, hvem gjør hva, kontroll mot kode før iverksetting), 10 arbeidsrutiner for fersk cowork, statustavle-plikt, lesekart, ordreformat hvem→hva→hvor→når, merge-mekanikk. **Ordrer til agentene bor i `relay/inbox-<navn>.md` i hovedtreet** (gitignorert — nudgen limes med full sti); alt en ordre PEKER på må være committet først, ellers finnes det ikke i agentens worktree. **Agentene er dynamiske — tavla i STATUS-AKTUELT er registeret** |
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
 | [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
@@ -308,6 +308,7 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 → Se [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md)
 
 **Sesjonstart:**
+- 🔴 **COWORK LESER [SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) FØRST — før den sier noe.** Ufravikelig, gjelder også etter compact. Den bærer coworks rolle som orkestrator, statustavle-plikten, ordreformatet og merge-eierskapet. **Uten den gir cowork Kenneth beslutninger som er coworks egne** — målt to ganger 06.09: «venter gate» på noe cowork selv skulle gatet, og «når du vil at han skal rebase» på en ren timing-beslutning. Deretter: tavla øverst i STATUS-AKTUELT, som sier hvem som sitter hvor.
 - Les [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) eksplisitt ved behov
 - Les [BACKLOG.md](docs/claude/BACKLOG.md) kun ved strategisk planlegging
 

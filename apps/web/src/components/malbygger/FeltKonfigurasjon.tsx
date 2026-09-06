@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { REPORT_OBJECT_TYPE_META, type ReportObjectType, normaliserGrense } from "@sitedoc/shared";
+import { harMeningsfullLabel } from "@sitedoc/pdf";
 import { Input, Button, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import type { MalObjekt } from "./DraggbartFelt";
@@ -410,7 +411,9 @@ export function FeltKonfigurasjon({
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span>{t("malbygger.tilhoerer")}</span>
-                  <Badge variant="default">{forelderLabel}</Badge>
+                  <Badge variant="default">
+                    {harMeningsfullLabel(forelderLabel) ? forelderLabel : t("malbygger.utenNavn")}
+                  </Badge>
                 </div>
                 {onFjernBarnFraKontainer && (
                   <Button

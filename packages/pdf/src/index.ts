@@ -32,6 +32,10 @@ export type {
   Utskriftsinnstillinger,
   PdfConfig,
   TegningsOppslagOppf,
+  SignaturListeData,
+  SignaturListeDeltakerData,
+  SignaturListeRundeData,
+  SignaturListeSignaturData,
 } from "./typer";
 
 // Konstanter
@@ -46,13 +50,18 @@ export {
 export {
   esc,
   kanonisk,
+  harMeningsfullLabel,
   normaliserOpsjon,
   formaterDato,
   formaterDatoTid,
   formaterDatoTidKort,
+  formaterDatoTidPunkt,
   formaterDatoKort,
   fullBildeUrl,
   formaterNummer,
+  // Signatur-tvillingen (speiler @sitedoc/shared/signaturVerdi) — eksponert for paritetstest
+  lesSignaturVerdiPdf,
+  formaterSignaturLinjePdf,
 } from "./hjelpere";
 
 // CSS

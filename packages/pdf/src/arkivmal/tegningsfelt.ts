@@ -80,6 +80,17 @@ export interface LokasjonsData {
   /** Tekstlinje-deler under utsnittet (byggeplass · tegningsnavn). Falsy filtreres bort. */
   byggeplassNavn?: string | null;
   tegningNavn?: string | null;
+  /**
+   * Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen → egen tekstlinje
+   * som ALDRI utelates stille (et tomt felt der «gjelder alt» var ment er en usann påstand).
+   * "punkt"/null → dagens markør-regel (utsnitt vises kun med komplett markør).
+   */
+  lokasjonOmfang?: string | null;
+  /**
+   * Fritekst-sted (2026-09-06): presisering innenfor byggeplassen når det ikke finnes
+   * tegning å pinne på («Akse 4»). Vises SOM stedet i byggeplass-linja, aldri utelatt.
+   */
+  lokasjonFritekst?: string | null;
 }
 
 /**
@@ -93,6 +104,17 @@ export function byggLokasjonsblokk(
   data: LokasjonsData,
   oppslag: PdfConfig["tegningsOppslag"],
 ): string {
+  // «Gjelder hele byggeplassen» er et bevisst svar, ikke en manglende pin. Seksjonen skrives
+  // ALLTID når omfanget er satt til byggeplass — også uten markør (det er nettopp poenget):
+  // en byggherre skal ikke lese «Ikke utfylt» der utføreren mente hele anlegget.
+  if (data.lokasjonOmfang === "byggeplass") {
+    // Fritekst-sted vises SOM stedet med «hele byggeplassen» som kontekst under; ellers
+    // «Gjelder hele byggeplassen» alene. Aldri utelatt — HVOR er dokumentasjon.
+    const stedTekst = data.lokasjonFritekst
+      ? `${esc(data.lokasjonFritekst)}<div style="font-size:9.5px;color:#6b7280;">På byggeplassen</div>`
+      : "Gjelder hele byggeplassen";
+    return `<div class="ark-lokasjon"><div class="ark-lokasjon-tittel">Lokasjon</div><div style="font-size:11px;color:#374151;">${stedTekst}</div></div>`;
+  }
   if (!harMarkor(data)) return "";
   const t = oppslag?.[data.drawingId];
   if (!t?.dataUrl) return "";

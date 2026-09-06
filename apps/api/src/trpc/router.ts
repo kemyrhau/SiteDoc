@@ -26,6 +26,7 @@ import { kontraktRouter } from "../routes/kontrakt";
 import { aiSokRouter } from "../routes/aiSok";
 import { brukerRouter } from "../routes/bruker";
 import { psiRouter } from "../routes/psi";
+import { signaturRouter } from "../routes/signatur";
 import { mannskapRouter } from "../routes/mannskap";
 import { bibliotekRouter } from "../routes/bibliotek";
 import { omradeRouter } from "../routes/omrade";
@@ -47,6 +48,7 @@ import { firmaRouter } from "../routes/firma";
 import { flytMatriseRouter } from "../routes/flytMatrise";
 import { papirkurvRouter } from "../routes/papirkurv";
 import { arkivRouter } from "../routes/arkiv";
+import { firmamalRouter } from "../routes/firmamal";
 
 
 export const appRouter = router({
@@ -79,6 +81,7 @@ export const appRouter = router({
   aiSok: aiSokRouter,
   bruker: brukerRouter,
   psi: psiRouter,
+  signatur: signaturRouter,
   mannskap: mannskapRouter,
   bibliotek: bibliotekRouter,
   omrade: omradeRouter,
@@ -96,6 +99,7 @@ export const appRouter = router({
   vareImport: vareImportRouter,
   firmaIntegrasjon: firmaIntegrasjonRouter,
   firma: firmaRouter,
+  firmamal: firmamalRouter,
   flytMatrise: flytMatriseRouter,
   eksport: eksportRouter,
   arkiv: arkivRouter,

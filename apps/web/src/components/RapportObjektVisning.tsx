@@ -54,12 +54,31 @@ function FeltRad({
 /*  Hovedkomponent                                                     */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Read-only signaturliste-status til lesevisning/print. Data bor server-side
+ * (trpc.signatur) — kalleren (skriv-ut-siden) fyller dette per signature_list-
+ * objektid. Utelatt → objektet vises som «Se signaturliste i dokumentet».
+ */
+export interface SignaturListeVisning {
+  status: { signert: number; av: number; rundeNr: number | null };
+  laast: boolean;
+  rader: Array<{
+    navn: string;
+    firma: string | null;
+    tidspunkt: string | null;
+    hmsKort: string | null;
+    tilstand: "signert" | "forrige" | "mangler";
+    rundeNr: number | null;
+  }>;
+}
+
 export function RapportObjektVisning({
   objekt,
   verdi,
   nestingNivå = 0,
   data,
   prosjektAdresse,
+  signaturData,
 }: {
   objekt: TreObjekt;
   verdi: unknown;
@@ -67,6 +86,8 @@ export function RapportObjektVisning({
   data?: Record<string, { verdi?: unknown }>;
   /** Prosjektadresse — brukes for location-felt som ikke lagres i data */
   prosjektAdresse?: string | null;
+  /** Signaturliste-data per objektid (SJA/HMS-runder) — kun read/print-veien. */
+  signaturData?: Record<string, SignaturListeVisning>;
 }) {
   const marginKlasse =
     nestingNivå === 1
@@ -79,7 +100,7 @@ export function RapportObjektVisning({
 
   return (
     <div className={marginKlasse}>
-      <ObjektInnhold objekt={objekt} verdi={verdi} data={data} prosjektAdresse={prosjektAdresse} />
+      <ObjektInnhold objekt={objekt} verdi={verdi} data={data} prosjektAdresse={prosjektAdresse} signaturData={signaturData} />
       {objekt.children.length > 0 && (
         <div className="mt-1">
           {objekt.children.map((barn) => {
@@ -167,11 +188,13 @@ function ObjektInnhold({
   verdi,
   data,
   prosjektAdresse,
+  signaturData,
 }: {
   objekt: TreObjekt;
   verdi: unknown;
   data?: Record<string, { verdi?: unknown }>;
   prosjektAdresse?: string | null;
+  signaturData?: Record<string, SignaturListeVisning>;
 }) {
   const { type, label } = objekt;
   const { t } = useTranslation();
@@ -383,6 +406,43 @@ function ObjektInnhold({
               className="max-h-[80px]"
             />
           ) : null}
+        </FeltRad>
+      );
+    }
+
+    case "signature_list": {
+      // Signaturliste (SJA/HMS-runder) — read-only status i lesevisning/print.
+      // F7: IKKE SIGNERT + forrige-runde-rader vises alltid. Data fra kalleren.
+      const sd = signaturData?.[objekt.id];
+      if (!sd) {
+        return (
+          <FeltRad label={visLabel} tom>
+            <p className="text-sm text-gray-500">{t("signaturliste.seIDokument", "Se signaturliste i dokumentet")}</p>
+          </FeltRad>
+        );
+      }
+      return (
+        <FeltRad label={visLabel} tom={false}>
+          <p className="mb-1 text-sm font-medium text-gray-900">
+            {sd.status.rundeNr != null && `${t("signaturliste.runde", "Runde {{nr}}", { nr: sd.status.rundeNr })} · `}
+            {t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: sd.status.signert, av: sd.status.av })}
+          </p>
+          <table className="w-full text-sm">
+            <tbody>
+              {sd.rader.map((r, i) => (
+                <tr key={i} className={r.tilstand === "signert" ? "text-gray-900" : "text-amber-700"}>
+                  <td className="py-0.5 pr-3">{r.navn}{r.firma && <span className="text-gray-500"> · {r.firma}</span>}</td>
+                  <td className="py-0.5 pr-3">{r.hmsKort ?? ""}</td>
+                  <td className="py-0.5">
+                    {r.tilstand === "mangler"
+                      ? <strong>{t("signaturliste.ikkeSignert", "IKKE SIGNERT")}</strong>
+                      : (r.tidspunkt ?? "")}
+                    {r.tilstand === "forrige" && r.rundeNr != null && ` (${t("signaturliste.runde", "Runde {{nr}}", { nr: r.rundeNr })})`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </FeltRad>
       );
     }

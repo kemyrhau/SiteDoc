@@ -204,6 +204,70 @@ export interface PdfConfig {
    * container) — aldri en signert URL. Mobil setter aldri dette.
    */
   tegningsOppslag?: Record<string, TegningsOppslagOppf>;
+  /**
+   * Arkiv-only (opt-in): oppslag `objektId` (rapportobjektets id) →
+   * signaturliste-data (runder/deltakere/signaturer). Lar felt-rendereren
+   * bygge signaturtabellen for `signature_list`, som ikke bærer verdien i
+   * `felt.verdi` men i egne tabeller. Api-sammenstillingen fyller dette.
+   */
+  signaturOppslag?: Record<string, SignaturListeData>;
+  /** Arkiv-only: inkluder full runde-logg under signaturtabellen («Med logg»). */
+  signaturMedLogg?: boolean;
+  /** Arkiv-only: tidspunktet PDF-en genereres (ISO) — vises i signatur-topplinja. */
+  signaturGenerertTidspunkt?: string;
+}
+
+// ---------------------------------------------------------------------------
+//  Signaturliste (SJA/HMS-runder) — arkiv-PDF-data
+// ---------------------------------------------------------------------------
+
+export interface SignaturListeDeltakerData {
+  id: string;
+  navn: string;
+  firma: string | null;
+  erGjest: boolean;
+  /** Aktiv nå (ikke fjernet). Fjernet+signert vises fortsatt (forrige-runde-rad). */
+  aktiv: boolean;
+}
+
+export interface SignaturListeSignaturData {
+  deltakerId: string;
+  hmsKortNr: string | null;
+  harIkkeHmsKort: boolean;
+  /** Server-tidspunkt (UTC ISO) — fallback for visning. */
+  completedAt: string | null;
+  /** Lokal ISO-8601 med offset (klientens veggklokke) — foretrukket for visning. */
+  signertTidspunkt: string | null;
+  /** Dokumentets innholdsVersjon da signaturen ble avgitt. */
+  signertVersjon: number;
+  /** Satt = «Krev ny signatur» — teller ikke, deltakeren står som IKKE SIGNERT. */
+  nySignaturKrevdAt: string | null;
+  /** Gjest bekreftet av ansvarlig → «bekreftet av <navn>». null = signerte selv. */
+  bekreftetAvNavn: string | null;
+}
+
+export interface SignaturListeRundeData {
+  rundeNr: number;
+  startetAt: string | null;
+  avsluttetAt: string | null;
+  aarsak: string | null;
+  erGjeldende: boolean;
+  signaturer: SignaturListeSignaturData[];
+}
+
+export interface SignaturListeData {
+  /**
+   * Dekning for gjeldende runde (frys-bevisst — regnet i api-laget). 🔴 `signert`
+   * (egen rad) og `bekreftet` (gjest bekreftet av ansvarlig) står ALLTID fra
+   * hverandre i dokumentet — topplinja splittes «X signert + Y bekreftet av Z».
+   */
+  status: { signert: number; bekreftet: number; av: number; rundeNr: number | null };
+  /** Dokumentets nåværende innholdsversjon — signatur med lavere = «før endring». */
+  innholdsVersjon: number;
+  /** Når innholdet sist ble endret (fra endringsloggen) — datoen i «før endring <dato>». */
+  innholdEndretAt: string | null;
+  deltakere: SignaturListeDeltakerData[];
+  runder: SignaturListeRundeData[];
 }
 
 /** Én oppføring i `PdfConfig.tegningsOppslag` — inlinet tegningsbilde + metadata. */

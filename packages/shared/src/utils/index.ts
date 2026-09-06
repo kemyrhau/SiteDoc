@@ -51,6 +51,8 @@ export type {
   Mottaker,
 } from "./flytPosisjon";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
+export { lesSignaturVerdi, formaterSignaturLinje, formaterSignaturTidspunkt, signaturTidspunktNaa } from "./signaturVerdi";
+export type { SignaturVerdi } from "./signaturVerdi";
 export { resolverNyNavigasjon } from "./nyNavigasjon";
 export type { NyNavigasjonKilde } from "./nyNavigasjon";
 export {
@@ -133,6 +135,7 @@ export {
   harMinstEttUtfyltFelt,
   IKKE_UTFYLLBARE_FELTTYPER,
 } from "./feltLaasing";
+export { TILBEHOR_REN_FJERNING_BASE } from "./rapportobjektTilbehor";
 export { avgjorDokumentTilgang } from "./avgjorDokumentTilgang";
 export type { TilgangsFakta, TilgangsResultat } from "./avgjorDokumentTilgang";
 export {
@@ -142,8 +145,12 @@ export {
   formaterGrense,
 } from "./grenseSjekk";
 export type { Grense, GrenseStatus } from "./grenseSjekk";
-export { grupperMedOverskrift } from "./seksjoner";
-export type { Seksjon } from "./seksjoner";
+export {
+  grupperMedOverskrift,
+  beregnSeksjonUtfylling,
+  IKKE_TELLBARE_FELTTYPER,
+} from "./seksjoner";
+export type { Seksjon, SeksjonUtfylling } from "./seksjoner";
 export {
   HURTIGVALG_STANDARD,
   PERIODE_NOEKKEL,
@@ -298,3 +305,6 @@ const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
 export function statusKreverBegrunnelse(nyStatus: string): boolean {
   return STATUS_KREVER_BEGRUNNELSE.has(nyStatus);
 }
+
+export { beregnSignaturStatus, delSignertManko } from "./signaturliste";
+export type { SignaturChipStatus, SisteRundeSammendrag, SignaturStatus } from "./signaturliste";

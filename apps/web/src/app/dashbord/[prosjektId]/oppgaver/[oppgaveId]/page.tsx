@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
@@ -13,7 +13,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsFlytStripe } from "@/components/HmsFlytStripe";
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
-import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -29,6 +29,19 @@ import { DokumentKontekstChipLinje } from "@/components/kontekst-chip/DokumentKo
 import { usePresence } from "@/hooks/usePresence";
 import { useTranslation } from "react-i18next";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+
+/** Last ned en base64-PDF som fil (arkiv-PDF returneres i responsen, vei 3b). Speiler sjekkliste. */
+function lastNedPdfBase64(pdfBase64: string, filnavn: string): void {
+  const bytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filnavn;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -230,6 +243,37 @@ export default function OppgaveDetaljSide() {
   );
   // Dokument-lokasjon fra RÅ hentMedId (se lesDokumentLokasjon) — IKKE fra det omformede `oppgave`.
   const oppgaveLokasjon = lesDokumentLokasjon(fullOppgaveRå);
+  // L9 (2026-09-04): dokumentets dokumentlokasjon-tegning — siste fallback for «sist brukte»
+  // tegning i en repeater-feltpin. KUN tegning + navn, aldri pin.
+  const oppgaveDokumentTegning = oppgaveLokasjon.tegningId
+    ? { drawingId: oppgaveLokasjon.tegningId, drawingName: oppgaveLokasjon.tegningNavn }
+    : null;
+
+  // Arkiv-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF som sjekkliste.
+  // Ikke-blokkerende melding: advarsel = amber (timeout/mangel), hard feil = rød.
+  const [arkivMelding, setArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
+  const rendrArkiv = trpc.arkiv.rendr.useMutation({
+    onSuccess: (res: {
+      pdfBase64: string;
+      filnavn: string;
+      komplett: boolean;
+      renderTimeout: boolean;
+      dokumenter: { manglendeVedlegg: string[] }[];
+    }) => {
+      lastNedPdfBase64(res.pdfBase64, res.filnavn);
+      const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
+      if (res.renderTimeout) {
+        setArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselTimeout") });
+      } else if (antallMangler > 0) {
+        setArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselMangler", { antall: antallMangler }) });
+      } else {
+        setArkivMelding(null);
+      }
+    },
+    onError: (error: { message?: string }) => {
+      setArkivMelding({ type: "feil", tekst: error.message ?? t("arkiv.feil") });
+    },
+  });
   // A (2026-08-22): `returnerTil` (URL) peker tilbake til dokumentet som opprettet oppgaven — så
   // «tilbake» går dit, ikke til oppgavelista. Bæres i URL → overlever full last. Kun interne stier
   // godtas (må starte med «/» og ikke «//») så en manipulert param ikke kan redirecte ut av appen.
@@ -643,6 +687,22 @@ export default function OppgaveDetaljSide() {
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
+            {/* Arkiv-PDF (2026-09-05): server-rendret PDF for oppgave + HMS avvik/RUH. */}
+            <button
+              onClick={() =>
+                rendrArkiv.mutate({ dokumenter: [{ id: params.oppgaveId, type: "oppgave" }] })
+              }
+              disabled={rendrArkiv.isPending}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              title={t("handling.lastNedArkivPdf")}
+            >
+              {rendrArkiv.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">{t("handling.lastNedArkivPdf")}</span>
+            </button>
             {(fullOppgaveRå as { createdAt?: string })?.createdAt && (
               <span className="hidden sm:inline text-xs text-gray-400">
                 {new Date((fullOppgaveRå as { createdAt: string }).createdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit", year: "numeric" })}
@@ -673,6 +733,19 @@ export default function OppgaveDetaljSide() {
             })()}
           </div>
         </div>
+
+        {/* Arkiv-PDF: ikke-blokkerende melding (advarsel = amber, hard feil = rød) */}
+        {arkivMelding && (
+          <div
+            className={
+              arkivMelding.type === "feil"
+                ? "mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                : "mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"
+            }
+          >
+            {arkivMelding.tekst}
+          </div>
+        )}
 
         {/* P4b Rad 1b: kontekst-chip-linje (utfyllingsmodus). */}
         <div className="print-skjul mt-2">
@@ -798,7 +871,10 @@ export default function OppgaveDetaljSide() {
           </div>
         )}
 
-        {/* Lokasjon */}
+        {/* Lokasjon (paritetsfiks krav 4 2026-09-04): oppgavesiden gater nå på malens
+            showLocation, likt sjekklisten. Tidligere rendret velgeren ubetinget — et hull,
+            ikke en modellbeslutning. `template` følger med `oppgave.hentMedId` (skalar). */}
+        {(fullOppgaveRå as unknown as { template?: { showLocation?: boolean } | null })?.template?.showLocation !== false && (
         <div className="mt-2 max-w-md print-skjul">
           {/* 🔴 Lokasjonsvisning-bug (2026-08-23): les fra RÅ hentMedId via lesDokumentLokasjon —
               det omformede `oppgave` (useOppgaveSkjema) dropper drawingId/positionX/positionY/drawing
@@ -810,6 +886,8 @@ export default function OppgaveDetaljSide() {
             bygningNavn={oppgaveLokasjon.bygningNavn ?? undefined}
             positionX={oppgaveLokasjon.positionX ?? undefined}
             positionY={oppgaveLokasjon.positionY ?? undefined}
+            lokasjonOmfang={oppgaveLokasjon.lokasjonOmfang}
+            lokasjonFritekst={oppgaveLokasjon.lokasjonFritekst}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -817,13 +895,22 @@ export default function OppgaveDetaljSide() {
                 drawingId: data.drawingId,
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
+                lokasjonOmfang: data.lokasjonOmfang ?? null,
+                lokasjonFritekst: data.lokasjonFritekst ?? null,
               });
             }}
             // Cowork-vedtak 2026-08-29: speil server-vakten (oppgave.ts:670, draft-only) —
             // ikke ["closed","approved"], som viste velgeren redigerbar i sent men fikk stille avvisning.
             leseModus={(oppgave.status ?? "") !== "draft"}
+            /* Auto-åpning (krav 3): kun utkast, omfang ikke valgt, ingen tegning fra før. */
+            autoÅpne={
+              (oppgave.status ?? "") === "draft" &&
+              oppgaveLokasjon.lokasjonOmfang == null &&
+              !oppgaveLokasjon.tegningId
+            }
           />
         </div>
+        )}
       </div>
 
       {/* Spor 2 / 5a: HMS melder-handlingsbanner — Send inn/Forkast (utkast) eller
@@ -841,6 +928,11 @@ export default function OppgaveDetaljSide() {
       {objekter.length > 0 && (
         <UtfyllingSeksjoner
           objekter={objekter}
+          feltStatus={(objekt) => {
+            // Repeater-barn telles ikke som eget kontrollpunkt (repeateren teller for hele raden).
+            if (repeaterBarnIder.has(objekt.id)) return null;
+            return { synlig: erSynlig(objekt), harVerdi: harFeltVerdi(hentFeltVerdi(objekt.id).verdi) };
+          }}
           render={(objekt) => {
             if (repeaterBarnIder.has(objekt.id)) return null;
             if (!erSynlig(objekt)) return null;
@@ -852,6 +944,22 @@ export default function OppgaveDetaljSide() {
             // Append-only: verdi-feltet er låst, men kommentar/vedlegg er redigerbare
             const feltLåst = erFeltLåst(objekt.id);
             const verdiLeseModus = leseModus || feltLåst;
+
+            // Signaturliste (SJA/HMS-runder): egen server-drevet ramme, ingen FeltWrapper.
+            if (objekt.type === "signature_list") {
+              return (
+                <div key={objekt.id} className="print-no-break">
+                  <RapportObjektRenderer
+                    objekt={objekt}
+                    verdi={null}
+                    onEndreVerdi={() => {}}
+                    leseModus={verdiLeseModus}
+                    prosjektId={params.prosjektId}
+                    dokumentRef={{ taskId: params.oppgaveId }}
+                  />
+                </div>
+              );
+            }
 
             if (erDisplay) {
               const marginKlasse = nestingNivå > 0
@@ -897,6 +1005,7 @@ export default function OppgaveDetaljSide() {
                     prosjektId={params.prosjektId}
                     barneObjekter={barneObjekterMap.get(objekt.id)}
                     tillatteFaggruppeIder={tillatteFaggruppeIder}
+                    dokumentTegning={oppgaveDokumentTegning}
                   />
                 </FeltWrapper>
               </div>

@@ -243,6 +243,9 @@ export const malRouter = router({
           objects: { orderBy: { sortOrder: "asc" } },
           project: true,
           dokumentflytMaler: { select: { dokumentflytId: true } },
+          // Malarkiv (AM4 steg 3): firmamalens gjeldende navn+versjon for badgen
+          // «Basert på firmamal … (X versjoner bak)» = version − versjonAvHovedmal (L6).
+          copiedFromOrgTemplate: { select: { id: true, name: true, version: true } },
         },
       });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
@@ -554,7 +557,10 @@ export const malRouter = router({
     .input(
       z.object({
         id: z.string().uuid(),
-        label: z.string().min(1).optional(),
+        // Tom streng er en gyldig, ønsket verdi: et navnløst felt (vedtak 2026-09-04).
+        // `.min(1)` blokkerte tømming av en eksisterende etikett — visningen (malbygger
+        // + utfylling) håndterer "" via harMeningsfullLabel, så ingen naken understrek.
+        label: z.string().optional(),
         required: z.boolean().optional(),
         config: configSchema.optional(),
         parentId: z.string().uuid().nullable().optional(),

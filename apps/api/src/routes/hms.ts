@@ -93,6 +93,13 @@ const FLYT_SELECT = {
   },
 } as const;
 
+// Signaturliste-chip: BEVISST IKKE i CHECKLIST_SELECT. Den nøstede take:1 +
+// _count-selecten eksponeres rå av hentDokumenter, og den dype relasjonstypen
+// deepet AppRouter forbi tRPC-klientens TS2589-terskel (O-5c, api.md:506) — trippet
+// i en URELATERT komponent (firma/malarkiv). Chip-tallene hentes i stedet av
+// `signatur.hentChips`, som returnerer en FLAT, mappet form (dyp select bor internt
+// i resolveren, aldri i den eksponerte output-typen). Fortsatt én spørring, ingen N+1.
+
 const TASK_SELECT = {
   id: true,
   title: true,

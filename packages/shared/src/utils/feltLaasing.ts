@@ -57,6 +57,14 @@ export const IKKE_UTFYLLBARE_FELTTYPER: ReadonlySet<string> = new Set([
   "location",
   "drawing_position",
   "calculation",
+  // Rene instruksjons-/visningstyper (F2, 2026-08-23): en bruker kan ikke SVARE på en
+  // infotekst, et infobilde eller en video — de bærer ingen verdi (verifisert: komponentene
+  // kaller aldri onEndreVerdi). De sto tidligere kun i `seksjoner.ts` sitt lokale
+  // `IKKE_TELLBARE_FELTTYPER`-superset; nå konsolidert hit så erUtfyllbartFelt + P2-guarden
+  // + telleren er enige. `quiz` er IKKE med — quiz bærer svar (QuizObjekt skriver verdi).
+  "info_text",
+  "info_image",
+  "video",
 ]);
 
 /** Er felttypen et bruker-utfyllbart svar-felt (ikke visning/skjult/auto-utledet)? */

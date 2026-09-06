@@ -28,4 +28,7 @@ export interface DokumentRad {
   // delt utledning (FlytIndikator/perspektivEtikett). Utelates i firma-aggregatet.
   aktivPosisjon?: number | null;
   dokumentflyt?: { id: string; name: string | null; medlemmer: FlytMedlem[] } | null;
+  // Signaturliste-chip («X av Y signert») bæres IKKE her — den hentes flatt via
+  // signatur.hentChips og sendes SjaTabell som eget oppslag (TS2589-unngåelse, se
+  // hms.ts § SIGNATUR_CHIP). Nøkkelen er checklist-id (= DokumentRad.id for SJA).
 }

@@ -362,6 +362,130 @@ Det som gjør det trygt å avslutte, er **filene** — men hvilken fil avgjør h
   `canLogin` og `status` skal ikke konsolideres. Alle fem er ting noen ellers rydder bort i
   god tro.
 
+### 🔴 «SJEKKLISTE» I EN BESTILLING BETYR OFTE «DOKUMENT» (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«Det er et generelt problem at jeg sier sjekklister for funksjoner som
+> er generelle for sjekkliste/oppgave/HMS.»*
+
+**Standardtolkningen snus:** når Kenneth sier «sjekkliste» om en funksjon, **antar cowork at den
+gjelder alle dokumenttyper** — sjekkliste, oppgave og HMS — med mindre noe er spesifikt for én.
+Er det tvil, er det ett spørsmål, ikke en antakelse.
+
+**Fire målte tilfeller på fire dager, alle samme form:**
+
+| Funksjon | Bygget for | Manglet i |
+|---|---|---|
+| Lokasjonsgaten (`showLocation`) | sjekkliste | oppgave — funnet 04.09, rettet i `ea66590b` |
+| Lesbar endringslogg | sjekkliste | oppgave hadde rå `JSON.stringify` (eget funn, åpent) |
+| Arkiv-PDF (`arkiv.rendr`) | sjekkliste | oppgave kaster; HMS uavklart — se BACKLOG |
+| EXIF-opptakstid i web | sjekkliste-detalj | `RapportObjektVisning` (oppgave + utskrift) viser fortsatt `opprettet` |
+
+**Ingen av dem var uenighet om hva som skulle bygges.** Hver gang traff koden bestillingens
+ordlyd, og bommet på intensjonen.
+
+### 🔴 PARITET GJELDER TO AKSER — dokumenttype OG flate (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«Ta med web og app på mobil → det skal være felles.»*
+
+Paritetsregelen (`retningslinjer/ui-standarder.md`) dekket mal/UI/PDF. **Kenneth utvider den til
+begge akser, eksplisitt.** En funksjon er ikke levert før den finnes i hver rute den logisk hører
+hjemme i:
+
+| | Web | Mobil-app | Arkiv-PDF |
+|---|---|---|---|
+| **Sjekkliste** | | | |
+| **Oppgave** | | | |
+| **HMS** (avvik/SJA/RUH) | | | |
+
+🔴 **Operativt krav til enhver ordre: fyll ut denne matrisen.** Hver rute er ✅ (bygges), ❌ (gjelder
+ikke — med grunn) eller ⚠️ (finnes ikke i dag — eget funn). **Tomme ruter er ikke tillatt** — en tom
+rute er noe ingen har tatt stilling til, og det er nøyaktig slik alle fire tilfellene over oppsto.
+
+«Kun sjekkliste, kun web» er et gyldig svar. Men det skal være et **valg**, ikke noe som følger av
+at bestillingen tilfeldigvis nevnte én type på én flate.
+
+**Mobil er ikke en andrerangs flate her.** Pilotens målestokk er *«50 ansatte, mobil viktigst»*
+(REDESIGN-MASTERPLAN § Rekkefølge). En funksjon som kun finnes i web er, for A.Markussens
+anleggsarbeidere, en funksjon som ikke finnes.
+
+#### 🔴 Men paritet er ikke likhet — mobil får det som hører i felt (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«I den grad det er hensiktsmessig at vi gjør via app på mobil →
+> avanserte funksjoner overlater vi til web.»*
+
+**Skillet er hvor arbeidet faktisk skjer, ikke hvor vanskelig det er å bygge:**
+
+| Hører på MOBIL — feltarbeid | Hører i WEB — kontorarbeid |
+|---|---|
+| Registrere observasjon, avvik, RUH | Bygge og redigere maler |
+| Ta bilde, sette pin, velge tegning | Firmaadministrasjon, malarkiv, moduloppsett |
+| Fylle ut og sende dokument | Rapportering, analyse, eksport-oppsett |
+| Se og kontrollere eget arbeid | Attestering i volum, kolonnevalg, bulk-operasjoner |
+
+🔴 **`❌ gjelder ikke` er derfor et RIKTIG svar for mobil på avanserte funksjoner** — men det skal
+begrunnes med *hvor arbeidet skjer*, ikke med at det ble for tungt å bygge. «Vi rakk ikke mobil» er
+ikke samme sak som «dette gjøres ikke i felt».
+
+**Prøven:** ville en anleggsarbeider med hansker, i regn, gjort dette på en telefon? Er svaret nei,
+hører det i web. Er svaret ja, er mobil ikke valgfritt.
+
+⚠️ **Leveringsveien er ikke en unnskyldning for å hoppe over en rute.** Mobil når brukeren via
+`eas update` (minutter, ingen byggkvote); web og server-rendret PDF krever prod-deploy. **Ulik
+leveringsvei betyr ulik TIMING, ikke ulikt omfang.** Bygg alle rutene; deploy dem i den takten
+veiene tillater.
+
+### 🔴 KODEN ER ALDRI FROSSET — det er FUNKSJONENE vi bevarer (Kenneth-vedtak 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«Vi må tilpasse for å gjøre koden sterkere og mer robust, samtidig som
+> vi leverer funksjonene som lever i den.»*
+>
+> *«Koden er aldri frosset → det er funksjonene vi må bevare → funksjoner som er feil må vi
+> korrigere → men jeg vil ha tilbakemelding dersom vi fjerner funksjoner som ikke har vært
+> diskutert.»*
+
+Tre regler, i denne rekkefølgen:
+
+1. **Ingen kode er fredet.** Et *«ikke rør den»* fra Kenneth gjelder det brukeren opplever, ikke
+   implementasjonen under. Er mekanismen svak, skal den forbedres.
+2. **Er funksjonen feil, skal den korrigeres** — ikke vernes fordi den har stått lenge. Bevaring
+   gjelder det som er riktig, ikke det som er gammelt.
+3. 🔴 **Fjerner du en funksjon som ikke har vært diskutert — STOPP og meld.** Ikke etterpå, ikke i
+   en fotnote i leveransen. Dette er det operative kravet, og det er Kenneths eneste betingelse
+   for at punkt 1 og 2 skal gjelde fritt.
+
+**Hva punkt 3 betyr i praksis:** oppdager du under arbeidet at en kodevei bærer en funksjon ordren
+ikke nevner, er den ikke «utenfor scope å beholde». Den er et funn. Meld den, og la cowork eller
+Kenneth avgjøre — også når den ser ubrukt ut. Særlig da: *«ingen klient gjør dette i dag» er en
+observasjon, ikke en garanti.*
+
+**Verktøyet finnes allerede og skal brukes bredere: funksjonsinventar.** Fabels AM4-ordre lister
+`modul.ts`-seedingens syv linjer med et eksplisitt vedtak per linje (alle BEVART, med
+presisering). Det mønsteret hører i **enhver ordre som rører en eksisterende kodevei** — ikke bare
+de store. Da er «fjernet ved uhell» umulig ved konstruksjon i stedet for avhengig av at noen
+husker.
+
+**Utløst av en ekte konflikt 04.09.** Kenneth fredet repeater-lokasjonen 28.08: *«Uansett hva
+målingen sier om mekanismen bak (kobling eller sesjonstilstand), skal dagens oppførsel bevares.»*
+Samme mann bestilte L9 (sticky tegning) 04.09 — og L9 kan ikke bygges uten å røre nettopp den
+mekanismen. Målingen viste hvorfor det er riktig: dagens «sticky» kommer fra `aktivTegning` i
+`ByggeplassKontekst`, en **sesjonstilstand som virker på tvers av dokumenter** og kan peke på feil
+byggeplass.
+
+**Regelen som følger, og som gjelder alle fredninger:**
+
+| Bevares (hvis riktig) | Fritt å endre |
+|---|---|
+| Det brukeren ser og gjør — rad 2 lander på rad 1s tegning | Hvor verdien kommer fra |
+| Antall trykk, rekkefølge, hva som huskes | Datastruktur, kontekst, cache-strategi |
+| At funksjonen finnes og virker | Robusthet, prosjekt-/dokumentavgrensning, testdekning |
+
+🔴 **Det motsatte er også sant:** en refaktorering som gjør koden penere og samtidig fjerner et
+trykk brukeren var vant til, har **brutt** fredningen — selv om ingen funksjon forsvant.
+
+**Krav til ordrer som rører fredet område:** navngi filene som bærer dagens atferd, krev at
+agenten sier hvilke han rørte, og pek på regresjonstestene. Står de ikke i ordren, er «atferden er
+bevart» en påstand ingen har målt.
+
 🔴 **Et SNUDD vedtak rettes DER DET STO — ikke bare der det ble snudd.**
 (Kenneth 2026-08-28: *«en alvorlig risiko er at vi om en uke starter å endre tilbake på noe
 som virker til noe som ikke virker — fjerner funksjoner vi har måttet legge til
@@ -607,6 +731,33 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 > **Ved avslutning:** fjern raden, og rydd worktreet (`git worktree remove` /
 > detach på `origin/develop`). En agent uten rad er en agent ingen har oversikt over.
 | **simulator-Opus** | Verifiserer på iOS-simulator (Metro @ develop) OG web. Kjører idb/simctl lokalt; leser test-DB via tunnel. Rapporterer observasjoner med kandidatmengde — konkluderer ikke om kode-atferd uten kodeverifisering. Skriver ikke produktkode; docs-endringer rutes via cowork. | Ja (simulator/lokalt) | — |
+
+### 🔴 «redesign-Opus» i en fabel-ordre = et worktree COWORK klargjør (Kenneth 2026-09-04)
+
+> **Kenneth 2026-09-04:** *«Det refereres til redesign fra fabel — du må i din dokumentasjon
+> forstå det slik: cowork gater ordren til et worktree som cowork har klargjort for å utføre
+> oppgaven.»*
+
+Fabels ordrer er adressert «til redesign-Opus (relayes av Kenneth)». **Det er en rolle, ikke en
+instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har hett
+«redesign-Opus» på uker.
+
+**Hva det betyr i praksis, og hva cowork gjorde feil 04.09:**
+
+- Cowork skal **ikke lete etter** en agent med det navnet, og skal ikke vente på at noen andre
+  tildeler ordren. **Cowork velger worktree, klargjør branchen, gater ordren mot kode og skriver
+  tavle-raden.** Det er hele coworks jobb i den kjeden.
+- 🔴 **Mangler fabels ordrefil, skriver cowork den** — så lenge grunnlaget er gatet. Er
+  designnotatet vedtatt og tilleggene verifisert, finnes alt som trengs. Å vente på en fil er
+  ventetid uten verdi.
+  **Målt tilfelle:** 04.09 leverte fabel `TILLEGG-ordre-lokasjonomfang-L9` til en hovedordre som
+  ikke fantes i repoet eller i noen leveransepakke. Cowork stoppet og ba om den — men
+  designnotatet var vedtatt av Kenneth samme kveld, og tillegget var gatet. Ordren kunne vært
+  skrevet med det samme.
+- **Grensen består:** fabel eier *designet* — hva som skal bygges, akseptkriterier, designlås.
+  Cowork eier *utførelsen* — hvem, hvor, hvilken branch, i hvilken rekkefølge, og gating mot
+  faktisk kode før noe relayes. Cowork oppfinner ikke designbeslutninger; cowork skriver ned dem
+  som allerede er tatt.
 
 ## Meldingsflyt (ufravikelig)
 
@@ -1045,6 +1196,61 @@ Cowork skal gi denne linjen med agentens hash **hver gang** en merge meldes ferd
 |---|---|
 | «Din rapport/ordre er **input, ikke fasit** — mål premisset selv.» | Spor 4 motbeviste D's «mengde er neppe alene» ved måling. Spor A fanget at coworks telling motsa registerets egen regel. |
 | 🔴 «**Sjekk treets alder før du melder et fravær.**» *(lagt til 2026-09-02)* | Se § under — «det finnes ikke» og «treet mitt er gammelt» ser helt like ut |
+
+#### 🔴 Før du BERGER noe som ser tapt ut: mål om det allerede er levert (2026-09-04)
+
+**Tre ganger på én kveld konkluderte cowork «tapt» og tok feil hver gang:**
+
+| Påstand | Målingen |
+|---|---|
+| «Agenten fjernet coworks sti-retting» | Han lå én commit bak og rørte aldri fila |
+| «Agenten fjernet Legg til-knappen» | Omstrukturert til `useCallback` — knappen står |
+| «Stashen bærer 117 tapte røykliste-linjer» | Innholdet lå i develop i en **nyere** versjon (`228e406a`, `ea2708cb`) — develop 405 linjer mot stashens 341 |
+
+Ingen gjorde skade, fordi alle tre ble målt før handling. Men den tredje kostet en `stash pop`
+som endte i konflikt, og de to første kostet gate-runder og en uberettiget anklage mot en agent
+som hadde gjort alt riktig.
+
+🔴 **Fast første steg når noe ser fjernet, tapt eller foreldreløst ut — FØR du foreslår berging:**
+
+```sh
+git log --oneline --since=<dato> -- <fila>        # er innholdet committet i mellomtiden?
+git show origin/develop:<fila> | grep -c <markør> # har develop det allerede — og MER?
+```
+
+**Asymmetrien som gjør dette viktig:** å overse ekte tap er dyrt, så instinktet om å berge er
+riktig. Men å «berge» noe som allerede finnes drar inn en **eldre** versjon — og den ville
+overskrevet nyere arbeid hvis konflikten ikke hadde stoppet den. **Falsk berging er en
+regresjonsvei, ikke en ufarlig ekstrarunde.**
+
+⚠️ **Beslektet, og det som gjorde funnet vanskelig:** stashen het `metro-nede-notat (foreldes ved
+metro-start)` og inneholdt 117 linjer røykliste. **En stash-melding som ikke beskriver innholdet
+gjør arbeidet usynlig** — den ble hverken funnet eller vurdert på to dager. Navngi stash etter
+innhold, ikke etter situasjonen den oppsto i.
+
+#### 🔴 `git diff develop..branch` viser IKKE hva branchen gjorde — bruk TRE punktum (2026-09-04)
+
+**To punktum sammenligner to punkter.** Er branchen bak develop, dukker develops nyere commits opp
+som **slettinger** i diffen — som om branchen fjernet dem.
+
+**Målt 04.09:** cowork gatet `feat/lokasjonomfang` og så at den «fjernet» hele sti-rettingen i
+`designnotat-malarkiv`. Konklusjonen var at agenten hadde reversert en beslutning fra samme kveld,
+og mergen ble stoppet. `git log develop..branch -- <fila>` viste tomt: **agenten hadde aldri rørt
+den.** Han lå én commit bak, og det var akkurat den commiten.
+
+```sh
+git diff origin/develop...origin/<branch>    # TRE punktum — endringene FRA forgreningspunktet
+git log origin/develop..origin/<branch> -- <fil>   # rørte branchen fila i det hele tatt?
+```
+
+**Ved `merge --no-ff` er dette uansett ufarlig** — git tar develops versjon av en fil branchen ikke
+rørte. Men den feilaktige lesningen kostet en gate-runde og en anklage mot en agent som hadde gjort
+alt riktig.
+
+⚠️ **Samme sak fra motsatt kant:** nesten-uhellet 02.09 (§ MERGE-AGENTEN) var en **ekte** −20-linjers
+sletting i et merge-resultat. Forskjellen: der var det diffen av selve mergen, ikke en
+to-punktums-sammenligning mot en branch som lå bak. **Fence 5 står** — se en uventet fil i diffen,
+STOPP og meld. Men mål med tre punktum før du konkluderer om hvem som gjorde hva.
 
 #### 🔴 «Finnes ikke» og «treet mitt er gammelt» ser helt like ut (2026-09-02)
 

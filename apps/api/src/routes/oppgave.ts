@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
-import { kanonisk, likForDiff } from "@sitedoc/pdf";
+import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { documentStatusSchema } from "@sitedoc/shared";
@@ -24,6 +24,7 @@ import {
   kanByttFlyt,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
+import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 
@@ -427,6 +428,9 @@ export const oppgaveRouter = router({
         drawingId: z.string().uuid().optional(),
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
+        // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
+        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        lokasjonFritekst: z.string().max(200).nullable().optional(),
         dokumentflytId: z.string().uuid().optional(),
         checklistId: z.string().uuid().optional(),
         checklistFieldId: z.string().optional(),
@@ -605,6 +609,8 @@ export const oppgaveRouter = router({
             drawingId: input.drawingId,
             positionX: input.positionX,
             positionY: input.positionY,
+            lokasjonOmfang: input.lokasjonOmfang,
+            lokasjonFritekst: input.lokasjonFritekst,
             dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
             checklistId: input.checklistId,
             checklistFieldId: input.checklistFieldId,
@@ -648,6 +654,8 @@ export const oppgaveRouter = router({
         drawingId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
+        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -732,6 +740,11 @@ export const oppgaveRouter = router({
         "task",
       );
 
+      // Serverlås: avvis skriving når gjeldende signaturrunde er avsluttet (SJA-lås).
+      // Fabels designlås: dokumentet er da HELT lukket, også for tilbehør — derfor før
+      // append-only-vakten, som ellers slipper kommentar/vedlegg-tilføyelser gjennom.
+      await verifiserRundeIkkeLaast(ctx.prisma, { taskId: input.id });
+
       // Append-only-vakt (Vedtak B, 2026-08-29): en oppgave er en arbeidsordre — den som
       // har ballen fyller TOMME felt, men et felt som ALLEREDE har en verdi kan ikke endres
       // etter at oppgaven er sendt. Hvert felt skrives én gang, av den som eide dokumentet da.
@@ -769,57 +782,16 @@ export const oppgaveRouter = router({
         }
       }
 
-      // Generer endringslogg hvis aktivert på malen (speil av sjekkliste.oppdaterData:374-407)
-      const endringsloggRader: {
-        taskId: string;
-        userId: string;
-        fieldId: string;
-        fieldLabel: string;
-        oldValue: string | null;
-        newValue: string | null;
-      }[] = [];
-
-      if (oppgave.template?.enableChangeLog) {
-        const gammelData = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
-        const nyData = innData as Record<string, Record<string, unknown>>;
-        const displayTyper = new Set(["heading", "subtitle"]);
-
-        const objektMap = new Map(
-          oppgave.template.objects
-            .filter((o) => !displayTyper.has(o.type))
-            .map((o) => [o.id, o.label]),
-        );
-
-        for (const [feltId, nyVerdi] of Object.entries(nyData)) {
-          const label = objektMap.get(feltId);
-          if (!label) continue;
-
-          const gammelVerdi = gammelData[feltId];
-          const gammelV = gammelVerdi?.verdi ?? null;
-          const nyV = nyVerdi?.verdi ?? null;
-
-          // Endring bestemmes av NORMALISERT innhold: lik verdi med ulik
-          // nøkkelrekkefølge ELLER kun ulik signert-URL-query er IKKE en endring
-          // (punkt 1 + rotårsak: auto-vær-lagring returnerer ferskt signerte
-          // bilde-URL-er på urørte repeater-celler). Lagrer kanonisk original.
-          // Selve oppgave-dataen lagres uendret (se innData under); dette styrer
-          // kun changelog-radene + hva som regnes som endring. Speiler
-          // sjekkliste.ts:754-757.
-          const gammelStr = gammelV != null ? kanonisk(gammelV) : null;
-          const nyStr = nyV != null ? kanonisk(nyV) : null;
-
-          if (!likForDiff(gammelV, nyV)) {
-            endringsloggRader.push({
-              taskId: input.id,
-              userId: ctx.userId,
-              fieldId: feltId,
-              fieldLabel: label,
-              oldValue: gammelStr,
-              newValue: nyStr,
-            });
-          }
-        }
-      }
+      // Generer endringslogg-innslag hvis aktivert på malen. Delt med
+      // sjekkliste-veien i services/endringslogg.ts (tidligere en håndspeilet
+      // kopi her — se fil-headeren der).
+      const endringsloggInnslag = oppgave.template?.enableChangeLog
+        ? await byggEndringsloggInnslag(ctx.prisma, {
+            gammelData: (oppgave.data ?? {}) as Record<string, { verdi?: unknown }>,
+            nyData: innData as Record<string, { verdi?: unknown }>,
+            objekter: oppgave.template.objects,
+          })
+        : [];
 
       // Fritekst-oversettelse Lag 3
       const projectId = hentProjectId(oppgave);
@@ -887,14 +859,21 @@ export const oppgaveRouter = router({
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
         const merget = { ...eksisterende, ...innData };
 
+        // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
+        // med ≥1 signatur — speiler sjekkliste.oppdaterData (delt regel).
+        const skalBumpe =
+          endringsloggInnslag.length > 0 &&
+          (await harÅpenRundeMedSignatur(tx, { taskId: input.id }));
+
         const oppdatert = await tx.task.update({
           where: { id: input.id },
-          data: { data: merget as Prisma.InputJsonValue },
+          data: {
+            data: merget as Prisma.InputJsonValue,
+            ...(skalBumpe ? { innholdsVersjon: { increment: 1 } } : {}),
+          },
         });
 
-        if (endringsloggRader.length > 0) {
-          await tx.taskChangeLog.createMany({ data: endringsloggRader });
-        }
+        await skrivEndringslogg(tx, { taskId: input.id }, ctx.userId, endringsloggInnslag);
 
         // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
         return signerDataRad(oppdatert);
@@ -933,6 +912,9 @@ export const oppgaveRouter = router({
         oppgave.id,
         "task",
       );
+
+      // Serverlås: avvis oversettelse-redigering når gjeldende signaturrunde er avsluttet.
+      await verifiserRundeIkkeLaast(ctx.prisma, { taskId: input.id });
 
       const data = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
       const felt = data[input.feltId];
@@ -999,17 +981,12 @@ export const oppgaveRouter = router({
           data: { data: data as Prisma.InputJsonValue },
         });
 
+        // Samme koalescerende skriver som autolagringen — ellers var dette en
+        // fjerde kopi av logg-skrivingen (manuell oversettelse/overstyring).
         if (skalLogge && feltLabel) {
-          await tx.taskChangeLog.create({
-            data: {
-              taskId: input.id,
-              userId: ctx.userId,
-              fieldId: input.feltId,
-              fieldLabel: feltLabel,
-              oldValue: verdiForStr,
-              newValue: verdiEtterStr,
-            },
-          });
+          await skrivEndringslogg(tx, { taskId: input.id }, ctx.userId, [
+            { fieldId: input.feltId, fieldLabel: feltLabel, oldValue: verdiForStr, newValue: verdiEtterStr },
+          ]);
         }
 
         return oppdatert;

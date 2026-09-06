@@ -38,6 +38,7 @@ export const REPORT_OBJECT_TYPES = [
   "room_property",
   "weather",
   "signature",
+  "signature_list",
   "repeater",
   "location",
   "drawing_position",
@@ -245,6 +246,12 @@ export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeM
   signature: {
     label: "Signatur",
     icon: "PenLine",
+    category: "spesial",
+    defaultConfig: {},
+  },
+  signature_list: {
+    label: "Signaturliste",
+    icon: "FileSignature",
     category: "spesial",
     defaultConfig: {},
   },

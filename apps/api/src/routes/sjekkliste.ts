@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
-import { kanonisk, likForDiff } from "@sitedoc/pdf";
+import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
@@ -28,6 +28,7 @@ import { IKKE_SLETTET } from "../utils/softDelete";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
+import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
 
@@ -305,6 +306,10 @@ export const sjekklisteRouter = router({
         // plassering på tegning/kart — speiler oppgave.opprett-kontrakten.
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
+        // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
+        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass når tegning mangler.
+        lokasjonFritekst: z.string().max(200).nullable().optional(),
         dueDate: z.string().datetime().optional(),
         // Kontrollplan: er dette settet, kobles den nye sjekklisten atomisk til
         // kontrollpunktet (fyller punkt.sjekklisteId, løfter planlagt→pagar) i samme
@@ -564,6 +569,8 @@ export const sjekklisteRouter = router({
             drawingId: input.drawingId,
             positionX: input.positionX,
             positionY: input.positionY,
+            lokasjonOmfang: input.lokasjonOmfang,
+            lokasjonFritekst: input.lokasjonFritekst,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             // Spor 2 / 5a: HMS (SJA) opprettes nå som UTKAST (draft), ikke auto-sendt. Melder
             // eier innholdet og sender selv via hmsSendInn (→ Behandler-ledd + feltlås 5b).
@@ -614,6 +621,8 @@ export const sjekklisteRouter = router({
         byggeplassId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
+        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -652,7 +661,8 @@ export const sjekklisteRouter = router({
       // (arkiv.rendr, ingen lagret kopi), så «øyeblikksbilde» finnes ikke som teknisk størrelse.
       const rørerLaastFelt =
         input.drawingId !== undefined || input.positionX !== undefined ||
-        input.positionY !== undefined || input.byggeplassId !== undefined;
+        input.positionY !== undefined || input.byggeplassId !== undefined ||
+        input.lokasjonOmfang !== undefined || input.lokasjonFritekst !== undefined;
       if (rørerLaastFelt && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -737,6 +747,9 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
+      // Serverlås: avvis skriving når gjeldende signaturrunde er avsluttet (SJA-lås).
+      await verifiserRundeIkkeLaast(ctx.prisma, { checklistId: input.id });
+
       // Guard (funn d): et finalisert dokument har frosset værsnapshot ved signering.
       // Vær-køen (VaerKoProvider) kan komme online ETTER finalisering og forsøke å synke
       // et snapshot — det skal aldri overskrive den finaliserte verdien. Slipp øvrige felt
@@ -751,56 +764,16 @@ export const sjekklisteRouter = router({
         }
       }
 
-      // Generer endringslogg hvis aktivert på malen
-      const endringsloggRader: {
-        checklistId: string;
-        userId: string;
-        fieldId: string;
-        fieldLabel: string;
-        oldValue: string | null;
-        newValue: string | null;
-      }[] = [];
-
-      if (sjekkliste.template.enableChangeLog) {
-        const gammelData = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
-        const nyData = innData as Record<string, Record<string, unknown>>;
-        const displayTyper = new Set(["heading", "subtitle"]);
-
-        const objektMap = new Map(
-          sjekkliste.template.objects
-            .filter((o) => !displayTyper.has(o.type))
-            .map((o) => [o.id, o.label]),
-        );
-
-        for (const [feltId, nyVerdi] of Object.entries(nyData)) {
-          const label = objektMap.get(feltId);
-          if (!label) continue;
-
-          const gammelVerdi = gammelData[feltId];
-          const gammelV = gammelVerdi?.verdi ?? null;
-          const nyV = nyVerdi?.verdi ?? null;
-
-          // Endring bestemmes av NORMALISERT innhold: lik verdi med ulik
-          // nøkkelrekkefølge ELLER kun ulik signert-URL-query er IKKE en endring
-          // (punkt 1 + rotårsak: auto-vær-lagring returnerer ferskt signerte
-          // bilde-URL-er på urørte repeater-celler). Lagrer kanonisk original.
-          // Selve sjekkliste-dataen lagres uendret (se `merged` under); dette
-          // styrer kun changelog-radene + hva som regnes som endring.
-          const gammelStr = gammelV != null ? kanonisk(gammelV) : null;
-          const nyStr = nyV != null ? kanonisk(nyV) : null;
-
-          if (!likForDiff(gammelV, nyV)) {
-            endringsloggRader.push({
-              checklistId: input.id,
-              userId: ctx.userId,
-              fieldId: feltId,
-              fieldLabel: label,
-              oldValue: gammelStr,
-              newValue: nyStr,
-            });
-          }
-        }
-      }
+      // Generer endringslogg-innslag hvis aktivert på malen. Genereringen +
+      // koalesceringen er delt med oppgave-veien i services/endringslogg.ts —
+      // se fil-headeren der for hvorfor (håndspeilet kopi bar samme bug-klasse).
+      const endringsloggInnslag = sjekkliste.template.enableChangeLog
+        ? await byggEndringsloggInnslag(ctx.prisma, {
+            gammelData: (sjekkliste.data ?? {}) as Record<string, { verdi?: unknown }>,
+            nyData: innData as Record<string, { verdi?: unknown }>,
+            objekter: sjekkliste.template.objects,
+          })
+        : [];
 
       // Fritekst-oversettelse Lag 3: auto-oversett når brukerens språk != prosjektspråk
       const prosjekt = await ctx.prisma.project.findUnique({
@@ -876,14 +849,21 @@ export const sjekklisteRouter = router({
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
         const merget = { ...eksisterende, ...innData };
 
+        // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
+        // med ≥1 signatur — da blir allerede avgitte signaturer «signert før endring».
+        const skalBumpe =
+          endringsloggInnslag.length > 0 &&
+          (await harÅpenRundeMedSignatur(tx, { checklistId: input.id }));
+
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { data: merget as Prisma.InputJsonValue },
+          data: {
+            data: merget as Prisma.InputJsonValue,
+            ...(skalBumpe ? { innholdsVersjon: { increment: 1 } } : {}),
+          },
         });
 
-        if (endringsloggRader.length > 0) {
-          await tx.checklistChangeLog.createMany({ data: endringsloggRader });
-        }
+        await skrivEndringslogg(tx, { checklistId: input.id }, ctx.userId, endringsloggInnslag);
 
         // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
         return signerDataRad(oppdatert);
@@ -933,6 +913,9 @@ export const sjekklisteRouter = router({
         sjekkliste.id,
         "checklist",
       );
+
+      // Serverlås: avvis vedlegg-URL-patch når gjeldende signaturrunde er avsluttet.
+      await verifiserRundeIkkeLaast(ctx.prisma, { checklistId: input.id });
 
       return ctx.prisma.$transaction(async (tx) => {
         const fersk = await tx.checklist.findUniqueOrThrow({
@@ -1006,6 +989,9 @@ export const sjekklisteRouter = router({
         sjekkliste.id,
         "checklist",
       );
+
+      // Serverlås: avvis oversettelse-redigering når gjeldende signaturrunde er avsluttet.
+      await verifiserRundeIkkeLaast(ctx.prisma, { checklistId: input.id });
 
       const data = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
       const felt = data[input.feltId];

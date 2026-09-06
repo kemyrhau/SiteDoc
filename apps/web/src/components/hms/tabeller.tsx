@@ -9,7 +9,37 @@ import { useTranslation } from "react-i18next";
 import { EmptyState, StatusBadge, Table } from "@sitedoc/ui";
 import { formaterDato, formaterLopenummer, hentDataVerdi } from "./visning";
 import { hosPosisjon, type MineIder } from "@/lib/hms-hos";
+import type { SignaturChipStatus } from "@sitedoc/shared";
 import type { DokumentRad } from "./types";
+
+/**
+ * Signaturliste-chip på SJA-kortet — «X av Y signert». Amber til komplett, grønn
+ * ved alle-signert-gjeldende. Ingen chip når objektet ikke er tatt i bruk. Tallet
+ * kommer flatt fra signatur.hentChips (beregnet med delt beregnSignaturStatus i api).
+ */
+function SignaturChip({ chip }: { chip?: SignaturChipData }) {
+  if (!chip || chip.status === "ingen_runde") return <span className="text-gray-300">—</span>;
+  // I LISTA er poenget dekningsgrad (signert + bekreftet av total) — reell og
+  // sanksjonert. Den fulle splitten (signert vs bekreftet, før-endring) bæres i
+  // tooltip + i dokumentet, så det tynne chip-tallet aldri kramer tre tall.
+  const førEndring = chip.signertFørEndring > 0;
+  const grønn = chip.status === "komplett" && !førEndring;
+  const dekket = chip.signert + chip.bekreftet;
+  const splitt =
+    chip.bekreftet > 0 ? `${chip.signert} signert + ${chip.bekreftet} bekreftet av ${chip.av}` : `${chip.signert} av ${chip.av} signert`;
+  const tittel = førEndring ? `${splitt} — ${chip.signertFørEndring} før endring` : splitt;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+        grønn ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
+      }`}
+      title={tittel}
+    >
+      {dekket}/{chip.av}
+      {førEndring && <span className="ml-1">⚠</span>}
+    </span>
+  );
+}
 
 type TabellProps = {
   rader: DokumentRad[];
@@ -22,7 +52,18 @@ type TabellProps = {
   // «Hos»-kolonne (Ordre 2.3/Funn G) — kun prosjekt-lista, ikke firma-aggregatet.
   visHosKolonne?: boolean;
   mineIder?: MineIder;
+  // Signaturliste-chip per SJA (checklist-id → «X av Y» + status). Flatt oppslag
+  // fra signatur.hentChips (TS2589-unngåelse). Kun SjaTabell bruker den.
+  signaturChips?: Record<string, SignaturChipData>;
 };
+
+interface SignaturChipData {
+  signert: number;
+  bekreftet: number;
+  av: number;
+  signertFørEndring: number;
+  status: SignaturChipStatus;
+}
 
 // «Hos»-celle: flytmodellens perspektiv-vokabular via delt hosPosisjon-avledning.
 // Terminal → «Lukket»; ballen hos innlogget → «Venter på deg»; ellers «Hos {ledd}».
@@ -268,6 +309,7 @@ export function SjaTabell({
   visByggeplassKolonne = false,
   visHosKolonne = false,
   mineIder,
+  signaturChips,
 }: TabellProps) {
   const { t } = useTranslation();
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
@@ -349,6 +391,12 @@ export function SjaTabell({
       filtrerbar: true,
       filterAlternativer: unikeVerdier(rader, hentArbeidsleder),
     });
+    k.push({
+      id: "signatur",
+      header: t("signaturliste.kolonneSignert", "Signert"),
+      celle: (r) => <SignaturChip chip={signaturChips?.[r.id]} />,
+      bredde: "90px",
+    });
     if (visHosKolonne) {
       k.push({
         id: "hos",
@@ -371,7 +419,7 @@ export function SjaTabell({
     });
     return k;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rader, visProsjektKolonne, visByggeplassKolonne, visHosKolonne, mineIder, t]);
+  }, [rader, visProsjektKolonne, visByggeplassKolonne, visHosKolonne, mineIder, signaturChips, t]);
 
   if (rader.length === 0) {
     return <EmptyState title={t("hms.tom.sja")} description={t("hms.tom.sjaBeskrivelse")} />;

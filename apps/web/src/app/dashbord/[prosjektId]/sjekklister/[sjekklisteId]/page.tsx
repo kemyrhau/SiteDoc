@@ -7,7 +7,7 @@ import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift, ekspanderEndring, byggKolonnerPerFelt } from "@sitedoc/pdf";
 import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/pdf";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
+import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -23,7 +23,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -415,6 +415,17 @@ export default function SjekklisteDetaljSide() {
     positionX: fullSjekkliste?.positionX ?? null,
     positionY: fullSjekkliste?.positionY ?? null,
   };
+
+  // L9 (2026-09-04): dokumentets dokumentlokasjon-tegning — siste fallback for «sist brukte»
+  // tegning i en repeater-feltpin (etter forrige rads tegning). KUN tegning + navn, aldri pin.
+  const dokumentTegning = fullSjekkliste?.drawingId
+    ? {
+        drawingId: fullSjekkliste.drawingId,
+        drawingName: fullSjekkliste.drawing?.drawingNumber
+          ? `${fullSjekkliste.drawing.drawingNumber} ${fullSjekkliste.drawing.name}`
+          : (fullSjekkliste.drawing?.name ?? null),
+      }
+    : null;
 
   // Bygg trestruktur og flat ut i DFS-rekkefølge (forelder → barn → neste forelder)
   const objekter = useMemo(() => {
@@ -880,6 +891,8 @@ export default function SjekklisteDetaljSide() {
             bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
             positionX={(sjekkliste as unknown as { positionX?: number | null }).positionX}
             positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
+            lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null}
+            lokasjonFritekst={(fullSjekkliste as unknown as { lokasjonFritekst?: string | null }).lokasjonFritekst ?? null}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -888,9 +901,18 @@ export default function SjekklisteDetaljSide() {
                 byggeplassId: data.byggeplassId ?? undefined,
                 positionX: data.positionX ?? null,
                 positionY: data.positionY ?? null,
+                lokasjonOmfang: data.lokasjonOmfang ?? null,
+                lokasjonFritekst: data.lokasjonFritekst ?? null,
               });
             }}
             leseModus={["closed", "approved"].includes(sjekkliste.status)}
+            /* Auto-åpning (krav 3): kun utkast, omfang ikke valgt, ingen tegning fra før.
+               showLocation-gaten wrapper allerede blokka. Lukking uten valg lagrer ingenting. */
+            autoÅpne={
+              sjekkliste.status === "draft" &&
+              ((fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null) == null &&
+              !(sjekkliste as unknown as { drawingId?: string | null }).drawingId
+            }
           />
         </div>
         )}
@@ -910,6 +932,11 @@ export default function SjekklisteDetaljSide() {
       {/* Rapportobjekter */}
       <UtfyllingSeksjoner
         objekter={objekter}
+        feltStatus={(objekt) => {
+          // Repeater-barn telles ikke som eget kontrollpunkt (repeateren teller for hele raden).
+          if (repeaterBarnIder.has(objekt.id)) return null;
+          return { synlig: erSynlig(objekt), harVerdi: harFeltVerdi(hentFeltVerdi(objekt.id).verdi) };
+        }}
         render={(objekt) => {
           // Skip barn av repeatere — de rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
@@ -923,6 +950,23 @@ export default function SjekklisteDetaljSide() {
           // (dokumentflyt.md § 2) — ikke append-only. Kun dokument-status styrer
           // lesemodus; enkeltfelt låses ikke etter innsending.
           const verdiLeseModus = leseModus;
+
+          // Signaturliste (SJA/HMS-runder): egen server-drevet ramme, ingen FeltWrapper
+          // (Kenneth-vedtak: ingen tilbehør). Bærer dokument-referansen ned.
+          if (objekt.type === "signature_list") {
+            return (
+              <div key={objekt.id} className="print-no-break">
+                <RapportObjektRenderer
+                  objekt={objekt}
+                  verdi={null}
+                  onEndreVerdi={() => {}}
+                  leseModus={verdiLeseModus}
+                  prosjektId={params.prosjektId}
+                  dokumentRef={{ checklistId: params.sjekklisteId }}
+                />
+              </div>
+            );
+          }
 
           // Display-typer rendres uten wrapper
           if (erDisplay) {
@@ -1028,6 +1072,7 @@ export default function SjekklisteDetaljSide() {
                   barneObjekter={barneObjekterMap.get(objekt.id)}
                   radOppgaver={radOppgaver}
                   tillatteFaggruppeIder={tillatteFaggruppeIder}
+                  dokumentTegning={dokumentTegning}
                 />
               </FeltWrapper>
             </div>
@@ -1119,6 +1164,10 @@ function RenderSegmenter({ segs }: { segs: Segment[] }) {
  * og dropper kanoniske no-ops (vær-rekkefølge).
  */
 function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
+  const { t } = useTranslation();
+  // D (bygg 50): loggen skal ikke stå åpen — sammenleggbar, lukket som standard
+  // (speiler mobil `sjekkliste/[id].tsx`). enableChangeLog og radene er urørt.
+  const [visLogg, setVisLogg] = useState(false);
   const { data: sjekkliste } = trpc.sjekkliste.hentMedId.useQuery({ id: sjekklisteId });
 
   // Smale refs (ikke hele `sjekkliste`) i dep-arrayene — den tRPC-infererte typen
@@ -1130,7 +1179,7 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
   const kolonnerPerFelt = useMemo(() => {
     // byggObjektTre-returtypen er ikke rekursiv (dyp `children: unknown[]`) —
     // cast som i sammenstilling.ts. byggKolonnerPerFelt leser kun id/label/children.
-    return byggKolonnerPerFelt(byggObjektTre(template?.objects ?? []) as unknown as Parameters<typeof byggKolonnerPerFelt>[0]);
+    return byggKolonnerPerFelt(byggObjektTre(template?.objects ?? []) as unknown as Parameters<typeof byggKolonnerPerFelt>[0], standardFeltNavn);
   }, [template]);
 
   const rader = useMemo(() => {
@@ -1150,8 +1199,22 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
 
   return (
     <Card className="mt-6">
-      <h4 className="mb-3 text-sm font-medium text-gray-500">Endringslogg</h4>
-      <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() => setVisLogg((v) => !v)}
+        className="flex w-full items-center gap-2 text-left"
+        aria-expanded={visLogg}
+      >
+        <Clock className="h-4 w-4 shrink-0 text-gray-500" />
+        <span className="flex-1 text-sm font-medium text-gray-500">{t("dokument.endringslogg")}</span>
+        {visLogg ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+        )}
+      </button>
+      {visLogg && (
+      <div className="mt-3 flex flex-col gap-1.5">
         {rader.map((rad) => (
           <div key={rad.key} className="flex items-start gap-2 text-xs print-no-break">
             <span className="shrink-0 text-gray-400">
@@ -1172,6 +1235,7 @@ function EndringsloggSeksjon({ sjekklisteId }: { sjekklisteId: string }) {
           </div>
         ))}
       </div>
+      )}
     </Card>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { harFeltVerdi, beregnLaasteFelter } from "./feltLaasing";
+import { harFeltVerdi, beregnLaasteFelter, erUtfyllbartFelt, harMinstEttUtfyltFelt } from "./feltLaasing";
 
 describe("harFeltVerdi", () => {
   it("returnerer false for tomme verdier", () => {
@@ -16,6 +16,35 @@ describe("harFeltVerdi", () => {
     expect(harFeltVerdi(false)).toBe(true); // boolean false er en reell verdi
     expect(harFeltVerdi(["a"])).toBe(true);
     expect(harFeltVerdi({ nested: 1 })).toBe(true);
+  });
+});
+
+describe("erUtfyllbartFelt", () => {
+  it("rene visnings-/instruksjonstyper er IKKE svar-felt (konsolidert 2026-09-06)", () => {
+    for (const t of ["heading", "subtitle", "location", "drawing_position", "calculation", "info_text", "info_image", "video"]) {
+      expect(erUtfyllbartFelt(t)).toBe(false);
+    }
+  });
+
+  it("faktiske svar-felt er utfyllbare — inkl. quiz (bærer svar)", () => {
+    for (const t of ["text_field", "list_single", "traffic_light", "integer", "signature", "quiz"]) {
+      expect(erUtfyllbartFelt(t)).toBe(true);
+    }
+  });
+});
+
+describe("harMinstEttUtfyltFelt (P2-guard)", () => {
+  it("mal med KUN infofelt har ingen svar-felt → regnes som utfylt (kan sendes)", () => {
+    // Konsolideringen: info_text/info_image/video er ikke svar-felt, så et rent
+    // informasjonsdokument blokkeres ikke lenger av tom-besvarelse-guarden.
+    const felter = [{ id: "h", type: "heading" }, { id: "i", type: "info_text" }, { id: "v", type: "video" }];
+    expect(harMinstEttUtfyltFelt(felter, {})).toBe(true);
+  });
+
+  it("mal med et svar-felt krever fortsatt minst ett besvart", () => {
+    const felter = [{ id: "i", type: "info_text" }, { id: "t", type: "text_field" }];
+    expect(harMinstEttUtfyltFelt(felter, {})).toBe(false);
+    expect(harMinstEttUtfyltFelt(felter, { t: { verdi: "svar" } })).toBe(true);
   });
 });
 
