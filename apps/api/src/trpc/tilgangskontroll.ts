@@ -502,17 +502,30 @@ export async function verifiserAdmin(
  * Tilgangsvakt for dataeksport (fase 1, 2026-08-11).
  *
  * Ett sted for eksport-tilgang, bevisst: abonnements-sporet skal senere kunne
- * stramme dette til firma-admin-only i den 3-mnd «halen» etter oppsigelse UTEN
- * å røre eksportkoden — legg det vilkåret HER, ikke spredt i routeren.
+ * stramme dette videre i den 3-mnd «halen» etter oppsigelse UTEN å røre
+ * eksportkoden — legg det vilkåret HER, ikke spredt i routeren.
  *
- * I dag: prosjektadmin + firma-admin (arver) + sitedoc_admin — nøyaktig samme
- * kilde som verifiserAdmin, så UI og server ikke kan divergere.
+ * FIRMA-ADMIN-ONLY (Kenneth-vedtak 2026-09-06): arkivet inneholder HELE prosjektets
+ * timer, utlegg og kvitteringer — det er firmadata, ikke prosjektdata. Kun
+ * `company_admin` med riktig org (via `erFirmaAdminForProsjekt`) + `sitedoc_admin`.
+ * Bevisst IKKE `verifiserAdmin` — den slipper prosjektadmin (`ProjectMember.role
+ * ="admin"`) inn, og en enkelt-prosjekt-admin skal ikke kunne dra ut firmadata.
+ * Kalt fra alle tre eksport-prosedyrene (eneste kaller) — én kropp, UI speiler den.
  */
 export async function verifiserKanEksportere(
   userId: string,
   projectId: string,
 ): Promise<void> {
-  await verifiserAdmin(userId, projectId);
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (bruker?.role === "sitedoc_admin") return;
+  if (await erFirmaAdminForProsjekt(userId, projectId)) return;
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "Kun firma-administratorer kan eksportere prosjektdata.",
+  });
 }
 
 /**

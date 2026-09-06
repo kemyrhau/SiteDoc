@@ -34,7 +34,7 @@ vi.mock("@sitedoc/db", () => ({
 }));
 
 // Importeres ETTER mock (vi.mock heises, men vær eksplisitt).
-import { erFirmaAdminForProsjekt, verifiserRetningsrett } from "./tilgangskontroll";
+import { erFirmaAdminForProsjekt, verifiserRetningsrett, verifiserKanEksportere } from "./tilgangskontroll";
 import type { RaFlytMedlem } from "@sitedoc/shared";
 
 const USER = "user-1";
@@ -90,6 +90,46 @@ describe("erFirmaAdminForProsjekt — delt bypass-predikat", () => {
  * lukke hvis closed lå i kanTerminere-grenen. Kontroll-paret (approved slipper gjennom) beviser
  * at avvisningen er Lukk-guarden, ikke manglende termineringsrett.
  */
+describe("verifiserKanEksportere — firma-admin-only (Kenneth-vedtak 2026-09-06)", () => {
+  beforeEach(() => {
+    findMany.mockReset();
+    findUnique.mockReset();
+    userFindUnique.mockReset();
+    // Prosjektet er koblet til KOBLET_ORG (samme oppsett som over).
+    findMany.mockResolvedValue([{ organizationId: KOBLET_ORG }]);
+  });
+
+  it("🔴 prosjektadmin (ikke firma-admin) får FORBIDDEN", async () => {
+    userFindUnique.mockResolvedValue({ role: "user" }); // ikke sitedoc_admin
+    // Prosjektadmin er admin på ProjectMember, men IKKE firma_admin i noen koblet org.
+    findUnique.mockResolvedValue({ firmaRoller: [] });
+
+    await expect(verifiserKanEksportere(USER, PROJECT)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("firma-admin på prosjektets org slipper gjennom", async () => {
+    userFindUnique.mockResolvedValue({ role: "user" });
+    findUnique.mockImplementation(({ where }: { where: { userId_organizationId: { organizationId: string } } }) =>
+      Promise.resolve(
+        where.userId_organizationId.organizationId === KOBLET_ORG
+          ? { firmaRoller: ["firma_admin"] }
+          : null,
+      ),
+    );
+
+    await expect(verifiserKanEksportere(USER, PROJECT)).resolves.toBeUndefined();
+  });
+
+  it("sitedoc_admin slipper gjennom uten firma-oppslag", async () => {
+    userFindUnique.mockResolvedValue({ role: "sitedoc_admin" });
+
+    await expect(verifiserKanEksportere(USER, PROJECT)).resolves.toBeUndefined();
+    expect(findMany).not.toHaveBeenCalled(); // kortslutter før org-sjekk
+  });
+});
+
 describe("verifiserRetningsrett — Lukk (→closed) håndheves server-side som KUN admin", () => {
   const BALL_USER = "bruker-med-ball";
   const PROSJEKT = "prosjekt-lukk";
