@@ -171,7 +171,7 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId }: Rapport
               })
             : t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
           {status.signertFørEndring > 0 &&
-            ` — ${t("signaturliste.signertFørEndring", "{{n}} før endring", { n: status.signertFørEndring })}`}
+            ` — ${t("signaturliste.foerEndring", "{{n}} før endring", { n: status.signertFørEndring })}`}
         </span>
       </div>
 
@@ -286,7 +286,7 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId }: Rapport
                   {hmsKortTekst(sig) && <span className="ml-2">· {hmsKortTekst(sig)}</span>}
                   {førEndring && (
                     <span className="ml-2 font-medium">
-                      · {t("signaturliste.signertFørEndringDato", "før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}
+                      · {t("signaturliste.foerEndringDato", "før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}
                     </span>
                   )}
                 </span>

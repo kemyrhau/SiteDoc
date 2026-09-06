@@ -134,7 +134,7 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
                 })
               : t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
             {status.signertFørEndring > 0
-              ? ` — ${t("signaturliste.signertFørEndring", "{{n}} før endring", { n: status.signertFørEndring })}`
+              ? ` — ${t("signaturliste.foerEndring", "{{n}} før endring", { n: status.signertFørEndring })}`
               : ""}
           </Text>
         </View>
@@ -224,7 +224,7 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
               {visTid(sig)}
               {sig?.hmsKortNr ? ` · ${sig.hmsKortNr}` : ""}
               {førEndring
-                ? ` · ${t("signaturliste.signertFørEndringDato", "før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}`
+                ? ` · ${t("signaturliste.foerEndringDato", "før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}`
                 : ""}
             </Text>
           </View>
