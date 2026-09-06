@@ -368,6 +368,7 @@ hvorfor — den erstatter ikke kommandoen.
 |---|---|---|---|---|
 | 2026-09-04 | `1` | `cdb53296` | production | Første OTA. EXIF-opptakstid på galleribilder + lesbar endringslogg |
 | 2026-09-04 | `1` | `9f49c1ff` | production | Oppfølger samme døgn |
+| 2026-09-06 | `1` | `333359a6` | production | **Stor runde.** Signaturfeltet bærer navn + tidspunkt · kollapset signaturflate («Signer her», scroll lager ikke streker) · endringsloggen lukket som standard · seksjonsstatus «X av Y utfylt» · `signature_list`-felttypen (inert til en mal bruker den). Update group `523c0f61`. Fyrt etter prod-deploy `ad18df93` — schema+api måtte være ute FØRST |
 
 🔴 **Ny rad skrives i SAMME runde som publiseringen** — ikke «etterpå».
 Rad skal ha: dato · runtime · commit · kanal · hva testeren faktisk merker.
