@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { EksportSeksjon } from "./EksportSeksjon";
 
 // Leaflet krever window — laster dynamisk uten SSR
 const KartVelgerDynamic = dynamic(
@@ -580,6 +581,11 @@ export default function ProsjektoppsettSide() {
 
         {/* U5: utleggsordninger — read-only for prosjektadmin (firma-admin eier). */}
         {prosjektId && <UtleggOrdningSeksjon prosjektId={prosjektId} />}
+
+        {/* Eksport/arkiv — inngangsdør til den ferdig-byggede dataeksporten. Bor her
+            fordi «Avslutt prosjekt» (neste runde) kobles til den: arkivet må hentes
+            FØR avslutning, siden et avsluttet prosjekt er utilgjengelig. */}
+        {prosjektId && <EksportSeksjon prosjektId={prosjektId} />}
 
         {/* Lagre-knapp nederst */}
         <div className="flex justify-end">
