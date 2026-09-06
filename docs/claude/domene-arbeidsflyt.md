@@ -984,6 +984,46 @@ Tiltak fra [admin-navigasjon-analyse-2026-05-03.md](admin-navigasjon-analyse-202
 
 ---
 
+## 🔴 BINDENDE VEDTAK 2026-09-06 — risikovurdering: hvem gjør hva
+
+> **Kenneth 2026-09-06, korrigerte cowork:** *«Det er ikke byggherre som skal godkjenne en
+> risikovurdering → byggherreforskriften sier at byggherre skal påse at en risikovurdering
+> utføres.»*
+
+**Arbeidsgiver vurderer. Byggherre påser.** SJA-en er arbeidsgivers dokument.
+
+⚠️ **Cowork hadde skrevet «byggherren godkjenner risikovurderingen» i en fabel-bestilling.**
+Feil, og den feilen ville formet designet: den gjorde «Godkjent» til en naturlig lås-utløser.
+
+**Tre konsekvenser som styrer produktvalg:**
+
+1. **«Godkjent» duger ikke som lås-utløser på en SJA.** Det finnes ingen ekstern godkjenning å
+   låse på. Låsen tilhører arbeidsgiver — det er «Avslutt runde», arbeidsgivers egen beslutning
+   om at økten er ferdig dokumentert.
+2. 🔴 **Manko-lista har en juridisk funksjon.** Byggherrens påse-plikt oppfylles ved å
+   kontrollere at vurderingen er gjort **av dem som gjør jobben**. En SJA der fire av seks har
+   signert dokumenterer at to ikke har lest den. **Uten manko-lista kan byggherre ikke påse noe
+   — bare bekrefte at et dokument finnes.** Derfor: manko utelates ALDRI fra utskrift (F7).
+3. **Styrer ansvarsgrense-saken (AG).** Hva SiteDoc leverer vs. hva bedriften eier: SiteDoc
+   leverer dokumentasjonsverktøyet og sporet. Vurderingens innhold og kvalitet er arbeidsgivers.
+
+### Gjennomgang av SJA underveis — ingen egen funksjon
+
+> **Kenneth 2026-09-06, på spørsmål om daglig gjennomgang:** *«Nei, ikke daglig → kun ved
+> farlig arbeid som krever ekstra oppmerksomhet.»*
+
+🔴 **Ingen egen «daglig gjennomgang»-logglinje skal bygges.** Signaturrunden ER mekanismen:
+krever arbeidet ny oppmerksomhet, kjører bedriften en ny runde — folk leser og signerer på
+nytt, og sporet blir det samme som all annen signering.
+
+**Rundefrekvensen er bedriftens risikovurdering, ikke en systemregel.** Et pålagt daglig
+kvitteringssteg ville gitt tom seremoni på ordinært arbeid og en svakere registrering enn en
+ekte runde på det farlige.
+
+**Følger av samme vedtak:** en runde avsluttes av **arbeidsoperasjonen**, ikke av døgnet.
+Formuleringen «lås ved dagens slutt» (Kenneth 05.09) var et spesialtilfelle — en jobb som varte
+én dag. Ti dagers kranarbeid er ÉN runde; ny mann på dag 5 legges til og signerer inn i den.
+
 ## Koblinger til tekniske dokumenter
 
 | Arbeidsflyt-element | Teknisk dokument |
