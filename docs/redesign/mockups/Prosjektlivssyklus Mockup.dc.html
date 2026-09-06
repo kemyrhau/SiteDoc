@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; background: #e5e7eb; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #1e40af; } a:hover { color: #1e3a8a; }
+</style>
+</helmet>
+<div style="padding: 24px 16px 48px; max-width: 1180px; margin: 0 auto;">
+  <div style="margin-bottom: 16px;">
+    <div style="font-size: 18px; font-weight: 700; color: #111827;">FL — prosjekt-livssyklus: firmaet styrer egne prosjekter</div>
+    <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Tre kundetilstander (Aktivt · Avsluttet · Arkivert), frysing håndhevet av server-guard, handling der alle prosjektene synes.</div>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+    <div style="width: 460px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">1 · Firmalisten — status på norsk + handling per rad</div>
+      <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; overflow: hidden; font-size: 13px;">
+        <div style="display: grid; grid-template-columns: 1fr 92px 32px; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280;">
+          <span>Prosjekt</span><span>Status</span><span></span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 92px 32px; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #f3f4f6; align-items: center;">
+          <span style="color: #111827;">Sitedoc Boligfelt B12</span>
+          <span style="background: #dcfce7; color: #15803d; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; text-align: center;">Aktivt</span>
+          <span style="color: #6b7280; text-align: center;">⋮</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 92px 32px; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #f3f4f6; align-items: center; background: #eff6ff;">
+          <span style="color: #111827;">Lakselv Lufthavn</span>
+          <span style="background: #e0e7ff; color: #3730a3; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; text-align: center;">Avsluttet</span>
+          <span style="color: #6b7280; text-align: center;">⋮</span>
+        </div>
+        <div style="border-bottom: 1px solid #f3f4f6;">
+          <div style="display: grid; grid-template-columns: 1fr 92px 32px; gap: 8px; padding: 10px 14px; align-items: center;">
+            <span style="color: #6b7280;">Gamle Kaia (2024)</span>
+            <span style="background: #f3f4f6; color: #6b7280; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; text-align: center;">Arkivert</span>
+            <span style="color: #111827; text-align: center; font-weight: 700;">⋮</span>
+          </div>
+          <div style="margin: 0 14px 10px auto; width: 200px; background: #ffffff; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); padding: 4px 0;">
+            <div style="padding: 7px 12px; color: #111827;">Gjenåpne prosjekt</div>
+            <div style="padding: 7px 12px; color: #111827;">Avslutt prosjekt</div>
+            <div style="padding: 7px 12px; color: #6b7280; font-size: 11px; border-top: 1px solid #f3f4f6;">Arkivert 28.08 av K. Myrhaug</div>
+          </div>
+        </div>
+        <div style="padding: 9px 14px; font-size: 12px; color: #6b7280;">Viser 2 av 3 — <span style="color: #1e40af; font-weight: 600;">vis arkiverte</span></div>
+      </div>
+      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">Firmalisten er eneste flate som ser alle prosjekter — den får handlingen (⋮-meny: Avslutt/Arkiver/Gjenåpne etter tilstand). Status alltid på norsk via t(). Arkiverte skjules bak «vis arkiverte» — de forsvinner fra velgere og lister, aldri fra firmaet.</div>
+    </div>
+
+    <div style="width: 460px; flex-shrink: 0; display: flex; flex-direction: column; gap: 24px;">
+      <div>
+        <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">2 · Inne i et avsluttet prosjekt — løftet holdes</div>
+        <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="background: #e0e7ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <span style="font-size: 13px; color: #3730a3;"><b>Avsluttet prosjekt</b> — alt kan leses og skrives ut, ingenting kan endres.</span>
+            <span style="border: 1px solid #3730a3; color: #3730a3; border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: 600; white-space: nowrap;">Gjenåpne</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <span style="background: #f3f4f6; color: #9ca3af; border-radius: 8px; padding: 7px 14px; font-size: 13px;">+ Ny sjekkliste</span>
+            <span style="border: 1px solid #d1d5db; color: #374151; border-radius: 8px; padding: 7px 14px; font-size: 13px; white-space: nowrap;">Last ned PDF</span>
+          </div>
+          <div style="font-size: 12px; color: #6b7280; line-height: 1.5;">Skriveknapper deaktivert i UI OG sperret av én delt server-guard — nb.json-løftet «arkivert og skrivebeskyttet» blir sant i koden, ikke bare i teksten.</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">3 · Tilstandsmodellen</div>
+        <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; padding: 16px; font-size: 13px; color: #111827; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="background: #dcfce7; color: #15803d; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600;">Aktivt</span><span style="color: #6b7280;">alt som i dag</span></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="background: #e0e7ff; color: #3730a3; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600;">Avsluttet</span><span style="color: #6b7280;">frosset: les + PDF, ingen skriving. Synlig i lister</span></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="background: #f3f4f6; color: #6b7280; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600;">Arkivert</span><span style="color: #6b7280;">frosset + skjult fra velgere/lister (bak filter)</span></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="background: #fee2e2; color: #b91c1c; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600;">Deaktivert</span><span style="color: #6b7280;">leverandør-sperre — kun sitedoc-admin, ikke kundekontroll</span></div>
+          <div style="border-top: 1px solid #e5e7eb; padding-top: 8px; font-size: 12px; color: #6b7280; line-height: 1.5;">Firma-admin eier Aktivt ↔ Avsluttet ↔ Arkivert (gjenåpning er symmetrisk, ingen bekreftelsesmodal — frysing er reversibel og trygg). Fire verdier låses som enum i DB/API — fri String utgår.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1010, &quot;height&quot;: 760}}"></script>
+</body>
+</html>
