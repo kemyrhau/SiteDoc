@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "из 0",
   "signaturliste.laast": "Заблокировано — раунд {{nr}} закрыт {{dato}}. Изменения требуют нового раунда",
   "signaturliste.mangler": "Отсутствующий",
+  "signaturliste.statusSplitt": "{{signert}} подписал + {{bekreftet}} подтвердил {{av}}",
   "signaturliste.signertFørEndring": "{{n}} подписан до изменения",
   "signaturliste.signertFørEndringDato": "подписан до изменения{{dato}}",
   "signaturliste.nySignaturKrevd": "требуется новая подпись {{dato}}{{av}}",

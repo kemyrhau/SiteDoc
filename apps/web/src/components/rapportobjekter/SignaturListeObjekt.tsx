@@ -162,9 +162,16 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId }: Rapport
           ) : (
             <AlertTriangle className="h-3.5 w-3.5" />
           )}
-          {t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
+          {/* 🔴 Signert og bekreftet står fra hverandre når begge finnes. */}
+          {status.bekreftet > 0
+            ? t("signaturliste.statusSplitt", "{{signert}} signert + {{bekreftet}} bekreftet av {{av}}", {
+                signert: status.signert,
+                bekreftet: status.bekreftet,
+                av: status.av,
+              })
+            : t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
           {status.signertFørEndring > 0 &&
-            ` — ${t("signaturliste.signertFørEndring", "{{n}} signert før endring", { n: status.signertFørEndring })}`}
+            ` — ${t("signaturliste.signertFørEndring", "{{n}} før endring", { n: status.signertFørEndring })}`}
         </span>
       </div>
 
@@ -279,7 +286,7 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId }: Rapport
                   {hmsKortTekst(sig) && <span className="ml-2">· {hmsKortTekst(sig)}</span>}
                   {førEndring && (
                     <span className="ml-2 font-medium">
-                      · {t("signaturliste.signertFørEndringDato", "signert før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}
+                      · {t("signaturliste.signertFørEndringDato", "før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}
                     </span>
                   )}
                 </span>

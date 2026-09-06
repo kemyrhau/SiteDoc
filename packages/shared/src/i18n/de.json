@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "von 0",
   "signaturliste.laast": "Gesperrt – Runde {{nr}} geschlossen {{dato}}. Änderungen erfordern eine neue Runde",
   "signaturliste.mangler": "Fehlen",
+  "signaturliste.statusSplitt": "{{signert}} unterzeichnet + {{bekreftet}} bestätigt von {{av}}",
   "signaturliste.signertFørEndring": "{{n}} vor der Änderung signiert",
   "signaturliste.signertFørEndringDato": "Vor der Änderung signiert{{dato}}",
   "signaturliste.nySignaturKrevd": "neue Signatur erforderlich {{dato}}{{av}}",

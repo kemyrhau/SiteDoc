@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "z 0",
   "signaturliste.laast": "Zablokowane — runda {{nr}} zamknięta {{dato}}. Zmiany wymagają nowej rundy",
   "signaturliste.mangler": "Zaginiony",
+  "signaturliste.statusSplitt": "{{signert}} podpisał + {{bekreftet}} potwierdził {{av}}",
   "signaturliste.signertFørEndring": "{{n}} podpisało się przed zmianą",
   "signaturliste.signertFørEndringDato": "podpisano przed zmianą{{dato}}",
   "signaturliste.nySignaturKrevd": "wymagany nowy podpis {{dato}}{{av}}",

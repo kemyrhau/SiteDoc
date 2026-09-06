@@ -126,9 +126,15 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
         <View className={`flex-row items-center gap-1 rounded-full px-2.5 py-1 ${komplett ? "bg-green-100" : "bg-amber-100"}`}>
           {komplett ? <CheckCircle2 size={14} color="#166534" /> : <AlertTriangle size={14} color="#92400e" />}
           <Text className={`text-xs font-semibold ${komplett ? "text-green-800" : "text-amber-800"}`}>
-            {t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
+            {status.bekreftet > 0
+              ? t("signaturliste.statusSplitt", "{{signert}} signert + {{bekreftet}} bekreftet av {{av}}", {
+                  signert: status.signert,
+                  bekreftet: status.bekreftet,
+                  av: status.av,
+                })
+              : t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
             {status.signertFørEndring > 0
-              ? ` — ${t("signaturliste.signertFørEndring", "{{n}} signert før endring", { n: status.signertFørEndring })}`
+              ? ` — ${t("signaturliste.signertFørEndring", "{{n}} før endring", { n: status.signertFørEndring })}`
               : ""}
           </Text>
         </View>
@@ -218,7 +224,7 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
               {visTid(sig)}
               {sig?.hmsKortNr ? ` · ${sig.hmsKortNr}` : ""}
               {førEndring
-                ? ` · ${t("signaturliste.signertFørEndringDato", "signert før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}`
+                ? ` · ${t("signaturliste.signertFørEndringDato", "før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}`
                 : ""}
             </Text>
           </View>

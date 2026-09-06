@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "z 0",
   "signaturliste.laast": "Zamčeno – kolo {{nr}} uzavřeno {{data}}. Změny vyžadují nové kolo",
   "signaturliste.mangler": "Chybějící",
+  "signaturliste.statusSplitt": "{{signert}} podepsáno + {{bekreftet}} potvrzeno z {{av}}",
   "signaturliste.signertFørEndring": "{{n}} podepsal před změnou",
   "signaturliste.signertFørEndringDato": "podepsáno před změnou{{data}}",
   "signaturliste.nySignaturKrevd": "vyžadován nový podpis {{data}}{{av}}",

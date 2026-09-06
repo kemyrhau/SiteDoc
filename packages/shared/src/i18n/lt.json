@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "iš 0",
   "signaturliste.laast": "Užrakinta – apvalus {{nr}} uždarytas {{dato}}. Pokyčiams reikia naujo rato",
   "signaturliste.mangler": "Trūksta",
+  "signaturliste.statusSplitt": "{{signert}} pasirašė + {{bekreftet}} patvirtino {{av}}",
   "signaturliste.signertFørEndring": "{{n}} pasirašė prieš pakeitimą",
   "signaturliste.signertFørEndringDato": "pasirašyta prieš pakeitimą{{dato}}",
   "signaturliste.nySignaturKrevd": "reikalingas naujas parašas {{dato}}{{av}}",

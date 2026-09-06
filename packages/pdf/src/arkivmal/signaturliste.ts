@@ -42,21 +42,21 @@ function hovedRad(
   const firmaCelle = `<td>${firma ? esc(firma) : `<span class="tom">—</span>`}</td>`;
 
   if (gjeldendeSig) {
-    // F7: signert på en eldre versjon = «signert før endring av <dato>», amber,
-    // aldri utelatt. Teller fortsatt i X av Y (invalidering er menneskets kall).
+    // F7: attestert på en eldre versjon = «før endring av <dato>», amber, aldri
+    // utelatt. Teller fortsatt i dekningen (invalidering er menneskets kall).
     const førEndring = gjeldendeSig.signertVersjon < innholdsVersjon;
     const stil = førEndring ? ` style="color:${AMBER}"` : "";
     const rundeCelle = førEndring
-      ? `<td>Runde ${gjeldendeRundeNr} · signert før endring${endringsDato ? ` av ${esc(endringsDato)}` : ""}</td>`
+      ? `<td>Runde ${gjeldendeRundeNr} · før endring${endringsDato ? ` av ${esc(endringsDato)}` : ""}</td>`
       : `<td>${gjeldendeRundeNr}</td>`;
-    // Gjest bekreftet av ansvarlig → «bekreftet av <navn>», aldri utelatt (dokumentet
-    // skal ikke påstå at gjesten selv signerte).
-    const bekreftet = gjeldendeSig.bekreftetAvNavn
-      ? `<br><span style="font-size:9px;color:#6b7280">bekreftet av ${esc(gjeldendeSig.bekreftetAvNavn)}</span>`
-      : "";
-    return `<tr${stil}><td>${esc(navn)}${bekreftet}</td>${firmaCelle}<td>${hmsKortTekst(gjeldendeSig)}</td>` +
-      `<td>${esc(sigTid(gjeldendeSig))}</td>` +
-      rundeCelle + `</tr>`;
+    // 🔴 Signert-kolonnen skiller EGEN signatur fra en BEKREFTELSE fra ansvarlig
+    // (gjest). Bekreftelsen er en egen kolonneverdi, aldri en påstand om at gjesten
+    // selv signerte — dokumentet blander dem aldri.
+    const signertCelle = gjeldendeSig.bekreftetAvNavn
+      ? `<td>Bekreftet av ${esc(gjeldendeSig.bekreftetAvNavn)}${sigTid(gjeldendeSig) ? ` · ${esc(sigTid(gjeldendeSig))}` : ""}</td>`
+      : `<td>${esc(sigTid(gjeldendeSig))}</td>`;
+    return `<tr${stil}><td>${esc(navn)}</td>${firmaCelle}<td>${hmsKortTekst(gjeldendeSig)}</td>` +
+      signertCelle + rundeCelle + `</tr>`;
   }
   if (forrigeSig) {
     // Signerte i en tidligere runde, men ikke gjeldende — vises amber, teller ikke i X.
@@ -133,7 +133,13 @@ export function byggSignaturListe(
   const generert = config.signaturGenerertTidspunkt
     ? ` · generert ${esc(formaterDatoTid(config.signaturGenerertTidspunkt))}`
     : "";
-  const topplinje = `Runde ${gjeldende.rundeNr} (startet ${start}) · ${data.status.signert} av ${data.status.av} signert${generert}`;
+  // 🔴 Signert og bekreftet splittes ALLTID i topplinja — «7 av 7 signert» når to
+  // ble bekreftet av formannen er påstanden dokumentet ikke har lov til å produsere.
+  const dekning =
+    data.status.bekreftet > 0
+      ? `${data.status.signert} signert + ${data.status.bekreftet} bekreftet av ${data.status.av}`
+      : `${data.status.signert} av ${data.status.av} signert`;
+  const topplinje = `Runde ${gjeldende.rundeNr} (startet ${start}) · ${dekning}${generert}`;
 
   let html = `<div class="felt-blokk"><div class="felt-label">${esc(label)}</div>`;
   html += `<div style="font-size:10px;margin-bottom:4px">${topplinje}</div>`;

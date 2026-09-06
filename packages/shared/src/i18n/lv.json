@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "no 0",
   "signaturliste.laast": "Bloķēts — kārta {{nr}} slēgta {{dato}}. Izmaiņām nepieciešama jauna kārta",
   "signaturliste.mangler": "Trūkst",
+  "signaturliste.statusSplitt": "{{signert}} parakstīja + {{bekreftet}} apstiprināja {{av}}",
   "signaturliste.signertFørEndring": "{{n}} parakstīja pirms izmaiņām",
   "signaturliste.signertFørEndringDato": "parakstīts pirms izmaiņām{{dato}}",
   "signaturliste.nySignaturKrevd": "nepieciešams jauns paraksts {{dato}}{{av}}",

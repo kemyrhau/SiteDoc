@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "0-st",
   "signaturliste.laast": "Lukustatud – ümmargune {{nr}} suletud {{dato}}. Muudatused nõuavad uut ringi",
   "signaturliste.mangler": "Puudub",
+  "signaturliste.statusSplitt": "{{signert}} allkirjastas + {{bekreftet}} kinnitas {{av}}",
   "signaturliste.signertFørEndring": "{{n}} allkirjastas enne muutmist",
   "signaturliste.signertFørEndringDato": "allkirjastatud enne muudatust{{dato}}",
   "signaturliste.nySignaturKrevd": "vaja uut allkirja {{dato}}{{av}}",

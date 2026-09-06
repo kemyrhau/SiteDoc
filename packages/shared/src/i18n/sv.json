@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "av 0",
   "signaturliste.laast": "Låst — omgång {{nr}} stängd {{dato}}. Förändringar kräver en ny omgång",
   "signaturliste.mangler": "Saknad",
+  "signaturliste.statusSplitt": "{{signert}} undertecknad + {{bekreftet}} bekräftad av {{av}}",
   "signaturliste.signertFørEndring": "{{n}} signerade före ändring",
   "signaturliste.signertFørEndringDato": "undertecknad före ändring{{dato}}",
   "signaturliste.nySignaturKrevd": "ny signatur krävs {{dato}}{{av}}",

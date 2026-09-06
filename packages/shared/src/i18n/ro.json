@@ -2138,6 +2138,7 @@
   "signaturliste.avSignertKort": "de 0",
   "signaturliste.laast": "Încuiat — runda {{nr}} închisă {{dato}}. Modificările necesită o nouă rundă",
   "signaturliste.mangler": "Lipsă",
+  "signaturliste.statusSplitt": "{{signert}} semnat + {{bekreftet}} confirmat de {{av}}",
   "signaturliste.signertFørEndring": "{{n}} a semnat înainte de modificare",
   "signaturliste.signertFørEndringDato": "semnat înainte de schimbare{{dato}}",
   "signaturliste.nySignaturKrevd": "este necesară o nouă semnătură {{dato}}{{av}}",

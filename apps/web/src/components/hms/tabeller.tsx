@@ -19,18 +19,23 @@ import type { DokumentRad } from "./types";
  */
 function SignaturChip({ chip }: { chip?: SignaturChipData }) {
   if (!chip || chip.status === "ingen_runde") return <span className="text-gray-300">—</span>;
-  // Grønn KUN når alle har signert OG ingen signerte før en senere endring.
-  // «N signert før endring» gir amber-tilstand så det synes i lista uten å åpne.
+  // I LISTA er poenget dekningsgrad (signert + bekreftet av total) — reell og
+  // sanksjonert. Den fulle splitten (signert vs bekreftet, før-endring) bæres i
+  // tooltip + i dokumentet, så det tynne chip-tallet aldri kramer tre tall.
   const førEndring = chip.signertFørEndring > 0;
   const grønn = chip.status === "komplett" && !førEndring;
+  const dekket = chip.signert + chip.bekreftet;
+  const splitt =
+    chip.bekreftet > 0 ? `${chip.signert} signert + ${chip.bekreftet} bekreftet av ${chip.av}` : `${chip.signert} av ${chip.av} signert`;
+  const tittel = førEndring ? `${splitt} — ${chip.signertFørEndring} før endring` : splitt;
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
         grønn ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
       }`}
-      title={førEndring ? `${chip.signertFørEndring} signert før endring` : undefined}
+      title={tittel}
     >
-      {chip.signert}/{chip.av}
+      {dekket}/{chip.av}
       {førEndring && <span className="ml-1">⚠</span>}
     </span>
   );
@@ -54,6 +59,7 @@ type TabellProps = {
 
 interface SignaturChipData {
   signert: number;
+  bekreftet: number;
   av: number;
   signertFørEndring: number;
   status: SignaturChipStatus;
