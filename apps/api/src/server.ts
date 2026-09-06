@@ -9,7 +9,6 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { healthRoute } from "./routes/health";
 import { versionRoute } from "./routes/version";
 import { uploadRoute } from "./routes/upload";
-import { prosesserRoute } from "./routes/prosesser";
 import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
@@ -155,9 +154,6 @@ async function start() {
 
   // Filopplasting
   await server.register(uploadRoute);
-
-  // FTD dokumentprosessering
-  await server.register(prosesserRoute);
 
   // Dev-bypass-innlogging — KUN i dev eller når eksplisitt enabled på test
   if (erDevLoginAktiv()) {
