@@ -65,8 +65,8 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 |---|---|---|---|---|
 | **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` | **17 runder 05/06.09**, i synk med develop `09fc817c`. Stoppet FØR push på et rot-testbrudd gaten ikke fanget · korrigerte coworks testtall (277→284) · håndterte push-kollisjon med reset+re-merge, ikke force · fanget to foreldede ordrefiler ved å måle i stedet for å handle | Runde 18 når dokgen leverer på nytt |
 | **kontrollplan** | 🟡 **ARBEID** | `SiteDoc-kontrollplan` | Grense-resolveren trinn 0–2 merget (`d849a163`) + tabellrevisjon (`18d49186`) etter fabels designgate. 🟢 **Gaten passert på test — Kenneth satte en variant uten å prøve seg fram.** Fire `normaliserOpsjon`-kopier ned til to. Tidligere: malrevisjon D, drift-konsolidering, idempotent seed | `feat/grenseresolver-trinn3` — PDF-krav + avviksfelt. **Fabel-designgate** |
-| **dokgen** | 🟢 **LEVERT — venter merge** | `SiteDoc-dokgen` | `fix/bilde-mykt-filter` (`5660ce53`) — begge bildeveier myke + tilhørighets-badge. 🔴 **Fant og meldte imot coworks gate:** «bare to steder» var feil — `drawing:{byggeplassId}` finnes **fire** steder, tre fortsatt ødelagte. Tidligere: dokumentsøk mobil (`31002232`), serverlås SJA, byggeplass-tilhørighet | Merge runde 18, så `relay/inbox-byggeplassfilter-uttrekk.md` |
-| **redesign** | 🟢 **LEDIG** | `SiteDoc-redesign` | `fix/innboks-pil` (`491ec481`) merget i runde 17 — falskt navigasjonsløfte fjernet, hardt tak på 10 målt og meldt. Tidligere: SJA-signaturrunder (`e2e87123`), bekreftet-av + fritekst-lokasjon (`333359a6`) | `relay/inbox-prosjekt-livssyklus.md` — FL, fabels designlås. **Ikke relayet ennå** |
+| **dokgen** | 🟢 **LEVERT — venter merge** | `SiteDoc-dokgen` | `fix/byggeplassfilter-uttrekk` (`a076236f`) — ni kopier → én kilde, tre bugger lukket, api-test 284→291. 🔴 **Fant og meldte imot coworks gate** dagen før: «bare to steder» var feil. Tidligere: mykt bildefilter (`5660ce53`), dokumentsøk mobil (`31002232`), serverlås SJA | Merge runde 19, så ledig |
+| **redesign** | 🔴 **SIKKERHET** | `SiteDoc-redesign` | 🔴 **Fant fire skriveveier uten firma-/prosjektsjekk** mens han målte FL-ordrens guard-kostnad. Cowork snudde rekkefølgen: `fix/ftd-tenantgrense` FØR FL. Tidligere: innboks-pila (`491ec481`), SJA-signaturrunder (`e2e87123`) | `fix/ftd-tenantgrense`, så `relay/inbox-prosjekt-livssyklus.md` |
 | **fabel** | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
 
 ### 📋 Feltfunn-liste (B — funn samles, blir ikke ordrer på minuttet)
@@ -74,7 +74,12 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
 
-🔴 **BYGGEPLASSFILTERET ER NI KOPIER — TRE AV DEM ØDELAGTE (målt 2026-09-06, dokgen).**
+🟢 **LUKKET SAMME DØGN — `a076236f`, ni kopier → én kilde, tre bugger borte.**
+`apps/api/src/services/byggeplassFilter.ts` bærer regelen alene. Testen fanget dessuten en stille
+atferdsendring uttrekket ville innført (tom streng måtte forbli falsy). **Historikken under står
+fordi den forklarer hvorfor gaten trenger å måle mønstre, ikke bare filer.**
+
+🔴 **BYGGEPLASSFILTERET VAR NI KOPIER — TRE AV DEM ØDELAGTE (målt 2026-09-06, dokgen).**
 Regelen «et objekt uten byggeplass gjelder der du står» er håndspeilet ni steder i `apps/api`
 over **to former**: via tegning (`drawing: { byggeplassId }`, 4 kopier) og direkte
 (`byggeplassId`, 5 kopier). 🔴 **Tre av via-tegning-kopiene mangler tredje ledd** —
@@ -87,6 +92,20 @@ bivirkning, én test på setningen som ikke holdt).
 🔴 **Coworks gate sa «bare to steder, ingen klasse» — det var feil.** Cowork lot dokgens måling
 av andre BILDE-veier svare på et spørsmål om `drawing:{byggeplassId}`-mønsteret. **Agenten målte,
 sa imot, og hadde rett.** Fjerde runde på byggeplass-tilhørighet.
+
+🔴 **FIRMAGRENSEN ER ÅPEN PÅ FIRE SKRIVEVEIER (målt 2026-09-06, redesign).**
+`kontrakt.oppdater`/`kontrakt.slett` og `mengde.lagreNotat`/`mengde.slettPeriode` er
+`protectedProcedure` — innlogget, men **uten firma- eller prosjektsjekk**. De gjør
+`update({ where: { id } })` rått. **Enhver innlogget SiteDoc-bruker kan endre eller slette et
+annet firmas kontrakt hvis han kjenner id-en**, og `slett` nuller `kontraktId` på faggrupper og
+dokumenter på veien.
+🔴 **Bryter den ufravikelige regelen i CLAUDE.md:** *«Firma-admin ser KUN sitt eget firmas data»*
+og *«firma-grense-sjekk ligger ALLTID i server-laget»*.
+⚠️ **`POST /prosesser/:documentId` (`server.ts:160`) har ingen autentisering** og er eksponert på
+`api.sitedoc.no`. Krever en gyldig UUID for å gjøre noe, så terskelen er høyere — men den er åpen.
+🟢 Egen branch `fix/ftd-tenantgrense`, **prioritert foran FL-funksjonen**. Funn skrives til
+`sikkerhet.md` i samme commit.
+**Funnet som bifangst da redesign målte FL-ordrens guard-kostnad** — ingen lette etter det.
 
 🟡 **Task har ingen egen `byggeplassId`** — tilhørighet finnes kun via tegningen, og det er
 roten til hele asymmetrien over. Å legge feltet på `Task` ville fjernet den, men er **en
