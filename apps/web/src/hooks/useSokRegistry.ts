@@ -12,7 +12,7 @@ import {
 } from "@/components/layout/sidebar-elementer";
 import { useFirmaNavElementer } from "@/components/layout/firma-nav";
 import { useDypeSider } from "@/components/layout/dype-sider";
-import { normaliserSok, synonymerFor } from "@/lib/sok-match";
+import { normaliserSok, synonymerFor } from "@sitedoc/shared";
 
 // normaliserSok bor nå i @/lib/sok-match (én kilde) — re-eksporteres her for
 // bakoverkompatibilitet (SokModal m.fl. importerer den herfra).

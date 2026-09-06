@@ -14,7 +14,7 @@ import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
-import { beregnHarBallen } from "@sitedoc/shared";
+import { beregnHarBallen, filtrerRader } from "@sitedoc/shared";
 
 // --- Typer ---
 
@@ -571,42 +571,35 @@ export default function SjekklisteSide() {
         ),
       );
     }
-    for (const [kolId, verdi] of Object.entries(filterVerdier)) {
-      if (!verdi) continue;
-      const valgteSet = new Set(verdi.split(","));
-      resultat = resultat.filter((s) => {
-        if (kolId.startsWith("felt:")) {
-          const oid = kolId.replace("felt:", "");
-          const feltVerdi = hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup);
-          return valgteSet.has(feltVerdi);
-        }
+    // Trinn 0 (dokumentsøk-mobil): delt filterpredikat (@sitedoc/shared) — samme
+    // kilde som oppgaver/hms-tabellene og mobilens filter-sheet, så to flater aldri
+    // filtrerer ulikt. Verdi-uthentingen er sjekkliste-spesifikk (dokumentflyt,
+    // byggeplass direkte) og beholdes her — kun LØKKEN deles.
+    resultat = filtrerRader(resultat, filterVerdier, {
+      hentVerdi: (s, kolId) => {
         switch (kolId) {
-          case "prefix": return valgteSet.has(s.template?.prefix ?? "");
-          case "status": return valgteSet.has(s.status);
-          case "emne": return valgteSet.has(s.subject ?? "");
-          case "ansvarlig": return valgteSet.has(formaterAnsvarlig(s));
-          case "opprettetAv": return valgteSet.has(s.bestiller?.name ?? "");
-          case "bestillerFaggruppe": return valgteSet.has(s.bestillerFaggruppe.name);
-          case "utforerFaggruppe": return valgteSet.has(s.utforerFaggruppe.name);
-          case "mal": return valgteSet.has(s.template.name);
-          case "bygning": return valgteSet.has(s.byggeplass?.name ?? "");
-          case "etasje": return valgteSet.has(s.drawing?.floor ?? "");
-          case "tegning": return valgteSet.has(s.drawing?.name ?? "");
-          case "dokumentflyt": return valgteSet.has(s.dokumentflyt?.name ?? "");
-          case "flyt": return valgteSet.has(hentFlytLedd(s));
-          case "frist": {
-            const harFrist = !!s.dueDate;
-            const forfalt = harFrist && new Date(s.dueDate!) < new Date() && s.status !== "approved" && s.status !== "closed";
-            if (valgteSet.has("forfalt")) return forfalt;
-            if (valgteSet.has("har_frist") && valgteSet.has("ingen_frist")) return true;
-            if (valgteSet.has("har_frist")) return harFrist;
-            if (valgteSet.has("ingen_frist")) return !harFrist;
-            return true;
-          }
-          default: return true;
+          case "prefix": return s.template?.prefix ?? "";
+          case "status": return s.status;
+          case "emne": return s.subject ?? "";
+          case "ansvarlig": return formaterAnsvarlig(s);
+          case "opprettetAv": return s.bestiller?.name ?? "";
+          case "bestillerFaggruppe": return s.bestillerFaggruppe.name;
+          case "utforerFaggruppe": return s.utforerFaggruppe.name;
+          case "mal": return s.template.name;
+          case "bygning": return s.byggeplass?.name ?? "";
+          case "etasje": return s.drawing?.floor ?? "";
+          case "tegning": return s.drawing?.name ?? "";
+          case "dokumentflyt": return s.dokumentflyt?.name ?? "";
+          case "flyt": return hentFlytLedd(s);
+          default: return undefined;
         }
-      });
-    }
+      },
+      hentFeltVerdi: (s, oid) => hentFeltVerdi(s, oid, objektTyper.get(oid), navneLookup),
+      hentFrist: (s) => ({
+        dueDate: s.dueDate,
+        ferdig: s.status === "approved" || s.status === "closed",
+      }),
+    });
     return resultat;
   }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter, aktivByggeplass, byggeplassFilterAv]);
 

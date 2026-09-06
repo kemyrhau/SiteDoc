@@ -312,3 +312,18 @@ export { beregnSignaturStatus, delSignertManko } from "./signaturliste";
 export type { SignaturChipStatus, SisteRundeSammendrag, SignaturStatus } from "./signaturliste";
 
 export { normaliserOpsjon } from "./opsjon";
+
+export {
+  radMatcherFilter,
+  filtrerRader,
+  matcherFristFilter,
+} from "./tabellFilter";
+export type { TabellFilterConfig } from "./tabellFilter";
+
+export {
+  normaliserSok,
+  synonymerFor,
+  boundedLev,
+  matchScore,
+  KJERNE_SYNONYMER,
+} from "./sokMatch";

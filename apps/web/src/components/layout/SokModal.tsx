@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Search, CornerDownLeft } from "lucide-react";
 import { useSokRegistry, type SokTreff, type SokGruppe } from "@/hooks/useSokRegistry";
-import { normaliserSok, matchScore } from "@/lib/sok-match";
+import { normaliserSok, matchScore } from "@sitedoc/shared";
 
 /**
  * Global søkemodal (steg iv, 1b) — Ctrl/Cmd+K. Grupperer treff i INNSTILLINGER
