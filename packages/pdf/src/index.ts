@@ -24,6 +24,8 @@ export type {
   TreObjekt,
   Vedlegg,
   FeltVerdi,
+  GrenseSnapshot,
+  GrenseStatusPdf,
   Rad,
   VaerVerdi,
   SjekklisteForPdf,

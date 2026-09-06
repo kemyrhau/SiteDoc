@@ -14,10 +14,26 @@
  */
 
 import { normaliserRad } from "@sitedoc/pdf";
-import type { TreObjekt, FeltVerdi } from "@sitedoc/pdf";
+import type { TreObjekt, FeltVerdi, GrenseSnapshot } from "@sitedoc/pdf";
 import { løsGrense, grenseStatus, formaterGrense, harGrense } from "@sitedoc/shared";
 
-const TALL_TYPER = new Set(["integer", "decimal", "calculation"]);
+export const TALL_TYPER = new Set(["integer", "decimal", "calculation"]);
+
+/**
+ * Kravsnapshot for ett tallfelt — den delte kjernen for både PDF-rekonstruksjon (del A) og
+ * server-frys ved lagring (del B), så resolveren ikke bygges to ganger med to former.
+ * `undefined` når feltet ikke har noen grense. `status` er `null` for tom/ikke-tall (kravet
+ * vises likevel, F7).
+ */
+export function beregnGrenseSnapshot(
+  config: Record<string, unknown>,
+  forelderVerdi: unknown,
+  verdi: unknown,
+): GrenseSnapshot | undefined {
+  const grense = løsGrense({ config }, forelderVerdi);
+  if (!harGrense(grense)) return undefined;
+  return { kravTekst: formaterGrense(grense), status: grenseStatus(verdi, grense) };
+}
 
 /**
  * Injiser kravsnapshot på tallfelt i `data`, rekursivt (rot + repeater-rader + betingede barn).
@@ -52,12 +68,7 @@ export function injiserGrenseSnapshot(
 
     const styrendeId = obj.config.styrendeFeltId;
     const forelderVerdi = typeof styrendeId === "string" ? data[styrendeId]?.verdi : undefined;
-    const grense = løsGrense(obj, forelderVerdi);
-    if (!harGrense(grense)) continue;
-
-    felt.grenseSnapshot = {
-      kravTekst: formaterGrense(grense),
-      status: grenseStatus(felt.verdi, grense),
-    };
+    const snapshot = beregnGrenseSnapshot(obj.config, forelderVerdi, felt.verdi);
+    if (snapshot) felt.grenseSnapshot = snapshot;
   }
 }
