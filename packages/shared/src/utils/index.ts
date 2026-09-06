@@ -319,3 +319,11 @@ export {
   matcherFristFilter,
 } from "./tabellFilter";
 export type { TabellFilterConfig } from "./tabellFilter";
+
+export {
+  normaliserSok,
+  synonymerFor,
+  boundedLev,
+  matchScore,
+  KJERNE_SYNONYMER,
+} from "./sokMatch";
