@@ -87,9 +87,14 @@ Kun tallene kravtypen trenger vises (2 for «Mellom», 1 ellers). Skriver `confi
 - **Vei B — «Grensen avhenger av et valg»:** checkbox (disabled uten kandidater) → styrende-felt-
   nedtrekk (`list_single` i samme kontekst, lavere sortOrder) → varianttabell. Skriver
   `config.styrendeFeltId` + `config.grenseVarianter: [{valg,min?,maks?,toleranse?}]`. Kolonner
-  følger kravtype. Tom celle arver standard. Fast siste rad «Ellers (standard)» (grå, ikke redigerbar).
-  **Foreldreløse varianter** (omdøpt/slettet opsjon) blir stående som amber linje med Fjern — aldri
-  stille sletting. Vei B har egen kvitteringslinje: «valg: krav · … · ellers krav».
+  følger kravtype. **Satt vs. arvet skilles på FORM, ikke tekstfarge** (fabel-vedtak 06.09 etter
+  Kenneth-testkjøring — `avviksvedtak-grensevariant-tabell-fabel-2026-09-06.md`): satt celle =
+  blå kant + fet tall + ✕ (nullstiller → arv); arvet celle = stiplet grå kant, tom, med
+  standardens symbolform som grå kursiv placeholder («≤ 10»). Ingen forhåndsutfylling — arv er
+  fravær av nøkkel i data. **Intro-linje** (lys blå boks) læres bort FØR tabellen. **«Ellers
+  (standard)»** er tekstlinje UNDER tabellen, ikke en rad. **Foreldreløse varianter** (omdøpt/
+  slettet opsjon) blir stående som amber linje med Fjern — aldri stille sletting. Vei B har egen
+  kvitteringslinje: «valg: krav · … · ellers krav».
 - Resolveren `løsGrense` (`@sitedoc/shared`) er eneste inngang; utfylling (web+mobil Heltall/Desimal)
   får styrende felts verdi via `forelderVerdi`-prop. Mockup: `docs/redesign/mockups/MalBygger Grensevarianter Mockup.dc.html`.
 - **Avvik fra mockup (meldt):** mockupen skjuler enhet ved «Ingen krav»; her beholdes enhet alltid
