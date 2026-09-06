@@ -42,6 +42,25 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 **dokgen = FUNN-sporet** (feltfunn, ellers BACKLOG) · **simulator = måling og røykliste**.
 Kun 🔴-blokkerere avbryter plan-sporet.
 
+> 🔴 **REGISTERET MÅLES, DET HUSKES IKKE** (Kenneth-krav 2026-09-06). Kjør før hver
+> statusrapport og hver ny ordre:
+>
+> ```sh
+> git fetch origin -q --prune && git worktree list && git branch -r
+> ```
+>
+> | Signal | Betyr |
+> |---|---|
+> | Branch i treet, ingen commits | 🟡 Ordren er TATT, agenten koder |
+> | Treet på `develop`/detached | 🟢 Ledig — ordren er ikke tatt |
+> | Branch på origin, ikke ancestor av develop | 🟢 Levert, venter merge |
+>
+> **«Branch finnes i treet» er det eneste målbare signalet på at en agent jobber** — cowork kan
+> ikke se agentøkter, bare Kenneth kan. ⚠️ **En ordre er ikke RELAYET før Kenneth har limt den.**
+> «Skrevet» og «gitt» er to tilstander, og tavla skiller dem. Cowork påstod agentstatus tre
+> ganger 06.09 uten å måle: to ganger sto agentene ledige fordi ordren aldri var relayet, én gang
+> var øktene borte.
+
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | **16 runder 05/06.09.** Stoppet FØR push på et rot-testbrudd gaten ikke fanget · korrigerte coworks testtall (277→284) · håndterte push-kollisjon med reset+re-merge, ikke force · fanget to foreldede ordrefiler ved å måle i stedet for å handle | Runde 16 |
@@ -54,6 +73,15 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🟡 **Innboksen har et HARDT TAK på 10 rader (målt 2026-09-06, redesign-Opus).**
+`hjem.tsx:472` — `.slice(0, visAlleInnboks ? 10 : INNBOKS_MAKS)`. Ved 40 aktive dokumenter viser
+badgen **40**, «Se alle» folder ut til **10**, og **de resterende 30 er ikke nåbare fra
+innboks-seksjonen** — kun via Oppgaver- og Sjekklister-fanene.
+🔴 **Seksjonen viser altså et tall den ikke kan liste.** Fra ~11 aktive dokumenter er den
+ufullstendig. **Egen innboks-skjerm (variant B) er berettiget** — med søk/filter/sortering fra
+dokgens dokumentliste-komponenter (`31002232`), ikke en ny flate uten dem.
+⚠️ **Ikke akutt, men ikke hypotetisk.** A.Markussen med 50 ansatte passerer 10 aktive fort.
 
 🔴 **PROSESSFUNN 2026-09-06 — ANDRE GANG: standardgaten mangler `pnpm test`.**
 Gate-kjeden i coworks ordrer er `install → prisma generate ×4 → web build → mobil typecheck
