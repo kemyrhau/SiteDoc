@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
+import type { PrismaClient } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
@@ -54,6 +55,70 @@ function harFaktiskInnholdForObjekt(sletteIder: string[]): Prisma.Sql {
         END
     )
   `;
+}
+
+// Samle et objekt + alle etterkommere (parentId-tre). Delt av slett-vernet og
+// endringsvernet (2026-09-07) — én traversering, ikke tre håndspeilede kopier.
+export function samleEtterkommere(
+  alleObjekter: { id: string; parentId: string | null }[],
+  rotId: string,
+): string[] {
+  const ut = [rotId];
+  const rek = (parentId: string) => {
+    for (const o of alleObjekter) {
+      if (o.parentId === parentId) {
+        ut.push(o.id);
+        rek(o.id);
+      }
+    }
+  };
+  rek(rotId);
+  return ut;
+}
+
+// Teller AKTIVE dokumenter i DETTE prosjektet (via template_id — prosjekt-isolert fordi
+// firmamaler KOPIERES, aldri deles: firmamal.ts:379 / bibliotek.ts:144 / modul.ts:314) med
+// FAKTISK innhold for objektet eller en etterkommer. Gjenbruker `harFaktiskInnholdForObjekt` —
+// ETT predikat, tre kallsteder (slett, oppdater, rekkefølge) som ikke kan drifte fra hverandre.
+async function tellDokumenterMedInnhold(
+  prisma: PrismaClient,
+  templateId: string,
+  objektIder: string[],
+): Promise<number> {
+  const [sjekk, oppg] = await Promise.all([
+    prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT count(*) AS n FROM checklists WHERE template_id = ${templateId} AND deleted_at IS NULL AND data IS NOT NULL AND ${harFaktiskInnholdForObjekt(objektIder)}`),
+    prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT count(*) AS n FROM tasks WHERE template_id = ${templateId} AND deleted_at IS NULL AND data IS NOT NULL AND ${harFaktiskInnholdForObjekt(objektIder)}`),
+  ]);
+  return Number(sjekk[0]?.n ?? 0) + Number(oppg[0]?.n ?? 0);
+}
+
+// Config-nøkler som IKKE endrer HVA eller HVORDAN som ble kontrollert (cowork-gate 2026-09-06).
+// PRØVESTEIN for nye tvilstilfeller: kan endringen gjøre at et allerede SIGNERT dokument sier
+// noe ANNET om hva som ble kontrollert mot? `multiline`/`placeholder`/`role`/`helpText` → nei
+// (endrer bare hvordan feltet ser ut / hjelper utfylleren). `min`/`maks`/`enhet`/`options`/
+// `kravType`/`grenseVarianter`/`styrendeFeltId`/`conditionType`/`zone` → JA. I tvil → hold utenfor.
+// `zone` er BEVISST utenfor: topptekst er dokumentets identitet, datafelter er kontrollene.
+const KOSMETISKE_CONFIG_NOKLER = new Set(["helpText", "placeholder", "multiline", "role"]);
+
+// Er config-endringen KUN kosmetisk (berører bare hvite-listede nøkler)? Da slipper den forbi
+// endringsvernet selv på et felt i bruk. `label`/`required` er topp-nivå-felt, håndteres separat.
+export function erKunKosmetiskConfigEndring(
+  gammel: Record<string, unknown>,
+  ny: Record<string, unknown>,
+): boolean {
+  const nøkler = new Set([...Object.keys(gammel), ...Object.keys(ny)]);
+  for (const k of nøkler) {
+    if (KOSMETISKE_CONFIG_NOKLER.has(k)) continue;
+    if (JSON.stringify(gammel[k]) !== JSON.stringify(ny[k])) return false;
+  }
+  return true;
+}
+
+// Mikrotekst (cowork-gate 2026-09-06): sier HVA som blokkerer + veien videre, og ANKLAGER ikke —
+// brukeren retter en mal, han forfalsker ingenting. `handling` skiller endring fra flytting.
+function endringsvernMelding(antall: number, handling: "endres" | "flyttes"): string {
+  const dok = `${antall} dokument${antall === 1 ? "" : "er"}`;
+  return `Feltet er i bruk i ${dok} i dette prosjektet. ${handling === "endres" ? "Kravet kan ikke endres" : "Feltet kan ikke flyttes"}, fordi dokumentene skal vise hva som faktisk ble kontrollert mot. Kopier malen, eller legg til et nytt felt.`;
 }
 
 // Config-schema: aksepterer vilkårlig JSON for rapportobjekt-konfigurasjon
@@ -569,6 +634,24 @@ export const malRouter = router({
     .mutation(async ({ ctx, input }) => {
       const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
       await verifiserAdmin(ctx.userId, objekt.template.projectId);
+
+      // Endringsvern (2026-09-07): et krav som er MÅLT MOT i et aktivt dokument kan ikke endres —
+      // ellers ville arkivet vist et annet krav enn det målingen ble vurdert mot (Kenneth-funn:
+      // ≥ 25 → ≥ 50 slo gjennom på alle eksisterende dokumenter). Kenneth valgte SPERRE, ikke
+      // malversjonering. Gjelder PER PROSJEKT (template_id er isolert, se tellDokumenterMedInnhold).
+      // Meningsbærende config-endring ELLER scope-flytting (parentId) på et felt i bruk → nekt.
+      // Ren label/required/kosmetisk-config slipper alltid (en skrivefeil skal kunne rettes).
+      const gammelConfig = (typeof objekt.config === "object" && objekt.config !== null ? objekt.config : {}) as Record<string, unknown>;
+      const meningsbærendeConfig = input.config !== undefined && !erKunKosmetiskConfigEndring(gammelConfig, input.config);
+      const flytterScope = input.parentId !== undefined && (input.parentId ?? null) !== objekt.parentId;
+      if (meningsbærendeConfig || flytterScope) {
+        const alleObjekter = await ctx.prisma.reportObject.findMany({ where: { templateId: objekt.templateId }, select: { id: true, parentId: true } });
+        const antall = await tellDokumenterMedInnhold(ctx.prisma, objekt.templateId, samleEtterkommere(alleObjekter, objekt.id));
+        if (antall > 0) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: endringsvernMelding(antall, flytterScope && !meningsbærendeConfig ? "flyttes" : "endres") });
+        }
+      }
+
       const { id, config, parentId, ...rest } = input;
       return ctx.prisma.reportObject.update({
         where: { id },
@@ -601,6 +684,20 @@ export const malRouter = router({
       if (forsteObjekt) {
         const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: forsteObjekt.id }, include: { template: { select: { projectId: true } } } });
         await verifiserAdmin(ctx.userId, objekt.template.projectId);
+
+        // Endringsvern (2026-09-07): sortOrder/zone er trygt, men en parentId-FLYTTING av et felt
+        // i bruk flytter det mellom scope og brekker grense-arven (styrendeFeltId peker på søsken)
+        // — samme feilklasse som config-endring. En vakt med kjent bakdør er verre enn ingen vakt.
+        const alleObjekter = await ctx.prisma.reportObject.findMany({ where: { templateId: objekt.templateId }, select: { id: true, parentId: true } });
+        const parentKart = new Map(alleObjekter.map((o) => [o.id, o.parentId]));
+        for (const inn of input.objekter) {
+          if (inn.parentId === undefined) continue;
+          if ((inn.parentId ?? null) === (parentKart.get(inn.id) ?? null)) continue; // ingen flytting
+          const antall = await tellDokumenterMedInnhold(ctx.prisma, objekt.templateId, samleEtterkommere(alleObjekter, inn.id));
+          if (antall > 0) {
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: endringsvernMelding(antall, "flyttes") });
+          }
+        }
       }
       return ctx.prisma.$transaction(
         async (tx) => {
@@ -656,16 +753,7 @@ export const malRouter = router({
       });
 
       // Samle alle IDer som vil bli slettet (objektet + alle etterkommere)
-      const sletteIder = [input.id];
-      function finnEtterkommere(parentId: string) {
-        for (const o of alleObjekter) {
-          if (o.parentId === parentId) {
-            sletteIder.push(o.id);
-            finnEtterkommere(o.id);
-          }
-        }
-      }
-      finnEtterkommere(input.id);
+      const sletteIder = samleEtterkommere(alleObjekter, input.id);
 
       // Hent sjekklister med FAKTISK innhold for noen av disse IDene (ikke bare nøkkel).
       const sjekklisteIder = await ctx.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
@@ -735,21 +823,7 @@ export const malRouter = router({
         where: { templateId: objekt.templateId },
         select: { id: true, parentId: true },
       });
-      const sletteIder = [input.id];
-      const finnEtterkommere = (parentId: string) => {
-        for (const o of alleObjekter) {
-          if (o.parentId === parentId) {
-            sletteIder.push(o.id);
-            finnEtterkommere(o.id);
-          }
-        }
-      };
-      finnEtterkommere(input.id);
-      const [sjekkMed, oppgMed] = await Promise.all([
-        ctx.prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT count(*) AS n FROM checklists WHERE template_id = ${objekt.templateId} AND deleted_at IS NULL AND data IS NOT NULL AND ${harFaktiskInnholdForObjekt(sletteIder)}`),
-        ctx.prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT count(*) AS n FROM tasks WHERE template_id = ${objekt.templateId} AND deleted_at IS NULL AND data IS NOT NULL AND ${harFaktiskInnholdForObjekt(sletteIder)}`),
-      ]);
-      const antall = Number(sjekkMed[0]?.n ?? 0) + Number(oppgMed[0]?.n ?? 0);
+      const antall = await tellDokumenterMedInnhold(ctx.prisma, objekt.templateId, samleEtterkommere(alleObjekter, input.id));
       if (antall > 0) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",

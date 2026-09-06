@@ -65,6 +65,16 @@ Sletting av rapportobjekter blokkeres hvis **faktisk innhold** finnes:
    + `error.message`) i stedet for stille rollback (`slettMutation.onError`)
 5. DB CASCADE sletter barn automatisk
 
+**Endringsvern (2026-09-07, samme predikat):** `oppdaterObjekt` og `oppdaterRekkefølge` nekter en
+MENINGSBÆRENDE endring på et felt med faktisk innhold — ellers ville et krav-bytte i malen slått
+gjennom på alle eksisterende dokumenter (Checklist bærer bare `templateId`, leser `template.objects`
+live; ingen malversjon). Kenneth valgte SPERRE, ikke versjonering. Gjelder PER PROSJEKT (firmamaler
+KOPIERES, `template_id` er isolert). Meningsbærende = config-endring utenfor `{helpText, placeholder,
+multiline, role}` (prøvestein: kan endringen få et signert dokument til å si noe ANNET om hva som ble
+kontrollert? `zone` → ja, i sperr) ELLER en `parentId`-flytting (bryter grense-arv). `label`/`required`/
+kosmetisk slipper. Delt kjerne `samleEtterkommere` + `tellDokumenterMedInnhold` (gjenbruker
+`harFaktiskInnholdForObjekt`) — ETT predikat, tre kallsteder (slett/oppdater/rekkefølge) kan ikke drifte.
+
 ## Rekkefølge-sortering
 
 `sortOrder` er globalt (topptekst først, deretter datafelter). `byggObjektTre()` i `@sitedoc/shared` og alle konsumenter sorterer:
