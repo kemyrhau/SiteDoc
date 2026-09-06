@@ -431,6 +431,29 @@ Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifis
 
 `+Oppgave`-knapp på felter → oppgavenummer som blå pill-badge → navigerer til oppgave.
 
+## 🟢 Dokumentflyt på mobil er LESEVISNING — og det er etter design (målt 2026-09-06)
+
+**Kenneth meldte at flaten «ser ulik ut» på mobil og web.** Målt av redesign-Opus:
+**forskjellen er legitim, og saken er avklart bort — ikke utsatt.**
+
+| Flate | Er |
+|---|---|
+| **Web** (`oppsett/produksjon/dokumentflyt`) | Konfigurasjon: faggruppe → flyt → roller som steg-kort, «+ Legg til rolle», maler. **Eier hele konfig-settet** — opprett/oppdater/slett, `leggTilMedlem`, `oppdaterRoller`, `settHovedansvarlig`, `settKanRedigere` |
+| **Mobil** (`dokumentflyt.tsx`) | **Oppslagsvisning: «hvem har ballen, hvem er med».** Tre `useQuery`, **null `useMutation`** — eksplisitt dokumentert read-only i koden (`:114-127`) |
+
+🔴 **«Redigerer»-etiketten på mobil er en TILGANGSTILSTAND, ikke en rolle.** Den er
+`kanRedigere`-boolen per dokumentflyt-medlemskap: grå «Redigerer» = skrivetilgang, amber
+«Leser» = kun lese. **De ekte rollene** (Registrator/Bestiller/Utfører/Godkjenner) vises i
+per-flyt-detaljen når raden ekspanderes (`:308`).
+
+**Hvorfor det ikke er en paritetsfeil:** [feltarbeid-skillet](SAMARBEIDSREGLER.md) sier at
+mobil får feltarbeidet og web kontorarbeidet. **Å konfigurere en dokumentflyt er kontorarbeid.**
+Testen for ekte paritetsfeil er *«kan samme handling gi ULIKT UTFALL på de to flatene»* — og
+mobil har ingen handling som skriver. **Ulik form er greit; ulikt utfall er ikke.**
+
+⚠️ **Ikke meld dette som funn på nytt.** Endres det slik at mobil får en mutasjon, er saken en
+annen — da gjelder paritetsregelen igjen.
+
 ## PDF-utskrift og deling
 
 **PDF-bygger:** `@sitedoc/pdf` (packages/pdf/) — delt pakke for web og mobil. Genererer komplett HTML-strenger.
