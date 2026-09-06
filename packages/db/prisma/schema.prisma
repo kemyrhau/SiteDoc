@@ -2074,6 +2074,12 @@ model DokumentSignatur {
   // Menneskets kall, aldri automatikk — derfor egen tilstand, ikke avledet av versjon.
   nySignaturKrevdAt DateTime? @map("ny_signatur_krevd_at")
   nySignaturKrevdAv String?   @map("ny_signatur_krevd_av") // userId — svakt felt, ingen @relation
+  // Satt KUN når ansvarlig bekrefter deltakelse på vegne av en GJEST (2026-09-06):
+  // handlingen er en bekreftelse FRA ansvarlig, ikke en signatur av gjesten. Dokumentet
+  // skal si «bekreftet av <navn>», aldri påstå at gjesten selv signerte. Signerer man
+  // sin egen rad forblir feltet null (signaturen er sin egen). userId — svakt felt,
+  // ingen @relation. Ingen backfill: eldre rader er null = vises som før.
+  bekreftetAvUserId String?  @map("bekreftet_av_user_id")
 
   runde    SignaturRunde    @relation(fields: [rundeId], references: [id], onDelete: Cascade)
   deltaker DokumentDeltaker @relation(fields: [deltakerId], references: [id], onDelete: Cascade)

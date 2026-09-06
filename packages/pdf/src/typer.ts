@@ -242,6 +242,8 @@ export interface SignaturListeSignaturData {
   signertVersjon: number;
   /** Satt = «Krev ny signatur» — teller ikke, deltakeren står som IKKE SIGNERT. */
   nySignaturKrevdAt: string | null;
+  /** Gjest bekreftet av ansvarlig → «bekreftet av <navn>». null = signerte selv. */
+  bekreftetAvNavn: string | null;
 }
 
 export interface SignaturListeRundeData {

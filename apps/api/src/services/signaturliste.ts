@@ -111,6 +111,7 @@ export async function hentSignaturListeData(
             signertTidspunkt: true,
             signertVersjon: true,
             nySignaturKrevdAt: true,
+            bekreftetAvUserId: true,
           },
         },
       },
@@ -124,6 +125,18 @@ export async function hentSignaturListeData(
   ]);
 
   if (runder.length === 0) return null;
+
+  // «bekreftet av <navn>» for gjester bekreftet av ansvarlig — ett samlet oppslag.
+  const bekreftIder = [
+    ...new Set(
+      runder.flatMap((r) => r.signaturer.map((s) => s.bekreftetAvUserId).filter((x): x is string => !!x)),
+    ),
+  ];
+  const bekreftetNavn = new Map<string, string>();
+  if (bekreftIder.length > 0) {
+    const brukere = await prisma.user.findMany({ where: { id: { in: bekreftIder } }, select: { id: true, name: true } });
+    for (const u of brukere) bekreftetNavn.set(u.id, u.name ?? "Ukjent");
+  }
 
   const innholdsVersjon = dok.innholdsVersjon;
   const aktive = deltakere.filter((d) => d.fjernetAt === null).length;
@@ -166,6 +179,7 @@ export async function hentSignaturListeData(
         signertTidspunkt: s.signertTidspunkt,
         signertVersjon: s.signertVersjon,
         nySignaturKrevdAt: s.nySignaturKrevdAt ? s.nySignaturKrevdAt.toISOString() : null,
+        bekreftetAvNavn: s.bekreftetAvUserId ? bekreftetNavn.get(s.bekreftetAvUserId) ?? "Ukjent" : null,
       })),
     })),
   };

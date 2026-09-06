@@ -170,6 +170,7 @@ export const signaturRouter = router({
                 signertVersjon: true,
                 nySignaturKrevdAt: true,
                 nySignaturKrevdAv: true,
+                bekreftetAvUserId: true,
               },
             },
           },
@@ -199,19 +200,22 @@ export const signaturRouter = router({
 
       const minDeltaker = aktiveDeltakere.find((d) => d.userId === ctx.userId);
 
-      // Løs opp navn for «Krev ny signatur»-sporet («ny signatur krevd <dato> av <navn>»).
-      const krevdAvIder = [
+      // Løs opp navn for «Krev ny signatur»-sporet OG «bekreftet av <navn>» (gjest
+      // bekreftet av ansvarlig) — ett samlet oppslag.
+      const bekreftIder = [
         ...new Set(
-          runder.flatMap((r) => r.signaturer.map((s) => s.nySignaturKrevdAv).filter((x): x is string => !!x)),
+          runder.flatMap((r) =>
+            r.signaturer.flatMap((s) => [s.nySignaturKrevdAv, s.bekreftetAvUserId].filter((x): x is string => !!x)),
+          ),
         ),
       ];
-      const krevdAvNavn = new Map<string, string>();
-      if (krevdAvIder.length > 0) {
+      const brukerNavn = new Map<string, string>();
+      if (bekreftIder.length > 0) {
         const brukere = await ctx.prisma.user.findMany({
-          where: { id: { in: krevdAvIder } },
+          where: { id: { in: bekreftIder } },
           select: { id: true, name: true },
         });
-        for (const u of brukere) krevdAvNavn.set(u.id, u.name ?? "Ukjent");
+        for (const u of brukere) brukerNavn.set(u.id, u.name ?? "Ukjent");
       }
 
       return {
@@ -244,7 +248,9 @@ export const signaturRouter = router({
             signertVersjon: s.signertVersjon,
             // Krevd ny signatur → deltakeren er flyttet til manko; raden bæres for sporet.
             nySignaturKrevdAt: s.nySignaturKrevdAt,
-            nySignaturKrevdAvNavn: s.nySignaturKrevdAv ? krevdAvNavn.get(s.nySignaturKrevdAv) ?? null : null,
+            nySignaturKrevdAvNavn: s.nySignaturKrevdAv ? brukerNavn.get(s.nySignaturKrevdAv) ?? null : null,
+            // Gjest bekreftet av ansvarlig → «bekreftet av <navn>» (aldri utelatt).
+            bekreftetAvNavn: s.bekreftetAvUserId ? brukerNavn.get(s.bekreftetAvUserId) ?? "Ukjent" : null,
           })),
         })),
         status,
@@ -571,13 +577,16 @@ export const signaturRouter = router({
         select: { id: true, nySignaturKrevdAt: true },
       });
       // Signaturen bærer versjonen den ble avgitt på (`signertVersjon`) → «signert
-      // før endring» kan avgjøres senere.
+      // før endring» kan avgjøres senere. `bekreftetAvUserId` settes KUN for gjester
+      // (deltaker.userId === null): da er dette en bekreftelse FRA ansvarlig, ikke en
+      // signatur av gjesten (Kenneth-vedtak 2026-09-06). Egen rad → forblir null.
       const signaturData = {
         hmsKortNr: input.hmsKortNr ?? null,
         harIkkeHmsKort: input.harIkkeHmsKort,
         signaturbilde: input.signaturbilde ?? null,
         signertTidspunkt: input.signertTidspunkt ?? null,
         signertVersjon: innholdsVersjon,
+        bekreftetAvUserId: deltaker.userId ? null : ctx.userId,
       };
       if (finnes) {
         // Re-signering er tillatt KUN når ansvarlig har krevd ny signatur (raden er

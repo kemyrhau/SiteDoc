@@ -49,7 +49,12 @@ function hovedRad(
     const rundeCelle = førEndring
       ? `<td>Runde ${gjeldendeRundeNr} · signert før endring${endringsDato ? ` av ${esc(endringsDato)}` : ""}</td>`
       : `<td>${gjeldendeRundeNr}</td>`;
-    return `<tr${stil}>${navnCelle}${firmaCelle}<td>${hmsKortTekst(gjeldendeSig)}</td>` +
+    // Gjest bekreftet av ansvarlig → «bekreftet av <navn>», aldri utelatt (dokumentet
+    // skal ikke påstå at gjesten selv signerte).
+    const bekreftet = gjeldendeSig.bekreftetAvNavn
+      ? `<br><span style="font-size:9px;color:#6b7280">bekreftet av ${esc(gjeldendeSig.bekreftetAvNavn)}</span>`
+      : "";
+    return `<tr${stil}><td>${esc(navn)}${bekreftet}</td>${firmaCelle}<td>${hmsKortTekst(gjeldendeSig)}</td>` +
       `<td>${esc(sigTid(gjeldendeSig))}</td>` +
       rundeCelle + `</tr>`;
   }

@@ -184,7 +184,12 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
                     disabled={signerMut.isPending}
                     className="rounded-lg bg-blue-600 px-3 py-1.5"
                   >
-                    <Text className="text-sm font-medium text-white">{t("signaturliste.signer", "Signer")}</Text>
+                    {/* Gjest → bekreftelse fra ansvarlig, ikke gjestens signatur. */}
+                    <Text className="text-sm font-medium text-white">
+                      {d.erGjest
+                        ? t("signaturliste.bekreftDeltakelse", "Bekreft deltakelse")
+                        : t("signaturliste.signer", "Signer")}
+                    </Text>
                   </Pressable>
                 )}
               </View>
@@ -204,6 +209,9 @@ export function SignaturListeObjekt({ objekt, sjekklisteId, oppgaveIdForKo }: Ra
               <Text className={`text-sm ${førEndring ? "text-amber-700" : "text-gray-900"}`}>
                 {d.navn}
                 {d.firma ? <Text className="opacity-70"> · {d.firma}</Text> : null}
+                {sig?.bekreftetAvNavn ? (
+                  <Text className="text-gray-500"> · {t("signaturliste.bekreftetAv", "bekreftet av {{navn}}", { navn: sig.bekreftetAvNavn })}</Text>
+                ) : null}
               </Text>
             </View>
             <Text className={`text-xs ${førEndring ? "text-amber-700" : "text-gray-500"}`}>
