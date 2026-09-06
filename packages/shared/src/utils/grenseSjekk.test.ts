@@ -4,6 +4,8 @@ import {
   harGrense,
   grenseStatus,
   formaterGrense,
+  lesKravType,
+  løsGrense,
 } from "./grenseSjekk";
 
 describe("normaliserGrense — norsk kanonisk + engelsk fallback", () => {
@@ -107,5 +109,119 @@ describe("formaterGrense — språknøytral", () => {
   });
   it("tom når ingen grense", () => {
     expect(formaterGrense(normaliserGrense({ enhet: "mm" }))).toBe("");
+  });
+});
+
+describe("lesKravType — eksplisitt vinner, ellers utledes", () => {
+  it("eksplisitt kravType vinner over satte felter", () => {
+    // Sett maks (ville utledet 'hoyst'), men eksplisitt 'mellom' → varsel-tilfellet
+    expect(lesKravType({ kravType: "mellom", maks: 10 })).toBe("mellom");
+  });
+  it("hver eksplisitt verdi returneres uendret", () => {
+    expect(lesKravType({ kravType: "minst" })).toBe("minst");
+    expect(lesKravType({ kravType: "hoyst" })).toBe("hoyst");
+    expect(lesKravType({ kravType: "toleranse" })).toBe("toleranse");
+  });
+  it("ugyldig eksplisitt verdi ignoreres → utledes", () => {
+    expect(lesKravType({ kravType: "tull", min: 5 })).toBe("minst");
+  });
+  it("utleder minst fra kun min", () => {
+    expect(lesKravType({ min: 30 })).toBe("minst");
+  });
+  it("utleder hoyst fra kun maks (også engelsk alias)", () => {
+    expect(lesKravType({ maks: 10 })).toBe("hoyst");
+    expect(lesKravType({ max: 10 })).toBe("hoyst");
+  });
+  it("utleder mellom fra min + maks", () => {
+    expect(lesKravType({ min: 2, maks: 10 })).toBe("mellom");
+  });
+  it("utleder toleranse når toleranse er satt (presedens)", () => {
+    expect(lesKravType({ toleranse: 3 })).toBe("toleranse");
+    expect(lesKravType({ min: 2, maks: 10, toleranse: 3 })).toBe("toleranse");
+  });
+  it("null når ingen grense", () => {
+    expect(lesKravType({ enhet: "mm" })).toBeNull();
+    expect(lesKravType({})).toBeNull();
+  });
+});
+
+describe("løsGrense — bakoverkompatibel, variant-matching", () => {
+  const STD = { min: null, maks: 10, toleranse: null, desimaler: 2, enhet: "mm" };
+
+  it("uten styrendeFeltId → standardgrense (identisk med normaliserGrense)", () => {
+    const config = { maks: 10, desimaler: 2, enhet: "mm" };
+    expect(løsGrense({ config }, "hva som helst")).toEqual(STD);
+    expect(løsGrense({ config }, undefined)).toEqual(normaliserGrense(config));
+  });
+
+  it("styrendeFeltId satt men ingen varianter → standard", () => {
+    const config = { maks: 10, desimaler: 2, enhet: "mm", styrendeFeltId: "f1" };
+    expect(løsGrense({ config }, "A")).toEqual(STD);
+  });
+
+  it("forelderVerdi null/undefined → standard selv med varianter", () => {
+    const config = {
+      maks: 10, desimaler: 2, enhet: "mm", styrendeFeltId: "f1",
+      grenseVarianter: [{ valg: "A", maks: 5 }],
+    };
+    expect(løsGrense({ config }, null)).toEqual(STD);
+    expect(løsGrense({ config }, undefined)).toEqual(STD);
+  });
+
+  it("treff overstyrer tallet; enhet/desimaler forblir felles", () => {
+    const config = {
+      maks: 10, desimaler: 2, enhet: "mm", styrendeFeltId: "f1",
+      grenseVarianter: [{ valg: "Tett", maks: 5 }, { valg: "Åpen", maks: 20 }],
+    };
+    expect(løsGrense({ config }, "Tett")).toEqual({
+      min: null, maks: 5, toleranse: null, desimaler: 2, enhet: "mm",
+    });
+    expect(løsGrense({ config }, "Åpen")).toEqual({
+      min: null, maks: 20, toleranse: null, desimaler: 2, enhet: "mm",
+    });
+  });
+
+  it("tom variantcelle arver standard (undefined/null/tom streng)", () => {
+    const config = {
+      min: 2, maks: 10, desimaler: 1, enhet: "%", styrendeFeltId: "f1",
+      grenseVarianter: [{ valg: "A", maks: 8 }], // min utelatt → arver 2
+    };
+    expect(løsGrense({ config }, "A")).toEqual({
+      min: 2, maks: 8, toleranse: null, desimaler: 1, enhet: "%",
+    });
+    const config2 = {
+      min: 2, maks: 10, styrendeFeltId: "f1",
+      grenseVarianter: [{ valg: "A", min: "", maks: null }], // begge tomme → arver
+    };
+    const g2 = løsGrense({ config: config2 }, "A");
+    expect(g2.min).toBe(2);
+    expect(g2.maks).toBe(10);
+  });
+
+  it("ingen treff (foreldreløs/ukjent verdi) → standard, aldri stille sletting", () => {
+    const config = {
+      maks: 10, desimaler: 2, enhet: "mm", styrendeFeltId: "f1",
+      grenseVarianter: [{ valg: "A", maks: 5 }],
+    };
+    expect(løsGrense({ config }, "Ukjent")).toEqual(STD);
+  });
+
+  it("matcher via normaliserOpsjon på begge sider ({value,label} vs streng)", () => {
+    const config = {
+      maks: 10, styrendeFeltId: "f1",
+      grenseVarianter: [{ valg: { value: "green", label: "Godkjent" }, maks: 3 }],
+    };
+    // forelderVerdi er den lagrede opsjonsverdien (streng "green")
+    expect(løsGrense({ config }, "green").maks).toBe(3);
+  });
+
+  it("leser engelsk alias-config for standard (max)", () => {
+    const config = {
+      max: 10, unit: "mm", styrendeFeltId: "f1",
+      grenseVarianter: [{ valg: "A", maks: 4 }],
+    };
+    expect(løsGrense({ config }, "B")).toEqual(normaliserGrense(config)); // ingen treff → std
+    expect(løsGrense({ config }, "A").maks).toBe(4);
+    expect(løsGrense({ config }, "A").enhet).toBe("mm");
   });
 });

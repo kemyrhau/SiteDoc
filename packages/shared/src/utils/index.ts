@@ -143,8 +143,10 @@ export {
   harGrense,
   grenseStatus,
   formaterGrense,
+  lesKravType,
+  løsGrense,
 } from "./grenseSjekk";
-export type { Grense, GrenseStatus } from "./grenseSjekk";
+export type { Grense, GrenseStatus, KravType, GrenseVariant } from "./grenseSjekk";
 export {
   grupperMedOverskrift,
   beregnSeksjonUtfylling,
