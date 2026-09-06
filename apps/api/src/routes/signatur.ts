@@ -40,17 +40,17 @@ function refFilter(ref: DokumentRef): { checklistId: string } | { taskId: string
 async function hentDokumentKontekst(
   prisma: PrismaClient,
   ref: DokumentRef,
-): Promise<{ projectId: string; bestillerUserId: string }> {
+): Promise<{ projectId: string; bestillerUserId: string; innholdsVersjon: number }> {
   if (ref.checklistId) {
     const c = await prisma.checklist.findUniqueOrThrow({
       where: { id: ref.checklistId },
-      select: { bestillerUserId: true, template: { select: { projectId: true } } },
+      select: { bestillerUserId: true, innholdsVersjon: true, template: { select: { projectId: true } } },
     });
-    return { projectId: c.template.projectId, bestillerUserId: c.bestillerUserId };
+    return { projectId: c.template.projectId, bestillerUserId: c.bestillerUserId, innholdsVersjon: c.innholdsVersjon };
   }
   const t = await prisma.task.findUniqueOrThrow({
     where: { id: ref.taskId! },
-    select: { bestillerUserId: true, template: { select: { projectId: true } } },
+    select: { bestillerUserId: true, innholdsVersjon: true, template: { select: { projectId: true } } },
   });
   if (!t.template) {
     throw new TRPCError({
@@ -58,7 +58,27 @@ async function hentDokumentKontekst(
       message: "Oppgaven mangler mal — kan ikke ha signaturliste",
     });
   }
-  return { projectId: t.template.projectId, bestillerUserId: t.bestillerUserId };
+  return { projectId: t.template.projectId, bestillerUserId: t.bestillerUserId, innholdsVersjon: t.innholdsVersjon };
+}
+
+/**
+ * Nyeste endringslogg-tidspunkt for dokumentet — «før endring <dato>» henter datoen
+ * herfra (read-only; rører verken loggens generering eller visning). null = ingen
+ * loggrader ennå (da vises amber-raden uten dato).
+ */
+async function hentInnholdEndretAt(prisma: PrismaClient, ref: DokumentRef): Promise<Date | null> {
+  const rad = ref.checklistId
+    ? await prisma.checklistChangeLog.findFirst({
+        where: { checklistId: ref.checklistId },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      })
+    : await prisma.taskChangeLog.findFirst({
+        where: { taskId: ref.taskId! },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+  return rad?.createdAt ?? null;
 }
 
 /**
@@ -116,11 +136,11 @@ export const signaturRouter = router({
   hentRunder: protectedProcedure
     .input(dokumentRef)
     .query(async ({ ctx, input }) => {
-      const { projectId, bestillerUserId } = await hentDokumentKontekst(ctx.prisma, input);
+      const { projectId, bestillerUserId, innholdsVersjon } = await hentDokumentKontekst(ctx.prisma, input);
       await verifiserProsjektmedlem(ctx.userId, projectId);
       const filter = refFilter(input);
 
-      const [deltakere, runder, ansvarlig] = await Promise.all([
+      const [deltakere, runder, ansvarlig, innholdEndretAt] = await Promise.all([
         ctx.prisma.dokumentDeltaker.findMany({
           where: filter,
           select: deltakerVisning,
@@ -147,21 +167,30 @@ export const signaturRouter = router({
                 signaturbilde: true,
                 completedAt: true,
                 signertTidspunkt: true,
+                signertVersjon: true,
+                nySignaturKrevdAt: true,
+                nySignaturKrevdAv: true,
               },
             },
           },
         }),
         erAnsvarlig(ctx.prisma, ctx.userId, projectId, bestillerUserId),
+        hentInnholdEndretAt(ctx.prisma, input),
       ]);
 
       const aktiveDeltakere = deltakere.filter((d) => d.fjernetAt === null);
       const gjeldende = runder.length > 0 ? runder[runder.length - 1] : null;
+      // Tellende signaturer = de som IKKE er krevd ny (krevd-ny er flyttet til
+      // manko). Av dem: hvor mange signerte før en senere innholdsendring → amber.
+      const tellende = gjeldende?.signaturer.filter((s) => s.nySignaturKrevdAt === null) ?? [];
+      const antallFørEndring = tellende.filter((s) => s.signertVersjon < innholdsVersjon).length;
       const status = beregnSignaturStatus(
         gjeldende
           ? {
               rundeNr: gjeldende.rundeNr,
               avsluttet: gjeldende.avsluttetAt !== null,
-              antallSignert: gjeldende.signaturer.length,
+              antallSignert: tellende.length,
+              antallSignertFørEndring: antallFørEndring,
               antallDeltakere: gjeldende.antallDeltakere,
             }
           : null,
@@ -169,6 +198,21 @@ export const signaturRouter = router({
       );
 
       const minDeltaker = aktiveDeltakere.find((d) => d.userId === ctx.userId);
+
+      // Løs opp navn for «Krev ny signatur»-sporet («ny signatur krevd <dato> av <navn>»).
+      const krevdAvIder = [
+        ...new Set(
+          runder.flatMap((r) => r.signaturer.map((s) => s.nySignaturKrevdAv).filter((x): x is string => !!x)),
+        ),
+      ];
+      const krevdAvNavn = new Map<string, string>();
+      if (krevdAvIder.length > 0) {
+        const brukere = await ctx.prisma.user.findMany({
+          where: { id: { in: krevdAvIder } },
+          select: { id: true, name: true },
+        });
+        for (const u of brukere) krevdAvNavn.set(u.id, u.name ?? "Ukjent");
+      }
 
       return {
         deltakere: deltakere.map((d) => ({
@@ -197,9 +241,17 @@ export const signaturRouter = router({
             signaturbilde: s.signaturbilde,
             completedAt: s.completedAt,
             signertTidspunkt: s.signertTidspunkt,
+            signertVersjon: s.signertVersjon,
+            // Krevd ny signatur → deltakeren er flyttet til manko; raden bæres for sporet.
+            nySignaturKrevdAt: s.nySignaturKrevdAt,
+            nySignaturKrevdAvNavn: s.nySignaturKrevdAv ? krevdAvNavn.get(s.nySignaturKrevdAv) ?? null : null,
           })),
         })),
         status,
+        // Dokumentets nåværende innholdsversjon + når innholdet sist ble endret
+        // (fra endringsloggen) — driver amber «signert før endring <dato>».
+        innholdsVersjon,
+        innholdEndretAt,
         gjeldendeRundeLaast: gjeldende?.avsluttetAt != null,
         kanRedigere: ansvarlig,
         minDeltakerId: minDeltaker?.id ?? null,
@@ -222,6 +274,7 @@ export const signaturRouter = router({
         },
         select: {
           id: true,
+          innholdsVersjon: true,
           signaturRunder: {
             take: 1,
             orderBy: { rundeNr: "desc" },
@@ -229,7 +282,9 @@ export const signaturRouter = router({
               rundeNr: true,
               avsluttetAt: true,
               antallDeltakere: true,
-              _count: { select: { signaturer: true } },
+              // Krevd-ny teller ikke; før-endring gir amber → trenger versjonene,
+              // ikke bare _count. Bundet av antall deltakere per runde (lite).
+              signaturer: { select: { signertVersjon: true, nySignaturKrevdAt: true } },
             },
           },
           _count: { select: { signaturDeltakere: { where: { fjernetAt: null } } } },
@@ -237,18 +292,27 @@ export const signaturRouter = router({
       });
       return rader.map((r) => {
         const siste = r.signaturRunder[0];
+        const tellende = siste?.signaturer.filter((s) => s.nySignaturKrevdAt === null) ?? [];
+        const antallFørEndring = tellende.filter((s) => s.signertVersjon < r.innholdsVersjon).length;
         const s = beregnSignaturStatus(
           siste
             ? {
                 rundeNr: siste.rundeNr,
                 avsluttet: siste.avsluttetAt !== null,
-                antallSignert: siste._count.signaturer,
+                antallSignert: tellende.length,
+                antallSignertFørEndring: antallFørEndring,
                 antallDeltakere: siste.antallDeltakere,
               }
             : null,
           r._count.signaturDeltakere,
         );
-        return { checklistId: r.id, signert: s.signert, av: s.av, status: s.status };
+        return {
+          checklistId: r.id,
+          signert: s.signert,
+          av: s.av,
+          signertFørEndring: s.signertFørEndring,
+          status: s.status,
+        };
       });
     }),
 
@@ -271,7 +335,8 @@ export const signaturRouter = router({
           id: true,
           rundeNr: true,
           avsluttetAt: true,
-          signaturer: { select: { deltakerId: true } },
+          // Krevd-ny signaturer teller ikke som signert — deltakeren står i manko igjen.
+          signaturer: { select: { deltakerId: true, nySignaturKrevdAt: true } },
         },
       });
       const aktive = await ctx.prisma.dokumentDeltaker.findMany({
@@ -280,7 +345,9 @@ export const signaturRouter = router({
         orderBy: { lagtTilAt: "asc" },
       });
 
-      const signertIds = new Set((gjeldende?.signaturer ?? []).map((s) => s.deltakerId));
+      const signertIds = new Set(
+        (gjeldende?.signaturer ?? []).filter((s) => s.nySignaturKrevdAt === null).map((s) => s.deltakerId),
+      );
       const manko = aktive
         .filter((d) => !signertIds.has(d.id))
         .map((d) => ({
@@ -472,7 +539,7 @@ export const signaturRouter = router({
         checklistId: deltaker.checklistId ?? undefined,
         taskId: deltaker.taskId ?? undefined,
       };
-      const { projectId, bestillerUserId } = await hentDokumentKontekst(ctx.prisma, ref);
+      const { projectId, bestillerUserId, innholdsVersjon } = await hentDokumentKontekst(ctx.prisma, ref);
       await verifiserProsjektmedlem(ctx.userId, projectId);
 
       // Gating: medlem signerer egen rad; gjest signeres av ansvarlig på egen enhet.
@@ -501,22 +568,71 @@ export const signaturRouter = router({
 
       const finnes = await ctx.prisma.dokumentSignatur.findUnique({
         where: { rundeId_deltakerId: { rundeId: gjeldende.id, deltakerId: input.deltakerId } },
-        select: { id: true },
+        select: { id: true, nySignaturKrevdAt: true },
       });
+      // Signaturen bærer versjonen den ble avgitt på (`signertVersjon`) → «signert
+      // før endring» kan avgjøres senere.
+      const signaturData = {
+        hmsKortNr: input.hmsKortNr ?? null,
+        harIkkeHmsKort: input.harIkkeHmsKort,
+        signaturbilde: input.signaturbilde ?? null,
+        signertTidspunkt: input.signertTidspunkt ?? null,
+        signertVersjon: innholdsVersjon,
+      };
       if (finnes) {
-        throw new TRPCError({ code: "CONFLICT", message: "Allerede signert i denne runden" });
+        // Re-signering er tillatt KUN når ansvarlig har krevd ny signatur (raden er
+        // flyttet til manko). Da oppdateres den samme raden — unik [runde,deltaker]
+        // hindrer to signaturer i én runde — og krevd-markøren nullstilles.
+        if (!finnes.nySignaturKrevdAt) {
+          throw new TRPCError({ code: "CONFLICT", message: "Allerede signert i denne runden" });
+        }
+        return ctx.prisma.dokumentSignatur.update({
+          where: { id: finnes.id },
+          data: { ...signaturData, nySignaturKrevdAt: null, nySignaturKrevdAv: null },
+          select: { id: true, completedAt: true },
+        });
       }
 
       return ctx.prisma.dokumentSignatur.create({
-        data: {
-          rundeId: gjeldende.id,
-          deltakerId: input.deltakerId,
-          hmsKortNr: input.hmsKortNr ?? null,
-          harIkkeHmsKort: input.harIkkeHmsKort,
-          signaturbilde: input.signaturbilde ?? null,
-          signertTidspunkt: input.signertTidspunkt ?? null,
-        },
+        data: { rundeId: gjeldende.id, deltakerId: input.deltakerId, ...signaturData },
         select: { id: true, completedAt: true },
       });
+    }),
+
+  /**
+   * «Krev ny signatur» (ansvarlig): flytt signaturer som ble avgitt FØR en senere
+   * innholdsendring tilbake til manko. Ikke-destruktivt — raden består (logg/PDF for
+   * sin versjon), men `nySignaturKrevdAt` markerer at deltakeren må signere på nytt.
+   * Nullstiller IKKE runden og treffer bare de N som signerte før endringen (skillet
+   * mot «Start ny runde», som gjenåpner innholdet for ALLE). Menneskets kall.
+   */
+  krevNySignatur: protectedProcedure
+    .input(dokumentRef)
+    .mutation(async ({ ctx, input }) => {
+      const { projectId, bestillerUserId, innholdsVersjon } = await hentDokumentKontekst(ctx.prisma, input);
+      await krevAnsvarlig(ctx.prisma, ctx.userId, projectId, bestillerUserId);
+
+      const gjeldende = await ctx.prisma.signaturRunde.findFirst({
+        where: refFilter(input),
+        orderBy: { rundeNr: "desc" },
+        select: { id: true, avsluttetAt: true },
+      });
+      if (!gjeldende) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Ingen aktiv runde" });
+      }
+      if (gjeldende.avsluttetAt) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Runden er avsluttet" });
+      }
+
+      // Kun de som signerte på en eldre versjon og ikke allerede er krevd på nytt.
+      const resultat = await ctx.prisma.dokumentSignatur.updateMany({
+        where: {
+          rundeId: gjeldende.id,
+          nySignaturKrevdAt: null,
+          signertVersjon: { lt: innholdsVersjon },
+        },
+        data: { nySignaturKrevdAt: new Date(), nySignaturKrevdAv: ctx.userId },
+      });
+      return { antallKrevd: resultat.count };
     }),
 });

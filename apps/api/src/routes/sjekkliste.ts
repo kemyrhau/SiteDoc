@@ -28,7 +28,7 @@ import { IKKE_SLETTET } from "../utils/softDelete";
 import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
-import { verifiserRundeIkkeLaast } from "../services/signaturliste";
+import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
 
@@ -845,9 +845,18 @@ export const sjekklisteRouter = router({
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
         const merget = { ...eksisterende, ...innData };
 
+        // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
+        // med ≥1 signatur — da blir allerede avgitte signaturer «signert før endring».
+        const skalBumpe =
+          endringsloggInnslag.length > 0 &&
+          (await harÅpenRundeMedSignatur(tx, { checklistId: input.id }));
+
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { data: merget as Prisma.InputJsonValue },
+          data: {
+            data: merget as Prisma.InputJsonValue,
+            ...(skalBumpe ? { innholdsVersjon: { increment: 1 } } : {}),
+          },
         });
 
         await skrivEndringslogg(tx, { checklistId: input.id }, ctx.userId, endringsloggInnslag);

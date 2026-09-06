@@ -35,14 +35,23 @@ function hovedRad(
   gjeldendeRundeNr: number,
   gjeldendeSig: SignaturListeSignaturData | undefined,
   forrigeSig: { rundeNr: number; sig: SignaturListeSignaturData } | undefined,
+  innholdsVersjon: number,
+  endringsDato: string,
 ): string {
   const navnCelle = `<td>${esc(navn)}</td>`;
   const firmaCelle = `<td>${firma ? esc(firma) : `<span class="tom">—</span>`}</td>`;
 
   if (gjeldendeSig) {
-    return `<tr>${navnCelle}${firmaCelle}<td>${hmsKortTekst(gjeldendeSig)}</td>` +
+    // F7: signert på en eldre versjon = «signert før endring av <dato>», amber,
+    // aldri utelatt. Teller fortsatt i X av Y (invalidering er menneskets kall).
+    const førEndring = gjeldendeSig.signertVersjon < innholdsVersjon;
+    const stil = førEndring ? ` style="color:${AMBER}"` : "";
+    const rundeCelle = førEndring
+      ? `<td>Runde ${gjeldendeRundeNr} · signert før endring${endringsDato ? ` av ${esc(endringsDato)}` : ""}</td>`
+      : `<td>${gjeldendeRundeNr}</td>`;
+    return `<tr${stil}>${navnCelle}${firmaCelle}<td>${hmsKortTekst(gjeldendeSig)}</td>` +
       `<td>${esc(sigTid(gjeldendeSig))}</td>` +
-      `<td>${gjeldendeRundeNr}</td></tr>`;
+      rundeCelle + `</tr>`;
   }
   if (forrigeSig) {
     // Signerte i en tidligere runde, men ikke gjeldende — vises amber, teller ikke i X.
@@ -93,7 +102,12 @@ export function byggSignaturListe(
 
   const gjeldende =
     data.runder.find((r) => r.erGjeldende) ?? data.runder[data.runder.length - 1]!;
-  const gjeldendeSig = new Map(gjeldende.signaturer.map((s) => [s.deltakerId, s]));
+  // Krevd-ny signaturer teller ikke som signert i gjeldende runde — deltakeren
+  // står som IKKE SIGNERT. Selve raden består i signaturloggen under (byggLoggseksjon).
+  const gjeldendeSig = new Map(
+    gjeldende.signaturer.filter((s) => s.nySignaturKrevdAt === null).map((s) => [s.deltakerId, s]),
+  );
+  const endringsDato = data.innholdEndretAt ? formaterDatoTid(data.innholdEndretAt) : "";
 
   // Siste signatur i en TIDLIGERE runde per deltaker (for forrige-runde-rad).
   const forrigePerDeltaker = new Map<string, { rundeNr: number; sig: SignaturListeSignaturData }>();
@@ -120,7 +134,11 @@ export function byggSignaturListe(
   html += `<div style="font-size:10px;margin-bottom:4px">${topplinje}</div>`;
   html += `<table class="ark-repeater"><thead><tr><th>Navn</th><th>Firma</th><th>HMS-kort</th><th>Signert</th><th>Runde</th></tr></thead><tbody>`;
   for (const d of rader) {
-    html += hovedRad(d.navn, d.firma, gjeldende.rundeNr, gjeldendeSig.get(d.id), forrigePerDeltaker.get(d.id));
+    html += hovedRad(
+      d.navn, d.firma, gjeldende.rundeNr,
+      gjeldendeSig.get(d.id), forrigePerDeltaker.get(d.id),
+      data.innholdsVersjon, endringsDato,
+    );
   }
   html += `</tbody></table>`;
 

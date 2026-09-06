@@ -16,8 +16,18 @@ export interface SisteRundeSammendrag {
   rundeNr: number;
   /** `avsluttetAt` fra runden — `null`/undefined = åpen runde. */
   avsluttet: boolean;
-  /** Signaturer registrert i denne runden (`_count.signaturer`). */
+  /**
+   * Signaturer som TELLER i denne runden. Signaturer der «Krev ny signatur» er
+   * satt (`nySignaturKrevdAt != null`) er allerede flyttet til manko og skal IKKE
+   * med i dette tallet — de teller heller ikke i «X av Y».
+   */
   antallSignert: number;
+  /**
+   * Delmengde av `antallSignert` som ble signert på en ELDRE innholdsversjon enn
+   * dokumentets nåværende (SJA varig arbeid, fabel 2026-09-06). Teller fortsatt i
+   * «X av Y» (invalidering er menneskets kall), men gir chip amber-tilstand.
+   */
+  antallSignertFørEndring?: number;
   /** Frosset ved «Avslutt runde». `null` for åpen runde. */
   antallDeltakere: number | null;
 }
@@ -27,6 +37,11 @@ export interface SignaturStatus {
   rundeNr: number | null;
   signert: number;
   av: number;
+  /**
+   * Antall av `signert` som signerte før en senere innholdsendring. > 0 → chip
+   * skal vises amber selv om alle har signert («X av Y — N signert før endring»).
+   */
+  signertFørEndring: number;
   status: SignaturChipStatus;
 }
 
@@ -40,15 +55,16 @@ export function beregnSignaturStatus(
   aktiveDeltakere: number,
 ): SignaturStatus {
   if (!sisteRunde) {
-    return { rundeNr: null, signert: 0, av: 0, status: "ingen_runde" };
+    return { rundeNr: null, signert: 0, av: 0, signertFørEndring: 0, status: "ingen_runde" };
   }
   const av = sisteRunde.avsluttet
     ? sisteRunde.antallDeltakere ?? aktiveDeltakere
     : aktiveDeltakere;
   const signert = sisteRunde.antallSignert;
+  const signertFørEndring = sisteRunde.antallSignertFørEndring ?? 0;
   const status: SignaturChipStatus =
     av > 0 && signert >= av ? "komplett" : "mangler";
-  return { rundeNr: sisteRunde.rundeNr, signert, av, status };
+  return { rundeNr: sisteRunde.rundeNr, signert, av, signertFørEndring, status };
 }
 
 /**

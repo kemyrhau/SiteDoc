@@ -238,6 +238,10 @@ export interface SignaturListeSignaturData {
   completedAt: string | null;
   /** Lokal ISO-8601 med offset (klientens veggklokke) — foretrukket for visning. */
   signertTidspunkt: string | null;
+  /** Dokumentets innholdsVersjon da signaturen ble avgitt. */
+  signertVersjon: number;
+  /** Satt = «Krev ny signatur» — teller ikke, deltakeren står som IKKE SIGNERT. */
+  nySignaturKrevdAt: string | null;
 }
 
 export interface SignaturListeRundeData {
@@ -252,6 +256,10 @@ export interface SignaturListeRundeData {
 export interface SignaturListeData {
   /** «X av Y signert» for gjeldende runde (frys-bevisst — regnet i api-laget). */
   status: { signert: number; av: number; rundeNr: number | null };
+  /** Dokumentets nåværende innholdsversjon — signatur med lavere = «før endring». */
+  innholdsVersjon: number;
+  /** Når innholdet sist ble endret (fra endringsloggen) — datoen i «før endring <dato>». */
+  innholdEndretAt: string | null;
   deltakere: SignaturListeDeltakerData[];
   runder: SignaturListeRundeData[];
 }

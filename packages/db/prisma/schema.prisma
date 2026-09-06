@@ -1133,6 +1133,12 @@ model Checklist {
   retning              String?   @map("retning") // "frem" | "tilbake" | "paatvers" (siste bevegelse)
   terminal             String?   @map("terminal") // "godkjent" | "avvist" | "lukket" | "avbrutt" | null (åpent felt, ikke tilstandsmaskin)
   sendt                Boolean   @default(false) @map("sendt") // Har forlatt ledd 1. Egen kilde — draft ≠ aldri sendt
+  // Innholdsversjon (SJA varig arbeid, fabel 2026-09-06). Telles opp ved lagring
+  // av innholdsendring i åpen signaturrunde MED ≥1 signatur — signaturer bærer
+  // versjonen de signerte på (`DokumentSignatur.signertVersjon`), så en signatur
+  // fra før en endring vises «signert før endring». Egen størrelse fra runde-
+  // telleren (2300-vedtaket «ingen runde-kolonne» står; dette er innhold, ikke runde).
+  innholdsVersjon      Int       @default(1) @map("innholds_versjon")
   // Soft delete (F0 — 90-dagers papirkurv). Slett setter deletedAt/deletedById;
   // guard-filteret `deletedAt IS NULL` skjuler slettede rader fra alle lister.
   // deletedById er svakt String-felt uten @relation (bevisst — ingen FK-kobling til User).
@@ -1200,6 +1206,8 @@ model Task {
   retning              String?   @map("retning") // "frem" | "tilbake" | "paatvers" (siste bevegelse)
   terminal             String?   @map("terminal") // "godkjent" | "avvist" | "lukket" | "avbrutt" | null (åpent felt, ikke tilstandsmaskin)
   sendt                Boolean   @default(false) @map("sendt") // Har forlatt ledd 1. Egen kilde — draft ≠ aldri sendt
+  // Innholdsversjon (SJA varig arbeid, fabel 2026-09-06) — se Checklist for forklaring.
+  innholdsVersjon      Int       @default(1) @map("innholds_versjon")
   // Soft delete (F0 — 90-dagers papirkurv). Se Checklist for forklaring.
   deletedAt            DateTime? @map("deleted_at")
   deletedById          String?   @map("deleted_by_id")
@@ -2057,6 +2065,15 @@ model DokumentSignatur {
   // Veggklokka er innbakt → vises identisk på tvers av flater/tidssoner via @sitedoc/shared
   // formaterSignaturTidspunkt («dd.mm.åååå kl. hh:mm») — samme form som signaturfeltet.
   signertTidspunkt String? @map("signert_tidspunkt")
+  // Dokumentets innholdsVersjon da signaturen ble avgitt (SJA varig arbeid, fabel
+  // 2026-09-06). `signertVersjon < dokumentets innholdsVersjon` = signert før en
+  // senere endring → vises amber. Default 1 = eksisterende rader ved innføring.
+  signertVersjon   Int      @default(1) @map("signert_versjon")
+  // «Krev ny signatur» (ansvarlig): flytter en signatur avgitt før endring TILBAKE
+  // til manko UTEN å slette den (består i logg/PDF for sin versjon). null = gjelder.
+  // Menneskets kall, aldri automatikk — derfor egen tilstand, ikke avledet av versjon.
+  nySignaturKrevdAt DateTime? @map("ny_signatur_krevd_at")
+  nySignaturKrevdAv String?   @map("ny_signatur_krevd_av") // userId — svakt felt, ingen @relation
 
   runde    SignaturRunde    @relation(fields: [rundeId], references: [id], onDelete: Cascade)
   deltaker DokumentDeltaker @relation(fields: [deltakerId], references: [id], onDelete: Cascade)

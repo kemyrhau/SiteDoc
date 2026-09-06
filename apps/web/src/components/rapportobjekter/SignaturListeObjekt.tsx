@@ -28,7 +28,12 @@ interface Medlem {
  * ansvarliges enhet». Signerte under m/tidspunkt + HMS-kort. Låst runde vises
  * i lesemodus. Data bor server-side (trpc.signatur), ikke i felt.verdi.
  */
-export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus }: RapportObjektProps) {
+export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId }: RapportObjektProps) {
+  // 🔴 Signering er IKKE innholdsredigering (fabel-designlås 2026-09-06). En SJA
+  // sendes MENS mannskapet signerer den, så flyt-låsen (`leseModus`) gjelder ALDRI
+  // signaturlista — verken signering, deltaker- eller runde-handlinger. Kun
+  // runde-låsen (`gjeldendeRundeLaast`) stopper dem. Innholdsfeltene ellers
+  // beholder flyt-låsen uendret (de bor i andre komponenter).
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const ref = dokumentRef ?? {};
@@ -74,15 +79,22 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
     },
   });
   const fjernMut = trpc.signatur.deltakerFjern.useMutation({ onSuccess: invalider });
+  const krevNyMut = trpc.signatur.krevNySignatur.useMutation({ onSuccess: invalider });
 
   if (!harRef) return null;
   if (isLoading || !data) {
     return <div className="rounded-lg border border-gray-200 p-4 text-sm text-gray-500">{t("felt.laster", "Laster …")}</div>;
   }
 
-  const { status, runder, deltakere, kanRedigere, minDeltakerId, gjeldendeRundeLaast } = data;
+  const { status, runder, deltakere, kanRedigere, minDeltakerId, gjeldendeRundeLaast, innholdsVersjon } = data;
   const gjeldende = runder.find((r) => r.erGjeldende) ?? null;
   const aktive = deltakere.filter((d) => d.aktiv);
+  /** Signert på en eldre innholdsversjon = «signert før endring» (amber, teller likevel). */
+  const erFørEndring = (sig: { signertVersjon: number; nySignaturKrevdAt: string | null } | undefined) =>
+    !!sig && sig.nySignaturKrevdAt === null && sig.signertVersjon < innholdsVersjon;
+  const endretDato = data.innholdEndretAt
+    ? new Date(data.innholdEndretAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" })
+    : "";
 
   // Ikke tatt i bruk ennå: tom tilstand + evt. «Start signaturrunde» for ansvarlig.
   if (!gjeldende) {
@@ -92,7 +104,7 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
           <PenLine className="h-4 w-4" /> {objekt.label}
         </div>
         <p className="text-sm text-gray-500">{t("signaturliste.ingenRunde", "Ingen signaturrunde startet")}</p>
-        {kanRedigere && !leseModus && (
+        {kanRedigere && (
           <Button className="mt-3" size="sm" loading={startRundeMut.isPending} onClick={() => startRundeMut.mutate(ref)}>
             {t("signaturliste.startRunde", "Start signaturrunde")}
           </Button>
@@ -101,8 +113,11 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
     );
   }
 
-  const signertIds = new Set(gjeldende.signaturer.map((s) => s.deltakerId));
   const sigFor = new Map(gjeldende.signaturer.map((s) => [s.deltakerId, s]));
+  // Krevd-ny teller ikke som signert → deltakeren står i manko igjen (med spor).
+  const signertIds = new Set(
+    gjeldende.signaturer.filter((s) => s.nySignaturKrevdAt === null).map((s) => s.deltakerId),
+  );
   const manko = aktive.filter((d) => !signertIds.has(d.id));
   const signerte = aktive.filter((d) => signertIds.has(d.id));
 
@@ -137,11 +152,19 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
         </div>
         <span
           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-            status.status === "komplett" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
+            status.status === "komplett" && status.signertFørEndring === 0
+              ? "bg-green-100 text-green-800"
+              : "bg-amber-100 text-amber-800"
           }`}
         >
-          {status.status === "komplett" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+          {status.status === "komplett" && status.signertFørEndring === 0 ? (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          ) : (
+            <AlertTriangle className="h-3.5 w-3.5" />
+          )}
           {t("signaturliste.status", "{{signert}} av {{av}} signert", { signert: status.signert, av: status.av })}
+          {status.signertFørEndring > 0 &&
+            ` — ${t("signaturliste.signertFørEndring", "{{n}} signert før endring", { n: status.signertFørEndring })}`}
         </span>
       </div>
 
@@ -167,7 +190,16 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
           <ul className="flex flex-col gap-2">
             {manko.map((d) => {
               const egenRad = minDeltakerId === d.id;
-              const kanSignere = !leseModus && !gjeldendeRundeLaast && (egenRad || (d.erGjest && kanRedigere));
+              const kanSignere = !gjeldendeRundeLaast && (egenRad || (d.erGjest && kanRedigere));
+              // Krevd-ny: deltakeren signerte før en endring og er flyttet tilbake hit.
+              const krevdSig = sigFor.get(d.id);
+              const krevdSpor =
+                krevdSig?.nySignaturKrevdAt != null
+                  ? t("signaturliste.nySignaturKrevd", "ny signatur krevd {{dato}}{{av}}", {
+                      dato: new Date(krevdSig.nySignaturKrevdAt).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" }),
+                      av: krevdSig.nySignaturKrevdAvNavn ? ` av ${krevdSig.nySignaturKrevdAvNavn}` : "",
+                    })
+                  : null;
               return (
                 <li key={d.id} className="flex items-center justify-between gap-2">
                   <span className="text-sm text-gray-900">
@@ -178,6 +210,7 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
                         ({t("signaturliste.signerPaaAnsvarlig", "signer på ansvarliges enhet")})
                       </span>
                     )}
+                    {krevdSpor && <span className="ml-2 text-xs font-medium text-amber-700">· {krevdSpor}</span>}
                   </span>
                   <span className="flex items-center gap-2">
                     {kanSignere && (
@@ -190,7 +223,7 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
                         {t("signaturliste.signer", "Signer")}
                       </Button>
                     )}
-                    {kanRedigere && !leseModus && (
+                    {kanRedigere && (
                       <button
                         type="button"
                         onClick={() => fjernMut.mutate({ deltakerId: d.id })}
@@ -212,16 +245,26 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
         <ul className="mb-3 flex flex-col gap-1.5">
           {signerte.map((d) => {
             const sig = sigFor.get(d.id);
+            const førEndring = erFørEndring(sig);
             return (
               <li key={d.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="flex items-center gap-2 text-gray-900">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span className={`flex items-center gap-2 ${førEndring ? "text-amber-700" : "text-gray-900"}`}>
+                  {førEndring ? (
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  )}
                   {d.navn}
-                  {d.firma && <span className="text-gray-500"> · {d.firma}</span>}
+                  {d.firma && <span className="opacity-70"> · {d.firma}</span>}
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className={`text-xs ${førEndring ? "text-amber-700" : "text-gray-500"}`}>
                   {visTid(sig)}
                   {hmsKortTekst(sig) && <span className="ml-2">· {hmsKortTekst(sig)}</span>}
+                  {førEndring && (
+                    <span className="ml-2 font-medium">
+                      · {t("signaturliste.signertFørEndringDato", "signert før endring{{dato}}", { dato: endretDato ? ` ${endretDato}` : "" })}
+                    </span>
+                  )}
                 </span>
               </li>
             );
@@ -253,7 +296,7 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
       )}
 
       {/* Ansvarlig-handlinger */}
-      {kanRedigere && !leseModus && (
+      {kanRedigere && (
         <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
           {!gjeldendeRundeLaast && (
             <Button size="sm" variant="secondary" onClick={() => setVisLeggTil(true)}>
@@ -268,6 +311,19 @@ export function SignaturListeObjekt({ objekt, dokumentRef, prosjektId, leseModus
               onClick={() => avsluttMut.mutate({ rundeId: gjeldende.id })}
             >
               {t("signaturliste.avsluttRunde", "Avslutt runde")}
+            </Button>
+          )}
+          {/* Krev ny signatur: flytter dem som signerte før siste endring til manko.
+              Nullstiller ikke runden, sletter ingen rader (motsatt av «Start ny runde»). */}
+          {!gjeldendeRundeLaast && status.signertFørEndring > 0 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={krevNyMut.isPending}
+              onClick={() => krevNyMut.mutate(ref)}
+            >
+              <AlertTriangle className="mr-1 h-4 w-4" />
+              {t("signaturliste.krevNySignatur", "Krev ny signatur ({{n}})", { n: status.signertFørEndring })}
             </Button>
           )}
           {gjeldendeRundeLaast && (

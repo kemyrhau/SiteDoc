@@ -17,15 +17,21 @@ import type { DokumentRad } from "./types";
  * ved alle-signert-gjeldende. Ingen chip når objektet ikke er tatt i bruk. Tallet
  * kommer flatt fra signatur.hentChips (beregnet med delt beregnSignaturStatus i api).
  */
-function SignaturChip({ chip }: { chip?: { signert: number; av: number; status: SignaturChipStatus } }) {
+function SignaturChip({ chip }: { chip?: SignaturChipData }) {
   if (!chip || chip.status === "ingen_runde") return <span className="text-gray-300">—</span>;
+  // Grønn KUN når alle har signert OG ingen signerte før en senere endring.
+  // «N signert før endring» gir amber-tilstand så det synes i lista uten å åpne.
+  const førEndring = chip.signertFørEndring > 0;
+  const grønn = chip.status === "komplett" && !førEndring;
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-        chip.status === "komplett" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
+        grønn ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
       }`}
+      title={førEndring ? `${chip.signertFørEndring} signert før endring` : undefined}
     >
       {chip.signert}/{chip.av}
+      {førEndring && <span className="ml-1">⚠</span>}
     </span>
   );
 }
@@ -49,6 +55,7 @@ type TabellProps = {
 interface SignaturChipData {
   signert: number;
   av: number;
+  signertFørEndring: number;
   status: SignaturChipStatus;
 }
 
