@@ -431,6 +431,23 @@ Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifis
 
 `+Oppgave`-knapp på felter → oppgavenummer som blå pill-badge → navigerer til oppgave.
 
+## 🟢 Mobilens dokumentsøk er LISTESØK, ikke innholdssøk (Kenneth-vedtak 2026-09-06)
+
+> **Kenneth, etter å ha testet sheetet på test:** *«Egentlig — fritekstsøk inni dokumenter
+> hører til web-flaten. App er ok slik den står nå.»*
+
+**Søkeindeksen** (`dokumentlisteFilter.ts:96`): dokumentnummer · tittel · emne · malnavn ·
+dokumentflyt · byggeplass · tegning. **`Checklist.data` er IKKE med** — altså ikke det brukeren
+har skrevet i tekstfeltene.
+
+**Hvorfor det er riktig:** listesøket svarer på *«finn dokumentet jeg vet finnes»*. Innholdssøk
+ville krevd at telefonen laster alle dokumenters fulle `data`-JSON for å filtrere en liste — og
+produktet har allerede en flate for det: **Dokumentsøk** med embedding og hybrid søk
+([ai-sok.md](ai-sok.md)).
+
+⚠️ **Ikke meld dette som en mangel.** Endres vedtaket, er innholdssøk på mobil en egen sak med
+egen kostnadsmåling.
+
 ## 🟢 Dokumentflyt på mobil er LESEVISNING — og det er etter design (målt 2026-09-06)
 
 **Kenneth meldte at flaten «ser ulik ut» på mobil og web.** Målt av redesign-Opus:
