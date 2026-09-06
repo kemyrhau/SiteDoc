@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  body { margin: 0; background: #e5e7eb; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #1e40af; } a:hover { color: #1e3a8a; }
+</style>
+</helmet>
+<div style="padding: 24px 16px 48px; max-width: 1100px; margin: 0 auto;">
+  <div style="margin-bottom: 16px;">
+    <div style="font-size: 18px; font-weight: 700; color: #111827;">Dokumentliste mobil — fritekstsøk + filter (Kenneth-bestilling 06.09)</div>
+    <div style="font-size: 13px; color: #6b7280; margin-top: 2px;">Søkeikon i headeren, trakt-ikon med aktiv-tilstand (Excel-mønsteret) ved statuschippene, bottom sheet med egenskapene. Byggeplass bor fortsatt i kontekstvelgeren — dupliseres ikke.</div>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+    <div style="width: 340px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">1 · Inngang — to nye elementer</div>
+      <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; overflow: hidden;">
+        <div style="background: #1e3a8a; color: #ffffff; padding: 12px 14px; display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 16px;">←</span>
+          <span style="font-size: 15px; font-weight: 600; flex: 1;">Sjekklister</span>
+          <span style="font-size: 16px;">⌕</span>
+          <span style="font-size: 18px;">+</span>
+        </div>
+        <div style="padding: 10px 14px 0;">
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 8px 12px;">
+            <div style="font-size: 13px; font-weight: 600; color: #111827;">Lakselv Lufthavn</div>
+            <div style="font-size: 11px; color: #b45309;">+ hele prosjektets dokumenter</div>
+          </div>
+        </div>
+        <div style="padding: 10px 14px; display: flex; gap: 8px; align-items: center;">
+          <span style="background: #1e40af; color: #ffffff; border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600;">Alle</span>
+          <span style="background: #f3f4f6; color: #374151; border-radius: 999px; padding: 6px 14px; font-size: 12px;">Utkast</span>
+          <span style="background: #f3f4f6; color: #374151; border-radius: 999px; padding: 6px 14px; font-size: 12px;">Mottatt</span>
+          <span style="margin-left: auto; border: 1px solid #d1d5db; color: #374151; border-radius: 999px; padding: 6px 11px; font-size: 13px; white-space: nowrap;">▼</span>
+        </div>
+        <div style="padding: 10px 14px; border-top: 1px solid #f3f4f6;">
+          <div style="font-size: 13px; color: #111827;"><b>BEF1</b> Befaringsrapport</div>
+          <div style="font-size: 11px; color: #6b7280;">Byggeledelse</div>
+        </div>
+        <div style="border-top: 2px dashed #e5e7eb; padding: 8px 14px 0; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Filter aktivt — filtrerer bort objekter</div>
+        <div style="padding: 10px 14px; display: flex; gap: 8px; align-items: center;">
+          <span style="background: #1e40af; color: #ffffff; border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600;">Alle</span>
+          <span style="background: #f3f4f6; color: #374151; border-radius: 999px; padding: 6px 14px; font-size: 12px;">Utkast</span>
+          <span style="margin-left: auto; background: #1e40af; color: #ffffff; border-radius: 999px; padding: 6px 11px; font-size: 13px; white-space: nowrap;">▼ 2</span>
+        </div>
+        <div style="padding: 0 14px 10px; display: flex; gap: 6px; flex-wrap: wrap;">
+          <span style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 600;">Byggeledelse ✕</span>
+          <span style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 600;">Befaringsrapport ✕</span>
+        </div>
+        <div style="padding: 8px 14px 12px; border-top: 1px solid #f3f4f6; font-size: 11px; color: #6b7280;">Viser 4 av 11 — <span style="color: #1e40af; font-weight: 600;">nullstill filter</span></div>
+      </div>
+      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">Excel-mønsteret (Kenneth 06.09): trakt-ikonet er nøytralt når alt vises, fylt blått med teller («▼ 2») når det filtrerer bort objekter. Aktive egenskaper = fjernbare chips + «Viser 4 av 11»-linje — det skal aldri være usynlig AT lista er filtrert. Søkeikonet koster null plass. Chip-underteksten kortet ned så den overlever trunkering.</div>
+    </div>
+
+    <div style="width: 340px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">2 · Søk aktivt — treffer alle egenskaper</div>
+      <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; overflow: hidden;">
+        <div style="background: #1e3a8a; padding: 10px 14px; display: flex; align-items: center; gap: 8px;">
+          <span style="flex: 1; background: #ffffff; border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #111827;">⌕ befaring lavan<span style="color: #9ca3af;">|</span></span>
+          <span style="color: #ffffff; font-size: 13px;">Avbryt</span>
+        </div>
+        <div style="padding: 10px 14px; border-top: 1px solid #f3f4f6;">
+          <div style="font-size: 13px; color: #111827;"><b>BEF_2</b> Befaringsnotat</div>
+          <div style="font-size: 11px; color: #6b7280;">Lavangen Kommune · <span style="background: #fef9c3; border-radius: 3px; padding: 0 2px;">Lavangen</span></div>
+        </div>
+        <div style="padding: 10px 14px; border-top: 1px solid #f3f4f6;">
+          <div style="font-size: 13px; color: #111827;"><b>BEF_4</b> Befaringsnotat</div>
+          <div style="font-size: 11px; color: #6b7280;">Lavangen Kommune · <span style="background: #fef9c3; border-radius: 3px; padding: 0 2px;">Lavangen</span></div>
+        </div>
+        <div style="padding: 10px 14px; border-top: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">Søket dekker tittel, dokumentflyt, emne/mal, byggeplass og tilknyttet tegning — hele prosjektet, uavhengig av valgt byggeplass. Skrivefeil-toleranse og synonymer fra den delte søkemotoren.</div>
+      </div>
+      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">2 interaksjoner til treff (ikon + skriv). Søk overstyrer byggeplassfilteret med tydelig radmerking — et dokument man leter etter skal aldri være usynlig pga. valgt kontekst.</div>
+    </div>
+
+    <div style="width: 340px; flex-shrink: 0;">
+      <div style="font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">3 · Filter — bottom sheet</div>
+      <div style="background: #ffffff; border-radius: 12px; border: 1px solid #d1d5db; overflow: hidden;">
+        <div style="height: 60px; background: #6b7280; opacity: 0.35;"></div>
+        <div style="border-top-left-radius: 16px; border-top-right-radius: 16px; margin-top: -14px; background: #ffffff; box-shadow: 0 -4px 16px rgba(0,0,0,0.12); padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="width: 36px; height: 4px; border-radius: 999px; background: #d1d5db; margin: 0 auto;"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 15px; font-weight: 700; color: #111827;">Filter og sortering</span>
+            <span style="font-size: 13px; color: #1e40af; font-weight: 600;">Nullstill</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; font-weight: 600; color: #6b7280;">Dokumentflyt</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <span style="background: #1e40af; color: #ffffff; border-radius: 999px; padding: 5px 12px; font-size: 12px;">Byggeledelse</span>
+              <span style="border: 1px solid #d1d5db; color: #374151; border-radius: 999px; padding: 5px 12px; font-size: 12px;">HMS</span>
+              <span style="border: 1px solid #d1d5db; color: #374151; border-radius: 999px; padding: 5px 12px; font-size: 12px;">Grunnarbeid</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; font-weight: 600; color: #6b7280;">Emne / mal</span>
+            <span style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #111827;">Befaringsrapport ▾</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+              <span style="font-size: 12px; font-weight: 600; color: #6b7280;">Ansvarlig</span>
+              <span style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #9ca3af;">Alle ▾</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+              <span style="font-size: 12px; font-weight: 600; color: #6b7280;">Tidsfrist</span>
+              <span style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #9ca3af;">Alle ▾</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; font-weight: 600; color: #6b7280;">Tilknyttet tegning</span>
+            <span style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #9ca3af;">Alle tegninger ▾</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; font-weight: 600; color: #6b7280;">Sortering</span>
+            <div style="display: flex; gap: 6px;">
+              <span style="background: #1e40af; color: #ffffff; border-radius: 999px; padding: 5px 12px; font-size: 12px;">Nyeste først</span>
+              <span style="border: 1px solid #d1d5db; color: #374151; border-radius: 999px; padding: 5px 12px; font-size: 12px;">Eldste</span>
+              <span style="border: 1px solid #d1d5db; color: #374151; border-radius: 999px; padding: 5px 12px; font-size: 12px;">Navn A–Å</span>
+            </div>
+          </div>
+          <span style="background: #1e40af; color: #ffffff; border-radius: 10px; padding: 11px 0; text-align: center; font-size: 14px; font-weight: 600;">Vis 4 treff</span>
+        </div>
+      </div>
+      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">Sheetet er mobilens motstykke til webs kolonnetrakter — samme egenskapssett som tabellkolonnene (emne, ansvarlig, tidsfrist, dokumentflyt, tegning), samme delte filterpredikat. Status og byggeplass er bevisst IKKE her: statuschippene ER status-trakten (velg «Mottatt» → kun disse vises), byggeplass bor i kontekstvelgeren — aldri to steder for samme valg. Sheet = delvis flate: trykk-utenfor lukker.</div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1130, &quot;height&quot;: 860}}"></script>
+</body>
+</html>
