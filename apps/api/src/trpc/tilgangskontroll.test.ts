@@ -34,7 +34,7 @@ vi.mock("@sitedoc/db", () => ({
 }));
 
 // Importeres ETTER mock (vi.mock heises, men vær eksplisitt).
-import { erFirmaAdminForProsjekt, verifiserRetningsrett, verifiserKanEksportere } from "./tilgangskontroll";
+import { erFirmaAdminForProsjekt, verifiserRetningsrett, verifiserKanEksportere, autoriserAdminForFirma } from "./tilgangskontroll";
 import type { RaFlytMedlem } from "@sitedoc/shared";
 
 const USER = "user-1";
@@ -90,6 +90,42 @@ describe("erFirmaAdminForProsjekt — delt bypass-predikat", () => {
  * lukke hvis closed lå i kanTerminere-grenen. Kontroll-paret (approved slipper gjennom) beviser
  * at avvisningen er Lukk-guarden, ikke manglende termineringsrett.
  */
+/**
+ * Status-gaten på firma-admin (kopiklasse-lukking 2026-09-08): en DEAKTIVERT
+ * ansettelse mister firma-admin-rettigheter. `autoriserAdminForFirma` er porten
+ * alle firma-admin-ruter (lønnsart/eksport/onboarding m.m.) går gjennom → `erFirmaAdmin`.
+ * Uten status-sjekken kunne en deaktivert bruker med `firma_admin` fortsatt i
+ * `firmaRoller` endre lønnsart-oppsett. Aktiv admin skal være UENDRET — det er
+ * den avgjørende gaten. Kjører uten DB (prisma mocket).
+ */
+describe("autoriserAdminForFirma — deaktivert ansettelse mister firma-admin (2026-09-08)", () => {
+  const ORG = "org-1";
+
+  beforeEach(() => {
+    findUnique.mockReset();
+    userFindUnique.mockReset();
+    userFindUnique.mockResolvedValue({ role: "user" }); // ikke sitedoc_admin
+  });
+
+  it("AKTIV firma-admin slipper gjennom (uendret atferd)", async () => {
+    findUnique.mockResolvedValue({ firmaRoller: ["firma_admin"], status: "aktiv" });
+    await expect(autoriserAdminForFirma(USER, ORG)).resolves.toBeUndefined();
+  });
+
+  it("🔴 DEAKTIVERT bruker med firma_admin-rolle nektes (FORBIDDEN)", async () => {
+    findUnique.mockResolvedValue({ firmaRoller: ["firma_admin"], status: "deaktivert" });
+    await expect(autoriserAdminForFirma(USER, ORG)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("sitedoc_admin slipper gjennom uten firma-oppslag", async () => {
+    userFindUnique.mockResolvedValue({ role: "sitedoc_admin" });
+    await expect(autoriserAdminForFirma(USER, ORG)).resolves.toBeUndefined();
+    expect(findUnique).not.toHaveBeenCalled(); // kortslutter før org-medlemsoppslag
+  });
+});
+
 describe("verifiserKanEksportere — firma-admin-only (Kenneth-vedtak 2026-09-06)", () => {
   beforeEach(() => {
     findMany.mockReset();
