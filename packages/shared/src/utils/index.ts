@@ -17,7 +17,7 @@ export type { GrenseVilkaar } from "./prosjektGrense";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
 export { klassifiserReise, estimerReisetidMin, REISE_LONNSART_REGEX } from "./reise";
-export type { ReiseKategori, ReiseRegelsett } from "./reise";
+export type { ReiseKategori, ReiseRegelsett, ReiseEnhet, ReiseMaaling } from "./reise";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";

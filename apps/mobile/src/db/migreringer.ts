@@ -401,6 +401,23 @@ export function kjorMigreringer() {
       ON reisetid_matrise_local(organization_id);
   `);
 
+  // Reise-terskel-km (2026-09-08) — avstand (meter) på matrise-cachen for km-
+  // klassifisering. Idempotent ALTER (tabellen kan finnes fra R4 uten kolonnen).
+  // Nullable: null = ukjent (synket før kolonnen); -1 = uoppnåelig.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(reisetid_matrise_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "avstand_m")) {
+      console.log("[MIG] Legger til avstand_m på reisetid_matrise_local (km-terskel)");
+      db.execSync(
+        `ALTER TABLE reisetid_matrise_local ADD COLUMN avstand_m INTEGER`,
+      );
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide reisetid_matrise_local med avstand_m:", e);
+  }
+
   // L1 (2026-06-20): GPS-identifikasjon av byggeplass ved «Start dag».
   // Idempotent ALTER — byggeplass_local får navn + geofence (lat/lng/radius_m),
   // arbeidsdag_local får byggeplass_id/navn (speil av oppmøtested). Alle nullable.
@@ -670,6 +687,21 @@ export function kjorMigreringer() {
       );
       db.execSync(
         `ALTER TABLE organization_setting_local ADD COLUMN reise_lonnsart_id TEXT`,
+      );
+    }
+    // Reise-terskel-km (2026-09-08) — enhet + km-terskel (meter). SEPARAT
+    // idempotent sjekk (ikke inni reise_terskel_min-blokken over): firmaer som
+    // alt har Fase 3-kolonnene ville ellers aldri fått disse. Default "minutter"
+    // bevarer eksisterende klassifisering.
+    if (!kolonner.find((k) => k.name === "reise_terskel_enhet")) {
+      console.log(
+        "[MIG] Legger til reise-terskel-enhet + km på organization_setting_local",
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_terskel_enhet TEXT NOT NULL DEFAULT 'minutter'`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_terskel_m INTEGER`,
       );
     }
   } catch (e) {

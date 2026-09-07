@@ -510,6 +510,10 @@ export const reisetidMatriseLocal = sqliteTable(
     oppmotestedId: text("oppmotested_id").notNull(),
     byggeplassId: text("byggeplass_id").notNull(),
     kjoretidMin: integer("kjoretid_min").notNull(),
+    // Reise-terskel-km (2026-09-08): kjøreavstand i meter for km-klassifisering.
+    // Tilføyes idempotent via ALTER. null = ukjent (rad synket før kolonnen /
+    // server-rad uten avstand); -1 = uoppnåelig (symmetrisk med kjoretidMin).
+    avstandM: integer("avstand_m"),
     sistOppdatert: integer("sist_oppdatert").notNull(),
   },
   (t) => ({
@@ -579,6 +583,10 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   // Fase 3 (§ B) — reise-regelsett for offline reise-forslag i «Slutt dag».
   // Tilføyes idempotent via ALTER. null på reiseLonnsartId = navne-match-fallback.
   reiseTerskelMin: integer("reise_terskel_min").notNull().default(30),
+  // Reise-terskel-km (2026-09-08) — enhet + km-terskel (meter). Default
+  // "minutter" bevarer eksisterende klassifisering. Tilføyes idempotent via ALTER.
+  reiseTerskelEnhet: text("reise_terskel_enhet").notNull().default("minutter"),
+  reiseTerskelM: integer("reise_terskel_m"),
   reiseUnderTerskelType: text("reise_under_terskel_type").notNull().default("arbeidstid"),
   reiseOverTerskelType: text("reise_over_terskel_type").notNull().default("reisetid"),
   reisetidTellerOvertid: integer("reisetid_teller_overtid", { mode: "boolean" })
