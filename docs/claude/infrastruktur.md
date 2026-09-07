@@ -185,7 +185,29 @@ cloudflared (på host) treffer API-containeren over docker-nettet, så `req.ip` 
 - **Auth.js:** `trustHost: true` (bak Cloudflare). Klient-side `signIn()` (IKKE server actions — MissingCSRF bak tunnel). `allowDangerousEmailAccountLinking: true` (påkrevd for invitasjonsflyt — godkjent risiko)
 - **AUTH_URL / NEXTAUTH_URL = `https://sitedoc.no`** i `web.env` (cutover-lærdom): cloudflared sender `Host: localhost` internt, så uten eksplisitt AUTH_URL bygde Auth.js `redirect_uri=https://localhost:3100` → OAuth `redirect_uri_mismatch`. `AUTH_TRUST_HOST=true` settes også.
 - **Google OAuth:** Web + iOS client. Consent screen: SiteDoc
-- **Microsoft Entra ID (web):** Multitenant, `checks: ["state"]` (PKCE feiler bak tunnel). App ID: `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`
+- **Microsoft Entra ID (web):** Multitenant. App ID: `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`
+  - 🔴 **VEDTAK SNUDD 2026-09-07:** `checks: ["pkce", "state"]` (`fix/web-entra-pkce`, `4e061903`).
+    ~~Sto tidligere `checks: ["state"]` med begrunnelsen «PKCE feiler bak tunnel».~~
+    **Begrunnelsen står ubestridt her fordi den skal være synlig** — men den er **motbevist ved
+    måling**: Microsoft-innlogging verifisert på test 07.09 kl. ~22 mot `ca95b2f3`, som bærer
+    `["pkce", "state"]`. PKCE fungerer bak tunnelen.
+  - ⚠️ **Sannsynlig feildiagnose den gangen:** `redirect_uri`-problemet beskrevet i linja over
+    (cloudflared sender `Host: localhost`) gir symptomer som lett leses som «PKCE feiler».
+    **Ikke målt at det VAR det** — kun at PKCE virker nå.
+  - 🔴 **Hvorfor det sto `["state"]` i det hele tatt er den viktige lærdommen:** en eksplisitt
+    `checks`-liste **erstatter** defaulten (`c.checks ?? ["pkce"]`, `@auth/core@0.41.0`
+    `lib/utils/providers.js:52`). Å sette `["state"]` for å legge til `state` fjernet PKCE i samme
+    slengen. Google hadde motsatt feil — ingen liste, altså PKCE uten `state`.
+    **Begge må stå eksplisitt.**
+  - ⚠️ **Cowork reverserte dette 07.09 UTEN å ha lest begrunnelsen** — dokgen målte biblioteket,
+    cowork gatet, ingen grep i `docs/claude/`. Det gikk bra fordi gaten krevde Microsoft-innlogging
+    verifisert på test før prod. **Gaten reddet en endring som var riktig, men ugatet mot dokumentasjonen.**
+- **Client secrets (Entra, web):** 🔴 **Utløp 3. sept 2026 → prod-avbrudd i fire døgn.** Ingenting
+  varslet. Ny secret 07.09. **Full hendelse + de fire lookalike-GUID-ene i Azure:**
+  [sikkerhet.md § PROD-AVBRUDD 3.–7. september](sikkerhet.md).
+- 🔴 **Begge appregistreringene ligger i en PRIVAT tenant** (`kemyrhaugmail.onmicrosoft.com`,
+  «Standardmappe») — én bruker, én global administrator, **totrinnskontroll AV per 07.09**.
+  Ikke firmaets katalog. **Kontinuitetsrisiko, se sikkerhet.md.**
 - **Microsoft Entra ID (mobil) — DEDIKERT public-client-app** «SiteDoc Mobile», App ID `234ca0e0-afd1-48e3-9736-b904d4b5a008` (separat fra web for ren posture-isolasjon). Mobil bruker **authorization code + PKCE** (`expo-auth-session`, app-side `exchangeCodeAsync`), ikke web-Auth.js. Azure-oppsett (kjørt manuelt — ikke i kode):
   - Supported account types: **Accounts in any organizational directory** (multitenant — så A.Markussens tenant virker).
   - Authentication → plattform **«Mobile and desktop applications»** → custom redirect URI **`sitedoc://auth`** (eksakt; path-segment unngår trailing-slash-mismatch). IKKE «Web».
