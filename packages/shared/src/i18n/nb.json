@@ -2475,6 +2475,8 @@
   "prosjektoppsett.eksport.bestilt": "I kø — arkivet begynner å bygge straks",
   "prosjektoppsett.eksport.bygger": "Bygger arkiv …",
   "prosjektoppsett.eksport.byggerProgresjon": "Bygger arkiv … {{ferdig}} av {{totalt}}",
+  "prosjektoppsett.eksport.delvisFeilet_one": "{{count}} dokument kom ikke med i arkivet – se manifest.json (avgrensninger) for hvilket.",
+  "prosjektoppsett.eksport.delvisFeilet_other": "{{count}} dokumenter kom ikke med i arkivet – se manifest.json (avgrensninger) for hvilke.",
   "prosjektoppsett.eksport.klar": "Klar",
   "prosjektoppsett.eksport.utloper": "Slettes {{dato}}",
   "prosjektoppsett.eksport.feilet": "Arkivet kunne ikke bygges",

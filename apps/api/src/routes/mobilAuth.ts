@@ -1,11 +1,16 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import {
+  createRemoteJWKSet,
+  jwtVerify,
+  errors as joseErrors,
+  type JWTPayload,
+} from "jose";
 import { router, publicProcedure, protectedProcedure } from "../trpc/trpc";
 import { randomBytes } from "crypto";
 import { sjekkRateLimit, hentKlientIp } from "../utils/rateLimiter";
 
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
-const MICROSOFT_USERINFO_URL = "https://graph.microsoft.com/v1.0/me";
 
 const providerSchema = z.enum(["google", "microsoft"]);
 
@@ -39,29 +44,112 @@ async function hentGoogleBrukerinfo(accessToken: string): Promise<UserInfo> {
   };
 }
 
-async function hentMicrosoftBrukerinfo(
-  accessToken: string,
-): Promise<UserInfo> {
-  const res = await fetch(MICROSOFT_USERINFO_URL, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+// Microsoft-innlogging: mobilen sender ID-tokenet fra Entra (openid-flyt), ikke
+// et Graph-access-token. Vi henter oid/email/name fra validerte claims og
+// slipper `User.Read` (Graph-tillatelse til hele ansattprofilen) helt.
+//
+// providerAccountId = `oid` (directory-objektets id). Dette er BEVISST og
+// bakoverkompatibelt: den gamle Graph /me-veien satte providerAccountId fra
+// `id`-feltet, som per Microsofts definisjon ER `oid`. Bytter vi til `sub`
+// (OIDC-userinfo) i stedet, ville eksisterende Account-koblinger brekke —
+// `sub` er applikasjonsspesifikk og ikke lik `oid`.
+//
+// FLERTENANT: appen aksepterer innlogging fra kundens EGEN Entra-tenant
+// (A.Markussen logger inn fra sin, ikke vår). Derfor kan iss IKKE pinnes til én
+// tenant — mobilen går mot `/common`, og ID-tokenets `iss` er tenant-spesifikk
+// (`.../{tid}/v2.0`). Vi validerer i stedet iss mot tokenets EGET `tid`-claim
+// (well-formed Microsoft-issuer for nettopp den tenanten) og pinner `aud` mot
+// mobilens client-id. Signatur valideres mot Entras `/common`-JWKS (Microsoft
+// signerer alle tenanter med det felles nøkkelsettet). Den EGENTLIGE grensen for
+// HVEM som slipper inn er admission-gaten i byttToken (invitasjon/eksisterende
+// medlemskap) — verifisert at den gjelder mobil-veien.
+const ENTRA_JWKS_URL =
+  "https://login.microsoftonline.com/common/discovery/v2.0/keys";
+let entraJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+function hentEntraJwks() {
+  if (!entraJwks) {
+    entraJwks = createRemoteJWKSet(new URL(ENTRA_JWKS_URL));
+  }
+  return entraJwks;
+}
 
-  if (!res.ok) {
-    throw new Error("Kunne ikke verifisere Microsoft-token");
+// Minimal logger-flate (Fastify `req.log`) — struktur uten å dra inn Fastify-typer.
+interface Logg {
+  warn: (obj: object, msg: string) => void;
+}
+
+async function hentMicrosoftBrukerinfoFraIdToken(
+  idToken: string,
+  logg: Logg,
+): Promise<UserInfo> {
+  const audience = process.env.MICROSOFT_MOBILE_CLIENT_ID;
+  if (!audience) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Microsoft-innlogging er ikke konfigurert på serveren.",
+    });
   }
 
-  const data = (await res.json()) as {
-    mail?: string;
-    userPrincipalName: string;
-    displayName?: string;
-    id: string;
-  };
-  return {
-    email: data.mail ?? data.userPrincipalName,
-    name: data.displayName ?? null,
-    image: null,
-    providerAccountId: data.id,
-  };
+  let payload: JWTPayload;
+  try {
+    // Ingen `issuer`-opsjon — flertenant (iss valideres mot tid under). aud
+    // pinnes; exp/nbf sjekkes automatisk av jose.
+    ({ payload } = await jwtVerify(idToken, hentEntraJwks(), { audience }));
+  } catch (err) {
+    // Logg jose-feilkoden + hvilket claim som sviktet — ALDRI tokenet eller
+    // claim-VERDIER. `claim` fra jose er et claim-NAVN (f.eks. "aud", "exp").
+    const kode =
+      err instanceof Error && "code" in err ? String(err.code) : "ukjent";
+    const claim =
+      err instanceof joseErrors.JWTClaimValidationFailed
+        ? err.claim
+        : undefined;
+    logg.warn({ kode, claim }, "Microsoft ID-token avvist ved jwtVerify");
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Ugyldig Microsoft-token.",
+    });
+  }
+
+  // Flertenant iss-validering: iss MÅ være Microsofts well-formed v2-issuer for
+  // tokenets egen tenant (tid). Fanger forfalsket eller uoverensstemmende iss/tid.
+  const tid = typeof payload.tid === "string" ? payload.tid : null;
+  const forventetIss = tid
+    ? `https://login.microsoftonline.com/${tid}/v2.0`
+    : null;
+  if (!tid || payload.iss !== forventetIss) {
+    logg.warn(
+      { kode: "iss_tid_mismatch", harTid: !!tid },
+      "Microsoft ID-token: iss matcher ikke tid",
+    );
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Ugyldig Microsoft-token.",
+    });
+  }
+
+  const oid = typeof payload.oid === "string" ? payload.oid : null;
+  // email-claim krever `email`-scope og et satt mail-attributt; faller tilbake
+  // til preferred_username (UPN) — speiler den gamle mail ?? userPrincipalName.
+  const email =
+    (typeof payload.email === "string" && payload.email) ||
+    (typeof payload.preferred_username === "string" &&
+      payload.preferred_username) ||
+    null;
+  const name = typeof payload.name === "string" ? payload.name : null;
+
+  if (!oid || !email) {
+    logg.warn(
+      { kode: "mangler_paakrevd_claim", manglerOid: !oid, manglerEpost: !email },
+      "Microsoft ID-token mangler oid/e-post",
+    );
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Microsoft-token mangler påkrevde felt (oid/e-post).",
+    });
+  }
+
+  return { email, name, image: null, providerAccountId: oid };
 }
 
 export const mobilAuthRouter = router({
@@ -74,10 +162,18 @@ export const mobilAuthRouter = router({
    */
   byttToken: publicProcedure
     .input(
-      z.object({
-        provider: providerSchema,
-        accessToken: z.string().min(1),
-      }),
+      z
+        .object({
+          provider: providerSchema,
+          // Google sender access_token (verifiseres mot userinfo); Microsoft
+          // sender ID-tokenet (valideres mot Entras JWKS). Se providervalget under.
+          accessToken: z.string().min(1).optional(),
+          idToken: z.string().min(1).optional(),
+        })
+        .refine(
+          (d) => (d.provider === "google" ? !!d.accessToken : !!d.idToken),
+          { message: "Mangler token for valgt tilbyder." },
+        ),
     )
     .mutation(async ({ ctx, input }) => {
       const ip = hentKlientIp(ctx.req);
@@ -86,10 +182,21 @@ export const mobilAuthRouter = router({
       }
 
       // 1. Verifiser mot provider
-      const brukerinfo =
-        input.provider === "google"
-          ? await hentGoogleBrukerinfo(input.accessToken)
-          : await hentMicrosoftBrukerinfo(input.accessToken);
+      let brukerinfo: UserInfo;
+      if (input.provider === "google") {
+        if (!input.accessToken) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Mangler Google-token." });
+        }
+        brukerinfo = await hentGoogleBrukerinfo(input.accessToken);
+      } else {
+        if (!input.idToken) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Mangler Microsoft-token." });
+        }
+        brukerinfo = await hentMicrosoftBrukerinfoFraIdToken(
+          input.idToken,
+          ctx.req.log,
+        );
+      }
 
       const providerNavn = input.provider === "google" ? "google" : "microsoft-entra-id";
 
@@ -185,7 +292,9 @@ export const mobilAuthRouter = router({
             type: "oauth",
             provider: providerNavn,
             providerAccountId: brukerinfo.providerAccountId,
-            access_token: input.accessToken,
+            // Microsoft-veien har ikke lenger et access_token (ID-token brukes
+            // kun til validering, ikke lagring). Google beholder sitt.
+            access_token: input.accessToken ?? null,
           },
         });
       }

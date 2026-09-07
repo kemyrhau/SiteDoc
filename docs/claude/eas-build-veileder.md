@@ -385,6 +385,21 @@ ting**. Uten begge loggene kan ingen svare på hva en tester som melder en feil 
 ⚠️ **Test-appen er en egen binær på kanal `test`** og mottar IKKE `production`-OTA.
 Publiseres det til bare én kanal, spriker flatene.
 
+> 🔴 **eas.json-only env OVERLEVER `eas build`, men IKKE `eas update` (funnet 2026-09-07).**
+> Samme klasse som `.env.local`-forgiftningen (rad 2026-09-06): en env-verdi oppfører seg ulikt i
+> to kommandoer vi behandler som én. `EXPO_PUBLIC_*` bakes inn i JS-bundelen ved eksport.
+> `eas build` injiserer eas.json-`env` → binæren får ekte verdi. `eas update` eksporterer med
+> `.env.<profil>` → en verdi som **bare** står i eas.json blir en plassholder i OTA-bundelen.
+>
+> **Konkret hendelse:** `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var `din-microsoft-client-id-her`
+> (plassholder) i `.env.test`/`.env.production`, ekte kun i eas.json. **Alle OTA-er siden
+> `2026-09-04` sendte plassholderen** → Microsoft-innlogging på mobil var **død for testerne i en
+> uke** (OAuth-forespørselen avvises av Entra på ukjent client-id, før noe token lages). De tre
+> MS-kontoene i prod er trolig fra TestFlight-binæren, som fikk ekte verdi fra eas.json. Rettet ved
+> å legge ekte (offentlig) client-id inn i `.env.test` + `.env.production` — samme mønster Google
+> allerede fulgte. **Regel: enhver `EXPO_PUBLIC_*` som en OTA skal bære MÅ ha ekte verdi i
+> `.env.<profil>`, ikke bare i eas.json.** Måles med `strings … .hbc | grep -c <verdi>` (STEG 2).
+
 **Konfigurasjon (kode er fasit):**
 - `runtimeVersion: "1"` (`app.config.js`) — **eksplisitt streng, IKKE `{ policy: "fingerprint" }`
   og IKKE `appVersion`.** Fingerprint-policy ble forsøkt og forkastet 2026-09-04 etter to feilede
@@ -454,7 +469,12 @@ lenket før du forklarer hvorfor den mangler.**
 løste ikke feilen. Den er beholdt — web bundles ikke, og det er riktig for en app vi ikke
 distribuerer på web — men den var ikke fiksen.
 
-### Slik publiserer du en oppdatering (målt 2026-09-04, utvidet med målesteg 2026-09-06)
+### Slik publiserer du en oppdatering
+
+🔴 **Steg-for-steg-oppskriften bor i [DEPLOY-RUNBOK.md § 3](DEPLOY-RUNBOK.md)** (rydd `.env.local` →
+mål bundelen med `strings` → publiser inline pr. kanal → les commit-linja → verifiser på telefon).
+**Tilbakerulling: [§ 6](DEPLOY-RUNBOK.md).** Under står bakgrunnen de stegene er bygget av — den blir
+her, i eas-domenet.
 
 🔴 **DET ER TO APPER PÅ KENNETHS TELEFON, OG DE LYTTER PÅ HVER SIN KANAL.**
 
@@ -463,159 +483,32 @@ distribuerer på web — men den var ikke fiksen.
 | Produksjonsappen (bygg 54) | `production` | `api.sitedoc.no` |
 | Testappen | `test` | `api-test.sitedoc.no` |
 
-**En OTA til `production` treffer produksjonsappen — også hos A.Markussen.** Peker den bundelen
-på test-API-et, skriver piloten HMS-data inn i testdatabasen uten å vite det.
+**Kanalen bestemmer hvilken app som mottar — ikke hva bundelen peker på.** `eas update` kjører
+`expo export`, som baker `EXPO_PUBLIC_*` inn i bundelen. En prod-eksportert bundel publisert til
+kanal `test` (eller motsatt) gir mottakeren feil data — peker en produksjons-OTA på test-API-et,
+skriver piloten HMS-data inn i testdatabasen uten å vite det. Derfor setter test-varianten
+`EXPO_PUBLIC_API_URL` **inline** (en fil blir liggende og forgifter neste publisering), og derfor
+har § 3 et **målesteg** (`strings` på `.hbc`-bundelen) som gjør en forgiftning synlig FØR den når
+noen. Metro-cachen (`node_modules/.cache`, `.expo`) må slettes før målingen, ellers måler du en
+gammel bundel.
 
-#### 🔴 STEG 1 — RYDD MILJØET. Dette er ikke valgfritt.
+⚠️ **`--platform ios` er ikke valgfritt i måle-/eksport-stegene.** `eas update` kaller eksporten med
+`--platform=all`, som inkluderer web, og web-bundelen har (minst) to uavhengige feil i dette
+monorepoet (`@babel/plugin-transform-react-jsx` resolver ikke web-veien; `wa-sqlite.wasm` fra
+`expo-sqlite/web`). `platforms: ["ios", "android"]` i `app.json` (2026-09-04) er den varige
+løsningen. **Feilsøkingsfelle:** feilen ligner en pnpm-oppløsningsfeil (som `@expo/fingerprint`-feilen
+fra bygg 52), men `npx expo export --platform ios` gir exit 0 i samme tre der `eas update` feiler —
+forskjellen er utelukkende web.
 
-```sh
-cd ~/Documents/Programmering/SiteDoc/apps/mobile
-ls -a | grep env          # SKAL vise .env.production og .env.test — IKKE .env.local
-rm -f .env.local          # finnes den, slett den
-```
-
-**Hvorfor:** `.env.local` har **høyere prioritet enn `.env.production`** i Expos
-dotenv-rekkefølge. En `.env.local` som peker på test forgifter en produksjons-OTA i stillhet —
-kommandoen sier «Published!» og alt ser riktig ut.
-
-⚠️ **`.env.local` opprettes typisk for å teste mobil mot test via Expo.** Det er en legitim
-grunn til å lage den — og nøyaktig derfor må den slettes før publisering.
-
-#### 🔴 STEG 2 — MÅL BUNDELEN FØR DU PUBLISERER
-
-```sh
-rm -rf /tmp/otacheck node_modules/.cache .expo
-npx expo export --clear --platform ios --output-dir /tmp/otacheck
-strings /tmp/otacheck/_expo/static/js/ios/*.hbc | grep -o "https://api[a-z.-]*sitedoc\.no" | sort | uniq -c
-```
-
-**Forventet for produksjon: kun `https://api.sitedoc.no`.**
-Ser du `api-test`, **STOPP** — miljøet er ikke rent.
-
-🔴 **`node_modules/.cache` og `.expo` MÅ slettes.** Metro gjenbruker en cachet bundel selv
-etter at `.env.local` er fjernet — målt 2026-09-06: eksport etter sletting ga **samme
-bundel-hash** som den forgiftede, og målingen så «fortsatt forgiftet» ut når den egentlig var
-utdatert.
-
-#### STEG 3 — publiser. 🔴 KANALEN ALENE SKILLER IKKE MILJØENE.
-
-```sh
-# PRODUKSJON
-eas update --platform ios --channel production --clear-cache --message "<hva som er fikset>"
-
-# TEST
-EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no \
-  eas update --platform ios --channel test --clear-cache --message "<hva som er fikset>"
-```
-
-🔴 **Hvorfor test-varianten setter variabelen inline:** `eas update` kjører `expo export`, som
-**baker `EXPO_PUBLIC_*` inn i bundelen**. Kanalen bestemmer hvilken app som mottar — den
-bestemmer **ikke** hva bundelen peker på. Publiserer du en prod-eksportert bundel til kanal
-`test`, får testappen produksjonsdata.
-
-**Inline framfor `.env.local`:** variabelen forsvinner når kommandoen er ferdig. En fil blir
-liggende og forgifter neste publisering — **det skjedde 2026-09-06** (se hendelsen under).
-
-**Forventet i steg 2-målingen, per kanal:**
-
-| Kanal | `strings`-målingen skal vise |
-|---|---|
-| `production` | kun `https://api.sitedoc.no` |
-| `test` | kun `https://api-test.sitedoc.no` |
-
-⚠️ **Steg 2 må kjøres med SAMME env som steg 3** — ellers måler du en annen bundel enn den du
-publiserer:
-
-```sh
-EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no \
-  npx expo export --clear --platform ios --output-dir /tmp/otacheck
-```
-
-🔴 **`--platform ios` er ikke valgfritt — uten det feiler kommandoen.** `eas update` kaller
-eksporten med `--platform=all`, som inkluderer **web**, og web-bundelen har (minst) to
-uavhengige feil i dette monorepoet:
-
-1. `Cannot find module '@babel/plugin-transform-react-jsx'` — pluginen resolver fint fra
-   `@react-native/babel-preset` (native-veien), men ikke fra `@babel/core` (web-veien).
-2. `wa-sqlite.wasm` fra `expo-sqlite/web` — appen bruker expo-sqlite native-only.
-
-**Fikser du den ene, står den andre igjen.** Derfor er `platforms: ["ios", "android"]` i
-`app.json` den varige løsningen (levert 2026-09-04) — da expanderer `--platform=all` til kun
-ios+android og web bundles aldri. `--platform ios` fungerer uansett som eksplisitt fallback.
-
-#### 🔴 STEG 3b — LES COMMIT-LINJA I UTSKRIFTEN FØR DU ÅPNER APPEN
-
-`eas update` skriver ut **hvilken commit bundelen ble bygget fra**. Den skal være den du
-forventer, **uten `*`** — stjernen betyr ucommittede endringer i treet.
-
-```
-Commit    f845df6ec3d3e973808588b74399ada6e105e345      ← riktig
-Commit    140f35b4d7dcc1b3b8e5e8beabc41c9df917a6c9*     ← 🔴 feil commit OG skitten
-```
-
-⚠️ **Hendelse 2026-09-06:** første test-OTA ble publisert fra `140f35b` — en docs-commit i
-hovedtreet — mens funksjonen som skulle testes lå på `4d00e94f`. **`git pull --ff-only` gjorde
-ingenting** fordi treet hadde en lokal commit `develop` ikke hadde, og kommandoen svarte
-«Already up to date» uten å flytte noe. **Testappen fikk en bundel uten funksjonen den skulle
-teste.**
-
-**Verifiser treet FØR publisering når du er usikker:**
-
-```sh
-git -C ~/Documents/Programmering/SiteDoc log --oneline -1
-git -C ~/Documents/Programmering/SiteDoc merge-base --is-ancestor <hash-du-vil-teste> HEAD \
-  && echo "HAR DEN" || echo "MANGLER"
-```
-
-#### 🔴 STEG 4 — VERIFISER PÅ TELEFONEN. Publisering er ikke verifisering.
-
-Tvangslukk appen **to til tre ganger** — `expo-updates` laster ned i bakgrunnen ved én oppstart
-og bytter bundel ved **neste**. ⚠️ **Målt 2026-09-06: tredje omstart var den som traff.**
-Prosedyren sa to; det holdt ikke. **Sjekk hashen, ikke antall omstarter.**
-Sjekk så **Mer**-skjermen nederst:
-
-- **Commit-hashen** skal være den du publiserte
-- 🔴 **Prosjektlista skal vise PROD-prosjekter.** Ser du et prosjekt som bare finnes på test —
-  det sikreste tegnet — er bundelen forgiftet. Rull tilbake **nå**, ikke feilsøk på telefonen.
-
-#### Tilbakerulling — minutter, ingen byggkvote
-
-```sh
-eas update:rollback
-```
-
-Valgene, i rekkefølge: **Published Update** → **Channel** → **production** → *den nyeste rene
-gruppa* → skriv en melding som sier HVORFOR («ROLLBACK: forrige bundel pekte mot api-test»).
-
-**«Published Update» framfor «Embedded Update»:** den første går til forrige publiserte bundel
-og beholder fiksene i den. Den andre går helt tilbake til JS-en i binæren og kaster dem bort.
-
-> 🔴 **Hendelsen som ga disse fire stegene (2026-09-06).** Cowork ba Kenneth kopiere `.env.test`
-> til `.env.local` for å teste mobil mot test via Expo. Expo Go viste seg inkompatibel (SDK 57
-> mot prosjektets 54), så testen ble aldri kjørt — men **fila ble liggende**, og neste kommando
-> i samme mappe var `eas update --channel production`.
->
-> Produksjonsbundelen fikk `api-test.sitedoc.no`. Kenneth oppdaget det selv da prosjektlista i
-> produksjonsappen viste testprosjekter: *«hvis dette skjer med A.Markussen er dette skikkelig
-> kritisk.»* Han har rett — 50 ansatte ville ført lovpålagt HMS-dokumentasjon inn i en database
-> som slettes.
->
-> **Feilen var coworks instruks, ikke Kenneths kjøring:** to kommandoer fra samme mappe, der den
-> første forgiftet den andre. **Lærdommen er ikke «vær forsiktig» — den er at publisering skal
-> ha et målesteg som gjør feilen synlig før den når noen.** Det er steg 2.
-
-⚠️ **Feilsøkingsfelle vi brukte en time på:** feilen ser ut som en pnpm-oppløsningsfeil og
-ligner `@expo/fingerprint`-feilen fra bygg 52. Det er den ikke. `npx expo export --platform ios`
-gir exit 0 i samme tre der `eas update` feiler — forskjellen er utelukkende web. **Mål med og
-uten web før du mistenker node_modules.**
-
-🔴 **Publiser fra et rent tre.** Er treet dirty, får update-en commit-hash med `*` og bundelen
-kan inneholde ukommittert kode. Da vet ingen etterpå hva som faktisk ble sendt.
-
-**Verifisering på enhet — det tar TO oppstarter.** `checkAutomatically: "ON_LOAD"` betyr at
-første oppstart *laster ned* oppdateringen i bakgrunnen; den *anvendes* ved neste. Drep appen
-helt, åpne, drep, åpne igjen. Ser du ingen endring etter én oppstart, er det forventet
-oppførsel — ikke en feilet update.
+> 🔴 **Hendelsen som ga målesteget (2026-09-06).** Cowork ba Kenneth kopiere `.env.test` til
+> `.env.local` for å teste mobil mot test via Expo. Expo Go var inkompatibel (SDK 57 mot prosjektets
+> 54), så testen ble aldri kjørt — men **fila ble liggende**, og neste kommando i samme mappe var
+> `eas update --channel production`. Produksjonsbundelen fikk `api-test.sitedoc.no`; Kenneth oppdaget
+> det da prosjektlista i produksjonsappen viste testprosjekter: *«hvis dette skjer med A.Markussen er
+> dette skikkelig kritisk.»* 50 ansatte ville ført lovpålagt HMS-dokumentasjon inn i en database som
+> slettes. **Feilen var coworks instruks, ikke Kenneths kjøring** — to kommandoer fra samme mappe,
+> der den første forgiftet den andre. Lærdommen er ikke «vær forsiktig», men at publisering skal ha
+> et målesteg som gjør feilen synlig før den når noen (§ 3 steg 2).
 
 🔴 **En OTA leverer bare klienten.** Arkiv-PDF-en rendres på server (`arkiv.rendr` i
 `sitedoc-api`), så en endring i `packages/pdf` når IKKE brukeren via `eas update` — den krever

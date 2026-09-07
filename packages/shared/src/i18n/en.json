@@ -2475,6 +2475,8 @@
   "prosjektoppsett.eksport.bestilt": "Queued — the archive starts building shortly",
   "prosjektoppsett.eksport.bygger": "Building archive …",
   "prosjektoppsett.eksport.byggerProgresjon": "Building archive … {{ferdig}} of {{totalt}}",
+  "prosjektoppsett.eksport.delvisFeilet_one": "{{count}} document could not be generated – see manifest.json (avgrensninger) for which one.",
+  "prosjektoppsett.eksport.delvisFeilet_other": "{{count}} documents could not be generated – see manifest.json (avgrensninger) for which ones.",
   "prosjektoppsett.eksport.klar": "Ready",
   "prosjektoppsett.eksport.utloper": "Deleted {{dato}}",
   "prosjektoppsett.eksport.feilet": "The archive could not be built",
