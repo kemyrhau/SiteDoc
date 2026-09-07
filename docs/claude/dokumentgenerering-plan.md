@@ -2,7 +2,7 @@
 tittel: Dokumentgenerering — samlet plan
 status: 🟢 STYRENDE for arkivmal/utskrift-sporet
 opprettet: 2026-08-16
-sist_verifisert_mot_kode: 2026-08-16
+sist_verifisert_mot_kode: 2026-09-07
 ---
 
 # Dokumentgenerering — samlet plan
@@ -32,6 +32,32 @@ klient-knapp, bilder under egen rad, løpenummer, seks-funn-runden.
 
 **Det eneste Kenneth fant som ikke gir mening etter siste deploy:**
 endringsloggen.
+
+## 💰 Render-kostnad pr. dokument (målt 2026-09-07)
+
+Neste person skal slippe å utlede dette på nytt. Fra BEF-001-datapunktet (73 bilder,
+7,46 s) + testprosjektet `AGENT-TEST-0001` (15 dokumenter, 12 bilder, ~15–25 s totalt):
+
+- **~1 s base pr. dokument** (HTML → pdf-render-container, browser-oppsett).
+- **~0,09 s pr. bilde** (inlining + canvas/pdfjs i containeren) — bildene dominerer.
+- **Spennet for 200 dokumenter: 3–25 min, drevet av BILDETETTHET, ikke antall.**
+  Bildefattig prosjekt (som testprosjektet, <1 bilde/dok) ≈ 3–5 min; like bildetungt
+  som BEF-001 i snitt ≈ opp mot 25 min.
+
+**Konsekvens:** prosjektarkiv-eksporten (`services/eksport/`) rendrer hvert dokument
+sekvensielt. Det er akseptabelt fordi jobben er asynkron med **live progresjon pr.
+dokument** (`antallFerdig/antallTotalt`, UI poller hvert 3. sek). Ingen parallellitet
+eller øvre grense nå — revurderes kun hvis et ekte prosjekt passerer ~10 min.
+
+## 📦 Prosjektarkiv-eksport — fase 3 levert (2026-09-07)
+
+`byggEksportArkiv` (`services/eksport/arkiv.ts`) rendrer nå hvert sjekkliste-/oppgave-/
+HMS-dokument til **én PDF pr. dokument** via samme `rendrArkivPdf`-sti som den
+interaktive nedlastingen. Før dette manglet ALL kvalitetsdokumentasjon i arkivet
+(Kenneth-funn 2026-09-07) — arkivet hadde bilder, tegninger og kvitteringer, men
+ingen sjekklister/oppgaver/HMS. Mappe etter domene (`dokumenter/sjekklister|oppgaver|hms/`),
+dokumentnummer + tittel i filnavnet (`KA7-003 – Tittel.pdf`). Papirkurv utelatt
+(`deletedAt IS NULL`). Feilet dokument → notert i manifestet, feller ikke pakken.
 
 ## 🔴 Ikke «rett» disse — de ser ut som feil og er det ikke
 
