@@ -145,6 +145,7 @@ export {
   formaterGrense,
   beregnAvvik,
   byggAvvikLinje,
+  byggKravHerkomst,
   utenforKravOppfylt,
   lesKravType,
   løsGrense,

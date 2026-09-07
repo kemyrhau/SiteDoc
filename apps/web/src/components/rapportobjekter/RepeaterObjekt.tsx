@@ -282,6 +282,11 @@ export function RepeaterObjekt({
                         ? rad.felter[barnObjekt.config.styrendeFeltId as string]?.verdi
                         : undefined
                     }
+                    styrendeFelt={
+                      typeof barnObjekt.config.styrendeFeltId === "string"
+                        ? barn.find((o) => o.id === barnObjekt.config.styrendeFeltId)
+                        : undefined
+                    }
                   />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).

@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "over krav",
   "grense.avvikUnder": "under krav",
   "grense.avvikToleranse": "utenfor toleranse",
+  "grense.herkomst": "Krav {{krav}} — følger av {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Feltet mangler etikett — gi det et navn så utfylleren ser hva som måles.",
   "malbygger.styrendeFelt": "Styrende felt",
   "malbygger.variantValg": "Valg",
   "malbygger.variantIntro": "Hvert valg kan få sitt eget tall. La feltet stå tomt for å bruke standardkravet {{krav}}.",

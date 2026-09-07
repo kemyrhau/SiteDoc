@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "over the requirement",
   "grense.avvikUnder": "under the requirement",
   "grense.avvikToleranse": "outside tolerance",
+  "grense.herkomst": "Requirement {{krav}} — follows from {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "The field has no label — give it a name so the person filling it in can see what is being measured.",
   "malbygger.styrendeFelt": "Governing field",
   "malbygger.variantValg": "Choice",
   "malbygger.variantIntro": "Each choice can get its own number. Leave the field empty to use the default requirement {{krav}}.",

@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "mbi kërkesën",
   "grense.avvikUnder": "sipas kërkesës",
   "grense.avvikToleranse": "toleranca e jashtme",
+  "grense.herkomst": "Kërkesa {{krav}} — rrjedh nga {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Fusha nuk ka etiketë - jepini një emër në mënyrë që personi që e plotëson të mund të shohë se çfarë matet.",
   "malbygger.styrendeFelt": "Fusha qeverisëse",
   "malbygger.variantValg": "Zgjedhja",
   "malbygger.variantIntro": "Çdo zgjedhje mund të marrë numrin e vet. Lëreni fushën bosh për të përdorur kërkesën e paracaktuar {{krav}}.",

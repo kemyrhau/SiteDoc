@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "ponad wymaganie",
   "grense.avvikUnder": "zgodnie z wymaganiem",
   "grense.avvikToleranse": "zewnętrzna tolerancja",
+  "grense.herkomst": "Wymaganie {{krav}} — wynika z {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Pole nie ma etykiety — nadaj mu nazwę, aby osoba wypełniająca mogła zobaczyć, co jest mierzone.",
   "malbygger.styrendeFelt": "Pole rządzące",
   "malbygger.variantValg": "Wybór",
   "malbygger.variantIntro": "Każdy wybór może otrzymać swój własny numer. Pozostaw pole puste, aby użyć wymagania domyślnego {{krav}}.",

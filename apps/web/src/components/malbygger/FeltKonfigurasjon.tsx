@@ -608,6 +608,15 @@ function GrenseKonfig({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Navnløst-felt-nudge (2026-09-07, cowork-gate): et tallfelt MED krav uten etikett viser
+          «Heltall»/«Desimaltall» i utfyllingen — utfylleren ser ikke hva som måles. Ikke-blokkerende
+          (etiketten KAN være tom, vedtak 2026-09-04 — ingen .min(1)); bare en påminnelse ved kilden. */}
+      {kravType && !harMeningsfullLabel(objekt.label) && (
+        <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] leading-relaxed text-amber-700">
+          {t("malbygger.kravUtenEtikett")}
+        </p>
+      )}
+
       {/* Kravtype i klarspråk — aldri symboler */}
       <div className="flex flex-col gap-1">
         <label className="text-xs font-medium text-gray-600">{t("malbygger.kravTypeLabel")}</label>

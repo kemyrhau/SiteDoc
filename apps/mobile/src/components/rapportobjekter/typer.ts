@@ -59,6 +59,12 @@ export interface RapportObjektProps {
    * bruker den; utelatt → standardgrense (identisk med tidligere atferd). Speiler web.
    */
   forelderVerdi?: unknown;
+  /**
+   * Vei B: det styrende feltet selv (label + options) — så utfyllingen kan si HVOR et betinget
+   * krav kom fra («Krav ≥ 25 mm — følger av Materialstatus: Delvis sortert.», `byggKravHerkomst`).
+   * Kalleren finner det i samme kontekst som `forelderVerdi`. Kun integer/decimal. Speiler web.
+   */
+  styrendeFelt?: RapportObjekt;
 }
 
 /** Radens forhåndsposisjon (drawing_position-verdi ?? dokument-fallback avgjøres av kalleren). */

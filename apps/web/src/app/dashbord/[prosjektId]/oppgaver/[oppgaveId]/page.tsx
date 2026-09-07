@@ -1011,6 +1011,11 @@ export default function OppgaveDetaljSide() {
                         ? hentFeltVerdi(objekt.config.styrendeFeltId as string).verdi
                         : undefined
                     }
+                    styrendeFelt={
+                      typeof objekt.config.styrendeFeltId === "string"
+                        ? objekter.find((o) => o.id === objekt.config.styrendeFeltId)
+                        : undefined
+                    }
                   />
                 </FeltWrapper>
               </div>

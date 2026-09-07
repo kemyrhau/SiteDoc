@@ -66,6 +66,12 @@ export interface RapportObjektProps {
    * bruker den; utelatt → standardgrense (identisk med tidligere atferd).
    */
   forelderVerdi?: unknown;
+  /**
+   * Vei B: det styrende feltet selv (label + options) — så utfyllingen kan si HVOR et betinget
+   * krav kom fra («Krav ≥ 25 mm — følger av Materialstatus: Delvis sortert.», `byggKravHerkomst`).
+   * Kalleren finner det i samme kontekst som `forelderVerdi`. Kun integer/decimal bruker det.
+   */
+  styrendeFelt?: RapportObjekt;
 }
 
 /**

@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "au-dessus de l'exigence",
   "grense.avvikUnder": "sous l'exigence",
   "grense.avvikToleranse": "hors tolérance",
+  "grense.herkomst": "Exigence {{krav}} — découle de {{felt}} : {{valg}}.",
+  "malbygger.kravUtenEtikett": "Le champ n'a pas d'étiquette : donnez-lui un nom pour que la personne qui le remplisse puisse voir ce qui est mesuré.",
   "malbygger.styrendeFelt": "Domaine directeur",
   "malbygger.variantValg": "Choix",
   "malbygger.variantIntro": "Chaque choix peut avoir son propre numéro. Laissez le champ vide pour utiliser l'exigence par défaut {{krav}}.",

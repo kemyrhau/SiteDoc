@@ -106,6 +106,38 @@ export function formaterGrense(grense: Grense): string {
 }
 
 /**
+ * Kravets HERKOMST for utfylling (2026-09-07): når et tallfelt har et BETINGET krav (Vei B,
+ * `styrendeFeltId` satt) og en variant faktisk traff, si hvor kravet kom fra — «Krav ≥ 25 mm —
+ * følger av Materialstatus: Delvis sortert.» `null` når kravet er standardkravet (ingen variant
+ * traff → ingen «følger av») eller det styrende feltet mangler navn. Delt av web + mobil
+ * (Heltall/Desimal) — bygges ÉN gang, ikke i fire komponenter. `styrende` = det styrende feltet
+ * (label + options); `forelderVerdi` = dets valgte verdi. Tar `t`-callback (pakken er i18n-fri).
+ */
+export function byggKravHerkomst(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  objekt: { config: Record<string, unknown> },
+  forelderVerdi: unknown,
+  styrende: { label: string; config: Record<string, unknown> } | undefined,
+): string | null {
+  const styrendeId = objekt.config.styrendeFeltId;
+  if (typeof styrendeId !== "string" || styrendeId === "" || !styrende) return null;
+  const varianter = objekt.config.grenseVarianter;
+  if (!Array.isArray(varianter) || forelderVerdi === null || forelderVerdi === undefined) return null;
+  const mål = normaliserOpsjon(forelderVerdi).value;
+  const traff = varianter.some(
+    (v): v is GrenseVariant => !!v && typeof v === "object" && normaliserOpsjon((v as GrenseVariant).valg).value === mål,
+  );
+  if (!traff) return null; // standardkravet gjelder → ingen herkomstlinje
+  const kravTekst = formaterGrense(løsGrense(objekt, forelderVerdi));
+  if (!kravTekst) return null;
+  const feltLabel = styrende.label.trim();
+  if (feltLabel === "") return null; // navnløst styrende felt → herkomsten ville pekt i løse lufta
+  const opsjoner = ((styrende.config.options as unknown[]) ?? []).map(normaliserOpsjon);
+  const valgtLabel = opsjoner.find((o) => o.value === mål)?.label ?? mål;
+  return t("grense.herkomst", { krav: kravTekst, felt: feltLabel, valg: valgtLabel });
+}
+
+/**
  * Avviksfelt-utløser (grenseresolver trinn 3 del C): er forelderens (tallfeltets) målte verdi
  * UTENFOR kravet? Delt av alle fire synlighets-hooks (web+mobil × sjekkliste+oppgave) så
  * evalueringen ikke skrives fire ganger. `forelderVerdi` er tallfeltets egen verdi; `hentVerdi`

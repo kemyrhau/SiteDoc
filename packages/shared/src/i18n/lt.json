@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "virš reikalavimo",
   "grense.avvikUnder": "pagal reikalavimą",
   "grense.avvikToleranse": "išorinė tolerancija",
+  "grense.herkomst": "Reikalavimas {{krav}} – išplaukia iš {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Laukas neturi etiketės – suteikite jam pavadinimą, kad jį užpildantis asmuo matytų, kas matuojama.",
   "malbygger.styrendeFelt": "Valdymo laukas",
   "malbygger.variantValg": "Pasirinkimas",
   "malbygger.variantIntro": "Kiekvienas pasirinkimas gali gauti savo numerį. Palikite lauką tuščią, kad galėtumėte naudoti numatytąjį reikalavimą {{krav}}.",

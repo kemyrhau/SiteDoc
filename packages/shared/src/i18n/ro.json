@@ -2325,6 +2325,8 @@
   "grense.avvikOver": "peste cerință",
   "grense.avvikUnder": "sub cerință",
   "grense.avvikToleranse": "toleranta in afara",
+  "grense.herkomst": "Cerința {{krav}} — rezultă din {{felt}}: {{valg}}.",
+  "malbygger.kravUtenEtikett": "Câmpul nu are etichetă - dați-i un nume, astfel încât persoana care îl completează să poată vedea ce se măsoară.",
   "malbygger.styrendeFelt": "Domeniul de guvernare",
   "malbygger.variantValg": "Alegere",
   "malbygger.variantIntro": "Fiecare alegere poate primi propriul număr. Lăsați câmpul necompletat pentru a utiliza cerința implicită {{krav}}.",
