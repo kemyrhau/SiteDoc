@@ -23,5 +23,5 @@ ALTER TABLE "reisetid_matrise" ADD COLUMN "avstand_m" INTEGER;
 -- reise_terskel_enhet: 'minutter' | 'km'. Default 'minutter' (se over).
 -- reise_terskel_m: aktiv KUN når enhet = 'km' (7,5 km lagres som 7500). Nullable
 -- — minutter-firmaer har den ikke.
-ALTER TABLE "organization_setting" ADD COLUMN "reise_terskel_enhet" TEXT NOT NULL DEFAULT 'minutter';
-ALTER TABLE "organization_setting" ADD COLUMN "reise_terskel_m" INTEGER;
+ALTER TABLE "organization_settings" ADD COLUMN "reise_terskel_enhet" TEXT NOT NULL DEFAULT 'minutter';
+ALTER TABLE "organization_settings" ADD COLUMN "reise_terskel_m" INTEGER;
