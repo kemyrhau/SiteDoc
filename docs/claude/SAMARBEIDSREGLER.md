@@ -879,17 +879,19 @@ påstand.*
 cd ~/Documents/Programmering/SiteDoc && \
 pnpm typecheck > /tmp/tc.log 2>&1;   echo "typecheck exit=$?"; tail -5 /tmp/tc.log
 pnpm test      > /tmp/test.log 2>&1; echo "test exit=$?";      grep -E "Test Files|Tests |FAIL" /tmp/test.log | tail -5
-# begge exit=0 → så, og først da:
-./deploy-test.sh
 ```
+
+Går gaten grønt (begge `exit=0`), se [DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md) — `deploy-test.sh <hash>` (hash-argumentet er påkrevd; scriptet avbryter uten det).
 
 Trengs én selv-avbrytende kjede, må `set -o pipefail` stå først — uten den propagerer ingen
 pipe feilkoden:
 
 ```bash
 set -o pipefail && cd ~/Documents/Programmering/SiteDoc && \
-pnpm typecheck 2>&1 | tail -5 && pnpm test 2>&1 | tail -5 && ./deploy-test.sh
+pnpm typecheck 2>&1 | tail -5 && pnpm test 2>&1 | tail -5
 ```
+
+Går gaten grønt, se [DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md).
 
 **Generell regel:** en `&&`-kjede der leddene inneholder `|` gater ikke uten `pipefail`. Skriver
 du en gate, mål at den faktisk stopper — kjør den mot noe som feiler før du stoler på den.
