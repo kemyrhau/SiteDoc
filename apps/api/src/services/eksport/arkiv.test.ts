@@ -1,22 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * Kontrakt for arkiv-orkestreringen. Mocker filsamling/CSV/fs slik at vi
+ * Kontrakt for arkiv-orkestreringen. Mocker filsamling/fs slik at vi
  * deterministisk kan teste: manifest-konvolutt, fil→domeneobjekt-binding,
  * dedup av kolliderende arkiv-stier, manglende-fil-markering (feller ikke),
- * CSV-innslag, og guards.
+ * at timer/utlegg ALDRI havner i arkivet, og guards.
  */
 
 const filer = vi.hoisted(() => ({ samleProsjektFiler: vi.fn() }));
-const csv = vi.hoisted(() => ({
-  byggTimerCsv: vi.fn(),
-  byggUtleggCsv: vi.fn(),
-  tellTimerOgUtlegg: vi.fn(),
-}));
 const fs = vi.hoisted(() => ({ stat: vi.fn() }));
 
 vi.mock("./filer", () => filer);
-vi.mock("./csv", () => csv);
 vi.mock("fs/promises", () => fs);
 vi.mock("./felles", () => ({ diskSti: (u: string) => "/disk" + u, UPLOADS_DIR: "/disk/uploads" }));
 
@@ -42,7 +36,6 @@ const JOBB = { id: "j1", projectId: "p1", bestiltAvUserId: "u1" };
 beforeEach(() => {
   vi.clearAllMocks();
   filer.samleProsjektFiler.mockResolvedValue([]);
-  csv.tellTimerOgUtlegg.mockResolvedValue({ timer: 0, utlegg: 0 });
   fs.stat.mockResolvedValue({ size: 111 });
 });
 
@@ -94,19 +87,23 @@ describe("byggEksportArkiv — orkestrering", () => {
     expect(manifest.innhold[0]).toMatchObject({ mangler: true, arkivSti: null });
   });
 
-  it("CSV legges kun når det finnes rader", async () => {
-    csv.tellTimerOgUtlegg.mockResolvedValue({ timer: 3, utlegg: 0 });
-    csv.byggTimerCsv.mockResolvedValue("csv-innhold");
+  it("timer og utlegg havner ALDRI i arkivet (firmadata — Kenneth-vedtak 2026-09-06)", async () => {
+    // Selv med kvittering-filer (som BLIR med) skal ingen timer/- eller utlegg/-sti
+    // eller CSV-innslag dukke opp, og manifestet skal si det bevisst under avgrensninger.
+    filer.samleProsjektFiler.mockResolvedValue([
+      { kategori: "kvittering-utlegg", fileUrl: "/uploads/kv.pdf", mappe: "filer/kvitteringer", visningsnavn: "kvittering.pdf", storrelse: 20, opprettet: "2026-01-02T00:00:00Z", tilknyttet: { type: "utlegg", id: "u1", navn: null } },
+    ]);
     const a = arkivMock();
     const s = await byggEksportArkiv(fakePrisma(), {} as never, JOBB, a as never);
 
-    expect(csv.byggTimerCsv).toHaveBeenCalledOnce();
-    expect(csv.byggUtleggCsv).not.toHaveBeenCalled();
-    const csvNavn = a.append.mock.calls.map((c) => c[1].name);
-    expect(csvNavn).toContain("timer/998-timer.csv");
-    expect(s.antallTimerRader).toBe(3);
+    const alleNavn = [...a.append.mock.calls, ...a.file.mock.calls].map((c) => c[1].name);
+    expect(alleNavn.some((n) => n.startsWith("timer/"))).toBe(false);
+    expect(alleNavn.some((n) => n.startsWith("utlegg/"))).toBe(false);
+    expect(alleNavn).toContain("filer/kvitteringer/kvittering.pdf"); // kvittering BLIR med
     const manifest = JSON.parse(a.append.mock.calls.find((c) => c[1].name === "manifest.json")![0]);
-    expect(manifest.csv).toEqual([{ kategori: "timer-csv", arkivSti: "timer/998-timer.csv", antallRader: 3 }]);
+    expect(manifest.csv).toBeUndefined();
+    expect(manifest.avgrensninger.some((a: string) => a.includes("Timeregistrering"))).toBe(true);
+    expect(s).not.toHaveProperty("antallTimerRader");
   });
 
   it("kaster hvis projectId mangler / prosjekt ikke finnes", async () => {
