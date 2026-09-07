@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { samleRepeaterMarkorer } from "./tegningsmarkorer";
+import sharp from "sharp";
+import { samleRepeaterMarkorer, malBildeDimensjoner } from "./tegningsmarkorer";
 import type { TreObjekt, FeltVerdi } from "@sitedoc/pdf";
 
 const obj = (id: string, type: string, children: TreObjekt[] = []): TreObjekt =>
@@ -55,5 +56,18 @@ describe("samleRepeaterMarkorer — rekursiv innsamling (D2b)", () => {
     expect(m.map((x) => x.drawingId)).toEqual(["A"]);
     // B (doc-lokasjon) legges i tegning-settet via `sjekkliste.drawingId`, så BEGGE
     // tegninger havner i PDF-en (A som helside, B som dokument-lokasjon).
+  });
+});
+
+describe("malBildeDimensjoner — sideforhold-fallback når Drawing.imageWidth/Height mangler", () => {
+  it("rektangulært bilde → nøyaktige piksler (mater viewBoxen med ekte aspect)", async () => {
+    const png = await sharp({ create: { width: 800, height: 450, channels: 3, background: "#888888" } })
+      .jpeg()
+      .toBuffer();
+    expect(await malBildeDimensjoner(png)).toEqual({ bredde: 800, hoyde: 450 });
+  });
+
+  it("ugyldige bytes → null (rendreren beholder da fallback-grenen, kaster ikke)", async () => {
+    expect(await malBildeDimensjoner(Buffer.from("ikke et bilde"))).toBeNull();
   });
 });
