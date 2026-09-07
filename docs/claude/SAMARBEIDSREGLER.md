@@ -1208,15 +1208,15 @@ git rev-parse --verify origin/<branch> >/dev/null 2>&1 && \
 ! git merge-base --is-ancestor origin/<branch> origin/develop && \
 git reset --hard origin/develop && \
 git merge --no-ff origin/<branch> -m "merge: …" && \
-git push origin merge-restart:develop && \
-cd ~/Documents/Programmering/SiteDoc && git pull --ff-only && ./deploy-test.sh
+git push origin merge-restart:develop
+# ← agenten stopper HER. Deploy er Kenneths: se DEPLOY-RUNBOK § 1
 ```
 
 Linje 2 stopper hvis branchen ikke er pushet, linje 3 hvis den allerede er i develop. Uten dem bygger Kenneth uendret kode i seks minutter og tror knappen er på test.
 
-🔴 **Kjeden over er skrevet for Kenneth og ender i deploy. Merge-agenten kjører den KUN til og med
-`push origin merge-restart:develop`** (§ MERGE-AGENTEN, fence 1) — `deploy-test.sh` og alt med
-`sudo` er Kenneths, alltid. Kjører agenten siste ledd, har den deployet noe ingen har gatet.
+🔴 **Kjeden stopper ved `push origin merge-restart:develop` — der slutter merge-agentens jobb**
+(§ MERGE-AGENTEN, fence 1). `deploy-test.sh` og alt med `sudo` er Kenneths, alltid — kommandoløypa
+bor i [DEPLOY-RUNBOK § 1](DEPLOY-RUNBOK.md). Deployer agenten selv, har den sendt ut noe ingen har gatet.
 
 **Verifiser mergen mot agentens hash — ikke mot merge-commitens (2026-08-16).** Merge-commiten får alltid en **ny** hash; den skal ikke matche den agenten melder. Merge-commiten *peker på* agentens commit, den erstatter den ikke. Kenneth kunne derfor ikke selv se om en merge tok med arbeidet. Én kommando svarer:
 
