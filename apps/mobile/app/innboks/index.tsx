@@ -10,7 +10,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus, Search, SlidersHorizontal, X } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ClipboardCheck,
+  ListTodo,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
@@ -18,10 +25,12 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
-import { MalVelger } from "../../src/components/MalVelger";
-import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
+import {
+  MedUtheving,
+  formaterNummer,
+} from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import {
   antallAktiveFilter,
   byggAlternativer,
@@ -30,30 +39,21 @@ import {
   type DokumentRad,
   type Sortering,
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
-import { MedUtheving, formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 
-interface MalData {
-  id: string;
-  name: string;
-  prefix: string | null;
-  category: string;
-  opprettbareFlytIder?: string[];
-}
+// Samme definisjon av «aktivt» som hjem-innboksen (hjem.tsx). Endres den, endres
+// begge fra samme sted — denne skjermen ER hjem-innboksen utfoldet.
+const AKTIVE_STATUSER = ["sent", "received", "in_progress"];
 
-export default function SjekklisteListe() {
+type DokType = "sjekkliste" | "oppgave";
+
+export default function InnboksListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [visVelger, settVisVelger] = useState(false);
-  const [valgtMal, settValgtMal] = useState<MalData | null>(null);
   const [statusFilter, settStatusFilter] = useState<string | null>(null);
-
-  // Dokumentsøk + filter + sortering (dokumentliste-nivå-tilstand). Overlever
-  // navigasjon inn/ut av et dokument (skjermen forblir montert i stacken);
-  // nullstilles ved prosjektbytte (effekt under).
   const [søkeAktiv, settSøkeAktiv] = useState(false);
   const [søketekst, settSøketekst] = useState("");
   const [filterVerdier, settFilterVerdier] = useState<Record<string, string>>({});
@@ -61,7 +61,7 @@ export default function SjekklisteListe() {
   const [visSheet, settVisSheet] = useState(false);
 
   useEffect(() => {
-    // Bytte av prosjekt nullstiller søk/filter/sortering (fabel-designlås pkt 6).
+    // Prosjektbytte nullstiller søk/filter/sortering (fabel-designlås pkt 6).
     settSøkeAktiv(false);
     settSøketekst("");
     settFilterVerdier({});
@@ -71,8 +71,10 @@ export default function SjekklisteListe() {
 
   const søkerNaa = søkeAktiv && søketekst.trim().length > 0;
 
-  // Søk overstyrer byggeplassfilteret: søker man, hentes HELE prosjektet så et
-  // dokument aldri er usynlig pga. valgt kontekst (fabel-designlås pkt 3).
+  // Gjenbruker de to eksisterende per-type-kallene (som hjem-innboksen) — ingen
+  // eget endepunkt. Under søk droppes byggeplass for sjekklister så hele
+  // prosjektet treffes (speiler sjekkliste/index.tsx). Oppgaver er ikke
+  // byggeplass-scopet i hjem-innboksen, så heller ikke her.
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
     {
       projectId: valgtProsjektId!,
@@ -80,26 +82,44 @@ export default function SjekklisteListe() {
     },
     { enabled: !!valgtProsjektId },
   );
+  const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
 
   const sjekklister = sjekklisteQuery.data as DokumentRad[] | undefined;
+  const oppgaver = oppgaveQuery.data as DokumentRad[] | undefined;
+
+  // Slå sammen til én aktiv liste + hold en id→type-oppslag for rad-ikonet
+  // (filtrerOgSorter returnerer DokumentRad[] og bærer ikke typen videre).
+  const { aktive, typeMap } = useMemo(() => {
+    const map = new Map<string, DokType>();
+    const rader: DokumentRad[] = [];
+    for (const s of sjekklister ?? []) {
+      if (!AKTIVE_STATUSER.includes(s.status)) continue;
+      map.set(s.id, "sjekkliste");
+      rader.push(s);
+    }
+    for (const o of oppgaver ?? []) {
+      if (!AKTIVE_STATUSER.includes(o.status)) continue;
+      map.set(o.id, "oppgave");
+      rader.push(o);
+    }
+    return { aktive: rader, typeMap: map };
+  }, [sjekklister, oppgaver]);
 
   const tilgjengeligeStatuser = useMemo(
-    () => Array.from(new Set((sjekklister ?? []).map((s) => s.status))),
-    [sjekklister],
+    () => Array.from(new Set(aktive.map((r) => r.status))),
+    [aktive],
   );
   const effektivStatus =
     statusFilter && tilgjengeligeStatuser.includes(statusFilter) ? statusFilter : null;
 
-  // Alternativer bygges fra HELE (status-uavhengige) lista — så et nedtrekk aldri
-  // skjuler et valg som finnes (målt: mobil henter hele lista, ingen paginering).
-  const alternativer = useMemo(() => byggAlternativer(sjekklister ?? []), [sjekklister]);
+  const alternativer = useMemo(() => byggAlternativer(aktive), [aktive]);
 
   const etterStatus = useMemo(
-    () =>
-      effektivStatus
-        ? (sjekklister ?? []).filter((s) => s.status === effektivStatus)
-        : sjekklister ?? [],
-    [sjekklister, effektivStatus],
+    () => (effektivStatus ? aktive.filter((r) => r.status === effektivStatus) : aktive),
+    [aktive, effektivStatus],
   );
 
   const synlige = useMemo(
@@ -108,14 +128,15 @@ export default function SjekklisteListe() {
   );
 
   const antallFilter = antallAktiveFilter(filterVerdier);
-  const totalt = sjekklister?.length ?? 0;
+  const totalt = aktive.length;
+  const laster = sjekklisteQuery.isLoading || oppgaveQuery.isLoading;
+  const refresher = sjekklisteQuery.isRefetching || oppgaveQuery.isRefetching;
 
   const søkeTokens = useMemo(
     () => (søkerNaa ? søketekst.trim().split(/\s+/).filter((tk) => tk.length >= 2) : []),
     [søkerNaa, søketekst],
   );
 
-  // Fjernbare filter-chips over lista (fabel-designlås pkt 6).
   const aktiveChips = useMemo(() => {
     const chips: { kolId: string; value: string; label: string }[] = [];
     for (const kolId of FILTER_KOLONNER) {
@@ -165,6 +186,7 @@ export default function SjekklisteListe() {
 
   const renderElement = useCallback(
     ({ item }: { item: DokumentRad }) => {
+      const type = typeMap.get(item.id) ?? "sjekkliste";
       const nummer = formaterNummer(item.template?.prefix, item.number);
       const undertekst = [
         item.template?.name === item.title ? null : item.template?.name,
@@ -173,17 +195,20 @@ export default function SjekklisteListe() {
         .filter(Boolean)
         .join(" · ");
 
-      // Kontekst-regel: HVER rad merkes når konteksten er bredere enn objektets hjem
-      // — «Hele prosjektet», eller under søk (som treffer hele prosjektet). Ellers
-      // (byggeplass valgt) merkes kun prosjekt-dokumenter grå.
-      const erProsjektDok = item.byggeplass == null;
-      const visBadge = søkerNaa || valgtBygningId == null || erProsjektDok;
-
       return (
         <Pressable
-          onPress={() => router.push(`/sjekkliste/${item.id}`)}
+          onPress={() =>
+            router.push(type === "oppgave" ? `/oppgave/${item.id}` : `/sjekkliste/${item.id}`)
+          }
           className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3"
         >
+          <View className="mr-3">
+            {type === "sjekkliste" ? (
+              <ClipboardCheck size={18} color="#6b7280" />
+            ) : (
+              <ListTodo size={18} color="#6b7280" />
+            )}
+          </View>
           <View className="flex-1">
             <View className="flex-row">
               {nummer ? <Text className="text-sm font-bold text-gray-900">{nummer} </Text> : null}
@@ -192,28 +217,17 @@ export default function SjekklisteListe() {
             {undertekst ? (
               <MedUtheving tekst={undertekst} tokens={søkeTokens} className="mt-0.5 text-xs text-gray-500" />
             ) : null}
-            {visBadge ? (
-              <Text
-                className={
-                  erProsjektDok
-                    ? "mt-1 self-start rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500"
-                    : "mt-1 self-start rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
-                }
-              >
-                {erProsjektDok ? t("kontekstChip.heleProsjektet") : item.byggeplass!.name}
-              </Text>
-            ) : null}
           </View>
           <StatusMerkelapp status={item.status} />
         </Pressable>
       );
     },
-    [router, t, valgtBygningId, søkerNaa, søkeTokens],
+    [router, typeMap, søkeTokens],
   );
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
-      {/* Header — søkefeltet ERSTATTER header-raden (fabel-mockup panel 2). */}
+      {/* Header — søkefeltet ERSTATTER header-raden (samme mønster som sjekklistelista). */}
       {søkeAktiv ? (
         <View className="flex-row items-center gap-2 bg-sitedoc-blue px-4 py-2.5">
           <View className="flex-1 flex-row items-center rounded-lg bg-white px-3 py-2">
@@ -230,10 +244,7 @@ export default function SjekklisteListe() {
               returnKeyType="search"
             />
           </View>
-          <Pressable
-            onPress={() => { settSøkeAktiv(false); settSøketekst(""); }}
-            hitSlop={10}
-          >
+          <Pressable onPress={() => { settSøkeAktiv(false); settSøketekst(""); }} hitSlop={10}>
             <Text className="text-sm text-white">{t("handling.avbryt")}</Text>
           </Pressable>
         </View>
@@ -243,25 +254,18 @@ export default function SjekklisteListe() {
             <Pressable onPress={() => router.back()} hitSlop={12}>
               <ArrowLeft size={22} color="#ffffff" />
             </Pressable>
-            <Text className="ml-3 text-lg font-semibold text-white">
-              {t("nav.sjekklister")}
-            </Text>
+            <Text className="ml-3 text-lg font-semibold text-white">{t("nav.innboks")}</Text>
           </View>
-          <View className="flex-row items-center gap-4">
-            <Pressable onPress={() => settSøkeAktiv(true)} hitSlop={12}>
-              <Search size={22} color="#ffffff" />
-            </Pressable>
-            <Pressable onPress={() => settVisVelger(true)} hitSlop={12}>
-              <Plus size={24} color="#ffffff" />
-            </Pressable>
-          </View>
+          <Pressable onPress={() => settSøkeAktiv(true)} hitSlop={12}>
+            <Search size={22} color="#ffffff" />
+          </Pressable>
         </View>
       )}
 
       {/* Global byggeplass-chip — skjules under søk (søk treffer hele prosjektet). */}
       {!søkerNaa && <ByggeplassChip />}
 
-      {/* Status-trakt (chips) + filter-trakt (Excel-mønster: nøytral / fylt m/teller). */}
+      {/* Status-trakt (chips) + filter-trakt. */}
       <View className="flex-row items-center border-b border-gray-100 bg-white">
         <View className="flex-1">
           <StatusFilterRad
@@ -284,7 +288,7 @@ export default function SjekklisteListe() {
         </Pressable>
       </View>
 
-      {/* Fjernbare filter-chips + «Viser N av M» — aldri usynlig AT lista er filtrert. */}
+      {/* Fjernbare filter-chips + «Viser N av M». */}
       {antallFilter > 0 && (
         <View className="border-b border-gray-100 bg-white px-4 py-2">
           <View className="flex-row flex-wrap gap-1.5">
@@ -309,7 +313,7 @@ export default function SjekklisteListe() {
         </View>
       )}
 
-      {sjekklisteQuery.isLoading ? (
+      {laster ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>
@@ -320,12 +324,7 @@ export default function SjekklisteListe() {
           keyExtractor={(item) => item.id}
           renderItem={renderElement}
           keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={sjekklisteQuery.isRefetching}
-              onRefresh={onRefresh}
-            />
-          }
+          refreshControl={<RefreshControl refreshing={refresher} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <View className="items-center px-4 pt-20">
               <Text className="text-base text-gray-500">
@@ -333,7 +332,7 @@ export default function SjekklisteListe() {
                   ? t("dokumentsok.ingenTreff")
                   : effektivStatus || antallFilter > 0
                     ? t("tom.ingenMatcherFilter")
-                    : t("tom.ingenSjekklister")}
+                    : t("hjem.ingenInnboks")}
               </Text>
             </View>
           }
@@ -350,28 +349,6 @@ export default function SjekklisteListe() {
         onSettSortering={settSortering}
         onNullstill={nullstillFilter}
         onLukk={() => settVisSheet(false)}
-      />
-
-      <MalVelger
-        synlig={visVelger && !valgtMal}
-        kategori="sjekkliste"
-        onVelg={(mal) => {
-          settVisVelger(false);
-          settValgtMal(mal);
-        }}
-        onLukk={() => settVisVelger(false)}
-      />
-
-      <OpprettDokumentModal
-        synlig={!!valgtMal}
-        kategori="sjekkliste"
-        mal={valgtMal ?? { id: "", name: "", prefix: null, category: "" }}
-        onOpprettet={(id) => {
-          settValgtMal(null);
-          queryClient.invalidateQueries();
-          router.push(`/sjekkliste/${id}`);
-        }}
-        onLukk={() => settValgtMal(null)}
       />
     </SafeAreaView>
   );
