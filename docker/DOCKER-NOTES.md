@@ -149,13 +149,9 @@ Krav ved deploy (test OG prod, FØR Fase 1 kjører i miljøet):
 
 `docker/pdf-render/server.mjs` fikk en valgfri `landscape`-param (default `false` → stående; arkiv-PDF-veien sender den ikke og er bevislig uendret). Timer-rapportens liggende byggherredokument (`orientering=liggende`/`auto`) trenger den.
 
-🔴 **pdf-render er DELT MELLOM PROD OG TEST** — tjenesten er kun definert i `docker-compose.yml` (prod); `docker-compose.test.yml` peker på samme via `PDF_URL: http://pdf-render:3304`. Det finnes ingen egen test-pdf-render. **Vanlige api/web-deploys bruker `--no-deps` og rører den IKKE.** Liggende virker derfor ikke før containeren rebygges:
+🔴 **pdf-render er DELT MELLOM PROD OG TEST** — tjenesten er kun definert i `docker-compose.yml` (prod); `docker-compose.test.yml` peker på samme via `PDF_URL: http://pdf-render:3304`. Det finnes ingen egen test-pdf-render. **Vanlige api/web-deploys bruker `--no-deps` og rører den IKKE.** Liggende (og enhver pdf-render-endring) virker derfor ikke før containeren rebygges — **rebuild-kommandoen bor i [DEPLOY-RUNBOK.md § 2 steg 5c](../docs/claude/DEPLOY-RUNBOK.md).**
 
-```
-sudo docker compose -f docker/docker-compose.yml up -d --build --no-deps pdf-render
-```
-
-Eget, eksplisitt steg Kenneth gater — ikke ta det med i en samlet api/web-deploy. Ingen annen atferdsendring i containeren i samme runde (kun denne ene parameteren).
+Eget, eksplisitt steg Kenneth gater — ikke ta det med i en samlet api/web-deploy.
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

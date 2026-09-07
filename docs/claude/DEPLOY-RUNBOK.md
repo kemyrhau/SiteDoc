@@ -122,6 +122,35 @@ curl -s https://api.sitedoc.no/version
 🔴 **Og deretter som INNLOGGET bruker på `https://sitedoc.no/dashbord`** — prosjektlista skal
 laste med data. **Anonym 200 er ikke verifisering** (vedtak 2026-05-02).
 
+### Steg 5b — bekreft at koden FAKTISK er i imaget (ved tvil)
+
+En grønn deploy-logg beviser ikke at imaget har koden din. Bygger rsync fra et tre som lå bak,
+cacher Docker et gammelt image uten at noe feiler (målt 2026-08-21 — «build» på 3,8 s, alt cached,
+fiksen ikke med). Grep etter en distinkt streng fra endringen i den KJØRENDE containeren:
+
+```sh
+ssh -t server-ny 'sudo docker exec sitedoc-web grep -c "<distinkt streng>" /app/apps/web/src/<fil>'
+```
+
+🔴 **Grep KILDEN, aldri et kompilat.** Api-runtime kjører `tsx src/server.ts` direkte — `dist/`
+startes aldri, og `packages/pdf` har intet byggetrinn (`main`/`types`/`exports` peker alle på
+`./src`). Arkiv-PDF-endringer verifiseres i **api**-containeren, som er den som rendrer:
+
+```sh
+ssh -t server-ny 'sudo docker exec sitedoc-api grep -c "<distinkt streng>" /app/packages/pdf/src/arkivmal/<fil>.ts'
+```
+
+Svarer den `0`, kjører imaget gammel kode uansett hva loggen sa. (Test: samme teknikk mot
+`sitedoc-test-web` / `sitedoc-test-api`.)
+
+### Steg 5c — pdf-render er egen container
+
+Endrer du bare pdf-render-tjenesten, bygg og start den alene (den deler ikke image med api/web):
+
+```sh
+ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --build --no-deps pdf-render'
+```
+
 ### 🔴 Steg 6 — GÅ TILBAKE TIL DEVELOP
 
 ```sh
@@ -262,6 +291,50 @@ merge til develop  →  test-deploy  →  Kenneth verifiserer på test
 flatene selv — uleselige tegninger, lønnsdata i arkivet, uforklart manifest, krav som endret seg
 under føttene, og dokumentene som ikke var i arkivet i det hele tatt. **Ingen av dem kunne build
 eller typecheck ha fanget.**
+
+# 6 · Rollback — når noe er ute og feiler
+
+## api/web nede etter en daemon-restart
+
+Docker-daemonen kan restarte (typisk en automatisk pakkeoppgradering) og ta containerne med seg.
+`restart: unless-stopped` restarter dem **ikke** pålitelig etter en daemon-restart — `restart: always`
+ville gjort det (ni forekomster er ikke endret ennå). 2026-08-14 tok dette prod ned i **~6 timer**
+før noen oppdaget det, fordi ingenting varsler. (Åpent tiltak: en cron mot `/version` som varsler.)
+
+**Berging — postgres FØRST.** Alt annet feiler uten den, og feilene ser ut som nettverks- eller
+auth-problemer (`Can't reach database server`, `error=Configuration`) — ikke som «databasen er nede»:
+
+```sh
+ssh -t server-ny 'cd ~/stack/postgres && sudo docker compose up -d'
+ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-api sitedoc-web pdf-render'
+ssh -t server-ny 'cd ~/stack/salsaklubb && sudo docker compose up -d'
+ssh -t server-ny 'sudo docker start sitedoc-embed sitedoc-oversettelse'   # eget compose-prosjekt «docker» → navnekonflikt ved `up`
+```
+
+**Diagnose ved mistanke om daemon-restart:**
+
+```sh
+ssh -t server-ny 'sudo docker ps --format "{{.Names}}\t{{.Status}}"'   # forventet: 10 containere
+ssh -t server-ny 'sudo systemctl show docker --property=ActiveEnterTimestamp; uptime'
+```
+
+Er `ActiveEnterTimestamp` nyere enn containernes oppetid, har daemonen restartet.
+
+## OTA — rull tilbake en forgiftet eller feil bundel
+
+Minutter, ingen byggkvote. Gjelder KUN mobil-JS (kanal `production`/`test`), ikke api/web.
+
+```sh
+cd ~/Documents/Programmering/SiteDoc/apps/mobile && eas update:rollback
+```
+
+Valgene, i rekkefølge: **Published Update** → **Channel** → **production** → *den nyeste RENE
+gruppa* → skriv en melding som sier HVORFOR («ROLLBACK: forrige bundel pekte mot api-test»).
+
+🔴 **«Published Update», ikke «Embedded Update».** Den første går til forrige publiserte bundel og
+beholder fiksene i den; den andre kaster helt tilbake til JS-en i binæren og mister dem.
+
+---
 
 ## Hvor bakgrunnen bor
 

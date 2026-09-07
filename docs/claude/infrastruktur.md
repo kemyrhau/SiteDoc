@@ -104,20 +104,12 @@ Dette er grunnen til at regel 2 finnes.
 
 ## Deployment
 
-Server-git er ikke satt opp ennå, så deploy går via rsync fra Mac + Docker-bygg på server-ny:
+🔴 **Deploy-kommandoene bor i [DEPLOY-RUNBOK.md § 1 (test) / § 2 (prod)](DEPLOY-RUNBOK.md)**
+(`deploy-test.sh <hash>` / `deploy-prod.sh` — rsync + de ferdig utfylte `ssh -t`-kommandoene Kenneth
+limer). Deploy-mekanikkens *hvorfor* (compose-prosjektnavn, postgres-container-navn, migrate-gate på
+db-navn, `-c`-vs-`-lc`) bor i [docker/DOCKER-NOTES.md § Deploy-mekanikk](../../docker/DOCKER-NOTES.md).
 
-```bash
-git push                                  # fra Mac (kildekontroll)
-rsync -a --exclude node_modules --exclude .next --exclude .git \
-  ~/Documents/Programmering/SiteDoc/ server-ny:stack/sitedoc/
-ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --build'
-```
-
-**Viktig:**
-- `ssh -t` (TTY) kreves for at `sudo` skal kunne lese passord. **Opus/kontroll-Claude-skall er ikke-interaktive → kan IKKE kjøre `sudo`** (`ssh -t … sudo` og `sudo -n` feiler begge på passord). **Kenneth kjører alle `sudo docker`-steg via `!`-prefiks** (ekte TTY); Opus kjører native `git`/`rsync` selv. Full deploy-mekanikk + lærdommer: [docker/DOCKER-NOTES.md § Deploy-mekanikk](../../docker/DOCKER-NOTES.md).
-- **Compose-prosjekt:** kjørende prod-containere er prosjekt `docker` (ikke `sitedoc` fra `name:`-linja) → bruk **`-p docker`** ved `compose`-kommandoer, ellers navnekonflikt. Deploy kun api+web: `up -d --no-deps sitedoc-api sitedoc-web` (rør ikke embed/oversettelse).
-- **Postgres-container:** heter `postgres`, ikke `sitedoc-postgres` — finn via `docker ps --format '{{.Names}}' | grep postgres`.
-- Prisma-endringer: de fire klientene (db/db-maskin/db-timer/db-varelager) genereres i `Dockerfile.api`-bygget, men `prisma migrate deploy` mot Postgres-containeren er **ikke automatisert ennå** — kjøres manuelt via engangs-container (`compose run --rm --no-deps --entrypoint sh sitedoc-api -c '…'`, bruk `-c` IKKE `-lc` — login-shell tømmer `$DATABASE_URL`), gated på db-navn (prod `/sitedoc`, test `sitedoc_test`). Se DOCKER-NOTES § Deploy-mekanikk pkt. 5.
+- **Opus/kontroll-Claude-skall er ikke-interaktive → kan IKKE kjøre `sudo`** (`ssh -t … sudo` og `sudo -n` feiler begge på passord). **Kenneth kjører alle `sudo docker`-steg via `!`-prefiks** (ekte TTY); Opus kjører native `git`/`rsync` selv.
 - Rebuild/restart gir et kort avbrudd — varsle ved aktivitet. (Additive migreringer kan kjøres null-nedetid: build → migrate → `up --no-deps api web`; gammel api kjører OLD-klient under migrate.)
 - Cutover (DNS-flytt) for `sitedoc.no`/`api.sitedoc.no` gjøres via **Cloudflare-dashboard** (egen sone — cloudflared CLI ruter feil her, jf. salsaklubb-lærdom).
 
@@ -238,19 +230,10 @@ inngående offentlige porter**.
 Docker- og Tailscale-kjeder). Det finnes allerede `raw`-drops som beskytter
 `127.0.0.1`-portene mot spoofing fra ikke-`lo`.
 
-**🟡 Anbefalt, ikke gjort (defense-in-depth, ingen hast siden intet er eksponert):**
-
-```sh
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow in on lo
-sudo ufw allow in on tailscale0    # MÅ stå FØR enable — ellers lockout
-sudo ufw enable
-```
-
-⚠️ **Kjør kun med fysisk konsoll tilgjengelig.** `allow outgoing` er påkrevd —
-cloudflared, Tailscale, Open-Meteo, Resend, embed/oversettelse og docker-pull er alle
-utgående.
+**🟡 Anbefalt, ikke gjort (defense-in-depth, ingen hast siden intet er eksponert):** ufw-oppsettet
+(kommandoene + «kun med fysisk konsoll»-advarselen) bor i
+[ny-server-veileder.md § 6 Brannmur](ny-server-veileder.md) — det er serverherding, hører til
+provisjonering.
 
 **SSH-detalj:** port 22 holdes av **`ssh.socket`** (systemd socket-activation), ikke av
 en kjørende `sshd` — `systemctl is-active ssh sshd` gir `inactive`. Konsekvens:
@@ -311,7 +294,7 @@ Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret 
 
 > ✅ **Denne (server-ny) er den autoritative test-stacken som serverer edge (bekreftet 2026-06-21).** `test.sitedoc.no`/`api-test.sitedoc.no` går hit (tunnel `sitedoc-ny`). Bevis: Funn #2-rutene ga 404 på edge før server-ny-deploy og 401/405 etter — så edge = server-ny. **Deploy/migrer test KUN her** (rsync + `docker-compose.test.yml`, se [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack»). Kenspills test-PM2 (se «Gammel server»-blokken) er en stale legacy-levning som ikke serverer edge.
 
-> ⚠️ **Test-deploy er MANUELL — ingen auto-deploy finnes** (bekreftet 2026-07-07). Push til `develop` oppdaterer IKKE test av seg selv (ingen CI/cron/hook/webhook — «auto-deployen» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10). Kjør `./deploy-test.sh` fra Mac (rsync `--delete` til `server-ny:stack/sitedoc`, excludes `docker/env`+bloat, branch-guard develop) → den skriver ut `sudo docker compose -f docker/docker-compose.test.yml up -d --build` som Kenneth kjører i egen TTY. Se [BACKLOG § «Auto-deploy til test» finnes ikke](BACKLOG.md).
+> ⚠️ **Test-deploy er MANUELL — ingen auto-deploy finnes** (bekreftet 2026-07-07). Push til `develop` oppdaterer IKKE test av seg selv (ingen CI/cron/hook/webhook — «auto-deployen» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10). Selve kommandoløypa (`deploy-test.sh <hash>` + de utskrevne server-stegene): [DEPLOY-RUNBOK.md § 1](DEPLOY-RUNBOK.md). Se også [BACKLOG § «Auto-deploy til test» finnes ikke](BACKLOG.md).
 
 > Gjenstår fortsatt: automatisert `prisma migrate deploy` (kjøres manuelt ved schema-endring — se TODO over).
 
