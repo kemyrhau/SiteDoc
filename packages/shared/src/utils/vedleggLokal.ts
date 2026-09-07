@@ -51,3 +51,32 @@ export function sammenstillMedLokaleVedlegg<T extends Record<string, unknown>>(
   }
   return endret ? (ut as T) : base;
 }
+
+/**
+ * Lagrings-siden av funn C: hold felt som fortsatt bærer et lokalt (uleverte)
+ * vedlegg UTENFOR server-payloaden. En `file://`/`/var/`-URL er død for alle
+ * andre enn denne installasjonen og ville overskrevet den varige
+ * `/uploads/privat/…`-URL-en køen skriver via `settVedleggUrl`. Feltet synkes
+ * fullt så snart opplastingen gir det en server-URL. SQLite beholder alltid full
+ * data (samme-install-visning).
+ *
+ * `oppdaterData` merger feltvis på server, så et utelatt felt røres ikke der.
+ * Motstykket ved init er `sammenstillMedLokaleVedlegg` — de MÅ opptre sammen,
+ * ellers overskriver serverens manglende svar det brukeren la inn.
+ *
+ * Returnerer SAMME referanse hvis ingenting ble utelatt (unngår state-churn).
+ */
+export function utelatFeltMedLokaleVedlegg<T extends Record<string, unknown>>(
+  data: T,
+): T {
+  let endret = false;
+  const ut: Record<string, unknown> = {};
+  for (const [feltId, feltVerdi] of Object.entries(data)) {
+    if (harLokaltVedlegg(feltVerdi)) {
+      endret = true;
+      continue;
+    }
+    ut[feltId] = feltVerdi;
+  }
+  return endret ? (ut as T) : data;
+}

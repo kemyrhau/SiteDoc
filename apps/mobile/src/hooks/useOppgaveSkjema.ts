@@ -8,7 +8,7 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi } from "./useSjekklisteSkjema";
 
@@ -294,15 +294,26 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       }
     }
 
-    settFeltVerdier(initialisert);
+    // 🔴 Init-sammenstilling (funn C, paritet med sjekkliste): server er base,
+    // MEN felt som fortsatt har et lokalt (uleverte) vedlegg tas fra SQLite.
+    // `utelatFeltMedLokaleVedlegg` holdt dem utenfor server-payloaden med vilje —
+    // så serverens manglende/tomme versjon skal ikke overskrive det brukeren la
+    // inn. Uten dette forsvinner bilder ved «pil tilbake» → gjeninngang.
+    const sammenstilt = sammenstillMedLokaleVedlegg(initialisert, sqliteData);
+    const harLokaleVedlegg = sammenstilt !== initialisert;
+
+    settFeltVerdier(sammenstilt);
     settErInitialisert(true);
 
-    // Lagre til SQLite (synkronisert med server-data, eller lokalt_lagret med auto-fill)
+    // Lagre til SQLite (synkronisert med server-data, eller lokalt_lagret med
+    // auto-fill). Har vi lokale vedlegg, er dokumentet IKKE fullt synket — så
+    // flagget ikke lyver og neste init tar SQLite-grenen (ellers gjentar tapet seg).
     const harAutoFylt = !harServerData && alleObjekter.some(
       (o) => !DISPLAY_TYPER.has(o.type) && AUTO_FILL_TYPER.has(o.type) && initialisert[o.id]?.verdi != null,
     );
-    skrivTilSQLite(oppgaveId, initialisert, !harAutoFylt);
-    settSynkStatus(harAutoFylt ? "lokalt_lagret" : "synkronisert");
+    const altSynket = !harAutoFylt && !harLokaleVedlegg;
+    skrivTilSQLite(oppgaveId, sammenstilt, altSynket);
+    settSynkStatus(altSynket ? "synkronisert" : "lokalt_lagret");
   }, [oppgave, alleObjekter, erInitialisert, oppgaveId, bruker?.id]);
 
   // Lytt på opplastingsfullføringer — oppdater vedlegg-URL i minnet
@@ -354,13 +365,16 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 2000);
 
-    // 2. Prøv server-sync hvis online
+    // 2. Prøv server-sync hvis online. Utelat felt med fortsatt-lokale vedlegg
+    //    (file://) — de skal aldri lande på server; køen skriver den varige
+    //    server-URL-en via `settVedleggUrl` når opplastingen er ferdig (funn C,
+    //    paritet med sjekkliste).
     if (erPaaNettet) {
       settSynkStatus("synkroniserer");
       try {
         await oppdaterDataMutasjon.mutateAsync({
           id: oppgaveId,
-          data,
+          data: utelatFeltMedLokaleVedlegg(data),
         });
         await utils.oppgave.hentMedId.invalidate({ id: oppgaveId });
         settHarEndringer(false);
