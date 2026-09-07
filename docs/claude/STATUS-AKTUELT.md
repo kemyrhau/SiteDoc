@@ -24,10 +24,12 @@ måling, runde 26 — coworks 298 var feil)**
 
 🟢 **PROD BEKREFTET `d4c4c65d`** (2026-09-07 06:04Z, `curl api.sitedoc.no/version`).
 
-🔴 **ÅPENT ETTER PROD — mobil-OTA er ikke fyrt.** 20 mobilfiler endret mellom forrige OTA og
-`d4c4c65d`. **Mobilbrukerne kjører fortsatt gammel JS.** Prosedyre: `eas-build-veileder.md
-§ Slik publiserer du en oppdatering` — rydd `.env.local` FØRST, mål bundelen, kanal `test` før
-`production`, og les Commit-linja (`*` = skittent tre).
+🟢 **MOBIL-OTA FYRT 2026-09-07 — `84a89500`, group `6ce8ebd6`.** Commit-linja uten asterisk og
+**identisk hash med prod-API-et** — bundel og server i takt. Steg 2-målingen ga én treff:
+`https://api.sitedoc.no`. Ute hos testerne: dokumentsøk mobil, byggeplass-velger, innboks-pila,
+utlogging, SJA-signaturrunder, grensekrav med herkomst-linje, trafikklys-etiketter.
+⚠️ **Etterslepet var ~17 timer** — OTA-en ble den eldste åpne saken mens web og api gikk ut i to
+prod-runder. **Lærdom: mobil-JS hører i samme runde som prod-deployen, ikke etter den.**
 
 ### Runde 27 (2026-09-07) — venter test-verifisering
 

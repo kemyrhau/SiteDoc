@@ -366,6 +366,7 @@ hvorfor — den erstatter ikke kommandoen.
 
 | Dato | Runtime | Commit | Kanal | Innhold |
 |---|---|---|---|---|
+| **2026-09-07 ~09:2x** | `1` | **`84a89500`** | production | ✅ **GJELDENDE.** Update group `6ce8ebd6-9313-4ca2-be62-80ae9bca7242`. **Commit-linja hadde ingen asterisk, og hashen er IDENTISK med prod-API-et** (`84a89500`) — bundel og server i takt, den tilstanden vi ikke hadde 06.09. Steg 2-målingen ga **én** treff: `https://api.sitedoc.no`. **Innhold:** dokumentsøk mobil (delt filterpredikat + delt søkemotor + sheet) · byggeplass-velger · innboks-pila (falskt navigasjonsløfte fjernet) · utlogging · SJA-signaturrunder · grensekrav med herkomst-linje og avviksfelt · trafikklys-etiketter. ⚠️ **Etterslepet var ~17 timer** — mobil-OTA ble den eldste åpne saken mens web/api gikk ut i to prod-runder |
 | 2026-09-04 | `1` | `cdb53296` | production | Første OTA. EXIF-opptakstid på galleribilder + lesbar endringslogg |
 | 2026-09-04 | `1` | `9f49c1ff` | production | Oppfølger samme døgn |
 | 2026-09-05 17:29 | `1` | — | production | Trafikklys slanket + utfyllingsstatus på seksjoner. ⚠️ **Manglet i denne loggen til 06.09** — ført inn da `eas update:rollback` viste den i lista. Cowork skrev regelen «ny rad i SAMME runde» og brøt den samme døgn |
