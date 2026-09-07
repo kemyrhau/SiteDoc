@@ -6,14 +6,13 @@ import { rensHtml } from "@/lib/sanitize";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X, FileText, Download } from "lucide-react";
-import { Button } from "@sitedoc/ui";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function DokumentLeser() {
   useToppbarFiltre({ byggeplass: false });
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const params = useParams();
   const searchParams = useSearchParams();
   const prosjektId = params.prosjektId as string;

@@ -64,7 +64,7 @@ export default function AdminProsjekter() {
   };
 
   const opprettMutasjon = trpc.admin.opprettProsjekt.useMutation({
-    onSuccess: (_data: unknown, variabler: { name: string; description?: string; organizationId?: string }) => {
+    onSuccess: (_data: unknown, _variabler: { name: string; description?: string; organizationId?: string }) => {
       invalidateAll();
       setVisOpprett(false);
       setNyttNavn("");

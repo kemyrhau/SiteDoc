@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { Button, Spinner } from "@sitedoc/ui";
+import { Spinner } from "@sitedoc/ui";
 import {
   Upload,
   Box,

@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { Button, Spinner } from "@sitedoc/ui";
+import { Spinner } from "@sitedoc/ui";
 import {
   Upload,
   Waypoints,
   Loader2,
   AlertTriangle,
-  Eye,
-  EyeOff,
   Palette,
-  ChevronDown,
   Trash2,
 } from "lucide-react";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";

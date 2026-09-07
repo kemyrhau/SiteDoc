@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -42,7 +42,7 @@ export function BildeKart({ bilder, onKlikkBilde, onVelgBilder, velgModus, valgt
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const rectRef = useRef<L.Rectangle | null>(null);
-  const [erVelger, setErVelger] = useState(false);
+  const [_erVelger, setErVelger] = useState(false);
   const dragStartRef = useRef<L.LatLng | null>(null);
 
   // Oppdater markør-ikoner basert på valgte bilder

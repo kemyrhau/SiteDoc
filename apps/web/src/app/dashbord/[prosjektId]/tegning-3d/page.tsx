@@ -9,11 +9,9 @@ import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import {
   beregnTransformasjon,
   tegningTilGps,
-  gpsTilTegning,
   gpsTil3D,
   tredjeTilGps,
   konverterTilWgs84,
-  wgs84TilProjeksjon,
 } from "@sitedoc/shared/utils";
 import type { GeoReferanse } from "@sitedoc/shared";
 import type { KoordinatSystem } from "@sitedoc/shared/utils";
