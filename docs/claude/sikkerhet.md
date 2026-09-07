@@ -246,6 +246,44 @@ enn det enkeltfunnet den bommet på.
 | Rate limiting og misbruk av offentlige endepunkter | 🟡 Delvis (auth-login, `/api/pamelding`, `/api/kontakt`) |
 | Logging: havner hemmeligheter eller persondata i logg? | 🔴 **IKKE DEKKET** |
 
+## 🔴 KONTOOVERTAKELSE via e-post-claimet (målt 2026-09-07, redesign sporet hele kjeden)
+
+**Ikke en kobling — en full overtakelse.** Sporet i `mobilAuth.ts`:
+
+1. `:134` — `email` tas fra **`mail`-claimet**, som en tenant-admin kontrollerer. `preferred_username`
+   (UPN, bundet til verifisert domene) er bare fallback.
+2. `:210` — bruker slås opp på **e-post** → treffer offerets konto.
+3. `:218` — kontooppslag på `oid` → angriperens ferske `oid` finnes ikke → `null`.
+4. `:237` — admission-gaten: offeret har firma/prosjekt → `harTilknytning = true` → **slipper forbi**.
+5. 🔴 `:288` — **ny `account`-rad kobler angriperens `oid` til offerets `userId`.** Sesjon på
+   offerets bruker. **Permanent binding.**
+
+🔴 **`iss`/`tid`-vakten stopper det ikke** — angriperens token er ekte, signert av Microsoft, og
+`iss` matcher deres egen `tid`. Flertenant slipper det inn **by design**; det er e-post-koblingen
+som er hullet.
+
+🟢 **Pre-eksisterende** — den gamle Graph-veien brukte `mail ?? userPrincipalName` og gikk også mot
+`/common`. **Fiks under arbeid:** `oid`-oppslag først + UPN som autoritativ e-post; `mail` beholdes
+kun som visnings-fallback for navn og bilde, aldri for identitet.
+
+**Målt bruddflate: NULL.** Alle 6 Microsoft-brukere i prod har allerede `oid`-kobling og resolveres
+på identitet uansett e-post (`9 kontoer / 6 brukere`, domener `amarkussen.no`, `sitedoc.no`,
+`gmail.com`).
+
+🟢 **Personlige Microsoft-kontoer skal IKKE sperres.** Cowork var på vei til å foreslå det — målingen
+viste at **Kenneth selv** logger inn med en MSA på gmail-adressen sin, aktiv og med firmatilknytning.
+**Sperren ville låst produkteieren ute av sitt eget produkt.**
+
+## ⚠️ `signIn`-vakten fanget ikke en orphan-konto (2026-09-07)
+
+`Mathias Jensen / mathias.jensen989@gmail.com` hadde `can_login = true` og **null firmatilknytninger**
+— nøyaktig tilstanden vakten fra 2026-06-05 (`auth.ts:66-70`) ble innført for å hindre.
+🟢 **Lukket manuelt:** `can_login = false` satt i prod 2026-09-07 på Kenneths ordre. Raden beholdt
+for historikk; reversibel.
+
+🔴 **Ubesvart: hvorfor slapp den gjennom?** Enten er kontoen eldre enn vakten, eller så finnes en vei
+rundt den. **Mål når vi uansett er i auth-koden** — ikke en egen hastesak, men ikke glemt.
+
 ## 🔴 Åpne auth-funn (2026-09-07, Kenneth-utløst)
 
 | Funn | Kilde | Status |
