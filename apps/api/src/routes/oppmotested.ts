@@ -110,7 +110,13 @@ export const oppmotestedRouter = router({
       await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
       return ctx.prisma.reisetidMatrise.findMany({
         where: { organizationId: input.organizationId },
-        select: { oppmotestedId: true, byggeplassId: true, kjoretidMin: true },
+        select: {
+          oppmotestedId: true,
+          byggeplassId: true,
+          kjoretidMin: true,
+          // Reise-terskel-km: mobil trenger avstanden for km-klassifisering.
+          avstandM: true,
+        },
       });
     }),
 

@@ -62,9 +62,20 @@ async function fetchMedTimeout(
   }
 }
 
+/**
+ * Kjøretid + avstand fra hvert «fra»-punkt til hvert «til»-punkt.
+ * durations[fra][til] i MINUTTER, distances[fra][til] i METER. Uoppnåelige par
+ * markeres UOPPNAAELIG (-1) i BEGGE — én konvensjon, symmetrisk. Avstand kan
+ * være uoppnåelig uavhengig av varighet (OSRM kan gi det ene uten det andre).
+ */
+export interface RuteMatrise {
+  durations: number[][];
+  distances: number[][];
+}
+
 interface RuteProvider {
   geokod(adresse: string): Promise<Coord | null>;
-  matrise(fra: Coord[], til: Coord[]): Promise<number[][] | null>;
+  matrise(fra: Coord[], til: Coord[]): Promise<RuteMatrise | null>;
 }
 
 const osmProvider: RuteProvider = {
@@ -90,23 +101,35 @@ const osmProvider: RuteProvider = {
     if (fra.length === 0 || til.length === 0) return null;
     // OSRM forventer «lng,lat»-rekkefølge. Kontorer (sources) først, byggeplasser
     // (destinations) sist i samme koordinat-liste — ett kall dekker hele matrisen.
+    // annotations=duration,distance: samme kall gir både kjøretid OG avstand
+    // (reise-terskel-km, 2026-09-08) — ingen ekstra request.
     const alle = [...fra, ...til];
     const coordStr = alle.map((c) => `${c.lng},${c.lat}`).join(";");
     const sources = fra.map((_, i) => i).join(";");
     const destinations = til.map((_, i) => fra.length + i).join(";");
-    const url = `${OSRM_BASE_URL}/table/v1/driving/${coordStr}?sources=${sources}&destinations=${destinations}&annotations=duration`;
+    const url = `${OSRM_BASE_URL}/table/v1/driving/${coordStr}?sources=${sources}&destinations=${destinations}&annotations=duration,distance`;
     const res = await fetchMedTimeout(url, MATRISE_TIMEOUT_MS);
     if (!res || !res.ok) return null;
     try {
       const data = (await res.json()) as {
         code?: string;
         durations?: Array<Array<number | null>>;
+        distances?: Array<Array<number | null>>;
       };
       if (data.code !== "Ok" || !Array.isArray(data.durations)) return null;
       // Sekunder → minutter, avrundet. Uoppnåelige par (null) → UOPPNAAELIG.
-      return data.durations.map((rad) =>
+      const durations = data.durations.map((rad) =>
         rad.map((sek) => (sek == null ? UOPPNAAELIG : Math.round(sek / 60))),
       );
+      // Meter (float) → avrundet Int. Manglende `distances` (eldre OSRM /
+      // uventet svar) → samme form fylt med UOPPNAAELIG, så kallere alltid får
+      // en matrise av lik form. Uoppnåelig par (null) → UOPPNAAELIG.
+      const distances = Array.isArray(data.distances)
+        ? data.distances.map((rad) =>
+            rad.map((m) => (m == null ? UOPPNAAELIG : Math.round(m))),
+          )
+        : durations.map((rad) => rad.map(() => UOPPNAAELIG));
+      return { durations, distances };
     } catch {
       return null;
     }
@@ -165,13 +188,14 @@ export async function sokAdresser(adresse: string, maks = 5): Promise<AdresseTre
 }
 
 /**
- * Kjøretid-matrise (minutter) fra hvert «fra»-punkt til hvert «til»-punkt.
- * Returnerer durations[fra][til]; UOPPNAAELIG (-1) for uoppnåelige par; null ved
- * feil. Kaster aldri — matrisen er forslag-cache, ikke kritisk sti.
+ * Kjøretid- + avstand-matrise fra hvert «fra»-punkt til hvert «til»-punkt.
+ * Returnerer { durations (min), distances (m) }; UOPPNAAELIG (-1) for
+ * uoppnåelige par i begge; null ved feil. Kaster aldri — matrisen er forslag-
+ * cache, ikke kritisk sti.
  */
 export async function hentKjoretidMatrise(
   fra: Coord[],
   til: Coord[],
-): Promise<number[][] | null> {
+): Promise<RuteMatrise | null> {
   return provider.matrise(fra, til);
 }

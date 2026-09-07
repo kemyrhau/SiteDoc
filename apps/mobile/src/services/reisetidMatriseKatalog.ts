@@ -49,6 +49,9 @@ export async function refreshReisetidMatriseKatalog(
         oppmotestedId: r.oppmotestedId,
         byggeplassId: r.byggeplassId,
         kjoretidMin: r.kjoretidMin,
+        // Reise-terskel-km: avstand (meter). null fra eldre server (mangler
+        // feltet) tolkes som ukjent — km-klassifisering faller til under-type.
+        avstandM: r.avstandM ?? null,
         sistOppdatert: naa,
       })
       .run();

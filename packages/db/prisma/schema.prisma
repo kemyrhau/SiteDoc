@@ -422,6 +422,19 @@ model OrganizationSetting {
   // avstands-/godtgjørelse-sats (km-godtgjørelse er separate lønnsarter, regnskap
   // eier satsene). Klassifisering: reisetid < terskel → underType, ≥ terskel → overType.
   reiseTerskelMin       Int     @default(30)            @map("reise_terskel_min")
+  // Reise-terskel-km (2026-09-08): firmaet velger om terskelen måles i TID eller
+  // AVSTAND. A.Markussen bruker km-grense; andre firmaer bruker tid. Default
+  // "minutter" er BEVISST — den gjør at ingen eksisterende firma endrer lønns-
+  // klassifisering når kolonnen innføres (reiseTerskelMin=30 gjelder uendret).
+  // Bytt ALDRI defaulten til "km" — det ville stille endre lønn for alle.
+  // "minutter" | "km".
+  reiseTerskelEnhet     String  @default("minutter")    @map("reise_terskel_enhet")
+  // Terskel i METER, aktiv KUN når reiseTerskelEnhet = "km" (7,5 km → 7500).
+  // Meter (Int) framfor km (Float): OSRM-avstanden er meter, og heltall unngår
+  // avrundingsdrift i sammenligningen avstandM < reiseTerskelM. Nullable —
+  // minutter-firmaer har den ikke. reiseTerskelMin beholdes uansett (bytter
+  // firma tilbake til tid, står tid-verdien der fortsatt).
+  reiseTerskelM         Int?                            @map("reise_terskel_m")
   // "arbeidstid" | "reisetid" — hva reisetid UNDER terskelen klassifiseres som.
   reiseUnderTerskelType String  @default("arbeidstid")  @map("reise_under_terskel_type")
   // "arbeidstid" | "reisetid" — hva reisetid OVER/LIK terskelen klassifiseres som.
@@ -2521,6 +2534,11 @@ model ReisetidMatrise {
   oppmotestedId  String   @map("oppmotested_id")
   byggeplassId   String   @map("byggeplass_id")
   kjoretidMin    Int      @map("kjoretid_min")
+  // Reise-terskel-km (2026-09-08): kjøreavstand i METER fra samme OSRM-kall
+  // (annotations=duration,distance). Nullable — rader beregnet før denne
+  // kolonnen har null til neste recompute fyller dem. Uoppnåelig par lagres
+  // som -1, symmetrisk med kjoretidMin (én konvensjon, ikke to).
+  avstandM       Int?     @map("avstand_m")
   kilde          String
   beregnetAt     DateTime @default(now()) @map("beregnet_at")
 
