@@ -31,6 +31,7 @@
  */
 
 import { prisma } from "../src/index";
+import { finnEllerOpprettDemoFirma, sikreFirmamedlem } from "../prisma/seed-helpers";
 
 /* ------------------------------------------------------------------ */
 /*  🔴 DB-navn-gate — kjør KUN mot sitedoc_test                        */
@@ -82,11 +83,13 @@ const HMS_SJA_TITTEL = "Agent HMS-avvik til behandling";
 
 async function seedKjerne(): Promise<{ prosjektId: string; brukerId: string }> {
   // Prosjektet finnes normalt (seed-testbrukere). Upsert på unik projectNumber
-  // gjør seeden selv-tilstrekkelig uten å overskrive eksisterende felt.
+  // gjør seeden selv-tilstrekkelig uten å overskrive eksisterende felt. Firma MÅ
+  // settes (CLAUDE.md § Firma påkrevd) — `update` reparerer en tidligere orphan-rad.
+  const orgId = await finnEllerOpprettDemoFirma(prisma);
   const prosjekt = await prisma.project.upsert({
     where: { projectNumber: PROSJEKT_NUMMER },
-    update: {},
-    create: { projectNumber: PROSJEKT_NUMMER, name: PROSJEKT_NAVN },
+    update: { primaryOrganizationId: orgId },
+    create: { projectNumber: PROSJEKT_NUMMER, name: PROSJEKT_NAVN, primaryOrganizationId: orgId },
   });
 
   const bruker = await prisma.user.upsert({
@@ -113,8 +116,12 @@ async function seedKjerne(): Promise<{ prosjektId: string; brukerId: string }> {
     await prisma.projectMember.update({ where: { id: eks.id }, data: { role: "admin" } });
   }
 
+  // Firma-medlemskap → prosjektet synlig fra brukerens firmakontekst (ikke bare
+  // som prosjektmedlem).
+  await sikreFirmamedlem(prisma, bruker.id, orgId);
+
   console.log(
-    `Kjerne: prosjekt «${PROSJEKT_NAVN}» (${PROSJEKT_NUMMER}), bruker ${BRUKER_EMAIL} = prosjekt-admin.`,
+    `Kjerne: prosjekt «${PROSJEKT_NAVN}» (${PROSJEKT_NUMMER}), bruker ${BRUKER_EMAIL} = prosjekt-admin + firma-medlem.`,
   );
   return { prosjektId: prosjekt.id, brukerId: bruker.id };
 }

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { finnEllerOpprettDemoFirma, sikreFirmamedlem } from "./seed-helpers";
 
 const prisma = new PrismaClient();
 
@@ -32,6 +33,13 @@ async function seed() {
 
   console.log("  Brukere opprettet");
 
+  // Demo-firma: prosjektene MÅ ha firma (CLAUDE.md § Firma påkrevd ved
+  // prosjekt-opprettelse) — ellers blir de orphan og usynlige fra firmakontekst.
+  const orgId = await finnEllerOpprettDemoFirma(prisma);
+  // Admin-brukeren må være firma-medlem for å se prosjektene fra firmakonteksten.
+  await sikreFirmamedlem(prisma, bruker1.id, orgId);
+  console.log("  Demo-firma opprettet + admin koblet");
+
   // Opprett testprosjekt
   const prosjekt = await prisma.project.create({
     data: {
@@ -40,6 +48,7 @@ async function seed() {
       description: "Nybygg kontorbygg med 12 etasjer, Bjørvika Oslo",
       address: "Dronning Eufemias gate 30, 0191 Oslo",
       status: "active",
+      primaryOrganizationId: orgId,
     },
   });
 
@@ -50,6 +59,7 @@ async function seed() {
       description: "Rehabilitering av boligblokk med 48 leiligheter",
       address: "Nydalsveien 15, 0484 Oslo",
       status: "active",
+      primaryOrganizationId: orgId,
     },
   });
 

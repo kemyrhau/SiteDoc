@@ -55,7 +55,10 @@ export async function seedScenario(): Promise<FlytScenario> {
   const D = await lagBruker("Godkjenner D", "godk");
   const E = await lagBruker("Utenfor E", "utenfor");
 
-  // Standalone-prosjekt (organizationId = null — gyldig permanent tilstand).
+  // Standalone-prosjekt (primaryOrganizationId = null — gyldig permanent tilstand,
+  // CLAUDE.md § Organisasjonsmodellen). BEVISST unntatt fra firma-regelen: dette
+  // test-harnesset tester nettopp standalone-tilstanden, så IKKE «fiks» til firma
+  // eller send det via finnEllerOpprettDemoFirma (jf. seed-orphan-funn 2026-09-05).
   const project = await prisma.project.create({
     data: {
       id: randomUUID(),
@@ -185,6 +188,7 @@ export async function seedBestillerSist(): Promise<BestillerSistScenario> {
   const utforer = await lagBruker("BS Utfører", "utf");
   const bestillerSist = await lagBruker("BS Bestiller sist", "best");
 
+  // Standalone-prosjekt, samme bevisste unntak fra firma-regelen som over.
   const project = await prisma.project.create({
     data: { id: randomUUID(), projectNumber: `${NS}-BS-${kjoreId}`, name: `${NS} BS-prosjekt ${kjoreId}`, primaryOrganizationId: null },
   });
