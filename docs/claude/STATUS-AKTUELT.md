@@ -4,6 +4,49 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 📅 2026-09-07 KVELD — prod `69ca9f62`, auth-tråden lukket
+
+**develop = main = `69ca9f62` · test `7aa85094` · OTA production `7aa85094` (group `b2c066e6`)**
+
+🟢 **MICROSOFT-INNLOGGING VERIFISERT I PROD PÅ TELEFON 2026-09-07.** Første gang den virker på en
+OTA-levert app siden 04.09.
+
+⚠️ **Cowork bommet på siste steg:** sa «ingen ny prod-OTA trengs, bundelen har alt den ekte
+klient-id-en». **`84a89500` var fra FØR env-fiksen** (den kom i runde 29). Fanget da Kenneth så
+plassholder-feilen på produksjonsappen. **Sjette gang samme mønster: hukommelse i stedet for
+måling** — én `git show 84a89500:apps/mobile/.env.production` ville avgjort det.
+
+| Levert i denne releasen | Hash |
+|---|---|
+| 🔴 **Mobil-MS dropper `User.Read`** — ID-token validert med `jose` mot Entras JWKS, Graph `/me` borte | `19a2884e` |
+| 🔴 **OTA-env-landminen lukket** — `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var plassholder i `.env.*`; **alle OTA-er siden 04.09 bar den** | samme |
+| 🔴 **Flertenant ID-token-validering** — `iss` mot tokenets eget `tid`, ikke pinnet tenant | `7aa85094` |
+| Seed-uttrekk — `finnEllerOpprettDemoFirma`, sjuende kopiklasse lukket | `cb2f815b` |
+| Feilede dokumenter synlig i eksport-UI | `4308352c` |
+| **DEPLOY-RUNBOK** — 12 filer bar deploy-kommandoer, nå én kilde | `abdef2c2` |
+
+### 🔴 Auth-tråden — hva den faktisk avdekket
+
+Utløst av **ett spørsmål fra Kenneth om et Google-varsel.** Kjeden som fulgte:
+
+1. **Google ber om minimum** — omfanget var aldri problemet.
+2. **Mobil-MS ba om `User.Read`** — Graph-tilgang til hele Entra-profilen for data som lå i ID-tokenet.
+3. **Google Cloud Console flagget «not using the state parameter»** — en ekstern målekilde vi hadde
+   hatt gratis i måneder og **aldri åpnet**.
+4. **`EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var en plassholder** committet 25.03, ufarlig til OTA ble
+   leveringsvei 04.09. **Microsoft-innlogging på mobil hadde vært død i en uke.** Ingen hadde prøvd.
+5. **`iss` pinnet mot `/common`** ga 401 — og coworks foreslåtte fiks («pinn mot vår tenant»)
+   ville **sperret hver eneste kunde.** Fanget før merge.
+
+🔴 **Ført i [`sikkerhet.md`](sikkerhet.md) § DEKNING:** gjennomgangen så på hva som skjer ETTER
+innlogging, aldri på HVORDAN innlogging skjer. Fila har nå en dekningstabell.
+
+⚠️ **Åpent, meldt av redesign, ikke bygget:** admission-gaten matcher på `email`-claimet, som en
+tenant-admin kontrollerer, framfor domene-bundet `preferred_username`. **Pre-eksisterende og
+uendret av releasen** — men egen runde. **Og `iss`/`tid`-testen mangler** (api-tall uendret 319).
+
+🟡 **Google implisitt flyt** (`relay/inbox-google-implisitt-flyt.md`) — ferdig skrevet, ikke gitt.
+
 ## 📅 DØGNET 2026-09-06/07 — ti merge-runder (17–26), prod-release `d4c4c65d`
 
 **develop `8ee4e681` · main `d4c4c65d` · test `8ee4e681` · api-testtall `315` (merge-agentens

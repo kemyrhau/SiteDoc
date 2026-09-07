@@ -366,6 +366,8 @@ hvorfor — den erstatter ikke kommandoen.
 
 | Dato | Runtime | Commit | Kanal | Innhold |
 |---|---|---|---|---|
+| **2026-09-07 ~17:5x** | `1` | **`7aa85094`** ⚠️`*` | production | ✅ **GJELDENDE.** Group `b2c066e6`. **Ekte `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` i bundelen** — retter plassholderen fra 25.03 som ble aktiv da OTA ble leveringsvei 04.09. 🟢 **Microsoft-innlogging verifisert i PROD på telefon** — første gang den virker på en OTA-levert app. ⚠️ **Commit-linja hadde asterisk** (urene docs-filer i treet, ingen mobilkode) |
+| 2026-09-07 ~15:3x | `1` | `abdef2c2` | **test** | Samme env-fiks til testkanalen. Målt før publisering: kun `api-test.sitedoc.no`, klient-id-treff `1` |
 | **2026-09-07 ~09:2x** | `1` | **`84a89500`** | production | ✅ **GJELDENDE.** Update group `6ce8ebd6-9313-4ca2-be62-80ae9bca7242`. **Commit-linja hadde ingen asterisk, og hashen er IDENTISK med prod-API-et** (`84a89500`) — bundel og server i takt, den tilstanden vi ikke hadde 06.09. Steg 2-målingen ga **én** treff: `https://api.sitedoc.no`. **Innhold:** dokumentsøk mobil (delt filterpredikat + delt søkemotor + sheet) · byggeplass-velger · innboks-pila (falskt navigasjonsløfte fjernet) · utlogging · SJA-signaturrunder · grensekrav med herkomst-linje og avviksfelt · trafikklys-etiketter. ⚠️ **Etterslepet var ~17 timer** — mobil-OTA ble den eldste åpne saken mens web/api gikk ut i to prod-runder |
 | 2026-09-04 | `1` | `cdb53296` | production | Første OTA. EXIF-opptakstid på galleribilder + lesbar endringslogg |
 | 2026-09-04 | `1` | `9f49c1ff` | production | Oppfølger samme døgn |
