@@ -1356,6 +1356,13 @@ model Image {
   id          String   @id @default(uuid())
   checklistId String?  @map("checklist_id")
   taskId      String?  @map("task_id")
+  // Klient-generert vedlegg-id (lokal SQLite-rad-id på mobil). Idempotens-nøkkel
+  // for bilde-registrering: opplastingskøen kan retrie samme foto (mistet svar),
+  // og /upload gir ny fileUrl per forsøk — så fileUrl duger ikke som dedup-nøkkel.
+  // Nullable: eldre mobil-klienter (før EAS-bygget som sender den) registrerer
+  // uten, og faller da tilbake til ikke-idempotent create. @unique tåler mange
+  // NULL (Postgres regner NULL som distinkt), så gamle rader trenger ingen vask.
+  vedleggId   String?  @unique @map("vedlegg_id")
   fileUrl     String   @map("file_url")
   fileName    String   @map("file_name")
   fileSize    Int      @map("file_size")

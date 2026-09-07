@@ -194,15 +194,13 @@ er scopet** — den køen er sekvensert, og en upriset post der forskyver alt ba
 
 🔴 **Koblet fiks — kan ikke gjøres halvt:** å legge funn C i oppgave (slutte å sende `file://`) UTEN samtidig å legge init-overlayen (`sammenstillMedLokaleVedlegg`) ville gitt oppgave nøyaktig forsvinnings-bugen sjekkliste nettopp ble kvitt. Bring oppgave til paritet med BEGGE deler i én endring: utelatelse ved lagring + overlay ved init. Verktøyene finnes delt (`@sitedoc/shared`: `harLokaltVedlegg`, `sammenstillMedLokaleVedlegg`). Merk også at køens server-patch (`patchSjekklisteVedleggUrl`) er sjekkliste-only — oppgave trenger tilsvarende, ellers når aldri server-URL-en oppgavens server-data.
 
-### 🔴 Bilde-registrering er ikke idempotent — tapt-svar-retry gir duplikat `Image`-rad (målt 2026-09-03)
+### 🟢 Bilde-registrering ikke idempotent — LEVERT på `fix/bilde-idempotens` (migrering gates av Kenneth)
 
-`bilde.opprettForSjekkliste` og `opprettForOppgave` (`apps/api/src/routes/bilde.ts:146-205`) gjør blind `prisma.image.create` — input har **ingen `vedleggId`**, ingen upsert, ingen unik constraint, ingen dedup på `fileUrl`. Køen (`OpplastingsKoProvider`) retrier alle feilede opplastinger med backoff; en opplasting som **lyktes server-side men mistet svaret** blir retriet → ny `image.create` → **duplikat `Image`-rad**. Sjekklista/PDF-en rammes IKKE (de rendres fra `checklist.data`, nøklet på `vedleggId` via `patchSjekklisteVedleggUrl` — idempotent), men `Image`-tabellen (gallerivisning) får to rader.
+`bilde.opprettForSjekkliste`/`opprettForOppgave` gjorde blind `prisma.image.create` — samme foto kunne bli to `Image`-rader når køen (`OpplastingsKoProvider`) retriet en opplasting som lyktes server-side men mistet svaret. Sjekklista/PDF-en rammes IKKE (rendres fra `checklist.data`, nøklet på `vedleggId` via `settUrlPaaVedlegg` — idempotent, bekreftet); kun `Image`-tabellen (galleri) fikk to rader.
 
-**Pre-eksisterende** — retry-stien finnes allerede uavhengig av kø-timeout-runden (2026-09-03). Timeouten som ble lagt til der trigger den samme stien oftere, men innfører den ikke.
+**Fiks (levert):** `vedleggId String? @unique` på `Image` (migrering `20260908130000_bilde_vedlegg_id_unik`, **skrevet, ikke kjørt** — Kenneth gater), `vedleggId` trådd gjennom `opprettFor*`-input + mobil-køen, og `create → upsert` på `vedleggId`. 🔴 Eksplisitt create-fallback beholdt når `vedleggId` mangler (eldre klienter før EAS-bygget) — fjernes når alle klienter er oppdatert. Test: `apps/api/src/routes/bilde-idempotens.test.ts`.
 
-**Fiks (krever Kenneths DB-godkjenning):** `vedleggId` inn i `opprettFor*`-input + upsert på den, ELLER unik constraint på `Image`. Begge er Prisma-migrering på `Image`.
-
-🔴 **Migrerings-fella (skriv tellingen FØR constrainten):** en unik constraint på `Image` vil **feile ved migrering** hvis prod alt har duplikater. Steg 1: tell duplikater i prod (`SELECT checklistId/taskId, fileUrl, COUNT(*) ... GROUP BY ... HAVING COUNT(*)>1`) og rydd dem. Steg 2: legg constraint. Glemmes tellingen, ruller migreringen tilbake. Følg to-stegs migrations-policyen (CLAUDE.md).
+🟢 **Målekorreksjon (2026-09-08):** den foreslåtte tellingen på `(checklistId/taskId, fileUrl)` gir **~0** — `/upload` mynter nytt `randomUUID`-filnavn per request (`upload.ts:133`), så hvert retry har distinkt `fileUrl`. Duplikater deler `vedleggId` (som ikke var persistert), ikke `fileUrl`. Beste proxy-telling for eksisterende dupes: `(doc_id, file_name, file_size)`. Migrerings-fella (constraint mot skitne data) er dessuten **omgått**: `@unique` på ny nullable kolonne — alle gamle rader er NULL (distinkt i Postgres), så ingen opprydding kreves før constrainten legges på. **Rest (egen, gatet op):** opprydding av eksisterende duplikat-rader i prod — «ALDRI slett eksisterende data», hvilken rad som overlever er ikke opplagt.
 
 ### 🟡 En deaktivert firma-admin beholder admin-rettigheter (registreringsmodell fase 1-oppfølger, 2026-08-28)
 

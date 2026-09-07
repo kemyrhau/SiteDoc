@@ -66,6 +66,8 @@ export async function registrerBildeIDatabase(params: {
     prosedyre = "bilde.opprettForOppgave";
     input = {
       taskId: params.oppgaveId,
+      // Idempotens-nøkkel: samme foto retriet av køen gir én rad, ikke to.
+      vedleggId: params.vedleggId ?? undefined,
       fileUrl: params.fileUrl,
       fileName: params.fileName,
       fileSize: params.fileSize,
@@ -77,6 +79,8 @@ export async function registrerBildeIDatabase(params: {
     prosedyre = "bilde.opprettForSjekkliste";
     input = {
       checklistId: params.sjekklisteId,
+      // Idempotens-nøkkel: samme foto retriet av køen gir én rad, ikke to.
+      vedleggId: params.vedleggId ?? undefined,
       fileUrl: params.fileUrl,
       fileName: params.fileName,
       fileSize: params.fileSize,

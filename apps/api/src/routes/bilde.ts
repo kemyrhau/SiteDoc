@@ -141,6 +141,10 @@ export const bildeRouter = router({
     .input(
       z.object({
         checklistId: z.string().uuid(),
+        // Klient-generert vedlegg-id — idempotens-nøkkel. Valgfri: eldre mobil-
+        // klienter (før EAS-bygget som sender den) utelater den og treffer da den
+        // ikke-idempotente create-fallbacken under.
+        vedleggId: z.string().optional(),
         fileUrl: z.string(),
         fileName: z.string(),
         fileSize: z.number().int(),
@@ -157,16 +161,28 @@ export const bildeRouter = router({
       await verifiserProsjektmedlem(ctx.userId, sjekkliste.template.projectId);
       advarVedApenBildeSti(input.fileUrl, "opprettForSjekkliste");
 
-      return ctx.prisma.image.create({
-        data: {
-          checklistId: input.checklistId,
-          fileUrl: input.fileUrl,
-          fileName: input.fileName,
-          fileSize: input.fileSize,
-          gpsLat: input.gpsLat ?? null,
-          gpsLng: input.gpsLng ?? null,
-          gpsEnabled: input.gpsEnabled,
-        },
+      const felter = {
+        checklistId: input.checklistId,
+        fileUrl: input.fileUrl,
+        fileName: input.fileName,
+        fileSize: input.fileSize,
+        gpsLat: input.gpsLat ?? null,
+        gpsLng: input.gpsLng ?? null,
+        gpsEnabled: input.gpsEnabled,
+      };
+
+      // Fallback: uten vedleggId kan vi ikke dedupe → blind create (dagens atferd,
+      // eldre klienter). 🔴 Eksplisitt gren, ikke implisitt: fjernes når alle
+      // mobil-klienter sender vedleggId (etter neste EAS-bygg + adopsjon).
+      if (!input.vedleggId) {
+        return ctx.prisma.image.create({ data: felter });
+      }
+
+      // Idempotent: retry av samme foto (kø, mistet svar) treffer samme rad.
+      return ctx.prisma.image.upsert({
+        where: { vedleggId: input.vedleggId },
+        create: { ...felter, vedleggId: input.vedleggId },
+        update: felter,
       });
     }),
 
@@ -174,6 +190,8 @@ export const bildeRouter = router({
     .input(
       z.object({
         taskId: z.string().uuid(),
+        // Se opprettForSjekkliste: idempotens-nøkkel, valgfri for eldre klienter.
+        vedleggId: z.string().optional(),
         fileUrl: z.string(),
         fileName: z.string(),
         fileSize: z.number().int(),
@@ -193,16 +211,27 @@ export const bildeRouter = router({
       await verifiserProsjektmedlem(ctx.userId, oppgave.template.projectId);
       advarVedApenBildeSti(input.fileUrl, "opprettForOppgave");
 
-      return ctx.prisma.image.create({
-        data: {
-          taskId: input.taskId,
-          fileUrl: input.fileUrl,
-          fileName: input.fileName,
-          fileSize: input.fileSize,
-          gpsLat: input.gpsLat ?? null,
-          gpsLng: input.gpsLng ?? null,
-          gpsEnabled: input.gpsEnabled,
-        },
+      const felter = {
+        taskId: input.taskId,
+        fileUrl: input.fileUrl,
+        fileName: input.fileName,
+        fileSize: input.fileSize,
+        gpsLat: input.gpsLat ?? null,
+        gpsLng: input.gpsLng ?? null,
+        gpsEnabled: input.gpsEnabled,
+      };
+
+      // Fallback: uten vedleggId → blind create (dagens atferd, eldre klienter).
+      // 🔴 Eksplisitt gren; fjernes når alle klienter sender vedleggId.
+      if (!input.vedleggId) {
+        return ctx.prisma.image.create({ data: felter });
+      }
+
+      // Idempotent: retry av samme foto treffer samme rad.
+      return ctx.prisma.image.upsert({
+        where: { vedleggId: input.vedleggId },
+        create: { ...felter, vedleggId: input.vedleggId },
+        update: felter,
       });
     }),
 
