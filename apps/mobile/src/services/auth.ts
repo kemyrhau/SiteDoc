@@ -1,7 +1,7 @@
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
-import { AUTH_CONFIG, GOOGLE_AUTH, MICROSOFT_AUTH } from "../config/auth";
+import { AUTH_CONFIG, MICROSOFT_AUTH } from "../config/auth";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -85,18 +85,6 @@ function hentRedirectUri(): string {
   // mismatch mot Entra (URI uten path returneres med trailing slash) —
   // jf. låst redirect-design. Eneste native-konsument er Microsoft-flyten.
   return AuthSession.makeRedirectUri({ scheme: "sitedoc", path: "auth" });
-}
-
-export function loggInnMedGoogleWeb(): void {
-  const redirectUri = hentRedirectUri();
-  const params = new URLSearchParams({
-    client_id: AUTH_CONFIG.googleClientId,
-    redirect_uri: redirectUri,
-    response_type: "token",
-    scope: "openid email profile",
-    state: Math.random().toString(36).substring(2),
-  });
-  window.location.href = `${GOOGLE_AUTH.authorizationEndpoint}?${params.toString()}`;
 }
 
 export async function loggInnMedMicrosoft(): Promise<string | null> {
