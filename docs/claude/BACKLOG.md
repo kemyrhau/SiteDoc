@@ -1777,9 +1777,21 @@ Faller pausevinduet **utenfor alle arbeidsvinduer** (`pauseMin > 0`, men ingen l
 - Typecheck: API `tsc` grønt; mobil `tsc` 0 nye feil (11 = 11 baseline, de 2 `timerSync`-baseline-feilene kun linje-forskjøvet).
 - **Aksept BESTÅTT (M-3-reprise, simulator + server-SQL, IKKE EAS):** slett rad `065dc8f4` på draft `dc59a75c` → sync → borte lokalt (2 rader) + **BORTE på server** (`rad_065dc8f4_paa_server=0`, `deleteMany` propagerte) + pull re-innsetter ikke; tombstone skrevet + ryddet. Kontrast M-3 (før fiks): 065dc8f4 lå igjen på server. **Venter kun prod (spor b).**
 
-### 🟢 Mobil ser ×N rader: `hentEndringerSiden` mangler «erstattet»-filter — FIKS B TEST-VERIFISERT, venter prod (2026-07-13)
+### ✅ LUKKET — Mobil ser ×N rader: `hentEndringerSiden` manglet «erstattet»-filter
 
-**STATUS 2026-07-13:** Fiks B implementert + test-verifisert. Commits: `5c9d2070` (filter + `sheet_rad_historikk`-tabell + MOVE-migrering) + `87af7e5b` (self-heal: bump `updated_at` på berørte sedler). **Test-bevis:** DB `49a7c839` = 3+2 live / 10 rader flyttet til historikk (ikke tapt); **M-1 PASS** (fresh full pull → 3/2) + **M-2 PASS** (stale enhet → normal delta-sync self-heal → 3/2 uten reinstall/wipe — self-heal-mekanikken bevist ende-til-ende); self-heal-bump bekreftet (`updated_at` = migreringstid). **Venter kun prod (begge migreringene) på Kenneths eksplisitte go.** Prod har trolig egne «erstattet»-rader som samme migrering rydder + self-healer.
+> ✅ **LUKKET 2026-09-07 (cowork-måling).** Posten sto som «venter prod på Kenneths go» i nesten
+> to måneder — **men begge commitene er i `main`** (`5c9d2070`, `87af7e5b`, verifisert med
+> `merge-base --is-ancestor`), og `migrate deploy` kjører på hver prod-deploy. Filteret står i
+> koden i dag (`dagsseddel.ts:4190-4192`, kommentar datert 2026-07-13).
+>
+> 🔴 **Go-en hadde allerede skjedd — ingen oppdaterte posten.** Dette er AM-1 fra kundemøtet
+> 20.08 («splitt dobler timetall i mobil»), og den har stått som åpen P0 for piloten mens den var
+> løst. **Sjette foreldede post cowork har fanget 06.–07.09 ved å måle framfor å relaye.**
+>
+> **Lærdom, samme som de fem andre:** en post som beskriver arbeid som gjenstår, må måles mot
+> koden før den brukes — ikke leses som fasit.
+
+**STATUS 2026-07-13 (historikk):** Fiks B implementert + test-verifisert. Commits: `5c9d2070` (filter + `sheet_rad_historikk`-tabell + MOVE-migrering) + `87af7e5b` (self-heal: bump `updated_at` på berørte sedler). **Test-bevis:** DB `49a7c839` = 3+2 live / 10 rader flyttet til historikk (ikke tapt); **M-1 PASS** (fresh full pull → 3/2) + **M-2 PASS** (stale enhet → normal delta-sync self-heal → 3/2 uten reinstall/wipe — self-heal-mekanikken bevist ende-til-ende); self-heal-bump bekreftet (`updated_at` = migreringstid). **Venter kun prod (begge migreringene) på Kenneths eksplisitte go.** Prod har trolig egne «erstattet»-rader som samme migrering rydder + self-healer.
 
 **Rot (kodeverifisert + DB-bekreftet):** rediger-mutasjoner (`dagsseddel.ts:2816`, `3016`) merker overskrevne rader `attestertStatus="erstattet"` (+ `parentRadId`) som audit-spor. HVER leser filtrerer dem bort (`{ not: "erstattet" }`: aktiv-helper `394/403/456`, web-attestering `1835-1837`, hentForAttestering `1974`) — MEN **`hentEndringerSiden` (mobil-pull, `3487`) har `include: { timer: true, tillegg: true, maskiner: true }` UTEN filteret** → mobil trekker live + audit-rader. **DB-bevis** (seddel `49a7c839`, test, `client_uuid 78c106bc`): timer 3 live/9t + 6 «erstattet»/18t; maskin 2 live + 4 «erstattet». Web viser korrekt 3+2 (filtrerer); mobil-fresh-pull viste 9+6 (×3-illusjon). **Ikke** server-korrupsjon, **ikke** pull-reconcile, **ikke** S3. «Erstattet»-radene er **write-only** (grep: aldri positivt lest — ubrukt audit).
 
