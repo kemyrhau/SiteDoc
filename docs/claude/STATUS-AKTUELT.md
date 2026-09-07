@@ -27,8 +27,16 @@ PDF-er, eldre rader og ortofoto.
 🟢 **`packages/pdf/src/tegning.ts` er urørt → koordinatrommet står → den frosne baselinetesten er
 grønn.** Kostnad målt: ~0,1 ms per kall, kun for tegninger uten lagrede dims; 0 i normaltilfellet.
 
-⚠️ **Varig fiks ført, ikke bestilt:** backfill `Drawing.imageWidth/Height` i DB fjerner både
-kostnaden og fallback-grenen. **Datamigrering — Kenneth-gate.**
+⚠️ ~~**Varig fiks ført, ikke bestilt:** backfill `Drawing.imageWidth/Height` i DB.~~
+🔴 **RETTET SAMME KVELD — den finnes allerede.** `tegning.backfillDimensjoner`
+(`apps/api/src/routes/tegning.ts:663`) er en `protectedProcedure` som fyller manglende dims per
+prosjekt fra fila på disk. **Cowork førte den som ubygget uten å måle** — sjuende gang samme
+klasse denne uka.
+
+⚠️ **Men den dekker ikke alt:** `where` filtrerer på `fileType: { in: ["png","jpg","jpeg","svg"] }`.
+**Ukonverterte PDF-er faller utenfor** — og de er nettopp en av de tre kildene til `null`-dims som
+utløste tegningsstrekket. **Ingen kjent UI-vei kaller prosedyren.** Ført som åpent spørsmål, ikke
+som ordre: *dekker backfillen de radene som faktisk mangler dims, og hvem kaller den?*
 
 ## 📅 2026-09-07 KVELD — prod `69ca9f62`, auth-tråden lukket
 
@@ -186,9 +194,9 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 | Agent | Spor | Worktree (målt) | Tilstand | Neste ordre |
 |---|---|---|---|---|
 | **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` @ `2b235e8a` [merge-restart] | **33 runder.** I synk med develop. Runde 33: to brancher, null filoverlapp, testtall målt api 328→330 · pdf 110→113 (de to api-testene kom fra `tegningsmarkorer.test.ts`, ikke forutsett i coworks ordre men matcher diffen) | **Runde 34:** rebase + merge `feat/innboks-skjerm`, og docs-commit i hovedtreet |
-| **dokgen** | 🟢 **LEDIG** | `SiteDoc-dokgen` @ `b4d52cb7` detached | `fix/google-doed-implisitt-vei` merget (`24505fbd`). 🔴 **Målte coworks premiss FEIL og meldte imot:** native Google brukte allerede code+PKCE med verifisert `state`. Cowork sluttet fra responsformen; agenten leste `expo-auth-session`s kildekode. Tidligere: byggeplassfilteret (9 kopier → 1, 3 bugger) | Ledig — se kø under |
-| **kontrollplan** | 🟢 **LEDIG** | `SiteDoc-kontrollplan` @ `a0048f3b` detached | `fix/tegning-forvrengning` merget (`2b235e8a`). 🔴 **Fant at rotårsaken ikke var der cowork pekte:** `preserveAspectRatio="none"` er en no-op i normaltilfellet; strekket oppstår kun når `Drawing.imageWidth/Height` er `null`. Holdt `packages/pdf/src/tegning.ts` urørt → frossen baselinetest grønn | Ledig — se kø under |
-| **redesign** | 🟡 **LEVERT — venter rebase + merge** | `SiteDoc-redesign` @ `1003529a` [feat/innboks-skjerm] | Dedikert innboks-skjerm: hele den aktive lista med søk/filter/sortering. 🔴 **Korrigerte coworks SQLite-antakelse** — sjekkliste/oppgave har ingen SQLite-speiling, kallene er nett-baserte. Gjenbrukte dokgens delte predikat uten utvidelse (ingen femte kopi). ⚠️ **Bygget på develop FØR runde 33** (hans testtall api 328/pdf 110) — må rebases | Rebase → merge runde 34 |
+| **dokgen** | 🟡 **I ARBEID** | `SiteDoc-dokgen` @ `8ff106ec` [fix/web-google-state] | `fix/google-doed-implisitt-vei` merget (`24505fbd`). 🔴 **Målte coworks premiss FEIL og meldte imot:** native Google brukte allerede code+PKCE med verifisert `state`. Cowork sluttet fra responsformen; agenten leste `expo-auth-session`s kildekode. Tidligere: byggeplassfilteret (9 kopier → 1, 3 bugger) | 🔴 **`fix/web-google-state`** — Google-tilbyderen i web mangler `state` (`checks ?? ["pkce"]`); Microsoft har linja, Google har den ikke. **Konsollens «SiteDoc» er web-klienten, ikke mobil** |
+| **kontrollplan** | 🟡 **ORDRE GITT** | `SiteDoc-kontrollplan` @ `a0048f3b` detached — **6 bak, må oppdateres** | `fix/tegning-forvrengning` merget (`2b235e8a`). 🔴 **Fant at rotårsaken ikke var der cowork pekte:** `preserveAspectRatio="none"` er en no-op i normaltilfellet; strekket oppstår kun når `Drawing.imageWidth/Height` er `null`. Holdt `packages/pdf/src/tegning.ts` urørt → frossen baselinetest grønn | 🔴 **Nå-rapport reisetid** (`na-rapport-reisetid-2026-09-07.md`) — A.Markussen-krav med frist denne måneden. **Måling, ingen kode, ingen branch.** ⚠️ **Derfor gir treet ingen «ordren er tatt»-signal** — den eneste kvitteringen er hans melding |
+| **redesign** | 🟡 **ORDRE GITT** | `SiteDoc-redesign` @ `b1bba893` detached | Dedikert innboks-skjerm: hele den aktive lista med søk/filter/sortering. 🔴 **Korrigerte coworks SQLite-antakelse** — sjekkliste/oppgave har ingen SQLite-speiling, kallene er nett-baserte. Gjenbrukte dokgens delte predikat uten utvidelse (ingen femte kopi). ⚠️ **Bygget på develop FØR runde 33** (hans testtall api 328/pdf 110) — må rebases | 🟠 **`fix/oppgave-vedlegg-paritet`** — oppgave sender `file://` rått til server (funn C kun i sjekkliste). **Tre koblede deler**, kan ikke gjøres halvt. *Innboks-skjermen levert og merget (`341cb26f`)* |
 | **simulator** | 🟢 **LEDIG** | `SiteDoc-simulator` @ `bc3efdca` detached | — | Ingen |
 | **deploy** | 🟢 **LEDIG** | `SiteDoc-deploy` @ `4d00e94f` detached | — | Ingen |
 | **fabel** | ⏸ **STOPPET RENT 06.09 ~96 % bruksgrense** | — | **Alle bestillinger besvart, ingen halvferdige leveranser.** Døgnet: SJA-signaturrunder · FL-designlås + tilgangs-revisjon etter Kenneth-overstyring (stoppside, aldri 404) · grensekrav-ordvalg · trafikklys-etiketter · sekvens-frigivelse tatt imot. 🔴 **Åpne poster han peker på til neste økt:** trinn 3-gaten (PDF-atferdstest) · Kenneths gate på AG-systemteksten · FL/timeprosjekt-kost-sjekkene · **Proadm-eksportfila fra A.Markussen** | Neste økt — Kenneth avgjør om han skal fortsette utover grensen |

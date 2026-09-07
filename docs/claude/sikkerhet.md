@@ -291,10 +291,44 @@ rundt den. **Mål når vi uansett er i auth-koden** — ikke en egen hastesak, m
 | ~~Mobil-Microsoft ber om `User.Read`~~ — Graph-tillatelse til hele Entra-profilen for å hente e-post og navn som alt ligger i ID-tokenet | cowork-måling, `apps/mobile/src/services/auth.ts:116` | ✅ **LUKKET** — `fix/mobil-user-read` i prod `69ca9f62`. ⚠️ **Gjenstår hos Kenneth:** fjerne tillatelsen i Azure app registration — koden ber ikke lenger om den |
 | ~~Google-innlogging på mobil bruker implisitt flyt~~ | Google Cloud Console + cowork-måling | ✅ **LUKKET 2026-09-07** — se under |
 | Cross-Account Protection ikke konfigurert | Google Cloud Console | 🟡 Valgfritt Google-tiltak, ikke vurdert |
-| Hvilken OAuth-klient Google navngir som «SiteDoc» i Project Checkup | Google Cloud Console → Clients | 🟡 **Kenneth eier målingen.** Er svaret Next.js-klienten, ligger det et separat funn der |
+| ~~Hvilken OAuth-klient Google navngir som «SiteDoc»~~ | Google Cloud Console → Project Checkup | ✅ **AVKLART 07.09 — det ER web-klienten.** Coworks forbehold slo til: funnet lå et annet sted enn der vi ryddet. Se seksjonen under |
 
 🟢 **Google-scopes er minimale** (`openid email profile`) på både web og mobil — verifisert
 2026-09-07. **Omfanget var aldri problemet.**
+
+### 🔴 DET GOOGLE FAKTISK FLAGGET — web-tilbyderen, ikke mobil (målt 2026-09-07)
+
+⚠️ **Vi ryddet feil sted først.** Konsollen navnga klienten «SiteDoc»; cowork antok mobilappen.
+**Kenneth åpnet Console-bildet, cowork målte kjeden — og den pekte på Next.js/Auth.js.**
+
+**`@auth/core@0.41.0/lib/utils/providers.js:52`:**
+
+```js
+const checks = c.checks ?? ["pkce"];
+```
+
+🔴 **En eksplisitt `checks`-liste ERSTATTER defaulten — den utvider den ikke.** Det ga to feil i
+samme fil, i hver sin retning:
+
+| Tilbyder | Sto | Fikk | Manglet |
+|---|---|---|---|
+| `Google` | ingen `checks` | `["pkce"]` | 🔴 **`state`** — det Google flagget |
+| `MicrosoftEntraID` | `checks: ["state"]` | `["state"]` | 🔴 **`pkce`** |
+
+🟢 **Begge står nå `["pkce", "state"]`** (`fix/web-google-state` + `fix/web-entra-pkce`, 07.09),
+med kommentar om at begge må stå.
+
+**Alvorsgrad, ikke overdrevet:** PKCE var på plass for Google og verner mot innløsning av en
+avlyttet kode; `state` verner mot login-CSRF, og Auth.js' `code_verifier`-cookie dempet det
+allerede. For Entra er klienten **confidential med secret**, så koden var beskyttet uansett — PKCE
+er dybdeforsvar der, ikke et åpent hull. **Ingen angrepskjede er demonstrert mot vårt oppsett.**
+
+⚠️ **Console-flagget klarner etterslepende.** Google måler trafikk over tid.
+
+🔴 **Klassen, som er det varige:** riktig avgjørelse tatt for én tilbyder og aldri båret over til
+den andre — `checks: ["state"]` sto skrevet for hånd på Microsoft og manglet på Google. Samme form
+som byggeplassfilteret (9 kopier, 3 ødelagte) og trafikklys-etikettene. **Delt logikk skal navngis
+i ordren.**
 
 ### ✅ Google implisitt flyt — lukket 2026-09-07 (`fix/google-doed-implisitt-vei`, merge `24505fbd`)
 
