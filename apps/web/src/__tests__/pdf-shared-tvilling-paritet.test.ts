@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad, normaliserOpsjon } from "@sitedoc/shared";
+import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad, normaliserOpsjon, TRAFIKKLYS_VALG, nb } from "@sitedoc/shared";
 import {
   lesSignaturVerdiPdf,
   formaterSignaturLinjePdf,
   feltKartFraRadPdf,
   normaliserOpsjon as normaliserOpsjonPdf,
+  TRAFIKKLYS,
 } from "@sitedoc/pdf";
 
 /**
@@ -107,3 +108,19 @@ describe("repeater-tvilling: feltKartFraRad ↔ feltKartFraRadPdf", () => {
     });
   }
 });
+
+describe("trafikklys-tvilling: TRAFIKKLYS_VALG (shared) ↔ TRAFIKKLYS (pdf)", () => {
+  // pdf er null-avhengig → kan ikke importere TRAFIKKLYS_VALG. konstanter.ts speiler verdisettet
+  // med norske etiketter; shared bærer i18n-nøklene. Denne vakten låser at de ikke drifter.
+  const nbMap = nb as Record<string, string>;
+
+  it("samme verdisett i samme rekkefølge (grønn→gul→rød→grå)", () => {
+    expect(TRAFIKKLYS_VALG.map((v) => v.value)).toEqual(Object.keys(TRAFIKKLYS));
+  });
+
+  it("pdf-etiketten (norsk) = nb-oversettelsen av shared-nøkkelen", () => {
+    for (const { value, i18nKey } of TRAFIKKLYS_VALG) {
+      expect(TRAFIKKLYS[value]!.label).toBe(nbMap[i18nKey]);
+    }
+  });
+})

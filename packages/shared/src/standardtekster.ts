@@ -130,6 +130,21 @@ export const STANDARD_OPSJONER: StandardOpsjon[] = [
   { nokkel: "standardopsjon.lukket", gjeldende: "Lukket", aliaser: [] },
 ];
 
+/**
+ * Trafikklys-verdiene i visningsrekkefølge (grønn→gul→rød→grå) med i18n-nøkkel per etikett.
+ * ÉN kilde for web + mobil `TrafikklysObjekt` (fabel-vedtak 2026-09-06: hver knapp viser navnet
+ * sitt VED fargen, alltid — i s/h og for fargeblinde er ordet det eneste som skiller; grå får sitt
+ * navn). Fargene er plattform-lokale (web/mobil = tailwind aktiv/inaktiv, pdf = ett hex) og bor i
+ * komponentene; her bor verdisettet + ordet. `packages/pdf` er null-avhengig og kan ikke importere
+ * dette → speiler det i `konstanter.ts` (TRAFIKKLYS), voktet av paritetstest (signaturVerdi-presedens).
+ */
+export const TRAFIKKLYS_VALG = [
+  { value: "green", i18nKey: "standardopsjon.godkjent" },
+  { value: "yellow", i18nKey: "standardopsjon.anmerkning" },
+  { value: "red", i18nKey: "standardopsjon.avvik" },
+  { value: "gray", i18nKey: "standardopsjon.ikkeRelevant" },
+] as const;
+
 // Oppslagsstrukturer (bygget én gang ved modul-last)
 const labelPerType = new Map<ReportObjectType, StandardFeltLabel>();
 for (const l of STANDARD_FELTLABELS) labelPerType.set(l.type, l);
