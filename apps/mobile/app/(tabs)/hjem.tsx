@@ -33,6 +33,7 @@ import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import { HjemTimerChip } from "../../src/components/HjemTimerChip";
 import { MannskapInnsjekkKort } from "../../src/components/MannskapInnsjekkKort";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
@@ -96,11 +97,6 @@ const PRIORITETS_NOEKLER: Record<string, string> = {
   high: "prioritet.hoyPrioritet",
   critical: "prioritet.kritisk",
 };
-
-function formaterNummer(prefix: string | null | undefined, nummer: number | null | undefined): string | null {
-  if (!prefix || nummer == null) return null;
-  return `${prefix}${nummer}`;
-}
 
 export default function HjemSkjerm() {
   const { t } = useTranslation();

@@ -20,6 +20,7 @@ import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
+import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 
 // i18n-nøkler (data utenfor komponent → labelKey, t() ved rendering)
 const PRIORITETS_NOKKEL: Record<string, string> = {
@@ -60,11 +61,6 @@ interface OppgaveRad {
   bestillerFaggruppe?: { name: string } | null;
   utforerFaggruppe?: { name: string } | null;
   creator?: { name: string | null } | null;
-}
-
-function formaterNummer(prefix: string | null | undefined, nummer: number | null | undefined): string | null {
-  if (!prefix || nummer == null) return null;
-  return `${prefix}${nummer}`;
 }
 
 export default function OppgaveListe() {
