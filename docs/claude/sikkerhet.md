@@ -284,6 +284,77 @@ for historikk; reversibel.
 🔴 **Ubesvart: hvorfor slapp den gjennom?** Enten er kontoen eldre enn vakten, eller så finnes en vei
 rundt den. **Mål når vi uansett er i auth-koden** — ikke en egen hastesak, men ikke glemt.
 
+## 🔴 PROD-AVBRUDD 3.–7. september 2026 — Entra client secret utløp, ingenting varslet
+
+**Microsoft-innlogging på web var nede i prod i fire døgn.** Ingen meldte det. Vi fant det ved en
+tilfeldighet: cowork satte en gate på Microsoft-innlogging fordi `fix/web-entra-pkce` var i
+deployen, og gaten slo ut på noe helt annet.
+
+| | |
+|---|---|
+| **Årsak** | Begge client secrets på appregistrering `d7735b7a` utløp **3. september 2026** |
+| **Symptom** | `[auth][error] OAuthCallbackError: … invalid_client` |
+| **Varighet** | 3.–7. sept, ca. fire døgn i prod. Test like lenge |
+| **Oppdaget av** | En gate satt av en annen grunn |
+| **Varsling** | 🔴 **Ingen.** Verken Azure eller vi hadde noe som sa fra |
+
+### 🔴 Klassen: ting som dør på dato uten å si fra
+
+Dette er **samme form som daemon-restarten 2026-08-14**, der prod lå nede i seks timer fordi
+`restart: unless-stopped` ikke restartet og ingenting varslet. Det står allerede et åpent tiltak i
+[DEPLOY-RUNBOK § 6](DEPLOY-RUNBOK.md) om en cron mot `/version`.
+
+🟢 **Utløpsdatoer er lettere enn nedetid** — de er kjent på forhånd. En secret som utløper om 30
+dager kan varsles 30 dager før. **Ført som tiltak, ikke bygget.**
+
+### ⚠️ Feilsøkingen kostet mer enn den trengte — tre lookalike-GUID-er
+
+Azure viser fire GUID-er som ligner på hverandre, og **kun én skal i env-fila**:
+
+| Felt | Hvor | Skal brukes? |
+|---|---|---|
+| **Application (client) ID** | App-registrering → Overview | 🟢 **`AUTH_MICROSOFT_ENTRA_ID_ID`** |
+| Object ID (app-registrering) | Samme side, rett under | 🔴 aldri |
+| Object ID (enterprise app) | Enterprise applications | 🔴 aldri |
+| **Secret ID** | Certificates & secrets, ved siden av `Value` | 🔴 **aldri** — ser mest ut som en ID, er det ikke |
+
+🔴 **Kun `Value` er hemmeligheten**, og den vises **én gang** rett etter opprettelse.
+
+⚠️ **Rotårsaken til bomturen: ingen av verdiene sto dokumentert noe sted.** Det fantes ingen fasit
+å sammenligne mot, så feil GUID kunne ikke oppdages ved å lese. **Klient-ID-ene er nå ført i
+[infrastruktur.md](infrastruktur.md)** — de er ikke hemmelige, de står i URL-en ved hver innlogging.
+
+### 🔴 KONTINUITETSRISIKO — begge appregistreringer ligger i en PRIVAT tenant
+
+**Målt 2026-09-07:**
+
+| Flate | Client ID | Tenant |
+|---|---|---|
+| Web | `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5` | `kemyrhaugmail.onmicrosoft.com` |
+| Mobil | `234ca0e0-afd1-48e3-9736-b904d4b5a008` | samme |
+
+Tenanten **«Standardmappe»** har **én bruker** (Kenneths private konto) og **én global
+administrator** (samme person). Den er ikke firmaets.
+
+🔴 **Mister den kontoen tilgang, mister ALLE kunder Microsoft-innlogging på web OG mobil
+samtidig — og ingen andre kan gjenopprette det.** Kenneth avviklet en annen Microsoft-konto
+tidligere samme uke, så scenariet er ikke hypotetisk.
+
+⚠️ **Microsoft varsler samtidig om obligatorisk MFA** for administrativ Azure-tilgang. Uten
+registrert MFA-metode på den ene kontoen er utestenging en reell mulighet.
+
+**Målt konsekvens av en flytting** (så beslutningen kan tas på fakta):
+`@auth/core/providers/microsoft-entra-id.js:134` setter `providerAccountId` fra `profile.sub`, som
+er **parvis per applikasjon**. Ny appregistrering ⇒ nye `sub` ⇒ gamle `Account`-rader treffer ikke.
+🟢 **Brukerne låses IKKE ute** — `allowDangerousEmailAccountLinking: true` kobler dem på e-post.
+Men det er en reell hendelse for hver bruker og skal være et valg, ikke en bieffekt.
+
+🔴 **En ny appregistrering er som standard single-tenant.** A.Markussen logger inn fra sin egen
+Entra-katalog. **Flyttes appen uten at kontotypen settes til flertenant, stenges piloten ute** —
+og det ville ikke vist seg før en A.Markussen-bruker forsøkte.
+
+**Anbefaling: egen sak, planlagt.** Ikke under et avbrudd.
+
 ## 🔴 Åpne auth-funn (2026-09-07, Kenneth-utløst)
 
 | Funn | Kilde | Status |
