@@ -14,7 +14,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
 | [docs/claude/kvalitetssikring-plan.md](docs/claude/kvalitetssikring-plan.md) | **🟢 VEDTATT 2026-08-31:** fire lag mot regresjoner. Lag 1 = gjør feilklassen ulovlig (lint) · lag 2 = simulator-røykliste FØR hvert EAS-bygg · lag 3 = slå på 29 ubrukte api-tester. Utløst av tre regresjoner på én dag som alle kompilerte grønt |
-| [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Deploy-bash, `.env`-krav, branching, mobil reload, prod-lærdommer |
+| [docs/claude/DEPLOY-RUNBOK.md](docs/claude/DEPLOY-RUNBOK.md) | 🔴 **ENESTE kilde for deploy-kommandoer** — test · prod · OTA · env-filer på server, i rekkefølge. Opprettet 2026-09-07 etter at 12 filer viste seg å bære kommandoer i ulike varianter. **Finner du en kommando i en annen fil, er den foreldet** |
+| [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Branching, mobil reload, prod-lærdommer. **Kommandoer: se DEPLOY-RUNBOK** |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
 | [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
 | [docs/claude/api.md](docs/claude/api.md) | API-routere, prosedyrer, gratis-grenser, prøveperiode |
@@ -162,11 +163,11 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - **Etter HVER mobil-commit:** skriv eksplisitt «**Reload:** [metode]».
 
 **Deploy-triggere — INGEN automatikk finnes noe sted:**
-- Push til `develop` → deployer IKKE til test. Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh` (rsync `--delete` til `server-ny:stack/sitedoc`) + den utskrevne `sudo docker compose -f docker/docker-compose.test.yml … build/up` (krever Kenneths TTY). Bekreftet 2026-07-07: ingen **deployende** CI/cron/hook/webhook — «auto-deploy» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10. Se [BACKLOG § «Auto-deploy til test» finnes ikke](docs/claude/BACKLOG.md). **MERK (2026-08-21): en test-CI FINNES** — `.github/workflows/ci.yml` kjører `pnpm test` (pdf/shared/web — IKKE api, som mangler test-script) på PR **og** push til `develop` (docs/md path-ignored, ingen lint/typecheck). Den **deployer ikke** — den bare gater tester. Kjør derfor `pnpm test` fra ROT før merge til develop, ikke bare pakken din (pakke-typecheck fanger ikke drift mellom data og def).
+- Push til `develop` → deployer IKKE til test. **Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh`** — se [DEPLOY-RUNBOK § 1](docs/claude/DEPLOY-RUNBOK.md). Bekreftet 2026-07-07: ingen deployende CI/cron/hook/webhook finnes ([BACKLOG](docs/claude/BACKLOG.md)). **En test-CI FINNES** (`.github/workflows/ci.yml`): kjører `pnpm test` + mobil-typecheck på PR og push til `develop`, men **deployer ikke**. Kjør `pnpm test` fra **ROT** før merge — pakke-typecheck fanger ikke drift mellom pakker.
 - Push til feature-branch → ingen deploy
 - Push til `main` → manuell prod-deploy. **ALDRI deploy til prod uten eksplisitt forespørsel.**
 
-**Etter Prisma schema-endring — klienten må regenereres før build-typecheck (ufravikelig, lærdom 2026-05-26).** I Docker-deployen (gjeldende fra 2026-06-10) er `prisma generate` for alle fire db-pakker bakt inn i `Dockerfile.api`/`Dockerfile.web` (kjøres rett før `turbo build`) → ikke et eget steg, og rekkefølgen er **build → migrate deploy → up** (IKKE migrate→generate→build). Kjør **ALDRI** et frittstående `prisma generate` på server — det havner ikke i det kjørende imaget. Detaljer: [DOCKER-NOTES § Deploy-mekanikk](docker/DOCKER-NOTES.md).
+**Etter Prisma schema-endring (ufravikelig, lærdom 2026-05-26):** `prisma generate` for alle fire db-pakker er bakt inn i `Dockerfile.api`/`Dockerfile.web`, så rekkefølgen er **build → migrate deploy → up**. Kjør **ALDRI** et frittstående `prisma generate` på server — det havner ikke i det kjørende imaget. [DOCKER-NOTES § Deploy-mekanikk](docker/DOCKER-NOTES.md).
 
 **Deploy-sekvens:**
 
@@ -174,9 +175,9 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 > 1. Gjeldende server = **`server-ny`**. Opus/kontroll-Claude kan **ikke** `sudo` (ikke-interaktivt) → **Kenneth kjører alle `sudo docker`-steg via `! ssh -t server-ny ...`** (ekte TTY); ikke kast bort runder på `ssh -t`/`sudo -n`. Native `git`/`rsync` kan Opus kjøre.
 > 2. **`ssh sitedoc` → Kenspill = GAMMEL (legacy) server — IKKE for deploy/verifisering.**
 >
-> Prod-deploy: rsync → `sudo docker compose -f docker/docker-compose.yml up -d --build`. Detaljer: server/host-mapping (prod+test→server-ny, tunnel `sitedoc-ny`, Kenspill-stale-stack)/env/PM2-rollback i [infrastruktur.md](docs/claude/infrastruktur.md) + [DOCKER-NOTES.md](docker/DOCKER-NOTES.md); branching, full deploy-bash, mobil reload-tabell, tRPC env-konsekvens i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
+> Server/host-mapping, env-filkart og rollback: [infrastruktur.md](docs/claude/infrastruktur.md) + [DOCKER-NOTES.md](docker/DOCKER-NOTES.md). Branching, mobil reload-tabell, tRPC env-konsekvens: [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 
-**Server-deploy-mekanikk (server-ny, Docker — ufravikelig, lærdom 2026-06-21):** Full detalj + eksakte kommandoer i [docker/DOCKER-NOTES.md § Deploy-mekanikk](docker/DOCKER-NOTES.md) + [infrastruktur.md](docs/claude/infrastruktur.md). Sesjons-kritisk regel (resten i DOCKER-NOTES): **migrerings-gate — prod krever DB `/sitedoc`, test krever `sitedoc_test`** (sjekk `$DATABASE_URL` før `migrate deploy`). **Compose-prosjektnavn: IKKE `-p` for api/web** (lærdom 2026-07-20 — indeksen her sa `-p docker` og førte en økt feil). Containerne ligger i **tre** prosjekter: `sitedoc-api`/`sitedoc-web` → `sitedoc` · `embed`/`oversettelse` → `docker` · `postgres` → `postgres`. Ingen enkelt `-p` adopterer alle. Riktig prod-`up`: `docker compose -f docker/docker-compose.yml up -d --build --no-deps sitedoc-api sitedoc-web` (**uten `-p`**; `--no-deps` beskytter embed/oversettelse). Kun migrate-steget bruker `-p docker` (engangs `run --rm`). Postgres-container (`grep -x postgres`) og `-c`-vs-`-lc`-fellen står i DOCKER-NOTES. (sudo/TTY-barrieren: se server-tilgang-banneret over.)
+🔴 **ALLE deploy-kommandoer bor i [DEPLOY-RUNBOK.md](docs/claude/DEPLOY-RUNBOK.md)** — test, prod, OTA, env-filer på server, i rekkefølge. **Finner du en kommando i en annen fil, er den foreldet.** *Mekanikkens hvorfor* (compose-prosjektnavn, container-navnekollisjoner, `-c`-vs-`-lc`) står i [docker/DOCKER-NOTES.md](docker/DOCKER-NOTES.md). To sesjons-kritiske regler gjentas her fordi de er ufravikelige: **migrerings-gaten** — prod krever DB `/sitedoc`, test krever `sitedoc_test` — og **aldri `-p` for api/web** (containerne ligger i tre ulike compose-prosjekter; ingen enkelt `-p` adopterer alle. Lærdom 2026-07-20: denne indeksen sa `-p docker` og førte en økt feil).
 
 ## Kodestil
 
@@ -367,7 +368,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   - **Fil i `docs/claude/` endrer status** (verifisert / drift / under arbeid / ferdig / opprettet / arkivert) → [STATUS.md](docs/claude/STATUS.md), tre felter samtidig: dato (linje 14), tellinger ✅/⚠️ (linje 21-22), tagger + seksjons-flytting på berørte rader.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
-  - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh server-ny "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall. (Merk: `ssh sitedoc` → Kenspill = legacy, ikke for deploy/verifisering — se server-tilgang-banneret over.)
+  - **Batch SSH-kommandoer:** kombiner flere kall til ett (`ssh server-ny "cmd1 && cmd2"`) i stedet for tre separate.
   - **Filtrer output:** Bruk `| tail -n`, `| head -n`, `| grep` for å begrense output fra verbose kommandoer (build-logger, PM2-lister, psql-resultater)
   - **Unngå gjentatte lesinger:** Les en fil én gang, ikke les samme fil flere ganger i samme sesjon
   - **Bruk subagenter** for utforskning som krever mange søk/fillesinger
