@@ -685,14 +685,20 @@ export const malRouter = router({
         const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: forsteObjekt.id }, include: { template: { select: { projectId: true } } } });
         await verifiserAdmin(ctx.userId, objekt.template.projectId);
 
-        // Endringsvern (2026-09-07): sortOrder/zone er trygt, men en parentId-FLYTTING av et felt
-        // i bruk flytter det mellom scope og brekker grense-arven (styrendeFeltId peker på søsken)
-        // — samme feilklasse som config-endring. En vakt med kjent bakdør er verre enn ingen vakt.
-        const alleObjekter = await ctx.prisma.reportObject.findMany({ where: { templateId: objekt.templateId }, select: { id: true, parentId: true } });
+        // Endringsvern (2026-09-07): sortOrder er trygt, men en FLYTTING av et felt i bruk —
+        // parentId (nytt scope, brekker grense-arven: styrendeFeltId peker på søsken) ELLER zone
+        // (datafelter↔topptekst; topptekst er dokumentets identitet, datafelter er kontrollene) —
+        // er samme feilklasse som config-endring. Dragging er DEN sannsynlige veien; en vakt med
+        // kjent bakdør er verre enn ingen vakt (cowork 2026-09-07: lukk zone-hullet samme runde).
+        const alleObjekter = await ctx.prisma.reportObject.findMany({ where: { templateId: objekt.templateId }, select: { id: true, parentId: true, config: true } });
         const parentKart = new Map(alleObjekter.map((o) => [o.id, o.parentId]));
+        // «datafelter» er default: alt som ikke er «topptekst» sorteres som datafelter (byggObjektTre).
+        const normZone = (z: unknown): string => (z === "topptekst" ? "topptekst" : "datafelter");
+        const zoneKart = new Map(alleObjekter.map((o) => [o.id, normZone((o.config as Record<string, unknown> | null)?.zone)]));
         for (const inn of input.objekter) {
-          if (inn.parentId === undefined) continue;
-          if ((inn.parentId ?? null) === (parentKart.get(inn.id) ?? null)) continue; // ingen flytting
+          const flytterParent = inn.parentId !== undefined && (inn.parentId ?? null) !== (parentKart.get(inn.id) ?? null);
+          const flytterZone = inn.zone !== undefined && normZone(inn.zone) !== zoneKart.get(inn.id);
+          if (!flytterParent && !flytterZone) continue; // ren omsortering — trygt
           const antall = await tellDokumenterMedInnhold(ctx.prisma, objekt.templateId, samleEtterkommere(alleObjekter, inn.id));
           if (antall > 0) {
             throw new TRPCError({ code: "PRECONDITION_FAILED", message: endringsvernMelding(antall, "flyttes") });
