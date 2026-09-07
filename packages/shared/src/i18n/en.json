@@ -1517,6 +1517,8 @@
   "firma.innstillinger.reise.lonnsart": "Travel pay type",
   "firma.innstillinger.reise.lonnsartAuto": "Automatic (name match)",
   "firma.innstillinger.reise.lonnsartHjelp": "The pay type travel time is recorded on. Choose «Automatic» to match by name (travel/transport).",
+  "firma.innstillinger.reise.varselIngenArt": "No pay type is interpreted as travel. Travel time above the threshold is calculated but not recorded on pay automatically until you choose a travel pay type below.",
+  "firma.innstillinger.reise.varselTvetydigArt": "Several pay types can be interpreted as travel. Without an explicit choice the system decides which one travel time is recorded on — choose the correct pay type below.",
   "firma.innstillinger.reise.tellerOvertid": "Travel time counts toward overtime",
   "firma.innstillinger.reise.matriseTittel": "Travel-time matrix",
   "firma.innstillinger.reise.matriseBeskrivelse": "Pre-compute the actual driving time from each office to each construction site, so travel suggestions on the day sheet use real times instead of an estimate. Also computed automatically when offices or site positions change.",

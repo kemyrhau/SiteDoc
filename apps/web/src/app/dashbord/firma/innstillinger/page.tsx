@@ -1167,6 +1167,14 @@ function ReiseSeksjon() {
   // R3: on-demand full firma-backfill av reisetid-matrisen (kontor × byggeplass).
   const beregnMatrise = trpc.oppmotested.beregnMatrise.useMutation();
 
+  // Varselet gjelder bare når Timer er aktiv for firmaet — er modulen av, er
+  // reise-lønnsart-oppsettet irrelevant og meldingen ville vært støy (samme
+  // effektivTilstand-resolver som TilgangPolicySeksjon bruker).
+  const { data: modulTilstand } = trpc.modul.effektivTilstand.useQuery(
+    { firmaId: orgId!, slugs: ["timer"] },
+    { enabled: !!orgId },
+  );
+
   const [terskel, setTerskel] = useState<string>("30");
   const [underType, setUnderType] = useState<string>("arbeidstid");
   const [overType, setOverType] = useState<string>("reisetid");
@@ -1191,6 +1199,17 @@ function ReiseSeksjon() {
   const reiseArtKandidater = (
     (lonnsarter ?? []) as unknown as Array<{ id: string; navn: string; type: string; aktiv: boolean }>
   ).filter((l) => l.type === "ordinaer" && l.aktiv);
+
+  // Reise-lønnsart-varsel (server teller, klienten viser). Gates på Timer aktiv.
+  // Har firmaet valgt en art eksplisitt (reiseLonnsartId), er alt entydig →
+  // stille uansett antall treff. Ellers: 0 treff = ingen art tolkes som reise
+  // (rødt, automatisk reisetid føres aldri); ≥2 = tvetydig (amber, velg én);
+  // nøyaktig 1 = stille (A.Markussens tilstand).
+  const timerAktiv = modulTilstand?.timer === true;
+  const antallReiseTreff = setting.reiseLonnsartMatchAntall;
+  const reiseArtValgt = !!setting.reiseLonnsartId;
+  const visIngenReiseArt = timerAktiv && !reiseArtValgt && antallReiseTreff === 0;
+  const visTvetydigReiseArt = timerAktiv && !reiseArtValgt && antallReiseTreff >= 2;
 
   function lagre() {
     const min = Number(terskel);
@@ -1267,6 +1286,21 @@ function ReiseSeksjon() {
           </select>
         </div>
       </div>
+
+      {visIngenReiseArt && (
+        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-800">
+            {t("firma.innstillinger.reise.varselIngenArt")}
+          </p>
+        </div>
+      )}
+      {visTvetydigReiseArt && (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            {t("firma.innstillinger.reise.varselTvetydigArt")}
+          </p>
+        </div>
+      )}
 
       <div className="mt-3 sm:max-w-xs">
         <label className="mb-1 block text-xs font-medium text-gray-700">
