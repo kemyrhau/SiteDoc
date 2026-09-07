@@ -168,7 +168,10 @@ export function MalBygger({ mal }: MalByggerProps) {
   const [visForhandsvisning, setVisForhandsvisning] = useState(false);
   const [aktivtDrag, setAktivtDrag] = useState<Active | null>(null);
   const [slettBekreftelse, setSlettBekreftelse] = useState<{ id: string; label: string } | null>(null);
-  const [slettFeil, setSlettFeil] = useState<string | null>(null);
+  // Én feil-modal for alle server-avslag på malendring (slett/oppdater/rekkefølge).
+  // Bærer egen tittel så et lagre-avslag ikke viser «Sletting mislyktes» — samme
+  // feilklasse (stille rollback villeder brukeren), én visning, ikke en tvilling per sak.
+  const [feilVisning, setFeilVisning] = useState<{ tittel: string; melding: string } | null>(null);
   const [visSpraakVelger, setVisSpraakVelger] = useState(false);
 
   // PSI: hent psi-data (languages) via templateId
@@ -290,15 +293,42 @@ export function MalBygger({ mal }: MalByggerProps) {
       // optimistisk — hent malen på nytt så objektet kommer tilbake, og VIS serverens
       // forklaring. Kenneth-funn: stille rollback fikk brukeren til å tro slettingen
       // virket, og oppdaget det først ved neste refresh.
-      setSlettFeil(error.message ?? t("malbygger.slettFeiletTittel"));
+      setFeilVisning({
+        tittel: t("malbygger.slettFeiletTittel"),
+        melding: error.message ?? t("malbygger.slettFeiletTittel"),
+      });
       refetchMal();
     },
   });
 
-  const oppdaterRekkefølgeMutation = trpc.mal.oppdaterRekkefølge.useMutation();
+  const oppdaterRekkefølgeMutation = trpc.mal.oppdaterRekkefølge.useMutation({
+    onError: (error: { message?: string }) => {
+      // Endringsvern (2026-09-07): en flytting (parentId/zone) av et felt i bruk nektes
+      // server-side. handleDragEnd oppdaterer treet optimistisk — vis serverens forklaring
+      // og hent malen på nytt så feltet snapper tilbake dit det lå. Uten dette ble en nektet
+      // drag stum og feltet ble stående i ny posisjon lokalt (samme funn som slett/oppdater).
+      setFeilVisning({
+        tittel: t("malbygger.endringSperretTittel"),
+        melding: error.message ?? t("malbygger.endringSperretTittel"),
+      });
+      refetchMal();
+    },
+  });
 
   const oppdaterObjektMutation = trpc.mal.oppdaterObjekt.useMutation({
     onSuccess: () => { refetchMal(); },
+    onError: (error: { message?: string }) => {
+      // Endringsvern (2026-09-07): et krav som er målt mot i et aktivt dokument kan ikke
+      // endres (server-guard). Handlerne oppdaterer objektet optimistisk før mutate — vis
+      // serverens forklaring og hent malen på nytt så feltet viser den LAGREDE verdien igjen,
+      // ikke den brukeren skrev. Kenneth-funn: stille rollback fikk brukeren til å tro at
+      // sifferet var lagret (samme funn som slett:onError, andre dør).
+      setFeilVisning({
+        tittel: t("malbygger.endringSperretTittel"),
+        melding: error.message ?? t("malbygger.endringSperretTittel"),
+      });
+      refetchMal();
+    },
   });
 
   // Sensorer
@@ -1101,13 +1131,14 @@ export function MalBygger({ mal }: MalByggerProps) {
         </Modal>
       )}
 
-      {/* Sletting feilet — vis serverens forklaring (ikke stille rollback) */}
-      {slettFeil && (
-        <Modal open title={t("malbygger.slettFeiletTittel")} onClose={() => setSlettFeil(null)}>
+      {/* Server-avslag på malendring (slett/oppdater/rekkefølge) — vis serverens
+          forklaring i stedet for stille rollback */}
+      {feilVisning && (
+        <Modal open title={feilVisning.tittel} onClose={() => setFeilVisning(null)}>
           <div className="space-y-4">
-            <p className="text-sm text-gray-700">{slettFeil}</p>
+            <p className="text-sm text-gray-700">{feilVisning.melding}</p>
             <div className="flex justify-end">
-              <Button onClick={() => setSlettFeil(null)}>{t("handling.lukk")}</Button>
+              <Button onClick={() => setFeilVisning(null)}>{t("handling.lukk")}</Button>
             </div>
           </div>
         </Modal>

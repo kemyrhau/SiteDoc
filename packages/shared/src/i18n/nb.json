@@ -2442,6 +2442,7 @@
   "malbygger.oppgaverBruk": "Oppgaver ({{antall}})",
   "malbygger.ingenBruk": "Ingen sjekklister eller oppgaver bruker dette feltet.",
   "malbygger.slettFeiletTittel": "Sletting mislyktes",
+  "malbygger.endringSperretTittel": "Endringen kunne ikke lagres",
   "malbygger.tvingSlett": "Tving slett (test)",
   "prosjektoppsett.tittel": "Prosjektoppsett",
   "prosjektoppsett.firmalogo": "Firmalogo",
