@@ -288,17 +288,40 @@ rundt den. **Mål når vi uansett er i auth-koden** — ikke en egen hastesak, m
 
 | Funn | Kilde | Status |
 |---|---|---|
-| Mobil-Microsoft ber om **`User.Read`** — Graph-tillatelse til hele Entra-profilen (stilling, telefon, kontorsted, leder) for å hente e-post og navn som alt ligger i ID-tokenet | cowork-måling, `apps/mobile/src/services/auth.ts:116` | 🟡 Ordre gitt, `fix/mobil-user-read` |
-| **Google-innlogging på mobil bruker IMPLISITT flyt.** Håndskrevet web-variant har `response_type: "token"` og en `state` fra `Math.random()` som **aldri verifiseres** | Google Cloud Console + cowork-måling, `auth.ts:90` | 🔴 Ordre skrevet, holdes til `User.Read` er merget |
+| ~~Mobil-Microsoft ber om `User.Read`~~ — Graph-tillatelse til hele Entra-profilen for å hente e-post og navn som alt ligger i ID-tokenet | cowork-måling, `apps/mobile/src/services/auth.ts:116` | ✅ **LUKKET** — `fix/mobil-user-read` i prod `69ca9f62`. ⚠️ **Gjenstår hos Kenneth:** fjerne tillatelsen i Azure app registration — koden ber ikke lenger om den |
+| ~~Google-innlogging på mobil bruker implisitt flyt~~ | Google Cloud Console + cowork-måling | ✅ **LUKKET 2026-09-07** — se under |
 | Cross-Account Protection ikke konfigurert | Google Cloud Console | 🟡 Valgfritt Google-tiltak, ikke vurdert |
+| Hvilken OAuth-klient Google navngir som «SiteDoc» i Project Checkup | Google Cloud Console → Clients | 🟡 **Kenneth eier målingen.** Er svaret Next.js-klienten, ligger det et separat funn der |
 
 🟢 **Google-scopes er minimale** (`openid email profile`) på både web og mobil — verifisert
-2026-09-07. **Omfanget var aldri problemet; flyten er det.**
+2026-09-07. **Omfanget var aldri problemet.**
 
-⚠️ **Presedensen sto i samme fil hele tiden:** Microsoft-flyten (`auth.ts:113`) bruker
-authorization code + PKCE og bærer kommentaren *«Implicit forkastes … token i redirect-URL»*.
-**Riktig avgjørelse ble tatt for én tilbyder og aldri båret over til den andre** — samme klasse som
-byggeplassfilteret (9 kopier, 3 ødelagte) og trafikklys-etikettene.
+### ✅ Google implisitt flyt — lukket 2026-09-07 (`fix/google-doed-implisitt-vei`, merge `24505fbd`)
+
+🔴 **Coworks premiss var delvis feil, og agenten målte det.** Ordren påsto at *native* Google
+brukte implisitt flyt. Målt mot `expo-auth-session@7.0.10`s **kildekode**:
+
+| Coworks påstand | Målt |
+|---|---|
+| Native bruker implisitt flyt | 🔴 Feil — `providers/Google.js` defaulter `ResponseType.Code` på native |
+| `state` verifiseres ikke | 🔴 Feil — `AuthRequest.js:157-161` kaster `state_mismatch` |
+| `authentication.accessToken` = implisitt token | 🔴 Feil — provideren veksler koden først |
+
+🟢 **Native Google gjorde allerede nøyaktig det Microsoft-flyten gjør.** Cowork sluttet fra
+responsformen; agenten leste biblioteket. **Lærdommen er metodisk, ikke teknisk.**
+
+**Det som faktisk var galt:** den håndskrevne `loggInnMedGoogleWeb` — `response_type=token` og en
+`state` fra `Math.random()` som aldri ble sjekket ved retur. **Uroppnåelig** i dag
+(`app.json:12`: `platforms: ["ios","android"]`), men en kjørbar implisitt flyt er en landmine.
+**Slettet: 4 steder, −47/+2, ingen ny flyt bygget.**
+
+⚠️ **Console-flagget klarner ikke ved merge.** Google måler etterslepende trafikk, og web har ikke
+produsert stateless-trafikk siden 04.09. 🔴 **Et gjenstående flagg betyr ikke at fiksen ikke virket.**
+
+⚠️ **Presedensen sto i samme fil hele tiden:** Microsoft-flyten (`auth.ts:113`) bærer kommentaren
+*«Implicit forkastes … token i redirect-URL»*. **Riktig avgjørelse ble tatt for én tilbyder og
+aldri båret over til den andre** — samme klasse som byggeplassfilteret (9 kopier, 3 ødelagte) og
+trafikklys-etikettene. **Delt logikk skal navngis i ordren.**
 
 ## Metode
 
