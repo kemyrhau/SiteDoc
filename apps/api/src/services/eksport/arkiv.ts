@@ -17,13 +17,10 @@ import type { PrismaClient } from "@sitedoc/db";
 import type { PrismaClient as PrismaTimerClient } from "@sitedoc/db-timer";
 import { diskSti } from "./felles";
 import { samleProsjektFiler } from "./filer";
-import { byggTimerCsv, byggUtleggCsv, tellTimerOgUtlegg } from "./csv";
 
 export interface ArkivStatistikk {
   antallFiler: number;
   antallManglendeFiler: number;
-  antallTimerRader: number;
-  antallUtleggRader: number;
   samletStorrelseBytes: number;
 }
 
@@ -89,8 +86,6 @@ export async function byggEksportArkiv(
   const statistikk: ArkivStatistikk = {
     antallFiler: 0,
     antallManglendeFiler: 0,
-    antallTimerRader: 0,
-    antallUtleggRader: 0,
     samletStorrelseBytes: 0,
   };
   const innhold: ManifestFil[] = [];
@@ -133,23 +128,11 @@ export async function byggEksportArkiv(
     });
   }
 
-  // ── Timer/utlegg som CSV-rådata ──
-  const csvInnhold: { kategori: string; arkivSti: string; antallRader: number }[] = [];
-  const antall = await tellTimerOgUtlegg(prismaTimer, jobb.projectId);
-  statistikk.antallTimerRader = antall.timer;
-  statistikk.antallUtleggRader = antall.utlegg;
-  if (antall.timer > 0) {
-    const csv = await byggTimerCsv(prisma, prismaTimer, jobb.projectId);
-    const sti = `timer/${prosjekt.projectNumber}-timer.csv`;
-    archive.append(csv, { name: sti });
-    csvInnhold.push({ kategori: "timer-csv", arkivSti: sti, antallRader: antall.timer });
-  }
-  if (antall.utlegg > 0) {
-    const csv = await byggUtleggCsv(prisma, prismaTimer, jobb.projectId);
-    const sti = `utlegg/${prosjekt.projectNumber}-utlegg.csv`;
-    archive.append(csv, { name: sti });
-    csvInnhold.push({ kategori: "utlegg-csv", arkivSti: sti, antallRader: antall.utlegg });
-  }
+  // Timer og utlegg er BEVISST UTE av prosjektarkivet (Kenneth-vedtak 2026-09-06):
+  // arkivet er en prosjekteksport for overlevering, mens timer er en firmamodul med
+  // ansattes lønnsdata. En zip gitt til en byggherre skal ikke bære det. Timer/utlegg
+  // hentes fra timer-rapporten, som har intern/ekstern-skillet og lever på firmanivå.
+  // (Kvitteringer på utlegg BLIR — de er prosjekt-bilag, ikke lønnsdata; se filer.ts.)
 
   // ── Manifest ──
   const manifest = {
@@ -165,11 +148,11 @@ export async function byggEksportArkiv(
       opprettet: prosjekt.createdAt.toISOString(),
     },
     innhold,
-    csv: csvInnhold,
     statistikk,
     avgrensninger: [
+      "Timeregistrering og utlegg er IKKE med i denne pakken. De er firmadata (ansattes lønnsopplysninger) og hentes fra timer-rapporten i SiteDoc, som skiller intern og ekstern versjon. Kvitteringer knyttet til utlegg ligger under filer/kvitteringer/ som prosjekt-bilag.",
       "Punktskyer er ikke inkludert i denne pakken — kildefila ligger normalt hos scanne-leverandøren.",
-      "Dokumenter som PDF (sjekklister, oppgaver, HMS, kontrollplan) + PDF-sammendrag for timer/utlegg kommer i en senere versjon; denne pakken inneholder filene slik de er lagret + timer/utlegg som CSV.",
+      "Dokumenter som PDF (sjekklister, oppgaver, HMS, kontrollplan) kommer i en senere versjon; denne pakken inneholder filene slik de er lagret.",
       "Strukturert JSON/CSV-eksport av alt domenedata kommer i en senere versjon (v2).",
       "Filer merket «mangler» var registrert i systemet men fantes ikke på lagringen ved eksport-tidspunktet.",
     ],
@@ -187,20 +170,23 @@ function byggLesMeg(prosjektnummer: string, navn: string): string {
     ``,
     `Prosjekt: ${prosjektnummer} — ${navn}`,
     ``,
-    `Denne pakken er en dokumentasjonseksport av prosjektet. manifest.json`,
-    `beskriver hele innholdet: hvilke filer som er med, hva hver fil hører til,`,
-    `og timer/utlegg som CSV. Feltet "avgrensninger" sier hva som bevisst IKKE`,
-    `er inkludert, slik at ingenting ser ut til å mangle ved en feil.`,
+    `Denne pakken er en dokumentasjonseksport av prosjektet — filene slik de er`,
+    `lagret i SiteDoc.`,
     ``,
     `Mapper:`,
     `  filer/bilder/        Bilder fra sjekklister og oppgaver`,
     `  filer/dokumenter/    Opplastede dokumenter (notaer, kontrakter, m.m.)`,
     `  filer/kvitteringer/  Kvitteringer for utlegg og tillegg`,
     `  tegninger/           Tegninger, originaler og revisjoner`,
-    `  timer/               Timeregistrering som CSV`,
-    `  utlegg/              Utlegg som CSV`,
     ``,
-    `Åpne manifest.json for full oversikt.`,
+    `Fila manifest.json er en innholdsfortegnelse: den lister hver fil i pakken,`,
+    `hva den hører til, og — under "avgrensninger" — hva som bevisst IKKE er med,`,
+    `slik at ingenting ser ut til å mangle ved en feil.`,
+    ``,
+    `Timeregistrering og utlegg er ikke med i denne pakken. Det er firmadata`,
+    `(ansattes lønnsopplysninger) og hentes fra timer-rapporten i SiteDoc.`,
+    `Kvitteringer knyttet til utlegg ligger likevel under filer/kvitteringer/,`,
+    `som bilag til prosjektet.`,
     ``,
   ].join("\n");
 }

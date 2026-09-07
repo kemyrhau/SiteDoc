@@ -143,7 +143,7 @@ async function prosesserNeste(prisma: PrismaClient): Promise<void> {
     });
     console.log(
       `[Eksport-worker] jobb ${jobb.id} klar (${size} bytes, ${statistikk.antallFiler} filer, ` +
-        `${statistikk.antallManglendeFiler} manglende, ${statistikk.antallTimerRader} timer-/${statistikk.antallUtleggRader} utlegg-rader)`,
+        `${statistikk.antallManglendeFiler} manglende)`,
     );
   } catch (err) {
     const feilmelding = err instanceof Error ? err.message : "Ukjent feil";

@@ -11,6 +11,7 @@
  */
 import type { PrismaClient } from "@sitedoc/db";
 import type { PrismaClient as PrismaTimerClient } from "@sitedoc/db-timer";
+import { medFilendelse } from "./felles";
 
 export type FilKategori =
   | "bilde"
@@ -122,7 +123,8 @@ export async function samleProsjektFiler(
       kategori: "tegning",
       fileUrl: t.fileUrl,
       mappe: MAPPE.tegning,
-      visningsnavn: t.name,
+      // Drawing.name har ingen filendelse → bær den fra fileUrl (funn 2026-09-06).
+      visningsnavn: medFilendelse(t.name, t.fileUrl),
       storrelse: t.fileSize,
       opprettet: t.createdAt.toISOString(),
       tilknyttet,
@@ -132,7 +134,7 @@ export async function samleProsjektFiler(
         kategori: "tegning-original",
         fileUrl: t.originalFileUrl,
         mappe: MAPPE["tegning-original"],
-        visningsnavn: t.name,
+        visningsnavn: medFilendelse(t.name, t.originalFileUrl),
         storrelse: null, // ingen egen kolonne — måles fra disk
         opprettet: t.createdAt.toISOString(),
         tilknyttet,
@@ -150,7 +152,10 @@ export async function samleProsjektFiler(
         kategori: "tegning-revisjon",
         fileUrl: r.fileUrl,
         mappe: MAPPE["tegning-revisjon"],
-        visningsnavn: `${tegningNavn.get(r.drawingId) ?? "tegning"} (rev ${r.revision})`,
+        visningsnavn: medFilendelse(
+          `${tegningNavn.get(r.drawingId) ?? "tegning"} (rev ${r.revision})`,
+          r.fileUrl,
+        ),
         storrelse: r.fileSize,
         opprettet: r.createdAt.toISOString(),
         tilknyttet: { type: "tegning", id: r.drawingId, navn: tegningNavn.get(r.drawingId) ?? null },
