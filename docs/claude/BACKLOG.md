@@ -97,6 +97,52 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 Offline gjelder tegninger, ikke dokumenter — mot en ufravikelig regel (Kenneth på enhet 2026-09-07)
+
+> **Kenneth 2026-09-07:** *«forbered offline fungerer for tegninger → oppgaver, sjekklister og HMS
+> er ikke en del av offline support»* · **Vedtak samme kveld:** *«offline må utbedres»*
+
+🔴 **CLAUDE.md: «Mobil-appen MÅ fungere offline» — ufravikelig.** Koden oppfyller det for tegninger
+og for opplasting, ikke for dokumenttilgang. **Avviket var udokumentert til 07.09.**
+
+**Målt, ikke antatt:**
+
+| Del | Tilstand |
+|---|---|
+| **Opplastingskøen** | 🟢 **Robust.** Bilde tatt i flymodus nådde serveren ved reconnect (verifisert på enhet 07.09) |
+| **Tegninger** | 🟢 «Forbered til offline» i `Mer` dekker dem |
+| **Sjekkliste / oppgave / HMS** | 🔴 **Nett-baserte tRPC-kall.** `sjekkliste.hentForProsjekt` + `oppgave.hentForProsjekt`; ingen SQLite-speiling (målt av redesign 07.09) |
+| **SQLite-katalogene** | Dekker timer, maskin, vær, byggeplass — **ikke dokumenter** |
+
+⚠️ **Kenneths test virket fordi dokumentet var ÅPNET FØR han gikk offline.** Et uåpnet dokument
+ville ikke vært nåbart. **Ikke les testen som at tilgang virker.**
+
+⚠️ **Løftebrist:** menyvalget heter «Forbered til offline» og forbereder bare tegninger. Samme
+klasse som `nb.json:2218` («arkivert og skrivebeskyttet») og innboks-pila — tekst som beskriver
+oppførsel koden ikke har.
+
+🔴 **Pilotrelevans:** A.Markussen, 50 ansatte, anleggsplasser med hullete dekning, *«mobil viktigst»*
+(REDESIGN-MASTERPLAN § Målestokk). En anleggsgartner som åpner appen på et jorde uten dekning har
+ingen dokumenter.
+
+**🔴 MÅL FØR DET SEKVENSERES — spennet er for stort til å prioriteres på anslag:**
+
+1. **Hva skal være tilgjengelig?** De N sist åpnede · alt på aktiv byggeplass · alt i prosjektet?
+   **Volumet avgjør alt annet.**
+2. **Hva skjer ved konflikt?** To personer redigerer samme dokument, én offline. Dagens
+   dokumentflyt har statusoverganger (`isValidStatusTransition`) — **de er ikke bygget for
+   divergerende offline-tilstand.**
+3. **Skal offline være LES eller LES+SKRIV?** Kun lesing er vesentlig billigere og dekker
+   sannsynligvis mesteparten av feltbehovet. **Kenneth-beslutning.**
+4. **Hva koster speilingen?** Dokumenter bærer `data`-JSON med repeatere og vedlegg — ikke flate
+   rader som katalogene.
+
+🔴 **Ikke skriv ordre før 1–4 er målt.** Reisetid-saken samme kveld viste hvorfor: BACKLOG-teksten
+beskrev fem åpne designspørsmål på noe som var bygget og i prod siden juni. **Mål først.**
+
+🟡 **Graduerer til [REDESIGN-MASTERPLAN § Rekkefølge](../redesign/REDESIGN-MASTERPLAN.md) når den
+er scopet** — den køen er sekvensert, og en upriset post der forskyver alt bak seg.
+
 ### 🟡 `endringsdiff.ts` teller repeater-rad-celler feil (samme formklasse, målt 2026-09-04)
 
 `radSammendrag`/`tellBilder` (`packages/pdf/src/arkivmal/endringsdiff.ts:230-232`) gjør `Object.values(rad)` på en repeater-rad. På produksjonsformen `{ _radId, felter }` blir det `[_radId-streng, felter-objekt]` → teller wrapperen i stedet for de faktiske cellene. Kosmetisk (endringslogg-sammendrag «N felt utfylt»), ikke datatap. **Fiks:** rut gjennom `feltKartFraRad` (@sitedoc/shared, `repeaterRad.ts`) — den kanoniske traverseringen. Del av samme feilklasse som traff callbacken/bildeNr/append; listet, ikke fikset i denne runden fordi den ikke er brukervendt.

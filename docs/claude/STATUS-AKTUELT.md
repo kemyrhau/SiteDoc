@@ -211,6 +211,25 @@ ventende arbeid.**
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
 
+🟠 **FUNN 2026-09-07 (Kenneth, test på enhet) — «Forbered til offline» forbereder bare tegninger.**
+Menyvalget i `Mer` dekker **tegninger**. **Oppgaver, sjekklister og HMS er ikke med.**
+🟢 **Samsvarer med koden:** redesign målte 07.09 at `sjekkliste/oppgave.hentForProsjekt` er
+nett-baserte tRPC-kall, og at SQLite-katalogene dekker timer/maskin/vær/byggeplass — ikke dokumenter.
+
+🔴 **To ting skiller lag her, og de må ikke slås sammen:**
+- 🟢 **Opplastingskøen er robust offline** — målt samme kveld: bilde tatt i flymodus nådde serveren
+  da telefonen kom på nett. **Den delen holder det den lover.**
+- 🔴 **Dokument-TILGANG offline gjør det ikke.** Kenneths test virket fordi dokumentet var **åpnet
+  før** han gikk offline. Et dokument han ikke hadde åpnet, ville ikke vært nåbart.
+
+⚠️ **Løftebrist-klassen:** et menyvalg som heter «Forbered til offline» lover mer enn det gjør.
+Samme form som `nb.json:2218` («arkivert og skrivebeskyttet»), `hms.ts:207-209` og innboks-pila.
+🔴 **CLAUDE.md sier «Mobil-appen MÅ fungere offline» — ufravikelig.** Avviket mellom regel og kode
+er reelt og udokumentert til nå.
+
+**Ikke ordre.** Alternativene spenner fra å presisere etiketten (billig, ærlig) til å speile
+dokumenter i SQLite (stort, berører sync-modellen). **Kenneth-beslutning, egen sak.**
+
 🟡 **FUNN 2026-09-07 (cowork-måling) — åttende kopiklasse, halvlukket.** Redesign trakk
 `formaterNummer` + `MedUtheving` ut til `apps/mobile/src/components/dokumentliste/DokumentRadHjelpere.tsx`
 og migrerte `sjekkliste/index.tsx`. **Fire kopier står igjen:** `(tabs)/hjem.tsx:100` ·
