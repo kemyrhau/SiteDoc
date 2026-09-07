@@ -102,6 +102,28 @@ const ZOOM = 4;
 const CROP_MAKS_BREDDE = 320;
 
 /**
+ * Bildets pikseldimensjoner via sharp-metadata (kun header-lesing, dekoder ikke
+ * pikslene). Brukes til å fylle manglende `Drawing.imageWidth/Height` ved arkiv-
+ * render: uten dims faller `byggTegningPosisjon` til en KVADRATISK viewBox, og
+ * `preserveAspectRatio="none"` strekker da et rektangulært bilde (markøren blir
+ * sittende riktig i det strukne bildet, så bare øyet fanger forvrengningen).
+ * Måles på det ALLEREDE inlinede JPEG-et → nøyaktig det SVG-en rendrer, ingen
+ * ny henting. Feiler → null (rendreren beholder da fallback-grenen). Varig fiks
+ * er å backfille kolonnen i DB (egen datamigrering).
+ */
+export async function malBildeDimensjoner(
+  bytes: Buffer,
+): Promise<{ bredde: number; hoyde: number } | null> {
+  try {
+    const m = await sharp(bytes).metadata();
+    if (m.width && m.height) return { bredde: m.width, hoyde: m.height };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Croppet detaljutsnitt rundt markøren (Gate 2+3): 4×-zoom-region i 4:3, klemt
  * innenfor tegningskanten, nedskalert til moderat DPI. Feilende → null (stiplet
  * tom celle i tabellen).
