@@ -227,7 +227,7 @@ export default function KontrollplanSide() {
         w.document.close();
         setTimeout(() => w.print(), 500);
       }
-    } catch (_e) {
+    } catch {
       // Feil håndteres av tRPC
     }
   }, [kontrollplan, kontrollomradeValg, utils]);
@@ -478,7 +478,7 @@ function KopierDialog({
 
   const utils = trpc.useUtils();
   const kopier = trpc.kontrollplan.kopierPunkter.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (_data) => {
       utils.kontrollplan.hentForByggeplass.invalidate({ byggeplassId });
       onKopiert();
       onLukk();

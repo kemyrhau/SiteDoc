@@ -3,7 +3,7 @@
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Spinner, EmptyState, Button } from "@sitedoc/ui";
-import { FlaskConical, Clock, AlertTriangle, Trash2, Sparkles } from "lucide-react";
+import { FlaskConical, Clock, Trash2, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";

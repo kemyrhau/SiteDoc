@@ -124,7 +124,7 @@ export default function TegningerSide() {
 
   // Klikkemodus: inspeksjon (vis DWG-egenskaper) eller plassering (opprett oppgave)
   const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering" | "omrade">("plassering");
-  const [visOmrader, setVisOmrader] = useState(true);
+  const [visOmrader, _setVisOmrader] = useState(true);
   // L2: lagfilter for markørtyper. Begge på som standard. «Frie sjekklister» er IKKE et
   // eget lag — de rendres ikke på tegning i dag (Checklist har posisjonsfelt, men verken
   // render eller lagrede posisjoner). Lagene som faktisk finnes: oppgaver + kontrollpunkter.

@@ -17,7 +17,7 @@ async function handler(req: Request) {
   const sessionUserId = session?.user?.id ?? null;
 
   let userId: string | null = sessionUserId;
-  let actualUserId: string | null = sessionUserId;
+  const actualUserId: string | null = sessionUserId;
   let imperseringAktiv = false;
   let sessionToken: string | null = null;
 

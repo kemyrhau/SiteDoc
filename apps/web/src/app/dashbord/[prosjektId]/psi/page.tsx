@@ -1,10 +1,10 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { Spinner, Card } from "@sitedoc/ui";
+import { Spinner } from "@sitedoc/ui";
 import { ShieldCheck, CheckCircle, Clock, AlertTriangle, Users, Building2, Globe } from "lucide-react";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
