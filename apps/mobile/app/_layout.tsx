@@ -20,6 +20,7 @@ export default function RotLayout() {
         <Stack.Screen name="logg-inn" />
         <Stack.Screen name="sjekkliste" />
         <Stack.Screen name="oppgave" />
+        <Stack.Screen name="innboks" />
         <Stack.Screen name="dokument" />
         <Stack.Screen name="psi" />
         <Stack.Screen name="kontakter" options={{ animation: "slide_from_right" }} />
