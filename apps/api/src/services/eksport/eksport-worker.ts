@@ -122,7 +122,15 @@ async function prosesserNeste(prisma: PrismaClient): Promise<void> {
     });
 
     archive.pipe(output);
-    const statistikk = await byggEksportArkiv(prisma, prismaTimer, jobb, archive);
+    // Live progresjon: dokument-render er det tunge steget (minutter for store
+    // prosjekter), og UI-en poller hvert 3. sek på antallFerdig/antallTotalt.
+    // Uten denne callbacken sto begge på null til alt var ferdig — baren betydde
+    // ingenting (fase 2-jobben var ferdig før den rakk å bety noe; fase 3 endrer det).
+    const statistikk = await byggEksportArkiv(prisma, prismaTimer, jobb, archive, async (ferdig, totalt) => {
+      await prisma.eksportJobb
+        .update({ where: { id: jobb.id }, data: { antallFerdig: ferdig, antallTotalt: totalt } })
+        .catch(() => {}); // progresjon er beste-innsats — en tapt oppdatering feller ikke jobben
+    });
     await archive.finalize();
     await skriveferdig;
 
@@ -134,8 +142,11 @@ async function prosesserNeste(prisma: PrismaClient): Promise<void> {
         status: "klar",
         resultatSti: urlSti,
         resultatStorrelse: size,
-        antallTotalt: statistikk.antallFiler,
-        antallFerdig: statistikk.antallFiler,
+        // Progresjon = dokumenter (det tunge steget). På «klar» bærer gapet
+        // totalt−ferdig antall feilede dokumenter, uten egen kolonne (ingen
+        // migrering) — en framtidig web-oppfølger kan vise det på klar-kortet.
+        antallTotalt: statistikk.antallDokumenter,
+        antallFerdig: statistikk.antallDokumenterFerdig,
         utloperVed: new Date(Date.now() + LEVETID_DAGER * 24 * 60 * 60 * 1000),
         fullfortVed: new Date(),
         feilmelding: null,
@@ -143,7 +154,8 @@ async function prosesserNeste(prisma: PrismaClient): Promise<void> {
     });
     console.log(
       `[Eksport-worker] jobb ${jobb.id} klar (${size} bytes, ${statistikk.antallFiler} filer, ` +
-        `${statistikk.antallManglendeFiler} manglende)`,
+        `${statistikk.antallManglendeFiler} manglende, ${statistikk.antallDokumenterFerdig}/` +
+        `${statistikk.antallDokumenter} dokumenter, ${statistikk.antallDokumenterFeilet} feilet)`,
     );
   } catch (err) {
     const feilmelding = err instanceof Error ? err.message : "Ukjent feil";

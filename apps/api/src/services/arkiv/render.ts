@@ -26,6 +26,28 @@ import type { PrismaClient } from "@sitedoc/db";
 // føyes til her, samme mønster som oversettelse-service kaller /translate.
 const PDF_BASE_URL = process.env.PDF_URL || "http://pdf-render:3304";
 
+/**
+ * «14.08.2026 14:32» — generert-stempel til PDF-footeren, kort norsk format.
+ *
+ * 🔴 `timeZone: "Europe/Oslo"` er påkrevd: api-serveren kjører i `Etc/UTC`, så
+ * uten eksplisitt sone ble footer-tiden 2t bak norsk sommertid (funn 2026-09-02).
+ * Samme avgrensning som `PDF_TIDSSONE` i @sitedoc/pdf — én PDF kan spenne over
+ * flere firma, så én firma-sone er tvetydig her; Oslo stopper blødningen.
+ *
+ * Én kilde: både tRPC-ruten (interaktiv nedlasting) og eksport-arkivet (fase 3)
+ * bruker denne, så stempelformatet ikke drifter mellom de to veiene.
+ */
+export function genererArkivStempel(dato: Date): string {
+  return dato.toLocaleString("nb-NO", {
+    timeZone: "Europe/Oslo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 /** Dokumenttyper arkivmalen kan rendre. «oppgave» dekker også HMS avvik/RUH (Task, domain=hms). */
 export type ArkivDokumentType = "sjekkliste" | "oppgave";
 
