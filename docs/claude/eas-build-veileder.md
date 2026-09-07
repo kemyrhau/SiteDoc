@@ -385,6 +385,21 @@ ting**. Uten begge loggene kan ingen svare på hva en tester som melder en feil 
 ⚠️ **Test-appen er en egen binær på kanal `test`** og mottar IKKE `production`-OTA.
 Publiseres det til bare én kanal, spriker flatene.
 
+> 🔴 **eas.json-only env OVERLEVER `eas build`, men IKKE `eas update` (funnet 2026-09-07).**
+> Samme klasse som `.env.local`-forgiftningen (rad 2026-09-06): en env-verdi oppfører seg ulikt i
+> to kommandoer vi behandler som én. `EXPO_PUBLIC_*` bakes inn i JS-bundelen ved eksport.
+> `eas build` injiserer eas.json-`env` → binæren får ekte verdi. `eas update` eksporterer med
+> `.env.<profil>` → en verdi som **bare** står i eas.json blir en plassholder i OTA-bundelen.
+>
+> **Konkret hendelse:** `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var `din-microsoft-client-id-her`
+> (plassholder) i `.env.test`/`.env.production`, ekte kun i eas.json. **Alle OTA-er siden
+> `2026-09-04` sendte plassholderen** → Microsoft-innlogging på mobil var **død for testerne i en
+> uke** (OAuth-forespørselen avvises av Entra på ukjent client-id, før noe token lages). De tre
+> MS-kontoene i prod er trolig fra TestFlight-binæren, som fikk ekte verdi fra eas.json. Rettet ved
+> å legge ekte (offentlig) client-id inn i `.env.test` + `.env.production` — samme mønster Google
+> allerede fulgte. **Regel: enhver `EXPO_PUBLIC_*` som en OTA skal bære MÅ ha ekte verdi i
+> `.env.<profil>`, ikke bare i eas.json.** Måles med `strings … .hbc | grep -c <verdi>` (STEG 2).
+
 **Konfigurasjon (kode er fasit):**
 - `runtimeVersion: "1"` (`app.config.js`) — **eksplisitt streng, IKKE `{ policy: "fingerprint" }`
   og IKKE `appVersion`.** Fingerprint-policy ble forsøkt og forkastet 2026-09-04 etter to feilede

@@ -1029,6 +1029,13 @@ konto). Scope: `["openid","email","profile"]`. Google urørt (0 mobil-kontoer, b
 (test først):** `AUTH_MICROSOFT_ENTRA_ID_ISSUER` (= web) + `MICROSOFT_MOBILE_CLIENT_ID` — se
 [infrastruktur.md § Env-filer](infrastruktur.md). Ingen migrering.
 
+🔴 **OTA-landmine funnet + rettet i samme runde:** `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var en
+plassholder i `.env.test`/`.env.production` (ekte kun i eas.json). Målt: alle OTA-er siden 04.09
+bar plassholderen → MS-innlogging på mobil har vært **død for testerne i en uke**. Uten env-fiksen
+ville denne auth-OTA-en brutt innlogging FØR ID-tokenet lages. Ekte (offentlig) client-id lagt inn
+i begge `.env`-filer (sporet i git → propagerer til publiseringstreet); re-eksport bekreftet ekte
+id i bundelen. Advarsel skrevet i [eas-build-veileder § OTA-logg](eas-build-veileder.md).
+
 🔴 **Azure:** koden trenger ikke lenger `User.Read` — Kenneth fjerner tillatelsen i portalen, men
 **FØRST etter at test-innlogging på telefon er verifisert** mot egen eksisterende konto.
 🔴 **Leveringsvei:** api-deploy + mobil `eas update` kanal `test`. Gate strengere: ingen prod før
