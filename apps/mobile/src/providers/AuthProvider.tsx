@@ -114,11 +114,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const byttOgLagre = useCallback(
-    async (provider: "google" | "microsoft", accessToken: string) => {
-      const resultat = await byttToken.mutateAsync({
-        provider,
-        accessToken,
-      });
+    async (provider: "google" | "microsoft", token: string) => {
+      // Microsoft sender ID-tokenet (validert server-side mot Entras JWKS);
+      // Google sender fortsatt access-tokenet (verifiseres mot Googles
+      // userinfo-endepunkt). Ulike felt = api-et vet hvilken vei det skal ta.
+      const resultat = await byttToken.mutateAsync(
+        provider === "microsoft"
+          ? { provider, idToken: token }
+          : { provider, accessToken: token },
+      );
 
       await lagreSessionToken(resultat.sessionToken);
       await lagreBrukerData(resultat.user);
@@ -138,9 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loggInnMedMicrosoft = useCallback(async () => {
     setLaster(true);
     try {
-      const accessToken = await microsoftFlyt();
-      if (accessToken) {
-        await byttOgLagre("microsoft", accessToken);
+      const idToken = await microsoftFlyt();
+      if (idToken) {
+        await byttOgLagre("microsoft", idToken);
       }
     } finally {
       setLaster(false);

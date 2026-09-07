@@ -294,12 +294,14 @@ Env ligger nå i `~/stack/sitedoc/docker/env/` (lest av compose via `env_file`):
 | Fil | Nøkkelvariabler |
 |-----|----------------|
 | `docker/env/felles.env` | **Delte secrets som MÅ være identiske i api+web** (montert på begge via liste-`env_file`): `FIL_SIGNING_SECRET`. Se [DOCKER-NOTES § FIL_SIGNING_SECRET](../../docker/DOCKER-NOTES.md). |
-| `docker/env/api.env` | `DATABASE_URL`/`DIRECT_URL` (`postgresql://sitedoc:***@postgres:5432/sitedoc`), `PORT=3001`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `SITEDOC_INTEGRATION_KEY` |
+| `docker/env/api.env` | `DATABASE_URL`/`DIRECT_URL` (`postgresql://sitedoc:***@postgres:5432/sitedoc`), `PORT=3001`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `SITEDOC_INTEGRATION_KEY`, **`AUTH_MICROSOFT_ENTRA_ID_ISSUER`** (samme verdi som web — mobil-innloggingens ID-token valideres mot vår tenant), **`MICROSOFT_MOBILE_CLIENT_ID`** (mobilens public-client app-id = `EXPO_PUBLIC_MICROSOFT_CLIENT_ID`; brukt som `aud`-pin ved ID-token-validering) |
 | `docker/env/web.env` | `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_URL`/`NEXTAUTH_URL=https://sitedoc.no`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` |
 
 > Env-filene kopieres aldri inn i image (`.dockerignore` ekskluderer `docker/env/*.env`); de leses kun på host ved `up`. Nøkler håndteres av Kenneth.
 >
 > ⚠️ **tRPC kjører i WEB-containeren** (Next-route-handler importerer `appRouter`; kun `/api/upload` + `/api/uploads/*` rewrites til api). Env-variabler som brukes av tRPC-prosedyrer (f.eks. `FIL_SIGNING_SECRET`) MÅ derfor være tilgjengelige i web — derav `felles.env` montert på begge. Begge prosesser fail-faster i prod uten den (`assertFilSigneringEnv`).
+>
+> ⚠️ **Unntak — mobil-innlogging kjører i Fastify-api-containeren.** `mobilAuth.byttToken` kalles av mobilen mot `api(-test).sitedoc.no` (ikke web). Derfor må `AUTH_MICROSOFT_ENTRA_ID_ISSUER` + `MICROSOFT_MOBILE_CLIENT_ID` ligge i `api.env`. Uten dem feiler MS-innlogging fail-closed (`INTERNAL_SERVER_ERROR` «ikke konfigurert»). Se `apps/api/src/routes/mobilAuth.ts` (`hentMicrosoftBrukerinfoFraIdToken`). Sett i test FØR mobilen får ID-token-bygget via `eas update`.
 
 ## Test-miljø
 

@@ -110,10 +110,15 @@ export async function loggInnMedMicrosoft(): Promise<string | null> {
   // Public client = INGEN client-secret i appen; PKCE binder autorisasjons-
   // koden til denne enheten. (Implicit forkastes: Entra avviser for public
   // client, ingen refresh, token i redirect-URL.)
+  //
+  // Scope = kun OIDC-standarden `openid email profile`. `User.Read` (Graph)
+  // er FJERNET: e-post, navn og oid ligger allerede i ID-tokenet fra `openid
+  // profile email`, så vi trenger ingen Graph-tillatelse. Api-et leser oid
+  // fra ID-tokenet (uendret providerAccountId), ikke lenger Graph /me.
   const request = new AuthSession.AuthRequest({
     clientId: AUTH_CONFIG.microsoftClientId,
     redirectUri,
-    scopes: ["openid", "email", "profile", "User.Read"],
+    scopes: ["openid", "email", "profile"],
     responseType: AuthSession.ResponseType.Code,
     usePKCE: true,
   });
@@ -124,7 +129,7 @@ export async function loggInnMedMicrosoft(): Promise<string | null> {
     return null;
   }
 
-  // Veksle koden → access token mot Entra token-endpoint. code_verifier er
+  // Veksle koden → tokens mot Entra token-endpoint. code_verifier er
   // PKCE-hemmeligheten generert ved promptAsync; sendes som extraParam.
   const tokenResultat = await AuthSession.exchangeCodeAsync(
     {
@@ -136,7 +141,9 @@ export async function loggInnMedMicrosoft(): Promise<string | null> {
     discovery,
   );
 
-  return tokenResultat.accessToken ?? null;
+  // Returner ID-tokenet (ikke access-tokenet). Api-et validerer signaturen mot
+  // Entras JWKS og leser oid/email/name fra claims — ingen Graph-kall.
+  return tokenResultat.idToken ?? null;
 }
 
 /**
