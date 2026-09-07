@@ -431,6 +431,46 @@ Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifis
 
 `+Oppgave`-knapp på felter → oppgavenummer som blå pill-badge → navigerer til oppgave.
 
+## 🟢 Mobilens dokumentsøk er LISTESØK, ikke innholdssøk (Kenneth-vedtak 2026-09-06)
+
+> **Kenneth, etter å ha testet sheetet på test:** *«Egentlig — fritekstsøk inni dokumenter
+> hører til web-flaten. App er ok slik den står nå.»*
+
+**Søkeindeksen** (`dokumentlisteFilter.ts:96`): dokumentnummer · tittel · emne · malnavn ·
+dokumentflyt · byggeplass · tegning. **`Checklist.data` er IKKE med** — altså ikke det brukeren
+har skrevet i tekstfeltene.
+
+**Hvorfor det er riktig:** listesøket svarer på *«finn dokumentet jeg vet finnes»*. Innholdssøk
+ville krevd at telefonen laster alle dokumenters fulle `data`-JSON for å filtrere en liste — og
+produktet har allerede en flate for det: **Dokumentsøk** med embedding og hybrid søk
+([ai-sok.md](ai-sok.md)).
+
+⚠️ **Ikke meld dette som en mangel.** Endres vedtaket, er innholdssøk på mobil en egen sak med
+egen kostnadsmåling.
+
+## 🟢 Dokumentflyt på mobil er LESEVISNING — og det er etter design (målt 2026-09-06)
+
+**Kenneth meldte at flaten «ser ulik ut» på mobil og web.** Målt av redesign-Opus:
+**forskjellen er legitim, og saken er avklart bort — ikke utsatt.**
+
+| Flate | Er |
+|---|---|
+| **Web** (`oppsett/produksjon/dokumentflyt`) | Konfigurasjon: faggruppe → flyt → roller som steg-kort, «+ Legg til rolle», maler. **Eier hele konfig-settet** — opprett/oppdater/slett, `leggTilMedlem`, `oppdaterRoller`, `settHovedansvarlig`, `settKanRedigere` |
+| **Mobil** (`dokumentflyt.tsx`) | **Oppslagsvisning: «hvem har ballen, hvem er med».** Tre `useQuery`, **null `useMutation`** — eksplisitt dokumentert read-only i koden (`:114-127`) |
+
+🔴 **«Redigerer»-etiketten på mobil er en TILGANGSTILSTAND, ikke en rolle.** Den er
+`kanRedigere`-boolen per dokumentflyt-medlemskap: grå «Redigerer» = skrivetilgang, amber
+«Leser» = kun lese. **De ekte rollene** (Registrator/Bestiller/Utfører/Godkjenner) vises i
+per-flyt-detaljen når raden ekspanderes (`:308`).
+
+**Hvorfor det ikke er en paritetsfeil:** [feltarbeid-skillet](SAMARBEIDSREGLER.md) sier at
+mobil får feltarbeidet og web kontorarbeidet. **Å konfigurere en dokumentflyt er kontorarbeid.**
+Testen for ekte paritetsfeil er *«kan samme handling gi ULIKT UTFALL på de to flatene»* — og
+mobil har ingen handling som skriver. **Ulik form er greit; ulikt utfall er ikke.**
+
+⚠️ **Ikke meld dette som funn på nytt.** Endres det slik at mobil får en mutasjon, er saken en
+annen — da gjelder paritetsregelen igjen.
+
 ## PDF-utskrift og deling
 
 **PDF-bygger:** `@sitedoc/pdf` (packages/pdf/) — delt pakke for web og mobil. Genererer komplett HTML-strenger.

@@ -12,7 +12,7 @@
  * er arkiv-lokal. Tom repeater → «Ingen rader registrert» (skjules aldri).
  */
 
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, bildeOpptakTid } from "../hjelpere";
+import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, bildeOpptakTid, byggGrenseVerdi } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
 import { normaliserRad } from "../typer";
@@ -86,7 +86,13 @@ export function skalarCelle(objekt: TreObjekt, felt: FeltVerdi | undefined): str
     case "decimal":
     case "calculation": {
       const enhet = (objekt.config.enhet as string) ?? (objekt.config.unit as string) ?? "";
-      return tom ? TOM : esc(`${verdi}${enhet ? ` ${enhet}` : ""}`);
+      // Grenseresolver trinn 3 del A: brudd-ordet i cella (les nedover kolonnen for
+      // avvikene). Kompakt — kravteksten dempes bort så kolonnen holder seg smal.
+      return byggGrenseVerdi(
+        tom ? null : `${verdi}${enhet ? ` ${enhet}` : ""}`,
+        felt?.grenseSnapshot,
+        { kompakt: true },
+      );
     }
     case "date":
       return tom ? TOM : esc(formaterDato(verdi));

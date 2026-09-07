@@ -929,6 +929,16 @@ export default function OppgaveDetalj() {
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 oppgaveIdForKo={oppgave.id}
                 tillatteFaggruppeIder={tillatteFaggruppeIder}
+                forelderVerdi={
+                  typeof objekt.config.styrendeFeltId === "string"
+                    ? hentFeltVerdi(objekt.config.styrendeFeltId as string).verdi
+                    : undefined
+                }
+                styrendeFelt={
+                  typeof objekt.config.styrendeFeltId === "string"
+                    ? objekter.find((o) => o.id === objekt.config.styrendeFeltId)
+                    : undefined
+                }
               />
             </FeltWrapper>
           );

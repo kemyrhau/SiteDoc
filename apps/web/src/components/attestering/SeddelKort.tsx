@@ -172,8 +172,9 @@ export function SeddelKort({
 
   // T7-4f-splitt-1-klikk: prosjekter + tidsrunding for SplittRadModal.
   // trpc-cache dedupliserer på tvers av sedel-kort — én faktisk query per side.
+  // Timer er utenfor prosjekt-frysen — splitt/attestering må se også frosne prosjekter.
   const { data: prosjekterRaw } = trpc.prosjekt.hentAlle.useQuery(
-    { organizationId: orgId! },
+    { organizationId: orgId!, inkluderFrosne: true },
     { enabled: !!orgId },
   );
   // T7-4f-splitt: prosjekt.hentAlle returnerer komplekse Project-objekter som

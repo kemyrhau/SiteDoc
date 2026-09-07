@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
-import { beregnHarBallen } from "@sitedoc/shared";
+import { beregnHarBallen, filtrerRader } from "@sitedoc/shared";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
@@ -584,42 +584,35 @@ export default function OppgaverSide() {
         ),
       );
     }
-    for (const [kolId, verdi] of Object.entries(filterVerdier)) {
-      if (!verdi) continue;
-      const valgteSet = new Set(verdi.split(","));
-      resultat = resultat.filter((o) => {
-        if (kolId.startsWith("felt:")) {
-          const oid = kolId.replace("felt:", "");
-          const feltVerdi = hentFeltVerdi(o, oid, objektTyper.get(oid), navneLookup);
-          return valgteSet.has(feltVerdi);
-        }
+    // Trinn 0 (dokumentsøk-mobil): delt filterpredikat (@sitedoc/shared) — samme
+    // kilde som sjekklister/hms og mobilens filter-sheet. Verdi-uthentingen er
+    // oppgave-spesifikk (prioritet; byggeplass via `drawing`, ikke direkte) og
+    // beholdes her — kun LØKKEN deles.
+    resultat = filtrerRader(resultat, filterVerdier, {
+      hentVerdi: (o, kolId) => {
         switch (kolId) {
-          case "prefix": return valgteSet.has(o.template?.prefix ?? "");
-          case "status": return valgteSet.has(o.status);
-          case "emne": return valgteSet.has(o.subject ?? "");
-          case "prioritet": return valgteSet.has(o.priority ?? "");
-          case "ansvarlig": return valgteSet.has(formaterAnsvarlig(o));
-          case "opprettetAv": return valgteSet.has(o.bestiller?.name ?? "");
-          case "bestillerFaggruppe": return valgteSet.has(o.bestillerFaggruppe?.name ?? "");
-          case "utforerFaggruppe": return valgteSet.has(o.utforerFaggruppe?.name ?? "");
-          case "mal": return valgteSet.has(o.template?.name ?? "");
-          case "bygning": return valgteSet.has(o.drawing?.byggeplass?.name ?? "");
-          case "etasje": return valgteSet.has(o.drawing?.floor ?? "");
-          case "tegning": return valgteSet.has(o.drawing?.name ?? "");
-          case "flyt": return valgteSet.has(hentFlytLedd(o));
-          case "frist": {
-            const harFrist = !!o.dueDate;
-            const forfalt = harFrist && new Date(o.dueDate!) < new Date() && o.status !== "approved" && o.status !== "closed";
-            if (valgteSet.has("forfalt")) return forfalt;
-            if (valgteSet.has("har_frist") && valgteSet.has("ingen_frist")) return true;
-            if (valgteSet.has("har_frist")) return harFrist;
-            if (valgteSet.has("ingen_frist")) return !harFrist;
-            return true;
-          }
-          default: return true;
+          case "prefix": return o.template?.prefix ?? "";
+          case "status": return o.status;
+          case "emne": return o.subject ?? "";
+          case "prioritet": return o.priority ?? "";
+          case "ansvarlig": return formaterAnsvarlig(o);
+          case "opprettetAv": return o.bestiller?.name ?? "";
+          case "bestillerFaggruppe": return o.bestillerFaggruppe?.name ?? "";
+          case "utforerFaggruppe": return o.utforerFaggruppe?.name ?? "";
+          case "mal": return o.template?.name ?? "";
+          case "bygning": return o.drawing?.byggeplass?.name ?? "";
+          case "etasje": return o.drawing?.floor ?? "";
+          case "tegning": return o.drawing?.name ?? "";
+          case "flyt": return hentFlytLedd(o);
+          default: return undefined;
         }
-      });
-    }
+      },
+      hentFeltVerdi: (o, oid) => hentFeltVerdi(o, oid, objektTyper.get(oid), navneLookup),
+      hentFrist: (o) => ({
+        dueDate: o.dueDate,
+        ferdig: o.status === "approved" || o.status === "closed",
+      }),
+    });
     return resultat;
   }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier, mineOppgaver, minFlytInfo]);
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Prisma } from "@sitedoc/db";
+import { Prisma, prisma } from "@sitedoc/db";
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
 import { router, protectedProcedure } from "../trpc/trpc";
@@ -7,16 +7,18 @@ import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
 import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
+import { prosesserDokument } from "../services/ftd-prosessering";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 const GYLDIGE_SPRAAK = new Set<string>(STOETTEDE_SPRAAK.map((s) => s.kode));
 
 const UPLOADS_DIR = join(process.cwd(), "uploads");
-// Prosessering kjøres på API-serveren (ren Node) — ikke i Next.js
-const API_INTERN_URL = `http://localhost:${process.env.API_PORT ?? process.env.PORT ?? "3001"}`;
 
+// Fire-and-forget dokumentprosessering, in-process. Tidligere via HTTP-selvkall
+// til /prosesser/:documentId — et uautentisert offentlig endepunkt (funnet
+// 2026-09-06). Se mengde.ts for full begrunnelse. Autorisasjon gjort i kalleren.
 function triggerProsessering(documentId: string) {
-  fetch(`${API_INTERN_URL}/prosesser/${documentId}`, { method: "POST" }).catch(
+  prosesserDokument(prisma, documentId).catch(
     (err) => console.error(`Kunne ikke trigge prosessering for ${documentId}:`, err),
   );
 }

@@ -59,7 +59,7 @@ RapportObjektRenderer (dispatcher)
 |-----------|------|-------|-------------|
 | `EnkeltvalgObjekt` | `list_single` | `string` | Radioknapper, toggle-deselect, normaliserer opsjoner |
 | `FlervalgObjekt` | `list_multi` | `string[]` | Avkrysningsbokser, normaliserer opsjoner |
-| `TrafikklysObjekt` | `traffic_light` | `string` | 4 fargesirkler (grønn/gul/rød/grå «Ikke relevant»), 24px prikk i 44px trykkflate |
+| `TrafikklysObjekt` | `traffic_light` | `string` | 4 fargesirkler (grønn/gul/rød/grå), 24px prikk i 44px trykkflate + **navnet synlig UNDER sirkelen** (fabel-vedtak 2026-09-06: ordet er det eneste som skiller i s/h + for fargeblinde). Verdisett + i18n-nøkler fra `@sitedoc/shared` `TRAFIKKLYS_VALG` (delt m/web; pdf-tvilling m/paritetstest); fargeklasser er plattform-lokale |
 
 ### Tall
 
@@ -109,7 +109,7 @@ RapportObjektRenderer (dispatcher)
 
 ## Opsjon-normalisering
 
-Config `options` kan være strenger (`"Ja"`) eller objekter (`{value: "green", label: "Godkjent"}`). `EnkeltvalgObjekt` og `FlervalgObjekt` normaliserer automatisk — begge formater støttes.
+Config `options` kan være strenger (`"Ja"`) eller objekter (`{value: "green", label: "Godkjent"}`). `EnkeltvalgObjekt` og `FlervalgObjekt` normaliserer automatisk — begge formater støttes. `normaliserOpsjon` bor i `@sitedoc/shared` (delt kilde, trukket dit 2026-09-06 fra fire kopier) — komponentene importerer den, definerer den ikke lokalt.
 
 ## Verdi-lagring per type
 

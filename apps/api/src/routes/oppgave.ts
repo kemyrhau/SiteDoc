@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
+import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
+import { frysGrenseSnapshots } from "../services/grenseLagring";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { documentStatusSchema } from "@sitedoc/shared";
@@ -17,6 +19,7 @@ import {
   verifiserRetningsrett,
   byggFlytBruker,
   verifiserProsjektmedlem,
+  verifiserProsjektIkkeFrosset,
   verifiserHmsHandling,
   hentBrukerTillatelser,
   hentBrukerProsjektTilgang,
@@ -165,7 +168,8 @@ export const oppgaveRouter = router({
             domainFilter,
           ],
           ...(input.status ? { status: input.status } : {}),
-          ...(input.byggeplassId ? { OR: [{ drawing: { byggeplassId: input.byggeplassId } }, { drawingId: null }] } : {}),
+          // Byggeplass-tilhørighet via tegning (mykt, 3 ledd), regel i byggeplassFilter.ts.
+          ...(byggeplassFilterViaTegning(input.byggeplassId) ?? {}),
           ...(tilgangsFilter ?? {}),
         },
         include: {
@@ -725,7 +729,8 @@ export const oppgaveRouter = router({
               domain: true,
               projectId: true,
               enableChangeLog: true,
-              objects: { select: { id: true, label: true, type: true } },
+              // config: trinn 3 del B — grense-frys trenger min/maks/kravType/styrendeFeltId.
+              objects: { select: { id: true, label: true, type: true, config: true } },
             },
           },
         },
@@ -858,6 +863,12 @@ export const oppgaveRouter = router({
         });
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
         const merget = { ...eksisterende, ...innData };
+
+        // Trinn 3 del B: frys kravsnapshot sidestilt med verdi på tallfelt (server-frys ved
+        // lagring). Speiler sjekkliste.oppdaterData — samme delte helper.
+        if (oppgave.template?.objects) {
+          frysGrenseSnapshots(merget, eksisterende, oppgave.template.objects);
+        }
 
         // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
         // med ≥1 signatur — speiler sjekkliste.oppdaterData (delt regel).
@@ -1948,6 +1959,10 @@ export const oppgaveRouter = router({
       });
 
       const projectId = hentProjectId(oppgave);
+
+      // FL: eierbytte er en skrivehandling — sperret på et avsluttet prosjekt
+      // (går ikke via en prosjekt-port; inline-admin-sjekk under).
+      await verifiserProsjektIkkeFrosset(ctx.userId, projectId);
 
       // Sjekk at bruker er admin eller registrator
       const bruker = await ctx.prisma.user.findUniqueOrThrow({

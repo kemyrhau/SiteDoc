@@ -1,13 +1,17 @@
 import { AlertTriangle } from "lucide-react";
-import { normaliserGrense, formaterGrense, grenseStatus } from "@sitedoc/shared";
+import { useTranslation } from "react-i18next";
+import { løsGrense, formaterGrense, grenseStatus, byggAvvikLinje, byggKravHerkomst } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
-export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus, forelderVerdi, styrendeFelt }: RapportObjektProps) {
+  const { t } = useTranslation();
   const tallVerdi = typeof verdi === "number" ? String(verdi) : "";
-  const grense = normaliserGrense(objekt.config);
+  const grense = løsGrense(objekt, forelderVerdi);
   const status = grenseStatus(verdi, grense);
   const utenfor = status !== null && status !== "ok";
   const grenseTekst = formaterGrense(grense);
+  const avvikTekst = byggAvvikLinje(t, verdi, grense);
+  const herkomstTekst = byggKravHerkomst(t, objekt, forelderVerdi, styrendeFelt);
   const step = grense.desimaler != null ? Math.pow(10, -grense.desimaler) : 0.01;
 
   return (
@@ -31,7 +35,9 @@ export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Ra
         />
         {grense.enhet && <span className="shrink-0 text-sm text-gray-500">{grense.enhet}</span>}
       </div>
-      {grenseTekst && (
+      {herkomstTekst ? (
+        <span className="text-xs text-gray-500">{herkomstTekst}</span>
+      ) : grenseTekst ? (
         <span
           className={`flex items-center gap-1 text-xs ${
             utenfor ? "font-medium text-amber-600" : "text-gray-400"
@@ -40,6 +46,9 @@ export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Ra
           {utenfor && <AlertTriangle className="h-3 w-3 shrink-0" />}
           {grenseTekst}
         </span>
+      ) : null}
+      {avvikTekst && (
+        <span className="text-xs font-medium text-amber-600">{avvikTekst}</span>
       )}
     </div>
   );

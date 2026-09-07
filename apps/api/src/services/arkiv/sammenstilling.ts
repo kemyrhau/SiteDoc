@@ -44,6 +44,7 @@ import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
 import { lesHendelseslogg, lesEndringslogg } from "./logg-lesere";
 import { samleRepeaterMarkorer, byggUtsnittCrop, type RepeaterMarkor } from "./tegningsmarkorer";
+import { injiserGrenseSnapshot } from "./grensesnapshot";
 
 interface BildeRef { url: string; filnavn?: string; type?: string }
 
@@ -372,6 +373,11 @@ async function byggArkivHtmlKjerne(
       }
     }
   }
+
+  // 3e) Grenseresolver trinn 3 del A: injiser kravsnapshot ({kravTekst,status}) sidestilt med
+  // verdien på hvert tallfelt med grense (rot + repeater-rader). Kjøres på `dataInlinet` slik at
+  // referansene treffer det byggInnhold rendrer. Del B-frosne snapshot (satt ved lagring) står.
+  injiserGrenseSnapshot(treObjekter, dataInlinet);
 
   // 4) Innhold (tre-bevisst, tomme strukturer synlig). `treObjekter` bygget over.
   // Repeater-cellene bærer nå injiserte detaljutsnitt.

@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { normaliserOpsjon, normaliserRad } from "./rapportobjekter/typer";
+import { normaliserRad } from "./rapportobjekter/typer";
 import type { RapportObjekt } from "./rapportobjekter/typer";
 import { formaterDato, formaterDatoTid } from "@sitedoc/pdf";
 import type { VaerVerdi } from "@sitedoc/pdf";
-import { harTegningsmarkor, oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
+import { harTegningsmarkor, normaliserOpsjon, oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
 
 // Trafikklys-farge → label + CSS-klasse (web bruker Tailwind-klasser, ikke hex)
 const TRAFIKKLYS: Record<string, { label: string; klasse: string }> = {

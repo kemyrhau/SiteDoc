@@ -27,6 +27,12 @@ export default function ProsjektOversikt() {
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
+  const utils = trpc.useUtils();
+  const gjenapneMutation = trpc.prosjekt.settLivssyklus.useMutation({
+    onSuccess: () => {
+      void utils.prosjekt.hentMedId.invalidate({ id: params.prosjektId });
+    },
+  });
 
   const [merMenyAapen, setMerMenyAapen] = useState(false);
   const merRef = useRef<HTMLDivElement>(null);
@@ -101,6 +107,25 @@ export default function ProsjektOversikt() {
         {erDeaktivert && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {t("dashbord.proveperiodeUtlopt")}
+          </div>
+        )}
+        {/* FL: firma-admin når et avsluttet/arkivert prosjekt (frysevakten slipper
+            ham gjennom). Indigo-banner + Gjenåpne — vanlige brukere ser stoppsiden. */}
+        {(prosjekt.status === "completed" || prosjekt.status === "archived") && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+            <span>
+              {t("livssyklus.bannerFrosset", {
+                status: t(prosjekt.status === "archived" ? "prosjektStatus.arkivert" : "prosjektStatus.avsluttet"),
+              })}
+            </span>
+            <button
+              type="button"
+              disabled={gjenapneMutation.isPending}
+              onClick={() => gjenapneMutation.mutate({ id: params.prosjektId, status: "active" })}
+              className="whitespace-nowrap rounded-md border border-indigo-700 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+            >
+              {t("livssyklus.gjenapneKort")}
+            </button>
           </div>
         )}
         {!erDeaktivert && dagerIgjen !== null && dagerIgjen <= 14 && (

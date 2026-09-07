@@ -13,9 +13,10 @@ import {
   drawingStatusSchema,
   geoReferanseSchema,
 } from "@sitedoc/shared";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
+import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
 /** Hent bildedimensjoner fra fil (PNG/SVG/JPG) via sharp (dynamisk import) */
 async function hentBildeDimensjoner(filsti: string): Promise<{ width: number; height: number } | null> {
@@ -54,11 +55,9 @@ export const tegningRouter = router({
           projectId,
           ...(discipline ? { discipline } : {}),
           ...(status ? { status } : {}),
-          // Mykt filter (byggeplass-tilhørighet, dokument-formen): en tegning uten
-          // byggeplass er en PROSJEKT-tegning og gjelder der du står — den skal ikke
-          // forsvinne uten spor når en byggeplass velges. Speiler sjekkliste.ts:186.
-          // Byggeplass-løse tegninger merkes «Hele prosjektet» i lista (klient).
-          ...(byggeplassId ? { OR: [{ byggeplassId }, { byggeplassId: null }] } : {}),
+          // Byggeplass-tilhørighet (mykt), regel i byggeplassFilter.ts. Byggeplass-løse
+          // tegninger merkes «Hele prosjektet» i lista (klient).
+          ...(byggeplassFilterDirekte(byggeplassId) ?? {}),
           ...(floor ? { floor } : {}),
         },
         include: {
@@ -583,6 +582,9 @@ export const tegningRouter = router({
   rekonverterPdf: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      // FL: re-konvertering er en skrivehandling — sperret på et avsluttet prosjekt
+      // (går ikke via en prosjekt-port; inline-admin-sjekk under).
+      await verifiserProsjektIkkeFrosset(ctx.userId, input.projectId);
       // Kun sitedoc_admin eller prosjektadmin
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
       if (bruker?.role !== "sitedoc_admin") {

@@ -94,19 +94,19 @@
           <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; color: #111827;">Underlagstype (liste, ett valg) ▾</span>
           <span style="font-size: 10px; color: #9ca3af;">Kun liste-felt (ett valg) som står før dette feltet</span>
         </div>
+        <div style="font-size: 11px; color: #4b5563; line-height: 1.5; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 6px 8px;">Hvert valg kan få sitt eget tall. La feltet stå tomt for å bruke standardkravet ≤ 10 mm.</div>
         <div style="display: flex; flex-direction: column; gap: 6px;">
-          <div style="display: grid; grid-template-columns: 1fr 76px; gap: 6px; align-items: center;">
+          <div style="display: grid; grid-template-columns: 1fr 90px; gap: 6px; align-items: center;">
             <span style="font-size: 11px; font-weight: 600; color: #6b7280;">Valg</span>
             <span style="font-size: 11px; font-weight: 600; color: #6b7280;">Høyst (mm)</span>
             <span style="font-size: 13px; color: #111827;">Komprimert pukk</span>
-            <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #111827;">10</span>
+            <span style="display: flex; align-items: center; gap: 4px; background: #ffffff; border: 1px solid #1e40af; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #111827; font-weight: 600;">10 <span style="margin-left: auto; color: #9ca3af; font-weight: 400; cursor: pointer;">✕</span></span>
             <span style="font-size: 13px; color: #111827;">Sprengsteinsfylling</span>
-            <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #111827;">25</span>
+            <span style="display: flex; align-items: center; gap: 4px; background: #ffffff; border: 1px solid #1e40af; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #111827; font-weight: 600;">25 <span style="margin-left: auto; color: #9ca3af; font-weight: 400; cursor: pointer;">✕</span></span>
             <span style="font-size: 13px; color: #111827;">Leirholdig grunn</span>
-            <span style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #9ca3af;">—</span>
-            <span style="font-size: 13px; color: #6b7280; font-style: italic;">Ellers (standard)</span>
-            <span style="background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #6b7280;">10</span>
+            <span style="background: #ffffff; border: 1px dashed #d1d5db; border-radius: 6px; padding: 5px 8px; font-size: 13px; color: #9ca3af; font-style: italic;">≤ 10</span>
           </div>
+          <div style="font-size: 11px; color: #6b7280; padding: 2px 2px 0;">Andre eller ingen valg: standardkravet ≤ 10 mm gjelder.</div>
           <div style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 6px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
             <span style="font-size: 12px; color: #b45309;">«Leire» finnes ikke lenger i Underlagstype · 8</span>
             <span role="button" style="font-size: 12px; color: #b45309; font-weight: 700; cursor: pointer;">Fjern</span>
@@ -114,7 +114,7 @@
         </div>
         <div style="font-size: 11px; color: #6b7280; line-height: 1.5; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px;">Komprimert pukk: ≤ 10 mm · Sprengsteinsfylling: ≤ 25 mm · ellers ≤ 10 mm</div>
       </div>
-      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">Kravtypen er felles for feltet — variantene overstyrer bare tallene. Én rad per valg i styrende felt; tom celle arver standard. Omdøpt/slettet valg blir stående som merket rad med Fjern — aldri stille sletting.</div>
+      <div style="font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 8px;">Rev. etter Kenneths testkjøring 06.09: satt verdi = fylt celle med blå kant + ✕ (fjern → tilbake til arv); arvet = tom stiplet celle med standardtallet som grå placeholder («≤ 10»). Aldri to like-utseende tall. Intro-linjen lærer bort modellen FØR utfylling; «Ellers (standard)»-raden er erstattet av tekstlinje under tabellen — den var et tillegg, ikke en rad. Kravtypen er fortsatt felles; omdøpt/slettet valg blir stående som merket rad med Fjern.</div>
     </div>
 
     <div style="width: 288px; flex-shrink: 0;">

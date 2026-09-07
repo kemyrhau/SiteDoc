@@ -80,6 +80,9 @@ export const eksportRouter = router({
           id: true,
           status: true,
           feilmelding: true,
+          // Progresjon for «bygger»-tilstanden i UI (antallFerdig av antallTotalt).
+          antallTotalt: true,
+          antallFerdig: true,
           resultatStorrelse: true,
           utloperVed: true,
           createdAt: true,

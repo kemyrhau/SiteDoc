@@ -30,6 +30,10 @@ export const STATUS_FARGE: Record<string, string> = {
   cancelled: "background:#f3f4f6;color:#6b7280;",
 };
 
+// TVILLING av @sitedoc/shared `TRAFIKKLYS_VALG` (standardtekster.ts) — pakken er null-avhengig
+// og kan ikke importere shared. Her: norsk label + hex (for PDF). Der: value + i18n-nøkkel (for
+// web/mobil). Voktet av paritetstest (apps/web/src/__tests__/pdf-shared-tvilling-paritet.test.ts):
+// samme verdisett/rekkefølge + norsk label = nb-oversettelsen. Endrer du den ene, endre den andre.
 export const TRAFIKKLYS: Record<string, { label: string; farge: string }> = {
   green: { label: "Godkjent", farge: "#10b981" },
   yellow: { label: "Anmerkning", farge: "#f59e0b" },

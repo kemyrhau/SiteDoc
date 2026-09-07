@@ -42,20 +42,91 @@ startet, er høstet ut i egen seksjon under «Pågående arbeid».
 **dokgen = FUNN-sporet** (feltfunn, ellers BACKLOG) · **simulator = måling og røykliste**.
 Kun 🔴-blokkerere avbryter plan-sporet.
 
+> 🔴 **REGISTERET MÅLES, DET HUSKES IKKE** (Kenneth-krav 2026-09-06). Kjør før hver
+> statusrapport og hver ny ordre:
+>
+> ```sh
+> git fetch origin -q --prune && git worktree list && git branch -r
+> ```
+>
+> | Signal | Betyr |
+> |---|---|
+> | Branch i treet, ingen commits | 🟡 Ordren er TATT, agenten koder |
+> | Treet på `develop`/detached | 🟢 Ledig — ordren er ikke tatt |
+> | Branch på origin, ikke ancestor av develop | 🟢 Levert, venter merge |
+>
+> **«Branch finnes i treet» er det eneste målbare signalet på at en agent jobber** — cowork kan
+> ikke se agentøkter, bare Kenneth kan. ⚠️ **En ordre er ikke RELAYET før Kenneth har limt den.**
+> «Skrevet» og «gitt» er to tilstander, og tavla skiller dem. Cowork påstod agentstatus tre
+> ganger 06.09 uten å måle: to ganger sto agentene ledige fordi ordren aldri var relayet, én gang
+> var øktene borte.
+
 | Agent | Spor | Worktree | Tilstand | Neste ordre |
 |---|---|---|---|---|
-| **merge-agent** | ⚙️ **DRIFT** | `SiteDoc-merge` | 🔴 **NY ROLLE — bemannes ved sesjonsstart.** Vedtak Kenneth 01.09: han kjører kun det som krever TTY/passord | **`relay/inbox-merge-agent.md`**. Utfører merge-orden cowork har gatet. Fem fences — aldri `main`, prod, `sudo` eller `deploy-test.sh` |
-| **kontrollplan** | 🟢 **LEDIG — ordre venter gate** | `SiteDoc-kontrollplan` | ✅ Alt levert og merget: drift-konsolidering A+B+C (`85c8ecd5`), malrevisjon D (`3c40df3e`), idempotent seed (`0bd7941a`) | 🔴 **`relay/inbox-mobil-byggeplasskontekst.md` — SKREVET, IKKE RELAYET.** Bygg 50 funn A/B/D. Gatet mot `8c0ae787` 03.09, linjenumre foreldet | (`3c40df3e` → `6540c141`): status ut av kundetekst, `verifisert` i bruk, utkast-badge. Tidligere: idempotent seed `0bd7941a`, veivisere `c48e6d44`/`b32326a8` | ⏸️ `inbox-mobil-byggeplasskontekst.md` står på vent. **Kandidat: tvilling-paritetstest** (se feltfunn) |
-| **dokgen** | 🟢 **LEDIG — ordre venter gate** | `SiteDoc-dokgen` | ✅ Alt levert og merget: serverlås SJA (`5e13c43e`), signatur navn+tidspunkt + kollaps (`5dc04240`) | 🔴 **`relay/inbox-mobil-vedlegg-pdf.md` — SKREVET, IKKE RELAYET.** Bygg 50 funn C/E. Samme bygg som kontrollplans A/B/D | (`5dc04240` → `276e8357`): navn+tidspunkt `{dataUrl, brukerId, navn, tidspunkt}` m/legacy-lesing, delt leser i `@sitedoc/shared`, PDF-speil, kollapset «Signer her»-tilstand. **Option A vedtatt** — tilbehør av i utfylling, historisk tilbehør bevart i lesemodus (`FeltDokumentasjon.tsx:126` self-hider når tomt) | **Ledig.** ⏸️ `inbox-timerrapport-flate.md` |
-| **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` | **Syv runder 05/06.09, alle inne.** 🔴 Stoppet FØR push på et rot-testbrudd gaten ikke fanget · korrigerte coworks testtall (277→284, ikke 284→291 — cowork hadde kopiert et tall fra en agentrapport) · håndterte push-kollisjon med reset+re-merge, ikke force. **Ordrefiler har eget rundenummer** fra runde 4 — uten det ble runde 3 besvart med runde 2s rapport | Ledig |
-| **redesign** | 🟢 **LEDIG** | `SiteDoc-redesign` | ✅ **SJA-signaturrunder merget** (`f5d75571` → `e2e87123`) + **skjermbilde-underlag** (`1598bd08` → `223f2b5e`). Tre tabeller, felttypen `signature_list`, PDF m/F7, manko-chip i én spørring, MalBygger-guard mot to lister. TS2589 løst ved kilden (chip-select ut av eksponert AppRouter-type, ikke cast) | **Ledig.** Skal ikke bygge serverlåsen — den gikk til dokgen |
-| **simulator** | 🔵 **MÅLING** | `SiteDoc-simulator` | Tre rent. Tre leveranser 31.08 (to målinger + røyklisten). 🔴 **Tunnel 3301 NEDE** · 🔴 **release-appen OVERSKREVET** av DEV-client · Metro 8081 fra annet vindu | Ingen. **Røyklisten kjøres før hvert EAS-bygg** — `docs/claude/roykliste-mobil.md` |
-| **fabel** | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
+| **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` | **17 runder 05/06.09**, i synk med develop `09fc817c`. Stoppet FØR push på et rot-testbrudd gaten ikke fanget · korrigerte coworks testtall (277→284) · håndterte push-kollisjon med reset+re-merge, ikke force · fanget to foreldede ordrefiler ved å måle i stedet for å handle | Runde 18 når dokgen leverer på nytt |
+| **kontrollplan** | 🟢 **LEVERT — venter merge** | `SiteDoc-kontrollplan` | **Trinn 3 komplett** (`eac7b175`): PDF viser kravet · server-frys av snapshot · avviksfelt ved brudd. Landminen unngått, delt logikk navngitt (`utenforKravOppfylt` × 4 hooks, `byggAvvikLinje` × 4 komponenter). ⚠️ 14 commits bak develop — rebase i runde 20. **Venter fabels atferdsgate** | Etter merge: PDF-underlag til fabel |
+| ~~kontrollplan (historikk)~~ | — | — | Grense-resolveren trinn 0–2 merget (`d849a163`) + tabellrevisjon (`18d49186`) etter fabels designgate. 🟢 **Gaten passert på test — Kenneth satte en variant uten å prøve seg fram.** Fire `normaliserOpsjon`-kopier ned til to. Tidligere: malrevisjon D, drift-konsolidering, idempotent seed | `feat/grenseresolver-trinn3` — PDF-krav + avviksfelt. **Fabel-designgate** |
+| **dokgen** | 🟢 **LEVERT — venter merge** | `SiteDoc-dokgen` | `fix/byggeplassfilter-uttrekk` (`a076236f`) — ni kopier → én kilde, tre bugger lukket, api-test 284→291. 🔴 **Fant og meldte imot coworks gate** dagen før: «bare to steder» var feil. Tidligere: mykt bildefilter (`5660ce53`), dokumentsøk mobil (`31002232`), serverlås SJA | Merge runde 19, så ledig |
+| **redesign** | 🟢 **LEVERT — venter merge** | `SiteDoc-redesign` | 🔴 `fix/ftd-tenantgrense` (`d58e080f`): **fem tenant-hull lukket + uautentisert endepunkt fjernet.** Fant dem selv som bifangst da han målte FL-ordrens guard-kostnad. Målte at HTTP-selvkallet gikk til samme prosess → in-process, flaten borte. Tidligere: innboks-pila (`491ec481`), SJA-signaturrunder (`e2e87123`) | `relay/inbox-prosjekt-livssyklus.md` (FL) |
+| **fabel** | ⏸ **STOPPET RENT 06.09 ~96 % bruksgrense** | — | **Alle bestillinger besvart, ingen halvferdige leveranser.** Døgnet: SJA-signaturrunder · FL-designlås + tilgangs-revisjon etter Kenneth-overstyring (stoppside, aldri 404) · grensekrav-ordvalg · trafikklys-etiketter · sekvens-frigivelse tatt imot. 🔴 **Åpne poster han peker på til neste økt:** trinn 3-gaten (PDF-atferdstest) · Kenneths gate på AG-systemteksten · FL/timeprosjekt-kost-sjekkene · **Proadm-eksportfila fra A.Markussen** | Neste økt — Kenneth avgjør om han skal fortsette utover grensen |
+| ~~fabel (gammel rad)~~ | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
 
 ### 📋 Feltfunn-liste (B — funn samles, blir ikke ordrer på minuttet)
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🟢 **LUKKET SAMME DØGN — `a076236f`, ni kopier → én kilde, tre bugger borte.**
+`apps/api/src/services/byggeplassFilter.ts` bærer regelen alene. Testen fanget dessuten en stille
+atferdsendring uttrekket ville innført (tom streng måtte forbli falsy). **Historikken under står
+fordi den forklarer hvorfor gaten trenger å måle mønstre, ikke bare filer.**
+
+🔴 **BYGGEPLASSFILTERET VAR NI KOPIER — TRE AV DEM ØDELAGTE (målt 2026-09-06, dokgen).**
+Regelen «et objekt uten byggeplass gjelder der du står» er håndspeilet ni steder i `apps/api`
+over **to former**: via tegning (`drawing: { byggeplassId }`, 4 kopier) og direkte
+(`byggeplassId`, 5 kopier). 🔴 **Tre av via-tegning-kopiene mangler tredje ledd** —
+`oppgave.ts:168`, `hms.ts:213`, `hms.ts:373`. **En oppgave eller RUH på en PROSJEKT-tegning
+forsvinner fra lista når en byggeplass velges.**
+⚠️ **`hms.ts:207-209` bærer en kommentar som lover oppførselen koden ikke gir** — samme
+løftebrist-klasse som Innboks-pila og «arkivert og skrivebeskyttet».
+🟢 Ordre skrevet: `relay/inbox-byggeplassfilter-uttrekk.md` (uttrekk 9 → 1, buggene lukkes som
+bivirkning, én test på setningen som ikke holdt).
+🔴 **Coworks gate sa «bare to steder, ingen klasse» — det var feil.** Cowork lot dokgens måling
+av andre BILDE-veier svare på et spørsmål om `drawing:{byggeplassId}`-mønsteret. **Agenten målte,
+sa imot, og hadde rett.** Fjerde runde på byggeplass-tilhørighet.
+
+🟢 **LUKKET SAMME DØGN — `d58e080f`.** Fem prosedyrer gates nå på `verifiserProsjektmedlem` via
+resolvert `projectId`; `prosesser.ts` slettet og den offentlige flaten finnes ikke lenger.
+Detaljer + metode i [`sikkerhet.md`](sikkerhet.md). **Historikken under står fordi den viser hvor
+funnet kom fra: bifangst fra en kostnadsmåling ingen hadde bedt om.**
+
+🔴 **FIRMAGRENSEN VAR ÅPEN PÅ FIRE SKRIVEVEIER (målt 2026-09-06, redesign).**
+`kontrakt.oppdater`/`kontrakt.slett` og `mengde.lagreNotat`/`mengde.slettPeriode` er
+`protectedProcedure` — innlogget, men **uten firma- eller prosjektsjekk**. De gjør
+`update({ where: { id } })` rått. **Enhver innlogget SiteDoc-bruker kan endre eller slette et
+annet firmas kontrakt hvis han kjenner id-en**, og `slett` nuller `kontraktId` på faggrupper og
+dokumenter på veien.
+🔴 **Bryter den ufravikelige regelen i CLAUDE.md:** *«Firma-admin ser KUN sitt eget firmas data»*
+og *«firma-grense-sjekk ligger ALLTID i server-laget»*.
+⚠️ **`POST /prosesser/:documentId` (`server.ts:160`) har ingen autentisering** og er eksponert på
+`api.sitedoc.no`. Krever en gyldig UUID for å gjøre noe, så terskelen er høyere — men den er åpen.
+🟢 Egen branch `fix/ftd-tenantgrense`, **prioritert foran FL-funksjonen**. Funn skrives til
+`sikkerhet.md` i samme commit.
+**Funnet som bifangst da redesign målte FL-ordrens guard-kostnad** — ingen lette etter det.
+
+🟡 **Task har ingen egen `byggeplassId`** — tilhørighet finnes kun via tegningen, og det er
+roten til hele asymmetrien over. Å legge feltet på `Task` ville fjernet den, men er **en
+migrering på produktets nest mest sentrale tabell rett før pilot**. **Egen beslutning når noen
+vil ta den** — ikke smuglet inn i en bugfiks.
+
+🟡 **Innboksen har et HARDT TAK på 10 rader (målt 2026-09-06, redesign-Opus).**
+`hjem.tsx:472` — `.slice(0, visAlleInnboks ? 10 : INNBOKS_MAKS)`. Ved 40 aktive dokumenter viser
+badgen **40**, «Se alle» folder ut til **10**, og **de resterende 30 er ikke nåbare fra
+innboks-seksjonen** — kun via Oppgaver- og Sjekklister-fanene.
+🔴 **Seksjonen viser altså et tall den ikke kan liste.** Fra ~11 aktive dokumenter er den
+ufullstendig. **Egen innboks-skjerm (variant B) er berettiget** — med søk/filter/sortering fra
+dokgens dokumentliste-komponenter (`31002232`), ikke en ny flate uten dem.
+⚠️ **Ikke akutt, men ikke hypotetisk.** A.Markussen med 50 ansatte passerer 10 aktive fort.
 
 🔴 **PROSESSFUNN 2026-09-06 — ANDRE GANG: standardgaten mangler `pnpm test`.**
 Gate-kjeden i coworks ordrer er `install → prisma generate ×4 → web build → mobil typecheck
@@ -433,7 +504,14 @@ Se [eas-build-veileder.md § Bygg-logg](eas-build-veileder.md).
 ⚠️ **Foreldet linje under — tavla sa `ba234fd1` mens prod faktisk var `3a2f7dc3` (29.08).
 En prod-deploy ble aldri ført.**
 
-✅ **PROD À JOUR 2026-09-06 13:40** — `ad18df93` (over tjue merger fra to døgn).
+✅ **PROD À JOUR 2026-09-06 17:15** — `82cd4459`. Verifisert: `/version` → `82cd4459`.
+Migreringer: «No pending» (ingen nye siden `ad18df93`). **Innhold:** byggeplass-tilhørighet på
+raden · ærlig chip-tekst · mykt tegningsfilter · «bekreftet av» på gjestesignatur · splittet
+teller «X signert + Y bekreftet» · fritekst-lokasjon.
+🟢 **OTA `c0d556ce`** publisert etter (api-filteret måtte ut først), pluss `42ef3059` tidligere
+samme dag (utlogging + byggeplass-velger).
+
+**Forrige prod: `ad18df93`** (2026-09-06 13:40, over tjue merger fra to døgn).
 Stempel verifisert: `curl https://api.sitedoc.no/version` → `ad18df93`.
 **Tre migreringer anvendt mot prod-DB:** `20260906000000_sja_signaturrunder` ·
 `20260906120000_sja_innholdsversjon` · `20260906130000_signatur_bekreftet_av` ·

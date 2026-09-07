@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad } from "@sitedoc/shared";
-import { lesSignaturVerdiPdf, formaterSignaturLinjePdf, feltKartFraRadPdf } from "@sitedoc/pdf";
+import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad, normaliserOpsjon, TRAFIKKLYS_VALG, nb } from "@sitedoc/shared";
+import {
+  lesSignaturVerdiPdf,
+  formaterSignaturLinjePdf,
+  feltKartFraRadPdf,
+  normaliserOpsjon as normaliserOpsjonPdf,
+  TRAFIKKLYS,
+} from "@sitedoc/pdf";
 
 /**
  * Drift-vakt for de TILSIKTEDE tvillingene mellom @sitedoc/shared (kanonisk leser)
@@ -65,6 +71,28 @@ describe("signatur-tvilling: formaterSignaturLinje ↔ formaterSignaturLinjePdf"
   }
 });
 
+describe("opsjon-tvilling: normaliserOpsjon ↔ normaliserOpsjonPdf", () => {
+  // Ordrens påkrevde tilfeller (trinn 0): streng, {label,value}, {label} uten value,
+  // tom/null, verdi med mellomrom — pluss defensiv coercion.
+  const tilfeller: { navn: string; inn: unknown }[] = [
+    { navn: "streng-opsjon", inn: "Ja" },
+    { navn: "{ value, label }", inn: { value: "green", label: "Godkjent" } },
+    { navn: "{ value } uten label", inn: { value: "rod" } },
+    { navn: "{ label } uten value", inn: { label: "Bare label" } },
+    { navn: "tom streng", inn: "" },
+    { navn: "null", inn: null },
+    { navn: "undefined", inn: undefined },
+    { navn: "verdi med mellomrom (streng)", inn: "Ikke relevant" },
+    { navn: "verdi med mellomrom (objekt)", inn: { value: "ikke ok", label: "Ikke OK" } },
+    { navn: "ikke-streng value", inn: { value: 3, label: "Tre" } },
+  ];
+  for (const { navn, inn } of tilfeller) {
+    it(`gir identisk opsjon: ${navn}`, () => {
+      expect(normaliserOpsjonPdf(inn)).toEqual(normaliserOpsjon(inn));
+    });
+  }
+});
+
 describe("repeater-tvilling: feltKartFraRad ↔ feltKartFraRadPdf", () => {
   const tilfeller: { navn: string; inn: unknown }[] = [
     { navn: "produksjonsform { _radId, felter }", inn: { _radId: "r1", felter: { f1: "a", f2: 3 } } },
@@ -80,3 +108,19 @@ describe("repeater-tvilling: feltKartFraRad ↔ feltKartFraRadPdf", () => {
     });
   }
 });
+
+describe("trafikklys-tvilling: TRAFIKKLYS_VALG (shared) ↔ TRAFIKKLYS (pdf)", () => {
+  // pdf er null-avhengig → kan ikke importere TRAFIKKLYS_VALG. konstanter.ts speiler verdisettet
+  // med norske etiketter; shared bærer i18n-nøklene. Denne vakten låser at de ikke drifter.
+  const nbMap = nb as Record<string, string>;
+
+  it("samme verdisett i samme rekkefølge (grønn→gul→rød→grå)", () => {
+    expect(TRAFIKKLYS_VALG.map((v) => v.value)).toEqual(Object.keys(TRAFIKKLYS));
+  });
+
+  it("pdf-etiketten (norsk) = nb-oversettelsen av shared-nøkkelen", () => {
+    for (const { value, i18nKey } of TRAFIKKLYS_VALG) {
+      expect(TRAFIKKLYS[value]!.label).toBe(nbMap[i18nKey]);
+    }
+  });
+})

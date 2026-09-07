@@ -85,7 +85,7 @@ krever nytt bygg. Verifiser med `eas env:list` **før** du bygger, ikke etter.
 
 | Mnd | Brukt | Bygg |
 |-----|-------|------|
-| **September 2026** | **Les tellingen fra `eas build:list` — denne raden er en logg, ikke en fasit.** **#54** (04.09, production — fyrt etter at `runtimeVersion` ble eksplisitt; innhold: alle seks bygg-50-funn + expo-updates + galleri-flervalg + kø-robusthet + vedlegg-forsvinner + repeater-traversering, prod-deployet `4eb05f73` som forutsetning). 🔴 **#53 (04.09 12:05, ERRORED i «Configure expo-updates»)** — fingerprint-mismatch: lokalt `5cb93609…`, EAS `a09f46b8…`, og EAS' diff-seksjon var **tom**. 🔴 **#52 (04.09 11:20, ERRORED i samme fase)** — lokalt `file:fingerprint` (plassholder: `@expo/fingerprint` kunne ikke resolves fra `apps/mobile` i pnpm-treet; rettet i `3aca2d5a`). **Begge feilet FØR selve bygget** (~2 min hver, «Errored» i `eas build:list`) — om errored bygg teller mot kvoten er ikke verifisert. **Rotårsak og vedtak: se § OTA → runtimeVersion.** ⚠️ **#51 — de to kildene er UENIGE, og det er ikke oppklart.** `eas build:list` (04.09): `9a69bf7`, 03.09, «iOS internal distribution build», profil `preview`, Runtime `None`, Channel `None`. **App Store Connect samme dag: #51 står som «Testing» med 2 installasjoner og 53 økter** — testerne har altså brukt den. Hvordan et internal distribution-bygg havnet i TestFlight er **ikke forstått**. 🔴 **Cowork tok feil om denne to ganger på én time** — først at den var et produksjonsbygg, så at den aldri nådde testerne. Begge påstandene kom fra hukommelsen om hva som ble *startet*. **Regel: byggnummer, profil OG distribusjon leses fra `eas build:list` + ASC. Er de uenige, står begge i loggen til noen har målt hvorfor — ingen av dem velges bort for å få en ryddig fortelling.** **#50** (build-id `28f117a8`, **commit `da0f0181`** — develop-tip, ikke main; koden er lik `af49823f` bortsett fra docs. 02.09 23:43, production, finished → TestFlight 03.09). ⚠️ **Innsendingen sto «in queue» i EAS over natta** — det er gratisplanens kø, ikke en feil. `Ctrl+C` avbryter ikke: innsendingen kjører serverside. Til sammenligning tok #47 seksten sekunder og #48 tjuesju minutter. 🔴 **Byggnummer 49 ble brukt opp av et avbrutt forsøk** (feil valg på «Apple Team Type» → Enterprise i stedet for Individual); ingen artefakt, derfor ingen 49 i ASC. Fyrt etter prod-release `af49823f` (132 commits) — `modul.effektivTilstand` var den ene harde server-avhengigheten, og den måtte i prod FØR bygget. **Første bygg der hele settet var verifisert på simulator på forhånd** (røykliste 15/15 + målepunkt 13b, kvalitetssikringsplanens lag 2 slik den var tenkt). Innhold: tegningsminne i repeater (flyt 3: 7→4 trykk) · repeater arver tegning fra rad n−1 (5→0 trykk på rad 3) · «Hele prosjektet»-utvei i byggeplass-chip · modulgating av Timer m/fail-open · lokasjonsparitet · deaktiverte knapper forklarer seg · i18n rapportobjekter + tegningsvelger (72 nøkler × 15 språk) · HMS-terminologi pl/lt/sq med bransjekontekst. 🔴 **Nummeret ble 50, ikke 49** — `appVersionSource: "remote"` har egen teller som lå på 49; cowork gjettet fra siste *ferdige* bygg (48) + 1. **Les nummeret, ikke regn det ut.** |
+| **September 2026** | 🟢 **TEST-APP GJENOPPRETTET 2026-09-06** — `iOS internal distribution build 1.0.0 (1)`, git ref `140f35b`, profil `test`, **kanal `test`, runtime `1`**, 6m12s. **Egen app ved siden av produksjonsappen** (`APP_VARIANT: "test"`), peker på `api-test.sitedoc.no`. 🔴 **Hvorfor det var verdt ett bygg:** mobil kunne før KUN nå prod, så hver mobilverifisering krevde en 15-minutters prod-deploy — og prod manglet malene som var bygget på test. Nå er hver mobilverifisering én `eas update --channel test`: minutter, null kvote, mot ekte testdata. ⚠️ **Internal distribution-bygg UTLØPER** — det forrige test-bygget (18.08, samme nummer `(1)`) står som «Expired» i `eas build:list`. Regn med å bygge på nytt hver ~30 dag. **Les tellingen fra `eas build:list` — resten av denne raden er en logg, ikke en fasit.** **#54** (04.09, production — fyrt etter at `runtimeVersion` ble eksplisitt; innhold: alle seks bygg-50-funn + expo-updates + galleri-flervalg + kø-robusthet + vedlegg-forsvinner + repeater-traversering, prod-deployet `4eb05f73` som forutsetning). 🔴 **#53 (04.09 12:05, ERRORED i «Configure expo-updates»)** — fingerprint-mismatch: lokalt `5cb93609…`, EAS `a09f46b8…`, og EAS' diff-seksjon var **tom**. 🔴 **#52 (04.09 11:20, ERRORED i samme fase)** — lokalt `file:fingerprint` (plassholder: `@expo/fingerprint` kunne ikke resolves fra `apps/mobile` i pnpm-treet; rettet i `3aca2d5a`). **Begge feilet FØR selve bygget** (~2 min hver, «Errored» i `eas build:list`) — om errored bygg teller mot kvoten er ikke verifisert. **Rotårsak og vedtak: se § OTA → runtimeVersion.** ⚠️ **#51 — de to kildene er UENIGE, og det er ikke oppklart.** `eas build:list` (04.09): `9a69bf7`, 03.09, «iOS internal distribution build», profil `preview`, Runtime `None`, Channel `None`. **App Store Connect samme dag: #51 står som «Testing» med 2 installasjoner og 53 økter** — testerne har altså brukt den. Hvordan et internal distribution-bygg havnet i TestFlight er **ikke forstått**. 🔴 **Cowork tok feil om denne to ganger på én time** — først at den var et produksjonsbygg, så at den aldri nådde testerne. Begge påstandene kom fra hukommelsen om hva som ble *startet*. **Regel: byggnummer, profil OG distribusjon leses fra `eas build:list` + ASC. Er de uenige, står begge i loggen til noen har målt hvorfor — ingen av dem velges bort for å få en ryddig fortelling.** **#50** (build-id `28f117a8`, **commit `da0f0181`** — develop-tip, ikke main; koden er lik `af49823f` bortsett fra docs. 02.09 23:43, production, finished → TestFlight 03.09). ⚠️ **Innsendingen sto «in queue» i EAS over natta** — det er gratisplanens kø, ikke en feil. `Ctrl+C` avbryter ikke: innsendingen kjører serverside. Til sammenligning tok #47 seksten sekunder og #48 tjuesju minutter. 🔴 **Byggnummer 49 ble brukt opp av et avbrutt forsøk** (feil valg på «Apple Team Type» → Enterprise i stedet for Individual); ingen artefakt, derfor ingen 49 i ASC. Fyrt etter prod-release `af49823f` (132 commits) — `modul.effektivTilstand` var den ene harde server-avhengigheten, og den måtte i prod FØR bygget. **Første bygg der hele settet var verifisert på simulator på forhånd** (røykliste 15/15 + målepunkt 13b, kvalitetssikringsplanens lag 2 slik den var tenkt). Innhold: tegningsminne i repeater (flyt 3: 7→4 trykk) · repeater arver tegning fra rad n−1 (5→0 trykk på rad 3) · «Hele prosjektet»-utvei i byggeplass-chip · modulgating av Timer m/fail-open · lokasjonsparitet · deaktiverte knapper forklarer seg · i18n rapportobjekter + tegningsvelger (72 nøkler × 15 språk) · HMS-terminologi pl/lt/sq med bransjekontekst. 🔴 **Nummeret ble 50, ikke 49** — `appVersionSource: "remote"` har egen teller som lå på 49; cowork gjettet fra siste *ferdige* bygg (48) + 1. **Les nummeret, ikke regn det ut.** |
 | **August 2026 — RETTET 2026-08-31 (var 12/11)** | **14 bygg, 13 tellende** (~2 igjen, reset 1. sept). 🔴 **#47 (31.08 12:57)** — tegningsposisjon-fella lukket (`0101bd25`); **innførte tekstfelt-regresjonen** via de sju `SafeAreaView`-importbyttene. 🔴 **#48 (31.08 17:42)** — `ModalFlate` + lint-vakt (`b852c2ea`), rettet regresjonen fra 47. **Cowork sa «bygg 47 er hos testerne» gjentatte ganger etter at 48 var fyrt** — Kenneth fanget det på ASC-skjermbildet. Bygg-nummer leses fra `eas build:list` eller App Store Connect, aldri fra hukommelse. Tidligere rad (før #47/#48): ⚠️ Raden sa tidligere «7 av ~15» — den var ført fra hukommelse og manglet **tre** test-bygg 17.–18.08 (`9d7d869f`, `dca69ffe`, `9942f178`). Samme feilklasse som nummererings-rettelsen 15.07. **Regel: tellingen leses fra `eas build:list`, aldri fra denne raden.** · **#46 (`5605775d`, 28.08, production, finished, 5m27s → TestFlight)** — første bygg etter prod-releasen `5dcdeb58`: H8-tegningsvelger, H1 HMS-behandling fra mobil, annoterings-JPEG (var 3,4 MB PNG — pilot-blokkeren), D3 aktivitetsfordeling i «Mine timer», D4 slettepropagering, og opprett-frysen (fire runder: `a29f89b2` → `df86b817` → `d4a76020` → `28e55ed5`; den fjerde traff fordi premisset «Fabric rendrer `<Modal>` inline» ble motbevist av en grabber i skjermbildet). Git ref viste `5605775*` — asterisken var én ucommittet docs-fil, ingen effekt på bundelen. Historikk under: | **#43** (`6d9a7c91`, 08.08, production) · **#44** (`9ee8242c`, 09.08, production) — begge før mobil-vinduet under. **17.–19.08, fem bygg på tre dager, alle for å jage samme frys:** `c88e160f` (17.08, test, **errored** — CocoaPods CDN 429, EAS-infra, *«does not count towards usage»*) · `1bfd3b53` (17.08, test, finished — dev-login 401, `EXPO_PUBLIC_DEV_LOGIN_SECRET` manglet i EAS) · `4c06948` (18.08, test) · `30825449` (19.08 13:23, test) · `0d9550cd` (19.08 16:54, test) · **#45 (`d2d25b03`, `8fdd82bc`, 19.08 19:38, production, finished, 6m49s → TestFlight)** — frys-fiks (modal-livssyklus under Fabric), lokasjonsvelger m/ortofoto + pin-treff, bilde-URL-fiks, OppgaveModal krasj-guard, georef-punkter skjult, dokumentflyt-auto-utledning (`templates`→`maler`, brutt siden 06.03), værsnapshot, `bildeNr` ved opptak, arkiv-PDF fase 1, `harAktivLocation`. **Lærdom: fire av byggene gikk til feilsøking, ikke verifisering** — se § FØR HVERT BYGG (env-diff) og § transient CocoaPods 429 |
 | Juli 2026 | 5 av ~15 (**~10 igjen, reset 1. aug**; #37-#40 bekreftet mot `eas build:list` 15.07, #41 lagt til 31.07) | #37 (`496b6a63`, `bc744f82`, 01.07, production, finished) — mobil-MS + F-G. #38 (`a61b924a`, `d1b96cd5`, 11.07→13.07, production, finished) — F4-serien (identitetsforsoning + attestering-deadlock + synk-robusthet). #39 (`47c22b1a`, `cd3efcb5`, 13.07→14.07, production, finished) — S-A tombstone-klient + del 6 (F-b/F-e/F-f/F-g) + footer. #40 (`15a47804`, `43299d03`, 15.07, production, finished) — timer F2/F3/F5 (byggeplass per rad + matpause-bærer) + edge #1 → TestFlight. **#41 (fingerprint `593d25c`, `88ce430`, 31.07, TEST-profil, internal distribution, finished, 5m18s)** — mobil-arbeid på develop: P4a iOS-modal + KB2-opprett-flyt-fiks + M4 Avbryt-sweep + M1-M3 detalj-redesign + mobil-typecheck-grønn + PSI-navnefiks → «SiteDoc TEST» mot api-test for **enhet-verifisering** (IKKE TestFlight/prod). Bygg-nr verifiseres mot `eas build:list` ved neste anledning |
 
@@ -371,7 +371,9 @@ hvorfor — den erstatter ikke kommandoen.
 | 2026-09-05 17:29 | `1` | — | production | Trafikklys slanket + utfyllingsstatus på seksjoner. ⚠️ **Manglet i denne loggen til 06.09** — ført inn da `eas update:rollback` viste den i lista. Cowork skrev regelen «ny rad i SAMME runde» og brøt den samme døgn |
 | 2026-09-06 14:33 | `1` | `333359a6` | production | 🔴 **FORGIFTET — RULLET TILBAKE ETTER ~25 MIN.** Bundelen pekte på `api-test.sitedoc.no` fordi `.env.local` lå igjen etter et avbrutt Expo-forsøk. Update group `523c0f61`. **Se § Slik publiserer du en oppdatering** — hendelsen er hele grunnen til at steg 1–2 finnes |
 | 2026-09-06 ~15:05 | `1` | `9f49c1ff` | production | **ROLLBACK** til 05.09-bundelen (republisert, group `55cad71f`). Verifisert på telefon: prosjektlista viste prod-prosjekter igjen |
-| 2026-09-06 15:2x | `1` | **`f8b08d88`** | production | ✅ **GJELDENDE.** Update group `3de13c37`. Publisert etter at `.env.local` + Metro-cache var fjernet og bundelen målt ren (`strings` → kun `api.sitedoc.no`). ⚠️ Hashen er `f8b08d88`, ikke `333359a6` — develop hadde flyttet seg med docs-commits; mobil-JS-en er identisk. **Innhold:** signaturfeltet bærer navn + tidspunkt · kollapset signaturflate · endringsloggen lukket som standard · seksjonsstatus · `signature_list` (inert til en mal bruker den). Fyrt etter prod-deploy `ad18df93` — schema+api måtte være ute FØRST |
+| 2026-09-06 17:1x | `1` | **`c0d556ce`** | production | ✅ **GJELDENDE.** Update group `d8ae13c2`. Byggeplass-tilhørighet på raden (badge «Hele prosjektet» / byggeplassnavn), ærlig chip-tekst, mykt tegningsfilter — en byggeplass-løs tegning forsvant uten spor før. Fyrt etter prod-deploy `82cd4459` (api-filteret måtte ut først) |
+| 2026-09-06 16:0x | `1` | `42ef3059` | production | Utlogging virker fra alle skjermer (rot-gate i `_layout.tsx`) · byggeplass-velgeren laster (effekt-race: `laster` lå i dep-arrayet). Update group `c2b9504b` |
+| 2026-09-06 15:2x | `1` | `f8b08d88` | production | SJA-runden. Update group `3de13c37`. Publisert etter at `.env.local` + Metro-cache var fjernet og bundelen målt ren (`strings` → kun `api.sitedoc.no`). ⚠️ Hashen er `f8b08d88`, ikke `333359a6` — develop hadde flyttet seg med docs-commits; mobil-JS-en er identisk. **Innhold:** signaturfeltet bærer navn + tidspunkt · kollapset signaturflate · endringsloggen lukket som standard · seksjonsstatus · `signature_list` (inert til en mal bruker den). Fyrt etter prod-deploy `ad18df93` — schema+api måtte være ute FØRST |
 
 🔴 **Ny rad skrives i SAMME runde som publiseringen** — ikke «etterpå».
 Rad skal ha: dato · runtime · commit · kanal · hva testeren faktisk merker.
@@ -494,10 +496,38 @@ etter at `.env.local` er fjernet — målt 2026-09-06: eksport etter sletting ga
 bundel-hash** som den forgiftede, og målingen så «fortsatt forgiftet» ut når den egentlig var
 utdatert.
 
-#### STEG 3 — publiser
+#### STEG 3 — publiser. 🔴 KANALEN ALENE SKILLER IKKE MILJØENE.
 
 ```sh
+# PRODUKSJON
 eas update --platform ios --channel production --clear-cache --message "<hva som er fikset>"
+
+# TEST
+EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no \
+  eas update --platform ios --channel test --clear-cache --message "<hva som er fikset>"
+```
+
+🔴 **Hvorfor test-varianten setter variabelen inline:** `eas update` kjører `expo export`, som
+**baker `EXPO_PUBLIC_*` inn i bundelen**. Kanalen bestemmer hvilken app som mottar — den
+bestemmer **ikke** hva bundelen peker på. Publiserer du en prod-eksportert bundel til kanal
+`test`, får testappen produksjonsdata.
+
+**Inline framfor `.env.local`:** variabelen forsvinner når kommandoen er ferdig. En fil blir
+liggende og forgifter neste publisering — **det skjedde 2026-09-06** (se hendelsen under).
+
+**Forventet i steg 2-målingen, per kanal:**
+
+| Kanal | `strings`-målingen skal vise |
+|---|---|
+| `production` | kun `https://api.sitedoc.no` |
+| `test` | kun `https://api-test.sitedoc.no` |
+
+⚠️ **Steg 2 må kjøres med SAMME env som steg 3** — ellers måler du en annen bundel enn den du
+publiserer:
+
+```sh
+EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no \
+  npx expo export --clear --platform ios --output-dir /tmp/otacheck
 ```
 
 🔴 **`--platform ios` er ikke valgfritt — uten det feiler kommandoen.** `eas update` kaller
@@ -512,10 +542,36 @@ uavhengige feil i dette monorepoet:
 `app.json` den varige løsningen (levert 2026-09-04) — da expanderer `--platform=all` til kun
 ios+android og web bundles aldri. `--platform ios` fungerer uansett som eksplisitt fallback.
 
+#### 🔴 STEG 3b — LES COMMIT-LINJA I UTSKRIFTEN FØR DU ÅPNER APPEN
+
+`eas update` skriver ut **hvilken commit bundelen ble bygget fra**. Den skal være den du
+forventer, **uten `*`** — stjernen betyr ucommittede endringer i treet.
+
+```
+Commit    f845df6ec3d3e973808588b74399ada6e105e345      ← riktig
+Commit    140f35b4d7dcc1b3b8e5e8beabc41c9df917a6c9*     ← 🔴 feil commit OG skitten
+```
+
+⚠️ **Hendelse 2026-09-06:** første test-OTA ble publisert fra `140f35b` — en docs-commit i
+hovedtreet — mens funksjonen som skulle testes lå på `4d00e94f`. **`git pull --ff-only` gjorde
+ingenting** fordi treet hadde en lokal commit `develop` ikke hadde, og kommandoen svarte
+«Already up to date» uten å flytte noe. **Testappen fikk en bundel uten funksjonen den skulle
+teste.**
+
+**Verifiser treet FØR publisering når du er usikker:**
+
+```sh
+git -C ~/Documents/Programmering/SiteDoc log --oneline -1
+git -C ~/Documents/Programmering/SiteDoc merge-base --is-ancestor <hash-du-vil-teste> HEAD \
+  && echo "HAR DEN" || echo "MANGLER"
+```
+
 #### 🔴 STEG 4 — VERIFISER PÅ TELEFONEN. Publisering er ikke verifisering.
 
-Tvangslukk appen **to ganger** — `expo-updates` laster ned i bakgrunnen ved én oppstart og
-bytter bundel ved **neste**. Sjekk så **Mer**-skjermen nederst:
+Tvangslukk appen **to til tre ganger** — `expo-updates` laster ned i bakgrunnen ved én oppstart
+og bytter bundel ved **neste**. ⚠️ **Målt 2026-09-06: tredje omstart var den som traff.**
+Prosedyren sa to; det holdt ikke. **Sjekk hashen, ikke antall omstarter.**
+Sjekk så **Mer**-skjermen nederst:
 
 - **Commit-hashen** skal være den du publiserte
 - 🔴 **Prosjektlista skal vise PROD-prosjekter.** Ser du et prosjekt som bare finnes på test —

@@ -1,10 +1,11 @@
 /**
- * Søkematch for den globale søkemodalen (finnbarhets-revisjon).
+ * Søkematch (finnbarhets-revisjon) — skrivefeil-tolerant, synonym-utvidet.
  *
- * Erstatter bar substring (`norm.includes`) med skrivefeil-tolerant,
- * synonym-utvidet matching. REN modul — ingen React/tRPC/dependency — så både
- * index-siden (`useSokRegistry`) og query-siden (`SokModal`) leser samme kilde,
- * og logikken er enhet-testbar uten klient-modulgrafen.
+ * Erstatter bar substring (`norm.includes`). REN modul — ingen React/tRPC/
+ * dependency. Flyttet til `@sitedoc/shared` (dokumentsøk-mobil trinn 1, 2026-09-06)
+ * så BÅDE web (`useSokRegistry`/`SokModal`) OG mobilens dokumentsøk leser SAMME
+ * kilde — «to flater, én søkemotor». Web-kopien (`apps/web/src/lib/sok-match.ts`)
+ * er slettet i flyttingen.
  *
  * `normaliserSok` bor her (ÉN kilde) og re-eksporteres fra `useSokRegistry`
  * for bakoverkompatibilitet.

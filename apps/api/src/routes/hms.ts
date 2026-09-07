@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { terminalFraStatus, avledetStatus } from "../services/flytFakta";
+import { byggeplassFilterViaTegning, byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { prisma } from "@sitedoc/db";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import { signerDataRader } from "../utils/vedleggSignering";
@@ -204,25 +205,10 @@ export const hmsRouter = router({
       // hver query som eget AND-fragment.
       const draftGuard = { OR: [{ status: { not: "draft" } }, { bestillerUserId: ctx.userId }] };
 
-      // Byggeplass-filter (asymmetri): Task har drawingId (filtreres via drawing.byggeplassId);
-      // Checklist har byggeplassId direkte. Prosjekt-brede dokumenter (uten byggeplass/tegning)
-      // inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
-      const taskByggeplassClause = input.byggeplassId
-        ? {
-            OR: [
-              { drawing: { byggeplassId: input.byggeplassId } },
-              { drawingId: null },
-            ],
-          }
-        : null;
-      const checklistByggeplassClause = input.byggeplassId
-        ? {
-            OR: [
-              { byggeplassId: input.byggeplassId },
-              { byggeplassId: null },
-            ],
-          }
-        : null;
+      // Byggeplass-tilhørighet (mykt) — regel i byggeplassFilter.ts. Task via tegning
+      // (3 ledd, inkl. prosjekt-tegning), Checklist direkte (2 ledd).
+      const taskByggeplassClause = byggeplassFilterViaTegning(input.byggeplassId);
+      const checklistByggeplassClause = byggeplassFilterDirekte(input.byggeplassId);
 
       const avvikPromise = (input.subdomain === undefined || input.subdomain === "avvik")
         ? ctx.prisma.task.findMany({
@@ -366,23 +352,10 @@ export const hmsRouter = router({
 
       const statusFilter = input.status ? { status: input.status } : {};
 
-      // Byggeplass-filter (asymmetri Task vs Checklist, samme som Del 1)
-      const taskByggeplassClause = input.byggeplassIds && input.byggeplassIds.length > 0
-        ? {
-            OR: [
-              { drawing: { byggeplassId: { in: input.byggeplassIds } } },
-              { drawingId: null },
-            ],
-          }
-        : null;
-      const checklistByggeplassClause = input.byggeplassIds && input.byggeplassIds.length > 0
-        ? {
-            OR: [
-              { byggeplassId: { in: input.byggeplassIds } },
-              { byggeplassId: null },
-            ],
-          }
-        : null;
+      // Byggeplass-tilhørighet (mykt) — regel i byggeplassFilter.ts. Samme som Del 1,
+      // men flere byggeplasser (firma-oversikt) → string[]-varianten.
+      const taskByggeplassClause = byggeplassFilterViaTegning(input.byggeplassIds);
+      const checklistByggeplassClause = byggeplassFilterDirekte(input.byggeplassIds);
 
       const avvikPromise = (input.subdomain === undefined || input.subdomain === "avvik")
         ? ctx.prisma.task.findMany({
@@ -616,6 +589,14 @@ export const hmsRouter = router({
           message: "Oppgave hører ikke til firmaet",
         });
       }
+
+      // FL (målt 2026-09-06): denne veien gates på harFirmaHmsTilgang, som slipper
+      // gjennom hms_ansvarlig — en DELEGERT firma-HMS-rolle som IKKE er firma-admin.
+      // Kenneths regel er at kun firma-admin + sitedoc-admin beholder tilgang på et
+      // avsluttet prosjekt, ikke «firma-nivå» som kategori. En hms_ansvarlig faller
+      // derfor utenfor unntaket og skal fryses ut som alle andre. Guarden slipper
+      // firma-admin/sitedoc-admin gjennom, hms_ansvarlig blokkeres.
+      await verifiserProsjektIkkeFrosset(ctx.userId, projectId);
 
       // Begrens til HMS-domene (avvik er HMS i firma-dashbordet)
       if (oppgave.template?.domain !== "hms") {

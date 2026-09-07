@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normaliserSok, synonymerFor, matchScore, boundedLev } from "@/lib/sok-match";
+import { normaliserSok, synonymerFor, matchScore, boundedLev } from "./sokMatch";
 
 /**
  * Finnbarhets-revisjon — søkemotor. Verifiserer skrivefeil-toleranse +

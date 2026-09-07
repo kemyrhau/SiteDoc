@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { oversettStandardtekst } from "@sitedoc/shared";
+import { normaliserOpsjon, oversettStandardtekst } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
-import { normaliserOpsjon } from "./typer";
 
 export function EnkeltvalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const { t } = useTranslation();

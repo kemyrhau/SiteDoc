@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
@@ -289,6 +289,11 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
         if (!sjekkSynlighet(forelder, dybde + 1)) return false;
         if (forelder.type === "repeater") return true;
         if (!forelder.config.conditionActive) return true;
+
+        // Avviksfelt-utløser (trinn 3 del C): tallfelt-forelder → vis barn når verdien bryter kravet.
+        if (forelder.config.conditionType === "utenfor_krav") {
+          return utenforKravOppfylt(forelder, hentFeltVerdi(parentId).verdi, (id) => hentFeltVerdi(id).verdi);
+        }
 
         const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
         const forelderVerdi = hentFeltVerdi(parentId).verdi;

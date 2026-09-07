@@ -691,6 +691,28 @@ behandler en fabel-leveranse.** Kjernen:
 - Cowork eier kopiering inn i repoet. **En leveranse som ikke er committet, finnes ikke**
   for agentene og overlever ikke compact.
 
+### 🔴 EN RELAYET ORDRE ER FROSSET — og ordrer stables ikke (Kenneth-vedtak 2026-09-06)
+
+> **Kenneth:** *«Når du relayer en kommando til en agent og lager en ny kommando uten at jeg har
+> gitt deg svaret på første — da risikerer vi dette. Det kan være så enkelt at vi jobber med noe
+> annet som tar tid; jeg lar den som er ferdig vente til vi er klare til å ta den, spesielt dersom
+> ordrene krever at jeg må teste eller tenke meg om hva jeg bør svare.»*
+
+**Kenneth er ikke en kanal — han er en kø med egen takt.** Han kan holde en ferdig agent tilbake
+fordi han står i noe annet, eller fordi ordren krever testing eller ettertanke.
+
+| Regel | Konsekvens |
+|---|---|
+| **En relayet ordre er FROSSET** | I det Kenneth limer den, er den ute av coworks hender. Endring går som **ny fil** eller **egen tilleggsmelding han relayer separat** — aldri stille redigering av et dokument i bevegelse |
+| **Ingen ny ordre som hviler på et ubesvart svar** | Skriv den ferdig, la den ligge. **«Ferdigskrevet» og «gitt» er to tilstander** — tavla skal skille dem (jf. § Statustavla) |
+| **Spør aldri en agent om noe cowork la til etter at han startet** | Han kan ikke svare riktig, og han bruker en runde på å måle seg fram til at spørsmålet var feil stilt |
+
+**Målt samme dag:** cowork redigerte trafikklys-tillegget inn i `inbox-mal-endringsvern.md` etter
+at ordren var relayet, og spurte så kontrollplan om han «hadde dem med». Agenten målte fila, fant
+setningen som førte trafikklys som eget funn, og svarte at de ikke var bestilt. **Han hadde rett;
+spørsmålet var umulig å svare riktig på.** Samme klasse som de fem foreldede ordrefilene — en
+ordre som ikke lenger stemmer med virkeligheten, denne gangen fordi cowork selv flyttet den.
+
 ### Spørsmål: samle, ikke drypp
 
 Mange små avklaringer koster Kenneth mer enn de sparer. Tenk ferdig, mål det som
@@ -955,6 +977,7 @@ gatet trinn i ordren**, før funksjonaliteten bygges.
 | `TILBEHOR_REN_FJERNING` | 2 sett (web 4 typer, mobil 5) | `85c8ecd5` |
 | PDF-tvillingen `signaturVerdi` | 2, uten vakt | paritetstest `53890c1b` |
 | `normaliserOpsjon` | **4** — web, PDF, og to lokale funksjoner i mobilkomponenter | trinn 0 i `feat/grenseresolver` |
+| Byggeplass-filteret | **9 → 1**, to former (4 via tegning m/3 ødelagte, 5 direkte) | `byggeplassFilter.ts` (`apps/api/src/services/`) |
 
 **Årsaken er alltid den samme:** delt logikk **fødes i en komponent** fordi den trengtes der
 først, og **kopieres når neste flate trenger den** — fordi det er billigere i øyeblikket enn å

@@ -1,13 +1,17 @@
 import { View, Text, TextInput } from "react-native";
 import { AlertTriangle } from "lucide-react-native";
-import { normaliserGrense, formaterGrense, grenseStatus } from "@sitedoc/shared";
+import { useTranslation } from "react-i18next";
+import { løsGrense, formaterGrense, grenseStatus, byggAvvikLinje, byggKravHerkomst } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
-export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
-  const grense = normaliserGrense(objekt.config);
+export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus, forelderVerdi, styrendeFelt }: RapportObjektProps) {
+  const { t } = useTranslation();
+  const grense = løsGrense(objekt, forelderVerdi);
   const status = grenseStatus(verdi, grense);
   const utenfor = status !== null && status !== "ok";
   const grenseTekst = formaterGrense(grense);
+  const avvikTekst = byggAvvikLinje(t, verdi, grense);
+  const herkomstTekst = byggKravHerkomst(t, objekt, forelderVerdi, styrendeFelt);
 
   return (
     <View className="gap-1">
@@ -32,13 +36,18 @@ export function DesimaltallObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Ra
         />
         {grense.enhet ? <Text className="text-sm text-gray-600">{grense.enhet}</Text> : null}
       </View>
-      {grenseTekst ? (
+      {herkomstTekst ? (
+        <Text className="text-xs text-gray-500">{herkomstTekst}</Text>
+      ) : grenseTekst ? (
         <View className="flex-row items-center gap-1">
           {utenfor ? <AlertTriangle size={12} color="#d97706" /> : null}
           <Text className={`text-xs ${utenfor ? "font-medium text-amber-600" : "text-gray-400"}`}>
             {grenseTekst}
           </Text>
         </View>
+      ) : null}
+      {avvikTekst ? (
+        <Text className="text-xs font-medium text-amber-600">{avvikTekst}</Text>
       ) : null}
     </View>
   );

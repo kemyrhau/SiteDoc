@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { EksportSeksjon } from "./EksportSeksjon";
 
 // Leaflet krever window — laster dynamisk uten SSR
 const KartVelgerDynamic = dynamic(
@@ -227,6 +228,15 @@ export default function ProsjektoppsettSide() {
     },
   });
 
+  // FL: livssyklus (avslutt/arkiver/gjenåpne) er egen mutasjon — archive-gate +
+  // firma-admin-gate + Activity-spor ligger server-side. Ikke del av generell lagring.
+  const livssyklusMutation = trpc.prosjekt.settLivssyklus.useMutation({
+    onSuccess: () => {
+      utils.prosjekt.hentMedId.invalidate({ id: prosjektId! });
+      utils.prosjekt.hentAlle.invalidate();
+    },
+  });
+
   function handleLagre() {
     if (!prosjektId) return;
     oppdaterMutation.mutate({
@@ -242,7 +252,6 @@ export default function ProsjektoppsettSide() {
       visSiteDocNummer: visSiteDocNummer,
       utskriftsinnstillinger: utskrift,
       sourceLanguage: kildesprak,
-      status: status as "active" | "archived" | "completed",
     });
   }
 
@@ -492,43 +501,6 @@ export default function ProsjektoppsettSide() {
           </div>
         </Seksjon>
 
-        {/* Prosjektstatus */}
-        <Seksjon
-          tittel={t("prosjektoppsett.prosjektstatus")}
-          beskrivelse={t("prosjektoppsett.prosjektstatusBeskrivelse")}
-        >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {statusAlternativer.map((alt) => {
-              const erValgt = status === alt.value;
-              return (
-                <button
-                  key={alt.value}
-                  onClick={() => handleFeltEndring(setStatus)(alt.value)}
-                  className={`flex items-start gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
-                    erValgt
-                      ? `${alt.fargeBg} ${alt.fargeBorder}`
-                      : "border-gray-200 bg-white hover:border-gray-300"
-                  }`}
-                >
-                  {alt.ikon}
-                  <div>
-                    <p
-                      className={`text-sm font-medium ${
-                        erValgt ? "text-gray-900" : "text-gray-700"
-                      }`}
-                    >
-                      {t(alt.labelKey)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {t(alt.beskrivelseKey)}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </Seksjon>
-
         {/* Prosjektdetaljer (read-only) */}
         <Seksjon tittel={t("prosjektoppsett.prosjektdetaljer")}>
           <div className="grid grid-cols-2 gap-4">
@@ -580,6 +552,54 @@ export default function ProsjektoppsettSide() {
 
         {/* U5: utleggsordninger — read-only for prosjektadmin (firma-admin eier). */}
         {prosjektId && <UtleggOrdningSeksjon prosjektId={prosjektId} />}
+
+        {/* Eksport/arkiv — inngangsdør til den ferdig-byggede dataeksporten. Bor her
+            fordi «Avslutt prosjekt» (neste runde) kobles til den: arkivet må hentes
+            FØR avslutning, siden et avsluttet prosjekt er utilgjengelig. */}
+        {prosjektId && <EksportSeksjon prosjektId={prosjektId} />}
+
+        {/* FL: Avslutt/arkiver — rett etter eksport-seksjonen, fordi arkivet må lages
+            FØR avslutning (server gater på et ferdig arkiv). Livssyklusen settes
+            umiddelbart (egen mutasjon), ikke via «Lagre endringer». */}
+        <Seksjon
+          tittel={t("livssyklus.avsluttSeksjon")}
+          beskrivelse={t("livssyklus.avsluttSeksjonBeskrivelse")}
+        >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {statusAlternativer.map((alt) => {
+              const erValgt = status === alt.value;
+              return (
+                <button
+                  key={alt.value}
+                  disabled={livssyklusMutation.isPending || erValgt}
+                  onClick={() =>
+                    prosjektId &&
+                    livssyklusMutation.mutate({
+                      id: prosjektId,
+                      status: alt.value as "active" | "completed" | "archived",
+                    })
+                  }
+                  className={`flex items-start gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors disabled:cursor-default ${
+                    erValgt
+                      ? `${alt.fargeBg} ${alt.fargeBorder}`
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  {alt.ikon}
+                  <div>
+                    <p className={`text-sm font-medium ${erValgt ? "text-gray-900" : "text-gray-700"}`}>
+                      {t(alt.labelKey)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500">{t(alt.beskrivelseKey)}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {livssyklusMutation.error && (
+            <p className="mt-3 text-sm text-red-600">{livssyklusMutation.error.message}</p>
+          )}
+        </Seksjon>
 
         {/* Lagre-knapp nederst */}
         <div className="flex justify-end">

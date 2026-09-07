@@ -244,7 +244,8 @@ export default function BilderSide() {
         positionX: t.positionX,
         positionY: t.positionY,
         byggeplassId: (t.drawing as unknown as { byggeplassId?: string } | null)?.byggeplassId ?? null,
-        byggeplassName: null,
+        byggeplassName:
+          (t.drawing as unknown as { byggeplass?: { name: string } | null } | null)?.byggeplass?.name ?? null,
         templateId: tMal?.id ?? null,
         templateName: tMal?.name ?? null,
       });
@@ -420,12 +421,28 @@ export default function BilderSide() {
 
                     return (
                       <div key={key} className="rounded-lg border border-gray-200 bg-white p-3">
-                        <Link
-                          href={parentUrl}
-                          className="mb-2 block text-sm font-medium text-blue-600 hover:text-blue-800"
-                        >
-                          {first.parentLabel}
-                        </Link>
+                        {/* Tilhørighet på dokument-gruppens header (byggeplass-regelen:
+                            raden viser tilhørighet når konteksten er bredere enn objektets
+                            hjem). Blå = byggeplass, grå «Hele prosjektet» = prosjekt-bilde.
+                            Byggeplass valgt → kun prosjekt-bilder merkes; ellers hver gruppe. */}
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <Link
+                            href={parentUrl}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                          >
+                            {first.parentLabel}
+                          </Link>
+                          {(!aktivByggeplass || first.byggeplassId == null) &&
+                            (first.byggeplassId == null ? (
+                              <span className="inline-flex items-center rounded-full border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-500">
+                                {t("kontekstChip.heleProsjektet")}
+                              </span>
+                            ) : first.byggeplassName ? (
+                              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                {first.byggeplassName}
+                              </span>
+                            ) : null)}
+                        </div>
                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                           {bilder.map((b, idx) => {
                             const gpsVarsel =

@@ -3,6 +3,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { byggTilgangsFilter } from "../trpc/tilgangskontroll";
 import { signerBilder } from "../utils/vedleggSignering";
+import { byggeplassFilterViaTegning, byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { normaliserFilSti } from "../utils/hmac";
 
 /**
@@ -43,7 +44,8 @@ export const bildeRouter = router({
           checklistId: { not: null },
           checklist: {
             template: { projectId: input.projectId },
-            ...(input.byggeplassId ? { byggeplassId: input.byggeplassId } : {}),
+            // Byggeplass-tilhørighet (mykt), regel i byggeplassFilter.ts.
+            ...(byggeplassFilterDirekte(input.byggeplassId) ?? {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -86,7 +88,8 @@ export const bildeRouter = router({
           taskId: { not: null },
           task: {
             template: { projectId: input.projectId },
-            ...(input.byggeplassId ? { OR: [{ drawing: { byggeplassId: input.byggeplassId } }, { drawingId: null }] } : {}),
+            // Byggeplass-tilhørighet via tegning (mykt, 3 ledd), regel i byggeplassFilter.ts.
+            ...(byggeplassFilterViaTegning(input.byggeplassId) ?? {}),
             ...(tilgangsFilter ?? {}),
           },
         },
@@ -109,6 +112,9 @@ export const bildeRouter = router({
                   fileUrl: true,
                   fileType: true,
                   byggeplassId: true,
+                  // Byggeplass-navn for tilhørighets-badge i galleriet (oppgave-veien
+                  // har byggeplass via tegning, ikke direkte) — se bilder/page.tsx.
+                  byggeplass: { select: { id: true, name: true } },
                 },
               },
               template: {
