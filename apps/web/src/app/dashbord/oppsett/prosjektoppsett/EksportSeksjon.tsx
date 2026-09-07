@@ -115,7 +115,18 @@ export function EksportSeksjon({ prosjektId }: { prosjektId: string }) {
               : t("prosjektoppsett.eksport.bygger")}
           </span>
         );
-      case "klar":
+      case "klar": {
+        // Feilede dokumenter bæres migreringsfritt: antallTotalt/antallFerdig
+        // = dokumenter (fase 3), og gapet = dokumenter som ikke lot seg rendre.
+        // 🔴 Null-guard: gamle jobber (før fase 3) har begge feltene `null`
+        // (kolonnene er Int? uten default) — `null − null` må ALDRI bli «NaN
+        // feilet». Vis kun når begge er tall OG ferdig < totalt.
+        const feiletAntall =
+          typeof j.antallTotalt === "number" &&
+          typeof j.antallFerdig === "number" &&
+          j.antallFerdig < j.antallTotalt
+            ? j.antallTotalt - j.antallFerdig
+            : 0;
         return (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-gray-700">
             <span className="flex items-center gap-1.5 font-medium text-green-700">
@@ -132,8 +143,15 @@ export function EksportSeksjon({ prosjektId }: { prosjektId: string }) {
                 {t("prosjektoppsett.eksport.utloper", { dato: formaterDatoTid(j.utloperVed) })}
               </span>
             )}
+            {feiletAntall > 0 && (
+              <span className="flex basis-full items-center gap-1.5 text-xs text-amber-700">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                {t("prosjektoppsett.eksport.delvisFeilet", { count: feiletAntall })}
+              </span>
+            )}
           </span>
         );
+      }
       case "feilet":
         return (
           <span className="flex items-center gap-1.5 text-sm text-red-600">
