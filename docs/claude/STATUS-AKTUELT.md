@@ -4,6 +4,48 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 📅 DØGNET 2026-09-06/07 — ti merge-runder (17–26), prod-release `d4c4c65d`
+
+**develop `8ee4e681` · main `d4c4c65d` · test `8ee4e681` · api-testtall `315` (merge-agentens
+måling, runde 26 — coworks 298 var feil)**
+
+🟢 **Prod-release 2026-09-07: 58 commits, NULL migreringer.** Bygg og restart.
+
+| Levert i denne releasen | Hash |
+|---|---|
+| 🔴 **Tenant-lekkasje lukket** — fem skriveveier uten firmasjekk + uautentisert `/prosesser`-endepunkt fjernet | `d58e080f` |
+| Byggeplassfilteret — 9 kopier → 1 kilde, **tre skjulte bugger lukket** | `a076236f` |
+| Grenseresolver trinn 0–3 — kravtype, Vei B-varianter, PDF-krav, server-frys, avviksfelt | `dc93d01d`+ |
+| Prosjekt-livssyklus (FL) — avslutt/arkiver fryser tilgang via delt guard i 11 porter | `36dc3029` |
+| Prosjektarkiv-UI + eksport-rettighet til firma-admin | `3c6df4bf` · `1d4bf629` |
+| Mal-endringsvern — krav i bruk kan ikke endres · herkomst-linje i utfylling | `c1f202dd` |
+| Trafikklys-etiketter — synlige navn, **femte kopiklasse lukket** | `8d063d1d` |
+| Arkivfunn — leselige tegninger, timer/utlegg ut, manifest forklart | `325a0b7e` |
+
+🟢 **PROD BEKREFTET `d4c4c65d`** (2026-09-07 06:04Z, `curl api.sitedoc.no/version`).
+
+🔴 **ÅPENT ETTER PROD — mobil-OTA er ikke fyrt.** 20 mobilfiler endret mellom forrige OTA og
+`d4c4c65d`. **Mobilbrukerne kjører fortsatt gammel JS.** Prosedyre: `eas-build-veileder.md
+§ Slik publiserer du en oppdatering` — rydd `.env.local` FØRST, mål bundelen, kanal `test` før
+`production`, og les Commit-linja (`*` = skittent tre).
+
+### Runde 27 (2026-09-07) — venter test-verifisering
+
+| Levert | Hash |
+|---|---|
+| 🔴 **Arkiv fase 3** — dokumentene ER endelig i pakken. Én PDF per dokument, mappe etter domene (SJA→`hms/`), per-dokument `try/catch`, papirkurv ute, **ekte progresjon** (baren var falsk før), template-løse HMS-avvik via bestiller-faggruppe | `8e9a2652` |
+| Malbyggerens stille feil — `oppdaterObjekt`/`oppdaterRekkefølge` manglet feil-callbacks; `slettFeil` → `feilVisning` for alle tre avslag | `a6fc03b5` |
+
+**Kostnad målt og ført i `dokumentgenerering-plan.md`:** ~1 s/dokument + ~0,09 s/bilde.
+200 dokumenter = 3–25 min, **drevet av bildetetthet, ikke antall.**
+
+🟢 **«Lagring av ugyldig verdi fungerte» — målt, vernet lekker IKKE.** De tidlige lagringene gikk
+gjennom fordi utkastet ennå ikke hadde verdi i akkurat det feltet. Det var stillheten hele veien.
+
+⚠️ **Fem funn kom fra Kenneths egen test-verifisering**, ikke fra gaten: uleselige tegninger ·
+lønnsdata i arkivet · uforklart manifest · krav som endret seg under føttene · **dokumentene som
+ikke var der i det hele tatt.** Ingen av dem kunne build eller typecheck ha fanget.
+
 ## 📅 DØGNET 2026-09-04 — ti merger, to prod-deployer, OTA i drift
 
 **develop `3c905298` · prod `96eebc13` · test `ea729ced` · TestFlight bygg 54 + OTA**
@@ -113,6 +155,19 @@ og *«firma-grense-sjekk ligger ALLTID i server-laget»*.
 🟢 Egen branch `fix/ftd-tenantgrense`, **prioritert foran FL-funksjonen**. Funn skrives til
 `sikkerhet.md` i samme commit.
 **Funnet som bifangst da redesign målte FL-ordrens guard-kostnad** — ingen lette etter det.
+
+🟡 **ET GLEMT UTKAST SPERRER MALENDRING PERMANENT (Kenneth-funn 2026-09-07).**
+Endringsvernet teller dokumenter med faktisk verdi i feltet — **et utkast med verdi er et utfylt
+dokument**, som er teknisk riktig etter Kenneths eget vedtak. Men konsekvensen er at en
+malforfatter kan låses av **andres uferdige arbeid**, uten vei rundt annet enn å kopiere malen.
+⚠️ **Hos A.Markussen med 50 ansatte er dette en sannsynlig tilstand, ikke en teoretisk.**
+**Egen beslutning — Kenneth avgjør. Ingen har rørt predikatet.**
+
+🟡 **`antallDokumenterFeilet` vises ikke i eksport-UI (målt 2026-09-07, kontrollplan).**
+Feltet finnes ikke i modellen; ny kolonne = migrering. **Men dataen bæres migreringsfritt:** på
+status `klar` er feilede = `antallTotalt − antallFerdig`, og begge felt ligger allerede i
+`hentForProsjekt`-selecten. **En web-oppfølger på klar-kortet er reelt tre linjer, ingen
+api/schema-endring.** Uten den må kunden åpne `manifest.json` for å oppdage at dokumenter manglet.
 
 🟡 **Task har ingen egen `byggeplassId`** — tilhørighet finnes kun via tegningen, og det er
 roten til hele asymmetrien over. Å legge feltet på `Task` ville fjernet den, men er **en

@@ -2,26 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserDokumentTilgang } from "../trpc/tilgangskontroll";
-import { rendrArkivPdf, type ArkivDokumentRef } from "../services/arkiv/render";
-
-/**
- * «14.08.2026 14:32» — generert-stempel til PDF-footeren, kort norsk format.
- *
- * 🔴 `timeZone: "Europe/Oslo"` er påkrevd: api-serveren kjører i `Etc/UTC`, så
- * uten eksplisitt sone ble footer-tiden 2t bak norsk sommertid (funn 2026-09-02).
- * Samme avgrensning som `PDF_TIDSSONE` i @sitedoc/pdf — én PDF kan spenne over
- * flere firma, så én firma-sone er tvetydig her; Oslo stopper blødningen.
- */
-function genererStempel(dato: Date): string {
-  return dato.toLocaleString("nb-NO", {
-    timeZone: "Europe/Oslo",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { rendrArkivPdf, genererArkivStempel, type ArkivDokumentRef } from "../services/arkiv/render";
 
 export const arkivRouter = router({
   // Rendr ett eller flere dokumenter til ÉN arkiv-PDF og returner den (base64) i
@@ -122,7 +103,7 @@ export const arkivRouter = router({
       }));
       const naa = new Date();
       const resultat = await rendrArkivPdf(ctx.prisma, dokRefs, {
-        generertTekst: genererStempel(naa),
+        generertTekst: genererArkivStempel(naa),
         datoForFilnavn: naa.toISOString().slice(0, 10),
       });
 

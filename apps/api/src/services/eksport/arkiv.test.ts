@@ -1,20 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * Kontrakt for arkiv-orkestreringen. Mocker filsamling/fs slik at vi
- * deterministisk kan teste: manifest-konvolutt, fil→domeneobjekt-binding,
- * dedup av kolliderende arkiv-stier, manglende-fil-markering (feller ikke),
- * at timer/utlegg ALDRI havner i arkivet, og guards.
+ * Kontrakt for arkiv-orkestreringen. Mocker filsamling/dokument-enumerering/
+ * render/fs slik at vi deterministisk kan teste UTEN pdf-render-containeren:
+ * manifest-konvolutt, fil→domeneobjekt-binding, dedup av kolliderende arkiv-
+ * stier, manglende-fil-markering (feller ikke), at timer/utlegg ALDRI havner i
+ * arkivet, dokument-render (mappe + filnavn + feilet-feller-ikke), progresjon,
+ * og guards.
  */
 
 const filer = vi.hoisted(() => ({ samleProsjektFiler: vi.fn() }));
+const dokumenter = vi.hoisted(() => ({ samleProsjektDokumenter: vi.fn() }));
+const render = vi.hoisted(() => ({ rendrArkivPdf: vi.fn(), genererArkivStempel: vi.fn(() => "07.09.2026 10:00") }));
 const fs = vi.hoisted(() => ({ stat: vi.fn() }));
 
 vi.mock("./filer", () => filer);
+vi.mock("./dokumenter", () => dokumenter);
+vi.mock("../arkiv/render", () => render);
 vi.mock("fs/promises", () => fs);
 vi.mock("./felles", () => ({ diskSti: (u: string) => "/disk" + u, UPLOADS_DIR: "/disk/uploads" }));
 
 import { byggEksportArkiv } from "./arkiv";
+
+/** Standard-svar fra rendrArkivPdf for ett dokument (BEF-001 uten manglende vedlegg). */
+function renderResultat(over: Record<string, unknown> = {}) {
+  return {
+    pdf: Buffer.from("%PDF-fake"),
+    filnavn: "BEF-001.pdf",
+    komplett: true,
+    renderTimeout: false,
+    dokumenter: [{ id: "d1", type: "sjekkliste", tittel: "Tittel", manglendeVedlegg: [] }],
+    ...over,
+  };
+}
 
 const PROSJEKT = {
   id: "p1",
@@ -36,6 +54,8 @@ const JOBB = { id: "j1", projectId: "p1", bestiltAvUserId: "u1" };
 beforeEach(() => {
   vi.clearAllMocks();
   filer.samleProsjektFiler.mockResolvedValue([]);
+  dokumenter.samleProsjektDokumenter.mockResolvedValue([]);
+  render.rendrArkivPdf.mockResolvedValue(renderResultat());
   fs.stat.mockResolvedValue({ size: 111 });
 });
 
@@ -113,5 +133,90 @@ describe("byggEksportArkiv — orkestrering", () => {
 
     const tom = { project: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
     await expect(byggEksportArkiv(tom, {} as never, JOBB, arkivMock() as never)).rejects.toThrow(/finnes ikke/);
+  });
+});
+
+describe("byggEksportArkiv — dokument-render (fase 3)", () => {
+  it("rendrer hvert dokument til PDF med dokumentnummer + tittel i filnavnet, i riktig mappe", async () => {
+    dokumenter.samleProsjektDokumenter.mockResolvedValue([
+      { id: "d1", type: "sjekkliste", mappe: "dokumenter/sjekklister", tittel: "Gjenbruk av materialer" },
+      { id: "h1", type: "sjekkliste", mappe: "dokumenter/hms", tittel: "SJA Graving" },
+    ]);
+    render.rendrArkivPdf
+      .mockResolvedValueOnce(renderResultat({ filnavn: "KA7-003.pdf" }))
+      .mockResolvedValueOnce(renderResultat({ filnavn: "SJA-001.pdf" }));
+
+    const a = arkivMock();
+    const s = await byggEksportArkiv(fakePrisma(), {} as never, JOBB, a as never);
+
+    const dokStier = a.append.mock.calls.map((c) => c[1].name).filter((n: string) => n.startsWith("dokumenter/"));
+    expect(dokStier).toContain("dokumenter/sjekklister/KA7-003 – Gjenbruk av materialer.pdf");
+    expect(dokStier).toContain("dokumenter/hms/SJA-001 – SJA Graving.pdf");
+    expect(s.antallDokumenter).toBe(2);
+    expect(s.antallDokumenterFerdig).toBe(2);
+    expect(s.antallDokumenterFeilet).toBe(0);
+    // Manifestet binder hvert dokument til arkiv-stien sin.
+    const manifest = JSON.parse(a.append.mock.calls.find((c) => c[1].name === "manifest.json")![0]);
+    expect(manifest.dokumenter).toHaveLength(2);
+    expect(manifest.dokumenter[0]).toMatchObject({ id: "d1", type: "sjekkliste", arkivSti: expect.stringContaining("KA7-003") });
+  });
+
+  it("ett dokument som feiler feller IKKE pakken — markeres i manifestet, resten pakkes", async () => {
+    dokumenter.samleProsjektDokumenter.mockResolvedValue([
+      { id: "d1", type: "sjekkliste", mappe: "dokumenter/sjekklister", tittel: "Ok" },
+      { id: "d2", type: "oppgave", mappe: "dokumenter/oppgaver", tittel: "Feiler" },
+    ]);
+    render.rendrArkivPdf
+      .mockResolvedValueOnce(renderResultat({ filnavn: "BEF-001.pdf" }))
+      .mockRejectedValueOnce(new Error("pdf-render feil (500): boom"));
+
+    const a = arkivMock();
+    const s = await byggEksportArkiv(fakePrisma(), {} as never, JOBB, a as never);
+
+    expect(s.antallDokumenterFerdig).toBe(1);
+    expect(s.antallDokumenterFeilet).toBe(1);
+    const manifest = JSON.parse(a.append.mock.calls.find((c) => c[1].name === "manifest.json")![0]);
+    const feilet = manifest.dokumenter.find((d: { id: string }) => d.id === "d2");
+    expect(feilet).toMatchObject({ arkivSti: null, feilet: expect.stringContaining("boom") });
+    expect(manifest.avgrensninger.some((x: string) => x.includes("lot seg ikke generere"))).toBe(true);
+    // Pakken ble likevel avsluttet med manifest + LES-MEG.
+    const navn = a.append.mock.calls.map((c) => c[1].name);
+    expect(navn).toContain("manifest.json");
+    expect(navn).toContain("LES-MEG.txt");
+  });
+
+  it("manglende vedlegg på et rendret dokument noteres (ikke som feil)", async () => {
+    dokumenter.samleProsjektDokumenter.mockResolvedValue([
+      { id: "d1", type: "sjekkliste", mappe: "dokumenter/sjekklister", tittel: "Ok" },
+    ]);
+    render.rendrArkivPdf.mockResolvedValue(
+      renderResultat({ dokumenter: [{ id: "d1", type: "sjekkliste", tittel: "Ok", manglendeVedlegg: ["bilde.jpg"] }] }),
+    );
+
+    const a = arkivMock();
+    const s = await byggEksportArkiv(fakePrisma(), {} as never, JOBB, a as never);
+
+    expect(s.antallDokumenterFerdig).toBe(1);
+    expect(s.antallDokumenterFeilet).toBe(0);
+    const manifest = JSON.parse(a.append.mock.calls.find((c) => c[1].name === "manifest.json")![0]);
+    expect(manifest.dokumenter[0].manglendeVedlegg).toEqual(["bilde.jpg"]);
+  });
+
+  it("progresjon rapporteres pr. dokument (0/N først, N/N til slutt)", async () => {
+    dokumenter.samleProsjektDokumenter.mockResolvedValue([
+      { id: "d1", type: "sjekkliste", mappe: "dokumenter/sjekklister", tittel: "A" },
+      { id: "d2", type: "sjekkliste", mappe: "dokumenter/sjekklister", tittel: "B" },
+    ]);
+    const fremdrift: Array<[number, number]> = [];
+    const a = arkivMock();
+    await byggEksportArkiv(fakePrisma(), {} as never, JOBB, a as never, async (f, t) => {
+      fremdrift.push([f, t]);
+    });
+
+    expect(fremdrift).toEqual([
+      [0, 2],
+      [1, 2],
+      [2, 2],
+    ]);
   });
 });

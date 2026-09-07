@@ -75,6 +75,15 @@ kontrollert? `zone` → ja, i sperr) ELLER en `parentId`-flytting (bryter grense
 kosmetisk slipper. Delt kjerne `samleEtterkommere` + `tellDokumenterMedInnhold` (gjenbruker
 `harFaktiskInnholdForObjekt`) — ETT predikat, tre kallsteder (slett/oppdater/rekkefølge) kan ikke drifte.
 
+**Klient-visning ved avslag (2026-09-07):** Alle tre mutasjoner oppdaterer treet OPTIMISTISK før
+`mutate`. `onError` på hver (`slettMutation`/`oppdaterObjektMutation`/`oppdaterRekkefølgeMutation`)
+viser serverens melding i ÉN delt feil-modal (`feilVisning: {tittel, melding}`, ikke en tvilling per
+sak) og kaller `refetchMal()` så feltet snapper tilbake til den LAGREDE verdien/posisjonen. Uten
+`onError` var et nektet lagre/drag stumt og villedet brukeren (Kenneth-funn test 2026-09-07 — samme
+funn som slett-rollbacken, men på endringsvernet som var nytt dagen før). Tittel: slett bruker
+`malbygger.slettFeiletTittel`, oppdater/rekkefølge bruker `malbygger.endringSperretTittel` (et
+lagre-avslag skal ikke si «Sletting mislyktes»).
+
 ## Rekkefølge-sortering
 
 `sortOrder` er globalt (topptekst først, deretter datafelter). `byggObjektTre()` i `@sitedoc/shared` og alle konsumenter sorterer:

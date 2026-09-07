@@ -2442,6 +2442,7 @@
   "malbygger.oppgaverBruk": "Tasks ({{antall}})",
   "malbygger.ingenBruk": "No checklists or tasks use this field.",
   "malbygger.slettFeiletTittel": "Deletion failed",
+  "malbygger.endringSperretTittel": "The change could not be saved",
   "malbygger.tvingSlett": "Force delete (test)",
   "prosjektoppsett.tittel": "Project settings",
   "prosjektoppsett.firmalogo": "Company logo",
