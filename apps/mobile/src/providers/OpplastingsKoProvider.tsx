@@ -12,7 +12,7 @@ import {
 } from "../db/schema";
 import { lastOppFil, OpplastingFeil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
-import { registrerBildeIDatabase, patchSjekklisteVedleggUrl } from "../services/bildeRegistrering";
+import { registrerBildeIDatabase, patchVedleggUrl } from "../services/bildeRegistrering";
 import { useNettverk } from "./NettverkProvider";
 import { AUTH_CONFIG } from "../config/auth";
 
@@ -519,10 +519,12 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         // skjermen er demontert (da når publiserFullfort aldri hooken, og
         // korreksjonen ville blitt liggende kun i SQLite, som viskes ved
         // reinstall). Best-effort: tåler at prod-API-et ikke har prosedyren ennå.
+        // Gjelder BEGGE dokumenttyper — samme delte patch, prosedyre velges på type.
         let serverOk = false;
-        if (dokumentType === "sjekkliste" && oppforing.sjekklisteId) {
-          serverOk = await patchSjekklisteVedleggUrl({
-            checklistId: oppforing.sjekklisteId,
+        if (dokumentId) {
+          serverOk = await patchVedleggUrl({
+            dokumentType,
+            dokumentId,
             objektId: oppforing.objektId,
             vedleggId: oppforing.vedleggId,
             url: resultat.fileUrl,
