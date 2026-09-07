@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import {
+  createRemoteJWKSet,
+  jwtVerify,
+  errors as joseErrors,
+  type JWTPayload,
+} from "jose";
 import { router, publicProcedure, protectedProcedure } from "../trpc/trpc";
 import { randomBytes } from "crypto";
 import { sjekkRateLimit, hentKlientIp } from "../utils/rateLimiter";
@@ -49,24 +54,36 @@ async function hentGoogleBrukerinfo(accessToken: string): Promise<UserInfo> {
 // (OIDC-userinfo) i stedet, ville eksisterende Account-koblinger brekke —
 // `sub` er applikasjonsspesifikk og ikke lik `oid`.
 //
-// Issuer gjenbrukes fra web (samme tenant, én sannhetskilde). aud pinnes mot
-// mobilens client-id. Signatur valideres mot Entras JWKS — et udekodet,
-// uverifisert ID-token ville vært en åpen dør.
+// FLERTENANT: appen aksepterer innlogging fra kundens EGEN Entra-tenant
+// (A.Markussen logger inn fra sin, ikke vår). Derfor kan iss IKKE pinnes til én
+// tenant — mobilen går mot `/common`, og ID-tokenets `iss` er tenant-spesifikk
+// (`.../{tid}/v2.0`). Vi validerer i stedet iss mot tokenets EGET `tid`-claim
+// (well-formed Microsoft-issuer for nettopp den tenanten) og pinner `aud` mot
+// mobilens client-id. Signatur valideres mot Entras `/common`-JWKS (Microsoft
+// signerer alle tenanter med det felles nøkkelsettet). Den EGENTLIGE grensen for
+// HVEM som slipper inn er admission-gaten i byttToken (invitasjon/eksisterende
+// medlemskap) — verifisert at den gjelder mobil-veien.
+const ENTRA_JWKS_URL =
+  "https://login.microsoftonline.com/common/discovery/v2.0/keys";
 let entraJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
-function hentEntraJwks(issuer: string) {
+function hentEntraJwks() {
   if (!entraJwks) {
-    const base = issuer.replace(/\/v2\.0\/?$/, "");
-    entraJwks = createRemoteJWKSet(new URL(`${base}/discovery/v2.0/keys`));
+    entraJwks = createRemoteJWKSet(new URL(ENTRA_JWKS_URL));
   }
   return entraJwks;
 }
 
+// Minimal logger-flate (Fastify `req.log`) — struktur uten å dra inn Fastify-typer.
+interface Logg {
+  warn: (obj: object, msg: string) => void;
+}
+
 async function hentMicrosoftBrukerinfoFraIdToken(
   idToken: string,
+  logg: Logg,
 ): Promise<UserInfo> {
-  const issuer = process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER;
   const audience = process.env.MICROSOFT_MOBILE_CLIENT_ID;
-  if (!issuer || !audience) {
+  if (!audience) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Microsoft-innlogging er ikke konfigurert på serveren.",
@@ -75,11 +92,36 @@ async function hentMicrosoftBrukerinfoFraIdToken(
 
   let payload: JWTPayload;
   try {
-    ({ payload } = await jwtVerify(idToken, hentEntraJwks(issuer), {
-      issuer,
-      audience,
-    }));
-  } catch {
+    // Ingen `issuer`-opsjon — flertenant (iss valideres mot tid under). aud
+    // pinnes; exp/nbf sjekkes automatisk av jose.
+    ({ payload } = await jwtVerify(idToken, hentEntraJwks(), { audience }));
+  } catch (err) {
+    // Logg jose-feilkoden + hvilket claim som sviktet — ALDRI tokenet eller
+    // claim-VERDIER. `claim` fra jose er et claim-NAVN (f.eks. "aud", "exp").
+    const kode =
+      err instanceof Error && "code" in err ? String(err.code) : "ukjent";
+    const claim =
+      err instanceof joseErrors.JWTClaimValidationFailed
+        ? err.claim
+        : undefined;
+    logg.warn({ kode, claim }, "Microsoft ID-token avvist ved jwtVerify");
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Ugyldig Microsoft-token.",
+    });
+  }
+
+  // Flertenant iss-validering: iss MÅ være Microsofts well-formed v2-issuer for
+  // tokenets egen tenant (tid). Fanger forfalsket eller uoverensstemmende iss/tid.
+  const tid = typeof payload.tid === "string" ? payload.tid : null;
+  const forventetIss = tid
+    ? `https://login.microsoftonline.com/${tid}/v2.0`
+    : null;
+  if (!tid || payload.iss !== forventetIss) {
+    logg.warn(
+      { kode: "iss_tid_mismatch", harTid: !!tid },
+      "Microsoft ID-token: iss matcher ikke tid",
+    );
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message: "Ugyldig Microsoft-token.",
@@ -97,6 +139,10 @@ async function hentMicrosoftBrukerinfoFraIdToken(
   const name = typeof payload.name === "string" ? payload.name : null;
 
   if (!oid || !email) {
+    logg.warn(
+      { kode: "mangler_paakrevd_claim", manglerOid: !oid, manglerEpost: !email },
+      "Microsoft ID-token mangler oid/e-post",
+    );
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message: "Microsoft-token mangler påkrevde felt (oid/e-post).",
@@ -146,7 +192,10 @@ export const mobilAuthRouter = router({
         if (!input.idToken) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Mangler Microsoft-token." });
         }
-        brukerinfo = await hentMicrosoftBrukerinfoFraIdToken(input.idToken);
+        brukerinfo = await hentMicrosoftBrukerinfoFraIdToken(
+          input.idToken,
+          ctx.req.log,
+        );
       }
 
       const providerNavn = input.provider === "google" ? "google" : "microsoft-entra-id";
