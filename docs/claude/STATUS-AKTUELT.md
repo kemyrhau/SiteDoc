@@ -1014,6 +1014,34 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🔴 Mobil-Microsoft dropper `User.Read` — ID-token framfor Graph /me (`fix/mobil-user-read`, TIL MERGE — auth-gate)
+
+**Saken:** mobil-MS ba om `User.Read` (Graph → hele Entra-profilen) for å hente e-post/navn/id som
+allerede ligger i ID-tokenet. Web ba om minimum (`openid profile email`); mobil var utliggeren.
+
+**Løsning:** mobilen returnerer nå **ID-tokenet** (ikke access-tokenet); api validerer det med `jose`
+mot Entras JWKS (`iss` = vår tenant, `aud` = mobil-client-id), leser `oid`/`email`/`name` fra claims
+og **dropper Graph /me helt**. `providerAccountId = oid` = uendret fra Graph-`id`-veien → **ingen
+brutte koblinger** (målt: 3 mobil-MS-kontoer i prod, et rått bytte til OIDC-`sub` hadde gitt dem ny
+konto). Scope: `["openid","email","profile"]`. Google urørt (0 mobil-kontoer, ba aldri om ekstra).
+
+**Ny api-avhengighet:** `jose@^6.1.3` (biblioteket Auth.js selv bruker web-side). **Ny api-env
+(test først):** `AUTH_MICROSOFT_ENTRA_ID_ISSUER` (= web) + `MICROSOFT_MOBILE_CLIENT_ID` — se
+[infrastruktur.md § Env-filer](infrastruktur.md). Ingen migrering.
+
+🔴 **OTA-landmine funnet + rettet i samme runde:** `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var en
+plassholder i `.env.test`/`.env.production` (ekte kun i eas.json). Målt: alle OTA-er siden 04.09
+bar plassholderen → MS-innlogging på mobil har vært **død for testerne i en uke**. Uten env-fiksen
+ville denne auth-OTA-en brutt innlogging FØR ID-tokenet lages. Ekte (offentlig) client-id lagt inn
+i begge `.env`-filer (sporet i git → propagerer til publiseringstreet); re-eksport bekreftet ekte
+id i bundelen. Advarsel skrevet i [eas-build-veileder § OTA-logg](eas-build-veileder.md).
+
+🔴 **Azure:** koden trenger ikke lenger `User.Read` — Kenneth fjerner tillatelsen i portalen, men
+**FØRST etter at test-innlogging på telefon er verifisert** mot egen eksisterende konto.
+🔴 **Leveringsvei:** api-deploy + mobil `eas update` kanal `test`. Gate strengere: ingen prod før
+Kenneth har logget inn med MS på mobil mot test og landet på **egen** konto (samme prosjektliste).
+Gaten grønt lokalt (api tc · web build · mobil tc · 210 tester · mobil lint 0 err).
+
 ### ✅ Arkiv-PDF for oppgave + HMS avvik/RUH — task-innholdsleser (`a2c7edc9` → develop `3c905298`, MERGET 04.09)
 
 > ⚠️ **Merk om lokasjonOmfang-raden som sto her:** den ble erstattet av denne i dokgens commit.
