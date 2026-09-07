@@ -97,6 +97,42 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟠 `apps/mobile` har INGEN test-runner — pilotens viktigste flate er uten enhetstester (målt 2026-09-07)
+
+Målt av redesign da han skulle skrive en test ordren krevde: **`apps/mobile` har verken
+`test`-script, vitest eller jest.** `pnpm test` (turbo) treffer api, pdf, shared og web — mobil er
+ikke med, og gate-kommandoene kjører kun typecheck + lint der.
+
+🔴 **En `.test.ts` lagt i mobil ville aldri kjøre — død i CI, verre enn ingen test**, fordi den ser
+ut som dekning.
+
+⚠️ **Konsekvens i praksis:** `formaterNummer` måtte flyttes til `@sitedoc/shared` for å kunne
+testes i det hele tatt (`412c878a`). **Det er en arkitekturbeslutning tatt av en verktøymangel**,
+ikke av hvor koden hører hjemme. Den avveiningen kommer til å gjenta seg.
+
+🔴 **Pilotmålestokken er «50 ansatte, mobil viktigst».** Kvalitetssikringsplanens tre lag
+([kvalitetssikring-plan.md](kvalitetssikring-plan.md)) dekker lint, simulator-røykliste og
+api-tester — **ingen av dem er enhetstester på mobil-logikk.**
+
+**Ikke ordre.** Å legge inn jest/vitest med RN-preset er reell infra-endring som flytter
+baselinen og krever godkjenning. **Kenneth-beslutning.**
+
+### 🟡 Web-lint kan ikke bli grønn — og cowork har gatet på den hele dagen (målt 2026-09-07)
+
+To agenter rapporterte uavhengig at `pnpm lint --filter @sitedoc/web` feiler på
+**forhåndseksisterende** gjeld på develop-baselinen (unused imports i 3D-visere, kontrollplan,
+økonomi, admin m.fl.). Begge krysset feillisten mot sin egen diff: **null overlapp.**
+
+⚠️ **Tallene spriker — 65 rapportert av én, 107 av en annen.** Ulikt scope eller ulik kjøring;
+**den faktiske gjelden er ikke målt.** Det er første steg.
+
+🔴 **Coworks feil, ikke agentenes:** `pnpm lint` sto som siste steg i hver eneste gate-kommando
+skrevet 07.09. **Et gate-steg som aldri kan passere lærer agentene å ignorere gaten** — og da er
+den verdt mindre enn ingen gate. Lint står ikke som blokkerende steg i ordrer før baselinen er ren.
+
+🟢 **CI gater på `pnpm test` + mobil-typecheck**, så dette blokkerer ingen leveranse i dag.
+Relatert: `nåværendeOrgId`-linten (2026-08-26) er én av radene.
+
 ### 🔴 Offline gjelder tegninger, ikke dokumenter — mot en ufravikelig regel (Kenneth på enhet 2026-09-07)
 
 > **Kenneth 2026-09-07:** *«forbered offline fungerer for tegninger → oppgaver, sjekklister og HMS
@@ -208,8 +244,52 @@ Da tegningsminnet ble koblet på repeater-flaten (`fix/tegningsminne-repeater`),
 **Kravet slik det gjelder i dag:** er **kjøretiden** mellom oppmøtested/kontorsted og byggeplass
 **over 30 minutter**, registreres tiden som **reisetid** (egen lønnsart). Under: **timelønn**.
 
-~~Første formulering (beholdt så ingen bygger den): «avstanden … sammenlignes med en firma-definert
-grense i km».~~ Km var Kenneths første ordlyd; den gjeldende regelen måler tid.
+~~Første formulering: «avstanden … sammenlignes med en firma-definert grense i km».~~
+~~Km var Kenneths første ordlyd; den gjeldende regelen måler tid.~~
+
+## 🔴 VEDTAK SNUDD 2026-09-07 — km føres TILBAKE som alternativ
+
+> **Kenneth 2026-09-07, etter tilbakemelding fra kunden:** *«km ble forkastet → A.Markussen
+> tilbakemelder at de benytter km-grense i dag → vi bør føre det tilbake som et alternativ»*
+
+🔴 **Km ble strøket 01.09 på Kenneths egen presisering** («reisetid beregnes over 30 minutter
+kjøretid»). **Den presiseringen beskrev regelen vi bruker nå, ikke regelen kunden faktisk bruker.**
+A.Markussen måler i km i dag. **Begge må finnes.**
+
+⚠️ **Ikke erstatt tid med km.** Terskelen skal kunne settes **enten** i minutter **eller** i
+kilometer, per firma. Dagens `reiseTerskelMin @default(30)` er riktig for firmaer som måler tid.
+
+🟢 **Datakilden dekker begge:** OSRM leverer distanse og varighet fra samme kall.
+🔴 **Om VÅRT kall ber om distanse er IKKE målt** (`rute-service.ts:89-114` bruker `/table`) —
+det er første spørsmål i saken, ikke en detalj.
+
+⚠️ **Schema-endring** (`reiseTerskelType` + `reiseTerskelKm` e.l.) → **Kenneth-gate + migrering.**
+
+### 🔴 OG ET NYTT FUNN SAMME DAG — lønnsartene er avstandsBÅND, ikke én reise-art
+
+**Målt i SITEDOC MYRHAUG på test 07.09** (via varselet i `fix/reise-lonnsart-varsel`):
+
+```
+Reise 7,5–15 km · Reise 15–30 km · Reise 30–45 km · Reise 45–60 km
+Reise/transport til prosjekter
+```
+
+🔴 **Fem lønnsarter matcher `/reise|transport/i`.** Det bekrefter ikke-determinismen som en **målt**
+risiko, ikke en teoretisk: `find()` uten `orderBy` ville plukket «Reise 7,5–15 km» like gjerne som
+«Reise/transport til prosjekter». **Feil lønnsart = feil utbetaling.**
+
+🟢 **Varselet fanget det på første eksponering.** Coworks gate-forventning («SITEDOC MYRHAUG skal
+være stille») var feil — firmaet har fem treff, ikke ett.
+
+**To spørsmål som ikke er det samme, og begge må besvares:**
+
+| Spørsmål | Styres av | Status |
+|---|---|---|
+| Er reisen **arbeidstid eller reisetid**? | **Tid** (30 min) — 🔴 **eller km, se vedtaket over** | 🟢 tid bygget, i prod 09.06 |
+| **Hvilken** reise-lønnsart føres den på? | 🔴 **Avstand** — båndene over | ❌ **finnes ikke** |
+
+⚠️ **Uten båndvalget havner alle reiser på samme lønnsart uansett lengde**, eller noen må velge
+manuelt hver gang. **Det er sannsynligvis grunnen til at A.Markussen måler i km.**
 
 🔴 **Konsekvensen er teknisk stor:** kjøretid kan **ikke** utledes av luftlinje. Den krever en
 rute-tjeneste (eller en avtalt km→minutt-omregning, som da må vedtas eksplisitt). Det gjør åpent

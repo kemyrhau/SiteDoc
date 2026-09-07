@@ -160,12 +160,30 @@ referat i stedet for å måle registeret. **Tavla er coworks ansvar, ikke Kennet
 
 | Hva | Hash |
 |---|---|
-| `develop` | `2b235e8a` (merge 33) |
-| `main` / prod | `69ca9f62` |
-| **test** (`curl -s https://api-test.sitedoc.no/version`) | 🔴 **`394d0670` = merge 32** |
+| `develop` | **`3d177db5`** (merge 36) |
+| `main` / prod | `69ca9f62` — **13 runder bak develop** |
+| **test** | `ca95b2f3` → ny deploy `3d177db5` under utrulling |
+| **OTA test-kanal** | `e84b3f09` → ny publisering under utrulling |
 
-🔴 **Runde 33 er IKKE på test.** `24505fbd` (Google) og `2b235e8a` (tegning) er verken ancestor
-av `394d0670`. **Gaten for tegningsfiksen krever en ny test-deploy** — den kan ikke kjøres nå.
+🟢 **Testtall etter runde 36:** api 335 · pdf 113 · **shared 754** · web 210.
+
+### 🔴 PROD-AVBRUDD samme kveld — Entra client secret utløp 3. sept
+
+Microsoft-innlogging på web lå nede i **prod i fire døgn** før noen oppdaget det. **Funnet av en
+gate satt av en helt annen grunn.** Ingenting varslet. Full hendelse, de fire lookalike-GUID-ene i
+Azure og kontinuitetsrisikoen (begge appregistreringer i en privat tenant, én admin):
+[sikkerhet.md](sikkerhet.md).
+
+⚠️ **Gaterekkefølgen «Microsoft først, feiler den stopper alt» var riktig av gale grunner** —
+cowork fryktet sin egen PKCE-linje. Den var uskyldig; gaten fanget en utløpt secret i stedet.
+
+### ⚠️ `pnpm lint` kan ikke bli grønn på web — cowork har gatet på et umulig steg
+
+To agenter rapporterte uavhengig at web-lint feiler på **forhåndseksisterende** gjeld på
+develop-baselinen, i filer ingen av dem rørte. **Cowork har likevel lagt `pnpm lint` som siste
+steg i hver gate-kommando hele dagen.** 🔴 **Et gate-steg som aldri kan passere, lærer agentene å
+ignorere gaten.** Tallene spriker (65 mot 107 rapportert) — **selve gjelden er ikke målt.**
+Ført i [BACKLOG](BACKLOG.md); lint står ikke som blokkerende steg før baselinen er ren.
 
 🔴 **Sporfordeling (Kenneth-vedtak 2026-08-31, [SAMARBEIDSREGLER § Arbeidsform](SAMARBEIDSREGLER.md)):**
 **kontrollplan = PLAN-sporet** (masterplanens neste punkt, røres ikke av feltfunn) ·
