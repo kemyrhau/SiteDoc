@@ -491,6 +491,9 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         registrerBildeIDatabase({
           sjekklisteId: oppforing.sjekklisteId,
           oppgaveId: oppforing.oppgaveId,
+          // Idempotens: køen kan retrie samme foto → send vedlegg-id så serveren
+          // upserter på den i stedet for å lage en ny rad per forsøk.
+          vedleggId: oppforing.vedleggId,
           fileUrl: resultat.fileUrl,
           fileName: resultat.fileName,
           fileSize: resultat.fileSize,
