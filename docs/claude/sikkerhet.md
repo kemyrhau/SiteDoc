@@ -210,6 +210,58 @@ leses som del av flytte-planleggingen, ikke etterpå.
    overlever flyttingen
 6. `--no-sandbox`
 
+## 🔴 DEKNING — hva denne gjennomgangen IKKE har sett på
+
+> **Kenneth 2026-09-07:** *«Hvorfor er ikke dette oppdaget i min forespørsel om å kontrollere
+> systemet for sikkerhetssvakheter?»*
+
+**Fordi gjennomgangen så på hva som skjer ETTER innlogging, ikke på hvordan innlogging skjer.**
+Alle funn over handler om dører inne i bygget — uploads-stien, tenant-grenser, nettverk,
+hvem som kan gjøre hva. **Ingen sjekket låsen på inngangsdøra, fordi det sto «Google» på den.**
+
+Raden *«Ingen passord-innlogging finnes — kun Google + Microsoft Entra ID»* i «Verifisert trygt»
+ble ført som **betryggelse**. At autentisering er delegert til to store leverandører ble behandlet
+som slutten på auth-spørsmålet i stedet for begynnelsen: ingen spurte hvilken **flyt** vi bruker,
+hvilke **scopes** vi ber om, eller om `state` faktisk **verifiseres**.
+
+**Funnet 2026-09-07 kom fra Google Cloud Console → Project Checkup**, som måler vår faktiske
+trafikk og flagget *«not using the state parameter»*. 🔴 **En ekstern målekilde vi har hatt hele
+tiden, gratis, og aldri konsultert.**
+
+### 🔴 Regelen som følger av dette
+
+**En sikkerhetsgjennomgang skal liste hva den IKKE har sett på.** Metode-avsnittet under sa at
+runtime-tilstand ikke var verifisert — men sa ingenting om autentiseringsprotokollen. **En
+gjennomgang som ikke oppgir sin egen dekning, leses som om den dekket alt.** Det er en større feil
+enn det enkeltfunnet den bommet på.
+
+| Område | Dekket? |
+|---|---|
+| Nettverkstopologi, containere, host-porter | ✅ 2026-08-28 |
+| Filservering og `/uploads/` | ✅ 2026-08-12/15 |
+| Autorisasjon: tenant-grenser, prosjektporter, roller | ✅ 2026-09-06 |
+| **Autentiseringsprotokoll: OAuth-flyt, scopes, `state`, token-validering** | 🔴 **IKKE FØR 2026-09-07** — se funn under |
+| **Eksterne leverandørkonsoller (Google Cloud, Azure) som målekilde** | 🔴 **ALDRI ÅPNET før 2026-09-07** |
+| Avhengigheter / kjente CVE-er i tredjepartspakker | 🔴 **IKKE DEKKET** |
+| Rate limiting og misbruk av offentlige endepunkter | 🟡 Delvis (auth-login, `/api/pamelding`, `/api/kontakt`) |
+| Logging: havner hemmeligheter eller persondata i logg? | 🔴 **IKKE DEKKET** |
+
+## 🔴 Åpne auth-funn (2026-09-07, Kenneth-utløst)
+
+| Funn | Kilde | Status |
+|---|---|---|
+| Mobil-Microsoft ber om **`User.Read`** — Graph-tillatelse til hele Entra-profilen (stilling, telefon, kontorsted, leder) for å hente e-post og navn som alt ligger i ID-tokenet | cowork-måling, `apps/mobile/src/services/auth.ts:116` | 🟡 Ordre gitt, `fix/mobil-user-read` |
+| **Google-innlogging på mobil bruker IMPLISITT flyt.** Håndskrevet web-variant har `response_type: "token"` og en `state` fra `Math.random()` som **aldri verifiseres** | Google Cloud Console + cowork-måling, `auth.ts:90` | 🔴 Ordre skrevet, holdes til `User.Read` er merget |
+| Cross-Account Protection ikke konfigurert | Google Cloud Console | 🟡 Valgfritt Google-tiltak, ikke vurdert |
+
+🟢 **Google-scopes er minimale** (`openid email profile`) på både web og mobil — verifisert
+2026-09-07. **Omfanget var aldri problemet; flyten er det.**
+
+⚠️ **Presedensen sto i samme fil hele tiden:** Microsoft-flyten (`auth.ts:113`) bruker
+authorization code + PKCE og bærer kommentaren *«Implicit forkastes … token i redirect-URL»*.
+**Riktig avgjørelse ble tatt for én tilbyder og aldri båret over til den andre** — samme klasse som
+byggeplassfilteret (9 kopier, 3 ødelagte) og trafikklys-etikettene.
+
 ## Metode
 
 Topologien er lest fra compose-filene og `pdf-render/server.mjs` — sannhetskilden for
