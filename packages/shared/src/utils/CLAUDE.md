@@ -152,6 +152,16 @@ importerer herfra. **PDF speiler logikken lokalt** (`packages/pdf/src/hjelpere.t
 `packages/pdf` er null-avhengigheter — voktet av paritetstest
 (`apps/web/src/__tests__/pdf-shared-tvilling-paritet.test.ts`). Endres denne, endres speilet.
 
+### Dokumentnummer (`dokumentnummer.ts`)
+
+`formaterNummer(prefix, nummer)` → `string | null`. Bygger listevisnings-nummeret
+`${prefix}${nummer}` (f.eks. «SJA12»), `null` når prefix eller nummer mangler.
+Trukket hit 2026-09-07 fra seks mobil-listeskjermer (hjem, innboks, hms, sjekkliste,
+oppgave × 2) som hver hadde en identisk lokal kopi. Mobil re-eksporterer den fra
+`DokumentRadHjelpere.tsx` (søke-uthevingen `MedUtheving` blir i mobil — den bruker
+react-native `Text`). 🔴 `nummer == null` slipper `0` gjennom med vilje («SJA0» er
+gyldig) — voktet av test (`dokumentnummer.test.ts`).
+
 ### Grense + resolver (`grenseSjekk.ts`)
 
 Grenseverdier for `integer`/`decimal` — delt kilde for MalBygger-editor, utfyllings-rendering

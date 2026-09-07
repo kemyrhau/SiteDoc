@@ -1,18 +1,13 @@
 import { Text } from "react-native";
 
 /**
- * Delte rad-hjelpere for dokumentlistene (sjekkliste, innboks). Skilt ut så
- * lister ikke kopierer nummer-formatering og søke-utheving — «to flater, én
- * kilde» (samme prinsipp som dokumentlisteFilter.ts).
+ * Delte rad-hjelpere for dokumentlistene (hjem, innboks, hms, sjekkliste,
+ * oppgave). Søke-uthevingen (`MedUtheving`) bor her fordi den bruker
+ * react-native `Text`; den rene nummer-formateringen bor i @sitedoc/shared og
+ * re-eksporteres herfra så kallstedene kan importere alt fra ett sted.
  */
 
-export function formaterNummer(
-  prefix: string | null | undefined,
-  nummer: number | null | undefined,
-): string | null {
-  if (!prefix || nummer == null) return null;
-  return `${prefix}${nummer}`;
-}
+export { formaterNummer } from "@sitedoc/shared";
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
