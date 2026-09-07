@@ -307,7 +307,22 @@ export async function resolverOrgFraInput(
 
 /**
  * Intern hjelper for firma-admin-rettighet.
- * Leser fra OrganizationMember.firmaRoller.
+ * Leser fra OrganizationMember.firmaRoller — OG status.
+ *
+ * Status-gaten (kopiklasse-lukking 2026-09-08): en DEAKTIVERT ansettelse mister
+ * firma-admin-rettigheter. Dette er den ENESTE kilden for firma-admin: både
+ * `autoriserAdminForFirma` (:725 → alle firma-admin-ruter: lønnsart, eksport,
+ * onboarding m.m.) og `erFirmaAdminForProsjekt` (:337 → prosjekt-bypass) går hit.
+ * Registreringsmodell fase 1 (2026-08-28) la status-sjekk i de 11 prosjekt-portene
+ * (`krevAktivAnsettelse`) og i `hentBrukersOrg` (:256), men de firma-admin-SPESIFIKKE
+ * rutene gater direkte hit og leste tidligere kun `firmaRoller` — hullet fra BACKLOG.
+ *
+ * `krevAktivAnsettelse` (:24) passer IKKE her: den er prosjekt-skopet (resolver
+ * eier-firma via `Project.primaryOrganizationId`), mens firma-admin-rutene kun har
+ * `organizationId`. Vi gjenbruker i stedet samme status-FAKTA (`status !== "deaktivert"`)
+ * som `hentBrukersOrg` allerede leser — på raden `erFirmaAdmin` uansett henter.
+ *
+ * AKTIV admin (status "aktiv") er UENDRET — den avgjørende gaten.
  */
 async function erFirmaAdmin(
   userId: string,
@@ -315,9 +330,10 @@ async function erFirmaAdmin(
 ): Promise<boolean> {
   const member = await prisma.organizationMember.findUnique({
     where: { userId_organizationId: { userId, organizationId } },
-    select: { firmaRoller: true },
+    select: { firmaRoller: true, status: true },
   });
-  return member?.firmaRoller.includes("firma_admin") ?? false;
+  if (!member || member.status === "deaktivert") return false;
+  return member.firmaRoller.includes("firma_admin");
 }
 
 /**

@@ -78,8 +78,12 @@ Deaktivering av en ansatt er ÉN reversibel fakta på `OrganizationMember.status
 - Deaktivering-mutasjon: `organisasjon.settAnsattStatus` (firmaadmin-only, lockout-guard
   på egen rad, sitedoc_admin skjermet). Varig spor i `Activity` (`action:
   "ansatt_deaktivert"|"ansatt_aktivert"`, `targetType:"organization_member"`).
-- Oppfølger i BACKLOG: en deaktivert firma-admin beholder admin-rettigheter (de
-  `verifiserFirmaAdmin`-lokale rutene leser `firmaRoller`, ikke status).
+- ✅ Firma-admin-veien: `erFirmaAdmin` (:312) leser nå `firmaRoller` OG `status` —
+  en deaktivert ansettelse mister firma-admin-rettigheter (`fix/firmaadmin-status`,
+  2026-09-08). Ett sted: alle firma-admin-ruter går via `autoriserAdminForFirma` →
+  `erFirmaAdmin`; de route-lokale `verifiserFirmaAdmin`-wrapperne delegerte allerede hit
+  (ingen ekte kopiklasse). `krevAktivAnsettelse` passet ikke (prosjekt-skopet); samme
+  status-fakta som `hentBrukersOrg` ble gjenbrukt. Aktiv admin uendret.
 
 ### Kandidatregel: «aktiv brukbar ansatt i firma X» (services/ansatt.ts, ansattvelger-runden)
 
