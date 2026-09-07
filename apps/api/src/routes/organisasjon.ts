@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, inviteProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
+import { REISE_LONNSART_REGEX } from "@sitedoc/shared";
 import {
   autoriserAdminForFirma,
   harFirmaHmsTilgang,
@@ -998,11 +999,26 @@ export const organisasjonRouter = router({
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
     const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
-    return ctx.prisma.organizationSetting.upsert({
+    const setting = await ctx.prisma.organizationSetting.upsert({
       where: { organizationId: orgId },
       create: { organizationId: orgId },
       update: {},
     });
+    // Tvetydighets-telling: hvor mange AKTIVE lønnsarter matcher reise-regexen.
+    // Speiler mobil-resolveren (`hentReiseLonnsartId`): samme delte
+    // REISE_LONNSART_REGEX, alle typer, kun aktive. Regex kan ikke pushes til
+    // Prisma (Postgres `~*` er ikke i query-API-et), så vi henter navnene og
+    // teller i JS mot den ene kilden. Klienten bruker tallet til å velge varsel
+    // (0 = ingen art tolkes som reise; ≥2 = tvetydig). `.test()` er trygt å
+    // gjenbruke — regexen har ingen `g`-flagg, altså ingen lastIndex-tilstand.
+    const aktiveArter = await ctx.prismaTimer.lonnsart.findMany({
+      where: { organizationId: orgId, aktiv: true },
+      select: { navn: true },
+    });
+    const reiseLonnsartMatchAntall = aktiveArter.filter((a) =>
+      REISE_LONNSART_REGEX.test(a.navn),
+    ).length;
+    return { ...setting, reiseLonnsartMatchAntall };
   }),
 
   // T4-d (2026-05-16): medlems-tilgjengelig subset av OrganizationSetting

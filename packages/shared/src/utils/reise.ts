@@ -19,6 +19,17 @@
 
 export type ReiseKategori = "arbeidstid" | "reisetid";
 
+/**
+ * Navne-match for reise-lønnsart når firmaet ikke har satt en eksplisitt
+ * `reiseLonnsartId`. ÉN kilde delt av tre steder: mobilens resolver
+ * (`hentReiseLonnsartId`), mobilens reise-merking (render) og serverens
+ * tvetydighets-telling (`organisasjon.hentSetting`). Skriv den ALDRI av —
+ * importer herfra. Bevisst bred (matcher «Reise/transport til prosjekter» så vel
+ * som «Transport av masser»); å stramme den ville brutt umålte firmaer, så
+ * tvetydighet håndteres i stedet med et varsel + eksplisitt valg (firma-admin).
+ */
+export const REISE_LONNSART_REGEX = /reise|transport/i;
+
 export interface ReiseRegelsett {
   /** Terskel i minutter (OrganizationSetting.reiseTerskelMin, default 30). */
   reiseTerskelMin: number;

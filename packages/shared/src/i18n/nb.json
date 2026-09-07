@@ -1517,6 +1517,8 @@
   "firma.innstillinger.reise.lonnsart": "Reise-lønnsart",
   "firma.innstillinger.reise.lonnsartAuto": "Automatisk (navne-match)",
   "firma.innstillinger.reise.lonnsartHjelp": "Lønnsarten reisetid føres på. Velg «Automatisk» for å matche på navn (reise/transport).",
+  "firma.innstillinger.reise.varselIngenArt": "Ingen lønnsart tolkes som reise. Reisetid over terskelen beregnes, men føres ikke automatisk på lønn før du velger en reise-lønnsart under.",
+  "firma.innstillinger.reise.varselTvetydigArt": "Flere lønnsarter kan tolkes som reise. Uten et eksplisitt valg avgjør systemet hvilken reisetid føres på — velg riktig lønnsart under.",
   "firma.innstillinger.reise.tellerOvertid": "Reisetid teller mot overtid",
   "firma.innstillinger.reise.matriseTittel": "Reisetid-matrise",
   "firma.innstillinger.reise.matriseBeskrivelse": "Forhåndsberegn faktisk kjøretid fra hvert kontor til hver byggeplass, slik at reise-forslag på dagsseddel bruker ekte tider i stedet for et estimat. Beregnes også automatisk når kontorer eller byggeplass-posisjoner endres.",

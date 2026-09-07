@@ -1,5 +1,10 @@
-import { eq, and } from "drizzle-orm";
-import { utledOrdning, erGyldigOrdning, type UtleggOrdning } from "@sitedoc/shared";
+import { eq, and, asc } from "drizzle-orm";
+import {
+  utledOrdning,
+  erGyldigOrdning,
+  REISE_LONNSART_REGEX,
+  type UtleggOrdning,
+} from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
   lonnsartLocal,
@@ -12,12 +17,8 @@ import {
 import { hentOrganizationSettingLokalt } from "./organizationSettingKatalog";
 import type { trpc } from "../lib/trpc";
 
-/**
- * Navne-match for reise-lønnsart når firmaet ikke har satt reiseLonnsartId
- * eksplisitt. Holdes som én konstant så generering (genererForslag) og
- * render (reise-merking i TimerSeksjon) aldri kan drifte fra hverandre.
- */
-const REISE_LONNSART_REGEX = /reise|transport/i;
+// REISE_LONNSART_REGEX bor nå i @sitedoc/shared (én kilde delt med serverens
+// tvetydighets-telling) — importert over, ikke definert lokalt.
 
 /* ============================================================================
  *  Timer-katalog-cache (Runde 2)
@@ -195,6 +196,11 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
 export function hentLonnsarterLokalt(organizationId: string) {
   const db = hentDatabase();
   if (!db) return [];
+  // Stabil orden: reise-resolveren (eneste kaller) tar første regex-treff via
+  // `.find()` — uten deterministisk sortering kunne valget skifte mellom to
+  // synk-er hos et firma med ≥2 treff. rekkefolge (notNull, firmaets egen
+  // katalogorden), så id som absolutt bryter. Ikke kode: den er nullable + tekst
+  // (leksikalsk «122» < «20»). For 0/1 treff er atferden identisk med før.
   return db
     .select()
     .from(lonnsartLocal)
@@ -204,6 +210,7 @@ export function hentLonnsarterLokalt(organizationId: string) {
         eq(lonnsartLocal.aktiv, true),
       ),
     )
+    .orderBy(asc(lonnsartLocal.rekkefolge), asc(lonnsartLocal.id))
     .all();
 }
 

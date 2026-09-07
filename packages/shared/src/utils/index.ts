@@ -16,7 +16,7 @@ export { GRATIS_DOKUMENT_GRENSE, grenseNaadd } from "./prosjektGrense";
 export type { GrenseVilkaar } from "./prosjektGrense";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
-export { klassifiserReise, estimerReisetidMin } from "./reise";
+export { klassifiserReise, estimerReisetidMin, REISE_LONNSART_REGEX } from "./reise";
 export type { ReiseKategori, ReiseRegelsett } from "./reise";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
