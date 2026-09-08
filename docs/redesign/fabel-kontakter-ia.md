@@ -141,6 +141,67 @@ tvinges gjennom alt.
 **4. Din vurdering av gap 2** (e-post-vei i flyten).
 **5. Anbefaling på navnet** (§ 6) — Kenneth avgjør, men si hva du ville valgt.
 
+---
+
+# 🟢 TILLEGG 2026-09-08 — to vedtak etter fabels svar
+
+**Fabels svar** (`kp-kontakter-ia-svar-fabel-2026-09-08.md`, rev. 2) er **gatet av cowork.**
+🟢 Begge referansene hans er verifisert: `delplaner/dokumentflyt-medlem-analyse-2026-07-28.md`
+bærer «Anbefaling A» ordrett, og `delplaner/brukeroppsett-dokumentflyt-redesign-retning.md` finnes.
+**Han bygger på målt arbeid, ikke hukommelse.**
+
+🟢 **Og han flagget selv at han reverserer sin egen anbefaling fra 04.08** («Gruppe →
+Tilgangsgruppe»), med begrunnelse for snuoperasjonen. **Riktig håndtering av et snudd vedtak.**
+
+## 🟢 VEDTAK 1 — navnet er **Brukergruppe**
+
+Fabels anbefaling tiltrådt. Tre grunner:
+- Det er hva koden og DB sier (`category: "brukergrupper"`, `brukerGrupperListe`)
+- Kortets innhold er **folk først**, tilganger som egenskap — «Tilgangsgruppe» beskriver én
+  egenskap og over-lover, siden gruppen også brukes som flyt-deltaker
+- Kenneths eget IA-notat bruker ordet gjennomgående
+
+🔴 **UI, kode og DB skal si det samme.** `retning`-dokumentets § 2 oppdateres ved bygging.
+
+## 🟢 VEDTAK 2 — rolle-filteret utgår, men rolle er ikke den voksende aksen
+
+**Kenneths kontrollspørsmål:** *«hva om A.Markussen om 4 måneder sier at de trenger flere nivåer
+administrasjon — noen administrerer timer, noen prosjekter, noen maskiner?»*
+
+**🟢 Målt: modellen vokser allerede, men IKKE via roller.**
+
+| | Verdier | Vokser? |
+|---|---|---|
+| `ProjectMember.role` | `admin` \| `member` | ❌ Fast |
+| `ProjectMember.kanAttestere` | Boolean | 🟢 **«Noen administrerer timer» FINNES alt** — vedtatt 02.05 |
+| `ProjectMember.erFirmaansvarlig` | Boolean | 🟢 Egen gate `verifiserAdminEllerFirmaansvarlig` |
+
+**CLAUDE.md sier det eksplisitt:** *«Kapabiliteter på ProjectMember gir spesifikke
+tilleggs-rettigheter uten å endre rolle.»* **«Noen administrerer maskiner» blir et nytt
+kapabilitetsfelt, ikke en ny rolle.**
+
+🟢 **Derfor utgår rolle-filteret — men av en bedre grunn enn «to verdier er få».**
+**Rolle er feil akse.** Spørsmålet en firma-admin stiller om fire måneder er «hvem kan attestere
+timer her», ikke «hvem er admin».
+
+### 🔴 Krav som følger — til deg, fabel
+
+**Personkortets rolle-seksjon skal være en KAPABILITETS-seksjon som tåler å vokse.**
+Rolle øverst, deretter de kapabilitetene som er på. **I dag to** (`kanAttestere`,
+`erFirmaansvarlig` — «✓ Attestering» er i dag en fotnote under rollen i tabellen).
+**Om fire måneder kanskje fem.**
+
+🔴 **Designet skal ikke låse rolle som eneste akse.** Forskjellen mellom å fjerne filteret og å
+fjerne muligheten.
+
+⚠️ **Filtrering på kapabilitet bygges IKKE nå** — to booleans er ikke verdt plassen.
+**Men strukturen skal tåle det.**
+
+### 🔴 Avgrensning: `sitedoc_admin` sin fulle oversikt hører IKKE her
+
+Superadmin-oversikt bor i `/dashbord/admin`. **Holdes adskilt** — ellers vokser Kontakter-siden
+igjen til å bære noe den ikke skal, som er nøyaktig problemet denne saken løser.
+
 ## Ikke i denne bestillingen
 
 - 🔴 **Faggruppe som egen flate.** Vedtatt: den er en egenskap ved personen.
