@@ -1,5 +1,6 @@
 // Delte HMS-UI-komponenter for prosjekt- og firma-nivå.
 
+import { formaterNummer } from "@sitedoc/shared";
 import type { DokumentRad } from "./types";
 
 export function formaterDato(dato: string | null | undefined): string {
@@ -12,7 +13,9 @@ export function formaterDato(dato: string | null | undefined): string {
 }
 
 export function formaterLopenummer(rad: DokumentRad): string {
-  return rad.number ? String(rad.number).padStart(3, "0") : "—";
+  // Bart padda nummer — prefiks vises i egen kolonne. 0 er gyldig («000»), kun
+  // manglende nummer gir «—» (delt regel: nummer == null → null, 0 vises).
+  return formaterNummer(null, rad.number, { pad: 3, visPrefiks: false }) ?? "—";
 }
 
 // Felt-verdier lagres nestet som { verdi, kommentar, vedlegg } (se

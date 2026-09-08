@@ -18,6 +18,7 @@ import {
   REPORT_OBJECT_TYPE_META,
   EMNE_KATEGORIER,
   STOETTEDE_SPRAAK,
+  formaterNummer,
   type ReportObjectType,
   type TemplateZone,
   type EmneKategori,
@@ -1328,12 +1329,6 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
   }
 }
 
-function formaterNummer(prefiks: string | null | undefined, nummer: number | null | undefined): string {
-  if (!nummer) return "";
-  if (prefiks) return `${prefiks}-${String(nummer).padStart(3, "0")}`;
-  return String(nummer);
-}
-
 function SlettBekreftelse({
   id,
   label,
@@ -1373,7 +1368,11 @@ function SlettBekreftelse({
                   {data.sjekklister.map((s) => (
                     <li key={s.id} className="flex items-center gap-2 rounded px-2 py-1 text-gray-600 hover:bg-gray-50">
                       <span className="font-mono text-xs text-gray-400">
-                        {formaterNummer(s.template?.prefix, s.number)}
+                        {formaterNummer(s.template?.prefix, s.number, {
+                          separator: "-",
+                          pad: 3,
+                          manglerPrefiks: "nummer",
+                        }) ?? ""}
                       </span>
                       <span className="truncate">{s.title}</span>
                     </li>
@@ -1391,7 +1390,11 @@ function SlettBekreftelse({
                   {data.oppgaver.map((o) => (
                     <li key={o.id} className="flex items-center gap-2 rounded px-2 py-1 text-gray-600 hover:bg-gray-50">
                       <span className="font-mono text-xs text-gray-400">
-                        {formaterNummer(o.template?.prefix, o.number)}
+                        {formaterNummer(o.template?.prefix, o.number, {
+                          separator: "-",
+                          pad: 3,
+                          manglerPrefiks: "nummer",
+                        }) ?? ""}
                       </span>
                       <span className="truncate">{o.title}</span>
                     </li>

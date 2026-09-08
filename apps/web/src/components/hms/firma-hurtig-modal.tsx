@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { DOCUMENT_STATUSES } from "@sitedoc/shared";
+import { DOCUMENT_STATUSES, formaterNummer } from "@sitedoc/shared";
 import { StatusBadge } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import type { DokumentRad } from "./types";
@@ -60,9 +60,8 @@ export function FirmaHurtigModal({ rad, organizationId, onLukk, onSuksess }: Pro
     }
   }
 
-  const nummer = rad.template.prefix && rad.number
-    ? `${rad.template.prefix}-${String(rad.number).padStart(3, "0")}`
-    : null;
+  // Full form «SJA-012»; null uten prefiks (denne modalen viser ikke prefiksløse numre).
+  const nummer = formaterNummer(rad.template.prefix, rad.number, { separator: "-", pad: 3 });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

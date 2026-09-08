@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
-import { beregnHarBallen, filtrerRader } from "@sitedoc/shared";
+import { beregnHarBallen, filtrerRader, formaterNummer } from "@sitedoc/shared";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
@@ -149,7 +149,9 @@ const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", 
 // --- Hjelpefunksjoner ---
 
 function formaterLopenummer(rad: OppgaveRad): string {
-  return rad.number ? String(rad.number).padStart(3, "0") : "—";
+  // Bart padda nummer — prefiks vises i egen kolonne. 0 er gyldig («000»), kun
+  // manglende nummer gir «—» (delt regel: nummer == null → null, 0 vises).
+  return formaterNummer(null, rad.number, { pad: 3, visPrefiks: false }) ?? "—";
 }
 
 // Ansvarlig = den/de i flyten som har ansvar for å svare ut dokumentet (Kenneth-vedtak

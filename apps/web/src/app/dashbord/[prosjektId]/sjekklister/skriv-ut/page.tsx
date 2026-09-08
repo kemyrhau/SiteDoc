@@ -8,7 +8,7 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { PrintHeader } from "@/components/PrintHeader";
 import { RapportObjektVisning, type SignaturListeVisning } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { formaterSignaturTidspunkt } from "@sitedoc/shared";
+import { formaterSignaturTidspunkt, formaterNummer } from "@sitedoc/shared";
 
 /** Veggklokke fra signertTidspunkt, fallback completedAt (UTC) — ferdigformatert. */
 function sigTid(s: { signertTidspunkt?: string | null; completedAt?: string | Date | null }): string | null {
@@ -187,14 +187,16 @@ function SjekklistePrint({
     return byggObjektTre(objekter) as TreNode[];
   }, [sjekkliste.template.objects]);
 
-  // Sjekkliste-nummer med prefiks
-  const sjekklisteNummer = useMemo(() => {
-    const nummer = sjekkliste.number;
-    const prefix = sjekkliste.template.prefix;
-    if (nummer == null) return null;
-    const nummerPad = String(nummer).padStart(3, "0");
-    return prefix ? `${prefix}-${nummerPad}` : nummerPad;
-  }, [sjekkliste.number, sjekkliste.template.prefix]);
+  // Sjekkliste-nummer med prefiks («SJA-012», bart «012» uten prefiks)
+  const sjekklisteNummer = useMemo(
+    () =>
+      formaterNummer(sjekkliste.template.prefix, sjekkliste.number, {
+        separator: "-",
+        pad: 3,
+        manglerPrefiks: "nummer",
+      }),
+    [sjekkliste.number, sjekkliste.template.prefix],
+  );
 
   // Finn vær-tekst
   const vaerTekst = useMemo(() => {

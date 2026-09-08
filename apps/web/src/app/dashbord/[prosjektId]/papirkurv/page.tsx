@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Trash2, RotateCcw, Trash } from "lucide-react";
 import { Spinner, Button, Modal, StatusBadge } from "@sitedoc/ui";
+import { formaterNummer } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -66,8 +67,11 @@ export default function PapirkurvSide() {
   }
 
   function dokNummer(d: PapirkurvDok): string {
-    if (d.number == null) return "—";
-    return d.prefix ? `${d.prefix}-${d.number}` : String(d.number);
+    // Full form «SJA-012» — padda til 3 som alle andre visninger (drift-fiks: sto
+    // før upadda «SJA-12», eneste full-form uten pad).
+    return (
+      formaterNummer(d.prefix, d.number, { separator: "-", pad: 3, manglerPrefiks: "nummer" }) ?? "—"
+    );
   }
 
   if (!prosjektId) {

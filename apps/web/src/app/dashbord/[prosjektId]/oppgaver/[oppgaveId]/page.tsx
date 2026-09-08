@@ -13,7 +13,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsFlytStripe } from "@/components/HmsFlytStripe";
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, formaterNummer } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -502,12 +502,16 @@ export default function OppgaveDetaljSide() {
     [],
   );
 
-  // Oppgavenummer med prefiks
-  const oppgaveNummer = useMemo(() => {
-    if (oppgave?.number == null) return null;
-    const nummerPad = String(oppgave.number).padStart(3, "0");
-    return oppgave.template?.prefix ? `${oppgave.template.prefix}-${nummerPad}` : nummerPad;
-  }, [oppgave?.number, oppgave?.template?.prefix]);
+  // Oppgavenummer med prefiks («SJA-012», bart «012» uten prefiks)
+  const oppgaveNummer = useMemo(
+    () =>
+      formaterNummer(oppgave?.template?.prefix, oppgave?.number, {
+        separator: "-",
+        pad: 3,
+        manglerPrefiks: "nummer",
+      }),
+    [oppgave?.number, oppgave?.template?.prefix],
+  );
 
   // Melder eier innholdet, behandler eier handlingen (Spor 2 / 5c): på HMS er
   // meldingsskjemaet ALLTID read-only unntatt for melderen mens saken er utkast.
