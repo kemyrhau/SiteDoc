@@ -117,6 +117,52 @@ api-tester — **ingen av dem er enhetstester på mobil-logikk.**
 **Ikke ordre.** Å legge inn jest/vitest med RN-preset er reell infra-endring som flytter
 baselinen og krever godkjenning. **Kenneth-beslutning.**
 
+### 🔴 TRETTEN UFERDIGE KOBLINGER funnet bak lint-gjelden (målt 2026-09-08)
+
+**Lint-oppryddingen var ikke oppryddingen — den var funnet.** Kontrollplan vurderte hver «ubrukt»
+variabel enkeltvis i stedet for å prefikse den med `_`. Av 77 errors var **kun 18 atferds-nøytrale**.
+Resten er **kode som ble skrevet og aldri koblet inn.**
+
+🔴 **De hadde ligget usynlige fordi lint-gaten ikke kunne kjøres** (varm cache, se posten under).
+Hadde noen «ryddet» dem mekanisk, ville hver eneste ha blitt permanent usynlig.
+
+#### 🔴 Funksjonshull — noe brukeren ikke får gjort
+
+| Sted | Hva som mangler |
+|---|---|
+| `oppsett/brukere:192` `fjernMutation` | `medlem.fjernFraFaggruppe` med `onSuccess` — **aldri kalt. Fjern-knappen er ikke wiret** |
+| `oppsett/brukere:1035` `tilgjengeligeFaggrupper` | «Legg til»-lista beregnes, **rendres aldri** |
+| `import-dialog:15,68` `FaggruppeVelger` | Importert, state finnes, **velgeren rendres aldri** |
+| `oppsett/produksjon/psi:96` `tilgjengeligeBygninger` | Opprett-nedtrekk beregnet, **rendres aldri** (søsteren `...KopierBygninger` brukes) |
+| `psi/[prosjektId]:343,374` `harScrolletNed` / `innholdKortNok` | Scroll-til-bunn-gate for PSI-onboarding **settes, leses aldri — kravet håndheves ikke** |
+| `SeddelKort:163` `pauseTimer` | Pausetimer beregnet i attesteringskortet, **vises aldri** |
+
+⚠️ **De to første henger sammen:** både «legg til» og «fjern» på faggruppe-medlemskap ser ut til å
+mangle i samme flate. **Det er ikke to funn, det er én uferdig flate.**
+
+#### 🟡 Svakere / grensetilfeller
+
+`psi/[prosjektId]:662` `verdi` (signatur sendes inn, canvas gjenoppretter den aldri) ·
+`box:110` `mappeNavn` (TilgangModal får navnet, viser det ikke) ·
+`oppsett/produksjon/psi:80` `nyMalId` (mal-velger-state, aldri wiret) ·
+`RedigerPunkt:563` `t` (**i18n-hull** — henter `t`, bruker hardkodet norsk) ·
+`UkeVelger:28` `mandagIUke` (komplett dato-helper, 0 kallere)
+
+#### Målt av dokgen, samme dag
+
+**`sok/page.tsx:59` `nsDokumentIder`** — 🟢 **ikke et tilgangsproblem.** `sokFilter` ekskluderer
+NS-/referanse-**mapper**, men aldri de løse referanse**dokumentene**. Følgen: referansestoff som er
+ment å være skjult som støy, dukker opp i standardsøket. **Søkekvalitet, ikke sikkerhet.**
+⚠️ Må verifiseres at `aiSok.sok`/`ftdSok.sokDokumenter` tar `ekskluderDokumentIder` før det bygges.
+
+**`admin/prosjekter:236` `nåværendeOrgId`** — stillas for en org-tilordnings-/flyttekontroll som
+aldri ble bygget. 🔴 **Den henter id fra `projectOrganizations[0]`, ikke `primaryOrganization` — de
+to kan divergere.** Firmaoverføring er permanent og superadmin-gatet. **Kenneth eier flaten.**
+
+🔴 **Ingen av de tretten skal fikses uten at intensjonen er avklart.** Flere av dem er halve
+features, ikke gjeld — og å «fullføre» en de-ene uten å vite hva den var ment å gjøre, er å gjette
+på en produktbeslutning.
+
 ### 🟡 Web-lint kan ikke bli grønn — og cowork har gatet på den hele dagen (målt 2026-09-07)
 
 To agenter rapporterte uavhengig at `pnpm lint --filter @sitedoc/web` feiler på
