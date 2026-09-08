@@ -1,7 +1,11 @@
 import { z } from "zod";
 import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { addMemberSchema, addExistingMemberSchema, addExistingMembersManySchema } from "@sitedoc/shared";
+import {
+  addExistingMemberSchema,
+  addExistingMembersManySchema,
+  registrerMedlemSchema,
+} from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import { sendInvitasjonsEpost } from "../services/epost";
 import { aktivAnsattIFirmaWhere, sikreProsjektmedlemmer } from "../services/ansatt";
@@ -150,205 +154,248 @@ export const medlemRouter = router({
       return [...tillatelser];
     }),
 
-  // Legg til medlem i prosjekt (krever admin eller firmaansvarlig)
-  leggTil: protectedProcedure
-    .input(addMemberSchema)
+  // Én komplett registrering i ÉN transaksjon (registreringsmodell fase 1):
+  // finn/opprett bruker → prosjektmedlem → valgfrie faggrupper, brukergrupper og
+  // flyt-roller. Feiler ett ledd, rulles ALT tilbake — vi ender aldri med en person
+  // som finnes i kontakter men ikke i flyten (halvveis-tilstanden vi rydder bort).
+  // Erstatter medlem.leggTil + gruppe.leggTilMedlem. Invitasjon/e-post er best-effort
+  // UTENFOR tx (et nettverkskall skal ikke holde en DB-tx åpen; e-postfeil svelges som før).
+  registrer: protectedProcedure
+    .input(registrerMedlemSchema)
     .mutation(async ({ ctx, input }) => {
       const { erAdmin } = await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
 
-      // Firmaansvarlig: kun invitere brukere med samme organizationId
+      // Auth-trapp: gruppe-/flyt-binding krever FULL admin (som gruppe.leggTilMedlem +
+      // dokumentflyt.leggTilMedlem i dag). Basis (bruker/medlem/faggruppe) tillater
+      // firmaansvarlig. Ingen firmaansvarlig-sti sender gruppeIder i dag (gruppe var
+      // admin-only), så trappen stenger ingen vei som virker.
+      const vilBindeGruppeEllerFlyt = input.gruppeIder.length > 0 || input.flytBindinger.length > 0;
+      if (vilBindeGruppeEllerFlyt && !erAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bare administratorer kan plassere en kontakt i en brukergruppe eller dokumentflyt",
+        });
+      }
+
+      // Firmaansvarlig-begrensninger (fra leggTil): kun eget firma, ingen admin-opprettelse,
+      // og en eksisterende bruker må tilhøre samme firma (per B.7).
+      let organizationId = input.organizationId;
       if (!erAdmin) {
         const inviterendeOrgId = await hentBrukersOrg(ctx.userId);
         if (!inviterendeOrgId) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Du tilhører ingen organisasjon",
-          });
+          throw new TRPCError({ code: "FORBIDDEN", message: "Du tilhører ingen organisasjon" });
         }
-
-        // Sjekk at organizationId matcher
-        if (input.organizationId && input.organizationId !== inviterendeOrgId) {
+        if (organizationId && organizationId !== inviterendeOrgId) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Du kan kun invitere brukere til ditt eget firma",
           });
         }
-
-        // Tving organizationId til eget firma
-        input.organizationId = inviterendeOrgId;
-
-        // Firmaansvarlig kan ikke opprette admins
+        organizationId = inviterendeOrgId;
         if (input.role === "admin") {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Kun administratorer kan opprette admin-brukere",
           });
         }
-
-        // Sjekk at eksisterende bruker tilhører samme firma (per B.7: findFirst)
-        const eksisterendeBruker = await ctx.prisma.user.findFirst({
-          where: { email: input.email, canLogin: true },
-          select: { id: true },
-          orderBy: { createdAt: "asc" },
-        });
-        if (eksisterendeBruker) {
-          const eksisterendeOrgId = await hentBrukersOrg(eksisterendeBruker.id);
-          if (eksisterendeOrgId && eksisterendeOrgId !== inviterendeOrgId) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "Brukeren tilhører et annet firma",
+        // Eksisterende bruker (userId → eksakt; ellers e-post) må være i samme firma.
+        const eksisterende = input.userId
+          ? await ctx.prisma.user.findUnique({ where: { id: input.userId }, select: { id: true } })
+          : await ctx.prisma.user.findFirst({
+              where: { email: input.email, canLogin: true },
+              select: { id: true },
+              orderBy: { createdAt: "asc" },
             });
+        if (eksisterende) {
+          const eksisterendeOrgId = await hentBrukersOrg(eksisterende.id);
+          if (eksisterendeOrgId && eksisterendeOrgId !== inviterendeOrgId) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Brukeren tilhører et annet firma" });
           }
         }
       }
 
-      // Slå opp bruker på e-post (per B.7: findFirst — eldste aktive først)
-      let user = await ctx.prisma.user.findFirst({
-        where: { email: input.email, canLogin: true },
-        orderBy: { createdAt: "asc" },
-      });
-
-      if (!user) {
-        user = await ctx.prisma.user.create({
-          data: {
-            email: input.email,
-            name: `${input.firstName} ${input.lastName}`,
-            phone: input.phone,
-          },
+      // Kryss-prosjekt-vern: flyt-ene og gruppene MÅ høre til dette prosjektet.
+      if (input.flytBindinger.length > 0) {
+        const flytIder = [...new Set(input.flytBindinger.map((f) => f.dokumentflytId))];
+        const funnet = await ctx.prisma.dokumentflyt.findMany({
+          where: { id: { in: flytIder }, projectId: input.projectId },
+          select: { id: true },
         });
-      } else {
-        // Oppdater manglende felter (navn, telefon)
-        const oppdatering: { name?: string; phone?: string } = {};
-        if (!user.name) oppdatering.name = `${input.firstName} ${input.lastName}`;
-        if (input.phone && !user.phone) oppdatering.phone = input.phone;
-        if (Object.keys(oppdatering).length > 0) {
-          user = await ctx.prisma.user.update({
-            where: { id: user.id },
-            data: oppdatering,
+        if (funnet.length !== flytIder.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ukjent dokumentflyt for dette prosjektet" });
+        }
+      }
+      if (input.gruppeIder.length > 0) {
+        const funnet = await ctx.prisma.projectGroup.findMany({
+          where: { id: { in: input.gruppeIder }, projectId: input.projectId },
+          select: { id: true },
+        });
+        if (funnet.length !== input.gruppeIder.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ukjent brukergruppe for dette prosjektet" });
+        }
+      }
+
+      const fulltNavn = `${input.firstName} ${input.lastName}`;
+
+      // Alle bindinger i én transaksjon. Feiler ett ledd → hele registreringen rulles tilbake.
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
+        // 1. Finn/opprett bruker. userId → EKSAKT (findUnique); ellers e-post (findFirst,
+        //    canLogin, eldste først — B.7: e-post ikke globalt unik, sikreste nøkkel vinner).
+        let user = input.userId
+          ? await tx.user.findUnique({ where: { id: input.userId } })
+          : await tx.user.findFirst({
+              where: { email: input.email, canLogin: true },
+              orderBy: { createdAt: "asc" },
+            });
+
+        if (!user) {
+          if (input.userId) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Fant ikke brukeren" });
+          }
+          user = await tx.user.create({
+            data: { email: input.email, name: fulltNavn, phone: input.phone },
+          });
+        } else {
+          // Fyll KUN manglende felter — aldri overskriv eksisterende navn/telefon.
+          const oppdatering: { name?: string; phone?: string } = {};
+          if (!user.name) oppdatering.name = fulltNavn;
+          if (input.phone && !user.phone) oppdatering.phone = input.phone;
+          if (Object.keys(oppdatering).length > 0) {
+            user = await tx.user.update({ where: { id: user.id }, data: oppdatering });
+          }
+        }
+
+        // 2. Sikre OrganizationMember-rad hvis bruker skal tilhøre et firma.
+        if (organizationId) {
+          await tx.organizationMember.upsert({
+            where: { userId_organizationId: { userId: user.id, organizationId } },
+            create: { userId: user.id, organizationId, ansattRolle: "ansatt", firmaRoller: [] },
+            update: {},
           });
         }
-      }
 
-      // Sikre OrganizationMember-rad hvis bruker skal tilhøre et firma
-      if (input.organizationId) {
-        await ctx.prisma.organizationMember.upsert({
-          where: {
-            userId_organizationId: {
-              userId: user.id,
-              organizationId: input.organizationId,
-            },
-          },
-          create: {
-            userId: user.id,
-            organizationId: input.organizationId,
-            ansattRolle: "ansatt",
-            firmaRoller: [],
-          },
-          update: {},
+        // 3. Finn/opprett ProjectMember (idempotent — dobbelttrykk gir ikke to rader).
+        let projectMember = await tx.projectMember.findUnique({
+          where: { userId_projectId: { userId: user.id, projectId: input.projectId } },
         });
-      }
+        if (!projectMember) {
+          projectMember = await tx.projectMember.create({
+            data: { userId: user.id, projectId: input.projectId, role: input.role },
+          });
+        }
 
-      // Sjekk om medlemskap allerede finnes
-      const eksisterende = await ctx.prisma.projectMember.findUnique({
-        where: {
-          userId_projectId: {
-            userId: user.id,
-            projectId: input.projectId,
-          },
-        },
-      });
+        // 4. Faggruppe-koblinger (upsert — idempotent).
+        for (const faggruppeId of input.faggruppeIder) {
+          await tx.faggruppeKobling.upsert({
+            where: {
+              projectMemberId_faggruppeId: { projectMemberId: projectMember.id, faggruppeId },
+            },
+            create: { projectMemberId: projectMember.id, faggruppeId },
+            update: {},
+          });
+        }
 
-      if (eksisterende) {
-        // Legg til nye faggruppe-tilknytninger
-        if (input.faggruppeIder.length > 0) {
-          for (const entId of input.faggruppeIder) {
-            await ctx.prisma.faggruppeKobling.upsert({
-              where: {
-                projectMemberId_faggruppeId: {
-                  projectMemberId: eksisterende.id,
-                  faggruppeId: entId,
-                },
+        // 5. Brukergruppe-medlemskap (upsert — idempotent).
+        for (const groupId of input.gruppeIder) {
+          await tx.projectGroupMember.upsert({
+            where: {
+              groupId_projectMemberId: { groupId, projectMemberId: projectMember.id },
+            },
+            create: { groupId, projectMemberId: projectMember.id },
+            update: {},
+          });
+        }
+
+        // 6. Flyt-roller — idempotent: hopp over ledd som allerede finnes (rolle+steg).
+        for (const binding of input.flytBindinger) {
+          const finnes = await tx.dokumentflytMedlem.findFirst({
+            where: {
+              dokumentflytId: binding.dokumentflytId,
+              projectMemberId: projectMember.id,
+              rolle: binding.rolle,
+              steg: binding.steg,
+            },
+            select: { id: true },
+          });
+          if (!finnes) {
+            await tx.dokumentflytMedlem.create({
+              data: {
+                dokumentflytId: binding.dokumentflytId,
+                projectMemberId: projectMember.id,
+                rolle: binding.rolle,
+                steg: binding.steg,
               },
-              create: {
-                projectMemberId: eksisterende.id,
-                faggruppeId: entId,
-              },
-              update: {},
             });
           }
         }
-        return ctx.prisma.projectMember.findUnique({
-          where: { id: eksisterende.id },
-          include: {
-            user: true,
-            faggruppeKoblinger: { include: { faggruppe: true } },
-          },
-        });
-      }
 
-      const nyMedlem = await ctx.prisma.projectMember.create({
-        data: {
+        return {
           userId: user.id,
-          projectId: input.projectId,
-          role: input.role,
-          faggruppeKoblinger: {
-            create: input.faggruppeIder.map((entId) => ({
-              faggruppeId: entId,
-            })),
-          },
-        },
-        include: {
-          user: true,
-          faggruppeKoblinger: { include: { faggruppe: true } },
-        },
+          userEmail: user.email,
+          harNavn: !!user.name,
+          projectMemberId: projectMember.id,
+        };
       });
 
-      // Send invitasjons-e-post hvis brukeren ikke har logget inn (ingen Account)
-      const harKonto = await ctx.prisma.account.findFirst({
-        where: { userId: user.id },
-      });
-
+      // 7. Invitasjon + e-post — best-effort UTENFOR tx. Kun hvis brukeren ikke har
+      //    logget inn (ingen Account), og kun én gang (dedup på ventende invitasjon).
+      const harKonto = await ctx.prisma.account.findFirst({ where: { userId: resultat.userId } });
       if (!harKonto) {
         try {
-          const token = crypto.randomBytes(32).toString("base64url");
-          const utloper = new Date();
-          utloper.setDate(utloper.getDate() + 7);
-
-          const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
-            where: { id: input.projectId },
-            select: { name: true },
-          });
-
-          const inviterer = await ctx.prisma.user.findUniqueOrThrow({
-            where: { id: ctx.userId },
-            select: { name: true },
-          });
-
-          await ctx.prisma.projectInvitation.create({
-            data: {
-              email: user.email.toLowerCase(),
-              token,
+          const eksisterendeInvitasjon = await ctx.prisma.projectInvitation.findFirst({
+            where: {
+              email: resultat.userEmail.toLowerCase(),
               projectId: input.projectId,
-              role: input.role,
-              faggruppeId: input.faggruppeIder[0] ?? undefined,
-              invitedByUserId: ctx.userId,
-              expiresAt: utloper,
+              status: "pending",
             },
           });
+          if (!eksisterendeInvitasjon) {
+            const token = crypto.randomBytes(32).toString("base64url");
+            const utloper = new Date();
+            utloper.setDate(utloper.getDate() + 7);
 
-          await sendInvitasjonsEpost({
-            til: user.email,
-            invitasjonstoken: token,
-            prosjektNavn: prosjekt.name,
-            invitertAvNavn: inviterer.name ?? "En kollega",
-            melding: input.melding,
-          });
+            const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+              where: { id: input.projectId },
+              select: { name: true },
+            });
+            const inviterer = await ctx.prisma.user.findUniqueOrThrow({
+              where: { id: ctx.userId },
+              select: { name: true },
+            });
+
+            await ctx.prisma.projectInvitation.create({
+              data: {
+                email: resultat.userEmail.toLowerCase(),
+                token,
+                projectId: input.projectId,
+                role: input.role,
+                faggruppeId: input.faggruppeIder[0] ?? undefined,
+                groupId: input.gruppeIder[0] ?? undefined,
+                invitedByUserId: ctx.userId,
+                expiresAt: utloper,
+              },
+            });
+
+            await sendInvitasjonsEpost({
+              til: resultat.userEmail,
+              invitasjonstoken: token,
+              prosjektNavn: prosjekt.name,
+              invitertAvNavn: inviterer.name ?? "En kollega",
+              melding: input.melding,
+            });
+          }
         } catch (error) {
           console.error("Kunne ikke sende invitasjons-e-post:", error);
         }
       }
 
-      return nyMedlem;
+      return ctx.prisma.projectMember.findUnique({
+        where: { id: resultat.projectMemberId },
+        include: {
+          user: true,
+          faggruppeKoblinger: { include: { faggruppe: true } },
+        },
+      });
     }),
 
   // Fjern medlem fra prosjekt (krever admin)

@@ -10,9 +10,10 @@
  * Gjenbrukbar: `forhandsvalgtFaggruppeId`/`forhandsvalgtFlytId` lar flyt-oppsettet
  * åpne samme modal med faggruppe + flyt forhåndsvalgt (ikke en kopi).
  *
- * Skriver vanlig flytmedlemskap: `medlem.leggTil`/`leggTilEksisterende` (oppretter
- * kontakten + faggruppe-kobling) og deretter `dokumentflyt.leggTilMedlem` per rolle.
- * Valgfri tilgangsgruppe via `gruppe.leggTilMedlem`. Ingen ny tilgangsberegning.
+ * Hele registreringen går gjennom ÉN atomisk prosedyre (`medlem.registrer`,
+ * registreringsmodell fase 1): person + prosjektmedlem + faggruppe-koblinger +
+ * valgfri brukergruppe + flyt-roller. Fra-firma sender `userId` for eksakt oppslag.
+ * Ingen ny tilgangsberegning.
  */
 
 import { useState } from "react";
@@ -125,16 +126,14 @@ export function OpprettKontaktModal({
   );
   const erAdmin = minTilgang?.erAdmin ?? false;
 
-  const leggTilMedlemMutation = trpc.medlem.leggTil.useMutation();
-  const leggTilEksisterendeMutation = trpc.medlem.leggTilEksisterende.useMutation();
-  const leggTilFlytMedlemMutation = trpc.dokumentflyt.leggTilMedlem.useMutation();
-  const leggTilGruppeMedlemMutation = trpc.gruppe.leggTilMedlem.useMutation();
+  // Registreringsmodell fase 1: ÉN atomisk prosedyre for hele registreringen —
+  // finn/opprett person + prosjektmedlem + faggrupper + brukergruppe + flyt-roller.
+  // Erstatter fire separate kall (medlem.leggTil / medlem.leggTilEksisterende /
+  // dokumentflyt.leggTilMedlem / gruppe.leggTilMedlem) som kunne etterlate en
+  // halvveis-kontakt hvis ett feilet.
+  const registrerMutation = trpc.medlem.registrer.useMutation();
 
-  const sender =
-    leggTilMedlemMutation.isPending ||
-    leggTilEksisterendeMutation.isPending ||
-    leggTilFlytMedlemMutation.isPending ||
-    leggTilGruppeMedlemMutation.isPending;
+  const sender = registrerMutation.isPending;
 
   function flytForFaggruppe(faggruppeId: string): FlytForModal[] {
     return dokumentflyter.filter((df) => df.faggruppeId === faggruppeId);
@@ -168,83 +167,65 @@ export function OpprettKontaktModal({
     if (modus === "fra-firma" && !firmaBrukerId) return;
 
     // Faggrupper som skal kobles til kontakten (fra flyt-radene)
-    const faggruppeIder = [...new Set(flytRader.map((r) => r.faggruppeId).filter(Boolean))];
+    const faggruppeIder = [...new Set(flytRader.map((r) => r.faggruppeId).filter(Boolean))] as string[];
 
-    // (b) Rett-sjekk FØR første skriving (Tillegg 1, Kenneth-vedtak 2026-08-22): flyt-plassering
-    // (`dokumentflyt.leggTilMedlem`) er admin-gatet server-side. Ville vi skrevet flyt-medlemskap
-    // uten å være admin, ville kontakten blitt OPPRETTET (`medlem.leggTil` er ikke gatet) og
-    // plasseringen avvist → foreldreløs kontakt uten flyttilknytning, i stillhet. Vi forhindrer
-    // tilstanden i stedet for å rydde etter den. Kontakt UTEN flyt-plassering (ingen rad med rolle)
-    // er fortsatt tillatt for ikke-admin — vi blokkerer kun når en flyt-skriving faktisk ville skjedd.
-    const skalPlassereIFlyt = flytRader.some((r) => r.flytId && r.roller.length > 0);
-    if (skalPlassereIFlyt && !erAdmin) {
+    // Flyt-bindinger — ett ledd per (flyt × rolle)
+    const flytBindinger = flytRader
+      .filter((r) => r.flytId && r.roller.length > 0)
+      .flatMap((r) =>
+        r.roller.map((rolle) => ({
+          dokumentflytId: r.flytId!,
+          rolle: rolle as DokumentflytRolle,
+          steg: 1,
+        })),
+      );
+
+    const gruppeIder = tilgangsgruppeId ? [tilgangsgruppeId] : [];
+
+    // (b) Rett-sjekk FØR skriving (Tillegg 1, Kenneth-vedtak 2026-08-22): flyt- og
+    // gruppe-plassering er admin-gatet server-side. Nå er hele registreringen ÉN
+    // transaksjon, så en avvisning oppretter uansett ingenting — men vi gir en klar
+    // melding i stedet for en rå server-feil. Kontakt UTEN flyt/gruppe er fortsatt
+    // tillatt for firmaansvarlig.
+    if ((flytBindinger.length > 0 || gruppeIder.length > 0) && !erAdmin) {
       setFeil(
-        "Bare administratorer kan plassere en kontakt i en dokumentflyt. Be en prosjektadmin gjøre det, eller opprett kontakten uten flyt-plassering.",
+        "Bare administratorer kan plassere en kontakt i en dokumentflyt eller brukergruppe. Be en prosjektadmin gjøre det, eller opprett kontakten uten slik plassering.",
       );
       return;
     }
 
+    // Identitet per modus. Fra-firma sender userId → EKSAKT oppslag (e-post er ikke
+    // globalt unik, B.7); ny-person har ingen userId → slås opp/opprettes på e-post.
+    let email: string;
+    let firstName: string;
+    let lastName: string;
+    let userId: string | undefined;
+    if (modus === "ny-person") {
+      const deler = navn.trim().split(/\s+/);
+      firstName = deler[0] || navn.trim();
+      lastName = deler.slice(1).join(" ") || "-";
+      email = epost.trim();
+    } else {
+      const bruker = ledigeFirmaBrukere.find((b) => b.id === firmaBrukerId);
+      const deler = (bruker?.name ?? bruker?.email ?? "").trim().split(/\s+/);
+      firstName = deler[0] || (bruker?.email ?? "-");
+      lastName = deler.slice(1).join(" ") || "-";
+      email = bruker?.email ?? "";
+      userId = firmaBrukerId;
+    }
+
     try {
-      let projectMemberId: string;
-      let epostForGruppe: string;
-      let fornavn: string;
-      let etternavn: string;
-
-      if (modus === "ny-person") {
-        const deler = navn.trim().split(/\s+/);
-        fornavn = deler[0] || navn.trim();
-        etternavn = deler.slice(1).join(" ") || "-";
-        epostForGruppe = epost.trim();
-        const ny = await leggTilMedlemMutation.mutateAsync({
-          projectId: prosjektId,
-          email: epostForGruppe,
-          firstName: fornavn,
-          lastName: etternavn,
-          role: "member",
-          faggruppeIder,
-        });
-        if (!ny) throw new Error(t("kontaktside.opprettFeilet"));
-        projectMemberId = ny.id;
-      } else {
-        const bruker = ledigeFirmaBrukere.find((b) => b.id === firmaBrukerId);
-        const deler = (bruker?.name ?? bruker?.email ?? "").trim().split(/\s+/);
-        fornavn = deler[0] || (bruker?.email ?? "-");
-        etternavn = deler.slice(1).join(" ") || "-";
-        epostForGruppe = bruker?.email ?? "";
-        const ny = await leggTilEksisterendeMutation.mutateAsync({
-          projectId: prosjektId,
-          userId: firmaBrukerId,
-          role: "member",
-          faggruppeIder,
-        });
-        if (!ny) throw new Error(t("kontaktside.opprettFeilet"));
-        projectMemberId = ny.id;
-      }
-
-      // Flytmedlemskap — ett kall per (flyt × rolle)
-      for (const rad of flytRader) {
-        if (!rad.flytId || rad.roller.length === 0) continue;
-        for (const rolle of rad.roller) {
-          await leggTilFlytMedlemMutation.mutateAsync({
-            dokumentflytId: rad.flytId,
-            projectId: prosjektId,
-            projectMemberId,
-            rolle: rolle as DokumentflytRolle,
-            steg: 1,
-          });
-        }
-      }
-
-      // Valgfri tilgangsgruppe
-      if (tilgangsgruppeId && epostForGruppe) {
-        await leggTilGruppeMedlemMutation.mutateAsync({
-          groupId: tilgangsgruppeId,
-          projectId: prosjektId,
-          email: epostForGruppe,
-          firstName: fornavn,
-          lastName: etternavn,
-        });
-      }
+      await registrerMutation.mutateAsync({
+        projectId: prosjektId,
+        userId,
+        email,
+        firstName,
+        lastName,
+        role: "member",
+        faggruppeIder,
+        gruppeIder,
+        flytBindinger,
+      });
 
       onFerdig();
       onClose();

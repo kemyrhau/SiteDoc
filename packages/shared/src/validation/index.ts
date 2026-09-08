@@ -148,15 +148,35 @@ export const updateWorkflowSchema = z.object({
 });
 
 // Medlemsvalidering
-export const addMemberSchema = z.object({
+// Én komplett registrering: finn/opprett bruker → prosjektmedlem → valgfrie
+// faggrupper, brukergrupper og flyt-roller — ALT i én transaksjon (medlem.registrer).
+// Erstatter medlem.leggTil + gruppe.leggTilMedlem (registreringsmodell fase 1).
+//
+// 🔴 `userId` (valgfri) gir EKSAKT oppslag når kalleren allerede kjenner brukeren
+// (fra-firma-stien, eksisterende medlem). Uten den slås bruker opp på e-post med
+// findFirst — og e-post er IKKE lenger globalt unik (B.7), så en ansatt med to
+// User-rader kan ellers treffes feil. Samme klasse som kontoovertakelses-vektoren
+// lukket 2026-09-07: bruk sikreste tilgjengelige identitetsnøkkel.
+export const registrerMedlemSchema = z.object({
   projectId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   email: z.string().email("Ugyldig e-postadresse"),
   firstName: z.string().min(1, "Fornavn er påkrevd"),
   lastName: z.string().min(1, "Etternavn er påkrevd"),
   phone: z.string().optional(),
   role: z.enum(["member", "admin"]).default("member"),
-  faggruppeIder: z.array(z.string().uuid()).default([]),
   organizationId: z.string().uuid().optional(),
+  faggruppeIder: z.array(z.string().uuid()).default([]),
+  gruppeIder: z.array(z.string().uuid()).default([]),
+  flytBindinger: z
+    .array(
+      z.object({
+        dokumentflytId: z.string().uuid(),
+        rolle: dokumentflytRolleSchema,
+        steg: z.number().int().min(1).default(1),
+      }),
+    )
+    .default([]),
   melding: z.string().max(500).optional(),
 });
 
@@ -341,13 +361,3 @@ export const removeDokumentflytMedlemSchema = z.object({
   projectId: z.string().uuid(),
 });
 
-// Legg til gruppemedlem via e-post
-export const addGroupMemberByEmailSchema = z.object({
-  groupId: z.string().uuid(),
-  projectId: z.string().uuid(),
-  email: z.string().email("Ugyldig e-postadresse"),
-  firstName: z.string().min(1, "Fornavn er påkrevd"),
-  lastName: z.string().min(1, "Etternavn er påkrevd"),
-  phone: z.string().optional(),
-  melding: z.string().max(500).optional(),
-});
