@@ -1,4 +1,5 @@
 import { Cloud } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
 interface VaerVerdi {
@@ -9,6 +10,7 @@ interface VaerVerdi {
 }
 
 export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const vaerVerdi = (verdi as VaerVerdi) ?? {};
 
   const oppdater = (felt: keyof Omit<VaerVerdi, "kilde">, nyVerdi: string) => {
@@ -34,13 +36,13 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
         {vaerVerdi.kilde === "automatisk" && (
           <div className="flex items-center gap-1.5 text-xs text-blue-600">
             <Cloud className="h-3.5 w-3.5" />
-            Automatisk hentet fra Open-Meteo
+            {t("rapportobjekt.vaer.automatiskHentet")}
           </div>
         )}
         {harData ? (
           <p className="text-sm text-gray-700">{deler.join(" · ")}</p>
         ) : (
-          <p className="text-sm italic text-gray-400">Ingen værdata</p>
+          <p className="text-sm italic text-gray-400">{t("felt.ingenVaerdata")}</p>
         )}
       </div>
     );
@@ -52,7 +54,7 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">Temperatur</label>
+        <label className="mb-1 block text-xs font-medium text-gray-600">{t("rapportobjekt.vaer.temperatur")}</label>
         <input
           type="text"
           value={vaerVerdi.temp ?? ""}
@@ -63,7 +65,7 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">Forhold</label>
+        <label className="mb-1 block text-xs font-medium text-gray-600">{t("felt.vaerForhold")}</label>
         <input
           type="text"
           value={vaerVerdi.conditions ?? ""}
@@ -74,7 +76,7 @@ export function VaerObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">Vind</label>
+        <label className="mb-1 block text-xs font-medium text-gray-600">{t("felt.vaerVind")}</label>
         <input
           type="text"
           value={vaerVerdi.wind ?? ""}

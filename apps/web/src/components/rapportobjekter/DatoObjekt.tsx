@@ -1,6 +1,8 @@
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
 export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const datoVerdi = typeof verdi === "string" ? new Date(verdi) : null;
 
   // Konverter til YYYY-MM-DD for input[type=date]
@@ -63,7 +65,7 @@ export function DatoObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProp
           onClick={settIDag}
           className="mt-1 ml-1 text-sm text-blue-600 hover:text-blue-800"
         >
-          I dag
+          {t("timer.idag")}
         </button>
       )}
     </div>

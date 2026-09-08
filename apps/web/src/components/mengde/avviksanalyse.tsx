@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 interface AvviksanalyseProps {
@@ -14,6 +15,7 @@ const STATUS_FARGE: Record<string, string> = {
 };
 
 export function Avviksanalyse({ projectId }: AvviksanalyseProps) {
+  const { t } = useTranslation();
   const { data, isLoading } = trpc.mengde.hentAvviksanalyse.useQuery(
     { projectId },
     { enabled: !!projectId },
@@ -30,7 +32,7 @@ export function Avviksanalyse({ projectId }: AvviksanalyseProps) {
   if (!data || data.rows.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-gray-400">
-        Ingen data for avviksanalyse. Importer anbudsgrunnlag og A-nota først.
+        {t("mengde.avvik.ingenData")}
       </div>
     );
   }
@@ -59,19 +61,19 @@ export function Avviksanalyse({ projectId }: AvviksanalyseProps) {
             }
           />
           <div className="rounded border bg-gray-50 p-3">
-            <div className="text-xs text-gray-500">Status</div>
+            <div className="text-xs text-gray-500">{t("papirkurv.kolonne.status")}</div>
             <div className="mt-1 flex gap-3 text-xs">
               <span className="text-green-600">
-                {data.summary.antallMatch} match
+                {t("mengde.avvik.antallMatch", { antall: data.summary.antallMatch })}
               </span>
               <span className="text-amber-600">
-                {data.summary.antallEndret} endret
+                {t("mengde.avvik.antallEndret", { antall: data.summary.antallEndret })}
               </span>
               <span className="text-blue-600">
-                {data.summary.antallNy} ny
+                {t("mengde.avvik.antallNy", { antall: data.summary.antallNy })}
               </span>
               <span className="text-red-600">
-                {data.summary.antallFjernet} fjernet
+                {t("mengde.avvik.antallFjernet", { antall: data.summary.antallFjernet })}
               </span>
             </div>
           </div>
@@ -83,14 +85,14 @@ export function Avviksanalyse({ projectId }: AvviksanalyseProps) {
           <thead>
             <tr className="border-b text-xs font-medium uppercase text-gray-500">
               <th className="px-3 py-2">Nr</th>
-              <th className="px-3 py-2">Beskrivelse</th>
-              <th className="px-3 py-2">Enhet</th>
-              <th className="px-3 py-2 text-right">Mengde anbud</th>
-              <th className="px-3 py-2 text-right">Mengde kontrakt</th>
-              <th className="px-3 py-2 text-right">Sum anbud</th>
-              <th className="px-3 py-2 text-right">Sum kontrakt</th>
-              <th className="px-3 py-2 text-right">Avvik</th>
-              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">{t("firma.malarkiv.felt.beskrivelse")}</th>
+              <th className="px-3 py-2">{t("timer.enhet")}</th>
+              <th className="px-3 py-2 text-right">{t("mengde.avvik.mengdeAnbud")}</th>
+              <th className="px-3 py-2 text-right">{t("mengde.avvik.mengdeKontrakt")}</th>
+              <th className="px-3 py-2 text-right">{t("mengde.avvik.sumAnbud")}</th>
+              <th className="px-3 py-2 text-right">{t("mengde.avvik.sumKontrakt")}</th>
+              <th className="px-3 py-2 text-right">{t("firma.malarkiv.subdomain.avvik")}</th>
+              <th className="px-3 py-2">{t("papirkurv.kolonne.status")}</th>
             </tr>
           </thead>
           <tbody>

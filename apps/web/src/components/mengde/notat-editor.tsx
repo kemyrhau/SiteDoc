@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
 import { Link2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 export interface NotatEditorRef {
@@ -16,6 +17,7 @@ interface NotatEditorProps {
 
 export const NotatEditor = forwardRef<NotatEditorRef, NotatEditorProps>(
   function NotatEditor({ specPostId, eksternNotat }, ref) {
+    const { t } = useTranslation();
     const [tekst, setTekst] = useState(eksternNotat ?? "");
     const [referanseModus, setReferanseModus] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -49,7 +51,7 @@ export const NotatEditor = forwardRef<NotatEditorRef, NotatEditorProps>(
     if (!specPostId) {
       return (
         <div className="text-sm text-gray-400">
-          Velg en post for å legge til merknad.
+          {t("mengde.notat.velgPost")}
         </div>
       );
     }
@@ -57,7 +59,7 @@ export const NotatEditor = forwardRef<NotatEditorRef, NotatEditorProps>(
     return (
       <div className="space-y-2">
         <label className="text-xs font-medium text-gray-500">
-          Ekstern merknad
+          {t("mengde.notat.eksternMerknad")}
         </label>
         <textarea
           ref={textareaRef}

@@ -354,7 +354,7 @@ export function ImportMalFaggruppeTilordning({ steg, projectId, tilordning }: Im
                   <span className="flex-1 truncate text-gray-700">{oppgave.name}</span>
                   {frist && (
                     <span className="text-gray-400 whitespace-nowrap">
-                      uke {frist.uke}/{frist.aar}
+                      {t("kontrollplan.uke")} {frist.uke}/{frist.aar}
                     </span>
                   )}
                   {renderMalVelger(oppgave.uid)}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 interface ImportSammenligningProps {
@@ -43,6 +44,7 @@ function num(v: unknown): number | null {
 }
 
 export function ImportSammenligning({ prosjektId, dokumenter, kontraktId }: ImportSammenligningProps) {
+  const { t } = useTranslation();
   const filtrert = kontraktId
     ? dokumenter.filter((d) => d.kontraktId === kontraktId)
     : dokumenter;
@@ -143,7 +145,7 @@ export function ImportSammenligning({ prosjektId, dokumenter, kontraktId }: Impo
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Venstre (kilde A)</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">{t("mengde.sammenligning.venstre")}</label>
           <select
             className="w-full rounded border px-2 py-1.5 text-sm"
             value={venstreId}
@@ -156,7 +158,7 @@ export function ImportSammenligning({ prosjektId, dokumenter, kontraktId }: Impo
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Høyre (kilde B)</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">{t("mengde.sammenligning.hoyre")}</label>
           <select
             className="w-full rounded border px-2 py-1.5 text-sm"
             value={hoyreId}
@@ -173,14 +175,14 @@ export function ImportSammenligning({ prosjektId, dokumenter, kontraktId }: Impo
       {rader.length > 0 && (
         <>
           <div className="flex items-center gap-4 text-xs">
-            <span className="text-green-600">{oppsummering.match} match</span>
-            <span className="text-amber-600">{oppsummering.avvik} avvik</span>
-            <span className="text-blue-600">{oppsummering.kunV} kun A</span>
-            <span className="text-purple-600">{oppsummering.kunH} kun B</span>
-            <span className="text-gray-400">({oppsummering.totalt} totalt)</span>
+            <span className="text-green-600">{t("mengde.sammenligning.antallMatch", { antall: oppsummering.match })}</span>
+            <span className="text-amber-600">{t("mengde.sammenligning.antallAvvik", { antall: oppsummering.avvik })}</span>
+            <span className="text-blue-600">{t("mengde.sammenligning.antallKunA", { antall: oppsummering.kunV })}</span>
+            <span className="text-purple-600">{t("mengde.sammenligning.antallKunB", { antall: oppsummering.kunH })}</span>
+            <span className="text-gray-400">{t("mengde.sammenligning.antallTotalt", { antall: oppsummering.totalt })}</span>
             <label className="ml-auto flex items-center gap-1.5 text-gray-500">
               <input type="checkbox" checked={visKunAvvik} onChange={(e) => setVisKunAvvik(e.target.checked)} />
-              Vis kun avvik
+              {t("mengde.sammenligning.visKunAvvik")}
             </label>
           </div>
 
@@ -188,15 +190,15 @@ export function ImportSammenligning({ prosjektId, dokumenter, kontraktId }: Impo
             <table className="w-full text-left text-xs">
               <thead className="sticky top-0 bg-gray-50 text-[10px] uppercase text-gray-500">
                 <tr>
-                  <th className="px-2 py-1.5">Postnr</th>
-                  <th className="px-2 py-1.5">Enh</th>
-                  <th className="px-2 py-1.5 text-right">Mengde A</th>
-                  <th className="px-2 py-1.5 text-right">Mengde B</th>
-                  <th className="px-2 py-1.5 text-right">Pris A</th>
-                  <th className="px-2 py-1.5 text-right">Pris B</th>
-                  <th className="px-2 py-1.5 text-right">Sum A</th>
-                  <th className="px-2 py-1.5 text-right">Sum B</th>
-                  <th className="px-2 py-1.5">Status</th>
+                  <th className="px-2 py-1.5">{t("mengde.sammenligning.postnr")}</th>
+                  <th className="px-2 py-1.5">{t("mengde.sammenligning.enh")}</th>
+                  <th className="px-2 py-1.5 text-right">{t("mengde.sammenligning.mengdeA")}</th>
+                  <th className="px-2 py-1.5 text-right">{t("mengde.sammenligning.mengdeB")}</th>
+                  <th className="px-2 py-1.5 text-right">{t("mengde.sammenligning.prisA")}</th>
+                  <th className="px-2 py-1.5 text-right">{t("mengde.sammenligning.prisB")}</th>
+                  <th className="px-2 py-1.5 text-right">{t("mengde.sammenligning.sumA")}</th>
+                  <th className="px-2 py-1.5 text-right">{t("mengde.sammenligning.sumB")}</th>
+                  <th className="px-2 py-1.5">{t("papirkurv.kolonne.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -240,12 +242,12 @@ export function ImportSammenligning({ prosjektId, dokumenter, kontraktId }: Impo
       )}
 
       {venstreId && hoyreId && rader.length === 0 && !venstreQuery.isLoading && !hoyreQuery.isLoading && (
-        <div className="py-8 text-center text-sm text-gray-400">Ingen poster å sammenligne.</div>
+        <div className="py-8 text-center text-sm text-gray-400">{t("mengde.sammenligning.ingenPoster")}</div>
       )}
 
       {(!venstreId || !hoyreId) && (
         <div className="py-8 text-center text-sm text-gray-400">
-          Velg to dokumenter for å sammenligne import linje for linje.
+          {t("mengde.sammenligning.velgTo")}
         </div>
       )}
     </div>

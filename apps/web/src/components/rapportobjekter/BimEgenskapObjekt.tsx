@@ -1,13 +1,15 @@
+import { useTranslation } from "react-i18next";
 import type { RapportObjektProps } from "./typer";
 
 export function BimEgenskapObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+  const { t } = useTranslation();
   const tekstVerdi = typeof verdi === "string" ? verdi : "";
   const egenskapsnavn = typeof objekt.config.propertyName === "string" ? objekt.config.propertyName : "";
 
   return (
     <div>
       {egenskapsnavn && (
-        <p className="mb-1 text-xs text-gray-500">BIM-egenskap: {egenskapsnavn}</p>
+        <p className="mb-1 text-xs text-gray-500">{t("rapportobjekt.bim.egenskap")} {egenskapsnavn}</p>
       )}
       <input
         type="text"

@@ -262,7 +262,7 @@ export function RevidereFremdriftsplanDialog({
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFilValgt(f); }} />
                     </label>
                   </div>
-                  <div className="mt-1 text-xs text-gray-400">MS Project XML (.xml)</div>
+                  <div className="mt-1 text-xs text-gray-400">{t("kontrollplan.fremdriftsplan.msProjectXml")}</div>
                   {parseFeil && <div className="mt-3 text-sm text-red-600">{parseFeil}</div>}
                 </>
               )}
@@ -465,7 +465,7 @@ export function RevidereFremdriftsplanDialog({
                   )}
                   {visValgtBort && diff.nyeAktiviteter.filter((n) => n.tidligereValgtBort).map((n) => (
                     <div key={n.uid} className="px-4 py-2 border-t text-[12.5px] text-gray-400">
-                      {n.navn} · WBS {n.wbs ?? "—"}
+                      {n.navn} {t("kontrollplan.revidere.wbs")} {n.wbs ?? "—"}
                     </div>
                   ))}
                 </div>

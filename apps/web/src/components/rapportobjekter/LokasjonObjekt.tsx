@@ -1,10 +1,12 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { MapPin } from "lucide-react";
 import type { RapportObjektProps } from "./typer";
 
 export function LokasjonObjekt({ prosjektId }: RapportObjektProps) {
+  const { t } = useTranslation();
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
     { id: prosjektId! },
     { enabled: !!prosjektId },
@@ -20,7 +22,7 @@ export function LokasjonObjekt({ prosjektId }: RapportObjektProps) {
   if (!harKoordinater) {
     return (
       <p className="text-sm italic text-gray-400">
-        Prosjektet har ikke satt lokasjon
+        {t("rapportobjekt.lokasjon.ikkeSatt")}
       </p>
     );
   }

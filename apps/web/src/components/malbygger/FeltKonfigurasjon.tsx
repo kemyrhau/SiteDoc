@@ -394,7 +394,7 @@ export function FeltKonfigurasjon({
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">
-                  Betingede felter: {antallBarn}
+                  {t("malbygger.feltkonfig.betingedeFelter")} {antallBarn}
                 </p>
                 {onFjernBetingelse && (
                   <Button

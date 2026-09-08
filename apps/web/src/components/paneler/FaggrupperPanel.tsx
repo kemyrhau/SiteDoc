@@ -4,9 +4,11 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { SearchInput, Spinner } from "@sitedoc/ui";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Building2, Star } from "lucide-react";
 
 export function FaggrupperPanel() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const [sok, setSok] = useState("");
 
@@ -38,7 +40,7 @@ export function FaggrupperPanel() {
       <div className="flex flex-col gap-0.5">
         {filtrerte.length === 0 ? (
           <p className="px-2 py-2 text-sm text-gray-400">
-            Ingen faggrupper funnet
+            {t("paneler.ingenFaggrupper")}
           </p>
         ) : (
           filtrerte.map((ent) => {
@@ -52,7 +54,7 @@ export function FaggrupperPanel() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{ent.name}</p>
                   <p className="text-xs text-gray-400">
-                    {ent.faggruppeKoblinger.length} medlemmer
+                    {t("paneler.antallMedlemmer", { antall: ent.faggruppeKoblinger.length })}
                     {ansvarlig && (
                       <span className="ml-1.5 inline-flex items-center gap-0.5">
                         <Star className="inline h-3 w-3 fill-amber-400 text-amber-400" />

@@ -324,13 +324,13 @@ export function LokasjonVelger({
               Én bygning auto-selectes via useEffect; ingen reell valgmulighet. */}
           {(bygninger?.length ?? 0) > 1 && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Bygning</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">{t("tabell.bygning")}</label>
               <select
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 value={valgtBygningId}
                 onChange={(e) => { setValgtBygningId(e.target.value); setValgtTegningId(""); setPunkt(null); }}
               >
-                <option value="">Alle bygninger</option>
+                <option value="">{t("lokasjonVelger.alleBygninger")}</option>
                 {(bygninger ?? []).map((b: { id: string; name: string; number: number | null }) => (
                   <option key={b.id} value={b.id}>
                     {b.number ? `${b.number}. ${b.name}` : b.name}
@@ -352,7 +352,7 @@ export function LokasjonVelger({
             </div>
           ) : tegninger.length > 1 ? (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Tegning</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">{t("tabell.tegning")}</label>
               <select
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 value={valgtTegningId}
@@ -404,17 +404,17 @@ export function LokasjonVelger({
                     className="w-full rounded-lg border border-gray-200"
                     style={{ height: 400 }}
                   >
-                    <p className="p-4 text-sm text-gray-500">PDF kan ikke vises i nettleseren.</p>
+                    <p className="p-4 text-sm text-gray-500">{t("lokasjonVelger.pdfKanIkkeVises")}</p>
                   </object>
                   {visPosisjon && (
                     <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-amber-600">
                       {erKonverterer ? (
                         <>
                           <Loader2 className="h-3 w-3 animate-spin" />
-                          <span>Konverteres — pin-plassering tilgjengelig snart</span>
+                          <span>{t("lokasjonVelger.konverteresPinSnart")}</span>
                         </>
                       ) : (
-                        <span>PDF-tegning — pin-plassering tilgjengelig etter konvertering</span>
+                        <span>{t("lokasjonVelger.pdfPinEtterKonvertering")}</span>
                       )}
                     </div>
                   )}
@@ -454,7 +454,7 @@ export function LokasjonVelger({
                     <button type="button" onClick={() => setZoom((z) => Math.max(1, z / 1.3))} className="rounded p-1 text-gray-400 hover:bg-gray-100"><ZoomOut className="h-4 w-4" /></button>
                     <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="rounded p-1 text-gray-400 hover:bg-gray-100"><RotateCcw className="h-4 w-4" /></button>
                     <span className="ml-1 text-[10px] text-gray-400">{Math.round(zoom * 100)}%</span>
-                    {kanPlasserPin && <span className="ml-auto text-[10px] text-gray-400">Scroll for å zoome · Klikk for å plassere punkt</span>}
+                    {kanPlasserPin && <span className="ml-auto text-[10px] text-gray-400">{t("lokasjonVelger.scrollZoomKlikk")}</span>}
                   </div>
                 </div>
               )}
@@ -463,10 +463,10 @@ export function LokasjonVelger({
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Button onClick={handleLagre} disabled={!valgtTegningId}>
-              Lagre
+              {t("handling.lagre")}
             </Button>
             <Button variant="secondary" onClick={() => setOpen(false)}>
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
             {/* Alternativ til pin: erklær hele byggeplassen (krav 2). Auto-åpnet velger →
                 ett trykk her er nok. Ingen bekreftelse. */}

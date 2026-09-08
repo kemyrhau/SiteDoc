@@ -150,7 +150,7 @@ export function RedigerMaskinRad({
         <option value="m2">m²</option>
         <option value="m3">m³</option>
         <option value="kg">kg</option>
-        <option value="tonn">tonn</option>
+        <option value="tonn">{t("timer.redigerMaskinRad.enhetTonn")}</option>
         <option value="stk">stk</option>
       </select>
 

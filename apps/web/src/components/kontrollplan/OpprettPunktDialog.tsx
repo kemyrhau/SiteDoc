@@ -274,7 +274,7 @@ export function OpprettPunktDialog({
                 />
               )}
               {malTre.standarder.length === 0 && malTre.prosjektmaler.length === 0 && (
-                <div className="px-3 py-2 text-xs text-gray-400">Ingen maler funnet</div>
+                <div className="px-3 py-2 text-xs text-gray-400">{t("kontrollplan.ingenMaler")}</div>
               )}
             </div>
           </div>
@@ -490,6 +490,7 @@ function MalTreStandard({
   onVisHjelpetekstEndre: (v: boolean) => void;
   onVelg: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const [aapen, setAapen] = useState(true);
   // Sorter kapitler etter kode (KA, KB, KC...)
   const sorterteKapitler = [...standard.kapitler].sort((a, b) => a.kode.localeCompare(b.kode));
@@ -513,7 +514,7 @@ function MalTreStandard({
               onChange={(e) => onVisHjelpetekstEndre(e.target.checked)}
               className="rounded text-sitedoc-primary h-3 w-3"
             />
-            Vis kapitler
+            {t("kontrollplan.opprettPunkt.visKapitler")}
           </label>
         )}
       </div>

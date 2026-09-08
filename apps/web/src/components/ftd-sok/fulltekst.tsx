@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 interface FulltekstProps {
@@ -10,6 +11,7 @@ interface FulltekstProps {
 }
 
 export function Fulltekst({ documentId, søkeord }: FulltekstProps) {
+  const { t } = useTranslation();
   const { data: chunks, isLoading } = trpc.ftdSok.hentDokumentChunks.useQuery(
     { documentId: documentId! },
     { enabled: !!documentId },
@@ -62,7 +64,7 @@ export function Fulltekst({ documentId, søkeord }: FulltekstProps) {
   if (!documentId) {
     return (
       <div className="text-sm text-gray-400">
-        Velg et treff for å se dokumentinnhold.
+        {t("ftdSok.velgTreff")}
       </div>
     );
   }
@@ -74,7 +76,7 @@ export function Fulltekst({ documentId, søkeord }: FulltekstProps) {
   }
 
   if (sider.length === 0) {
-    return <div className="text-sm text-gray-400">Ingen innhold funnet.</div>;
+    return <div className="text-sm text-gray-400">{t("ftdSok.ingenInnhold")}</div>;
   }
 
   // Finn filnavn fra første chunk
@@ -92,7 +94,7 @@ export function Fulltekst({ documentId, søkeord }: FulltekstProps) {
         <div key={s.side}>
           {s.side > 0 && (
             <div className="mb-1 text-xs text-gray-400">
-              Side {s.side}
+              {t("firma.timer.rapport.pdf.footerSide")} {s.side}
               {s.sectionTitle && <span className="ml-2">· {s.sectionTitle}</span>}
             </div>
           )}

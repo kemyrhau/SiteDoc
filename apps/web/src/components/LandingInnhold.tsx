@@ -37,7 +37,7 @@ export function LandingInnhold() {
       <nav className="fixed top-0 z-50 w-full border-b border-white/10 bg-[#0f1b3d]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <a href="/" className="text-xl font-bold text-white tracking-wide hover:text-blue-200 transition">
-            SiteDoc
+            {t("app.navn")}
           </a>
           <div className="flex items-center gap-6">
             <a href="#funksjoner" className="hidden text-sm text-blue-200/80 transition hover:text-white sm:block">
@@ -274,10 +274,10 @@ export function LandingInnhold() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div>
-              <span className="text-base font-bold text-sitedoc-primary">SiteDoc</span>
+              <span className="text-base font-bold text-sitedoc-primary">{t("app.navn")}</span>
               <p className="mt-1 text-sm text-gray-400">{t("landing.footer")}</p>
             </div>
-            <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} SiteDoc</p>
+            <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} {t("app.navn")}</p>
           </div>
         </div>
       </footer>
