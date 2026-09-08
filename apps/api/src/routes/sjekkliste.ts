@@ -11,6 +11,7 @@ import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, 
 import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
+import { medNummerRetry } from "../utils/nummerRetry";
 import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
@@ -475,7 +476,11 @@ export const sjekklisteRouter = router({
         }
       }
 
-      const opprettet = await ctx.prisma.$transaction(async (tx) => {
+      // Retry ved unik-brudd på løpenummer: to samtidige opprettelser i samme
+      // mal kan lese samme MAX og race på nummeret. Et nytt forsøk leser MAX på
+      // nytt (nå med den andres committede rad) og lykkes. Se medNummerRetry.
+      const opprettet = await medNummerRetry(
+        () => ctx.prisma.$transaction(async (tx) => {
         // Finn malens prefix, navn og prosjekt for autonummerering
         const mal = await tx.reportTemplate.findUniqueOrThrow({
           where: { id: input.templateId },
@@ -567,7 +572,9 @@ export const sjekklisteRouter = router({
         }
 
         return nySjekkliste;
-      });
+      }),
+        "checklists_template_id_number_key",
+      );
 
       // Spor 2 / 5a: HMS (SJA) opprettes som utkast — INGEN varsel ved opprett. Behandler-leddet
       // (HMS-gruppen) varsles først når melder sender inn (sjekkliste.hmsSendInn). recipientGroupId

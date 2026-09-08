@@ -1190,6 +1190,13 @@ model Checklist {
   @@index([status])
   @@index([dokumentflytId, status])
   @@index([deletedAt])
+  // Løpenummer er unikt pr. mal. Uten dette kunne to samtidige opprettelser lese
+  // samme MAX(number) og få samme nummer (Read Committed, ingen lås). NULL er
+  // distinkt i Postgres → nummerløse maler (uten prefix) påvirkes ikke. Full
+  // constraint (IKKE partiell på deletedAt): tildelingen teller bevisst soft-
+  // slettede rader for nummer-monotoni, så et slettet og et nytt dokument skal
+  // heller ikke dele nummer. Prod-telling 2026-09-08: 0 duplikater.
+  @@unique([templateId, number], map: "checklists_template_id_number_key")
   @@map("checklists")
 }
 
@@ -1262,6 +1269,9 @@ model Task {
   @@index([status])
   @@index([dokumentflytId, status])
   @@index([deletedAt])
+  // Løpenummer unikt pr. mal — se Checklist. Full constraint (nummer-monotoni
+  // teller soft-slettede), NULL distinkt. Prod-telling 2026-09-08: 0 duplikater.
+  @@unique([templateId, number], map: "tasks_template_id_number_key")
   @@map("tasks")
 }
 
