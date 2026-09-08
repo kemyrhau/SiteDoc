@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { BarChart3, Upload, FileText, Trash2, Loader2, CheckCircle, AlertCircle, RefreshCw, Plus, Pencil, FileSearch, X } from "lucide-react";
 import { SpecPostTabell } from "@/components/mengde/spec-post-tabell";
-import { Avviksanalyse } from "@/components/mengde/avviksanalyse";
 import { NotatEditor, type NotatEditorRef } from "@/components/mengde/notat-editor";
 import { NsKodePanel } from "@/components/mengde/ns-kode-panel";
 import { MerknadEksport } from "@/components/mengde/merknad-eksport";

@@ -133,6 +133,7 @@ import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
+import { settUrlPaaVedlegg } from "../services/vedleggUrl";
 
 const FRITEKST_TYPER = new Set(["text_field"]);
 
@@ -888,6 +889,105 @@ export const oppgaveRouter = router({
 
         // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
         return signerDataRad(oppdatert);
+      });
+    }),
+
+  // Funn C (bilder i raden): punkt-patch av ÉN vedlegg-URL i Task.data. Speiler
+  // `sjekkliste.settVedleggUrl` eksakt (delt `settUrlPaaVedlegg`-helper, samme
+  // tilgangssjekk, samme signaturrunde-lås). Opplastingskøen kaller denne når et
+  // bilde er ferdig opplastet, slik at server-JSON-en får den varige
+  // `/uploads/privat/…`-URL-en — også når skjermen er demontert (da når
+  // opplastings-callbacken aldri hooken, og korreksjonen ble liggende kun i
+  // mobilens SQLite, som viskes ved reinstall). Rent additivt: ingen skjemaendring,
+  // read-modify-write av ÉN URL. Mobil tåler at prosedyren ikke finnes ennå (eldre
+  // prod-API) — kallet er best-effort og gater ikke sletting alene.
+  settVedleggUrl: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        objektId: z.string().min(1),
+        vedleggId: z.string().min(1),
+        url: z.string().min(1),
+        filnavn: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Aldri persistér en lokal enhets-URL (file://) på server — det er hele
+      // feilklassen. Kun server-relative /uploads/-stier slipper inn.
+      if (!input.url.startsWith("/uploads/")) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "settVedleggUrl krever en server-URL (/uploads/…)",
+        });
+      }
+
+      const oppgave = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          bestillerFaggruppe: { select: { projectId: true } },
+          template: { select: { projectId: true, domain: true } },
+        },
+      });
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        hentProjectId(oppgave),
+        oppgave.bestillerFaggruppeId,
+        oppgave.utforerFaggruppeId,
+        oppgave.template?.domain,
+        oppgave.id,
+        "task",
+      );
+
+      // Serverlås: avvis vedlegg-URL-patch når gjeldende signaturrunde er avsluttet.
+      await verifiserRundeIkkeLaast(ctx.prisma, { taskId: input.id });
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const fersk = await tx.task.findUniqueOrThrow({
+          where: { id: input.id },
+          select: { data: true },
+        });
+        // Dyp kopi — vi muterer og skriver tilbake i én transaksjon.
+        const data = JSON.parse(JSON.stringify(fersk.data ?? {})) as Record<
+          string,
+          unknown
+        >;
+
+        // 1) Finnes vedlegget alt (topp-nivå eller repeater-nestet) — bytt URL-en.
+        const erstattet = settUrlPaaVedlegg(
+          data,
+          input.vedleggId,
+          input.url,
+          input.filnavn,
+        );
+
+        // 2) Rakk klienten aldri å synke feltet (mobil utelater felt med lokal
+        //    URL fra lagringen) — legg vedlegget til på topp-nivå under objektId.
+        //    Repeater-nesting kan ikke gjenskapes her; slike bilder synkes når
+        //    skjermen mountes igjen.
+        if (!erstattet) {
+          const raaFelt = data[input.objektId];
+          const felt =
+            raaFelt !== null && typeof raaFelt === "object"
+              ? (raaFelt as Record<string, unknown>)
+              : { verdi: null, kommentar: "" };
+          const vedlegg = Array.isArray(felt.vedlegg)
+            ? (felt.vedlegg as Array<Record<string, unknown>>)
+            : [];
+          vedlegg.push({
+            id: input.vedleggId,
+            type: "bilde",
+            url: input.url,
+            ...(input.filnavn ? { filnavn: input.filnavn } : {}),
+          });
+          felt.vedlegg = vedlegg;
+          data[input.objektId] = felt;
+        }
+
+        await tx.task.update({
+          where: { id: input.id },
+          data: { data: data as Prisma.InputJsonValue },
+        });
+        return { ok: true, erstattet };
       });
     }),
 

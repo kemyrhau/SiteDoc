@@ -4,6 +4,83 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 📅 2026-09-07 SENKVELD — merge-runde 32 + 33 på develop, venter Kenneths gater
+
+**Ikke i prod ennå.** Tre brancher merget etter `69ca9f62`:
+
+| Merge | Innhold | Leveringsvei | Gate (Kenneths øyne) |
+|---|---|---|---|
+| `160d8f77` → develop (r32) | 🔴 **Kontoovertakelse via e-post-claimet lukket** — `oid`-oppslag før e-post (`:236` før `:253`), og identitets-e-post kun fra `preferred_username`. `mail`/`email` er visnings-fallback for navn, aldri identitet | api → test-deploy | MS-innlogging på mobil mot test, egen konto |
+| `24505fbd` → develop (r33) | Død implisitt Google-vei slettet — `loggInnMedGoogleWeb` + web-callback + AuthProvider-no-op, −47/+2 | mobil-JS → `eas update` kanal `test` | Google-innlogging på mobil mot test, egen konto |
+| `2b235e8a` → develop (r33) | **Arkiv-PDF strakk kart og tegninger** — `malBildeDimensjoner` leser JPEG-headeren i api når `Drawing.imageWidth/Height` er `null` | api → prod-deploy | Arkiv-PDF: lokasjonskart ikke strukket, markør står riktig |
+
+🟢 **Testtall målt etter r33: api 330 · pdf 113 · shared 737 · web 210.**
+(api 328 → 330 og pdf 110 → 113; de to api-testene kom fra `tegningsmarkorer.test.ts` og var ikke
+forutsett i ordren, men matcher diffen.) 🟢 **Ingen migrering i noen av de tre.**
+
+🔴 **Rotårsaken til tegningsstrekket lå ikke der cowork trodde.** Ordren pekte på
+`preserveAspectRatio="none"`. Agenten målte at `none` er en **no-op i normaltilfellet**:
+`beregnUtsnittVindu` gir et normalisert rom (`vbH=100`, `vbW=aspect×100`), så viewBoxen har bildets
+eget sideforhold. **Strekket oppstår kun i fallback-grenen** der dims er `null` — da blir
+`vbW=vbH=100`, en kvadratisk viewBox mot et rektangulært ortofoto. Dims er null for ukonverterte
+PDF-er, eldre rader og ortofoto.
+🟢 **`packages/pdf/src/tegning.ts` er urørt → koordinatrommet står → den frosne baselinetesten er
+grønn.** Kostnad målt: ~0,1 ms per kall, kun for tegninger uten lagrede dims; 0 i normaltilfellet.
+
+⚠️ ~~**Varig fiks ført, ikke bestilt:** backfill `Drawing.imageWidth/Height` i DB.~~
+🔴 **RETTET SAMME KVELD — den finnes allerede.** `tegning.backfillDimensjoner`
+(`apps/api/src/routes/tegning.ts:663`) er en `protectedProcedure` som fyller manglende dims per
+prosjekt fra fila på disk. **Cowork førte den som ubygget uten å måle** — sjuende gang samme
+klasse denne uka.
+
+⚠️ **Men den dekker ikke alt:** `where` filtrerer på `fileType: { in: ["png","jpg","jpeg","svg"] }`.
+**Ukonverterte PDF-er faller utenfor** — og de er nettopp en av de tre kildene til `null`-dims som
+utløste tegningsstrekket. **Ingen kjent UI-vei kaller prosedyren.** Ført som åpent spørsmål, ikke
+som ordre: *dekker backfillen de radene som faktisk mangler dims, og hvem kaller den?*
+
+## 📅 2026-09-07 KVELD — prod `69ca9f62`, auth-tråden lukket
+
+**develop = main = `69ca9f62` · test `7aa85094` · OTA production `7aa85094` (group `b2c066e6`)**
+
+🟢 **MICROSOFT-INNLOGGING VERIFISERT I PROD PÅ TELEFON 2026-09-07.** Første gang den virker på en
+OTA-levert app siden 04.09.
+
+⚠️ **Cowork bommet på siste steg:** sa «ingen ny prod-OTA trengs, bundelen har alt den ekte
+klient-id-en». **`84a89500` var fra FØR env-fiksen** (den kom i runde 29). Fanget da Kenneth så
+plassholder-feilen på produksjonsappen. **Sjette gang samme mønster: hukommelse i stedet for
+måling** — én `git show 84a89500:apps/mobile/.env.production` ville avgjort det.
+
+| Levert i denne releasen | Hash |
+|---|---|
+| 🔴 **Mobil-MS dropper `User.Read`** — ID-token validert med `jose` mot Entras JWKS, Graph `/me` borte | `19a2884e` |
+| 🔴 **OTA-env-landminen lukket** — `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var plassholder i `.env.*`; **alle OTA-er siden 04.09 bar den** | samme |
+| 🔴 **Flertenant ID-token-validering** — `iss` mot tokenets eget `tid`, ikke pinnet tenant | `7aa85094` |
+| Seed-uttrekk — `finnEllerOpprettDemoFirma`, sjuende kopiklasse lukket | `cb2f815b` |
+| Feilede dokumenter synlig i eksport-UI | `4308352c` |
+| **DEPLOY-RUNBOK** — 12 filer bar deploy-kommandoer, nå én kilde | `abdef2c2` |
+
+### 🔴 Auth-tråden — hva den faktisk avdekket
+
+Utløst av **ett spørsmål fra Kenneth om et Google-varsel.** Kjeden som fulgte:
+
+1. **Google ber om minimum** — omfanget var aldri problemet.
+2. **Mobil-MS ba om `User.Read`** — Graph-tilgang til hele Entra-profilen for data som lå i ID-tokenet.
+3. **Google Cloud Console flagget «not using the state parameter»** — en ekstern målekilde vi hadde
+   hatt gratis i måneder og **aldri åpnet**.
+4. **`EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var en plassholder** committet 25.03, ufarlig til OTA ble
+   leveringsvei 04.09. **Microsoft-innlogging på mobil hadde vært død i en uke.** Ingen hadde prøvd.
+5. **`iss` pinnet mot `/common`** ga 401 — og coworks foreslåtte fiks («pinn mot vår tenant»)
+   ville **sperret hver eneste kunde.** Fanget før merge.
+
+🔴 **Ført i [`sikkerhet.md`](sikkerhet.md) § DEKNING:** gjennomgangen så på hva som skjer ETTER
+innlogging, aldri på HVORDAN innlogging skjer. Fila har nå en dekningstabell.
+
+⚠️ **Åpent, meldt av redesign, ikke bygget:** admission-gaten matcher på `email`-claimet, som en
+tenant-admin kontrollerer, framfor domene-bundet `preferred_username`. **Pre-eksisterende og
+uendret av releasen** — men egen runde. **Og `iss`/`tid`-testen mangler** (api-tall uendret 319).
+
+🟡 **Google implisitt flyt** (`relay/inbox-google-implisitt-flyt.md`) — ferdig skrevet, ikke gitt.
+
 ## 📅 DØGNET 2026-09-06/07 — ti merge-runder (17–26), prod-release `d4c4c65d`
 
 **develop `8ee4e681` · main `d4c4c65d` · test `8ee4e681` · api-testtall `315` (merge-agentens
@@ -72,14 +149,41 @@ ikke var der i det hele tatt.** Ingen av dem kunne build eller typecheck ha fang
 1+2) · lokasjonOmfang · arkiv-PDF for oppgave/HMS. **Verifiser på test som innlogget først** —
 malbyggeren fikk 91 nye linjer og brukes av alt.
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, oppdatert 2026-08-28 kl. 18)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, **målt 2026-09-07 senkveld**)
 
-**Alle agenter er avsluttet.** Alt som lå i agenthodene er skrevet til `relay/`-ordrer.
-Neste økter startes ferskt — se køen under.
+🔴 **Tavla sto på 28.08 til 07.09 senkveld.** Den påsto develop `09fc817c`, runde 18–20 som
+neste, og tre agenter som «venter merge» på brancher som var i prod for lengst. **Kenneth fanget
+det på skrivemåten, ikke på innholdet** — cowork hadde driftet ut av orkestratorrollen og skrevet
+referat i stedet for å måle registeret. **Tavla er coworks ansvar, ikke Kenneths.**
 
-**Tavla er ryddet mot git 28.08.** Fjorten spor sto som «PÅ BRANCH, venter gate» mens de var
-i prod. Nå står kun det som faktisk er åpent. Åpne gater ingen tok, og arbeid som aldri ble
-startet, er høstet ut i egen seksjon under «Pågående arbeid».
+**Målt tilstand nå:**
+
+| Hva | Hash |
+|---|---|
+| `develop` | **`3d177db5`** (merge 36) |
+| `main` / prod | `69ca9f62` — **13 runder bak develop** |
+| **test** | `ca95b2f3` → ny deploy `3d177db5` under utrulling |
+| **OTA test-kanal** | `e84b3f09` → ny publisering under utrulling |
+
+🟢 **Testtall etter runde 36:** api 335 · pdf 113 · **shared 754** · web 210.
+
+### 🔴 PROD-AVBRUDD samme kveld — Entra client secret utløp 3. sept
+
+Microsoft-innlogging på web lå nede i **prod i fire døgn** før noen oppdaget det. **Funnet av en
+gate satt av en helt annen grunn.** Ingenting varslet. Full hendelse, de fire lookalike-GUID-ene i
+Azure og kontinuitetsrisikoen (begge appregistreringer i en privat tenant, én admin):
+[sikkerhet.md](sikkerhet.md).
+
+⚠️ **Gaterekkefølgen «Microsoft først, feiler den stopper alt» var riktig av gale grunner** —
+cowork fryktet sin egen PKCE-linje. Den var uskyldig; gaten fanget en utløpt secret i stedet.
+
+### ⚠️ `pnpm lint` kan ikke bli grønn på web — cowork har gatet på et umulig steg
+
+To agenter rapporterte uavhengig at web-lint feiler på **forhåndseksisterende** gjeld på
+develop-baselinen, i filer ingen av dem rørte. **Cowork har likevel lagt `pnpm lint` som siste
+steg i hver gate-kommando hele dagen.** 🔴 **Et gate-steg som aldri kan passere, lærer agentene å
+ignorere gaten.** Tallene spriker (65 mot 107 rapportert) — **selve gjelden er ikke målt.**
+Ført i [BACKLOG](BACKLOG.md); lint står ikke som blokkerende steg før baselinen er ren.
 
 🔴 **Sporfordeling (Kenneth-vedtak 2026-08-31, [SAMARBEIDSREGLER § Arbeidsform](SAMARBEIDSREGLER.md)):**
 **kontrollplan = PLAN-sporet** (masterplanens neste punkt, røres ikke av feltfunn) ·
@@ -105,20 +209,52 @@ Kun 🔴-blokkerere avbryter plan-sporet.
 > ganger 06.09 uten å måle: to ganger sto agentene ledige fordi ordren aldri var relayet, én gang
 > var øktene borte.
 
-| Agent | Spor | Worktree | Tilstand | Neste ordre |
+| Agent | Spor | Worktree (målt) | Tilstand | Neste ordre |
 |---|---|---|---|---|
-| **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` | **17 runder 05/06.09**, i synk med develop `09fc817c`. Stoppet FØR push på et rot-testbrudd gaten ikke fanget · korrigerte coworks testtall (277→284) · håndterte push-kollisjon med reset+re-merge, ikke force · fanget to foreldede ordrefiler ved å måle i stedet for å handle | Runde 18 når dokgen leverer på nytt |
-| **kontrollplan** | 🟢 **LEVERT — venter merge** | `SiteDoc-kontrollplan` | **Trinn 3 komplett** (`eac7b175`): PDF viser kravet · server-frys av snapshot · avviksfelt ved brudd. Landminen unngått, delt logikk navngitt (`utenforKravOppfylt` × 4 hooks, `byggAvvikLinje` × 4 komponenter). ⚠️ 14 commits bak develop — rebase i runde 20. **Venter fabels atferdsgate** | Etter merge: PDF-underlag til fabel |
-| ~~kontrollplan (historikk)~~ | — | — | Grense-resolveren trinn 0–2 merget (`d849a163`) + tabellrevisjon (`18d49186`) etter fabels designgate. 🟢 **Gaten passert på test — Kenneth satte en variant uten å prøve seg fram.** Fire `normaliserOpsjon`-kopier ned til to. Tidligere: malrevisjon D, drift-konsolidering, idempotent seed | `feat/grenseresolver-trinn3` — PDF-krav + avviksfelt. **Fabel-designgate** |
-| **dokgen** | 🟢 **LEVERT — venter merge** | `SiteDoc-dokgen` | `fix/byggeplassfilter-uttrekk` (`a076236f`) — ni kopier → én kilde, tre bugger lukket, api-test 284→291. 🔴 **Fant og meldte imot coworks gate** dagen før: «bare to steder» var feil. Tidligere: mykt bildefilter (`5660ce53`), dokumentsøk mobil (`31002232`), serverlås SJA | Merge runde 19, så ledig |
-| **redesign** | 🟢 **LEVERT — venter merge** | `SiteDoc-redesign` | 🔴 `fix/ftd-tenantgrense` (`d58e080f`): **fem tenant-hull lukket + uautentisert endepunkt fjernet.** Fant dem selv som bifangst da han målte FL-ordrens guard-kostnad. Målte at HTTP-selvkallet gikk til samme prosess → in-process, flaten borte. Tidligere: innboks-pila (`491ec481`), SJA-signaturrunder (`e2e87123`) | `relay/inbox-prosjekt-livssyklus.md` (FL) |
+| **merge-agent** | 🟢 **LEDIG** | `SiteDoc-merge` @ `2b235e8a` [merge-restart] | **33 runder.** I synk med develop. Runde 33: to brancher, null filoverlapp, testtall målt api 328→330 · pdf 110→113 (de to api-testene kom fra `tegningsmarkorer.test.ts`, ikke forutsett i coworks ordre men matcher diffen) | **Runde 34:** rebase + merge `feat/innboks-skjerm`, og docs-commit i hovedtreet |
+| **dokgen** | 🟡 **I ARBEID** | `SiteDoc-dokgen` @ `8ff106ec` [fix/web-google-state] | `fix/google-doed-implisitt-vei` merget (`24505fbd`). 🔴 **Målte coworks premiss FEIL og meldte imot:** native Google brukte allerede code+PKCE med verifisert `state`. Cowork sluttet fra responsformen; agenten leste `expo-auth-session`s kildekode. Tidligere: byggeplassfilteret (9 kopier → 1, 3 bugger) | 🔴 **`fix/web-google-state`** — Google-tilbyderen i web mangler `state` (`checks ?? ["pkce"]`); Microsoft har linja, Google har den ikke. **Konsollens «SiteDoc» er web-klienten, ikke mobil** |
+| **kontrollplan** | 🟡 **ORDRE GITT** | `SiteDoc-kontrollplan` @ `a0048f3b` detached — **6 bak, må oppdateres** | `fix/tegning-forvrengning` merget (`2b235e8a`). 🔴 **Fant at rotårsaken ikke var der cowork pekte:** `preserveAspectRatio="none"` er en no-op i normaltilfellet; strekket oppstår kun når `Drawing.imageWidth/Height` er `null`. Holdt `packages/pdf/src/tegning.ts` urørt → frossen baselinetest grønn | 🔴 **Nå-rapport reisetid** (`na-rapport-reisetid-2026-09-07.md`) — A.Markussen-krav med frist denne måneden. **Måling, ingen kode, ingen branch.** ⚠️ **Derfor gir treet ingen «ordren er tatt»-signal** — den eneste kvitteringen er hans melding |
+| **redesign** | 🟡 **ORDRE GITT** | `SiteDoc-redesign` @ `b1bba893` detached | Dedikert innboks-skjerm: hele den aktive lista med søk/filter/sortering. 🔴 **Korrigerte coworks SQLite-antakelse** — sjekkliste/oppgave har ingen SQLite-speiling, kallene er nett-baserte. Gjenbrukte dokgens delte predikat uten utvidelse (ingen femte kopi). ⚠️ **Bygget på develop FØR runde 33** (hans testtall api 328/pdf 110) — må rebases | 🟠 **`fix/oppgave-vedlegg-paritet`** — oppgave sender `file://` rått til server (funn C kun i sjekkliste). **Tre koblede deler**, kan ikke gjøres halvt. *Innboks-skjermen levert og merget (`341cb26f`)* |
+| **simulator** | 🟢 **LEDIG** | `SiteDoc-simulator` @ `bc3efdca` detached | — | Ingen |
+| **deploy** | 🟢 **LEDIG** | `SiteDoc-deploy` @ `4d00e94f` detached | — | Ingen |
 | **fabel** | ⏸ **STOPPET RENT 06.09 ~96 % bruksgrense** | — | **Alle bestillinger besvart, ingen halvferdige leveranser.** Døgnet: SJA-signaturrunder · FL-designlås + tilgangs-revisjon etter Kenneth-overstyring (stoppside, aldri 404) · grensekrav-ordvalg · trafikklys-etiketter · sekvens-frigivelse tatt imot. 🔴 **Åpne poster han peker på til neste økt:** trinn 3-gaten (PDF-atferdstest) · Kenneths gate på AG-systemteksten · FL/timeprosjekt-kost-sjekkene · **Proadm-eksportfila fra A.Markussen** | Neste økt — Kenneth avgjør om han skal fortsette utover grensen |
 | ~~fabel (gammel rad)~~ | — | — | **SJA-signaturrunder lukket 06.09** — designlås over fire dokumenter + mockup, ordre skrevet. Alle tre nå-rapport-funn tiltrådt. Tidligere: modulhierarki-notatet komplett 31.08 | **Designgate på skjermbilder** når redesign leverer. Usendt fra cowork: `fabel-nav-gating-modellen.md` · `fabel-eksport-arkivering.md` |
+
+⚠️ **`origin/wip/diag-exif` og `origin/wip/diag-ko-trigger` er umerget MED VILJE** —
+`__DEV__`-logging, skal aldri merges. De dukker opp i hver `branch -r`-måling; **ikke tolk dem som
+ventende arbeid.**
 
 ### 📋 Feltfunn-liste (B — funn samles, blir ikke ordrer på minuttet)
 
 Kenneth melder som før; cowork fører her med alvorlighet. **Kun 🔴 avbryter plan-sporet.**
 Kontrollspørsmål: *kommer noen ikke videre uten dette?*
+
+🟠 **FUNN 2026-09-07 (Kenneth, test på enhet) — «Forbered til offline» forbereder bare tegninger.**
+Menyvalget i `Mer` dekker **tegninger**. **Oppgaver, sjekklister og HMS er ikke med.**
+🟢 **Samsvarer med koden:** redesign målte 07.09 at `sjekkliste/oppgave.hentForProsjekt` er
+nett-baserte tRPC-kall, og at SQLite-katalogene dekker timer/maskin/vær/byggeplass — ikke dokumenter.
+
+🔴 **To ting skiller lag her, og de må ikke slås sammen:**
+- 🟢 **Opplastingskøen er robust offline** — målt samme kveld: bilde tatt i flymodus nådde serveren
+  da telefonen kom på nett. **Den delen holder det den lover.**
+- 🔴 **Dokument-TILGANG offline gjør det ikke.** Kenneths test virket fordi dokumentet var **åpnet
+  før** han gikk offline. Et dokument han ikke hadde åpnet, ville ikke vært nåbart.
+
+⚠️ **Løftebrist-klassen:** et menyvalg som heter «Forbered til offline» lover mer enn det gjør.
+Samme form som `nb.json:2218` («arkivert og skrivebeskyttet»), `hms.ts:207-209` og innboks-pila.
+🔴 **CLAUDE.md sier «Mobil-appen MÅ fungere offline» — ufravikelig.** Avviket mellom regel og kode
+er reelt og udokumentert til nå.
+
+**Ikke ordre.** Alternativene spenner fra å presisere etiketten (billig, ærlig) til å speile
+dokumenter i SQLite (stort, berører sync-modellen). **Kenneth-beslutning, egen sak.**
+
+🟡 **FUNN 2026-09-07 (cowork-måling) — åttende kopiklasse, halvlukket.** Redesign trakk
+`formaterNummer` + `MedUtheving` ut til `apps/mobile/src/components/dokumentliste/DokumentRadHjelpere.tsx`
+og migrerte `sjekkliste/index.tsx`. **Fire kopier står igjen:** `(tabs)/hjem.tsx:100` ·
+`hms/index.tsx:43` · `oppgave/index.tsx:65` · `oppgave/[id].tsx:88`.
+🔴 **Dette er nøyaktig formen byggeplassfilteret hadde** — en delt modul opprettet, migreringen
+stanset ved første kallsted, og resten driftet fra hverandre til tre av ni var ødelagte.
+**Ordren var riktig avgrenset; oppfølgingen er coworks, ikke agentens.** Egen ordre, funn-sporet.
 
 🟢 **LUKKET SAMME DØGN — `a076236f`, ni kopier → én kilde, tre bugger borte.**
 `apps/api/src/services/byggeplassFilter.ts` bærer regelen alene. Testen fanget dessuten en stille
@@ -1014,7 +1150,7 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
-### 🔴 Mobil-Microsoft dropper `User.Read` — ID-token framfor Graph /me (auth+OTA MERGET develop `19a2884e`; flertenant-fiks `fix/mobil-ms-flertenant` TIL MERGE — auth-gate)
+### ✅ Mobil-Microsoft dropper `User.Read` — ID-token framfor Graph /me (`19a2884e` + flertenant `7aa85094` — **I PROD `69ca9f62`, verifisert på telefon 2026-09-07**)
 
 **Saken:** mobil-MS ba om `User.Read` (Graph → hele Entra-profilen) for å hente e-post/navn/id som
 allerede ligger i ID-tokenet. Web ba om minimum (`openid profile email`); mobil var utliggeren.

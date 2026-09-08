@@ -5,7 +5,6 @@ import { useParams, useSearchParams } from "next/navigation";
 import { rensHtml } from "@/lib/sanitize";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import {
   BookOpen,
   FolderOpen,
@@ -14,7 +13,6 @@ import {
   Globe,
   FileText,
   Loader2,
-  ArrowLeft,
 } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -83,7 +81,7 @@ export default function DokumentleserSide() {
 
   // Finn valgt dokument-info
   const valgtDokInfo = dokumentData?.dokumenter.find((d) => d.id === valgtDokumentId);
-  const valgtSpråkInfo = STOETTEDE_SPRAAK.find((s) => s.kode === språk);
+  const _valgtSpråkInfo = STOETTEDE_SPRAAK.find((s) => s.kode === språk);
 
   if (embed && valgtDokumentId && blokkData) {
     // Embed-modus: kun reader-innhold (for mobil WebView)

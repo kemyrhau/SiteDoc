@@ -109,8 +109,12 @@ export async function recomputeMatrise(
     const ops = [];
     for (let ki = 0; ki < kontorer.length; ki++) {
       for (let bi = 0; bi < chunk.length; bi++) {
-        const kjoretidMin = matrise[ki]?.[bi];
+        const kjoretidMin = matrise.durations[ki]?.[bi];
         if (kjoretidMin == null) continue;
+        // Avstand fra samme OSRM-kall (reise-terskel-km). UOPPNAAELIG (-1) er
+        // symmetrisk med kjoretidMin; manglende celle → null (aldri sett i
+        // praksis siden distances speiler durations, men defensivt).
+        const avstandM = matrise.distances[ki]?.[bi] ?? null;
         ops.push(
           prisma.reisetidMatrise.upsert({
             where: {
@@ -124,9 +128,15 @@ export async function recomputeMatrise(
               oppmotestedId: kontorer[ki]!.id,
               byggeplassId: chunk[bi]!.id,
               kjoretidMin,
+              avstandM,
               kilde: "osrm",
             },
-            update: { kjoretidMin, kilde: "osrm", beregnetAt: new Date() },
+            update: {
+              kjoretidMin,
+              avstandM,
+              kilde: "osrm",
+              beregnetAt: new Date(),
+            },
           }),
         );
       }

@@ -246,21 +246,187 @@ enn det enkeltfunnet den bommet på.
 | Rate limiting og misbruk av offentlige endepunkter | 🟡 Delvis (auth-login, `/api/pamelding`, `/api/kontakt`) |
 | Logging: havner hemmeligheter eller persondata i logg? | 🔴 **IKKE DEKKET** |
 
+## 🔴 KONTOOVERTAKELSE via e-post-claimet (målt 2026-09-07, redesign sporet hele kjeden)
+
+**Ikke en kobling — en full overtakelse.** Sporet i `mobilAuth.ts`:
+
+1. `:134` — `email` tas fra **`mail`-claimet**, som en tenant-admin kontrollerer. `preferred_username`
+   (UPN, bundet til verifisert domene) er bare fallback.
+2. `:210` — bruker slås opp på **e-post** → treffer offerets konto.
+3. `:218` — kontooppslag på `oid` → angriperens ferske `oid` finnes ikke → `null`.
+4. `:237` — admission-gaten: offeret har firma/prosjekt → `harTilknytning = true` → **slipper forbi**.
+5. 🔴 `:288` — **ny `account`-rad kobler angriperens `oid` til offerets `userId`.** Sesjon på
+   offerets bruker. **Permanent binding.**
+
+🔴 **`iss`/`tid`-vakten stopper det ikke** — angriperens token er ekte, signert av Microsoft, og
+`iss` matcher deres egen `tid`. Flertenant slipper det inn **by design**; det er e-post-koblingen
+som er hullet.
+
+🟢 **Pre-eksisterende** — den gamle Graph-veien brukte `mail ?? userPrincipalName` og gikk også mot
+`/common`. **Fiks under arbeid:** `oid`-oppslag først + UPN som autoritativ e-post; `mail` beholdes
+kun som visnings-fallback for navn og bilde, aldri for identitet.
+
+**Målt bruddflate: NULL.** Alle 6 Microsoft-brukere i prod har allerede `oid`-kobling og resolveres
+på identitet uansett e-post (`9 kontoer / 6 brukere`, domener `amarkussen.no`, `sitedoc.no`,
+`gmail.com`).
+
+🟢 **Personlige Microsoft-kontoer skal IKKE sperres.** Cowork var på vei til å foreslå det — målingen
+viste at **Kenneth selv** logger inn med en MSA på gmail-adressen sin, aktiv og med firmatilknytning.
+**Sperren ville låst produkteieren ute av sitt eget produkt.**
+
+## ⚠️ `signIn`-vakten fanget ikke en orphan-konto (2026-09-07)
+
+`Mathias Jensen / mathias.jensen989@gmail.com` hadde `can_login = true` og **null firmatilknytninger**
+— nøyaktig tilstanden vakten fra 2026-06-05 (`auth.ts:66-70`) ble innført for å hindre.
+🟢 **Lukket manuelt:** `can_login = false` satt i prod 2026-09-07 på Kenneths ordre. Raden beholdt
+for historikk; reversibel.
+
+🔴 **Ubesvart: hvorfor slapp den gjennom?** Enten er kontoen eldre enn vakten, eller så finnes en vei
+rundt den. **Mål når vi uansett er i auth-koden** — ikke en egen hastesak, men ikke glemt.
+
+## 🔴 PROD-AVBRUDD 3.–7. september 2026 — Entra client secret utløp, ingenting varslet
+
+**Microsoft-innlogging på web var nede i prod i fire døgn.** Ingen meldte det. Vi fant det ved en
+tilfeldighet: cowork satte en gate på Microsoft-innlogging fordi `fix/web-entra-pkce` var i
+deployen, og gaten slo ut på noe helt annet.
+
+| | |
+|---|---|
+| **Årsak** | Begge client secrets på appregistrering `d7735b7a` utløp **3. september 2026** |
+| **Symptom** | `[auth][error] OAuthCallbackError: … invalid_client` |
+| **Varighet** | 3.–7. sept, ca. fire døgn i prod. Test like lenge |
+| **Oppdaget av** | En gate satt av en annen grunn |
+| **Varsling** | 🔴 **Ingen.** Verken Azure eller vi hadde noe som sa fra |
+
+### 🔴 Klassen: ting som dør på dato uten å si fra
+
+Dette er **samme form som daemon-restarten 2026-08-14**, der prod lå nede i seks timer fordi
+`restart: unless-stopped` ikke restartet og ingenting varslet. Det står allerede et åpent tiltak i
+[DEPLOY-RUNBOK § 6](DEPLOY-RUNBOK.md) om en cron mot `/version`.
+
+🟢 **Utløpsdatoer er lettere enn nedetid** — de er kjent på forhånd. En secret som utløper om 30
+dager kan varsles 30 dager før. **Ført som tiltak, ikke bygget.**
+
+### ⚠️ Feilsøkingen kostet mer enn den trengte — tre lookalike-GUID-er
+
+Azure viser fire GUID-er som ligner på hverandre, og **kun én skal i env-fila**:
+
+| Felt | Hvor | Skal brukes? |
+|---|---|---|
+| **Application (client) ID** | App-registrering → Overview | 🟢 **`AUTH_MICROSOFT_ENTRA_ID_ID`** |
+| Object ID (app-registrering) | Samme side, rett under | 🔴 aldri |
+| Object ID (enterprise app) | Enterprise applications | 🔴 aldri |
+| **Secret ID** | Certificates & secrets, ved siden av `Value` | 🔴 **aldri** — ser mest ut som en ID, er det ikke |
+
+🔴 **Kun `Value` er hemmeligheten**, og den vises **én gang** rett etter opprettelse.
+
+⚠️ **Rotårsaken til bomturen: ingen av verdiene sto dokumentert noe sted.** Det fantes ingen fasit
+å sammenligne mot, så feil GUID kunne ikke oppdages ved å lese. **Klient-ID-ene er nå ført i
+[infrastruktur.md](infrastruktur.md)** — de er ikke hemmelige, de står i URL-en ved hver innlogging.
+
+### 🔴 KONTINUITETSRISIKO — begge appregistreringer ligger i en PRIVAT tenant
+
+**Målt 2026-09-07:**
+
+| Flate | Client ID | Tenant |
+|---|---|---|
+| Web | `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5` | `kemyrhaugmail.onmicrosoft.com` |
+| Mobil | `234ca0e0-afd1-48e3-9736-b904d4b5a008` | samme |
+
+Tenanten **«Standardmappe»** har **én bruker** (Kenneths private konto) og **én global
+administrator** (samme person). Den er ikke firmaets.
+
+🔴 **Mister den kontoen tilgang, mister ALLE kunder Microsoft-innlogging på web OG mobil
+samtidig — og ingen andre kan gjenopprette det.** Kenneth avviklet en annen Microsoft-konto
+tidligere samme uke, så scenariet er ikke hypotetisk.
+
+⚠️ **Microsoft varsler samtidig om obligatorisk MFA** for administrativ Azure-tilgang. Uten
+registrert MFA-metode på den ene kontoen er utestenging en reell mulighet.
+
+**Målt konsekvens av en flytting** (så beslutningen kan tas på fakta):
+`@auth/core/providers/microsoft-entra-id.js:134` setter `providerAccountId` fra `profile.sub`, som
+er **parvis per applikasjon**. Ny appregistrering ⇒ nye `sub` ⇒ gamle `Account`-rader treffer ikke.
+🟢 **Brukerne låses IKKE ute** — `allowDangerousEmailAccountLinking: true` kobler dem på e-post.
+Men det er en reell hendelse for hver bruker og skal være et valg, ikke en bieffekt.
+
+🔴 **En ny appregistrering er som standard single-tenant.** A.Markussen logger inn fra sin egen
+Entra-katalog. **Flyttes appen uten at kontotypen settes til flertenant, stenges piloten ute** —
+og det ville ikke vist seg før en A.Markussen-bruker forsøkte.
+
+**Anbefaling: egen sak, planlagt.** Ikke under et avbrudd.
+
 ## 🔴 Åpne auth-funn (2026-09-07, Kenneth-utløst)
 
 | Funn | Kilde | Status |
 |---|---|---|
-| Mobil-Microsoft ber om **`User.Read`** — Graph-tillatelse til hele Entra-profilen (stilling, telefon, kontorsted, leder) for å hente e-post og navn som alt ligger i ID-tokenet | cowork-måling, `apps/mobile/src/services/auth.ts:116` | 🟡 Ordre gitt, `fix/mobil-user-read` |
-| **Google-innlogging på mobil bruker IMPLISITT flyt.** Håndskrevet web-variant har `response_type: "token"` og en `state` fra `Math.random()` som **aldri verifiseres** | Google Cloud Console + cowork-måling, `auth.ts:90` | 🔴 Ordre skrevet, holdes til `User.Read` er merget |
+| ~~Mobil-Microsoft ber om `User.Read`~~ — Graph-tillatelse til hele Entra-profilen for å hente e-post og navn som alt ligger i ID-tokenet | cowork-måling, `apps/mobile/src/services/auth.ts:116` | ✅ **LUKKET** — `fix/mobil-user-read` i prod `69ca9f62`. ⚠️ **Gjenstår hos Kenneth:** fjerne tillatelsen i Azure app registration — koden ber ikke lenger om den |
+| ~~Google-innlogging på mobil bruker implisitt flyt~~ | Google Cloud Console + cowork-måling | ✅ **LUKKET 2026-09-07** — se under |
 | Cross-Account Protection ikke konfigurert | Google Cloud Console | 🟡 Valgfritt Google-tiltak, ikke vurdert |
+| ~~Hvilken OAuth-klient Google navngir som «SiteDoc»~~ | Google Cloud Console → Project Checkup | ✅ **AVKLART 07.09 — det ER web-klienten.** Coworks forbehold slo til: funnet lå et annet sted enn der vi ryddet. Se seksjonen under |
 
 🟢 **Google-scopes er minimale** (`openid email profile`) på både web og mobil — verifisert
-2026-09-07. **Omfanget var aldri problemet; flyten er det.**
+2026-09-07. **Omfanget var aldri problemet.**
 
-⚠️ **Presedensen sto i samme fil hele tiden:** Microsoft-flyten (`auth.ts:113`) bruker
-authorization code + PKCE og bærer kommentaren *«Implicit forkastes … token i redirect-URL»*.
-**Riktig avgjørelse ble tatt for én tilbyder og aldri båret over til den andre** — samme klasse som
-byggeplassfilteret (9 kopier, 3 ødelagte) og trafikklys-etikettene.
+### 🔴 DET GOOGLE FAKTISK FLAGGET — web-tilbyderen, ikke mobil (målt 2026-09-07)
+
+⚠️ **Vi ryddet feil sted først.** Konsollen navnga klienten «SiteDoc»; cowork antok mobilappen.
+**Kenneth åpnet Console-bildet, cowork målte kjeden — og den pekte på Next.js/Auth.js.**
+
+**`@auth/core@0.41.0/lib/utils/providers.js:52`:**
+
+```js
+const checks = c.checks ?? ["pkce"];
+```
+
+🔴 **En eksplisitt `checks`-liste ERSTATTER defaulten — den utvider den ikke.** Det ga to feil i
+samme fil, i hver sin retning:
+
+| Tilbyder | Sto | Fikk | Manglet |
+|---|---|---|---|
+| `Google` | ingen `checks` | `["pkce"]` | 🔴 **`state`** — det Google flagget |
+| `MicrosoftEntraID` | `checks: ["state"]` | `["state"]` | 🔴 **`pkce`** |
+
+🟢 **Begge står nå `["pkce", "state"]`** (`fix/web-google-state` + `fix/web-entra-pkce`, 07.09),
+med kommentar om at begge må stå.
+
+**Alvorsgrad, ikke overdrevet:** PKCE var på plass for Google og verner mot innløsning av en
+avlyttet kode; `state` verner mot login-CSRF, og Auth.js' `code_verifier`-cookie dempet det
+allerede. For Entra er klienten **confidential med secret**, så koden var beskyttet uansett — PKCE
+er dybdeforsvar der, ikke et åpent hull. **Ingen angrepskjede er demonstrert mot vårt oppsett.**
+
+⚠️ **Console-flagget klarner etterslepende.** Google måler trafikk over tid.
+
+🔴 **Klassen, som er det varige:** riktig avgjørelse tatt for én tilbyder og aldri båret over til
+den andre — `checks: ["state"]` sto skrevet for hånd på Microsoft og manglet på Google. Samme form
+som byggeplassfilteret (9 kopier, 3 ødelagte) og trafikklys-etikettene. **Delt logikk skal navngis
+i ordren.**
+
+### ✅ Google implisitt flyt — lukket 2026-09-07 (`fix/google-doed-implisitt-vei`, merge `24505fbd`)
+
+🔴 **Coworks premiss var delvis feil, og agenten målte det.** Ordren påsto at *native* Google
+brukte implisitt flyt. Målt mot `expo-auth-session@7.0.10`s **kildekode**:
+
+| Coworks påstand | Målt |
+|---|---|
+| Native bruker implisitt flyt | 🔴 Feil — `providers/Google.js` defaulter `ResponseType.Code` på native |
+| `state` verifiseres ikke | 🔴 Feil — `AuthRequest.js:157-161` kaster `state_mismatch` |
+| `authentication.accessToken` = implisitt token | 🔴 Feil — provideren veksler koden først |
+
+🟢 **Native Google gjorde allerede nøyaktig det Microsoft-flyten gjør.** Cowork sluttet fra
+responsformen; agenten leste biblioteket. **Lærdommen er metodisk, ikke teknisk.**
+
+**Det som faktisk var galt:** den håndskrevne `loggInnMedGoogleWeb` — `response_type=token` og en
+`state` fra `Math.random()` som aldri ble sjekket ved retur. **Uroppnåelig** i dag
+(`app.json:12`: `platforms: ["ios","android"]`), men en kjørbar implisitt flyt er en landmine.
+**Slettet: 4 steder, −47/+2, ingen ny flyt bygget.**
+
+⚠️ **Console-flagget klarner ikke ved merge.** Google måler etterslepende trafikk, og web har ikke
+produsert stateless-trafikk siden 04.09. 🔴 **Et gjenstående flagg betyr ikke at fiksen ikke virket.**
+
+⚠️ **Presedensen sto i samme fil hele tiden:** Microsoft-flyten (`auth.ts:113`) bærer kommentaren
+*«Implicit forkastes … token i redirect-URL»*. **Riktig avgjørelse ble tatt for én tilbyder og
+aldri båret over til den andre** — samme klasse som byggeplassfilteret (9 kopier, 3 ødelagte) og
+trafikklys-etikettene. **Delt logikk skal navngis i ordren.**
 
 ## Metode
 

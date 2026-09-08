@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, inviteProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
+import { REISE_LONNSART_REGEX } from "@sitedoc/shared";
 import {
   autoriserAdminForFirma,
   harFirmaHmsTilgang,
@@ -19,6 +20,7 @@ import { seedFirmamodulKatalog } from "../services/seed";
 import { provisjonerNyAnsattIProsjekter } from "../services/prosjektTilgangEvaluator";
 import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
+import { recomputeMatriseIBakgrunn } from "../services/reisetidMatrise";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -998,11 +1000,34 @@ export const organisasjonRouter = router({
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
     const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
-    return ctx.prisma.organizationSetting.upsert({
+    const setting = await ctx.prisma.organizationSetting.upsert({
       where: { organizationId: orgId },
       create: { organizationId: orgId },
       update: {},
     });
+    // Tvetydighets-telling: hvor mange AKTIVE lønnsarter matcher reise-regexen.
+    // Speiler mobil-resolveren (`hentReiseLonnsartId`): samme delte
+    // REISE_LONNSART_REGEX, alle typer, kun aktive. Regex kan ikke pushes til
+    // Prisma (Postgres `~*` er ikke i query-API-et), så vi henter navnene og
+    // teller i JS mot den ene kilden. Klienten bruker tallet til å velge varsel
+    // (0 = ingen art tolkes som reise; ≥2 = tvetydig). `.test()` er trygt å
+    // gjenbruke — regexen har ingen `g`-flagg, altså ingen lastIndex-tilstand.
+    const aktiveArter = await ctx.prismaTimer.lonnsart.findMany({
+      where: { organizationId: orgId, aktiv: true },
+      select: { navn: true },
+    });
+    const reiseLonnsartMatchAntall = aktiveArter.filter((a) =>
+      REISE_LONNSART_REGEX.test(a.navn),
+    ).length;
+    // Reise-terskel-km: hvor mange matrise-rader mangler avstand (avstandM null
+    // = beregnet FØR avstand-kolonnen fantes, ikke reberegnet ennå). Kun `null`
+    // teller — -1 er «computed men uoppnåelig», altså KJENT, ikke manglende.
+    // Klienten viser dette som varsel når enhet = km: km-klassifisering faller
+    // konservativt til under-type for disse parene til de reberegnes.
+    const reiseMatriseParUtenAvstand = await ctx.prisma.reisetidMatrise.count({
+      where: { organizationId: orgId, avstandM: null },
+    });
+    return { ...setting, reiseLonnsartMatchAntall, reiseMatriseParUtenAvstand };
   }),
 
   // T4-d (2026-05-16): medlems-tilgjengelig subset av OrganizationSetting
@@ -1032,6 +1057,9 @@ export const organisasjonRouter = router({
           arbeidstidVarselTimer: true,
           // Fase 3 (§ B): reise-regelsett for offline reise-forslag i «Slutt dag».
           reiseTerskelMin: true,
+          // Reise-terskel-km (2026-09-08): mobil-klassifisering trenger enhet + km-terskel.
+          reiseTerskelEnhet: true,
+          reiseTerskelM: true,
           reiseUnderTerskelType: true,
           reiseOverTerskelType: true,
           reisetidTellerOvertid: true,
@@ -1115,6 +1143,12 @@ export const organisasjonRouter = router({
         // Fase 3 (§ B): reise-regelsett. Terskel i minutter, retning under/over
         // terskel, om reisetid teller mot overtid, og konkret reise-lønnsart.
         reiseTerskelMin: z.number().int().min(0).max(1440).optional(),
+        // Reise-terskel-km (2026-09-08): enhet-diskriminator + km-terskel i meter.
+        // "minutter" bruker reiseTerskelMin (som før); "km" bruker reiseTerskelM.
+        reiseTerskelEnhet: z.enum(["minutter", "km"]).optional(),
+        // Meter (7,5 km = 7500). Tak 1 000 000 m (1000 km) — romslig for Norge.
+        // null = nullstill (firma uten km-terskel).
+        reiseTerskelM: z.number().int().min(0).max(1_000_000).nullable().optional(),
         reiseUnderTerskelType: z.enum(["arbeidstid", "reisetid"]).optional(),
         reiseOverTerskelType: z.enum(["arbeidstid", "reisetid"]).optional(),
         reisetidTellerOvertid: z.boolean().optional(),
@@ -1146,7 +1180,13 @@ export const organisasjonRouter = router({
         }
       }
 
-      return ctx.prisma.organizationSetting.upsert({
+      // Reise-terskel-km: fang forrige enhet FØR upsert for å oppdage bytte.
+      const forrige = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: orgId },
+        select: { reiseTerskelEnhet: true },
+      });
+
+      const oppdatert = await ctx.prisma.organizationSetting.upsert({
         where: { organizationId: orgId },
         create: {
           organizationId: orgId,
@@ -1154,6 +1194,20 @@ export const organisasjonRouter = router({
         },
         update: settingData,
       });
+
+      // Auto-recompute ved BYTTE til km: fyll matrisens avstand så km-
+      // klassifisering virker uten at noen trykker «Beregn matrise». Fire-and-
+      // forget — en stille feilet reberegning dekkes av «avstand mangler for N
+      // par»-varselet i firmainnstillingene (gate-krav b). Kun ved faktisk
+      // bytte, ikke hver lagring mens firmaet allerede står på km.
+      if (
+        settingData.reiseTerskelEnhet === "km" &&
+        forrige?.reiseTerskelEnhet !== "km"
+      ) {
+        recomputeMatriseIBakgrunn({ organizationId: orgId });
+      }
+
+      return oppdatert;
     }),
 
   /**

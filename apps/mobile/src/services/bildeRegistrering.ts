@@ -66,6 +66,8 @@ export async function registrerBildeIDatabase(params: {
     prosedyre = "bilde.opprettForOppgave";
     input = {
       taskId: params.oppgaveId,
+      // Idempotens-nøkkel: samme foto retriet av køen gir én rad, ikke to.
+      vedleggId: params.vedleggId ?? undefined,
       fileUrl: params.fileUrl,
       fileName: params.fileName,
       fileSize: params.fileSize,
@@ -77,6 +79,8 @@ export async function registrerBildeIDatabase(params: {
     prosedyre = "bilde.opprettForSjekkliste";
     input = {
       checklistId: params.sjekklisteId,
+      // Idempotens-nøkkel: samme foto retriet av køen gir én rad, ikke to.
+      vedleggId: params.vedleggId ?? undefined,
       fileUrl: params.fileUrl,
       fileName: params.fileName,
       fileSize: params.fileSize,
@@ -125,10 +129,14 @@ export async function registrerBildeIDatabase(params: {
 }
 
 /**
- * Funn C: patch ÉN vedlegg-URL i Checklist.data på server etter vellykket
+ * Funn C: patch ÉN vedlegg-URL i dokumentets `data`-JSON på server etter vellykket
  * opplasting. Skrives selv når skjermen er demontert (køen kaller dette utenfor
  * React-treet), så server-JSON-en får den varige `/uploads/privat/…`-URL-en og
  * raden ikke blir tom ved reinstall.
+ *
+ * Én funksjon for begge dokumenttyper — `dokumentType` velger prosedyre
+ * (`sjekkliste.settVedleggUrl` / `oppgave.settVedleggUrl`), som deler samme input
+ * og serverlogikk. (Ingen `patchOppgaveVedleggUrl`-kopi ved siden av.)
  *
  * 🔴 Best-effort og reinstall-kritisk toleranse: PROD-API-et har ikke prosedyren
  * før vi deployer. Et manglende endepunkt (404) eller nettfeil skal returnere
@@ -136,8 +144,9 @@ export async function registrerBildeIDatabase(params: {
  * lokalfila slettes fortsatt når SQLite tok korreksjonen. Returnerer `true` kun
  * når serveren faktisk bekreftet skrivingen.
  */
-export async function patchSjekklisteVedleggUrl(params: {
-  checklistId: string;
+export async function patchVedleggUrl(params: {
+  dokumentType: "sjekkliste" | "oppgave";
+  dokumentId: string;
   objektId: string;
   vedleggId: string;
   url: string;
@@ -145,8 +154,12 @@ export async function patchSjekklisteVedleggUrl(params: {
 }): Promise<boolean> {
   const token = await hentSessionToken();
   if (!token) return false;
+  const prosedyre =
+    params.dokumentType === "oppgave"
+      ? "oppgave.settVedleggUrl"
+      : "sjekkliste.settVedleggUrl";
   try {
-    const url = `${AUTH_CONFIG.apiUrl}/trpc/sjekkliste.settVedleggUrl`;
+    const url = `${AUTH_CONFIG.apiUrl}/trpc/${prosedyre}`;
     const respons = await fetch(url, {
       method: "POST",
       headers: {
@@ -154,7 +167,7 @@ export async function patchSjekklisteVedleggUrl(params: {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        id: params.checklistId,
+        id: params.dokumentId,
         objektId: params.objektId,
         vedleggId: params.vedleggId,
         url: params.url,
@@ -163,13 +176,13 @@ export async function patchSjekklisteVedleggUrl(params: {
     });
     if (!respons.ok) {
       // 404 = eldre prod-API uten prosedyren. Ikke en feil å rope om.
-      console.warn("[BILDE-REG] settVedleggUrl svarte", respons.status);
+      console.warn("[BILDE-REG]", prosedyre, "svarte", respons.status);
       return false;
     }
     return true;
   } catch (feil) {
     console.warn(
-      "[BILDE-REG] settVedleggUrl nettfeil:",
+      `[BILDE-REG] ${prosedyre} nettfeil:`,
       feil instanceof Error ? feil.message : feil,
     );
     return false;

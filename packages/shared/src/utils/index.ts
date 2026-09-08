@@ -5,7 +5,7 @@ export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst, finnVaerTimeIndeks, byggVaerSnapshot } from "./vaer";
 export type { VaerHourly, VaerSnapshot } from "./vaer";
 export { nesteBildeNr, nummererRepeaterBilder, leggTilVedleggIRad } from "./bildeNr";
-export { erLokalVedleggUrl, harLokaltVedlegg, sammenstillMedLokaleVedlegg } from "./vedleggLokal";
+export { erLokalVedleggUrl, harLokaltVedlegg, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg } from "./vedleggLokal";
 export { feltKartFraRad, medFeltKart, settVedleggUrlIDokument } from "./repeaterRad";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
@@ -16,8 +16,8 @@ export { GRATIS_DOKUMENT_GRENSE, grenseNaadd } from "./prosjektGrense";
 export type { GrenseVilkaar } from "./prosjektGrense";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
-export { klassifiserReise, estimerReisetidMin } from "./reise";
-export type { ReiseKategori, ReiseRegelsett } from "./reise";
+export { klassifiserReise, estimerReisetidMin, REISE_LONNSART_REGEX } from "./reise";
+export type { ReiseKategori, ReiseRegelsett, ReiseEnhet, ReiseMaaling } from "./reise";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";
@@ -51,6 +51,7 @@ export type {
   Mottaker,
 } from "./flytPosisjon";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
+export { formaterNummer } from "./dokumentnummer";
 export { lesSignaturVerdi, formaterSignaturLinje, formaterSignaturTidspunkt, signaturTidspunktNaa } from "./signaturVerdi";
 export type { SignaturVerdi } from "./signaturVerdi";
 export { resolverNyNavigasjon } from "./nyNavigasjon";

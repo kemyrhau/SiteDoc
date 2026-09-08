@@ -44,6 +44,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // verifiserer e-post) gjelder ikke. Reverserer H3-audit 2026-05-27.
     Google({
       allowDangerousEmailAccountLinking: true,
+      // checks: BEGGE må stå. Auth.js-defaulten er ["pkce"] alene
+      // (@auth/core providers.js: `c.checks ?? ["pkce"]`) — uten "state"
+      // sendes ingen state-parameter, og Google Cloud Console flagger
+      // klienten for manglende CSRF-vern på innlogging. Setter du kun
+      // ["state"] overstyrer du defaulten og MISTER PKCE — fjern derfor
+      // aldri "pkce" herfra i god tro.
+      checks: ["pkce", "state"],
     }),
     ...(process.env.AUTH_MICROSOFT_ENTRA_ID_ID
       ? [
@@ -54,7 +61,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             // Se kommentar over Google-tilbyderen — samme begrunnelse.
             allowDangerousEmailAccountLinking: true,
             authorization: { params: { scope: "openid profile email" } },
-            checks: ["state"],
+            // checks: BEGGE må stå. Auth.js-defaulten er ["pkce"] alene
+            // (@auth/core providers.js: `c.checks ?? ["pkce"]`) — en eksplisitt
+            // liste ERSTATTER defaulten, så ["state"] alene droppet PKCE.
+            // Entra er en confidential client med secret, så koden er beskyttet
+            // ved innløsning uansett; PKCE er dybdeforsvar her, ikke det eneste
+            // vernet. Fjern aldri "pkce" herfra i god tro.
+            checks: ["pkce", "state"],
           }),
         ]
       : []),

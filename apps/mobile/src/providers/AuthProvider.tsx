@@ -6,14 +6,12 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { Platform } from "react-native";
 import {
   hentSessionToken,
   hentBrukerData,
   lagreSessionToken,
   lagreBrukerData,
   loggUt as loggUtTjeneste,
-  loggInnMedGoogleWeb,
   loggInnMedMicrosoft as microsoftFlyt,
   loggInnSomTestbruker as testbrukerFlyt,
 } from "../services/auth";
@@ -26,7 +24,6 @@ interface AuthKontekst {
   bruker: BrukerData | null;
   erInnlogget: boolean;
   laster: boolean;
-  loggInnMedGoogle: () => Promise<void>;
   loggInnMedMicrosoft: () => Promise<void>;
   haandterOAuthCallback: (provider: "google" | "microsoft", accessToken: string) => Promise<void>;
   loggInnSomTestbruker: (email?: string) => Promise<void>;
@@ -37,7 +34,6 @@ const AuthContext = createContext<AuthKontekst>({
   bruker: null,
   erInnlogget: false,
   laster: true,
-  loggInnMedGoogle: async () => {},
   loggInnMedMicrosoft: async () => {},
   haandterOAuthCallback: async () => {},
   loggInnSomTestbruker: async () => {},
@@ -131,14 +127,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [byttToken],
   );
 
-  const loggInnMedGoogle = useCallback(async () => {
-    if (Platform.OS === "web") {
-      // På web: redirect til Google OAuth (void, ingen return)
-      loggInnMedGoogleWeb();
-    }
-    // På native: Google-innlogging håndteres via hook i logg-inn-skjermen
-  }, []);
-
   const loggInnMedMicrosoft = useCallback(async () => {
     setLaster(true);
     try {
@@ -187,7 +175,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         bruker,
         erInnlogget: !!bruker,
         laster,
-        loggInnMedGoogle,
         loggInnMedMicrosoft,
         haandterOAuthCallback,
         loggInnSomTestbruker,

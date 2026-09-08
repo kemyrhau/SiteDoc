@@ -97,6 +97,110 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟠 `apps/mobile` har INGEN test-runner — pilotens viktigste flate er uten enhetstester (målt 2026-09-07)
+
+Målt av redesign da han skulle skrive en test ordren krevde: **`apps/mobile` har verken
+`test`-script, vitest eller jest.** `pnpm test` (turbo) treffer api, pdf, shared og web — mobil er
+ikke med, og gate-kommandoene kjører kun typecheck + lint der.
+
+🔴 **En `.test.ts` lagt i mobil ville aldri kjøre — død i CI, verre enn ingen test**, fordi den ser
+ut som dekning.
+
+⚠️ **Konsekvens i praksis:** `formaterNummer` måtte flyttes til `@sitedoc/shared` for å kunne
+testes i det hele tatt (`412c878a`). **Det er en arkitekturbeslutning tatt av en verktøymangel**,
+ikke av hvor koden hører hjemme. Den avveiningen kommer til å gjenta seg.
+
+🔴 **Pilotmålestokken er «50 ansatte, mobil viktigst».** Kvalitetssikringsplanens tre lag
+([kvalitetssikring-plan.md](kvalitetssikring-plan.md)) dekker lint, simulator-røykliste og
+api-tester — **ingen av dem er enhetstester på mobil-logikk.**
+
+**Ikke ordre.** Å legge inn jest/vitest med RN-preset er reell infra-endring som flytter
+baselinen og krever godkjenning. **Kenneth-beslutning.**
+
+### 🟡 Web-lint kan ikke bli grønn — og cowork har gatet på den hele dagen (målt 2026-09-07)
+
+To agenter rapporterte uavhengig at `pnpm lint --filter @sitedoc/web` feiler på
+**forhåndseksisterende** gjeld på develop-baselinen (unused imports i 3D-visere, kontrollplan,
+økonomi, admin m.fl.). Begge krysset feillisten mot sin egen diff: **null overlapp.**
+
+⚠️ **Tallene spriker — 65 rapportert av én, 107 av en annen.** Ulikt scope eller ulik kjøring;
+**den faktiske gjelden er ikke målt.** Det er første steg.
+
+🔴 **Coworks feil, ikke agentenes:** `pnpm lint` sto som siste steg i hver eneste gate-kommando
+skrevet 07.09. **Et gate-steg som aldri kan passere lærer agentene å ignorere gaten** — og da er
+den verdt mindre enn ingen gate. Lint står ikke som blokkerende steg i ordrer før baselinen er ren.
+
+🟢 **CI gater på `pnpm test` + mobil-typecheck**, så dette blokkerer ingen leveranse i dag.
+Relatert: `nåværendeOrgId`-linten (2026-08-26) er én av radene.
+
+### 🔴 Offline gjelder tegninger, ikke dokumenter — mot en ufravikelig regel (Kenneth på enhet 2026-09-07)
+
+> **Kenneth 2026-09-07:** *«forbered offline fungerer for tegninger → oppgaver, sjekklister og HMS
+> er ikke en del av offline support»* · **Vedtak samme kveld:** *«offline må utbedres»*
+
+🔴 **CLAUDE.md: «Mobil-appen MÅ fungere offline» — ufravikelig.** Koden oppfyller det for tegninger
+og for opplasting, ikke for dokumenttilgang. **Avviket var udokumentert til 07.09.**
+
+**Målt, ikke antatt:**
+
+| Del | Tilstand |
+|---|---|
+| **Opplastingskøen** | 🟢 **Robust.** Bilde tatt i flymodus nådde serveren ved reconnect (verifisert på enhet 07.09) |
+| **Tegninger** | 🟢 «Forbered til offline» i `Mer` dekker dem |
+| **Sjekkliste / oppgave / HMS** | 🔴 **Nett-baserte tRPC-kall.** `sjekkliste.hentForProsjekt` + `oppgave.hentForProsjekt`; ingen SQLite-speiling (målt av redesign 07.09) |
+| **SQLite-katalogene** | Dekker timer, maskin, vær, byggeplass — **ikke dokumenter** |
+
+⚠️ **Kenneths test virket fordi dokumentet var ÅPNET FØR han gikk offline.** Et uåpnet dokument
+ville ikke vært nåbart. **Ikke les testen som at tilgang virker.**
+
+⚠️ **Løftebrist:** menyvalget heter «Forbered til offline» og forbereder bare tegninger. Samme
+klasse som `nb.json:2218` («arkivert og skrivebeskyttet») og innboks-pila — tekst som beskriver
+oppførsel koden ikke har.
+
+🔴 **Pilotrelevans:** A.Markussen, 50 ansatte, anleggsplasser med hullete dekning, *«mobil viktigst»*
+(REDESIGN-MASTERPLAN § Målestokk). En anleggsgartner som åpner appen på et jorde uten dekning har
+ingen dokumenter.
+
+#### 🟡 TILLEGG 2026-09-08 (Kenneth på enhet) — pila åpner ingenting
+
+> *«forbered offline → pilen åpner ikke og viser hva som er synkronisert mot offline»*
+
+Raden viser resultatet (**«Ferdig: 2 tegninger, 0 3D-modeller»**) og bærer en `>`-chevron.
+🔴 **Chevronen navigerer ikke.** Den ser ut som en inngang til en liste over hva som faktisk ligger
+lokalt — den finnes ikke.
+
+⚠️ **Samme klasse som innboks-pila** (`491ec481`, funnet av redesign): **en affordans som lover
+navigasjon og ikke leverer.** Tredje forekomst av chevron-uten-mål denne uka.
+⚠️ Beslektet: [BACKLOG § død meny i Lokasjoner](#) har «Forbered til offline» som **tom gren** —
+samme funksjonsnavn, to steder, begge halve.
+
+**To ting, som kan løses hver for seg:**
+1. **Billig og ærlig:** fjern chevronen hvis raden bare er en knapp. **Null ny flate, null design.**
+2. **Det Kenneth egentlig etterspør:** en visning av *hva* som er tilgjengelig offline — hvilke
+   tegninger, når de ble hentet, hvor mye plass.
+
+🔴 **Ikke bygg (2) før offline-scopet over er avklart.** En liste over «hva som er offline» som
+viser kun tegninger, **bekrefter løftebristen i stedet for å lukke den** — og gjør den synlig for
+brukeren hver gang han åpner den.
+
+**🔴 MÅL FØR DET SEKVENSERES — spennet er for stort til å prioriteres på anslag:**
+
+1. **Hva skal være tilgjengelig?** De N sist åpnede · alt på aktiv byggeplass · alt i prosjektet?
+   **Volumet avgjør alt annet.**
+2. **Hva skjer ved konflikt?** To personer redigerer samme dokument, én offline. Dagens
+   dokumentflyt har statusoverganger (`isValidStatusTransition`) — **de er ikke bygget for
+   divergerende offline-tilstand.**
+3. **Skal offline være LES eller LES+SKRIV?** Kun lesing er vesentlig billigere og dekker
+   sannsynligvis mesteparten av feltbehovet. **Kenneth-beslutning.**
+4. **Hva koster speilingen?** Dokumenter bærer `data`-JSON med repeatere og vedlegg — ikke flate
+   rader som katalogene.
+
+🔴 **Ikke skriv ordre før 1–4 er målt.** Reisetid-saken samme kveld viste hvorfor: BACKLOG-teksten
+beskrev fem åpne designspørsmål på noe som var bygget og i prod siden juni. **Mål først.**
+
+🟡 **Graduerer til [REDESIGN-MASTERPLAN § Rekkefølge](../redesign/REDESIGN-MASTERPLAN.md) når den
+er scopet** — den køen er sekvensert, og en upriset post der forskyver alt bak seg.
+
 ### 🟡 `endringsdiff.ts` teller repeater-rad-celler feil (samme formklasse, målt 2026-09-04)
 
 `radSammendrag`/`tellBilder` (`packages/pdf/src/arkivmal/endringsdiff.ts:230-232`) gjør `Object.values(rad)` på en repeater-rad. På produksjonsformen `{ _radId, felter }` blir det `[_radId-streng, felter-objekt]` → teller wrapperen i stedet for de faktiske cellene. Kosmetisk (endringslogg-sammendrag «N felt utfylt»), ikke datatap. **Fiks:** rut gjennom `feltKartFraRad` (@sitedoc/shared, `repeaterRad.ts`) — den kanoniske traverseringen. Del av samme feilklasse som traff callbacken/bildeNr/append; listet, ikke fikset i denne runden fordi den ikke er brukervendt.
@@ -112,19 +216,17 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 🔴 **Koblet fiks — kan ikke gjøres halvt:** å legge funn C i oppgave (slutte å sende `file://`) UTEN samtidig å legge init-overlayen (`sammenstillMedLokaleVedlegg`) ville gitt oppgave nøyaktig forsvinnings-bugen sjekkliste nettopp ble kvitt. Bring oppgave til paritet med BEGGE deler i én endring: utelatelse ved lagring + overlay ved init. Verktøyene finnes delt (`@sitedoc/shared`: `harLokaltVedlegg`, `sammenstillMedLokaleVedlegg`). Merk også at køens server-patch (`patchSjekklisteVedleggUrl`) er sjekkliste-only — oppgave trenger tilsvarende, ellers når aldri server-URL-en oppgavens server-data.
 
-### 🔴 Bilde-registrering er ikke idempotent — tapt-svar-retry gir duplikat `Image`-rad (målt 2026-09-03)
+### 🟢 Bilde-registrering ikke idempotent — LEVERT på `fix/bilde-idempotens` (migrering gates av Kenneth)
 
-`bilde.opprettForSjekkliste` og `opprettForOppgave` (`apps/api/src/routes/bilde.ts:146-205`) gjør blind `prisma.image.create` — input har **ingen `vedleggId`**, ingen upsert, ingen unik constraint, ingen dedup på `fileUrl`. Køen (`OpplastingsKoProvider`) retrier alle feilede opplastinger med backoff; en opplasting som **lyktes server-side men mistet svaret** blir retriet → ny `image.create` → **duplikat `Image`-rad**. Sjekklista/PDF-en rammes IKKE (de rendres fra `checklist.data`, nøklet på `vedleggId` via `patchSjekklisteVedleggUrl` — idempotent), men `Image`-tabellen (gallerivisning) får to rader.
+`bilde.opprettForSjekkliste`/`opprettForOppgave` gjorde blind `prisma.image.create` — samme foto kunne bli to `Image`-rader når køen (`OpplastingsKoProvider`) retriet en opplasting som lyktes server-side men mistet svaret. Sjekklista/PDF-en rammes IKKE (rendres fra `checklist.data`, nøklet på `vedleggId` via `settUrlPaaVedlegg` — idempotent, bekreftet); kun `Image`-tabellen (galleri) fikk to rader.
 
-**Pre-eksisterende** — retry-stien finnes allerede uavhengig av kø-timeout-runden (2026-09-03). Timeouten som ble lagt til der trigger den samme stien oftere, men innfører den ikke.
+**Fiks (levert):** `vedleggId String? @unique` på `Image` (migrering `20260908130000_bilde_vedlegg_id_unik`, **skrevet, ikke kjørt** — Kenneth gater), `vedleggId` trådd gjennom `opprettFor*`-input + mobil-køen, og `create → upsert` på `vedleggId`. 🔴 Eksplisitt create-fallback beholdt når `vedleggId` mangler (eldre klienter før EAS-bygget) — fjernes når alle klienter er oppdatert. Test: `apps/api/src/routes/bilde-idempotens.test.ts`.
 
-**Fiks (krever Kenneths DB-godkjenning):** `vedleggId` inn i `opprettFor*`-input + upsert på den, ELLER unik constraint på `Image`. Begge er Prisma-migrering på `Image`.
+🟢 **Målekorreksjon (2026-09-08):** den foreslåtte tellingen på `(checklistId/taskId, fileUrl)` gir **~0** — `/upload` mynter nytt `randomUUID`-filnavn per request (`upload.ts:133`), så hvert retry har distinkt `fileUrl`. Duplikater deler `vedleggId` (som ikke var persistert), ikke `fileUrl`. Beste proxy-telling for eksisterende dupes: `(doc_id, file_name, file_size)`. Migrerings-fella (constraint mot skitne data) er dessuten **omgått**: `@unique` på ny nullable kolonne — alle gamle rader er NULL (distinkt i Postgres), så ingen opprydding kreves før constrainten legges på. **Rest (egen, gatet op):** opprydding av eksisterende duplikat-rader i prod — «ALDRI slett eksisterende data», hvilken rad som overlever er ikke opplagt.
 
-🔴 **Migrerings-fella (skriv tellingen FØR constrainten):** en unik constraint på `Image` vil **feile ved migrering** hvis prod alt har duplikater. Steg 1: tell duplikater i prod (`SELECT checklistId/taskId, fileUrl, COUNT(*) ... GROUP BY ... HAVING COUNT(*)>1`) og rydd dem. Steg 2: legg constraint. Glemmes tellingen, ruller migreringen tilbake. Følg to-stegs migrations-policyen (CLAUDE.md).
+### ✅ En deaktivert firma-admin beholder admin-rettigheter — LUKKET `fix/firmaadmin-status` 2026-09-08 (`erFirmaAdmin` status-gate)
 
-### 🟡 En deaktivert firma-admin beholder admin-rettigheter (registreringsmodell fase 1-oppfølger, 2026-08-28)
-
-`verifiserFirmaAdmin` (routes-lokale kopier ×16) og `erFirmaAdmin`/`erFirmaAdminForProsjekt` (tilgangskontroll.ts) leser `firmaRoller`, ikke `status`. Fase 1 la `krevAktivAnsettelse` FØR firma-admin-bypass i de 11 prosjekt-portene (så en deaktivert firma_admin nektes prosjekttilgang der) og `status`-filter i `hentBrukersOrg` (så firma-nivå-medlemsveien, inkl. timeføring, stenger). Men de firma-admin-**spesifikke** rutene som gater direkte på `verifiserFirmaAdmin` (lønnsart-/eksport-oppsett-/onboarding-config m.m.) sjekker fortsatt ikke status. En deaktivert **ikke-admin** feiler disse uansett; hullet gjelder kun en deaktivert person som fortsatt har `firma_admin` i `firmaRoller`. Fiks: sentraliser `verifiserFirmaAdmin`-kopiene og legg status-sjekk der. Lav prioritet (lockout-guarden hindrer selv-deaktivering; scenariet krever at admin A deaktiverer admin B og lar B beholde rollen).
+**Måling (2026-09-08) korrigerte premisset:** de 15 route-lokale `verifiserFirmaAdmin`-wrapperne var IKKE selvstendige kopier — alle delegerte allerede til den delte `autoriserAdminForFirma` (`tilgangskontroll.ts:725`) → module-private `erFirmaAdmin` (`:312`). Kopiklassen var altså i praksis lukket; det fantes ingen 16-veis-uttrekk å gjøre. Den ekte enkeltkilden `erFirmaAdmin` leste `firmaRoller`, ikke `status` — hele hullet på ett sted. **Fiks:** la `status` i `erFirmaAdmin`s select og returnér `false` ved `deaktivert`. Dekker alle 4 interne kallere (`autoriserAdminForFirma`, `erFirmaAdminForProsjekt`, + to maskin-bypass `:1447`/`:1520`) og dermed alle 15 wrappere. `krevAktivAnsettelse` kunne IKKE gjenbrukes direkte (prosjekt-skopet via `primaryOrganizationId`; firma-admin-rutene har kun `organizationId`) — samme status-FAKTA som `hentBrukersOrg` gjenbrukes i stedet. AKTIV admin er uendret. Test: `tilgangskontroll.test.ts` (aktiv slipper, deaktivert-med-rolle nektes, sitedoc_admin kortslutter). Mobil har ingen egne firma-admin-ruter (kaller api). api 335→338.
 
 ### 🟡 CLAUDE.md er 375 tegn fra 40k-taket — neste indeksrad bryter det (målt 2026-08-26)
 
@@ -162,8 +264,52 @@ Da tegningsminnet ble koblet på repeater-flaten (`fix/tegningsminne-repeater`),
 **Kravet slik det gjelder i dag:** er **kjøretiden** mellom oppmøtested/kontorsted og byggeplass
 **over 30 minutter**, registreres tiden som **reisetid** (egen lønnsart). Under: **timelønn**.
 
-~~Første formulering (beholdt så ingen bygger den): «avstanden … sammenlignes med en firma-definert
-grense i km».~~ Km var Kenneths første ordlyd; den gjeldende regelen måler tid.
+~~Første formulering: «avstanden … sammenlignes med en firma-definert grense i km».~~
+~~Km var Kenneths første ordlyd; den gjeldende regelen måler tid.~~
+
+## 🔴 VEDTAK SNUDD 2026-09-07 — km føres TILBAKE som alternativ
+
+> **Kenneth 2026-09-07, etter tilbakemelding fra kunden:** *«km ble forkastet → A.Markussen
+> tilbakemelder at de benytter km-grense i dag → vi bør føre det tilbake som et alternativ»*
+
+🔴 **Km ble strøket 01.09 på Kenneths egen presisering** («reisetid beregnes over 30 minutter
+kjøretid»). **Den presiseringen beskrev regelen vi bruker nå, ikke regelen kunden faktisk bruker.**
+A.Markussen måler i km i dag. **Begge må finnes.**
+
+⚠️ **Ikke erstatt tid med km.** Terskelen skal kunne settes **enten** i minutter **eller** i
+kilometer, per firma. Dagens `reiseTerskelMin @default(30)` er riktig for firmaer som måler tid.
+
+🟢 **Datakilden dekker begge:** OSRM leverer distanse og varighet fra samme kall.
+🔴 **Om VÅRT kall ber om distanse er IKKE målt** (`rute-service.ts:89-114` bruker `/table`) —
+det er første spørsmål i saken, ikke en detalj.
+
+⚠️ **Schema-endring** (`reiseTerskelType` + `reiseTerskelKm` e.l.) → **Kenneth-gate + migrering.**
+
+### 🔴 OG ET NYTT FUNN SAMME DAG — lønnsartene er avstandsBÅND, ikke én reise-art
+
+**Målt i SITEDOC MYRHAUG på test 07.09** (via varselet i `fix/reise-lonnsart-varsel`):
+
+```
+Reise 7,5–15 km · Reise 15–30 km · Reise 30–45 km · Reise 45–60 km
+Reise/transport til prosjekter
+```
+
+🔴 **Fem lønnsarter matcher `/reise|transport/i`.** Det bekrefter ikke-determinismen som en **målt**
+risiko, ikke en teoretisk: `find()` uten `orderBy` ville plukket «Reise 7,5–15 km» like gjerne som
+«Reise/transport til prosjekter». **Feil lønnsart = feil utbetaling.**
+
+🟢 **Varselet fanget det på første eksponering.** Coworks gate-forventning («SITEDOC MYRHAUG skal
+være stille») var feil — firmaet har fem treff, ikke ett.
+
+**To spørsmål som ikke er det samme, og begge må besvares:**
+
+| Spørsmål | Styres av | Status |
+|---|---|---|
+| Er reisen **arbeidstid eller reisetid**? | **Tid** (30 min) — 🔴 **eller km, se vedtaket over** | 🟢 tid bygget, i prod 09.06 |
+| **Hvilken** reise-lønnsart føres den på? | 🔴 **Avstand** — båndene over | ❌ **finnes ikke** |
+
+⚠️ **Uten båndvalget havner alle reiser på samme lønnsart uansett lengde**, eller noen må velge
+manuelt hver gang. **Det er sannsynligvis grunnen til at A.Markussen måler i km.**
 
 🔴 **Konsekvensen er teknisk stor:** kjøretid kan **ikke** utledes av luftlinje. Den krever en
 rute-tjeneste (eller en avtalt km→minutt-omregning, som da må vedtas eksplisitt). Det gjør åpent

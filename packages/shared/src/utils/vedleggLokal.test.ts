@@ -3,6 +3,7 @@ import {
   erLokalVedleggUrl,
   harLokaltVedlegg,
   sammenstillMedLokaleVedlegg,
+  utelatFeltMedLokaleVedlegg,
 } from "./vedleggLokal";
 
 describe("erLokalVedleggUrl", () => {
@@ -92,5 +93,68 @@ describe("sammenstillMedLokaleVedlegg (init-sammenstilling)", () => {
     const server = { a: { verdi: 1 } };
     expect(sammenstillMedLokaleVedlegg(server, null)).toBe(server);
     expect(sammenstillMedLokaleVedlegg(server, {})).toBe(server);
+  });
+});
+
+// Lagrings-siden av funn C. `utelatFeltMedLokaleVedlegg` erstatter en lokal kopi
+// som lå i useSjekklisteSkjema (funn: tre kopier av samme deteksjon ville oppstått
+// om oppgave fikk sin egen). Sjekkliste er i PROD — shared-versjonen må være
+// atferdsmessig identisk. Produksjonsformen ({ _radId, felter }) testes FØRST:
+// det var den formen fire bilder gjemte seg bak i to døgn.
+describe("utelatFeltMedLokaleVedlegg (lagrings-utelatelse)", () => {
+  it("utelater et repeater-felt med lokalt vedlegg i { _radId, felter }-form", () => {
+    const data = {
+      tekst1: { verdi: "notat", kommentar: "", vedlegg: [] },
+      rep1: {
+        verdi: [
+          {
+            _radId: "r1",
+            felter: {
+              bilde: {
+                vedlegg: [1, 2, 3, 4].map((n) => ({
+                  id: `v${n}`,
+                  type: "bilde",
+                  url: `file:///IMG_${n}.jpg`,
+                  bildeNr: n,
+                })),
+              },
+            },
+          },
+        ],
+      },
+    };
+    const ut = utelatFeltMedLokaleVedlegg(data);
+    // Repeater-feltet med de fire file://-bildene er holdt utenfor payloaden.
+    expect("rep1" in ut).toBe(false);
+    // Felt uten lokale vedlegg er urørt (samme referanse).
+    expect(ut.tekst1).toBe(data.tekst1);
+  });
+
+  it("utelater et topp-nivå-felt med lokalt vedlegg (flat form)", () => {
+    const data = {
+      bilde1: { verdi: null, kommentar: "", vedlegg: [{ id: "v1", type: "bilde", url: "file:///a.jpg" }] },
+      tekst1: { verdi: "ok", kommentar: "", vedlegg: [] },
+    };
+    const ut = utelatFeltMedLokaleVedlegg(data);
+    expect("bilde1" in ut).toBe(false);
+    expect(ut.tekst1).toBe(data.tekst1);
+  });
+
+  it("beholder felt hvis vedlegget alt har en server-URL", () => {
+    const data = {
+      bilde1: { verdi: null, kommentar: "", vedlegg: [{ id: "v1", type: "bilde", url: "/uploads/privat/a.jpg" }] },
+    };
+    // Ingen lokale vedlegg → SAMME referanse (ingen state-churn).
+    expect(utelatFeltMedLokaleVedlegg(data)).toBe(data);
+  });
+
+  it("blander: kun felt MED lokalt vedlegg faller ut, resten består", () => {
+    const data = {
+      lokal: { vedlegg: [{ id: "v1", url: "file:///x.jpg" }] },
+      server: { vedlegg: [{ id: "v2", url: "/uploads/privat/y.jpg" }] },
+      tekst: { verdi: "beholdes" },
+    };
+    const ut = utelatFeltMedLokaleVedlegg(data);
+    expect(Object.keys(ut).sort()).toEqual(["server", "tekst"]);
   });
 });

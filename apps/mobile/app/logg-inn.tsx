@@ -32,7 +32,6 @@ function lagReversertRedirectUri(iosClientId: string): string {
 export default function LoggInnSkjerm() {
   const { t } = useTranslation();
   const {
-    loggInnMedGoogle,
     loggInnMedMicrosoft,
     haandterOAuthCallback,
     loggInnSomTestbruker,
@@ -86,21 +85,6 @@ export default function LoggInnSkjerm() {
     }
   }, [googleResponse, haandterOAuthCallback]);
 
-  // Håndter OAuth-callback på web (token i URL-hash fra implicit flow)
-  useEffect(() => {
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      const hash = window.location.hash;
-      if (hash && hash.includes("access_token")) {
-        const params = new URLSearchParams(hash.substring(1));
-        const accessToken = params.get("access_token");
-        if (accessToken) {
-          window.history.replaceState(null, "", window.location.pathname);
-          haandterOAuthCallback("google", accessToken);
-        }
-      }
-    }
-  }, [haandterOAuthCallback]);
-
   if (erInnlogget) {
     return <Redirect href="/(tabs)/hjem" />;
   }
@@ -108,11 +92,7 @@ export default function LoggInnSkjerm() {
   const handleGoogleLogin = () => {
     harHaandtertResponse.current = false;
     setFeilmelding(null);
-    if (Platform.OS === "web") {
-      loggInnMedGoogle();
-    } else {
-      googlePromptAsync();
-    }
+    googlePromptAsync();
   };
 
   return (

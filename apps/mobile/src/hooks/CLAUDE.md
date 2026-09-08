@@ -4,6 +4,21 @@
 
 To parallelle hooks (~500 linjer hver) som implementerer Dalux-stil utfylling med offline-first sync. Nær-identisk interface, ulik datakilde — men de er IKKE garantert like (append-only manglet i 3/4 hooks til 2026-07-16, og var *feilaktig* på i sjekkliste; speiling sviktet begge veier). Deler logikk skal ligge i `@sitedoc/shared`, ikke kopieres per hook.
 
+🟢 **Funn C er paritet fra 2026-09-07** (`fix/oppgave-vedlegg-paritet`). Oppgave sendte tidligere
+`file://`-URL-er rått til server; nå gjør begge hooks det samme: **utelatelse ved lagring** +
+**overlay ved init** + **server-patch fra køen** (`patchVedleggUrl({dokumentType, …})`).
+⚠️ **De tre henger sammen.** Legger du utelatelsen i én hook uten overlayen, får den hooken
+forsvinnings-bugen. Rør aldri én av dem alene.
+
+⚠️ **`utelatFeltMedLokaleVedlegg` lå som lokal kopi i `useSjekklisteSkjema` selv om
+`vedleggLokal.ts` alt hadde `harLokaltVedlegg`** — funnet og lukket 07.09. Den bor nå i
+`@sitedoc/shared`. **Det er dette avsnittets poeng i praksis: kopien oppsto fordi den var lettere
+enn å flytte.**
+
+🟢 **HMS har ingen egen hook** (målt 07.09). Avvik, SJA og RUH er checklist- eller task-dokumenter
+som rendres gjennom disse to. **En fiks i begge dekker derfor HMS automatisk** — ikke let etter en
+tredje hook.
+
 ### Append-only felt-låsing (delt kilde) — KUN oppgave
 
 **Gjelder oppgave, IKKE sjekkliste** (vedtatt 2026-07-16, spec `dokumentflyt.md § 2`): oppgave = append-only fra opprettelse; sjekkliste = redigerbar for den som har ballen + admin/registrator. `04f6d295` slo på låsen for alle fire hooks — feil for sjekkliste (et innsendt tallfelt ble permanent låst, også for admin) → fjernet fra sjekkliste-hookene igjen (`fix/sjekkliste-ikke-append-only`).

@@ -15,7 +15,6 @@ import { useRouter } from "expo-router";
 import {
   ChevronDown,
   ChevronRight,
-  ChevronUp,
   Plus,
   ClipboardCheck,
   ListTodo,
@@ -34,6 +33,7 @@ import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import { HjemTimerChip } from "../../src/components/HjemTimerChip";
 import { MannskapInnsjekkKort } from "../../src/components/MannskapInnsjekkKort";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
@@ -98,11 +98,6 @@ const PRIORITETS_NOEKLER: Record<string, string> = {
   critical: "prioritet.kritisk",
 };
 
-function formaterNummer(prefix: string | null | undefined, nummer: number | null | undefined): string | null {
-  if (!prefix || nummer == null) return null;
-  return `${prefix}${nummer}`;
-}
-
 export default function HjemSkjerm() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
@@ -114,7 +109,6 @@ export default function HjemSkjerm() {
   const [visAndroidMeny, setVisAndroidMeny] = useState(false);
   // Fabel C: «Se alle»/«Vis færre» utvider innboksen inline til dagens tak (10).
   // Lokal (ikke persistert) — resettes ved remount, bevisst enkel løsning.
-  const [visAlleInnboks, setVisAlleInnboks] = useState(false);
   const { valgtFirmaId, firmaer, lasterFirmaer } = useFirma();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -466,11 +460,11 @@ export default function HjemSkjerm() {
               <>
                 {/* Fabel C: maks 3 innboksrader inline så Oppgaver/Sjekklister/
                     Kontrollplaner/HMS-seksjonene holder seg over skjermkanten.
-                    «Se alle» utvider inline til dagens tak (10) — ingen egen
-                    samlet innboks-skjerm finnes, så ingen rute å navigere til.
-                    Badge over = totalantall. */}
+                    «Se alle» navigerer til /innboks (hele den aktive lista med
+                    søk/filter/sortering) — ikke lenger en inline-toggle med
+                    hardt tak på 10. Badge over = totalantall. */}
                 {innboksElementer
-                  .slice(0, visAlleInnboks ? 10 : INNBOKS_MAKS)
+                  .slice(0, INNBOKS_MAKS)
                   .map((element) => (
                   <Pressable
                     key={element.id}
@@ -509,18 +503,12 @@ export default function HjemSkjerm() {
                 {innboksElementer.length > INNBOKS_MAKS && (
                   <Pressable
                     className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
-                    onPress={() => setVisAlleInnboks((v) => !v)}
+                    onPress={() => router.push("/innboks")}
                   >
                     <Text className="text-sm font-medium text-sitedoc-blue">
-                      {visAlleInnboks
-                        ? t("hjem.visFaerreInnboks")
-                        : t("hjem.seAlleInnboks", { antall: innboksElementer.length })}
+                      {t("hjem.seAlleInnboks", { antall: innboksElementer.length })}
                     </Text>
-                    {visAlleInnboks ? (
-                      <ChevronUp size={18} color="#1e40af" />
-                    ) : (
-                      <ChevronDown size={18} color="#1e40af" />
-                    )}
+                    <ChevronRight size={18} color="#1e40af" />
                   </Pressable>
                 )}
               </>

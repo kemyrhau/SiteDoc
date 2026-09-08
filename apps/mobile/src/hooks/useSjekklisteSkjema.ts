@@ -7,7 +7,7 @@ import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -125,44 +125,9 @@ function erSQLiteSynkronisert(sjekklisteId: string): boolean {
   }
 }
 
-// Funn C: en lokal enhets-URL (file:// / /var/…) skal ALDRI persisteres på
-// server. Den er død for alle andre enn denne installasjonen, og overskriver den
-// varige `/uploads/privat/…`-URL-en som køen skriver via `settVedleggUrl`.
-function erLokalUrl(u: unknown): boolean {
-  return typeof u === "string" && (u.startsWith("file://") || u.startsWith("/var/"));
-}
-
-function harLokalUrl(node: unknown): boolean {
-  if (Array.isArray(node)) return node.some(harLokalUrl);
-  if (node !== null && typeof node === "object") {
-    const o = node as Record<string, unknown>;
-    if (erLokalUrl(o.url)) return true;
-    return Object.values(o).some(harLokalUrl);
-  }
-  return false;
-}
-
-/**
- * Utelat felt som fortsatt bærer et vedlegg med lokal URL fra server-payloaden.
- * `oppdaterData` merger feltvis (`{...eksisterende, ...innData}`), så et utelatt
- * felt røres ikke på server — den varige URL-en køen la inn via `settVedleggUrl`
- * klobbes ikke. Feltet synkes fullt så snart opplastingen gir det en server-URL.
- * SQLite beholder alltid full data (samme-install-visning).
- */
-function utelatFeltMedLokaleVedlegg(
-  data: Record<string, FeltVerdi>,
-): Record<string, FeltVerdi> {
-  let endret = false;
-  const ut: Record<string, FeltVerdi> = {};
-  for (const [k, v] of Object.entries(data)) {
-    if (harLokalUrl(v)) {
-      endret = true;
-      continue;
-    }
-    ut[k] = v;
-  }
-  return endret ? ut : data;
-}
+// Funn C — utelatelse av felt med lokal (`file://`/`/var/`) vedlegg-URL ligger nå
+// i `@sitedoc/shared` (`utelatFeltMedLokaleVedlegg`), delt med oppgave-hooken.
+// Lå tidligere som en lokal kopi her sammen med `harLokaltVedlegg`-deteksjonen.
 
 function skrivTilSQLite(
   sjekklisteId: string,

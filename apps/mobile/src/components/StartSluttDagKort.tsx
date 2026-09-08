@@ -31,6 +31,7 @@ import {
   finnOverlappendeTidsrom,
   DEFAULT_PAUSE_ETTER_TIMER,
   type ReiseKategori,
+  type ReiseEnhet,
 } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
 import { rundTimerTilNarmeste } from "../utils/tidsrunding";
@@ -471,6 +472,9 @@ function genererForslag(
   let reiseLonnsartId: string | null = null;
   if (dag.oppmotestedId && regel) {
     let reisetidMin: number | null = null;
+    // Reise-terskel-km: avstand (meter) føres parallelt med varigheten så km-
+    // klassifisering kan bruke den. null = ukjent → konservativ under-type.
+    let avstandM: number | null = null;
     const byggeplassId = resolverPrimaerByggeplass(
       valgtProsjekt.id,
       dag.oppmotestedId,
@@ -478,9 +482,15 @@ function genererForslag(
     if (byggeplassId) {
       const rad = hentMatriseRadLokalt(dag.oppmotestedId, byggeplassId);
       // -1 (uoppnåelig) → 0: ingen forslag, OG hopp over estimat-fallback.
-      if (rad) reisetidMin = rad.kjoretidMin < 0 ? 0 : rad.kjoretidMin;
+      if (rad) {
+        reisetidMin = rad.kjoretidMin < 0 ? 0 : rad.kjoretidMin;
+        // Avstand videreføres rått (-1/null håndteres i klassifiserReise).
+        avstandM = rad.avstandM ?? null;
+      }
     }
-    // Fallback kun når matrisen ikke ga svar (ingen rad/byggeplass).
+    // Fallback kun når matrisen ikke ga svar (ingen rad/byggeplass). Her HAR vi
+    // faktisk avstand direkte (GPS start→slutt) — km-klassifisering virker selv
+    // uten matrise-rad.
     if (
       reisetidMin == null &&
       dag.startLat != null &&
@@ -488,19 +498,24 @@ function genererForslag(
       endLat != null &&
       endLng != null
     ) {
-      reisetidMin = estimerReisetidMin(
-        avstandMeter(
-          { lat: dag.startLat, lng: dag.startLng },
-          { lat: endLat, lng: endLng },
-        ),
+      const fallbackM = avstandMeter(
+        { lat: dag.startLat, lng: dag.startLng },
+        { lat: endLat, lng: endLng },
       );
+      reisetidMin = estimerReisetidMin(fallbackM);
+      avstandM = fallbackM;
     }
     if (reisetidMin != null && reisetidMin > 0) {
-      const kategori: ReiseKategori = klassifiserReise(reisetidMin, {
-        reiseTerskelMin: regel.reiseTerskelMin,
-        reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
-        reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
-      });
+      const kategori: ReiseKategori = klassifiserReise(
+        { reisetidMin, avstandM },
+        {
+          reiseTerskelEnhet: regel.reiseTerskelEnhet as ReiseEnhet,
+          reiseTerskelMin: regel.reiseTerskelMin,
+          reiseTerskelM: regel.reiseTerskelM ?? null,
+          reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
+          reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
+        },
+      );
       if (kategori === "reisetid") {
         // Resolver reise-lønnsart via delt helper — samme kilde som render-
         // laget bruker for reise-merking, så generering og visning aldri

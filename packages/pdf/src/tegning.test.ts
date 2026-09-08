@@ -117,6 +117,54 @@ describe("beregnUtsnittVindu — delt vindu-funksjon (én kilde for rect + crop)
   });
 });
 
+describe("forvrengningsvakt — viewBox-aspect == bilde-aspect (preserveAspectRatio=none kan ikke strekke)", () => {
+  /** Oversiktens ytre SVG: "0 0 vbW vbH". */
+  function hentOversiktViewBox(html: string): { w: number; h: number } {
+    const m = [...html.matchAll(/viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/g)][0]!;
+    return { w: parseFloat(m[3]!), h: parseFloat(m[4]!) };
+  }
+
+  it("bredt bilde (16:9): viewBox har SAMME sideforhold som bildet → ingen strekk", () => {
+    const html = byggTegningPosisjon({
+      tegningBildeUrl: "data:img/x",
+      positionX: 40,
+      positionY: 60,
+      imageWidth: 1600,
+      imageHeight: 900,
+    });
+    const vb = hentOversiktViewBox(html);
+    // <image> fyller viewBoxen (0,0,vbW,vbH) med preserveAspectRatio="none". Så lenge
+    // viewBox-aspect == bilde-aspect er strekkfaktoren 1 i begge akser (no-op).
+    expect(vb.w / vb.h).toBeCloseTo(1600 / 900, 9);
+  });
+
+  it("høyt bilde (3:4): viewBox-aspect følger bildet, ikke en fast kvadrat", () => {
+    const html = byggTegningPosisjon({
+      tegningBildeUrl: "data:img/x",
+      positionX: 50,
+      positionY: 50,
+      imageWidth: 900,
+      imageHeight: 1200,
+    });
+    const vb = hentOversiktViewBox(html);
+    expect(vb.w / vb.h).toBeCloseTo(900 / 1200, 9);
+    expect(vb.w).toBeLessThan(vb.h); // portrett → smalere enn høy, ikke kvadratisk
+  });
+
+  it("uten dims faller den til kvadrat (dokumentert fallback — api-laget måler bort dette)", () => {
+    // Regresjonsanker: NÅR dims mangler ER viewBoxen kvadratisk og `none` strekker.
+    // Fiksen bor i api-sammenstillingen (måler sideforhold fra inlinet JPEG før kall),
+    // ikke her — pdf-laget kan ikke utlede sideforhold fra en data-URI.
+    const html = byggTegningPosisjon({
+      tegningBildeUrl: "data:img/x",
+      positionX: 50,
+      positionY: 50,
+    });
+    const vb = hentOversiktViewBox(html);
+    expect(vb.w).toBe(vb.h);
+  });
+});
+
 describe("byggDetaljUtsnitt — parameterisert målstørrelse (radkort-sti, uendret)", () => {
   it("hoydePx og zoom er parametre; radkort bruker denne (server-croppet bilde, sentrert)", () => {
     const arkiv = byggDetaljUtsnitt({ url: "data:img/x", x: 50, y: 50, hoydePx: 96, zoom: 1 });

@@ -34,44 +34,10 @@ import { byggTransferSnapshot } from "../services/transfer-snapshot";
 import { verifiserRundeIkkeLaast, harÅpenRundeMedSignatur } from "../services/signaturliste";
 import { hentVaerHourly } from "../services/vaer";
 import { resolverVentendeVaer, vaerFeltIder } from "../services/vaer-finalisering";
+import { settUrlPaaVedlegg } from "../services/vedleggUrl";
 
 // Felttyper der verdi er fritekst som skal oversettes
 const FRITEKST_TYPER = new Set(["text_field"]);
-
-/**
- * Funn C (bilder i raden): sett `url` på ett vedlegg (matchet på `id`) hvor enn
- * det ligger i `Checklist.data` — topp-nivå ELLER repeater-/attachments-nestet.
- * Muterer `node` in place (kalleren jobber på en dyp kopi). Returnerer `true`
- * hvis minst ett vedlegg ble truffet.
- */
-function settUrlPaaVedlegg(
-  node: unknown,
-  vedleggId: string,
-  url: string,
-  filnavn: string | undefined,
-): boolean {
-  if (Array.isArray(node)) {
-    let endret = false;
-    for (const n of node) {
-      if (settUrlPaaVedlegg(n, vedleggId, url, filnavn)) endret = true;
-    }
-    return endret;
-  }
-  if (node !== null && typeof node === "object") {
-    const o = node as Record<string, unknown>;
-    let endret = false;
-    if (o.id === vedleggId && typeof o.url === "string") {
-      o.url = url;
-      if (filnavn) o.filnavn = filnavn;
-      endret = true;
-    }
-    for (const v of Object.values(o)) {
-      if (settUrlPaaVedlegg(v, vedleggId, url, filnavn)) endret = true;
-    }
-    return endret;
-  }
-  return false;
-}
 
 // ---------- Dedikert HMS-løp (D1/D2) ----------
 

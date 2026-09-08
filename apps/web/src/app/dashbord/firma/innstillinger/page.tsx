@@ -1165,9 +1165,27 @@ function ReiseSeksjon() {
   });
 
   // R3: on-demand full firma-backfill av reisetid-matrisen (kontor × byggeplass).
-  const beregnMatrise = trpc.oppmotested.beregnMatrise.useMutation();
+  // Invalider setting så «avstand mangler for N par»-tellingen oppdateres etter
+  // en beregning (reise-terskel-km).
+  const beregnMatrise = trpc.oppmotested.beregnMatrise.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  // Varselet gjelder bare når Timer er aktiv for firmaet — er modulen av, er
+  // reise-lønnsart-oppsettet irrelevant og meldingen ville vært støy (samme
+  // effektivTilstand-resolver som TilgangPolicySeksjon bruker).
+  const { data: modulTilstand } = trpc.modul.effektivTilstand.useQuery(
+    { firmaId: orgId!, slugs: ["timer"] },
+    { enabled: !!orgId },
+  );
 
   const [terskel, setTerskel] = useState<string>("30");
+  // Reise-terskel-km: enhet-velger + km-input (desimal km). Minutter og km
+  // holdes i hvert sitt state så bytte av enhet ikke tvinger tapstall.
+  const [enhet, setEnhet] = useState<string>("minutter");
+  const [terskelKm, setTerskelKm] = useState<string>("");
   const [underType, setUnderType] = useState<string>("arbeidstid");
   const [overType, setOverType] = useState<string>("reisetid");
   const [tellerOvertid, setTellerOvertid] = useState<boolean>(false);
@@ -1177,6 +1195,11 @@ function ReiseSeksjon() {
   useEffect(() => {
     if (setting) {
       setTerskel(String(setting.reiseTerskelMin));
+      setEnhet(setting.reiseTerskelEnhet);
+      // Meter → km for visning (7500 → "7.5"). null = ingen km-terskel satt.
+      setTerskelKm(
+        setting.reiseTerskelM != null ? String(setting.reiseTerskelM / 1000) : "",
+      );
       setUnderType(setting.reiseUnderTerskelType);
       setOverType(setting.reiseOverTerskelType);
       setTellerOvertid(setting.reisetidTellerOvertid);
@@ -1192,13 +1215,42 @@ function ReiseSeksjon() {
     (lonnsarter ?? []) as unknown as Array<{ id: string; navn: string; type: string; aktiv: boolean }>
   ).filter((l) => l.type === "ordinaer" && l.aktiv);
 
+  // Reise-lønnsart-varsel (server teller, klienten viser). Gates på Timer aktiv.
+  // Har firmaet valgt en art eksplisitt (reiseLonnsartId), er alt entydig →
+  // stille uansett antall treff. Ellers: 0 treff = ingen art tolkes som reise
+  // (rødt, automatisk reisetid føres aldri); ≥2 = tvetydig (amber, velg én);
+  // nøyaktig 1 = stille (A.Markussens tilstand).
+  const timerAktiv = modulTilstand?.timer === true;
+  const antallReiseTreff = setting.reiseLonnsartMatchAntall;
+  const reiseArtValgt = !!setting.reiseLonnsartId;
+  const visIngenReiseArt = timerAktiv && !reiseArtValgt && antallReiseTreff === 0;
+  const visTvetydigReiseArt = timerAktiv && !reiseArtValgt && antallReiseTreff >= 2;
+
+  // Reise-terskel-km: varsel når firmaet måler i km, men matrise-rader mangler
+  // avstand (beregnet før avstand-kolonnen). De klassifiseres da konservativt
+  // (under-type) til noen trykker «Beregn reisetid-matrise». Uten dette varselet
+  // ville en stille auto-recompute-feil aldri blitt synlig (gate-krav b).
+  const parUtenAvstand = setting.reiseMatriseParUtenAvstand;
+  const visMangelAvstand =
+    timerAktiv && setting.reiseTerskelEnhet === "km" && parUtenAvstand > 0;
+
   function lagre() {
     const min = Number(terskel);
     if (Number.isNaN(min) || min < 0 || min > 1440) return;
+    // km-terskel: parse desimal-km (godta både «7,5» og «7.5») → meter.
+    let terskelM: number | null = null;
+    if (enhet === "km") {
+      const km = Number(terskelKm.replace(",", "."));
+      if (Number.isNaN(km) || km < 0 || km > 1000) return;
+      terskelM = Math.round(km * 1000);
+    }
     oppdater.mutate(
       {
         organizationId: orgId!,
         reiseTerskelMin: min,
+        reiseTerskelEnhet: enhet as "minutter" | "km",
+        // Send km-terskel kun når enhet er km; ellers rør den ikke (bevar verdi).
+        ...(enhet === "km" ? { reiseTerskelM: terskelM } : {}),
         reiseUnderTerskelType: underType as "arbeidstid" | "reisetid",
         reiseOverTerskelType: overType as "arbeidstid" | "reisetid",
         reisetidTellerOvertid: tellerOvertid,
@@ -1217,22 +1269,57 @@ function ReiseSeksjon() {
         {t("firma.innstillinger.reise.beskrivelse")}
       </p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-700">
-            {t("firma.innstillinger.reise.terskel")}
+            {t("firma.innstillinger.reise.enhet")}
           </label>
-          <input
-            type="number"
-            min={0}
-            max={1440}
-            value={terskel}
+          <select
+            value={enhet}
             onChange={(e) => {
-              setTerskel(e.target.value);
+              setEnhet(e.target.value);
               setSkitten(true);
             }}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
-          />
+          >
+            <option value="minutter">
+              {t("firma.innstillinger.reise.enhetMinutter")}
+            </option>
+            <option value="km">{t("firma.innstillinger.reise.enhetKm")}</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            {enhet === "km"
+              ? t("firma.innstillinger.reise.terskelKm")
+              : t("firma.innstillinger.reise.terskel")}
+          </label>
+          {enhet === "km" ? (
+            <input
+              type="number"
+              min={0}
+              max={1000}
+              step={0.1}
+              value={terskelKm}
+              onChange={(e) => {
+                setTerskelKm(e.target.value);
+                setSkitten(true);
+              }}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+            />
+          ) : (
+            <input
+              type="number"
+              min={0}
+              max={1440}
+              value={terskel}
+              onChange={(e) => {
+                setTerskel(e.target.value);
+                setSkitten(true);
+              }}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+            />
+          )}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-700">
@@ -1267,6 +1354,21 @@ function ReiseSeksjon() {
           </select>
         </div>
       </div>
+
+      {visIngenReiseArt && (
+        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-800">
+            {t("firma.innstillinger.reise.varselIngenArt")}
+          </p>
+        </div>
+      )}
+      {visTvetydigReiseArt && (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            {t("firma.innstillinger.reise.varselTvetydigArt")}
+          </p>
+        </div>
+      )}
 
       <div className="mt-3 sm:max-w-xs">
         <label className="mb-1 block text-xs font-medium text-gray-700">
@@ -1351,6 +1453,15 @@ function ReiseSeksjon() {
             </span>
           )}
         </div>
+        {visMangelAvstand && (
+          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-800">
+              {t("firma.innstillinger.reise.matriseMangelAvstand", {
+                antall: parUtenAvstand,
+              })}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

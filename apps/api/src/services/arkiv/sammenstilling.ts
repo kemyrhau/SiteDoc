@@ -43,7 +43,7 @@ import { hentSignaturListeData } from "../signaturliste";
 import { resolverPersonnavn } from "./persons-resolver";
 import { inlineBilder } from "./bilde-inliner";
 import { lesHendelseslogg, lesEndringslogg } from "./logg-lesere";
-import { samleRepeaterMarkorer, byggUtsnittCrop, type RepeaterMarkor } from "./tegningsmarkorer";
+import { samleRepeaterMarkorer, byggUtsnittCrop, malBildeDimensjoner, type RepeaterMarkor } from "./tegningsmarkorer";
 import { injiserGrenseSnapshot } from "./grensesnapshot";
 
 interface BildeRef { url: string; filnavn?: string; type?: string }
@@ -329,15 +329,32 @@ async function byggArkivHtmlKjerne(
   // valgfritt på PdfConfig → mobil uendret). Henting feilet → hoppes over
   // (filnavnet er alt ført i `manglende`); rendreren utelater da blokken.
   const tegningsOppslag: Record<string, TegningsOppslagOppf> = {};
+  let malteDims = 0; // kostnadsteller: sharp-metadata kjøres KUN for tegninger uten lagrede dims
   for (const t of tegninger) {
     const url = dataUrl.get(t.fileUrl);
     if (!url) continue;
+    let bredde = t.imageWidth;
+    let hoyde = t.imageHeight;
+    // Mangler Drawing.imageWidth/Height (ukonvertert PDF, eldre rad, ortofoto uten dim-fangst)
+    // → byggTegningPosisjon faller til kvadratisk viewBox og strekker et rektangulært bilde.
+    // Mål sideforholdet fra det ALLEREDE inlinede JPEG-et (ingen ny henting; header-lesing
+    // måler nøyaktig det SVG-en rendrer). Varig fiks: backfill kolonnen i DB (egen migrering).
+    if (bredde == null || hoyde == null) {
+      const komma = url.indexOf(",");
+      const dim = komma >= 0
+        ? await malBildeDimensjoner(Buffer.from(url.slice(komma + 1), "base64"))
+        : null;
+      if (dim) { bredde = dim.bredde; hoyde = dim.hoyde; malteDims++; }
+    }
     tegningsOppslag[t.id] = {
       dataUrl: url,
-      imageWidth: t.imageWidth,
-      imageHeight: t.imageHeight,
+      imageWidth: bredde,
+      imageHeight: hoyde,
       navn: tegningNavn(t),
     };
+  }
+  if (malteDims > 0) {
+    console.log(`[arkiv] Målte sideforhold for ${malteDims} tegning(er) uten lagrede dims (fallback-strekk unngått)`);
   }
 
   // 3c) D2b (Kenneth-vedtak 2026-08-21): crop-utsnitt per repeater-markør (sharp,

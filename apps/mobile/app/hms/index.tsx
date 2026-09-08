@@ -20,6 +20,7 @@ import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { HmsMalVelger, type HmsMal, type HmsSubdomain } from "../../src/components/HmsMalVelger";
+import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 
 const FANER: HmsSubdomain[] = ["avvik", "sja", "ruh"];
 
@@ -38,11 +39,6 @@ interface HmsDokumenter {
   avvik: HmsRad[];
   sja: HmsRad[];
   ruh: HmsRad[];
-}
-
-function formaterNummer(prefix: string | null | undefined, nummer: number | null | undefined): string | null {
-  if (!prefix || nummer == null) return null;
-  return `${prefix}${nummer}`;
 }
 
 export default function HmsListe() {

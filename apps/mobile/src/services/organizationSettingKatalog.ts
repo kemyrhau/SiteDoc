@@ -71,6 +71,10 @@ export async function refreshOrganizationSettingKatalog(
       // Fase 3 (§ B): reise-regelsett. Defaultes hvis server-feltet mangler
       // (eldre server mot ny klient) — samme verdier som schema-default.
       reiseTerskelMin: setting.reiseTerskelMin ?? 30,
+      // Reise-terskel-km: enhet + km-terskel. Default "minutter" hvis server-
+      // feltet mangler (eldre server mot ny klient) — bevarer klassifisering.
+      reiseTerskelEnhet: setting.reiseTerskelEnhet ?? "minutter",
+      reiseTerskelM: setting.reiseTerskelM ?? null,
       reiseUnderTerskelType: setting.reiseUnderTerskelType ?? "arbeidstid",
       reiseOverTerskelType: setting.reiseOverTerskelType ?? "reisetid",
       reisetidTellerOvertid: setting.reisetidTellerOvertid ?? false,

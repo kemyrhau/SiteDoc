@@ -16,6 +16,7 @@ import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { ModalFlate } from "../../src/components/ModalFlate";
 import { ArkivPdfForhandsvisning } from "../../src/components/ArkivPdfForhandsvisning";
+import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import { useNettverk } from "../../src/providers/NettverkProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -83,14 +84,6 @@ function formaterHistorikkDato(dato: Date | string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function formaterNummer(
-  prefix: string | null | undefined,
-  nummer: number | null | undefined,
-): string | null {
-  if (!prefix || nummer == null) return null;
-  return `${prefix}${nummer}`;
 }
 
 function formaterKlokke(dato: Date): string {

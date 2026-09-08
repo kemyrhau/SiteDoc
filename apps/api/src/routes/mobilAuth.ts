@@ -78,6 +78,64 @@ interface Logg {
   warn: (obj: object, msg: string) => void;
 }
 
+// Ren claim-validering, skilt ut fra jwtVerify-innpakningen så den er testbar
+// UTEN jose/JWKS (samme mønster som erKunKosmetiskConfigEndring i mal.ts).
+// Kaster TRPCError ved iss/tid-avvik eller manglende oid/UPN. `logg` er valgfri
+// — tester kaller uten, prod sender inn `req.log` for struktur-varsel.
+//
+// IDENTITET tas KUN fra `preferred_username` (UPN). UPN er bundet til et
+// domene-verifisert i tenanten, så en fremmed gratis-tenant kan IKKE forfalske
+// en eksisterende brukers adresse. `mail`/`email`-claimet er tenant-admin-styrt
+// og brukes ALDRI til identitet (kontooppslag/invitasjonsmatch) — kun som
+// visnings-fallback for navn. Det utrustede `mail`-claimet var overtakelses-
+// vektoren (se byttToken (a)/(c) under).
+export function validerMicrosoftClaims(
+  payload: JWTPayload,
+  logg?: Logg,
+): UserInfo {
+  // Flertenant iss-validering: iss MÅ være Microsofts well-formed v2-issuer for
+  // tokenets egen tenant (tid). Fanger forfalsket eller uoverensstemmende iss/tid.
+  const tid = typeof payload.tid === "string" ? payload.tid : null;
+  const forventetIss = tid
+    ? `https://login.microsoftonline.com/${tid}/v2.0`
+    : null;
+  if (!tid || payload.iss !== forventetIss) {
+    logg?.warn(
+      { kode: "iss_tid_mismatch", harTid: !!tid },
+      "Microsoft ID-token: iss matcher ikke tid",
+    );
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Ugyldig Microsoft-token.",
+    });
+  }
+
+  const oid = typeof payload.oid === "string" ? payload.oid : null;
+  // UPN = autoritativ identitets-e-post (verifisert domene).
+  const upn =
+    typeof payload.preferred_username === "string" && payload.preferred_username
+      ? payload.preferred_username
+      : null;
+  // `mail`/`email`-claimet: KUN visnings-fallback for navn, aldri identitet.
+  const mailClaim =
+    typeof payload.email === "string" && payload.email ? payload.email : null;
+  const name =
+    (typeof payload.name === "string" && payload.name) || mailClaim || null;
+
+  if (!oid || !upn) {
+    logg?.warn(
+      { kode: "mangler_paakrevd_claim", manglerOid: !oid, manglerUpn: !upn },
+      "Microsoft ID-token mangler oid/UPN",
+    );
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Microsoft-token mangler påkrevde felt (oid/UPN).",
+    });
+  }
+
+  return { email: upn, name, image: null, providerAccountId: oid };
+}
+
 async function hentMicrosoftBrukerinfoFraIdToken(
   idToken: string,
   logg: Logg,
@@ -111,45 +169,7 @@ async function hentMicrosoftBrukerinfoFraIdToken(
     });
   }
 
-  // Flertenant iss-validering: iss MÅ være Microsofts well-formed v2-issuer for
-  // tokenets egen tenant (tid). Fanger forfalsket eller uoverensstemmende iss/tid.
-  const tid = typeof payload.tid === "string" ? payload.tid : null;
-  const forventetIss = tid
-    ? `https://login.microsoftonline.com/${tid}/v2.0`
-    : null;
-  if (!tid || payload.iss !== forventetIss) {
-    logg.warn(
-      { kode: "iss_tid_mismatch", harTid: !!tid },
-      "Microsoft ID-token: iss matcher ikke tid",
-    );
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "Ugyldig Microsoft-token.",
-    });
-  }
-
-  const oid = typeof payload.oid === "string" ? payload.oid : null;
-  // email-claim krever `email`-scope og et satt mail-attributt; faller tilbake
-  // til preferred_username (UPN) — speiler den gamle mail ?? userPrincipalName.
-  const email =
-    (typeof payload.email === "string" && payload.email) ||
-    (typeof payload.preferred_username === "string" &&
-      payload.preferred_username) ||
-    null;
-  const name = typeof payload.name === "string" ? payload.name : null;
-
-  if (!oid || !email) {
-    logg.warn(
-      { kode: "mangler_paakrevd_claim", manglerOid: !oid, manglerEpost: !email },
-      "Microsoft ID-token mangler oid/e-post",
-    );
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "Microsoft-token mangler påkrevde felt (oid/e-post).",
-    });
-  }
-
-  return { email, name, image: null, providerAccountId: oid };
+  return validerMicrosoftClaims(payload, logg);
 }
 
 export const mobilAuthRouter = router({
@@ -203,18 +223,16 @@ export const mobilAuthRouter = router({
       // 2. Orphan-guard + finn/opprett bruker. Speiler web-guarden
       // (apps/web/src/auth.ts): hindre at uinviterte OAuth-pålogginger
       // oppretter tomme orphan-kontoer som låser e-poster. Slipp KUN gjennom
-      // hvis (a) eksisterende canLogin-bruker (dekker (d) sitedoc_admin),
-      // (b) ventende invitasjon, eller (c) allerede koblet konto.
+      // hvis (c) allerede koblet konto, (a) eksisterende canLogin-bruker
+      // (dekker (d) sitedoc_admin), eller (b) ventende invitasjon.
 
-      // (a) Eksisterende canLogin-bruker på e-posten (case-insensitiv, eldste først).
-      let bruker = await ctx.prisma.user.findFirst({
-        where: { email: { equals: brukerinfo.email, mode: "insensitive" }, canLogin: true },
-        orderBy: { createdAt: "asc" },
-      });
-
-      // (c) Returnerende bruker via allerede koblet konto — slå opp FØR
-      // eventuell opprettelse, kritisk hvis DB-e-posten er endret bort fra
-      // tilbyderens e-post (koblingen ligger på provider+providerAccountId).
+      // (c) IDENTITET FØRST: returnerende bruker via allerede koblet konto
+      // (provider+providerAccountId=oid). oid er en signatur-verifisert, sterk
+      // identitet — den skal ALLTID vinne over e-postoppslaget. Kjøres FØR (a)
+      // slik at en fremmed identitet aldri kan bindes til en etablert konto på
+      // en e-post den ikke eier (kontoovertakelses-vektoren: en fremmed tenant
+      // satte `mail` til offerets adresse, traff offerets konto på e-post, og
+      // ble deretter permanent koblet inn på offerets bruker ved account.create).
       const eksisterendeKonto = await ctx.prisma.account.findUnique({
         where: {
           provider_providerAccountId: {
@@ -223,8 +241,19 @@ export const mobilAuthRouter = router({
           },
         },
       });
-      if (!bruker && eksisterendeKonto) {
-        bruker = await ctx.prisma.user.findUnique({ where: { id: eksisterendeKonto.userId } });
+      let bruker = eksisterendeKonto
+        ? await ctx.prisma.user.findUnique({ where: { id: eksisterendeKonto.userId } })
+        : null;
+
+      // (a) Fallback: eksisterende canLogin-bruker på e-posten (case-insensitiv,
+      // eldste først) — KUN når ingen oid-konto finnes. For Microsoft er e-posten
+      // nå UPN (verifisert domene), så en fremmed tenant kan ikke matche seg inn
+      // her; for Google er den Google-verifisert.
+      if (!bruker) {
+        bruker = await ctx.prisma.user.findFirst({
+          where: { email: { equals: brukerinfo.email, mode: "insensitive" }, canLogin: true },
+          orderBy: { createdAt: "asc" },
+        });
       }
 
       // Admission-gate (sak #2 2026-07-04): speiler web signIn-innstrammingen
