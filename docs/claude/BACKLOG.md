@@ -235,15 +235,15 @@ allerede sin.
 
 | Vei | Tilstand |
 |---|---|
-| **Gruppe → kontakt** | 🟢 **Ferdig.** `gruppe.leggTilMedlem` tar en **e-post**, finner/oppretter `User`, finner/oppretter `ProjectMember`, legger så til i gruppen (`gruppe.ts:327`) |
+| **Gruppe → kontakt** | 🟢 **Ferdig.** Alle veier går nå gjennom `medlem.registrer` (registreringsmodell fase 1, `medlem.ts`): finner/oppretter `User` (userId eksakt, ellers e-post) → `ProjectMember` → valgfri gruppe/faggruppe/flyt, ALT i én transaksjon. Erstattet `gruppe.leggTilMedlem` + `medlem.leggTil` |
 | **Arven** | 🟢 **Strukturell.** `GruppeMedlem` og `DokumentflytMedlem` peker begge på `projectMemberId` — **det er umulig å være i gruppe eller flyt uten å være i kontaktlista** |
-| **Dokumentflyt → kontakt** | 🟡 **Halvveis.** Batch-veien for firmaansatte «sikrer ProjectMember for hver». 🔴 Men `dokumentflyt.leggTilMedlem` tar `projectMemberId` direkte — **ingen e-post-vei for et nytt eksternt menneske** |
+| **Dokumentflyt → kontakt** | 🟢 **Løst (fase 1).** `medlem.registrer` tar `email`/`userId` + `flytBindinger` og binder person → prosjektmedlem → flyt-rolle i én transaksjon. E-post-veien inn i flyten som manglet finnes nå; en feil ruller alt tilbake (ingen foreldreløs kontakt) |
 | **Forslagslaget** | 🔴 **Finnes ikke noe sted.** Hver handling fullfører seg selv og sier ingenting om de to tomme tilknytningene |
 
 🔴 **To gap, ulik størrelse:**
-1. 🟡 **Forslagslaget** — nytt, men UI oppå data som finnes.
-2. 🔴 **E-post-vei inn i dokumentflyten** — gruppen har den, flyten ikke. **Reell asymmetri, må være
-   et valg.**
+1. 🟡 **Forslagslaget** — nytt, men UI oppå data som finnes. **Fase 2** (Kontakter-flaten i tre nivåer).
+2. ✅ **E-post-vei inn i dokumentflyten** — **løst i fase 1** (`feat/registrering-en-vei`): `medlem.registrer`
+   binder person + flyt-rolle i én transaksjon, e-post-keyet. Asymmetrien mot gruppen er borte.
 
 ⚠️ **Hjemmel finnes:** [prosjektoppsett-veileder.md](prosjektoppsett-veileder.md) står som
 🟡 PLAN «steg-for-steg ny bruker». **Kenneths forslag er den veilederen, men kontekstuell i stedet

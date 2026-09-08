@@ -239,7 +239,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     },
   });
 
-  const leggTilMedlemMutation = trpc.gruppe.leggTilMedlem.useMutation({
+  const leggTilMedlemMutation = trpc.medlem.registrer.useMutation({
     onSuccess: () => {
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
@@ -1031,12 +1031,13 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                                         const firstName = nameParts[0] || info.email;
                                         const lastName = nameParts.slice(1).join(" ") || "-";
                                         leggTilMedlemMutation.mutate({
-                                          groupId: gruppeId,
                                           projectId: prosjektId,
+                                          userId: k.user.id,
                                           email: info.email,
                                           firstName,
                                           lastName,
                                           phone: info.phone ?? undefined,
+                                          gruppeIder: [gruppeId],
                                         });
                                       }
                                     }}
@@ -1334,11 +1335,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                             if (e.target.value) {
                               const nameParts = (m.user.name ?? "").split(" ");
                               leggTilMedlemMutation.mutate({
-                                groupId: e.target.value,
                                 projectId: prosjektId,
+                                userId: m.user.id,
                                 email: m.user.email,
                                 firstName: nameParts[0] || m.user.email,
                                 lastName: nameParts.slice(1).join(" ") || "-",
+                                gruppeIder: [e.target.value],
                               });
                               e.target.value = "";
                             }

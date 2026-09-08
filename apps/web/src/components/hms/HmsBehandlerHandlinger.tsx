@@ -42,7 +42,7 @@ export function HmsBehandlerHandlinger({
   };
 
   const meldMegInn = trpc.gruppe.meldMegInn.useMutation({ onSuccess: invalider });
-  const leggTil = trpc.gruppe.leggTilMedlem.useMutation({
+  const leggTil = trpc.medlem.registrer.useMutation({
     onSuccess: () => {
       invalider();
       setVisVelg(false);
@@ -82,11 +82,11 @@ export function HmsBehandlerHandlinger({
                     key={k.id}
                     onClick={() =>
                       leggTil.mutate({
-                        groupId: hmsGruppeId,
                         projectId: prosjektId,
                         email: k.epost,
                         firstName: deler[0] || k.epost,
                         lastName: deler.slice(1).join(" ") || "-",
+                        gruppeIder: [hmsGruppeId],
                       })
                     }
                     disabled={leggTil.isPending}

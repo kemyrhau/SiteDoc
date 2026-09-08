@@ -25,7 +25,7 @@ En bruker kan tilhøre flere faggrupper via `FaggruppeKobling`. Admin uten tilkn
 
 `ProjectMember.erFirmaansvarlig` (Boolean, per prosjekt) — markerer prosjektmedlemmet som firmaansvarlig. Skjold-ikoner i UI: blått = Admin, gult = Firmaansvarlig. Settes via rolle-dropdown i kontakttabellen (Brukere-siden).
 
-**Invitasjonsrettighet:** Firmaansvarlig kan invitere nye brukere via `medlem.leggTil` — kun fra eget firma (`organizationId` må matche), kan ikke opprette admin-brukere. Invitasjonsliste: admin ser alt, firmaansvarlig kun egne, andre → 403. Guard: `verifiserAdminEllerFirmaansvarlig()`.
+**Invitasjonsrettighet:** Firmaansvarlig kan invitere nye brukere via `medlem.registrer` (`apps/api/src/routes/medlem.ts`, registreringsmodell fase 1) — kun fra eget firma (`organizationId` må matche), kan ikke opprette admin-brukere. Gruppe-/flyt-binding i samme kall krever full admin (auth-trapp). Invitasjonsliste: admin ser alt, firmaansvarlig kun egne, andre → 403. Guard: `verifiserAdminEllerFirmaansvarlig()`.
 
 ## Gruppemodulere
 
@@ -88,7 +88,7 @@ Sjekklister og oppgaver har **identisk** UI-struktur (sidebar, tabellvisning, de
 1. Admin klikker «Inviter ny» i kontakttabellen (sticky header)
 2. Fyller ut fornavn, etternavn, e-post, telefon (valgfritt), firma (påkrevd)
 3. Firma-dropdown: eksisterende organisasjoner + «+ Nytt firma» (oppretter Organization inline)
-4. `medlem.leggTil` → `ProjectMember` opprettes med `organizationId` satt på brukeren
+4. `medlem.registrer` → `ProjectMember` opprettes med `organizationId` satt på brukeren (én transaksjon; ev. faggruppe/gruppe/flyt-binding i samme kall)
 5. Ingen `Account` → `ProjectInvitation` med token (7 dager) → e-post via Resend
 6. Akseptlenke → `/aksepter-invitasjon?token=...`
 7. OAuth-innlogging → `allowDangerousEmailAccountLinking` → akseptert → redirect

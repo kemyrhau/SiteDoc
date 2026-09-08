@@ -110,7 +110,7 @@ Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bru
 - `gpsDataSchema`, `geoReferanseSchema`
 - `createProjectSchema`, `createEnterpriseSchema`, `createByggeplassSchema` (tidligere `createBuildingSchema`)
 - `createWorkflowSchema`, `updateWorkflowSchema` (deprecated — erstattet av Dokumentflyt)
-- `addMemberSchema`, `addGroupMemberByEmailSchema`
+- `registrerMedlemSchema` (én komplett registrering — erstattet `addMemberSchema` + `addGroupMemberByEmailSchema`, registreringsmodell fase 1)
 - `drawingDisciplineSchema`, `drawingTypeSchema`, `drawingStatusSchema`, `createDrawingSchema`
 - `groupCategorySchema`, `createProjectGroupSchema`, `updateProjectGroupSchema`
 - `settMappeTilgangSchema`
