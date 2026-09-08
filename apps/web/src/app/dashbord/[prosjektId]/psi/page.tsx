@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
@@ -35,7 +35,11 @@ export default function PsiDashboardSide() {
     { enabled: !!aktivPsiId },
   );
 
-  const isLoading = psiLaster || (sigLaster && !!aktivPsiId);
+  // Full-side-spinner KUN ved første last. Når innholdet er vist én gang,
+  // tar seksjons-spinneren over ved bygg-bytte slik at fanene blir stående
+  // og brukeren beholder navigasjonskonteksten han selv utløste.
+  const harVistInnhold = useRef(false);
+  const isLoading = psiLaster || (sigLaster && !!aktivPsiId && !harVistInnhold.current);
 
   if (isLoading) {
     return (
@@ -59,6 +63,9 @@ export default function PsiDashboardSide() {
       </div>
     );
   }
+
+  // Latch: fra nå tar seksjons-spinneren tab-bytter (se isLoading over).
+  harVistInnhold.current = true;
 
   const harFlerePsi = (psiListe as PsiRad[]).length > 1;
   const signaturer = data?.signaturer ?? [];
