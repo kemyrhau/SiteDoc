@@ -736,6 +736,8 @@
   "handling.godkjenn": "Aproba",
   "handling.avvis": "Respinge",
   "handling.lukk": "Aproape",
+  "kollisjon.notat.tittel": "Notat – câmpul a fost deja completat",
+  "kollisjon.varsel.tekst": "Valoarea dvs. de pe câmpurile {{antall}} nu a putut suprascrie o valoare care există deja. Se salvează sub formă de notă de câmp, cu nume și oră – nu se pierde nimic. Cine deține mingea o poate muta înăuntru.",
   "handling.ferdig": "Făcut",
   "handling.sok": "Căutare",
   "handling.eksporter": "Export",

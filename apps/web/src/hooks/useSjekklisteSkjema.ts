@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
-import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
+import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
 import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
@@ -34,6 +34,11 @@ export interface UseSjekklisteSkjemaResultat {
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
+  /** Tapende verdier notert ved kollisjon, pr. felt (feltnær visning). */
+  hentTilfoyelser: (objektId: string) => Tilfoyelse[];
+  /** Felt som nettopp fikk en kollisjons-tilføyelse (live-varsel); tømmes av `avvisKollisjoner`. */
+  sisteKollisjoner: { feltId: string }[];
+  avvisKollisjoner: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
@@ -58,6 +63,13 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   // Ref for å unngå stale closure i lagreIntern
   const feltVerdierRef = useRef(feltVerdier);
   feltVerdierRef.current = feltVerdier;
+
+  // Kollisjons-deteksjon (dirty-scopet payload): `endredeRef` = felt endret siden siste
+  // synk; `basisRef` = verdien klienten TRODDE feltet hadde (server-synket) → sendes som
+  // `base` slik at serveren kan skille «endret av meg» fra «klobber en annens ferske verdi».
+  const endredeRef = useRef<Set<string>>(new Set());
+  const basisRef = useRef<Record<string, unknown>>({});
+  const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
 
   const utils = trpc.useUtils();
   const slettBildeMutation = trpc.bilde.slettMedUrl.useMutation();
@@ -103,11 +115,26 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
 
     settFeltVerdier(initialisert);
     settErInitialisert(true);
+
+    // Basis = server-synket verdi pr. felt; ingen felt er «endret» ved init.
+    basisRef.current = Object.fromEntries(
+      Object.entries(initialisert).map(([id, fv]) => [id, fv.verdi ?? null]),
+    );
+    endredeRef.current = new Set();
   }, [sjekkliste, alleObjekter, erInitialisert]);
 
   const hentFeltVerdi = useCallback(
     (objektId: string): FeltVerdi => feltVerdier[objektId] ?? TOM_FELTVERDI,
     [feltVerdier],
+  );
+
+  // Tapende verdier notert ved kollisjon — leses fra server-data, vises feltnært.
+  const hentTilfoyelser = useCallback(
+    (objektId: string): Tilfoyelse[] => {
+      const felt = (sjekkliste?.data as Record<string, { tilfoyelser?: unknown }> | undefined)?.[objektId];
+      return Array.isArray(felt?.tilfoyelser) ? (felt!.tilfoyelser as Tilfoyelse[]) : [];
+    },
+    [sjekkliste],
   );
 
   // Lagre til server
@@ -116,20 +143,46 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   const lagreIntern = useCallback(async () => {
     if (!sjekklisteId) return;
 
-    const data = feltVerdierRef.current;
+    // Dirty-scopet: send KUN endrede felt + `base` (antatt gammel verdi). Mindre payload
+    // enn før, og forutsetning for at serveren kan oppdage kollisjon. Tøm dirty FØR sending
+    // så endringer under flight re-populerer og fanges av neste lagring.
+    const alle = feltVerdierRef.current;
+    const sendt = [...endredeRef.current];
+    if (sendt.length === 0) return;
+    endredeRef.current = new Set();
+    const data = Object.fromEntries(sendt.map((id) => [id, alle[id]]).filter(([, v]) => v !== undefined));
+    const base = Object.fromEntries(sendt.map((id) => [id, basisRef.current[id] ?? null]));
+    const sendtVerdier = Object.fromEntries(sendt.map((id) => [id, alle[id]?.verdi ?? null]));
     settLagreStatus("lagrer");
 
     try {
-      await oppdaterDataMutasjon.mutateAsync({
-        id: sjekklisteId,
-        data,
-      });
+      const res = await oppdaterDataMutasjon.mutateAsync({ id: sjekklisteId, data, base });
+      // Avanser basis til det som faktisk ble sendt (felt endret under flight er re-dirty).
+      for (const id of sendt) basisRef.current[id] = sendtVerdier[id];
+
+      const kollisjoner = (res as { kollisjoner?: { feltId: string }[] })?.kollisjoner ?? [];
+      if (kollisjoner.length > 0) {
+        settSisteKollisjoner(kollisjoner);
+        // Vinner (server-verdi) tilbake i feltet; brukerens tapende verdi vises som tilføyelse.
+        const serverData = (res as { data?: Record<string, { verdi?: unknown }> }).data ?? {};
+        settFeltVerdier((prev) => {
+          const oppd = { ...prev };
+          for (const { feltId } of kollisjoner) {
+            const serverVerdi = serverData[feltId]?.verdi ?? null;
+            oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi: serverVerdi };
+            basisRef.current[feltId] = serverVerdi;
+          }
+          return oppd;
+        });
+      }
+
       await utils.sjekkliste.hentMedId.invalidate({ id: sjekklisteId });
       settLagreStatus("lagret");
 
       if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
       statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 2000);
     } catch {
+      for (const id of sendt) endredeRef.current.add(id); // gjenopprett dirty ved feil
       settLagreStatus("feil");
       if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
       statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 3000);
@@ -169,6 +222,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           },
         };
       });
+      endredeRef.current.add(objektId);
       planleggLagring();
     },
     [planleggLagring],
@@ -201,6 +255,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           },
         };
       });
+      endredeRef.current.add(objektId);
       planleggLagring();
     },
     [planleggLagring],
@@ -221,6 +276,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           },
         };
       });
+      endredeRef.current.add(objektId);
       planleggLagring();
 
       if (vedlegg?.url) {
@@ -345,6 +401,9 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
       : undefined,
     erLaster: sjekklisteQuery.isLoading,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner: () => settSisteKollisjoner([]),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

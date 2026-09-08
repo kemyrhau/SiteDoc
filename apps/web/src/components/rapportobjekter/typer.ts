@@ -124,6 +124,17 @@ export interface FeltVerdi {
 export const TOM_FELTVERDI: FeltVerdi = { verdi: null, kommentar: "", vedlegg: [] };
 
 /**
+ * Tapende verdi bevart på et felt ved kollisjon (feltvis merge-deteksjon). Skrives av
+ * serveren (`services/kollisjonsmerge.ts`); klienten leser og viser den feltnært.
+ */
+export interface Tilfoyelse {
+  verdi: unknown;
+  brukerNavn: string;
+  brukerId?: string;
+  tidspunkt: string;
+}
+
+/**
  * Repeater-RAD (rad-id-vedtak 2026-08-22, variant OMSLUTTING): `{ _radId, felter }`, ikke en
  * naken `Record`. `_radId` er en STABIL id tildelt ved opprettelse og bevart gjennom redigering/
  * sletting — fundamentet for persistente rad-scopede oppgaver (array-indeks brekker ved

@@ -177,6 +177,9 @@ export default function SjekklisteDetaljSide() {
     sjekkliste,
     erLaster,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -935,6 +938,23 @@ export default function SjekklisteDetaljSide() {
         />
       )}
 
+      {/* Kollisjons-varsel (live): en eller flere av dine verdier ble notert som tilføyelse
+          fordi feltet allerede var fylt. Ingenting forsvant — verdien står ved feltet. */}
+      {sisteKollisjoner.length > 0 && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">
+            {t("kollisjon.varsel.tekst", { antall: sisteKollisjoner.length })}
+          </p>
+          <button
+            type="button"
+            onClick={avvisKollisjoner}
+            className="shrink-0 text-xs font-medium text-amber-700 hover:underline"
+          >
+            {t("handling.lukk")}
+          </button>
+        </div>
+      )}
+
       {/* Rapportobjekter */}
       <UtfyllingSeksjoner
         objekter={objekter}
@@ -1068,6 +1088,7 @@ export default function SjekklisteDetaljSide() {
                 onOversett={() => oversettFelt(objekt as { id: string; label: string; config: Record<string, unknown> })}
                 visOversettKnapp={visOversettKnapp}
                 originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
+                tilfoyelser={hentTilfoyelser(objekt.id)}
               >
                 <RapportObjektRenderer
                   objekt={objekt}

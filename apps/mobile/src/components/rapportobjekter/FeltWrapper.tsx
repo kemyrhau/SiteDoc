@@ -3,12 +3,26 @@ import { useState, type ReactNode } from "react";
 import { Plus, Info, Globe } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
-import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
+import type { Vedlegg, Tilfoyelse } from "../../hooks/useSjekklisteSkjema";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 import { tilbehorVisning } from "./RapportObjektRenderer";
 
 /** Felttyper som ikke skal ha vedlegg/kommentar eller oppgave-badge */
 const SKJUL_VEDLEGG_TYPER = new Set(["date", "date_time", "weather"]);
+
+function formaterTilfoyelseTid(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? ""
+    : d.toLocaleString("nb-NO", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function tilfoyelseVerdiTekst(verdi: unknown): string {
+  if (verdi == null) return "";
+  if (typeof verdi === "string" || typeof verdi === "number" || typeof verdi === "boolean") return String(verdi);
+  if (Array.isArray(verdi)) return verdi.map((v) => tilfoyelseVerdiTekst(v)).filter(Boolean).join(", ");
+  return JSON.stringify(verdi);
+}
 
 interface FeltWrapperProps {
   objekt: {
@@ -43,6 +57,8 @@ interface FeltWrapperProps {
   visOversettKnapp?: boolean;
   /** Original fritekst-data (Lag 3: arbeiderens originaltekst) */
   originalData?: { spraak: string; verdi?: string; kommentar?: string };
+  /** Tapende verdier notert ved kollisjon (feltvis merge-deteksjon) — vises feltnært. */
+  tilfoyelser?: Tilfoyelse[];
   children: ReactNode;
 }
 
@@ -70,6 +86,7 @@ export function FeltWrapper({
   onOversett,
   visOversettKnapp,
   originalData,
+  tilfoyelser,
   children,
 }: FeltWrapperProps) {
   const { t } = useTranslation();
@@ -141,6 +158,27 @@ export function FeltWrapper({
         <View className="mt-1 rounded bg-gray-50 px-2 py-1.5">
           <Text className="text-[10px] uppercase tracking-wider text-gray-400">{t("felt.original", { spraak: originalData.spraak })}</Text>
           <Text className="text-xs text-gray-500">{originalData.verdi}</Text>
+        </View>
+      )}
+
+      {/* Tapende verdier ved kollisjon (feltvis merge-deteksjon). Feltnært og synlig —
+          den som skal rette etterpå ser hva som ble notert, av hvem, når. Ingenting slettes. */}
+      {tilfoyelser && tilfoyelser.length > 0 && (
+        <View className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <Text className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+            {t("kollisjon.notat.tittel")}
+          </Text>
+          <View className="mt-1 gap-1.5">
+            {tilfoyelser.map((til, i) => (
+              <View key={`${til.tidspunkt}-${i}`} className="border-l-2 border-amber-300 pl-2">
+                <Text className="text-sm text-gray-800">{tilfoyelseVerdiTekst(til.verdi)}</Text>
+                <Text className="text-[11px] text-amber-700">
+                  {til.brukerNavn}
+                  {til.tidspunkt ? ` · ${formaterTilfoyelseTid(til.tidspunkt)}` : ""}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       )}
 

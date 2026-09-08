@@ -3,6 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
+import { kollisjonsmerge, type Kollisjon } from "../services/kollisjonsmerge";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { medNummerRetry } from "../utils/nummerRetry";
@@ -722,6 +723,11 @@ export const oppgaveRouter = router({
       z.object({
         id: z.string().uuid(),
         data: z.record(z.string(), z.unknown()),
+        // Dirty-scopet kollisjons-deteksjon (samme som sjekkliste): hva klienten
+        // TRODDE hvert endret felt inneholdt. Til stede = ny klient → kollisjonsmerge
+        // (append-only-brudd blir tilføyelse); fraværende = eldre klient → dagens
+        // append-only-throw beholdes (ingen regresjon).
+        base: z.record(z.string(), z.unknown()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -762,7 +768,11 @@ export const oppgaveRouter = router({
       // Kun i draft er alt fritt redigerbart. Klient-låsen (beregnLaasteFelter) speiler dette,
       // men er best-effort UI — her ligger håndhevelsen. Kommentar/vedlegg (tilføyelser) ligger
       // i samme feltobjekt og slipper alltid gjennom: uendret `verdi` treffer ikke vakten.
-      if (oppgave.status !== "draft") {
+      //
+      // Ny klient (base sendt): dette bruddet KASTES ikke — det håndteres som kollisjon i
+      // transaksjonen (`appendOnly: true`), der den innkommende verdien blir en tilføyelse
+      // og eksisterende verdi står. Kun eldre klienter (uten base) treffer throw-en her.
+      if (!input.base && oppgave.status !== "draft") {
         const lagretData = (oppgave.data ?? {}) as Record<string, { verdi?: unknown } | undefined>;
         for (const [feltId, innFelt] of Object.entries(input.data)) {
           const gammelFelt = lagretData[feltId];
@@ -793,16 +803,9 @@ export const oppgaveRouter = router({
         }
       }
 
-      // Generer endringslogg-innslag hvis aktivert på malen. Delt med
-      // sjekkliste-veien i services/endringslogg.ts (tidligere en håndspeilet
-      // kopi her — se fil-headeren der).
-      const endringsloggInnslag = oppgave.template?.enableChangeLog
-        ? await byggEndringsloggInnslag(ctx.prisma, {
-            gammelData: (oppgave.data ?? {}) as Record<string, { verdi?: unknown }>,
-            nyData: innData as Record<string, { verdi?: unknown }>,
-            objekter: oppgave.template.objects,
-          })
-        : [];
+      // Endringsloggen bygges nå INNE i transaksjonen (fersk eksisterende vs. final
+      // merget) — se under. Da gir en kollisjons-tilføyelse (verdi uendret) ingen
+      // diff og ingen falsk innholdsVersjon-bump (gate c). Delt med sjekkliste-veien.
 
       // Fritekst-oversettelse Lag 3
       const projectId = hentProjectId(oppgave);
@@ -812,10 +815,11 @@ export const oppgaveRouter = router({
       });
       const bruker = await ctx.prisma.user.findUnique({
         where: { id: ctx.userId },
-        select: { language: true },
+        select: { language: true, name: true },
       });
       const prosjektSpraak = prosjekt?.sourceLanguage ?? "nb";
       const brukerSpraak = bruker?.language ?? "nb";
+      const brukerNavn = bruker?.name ?? "Ukjent bruker";
 
       if (brukerSpraak !== prosjektSpraak && oppgave.template?.objects) {
         try {
@@ -868,13 +872,45 @@ export const oppgaveRouter = router({
           select: { data: true },
         });
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
-        const merget = { ...eksisterende, ...innData };
+
+        // Ny klient (base sendt) → feltvis kollisjons-deteksjon. Oppgave er append-only
+        // utenfor draft (Vedtak B): et utfylt felt kan ikke få verdien overskrevet — den
+        // innkommende verdien blir en tilføyelse, eksisterende står. Eldre klient (uten
+        // base) → blind merge som før (append-only-throw skjedde alt over).
+        let merget: Record<string, unknown>;
+        let kollisjoner: Kollisjon[] = [];
+        if (input.base) {
+          const res = kollisjonsmerge({
+            eksisterende,
+            innData,
+            base: input.base,
+            brukerNavn,
+            brukerId: ctx.userId,
+            naa: new Date().toISOString(),
+            appendOnly: oppgave.status !== "draft",
+          });
+          merget = res.merget;
+          kollisjoner = res.kollisjoner;
+        } else {
+          merget = { ...eksisterende, ...innData };
+        }
 
         // Trinn 3 del B: frys kravsnapshot sidestilt med verdi på tallfelt (server-frys ved
         // lagring). Speiler sjekkliste.oppdaterData — samme delte helper.
         if (oppgave.template?.objects) {
           frysGrenseSnapshots(merget, eksisterende, oppgave.template.objects);
         }
+
+        // Endringslogg fra FERSK eksisterende vs. FINAL merget: en kollisjons-tilføyelse
+        // (verdi uendret) gir ingen diff → ingen falsk innholdsVersjon-bump (gate c).
+        // Speiler sjekkliste.oppdaterData.
+        const endringsloggInnslag = oppgave.template?.enableChangeLog
+          ? await byggEndringsloggInnslag(tx, {
+              gammelData: eksisterende as Record<string, { verdi?: unknown }>,
+              nyData: merget as Record<string, { verdi?: unknown }>,
+              objekter: oppgave.template.objects,
+            })
+          : [];
 
         // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
         // med ≥1 signatur — speiler sjekkliste.oppdaterData (delt regel).
@@ -893,7 +929,8 @@ export const oppgaveRouter = router({
         await skrivEndringslogg(tx, { taskId: input.id }, ctx.userId, endringsloggInnslag);
 
         // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
-        return signerDataRad(oppdatert);
+        // Kollisjoner følger med som ekstra felt (klienten varsler skriveren).
+        return Object.assign(signerDataRad(oppdatert) as object, { kollisjoner });
       });
     }),
 

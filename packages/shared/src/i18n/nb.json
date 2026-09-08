@@ -736,6 +736,8 @@
   "handling.godkjenn": "Godkjenn",
   "handling.avvis": "Avvis",
   "handling.lukk": "Lukk",
+  "kollisjon.notat.tittel": "Notert – feltet var alt fylt",
+  "kollisjon.varsel.tekst": "Verdien din på {{antall}} felt kunne ikke overskrive en verdi som alt sto der. Den er lagret som et notat ved feltet, med navn og tidspunkt – ingenting er borte. Den som har ballen kan flytte den inn.",
   "handling.ferdig": "Ferdig",
   "handling.sok": "Søk",
   "handling.eksporter": "Eksporter",
