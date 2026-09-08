@@ -161,6 +161,28 @@ oppførsel koden ikke har.
 (REDESIGN-MASTERPLAN § Målestokk). En anleggsgartner som åpner appen på et jorde uten dekning har
 ingen dokumenter.
 
+#### 🟡 TILLEGG 2026-09-08 (Kenneth på enhet) — pila åpner ingenting
+
+> *«forbered offline → pilen åpner ikke og viser hva som er synkronisert mot offline»*
+
+Raden viser resultatet (**«Ferdig: 2 tegninger, 0 3D-modeller»**) og bærer en `>`-chevron.
+🔴 **Chevronen navigerer ikke.** Den ser ut som en inngang til en liste over hva som faktisk ligger
+lokalt — den finnes ikke.
+
+⚠️ **Samme klasse som innboks-pila** (`491ec481`, funnet av redesign): **en affordans som lover
+navigasjon og ikke leverer.** Tredje forekomst av chevron-uten-mål denne uka.
+⚠️ Beslektet: [BACKLOG § død meny i Lokasjoner](#) har «Forbered til offline» som **tom gren** —
+samme funksjonsnavn, to steder, begge halve.
+
+**To ting, som kan løses hver for seg:**
+1. **Billig og ærlig:** fjern chevronen hvis raden bare er en knapp. **Null ny flate, null design.**
+2. **Det Kenneth egentlig etterspør:** en visning av *hva* som er tilgjengelig offline — hvilke
+   tegninger, når de ble hentet, hvor mye plass.
+
+🔴 **Ikke bygg (2) før offline-scopet over er avklart.** En liste over «hva som er offline» som
+viser kun tegninger, **bekrefter løftebristen i stedet for å lukke den** — og gjør den synlig for
+brukeren hver gang han åpner den.
+
 **🔴 MÅL FØR DET SEKVENSERES — spennet er for stort til å prioriteres på anslag:**
 
 1. **Hva skal være tilgjengelig?** De N sist åpnede · alt på aktiv byggeplass · alt i prosjektet?

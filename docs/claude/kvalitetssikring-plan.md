@@ -112,6 +112,49 @@ kontroller øverst — er de truffbare (`idb ui tap`, ikke øyemål).
 
 ---
 
+## 🔴 HULL I NETTET — håndskrevet migrerings-SQL er ugatet (målt 2026-09-08)
+
+**Hendelse:** `20260908120000_reise_terskel_km` skrev `ALTER TABLE "organization_setting"`.
+Modellen har `@@map("organization_settings")` — **flertall**. `ERROR 42P01`.
+
+🔴 **Migreringen feilet på test 2026-09-07 kl. 23:23 UTC og sto feilet i over ni timer**, gjennom
+en fullført deploy, en OTA og flere gater. Andre forsøk ga `P3009` — **test-DB-en var blokkert**,
+og ingen visste det. `/version` svarte riktig hash, appen startet, kolonnene fantes bare ikke.
+
+### Hvorfor ingen av de tre lagene kunne fanget det
+
+| Lag | Hvorfor det ikke fanger | |
+|---|---|---|
+| **1 — lint** | Leser TypeScript, ikke SQL | ❌ |
+| **2 — simulator-røykliste** | Kjører mot et allerede deployet miljø | ❌ |
+| **3 — api-tester** | Kjører mot testfixtures, ikke mot en migrert DB | ❌ |
+| *`prisma generate` ×4* | Leser `schema.prisma`, **aldri migrerings-SQL** | ❌ |
+
+🔴 **Alle fire pakker genererte, alle fire testsuiter var grønne, web build var grønn — og
+migreringen var ødelagt.** Agentens gate var korrekt utført og kunne ikke se feilen.
+
+### 🟢 Klassen ble målt, og den er ellers ren
+
+dokgen sammenlignet **11 migreringer** fra siste 14 dager mot **107 `@@map`-verdier**, mekanisk:
+`ALTER TABLE` · `CREATE TABLE` · `REFERENCES` · `INDEX … ON`. **0 andre avvik.**
+🟢 `db-timer` bruker skjema-kvalifisert `"timer"."eksport_oppsett"` korrekt.
+**Dette var en isolert skrivefeil, ikke et mønster.**
+
+### 🟡 Forslag: LAG 5 — kjør migreringene mot en tom engangs-DB i CI
+
+En Postgres-service-container i `.github/workflows/ci.yml`, og
+`prisma migrate deploy` for alle fire db-pakker mot den.
+
+🟢 **Da feiler den i CI på en PR, ikke på test klokka 23:23** — og ingen bruker en natt på å finne
+ut hvorfor en kolonne mangler.
+
+⚠️ **Ikke besluttet.** CI-endring, Kenneth-gate. Kostnad ikke målt (oppstartstid for en
+postgres-container per kjøring).
+
+🔴 **Samme form som de tre andre stille feilene i samme døgn:** en Entra-secret som gikk ut uten
+varsel, containere som ikke restarter uten varsel, og nå en migrering som feiler mens deployen ser
+vellykket ut. **Fellesnevneren er ikke at feilene er like — det er at ingen av dem sa fra.**
+
 ## Lag 4 — det vi IKKE gjør
 
 **Ingen skriftlig funksjonsliste som eget dokument.** Den blir foreldet og lest av ingen.
