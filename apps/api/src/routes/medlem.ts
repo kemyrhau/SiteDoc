@@ -469,7 +469,42 @@ export const medlemRouter = router({
       });
     }),
 
-  // Fjern et prosjektmedlem fra en faggruppe (fjerner FaggruppeKobling)
+  // Legg et prosjektmedlem til i en faggruppe (oppretter FaggruppeKobling).
+  // Symmetrisk tvilling av fjernFraFaggruppe: samme (projectMemberId, faggruppeId)-
+  // signatur, samme verifiserAdmin-gate. upsert (ikke create) så dobbelttrykk ikke
+  // gir to koblinger eller en unik-feil — @@unique([projectMemberId, faggruppeId]).
+  leggTilFaggruppe: protectedProcedure
+    .input(
+      z.object({
+        projectMemberId: z.string().uuid(),
+        faggruppeId: z.string().uuid(),
+        projectId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      return ctx.prisma.faggruppeKobling.upsert({
+        where: {
+          projectMemberId_faggruppeId: {
+            projectMemberId: input.projectMemberId,
+            faggruppeId: input.faggruppeId,
+          },
+        },
+        create: {
+          projectMemberId: input.projectMemberId,
+          faggruppeId: input.faggruppeId,
+        },
+        update: {},
+      });
+    }),
+
+  // Fjern et prosjektmedlem fra en faggruppe (fjerner FaggruppeKobling).
+  // Trygt hard-delete: FaggruppeKobling har ingen barn-relasjoner (schema.prisma:682-683),
+  // dokumenter peker på Faggruppe og ikke på koblingen (Checklist/Task/Godkjenning),
+  // og person-direkte flytbindinger ligger i egne DokumentflytMedlem-rader. Ingen blir
+  // foreldreløse — personen mister kun sin egen tilgang til faggruppens dokumenter (Lag 2,
+  // som leser koblingens eksistens, ikke periodeSlutt). Målt 2026-09-08.
   fjernFraFaggruppe: protectedProcedure
     .input(
       z.object({

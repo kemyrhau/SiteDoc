@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
-import { Spinner } from "@sitedoc/ui";
+import { Spinner, Modal } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -34,12 +34,33 @@ function KompaktBadgeListe({
   verdier,
   bgKlasse,
   leggTilKnapp,
+  onFjern,
+  fjernTittel,
 }: {
   verdier: string[];
   bgKlasse: string;
   leggTilKnapp?: React.ReactNode;
+  // Valgfri per-badge fjern-knapp. Uten den er lista read-only (bevarer
+  // eksisterende kallere som kun viser verdier). Indeks matcher `verdier`.
+  onFjern?: (indeks: number) => void;
+  fjernTittel?: string;
 }) {
   const [utvidet, setUtvidet] = useState(false);
+
+  const Badge = ({ v, i }: { v: string; i: number }) => (
+    <span className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
+      {v}
+      {onFjern && (
+        <button
+          onClick={() => onFjern(i)}
+          className="ml-0.5 rounded-full p-0.5 hover:bg-black/10"
+          title={fjernTittel}
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
+      )}
+    </span>
+  );
 
   if (verdier.length === 0) {
     return (
@@ -53,9 +74,7 @@ function KompaktBadgeListe({
   if (verdier.length === 1) {
     return (
       <div className="flex items-center gap-1">
-        <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
-          {verdier[0]}
-        </span>
+        <Badge v={verdier[0]!} i={0} />
         {leggTilKnapp}
       </div>
     );
@@ -65,10 +84,8 @@ function KompaktBadgeListe({
     <div className="flex flex-wrap items-center gap-1">
       {utvidet ? (
         <>
-          {verdier.map((v) => (
-            <span key={v} className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
-              {v}
-            </span>
+          {verdier.map((v, i) => (
+            <Badge key={v} v={v} i={i} />
           ))}
           <button
             onClick={() => setUtvidet(false)}
@@ -79,9 +96,7 @@ function KompaktBadgeListe({
         </>
       ) : (
         <>
-          <span className={`inline-flex rounded px-1.5 py-0.5 text-xs font-medium ${bgKlasse}`}>
-            {verdier[0]}
-          </span>
+          <Badge v={verdier[0]!} i={0} />
           <button
             onClick={() => setUtvidet(true)}
             className="inline-flex rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-500 hover:bg-gray-300"
@@ -134,6 +149,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
   const [nyKontaktOpen, setNyKontaktOpen] = useState(false);
   const [ansattVelgerOpen, setAnsattVelgerOpen] = useState(false);
+  // Redigerbar faggruppe-celle: hvilken rad har åpen «legg til»-nedtrekk, og hvilken
+  // (medlem, faggruppe) er markert for fjerning (venter på bekreftelse i modal).
+  const [leggTilFaggruppeFor, setLeggTilFaggruppeFor] = useState<string | null>(null);
+  const [fjernFaggruppeMål, setFjernFaggruppeMål] = useState<
+    { projectMemberId: string; faggruppeId: string; brukerNavn: string; faggruppeNavn: string } | null
+  >(null);
 
   const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
     onSuccess: () => {
@@ -189,9 +210,17 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     { enabled: !!prosjektId },
   );
 
+  const leggTilFaggruppeMutation = trpc.medlem.leggTilFaggruppe.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setLeggTilFaggruppeFor(null);
+    },
+  });
+
   const fjernMutation = trpc.medlem.fjernFraFaggruppe.useMutation({
     onSuccess: () => {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      setFjernFaggruppeMål(null);
     },
   });
 
@@ -1217,11 +1246,59 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                     </div>
                   </td>
 
-                  {/* Faggrupper (read-only) */}
+                  {/* Faggrupper — redigerbar: fjern-X per badge + «legg til»-nedtrekk */}
                   <td className="px-4 py-2.5">
                     <KompaktBadgeListe
                       verdier={m.faggruppeKoblinger.map((me) => me.faggruppe.name)}
                       bgKlasse="bg-gray-100 text-gray-700"
+                      fjernTittel={t("handling.fjern")}
+                      onFjern={(indeks) => {
+                        const kobling = m.faggruppeKoblinger[indeks];
+                        if (!kobling) return;
+                        setFjernFaggruppeMål({
+                          projectMemberId: m.id,
+                          faggruppeId: kobling.faggruppe.id,
+                          brukerNavn: m.user.name ?? m.user.email,
+                          faggruppeNavn: kobling.faggruppe.name,
+                        });
+                      }}
+                      leggTilKnapp={
+                        tilgjengeligeFaggrupper.length > 0 ? (
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLeggTilFaggruppeFor((forrige) => (forrige === m.id ? null : m.id))
+                              }
+                              className="inline-flex items-center rounded p-0.5 text-gray-300 hover:bg-gray-100 hover:text-blue-600"
+                              title={t("brukere.leggTilFaggruppe")}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                            {leggTilFaggruppeFor === m.id && (
+                              <div className="absolute left-0 top-6 z-10 min-w-40 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                                {(tilgjengeligeFaggrupper as Array<{ id: string; name: string }>).map((f) => (
+                                  <button
+                                    key={f.id}
+                                    type="button"
+                                    disabled={leggTilFaggruppeMutation.isPending}
+                                    onClick={() =>
+                                      leggTilFaggruppeMutation.mutate({
+                                        projectMemberId: m.id,
+                                        faggruppeId: f.id,
+                                        projectId: prosjektId,
+                                      })
+                                    }
+                                    className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                  >
+                                    {f.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : undefined
+                      }
                     />
                   </td>
 
@@ -1352,6 +1429,52 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
           utils.medlem.hentLedigeFirmaBrukere.invalidate({ projectId: prosjektId });
         }}
       />
+
+      {/* Bekreft fjerning fra faggruppe — destruktiv for en tilgangskobling,
+          derfor modal (ikke confirm()). Teksten sier hva som skjer med dokumentene. */}
+      <Modal
+        open={!!fjernFaggruppeMål}
+        onClose={() => setFjernFaggruppeMål(null)}
+        title={t("brukere.fjernFraFaggruppeTittel")}
+        className="max-w-md"
+      >
+        {fjernFaggruppeMål && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {t("brukere.fjernFraFaggruppeTekst", {
+                navn: fjernFaggruppeMål.brukerNavn,
+                faggruppe: fjernFaggruppeMål.faggruppeNavn,
+              })}
+            </p>
+            {fjernMutation.error && (
+              <p className="text-sm text-red-600">{fjernMutation.error.message}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setFjernFaggruppeMål(null)}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                {t("handling.avbryt")}
+              </button>
+              <button
+                type="button"
+                disabled={fjernMutation.isPending}
+                onClick={() =>
+                  fjernMutation.mutate({
+                    projectMemberId: fjernFaggruppeMål.projectMemberId,
+                    faggruppeId: fjernFaggruppeMål.faggruppeId,
+                    projectId: prosjektId,
+                  })
+                }
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {t("handling.fjern")}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
