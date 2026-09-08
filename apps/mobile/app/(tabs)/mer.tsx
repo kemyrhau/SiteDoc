@@ -210,7 +210,9 @@ export default function MerSkjerm() {
               )}
             </>
           )}
-          <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
+          {/* Handling, ikke navigasjon: kjører offline-klargjøring inline og
+              viser resultatet i radteksten. Chevron skjules — raden går ingen steder. */}
+          <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} visChevron={false} />
         </View>
 
         {/* Firma — kun synlig ved multi-firma-medlemskap */}
@@ -373,12 +375,14 @@ function MenyRad({
   deaktivert,
   onPress,
   badge,
+  visChevron = true,
 }: {
   ikon: LucideIcon;
   tekst: string;
   deaktivert?: boolean;
   onPress?: () => void;
   badge?: { tekst: string; farge: "rod" | "gul" };
+  visChevron?: boolean;
 }) {
   const badgeBg = badge?.farge === "rod" ? "bg-red-500" : "bg-yellow-500";
   return (
@@ -397,7 +401,7 @@ function MenyRad({
             <Text className="text-xs font-bold text-white">{badge.tekst}</Text>
           </View>
         )}
-        <ChevronRight size={18} color="#d1d5db" />
+        {visChevron && <ChevronRight size={18} color="#d1d5db" />}
       </View>
     </Pressable>
   );
