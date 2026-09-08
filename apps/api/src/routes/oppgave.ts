@@ -5,6 +5,7 @@ import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
+import { medNummerRetry } from "../utils/nummerRetry";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
@@ -563,7 +564,9 @@ export const oppgaveRouter = router({
         }
       }
 
-      const opprettet = await ctx.prisma.$transaction(async (tx) => {
+      // Retry ved unik-brudd på løpenummer — se sjekkliste.opprett / medNummerRetry.
+      const opprettet = await medNummerRetry(
+        () => ctx.prisma.$transaction(async (tx) => {
         let nummer: number | undefined;
 
         if (mal.prefix) {
@@ -633,7 +636,9 @@ export const oppgaveRouter = router({
             recipientGroupId,
           },
         });
-      });
+      }),
+        "tasks_template_id_number_key",
+      );
 
       // Spor 2 / 5a: HMS opprettes som utkast — INGEN varsel ved opprett. Behandler-leddet
       // (HMS-gruppen) varsles først når melder sender inn (oppgave.hmsSendInn). recipientGroupId
