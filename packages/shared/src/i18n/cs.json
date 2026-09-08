@@ -736,6 +736,8 @@
   "handling.godkjenn": "Schvalovat",
   "handling.avvis": "Odmítnout",
   "handling.lukk": "Blízko",
+  "kollisjon.notat.tittel": "Poznámka – pole již bylo vyplněno",
+  "kollisjon.varsel.tekst": "Vaše hodnota v polích {{antall}} nemohla přepsat hodnotu, která tam již byla. Uloží se jako poznámka u pole se jménem a časem – nic se neztratí. Ten, kdo drží míč, ho může přesunout dovnitř.",
   "handling.ferdig": "Hotovo",
   "handling.sok": "Vyhledávání",
   "handling.eksporter": "Vývozní",

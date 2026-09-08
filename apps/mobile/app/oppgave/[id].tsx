@@ -384,6 +384,9 @@ export default function OppgaveDetalj() {
     oppgave,
     erLaster,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -831,6 +834,19 @@ export default function OppgaveDetalj() {
           </View>
         )}
 
+        {/* Kollisjons-/append-only-varsel (live): endringen din ble et NOTAT, ikke en endring —
+            feltet var alt fylt. «Lagret» uten forklaring ville vært verre enn en tydelig feil. */}
+        {sisteKollisjoner.length > 0 && (
+          <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+            <Text className="flex-1 text-sm text-amber-800">
+              {t("kollisjon.varsel.tekst", { antall: sisteKollisjoner.length })}
+            </Text>
+            <Pressable onPress={avvisKollisjoner} hitSlop={8}>
+              <Text className="text-xs font-medium text-amber-700">{t("handling.lukk")}</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Malobjekter */}
         <UtfyllingSeksjoner
           objekter={objekter}
@@ -913,6 +929,7 @@ export default function OppgaveDetalj() {
               onOversett={() => oversettFelt(objekt)}
               visOversettKnapp={visOversettKnapp}
               originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
+              tilfoyelser={hentTilfoyelser(objekt.id)}
             >
               <RapportObjektRenderer
                 objekt={objekt}

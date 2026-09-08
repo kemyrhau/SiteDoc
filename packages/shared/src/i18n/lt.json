@@ -736,6 +736,8 @@
   "handling.godkjenn": "Patvirtinti",
   "handling.avvis": "Atmesti",
   "handling.lukk": "Uždaryti",
+  "kollisjon.notat.tittel": "Pažymima – laukas jau užpildytas",
+  "kollisjon.varsel.tekst": "Jūsų vertė {{antall}} lauke (-uose) negalėjo perrašyti jau esančios vertės. Laukelis išsaugo kaip užrašą su pavadinimu ir laiku – nieko neprarandama. Kas laiko kamuolį, gali jį perkelti.",
   "handling.ferdig": "Atlikta",
   "handling.sok": "Ieškoti",
   "handling.eksporter": "Eksportuoti",

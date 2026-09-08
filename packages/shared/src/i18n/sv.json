@@ -736,6 +736,8 @@
   "handling.godkjenn": "Godkänna",
   "handling.avvis": "Avvisa",
   "handling.lukk": "Nära",
+  "kollisjon.notat.tittel": "Notera – fältet var redan ifyllt",
+  "kollisjon.varsel.tekst": "Ditt värde på {{antall}} fält kunde inte skriva över ett värde som redan fanns där. Den sparas som en anteckning vid fältet, med namn och tid – ingenting går förlorat. Den som håller bollen kan flytta in den.",
   "handling.ferdig": "Gjort",
   "handling.sok": "Söka",
   "handling.eksporter": "Exportera",

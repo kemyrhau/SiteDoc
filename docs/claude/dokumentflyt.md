@@ -65,6 +65,24 @@ Representerer et ledd i flyten visuelt. Er dynamisk — viser dokumentets bevege
 
 Oppgave skilles fra sjekkliste ved opprettelse — de to konverteres ikke til hverandre.
 
+### Feltvis kollisjons-deteksjon ved lagring (Kenneth-vedtak 2026-09-08)
+
+Serveren håndhever IKKE eierskap på innholdsskriving (bevisst innrømmelse — eierskap forblir
+en UI-regel via `utledDokumentRettighet`). I stedet oppdager den kollisjoner og bevarer alt:
+
+- **Klienten sender dirty-scopet payload** (kun endrede felt) + `base` = hva den trodde feltet
+  inneholdt. Kode: `apps/api/src/services/kollisjonsmerge.ts`, kalt fra `sjekkliste.oppdaterData`
+  og `oppgave.oppdaterData`.
+- **Ingen kollisjon** (server = base) → skriv som før. **Kollisjon** (server ≠ base, klienten
+  endret til noe annet) → serverens `verdi` beholdes (den som kom først står), klientens tapende
+  verdi legges som `tilfoyelser`-oppføring på feltet (verdi + hvem + når). **Ingenting slettes.**
+- **Oppgave** er append-only utenfor draft: et forsøk på å endre et utfylt felt blir en tilføyelse
+  (erstatter den tidligere `FORBIDDEN`-kasten for nye klienter; eldre klienter uten `base` beholder
+  kasten — ingen regresjon).
+- **Varsel:** live-banner fra mutasjons-returen + varig feltnær `tilfoyelser`-visning (navn + tid).
+- En kollisjons-tilføyelse bumper IKKE `innholdsVersjon` (den autoritative verdien er uendret →
+  avgitte signaturer merkes ikke «signert før endring»).
+
 ### HMS
 
 | Regel | Verdi |

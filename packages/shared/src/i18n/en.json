@@ -736,6 +736,8 @@
   "handling.godkjenn": "Approve",
   "handling.avvis": "Reject",
   "handling.lukk": "Close",
+  "kollisjon.notat.tittel": "Noted – the field was already filled",
+  "kollisjon.varsel.tekst": "Your value on {{antall}} field(s) could not overwrite a value already there. It is saved as a note by the field, with name and time – nothing is lost. Whoever holds the ball can move it in.",
   "handling.ferdig": "Done",
   "handling.sok": "Search",
   "handling.eksporter": "Export",

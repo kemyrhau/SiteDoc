@@ -507,6 +507,9 @@ export default function SjekklisteUtfylling() {
     sjekkliste,
     erLaster,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -910,6 +913,19 @@ export default function SjekklisteUtfylling() {
           </View>
         </Pressable>
 
+        {/* Kollisjons-varsel (live): verdien din ble notert som tilføyelse fordi feltet
+            alt var fylt. Ingenting forsvant — verdien står ved feltet. */}
+        {sisteKollisjoner.length > 0 && (
+          <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+            <Text className="flex-1 text-sm text-amber-800">
+              {t("kollisjon.varsel.tekst", { antall: sisteKollisjoner.length })}
+            </Text>
+            <Pressable onPress={avvisKollisjoner} hitSlop={8}>
+              <Text className="text-xs font-medium text-amber-700">{t("handling.lukk")}</Text>
+            </Pressable>
+          </View>
+        )}
+
         <UtfyllingSeksjoner
           objekter={objekter}
           feltStatus={(objekt) => {
@@ -1070,6 +1086,7 @@ export default function SjekklisteUtfylling() {
               onOversett={() => oversettFelt(objekt)}
               visOversettKnapp={visOversettKnapp}
               originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
+              tilfoyelser={hentTilfoyelser(objekt.id)}
             >
               <RapportObjektRenderer
                 objekt={objekt}

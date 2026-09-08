@@ -736,6 +736,8 @@
   "handling.godkjenn": "Genehmigen",
   "handling.avvis": "Ablehnen",
   "handling.lukk": "Schließen",
+  "kollisjon.notat.tittel": "Hinweis: Das Feld war bereits ausgefüllt",
+  "kollisjon.varsel.tekst": "Ihr Wert für {{antall}} Feld(er) konnte einen bereits dort vorhandenen Wert nicht überschreiben. Es wird als Notiz neben dem Feld gespeichert, mit Name und Uhrzeit – nichts geht verloren. Wer den Ball hält, kann ihn hineinbewegen.",
   "handling.ferdig": "Erledigt",
   "handling.sok": "Suchen",
   "handling.eksporter": "Export",

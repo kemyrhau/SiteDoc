@@ -736,6 +736,8 @@
   "handling.godkjenn": "Zatwierdzić",
   "handling.avvis": "Odrzucić",
   "handling.lukk": "Zamknąć",
+  "kollisjon.notat.tittel": "Zanotowano – pole było już wypełnione",
+  "kollisjon.varsel.tekst": "Twoja wartość w polach {{antall}} nie może zastąpić wartości, która już się tam znajduje. Jest zapisywany jako notatka przy polu, z nazwą i czasem – nic nie jest stracone. Ktokolwiek trzyma piłkę, może ją wrzucić.",
   "handling.ferdig": "Zrobione",
   "handling.sok": "Szukaj",
   "handling.eksporter": "Eksport",

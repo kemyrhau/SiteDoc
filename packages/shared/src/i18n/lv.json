@@ -736,6 +736,8 @@
   "handling.godkjenn": "Apstiprināt",
   "handling.avvis": "Noraidīt",
   "handling.lukk": "Aizvērt",
+  "kollisjon.notat.tittel": "Atzīmēts – lauks jau bija aizpildīts",
+  "kollisjon.varsel.tekst": "Jūsu vērtība {{antall}} laukā(-os) nevarēja pārrakstīt jau esošo vērtību. Tas tiek saglabāts kā piezīme pie lauka, ar nosaukumu un laiku – nekas nav zaudēts. Tas, kurš tur bumbu, var to pārvietot.",
   "handling.ferdig": "Gatavs",
   "handling.sok": "Meklēt",
   "handling.eksporter": "Eksportēt",

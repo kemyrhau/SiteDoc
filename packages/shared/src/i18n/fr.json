@@ -736,6 +736,8 @@
   "handling.godkjenn": "Approuver",
   "handling.avvis": "Rejeter",
   "handling.lukk": "Fermer",
+  "kollisjon.notat.tittel": "C'est noté – le champ était déjà rempli",
+  "kollisjon.varsel.tekst": "Votre valeur sur le(s) champ(s) {{antall}} n'a pas pu écraser une valeur déjà présente. Il est enregistré sous forme de note par champ, avec nom et heure – rien n’est perdu. Celui qui détient le ballon peut le faire entrer.",
   "handling.ferdig": "Fait",
   "handling.sok": "Recherche",
   "handling.eksporter": "Exporter",

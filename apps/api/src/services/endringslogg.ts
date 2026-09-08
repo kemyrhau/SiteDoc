@@ -64,7 +64,10 @@ type FeltData = Record<string, { verdi?: unknown } | undefined>;
  * kanonisk verdi. For person/persons byttes UUID → navn (ett samlet oppslag).
  */
 export async function byggEndringsloggInnslag(
-  prisma: PrismaClient,
+  // Godtar både full klient og transaksjonsklient — kalles nå INNE i oppdaterData-
+  // transaksjonen (fersk data vs. final merget), ikke bare før den. Bruker kun
+  // `.user.findMany`, som finnes på begge.
+  prisma: PrismaClient | Prisma.TransactionClient,
   args: { gammelData: FeltData; nyData: FeltData; objekter: MalObjekt[] },
 ): Promise<EndringsloggInnslag[]> {
   const { gammelData, nyData, objekter } = args;

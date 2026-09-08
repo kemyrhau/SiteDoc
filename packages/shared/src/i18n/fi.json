@@ -736,6 +736,8 @@
   "handling.godkjenn": "Hyväksyä",
   "handling.avvis": "Hylätä",
   "handling.lukk": "Lähellä",
+  "kollisjon.notat.tittel": "Huomioi – kenttä oli jo täytetty",
+  "kollisjon.varsel.tekst": "Arvosi kentässä {{antall}} ei voinut korvata olemassa olevaa arvoa. Kenttä tallentaa sen muistiinpanoksi, jossa on nimi ja aika – mitään ei häviä. Kuka pitää palloa, voi siirtää sen sisään.",
   "handling.ferdig": "Tehty",
   "handling.sok": "Haku",
   "handling.eksporter": "Viedä",
