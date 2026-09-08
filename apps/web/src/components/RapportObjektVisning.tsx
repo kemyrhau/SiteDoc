@@ -531,7 +531,6 @@ function ObjektInnhold({
 /* ------------------------------------------------------------------ */
 
 const DETALJ_ZOOM = 4;
-const BILDE_TYPER = ["png", "jpg", "jpeg", "gif", "webp"];
 
 /** Rendrer første side av en PDF/bilde til en data-URL via canvas */
 function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
@@ -657,13 +656,13 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): {
 
         const resultat = canvas.toDataURL("image/png");
         if (!avbrutt) { setDetaljUrl(resultat); setKlar(true); }
-      } catch (e) {
+      } catch {
         // Canvas feilet — faller tilbake til oversiktsbilde
         if (!avbrutt) setKlar(true);
       }
     };
 
-    img.onerror = (e) => {
+    img.onerror = () => {
       // Bilde kunne ikke lastes — faller tilbake
       if (!avbrutt) setKlar(true);
     };

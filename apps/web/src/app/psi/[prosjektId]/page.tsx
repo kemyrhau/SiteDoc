@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
-import { ShieldCheck, ChevronRight, Check, Globe, CheckCircle, XCircle, RotateCcw, Play } from "lucide-react";
+import { ShieldCheck, ChevronRight, Check, Globe, CheckCircle, XCircle } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 /* ------------------------------------------------------------------ */

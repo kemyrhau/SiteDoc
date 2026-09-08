@@ -1,6 +1,5 @@
 "use client";
 
-import { Spinner } from "@sitedoc/ui";
 import { Check, Minus, Shield } from "lucide-react";
 import {
   PERMISSION_GROUPS,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
 import { X, Trash2, MapPin, Target } from "lucide-react";

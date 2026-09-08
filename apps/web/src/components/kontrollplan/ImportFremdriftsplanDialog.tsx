@@ -230,7 +230,7 @@ export function ImportFremdriftsplanDialog({
       utils.kontrollplan.hentForByggeplass.invalidate({ byggeplassId });
       setOppretterState("ferdig");
       setTimeout(() => onImportert(), 1000);
-    } catch (_e) {
+    } catch {
       setOppretterState("feil");
     }
   }, [importPunkter, kontrollplanId, byggeplassId, opprettPunkter, utils, onImportert, parsedData, selectedUIDs, fil, t]);

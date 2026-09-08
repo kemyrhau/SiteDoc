@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   QrCode,
   RefreshCw,
-  FileText,
   Printer,
   Pencil,
   Copy,

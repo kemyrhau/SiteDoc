@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
-import { X, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { X, Plus, ChevronRight } from "lucide-react";
 import { UkeVelger } from "./UkeVelger";
 
 interface Milepel {

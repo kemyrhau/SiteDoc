@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
-import { X, Upload, FileText, Loader2, Check, ChevronRight, ChevronDown } from "lucide-react";
+import { X, Upload, Loader2, Check, ChevronRight, ChevronDown } from "lucide-react";
 import { parseMSProjectXML } from "@/lib/ms-project-parser";
 import type { MSProjectData } from "@/lib/ms-project-parser";
 import { useImportTilordning } from "../importTilordning/useImportTilordning";
