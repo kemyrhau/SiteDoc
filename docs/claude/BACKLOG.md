@@ -117,6 +117,37 @@ api-tester — **ingen av dem er enhetstester på mobil-logikk.**
 **Ikke ordre.** Å legge inn jest/vitest med RN-preset er reell infra-endring som flytter
 baselinen og krever godkjenning. **Kenneth-beslutning.**
 
+### 🟢 LUKKET 2026-09-08 — PSI scroll-gate er IKKE en manglende sikkerhetsgate
+
+⚠️ **Skrevet ned for at ingen skal etterforske dette en tredje gang.**
+
+`harScrolletNed` / `innholdKortNok` står som ubrukte variabler i **både** web
+(`app/psi/[prosjektId]/page.tsx:343,374`) og mobil (`app/psi/[psiId].tsx:72,168`).
+De settes av scroll-lyttere, men `kanVidere` / `kanGåVidere` leser dem aldri.
+
+🔴 **Det ser ut som et håndhevingshull. Det er det ikke.**
+
+**`547261c4` (2026-04-03):** *«Neste-knapp alltid aktiv for tekst/bilde-seksjoner — Fjerner
+scroll-krav for rene innholdsseksjoner. Kun quiz, video og signatur har krav. Gjelder både web og
+mobil.»*
+
+🟢 **Kravet ble bevisst fjernet.** Commiten slettet `return harScrolletNed || innholdKortNok;` fra
+`kanVidere`. Variablene og lytterne ble stående som rester.
+🟢 **Ingen doc i `docs/claude/` beskriver noe lesekrav** — `mannskap.md` nevner quiz, video og
+signatur, ikke lesing. **Det eneste belegget peker motsatt vei.**
+
+⚠️ **Coworks feil, ført så den ikke gjentas:** cowork sluttet fra ubrukte variabler til en manglende
+sikkerhetsgate og presenterte det for Kenneth som en etterlevelsessak. **Slutning, ikke måling.**
+
+🔴 **Og logikken tåler ikke å slås på igjen som den står:**
+- **Web:** høyden sjekkes ÉN gang 100 ms etter seksjonsbytte, uten `ResizeObserver`. Bilder er
+  `loading="lazy"` → `scrollHeight` er ofte feil ved måletidspunktet.
+- **Mobil:** `innholdKortNok` settes inne i `onScroll`. **En kort, ikke-scrollbar seksjon utløser
+  aldri `onScroll`** → arbeideren ville låses ute av en seksjon han ikke kan scrolle.
+
+**Skal «må lese før signering» gjeninnføres, er det et produktvedtak — og robustheten må bygges på
+nytt før noe kobles inn.**
+
 ### 🟠 KONTAKTER-SIDEN: for mange steder å administrere det samme (Kenneth på test 2026-09-08)
 
 Fem observasjoner fra `/dashbord/oppsett/brukere` etter at faggruppe-medlemskap ble koblet.
