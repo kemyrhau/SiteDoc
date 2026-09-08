@@ -4,6 +4,38 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🔴 KENNETH-VEDTAK 2026-09-08 — PROD ER FROSSET til ny Kontakter-UI er verifisert
+
+> *«vi skal ikke gate til produksjon før den nye ui er ferdig og verifisert på develop»*
+
+**Prod står på `1a74904b`.** Alt etter det akkumuleres på develop og test.
+
+🔴 **Kritisk vei til prod — ingenting annet flytter den:**
+
+```
+Kenneths gate på fabels mockup
+  → byggeordre fase 2 (Kontakter i tre nivåer)
+  → bygges + merges
+  → Kenneth verifiserer på develop
+  → prod
+```
+
+⚠️ **Konsekvens cowork skal holde i:** hver ekstra merge øker avstanden til prod og gjør den ene
+deployen større å diagnostisere hvis noe brekker. **Cowork holder igjen på ordrer som ikke ligger på
+den veien.**
+
+**To unntak:** 🔴-funn fra Kenneths egne tester, og regresjoner fra allerede merget arbeid.
+
+### Gate-status på det som ligger på test
+
+| Sak | Status |
+|---|---|
+| Kollisjons-deteksjon med tilføyelse | 🟢 **Gatet 08.09** — notat med navn/tid, banner, begge verdier bevart |
+| Faggruppe-medlemskap redigerbart | 🟢 Gatet |
+| `medlem.registrer` (én registreringsvei) | 🟡 **UTSATT** — atferd uendret i gammelt UI; gates i fase 2 |
+| Dialog/kommentar offline | 🔴 **FUNN** — `oppgave/[id].tsx:347` kaller `mutate` uten nettsjekk. Nabokoden (`:453`, `:464`) sjekker `erPaaNettet`. **Pre-eksisterende** |
+| Tekstfelt nullstilles under skriving | 🔴 **UNDER MÅLING** — web-felt lukket seg da samme dokument var åpent på mobil; skrevet tekst tapt. **Mulig regresjon fra `5488588a`** |
+
 ## 📅 2026-09-07 SENKVELD — merge-runde 32 + 33 på develop, venter Kenneths gater
 
 **Ikke i prod ennå.** Tre brancher merget etter `69ca9f62`:
