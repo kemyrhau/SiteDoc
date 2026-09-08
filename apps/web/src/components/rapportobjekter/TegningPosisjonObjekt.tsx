@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useRouter } from "next/navigation";
 import { Target, MapPin } from "lucide-react";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -15,6 +16,7 @@ export function TegningPosisjonObjekt({
   feltNokkel,
   stickyTegning,
 }: RapportObjektProps) {
+  const { t } = useTranslation();
   const posisjon = verdi as TegningPosisjonVerdi | null;
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
@@ -69,7 +71,7 @@ export function TegningPosisjonObjekt({
   // Lesemodus: vis posisjon eller «Ingen posisjon valgt»
   if (leseModus) {
     if (!posisjon) {
-      return <p className="text-sm italic text-gray-400">Ingen posisjon valgt</p>;
+      return <p className="text-sm italic text-gray-400">{t("felt.ingenPosisjon")}</p>;
     }
     return (
       <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -99,14 +101,14 @@ export function TegningPosisjonObjekt({
             onClick={handleVelgPosisjon}
             className="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
           >
-            Endre
+            {t("kontekstChip.endre")}
           </button>
           <button
             type="button"
             onClick={() => onEndreVerdi(null)}
             className="rounded-md px-2 py-1 text-xs text-gray-400 hover:text-red-500"
           >
-            Fjern
+            {t("handling.fjern")}
           </button>
         </>
       ) : (
@@ -116,7 +118,7 @@ export function TegningPosisjonObjekt({
           className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600"
         >
           <Target className="h-4 w-4" />
-          Velg posisjon i tegning
+          {t("rapportobjekt.tegning.velgPosisjon")}
         </button>
       )}
     </div>

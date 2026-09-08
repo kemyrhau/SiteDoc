@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { nb } from "@sitedoc/shared";
 import { RepeaterObjekt } from "../RepeaterObjekt";
 import { normaliserRad } from "../typer";
 
@@ -20,6 +23,18 @@ vi.mock("../RapportObjektRenderer", () => ({
   tilbehorVisning: () => ({ vis: false, leseModus: false }),
 }));
 vi.mock("../FeltDokumentasjon", () => ({ FeltDokumentasjon: () => null }));
+
+beforeAll(async () => {
+  if (!i18n.isInitialized) {
+    await i18n.use(initReactI18next).init({
+      lng: "nb",
+      fallbackLng: "nb",
+      resources: { nb: { translation: nb as Record<string, string> } },
+      interpolation: { escapeValue: false },
+      react: { useSuspense: false },
+    });
+  }
+});
 
 afterEach(cleanup);
 

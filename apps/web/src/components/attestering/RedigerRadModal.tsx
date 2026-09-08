@@ -872,7 +872,7 @@ function KompaktTimerRad({
             className="w-[80px] rounded border border-gray-300 px-1.5 py-0.5"
           />
           <span className="font-mono text-gray-500">
-            ({pauseMinutter(pauseFra, pauseTil)} min)
+            {t("attestering.redigerRad.pauseMin", { antall: pauseMinutter(pauseFra, pauseTil) })}
           </span>
         </div>
       )}

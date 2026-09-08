@@ -672,7 +672,7 @@ export function SeddelKort({
                   <td className="px-3 py-2" />
                   <td className="px-3 py-2" />
                   <td className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-gray-500">
-                    Sum
+                    {t("timer.attestering.pivot.sum")}
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-sm font-semibold text-gray-900">
                     {sedel.totaltimer.toFixed(2)}t

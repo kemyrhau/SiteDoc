@@ -178,7 +178,7 @@ function RekursivtFelt({
           )}
           {erRepeater && (
             <p className="mb-1.5 mt-1 text-xs font-medium text-green-600">
-              Felter som gjentas i hver rad:
+              {t("malbygger.dropsone.gjentasIHverRad")}
             </p>
           )}
 

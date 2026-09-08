@@ -13,7 +13,7 @@ export function EnkeltvalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rap
 
   if (leseModus) {
     return (
-      <p className="text-sm text-gray-900">{valgtLabel ? visLabel(valgtLabel) : <span className="italic text-gray-400">Ikke valgt</span>}</p>
+      <p className="text-sm text-gray-900">{valgtLabel ? visLabel(valgtLabel) : <span className="italic text-gray-400">{t("rapportobjekt.enkeltvalg.ikkeValgt")}</span>}</p>
     );
   }
 

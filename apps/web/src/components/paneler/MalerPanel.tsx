@@ -4,9 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { SearchInput, Spinner } from "@sitedoc/ui";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FileText } from "lucide-react";
 
 export function MalerPanel() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const [sok, setSok] = useState("");
@@ -34,7 +36,7 @@ export function MalerPanel() {
       <SearchInput verdi={sok} onChange={setSok} placeholder="Søk maler..." />
       <div className="flex flex-col gap-0.5">
         {filtrerte.length === 0 ? (
-          <p className="px-2 py-2 text-sm text-gray-400">Ingen maler funnet</p>
+          <p className="px-2 py-2 text-sm text-gray-400">{t("kontrollplan.ingenMaler")}</p>
         ) : (
           filtrerte.map((mal) => (
             <button
@@ -50,8 +52,7 @@ export function MalerPanel() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{mal.name}</p>
                 <p className="text-xs text-gray-400">
-                  {mal._count.objects} objekter &middot;{" "}
-                  {mal._count.checklists} sjekklister
+                  {t("paneler.objekterSjekklister", { objekter: mal._count.objects, sjekklister: mal._count.checklists })}
                 </p>
               </div>
             </button>

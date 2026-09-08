@@ -1,7 +1,9 @@
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import type { RapportObjektProps } from "./typer";
 
 export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, prosjektId, tillatteFaggruppeIder }: RapportObjektProps) {
+  const { t } = useTranslation();
   const valgtId = typeof verdi === "string" ? verdi : "";
 
   const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery(
@@ -43,12 +45,12 @@ export function FirmaObjekt({ verdi, onEndreVerdi, leseModus, prosjektId, tillat
       </select>
       {!scopet && (
         <p className="mt-1 text-xs text-gray-400">
-          Dokumentet har ingen dokumentflyt — viser alle faggrupper.
+          {t("felt.ingenDokumentflyt")}
         </p>
       )}
       {valgtErUtenfor && (
         <p className="mt-1 text-xs text-amber-600">
-          Valgt faggruppe er ikke medlem av dokumentflyten. Behold eller velg en fra flyten.
+          {t("felt.faggruppeUtenforFlyt")}
         </p>
       )}
     </div>

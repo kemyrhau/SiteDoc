@@ -158,7 +158,7 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
                   {/* Snapshot undertekst: Flyt + Rolle */}
                   {harSnapshot && (
                     <p className="text-[11px] text-gray-400">
-                      {ovf.dokumentflytName && <>Flyt: {ovf.dokumentflytName}</>}
+                      {ovf.dokumentflytName && <>{t("dokumentTidslinje.flyt")} {ovf.dokumentflytName}</>}
                       {ovf.dokumentflytName && ovf.senderRolle && <> · </>}
                       {ovf.senderRolle && <>{ROLLE_TEKST[ovf.senderRolle] ?? ovf.senderRolle}</>}
                     </p>

@@ -444,7 +444,7 @@ export function TegningerPanel() {
 
               {erUtvidet && bygning.filtrerteGrupper.length === 0 && (
                 <div className="ml-6 px-2 py-1 text-xs text-gray-400">
-                  Ingen tegninger
+                  {t("tegninger.ingenTegninger")}
                 </div>
               )}
             </div>

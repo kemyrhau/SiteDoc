@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import i18n from "@/lib/i18n";
 
 interface Props {
   children: ReactNode;
@@ -26,12 +27,12 @@ export class DebugErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="m-4 rounded border-2 border-red-400 bg-red-50 p-4 text-xs">
-          <div className="text-sm font-bold text-red-700">React-feil:</div>
+          <div className="text-sm font-bold text-red-700">{i18n.t("errorBoundary.reactFeil")}</div>
           <pre className="mt-1 whitespace-pre-wrap text-red-600">
             {this.state.error.message}
           </pre>
           <details className="mt-2">
-            <summary className="cursor-pointer text-gray-500">Stack</summary>
+            <summary className="cursor-pointer text-gray-500">{i18n.t("errorBoundary.stack")}</summary>
             <pre className="mt-1 max-h-60 overflow-auto whitespace-pre-wrap text-[10px] text-gray-400">
               {this.state.info}
             </pre>
@@ -40,7 +41,7 @@ export class DebugErrorBoundary extends Component<Props, State> {
             onClick={() => this.setState({ error: null, info: "" })}
             className="mt-2 rounded bg-red-600 px-3 py-1 text-white"
           >
-            Prøv igjen
+            {i18n.t("handling.provIgjen")}
           </button>
         </div>
       );

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { SearchInput, Spinner } from "@sitedoc/ui";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FolderOpen, ChevronDown, ChevronRight, File, Lock } from "lucide-react";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
@@ -120,6 +121,7 @@ function byggTre(
 }
 
 export function MapperPanel() {
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -251,7 +253,7 @@ export function MapperPanel() {
       <div className="flex flex-col">
         {filtrerte.length === 0 ? (
           <p className="px-2 py-2 text-sm text-gray-400">
-            Ingen mapper funnet
+            {t("paneler.ingenMapper")}
           </p>
         ) : (
           filtrerte.map((mappe) => (

@@ -277,6 +277,7 @@ function SortFilterHeader({
   aktiveFilter?: Set<string>;
   onFilter?: (filter: Set<string>) => void;
 }) {
+  const { t } = useTranslation();
   const [filterAapen, setFilterAapen] = useState(false);
   const ref = useRef<HTMLTableHeaderCellElement>(null);
   const aktiv = sorterFelt === felt;
@@ -322,7 +323,7 @@ function SortFilterHeader({
             onClick={() => { onFilter?.(new Set()); setFilterAapen(false); }}
             className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${!harFilter ? "text-sitedoc-primary font-medium" : "text-gray-600"}`}
           >
-            Alle
+            {t("kontekstChip.alle")}
           </button>
           {filterVerdier.map((v) => (
             <label key={v.id} className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer">

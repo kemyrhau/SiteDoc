@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { nb } from "@sitedoc/shared";
 
 /**
  * Steg 1 (oppgave-fra-rad, bindende vedtak `domene-arbeidsflyt.md`: dokumentflyten er nøkkelen,
@@ -41,9 +44,18 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 import { OpprettOppgaveModal } from "../OpprettOppgaveModal";
 
 // jsdom implementerer ikke <dialog>.showModal/close (Modal bruker native <dialog>).
-beforeAll(() => {
+beforeAll(async () => {
   HTMLDialogElement.prototype.showModal = vi.fn();
   HTMLDialogElement.prototype.close = vi.fn();
+  if (!i18n.isInitialized) {
+    await i18n.use(initReactI18next).init({
+      lng: "nb",
+      fallbackLng: "nb",
+      resources: { nb: { translation: nb as Record<string, string> } },
+      interpolation: { escapeValue: false },
+      react: { useSuspense: false },
+    });
+  }
 });
 
 afterEach(() => {

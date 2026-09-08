@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useTranslation } from "react-i18next";
 import { FaggruppeVelger } from "./faggruppe-velger";
 
 interface ImportDialogProps {
@@ -62,6 +63,7 @@ function dokTypeLabel(type: string): string {
 type Kilde = "last-opp" | "fra-mappe";
 
 export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
+  const { t } = useTranslation();
   const [kilde, setKilde] = useState<Kilde>("last-opp");
   const [fil, setFil] = useState<File | null>(null);
   const [docType, setDocType] = useState<string>("anbudsgrunnlag");
@@ -328,7 +330,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
       <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-5 py-3">
-          <h2 className="text-base font-semibold">Importer dokument</h2>
+          <h2 className="text-base font-semibold">{t("okonomi.importerDokument")}</h2>
           <button
             onClick={onClose}
             className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -348,7 +350,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             }`}
           >
             <Upload className="mr-1.5 inline h-3.5 w-3.5" />
-            Last opp fil
+            {t("firma.kompetanse.import.steg1.tittel")}
           </button>
           <button
             onClick={() => setKilde("fra-mappe")}
@@ -359,7 +361,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
             }`}
           >
             <FolderOpen className="mr-1.5 inline h-3.5 w-3.5" />
-            Velg fra mapper
+            {t("okonomi.velgFraMapper")}
           </button>
         </div>
 
@@ -367,7 +369,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
           {/* Dokumenttype (felles) */}
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500">
-              Dokumenttype
+              {t("mengde.import.dokumenttype")}
             </label>
             <select
               className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
@@ -385,7 +387,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
           {/* Kontrakt-velger (for alle typer) */}
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500">
-              Kontrakt
+              {t("mengde.import.kontrakt")}
             </label>
             {kontrakter && kontrakter.length > 0 ? (
               <select
@@ -400,7 +402,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
               </select>
             ) : (
               <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                Ingen kontrakter opprettet. Opprett en kontrakt i økonomi-toppen før import.
+                {t("mengde.import.ingenKontrakter")}
               </div>
             )}
           </div>
@@ -408,22 +410,22 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
           {/* Nota-nummer (for A-nota/T-nota) */}
           {(docType === "a_nota" || docType === "t_nota") && (
             <div className="rounded border border-blue-100 bg-blue-50/30 p-3">
-              <div className="mb-2 text-xs font-medium text-gray-600">Nota-registrering</div>
+              <div className="mb-2 text-xs font-medium text-gray-600">{t("mengde.import.notaRegistrering")}</div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs text-gray-500">Type</label>
+                  <label className="mb-1 block text-xs text-gray-500">{t("papirkurv.kolonne.type")}</label>
                   <select
                     className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm"
                     value={notaType || (docType === "a_nota" ? "A-Nota" : "T-Nota")}
                     onChange={(e) => setNotaType(e.target.value)}
                   >
-                    <option value="A-Nota">A-Nota</option>
-                    <option value="T-Nota">T-Nota</option>
-                    <option value="Sluttnota">Sluttnota</option>
+                    <option value="A-Nota">{t("okonomi.aNota")}</option>
+                    <option value="T-Nota">{t("okonomi.tNota")}</option>
+                    <option value="Sluttnota">{t("okonomi.sluttnota")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-gray-500">Nummer</label>
+                  <label className="mb-1 block text-xs text-gray-500">{t("mengde.import.nummer")}</label>
                   <input
                     type="number"
                     className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm"
@@ -441,7 +443,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
               {/* Mappe-velger */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">
-                  Lagre i mappe
+                  {t("mengde.import.lagreIMappe")}
                 </label>
                 <div className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
@@ -450,7 +452,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                     value={folderId ?? ""}
                     onChange={(e) => setFolderId(e.target.value || null)}
                   >
-                    <option value="">Ingen mappe</option>
+                    <option value="">{t("mengde.import.ingenMappe")}</option>
                     {mappeValg.map((m) => (
                       <option key={m.value} value={m.value}>
                         {m.label}
@@ -496,9 +498,9 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                   <>
                     <Upload className="mb-2 h-8 w-8 text-gray-400" />
                     <div className="text-sm text-gray-600">
-                      Dra og slipp fil her, eller{" "}
+                      {t("mengde.import.draSlipp")}{" "}
                       <label className="cursor-pointer text-sitedoc-primary hover:underline">
-                        velg fil
+                        {t("mengde.import.velgFil")}
                         <input
                           type="file"
                           className="hidden"
@@ -521,7 +523,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                       </label>
                     </div>
                     <div className="mt-1 text-xs text-gray-400">
-                      PDF, Excel, XML, CSV, Word
+                      {t("mengde.import.filformater")}
                     </div>
                   </>
                 )}
@@ -532,7 +534,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
               {/* Velg mappe */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">
-                  Velg mappe
+                  {t("okonomi.velgMappe")}
                 </label>
                 <div className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4 shrink-0 text-amber-500" />
@@ -559,7 +561,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                 <div className="max-h-60 overflow-y-auto rounded border">
                   {!mappeDokumenter || mappeDokumenter.length === 0 ? (
                     <div className="px-4 py-6 text-center text-sm text-gray-400">
-                      Ingen dokumenter i denne mappen.
+                      {t("mengde.import.ingenDokumenter")}
                     </div>
                   ) : (
                     <div>
@@ -589,7 +591,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                             <Check className="h-3 w-3" />
                           )}
                         </div>
-                        Velg alle ({mappeDokumenter.length})
+                        {t("mengde.import.velgAlle", { antall: mappeDokumenter.length })}
                       </button>
 
                       {mappeDokumenter.map((dok) => (
@@ -627,8 +629,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
 
               {valgteDokumenter.size > 0 && (
                 <div className="text-xs text-gray-500">
-                  {valgteDokumenter.size} dokument
-                  {valgteDokumenter.size > 1 ? "er" : ""} valgt
+                  {t("mengde.import.dokumenterValgt", { count: valgteDokumenter.size })}
                 </div>
               )}
             </>
@@ -645,46 +646,46 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
         {/* Bekreftelsespanel */}
         {visBekreftelse && (
           <div className="border-t bg-gray-50 px-5 py-4">
-            <div className="mb-3 text-sm font-semibold text-gray-700">Bekreft import</div>
+            <div className="mb-3 text-sm font-semibold text-gray-700">{t("firma.kompetanse.import.steg3.tittel")}</div>
 
             {/* Oppsummering */}
             <div className="mb-3 space-y-1.5 rounded border bg-white px-3 py-2.5 text-sm">
               {/* Filnavn */}
               {kilde === "last-opp" && fil && (
                 <div className="flex items-start gap-2">
-                  <span className="w-28 shrink-0 text-xs text-gray-500">Fil</span>
+                  <span className="w-28 shrink-0 text-xs text-gray-500">{t("mengde.import.fil")}</span>
                   <span className="truncate font-medium text-gray-800">{fil.name}</span>
                 </div>
               )}
               {kilde === "fra-mappe" && valgteDokumenter.size > 0 && (
                 <div className="flex items-start gap-2">
-                  <span className="w-28 shrink-0 text-xs text-gray-500">Filer</span>
+                  <span className="w-28 shrink-0 text-xs text-gray-500">{t("malbygger.filer")}</span>
                   <span className="font-medium text-gray-800">
-                    {valgteDokumenter.size} dokument{valgteDokumenter.size > 1 ? "er" : ""}
+                    {t("mengde.import.antallDokumenter", { count: valgteDokumenter.size })}
                   </span>
                 </div>
               )}
 
               {/* Dokumenttype */}
               <div className="flex items-start gap-2">
-                <span className="w-28 shrink-0 text-xs text-gray-500">Dokumenttype</span>
+                <span className="w-28 shrink-0 text-xs text-gray-500">{t("mengde.import.dokumenttype")}</span>
                 <span className="font-medium text-gray-800">{dokTypeLabel(docType)}</span>
               </div>
 
               {/* Kontrakt */}
               <div className="flex items-start gap-2">
-                <span className="w-28 shrink-0 text-xs text-gray-500">Kontrakt</span>
+                <span className="w-28 shrink-0 text-xs text-gray-500">{t("mengde.import.kontrakt")}</span>
                 <span className="font-medium text-gray-800">
-                  {valgtKontrakt ? valgtKontrakt.navn : <span className="text-gray-400">Ingen</span>}
+                  {valgtKontrakt ? valgtKontrakt.navn : <span className="text-gray-400">{t("kontaktside.ingenTilgangsgruppe")}</span>}
                 </span>
               </div>
 
               {/* Nota-nummer */}
               {(docType === "a_nota" || docType === "t_nota") && (
                 <div className="flex items-start gap-2">
-                  <span className="w-28 shrink-0 text-xs text-gray-500">Nota-nummer</span>
+                  <span className="w-28 shrink-0 text-xs text-gray-500">{t("mengde.import.notaNummer")}</span>
                   <span className="font-medium text-gray-800">
-                    {notaNr ? `${notaType || docType} nr. ${notaNr}` : <span className="text-gray-400">Ikke angitt</span>}
+                    {notaNr ? `${notaType || docType} nr. ${notaNr}` : <span className="text-gray-400">{t("mengde.import.ikkeAngitt")}</span>}
                   </span>
                 </div>
               )}
@@ -697,8 +698,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                 <div className="flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
                   <span>
-                    Filnavnet tyder på <strong>{dokTypeLabel(gjettetType)}</strong>, men du har valgt{" "}
-                    <strong>{dokTypeLabel(docType)}</strong>. Er du sikker?
+                    {t("mengde.import.filnavnTyder")}<strong>{dokTypeLabel(gjettetType)}</strong>{t("mengde.import.menDuHarValgt")}<strong>{dokTypeLabel(docType)}</strong>{t("mengde.import.erDuSikker")}
                   </span>
                 </div>
               )}
@@ -707,7 +707,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
               {(docType === "a_nota" || docType === "t_nota") && !notaNr && (
                 <div className="flex items-start gap-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
-                  <span>Nota-nummer mangler. Dokumentet vil ikke kobles til korrekt nota.</span>
+                  <span>{t("mengde.import.notaNummerMangler")}</span>
                 </div>
               )}
 
@@ -715,7 +715,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
               {!kontraktId && (
                 <div className="flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-                  <span>Ingen kontrakt valgt — dokumentet vil ikke kobles til økonomi.</span>
+                  <span>{t("mengde.import.ingenKontraktValgt")}</span>
                 </div>
               )}
             </div>
@@ -736,7 +736,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                 }}
                 className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-200"
               >
-                Tilbake
+                {t("handling.tilbake")}
               </button>
               <button
                 onClick={kilde === "last-opp" ? handleLastOpp : handleImporterFraMapper}
@@ -751,7 +751,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
                 ) : (
                   <>
                     <Upload className="h-4 w-4" />
-                    Bekreft import
+                    {t("firma.kompetanse.import.steg3.tittel")}
                   </>
                 )}
               </button>
@@ -766,7 +766,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
               onClick={onClose}
               className="rounded px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
             >
-              Avbryt
+              {t("handling.avbryt")}
             </button>
             <button
               onClick={() => setVisBekreftelse(true)}
@@ -776,7 +776,7 @@ export function ImportDialog({ projectId, open, onClose }: ImportDialogProps) {
               className="flex items-center gap-2 rounded bg-sitedoc-primary px-4 py-1.5 text-sm text-white hover:bg-sitedoc-secondary disabled:opacity-50"
             >
               <Upload className="h-4 w-4" />
-              Importer
+              {t("handling.importer")}
             </button>
           </div>
         )}

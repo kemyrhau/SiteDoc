@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Printer, Mail, FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 interface MerknadPost {
@@ -130,6 +131,7 @@ export function MerknadEksport({
   brukerNavn,
   entreprenorEpost,
 }: MerknadEksportProps) {
+  const { t } = useTranslation();
   const [henterAlle, setHenterAlle] = useState(false);
   const posterMedMerknad = poster.filter((p) => p.eksternNotat?.trim());
 
@@ -172,12 +174,12 @@ export function MerknadEksport({
     <div className="flex flex-wrap items-center gap-2 border-t pt-2 mt-2">
       {posterMedMerknad.length > 0 && (
         <>
-          <span className="text-xs text-gray-400">{posterMedMerknad.length} merknad{posterMedMerknad.length !== 1 ? "er" : ""}</span>
+          <span className="text-xs text-gray-400">{t("mengde.merknad.antallMerknad", { count: posterMedMerknad.length })}</span>
           <button onClick={skrivUtDenne} className="flex items-center gap-1 rounded border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50" title="Skriv ut merknader for denne nota">
-            <Printer className="h-3 w-3" /> Skriv ut
+            <Printer className="h-3 w-3" /> {t("handling.skrivUtEnkel")}
           </button>
           <button onClick={sendEpostDenne} className="flex items-center gap-1 rounded border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50" title="Send merknader på e-post">
-            <Mail className="h-3 w-3" /> E-post
+            <Mail className="h-3 w-3" /> {t("label.epost")}
           </button>
         </>
       )}
