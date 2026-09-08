@@ -117,6 +117,142 @@ api-tester — **ingen av dem er enhetstester på mobil-logikk.**
 **Ikke ordre.** Å legge inn jest/vitest med RN-preset er reell infra-endring som flytter
 baselinen og krever godkjenning. **Kenneth-beslutning.**
 
+### 🟠 KONTAKTER-SIDEN: for mange steder å administrere det samme (Kenneth på test 2026-09-08)
+
+Fem observasjoner fra `/dashbord/oppsett/brukere` etter at faggruppe-medlemskap ble koblet.
+**Feltfunn-liste, ikke ordre.**
+
+#### 🔴 1. «Tilgangsgruppe» heter `brukergrupper` i koden — målt
+
+`page.tsx:520`: tabellen grupperes på `dbGrupper.filter(g => g.category === "brukergrupper")`.
+Variabelen heter `brukerGrupperListe`. **DB-kategorien er `brukergrupper`.**
+**UI-et sier «Tilgangsgrupper» og «+ Ny tilgangsgruppe».**
+
+> **Kenneth:** *«tilgangsgruppe → er ikke det egentlig brukergruppe eller kontaktgruppe»*
+
+🔴 **To navn på samme ting — ett i kode/DB, ett på skjermen.** Samme klasse som
+«entreprise»/«faggruppe» og `checks: ["state"]`: et navn som beskriver noe annet enn innholdet.
+**Kenneth-vedtak nødvendig: hvilket navn vinner?** Deretter rename én vei, og inn i
+[terminologi.md](terminologi.md).
+
+⚠️ **Tre kandidater, og de betyr ikke det samme:** «tilgangsgruppe» (hva den styrer — moduler og
+domener) · «brukergruppe» (hva den inneholder) · «kontaktgruppe» (hva sida heter).
+
+#### 🟡 2. Faggruppe er en kolonne, ikke en struktur
+
+Tabellen er **gruppert på brukergruppe**. Faggruppe-medlemskap vises per rad.
+🟢 Koblingen virker (`ed21b640`), men **du kan ikke se hvem som er i en faggruppe ved å lese
+strukturen** — bare ved å skanne en kolonne. **Ingen faggruppe-gruppering finnes.**
+
+#### 🔴 3. «Legg til bruker i dokumentflyt» er det vanskeligste å finne
+
+> **Kenneth:** *«Den verste plassen å finne er legg til en bruker i dokumentflyt»*
+
+Handlingen ligger på **`+`-ikonet i gruppe-overskriftsraden** (blyant · `+` · søppelbøtte), som er
+lett å lese som pynt. **Ikke målt hvilken handling hvert av de tre ikonene faktisk gjør** — det er
+første steg hvis dette tas.
+
+#### 🟡 4. To ulike «legg til»-knapper, ulik betydning
+
+`+ Ny kontakt` (blå) oppretter **ny** person. `Legg til fra firmaet` henter **eksisterende**.
+🔴 **Den blå er den mest fremtredende, men den sjeldnere handlingen** — de fleste skal hente en
+ansatt som alt finnes.
+
+#### 🟡 5. Fire administrasjonssteder på én side
+
+Flyt-chips · gruppe-chips · FAGGRUPPER-kolonne · TILGANGSGRUPPER-kolonne · tre ikoner per
+gruppeoverskrift · tre knapper i toppen. **Kenneth:** *«det er litt mange plasser å administrere
+denne siden»*.
+
+🔴 **Dette er informasjonsarkitektur, ikke en bug — fabels sak.** Men den bør ikke sendes før
+punkt 1 er avgjort: **et navnevedtak endrer hva flatene heter, og dermed hva som skal grupperes.**
+
+#### 🟢 KENNETH-FORSLAG 2026-09-08 — splitt flaten i tre nivåer
+
+> **Kontakter** → ren kontaktliste (navn, e-post, telefon, firma) — **redigerbar her**
+> **Brukergrupper** → kort med kun navnene, lite ikon bak (les/rediger)
+> **Åpne gruppen** → medlemmene + hvilke tilganger gruppen har
+> **Trykk på et navn** → kort med telefon, e-post, firmatilknytning, og hvilke dokumentflyter
+> medlemmet er med i
+
+**Målt at modellen bærer det:**
+
+| Del | Datagrunnlag |
+|---|---|
+| Kontaktliste | 🟢 Alt finnes på `user` — navn, e-post, telefon, rolle, `canLogin`, HMS-kort. **Ingen avledning** |
+| Gruppekort | 🟢 `dbGrupper` har `name`, `category`, `domains`, `members` |
+| Gruppens tilganger | 🟢 `domains` **ER** tilgangene — Bygg/HMS/Kvalitet-chipsene vises alt, bare på feil sted |
+| Flyt-liste på personkort | ⚠️ **Avledet av tre kilder** — se under |
+
+#### 🔴 ROTÅRSAKEN til at raden føles overlesset (målt `page.tsx:412-470`)
+
+`flytChipsPerMedlem` slår sammen **tre relasjoner** til én flat chip-liste:
+**direkte** (`projectMemberId`) · **via brukergruppe** (`groupId` → alle medlemmer) ·
+**via faggruppe** (`faggruppeId` → alle medlemmer).
+
+Skjemaet sier «**HØYST én av**» de tre. 🔴 **Chipsene skiller dem ikke.** Seks «Flyt →»-chips på en
+rad sier ikke hvilke som er personens egne og hvilke som er arvet fra en gruppe.
+**Raden viser avledet data fra tre hierarkier uten å oppgi kilden — det er problemet, ikke antall
+kolonner.**
+
+#### 🟢 KENNETH-VEDTAK 2026-09-08 — én redigeringsplass per relasjon
+
+> *«e-post, telefonnummer, firma, navn kan redigeres → ikke dokumentflyt → den må legges til i
+> dokumentflyten → kun der»*
+
+🟢 **Dokumentflyt-deltakelse redigeres KUN i dokumentflyten.** Personkortet **viser** hvilke flyter
+man er med i; det er ikke en inngang til å endre dem.
+
+**To ting løses av det:**
+1. **Arvet-vs-direkte blir et forklaringsproblem, ikke et redigeringsproblem.** Provenansen bør
+   fortsatt vises («fordi du er i Byggherre» / «personlig»), men som forklaring — ikke som en knapp
+   som kan endre for alle i en gruppe.
+2. 🟢 **Punkt 3 over løser seg selv.** «Legg til bruker i dokumentflyt» ligger i dag på et `+`-ikon
+   i en gruppeoverskrift. **Med vedtaket skal den handlingen bort derfra**, ikke gjøres lettere å
+   finne.
+
+#### 🟢 Og skillet som følger — svarer på hvor faggruppe hører hjemme
+
+| | Hva den er | Redigeres |
+|---|---|---|
+| **Faggruppe** | En **egenskap ved personen** — hvilket fag han tilhører | 🟢 På kontakten (bygget `ed21b640`) |
+| **Dokumentflyt** | En **struktur personen deltar i** — egne ledd, roller, rekkefølge | 🟢 I dokumentflyten, kun der |
+
+🔴 **Derfor skal de to IKKE behandles likt.** Faggruppe trenger ingen egen flate; dokumentflyt har
+allerede sin.
+
+#### 🟢 KENNETH-FORSLAG 2026-09-08 — «legg til hvor som helst, få foreslått resten»
+
+> Legges et menneske i en **gruppe** → gruppen er i en dokumentflyt → arv → **legges til i
+> kontaktlista** → foreslå: legg til i dokumentflyt? i gruppe?
+> Legges et menneske i **kontaktlista** → ligger kun der → foreslå flyt + gruppe
+> Legges et menneske i en **dokumentflyt** → legges også til i kontakter → foreslå gruppe
+>
+> *«problemet for en ny bruker er at hen glemmer å legge til en plass → brukeren får ikke til det
+> som er ønsket»*
+
+**🟢 Målt: rørleggingen finnes stort sett allerede.**
+
+| Vei | Tilstand |
+|---|---|
+| **Gruppe → kontakt** | 🟢 **Ferdig.** `gruppe.leggTilMedlem` tar en **e-post**, finner/oppretter `User`, finner/oppretter `ProjectMember`, legger så til i gruppen (`gruppe.ts:327`) |
+| **Arven** | 🟢 **Strukturell.** `GruppeMedlem` og `DokumentflytMedlem` peker begge på `projectMemberId` — **det er umulig å være i gruppe eller flyt uten å være i kontaktlista** |
+| **Dokumentflyt → kontakt** | 🟡 **Halvveis.** Batch-veien for firmaansatte «sikrer ProjectMember for hver». 🔴 Men `dokumentflyt.leggTilMedlem` tar `projectMemberId` direkte — **ingen e-post-vei for et nytt eksternt menneske** |
+| **Forslagslaget** | 🔴 **Finnes ikke noe sted.** Hver handling fullfører seg selv og sier ingenting om de to tomme tilknytningene |
+
+🔴 **To gap, ulik størrelse:**
+1. 🟡 **Forslagslaget** — nytt, men UI oppå data som finnes.
+2. 🔴 **E-post-vei inn i dokumentflyten** — gruppen har den, flyten ikke. **Reell asymmetri, må være
+   et valg.**
+
+⚠️ **Hjemmel finnes:** [prosjektoppsett-veileder.md](prosjektoppsett-veileder.md) står som
+🟡 PLAN «steg-for-steg ny bruker». **Kenneths forslag er den veilederen, men kontekstuell i stedet
+for lineær** — den dukker opp der du står. 🟢 **Cowork vurderer det som den bedre formen:** en
+lineær veileder må fullføres i én økt og hjelper ikke den som kommer tilbake om tre uker for å
+legge til én person.
+
+🟢 **Samlet bestilling til fabel:** [fabel-kontakter-ia.md](../redesign/fabel-kontakter-ia.md)
+
 ### 🔴 TRETTEN UFERDIGE KOBLINGER funnet bak lint-gjelden (målt 2026-09-08)
 
 **Lint-oppryddingen var ikke oppryddingen — den var funnet.** Kontrollplan vurderte hver «ubrukt»
