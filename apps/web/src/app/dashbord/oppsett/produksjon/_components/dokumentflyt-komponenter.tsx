@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next";
 import {
   Plus,
   Building2,
-  X,
   User,
   Users,
   UserPlus,

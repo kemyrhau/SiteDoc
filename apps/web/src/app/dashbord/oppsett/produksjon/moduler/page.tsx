@@ -18,7 +18,6 @@ import {
   BarChart3,
   FileSearch,
   Globe,
-  Settings,
   ShieldCheck,
   ExternalLink,
   Clock,
