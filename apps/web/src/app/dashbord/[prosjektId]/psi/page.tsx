@@ -37,7 +37,7 @@ export default function PsiDashboardSide() {
 
   const isLoading = psiLaster || (sigLaster && !!aktivPsiId);
 
-  if (psiLaster) {
+  if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <Spinner size="lg" />
