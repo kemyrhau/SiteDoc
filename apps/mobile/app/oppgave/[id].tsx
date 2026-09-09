@@ -105,8 +105,10 @@ export default function OppgaveDetalj() {
   const [tittelUtkast, settTittelUtkast] = useState("");
   const [beskrivelseUtkast, settBeskrivelseUtkast] = useState("");
   const [dialogTekst, settDialogTekst] = useState("");
+  const [dialogFeil, settDialogFeil] = useState<string | null>(null);
   const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
 
+  const { erPaaNettet } = useNettverk();
   const { ventende } = useOpplastingsKo();
 
   // Hent overføringer for historikk
@@ -338,14 +340,28 @@ export default function OppgaveDetalj() {
     onSuccess: () => {
       utils.oppgave.hentKommentarer.invalidate({ taskId: id! });
       settDialogTekst("");
+      settDialogFeil(null);
       settVisDialogModal(false);
+    },
+    // Uten dette går et avvist/tidsavbrutt send ut som «skjer ingen ting». Teksten
+    // står (nullstilles kun i onSuccess) så brukeren kan prøve igjen.
+    onError: () => {
+      settDialogFeil(t("oppgave.kommentarSendFeilet"));
     },
   });
 
   const håndterSendKommentar = useCallback(() => {
     if (!dialogTekst.trim() || !id) return;
+    // Kommentaren sendes til serveren — uten nett skjedde det tidligere ingenting
+    // (ingen kø for kommentarer, kun bilder). Blokker med tydelig beskjed; teksten
+    // står så den kan sendes når dekningen er tilbake. Speiler arkiv-PDF-vakten under.
+    if (!erPaaNettet) {
+      settDialogFeil(t("oppgave.kommentarKreverTilkobling"));
+      return;
+    }
+    settDialogFeil(null);
     leggTilKommentarMutasjon.mutate({ taskId: id, content: dialogTekst.trim() });
-  }, [dialogTekst, id, leggTilKommentarMutasjon]);
+  }, [dialogTekst, id, erPaaNettet, leggTilKommentarMutasjon, t]);
 
   const håndterSlett = useCallback(() => {
     Alert.alert(
@@ -405,7 +421,7 @@ export default function OppgaveDetalj() {
 
   // Arkiv-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF + in-app
   // forhåndsvisning som sjekkliste (speiler sjekkliste/[id].tsx). Ingen lokal HTML-bygging.
-  const { erPaaNettet } = useNettverk();
+  // `erPaaNettet` hentes øverst (dialog-vakten trenger den før dette punktet).
   const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const arkivIntensjonRef = useRef<"del" | "forhandsvis">("del");
   const [pdfForhandsvisFil, settPdfForhandsvisFil] = useState<string | null>(null);
@@ -1237,7 +1253,7 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Pressable onPress={() => settVisDialogModal(false)} hitSlop={8}>
+              <Pressable onPress={() => { settVisDialogModal(false); settDialogFeil(null); }} hitSlop={8}>
                 <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
               </Pressable>
               <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("oppgave.nyKommentar")}</Text>
@@ -1251,9 +1267,17 @@ export default function OppgaveDetalj() {
                 </Text>
               </Pressable>
             </View>
+            {dialogFeil && (
+              <Text className="bg-amber-50 px-4 py-2 text-center text-xs text-amber-700">
+                {dialogFeil}
+              </Text>
+            )}
             <TextInput
               value={dialogTekst}
-              onChangeText={settDialogTekst}
+              onChangeText={(tekst) => {
+                settDialogTekst(tekst);
+                if (dialogFeil) settDialogFeil(null);
+              }}
               placeholder={t("oppgave.skrivKommentar")}
               multiline
               autoFocus

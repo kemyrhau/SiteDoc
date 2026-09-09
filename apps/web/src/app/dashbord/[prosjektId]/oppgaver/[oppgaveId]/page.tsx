@@ -88,6 +88,7 @@ interface Kommentar {
 function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
   const { t } = useTranslation();
   const [nyTekst, setNyTekst] = useState("");
+  const [sendFeil, setSendFeil] = useState<string | null>(null);
   const utils = trpc.useUtils();
 
   const { data: kommentarer } = trpc.oppgave.hentKommentarer.useQuery(
@@ -100,11 +101,18 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
       utils.oppgave.hentKommentarer.invalidate({ taskId: oppgaveId });
       utils.oppgave.hentMedId.invalidate({ id: oppgaveId });
       setNyTekst("");
+      setSendFeil(null);
+    },
+    // Samme stille-feil-klasse som mobil-dialogen: uten onError går et avvist send ut
+    // som «skjer ingen ting». Teksten står (nullstilles kun i onSuccess).
+    onError: () => {
+      setSendFeil(t("oppgave.kommentarSendFeilet"));
     },
   });
 
   const håndterSend = () => {
     if (!nyTekst.trim()) return;
+    setSendFeil(null);
     leggTilMutasjon.mutate({ taskId: oppgaveId, content: nyTekst.trim() });
   };
 
@@ -142,11 +150,18 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
         <p className="mb-3 text-xs text-gray-400">{t("dialog.ingenKommentarer")}</p>
       )}
 
+      {sendFeil && (
+        <p className="mb-2 text-xs text-amber-700">{sendFeil}</p>
+      )}
+
       <div className="flex gap-2">
         <input
           type="text"
           value={nyTekst}
-          onChange={(e) => setNyTekst(e.target.value)}
+          onChange={(e) => {
+            setNyTekst(e.target.value);
+            if (sendFeil) setSendFeil(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

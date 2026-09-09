@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Scrie descrierea...",
   "oppgave.nyKommentar": "Comentariu nou",
   "oppgave.skrivKommentar": "Scrie comentariu...",
+  "oppgave.kommentarKreverTilkobling": "Comentariul este trimis la server și necesită o conexiune la internet. Textul dvs. este păstrat - trimiteți din nou odată ce sunteți online.",
+  "oppgave.kommentarSendFeilet": "Comentariul nu a fost trimis. Textul dvs. este păstrat - încercați din nou.",
   "felt.kommentar": "Comentariu",
   "felt.kommentarPlaceholder": "Comentariu...",
   "felt.skrivKommentar": "Scrie comentariu...",

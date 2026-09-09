@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Skriv beskrivning...",
   "oppgave.nyKommentar": "Ny kommentar",
   "oppgave.skrivKommentar": "Skriv kommentar...",
+  "oppgave.kommentarKreverTilkobling": "Kommentaren skickas till servern och behöver en internetanslutning. Din text behålls – skicka igen när du är online.",
+  "oppgave.kommentarSendFeilet": "Kommentaren skickades inte. Din text behålls – försök igen.",
   "felt.kommentar": "Kommentar",
   "felt.kommentarPlaceholder": "Kommentar...",
   "felt.skrivKommentar": "Skriv kommentar...",

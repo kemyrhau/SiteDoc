@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Rašyti aprašymą...",
   "oppgave.nyKommentar": "Naujas komentaras",
   "oppgave.skrivKommentar": "Rašyti komentarą...",
+  "oppgave.kommentarKreverTilkobling": "Komentaras siunčiamas į serverį ir jam reikia interneto ryšio. Jūsų tekstas saugomas – išsiųskite dar kartą, kai būsite prisijungę.",
+  "oppgave.kommentarSendFeilet": "Komentaras nebuvo išsiųstas. Jūsų tekstas saugomas – bandykite dar kartą.",
   "felt.kommentar": "komentuoti",
   "felt.kommentarPlaceholder": "Komentuoti...",
   "felt.skrivKommentar": "Rašyti komentarą...",

@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Kirjoita kuvaus...",
   "oppgave.nyKommentar": "Uusi kommentti",
   "oppgave.skrivKommentar": "Kirjoita kommentti...",
+  "oppgave.kommentarKreverTilkobling": "Kommentti lähetetään palvelimelle ja vaatii Internet-yhteyden. Tekstisi säilytetään – lähetä se uudelleen, kun olet online-tilassa.",
+  "oppgave.kommentarSendFeilet": "Kommenttia ei lähetetty. Tekstisi säilytetään – yritä uudelleen.",
   "felt.kommentar": "Kommentti",
   "felt.kommentarPlaceholder": "Kommentti...",
   "felt.skrivKommentar": "Kirjoita kommentti...",

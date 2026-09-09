@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Napisz opis...",
   "oppgave.nyKommentar": "Nowy komentarz",
   "oppgave.skrivKommentar": "Napisz komentarz...",
+  "oppgave.kommentarKreverTilkobling": "Komentarz zostaje wysłany na serwer i wymaga połączenia z Internetem. Twój tekst zostanie zachowany — wyślij go ponownie, gdy połączysz się z Internetem.",
+  "oppgave.kommentarSendFeilet": "Komentarz nie został wysłany. Twój tekst zostanie zachowany — spróbuj ponownie.",
   "felt.kommentar": "Komentarz",
   "felt.kommentarPlaceholder": "Komentarz...",
   "felt.skrivKommentar": "Napisz komentarz...",
