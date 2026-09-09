@@ -80,8 +80,36 @@ model User {
   impersonertSomTarget    ImpersonationAudit[]    @relation("ImpersonationTarget")
   flytRettighetOverrides  FlytRettighetOverride[] @relation("FlytRettighetOverrideEndretAv")
   flytRettighetLogg       FlytRettighetLogg[]     @relation("FlytRettighetLoggEndretAv")
+  brukerInnstillinger     BrukerInnstilling[]
 
   @@map("users")
+}
+
+// Brukerminne på server — innstillinger som overlever mobil-reinstallering
+// (Kenneth-vedtak 2026-09-09). Fase 1: sist brukt byggeplass + sist brukt tegning.
+// Språk (`User.language`) og nav-flagg (`User.nyNavigasjon`) bor ALLEREDE på User og
+// dupliseres bevisst IKKE hit (to sannhetskilder = drift). Datamodellen (nokkel + Json
+// + nullable projectId) tåler filtervalg senere (designsak til fabel — bygges ikke nå).
+//
+// `projectId` NULL = global (per bruker), satt = prosjektnær (per bruker×prosjekt).
+// Unikhet håndheves av TO partielle indekser i migreringen (Postgres teller NULL som
+// distinkt, så én @@unique ville tillatt to globale rader med samme nøkkel):
+//   - (user_id, project_id, nokkel) WHERE project_id IS NOT NULL
+//   - (user_id, nokkel)             WHERE project_id IS NULL
+// Derfor deklareres @@unique IKKE her (den ville laget en konkurrerende ikke-partiell
+// indeks). Sist-skrevne vinner ved konflikt mellom to enheter (`oppdatert`).
+model BrukerInnstilling {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  projectId String?  @map("project_id")
+  nokkel    String
+  verdi     Json
+  oppdatert DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, projectId])
+  @@map("bruker_innstilling")
 }
 
 model Organization {
