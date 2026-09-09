@@ -6,7 +6,6 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
-import { useNyNavigasjon } from "../../src/hooks/useNyNavigasjon";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 interface MappeTre {
@@ -48,7 +47,6 @@ function oversatteMaal(dok: Dokument): string[] {
 export default function BoksSkjerm() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const nyNav = useNyNavigasjon();
   // Stabel av åpne mapper for navigering bakover
   const [mappeSti, setMappeSti] = useState<{ id: string; navn: string }[]>([]);
   const åpenMappe = mappeSti.length > 0 ? mappeSti[mappeSti.length - 1]! : null;
@@ -90,7 +88,7 @@ export default function BoksSkjerm() {
     setMappeSti((prev) => prev.slice(0, -1));
   };
 
-  const tittel = nyNav ? t("nav.dokumenter") : t("nav.mapper");
+  const tittel = t("nav.dokumenter");
 
   if (!valgtProsjektId) {
     return (
@@ -134,9 +132,9 @@ export default function BoksSkjerm() {
 
   const erLaster = mapperLaster || (åpenMappe && dokumenterLaster);
 
-  // 2a brødsmulesti (flagg PÅ): «Alle mapper › HMS › Datablader»
+  // 2a brødsmulesti: «Alle mapper › HMS › Datablader»
   const brodsmule =
-    nyNav && mappeSti.length > 0
+    mappeSti.length > 0
       ? [t("dokumenter.alleMapper"), ...mappeSti.map((s) => s.navn)].join(" › ")
       : null;
 
@@ -182,7 +180,7 @@ export default function BoksSkjerm() {
               const m = item.mappe;
               // 2a: språk-info per mappe (arver / egne språk)
               const sprakInfo =
-                nyNav && m.effektiveSpraak
+                m.effektiveSpraak
                   ? m.spraakArvet
                     ? t("dokumenter.arverSprak")
                     : t("dokumenter.egneSprak", {
@@ -216,7 +214,6 @@ export default function BoksSkjerm() {
             const erFerdig =
               dok.processingState === "completed" || dok.processingState === "done";
             const harAvvik =
-              nyNav &&
               erFerdig &&
               !!dok.detectedLanguage &&
               dok.detectedLanguage !== prosjektKildesprak &&
@@ -225,8 +222,8 @@ export default function BoksSkjerm() {
               ? STOETTEDE_SPRAAK.find((s) => s.kode === dok.detectedLanguage)
               : null;
             const prosjektInfo = STOETTEDE_SPRAAK.find((s) => s.kode === prosjektKildesprak);
-            const oversatte = nyNav ? oversatteMaal(dok) : [];
-            const paagaar = nyNav && !!dok.oversettelse?.pågår;
+            const oversatte = oversatteMaal(dok);
+            const paagaar = !!dok.oversettelse?.pågår;
 
             return (
               <TouchableOpacity
@@ -253,8 +250,8 @@ export default function BoksSkjerm() {
                       {dok.filename}
                     </Text>
                     <View className="mt-0.5 flex-row items-center gap-1.5">
-                      {/* P-a statusprikk (flagg PÅ): grønn = oversatt, amber = pågår */}
-                      {nyNav && (paagaar || oversatte.length > 0) && (
+                      {/* P-a statusprikk: grønn = oversatt, amber = pågår */}
+                      {(paagaar || oversatte.length > 0) && (
                         <View
                           style={{
                             width: 8,
