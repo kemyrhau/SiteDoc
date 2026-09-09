@@ -194,10 +194,10 @@ export default function PsiLeser() {
 
   const gåTilNeste = useCallback(async () => {
     if (!signaturId) return;
-    const nyeFullførte = new Set(seksjonFullfort);
-    nyeFullførte.add(aktivSeksjon);
-    setSeksjonFullfort(nyeFullførte);
 
+    // Signaturseksjon: serveren MÅ bekrefte FØR vi markerer fullført. Ellers viser
+    // progresjonen «fullført» (grønt) på noe serveren aldri mottok — motsatt av det
+    // Alert-en sier. Feiler sendingen, står seksjonen ufullført (speiler web 2ee6e343).
     if (erSignaturSeksjon && signaturData) {
       try {
         await fullforMut.mutateAsync({
@@ -208,15 +208,19 @@ export default function PsiLeser() {
         });
       } catch (err) {
         Alert.alert("Feil", `Kunne ikke fullføre PSI: ${err instanceof Error ? err.message : "Ukjent feil"}`);
+        return; // IKKE marker fullført — sendingen nådde ikke fram
       }
+      setSeksjonFullfort((prev) => new Set(prev).add(aktivSeksjon));
       return;
     }
 
+    // Ikke-signatur: går videre lokalt (uendret rekkefølge).
+    setSeksjonFullfort((prev) => new Set(prev).add(aktivSeksjon));
     const nySeksjon = aktivSeksjon + 1;
     oppdaterMut.mutate({ signaturId, progress: nySeksjon, data: feltVerdier as Record<string, unknown> });
     setAktivSeksjon(nySeksjon);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
-  }, [signaturId, aktivSeksjon, seksjonFullfort, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
+  }, [signaturId, aktivSeksjon, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
 
   // Scroll-krav for rene innholdsseksjoner ble fjernet bevisst i 547261c4 (2026-04-03).
   // Kun quiz, video og signatur har krav. Restene sto igjen og utløste tre etterforskninger
