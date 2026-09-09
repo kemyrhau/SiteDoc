@@ -148,6 +148,41 @@ sikkerhetsgate og presenterte det for Kenneth som en etterlevelsessak. **Slutnin
 **Skal «må lese før signering» gjeninnføres, er det et produktvedtak — og robustheten må bygges på
 nytt før noe kobles inn.**
 
+### 🔴 MOBIL-PSI: seksjonen vises fullført selv når serveren avviste signeringen
+
+**Funnet av dokgen 2026-09-09** mens web-varianten ble fikset (`fix/web-psi-signering`).
+
+`apps/mobile/app/psi/[psiId].tsx`:
+- `:189` `setSeksjonFullfort(...)` — **kjører før sendingen**
+- `:193` `await ...mutateAsync(...)`
+- `:199-201` `try/catch` → `Alert`
+
+🟢 **Feilen er synlig på mobil** — arbeideren får beskjed (`Alert`).
+🔴 **Men den grønne progresjonen viser seksjonen som fullført likevel**, fordi
+`setSeksjonFullfort` alt har kjørt. **Beskjed og skjermbilde sier motsatt ting.**
+
+**Web-varianten er rettet** i `2ee6e343`: i signaturgrenen markeres seksjonen fullført **kun
+etter** serverbekreftelse. 🔴 **Mobil har samme rekkefølge, samme fiks gjenstår.**
+
+⚠️ **Ikke bygget fordi `apps/mobile/app/psi/[psiId].tsx` var kontrollplans fil i
+`fix/stille-mutasjoner`.** **Egen liten runde når den branchen er merget** — mønsteret ligger
+ferdig i web-fiksen.
+
+### 🟠 PSI-GJESTEFLATEN ER HARDKODET NORSK — arbeideren signerer på et språk han kanskje ikke leser
+
+**Funnet av dokgen 2026-09-09.** `apps/web/src/app/psi/[prosjektId]/page.tsx` bruker **ikke**
+`t()`. Hele chrome-en er norsk i koden: «Forrige», «Neste», «Bekreft og signer».
+Selve *innholdet* oversettes via `spraak`-prop, ikke i18next — **to ulike mekanismer i samme
+flate.**
+
+🔴 **Dette er den offentlige innføringen arbeidere signerer.** For A.Markussen — anleggsbransjen
+i Tromsø, med polsk- og litauisktalende arbeidskraft — betyr det at innholdet kommer på eget
+språk, mens knappene som utfører signeringen ikke gjør det.
+
+⚠️ **`t()` er ikke riktig fiks alene:** i18nexts aktive språk er ikke nødvendigvis gjestens valgte.
+🟢 **Mønsteret finnes:** dokgen brukte `i18n.getFixedT(spraak)` for feilmeldingen i `2ee6e343` —
+i18n-nøkler bundet til gjestens språk. **Resten av chrome-en kan følge samme vei.**
+
 ### 🟡 CLAUDE.md § Admin-arkitektur hører i en detalj-fil — men Kryssorg-deling har ingen hjem
 
 **Målt av dokgen 2026-09-09** under duplikat-gjennomgangen av CLAUDE.md.
@@ -171,6 +206,64 @@ CLAUDE.md er full av dem. 🔴 **`wc -c` gir bytes og kan vise «over 40 000» p
 under taket. Bruk `wc -m`.** Taket er presisert til «40 960 tegn» — men *hvordan* det måles står
 ikke noe sted, og to agenter fikk to tall på én dag. **Tas med neste gang CLAUDE.md § Dokumentasjons-
 regler røres.**
+
+### ⏸️ UTSATT MED VILJE 2026-09-09 — maskinoversettelsene er kontekstløse. IKKE START HER.
+
+> **Kenneth-vedtak 2026-09-09:** *«skal vi ikke heller utsette dette og rette når vi er lenger i mål
+> med selve hovedproblemet → rydde i alle feil vi har og funksjoner som mangler. Språk er noe vi bør
+> se på senere → nå fungerer det på et vis → men vi fikser noe nå → om 3 uker slumper en agent borti
+> at noe har driftet og vi starter å fikse på feil plass igjen.»*
+
+🔴 **Denne oppføringen finnes for å STOPPE den agenten.** Ser du en rar oversettelse: **det er
+kjent, det er målt, og det skal ikke fikses stykkevis.**
+
+**Målt av cowork 2026-09-09** — samme norske tekst oversatt ULIKT på ulike nøkler:
+
+| | Antall |
+|---|---|
+| Norske tekster som gjenbrukes på flere nøkler | 443 |
+| **Inkonsistente på tvers av de 13 genererte språkene** | 🔴 **1 089** |
+| Per språk | 68 (sq) – 97 (ro) |
+| **`en.json` — masteren selv** | ⚠️ **62** |
+
+**Konkrete eksempler, polsk:**
+
+| Norsk | Genereres til | Betyr faktisk |
+|---|---|---|
+| **Mapper** | `Lornetka składana` | 🔴 **sammenleggbar kikkert** |
+| **Oppsett** | `Organizować coś` | «å organisere noe» — verb, ikke menypunkt |
+| **Byggeplasser** | `Witryny` | utstillingsvinduer / nettsteder |
+| **Dokumentflyt** | `Przepływ wykonawców` | «flyt av entreprenører» |
+| **Timer** | fire ulike verdier | — |
+
+🔴 **Rotårsaken:** generatoren oversetter **nøkkel for nøkkel uten kontekst**, og vet ikke at to
+nøkler bærer samme ord i ulike betydninger. **Ikke alle 1 089 er feil** — enkelte kontekst-
+forskjeller er riktige. **Det er nettopp derfor dette krever klassifisering, ikke en fiks.**
+
+**Belegg for at problemet er reelt, ikke teoretisk:** fabel + en Opus-agent gjennomgikk **18**
+`standardopsjon.*`-nøkler på pl/lt/sq 2026-09-02
+([ks-hms-terminologi-pl-lt-sq-fabel-2026-09-02.md](../redesign/ks-hms-terminologi-pl-lt-sq-fabel-2026-09-02.md))
+og fant **7 blokkerende feil** — deriblant lt `Netoliese` («i nærheten») og sq `Gati miss`
+(halvoversatt engelsk) som term for **nestenulykke**, kjernebegrepet i RUH-flaten.
+🟢 **De 18 er rettet.** 🔴 **Skalerer funnraten, snakker vi hundrevis av termer som må vurderes
+av noen som kan språkene.**
+
+⚠️ **Feilen lever fortsatt i søsken-nøkler utenfor fabels omfang.** Målt eksempel:
+`okonomi.ikkeBehandlet` bærer nøyaktig ordene fabel forkastet — pl `Nieprzetworzone`,
+lt `Neapdorotas`, sq `I pa përpunuar` («uprosessert», som om det gjaldt data eller matvarer) —
+mens `standardopsjon.ikkeBehandlet` er rettet. **Én av 1 089. Ikke fiks den alene.**
+
+## 🔴 Når saken tas opp — rekkefølge
+
+1. **Klassifiser de 1 089:** ekte feil · legitim kontekstforskjell · høy synlighet (navigasjon,
+   knapper, statuser). **Uten dette tallet vet ingen om jobben er 50 termer eller 800.**
+2. **Rydd `en.json` først** — masteren har 62 egne inkonsistenser, og alt genereres fra den.
+3. **Språkkyndig gjennomgang** (fabel-mønsteret fra 02.09) på det klassifiseringen rangerer høyest.
+4. **QA-regel framover:** skal kontekst-QA være del av DoD for nye nøkler, eller en periodisk
+   runde? **Ubesvart — spørsmålet er ikke stilt til fabel ennå, bevisst, jf. vedtaket over.**
+
+🟢 **Inntil da fungerer flatene.** Feilene er stygge og enkelte er pinlige, men de blokkerer ingen.
+**Hovedproblemet er feil og manglende funksjoner. Dette venter.**
 
 ### 🔴 i18n-GENERATOREN BÆRER 132 NØKLERS DRIFT — den som kjører den drar dem med (funn 2026-09-09)
 
