@@ -5,9 +5,9 @@
  *
  * Erstatter SammenhengBoks-innholdet på Kontakter-siden (Spor 1 v2.1, mockup-fasit):
  * to separate ting styrer hva en kontakt kan — «Flyt» (deltakelse + rolle) og
- * «Gruppe» (tilgangsgruppe: moduler + domener). Ikke ett abstrakt kjede-diagram.
+ * «Gruppe» (brukergruppe: moduler + domener). Ikke ett abstrakt kjede-diagram.
  *
- * Chip-etikett = «Gruppe» (kort); forklaringen bruker fullnavnet «tilgangsgruppe».
+ * Chip-etikett = «Gruppe» (kort); forklaringen bruker fullnavnet «brukergruppe».
  */
 
 import { useTranslation } from "react-i18next";

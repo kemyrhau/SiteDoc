@@ -47,7 +47,7 @@ export interface FlytForModal {
   roller: Array<{ rolle: string; label?: string | null }>;
 }
 
-export interface TilgangsgruppeForModal {
+export interface BrukergruppeForModal {
   id: string;
   name: string;
 }
@@ -70,10 +70,14 @@ export function OpprettKontaktModal({
   prosjektId,
   faggrupper,
   dokumentflyter,
-  tilgangsgrupper,
+  brukergrupper,
   ledigeFirmaBrukere,
   forhandsvalgtFaggruppeId,
   forhandsvalgtFlytId,
+  forhandsvalgtBrukergruppeId,
+  forhandsvalgtBrukergruppeNavn,
+  laasBrukergruppe = false,
+  tittel,
   onFerdig,
 }: {
   open: boolean;
@@ -81,11 +85,20 @@ export function OpprettKontaktModal({
   prosjektId: string;
   faggrupper: FaggruppeForModal[];
   dokumentflyter: FlytForModal[];
-  tilgangsgrupper: TilgangsgruppeForModal[];
+  brukergrupper: BrukergruppeForModal[];
   ledigeFirmaBrukere: FirmaBrukerForModal[];
   forhandsvalgtFaggruppeId?: string;
   forhandsvalgtFlytId?: string;
-  onFerdig: () => void;
+  // Åpnet fra en gruppe: forhåndsvelg (og evt. lås) brukergruppen fra konteksten
+  // slik at «+ Legg til medlem» lander personen rett i gruppen.
+  forhandsvalgtBrukergruppeId?: string;
+  forhandsvalgtBrukergruppeNavn?: string;
+  laasBrukergruppe?: boolean;
+  // Overstyr modal-tittelen (f.eks. «Legg til medlem i {gruppe}» fra en gruppe).
+  tittel?: string;
+  // Navn + projectMemberId på den nettopp registrerte personen sendes med, slik at
+  // forslagsstripa kan navngi den og åpne personkortet. Undefined hvis ukjent.
+  onFerdig: (navn?: string, projectMemberId?: string) => void;
 }) {
   const { t } = useTranslation();
 
@@ -100,7 +113,7 @@ export function OpprettKontaktModal({
   const [epost, setEpost] = useState("");
   const [firmaBrukerId, setFirmaBrukerId] = useState("");
   const [flytRader, setFlytRader] = useState<FlytRad[]>([startRad()]);
-  const [tilgangsgruppeId, setTilgangsgruppeId] = useState("");
+  const [brukergruppeId, setBrukergruppeId] = useState(forhandsvalgtBrukergruppeId ?? "");
   const [feil, setFeil] = useState<string | null>(null);
 
   // Nullstill ved åpning
@@ -113,7 +126,7 @@ export function OpprettKontaktModal({
       setEpost("");
       setFirmaBrukerId("");
       setFlytRader([startRad()]);
-      setTilgangsgruppeId("");
+      setBrukergruppeId(forhandsvalgtBrukergruppeId ?? "");
       setFeil(null);
     }
   }
@@ -180,7 +193,7 @@ export function OpprettKontaktModal({
         })),
       );
 
-    const gruppeIder = tilgangsgruppeId ? [tilgangsgruppeId] : [];
+    const gruppeIder = brukergruppeId ? [brukergruppeId] : [];
 
     // (b) Rett-sjekk FØR skriving (Tillegg 1, Kenneth-vedtak 2026-08-22): flyt- og
     // gruppe-plassering er admin-gatet server-side. Nå er hele registreringen ÉN
@@ -215,7 +228,7 @@ export function OpprettKontaktModal({
     }
 
     try {
-      await registrerMutation.mutateAsync({
+      const resultat = await registrerMutation.mutateAsync({
         projectId: prosjektId,
         userId,
         email,
@@ -227,7 +240,11 @@ export function OpprettKontaktModal({
         flytBindinger,
       });
 
-      onFerdig();
+      const visNavn =
+        modus === "ny-person"
+          ? navn.trim()
+          : ledigeFirmaBrukere.find((b) => b.id === firmaBrukerId)?.name ?? undefined;
+      onFerdig(visNavn, resultat?.id);
       onClose();
     } catch (e) {
       setFeil((e as Error).message);
@@ -235,7 +252,7 @@ export function OpprettKontaktModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={t("kontaktside.nyKontakt")}>
+    <Modal open={open} onClose={onClose} title={tittel ?? t("kontaktside.nyKontakt")}>
       <div className="flex flex-col gap-3">
         {/* Modus: ny person / fra firma */}
         <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5 text-xs">
@@ -411,19 +428,25 @@ export function OpprettKontaktModal({
           </div>
         </div>
 
-        {/* Tilgangsgruppe (valgfri) */}
+        {/* Brukergruppe — låst når modalen åpnes fra en gruppe, ellers valgfri */}
         <div className="flex flex-col gap-1 border-t border-gray-100 pt-3">
           <span className="text-xs font-medium text-gray-600">{t("kontaktside.tilgangsgruppe")}</span>
-          <select
-            value={tilgangsgruppeId}
-            onChange={(e) => setTilgangsgruppeId(e.target.value)}
-            className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
-          >
-            <option value="">{t("kontaktside.ingenTilgangsgruppe")}</option>
-            {tilgangsgrupper.map((g) => (
-              <option key={g.id} value={g.id}>{g.name}</option>
-            ))}
-          </select>
+          {laasBrukergruppe && forhandsvalgtBrukergruppeId ? (
+            <span className="inline-flex w-fit items-center rounded-md bg-blue-50 px-2.5 py-1.5 text-sm font-medium text-blue-700">
+              {forhandsvalgtBrukergruppeNavn ?? brukergrupper.find((g) => g.id === forhandsvalgtBrukergruppeId)?.name ?? "—"}
+            </span>
+          ) : (
+            <select
+              value={brukergruppeId}
+              onChange={(e) => setBrukergruppeId(e.target.value)}
+              className="rounded-md border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+            >
+              <option value="">{t("kontaktside.ingenTilgangsgruppe")}</option>
+              {brukergrupper.map((g) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          )}
           <span className="text-[10.5px] text-gray-400">{t("kontaktside.tilgangsgruppeHint")}</span>
         </div>
 
