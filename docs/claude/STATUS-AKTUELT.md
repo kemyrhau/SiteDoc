@@ -30,11 +30,54 @@ den veien.**
 
 | Sak | Status |
 |---|---|
-| Kollisjons-deteksjon med tilføyelse | 🟢 **Gatet 08.09** — notat med navn/tid, banner, begge verdier bevart |
+| Kollisjons-deteksjon med tilføyelse | 🟢 Gatet 08.09 · ⚠️ **repeater-variant rettet 09.09** (`d4df351e`) |
 | Faggruppe-medlemskap redigerbart | 🟢 Gatet |
-| `medlem.registrer` (én registreringsvei) | 🟡 **UTSATT** — atferd uendret i gammelt UI; gates i fase 2 |
-| Dialog/kommentar offline | 🔴 **FUNN** — `oppgave/[id].tsx:347` kaller `mutate` uten nettsjekk. Nabokoden (`:453`, `:464`) sjekker `erPaaNettet`. **Pre-eksisterende** |
-| Tekstfelt nullstilles under skriving | 🔴 **UNDER MÅLING** — web-felt lukket seg da samme dokument var åpent på mobil; skrevet tekst tapt. **Mulig regresjon fra `5488588a`** |
+| `medlem.registrer` (én registreringsvei) | 🟢 **Fase 2 merget 09.09** — Kontakter i tre nivåer |
+| Dialog/kommentar offline | 🟢 **RETTET 09.09** (`62446dce`) — vakt + beskjed, teksten står |
+| Tekstfelt nullstilles under skriving | 🟢 **RETTET 09.09** (`f1dea4db`) — delt `kollisjonReset.ts`, re-dirty felt bevares |
+
+## 📅 2026-09-09/10 — TI MERGER. Kritisk vei til prod er gjennomført
+
+🟢 **Kontakter fase 2 er merget OG verifisert av Kenneth på test.** *«Veldig bra design.»*
+🔴 **Prod er fortsatt frosset** — fabels designgodkjenning gjenstår, og Kenneth fant fire nye
+funn på test etter verifiseringen.
+
+**Merget denne runden** (develop `a169afbc` → `15ef9602` under merge):
+
+| Sak | Hash | Utløst av |
+|---|---|---|
+| Tilføyelser vises i arkiv-PDF | `38e8afaa` | 🔴 Kenneth på test — notatet manglet i dokumentet byggherren får |
+| Kollisjons-reset visket ut tekst under skriving | `f1dea4db` | 🔴 Kenneth: *«feltet ble låst etter første setning»* |
+| Dialogen svarer offline | `62446dce` | 🔴 Kenneth: *«når jeg trykker send skjer ingen ting»* |
+| PSI-scrollrester fjernet | `51b6de21` | Lukket sak, restene utløste tre etterforskninger |
+| Web-PSI signerer ikke falskt | `2ee6e343` | «Fullført» vistes før serveren bekreftet |
+| Stille mutasjoner svarer | `3630e0d4` | 🔴 **Send/Besvar/Videresend ga FALSK SUKSESS offline** |
+| Mobil-PSI: fullført venter på server | `890d17e2` | Samme klasse, andre flate |
+| `--only`-flagg på i18n-generatoren | `cd9996ba` | Generatoren dro med seg 132 driftede nøkler |
+| CLAUDE.md renset | `1875908b` | i18n-tallet var «~2500», faktisk **4 317** |
+| Kontakter fase 2 | `3ffa6fee` | Fabels designlås |
+| Forent søkemodal | `c1da46f4` | 🔴 Kenneth: tomt nedtrekk i «Legg til medlem» |
+| Kolonner + filterblokk | `ef84d1dd` | 🔴 Kenneth: brukergruppe-filter sto under **Firma** |
+| Repeater-kollisjon på celle-nivå | `d4df351e` | 🔴 Kenneth: falsk melding + **rå JSON i notatet** |
+| Brukerminne på server (fase 1) | `15ef9602` | 🔴 Kenneth mistet «sist brukt» ved reinstallering |
+
+🔴 **Ti av fjorten sakene kom fra Kenneths egen testing.** Ikke fra agentene.
+
+### Åpne saker etter runden — alle ført i [BACKLOG](BACKLOG.md) med måling
+
+| Sak | Type |
+|---|---|
+| Faggruppe: egenskap eller resultat? | 🟢 **Avklart** — datakvalitet, ikke modellfeil |
+| `group_faggrupper` | 🟢 **Avklart** — halvferdig, venter spor1 Ordre 1.3. **IKKE RYDD** |
+| Gammel navigasjon avvikles | 🟡 **Kartlegging pågår** — prod: **10/10 brukere på ny**, gammel er død |
+| Offline-klargjøring serveren kjenner | 🟡 **Fase 2 — designsak til fabel** |
+| «Lagre mine filtre» | 🟡 **Designsak til fabel** |
+| Maskinoversettelsene er kontekstløse | ⏸️ **UTSATT med vilje** — 1 089 inkonsistenser målt |
+| HMS-gruppen gir HMS-admin | 🟠 Trenger forklaring i UI |
+| Firmaadmin mangler domene-flate | 🟠 Må inn i hvert prosjekt |
+
+⚠️ **Lærdom ført i BACKLOG: «null kallere» ≠ død kode.** Tre saker samme døgn, tre ulike utfall.
+**Cowork gjettet feil på to av tre.** Mål *hvorfor* koden forsvant, ikke bare om den kalles.
 
 ## 📅 2026-09-07 SENKVELD — merge-runde 32 + 33 på develop, venter Kenneths gater
 
