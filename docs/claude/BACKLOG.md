@@ -207,6 +207,23 @@ under taket. Bruk `wc -m`.** Taket er presisert til «40 960 tegn» — men *hvo
 ikke noe sted, og to agenter fikk to tall på én dag. **Tas med neste gang CLAUDE.md § Dokumentasjons-
 regler røres.**
 
+### 🔵 To WIP-diagnostikkbranches fra 2026-09-04 står umerget — avklar før de ryddes
+
+**Målt av cowork 2026-09-09** da merge-køen ble tømt:
+
+| Branch | Siste commit | Utenfor develop | Status |
+|---|---|---|---|
+| `wip/diag-exif` | 2026-09-04 | 2 commits | 🔴 ikke merget |
+| `wip/diag-ko-trigger` | 2026-09-04 | 1 commit | 🔴 ikke merget |
+| `redesign/navigasjon` | 2026-07-15 | 0 commits | 🟢 merget — langlivet spor per CLAUDE.md, **rør ikke** |
+
+De to WIP-branchene bærer diagnostikk fra EXIF- og kø-feilsøkingen 03.–04.09 (samme døgn som de
+fem lærdommene i SAMARBEIDSREGLER). 🔴 **Innholdet er ikke lest.** Diagnostikk-kode er ofte
+midlertidig, **men den kan bære målinger ingen andre steder har.**
+
+**Før sletting:** les de tre commitene og fang eventuelle målinger inn i en aktiv sannhetskilde.
+🔴 **Ikke slett på alder alene.**
+
 ### ⏸️ UTSATT MED VILJE 2026-09-09 — maskinoversettelsene er kontekstløse. IKKE START HER.
 
 > **Kenneth-vedtak 2026-09-09:** *«skal vi ikke heller utsette dette og rette når vi er lenger i mål
