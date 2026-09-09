@@ -277,11 +277,22 @@ export default function OppgaveDetalj() {
       utils.oppgave.hentMedId.invalidate({ id: id! });
       utils.oppgave.hentForProsjekt.invalidate();
     },
+    // Bekreftelsesarket (DokumentHandlingslinje) lukkes optimistisk FØR svar — uten dette
+    // gikk et offline/avvist Send/Besvar/Videresend ut som falsk suksess: arbeideren så
+    // arket lukke seg og trodde mottakeren fikk dokumentet.
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.kunneIkkeEndreStatus"), feil.message || t("feil.sjekkNettverk"));
+    },
   });
 
   const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
       utils.oppgave.hentMedId.invalidate({ id: id! });
+    },
+    // Prioritet/tittel/beskrivelse lagres via .mutate() og modalen lukkes straks — uten
+    // dette gikk en offline/avvist lagring ut som stille suksess og endringen forsvant.
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.kunneIkkeLagre"), feil.message || t("feil.sjekkNettverk"));
     },
   });
 

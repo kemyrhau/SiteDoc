@@ -350,6 +350,13 @@ export default function DokumentLeser() {
             <Text className="mb-3 px-5 text-sm font-semibold text-gray-900">
               {t("dokumentleser.velgSpraakOversett")}
             </Text>
+            {/* Uten dette lukket menyen seg kun ved suksess; en avvist oversettelse ga
+                ingen beskjed (online-only handling). */}
+            {oversettMut.isError && (
+              <Text className="mb-2 px-5 text-xs text-red-600">
+                {t("dokumentleser.oversettFeilet")}
+              </Text>
+            )}
             <ScrollView>
               {kanLeggesTil.map((s) => (
                 <TouchableOpacity
@@ -445,6 +452,13 @@ export default function DokumentLeser() {
                     <View className="flex-row items-center gap-2 rounded-lg bg-green-50 p-3">
                       <Check size={16} color="#0b7a4b" />
                       <Text className="text-sm text-green-700">{t("dokumentleser.oversettelseStartet")}</Text>
+                    </View>
+                  )}
+                  {/* Feil-tilstand ved siden av pending/success — ellers gikk en avvist
+                      re-oversettelse stille. */}
+                  {reOversettMut.isError && (
+                    <View className="flex-row items-center gap-2 rounded-lg bg-red-50 p-3">
+                      <Text className="text-sm text-red-700">{t("dokumentleser.reOversettFeilet")}</Text>
                     </View>
                   )}
                 </View>

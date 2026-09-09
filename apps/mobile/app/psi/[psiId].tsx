@@ -10,6 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, ChevronRight, Check, Globe } from "lucide-react-native";
 import { trpc } from "../../src/lib/trpc";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -56,6 +57,7 @@ function psiOversattOptions(obj: PsiObjekt, spraak: string): string[] {
 }
 
 export default function PsiLeser() {
+  const { t } = useTranslation();
   const { psiId } = useLocalSearchParams<{ psiId: string }>();
   const { bruker } = useAuth();
   const brukerSpraak = bruker?.language ?? "nb";
@@ -76,7 +78,15 @@ export default function PsiLeser() {
   );
 
   // Start gjennomføring
-  const startMut = trpc.psi.startGjennomforing.useMutation();
+  const startMut = trpc.psi.startGjennomforing.useMutation({
+    // Auto-start ved lasting. Feiler den (offline/avvist) blir signaturId aldri satt, og
+    // signer-knappen returnerer stille (gåTilNeste: `if (!signaturId) return`) — arbeideren
+    // tror han kan signere. Vis at starten feilet. (Inngangsvakt = egen Kenneth-sak: PSI er
+    // den offentlige signeringsflaten, og å slå på en gate som har vært av endrer atferd i prod.)
+    onError: () => {
+      Alert.alert(t("psi.startFeilet"), t("feil.sjekkNettverk"));
+    },
+  });
   const oppdaterMut = trpc.psi.oppdaterProgresjon.useMutation();
   const utils = trpc.useUtils();
   const fullforMut = trpc.psi.fullfør.useMutation({
