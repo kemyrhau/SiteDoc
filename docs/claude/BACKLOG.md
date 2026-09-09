@@ -207,6 +207,59 @@ under taket. Bruk `wc -m`.** Taket er presisert til «40 960 tegn» — men *hvo
 ikke noe sted, og to agenter fikk to tall på én dag. **Tas med neste gang CLAUDE.md § Dokumentasjons-
 regler røres.**
 
+### 🟢 BESTILT 2026-09-09 — brukerminne på server (fase 1 av to)
+
+> **Kenneth:** *«serveren bør lagre innstillinger → slik at mobil reinstallasjon ikke påvirkes»*
+> · *«brukerminne på server → ja»*
+
+**Utløst av at Kenneth reinstallerte appen 09.09 og opplevde at opprett-flyten oppførte seg
+annerledes** — «sist brukt tegning» var borte, og auto-utfyllingen hadde bare GPS å gå på.
+
+**Målt av cowork 2026-09-09:**
+
+| Hva | Status |
+|---|---|
+| Brukerinnstillings-modell på server | 🔴 **finnes ikke** |
+| Preferanser på mobil | **17 bruk av `SecureStore`** — alt lokalt, dør med appen |
+
+⚠️ **Sidefunn:** `SecureStore` er for hemmeligheter, ikke preferanser. **Verifiser om noen av de
+17 faktisk er preferanser som hører i vanlig lagring.**
+
+## Omfang — ubesvart, må gates før ordre
+
+🔴 **HVILKE innstillinger skal bo på server?** Kandidater: sist brukt byggeplass · sist brukt
+tegning · språk · filtervalg · «ny navigasjon»-flagget. **Kenneth avgjør — dette er et
+produktvalg, ikke en teknisk detalj.**
+
+**Åpne spørsmål:** per bruker eller per bruker×prosjekt? Skriv ved hver endring eller ved
+lukking? Hva vinner ved konflikt mellom to enheter?
+
+🟢 **Dette er dessuten en forutsetning for fase 2** — serveren må kunne huske noe om brukeren før
+den kan huske noe om enheten hans.
+
+### 🟡 DESIGNSAK TIL FABEL — offline-klargjøring som serveren kjenner (fase 2)
+
+> **Kenneth:** *«hvis mobilen er installert for offline → serveren vet det og gjør opplastinger
+> til mobilen»* · *«offline oppdatering ved reinstallasjon/oppdatering av app → må gjøres grundig»*
+
+**Målt:** `apps/mobile/src/services/offlineKlargjoring.ts` finnes og laster ned tegninger, IFC og
+bilder til lokal lagring — 🔴 **men mobilen initierer. Serveren vet ingenting.**
+
+🔴 **Kenneths ønske snur retningen: fra PULL til PUSH.** Det krever at serveren kjenner
+**enheter**, ikke bare brukere:
+
+- hvilken telefon som har hvilket prosjekt klargjort
+- hva den allerede har lastet ned
+- hva som er kommet til siden sist
+- hva som skjer ved reinstallering og ved app-oppdatering
+
+⚠️ **Henger sammen med de åpne offline-sakene:** dialogen har ingen utgående kø
+(`opplastingsKo` er kun bilder, `schema.ts:39`), og kommentar-kø ble utsatt som egen sak 09.09.
+**En enhetsbevisst server berører begge.**
+
+🔴 **Dette er en FASE, ikke en runde. Kenneth: «må gjøres grundig».** Til fabel som designsak —
+**ingen ordre før designet er låst.**
+
 ### 🔴 MODELLSPØRSMÅL: er faggruppe en EGENSKAP eller et RESULTAT? (Kenneth 2026-09-09, ubesvart)
 
 > **Kenneth:** *«faggruppe er ikke en registrering → det er et resultat av dokumentflyten du
