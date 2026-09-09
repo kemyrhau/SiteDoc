@@ -148,6 +148,23 @@ sikkerhetsgate og presenterte det for Kenneth som en etterlevelsessak. **Slutnin
 **Skal «må lese før signering» gjeninnføres, er det et produktvedtak — og robustheten må bygges på
 nytt før noe kobles inn.**
 
+### 🔴 i18n-GENERATOREN BÆRER 132 NØKLERS DRIFT — den som kjører den drar dem med (funn 2026-09-09)
+
+**Målt av dokgen under `fix/dialog-offline`:** `pnpm dlx tsx src/i18n/generate.ts` la **134 nøkler**
+i de 13 genererte språkfilene. **Kun 2 var hans.** De øvrige **132 er pre-eksisterende drift** —
+nøkler som finnes i `nb`/`en` men aldri er generert ut, blant dem `brukere.*` og `kontrollplan.*`.
+
+🔴 **Konsekvensen er en kollisjonsfelle, ikke bare støy.** En agent som legger to nøkler og kjører
+generatoren, pusher en diff på 134 nøkler — inkludert nøkler en **annen** agent renamer i samme
+periode. Dokgen unngikk det ved å reversere de 13 filene og sette inn kun sine egne to.
+
+⚠️ **Det er en manuell manøver hver agent må gjenta.** Ingen gate fanger den; diffen ser ut som
+normalt generator-arbeid.
+
+**Tiltak, ikke bestilt:** enten generer ut de 132 i en egen, isolert runde når ingen renamer i18n
+— eller la generatoren skrive kun nøkler som mangler i målspråket. **Rekkefølgen betyr noe:**
+gjøres opprydningen mens Kontakter fase 2 er under bygging, kolliderer den med renamet der.
+
 ### 🟠 KONTAKTER-SIDEN: for mange steder å administrere det samme (Kenneth på test 2026-09-08)
 
 Fem observasjoner fra `/dashbord/oppsett/brukere` etter at faggruppe-medlemskap ble koblet.
