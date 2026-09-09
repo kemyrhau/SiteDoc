@@ -19,7 +19,7 @@ import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
-import { Spinner } from "@sitedoc/ui";
+import { Spinner, Tooltip } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import { Plus, Users, X, Shield } from "lucide-react";
@@ -50,7 +50,8 @@ const CHIP_KAPP = 3;
 function ChipListe({ chips }: { chips: Array<{ id: string; name: string; color?: string | null }> }) {
   if (chips.length === 0) return <span className="text-xs text-gray-300">—</span>;
   const synlige = chips.slice(0, CHIP_KAPP);
-  const rest = chips.length - synlige.length;
+  const skjulte = chips.slice(CHIP_KAPP);
+  const rest = skjulte.length;
   return (
     <div className="flex flex-wrap items-center gap-1">
       {synlige.map((c) => (
@@ -59,7 +60,14 @@ function ChipListe({ chips }: { chips: Array<{ id: string; name: string; color?:
           {c.name}
         </span>
       ))}
-      {rest > 0 && <span className="text-xs text-gray-400">+{rest}</span>}
+      {rest > 0 && (
+        // «+N» må være åpnebar (fabel-formkrav 2026-09-10): tooltip viser de skjulte
+        // navnene. @sitedoc/ui-Tooltip gir tastatur (tabIndex + :focus-visible) og
+        // skjermleser (role=tooltip + aria-describedby) — ingen egen a11y-runde nødvendig.
+        <Tooltip tekst={skjulte.map((c) => c.name).join(", ")} side="top">
+          <span className="cursor-default text-xs text-gray-400 underline decoration-dotted underline-offset-2">+{rest}</span>
+        </Tooltip>
+      )}
     </div>
   );
 }
