@@ -14,7 +14,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
 | [docs/claude/kvalitetssikring-plan.md](docs/claude/kvalitetssikring-plan.md) | **🟢 VEDTATT 2026-08-31:** fire lag mot regresjoner. Lag 1 = gjør feilklassen ulovlig (lint) · lag 2 = simulator-røykliste FØR hvert EAS-bygg · lag 3 = slå på 29 ubrukte api-tester. Utløst av tre regresjoner på én dag som alle kompilerte grønt |
-| [docs/claude/DEPLOY-RUNBOK.md](docs/claude/DEPLOY-RUNBOK.md) | 🔴 **ENESTE kilde for deploy-kommandoer** — test · prod · OTA · env-filer på server, i rekkefølge. Opprettet 2026-09-07 etter at 12 filer viste seg å bære kommandoer i ulike varianter. **Finner du en kommando i en annen fil, er den foreldet** |
+| [docs/claude/DEPLOY-RUNBOK.md](docs/claude/DEPLOY-RUNBOK.md) | 🔴 **ENESTE kilde for deploy-kommandoer** — test · prod · OTA · env-filer på server, i rekkefølge. Opprettet 2026-09-07 etter at 12 filer viste seg å bære kommandoer i ulike varianter |
 | [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Branching, mobil reload, prod-lærdommer. **Kommandoer: se DEPLOY-RUNBOK** |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
 | [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
@@ -111,7 +111,7 @@ Utfør kun handlinger direkte knyttet til den uttrykkelige oppgaven. Hvis andre 
 - **3D/Punktsky:** Three.js, potree-core (punktsky-viewer), @thatopen/components (IFC 3D-viewer)
 - **Tegningskonvertering:** ODA File Converter / libredwg (DWG→SVG), CloudCompare (E57/PLY→LAS), PotreeConverter (LAS→Potree octree)
 - **Ikoner:** lucide-react
-- **i18n:** i18next + react-i18next (15 språkfiler i packages/shared/src/i18n/ — 14 brukervendte språk, ~2500 nøkler)
+- **i18n:** i18next + react-i18next (15 språkfiler i packages/shared/src/i18n/ — 14 brukervendte språk, ~4 300 nøkler)
 - **Dokumentoversettelse:** OPUS-MT (selvhostet, port 3303) + Google Translate (gratis, google-translate-api-x) + DeepL (betalt). Translation memory cache, kildespråk-deteksjon
 - **Flerspråklig embedding:** NorBERT (`ltgoslo/norbert2`, norsk) + intfloat/multilingual-e5-base (768 dim, 100+ språk) — selvhostet embedding-server, port 3302
 - **Dokumentleser:** Blokkbasert Reader View med språkvelger, sammenlign-panel for motorbytte
@@ -191,7 +191,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Ikon-props: `JSX.Element` (ikke `React.ReactNode`) for å unngå `@types/react` v18/v19-kollisjon
 - tRPC mutation-callbacks: `_data: unknown` for å unngå TS2589
 - **Kjente TS/CSS-fallgruver:** tRPC-include TS2589 + Prisma-felt-cleanup-verifikasjon → [api.md § TS/tRPC-fallgruver](docs/claude/api.md); Tailwind className-spesifisitet (`max-w-*`, Modal) → [shared-pakker.md § @sitedoc/ui](docs/claude/shared-pakker.md).
-- Prisma-migreringer: `pnpm --filter @sitedoc/db exec prisma migrate dev`
+- Prisma-migreringer: se § Kommandoer (`pnpm db:migrate`)
 
 ## UI-designprinsipper og fargepalett
 
@@ -254,7 +254,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 
 **`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`.
 
-`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`. Standalone prosjekt (`organizationId = null`) er gyldig permanent tilstand.
+`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`.
 
 **Kritiske regler:**
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
@@ -297,7 +297,7 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 ## Dokumentasjons-regler (UFRAVIKELIGE)
 
 **Størrelsesbegrensninger:**
-- CLAUDE.md: maks 40k chars — overskrides aldri
+- CLAUDE.md: maks 40 960 tegn (40 × 1024) — overskrides aldri
 - STATUS-AKTUELT.md § Pågående arbeid: maks 3 aktive PRs
 - Deprioritert/planlagt arbeid → [BACKLOG.md](docs/claude/BACKLOG.md) (ikke STATUS-AKTUELT.md)
 
