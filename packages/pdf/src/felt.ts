@@ -5,7 +5,7 @@
 
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi } from "./hjelpere";
+import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser } from "./hjelpere";
 // D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
 // felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
 // arkivmal-overgangen), så den er nå ren server/arkiv-renderer. Intercept-i-innhold.ts droppet;
@@ -242,6 +242,9 @@ export function renderFelt(
   if (verdiHtml) {
     html += `<div class="felt-verdi">${verdiHtml}</div>`;
   }
+
+  // Tilføyelser (tapte offline-kollisjonsverdier) — ETTER verdi, FØR kommentar.
+  html += byggTilfoyelser(felt?.tilfoyelser);
 
   // Kommentar
   if (felt?.kommentar) {
