@@ -24,7 +24,7 @@ import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import { Plus, Users, X, Shield } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
-import { OpprettKontaktModal, type FlytForModal, type BrukergruppeForModal } from "../produksjon/_components/OpprettKontaktModal";
+import { OpprettKontaktModal, type KandidatForModal } from "../produksjon/_components/OpprettKontaktModal";
 import { AnsattVelgerModal } from "@/components/AnsattVelgerModal";
 import { erHmsGruppe, finnHmsGruppe, type HmsGruppe } from "@/components/hms/hms-utils";
 import { PersonKort, type KontaktMedlem, type DbGruppe, type Dokumentflyt } from "./_components/PersonKort";
@@ -148,9 +148,36 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
     utils.medlem.hentLedigeFirmaBrukere.invalidate({ projectId: prosjektId });
   };
 
-  const brukergrupperForModal: BrukergruppeForModal[] = visGrupper
+  const brukergrupperForModal: Array<{ id: string; name: string }> = visGrupper
     .filter((g) => g.category === "brukergrupper")
     .map((g) => ({ id: g.id, name: g.name }));
+
+  // Union av prosjektets kontakter + firmaets ledige folk, med radtilstand. Firma-folk
+  // som alt er prosjektmedlem dedupliseres bort (de ligger i `kontakter`). Søket i modalen
+  // filtrerer aldri til tomhet — tilstanden bor på raden, så tom-liste-bugen er umulig.
+  const kontaktKandidater = useMemo((): KandidatForModal[] => {
+    const fraKontakter = kontakter
+      .filter((m) => m.user)
+      .map((m) => ({ userId: m.user!.id, navn: m.user!.name, epost: m.user!.email, alleredeITarget: true }));
+    const kjente = new Set(fraKontakter.map((k) => k.userId));
+    const fraFirma = ledigeFirmaBrukere
+      .filter((b) => !kjente.has(b.id))
+      .map((b) => ({ userId: b.id, navn: b.name, epost: b.email, alleredeITarget: false }));
+    return [...fraKontakter, ...fraFirma];
+  }, [kontakter, ledigeFirmaBrukere]);
+
+  const gruppeKandidater = useMemo((): KandidatForModal[] => {
+    if (!leggTilMedlemGruppeId) return [];
+    const iGruppen = gruppeUserIder.get(leggTilMedlemGruppeId) ?? new Set<string>();
+    const fraKontakter = kontakter
+      .filter((m) => m.user)
+      .map((m) => ({ userId: m.user!.id, navn: m.user!.name, epost: m.user!.email, alleredeITarget: iGruppen.has(m.user!.id) }));
+    const kjente = new Set(fraKontakter.map((k) => k.userId));
+    const fraFirma = ledigeFirmaBrukere
+      .filter((b) => !kjente.has(b.id))
+      .map((b) => ({ userId: b.id, navn: b.name, epost: b.email, alleredeITarget: false }));
+    return [...fraKontakter, ...fraFirma];
+  }, [leggTilMedlemGruppeId, gruppeUserIder, kontakter, ledigeFirmaBrukere]);
 
   return (
     <div className="-mx-6 -mt-6">
@@ -360,43 +387,30 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
         onBekreft={(userIds) => leggTilMangeMutation.mutate({ projectId: prosjektId, userIds })}
       />
 
-      {/* Ny kontakt (delt invitasjonsmodal) */}
+      {/* Ny kontakt — forent søkemodal (vei B) */}
       <OpprettKontaktModal
         open={nyKontaktOpen}
         onClose={() => setNyKontaktOpen(false)}
         prosjektId={prosjektId}
+        kontekst="kontakt"
+        kandidater={kontaktKandidater}
         faggrupper={faggrupperListe.map((f) => ({ id: f.id, name: f.name, color: f.color ?? null }))}
-        dokumentflyter={flyterListe.map((df): FlytForModal => ({
-          id: df.id,
-          name: df.name,
-          faggruppeId: (df as unknown as { faggruppeId: string | null }).faggruppeId ?? null,
-          roller: df.roller ?? [],
-        }))}
-        brukergrupper={brukergrupperForModal}
-        ledigeFirmaBrukere={ledigeFirmaBrukere.map((b) => ({ id: b.id, name: b.name, email: b.email }))}
         onFerdig={(navn, pmId) => {
           invaliderAlt();
           setForslag({ navn: navn ?? t("brukere.kontakter"), projectMemberId: pmId, visGruppe: true, visFlyt: true });
         }}
       />
 
-      {/* Legg til medlem i gruppe (delt modal, brukergruppe forhåndslåst) */}
+      {/* Legg til medlem i gruppe — samme modal, gruppe forhåndsvalgt + låst */}
       <OpprettKontaktModal
         open={!!leggTilMedlemGruppeId}
         onClose={() => setLeggTilMedlemGruppeId(null)}
         prosjektId={prosjektId}
+        kontekst="gruppe"
+        kandidater={gruppeKandidater}
         faggrupper={faggrupperListe.map((f) => ({ id: f.id, name: f.name, color: f.color ?? null }))}
-        dokumentflyter={flyterListe.map((df): FlytForModal => ({
-          id: df.id,
-          name: df.name,
-          faggruppeId: (df as unknown as { faggruppeId: string | null }).faggruppeId ?? null,
-          roller: df.roller ?? [],
-        }))}
-        brukergrupper={brukergrupperForModal}
-        ledigeFirmaBrukere={ledigeFirmaBrukere.map((b) => ({ id: b.id, name: b.name, email: b.email }))}
-        forhandsvalgtBrukergruppeId={leggTilMedlemGruppeId ?? undefined}
-        forhandsvalgtBrukergruppeNavn={visGrupper.find((g) => g.id === leggTilMedlemGruppeId)?.name}
-        laasBrukergruppe
+        gruppeId={leggTilMedlemGruppeId ?? undefined}
+        gruppeNavn={visGrupper.find((g) => g.id === leggTilMedlemGruppeId)?.name}
         tittel={leggTilMedlemGruppeId ? t("kontakter.leggTilMedlemITittel", { gruppe: visGrupper.find((g) => g.id === leggTilMedlemGruppeId)?.name ?? "" }) : undefined}
         onFerdig={(navn, pmId) => {
           invaliderAlt();
