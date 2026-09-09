@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Înregistrat la {{sted}} la {{tid}}",
   "mannskap.byggeplassen": "site-ul",
   "psi.tittel": "PSI — Instrucțiuni de siguranță",
+  "psi.signeringFeilet": "Semnătura ta nu a fost salvată. Verificați-vă conexiunea la internet și încercați să semnați din nou.",
   "psi.velgBygning": "Selectați clădirea",
   "psi.heleProsjektet": "Întregul proiect",
   "psi.opprettNy": "Creați PSI",

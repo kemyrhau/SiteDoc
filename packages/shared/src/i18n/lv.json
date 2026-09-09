@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Reģistrējies plkst. {{sted}} plkst. {{tid}}",
   "mannskap.byggeplassen": "vietne",
   "psi.tittel": "PSI — drošības instrukcijas",
+  "psi.signeringFeilet": "Jūsu paraksts netika saglabāts. Pārbaudiet interneta savienojumu un mēģiniet parakstīt vēlreiz.",
   "psi.velgBygning": "Izvēlieties ēku",
   "psi.heleProsjektet": "Viss projekts",
   "psi.opprettNy": "Izveidojiet PSI",

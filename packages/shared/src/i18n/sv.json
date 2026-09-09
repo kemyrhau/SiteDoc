@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Checkade in på {{sted}} på {{tid}}",
   "mannskap.byggeplassen": "webbplatsen",
   "psi.tittel": "PSI — Säkerhetsinstruktioner",
+  "psi.signeringFeilet": "Din signatur sparades inte. Kontrollera din internetanslutning och försök att signera igen.",
   "psi.velgBygning": "Välj byggnad",
   "psi.heleProsjektet": "Hela projektet",
   "psi.opprettNy": "Skapa PSI",
