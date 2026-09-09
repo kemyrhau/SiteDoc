@@ -7,6 +7,7 @@ import type { RapportObjektProps, FeltVerdi, Rad, RapportObjekt, OppgavePosisjon
 import { TOM_FELTVERDI, normaliserRad, nyRadId } from "./typer";
 import { RapportObjektRenderer, DISPLAY_TYPER, tilbehorVisning } from "./RapportObjektRenderer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
+import { TilfoyelseNotat } from "./TilfoyelseNotat";
 
 /**
  * Radens forhåndsposisjon: verdien til et `drawing_position`-barnefelt i raden (hvis malen har
@@ -259,6 +260,7 @@ export function RepeaterObjekt({
                       prosjektId={prosjektId}
                       feltNokkel={feltNokkel}
                     />
+                    <TilfoyelseNotat tilfoyelser={feltVerdi.tilfoyelser} />
                   </div>
                 );
               }
@@ -290,6 +292,7 @@ export function RepeaterObjekt({
                         : undefined
                     }
                   />
+                  <TilfoyelseNotat tilfoyelser={feltVerdi.tilfoyelser} />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).
                     const harData = !!feltVerdi.kommentar?.trim() || (feltVerdi.vedlegg?.length ?? 0) > 0;

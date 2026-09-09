@@ -6,20 +6,7 @@ import { harMeningsfullLabel } from "@sitedoc/pdf";
 import type { Vedlegg, Tilfoyelse } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 import { tilbehorVisning } from "./RapportObjektRenderer";
-
-function formaterTilfoyelseTid(iso: string): string {
-  const d = new Date(iso);
-  return isNaN(d.getTime())
-    ? ""
-    : d.toLocaleString("nb-NO", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-}
-
-function tilfoyelseVerdiTekst(verdi: unknown): string {
-  if (verdi == null) return "";
-  if (typeof verdi === "string" || typeof verdi === "number" || typeof verdi === "boolean") return String(verdi);
-  if (Array.isArray(verdi)) return verdi.map((v) => tilfoyelseVerdiTekst(v)).filter(Boolean).join(", ");
-  return JSON.stringify(verdi);
-}
+import { TilfoyelseNotat } from "./TilfoyelseNotat";
 
 interface FeltWrapperProps {
   objekt: {
@@ -157,26 +144,8 @@ export function FeltWrapper({
         </div>
       )}
 
-      {/* Tapende verdier ved kollisjon (feltvis merge-deteksjon). Feltnært og synlig —
-          den som skal rette etterpå ser hva som ble notert, av hvem, når. Ingenting slettes. */}
-      {tilfoyelser && tilfoyelser.length > 0 && (
-        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-            {t("kollisjon.notat.tittel")}
-          </p>
-          <div className="mt-1 flex flex-col gap-1.5">
-            {tilfoyelser.map((til, i) => (
-              <div key={`${til.tidspunkt}-${i}`} className="border-l-2 border-amber-300 pl-2">
-                <p className="text-sm text-gray-800">{tilfoyelseVerdiTekst(til.verdi)}</p>
-                <p className="text-[11px] text-amber-700">
-                  {til.brukerNavn}
-                  {til.tidspunkt ? ` · ${formaterTilfoyelseTid(til.tidspunkt)}` : ""}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Tapende verdier ved kollisjon (feltvis merge-deteksjon) — delt render. */}
+      <TilfoyelseNotat tilfoyelser={tilfoyelser} />
 
       {/* Valideringsfeil */}
       {valideringsfeil && (

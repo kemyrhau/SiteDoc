@@ -7,6 +7,7 @@ import { leggTilVedleggIRad } from "@sitedoc/shared";
 import type { RapportObjektProps, RapportObjekt, OppgavePosisjon } from "./typer";
 import type { FeltVerdi } from "../../hooks/useSjekklisteSkjema";
 import { RapportObjektRenderer, DISPLAY_TYPER, tilbehorVisning } from "./RapportObjektRenderer";
+import { TilfoyelseNotat } from "./TilfoyelseNotat";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 
 const TOM_FELTVERDI: FeltVerdi = { verdi: null, kommentar: "", vedlegg: [] };
@@ -242,6 +243,7 @@ export function RepeaterObjekt({
                       }
                       leseModus={leseModus}
                     />
+                    <TilfoyelseNotat tilfoyelser={feltVerdi.tilfoyelser} />
                   </View>
                 );
               }
@@ -280,6 +282,7 @@ export function RepeaterObjekt({
                         : undefined
                     }
                   />
+                  <TilfoyelseNotat tilfoyelser={feltVerdi.tilfoyelser} />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).
                     const harData = !!feltVerdi.kommentar?.trim() || (feltVerdi.vedlegg?.length ?? 0) > 0;

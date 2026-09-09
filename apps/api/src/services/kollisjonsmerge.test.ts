@@ -159,3 +159,133 @@ describe("kollisjonsmerge — feltvis deteksjon + tilføyelse", () => {
     expect(f.tilfoyelser).toHaveLength(2);
   });
 });
+
+// Produksjonsform `{ _radId, felter }` — testes FØRST (SAMARBEIDSREGLER: fire feil bak grønn gate).
+const rad = (id: string, felter: Record<string, unknown>) => ({ _radId: id, felter });
+const raderVerdi = (rader: unknown[]) => felt(rader);
+
+describe("kollisjonsmerge — repeater celle-nivå", () => {
+  it("legg til rad mens server har en annen versjon → INGEN kollisjon (Kenneths funn)", () => {
+    // base: én rad. server: den + en rad web la til. inn: den + en NY tom rad mobil la til.
+    const eksisterende = {
+      rep: raderVerdi([
+        rad("r1", { a: felt("X") }),
+        rad("rWeb", { a: felt("web-rad") }),
+      ]),
+    };
+    const innData = {
+      rep: raderVerdi([rad("r1", { a: felt("X") }), rad("r2", { a: felt("") })]),
+    };
+    const { merget, kollisjoner } = kollisjonsmerge({
+      eksisterende,
+      innData,
+      base: { rep: [rad("r1", { a: felt("X") })] },
+      appendOnly: false,
+      ...base,
+    });
+    expect(kollisjoner).toHaveLength(0);
+    const rader = (merget.rep as { verdi: Array<{ _radId: string }> }).verdi;
+    // r1 (merget) + r2 (ny) + rWeb (server-only, bevart mot tap)
+    expect(rader.map((r) => r._radId).sort()).toEqual(["r1", "r2", "rWeb"]);
+  });
+
+  it("tom celle i en ny rad → aldri kollisjon", () => {
+    const eksisterende = { rep: raderVerdi([rad("r1", { a: felt("Anne") })]) };
+    const innData = {
+      rep: raderVerdi([rad("r1", { a: felt("Anne") }), rad("r2", { a: felt("") })]),
+    };
+    const { kollisjoner } = kollisjonsmerge({
+      eksisterende,
+      innData,
+      base: { rep: [rad("r1", { a: felt("Anne") })] },
+      appendOnly: false,
+      ...base,
+    });
+    expect(kollisjoner).toHaveLength(0);
+  });
+
+  it("samme celle endret begge steder → kollisjon med LESBAR skalarverdi + bevart server-verdi", () => {
+    // Kari trodde cella var tom; Anne rakk å skrive «Anne» i samme celle først.
+    const eksisterende = { rep: raderVerdi([rad("r1", { a: felt("Anne") })]) };
+    const innData = { rep: raderVerdi([rad("r1", { a: felt("Kari") })]) };
+    const { merget, kollisjoner } = kollisjonsmerge({
+      eksisterende,
+      innData,
+      base: { rep: [rad("r1", { a: felt("") })] },
+      appendOnly: false,
+      ...base,
+    });
+    // Rapportert på repeaterens feltId, verdi er cellas skalar (ikke rå rad-JSON).
+    expect(kollisjoner).toEqual([{ feltId: "rep", verdi: "Kari" }]);
+    const rader = (merget.rep as { verdi: Array<{ felter: Record<string, { verdi: unknown; tilfoyelser?: unknown[] }> }> }).verdi;
+    const celle = rader[0]!.felter.a!;
+    expect(celle.verdi).toBe("Anne"); // den som kom først står
+    expect(celle.tilfoyelser).toEqual([
+      { verdi: "Kari", brukerNavn: "Kari", brukerId: "u-kari", tidspunkt: base.naa },
+    ]);
+  });
+
+  it("ulike celler i SAMME rad endret hver sin plass → ingen kollisjon (celle, ikke rad)", () => {
+    // Anne fylte b på server; Kari fyller a. Samme rad, ulik celle → skal IKKE kollidere.
+    const eksisterende = { rep: raderVerdi([rad("r1", { a: felt(""), b: felt("Anne-b") })]) };
+    const innData = { rep: raderVerdi([rad("r1", { a: felt("Kari-a"), b: felt("Anne-b") })]) };
+    const { merget, kollisjoner } = kollisjonsmerge({
+      eksisterende,
+      innData,
+      base: { rep: [rad("r1", { a: felt(""), b: felt("Anne-b") })] },
+      appendOnly: false,
+      ...base,
+    });
+    expect(kollisjoner).toHaveLength(0);
+    const celler = (merget.rep as { verdi: Array<{ felter: Record<string, { verdi: unknown }> }> }).verdi[0]!.felter;
+    expect(celler.a!.verdi).toBe("Kari-a");
+    expect(celler.b!.verdi).toBe("Anne-b");
+  });
+
+  it("sletting av UENDRET rad honoreres (raden fjernes)", () => {
+    const uendretRad = rad("r2", { a: felt("gammel") });
+    const eksisterende = { rep: raderVerdi([rad("r1", { a: felt("X") }), uendretRad]) };
+    const innData = { rep: raderVerdi([rad("r1", { a: felt("X") })]) }; // r2 slettet
+    const { merget, kollisjoner } = kollisjonsmerge({
+      eksisterende,
+      innData,
+      base: { rep: [rad("r1", { a: felt("X") }), uendretRad] },
+      appendOnly: false,
+      ...base,
+    });
+    expect(kollisjoner).toHaveLength(0);
+    const rader = (merget.rep as { verdi: Array<{ _radId: string }> }).verdi;
+    expect(rader.map((r) => r._radId)).toEqual(["r1"]);
+  });
+
+  it("sletting av rad som motparten ENDRET → raden BEVARES (lukker runde-48-hullet)", () => {
+    // A sletter r2 offline; B fyller r2 på server imens. A kommer på nett → r2 må ikke tapes.
+    const eksisterende = { rep: raderVerdi([rad("r1", { a: felt("X") }), rad("r2", { a: felt("B fylte den") })]) };
+    const innData = { rep: raderVerdi([rad("r1", { a: felt("X") })]) }; // r2 slettet av A
+    const { merget, kollisjoner } = kollisjonsmerge({
+      eksisterende,
+      innData,
+      base: { rep: [rad("r1", { a: felt("X") }), rad("r2", { a: felt("gammel") })] },
+      appendOnly: false,
+      ...base,
+    });
+    expect(kollisjoner).toHaveLength(0);
+    const rader = (merget.rep as { verdi: Array<{ _radId: string; felter: Record<string, { verdi: unknown }> }> }).verdi;
+    expect(rader.map((r) => r._radId).sort()).toEqual(["r1", "r2"]);
+    expect(rader.find((r) => r._radId === "r2")!.felter.a!.verdi).toBe("B fylte den");
+  });
+
+  it("rad motparten la til (i server, ikke i base/inn) → bevares", () => {
+    const eksisterende = { rep: raderVerdi([rad("r1", { a: felt("X") }), rad("rWeb", { a: felt("web") })]) };
+    const innData = { rep: raderVerdi([rad("r1", { a: felt("X") })]) };
+    const { merget } = kollisjonsmerge({
+      eksisterende,
+      innData,
+      base: { rep: [rad("r1", { a: felt("X") })] }, // rWeb var ikke i basen A så
+      appendOnly: false,
+      ...base,
+    });
+    const rader = (merget.rep as { verdi: Array<{ _radId: string }> }).verdi;
+    expect(rader.map((r) => r._radId).sort()).toEqual(["r1", "rWeb"]);
+  });
+});

@@ -119,6 +119,8 @@ export interface FeltVerdi {
   verdi: unknown;
   kommentar: string;
   vedlegg: Vedlegg[];
+  /** Tapende verdier ved kollisjon (celle-nivå for repeater-celler). Skrives av serveren. */
+  tilfoyelser?: Tilfoyelse[];
 }
 
 export const TOM_FELTVERDI: FeltVerdi = { verdi: null, kommentar: "", vedlegg: [] };
