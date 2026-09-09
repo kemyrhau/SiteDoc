@@ -35,6 +35,8 @@ export interface FeltVerdi {
   verdi: unknown;
   kommentar: string;
   vedlegg: Vedlegg[];
+  /** Tapende verdier ved kollisjon (celle-nivå for repeater-celler). Skrives av serveren. */
+  tilfoyelser?: Tilfoyelse[];
 }
 
 /** Tapende verdi notert ved kollisjon (feltvis merge-deteksjon). Skrives av serveren. */

@@ -196,11 +196,19 @@ function formaterTilfoyelseVerdi(v: unknown): string {
         ? x
         : x && typeof x === "object" && "filnavn" in x
           ? String((x as { filnavn: unknown }).filnavn)
-          : JSON.stringify(x),
+          : "(kompleks verdi)",
     );
     return esc(deler.join(", "));
   }
-  return esc(typeof v === "object" ? JSON.stringify(v) : String(v));
+  // Defensivt: tapende celleverdi er nå en skalar (repeater-kollisjon festes pr. celle).
+  // Skulle et objekt likevel nå hit, vis lesbar markør — aldri rå JSON i arkiv-dokumentet.
+  if (v && typeof v === "object") {
+    const o = v as { verdi?: unknown; filnavn?: unknown };
+    if (o.verdi != null && typeof o.verdi !== "object") return esc(String(o.verdi));
+    if (typeof o.filnavn === "string") return esc(o.filnavn);
+    return esc("(kompleks verdi)");
+  }
+  return esc(String(v));
 }
 
 /**
