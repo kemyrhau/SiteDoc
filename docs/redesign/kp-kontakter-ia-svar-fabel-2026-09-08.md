@@ -25,11 +25,9 @@ kontaktinfo (redigeres her) · brukergrupper (chips) · **Deltar i dokumentflyte
 med provenans, § 2) · lenke «Administrer deltakelse i Dokumentflyt-oppsettet →».
 Flyt-deltakelse redigeres ALDRI her — én redigeringsplass per relasjon, som vedtatt.
 
-> ⚠️ **PRESISERT 2026-09-09 — les før du bygger på denne linja.** Kenneth tiltrådte fabels
-> refinering: **flyt-deltakelse kan LEGGES TIL fra personkortet via den delte velgeren; endring
-> og fjerning bor fortsatt i Dokumentflyt-oppsettet.**
-> Full begrunnelse: [fabel-kontakter-ia.md § 4](fabel-kontakter-ia.md) og
-> [kp-modal-avvik-svar-fabel-2026-09-09.md § 3](kp-modal-avvik-svar-fabel-2026-09-09.md).
+> 🟢 **STÅR UENDRET.** En presisering ble foreslått av fabel og tiltrådt av Kenneth 2026-09-09,
+> og **trukket samme dag** — `steg` (posisjon i leddrekka) ville fått default 1 og plassert folk
+> i feil ledd. Sporet med målingen: [fabel-kontakter-ia.md § 4](fabel-kontakter-ia.md).
 
 ## 2. Provenans på flyt-listen (pkt 2)
 

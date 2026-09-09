@@ -63,33 +63,45 @@ Raden viser avledet data fra tre hierarkier uten provenans. **Det er problemet.*
 
 ## 🟢 4. KENNETH-VEDTAK — én redigeringsplass per relasjon
 
-> ⚠️ **PRESISERT 2026-09-09 av Kenneth, etter fabels anbefaling** (`kp-modal-avvik-svar-fabel-2026-09-09.md` § 3).
-> **Gjeldende ordlyd:**
+> ## 🟢 GJELDENDE — vedtaket står uendret. Presiseringen 09.09 ble TRUKKET samme dag.
 >
-> > **«Flyt-deltakelse kan LEGGES TIL fra personkortet via den delte velgeren; endring og
-> > fjerning bor i Dokumentflyt-oppsettet.»**
+> > *«e-post, telefonnummer, firma, navn kan redigeres → ikke dokumentflyt → den må legges til i
+> > dokumentflyten → kun der»*
 >
-> **Hva som endret seg:** forslagsstripene bærer allerede «+ Dokumentflyt»-knapper, så designet
-> lovet en legg-til-vei utenfor flyt-oppsettet. Serverveien finnes (`medlem.registrer` med
-> `flytBindinger`). **Skillet er nå tillegg (en handling) vs. endring (en relasjon)** — ikke
-> personkort vs. flyt-oppsett.
+> **Personkortet VISER flyt-deltakelse. Det er ikke en inngang til å endre den.**
 >
-> 🟢 **Vedtakets kjerne står uendret:** arvede koblinger kan ikke fjernes per person, og det
-> finnes fortsatt ÉN redigeringsplass per relasjon. **Provenans-linjene forklarer fortsatt hvorfor.**
+> ---
 >
-> 🔴 **Dette er en presisering, ikke en reversering.** Teksten under sto til 2026-09-09 og
-> beholdes, fordi den bærer begrunnelsen for at endring og fjerning aldri flytter hit.
-
----
-
-**Vedtaket slik det sto 2026-09-08 — begrunnelsen gjelder fortsatt for ENDRING og FJERNING:**
-
-> *«e-post, telefonnummer, firma, navn kan redigeres → ikke dokumentflyt → den må legges til i
-> dokumentflyten → kun der»*
-
-~~**Personkortet VISER flyt-deltakelse. Det er ikke en inngang til å endre den.**~~
-**Personkortet VISER flyt-deltakelse og kan LEGGE TIL. Det er ikke en inngang til å endre eller
-fjerne den.**
+> ### ⚠️ Sporet: presisert og trukket 2026-09-09 — les dette før noen foreslår det igjen
+>
+> **Fabel anbefalte** (`kp-modal-avvik-svar-fabel-2026-09-09.md` § 3) at tillegg skulle kunne
+> gjøres fra personkortet: *«Flyt-deltakelse kan LEGGES TIL fra personkortet via den delte
+> velgeren; endring og fjerning bor i Dokumentflyt-oppsettet.»* **Kenneth tiltrådte.**
+>
+> 🔴 **Kenneth trakk det få timer senere, på egen måling av konsekvensen:**
+>
+> > *«ved å legge til et medlem fra en gruppe og derfra inn i en dokumentflyt → da vet ikke
+> > dokumentflyten hvilken plassering hun tilhører. Min beslutning er derfor feil → dokumentflyt
+> > kan kun legges til fra selve dokumentflyten.»*
+>
+> 🔴 **Målt av cowork samme dag, som bekrefter hvorfor:**
+>
+> | Felt | Betydning | Konsekvens for en personkort-velger |
+> |---|---|---|
+> | `steg` (`schema.prisma`, `@default(1)`) | **posisjon i leddrekka** | Tillegg uten steg-valg lander i **FØRSTE ledd** — stille feilplassering |
+> | `ansvarsmerke` | «Bestiller arbeid» / «Kontrollerer avvik» / «Utfører» / «Orienteres» | Enda et felt velgeren måtte bære |
+> | `rolle` (`validation/index.ts:171`) | påkrevd, ingen default | — |
+>
+> **En fullstendig velger måtte bære flyt + rolle + steg + ansvarsmerke. Det ER flyt-oppsettet.**
+>
+> ⚠️ **Fabels premiss var dessuten feil, målt av redesign:** forslagsstripens «+ Dokumentflyt» og
+> personkortets «Administrer deltakelse» er begge `router.push` til flyt-oppsettet — **ikke
+> velgere.** Designet lovet aldri en legg-til-vei i personkortet.
+>
+> 🔴 **Begrunnelsen sto i dette dokumentet hele tiden** (tabellen under: *«Dokumentflyt = en
+> struktur personen deltar i — egne ledd, roller, rekkefølge»*). **Cowork leste den og gatet om
+> likevel.** Det er derfor sporet står her: neste gang forslaget dukker opp, er svaret allerede
+> målt.
 
 🟢 **Det løser to ting:**
 1. Arvet-vs-direkte blir et **forklaringsproblem**, ikke et redigeringsproblem. Provenansen skal
@@ -102,7 +114,7 @@ fjerne den.**
 | | Hva den er | Redigeres |
 |---|---|---|
 | **Faggruppe** | En **egenskap ved personen** — hvilket fag han tilhører | 🟢 På kontakten (bygget `ed21b640`) |
-| **Dokumentflyt** | En **struktur personen deltar i** — egne ledd, roller, rekkefølge | 🟢 **Tillegg:** personkortet ELLER flyt-oppsettet · 🔴 **Endring/fjerning:** flyt-oppsettet, kun der *(presisert 2026-09-09)* |
+| **Dokumentflyt** | En **struktur personen deltar i** — egne ledd, roller, rekkefølge | 🟢 I dokumentflyten, kun der — **tillegg, endring OG fjerning** *(bekreftet 2026-09-09 etter at en presisering ble prøvd og trukket, se § 4)* |
 
 🔴 **Faggruppe trenger derfor INGEN egen flate.** Dokumentflyt har allerede sin.
 
