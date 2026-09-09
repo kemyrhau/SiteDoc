@@ -123,6 +123,17 @@ Delt kilde for append-only-låsing i **oppgave**-hookene (web + mobil). **Sjekkl
 
 **Kritisk (mobil):** kall `beregnLaasteFelter` med SERVER-data, aldri lokal usynket SQLite — ellers låses egen offline-kladd. Klient-lås; server håndhever ikke append-only. Se `apps/mobile/src/hooks/CLAUDE.md`.
 
+### Kollisjons-reset (`kollisjonReset.ts`) — alle fire hooks
+
+Delt avgjørelse for hva et felt skal VISE etter en feltvis kollisjon (web + mobil, sjekkliste + oppgave). Feltvis kollisjons-deteksjon (`ae7725f9`) skrev server-vinneren tilbake i feltet **ubetinget** — skrev brukeren videre mens lagringen var i luften, forsvant tegnene under fingrene (Kenneths `BHO-004`-observasjon 08.09; cowork målte at det var denne resetten, ikke `beregnLaasteFelter`).
+
+| Funksjon | Input | Output | Beskrivelse |
+|----------|-------|--------|-------------|
+| `verdiErLik(a, b)` | `unknown, unknown` | `boolean` | JSON-sammenligning (arrays/objekter/primitiver, `null`≡`undefined`) — samme «endret?»-begrep som mobilens dirty-diff |
+| `løsKollisjonsVerdi({naavaerende, sendt, server})` | verdier | `{verdi, reDirty}` | Re-dirty (`naavaerende` ≠ `sendt`) → behold brukerens tekst; ellers server-vinneren |
+
+**Avgjørelse (Kenneth-linje «ingenting forsvinner»):** re-dirty tekst står — neste lagring gir en ny kollisjon som håndteres normalt, og den tapende verdien er alt bevart som tilføyelse server-side. Re-dirty måles på VERDI-diff (ikke web-only `endredeRef`), så web og mobil har ETT signal og ikke divergerer. **Funksjonen avgjør KUN verdien** — `basisRef` avanseres ALLTID til server-verdien av hver hook (basis = det serveren har, ellers tapes neste kollisjon). Basis-representasjonen er rå verdi (web) / FeltVerdi-objekt (mobil), så den biten bor i hooken.
+
 ### Signaturfelt (`signaturVerdi.ts`)
 
 Én delt kilde for lesning + visning av `signature`-feltverdier (web + mobil). Fabel-vedtak

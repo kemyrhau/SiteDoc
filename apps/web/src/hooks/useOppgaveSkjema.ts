@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
@@ -192,12 +192,16 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       const kollisjoner = (res as { kollisjoner?: { feltId: string }[] })?.kollisjoner ?? [];
       if (kollisjoner.length > 0) {
         settSisteKollisjoner(kollisjoner);
+        // Se useSjekklisteSkjema: server-vinneren vises kun hvis feltet ikke er re-dirty
+        // (`løsKollisjonsVerdi`), ellers står brukerens tekst. Basis → server alltid.
         const serverData = (res as { data?: Record<string, { verdi?: unknown }> }).data ?? {};
         settFeltVerdier((prev) => {
           const oppd = { ...prev };
           for (const { feltId } of kollisjoner) {
             const serverVerdi = serverData[feltId]?.verdi ?? null;
-            oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi: serverVerdi };
+            const naavaerende = (prev[feltId] ?? TOM_FELTVERDI).verdi ?? null;
+            const { verdi } = løsKollisjonsVerdi({ naavaerende, sendt: sendtVerdier[feltId] ?? null, server: serverVerdi });
+            oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi };
             basisRef.current[feltId] = serverVerdi;
           }
           return oppd;

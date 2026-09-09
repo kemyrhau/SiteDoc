@@ -136,6 +136,7 @@ export {
   harMinstEttUtfyltFelt,
   IKKE_UTFYLLBARE_FELTTYPER,
 } from "./feltLaasing";
+export { løsKollisjonsVerdi, verdiErLik } from "./kollisjonReset";
 export { TILBEHOR_REN_FJERNING_BASE } from "./rapportobjektTilbehor";
 export { avgjorDokumentTilgang } from "./avgjorDokumentTilgang";
 export type { TilgangsFakta, TilgangsResultat } from "./avgjorDokumentTilgang";
