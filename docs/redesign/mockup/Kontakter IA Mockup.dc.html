@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body { margin:0; background:#f3f4f6; font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif; color:#111827; }
+a { color:#1d4ed8; } a:hover { color:#1e40af; }
+@keyframes stripInn { from { opacity:0; transform:translateY(-4px);} to { opacity:1; transform:none;} }
+</style>
+</helmet>
+<div style="max-width:1060px; margin:0 auto; padding:24px 20px 80px">
+  <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:4px">
+    <h1 style="font-size:20px; font-weight:600; margin:0">Kontakter</h1>
+    <span style="font-size:12px; color:#6b7280">Mockup for gating · fabel 2026-09-08 · svar på kp-kontakter-ia</span>
+  </div>
+  <p style="font-size:13px; color:#4b5563; margin:0 0 16px">To faner. Kontaktinfo redigeres kun her; flyt-deltakelse vises men endres i Dokumentflyt-oppsettet (Kenneth-vedtak § 4).</p>
+
+  <div style="display:flex; gap:4px; border-bottom:1px solid #e5e7eb; margin-bottom:16px">
+    <button onClick="{{ visKontakter }}" style="padding:8px 14px; font-size:14px; border:none; background:none; cursor:pointer; border-bottom:2px solid {{ tabKontakterKant }}; color:{{ tabKontakterFarge }}; font-weight:{{ tabKontakterVekt }}">Kontakter</button>
+    <button onClick="{{ visGrupper }}" style="padding:8px 14px; font-size:14px; border:none; background:none; cursor:pointer; border-bottom:2px solid {{ tabGrupperKant }}; color:{{ tabGrupperFarge }}; font-weight:{{ tabGrupperVekt }}">Brukergrupper</button>
+  </div>
+
+  <sc-if value="{{ visForslagsstripe }}" hint-placeholder-val="{{ false }}">
+    <div style="animation:stripInn .2s ease-out; display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; margin-bottom:14px">
+      <span style="font-size:13.5px; color:#1e3a5f"><strong>Nora Vik</strong> er lagt til i kontaktlista. Vil du også gi henne tilhørighet?</span>
+      <div style="display:flex; gap:8px; margin-left:auto">
+        <button style="font-size:13px; padding:5px 12px; border:1px solid #93c5fd; background:#fff; color:#1d4ed8; border-radius:6px; cursor:pointer" style-hover="background:#eff6ff">+ Brukergruppe</button>
+        <button style="font-size:13px; padding:5px 12px; border:1px solid #93c5fd; background:#fff; color:#1d4ed8; border-radius:6px; cursor:pointer" style-hover="background:#eff6ff">+ Dokumentflyt</button>
+        <button onClick="{{ lukkForslag }}" style="font-size:13px; padding:5px 10px; border:none; background:none; color:#6b7280; cursor:pointer">Senere</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ erKontakter }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+      <div style="display:flex; gap:8px; align-items:center">
+        <input placeholder="Søk navn, firma …" style="font-size:13.5px; padding:7px 10px; border:1px solid #d1d5db; border-radius:6px; width:220px; background:#fff" />
+        <select style="font-size:13px; padding:7px 6px; border:1px solid #d1d5db; border-radius:6px; background:#fff; color:#374151"><option>Faggruppe: Alle</option><option>Rørlegger</option><option>Elektriker</option><option>Betong</option><option>Byggherre</option></select>
+        <select style="font-size:13px; padding:7px 6px; border:1px solid #d1d5db; border-radius:6px; background:#fff; color:#374151"><option>Brukergruppe: Alle</option><option>Sitedoc Ansatte</option><option>Sitedoc Ledelse</option><option>Underentreprenører</option><option>Byggherre HMS</option></select>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button style="font-size:13.5px; padding:7px 14px; border:1px solid #d1d5db; background:#fff; color:#374151; border-radius:6px; cursor:pointer" style-hover="background:#f9fafb">Legg til fra firmaet</button>
+        <button onClick="{{ simulerLeggTil }}" style="font-size:13.5px; padding:7px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:500" style-hover="background:#1e40af">+ Ny kontakt</button>
+      </div>
+    </div>
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+      <div style="display:grid; grid-template-columns: 2fr 2fr 1.2fr 1.4fr 1.2fr; gap:12px; padding:9px 16px; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; background:#f9fafb; border-bottom:1px solid #e5e7eb">
+        <span>Navn</span><span>E-post</span><span>Telefon</span><span>Firma</span><span>Faggruppe</span>
+      </div>
+      <sc-for list="{{ kontakter }}" as="k" hint-placeholder-count="5">
+        <div onClick="{{ k.aapne }}" style="display:grid; grid-template-columns: 2fr 2fr 1.2fr 1.4fr 1.2fr; gap:12px; padding:11px 16px; font-size:13.5px; border-bottom:1px solid #f3f4f6; cursor:pointer; align-items:center" style-hover="background:#f9fafb">
+          <span style="font-weight:500; color:#111827">{{ k.navn }}</span>
+          <span style="color:#4b5563; overflow:hidden; text-overflow:ellipsis">{{ k.epost }}</span>
+          <span style="color:#4b5563">{{ k.tlf }}</span>
+          <span style="color:#4b5563">{{ k.firma }}</span>
+          <span style="display:flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:{{ k.fagFarge }}"></span><span style="color:#4b5563; font-size:13px">{{ k.faggruppe }}</span></span>
+        </div>
+      </sc-for>
+    </div>
+    <p style="font-size:12px; color:#6b7280; margin-top:8px">Raden bærer kun kontaktinfo + faggruppe (egenskap ved personen, redigerbar på kortet). Flyt-chips, attestering og gruppe-kolonner er flyttet til personkortet og gruppene.</p>
+  </sc-if>
+
+  <sc-if value="{{ erGrupper }}" hint-placeholder-val="{{ false }}">
+    <sc-if value="{{ ingenAapenGruppe }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex; justify-content:flex-end; margin-bottom:10px">
+        <button style="font-size:13.5px; padding:7px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:500" style-hover="background:#1e40af">+ Ny brukergruppe</button>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px">
+        <sc-for list="{{ grupper }}" as="g" hint-placeholder-count="3">
+          <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:16px">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
+              <div style="display:flex; align-items:center; gap:8px; min-width:0">
+                <h3 style="font-size:14.5px; font-weight:600; margin:0">{{ g.navn }}</h3>
+                <sc-for list="{{ g.merker }}" as="mk" hint-placeholder-count="0">
+                  <span style="font-size:10.5px; padding:1px 7px; border-radius:999px; background:#fef3c7; color:#92400e; border:1px solid #fde68a">{{ mk.navn }}</span>
+                </sc-for>
+              </div>
+              <div style="display:flex; gap:4px">
+                <button onClick="{{ g.aapne }}" title="Åpne" style="width:26px; height:26px; border:1px solid #e5e7eb; background:#fff; border-radius:6px; cursor:pointer; color:#6b7280; font-size:13px" style-hover="background:#f3f4f6">👁</button>
+                <button onClick="{{ g.aapne }}" title="Rediger" style="width:26px; height:26px; border:1px solid #e5e7eb; background:#fff; border-radius:6px; cursor:pointer; color:#6b7280; font-size:13px" style-hover="background:#f3f4f6">✎</button>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:5px; margin-bottom:12px">
+              <sc-for list="{{ g.medlemmer }}" as="m" hint-placeholder-count="3">
+                <button onClick="{{ m.aapne }}" style="font-size:13.5px; color:#374151; border:none; background:none; padding:2px 4px; margin:-2px -4px; border-radius:4px; cursor:pointer; text-align:left" style-hover="background:#f3f4f6; color:#111827">{{ m.navn }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; border-top:1px solid #f3f4f6; padding-top:10px">
+              <sc-for list="{{ g.tilganger }}" as="d" hint-placeholder-count="2">
+                <span style="font-size:11.5px; padding:2px 8px; border-radius:999px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe">{{ d.navn }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <p style="font-size:12px; color:#6b7280; margin-top:10px">Kort per gruppe: kun navnene opplistet, to små ikoner (les/rediger), tilganger som chips nederst. Kenneths skisse § 3.</p>
+    </sc-if>
+    <sc-if value="{{ harAapenGruppe }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; max-width:720px">
+        <button onClick="{{ lukkGruppe }}" style="font-size:13px; border:none; background:none; color:#1d4ed8; cursor:pointer; padding:0; margin-bottom:12px">← Alle brukergrupper</button>
+        <h2 style="font-size:17px; font-weight:600; margin:0 0 16px">{{ aapenGruppeNavn }}</h2>
+        <sc-if value="{{ visGruppeForslag }}" hint-placeholder-val="{{ false }}">
+          <div style="animation:stripInn .2s ease-out; display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; margin-bottom:16px">
+            <span style="font-size:13px; color:#1e3a5f"><strong>Nora Vik</strong> er lagt til i gruppen og i kontaktlista. Skal hun også inn i en dokumentflyt?</span>
+            <div style="display:flex; gap:8px; margin-left:auto">
+              <button style="font-size:13px; padding:5px 12px; border:1px solid #93c5fd; background:#fff; color:#1d4ed8; border-radius:6px; cursor:pointer" style-hover="background:#eff6ff">+ Dokumentflyt</button>
+              <button onClick="{{ lukkGruppeForslag }}" style="font-size:13px; padding:5px 10px; border:none; background:none; color:#6b7280; cursor:pointer">Senere</button>
+            </div>
+          </div>
+        </sc-if>
+        <h4 style="font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin:0 0 8px">Medlemmer</h4>
+        <div style="display:flex; flex-direction:column; margin-bottom:20px">
+          <sc-for list="{{ aapenGruppeMedlemmer }}" as="m" hint-placeholder-count="3">
+            <button onClick="{{ m.aapne }}" style="display:flex; align-items:center; gap:10px; padding:8px 10px; border:none; background:none; border-radius:6px; cursor:pointer; text-align:left; font-size:13.5px" style-hover="background:#f9fafb">
+              <span style="width:28px; height:28px; border-radius:50%; background:#e0e7ff; color:#3730a3; display:grid; place-items:center; font-size:11.5px; font-weight:600">{{ m.initialer }}</span>
+              <span style="font-weight:500; color:#111827">{{ m.navn }}</span>
+              <span style="color:#6b7280; font-size:12.5px">{{ m.firma }}</span>
+            </button>
+          </sc-for>
+          <button onClick="{{ aapneInviter }}" style="align-self:flex-start; margin-top:6px; font-size:13px; padding:5px 12px; border:1px dashed #d1d5db; background:none; color:#4b5563; border-radius:6px; cursor:pointer" style-hover="background:#f9fafb">+ Legg til medlem</button>
+        </div>
+        <h4 style="font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin:0 0 8px">Tilganger</h4>
+        <div style="display:grid; grid-template-columns:120px 1fr; gap:8px 16px; font-size:13.5px">
+          <span style="color:#6b7280">Domener</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap"><span style="font-size:12px; padding:2px 9px; border-radius:999px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe">Bygg</span><span style="font-size:12px; padding:2px 9px; border-radius:999px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe">HMS</span></div>
+          <span style="color:#6b7280">Prosjektmoduler</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap"><span style="font-size:12px; padding:2px 9px; border-radius:999px; background:#f3f4f6; color:#374151; border:1px solid #e5e7eb">Timer</span><span style="font-size:12px; padding:2px 9px; border-radius:999px; background:#f3f4f6; color:#374151; border:1px solid #e5e7eb">Sjekklister</span><span style="font-size:12px; padding:2px 9px; border-radius:999px; background:#f3f4f6; color:#374151; border:1px solid #e5e7eb">Dokumenter</span></div>
+        </div>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{ visInviter }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ lukkInviter }}" style="position:fixed; inset:0; background:rgba(17,24,39,.35); z-index:60"></div>
+    <div style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:440px; max-width:92vw; background:#fff; border-radius:10px; z-index:70; box-shadow:0 20px 50px rgba(0,0,0,.2); padding:22px; box-sizing:border-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px">
+        <h3 style="font-size:15.5px; font-weight:600; margin:0">Legg til medlem i {{ aapenGruppeNavn }}</h3>
+        <button onClick="{{ lukkInviter }}" style="border:none; background:none; font-size:16px; color:#6b7280; cursor:pointer; padding:4px">✕</button>
+      </div>
+      <p style="font-size:12.5px; color:#6b7280; margin:0 0 14px">Én delt invitasjonsvei — kontakten havner automatisk i kontaktlista.</p>
+      <label style="display:block; font-size:12.5px; color:#374151; font-weight:500; margin-bottom:4px">Finn eksisterende eller inviter med e-post</label>
+      <input placeholder="Navn eller e-postadresse …" style="width:100%; box-sizing:border-box; font-size:13.5px; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; margin-bottom:12px" />
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px">
+        <div>
+          <label style="display:block; font-size:12.5px; color:#374151; font-weight:500; margin-bottom:4px">Firma <span style="color:#b91c1c">*</span></label>
+          <select style="width:100%; font-size:13.5px; padding:8px 6px; border:1px solid #d1d5db; border-radius:6px; background:#fff"><option>SiteDoc AS</option><option>Rørexperten AS</option><option>Nytt firma …</option></select>
+        </div>
+        <div>
+          <label style="display:block; font-size:12.5px; color:#374151; font-weight:500; margin-bottom:4px">Faggruppe <span style="color:#9ca3af; font-weight:400">(valgfri)</span></label>
+          <select style="width:100%; font-size:13.5px; padding:8px 6px; border:1px solid #d1d5db; border-radius:6px; background:#fff"><option>Ingen</option><option>Rørlegger</option><option>Elektriker</option><option>Betong</option></select>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; background:#f9fafb; border:1px solid #f3f4f6; border-radius:6px; padding:8px 10px; margin-bottom:16px">
+        <span style="font-size:12.5px; color:#6b7280">Brukergruppe:</span>
+        <span style="font-size:12.5px; padding:2px 9px; border-radius:999px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe">{{ aapenGruppeNavn }}</span>
+        <span style="font-size:12px; color:#9ca3af">forhåndsvalgt fra konteksten</span>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px">
+        <button onClick="{{ lukkInviter }}" style="font-size:13.5px; padding:7px 14px; border:1px solid #d1d5db; background:#fff; color:#374151; border-radius:6px; cursor:pointer" style-hover="background:#f9fafb">Avbryt</button>
+        <button onClick="{{ bekreftInviter }}" style="font-size:13.5px; padding:7px 14px; background:#1d4ed8; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:500" style-hover="background:#1e40af">Legg til</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ harPersonkort }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ lukkPerson }}" style="position:fixed; inset:0; background:rgba(17,24,39,.35); z-index:40"></div>
+    <div style="position:fixed; top:0; right:0; bottom:0; width:400px; max-width:92vw; background:#fff; z-index:50; box-shadow:-8px 0 30px rgba(0,0,0,.12); padding:24px; overflow:auto; box-sizing:border-box">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px">
+        <div style="display:flex; align-items:center; gap:12px">
+          <span style="width:42px; height:42px; border-radius:50%; background:#e0e7ff; color:#3730a3; display:grid; place-items:center; font-size:15px; font-weight:600">{{ personInitialer }}</span>
+          <div>
+            <h2 style="font-size:16.5px; font-weight:600; margin:0">{{ personNavn }}</h2>
+            <span style="font-size:12.5px; color:#6b7280">{{ personFirma }}</span>
+          </div>
+        </div>
+        <button onClick="{{ lukkPerson }}" style="border:none; background:none; font-size:18px; color:#6b7280; cursor:pointer; padding:4px">✕</button>
+      </div>
+      <h4 style="font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin:0 0 8px">Kontaktinfo <span style="font-weight:400; text-transform:none; letter-spacing:0">· redigeres her</span></h4>
+      <div style="display:grid; grid-template-columns:80px 1fr; gap:7px 12px; font-size:13.5px; margin-bottom:20px">
+        <span style="color:#6b7280">E-post</span><span style="display:flex; align-items:center; gap:8px">{{ personEpost }} <button style="border:none; background:none; color:#9ca3af; cursor:pointer; font-size:12px; padding:0">✎</button></span>
+        <span style="color:#6b7280">Telefon</span><span style="display:flex; align-items:center; gap:8px">{{ personTlf }} <button style="border:none; background:none; color:#9ca3af; cursor:pointer; font-size:12px; padding:0">✎</button></span>
+        <span style="color:#6b7280">Firma</span><span style="display:flex; align-items:center; gap:8px">{{ personFirma }} <button style="border:none; background:none; color:#9ca3af; cursor:pointer; font-size:12px; padding:0">✎</button></span>
+        <span style="color:#6b7280">Faggruppe</span><span style="display:flex; align-items:center; gap:8px"><span style="width:8px; height:8px; border-radius:50%; background:{{ personFagFarge }}"></span>{{ personFaggruppe }} <button style="border:none; background:none; color:#9ca3af; cursor:pointer; font-size:12px; padding:0">✎</button></span>
+      </div>
+      <h4 style="font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin:0 0 8px">Kapabiliteter i prosjektet</h4>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px">
+        <sc-for list="{{ personKapabiliteter }}" as="kap" hint-placeholder-count="2">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 10px; background:#f9fafb; border:1px solid #f3f4f6; border-radius:6px">
+            <span style="font-size:13px; color:#374151">{{ kap.navn }}</span>
+            <span style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:{{ kap.farge }}">{{ kap.verdi }} <button style="border:none; background:none; color:#9ca3af; cursor:pointer; font-size:12px; padding:0">✎</button></span>
+          </div>
+        </sc-for>
+      </div>
+      <h4 style="font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin:0 0 8px">Brukergrupper</h4>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px">
+        <sc-for list="{{ personGrupper }}" as="g" hint-placeholder-count="2">
+          <span style="font-size:12.5px; padding:3px 10px; border-radius:999px; background:#f3f4f6; color:#374151; border:1px solid #e5e7eb">{{ g.navn }}</span>
+        </sc-for>
+        <sc-if value="{{ personUtenGruppe }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:12.5px; color:#6b7280">Ikke i noen brukergruppe · <a href="#" style="font-size:12.5px">legg til</a></span>
+        </sc-if>
+      </div>
+      <h4 style="font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; margin:0 0 8px">Deltar i dokumentflyter</h4>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px">
+        <sc-for list="{{ personFlyter }}" as="f" hint-placeholder-count="2">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:8px 10px; background:#f9fafb; border:1px solid #f3f4f6; border-radius:6px">
+            <div style="min-width:0">
+              <span style="font-size:13.5px; font-weight:500; color:#111827">{{ f.navn }}</span>
+              <span style="font-size:12.5px; color:#6b7280"> · {{ f.rolle }}</span>
+              <div style="font-size:12px; color:{{ f.kildeFarge }}; margin-top:2px">{{ f.kilde }}</div>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ personUtenFlyt }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:12.5px; color:#6b7280">Deltar ikke i noen dokumentflyt ennå.</span>
+        </sc-if>
+      </div>
+      <a href="#" style="font-size:13px">Administrer deltakelse i Dokumentflyt-oppsettet →</a>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1120,&quot;height&quot;:760}}">
+class Component extends DCLogic {
+  state = { fane: "kontakter", aapenGruppe: null, person: null, forslag: false, inviter: false, gruppeForslag: false };
+  renderVals() {
+    const bla = "#1d4ed8", graa = "#6b7280";
+    const fag = { "Rørlegger": "#0e9f6e", "Elektriker": "#d97706", "Betong": "#3b82f6", "Byggherre": "#8b5cf6" };
+    const personer = [
+      { id: "kmy", navn: "Kenneth Myrhaug", epost: "kenneth@sitedoc.no", tlf: "911 22 334", firma: "SiteDoc AS", faggruppe: "Betong",
+        grupper: ["Sitedoc Ansatte", "Sitedoc Ledelse"],
+        flyter: [
+          { navn: "Byggeflyt betong", rolle: "Bestiller", direkte: true },
+          { navn: "HMS-flyt", rolle: "Deltaker", via: "Sitedoc Ledelse" },
+        ] },
+      { id: "aro", navn: "Anders Rønning", epost: "anders@rorexperten.no", tlf: "988 76 543", firma: "Rørexperten AS", faggruppe: "Rørlegger",
+        grupper: ["Underentreprenører"],
+        flyter: [
+          { navn: "Byggeflyt rør", rolle: "Utfører", viaFag: "Rørlegger" },
+        ] },
+      { id: "mel", navn: "Maria Elstad", epost: "maria@elstad-elektro.no", tlf: "452 11 908", firma: "Elstad Elektro", faggruppe: "Elektriker",
+        grupper: ["Underentreprenører"],
+        flyter: [
+          { navn: "Byggeflyt elektro", rolle: "Utfører", direkte: true },
+          { navn: "Byggeflyt elektro", rolle: "Utfører", viaFag: "Elektriker" },
+        ] },
+      { id: "ohb", navn: "Ole H. Bakken", epost: "ole@bakkenbygg.no", tlf: "934 55 210", firma: "Bakken Bygg AS", faggruppe: "Byggherre",
+        grupper: ["Byggherre HMS"],
+        flyter: [ { navn: "HMS-flyt", rolle: "Godkjenner", via: "Byggherre HMS" } ] },
+      { id: "nvi", navn: "Nora Vik", epost: "nora.vik@gmail.com", tlf: "902 33 481", firma: "—", faggruppe: "Rørlegger", grupper: [], flyter: [] },
+    ];
+    const grupperData = [
+      { navn: "Sitedoc Ansatte", medlemmer: ["kmy"], tilganger: ["Bygg", "Kvalitet"], merker: ["Auto"] },
+      { navn: "Sitedoc Ledelse", medlemmer: ["kmy"], tilganger: ["Bygg", "HMS", "Kvalitet"] },
+      { navn: "Underentreprenører", medlemmer: ["aro", "mel"], tilganger: ["Bygg"] },
+      { navn: "Byggherre HMS", medlemmer: ["ohb"], tilganger: ["HMS"] },
+    ];
+    const finn = (id) => personer.find((p) => p.id === id);
+    const init = (n) => n.split(" ").map((d) => d[0]).slice(0, 2).join("").toUpperCase();
+    const p = this.state.person ? finn(this.state.person) : null;
+    const g = this.state.aapenGruppe ? grupperData.find((x) => x.navn === this.state.aapenGruppe) : null;
+    const erK = this.state.fane === "kontakter";
+    return {
+      erKontakter: erK, erGrupper: !erK,
+      tabKontakterKant: erK ? bla : "transparent", tabKontakterFarge: erK ? bla : graa, tabKontakterVekt: erK ? 600 : 400,
+      tabGrupperKant: !erK ? bla : "transparent", tabGrupperFarge: !erK ? bla : graa, tabGrupperVekt: !erK ? 600 : 400,
+      visKontakter: () => this.setState({ fane: "kontakter", aapenGruppe: null }),
+      visGrupper: () => this.setState({ fane: "grupper" }),
+      kontakter: personer.map((x) => ({ ...x, fagFarge: fag[x.faggruppe] ?? "#9ca3af", aapne: () => this.setState({ person: x.id }) })),
+      grupper: grupperData.map((x) => ({ navn: x.navn, merker: (x.merker ?? []).map((n) => ({ navn: n })), medlemmer: x.medlemmer.map((id) => ({ navn: finn(id).navn, aapne: () => this.setState({ person: id }) })), tilganger: x.tilganger.map((t) => ({ navn: t })), aapne: () => this.setState({ aapenGruppe: x.navn }) })),
+      ingenAapenGruppe: !g, harAapenGruppe: !!g,
+      aapenGruppeNavn: g ? g.navn : "",
+      aapenGruppeMedlemmer: g ? g.medlemmer.map((id) => { const m = finn(id); return { navn: m.navn, firma: m.firma, initialer: init(m.navn), aapne: () => this.setState({ person: id }) }; }) : [],
+      lukkGruppe: () => this.setState({ aapenGruppe: null }),
+      harPersonkort: !!p,
+      personNavn: p ? p.navn : "", personInitialer: p ? init(p.navn) : "",
+      personEpost: p ? p.epost : "", personTlf: p ? p.tlf : "", personFirma: p ? p.firma : "",
+      personFaggruppe: p ? p.faggruppe : "", personFagFarge: p ? (fag[p.faggruppe] ?? "#9ca3af") : "#9ca3af",
+      personKapabiliteter: p ? [
+        { navn: "Prosjektrolle", verdi: p.id === "kmy" ? "Admin" : "Medlem", farge: p.id === "kmy" ? "#1d4ed8" : "#374151" },
+        { navn: "Attesterer timer", verdi: p.id === "kmy" ? "Ja" : "Nei", farge: p.id === "kmy" ? "#047857" : "#6b7280" },
+      ] : [],
+      personGrupper: p ? p.grupper.map((n) => ({ navn: n })) : [],
+      personUtenGruppe: !!p && p.grupper.length === 0,
+      personFlyter: p ? p.flyter.map((f) => ({
+        navn: f.navn, rolle: f.rolle,
+        kilde: f.direkte ? "Lagt til direkte" : f.via ? "Følger av brukergruppen " + f.via : "Følger av faggruppen " + f.viaFag,
+        kildeFarge: f.direkte ? "#374151" : "#6b7280",
+      })) : [],
+      personUtenFlyt: !!p && p.flyter.length === 0,
+      lukkPerson: () => this.setState({ person: null }),
+      simulerLeggTil: () => this.setState({ forslag: true }),
+      visForslagsstripe: this.state.forslag,
+      lukkForslag: () => this.setState({ forslag: false }),
+      visInviter: this.state.inviter,
+      aapneInviter: () => this.setState({ inviter: true }),
+      lukkInviter: () => this.setState({ inviter: false }),
+      bekreftInviter: () => this.setState({ inviter: false, gruppeForslag: true }),
+      visGruppeForslag: this.state.gruppeForslag,
+      lukkGruppeForslag: () => this.setState({ gruppeForslag: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>
