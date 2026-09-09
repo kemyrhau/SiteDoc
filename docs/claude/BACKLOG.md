@@ -148,6 +148,30 @@ sikkerhetsgate og presenterte det for Kenneth som en etterlevelsessak. **Slutnin
 **Skal «må lese før signering» gjeninnføres, er det et produktvedtak — og robustheten må bygges på
 nytt før noe kobles inn.**
 
+### 🟡 CLAUDE.md § Admin-arkitektur hører i en detalj-fil — men Kryssorg-deling har ingen hjem
+
+**Målt av dokgen 2026-09-09** under duplikat-gjennomgangen av CLAUDE.md.
+
+§ Admin-arkitektur og roller er **~2 500 tegn** — den største enkeltposten mot 40 960-taket, og
+CLAUDE.md sier selv at utdypning hører i `docs/claude/`, ikke i indeksen.
+
+🔴 **Men det er ikke en flytting.** § Kryssorg-deling (`eksternDeling`, «kun push, aldri pull»,
+«varsling ≠ deling», «ingen duplikater») har **null treff** i `arkitektur.md` og
+`forretningslogikk.md`. **Innholdet finnes ingen andre steder.**
+
+**To-stegs jobb når den tas:** (1) skriv innholdet til målfila og verifiser at det er komplett,
+(2) erstatt seksjonen i CLAUDE.md med en peker. 🔴 **Aldri i motsatt rekkefølge.**
+
+🟢 **Ikke hastverk:** fila er 40 179 av 40 960 tegn. Duplikatrensen 2026-09-09 høstet ~275 tegn —
+**duplikater er ikke det som fyller fila.** Skal den varig under taket, er det denne saken.
+
+⚠️ **Målefelle oppdaget samme dag: tegn ≠ bytes.** Dokgen målte **39 848 tegn** etter rensen;
+merge-agenten målte **40 045 bytes** på samme fil. Norske tegn (æ, ø, å) er to bytes i UTF-8, og
+CLAUDE.md er full av dem. 🔴 **`wc -c` gir bytes og kan vise «over 40 000» på en fil som er godt
+under taket. Bruk `wc -m`.** Taket er presisert til «40 960 tegn» — men *hvordan* det måles står
+ikke noe sted, og to agenter fikk to tall på én dag. **Tas med neste gang CLAUDE.md § Dokumentasjons-
+regler røres.**
+
 ### 🔴 i18n-GENERATOREN BÆRER 132 NØKLERS DRIFT — den som kjører den drar dem med (funn 2026-09-09)
 
 **Målt av dokgen under `fix/dialog-offline`:** `pnpm dlx tsx src/i18n/generate.ts` la **134 nøkler**
