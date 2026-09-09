@@ -281,7 +281,10 @@ export function PersonKort({
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-gray-400">{t("brukere.firma")}</dt>
-                  <dd className="text-gray-800">{bruker.organization?.name ?? "—"}</dd>
+                  <dd className="text-gray-800">
+                    {bruker.organization?.name ?? "—"}
+                    <span className="mt-0.5 block text-xs text-gray-400">{t("kontakter.firmaEndresAvAdmin")}</span>
+                  </dd>
                 </div>
                 {(bruker.hmsKortNr || hmsUtloperTekst) && (
                   <div className="flex gap-2">
