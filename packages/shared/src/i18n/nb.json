@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Logget inn på {{sted}} kl. {{tid}}",
   "mannskap.byggeplassen": "byggeplassen",
   "psi.tittel": "PSI — Sikkerhetsinstruks",
+  "psi.signeringFeilet": "Signeringen ble ikke lagret. Sjekk at du er koblet til internett og prøv å signere på nytt.",
   "psi.velgBygning": "Velg bygning",
   "psi.heleProsjektet": "Hele prosjektet",
   "psi.opprettNy": "Opprett PSI",

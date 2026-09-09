@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Enregistrement à {{sted}} à {{tid}}",
   "mannskap.byggeplassen": "le site",
   "psi.tittel": "PSI — Consignes de sécurité",
+  "psi.signeringFeilet": "Votre signature n'a pas été enregistrée. Vérifiez votre connexion Internet et essayez à nouveau de vous connecter.",
   "psi.velgBygning": "Sélectionnez le bâtiment",
   "psi.heleProsjektet": "Projet entier",
   "psi.opprettNy": "Créer un PSI",

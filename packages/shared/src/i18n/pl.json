@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Zameldowałem się w {{sted}} o {{tid}}",
   "mannskap.byggeplassen": "witryna",
   "psi.tittel": "PSI — Instrukcje bezpieczeństwa",
+  "psi.signeringFeilet": "Twój podpis nie został zapisany. Sprawdź swoje połączenie internetowe i spróbuj zalogować się ponownie.",
   "psi.velgBygning": "Wybierz budynek",
   "psi.heleProsjektet": "Cały projekt",
   "psi.opprettNy": "Utwórz PSI",

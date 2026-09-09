@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Přihlášeno v {{sted}} v {{tid}}",
   "mannskap.byggeplassen": "webu",
   "psi.tittel": "PSI — Bezpečnostní pokyny",
+  "psi.signeringFeilet": "Váš podpis nebyl uložen. Zkontrolujte připojení k internetu a zkuste se podepsat znovu.",
   "psi.velgBygning": "Vyberte budovu",
   "psi.heleProsjektet": "Celý projekt",
   "psi.opprettNy": "Vytvořit PSI",

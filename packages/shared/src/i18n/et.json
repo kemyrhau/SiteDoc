@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Registreeritud kell {{sted}} kell {{tid}}",
   "mannskap.byggeplassen": "sait",
   "psi.tittel": "PSI – ohutusjuhised",
+  "psi.signeringFeilet": "Teie allkirja ei salvestatud. Kontrollige oma Interneti-ühendust ja proovige uuesti allkirjastada.",
   "psi.velgBygning": "Valige hoone",
   "psi.heleProsjektet": "Kogu projekt",
   "psi.opprettNy": "Looge PSI",

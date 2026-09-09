@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Kirjautunut sisään klo {{sted}} klo {{tid}}",
   "mannskap.byggeplassen": "sivustoa",
   "psi.tittel": "PSI — Turvallisuusohjeet",
+  "psi.signeringFeilet": "Allekirjoitustasi ei tallennettu. Tarkista internetyhteytesi ja yritä allekirjoittaa uudelleen.",
   "psi.velgBygning": "Valitse rakennus",
   "psi.heleProsjektet": "Koko projekti",
   "psi.opprettNy": "Luo PSI",

@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Eingecheckt in {{sted}} um {{tid}}",
   "mannskap.byggeplassen": "die Seite",
   "psi.tittel": "PSI – Sicherheitshinweise",
+  "psi.signeringFeilet": "Ihre Signatur wurde nicht gespeichert. Überprüfen Sie Ihre Internetverbindung und versuchen Sie erneut, zu signieren.",
   "psi.velgBygning": "Gebäude auswählen",
   "psi.heleProsjektet": "Gesamtes Projekt",
   "psi.opprettNy": "PSI erstellen",

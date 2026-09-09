@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Prisiregistravo {{sted}}, {{tid}}",
   "mannskap.byggeplassen": "svetainę",
   "psi.tittel": "PSI – saugos instrukcijos",
+  "psi.signeringFeilet": "Jūsų parašas nebuvo išsaugotas. Patikrinkite interneto ryšį ir bandykite prisijungti dar kartą.",
   "psi.velgBygning": "Pasirinkite pastatą",
   "psi.heleProsjektet": "Visas projektas",
   "psi.opprettNy": "Sukurkite PSI",

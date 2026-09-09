@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Regjistruar në {{sted}} në {{tid}}",
   "mannskap.byggeplassen": "siti",
   "psi.tittel": "PSI - Udhëzime sigurie",
+  "psi.signeringFeilet": "Nënshkrimi juaj nuk u ruajt. Kontrollo lidhjen tënde të internetit dhe provo të nënshkruash përsëri.",
   "psi.velgBygning": "Zgjidhni ndërtesën",
   "psi.heleProsjektet": "I gjithë projekti",
   "psi.opprettNy": "Krijo PSI",

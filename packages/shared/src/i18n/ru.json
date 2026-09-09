@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Прибыл в {{sted}} в {{tid}}.",
   "mannskap.byggeplassen": "сайт",
   "psi.tittel": "PSI — Инструкции по безопасности",
+  "psi.signeringFeilet": "Ваша подпись не сохранилась. Проверьте подключение к Интернету и попробуйте подписать еще раз.",
   "psi.velgBygning": "Выберите здание",
   "psi.heleProsjektet": "Весь проект",
   "psi.opprettNy": "Создать PSI",

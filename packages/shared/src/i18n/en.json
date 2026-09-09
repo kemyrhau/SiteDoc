@@ -2596,6 +2596,7 @@
   "mannskap.loggetInn": "Checked in at {{sted}} at {{tid}}",
   "mannskap.byggeplassen": "the site",
   "psi.tittel": "PSI — Safety Instructions",
+  "psi.signeringFeilet": "Your signature wasn't saved. Check your internet connection and try signing again.",
   "psi.velgBygning": "Select building",
   "psi.heleProsjektet": "Entire project",
   "psi.opprettNy": "Create PSI",
