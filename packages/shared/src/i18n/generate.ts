@@ -2,8 +2,13 @@
  * Oversettelsesscript: en.json → alle språk via google-translate-api-x
  *
  * Bruk:
- *   npx tsx packages/shared/src/i18n/generate.ts          # kun manglende nøkler
- *   npx tsx packages/shared/src/i18n/generate.ts --force   # regenerer alle nøkler
+ *   npx tsx packages/shared/src/i18n/generate.ts               # kun manglende nøkler
+ *   npx tsx packages/shared/src/i18n/generate.ts --force        # regenerer alle nøkler
+ *   npx tsx packages/shared/src/i18n/generate.ts --only a.b,c.d  # KUN de navngitte nøklene
+ *
+ * `--only <kommaliste>` genererer bare de navngitte nøklene (full sti). Bruk den
+ * når du legger egne nøkler, så du ikke drar med deg pre-eksisterende drift i
+ * andre spors nøkler (se generateArgs.ts). Uten flagget: dagens oppførsel.
  *
  * Oversetter fra engelsk (en.json) for bedre presisjon på fagtermer.
  * nb.json brukes kun for nøkkelrekkefølge.
@@ -12,6 +17,7 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { parseOnlyFlag, finnUkjenteOnlyNokler } from "./generateArgs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,6 +25,12 @@ async function main() {
   const { default: translate } = await import("google-translate-api-x");
 
   const force = process.argv.includes("--force");
+  const only = parseOnlyFlag(process.argv);
+  if (only !== null && only.length === 0) {
+    console.error("--only krever en kommaseparert liste med nøkler, f.eks. --only seksjon.a,seksjon.b");
+    process.exit(1);
+  }
+  const onlySet = only ? new Set(only) : null;
 
   // Kilde: engelsk (manuelt oversatt, korrekte fagtermer)
   const enPath = join(__dirname, "en.json");
@@ -28,6 +40,18 @@ async function main() {
   const nbPath = join(__dirname, "nb.json");
   const nb: Record<string, string> = JSON.parse(readFileSync(nbPath, "utf-8"));
   const alleNøkler = Object.keys(nb);
+
+  // --only: ukjent nøkkel skal feile høyt og navngitt — en generator som later som
+  // den gjorde jobben er verre enn ingen. Nøkkelen må finnes i BÅDE en (kilden) og
+  // nb (sorteringen dropper ellers stille).
+  if (only) {
+    const { manglerEn, manglerNb } = finnUkjenteOnlyNokler(only, en, nb);
+    if (manglerEn.length || manglerNb.length) {
+      if (manglerEn.length) console.error(`--only: ukjente nøkler (mangler i en.json): ${manglerEn.join(", ")}`);
+      if (manglerNb.length) console.error(`--only: ukjente nøkler (mangler i nb.json): ${manglerNb.join(", ")}`);
+      process.exit(1);
+    }
+  }
 
   // Språk som skal genereres (ekskluder nb og en)
   const SPRAAK = ["sv", "lt", "pl", "uk", "ro", "et", "fi", "cs", "de", "ru", "lv", "fr", "sq"];
@@ -41,9 +65,9 @@ async function main() {
       eksisterende = JSON.parse(readFileSync(filsti, "utf-8"));
     }
 
-    // Finn nøkler som skal oversettes
+    // Finn nøkler som skal oversettes. Med --only: kun de navngitte (full sti).
     const åOversette = alleNøkler
-      .filter((key) => en[key] && !eksisterende[key])
+      .filter((key) => en[key] && !eksisterende[key] && (!onlySet || onlySet.has(key)))
       .map((key) => [key, en[key]] as [string, string]);
 
     if (åOversette.length === 0) {
