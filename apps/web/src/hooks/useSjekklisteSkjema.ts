@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -163,13 +163,18 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
       const kollisjoner = (res as { kollisjoner?: { feltId: string }[] })?.kollisjoner ?? [];
       if (kollisjoner.length > 0) {
         settSisteKollisjoner(kollisjoner);
-        // Vinner (server-verdi) tilbake i feltet; brukerens tapende verdi vises som tilføyelse.
+        // Vinner (server-verdi) tilbake i feltet — MEN kun hvis brukeren ikke skrev videre
+        // mens lagringen var i luften (`løsKollisjonsVerdi`): re-dirty tekst står, ellers
+        // ville tegnene forsvunnet under fingrene. Den tapende verdien er bevart som
+        // tilføyelse server-side uansett. Basis avanseres alltid til server-verdien.
         const serverData = (res as { data?: Record<string, { verdi?: unknown }> }).data ?? {};
         settFeltVerdier((prev) => {
           const oppd = { ...prev };
           for (const { feltId } of kollisjoner) {
             const serverVerdi = serverData[feltId]?.verdi ?? null;
-            oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi: serverVerdi };
+            const naavaerende = (prev[feltId] ?? TOM_FELTVERDI).verdi ?? null;
+            const { verdi } = løsKollisjonsVerdi({ naavaerende, sendt: sendtVerdier[feltId] ?? null, server: serverVerdi });
+            oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi };
             basisRef.current[feltId] = serverVerdi;
           }
           return oppd;

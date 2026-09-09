@@ -8,7 +8,7 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
@@ -427,12 +427,17 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
         const kollisjoner = (res as { kollisjoner?: { feltId: string }[] })?.kollisjoner ?? [];
         if (kollisjoner.length > 0) {
           settSisteKollisjoner(kollisjoner);
+          // Se useSjekklisteSkjema: server-vinneren vises kun hvis feltet ikke er re-dirty
+          // (`løsKollisjonsVerdi`, delt med web), ellers står brukerens tekst. `data[feltId]`
+          // = det vi sendte. Basis → server-verdi alltid.
           const serverData = (res as { data?: Record<string, { verdi?: unknown }> }).data ?? {};
           settFeltVerdier((prev) => {
             const oppd = { ...prev };
             for (const { feltId } of kollisjoner) {
               const serverVerdi = serverData[feltId]?.verdi ?? null;
-              oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi: serverVerdi };
+              const naavaerende = (prev[feltId] ?? TOM_FELTVERDI).verdi ?? null;
+              const { verdi } = løsKollisjonsVerdi({ naavaerende, sendt: data[feltId]?.verdi ?? null, server: serverVerdi });
+              oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi };
               basisRef.current[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi: serverVerdi };
             }
             return oppd;
