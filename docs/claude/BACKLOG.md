@@ -207,6 +207,167 @@ under taket. Bruk `wc -m`.** Taket er presisert til «40 960 tegn» — men *hvo
 ikke noe sted, og to agenter fikk to tall på én dag. **Tas med neste gang CLAUDE.md § Dokumentasjons-
 regler røres.**
 
+### 🔴 MODELLSPØRSMÅL: er faggruppe en EGENSKAP eller et RESULTAT? (Kenneth 2026-09-09, ubesvart)
+
+> **Kenneth:** *«faggruppe er ikke en registrering → det er et resultat av dokumentflyten du
+> legges inn i»*
+
+**Hierarkiet flaten viser** (`oppsett/produksjon/dokumentflyt`): **Faggruppe → dokumentflyter →
+ledd**, der leddene bemannes av brukergrupper og enkeltpersoner.
+
+🔴 **Men koden lagrer faggruppe som en uavhengig kobling, ikke som en avledning:**
+
+| Hva | Målt |
+|---|---|
+| `FaggruppeKobling` | `schema.prisma:674-685` — egen tabell, `@@unique([projectMemberId, faggruppeId])` |
+| **Skrives fra syv steder** | `medlem.ts:289` (registrer) · `:534`/`:566` (direkte redigering) · `faggruppe.ts:73,132` · `prosjekt.ts:545` · `ansatt.ts:112` |
+| **Styrer tilgang** | `tilgangskontroll.ts:145-159`, `:896` |
+| 🔴 **«N personer» pr. faggruppe** | `dokumentflyt/page.tsx:1066-1077` — leser `m.faggruppeKoblinger`, **IKKE flyt-deltakelse** |
+
+⚠️ **Og det finnes en arvet vei ved siden av:** `tilgangskontroll.ts:960` leser
+`groupFaggrupper` — brukergrupper bærer faggrupper, medlemmer arver dem.
+**To kilder til samme ting.**
+
+⚠️ **Coworks eksempel var FEIL og er strøket.** Cowork påstod at Grete Koordinator stod i to
+Byggherre-flyter uten faggruppe. **Kenneth korrigerte:** hennes flyter er `HE-Ansatte → HE Leder`
+og `HE Leder → HE Ansatte` — **HE-flyter, ikke Byggherre-flyter.** Cowork leste skjermbildet av
+Byggherre-faggruppen og Gretes personkort som samme sak.
+
+🔴 **Kenneths egen hypotese, ikke motbevist:** *«HE-ansatte er ikke med i noen byggherreflyter →
+jeg tror Grete må være opprettet ulovlig»* — altså en **testbruker opprettet uten
+faggruppe-kobling**, ikke en modellfeil.
+🟢 **Støttes av at `@test.sitedoc.no`-brukerne ikke finnes i noen seed i repoet** — de er
+opprettet direkte mot test-DB.
+
+## 🟢 AVKLART 2026-09-09 ved DB-måling mot `sitedoc_test`
+
+**Kenneths hypotese bekreftet: dette er datakvalitet, ikke en modellfeil.**
+
+| Måling | Resultat |
+|---|---|
+| Prosjektmedlemmer uten `dokumentflyt_koblinger`-rad | **21** — spredt over apr/mai/jul/aug/sep 2026 |
+| Flyt-deltakelser uten faggruppe | **36** rader |
+| 🔴 **Brukergrupper med faggruppe-kobling (`group_faggrupper`)** | **0 av 16 — tabellen er TOM** |
+
+**Mønsteret:** de som mangler er HE-folk (`HE - Leder`, `HE - Ansatte`) og demo/test-brukere.
+De med faggruppe er Byggherre-, Tømrer- og Elektro-folkene. **Faggruppe kommer altså direkte,
+aldri arvet.**
+
+🔴 **Konsekvens for rydding:** maskinell avledning er umulig — det finnes ingen kilde å utlede
+fra. **Manuell rydding, og kun av testbrukere som faktisk brukes i testing** (HE-folkene står i
+7 og 2 flyter hver). Demo-restene (`demo-timer.test`, `demo.sitedoc.no`, dupliserte
+`Ola Tømrer`/`Per Prosjektadmin`) trenger ingen.
+
+🟢 **Modellspørsmålet er dermed ikke blokkerende for pilot.** Divergensen finnes i teorien, men
+alle observerte tilfeller er testdata. **Vedtaket under kan tas i ro.**
+
+### 🟢 AVKLART 2026-09-09 — `group_faggrupper` er HALVFERDIG, ikke død. IKKE RYDD.
+
+⚠️ **Skrevet ned fordi cowork tok feil to ganger på rad her.** «Null kallere» er **ikke** bevis
+for død kode i denne kodebasen.
+
+**Målt av kontrollplan + Kenneth 2026-09-09:**
+
+| Spørsmål | Svar |
+|---|---|
+| Rader i `group_faggrupper`, `sitedoc_test` | **0 av 16 grupper** |
+| Rader i `group_faggrupper`, **PROD** | 🔴 **0 av 22 grupper** |
+| Har `gruppe.oppdaterFaggrupper` hatt en kaller? | 🟢 **Ja** — het `oppdaterEntrepriser`, kalt fra `oppsett/brukere/page.tsx` |
+| Hvorfor forsvant den? | 🔴 **Fjernet BEVISST** i `e14f2aa0` (2026-03-23): «Fjern Fagområder og Tilknyttede entrepriser fra gruppe-redigering», 78 linjer |
+| Skal den tilbake? | 🟢 **Ja** — `delplaner/spor1-gruppe-dokumentflyt-spec-nedbryting.md` **Ordre 1.3**, låst plan (fabel 2026-08-05 + Kenneth-vedtak) |
+
+## 🔴 Tom-grenen er en KORREKT fallback — og den gir BREDERE tilgang
+
+`tilgangskontroll.ts:1265-1287`:
+- **Tom** `groupFaggrupper` → `{ template: { domain: { in: gruppeDomener } } }` — **tverrgående**,
+  gruppen ser alle dokumenter i sine domener
+- **Fylt** → `domain` **OG** faggruppe — **begrenset**
+
+Dokumentert i `apps/api/src/trpc/CLAUDE.md` og `arkitektur.md:257`.
+
+🔴 **KONSEKVENS SOM MÅ HUSKES NÅR ORDRE 1.3 BYGGES:** alle 22 produksjonsgrupper kjører i dag på
+den tverrgående fallbacken. **Å fylle tabellen STRAMMER INN tilgangen for alle samtidig.**
+Medlemmer vil **miste** innsyn i dokumenter utenfor de koblede faggruppene — ingen får noe nytt.
+**Det er ikke en privilege-eskalering, men det er en synlig regresjon for brukeren hvis den kommer
+uvarslet.** Ordre 1.3 (`:62`) har alt en advarsel om nabo-effekten.
+
+### ⚠️ MØNSTER 2026-09-09: «null kallere» ≠ død kode i SiteDoc
+
+**Tre saker samme dag, tre ulike utfall — og cowork gjettet feil på to av dem:**
+
+| Sak | Utfall | Belegg som avgjorde |
+|---|---|---|
+| PSI-scrollrester | 🟢 **Ryddet** (`51b6de21`) | `547261c4` fjernet kravet bevisst, ingen spec beskrev det |
+| `group_faggrupper` | 🔴 **Beholdes** | `e14f2aa0` fjernet inngangen bevisst, **men spor1 Ordre 1.3 fører den tilbake** |
+| `harOrgRolle` · `verifiserTillatelse` | 🔴 **Beholdes** | `fase-0-beslutninger.md:531,601` og `arkitektur.md:150` — **planlagte, ikke forlatte** |
+
+🔴 **Regelen:** før noe fjernes som «ubrukt», mål **hvorfor det forsvant** (`git log -S` på
+gammelt OG nytt navn) **og om en aktiv plan fører det tilbake** (søk i `docs/claude/delplaner/`
+og `fase-0-beslutninger.md`). **Kallertelling alene er et stedfortredertall** — jf.
+SAMARBEIDSREGLER 10e.
+
+🟢 **`hentBrukerFaggruppeIder` (`tilgangskontroll.ts:131`) er den ENESTE av de tre med treff kun i
+`docs/arkiv/`.** Den er fortsatt en kandidat — **men ikke bestilt, og ikke uten samme sjekk.**
+
+## 🔴 Ubesvart — dette er vedtaket som må tas først
+
+**Skal den direkte `FaggruppeKobling` bort, slik at faggruppe kun følger av hvor du er meldt inn?**
+
+- **Ja** → treffer tilgangskontrollen (`:145-159`, `:896`), syv skrivesteder, personkortets
+  faggruppe-redigering, og **fabels § 4** som i dag sier *«Faggruppe = en egenskap ved personen
+  — redigeres på kontakten»*.
+- **Nei** → da skal tellingen og hierarkiet i dokumentflyt-flaten forklares, ikke leses som en
+  avledning.
+
+🔴 **Ingenting bestilles før dette er avklart.** Dagens tredje modellspørsmål — det forrige
+(flyt-tillegg fra personkortet) ble tiltrådt og trukket innen få timer fordi konsekvensen ikke
+var målt først.
+
+### 🟠 FIRMAADMIN HAR INGEN SAMLET FLATE FOR DOMENER OG PROSJEKTMODULER (Kenneth på test 2026-09-09)
+
+> **Kenneth:** *«domener → har vi domenetilknytning noen steder → mangler link til moduler og
+> domener for firmaadministratorer»*
+
+**Målt 2026-09-09.** 🔴 **Domene er ikke en etikett — det styrer reelle rettigheter:**
+
+| Sted | Hva domene gjør |
+|---|---|
+| `apps/api/src/trpc/tilgangskontroll.ts:410-431` | `erHmsAdmin` — medlemskap i gruppe med `domains: ["hms"]` gir **HMS-admin** |
+| `apps/api/src/routes/modul.ts:21-32` | auto-oppretter HMS-gruppen på `domains: ["hms"]` |
+| `apps/api/src/routes/sjekkliste.ts:124` | guard — blokkerer maler på feil domene |
+| `apps/web/src/components/hms/hms-utils.ts:25` | avgjør om en gruppe ER HMS-gruppen |
+
+**Domener settes kun per prosjekt:** `oppsett/brukere/_components/BrukergruppeFane.tsx:164-172`
+→ `gruppe.oppdaterDomener` (`gruppe.ts:369-384`). Prosjektmoduler tilsvarende
+(`gruppe.ts:387-401`).
+
+🔴 **`dashbord/firma/moduler` styrer FIRMAmoduler** (timer, maskin, kompetanse, varelager) —
+**ikke domener og ikke prosjektmoduler.** Siden lenker selv videre til prosjekt-flaten
+(`firma/moduler/page.tsx:232-239`).
+
+**Konsekvens:** en firmaadmin med tjue prosjekter må inn i hvert enkelt for å sette domener.
+🟢 **Ikke et sikkerhetshull** — `verifiserAdmin` dekker firmaadmin. **En manglende flate.**
+
+⚠️ **Avklar først om per-prosjekt er tilsiktet.** Domener kan være bevisst prosjektnære.
+
+### 🟠 HMS-GRUPPEN TRENGER FORKLARING I UI — medlemskap gir HMS-admin (Kenneth 2026-09-09)
+
+> **Kenneth:** *«denne trenger instruksjon → hvem skal være medlem her → er dette alle kontakter
+> → eller skal det kun være administratorer. Her er det rom for å misforstå oppsett.»*
+
+🔴 **Bekymringen er berettiget, og målingen forklarer hvorfor:** medlemskap i en gruppe med
+`domains: ["hms"]` gir **HMS-admin-rettigheter** (`tilgangskontroll.ts:410-431`). Gruppen
+opprettes automatisk av `modul.ts:21-32` når HMS-modulen slås på.
+
+**«Noen kan tro at alle skal være med her» er ikke bare et forståelsesproblem — det ville gitt
+alle HMS-admin.**
+
+🟢 **`ProjectGroup.domains` er et array** (`schema.prisma:696`), så gruppen *kan* bære flere
+domener enn HMS. **Om den bør det er et produktvalg — ubesvart.**
+
+**Tiltak, ikke bestilt:** hjelpetekst på gruppen som sier hva medlemskap gir. Kenneth må gate
+ordlyden; ordlyden hører i `hjelpetekster.md`-konvensjonen.
+
 ### 🔵 To WIP-diagnostikkbranches fra 2026-09-04 står umerget — avklar før de ryddes
 
 **Målt av cowork 2026-09-09** da merge-køen ble tømt:
