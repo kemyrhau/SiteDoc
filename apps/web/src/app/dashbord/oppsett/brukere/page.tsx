@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Users, X, Shield } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { OpprettKontaktModal, type KandidatForModal } from "../produksjon/_components/OpprettKontaktModal";
+import { FilterPanel } from "@/components/ui/FilterPanel";
 import { AnsattVelgerModal } from "@/components/AnsattVelgerModal";
 import { erHmsGruppe, finnHmsGruppe, type HmsGruppe } from "@/components/hms/hms-utils";
 import { PersonKort, type KontaktMedlem, type DbGruppe, type Dokumentflyt } from "./_components/PersonKort";
@@ -42,6 +43,27 @@ const FARGE_DOT: Record<string, string> = {
 
 type Fane = "kontakter" | "brukergrupper";
 
+// Felles kapp for begge chip-kolonner (brukergrupper + faggruppe) — like regler
+// i nabokolonner. Resten vises som nedtonet «+N»-teller; radklikk → personkort (alt).
+const CHIP_KAPP = 3;
+
+function ChipListe({ chips }: { chips: Array<{ id: string; name: string; color?: string | null }> }) {
+  if (chips.length === 0) return <span className="text-xs text-gray-300">—</span>;
+  const synlige = chips.slice(0, CHIP_KAPP);
+  const rest = chips.length - synlige.length;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {synlige.map((c) => (
+        <span key={c.id} className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700">
+          {c.color !== undefined && <span className={`h-2 w-2 rounded-full ${FARGE_DOT[c.color ?? ""] ?? "bg-gray-400"}`} />}
+          {c.name}
+        </span>
+      ))}
+      {rest > 0 && <span className="text-xs text-gray-400">+{rest}</span>}
+    </div>
+  );
+}
+
 function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -49,8 +71,10 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
 
   const [fane, setFane] = useState<Fane>("kontakter");
   const [filterNavn, setFilterNavn] = useState("");
-  const [filterFaggruppe, setFilterFaggruppe] = useState("");
-  const [filterGruppe, setFilterGruppe] = useState("");
+  // Multi-select per dimensjon (filter-standard): OR innen dimensjon, AND på tvers.
+  const [filterFaggrupper, setFilterFaggrupper] = useState<string[]>([]);
+  const [filterGrupper, setFilterGrupper] = useState<string[]>([]);
+  const [filterFirma, setFilterFirma] = useState<string[]>([]);
 
   const [valgtMedlemId, setValgtMedlemId] = useState<string | null>(null);
   const [fokusBrukergruppe, setFokusBrukergruppe] = useState(false);
@@ -126,13 +150,18 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
         (m.user!.phone ?? "").includes(s),
       );
     }
-    if (filterFaggruppe) res = res.filter((m) => m.faggruppeKoblinger.some((k) => k.faggruppe.id === filterFaggruppe));
-    if (filterGruppe) {
-      const s = gruppeUserIder.get(filterGruppe) ?? new Set<string>();
-      res = res.filter((m) => s.has(m.user!.id));
+    // OR innen hver dimensjon (minst én valgt verdi matcher), AND på tvers.
+    if (filterFirma.length > 0) {
+      res = res.filter((m) => m.user!.organization && filterFirma.includes(m.user!.organization.id));
+    }
+    if (filterFaggrupper.length > 0) {
+      res = res.filter((m) => m.faggruppeKoblinger.some((k) => filterFaggrupper.includes(k.faggruppe.id)));
+    }
+    if (filterGrupper.length > 0) {
+      res = res.filter((m) => filterGrupper.some((gid) => (gruppeUserIder.get(gid) ?? new Set<string>()).has(m.user!.id)));
     }
     return res;
-  }, [kontakter, filterNavn, filterFaggruppe, filterGruppe, gruppeUserIder]);
+  }, [kontakter, filterNavn, filterFirma, filterFaggrupper, filterGrupper, gruppeUserIder]);
 
   const valgtMedlem = valgtMedlemId ? kontakter.find((m) => m.id === valgtMedlemId) ?? null : null;
 
@@ -151,6 +180,38 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
   const brukergrupperForModal: Array<{ id: string; name: string }> = visGrupper
     .filter((g) => g.category === "brukergrupper")
     .map((g) => ({ id: g.id, name: g.name }));
+
+  // Firma-filter: distinkte organisasjoner blant kontaktene (relasjon m/id, ikke fritekst).
+  const firmaOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of kontakter) {
+      const org = m.user?.organization;
+      if (org) map.set(org.id, org.name);
+    }
+    return [...map].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "nb"));
+  }, [kontakter]);
+
+  // userId → brukergrupper personen er i (til Brukergrupper-kolonnen). Speiler
+  // gruppeUserIder, men reversert, og kun kategori "brukergrupper" (samme sett som filteret).
+  const brukergrupperPerBruker = useMemo(() => {
+    const map = new Map<string, Array<{ id: string; name: string }>>();
+    for (const g of brukergrupperForModal) {
+      const ider = gruppeUserIder.get(g.id);
+      if (!ider) continue;
+      for (const uid of ider) {
+        const liste = map.get(uid) ?? [];
+        liste.push({ id: g.id, name: g.name });
+        map.set(uid, liste);
+      }
+    }
+    return map;
+  }, [brukergrupperForModal, gruppeUserIder]);
+
+  const toggleIListe = (verdi: string, sett: (oppdater: (liste: string[]) => string[]) => void) =>
+    sett((liste) => (liste.includes(verdi) ? liste.filter((x) => x !== verdi) : [...liste, verdi]));
+
+  const harAktivtFilter =
+    filterNavn !== "" || filterFirma.length > 0 || filterFaggrupper.length > 0 || filterGrupper.length > 0;
 
   // Union av prosjektets kontakter + firmaets ledige folk, med radtilstand. Firma-folk
   // som alt er prosjektmedlem dedupliseres bort (de ligger i `kontakter`). Søket i modalen
@@ -278,78 +339,82 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
         )}
 
         {fane === "kontakter" ? (
-          <div className="rounded-lg border border-gray-200">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="px-4 py-2.5">{t("tabell.navn")}</th>
-                  <th className="px-4 py-2.5">{t("brukere.epost")}</th>
-                  <th className="px-4 py-2.5">{t("brukere.telefon")}</th>
-                  <th className="px-4 py-2.5">{t("brukere.firma")}</th>
-                  <th className="px-4 py-2.5">{t("kontakter.kolFaggruppe")}</th>
-                </tr>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-1.5" colSpan={3}>
-                    <input
-                      value={filterNavn}
-                      onChange={(e) => setFilterNavn(e.target.value)}
-                      placeholder={t("handling.sok")}
-                      className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:outline-none"
-                    />
-                  </th>
-                  <th className="px-4 py-1.5">
-                    <select
-                      value={filterGruppe}
-                      onChange={(e) => setFilterGruppe(e.target.value)}
-                      className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
-                    >
-                      <option value="">{t("kontakter.filterAlleBrukergrupper")}</option>
-                      {brukergrupperForModal.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                    </select>
-                  </th>
-                  <th className="px-4 py-1.5">
-                    <select
-                      value={filterFaggruppe}
-                      onChange={(e) => setFilterFaggruppe(e.target.value)}
-                      className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal text-gray-700 focus:border-blue-400 focus:outline-none"
-                    >
-                      <option value="">{t("kontakter.filterAlleFaggrupper")}</option>
-                      {faggrupperListe.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                    </select>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtrerteKontakter.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">{kontakter.length === 0 ? t("kontakter.ingenKontakter") : t("kontakter.ingenTreff")}</td></tr>
-                ) : filtrerteKontakter.map((m) => (
-                  <tr key={m.id} onClick={() => aapnePerson(m.id)} className="cursor-pointer hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
-                      <div className="flex items-center gap-1.5">
-                        {m.role === "admin" && <span title="Admin"><Shield className="h-3.5 w-3.5 shrink-0 text-blue-600" /></span>}
-                        {m.erFirmaansvarlig && m.role !== "admin" && <span title={t("brukere.firmaansvarlig")}><Shield className="h-3.5 w-3.5 shrink-0 text-amber-500" /></span>}
-                        {m.user!.name ?? "—"}
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">{m.user!.email}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">{m.user!.phone ?? "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">{m.user!.organization?.name ?? "—"}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex flex-wrap items-center gap-1">
-                        {m.faggruppeKoblinger.length === 0 && <span className="text-xs text-gray-300">—</span>}
-                        {m.faggruppeKoblinger.map((k) => (
-                          <span key={k.faggruppe.id} className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-700">
-                            <span className={`h-2 w-2 rounded-full ${FARGE_DOT[k.faggruppe.color ?? ""] ?? "bg-gray-400"}`} />
-                            {k.faggruppe.name}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
+          <>
+            {/* Filter-standard (ui-standarder.md): fritekst + multi-select-comboks i EGEN
+                blokk, ikke i tabellhodet. Et filter i <th> arvet kolonnen fra colSpan og
+                landet under feil overskrift — flyttet ut, kan feilen ikke oppstå. */}
+            <div className="mb-4">
+              <FilterPanel
+                sok={{ verdi: filterNavn, onChange: setFilterNavn, placeholder: t("handling.sok") }}
+                dimensjoner={[
+                  {
+                    id: "firma",
+                    label: t("brukere.firma"),
+                    options: firmaOptions,
+                    valgte: filterFirma,
+                    onToggle: (id) => toggleIListe(id, setFilterFirma),
+                  },
+                  {
+                    id: "brukergrupper",
+                    label: t("kontakter.kolBrukergrupper"),
+                    options: brukergrupperForModal,
+                    valgte: filterGrupper,
+                    onToggle: (id) => toggleIListe(id, setFilterGrupper),
+                  },
+                  {
+                    id: "faggruppe",
+                    label: t("kontakter.kolFaggruppe"),
+                    options: faggrupperListe.map((f) => ({ id: f.id, name: f.name })),
+                    valgte: filterFaggrupper,
+                    onToggle: (id) => toggleIListe(id, setFilterFaggrupper),
+                  },
+                ]}
+                tomLabel={t("filter.tom")}
+                onTom={() => { setFilterNavn(""); setFilterFirma([]); setFilterGrupper([]); setFilterFaggrupper([]); }}
+                visTom={harAktivtFilter}
+                kolonner={3}
+              />
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th className="px-4 py-2.5">{t("tabell.navn")}</th>
+                    <th className="px-4 py-2.5">{t("brukere.epost")}</th>
+                    <th className="px-4 py-2.5">{t("brukere.telefon")}</th>
+                    <th className="px-4 py-2.5">{t("brukere.firma")}</th>
+                    <th className="px-4 py-2.5">{t("kontakter.kolBrukergrupper")}</th>
+                    <th className="px-4 py-2.5">{t("kontakter.kolFaggruppe")}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filtrerteKontakter.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">{kontakter.length === 0 ? t("kontakter.ingenKontakter") : t("kontakter.ingenTreff")}</td></tr>
+                  ) : filtrerteKontakter.map((m) => (
+                    <tr key={m.id} onClick={() => aapnePerson(m.id)} className="cursor-pointer hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
+                        <div className="flex items-center gap-1.5">
+                          {m.role === "admin" && <span title="Admin"><Shield className="h-3.5 w-3.5 shrink-0 text-blue-600" /></span>}
+                          {m.erFirmaansvarlig && m.role !== "admin" && <span title={t("brukere.firmaansvarlig")}><Shield className="h-3.5 w-3.5 shrink-0 text-amber-500" /></span>}
+                          {m.user!.name ?? "—"}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">{m.user!.email}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">{m.user!.phone ?? "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">{m.user!.organization?.name ?? "—"}</td>
+                      <td className="px-4 py-2.5">
+                        <ChipListe chips={brukergrupperPerBruker.get(m.user!.id) ?? []} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <ChipListe chips={m.faggruppeKoblinger.map((k) => ({ id: k.faggruppe.id, name: k.faggruppe.name, color: k.faggruppe.color }))} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <BrukergruppeFane
             prosjektId={prosjektId}
