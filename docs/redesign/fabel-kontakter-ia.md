@@ -63,10 +63,33 @@ Raden viser avledet data fra tre hierarkier uten provenans. **Det er problemet.*
 
 ## 🟢 4. KENNETH-VEDTAK — én redigeringsplass per relasjon
 
+> ⚠️ **PRESISERT 2026-09-09 av Kenneth, etter fabels anbefaling** (`kp-modal-avvik-svar-fabel-2026-09-09.md` § 3).
+> **Gjeldende ordlyd:**
+>
+> > **«Flyt-deltakelse kan LEGGES TIL fra personkortet via den delte velgeren; endring og
+> > fjerning bor i Dokumentflyt-oppsettet.»**
+>
+> **Hva som endret seg:** forslagsstripene bærer allerede «+ Dokumentflyt»-knapper, så designet
+> lovet en legg-til-vei utenfor flyt-oppsettet. Serverveien finnes (`medlem.registrer` med
+> `flytBindinger`). **Skillet er nå tillegg (en handling) vs. endring (en relasjon)** — ikke
+> personkort vs. flyt-oppsett.
+>
+> 🟢 **Vedtakets kjerne står uendret:** arvede koblinger kan ikke fjernes per person, og det
+> finnes fortsatt ÉN redigeringsplass per relasjon. **Provenans-linjene forklarer fortsatt hvorfor.**
+>
+> 🔴 **Dette er en presisering, ikke en reversering.** Teksten under sto til 2026-09-09 og
+> beholdes, fordi den bærer begrunnelsen for at endring og fjerning aldri flytter hit.
+
+---
+
+**Vedtaket slik det sto 2026-09-08 — begrunnelsen gjelder fortsatt for ENDRING og FJERNING:**
+
 > *«e-post, telefonnummer, firma, navn kan redigeres → ikke dokumentflyt → den må legges til i
 > dokumentflyten → kun der»*
 
-**Personkortet VISER flyt-deltakelse. Det er ikke en inngang til å endre den.**
+~~**Personkortet VISER flyt-deltakelse. Det er ikke en inngang til å endre den.**~~
+**Personkortet VISER flyt-deltakelse og kan LEGGE TIL. Det er ikke en inngang til å endre eller
+fjerne den.**
 
 🟢 **Det løser to ting:**
 1. Arvet-vs-direkte blir et **forklaringsproblem**, ikke et redigeringsproblem. Provenansen skal
@@ -79,7 +102,7 @@ Raden viser avledet data fra tre hierarkier uten provenans. **Det er problemet.*
 | | Hva den er | Redigeres |
 |---|---|---|
 | **Faggruppe** | En **egenskap ved personen** — hvilket fag han tilhører | 🟢 På kontakten (bygget `ed21b640`) |
-| **Dokumentflyt** | En **struktur personen deltar i** — egne ledd, roller, rekkefølge | 🟢 I dokumentflyten, kun der |
+| **Dokumentflyt** | En **struktur personen deltar i** — egne ledd, roller, rekkefølge | 🟢 **Tillegg:** personkortet ELLER flyt-oppsettet · 🔴 **Endring/fjerning:** flyt-oppsettet, kun der *(presisert 2026-09-09)* |
 
 🔴 **Faggruppe trenger derfor INGEN egen flate.** Dokumentflyt har allerede sin.
 
