@@ -9,7 +9,6 @@ import {
   SafeAreaView,
   Alert,
 } from "react-native";
-import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { ArrowLeft, ChevronRight, Check, Globe } from "lucide-react-native";
 import { trpc } from "../../src/lib/trpc";
@@ -69,7 +68,6 @@ export default function PsiLeser() {
   const [harIkkeHmsKort, setHarIkkeHmsKort] = useState(false);
   const [scrollLåst, setScrollLåst] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const [harScrolletTilBunn, setHarScrolletTilBunn] = useState(false);
 
   // Hent PSI med malobjekter
   const { data: psi, isLoading: psiLaster } = trpc.psi.hentMedObjekter.useQuery(
@@ -165,7 +163,6 @@ export default function PsiLeser() {
 
   const gjeldendeSeksjon = seksjoner[aktivSeksjon];
   const erSignaturSeksjon = gjeldendeSeksjon?.harSignatur ?? false;
-  const [innholdKortNok, setInnholdKortNok] = useState(false);
 
   const kanGåVidere = useMemo(() => {
     if (!gjeldendeSeksjon) return false;
@@ -208,21 +205,12 @@ export default function PsiLeser() {
     const nySeksjon = aktivSeksjon + 1;
     oppdaterMut.mutate({ signaturId, progress: nySeksjon, data: feltVerdier as Record<string, unknown> });
     setAktivSeksjon(nySeksjon);
-    setHarScrolletTilBunn(false);
-    setInnholdKortNok(false);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [signaturId, aktivSeksjon, seksjonFullfort, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
 
-  // Sjekk om innholdet passer uten scroll
-  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    if (contentSize.height <= layoutMeasurement.height + 50) {
-      if (!innholdKortNok) setInnholdKortNok(true);
-      return;
-    }
-    const erNærBunn = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
-    if (erNærBunn && !harScrolletTilBunn) setHarScrolletTilBunn(true);
-  }, [harScrolletTilBunn, innholdKortNok]);
+  // Scroll-krav for rene innholdsseksjoner ble fjernet bevisst i 547261c4 (2026-04-03).
+  // Kun quiz, video og signatur har krav. Restene sto igjen og utløste tre etterforskninger
+  // (siste 2026-09-09) — se BACKLOG § LUKKET 2026-09-08.
 
   const settFeltVerdi = useCallback((objektId: string, verdi: unknown) => {
     setFeltVerdier((prev) => ({ ...prev, [objektId]: verdi }));
@@ -256,8 +244,6 @@ export default function PsiLeser() {
         onTilbake={() => {
           if (aktivSeksjon > 0) {
             setAktivSeksjon(aktivSeksjon - 1);
-            setHarScrolletTilBunn(false);
-            setInnholdKortNok(false);
             scrollRef.current?.scrollTo({ y: 0, animated: true });
           } else {
             router.back();
@@ -302,8 +288,6 @@ export default function PsiLeser() {
         ref={scrollRef}
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-        onScroll={onScroll}
-        scrollEventThrottle={100}
         scrollEnabled={!scrollLåst}
       >
         {gjeldendeSeksjon?.objekter.map((rawObjekt) => {
@@ -391,8 +375,6 @@ export default function PsiLeser() {
           <TouchableOpacity
             onPress={() => {
               setAktivSeksjon(aktivSeksjon - 1);
-              setHarScrolletTilBunn(false);
-              setInnholdKortNok(false);
               scrollRef.current?.scrollTo({ y: 0, animated: true });
             }}
             style={{ borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 16, paddingVertical: 12 }}

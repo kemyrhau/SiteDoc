@@ -340,7 +340,6 @@ function PsiGjennomforing({
   const [fullforte, setFullforte] = useState<Set<number>>(new Set());
   const [feltVerdier, setFeltVerdier] = useState<Record<string, unknown>>({});
   const [signaturBilde, setSignaturBilde] = useState<string | null>(null);
-  const [harScrolletNed, setHarScrolletNed] = useState(false);
   const innholdRef = useRef<HTMLDivElement>(null);
 
   const oppdaterMut = trpc.psi.guestOppdaterProgresjon.useMutation();
@@ -371,8 +370,6 @@ function PsiGjennomforing({
   const seksjon = seksjoner[aktivSeksjon];
   const erSignatur = seksjon?.harSignatur ?? false;
 
-  const [innholdKortNok, setInnholdKortNok] = useState(false);
-
   // Kan gå videre? Sjekker ALLE krav i seksjonen (quiz + video + signatur kan kombineres)
   const kanVidere = useMemo(() => {
     if (!seksjon) return false;
@@ -389,26 +386,9 @@ function PsiGjennomforing({
     return ok;
   }, [seksjon, feltVerdier, signaturBilde, erSignatur]);
 
-  // Scroll-tracking + sjekk om innholdet er kort nok
-  useEffect(() => {
-    const el = innholdRef.current;
-    if (!el) return;
-    // Sjekk umiddelbart om innholdet passer uten scroll
-    const sjekkHøyde = () => {
-      if (el.scrollHeight <= el.clientHeight + 50) {
-        setInnholdKortNok(true);
-      }
-    };
-    // Vent litt på at innholdet rendres
-    const timer = setTimeout(sjekkHøyde, 100);
-    const handler = () => {
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 50) {
-        setHarScrolletNed(true);
-      }
-    };
-    el.addEventListener("scroll", handler);
-    return () => { el.removeEventListener("scroll", handler); clearTimeout(timer); };
-  }, [aktivSeksjon]);
+  // Scroll-krav for rene innholdsseksjoner ble fjernet bevisst i 547261c4 (2026-04-03).
+  // Kun quiz, video og signatur har krav. Restene sto igjen og utløste tre etterforskninger
+  // (siste 2026-09-09) — se BACKLOG § LUKKET 2026-09-08.
 
   const neste = useCallback(async () => {
     const nyeFullforte = new Set(fullforte);
@@ -427,8 +407,6 @@ function PsiGjennomforing({
     const ny = aktivSeksjon + 1;
     oppdaterMut.mutate({ signaturId, progress: ny, data: feltVerdier as Record<string, unknown> });
     setAktivSeksjon(ny);
-    setHarScrolletNed(false);
-    setInnholdKortNok(false);
     innholdRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [fullforte, aktivSeksjon, erSignatur, signaturBilde, signaturId, feltVerdier, fullforMut, oppdaterMut]);
 
@@ -481,8 +459,6 @@ function PsiGjennomforing({
           onClick={() => {
             if (aktivSeksjon > 0) {
               setAktivSeksjon(aktivSeksjon - 1);
-              setHarScrolletNed(false);
-              setInnholdKortNok(false);
               innholdRef.current?.scrollTo({ top: 0, behavior: "smooth" });
             }
           }}
