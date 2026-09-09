@@ -390,12 +390,23 @@ export default function SjekklisteUtfylling() {
     onSuccess: () => {
       utils.sjekkliste.hentMedId.invalidate({ id: id! });
     },
+    // Lokasjon (tegning/punkt) lagres via .mutate() og modalen lukkes straks — uten dette
+    // gikk en offline/avvist lagring ut som stille suksess og lokasjonen forsvant.
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.kunneIkkeLagre"), feil.message || t("feil.sjekkNettverk"));
+    },
   });
 
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
     onSuccess: () => {
       utils.sjekkliste.hentMedId.invalidate({ id: id! });
       utils.sjekkliste.hentForProsjekt.invalidate();
+    },
+    // Bekreftelsesarket (DokumentHandlingslinje) lukkes optimistisk FØR svar — uten dette
+    // gikk et offline/avvist Send/Besvar/Videresend ut som falsk suksess: arbeideren så
+    // arket lukke seg og trodde mottakeren fikk dokumentet.
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.kunneIkkeEndreStatus"), feil.message || t("feil.sjekkNettverk"));
     },
   });
 
