@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Rakstīt aprakstu...",
   "oppgave.nyKommentar": "Jauns komentārs",
   "oppgave.skrivKommentar": "Rakstīt komentāru...",
+  "oppgave.kommentarKreverTilkobling": "Komentārs tiek nosūtīts uz serveri, un tam ir nepieciešams interneta savienojums. Jūsu teksts tiek saglabāts — nosūtiet vēlreiz, kad būsit tiešsaistē.",
+  "oppgave.kommentarSendFeilet": "Komentārs netika nosūtīts. Jūsu teksts tiek saglabāts — mēģiniet vēlreiz.",
   "felt.kommentar": "komentēt",
   "felt.kommentarPlaceholder": "komentēt...",
   "felt.skrivKommentar": "Rakstīt komentāru...",

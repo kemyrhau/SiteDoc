@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Напишите описание...",
   "oppgave.nyKommentar": "Новый комментарий",
   "oppgave.skrivKommentar": "Напишите комментарий...",
+  "oppgave.kommentarKreverTilkobling": "Комментарий отправляется на сервер и требует подключения к Интернету. Ваш текст сохраняется — отправьте его снова, как только подключитесь к сети.",
+  "oppgave.kommentarSendFeilet": "Комментарий не был отправлен. Ваш текст сохранен — попробуйте еще раз.",
   "felt.kommentar": "Комментарий",
   "felt.kommentarPlaceholder": "Комментарий...",
   "felt.skrivKommentar": "Напишите комментарий...",

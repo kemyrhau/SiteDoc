@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Napište popis...",
   "oppgave.nyKommentar": "Nový komentář",
   "oppgave.skrivKommentar": "Napište komentář...",
+  "oppgave.kommentarKreverTilkobling": "Komentář je odeslán na server a vyžaduje připojení k internetu. Váš text je uložen – odešlete jej znovu, až budete online.",
+  "oppgave.kommentarSendFeilet": "Komentář nebyl odeslán. Váš text je uložen – zkuste to znovu.",
   "felt.kommentar": "Komentář",
   "felt.kommentarPlaceholder": "Komentář...",
   "felt.skrivKommentar": "Napište komentář...",

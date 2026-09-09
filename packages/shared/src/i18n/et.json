@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Kirjuta kirjeldus...",
   "oppgave.nyKommentar": "Uus kommentaar",
   "oppgave.skrivKommentar": "Kirjuta kommentaar...",
+  "oppgave.kommentarKreverTilkobling": "Kommentaar saadetakse serverisse ja vajab Interneti-ühendust. Teie tekst jäetakse alles – saatke uuesti, kui olete võrgus.",
+  "oppgave.kommentarSendFeilet": "Kommentaari ei saadetud. Teie tekst jäetakse alles – proovige uuesti.",
   "felt.kommentar": "Kommenteeri",
   "felt.kommentarPlaceholder": "Kommenteeri...",
   "felt.skrivKommentar": "Kirjuta kommentaar...",

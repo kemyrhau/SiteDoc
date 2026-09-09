@@ -2791,6 +2791,8 @@
   "oppgave.beskrivelsePlaceholder": "Shkruani përshkrimin...",
   "oppgave.nyKommentar": "Koment i ri",
   "oppgave.skrivKommentar": "Shkruaj koment...",
+  "oppgave.kommentarKreverTilkobling": "Komenti dërgohet në server dhe ka nevojë për një lidhje interneti. Teksti juaj ruhet - dërgojeni sërish pasi të jeni në linjë.",
+  "oppgave.kommentarSendFeilet": "Komenti nuk u dërgua. Teksti juaj është ruajtur - provoni përsëri.",
   "felt.kommentar": "Koment",
   "felt.kommentarPlaceholder": "Koment...",
   "felt.skrivKommentar": "Shkruaj koment...",
