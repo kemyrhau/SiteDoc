@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -11,6 +12,8 @@ import { Platform } from "react-native";
 import * as Location from "expo-location";
 import { useProsjekt } from "./ProsjektKontekst";
 import { useFirma } from "./FirmaKontekst";
+import { useAuth } from "../providers/AuthProvider";
+import { trpc } from "../lib/trpc";
 import {
   identifiserByggeplass,
   hentByggeplasserForProsjektLokalt,
@@ -29,6 +32,14 @@ const SIST_TEGNING_MAP_KEY = "sitedoc_sist_tegning_per_byggeplass";
 // F6: favoritt-byggeplasser (lokalt sett, ingen server). Enhets-lokalt som de
 // øvrige nøklene (én bruker per enhet i praksis).
 const FAVORITT_KEY = "sitedoc_byggeplass_favoritter";
+
+// Brukerminne på server (Kenneth-gate 2026-09-09, fase 1): sist brukt byggeplass +
+// tegning overlever mobil-reinstallering. Hele mappet speiles som én GLOBAL rad per
+// nøkkel (projectId=null) — 1:1 med de lokale SecureStore-mappene. Lokal =
+// cache/offline (hurtigveien), server = sannheten ved konflikt. Favoritter er bevisst
+// IKKE med (Kenneth ba ikke om dem). Språk/nav-flagg bor på User og røres ikke her.
+const SERVER_NOKKEL_BYGGEPLASS = "sistByggeplassPerProsjekt";
+const SERVER_NOKKEL_TEGNING = "sistTegningPerByggeplass";
 
 async function lagreVerdi(key: string, value: string): Promise<void> {
   if (Platform.OS === "web") {
@@ -92,11 +103,33 @@ export function useByggeplass() {
 export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { valgtProsjektId } = useProsjekt();
   const { valgtFirmaId } = useFirma();
+  const { bruker } = useAuth();
+  const userId = bruker?.id ?? null;
   const [bygningMap, setBygningMap] = useState<Record<string, string>>({});
   const [sistTegningMap, setSistTegningMap] = useState<Record<string, string>>({});
   const [gpsByggeplassId, setGpsByggeplassId] = useState<string | null>(null);
   const [favorittIder, setFavorittIder] = useState<string[]>([]);
   const [lasterBygningId, setLasterBygningId] = useState(true);
+
+  // Brukerminne: les brukerens lagrede innstillinger (global rad-blob). Fire-and-forget
+  // mutasjon for å speile lokale endringer opp. Refs holder `synkTilServer` stabil så
+  // den trygt kan kalles fra write-sitene uten å endre deres identitet.
+  const innstillingerQuery = trpc.brukerinnstilling.hent.useQuery(undefined, {
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
+  const settMut = trpc.brukerinnstilling.sett.useMutation();
+  // Hold synk-funksjonen i en ref med SMAL signatur så `synkTilServer` forblir stabil
+  // (tom dep-array). Refen oppdateres hver render → closuren ser nyeste userId + mutate.
+  // Verdi sendes som JSON-streng (server parser) — se brukerinnstilling-router-doc.
+  const synkRef = useRef<(nokkel: string, verdi: unknown) => void>(() => {});
+  synkRef.current = (nokkel, verdi) => {
+    if (!userId) return; // ikke innlogget → kun lokal cache
+    settMut.mutate({ nokkel, verdi: JSON.stringify(verdi) });
+  };
+  const synkTilServer = useCallback((nokkel: string, verdi: unknown) => {
+    synkRef.current(nokkel, verdi);
+  }, []);
 
   // Last lagret bygnings-map + siste-tegning-map + favoritter ved oppstart
   useEffect(() => {
@@ -119,6 +152,46 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     lastLagret();
   }, []);
 
+  // Server er sannheten: når brukerens lagrede innstillinger ankommer, la server-verdiene
+  // vinne over lokal cache per nøkkel — men behold lokale-only nøkler (skrevet offline,
+  // ennå ikke synket opp). Speil resultatet til cachen. `serverMerget` gjør at flettingen
+  // skjer én gang per innlogging (resettes når userId endres, under).
+  const serverMerget = useRef(false);
+  useEffect(() => {
+    serverMerget.current = false;
+  }, [userId]);
+  useEffect(() => {
+    const data = innstillingerQuery.data;
+    if (!data || serverMerget.current) return;
+    serverMerget.current = true;
+    // verdi kommer som JSON-streng (se brukerinnstilling-router) — parse trygt.
+    const parse = (nokkel: string): Record<string, string> | undefined => {
+      const rad = data.find((r) => r.projectId === null && r.nokkel === nokkel);
+      if (!rad) return undefined;
+      try {
+        return JSON.parse(rad.verdi) as Record<string, string>;
+      } catch {
+        return undefined;
+      }
+    };
+    const bygg = parse(SERVER_NOKKEL_BYGGEPLASS);
+    const tegn = parse(SERVER_NOKKEL_TEGNING);
+    if (bygg) {
+      setBygningMap((prev) => {
+        const neste = { ...prev, ...bygg }; // server vinner ved konflikt
+        lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+        return neste;
+      });
+    }
+    if (tegn) {
+      setSistTegningMap((prev) => {
+        const neste = { ...prev, ...tegn };
+        lagreVerdi(SIST_TEGNING_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+        return neste;
+      });
+    }
+  }, [innstillingerQuery.data, userId]);
+
   // Sentinel-verdien HELE_PROSJEKTET betyr «ingen avgrensning» → valgtBygningId er
   // null (lister sender ingen byggeplassId, akkurat som web «Hele prosjektet»).
   const valgtBygningId = useMemo(() => {
@@ -137,10 +210,11 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
       setBygningMap((prev) => {
         const neste = { ...prev, [valgtProsjektId]: id };
         lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+        synkTilServer(SERVER_NOKKEL_BYGGEPLASS, neste);
         return neste;
       });
     },
-    [valgtProsjektId],
+    [valgtProsjektId, synkTilServer],
   );
 
   const velgHeleProsjektet = useCallback(() => {
@@ -148,9 +222,10 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     setBygningMap((prev) => {
       const neste = { ...prev, [valgtProsjektId]: HELE_PROSJEKTET };
       lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+      synkTilServer(SERVER_NOKKEL_BYGGEPLASS, neste);
       return neste;
     });
-  }, [valgtProsjektId]);
+  }, [valgtProsjektId, synkTilServer]);
 
   // F3: GPS-identifiser byggeplass (best-effort — kun hvis posisjon ALLEREDE er
   // tillatt; prompter ikke fra provideren). D1: auto-set kun når ingen byggeplass
@@ -192,6 +267,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
             if (!iProsjekt) return prev;
             const neste = { ...prev, [valgtProsjektId]: bygg.id };
             lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+            synkTilServer(SERVER_NOKKEL_BYGGEPLASS, neste);
             return neste;
           });
         }
@@ -202,7 +278,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     return () => {
       aktiv = false;
     };
-  }, [valgtProsjektId, valgtFirmaId, lasterBygningId]);
+  }, [valgtProsjektId, valgtFirmaId, lasterBygningId, synkTilServer]);
 
   const hentSistTegning = useCallback(
     (byggeplassId: string) => sistTegningMap[byggeplassId] ?? null,
@@ -214,10 +290,11 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
       setSistTegningMap((prev) => {
         const neste = { ...prev, [byggeplassId]: tegningId };
         lagreVerdi(SIST_TEGNING_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+        synkTilServer(SERVER_NOKKEL_TEGNING, neste);
         return neste;
       });
     },
-    [],
+    [synkTilServer],
   );
 
   const toggleFavoritt = useCallback((byggeplassId: string) => {
