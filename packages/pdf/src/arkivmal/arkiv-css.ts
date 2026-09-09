@@ -80,6 +80,14 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .tom{color:${f.svak}}
 .tekst-verdi{color:${f.celletekst}}
 .kommentar{font-size:9.5px;color:${f.graa};margin-top:2px}
+/* Tilføyelser (tapte offline-kollisjonsverdier) — EGEN klasse, aldri .kommentar
+   (den er brukerens egen tekst). Print-vennlig: venstremarg setter blokka fra
+   hverandre, ingen bakgrunnsfarge som spiser toner. */
+.tilfoyelse{margin-top:4px;border-left:2px solid ${f.navy};padding-left:8px}
+.tilfoyelse-overskrift{font-size:8.5px;font-weight:600;color:${f.navy};letter-spacing:0.04em;margin-bottom:3px}
+.tilfoyelse-rad{margin-top:3px}
+.tilfoyelse-verdi{font-size:10px;color:${f.tekst};white-space:pre-wrap}
+.tilfoyelse-meta{font-size:8.5px;color:${f.graa};margin-top:1px}
 .ark-utenfor-rader{margin-bottom:10px}
 .ark-utenfor-merke{font-size:8.5px;font-weight:600;font-style:italic;color:${f.graa};margin-bottom:4px}
 .heading{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:${f.navy};font-weight:600;border-bottom:2px solid ${f.navy};padding-bottom:4px;margin-top:14px}

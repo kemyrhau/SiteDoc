@@ -19,6 +19,15 @@ Motoren (Playwright `page.pdf`) bor i den interne **pdf-render-containeren**; de
   `skalarCelle` (kompakt, brudd-ord i kolonnen) rendrer strengene. **Del C:** ved brudd bærer
   snapshotet også `avvikTekst` («Avvik: 4 mm over krav»), rendret som egen amber linje under verdien
   i `felt.ts` (rot). Avviksfeltene (Årsak/Tiltak) er vanlige barn-malobjekter — rendres som vanlige felt.
+- **Tilføyelser i PDF (offline-kollisjon):** verdier som tapte en feltvis offline-kollisjon
+  (kollisjonsmerge, api) bevares på feltet i `FeltVerdi.tilfoyelser` (søsken til `verdi`, aldri inni —
+  samme mønster som `grenseSnapshot`). `byggTilfoyelser` (`hjelpere.ts`) rendrer dem MELLOM `verdi` og
+  `kommentar` med overskrift «Også registrert — feltet hadde allerede verdien over» + verdi/hvem/når pr.
+  rad (manglende navn → «Ukjent bruker»; tom liste → ingen boks). Kalt fra `felt.ts` (topp-nivå + frossen
+  mobil-repeater via `renderFelt`) og `repeater.ts` (arkiv-tabellcelle). Egen `.tilfoyelse`-klasse i BEGGE
+  css-filer (aldri `.kommentar`). 🔴 Hardkodet nb — arkiv-PDF har intet locale-lag (i18n er egen BACKLOG-sak).
+  `TilfoyelsePdf` er strukturell kopiklasse av `apps/api/src/services/kollisjonsmerge.ts#Tilfoyelse` (kilden
+  som skriver den); pdf importerer bevisst verken api eller shared.
 - `timer-rapport.ts` — timer-rapport-dokument (firmatopp + sammendrag + detaljtabeller). Overskrifter injiseres oversatt (`TimerRapportTekster`) — ingen i18n i pakken.
 - `hjelpere.ts` — `esc`, `formaterDato` m.fl.
 

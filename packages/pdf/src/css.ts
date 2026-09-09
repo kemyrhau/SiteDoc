@@ -119,6 +119,13 @@ export function hentCss(config?: Partial<PdfConfig>): string {
   .tom { color: #d1d5db; font-style: italic; }
   .tekst-verdi { white-space: pre-wrap; }
   .kommentar { margin-top: 4px; font-size: 9px; font-style: italic; color: #6b7280; }
+  /* Tilføyelser (tapte offline-kollisjonsverdier) — EGEN klasse, ikke .kommentar
+     (den er brukerens egen tekst). Print-vennlig: venstremarg, ingen bakgrunn. */
+  .tilfoyelse { margin-top: 4px; border-left: 2px solid #26327e; padding-left: 8px; }
+  .tilfoyelse-overskrift { font-size: 8.5px; font-weight: 600; color: #26327e; letter-spacing: 0.04em; margin-bottom: 3px; }
+  .tilfoyelse-rad { margin-top: 3px; }
+  .tilfoyelse-verdi { font-size: 10px; color: #111827; white-space: pre-wrap; }
+  .tilfoyelse-meta { font-size: 8.5px; color: #6b7280; margin-top: 1px; }
   .vedlegg-teller { margin-top: 4px; font-size: 9px; color: #9ca3af; }
 
   /* Trafikklys */
