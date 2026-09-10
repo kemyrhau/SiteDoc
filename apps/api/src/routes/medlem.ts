@@ -55,6 +55,7 @@ export const medlemRouter = router({
               organizationMembers: {
                 select: {
                   organizationId: true,
+                  status: true,
                   organization: { select: { id: true, name: true } },
                 },
                 orderBy: { createdAt: "asc" },
@@ -74,7 +75,16 @@ export const medlemRouter = router({
       return medlemmer.map((m) => {
         if (!m.user) return { ...m, user: null };
         const { organizationMembers, ...userRest } = m.user;
+        // Nyeste-aktive-regel (firmatilknytning krav 2, 2026-09-10): en firmabytte
+        // AVSLUTTER gammel rad (status="deaktivert") og oppretter ny aktiv rad. Da
+        // MÅ visningen vise den NYE firmaen, ikke den gamle. Tidligere plukket vi
+        // `[0]` = eldste rad uansett status → etter et bytte ville personkortet vise
+        // det gamle (avsluttede) firmaet. Nå: eier-firma (aktiv) → nyeste aktive →
+        // (alle avsluttet) eier-firma → eldste. orderBy createdAt asc → siste = nyest.
+        const aktive = organizationMembers.filter((om) => om.status !== "deaktivert");
         const valgt =
+          aktive.find((om) => om.organizationId === primaryOrgId) ??
+          aktive[aktive.length - 1] ??
           organizationMembers.find((om) => om.organizationId === primaryOrgId) ??
           organizationMembers[0] ??
           null;
@@ -606,6 +616,164 @@ export const medlemRouter = router({
           faggruppeKoblinger: { include: { faggruppe: true } },
         },
       });
+    }),
+
+  // Distinkte firmaer som alt er part i prosjektet — kilden for «Endre firma»-
+  // nedtrekket på personkortet. Utledes fra prosjektmedlemmenes OrganizationMember-
+  // rader (samme kilde som FIRMA-kolonnen). Å opprette et NYTT firma herfra er en
+  // egen, gatet rute (krav 1b) og er bevisst IKKE en del av denne lista.
+  hentProsjektFirmaer: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+
+      const medlemmer = await ctx.prisma.projectMember.findMany({
+        where: { projectId: input.projectId },
+        select: {
+          user: {
+            select: {
+              organizationMembers: {
+                select: {
+                  organization: { select: { id: true, name: true, erKunde: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+      const kart = new Map<string, { id: string; name: string; erKunde: boolean }>();
+      for (const m of medlemmer) {
+        for (const om of m.user?.organizationMembers ?? []) {
+          kart.set(om.organization.id, {
+            id: om.organization.id,
+            name: om.organization.name,
+            erKunde: om.organization.erKunde,
+          });
+        }
+      }
+      return [...kart.values()].sort((a, b) => a.name.localeCompare(b.name, "nb"));
+    }),
+
+  // Endre firma på en person (firmatilknytning krav 2, 2026-09-10).
+  //
+  // TO hendelser, ikke én:
+  //   - "feilregistrering": personen var ALDRI i fra-firmaet → gammel rad er FEIL →
+  //     ERSTATT (flytt raden til riktig firma; samme OrganizationMember.id → FK og
+  //     historikk intakt). Å bevare den ville bevare en løgn.
+  //   - "firmabytte": personen VAR der og sluttet → gammel rad er SANN → AVSLUTT den
+  //     (status="deaktivert", deaktivertVed=nå) og opprett/reaktiver ny rad. Arkiv-
+  //     PDF-er og signaturer er juridiske dokumenter — historikken må bevares.
+  //
+  // Auth speiler regeltabellen (Kenneth-vedtak), avhengig av erKunde på FRA og TIL:
+  //   skall→skall: prosjektadmin · inn i kundefirma: firmaadmin i TIL · ut av
+  //   kundefirma: firmaadmin i FRA · kunde→kunde: sitedoc_admin.
+  endreFirma: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        projectMemberId: z.string().uuid(),
+        fraOrganizationId: z.string().uuid(),
+        tilOrganizationId: z.string().uuid(),
+        modus: z.enum(["feilregistrering", "firmabytte"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.fraOrganizationId === input.tilOrganizationId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Fra- og til-firma er like" });
+      }
+
+      const medlem = await ctx.prisma.projectMember.findUniqueOrThrow({
+        where: { id: input.projectMemberId },
+        select: { id: true, userId: true, projectId: true },
+      });
+      if (medlem.projectId !== input.projectId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Medlem hører ikke til prosjektet" });
+      }
+      if (!medlem.userId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Bruker er fjernet — kan ikke endre firma" });
+      }
+      const userId = medlem.userId;
+
+      const [fraOrg, tilOrg] = await Promise.all([
+        ctx.prisma.organization.findUnique({
+          where: { id: input.fraOrganizationId },
+          select: { erKunde: true },
+        }),
+        ctx.prisma.organization.findUnique({
+          where: { id: input.tilOrganizationId },
+          select: { erKunde: true },
+        }),
+      ]);
+      if (!fraOrg || !tilOrg) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firma finnes ikke" });
+      }
+
+      // Regeltabellen. Kunde→kunde er den strengeste (både inn i OG ut av et
+      // kundefirma) → sitedoc_admin. Ellers gates hver kunde-side for seg.
+      if (fraOrg.erKunde && tilOrg.erKunde) {
+        const bruker = await ctx.prisma.user.findUniqueOrThrow({
+          where: { id: ctx.userId },
+          select: { role: true },
+        });
+        if (bruker.role !== "sitedoc_admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Å flytte en person mellom to kundefirmaer krever SiteDoc-administrator",
+          });
+        }
+      } else {
+        if (tilOrg.erKunde) await autoriserAdminForFirma(ctx.userId, input.tilOrganizationId);
+        if (fraOrg.erKunde) await autoriserAdminForFirma(ctx.userId, input.fraOrganizationId);
+        if (!fraOrg.erKunde && !tilOrg.erKunde) await verifiserAdmin(ctx.userId, input.projectId);
+      }
+
+      // Personen MÅ faktisk ha fra-medlemskapet — ellers gir operasjonen ingen mening.
+      const fraMedlemskap = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId, organizationId: input.fraOrganizationId } },
+        select: { id: true },
+      });
+      if (!fraMedlemskap) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Personen tilhører ikke fra-firmaet" });
+      }
+      const harTil = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId, organizationId: input.tilOrganizationId } },
+        select: { id: true },
+      });
+
+      await ctx.prisma.$transaction(async (tx) => {
+        if (input.modus === "feilregistrering") {
+          // Erstatt: raden var feil. Har personen alt en rad i til-firmaet, fjern den
+          // FEILFØRTE raden (unik (userId, organizationId) tillater ikke to rader — og
+          // den riktige finnes alt). Ellers flytt raden til riktig firma, reaktiver.
+          if (harTil) {
+            await tx.organizationMember.delete({ where: { id: fraMedlemskap.id } });
+          } else {
+            await tx.organizationMember.update({
+              where: { id: fraMedlemskap.id },
+              data: {
+                organizationId: input.tilOrganizationId,
+                status: "aktiv",
+                deaktivertVed: null,
+                deaktivertAvUserId: null,
+              },
+            });
+          }
+        } else {
+          // Firmabytte: avslutt gammel rad (bevar den som sann historikk), sikre en
+          // aktiv rad i det nye firmaet (opprett eller reaktiver).
+          await tx.organizationMember.update({
+            where: { id: fraMedlemskap.id },
+            data: { status: "deaktivert", deaktivertVed: new Date(), deaktivertAvUserId: ctx.userId },
+          });
+          await tx.organizationMember.upsert({
+            where: { userId_organizationId: { userId, organizationId: input.tilOrganizationId } },
+            create: { userId, organizationId: input.tilOrganizationId, ansattRolle: "ansatt", firmaRoller: [] },
+            update: { status: "aktiv", deaktivertVed: null, deaktivertAvUserId: null },
+          });
+        }
+      });
+
+      return { ok: true };
     }),
 
   // Legg et prosjektmedlem til i en faggruppe (oppretter FaggruppeKobling).

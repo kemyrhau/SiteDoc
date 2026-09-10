@@ -147,6 +147,13 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
   const erProsjektAdmin = minFlytInfo?.erAdmin ?? false;
   const minUserId = minFlytInfo?.userId;
 
+  // Krav 3 (firmatilknytning 2026-09-10): «+ Ny kontakt» og «Legg til fra firmaet»
+  // hadde INGEN rollevakt — en vanlig ansatt så begge, serveren avviste → knappen
+  // løy. Speiler serverens verifiserAdminEllerFirmaansvarlig: prosjektadmin (minFlytInfo
+  // dekker admin/sitedoc/firma-admin) ELLER firmaansvarlig på egen ProjectMember-rad.
+  const kanAdministrereKontakter =
+    erProsjektAdmin || !!kontakter.find((m) => m.user?.id === minUserId)?.erFirmaansvarlig;
+
   // Prosjektadministratorer = ProjectMember.role="admin" (den ekte prosjektadmin-
   // kilden, håndhevet 38 steder i api). Vises som eget lesekort i Brukergrupper-fanen;
   // gruppa «prosjekt-admin» brukes bevisst IKKE (dens permissions håndheves knapt).
@@ -285,22 +292,24 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
           <h2 className="text-xl font-bold text-gray-900">{t("brukere.kontakter")}</h2>
           <div className="flex items-center gap-2">
             {fane === "kontakter" ? (
-              <>
-                <button
-                  onClick={() => setAnsattVelgerOpen(true)}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
-                >
-                  <Users className="h-4 w-4" />
-                  {t("ansattvelger.leggTilFraFirmaet")}
-                </button>
-                <button
-                  onClick={() => setNyKontaktOpen(true)}
-                  className="flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
-                >
-                  <Plus className="h-4 w-4" />
-                  {t("kontaktside.nyKontakt")}
-                </button>
-              </>
+              kanAdministrereKontakter ? (
+                <>
+                  <button
+                    onClick={() => setAnsattVelgerOpen(true)}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+                  >
+                    <Users className="h-4 w-4" />
+                    {t("ansattvelger.leggTilFraFirmaet")}
+                  </button>
+                  <button
+                    onClick={() => setNyKontaktOpen(true)}
+                    className="flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {t("kontaktside.nyKontakt")}
+                  </button>
+                </>
+              ) : null
             ) : nyGruppeInput ? (
               <div className="flex items-center gap-1.5">
                 <input
@@ -475,6 +484,7 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
           dbGrupper={grupperListe}
           dokumentflyter={flyterListe}
           fokusBrukergruppe={fokusBrukergruppe}
+          erProsjektAdmin={erProsjektAdmin}
           onClose={() => { setValgtMedlemId(null); setFokusBrukergruppe(false); }}
         />
       )}
