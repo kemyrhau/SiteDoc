@@ -18,12 +18,6 @@ model User {
   language      String    @default("nb") // nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv
   tabelloppsett Json?     @map("tabelloppsett") // { [liste]: { kolonner, bredder, sortering } }
 
-  // Redesign/navigasjon — bruker-lagret nyNavigasjon-flagg (Plan 2, 2026-07-07).
-  // null = ikke tildelt (fall gjennom til lokal/env-default); true/false = eksplisitt
-  // (admin-tildeling eller brukerens egen toggle). Presedens i @sitedoc/shared
-  // resolverNyNavigasjon: konto > lokal/query > env-default > av. Additiv, ingen backfill.
-  nyNavigasjon Boolean? @map("ny_navigasjon")
-
   // Per A.10 — to bruksområder: data-mottaker uten innloggings-tilgang OG arkivert User-rad ved org-bytte.
   //
   // NIVÅSKILLE (ufravikelig — ikke konsolider med OrganizationMember.status):
@@ -87,7 +81,7 @@ model User {
 
 // Brukerminne på server — innstillinger som overlever mobil-reinstallering
 // (Kenneth-vedtak 2026-09-09). Fase 1: sist brukt byggeplass + sist brukt tegning.
-// Språk (`User.language`) og nav-flagg (`User.nyNavigasjon`) bor ALLEREDE på User og
+// Språk (`User.language`) bor ALLEREDE på User og
 // dupliseres bevisst IKKE hit (to sannhetskilder = drift). Datamodellen (nokkel + Json
 // + nullable projectId) tåler filtervalg senere (designsak til fabel — bygges ikke nå).
 //
