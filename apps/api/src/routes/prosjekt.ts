@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { router, protectedProcedure, opprettProsjektProcedure } from "../trpc/trpc";
-import { createProjectSchema, STANDARD_PROJECT_GROUPS, PROSJEKT_MODULER, STANDARD_FAGGRUPPER, STANDARD_DOKUMENTFLYTER } from "@sitedoc/shared";
+import { createProjectSchema } from "@sitedoc/shared";
 import { generateProjectNumber } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
 import { TRPCError } from "@trpc/server";
@@ -14,6 +14,7 @@ import {
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { provisjonerProsjektmedlemskap } from "../services/prosjektTilgangEvaluator";
+import { seedStandardProsjektoppsett } from "../services/prosjektSeed";
 
 export const prosjektRouter = router({
   // Hent prosjekter der innlogget bruker er medlem — uavhengig av rolle.
@@ -380,6 +381,11 @@ export const prosjektRouter = router({
           }
         }
 
+        // Standard prosjektoppsett (grupper m/domener, moduler+maler, faggrupper,
+        // dokumentflyter). Delt med admin-veien og testprosjekt-veien — ingen
+        // vei skal gi et tomt prosjekt (2026-09-10).
+        await seedStandardProsjektoppsett(tx, prosjekt.id, ctx.userId!);
+
         // B Kloss 2b: auto-legg firma-admins som prosjektadmin hvis firmaet
         // har slått på innstillingen. Dedup mot oppretteren (laget over).
         await autoLeggFirmaAdmins(tx, prosjekt.id, valgtOrgId);
@@ -470,136 +476,9 @@ export const prosjektRouter = router({
           });
         }
 
-        // Opprett standardgrupper
-        for (const gruppe of STANDARD_PROJECT_GROUPS) {
-          await tx.projectGroup.create({
-            data: {
-              projectId: prosjekt.id,
-              name: gruppe.name,
-              slug: gruppe.slug,
-              category: gruppe.category,
-              permissions: gruppe.permissions,
-              domains: gruppe.domains,
-              isDefault: true,
-            },
-          });
-        }
-
-        // Aktiver alle moduler (Godkjenning, HMS-avvik, Befaringsrapport)
-        for (const modulDef of PROSJEKT_MODULER) {
-          await tx.projectModule.create({
-            data: {
-              projectId: prosjekt.id,
-              moduleSlug: modulDef.slug,
-            },
-          });
-
-          for (const malDef of modulDef.maler) {
-            const mal = await tx.reportTemplate.create({
-              data: {
-                projectId: prosjekt.id,
-                name: malDef.navn,
-                description: malDef.beskrivelse,
-                prefix: malDef.prefix,
-                category: malDef.kategori,
-                domain: malDef.domain,
-                subjects: (malDef.emner ?? []) as Prisma.InputJsonValue,
-              },
-            });
-
-            if (malDef.objekter.length > 0) {
-              await tx.reportObject.createMany({
-                data: malDef.objekter.map((obj) => ({
-                  templateId: mal.id,
-                  type: obj.type,
-                  label: obj.label,
-                  sortOrder: obj.sortOrder,
-                  required: obj.required ?? false,
-                  config: obj.config as Prisma.InputJsonValue,
-                })),
-              });
-            }
-          }
-        }
-
-        // Opprett standard faggrupper
-        const faggruppeIder: string[] = [];
-        for (const fgDef of STANDARD_FAGGRUPPER) {
-          const fg = await tx.faggruppe.create({
-            data: {
-              projectId: prosjekt.id,
-              name: fgDef.navn,
-              industry: fgDef.bransje,
-              color: fgDef.farge,
-              faggruppeNummer: fgDef.faggruppeNummer,
-            },
-          });
-          faggruppeIder.push(fg.id);
-        }
-
-        // Koble bruker til Byggherre-faggruppen (første)
-        const medlem = await tx.projectMember.findFirst({
-          where: { projectId: prosjekt.id, userId: ctx.userId },
-        });
-        if (medlem && faggruppeIder.length > 0) {
-          await tx.faggruppeKobling.create({
-            data: {
-              projectMemberId: medlem.id,
-              faggruppeId: faggruppeIder[0]!,
-            },
-          });
-        }
-
-        // Hent opprettede maler (for å koble til dokumentflyter via prefix)
-        const opprettedeMaler = await tx.reportTemplate.findMany({
-          where: { projectId: prosjekt.id },
-          select: { id: true, prefix: true },
-        });
-
-        // Opprett standard dokumentflyter
-        for (const flytDef of STANDARD_DOKUMENTFLYTER) {
-          const flyt = await tx.dokumentflyt.create({
-            data: { projectId: prosjekt.id, name: flytDef.navn },
-          });
-
-          // Legg til oppretter-medlemmer
-          for (const idx of flytDef.oppretter) {
-            if (idx < faggruppeIder.length) {
-              await tx.dokumentflytMedlem.create({
-                data: {
-                  dokumentflytId: flyt.id,
-                  faggruppeId: faggruppeIder[idx],
-                  rolle: "bestiller",
-                  steg: 1,
-                },
-              });
-            }
-          }
-
-          // Legg til svarer-medlemmer
-          for (const idx of flytDef.svarer) {
-            if (idx < faggruppeIder.length) {
-              await tx.dokumentflytMedlem.create({
-                data: {
-                  dokumentflytId: flyt.id,
-                  faggruppeId: faggruppeIder[idx],
-                  rolle: "utforer",
-                  steg: 1,
-                },
-              });
-            }
-          }
-
-          // Koble maler via prefix
-          for (const prefix of flytDef.malPrefixer) {
-            const mal = opprettedeMaler.find((m) => m.prefix === prefix);
-            if (mal) {
-              await tx.dokumentflytMal.create({
-                data: { dokumentflytId: flyt.id, templateId: mal.id },
-              });
-            }
-          }
-        }
+        // Standard prosjektoppsett (grupper, moduler+maler, faggrupper,
+        // dokumentflyter) — delt funksjon, samme som hoved- og admin-veien.
+        await seedStandardProsjektoppsett(tx, prosjekt.id, ctx.userId!);
 
         // B Kloss 2b: auto-legg firma-admins som prosjektadmin hvis firmaet
         // har slått på innstillingen. Dedup mot oppretteren (laget over).
