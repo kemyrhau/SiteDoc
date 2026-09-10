@@ -232,8 +232,7 @@ export function OpprettOppgaveModal({
         {!harSjekklisteFlyt && (
           <>
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Denne sjekklisten er ikke knyttet til en dokumentflyt, så du må velge hvilken flyt
-              oppgaven skal følge.
+              {t("opprettOppgave.flytloesInfo")}
             </p>
             <Select
               label="Dokumentflyt"
@@ -276,10 +275,10 @@ export function OpprettOppgaveModal({
           </div>
         )}
 
-        <p className="text-sm text-gray-500">Tittel: {tittel}</p>
+        <p className="text-sm text-gray-500">{t("opprettOppgave.tittel")} {tittel}</p>
 
         <Button type="submit" disabled={!kanOpprette} loading={opprettMutation.isPending}>
-          Opprett oppgave
+          {t("oppgaver.opprett")}
         </Button>
       </form>
     </Modal>

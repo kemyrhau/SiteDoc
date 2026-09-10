@@ -7,7 +7,7 @@ import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -35,6 +35,16 @@ export interface FeltVerdi {
   verdi: unknown;
   kommentar: string;
   vedlegg: Vedlegg[];
+  /** Tapende verdier ved kollisjon (celle-nivå for repeater-celler). Skrives av serveren. */
+  tilfoyelser?: Tilfoyelse[];
+}
+
+/** Tapende verdi notert ved kollisjon (feltvis merge-deteksjon). Skrives av serveren. */
+export interface Tilfoyelse {
+  verdi: unknown;
+  brukerNavn: string;
+  brukerId?: string;
+  tidspunkt: string;
 }
 
 interface RapportObjekt {
@@ -71,6 +81,11 @@ export interface UseSjekklisteSkjemaResultat {
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
+  /** Tapende verdier notert ved kollisjon, pr. felt (feltnær visning). */
+  hentTilfoyelser: (objektId: string) => Tilfoyelse[];
+  /** Felt som nettopp fikk en kollisjons-tilføyelse (live-varsel); tømmes av `avvisKollisjoner`. */
+  sisteKollisjoner: { feltId: string }[];
+  avvisKollisjoner: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
@@ -185,6 +200,15 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   const feltVerdierRef = useRef(feltVerdier);
   feltVerdierRef.current = feltVerdier;
 
+  // Kollisjons-deteksjon (diff-basert dirty-scoping): `basisRef` = server-synket verdi pr.
+  // felt (det klienten TRODDE feltet hadde). Dirty = felt der current ≠ basis; sendes med
+  // `base` så serveren skiller «endret av meg» fra «klobber en annens ferske verdi». Diff-
+  // basert (ikke mutator-instrumentert) fordi mobil-hooken har mange skriveveier — ingen kan
+  // glemmes. Base tas fra SERVER-data ved init, IKKE lokal SQLite: en stale offline-skriving
+  // skal oppdages mot det serveren faktisk hadde da klienten sist var synket.
+  const basisRef = useRef<Record<string, FeltVerdi>>({});
+  const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
+
   const { erPaaNettet } = useNettverk();
   const { registrerCallback } = useOpplastingsKo();
 
@@ -212,6 +236,19 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     if (!sjekkliste || erInitialisert) return;
 
     const eksisterendeData = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
+
+    // Basis = SERVERENS verdi pr. felt (det klienten sist var synket mot) — grunnlag for
+    // kollisjons-deteksjon. Settes uansett init-gren, også når vi bruker lokal usynket data:
+    // en offline-endring skal oppdages mot serverens verdi, ikke mot sin egen lokale kladd.
+    const serverBasis: Record<string, FeltVerdi> = {};
+    for (const objekt of alleObjekter) {
+      if (DISPLAY_TYPER.has(objekt.type)) continue;
+      const lagret = eksisterendeData[objekt.id];
+      serverBasis[objekt.id] = lagret
+        ? { verdi: lagret.verdi ?? null, kommentar: (lagret.kommentar as string) ?? "", vedlegg: (lagret.vedlegg as Vedlegg[]) ?? [] }
+        : { ...TOM_FELTVERDI };
+    }
+    basisRef.current = serverBasis;
 
     // Prøv SQLite først (instant, <10ms)
     const sqliteData = lesSQLiteFeltdata(sjekklisteId);
@@ -329,6 +366,15 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     [feltVerdier, signerteUrler],
   );
 
+  // Tapende verdier notert ved kollisjon — leses fra server-data, vises feltnært.
+  const hentTilfoyelser = useCallback(
+    (objektId: string): Tilfoyelse[] => {
+      const felt = (sjekkliste?.data as Record<string, { tilfoyelser?: unknown }> | undefined)?.[objektId];
+      return Array.isArray(felt?.tilfoyelser) ? (felt!.tilfoyelser as Tilfoyelse[]) : [];
+    },
+    [sjekkliste],
+  );
+
   // Lagre til server
   const oppdaterDataMutasjon = trpc.sjekkliste.oppdaterData.useMutation();
 
@@ -352,12 +398,56 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     //    (file://) — de skal aldri lande på server; køen skriver den varige
     //    server-URL-en via `settVedleggUrl` når opplastingen er ferdig.
     if (erPaaNettet) {
+      // Dirty-scopet: send KUN felt som avviker fra server-basis + `base` (antatt gammel
+      // verdi). Diff på {verdi,kommentar,vedlegg}. Utelat felt med lokale vedlegg.
+      const norm = (fv: FeltVerdi | undefined) =>
+        JSON.stringify({ verdi: fv?.verdi ?? null, kommentar: fv?.kommentar ?? "", vedlegg: fv?.vedlegg ?? [] });
+      const dirty = Object.keys(data).filter((id) => norm(data[id]) !== norm(basisRef.current[id]));
+      const dirtyData = Object.fromEntries(dirty.map((id) => [id, data[id]]));
+      const utenLokale = utelatFeltMedLokaleVedlegg(dirtyData);
+      const sendteIder = Object.keys(utenLokale);
+
+      if (sendteIder.length === 0) {
+        // Ingenting nytt å sende til server (kun lokale-vedlegg-felt eller ingen endring).
+        settHarEndringer(false);
+        skrivTilSQLite(sjekklisteId, data, true);
+        settSynkStatus("synkronisert");
+        lagrerNaaRef.current = false;
+        return;
+      }
+
+      const base = Object.fromEntries(sendteIder.map((id) => [id, basisRef.current[id]?.verdi ?? null]));
       settSynkStatus("synkroniserer");
       try {
-        await oppdaterDataMutasjon.mutateAsync({
+        const res = await oppdaterDataMutasjon.mutateAsync({
           id: sjekklisteId,
-          data: utelatFeltMedLokaleVedlegg(data),
+          data: utenLokale,
+          base,
         });
+        // Avanser basis for sendte felt til det som faktisk ble sendt.
+        for (const id of sendteIder) basisRef.current[id] = data[id];
+
+        const kollisjoner = (res as { kollisjoner?: { feltId: string }[] })?.kollisjoner ?? [];
+        if (kollisjoner.length > 0) {
+          settSisteKollisjoner(kollisjoner);
+          // Vinner (server-verdi) tilbake i feltet — MEN kun hvis brukeren ikke skrev videre
+          // under flight (`løsKollisjonsVerdi`, delt med web): re-dirty tekst står, ellers
+          // forsvinner tegnene under fingrene. Tapende verdi bevares som tilføyelse
+          // server-side. `data[feltId]` = det vi sendte. Basis → server-verdi alltid.
+          const serverData = (res as { data?: Record<string, { verdi?: unknown }> }).data ?? {};
+          settFeltVerdier((prev) => {
+            const oppd = { ...prev };
+            for (const { feltId } of kollisjoner) {
+              const serverVerdi = serverData[feltId]?.verdi ?? null;
+              const naavaerende = (prev[feltId] ?? TOM_FELTVERDI).verdi ?? null;
+              const { verdi } = løsKollisjonsVerdi({ naavaerende, sendt: data[feltId]?.verdi ?? null, server: serverVerdi });
+              oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi };
+              basisRef.current[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi: serverVerdi };
+            }
+            return oppd;
+          });
+        }
+
         await utils.sjekkliste.hentMedId.invalidate({ id: sjekklisteId });
         settHarEndringer(false);
 
@@ -623,6 +713,9 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
       : undefined,
     erLaster: sjekklisteQuery.isLoading,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner: () => settSisteKollisjoner([]),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

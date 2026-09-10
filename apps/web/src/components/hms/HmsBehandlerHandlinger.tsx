@@ -1,106 +1,62 @@
 "use client";
 
-import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
-import { UserPlus, Plus, User } from "lucide-react";
-
-export interface HmsKontakt {
-  /** ProjectMember-id (kun for visning/nøkkel) */
-  id: string;
-  navn: string | null;
-  epost: string;
-  /** Er kontakten allerede medlem av HMS-gruppa (behandler)? */
-  erMedlem: boolean;
-}
+import { UserPlus, Users } from "lucide-react";
+import Link from "next/link";
 
 /**
  * Delte handlinger for å bemanne HMS-behandler-leddet (HMS-gruppa):
- * «Meld meg inn» (innlogget bruker) + «Velg andre» (eksisterende prosjektkontakt).
- * Gjenbrukes av tilgangsmatrisen (§3), flyt-oppsettet (§2) og HmsTomBanner (§3).
+ * «Meld meg inn» (innlogget bruker tar ansvar selv) + en lenke til gruppekortet
+ * for å legge til andre. Gjenbrukes av tilgangsmatrisen, flyt-oppsettet og HmsTomBanner.
  *
- * Server håndhever admin-nivå på begge mutasjonene (gruppe.meldMegInn / leggTilMedlem
- * → verifiserAdmin) — UI-gaten er kun kosmetisk. «Meld meg inn» knyttes til innlogget
- * bruker på serveren; ingen klient-identitet trengs her.
+ * Skillet er bevisst (Kenneth-vedtak 2026-09-10): medlemskap i HMS-gruppa gir
+ * HMS-administrator (erHmsAdmin). Å ta ansvar SELV er ufarlig og løses på ett klikk
+ * der problemet oppdages — derfor står «Meld meg inn» her, med en linje om hva det
+ * gir. Å gi en ANNEN person rettigheten hører hjemme der rettighetene vises
+ * (gruppekortet, med domene-chips synlig), ikke skjult i flyt-oppsettet.
+ *
+ * Server håndhever admin-nivå på meldMegInn (verifiserAdmin) — UI-gaten er kosmetisk.
+ * «Meld meg inn» knyttes til innlogget bruker på serveren; ingen klient-identitet her.
  */
 export function HmsBehandlerHandlinger({
   prosjektId,
   hmsGruppeId,
-  kontakter,
 }: {
   prosjektId: string;
   hmsGruppeId: string;
-  kontakter: HmsKontakt[];
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const [visVelg, setVisVelg] = useState(false);
 
-  const invalider = () => {
-    utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
-    utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-  };
-
-  const meldMegInn = trpc.gruppe.meldMegInn.useMutation({ onSuccess: invalider });
-  const leggTil = trpc.gruppe.leggTilMedlem.useMutation({
+  const meldMegInn = trpc.gruppe.meldMegInn.useMutation({
     onSuccess: () => {
-      invalider();
-      setVisVelg(false);
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
   });
 
-  const ledige = kontakter.filter((k) => !k.erMedlem);
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        onClick={() => meldMegInn.mutate({ groupId: hmsGruppeId, projectId: prosjektId })}
-        disabled={meldMegInn.isPending}
-        className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
-      >
-        <UserPlus className="h-3.5 w-3.5" />
-        {t("hms.behandler.meldMegInn")}
-      </button>
-
-      <div className="relative">
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={() => setVisVelg((v) => !v)}
+          onClick={() => meldMegInn.mutate({ groupId: hmsGruppeId, projectId: prosjektId })}
+          disabled={meldMegInn.isPending}
+          className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+          {t("hms.behandler.meldMegInn")}
+        </button>
+
+        <Link
+          href="/dashbord/oppsett/brukere?fane=brukergrupper"
           className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100"
         >
-          <Plus className="h-3.5 w-3.5" />
-          {t("hms.behandler.velgAndre")}
-        </button>
-        {visVelg && (
-          <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-64 overflow-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
-            {ledige.length === 0 ? (
-              <p className="px-2 py-1.5 text-xs text-gray-400">{t("hms.behandler.ingenLedige")}</p>
-            ) : (
-              ledige.map((k) => {
-                const deler = (k.navn ?? "").trim().split(" ");
-                return (
-                  <button
-                    key={k.id}
-                    onClick={() =>
-                      leggTil.mutate({
-                        groupId: hmsGruppeId,
-                        projectId: prosjektId,
-                        email: k.epost,
-                        firstName: deler[0] || k.epost,
-                        lastName: deler.slice(1).join(" ") || "-",
-                      })
-                    }
-                    disabled={leggTil.isPending}
-                    className="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
-                  >
-                    <User className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                    <span className="truncate">{k.navn ?? k.epost}</span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        )}
+          <Users className="h-3.5 w-3.5" />
+          {t("hms.behandler.leggTilAndre")}
+        </Link>
       </div>
+      <p className="text-xs text-gray-500">{t("hms.behandler.girHmsAdmin")}</p>
     </div>
   );
 }

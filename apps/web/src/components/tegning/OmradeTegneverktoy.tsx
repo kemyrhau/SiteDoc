@@ -161,7 +161,7 @@ export function OmradeTegneverktoy({ onFerdig, onAvbryt }: OmradeTegneverktoyPro
         <div className="flex gap-2">
           {punkter.length > 0 && (
             <button onClick={angre} className="flex items-center gap-1 text-[10px] px-2 py-1 text-gray-500 hover:bg-gray-100 rounded">
-              <Undo2 className="h-3 w-3" /> Angre
+              <Undo2 className="h-3 w-3" /> {t("tegning.angre")}
             </button>
           )}
           {kanFullfore && (
@@ -169,7 +169,7 @@ export function OmradeTegneverktoy({ onFerdig, onAvbryt }: OmradeTegneverktoyPro
               onClick={() => onFerdig(punkter, navn.trim(), type, farge)}
               className="flex items-center gap-1 text-[10px] px-2 py-1 bg-sitedoc-primary text-white rounded"
             >
-              <Check className="h-3 w-3" /> Fullfør
+              <Check className="h-3 w-3" /> {t("tegning.fullfor")}
             </button>
           )}
         </div>

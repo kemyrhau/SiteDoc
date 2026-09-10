@@ -183,10 +183,25 @@ export const organisasjonRouter = router({
     return berikMedFirmamoduler(ctx.prisma, orgs);
   }),
 
-  // Opprett ny organisasjon
+  // Opprett ny organisasjon (skall-firma; erKunde faller til default false).
+  //
+  // Krav 1b (firmatilknytning 2026-09-10): ruten hadde INGEN tilgangssjekk — enhver
+  // innlogget bruker kunne opprette et firma med fritt navn. Målt 2026-09-10: null
+  // kallere i web og mobil (skall-firmaer opprettes i praksis kun via seed), så
+  // gaten bryter ingen legitim flyt. Gated til sitedoc_admin, som speiler den ANDRE
+  // org-opprettelsesruten (admin.opprettOrganisasjon). Skal prosjekt-/firmaadmin
+  // senere kunne opprette prosjektparter selv, er det en egen rute med prosjekt-
+  // kontekst — et produktvalg, ikke denne sikkerhetsfiksen.
   opprett: protectedProcedure
     .input(z.object({ name: z.string().min(1).max(255) }))
     .mutation(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker.role !== "sitedoc_admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Krever SiteDoc-administrator" });
+      }
       return ctx.prisma.organization.create({
         data: { name: input.name },
         select: { id: true, name: true },
@@ -935,7 +950,11 @@ export const organisasjonRouter = router({
   tildelOrgRolle: protectedProcedure
     .input(z.object({
       userId: z.string().uuid(),
-      role: z.string().min(1), // "hms_ansvarlig" osv.
+      // Enum, ikke fri streng (CLAUDE.md § «Stille tomhet er forbudt»): en skrivefeil
+      // ville lagres, vises og aldri virke. Validerer KUN input-rollen — eksisterende
+      // firmaRoller-array spres urørt, så evt. stray-verdier i prod brekkes ikke, og
+      // fjernOrgRolle beholder fri streng nettopp for å kunne rydde dem.
+      role: z.enum(["firma_admin", "hms_ansvarlig", "hr_ansvarlig", "prosjekt_oppretter"]),
       organizationId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -1289,58 +1308,4 @@ export const organisasjonRouter = router({
       }
     }),
 
-  // ---------------------------------------------------------------------------
-  // Redesign/navigasjon (Plan 2) — sentral tildeling av nyNavigasjon-flagget for pilot.
-  // Begge mutasjoner gates via verifiserFirmaAdmin: sitedoc_admin (hvilket som helst firma)
-  // eller company_admin (kun eget firma). Skriver User.nyNavigasjon (autoritativ konto-kilde
-  // i presedensen konto > lokal/query > env-default > av).
-  // ---------------------------------------------------------------------------
-
-  // Bulk: sett flagget for ALLE brukere i firmaet (pilot-utrulling: «alle i org X»).
-  settNyNavForFirma: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid(), paa: z.boolean() }))
-    .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
-      const members = await ctx.prisma.organizationMember.findMany({
-        where: { organizationId: orgId },
-        select: { userId: true },
-      });
-      const userIds = members.map((m) => m.userId);
-      const res = await ctx.prisma.user.updateMany({
-        where: { id: { in: userIds } },
-        data: { nyNavigasjon: input.paa },
-      });
-      return { ok: true, antall: res.count };
-    }),
-
-  // Per-bruker overstyring innen firmaet. `verdi=null` = nullstill til «ikke tildelt»
-  // (bruker faller da tilbake til egen lokal toggle / env-default). Nullable gjør pilot
-  // koherent: start med utvalgte brukere (per-bruker), utvid med bulk over.
-  settNyNavForBruker: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        userId: z.string().uuid(),
-        verdi: z.boolean().nullable(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
-      // Målbrukeren MÅ være medlem av samme firma (hindrer kryss-org-skriving).
-      const medlem = await ctx.prisma.organizationMember.findFirst({
-        where: { organizationId: orgId, userId: input.userId },
-        select: { id: true },
-      });
-      if (!medlem) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Brukeren er ikke medlem av dette firmaet.",
-        });
-      }
-      await ctx.prisma.user.update({
-        where: { id: input.userId },
-        data: { nyNavigasjon: input.verdi },
-      });
-      return { ok: true };
-    }),
 });

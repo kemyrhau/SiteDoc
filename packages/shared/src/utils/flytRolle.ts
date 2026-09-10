@@ -216,3 +216,68 @@ export function utledDokumentRettighet(input: DokumentRettighetInput): DokumentR
 
   return "redigerer";
 }
+
+/* ------------------------------------------------------------------ */
+/*  Flytledd-rettighet — DokumentflytMedlem.kanRedigere (UI-lås)       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Minimum flytmedlem-data for kanRedigere-oppslaget. Speiler de tre bindingene
+ * server-fasiten `hentFlytIderForMedlem` (tilgangskontroll.ts) matcher på, samt
+ * `periodeSlutt`-filteret.
+ */
+export interface FlytMedlemRedigering {
+  kanRedigere: boolean;
+  faggruppeId: string | null;
+  projectMemberId: string | null;
+  groupId: string | null;
+  /** null = aktivt ledd. Satt = avsluttet flytdeltaker, teller ikke (C.13). */
+  periodeSlutt: string | Date | null | undefined;
+}
+
+/** Minimum brukerdata for kanRedigere-oppslaget — alle tre bindingene. */
+export interface FlytRedigeringBruker {
+  projectMemberId: string;
+  gruppeIder: string[];
+  faggruppeIder: string[];
+}
+
+/**
+ * Utled brukerens `DokumentflytMedlem.kanRedigere`-rettighet for et flytledd.
+ *
+ * ⚠️ KLIENT-LÅS, IKKE SIKKERHETSGRENSE. Resultatet mates inn i
+ * `utledDokumentRettighet` (steg 5) og styrer KUN om UI viser felter som
+ * redigerbare. Ingen server-mutasjon leser `kanRedigere` (åpen sak — se
+ * dokumentflyt.md § Leser-rettigheten). Delt kilde for web + de to mobil-
+ * detaljsidene så oppslaget ikke kan divergere.
+ *
+ * Tre bindinger (fasit: `hentFlytIderForMedlem`, tilgangskontroll.ts:1168):
+ *   1. person (projectMemberId)   2. gruppe (groupId)   3. faggruppe (faggruppeId)
+ * Avsluttede ledd (`periodeSlutt != null`) teller ikke — som server-fasiten.
+ *
+ * Presedens ved flere treff: MEST RESTRIKTIVE VINNER. Har ett aktivt, matchende
+ * ledd `kanRedigere=false`, blir resultatet "leser" uansett array-rekkefølge.
+ * Begrunnelse: rettigheten gjelder gruppen (dokumentflyt.md § Leser-rettigheten;
+ * per-person-overstyring er listet som fremtidig), så en person-rad skal ikke
+ * utilsiktet gi mer enn gruppa. Ingen match → undefined (kaller faller tilbake
+ * på øvrig rettighetslogikk).
+ */
+export function utledFlytRettighet(
+  medlemmer: FlytMedlemRedigering[],
+  bruker: FlytRedigeringBruker,
+): "redigerer" | "leser" | undefined {
+  let traff = false;
+  let kanRedigere = true;
+  for (const m of medlemmer) {
+    if (m.periodeSlutt != null) continue; // avsluttet ledd teller ikke
+    const erMatch =
+      (m.projectMemberId !== null && m.projectMemberId === bruker.projectMemberId) ||
+      (m.groupId !== null && bruker.gruppeIder.includes(m.groupId)) ||
+      (m.faggruppeId !== null && bruker.faggruppeIder.includes(m.faggruppeId));
+    if (!erMatch) continue;
+    traff = true;
+    if (!m.kanRedigere) kanRedigere = false; // mest restriktive vinner
+  }
+  if (!traff) return undefined;
+  return kanRedigere ? "redigerer" : "leser";
+}

@@ -10,9 +10,10 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
  * variant (eller ingenting når skjult); Toppbar viser PanelLeftOpen-
  * henteknappen i 60px-sporet når bredden er «skjult».
  *
- * Tilstanden persisteres per nettleser (localStorage). D5 flytter den til et
- * User-felt via `resolverNyNavigasjon`-mønsteret (konto > lokal > default) —
- * cowork eier den skjema-endringen.
+ * Tilstanden persisteres per nettleser (localStorage). D5 flytter den til
+ * `bruker_innstilling`-tabellen (server-lagret preferanse, «sist skrevne vinner»)
+ * — nav-bredde er en global preferanse og trenger ingen `project_id`-dimensjon
+ * eller nytt `User`-felt. Cowork eier den endringen.
  */
 
 export type NavBredde = "full" | "slank" | "skjult";

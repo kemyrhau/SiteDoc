@@ -9,8 +9,8 @@ import {
   SafeAreaView,
   Alert,
 } from "react-native";
-import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, ChevronRight, Check, Globe } from "lucide-react-native";
 import { trpc } from "../../src/lib/trpc";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -57,6 +57,7 @@ function psiOversattOptions(obj: PsiObjekt, spraak: string): string[] {
 }
 
 export default function PsiLeser() {
+  const { t } = useTranslation();
   const { psiId } = useLocalSearchParams<{ psiId: string }>();
   const { bruker } = useAuth();
   const brukerSpraak = bruker?.language ?? "nb";
@@ -69,7 +70,6 @@ export default function PsiLeser() {
   const [harIkkeHmsKort, setHarIkkeHmsKort] = useState(false);
   const [scrollLåst, setScrollLåst] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const [harScrolletTilBunn, setHarScrolletTilBunn] = useState(false);
 
   // Hent PSI med malobjekter
   const { data: psi, isLoading: psiLaster } = trpc.psi.hentMedObjekter.useQuery(
@@ -78,7 +78,15 @@ export default function PsiLeser() {
   );
 
   // Start gjennomføring
-  const startMut = trpc.psi.startGjennomforing.useMutation();
+  const startMut = trpc.psi.startGjennomforing.useMutation({
+    // Auto-start ved lasting. Feiler den (offline/avvist) blir signaturId aldri satt, og
+    // signer-knappen returnerer stille (gåTilNeste: `if (!signaturId) return`) — arbeideren
+    // tror han kan signere. Vis at starten feilet. (Inngangsvakt = egen Kenneth-sak: PSI er
+    // den offentlige signeringsflaten, og å slå på en gate som har vært av endrer atferd i prod.)
+    onError: () => {
+      Alert.alert(t("psi.startFeilet"), t("feil.sjekkNettverk"));
+    },
+  });
   const oppdaterMut = trpc.psi.oppdaterProgresjon.useMutation();
   const utils = trpc.useUtils();
   const fullforMut = trpc.psi.fullfør.useMutation({
@@ -165,7 +173,6 @@ export default function PsiLeser() {
 
   const gjeldendeSeksjon = seksjoner[aktivSeksjon];
   const erSignaturSeksjon = gjeldendeSeksjon?.harSignatur ?? false;
-  const [innholdKortNok, setInnholdKortNok] = useState(false);
 
   const kanGåVidere = useMemo(() => {
     if (!gjeldendeSeksjon) return false;
@@ -187,10 +194,10 @@ export default function PsiLeser() {
 
   const gåTilNeste = useCallback(async () => {
     if (!signaturId) return;
-    const nyeFullførte = new Set(seksjonFullfort);
-    nyeFullførte.add(aktivSeksjon);
-    setSeksjonFullfort(nyeFullførte);
 
+    // Signaturseksjon: serveren MÅ bekrefte FØR vi markerer fullført. Ellers viser
+    // progresjonen «fullført» (grønt) på noe serveren aldri mottok — motsatt av det
+    // Alert-en sier. Feiler sendingen, står seksjonen ufullført (speiler web 2ee6e343).
     if (erSignaturSeksjon && signaturData) {
       try {
         await fullforMut.mutateAsync({
@@ -201,28 +208,23 @@ export default function PsiLeser() {
         });
       } catch (err) {
         Alert.alert("Feil", `Kunne ikke fullføre PSI: ${err instanceof Error ? err.message : "Ukjent feil"}`);
+        return; // IKKE marker fullført — sendingen nådde ikke fram
       }
+      setSeksjonFullfort((prev) => new Set(prev).add(aktivSeksjon));
       return;
     }
 
+    // Ikke-signatur: går videre lokalt (uendret rekkefølge).
+    setSeksjonFullfort((prev) => new Set(prev).add(aktivSeksjon));
     const nySeksjon = aktivSeksjon + 1;
     oppdaterMut.mutate({ signaturId, progress: nySeksjon, data: feltVerdier as Record<string, unknown> });
     setAktivSeksjon(nySeksjon);
-    setHarScrolletTilBunn(false);
-    setInnholdKortNok(false);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
-  }, [signaturId, aktivSeksjon, seksjonFullfort, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
+  }, [signaturId, aktivSeksjon, erSignaturSeksjon, signaturData, feltVerdier, fullforMut, oppdaterMut]);
 
-  // Sjekk om innholdet passer uten scroll
-  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-    if (contentSize.height <= layoutMeasurement.height + 50) {
-      if (!innholdKortNok) setInnholdKortNok(true);
-      return;
-    }
-    const erNærBunn = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
-    if (erNærBunn && !harScrolletTilBunn) setHarScrolletTilBunn(true);
-  }, [harScrolletTilBunn, innholdKortNok]);
+  // Scroll-krav for rene innholdsseksjoner ble fjernet bevisst i 547261c4 (2026-04-03).
+  // Kun quiz, video og signatur har krav. Restene sto igjen og utløste tre etterforskninger
+  // (siste 2026-09-09) — se BACKLOG § LUKKET 2026-09-08.
 
   const settFeltVerdi = useCallback((objektId: string, verdi: unknown) => {
     setFeltVerdier((prev) => ({ ...prev, [objektId]: verdi }));
@@ -256,8 +258,6 @@ export default function PsiLeser() {
         onTilbake={() => {
           if (aktivSeksjon > 0) {
             setAktivSeksjon(aktivSeksjon - 1);
-            setHarScrolletTilBunn(false);
-            setInnholdKortNok(false);
             scrollRef.current?.scrollTo({ y: 0, animated: true });
           } else {
             router.back();
@@ -302,8 +302,6 @@ export default function PsiLeser() {
         ref={scrollRef}
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-        onScroll={onScroll}
-        scrollEventThrottle={100}
         scrollEnabled={!scrollLåst}
       >
         {gjeldendeSeksjon?.objekter.map((rawObjekt) => {
@@ -391,8 +389,6 @@ export default function PsiLeser() {
           <TouchableOpacity
             onPress={() => {
               setAktivSeksjon(aktivSeksjon - 1);
-              setHarScrolletTilBunn(false);
-              setInnholdKortNok(false);
               scrollRef.current?.scrollTo({ y: 0, animated: true });
             }}
             style={{ borderRadius: 8, borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 16, paddingVertical: 12 }}

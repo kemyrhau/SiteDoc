@@ -43,7 +43,7 @@ export function FlervalgObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rappo
   // Lesemodus: vis som horisontale chips
   if (leseModus) {
     if (valgteVerdier.length === 0) {
-      return <p className="text-sm italic text-gray-400">Ingen valgt</p>;
+      return <p className="text-sm italic text-gray-400">{t("ansattvelger.ingenValgt")}</p>;
     }
     return (
       <div className="flex flex-wrap gap-1.5">

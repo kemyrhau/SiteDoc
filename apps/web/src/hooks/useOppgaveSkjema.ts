@@ -2,9 +2,9 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
-import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
+import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
@@ -46,6 +46,11 @@ export interface UseOppgaveSkjemaResultat {
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
+  /** Tapende verdier notert ved kollisjon, pr. felt (feltnær visning). */
+  hentTilfoyelser: (objektId: string) => Tilfoyelse[];
+  /** Felt som nettopp fikk en kollisjons-tilføyelse (live-varsel); tømmes av `avvisKollisjoner`. */
+  sisteKollisjoner: { feltId: string }[];
+  avvisKollisjoner: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
@@ -71,6 +76,11 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feltVerdierRef = useRef(feltVerdier);
   feltVerdierRef.current = feltVerdier;
+
+  // Kollisjons-deteksjon (dirty-scopet payload) — se useSjekklisteSkjema for modellen.
+  const endredeRef = useRef<Set<string>>(new Set());
+  const basisRef = useRef<Record<string, unknown>>({});
+  const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
 
   // Append-only (Vedtak B, 2026-08-29): et felt låses for verdi-endring når det har en
   // server-bekreftet verdi OG oppgaven ikke lenger er utkast. Refen speiler et memo som
@@ -137,6 +147,11 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     // engangs-utledningen ved mount ble stående stale gjennom statusendringer.
     settFeltVerdier(initialisert);
     settErInitialisert(true);
+
+    basisRef.current = Object.fromEntries(
+      Object.entries(initialisert).map(([id, fv]) => [id, fv.verdi ?? null]),
+    );
+    endredeRef.current = new Set();
   }, [oppgave, alleObjekter, erInitialisert]);
 
   const hentFeltVerdi = useCallback(
@@ -144,22 +159,62 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     [feltVerdier],
   );
 
+  // Tapende verdier notert ved kollisjon — leses fra server-data, vises feltnært.
+  const hentTilfoyelser = useCallback(
+    (objektId: string): Tilfoyelse[] => {
+      const felt = (oppgave?.data as Record<string, { tilfoyelser?: unknown }> | undefined)?.[objektId];
+      return Array.isArray(felt?.tilfoyelser) ? (felt!.tilfoyelser as Tilfoyelse[]) : [];
+    },
+    [oppgave],
+  );
+
   const oppdaterDataMutasjon = trpc.oppgave.oppdaterData.useMutation();
 
   const lagreIntern = useCallback(async () => {
     if (!oppgaveId) return;
 
-    const data = feltVerdierRef.current;
+    // Dirty-scopet: send KUN endrede felt + `base` (antatt gammel verdi). Se
+    // useSjekklisteSkjema for begrunnelsen. Oppgave er append-only utenfor draft —
+    // serveren gjør et forsøk på å endre et utfylt felt om til en tilføyelse.
+    const alle = feltVerdierRef.current;
+    const sendt = [...endredeRef.current];
+    if (sendt.length === 0) return;
+    endredeRef.current = new Set();
+    const data = Object.fromEntries(sendt.map((id) => [id, alle[id]]).filter(([, v]) => v !== undefined));
+    const base = Object.fromEntries(sendt.map((id) => [id, basisRef.current[id] ?? null]));
+    const sendtVerdier = Object.fromEntries(sendt.map((id) => [id, alle[id]?.verdi ?? null]));
     settLagreStatus("lagrer");
 
     try {
-      await oppdaterDataMutasjon.mutateAsync({ id: oppgaveId, data });
+      const res = await oppdaterDataMutasjon.mutateAsync({ id: oppgaveId, data, base });
+      for (const id of sendt) basisRef.current[id] = sendtVerdier[id];
+
+      const kollisjoner = (res as { kollisjoner?: { feltId: string }[] })?.kollisjoner ?? [];
+      if (kollisjoner.length > 0) {
+        settSisteKollisjoner(kollisjoner);
+        // Se useSjekklisteSkjema: server-vinneren vises kun hvis feltet ikke er re-dirty
+        // (`løsKollisjonsVerdi`), ellers står brukerens tekst. Basis → server alltid.
+        const serverData = (res as { data?: Record<string, { verdi?: unknown }> }).data ?? {};
+        settFeltVerdier((prev) => {
+          const oppd = { ...prev };
+          for (const { feltId } of kollisjoner) {
+            const serverVerdi = serverData[feltId]?.verdi ?? null;
+            const naavaerende = (prev[feltId] ?? TOM_FELTVERDI).verdi ?? null;
+            const { verdi } = løsKollisjonsVerdi({ naavaerende, sendt: sendtVerdier[feltId] ?? null, server: serverVerdi });
+            oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi };
+            basisRef.current[feltId] = serverVerdi;
+          }
+          return oppd;
+        });
+      }
+
       await utils.oppgave.hentMedId.invalidate({ id: oppgaveId });
       settLagreStatus("lagret");
 
       if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
       statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 2000);
     } catch {
+      for (const id of sendt) endredeRef.current.add(id);
       settLagreStatus("feil");
       if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
       statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 3000);
@@ -198,6 +253,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           },
         };
       });
+      endredeRef.current.add(objektId);
       planleggLagring();
     },
     [planleggLagring],
@@ -240,6 +296,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           },
         };
       });
+      endredeRef.current.add(objektId);
       planleggLagring();
     },
     [planleggLagring],
@@ -261,6 +318,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           },
         };
       });
+      endredeRef.current.add(objektId);
       planleggLagring();
 
       // Slett fra images-tabellen i bakgrunnen
@@ -368,6 +426,9 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       : undefined,
     erLaster: oppgaveQuery.isLoading,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner: () => settSisteKollisjoner([]),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

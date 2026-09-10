@@ -26,7 +26,7 @@ type OptimistiskCache = {
  * Oversettelsespanel på mappe (2b) — samler språkaktivering på mappenivå.
  * Ingen ny datamodell: bruker Folder.languageMode/languages via
  * mappe.oppdaterSpraak / settSpraakArv, og batch-jobber via
- * mappe.oversettGjenstaaende. Bak nyNavigasjon-flagget (montert av mapper-siden).
+ * mappe.oversettGjenstaaende. Montert av mapper-siden.
  */
 export function OversettelsePanel({
   folderId,

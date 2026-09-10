@@ -3,6 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
+import { kollisjonsmerge, type Kollisjon } from "../services/kollisjonsmerge";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
@@ -11,6 +12,7 @@ import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, 
 import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/kontrollplanKobling";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
+import { medNummerRetry } from "../utils/nummerRetry";
 import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
@@ -475,7 +477,11 @@ export const sjekklisteRouter = router({
         }
       }
 
-      const opprettet = await ctx.prisma.$transaction(async (tx) => {
+      // Retry ved unik-brudd på løpenummer: to samtidige opprettelser i samme
+      // mal kan lese samme MAX og race på nummeret. Et nytt forsøk leser MAX på
+      // nytt (nå med den andres committede rad) og lykkes. Se medNummerRetry.
+      const opprettet = await medNummerRetry(
+        () => ctx.prisma.$transaction(async (tx) => {
         // Finn malens prefix, navn og prosjekt for autonummerering
         const mal = await tx.reportTemplate.findUniqueOrThrow({
           where: { id: input.templateId },
@@ -567,7 +573,9 @@ export const sjekklisteRouter = router({
         }
 
         return nySjekkliste;
-      });
+      }),
+        "checklists_template_id_number_key",
+      );
 
       // Spor 2 / 5a: HMS (SJA) opprettes som utkast — INGEN varsel ved opprett. Behandler-leddet
       // (HMS-gruppen) varsles først når melder sender inn (sjekkliste.hmsSendInn). recipientGroupId
@@ -690,6 +698,10 @@ export const sjekklisteRouter = router({
       z.object({
         id: z.string().uuid(),
         data: z.record(z.string(), z.unknown()),
+        // Dirty-scopet kollisjons-deteksjon: hva klienten TRODDE hvert endret felt
+        // inneholdt (verdi pr. feltId). Til stede = ny klient → kollisjonsmerge;
+        // fraværende = eldre klient → blind merge som før (ingen regresjon).
+        base: z.record(z.string(), z.unknown()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -735,16 +747,9 @@ export const sjekklisteRouter = router({
         }
       }
 
-      // Generer endringslogg-innslag hvis aktivert på malen. Genereringen +
-      // koalesceringen er delt med oppgave-veien i services/endringslogg.ts —
-      // se fil-headeren der for hvorfor (håndspeilet kopi bar samme bug-klasse).
-      const endringsloggInnslag = sjekkliste.template.enableChangeLog
-        ? await byggEndringsloggInnslag(ctx.prisma, {
-            gammelData: (sjekkliste.data ?? {}) as Record<string, { verdi?: unknown }>,
-            nyData: innData as Record<string, { verdi?: unknown }>,
-            objekter: sjekkliste.template.objects,
-          })
-        : [];
+      // Endringsloggen bygges nå INNE i transaksjonen (fersk eksisterende vs. final
+      // merget) — se under. Da gir en kollisjons-tilføyelse (verdi uendret) ingen
+      // diff og ingen falsk innholdsVersjon-bump (gate c).
 
       // Fritekst-oversettelse Lag 3: auto-oversett når brukerens språk != prosjektspråk
       const prosjekt = await ctx.prisma.project.findUnique({
@@ -753,10 +758,11 @@ export const sjekklisteRouter = router({
       });
       const bruker = await ctx.prisma.user.findUnique({
         where: { id: ctx.userId },
-        select: { language: true },
+        select: { language: true, name: true },
       });
       const prosjektSpraak = prosjekt?.sourceLanguage ?? "nb";
       const brukerSpraak = bruker?.language ?? "nb";
+      const brukerNavn = bruker?.name ?? "Ukjent bruker";
 
       if (brukerSpraak !== prosjektSpraak) {
         try {
@@ -818,11 +824,43 @@ export const sjekklisteRouter = router({
           select: { data: true },
         });
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
-        const merget = { ...eksisterende, ...innData };
+
+        // Ny klient (base sendt) → feltvis kollisjons-deteksjon; tapende verdi blir
+        // tilføyelse, serverens beholdes. Eldre klient → blind merge som før.
+        // Sjekkliste er ikke append-only (dokumentflyt.md § 2) — kollisjon kun når
+        // serveren har flyttet seg under klienten.
+        let merget: Record<string, unknown>;
+        let kollisjoner: Kollisjon[] = [];
+        if (input.base) {
+          const res = kollisjonsmerge({
+            eksisterende,
+            innData,
+            base: input.base,
+            brukerNavn,
+            brukerId: ctx.userId,
+            naa: new Date().toISOString(),
+            appendOnly: false,
+          });
+          merget = res.merget;
+          kollisjoner = res.kollisjoner;
+        } else {
+          merget = { ...eksisterende, ...innData };
+        }
 
         // Trinn 3 del B: frys kravsnapshot sidestilt med verdi på tallfelt (server-frys ved
         // lagring — endret verdi får nytt krav mot gjeldende mal, uendret bærer frem det frosne).
         frysGrenseSnapshots(merget, eksisterende, sjekkliste.template.objects);
+
+        // Endringslogg fra FERSK eksisterende vs. FINAL merget: en kollisjons-tilføyelse
+        // (verdi uendret) gir ingen diff → ingen falsk innholdsVersjon-bump (gate c).
+        // Delt med oppgave-veien i services/endringslogg.ts.
+        const endringsloggInnslag = sjekkliste.template.enableChangeLog
+          ? await byggEndringsloggInnslag(tx, {
+              gammelData: eksisterende as Record<string, { verdi?: unknown }>,
+              nyData: merget as Record<string, { verdi?: unknown }>,
+              objekter: sjekkliste.template.objects,
+            })
+          : [];
 
         // Bump innholdsVersjon KUN ved reell innholdsendring i åpen signaturrunde
         // med ≥1 signatur — da blir allerede avgitte signaturer «signert før endring».
@@ -841,7 +879,9 @@ export const sjekklisteRouter = router({
         await skrivEndringslogg(tx, { checklistId: input.id }, ctx.userId, endringsloggInnslag);
 
         // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
-        return signerDataRad(oppdatert);
+        // Kollisjoner følger med som ekstra felt (klienten varsler skriveren) —
+        // eksisterende konsumenter ignorerer det.
+        return Object.assign(signerDataRad(oppdatert) as object, { kollisjoner });
       });
     }),
 

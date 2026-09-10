@@ -123,11 +123,22 @@ export function TegningerPanel() {
   const { aktivByggeplass, velgByggeplass, standardTegning, settStandardTegning, aktivTegning, settAktivTegning } =
     useByggeplass();
 
+  const utils = trpc.useUtils();
+
   const { data: bygninger, isLoading } =
     trpc.bygning.hentForProsjekt.useQuery(
       { projectId: params.prosjektId },
       { enabled: !!params.prosjektId },
     );
+
+  // Retro-fyll manglende bildedimensjoner (imageWidth/Height) på prosjektets
+  // tegninger — legacy-rader fra før dims ble lagret ved opplasting. Serveren
+  // gater med verifiserProsjektmedlem, samme nivå som «Konverter DWG».
+  const backfillDimensjonerMutation = trpc.tegning.backfillDimensjoner.useMutation({
+    onSuccess: () => {
+      utils.bygning.hentForProsjekt.invalidate({ projectId: params.prosjektId });
+    },
+  });
 
   function toggleUtvid(nokkel: string) {
     setUtvidede((prev) => {
@@ -270,6 +281,28 @@ export function TegningerPanel() {
         onChange={setSok}
         placeholder={t("tegninger.sokLokasjoner")}
       />
+
+      <div className="flex flex-col gap-1">
+        <button
+          onClick={() => backfillDimensjonerMutation.mutate({ projectId: params.prosjektId })}
+          disabled={backfillDimensjonerMutation.isPending}
+          className="self-start text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50"
+        >
+          {backfillDimensjonerMutation.isPending
+            ? t("tegninger.fyllerDimensjoner")
+            : t("tegninger.fyllManglendeDimensjoner")}
+        </button>
+        {backfillDimensjonerMutation.data && (
+          <p className="text-xs text-gray-500">
+            {backfillDimensjonerMutation.data.totalt === 0
+              ? t("tegninger.ingenManglendeDimensjoner")
+              : t("tegninger.dimensjonerResultat", {
+                  oppdatert: backfillDimensjonerMutation.data.oppdatert,
+                  totalt: backfillDimensjonerMutation.data.totalt,
+                })}
+          </p>
+        )}
+      </div>
 
       <div className="flex flex-col gap-0.5">
         {/* Alle byggeplasser */}
@@ -444,7 +477,7 @@ export function TegningerPanel() {
 
               {erUtvidet && bygning.filtrerteGrupper.length === 0 && (
                 <div className="ml-6 px-2 py-1 text-xs text-gray-400">
-                  Ingen tegninger
+                  {t("tegninger.ingenTegninger")}
                 </div>
               )}
             </div>

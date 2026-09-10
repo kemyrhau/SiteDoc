@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 
 interface UkeVelgerProps {
@@ -64,6 +65,7 @@ function byggKalenderUker(aar: number, maaned: number) {
 }
 
 export function UkeVelger({ uke, aar, onChange, placeholder }: UkeVelgerProps) {
+  const { t } = useTranslation();
   const [aapen, setAapen] = useState(false);
   const naa = new Date();
   const [visMaaned, setVisMaaned] = useState(naa.getMonth());
@@ -133,7 +135,7 @@ export function UkeVelger({ uke, aar, onChange, placeholder }: UkeVelgerProps) {
 
           {/* Dag-header */}
           <div className="grid grid-cols-8 gap-0 text-[10px] text-gray-400 font-medium mb-1">
-            <div className="text-center">Uke</div>
+            <div className="text-center">{t("kontrollplan.fristUke")}</div>
             {DAGNAVN.map((d) => (
               <div key={d} className="text-center">{d}</div>
             ))}
@@ -188,7 +190,7 @@ export function UkeVelger({ uke, aar, onChange, placeholder }: UkeVelgerProps) {
               onClick={() => { setVisMaaned(naa.getMonth()); setVisAar(naa.getFullYear()); }}
               className="text-[10px] text-sitedoc-secondary hover:underline"
             >
-              I dag (U{naaUke})
+              {t("kontrollplan.ukevelger.idag", { uke: naaUke })}
             </button>
             {uke && (
               <button
@@ -196,7 +198,7 @@ export function UkeVelger({ uke, aar, onChange, placeholder }: UkeVelgerProps) {
                 onClick={() => { onChange(0, 0); setAapen(false); }}
                 className="text-[10px] text-gray-400 hover:text-gray-600"
               >
-                Fjern
+                {t("handling.fjern")}
               </button>
             )}
           </div>

@@ -24,7 +24,6 @@ import {
   Info,
   FileArchive,
   AlignLeft,
-  Loader2,
   Upload,
   Globe,
 } from "lucide-react";

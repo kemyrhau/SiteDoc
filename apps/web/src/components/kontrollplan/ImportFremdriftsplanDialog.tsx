@@ -230,7 +230,7 @@ export function ImportFremdriftsplanDialog({
       utils.kontrollplan.hentForByggeplass.invalidate({ byggeplassId });
       setOppretterState("ferdig");
       setTimeout(() => onImportert(), 1000);
-    } catch (_e) {
+    } catch {
       setOppretterState("feil");
     }
   }, [importPunkter, kontrollplanId, byggeplassId, opprettPunkter, utils, onImportert, parsedData, selectedUIDs, fil, t]);
@@ -394,7 +394,7 @@ export function ImportFremdriftsplanDialog({
                           />
                         </label>
                       </div>
-                      <div className="mt-1 text-xs text-gray-400">MS Project XML (.xml)</div>
+                      <div className="mt-1 text-xs text-gray-400">{t("kontrollplan.fremdriftsplan.msProjectXml")}</div>
                     </>
                   )}
                 </div>
@@ -436,7 +436,7 @@ export function ImportFremdriftsplanDialog({
 
                   {parsedData.projectName && (
                     <div className="mt-2 text-xs text-gray-400">
-                      {parsedData.projectName} — {parsedData.flatTasks.length} aktiviteter, {parsedData.resources.length} ressurser
+                      {parsedData.projectName} — {t("kontrollplan.fremdriftsplan.aktiviteterRessurser", { aktiviteter: parsedData.flatTasks.length, ressurser: parsedData.resources.length })}
                     </div>
                   )}
                 </div>
@@ -478,7 +478,7 @@ export function ImportFremdriftsplanDialog({
                 )}
                 {punkterUtenFaggruppe > 0 && (
                   <div className="text-xs text-amber-600 mt-1">
-                    {punkterUtenFaggruppe} punkt uten faggruppe — hoppes over
+                    {t("kontrollplan.fremdriftsplan.punktUtenFaggruppe", { antall: punkterUtenFaggruppe })}
                   </div>
                 )}
               </div>
@@ -509,7 +509,7 @@ export function ImportFremdriftsplanDialog({
                           <span className="text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{g.aktiviteter.length}x</span>
                           {minUke !== null && (
                             <span className="text-gray-400 whitespace-nowrap">
-                              uke {minUke === maxUke ? minUke : `${minUke}–${maxUke}`}
+                              {t("kontrollplan.uke")} {minUke === maxUke ? minUke : `${minUke}–${maxUke}`}
                             </span>
                           )}
                         </div>
@@ -533,7 +533,7 @@ export function ImportFremdriftsplanDialog({
               )}
               {oppretterState === "feil" && (
                 <div className="mt-3 text-sm text-red-600">
-                  Feil ved opprettelse. Prøv igjen.
+                  {t("kontrollplan.importDialog.feilOpprettelse")}
                 </div>
               )}
               {dedupMelding && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 interface FaggruppeVelgerProps {
@@ -13,6 +14,7 @@ export function FaggruppeVelger({
   value,
   onChange,
 }: FaggruppeVelgerProps) {
+  const { t } = useTranslation();
   const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId },
     { enabled: !!projectId },
@@ -24,7 +26,7 @@ export function FaggruppeVelger({
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value || null)}
     >
-      <option value="">Alle faggrupper</option>
+      <option value="">{t("mengde.faggruppe.alle")}</option>
       {faggrupper?.map((e) => (
         <option key={e.id} value={e.id}>
           {e.faggruppeNummer ? `${e.faggruppeNummer} ` : ""}

@@ -123,6 +123,17 @@ Delt kilde for append-only-låsing i **oppgave**-hookene (web + mobil). **Sjekkl
 
 **Kritisk (mobil):** kall `beregnLaasteFelter` med SERVER-data, aldri lokal usynket SQLite — ellers låses egen offline-kladd. Klient-lås; server håndhever ikke append-only. Se `apps/mobile/src/hooks/CLAUDE.md`.
 
+### Kollisjons-reset (`kollisjonReset.ts`) — alle fire hooks
+
+Delt avgjørelse for hva et felt skal VISE etter en feltvis kollisjon (web + mobil, sjekkliste + oppgave). Feltvis kollisjons-deteksjon (`ae7725f9`) skrev server-vinneren tilbake i feltet **ubetinget** — skrev brukeren videre mens lagringen var i luften, forsvant tegnene under fingrene (Kenneths `BHO-004`-observasjon 08.09; cowork målte at det var denne resetten, ikke `beregnLaasteFelter`).
+
+| Funksjon | Input | Output | Beskrivelse |
+|----------|-------|--------|-------------|
+| `verdiErLik(a, b)` | `unknown, unknown` | `boolean` | JSON-sammenligning (arrays/objekter/primitiver, `null`≡`undefined`) — samme «endret?»-begrep som mobilens dirty-diff |
+| `løsKollisjonsVerdi({naavaerende, sendt, server})` | verdier | `{verdi, reDirty}` | Re-dirty (`naavaerende` ≠ `sendt`) → behold brukerens tekst; ellers server-vinneren |
+
+**Avgjørelse (Kenneth-linje «ingenting forsvinner»):** re-dirty tekst står — neste lagring gir en ny kollisjon som håndteres normalt, og den tapende verdien er alt bevart som tilføyelse server-side. Re-dirty måles på VERDI-diff (ikke web-only `endredeRef`), så web og mobil har ETT signal og ikke divergerer. **Funksjonen avgjør KUN verdien** — `basisRef` avanseres ALLTID til server-verdien av hver hook (basis = det serveren har, ellers tapes neste kollisjon). Basis-representasjonen er rå verdi (web) / FeltVerdi-objekt (mobil), så den biten bor i hooken.
+
 ### Signaturfelt (`signaturVerdi.ts`)
 
 Én delt kilde for lesning + visning av `signature`-feltverdier (web + mobil). Fabel-vedtak
@@ -154,13 +165,26 @@ importerer herfra. **PDF speiler logikken lokalt** (`packages/pdf/src/hjelpere.t
 
 ### Dokumentnummer (`dokumentnummer.ts`)
 
-`formaterNummer(prefix, nummer)` → `string | null`. Bygger listevisnings-nummeret
-`${prefix}${nummer}` (f.eks. «SJA12»), `null` når prefix eller nummer mangler.
-Trukket hit 2026-09-07 fra seks mobil-listeskjermer (hjem, innboks, hms, sjekkliste,
-oppgave × 2) som hver hadde en identisk lokal kopi. Mobil re-eksporterer den fra
-`DokumentRadHjelpere.tsx` (søke-uthevingen `MedUtheving` blir i mobil — den bruker
-react-native `Text`). 🔴 `nummer == null` slipper `0` gjennom med vilje («SJA0» er
-gyldig) — voktet av test (`dokumentnummer.test.ts`).
+`formaterNummer(prefix, nummer, format?)` → `string | null`. **Én kilde for visning av et
+dokumentnummer på tvers av flater** — ikke ett utseende, men ÉN funksjon med parametre. `null`
+når `nummer == null` (men `0` slipper gjennom med vilje — «SJA0»/«SJA-000» er gyldig).
+
+`DokumentnummerFormat`: `separator` (default `""`), `pad` (padStart-bredde, default `0`),
+`visPrefiks` (default `true`; `false` = alltid bart nummer), `manglerPrefiks` (`"null"` default /
+`"nummer"` — hva når prefiks er tomt men skal vises). De tre tilsiktede formene:
+
+| Flate | format | Resultat |
+|-------|--------|----------|
+| Mobil kompakt (default, uten 3. arg) | `{}` | `SJA12`, `null` uten prefiks |
+| Web-detaljhode/skriv-ut/papirkurv/MalBygger | `{separator:"-", pad:3, manglerPrefiks:"nummer"}` | `SJA-012` / `012` |
+| Web-listekolonne (prefiks er egen kolonne) | `{pad:3, visPrefiks:false}` | `012`, kall `?? "—"` |
+
+Samlet 2026-09-08 fra fire uavhengige kopier (mobil-liste, web-full-form ×5, web-listekolonne ×3,
+papirkurv). **Papirkurv var drift** — sto upadda «SJA-12», eneste full-form uten pad; rettet til
+«SJA-012». Mobil re-eksporterer fra `DokumentRadHjelpere.tsx` (søke-uthevingen `MedUtheving` blir i
+mobil — react-native `Text`). 🔴 `packages/pdf` har en **tvungen** tvilling (`hjelpere.ts:formaterNummer`,
+arg-rekkefølge `(nummer, prefix)`) fordi pakken er null-runtime-avhengigheter — endres logikken her,
+må speilet følge. Alt voktet av test (`dokumentnummer.test.ts`, per form + 0-regelen).
 
 ### Grense + resolver (`grenseSjekk.ts`)
 

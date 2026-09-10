@@ -25,7 +25,7 @@ En bruker kan tilhøre flere faggrupper via `FaggruppeKobling`. Admin uten tilkn
 
 `ProjectMember.erFirmaansvarlig` (Boolean, per prosjekt) — markerer prosjektmedlemmet som firmaansvarlig. Skjold-ikoner i UI: blått = Admin, gult = Firmaansvarlig. Settes via rolle-dropdown i kontakttabellen (Brukere-siden).
 
-**Invitasjonsrettighet:** Firmaansvarlig kan invitere nye brukere via `medlem.leggTil` — kun fra eget firma (`organizationId` må matche), kan ikke opprette admin-brukere. Invitasjonsliste: admin ser alt, firmaansvarlig kun egne, andre → 403. Guard: `verifiserAdminEllerFirmaansvarlig()`.
+**Invitasjonsrettighet:** Firmaansvarlig kan invitere nye brukere via `medlem.registrer` (`apps/api/src/routes/medlem.ts`, registreringsmodell fase 1) — kun fra eget firma (`organizationId` må matche), kan ikke opprette admin-brukere. Gruppe-/flyt-binding i samme kall krever full admin (auth-trapp). Invitasjonsliste: admin ser alt, firmaansvarlig kun egne, andre → 403. Guard: `verifiserAdminEllerFirmaansvarlig()`.
 
 ## Gruppemodulere
 
@@ -33,7 +33,9 @@ En bruker kan tilhøre flere faggrupper via `FaggruppeKobling`. Admin uten tilkn
 
 ## HMS-avvik (gruppebasert flyt)
 
-HMS-oppgaver (maler med `domain: "hms"`) opprettes **uten faggruppe** — `bestillerFaggruppeId` og `utforerFaggruppeId` er nullable på Task. Alle prosjektmedlemmer kan rapportere. Auto-rutes til HMS-gruppen (`ProjectGroup` med `domains` inkl. `"hms"`). Maks én HMS-gruppe per prosjekt. Tilgangskontroll via domain-sjekk i lag 3 (`verifiserDokumentTilgang`). Guard: `verifiserProsjektmedlem` (ikke `verifiserFaggruppeTilhorighet`).
+HMS-oppgaver (maler med `domain: "hms"`) opprettes **uten faggruppe** — `bestillerFaggruppeId` og `utforerFaggruppeId` er nullable på Task. Alle prosjektmedlemmer kan rapportere. Auto-rutes til HMS-gruppen. **HMS-gruppa identifiseres på `ProjectGroup.systemNokkel === "hms"`, IKKE på `domains`** (2026-09-10): domenet `"hms"` er bredde-tilgang som `prosjekt-admin` også bærer, så `find()`/`findFirst` på domenet plukket vilkårlig blant to grupper. Serversidens eneste riktige inngang er `sikreHmsGruppe(tx, projectId)` (`apps/api/src/routes/modul.ts:25`); lesesiden bruker `erHmsGruppe`/`finnHmsGruppe` (`apps/web/src/components/hms/hms-utils.ts:26`). Maks én HMS-gruppe per prosjekt håndheves av partiell unik-indeks `(project_id, system_nokkel) WHERE NOT NULL` (migrering `20260910130000_gruppe_systemnokkel`). Tilgangskontroll via domain-sjekk i lag 3 (`verifiserDokumentTilgang`). Guard: `verifiserProsjektmedlem` (ikke `verifiserFaggruppeTilhorighet`).
+
+**`domains` og `systemNokkel` svarer på to ulike spørsmål (vedtak 2026-09-10, ikke drift):** `erHmsAdmin` (`apps/api/src/trpc/tilgangskontroll.ts:427-428`) leser `domains` fordi spørsmålet er *funksjonelt* — hvilke rettigheter gir dette medlemskapet (medlemskap i en gruppe med `"hms"` i `domains` gir HMS-admin). `erHmsGruppe` (`apps/web/src/components/hms/hms-utils.ts:24-25`) leser `systemNokkel` fordi spørsmålet er *identitet* — hvilken gruppe ER prosjektets HMS-gruppe. To spørsmål, to felt. At de to funksjonene bruker hvert sitt kriterium er tilsiktet, ikke en halv migrering som venter på opprydding.
 
 ## lestAvMottakerVed
 
@@ -88,7 +90,7 @@ Sjekklister og oppgaver har **identisk** UI-struktur (sidebar, tabellvisning, de
 1. Admin klikker «Inviter ny» i kontakttabellen (sticky header)
 2. Fyller ut fornavn, etternavn, e-post, telefon (valgfritt), firma (påkrevd)
 3. Firma-dropdown: eksisterende organisasjoner + «+ Nytt firma» (oppretter Organization inline)
-4. `medlem.leggTil` → `ProjectMember` opprettes med `organizationId` satt på brukeren
+4. `medlem.registrer` → `ProjectMember` opprettes med `organizationId` satt på brukeren (én transaksjon; ev. faggruppe/gruppe/flyt-binding i samme kall)
 5. Ingen `Account` → `ProjectInvitation` med token (7 dager) → e-post via Resend
 6. Akseptlenke → `/aksepter-invitasjon?token=...`
 7. OAuth-innlogging → `allowDangerousEmailAccountLinking` → akseptert → redirect

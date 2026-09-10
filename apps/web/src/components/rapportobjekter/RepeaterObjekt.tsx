@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
 import type { RapportObjektProps, FeltVerdi, Rad, RapportObjekt, OppgavePosisjon } from "./typer";
 import { TOM_FELTVERDI, normaliserRad, nyRadId } from "./typer";
 import { RapportObjektRenderer, DISPLAY_TYPER, tilbehorVisning } from "./RapportObjektRenderer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
+import { TilfoyelseNotat } from "./TilfoyelseNotat";
 
 /**
  * Radens forhåndsposisjon: verdien til et `drawing_position`-barnefelt i raden (hvis malen har
@@ -47,6 +49,7 @@ export function RepeaterObjekt({
   tillatteFaggruppeIder,
   dokumentTegning,
 }: RapportObjektProps) {
+  const { t } = useTranslation();
   // Rad-id (2026-08-22, variant omslutting): normaliser gammel/ny radform ved lesing →
   // { _radId, felter }. Memoisert på `verdi`-referansen så id-ene er STABILE på tvers av
   // rendringer (ikke ny uuid per render). Gamle rader (uten id) får uuid som persisteres ved
@@ -171,7 +174,7 @@ export function RepeaterObjekt({
   if (barn.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-400">
-        Ingen felter definert i malen for denne repeateren.
+        {t("felt.ingenFelter")}
       </div>
     );
   }
@@ -217,7 +220,7 @@ export function RepeaterObjekt({
                           className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 hover:bg-gray-200 print-skjul"
                         >
                           <Plus size={11} />
-                          Oppgave
+                          {t("felt.oppgave")}
                         </button>
                       )}
                     </>
@@ -257,6 +260,7 @@ export function RepeaterObjekt({
                       prosjektId={prosjektId}
                       feltNokkel={feltNokkel}
                     />
+                    <TilfoyelseNotat tilfoyelser={feltVerdi.tilfoyelser} />
                   </div>
                 );
               }
@@ -288,6 +292,7 @@ export function RepeaterObjekt({
                         : undefined
                     }
                   />
+                  <TilfoyelseNotat tilfoyelser={feltVerdi.tilfoyelser} />
                   {(() => {
                     // Funn 6: deny-list per BARNEFELT-TYPE (text_field-barn beholder tilbehør).
                     const harData = !!feltVerdi.kommentar?.trim() || (feltVerdi.vedlegg?.length ?? 0) > 0;
@@ -325,7 +330,7 @@ export function RepeaterObjekt({
           className="flex items-center justify-center gap-1.5 rounded border border-dashed border-gray-300 py-2 text-xs text-gray-500 hover:border-gray-400 hover:text-gray-600"
         >
           <Plus size={14} />
-          Legg til rad
+          {t("felt.leggTilRad")}
         </button>
       )}
     </div>

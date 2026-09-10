@@ -273,7 +273,7 @@ export function FeltDokumentasjon({
                 className="absolute bottom-6 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
                 <Trash2 size={14} className="mr-1.5 inline" />
-                Slett bilde
+                {t("rapportobjekt.dokumentasjon.slettBilde")}
               </button>
             )}
           </div>
@@ -327,7 +327,7 @@ export function FeltDokumentasjon({
             className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
           >
             <Paperclip size={14} />
-            Vedlegg
+            {t("malbygger.vedlegg")}
           </button>
 
           {prosjektId && (
@@ -337,7 +337,7 @@ export function FeltDokumentasjon({
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
             >
               <Map size={14} />
-              Tegning
+              {t("tabell.tegning")}
             </button>
           )}
 
@@ -352,7 +352,7 @@ export function FeltDokumentasjon({
                 className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Upload size={14} />
-                Last opp fra PC
+                {t("rapportobjekt.dokumentasjon.lastOppFraPc")}
               </button>
               <button
                 type="button"
@@ -360,7 +360,7 @@ export function FeltDokumentasjon({
                 className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Clipboard size={14} />
-                Lim inn fra utklippstavlen
+                {t("rapportobjekt.dokumentasjon.limInnUtklippstavle")}
               </button>
             </div>
           )}

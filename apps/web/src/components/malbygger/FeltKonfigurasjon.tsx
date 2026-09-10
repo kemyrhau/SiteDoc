@@ -256,7 +256,7 @@ export function FeltKonfigurasjon({
                     const resp = await fetch("/api/upload", { method: "POST", body: formData });
                     const data = await resp.json() as { fileUrl: string };
                     setConfig({ ...config, imageUrl: data.fileUrl });
-                  } catch (_err) {
+                  } catch {
                     /* ignorer */
                   }
                 }}
@@ -394,7 +394,7 @@ export function FeltKonfigurasjon({
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">
-                  Betingede felter: {antallBarn}
+                  {t("malbygger.feltkonfig.betingedeFelter")} {antallBarn}
                 </p>
                 {onFjernBetingelse && (
                   <Button

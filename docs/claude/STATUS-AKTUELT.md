@@ -4,6 +4,229 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟢 FRYSEBETINGELSEN ER OPPFYLT — målt 2026-09-10 kveld. Beslutningen er Kenneths.
+
+🔴 **Vedtaket under sa at prod var frosset til ny Kontakter-UI var «ferdig og verifisert».
+Begge deler er nå målt oppfylt — og det står ingen andre steder enn her.**
+
+| Betingelse | Status |
+|---|---|
+| Kontakter fase 2 bygget og merget | 🟢 **09.09** — `medlem.registrer`, tre nivåer |
+| Kenneth har verifisert flaten | 🟢 **«Veldig bra design»** · seks kolonner + FilterPanel gatet |
+| Fabels designgodkjenning | 🟢 Gitt |
+
+⚠️ **Avstanden er nå 44 merge-commits / ~110 commits. Prod sist oppdatert 8. september 08:38.**
+🔴 **Coworks vurdering: 44 merger er over grensen for hva som lar seg feilsøke hvis noe brekker.
+Jo lenger køen står, jo dyrere blir den ene deployen. Prod-deploy anbefales som neste handling —
+men den krever Kenneths eksplisitte ordre (CLAUDE.md), og cowork gir den ikke selv.**
+
+🟢 **To migreringer er forberedt og målt mot prod på forhånd:**
+`DROP COLUMN ny_navigasjon` (10/10 hadde `true`, ingen verdi går tapt) ·
+`system_nokkel` + backfill + partial unique index (1 umarkert prosjekt = testprosjektet, 0 duplikater).
+
+---
+
+## 🔴 KENNETH-VEDTAK 2026-09-08 — PROD ER FROSSET til ny Kontakter-UI er verifisert
+
+> *«vi skal ikke gate til produksjon før den nye ui er ferdig og verifisert på develop»*
+
+**Prod står på `1a74904b`.** Alt etter det akkumuleres på develop og test.
+
+🔴 **Kritisk vei til prod — ingenting annet flytter den:**
+
+```
+Kenneths gate på fabels mockup
+  → byggeordre fase 2 (Kontakter i tre nivåer)
+  → bygges + merges
+  → Kenneth verifiserer på develop
+  → prod
+```
+
+⚠️ **Konsekvens cowork skal holde i:** hver ekstra merge øker avstanden til prod og gjør den ene
+deployen større å diagnostisere hvis noe brekker. **Cowork holder igjen på ordrer som ikke ligger på
+den veien.**
+
+**To unntak:** 🔴-funn fra Kenneths egne tester, og regresjoner fra allerede merget arbeid.
+
+### Gate-status på det som ligger på test
+
+| Sak | Status |
+|---|---|
+| Kollisjons-deteksjon med tilføyelse | 🟢 Gatet 08.09 · ⚠️ **repeater-variant rettet 09.09** (`d4df351e`) |
+| Faggruppe-medlemskap redigerbart | 🟢 Gatet |
+| `medlem.registrer` (én registreringsvei) | 🟢 **Fase 2 merget 09.09** — Kontakter i tre nivåer |
+| Dialog/kommentar offline | 🟢 **RETTET 09.09** (`62446dce`) — vakt + beskjed, teksten står |
+| Tekstfelt nullstilles under skriving | 🟢 **RETTET 09.09** (`f1dea4db`) — delt `kollisjonReset.ts`, re-dirty felt bevares |
+
+## 📅 2026-09-10 KVELD — rundene 65–72. Rettighetsmodellen gjennomgått, syv stille tomheter funnet
+
+**Develop `74d641f5` · test verifisert løpende · prod urørt.**
+**Utløst av Kenneths egen testing på test.sitedoc.no gjennom dagen.**
+
+| Runde | Innhold | Hash |
+|---|---|---|
+| 67 | `DROP COLUMN ny_navigasjon` — flagget overlevde sin egen utrulling | `a98a19cb` |
+| 68 | `ProjectGroup.systemNokkel` — HMS-gruppa var ikke entydig | `0e17ce1a` |
+| 69 | «Velg andre» ut av HMS-flyten · personkortets HMS-filter · prosjektadmin-kort | `29a49606` |
+| 70 | `prosjekt_oppretter`-rollen · to persondata-gjerder | `783abca1` |
+| 71 | Gruppeansvarlig (`isAdmin` fra mars) · «egen avdeling» deaktivert | `13fcc4cf` |
+| 72 | «Leser» én kilde · HMS-arv fjernet · firmatilknytning + to sikkerhetsfikser | `74d641f5` |
+
+### 🔴 To reelle sikkerhetshull lukket
+
+**1. Rettighetseskalering i `medlem.registrer`** (`d11958ef`): admin-grenen validerte ikke
+`organizationId` i det hele tatt. **En prosjektadmin kunne gi en ansatt i firma B et medlemskap i
+firma C — også et ekte kundefirma.** Målt og bekreftet av redesign. `!erAdmin`-grenens sjekk
+hadde ingen motpart i admin-grenen.
+
+**2. `organisasjon.opprett` uten tilgangssjekk**: enhver innlogget bruker kunne opprette et firma
+med fritt navn. 🟢 **Null kallere i web/mobil, og prod hadde null skall-firmaer i bruk** — så
+gaten brøt ingenting. ⚠️ **Konsekvens: ingen UI-vei til å opprette skall-firma. Kenneth oppretter
+dem selv ved behov; en gatet prosjektrute er egen sak etter pilot.**
+
+### 🔴 MØNSTERET som ble funnet — syv «stille tomheter» på én dag
+
+**Utløste husregelen «Stille tomhet er forbudt» (CLAUDE.md § Viktige regler, 2026-09-10).**
+
+| # | Hva | Tilstand da den ble funnet |
+|---|---|---|
+| 1 | `users.ny_navigasjon` | Flagg overlevde utrullingen. 10 identiske verdier, null lesere |
+| 2 | `group_faggrupper` | Skrivevei fjernet `e14f2aa0` 23.03. **Tom i 22/22 prosjekter i et halvt år** |
+| 3 | HMS-gruppe-deteksjon | To grupper bar `domains:["hms"]`, `find()` plukket vilkårlig |
+| 4 | `ProjectGroupMember.isAdmin` | Bygget 23. mars, **aldri lest av én linje**. Løst i runde 71 |
+| 5 | `DokumentflytMedlem.kanRedigere` | Settes i UI, leses kun av klienten. **Serverhåndheving ført som 🔴 MÅ GJØRES etter pilot** |
+| 6 | `hr_ansvarlig` | Settbar i firma-UI, **null håndheving**. Kravlista finnes, ikke gatet |
+| 7 | «Prosjekter i egen avdeling» | Valgbar og lagret, gjorde ingenting (`Project` mangler `avdelingId`). Deaktivert i runde 71 |
+
+🔴 **Fellesnevneren var ikke at feltene var tomme — det var at tomheten var STILLE.** Alle sju ble
+funnet ved at Kenneth så noe rart på skjermen, ikke av systemet. **Derfor krever regelen nå (c):
+en test som FEILER når feltet er tomt.**
+
+### Vedtak tatt 2026-09-10
+
+| Vedtak | Kenneths ord |
+|---|---|
+| Firmaadmin arver **ikke** HMS-admin | *«nei -> firmaadmin setter seg selv som HMS»* |
+| Mathias Jensen mister firma-HMS | *«han er ikke medlem i flyt i dag i noen av prosjektene»* |
+| `kanRedigere` gjelder **gruppen**, ikke person | *«jeg er enig at den skal gjelde gruppen»* |
+| «Gruppeansvarlig» er rett nivå — bruk `isAdmin` | *«da bruker vi det vi har -> det var allerede laget»* |
+| Feilregistrering ≠ firmabytte | To hendelser, ulik historikk-behandling |
+| Rettigheter vises der de finnes, redigeres der de hører hjemme | Utledet av «Velg andre»-vedtaket, anvendt fire steder |
+| `opprettTestprosjekt` parkert | *«aktiviseres og utbedres senere når jeg har bedre oversikt»* |
+
+### ⚠️ Fire flater som løy — «knappen skal ikke lyve»
+
+**Knapper synlige for folk serveren avviser.** Funnet fire ganger samme dag:
+`BrukergruppeFane.tsx:159` (løst) · `oppsett/brukere/page.tsx:279-294` (løst) ·
+gruppekortets navn-rediger/slett (løst) · **domener/moduler-editoren i gruppepanelet — meldt av
+redesign, ikke fikset, egen sak.**
+
+### Åpne saker etter dagen
+
+🔴 **`hr_ansvarlig`** — kravlista er Kenneths (attestering · legge til · deaktivere ansatte).
+**Ikke gatet. Coworks anbefaling: etter pilot.**
+🔴 **`kanRedigere` serverhåndheving** — BACKLOG som MÅ GJØRES, med full måling.
+🟡 **ⓘ-forklaring på kortene** — Kenneth savnet den på HMS-kortet tre ganger. Omfang ikke gatet.
+🟡 **Duplikat-forebygging på firmanavn** — prod hadde to tomme «Sitedoc»-skall-firmaer (slettet
+av Kenneth 10.09). **To tilfeller på et halvt år; egen sak etter pilot.**
+🟡 **`byttEier`** (`oppgave.ts:2088`, `sjekkliste.ts:1924`) har ingen dokumenttilgangssjekk.
+
+## 📅 2026-09-09/10 — TI MERGER. Kritisk vei til prod er gjennomført
+
+🟢 **Kontakter fase 2 er merget OG verifisert av Kenneth på test.** *«Veldig bra design.»*
+🔴 **Prod er fortsatt frosset** — fabels designgodkjenning gjenstår, og Kenneth fant fire nye
+funn på test etter verifiseringen.
+
+**Merget denne runden** (develop `a169afbc` → `15ef9602` under merge):
+
+| Sak | Hash | Utløst av |
+|---|---|---|
+| Tilføyelser vises i arkiv-PDF | `38e8afaa` | 🔴 Kenneth på test — notatet manglet i dokumentet byggherren får |
+| Kollisjons-reset visket ut tekst under skriving | `f1dea4db` | 🔴 Kenneth: *«feltet ble låst etter første setning»* |
+| Dialogen svarer offline | `62446dce` | 🔴 Kenneth: *«når jeg trykker send skjer ingen ting»* |
+| PSI-scrollrester fjernet | `51b6de21` | Lukket sak, restene utløste tre etterforskninger |
+| Web-PSI signerer ikke falskt | `2ee6e343` | «Fullført» vistes før serveren bekreftet |
+| Stille mutasjoner svarer | `3630e0d4` | 🔴 **Send/Besvar/Videresend ga FALSK SUKSESS offline** |
+| Mobil-PSI: fullført venter på server | `890d17e2` | Samme klasse, andre flate |
+| `--only`-flagg på i18n-generatoren | `cd9996ba` | Generatoren dro med seg 132 driftede nøkler |
+| CLAUDE.md renset | `1875908b` | i18n-tallet var «~2500», faktisk **4 317** |
+| Kontakter fase 2 | `3ffa6fee` | Fabels designlås |
+| Forent søkemodal | `c1da46f4` | 🔴 Kenneth: tomt nedtrekk i «Legg til medlem» |
+| Kolonner + filterblokk | `ef84d1dd` | 🔴 Kenneth: brukergruppe-filter sto under **Firma** |
+| Repeater-kollisjon på celle-nivå | `d4df351e` | 🔴 Kenneth: falsk melding + **rå JSON i notatet** |
+| Brukerminne på server (fase 1) | `15ef9602` | 🔴 Kenneth mistet «sist brukt» ved reinstallering |
+
+🔴 **Ti av fjorten sakene kom fra Kenneths egen testing.** Ikke fra agentene.
+
+**Fortsettelse 10.09 — fire merger til, develop `705cef2e` → `fe226986` under merge:**
+
+| Sak | Hash | Utløst av |
+|---|---|---|
+| Repeater-kollisjon på celle-nivå | `d4df351e` | 🔴 Kenneth: falsk melding + rå JSON i notatet |
+| Brukerminne på server, fase 1 | `15ef9602` | 🔴 Kenneth mistet «sist brukt» ved reinstallering |
+| «+N»-teller åpenbar via tooltip | `b0cf5164` | Fabels formkrav til designgodkjenningen |
+| Gammel navigasjon, trinn 1 | `03ba723d` | 🟢 PROD-måling: **10/10 brukere på ny nav** — netto **−844 linjer** |
+| Brukerminne: én rad per prosjekt | `fe226986` | Strukturavvik fanget ved DB-verifisering |
+
+🟢 **Deployet til test `705cef2e` + OTA publisert.** Migreringen `bruker_innstilling` verifisert
+i DB: begge partielle indekser, FK mot `users(id)`.
+
+🟢 **Kenneth verifiserte repeater-fiksen på telefon:** *«kollisjonstest på telefon er mye bedre.
+Endringsloggen beskriver hva som skjedde.»*
+
+⚠️ **Ny fast regel i ordre-malen:** `git rebase origin/develop` **rett før push**. Fem ganger
+09.09 måtte cowork be om rebase i etterkant fordi develop hadde flyttet seg — base-illusjonen
+viste da fremmedfiler som «slettet» i diffen.
+
+⚠️ **Og en testmetode som ikke skal brukes igjen:** cowork ba Kenneth avinstallere appen for å
+verifisere brukerminnet. **Appen er lokalt signert — å få den tilbake krever et nytt bygg.**
+🟢 **DB-spørring beviste skrivingen uten risiko.**
+
+### 🔴 FUNN 10.09 — nye prosjekter har vært TOMME siden 6. april
+
+**Redesign målte tre opprettelsesveier. To seeder ingenting:**
+
+| Vei | Grupper | Faggrupper | Dokumentflyter | Moduler/maler |
+|---|---|---|---|---|
+| `prosjekt.opprett` — **hovedveien** | ❌ | ❌ | ❌ | ❌ |
+| `admin.opprettProsjekt` | ❌ | ❌ | ❌ | ❌ |
+| `opprettTestprosjekt` | ✅ | ✅ | ✅ | ✅ |
+
+🔴 **Rotårsak (`git log -S`):** kalleren lå på KLIENTEN — en lazy-seed på Brukere-siden
+(`c6dc930e`) som selvhelbredet prosjekter ved første besøk. **Fjernet som kollateral i
+`9a489876`** («Fjern gammel gruppevisning», 6. april, −1599 linjer). **Aldri et vedtak.**
+
+**PROD-måling:** malen har 6 grupper; **ingen prosjekt har mer enn 5 fra mal.** Differansen er
+håndlaget — 2 grupper på ytterstifjorn, 4 på Instinniforbotn.
+🟢 **Hullet er betalt i manuelt arbeid, ikke i tomme prosjekter.**
+
+**Rettet i `29b1eab3`:** delt `seedStandardProsjektoppsett` kalt fra alle tre veier i samme
+transaksjon. 🔴 **Treffer piloten — A.Markussen oppretter prosjekter gjennom hovedveien.**
+
+### ⚙️ ARBEIDSFORM ENDRET 10.09 — deploy koster Kenneths tid, merge gjør ikke
+
+**Kenneth:** *«vi gater mange små fikser med deploys som tar mye tid»*
+
+🔴 **Hver ordre merkes 🔴 (deploy nå) eller 🟡 (samles).** Full regel:
+[SAMARBEIDSREGLER § DEPLOY KOSTER KENNETHS TID](SAMARBEIDSREGLER.md).
+🟢 **Deploy blokkerer kun merge-agenten** — kode-agenter bygger videre, cowork venter ikke.
+
+### Åpne saker etter runden — alle ført i [BACKLOG](BACKLOG.md) med måling
+
+| Sak | Type |
+|---|---|
+| Faggruppe: egenskap eller resultat? | 🟢 **Avklart** — datakvalitet, ikke modellfeil |
+| `group_faggrupper` | 🟢 **Avklart** — halvferdig, venter spor1 Ordre 1.3. **IKKE RYDD** |
+| Gammel navigasjon avvikles | 🟡 **Kartlegging pågår** — prod: **10/10 brukere på ny**, gammel er død |
+| Offline-klargjøring serveren kjenner | 🟡 **Fase 2 — designsak til fabel** |
+| «Lagre mine filtre» | 🟡 **Designsak til fabel** |
+| Maskinoversettelsene er kontekstløse | ⏸️ **UTSATT med vilje** — 1 089 inkonsistenser målt |
+| HMS-gruppen gir HMS-admin | 🟠 Trenger forklaring i UI |
+| Firmaadmin mangler domene-flate | 🟠 Må inn i hvert prosjekt |
+
+⚠️ **Lærdom ført i BACKLOG: «null kallere» ≠ død kode.** Tre saker samme døgn, tre ulike utfall.
+**Cowork gjettet feil på to av tre.** Mål *hvorfor* koden forsvant, ikke bare om den kalles.
+
 ## 📅 2026-09-07 SENKVELD — merge-runde 32 + 33 på develop, venter Kenneths gater
 
 **Ikke i prod ennå.** Tre brancher merget etter `69ca9f62`:

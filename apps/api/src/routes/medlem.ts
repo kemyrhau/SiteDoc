@@ -1,18 +1,25 @@
 import { z } from "zod";
 import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { addMemberSchema, addExistingMemberSchema, addExistingMembersManySchema } from "@sitedoc/shared";
+import {
+  addExistingMemberSchema,
+  addExistingMembersManySchema,
+  registrerMedlemSchema,
+} from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import { sendInvitasjonsEpost } from "../services/epost";
 import { aktivAnsattIFirmaWhere, sikreProsjektmedlemmer } from "../services/ansatt";
 import {
   verifiserAdmin,
   verifiserAdminEllerFirmaansvarlig,
+  hentProsjektRolleNivaa,
+  erGruppeansvarlig,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
   hentBrukersOrg,
   hentBrukersFlytMedlemskap,
   hentBrukersOpprettFlytMedlemskap,
+  autoriserAdminForFirma,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
@@ -48,6 +55,7 @@ export const medlemRouter = router({
               organizationMembers: {
                 select: {
                   organizationId: true,
+                  status: true,
                   organization: { select: { id: true, name: true } },
                 },
                 orderBy: { createdAt: "asc" },
@@ -67,14 +75,32 @@ export const medlemRouter = router({
       return medlemmer.map((m) => {
         if (!m.user) return { ...m, user: null };
         const { organizationMembers, ...userRest } = m.user;
+        // Nyeste-aktive-regel (firmatilknytning krav 2, 2026-09-10): en firmabytte
+        // AVSLUTTER gammel rad (status="deaktivert") og oppretter ny aktiv rad. Da
+        // MÅ visningen vise den NYE firmaen, ikke den gamle. Tidligere plukket vi
+        // `[0]` = eldste rad uansett status → etter et bytte ville personkortet vise
+        // det gamle (avsluttede) firmaet. Nå: eier-firma (aktiv) → nyeste aktive →
+        // (alle avsluttet) eier-firma → eldste. orderBy createdAt asc → siste = nyest.
+        const aktive = organizationMembers.filter((om) => om.status !== "deaktivert");
         const valgt =
+          aktive.find((om) => om.organizationId === primaryOrgId) ??
+          aktive[aktive.length - 1] ??
           organizationMembers.find((om) => om.organizationId === primaryOrgId) ??
           organizationMembers[0] ??
           null;
+        // Persondata-gjerde (2026-09-10): SAMME diskriminator som medlem.oppdater
+        // bruker server-side — er personen ansatt i prosjektets eier-firma, eies
+        // kontaktinfoen av HR og redigeres kun via firmaadmin-veien. Flagget lar
+        // personkortet vise kontaktinfo som read-only i stedet for å la brukeren
+        // skrive og så feile på lagring (FORBIDDEN).
+        const erAnsattIEierFirma =
+          !!primaryOrgId &&
+          organizationMembers.some((om) => om.organizationId === primaryOrgId);
         return {
           ...m,
           user: {
             ...userRest,
+            erAnsattIEierFirma,
             organization: valgt
               ? { id: valgt.organization.id, name: valgt.organization.name }
               : null,
@@ -150,205 +176,294 @@ export const medlemRouter = router({
       return [...tillatelser];
     }),
 
-  // Legg til medlem i prosjekt (krever admin eller firmaansvarlig)
-  leggTil: protectedProcedure
-    .input(addMemberSchema)
+  // Én komplett registrering i ÉN transaksjon (registreringsmodell fase 1):
+  // finn/opprett bruker → prosjektmedlem → valgfrie faggrupper, brukergrupper og
+  // flyt-roller. Feiler ett ledd, rulles ALT tilbake — vi ender aldri med en person
+  // som finnes i kontakter men ikke i flyten (halvveis-tilstanden vi rydder bort).
+  // Erstatter medlem.leggTil + gruppe.leggTilMedlem. Invitasjon/e-post er best-effort
+  // UTENFOR tx (et nettverkskall skal ikke holde en DB-tx åpen; e-postfeil svelges som før).
+  registrer: protectedProcedure
+    .input(registrerMedlemSchema)
     .mutation(async ({ ctx, input }) => {
-      const { erAdmin } = await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+      // Rollenivå uten hard-kast, så en ren gruppeansvarlig kan slippe inn på
+      // gruppe-binding-veien (ansettelses-/frysevakt kaster fortsatt).
+      const { erAdmin, erFirmaansvarlig } = await hentProsjektRolleNivaa(ctx.userId, input.projectId);
 
-      // Firmaansvarlig: kun invitere brukere med samme organizationId
+      // Auth-trapp, splittet (2026-09-10):
+      //  - flyt-binding: FORTSATT admin-only (flyten konfigureres ikke herfra).
+      //  - gruppe-binding: admin ELLER gruppeansvarlig for HVER forespurt gruppe
+      //    (ALLE, ikke minst én — sender du tre og eier én, avvises hele kallet).
+      //  - basis (kontakt uten gruppe/flyt): admin ELLER firmaansvarlig (uendret rett).
+      if (input.flytBindinger.length > 0 && !erAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bare administratorer kan koble en kontakt til en dokumentflyt",
+        });
+      }
+      if (input.gruppeIder.length > 0 && !erAdmin) {
+        const ansvarligForAlle = (
+          await Promise.all(
+            input.gruppeIder.map((gid) => erGruppeansvarlig(ctx.userId!, input.projectId, gid)),
+          )
+        ).every(Boolean);
+        if (!ansvarligForAlle) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du kan bare legge til medlemmer i grupper du er gruppeansvarlig for",
+          });
+        }
+      }
+      if (
+        input.gruppeIder.length === 0 &&
+        input.flytBindinger.length === 0 &&
+        !erAdmin &&
+        !erFirmaansvarlig
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Krever administrator- eller firmaansvarlig-rettighet",
+        });
+      }
+
+      // Firmaansvarlig-begrensninger (fra leggTil): kun eget firma, ingen admin-opprettelse,
+      // og en eksisterende bruker må tilhøre samme firma (per B.7).
+      let organizationId = input.organizationId;
       if (!erAdmin) {
         const inviterendeOrgId = await hentBrukersOrg(ctx.userId);
         if (!inviterendeOrgId) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Du tilhører ingen organisasjon",
-          });
+          throw new TRPCError({ code: "FORBIDDEN", message: "Du tilhører ingen organisasjon" });
         }
-
-        // Sjekk at organizationId matcher
-        if (input.organizationId && input.organizationId !== inviterendeOrgId) {
+        if (organizationId && organizationId !== inviterendeOrgId) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Du kan kun invitere brukere til ditt eget firma",
           });
         }
-
-        // Tving organizationId til eget firma
-        input.organizationId = inviterendeOrgId;
-
-        // Firmaansvarlig kan ikke opprette admins
+        organizationId = inviterendeOrgId;
         if (input.role === "admin") {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Kun administratorer kan opprette admin-brukere",
           });
         }
-
-        // Sjekk at eksisterende bruker tilhører samme firma (per B.7: findFirst)
-        const eksisterendeBruker = await ctx.prisma.user.findFirst({
-          where: { email: input.email, canLogin: true },
-          select: { id: true },
-          orderBy: { createdAt: "asc" },
-        });
-        if (eksisterendeBruker) {
-          const eksisterendeOrgId = await hentBrukersOrg(eksisterendeBruker.id);
-          if (eksisterendeOrgId && eksisterendeOrgId !== inviterendeOrgId) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "Brukeren tilhører et annet firma",
+        // Eksisterende bruker (userId → eksakt; ellers e-post) må være i samme firma.
+        const eksisterende = input.userId
+          ? await ctx.prisma.user.findUnique({ where: { id: input.userId }, select: { id: true } })
+          : await ctx.prisma.user.findFirst({
+              where: { email: input.email, canLogin: true },
+              select: { id: true },
+              orderBy: { createdAt: "asc" },
             });
+        if (eksisterende) {
+          const eksisterendeOrgId = await hentBrukersOrg(eksisterende.id);
+          if (eksisterendeOrgId && eksisterendeOrgId !== inviterendeOrgId) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Brukeren tilhører et annet firma" });
           }
+        }
+      } else if (organizationId) {
+        // Krav 1a (firmatilknytning 2026-09-10): admin-grenen validerte IKKE
+        // organizationId i det hele tatt — en prosjektadmin (eller firma-admin) i
+        // ETT prosjekt kunne knytte en person til et HVILKET SOM HELST firma, også
+        // et ekte kundefirma han ikke har noe med, og :306 opprettet
+        // OrganizationMember uten videre sjekk. Skillet er Organization.erKunde:
+        //   - skall-firma (kun part i prosjekt/flyt) = prosjektets sak → prosjektadmin OK
+        //   - kundefirma (bruker SiteDoc) = en ANSETTELSE → firmaadmin i DET firmaet
+        // autoriserAdminForFirma = sitedoc_admin ELLER firma_admin på org. Speiler
+        // regeltabellen «Inn i et kundefirma» (Kenneth-vedtak).
+        const org = await ctx.prisma.organization.findUnique({
+          where: { id: organizationId },
+          select: { erKunde: true },
+        });
+        if (!org) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Firma finnes ikke" });
+        }
+        if (org.erKunde) {
+          await autoriserAdminForFirma(ctx.userId, organizationId);
         }
       }
 
-      // Slå opp bruker på e-post (per B.7: findFirst — eldste aktive først)
-      let user = await ctx.prisma.user.findFirst({
-        where: { email: input.email, canLogin: true },
-        orderBy: { createdAt: "asc" },
-      });
-
-      if (!user) {
-        user = await ctx.prisma.user.create({
-          data: {
-            email: input.email,
-            name: `${input.firstName} ${input.lastName}`,
-            phone: input.phone,
-          },
+      // Kryss-prosjekt-vern: flyt-ene og gruppene MÅ høre til dette prosjektet.
+      if (input.flytBindinger.length > 0) {
+        const flytIder = [...new Set(input.flytBindinger.map((f) => f.dokumentflytId))];
+        const funnet = await ctx.prisma.dokumentflyt.findMany({
+          where: { id: { in: flytIder }, projectId: input.projectId },
+          select: { id: true },
         });
-      } else {
-        // Oppdater manglende felter (navn, telefon)
-        const oppdatering: { name?: string; phone?: string } = {};
-        if (!user.name) oppdatering.name = `${input.firstName} ${input.lastName}`;
-        if (input.phone && !user.phone) oppdatering.phone = input.phone;
-        if (Object.keys(oppdatering).length > 0) {
-          user = await ctx.prisma.user.update({
-            where: { id: user.id },
-            data: oppdatering,
+        if (funnet.length !== flytIder.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ukjent dokumentflyt for dette prosjektet" });
+        }
+      }
+      if (input.gruppeIder.length > 0) {
+        const funnet = await ctx.prisma.projectGroup.findMany({
+          where: { id: { in: input.gruppeIder }, projectId: input.projectId },
+          select: { id: true },
+        });
+        if (funnet.length !== input.gruppeIder.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Ukjent brukergruppe for dette prosjektet" });
+        }
+      }
+
+      const fulltNavn = `${input.firstName} ${input.lastName}`;
+
+      // Alle bindinger i én transaksjon. Feiler ett ledd → hele registreringen rulles tilbake.
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
+        // 1. Finn/opprett bruker. userId → EKSAKT (findUnique); ellers e-post (findFirst,
+        //    canLogin, eldste først — B.7: e-post ikke globalt unik, sikreste nøkkel vinner).
+        let user = input.userId
+          ? await tx.user.findUnique({ where: { id: input.userId } })
+          : await tx.user.findFirst({
+              where: { email: input.email, canLogin: true },
+              orderBy: { createdAt: "asc" },
+            });
+
+        if (!user) {
+          if (input.userId) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Fant ikke brukeren" });
+          }
+          user = await tx.user.create({
+            data: { email: input.email, name: fulltNavn, phone: input.phone },
+          });
+        } else {
+          // Fyll KUN manglende felter — aldri overskriv eksisterende navn/telefon.
+          const oppdatering: { name?: string; phone?: string } = {};
+          if (!user.name) oppdatering.name = fulltNavn;
+          if (input.phone && !user.phone) oppdatering.phone = input.phone;
+          if (Object.keys(oppdatering).length > 0) {
+            user = await tx.user.update({ where: { id: user.id }, data: oppdatering });
+          }
+        }
+
+        // 2. Sikre OrganizationMember-rad hvis bruker skal tilhøre et firma.
+        if (organizationId) {
+          await tx.organizationMember.upsert({
+            where: { userId_organizationId: { userId: user.id, organizationId } },
+            create: { userId: user.id, organizationId, ansattRolle: "ansatt", firmaRoller: [] },
+            update: {},
           });
         }
-      }
 
-      // Sikre OrganizationMember-rad hvis bruker skal tilhøre et firma
-      if (input.organizationId) {
-        await ctx.prisma.organizationMember.upsert({
-          where: {
-            userId_organizationId: {
-              userId: user.id,
-              organizationId: input.organizationId,
-            },
-          },
-          create: {
-            userId: user.id,
-            organizationId: input.organizationId,
-            ansattRolle: "ansatt",
-            firmaRoller: [],
-          },
-          update: {},
+        // 3. Finn/opprett ProjectMember (idempotent — dobbelttrykk gir ikke to rader).
+        let projectMember = await tx.projectMember.findUnique({
+          where: { userId_projectId: { userId: user.id, projectId: input.projectId } },
         });
-      }
+        if (!projectMember) {
+          projectMember = await tx.projectMember.create({
+            data: { userId: user.id, projectId: input.projectId, role: input.role },
+          });
+        }
 
-      // Sjekk om medlemskap allerede finnes
-      const eksisterende = await ctx.prisma.projectMember.findUnique({
-        where: {
-          userId_projectId: {
-            userId: user.id,
-            projectId: input.projectId,
-          },
-        },
-      });
+        // 4. Faggruppe-koblinger (upsert — idempotent).
+        for (const faggruppeId of input.faggruppeIder) {
+          await tx.faggruppeKobling.upsert({
+            where: {
+              projectMemberId_faggruppeId: { projectMemberId: projectMember.id, faggruppeId },
+            },
+            create: { projectMemberId: projectMember.id, faggruppeId },
+            update: {},
+          });
+        }
 
-      if (eksisterende) {
-        // Legg til nye faggruppe-tilknytninger
-        if (input.faggruppeIder.length > 0) {
-          for (const entId of input.faggruppeIder) {
-            await ctx.prisma.faggruppeKobling.upsert({
-              where: {
-                projectMemberId_faggruppeId: {
-                  projectMemberId: eksisterende.id,
-                  faggruppeId: entId,
-                },
+        // 5. Brukergruppe-medlemskap (upsert — idempotent).
+        for (const groupId of input.gruppeIder) {
+          await tx.projectGroupMember.upsert({
+            where: {
+              groupId_projectMemberId: { groupId, projectMemberId: projectMember.id },
+            },
+            create: { groupId, projectMemberId: projectMember.id },
+            update: {},
+          });
+        }
+
+        // 6. Flyt-roller — idempotent: hopp over ledd som allerede finnes (rolle+steg).
+        for (const binding of input.flytBindinger) {
+          const finnes = await tx.dokumentflytMedlem.findFirst({
+            where: {
+              dokumentflytId: binding.dokumentflytId,
+              projectMemberId: projectMember.id,
+              rolle: binding.rolle,
+              steg: binding.steg,
+            },
+            select: { id: true },
+          });
+          if (!finnes) {
+            await tx.dokumentflytMedlem.create({
+              data: {
+                dokumentflytId: binding.dokumentflytId,
+                projectMemberId: projectMember.id,
+                rolle: binding.rolle,
+                steg: binding.steg,
               },
-              create: {
-                projectMemberId: eksisterende.id,
-                faggruppeId: entId,
-              },
-              update: {},
             });
           }
         }
-        return ctx.prisma.projectMember.findUnique({
-          where: { id: eksisterende.id },
-          include: {
-            user: true,
-            faggruppeKoblinger: { include: { faggruppe: true } },
-          },
-        });
-      }
 
-      const nyMedlem = await ctx.prisma.projectMember.create({
-        data: {
+        return {
           userId: user.id,
-          projectId: input.projectId,
-          role: input.role,
-          faggruppeKoblinger: {
-            create: input.faggruppeIder.map((entId) => ({
-              faggruppeId: entId,
-            })),
-          },
-        },
-        include: {
-          user: true,
-          faggruppeKoblinger: { include: { faggruppe: true } },
-        },
+          userEmail: user.email,
+          harNavn: !!user.name,
+          projectMemberId: projectMember.id,
+        };
       });
 
-      // Send invitasjons-e-post hvis brukeren ikke har logget inn (ingen Account)
-      const harKonto = await ctx.prisma.account.findFirst({
-        where: { userId: user.id },
-      });
-
+      // 7. Invitasjon + e-post — best-effort UTENFOR tx. Kun hvis brukeren ikke har
+      //    logget inn (ingen Account), og kun én gang (dedup på ventende invitasjon).
+      const harKonto = await ctx.prisma.account.findFirst({ where: { userId: resultat.userId } });
       if (!harKonto) {
         try {
-          const token = crypto.randomBytes(32).toString("base64url");
-          const utloper = new Date();
-          utloper.setDate(utloper.getDate() + 7);
-
-          const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
-            where: { id: input.projectId },
-            select: { name: true },
-          });
-
-          const inviterer = await ctx.prisma.user.findUniqueOrThrow({
-            where: { id: ctx.userId },
-            select: { name: true },
-          });
-
-          await ctx.prisma.projectInvitation.create({
-            data: {
-              email: user.email.toLowerCase(),
-              token,
+          const eksisterendeInvitasjon = await ctx.prisma.projectInvitation.findFirst({
+            where: {
+              email: resultat.userEmail.toLowerCase(),
               projectId: input.projectId,
-              role: input.role,
-              faggruppeId: input.faggruppeIder[0] ?? undefined,
-              invitedByUserId: ctx.userId,
-              expiresAt: utloper,
+              status: "pending",
             },
           });
+          if (!eksisterendeInvitasjon) {
+            const token = crypto.randomBytes(32).toString("base64url");
+            const utloper = new Date();
+            utloper.setDate(utloper.getDate() + 7);
 
-          await sendInvitasjonsEpost({
-            til: user.email,
-            invitasjonstoken: token,
-            prosjektNavn: prosjekt.name,
-            invitertAvNavn: inviterer.name ?? "En kollega",
-            melding: input.melding,
-          });
+            const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+              where: { id: input.projectId },
+              select: { name: true },
+            });
+            const inviterer = await ctx.prisma.user.findUniqueOrThrow({
+              where: { id: ctx.userId },
+              select: { name: true },
+            });
+
+            await ctx.prisma.projectInvitation.create({
+              data: {
+                email: resultat.userEmail.toLowerCase(),
+                token,
+                projectId: input.projectId,
+                role: input.role,
+                faggruppeId: input.faggruppeIder[0] ?? undefined,
+                groupId: input.gruppeIder[0] ?? undefined,
+                invitedByUserId: ctx.userId,
+                expiresAt: utloper,
+              },
+            });
+
+            await sendInvitasjonsEpost({
+              til: resultat.userEmail,
+              invitasjonstoken: token,
+              prosjektNavn: prosjekt.name,
+              invitertAvNavn: inviterer.name ?? "En kollega",
+              melding: input.melding,
+            });
+          }
         } catch (error) {
           console.error("Kunne ikke sende invitasjons-e-post:", error);
         }
       }
 
-      return nyMedlem;
+      return ctx.prisma.projectMember.findUnique({
+        where: { id: resultat.projectMemberId },
+        include: {
+          user: true,
+          faggruppeKoblinger: { include: { faggruppe: true } },
+        },
+      });
     }),
 
   // Fjern medlem fra prosjekt (krever admin)
@@ -419,6 +534,40 @@ export const medlemRouter = router({
         });
       }
 
+      // Persondata-gjerde (2026-09-10): kontaktinfo (navn/e-post/telefon) for
+      // firmaets EGNE ansatte eies av HR og endres kun via firmaadmin-veien
+      // (organisasjon.oppdaterBruker, gated med verifiserFirmaAdmin). Prosjektadmin
+      // skal SE folk, ikke ENDRE dem. Skillet er hvem personen ER, ikke hvem som
+      // redigerer: eksterne kontakter (byggherre, konsulent — uten ansettelse i
+      // eier-firmaet) har ingen annen vedlikeholder, så dem redigerer prosjektadmin
+      // fortsatt. Prosjektrolle (input.role) er prosjektdata og gjerdes IKKE.
+      const endrerKontaktinfo =
+        input.name !== undefined ||
+        input.email !== undefined ||
+        input.phone !== undefined;
+      if (endrerKontaktinfo) {
+        const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+          where: { id: input.projectId },
+          select: { primaryOrganizationId: true },
+        });
+        if (prosjekt.primaryOrganizationId) {
+          const erFirmaansatt = await ctx.prisma.organizationMember.findFirst({
+            where: {
+              userId: medlem.userId,
+              organizationId: prosjekt.primaryOrganizationId,
+            },
+            select: { id: true },
+          });
+          if (erFirmaansatt) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message:
+                "Kontaktinfo for firmaets ansatte endres av firmaadministrator under Firma → Ansatte.",
+            });
+          }
+        }
+      }
+
       // Oppdater User-felter
       const brukerOppdatering: { name?: string; email?: string; phone?: string | null } = {};
       if (input.name !== undefined) brukerOppdatering.name = input.name;
@@ -469,7 +618,200 @@ export const medlemRouter = router({
       });
     }),
 
-  // Fjern et prosjektmedlem fra en faggruppe (fjerner FaggruppeKobling)
+  // Distinkte firmaer som alt er part i prosjektet — kilden for «Endre firma»-
+  // nedtrekket på personkortet. Utledes fra prosjektmedlemmenes OrganizationMember-
+  // rader (samme kilde som FIRMA-kolonnen). Å opprette et NYTT firma herfra er en
+  // egen, gatet rute (krav 1b) og er bevisst IKKE en del av denne lista.
+  hentProsjektFirmaer: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+
+      const medlemmer = await ctx.prisma.projectMember.findMany({
+        where: { projectId: input.projectId },
+        select: {
+          user: {
+            select: {
+              organizationMembers: {
+                select: {
+                  organization: { select: { id: true, name: true, erKunde: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+      const kart = new Map<string, { id: string; name: string; erKunde: boolean }>();
+      for (const m of medlemmer) {
+        for (const om of m.user?.organizationMembers ?? []) {
+          kart.set(om.organization.id, {
+            id: om.organization.id,
+            name: om.organization.name,
+            erKunde: om.organization.erKunde,
+          });
+        }
+      }
+      return [...kart.values()].sort((a, b) => a.name.localeCompare(b.name, "nb"));
+    }),
+
+  // Endre firma på en person (firmatilknytning krav 2, 2026-09-10).
+  //
+  // TO hendelser, ikke én:
+  //   - "feilregistrering": personen var ALDRI i fra-firmaet → gammel rad er FEIL →
+  //     ERSTATT (flytt raden til riktig firma; samme OrganizationMember.id → FK og
+  //     historikk intakt). Å bevare den ville bevare en løgn.
+  //   - "firmabytte": personen VAR der og sluttet → gammel rad er SANN → AVSLUTT den
+  //     (status="deaktivert", deaktivertVed=nå) og opprett/reaktiver ny rad. Arkiv-
+  //     PDF-er og signaturer er juridiske dokumenter — historikken må bevares.
+  //
+  // Auth speiler regeltabellen (Kenneth-vedtak), avhengig av erKunde på FRA og TIL:
+  //   skall→skall: prosjektadmin · inn i kundefirma: firmaadmin i TIL · ut av
+  //   kundefirma: firmaadmin i FRA · kunde→kunde: sitedoc_admin.
+  endreFirma: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        projectMemberId: z.string().uuid(),
+        fraOrganizationId: z.string().uuid(),
+        tilOrganizationId: z.string().uuid(),
+        modus: z.enum(["feilregistrering", "firmabytte"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.fraOrganizationId === input.tilOrganizationId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Fra- og til-firma er like" });
+      }
+
+      const medlem = await ctx.prisma.projectMember.findUniqueOrThrow({
+        where: { id: input.projectMemberId },
+        select: { id: true, userId: true, projectId: true },
+      });
+      if (medlem.projectId !== input.projectId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Medlem hører ikke til prosjektet" });
+      }
+      if (!medlem.userId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Bruker er fjernet — kan ikke endre firma" });
+      }
+      const userId = medlem.userId;
+
+      const [fraOrg, tilOrg] = await Promise.all([
+        ctx.prisma.organization.findUnique({
+          where: { id: input.fraOrganizationId },
+          select: { erKunde: true },
+        }),
+        ctx.prisma.organization.findUnique({
+          where: { id: input.tilOrganizationId },
+          select: { erKunde: true },
+        }),
+      ]);
+      if (!fraOrg || !tilOrg) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firma finnes ikke" });
+      }
+
+      // Regeltabellen. Kunde→kunde er den strengeste (både inn i OG ut av et
+      // kundefirma) → sitedoc_admin. Ellers gates hver kunde-side for seg.
+      if (fraOrg.erKunde && tilOrg.erKunde) {
+        const bruker = await ctx.prisma.user.findUniqueOrThrow({
+          where: { id: ctx.userId },
+          select: { role: true },
+        });
+        if (bruker.role !== "sitedoc_admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Å flytte en person mellom to kundefirmaer krever SiteDoc-administrator",
+          });
+        }
+      } else {
+        if (tilOrg.erKunde) await autoriserAdminForFirma(ctx.userId, input.tilOrganizationId);
+        if (fraOrg.erKunde) await autoriserAdminForFirma(ctx.userId, input.fraOrganizationId);
+        if (!fraOrg.erKunde && !tilOrg.erKunde) await verifiserAdmin(ctx.userId, input.projectId);
+      }
+
+      // Personen MÅ faktisk ha fra-medlemskapet — ellers gir operasjonen ingen mening.
+      const fraMedlemskap = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId, organizationId: input.fraOrganizationId } },
+        select: { id: true },
+      });
+      if (!fraMedlemskap) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Personen tilhører ikke fra-firmaet" });
+      }
+      const harTil = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId, organizationId: input.tilOrganizationId } },
+        select: { id: true },
+      });
+
+      await ctx.prisma.$transaction(async (tx) => {
+        if (input.modus === "feilregistrering") {
+          // Erstatt: raden var feil. Har personen alt en rad i til-firmaet, fjern den
+          // FEILFØRTE raden (unik (userId, organizationId) tillater ikke to rader — og
+          // den riktige finnes alt). Ellers flytt raden til riktig firma, reaktiver.
+          if (harTil) {
+            await tx.organizationMember.delete({ where: { id: fraMedlemskap.id } });
+          } else {
+            await tx.organizationMember.update({
+              where: { id: fraMedlemskap.id },
+              data: {
+                organizationId: input.tilOrganizationId,
+                status: "aktiv",
+                deaktivertVed: null,
+                deaktivertAvUserId: null,
+              },
+            });
+          }
+        } else {
+          // Firmabytte: avslutt gammel rad (bevar den som sann historikk), sikre en
+          // aktiv rad i det nye firmaet (opprett eller reaktiver).
+          await tx.organizationMember.update({
+            where: { id: fraMedlemskap.id },
+            data: { status: "deaktivert", deaktivertVed: new Date(), deaktivertAvUserId: ctx.userId },
+          });
+          await tx.organizationMember.upsert({
+            where: { userId_organizationId: { userId, organizationId: input.tilOrganizationId } },
+            create: { userId, organizationId: input.tilOrganizationId, ansattRolle: "ansatt", firmaRoller: [] },
+            update: { status: "aktiv", deaktivertVed: null, deaktivertAvUserId: null },
+          });
+        }
+      });
+
+      return { ok: true };
+    }),
+
+  // Legg et prosjektmedlem til i en faggruppe (oppretter FaggruppeKobling).
+  // Symmetrisk tvilling av fjernFraFaggruppe: samme (projectMemberId, faggruppeId)-
+  // signatur, samme verifiserAdmin-gate. upsert (ikke create) så dobbelttrykk ikke
+  // gir to koblinger eller en unik-feil — @@unique([projectMemberId, faggruppeId]).
+  leggTilFaggruppe: protectedProcedure
+    .input(
+      z.object({
+        projectMemberId: z.string().uuid(),
+        faggruppeId: z.string().uuid(),
+        projectId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      return ctx.prisma.faggruppeKobling.upsert({
+        where: {
+          projectMemberId_faggruppeId: {
+            projectMemberId: input.projectMemberId,
+            faggruppeId: input.faggruppeId,
+          },
+        },
+        create: {
+          projectMemberId: input.projectMemberId,
+          faggruppeId: input.faggruppeId,
+        },
+        update: {},
+      });
+    }),
+
+  // Fjern et prosjektmedlem fra en faggruppe (fjerner FaggruppeKobling).
+  // Trygt hard-delete: FaggruppeKobling har ingen barn-relasjoner (schema.prisma:682-683),
+  // dokumenter peker på Faggruppe og ikke på koblingen (Checklist/Task/Godkjenning),
+  // og person-direkte flytbindinger ligger i egne DokumentflytMedlem-rader. Ingen blir
+  // foreldreløse — personen mister kun sin egen tilgang til faggruppens dokumenter (Lag 2,
+  // som leser koblingens eksistens, ikke periodeSlutt). Målt 2026-09-08.
   fjernFraFaggruppe: protectedProcedure
     .input(
       z.object({

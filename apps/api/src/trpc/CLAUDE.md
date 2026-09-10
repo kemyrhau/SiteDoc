@@ -95,10 +95,11 @@ user:{ canLogin: true } }`. To ADSKILTE nivåer (skrevet inn i schema ved begge 
 
 - **Bruker regelen** (lister kandidater): `medlem.hentLedigeFirmaBrukere`,
   `medlem.hentAvdelingerForProsjekt`, og valideringen i `sikreProsjektmedlemmer`.
-- **Bruker den bevisst IKKE** (annet spørsmål — e-post-oppslag ved invitasjon,
-  «finnes en autentiserbar bruker med denne e-posten»): `medlem.leggTil` (:189/:206),
-  `gruppe.leggTilMedlem`, `organisasjon.inviterBruker`. Org/status håndteres der via
-  `hentBrukersOrg` + porten.
+- **Bruker den bevisst IKKE** (annet spørsmål — bruker-oppslag ved invitasjon,
+  «finnes en autentiserbar bruker med denne identiteten»): `medlem.registrer`,
+  `organisasjon.inviterBruker`. Org/status håndteres der via `hentBrukersOrg` + porten.
+  🔴 `medlem.registrer` slår opp på `userId` når kalleren kjenner den (eksakt), ellers
+  e-post med `findFirst` + `canLogin` (B.7: e-post ikke globalt unik) — sikreste nøkkel vinner.
 - `sikreProsjektmedlemmer(tx, {...})` — delt batch-helper: validerer hver userId mot
   regelen, oppretter manglende ProjectMember, returnerer projectMemberId + tellinger.
   Brukt av `medlem.leggTilEksisterendeMange` og `dokumentflyt.leggTilAnsatteIRolle`.

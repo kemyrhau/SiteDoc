@@ -35,7 +35,7 @@ interface UtstyrRad {
 interface Bruker {
   id: string;
   name: string | null;
-  email: string;
+  phone: string | null;
 }
 
 export default function MaskinPage() {
@@ -76,7 +76,7 @@ export default function MaskinPage() {
 
   const brukerNavnMap = useMemo(() => {
     const m = new Map<string, string>();
-    for (const b of brukere) m.set(b.id, b.name ?? b.email);
+    for (const b of brukere) m.set(b.id, b.name ?? b.phone ?? "—");
     return m;
   }, [brukere]);
 
@@ -197,7 +197,7 @@ export default function MaskinPage() {
               <option value="">{t("maskin.filter.alle")}</option>
               {brukere.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.name ?? b.email}
+                  {b.name ?? b.phone ?? "—"}
                 </option>
               ))}
             </select>

@@ -1,22 +1,21 @@
 import { z } from "zod";
-import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   STANDARD_PROJECT_GROUPS,
   PERMISSIONS,
   createProjectGroupSchema,
   updateProjectGroupSchema,
-  addGroupMemberByEmailSchema,
   utvidTillatelser,
 } from "@sitedoc/shared";
 import type { AdminNiva } from "@sitedoc/shared";
-import { sendInvitasjonsEpost } from "../services/epost";
 import { TRPCError } from "@trpc/server";
 import {
   verifiserAdmin,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
   hentBrukersOrg,
+  hentProsjektRolleNivaa,
+  erGruppeansvarlig,
 } from "../trpc/tilgangskontroll";
 
 export const gruppeRouter = router({
@@ -323,143 +322,25 @@ export const gruppeRouter = router({
       });
     }),
 
-  // Legg til medlem: finn/opprett bruker → finn/opprett ProjectMember → upsert GroupMember (krever admin)
-  leggTilMedlem: protectedProcedure
-    .input(addGroupMemberByEmailSchema)
-    .mutation(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
-
-      // Finn eller opprett bruker (per B.7: email er ikke lenger globalt unique → findFirst)
-      let user = await ctx.prisma.user.findFirst({
-        where: { email: input.email, canLogin: true },
-        orderBy: { createdAt: "asc" },
-      });
-
-      if (!user) {
-        user = await ctx.prisma.user.create({
-          data: {
-            email: input.email,
-            name: `${input.firstName} ${input.lastName}`,
-            phone: input.phone,
-          },
-        });
-      } else if (!user.name) {
-        user = await ctx.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            name: `${input.firstName} ${input.lastName}`,
-            phone: input.phone ?? user.phone,
-          },
-        });
-      }
-
-      // Finn eller opprett ProjectMember
-      let projectMember = await ctx.prisma.projectMember.findUnique({
-        where: {
-          userId_projectId: {
-            userId: user.id,
-            projectId: input.projectId,
-          },
-        },
-      });
-
-      if (!projectMember) {
-        projectMember = await ctx.prisma.projectMember.create({
-          data: {
-            userId: user.id,
-            projectId: input.projectId,
-            role: "member",
-          },
-        });
-      }
-
-      // Upsert GroupMember
-      const gruppeMedlem = await ctx.prisma.projectGroupMember.upsert({
-        where: {
-          groupId_projectMemberId: {
-            groupId: input.groupId,
-            projectMemberId: projectMember.id,
-          },
-        },
-        update: {},
-        create: {
-          groupId: input.groupId,
-          projectMemberId: projectMember.id,
-        },
-        include: {
-          projectMember: {
-            include: {
-              user: true,
-              faggruppeKoblinger: { include: { faggruppe: true } },
-            },
-          },
-        },
-      });
-
-      // Send invitasjons-e-post hvis brukeren ikke har logget inn (ingen Account)
-      const harKonto = await ctx.prisma.account.findFirst({
-        where: { userId: user.id },
-      });
-
-      if (!harKonto) {
-        try {
-          const token = crypto.randomBytes(32).toString("base64url");
-          const utloper = new Date();
-          utloper.setDate(utloper.getDate() + 7);
-
-          const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
-            where: { id: input.projectId },
-            select: { name: true },
-          });
-
-          const inviterer = await ctx.prisma.user.findUniqueOrThrow({
-            where: { id: ctx.userId },
-            select: { name: true },
-          });
-
-          // Sjekk om det allerede finnes en ventende invitasjon for denne e-posten og prosjektet
-          const eksisterendeInvitasjon = await ctx.prisma.projectInvitation.findFirst({
-            where: {
-              email: user.email.toLowerCase(),
-              projectId: input.projectId,
-              status: "pending",
-            },
-          });
-
-          if (!eksisterendeInvitasjon) {
-            await ctx.prisma.projectInvitation.create({
-              data: {
-                email: user.email.toLowerCase(),
-                token,
-                projectId: input.projectId,
-                role: "member",
-                groupId: input.groupId,
-                invitedByUserId: ctx.userId,
-                expiresAt: utloper,
-              },
-            });
-
-            await sendInvitasjonsEpost({
-              til: user.email,
-              invitasjonstoken: token,
-              prosjektNavn: prosjekt.name,
-              invitertAvNavn: inviterer.name ?? "En kollega",
-              melding: input.melding,
-            });
-          }
-        } catch (error) {
-          console.error("Kunne ikke sende invitasjons-e-post:", error);
-        }
-      }
-
-      return gruppeMedlem;
-    }),
-
   // Fjern medlem fra gruppe (krever admin)
   fjernMedlem: protectedProcedure
     .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
+      // Prosjektadmin ELLER gruppeansvarlig for gruppa medlemmet ligger i.
+      // hentProsjektRolleNivaa kjører ansettelses-/frysevaktene (kaster ved behov)
+      // uten å kaste på «ikke admin», så gruppeansvarlig slipper gjennom.
+      const { erAdmin } = await hentProsjektRolleNivaa(ctx.userId!, input.projectId);
+      const gm = await ctx.prisma.projectGroupMember.findUnique({
+        where: { id: input.id },
+        select: { groupId: true },
+      });
+      if (!gm) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!erAdmin && !(await erGruppeansvarlig(ctx.userId!, input.projectId, gm.groupId))) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Du kan bare fjerne medlemmer fra grupper du er gruppeansvarlig for",
+        });
+      }
 
       return ctx.prisma.projectGroupMember.delete({
         where: { id: input.id },

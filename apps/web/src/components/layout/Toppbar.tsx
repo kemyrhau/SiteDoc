@@ -1,24 +1,17 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search, Sparkles, BarChart3, PanelLeftOpen } from "lucide-react";
+import { LogOut, User, HardHat, ShieldCheck, Menu, X, Search, BarChart3, PanelLeftOpen } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
-import { ProsjektVelger } from "./ProsjektVelger";
-import { ByggeplassVelger } from "./ByggeplassVelger";
-import { FirmaVelger } from "./FirmaVelger";
-import { FirmaKontekstVelger } from "./FirmaKontekstVelger";
 import { KontekstChip } from "./KontekstChip";
-import { useNyNavigasjon, useSettNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useSokModal } from "@/kontekst/sok-modal-kontekst";
 import { useState, useRef, useEffect } from "react";
-import { trpc } from "@/lib/trpc";
 import { ruteErFirmaKontekst } from "@/lib/ruteKontekst";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
-import { useToppbarFiltreKontekst } from "@/kontekst/toppbar-filtre-kontekst";
 import { useNavBredde } from "@/kontekst/nav-bredde-kontekst";
 import { SpraakVelger } from "./SpraakVelger";
 import {
@@ -28,15 +21,7 @@ import {
   useSidebarElementer,
 } from "./sidebar-elementer";
 import { useFirmaNavElementer } from "./firma-nav";
-import {
-  LayoutDashboard,
-  ClipboardCheck,
-  ListTodo,
-  FileText,
-  Map,
-  FolderOpen,
-  Settings,
-} from "lucide-react";
+import { Settings } from "lucide-react";
 
 export function Toppbar() {
   const { data: session } = useSession();
@@ -49,16 +34,13 @@ export function Toppbar() {
   const { prosjektId } = useProsjekt();
   const erFirmaKontekst = ruteErFirmaKontekst(pathname);
   const erHub = pathname?.startsWith("/dashbord/innstillinger") ?? false;
-  const { erSitedocAdmin, kanAdministrereFirma } = useFirma();
-  const { byggeplassAktiv } = useToppbarFiltreKontekst();
-  const nyNav = useNyNavigasjon();
-  const settNyNav = useSettNyNavigasjon();
-  // D2: henteknapp for skjult sidebar (ny nav) — deler bredde-tilstand med NavSidebar.
+  const { erSitedocAdmin } = useFirma();
+  // D2: henteknapp for skjult sidebar — deler bredde-tilstand med NavSidebar.
   const { bredde: navBredde, settBredde: settNavBredde } = useNavBredde();
   const { aapne: aapneSok } = useSokModal();
   const { t } = useTranslation();
 
-  // T9: mobil-web-hamburgeren speiler NavSidebar-hierarkiet når flagget er på.
+  // T9: mobil-web-hamburgeren speiler NavSidebar-hierarkiet.
   // Samme delte kilder som NavSidebar (drift-fri gating G1–G12).
   const { filtrertHovedelementer, harMaskinModul } = useSidebarElementer();
   const firmaNav = useFirmaNavElementer();
@@ -68,16 +50,9 @@ export function Toppbar() {
     ? bunnelementer.find((e) => e.id === "maskin") ?? null
     : null;
   const visFirmaSone = firmaNav.length > 0 || harMaskinModul;
-  // FM5/K2: «Mine timer» hører til brukermenyen (avatar) når flagget er på —
+  // FM5/K2: «Mine timer» hører til brukermenyen (avatar) —
   // gjenbruker samme timer-firmamodul-gating som sidebaren.
   const mineTimerElement = filtrertHovedelementer.find((e) => e.id === "mine-timer") ?? null;
-
-  // Hent firma-info for firma-admin (fast firma-link i header). Fase 2: leser
-  // kanAdministrereFirma (firmaRoller-kilden), ikke lenger User.role. Sitedoc_admin
-  // bruker FirmaVelger i stedet — ekskluderes så de ikke får både velger og fast link.
-  const { data: organisasjon } = trpc.organisasjon.hentMin.useQuery(undefined, {
-    enabled: !!session?.user && kanAdministrereFirma && !erSitedocAdmin,
-  });
 
   useEffect(() => {
     function handleKlikk(e: MouseEvent) {
@@ -100,7 +75,7 @@ export function Toppbar() {
           {mobilMeny ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
         <div className="hidden w-[60px] items-center justify-center md:flex">
-          {nyNav && navBredde === "skjult" ? (
+          {navBredde === "skjult" ? (
             <button
               type="button"
               onClick={() => settNavBredde("full")}
@@ -115,73 +90,24 @@ export function Toppbar() {
           )}
         </div>
         <Link href="/" className="text-sm font-bold tracking-wide text-white hover:text-blue-200 transition">
-          SiteDoc
+          {t("app.navn")}
         </Link>
         <div className="mx-2 h-5 w-px bg-white/20" />
-        {/*
-          Header-rekkefølge per Kenneths rolle-spec 2026-05-04:
-          - Sitedoc_admin: FirmaVelger | Prosjekt | Byggeplass | Admin-knapp
-          - Company_admin: Firma-fast-link | Prosjekt | Byggeplass
-          - User (vanlig): Prosjekt | Byggeplass (ingen firma-element)
-          Firma først for admin-roller speiler hierarkiet (Firma → Prosjekt).
-        */}
-        {nyNav ? (
-          /* Flagg på: samlet kontekst-chip (firma + prosjekt + byggeplass-trakt)
-             erstatter FirmaVelger + ProsjektVelger + FirmaKontekstVelger.
-             K3 kloss 2: den frittstående ByggeplassVelger er FJERNET i ny nav —
-             byggeplass bor nå i trakten (KontekstChip). Gammel nav beholder
-             velgeren (K1 skjulte den kun i firmakontekst). */
-          <KontekstChip />
-        ) : (
-          <>
-            {erSitedocAdmin && (
-              <>
-                <FirmaVelger />
-                <div className="mx-1 h-5 w-px bg-white/20" />
-              </>
-            )}
-            {kanAdministrereFirma && !erSitedocAdmin && organisasjon && (
-              <>
-                <Link
-                  href="/dashbord/firma"
-                  className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  <Building2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">{organisasjon.name}</span>
-                </Link>
-                <div className="mx-1 h-5 w-px bg-white/20" />
-              </>
-            )}
-            {erFirmaKontekst ? (
-              <FirmaKontekstVelger />
-            ) : (
-              <>
-                <ProsjektVelger />
-                {prosjektId && (
-                  <>
-                    <div className="mx-1 h-5 w-px bg-white/20" />
-                    <ByggeplassVelger disabled={!byggeplassAktiv} />
-                  </>
-                )}
-              </>
-            )}
-          </>
-        )}
-        {nyNav && (
-          <>
-            <div className="mx-1 h-5 w-px bg-white/20" />
-            <button
-              type="button"
-              onClick={aapneSok}
-              className="flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1.5 text-[12.5px] text-blue-100 transition-colors hover:bg-white/20"
-              title={t("sok.overalt")}
-            >
-              <Search className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">{t("sok.overalt")}</span>
-              <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-[11px] font-medium">Ctrl K</kbd>
-            </button>
-          </>
-        )}
+        {/* Samlet kontekst-chip (firma + prosjekt + byggeplass-trakt).
+            K3 kloss 2: byggeplass bor i trakten (KontekstChip), ikke som
+            frittstående velger. */}
+        <KontekstChip />
+        <div className="mx-1 h-5 w-px bg-white/20" />
+        <button
+          type="button"
+          onClick={aapneSok}
+          className="flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1.5 text-[12.5px] text-blue-100 transition-colors hover:bg-white/20"
+          title={t("sok.overalt")}
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="hidden md:inline">{t("sok.overalt")}</span>
+          <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-[11px] font-medium">{t("layout.ctrlK")}</kbd>
+        </button>
         {erSitedocAdmin && (
           <>
             <div className="mx-1 h-5 w-px bg-white/20" />
@@ -190,7 +116,7 @@ export function Toppbar() {
               className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-amber-200 transition-colors hover:bg-white/10 hover:text-white"
             >
               <ShieldCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Admin</span>
+              <span className="hidden sm:inline">{t("toppbar.admin")}</span>
             </Link>
           </>
         )}
@@ -222,8 +148,8 @@ export function Toppbar() {
                 {session?.user?.email}
               </p>
             </div>
-            {/* FM5/K2: «Mine timer» i brukermenyen (flagg på + timer-firmamodul) */}
-            {nyNav && mineTimerElement && (
+            {/* FM5/K2: «Mine timer» i brukermenyen (timer-firmamodul) */}
+            {mineTimerElement && (
               <button
                 type="button"
                 onClick={() => {
@@ -234,36 +160,6 @@ export function Toppbar() {
               >
                 <BarChart3 className="h-4 w-4" />
                 {t(mineTimerElement.labelKey)}
-              </button>
-            )}
-            {/* Redesign-flagg — kun sitedoc_admin (company_admin utvides ved
-                pilotstart, etter at polish + steg iv er godkjent). */}
-            {erSitedocAdmin && (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={nyNav}
-                aria-label={t("toppbar.nyNavigasjon")}
-                onClick={() => {
-                  const paa = !nyNav;
-                  // Ved avslag: land trygt på /dashbord — huben/kontakter er kun
-                  // lenket i ny nav. Ved påslag: bli på gjeldende side.
-                  settNyNav(paa, paa ? undefined : "/dashbord");
-                }}
-                className="flex w-full items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                <span className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  {t("toppbar.nyNavigasjon")}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
-                    nyNav ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                  }`}
-                >
-                  {nyNav ? t("toppbar.paa") : t("toppbar.av")}
-                </span>
               </button>
             )}
             <button
@@ -280,9 +176,8 @@ export function Toppbar() {
       {/* Mobil-navigasjonsmeny */}
       {mobilMeny && (
         <div className="absolute left-0 top-12 z-50 w-full border-b border-gray-200 bg-white shadow-lg md:hidden">
-          {nyNav ? (
-            // T9: speiler NavSidebar-hierarkiet (PROSJEKT + FIRMA + Innstillinger)
-            <nav className="flex max-h-[80vh] flex-col gap-0.5 overflow-y-auto p-3">
+          {/* T9: speiler NavSidebar-hierarkiet (PROSJEKT + FIRMA + Innstillinger) */}
+          <nav className="flex max-h-[80vh] flex-col gap-0.5 overflow-y-auto p-3">
               <MobilSoneOverskrift>{t("nav.soneProsjekt")}</MobilSoneOverskrift>
               {prosjektElementer.map((element) => {
                 const deaktivert = !!element.kreverProsjekt && !prosjektId;
@@ -347,55 +242,13 @@ export function Toppbar() {
                 />
               </div>
             </nav>
-          ) : (
-            <nav className="flex flex-col p-3 gap-1">
-              {[
-                { id: "dashbord", labelKey: "nav.dashbord", ikon: <LayoutDashboard className="h-5 w-5" /> },
-                { id: "sjekklister", labelKey: "nav.sjekklister", ikon: <ClipboardCheck className="h-5 w-5" />, kreverProsjekt: true },
-                { id: "oppgaver", labelKey: "nav.oppgaver", ikon: <ListTodo className="h-5 w-5" />, kreverProsjekt: true },
-                { id: "maler", labelKey: "nav.maler", ikon: <FileText className="h-5 w-5" />, kreverProsjekt: true },
-                { id: "tegninger", labelKey: "nav.tegninger", ikon: <Map className="h-5 w-5" />, kreverProsjekt: true },
-                { id: "mapper", labelKey: "nav.mapper", ikon: <FolderOpen className="h-5 w-5" />, kreverProsjekt: true },
-                { id: "oppsett", labelKey: "nav.innstillinger", ikon: <Settings className="h-5 w-5" /> },
-              ].map((element) => {
-                const deaktivert = element.kreverProsjekt && !prosjektId;
-                const aktiv = aktivSeksjon === element.id;
-                return (
-                  <button
-                    key={element.id}
-                    disabled={deaktivert}
-                    onClick={() => {
-                      if (element.id === "dashbord") {
-                        router.push(prosjektId ? `/dashbord/${prosjektId}` : "/dashbord");
-                      } else if (element.id === "oppsett") {
-                        router.push("/dashbord/oppsett");
-                      } else if (prosjektId) {
-                        router.push(`/dashbord/${prosjektId}/${element.id}`);
-                      }
-                      setMobilMeny(false);
-                    }}
-                    className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-                      aktiv
-                        ? "bg-sitedoc-primary/10 text-sitedoc-primary"
-                        : deaktivert
-                          ? "text-gray-300 cursor-not-allowed"
-                          : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    {element.ikon}
-                    {t(element.labelKey)}
-                  </button>
-                );
-              })}
-            </nav>
-          )}
         </div>
       )}
     </header>
   );
 }
 
-/* ---- T9: hjelpekomponenter for mobil-hamburger (flagg på) ---- */
+/* ---- T9: hjelpekomponenter for mobil-hamburger ---- */
 
 function MobilSoneOverskrift({
   sone = "prosjekt",

@@ -8,9 +8,9 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
-import type { Vedlegg, FeltVerdi } from "./useSjekklisteSkjema";
+import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
 type SynkStatus = "synkronisert" | "lokalt_lagret" | "synkroniserer";
@@ -63,6 +63,11 @@ export interface UseOppgaveSkjemaResultat {
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
+  /** Tapende verdier notert ved kollisjon, pr. felt (feltnær visning). */
+  hentTilfoyelser: (objektId: string) => Tilfoyelse[];
+  /** Felt som nettopp fikk en kollisjons-tilføyelse (live-varsel); tømmes av `avvisKollisjoner`. */
+  sisteKollisjoner: { feltId: string }[];
+  avvisKollisjoner: () => void;
   settVerdi: (objektId: string, verdi: unknown) => void;
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
@@ -175,6 +180,12 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
   const feltVerdierRef = useRef(feltVerdier);
   feltVerdierRef.current = feltVerdier;
 
+  // Kollisjons-deteksjon (diff-basert dirty-scoping) — se useSjekklisteSkjema for modellen.
+  // Base = server-basis pr. felt; oppgave er append-only utenfor draft, så et forsøk på å
+  // endre et utfylt felt blir en tilføyelse på serveren.
+  const basisRef = useRef<Record<string, FeltVerdi>>({});
+  const [sisteKollisjoner, settSisteKollisjoner] = useState<{ feltId: string }[]>([]);
+
   // Append-only: felt som hadde server-bekreftet verdi ved init er låst.
   // Beregnes ALLTID fra server-data, aldri fra lokal usynkronisert SQLite-verdi.
   const låsteFelterRef = useRef<Set<string>>(new Set());
@@ -215,6 +226,17 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     // Append-only: lås felt som allerede har server-bekreftet verdi (delt kilde).
     // Alltid fra server-data — usynket lokal kladd forblir redigerbar.
     låsteFelterRef.current = beregnLaasteFelter(eksisterendeData);
+
+    // Basis = serverens verdi pr. felt (grunnlag for kollisjons-deteksjon) — uansett init-gren.
+    const serverBasis: Record<string, FeltVerdi> = {};
+    for (const objekt of alleObjekter) {
+      if (DISPLAY_TYPER.has(objekt.type)) continue;
+      const lagret = eksisterendeData[objekt.id];
+      serverBasis[objekt.id] = lagret
+        ? { verdi: lagret.verdi ?? null, kommentar: (lagret.kommentar as string) ?? "", vedlegg: (lagret.vedlegg as Vedlegg[]) ?? [] }
+        : { ...TOM_FELTVERDI };
+    }
+    basisRef.current = serverBasis;
 
     // Prøv SQLite først (instant, <10ms)
     const sqliteData = lesSQLiteFeltdata(oppgaveId);
@@ -349,6 +371,15 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     [feltVerdier, signerteUrler],
   );
 
+  // Tapende verdier notert ved kollisjon — leses fra server-data, vises feltnært.
+  const hentTilfoyelser = useCallback(
+    (objektId: string): Tilfoyelse[] => {
+      const felt = (oppgave?.data as Record<string, { tilfoyelser?: unknown }> | undefined)?.[objektId];
+      return Array.isArray(felt?.tilfoyelser) ? (felt!.tilfoyelser as Tilfoyelse[]) : [];
+    },
+    [oppgave],
+  );
+
   // Lagre til server
   const oppdaterDataMutasjon = trpc.oppgave.oppdaterData.useMutation();
 
@@ -365,17 +396,54 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     statusTimerRef.current = setTimeout(() => settLagreStatus("idle"), 2000);
 
-    // 2. Prøv server-sync hvis online. Utelat felt med fortsatt-lokale vedlegg
-    //    (file://) — de skal aldri lande på server; køen skriver den varige
-    //    server-URL-en via `settVedleggUrl` når opplastingen er ferdig (funn C,
-    //    paritet med sjekkliste).
+    // 2. Prøv server-sync hvis online. Dirty-scopet: kun felt som avviker fra server-
+    //    basis + `base`. Utelat felt med fortsatt-lokale vedlegg (file://) — de skal aldri
+    //    lande på server; køen skriver den varige server-URL-en via `settVedleggUrl`.
     if (erPaaNettet) {
+      const norm = (fv: FeltVerdi | undefined) =>
+        JSON.stringify({ verdi: fv?.verdi ?? null, kommentar: fv?.kommentar ?? "", vedlegg: fv?.vedlegg ?? [] });
+      const dirty = Object.keys(data).filter((id) => norm(data[id]) !== norm(basisRef.current[id]));
+      const dirtyData = Object.fromEntries(dirty.map((id) => [id, data[id]]));
+      const utenLokale = utelatFeltMedLokaleVedlegg(dirtyData);
+      const sendteIder = Object.keys(utenLokale);
+
+      if (sendteIder.length === 0) {
+        settHarEndringer(false);
+        skrivTilSQLite(oppgaveId, data, true);
+        settSynkStatus("synkronisert");
+        return;
+      }
+
+      const base = Object.fromEntries(sendteIder.map((id) => [id, basisRef.current[id]?.verdi ?? null]));
       settSynkStatus("synkroniserer");
       try {
-        await oppdaterDataMutasjon.mutateAsync({
+        const res = await oppdaterDataMutasjon.mutateAsync({
           id: oppgaveId,
-          data: utelatFeltMedLokaleVedlegg(data),
+          data: utenLokale,
+          base,
         });
+        for (const id of sendteIder) basisRef.current[id] = data[id];
+
+        const kollisjoner = (res as { kollisjoner?: { feltId: string }[] })?.kollisjoner ?? [];
+        if (kollisjoner.length > 0) {
+          settSisteKollisjoner(kollisjoner);
+          // Se useSjekklisteSkjema: server-vinneren vises kun hvis feltet ikke er re-dirty
+          // (`løsKollisjonsVerdi`, delt med web), ellers står brukerens tekst. `data[feltId]`
+          // = det vi sendte. Basis → server-verdi alltid.
+          const serverData = (res as { data?: Record<string, { verdi?: unknown }> }).data ?? {};
+          settFeltVerdier((prev) => {
+            const oppd = { ...prev };
+            for (const { feltId } of kollisjoner) {
+              const serverVerdi = serverData[feltId]?.verdi ?? null;
+              const naavaerende = (prev[feltId] ?? TOM_FELTVERDI).verdi ?? null;
+              const { verdi } = løsKollisjonsVerdi({ naavaerende, sendt: data[feltId]?.verdi ?? null, server: serverVerdi });
+              oppd[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi };
+              basisRef.current[feltId] = { ...(prev[feltId] ?? TOM_FELTVERDI), verdi: serverVerdi };
+            }
+            return oppd;
+          });
+        }
+
         await utils.oppgave.hentMedId.invalidate({ id: oppgaveId });
         settHarEndringer(false);
 
@@ -649,6 +717,9 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
       : undefined,
     erLaster: oppgaveQuery.isLoading,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner: () => settSisteKollisjoner([]),
     settVerdi,
     settKommentar,
     leggTilVedlegg,

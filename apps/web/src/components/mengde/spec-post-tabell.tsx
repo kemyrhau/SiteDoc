@@ -5,6 +5,7 @@ import { ChevronUp, ChevronDown, X, Settings, FileSearch, Loader2, Search, Filte
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 interface SpecPost {
@@ -192,6 +193,7 @@ export function SpecPostTabell({
   prosjektId,
   kontraktId,
 }: SpecPostTabellProps) {
+  const { t } = useTranslation();
   // Sanitiser poster — fjern eventuelle sub-objekter og konverter Decimal til Number
   const sanitiserPost = (p: SpecPost): SpecPost => ({
     id: p.id,
@@ -557,7 +559,7 @@ export function SpecPostTabell({
   if (renePoster.length === 0) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-gray-400">
-        Ingen poster funnet. Importer anbudsgrunnlag for å komme i gang.
+        {t("okonomi.ingenPoster")}
       </div>
     );
   }
@@ -731,7 +733,7 @@ export function SpecPostTabell({
               <td className="px-1 py-2" />
               {aktiveKolonner.map((kol) => {
                 if (kol.id === "postnr") return <td key={kol.id} className="px-2 py-2" />;
-                if (kol.id === "beskrivelse") return <td key={kol.id} className="px-2 py-2">Totalt ({totalRader.length} poster)</td>;
+                if (kol.id === "beskrivelse") return <td key={kol.id} className="px-2 py-2">{t("mengde.spec.totaltPoster", { antall: totalRader.length })}</td>;
                 if (kol.type !== "tall") return <td key={kol.id} className="px-2 py-2" />;
                 // Mengdekolonner, enhetspris og prosent summeres ikke
                 if (kol.gruppe === "mengder" || kol.id === "enhetspris" || kol.id === "v_prosent") return <td key={kol.id} className="px-2 py-2" />;
@@ -759,12 +761,12 @@ export function SpecPostTabell({
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDetaljPost(null)}>
             <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between border-b px-5 py-3">
-                <h2 className="text-base font-semibold">Post {String(p.postnr)}</h2>
+                <h2 className="text-base font-semibold">{t("mengde.spec.post")} {String(p.postnr)}</h2>
                 <button onClick={() => setDetaljPost(null)} className="rounded p-1 text-gray-400 hover:bg-gray-100"><X className="h-4 w-4" /></button>
               </div>
               <div className="max-h-[70vh] overflow-auto p-5 space-y-4">
                 <div>
-                  <div className="mb-1 text-xs font-medium text-gray-500">Beskrivelse</div>
+                  <div className="mb-1 text-xs font-medium text-gray-500">{t("firma.malarkiv.felt.beskrivelse")}</div>
                   <div className="text-sm text-gray-800 whitespace-pre-wrap">{String(p.beskrivelse ?? "—")}</div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -788,7 +790,7 @@ export function SpecPostTabell({
                 )}
                 {p.eksternNotat && (
                   <div>
-                    <div className="mb-1 text-xs font-medium text-gray-500">Ekstern merknad</div>
+                    <div className="mb-1 text-xs font-medium text-gray-500">{t("mengde.notat.eksternMerknad")}</div>
                     <div className="text-sm text-gray-700">{String(p.eksternNotat)}</div>
                   </div>
                 )}
@@ -836,6 +838,7 @@ function DokumentasjonSeksjon({
   postnr: string;
   nsKode: string | null;
 }) {
+  const { t } = useTranslation();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: splitDok, isLoading } = (trpc.mengde.hentSplitDokumentasjon as any).useQuery(
     { projectId: prosjektId, kontraktId: kontraktId ?? undefined, nsKode: nsKode! },
@@ -865,7 +868,7 @@ function DokumentasjonSeksjon({
     <div className="rounded border p-3">
       <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
         <FileSearch className="h-3.5 w-3.5" />
-        Dokumentasjon{nsKode ? ` — ${nsKode}` : ` for post ${postnr}`}
+        {t("okonomi.dokumentasjon")}{nsKode ? ` — ${nsKode}` : ` for post ${postnr}`}
       </div>
       {isLoading ? (
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
@@ -874,7 +877,7 @@ function DokumentasjonSeksjon({
         </div>
       ) : !splitDok ? (
         <div className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-600">
-          Ingen dokumentasjon funnet.
+          {t("mengde.spec.ingenDokumentasjon")}
         </div>
       ) : (
         <div className="space-y-2">
@@ -883,7 +886,7 @@ function DokumentasjonSeksjon({
             className="flex items-center gap-1.5 rounded bg-sitedoc-primary/10 px-2 py-1.5 text-xs font-medium text-sitedoc-primary hover:bg-sitedoc-primary/20 transition-colors"
           >
             <FileSearch className="h-3.5 w-3.5" />
-            Åpne dokumentasjon ({splitDok.pageCount} sider)
+            {t("mengde.spec.apneDokumentasjon", { antall: splitDok.pageCount })}
           </button>
           {kilder.length > 0 && (
             <div className="space-y-1">
@@ -900,7 +903,7 @@ function DokumentasjonSeksjon({
               ))}
             </div>
           )}
-          <div className="text-[10px] text-gray-400">{splitDok.pageCount} sider fra {kilder.length} målebrev</div>
+          <div className="text-[10px] text-gray-400">{t("mengde.spec.siderFraMaalebrev", { sider: splitDok.pageCount, maalebrev: kilder.length })}</div>
         </div>
       )}
     </div>

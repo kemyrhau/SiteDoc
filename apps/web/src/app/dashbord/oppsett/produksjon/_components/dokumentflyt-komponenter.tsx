@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next";
 import {
   Plus,
   Building2,
-  X,
   User,
   Users,
   UserPlus,
@@ -310,8 +309,11 @@ export function InviterNyMedlemModal({
   const [etternavn, setEtternavn] = useState("");
   const [telefon, setTelefon] = useState("");
 
-  const leggTilMedlemMutation = trpc.medlem.leggTil.useMutation();
-  const leggTilDfMedlemMutation = trpc.dokumentflyt.leggTilMedlem.useMutation();
+  // Registreringsmodell fase 1: ÉN atomisk prosedyre binder person + flyt-rolle.
+  // Tidligere to separate kall (medlem.leggTil så dokumentflyt.leggTilMedlem) —
+  // feilet kall to, sto en foreldreløs kontakt igjen uten flyttilknytning (Funn A,
+  // upresist beskrevet som «binder ikke»; den binder, men ikke-atomisk).
+  const registrerMutation = trpc.medlem.registrer.useMutation();
 
   const [forrigeOpen, setForrigeOpen] = useState(false);
   if (open && !forrigeOpen) {
@@ -322,7 +324,7 @@ export function InviterNyMedlemModal({
   }
   if (open !== forrigeOpen) setForrigeOpen(open);
 
-  const erSending = leggTilMedlemMutation.isPending || leggTilDfMedlemMutation.isPending;
+  const erSending = registrerMutation.isPending;
 
   async function handleInviter(e: React.FormEvent) {
     e.preventDefault();
@@ -330,31 +332,27 @@ export function InviterNyMedlemModal({
 
     mutFeil.nullstill();
     try {
-      const nyttMedlem = await leggTilMedlemMutation.mutateAsync({
+      await registrerMutation.mutateAsync({
         projectId: prosjektId,
         email: epost.trim(),
         firstName: fornavn.trim(),
         lastName: etternavn.trim(),
         phone: telefon.trim() || undefined,
         role: "member",
-        faggruppeIder: [],
+        flytBindinger: [
+          {
+            dokumentflytId,
+            rolle: rolle as "registrator" | "bestiller" | "utforer" | "godkjenner",
+            steg,
+          },
+        ],
       });
-
-      if (nyttMedlem) {
-        await leggTilDfMedlemMutation.mutateAsync({
-          dokumentflytId,
-          projectId: prosjektId,
-          projectMemberId: nyttMedlem.id,
-          rolle: rolle as "registrator" | "bestiller" | "utforer" | "godkjenner",
-          steg,
-        });
-      }
 
       onFerdig();
       onClose();
     } catch (err) {
-      // Gatet dokumentflyt-mutasjon (og medlem-oppretting) kan avvises server-side —
-      // vis serverens melding i stedet for stille avvisning.
+      // Registreringen er admin-gatet server-side — vis serverens melding i stedet
+      // for stille avvisning.
       mutFeil.onError(err as { message?: string });
     }
   }

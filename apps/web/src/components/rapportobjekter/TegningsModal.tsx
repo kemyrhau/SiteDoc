@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Modal } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
@@ -95,6 +96,7 @@ export function TegningsModal({
   standardTegningId,
   onVelgSkjermbilde,
 }: TegningsModalProps) {
+  const { t } = useTranslation();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
   const [lasterOpp, settLasterOpp] = useState(false);
   const [harAutoValgt, setHarAutoValgt] = useState(false);
@@ -214,14 +216,14 @@ export function TegningsModal({
         {/* Tegningsvelger med strukturert gruppering */}
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-600">
-            Tegning
+            {t("tabell.tegning")}
           </label>
           <select
             value={valgtTegningId ?? ""}
             onChange={(e) => setValgtTegningId(e.target.value || null)}
             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="">— Velg tegning —</option>
+            <option value="">{t("rapportobjekt.tegning.velgTegningPlaceholder")}</option>
             {filtrerteBygnigner.map((bygning) => {
               const grupper = grupperTegninger(bygning.drawings);
               // Hvis det bare er én bygning og én gruppe, ikke vis bygning-header
@@ -266,7 +268,7 @@ export function TegningsModal({
             onClick={onClose}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
           >
-            Avbryt
+            {t("handling.avbryt")}
           </button>
           <button
             type="button"
@@ -275,7 +277,7 @@ export function TegningsModal({
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {lasterOpp && <Loader2 size={14} className="animate-spin" />}
-            Lagre som vedlegg
+            {t("rapportobjekt.tegning.lagreSomVedlegg")}
           </button>
         </div>
       </div>

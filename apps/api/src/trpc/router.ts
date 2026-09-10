@@ -25,6 +25,7 @@ import { ftdSokRouter } from "../routes/ftdSok";
 import { kontraktRouter } from "../routes/kontrakt";
 import { aiSokRouter } from "../routes/aiSok";
 import { brukerRouter } from "../routes/bruker";
+import { brukerinnstillingRouter } from "../routes/brukerinnstilling";
 import { psiRouter } from "../routes/psi";
 import { signaturRouter } from "../routes/signatur";
 import { mannskapRouter } from "../routes/mannskap";
@@ -80,6 +81,7 @@ export const appRouter = router({
   kontrakt: kontraktRouter,
   aiSok: aiSokRouter,
   bruker: brukerRouter,
+  brukerinnstilling: brukerinnstillingRouter,
   psi: psiRouter,
   signatur: signaturRouter,
   mannskap: mannskapRouter,

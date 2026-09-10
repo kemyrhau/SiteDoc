@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { View, Text, Pressable, ScrollView, Alert, Modal, TouchableOpacity, Switch } from "react-native";
+import { View, Text, Pressable, ScrollView, Alert, Modal, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { LucideIcon } from "lucide-react-native";
 import {
@@ -17,7 +17,6 @@ import {
   BarChart3,
   ClipboardCheck,
   Contact,
-  Sparkles,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
@@ -31,7 +30,6 @@ import { VersjonsFooter } from "../../src/components/VersjonsFooter";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 import { byttSpraak } from "../../src/lib/i18n";
-import { useNyNavigasjon, useSettNyNavigasjon } from "../../src/hooks/useNyNavigasjon";
 import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import type { SpraakKode } from "@sitedoc/shared";
@@ -47,17 +45,8 @@ export default function MerSkjerm() {
   const [visSpraakModal, setVisSpraakModal] = useState(false);
   const [visFirmaVelger, setVisFirmaVelger] = useState(false);
   const { valgtFirma, firmaer, valgtFirmaId } = useFirma();
-  const nyNav = useNyNavigasjon();
-  const settNyNav = useSettNyNavigasjon();
   // Firmatak-gate: skjul timer-inngangene i menyen når Timer er av for firmaet.
   const timerSkjult = useFirmamodulSkjult("timer");
-
-  // Rolle for flagg-toggle-gating (kun sitedoc_admin kan skru på ny navigasjon,
-  // speiler web-brukermenyen). Egen query — BrukerData bærer ikke role.
-  // Gates på `bruker` (auth) så togglen ikke vises stale for «Ukjent bruker» i
-  // utloggingsvinduet (React Query-cachen kan være stale der).
-  const { data: minBruker } = trpc.bruker.hentMin.useQuery();
-  const erSitedocAdmin = !!bruker && minBruker?.role === "sitedoc_admin";
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
@@ -174,14 +163,12 @@ export default function MerSkjerm() {
             tekst={t("nav.dokumentflyt")}
             onPress={() => router.push("/dokumentflyt")}
           />
-          {/* 2a/K6: Kontakter-lesevisning — kun ny navigasjon (flagg AV = dagens UI) */}
-          {nyNav && (
-            <MenyRad
-              ikon={Contact}
-              tekst={t("nav.kontakter")}
-              onPress={() => router.push("/kontakter")}
-            />
-          )}
+          {/* 2a/K6: Kontakter-lesevisning */}
+          <MenyRad
+            ikon={Contact}
+            tekst={t("nav.kontakter")}
+            onPress={() => router.push("/kontakter")}
+          />
           {!timerSkjult && (
             <>
               <MenyRad
@@ -210,7 +197,9 @@ export default function MerSkjerm() {
               )}
             </>
           )}
-          <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
+          {/* Handling, ikke navigasjon: kjører offline-klargjøring inline og
+              viser resultatet i radteksten. Chevron skjules — raden går ingen steder. */}
+          <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} visChevron={false} />
         </View>
 
         {/* Firma — kun synlig ved multi-firma-medlemskap */}
@@ -282,37 +271,6 @@ export default function MerSkjerm() {
           </View>
         </View>
 
-        {/* Ny navigasjon (beta) — flagg-toggle, kun sitedoc_admin (speiler web) */}
-        {erSitedocAdmin && (
-          <View className="mt-6">
-            <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
-              <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {t("mer.beta")}
-              </Text>
-            </View>
-            <View className="flex-row items-center justify-between border-b border-gray-100 bg-white px-4 py-3.5">
-              <View className="flex-1 flex-row items-center gap-3">
-                <Sparkles size={20} color="#6b7280" />
-                <View className="flex-1">
-                  <Text className="text-base text-gray-900">
-                    {t("mer.nyNavigasjon")}
-                  </Text>
-                  <Text className="text-xs text-gray-400">
-                    {t("mer.nyNavigasjonUnder")}
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={nyNav}
-                onValueChange={(paa) => {
-                  settNyNav(paa);
-                }}
-                trackColor={{ true: "#1e40af" }}
-              />
-            </View>
-          </View>
-        )}
-
         {/* Logg ut */}
         <View className="mx-4 mt-6">
           <Pressable
@@ -373,12 +331,14 @@ function MenyRad({
   deaktivert,
   onPress,
   badge,
+  visChevron = true,
 }: {
   ikon: LucideIcon;
   tekst: string;
   deaktivert?: boolean;
   onPress?: () => void;
   badge?: { tekst: string; farge: "rod" | "gul" };
+  visChevron?: boolean;
 }) {
   const badgeBg = badge?.farge === "rod" ? "bg-red-500" : "bg-yellow-500";
   return (
@@ -397,7 +357,7 @@ function MenyRad({
             <Text className="text-xs font-bold text-white">{badge.tekst}</Text>
           </View>
         )}
-        <ChevronRight size={18} color="#d1d5db" />
+        {visChevron && <ChevronRight size={18} color="#d1d5db" />}
       </View>
     </Pressable>
   );

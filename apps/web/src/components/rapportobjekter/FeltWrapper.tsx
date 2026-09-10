@@ -3,9 +3,10 @@ import { Plus, Info, Globe, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
 import { harMeningsfullLabel } from "@sitedoc/pdf";
-import type { Vedlegg } from "./typer";
+import type { Vedlegg, Tilfoyelse } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 import { tilbehorVisning } from "./RapportObjektRenderer";
+import { TilfoyelseNotat } from "./TilfoyelseNotat";
 
 interface FeltWrapperProps {
   objekt: {
@@ -37,6 +38,8 @@ interface FeltWrapperProps {
   visOversettKnapp?: boolean;
   /** Original fritekst-data (Lag 3) */
   originalData?: { spraak: string; verdi?: string; kommentar?: string };
+  /** Tapende verdier notert ved kollisjon (feltvis merge-deteksjon) — vises feltnært. */
+  tilfoyelser?: Tilfoyelse[];
   children: ReactNode;
 }
 
@@ -62,6 +65,7 @@ export function FeltWrapper({
   onOversett,
   visOversettKnapp,
   originalData,
+  tilfoyelser,
   children,
 }: FeltWrapperProps) {
   const { t } = useTranslation();
@@ -92,7 +96,7 @@ export function FeltWrapper({
         <span className="text-sm font-medium text-gray-900">{standardLabel ?? objekt.label}</span>
         {objekt.required && (
           <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
-            Påkrevd
+            {t("malbygger.paakrevd")}
           </span>
         )}
         {typeof objekt.config.helpText === "string" && objekt.config.helpText && (
@@ -135,10 +139,13 @@ export function FeltWrapper({
       {/* Original fritekst (Lag 3: arbeiderens tekst på originalspråk) */}
       {originalData?.verdi && (
         <div className="mt-1 rounded bg-gray-50 px-2 py-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-gray-400">Original ({originalData.spraak})</span>
+          <span className="text-[10px] uppercase tracking-wider text-gray-400">{t("rapportobjekt.felt.original", { spraak: originalData.spraak })}</span>
           <p className="text-xs text-gray-500">{originalData.verdi}</p>
         </div>
       )}
+
+      {/* Tapende verdier ved kollisjon (feltvis merge-deteksjon) — delt render. */}
+      <TilfoyelseNotat tilfoyelser={tilfoyelser} />
 
       {/* Valideringsfeil */}
       {valideringsfeil && (
@@ -182,7 +189,7 @@ export function FeltWrapper({
           className="mt-2 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-200 print-skjul"
         >
           <Plus size={12} />
-          Oppgave
+          {t("papirkurv.typeOppgave")}
         </button>
       ) : null}
     </div>

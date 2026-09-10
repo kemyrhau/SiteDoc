@@ -1,8 +1,7 @@
 "use client";
 
-// Innstillinger-hub (1a) — navigasjonsredesign (redesign/navigasjon).
-// Direkte nåbar via URL uavhengig av `nyNavigasjon`-flagget; flagget gater kun
-// synlig navigasjon (sidebar/toppbar), ikke selve ruten. Se useNyNavigasjon.
+// Innstillinger-hub (1a) — navigasjonsredesign. Nåbar direkte via URL og lenket
+// fra sidebar/toppbar.
 
 import { useState } from "react";
 import Link from "next/link";

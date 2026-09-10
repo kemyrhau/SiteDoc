@@ -41,10 +41,22 @@ vi.mock("../rapportobjekter/FeltDokumentasjon", () => ({ FeltDokumentasjon: () =
 
 import { RepeaterObjekt } from "../rapportobjekter/RepeaterObjekt";
 import { OpprettOppgaveModal } from "../OpprettOppgaveModal";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { nb } from "@sitedoc/shared";
 
-beforeAll(() => {
+beforeAll(async () => {
   HTMLDialogElement.prototype.showModal = vi.fn();
   HTMLDialogElement.prototype.close = vi.fn();
+  if (!i18n.isInitialized) {
+    await i18n.use(initReactI18next).init({
+      lng: "nb",
+      fallbackLng: "nb",
+      resources: { nb: { translation: nb as Record<string, string> } },
+      interpolation: { escapeValue: false },
+      react: { useSuspense: false },
+    });
+  }
 });
 afterEach(() => {
   cleanup();

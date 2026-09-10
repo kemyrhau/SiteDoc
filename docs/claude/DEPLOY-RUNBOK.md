@@ -294,6 +294,88 @@ eller typecheck ha fanget.**
 
 # 6 · Rollback — når noe er ute og feiler
 
+## 🔴 En dårlig prod-release — koden virker, men den er feil
+
+**Skrevet 2026-09-11, før prod-deployen som lå 44 merger bak. Fram til da fantes ingen dokumentert
+vei tilbake fra en dårlig release — bare fra daemon-restart og fra en forgiftet OTA-bundel.**
+
+### 🔴 FØRST: er migreringen reversibel?
+
+**Dette avgjør alt, og det må avklares FØR du ruller tilbake — ikke mens prod er nede.**
+
+🔴 **En `DROP COLUMN` gjør deployen ENVEIS.** Ruller du koden tilbake, kjenner den gamle
+Prisma-klienten et felt som ikke finnes lenger, og **hver spørring mot tabellen feiler.**
+**Kolonnen må legges tilbake før gammel kode starter.**
+
+**Konkret for releasen 2026-09-11** (`20260910120000_drop_ny_navigasjon`):
+
+```sql
+ALTER TABLE "users" ADD COLUMN "ny_navigasjon" BOOLEAN;
+```
+
+🟢 **Verdien trenger ikke gjenskapes** — prod hadde `true` på 10 av 10, og flagget styrte
+ingenting etter trinn 2. **Kolonnen må bare finnes.**
+
+🟢 **De tre andre migreringene i samme release er additive** (`brukerinnstilling` = ny tabell,
+`dokumentnummer_unik` + `gruppe_systemnokkel` = nye indekser/kolonne). **Gammel kode bryr seg ikke
+om at de finnes. De skal IKKE rulles tilbake.**
+
+⚠️ **Regelen generelt: les migreringene i releasen før du ruller tilbake.** `ADD` er ufarlig å la
+stå. `DROP` må reverseres først. **`packages/db/prisma/migrations/` sorterer kronologisk.**
+
+### Veien tilbake — den som virker garantert
+
+**1. Finn forrige release-commit på `main`:**
+
+```sh
+cd ~/Documents/Programmering/SiteDoc && git log --oneline --first-parent origin/main | head -5
+```
+
+**2. Legg tilbake droppede kolonner** (se over) hvis releasen hadde en `DROP`.
+
+**3. Revert release-mergen på `main` og deploy på nytt.**
+🔴 **`git revert -m 1 <release-merge-sha>`**, ikke `reset --hard` — `main` er pushet, og historikk
+skal ikke skrives om.
+**Deretter vanlig `./deploy-prod.sh` fra `SiteDoc-deploy`-worktreet.**
+
+⚠️ **Dette tar en full rebuild (to `docker compose build`).** **Regn minutter, ikke sekunder.**
+
+### 🟢 Raskere vei — tagg dagens image FØR deployen
+
+**Målt 2026-09-11:** prod-imagene har **kun `:latest`**, ingen SHA-tagger
+(`sudo docker images | grep sitedoc`). **En rebuild overskriver taggen, og det gamle imaget blir
+dangling — det finnes, men uten navn.** 🔴 **Uten forberedelse er det ingen snarvei tilbake.**
+
+🟢 **Men compose peker på et image-NAVN** — `image: sitedoc-api:latest`
+(`docker/docker-compose.yml:16`) og `image: sitedoc-web:latest` (`:47`) — **og `up -d` uten
+`--build` bruker taggen som ligger der.** **Derfor virker dette:**
+
+**FØR en stor deploy — gir et navngitt fallback:**
+
+```sh
+ssh -t server-ny "sudo docker tag sitedoc-api:latest sitedoc-api:rollback && sudo docker tag sitedoc-web:latest sitedoc-web:rollback && sudo docker images | grep rollback"
+```
+
+**VED rollback — sekunder, ingen rebuild:**
+
+```sh
+ssh -t server-ny "cd ~/stack/sitedoc && sudo docker tag sitedoc-api:rollback sitedoc-api:latest && sudo docker tag sitedoc-web:rollback sitedoc-web:latest && sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-api sitedoc-web"
+```
+
+🔴 **`--no-deps` og INGEN `--build`** — legger du på `--build`, bygger den forrige koden på nytt
+fra kildene som ligger der, og du får akkurat det du prøvde å komme deg vekk fra.
+🔴 **Migreringsregelen over gjelder fortsatt:** droppede kolonner må legges tilbake FØR imaget
+starter, ellers feiler den gamle Prisma-klienten.
+⚠️ **`:rollback`-taggen overskrives ved neste forberedelse.** **Den er ett steg tilbake, ikke et
+arkiv.**
+
+### 🔴 Databasedump før store deployer
+
+**`deploy-prod.sh` tar INGEN dump** — verifisert ved lesing av scriptet 2026-09-11.
+**Ved en release med flere migreringer, særlig irreversible, tas dumpen manuelt først.**
+⚠️ **Uten den finnes ingen vei tilbake fra en migrering som ødelegger data — bare fra en som
+feiler.** **De to er ikke det samme.**
+
 ## api/web nede etter en daemon-restart
 
 Docker-daemonen kan restarte (typisk en automatisk pakkeoppgradering) og ta containerne med seg.

@@ -12,7 +12,7 @@
  * er arkiv-lokal. Tom repeater → «Ingen rader registrert» (skjules aldri).
  */
 
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, bildeOpptakTid, byggGrenseVerdi } from "../hjelpere";
+import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, bildeOpptakTid, byggGrenseVerdi, byggTilfoyelser } from "../hjelpere";
 import { TRAFIKKLYS } from "../konstanter";
 import { ARKIV_FARGER } from "./arkiv-css";
 import { normaliserRad } from "../typer";
@@ -230,7 +230,11 @@ export function byggRepeaterTabell(
           const kommentar = felt?.kommentar?.trim()
             ? `<div class="kommentar">${esc(felt.kommentar)}</div>`
             : "";
-          return `<td>${skalarCelle(b, felt)}${kommentar}</td>`;
+          // Tapte offline-kollisjonsverdier på cella (paritet med topp-nivå-felt;
+          // modellen fester i dag tilføyelser på topp-nivå feltnøkkel, men cella skal
+          // rendre dem hvis de finnes — går aldri via renderFelt her).
+          const tilfoyelser = byggTilfoyelser(felt?.tilfoyelser);
+          return `<td>${skalarCelle(b, felt)}${tilfoyelser}${kommentar}</td>`;
         })
         .join("");
       const datarad = `<tr><td class="ark-rad-nr">${idx + 1}</td>${celler}</tr>`;

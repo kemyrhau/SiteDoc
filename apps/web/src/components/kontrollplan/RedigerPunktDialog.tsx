@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
 import { X, Trash2, MapPin, Target } from "lucide-react";
@@ -227,7 +227,7 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
             {/* Kaskade-fristflytting */}
             {!visKaskade ? (
               <button type="button" onClick={() => setVisKaskade(true)} className="text-[10px] text-sitedoc-secondary hover:underline mt-1">
-                Skyv med avhengigheter (kaskade)
+                {t("kontrollplan.redigerPunkt.skyvKaskade")}
               </button>
             ) : (
               <div className="mt-2 border rounded p-2 bg-gray-50 space-y-2">
@@ -242,13 +242,13 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
                 </div>
                 {kaskadeBerort && kaskadeBerort.length > 0 ? (
                   <div className="text-[10px] text-gray-500 space-y-0.5">
-                    <p className="font-medium">Berørte punkter ({kaskadeBerort.length}):</p>
+                    <p className="font-medium">{t("kontrollplan.redigerPunkt.berortePunkter", { antall: kaskadeBerort.length })}:</p>
                     {kaskadeBerort.map((b) => (
                       <div key={b.id}>• {b.omradeNavn} × {b.malNavn} {b.fristUke ? `U${b.fristUke} → U${b.fristUke + kaskadeUker}` : ""}</div>
                     ))}
                   </div>
                 ) : kaskadeBerort ? (
-                  <p className="text-[10px] text-gray-400">Ingen nedstrøms avhengigheter</p>
+                  <p className="text-[10px] text-gray-400">{t("kontrollplan.redigerPunkt.ingenAvhengigheter")}</p>
                 ) : null}
                 <div className="flex gap-2">
                   <button
@@ -583,12 +583,12 @@ function HistorikkSeksjon({ punktId }: { punktId: string }) {
         onClick={() => setAapen(!aapen)}
         className="text-xs text-gray-400 hover:text-gray-600"
       >
-        {aapen ? "▾" : "▸"} Historikk
+        {aapen ? "▾" : "▸"} {t("dokument.historikk")}
       </button>
       {aapen && historikk && (
         <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
           {historikk.length === 0 && (
-            <p className="text-[10px] text-gray-400">Ingen historikk</p>
+            <p className="text-[10px] text-gray-400">{t("kontrollplan.redigerPunkt.ingenHistorikk")}</p>
           )}
           {historikk.map((h) => (
             <div key={h.id} className="flex items-baseline gap-2 text-[10px] text-gray-500">

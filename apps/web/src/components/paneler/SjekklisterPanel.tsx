@@ -89,7 +89,7 @@ export function SjekklisterPanel() {
       {standardTegning && (
         <div className="rounded-md border border-blue-100 bg-blue-50/50 px-2.5 py-1.5">
           <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-blue-400">
-            Standard tegning
+            {t("paneler.standardTegning")}
           </p>
           <div className="flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-blue-500" />

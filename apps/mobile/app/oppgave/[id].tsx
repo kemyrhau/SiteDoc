@@ -36,8 +36,8 @@ import {
   Share2,
   Eye,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi } from "@sitedoc/shared";
-import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi } from "@sitedoc/shared";
+import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
@@ -105,8 +105,10 @@ export default function OppgaveDetalj() {
   const [tittelUtkast, settTittelUtkast] = useState("");
   const [beskrivelseUtkast, settBeskrivelseUtkast] = useState("");
   const [dialogTekst, settDialogTekst] = useState("");
+  const [dialogFeil, settDialogFeil] = useState<string | null>(null);
   const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
 
+  const { erPaaNettet } = useNettverk();
   const { ventende } = useOpplastingsKo();
 
   // Hent overføringer for historikk
@@ -240,23 +242,15 @@ export default function OppgaveDetalj() {
     if (!minFlytInfo || !oppgaveDetalj || !dokumentflyterRå) return undefined;
     const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null };
     if (!op.dokumentflytId) return undefined;
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        faggruppeId?: string | null;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
+    const rå = dokumentflyterRå as unknown as Array<{ id: string; medlemmer: FlytMedlemRedigering[] }>;
     const flyt = rå.find((df) => df.id === op.dokumentflytId);
     if (!flyt) return undefined;
-    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
+    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[]; faggruppeIder?: string[] };
+    return utledFlytRettighet(flyt.medlemmer, {
+      projectMemberId: fi.projectMemberId,
+      gruppeIder: fi.gruppeIder,
+      faggruppeIder: fi.faggruppeIder ?? [],
+    });
   }, [minFlytInfo, oppgaveDetalj, dokumentflyterRå]);
 
   const rettighetInput = useMemo(() => {
@@ -275,11 +269,22 @@ export default function OppgaveDetalj() {
       utils.oppgave.hentMedId.invalidate({ id: id! });
       utils.oppgave.hentForProsjekt.invalidate();
     },
+    // Bekreftelsesarket (DokumentHandlingslinje) lukkes optimistisk FØR svar — uten dette
+    // gikk et offline/avvist Send/Besvar/Videresend ut som falsk suksess: arbeideren så
+    // arket lukke seg og trodde mottakeren fikk dokumentet.
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.kunneIkkeEndreStatus"), feil.message || t("feil.sjekkNettverk"));
+    },
   });
 
   const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
       utils.oppgave.hentMedId.invalidate({ id: id! });
+    },
+    // Prioritet/tittel/beskrivelse lagres via .mutate() og modalen lukkes straks — uten
+    // dette gikk en offline/avvist lagring ut som stille suksess og endringen forsvant.
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.kunneIkkeLagre"), feil.message || t("feil.sjekkNettverk"));
     },
   });
 
@@ -338,14 +343,28 @@ export default function OppgaveDetalj() {
     onSuccess: () => {
       utils.oppgave.hentKommentarer.invalidate({ taskId: id! });
       settDialogTekst("");
+      settDialogFeil(null);
       settVisDialogModal(false);
+    },
+    // Uten dette går et avvist/tidsavbrutt send ut som «skjer ingen ting». Teksten
+    // står (nullstilles kun i onSuccess) så brukeren kan prøve igjen.
+    onError: () => {
+      settDialogFeil(t("oppgave.kommentarSendFeilet"));
     },
   });
 
   const håndterSendKommentar = useCallback(() => {
     if (!dialogTekst.trim() || !id) return;
+    // Kommentaren sendes til serveren — uten nett skjedde det tidligere ingenting
+    // (ingen kø for kommentarer, kun bilder). Blokker med tydelig beskjed; teksten
+    // står så den kan sendes når dekningen er tilbake. Speiler arkiv-PDF-vakten under.
+    if (!erPaaNettet) {
+      settDialogFeil(t("oppgave.kommentarKreverTilkobling"));
+      return;
+    }
+    settDialogFeil(null);
     leggTilKommentarMutasjon.mutate({ taskId: id, content: dialogTekst.trim() });
-  }, [dialogTekst, id, leggTilKommentarMutasjon]);
+  }, [dialogTekst, id, erPaaNettet, leggTilKommentarMutasjon, t]);
 
   const håndterSlett = useCallback(() => {
     Alert.alert(
@@ -384,6 +403,9 @@ export default function OppgaveDetalj() {
     oppgave,
     erLaster,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -402,7 +424,7 @@ export default function OppgaveDetalj() {
 
   // Arkiv-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF + in-app
   // forhåndsvisning som sjekkliste (speiler sjekkliste/[id].tsx). Ingen lokal HTML-bygging.
-  const { erPaaNettet } = useNettverk();
+  // `erPaaNettet` hentes øverst (dialog-vakten trenger den før dette punktet).
   const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const arkivIntensjonRef = useRef<"del" | "forhandsvis">("del");
   const [pdfForhandsvisFil, settPdfForhandsvisFil] = useState<string | null>(null);
@@ -831,6 +853,19 @@ export default function OppgaveDetalj() {
           </View>
         )}
 
+        {/* Kollisjons-/append-only-varsel (live): endringen din ble et NOTAT, ikke en endring —
+            feltet var alt fylt. «Lagret» uten forklaring ville vært verre enn en tydelig feil. */}
+        {sisteKollisjoner.length > 0 && (
+          <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+            <Text className="flex-1 text-sm text-amber-800">
+              {t("kollisjon.varsel.tekst", { antall: sisteKollisjoner.length })}
+            </Text>
+            <Pressable onPress={avvisKollisjoner} hitSlop={8}>
+              <Text className="text-xs font-medium text-amber-700">{t("handling.lukk")}</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Malobjekter */}
         <UtfyllingSeksjoner
           objekter={objekter}
@@ -913,6 +948,7 @@ export default function OppgaveDetalj() {
               onOversett={() => oversettFelt(objekt)}
               visOversettKnapp={visOversettKnapp}
               originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
+              tilfoyelser={hentTilfoyelser(objekt.id)}
             >
               <RapportObjektRenderer
                 objekt={objekt}
@@ -1220,7 +1256,7 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Pressable onPress={() => settVisDialogModal(false)} hitSlop={8}>
+              <Pressable onPress={() => { settVisDialogModal(false); settDialogFeil(null); }} hitSlop={8}>
                 <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
               </Pressable>
               <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("oppgave.nyKommentar")}</Text>
@@ -1234,9 +1270,17 @@ export default function OppgaveDetalj() {
                 </Text>
               </Pressable>
             </View>
+            {dialogFeil && (
+              <Text className="bg-amber-50 px-4 py-2 text-center text-xs text-amber-700">
+                {dialogFeil}
+              </Text>
+            )}
             <TextInput
               value={dialogTekst}
-              onChangeText={settDialogTekst}
+              onChangeText={(tekst) => {
+                settDialogTekst(tekst);
+                if (dialogFeil) settDialogFeil(null);
+              }}
               placeholder={t("oppgave.skrivKommentar")}
               multiline
               autoFocus

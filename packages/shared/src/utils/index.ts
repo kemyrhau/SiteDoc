@@ -1,5 +1,5 @@
-export { utledMinRolle, utledDokumentRettighet, beregnHarBallen } from "./flytRolle";
-export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker } from "./flytRolle";
+export { utledMinRolle, utledDokumentRettighet, beregnHarBallen, utledFlytRettighet } from "./flytRolle";
+export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker, FlytMedlemRedigering, FlytRedigeringBruker } from "./flytRolle";
 export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller, flytRettighetNoekkel, ROLLE_HANDLINGER_DEFAULTS, PROSJEKTADMIN_ROLLE } from "./statusHandlinger";
 export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst, finnVaerTimeIndeks, byggVaerSnapshot } from "./vaer";
@@ -54,8 +54,6 @@ export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
 export { formaterNummer } from "./dokumentnummer";
 export { lesSignaturVerdi, formaterSignaturLinje, formaterSignaturTidspunkt, signaturTidspunktNaa } from "./signaturVerdi";
 export type { SignaturVerdi } from "./signaturVerdi";
-export { resolverNyNavigasjon } from "./nyNavigasjon";
-export type { NyNavigasjonKilde } from "./nyNavigasjon";
 export {
   EPSILON_MASKIN_TIMER,
   maskinBucketNokkel,
@@ -136,6 +134,7 @@ export {
   harMinstEttUtfyltFelt,
   IKKE_UTFYLLBARE_FELTTYPER,
 } from "./feltLaasing";
+export { løsKollisjonsVerdi, verdiErLik } from "./kollisjonReset";
 export { TILBEHOR_REN_FJERNING_BASE } from "./rapportobjektTilbehor";
 export { avgjorDokumentTilgang } from "./avgjorDokumentTilgang";
 export type { TilgangsFakta, TilgangsResultat } from "./avgjorDokumentTilgang";

@@ -3,9 +3,10 @@ import { useState, type ReactNode } from "react";
 import { Plus, Info, Globe } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
-import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
+import type { Vedlegg, Tilfoyelse } from "../../hooks/useSjekklisteSkjema";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 import { tilbehorVisning } from "./RapportObjektRenderer";
+import { TilfoyelseNotat } from "./TilfoyelseNotat";
 
 /** Felttyper som ikke skal ha vedlegg/kommentar eller oppgave-badge */
 const SKJUL_VEDLEGG_TYPER = new Set(["date", "date_time", "weather"]);
@@ -43,6 +44,8 @@ interface FeltWrapperProps {
   visOversettKnapp?: boolean;
   /** Original fritekst-data (Lag 3: arbeiderens originaltekst) */
   originalData?: { spraak: string; verdi?: string; kommentar?: string };
+  /** Tapende verdier notert ved kollisjon (feltvis merge-deteksjon) — vises feltnært. */
+  tilfoyelser?: Tilfoyelse[];
   children: ReactNode;
 }
 
@@ -70,6 +73,7 @@ export function FeltWrapper({
   onOversett,
   visOversettKnapp,
   originalData,
+  tilfoyelser,
   children,
 }: FeltWrapperProps) {
   const { t } = useTranslation();
@@ -143,6 +147,9 @@ export function FeltWrapper({
           <Text className="text-xs text-gray-500">{originalData.verdi}</Text>
         </View>
       )}
+
+      {/* Tapende verdier ved kollisjon (feltvis merge-deteksjon) — delt render. */}
+      <TilfoyelseNotat tilfoyelser={tilfoyelser} />
 
       {/* Valideringsfeil */}
       {valideringsfeil && (

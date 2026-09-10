@@ -11,7 +11,7 @@ import { useFavoritter } from "@/hooks/useFavoritter";
 /**
  * Panel-innmaten (søk + scope-rader + favoritt/prosjekt-liste) uten den
  * absolutt-posisjonerte dropdown-innpakningen. Gjenbrukes av både
- * `ProsjektVelger` (flagg av) og `KontekstChip` (flagg på, steg iii).
+ * `ProsjektVelger` og `KontekstChip`.
  * `onValgt` lukker foreldrepopoveren etter et valg.
  */
 export function ProsjektVelgerPanel({

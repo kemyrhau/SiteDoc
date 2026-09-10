@@ -27,7 +27,6 @@ import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 import { useTranslation } from "react-i18next";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
-import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useKanManageField } from "@/hooks/useKanManageField";
 import { OversettelsePanel } from "./OversettelsePanel";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -101,7 +100,6 @@ function OversettelseChips({
 export default function MapperSide() {
   useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
-  const nyNav = useNyNavigasjon();
   const kanManageField = useKanManageField();
   const [visOversettelse, setVisOversettelse] = useState(false);
   const { prosjektId } = useProsjekt();
@@ -146,7 +144,7 @@ export default function MapperSide() {
 
   const valgtMappe = mapper?.find((m) => m.id === valgtMappeId);
 
-  // s1: brødsmulesti (mappe-ancestry) — vises i innholdsheaderen bak flagget,
+  // s1: brødsmulesti (mappe-ancestry) — vises i innholdsheaderen,
   // så skjul-av-mappetreet ikke blir et navigasjonstap. Sykel-vern via `sett`.
   const mappeSti = useMemo(() => {
     if (!mapper || !valgtMappeId) return [] as Array<{ id: string; name: string }>;
@@ -304,10 +302,10 @@ export default function MapperSide() {
   }
 
   // F1: «Administrer mapper»-inngang → Mappeoppsett. Delt const slik at den vises
-  // både i tomt-state (ingen mappe valgt) og i innholdsheaderen. Flagg-gated +
-  // manage_field — flagg av er byte-identisk.
+  // både i tomt-state (ingen mappe valgt) og i innholdsheaderen. Gated på
+  // manage_field.
   const administrerMapperLenke =
-    nyNav && kanManageField ? (
+    kanManageField ? (
       <Link
         href="/dashbord/oppsett/produksjon/box"
         className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
@@ -337,7 +335,7 @@ export default function MapperSide() {
       <div className="flex flex-1 flex-col items-center justify-center py-20">
         <Lock className="mb-3 h-12 w-12 text-gray-300" />
         <h2 className="mb-1 text-lg font-semibold text-gray-700">
-          {valgtMappe?.name ?? "Mappe"}
+          {valgtMappe?.name ?? t("tabell.mappe")}
         </h2>
         <p className="text-sm text-gray-400">
           {t("mapper.ingenTilgang")}
@@ -384,46 +382,43 @@ export default function MapperSide() {
       <SonetonetSidehode sone="prosjekt" className="mb-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          {nyNav && mappeSti.length > 0 ? (
-            <nav aria-label={t("mapper.tittel")} className="flex min-w-0 items-center gap-1.5">
-              <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
-              <Link
-                href={`/dashbord/${prosjektId}/mapper`}
-                className="shrink-0 text-sm text-gray-400 hover:text-gray-600"
-              >
-                {t("mapper.alleMapper")}
-              </Link>
-              {mappeSti.map((m, i) => {
-                const sist = i === mappeSti.length - 1;
-                return (
-                  <span key={m.id} className="flex min-w-0 items-center gap-1.5">
-                    <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                    {sist ? (
-                      <span className="truncate text-xl font-bold text-gray-900">{m.name}</span>
-                    ) : (
-                      <Link
-                        href={`/dashbord/${prosjektId}/mapper?mappe=${m.id}`}
-                        className="truncate text-sm text-gray-500 hover:text-gray-700"
-                      >
-                        {m.name}
-                      </Link>
-                    )}
-                  </span>
-                );
-              })}
-            </nav>
-          ) : (
-            <>
-              <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
-              <h2 className="truncate text-xl font-bold text-gray-900">
-                {valgtMappe?.name ?? "Mappe"}
-              </h2>
-            </>
-          )}
+          {/* Breadcrumb-nav rendres ALLTID. Er `mappeSti` tom (mapper ikke lastet ennå
+              eller foreldet mappe-id i URL), vises kun «Alle mapper»-roten — klikkbar,
+              så brukeren har en vei tilbake. Den gamle else-grenen viste en hardkodet
+              «Mappe» som aldri kunne bli et ekte navn: `mappeSti.length > 0` ⟺ `valgtMappe`
+              definert (begge utledes fra samme `mapper`-liste), så else-grenens
+              `valgtMappe?.name` var alltid undefined. */}
+          <nav aria-label={t("mapper.tittel")} className="flex min-w-0 items-center gap-1.5">
+            <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
+            <Link
+              href={`/dashbord/${prosjektId}/mapper`}
+              className="shrink-0 text-sm text-gray-400 hover:text-gray-600"
+            >
+              {t("mapper.alleMapper")}
+            </Link>
+            {mappeSti.map((m, i) => {
+              const sist = i === mappeSti.length - 1;
+              return (
+                <span key={m.id} className="flex min-w-0 items-center gap-1.5">
+                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                  {sist ? (
+                    <span className="truncate text-xl font-bold text-gray-900">{m.name}</span>
+                  ) : (
+                    <Link
+                      href={`/dashbord/${prosjektId}/mapper?mappe=${m.id}`}
+                      className="truncate text-sm text-gray-500 hover:text-gray-700"
+                    >
+                      {m.name}
+                    </Link>
+                  )}
+                </span>
+              );
+            })}
+          </nav>
         </div>
         <div className="flex shrink-0 items-center gap-2">
         {administrerMapperLenke}
-        {nyNav && valgtMappeId && (
+        {valgtMappeId && (
           <button
             onClick={() => setVisOversettelse((v) => !v)}
             className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
@@ -549,33 +544,14 @@ export default function MapperSide() {
                         >
                           {t("dokumentleser.bekreftOgOversett", { spraak: detInfo?.navn })}
                         </button>
-                        {nyNav ? (
-                          /* 2b: reduser 3-valg til «Bekreft {språk} og oversett» + «Behold». */
-                          <button
-                            onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage!, skipOversettelse: true }); }}
-                            disabled={bekreftSpraakMut.isPending}
-                            className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-200"
-                          >
-                            {t("oversettelse.behold")}
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage!, skipOversettelse: true }); }}
-                              disabled={bekreftSpraakMut.isPending}
-                              className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-200"
-                            >
-                              {t("dokumentleser.bekreftUtenOversettelse")}
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: prosjektKildesprak }); }}
-                              disabled={bekreftSpraakMut.isPending}
-                              className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-200"
-                            >
-                              {t("dokumentleser.brukForventet", { spraak: prosjektInfo?.navn })}
-                            </button>
-                          </>
-                        )}
+                        {/* 2b: reduser 3-valg til «Bekreft {språk} og oversett» + «Behold». */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage!, skipOversettelse: true }); }}
+                          disabled={bekreftSpraakMut.isPending}
+                          className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-200"
+                        >
+                          {t("oversettelse.behold")}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -600,7 +576,7 @@ export default function MapperSide() {
               ),
               bredde: "120px",
             },
-            ...(nyNav && harOversettelse
+            ...(harOversettelse
               ? [{
                   id: "oversettelse",
                   header: t("oversettelse.kolonne"),
@@ -656,7 +632,7 @@ export default function MapperSide() {
         />
       )}
       </div>
-      {nyNav && visOversettelse && valgtMappeId && (
+      {visOversettelse && valgtMappeId && (
         <OversettelsePanel
           folderId={valgtMappeId}
           kildesprak={prosjektKildesprak}

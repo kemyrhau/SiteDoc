@@ -13,8 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi } from "@sitedoc/shared";
-import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi } from "@sitedoc/shared";
+import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -356,23 +356,15 @@ export default function SjekklisteUtfylling() {
     if (!minFlytInfo || !sjekklisteDetalj || !dokumentflyterRå) return undefined;
     const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null };
     if (!sj.dokumentflytId) return undefined;
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        faggruppeId?: string | null;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
+    const rå = dokumentflyterRå as unknown as Array<{ id: string; medlemmer: FlytMedlemRedigering[] }>;
     const flyt = rå.find((df) => df.id === sj.dokumentflytId);
     if (!flyt) return undefined;
-    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
+    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[]; faggruppeIder?: string[] };
+    return utledFlytRettighet(flyt.medlemmer, {
+      projectMemberId: fi.projectMemberId,
+      gruppeIder: fi.gruppeIder,
+      faggruppeIder: fi.faggruppeIder ?? [],
+    });
   }, [minFlytInfo, sjekklisteDetalj, dokumentflyterRå]);
 
   const rettighetInput = useMemo(() => {
@@ -390,12 +382,23 @@ export default function SjekklisteUtfylling() {
     onSuccess: () => {
       utils.sjekkliste.hentMedId.invalidate({ id: id! });
     },
+    // Lokasjon (tegning/punkt) lagres via .mutate() og modalen lukkes straks — uten dette
+    // gikk en offline/avvist lagring ut som stille suksess og lokasjonen forsvant.
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.kunneIkkeLagre"), feil.message || t("feil.sjekkNettverk"));
+    },
   });
 
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
     onSuccess: () => {
       utils.sjekkliste.hentMedId.invalidate({ id: id! });
       utils.sjekkliste.hentForProsjekt.invalidate();
+    },
+    // Bekreftelsesarket (DokumentHandlingslinje) lukkes optimistisk FØR svar — uten dette
+    // gikk et offline/avvist Send/Besvar/Videresend ut som falsk suksess: arbeideren så
+    // arket lukke seg og trodde mottakeren fikk dokumentet.
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.kunneIkkeEndreStatus"), feil.message || t("feil.sjekkNettverk"));
     },
   });
 
@@ -507,6 +510,9 @@ export default function SjekklisteUtfylling() {
     sjekkliste,
     erLaster,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -910,6 +916,19 @@ export default function SjekklisteUtfylling() {
           </View>
         </Pressable>
 
+        {/* Kollisjons-varsel (live): verdien din ble notert som tilføyelse fordi feltet
+            alt var fylt. Ingenting forsvant — verdien står ved feltet. */}
+        {sisteKollisjoner.length > 0 && (
+          <View className="mb-3 flex-row items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+            <Text className="flex-1 text-sm text-amber-800">
+              {t("kollisjon.varsel.tekst", { antall: sisteKollisjoner.length })}
+            </Text>
+            <Pressable onPress={avvisKollisjoner} hitSlop={8}>
+              <Text className="text-xs font-medium text-amber-700">{t("handling.lukk")}</Text>
+            </Pressable>
+          </View>
+        )}
+
         <UtfyllingSeksjoner
           objekter={objekter}
           feltStatus={(objekt) => {
@@ -1070,6 +1089,7 @@ export default function SjekklisteUtfylling() {
               onOversett={() => oversettFelt(objekt)}
               visOversettKnapp={visOversettKnapp}
               originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
+              tilfoyelser={hentTilfoyelser(objekt.id)}
             >
               <RapportObjektRenderer
                 objekt={objekt}

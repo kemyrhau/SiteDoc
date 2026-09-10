@@ -18,7 +18,6 @@ import { trpc } from "../../src/lib/trpc";
 import { hentWebUrl } from "../../src/config/auth";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useAuth } from "../../src/providers/AuthProvider";
-import { useNyNavigasjon } from "../../src/hooks/useNyNavigasjon";
 
 interface Blokk {
   id: string;
@@ -37,15 +36,13 @@ export default function DokumentLeser() {
   const { t } = useTranslation();
   const { bruker } = useAuth();
   const { width: skjermBredde } = useWindowDimensions();
-  const nyNav = useNyNavigasjon();
 
   // Bestem brukerens foretrukne språk (for initial visning)
   const brukerSpraak = bruker?.language ?? "nb";
   const [språk, setSpråk] = useState(brukerSpraak);
-  const [visSpraakmeny, setVisSpraakmeny] = useState(false);
   const [zoomBilde, setZoomBilde] = useState<string | null>(null);
 
-  // 2c-tilstand (kun relevant med flagg på)
+  // 2c: oversettelse-meny + sammenlign-tilstand for dokumentleseren
   const [visOversettMeny, setVisOversettMeny] = useState(false);
   const [sammenlignModus, setSammenlignModus] = useState(false);
   const [sammenlignBlokk, setSammenlignBlokk] = useState<{ id: string; content: string } | null>(null);
@@ -77,12 +74,12 @@ export default function DokumentLeser() {
   refetchRef.current = refetch;
   const harUnderArbeid = underArbeid.length > 0;
   useEffect(() => {
-    if (!nyNav || !harUnderArbeid) return;
+    if (!harUnderArbeid) return;
     const interval = setInterval(() => {
       refetchRef.current();
     }, 8000);
     return () => clearInterval(interval);
-  }, [nyNav, harUnderArbeid]);
+  }, [harUnderArbeid]);
 
   // Sammenlign-query (lazy) — sender blokkId, API henter kildeoriginal
   const { data: sammenlignData, isLoading: sammenlignLaster } = trpc.modul.sammenlignOversettelse.useQuery(
@@ -174,24 +171,12 @@ export default function DokumentLeser() {
       <Header
         tittel={data.filename}
         onTilbake={() => router.back()}
-        språkKnapp={
-          !nyNav && data.tilgjengeligeSprak.length > 1 ? (
-            <TouchableOpacity
-              onPress={() => setVisSpraakmeny(true)}
-              className="flex-row items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5"
-            >
-              <Text className="text-xs">{valgtSpråkInfo?.flagg ?? "🌐"}</Text>
-              <Text className="text-xs text-gray-700">{valgtSpråkInfo?.navn ?? språk}</Text>
-            </TouchableOpacity>
-          ) : undefined
-        }
         onLastNed={åpnePdf}
         harPdf={!!data.fileUrl}
       />
 
       {/* 2c — sticky språkpille-rad */}
-      {nyNav && (
-        <View className="border-b border-gray-200 bg-white">
+      <View className="border-b border-gray-200 bg-white">
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -263,10 +248,9 @@ export default function DokumentLeser() {
             )}
           </ScrollView>
         </View>
-      )}
 
       {/* 2c — grønt statusbanner (oversatt visning) */}
-      {nyNav && viserOversettelse && !sammenlignModus && (
+      {viserOversettelse && !sammenlignModus && (
         <View className="flex-row items-center justify-between border-b border-green-100 bg-green-50 px-4 py-2">
           <Text className="text-xs text-green-800" numberOfLines={1}>
             {t("dokumentleser.oversattTil", { spraak: valgtSpråkInfo?.navn ?? språk })}
@@ -280,7 +264,7 @@ export default function DokumentLeser() {
       )}
 
       {/* 2c — sammenlign-modus-hint */}
-      {nyNav && sammenlignModus && (
+      {sammenlignModus && (
         <View className="flex-row items-center justify-between border-b border-amber-200 bg-amber-50 px-4 py-2">
           <Text className="text-xs font-medium text-amber-800" numberOfLines={1}>
             {t("dokumentleser.sammenlignModus")}
@@ -309,36 +293,6 @@ export default function DokumentLeser() {
         <View className="h-12" />
       </ScrollView>
 
-      {/* Språkvelger-modal (flagg av) */}
-      <Modal visible={visSpraakmeny} transparent animationType="fade">
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setVisSpraakmeny(false)}
-          className="flex-1 bg-black/30 justify-end"
-        >
-          <View className="rounded-t-2xl bg-white pb-8 pt-4">
-            <Text className="mb-3 px-5 text-sm font-semibold text-gray-900">{t("dokumentleser.velgSpraak")}</Text>
-            {data.tilgjengeligeSprak.map((kode) => {
-              const info = STOETTEDE_SPRAAK.find((s) => s.kode === kode);
-              const erValgt = kode === språk;
-              return (
-                <TouchableOpacity
-                  key={kode}
-                  onPress={() => { setSpråk(kode); setVisSpraakmeny(false); }}
-                  className={`flex-row items-center gap-3 px-5 py-3 ${erValgt ? "bg-blue-50" : ""}`}
-                >
-                  <Text className="text-base">{info?.flagg ?? "🌐"}</Text>
-                  <Text className={`text-sm ${erValgt ? "font-semibold text-sitedoc-blue" : "text-gray-700"}`}>
-                    {info?.navn ?? kode}
-                  </Text>
-                  {erValgt && <Check size={18} color="#1e40af" />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
       {/* 2c — «+ Oversett» språkvalg */}
       <Modal visible={visOversettMeny} transparent animationType="slide">
         <TouchableOpacity
@@ -350,6 +304,13 @@ export default function DokumentLeser() {
             <Text className="mb-3 px-5 text-sm font-semibold text-gray-900">
               {t("dokumentleser.velgSpraakOversett")}
             </Text>
+            {/* Uten dette lukket menyen seg kun ved suksess; en avvist oversettelse ga
+                ingen beskjed (online-only handling). */}
+            {oversettMut.isError && (
+              <Text className="mb-2 px-5 text-xs text-red-600">
+                {t("dokumentleser.oversettFeilet")}
+              </Text>
+            )}
             <ScrollView>
               {kanLeggesTil.map((s) => (
                 <TouchableOpacity
@@ -445,6 +406,13 @@ export default function DokumentLeser() {
                     <View className="flex-row items-center gap-2 rounded-lg bg-green-50 p-3">
                       <Check size={16} color="#0b7a4b" />
                       <Text className="text-sm text-green-700">{t("dokumentleser.oversettelseStartet")}</Text>
+                    </View>
+                  )}
+                  {/* Feil-tilstand ved siden av pending/success — ellers gikk en avvist
+                      re-oversettelse stille. */}
+                  {reOversettMut.isError && (
+                    <View className="flex-row items-center gap-2 rounded-lg bg-red-50 p-3">
+                      <Text className="text-sm text-red-700">{t("dokumentleser.reOversettFeilet")}</Text>
                     </View>
                   )}
                 </View>

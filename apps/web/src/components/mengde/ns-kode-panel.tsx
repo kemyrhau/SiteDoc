@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 interface NsKodePanelProps {
@@ -8,6 +9,7 @@ interface NsKodePanelProps {
 }
 
 export function NsKodePanel({ nsKode, prosjektId }: NsKodePanelProps) {
+  const { t } = useTranslation();
   // Søk i NS 3420-dokumenter (tekst-søk)
   const { data: standardChunks } = trpc.ftdSok.nsStandardSok.useQuery(
     { projectId: prosjektId, nsKode: nsKode! },
@@ -23,7 +25,7 @@ export function NsKodePanel({ nsKode, prosjektId }: NsKodePanelProps) {
   if (!nsKode) {
     return (
       <div className="text-sm text-gray-400">
-        Velg en post med NS-kode for å se kontekst.
+        {t("mengde.nskode.velgPost")}
       </div>
     );
   }
@@ -34,8 +36,8 @@ export function NsKodePanel({ nsKode, prosjektId }: NsKodePanelProps) {
   return (
     <div className="space-y-2">
       <div className="text-sm font-semibold text-gray-800">
-        NS-kode: {nsKode}
-        {erStandard && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">NS 3420</span>}
+        {t("mengde.nskode.label")} {nsKode}
+        {erStandard && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">{t("mengde.nskode.ns3420")}</span>}
       </div>
       {chunks && chunks.length > 0 ? (
         <div className="max-h-60 space-y-2 overflow-y-auto">
@@ -53,7 +55,7 @@ export function NsKodePanel({ nsKode, prosjektId }: NsKodePanelProps) {
         </div>
       ) : (
         <div className="text-sm text-gray-500">
-          Ingen NS-kontekst funnet i dokumenter.
+          {t("mengde.nskode.ingenKontekst")}
         </div>
       )}
     </div>

@@ -1550,9 +1550,10 @@ Delt auth via eksisterende `next-auth` sessions-tabell i `packages/db`. Timer-AP
 | Prinsipp | Implementasjon |
 |----------|---------------|
 | **Firma-isolering** | `organizationId` på alle dagssedler. Timer-data er firma-eid (per memory: feedback_timer_eierskap) |
-| **Prosjektisolering** | `projectId` filtrerer alltid. Ingen data lekker mellom prosjekter |
+| **Prosjektisolering** | `projectId` filtrerer alltid — ⚠️ **med ett målt unntak, se raden under** |
 | **Ledervisning** | Firmaansvarlig ser ansattes dagssedler i sin faggruppe |
 | **Admin** | Prosjektadmin ser alle dagssedler i prosjektet |
+| ⚠️ **Unntak: dagssedler som spenner over flere prosjekter** | `dagsseddel.hentTilAttestering` (`apps/api/src/routes/timer/dagsseddel.ts:2250-2294`) velger sedler med `timer: { some: { projectId } }`, men **`include: { timer: … }` har intet `projectId`-filter** — kun `attestertStatus != "erstattet"`. Fører en ansatt timer på to prosjekter samme dag, ser prosjektadmin i det ene prosjektet **hele sedelen**, inkludert linjene ført på det andre. 🟢 **Kenneth-vedtak 2026-09-10: dette er akseptert som det er — sedelen er dagens arbeid, og den som attesterer må se helheten for å vurdere den. Men det skal opplyses, ikke oppdages.** 🔴 **Skriv/attestering er korrekt gjerdet:** `attesterRader`/`returnerRader`/`attester`/`gjenaapneAttestering` (`:2885`, `:3069`, `:3994`, `:3170`) krever `krevProsjektLeder` på **hvert** berørt prosjekt |
 | **Godkjenning** | Leder godkjenner dagssedler → `godkjentAv` + `godkjentVed`. Utlegg godkjennes samtidig — leder ser kvitteringsbilder i godkjenningsvisningen |
 
 ## API-ruter (planlagt)

@@ -2,7 +2,7 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
-import { Shield, ShieldAlert, User, Pencil, Plus, X, Sparkles, UserMinus, UserCheck } from "lucide-react";
+import { Shield, ShieldAlert, User, Pencil, Plus, X, UserMinus, UserCheck, FolderPlus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -51,7 +51,6 @@ export default function FirmaBrukere() {
 
   const [inviterÅpen, setInviterÅpen] = useState(false);
   const [redigerBruker, setRedigerBruker] = useState<BrukerRad | null>(null);
-  const [nyNavPilotÅpen, setNyNavPilotÅpen] = useState(false);
   const [deaktiverBruker, setDeaktiverBruker] = useState<BrukerRad | null>(null);
   const [visSluttede, setVisSluttede] = useState(false);
 
@@ -92,15 +91,6 @@ export default function FirmaBrukere() {
                 {t("firma.ansatte.visSluttede", { antall: antallSluttede })}
               </label>
             )}
-            <button
-              onClick={() => setNyNavPilotÅpen(true)}
-              disabled={!orgId || !brukere || brukere.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              title={t("firma.ansatte.nyNavPilot.knapp")}
-            >
-              <Sparkles className="h-4 w-4" />
-              {t("firma.ansatte.nyNavPilot.knapp")}
-            </button>
             <button
               onClick={() => setInviterÅpen(true)}
               disabled={!orgId}
@@ -146,6 +136,7 @@ export default function FirmaBrukere() {
                 const erSystemadmin = b.role === "sitedoc_admin";
                 const erFirmaAdmin = b.firmaRoller.includes("firma_admin");
                 const erHmsAnsvarlig = b.firmaRoller.includes("hms_ansvarlig");
+                const erProsjektOppretter = b.firmaRoller.includes("prosjekt_oppretter");
                 const erDeaktivert = b.status === "deaktivert";
                 return (
                   <tr
@@ -192,7 +183,11 @@ export default function FirmaBrukere() {
                             <Shield className="h-3 w-3" />
                             {t("firma.ansatte.tilgang.firmaAdmin")}
                           </span>
-                        ) : !erHmsAnsvarlig ? (
+                        ) : !erHmsAnsvarlig && !erProsjektOppretter ? (
+                          // «Bruker» er grunnlinjen: vises kun uten forhøyet
+                          // firma-rolle. HMS-ansvarlig ekskluderte den alt; en som
+                          // KUN er prosjektoppretter skal heller ikke få både
+                          // «Bruker» og «Prosjektoppretter».
                           <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                             {t("firma.ansatte.tilgang.bruker")}
                           </span>
@@ -201,6 +196,12 @@ export default function FirmaBrukere() {
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
                             <ShieldAlert className="h-3 w-3" />
                             {t("firma.ansatte.tilgang.hmsAnsvarlig")}
+                          </span>
+                        )}
+                        {erProsjektOppretter && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-700">
+                            <FolderPlus className="h-3 w-3" />
+                            {t("firma.ansatte.tilgang.prosjektOppretter")}
                           </span>
                         )}
                       </div>
@@ -274,15 +275,6 @@ export default function FirmaBrukere() {
             utils.organisasjon.hentBrukere.invalidate();
             setRedigerBruker(null);
           }}
-        />
-      )}
-
-      {nyNavPilotÅpen && orgId && (
-        <NyNavPilotModal
-          organizationId={orgId}
-          firmanavn={valgtFirma?.name ?? ""}
-          antall={brukere?.length ?? 0}
-          onLukk={() => setNyNavPilotÅpen(false)}
         />
       )}
 
@@ -372,93 +364,6 @@ function DeaktiverModal({
                 ? t("firma.ansatte.deaktiver.lagrer")
                 : t("firma.ansatte.deaktiver.bekreft")}
             </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Pilot-utrulling av ny navigasjon (steg viii/Plan 2). Bulk-setter flagget for
-// ALLE ansatte i firmaet via `organisasjon.settNyNavForFirma`. Bekreftelsesdialog
-// viser antall som påvirkes. Per-bruker overstyring finnes i API-et
-// (`settNyNavForBruker`) som nødventil, men bygges ikke som UI nå.
-function NyNavPilotModal({
-  organizationId,
-  firmanavn,
-  antall,
-  onLukk,
-}: {
-  organizationId: string;
-  firmanavn: string;
-  antall: number;
-  onLukk: () => void;
-}) {
-  const { t } = useTranslation();
-  const [resultat, setResultat] = useState<{ paa: boolean; antall: number } | null>(null);
-  const sett = trpc.organisasjon.settNyNavForFirma.useMutation({
-    onSuccess: (res, variabler) => {
-      setResultat({ paa: variabler.paa, antall: res.antall });
-    },
-  });
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
-            <Sparkles className="h-4 w-4 text-sitedoc-primary" />
-            {t("firma.ansatte.nyNavPilot.tittel")}
-          </h2>
-          <button
-            onClick={onLukk}
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            aria-label={t("handling.avbryt")}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="space-y-4 px-5 py-4">
-          {resultat ? (
-            <p className="text-sm text-gray-700">
-              {t(
-                resultat.paa
-                  ? "firma.ansatte.nyNavPilot.ferdigPaa"
-                  : "firma.ansatte.nyNavPilot.ferdigAv",
-                { antall: resultat.antall },
-              )}
-            </p>
-          ) : (
-            <p className="text-sm text-gray-500">
-              {t("firma.ansatte.nyNavPilot.beskrivelse", { antall, firmanavn })}
-            </p>
-          )}
-          <div className="flex justify-end gap-2">
-            {resultat ? (
-              <button
-                onClick={onLukk}
-                className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary"
-              >
-                {t("handling.lukk")}
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => sett.mutate({ organizationId, paa: false })}
-                  disabled={sett.isPending}
-                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  {t("firma.ansatte.nyNavPilot.skruAv")}
-                </button>
-                <button
-                  onClick={() => sett.mutate({ organizationId, paa: true })}
-                  disabled={sett.isPending}
-                  className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:opacity-50"
-                >
-                  {t("firma.ansatte.nyNavPilot.skruPaa")}
-                </button>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -687,12 +592,16 @@ function RedigerModal({
   const [erHrAnsvarlig, setErHrAnsvarlig] = useState(
     bruker.firmaRoller.includes("hr_ansvarlig"),
   );
+  const [erProsjektOppretter, setErProsjektOppretter] = useState(
+    bruker.firmaRoller.includes("prosjekt_oppretter"),
+  );
   const [feilmelding, setFeilmelding] = useState<string | null>(null);
   const [lagrer, setLagrer] = useState(false);
 
   const opprinneligErFirmaAdmin = bruker.firmaRoller.includes("firma_admin");
   const opprinneligErHmsAnsvarlig = bruker.firmaRoller.includes("hms_ansvarlig");
   const opprinneligErHrAnsvarlig = bruker.firmaRoller.includes("hr_ansvarlig");
+  const opprinneligErProsjektOppretter = bruker.firmaRoller.includes("prosjekt_oppretter");
 
   // Avdelinger for nedtrekk + firmadefault for prosjekttilgang (til «Arv»-etiketten).
   const { data: avdelinger } = trpc.avdeling.hentAlle.useQuery(
@@ -759,6 +668,22 @@ function RedigerModal({
             userId: bruker.id,
             organizationId,
             role: "hr_ansvarlig",
+          });
+        }
+      }
+      if (erProsjektOppretter !== opprinneligErProsjektOppretter) {
+        // Delegerbar opprett-rett — samme generiske mønster som hr_ansvarlig.
+        if (erProsjektOppretter) {
+          await tildelOrgRolle.mutateAsync({
+            userId: bruker.id,
+            organizationId,
+            role: "prosjekt_oppretter",
+          });
+        } else {
+          await fjernOrgRolle.mutateAsync({
+            userId: bruker.id,
+            organizationId,
+            role: "prosjekt_oppretter",
           });
         }
       }
@@ -855,6 +780,11 @@ function RedigerModal({
                 </option>
               ))}
             </select>
+            {/* Stilling er HR-data (tilgangskontroll.ts:343) — håndheves ingen steder.
+                Merknad så ingen tror «Stilling = Prosjektleder» endrer Tilgang. */}
+            <p className="mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.stillingIkkeTilgang")}
+            </p>
           </div>
 
           <div>
@@ -899,18 +829,40 @@ function RedigerModal({
                   })}
                 </span>
               </label>
-              {PROSJEKT_TILGANG.map((v) => (
-                <label key={v} className="flex items-start gap-2 text-sm text-gray-700">
-                  <input
-                    type="radio"
-                    name="prosjektTilgang"
-                    checked={prosjektTilgang === v}
-                    onChange={() => setProsjektTilgang(v)}
-                    className="mt-0.5"
-                  />
-                  <span>{t(`firma.ansatte.prosjektTilgang.verdi.${v}`)}</span>
-                </label>
-              ))}
+              {PROSJEKT_TILGANG.map((v) => {
+                // "avdeling" er blokkert til Project har avdelingId
+                // (prosjektTilgangEvaluator.ts:108 behandler den som "manuell" —
+                // valget lagres, men personen blir aldri medlem). Deaktiver så
+                // ingen kan velge en død regel. Er verdien alt lagret på en rad,
+                // vises den fortsatt som valgt (disabled + checked).
+                const erAvdeling = v === "avdeling";
+                const avdelingBlokkert = erAvdeling && prosjektTilgang !== "avdeling";
+                return (
+                  <label
+                    key={v}
+                    className={`flex items-start gap-2 text-sm ${
+                      avdelingBlokkert ? "text-gray-400" : "text-gray-700"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="prosjektTilgang"
+                      checked={prosjektTilgang === v}
+                      onChange={() => setProsjektTilgang(v)}
+                      disabled={avdelingBlokkert}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      {t(`firma.ansatte.prosjektTilgang.verdi.${v}`)}
+                      {erAvdeling && (
+                        <span className="mt-0.5 block text-xs text-gray-400">
+                          {t("firma.ansatte.prosjektTilgang.avdelingUtilgjengelig")}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -956,6 +908,21 @@ function RedigerModal({
             </label>
             <p className="ml-6 mt-1 text-xs text-gray-500">
               {t("firma.ansatte.hrAnsvarligHjelp")}
+            </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={erProsjektOppretter}
+                onChange={(e) => setErProsjektOppretter(e.target.checked)}
+              />
+              <FolderPlus className="h-3.5 w-3.5 text-sky-600" />
+              {t("firma.ansatte.prosjektOppretterLabel")}
+            </label>
+            <p className="ml-6 mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.prosjektOppretterHjelp")}
             </p>
           </div>
 

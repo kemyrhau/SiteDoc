@@ -14,7 +14,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
 | [docs/claude/kvalitetssikring-plan.md](docs/claude/kvalitetssikring-plan.md) | **🟢 VEDTATT 2026-08-31:** fire lag mot regresjoner. Lag 1 = gjør feilklassen ulovlig (lint) · lag 2 = simulator-røykliste FØR hvert EAS-bygg · lag 3 = slå på 29 ubrukte api-tester. Utløst av tre regresjoner på én dag som alle kompilerte grønt |
-| [docs/claude/DEPLOY-RUNBOK.md](docs/claude/DEPLOY-RUNBOK.md) | 🔴 **ENESTE kilde for deploy-kommandoer** — test · prod · OTA · env-filer på server, i rekkefølge. Opprettet 2026-09-07 etter at 12 filer viste seg å bære kommandoer i ulike varianter. **Finner du en kommando i en annen fil, er den foreldet** |
+| [docs/claude/DEPLOY-RUNBOK.md](docs/claude/DEPLOY-RUNBOK.md) | 🔴 **ENESTE kilde for deploy-kommandoer** — test · prod · OTA · env-filer på server, i rekkefølge. Opprettet 2026-09-07 etter at 12 filer viste seg å bære kommandoer i ulike varianter |
 | [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Branching, mobil reload, prod-lærdommer. **Kommandoer: se DEPLOY-RUNBOK** |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
 | [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
@@ -111,7 +111,7 @@ Utfør kun handlinger direkte knyttet til den uttrykkelige oppgaven. Hvis andre 
 - **3D/Punktsky:** Three.js, potree-core (punktsky-viewer), @thatopen/components (IFC 3D-viewer)
 - **Tegningskonvertering:** ODA File Converter / libredwg (DWG→SVG), CloudCompare (E57/PLY→LAS), PotreeConverter (LAS→Potree octree)
 - **Ikoner:** lucide-react
-- **i18n:** i18next + react-i18next (15 språkfiler i packages/shared/src/i18n/ — 14 brukervendte språk, ~2500 nøkler)
+- **i18n:** i18next + react-i18next (15 språkfiler i packages/shared/src/i18n/ — 14 brukervendte språk, ~4 300 nøkler)
 - **Dokumentoversettelse:** OPUS-MT (selvhostet, port 3303) + Google Translate (gratis, google-translate-api-x) + DeepL (betalt). Translation memory cache, kildespråk-deteksjon
 - **Flerspråklig embedding:** NorBERT (`ltgoslo/norbert2`, norsk) + intfloat/multilingual-e5-base (768 dim, 100+ språk) — selvhostet embedding-server, port 3302
 - **Dokumentleser:** Blokkbasert Reader View med språkvelger, sammenlign-panel for motorbytte
@@ -191,7 +191,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Ikon-props: `JSX.Element` (ikke `React.ReactNode`) for å unngå `@types/react` v18/v19-kollisjon
 - tRPC mutation-callbacks: `_data: unknown` for å unngå TS2589
 - **Kjente TS/CSS-fallgruver:** tRPC-include TS2589 + Prisma-felt-cleanup-verifikasjon → [api.md § TS/tRPC-fallgruver](docs/claude/api.md); Tailwind className-spesifisitet (`max-w-*`, Modal) → [shared-pakker.md § @sitedoc/ui](docs/claude/shared-pakker.md).
-- Prisma-migreringer: `pnpm --filter @sitedoc/db exec prisma migrate dev`
+- Prisma-migreringer: se § Kommandoer (`pnpm db:migrate`)
 
 ## UI-designprinsipper og fargepalett
 
@@ -220,7 +220,7 @@ fargepalett (`sitedoc-primary` `#1e40af` m.fl.). **Styrende — les før ny UI-f
 - **i18n-krav:** Alle synlige UI-strenger i web-appen MÅ bruke `t()` fra react-i18next — ALDRI hardkod norsk tekst i JSX. Ved nye sider/komponenter:
   1. Nøkler i **både** `nb.json` og `en.json` (`packages/shared/src/i18n/`). Format `seksjon.noekkel`; gjenbruk eksisterende (`handling.lagre`, `handling.avbryt`, `tabell.navn`).
   2. Data utenfor komponenter (arrays, configs): `labelKey` i stedet for `label`, kall `t()` ved rendering.
-  3. 13-språk-generate fra `packages/shared`: `pnpm dlx tsx src/i18n/generate.ts` (oversetter fra `en.json` = master). **`dlx`, ikke `exec`** — `tsx` er ikke en dependency og `pnpm --filter … exec tsx` feiler med «Command tsx not found».
+  3. 13-språk-generate fra `packages/shared`: `pnpm dlx tsx src/i18n/generate.ts --only seksjon.dinNøkkel,seksjon.annen` (oversetter fra `en.json` = master). **Bruk alltid `--only <dine nøkler>`** når du legger egne nøkler — uten flagget genereres alle manglende nøkler, og du drar med deg annen drift inn i din egen diff. **`dlx`, ikke `exec`** — `tsx` er ikke en dependency. Ukjent nøkkel → generatoren stopper og navngir den.
   4. Full arbeidsflyt + kjente quirks: [shared-pakker.md § i18n](docs/claude/shared-pakker.md).
 - **i18n-diagnostikk-regel:** Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Finnes nøkkelen ikke i `*.ts`/`*.tsx` er det en relikvi som skal slettes, ikke en bug som skal fylles (lærdom `hjelp.flyt.*` 2026-05-23).
 - **Mikrotekst-standard for handlingstekst (STYRENDE, 2026-07-24):** All handlingstekst (menyer, bekreftelsesdialoger, toasts/kvitteringer, knapper, varsler — web+mobil) følger [docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md § 3/§ 3a](docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md): svar på **hvor dokumentet flytter · hvem får ballen · hva ser motparten**, med **relasjonelle benevnelser** («den som sendte det», «neste mottaker») — aldri faste rollenavn som kan mangle i en gitt flyt. Nye handlingstekster følger den (ordre-DoD); eksisterende oppgraderes opportunistisk når flaten røres.
@@ -254,7 +254,7 @@ To DB-kolonner styrer tilgang: `User.role` (`sitedoc_admin` | `company_admin` | 
 
 **`harProsjektTilgang(userId, projectId)`**: Sjekker ProjectMember-rad ELLER company_admin med riktig org. Alle prosjekt-ruter bruker denne — aldri inline-sjekk. Ligger i `tilgangskontroll.ts`.
 
-`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`. Standalone prosjekt (`organizationId = null`) er gyldig permanent tilstand.
+`company_admin` uten `organizationId` er ugyldig — fanget i `verifiserOrganisasjonTilgang()`.
 
 **Kritiske regler:**
 - Firma-admin ser **KUN** sitt eget firmas data — absolutt umulig å se andre firmaer
@@ -297,7 +297,7 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 ## Dokumentasjons-regler (UFRAVIKELIGE)
 
 **Størrelsesbegrensninger:**
-- CLAUDE.md: maks 40k chars — overskrides aldri
+- CLAUDE.md: maks 40 960 tegn (40 × 1024) — overskrides aldri
 - STATUS-AKTUELT.md § Pågående arbeid: maks 3 aktive PRs
 - Deprioritert/planlagt arbeid → [BACKLOG.md](docs/claude/BACKLOG.md) (ikke STATUS-AKTUELT.md)
 
@@ -347,6 +347,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   2. Migrasjoner ALDRI redigeres etter merge til `main` — sikrer reproduserbarhet
   3. Cross-package-FK håndteres som svake String-felt uten Prisma `@relation` (etablert mønster i `db-maskin`)
 - **Migrasjons-backfill-disiplin** (ufravikelig fra 2026-05-26): Aldri hardkode én enkelt verdi på alle rader uten eksplisitt WHERE som matcher felt utover `domain` — bruk `prefix`/`name`/diskriminerende felt (`UPDATE ... WHERE prefix='SJA' SET subdomain='sja'` per kjent verdi, ikke én generisk default). Lærdom 2026-05-26 (HMS-mal-backfill traff SJA/RUH-maler) + oppfølger-fiks: se git-historikk.
+- **Stille tomhet er forbudt** (ufravikelig fra 2026-09-10, Kenneth-vedtak): En ny kolonne eller koblingstabell som bærer **identitet eller kobling** krever tre ting i SAMME release, ellers skal den ikke bygges: **(a) backfill** av alle eksisterende rader — en kolonne som fødes tom er en felle fra dag én · **(b) DB-garanti** mot duplikat/tvetydighet (unik eller partial unique index), slik at ingen leser må gjette · **(c) en test som FEILER når feltet er tomt** der det skal ha verdi. Krav (c) er det avgjørende — de tre sakene under ble alle funnet ved at Kenneth så noe rart på skjermen, ikke av systemet. **Utled aldri identitet fra en ikke-unik egenskap** (`find()` på et flagg flere rader deler) — det er gjetting med pen syntaks. Lærdom 2026-09-10, tre saker på tre dager: `users.ny_navigasjon` (flagg overlevde utrullingen, 10 identiske verdier, null lesere) · `group_faggrupper` (skrivevei fjernet `e14f2aa0` 23.03, tom i 22/22 prosjekter i et halvt år, ingen alarm) · HMS-gruppe-deteksjon (to grupper bar `domains:["hms"]`, `find()` plukket vilkårlig).
 - **ALDRI commit `.env`-filer — og aldri `>` mot en av dem.** Env-filer er gitignorerte og har ingen historikk; overskriver du en, finnes originalen ingen steder. Tre hendelser på fem dager (rsync uten `--exclude docker/env`, `echo > .env`, stale secret). Komplett fil-kart, gjenopprettings-grense og de fem ufravikelige reglene: [infrastruktur.md § Miljøvariabler](docs/claude/infrastruktur.md). **Skriv aldri rsync-til-server for hånd** — bruk `deploy-prod.sh`/`deploy-test.sh`, som har excludene innebygd.
 - Bilder komprimeres til 300–400 KB før opplasting
 - Alle database-endringer via Prisma-migreringer

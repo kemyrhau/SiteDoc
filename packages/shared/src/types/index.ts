@@ -408,6 +408,8 @@ export interface StandardProjectGroup {
   category: GroupCategory;
   permissions: Permission[];
   domains: Domain[];
+  /** Systemnøkkel — entydig identitet for systemstyrte grupper. null = vanlig gruppe. */
+  systemNokkel?: string;
 }
 
 export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
@@ -447,6 +449,7 @@ export const STANDARD_PROJECT_GROUPS: StandardProjectGroup[] = [
     category: "field",
     permissions: ["create_tasks", "create_checklists", "checklist_edit", "checklist_view", "task_edit", "task_view"],
     domains: ["hms"],
+    systemNokkel: "hms",
   },
   // Brukergrupper
   {

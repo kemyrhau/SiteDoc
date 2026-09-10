@@ -337,6 +337,31 @@ async function erFirmaAdmin(
 }
 
 /**
+ * Kan bruker opprette prosjekter for organisasjonen?
+ *
+ * Delegerbar rett (Kenneth-vedtak 2026-09-10): `firma_admin` ELLER
+ * `prosjekt_oppretter` i `firmaRoller`. Stilling (`ansattRolle`) gir IKKE retten —
+ * stilling er HR-data, rettighet er `firmaRoller`. Deaktivert medlem nektes.
+ * `sitedoc_admin` sjekkes separat av kallerne (bypass uavhengig av org-medlemskap).
+ *
+ * Søsken av `erFirmaAdmin` — samme OrganizationMember-oppslag, bredere rollesett.
+ */
+export async function kanOppretteProsjekt(
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  const member = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { firmaRoller: true, status: true },
+  });
+  if (!member || member.status === "deaktivert") return false;
+  return (
+    member.firmaRoller.includes("firma_admin") ||
+    member.firmaRoller.includes("prosjekt_oppretter")
+  );
+}
+
+/**
  * Er bruker firma-admin på NOEN organisasjon koblet til prosjektet?
  *
  * Delt bypass-predikat (fabel-presedens 2026-08-15: ett felles bypass-sett for
@@ -366,10 +391,14 @@ export async function erFirmaAdminForProsjekt(
 
 /**
  * Sjekk om bruker har HMS-tilgang på firma-nivå.
- * Returnerer true for: sitedoc_admin, firma-admin eller hms_ansvarlig på orgId.
+ * Returnerer true for: sitedoc_admin eller hms_ansvarlig på orgId.
  *
  * Brukes for firma-nivå HMS-dashbord: lese på tvers av firma-prosjekter,
  * inkl. private dokumenter, og behandle direkte fra firma-rad.
+ *
+ * MERK: firma_admin arver IKKE HMS-tilgang (Kenneth-vedtak 2026-09-10) — firma-HMS
+ * krever eksplisitt `hms_ansvarlig`-rolle. En firmaadmin som skal se HMS-flyten
+ * setter seg selv som `hms_ansvarlig`. Se BACKLOG.md.
  *
  * Trinn 1 av firma-HMS-dashboard (2026-05-29).
  */
@@ -384,16 +413,13 @@ export async function harFirmaHmsTilgang(
   });
   if (user?.role === "sitedoc_admin") return true;
 
-  // firma_admin eller hms_ansvarlig på orgId → ja
+  // hms_ansvarlig på orgId → ja (firma_admin arver IKKE, se docstring)
   const member = await prisma.organizationMember.findUnique({
     where: { userId_organizationId: { userId, organizationId } },
     select: { firmaRoller: true },
   });
   if (!member) return false;
-  return (
-    member.firmaRoller.includes("firma_admin") ||
-    member.firmaRoller.includes("hms_ansvarlig")
-  );
+  return member.firmaRoller.includes("hms_ansvarlig");
 }
 
 /**
@@ -789,16 +815,24 @@ export async function krevErKundeFirma(organizationId: string): Promise<void> {
  * Returnerer { erAdmin: true } for admin-brukere, { erAdmin: false } for firmaansvarlige.
  * Kaster FORBIDDEN for vanlige medlemmer.
  */
-export async function verifiserAdminEllerFirmaansvarlig(
+/**
+ * Bestem prosjekt-rollenivå UTEN å kaste på «verken admin eller firmaansvarlig».
+ *
+ * Ansettelses-/frysevaktene kaster fortsatt (de skal ALLTID blokkere). Skilt ut fra
+ * `verifiserAdminEllerFirmaansvarlig` slik at en ren gruppeansvarlig (som verken er
+ * admin eller firmaansvarlig) kan slippe gjennom porten i `medlem.registrer` og
+ * `gruppe.fjernMedlem` — der en per-gruppe-rett avgjør, ikke prosjekt-rollen.
+ */
+export async function hentProsjektRolleNivaa(
   userId: string,
   projectId: string,
-): Promise<{ erAdmin: boolean }> {
+): Promise<{ erAdmin: boolean; erFirmaansvarlig: boolean }> {
   const bruker = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true },
   });
 
-  if (bruker?.role === "sitedoc_admin") return { erAdmin: true };
+  if (bruker?.role === "sitedoc_admin") return { erAdmin: true, erFirmaansvarlig: false };
 
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
@@ -807,17 +841,48 @@ export async function verifiserAdminEllerFirmaansvarlig(
     where: { userId_projectId: { userId, projectId } },
   });
 
-  if (medlem?.role === "admin") return { erAdmin: true };
+  if (medlem?.role === "admin") return { erAdmin: true, erFirmaansvarlig: false };
 
   // O-3a: firma-admin (delt bypass-predikat, fabel-presedens) → admin
-  if (await erFirmaAdminForProsjekt(userId, projectId)) return { erAdmin: true };
+  if (await erFirmaAdminForProsjekt(userId, projectId)) return { erAdmin: true, erFirmaansvarlig: false };
 
-  if (medlem?.erFirmaansvarlig) return { erAdmin: false };
+  return { erAdmin: false, erFirmaansvarlig: !!medlem?.erFirmaansvarlig };
+}
 
+export async function verifiserAdminEllerFirmaansvarlig(
+  userId: string,
+  projectId: string,
+): Promise<{ erAdmin: boolean }> {
+  const { erAdmin, erFirmaansvarlig } = await hentProsjektRolleNivaa(userId, projectId);
+  if (erAdmin || erFirmaansvarlig) return { erAdmin };
   throw new TRPCError({
     code: "FORBIDDEN",
     message: "Krever administrator- eller firmaansvarlig-rettighet",
   });
+}
+
+/**
+ * Er brukeren gruppeansvarlig for DENNE gruppen? (`ProjectGroupMember.isAdmin`)
+ *
+ * Per-gruppe-rett (Kenneth-vedtak 2026-09-10): en gruppeansvarlig vedlikeholder
+ * medlemmene i sin egen gruppe. Rent boolsk predikat (som `erFirmaAdmin`) — kalleren
+ * kjører ansettelses-/frysevaktene (typisk via `hentProsjektRolleNivaa` i samme port).
+ */
+export async function erGruppeansvarlig(
+  userId: string,
+  projectId: string,
+  groupId: string,
+): Promise<boolean> {
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    select: { id: true },
+  });
+  if (!medlem) return false;
+  const gm = await prisma.projectGroupMember.findFirst({
+    where: { groupId, projectMemberId: medlem.id, isAdmin: true },
+    select: { id: true },
+  });
+  return !!gm;
 }
 
 /**

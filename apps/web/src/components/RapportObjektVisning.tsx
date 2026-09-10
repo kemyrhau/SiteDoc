@@ -139,6 +139,7 @@ function RepeaterBarnVedlegg({
   vedlegg: Array<{ id: string; type: string; url: string; filnavn: string; opprettet?: string }>;
   kommentar: string;
 }) {
+  const { t } = useTranslation();
   const harVedlegg = vedlegg.length > 0;
   const harKommentar = kommentar.length > 0;
   if (!harVedlegg && !harKommentar) return null;
@@ -172,7 +173,7 @@ function RepeaterBarnVedlegg({
       )}
       {filer.length > 0 && (
         <p className="mt-1 text-xs text-gray-600">
-          Filer: {filer.map((f) => f.filnavn).join(", ")}
+          {t("rapportVisning.filer")} {filer.map((f) => f.filnavn).join(", ")}
         </p>
       )}
     </div>
@@ -531,7 +532,6 @@ function ObjektInnhold({
 /* ------------------------------------------------------------------ */
 
 const DETALJ_ZOOM = 4;
-const BILDE_TYPER = ["png", "jpg", "jpeg", "gif", "webp"];
 
 /** Rendrer første side av en PDF/bilde til en data-URL via canvas */
 function useTegningSomBilde(url: string | null, erPdf: boolean): string | null {
@@ -657,13 +657,13 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): {
 
         const resultat = canvas.toDataURL("image/png");
         if (!avbrutt) { setDetaljUrl(resultat); setKlar(true); }
-      } catch (e) {
+      } catch {
         // Canvas feilet — faller tilbake til oversiktsbilde
         if (!avbrutt) setKlar(true);
       }
     };
 
-    img.onerror = (e) => {
+    img.onerror = () => {
       // Bilde kunne ikke lastes — faller tilbake
       if (!avbrutt) setKlar(true);
     };
@@ -677,6 +677,7 @@ function useDetaljCanvas(bildeSrc: string | null, posX: number, posY: number): {
 }
 
 export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
+  const { t } = useTranslation();
   const { data: tegning } = trpc.tegning.hentMedId.useQuery(
     { id: pos.drawingId! },
     { enabled: !!pos.drawingId },
@@ -717,7 +718,7 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
     return (
       <div data-utskrift-venter="">
         <p className="text-sm font-medium text-gray-700">{visNavn}</p>
-        <p className="mt-1 text-xs text-gray-400">Laster tegning…</p>
+        <p className="mt-1 text-xs text-gray-400">{t("tegningsvelger.lasterTegning")}</p>
       </div>
     );
   }
@@ -726,7 +727,7 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
     return (
       <div>
         <p className="text-sm font-medium text-gray-700">{visNavn}</p>
-        <p className="mt-1 text-xs text-red-400">Kunne ikke laste tegning</p>
+        <p className="mt-1 text-xs text-red-400">{t("rapportVisning.kunneIkkeLasteTegning")}</p>
         <p className="mt-0.5 text-[10px] text-red-300 break-all">{bildeSrc.replace("error:", "")}</p>
       </div>
     );

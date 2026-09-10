@@ -117,6 +117,626 @@ api-tester — **ingen av dem er enhetstester på mobil-logikk.**
 **Ikke ordre.** Å legge inn jest/vitest med RN-preset er reell infra-endring som flytter
 baselinen og krever godkjenning. **Kenneth-beslutning.**
 
+### 🟢 LUKKET 2026-09-08 — PSI scroll-gate er IKKE en manglende sikkerhetsgate
+
+⚠️ **Skrevet ned for at ingen skal etterforske dette en tredje gang.**
+
+`harScrolletNed` / `innholdKortNok` står som ubrukte variabler i **både** web
+(`app/psi/[prosjektId]/page.tsx:343,374`) og mobil (`app/psi/[psiId].tsx:72,168`).
+De settes av scroll-lyttere, men `kanVidere` / `kanGåVidere` leser dem aldri.
+
+🔴 **Det ser ut som et håndhevingshull. Det er det ikke.**
+
+**`547261c4` (2026-04-03):** *«Neste-knapp alltid aktiv for tekst/bilde-seksjoner — Fjerner
+scroll-krav for rene innholdsseksjoner. Kun quiz, video og signatur har krav. Gjelder både web og
+mobil.»*
+
+🟢 **Kravet ble bevisst fjernet.** Commiten slettet `return harScrolletNed || innholdKortNok;` fra
+`kanVidere`. Variablene og lytterne ble stående som rester.
+🟢 **Ingen doc i `docs/claude/` beskriver noe lesekrav** — `mannskap.md` nevner quiz, video og
+signatur, ikke lesing. **Det eneste belegget peker motsatt vei.**
+
+⚠️ **Coworks feil, ført så den ikke gjentas:** cowork sluttet fra ubrukte variabler til en manglende
+sikkerhetsgate og presenterte det for Kenneth som en etterlevelsessak. **Slutning, ikke måling.**
+
+🔴 **Og logikken tåler ikke å slås på igjen som den står:**
+- **Web:** høyden sjekkes ÉN gang 100 ms etter seksjonsbytte, uten `ResizeObserver`. Bilder er
+  `loading="lazy"` → `scrollHeight` er ofte feil ved måletidspunktet.
+- **Mobil:** `innholdKortNok` settes inne i `onScroll`. **En kort, ikke-scrollbar seksjon utløser
+  aldri `onScroll`** → arbeideren ville låses ute av en seksjon han ikke kan scrolle.
+
+**Skal «må lese før signering» gjeninnføres, er det et produktvedtak — og robustheten må bygges på
+nytt før noe kobles inn.**
+
+### 🔴 MOBIL-PSI: seksjonen vises fullført selv når serveren avviste signeringen
+
+**Funnet av dokgen 2026-09-09** mens web-varianten ble fikset (`fix/web-psi-signering`).
+
+`apps/mobile/app/psi/[psiId].tsx`:
+- `:189` `setSeksjonFullfort(...)` — **kjører før sendingen**
+- `:193` `await ...mutateAsync(...)`
+- `:199-201` `try/catch` → `Alert`
+
+🟢 **Feilen er synlig på mobil** — arbeideren får beskjed (`Alert`).
+🔴 **Men den grønne progresjonen viser seksjonen som fullført likevel**, fordi
+`setSeksjonFullfort` alt har kjørt. **Beskjed og skjermbilde sier motsatt ting.**
+
+**Web-varianten er rettet** i `2ee6e343`: i signaturgrenen markeres seksjonen fullført **kun
+etter** serverbekreftelse. 🔴 **Mobil har samme rekkefølge, samme fiks gjenstår.**
+
+⚠️ **Ikke bygget fordi `apps/mobile/app/psi/[psiId].tsx` var kontrollplans fil i
+`fix/stille-mutasjoner`.** **Egen liten runde når den branchen er merget** — mønsteret ligger
+ferdig i web-fiksen.
+
+### 🟠 PSI-GJESTEFLATEN ER HARDKODET NORSK — arbeideren signerer på et språk han kanskje ikke leser
+
+**Funnet av dokgen 2026-09-09.** `apps/web/src/app/psi/[prosjektId]/page.tsx` bruker **ikke**
+`t()`. Hele chrome-en er norsk i koden: «Forrige», «Neste», «Bekreft og signer».
+Selve *innholdet* oversettes via `spraak`-prop, ikke i18next — **to ulike mekanismer i samme
+flate.**
+
+🔴 **Dette er den offentlige innføringen arbeidere signerer.** For A.Markussen — anleggsbransjen
+i Tromsø, med polsk- og litauisktalende arbeidskraft — betyr det at innholdet kommer på eget
+språk, mens knappene som utfører signeringen ikke gjør det.
+
+⚠️ **`t()` er ikke riktig fiks alene:** i18nexts aktive språk er ikke nødvendigvis gjestens valgte.
+🟢 **Mønsteret finnes:** dokgen brukte `i18n.getFixedT(spraak)` for feilmeldingen i `2ee6e343` —
+i18n-nøkler bundet til gjestens språk. **Resten av chrome-en kan følge samme vei.**
+
+### 🟡 CLAUDE.md § Admin-arkitektur hører i en detalj-fil — men Kryssorg-deling har ingen hjem
+
+**Målt av dokgen 2026-09-09** under duplikat-gjennomgangen av CLAUDE.md.
+
+§ Admin-arkitektur og roller er **~2 500 tegn** — den største enkeltposten mot 40 960-taket, og
+CLAUDE.md sier selv at utdypning hører i `docs/claude/`, ikke i indeksen.
+
+🔴 **Men det er ikke en flytting.** § Kryssorg-deling (`eksternDeling`, «kun push, aldri pull»,
+«varsling ≠ deling», «ingen duplikater») har **null treff** i `arkitektur.md` og
+`forretningslogikk.md`. **Innholdet finnes ingen andre steder.**
+
+**To-stegs jobb når den tas:** (1) skriv innholdet til målfila og verifiser at det er komplett,
+(2) erstatt seksjonen i CLAUDE.md med en peker. 🔴 **Aldri i motsatt rekkefølge.**
+
+🟢 **Ikke hastverk:** fila er 40 179 av 40 960 tegn. Duplikatrensen 2026-09-09 høstet ~275 tegn —
+**duplikater er ikke det som fyller fila.** Skal den varig under taket, er det denne saken.
+
+⚠️ **Målefelle oppdaget samme dag: tegn ≠ bytes.** Dokgen målte **39 848 tegn** etter rensen;
+merge-agenten målte **40 045 bytes** på samme fil. Norske tegn (æ, ø, å) er to bytes i UTF-8, og
+CLAUDE.md er full av dem. 🔴 **`wc -c` gir bytes og kan vise «over 40 000» på en fil som er godt
+under taket. Bruk `wc -m`.** Taket er presisert til «40 960 tegn» — men *hvordan* det måles står
+ikke noe sted, og to agenter fikk to tall på én dag. **Tas med neste gang CLAUDE.md § Dokumentasjons-
+regler røres.**
+
+### 🔵 To døde rader i `bruker_innstilling` på test — kjent, ikke slettet
+
+**Etterlatt av fase 1** (`15ef9602`), som skrev **én global rad med JSON-map**. Strukturen ble
+rettet i `fe226986` til **én rad per prosjekt**.
+
+**Målt i `sitedoc_test` 2026-09-10 kl. 10:26:**
+
+| Nøkkel | `project_id` | Status |
+|---|---|---|
+| `sistByggeplassPerProsjekt` | `NULL` | 🔵 **død** — stempel 09:30, ingen leser den |
+| `sistTegningPerByggeplass` | `NULL` | 🔵 **død** — samme |
+| `sistBruktByggeplass` | satt (×2) | 🟢 gjeldende — stempel 10:26 |
+| `sistBruktTegning` | satt (×2) | 🟢 gjeldende |
+
+🟢 **Ingen leser de to gamle.** Web bruker ikke brukerminnet i det hele tatt (målt: 0 treff i
+`apps/web`); ny klient leser andre nøkkelnavn med `project_id != null`-guard.
+🟢 **Prod har aldri hatt tabellen** — dataene finnes kun på test.
+
+🔴 **Ikke slettet, fordi CLAUDE.md sier «ALDRI slett eksisterende data».** Standardvalget er å
+la dem ligge. **Kenneth har fått spørsmålet to ganger og ikke gatet sletting** — det er et
+gyldig svar, og oppføringen her erstatter behovet for å måle på nytt.
+
+**Skal de bort senere:**
+`DELETE FROM bruker_innstilling WHERE nokkel IN ('sistByggeplassPerProsjekt','sistTegningPerByggeplass') AND project_id IS NULL;`
+🔴 **Krever Kenneth-gate — det er en data-migrering.**
+
+### 🟢 BESTILT 2026-09-09 — brukerminne på server (fase 1 av to)
+
+> **Kenneth:** *«serveren bør lagre innstillinger → slik at mobil reinstallasjon ikke påvirkes»*
+> · *«brukerminne på server → ja»*
+
+**Utløst av at Kenneth reinstallerte appen 09.09 og opplevde at opprett-flyten oppførte seg
+annerledes** — «sist brukt tegning» var borte, og auto-utfyllingen hadde bare GPS å gå på.
+
+**Målt av cowork 2026-09-09:**
+
+| Hva | Status |
+|---|---|
+| Brukerinnstillings-modell på server | 🔴 **finnes ikke** |
+| Preferanser på mobil | **17 bruk av `SecureStore`** — alt lokalt, dør med appen |
+
+⚠️ **Sidefunn:** `SecureStore` er for hemmeligheter, ikke preferanser. **Verifiser om noen av de
+17 faktisk er preferanser som hører i vanlig lagring.**
+
+## Omfang — ubesvart, må gates før ordre
+
+🔴 **HVILKE innstillinger skal bo på server?** Kandidater: sist brukt byggeplass · sist brukt
+tegning · språk · filtervalg · «ny navigasjon»-flagget. **Kenneth avgjør — dette er et
+produktvalg, ikke en teknisk detalj.**
+
+**Åpne spørsmål:** per bruker eller per bruker×prosjekt? Skriv ved hver endring eller ved
+lukking? Hva vinner ved konflikt mellom to enheter?
+
+🟢 **Dette er dessuten en forutsetning for fase 2** — serveren må kunne huske noe om brukeren før
+den kan huske noe om enheten hans.
+
+### 🟡 DESIGNSAK TIL FABEL — offline-klargjøring som serveren kjenner (fase 2)
+
+> **Kenneth:** *«hvis mobilen er installert for offline → serveren vet det og gjør opplastinger
+> til mobilen»* · *«offline oppdatering ved reinstallasjon/oppdatering av app → må gjøres grundig»*
+
+**Målt:** `apps/mobile/src/services/offlineKlargjoring.ts` finnes og laster ned tegninger, IFC og
+bilder til lokal lagring — 🔴 **men mobilen initierer. Serveren vet ingenting.**
+
+🔴 **Kenneths ønske snur retningen: fra PULL til PUSH.** Det krever at serveren kjenner
+**enheter**, ikke bare brukere:
+
+- hvilken telefon som har hvilket prosjekt klargjort
+- hva den allerede har lastet ned
+- hva som er kommet til siden sist
+- hva som skjer ved reinstallering og ved app-oppdatering
+
+⚠️ **Henger sammen med de åpne offline-sakene:** dialogen har ingen utgående kø
+(`opplastingsKo` er kun bilder, `schema.ts:39`), og kommentar-kø ble utsatt som egen sak 09.09.
+**En enhetsbevisst server berører begge.**
+
+🔴 **Dette er en FASE, ikke en runde. Kenneth: «må gjøres grundig».** Til fabel som designsak —
+**ingen ordre før designet er låst.**
+
+### 🔴 MODELLSPØRSMÅL: er faggruppe en EGENSKAP eller et RESULTAT? (Kenneth 2026-09-09, ubesvart)
+
+> **Kenneth:** *«faggruppe er ikke en registrering → det er et resultat av dokumentflyten du
+> legges inn i»*
+
+**Hierarkiet flaten viser** (`oppsett/produksjon/dokumentflyt`): **Faggruppe → dokumentflyter →
+ledd**, der leddene bemannes av brukergrupper og enkeltpersoner.
+
+🔴 **Men koden lagrer faggruppe som en uavhengig kobling, ikke som en avledning:**
+
+| Hva | Målt |
+|---|---|
+| `FaggruppeKobling` | `schema.prisma:674-685` — egen tabell, `@@unique([projectMemberId, faggruppeId])` |
+| **Skrives fra syv steder** | `medlem.ts:289` (registrer) · `:534`/`:566` (direkte redigering) · `faggruppe.ts:73,132` · `prosjekt.ts:545` · `ansatt.ts:112` |
+| **Styrer tilgang** | `tilgangskontroll.ts:145-159`, `:896` |
+| 🔴 **«N personer» pr. faggruppe** | `dokumentflyt/page.tsx:1066-1077` — leser `m.faggruppeKoblinger`, **IKKE flyt-deltakelse** |
+
+⚠️ **Og det finnes en arvet vei ved siden av:** `tilgangskontroll.ts:960` leser
+`groupFaggrupper` — brukergrupper bærer faggrupper, medlemmer arver dem.
+**To kilder til samme ting.**
+
+⚠️ **Coworks eksempel var FEIL og er strøket.** Cowork påstod at Grete Koordinator stod i to
+Byggherre-flyter uten faggruppe. **Kenneth korrigerte:** hennes flyter er `HE-Ansatte → HE Leder`
+og `HE Leder → HE Ansatte` — **HE-flyter, ikke Byggherre-flyter.** Cowork leste skjermbildet av
+Byggherre-faggruppen og Gretes personkort som samme sak.
+
+🔴 **Kenneths egen hypotese, ikke motbevist:** *«HE-ansatte er ikke med i noen byggherreflyter →
+jeg tror Grete må være opprettet ulovlig»* — altså en **testbruker opprettet uten
+faggruppe-kobling**, ikke en modellfeil.
+🟢 **Støttes av at `@test.sitedoc.no`-brukerne ikke finnes i noen seed i repoet** — de er
+opprettet direkte mot test-DB.
+
+## 🟢 AVKLART 2026-09-09 ved DB-måling mot `sitedoc_test`
+
+**Kenneths hypotese bekreftet: dette er datakvalitet, ikke en modellfeil.**
+
+| Måling | Resultat |
+|---|---|
+| Prosjektmedlemmer uten `dokumentflyt_koblinger`-rad | **21** — spredt over apr/mai/jul/aug/sep 2026 |
+| Flyt-deltakelser uten faggruppe | **36** rader |
+| 🔴 **Brukergrupper med faggruppe-kobling (`group_faggrupper`)** | **0 av 16 — tabellen er TOM** |
+
+**Mønsteret:** de som mangler er HE-folk (`HE - Leder`, `HE - Ansatte`) og demo/test-brukere.
+De med faggruppe er Byggherre-, Tømrer- og Elektro-folkene. **Faggruppe kommer altså direkte,
+aldri arvet.**
+
+🔴 **Konsekvens for rydding:** maskinell avledning er umulig — det finnes ingen kilde å utlede
+fra. **Manuell rydding, og kun av testbrukere som faktisk brukes i testing** (HE-folkene står i
+7 og 2 flyter hver). Demo-restene (`demo-timer.test`, `demo.sitedoc.no`, dupliserte
+`Ola Tømrer`/`Per Prosjektadmin`) trenger ingen.
+
+🟢 **Modellspørsmålet er dermed ikke blokkerende for pilot.** Divergensen finnes i teorien, men
+alle observerte tilfeller er testdata. **Vedtaket under kan tas i ro.**
+
+### 🟢 AVKLART 2026-09-09 — `group_faggrupper` er HALVFERDIG, ikke død. IKKE RYDD.
+
+⚠️ **Skrevet ned fordi cowork tok feil to ganger på rad her.** «Null kallere» er **ikke** bevis
+for død kode i denne kodebasen.
+
+**Målt av kontrollplan + Kenneth 2026-09-09:**
+
+| Spørsmål | Svar |
+|---|---|
+| Rader i `group_faggrupper`, `sitedoc_test` | **0 av 16 grupper** |
+| Rader i `group_faggrupper`, **PROD** | 🔴 **0 av 22 grupper** |
+| Har `gruppe.oppdaterFaggrupper` hatt en kaller? | 🟢 **Ja** — het `oppdaterEntrepriser`, kalt fra `oppsett/brukere/page.tsx` |
+| Hvorfor forsvant den? | 🔴 **Fjernet BEVISST** i `e14f2aa0` (2026-03-23): «Fjern Fagområder og Tilknyttede entrepriser fra gruppe-redigering», 78 linjer |
+| Skal den tilbake? | 🟢 **Ja** — `delplaner/spor1-gruppe-dokumentflyt-spec-nedbryting.md` **Ordre 1.3**, låst plan (fabel 2026-08-05 + Kenneth-vedtak) |
+
+## 🔴 Tom-grenen er en KORREKT fallback — og den gir BREDERE tilgang
+
+`tilgangskontroll.ts:1265-1287`:
+- **Tom** `groupFaggrupper` → `{ template: { domain: { in: gruppeDomener } } }` — **tverrgående**,
+  gruppen ser alle dokumenter i sine domener
+- **Fylt** → `domain` **OG** faggruppe — **begrenset**
+
+Dokumentert i `apps/api/src/trpc/CLAUDE.md` og `arkitektur.md:257`.
+
+🔴 **KONSEKVENS SOM MÅ HUSKES NÅR ORDRE 1.3 BYGGES:** alle 22 produksjonsgrupper kjører i dag på
+den tverrgående fallbacken. **Å fylle tabellen STRAMMER INN tilgangen for alle samtidig.**
+Medlemmer vil **miste** innsyn i dokumenter utenfor de koblede faggruppene — ingen får noe nytt.
+**Det er ikke en privilege-eskalering, men det er en synlig regresjon for brukeren hvis den kommer
+uvarslet.** Ordre 1.3 (`:62`) har alt en advarsel om nabo-effekten.
+
+### ⚠️ MØNSTER 2026-09-09: «null kallere» ≠ død kode i SiteDoc
+
+**Tre saker samme dag, tre ulike utfall — og cowork gjettet feil på to av dem:**
+
+| Sak | Utfall | Belegg som avgjorde |
+|---|---|---|
+| PSI-scrollrester | 🟢 **Ryddet** (`51b6de21`) | `547261c4` fjernet kravet bevisst, ingen spec beskrev det |
+| `group_faggrupper` | 🔴 **Beholdes** | `e14f2aa0` fjernet inngangen bevisst, **men spor1 Ordre 1.3 fører den tilbake** |
+| `harOrgRolle` · `verifiserTillatelse` | 🔴 **Beholdes** | `fase-0-beslutninger.md:531,601` og `arkitektur.md:150` — **planlagte, ikke forlatte** |
+
+🔴 **Regelen:** før noe fjernes som «ubrukt», mål **hvorfor det forsvant** (`git log -S` på
+gammelt OG nytt navn) **og om en aktiv plan fører det tilbake** (søk i `docs/claude/delplaner/`
+og `fase-0-beslutninger.md`). **Kallertelling alene er et stedfortredertall** — jf.
+SAMARBEIDSREGLER 10e.
+
+🟢 **`hentBrukerFaggruppeIder` (`tilgangskontroll.ts:131`) er den ENESTE av de tre med treff kun i
+`docs/arkiv/`.** Den er fortsatt en kandidat — **men ikke bestilt, og ikke uten samme sjekk.**
+
+## 🔴 Ubesvart — dette er vedtaket som må tas først
+
+**Skal den direkte `FaggruppeKobling` bort, slik at faggruppe kun følger av hvor du er meldt inn?**
+
+- **Ja** → treffer tilgangskontrollen (`:145-159`, `:896`), syv skrivesteder, personkortets
+  faggruppe-redigering, og **fabels § 4** som i dag sier *«Faggruppe = en egenskap ved personen
+  — redigeres på kontakten»*.
+- **Nei** → da skal tellingen og hierarkiet i dokumentflyt-flaten forklares, ikke leses som en
+  avledning.
+
+🔴 **Ingenting bestilles før dette er avklart.** Dagens tredje modellspørsmål — det forrige
+(flyt-tillegg fra personkortet) ble tiltrådt og trukket innen få timer fordi konsekvensen ikke
+var målt først.
+
+### 🟠 FIRMAADMIN HAR INGEN SAMLET FLATE FOR DOMENER OG PROSJEKTMODULER (Kenneth på test 2026-09-09)
+
+> **Kenneth:** *«domener → har vi domenetilknytning noen steder → mangler link til moduler og
+> domener for firmaadministratorer»*
+
+**Målt 2026-09-09.** 🔴 **Domene er ikke en etikett — det styrer reelle rettigheter:**
+
+| Sted | Hva domene gjør |
+|---|---|
+| `apps/api/src/trpc/tilgangskontroll.ts:410-431` | `erHmsAdmin` — medlemskap i gruppe med `domains: ["hms"]` gir **HMS-admin** |
+| `apps/api/src/routes/modul.ts:21-32` | auto-oppretter HMS-gruppen på `domains: ["hms"]` |
+| `apps/api/src/routes/sjekkliste.ts:124` | guard — blokkerer maler på feil domene |
+| `apps/web/src/components/hms/hms-utils.ts:25` | avgjør om en gruppe ER HMS-gruppen |
+
+**Domener settes kun per prosjekt:** `oppsett/brukere/_components/BrukergruppeFane.tsx:164-172`
+→ `gruppe.oppdaterDomener` (`gruppe.ts:369-384`). Prosjektmoduler tilsvarende
+(`gruppe.ts:387-401`).
+
+🔴 **`dashbord/firma/moduler` styrer FIRMAmoduler** (timer, maskin, kompetanse, varelager) —
+**ikke domener og ikke prosjektmoduler.** Siden lenker selv videre til prosjekt-flaten
+(`firma/moduler/page.tsx:232-239`).
+
+**Konsekvens:** en firmaadmin med tjue prosjekter må inn i hvert enkelt for å sette domener.
+🟢 **Ikke et sikkerhetshull** — `verifiserAdmin` dekker firmaadmin. **En manglende flate.**
+
+⚠️ **Avklar først om per-prosjekt er tilsiktet.** Domener kan være bevisst prosjektnære.
+
+### 🟠 HMS-GRUPPEN TRENGER FORKLARING I UI — medlemskap gir HMS-admin (Kenneth 2026-09-09)
+
+> **Kenneth:** *«denne trenger instruksjon → hvem skal være medlem her → er dette alle kontakter
+> → eller skal det kun være administratorer. Her er det rom for å misforstå oppsett.»*
+
+🔴 **Bekymringen er berettiget, og målingen forklarer hvorfor:** medlemskap i en gruppe med
+`domains: ["hms"]` gir **HMS-admin-rettigheter** (`tilgangskontroll.ts:410-431`). Gruppen
+opprettes automatisk av `modul.ts:21-32` når HMS-modulen slås på.
+
+**«Noen kan tro at alle skal være med her» er ikke bare et forståelsesproblem — det ville gitt
+alle HMS-admin.**
+
+🟢 **`ProjectGroup.domains` er et array** (`schema.prisma:696`), så gruppen *kan* bære flere
+domener enn HMS. **Om den bør det er et produktvalg — ubesvart.**
+
+**Tiltak, ikke bestilt:** hjelpetekst på gruppen som sier hva medlemskap gir. Kenneth må gate
+ordlyden; ordlyden hører i `hjelpetekster.md`-konvensjonen.
+
+### 🔵 To WIP-diagnostikkbranches fra 2026-09-04 står umerget — avklar før de ryddes
+
+**Målt av cowork 2026-09-09** da merge-køen ble tømt:
+
+| Branch | Siste commit | Utenfor develop | Status |
+|---|---|---|---|
+| `wip/diag-exif` | 2026-09-04 | 2 commits | 🔴 ikke merget |
+| `wip/diag-ko-trigger` | 2026-09-04 | 1 commit | 🔴 ikke merget |
+| `redesign/navigasjon` | 2026-07-15 | 0 commits | 🟢 merget — langlivet spor per CLAUDE.md, **rør ikke** |
+
+De to WIP-branchene bærer diagnostikk fra EXIF- og kø-feilsøkingen 03.–04.09 (samme døgn som de
+fem lærdommene i SAMARBEIDSREGLER). 🔴 **Innholdet er ikke lest.** Diagnostikk-kode er ofte
+midlertidig, **men den kan bære målinger ingen andre steder har.**
+
+**Før sletting:** les de tre commitene og fang eventuelle målinger inn i en aktiv sannhetskilde.
+🔴 **Ikke slett på alder alene.**
+
+### ⏸️ UTSATT MED VILJE 2026-09-09 — maskinoversettelsene er kontekstløse. IKKE START HER.
+
+> **Kenneth-vedtak 2026-09-09:** *«skal vi ikke heller utsette dette og rette når vi er lenger i mål
+> med selve hovedproblemet → rydde i alle feil vi har og funksjoner som mangler. Språk er noe vi bør
+> se på senere → nå fungerer det på et vis → men vi fikser noe nå → om 3 uker slumper en agent borti
+> at noe har driftet og vi starter å fikse på feil plass igjen.»*
+
+🔴 **Denne oppføringen finnes for å STOPPE den agenten.** Ser du en rar oversettelse: **det er
+kjent, det er målt, og det skal ikke fikses stykkevis.**
+
+**Målt av cowork 2026-09-09** — samme norske tekst oversatt ULIKT på ulike nøkler:
+
+| | Antall |
+|---|---|
+| Norske tekster som gjenbrukes på flere nøkler | 443 |
+| **Inkonsistente på tvers av de 13 genererte språkene** | 🔴 **1 089** |
+| Per språk | 68 (sq) – 97 (ro) |
+| **`en.json` — masteren selv** | ⚠️ **62** |
+
+**Konkrete eksempler, polsk:**
+
+| Norsk | Genereres til | Betyr faktisk |
+|---|---|---|
+| **Mapper** | `Lornetka składana` | 🔴 **sammenleggbar kikkert** |
+| **Oppsett** | `Organizować coś` | «å organisere noe» — verb, ikke menypunkt |
+| **Byggeplasser** | `Witryny` | utstillingsvinduer / nettsteder |
+| **Dokumentflyt** | `Przepływ wykonawców` | «flyt av entreprenører» |
+| **Timer** | fire ulike verdier | — |
+
+🔴 **Rotårsaken:** generatoren oversetter **nøkkel for nøkkel uten kontekst**, og vet ikke at to
+nøkler bærer samme ord i ulike betydninger. **Ikke alle 1 089 er feil** — enkelte kontekst-
+forskjeller er riktige. **Det er nettopp derfor dette krever klassifisering, ikke en fiks.**
+
+**Belegg for at problemet er reelt, ikke teoretisk:** fabel + en Opus-agent gjennomgikk **18**
+`standardopsjon.*`-nøkler på pl/lt/sq 2026-09-02
+([ks-hms-terminologi-pl-lt-sq-fabel-2026-09-02.md](../redesign/ks-hms-terminologi-pl-lt-sq-fabel-2026-09-02.md))
+og fant **7 blokkerende feil** — deriblant lt `Netoliese` («i nærheten») og sq `Gati miss`
+(halvoversatt engelsk) som term for **nestenulykke**, kjernebegrepet i RUH-flaten.
+🟢 **De 18 er rettet.** 🔴 **Skalerer funnraten, snakker vi hundrevis av termer som må vurderes
+av noen som kan språkene.**
+
+⚠️ **Feilen lever fortsatt i søsken-nøkler utenfor fabels omfang.** Målt eksempel:
+`okonomi.ikkeBehandlet` bærer nøyaktig ordene fabel forkastet — pl `Nieprzetworzone`,
+lt `Neapdorotas`, sq `I pa përpunuar` («uprosessert», som om det gjaldt data eller matvarer) —
+mens `standardopsjon.ikkeBehandlet` er rettet. **Én av 1 089. Ikke fiks den alene.**
+
+## 🔴 Når saken tas opp — rekkefølge
+
+1. **Klassifiser de 1 089:** ekte feil · legitim kontekstforskjell · høy synlighet (navigasjon,
+   knapper, statuser). **Uten dette tallet vet ingen om jobben er 50 termer eller 800.**
+2. **Rydd `en.json` først** — masteren har 62 egne inkonsistenser, og alt genereres fra den.
+3. **Språkkyndig gjennomgang** (fabel-mønsteret fra 02.09) på det klassifiseringen rangerer høyest.
+4. **QA-regel framover:** skal kontekst-QA være del av DoD for nye nøkler, eller en periodisk
+   runde? **Ubesvart — spørsmålet er ikke stilt til fabel ennå, bevisst, jf. vedtaket over.**
+
+🟢 **Inntil da fungerer flatene.** Feilene er stygge og enkelte er pinlige, men de blokkerer ingen.
+**Hovedproblemet er feil og manglende funksjoner. Dette venter.**
+
+### 🟢 AVKLART 2026-09-10 — språkarbeid er IKKE på kritisk vei før pilot
+
+**Fabel 2026-09-10:** språk-renamen (de 11 `brukere.*`-verdiene, «Tilgangsgruppe» → «Brukergruppe»
+i de 13 genererte språkene) *«bør før pilot hvis pilotbrukerne kjører andre språk enn nb/en»*.
+
+> **Kenneth 2026-09-10:** *«det er ingen av testerne som benytter andre språk i dag — men vi skal
+> ikke slutte støtten»*
+
+🟢 **Konsekvens: renamen og oversettelsessaken kan begge vente.** Ingen pilotbruker treffer dem.
+🔴 **Men støtten består — språk skal ikke fjernes eller nedprioriteres bort.** Når saken tas,
+tas den helt: `en.json` ryddes først, så klassifisering, så språkkyndig gjennomgang.
+
+⚠️ **Endres testerlisten** — får A.Markussen inn folk som kjører polsk, litauisk eller annet —
+**flytter dette seg til kritisk vei umiddelbart.** `standardopsjon.nestenulykke` var ødelagt på
+to av tre språk før fabels runde 02.09; RUH-flaten er den de faktisk melder farlige forhold i.
+
+### 🔴 i18n-GENERATOREN BÆRER 132 NØKLERS DRIFT — den som kjører den drar dem med (funn 2026-09-09)
+
+**Målt av dokgen under `fix/dialog-offline`:** `pnpm dlx tsx src/i18n/generate.ts` la **134 nøkler**
+i de 13 genererte språkfilene. **Kun 2 var hans.** De øvrige **132 er pre-eksisterende drift** —
+nøkler som finnes i `nb`/`en` men aldri er generert ut, blant dem `brukere.*` og `kontrollplan.*`.
+
+🔴 **Konsekvensen er en kollisjonsfelle, ikke bare støy.** En agent som legger to nøkler og kjører
+generatoren, pusher en diff på 134 nøkler — inkludert nøkler en **annen** agent renamer i samme
+periode. Dokgen unngikk det ved å reversere de 13 filene og sette inn kun sine egne to.
+
+⚠️ **Det er en manuell manøver hver agent må gjenta.** Ingen gate fanger den; diffen ser ut som
+normalt generator-arbeid.
+
+**Tiltak, ikke bestilt:** enten generer ut de 132 i en egen, isolert runde når ingen renamer i18n
+— eller la generatoren skrive kun nøkler som mangler i målspråket. **Rekkefølgen betyr noe:**
+gjøres opprydningen mens Kontakter fase 2 er under bygging, kolliderer den med renamet der.
+
+### 🟠 KONTAKTER-SIDEN: for mange steder å administrere det samme (Kenneth på test 2026-09-08)
+
+Fem observasjoner fra `/dashbord/oppsett/brukere` etter at faggruppe-medlemskap ble koblet.
+**Feltfunn-liste, ikke ordre.**
+
+#### 🔴 1. «Tilgangsgruppe» heter `brukergrupper` i koden — målt
+
+`page.tsx:520`: tabellen grupperes på `dbGrupper.filter(g => g.category === "brukergrupper")`.
+Variabelen heter `brukerGrupperListe`. **DB-kategorien er `brukergrupper`.**
+**UI-et sier «Tilgangsgrupper» og «+ Ny tilgangsgruppe».**
+
+> **Kenneth:** *«tilgangsgruppe → er ikke det egentlig brukergruppe eller kontaktgruppe»*
+
+🔴 **To navn på samme ting — ett i kode/DB, ett på skjermen.** Samme klasse som
+«entreprise»/«faggruppe» og `checks: ["state"]`: et navn som beskriver noe annet enn innholdet.
+**Kenneth-vedtak nødvendig: hvilket navn vinner?** Deretter rename én vei, og inn i
+[terminologi.md](terminologi.md).
+
+⚠️ **Tre kandidater, og de betyr ikke det samme:** «tilgangsgruppe» (hva den styrer — moduler og
+domener) · «brukergruppe» (hva den inneholder) · «kontaktgruppe» (hva sida heter).
+
+#### 🟡 2. Faggruppe er en kolonne, ikke en struktur
+
+Tabellen er **gruppert på brukergruppe**. Faggruppe-medlemskap vises per rad.
+🟢 Koblingen virker (`ed21b640`), men **du kan ikke se hvem som er i en faggruppe ved å lese
+strukturen** — bare ved å skanne en kolonne. **Ingen faggruppe-gruppering finnes.**
+
+#### 🔴 3. «Legg til bruker i dokumentflyt» er det vanskeligste å finne
+
+> **Kenneth:** *«Den verste plassen å finne er legg til en bruker i dokumentflyt»*
+
+Handlingen ligger på **`+`-ikonet i gruppe-overskriftsraden** (blyant · `+` · søppelbøtte), som er
+lett å lese som pynt. **Ikke målt hvilken handling hvert av de tre ikonene faktisk gjør** — det er
+første steg hvis dette tas.
+
+#### 🟡 4. To ulike «legg til»-knapper, ulik betydning
+
+`+ Ny kontakt` (blå) oppretter **ny** person. `Legg til fra firmaet` henter **eksisterende**.
+🔴 **Den blå er den mest fremtredende, men den sjeldnere handlingen** — de fleste skal hente en
+ansatt som alt finnes.
+
+#### 🟡 5. Fire administrasjonssteder på én side
+
+Flyt-chips · gruppe-chips · FAGGRUPPER-kolonne · TILGANGSGRUPPER-kolonne · tre ikoner per
+gruppeoverskrift · tre knapper i toppen. **Kenneth:** *«det er litt mange plasser å administrere
+denne siden»*.
+
+🔴 **Dette er informasjonsarkitektur, ikke en bug — fabels sak.** Men den bør ikke sendes før
+punkt 1 er avgjort: **et navnevedtak endrer hva flatene heter, og dermed hva som skal grupperes.**
+
+#### 🟢 KENNETH-FORSLAG 2026-09-08 — splitt flaten i tre nivåer
+
+> **Kontakter** → ren kontaktliste (navn, e-post, telefon, firma) — **redigerbar her**
+> **Brukergrupper** → kort med kun navnene, lite ikon bak (les/rediger)
+> **Åpne gruppen** → medlemmene + hvilke tilganger gruppen har
+> **Trykk på et navn** → kort med telefon, e-post, firmatilknytning, og hvilke dokumentflyter
+> medlemmet er med i
+
+**Målt at modellen bærer det:**
+
+| Del | Datagrunnlag |
+|---|---|
+| Kontaktliste | 🟢 Alt finnes på `user` — navn, e-post, telefon, rolle, `canLogin`, HMS-kort. **Ingen avledning** |
+| Gruppekort | 🟢 `dbGrupper` har `name`, `category`, `domains`, `members` |
+| Gruppens tilganger | 🟢 `domains` **ER** tilgangene — Bygg/HMS/Kvalitet-chipsene vises alt, bare på feil sted |
+| Flyt-liste på personkort | ⚠️ **Avledet av tre kilder** — se under |
+
+#### 🔴 ROTÅRSAKEN til at raden føles overlesset (målt `page.tsx:412-470`)
+
+`flytChipsPerMedlem` slår sammen **tre relasjoner** til én flat chip-liste:
+**direkte** (`projectMemberId`) · **via brukergruppe** (`groupId` → alle medlemmer) ·
+**via faggruppe** (`faggruppeId` → alle medlemmer).
+
+Skjemaet sier «**HØYST én av**» de tre. 🔴 **Chipsene skiller dem ikke.** Seks «Flyt →»-chips på en
+rad sier ikke hvilke som er personens egne og hvilke som er arvet fra en gruppe.
+**Raden viser avledet data fra tre hierarkier uten å oppgi kilden — det er problemet, ikke antall
+kolonner.**
+
+#### 🟢 KENNETH-VEDTAK 2026-09-08 — én redigeringsplass per relasjon
+
+> *«e-post, telefonnummer, firma, navn kan redigeres → ikke dokumentflyt → den må legges til i
+> dokumentflyten → kun der»*
+
+🟢 **Dokumentflyt-deltakelse redigeres KUN i dokumentflyten.** Personkortet **viser** hvilke flyter
+man er med i; det er ikke en inngang til å endre dem.
+
+**To ting løses av det:**
+1. **Arvet-vs-direkte blir et forklaringsproblem, ikke et redigeringsproblem.** Provenansen bør
+   fortsatt vises («fordi du er i Byggherre» / «personlig»), men som forklaring — ikke som en knapp
+   som kan endre for alle i en gruppe.
+2. 🟢 **Punkt 3 over løser seg selv.** «Legg til bruker i dokumentflyt» ligger i dag på et `+`-ikon
+   i en gruppeoverskrift. **Med vedtaket skal den handlingen bort derfra**, ikke gjøres lettere å
+   finne.
+
+#### 🟢 Og skillet som følger — svarer på hvor faggruppe hører hjemme
+
+| | Hva den er | Redigeres |
+|---|---|---|
+| **Faggruppe** | En **egenskap ved personen** — hvilket fag han tilhører | 🟢 På kontakten (bygget `ed21b640`) |
+| **Dokumentflyt** | En **struktur personen deltar i** — egne ledd, roller, rekkefølge | 🟢 I dokumentflyten, kun der |
+
+🔴 **Derfor skal de to IKKE behandles likt.** Faggruppe trenger ingen egen flate; dokumentflyt har
+allerede sin.
+
+#### 🟢 KENNETH-FORSLAG 2026-09-08 — «legg til hvor som helst, få foreslått resten»
+
+> Legges et menneske i en **gruppe** → gruppen er i en dokumentflyt → arv → **legges til i
+> kontaktlista** → foreslå: legg til i dokumentflyt? i gruppe?
+> Legges et menneske i **kontaktlista** → ligger kun der → foreslå flyt + gruppe
+> Legges et menneske i en **dokumentflyt** → legges også til i kontakter → foreslå gruppe
+>
+> *«problemet for en ny bruker er at hen glemmer å legge til en plass → brukeren får ikke til det
+> som er ønsket»*
+
+**🟢 Målt: rørleggingen finnes stort sett allerede.**
+
+| Vei | Tilstand |
+|---|---|
+| **Gruppe → kontakt** | 🟢 **Ferdig.** Alle veier går nå gjennom `medlem.registrer` (registreringsmodell fase 1, `medlem.ts`): finner/oppretter `User` (userId eksakt, ellers e-post) → `ProjectMember` → valgfri gruppe/faggruppe/flyt, ALT i én transaksjon. Erstattet `gruppe.leggTilMedlem` + `medlem.leggTil` |
+| **Arven** | 🟢 **Strukturell.** `GruppeMedlem` og `DokumentflytMedlem` peker begge på `projectMemberId` — **det er umulig å være i gruppe eller flyt uten å være i kontaktlista** |
+| **Dokumentflyt → kontakt** | 🟢 **Løst (fase 1).** `medlem.registrer` tar `email`/`userId` + `flytBindinger` og binder person → prosjektmedlem → flyt-rolle i én transaksjon. E-post-veien inn i flyten som manglet finnes nå; en feil ruller alt tilbake (ingen foreldreløs kontakt) |
+| **Forslagslaget** | 🔴 **Finnes ikke noe sted.** Hver handling fullfører seg selv og sier ingenting om de to tomme tilknytningene |
+
+🔴 **To gap, ulik størrelse:**
+1. 🟡 **Forslagslaget** — nytt, men UI oppå data som finnes. **Fase 2** (Kontakter-flaten i tre nivåer).
+2. ✅ **E-post-vei inn i dokumentflyten** — **løst i fase 1** (`feat/registrering-en-vei`): `medlem.registrer`
+   binder person + flyt-rolle i én transaksjon, e-post-keyet. Asymmetrien mot gruppen er borte.
+
+⚠️ **Hjemmel finnes:** [prosjektoppsett-veileder.md](prosjektoppsett-veileder.md) står som
+🟡 PLAN «steg-for-steg ny bruker». **Kenneths forslag er den veilederen, men kontekstuell i stedet
+for lineær** — den dukker opp der du står. 🟢 **Cowork vurderer det som den bedre formen:** en
+lineær veileder må fullføres i én økt og hjelper ikke den som kommer tilbake om tre uker for å
+legge til én person.
+
+🟢 **Samlet bestilling til fabel:** [fabel-kontakter-ia.md](../redesign/fabel-kontakter-ia.md)
+
+### 🔴 TRETTEN UFERDIGE KOBLINGER funnet bak lint-gjelden (målt 2026-09-08)
+
+**Lint-oppryddingen var ikke oppryddingen — den var funnet.** Kontrollplan vurderte hver «ubrukt»
+variabel enkeltvis i stedet for å prefikse den med `_`. Av 77 errors var **kun 18 atferds-nøytrale**.
+Resten er **kode som ble skrevet og aldri koblet inn.**
+
+🔴 **De hadde ligget usynlige fordi lint-gaten ikke kunne kjøres** (varm cache, se posten under).
+Hadde noen «ryddet» dem mekanisk, ville hver eneste ha blitt permanent usynlig.
+
+#### 🔴 Funksjonshull — noe brukeren ikke får gjort
+
+| Sted | Hva som mangler |
+|---|---|
+| `oppsett/brukere:192` `fjernMutation` | `medlem.fjernFraFaggruppe` med `onSuccess` — **aldri kalt. Fjern-knappen er ikke wiret** |
+| `oppsett/brukere:1035` `tilgjengeligeFaggrupper` | «Legg til»-lista beregnes, **rendres aldri** |
+| `import-dialog:15,68` `FaggruppeVelger` | Importert, state finnes, **velgeren rendres aldri** |
+| `oppsett/produksjon/psi:96` `tilgjengeligeBygninger` | Opprett-nedtrekk beregnet, **rendres aldri** (søsteren `...KopierBygninger` brukes) |
+| `psi/[prosjektId]:343,374` `harScrolletNed` / `innholdKortNok` | Scroll-til-bunn-gate for PSI-onboarding **settes, leses aldri — kravet håndheves ikke** |
+| `SeddelKort:163` `pauseTimer` | Pausetimer beregnet i attesteringskortet, **vises aldri** |
+
+⚠️ **De to første henger sammen:** både «legg til» og «fjern» på faggruppe-medlemskap ser ut til å
+mangle i samme flate. **Det er ikke to funn, det er én uferdig flate.**
+
+#### 🟡 Svakere / grensetilfeller
+
+`psi/[prosjektId]:662` `verdi` (signatur sendes inn, canvas gjenoppretter den aldri) ·
+`box:110` `mappeNavn` (TilgangModal får navnet, viser det ikke) ·
+`oppsett/produksjon/psi:80` `nyMalId` (mal-velger-state, aldri wiret) ·
+`RedigerPunkt:563` `t` (**i18n-hull** — henter `t`, bruker hardkodet norsk) ·
+`UkeVelger:28` `mandagIUke` (komplett dato-helper, 0 kallere)
+
+#### Målt av dokgen, samme dag
+
+**`sok/page.tsx:59` `nsDokumentIder`** — 🟢 **ikke et tilgangsproblem.** `sokFilter` ekskluderer
+NS-/referanse-**mapper**, men aldri de løse referanse**dokumentene**. Følgen: referansestoff som er
+ment å være skjult som støy, dukker opp i standardsøket. **Søkekvalitet, ikke sikkerhet.**
+⚠️ Må verifiseres at `aiSok.sok`/`ftdSok.sokDokumenter` tar `ekskluderDokumentIder` før det bygges.
+
+**`admin/prosjekter:236` `nåværendeOrgId`** — stillas for en org-tilordnings-/flyttekontroll som
+aldri ble bygget. 🔴 **Den henter id fra `projectOrganizations[0]`, ikke `primaryOrganization` — de
+to kan divergere.** Firmaoverføring er permanent og superadmin-gatet. **Kenneth eier flaten.**
+
+🔴 **Ingen av de tretten skal fikses uten at intensjonen er avklart.** Flere av dem er halve
+features, ikke gjeld — og å «fullføre» en de-ene uten å vite hva den var ment å gjøre, er å gjette
+på en produktbeslutning.
+
 ### 🟡 Web-lint kan ikke bli grønn — og cowork har gatet på den hele dagen (målt 2026-09-07)
 
 To agenter rapporterte uavhengig at `pnpm lint --filter @sitedoc/web` feiler på
@@ -3400,6 +4020,21 @@ De to rollene kan tilhøre ulike personer — firma-HMS-ansvarlig er typisk én 
 
 **Eksisterende referanse:** Fase 7 § «HMS-statistikk på firma-nivå» nevner dette kort — denne entry-en utvider med konkret arkitekturskisse.
 
+#### Vedtak 2026-09-10: firmaadmin arver IKKE HMS-tilgang (LEVERT, `fix/hms-arv-firmaadmin`)
+
+Firma-HMS krever nå eksplisitt `hms_ansvarlig`-rolle. `firma_admin` alene gir **ikke** lenger firma-HMS-tilgang (`harFirmaHmsTilgang`, `tilgangskontroll.ts:401`) — `firma_admin`-grenen er fjernet. `sitedoc_admin`-bypass og prosjektadmin-grenen (`erHmsAdmin:450`) er urørt.
+
+**Bakgrunn:** Kenneth reagerte på at firmaadmin automatisk så private RUH-meldinger (`hms.ts:184`: «innsender + HMS-ansvarlige + admin ser alt»). Han trodde firmaadmin ikke så flyten uten å legge seg til; måling viste at han så innholdet uansett via `firma_admin`-arven.
+
+Kenneth 2026-09-10, ordrett:
+> «nei -> firmaadmin setter seg selv som HMS»
+> «Mathias skal ikke ha hms -> han er ikke medlem i flyt i dag i noen av prosjektene»
+> «HMS -> styres pr prosjekt via HMS kortet -> det er dekket der og det er nok» (prosjektnivået aksepteres urørt)
+
+**Ingen backfill — bevisst.** CLAUDE.md § «Stille tomhet er forbudt» krever normalt backfill; her er den utelatt med vilje. Prod-måling 2026-09-10 av firmaadmins i A.Markussen: Malin, Silje og Florian Aschwanden har `hms_ansvarlig` satt eksplisitt (3 av 4) — valget er allerede tatt av et menneske. Mathias Jensen har den **ikke** og mister firma-HMS-tilgang ved neste prod-deploy; det er tilsiktet («han er ikke medlem i flyt i dag i noen av prosjektene»).
+
+**Firmaadmin som skal se HMS-flyten** setter seg selv som `hms_ansvarlig` via `settFirmaHmsAnsvarlig` på ansatte-siden.
+
 ### Status-audit på tvers av dokumenttyper — UTFØRT 2026-05-27
 
 ✅ **Audit kjørt 2026-05-27.** Tre handlingsrettede tickets opprettet nedenfor (F1, F7, Tiltak 1). Andre funn (timestamp-felter for SLA, flyt-oppsett-validering, stuck-state ved manglende godkjenner-rolle, tooltip ved blokkert handling) ble vurdert som ikke-handlingsrettede uten produktbeslutning — tas opp ved Avklaring-modul-redesign eller kundefeedback.
@@ -3678,6 +4313,78 @@ Auto-oversettings-skriptet forvekslet engelsk «break» (pause) med «break» (k
 Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arbeid}}h» til «Machine {{maskin}}h / Work {{arbeid}}h» (kort, klar struktur med universell slash-separator). Norsk speilet: «Maskin {{maskin}}t / Arbeid {{arbeid}}t». Nøkkelen slettet i 12 språk og re-generert via `generate.ts` — alle oversettelser nå gramatisk korrekte. ro fikset manuelt (Google Translate hoppet over «Work»; satt til «Lucru»). fr beholdt sin manuelle verdi fra `baa462e1`.
 
 ## 2. Halvferdige features
+
+### 🔴 MÅ GJØRES 2026-09-10: serverhåndheving av `DokumentflytMedlem.kanRedigere`
+
+**Kenneth-vedtak 2026-09-10:** *«før opp 2 i backlogg som must do»* — etter at han gatet den
+mindre saken (dokumentasjon + samle klientoppslaget) som strakstiltak.
+🔴 **Dette er IKKE «kan utsettes/utelates». Det er utsatt til etter piloten, og skal gjøres.**
+
+**Saken:** «Leser»-rettigheten i dokumentflyten er i dag **kun en UI-lås.**
+`kanRedigere` (`packages/db/prisma/schema.prisma:1511`) leses av `utledDokumentRettighet()`
+(`packages/shared/src/utils/flytRolle.ts:209-210`) — og **alle kallere er klienter**
+(`apps/web/src/hooks/useOppgaveSkjema.ts:397`, `useSjekklisteSkjema.ts:364`, samt to
+mobil-hooks). 🔴 **Ingen server-mutasjon leser feltet.** Målt to søkeformer:
+`grep "kanRedigere" apps/api/src` (kun urelaterte navn + skrivepunktet `dokumentflyt.ts:471-486`)
+og `grep "kan_redigere"` (kun to migreringsfiler).
+
+**Konsekvens:** en bruker som er satt til «Leser» kan omgå låsen ved å kalle tRPC direkte.
+🟢 **Ikke utnyttet i dag** — prod 0 av 31 rader har `false`, test 0 av 54 (målt 2026-09-10).
+**Men det er en dokumentert rettighet uten håndhevelse.**
+
+#### 🔴 Hvorfor den ble utsatt — les dette før du starter
+
+**Det finnes ingen sentral port.** `verifiserDokumentTilgang` (`tilgangskontroll.ts:892-900`)
+returnerer `Promise<void>` og gater **både lesing og skriving** — å legge sjekken der ville
+blokkert lesing. Innstikkspunkter målt: **~15 kjerne, opptil 24 med signaturruter.**
+🔴 **De 11 HMS-mutasjonene går på `verifiserHmsHandling` og kaller aldri
+`verifiserDokumentTilgang`.** ⚠️ **`byttEier` (`oppgave.ts:2088`, `sjekkliste.ts:1924`) kjører
+kun `verifiserProsjektIkkeFrosset` — ingen dokumenttilgangssjekk overhodet. Eget funn.**
+
+🔴 **Fire «du kan ikke skrive»-mekanismer finnes fra før:** terminal status
+(`flytRolle.ts:197`) · append-only-vakten (`oppgave.ts:721+`) · `verifiserRundeIkkeLaast`
+(`services/signaturliste.ts:47`) · `verifiserRetningsrett` (`tilgangskontroll.ts:1082-1089`).
+**En femte uten distinkt feilmelding gir en bruker som ikke skjønner hvorfor feltet er låst.
+Feilmeldingen er halve oppgaven.**
+
+⚠️ **`kanRedigere` er subsumert av ballen.** Steg 4 (`if (!harBallen) return "leser"`) løper før
+steg 5 — feltet har effekt kun i vinduet «har ballen, ikke terminal status».
+**Spec-en (`dokumentflyt.md:376`) sier «kun lesetilgang selv med ballen» — altså strengt en
+innskrenkning INNENFOR ball-tilstanden. Utvides semantikken utover det, er det et eget vedtak.**
+
+#### Anbefalt form når saken tas
+
+🟢 **`verifiserRetningsrett` (`tilgangskontroll.ts:1082-1089`) er beste kandidat-plassering** —
+den er allerede en ball-basert skriveport. **Men `RaFlytMedlem` (`flytPosisjon.ts:76-84`) og
+`hentFlytMedlemmer` (`services/flytFakta.ts:95-120`) selekterer ikke `kanRedigere`.**
+Typen og `select`-en må utvides. **Billig og gjenbrukbart.**
+
+⚠️ **Den frosne referansetesten** `packages/shared/src/utils/tilgangsmatrise.test.ts` feiler ved
+divergens — med vilje (`avgjorDokumentTilgang.ts:13-16`). **Regn med at den må oppdateres.**
+
+🟢 **Klientoppslaget er samlet til én kilde i `fix/kanredigere-en-kilde` (2026-09-10)** — bygg
+serversjekken på samme predikat, ikke en fjerde variant.
+
+### 🟡 PARKERT 2026-09-10: `prosjekt.opprettTestprosjekt` — venter produktretning
+
+**Kenneth-vedtak 2026-09-10:** *«kan vi la denne stå deaktivert nå. aktiviseres og utbedres
+senere når jeg har bedre oversikt over retning for testprosjekt?»*
+
+**Hva som ble gjort:** prosedyren (`apps/api/src/routes/prosjekt.ts:408`) ble gatet med samme
+predikat som `prosjekt.opprett` i `62ca7c9d` — `firma_admin ∪ prosjekt_oppretter ∪ sitedoc_admin`.
+🔴 **Grunn:** redesign målte at den **ikke** er en dev-vei. Den brukes av ny-bruker-onboarding
+(«Velkommen til SiteDoc») og admin-malprosjekt, og **lager et ekte prosjekt med standardgrupper.**
+Uten gaten sto hullet fra `prosjekt.opprett` åpent gjennom onboarding-døra.
+
+🟢 **Konsekvens i dag:** `sitedoc_admin` og `firma_admin` slipper gjennom uendret, så onboarding
+for en firmaadmin virker som før. **En ny bruker uten firma_admin kan ikke lenger opprette
+testprosjekt via onboarding.** **Kenneth har akseptert det som midlertidig tilstand.**
+
+🔴 **Når saken tas opp igjen, er spørsmålet produktmessig, ikke teknisk:** hva ER et testprosjekt
+— en sandkasse som ryddes bort, en mal, eller en vanlig førstegangs-opprettelse med annet navn?
+**Svaret avgjør om gaten skal løsnes, om prosedyren skal slås av helt, eller om den skal erstattes.**
+⚠️ **Ikke «fiks» gaten uten det svaret.** Prod har allerede ett prosjekt som heter
+«1000 testprosjekt som skal slettes» (målt 2026-09-10) — symptomet på at retningen mangler.
 
 ### 📋 REGRESJONSAUDIT mobil, bygg 44 → 31.08 — åtte fjernede funksjoner
 

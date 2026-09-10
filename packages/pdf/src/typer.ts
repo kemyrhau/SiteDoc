@@ -67,12 +67,35 @@ export interface GrenseSnapshot {
   avvikTekst?: string;
 }
 
+/**
+ * Én tapt verdi bevart på feltet ved offline-kollisjon (verdi + hvem + når).
+ *
+ * 🔴 KOPIKLASSE — strukturell duplikat av `apps/api/src/services/kollisjonsmerge.ts#Tilfoyelse`,
+ * som er KILDEN: kollisjonsmergen SKRIVER dette feltet ved lagring. Duplikatet er tillatt fordi
+ * `packages/pdf` har null avhengigheter og importerer bevisst verken fra api eller `@sitedoc/shared`
+ * (samme regel som `GrenseSnapshot`/`Rad`/`GrenseStatusPdf` under). Det som binder de to: begge er
+ * `{ verdi, brukerNavn, brukerId, tidspunkt }`; endres api-formen, endres denne. PDF LESER kun
+ * (rendring i `felt.ts`/`repeater.ts`) og bruker aldri `brukerId`.
+ */
+export interface TilfoyelsePdf {
+  verdi: unknown;
+  brukerNavn: string;
+  brukerId: string;
+  /** ISO-8601 (veggklokke med offset). */
+  tidspunkt: string;
+}
+
 export interface FeltVerdi {
   verdi: unknown;
   kommentar: string;
   vedlegg: Vedlegg[];
   /** Kravsnapshot (trinn 3) — søsken til `verdi`, aldri inni. */
   grenseSnapshot?: GrenseSnapshot;
+  /**
+   * Tapte verdier ved offline-kollisjon (kollisjonsmerge) — søsken til `verdi`, aldri inni.
+   * Feltets `verdi` er den som kom først; disse er senere, bevart så ingenting går tapt.
+   */
+  tilfoyelser?: TilfoyelsePdf[];
 }
 
 /**

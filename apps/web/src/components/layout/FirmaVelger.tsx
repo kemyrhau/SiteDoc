@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Search, Building2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
 /**
@@ -13,8 +14,8 @@ import { useFirma } from "@/kontekst/firma-kontekst";
 
 /**
  * Panel-innmaten (søk + firma-liste) uten den absolutt-posisjonerte
- * dropdown-innpakningen. Gjenbrukes av både `FirmaVelger` (flagg av) og
- * `KontekstChip` (flagg på, steg iii). `onValgt` lukker foreldrepopoveren.
+ * dropdown-innpakningen. Gjenbrukes av både `FirmaVelger` og
+ * `KontekstChip`. `onValgt` lukker foreldrepopoveren.
  */
 export function FirmaVelgerPanel({
   onValgt,
@@ -23,6 +24,7 @@ export function FirmaVelgerPanel({
   onValgt?: () => void;
   autoFocus?: boolean;
 }) {
+  const { t } = useTranslation();
   const { valgtFirma, tilgjengelige, velgFirma } = useFirma();
   const router = useRouter();
   const [sok, setSok] = useState("");
@@ -48,7 +50,7 @@ export function FirmaVelgerPanel({
       </div>
       <div className="max-h-64 overflow-auto py-1">
         {filtrerte.length === 0 ? (
-          <p className="px-3 py-2 text-sm text-gray-400">Ingen firmaer funnet</p>
+          <p className="px-3 py-2 text-sm text-gray-400">{t("layout.ingenFirmaer")}</p>
         ) : (
           filtrerte.map((f) => (
             <button

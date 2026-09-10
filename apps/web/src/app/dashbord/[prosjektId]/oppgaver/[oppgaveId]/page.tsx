@@ -13,7 +13,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsFlytStripe } from "@/components/HmsFlytStripe";
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, formaterNummer } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -88,6 +88,7 @@ interface Kommentar {
 function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
   const { t } = useTranslation();
   const [nyTekst, setNyTekst] = useState("");
+  const [sendFeil, setSendFeil] = useState<string | null>(null);
   const utils = trpc.useUtils();
 
   const { data: kommentarer } = trpc.oppgave.hentKommentarer.useQuery(
@@ -100,11 +101,18 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
       utils.oppgave.hentKommentarer.invalidate({ taskId: oppgaveId });
       utils.oppgave.hentMedId.invalidate({ id: oppgaveId });
       setNyTekst("");
+      setSendFeil(null);
+    },
+    // Samme stille-feil-klasse som mobil-dialogen: uten onError går et avvist send ut
+    // som «skjer ingen ting». Teksten står (nullstilles kun i onSuccess).
+    onError: () => {
+      setSendFeil(t("oppgave.kommentarSendFeilet"));
     },
   });
 
   const håndterSend = () => {
     if (!nyTekst.trim()) return;
+    setSendFeil(null);
     leggTilMutasjon.mutate({ taskId: oppgaveId, content: nyTekst.trim() });
   };
 
@@ -142,11 +150,18 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
         <p className="mb-3 text-xs text-gray-400">{t("dialog.ingenKommentarer")}</p>
       )}
 
+      {sendFeil && (
+        <p className="mb-2 text-xs text-amber-700">{sendFeil}</p>
+      )}
+
       <div className="flex gap-2">
         <input
           type="text"
           value={nyTekst}
-          onChange={(e) => setNyTekst(e.target.value)}
+          onChange={(e) => {
+            setNyTekst(e.target.value);
+            if (sendFeil) setSendFeil(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -302,6 +317,9 @@ export default function OppgaveDetaljSide() {
     oppgave,
     erLaster,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -502,12 +520,16 @@ export default function OppgaveDetaljSide() {
     [],
   );
 
-  // Oppgavenummer med prefiks
-  const oppgaveNummer = useMemo(() => {
-    if (oppgave?.number == null) return null;
-    const nummerPad = String(oppgave.number).padStart(3, "0");
-    return oppgave.template?.prefix ? `${oppgave.template.prefix}-${nummerPad}` : nummerPad;
-  }, [oppgave?.number, oppgave?.template?.prefix]);
+  // Oppgavenummer med prefiks («SJA-012», bart «012» uten prefiks)
+  const oppgaveNummer = useMemo(
+    () =>
+      formaterNummer(oppgave?.template?.prefix, oppgave?.number, {
+        separator: "-",
+        pad: 3,
+        manglerPrefiks: "nummer",
+      }),
+    [oppgave?.number, oppgave?.template?.prefix],
+  );
 
   // Melder eier innholdet, behandler eier handlingen (Spor 2 / 5c): på HMS er
   // meldingsskjemaet ALLTID read-only unntatt for melderen mens saken er utkast.
@@ -924,6 +946,23 @@ export default function OppgaveDetaljSide() {
         />
       )}
 
+      {/* Kollisjons-/append-only-varsel (live): endringen din ble et NOTAT, ikke en endring —
+          feltet var alt fylt. «Lagret» uten forklaring ville vært verre enn en tydelig feil. */}
+      {sisteKollisjoner.length > 0 && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">
+            {t("kollisjon.varsel.tekst", { antall: sisteKollisjoner.length })}
+          </p>
+          <button
+            type="button"
+            onClick={avvisKollisjoner}
+            className="shrink-0 text-xs font-medium text-amber-700 hover:underline"
+          >
+            {t("handling.lukk")}
+          </button>
+        </div>
+      )}
+
       {/* Rapportobjekter */}
       {objekter.length > 0 && (
         <UtfyllingSeksjoner
@@ -996,6 +1035,7 @@ export default function OppgaveDetaljSide() {
                   onOversett={() => oversettFelt(objekt as { id: string; label: string; config: Record<string, unknown> })}
                   visOversettKnapp={visOversettKnapp}
                   originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
+                  tilfoyelser={hentTilfoyelser(objekt.id)}
                 >
                   <RapportObjektRenderer
                     objekt={objekt}

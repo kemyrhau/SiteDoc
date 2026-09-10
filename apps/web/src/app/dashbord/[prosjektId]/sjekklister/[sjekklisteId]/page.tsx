@@ -23,7 +23,7 @@ import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlin
 import { HmsMelderBanner } from "@/components/HmsMelderBanner";
 import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harFeltVerdi, standardFeltNavn, formaterNummer } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { EmneVelger } from "@/components/EmneVelger";
@@ -78,9 +78,13 @@ interface SjekklisteOppgave {
 
 /** «BEF-001» (prefix + nullpadd) el. «001» (uten prefix); undefined når nummer mangler. */
 function formaterOppgaveNr(o: SjekklisteOppgave | undefined): string | undefined {
-  if (!o || o.number == null) return undefined;
-  const nr = String(o.number).padStart(3, "0");
-  return o.template?.prefix ? `${o.template.prefix}-${nr}` : nr;
+  return (
+    formaterNummer(o?.template?.prefix, o?.number, {
+      separator: "-",
+      pad: 3,
+      manglerPrefiks: "nummer",
+    }) ?? undefined
+  );
 }
 
 /** Last ned en base64-PDF som fil (arkiv-PDF returneres i responsen, vei 3b). */
@@ -173,6 +177,9 @@ export default function SjekklisteDetaljSide() {
     sjekkliste,
     erLaster,
     hentFeltVerdi,
+    hentTilfoyelser,
+    sisteKollisjoner,
+    avvisKollisjoner,
     settVerdi,
     settKommentar,
     leggTilVedlegg,
@@ -523,14 +530,16 @@ export default function SjekklisteDetaljSide() {
     return deler.length > 0 ? deler.join(", ") : null;
   }, [objekter, hentFeltVerdi]);
 
-  // Sjekkliste-nummer med prefiks
-  const sjekklisteNummer = useMemo(() => {
-    const nummer = fullSjekkliste?.number;
-    const prefix = sjekkliste?.template?.prefix;
-    if (nummer == null) return null;
-    const nummerPad = String(nummer).padStart(3, "0");
-    return prefix ? `${prefix}-${nummerPad}` : nummerPad;
-  }, [fullSjekkliste?.number, sjekkliste?.template?.prefix]);
+  // Sjekkliste-nummer med prefiks («SJA-012», bart «012» uten prefiks)
+  const sjekklisteNummer = useMemo(
+    () =>
+      formaterNummer(sjekkliste?.template?.prefix, fullSjekkliste?.number, {
+        separator: "-",
+        pad: 3,
+        manglerPrefiks: "nummer",
+      }),
+    [fullSjekkliste?.number, sjekkliste?.template?.prefix],
+  );
 
   // Spor 2 / 5a + Beslutning 1 (Blokk 10): HMS-melder redigerer sitt eget dokument når ballen
   // ligger hos melder-leddet (Ledd 1) og saken ikke er terminal — utkast (draft) ELLER etter
@@ -929,6 +938,23 @@ export default function SjekklisteDetaljSide() {
         />
       )}
 
+      {/* Kollisjons-varsel (live): en eller flere av dine verdier ble notert som tilføyelse
+          fordi feltet allerede var fylt. Ingenting forsvant — verdien står ved feltet. */}
+      {sisteKollisjoner.length > 0 && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">
+            {t("kollisjon.varsel.tekst", { antall: sisteKollisjoner.length })}
+          </p>
+          <button
+            type="button"
+            onClick={avvisKollisjoner}
+            className="shrink-0 text-xs font-medium text-amber-700 hover:underline"
+          >
+            {t("handling.lukk")}
+          </button>
+        </div>
+      )}
+
       {/* Rapportobjekter */}
       <UtfyllingSeksjoner
         objekter={objekter}
@@ -1062,6 +1088,7 @@ export default function SjekklisteDetaljSide() {
                 onOversett={() => oversettFelt(objekt as { id: string; label: string; config: Record<string, unknown> })}
                 visOversettKnapp={visOversettKnapp}
                 originalData={(feltVerdi as unknown as { original?: { spraak: string; verdi?: string; kommentar?: string } }).original}
+                tilfoyelser={hentTilfoyelser(objekt.id)}
               >
                 <RapportObjektRenderer
                   objekt={objekt}

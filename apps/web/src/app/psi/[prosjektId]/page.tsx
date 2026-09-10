@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
-import { ShieldCheck, ChevronRight, Check, Globe, CheckCircle, XCircle, RotateCcw, Play } from "lucide-react";
+import { ShieldCheck, ChevronRight, Check, Globe, CheckCircle, XCircle } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 /* ------------------------------------------------------------------ */
@@ -340,10 +341,21 @@ function PsiGjennomforing({
   const [fullforte, setFullforte] = useState<Set<number>>(new Set());
   const [feltVerdier, setFeltVerdier] = useState<Record<string, unknown>>({});
   const [signaturBilde, setSignaturBilde] = useState<string | null>(null);
-  const [harScrolletNed, setHarScrolletNed] = useState(false);
+  const [signeringsfeil, setSigneringsfeil] = useState<string | null>(null);
   const innholdRef = useRef<HTMLDivElement>(null);
 
-  const oppdaterMut = trpc.psi.guestOppdaterProgresjon.useMutation();
+  // Gjesteflaten oversetter innhold via `spraak` (ikke i18nexts aktive språk). Bind t()
+  // til gjestens valgte språk så feilmeldingen kommer på samme språk som resten av flaten.
+  const { i18n } = useTranslation();
+  const tGjest = useMemo(() => i18n.getFixedT(spraak), [i18n, spraak]);
+
+  // Fire-and-forget mellom seksjoner; guestFullfør sender alt til slutt. Ikke blokker
+  // gjesten på en mellomlagring — logg diskret (krav 3).
+  const oppdaterMut = trpc.psi.guestOppdaterProgresjon.useMutation({
+    onError: (feil: { message?: string }) => {
+      console.warn("[PSI] Mellomlagring av progresjon feilet:", feil.message);
+    },
+  });
   const fullforMut = trpc.psi.guestFullfør.useMutation({ onSuccess: onFullfort });
 
   // Del inn i seksjoner
@@ -371,8 +383,6 @@ function PsiGjennomforing({
   const seksjon = seksjoner[aktivSeksjon];
   const erSignatur = seksjon?.harSignatur ?? false;
 
-  const [innholdKortNok, setInnholdKortNok] = useState(false);
-
   // Kan gå videre? Sjekker ALLE krav i seksjonen (quiz + video + signatur kan kombineres)
   const kanVidere = useMemo(() => {
     if (!seksjon) return false;
@@ -389,48 +399,37 @@ function PsiGjennomforing({
     return ok;
   }, [seksjon, feltVerdier, signaturBilde, erSignatur]);
 
-  // Scroll-tracking + sjekk om innholdet er kort nok
-  useEffect(() => {
-    const el = innholdRef.current;
-    if (!el) return;
-    // Sjekk umiddelbart om innholdet passer uten scroll
-    const sjekkHøyde = () => {
-      if (el.scrollHeight <= el.clientHeight + 50) {
-        setInnholdKortNok(true);
-      }
-    };
-    // Vent litt på at innholdet rendres
-    const timer = setTimeout(sjekkHøyde, 100);
-    const handler = () => {
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 50) {
-        setHarScrolletNed(true);
-      }
-    };
-    el.addEventListener("scroll", handler);
-    return () => { el.removeEventListener("scroll", handler); clearTimeout(timer); };
-  }, [aktivSeksjon]);
+  // Scroll-krav for rene innholdsseksjoner ble fjernet bevisst i 547261c4 (2026-04-03).
+  // Kun quiz, video og signatur har krav. Restene sto igjen og utløste tre etterforskninger
+  // (siste 2026-09-09) — se BACKLOG § LUKKET 2026-09-08.
 
   const neste = useCallback(async () => {
-    const nyeFullforte = new Set(fullforte);
-    nyeFullforte.add(aktivSeksjon);
-    setFullforte(nyeFullforte);
-
+    // Signaturseksjon: serveren MÅ bekrefte FØR vi markerer fullført. Ellers ser
+    // gjesten «fullført» (grønn progresjon) på noe serveren aldri mottok. Feiler
+    // sendingen, står seksjonen igjen som ufullført og gjesten får en beskjed (krav 1+2).
     if (erSignatur && signaturBilde) {
-      await fullforMut.mutateAsync({
-        signaturId,
-        signatureData: signaturBilde,
-        data: feltVerdier as Record<string, unknown>,
-      });
+      setSigneringsfeil(null);
+      try {
+        await fullforMut.mutateAsync({
+          signaturId,
+          signatureData: signaturBilde,
+          data: feltVerdier as Record<string, unknown>,
+        });
+      } catch {
+        setSigneringsfeil(tGjest("psi.signeringFeilet"));
+        return; // IKKE marker fullført — sendingen nådde ikke fram
+      }
+      setFullforte((prev) => new Set(prev).add(aktivSeksjon));
       return;
     }
 
+    // Ikke-signatur: går videre lokalt (uendret rekkefølge — mellomlagring er fire-and-forget).
+    setFullforte((prev) => new Set(prev).add(aktivSeksjon));
     const ny = aktivSeksjon + 1;
     oppdaterMut.mutate({ signaturId, progress: ny, data: feltVerdier as Record<string, unknown> });
     setAktivSeksjon(ny);
-    setHarScrolletNed(false);
-    setInnholdKortNok(false);
     innholdRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  }, [fullforte, aktivSeksjon, erSignatur, signaturBilde, signaturId, feltVerdier, fullforMut, oppdaterMut]);
+  }, [aktivSeksjon, erSignatur, signaturBilde, signaturId, feltVerdier, fullforMut, oppdaterMut, tGjest]);
 
   if (seksjoner.length === 0) return <div className="p-8 text-center text-gray-500">Ingen innhold</div>;
 
@@ -475,14 +474,19 @@ function PsiGjennomforing({
         </div>
       </div>
 
+      {/* Signeringsfeil — gjesten må se at sendingen ikke nådde fram */}
+      {signeringsfeil && (
+        <div className="shrink-0 border-t border-amber-200 bg-amber-50 px-4 py-2">
+          <p className="text-center text-sm text-amber-800">{signeringsfeil}</p>
+        </div>
+      )}
+
       {/* Bunnknapper — Forrige + Neste */}
       <div className="flex shrink-0 gap-2 border-t border-gray-200 px-4 py-3">
         <button
           onClick={() => {
             if (aktivSeksjon > 0) {
               setAktivSeksjon(aktivSeksjon - 1);
-              setHarScrolletNed(false);
-              setInnholdKortNok(false);
               innholdRef.current?.scrollTo({ top: 0, behavior: "smooth" });
             }
           }}

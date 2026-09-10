@@ -3,7 +3,7 @@
  * Null avhengigheter — kun TypeScript-strenger.
  */
 
-import type { GrenseSnapshot } from "./typer";
+import type { GrenseSnapshot, TilfoyelsePdf } from "./typer";
 
 /**
  * Fast tidssone for alle instant→tekst-formaterere her.
@@ -181,6 +181,57 @@ export function formaterDatoTidKort(v: unknown): string {
  */
 export function formaterDatoTidPunkt(v: unknown): string {
   return formaterDatoTidKort(v).replace(", ", " ");
+}
+
+/** Overskrift på tilføyelses-blokka — hardkodet nb (arkiv-PDF har intet locale-lag). */
+const TILFOYELSE_OVERSKRIFT = "Også registrert — feltet hadde allerede verdien over";
+
+/** En tapt verdis tekst → lesbar streng (aldri base64-dump / rå JSON i dokumentet). */
+function formaterTilfoyelseVerdi(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "(tom verdi)";
+  if (typeof v === "string") return esc(v);
+  if (Array.isArray(v)) {
+    const deler = (v as unknown[]).map((x) =>
+      typeof x === "string"
+        ? x
+        : x && typeof x === "object" && "filnavn" in x
+          ? String((x as { filnavn: unknown }).filnavn)
+          : "(kompleks verdi)",
+    );
+    return esc(deler.join(", "));
+  }
+  // Defensivt: tapende celleverdi er nå en skalar (repeater-kollisjon festes pr. celle).
+  // Skulle et objekt likevel nå hit, vis lesbar markør — aldri rå JSON i arkiv-dokumentet.
+  if (v && typeof v === "object") {
+    const o = v as { verdi?: unknown; filnavn?: unknown };
+    if (o.verdi != null && typeof o.verdi !== "object") return esc(String(o.verdi));
+    if (typeof o.filnavn === "string") return esc(o.filnavn);
+    return esc("(kompleks verdi)");
+  }
+  return esc(String(v));
+}
+
+/**
+ * Tilføyelses-blokk: verdier som tapte en offline-kollisjon, bevart på feltet
+ * (kollisjonsmerge). Rendres MELLOM `verdi` og `kommentar` — feltets gjeldende verdi
+ * står over, tilføyelsene under; rekkefølgen bærer at notatet er et tillegg, ikke en
+ * erstatning. Hver rad: verdien + hvem + når (sporet er verdiløst uten navn/tid).
+ *
+ * Robust mot eldre/halve rader: manglende `brukerNavn` → «Ukjent bruker», manglende
+ * `tidspunkt` → utelatt. Tom/ingen liste → "" (aldri en tom boks). Delt av `felt.ts`
+ * (topp-nivå + frossen mobil-repeater via renderFelt) og `repeater.ts` (arkiv-tabellcelle).
+ */
+export function byggTilfoyelser(tilfoyelser: TilfoyelsePdf[] | undefined): string {
+  if (!Array.isArray(tilfoyelser) || tilfoyelser.length === 0) return "";
+  const rader = tilfoyelser
+    .map((t) => {
+      const navn = t?.brukerNavn?.trim() ? esc(t.brukerNavn) : "Ukjent bruker";
+      const tid = t?.tidspunkt ? formaterDatoTidPunkt(t.tidspunkt) : "";
+      const meta = tid ? `${navn}, ${esc(tid)}` : navn;
+      return `<div class="tilfoyelse-rad"><div class="tilfoyelse-verdi">${formaterTilfoyelseVerdi(t?.verdi)}</div><div class="tilfoyelse-meta">${meta}</div></div>`;
+    })
+    .join("");
+  return `<div class="tilfoyelse"><div class="tilfoyelse-overskrift">${esc(TILFOYELSE_OVERSKRIFT)}</div>${rader}</div>`;
 }
 
 /**

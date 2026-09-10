@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 import {
   utledMinRolle,
+  utledFlytRettighet,
   byggPosisjonsLedd,
   harBallenPosisjon,
   erAvsenderledd,
   erMedlemAvFlyt,
   retningsrettigheter,
+  type FlytMedlemRedigering,
   type FlytMedlemInfo,
   type RaFlytMedlem,
   type FlytBruker,
@@ -175,21 +177,14 @@ export function useFlytKontekst(input: {
 
   const flytRettighet = useMemo<"redigerer" | "leser" | undefined>(() => {
     if (!minFlytInfo || !dokumentflytId || !dokumentflyterRå) return undefined;
-    const rå = dokumentflyterRå as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
+    const rå = dokumentflyterRå as Array<{ id: string; medlemmer: FlytMedlemRedigering[] }>;
     const flyt = rå.find((df) => df.id === dokumentflytId);
     if (!flyt) return undefined;
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === minFlytInfo.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && minFlytInfo.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
+    return utledFlytRettighet(flyt.medlemmer, {
+      projectMemberId: minFlytInfo.projectMemberId,
+      gruppeIder: minFlytInfo.gruppeIder,
+      faggruppeIder: minFlytInfo.faggruppeIder,
+    });
   }, [minFlytInfo, dokumentflytId, dokumentflyterRå]);
 
   const flytMedlemmer = useMemo<FlytMedlem[]>(() => {

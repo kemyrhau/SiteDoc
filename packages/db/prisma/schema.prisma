@@ -18,12 +18,6 @@ model User {
   language      String    @default("nb") // nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv
   tabelloppsett Json?     @map("tabelloppsett") // { [liste]: { kolonner, bredder, sortering } }
 
-  // Redesign/navigasjon — bruker-lagret nyNavigasjon-flagg (Plan 2, 2026-07-07).
-  // null = ikke tildelt (fall gjennom til lokal/env-default); true/false = eksplisitt
-  // (admin-tildeling eller brukerens egen toggle). Presedens i @sitedoc/shared
-  // resolverNyNavigasjon: konto > lokal/query > env-default > av. Additiv, ingen backfill.
-  nyNavigasjon Boolean? @map("ny_navigasjon")
-
   // Per A.10 — to bruksområder: data-mottaker uten innloggings-tilgang OG arkivert User-rad ved org-bytte.
   //
   // NIVÅSKILLE (ufravikelig — ikke konsolider med OrganizationMember.status):
@@ -80,8 +74,36 @@ model User {
   impersonertSomTarget    ImpersonationAudit[]    @relation("ImpersonationTarget")
   flytRettighetOverrides  FlytRettighetOverride[] @relation("FlytRettighetOverrideEndretAv")
   flytRettighetLogg       FlytRettighetLogg[]     @relation("FlytRettighetLoggEndretAv")
+  brukerInnstillinger     BrukerInnstilling[]
 
   @@map("users")
+}
+
+// Brukerminne på server — innstillinger som overlever mobil-reinstallering
+// (Kenneth-vedtak 2026-09-09). Fase 1: sist brukt byggeplass + sist brukt tegning.
+// Språk (`User.language`) bor ALLEREDE på User og
+// dupliseres bevisst IKKE hit (to sannhetskilder = drift). Datamodellen (nokkel + Json
+// + nullable projectId) tåler filtervalg senere (designsak til fabel — bygges ikke nå).
+//
+// `projectId` NULL = global (per bruker), satt = prosjektnær (per bruker×prosjekt).
+// Unikhet håndheves av TO partielle indekser i migreringen (Postgres teller NULL som
+// distinkt, så én @@unique ville tillatt to globale rader med samme nøkkel):
+//   - (user_id, project_id, nokkel) WHERE project_id IS NOT NULL
+//   - (user_id, nokkel)             WHERE project_id IS NULL
+// Derfor deklareres @@unique IKKE her (den ville laget en konkurrerende ikke-partiell
+// indeks). Sist-skrevne vinner ved konflikt mellom to enheter (`oppdatert`).
+model BrukerInnstilling {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  projectId String?  @map("project_id")
+  nokkel    String
+  verdi     Json
+  oppdatert DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, projectId])
+  @@map("bruker_innstilling")
 }
 
 model Organization {
@@ -694,6 +716,12 @@ model ProjectGroup {
   category    String   @default("field") // generelt, field, brukergrupper
   permissions Json     @default("[]")
   domains     Json     @default("[]") // ["bygg"], ["hms"], ["bygg","hms"], etc.
+  // Systemnøkkel — entydig identitet for systemstyrte grupper (2026-09-10).
+  // null = vanlig brukeropprettet gruppe; "hms" = prosjektets HMS-behandlergruppe.
+  // Domenet "hms" er BREDDE-tilgang (prosjekt-admin bærer det også) og duger ikke
+  // som identitet; denne nøkkelen gjør HMS-gruppa entydig. Partiell unik-indeks
+  // (project_id, system_nokkel) WHERE NOT NULL i migreringen hindrer duplikat.
+  systemNokkel String? @map("system_nokkel")
   modules     Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
   // building_ids jsonb droppet 2026-05-01 (Fase 0.5 § 3) — erstattet av
   // ProjectGroupByggeplass m2m-koblingstabell. Per Prinsipp C-verifisering var
@@ -1190,6 +1218,13 @@ model Checklist {
   @@index([status])
   @@index([dokumentflytId, status])
   @@index([deletedAt])
+  // Løpenummer er unikt pr. mal. Uten dette kunne to samtidige opprettelser lese
+  // samme MAX(number) og få samme nummer (Read Committed, ingen lås). NULL er
+  // distinkt i Postgres → nummerløse maler (uten prefix) påvirkes ikke. Full
+  // constraint (IKKE partiell på deletedAt): tildelingen teller bevisst soft-
+  // slettede rader for nummer-monotoni, så et slettet og et nytt dokument skal
+  // heller ikke dele nummer. Prod-telling 2026-09-08: 0 duplikater.
+  @@unique([templateId, number], map: "checklists_template_id_number_key")
   @@map("checklists")
 }
 
@@ -1262,6 +1297,9 @@ model Task {
   @@index([status])
   @@index([dokumentflytId, status])
   @@index([deletedAt])
+  // Løpenummer unikt pr. mal — se Checklist. Full constraint (nummer-monotoni
+  // teller soft-slettede), NULL distinkt. Prod-telling 2026-09-08: 0 duplikater.
+  @@unique([templateId, number], map: "tasks_template_id_number_key")
   @@map("tasks")
 }
 

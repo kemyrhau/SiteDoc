@@ -633,11 +633,18 @@ export const tegningRouter = router({
               pdfFilSti, pngUtSti,
             ], { timeout: 60000 });
 
+            // Hent dimensjoner fra konvertert PNG — som inline-veien (:270-274).
+            // hentBildeDimensjoner svelger feil og gir null, så en manglende
+            // avlesning ruller ikke tilbake en vellykket konvertering.
+            const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, pngFilnavn));
+
             await ctx.prisma.drawing.update({
               where: { id: tegning.id },
               data: {
                 fileUrl: `/uploads/${pngFilnavn}`,
                 fileType: "png",
+                imageWidth: dim?.width ?? null,
+                imageHeight: dim?.height ?? null,
                 conversionStatus: "done",
               },
             });
