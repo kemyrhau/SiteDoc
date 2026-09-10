@@ -15,7 +15,7 @@
  * Server røres ikke: hele registreringen går gjennom `medlem.registrer` (fase 1).
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -78,6 +78,13 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
   const utils = trpc.useUtils();
 
   const [fane, setFane] = useState<Fane>("kontakter");
+  // Åpne rett på gruppekortet når vi lenkes hit fra HMS-flyten (?fane=brukergrupper).
+  // useEffect (ikke lazy init) unngår hydrerings-mismatch mot server-renderet "kontakter".
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("fane") === "brukergrupper") {
+      setFane("brukergrupper");
+    }
+  }, []);
   const [filterNavn, setFilterNavn] = useState("");
   // Multi-select per dimensjon (filter-standard): OR innen dimensjon, AND på tvers.
   const [filterFaggrupper, setFilterFaggrupper] = useState<string[]>([]);
