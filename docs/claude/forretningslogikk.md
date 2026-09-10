@@ -33,7 +33,7 @@ En bruker kan tilhøre flere faggrupper via `FaggruppeKobling`. Admin uten tilkn
 
 ## HMS-avvik (gruppebasert flyt)
 
-HMS-oppgaver (maler med `domain: "hms"`) opprettes **uten faggruppe** — `bestillerFaggruppeId` og `utforerFaggruppeId` er nullable på Task. Alle prosjektmedlemmer kan rapportere. Auto-rutes til HMS-gruppen (`ProjectGroup` med `domains` inkl. `"hms"`). Maks én HMS-gruppe per prosjekt. Tilgangskontroll via domain-sjekk i lag 3 (`verifiserDokumentTilgang`). Guard: `verifiserProsjektmedlem` (ikke `verifiserFaggruppeTilhorighet`).
+HMS-oppgaver (maler med `domain: "hms"`) opprettes **uten faggruppe** — `bestillerFaggruppeId` og `utforerFaggruppeId` er nullable på Task. Alle prosjektmedlemmer kan rapportere. Auto-rutes til HMS-gruppen. **HMS-gruppa identifiseres på `ProjectGroup.systemNokkel === "hms"`, IKKE på `domains`** (2026-09-10): domenet `"hms"` er bredde-tilgang som `prosjekt-admin` også bærer, så `find()`/`findFirst` på domenet plukket vilkårlig blant to grupper. Serversidens eneste riktige inngang er `sikreHmsGruppe(tx, projectId)` (`apps/api/src/routes/modul.ts:25`); lesesiden bruker `erHmsGruppe`/`finnHmsGruppe` (`apps/web/src/components/hms/hms-utils.ts:26`). Maks én HMS-gruppe per prosjekt håndheves av partiell unik-indeks `(project_id, system_nokkel) WHERE NOT NULL` (migrering `20260910130000_gruppe_systemnokkel`). Tilgangskontroll via domain-sjekk i lag 3 (`verifiserDokumentTilgang`). Guard: `verifiserProsjektmedlem` (ikke `verifiserFaggruppeTilhorighet`).
 
 ## lestAvMottakerVed
 

@@ -2,7 +2,9 @@ import type { HmsKontakt } from "./HmsBehandlerHandlinger";
 
 /**
  * Delte hjelpere for HMS-synlighet (Ordre 2.1). HMS-gruppa identifiseres på
- * domenet "hms" (ikke navn/slug) — samme kriterium som seedHmsModulOmradet setter.
+ * `systemNokkel === "hms"` (ikke domene/navn/slug) — samme entydige nøkkel som
+ * sikreHmsGruppe setter. Domenet "hms" duger IKKE som identitet: det er
+ * bredde-tilgang som prosjekt-admin også bærer, så to grupper matchet det.
  * Brukes av matrise, flyt-oppsett, kontaktside og HmsTomBanner så deteksjonen er
  * én kilde, ikke duplisert per flate.
  */
@@ -16,17 +18,16 @@ export interface HmsGruppeMedlem {
 export interface HmsGruppe {
   id: string;
   name: string;
-  domains?: unknown;
+  systemNokkel?: string | null;
   members: HmsGruppeMedlem[];
 }
 
-/** True hvis gruppas domener inneholder "hms" (JSON-array fra Prisma). */
-export function erHmsGruppe(gruppe: { domains?: unknown }): boolean {
-  const d = gruppe.domains;
-  return Array.isArray(d) && d.includes("hms");
+/** True hvis gruppa er prosjektets HMS-behandlergruppe (systemNokkel "hms"). */
+export function erHmsGruppe(gruppe: { systemNokkel?: string | null }): boolean {
+  return gruppe.systemNokkel === "hms";
 }
 
-/** Finn HMS-gruppa i en liste av prosjektgrupper (domene "hms"). */
+/** Finn HMS-gruppa i en liste av prosjektgrupper (systemNokkel "hms"). */
 export function finnHmsGruppe<T extends HmsGruppe>(grupper: T[] | undefined): T | null {
   if (!grupper) return null;
   return grupper.find((g) => erHmsGruppe(g)) ?? null;
