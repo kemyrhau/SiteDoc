@@ -4,6 +4,28 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟢 FRYSEBETINGELSEN ER OPPFYLT — målt 2026-09-10 kveld. Beslutningen er Kenneths.
+
+🔴 **Vedtaket under sa at prod var frosset til ny Kontakter-UI var «ferdig og verifisert».
+Begge deler er nå målt oppfylt — og det står ingen andre steder enn her.**
+
+| Betingelse | Status |
+|---|---|
+| Kontakter fase 2 bygget og merget | 🟢 **09.09** — `medlem.registrer`, tre nivåer |
+| Kenneth har verifisert flaten | 🟢 **«Veldig bra design»** · seks kolonner + FilterPanel gatet |
+| Fabels designgodkjenning | 🟢 Gitt |
+
+⚠️ **Avstanden er nå 44 merge-commits / ~110 commits. Prod sist oppdatert 8. september 08:38.**
+🔴 **Coworks vurdering: 44 merger er over grensen for hva som lar seg feilsøke hvis noe brekker.
+Jo lenger køen står, jo dyrere blir den ene deployen. Prod-deploy anbefales som neste handling —
+men den krever Kenneths eksplisitte ordre (CLAUDE.md), og cowork gir den ikke selv.**
+
+🟢 **To migreringer er forberedt og målt mot prod på forhånd:**
+`DROP COLUMN ny_navigasjon` (10/10 hadde `true`, ingen verdi går tapt) ·
+`system_nokkel` + backfill + partial unique index (1 umarkert prosjekt = testprosjektet, 0 duplikater).
+
+---
+
 ## 🔴 KENNETH-VEDTAK 2026-09-08 — PROD ER FROSSET til ny Kontakter-UI er verifisert
 
 > *«vi skal ikke gate til produksjon før den nye ui er ferdig og verifisert på develop»*
@@ -35,6 +57,79 @@ den veien.**
 | `medlem.registrer` (én registreringsvei) | 🟢 **Fase 2 merget 09.09** — Kontakter i tre nivåer |
 | Dialog/kommentar offline | 🟢 **RETTET 09.09** (`62446dce`) — vakt + beskjed, teksten står |
 | Tekstfelt nullstilles under skriving | 🟢 **RETTET 09.09** (`f1dea4db`) — delt `kollisjonReset.ts`, re-dirty felt bevares |
+
+## 📅 2026-09-10 KVELD — rundene 65–72. Rettighetsmodellen gjennomgått, syv stille tomheter funnet
+
+**Develop `74d641f5` · test verifisert løpende · prod urørt.**
+**Utløst av Kenneths egen testing på test.sitedoc.no gjennom dagen.**
+
+| Runde | Innhold | Hash |
+|---|---|---|
+| 67 | `DROP COLUMN ny_navigasjon` — flagget overlevde sin egen utrulling | `a98a19cb` |
+| 68 | `ProjectGroup.systemNokkel` — HMS-gruppa var ikke entydig | `0e17ce1a` |
+| 69 | «Velg andre» ut av HMS-flyten · personkortets HMS-filter · prosjektadmin-kort | `29a49606` |
+| 70 | `prosjekt_oppretter`-rollen · to persondata-gjerder | `783abca1` |
+| 71 | Gruppeansvarlig (`isAdmin` fra mars) · «egen avdeling» deaktivert | `13fcc4cf` |
+| 72 | «Leser» én kilde · HMS-arv fjernet · firmatilknytning + to sikkerhetsfikser | `74d641f5` |
+
+### 🔴 To reelle sikkerhetshull lukket
+
+**1. Rettighetseskalering i `medlem.registrer`** (`d11958ef`): admin-grenen validerte ikke
+`organizationId` i det hele tatt. **En prosjektadmin kunne gi en ansatt i firma B et medlemskap i
+firma C — også et ekte kundefirma.** Målt og bekreftet av redesign. `!erAdmin`-grenens sjekk
+hadde ingen motpart i admin-grenen.
+
+**2. `organisasjon.opprett` uten tilgangssjekk**: enhver innlogget bruker kunne opprette et firma
+med fritt navn. 🟢 **Null kallere i web/mobil, og prod hadde null skall-firmaer i bruk** — så
+gaten brøt ingenting. ⚠️ **Konsekvens: ingen UI-vei til å opprette skall-firma. Kenneth oppretter
+dem selv ved behov; en gatet prosjektrute er egen sak etter pilot.**
+
+### 🔴 MØNSTERET som ble funnet — syv «stille tomheter» på én dag
+
+**Utløste husregelen «Stille tomhet er forbudt» (CLAUDE.md § Viktige regler, 2026-09-10).**
+
+| # | Hva | Tilstand da den ble funnet |
+|---|---|---|
+| 1 | `users.ny_navigasjon` | Flagg overlevde utrullingen. 10 identiske verdier, null lesere |
+| 2 | `group_faggrupper` | Skrivevei fjernet `e14f2aa0` 23.03. **Tom i 22/22 prosjekter i et halvt år** |
+| 3 | HMS-gruppe-deteksjon | To grupper bar `domains:["hms"]`, `find()` plukket vilkårlig |
+| 4 | `ProjectGroupMember.isAdmin` | Bygget 23. mars, **aldri lest av én linje**. Løst i runde 71 |
+| 5 | `DokumentflytMedlem.kanRedigere` | Settes i UI, leses kun av klienten. **Serverhåndheving ført som 🔴 MÅ GJØRES etter pilot** |
+| 6 | `hr_ansvarlig` | Settbar i firma-UI, **null håndheving**. Kravlista finnes, ikke gatet |
+| 7 | «Prosjekter i egen avdeling» | Valgbar og lagret, gjorde ingenting (`Project` mangler `avdelingId`). Deaktivert i runde 71 |
+
+🔴 **Fellesnevneren var ikke at feltene var tomme — det var at tomheten var STILLE.** Alle sju ble
+funnet ved at Kenneth så noe rart på skjermen, ikke av systemet. **Derfor krever regelen nå (c):
+en test som FEILER når feltet er tomt.**
+
+### Vedtak tatt 2026-09-10
+
+| Vedtak | Kenneths ord |
+|---|---|
+| Firmaadmin arver **ikke** HMS-admin | *«nei -> firmaadmin setter seg selv som HMS»* |
+| Mathias Jensen mister firma-HMS | *«han er ikke medlem i flyt i dag i noen av prosjektene»* |
+| `kanRedigere` gjelder **gruppen**, ikke person | *«jeg er enig at den skal gjelde gruppen»* |
+| «Gruppeansvarlig» er rett nivå — bruk `isAdmin` | *«da bruker vi det vi har -> det var allerede laget»* |
+| Feilregistrering ≠ firmabytte | To hendelser, ulik historikk-behandling |
+| Rettigheter vises der de finnes, redigeres der de hører hjemme | Utledet av «Velg andre»-vedtaket, anvendt fire steder |
+| `opprettTestprosjekt` parkert | *«aktiviseres og utbedres senere når jeg har bedre oversikt»* |
+
+### ⚠️ Fire flater som løy — «knappen skal ikke lyve»
+
+**Knapper synlige for folk serveren avviser.** Funnet fire ganger samme dag:
+`BrukergruppeFane.tsx:159` (løst) · `oppsett/brukere/page.tsx:279-294` (løst) ·
+gruppekortets navn-rediger/slett (løst) · **domener/moduler-editoren i gruppepanelet — meldt av
+redesign, ikke fikset, egen sak.**
+
+### Åpne saker etter dagen
+
+🔴 **`hr_ansvarlig`** — kravlista er Kenneths (attestering · legge til · deaktivere ansatte).
+**Ikke gatet. Coworks anbefaling: etter pilot.**
+🔴 **`kanRedigere` serverhåndheving** — BACKLOG som MÅ GJØRES, med full måling.
+🟡 **ⓘ-forklaring på kortene** — Kenneth savnet den på HMS-kortet tre ganger. Omfang ikke gatet.
+🟡 **Duplikat-forebygging på firmanavn** — prod hadde to tomme «Sitedoc»-skall-firmaer (slettet
+av Kenneth 10.09). **To tilfeller på et halvt år; egen sak etter pilot.**
+🟡 **`byttEier`** (`oppgave.ts:2088`, `sjekkliste.ts:1924`) har ingen dokumenttilgangssjekk.
 
 ## 📅 2026-09-09/10 — TI MERGER. Kritisk vei til prod er gjennomført
 
