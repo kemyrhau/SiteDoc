@@ -13,36 +13,53 @@ import { effektivTilstand, FIRMAMODUL_SLUGS } from "../services/modul";
  *
  * Idempotent: gjentatte kall gir ikke duplikater.
  */
+/**
+ * Finn eller opprett prosjektets HMS-behandlergruppe, entydig via systemNokkel="hms".
+ *
+ * Tidligere ble gruppa slått opp på `domains array_contains ["hms"]` — men domenet
+ * "hms" er BREDDE-tilgang som også prosjekt-admin bærer. Oppslaget kunne dermed
+ * finne prosjekt-admin og konkludere at HMS-gruppa fantes, så den aldri ble
+ * opprettet. systemNokkel gjør identiteten entydig; den partielle unik-indeksen
+ * (project_id, system_nokkel) WHERE NOT NULL hindrer duplikat på DB-nivå.
+ */
+export async function sikreHmsGruppe(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+): Promise<{ id: string }> {
+  const eksisterende = await tx.projectGroup.findFirst({
+    where: { projectId, systemNokkel: "hms" },
+    select: { id: true },
+  });
+  if (eksisterende) return eksisterende;
+
+  return tx.projectGroup.create({
+    data: {
+      projectId,
+      name: "HMS-ansvarlige",
+      slug: "hms-ansvarlige",
+      category: "field",
+      domains: ["hms"],
+      systemNokkel: "hms",
+      permissions: [
+        "create_tasks",
+        "create_checklists",
+        "checklist_edit",
+        "checklist_view",
+        "task_edit",
+        "task_view",
+      ],
+      isDefault: true,
+    },
+    select: { id: true },
+  });
+}
+
 async function seedHmsModulOmradet(
   tx: Prisma.TransactionClient,
   projectId: string,
 ): Promise<void> {
-  // 1) Finn eller opprett HMS-gruppen
-  let hmsGruppe = await tx.projectGroup.findFirst({
-    where: { projectId, domains: { array_contains: ["hms"] } },
-    select: { id: true },
-  });
-  if (!hmsGruppe) {
-    hmsGruppe = await tx.projectGroup.create({
-      data: {
-        projectId,
-        name: "HMS-ansvarlige",
-        slug: "hms-ansvarlige",
-        category: "field",
-        domains: ["hms"],
-        permissions: [
-          "create_tasks",
-          "create_checklists",
-          "checklist_edit",
-          "checklist_view",
-          "task_edit",
-          "task_view",
-        ],
-        isDefault: true,
-      },
-      select: { id: true },
-    });
-  }
+  // 1) Finn eller opprett HMS-gruppen (entydig via systemNokkel)
+  const hmsGruppe = await sikreHmsGruppe(tx, projectId);
 
   // 2) Finn eksisterende HMS-flyt via DokumentflytMal-kobling til mal med domain="hms"
   let hmsFlyt = await tx.dokumentflyt.findFirst({

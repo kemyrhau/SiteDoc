@@ -131,9 +131,11 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
 
   const hmsGruppe = useMemo(() => finnHmsGruppe(dbGrupper as unknown as HmsGruppe[] | undefined), [dbGrupper]);
 
-  // Brukergrupper til fanen: kategori "brukergrupper" + HMS-gruppa (auto-provisjonert)
+  // Brukergrupper til fanen: kategori "brukergrupper" + HMS-gruppa (auto-provisjonert).
+  // erHmsGruppe ser nå på systemNokkel, så filteret drar KUN med den entydige HMS-
+  // gruppa — ikke lenger prosjekt-admin (som bar "hms" som bredde-domene).
   const visGrupper = useMemo((): VisGruppe[] => {
-    return ((dbGrupper as unknown as Array<VisGruppe & { category: string; domains?: unknown }>) ?? [])
+    return ((dbGrupper as unknown as Array<VisGruppe & { category: string; systemNokkel?: string | null }>) ?? [])
       .filter((g) => g.category === "brukergrupper" || erHmsGruppe(g));
   }, [dbGrupper]);
 

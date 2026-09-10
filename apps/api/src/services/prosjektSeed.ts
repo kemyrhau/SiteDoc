@@ -49,6 +49,7 @@ export async function seedStandardProsjektoppsett(
         category: gruppe.category,
         permissions: gruppe.permissions,
         domains: gruppe.domains,
+        systemNokkel: gruppe.systemNokkel ?? null,
         isDefault: true,
       },
     });

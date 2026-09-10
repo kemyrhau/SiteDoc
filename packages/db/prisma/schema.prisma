@@ -716,6 +716,12 @@ model ProjectGroup {
   category    String   @default("field") // generelt, field, brukergrupper
   permissions Json     @default("[]")
   domains     Json     @default("[]") // ["bygg"], ["hms"], ["bygg","hms"], etc.
+  // Systemnøkkel — entydig identitet for systemstyrte grupper (2026-09-10).
+  // null = vanlig brukeropprettet gruppe; "hms" = prosjektets HMS-behandlergruppe.
+  // Domenet "hms" er BREDDE-tilgang (prosjekt-admin bærer det også) og duger ikke
+  // som identitet; denne nøkkelen gjør HMS-gruppa entydig. Partiell unik-indeks
+  // (project_id, system_nokkel) WHERE NOT NULL i migreringen hindrer duplikat.
+  systemNokkel String? @map("system_nokkel")
   modules     Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
   // building_ids jsonb droppet 2026-05-01 (Fase 0.5 § 3) — erstattet av
   // ProjectGroupByggeplass m2m-koblingstabell. Per Prinsipp C-verifisering var
