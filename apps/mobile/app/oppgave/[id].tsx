@@ -36,8 +36,8 @@ import {
   Share2,
   Eye,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi } from "@sitedoc/shared";
-import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi } from "@sitedoc/shared";
+import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
@@ -242,23 +242,15 @@ export default function OppgaveDetalj() {
     if (!minFlytInfo || !oppgaveDetalj || !dokumentflyterRå) return undefined;
     const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null };
     if (!op.dokumentflytId) return undefined;
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        faggruppeId?: string | null;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
+    const rå = dokumentflyterRå as unknown as Array<{ id: string; medlemmer: FlytMedlemRedigering[] }>;
     const flyt = rå.find((df) => df.id === op.dokumentflytId);
     if (!flyt) return undefined;
-    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
+    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[]; faggruppeIder?: string[] };
+    return utledFlytRettighet(flyt.medlemmer, {
+      projectMemberId: fi.projectMemberId,
+      gruppeIder: fi.gruppeIder,
+      faggruppeIder: fi.faggruppeIder ?? [],
+    });
   }, [minFlytInfo, oppgaveDetalj, dokumentflyterRå]);
 
   const rettighetInput = useMemo(() => {

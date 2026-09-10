@@ -13,8 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi } from "@sitedoc/shared";
-import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi } from "@sitedoc/shared";
+import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -356,23 +356,15 @@ export default function SjekklisteUtfylling() {
     if (!minFlytInfo || !sjekklisteDetalj || !dokumentflyterRå) return undefined;
     const sj = sjekklisteDetalj as unknown as { dokumentflytId?: string | null };
     if (!sj.dokumentflytId) return undefined;
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        faggruppeId?: string | null;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
+    const rå = dokumentflyterRå as unknown as Array<{ id: string; medlemmer: FlytMedlemRedigering[] }>;
     const flyt = rå.find((df) => df.id === sj.dokumentflytId);
     if (!flyt) return undefined;
-    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
+    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[]; faggruppeIder?: string[] };
+    return utledFlytRettighet(flyt.medlemmer, {
+      projectMemberId: fi.projectMemberId,
+      gruppeIder: fi.gruppeIder,
+      faggruppeIder: fi.faggruppeIder ?? [],
+    });
   }, [minFlytInfo, sjekklisteDetalj, dokumentflyterRå]);
 
   const rettighetInput = useMemo(() => {

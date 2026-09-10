@@ -2,11 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   utledMinRolle,
   utledDokumentRettighet,
+  utledFlytRettighet,
   type FlytBrukerInfo,
   type FlytMedlemInfo,
   type DokumentKontekst,
   type DokumentRettighetInput,
   type DokumentRettighet,
+  type FlytMedlemRedigering,
+  type FlytRedigeringBruker,
 } from "./flytRolle";
 import type { DokumentflytRolle } from "../types";
 
@@ -204,5 +207,101 @@ const ROLLE_MATRISE: RolleRad[] = [
 describe("utledMinRolle — flertreff-prioritet (Fase B, short-circuit fjernet)", () => {
   it.each(ROLLE_MATRISE)("$navn", ({ bruker: b, medlemmer, dokument, forventet }) => {
     expect(utledMinRolle(b, medlemmer, dokument)).toBe(forventet);
+  });
+});
+
+/**
+ * utledFlytRettighet — delt kilde for `DokumentflytMedlem.kanRedigere`-oppslaget
+ * (web `useFlytKontekst` + mobil oppgave/sjekkliste). Beviser de tre fiksene mot
+ * den gamle to-bindings-løkka:
+ *   a) faggruppe-binding låser (manglet helt før → en faggruppe-bundet Leser var ulåst)
+ *   b) avsluttet ledd (`periodeSlutt != null`) teller ikke
+ *   c) mest-restriktive-vinner ved flertreff, uavhengig av rekkefølge
+ */
+const rBruker = (o: Partial<FlytRedigeringBruker> = {}): FlytRedigeringBruker => ({
+  projectMemberId: "pm-1",
+  gruppeIder: ["g-1"],
+  faggruppeIder: ["fg-1"],
+  ...o,
+});
+const rMedlem = (o: Partial<FlytMedlemRedigering> = {}): FlytMedlemRedigering => ({
+  kanRedigere: true,
+  faggruppeId: null,
+  projectMemberId: null,
+  groupId: null,
+  periodeSlutt: null,
+  ...o,
+});
+
+const REDIGERING_MATRISE: {
+  navn: string;
+  medlemmer: FlytMedlemRedigering[];
+  bruker?: FlytRedigeringBruker;
+  forventet: "redigerer" | "leser" | undefined;
+}[] = [
+  {
+    navn: "person-binding, kanRedigere=false → leser",
+    medlemmer: [rMedlem({ projectMemberId: "pm-1", kanRedigere: false })],
+    forventet: "leser",
+  },
+  {
+    navn: "person-binding, kanRedigere=true → redigerer",
+    medlemmer: [rMedlem({ projectMemberId: "pm-1", kanRedigere: true })],
+    forventet: "redigerer",
+  },
+  {
+    navn: "gruppe-binding, kanRedigere=false → leser",
+    medlemmer: [rMedlem({ groupId: "g-1", kanRedigere: false })],
+    forventet: "leser",
+  },
+  {
+    navn: "faggruppe-binding, kanRedigere=false → leser (bug a: manglet helt før)",
+    medlemmer: [rMedlem({ faggruppeId: "fg-1", kanRedigere: false })],
+    forventet: "leser",
+  },
+  {
+    navn: "faggruppe-binding, kanRedigere=true → redigerer",
+    medlemmer: [rMedlem({ faggruppeId: "fg-1", kanRedigere: true })],
+    forventet: "redigerer",
+  },
+  {
+    navn: "ingen binding treffer → undefined",
+    medlemmer: [rMedlem({ projectMemberId: "pm-annen", kanRedigere: false })],
+    forventet: undefined,
+  },
+  {
+    navn: "avsluttet ledd (periodeSlutt satt) teller ikke → undefined (bug b)",
+    medlemmer: [rMedlem({ faggruppeId: "fg-1", kanRedigere: false, periodeSlutt: "2026-01-01T00:00:00Z" })],
+    forventet: undefined,
+  },
+  {
+    navn: "avsluttet false-ledd ignoreres, aktivt true-ledd vinner → redigerer (bug b)",
+    medlemmer: [
+      rMedlem({ groupId: "g-1", kanRedigere: false, periodeSlutt: new Date("2026-01-01") }),
+      rMedlem({ projectMemberId: "pm-1", kanRedigere: true }),
+    ],
+    forventet: "redigerer",
+  },
+  {
+    navn: "flertreff: person=true + gruppe=false → leser (bug c, mest restriktiv)",
+    medlemmer: [
+      rMedlem({ projectMemberId: "pm-1", kanRedigere: true }),
+      rMedlem({ groupId: "g-1", kanRedigere: false }),
+    ],
+    forventet: "leser",
+  },
+  {
+    navn: "flertreff omvendt rekkefølge: gruppe=false først → leser (rekkefølge-uavhengig)",
+    medlemmer: [
+      rMedlem({ groupId: "g-1", kanRedigere: false }),
+      rMedlem({ projectMemberId: "pm-1", kanRedigere: true }),
+    ],
+    forventet: "leser",
+  },
+];
+
+describe("utledFlytRettighet — delt kanRedigere-oppslag (tre bindinger + periodeSlutt + presedens)", () => {
+  it.each(REDIGERING_MATRISE)("$navn", ({ medlemmer, bruker: b, forventet }) => {
+    expect(utledFlytRettighet(medlemmer, b ?? rBruker())).toBe(forventet);
   });
 });
