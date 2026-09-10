@@ -138,6 +138,17 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
 
   const hmsGruppe = useMemo(() => finnHmsGruppe(dbGrupper as unknown as HmsGruppe[] | undefined), [dbGrupper]);
 
+  // Prosjektadministratorer = ProjectMember.role="admin" (den ekte prosjektadmin-
+  // kilden, håndhevet 38 steder i api). Vises som eget lesekort i Brukergrupper-fanen;
+  // gruppa «prosjekt-admin» brukes bevisst IKKE (dens permissions håndheves knapt).
+  const prosjektadmins = useMemo(
+    () =>
+      kontakter
+        .filter((m) => m.role === "admin" && m.user)
+        .map((m) => ({ projectMemberId: m.id, navn: m.user!.name, epost: m.user!.email })),
+    [kontakter],
+  );
+
   // Brukergrupper til fanen: kategori "brukergrupper" + HMS-gruppa (auto-provisjonert).
   // erHmsGruppe ser nå på systemNokkel, så filteret drar KUN med den entydige HMS-
   // gruppa — ikke lenger prosjekt-admin (som bar "hms" som bredde-domene).
@@ -436,6 +447,7 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
           <BrukergruppeFane
             prosjektId={prosjektId}
             grupper={visGrupper}
+            prosjektadmins={prosjektadmins}
             hmsGruppeId={hmsGruppe?.id ?? null}
             onAapnePerson={(pmId) => aapnePerson(pmId)}
             onLeggTilMedlem={(gruppeId) => setLeggTilMedlemGruppeId(gruppeId)}
