@@ -196,7 +196,7 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 Tre tRPC-prosedyrer + én helper etablerer rolle-modellen `firmaRoller += "hms_ansvarlig"` på `OrganizationMember`. Ingen schema-endring — utvidelse av eksisterende array-felt.
 
 **Helper (`apps/api/src/trpc/tilgangskontroll.ts`):**
-- `harFirmaHmsTilgang(userId, organizationId): Promise<boolean>` — returnerer `true` for `sitedoc_admin`, `firma-admin` på orgId, eller bruker med `"hms_ansvarlig"` i `firmaRoller`. Eksportert; brukes av server-prosedyrer + klient-gating.
+- `harFirmaHmsTilgang(userId, organizationId): Promise<boolean>` — returnerer `true` for `sitedoc_admin` eller bruker med `"hms_ansvarlig"` i `firmaRoller` på orgId. **`firma_admin` arver IKKE HMS-tilgang** (Kenneth-vedtak 2026-09-10, `tilgangskontroll.ts:401`): en firmaadmin som skal se HMS-flyten må settes eksplisitt som `hms_ansvarlig`. Eksportert; brukes av server-prosedyrer + klient-gating.
 
 **tRPC-prosedyrer (`apps/api/src/routes/organisasjon.ts`):**
 - `settFirmaHmsAnsvarlig({ userId, organizationId, harTilgang })` — speil av `settFirmaAdmin`. Skriver til `OrganizationMember.firmaRoller` via spread/filter. Krever firma-admin via `verifiserFirmaAdmin`. Sitedoc-admin-vern bevart.
