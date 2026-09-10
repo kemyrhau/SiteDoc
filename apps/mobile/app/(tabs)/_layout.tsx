@@ -1,20 +1,17 @@
 import { Tabs } from "expo-router";
 import { Home, MapPin, FolderOpen, Menu, Layers, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { useNyNavigasjon } from "../../src/hooks/useNyNavigasjon";
 import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 
 export default function TabsLayout() {
   const { t } = useTranslation();
-  const nyNav = useNyNavigasjon();
   // Firmatak-gate: er Timer deaktivert for firmaet, skal fanen ikke tilbys
   // (fail-open — se useFirmamodulSkjult). Prosjektmodul-fanene er urørt.
   const timerSkjult = useFirmamodulSkjult("timer");
 
-  // Flagg PÅ: Hjem · Tegninger · Dokumenter · Timer · Mer.
-  // Flagg AV: Hjem · Lokasjoner · Mapper · Mer (eksakt dagens UI).
-  // Alle skjermer forblir montert; `href: null` skjuler dem kun fra tab-baren
-  // (fortsatt nåbare via router.push til paritet er verifisert).
+  // Faner: Hjem · Tegninger · Dokumenter · Timer · Mer.
+  // Lokasjoner-skjermen forblir montert (`href: null`) — den er ny navs
+  // tegningsåpner, nådd via router.push fra Tegninger-lista (aapneTegning).
   return (
     <Tabs
       screenOptions={{
@@ -43,7 +40,6 @@ export default function TabsLayout() {
         name="tegninger"
         options={{
           title: t("nav.tegninger"),
-          href: nyNav ? undefined : null,
           tabBarIcon: ({ color, size }) => <Layers size={size} color={color} />,
         }}
       />
@@ -51,14 +47,16 @@ export default function TabsLayout() {
         name="lokasjoner"
         options={{
           title: t("nav.lokasjoner"),
-          href: nyNav ? null : undefined,
+          // 🔴 Fabel-lås: skjult fane, fortsatt montert og rutbar. Lokasjoner er
+          // ny navs tegningsåpner (aapneTegning fra Tegninger-lista). Slettes ikke.
+          href: null,
           tabBarIcon: ({ color, size }) => <MapPin size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="boks"
         options={{
-          title: nyNav ? t("nav.dokumenter") : t("nav.mapper"),
+          title: t("nav.dokumenter"),
           tabBarIcon: ({ color, size }) => (
             <FolderOpen size={size} color={color} />
           ),
@@ -68,7 +66,7 @@ export default function TabsLayout() {
         name="timer-oversikt"
         options={{
           title: t("nav.timer"),
-          href: nyNav && !timerSkjult ? undefined : null,
+          href: !timerSkjult ? undefined : null,
           tabBarIcon: ({ color, size }) => <Clock size={size} color={color} />,
         }}
       />
