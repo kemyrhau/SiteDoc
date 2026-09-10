@@ -138,6 +138,15 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
 
   const hmsGruppe = useMemo(() => finnHmsGruppe(dbGrupper as unknown as HmsGruppe[] | undefined), [dbGrupper]);
 
+  // Rollenivå for UI-gating: prosjektadmin utpeker gruppeansvarlig og ser alle
+  // medlemskontroller; minUserId avgjør hvilke grupper jeg selv er ansvarlig for.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+  const erProsjektAdmin = minFlytInfo?.erAdmin ?? false;
+  const minUserId = minFlytInfo?.userId;
+
   // Prosjektadministratorer = ProjectMember.role="admin" (den ekte prosjektadmin-
   // kilden, håndhevet 38 steder i api). Vises som eget lesekort i Brukergrupper-fanen;
   // gruppa «prosjekt-admin» brukes bevisst IKKE (dens permissions håndheves knapt).
@@ -449,6 +458,8 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
             grupper={visGrupper}
             prosjektadmins={prosjektadmins}
             hmsGruppeId={hmsGruppe?.id ?? null}
+            erProsjektAdmin={erProsjektAdmin}
+            minUserId={minUserId}
             onAapnePerson={(pmId) => aapnePerson(pmId)}
             onLeggTilMedlem={(gruppeId) => setLeggTilMedlemGruppeId(gruppeId)}
           />
