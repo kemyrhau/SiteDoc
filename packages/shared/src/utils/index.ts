@@ -54,8 +54,6 @@ export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
 export { formaterNummer } from "./dokumentnummer";
 export { lesSignaturVerdi, formaterSignaturLinje, formaterSignaturTidspunkt, signaturTidspunktNaa } from "./signaturVerdi";
 export type { SignaturVerdi } from "./signaturVerdi";
-export { resolverNyNavigasjon } from "./nyNavigasjon";
-export type { NyNavigasjonKilde } from "./nyNavigasjon";
 export {
   EPSILON_MASKIN_TIMER,
   maskinBucketNokkel,
