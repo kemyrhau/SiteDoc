@@ -340,20 +340,34 @@ skal ikke skrives om.
 
 ⚠️ **Dette tar en full rebuild (to `docker compose build`).** **Regn minutter, ikke sekunder.**
 
-### 🟡 Raskere vei — hvis forrige image fortsatt finnes
+### 🟢 Raskere vei — tagg dagens image FØR deployen
 
-`deploy-prod.sh` bygger med `GIT_SHA` og `BUILD_TID` som build-args (`deploy-prod.sh:71,73`).
-⚠️ **Om imagene tagges med SHA eller bare overskrives som `:latest` er IKKE målt.**
+**Målt 2026-09-11:** prod-imagene har **kun `:latest`**, ingen SHA-tagger
+(`sudo docker images | grep sitedoc`). **En rebuild overskriver taggen, og det gamle imaget blir
+dangling — det finnes, men uten navn.** 🔴 **Uten forberedelse er det ingen snarvei tilbake.**
 
-🔴 **Derfor: kjør dette FØR en stor deploy, så du vet hva du har å falle tilbake på:**
+🟢 **Men compose peker på et image-NAVN** — `image: sitedoc-api:latest`
+(`docker/docker-compose.yml:16`) og `image: sitedoc-web:latest` (`:47`) — **og `up -d` uten
+`--build` bruker taggen som ligger der.** **Derfor virker dette:**
+
+**FØR en stor deploy — gir et navngitt fallback:**
 
 ```sh
-ssh -t server-ny "sudo docker images | grep sitedoc"
+ssh -t server-ny "sudo docker tag sitedoc-api:latest sitedoc-api:rollback && sudo docker tag sitedoc-web:latest sitedoc-web:rollback && sudo docker images | grep rollback"
 ```
 
-🟢 **Ser du forrige image med egen tag, er rollback en `docker compose up -d` med den taggen —
-sekunder i stedet for minutter.** **Ser du bare `latest`, finnes ingen snarvei, og punkt 1-3 over
-er eneste vei.** **Mål det, ikke anta det.**
+**VED rollback — sekunder, ingen rebuild:**
+
+```sh
+ssh -t server-ny "cd ~/stack/sitedoc && sudo docker tag sitedoc-api:rollback sitedoc-api:latest && sudo docker tag sitedoc-web:rollback sitedoc-web:latest && sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-api sitedoc-web"
+```
+
+🔴 **`--no-deps` og INGEN `--build`** — legger du på `--build`, bygger den forrige koden på nytt
+fra kildene som ligger der, og du får akkurat det du prøvde å komme deg vekk fra.
+🔴 **Migreringsregelen over gjelder fortsatt:** droppede kolonner må legges tilbake FØR imaget
+starter, ellers feiler den gamle Prisma-klienten.
+⚠️ **`:rollback`-taggen overskrives ved neste forberedelse.** **Den er ett steg tilbake, ikke et
+arkiv.**
 
 ### 🔴 Databasedump før store deployer
 
