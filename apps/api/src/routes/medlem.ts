@@ -19,6 +19,7 @@ import {
   hentBrukersOrg,
   hentBrukersFlytMedlemskap,
   hentBrukersOpprettFlytMedlemskap,
+  autoriserAdminForFirma,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
@@ -248,6 +249,26 @@ export const medlemRouter = router({
           if (eksisterendeOrgId && eksisterendeOrgId !== inviterendeOrgId) {
             throw new TRPCError({ code: "FORBIDDEN", message: "Brukeren tilhører et annet firma" });
           }
+        }
+      } else if (organizationId) {
+        // Krav 1a (firmatilknytning 2026-09-10): admin-grenen validerte IKKE
+        // organizationId i det hele tatt — en prosjektadmin (eller firma-admin) i
+        // ETT prosjekt kunne knytte en person til et HVILKET SOM HELST firma, også
+        // et ekte kundefirma han ikke har noe med, og :306 opprettet
+        // OrganizationMember uten videre sjekk. Skillet er Organization.erKunde:
+        //   - skall-firma (kun part i prosjekt/flyt) = prosjektets sak → prosjektadmin OK
+        //   - kundefirma (bruker SiteDoc) = en ANSETTELSE → firmaadmin i DET firmaet
+        // autoriserAdminForFirma = sitedoc_admin ELLER firma_admin på org. Speiler
+        // regeltabellen «Inn i et kundefirma» (Kenneth-vedtak).
+        const org = await ctx.prisma.organization.findUnique({
+          where: { id: organizationId },
+          select: { erKunde: true },
+        });
+        if (!org) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Firma finnes ikke" });
+        }
+        if (org.erKunde) {
+          await autoriserAdminForFirma(ctx.userId, organizationId);
         }
       }
 
