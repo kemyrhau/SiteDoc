@@ -4020,6 +4020,21 @@ De to rollene kan tilhøre ulike personer — firma-HMS-ansvarlig er typisk én 
 
 **Eksisterende referanse:** Fase 7 § «HMS-statistikk på firma-nivå» nevner dette kort — denne entry-en utvider med konkret arkitekturskisse.
 
+#### Vedtak 2026-09-10: firmaadmin arver IKKE HMS-tilgang (LEVERT, `fix/hms-arv-firmaadmin`)
+
+Firma-HMS krever nå eksplisitt `hms_ansvarlig`-rolle. `firma_admin` alene gir **ikke** lenger firma-HMS-tilgang (`harFirmaHmsTilgang`, `tilgangskontroll.ts:401`) — `firma_admin`-grenen er fjernet. `sitedoc_admin`-bypass og prosjektadmin-grenen (`erHmsAdmin:450`) er urørt.
+
+**Bakgrunn:** Kenneth reagerte på at firmaadmin automatisk så private RUH-meldinger (`hms.ts:184`: «innsender + HMS-ansvarlige + admin ser alt»). Han trodde firmaadmin ikke så flyten uten å legge seg til; måling viste at han så innholdet uansett via `firma_admin`-arven.
+
+Kenneth 2026-09-10, ordrett:
+> «nei -> firmaadmin setter seg selv som HMS»
+> «Mathias skal ikke ha hms -> han er ikke medlem i flyt i dag i noen av prosjektene»
+> «HMS -> styres pr prosjekt via HMS kortet -> det er dekket der og det er nok» (prosjektnivået aksepteres urørt)
+
+**Ingen backfill — bevisst.** CLAUDE.md § «Stille tomhet er forbudt» krever normalt backfill; her er den utelatt med vilje. Prod-måling 2026-09-10 av firmaadmins i A.Markussen: Malin, Silje og Florian Aschwanden har `hms_ansvarlig` satt eksplisitt (3 av 4) — valget er allerede tatt av et menneske. Mathias Jensen har den **ikke** og mister firma-HMS-tilgang ved neste prod-deploy; det er tilsiktet («han er ikke medlem i flyt i dag i noen av prosjektene»).
+
+**Firmaadmin som skal se HMS-flyten** setter seg selv som `hms_ansvarlig` via `settFirmaHmsAnsvarlig` på ansatte-siden.
+
 ### Status-audit på tvers av dokumenttyper — UTFØRT 2026-05-27
 
 ✅ **Audit kjørt 2026-05-27.** Tre handlingsrettede tickets opprettet nedenfor (F1, F7, Tiltak 1). Andre funn (timestamp-felter for SLA, flyt-oppsett-validering, stuck-state ved manglende godkjenner-rolle, tooltip ved blokkert handling) ble vurdert som ikke-handlingsrettede uten produktbeslutning — tas opp ved Avklaring-modul-redesign eller kundefeedback.

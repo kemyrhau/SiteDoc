@@ -34,7 +34,7 @@ vi.mock("@sitedoc/db", () => ({
 }));
 
 // Importeres ETTER mock (vi.mock heises, men vær eksplisitt).
-import { erFirmaAdminForProsjekt, verifiserRetningsrett, verifiserKanEksportere, autoriserAdminForFirma } from "./tilgangskontroll";
+import { erFirmaAdminForProsjekt, verifiserRetningsrett, verifiserKanEksportere, autoriserAdminForFirma, harFirmaHmsTilgang, erHmsAdmin } from "./tilgangskontroll";
 import type { RaFlytMedlem } from "@sitedoc/shared";
 
 const USER = "user-1";
@@ -77,6 +77,54 @@ describe("erFirmaAdminForProsjekt — delt bypass-predikat", () => {
     );
 
     expect(await erFirmaAdminForProsjekt(USER, PROJECT)).toBe(false);
+  });
+});
+
+/**
+ * Firmaadmin arver IKKE HMS-tilgang (Kenneth-vedtak 2026-09-10).
+ *
+ * `harFirmaHmsTilgang` ga tidligere true for BÅDE `firma_admin` og `hms_ansvarlig`.
+ * Kenneth reagerte på at en firmaadmin dermed så private RUH-meldinger uten å ha
+ * lagt seg inn i HMS-flyten: «firmaadmin setter seg selv som HMS». Firma-HMS krever
+ * nå eksplisitt `hms_ansvarlig`. Første assertion er den nye atferden; resten beviser
+ * at ingenting annet flyttet seg — særlig at prosjektnivået (erHmsAdmin:450) er urørt.
+ * Kjører uten DB (prisma mocket).
+ */
+describe("harFirmaHmsTilgang — firma_admin arver ikke HMS (2026-09-10)", () => {
+  const ORG = "org-1";
+
+  beforeEach(() => {
+    findUnique.mockReset();
+    userFindUnique.mockReset();
+    userFindUnique.mockResolvedValue({ role: "user" }); // ikke sitedoc_admin
+  });
+
+  it("🔴 firma_admin UTEN hms_ansvarlig → nektes (NY atferd)", async () => {
+    findUnique.mockResolvedValue({ firmaRoller: ["firma_admin"] });
+    expect(await harFirmaHmsTilgang(USER, ORG)).toBe(false);
+  });
+
+  it("firma_admin MED hms_ansvarlig → slipper inn (Malin/Silje/Florian)", async () => {
+    findUnique.mockResolvedValue({ firmaRoller: ["firma_admin", "hms_ansvarlig"] });
+    expect(await harFirmaHmsTilgang(USER, ORG)).toBe(true);
+  });
+
+  it("hms_ansvarlig uten firma_admin → slipper inn (uendret)", async () => {
+    findUnique.mockResolvedValue({ firmaRoller: ["hms_ansvarlig"] });
+    expect(await harFirmaHmsTilgang(USER, ORG)).toBe(true);
+  });
+
+  it("sitedoc_admin → slipper inn (uendret, kortslutter før org-oppslag)", async () => {
+    userFindUnique.mockResolvedValue({ role: "sitedoc_admin" });
+    expect(await harFirmaHmsTilgang(USER, ORG)).toBe(true);
+    expect(findUnique).not.toHaveBeenCalled();
+  });
+
+  it("🔴 prosjektadmin → HMS-admin uendret (erHmsAdmin:450, beviser at prosjektnivået IKKE ble rørt)", async () => {
+    // erHmsAdmin returnerer på medlem.role==="admin" FØR prosjekt-/firma-oppslaget.
+    memberFindUnique.mockReset();
+    memberFindUnique.mockResolvedValue({ role: "admin", groupMemberships: [] });
+    expect(await erHmsAdmin(USER, PROJECT)).toBe(true);
   });
 });
 
