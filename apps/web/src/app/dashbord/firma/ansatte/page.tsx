@@ -183,7 +183,11 @@ export default function FirmaBrukere() {
                             <Shield className="h-3 w-3" />
                             {t("firma.ansatte.tilgang.firmaAdmin")}
                           </span>
-                        ) : !erHmsAnsvarlig ? (
+                        ) : !erHmsAnsvarlig && !erProsjektOppretter ? (
+                          // «Bruker» er grunnlinjen: vises kun uten forhøyet
+                          // firma-rolle. HMS-ansvarlig ekskluderte den alt; en som
+                          // KUN er prosjektoppretter skal heller ikke få både
+                          // «Bruker» og «Prosjektoppretter».
                           <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                             {t("firma.ansatte.tilgang.bruker")}
                           </span>
@@ -776,6 +780,11 @@ function RedigerModal({
                 </option>
               ))}
             </select>
+            {/* Stilling er HR-data (tilgangskontroll.ts:343) — håndheves ingen steder.
+                Merknad så ingen tror «Stilling = Prosjektleder» endrer Tilgang. */}
+            <p className="mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.stillingIkkeTilgang")}
+            </p>
           </div>
 
           <div>
@@ -820,18 +829,40 @@ function RedigerModal({
                   })}
                 </span>
               </label>
-              {PROSJEKT_TILGANG.map((v) => (
-                <label key={v} className="flex items-start gap-2 text-sm text-gray-700">
-                  <input
-                    type="radio"
-                    name="prosjektTilgang"
-                    checked={prosjektTilgang === v}
-                    onChange={() => setProsjektTilgang(v)}
-                    className="mt-0.5"
-                  />
-                  <span>{t(`firma.ansatte.prosjektTilgang.verdi.${v}`)}</span>
-                </label>
-              ))}
+              {PROSJEKT_TILGANG.map((v) => {
+                // "avdeling" er blokkert til Project har avdelingId
+                // (prosjektTilgangEvaluator.ts:108 behandler den som "manuell" —
+                // valget lagres, men personen blir aldri medlem). Deaktiver så
+                // ingen kan velge en død regel. Er verdien alt lagret på en rad,
+                // vises den fortsatt som valgt (disabled + checked).
+                const erAvdeling = v === "avdeling";
+                const avdelingBlokkert = erAvdeling && prosjektTilgang !== "avdeling";
+                return (
+                  <label
+                    key={v}
+                    className={`flex items-start gap-2 text-sm ${
+                      avdelingBlokkert ? "text-gray-400" : "text-gray-700"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="prosjektTilgang"
+                      checked={prosjektTilgang === v}
+                      onChange={() => setProsjektTilgang(v)}
+                      disabled={avdelingBlokkert}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      {t(`firma.ansatte.prosjektTilgang.verdi.${v}`)}
+                      {erAvdeling && (
+                        <span className="mt-0.5 block text-xs text-gray-400">
+                          {t("firma.ansatte.prosjektTilgang.avdelingUtilgjengelig")}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
