@@ -3,6 +3,7 @@ import { router, protectedProcedure, opprettProsjektProcedure } from "../trpc/tr
 import { TRPCError } from "@trpc/server";
 import { Prisma, krypter } from "@sitedoc/db";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
+import { seedStandardProsjektoppsett } from "../services/prosjektSeed";
 import { hentBrukersOrg } from "../trpc/tilgangskontroll";
 import { importerKatalog } from "../services/katalog/importerKatalog";
 import { seedManglendeKatalog } from "../services/seed";
@@ -536,6 +537,11 @@ export const adminRouter = router({
             projectId: prosjekt.id,
           },
         });
+
+        // Standard prosjektoppsett (grupper m/domener, moduler+maler, faggrupper,
+        // dokumentflyter). Samme delte funksjon som hoved- og testprosjekt-veien —
+        // et prosjekt skal ikke avhenge av hvilken dør det kom inn gjennom (2026-09-10).
+        await seedStandardProsjektoppsett(tx, prosjekt.id, ctx.userId!);
 
         // B Kloss 2b: auto-legg firma-admins som prosjektadmin hvis firmaet
         // har slått på innstillingen. Dedup mot oppretteren (laget over).
