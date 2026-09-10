@@ -10,6 +10,7 @@ import {
   hentBrukersOrg,
   hentDeaktiverteOrgIder,
   erFirmaAdminForProsjekt,
+  kanOppretteProsjekt,
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
@@ -302,6 +303,20 @@ export const prosjektRouter = router({
   // rader for aktive firmamoduler. Steg 2d (2026-05-03): tar valgfri organizationId
   // fra input. Sitedoc_admin sender valgtFirma.id når de oppretter prosjekt på
   // vegne av et kunde-firma. Vanlig bruker fallbacker til egen organizationId.
+  // Kan innlogget bruker opprette prosjekter for orgen? UI-gate (server er porten).
+  // Speiler gaten i opprett/opprettTestprosjekt: sitedoc_admin ∪ firma_admin ∪
+  // prosjekt_oppretter. Brukes for å skjule «Nytt prosjekt» for dem uten retten.
+  kanOpprette: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker.role === "sitedoc_admin") return true;
+      return kanOppretteProsjekt(ctx.userId!, input.organizationId);
+    }),
+
   opprett: opprettProsjektProcedure
     .input(createProjectSchema)
     .mutation(async ({ ctx, input }) => {
@@ -320,9 +335,12 @@ export const prosjektRouter = router({
       // Verifiser tilgang når input er gitt.
       let valgtOrgId: string | null = null;
       if (input.organizationId) {
+        // Delegerbar rett (2026-09-10): sitedoc_admin ∪ firma_admin ∪
+        // prosjekt_oppretter. Tidligere holdt det å tilhøre firmaet — da kunne en
+        // lærling opprette prosjekter. brukersOrgId brukes ikke lenger som gate.
         if (
           bruker.role === "sitedoc_admin" ||
-          brukersOrgId === input.organizationId
+          (await kanOppretteProsjekt(ctx.userId!, input.organizationId))
         ) {
           valgtOrgId = input.organizationId;
         } else {
@@ -413,16 +431,14 @@ export const prosjektRouter = router({
         select: { name: true, role: true },
       });
 
-      // O-3b: hent brukerens org via OrganizationMember (fallback User.organizationId)
-      const brukersOrgId = await hentBrukersOrg(ctx.userId);
-
       // 2026-05-23: firma er nå påkrevd — alle kunder skal være registrert
-      // som firma (samme prinsipp som prosjekt.opprett og admin.opprettProsjekt).
-      // Verifiser tilgang: sitedoc_admin kan opprette for enhver org, vanlig
-      // bruker kun for egen org.
+      // som firma. Tilgang (2026-09-10): sitedoc_admin ∪ firma_admin ∪
+      // prosjekt_oppretter. opprettTestprosjekt lager et EKTE prosjekt (ny-bruker-
+      // onboarding + admin-malprosjekt), så samme gate som opprett — ellers står
+      // hullet åpent via denne døra.
       if (
         bruker.role !== "sitedoc_admin" &&
-        brukersOrgId !== input.organizationId
+        !(await kanOppretteProsjekt(ctx.userId!, input.organizationId))
       ) {
         throw new TRPCError({
           code: "FORBIDDEN",

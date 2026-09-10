@@ -2,7 +2,7 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
-import { Shield, ShieldAlert, User, Pencil, Plus, X, UserMinus, UserCheck } from "lucide-react";
+import { Shield, ShieldAlert, User, Pencil, Plus, X, UserMinus, UserCheck, FolderPlus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -136,6 +136,7 @@ export default function FirmaBrukere() {
                 const erSystemadmin = b.role === "sitedoc_admin";
                 const erFirmaAdmin = b.firmaRoller.includes("firma_admin");
                 const erHmsAnsvarlig = b.firmaRoller.includes("hms_ansvarlig");
+                const erProsjektOppretter = b.firmaRoller.includes("prosjekt_oppretter");
                 const erDeaktivert = b.status === "deaktivert";
                 return (
                   <tr
@@ -191,6 +192,12 @@ export default function FirmaBrukere() {
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
                             <ShieldAlert className="h-3 w-3" />
                             {t("firma.ansatte.tilgang.hmsAnsvarlig")}
+                          </span>
+                        )}
+                        {erProsjektOppretter && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-700">
+                            <FolderPlus className="h-3 w-3" />
+                            {t("firma.ansatte.tilgang.prosjektOppretter")}
                           </span>
                         )}
                       </div>
@@ -581,12 +588,16 @@ function RedigerModal({
   const [erHrAnsvarlig, setErHrAnsvarlig] = useState(
     bruker.firmaRoller.includes("hr_ansvarlig"),
   );
+  const [erProsjektOppretter, setErProsjektOppretter] = useState(
+    bruker.firmaRoller.includes("prosjekt_oppretter"),
+  );
   const [feilmelding, setFeilmelding] = useState<string | null>(null);
   const [lagrer, setLagrer] = useState(false);
 
   const opprinneligErFirmaAdmin = bruker.firmaRoller.includes("firma_admin");
   const opprinneligErHmsAnsvarlig = bruker.firmaRoller.includes("hms_ansvarlig");
   const opprinneligErHrAnsvarlig = bruker.firmaRoller.includes("hr_ansvarlig");
+  const opprinneligErProsjektOppretter = bruker.firmaRoller.includes("prosjekt_oppretter");
 
   // Avdelinger for nedtrekk + firmadefault for prosjekttilgang (til «Arv»-etiketten).
   const { data: avdelinger } = trpc.avdeling.hentAlle.useQuery(
@@ -653,6 +664,22 @@ function RedigerModal({
             userId: bruker.id,
             organizationId,
             role: "hr_ansvarlig",
+          });
+        }
+      }
+      if (erProsjektOppretter !== opprinneligErProsjektOppretter) {
+        // Delegerbar opprett-rett — samme generiske mønster som hr_ansvarlig.
+        if (erProsjektOppretter) {
+          await tildelOrgRolle.mutateAsync({
+            userId: bruker.id,
+            organizationId,
+            role: "prosjekt_oppretter",
+          });
+        } else {
+          await fjernOrgRolle.mutateAsync({
+            userId: bruker.id,
+            organizationId,
+            role: "prosjekt_oppretter",
           });
         }
       }
@@ -850,6 +877,21 @@ function RedigerModal({
             </label>
             <p className="ml-6 mt-1 text-xs text-gray-500">
               {t("firma.ansatte.hrAnsvarligHjelp")}
+            </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={erProsjektOppretter}
+                onChange={(e) => setErProsjektOppretter(e.target.checked)}
+              />
+              <FolderPlus className="h-3.5 w-3.5 text-sky-600" />
+              {t("firma.ansatte.prosjektOppretterLabel")}
+            </label>
+            <p className="ml-6 mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.prosjektOppretterHjelp")}
             </p>
           </div>
 

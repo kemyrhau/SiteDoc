@@ -16,6 +16,14 @@ export default function NyttProsjektSide() {
   const [beskrivelse, setBeskrivelse] = useState("");
   const [adresse, setAdresse] = useState("");
 
+  // Opprett-retten er delegerbar (2026-09-10): firma_admin ELLER prosjekt_oppretter.
+  // Serveren er porten; UI-en speiler samme predikat via kanOpprette-queryen.
+  const kanOppretteQuery = trpc.prosjekt.kanOpprette.useQuery(
+    { organizationId: valgtFirma?.id ?? "" },
+    { enabled: !!valgtFirma?.id },
+  );
+  const kanOpprette = kanAdministrereFirma || (kanOppretteQuery.data ?? false);
+
   // _data: unknown unngår TS2589 «Type instantiation excessively deep» som
   // utløses av Zod-required-felter på createProjectSchema (CLAUDE.md § tRPC).
   const opprettMutation = trpc.prosjekt.opprett.useMutation({
@@ -31,9 +39,8 @@ export default function NyttProsjektSide() {
     // 2026-05-20: firma er nå påkrevd. Blokkér submit hvis ingen firma er valgt
     // i topbar-konteksten. Server-Zod avviser uansett, men UI gir tydelig signal.
     if (!valgtFirma?.id) return;
-    // Sak #5: kun firma-administratorer kan opprette prosjekt (server tillater
-    // OrganizationMember, men UI-en holdes admin-only).
-    if (!kanAdministrereFirma) return;
+    // Delegerbar opprett-rett: firma_admin ∪ prosjekt_oppretter (server er porten).
+    if (!kanOpprette) return;
 
     opprettMutation.mutate({
       name: navn.trim(),
@@ -43,9 +50,10 @@ export default function NyttProsjektSide() {
     });
   }
 
-  // Sak #5: firma-admin-gate. Vanlige ansatte kan ha valgtFirma populert for
-  // innsyn, men skal ikke kunne opprette prosjekt via UI.
-  if (!kanAdministrereFirma) {
+  // Opprett-gate: firma_admin ∪ prosjekt_oppretter. Vanlige ansatte kan ha
+  // valgtFirma populert for innsyn, men skal ikke kunne opprette via UI. Vent på
+  // query-svaret før no-access vises, ellers blinker den for en prosjekt_oppretter.
+  if (!kanOpprette && !kanOppretteQuery.isLoading) {
     return (
       <div className="mx-auto max-w-2xl">
         <h2 className="mb-6 text-2xl font-bold">Nytt prosjekt</h2>

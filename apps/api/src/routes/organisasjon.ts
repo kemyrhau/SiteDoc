@@ -935,7 +935,11 @@ export const organisasjonRouter = router({
   tildelOrgRolle: protectedProcedure
     .input(z.object({
       userId: z.string().uuid(),
-      role: z.string().min(1), // "hms_ansvarlig" osv.
+      // Enum, ikke fri streng (CLAUDE.md § «Stille tomhet er forbudt»): en skrivefeil
+      // ville lagres, vises og aldri virke. Validerer KUN input-rollen — eksisterende
+      // firmaRoller-array spres urørt, så evt. stray-verdier i prod brekkes ikke, og
+      // fjernOrgRolle beholder fri streng nettopp for å kunne rydde dem.
+      role: z.enum(["firma_admin", "hms_ansvarlig", "hr_ansvarlig", "prosjekt_oppretter"]),
       organizationId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
