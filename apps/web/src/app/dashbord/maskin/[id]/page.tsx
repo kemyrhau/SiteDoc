@@ -105,7 +105,7 @@ interface UtstyrDetalj {
 interface BrukerInfo {
   id: string;
   name: string | null;
-  email: string;
+  phone: string | null;
 }
 
 interface MutationVennlig<TInput, TResult> {
@@ -1547,7 +1547,7 @@ function EndrePrimaerModal({
             <option value="">{t("maskin.detalj.ikkeSatt")}</option>
             {brukere.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.name ?? b.email}
+                {b.name ?? "—"}{b.phone ? ` · ${b.phone}` : ""}
               </option>
             ))}
           </select>
@@ -1623,7 +1623,7 @@ function LeggTilAnsvarligModal({
             <option value="">—</option>
             {valgbare.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.name ?? b.email}
+                {b.name ?? "—"}{b.phone ? ` · ${b.phone}` : ""}
               </option>
             ))}
           </select>

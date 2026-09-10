@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Kann mich anmelden",
   "kontakter.kanIkkeLogge": "Anmeldung nicht möglich",
   "kontakter.firmaEndresAvAdmin": "Vom Firmenadministrator geändert",
+  "kontakter.kontaktinfoEndresAvAdmin": "Die Kontaktdaten der Firmenmitarbeiter werden vom Firmenadministrator unter Firma → Mitarbeiter geändert.",
   "kontakter.lukkKort": "Schließen",
   "kontakter.forslagTekst": "{{navn}} wurde hinzugefügt. Geben Sie der Person Assoziationen?",
   "kontakter.forslagBrukergruppe": "+ Benutzergruppe",

@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Can log in",
   "kontakter.kanIkkeLogge": "Cannot log in",
   "kontakter.firmaEndresAvAdmin": "Changed by the company administrator",
+  "kontakter.kontaktinfoEndresAvAdmin": "Contact details for company employees are changed by the company administrator under Company → Employees.",
   "kontakter.lukkKort": "Close",
   "kontakter.forslagTekst": "{{navn}} has been added. Give the person associations?",
   "kontakter.forslagBrukergruppe": "+ User group",

@@ -17,6 +17,7 @@ import {
   VegvesenApiNokkelMangler,
 } from "../../services/maskin";
 import { normaliserRegnummer, erGyldigRegnummer } from "@sitedoc/shared";
+import { aktivAnsattIFirmaWhere } from "../../services/ansatt";
 
 const KATEGORIER = ["kjoretoy", "anleggsmaskin", "smautstyr"] as const;
 const STATUS_VERDIER = [
@@ -205,9 +206,13 @@ export const equipmentRouter = router({
         input?.organizationId,
       );
 
+      // Kun aktive, brukbare ansatte — deaktiverte/sluttede skal ikke ligge i
+      // ansvarlig-velgeren (persondata-gjerde 2026-09-10). Bruker det delte
+      // kandidatfilteret (services/ansatt.ts), ikke et nytt håndskrevet predikat.
+      // Kenneth: «navn og telefonnummer» — e-post ut, telefon inn.
       const medlemmer = await prisma.organizationMember.findMany({
-        where: { organizationId },
-        select: { user: { select: { id: true, name: true, email: true } } },
+        where: aktivAnsattIFirmaWhere(organizationId),
+        select: { user: { select: { id: true, name: true, phone: true } } },
         orderBy: { user: { name: "asc" } },
       });
       return medlemmer.map((m) => m.user);

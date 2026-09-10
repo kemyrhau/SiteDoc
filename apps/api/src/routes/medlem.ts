@@ -75,10 +75,19 @@ export const medlemRouter = router({
           organizationMembers.find((om) => om.organizationId === primaryOrgId) ??
           organizationMembers[0] ??
           null;
+        // Persondata-gjerde (2026-09-10): SAMME diskriminator som medlem.oppdater
+        // bruker server-side — er personen ansatt i prosjektets eier-firma, eies
+        // kontaktinfoen av HR og redigeres kun via firmaadmin-veien. Flagget lar
+        // personkortet vise kontaktinfo som read-only i stedet for å la brukeren
+        // skrive og så feile på lagring (FORBIDDEN).
+        const erAnsattIEierFirma =
+          !!primaryOrgId &&
+          organizationMembers.some((om) => om.organizationId === primaryOrgId);
         return {
           ...m,
           user: {
             ...userRest,
+            erAnsattIEierFirma,
             organization: valgt
               ? { id: valgt.organization.id, name: valgt.organization.name }
               : null,
@@ -464,6 +473,40 @@ export const medlemRouter = router({
           code: "BAD_REQUEST",
           message: "Bruker er fjernet — kan ikke redigere medlem",
         });
+      }
+
+      // Persondata-gjerde (2026-09-10): kontaktinfo (navn/e-post/telefon) for
+      // firmaets EGNE ansatte eies av HR og endres kun via firmaadmin-veien
+      // (organisasjon.oppdaterBruker, gated med verifiserFirmaAdmin). Prosjektadmin
+      // skal SE folk, ikke ENDRE dem. Skillet er hvem personen ER, ikke hvem som
+      // redigerer: eksterne kontakter (byggherre, konsulent — uten ansettelse i
+      // eier-firmaet) har ingen annen vedlikeholder, så dem redigerer prosjektadmin
+      // fortsatt. Prosjektrolle (input.role) er prosjektdata og gjerdes IKKE.
+      const endrerKontaktinfo =
+        input.name !== undefined ||
+        input.email !== undefined ||
+        input.phone !== undefined;
+      if (endrerKontaktinfo) {
+        const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+          where: { id: input.projectId },
+          select: { primaryOrganizationId: true },
+        });
+        if (prosjekt.primaryOrganizationId) {
+          const erFirmaansatt = await ctx.prisma.organizationMember.findFirst({
+            where: {
+              userId: medlem.userId,
+              organizationId: prosjekt.primaryOrganizationId,
+            },
+            select: { id: true },
+          });
+          if (erFirmaansatt) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message:
+                "Kontaktinfo for firmaets ansatte endres av firmaadministrator under Firma → Ansatte.",
+            });
+          }
+        }
       }
 
       // Oppdater User-felter

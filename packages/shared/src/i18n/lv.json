@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Var pieteikties",
   "kontakter.kanIkkeLogge": "Nevar pieteikties",
   "kontakter.firmaEndresAvAdmin": "Mainīja uzņēmuma administrators",
+  "kontakter.kontaktinfoEndresAvAdmin": "Uzņēmuma darbinieku kontaktinformāciju maina uzņēmuma administrators sadaļā Uzņēmums → Darbinieki.",
   "kontakter.lukkKort": "Aizvērt",
   "kontakter.forslagTekst": "{{navn}} ir pievienots. Vai radīt personai asociācijas?",
   "kontakter.forslagBrukergruppe": "+ Lietotāju grupa",

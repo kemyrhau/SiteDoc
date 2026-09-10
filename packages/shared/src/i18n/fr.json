@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Peut se connecter",
   "kontakter.kanIkkeLogge": "Impossible de se connecter",
   "kontakter.firmaEndresAvAdmin": "Modifié par l'administrateur de l'entreprise",
+  "kontakter.kontaktinfoEndresAvAdmin": "Les coordonnées des employés de l'entreprise sont modifiées par l'administrateur de l'entreprise sous Entreprise → Employés.",
   "kontakter.lukkKort": "Fermer",
   "kontakter.forslagTekst": "{{navn}} a été ajouté. Donner à la personne des associations ?",
   "kontakter.forslagBrukergruppe": "+ Groupe d'utilisateurs",
