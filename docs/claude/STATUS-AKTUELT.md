@@ -87,6 +87,35 @@ viste da fremmedfiler som «slettet» i diffen.
 verifisere brukerminnet. **Appen er lokalt signert — å få den tilbake krever et nytt bygg.**
 🟢 **DB-spørring beviste skrivingen uten risiko.**
 
+### 🔴 FUNN 10.09 — nye prosjekter har vært TOMME siden 6. april
+
+**Redesign målte tre opprettelsesveier. To seeder ingenting:**
+
+| Vei | Grupper | Faggrupper | Dokumentflyter | Moduler/maler |
+|---|---|---|---|---|
+| `prosjekt.opprett` — **hovedveien** | ❌ | ❌ | ❌ | ❌ |
+| `admin.opprettProsjekt` | ❌ | ❌ | ❌ | ❌ |
+| `opprettTestprosjekt` | ✅ | ✅ | ✅ | ✅ |
+
+🔴 **Rotårsak (`git log -S`):** kalleren lå på KLIENTEN — en lazy-seed på Brukere-siden
+(`c6dc930e`) som selvhelbredet prosjekter ved første besøk. **Fjernet som kollateral i
+`9a489876`** («Fjern gammel gruppevisning», 6. april, −1599 linjer). **Aldri et vedtak.**
+
+**PROD-måling:** malen har 6 grupper; **ingen prosjekt har mer enn 5 fra mal.** Differansen er
+håndlaget — 2 grupper på ytterstifjorn, 4 på Instinniforbotn.
+🟢 **Hullet er betalt i manuelt arbeid, ikke i tomme prosjekter.**
+
+**Rettet i `29b1eab3`:** delt `seedStandardProsjektoppsett` kalt fra alle tre veier i samme
+transaksjon. 🔴 **Treffer piloten — A.Markussen oppretter prosjekter gjennom hovedveien.**
+
+### ⚙️ ARBEIDSFORM ENDRET 10.09 — deploy koster Kenneths tid, merge gjør ikke
+
+**Kenneth:** *«vi gater mange små fikser med deploys som tar mye tid»*
+
+🔴 **Hver ordre merkes 🔴 (deploy nå) eller 🟡 (samles).** Full regel:
+[SAMARBEIDSREGLER § DEPLOY KOSTER KENNETHS TID](SAMARBEIDSREGLER.md).
+🟢 **Deploy blokkerer kun merge-agenten** — kode-agenter bygger videre, cowork venter ikke.
+
 ### Åpne saker etter runden — alle ført i [BACKLOG](BACKLOG.md) med måling
 
 | Sak | Type |

@@ -264,6 +264,46 @@ som **ikke vet hva som ble endret** kan finne den. En komponent som finnes i kod
 endring brukeren har fått. Verifiseringsordrer skal derfor be om **hvor** noe ble funnet og **hvor
 mange trykk** det tok — ikke bare om det virker.
 
+### 🔴 DEPLOY KOSTER KENNETHS TID — MERGE GJØR IKKE (vedtak 2026-09-10)
+
+> **Kenneth 2026-09-10:** *«vi gater mange små fikser med deploys som tar mye tid → kan vi gjøre
+> mer hver gang vi deployer for å øke produksjonen»* · *«kan vi også jobbe med noe mens vi
+> deployer for å holde tempo oppe?»*
+
+**Målt samme dag: fem web-deploys og tre OTA-er på ett døgn.** Hver deploy koster Kenneth synk,
+script, `ssh -t`, passord og verifisering — over en time totalt.
+🔴 **Bare to av de fem hastet.** De tre andre var rydding som ikke blokkerte noe.
+
+#### A — cowork merker HVER ordre 🔴 eller 🟡 fra start
+
+| Merke | Betyr | Deploy |
+|---|---|---|
+| 🔴 | Funn fra Kenneths egen testing · regresjon fra merget arbeid · noe som blokkerer ham | **Deploy nå** |
+| 🟡 | Rydding · teknisk gjeld · i18n · refaktorering · fikser ingen venter på | **Samles til neste 🔴** |
+
+🔴 **Merket står i ordrens topplinje, så Kenneth ser om den kommer til å kreve en deploy av ham.**
+
+**Kommer det ingen 🔴 på en dag, deployes samlepakken når Kenneth sier fra** — ikke fordi noe
+haster, men fordi den ikke skal bli for stor å diagnostisere.
+
+⚠️ **Prisen er reell:** når en samlepakke brekker, er det flere runder å lete blant.
+🟢 **Motvekten er regel 10-gaten på hver merge** — den har hittil fanget alt. **Derfor melder
+merge-agenten alltid tallene.**
+
+#### B — deploy blokkerer KUN merge-agenten
+
+`deploy-test.sh` har en hash-guard som feiler hvis develop flytter seg under kjøring.
+
+| Mens Kenneth deployer | |
+|---|---|
+| **Merge-agent** | 🔴 **står stille** til `/version` bekrefter hashen |
+| **Kode-agenter** | 🟢 **bygger videre** — egne brancher, rører ikke develop |
+| **Cowork** | 🟢 skriver ordrer, måler, gater |
+
+🔴 **Cowork skal IKKE vente på deploy før neste ordre gis.** Det var coworks flaskehals, ikke
+Kenneths — målt 09.–10.09, der agenter sto ledige mens cowork ventet på en verifisering som
+ikke blokkerte dem.
+
 ### Arbeidsrutiner for en fersk cowork (lærdommer 2026-08-13 → 08-20)
 
 **1. Statustavla først.** Se seksjonen under. Uten den vet du ikke hvem som finnes.
