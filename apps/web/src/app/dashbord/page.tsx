@@ -53,6 +53,15 @@ export default function DashbordSide() {
   const { data: minBruker } = trpc.bruker.hentMin.useQuery();
   const erAdmin = kanAdministrereFirma;
 
+  // Opprett-retten er delegerbar (2026-09-10): firma_admin ELLER prosjekt_oppretter.
+  // kanAdministrereFirma dekker kun firma_admin/sitedoc_admin, så vi spør serveren
+  // (samme port som opprett-mutasjonen) for å ikke tilby en knapp serveren nekter.
+  const { data: kanOppretteData } = trpc.prosjekt.kanOpprette.useQuery(
+    { organizationId: valgtFirma?.id ?? "" },
+    { enabled: !!valgtFirma?.id },
+  );
+  const kanOpprette = kanAdministrereFirma || (kanOppretteData ?? false);
+
   // Auto-redirect basert på antall prosjekter:
   //  0  → /dashbord/kom-i-gang (kun admin) eller bli stående med «venter på tilgang»
   //  1  → direkte til prosjektet
@@ -89,7 +98,7 @@ export default function DashbordSide() {
           <h2 className="text-xl font-bold text-gray-900">
             {t("dashbord.velkommen", { navn: session?.user?.name ?? t("dashbord.bruker") })}
           </h2>
-          {erAdmin && (
+          {kanOpprette && (
             <Link href="/dashbord/nytt-prosjekt">
               <Button size="sm">
                 <Plus className="mr-1.5 h-4 w-4" />
@@ -104,7 +113,7 @@ export default function DashbordSide() {
             <Spinner size="lg" />
           </div>
         ) : !visListe.length ? (
-          erAdmin ? (
+          kanOpprette ? (
             <EmptyState
               title={t("dashbord.ingenProsjekter")}
               description={

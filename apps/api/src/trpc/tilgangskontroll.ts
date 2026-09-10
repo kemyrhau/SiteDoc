@@ -337,6 +337,31 @@ async function erFirmaAdmin(
 }
 
 /**
+ * Kan bruker opprette prosjekter for organisasjonen?
+ *
+ * Delegerbar rett (Kenneth-vedtak 2026-09-10): `firma_admin` ELLER
+ * `prosjekt_oppretter` i `firmaRoller`. Stilling (`ansattRolle`) gir IKKE retten —
+ * stilling er HR-data, rettighet er `firmaRoller`. Deaktivert medlem nektes.
+ * `sitedoc_admin` sjekkes separat av kallerne (bypass uavhengig av org-medlemskap).
+ *
+ * Søsken av `erFirmaAdmin` — samme OrganizationMember-oppslag, bredere rollesett.
+ */
+export async function kanOppretteProsjekt(
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  const member = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { firmaRoller: true, status: true },
+  });
+  if (!member || member.status === "deaktivert") return false;
+  return (
+    member.firmaRoller.includes("firma_admin") ||
+    member.firmaRoller.includes("prosjekt_oppretter")
+  );
+}
+
+/**
  * Er bruker firma-admin på NOEN organisasjon koblet til prosjektet?
  *
  * Delt bypass-predikat (fabel-presedens 2026-08-15: ett felles bypass-sett for
