@@ -19,14 +19,14 @@ import {
 import { useFirmaNavElementer, type FirmaNavElement } from "./firma-nav";
 
 /**
- * NavSidebar (steg iii) — samlet sidebar bak `nyNavigasjon`-flagget.
+ * NavSidebar — appens samlede sidebar, montert for alle dashbord- og
+ * prosjektruter (dashbord/layout.tsx).
  *
- * Tre soner: PROSJEKT (dagens hovedelementer + P31 Kontakter, uendret
- * gating G1–G12), FIRMA (admin-gated, speiler firma/layout-navigasjonen —
- * løser P4 fra admin-navigasjonsanalysen), og «Innstillinger» fast nederst
- * → huben. Gjelder overalt når flagget er på; firma-layoutens egen sidebar
- * undertrykkes da (se firma/layout.tsx). Flagg av = denne komponenten
- * monteres ikke; HovedSidebar brukes uendret.
+ * Tre soner: PROSJEKT (hovedelementer + P31 Kontakter, gating G1–G12),
+ * FIRMA (admin-gated, speiler firma/layout-navigasjonen — løser P4 fra
+ * admin-navigasjonsanalysen), og «Innstillinger» fast nederst → huben.
+ * Firma-layouten har ingen egen sidebar; FIRMA-sonen her dekker den
+ * (se firma/layout.tsx).
  *
  * Del 5 runde 3 (fabel 2026-07-12):
  *  - D3 aktiv-markør: hvit 3px venstrekant + bg-white/20 + hvit tekst.

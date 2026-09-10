@@ -57,8 +57,8 @@ function relativPath(href: string, prefiks: string): string {
  */
 
 /**
- * KontekstChip (steg iii + K3-trakt) — samlet «{Firma} / {Prosjekt} ▾»-velger
- * bak `nyNavigasjon`-flagget. Erstatter FirmaVelger + ProsjektVelger i Toppbar.
+ * KontekstChip (K3-trakt) — samlet «{Firma} / {Prosjekt} ▾»-velger i Toppbar.
+ * Avløste FirmaVelger + ProsjektVelger som Toppbarens firma/prosjekt-velger.
  *
  * K3 (fabel-fasit § 3a, 2026-07-21): popoveren er en TRAKT firma → prosjekt →
  * byggeplass. Ett nivå åpent om gangen; valgte nivåer kollapser til
