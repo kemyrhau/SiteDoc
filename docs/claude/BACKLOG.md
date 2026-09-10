@@ -4299,6 +4299,57 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### 🔴 MÅ GJØRES 2026-09-10: serverhåndheving av `DokumentflytMedlem.kanRedigere`
+
+**Kenneth-vedtak 2026-09-10:** *«før opp 2 i backlogg som must do»* — etter at han gatet den
+mindre saken (dokumentasjon + samle klientoppslaget) som strakstiltak.
+🔴 **Dette er IKKE «kan utsettes/utelates». Det er utsatt til etter piloten, og skal gjøres.**
+
+**Saken:** «Leser»-rettigheten i dokumentflyten er i dag **kun en UI-lås.**
+`kanRedigere` (`packages/db/prisma/schema.prisma:1511`) leses av `utledDokumentRettighet()`
+(`packages/shared/src/utils/flytRolle.ts:209-210`) — og **alle kallere er klienter**
+(`apps/web/src/hooks/useOppgaveSkjema.ts:397`, `useSjekklisteSkjema.ts:364`, samt to
+mobil-hooks). 🔴 **Ingen server-mutasjon leser feltet.** Målt to søkeformer:
+`grep "kanRedigere" apps/api/src` (kun urelaterte navn + skrivepunktet `dokumentflyt.ts:471-486`)
+og `grep "kan_redigere"` (kun to migreringsfiler).
+
+**Konsekvens:** en bruker som er satt til «Leser» kan omgå låsen ved å kalle tRPC direkte.
+🟢 **Ikke utnyttet i dag** — prod 0 av 31 rader har `false`, test 0 av 54 (målt 2026-09-10).
+**Men det er en dokumentert rettighet uten håndhevelse.**
+
+#### 🔴 Hvorfor den ble utsatt — les dette før du starter
+
+**Det finnes ingen sentral port.** `verifiserDokumentTilgang` (`tilgangskontroll.ts:892-900`)
+returnerer `Promise<void>` og gater **både lesing og skriving** — å legge sjekken der ville
+blokkert lesing. Innstikkspunkter målt: **~15 kjerne, opptil 24 med signaturruter.**
+🔴 **De 11 HMS-mutasjonene går på `verifiserHmsHandling` og kaller aldri
+`verifiserDokumentTilgang`.** ⚠️ **`byttEier` (`oppgave.ts:2088`, `sjekkliste.ts:1924`) kjører
+kun `verifiserProsjektIkkeFrosset` — ingen dokumenttilgangssjekk overhodet. Eget funn.**
+
+🔴 **Fire «du kan ikke skrive»-mekanismer finnes fra før:** terminal status
+(`flytRolle.ts:197`) · append-only-vakten (`oppgave.ts:721+`) · `verifiserRundeIkkeLaast`
+(`services/signaturliste.ts:47`) · `verifiserRetningsrett` (`tilgangskontroll.ts:1082-1089`).
+**En femte uten distinkt feilmelding gir en bruker som ikke skjønner hvorfor feltet er låst.
+Feilmeldingen er halve oppgaven.**
+
+⚠️ **`kanRedigere` er subsumert av ballen.** Steg 4 (`if (!harBallen) return "leser"`) løper før
+steg 5 — feltet har effekt kun i vinduet «har ballen, ikke terminal status».
+**Spec-en (`dokumentflyt.md:376`) sier «kun lesetilgang selv med ballen» — altså strengt en
+innskrenkning INNENFOR ball-tilstanden. Utvides semantikken utover det, er det et eget vedtak.**
+
+#### Anbefalt form når saken tas
+
+🟢 **`verifiserRetningsrett` (`tilgangskontroll.ts:1082-1089`) er beste kandidat-plassering** —
+den er allerede en ball-basert skriveport. **Men `RaFlytMedlem` (`flytPosisjon.ts:76-84`) og
+`hentFlytMedlemmer` (`services/flytFakta.ts:95-120`) selekterer ikke `kanRedigere`.**
+Typen og `select`-en må utvides. **Billig og gjenbrukbart.**
+
+⚠️ **Den frosne referansetesten** `packages/shared/src/utils/tilgangsmatrise.test.ts` feiler ved
+divergens — med vilje (`avgjorDokumentTilgang.ts:13-16`). **Regn med at den må oppdateres.**
+
+🟢 **Klientoppslaget er samlet til én kilde i `fix/kanredigere-en-kilde` (2026-09-10)** — bygg
+serversjekken på samme predikat, ikke en fjerde variant.
+
 ### 🟡 PARKERT 2026-09-10: `prosjekt.opprettTestprosjekt` — venter produktretning
 
 **Kenneth-vedtak 2026-09-10:** *«kan vi la denne stå deaktivert nå. aktiviseres og utbedres
