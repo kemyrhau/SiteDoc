@@ -207,6 +207,32 @@ under taket. Bruk `wc -m`.** Taket er presisert til «40 960 tegn» — men *hvo
 ikke noe sted, og to agenter fikk to tall på én dag. **Tas med neste gang CLAUDE.md § Dokumentasjons-
 regler røres.**
 
+### 🔵 To døde rader i `bruker_innstilling` på test — kjent, ikke slettet
+
+**Etterlatt av fase 1** (`15ef9602`), som skrev **én global rad med JSON-map**. Strukturen ble
+rettet i `fe226986` til **én rad per prosjekt**.
+
+**Målt i `sitedoc_test` 2026-09-10 kl. 10:26:**
+
+| Nøkkel | `project_id` | Status |
+|---|---|---|
+| `sistByggeplassPerProsjekt` | `NULL` | 🔵 **død** — stempel 09:30, ingen leser den |
+| `sistTegningPerByggeplass` | `NULL` | 🔵 **død** — samme |
+| `sistBruktByggeplass` | satt (×2) | 🟢 gjeldende — stempel 10:26 |
+| `sistBruktTegning` | satt (×2) | 🟢 gjeldende |
+
+🟢 **Ingen leser de to gamle.** Web bruker ikke brukerminnet i det hele tatt (målt: 0 treff i
+`apps/web`); ny klient leser andre nøkkelnavn med `project_id != null`-guard.
+🟢 **Prod har aldri hatt tabellen** — dataene finnes kun på test.
+
+🔴 **Ikke slettet, fordi CLAUDE.md sier «ALDRI slett eksisterende data».** Standardvalget er å
+la dem ligge. **Kenneth har fått spørsmålet to ganger og ikke gatet sletting** — det er et
+gyldig svar, og oppføringen her erstatter behovet for å måle på nytt.
+
+**Skal de bort senere:**
+`DELETE FROM bruker_innstilling WHERE nokkel IN ('sistByggeplassPerProsjekt','sistTegningPerByggeplass') AND project_id IS NULL;`
+🔴 **Krever Kenneth-gate — det er en data-migrering.**
+
 ### 🟢 BESTILT 2026-09-09 — brukerminne på server (fase 1 av to)
 
 > **Kenneth:** *«serveren bør lagre innstillinger → slik at mobil reinstallasjon ikke påvirkes»*
