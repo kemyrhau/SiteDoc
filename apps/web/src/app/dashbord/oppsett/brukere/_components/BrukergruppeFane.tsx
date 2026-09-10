@@ -13,10 +13,11 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Modal } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
-import { Eye, Pencil, Trash2, Plus, X, ArrowLeft } from "lucide-react";
+import { Eye, Pencil, Trash2, Plus, X, ArrowLeft, ShieldCheck } from "lucide-react";
 
 interface GruppeMedlem {
   id: string;
+  isAdmin?: boolean;
   projectMember: {
     id: string;
     user: { id: string; name: string | null; email: string };
@@ -55,6 +56,8 @@ export function BrukergruppeFane({
   grupper,
   prosjektadmins,
   hmsGruppeId,
+  erProsjektAdmin,
+  minUserId,
   onAapnePerson,
   onLeggTilMedlem,
 }: {
@@ -62,6 +65,10 @@ export function BrukergruppeFane({
   grupper: VisGruppe[];
   prosjektadmins: Prosjektadmin[];
   hmsGruppeId: string | null;
+  /** Kan innlogget bruker administrere prosjektet (utpeke gruppeansvarlig, alle grupper)? */
+  erProsjektAdmin: boolean;
+  /** Innlogget brukers User.id — for å avgjøre gruppeansvarlig per gruppe. */
+  minUserId?: string;
   onAapnePerson: (projectMemberId: string) => void;
   onLeggTilMedlem: (gruppeId: string) => void;
 }) {
@@ -82,8 +89,13 @@ export function BrukergruppeFane({
   const oppdaterDomenerMutation = trpc.gruppe.oppdaterDomener.useMutation({ onSuccess: invalider });
   const oppdaterModulerMutation = trpc.gruppe.oppdaterModuler.useMutation({ onSuccess: invalider });
   const fjernMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({ onSuccess: invalider });
+  const settGruppeAdminMutation = trpc.gruppe.settGruppeAdmin.useMutation({ onSuccess: invalider });
 
   const aapenGruppe = aapenGruppeId ? grupper.find((g) => g.id === aapenGruppeId) ?? null : null;
+
+  // Gruppeansvarlig for en gitt gruppe = innlogget bruker er medlem med isAdmin der.
+  const erGruppeansvarligFor = (g: VisGruppe) =>
+    !!minUserId && g.members.some((m) => m.projectMember?.user?.id === minUserId && m.isAdmin);
 
   // ── Detaljpanel ──────────────────────────────────────────────────────────
   if (aapenGruppe) {
@@ -92,6 +104,9 @@ export function BrukergruppeFane({
     const domener = g.domains ?? [];
     const moduler = g.modules ?? [];
     const har3d = moduler.includes("3d");
+    // Medlemsvedlikehold (legg til / fjern): prosjektadmin ELLER gruppeansvarlig for
+    // DENNE gruppa. Utpeking av gruppeansvarlig er prosjektadmin alene.
+    const kanRedigereMedlemmer = erProsjektAdmin || erGruppeansvarligFor(g);
 
     return (
       <>
@@ -124,7 +139,9 @@ export function BrukergruppeFane({
                 )}
               </div>
             )}
-            {!erHms && (
+            {/* Navn/sletting er prosjektadmin alene (gruppeansvarlig vedlikeholder kun
+                medlemmer) — skjul knappene for andre så de ikke lyver. */}
+            {!erHms && erProsjektAdmin && (
               <div className="flex shrink-0 items-center gap-0.5">
                 <button onClick={() => { setRedigerNavn(true); setNavnVerdi(g.name); }} className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600" title={t("handling.rediger")}>
                   <Pencil className="h-4 w-4" />
@@ -148,21 +165,42 @@ export function BrukergruppeFane({
                 <button onClick={() => onAapnePerson(m.projectMember!.id)} className="flex-1 text-left text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline">
                   {m.projectMember.user.name ?? m.projectMember.user.email}
                 </button>
-                <button
-                  onClick={() => fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId })}
-                  className="rounded p-0.5 text-gray-300 opacity-0 hover:bg-red-50 hover:text-red-500 group-hover/mem:opacity-100"
-                  title={t("brukere.fjernMedlem")}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                {m.isAdmin && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700" title={t("kontakter.gruppeansvarligHjelp")}>
+                    <ShieldCheck className="h-3 w-3" />
+                    {t("kontakter.gruppeansvarligMerke")}
+                  </span>
+                )}
+                {/* Utpeking av gruppeansvarlig er prosjektadmin alene (ikke HMS-gruppa,
+                    som styres av systemNokkel/medlemskap, ikke av gruppeansvarlig). */}
+                {erProsjektAdmin && !erHms && (
+                  <button
+                    onClick={() => settGruppeAdminMutation.mutate({ groupId: g.id, projectId: prosjektId, projectMemberId: m.projectMember!.id, isAdmin: !m.isAdmin })}
+                    className={`rounded p-0.5 opacity-0 group-hover/mem:opacity-100 ${m.isAdmin ? "text-indigo-500 hover:bg-indigo-50" : "text-gray-300 hover:bg-gray-100 hover:text-indigo-500"}`}
+                    title={m.isAdmin ? t("kontakter.fjernGruppeansvarlig") : t("kontakter.settGruppeansvarlig")}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {kanRedigereMedlemmer && (
+                  <button
+                    onClick={() => fjernMedlemMutation.mutate({ id: m.id, projectId: prosjektId })}
+                    className="rounded p-0.5 text-gray-300 opacity-0 hover:bg-red-50 hover:text-red-500 group-hover/mem:opacity-100"
+                    title={t("brukere.fjernMedlem")}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             ))}
-            <button
-              onClick={() => onLeggTilMedlem(g.id)}
-              className="mt-2 inline-flex w-fit items-center gap-1 rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-blue-600"
-            >
-              <Plus className="h-3.5 w-3.5" /> {t("brukere.leggTilMedlem")}
-            </button>
+            {kanRedigereMedlemmer && (
+              <button
+                onClick={() => onLeggTilMedlem(g.id)}
+                className="mt-2 inline-flex w-fit items-center gap-1 rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+              >
+                <Plus className="h-3.5 w-3.5" /> {t("brukere.leggTilMedlem")}
+              </button>
+            )}
           </div>
 
           {/* Tilganger */}

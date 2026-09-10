@@ -814,16 +814,24 @@ export async function krevErKundeFirma(organizationId: string): Promise<void> {
  * Returnerer { erAdmin: true } for admin-brukere, { erAdmin: false } for firmaansvarlige.
  * Kaster FORBIDDEN for vanlige medlemmer.
  */
-export async function verifiserAdminEllerFirmaansvarlig(
+/**
+ * Bestem prosjekt-rollenivå UTEN å kaste på «verken admin eller firmaansvarlig».
+ *
+ * Ansettelses-/frysevaktene kaster fortsatt (de skal ALLTID blokkere). Skilt ut fra
+ * `verifiserAdminEllerFirmaansvarlig` slik at en ren gruppeansvarlig (som verken er
+ * admin eller firmaansvarlig) kan slippe gjennom porten i `medlem.registrer` og
+ * `gruppe.fjernMedlem` — der en per-gruppe-rett avgjør, ikke prosjekt-rollen.
+ */
+export async function hentProsjektRolleNivaa(
   userId: string,
   projectId: string,
-): Promise<{ erAdmin: boolean }> {
+): Promise<{ erAdmin: boolean; erFirmaansvarlig: boolean }> {
   const bruker = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true },
   });
 
-  if (bruker?.role === "sitedoc_admin") return { erAdmin: true };
+  if (bruker?.role === "sitedoc_admin") return { erAdmin: true, erFirmaansvarlig: false };
 
   await krevAktivAnsettelse(userId, projectId);
   await verifiserProsjektIkkeFrosset(userId, projectId);
@@ -832,17 +840,48 @@ export async function verifiserAdminEllerFirmaansvarlig(
     where: { userId_projectId: { userId, projectId } },
   });
 
-  if (medlem?.role === "admin") return { erAdmin: true };
+  if (medlem?.role === "admin") return { erAdmin: true, erFirmaansvarlig: false };
 
   // O-3a: firma-admin (delt bypass-predikat, fabel-presedens) → admin
-  if (await erFirmaAdminForProsjekt(userId, projectId)) return { erAdmin: true };
+  if (await erFirmaAdminForProsjekt(userId, projectId)) return { erAdmin: true, erFirmaansvarlig: false };
 
-  if (medlem?.erFirmaansvarlig) return { erAdmin: false };
+  return { erAdmin: false, erFirmaansvarlig: !!medlem?.erFirmaansvarlig };
+}
 
+export async function verifiserAdminEllerFirmaansvarlig(
+  userId: string,
+  projectId: string,
+): Promise<{ erAdmin: boolean }> {
+  const { erAdmin, erFirmaansvarlig } = await hentProsjektRolleNivaa(userId, projectId);
+  if (erAdmin || erFirmaansvarlig) return { erAdmin };
   throw new TRPCError({
     code: "FORBIDDEN",
     message: "Krever administrator- eller firmaansvarlig-rettighet",
   });
+}
+
+/**
+ * Er brukeren gruppeansvarlig for DENNE gruppen? (`ProjectGroupMember.isAdmin`)
+ *
+ * Per-gruppe-rett (Kenneth-vedtak 2026-09-10): en gruppeansvarlig vedlikeholder
+ * medlemmene i sin egen gruppe. Rent boolsk predikat (som `erFirmaAdmin`) — kalleren
+ * kjører ansettelses-/frysevaktene (typisk via `hentProsjektRolleNivaa` i samme port).
+ */
+export async function erGruppeansvarlig(
+  userId: string,
+  projectId: string,
+  groupId: string,
+): Promise<boolean> {
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    select: { id: true },
+  });
+  if (!medlem) return false;
+  const gm = await prisma.projectGroupMember.findFirst({
+    where: { groupId, projectMemberId: medlem.id, isAdmin: true },
+    select: { id: true },
+  });
+  return !!gm;
 }
 
 /**

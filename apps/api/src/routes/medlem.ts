@@ -12,6 +12,8 @@ import { aktivAnsattIFirmaWhere, sikreProsjektmedlemmer } from "../services/ansa
 import {
   verifiserAdmin,
   verifiserAdminEllerFirmaansvarlig,
+  hentProsjektRolleNivaa,
+  erGruppeansvarlig,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
   hentBrukersOrg,
@@ -172,17 +174,43 @@ export const medlemRouter = router({
   registrer: protectedProcedure
     .input(registrerMedlemSchema)
     .mutation(async ({ ctx, input }) => {
-      const { erAdmin } = await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+      // Rollenivå uten hard-kast, så en ren gruppeansvarlig kan slippe inn på
+      // gruppe-binding-veien (ansettelses-/frysevakt kaster fortsatt).
+      const { erAdmin, erFirmaansvarlig } = await hentProsjektRolleNivaa(ctx.userId, input.projectId);
 
-      // Auth-trapp: gruppe-/flyt-binding krever FULL admin (som gruppe.leggTilMedlem +
-      // dokumentflyt.leggTilMedlem i dag). Basis (bruker/medlem/faggruppe) tillater
-      // firmaansvarlig. Ingen firmaansvarlig-sti sender gruppeIder i dag (gruppe var
-      // admin-only), så trappen stenger ingen vei som virker.
-      const vilBindeGruppeEllerFlyt = input.gruppeIder.length > 0 || input.flytBindinger.length > 0;
-      if (vilBindeGruppeEllerFlyt && !erAdmin) {
+      // Auth-trapp, splittet (2026-09-10):
+      //  - flyt-binding: FORTSATT admin-only (flyten konfigureres ikke herfra).
+      //  - gruppe-binding: admin ELLER gruppeansvarlig for HVER forespurt gruppe
+      //    (ALLE, ikke minst én — sender du tre og eier én, avvises hele kallet).
+      //  - basis (kontakt uten gruppe/flyt): admin ELLER firmaansvarlig (uendret rett).
+      if (input.flytBindinger.length > 0 && !erAdmin) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Bare administratorer kan plassere en kontakt i en brukergruppe eller dokumentflyt",
+          message: "Bare administratorer kan koble en kontakt til en dokumentflyt",
+        });
+      }
+      if (input.gruppeIder.length > 0 && !erAdmin) {
+        const ansvarligForAlle = (
+          await Promise.all(
+            input.gruppeIder.map((gid) => erGruppeansvarlig(ctx.userId!, input.projectId, gid)),
+          )
+        ).every(Boolean);
+        if (!ansvarligForAlle) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du kan bare legge til medlemmer i grupper du er gruppeansvarlig for",
+          });
+        }
+      }
+      if (
+        input.gruppeIder.length === 0 &&
+        input.flytBindinger.length === 0 &&
+        !erAdmin &&
+        !erFirmaansvarlig
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Krever administrator- eller firmaansvarlig-rettighet",
         });
       }
 

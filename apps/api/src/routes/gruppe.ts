@@ -14,6 +14,8 @@ import {
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
   hentBrukersOrg,
+  hentProsjektRolleNivaa,
+  erGruppeansvarlig,
 } from "../trpc/tilgangskontroll";
 
 export const gruppeRouter = router({
@@ -324,7 +326,21 @@ export const gruppeRouter = router({
   fjernMedlem: protectedProcedure
     .input(z.object({ id: z.string().uuid(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
+      // Prosjektadmin ELLER gruppeansvarlig for gruppa medlemmet ligger i.
+      // hentProsjektRolleNivaa kjører ansettelses-/frysevaktene (kaster ved behov)
+      // uten å kaste på «ikke admin», så gruppeansvarlig slipper gjennom.
+      const { erAdmin } = await hentProsjektRolleNivaa(ctx.userId!, input.projectId);
+      const gm = await ctx.prisma.projectGroupMember.findUnique({
+        where: { id: input.id },
+        select: { groupId: true },
+      });
+      if (!gm) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!erAdmin && !(await erGruppeansvarlig(ctx.userId!, input.projectId, gm.groupId))) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Du kan bare fjerne medlemmer fra grupper du er gruppeansvarlig for",
+        });
+      }
 
       return ctx.prisma.projectGroupMember.delete({
         where: { id: input.id },
