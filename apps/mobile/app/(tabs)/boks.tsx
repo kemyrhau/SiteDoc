@@ -13,7 +13,7 @@ interface MappeTre {
   name: string;
   parentId: string | null;
   _count: { ftdDocuments: number };
-  // 2a Dokumenter-tab (flagg PÅ): språk-arv per mappe
+  // 2a Dokumenter-tab: språk-arv per mappe
   effektiveSpraak?: string[];
   spraakArvet?: boolean;
   kildesprak?: string;
@@ -31,7 +31,7 @@ interface Dokument {
   fileType: string;
   processingState: string;
   uploadedAt: string;
-  // Rike felt fra mappe.hentDokumenter (brukes kun flagg PÅ)
+  // Rike felt fra mappe.hentDokumenter (2a Dokumenter-tab)
   sourceLanguage?: string;
   detectedLanguage?: string | null;
   languageConfirmed?: boolean;
@@ -266,7 +266,7 @@ export default function BoksSkjerm() {
                         {dok.processingState === "processing" && ` — ${t("handling.prosesserer")}`}
                         {dok.processingState === "pending" && ` — ${t("handling.laster")}`}
                         {dok.processingState === "failed" && ` — ${t("feil.noeGikkGalt")}`}
-                        {/* 2a oversettelsesstatus (flagg PÅ) */}
+                        {/* 2a oversettelsesstatus */}
                         {paagaar && ` — ${t("dokumenter.oversetter")}`}
                         {!paagaar && oversatte.length > 0 &&
                           ` · ${t("dokumenter.oversatt")} ${oversatte.map((l) => l.toUpperCase()).join(" ")}`}
@@ -281,7 +281,7 @@ export default function BoksSkjerm() {
                   )}
                 </View>
 
-                {/* 2a språkavvik-rad (flagg PÅ): ett-klikk «Bekreft og oversett» + «Behold» */}
+                {/* 2a språkavvik-rad: ett-klikk «Bekreft og oversett» + «Behold» */}
                 {harAvvik && (
                   <View className="ml-8 mt-2 rounded-lg bg-amber-50 px-3 py-2">
                     <Text className="text-xs text-amber-800">

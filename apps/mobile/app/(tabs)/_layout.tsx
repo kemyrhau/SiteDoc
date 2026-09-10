@@ -10,8 +10,8 @@ export default function TabsLayout() {
   const timerSkjult = useFirmamodulSkjult("timer");
 
   // Faner: Hjem · Tegninger · Dokumenter · Timer · Mer.
-  // Lokasjoner-skjermen forblir montert (`href: null`) — den er ny navs
-  // tegningsåpner, nådd via router.push fra Tegninger-lista (aapneTegning).
+  // Lokasjoner-skjermen forblir montert (`href: null`) — den er
+  // tegningsåpneren, nådd via router.push fra Tegninger-lista (aapneTegning).
   return (
     <Tabs
       screenOptions={{
@@ -48,7 +48,7 @@ export default function TabsLayout() {
         options={{
           title: t("nav.lokasjoner"),
           // 🔴 Fabel-lås: skjult fane, fortsatt montert og rutbar. Lokasjoner er
-          // ny navs tegningsåpner (aapneTegning fra Tegninger-lista). Slettes ikke.
+          // tegningsåpneren (aapneTegning fra Tegninger-lista). Slettes ikke.
           href: null,
           tabBarIcon: ({ color, size }) => <MapPin size={size} color={color} />,
         }}
