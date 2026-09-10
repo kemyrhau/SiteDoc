@@ -42,7 +42,7 @@ export default function DokumentLeser() {
   const [språk, setSpråk] = useState(brukerSpraak);
   const [zoomBilde, setZoomBilde] = useState<string | null>(null);
 
-  // 2c-tilstand (kun relevant med flagg på)
+  // 2c: oversettelse-meny + sammenlign-tilstand for dokumentleseren
   const [visOversettMeny, setVisOversettMeny] = useState(false);
   const [sammenlignModus, setSammenlignModus] = useState(false);
   const [sammenlignBlokk, setSammenlignBlokk] = useState<{ id: string; content: string } | null>(null);

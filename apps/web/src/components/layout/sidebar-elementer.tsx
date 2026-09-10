@@ -3,10 +3,9 @@
 /**
  * Delt kilde for hovedsidebar-elementene + gating-logikken (G1–G12).
  *
- * Ekstrahert ut av `HovedSidebar.tsx` (steg iii) slik at BÅDE dagens
- * `HovedSidebar` (flagg av) og den nye `NavSidebar` (flagg på) filtrerer
- * elementene med nøyaktig samme regler. Arrays og filter-predikatet er
- * flyttet verbatim — ingen endring i gating-utfall eller rekkefølge.
+ * Både NavSidebar og mobil-web-hamburgeren filtrerer elementene herfra
+ * med nøyaktig samme regler, så de to flatene ikke kan divergere.
+ * Arrays og filter-predikatet ligger ett sted.
  */
 
 import type { useRouter } from "next/navigation";
@@ -201,9 +200,9 @@ export const hovedelementer: SidebarElement[] = [
 ];
 
 /**
- * P31 Kontakter — read-only lesevisning. Kun i den nye NavSidebar
- * (flagg på); bevisst UTENFOR `hovedelementer` så dagens HovedSidebar
- * (flagg av) forblir uendret.
+ * P31 Kontakter — read-only lesevisning. Ligger bevisst UTENFOR
+ * `hovedelementer`-arrayen; legges til PROSJEKT-sonen av
+ * `prosjektSoneElementer`, ikke blant kjerne-modulelementene.
  */
 export const kontakterElement: SidebarElement = {
   id: "kontakter",
@@ -213,11 +212,10 @@ export const kontakterElement: SidebarElement = {
 };
 
 /**
- * PROSJEKT-sonen i den nye navigasjonen (NavSidebar + mobil-web-hamburger).
- * Delt kilde så filteret ikke kan divergere mellom de to (T9-avvik 2026-07-07:
- * hamburgeren manglet FM5-filteret). FM5/K2: «Mine timer» hører til brukermenyen,
- * ikke PROSJEKT-sonen. `hovedelementer` er urørt → flagg-av HovedSidebar
- * byte-identisk; filteret gjelder kun flagg-på-flatene.
+ * PROSJEKT-sonen (NavSidebar + mobil-web-hamburger). Delt kilde så filteret
+ * ikke kan divergere mellom de to (T9-avvik 2026-07-07: hamburgeren manglet
+ * FM5-filteret). FM5/K2: «Mine timer» hører til brukermenyen, ikke
+ * PROSJEKT-sonen — filteret her fjerner den fra sone-listen.
  */
 export function prosjektSoneElementer(filtrertHovedelementer: SidebarElement[]): SidebarElement[] {
   return [...filtrertHovedelementer.filter((e) => e.id !== "mine-timer"), kontakterElement];
@@ -278,8 +276,7 @@ export function navigerSidebar(
 
 /**
  * Kjør all sidebar-gating (G1–G12) ett sted. Returnerer filtrert
- * hovedelementer + `harMaskinModul` for bunn-elementet. Predikatet er
- * flyttet verbatim fra HovedSidebar.filtrertHovedelementer.
+ * hovedelementer + `harMaskinModul` for bunn-elementet.
  */
 export function useSidebarElementer(): {
   filtrertHovedelementer: SidebarElement[];

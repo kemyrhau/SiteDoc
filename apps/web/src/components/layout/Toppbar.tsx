@@ -40,7 +40,7 @@ export function Toppbar() {
   const { aapne: aapneSok } = useSokModal();
   const { t } = useTranslation();
 
-  // T9: mobil-web-hamburgeren speiler NavSidebar-hierarkiet når flagget er på.
+  // T9: mobil-web-hamburgeren speiler NavSidebar-hierarkiet.
   // Samme delte kilder som NavSidebar (drift-fri gating G1–G12).
   const { filtrertHovedelementer, harMaskinModul } = useSidebarElementer();
   const firmaNav = useFirmaNavElementer();
