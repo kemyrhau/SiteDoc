@@ -3,8 +3,8 @@
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
 import { Users, User, AlertTriangle, ArrowRight, X } from "lucide-react";
-import { HmsBehandlerHandlinger, type HmsKontakt } from "./HmsBehandlerHandlinger";
-import { finnHmsGruppe, byggHmsKontakter, type HmsGruppe } from "./hms-utils";
+import { HmsBehandlerHandlinger } from "./HmsBehandlerHandlinger";
+import { finnHmsGruppe, type HmsGruppe } from "./hms-utils";
 
 /**
  * HMS-flyten i dokumentflyt-oppsettet (Ordre 2.1 §4 synlighet + §1 melder-regel + §2
@@ -38,10 +38,6 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
   if (!hmsGruppe) return null;
 
   const antallKontakter = medlemmer?.length ?? 0;
-  const kontakter: HmsKontakt[] = byggHmsKontakter(
-    (medlemmer as Array<{ id: string; user: { name: string | null; email: string } }> | undefined),
-    hmsGruppe,
-  );
 
   // Firma-kilde: userId-sett for å skille «fra firma» fra «lagt til i prosjektet»
   const firmaUserIder = new Set((firmaAnsvarlige ?? []).map((f) => f.userId));
@@ -137,7 +133,7 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
           ))}
 
           <div className="mt-2">
-            <HmsBehandlerHandlinger prosjektId={prosjektId} hmsGruppeId={hmsGruppe.id} kontakter={kontakter} />
+            <HmsBehandlerHandlinger prosjektId={prosjektId} hmsGruppeId={hmsGruppe.id} />
           </div>
         </div>
       </div>

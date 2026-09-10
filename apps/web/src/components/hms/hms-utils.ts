@@ -1,5 +1,3 @@
-import type { HmsKontakt } from "./HmsBehandlerHandlinger";
-
 /**
  * Delte hjelpere for HMS-synlighet (Ordre 2.1). HMS-gruppa identifiseres på
  * `systemNokkel === "hms"` (ikke domene/navn/slug) — samme entydige nøkkel som
@@ -43,22 +41,3 @@ export function hmsBehandlerMedlemsIder(hmsGruppe: HmsGruppe | null): Set<string
   return ider;
 }
 
-interface MedlemForKontakt {
-  id: string;
-  user: { name: string | null; email: string };
-}
-
-/** Bygg kontaktliste for behandler-velgeren (alle prosjektkontakter + erMedlem-flagg). */
-export function byggHmsKontakter(
-  medlemmer: MedlemForKontakt[] | undefined,
-  hmsGruppe: HmsGruppe | null,
-): HmsKontakt[] {
-  if (!medlemmer) return [];
-  const behandlere = hmsBehandlerMedlemsIder(hmsGruppe);
-  return medlemmer.map((m) => ({
-    id: m.id,
-    navn: m.user.name,
-    epost: m.user.email,
-    erMedlem: behandlere.has(m.id),
-  }));
-}

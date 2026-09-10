@@ -32,6 +32,13 @@ export interface VisGruppe {
   members: GruppeMedlem[];
 }
 
+/** Prosjektadministrator — utledet av ProjectMember.role="admin", ikke en gruppe. */
+export interface Prosjektadmin {
+  projectMemberId: string;
+  navn: string | null;
+  epost: string;
+}
+
 const DOMENER: Array<{ key: "bygg" | "hms" | "kvalitet"; labelKey: string; aktivBg: string }> = [
   { key: "bygg", labelKey: "brukere.domene.bygg", aktivBg: "bg-sky-100 text-sky-700" },
   { key: "hms", labelKey: "brukere.domene.hms", aktivBg: "bg-red-100 text-red-700" },
@@ -46,12 +53,14 @@ function initialer(navn: string | null, epost: string): string {
 export function BrukergruppeFane({
   prosjektId,
   grupper,
+  prosjektadmins,
   hmsGruppeId,
   onAapnePerson,
   onLeggTilMedlem,
 }: {
   prosjektId: string;
   grupper: VisGruppe[];
+  prosjektadmins: Prosjektadmin[];
   hmsGruppeId: string | null;
   onAapnePerson: (projectMemberId: string) => void;
   onLeggTilMedlem: (gruppeId: string) => void;
@@ -200,12 +209,39 @@ export function BrukergruppeFane({
   }
 
   // ── Kortrutenett ─────────────────────────────────────────────────────────
-  if (grupper.length === 0) {
+  if (grupper.length === 0 && prosjektadmins.length === 0) {
     return <p className="py-10 text-center text-sm text-gray-400">{t("kontakter.ingenGrupper")}</p>;
   }
 
   return (
     <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
+      {/* Prosjektadministrator-kort: LESEKORT, utledet av ProjectMember.role="admin"
+          (ikke gruppa prosjekt-admin, som knapt håndheves). ROLLE-merket + ingen
+          rediger-affordanser skiller det fra gruppekortene; rollen endres i
+          personkortets Prosjektrolle-nedtrekk, som medlemsnavnet lenker til. */}
+      {prosjektadmins.length > 0 && (
+        <div className="flex flex-col rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+          <div className="mb-2.5 flex min-w-0 items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-gray-900">{t("kontakter.prosjektadminKort")}</h3>
+            <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">{t("kontakter.rolleMerke")}</span>
+          </div>
+          <div className="mb-3 flex flex-col gap-1">
+            {prosjektadmins.map((a) => (
+              <button
+                key={a.projectMemberId}
+                onClick={() => onAapnePerson(a.projectMemberId)}
+                className="-mx-1 rounded px-1 py-0.5 text-left text-sm text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+              >
+                {a.navn ?? a.epost}
+              </button>
+            ))}
+          </div>
+          <div className="mt-auto border-t border-slate-200 pt-3">
+            <span className="text-xs text-gray-400">{t("kontakter.rolleEndres")}</span>
+          </div>
+        </div>
+      )}
+
       {grupper.map((g) => {
         const erHms = g.id === hmsGruppeId;
         const domener = g.domains ?? [];

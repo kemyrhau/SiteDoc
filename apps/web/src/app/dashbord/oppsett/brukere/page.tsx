@@ -15,7 +15,7 @@
  * Server røres ikke: hele registreringen går gjennom `medlem.registrer` (fase 1).
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -78,6 +78,13 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
   const utils = trpc.useUtils();
 
   const [fane, setFane] = useState<Fane>("kontakter");
+  // Åpne rett på gruppekortet når vi lenkes hit fra HMS-flyten (?fane=brukergrupper).
+  // useEffect (ikke lazy init) unngår hydrerings-mismatch mot server-renderet "kontakter".
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("fane") === "brukergrupper") {
+      setFane("brukergrupper");
+    }
+  }, []);
   const [filterNavn, setFilterNavn] = useState("");
   // Multi-select per dimensjon (filter-standard): OR innen dimensjon, AND på tvers.
   const [filterFaggrupper, setFilterFaggrupper] = useState<string[]>([]);
@@ -130,6 +137,17 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
   const flyterListe = (dokumentflyter ?? []) as unknown as Dokumentflyt[];
 
   const hmsGruppe = useMemo(() => finnHmsGruppe(dbGrupper as unknown as HmsGruppe[] | undefined), [dbGrupper]);
+
+  // Prosjektadministratorer = ProjectMember.role="admin" (den ekte prosjektadmin-
+  // kilden, håndhevet 38 steder i api). Vises som eget lesekort i Brukergrupper-fanen;
+  // gruppa «prosjekt-admin» brukes bevisst IKKE (dens permissions håndheves knapt).
+  const prosjektadmins = useMemo(
+    () =>
+      kontakter
+        .filter((m) => m.role === "admin" && m.user)
+        .map((m) => ({ projectMemberId: m.id, navn: m.user!.name, epost: m.user!.email })),
+    [kontakter],
+  );
 
   // Brukergrupper til fanen: kategori "brukergrupper" + HMS-gruppa (auto-provisjonert).
   // erHmsGruppe ser nå på systemNokkel, så filteret drar KUN med den entydige HMS-
@@ -429,6 +447,7 @@ function KontaktAdmin({ prosjektId }: { prosjektId: string }) {
           <BrukergruppeFane
             prosjektId={prosjektId}
             grupper={visGrupper}
+            prosjektadmins={prosjektadmins}
             hmsGruppeId={hmsGruppe?.id ?? null}
             onAapnePerson={(pmId) => aapnePerson(pmId)}
             onLeggTilMedlem={(gruppeId) => setLeggTilMedlemGruppeId(gruppeId)}

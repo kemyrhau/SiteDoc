@@ -21,6 +21,7 @@ import { Modal } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import { X, Pencil, Check, Shield, Plus, CreditCard } from "lucide-react";
+import { erHmsGruppe } from "@/components/hms/hms-utils";
 
 const FARGE_DOT: Record<string, string> = {
   red: "bg-red-500", orange: "bg-orange-500", amber: "bg-amber-500",
@@ -55,6 +56,7 @@ export interface DbGruppe {
   id: string;
   name: string;
   category: string;
+  systemNokkel?: string | null;
   members: Array<{ projectMember: { user: { id: string } } | null }>;
 }
 
@@ -125,11 +127,12 @@ export function PersonKort({
   const registrerMutation = trpc.medlem.registrer.useMutation({ onSuccess: () => { invalider(); setLeggTilGruppeAapen(false); } });
   const fjernMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({ onSuccess: invalider });
 
-  // Brukergrupper personen er i (kun kategori "brukergrupper")
+  // Brukergrupper personen er i (kategori "brukergrupper" + HMS-gruppa). Samme
+  // predikat som gruppefanen (page.tsx) — erHmsGruppe på systemNokkel, én kilde.
   const minesGrupper = useMemo(() => {
     if (!bruker) return [] as Array<{ id: string; name: string; gruppeMedlemId?: string }>;
     return dbGrupper
-      .filter((g) => g.category === "brukergrupper")
+      .filter((g) => g.category === "brukergrupper" || erHmsGruppe(g))
       .filter((g) => g.members.some((gm) => gm.projectMember?.user?.id === bruker.id))
       .map((g) => ({ id: g.id, name: g.name }));
   }, [dbGrupper, bruker]);
@@ -142,7 +145,7 @@ export function PersonKort({
   };
 
   const ledigeGrupper = dbGrupper
-    .filter((g) => g.category === "brukergrupper")
+    .filter((g) => g.category === "brukergrupper" || erHmsGruppe(g))
     .filter((g) => !minesGrupper.some((mg) => mg.id === g.id));
 
   const faggruppeIder = useMemo(
