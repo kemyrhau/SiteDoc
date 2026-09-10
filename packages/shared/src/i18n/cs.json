@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Lze se přihlásit",
   "kontakter.kanIkkeLogge": "Nelze se přihlásit",
   "kontakter.firmaEndresAvAdmin": "Změněno správcem společnosti",
+  "kontakter.kontaktinfoEndresAvAdmin": "Kontaktní údaje zaměstnanců společnosti mění administrátor společnosti v části Společnost → Zaměstnanci.",
   "kontakter.lukkKort": "Blízko",
   "kontakter.forslagTekst": "{{navn}} bylo přidáno. Dát osobě asociace?",
   "kontakter.forslagBrukergruppe": "+ Uživatelská skupina",

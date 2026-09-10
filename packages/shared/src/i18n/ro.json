@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Se poate autentifica",
   "kontakter.kanIkkeLogge": "Nu se poate conecta",
   "kontakter.firmaEndresAvAdmin": "Schimbat de administratorul companiei",
+  "kontakter.kontaktinfoEndresAvAdmin": "Datele de contact pentru angajații companiei sunt modificate de administratorul companiei sub Companie → Angajați.",
   "kontakter.lukkKort": "Aproape",
   "kontakter.forslagTekst": "{{navn}} a fost adăugat. Oferiți persoanei asociații?",
   "kontakter.forslagBrukergruppe": "+ Grup de utilizatori",

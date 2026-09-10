@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Saa kirjautua sisään",
   "kontakter.kanIkkeLogge": "Ei voi kirjautua sisään",
   "kontakter.firmaEndresAvAdmin": "Yrityksen ylläpitäjän muuttama",
+  "kontakter.kontaktinfoEndresAvAdmin": "Yrityksen työntekijöiden yhteystiedot muuttaa yrityksen ylläpitäjä kohdassa Yritys → Työntekijät.",
   "kontakter.lukkKort": "Lähellä",
   "kontakter.forslagTekst": "{{navn}} on lisätty. Anna henkilölle assosiaatioita?",
   "kontakter.forslagBrukergruppe": "+ Käyttäjäryhmä",

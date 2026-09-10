@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Może się zalogować",
   "kontakter.kanIkkeLogge": "Nie można się zalogować",
   "kontakter.firmaEndresAvAdmin": "Zmienione przez administratora firmy",
+  "kontakter.kontaktinfoEndresAvAdmin": "Dane kontaktowe pracowników firmy zmienia administrator firmy w zakładce Firma → Pracownicy.",
   "kontakter.lukkKort": "Zamknąć",
   "kontakter.forslagTekst": "Dodano {{navn}}. Podaj skojarzenia z osobą?",
   "kontakter.forslagBrukergruppe": "+ Grupa użytkowników",

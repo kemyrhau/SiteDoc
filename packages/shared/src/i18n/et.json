@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Saab sisse logida",
   "kontakter.kanIkkeLogge": "Ei saa sisse logida",
   "kontakter.firmaEndresAvAdmin": "Muudetud ettevõtte administraatori poolt",
+  "kontakter.kontaktinfoEndresAvAdmin": "Ettevõtte töötajate kontaktandmeid muudab ettevõtte administraator jaotises Ettevõte → Töötajad.",
   "kontakter.lukkKort": "Sule",
   "kontakter.forslagTekst": "{{navn}} on lisatud. Kas luua inimesele seoseid?",
   "kontakter.forslagBrukergruppe": "+ Kasutajagrupp",

@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Mund të identifikohet",
   "kontakter.kanIkkeLogge": "Nuk mund të identifikohesh",
   "kontakter.firmaEndresAvAdmin": "Ndryshuar nga administratori i kompanisë",
+  "kontakter.kontaktinfoEndresAvAdmin": "Detajet e kontaktit për punonjësit e kompanisë ndryshohen nga administratori i kompanisë nën Kompania → Punonjësit.",
   "kontakter.lukkKort": "Mbylle",
   "kontakter.forslagTekst": "{{navn}} është shtuar. Jepni personit shoqata?",
   "kontakter.forslagBrukergruppe": "+ Grupi i përdoruesve",

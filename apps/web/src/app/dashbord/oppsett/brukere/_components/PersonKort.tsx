@@ -46,6 +46,9 @@ export interface KontaktMedlem {
     hmsKortNr?: string | null;
     hmsKortUtloper?: string | Date | null;
     organization?: { id: string; name: string } | null;
+    // True når personen er ansatt i prosjektets eier-firma: kontaktinfoen eies av
+    // HR og redigeres kun via firmaadmin-veien (persondata-gjerde 2026-09-10).
+    erAnsattIEierFirma?: boolean;
   } | null;
   faggruppeKoblinger: Array<{
     faggruppe: { id: string; name: string; color: string | null };
@@ -221,7 +224,9 @@ export function PersonKort({
           <section>
             <div className="mb-2 flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400">{t("kontakter.seksjonKontaktinfo")}</h4>
-              {!redigerKontakt && (
+              {/* Persondata-gjerde: firmaets egne ansatte har HR-eid kontaktinfo —
+                  ingen blyant, kun visning. Eksterne kontakter redigeres fortsatt her. */}
+              {!redigerKontakt && !bruker.erAnsattIEierFirma && (
                 <button
                   onClick={() => { setKontaktData({ name: bruker.name ?? "", email: bruker.email, phone: bruker.phone ?? "" }); setRedigerKontakt(true); }}
                   className="inline-flex items-center gap-1 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-blue-600"
@@ -273,6 +278,10 @@ export function PersonKort({
                 </div>
               </div>
             ) : (
+              <>
+              {bruker.erAnsattIEierFirma && (
+                <p className="mb-2 text-xs text-gray-400">{t("kontakter.kontaktinfoEndresAvAdmin")}</p>
+              )}
               <dl className="space-y-1.5 text-sm">
                 <div className="flex gap-2">
                   <dt className="w-20 shrink-0 text-gray-400">{t("brukere.epost")}</dt>
@@ -306,6 +315,7 @@ export function PersonKort({
                   </div>
                 )}
               </dl>
+              </>
             )}
 
             {/* Faggruppe — redigeres her */}

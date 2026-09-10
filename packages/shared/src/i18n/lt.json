@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Gali prisijungti",
   "kontakter.kanIkkeLogge": "Negaliu prisijungti",
   "kontakter.firmaEndresAvAdmin": "Pakeitė įmonės administratorius",
+  "kontakter.kontaktinfoEndresAvAdmin": "Įmonės darbuotojų kontaktinius duomenis keičia įmonės administratorius skiltyje Įmonė → Darbuotojai.",
   "kontakter.lukkKort": "Uždaryti",
   "kontakter.forslagTekst": "{{navn}} buvo pridėtas. Suteikti asmeniui asociacijas?",
   "kontakter.forslagBrukergruppe": "+ Vartotojų grupė",

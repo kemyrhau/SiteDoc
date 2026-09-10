@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Може увійти",
   "kontakter.kanIkkeLogge": "Не вдається увійти",
   "kontakter.firmaEndresAvAdmin": "Змінено адміністратором компанії",
+  "kontakter.kontaktinfoEndresAvAdmin": "Контактні дані для співробітників компанії змінюються адміністратором компанії в розділі Компанія → Співробітники.",
   "kontakter.lukkKort": "Закрити",
   "kontakter.forslagTekst": "{{navn}} додано. Викликати у людини асоціації?",
   "kontakter.forslagBrukergruppe": "+ Група користувачів",

@@ -1168,6 +1168,7 @@
   "kontakter.kanLogge": "Kan logge inn",
   "kontakter.kanIkkeLogge": "Kan ikke logge inn",
   "kontakter.firmaEndresAvAdmin": "Endres av firmaadministrator",
+  "kontakter.kontaktinfoEndresAvAdmin": "Kontaktinfo for firmaets ansatte endres av firmaadministrator under Firma → Ansatte.",
   "kontakter.lukkKort": "Lukk",
   "kontakter.forslagTekst": "{{navn}} er lagt til. Vil du gi personen tilhørighet?",
   "kontakter.forslagBrukergruppe": "+ Brukergruppe",
