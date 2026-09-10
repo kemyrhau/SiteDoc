@@ -1,5 +1,5 @@
-export { utledMinRolle, utledDokumentRettighet, beregnHarBallen } from "./flytRolle";
-export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker } from "./flytRolle";
+export { utledMinRolle, utledDokumentRettighet, beregnHarBallen, utledFlytRettighet } from "./flytRolle";
+export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker, FlytMedlemRedigering, FlytRedigeringBruker } from "./flytRolle";
 export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller, flytRettighetNoekkel, ROLLE_HANDLINGER_DEFAULTS, PROSJEKTADMIN_ROLLE } from "./statusHandlinger";
 export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst, finnVaerTimeIndeks, byggVaerSnapshot } from "./vaer";

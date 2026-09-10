@@ -202,11 +202,14 @@ Registrator/admin ser alltid en egen seksjon med flytbokser og manuelle statusen
 
 **«Hva sier den når nei»** (A-3a): handlinger som finnes i statusen men ikke er tilgjengelige for brukerens rolle vises **deaktivert med begrunnelse** utledet fra kilden («Kun avsender/utfører/godkjenner», «Kun administrator», «Dokumentet er lukket», «Ugyldig fra denne statusen») — ikke skjult, ikke feilende mot `BAD_REQUEST`. Primærhandlingen (`StatusHandling.erPrimaer`) rendres som knapp; resten i nedtrekk. Bekreftelse kreves kun for irreversible overganger (`closed`/`deleted`); alt annet er 1 klikk (`DocumentTransfer` logger uansett). Kommentar er en valgfri utvider.
 
-**Implementert: kanRedigere per flytledd**
-- `DokumentflytMedlem.kanRedigere` (boolean, default `true`) styrer om et flytmedlem kan redigere dokumenter
-- Toggle i dokumentflyt-oppsettet: "Redigerer" (default) / "Leser" (amber badge)
-- `utledDokumentRettighet()` sjekker `kanRedigere` — `false` → bruker får kun lesevisning selv med ballen
+**Implementert: kanRedigere per flytledd — ⚠️ UI-lås, ikke sikkerhetsgrense**
+- `DokumentflytMedlem.kanRedigere` (boolean, default `true`, `schema.prisma:1511`) styrer om et flytmedlem får redigere dokumenter i UI
+- Toggle i dokumentflyt-oppsettet: "Redigerer" (default) / "Leser" (amber badge). Skrives av `dokumentflyt.settKanRedigere` (`apps/api/src/routes/dokumentflyt.ts:471`)
+- 🔴 **Feltet leses KUN på klientene.** Oppslaget `utledFlytRettighet()` (`packages/shared/src/utils/flytRolle.ts`) kalles fra web `useFlytKontekst.ts` + mobil `oppgave/[id].tsx`/`sjekkliste/[id].tsx`; resultatet mates inn i `utledDokumentRettighet()` (steg 5, `flytRolle.ts:210`), som **kun** kalles fra de fire skjema-hookene (`apps/{web,mobile}/src/hooks/use{Sjekkliste,Oppgave}Skjema.ts`). **Ingen server-mutasjon leser `kanRedigere`** (verifisert grep 2026-09-10; `dokumentflyt.ts:484` bare *skriver* det). `false` → bruker får kun lesevisning i UI selv med ballen — men serveren avviser ikke en skriving som omgår klienten.
+- **Tre bindinger + presedens** (`utledFlytRettighet`, speiler server-fasit `hentFlytIderForMedlem`, `tilgangskontroll.ts:1168`): et flytledd matches på person (`projectMemberId`), gruppe (`groupId`) ELLER faggruppe (`faggruppeId`); avsluttede ledd (`periodeSlutt != null`) teller ikke. Treffer flere aktive ledd med ulik `kanRedigere`, **vinner mest restriktive** ("leser") — rettigheten gjelder gruppen (per-person-overstyring er fremtidig, § 9), så en person-rad skal ikke utilsiktet gi mer enn gruppa.
 - **Administrator** upåvirket (alltid full tilgang). Registrator er **ikke** unntatt — han leser, men redigerer kun sin egen del
+
+⚠️ **Åpen sak — serverhåndheving av `kanRedigere` (Kenneth-vedtak 2026-09-10, ikke bygget):** feltet er en UI-lås fordi ingen sentral skriveport finnes (~15–24 innstikkspunkter, de 11 HMS-mutasjonene går utenom), og fire skrivevakter finnes alt (terminal status, append-only, `verifiserRundeIkkeLaast`, `verifiserRetningsrett`). Prod har 0 av 31 flytmedlem-rader med `false` (test 0 av 54), så en femte vakt uker før pilot er feil tidspunkt. Egen sak etter pilot.
 
 **Fremtidig:**
 - Per-person overstyring innad i en gruppe (nå gjelder hele gruppen)
@@ -373,13 +376,13 @@ Feltet er et **array** av rolle-objekter (`{ rolle, label? }`) — ikke et objek
 |---|---|---|
 | `rolle` | `String` | `registrator` \| `bestiller` \| `utforer` \| `godkjenner` |
 | `steg` | `Int` | Hvilket steg i flyten (rekkefølge) |
-| `kanRedigere` | `Boolean default true` | Toggle i dokumentflyt-oppsett — false gir kun lesetilgang selv med ballen |
+| `kanRedigere` | `Boolean default true` | Toggle i dokumentflyt-oppsett — false gir kun lesetilgang i UI selv med ballen (⚠️ klient-lås, se § kanRedigere per flytledd) |
 | `låsesEtterPasseringer` | `Int?` | Per-ledd låsbarhet — feltet finnes, logikken er ikke implementert ennå |
 | `erHovedansvarlig` | `Boolean` | Markerer hovedansvarlig på flytsteget |
 | `hovedansvarligPersonId` | `String?` | FK til spesifikk User som hovedansvarlig |
 | `faggruppeId` / `projectMemberId` / `groupId` | `String?` | Ett av disse settes per medlem (faggruppe ELLER konkret person ELLER prosjektgruppe) |
 
-`kanRedigere`-toggelen sjekkes av `utledDokumentRettighet()` i `packages/shared/src/utils/flytRolle.ts`. **Administrator** er upåvirket (alltid full tilgang). ⚠️ Koden gir i dag også registrator full tilgang — det er defektet i [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md).
+`kanRedigere`-toggelen leses **kun på klientene**: `utledFlytRettighet()` (`packages/shared/src/utils/flytRolle.ts`) slår opp brukerens flytledd og mater resultatet inn i `utledDokumentRettighet()` (`flytRolle.ts:210`), begge kalt fra web-/mobil-hookene (se § *Implementert: kanRedigere per flytledd* for kallsteder). 🔴 **Ingen server-mutasjon leser feltet — det er en UI-lås, ikke en sikkerhetsgrense** (åpen sak, samme sted). **Administrator** er upåvirket (alltid full tilgang). ⚠️ Koden gir i dag også registrator full tilgang — det er defektet i [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md).
 
 ---
 
