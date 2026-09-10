@@ -63,6 +63,30 @@ funn på test etter verifiseringen.
 
 🔴 **Ti av fjorten sakene kom fra Kenneths egen testing.** Ikke fra agentene.
 
+**Fortsettelse 10.09 — fire merger til, develop `705cef2e` → `fe226986` under merge:**
+
+| Sak | Hash | Utløst av |
+|---|---|---|
+| Repeater-kollisjon på celle-nivå | `d4df351e` | 🔴 Kenneth: falsk melding + rå JSON i notatet |
+| Brukerminne på server, fase 1 | `15ef9602` | 🔴 Kenneth mistet «sist brukt» ved reinstallering |
+| «+N»-teller åpenbar via tooltip | `b0cf5164` | Fabels formkrav til designgodkjenningen |
+| Gammel navigasjon, trinn 1 | `03ba723d` | 🟢 PROD-måling: **10/10 brukere på ny nav** — netto **−844 linjer** |
+| Brukerminne: én rad per prosjekt | `fe226986` | Strukturavvik fanget ved DB-verifisering |
+
+🟢 **Deployet til test `705cef2e` + OTA publisert.** Migreringen `bruker_innstilling` verifisert
+i DB: begge partielle indekser, FK mot `users(id)`.
+
+🟢 **Kenneth verifiserte repeater-fiksen på telefon:** *«kollisjonstest på telefon er mye bedre.
+Endringsloggen beskriver hva som skjedde.»*
+
+⚠️ **Ny fast regel i ordre-malen:** `git rebase origin/develop` **rett før push**. Fem ganger
+09.09 måtte cowork be om rebase i etterkant fordi develop hadde flyttet seg — base-illusjonen
+viste da fremmedfiler som «slettet» i diffen.
+
+⚠️ **Og en testmetode som ikke skal brukes igjen:** cowork ba Kenneth avinstallere appen for å
+verifisere brukerminnet. **Appen er lokalt signert — å få den tilbake krever et nytt bygg.**
+🟢 **DB-spørring beviste skrivingen uten risiko.**
+
 ### Åpne saker etter runden — alle ført i [BACKLOG](BACKLOG.md) med måling
 
 | Sak | Type |
