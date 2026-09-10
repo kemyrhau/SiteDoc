@@ -169,3 +169,65 @@ describe("brukerinnstilling", () => {
     expect(verifiserProsjektmedlem).toHaveBeenCalledWith("user-1", PROSJEKT_B);
   });
 });
+
+/**
+ * Radstruktur (2026-09-10): brukerminnet skriver ÉN RAD PER PROSJEKT (`projectId` satt),
+ * ikke én global map. Disse testene låser isolasjons-egenskapen som gjør at «sist skrevne»
+ * ved to enheter kun rører DET prosjektet som ble endret — ikke hele mappen. API-en er
+ * uendret (generisk nøkkel/verdi/projectId); det er nøkkelbruken klienten låser her.
+ */
+describe("brukerinnstilling — rad per prosjekt (radstruktur)", () => {
+  it("to prosjekter skriver sistBruktByggeplass uavhengig → to adskilte rader", async () => {
+    const { ctx, store } = lagCtx("user-1");
+    const caller = brukerinnstillingRouter.createCaller(ctx);
+
+    await caller.sett({ nokkel: "sistBruktByggeplass", verdi: JSON.stringify("bygg-A"), projectId: PROSJEKT });
+    await caller.sett({ nokkel: "sistBruktByggeplass", verdi: JSON.stringify("bygg-B"), projectId: PROSJEKT_B });
+
+    expect(store.lager).toHaveLength(2);
+    const radA = store.lager.find((r) => r.projectId === PROSJEKT);
+    const radB = store.lager.find((r) => r.projectId === PROSJEKT_B);
+    expect(radA?.verdi).toBe("bygg-A");
+    expect(radB?.verdi).toBe("bygg-B");
+    // Ingen global rad (projectId=null) skrives lenger.
+    expect(store.lager.some((r) => r.projectId === null)).toBe(false);
+  });
+
+  it("konflikt i ett prosjekt rører ikke det andre prosjektets rad", async () => {
+    const { ctx, store } = lagCtx("user-1");
+    const caller = brukerinnstillingRouter.createCaller(ctx);
+
+    // Enhet A og B setter byggeplass i hvert sitt prosjekt.
+    await caller.sett({ nokkel: "sistBruktByggeplass", verdi: JSON.stringify("A-valg"), projectId: PROSJEKT });
+    await caller.sett({ nokkel: "sistBruktByggeplass", verdi: JSON.stringify("B-valg"), projectId: PROSJEKT_B });
+
+    // Enhet B skriver PÅ NYTT i prosjekt B (sist skrevne) — prosjekt A skal være uberørt.
+    await caller.sett({ nokkel: "sistBruktByggeplass", verdi: JSON.stringify("B-valg-2"), projectId: PROSJEKT_B });
+
+    expect(store.lager).toHaveLength(2);
+    expect(store.lager.find((r) => r.projectId === PROSJEKT)?.verdi).toBe("A-valg"); // uberørt
+    expect(store.lager.find((r) => r.projectId === PROSJEKT_B)?.verdi).toBe("B-valg-2");
+  });
+
+  it("sistBruktTegning bærer byggeplass-dimensjonen i verdien, én rad per prosjekt", async () => {
+    const { ctx, store } = lagCtx("user-1");
+    const caller = brukerinnstillingRouter.createCaller(ctx);
+
+    // To byggeplasser innen SAMME prosjekt → én rad, map med begge.
+    await caller.sett({
+      nokkel: "sistBruktTegning",
+      verdi: JSON.stringify({ "bygg-1": "tegn-1" }),
+      projectId: PROSJEKT,
+    });
+    await caller.sett({
+      nokkel: "sistBruktTegning",
+      verdi: JSON.stringify({ "bygg-1": "tegn-1", "bygg-2": "tegn-2" }),
+      projectId: PROSJEKT,
+    });
+
+    const tegnRader = store.lager.filter((r) => r.nokkel === "sistBruktTegning");
+    expect(tegnRader).toHaveLength(1);
+    expect(tegnRader[0]!.projectId).toBe(PROSJEKT);
+    expect(tegnRader[0]!.verdi).toEqual({ "bygg-1": "tegn-1", "bygg-2": "tegn-2" });
+  });
+});
