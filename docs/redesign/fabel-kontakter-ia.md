@@ -118,6 +118,33 @@ Raden viser avledet data fra tre hierarkier uten provenans. **Det er problemet.*
 
 🔴 **Faggruppe trenger derfor INGEN egen flate.** Dokumentflyt har allerede sin.
 
+## 🟢 4b. DESIGNLÅS OPPDATERT 2026-09-10 — seks kolonner, og firma-selecten er ute
+
+**Kilde:** [`fabel-svar-kontakter-status-2026-09-10.md`](fabel-svar-kontakter-status-2026-09-10.md)
+§ 3 og § 4. **Ført her fordi det er her kontakter-låsen bor.**
+
+### Kontakter-tabellen: SEKS kolonner
+
+🟢 **navn · e-post · telefon · firma · brukergrupper · faggruppe** + `FilterPanel`.
+
+⚠️ **Erstatter den tidligere «flat 5-kolonners tabell».** Kenneth bestilte den sjette etter å ha
+funnet at brukergruppe-filteret sto under **Firma**-kolonnen.
+🟢 **Rotårsaken ble fjernet, ikke lappet:** filtrene lå i `<th>` og arvet kolonne fra
+`colSpan`-aritmetikk. De er flyttet til en egen blokk — **et filter kan ikke lenger havne under
+feil overskrift.**
+
+🔴 **Formkrav på den sjette:** «+N»-kappingen ved 3 chips **skal være åpnebar** — klikk til
+personkortet, eller tooltip med resten. **Aldri død tekst.**
+
+### Firma-selecten i den forente modalen: NEI
+
+🟢 **Redesigns utelatelse var riktig.** Kontekst-default — *appen spør aldri om noe den vet*.
+`medlem.registrer` setter org, og en firma-liste finnes ikke på siden.
+**Invitasjonsfeltene er navn + e-post + valgfri faggruppe.**
+
+⚠️ **Ratifisert som designavvik i etterkant:** riktig innhold, feil tidspunkt. **Avviket skulle
+vært meldt før bygging, ikke etter.** Mockupen i designprosjektet er rettet.
+
 ## 🟢 5. Forslagslaget — «legg til hvor som helst, få foreslått resten»
 
 > **Kenneth:** *«problemet for en ny bruker er at hen glemmer å legge til en plass → brukeren får

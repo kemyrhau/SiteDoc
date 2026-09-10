@@ -496,6 +496,22 @@ mens `standardopsjon.ikkeBehandlet` er rettet. **Én av 1 089. Ikke fiks den ale
 🟢 **Inntil da fungerer flatene.** Feilene er stygge og enkelte er pinlige, men de blokkerer ingen.
 **Hovedproblemet er feil og manglende funksjoner. Dette venter.**
 
+### 🟢 AVKLART 2026-09-10 — språkarbeid er IKKE på kritisk vei før pilot
+
+**Fabel 2026-09-10:** språk-renamen (de 11 `brukere.*`-verdiene, «Tilgangsgruppe» → «Brukergruppe»
+i de 13 genererte språkene) *«bør før pilot hvis pilotbrukerne kjører andre språk enn nb/en»*.
+
+> **Kenneth 2026-09-10:** *«det er ingen av testerne som benytter andre språk i dag — men vi skal
+> ikke slutte støtten»*
+
+🟢 **Konsekvens: renamen og oversettelsessaken kan begge vente.** Ingen pilotbruker treffer dem.
+🔴 **Men støtten består — språk skal ikke fjernes eller nedprioriteres bort.** Når saken tas,
+tas den helt: `en.json` ryddes først, så klassifisering, så språkkyndig gjennomgang.
+
+⚠️ **Endres testerlisten** — får A.Markussen inn folk som kjører polsk, litauisk eller annet —
+**flytter dette seg til kritisk vei umiddelbart.** `standardopsjon.nestenulykke` var ødelagt på
+to av tre språk før fabels runde 02.09; RUH-flaten er den de faktisk melder farlige forhold i.
+
 ### 🔴 i18n-GENERATOREN BÆRER 132 NØKLERS DRIFT — den som kjører den drar dem med (funn 2026-09-09)
 
 **Målt av dokgen under `fix/dialog-offline`:** `pnpm dlx tsx src/i18n/generate.ts` la **134 nøkler**
