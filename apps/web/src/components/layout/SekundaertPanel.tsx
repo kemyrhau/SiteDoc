@@ -11,7 +11,7 @@ interface SekundaertPanelProps {
    * Når satt: panelet får en skjul/vis-pil på kanten, og skjult tilstand
    * persisteres i localStorage under denne nøkkelen. Default (udefinert) =
    * uendret oppførsel — panelet er alltid synlig (alle eksisterende kallere).
-   * Brukes av mapper-siden bak nyNavigasjon-flagget (s1).
+   * Brukes av mapper-siden (s1).
    */
   skjulNokkel?: string;
 }

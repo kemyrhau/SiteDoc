@@ -144,7 +144,7 @@ export default function MapperSide() {
 
   const valgtMappe = mapper?.find((m) => m.id === valgtMappeId);
 
-  // s1: brødsmulesti (mappe-ancestry) — vises i innholdsheaderen bak flagget,
+  // s1: brødsmulesti (mappe-ancestry) — vises i innholdsheaderen,
   // så skjul-av-mappetreet ikke blir et navigasjonstap. Sykel-vern via `sett`.
   const mappeSti = useMemo(() => {
     if (!mapper || !valgtMappeId) return [] as Array<{ id: string; name: string }>;
@@ -335,7 +335,7 @@ export default function MapperSide() {
       <div className="flex flex-1 flex-col items-center justify-center py-20">
         <Lock className="mb-3 h-12 w-12 text-gray-300" />
         <h2 className="mb-1 text-lg font-semibold text-gray-700">
-          {valgtMappe?.name ?? "Mappe"}
+          {valgtMappe?.name ?? t("tabell.mappe")}
         </h2>
         <p className="text-sm text-gray-400">
           {t("mapper.ingenTilgang")}
