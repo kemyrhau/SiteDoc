@@ -33,13 +33,27 @@ const SIST_TEGNING_MAP_KEY = "sitedoc_sist_tegning_per_byggeplass";
 // øvrige nøklene (én bruker per enhet i praksis).
 const FAVORITT_KEY = "sitedoc_byggeplass_favoritter";
 
-// Brukerminne på server (Kenneth-gate 2026-09-09, fase 1): sist brukt byggeplass +
-// tegning overlever mobil-reinstallering. Hele mappet speiles som én GLOBAL rad per
-// nøkkel (projectId=null) — 1:1 med de lokale SecureStore-mappene. Lokal =
-// cache/offline (hurtigveien), server = sannheten ved konflikt. Favoritter er bevisst
-// IKKE med (Kenneth ba ikke om dem). Språk/nav-flagg bor på User og røres ikke her.
-const SERVER_NOKKEL_BYGGEPLASS = "sistByggeplassPerProsjekt";
-const SERVER_NOKKEL_TEGNING = "sistTegningPerByggeplass";
+// Brukerminne på server (Kenneth-gate 2026-09-09, fase 1 + radstruktur 2026-09-10):
+// sist brukt byggeplass + tegning overlever mobil-reinstallering. Server lagrer ÉN RAD
+// PER PROSJEKT (`projectId` satt), ikke én global map. Konflikt mellom to enheter
+// isoleres da til det prosjektet som faktisk ble rørt — de to partielle unike indeksene
+// er laget for nettopp det. (Fase 1 speilet hele mappen som én global rad; da vant
+// «sist skrevne» HELE mappen og en enhet kunne stille slette en annens valg i et urørt
+// prosjekt — samme klasse som kollisjonssakene.)
+//
+// - Byggeplass: nøkkel `sistBruktByggeplass`, projectId=<prosjekt>, verdi = byggeplassId
+//   (eller HELE_PROSJEKTET-sentinel). Én rad per prosjekt.
+// - Tegning: nøkkel `sistBruktTegning`, projectId=<prosjekt>, verdi = liten map
+//   `{byggeplassId: tegningId}`. Én rad per prosjekt; mappen bærer byggeplass-dimensjonen
+//   (tegning er per byggeplass, men `projectId` har bare én dimensjon — cowork-rangering).
+//
+// Lokal SecureStore er UENDRET (flat cache som fase 1): den er enhets-lokal (én bruker
+// per enhet), så «sist skrevne»-tapet finnes ikke der. Server = sannheten ved konflikt,
+// lokal = hurtigvei/offline. Å la lokal cache stå urørt bevarer brukerens valg gjennom
+// overgangen — ingen lokal-cache-migrering. Favoritter er bevisst IKKE med (Kenneth ba
+// ikke om dem). Språk/nav-flagg bor på User og røres ikke her.
+const SERVER_NOKKEL_BYGGEPLASS = "sistBruktByggeplass";
+const SERVER_NOKKEL_TEGNING = "sistBruktTegning";
 
 async function lagreVerdi(key: string, value: string): Promise<void> {
   if (Platform.OS === "web") {
@@ -111,25 +125,37 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const [favorittIder, setFavorittIder] = useState<string[]>([]);
   const [lasterBygningId, setLasterBygningId] = useState(true);
 
-  // Brukerminne: les brukerens lagrede innstillinger (global rad-blob). Fire-and-forget
-  // mutasjon for å speile lokale endringer opp. Refs holder `synkTilServer` stabil så
-  // den trygt kan kalles fra write-sitene uten å endre deres identitet.
+  // Brukerminne: les brukerens lagrede innstillinger (alle rader — global + per
+  // prosjekt). Fire-and-forget mutasjon for å speile lokale endringer opp. Refs holder
+  // `synkTilServer` stabil så den trygt kan kalles fra write-sitene uten å endre deres
+  // identitet.
   const innstillingerQuery = trpc.brukerinnstilling.hent.useQuery(undefined, {
     enabled: !!userId,
     staleTime: 60_000,
   });
   const settMut = trpc.brukerinnstilling.sett.useMutation();
+  // Speiler tegning-radene per prosjekt (`{prosjektId: {byggeplassId: tegningId}}`) slik
+  // de ligger på server, så en tegning-skriv kan sende HELE prosjektets map (server lagrer
+  // én rad per prosjekt). Ren ref — trengs kun for å bygge synk-payloaden, ingen render
+  // avhenger av den. Fylles av server-read-effekten og oppdateres ved hver skriv.
+  const sistTegningPerProsjektRef = useRef<Record<string, Record<string, string>>>({});
   // Hold synk-funksjonen i en ref med SMAL signatur så `synkTilServer` forblir stabil
   // (tom dep-array). Refen oppdateres hver render → closuren ser nyeste userId + mutate.
   // Verdi sendes som JSON-streng (server parser) — se brukerinnstilling-router-doc.
-  const synkRef = useRef<(nokkel: string, verdi: unknown) => void>(() => {});
-  synkRef.current = (nokkel, verdi) => {
+  // `projectId` er ALLTID satt her (rad per prosjekt) — serveren krever prosjektmedlemskap.
+  const synkRef = useRef<(nokkel: string, verdi: unknown, projectId: string) => void>(
+    () => {},
+  );
+  synkRef.current = (nokkel, verdi, projectId) => {
     if (!userId) return; // ikke innlogget → kun lokal cache
-    settMut.mutate({ nokkel, verdi: JSON.stringify(verdi) });
+    settMut.mutate({ nokkel, verdi: JSON.stringify(verdi), projectId });
   };
-  const synkTilServer = useCallback((nokkel: string, verdi: unknown) => {
-    synkRef.current(nokkel, verdi);
-  }, []);
+  const synkTilServer = useCallback(
+    (nokkel: string, verdi: unknown, projectId: string) => {
+      synkRef.current(nokkel, verdi, projectId);
+    },
+    [],
+  );
 
   // Last lagret bygnings-map + siste-tegning-map + favoritter ved oppstart
   useEffect(() => {
@@ -164,28 +190,39 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     const data = innstillingerQuery.data;
     if (!data || serverMerget.current) return;
     serverMerget.current = true;
+    // Kun rader med `projectId` satt teller — gamle globale fase-1-rader (projectId=null,
+    // nøkler `sistByggeplassPerProsjekt`/`sistTegningPerByggeplass`) ignoreres bevisst.
     // verdi kommer som JSON-streng (se brukerinnstilling-router) — parse trygt.
-    const parse = (nokkel: string): Record<string, string> | undefined => {
-      const rad = data.find((r) => r.projectId === null && r.nokkel === nokkel);
-      if (!rad) return undefined;
-      try {
-        return JSON.parse(rad.verdi) as Record<string, string>;
-      } catch {
-        return undefined;
+    const nyBygg: Record<string, string> = {}; // {prosjektId: byggeplassId|sentinel}
+    const nyTegnFlat: Record<string, string> = {}; // flat cache {byggeplassId: tegningId}
+    for (const rad of data) {
+      if (!rad.projectId) continue;
+      if (rad.nokkel === SERVER_NOKKEL_BYGGEPLASS) {
+        try {
+          nyBygg[rad.projectId] = JSON.parse(rad.verdi) as string;
+        } catch {
+          // hopp over korrupt rad
+        }
+      } else if (rad.nokkel === SERVER_NOKKEL_TEGNING) {
+        try {
+          const map = JSON.parse(rad.verdi) as Record<string, string>;
+          sistTegningPerProsjektRef.current[rad.projectId] = map;
+          Object.assign(nyTegnFlat, map); // flat ut for lokal per-byggeplass-oppslag
+        } catch {
+          // hopp over korrupt rad
+        }
       }
-    };
-    const bygg = parse(SERVER_NOKKEL_BYGGEPLASS);
-    const tegn = parse(SERVER_NOKKEL_TEGNING);
-    if (bygg) {
+    }
+    if (Object.keys(nyBygg).length > 0) {
       setBygningMap((prev) => {
-        const neste = { ...prev, ...bygg }; // server vinner ved konflikt
+        const neste = { ...prev, ...nyBygg }; // server vinner ved konflikt
         lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
         return neste;
       });
     }
-    if (tegn) {
+    if (Object.keys(nyTegnFlat).length > 0) {
       setSistTegningMap((prev) => {
-        const neste = { ...prev, ...tegn };
+        const neste = { ...prev, ...nyTegnFlat };
         lagreVerdi(SIST_TEGNING_MAP_KEY, JSON.stringify(neste)).catch(() => {});
         return neste;
       });
@@ -210,7 +247,8 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
       setBygningMap((prev) => {
         const neste = { ...prev, [valgtProsjektId]: id };
         lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
-        synkTilServer(SERVER_NOKKEL_BYGGEPLASS, neste);
+        // Server: kun DETTE prosjektets rad (verdi = byggeplassId) — isolert konflikt.
+        synkTilServer(SERVER_NOKKEL_BYGGEPLASS, id, valgtProsjektId);
         return neste;
       });
     },
@@ -222,7 +260,8 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     setBygningMap((prev) => {
       const neste = { ...prev, [valgtProsjektId]: HELE_PROSJEKTET };
       lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
-      synkTilServer(SERVER_NOKKEL_BYGGEPLASS, neste);
+      // Sentinel-verdien lagres eksplisitt per prosjekt (samme som lokal).
+      synkTilServer(SERVER_NOKKEL_BYGGEPLASS, HELE_PROSJEKTET, valgtProsjektId);
       return neste;
     });
   }, [valgtProsjektId, synkTilServer]);
@@ -267,7 +306,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
             if (!iProsjekt) return prev;
             const neste = { ...prev, [valgtProsjektId]: bygg.id };
             lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
-            synkTilServer(SERVER_NOKKEL_BYGGEPLASS, neste);
+            synkTilServer(SERVER_NOKKEL_BYGGEPLASS, bygg.id, valgtProsjektId);
             return neste;
           });
         }
@@ -287,14 +326,21 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
 
   const settSistTegning = useCallback(
     (byggeplassId: string, tegningId: string) => {
+      // Lokal flat cache (uendret): per-byggeplass-oppslag på tvers av prosjekter.
       setSistTegningMap((prev) => {
         const neste = { ...prev, [byggeplassId]: tegningId };
         lagreVerdi(SIST_TEGNING_MAP_KEY, JSON.stringify(neste)).catch(() => {});
-        synkTilServer(SERVER_NOKKEL_TEGNING, neste);
         return neste;
       });
+      // Server: én rad per prosjekt. Send HELE det aktive prosjektets tegning-map (fra
+      // ref-speilet, oppdatert med denne byggeplassen) — konflikt isoleres til prosjektet.
+      if (!valgtProsjektId) return; // ingen prosjektkontekst → kun lokal cache
+      const forrige = sistTegningPerProsjektRef.current[valgtProsjektId] ?? {};
+      const nesteMap = { ...forrige, [byggeplassId]: tegningId };
+      sistTegningPerProsjektRef.current[valgtProsjektId] = nesteMap;
+      synkTilServer(SERVER_NOKKEL_TEGNING, nesteMap, valgtProsjektId);
     },
-    [synkTilServer],
+    [valgtProsjektId, synkTilServer],
   );
 
   const toggleFavoritt = useCallback((byggeplassId: string) => {
