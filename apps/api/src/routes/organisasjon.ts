@@ -183,10 +183,25 @@ export const organisasjonRouter = router({
     return berikMedFirmamoduler(ctx.prisma, orgs);
   }),
 
-  // Opprett ny organisasjon
+  // Opprett ny organisasjon (skall-firma; erKunde faller til default false).
+  //
+  // Krav 1b (firmatilknytning 2026-09-10): ruten hadde INGEN tilgangssjekk — enhver
+  // innlogget bruker kunne opprette et firma med fritt navn. Målt 2026-09-10: null
+  // kallere i web og mobil (skall-firmaer opprettes i praksis kun via seed), så
+  // gaten bryter ingen legitim flyt. Gated til sitedoc_admin, som speiler den ANDRE
+  // org-opprettelsesruten (admin.opprettOrganisasjon). Skal prosjekt-/firmaadmin
+  // senere kunne opprette prosjektparter selv, er det en egen rute med prosjekt-
+  // kontekst — et produktvalg, ikke denne sikkerhetsfiksen.
   opprett: protectedProcedure
     .input(z.object({ name: z.string().min(1).max(255) }))
     .mutation(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker.role !== "sitedoc_admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Krever SiteDoc-administrator" });
+      }
       return ctx.prisma.organization.create({
         data: { name: input.name },
         select: { id: true, name: true },

@@ -20,7 +20,7 @@ import { trpc } from "@/lib/trpc";
 import { Modal } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
-import { X, Pencil, Check, Shield, Plus, CreditCard } from "lucide-react";
+import { X, Pencil, Check, Shield, Plus, CreditCard, Building2 } from "lucide-react";
 import { erHmsGruppe } from "@/components/hms/hms-utils";
 
 const FARGE_DOT: Record<string, string> = {
@@ -89,6 +89,7 @@ export function PersonKort({
   dbGrupper,
   dokumentflyter,
   fokusBrukergruppe = false,
+  erProsjektAdmin = false,
   onClose,
 }: {
   medlem: KontaktMedlem;
@@ -98,6 +99,8 @@ export function PersonKort({
   dokumentflyter: Dokumentflyt[];
   // Åpnet fra forslagsstripens «+ Brukergruppe» → åpne gruppe-nedtrekket direkte.
   fokusBrukergruppe?: boolean;
+  // Styrer om «Endre firma» vises (krav 2). Serveren gjerder uansett per regeltabellen.
+  erProsjektAdmin?: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -116,6 +119,9 @@ export function PersonKort({
   const [fjernFaggruppeMaal, setFjernFaggruppeMaal] = useState<
     { faggruppeId: string; faggruppeNavn: string } | null
   >(null);
+  const [endreFirmaAapen, setEndreFirmaAapen] = useState(false);
+  const [nyttFirmaId, setNyttFirmaId] = useState("");
+  const [firmaModus, setFirmaModus] = useState<"feilregistrering" | "firmabytte">("firmabytte");
 
   const invalider = () => {
     utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
@@ -129,6 +135,19 @@ export function PersonKort({
   const fjernFaggruppeMutation = trpc.medlem.fjernFraFaggruppe.useMutation({ onSuccess: () => { invalider(); setFjernFaggruppeMaal(null); } });
   const registrerMutation = trpc.medlem.registrer.useMutation({ onSuccess: () => { invalider(); setLeggTilGruppeAapen(false); } });
   const fjernMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({ onSuccess: invalider });
+  const endreFirmaMutation = trpc.medlem.endreFirma.useMutation({
+    onSuccess: () => { invalider(); setEndreFirmaAapen(false); setNyttFirmaId(""); },
+  });
+
+  // Firma-endring (krav 2): «Endre firma» vises for prosjektadmin på EKSTERNE
+  // kontakter — firmaets EGNE ansatte (erAnsattIEierFirma) styres av HR via
+  // firmaadmin-veien, aldri av prosjektadmin (samme gjerde som kontaktinfo-blyanten).
+  const kanEndreFirma = erProsjektAdmin && !bruker?.erAnsattIEierFirma && !!bruker?.organization;
+  const { data: prosjektFirmaer } = trpc.medlem.hentProsjektFirmaer.useQuery(
+    { projectId: prosjektId },
+    { enabled: endreFirmaAapen },
+  );
+  const firmaValg = (prosjektFirmaer ?? []).filter((f) => f.id !== bruker?.organization?.id);
 
   // Brukergrupper personen er i (kategori "brukergrupper" + HMS-gruppa). Samme
   // predikat som gruppefanen (page.tsx) — erHmsGruppe på systemNokkel, én kilde.
@@ -295,7 +314,16 @@ export function PersonKort({
                   <dt className="w-20 shrink-0 text-gray-400">{t("brukere.firma")}</dt>
                   <dd className="text-gray-800">
                     {bruker.organization?.name ?? "—"}
-                    <span className="mt-0.5 block text-xs text-gray-400">{t("kontakter.firmaEndresAvAdmin")}</span>
+                    {kanEndreFirma ? (
+                      <button
+                        onClick={() => { setNyttFirmaId(""); setFirmaModus("firmabytte"); setEndreFirmaAapen(true); }}
+                        className="mt-0.5 flex items-center gap-1 text-xs font-medium text-sitedoc-primary hover:underline"
+                      >
+                        <Building2 className="h-3 w-3" /> {t("kontakter.endreFirma")}
+                      </button>
+                    ) : (
+                      <span className="mt-0.5 block text-xs text-gray-400">{t("kontakter.firmaEndresAvAdmin")}</span>
+                    )}
                   </dd>
                 </div>
                 {(bruker.hmsKortNr || hmsUtloperTekst) && (
@@ -501,6 +529,71 @@ export function PersonKort({
           </section>
         </div>
       </div>
+
+      {/* Endre firma (krav 2) — feilregistrering (erstatt) vs firmabytte (avslutt + ny) */}
+      <Modal open={endreFirmaAapen} onClose={() => setEndreFirmaAapen(false)} title={t("kontakter.endreFirmaTittel", { navn: bruker.name ?? bruker.email })} className="max-w-md">
+        <div className="space-y-4">
+          <div>
+            <span className="text-[11px] font-medium text-gray-500">{t("kontakter.endreFirmaNyttFirma")}</span>
+            {firmaValg.length === 0 ? (
+              <p className="mt-1 text-sm text-gray-400">{t("kontakter.endreFirmaIngenFirmaer")}</p>
+            ) : (
+              <select
+                value={nyttFirmaId}
+                onChange={(e) => setNyttFirmaId(e.target.value)}
+                className="mt-0.5 w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+              >
+                <option value="">{t("kontakter.endreFirmaVelgFirma")}…</option>
+                {firmaValg.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-[11px] font-medium text-gray-500">{t("kontakter.endreFirmaModusTittel")}</legend>
+            <label className="flex cursor-pointer gap-2 rounded-lg border border-gray-200 p-2.5 hover:bg-gray-50">
+              <input type="radio" name="firmaModus" checked={firmaModus === "firmabytte"} onChange={() => setFirmaModus("firmabytte")} className="mt-0.5" />
+              <span className="text-sm">
+                <span className="block font-medium text-gray-800">{t("kontakter.endreFirmaByttetTittel")}</span>
+                <span className="block text-xs text-gray-500">{t("kontakter.endreFirmaByttetTekst", { firma: bruker.organization?.name ?? "" })}</span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer gap-2 rounded-lg border border-gray-200 p-2.5 hover:bg-gray-50">
+              <input type="radio" name="firmaModus" checked={firmaModus === "feilregistrering"} onChange={() => setFirmaModus("feilregistrering")} className="mt-0.5" />
+              <span className="text-sm">
+                <span className="block font-medium text-gray-800">{t("kontakter.endreFirmaFeilTittel")}</span>
+                <span className="block text-xs text-gray-500">{t("kontakter.endreFirmaFeilTekst", { firma: bruker.organization?.name ?? "" })}</span>
+              </span>
+            </label>
+          </fieldset>
+
+          {endreFirmaMutation.error && <p className="text-sm text-red-600">{endreFirmaMutation.error.message}</p>}
+
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setEndreFirmaAapen(false)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">
+              {t("handling.avbryt")}
+            </button>
+            <button
+              disabled={!nyttFirmaId || !bruker.organization || endreFirmaMutation.isPending}
+              onClick={() => {
+                if (!nyttFirmaId || !bruker.organization) return;
+                endreFirmaMutation.mutate({
+                  projectId: prosjektId,
+                  projectMemberId: medlem.id,
+                  fraOrganizationId: bruker.organization.id,
+                  tilOrganizationId: nyttFirmaId,
+                  modus: firmaModus,
+                });
+              }}
+              className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+            >
+              {t("kontakter.endreFirmaBekreft")}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Bekreft fjerning fra faggruppe — destruktiv for en tilgangskobling */}
       <Modal open={!!fjernFaggruppeMaal} onClose={() => setFjernFaggruppeMaal(null)} title={t("brukere.fjernFraFaggruppeTittel")} className="max-w-md">
