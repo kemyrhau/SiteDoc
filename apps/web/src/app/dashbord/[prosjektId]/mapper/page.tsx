@@ -382,42 +382,39 @@ export default function MapperSide() {
       <SonetonetSidehode sone="prosjekt" className="mb-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          {mappeSti.length > 0 ? (
-            <nav aria-label={t("mapper.tittel")} className="flex min-w-0 items-center gap-1.5">
-              <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
-              <Link
-                href={`/dashbord/${prosjektId}/mapper`}
-                className="shrink-0 text-sm text-gray-400 hover:text-gray-600"
-              >
-                {t("mapper.alleMapper")}
-              </Link>
-              {mappeSti.map((m, i) => {
-                const sist = i === mappeSti.length - 1;
-                return (
-                  <span key={m.id} className="flex min-w-0 items-center gap-1.5">
-                    <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                    {sist ? (
-                      <span className="truncate text-xl font-bold text-gray-900">{m.name}</span>
-                    ) : (
-                      <Link
-                        href={`/dashbord/${prosjektId}/mapper?mappe=${m.id}`}
-                        className="truncate text-sm text-gray-500 hover:text-gray-700"
-                      >
-                        {m.name}
-                      </Link>
-                    )}
-                  </span>
-                );
-              })}
-            </nav>
-          ) : (
-            <>
-              <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
-              <h2 className="truncate text-xl font-bold text-gray-900">
-                {valgtMappe?.name ?? "Mappe"}
-              </h2>
-            </>
-          )}
+          {/* Breadcrumb-nav rendres ALLTID. Er `mappeSti` tom (mapper ikke lastet ennå
+              eller foreldet mappe-id i URL), vises kun «Alle mapper»-roten — klikkbar,
+              så brukeren har en vei tilbake. Den gamle else-grenen viste en hardkodet
+              «Mappe» som aldri kunne bli et ekte navn: `mappeSti.length > 0` ⟺ `valgtMappe`
+              definert (begge utledes fra samme `mapper`-liste), så else-grenens
+              `valgtMappe?.name` var alltid undefined. */}
+          <nav aria-label={t("mapper.tittel")} className="flex min-w-0 items-center gap-1.5">
+            <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
+            <Link
+              href={`/dashbord/${prosjektId}/mapper`}
+              className="shrink-0 text-sm text-gray-400 hover:text-gray-600"
+            >
+              {t("mapper.alleMapper")}
+            </Link>
+            {mappeSti.map((m, i) => {
+              const sist = i === mappeSti.length - 1;
+              return (
+                <span key={m.id} className="flex min-w-0 items-center gap-1.5">
+                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                  {sist ? (
+                    <span className="truncate text-xl font-bold text-gray-900">{m.name}</span>
+                  ) : (
+                    <Link
+                      href={`/dashbord/${prosjektId}/mapper?mappe=${m.id}`}
+                      className="truncate text-sm text-gray-500 hover:text-gray-700"
+                    >
+                      {m.name}
+                    </Link>
+                  )}
+                </span>
+              );
+            })}
+          </nav>
         </div>
         <div className="flex shrink-0 items-center gap-2">
         {administrerMapperLenke}
