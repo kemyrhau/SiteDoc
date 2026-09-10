@@ -4299,6 +4299,27 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### 🟡 PARKERT 2026-09-10: `prosjekt.opprettTestprosjekt` — venter produktretning
+
+**Kenneth-vedtak 2026-09-10:** *«kan vi la denne stå deaktivert nå. aktiviseres og utbedres
+senere når jeg har bedre oversikt over retning for testprosjekt?»*
+
+**Hva som ble gjort:** prosedyren (`apps/api/src/routes/prosjekt.ts:408`) ble gatet med samme
+predikat som `prosjekt.opprett` i `62ca7c9d` — `firma_admin ∪ prosjekt_oppretter ∪ sitedoc_admin`.
+🔴 **Grunn:** redesign målte at den **ikke** er en dev-vei. Den brukes av ny-bruker-onboarding
+(«Velkommen til SiteDoc») og admin-malprosjekt, og **lager et ekte prosjekt med standardgrupper.**
+Uten gaten sto hullet fra `prosjekt.opprett` åpent gjennom onboarding-døra.
+
+🟢 **Konsekvens i dag:** `sitedoc_admin` og `firma_admin` slipper gjennom uendret, så onboarding
+for en firmaadmin virker som før. **En ny bruker uten firma_admin kan ikke lenger opprette
+testprosjekt via onboarding.** **Kenneth har akseptert det som midlertidig tilstand.**
+
+🔴 **Når saken tas opp igjen, er spørsmålet produktmessig, ikke teknisk:** hva ER et testprosjekt
+— en sandkasse som ryddes bort, en mal, eller en vanlig førstegangs-opprettelse med annet navn?
+**Svaret avgjør om gaten skal løsnes, om prosedyren skal slås av helt, eller om den skal erstattes.**
+⚠️ **Ikke «fiks» gaten uten det svaret.** Prod har allerede ett prosjekt som heter
+«1000 testprosjekt som skal slettes» (målt 2026-09-10) — symptomet på at retningen mangler.
+
 ### 📋 REGRESJONSAUDIT mobil, bygg 44 → 31.08 — åtte fjernede funksjoner
 
 **Utløst av Kenneth 2026-08-31:** *«jeg sliter veldig med at Opus fikser noe → så forsvinner
