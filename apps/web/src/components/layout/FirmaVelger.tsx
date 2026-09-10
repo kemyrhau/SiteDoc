@@ -14,8 +14,8 @@ import { useFirma } from "@/kontekst/firma-kontekst";
 
 /**
  * Panel-innmaten (søk + firma-liste) uten den absolutt-posisjonerte
- * dropdown-innpakningen. Gjenbrukes av både `FirmaVelger` (flagg av) og
- * `KontekstChip` (flagg på, steg iii). `onValgt` lukker foreldrepopoveren.
+ * dropdown-innpakningen. Gjenbrukes av både `FirmaVelger` og
+ * `KontekstChip`. `onValgt` lukker foreldrepopoveren.
  */
 export function FirmaVelgerPanel({
   onValgt,
