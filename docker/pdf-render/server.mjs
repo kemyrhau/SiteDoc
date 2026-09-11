@@ -66,6 +66,24 @@ app.post("/pdf", async (req, reply) => {
   const ctx = await (await hentBrowser()).newContext();
   const page = await ctx.newPage();
   try {
+    // SSRF-vakt (Pakke D): rapport-HTML-en kommer fra opplastede og
+    // brukerredigerte dokumenter, og containeren står på samme nett som api og
+    // database. En <img src="http://169.254.169.254/…"> eller en intern adresse
+    // ville ellers blitt hentet av Chromium — SSRF med rapportgeneratoren som
+    // mellommann. Bildene er alt inlinet som data-URI av api-sammenstillingen
+    // (se topp-kommentar), så ingen legitim utgående henting finnes. Vi tillater
+    // derfor kun data:/blob: og avbryter alt annet nettverk. Regexen /.*/ treffer
+    // hver forespørsel (glob-matching er upålitelig mot skjema-URL-er uten «/»).
+    // setContent-hoveddokumentet går ikke via route og er upåvirket. En blokkert
+    // henting feiler bildet → VENT_FN når timeout → x-render-komplett: false,
+    // som er den etablerte «aldri stille hull»-oppførselen (api markerer).
+    await page.route(/.*/, (route) => {
+      const url = route.request().url();
+      if (url.startsWith("data:") || url.startsWith("blob:")) {
+        return route.continue();
+      }
+      return route.abort();
+    });
     await page.setContent(html, { waitUntil: "networkidle" });
     const komplett = await page.evaluate(VENT_FN, MAKS_VENT_MS);
 
