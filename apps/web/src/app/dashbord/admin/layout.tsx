@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Building2, Shield, FlaskConical, Database, SlidersHorizontal, HardDrive } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Building2, Shield, FlaskConical, Database, SlidersHorizontal, HardDrive, Library } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 
+// Merk: denne admin-navigasjonen bruker hardkodede norske labels (pre-eksisterende
+// mønster i hele fila) — «Bibliotek» følger samme konvensjon. Side-strengene i
+// bibliotek/page.tsx er i18n-et via t().
 const navigasjon = [
   {
     label: "Oversikt",
@@ -46,6 +49,11 @@ const navigasjon = [
     label: "Lagring",
     href: "/dashbord/admin/lagring",
     ikon: <HardDrive className="h-4 w-4" />,
+  },
+  {
+    label: "Bibliotek",
+    href: "/dashbord/admin/bibliotek",
+    ikon: <Library className="h-4 w-4" />,
   },
 ];
 

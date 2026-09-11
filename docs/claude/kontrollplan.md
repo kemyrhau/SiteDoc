@@ -1475,7 +1475,7 @@ På sikt kan biblioteket utvides med maler fra andre kilder:
 ## Status
 
 - **Sjekklistebibliotek:** ✅ 2 standarder, 12 maler, 74 felt — fungerer i produksjon
-- **Admin-redigering:** Planlagt (`/admin/bibliotek`) — ikke bygget ennå
+- **Admin-redigering:** 🟡 MVP bygget — retteveien `/dashbord/admin/bibliotek` (sitedoc_admin): velg standard→kapittel→mal, rediger felt (etikett/type/hjelpetekst/valgopsjoner/fase/rekkefølge) + navn/ref/beskrivelse, auto-lagre via `bibliotek.oppdaterMal`. **Utenfor MVP (egen runde):** opprett standard/kapittel/mal + sletting. `verifisert` settes ikke ved redigering (prod-gaten)
 - **Kontrollplan design:** ✅ Fullstendig spesifikasjon med lovkrav, datamodell, bulk-ops, sporbarhet, sluttrapport
 - **Område-modell:** ✅ Implementert — `omrader`-tabell, API CRUD, velger-komponenter (web + mobil)
 - **Område-/rom-velger i sjekklister:** ✅ zone_property → nedtrekksmeny, room_property → filtrert nedtrekksmeny
