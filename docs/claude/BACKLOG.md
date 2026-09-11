@@ -150,7 +150,7 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
-### 🟠 `apps/mobile` har INGEN test-runner — pilotens viktigste flate er uten enhetstester (målt 2026-09-07)
+### 🔴 `apps/mobile` har INGEN test-runner — blokkerer fase 2 offline (målt 2026-09-07, eskalert 2026-09-11)
 
 Målt av redesign da han skulle skrive en test ordren krevde: **`apps/mobile` har verken
 `test`-script, vitest eller jest.** `pnpm test` (turbo) treffer api, pdf, shared og web — mobil er
@@ -169,6 +169,22 @@ api-tester — **ingen av dem er enhetstester på mobil-logikk.**
 
 **Ikke ordre.** Å legge inn jest/vitest med RN-preset er reell infra-endring som flytter
 baselinen og krever godkjenning. **Kenneth-beslutning.**
+
+🔴 **Eskalert 2026-09-11 — blokkerer fase 2 offline.** Krav (c) i «stille tomhet er forbudt»
+(*en test som FEILER når feltet er tomt*) kan derfor ikke oppfylles for noen offline-katalog på
+mobil. Første treff: `reise_grensepunkt_local` (runde 75) — wiringen `hentReiseGrensepunkterLokalt
+→ løsReiseLonnsartId` står utestet, mens begge ender er dekket (api-test + `shared/reise.test.ts`).
+
+🔴 **Gate:** **offline-runden for oppgaver/HMS (fase 2) skal ikke relayes før denne er lukket.**
+Den runden bygger nye kataloger med samme krav, og uten harness gjentas unntaket i stedet for å
+bli lukket. Unntaket er ført ved regelen selv i [CLAUDE.md § Stille tomhet er forbudt](../../CLAUDE.md).
+
+🟢 **Anbefalt retning (Kenneth 2026-09-11, valget tas i saken):** **vitest + `better-sqlite3`**,
+ikke `jest-expo`. Katalogene er ren SQLite-logikk uten native- eller UI-avhengigheter, og vitest er
+den tynneste installasjonen som dekker behovet.
+
+⚠️ **Pakkeinstall i mobilappen krever Kenneths gate** (CLAUDE.md § Spør alltid før du).
+**Ikke startet før pilot er i drift.**
 
 ### 🟢 LUKKET 2026-09-08 — PSI scroll-gate er IKKE en manglende sikkerhetsgate
 
