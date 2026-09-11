@@ -45,10 +45,14 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 
 #### 🔴 Retter du en ENGELSK kildestreng, oppdager generatoren det ikke
 
-Default-modus fyller kun **manglende** nøkler. Endrer du teksten i en nøkkel som allerede
-finnes i alle 15 filer, hopper generatoren over den — en ny kjøring rører ingenting, og de
-13 målspråkene beholder oversettelsen av den *gamle* engelske teksten. Symptomet er at
-alt ser grønt ut mens tretten språk sier noe annet enn kilden.
+Default-modus fyller kun **manglende** nøkler (`generate.ts:70` — filteret `!eksisterende[key]`
+hopper over enhver nøkkel som allerede finnes i målspråket, **også med `--only`**; flagget
+begrenser *hvilke* nøkler som fylles, det tvinger ingen oppdatering av eksisterende). Endrer du
+teksten i en nøkkel som allerede finnes i alle 15 filer, hopper generatoren over den — en ny
+kjøring rører ingenting, og de 13 målspråkene beholder oversettelsen av den *gamle* engelske
+teksten. Symptomet er at alt ser grønt ut mens tretten språk sier noe annet enn kilden.
+Bekreftet på nytt 2026-09-11 (`firma.innstillinger.reise.lonnsartHjelp` — `--only` fylte ikke
+den endrede betydningen; nøkkelen måtte slettes fra de 13 målspråkene først).
 
 To veier, begge riktige:
 
