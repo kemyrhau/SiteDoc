@@ -14,6 +14,59 @@ STATUS-AKTUELT.md § Pågående arbeid; ferdige PRs flyttes videre til
 
 Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avklaring.
 
+---
+
+# 🔴 REMÅLING MOT KODE 2026-09-11 — seks poster var levert uten at noen førte det
+
+> **Utløst av Kenneth 2026-09-11:** *«du sjekker for dårlig -> reise terskel er ferdig»*.
+> **Cowork hadde lest BACKLOG som fasit og bygget en prioriteringsliste på den.** Kenneth viste
+> skjermbildet: reise-regelsettet har «Måles i: Minutter/Kilometer», terskel, under/over-valg,
+> lønnsart-resolver og reisetid-matrise. **Alt bygget, posten sa åpent.**
+
+🔴 **REGELEN SOM BLE BRUTT — den står i CLAUDE.md og cowork håndhever den mot agentene daglig:**
+**dokumentasjon kan ha drift, koden er fasit.** **Les aldri en BACKLOG-post som nåtilstand uten å
+måle den mot kode først.** ⚠️ **Det gjelder også — særlig — når posten støtter konklusjonen du
+allerede har.**
+
+## ✅ LUKKET ved remålingen — ikke gjenåpne uten ny måling
+
+| Sak | Bevis |
+|---|---|
+| **Reise: km-terskel + enhet** | `packages/shared/src/utils/reise.ts:27` (`ReiseEnhet = "minutter" \| "km"`), `:44-57` regelsett, `:86+` `klassifiserReise`. Tester `reise.test.ts:90-119`. Mobil-speiling `db/schema.ts:585-596`. Server `organisasjon.ts:1175,1189`. UI `firma/innstillinger/page.tsx:1206-1257`. Commits `162ef59e`, `d70dbe75` |
+| **Reise-lønnsart «Automatisk (navne-match)»** | `reise.ts:36` `REISE_LONNSART_REGEX` (én delt kilde) · tvetydighetsvarsel `organisasjon.ts:1038-1049` · mobil-resolver `services/timerKatalog.ts:266-272` |
+| **Mobil-PSI viste «fullført» ved avvist signering** | `apps/mobile/app/psi/[psiId].tsx:196-214` — `await` først, `catch → Alert + return`, `setSeksjonFullfort` først etter bekreftelse. Speiler web `2ee6e343` |
+| **Byggeplass redigeres/slettes fra UI** | `oppsett/byggeplasser/page.tsx:879` (`bygning.oppdater`), `:1469` (`slett`), `:1467` (`hentSletteSammendrag`). ⚠️ **2D-tegning-delen av samme post står fortsatt åpen** |
+| **Serieopplasting av bilder + rekkefølge** | `apps/mobile/src/services/bilde.ts:259-292` — `allowsMultipleSelection` + `orderedSelection` med dokumentert Android-forbehold |
+| **A7 proxy-headers** | `apps/web/next.config.js:4` `poweredByHeader:false`, `:59-80` HSTS + `X-Frame-Options`. Commit `a23719dc` |
+
+## 🔴 FORTSATT EKTE — målt ikke bygget, to søkeformer hver
+
+**Blokkerer pilot i felt:**
+
+1. 🔴 **Offline for sjekkliste/oppgave/HMS.** `apps/mobile/src/db/schema.ts:13-595` har 25 tabeller,
+   men ingen for sjekkliste-/oppgave-/HMS-**katalog** — kun utkast-verdier (`sjekkliste_feltdata:13`,
+   `oppgave_feltdata:30`). Listene går rett på `trpc.…hentForProsjekt.useQuery`
+   (`app/sjekkliste/index.tsx:76`, `(tabs)/hjem.tsx:176,184`, `innboks/index.tsx:78,85`).
+   `offlineKlargjoring.ts:97-140` laster **bare plantegninger og IFC**.
+   2. søkeform: `persistQueryClient`/`createAsyncStoragePersister` → **0 treff**.
+   🔴 **Bryter CLAUDE.md: «Mobil-appen MÅ fungere offline». Anleggsgartner uten dekning får ingenting.**
+
+2. 🔴 **Avstandsbånd → lønnsart** (terskelen er løst, båndet er ikke).
+   `klassifiserReise` returnerer kun `"arbeidstid" | "reisetid"` (`reise.ts:20`) — ingen mapping
+   avstand → «Reise 7,5–15 km». 2. søkeform: `band|Band|bånd` i `reise.ts`, `organisasjon.ts`,
+   `timerKatalog.ts` → **0**. ⚠️ **Fem lønnsarter matcher regexen hos A.Markussen — feil art gir
+   feil utbetaling. Tvetydighetsvarselet demper, men løser ikke.**
+
+**Ikke pilotblokkerende, men ekte:** 2D-tegning rename/slett fra UI (API-en finnes,
+`tegning.oppdater:294`) · papirkurv masseslett (`papirkurv.ts` har kun én-og-én) ·
+PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før attestering ·
+**A4 hardkodet Norkart-nøkkel** (`GeoReferanseEditor.tsx:262`, i klartekst og i git-historikk) ·
+`apps/mobile` uten test-runner (`package.json:6-14`, 0 testfiler).
+
+**❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
+
+---
+
 ## 0. Sikkerhet — Aikido-scan triagert 2026-08-12 (49 funn → 7 poster)
 
 **Kilde:** `Fra fabel/til-repo-2026-08-12-1558/FABEL-TRIAGE-aikido-49-funn.md`. Fabel triagerte alle 49; cowork har **verifisert hvert kodefunn mot repoet** før føring her. Aikidos alvorlighetsgrader er ikke fulgt blindt — to av dem er justert, se under.
