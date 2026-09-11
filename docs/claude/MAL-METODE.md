@@ -63,18 +63,30 @@ Konkret løype, målt mot KA7-revisjonen 2026-09-11. **Én mal om gangen, kun et
    DATABASE_URL="postgresql://<bruker>@localhost:5432/sitedoc" \
      pnpm --filter @sitedoc/db exec tsx prisma/seed-bibliotek.ts
    ```
-   Bekreft at andre kjøring ikke endrer noe — f.eks. `md5(mal_innhold::text)` identisk før/etter, uendret radtall, `verifisert=f`. `upsertMal` brukes (aldri `deleteMany`).
+   Seeden **oppretter kun** (`opprettMalHvisMangler`, aldri update/`deleteMany`), så andre kjøring per definisjon ikke endrer noe — den melder «N fantes fra før og ble IKKE rørt». ⚠️ **Bygger du en REVISJON av en mal som allerede finnes i din lokale DB, overskriver seeden den IKKE** — slett den ene raden først (`delete from bibliotek_maler where referanse='<REF>'`) eller start fra tom DB, ellers seeder du og ser fortsatt gammelt innhold.
 5. **Gate-bygg** (les baseline på develop-tippen selv; seed-data er ikke dekket av tester → alle skal stå stille): `pnpm install` → `prisma generate` for `db`/`db-timer`/`db-maskin`/`db-varelager` → `pnpm --filter @sitedoc/web build` → `pnpm --filter @sitedoc/mobile typecheck` → `pnpm test`.
 6. **Rebase rett før push**, verifiser at diffen mot develop er **kun** `seed-bibliotek.ts`, og push egen branch: `git rebase origin/develop && git diff --stat origin/develop..HEAD && git push -u origin feat/mal-<ref>-revisjon`. **Aldri `develop`** — cowork merger etter fabels innholdsgate.
 7. **Skjermbilde-bevis på web** (obligatorisk før gate): seed malen til `sitedoc_test` (§6a) og fang malen i MalBygger (alle felter + faser) + utfyllingsvisningen.
 8. **Meld ÉTT svar** til Kenneth (branch+hash · gate-tall målt selv · idempotens · skjermbildene · hvor fase-overskriften kom fra · avvik fra ordren). «Klar for commit» sier fabel, ikke mal-Opus.
 
-### 6a. Seede én mal til `sitedoc_test` (for web-beviset)
+### 6a. Revidere en mal i arkivet via målrettet UPDATE — den normale revisjonsveien
 
-🔴 **Seeden er IKKE del av deploy.** Verken `deploy-test.sh` eller migreringene rører `bibliotek_maler`, så test får aldri en revidert mal automatisk — uansett merge. Skal malen ses på web i test, må den oppdateres eksplisitt (målt 2026-09-11, KA7).
+🔴 **Seeden oppdaterer ikke lenger (§6b), og er heller ikke del av deploy.** Verken seed, `deploy-test.sh` eller migreringene rører en eksisterende `bibliotek_maler`-rad. Skal en **revidert** mal inn i et arkiv (test for web-bevis, eller generelt), er den målrettede UPDATE-en veien — **ikke et unntak for bevis, men den normale revisjonsveien inntil `/admin/bibliotek` (retteveien i UI) finnes** (målt 2026-09-11, KA7).
 
 Kun ÉN mal, uten å røre de 11 andre: generér en målrettet `UPDATE bibliotek_maler … WHERE referanse='<REF>'` fra den **lokalt seedede** raden (byte-eksakt speiling av koden; sett `verifisert=false`), og få Kenneth til å kjøre den mot test.
 
 - **Kilde til innholdet:** `psql -h localhost -d sitedoc -tAc "select mal_innhold::text from bibliotek_maler where referanse='<REF>'"` (+ `navn`/`beskrivelse`).
 - **Innlim-felle (målt):** psql-økten mot test kjører på en host som **ikke ser lokale filer** (`\i /private/tmp/…` → «No such file»), og terminalen bryter en lang JSON-linje med harde linjeskift (`ERROR: invalid input syntax for type json … 0x0a must be escaped`). **Fiks:** del JSON-strengen i korte biter (≤ ~75 tegn) på egne linjer — Postgres skjøter tilstøtende strengkonstanter atskilt av linjeskift, så terminal-bryting kan ikke ødelegge den. Del på mellomrom, aldri midt i et ord (trygt for æøå). Pakk i `BEGIN; … COMMIT;` med en `SELECT referanse, verifisert, jsonb_array_length(mal_innhold), navn`-bekreftelse. Test SQL-en lokalt før du gir den til Kenneth.
-- ⚠️ **Dette speiler ugatet arbeid inn i test** — kun for beviset. Innholdsgaten (fabel) og merge (cowork) står urørt.
+- ⚠️ **Dette speiler ugatet/gatet arbeid inn i test** — revisjonsveien inntil `/admin/bibliotek`. Innholdsgaten (fabel) og merge (cowork) står urørt.
+
+**Ansvarslinje:** å lage test-seed-kommandoen for den bestemte malen er **mal-Opus' oppgave** — leveres sammen med malen, ikke skjøvet til cowork (unngår friksjon). Når all seed-data er verifisert OK på test, eies **prod-promoteringen (test → produksjon) av Kenneth + cowork** — mal-Opus rører verken seed-mekanikk, prod-gate eller deploy.
+
+### 6b. Seeden oppretter kun — fila er ikke fasit (Kenneth-vedtak 2026-09-11)
+
+🔴 **`seed-bibliotek.ts` oppretter det som mangler og RØRER ALDRI en rad som finnes fra før** (`opprettMalHvisMangler` + `finnEllerOpprettKapittel` + standard-`upsert` med `update: {}`; aldri update, aldri `deleteMany`). Konsekvensen er prinsipiell:
+
+- **Fila beskriver ikke nødvendigvis hva arkivet inneholder.** En mal revidert i databasen (via §6a, eller senere `/admin/bibliotek`) avviker permanent fra fila — med vilje. Fila er en **startpakke, ikke en fasit**.
+- 🔴 **Vil du vite hva som står i arkivet: spør databasen, ikke fila.**
+- **Revisjonsveien er den målrettede UPDATE-en (§6a), ikke seeden** — inntil `/admin/bibliotek` (retteveien i UI) finnes.
+- **Tre veier, hver sin eier:** seed = førstegangs oppsett (oppretter det som mangler) · rå SQL (§6a) = byggeveien for revisjoner · `/admin/bibliotek` = retteveien i UI (bygges parallelt, ikke mal-Opus').
+- Seeden skiller nå **opprettet** fra **hoppet over fordi finnes** i output og navngir de hoppede med referanse — «N maler seedet» uten det skjuler at en revisjon i fila aldri nådde databasen.

@@ -3,13 +3,17 @@
  *
  * Kjør: npx tsx prisma/seed-bibliotek.ts
  *
- * IDEMPOTENT: seeden bruker upsert/find-or-create på naturlige nøkler, aldri
- * deleteMany. Gjentatt kjøring oppdaterer referansedata uten å røre kundedata.
- * ProsjektBibliotekValg (kundens valgte bibliotekmaler) og avstamnings-pekere
- * fra OrganizationTemplate.laantFraBibliotekMalId (SetNull ved sletting) blir
- * stående. Se relay/inbox-seed-bibliotek-idempotent.md.
+ * KUN OPPRETT — aldri oppdater (Kenneth-vedtak 2026-09-11): seeden oppretter det
+ * som mangler og RØRER ALDRI en rad som finnes fra før. En mal revidert i databasen
+ * (via §6a rå SQL, eller senere /admin/bibliotek) avviker permanent fra denne fila —
+ * med vilje. Fila er en startpakke, ikke en fasit; vil du vite hva arkivet inneholder,
+ * spør databasen, ikke fila. Aldri deleteMany. ProsjektBibliotekValg (kundens valgte
+ * bibliotekmaler) og avstamnings-pekere fra OrganizationTemplate.laantFraBibliotekMalId
+ * (SetNull ved sletting) blir stående. Se relay/inbox-seed-kun-opprett.md.
  */
 import { PrismaClient } from "@prisma/client";
+import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 
 const prisma = new PrismaClient();
 
@@ -56,44 +60,62 @@ function avbrytHvisProdUtenBekreftelse(): void {
   console.warn(`⚠️  Seeder mot prod-databasen «${dbNavn}» (bekreftet via SEED_CONFIRM_DB).`);
 }
 
-/** find-or-create på (standardId, kode) — ingen unik indeks finnes for compound-nøkkelen. */
-async function upsertKapittel(
+/**
+ * Finn-eller-opprett på (standardId, kode). KUN OPPRETT: finnes kapitlet, returneres
+ * id-en uendret — navn/sortering fra fila overskriver aldri en eksisterende rad.
+ * `db` injiseres (default: modulens prisma) så testen kan kjøre mot en fake.
+ */
+async function finnEllerOpprettKapittel(
+  db: Pick<PrismaClient, "bibliotekKapittel">,
   standardId: string,
   k: { kode: string; navn: string; sortering: number },
 ): Promise<string> {
-  const eksisterende = await prisma.bibliotekKapittel.findFirst({ where: { standardId, kode: k.kode } });
-  if (eksisterende) {
-    await prisma.bibliotekKapittel.update({
-      where: { id: eksisterende.id },
-      data: { navn: k.navn, sortering: k.sortering },
-    });
-    return eksisterende.id;
-  }
-  const opprettet = await prisma.bibliotekKapittel.create({ data: { ...k, standardId } });
+  const eksisterende = await db.bibliotekKapittel.findFirst({ where: { standardId, kode: k.kode } });
+  if (eksisterende) return eksisterende.id;
+  const opprettet = await db.bibliotekKapittel.create({ data: { ...k, standardId } });
   return opprettet.id;
 }
 
-/** find-or-create på (kapittelId, referanse) — ingen unik indeks finnes for compound-nøkkelen. */
-async function upsertMal(
+export interface BibliotekMalSeed {
+  navn: string;
+  referanse: string;
+  beskrivelse: string | null;
+  prioritet: number;
+  verifisert: boolean;
+  malInnhold: unknown;
+}
+
+/**
+ * KUN OPPRETT — aldri oppdater. Finnes malen (kapittelId + referanse) fra før,
+ * returneres «finnes» og raden RØRES IKKE (en revidert mal i DB skrives aldri tilbake
+ * til fila sitt innhold). Mangler den, opprettes den og «opprettet» returneres.
+ *
+ * `db` injiseres slik at seeden kjører mot ekte PrismaClient og testen mot en fake —
+ * testen verifiserer at en eksisterende rad aldri får create/update (vakten mot at
+ * seeden igjen begynner å overskrive).
+ */
+export async function opprettMalHvisMangler(
+  db: Pick<PrismaClient, "bibliotekMal">,
   kapittelId: string,
-  mal: { navn: string; referanse: string; beskrivelse: string | null; prioritet: number; verifisert: boolean; malInnhold: unknown },
-): Promise<void> {
-  const data = {
-    navn: mal.navn,
-    beskrivelse: mal.beskrivelse,
-    prioritet: mal.prioritet,
-    verifisert: mal.verifisert,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    malInnhold: mal.malInnhold as any,
-  };
-  const eksisterende = await prisma.bibliotekMal.findFirst({
+  mal: BibliotekMalSeed,
+): Promise<"opprettet" | "finnes"> {
+  const eksisterende = await db.bibliotekMal.findFirst({
     where: { kapittelId, referanse: mal.referanse },
   });
-  if (eksisterende) {
-    await prisma.bibliotekMal.update({ where: { id: eksisterende.id }, data });
-    return;
-  }
-  await prisma.bibliotekMal.create({ data: { kapittelId, referanse: mal.referanse, ...data } });
+  if (eksisterende) return "finnes";
+  await db.bibliotekMal.create({
+    data: {
+      kapittelId,
+      referanse: mal.referanse,
+      navn: mal.navn,
+      beskrivelse: mal.beskrivelse,
+      prioritet: mal.prioritet,
+      verifisert: mal.verifisert,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      malInnhold: mal.malInnhold as any,
+    },
+  });
+  return "opprettet";
 }
 
 interface FeltDef {
@@ -121,13 +143,14 @@ function desimal(label: string, fase: string, config: Record<string, unknown>, h
 }
 
 async function main() {
-  console.log("Seeder sjekklistebibliotek (idempotent)...");
+  console.log("Seeder sjekklistebibliotek (kun opprett — rører aldri eksisterende rader)...");
 
   avbrytHvisProdUtenBekreftelse();
 
+  // Standard: KUN OPPRETT. `update: {}` → finnes koden, blir raden urørt.
   const standard = await prisma.bibliotekStandard.upsert({
     where: { kode: "NS3420-K" },
-    update: { navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
+    update: {},
     create: { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
   });
 
@@ -140,7 +163,7 @@ async function main() {
 
   const kap: Record<string, string> = {};
   for (const k of kapittelData) {
-    kap[k.kode] = await upsertKapittel(standard.id, k);
+    kap[k.kode] = await finnEllerOpprettKapittel(prisma, standard.id, k);
   }
 
   interface MalDef {
@@ -329,7 +352,7 @@ async function main() {
 
   const standardF = await prisma.bibliotekStandard.upsert({
     where: { kode: "NS3420-F" },
-    update: { navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
+    update: {},
     create: { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
   });
 
@@ -342,7 +365,7 @@ async function main() {
 
   const kapF: Record<string, string> = {};
   for (const k of kapittelDataF) {
-    kapF[k.kode] = await upsertKapittel(standardF.id, k);
+    kapF[k.kode] = await finnEllerOpprettKapittel(prisma, standardF.id, k);
   }
 
   const malerF: MalDef[] = [
@@ -638,17 +661,18 @@ async function main() {
   // Prod-gate: uverifiserte maler seedes ikke i prod — prod holdes på 0 maler til fagkontroll er
   // registrert (via en fremtidig «Merk verifisert»-handling). Test/lokal får alle 12.
   const erProd = erProdDatabase();
-  let seedet = 0;
-  let hoppetOver = 0;
+  let opprettet = 0;
+  let hoppetProdGate = 0;
+  const hoppetFinnes: string[] = [];
   for (const mal of [...maler, ...malerF]) {
     const verifisert = false;
     if (erProd && !verifisert) {
-      hoppetOver++;
+      hoppetProdGate++;
       continue;
     }
     const kapittelId = (mal.kapittelKode.startsWith("K") ? kap : kapF)[mal.kapittelKode]!;
     const malInnhold = mal.felter.map((f, i) => ({ ...f, sortOrder: i + 1 }));
-    await upsertMal(kapittelId, {
+    const status = await opprettMalHvisMangler(prisma, kapittelId, {
       navn: mal.navn,
       referanse: mal.referanse,
       beskrivelse: mal.beskrivelse ?? null,
@@ -656,13 +680,37 @@ async function main() {
       verifisert,
       malInnhold,
     });
-    seedet++;
-    console.log(`  ✓ ${mal.navn}`);
+    if (status === "opprettet") {
+      opprettet++;
+      console.log(`  + opprettet: ${mal.referanse} — ${mal.navn}`);
+    } else {
+      hoppetFinnes.push(mal.referanse);
+    }
   }
 
-  console.log(`Ferdig! ${seedet} maler seedet${hoppetOver > 0 ? `, ${hoppetOver} uverifiserte hoppet over (prod-gate)` : ""}.`);
+  // Krav 2: skill opprettet fra hoppet-over-fordi-finnes, og navngi de hoppede med
+  // referanse. Uten dette blir «N maler seedet» en løgn — neste person tror en revisjon
+  // i fila nådde databasen. «Stille tomhet i meldingsform.»
+  console.log(`Ferdig! ${opprettet} nye maler opprettet.`);
+  if (hoppetFinnes.length > 0) {
+    console.log(
+      `  ↷ ${hoppetFinnes.length} fantes fra før og ble IKKE rørt: ${hoppetFinnes.join(", ")}`,
+    );
+  }
+  if (hoppetProdGate > 0) {
+    console.log(`  ↷ ${hoppetProdGate} uverifiserte hoppet over (prod-gate).`);
+  }
 }
 
-main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+// Kjør seeden KUN når fila startes direkte (`tsx prisma/seed-bibliotek.ts`), ikke når den
+// importeres (testen importerer `opprettMalHvisMangler`). Uten guarden ville import kjøre
+// seeden. realpathSync normaliserer symlinks (macOS /tmp → /private/tmp) før sammenligning.
+const kjørtDirekte =
+  process.argv[1] !== undefined &&
+  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
+
+if (kjørtDirekte) {
+  main()
+    .catch((e) => { console.error(e); process.exit(1); })
+    .finally(async () => { await prisma.$disconnect(); });
+}
