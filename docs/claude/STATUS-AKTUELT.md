@@ -358,23 +358,69 @@ ikke var der i det hele tatt.** Ingen av dem kunne build eller typecheck ha fang
 1+2) · lokasjonOmfang · arkiv-PDF for oppgave/HMS. **Verifiser på test som innlogget først** —
 malbyggeren fikk 91 nye linjer og brukes av alt.
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, **målt 2026-09-07 senkveld**)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, **målt 2026-09-11 natt**)
 
-🔴 **Tavla sto på 28.08 til 07.09 senkveld.** Den påsto develop `09fc817c`, runde 18–20 som
-neste, og tre agenter som «venter merge» på brancher som var i prod for lengst. **Kenneth fanget
-det på skrivemåten, ikke på innholdet** — cowork hadde driftet ut av orkestratorrollen og skrevet
-referat i stedet for å måle registeret. **Tavla er coworks ansvar, ikke Kenneths.**
+🔴 **Tavla sto på 07.09 til 11.09.** Den påsto develop `3d177db5` og prod «13 runder bak».
+**Andre gang samme drift — forrige gang sto den fra 28.08 til 07.09.** Kenneth fanget den begge
+ganger. **Tavla er coworks ansvar, ikke Kenneths, og den skal måles ved sesjonsstart.**
 
 **Målt tilstand nå:**
 
-| Hva | Hash |
-|---|---|
-| `develop` | **`3d177db5`** (merge 36) |
-| `main` / prod | `69ca9f62` — **13 runder bak develop** |
-| **test** | `ca95b2f3` → ny deploy `3d177db5` under utrulling |
-| **OTA test-kanal** | `e84b3f09` → ny publisering under utrulling |
+| Hva | Hash | Merknad |
+|---|---|---|
+| `develop` | **`adbbd2a8`** | |
+| `main` / prod | **`af0093b8`** | 🟢 **Deployet 11.09 etter 44 runder.** ~30 min nedetid, rotårsak i [DEPLOY-RUNBOK § 5b](DEPLOY-RUNBOK.md) |
+| **test** | `74d641f5` | |
+| **OTA test-kanal** | `7242ea83` | Update group `f19d0904` |
 
-🟢 **Testtall etter runde 36:** api 335 · pdf 113 · **shared 754** · web 210.
+🟢 **Testtall på develop-tippen:** api **421** · pdf 120 · shared **780** · web 210.
+
+### 🔴 Agentregister — målt 2026-09-11, ikke husket
+
+⚠️ **Cowork kan IKKE måle worktrees selv.** Et worktree har en `.git`-**fil** med absolutt sti til
+`.git/worktrees/<navn>` i hovedtreet — den stien finnes ikke i coworks sandkasse, så `git` feiler
+der. **Cowork kan lese FILER i trærne, men ikke hash, branch eller status. Det må Kenneth kjøre:**
+
+```sh
+cd ~/Documents/Programmering/SiteDoc && git fetch -q origin && for w in dokgen kontrollplan redesign merge simulator; do p=~/Documents/Programmering/SiteDoc-$w; if [ -d "$p" ]; then echo "$w: $(git -C $p rev-parse --short HEAD) [$(git -C $p rev-parse --abbrev-ref HEAD)] · $(git rev-list --count $(git -C $p rev-parse HEAD)..origin/develop) bak · $(git -C $p status --porcelain | wc -l | tr -d ' ') urene"; else echo "$w: MANGLER"; fi; done
+```
+
+⚠️ **`prunable` i coworks `git worktree list` er STØY** — det speiler bare at sandkassen ikke når
+stien. **Det betyr ikke at treet kan ryddes.**
+
+| Agent | Worktree | HEAD 11.09 | Bak develop | Urene | Spor |
+|---|---|---|---|---|---|
+| **dokgen** | `SiteDoc-dokgen` | `368c3898` | 15 | 🟢 0 | FUNN — offline sjekklister (ordre gitt) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `1a2f484a` | 15 | 🟢 0 | PLAN — ledig, MK C konverteringsliste neste |
+| **redesign** | `SiteDoc-redesign` | `94e9c426` | 14 | 🟢 0 | Avstandsbånd → lønnsart (ordre klar) |
+| **merge** | `SiteDoc-merge` | `74d641f5` | 8 | 🟢 0 | Ledig |
+| **simulator** | `SiteDoc-simulator` | `bc3efdca` | **382** | 🟢 0 | ⚠️ **Ute av drift** — se under |
+| ~~mobil-device~~ | `SiteDoc-mobil-device` | — | — | — | 🔴 **FORELDRELØS** — se under |
+
+### 🟢 Trærne har IKKE driftet — målt, ikke antatt
+
+**Spørsmål (Kenneth 11.09): «plutselig er de driftet? bør vi migrere dem?»**
+
+| Måling | Svar |
+|---|---|
+| `pnpm-lock.yaml` i hovedtreet | **7. september**, uendret i git siden |
+| Lockfil i dokgen · kontrollplan · redesign · merge | **7. september — identisk** |
+| Urene filer i alle fem trær | **0** |
+
+🟢 **Ingen migrering nødvendig.** Avhengighetene er i takt, trærne er rene, og hver ordre starter
+med `git fetch` + ny branch fra `origin/develop`. **`pnpm install` i gate-kommandoen blir en no-op.**
+**At et tre står 15 commits bak spiller ingen rolle — det er urene filer som ville vært problemet.**
+
+### ⚠️ To trær som trenger et vedtak
+
+**`SiteDoc-simulator`** — 382 commits bak, lockfil fra **4. september** (eldre enn hovedtreets 7.).
+🔴 **Skal den brukes til røykliste, må den oppdateres og `pnpm install` kjøres først** — ellers
+måler den en app fra en annen tid. **Som den står, er den ute av drift.**
+
+**`SiteDoc-mobil-device`** — mappa finnes med `node_modules`, `.git`-fila peker på
+`.git/worktrees/SiteDoc-mobil-device`, **men treet står IKKE i `git worktree list`.**
+🔴 **Registreringen er borte; mappa står igjen som foreldreløs.** Den har **ingen `pnpm-lock.yaml`**.
+**Den tar plass og kan forvirre neste cowork. Rydding krever Kenneths ord — cowork sletter ikke.**
 
 ### 🔴 PROD-AVBRUDD samme kveld — Entra client secret utløp 3. sept
 
