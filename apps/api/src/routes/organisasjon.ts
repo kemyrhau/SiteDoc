@@ -1070,7 +1070,7 @@ export const organisasjonRouter = router({
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
-      return ctx.prisma.organizationSetting.upsert({
+      const setting = await ctx.prisma.organizationSetting.upsert({
         where: { organizationId: input.organizationId },
         create: { organizationId: input.organizationId },
         update: {},
@@ -1098,6 +1098,19 @@ export const organisasjonRouter = router({
           reiseLonnsartId: true,
         },
       });
+      // Avstandsbånd (2026-09-11): mobilens offline-resolver (`hentReiseLonnsartId`)
+      // trenger grensepunktene for å velge riktig reise-lønnsart etter avstand.
+      // Ligger her — IKKE i firma-admin-`hentSetting` — fordi mobil-cachen
+      // (`organizationSettingKatalog`/`reiseGrensepunktKatalog`) leser dette
+      // member-subsettet. Tilgangsflaten utvides IKKE: en grense er avstand +
+      // lønnsart-id, og arbeideren ser allerede sine egne lønnsarter og sin egen
+      // reiseavstand. De utelatte sensitive feltene (:1066-1068) er urørt.
+      const reiseGrenser = await ctx.prisma.organizationReiseGrense.findMany({
+        where: { organizationId: input.organizationId },
+        select: { grenseM: true, lonnsartId: true },
+        orderBy: { grenseM: "asc" },
+      });
+      return { ...setting, reiseGrenser };
     }),
 
   // Kalender-effektiv arbeidstid for en gitt dato (medlems-tilgjengelig).
