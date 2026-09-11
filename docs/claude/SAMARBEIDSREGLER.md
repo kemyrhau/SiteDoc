@@ -1292,6 +1292,24 @@ Cowork skal gi denne linjen med agentens hash **hver gang** en merge meldes ferd
 [6. OPPRYDDING]            Hvem sletter branchen. Vanligvis cowork — økta gjør ingenting.
 ```
 
+**🔴 Steg 0 — grep BACKLOG før kravene skrives (Kenneth-vedtak 2026-09-11).**
+Før cowork formulerer ett eneste krav (blokk 3 over): `grep -n -i "<sakens nøkkelord>"
+docs/claude/BACKLOG.md`. **Minst to søkeformer** — funksjonsnavnet og symptomet, siden saken
+like gjerne kan stå oppført under den ene som den andre.
+**Treff refereres eksplisitt i ordren** (`§<linje>`, dato, markør), enten som
+«denne ordren lukker §X» eller «§X er målt foreldet, se under».
+**Null treff skrives også** — «BACKLOG-grep: ingen treff på `<ord1>`/`<ord2>`» — slik at
+neste leser vet at det ble gjort, ikke bare glemt.
+⚠️ **BACKLOG er ikke fasit — koden er.** Et treff betyr «mål dette», ikke «dette er sant».
+**Tre rader har vist seg ferdigbygget ved måling** (reise-terskel 09.09, P2-begrunnelse
+09.09, mobil-PSI §220 11.09). **Steget hindrer at cowork bestiller noe umulig eller
+allerede levert — det erstatter ikke målingen.**
+
+**Bakgrunn (2026-09-11):** to hendelser samme dag — et i18n-funn ble meldt «står ingen steder»
+mens det sto i `shared-pakker.md:46`, og et mobil-test-krav ble skrevet uoppfyllbart fordi
+BACKLOG §153 (2026-09-07) alt slo fast at `apps/mobile` mangler test-runner. Begge fanget av
+agentene, ikke av cowork. Ett grep-kall hadde spart en analyserunde.
+
 **De fire virksomme linjene — skal stå ORDRETT i ufravikelig-blokka:**
 
 | Linje | Hva den fanget 2026-07-15/16 |
