@@ -111,3 +111,22 @@ export function hentUnikeFirmaIderLokalt(): string[] {
     .all();
   return Array.from(new Set(rader.map((r) => r.organizationId)));
 }
+
+/**
+ * Alle AKTIVE prosjekt-IDer fra lokal cache. Brukes av sjekkliste-katalog-feien
+ * (Offline-sjekklister fase 1) til å vite hvilke prosjekter den skal pre-cache
+ * sjekklister for ved login/nett-gjenkomst. Kun aktive — arkiverte prosjekter
+ * trenger ikke offline sjekklister, og det holder antallet kall nede.
+ * Standalone-prosjekter (organizationId=null) er ikke i cachen — de dekkes av
+ * «Forbered offline» + list-skjermen (som scoper til valgt prosjekt).
+ */
+export function hentAktiveProsjektIderLokalt(): string[] {
+  const db = hentDatabase();
+  if (!db) return [];
+  return db
+    .select({ id: prosjektLocal.id })
+    .from(prosjektLocal)
+    .where(eq(prosjektLocal.aktiv, true))
+    .all()
+    .map((r) => r.id);
+}

@@ -22,7 +22,9 @@ import { refreshMaskinKatalog } from "../services/maskinKatalog";
 import {
   refreshProsjektKatalog,
   hentUnikeFirmaIderLokalt,
+  hentAktiveProsjektIderLokalt,
 } from "../services/prosjektKatalog";
+import { refreshSjekklisteKatalog } from "../services/sjekklisteKatalog";
 import { refreshKalenderKatalog } from "../services/kalenderKatalog";
 import { refreshOrganizationSettingKatalog } from "../services/organizationSettingKatalog";
 import { refreshOppmotestedKatalog } from "../services/oppmotestedKatalog";
@@ -121,6 +123,32 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
             refreshReisetidMatriseKatalog(utils.client, orgId),
           ]),
         );
+      }
+
+      // Steg 3 — sjekkliste-katalog (Offline-sjekklister fase 1). Best-effort
+      // pre-caching av offline sjekklistelister. EGEN try/catch: en feilende
+      // sjekkliste-fei skal ALDRI velte de 13 timer-katalogene (alt hentet i
+      // steg 1–2). SEKVENSIELT + try/catch per prosjekt: ett dødt prosjekt
+      // stopper ikke resten, og vi fyrer ikke N samtidige kall på anleggsnett.
+      // Scope er alle AKTIVE prosjekter i prosjekt_local (som ble populert i
+      // steg 1). Standalone-prosjekter dekkes av «Forbered offline» + list-
+      // skjermen — TimerSyncProvider ligger over ProsjektProvider og kjenner
+      // ikke valgt prosjekt (målt 2026-09-11, vei A godkjent).
+      try {
+        const prosjektIder = hentAktiveProsjektIderLokalt();
+        for (const pid of prosjektIder) {
+          try {
+            await refreshSjekklisteKatalog(utils.client, pid);
+          } catch (e) {
+            console.warn(
+              "[SJEKKLISTE-KATALOG] Refresh feilet for prosjekt",
+              pid,
+              e,
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("[SJEKKLISTE-KATALOG] Sjekkliste-fei feilet:", e);
       }
 
       setKatalogLastet(true);

@@ -10,12 +10,18 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Plus, Search, SlidersHorizontal, X } from "lucide-react-native";
+import { ArrowLeft, Plus, Search, SlidersHorizontal, WifiOff, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
+import { velgOfflineListeKilde } from "@sitedoc/shared";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
+import { useNettverk } from "../../src/providers/NettverkProvider";
+import {
+  hentSjekklisterLokalt,
+  hentSistOppdatertLokalt,
+} from "../../src/services/sjekklisteKatalog";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { MalVelger } from "../../src/components/MalVelger";
@@ -32,6 +38,13 @@ import {
 } from "../../src/components/dokumentliste/dokumentlisteFilter";
 import { MedUtheving, formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 
+/** «Sist hentet»-tidspunkt (Unix ms) → «dd.mm.åååå kl. hh:mm» (offline-banner). */
+function formaterTidspunkt(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} kl. ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 interface MalData {
   id: string;
   name: string;
@@ -44,6 +57,7 @@ export default function SjekklisteListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
+  const { erPaaNettet } = useNettverk();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -81,7 +95,42 @@ export default function SjekklisteListe() {
     { enabled: !!valgtProsjektId },
   );
 
-  const sjekklister = sjekklisteQuery.data as DokumentRad[] | undefined;
+  // Offline-lesing (Offline-sjekklister fase 1, 2026-09-11). MED nett og et
+  // bekreftet server-svar er serveren autoritativ — like fersk som før (krav 6
+  // rad 1); lokal lesing er KUN fallback (offline / henger / feilet). Lokal
+  // scope speiler server-spørringens byggeplass-scope (samme byggeplassId).
+  const effektivBygg = søkerNaa ? undefined : valgtBygningId ?? undefined;
+  const serverData = sjekklisteQuery.data as DokumentRad[] | undefined;
+
+  const lokaleRader = useMemo(
+    () =>
+      valgtProsjektId
+        ? (hentSjekklisterLokalt(valgtProsjektId, effektivBygg) as DokumentRad[])
+        : [],
+    // Re-les lokal cache når prosjekt/byggeplass endres eller server-svaret
+    // settler (etter en fei kan cachen ha nye rader).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [valgtProsjektId, effektivBygg, sjekklisteQuery.status],
+  );
+
+  const { kilde, tilstand } = velgOfflineListeKilde({
+    erPaaNettet,
+    serverBekreftet: sjekklisteQuery.isSuccess,
+    serverAntall: serverData?.length ?? 0,
+    lokalAntall: lokaleRader.length,
+  });
+
+  const sjekklister = kilde === "server" ? serverData : lokaleRader;
+
+  // «Sist hentet»-tid for dette PROSJEKTET (krav 7) — kun relevant når vi viser
+  // lokale rader. Prosjektets eget stempel, ikke et globalt fei-tidspunkt.
+  const sistHentet = useMemo(
+    () =>
+      tilstand === "lokal" && valgtProsjektId
+        ? hentSistOppdatertLokalt(valgtProsjektId)
+        : null,
+    [tilstand, valgtProsjektId, lokaleRader.length],
+  );
 
   const tilgjengeligeStatuser = useMemo(
     () => Array.from(new Set((sjekklister ?? []).map((s) => s.status))),
@@ -309,7 +358,21 @@ export default function SjekklisteListe() {
         </View>
       )}
 
-      {sjekklisteQuery.isLoading ? (
+      {/* Offline-banner: viser lagrede sjekklister + «sist hentet» (krav 6 rad 2
+          + krav 7). Skiller «frakoblet, lagrede data» fra en tom liste. */}
+      {tilstand === "lokal" && (
+        <View className="flex-row items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2">
+          <WifiOff size={14} color="#b45309" />
+          <Text className="flex-1 text-xs text-amber-800">
+            {t("offline.frakobletLagret")}
+            {sistHentet != null
+              ? ` · ${t("offline.sistHentet", { tid: formaterTidspunkt(sistHentet) })}`
+              : ""}
+          </Text>
+        </View>
+      )}
+
+      {sjekklisteQuery.isLoading && lokaleRader.length === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
           <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>
@@ -333,7 +396,9 @@ export default function SjekklisteListe() {
                   ? t("dokumentsok.ingenTreff")
                   : effektivStatus || antallFilter > 0
                     ? t("tom.ingenMatcherFilter")
-                    : t("tom.ingenSjekklister")}
+                    : tilstand === "lokal-tom"
+                      ? t("offline.ikkeSynkronisert")
+                      : t("tom.ingenSjekklister")}
               </Text>
             </View>
           }

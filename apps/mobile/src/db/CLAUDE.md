@@ -11,6 +11,7 @@ SQLite-laget (expo-sqlite + Drizzle ORM) er kjernen i offline-first-strategien. 
 | `sjekkliste_feltdata` | sjekklisteId, feltVerdier (JSON), erSynkronisert, sistEndretLokalt | Lokal sjekkliste-utfylling |
 | `oppgave_feltdata` | oppgaveId, feltVerdier (JSON), erSynkronisert, sistEndretLokalt | Lokal oppgave-utfylling |
 | `opplastings_ko` | sjekklisteId?, oppgaveId?, objektId, vedleggId, lokalSti, status, forsok, serverUrl | Bakgrunnskø for filopplasting |
+| `sjekkliste_local` | id (server), projectId, byggeplassId?, + navn-kolonner lista viser | **Offline-katalog for sjekklistelista** (read-only mirror, fase 1 2026-09-11). Full-overskrives per prosjekt via `sjekklisteKatalog.refreshSjekklisteKatalog`. Bærer KUN det lista viser/filtrerer på (målt mot `app/sjekkliste/index.tsx`). Synkes aldri opp — utfylling bor i `sjekkliste_feltdata` |
 
 ## Kritisk logikk
 
