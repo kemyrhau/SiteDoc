@@ -76,7 +76,21 @@ Konkret løype, målt mot KA7-revisjonen 2026-09-11. **Én mal om gangen, kun et
 Kun ÉN mal, uten å røre de 11 andre: generér en målrettet `UPDATE bibliotek_maler … WHERE referanse='<REF>'` fra den **lokalt seedede** raden (byte-eksakt speiling av koden; sett `verifisert=false`), og få Kenneth til å kjøre den mot test.
 
 - **Kilde til innholdet:** `psql -h localhost -d sitedoc -tAc "select mal_innhold::text from bibliotek_maler where referanse='<REF>'"` (+ `navn`/`beskrivelse`).
-- **Innlim-felle (målt):** psql-økten mot test kjører på en host som **ikke ser lokale filer** (`\i /private/tmp/…` → «No such file»), og terminalen bryter en lang JSON-linje med harde linjeskift (`ERROR: invalid input syntax for type json … 0x0a must be escaped`). **Fiks:** del JSON-strengen i korte biter (≤ ~75 tegn) på egne linjer — Postgres skjøter tilstøtende strengkonstanter atskilt av linjeskift, så terminal-bryting kan ikke ødelegge den. Del på mellomrom, aldri midt i et ord (trygt for æøå). Pakk i `BEGIN; … COMMIT;` med en `SELECT referanse, verifisert, jsonb_array_length(mal_innhold), navn`-bekreftelse. Test SQL-en lokalt før du gir den til Kenneth.
+- **Koble til test-DB (Kenneth kjører):** test-arkivet ligger i den delte `postgres`-containeren på **server-ny** (rolle `sitedoc`, db `sitedoc_test`; container heter eksakt `postgres` — jf. DOCKER-NOTES). Åpne interaktiv økt:
+  ```
+  ssh -t server-ny "sudo docker exec -it postgres psql -U sitedoc -d sitedoc_test"
+  ```
+  `-t` gir TTY så sudo kan spørre om passord. Lim SQL-en inn i prompten (`\i` mot en lokal fil virker IKKE — hosten ser ikke Mac-filsystemet).
+- **Innlim-felle (målt) — og hva som faktisk skjer:** to feller finnes: (1) psql-økten ser **ikke lokale filer** (`\i /private/tmp/…` → «No such file»); (2) en lang JSON-linje limt rått gir harde linjeskift (`ERROR: … 0x0a must be escaped`). **Fiks:** del JSON-strengen i korte biter (≤ ~75 tegn) på egne linjer — Postgres skjøter tilstøtende strengkonstanter atskilt av linjeskift. Del på mellomrom, aldri midt i et ord (trygt for æøå). Pakk i `BEGIN; … COMMIT;` med en `SELECT referanse, verifisert, jsonb_array_length(mal_innhold), navn`-bekreftelse. Test SQL-en med `psql -f` lokalt før levering.
+  - ⚠️ **Terminal-EKKOET under innliming kan se skramlet ut** — KA7 2026-09-11 viste `COMMIT;bibliotek_maler WHERE …` midt i utskriften. Det er **kosmetisk**: psql parser de faktiske bytene riktig og committer (`UPDATE 1` + `COMMIT` + korrekt bekreftelses-SELECT fulgte). **Verifiser på `UPDATE 1` / `COMMIT` / bekreftelses-SELECT-en, ALDRI på det ekkoede inputet.**
+- **Fullt robust alternativ (unngår paste helt):** skriv SQL-en til en `.sql`-fil og kjør `psql -f` server-side i stedet for å lime i prompten:
+  ```
+  scp <fil>.sql server-ny:/tmp/ && \
+  ssh -t server-ny 'sudo docker cp /tmp/<fil>.sql postgres:/tmp/ && \
+    sudo docker exec postgres psql -U sitedoc -d sitedoc_test -v ON_ERROR_STOP=1 -f /tmp/<fil>.sql && \
+    rm -f /tmp/<fil>.sql'
+  ```
+  `scp` trenger ikke sudo; `docker cp` legger fila i containeren; `psql -f` kjører den atomisk og skriver bekreftelses-SELECT; `ON_ERROR_STOP=1` ruller tilbake ved feil. Bruk denne hvis ekko-skramlingen noen gang gir en ekte parse-feil, eller når du vil slippe paste-usikkerheten.
 - ⚠️ **Dette speiler ugatet/gatet arbeid inn i test** — revisjonsveien inntil `/admin/bibliotek`. Innholdsgaten (fabel) og merge (cowork) står urørt.
 
 **Ansvarslinje:** å lage test-seed-kommandoen for den bestemte malen er **mal-Opus' oppgave** — leveres sammen med malen, ikke skjøvet til cowork (unngår friksjon). Når all seed-data er verifisert OK på test, eies **prod-promoteringen (test → produksjon) av Kenneth + cowork** — mal-Opus rører verken seed-mekanikk, prod-gate eller deploy.
