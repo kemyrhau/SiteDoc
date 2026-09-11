@@ -131,6 +131,7 @@ model Organization {
   externalCostObjects ExternalCostObject[]
   integrations        OrganizationIntegration[]
   setting             OrganizationSetting?
+  reiseGrenser        OrganizationReiseGrense[]
   avdelinger          Avdeling[]
   oppmotesteder       Oppmotested[]
   kompetansetyper     Kompetansetype[]
@@ -484,6 +485,42 @@ model OrganizationSetting {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("organization_settings")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationReiseGrense — reise-avstandsskala (A.Markussen-krav 2026-09-11)
+// GRENSEPUNKTER, ikke intervaller (Kenneth-vedtak): hver rad = «fra og med
+// grenseM meter føres reisen på lonnsartId, til neste grensepunkt tar over».
+// Overlapp er strukturelt umulig (ingen intervaller som KAN overlappe) → ingen
+// btree_gist-extension; UNIQUE(orgId, grenseM) holder. Hull = lonnsartId null.
+// Oppslag: WHERE grenseM <= avstandM ORDER BY grenseM DESC LIMIT 1
+// (delt logikk i @sitedoc/shared `løsReiseLonnsartId`). Løser ikke-determinismen
+// der fem reise-arter matcher navne-regexen og find() plukket vilkårlig.
+// ---------------------------------------------------------------------------
+
+model OrganizationReiseGrense {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+
+  // Nedre grense i METER, inklusiv (7,5 km = 7500). Reise med avstandM >= grenseM
+  // (og < neste grenseM) føres på lonnsartId.
+  grenseM Int @map("grense_m")
+
+  // Svak FK → timer.Lonnsart (A.20-mønster, ingen @relation — ligger i db-timer).
+  // NULL = HULL: ingen art over denne grensen, fallback (reiseLonnsartId/navne-
+  // match) gjelder. Org-isolasjon håndheves i app-lag (settReiseGrensepunkter).
+  lonnsartId String? @map("lonnsart_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Grensepunkt er unikt per firma → to intervaller kan ikke starte på samme
+  // meter, altså kan de ikke overlappe. DB-garantien (rule b «stille tomhet»).
+  @@unique([organizationId, grenseM])
+  @@index([organizationId])
+  @@map("organization_reise_grenser")
 }
 
 // ---------------------------------------------------------------------------

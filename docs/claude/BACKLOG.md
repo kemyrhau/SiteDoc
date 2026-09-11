@@ -979,7 +979,21 @@ være stille») var feil — firmaet har fem treff, ikke ett.
 | Spørsmål | Styres av | Status |
 |---|---|---|
 | Er reisen **arbeidstid eller reisetid**? | **Tid** (30 min) — 🔴 **eller km, se vedtaket over** | 🟢 tid bygget, i prod 09.06 |
-| **Hvilken** reise-lønnsart føres den på? | 🔴 **Avstand** — båndene over | ❌ **finnes ikke** |
+| **Hvilken** reise-lønnsart føres den på? | 🔴 **Avstand** — båndene over | 🟢 **BYGGET 09-11** (server+web+shared) — se under |
+
+> **🟢 AVSTANDSBÅND BYGGET 2026-09-11 (`feat/reise-avstandsband`, Kenneth-gate) — server+web+shared.**
+> Grensepunkter (ikke intervaller, Kenneth-vedtak): tabell `OrganizationReiseGrense
+> (organizationId, grenseM, lonnsartId?)` m/ `UNIQUE(orgId, grenseM)` → overlapp strukturelt umulig,
+> ingen btree_gist-extension. Migrering `20260911120000_reise_avstandsgrenser` (additiv, **KJØRES av
+> Kenneth-gate — ikke kjørt**). Delt resolver `løsReiseLonnsartId(avstandM, grensepunkter, fallback)`
+> i `@sitedoc/shared` (oppslag = høyeste `grenseM ≤ avstandM`; hull/`null`/under laveste/`avstandM<0`
+> → fallback). API: `settReiseGrensepunkter` (replace-all, validerer art i katalog, avviser dup) +
+> `hentSetting` returnerer grensene. Web: bånd-editor i `/dashbord/firma/innstillinger` + varsel-demping
+> når bånd finnes. **Presedens: bånd slår `reiseLonnsartId` når avstand finnes.**
+> 🔴 **MOBIL SKYVES bevisst til kort oppfølger etter dokgens merge** (dokgen eier `apps/mobile/src/db/schema.ts`
+> denne runden; båndene trenger en lokal kolonne i `organizationSettingLocal`). Mobil er **bit-for-bit
+> som i dag** denne runden — faller tilbake på `reiseLonnsartId`/navne-match. Firma **uten** bånd er
+> uendret på alle flater (regresjonstest i `reise.test.ts` beviser det).
 
 ⚠️ **Uten båndvalget havner alle reiser på samme lønnsart uansett lengde**, eller noen må velge
 manuelt hver gang. **Det er sannsynligvis grunnen til at A.Markussen måler i km.**

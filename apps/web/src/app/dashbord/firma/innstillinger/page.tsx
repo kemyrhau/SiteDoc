@@ -1191,6 +1191,19 @@ function ReiseSeksjon() {
   const [tellerOvertid, setTellerOvertid] = useState<boolean>(false);
   const [lonnsartId, setLonnsartId] = useState<string>("");
   const [skitten, setSkitten] = useState(false);
+  // Reise-avstandsskala (grensepunkter): redigerbare rader (km-input + art-valg;
+  // "" = hull). Egen lagre-knapp — settet byttes atomisk (replace-all).
+  const [grenseRader, setGrenseRader] = useState<
+    { grenseKm: string; lonnsartId: string }[]
+  >([]);
+  const [grenseSkitten, setGrenseSkitten] = useState(false);
+
+  const settGrenser = trpc.organisasjon.settReiseGrensepunkter.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+      setGrenseSkitten(false);
+    },
+  });
 
   useEffect(() => {
     if (setting) {
@@ -1205,6 +1218,14 @@ function ReiseSeksjon() {
       setTellerOvertid(setting.reisetidTellerOvertid);
       setLonnsartId(setting.reiseLonnsartId ?? "");
       setSkitten(false);
+      // Grensepunkter (allerede sortert stigende fra server) → km-visning.
+      setGrenseRader(
+        (setting.reiseGrenser ?? []).map((g) => ({
+          grenseKm: String(g.grenseM / 1000),
+          lonnsartId: g.lonnsartId ?? "",
+        })),
+      );
+      setGrenseSkitten(false);
     }
   }, [setting]);
 
@@ -1223,8 +1244,15 @@ function ReiseSeksjon() {
   const timerAktiv = modulTilstand?.timer === true;
   const antallReiseTreff = setting.reiseLonnsartMatchAntall;
   const reiseArtValgt = !!setting.reiseLonnsartId;
-  const visIngenReiseArt = timerAktiv && !reiseArtValgt && antallReiseTreff === 0;
-  const visTvetydigReiseArt = timerAktiv && !reiseArtValgt && antallReiseTreff >= 2;
+  // Reise-avstandsskala (grensepunkter): når firmaet har bånd som peker på en art,
+  // er navne-match-tvetydigheten løst deterministisk → skjul 0/≥2-varslene (samme
+  // demping som reiseArtValgt). Et sett med kun hull (alle lonnsartId null) demper
+  // ikke — det ruter ingen reise noe sted.
+  const harBånd = (setting.reiseGrenser ?? []).some((g) => g.lonnsartId != null);
+  const visIngenReiseArt =
+    timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff === 0;
+  const visTvetydigReiseArt =
+    timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff >= 2;
 
   // Reise-terskel-km: varsel når firmaet måler i km, men matrise-rader mangler
   // avstand (beregnet før avstand-kolonnen). De klassifiseres da konservativt
@@ -1258,6 +1286,33 @@ function ReiseSeksjon() {
       },
       { onSuccess: () => setSkitten(false) },
     );
+  }
+
+  // Grensepunkter → meter (godta «7,5» og «7.5»). Ugyldig km hoppes over ved
+  // lagring (rad uten tall er en halvutfylt kladd). null-lønnsart = hull.
+  const grenserSomMeter = grenseRader
+    .map((r) => ({
+      grenseM: Math.round(Number(r.grenseKm.replace(",", ".")) * 1000),
+      lonnsartId: r.lonnsartId === "" ? null : r.lonnsartId,
+    }))
+    .filter((r) => Number.isFinite(r.grenseM) && r.grenseM >= 0);
+  // Duplikat-grense (blokkerer lagring — DB-unik ville uansett avvist).
+  const grenseDuplikat =
+    new Set(grenserSomMeter.map((r) => r.grenseM)).size !==
+    grenserSomMeter.length;
+  // Hull-varsel (synlig, ikke blokkerende): et grensepunkt uten art skaper et
+  // hull der reisen faller tilbake på reise-lønnsart/navne-match. Kan være
+  // tilsiktet (tak over øverste bånd), så bare informer.
+  const harHull = grenserSomMeter.some((r) => r.lonnsartId == null);
+
+  function lagreGrenser() {
+    if (grenseDuplikat) return;
+    settGrenser.mutate({
+      organizationId: orgId!,
+      // Sorter stigende så lagret rekkefølge matcher visning; resolveren er
+      // uansett rekkefølge-uavhengig.
+      grenser: [...grenserSomMeter].sort((a, b) => a.grenseM - b.grenseM),
+    });
   }
 
   return (
@@ -1421,6 +1476,129 @@ function ReiseSeksjon() {
       {oppdater.isError && (
         <p className="mt-3 text-sm text-red-500">{oppdater.error.message}</p>
       )}
+
+      {/* Reise-avstandsskala (grensepunkter). Hvert punkt: fra og med X km føres
+          reisen på valgt art, til neste punkt tar over. "Ingen (hull)" = reisen
+          faller tilbake på reise-lønnsart over den grensen. */}
+      <div className="mt-6 border-t border-gray-100 pt-4">
+        <h3 className="mb-1 text-sm font-medium text-gray-700">
+          {t("firma.innstillinger.reise.baandTittel")}
+        </h3>
+        <p className="mb-3 text-xs text-gray-500">
+          {t("firma.innstillinger.reise.baandBeskrivelse")}
+        </p>
+
+        {grenseRader.length === 0 ? (
+          <p className="mb-3 text-xs italic text-gray-400">
+            {t("firma.innstillinger.reise.baandTom")}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {grenseRader.map((rad, i) => (
+              <div key={i} className="flex items-end gap-2">
+                <div className="w-28">
+                  {i === 0 && (
+                    <label className="mb-1 block text-xs font-medium text-gray-700">
+                      {t("firma.innstillinger.reise.baandFraKm")}
+                    </label>
+                  )}
+                  <input
+                    type="number"
+                    min={0}
+                    max={1000}
+                    step={0.1}
+                    value={rad.grenseKm}
+                    onChange={(e) => {
+                      setGrenseRader(
+                        grenseRader.map((r, j) =>
+                          j === i ? { ...r, grenseKm: e.target.value } : r,
+                        ),
+                      );
+                      setGrenseSkitten(true);
+                    }}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+                  />
+                </div>
+                <div className="flex-1">
+                  {i === 0 && (
+                    <label className="mb-1 block text-xs font-medium text-gray-700">
+                      {t("firma.innstillinger.reise.baandArt")}
+                    </label>
+                  )}
+                  <select
+                    value={rad.lonnsartId}
+                    onChange={(e) => {
+                      setGrenseRader(
+                        grenseRader.map((r, j) =>
+                          j === i ? { ...r, lonnsartId: e.target.value } : r,
+                        ),
+                      );
+                      setGrenseSkitten(true);
+                    }}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+                  >
+                    <option value="">
+                      {t("firma.innstillinger.reise.baandHull")}
+                    </option>
+                    {reiseArtKandidater.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.navn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGrenseRader(grenseRader.filter((_, j) => j !== i));
+                    setGrenseSkitten(true);
+                  }}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                  aria-label={t("handling.slett")}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            setGrenseRader([...grenseRader, { grenseKm: "", lonnsartId: "" }]);
+            setGrenseSkitten(true);
+          }}
+          className="mt-3 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          {t("firma.innstillinger.reise.baandLeggTil")}
+        </button>
+
+        {harHull && (
+          <p className="mt-3 text-xs text-amber-700">
+            {t("firma.innstillinger.reise.baandHullVarsel")}
+          </p>
+        )}
+        {grenseDuplikat && (
+          <p className="mt-3 text-xs text-red-600">
+            {t("firma.innstillinger.reise.baandDuplikat")}
+          </p>
+        )}
+
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={lagreGrenser}
+            disabled={!grenseSkitten || grenseDuplikat || settGrenser.isPending}
+            className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {settGrenser.isPending ? t("handling.lagrer") : t("handling.lagre")}
+          </button>
+        </div>
+        {settGrenser.isError && (
+          <p className="mt-3 text-sm text-red-500">{settGrenser.error.message}</p>
+        )}
+      </div>
 
       <div className="mt-6 border-t border-gray-100 pt-4">
         <h3 className="mb-1 text-sm font-medium text-gray-700">
