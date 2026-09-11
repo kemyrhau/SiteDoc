@@ -30,6 +30,7 @@ import { refreshOrganizationSettingKatalog } from "../services/organizationSetti
 import { refreshOppmotestedKatalog } from "../services/oppmotestedKatalog";
 import { refreshByggeplassKatalog } from "../services/byggeplassKatalog";
 import { refreshReisetidMatriseKatalog } from "../services/reisetidMatriseKatalog";
+import { refreshReiseGrensepunktKatalog } from "../services/reiseGrensepunktKatalog";
 
 interface TimerSyncKontekst {
   pendingAntall: number;
@@ -121,6 +122,7 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
             refreshOppmotestedKatalog(utils.client, orgId),
             refreshByggeplassKatalog(utils.client, orgId),
             refreshReisetidMatriseKatalog(utils.client, orgId),
+            refreshReiseGrensepunktKatalog(utils.client, orgId),
           ]),
         );
       }
