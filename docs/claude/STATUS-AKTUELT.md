@@ -394,6 +394,7 @@ stien. **Det betyr ikke at treet kan ryddes.**
 | **kontrollplan** | `SiteDoc-kontrollplan` | `1a2f484a` | 15 | 🟢 0 | PLAN — ledig, MK C konverteringsliste neste |
 | **redesign** | `SiteDoc-redesign` | `94e9c426` | 14 | 🟢 0 | Avstandsbånd → lønnsart (ordre klar) |
 | **merge** | `SiteDoc-merge` | `74d641f5` | 8 | 🟢 0 | Ledig |
+| **mal-Opus** | `SiteDoc-mal` | `b7c93535` (detached på `origin/develop`) | 🟢 0 | 🟡 1 (`CLAUDE.local.md`, ignoreres denne runden) | NY 11.09 — bygger sjekklistemaler i `packages/db/prisma/seed-bibliotek.ts` etter fabels selvbærende ordrer, **én mal om gangen**; leverer skjermbilde-bevis (fabel gater innhold · cowork gater teknikk + merger). Metode: [MAL-METODE.md](MAL-METODE.md). Første ordre: KA7-revisjon (`docs/redesign/ordre-ka7-revisjon-fabel-2026-09-11.md`) |
 | **simulator** | `SiteDoc-simulator` | `bc3efdca` | **382** | 🟢 0 | ⚠️ **Ute av drift** — se under |
 | ~~mobil-device~~ | `SiteDoc-mobil-device` | — | — | — | 🔴 **FORELDRELØS** — se under |
 

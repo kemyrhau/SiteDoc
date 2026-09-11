@@ -17,8 +17,9 @@ sist_endret: 2026-07-09
 | `…/SiteDoc-develop` | **detached, parkeres på `origin/develop`** | **Økt-treet.** Én Opus om gangen, via tavle-rad. Kan bære u-gatede lokale commits → **aldri merge-kilde**. |
 | `…/SiteDoc-merge` | **detached på `origin/develop`** | **Merger utføres KUN her.** Hard-resettes til `origin/develop` før hver bruk → bærer aldri egne commits (regel 1 + 13). Pusher med `git push origin HEAD:develop` — den skal **ikke** eie `develop`-branchen; `SiteDoc` gjør det. **Treet kan mangle** (slettet/pruned) — gjenopprett før merge, se § Gjenopprett merge-treet. |
 | `…/SiteDoc-deploy` | `main` | Prod-deploy (rsync-kilde). |
+| `…/SiteDoc-mal` | **detached på `origin/develop`** | **mal-Opus.** Bygger sjekklistemaler i `packages/db/prisma/seed-bibliotek.ts` etter fabels selvbærende ordrer, én om gangen. Egen branch per mal. Metode: [MAL-METODE.md](MAL-METODE.md). |
 
-**Fire trær. Et femte krever en tavle-rad for å eksistere** ([SAMARBEIDSREGLER § Statustavle](SAMARBEIDSREGLER.md)) — raden bærer tre-stien.
+**Fem trær. Et sjette krever en tavle-rad for å eksistere** ([SAMARBEIDSREGLER § Statustavle](SAMARBEIDSREGLER.md)) — raden bærer tre-stien.
 
 ### Gjenopprett merge-treet (kjør FØR merge hvis mappa mangler)
 
