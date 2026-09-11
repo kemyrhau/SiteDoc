@@ -1046,7 +1046,20 @@ export const organisasjonRouter = router({
     const reiseMatriseParUtenAvstand = await ctx.prisma.reisetidMatrise.count({
       where: { organizationId: orgId, avstandM: null },
     });
-    return { ...setting, reiseLonnsartMatchAntall, reiseMatriseParUtenAvstand };
+    // Reise-avstandsskala (grensepunkter): editor + varsel-demping. Når firmaet
+    // har konfigurert bånd som peker på en art, er navne-match-tvetydigheten løst
+    // deterministisk → klienten skjuler 0/≥2-varslene (analogt med reiseLonnsartId).
+    const reiseGrenser = await ctx.prisma.organizationReiseGrense.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, grenseM: true, lonnsartId: true },
+      orderBy: { grenseM: "asc" },
+    });
+    return {
+      ...setting,
+      reiseLonnsartMatchAntall,
+      reiseMatriseParUtenAvstand,
+      reiseGrenser,
+    };
   }),
 
   // T4-d (2026-05-16): medlems-tilgjengelig subset av OrganizationSetting
@@ -1227,6 +1240,84 @@ export const organisasjonRouter = router({
       }
 
       return oppdatert;
+    }),
+
+  // Sett firmaets reise-avstandsskala (grensepunkter) — A.Markussen-krav
+  // 2026-09-11. Replace-all: hele skalaen sendes, gammelt sett byttes atomisk.
+  // Grensepunkter (ikke intervaller) → overlapp strukturelt umulig; UNIQUE(orgId,
+  // grenseM) i DB fanger duplikat. lonnsartId null = hull (fallback over grensen).
+  settReiseGrensepunkter: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        grenser: z
+          .array(
+            z.object({
+              // Meter, 0 ≤ grenseM ≤ 1 000 000 (1000 km) — samme tak som reiseTerskelM.
+              grenseM: z.number().int().min(0).max(1_000_000),
+              // null = hull (ingen art over grensen → fallback). uuid = reise-lønnsart.
+              lonnsartId: z.string().uuid().nullable(),
+            }),
+          )
+          .max(50),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+
+      // Avvis duplikate grensepunkter i input (DB-unik ville også fanget det, men
+      // en tydelig feil er bedre enn en constraint-violation).
+      const grenser = input.grenser;
+      const unikeGrenser = new Set(grenser.map((g) => g.grenseM));
+      if (unikeGrenser.size !== grenser.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "To grensepunkter kan ikke ha samme avstand",
+        });
+      }
+
+      // Valider at hver ikke-null lønnsart finnes i firmaets katalog (svak FK →
+      // timer.Lonnsart, org-isolasjon i app-lag — samme mønster som reiseLonnsartId).
+      const artIder = [
+        ...new Set(
+          grenser
+            .map((g) => g.lonnsartId)
+            .filter((id): id is string => id != null),
+        ),
+      ];
+      if (artIder.length > 0) {
+        const funnet = await ctx.prismaTimer.lonnsart.findMany({
+          where: { id: { in: artIder }, organizationId: orgId },
+          select: { id: true },
+        });
+        if (funnet.length !== artIder.length) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Reise-lønnsart finnes ikke i firmaets katalog",
+          });
+        }
+      }
+
+      // Replace-all atomisk: slett gammelt sett, sett inn nytt. Skalaen er liten
+      // og redigeres sjelden — enklere enn diff, og aldri en halvskrevet tilstand.
+      await ctx.prisma.$transaction([
+        ctx.prisma.organizationReiseGrense.deleteMany({
+          where: { organizationId: orgId },
+        }),
+        ...(grenser.length > 0
+          ? [
+              ctx.prisma.organizationReiseGrense.createMany({
+                data: grenser.map((g) => ({
+                  organizationId: orgId,
+                  grenseM: g.grenseM,
+                  lonnsartId: g.lonnsartId,
+                })),
+              }),
+            ]
+          : []),
+      ]);
+
+      return { antall: grenser.length };
     }),
 
   /**

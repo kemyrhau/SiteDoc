@@ -101,6 +101,62 @@ export function klassifiserReise(
 }
 
 /**
+ * Ett grensepunkt i firmaets reise-avstandsskala (A.Markussen-krav 2026-09-11).
+ *
+ * GRENSEPUNKTER, ikke intervaller (Kenneth-vedtak): hver rad sier «fra og med
+ * `grenseM` meter føres reisen på `lonnsartId`, til neste grensepunkt tar over».
+ * Overlapp er da strukturelt umulig — det finnes ingen intervaller som KAN
+ * overlappe — så ingen DB-extension (btree_gist) trengs; UNIQUE(orgId, grenseM)
+ * i tabellen holder. Et hull uttrykkes med `lonnsartId = null`:
+ *   7500→A · 15000→null · 20000→B  gir bånd 7,5–15 km = A, hull 15–20 km
+ *   (fallback), 20 km+ = B. Samme uttrykkskraft som intervaller, ett punkt mer.
+ */
+export interface ReiseGrensepunkt {
+  /** Nedre grense i METER, inklusiv. Reise med avstandM ≥ grenseM (og < neste grenseM) treffer denne. */
+  grenseM: number;
+  /**
+   * Reise-lønnsart for denne grensen (svak FK → timer.Lonnsart). null = HULL:
+   * ingen art over denne grensen, fallback (reiseLonnsartId/navne-match) gjelder.
+   */
+  lonnsartId: string | null;
+}
+
+/**
+ * Løs firmaets reise-lønnsart fra en målt avstand og firmaets grensepunkter.
+ * Delt kilde, som `klassifiserReise` — samme funksjon på web (SQL-ekvivalent),
+ * mobil (array fra lokal cache) og server, så leserne aldri divergerer.
+ *
+ * Speiler serverens oppslag `WHERE grenseM ≤ avstandM ORDER BY grenseM DESC
+ * LIMIT 1`: finn det HØYESTE grensepunktet som ikke overstiger avstanden.
+ *
+ * 🔴 Konservativ, samme regel som `klassifiserReise` (:80-84): uten brukbar
+ * avstand (null/negativ) eller uten grensepunkter faller vi tilbake på
+ * `fallbackLonnsartId` (firmaets `reiseLonnsartId`, ev. navne-match som kalleren
+ * har regnet ut). Å gjette en art uten faktisk avstand er verre enn å la
+ * arbeider velge. Bånd slår `fallbackLonnsartId` KUN når avstand finnes OG et
+ * grensepunkt med en art (ikke hull) treffer.
+ */
+export function løsReiseLonnsartId(
+  avstandM: number | null,
+  grensepunkter: ReiseGrensepunkt[],
+  fallbackLonnsartId: string | null,
+): string | null {
+  if (avstandM == null || avstandM < 0 || grensepunkter.length === 0) {
+    return fallbackLonnsartId;
+  }
+  // Høyeste grenseM ≤ avstandM (uavhengig av innkommende rekkefølge).
+  let beste: ReiseGrensepunkt | null = null;
+  for (const g of grensepunkter) {
+    if (g.grenseM <= avstandM && (beste == null || g.grenseM > beste.grenseM)) {
+      beste = g;
+    }
+  }
+  // Under laveste grense → fallback. Treff på et hull (lonnsartId null) → fallback.
+  if (beste == null) return fallbackLonnsartId;
+  return beste.lonnsartId ?? fallbackLonnsartId;
+}
+
+/**
  * MVP fast-estimat: avled reisetid (minutter) fra kjøreavstand (meter) ved en
  * antatt snitthastighet. GPS-faktisk reisetid (ankomst − avreise) er senere
  * oppfølger når ankomst-på-byggeplass fanges (jf. Fase 3-plan avvik C). Default

@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   klassifiserReise,
   estimerReisetidMin,
+  løsReiseLonnsartId,
   REISE_LONNSART_REGEX,
   type ReiseRegelsett,
+  type ReiseGrensepunkt,
 } from "./reise";
 
 /**
@@ -139,6 +141,74 @@ describe("klassifiserReise — enhet km (skarp terskel på avstand)", () => {
     expect(
       klassifiserReise({ reisetidMin: 300, avstandM: 99_000 }, utenTerskel),
     ).toBe("arbeidstid");
+  });
+});
+
+describe("løsReiseLonnsartId — grensepunkter (determinisme)", () => {
+  // A.Markussens skala målt på test 07.09: 7,5–15–30–45–60 km. Fire bånd +
+  // tak-hull over 60 km (siste bånds øvre kant uttrykkes med et null-punkt).
+  const skala: ReiseGrensepunkt[] = [
+    { grenseM: 7_500, lonnsartId: "art-7-15" },
+    { grenseM: 15_000, lonnsartId: "art-15-30" },
+    { grenseM: 30_000, lonnsartId: "art-30-45" },
+    { grenseM: 45_000, lonnsartId: "art-45-60" },
+    { grenseM: 60_000, lonnsartId: null }, // over 60 km: ingen art → fallback
+  ];
+
+  it("avstand i et bånd → båndets art (deterministisk, ikke tilfeldig av fem)", () => {
+    expect(løsReiseLonnsartId(20_000, skala, "fallback")).toBe("art-15-30");
+    expect(løsReiseLonnsartId(8_000, skala, "fallback")).toBe("art-7-15");
+    expect(løsReiseLonnsartId(50_000, skala, "fallback")).toBe("art-45-60");
+  });
+
+  it("nøyaktig på et grensepunkt → det punktet (inklusiv nedre, ≥)", () => {
+    expect(løsReiseLonnsartId(15_000, skala, "fallback")).toBe("art-15-30");
+    expect(løsReiseLonnsartId(7_500, skala, "fallback")).toBe("art-7-15");
+  });
+
+  it("under laveste grense → fallback (ingen bånd dekker kort reise)", () => {
+    expect(løsReiseLonnsartId(5_000, skala, "fallback")).toBe("fallback");
+    expect(løsReiseLonnsartId(0, skala, "fallback")).toBe("fallback");
+  });
+
+  it("over tak-hull (null-punkt) → fallback, ikke feil forrige bånd", () => {
+    // 70 km: høyeste punkt ≤ 70000 er 60000 (null) → fallback, IKKE art-45-60.
+    expect(løsReiseLonnsartId(70_000, skala, "fallback")).toBe("fallback");
+  });
+
+  it("hull mellom bånd (lonnsartId null) → fallback", () => {
+    const medHull: ReiseGrensepunkt[] = [
+      { grenseM: 7_500, lonnsartId: "A" },
+      { grenseM: 15_000, lonnsartId: null }, // hull 15–20 km
+      { grenseM: 20_000, lonnsartId: "B" },
+    ];
+    expect(løsReiseLonnsartId(17_000, medHull, "fallback")).toBe("fallback");
+    expect(løsReiseLonnsartId(25_000, medHull, "fallback")).toBe("B");
+    expect(løsReiseLonnsartId(10_000, medHull, "fallback")).toBe("A");
+  });
+
+  it("rekkefølge-uavhengig (samme svar uansett innkommende sortering)", () => {
+    const stokket: ReiseGrensepunkt[] = [
+      { grenseM: 30_000, lonnsartId: "art-30-45" },
+      { grenseM: 7_500, lonnsartId: "art-7-15" },
+      { grenseM: 15_000, lonnsartId: "art-15-30" },
+    ];
+    expect(løsReiseLonnsartId(20_000, stokket, "fallback")).toBe("art-15-30");
+  });
+
+  it("avstand mangler (null) → fallback (konservativt, jf. gate c)", () => {
+    expect(løsReiseLonnsartId(null, skala, "fallback")).toBe("fallback");
+  });
+
+  it("avstand uoppnåelig (-1) → fallback", () => {
+    expect(løsReiseLonnsartId(-1, skala, "fallback")).toBe("fallback");
+  });
+
+  it("REGRESJON: firma UTEN bånd → nøyaktig fallback (som i dag, ingenting brekt)", () => {
+    expect(løsReiseLonnsartId(20_000, [], "eksplisitt-art")).toBe("eksplisitt-art");
+    expect(løsReiseLonnsartId(20_000, [], null)).toBe(null);
+    // Selv med avstand null og ingen bånd: uendret fallback.
+    expect(løsReiseLonnsartId(null, [], "eksplisitt-art")).toBe("eksplisitt-art");
   });
 });
 
