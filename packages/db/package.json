@@ -15,7 +15,8 @@
     "seed": "tsx prisma/seed.ts",
     "seed:sja": "tsx prisma/seed-sja-signaturrunder.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "test": "vitest run"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0"
@@ -24,6 +25,7 @@
     "@types/node": "^22.0.0",
     "prisma": "^6.3.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
   }
 }
