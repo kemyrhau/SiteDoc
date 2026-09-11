@@ -58,7 +58,7 @@ allerede har.**
    feil utbetaling. Tvetydighetsvarselet demper, men løser ikke.**
 
 **Ikke pilotblokkerende, men ekte:** 2D-tegning rename/slett fra UI (API-en finnes,
-`tegning.oppdater:294`) · papirkurv masseslett (`papirkurv.ts` har kun én-og-én) ·
+`tegning.oppdater:294`) ·
 PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før attestering ·
 **A4 hardkodet Norkart-nøkkel** (`GeoReferanseEditor.tsx:262`, i klartekst og i git-historikk) ·
 `apps/mobile` uten test-runner (`package.json:6-14`, 0 testfiler).
@@ -115,19 +115,16 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 Full vurdering med målinger og sammenhenger: **[sikkerhet.md](sikkerhet.md)** — ikke
 dupliser analysen hit. Her står kun oppgavene.
 
-- **`page.route`-abort i `pdf-render/server.mjs`** — dreper SSRF-vektoren
-  (`waitUntil: "networkidle"` lar Chromium hente URL-er som havner i rapport-HTML).
-  Én linje, endrer ikke normal drift. 🔴 Containeren deles med test og bygges ikke av
-  vanlige `--no-deps`-deploys → eget gatet steg. **Est. 30 min. Gjør denne nå.**
-- **`--no-sandbox` i pdf-render** — renderer-exploit ikke inneslutt. Lavere prioritet
-  når punktet over er gjort. Est. ukjent (krever test av Chromium i container).
-- **`landscape`-param i pdf-render er bygget i koden, men containeren er ikke bygget.**
+- 🟢 **LUKKET 2026-09-11 — `page.route`-abort i `pdf-render/server.mjs`** — dreper SSRF-vektoren
+  (`waitUntil: "networkidle"` lot Chromium hente URL-er som havner i rapport-HTML).
+  Levert i `2e2c25de`, **bygget og i drift 2026-09-11**. SSRF-vektoren ble målt live (intern
+  URL hentet: 1 → 0 blokkert; bilde-innbaking bit-identisk) — se [sikkerhet.md](sikkerhet.md).
+- **`--no-sandbox` i pdf-render** — renderer-exploit ikke inneslutt. 🔴 **Står åpent.** Lavere
+  prioritet (punktet over er nå gjort). Est. ukjent (krever test av Chromium i container).
+- 🟢 **LUKKET 2026-09-11 — `landscape`-param i pdf-render** — var bygget i koden, containeren nå bygget.
   Printmotor fase 4 (`eddc118b`, i prod siden `5dcdeb58`) sender `landscape` til
-  pdf-render; parameteren er valgfri med default `false`, så arkivutskrift er uendret og
-  ingenting er ødelagt — men **liggende Fakturagrunnlag virker ikke før containeren
-  bygges**. Samme container, samme gate som `page.route`-punktet over.
-  🔴 **Bunt dem:** ett gatet pdf-render-deploy dekker begge, i stedet for to runder mot
-  en container som deles med prod.
+  pdf-render; parameteren er valgfri med default `false`, så arkivutskrift er uendret. **Liggende
+  Fakturagrunnlag ble virksom ved pdf-render-byggen 2026-09-11** (samme deploy som `page.route`).
 
 🔵 **Tre punkter venter bevisst på serverflyttingen (~okt 2026):** test skriver i prods
 uploads-katalog, flatt `appnet` mellom test og prod, og pdf-render delt mellom dem. Alle
@@ -149,6 +146,18 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 **Rekkefølgen cowork anbefaler avviker fra fabels på ett punkt:** DOMPurify før Next-bump. Next-CVE-ene krever spesifikke angrepsmønstre mot middleware; usanitert opplastet innhold i DOM er en åpen flate der kunden selv leverer nyttelasten.
 
 ## 1. Teknisk gjeld
+
+### 🔴 Ingen vei til å FJERNE koblingen mellom et kontrollpunkt og en sjekkliste (målt 2026-09-11)
+
+**Målt:** `kontrollplan.koblePunkt` (`apps/api/src/routes/kontrollplan.ts:551`) setter
+`KontrollplanPunkt.sjekklisteId` via `koblePunktTilSjekkliste`. **Ingen prosedyre løser den opp** —
+negativ kontroll: ingen skrivevei setter `sjekklisteId` tilbake til `null` (kun en WHERE-guard i
+`services/kontrollplanKobling.ts:85` og testmocks). Etter `64d25131` sier `slettPunkt` til brukeren:
+*«Punktet har en sjekkliste koblet til seg og kan ikke slettes. Fjern koblingen til sjekklisten
+først.»* (`kontrollplan.ts:541`) — **en handling som ikke finnes i UI.**
+
+🟢 **Ikke pilotblokkerende, men «knappen skal ikke lyve» i meldingsform:** vi instruerer noe
+brukeren ikke kan gjøre. Trenger en `løsPunkt`-prosedyre (sett `sjekklisteId = null`) + inngang i UI.
 
 ### 🔴 `apps/mobile` har INGEN test-runner — blokkerer fase 2 offline (målt 2026-09-07, eskalert 2026-09-11)
 
@@ -217,7 +226,7 @@ sikkerhetsgate og presenterte det for Kenneth som en etterlevelsessak. **Slutnin
 **Skal «må lese før signering» gjeninnføres, er det et produktvedtak — og robustheten må bygges på
 nytt før noe kobles inn.**
 
-### 🔴 MOBIL-PSI: seksjonen vises fullført selv når serveren avviste signeringen
+### 🟢 LUKKET 2026-09-11 — MOBIL-PSI: seksjonen vises fullført selv når serveren avviste signeringen
 
 **Funnet av dokgen 2026-09-09** mens web-varianten ble fikset (`fix/web-psi-signering`).
 
@@ -230,12 +239,14 @@ nytt før noe kobles inn.**
 🔴 **Men den grønne progresjonen viser seksjonen som fullført likevel**, fordi
 `setSeksjonFullfort` alt har kjørt. **Beskjed og skjermbilde sier motsatt ting.**
 
-**Web-varianten er rettet** i `2ee6e343`: i signaturgrenen markeres seksjonen fullført **kun
-etter** serverbekreftelse. 🔴 **Mobil har samme rekkefølge, samme fiks gjenstår.**
+**Web-varianten ble rettet** i `2ee6e343`: i signaturgrenen markeres seksjonen fullført **kun
+etter** serverbekreftelse.
 
-⚠️ **Ikke bygget fordi `apps/mobile/app/psi/[psiId].tsx` var kontrollplans fil i
-`fix/stille-mutasjoner`.** **Egen liten runde når den branchen er merget** — mønsteret ligger
-ferdig i web-fiksen.
+🟢 **LUKKET 2026-09-11 — mobil rettet.** Målt uavhengig to ganger (cowork + kontrollplan,
+[backlog-maaling-2026-09-11.md](backlog-maaling-2026-09-11.md) § 220):
+`apps/mobile/app/psi/[psiId].tsx:203-213` venter på serverbekreftelse (`await fullforMut.mutateAsync`)
+FØR `setSeksjonFullfort`; catch markerer seksjonen **ikke** fullført. Den gamle rekkefølgen
+(`setSeksjonFullfort` på `:189`) finnes ikke lenger. Levert via `fix/stille-mutasjoner`.
 
 ### 🟠 PSI-GJESTEFLATEN ER HARDKODET NORSK — arbeideren signerer på et språk han kanskje ikke leser
 
@@ -760,7 +771,7 @@ legge til én person.
 
 🟢 **Samlet bestilling til fabel:** [fabel-kontakter-ia.md](../redesign/fabel-kontakter-ia.md)
 
-### 🔴 TRETTEN UFERDIGE KOBLINGER funnet bak lint-gjelden (målt 2026-09-08)
+### 🔴 NI UFERDIGE KOBLINGER funnet bak lint-gjelden (målt 2026-09-08, snevret fra tretten 2026-09-11)
 
 **Lint-oppryddingen var ikke oppryddingen — den var funnet.** Kontrollplan vurderte hver «ubrukt»
 variabel enkeltvis i stedet for å prefikse den med `_`. Av 77 errors var **kun 18 atferds-nøytrale**.
@@ -773,22 +784,24 @@ Hadde noen «ryddet» dem mekanisk, ville hver eneste ha blitt permanent usynlig
 
 | Sted | Hva som mangler |
 |---|---|
-| `oppsett/brukere:192` `fjernMutation` | `medlem.fjernFraFaggruppe` med `onSuccess` — **aldri kalt. Fjern-knappen er ikke wiret** |
-| `oppsett/brukere:1035` `tilgjengeligeFaggrupper` | «Legg til»-lista beregnes, **rendres aldri** |
 | `import-dialog:15,68` `FaggruppeVelger` | Importert, state finnes, **velgeren rendres aldri** |
 | `oppsett/produksjon/psi:96` `tilgjengeligeBygninger` | Opprett-nedtrekk beregnet, **rendres aldri** (søsteren `...KopierBygninger` brukes) |
-| `psi/[prosjektId]:343,374` `harScrolletNed` / `innholdKortNok` | Scroll-til-bunn-gate for PSI-onboarding **settes, leses aldri — kravet håndheves ikke** |
 | `SeddelKort:163` `pauseTimer` | Pausetimer beregnet i attesteringskortet, **vises aldri** |
 
-⚠️ **De to første henger sammen:** både «legg til» og «fjern» på faggruppe-medlemskap ser ut til å
-mangle i samme flate. **Det er ikke to funn, det er én uferdig flate.**
+🟢 **Snevret 2026-09-11 (fra tretten til ni), målt: [backlog-maaling-2026-09-11.md](backlog-maaling-2026-09-11.md) § 763.**
+**To LEVERT** (faggruppe-medlemskap-flaten, `ed21b640`-familien): `fjernMutation`→`fjernFaggruppeMutation`
+(`PersonKort.tsx:135`) og `tilgjengeligeFaggrupper`→`ledigeFaggrupper` (`PersonKort.tsx:177`, wiret `:367-382`).
+**Ett var aldri en uferdig kobling:** `harScrolletNed`/`innholdKortNok` ble **bevisst slettet i `547261c4`**
+(2026-04-03) — symbolene finnes ikke, verken hull eller levert. **De ni som står:** `FaggruppeVelger`,
+`tilgjengeligeBygninger`, `pauseTimer`, `verdi`, `mappeNavn`, `nyMalId`, `mandagIUke`, `nsDokumentIder`,
+`nåværendeOrgId`.
 
 #### 🟡 Svakere / grensetilfeller
 
 `psi/[prosjektId]:662` `verdi` (signatur sendes inn, canvas gjenoppretter den aldri) ·
 `box:110` `mappeNavn` (TilgangModal får navnet, viser det ikke) ·
 `oppsett/produksjon/psi:80` `nyMalId` (mal-velger-state, aldri wiret) ·
-`RedigerPunkt:563` `t` (**i18n-hull** — henter `t`, bruker hardkodet norsk) ·
+`RedigerPunkt:563` `t` (⚠️ **DELVIS** — `t` brukes for noen strenger `:587`/`:591`, men `handlingLabel :570-576` er fortsatt hardkodet norsk: Opprettet/Startet/Utført/…) ·
 `UkeVelger:28` `mandagIUke` (komplett dato-helper, 0 kallere)
 
 #### Målt av dokgen, samme dag
@@ -822,7 +835,7 @@ den verdt mindre enn ingen gate. Lint står ikke som blokkerende steg i ordrer f
 🟢 **CI gater på `pnpm test` + mobil-typecheck**, så dette blokkerer ingen leveranse i dag.
 Relatert: `nåværendeOrgId`-linten (2026-08-26) er én av radene.
 
-### 🔴 Offline gjelder tegninger, ikke dokumenter — mot en ufravikelig regel (Kenneth på enhet 2026-09-07)
+### 🔴 Offline gjelder tegninger + sjekklister, ikke oppgaver/HMS — mot en ufravikelig regel (Kenneth på enhet 2026-09-07, snevret 2026-09-11)
 
 > **Kenneth 2026-09-07:** *«forbered offline fungerer for tegninger → oppgaver, sjekklister og HMS
 > er ikke en del av offline support»* · **Vedtak samme kveld:** *«offline må utbedres»*
@@ -836,8 +849,9 @@ og for opplasting, ikke for dokumenttilgang. **Avviket var udokumentert til 07.0
 |---|---|
 | **Opplastingskøen** | 🟢 **Robust.** Bilde tatt i flymodus nådde serveren ved reconnect (verifisert på enhet 07.09) |
 | **Tegninger** | 🟢 «Forbered til offline» i `Mer` dekker dem |
-| **Sjekkliste / oppgave / HMS** | 🔴 **Nett-baserte tRPC-kall.** `sjekkliste.hentForProsjekt` + `oppgave.hentForProsjekt`; ingen SQLite-speiling (målt av redesign 07.09) |
-| **SQLite-katalogene** | Dekker timer, maskin, vær, byggeplass — **ikke dokumenter** |
+| **Sjekkliste** | 🟢 **Offline-speilet 2026-09-11** (`970045d7`): `sjekkliste_local` (`schema.ts:615`), `sjekklisteKatalog.ts` pr. prosjekt, list-skjerm via `velgOfflineListeKilde` (`sjekkliste/index.tsx:116`); dekket av «Forbered offline» (`mer.tsx:90-96`) |
+| **Oppgave / HMS** | 🔴 **FORTSATT nett-baserte tRPC-kall.** `oppgave.hentForProsjekt` (`oppgave/index.tsx:78`) + `hms.hentDokumenter` (`hms/index.tsx:56`); ingen SQLite-speiling |
+| **SQLite-katalogene** | Dekker timer, maskin, vær, byggeplass, **sjekklister** — **ikke oppgaver/HMS** |
 
 ⚠️ **Kenneths test virket fordi dokumentet var ÅPNET FØR han gikk offline.** Et uåpnet dokument
 ville ikke vært nåbart. **Ikke les testen som at tilgang virker.**
@@ -1389,6 +1403,13 @@ gate uten kvittering.
 
 > **[triage 2026-08-26]** verifisert åpen — Kan vente — én runde: symptom (changelog-støy) fikset, men rå `input.data`-lagring `sjekkliste.ts:807` består; signering idempotent → usynlig.
 
+🟢 **Delspørsmål avklart 2026-09-11** ([måling § 1388](backlog-maaling-2026-09-11.md)): **ingen
+korrupsjon.** `signerFilSti` (`hmac.ts:50`) stripper query (`sti.split("?")[0]`) FØR re-signering,
+så en allerede-signert URL re-signeres rent (fersk utløp) — aldri `?exp=..&sig=..?exp=..`.
+🔴 **Raden står likevel:** rotårsaken (rå `input.data`-lagring uten query-strip — `grep split("?")`
+i `sjekkliste.ts` = 0) består, og antall rader med signatur i `data` er **ikke målbart fra kode**
+(krever read-only prod-telling). Linjenumre driftet: BACKLOG 615/754/807 → nå 696/740/847/871.
+
 Funnet under endringslogg-runden (`fix/endringslogg-lesbar`). Symptomet var
 tjue støy-rader i BEF-001s endringslogg: fem repeater-endringer × tre celler,
 med samme tidsstempler som vær-radene. Diagnosen (måleskript mot prod,
@@ -1467,14 +1488,14 @@ Fabel har ført disse i [redesign/REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-M
 **Posisjonsmodellen er i prod siden 2026-08-03** og virker: rutingen teller ledd, ikke rollenavn (`services/flytFakta.ts:151-212`, `packages/shared/src/utils/flytPosisjon.ts`, autorisasjon via `verifiserRetningsrett` i `tilgangskontroll.ts:905-968`). Bestiller/utfører-faggruppene er **ikke rutingsbærende**.
 
 **Men motoren mates ikke:**
-- Flytoppsettet sender **hardkodet** `steg={1}` — `dashbord/oppsett/produksjon/dokumentflyt/page.tsx:869` og `:886`, `OpprettKontaktModal.tsx:211`.
-- Standardflyter seedes med `steg: 1` for **både** bestiller og utfører — `prosjekt.ts:515` og `:529`. Begge kollapser til **ett ledd**.
-- Kun HMS-flyten setter steg eksplisitt (`modul.ts:61,68`).
+- Flytoppsettet sender **hardkodet** `steg={1}` — `dashbord/oppsett/produksjon/dokumentflyt/page.tsx:968` (`LeggTilMedlemDropdown`) og `:987` (`InviterNyMedlemModal`). *(Linjeref. driftet 2026-09-11 fra `:869`/`:886` + `OpprettKontaktModal.tsx:211`.)*
+- Standardflyter seedes med `steg: 1` for **både** bestiller og utfører — `services/prosjektSeed.ts:139` og `:152` (flyttet fra `prosjekt.ts:515`/`:529`). Begge kollapser til **ett ledd**.
+- Kun HMS-flyten setter steg eksplisitt (`modul.ts:79,86`). *(Driftet fra `:61,68`.)*
 - `klassifisering` settes heller ikke fra noe UI.
 
 Historiske rader ble reparert av backfill (`20260731120000_flytmodell_fase1_posisjon/migration.sql:36-56`, `DENSE_RANK()` over kanonisk rollerekkefølge). **Inngangen ble aldri reparert** — samme funn som `delplaner/flytposisjon-byggledd-fiks-ordre-2026-07-26.md:11`.
 
-🔴 **MÅ fikses sammen med `utledMinRolle`-klientporten.** `packages/shared/src/utils/flytRolle.ts:96-98` matcher faggruppe-bundne flytmedlemmer kun hvis faggruppen er bestiller **eller** utfører på dokumentet. Resultatet gater handlingsmenyen (`DokumentHandlingsmeny.tsx:556` → «Lesevisning», `DokumentHandlingslinje.tsx:223` → `null`). I en flyt med mer enn to faggruppe-bundne ledd får et tredje ledd `minRolle = null` og ser «Lesevisning» **selv når serveren tillater handlingen fordi brukeren har ballen**. Klient og server er uenige.
+🔴 **MÅ fikses sammen med `utledMinRolle`-klientporten.** `packages/shared/src/utils/flytRolle.ts:96-98` matcher faggruppe-bundne flytmedlemmer kun hvis faggruppen er bestiller **eller** utfører på dokumentet. Resultatet gater handlingsmenyen (`DokumentHandlingsmeny.tsx:587` → «Lesevisning», `DokumentHandlingslinje.tsx:223` → `null`). I en flyt med mer enn to faggruppe-bundne ledd får et tredje ledd `minRolle = null` og ser «Lesevisning» **selv når serveren tillater handlingen fordi brukeren har ballen**. Klient og server er uenige.
 
 Det slår ikke ut i dag nettopp fordi steg-inngangen hindrer slike flyter. Det slår ut i samme øyeblikk som steg fikses. **Fikses de hver for seg, innfører reparasjonen en ny feil.** Fabel har bevisst holdt dette utenfor kontrollplan-ordrene av samme grunn.
 
@@ -2794,10 +2815,17 @@ rydde på. En bøtte uten bunn blir en bøtte ingen tømmer.
    godkjent og signert dokument bør trolig ikke kunne fjernes permanent av en vanlig
    prosjektmedlem; sporbarheten er det produktet selger. Krever rolle-/kapabilitetsvedtak.
 
-Del 1–3 er ren mangel og kan bygges. Del 4 venter på fabel.
+🟢 **Del 1 og 2 LEVERT 2026-09-11** (`64d25131`): `tomPapirkurv` (bekreftelsesmodal),
+`gjenopprettFlere`/`slettEndeligFlere`, avkryssing + «velg alle» i UI.
+🟢 **Del 3 (auto-sweep) var allerede levert:** `services/papirkurv-sweep.ts`, startet fra
+`server.ts:218`. 🔴❓ **Del 4 (hvem kan slette endelig) står åpen — fabel-sak, ikke rørt.**
 
-### 🔴 Papirkurven mangler «Tøm» og masseslett — meldingen ber om en handling som ikke finnes (Kenneth, test 2026-08-18)
+### 🟢 LUKKET 2026-09-11 — Papirkurven mangler «Tøm» og masseslett — meldingen ber om en handling som ikke finnes (Kenneth, test 2026-08-18)
 
+> **[LUKKET 2026-09-11]** Levert i `64d25131`: `tomPapirkurv`, `gjenopprettFlere`,
+> `slettEndeligFlere` + avkryssing/«velg alle» i web. «Slett mal»-meldingen peker nå på en
+> knapp som finnes. Se [backlog-maaling-2026-09-11.md](backlog-maaling-2026-09-11.md).
+>
 > **[triage 2026-08-26]** verifisert åpen — Skjemmer — noen runder: `papirkurv.ts` kun `slettEndelig({id,type})`; 0 checkbox/tøm i web; `mal.ts:387` ber «Tøm papirkurven først» uten at knappen finnes.
 
 **Målt i koden:** `apps/api/src/routes/papirkurv.ts` har `hentForProsjekt`, `gjenopprett`
