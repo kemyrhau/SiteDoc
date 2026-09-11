@@ -14,6 +14,7 @@ import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
+import { faggruppeNavn } from "@/lib/sjekkliste-faggruppe";
 import { beregnHarBallen, filtrerRader, formaterNummer } from "@sitedoc/shared";
 
 // --- Typer ---
@@ -53,8 +54,9 @@ interface SjekklisteRad {
   data: Record<string, unknown>;
   template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] };
   bestiller: { name: string | null } | null;
-  bestillerFaggruppe: { name: string };
-  utforerFaggruppe: { name: string };
+  // Kan bli null når faggruppen slettes (schema-relasjon SetNull) — leses alltid med vakt.
+  bestillerFaggruppe: { name: string } | null;
+  utforerFaggruppe: { name: string } | null;
   byggeplass: { id: string; name: string } | null;
   drawing: { name: string; floor: string | null } | null;
   recipientUser: { id: string; name: string | null } | null;
@@ -504,8 +506,8 @@ export default function SjekklisteSide() {
       emne: bygg(data.map((s) => s.subject)),
       ansvarlig: bygg(data.map((s) => formaterAnsvarlig(s))),
       opprettetAv: bygg(data.map((s) => s.bestiller?.name)),
-      bestillerFaggruppe: bygg(data.map((s) => s.bestillerFaggruppe.name)),
-      utforerFaggruppe: bygg(data.map((s) => s.utforerFaggruppe.name)),
+      bestillerFaggruppe: bygg(data.map((s) => faggruppeNavn(s.bestillerFaggruppe))),
+      utforerFaggruppe: bygg(data.map((s) => faggruppeNavn(s.utforerFaggruppe))),
       mal: bygg(data.map((s) => s.template.name)),
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
@@ -585,8 +587,8 @@ export default function SjekklisteSide() {
           case "emne": return s.subject ?? "";
           case "ansvarlig": return formaterAnsvarlig(s);
           case "opprettetAv": return s.bestiller?.name ?? "";
-          case "bestillerFaggruppe": return s.bestillerFaggruppe.name;
-          case "utforerFaggruppe": return s.utforerFaggruppe.name;
+          case "bestillerFaggruppe": return faggruppeNavn(s.bestillerFaggruppe);
+          case "utforerFaggruppe": return faggruppeNavn(s.utforerFaggruppe);
           case "mal": return s.template.name;
           case "bygning": return s.byggeplass?.name ?? "";
           case "etasje": return s.drawing?.floor ?? "";
@@ -667,11 +669,11 @@ export default function SjekklisteSide() {
         ? <span className="text-gray-600">{rad.bestiller.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.bestiller?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [] },
       bestillerFaggruppe: { id: "bestillerFaggruppe", header: t("tabell.bestillerFaggruppe"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerFaggruppe.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.bestillerFaggruppe.name, filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerFaggruppe ?? [] },
+        celle: (rad) => <span className="text-xs text-gray-500">{faggruppeNavn(rad.bestillerFaggruppe, "—")}</span>,
+        sorterbar: true, sorterVerdi: (rad) => faggruppeNavn(rad.bestillerFaggruppe), filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerFaggruppe ?? [] },
       utforerFaggruppe: { id: "utforerFaggruppe", header: t("tabell.utforerFaggruppe"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerFaggruppe.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.utforerFaggruppe.name, filtrerbar: true, filterAlternativer: dynamiskFilter.utforerFaggruppe ?? [] },
+        celle: (rad) => <span className="text-xs text-gray-500">{faggruppeNavn(rad.utforerFaggruppe, "—")}</span>,
+        sorterbar: true, sorterVerdi: (rad) => faggruppeNavn(rad.utforerFaggruppe), filtrerbar: true, filterAlternativer: dynamiskFilter.utforerFaggruppe ?? [] },
       mal: { id: "mal", header: t("tabell.mal"), celle: (rad) => <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{rad.template.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.template.name, filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [] },
       opprettet: { id: "opprettet", header: t("tabell.opprettelsesdato"), celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,
