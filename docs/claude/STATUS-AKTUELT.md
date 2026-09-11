@@ -4,51 +4,37 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
-## 🟢 FRYSEBETINGELSEN ER OPPFYLT — målt 2026-09-10 kveld. Beslutningen er Kenneths.
+## 🟢 PROD DEPLOYET 2026-09-11 — `af0093b8`. 44 merger ute. Frysen er over.
 
-🔴 **Vedtaket under sa at prod var frosset til ny Kontakter-UI var «ferdig og verifisert».
-Begge deler er nå målt oppfylt — og det står ingen andre steder enn her.**
+**Prod sto på `1a74904b` fra 8. september. Nå: `af0093b8`.**
+**Verifisert innlogget: prosjektlista laster, Kontakter-flaten med to faner og nye filtre er ute.**
 
-| Betingelse | Status |
-|---|---|
-| Kontakter fase 2 bygget og merget | 🟢 **09.09** — `medlem.registrer`, tre nivåer |
-| Kenneth har verifisert flaten | 🟢 **«Veldig bra design»** · seks kolonner + FilterPanel gatet |
-| Fabels designgodkjenning | 🟢 Gitt |
+🔴 **~30 minutters nedetid underveis. Rotårsak og berging: [DEPLOY-RUNBOK § 5b](DEPLOY-RUNBOK.md).**
+**Kort: `deploy-prod.sh` skriver ut fire kommandoer men kjører dem ikke — `build sitedoc-web` ble
+hoppet over. Prod kjørte ny api + ny database mot to døgn gammel web, hvis Prisma-klient fortsatt
+kjente den droppede kolonnen. Symptomet var `error=Configuration` på begge OAuth-providere.**
 
-⚠️ **Avstanden er nå 44 merge-commits / ~110 commits. Prod sist oppdatert 8. september 08:38.**
-🔴 **Coworks vurdering: 44 merger er over grensen for hva som lar seg feilsøke hvis noe brekker.
-Jo lenger køen står, jo dyrere blir den ene deployen. Prod-deploy anbefales som neste handling —
-men den krever Kenneths eksplisitte ordre (CLAUDE.md), og cowork gir den ikke selv.**
+🟡 **ÅPEN SAK — `users.ny_navigasjon` ligger tilbake i prod som tom kolonne.** Den ble lagt inn for
+å berge oppetid, og skal bort igjen. 🔴 **Men først må web bygges med `--no-cache` og linje 7
+(`prisma generate`) verifiseres IKKE cachet** — den var cachet i berge-buildet, så klienten er
+ikke bevist ny. **Detaljer i § 5b.**
 
-🟢 **To migreringer er forberedt og målt mot prod på forhånd:**
-`DROP COLUMN ny_navigasjon` (10/10 hadde `true`, ingen verdi går tapt) ·
-`system_nokkel` + backfill + partial unique index (1 umarkert prosjekt = testprosjektet, 0 duplikater).
+🟡 **ARKIVERINGSPLIKT IKKE UTFØRT.** CLAUDE.md krever at deployet arbeid flyttes til
+`historikk-2026-09.md` i samme commit. **44 rundenes historikk er ikke flyttet** — utsatt bevisst
+kl. 01:30, ikke glemt. **Neste cowork tar den.**
 
 ---
 
-## 🔴 KENNETH-VEDTAK 2026-09-08 — PROD ER FROSSET til ny Kontakter-UI er verifisert
+### ✅ LUKKET — frysevedtaket 2026-09-08
 
 > *«vi skal ikke gate til produksjon før den nye ui er ferdig og verifisert på develop»*
 
-**Prod står på `1a74904b`.** Alt etter det akkumuleres på develop og test.
+**Betingelsen ble oppfylt 09.09** (Kontakter fase 2 merget · Kenneth verifiserte: *«Veldig bra
+design»* · fabels godkjenning gitt), **men sto uskrevet til 10.09 kveld.** ⚠️ **Lærdom: en
+oppfylt betingelse som ikke føres, holder arbeidet frosset like effektivt som en uoppfylt.**
+**Løst ved deployen over.**
 
-🔴 **Kritisk vei til prod — ingenting annet flytter den:**
-
-```
-Kenneths gate på fabels mockup
-  → byggeordre fase 2 (Kontakter i tre nivåer)
-  → bygges + merges
-  → Kenneth verifiserer på develop
-  → prod
-```
-
-⚠️ **Konsekvens cowork skal holde i:** hver ekstra merge øker avstanden til prod og gjør den ene
-deployen større å diagnostisere hvis noe brekker. **Cowork holder igjen på ordrer som ikke ligger på
-den veien.**
-
-**To unntak:** 🔴-funn fra Kenneths egne tester, og regresjoner fra allerede merget arbeid.
-
-### Gate-status på det som ligger på test
+### Gate-status på det som lå på test før prod-deployen
 
 | Sak | Status |
 |---|---|

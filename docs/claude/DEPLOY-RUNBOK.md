@@ -292,6 +292,92 @@ flatene selv — uleselige tegninger, lønnsdata i arkivet, uforklart manifest, 
 under føttene, og dokumentene som ikke var i arkivet i det hele tatt. **Ingen av dem kunne build
 eller typecheck ha fanget.**
 
+# 5b · 🔴 PROD-NEDETID 2026-09-11 — web-buildet kjørte aldri
+
+**~30 minutters nedetid på prod. Les denne før neste store deploy.**
+
+## Symptomet
+
+`https://sitedoc.no/api/auth/error?error=Configuration` — **både Google og Microsoft feilet.**
+En eksisterende sesjon kom inn på dashbordet, men fikk «Venter på prosjekttilgang».
+🔴 **`curl /version` svarte 200 med riktig SHA hele tiden** — den ruta rører ikke databasen.
+
+⚠️ **`error=Configuration` betyr IKKE at OAuth er feilkonfigurert.** Det er Auth.js sin generiske
+melding når adapteren feiler. **Gå rett i `docker logs sitedoc-web` — der står den ekte feilen.**
+
+## Rotårsaken
+
+**Web-loggen sa det ordrett:**
+
+```
+[auth][cause]: PrismaClientKnownRequestError:
+Invalid `prisma.account.findUnique()` invocation:
+The column `users.ny_navigasjon` does not exist in the current database.
+```
+
+**Målt etterpå:**
+
+```sh
+ssh -t server-ny "sudo docker inspect sitedoc-api:latest sitedoc-web:latest --format '{{.RepoTags}} {{.Created}}'"
+```
+
+| Image | Bygget |
+|---|---|
+| `sitedoc-api:latest` | 2026-09-10 22:40 — **i deployen** |
+| `sitedoc-web:latest` | 2026-09-08 06:49 — **to døgn gammelt** |
+
+🔴 **Web-buildet ble aldri kjørt.** `deploy-prod.sh` SKRIVER UT fire kommandoer, men kjører dem
+ikke. Kommando 2 av 4 (`build sitedoc-web`) ble hoppet over, og `up` startet det gamle imaget.
+**Resultat: ny api + ny database + to døgn gammel web med en Prisma-klient fra før
+`DROP COLUMN`.**
+
+## 🔴 Berging — kolonnen tilbake, ikke rollback
+
+**Raskeste vei opp når ny database møter en gammel klient:**
+
+```sh
+ssh -t server-ny "sudo docker exec postgres psql -U sitedoc -d sitedoc -c 'ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"ny_navigasjon\" BOOLEAN;'"
+```
+
+🟢 **Kolonnen er ubrukt i ny kode, så både gammel og ny klient fungerer med den der.**
+**Ingen rollback nødvendig — all ny kode ble stående.** **Prod var oppe på sekunder.**
+
+**Deretter bygges og startes web:**
+
+```sh
+ssh -t server-ny "cd ~/stack/sitedoc && sudo env GIT_SHA=af0093b8 BUILD_TID=\$(date -u +%Y-%m-%dT%H:%MZ) docker compose -f docker/docker-compose.yml build sitedoc-web"
+```
+
+```sh
+ssh -t server-ny "cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-web"
+```
+
+## 🔴 To tiltak som IKKE er gjort — begge kan gi samme nedetid igjen
+
+**1. `deploy-prod.sh` kan ikke se om du kjørte alle fire kommandoene.**
+Scriptet skriver dem ut og avslutter. **Hopper du over én, sier ingenting fra.**
+🔴 **Til det er løst: verifiser byggetidene FØR du kjører `up`:**
+
+```sh
+ssh -t server-ny "sudo docker inspect sitedoc-api:latest sitedoc-web:latest --format '{{.RepoTags}} {{.Created}}'"
+```
+**Begge skal være fra de siste minuttene.**
+
+**2. ⚠️ `prisma generate` traff Docker-cache i web-buildet 2026-09-11:**
+
+```
+=> CACHED [5/9] COPY . .
+=> CACHED [7/9] RUN pnpm --filter @sitedoc/db exec prisma generate ...
+=> [8/9] RUN pnpm turbo build --filter @sitedoc/web    105.3s
+```
+
+🔴 **`turbo build` kjørte, men `prisma generate` var cachet — selv om `schema.prisma` var endret.**
+**Koden ble ny; klienten er ikke bevist ny.** **Derfor står `ny_navigasjon`-kolonnen igjen som en
+tom lapp i prod.**
+
+🔴 **Ved neste schema-endring: bygg web med `--no-cache`, verifiser at linje 7 IKKE er CACHED, og
+DERETTER kan kolonnen droppes på nytt.** **Ikke drop den før det er gjort.**
+
 # 6 · Rollback — når noe er ute og feiler
 
 ## 🔴 En dårlig prod-release — koden virker, men den er feil
