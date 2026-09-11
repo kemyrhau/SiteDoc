@@ -237,8 +237,8 @@ async function main() {
           "KB2 b5: Jord leveres med varedeklarasjon iht. NS 2890 og skal tilfredsstille Tabell K2 (pH 5,5–7,0, uten rotugras). Ta bilde av varedeklarasjonen."),
 
         // UNDER
-        desimal("Lagtykkelse vekstjord (cm)", "UNDER", { enhet: "cm" },
-          "Tabell K4: blomstereng 10, gras/utplanting 20, stauder/busker 40, trær 60 cm. Tykkelsen gjelder etter at jorda har satt seg — legg ut med overhøyde. Mål på minst 3 punkter."),
+        desimal("Lagtykkelse vekstjord – minste måling (cm)", "UNDER", { enhet: "cm" },
+          "Tabell K4: blomstereng 10, gras/utplanting 20, stauder/busker 40, trær 60 cm. Tykkelsen gjelder etter at jorda har satt seg — legg ut med overhøyde. Mål på minst 3 punkter og før inn laveste måling."),
         valg("Maks steinstørrelse", "UNDER",
           [
             "OK – under 20 mm (gras/blomstereng)",
@@ -251,10 +251,17 @@ async function main() {
           "KB2.2 c2 og a1: Jorda skal kun pakkes lett — ingen komprimering av undergrunn eller jordlag under utlegging."),
 
         // ETTER
-        desimal("Planhet – svanker/bulninger over 3 m (mm)", "ETTER", { enhet: "mm" },
-          "Tabell K3: green/fairway/tee 15 mm, grasbane 20 mm, grasplen 30 mm, grasbakke/eng 50 mm. Kontroller med 3 m rettholt uten knaster. For grasdekker: kontrolleres på ferdig grasdekke."),
-        desimal("Fall (%)", "ETTER", { enhet: "%", min: 2.0 },
-          "KB2.2 c1: Ferdig overflate skal ha fall på minst 2 % (1:50) hvis ikke annet er spesifisert."),
+        valg("Planhet – svanker/bulninger over 3 m", "ETTER",
+          [
+            "OK – innenfor 15 mm (green/fairway/tee)",
+            "OK – innenfor 20 mm (grasbane)",
+            "OK – innenfor 30 mm (grasplen)",
+            "OK – innenfor 50 mm (grasbakke/eng)",
+            "Avvik – utenfor toleranse for dekketypen",
+          ],
+          "Tabell K3: toleransen avhenger av dekketypen. Kontroller flere punkter med 3 m rettholt uten knaster; velg raden for dekketypen. Ved avvik: noter største målte verdi og sted i kommentaren. For grasdekker: kontrolleres på ferdig grasdekke."),
+        trafikklys("Fall minst 2 % mot avrenning", "ETTER",
+          "KB2.2 c1: Ferdig overflate skal ha fall på minst 2 % (1:50) hvis ikke annet er spesifisert i beskrivelsen. Kontroller flere punkter på objektet. Ved avvik: noter målt fall og hvor det er målt i kommentaren."),
         trafikklys("Overflate jevn, fri for stein og ugras", "ETTER",
           "KB c1/c2 og KB2 c3: Jevne flater og overganger, uten stein til ulempe for skjøtsel, fritt for rotugras. Ta bilde av ferdig flate."),
       ],
