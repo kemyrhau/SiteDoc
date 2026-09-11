@@ -1316,7 +1316,7 @@ function ReiseSeksjon() {
   }
 
   return (
-    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+    <div id="reise-regelsett" className="mt-6 scroll-mt-24 rounded-lg border border-gray-200 bg-white p-6">
       <h2 className="mb-1 text-sm font-semibold text-gray-700">
         {t("firma.innstillinger.reise.tittel")}
       </h2>
@@ -1410,6 +1410,13 @@ function ReiseSeksjon() {
         </div>
       </div>
 
+      {/* Forklarer hva «Under/Over terskel»-valgene faktisk gjør med timene —
+          hvilken lønnsart de havner på (Kenneth-krav: forklar, ikke konfigurer). */}
+      <div className="mt-3 space-y-1 rounded-md border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
+        <p>{t("firma.innstillinger.reise.forklarArbeidstid")}</p>
+        <p>{t("firma.innstillinger.reise.forklarReisetid")}</p>
+      </div>
+
       {visIngenReiseArt && (
         <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-800">
@@ -1447,6 +1454,12 @@ function ReiseSeksjon() {
         <p className="mt-1 text-xs text-gray-500">
           {t("firma.innstillinger.reise.lonnsartHjelp")}
         </p>
+        <Link
+          href="/dashbord/firma/timer/lonnsarter"
+          className="mt-1 inline-block text-xs font-medium text-sitedoc-primary hover:underline"
+        >
+          {t("firma.innstillinger.reise.seLonnsarter")}
+        </Link>
       </div>
 
       <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
