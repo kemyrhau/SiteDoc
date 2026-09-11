@@ -14,10 +14,10 @@ sist_verifisert_mot_kode: 2026-08-09
 hoppet over. Prod kjørte ny api + ny database mot to døgn gammel web, hvis Prisma-klient fortsatt
 kjente den droppede kolonnen. Symptomet var `error=Configuration` på begge OAuth-providere.**
 
-🟡 **ÅPEN SAK — `users.ny_navigasjon` ligger tilbake i prod som tom kolonne.** Den ble lagt inn for
-å berge oppetid, og skal bort igjen. 🔴 **Men først må web bygges med `--no-cache` og linje 7
-(`prisma generate`) verifiseres IKKE cachet** — den var cachet i berge-buildet, så klienten er
-ikke bevist ny. **Detaljer i § 5b.**
+🟢 **RYDDET samme natt.** `users.ny_navigasjon` ble lagt tilbake for å berge oppetid, og er nå
+borte igjen: web bygget med `--no-cache` (linje 7 kjørte i 10,9 s, ikke `CACHED`) → startet →
+kolonnen droppet → **innlogging verifisert i nettleser.** **Prod har ingen lapp igjen.**
+**Rekkefølgen som må følges neste gang står i [DEPLOY-RUNBOK § 5b](DEPLOY-RUNBOK.md).**
 
 🟡 **ARKIVERINGSPLIKT IKKE UTFØRT.** CLAUDE.md krever at deployet arbeid flyttes til
 `historikk-2026-09.md` i samme commit. **44 rundenes historikk er ikke flyttet** — utsatt bevisst

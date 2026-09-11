@@ -372,11 +372,21 @@ ssh -t server-ny "sudo docker inspect sitedoc-api:latest sitedoc-web:latest --fo
 ```
 
 🔴 **`turbo build` kjørte, men `prisma generate` var cachet — selv om `schema.prisma` var endret.**
-**Koden ble ny; klienten er ikke bevist ny.** **Derfor står `ny_navigasjon`-kolonnen igjen som en
-tom lapp i prod.**
+**Koden ble ny; klienten var ikke bevist ny.**
 
-🔴 **Ved neste schema-endring: bygg web med `--no-cache`, verifiser at linje 7 IKKE er CACHED, og
-DERETTER kan kolonnen droppes på nytt.** **Ikke drop den før det er gjort.**
+🟢 **LØST samme natt.** Web ble bygget om med `--no-cache` (349 s mot 266 s), og linje 7 kjørte
+da i 10,9 s i stedet for `CACHED`. **Kolonnen ble droppet etterpå, innlogging verifisert.**
+**Prod har ingen lapp igjen.**
+
+### 🔴 Rekkefølgen som gjelder når en droppet kolonne skal ryddes
+
+**1.** `build --no-cache sitedoc-web` — 🔴 **verifiser at linje 7 (`prisma generate`) IKKE er
+CACHED.** Er den det, STOPP: klienten er fortsatt gammel.
+**2.** `up -d --no-deps sitedoc-web` — 🔴 **FØR droppen.** Den gamle containeren kjører fortsatt
+gammel klient; dropper du først, er prod nede på sekundet.
+**3.** `DROP COLUMN IF EXISTS`.
+**4.** **Logg ut og inn i nettleseren.** `docker logs | grep -c` beviser lite — en stille logg kan
+bare bety at ingen har forsøkt å logge inn.
 
 # 6 · Rollback — når noe er ute og feiler
 
