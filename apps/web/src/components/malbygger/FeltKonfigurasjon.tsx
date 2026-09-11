@@ -123,8 +123,11 @@ export function FeltKonfigurasjon({
                 setConfig(resten);
               }
             }}
+            // Vokser med innholdet (field-sizing: content) fra 2-rads minimum, med tak på
+            // max-h-52 (208px → intern scroll) så feltet ikke dytter «Lagre endringer» ut.
+            // rows={2} beholdt som fallback for nettlesere uten field-sizing-støtte.
             rows={2}
-            className="rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="max-h-52 min-h-[3.5rem] overflow-y-auto rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 [field-sizing:content] focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
         </div>
 
