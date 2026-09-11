@@ -204,26 +204,27 @@ async function main() {
       ],
     },
 
-    // ── KB2 – Jordarbeider ──
+    // ── KB2 – Vekstjord på terreng ──
     {
       kapittelKode: "KB",
-      navn: "KB2 – Jordarbeider",
+      navn: "KB2 – Vekstjord på terreng",
       referanse: "KB2",
-      beskrivelse: "Utlegging av vekstjord — kontroll iht. Tabell K4",
+      beskrivelse: "Utlegging av vekstjord (KB2.2) — lagtykkelse, jordkvalitet, planhet iht. Tabell K2/K3/K4",
       felter: [
         // FØR
         valg("Formål / planteformål", "FØR",
           [
             "Blomstereng (10 cm vekstjord)",
-            "Grasbakke (10 cm vekstjord)",
-            "Grasplen (15 cm vekstjord)",
-            "Utplantingsplanter (20 cm vekstjord)",
-            "Stauder og prydgras (40 cm vekstjord)",
-            "Busker (40 cm vekstjord)",
-            "Kombinasjonsplantinger (40 cm vekstjord)",
-            "Trær (60 cm vekstjord)",
+            "Grasbakke (20 cm)",
+            "Grasplen (20 cm)",
+            "Grasbane (20 cm)",
+            "Utplantingsplanter (20 cm)",
+            "Stauder og prydgras (40 cm)",
+            "Busker (40 cm)",
+            "Kombinasjonsplantinger (40 cm)",
+            "Trær (60 cm)",
           ],
-          "Tabell K4: Velg planteformål — lagtykkelse bestemmes automatisk. Vekstjordlag over 50 cm deles i to lag (moldholdig øverst, moldfattig under)."),
+          "Tabell K4: anbefalt vekstjordtykkelse over egnet undergrunnsjord. Over steinfylling/berg/tett leire kommer mineraljord i tillegg (sum 40/70/100 cm). Vekstjordlag over 50 cm deles i to lag — nederste moldfattig. Prosjektbeskrivelsen kan angi andre tykkelser."),
         valg("Underlag", "FØR",
           [
             "Stedlig jord – godkjent og drenert",
@@ -231,13 +232,13 @@ async function main() {
             "Steinfylling/berg – mineraljordlag påført",
             "Steinfylling/berg – krever mineraljordlag",
           ],
-          "Tabell K4: Oppbyggingen avhenger av undergrunn. KB2 c2: Hardpakket jord skal løses. Undergrunn skal ikke komprimeres under utlegging."),
-        trafikklys("Leveringsdokument kontrollert", "FØR",
-          "Jord skal tilfredsstille Tabell K2 og Figur K3. Kontroller dokumentasjon fra leverandør."),
+          "KB2.2 c2: Hardpakket undergrunnsjord skal løses. Undergrunnen skal ikke komprimeres under utlegging."),
+        trafikklys("Varedeklarasjon kontrollert", "FØR",
+          "KB2 b5: Jord leveres med varedeklarasjon iht. NS 2890 og skal tilfredsstille Tabell K2 (pH 5,5–7,0, uten rotugras). Ta bilde av varedeklarasjonen."),
 
         // UNDER
         desimal("Lagtykkelse vekstjord (cm)", "UNDER", { enhet: "cm" },
-          "Tabell K4 krav: Blomstereng/grasbakke 10 cm, grasplen 15 cm, utplanting 20 cm, stauder/busker 40 cm, trær 60 cm. Mål på minst 3 punkter."),
+          "Tabell K4: blomstereng 10, gras/utplanting 20, stauder/busker 40, trær 60 cm. Tykkelsen gjelder etter at jorda har satt seg — legg ut med overhøyde. Mål på minst 3 punkter."),
         valg("Maks steinstørrelse", "UNDER",
           [
             "OK – under 20 mm (gras/blomstereng)",
@@ -245,17 +246,17 @@ async function main() {
             "OK – under 100 mm (trær)",
             "Avvik – for store steiner funnet",
           ],
-          "KB2.2 b3: Maks steinstørrelse: 20 mm for gras, 60 mm for busker/stauder, 100 mm for trær."),
+          "KB2.2 b1: Maks 20 mm for grasarealer/blomstereng, 60 mm for utplanting/busker/stauder, 100 mm for trær."),
         trafikklys("Jord ikke komprimert", "UNDER",
-          "KB2.2: Det er viktig at jorda kun pakkes lett og ikke påføres komprimeringsskader."),
+          "KB2.2 c2 og a1: Jorda skal kun pakkes lett — ingen komprimering av undergrunn eller jordlag under utlegging."),
 
         // ETTER
-        desimal("Planhet – avvik (mm)", "ETTER", { enhet: "mm", toleranse: 30 },
-          "KB2.5 Tabell K4: Avvik fra planlagt nivå maks ±30 mm."),
+        desimal("Planhet – svanker/bulninger over 3 m (mm)", "ETTER", { enhet: "mm" },
+          "Tabell K3: green/fairway/tee 15 mm, grasbane 20 mm, grasplen 30 mm, grasbakke/eng 50 mm. Kontroller med 3 m rettholt uten knaster. For grasdekker: kontrolleres på ferdig grasdekke."),
         desimal("Fall (%)", "ETTER", { enhet: "%", min: 2.0 },
           "KB2.2 c1: Ferdig overflate skal ha fall på minst 2 % (1:50) hvis ikke annet er spesifisert."),
-        trafikklys("Overflate jevn, fritt for ugras", "ETTER",
-          "KB c1: Ferdig overflate skal ha jevne flater og skråninger. Dverganger mellom ulike flatetyper skal være jevne."),
+        trafikklys("Overflate jevn, fri for stein og ugras", "ETTER",
+          "KB c1/c2 og KB2 c3: Jevne flater og overganger, uten stein til ulempe for skjøtsel, fritt for rotugras. Ta bilde av ferdig flate."),
       ],
     },
 
