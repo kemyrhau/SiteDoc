@@ -1111,17 +1111,25 @@ export function MalListe({
         {(() => {
           const aktive = slettbarhet?.aktive ?? 0;
           const iKurv = slettbarhet?.iKurv ?? 0;
-          const blokkert = aktive > 0 || iKurv > 0;
+          const iKontrollplan = slettbarhet?.iKontrollplan ?? 0;
+          const blokkert = aktive > 0 || iKurv > 0 || iKontrollplan > 0;
           return (
             <div className="flex flex-col gap-4">
               {blokkert ? (
-                <p className="text-sm text-gray-700">
-                  {aktive > 0 && iKurv > 0
-                    ? t("maler.slettVern.harBegge", { aktive, kurv: iKurv })
-                    : aktive > 0
-                      ? t("maler.slettVern.harAktive", { n: aktive })
-                      : t("maler.slettVern.harKurv", { n: iKurv })}
-                </p>
+                <div className="flex flex-col gap-2 text-sm text-gray-700">
+                  {(aktive > 0 || iKurv > 0) && (
+                    <p>
+                      {aktive > 0 && iKurv > 0
+                        ? t("maler.slettVern.harBegge", { aktive, kurv: iKurv })
+                        : aktive > 0
+                          ? t("maler.slettVern.harAktive", { n: aktive })
+                          : t("maler.slettVern.harKurv", { n: iKurv })}
+                    </p>
+                  )}
+                  {iKontrollplan > 0 && (
+                    <p>{t("maler.slettVern.harKontrollplan", { n: iKontrollplan })}</p>
+                  )}
+                </div>
               ) : (
                 <p className="text-sm text-gray-600">
                   {t("maler.slettMalBekreftelse", { navn: valgtMal?.name ?? "" })}

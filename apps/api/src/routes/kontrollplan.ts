@@ -521,7 +521,11 @@ export const kontrollplanRouter = router({
       return oppdatert;
     }),
 
-  // Slett punkt (kun planlagt)
+  // Slett punkt. Kriteriet er KOBLINGEN, ikke statusen (Kenneth 2026-09-11): status har
+  // fire verdier og «forfalt» er ingen av dem (utledes av frist), så et rødt punkt kan
+  // være `planlagt`. Er sjekklisteId null er punktet ubrukt og kan slettes uansett status.
+  // Er den satt, er arbeid i gang/utført → punktet skal ikke forsvinne under føttene på
+  // den som utfører det; koblingen må fjernes først.
   slettPunkt: protectedProcedure
     .input(z.object({ punktId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -530,8 +534,12 @@ export const kontrollplanRouter = router({
         include: { kontrollplan: { select: { projectId: true } } },
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
-      if (punkt.status !== "planlagt") {
-        throw new Error("Kun planlagte punkter kan slettes");
+      if (punkt.sjekklisteId !== null) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Punktet har en sjekkliste koblet til seg og kan ikke slettes. Fjern koblingen til sjekklisten først.",
+        });
       }
       return ctx.prisma.kontrollplanPunkt.delete({ where: { id: input.punktId } });
     }),
