@@ -183,6 +183,116 @@ export const papirkurvRouter = router({
       });
       return { success: true };
     }),
+
+  // Gjenopprett flere i én operasjon (Kenneth-vedtak 2026-08-18 del 2). Samme rett
+  // som gjenopprett: oppretter (egne) + prosjektadmin (+ sitedoc). Ikke-admin ser
+  // uansett bare egne i lista, men serveren håndhever eierskap per rad likevel.
+  gjenopprettFlere: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        items: z
+          .array(z.object({ id: z.string().uuid(), type: z.enum(["checklist", "task"]) }))
+          .min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const tilgang = await hentBrukerProsjektTilgang(ctx.userId, input.projectId);
+      const serAlt = tilgang.erProsjektAdmin || tilgang.erSitedocAdmin;
+      const { sjekklister, oppgaver } = await lastOgValiderKurvItems(
+        ctx.prisma,
+        input.projectId,
+        input.items,
+      );
+      // Ikke-admin: kun egne. Avvis hele bunken hvis noe ikke er ditt (aldri stille skip).
+      if (!serAlt) {
+        const fremmed = [...sjekklister, ...oppgaver].some((d) => d.bestillerUserId !== ctx.userId);
+        if (fremmed) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Kun oppretteren eller prosjektadmin kan gjenopprette dokumentet",
+          });
+        }
+      }
+      await ctx.prisma.$transaction(async (tx) => {
+        if (sjekklister.length) {
+          await tx.checklist.updateMany({
+            where: { id: { in: sjekklister.map((d) => d.id) } },
+            data: { deletedAt: null, deletedById: null },
+          });
+        }
+        if (oppgaver.length) {
+          await tx.task.updateMany({
+            where: { id: { in: oppgaver.map((d) => d.id) } },
+            data: { deletedAt: null, deletedById: null },
+          });
+        }
+      });
+      return { sjekklister: sjekklister.length, oppgaver: oppgaver.length };
+    }),
+
+  // Slett flere endelig i én operasjon (Kenneth-vedtak 2026-08-18 del 2). Kun
+  // prosjektadmin (+ sitedoc), som slettEndelig. Rydder transfers/bilder først.
+  slettEndeligFlere: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        items: z
+          .array(z.object({ id: z.string().uuid(), type: z.enum(["checklist", "task"]) }))
+          .min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const tilgang = await hentBrukerProsjektTilgang(ctx.userId, input.projectId);
+      if (!tilgang.erSitedocAdmin && !tilgang.erProsjektAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun prosjektadmin kan slette et dokument endelig",
+        });
+      }
+      const { sjekklister, oppgaver } = await lastOgValiderKurvItems(
+        ctx.prisma,
+        input.projectId,
+        input.items,
+      );
+      await slettKurvDokumenter(
+        ctx.prisma,
+        sjekklister.map((d) => d.id),
+        oppgaver.map((d) => d.id),
+      );
+      return { sjekklister: sjekklister.length, oppgaver: oppgaver.length };
+    }),
+
+  // Tøm papirkurv (Kenneth-vedtak 2026-08-18 del 1: «uten den er alt annet lapping»).
+  // Sletter ALT som ligger i prosjektets papirkurv endelig. Kun prosjektadmin (+ sitedoc),
+  // samme rett og samme opprydding (transfers + bilder) som slettEndelig.
+  tomPapirkurv: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const tilgang = await hentBrukerProsjektTilgang(ctx.userId, input.projectId);
+      if (!tilgang.erSitedocAdmin && !tilgang.erProsjektAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun prosjektadmin kan tømme papirkurven",
+        });
+      }
+      const [sjekklister, oppgaver] = await Promise.all([
+        ctx.prisma.checklist.findMany({
+          where: { ...KUN_SLETTET, template: { projectId: input.projectId } },
+          select: { id: true },
+        }),
+        ctx.prisma.task.findMany({
+          where: { ...KUN_SLETTET, ...oppgaveProsjektFilter(input.projectId) },
+          select: { id: true },
+        }),
+      ]);
+      await slettKurvDokumenter(
+        ctx.prisma,
+        sjekklister.map((d) => d.id),
+        oppgaver.map((d) => d.id),
+      );
+      return { sjekklister: sjekklister.length, oppgaver: oppgaver.length };
+    }),
 });
 
 /**
@@ -224,4 +334,69 @@ async function hentSlettetDokument(
     throw new TRPCError({ code: "NOT_FOUND", message: "Oppgaven mangler prosjekttilknytning" });
   }
   return { projectId, bestillerUserId: dok.bestillerUserId };
+}
+
+/**
+ * Last de valgte kurv-radene og verifiser at hver enkelt er soft-slettet OG hører til
+ * prosjektet. Skiller i sjekklister/oppgaver med bestillerUserId (til eierskap-sjekk).
+ * Kaster NOT_FOUND hvis en id ikke finnes / ikke er i papirkurven / hører til et annet
+ * prosjekt — bunkeoperasjoner skal aldri stille droppe rader (CLAUDE.md § stille tomhet).
+ */
+async function lastOgValiderKurvItems(
+  prisma: PrismaClient,
+  projectId: string,
+  items: { id: string; type: "checklist" | "task" }[],
+): Promise<{
+  sjekklister: { id: string; bestillerUserId: string }[];
+  oppgaver: { id: string; bestillerUserId: string }[];
+}> {
+  const sjekklisteIder = items.filter((i) => i.type === "checklist").map((i) => i.id);
+  const oppgaveIder = items.filter((i) => i.type === "task").map((i) => i.id);
+
+  const [sjekklister, oppgaver] = await Promise.all([
+    sjekklisteIder.length
+      ? prisma.checklist.findMany({
+          where: { id: { in: sjekklisteIder }, ...KUN_SLETTET, template: { projectId } },
+          select: { id: true, bestillerUserId: true },
+        })
+      : Promise.resolve([]),
+    oppgaveIder.length
+      ? prisma.task.findMany({
+          where: { id: { in: oppgaveIder }, ...KUN_SLETTET, ...oppgaveProsjektFilter(projectId) },
+          select: { id: true, bestillerUserId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  if (sjekklister.length !== sjekklisteIder.length || oppgaver.length !== oppgaveIder.length) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Ett eller flere dokumenter finnes ikke i papirkurven i dette prosjektet",
+    });
+  }
+  return { sjekklister, oppgaver };
+}
+
+/**
+ * Ekte hard-slett av kurv-dokumenter i bulk: rydd transfers + bilder FØR selve raden
+ * (samme rekkefølge som slettEndelig), alt i én transaksjon.
+ */
+async function slettKurvDokumenter(
+  prisma: PrismaClient,
+  sjekklisteIder: string[],
+  oppgaveIder: string[],
+): Promise<void> {
+  if (!sjekklisteIder.length && !oppgaveIder.length) return;
+  await prisma.$transaction(async (tx) => {
+    if (sjekklisteIder.length) {
+      await tx.documentTransfer.deleteMany({ where: { checklistId: { in: sjekklisteIder } } });
+      await tx.image.deleteMany({ where: { checklistId: { in: sjekklisteIder } } });
+      await tx.checklist.deleteMany({ where: { id: { in: sjekklisteIder } } });
+    }
+    if (oppgaveIder.length) {
+      await tx.documentTransfer.deleteMany({ where: { taskId: { in: oppgaveIder } } });
+      await tx.image.deleteMany({ where: { taskId: { in: oppgaveIder } } });
+      await tx.task.deleteMany({ where: { id: { in: oppgaveIder } } });
+    }
+  });
 }

@@ -169,14 +169,18 @@ type MalListeElement = Prisma.ReportTemplateGetPayload<{
 async function tellMalDokumenter(
   prisma: typeof import("@sitedoc/db").prisma,
   templateId: string,
-): Promise<{ aktive: number; iKurv: number }> {
-  const [aktivOppg, aktivSjekk, kurvOppg, kurvSjekk] = await Promise.all([
+): Promise<{ aktive: number; iKurv: number; iKontrollplan: number }> {
+  // iKontrollplan: KontrollplanPunkt.sjekklisteMalId er påkrevd uten onDelete → Prisma
+  // Restrict. Uten denne tellingen lover knappen sletting, men DB-en kaster
+  // kontrollplan_punkter_sjekkliste_mal_id_fkey rett i UI (Kenneth 2026-09-11).
+  const [aktivOppg, aktivSjekk, kurvOppg, kurvSjekk, iKontrollplan] = await Promise.all([
     prisma.task.count({ where: { templateId, ...IKKE_SLETTET } }),
     prisma.checklist.count({ where: { templateId, ...IKKE_SLETTET } }),
     prisma.task.count({ where: { templateId, ...KUN_SLETTET } }),
     prisma.checklist.count({ where: { templateId, ...KUN_SLETTET } }),
+    prisma.kontrollplanPunkt.count({ where: { sjekklisteMalId: templateId } }),
   ]);
-  return { aktive: aktivOppg + aktivSjekk, iKurv: kurvOppg + kurvSjekk };
+  return { aktive: aktivOppg + aktivSjekk, iKurv: kurvOppg + kurvSjekk, iKontrollplan };
 }
 
 // Mal-unikhet (2026-08-10): speiler de funksjonelle unik-indeksene (migrering
@@ -464,8 +468,13 @@ export const malRouter = router({
     .query(async ({ ctx, input }) => {
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
-      const { aktive, iKurv } = await tellMalDokumenter(ctx.prisma, input.id);
-      return { aktive, iKurv, kanSlettes: aktive === 0 && iKurv === 0 };
+      const { aktive, iKurv, iKontrollplan } = await tellMalDokumenter(ctx.prisma, input.id);
+      return {
+        aktive,
+        iKurv,
+        iKontrollplan,
+        kanSlettes: aktive === 0 && iKurv === 0 && iKontrollplan === 0,
+      };
     }),
 
   // Slett mal — SLETT-VERN (2026-08-10): nekt hvis dokumenter finnes (aktive eller
@@ -477,14 +486,28 @@ export const malRouter = router({
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
       await verifiserAdmin(ctx.userId, mal.projectId);
 
-      const { aktive, iKurv } = await tellMalDokumenter(ctx.prisma, input.id);
-      if (aktive > 0 || iKurv > 0) {
-        const melding =
-          aktive > 0 && iKurv > 0
-            ? `Malen har ${aktive} dokument${aktive === 1 ? "" : "er"} og ${iKurv} i papirkurven, og kan ikke slettes. Fjern dokumentene og tøm papirkurven først.`
-            : aktive > 0
-              ? `Malen har ${aktive} dokument${aktive === 1 ? "" : "er"} og kan ikke slettes.`
-              : `Malen har ${iKurv} dokument${iKurv === 1 ? "" : "er"} i papirkurven. Tøm papirkurven først, så kan malen slettes.`;
+      const { aktive, iKurv, iKontrollplan } = await tellMalDokumenter(ctx.prisma, input.id);
+      if (aktive > 0 || iKurv > 0 || iKontrollplan > 0) {
+        // Komposisjon (ikke ternær-eksplosjon): navngi hver bruk + neste steg. Klienten
+        // viser sin egen tospråklige melding fra slettbarhet; dette er server-backstopen.
+        const grunner: string[] = [];
+        const steg: string[] = [];
+        if (aktive > 0) {
+          grunner.push(`${aktive} aktivt dokument${aktive === 1 ? "" : "er"}`);
+          steg.push("fjern dokumentene");
+        }
+        if (iKurv > 0) {
+          grunner.push(`${iKurv} dokument${iKurv === 1 ? "" : "er"} i papirkurven`);
+          steg.push("tøm papirkurven");
+        }
+        if (iKontrollplan > 0) {
+          grunner.push(`${iKontrollplan} kontrollpunkt${iKontrollplan === 1 ? "" : "er"} i en kontrollplan`);
+          steg.push("fjern punktet fra kontrollplanen");
+        }
+        const stegTekst = steg.join(", ");
+        const melding = `Malen er i bruk (${grunner.join(", ")}) og kan ikke slettes. ${
+          stegTekst.charAt(0).toUpperCase() + stegTekst.slice(1)
+        } først.`;
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: melding });
       }
       return ctx.prisma.reportTemplate.delete({ where: { id: input.id } });
