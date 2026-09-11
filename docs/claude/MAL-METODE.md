@@ -17,12 +17,15 @@ En KS-sjekkliste skal hjelpe en arbeider med teknisk informasjon om kravene, og 
 - **Informativ om NS 3420-krav.** Hjelpetekst per felt gir det tekniske kravet der arbeideren står (tall, toleranser, tabellreferanser). Der kravene er prosjektspesifikke, peker hjelpeteksten til prosjektbeskrivelsen/posten. Aldri påstå normkrav som ikke finnes i normen.
 - **Enklest mulig dokumentasjonsprinsipp.** Bilder er primærbevis — hjelpetekster ber eksplisitt om foto der bildet beviser leveransen. Egne felt sier HVA som er levert (type/materiale) — ellers viser dokumentet bare at «noe» ble gjort.
 - **Strukturert og oversiktlig.** Feltene grupperes under fase-overskrifter (H-felt): «Kontroll FØR utførelse» / «Kontroll UNDER utførelse» / «Kontroll ETTER utførelse». Seksjonene kollapser og viser teller («0 av 3») — viktig fordi sjekklister fylles ut over tid. ETTER-fasen bærer konklusjonen: krav oppfylt + dokumentasjonskrav levert.
+- **Tallfelt kun når ett veldefinert tall dokumenterer leveransen** (Kenneth 2026-09-11, KB2-testen). Feltnavnet skal si hvilken måling som føres (minste/største). Krav mot en flate som varierer (fall, planhet) besvares med samsvar — trafikklys eller enkeltvalg per kravnivå — og målt verdi/sted hører i kommentaren. Min/maks-grenser på tallfelt skal aldri blokkere registrering av et avvik.
 
 ## 2. Kilder — hvor NS 3420-PDF-ene ligger
 
 `kilder/ns3420/` i hovedtreet (Del 1, A, F, G, J, K, L, S, U, W, Z, ZK). Mappen er **gitignorert** (`.gitignore:78 kilder/*`) — agenter i worktrees ser den IKKE, og lisensiert normtekst skal ikke kopieres ut i worktrees.
 
 **Regel:** hver mal-ordre fra fabel er SELVBÆRENDE — alle normutledede fakta (sidetall, poster, tallkrav, tabellverdier) står i ordren. Mal-Opus gjetter aldri på normkrav; mangler et faktum → stopp og meld tilbake.
+
+**Hvor fabels ordrer lander (viktig etter compact/`/clear`):** ferdige ordrer fra fabel legges i **`~/Documents/Programmering/SiteDoc/Fra fabel/`** — i hovedtreet, utenfor worktrees — i daterte undermapper, f.eks. `til-repo-<dato-tid>/docs/redesign/ordre-<ref>-fabel-<dato>.md` (ev. medfølgende `docs/claude/MAL-METODE.md`-tillegg fra fabel). Kenneth relayer stien; mal-Opus henter ordren **der**, ikke fra worktreet. Når Kenneth sier «se meldingen fra fabel», er det denne plasseringen.
 
 ## 3. Hvem gjør hva, når (regel)
 
