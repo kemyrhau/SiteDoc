@@ -100,6 +100,85 @@ async function kopierObjektTre(
   }
 }
 
+// `malInnhold`-formen slik den leses fra BibliotekMal (felles for lån + oppdatering).
+type BibliotekFelt = {
+  label: string;
+  type: string;
+  zone: string;
+  fase?: string;
+  config?: Record<string, unknown>;
+  sortOrder: number;
+};
+
+/**
+ * Bygg firmamalens objekt-tre fra en bibliotekmals `malInnhold`. Faser (FØR/UNDER/
+ * ETTER) får en `heading` foran feltene sine, felt uten fase legges til slutt.
+ * Zone settes eksplisitt (zone-regelen, MALBYGGER.md) — som bibliotek.ts importerMal.
+ *
+ * Delt av `laanFraSentralarkiv` (førstegangs lån) og `oppdaterFraSentralarkiv`
+ * (re-synk): begge må bygge IDENTISK tre, ellers ville en oppdatering avvike fra et
+ * ferskt lån av samme mal.
+ */
+async function byggFirmamalObjekterFraBibliotek(
+  create: (data: {
+    type: string;
+    label: string;
+    sortOrder: number;
+    config: Prisma.InputJsonValue;
+  }) => Promise<unknown>,
+  malInnhold: BibliotekFelt[],
+): Promise<void> {
+  if (!Array.isArray(malInnhold) || malInnhold.length === 0) return;
+
+  const faser = [...new Set(malInnhold.map((f) => f.fase).filter(Boolean))];
+  let sortIdx = 0;
+
+  for (const fase of faser) {
+    sortIdx++;
+    await create({
+      type: "heading",
+      label:
+        fase === "FØR"
+          ? "Kontroll FØR utførelse"
+          : fase === "UNDER"
+            ? "Kontroll UNDER utførelse"
+            : "Kontroll ETTER utførelse",
+      sortOrder: sortIdx,
+      config: { zone: "datafelter" },
+    });
+    for (const f of malInnhold.filter((x) => x.fase === fase)) {
+      sortIdx++;
+      await create({
+        type: f.type,
+        label: f.label,
+        sortOrder: sortIdx,
+        config: { zone: f.zone ?? "datafelter", ...f.config },
+      });
+    }
+  }
+
+  for (const f of malInnhold.filter((x) => !x.fase)) {
+    sortIdx++;
+    await create({
+      type: f.type,
+      label: f.label,
+      sortOrder: sortIdx,
+      config: { zone: f.zone ?? "datafelter", ...f.config },
+    });
+  }
+}
+
+/** Referanse-beskrivelse fra en bibliotekmal (standard-kode + referanse + beskrivelse). */
+function bibliotekBeskrivelse(bibMal: {
+  referanse: string;
+  beskrivelse: string | null;
+  kapittel: { standard: { kode: string } };
+}): string {
+  return `${bibMal.kapittel.standard.kode} ${bibMal.referanse}${
+    bibMal.beskrivelse ? " — " + bibMal.beskrivelse : ""
+  }`;
+}
+
 export const firmamalRouter = router({
   /**
    * Firmaets maler, valgfritt filtrert per fane (L9). Bruk-teller = antall
@@ -531,14 +610,7 @@ export const firmamalRouter = router({
         include: { kapittel: { include: { standard: true } } },
       });
 
-      const malInnhold = bibMal.malInnhold as Array<{
-        label: string;
-        type: string;
-        zone: string;
-        fase?: string;
-        config?: Record<string, unknown>;
-        sortOrder: number;
-      }>;
+      const malInnhold = bibMal.malInnhold as BibliotekFelt[];
 
       const nyId = await ctx.prisma.$transaction(async (tx) => {
         const nyMal = await tx.organizationTemplate.create({
@@ -547,9 +619,7 @@ export const firmamalRouter = router({
             name: bibMal.navn,
             // Beskrivelse = ren referanse-tekst. Avstamningen ligger i den
             // strukturerte pekeren under (B4), ikke gjemt i fritekst.
-            description: `${bibMal.kapittel.standard.kode} ${bibMal.referanse}${
-              bibMal.beskrivelse ? " — " + bibMal.beskrivelse : ""
-            }`,
+            description: bibliotekBeskrivelse(bibMal),
             category: bibMal.kategori,
             domain: bibMal.domene,
             laantFraBibliotekMalId: bibMal.id, // strukturert avstamning (B4)
@@ -557,57 +627,81 @@ export const firmamalRouter = router({
           select: { id: true },
         });
 
-        if (Array.isArray(malInnhold) && malInnhold.length > 0) {
-          const faser = [...new Set(malInnhold.map((f) => f.fase).filter(Boolean))];
-          let sortIdx = 0;
-
-          for (const fase of faser) {
-            sortIdx++;
-            await tx.organizationTemplateObject.create({
-              data: {
-                templateId: nyMal.id,
-                type: "heading",
-                label:
-                  fase === "FØR"
-                    ? "Kontroll FØR utførelse"
-                    : fase === "UNDER"
-                      ? "Kontroll UNDER utførelse"
-                      : "Kontroll ETTER utførelse",
-                sortOrder: sortIdx,
-                config: { zone: "datafelter" },
-              },
-            });
-            for (const f of malInnhold.filter((x) => x.fase === fase)) {
-              sortIdx++;
-              await tx.organizationTemplateObject.create({
-                data: {
-                  templateId: nyMal.id,
-                  type: f.type,
-                  label: f.label,
-                  sortOrder: sortIdx,
-                  config: { zone: f.zone ?? "datafelter", ...f.config },
-                },
-              });
-            }
-          }
-
-          for (const f of malInnhold.filter((x) => !x.fase)) {
-            sortIdx++;
-            await tx.organizationTemplateObject.create({
-              data: {
-                templateId: nyMal.id,
-                type: f.type,
-                label: f.label,
-                sortOrder: sortIdx,
-                config: { zone: f.zone ?? "datafelter", ...f.config },
-              },
-            });
-          }
-        }
+        await byggFirmamalObjekterFraBibliotek(
+          (data) =>
+            tx.organizationTemplateObject.create({ data: { templateId: nyMal.id, ...data } }),
+          malInnhold,
+        );
 
         return nyMal.id;
       });
 
       return { id: nyId, malNavn: bibMal.navn };
+    }),
+
+  /**
+   * Oppdater en LÅNT firmamal fra sentralarkivet den ble lånt fra — det manglende
+   * leddet i propageringskjeden (arkiv → firmamal → prosjekt). `laanFraSentralarkiv`
+   * er en engangskopi; er sentralmalen revidert etterpå, arver hvert nye prosjekt den
+   * gamle versjonen (fordi `kopierTilProsjekt` henter fra FIRMAMALEN). Denne veien
+   * synker firmamalen slik at `oppdaterKopiFraHovedmal` kan bære endringen videre ned.
+   *
+   * Full erstatning (navn, beskrivelse, hele objekt-treet) — samme semantikk som
+   * `oppdaterKopiFraHovedmal` (L6): konsistens i kjeden slår ny design. Aldri
+   * automatisk; utløses av eksplisitt knapp i firmaarkivet.
+   *
+   * 🟢 Trygt å bytte ut objekt-treet: ingen `Checklist`/`Task` peker på
+   * `OrganizationTemplateObject`. `ReportTemplate.organizationTemplateId` peker på
+   * MALEN, ikke objektene — så full-erstatning gjør ingen dokumentdata foreldreløs.
+   * (Advarselen i `oppdaterKopiFraHovedmal` gjelder PROSJEKTnivået, ikke her.)
+   *
+   * `version` inkrementeres slik at prosjekt-kopier som allerede peker hit vises som
+   * «bak» (via `versjonAvHovedmal`) og kan hente den nye versjonen når det passer.
+   * Krav 4: denne veien dytter ALDRI noe ut i prosjektene.
+   */
+  oppdaterFraSentralarkiv: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const firmamal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { id: true, organizationId: true, laantFraBibliotekMalId: true },
+      });
+      // Firma-admin (L7) — firmamalen eies av firmaet, ikke SiteDoc.
+      await autoriserAdminForFirma(ctx.userId, firmamal.organizationId);
+
+      if (!firmamal.laantFraBibliotekMalId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Malen er firmaets egen og har ingen avstamning til sentralarkivet å oppdatere fra",
+        });
+      }
+
+      const bibMal = await ctx.prisma.bibliotekMal.findUniqueOrThrow({
+        where: { id: firmamal.laantFraBibliotekMalId },
+        include: { kapittel: { include: { standard: true } } },
+      });
+
+      const malInnhold = bibMal.malInnhold as BibliotekFelt[];
+
+      await ctx.prisma.$transaction(async (tx) => {
+        // Full erstatning av objekt-treet (som oppdaterKopiFraHovedmal).
+        await tx.organizationTemplateObject.deleteMany({ where: { templateId: firmamal.id } });
+        await byggFirmamalObjekterFraBibliotek(
+          (data) =>
+            tx.organizationTemplateObject.create({ data: { templateId: firmamal.id, ...data } }),
+          malInnhold,
+        );
+        await tx.organizationTemplate.update({
+          where: { id: firmamal.id },
+          data: {
+            name: bibMal.navn,
+            description: bibliotekBeskrivelse(bibMal),
+            version: { increment: 1 },
+          },
+        });
+      });
+
+      return { id: firmamal.id, malNavn: bibMal.navn };
     }),
 });
