@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Preview PDF",
   "arkiv.del": "Share",
   "arkiv.lasterForhandsvisning": "Loading PDF …",
+  "arkiv.forhandsvisningFeiletTittel": "Couldn't show the preview",
+  "arkiv.forhandsvisningFeiletHjelp": "The Share button at the top shares the PDF directly.",
   "arkiv.lokalFallback": "Local",
   "handling.kopier": "Copy",
   "handling.flytt": "Move",

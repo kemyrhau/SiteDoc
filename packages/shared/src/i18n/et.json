@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "PDF-i eelvaade",
   "arkiv.del": "Jaga",
   "arkiv.lasterForhandsvisning": "PDF-i laadimine …",
+  "arkiv.forhandsvisningFeiletTittel": "Eelvaadet ei saanud kuvada",
+  "arkiv.forhandsvisningFeiletHjelp": "Ülaosas olev nupp Jaga jagab PDF-i otse.",
   "arkiv.lokalFallback": "Kohalik",
   "handling.kopier": "Kopeeri",
   "handling.flytt": "Liiguta",

@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "PDF-Vorschau anzeigen",
   "arkiv.del": "Aktie",
   "arkiv.lasterForhandsvisning": "PDF wird geladen …",
+  "arkiv.forhandsvisningFeiletTittel": "Die Vorschau konnte nicht angezeigt werden",
+  "arkiv.forhandsvisningFeiletHjelp": "Über die Schaltfläche „Teilen“ oben wird das PDF direkt geteilt.",
   "arkiv.lokalFallback": "Lokal",
   "handling.kopier": "Kopie",
   "handling.flytt": "Bewegen",

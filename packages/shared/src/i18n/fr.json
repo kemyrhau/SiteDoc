@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Aperçu du PDF",
   "arkiv.del": "Partager",
   "arkiv.lasterForhandsvisning": "Chargement du PDF…",
+  "arkiv.forhandsvisningFeiletTittel": "Impossible d'afficher l'aperçu",
+  "arkiv.forhandsvisningFeiletHjelp": "Le bouton Partager en haut partage directement le PDF.",
   "arkiv.lokalFallback": "Locale",
   "handling.kopier": "Copie",
   "handling.flytt": "Se déplacer",

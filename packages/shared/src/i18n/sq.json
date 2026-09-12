@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Shikoni paraprakisht PDF",
   "arkiv.del": "Shpërndaje",
   "arkiv.lasterForhandsvisning": "PDF po ngarkohet…",
+  "arkiv.forhandsvisningFeiletTittel": "Pamja paraprake nuk mund të shfaqej",
+  "arkiv.forhandsvisningFeiletHjelp": "Butoni Share në krye ndan PDF-në drejtpërdrejt.",
   "arkiv.lokalFallback": "Lokale",
   "handling.kopier": "Kopjo",
   "handling.flytt": "Lëvizni",

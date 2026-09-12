@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Priekšskatīt PDF",
   "arkiv.del": "Dalīties",
   "arkiv.lasterForhandsvisning": "Notiek PDF ielāde…",
+  "arkiv.forhandsvisningFeiletTittel": "Nevarēja parādīt priekšskatījumu",
+  "arkiv.forhandsvisningFeiletHjelp": "Augšpusē esošā poga Kopīgot tieši kopīgo PDF failu.",
   "arkiv.lokalFallback": "Vietējais",
   "handling.kopier": "Kopēt",
   "handling.flytt": "Pārvietot",
