@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Cela supprime définitivement tous les documents {{antall}} dans la corbeille. Cette action ne peut pas être annulée.",
   "papirkurv.resultatSlettet": "Suppression des listes de contrôle {{sjekklister}} et des tâches {{oppgaver}}.",
   "papirkurv.resultatGjenopprettet": "Listes de contrôle {{sjekklister}} et tâches {{oppgaver}} restaurées.",
+  "papirkurv.forhandsvisTittel": "Aperçu",
+  "papirkurv.forhandsvisTomt": "Ce document n'a aucun contenu à afficher.",
   "hjelp.papirkurv.tekst": "Les listes de contrôle et les tâches supprimées sont disponibles ici. Le créateur voit le sien ; les administrateurs du projet voient tout dans le projet. La restauration remet le document avec le même statut qu'il avait avant la suppression. Supprimer le supprime définitivement avant le délai de 90 jours (administrateurs de projet uniquement). Après 90 jours, le document est automatiquement supprimé.",
   "timer.tittel": "Enregistrement du temps",
   "timer.dagsseddel": "Feuille de temps",

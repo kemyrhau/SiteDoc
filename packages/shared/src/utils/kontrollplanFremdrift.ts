@@ -20,14 +20,30 @@ export function avledSjekklisteFremdrift(status: string): PunktFremdrift {
   return "pagar";
 }
 
-// Fremdrift for ett punkt:
-//  - koblet sjekkliste → avledet fra sjekklistens status (kilden til sannhet)
-//  - ukoblet → punktets egen status (manuell), default planlagt
+// Fremdrift for ett punkt. Tre tilfeller:
+//  - LEVENDE koblet sjekkliste (deletedAt null) → avledet fra sjekklistens status (sannhet).
+//  - Koblet sjekkliste i PAPIRKURVEN (deletedAt satt) → «planlagt». Relasjonen resolves
+//    fortsatt fra serveren (Prisma filtrerer ikke soft-delete på to-én-hopp), men dokumentet
+//    er borte fra planen, så punktet er reelt ubrukt og skal IKKE vise «Påbegynt»/«Godkjent»
+//    for et dokument i papirkurven (Kenneth-vedtak 2026-09-12). Punktet var koblet, så
+//    `punkt.status` er `pagar` her — den er foreldet og skal ikke lekke inn.
+//  - INGEN kobling (sjekkliste null) → punktets egen status (legacy manuell, default
+//    planlagt). Bevart for gammel data satt før koble-mekanikken; nye punkter når `pagar` kun
+//    via kobling. Etter en HARD sletting av koblet sjekkliste nullstiller papirkurv-routeren
+//    både `sjekklisteId` og `status` (→ planlagt) i samme transaksjon, så et hardslettet
+//    dokument etterlater aldri et `pagar`-punkt her.
+//
+// `deletedAt` er valgfritt i shapen (bakoverkompat): kallere som ikke sender det, får gammel
+// oppførsel der enhver koblet sjekkliste teller som levende.
 export function avledPunktFremdrift(punkt: {
   status: string;
-  sjekkliste?: { status: string } | null;
+  sjekkliste?: { status: string; deletedAt?: Date | string | null } | null;
 }): PunktFremdrift {
-  if (punkt.sjekkliste) return avledSjekklisteFremdrift(punkt.sjekkliste.status);
+  if (punkt.sjekkliste) {
+    // Koblet, men i papirkurven → ubrukt igjen.
+    if (punkt.sjekkliste.deletedAt != null) return "planlagt";
+    return avledSjekklisteFremdrift(punkt.sjekkliste.status);
+  }
   return (PUNKT_STATUSER as readonly string[]).includes(punkt.status)
     ? (punkt.status as PunktFremdrift)
     : "planlagt";
@@ -36,7 +52,7 @@ export function avledPunktFremdrift(punkt: {
 // Teller godkjente punkter (koblet sjekkliste approved/closed, eller ukoblet punkt
 // manuelt godkjent) mot totalen — grunnlaget for «N/M godkjent (X %)».
 export function tellGodkjente(
-  punkter: Array<{ status: string; sjekkliste?: { status: string } | null }>,
+  punkter: Array<{ status: string; sjekkliste?: { status: string; deletedAt?: Date | string | null } | null }>,
 ): { godkjent: number; total: number; prosent: number } {
   const total = punkter.length;
   const godkjent = punkter.filter((p) => avledPunktFremdrift(p) === "godkjent").length;
@@ -131,7 +147,7 @@ export function isoUkeRef(dato: Date): UkeRef {
 export function avledPunktTilstand(
   punkt: {
     status: string;
-    sjekkliste?: { status: string } | null;
+    sjekkliste?: { status: string; deletedAt?: Date | string | null } | null;
     fristUke: number | null;
     fristAar: number | null;
     varselUkerFor: number;

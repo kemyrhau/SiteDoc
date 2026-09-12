@@ -65,7 +65,11 @@ const punktIncludes = {
   // L1.6: sjekklistens FAKTISKE flyt (dokumentflyt) — for det ærlige feltet i dialogen:
   // er punktet startet, vises flyten dokumentet faktisk ligger i (read-only), ikke punktets
   // preset som ikke ville flyttet det eksisterende dokumentet.
-  sjekkliste: { select: { id: true, status: true, dokumentflytId: true, dokumentflyt: { select: { id: true, name: true } } } },
+  // `deletedAt` er med fordi en sjekkliste i papirkurven (myk slettet) fortsatt resolves
+  // av denne to-én-relasjonen (Prisma filtrerer ikke soft-delete på relasjonshopp). Bare en
+  // LEVENDE kobling (deletedAt null) teller som «i bruk» — for både fremdrifts-avledningen
+  // og slett-vakten (Kenneth-vedtak 2026-09-12: et punkt skal aldri kunne bli permanent låst).
+  sjekkliste: { select: { id: true, status: true, deletedAt: true, dokumentflytId: true, dokumentflyt: { select: { id: true, name: true } } } },
   // L1.5: forhåndsvalgt flyt på punktet (satt av admin). Klienten bruker den til å
   // starte direkte (0 klikk) og til å vise hvilken flyt punktet er bundet til.
   dokumentflyt: { select: { id: true, name: true } },
@@ -286,7 +290,7 @@ export const kontrollplanRouter = router({
           sjekklisteMal: { select: { name: true, prefix: true, kontrollomrade: true } },
           faggruppe: { select: { name: true, color: true } },
           milepel: { select: { navn: true } },
-          sjekkliste: { select: { id: true, status: true } },
+          sjekkliste: { select: { id: true, status: true, deletedAt: true } },
         },
       });
 
@@ -521,24 +525,32 @@ export const kontrollplanRouter = router({
       return oppdatert;
     }),
 
-  // Slett punkt. Kriteriet er KOBLINGEN, ikke statusen (Kenneth 2026-09-11): status har
-  // fire verdier og «forfalt» er ingen av dem (utledes av frist), så et rødt punkt kan
-  // være `planlagt`. Er sjekklisteId null er punktet ubrukt og kan slettes uansett status.
-  // Er den satt, er arbeid i gang/utført → punktet skal ikke forsvinne under føttene på
-  // den som utfører det; koblingen må fjernes først.
+  // Slett punkt. Kriteriet er en LEVENDE kobling, ikke `sjekklisteId` (Kenneth-vedtak
+  // 2026-09-12): sjekkliste-sletting er MYK (`sjekkliste.slett` setter bare `deletedAt`,
+  // sjekkliste.ts:1916), så FK-ens `ON DELETE SET NULL` fyrer ALDRI ved den vanlige veien —
+  // raden består og `sjekklisteId` blir stående. En vakt på `sjekklisteId !== null` låste
+  // derfor et punkt permanent så snart sjekklisten lå i papirkurven (usynlig, men koblet).
+  // Vi muterer ingenting ved sletting; vi spør i stedet om koblingen er LEVENDE. Er den i
+  // papirkurven (eller hardslettet → SetNull), er punktet ubrukt igjen og kan slettes. Er
+  // den levende, er arbeid i gang → punktet skal ikke forsvinne under føttene på den som
+  // utfører det; sjekklisten må slettes først (som alltid har vært den trygge veien ut).
   slettPunkt: protectedProcedure
     .input(z.object({ punktId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const punkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
         where: { id: input.punktId },
-        include: { kontrollplan: { select: { projectId: true } } },
+        include: {
+          kontrollplan: { select: { projectId: true } },
+          sjekkliste: { select: { deletedAt: true } },
+        },
       });
       await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
-      if (punkt.sjekklisteId !== null) {
+      const harLevendeSjekkliste = punkt.sjekkliste != null && punkt.sjekkliste.deletedAt == null;
+      if (harLevendeSjekkliste) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message:
-            "Punktet har en sjekkliste koblet til seg og kan ikke slettes. Fjern koblingen til sjekklisten først.",
+            "Punktet har en aktiv sjekkliste koblet til seg og kan ikke slettes. Slett sjekklisten først.",
         });
       }
       return ctx.prisma.kontrollplanPunkt.delete({ where: { id: input.punktId } });
@@ -696,7 +708,7 @@ export const kontrollplanRouter = router({
           fristAar: true,
           varselUkerFor: true,
           opprettet: true, // periodefilter på tegningen (2026-08-23) — KontrollplanPunkt bruker `opprettet`
-          sjekkliste: { select: { id: true, status: true } },
+          sjekkliste: { select: { id: true, status: true, deletedAt: true } },
           sjekklisteMal: { select: { prefix: true, name: true } },
           // 3a: område gir markørens kontrollpunkt-identitet i tooltip (malnavn + område).
           omrade: { select: { navn: true } },

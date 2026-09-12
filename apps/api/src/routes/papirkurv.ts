@@ -4,6 +4,7 @@ import type { PrismaClient } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { hentBrukerProsjektTilgang } from "../trpc/tilgangskontroll";
 import { KUN_SLETTET, dagerIgjen } from "../utils/softDelete";
+import { signerVedleggIData } from "../utils/vedleggSignering";
 
 // Papirkurv — F0 soft-delete / 90-dagers papirkurv.
 //
@@ -124,6 +125,40 @@ export const papirkurvRouter = router({
       return { erProsjektadmin: serAlt, dokumenter };
     }),
 
+  // Forhåndsvisning: hent ÉTT slettet dokuments innhold (data + malens objekter) på
+  // forespørsel — aldri for alle radene (femti `data`-blober i listespørringen ville vært
+  // treg og et minneproblem, Kenneth-krav 2026-09-11). LESE-ONLY og bivirkningsfri: i
+  // motsetning til `sjekkliste.hentMedId`/`oppgave.hentMedId` setter den ingen lest-kvittering
+  // (irrelevant her uansett — slettevakten tillater bare draft/closed, aldri «sent»), og
+  // henter ikke transfers/changelog/faggrupper vi ikke viser. Tilgang speiler lista:
+  // prosjektadmin ser alt, ellers kun egne. Vedlegg-URL-er signeres ved emisjon.
+  hentInnhold: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), type: z.enum(["checklist", "task"]) }))
+    .query(async ({ ctx, input }) => {
+      const { projectId, bestillerUserId } = await hentSlettetDokument(ctx.prisma, input);
+      const tilgang = await hentBrukerProsjektTilgang(ctx.userId, projectId);
+      const serAlt = tilgang.erProsjektAdmin || tilgang.erSitedocAdmin;
+      if (!serAlt && bestillerUserId !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Du har ikke tilgang til å se dette dokumentet",
+        });
+      }
+
+      const dok =
+        input.type === "checklist"
+          ? await ctx.prisma.checklist.findUniqueOrThrow({
+              where: { id: input.id },
+              select: { data: true, template: { select: { objects: { orderBy: { sortOrder: "asc" } } } } },
+            })
+          : await ctx.prisma.task.findUniqueOrThrow({
+              where: { id: input.id },
+              select: { data: true, template: { select: { objects: { orderBy: { sortOrder: "asc" } } } } },
+            });
+
+      return { data: signerVedleggIData(dok.data), objekter: dok.template?.objects ?? [] };
+    }),
+
   // Gjenopprett et soft-slettet dokument — nuller deletedAt/deletedById. Status urørt.
   // Rett: registrator (oppretter) + prosjektadmin (+ sitedoc).
   gjenopprett: protectedProcedure
@@ -172,6 +207,15 @@ export const papirkurvRouter = router({
       // Ekte hard-slett (dagens delete-oppførsel): rydd transfers/bilder først.
       await ctx.prisma.$transaction(async (tx) => {
         if (input.type === "checklist") {
+          // Frigjør et evt. koblet kontrollpunkt FØR sletting: nullstill kobling OG status
+          // (→ planlagt) så punktet ikke blir stående som «Påbegynt» på et dokument som ikke
+          // finnes (base krav 5). Gjøres eksplisitt her hvor vi VET dokumentet var koblet —
+          // ikke ved å forkaste legacy `punkt.status` i avledningen. FK-en er `SET NULL`, men
+          // vi setter begge felt selv så oppførselen ikke avhenger av FK-en.
+          await tx.kontrollplanPunkt.updateMany({
+            where: { sjekklisteId: input.id },
+            data: { sjekklisteId: null, status: "planlagt" },
+          });
           await tx.documentTransfer.deleteMany({ where: { checklistId: input.id } });
           await tx.image.deleteMany({ where: { checklistId: input.id } });
           await tx.checklist.delete({ where: { id: input.id } });
@@ -389,6 +433,12 @@ async function slettKurvDokumenter(
   if (!sjekklisteIder.length && !oppgaveIder.length) return;
   await prisma.$transaction(async (tx) => {
     if (sjekklisteIder.length) {
+      // Frigjør koblede kontrollpunkter FØR sletting: nullstill kobling + status (→ planlagt)
+      // så ingen punkter blir stående som «Påbegynt» på slettede dokumenter (base krav 5).
+      await tx.kontrollplanPunkt.updateMany({
+        where: { sjekklisteId: { in: sjekklisteIder } },
+        data: { sjekklisteId: null, status: "planlagt" },
+      });
       await tx.documentTransfer.deleteMany({ where: { checklistId: { in: sjekklisteIder } } });
       await tx.image.deleteMany({ where: { checklistId: { in: sjekklisteIder } } });
       await tx.checklist.deleteMany({ where: { id: { in: sjekklisteIder } } });

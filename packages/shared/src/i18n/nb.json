@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Dette sletter alle {{antall}} dokumentene i papirkurven endelig. Handlingen kan ikke angres.",
   "papirkurv.resultatSlettet": "Slettet {{sjekklister}} sjekklister og {{oppgaver}} oppgaver.",
   "papirkurv.resultatGjenopprettet": "Gjenopprettet {{sjekklister}} sjekklister og {{oppgaver}} oppgaver.",
+  "papirkurv.forhandsvisTittel": "Forhåndsvisning",
+  "papirkurv.forhandsvisTomt": "Dette dokumentet har ikke noe innhold å vise.",
   "hjelp.papirkurv.tekst": "Her ligger slettede sjekklister og oppgaver. Oppretteren ser sine egne; prosjektadmin ser alle i prosjektet. Gjenopprett legger dokumentet tilbake med samme status som før slettingen. Slett endelig fjerner det permanent før 90-dagersfristen (kun prosjektadmin). Etter 90 dager slettes dokumentet automatisk.",
   "timer.tittel": "Timeregistrering",
   "timer.dagsseddel": "Dagsseddel",

@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Tímto trvale smažete všechny {{antall}} dokumenty v koši. Tuto akci nelze vrátit zpět.",
   "papirkurv.resultatSlettet": "Smazáno {{sjekklister}} kontrolních seznamů a {{oppgaver}} úkolů.",
   "papirkurv.resultatGjenopprettet": "Obnoveno {{sjekklister}} kontrolních seznamů a {{oppgaver}} úkolů.",
+  "papirkurv.forhandsvisTittel": "Náhled",
+  "papirkurv.forhandsvisTomt": "Tento dokument nemá žádný obsah k zobrazení.",
   "hjelp.papirkurv.tekst": "Zde jsou smazané kontrolní seznamy a úkoly. Tvůrce vidí své vlastní; administrátoři projektu vidí vše v projektu. Obnovit vrátí dokument zpět se stejným stavem, jaký měl před odstraněním. Smazat jej trvale odstraní před uplynutím 90denní lhůty (pouze správci projektu). Po 90 dnech se dokument automaticky smaže.",
   "timer.tittel": "Registrace času",
   "timer.dagsseddel": "Časový rozvrh",

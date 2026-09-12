@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Tai visam laikui ištrins visus {{antall}} dokumentus iš šiukšliadėžės. Šio veiksmo anuliuoti negalima.",
   "papirkurv.resultatSlettet": "Ištrinti {{sjekklister}} kontroliniai sąrašai ir {{oppgaver}} užduotys.",
   "papirkurv.resultatGjenopprettet": "Atkurti {{sjekklister}} kontroliniai sąrašai ir {{oppgaver}} užduotys.",
+  "papirkurv.forhandsvisTittel": "Peržiūra",
+  "papirkurv.forhandsvisTomt": "Šiame dokumente nėra turinio, kurį būtų galima parodyti.",
   "hjelp.papirkurv.tekst": "Ištrinti kontroliniai sąrašai ir užduotys veikia čia. Kūrėjas mato savo; projekto administratoriai mato viską projekte. Atkūrimas grąžina dokumentą į tą pačią būseną, kuri buvo prieš ištrynimą. Ištrinti jį visam laikui pašalina nepasibaigus 90 dienų terminui (tik projekto administratoriams). Po 90 dienų dokumentas automatiškai ištrinamas.",
   "timer.tittel": "Laiko registracija",
   "timer.dagsseddel": "Laiko žiniaraštis",

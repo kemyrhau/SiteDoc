@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Це назавжди видаляє всі документи {{antall}} у кошику. Цю дію не можна скасувати.",
   "papirkurv.resultatSlettet": "Видалено {{sjekklister}} контрольних списків і {{oppgaver}} завдань.",
   "papirkurv.resultatGjenopprettet": "Відновлено {{sjekklister}} контрольних списків і {{oppgaver}} завдань.",
+  "papirkurv.forhandsvisTittel": "Попередній перегляд",
+  "papirkurv.forhandsvisTomt": "Цей документ не має вмісту для показу.",
   "hjelp.papirkurv.tekst": "Deleted checklists and tasks live here. The creator sees their own; project admins see all in the project. Restore puts the document back with the same status it had before deletion. Delete permanently removes it before the 90-day deadline (project admins only). After 90 days the document is deleted automatically.",
   "timer.tittel": "Реєстрація часу",
   "timer.dagsseddel": "Табель обліку робочого часу",
