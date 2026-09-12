@@ -39,8 +39,8 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/sjekklister/[id]       -> Sjekkliste-detalj (utfylling + print)
 /dashbord/[prosjektId]/oppgaver               -> Oppgave-tabell
 /dashbord/[prosjektId]/oppgaver/[id]          -> Oppgave-detalj
-/dashbord/[prosjektId]/maler                  -> Mal-liste
-/dashbord/[prosjektId]/maler/[id]             -> Malbygger
+/dashbord/[prosjektId]/maler                  -> Mal-liste (lese-og-bruk). Opprettelse skjer IKKE her — mal-CRUD ligger i Oppsett › Produksjon (setter kategori/prefiks). «Hent fra arkiv»-knapp åpner `HentFraArkivModal` (firma-/SiteDoc-arkiv-faner, gatet av `arkivTilgang`). `feat/hent-fra-arkiv` 2026-09-12
+/dashbord/[prosjektId]/maler/[id]             -> Mal-lesevisning (IKKE malbygger). Redusert fra byggeren 2026-09-12 — bygging skjer i Oppsett › Produksjon. Begge inngangene overlever som lesevisning
 /dashbord/[prosjektId]/faggrupper             -> Faggruppe-liste (tabell m/opprett/rediger/slett-modaler, faggruppeNummer, org.nr, dokumenttellere). Erstatter den gamle «entrepriser»-ruten — «entreprise» er forbudt i ny kode
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id, filopplasting m/fremdriftsindikator via XMLHttpRequest progress)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
@@ -215,6 +215,8 @@ Oppgaver og sjekklister opprettes med **maks 2 klikk før utfylling** (ideal 1).
 **Flyt-gruppert mal-velger:** ved flere registrator-flyter grupperes velgeren per dokumentflyt (flyt = overskrift v/≥2, maler under) — klikk entydig, ingen steg-2. Klient-side invertering av `mal.opprettbareFlytIder`.
 
 **pkt 0 — tilgjengelighets-filter (server, delt kilde):** `mal.hentForProsjekt` (`api/routes/mal.ts`) returnerer additivt `opprettbar` + `opprettbareFlytIder`, utledet via `hentBrukersOpprettFlytMedlemskap` (`tilgangskontroll.ts` — SAMME fn opprett-valideringen avviser på). Velgeren + auto-hopp tilbyr KUN opprettbare maler; utilgjengelige skjules bak «vis utilgjengelige (N)» m/grunn. HMS-maler alltid opprettbare. **Ikke hard-filter** — mal-admin trenger alle. Mobil `MalVelger` arver samme kall. Bakgrunn: mal-velgeren tilbød maler som ble avvist ved innsending (Kenneth-mobiltest).
+
+**Malhenting fra arkiv (én modal, `feat/hent-fra-arkiv` 2026-09-12):** all henting av maler til et prosjekt går nå via `HentFraArkivModal` (`components/bibliotek/`) med to faner — Firmaarkiv og SiteDoc-arkiv — gatet av `arkivTilgang` (prosjektadmin: kun firmaarkiv; firmaadmin: begge; vanlig medlem: ingen; standalone-prosjekt m/`organizationId=null`: ingen SiteDoc-fane). Erstatter både «Importer fra firma»-dropdown-valget (foldet inn i modalen) og det gamle **`BibliotekPanel.tsx` som er SLETTET** — det bar to-nivå-hoppet arkiv→prosjekt, mot Kenneths vedtak «lån kun fra nivået rett over». 🔴 **Tilsiktet funksjonsbortfall:** prosjektadmin mister direkteimport fra NS 3420-biblioteket (vedtatt, ikke regresjon). Steg 3 versjonspublisering er egen runde.
 
 **Kontekst-chip-linje i utfyllingsmodus:** `DokumentKontekstChipLinje` (`components/kontekst-chip/`, delt m/ P4c timer, bygd på hevede trakt-primitiver fra `KontekstChip`) viser prosjekt · byggeplass · faggruppe · mal øverst på detaljsiden. Byggeplass/faggruppe = velgere (overstyring via eksisterende `oppdater`-mutasjon; faggruppe kun i utkast). Redigerbar tittel (blyant → input, Enter/blur lagrer). **Mal-chip = display-only** — malbytte etter opprettelse krever ny server-mutasjon (`templateId`-bytte + sjekkpunkt-migrering), backlogget som egen sak.
 
