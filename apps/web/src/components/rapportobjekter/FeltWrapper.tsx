@@ -3,6 +3,7 @@ import { Plus, Info, Globe, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
 import { harMeningsfullLabel } from "@sitedoc/pdf";
+import { Tooltip } from "@sitedoc/ui";
 import type { Vedlegg, Tilfoyelse } from "./typer";
 import { FeltDokumentasjon } from "./FeltDokumentasjon";
 import { tilbehorVisning } from "./RapportObjektRenderer";
@@ -99,16 +100,27 @@ export function FeltWrapper({
             {t("malbygger.paakrevd")}
           </span>
         )}
+        {/* Delt Tooltip (portal + z-[9999] + break-words): bryter riktig, klippes aldri av
+            scroll-container, og åpner mot høyre så den ikke skjules bak venstre sidefelt.
+            Bredere tak (max-w-[400px]) fordi hjelpeteksten + den oversatte varianten kan bli
+            lang; de korte etikett-tooltipsene ellers i appen beholder default 280px. Den
+            oversatte hjelpeteksten ligger i hover-boksen under en skillelinje (Kenneth-vedtak
+            2026-09-11: skjult til noen spør), kun når oversettelse er aktiv. */}
         {typeof objekt.config.helpText === "string" && objekt.config.helpText && (
-          <span className="group relative">
+          <Tooltip
+            tekst={objekt.config.helpText}
+            side="right"
+            maxBreddeKlasse="max-w-[400px]"
+            innhold={
+              visOversettelse && oversattHjelpetekst ? (
+                <span className="mt-1 block border-t border-gray-600 pt-1 italic text-blue-300">
+                  {oversattHjelpetekst}
+                </span>
+              ) : undefined
+            }
+          >
             <Info size={14} className="text-blue-400" />
-            <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden w-56 -translate-x-1/2 rounded bg-gray-800 px-2.5 py-1.5 text-xs text-white shadow-lg group-hover:block">
-              {objekt.config.helpText as string}
-              {visOversettelse && oversattHjelpetekst && (
-                <span className="mt-1 block border-t border-gray-600 pt-1 italic text-blue-300">{oversattHjelpetekst}</span>
-              )}
-            </span>
-          </span>
+          </Tooltip>
         )}
         {visOversettKnapp && !standardLabel && (
           <button
