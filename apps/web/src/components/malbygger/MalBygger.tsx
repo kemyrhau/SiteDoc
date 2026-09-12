@@ -31,6 +31,7 @@ import { FeltKonfigurasjon } from "./FeltKonfigurasjon";
 import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
+import { useMalDatakilde, tilMalObjekt, type MalNivaa } from "./useMalDatakilde";
 import { MapPin, Pencil, FileText, Eye, EyeOff, AlertTriangle, Globe, Check, Building2, RefreshCw } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
@@ -74,6 +75,9 @@ interface MalData {
 
 interface MalByggerProps {
   mal: MalData;
+  // Nivå styrer KUN hvilket datalag objekt-CRUD-en går mot (Krav 1). Skjermbildet er
+  // identisk. Default "prosjekt" = uendret oppførsel (referansen).
+  nivaa?: MalNivaa;
 }
 
 function hentZone(config: unknown): TemplateZone {
@@ -87,20 +91,6 @@ function hentZone(config: unknown): TemplateZone {
     return (config as Record<string, unknown>).zone as TemplateZone;
   }
   return "datafelter";
-}
-
-function tilMalObjekt(obj: MalData["objects"][number]): MalObjekt {
-  return {
-    id: obj.id,
-    type: obj.type,
-    label: obj.label,
-    required: obj.required,
-    sortOrder: obj.sortOrder,
-    config: typeof obj.config === "object" && obj.config !== null
-      ? (obj.config as Record<string, unknown>)
-      : {},
-    parentId: obj.parentId ?? null,
-  };
 }
 
 // Bygg trestruktur fra flat array
@@ -161,7 +151,7 @@ function erEtterkommer(objekter: MalObjekt[], objektId: string, muligForelderId:
   return false;
 }
 
-export function MalBygger({ mal }: MalByggerProps) {
+export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
   const { t } = useTranslation();
   const psiModus = mal.category === "psi";
   const utils = trpc.useUtils();
@@ -175,7 +165,25 @@ export function MalBygger({ mal }: MalByggerProps) {
   const [feilVisning, setFeilVisning] = useState<{ tittel: string; melding: string } | null>(null);
   const [visSpraakVelger, setVisSpraakVelger] = useState(false);
 
-  // PSI: hent psi-data (languages) via templateId
+  // Lokale objekter for optimistisk oppdatering
+  const [objekter, setObjekter] = useState<MalObjekt[]>(
+    () => mal.objects.map(tilMalObjekt),
+  );
+
+  // Datalag parameterisert på nivå (Krav 1): prosjekt = trpc.mal.* (referanse, uendret),
+  // firma = trpc.firmamal.* (OrganizationTemplate). onSuccess/onError bakes i hooken.
+  const datakilde = useMalDatakilde({
+    nivaa,
+    malId: mal.id,
+    setObjekter,
+    onSlettFullfort: (slettetId) =>
+      setValgtId((cur) => (cur === slettetId ? null : cur)),
+    visFeil: (tittel, melding) => setFeilVisning({ tittel, melding }),
+    t,
+  });
+  const refetchMal = datakilde.refetch;
+
+  // PSI: hent psi-data (languages) via templateId. Kun prosjektnivå (firma har ingen PSI).
   const psiQuery = trpc.psi.hentForProsjekt.useQuery(
     { projectId: mal.projectId ?? "" },
     { enabled: psiModus && !!mal.projectId },
@@ -205,14 +213,9 @@ export function MalBygger({ mal }: MalByggerProps) {
   const [redigererNavn, setRedigererNavn] = useState(false);
   const [malNavn, setMalNavn] = useState(mal.name);
   const navnInputRef = useRef<HTMLInputElement>(null);
-  const oppdaterMalMutation = trpc.mal.oppdaterMal.useMutation({
-    onSuccess: () => {
-      utils.mal.hentMedId.invalidate({ id: mal.id });
-      utils.mal.hentForProsjekt.invalidate();
-    },
-  });
 
-  // Malarkiv (AM4 steg 3) — promotering + firma-avstamnings-badges. Ikke for PSI.
+  // Malarkiv (AM4 steg 3) — promotering + firma-avstamnings-badges. Kun prosjektnivå
+  // (firmamalen ER arkivet — den promoteres ikke opp fra seg selv). Gates av mal.projectId.
   const [firmaFeil, setFirmaFeil] = useState<string | null>(null);
   // Guard: én signaturliste pr. mal (SJA/HMS-runder keyer til dokumentet, ikke
   // feltet — to lister ville delt runder/deltakere). Klartekst, ikke grået knapp.
@@ -244,17 +247,12 @@ export function MalBygger({ mal }: MalByggerProps) {
   const lagreNavn = useCallback(() => {
     const trimmet = malNavn.trim();
     if (trimmet && trimmet !== mal.name) {
-      oppdaterMalMutation.mutate({ id: mal.id, name: trimmet });
+      datakilde.oppdaterMal.mutate({ id: mal.id, name: trimmet });
     } else {
       setMalNavn(mal.name);
     }
     setRedigererNavn(false);
-  }, [malNavn, mal.name, mal.id, oppdaterMalMutation]);
-
-  // Lokale objekter for optimistisk oppdatering
-  const [objekter, setObjekter] = useState<MalObjekt[]>(
-    () => mal.objects.map(tilMalObjekt),
-  );
+  }, [malNavn, mal.name, mal.id, datakilde]);
 
   // Bygg trestruktur
   const rotObjekter = useMemo(() => {
@@ -268,69 +266,6 @@ export function MalBygger({ mal }: MalByggerProps) {
 
   // Valgt objekt for konfigurasjon
   const valgtObjekt = valgtId ? objekter.find((o) => o.id === valgtId) ?? null : null;
-
-  // Refetch-hjelper
-  const refetchMal = useCallback(async () => {
-    const oppdatert = await utils.mal.hentMedId.fetch({ id: mal.id });
-    if (oppdatert) {
-      setObjekter(
-        (oppdatert.objects as MalData["objects"]).map(tilMalObjekt),
-      );
-    }
-  }, [utils.mal.hentMedId, mal.id]);
-
-  // tRPC-mutasjoner
-  const leggTilMutation = trpc.mal.leggTilObjekt.useMutation({
-    onSuccess: () => { refetchMal(); },
-  });
-
-  const slettMutation = trpc.mal.slettObjekt.useMutation({
-    onSuccess: (_data: unknown, variabler: { id: string }) => {
-      setObjekter((prev) => prev.filter((o) => o.id !== variabler.id));
-      if (valgtId === variabler.id) setValgtId(null);
-    },
-    onError: (error: { message?: string }) => {
-      // Sletting feilet server-side (typisk: feltet er i bruk). `utførSlett` fjernet
-      // optimistisk — hent malen på nytt så objektet kommer tilbake, og VIS serverens
-      // forklaring. Kenneth-funn: stille rollback fikk brukeren til å tro slettingen
-      // virket, og oppdaget det først ved neste refresh.
-      setFeilVisning({
-        tittel: t("malbygger.slettFeiletTittel"),
-        melding: error.message ?? t("malbygger.slettFeiletTittel"),
-      });
-      refetchMal();
-    },
-  });
-
-  const oppdaterRekkefølgeMutation = trpc.mal.oppdaterRekkefølge.useMutation({
-    onError: (error: { message?: string }) => {
-      // Endringsvern (2026-09-07): en flytting (parentId/zone) av et felt i bruk nektes
-      // server-side. handleDragEnd oppdaterer treet optimistisk — vis serverens forklaring
-      // og hent malen på nytt så feltet snapper tilbake dit det lå. Uten dette ble en nektet
-      // drag stum og feltet ble stående i ny posisjon lokalt (samme funn som slett/oppdater).
-      setFeilVisning({
-        tittel: t("malbygger.endringSperretTittel"),
-        melding: error.message ?? t("malbygger.endringSperretTittel"),
-      });
-      refetchMal();
-    },
-  });
-
-  const oppdaterObjektMutation = trpc.mal.oppdaterObjekt.useMutation({
-    onSuccess: () => { refetchMal(); },
-    onError: (error: { message?: string }) => {
-      // Endringsvern (2026-09-07): et krav som er målt mot i et aktivt dokument kan ikke
-      // endres (server-guard). Handlerne oppdaterer objektet optimistisk før mutate — vis
-      // serverens forklaring og hent malen på nytt så feltet viser den LAGREDE verdien igjen,
-      // ikke den brukeren skrev. Kenneth-funn: stille rollback fikk brukeren til å tro at
-      // sifferet var lagret (samme funn som slett:onError, andre dør).
-      setFeilVisning({
-        tittel: t("malbygger.endringSperretTittel"),
-        melding: error.message ?? t("malbygger.endringSperretTittel"),
-      });
-      refetchMal();
-    },
-  });
 
   // Sensorer
   const sensors = useSensors(
@@ -399,7 +334,7 @@ export function MalBygger({ mal }: MalByggerProps) {
       const førsteOpsjon = råOpsjoner[0];
       if (førsteOpsjon) {
         const førsteVerdi = opsjonTilStreng(førsteOpsjon);
-        oppdaterObjektMutation.mutate({
+        datakilde.oppdaterObjekt.mutate({
           id: parentId,
           config: {
             ...forelder.config,
@@ -433,7 +368,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 
     const forelder = objekter.find((o) => o.id === parentId);
     if (forelder) {
-      oppdaterObjektMutation.mutate({
+      datakilde.oppdaterObjekt.mutate({
         id: parentId,
         config: {
           ...forelder.config,
@@ -463,7 +398,7 @@ export function MalBygger({ mal }: MalByggerProps) {
     const forelder = objekter.find((o) => o.id === parentId);
     if (forelder) {
       const { conditionActive: _, conditionValues: __, conditionType: ___, ...restConfig } = forelder.config;
-      oppdaterObjektMutation.mutate({
+      datakilde.oppdaterObjekt.mutate({
         id: parentId,
         config: restConfig,
       });
@@ -472,7 +407,7 @@ export function MalBygger({ mal }: MalByggerProps) {
     // Frigjør barn fra kontainer (nullstill parentId)
     const barn = objekter.filter((o) => o.parentId === parentId);
     for (const b of barn) {
-      oppdaterObjektMutation.mutate({
+      datakilde.oppdaterObjekt.mutate({
         id: b.id,
         parentId: null,
       });
@@ -496,7 +431,7 @@ export function MalBygger({ mal }: MalByggerProps) {
     );
     const forelder = objekter.find((o) => o.id === objektId);
     if (forelder) {
-      oppdaterObjektMutation.mutate({
+      datakilde.oppdaterObjekt.mutate({
         id: objektId,
         config: { ...forelder.config, conditionActive: true, conditionType: "utenfor_krav" },
       });
@@ -513,7 +448,7 @@ export function MalBygger({ mal }: MalByggerProps) {
       });
     });
 
-    oppdaterObjektMutation.mutate({
+    datakilde.oppdaterObjekt.mutate({
       id: barnId,
       parentId: null,
     });
@@ -578,7 +513,7 @@ export function MalBygger({ mal }: MalByggerProps) {
 
       const nyConfig: Record<string, unknown> = { ...meta.defaultConfig, zone: målSone };
 
-      leggTilMutation.mutate({
+      datakilde.leggTilObjekt.mutate({
         templateId: mal.id,
         type,
         label: meta.label,
@@ -707,7 +642,7 @@ export function MalBygger({ mal }: MalByggerProps) {
             parentId: o.parentId,
           };
         });
-        oppdaterRekkefølgeMutation.mutate({ objekter: oppdateringer });
+        datakilde.oppdaterRekkefolge.mutate({ objekter: oppdateringer });
 
         return neste;
       });
@@ -729,7 +664,7 @@ export function MalBygger({ mal }: MalByggerProps) {
     setObjekter((prev) => prev.filter((o) => !sletteIder.has(o.id)));
     if (valgtId && sletteIder.has(valgtId)) setValgtId(null);
 
-    slettMutation.mutate({ id });
+    datakilde.slettObjekt.mutate({ id });
     setSlettBekreftelse(null);
   }
 
@@ -739,7 +674,7 @@ export function MalBygger({ mal }: MalByggerProps) {
     config: Record<string, unknown>;
   }) {
     if (!valgtId) return;
-    oppdaterObjektMutation.mutate({
+    datakilde.oppdaterObjekt.mutate({
       id: valgtId,
       label: data.label,
       required: data.required,
@@ -954,12 +889,12 @@ export function MalBygger({ mal }: MalByggerProps) {
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === "") {
-                          oppdaterMalMutation.mutate({ id: mal.id, subjects: [] });
+                          datakilde.oppdaterMal.mutate({ id: mal.id, subjects: [] });
                         } else if (val === "egendefinert") {
                           // Behold eksisterende
                         } else {
                           const kat = EMNE_KATEGORIER[val as EmneKategori];
-                          if (kat) oppdaterMalMutation.mutate({ id: mal.id, subjects: kat.emner });
+                          if (kat) datakilde.oppdaterMal.mutate({ id: mal.id, subjects: kat.emner });
                         }
                       }}
                       className="ml-auto rounded border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-600 focus:border-blue-500 focus:outline-none"
@@ -979,7 +914,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                   )}
                   <button
                     type="button"
-                    onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showSubject: !(mal.showSubject !== false) })}
+                    onClick={() => datakilde.oppdaterMal.mutate({ id: mal.id, showSubject: !(mal.showSubject !== false) })}
                     className={`${mal.showSubject !== false ? "" : "ml-auto"} rounded p-1 hover:bg-gray-200`}
                     title={mal.showSubject === false ? t("malbygger.visEmneFelt") : t("malbygger.skjulEmneFelt")}
                   >
@@ -999,7 +934,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                           type="button"
                           onClick={() => {
                             const nyListe = (mal.subjects as unknown[]).filter((_, j) => j !== i).map(String);
-                            oppdaterMalMutation.mutate({ id: mal.id, subjects: nyListe });
+                            datakilde.oppdaterMal.mutate({ id: mal.id, subjects: nyListe });
                           }}
                           className="text-gray-400 hover:text-red-500"
                         >×</button>
@@ -1021,7 +956,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showLocation: !(mal.showLocation !== false) })}
+                  onClick={() => datakilde.oppdaterMal.mutate({ id: mal.id, showLocation: !(mal.showLocation !== false) })}
                   className="ml-auto rounded p-1 hover:bg-gray-200"
                   title={mal.showLocation === false ? t("malbygger.visLokasjonFelt") : t("malbygger.skjulLokasjonFelt")}
                 >
@@ -1041,7 +976,7 @@ export function MalBygger({ mal }: MalByggerProps) {
                   </span>
                   <button
                     type="button"
-                    onClick={() => oppdaterMalMutation.mutate({ id: mal.id, showPriority: !(mal.showPriority !== false) })}
+                    onClick={() => datakilde.oppdaterMal.mutate({ id: mal.id, showPriority: !(mal.showPriority !== false) })}
                     className="ml-auto rounded p-1 hover:bg-gray-200"
                     title={mal.showPriority === false ? t("malbygger.visPrioritetFelt") : t("malbygger.skjulPrioritetFelt")}
                   >
@@ -1096,7 +1031,7 @@ export function MalBygger({ mal }: MalByggerProps) {
           objekt={valgtObjekt}
           alleObjekter={objekter}
           onLagre={handleLagreKonfig}
-          erLagrer={oppdaterObjektMutation.isPending}
+          erLagrer={datakilde.oppdaterObjekt.isPending}
           onFjernBetingelse={handleFjernBetingelse}
           onFjernBarnFraKontainer={handleFjernBarnFraKontainer}
           onSettUtenforKrav={handleSettUtenforKrav}
@@ -1115,6 +1050,7 @@ export function MalBygger({ mal }: MalByggerProps) {
         <SlettBekreftelse
           id={slettBekreftelse.id}
           label={slettBekreftelse.label}
+          nivaa={nivaa}
           onBekreft={() => utførSlett(slettBekreftelse.id)}
           onAvbryt={() => setSlettBekreftelse(null)}
         />
@@ -1332,23 +1268,33 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
 function SlettBekreftelse({
   id,
   label,
+  nivaa,
   onBekreft,
   onAvbryt,
 }: {
   id: string;
   label: string;
+  nivaa: MalNivaa;
   onBekreft: () => void;
   onAvbryt: () => void;
 }) {
   const { t } = useTranslation();
-  const { data, isLoading } = trpc.mal.sjekkObjektBruk.useQuery({ id });
+  // Firmamal-objekter bærer ingen dokumentdata (Krav 2) → ingen bruks-sjekk, ingen lås.
+  // Query kjøres kun på prosjektnivå (der finnes sjekkObjektBruk og faktisk innhold).
+  const erFirma = nivaa === "firma";
+  const { data, isLoading } = trpc.mal.sjekkObjektBruk.useQuery(
+    { id },
+    { enabled: !erFirma },
+  );
 
-  const harBruk = data && (data.sjekklister.length > 0 || data.oppgaver.length > 0);
+  const harBruk =
+    !erFirma && data && (data.sjekklister.length > 0 || data.oppgaver.length > 0);
+  const laster = !erFirma && isLoading;
 
   return (
     <Modal open={true} title={t("malbygger.slettFelt", { label })} onClose={onAvbryt}>
       <div className="space-y-4">
-        {isLoading ? (
+        {laster ? (
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Spinner size="sm" />
             {t("malbygger.sjekkerBruk")}
@@ -1425,7 +1371,7 @@ function SlettBekreftelse({
             <Button
               variant="danger"
               onClick={onBekreft}
-              disabled={isLoading}
+              disabled={laster}
             >
               {t("handling.slett")}
             </Button>

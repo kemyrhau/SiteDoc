@@ -4,6 +4,26 @@
 
 Dalux-stil malbygger med dnd-kit. 9 komponenter, ~1900 linjer. Tre-kolonne layout: FeltPalett (venstre) → DropSoner (midten) → FeltKonfigurasjon (høyre).
 
+## Nivå-parameterisering (`nivaa`-prop, ordre malbygger-tre-nivaa)
+
+Samme MalBygger brukes på to nivåer: **prosjekt** (`trpc.mal.*` → `ReportTemplate`,
+referansen — uendret oppførsel) og **firma** (`trpc.firmamal.*` → `OrganizationTemplate`,
+firmaarkivet). Skjermbildet er IDENTISK; det eneste som skiller dem er datalaget.
+
+- `nivaa?: MalNivaa` på `MalBygger` (default `"prosjekt"`). Firma-inngang:
+  `dashbord/firma/malarkiv/[malId]/page.tsx` (klikk malnavnet i malarkiv-lista).
+- **`useMalDatakilde.ts`** kapsler skillet: begge routernes `useMutation` opprettes (hooks
+  kan ikke kalles betinget; ubrukt mutasjon er inert), det aktive nivået velges, og
+  onSuccess/onError (refetch + feil-modal) bakes i hooken — som før, ikke per-kall.
+- **Ikke nivå-felles, blir IGJEN på prosjektnivå:** PSI-oversettelse (`psiModus`) og
+  firmamal-promotering (`mal.projectId`) — gates uendret, skjules for firma.
+- **Firma har INGEN objektlås** (Krav 2): `OrganizationTemplateObject` bærer ingen
+  dokumentdata (ingen Checklist/Task peker dit), så `slettObjekt` sletter fritt og
+  `SlettBekreftelse` hopper over `sjekkObjektBruk` når `nivaa === "firma"`.
+- **Nivå→rettighet ligger ETT sted:** `autoriserMalTilgang` (tilgangskontroll.ts) —
+  matrisen (arkiv-nivå × les/rediger). Firma-objekt-CRUD gater firma+rediger;
+  `firmamal.listeForProsjekt` gater firma+les (prosjektadmin låner ett nivå opp).
+
 ## Komponenthierarki
 
 ```

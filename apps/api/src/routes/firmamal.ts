@@ -25,13 +25,41 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
+import type { PrismaClient } from "@sitedoc/db";
+import { reportObjectTypeSchema, templateZoneSchema } from "@sitedoc/shared";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   autoriserAdminForFirma,
   verifiserAdmin,
   erFirmaAdminForProsjekt,
+  autoriserMalTilgang,
 } from "../trpc/tilgangskontroll";
 import { finnLedigeMalVerdier } from "./mal";
+
+// Config-schema (som mal.ts): vilkårlig JSON for rapportobjekt-konfigurasjon.
+const configSchema = z.preprocess(
+  (val) => val,
+  z.record(z.string(), z.unknown()),
+) as z.ZodType<Record<string, unknown>>;
+
+// Firma-objektredigering går gjennom matrisen (Krav 3): firma-arkiv + rediger. Resolver
+// firmaet fra objektets template og gater. Ett sted for nivå→rettighet — en framtidig
+// rettighetsmatrise byttes i autoriserMalTilgang, ikke her.
+async function autoriserFirmaObjektRedigering(
+  prisma: PrismaClient,
+  userId: string,
+  templateId: string,
+): Promise<void> {
+  const mal = await prisma.organizationTemplate.findUniqueOrThrow({
+    where: { id: templateId },
+    select: { organizationId: true },
+  });
+  await autoriserMalTilgang(userId, {
+    nivaa: "firma",
+    handling: "rediger",
+    organizationId: mal.organizationId,
+  });
+}
 
 // Faner (L9). Firmaarkivet blander aldri de tre kategoriene i én liste.
 //  - oppgave: category="oppgave"
@@ -282,6 +310,10 @@ export const firmamalRouter = router({
         subdomain: z.string().max(40).nullable().optional(),
         hmsSynlighet: z.enum(["privat", "apen"]).nullable().optional(),
         subjects: z.array(z.string()).optional(),
+        // Faste-felt-brytere fra malbyggeren (samme sett som mal.oppdaterMal på prosjektnivå).
+        showSubject: z.boolean().optional(),
+        showLocation: z.boolean().optional(),
+        showPriority: z.boolean().optional(),
         standardForNyeProsjekter: z.boolean().optional(),
       }),
     )
@@ -303,6 +335,9 @@ export const firmamalRouter = router({
           ...(input.subjects !== undefined
             ? { subjects: input.subjects as Prisma.InputJsonValue }
             : {}),
+          ...(input.showSubject !== undefined ? { showSubject: input.showSubject } : {}),
+          ...(input.showLocation !== undefined ? { showLocation: input.showLocation } : {}),
+          ...(input.showPriority !== undefined ? { showPriority: input.showPriority } : {}),
           ...(input.standardForNyeProsjekter !== undefined
             ? { standardForNyeProsjekter: input.standardForNyeProsjekter }
             : {}),
@@ -311,6 +346,124 @@ export const firmamalRouter = router({
         select: { id: true },
       });
       return { id: input.id };
+    }),
+
+  /* --- Objekt-CRUD på firmamalens tre (MalBygger i firma-modus, L8) ---------------
+   * Speiler mal.ts (mal.leggTilObjekt/oppdaterObjekt/oppdaterRekkefølge/slettObjekt), men
+   * mot OrganizationTemplateObject. INGEN endringsvern og INGEN slett-vern: ingen
+   * Checklist/Task peker på firmamal-objekter (målt — kommentar i oppdaterFraSentralarkiv),
+   * så firmamalen er fritt redigerbar (Krav 2). Auth: firma-arkiv + rediger via matrisen. */
+
+  leggTilObjekt: protectedProcedure
+    .input(
+      z.object({
+        templateId: z.string().uuid(),
+        type: reportObjectTypeSchema,
+        label: z.string().min(1),
+        config: configSchema.default({}),
+        sortOrder: z.number().int().min(0),
+        required: z.boolean().default(false),
+        parentId: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserFirmaObjektRedigering(ctx.prisma, ctx.userId, input.templateId);
+      const { parentId, ...rest } = input;
+      return ctx.prisma.organizationTemplateObject.create({
+        data: {
+          ...rest,
+          config: rest.config as Prisma.InputJsonValue,
+          ...(parentId !== undefined ? { parentId } : {}),
+        },
+      });
+    }),
+
+  oppdaterObjekt: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        // Tom streng er en gyldig, ønsket verdi (navnløst felt) — som mal.oppdaterObjekt.
+        label: z.string().optional(),
+        required: z.boolean().optional(),
+        config: configSchema.optional(),
+        parentId: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const objekt = await ctx.prisma.organizationTemplateObject.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { templateId: true },
+      });
+      await autoriserFirmaObjektRedigering(ctx.prisma, ctx.userId, objekt.templateId);
+      const { id, config, parentId, ...rest } = input;
+      return ctx.prisma.organizationTemplateObject.update({
+        where: { id },
+        data: {
+          ...rest,
+          ...(config !== undefined ? { config: config as Prisma.InputJsonValue } : {}),
+          ...(parentId !== undefined ? { parentId } : {}),
+        },
+      });
+    }),
+
+  oppdaterRekkefolge: protectedProcedure
+    .input(
+      z.object({
+        objekter: z.array(
+          z.object({
+            id: z.string().uuid(),
+            sortOrder: z.number().int().min(0),
+            zone: templateZoneSchema.optional(),
+            parentId: z.string().uuid().nullable().optional(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const forste = input.objekter[0];
+      if (!forste) return [];
+      const objekt = await ctx.prisma.organizationTemplateObject.findUniqueOrThrow({
+        where: { id: forste.id },
+        select: { templateId: true },
+      });
+      await autoriserFirmaObjektRedigering(ctx.prisma, ctx.userId, objekt.templateId);
+      return ctx.prisma.$transaction(async (tx) => {
+        const resultater = [];
+        for (const obj of input.objekter) {
+          const oppdatering: Record<string, unknown> = { sortOrder: obj.sortOrder };
+          if (obj.parentId !== undefined) oppdatering.parentId = obj.parentId;
+          if (obj.zone) {
+            const eksisterende = await tx.organizationTemplateObject.findUniqueOrThrow({
+              where: { id: obj.id },
+            });
+            const eksisterendeConfig =
+              typeof eksisterende.config === "object" && eksisterende.config !== null
+                ? (eksisterende.config as Record<string, unknown>)
+                : {};
+            oppdatering.config = {
+              ...eksisterendeConfig,
+              zone: obj.zone,
+            } as Prisma.InputJsonValue;
+          }
+          resultater.push(
+            await tx.organizationTemplateObject.update({ where: { id: obj.id }, data: oppdatering }),
+          );
+        }
+        return resultater;
+      });
+    }),
+
+  slettObjekt: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const objekt = await ctx.prisma.organizationTemplateObject.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { templateId: true },
+      });
+      await autoriserFirmaObjektRedigering(ctx.prisma, ctx.userId, objekt.templateId);
+      // Ingen slett-vern: firmamal-objekter bærer ingen dokumentdata (Krav 2). CASCADE
+      // fjerner barn (schema OrgObjektHierarki onDelete: Cascade).
+      return ctx.prisma.organizationTemplateObject.delete({ where: { id: input.id } });
     }),
 
   /**
@@ -509,7 +662,13 @@ export const firmamalRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
+      // Prosjektadmin låner ETT nivå opp: firma+les via matrisen (TILLEGG 1). Firma-
+      // isolasjonen håndheves under (kun prosjektets egne org-ider returneres).
+      await autoriserMalTilgang(ctx.userId, {
+        nivaa: "firma",
+        handling: "les",
+        viaProjectId: input.projectId,
+      });
 
       const orgIder = new Set<string>();
       const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
