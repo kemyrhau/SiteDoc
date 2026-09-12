@@ -70,6 +70,7 @@ const UNNTAK: { test: (r: string) => boolean; grunn: string }[] = [
   { test: (r) => r === "/dashbord/oppsett/produksjon", grunn: "parent-node (O3)" },
   { test: (r) => r === "/dashbord/oppsett/produksjon/kontakter", grunn: "redirect → dokumentflyt (K6/O5)" },
   { test: (r) => r === "/dashbord/[prosjektId]/timer/godkjenning", grunn: "redirect → attestering (P27)" },
+  { test: (r) => r === "/dashbord/[prosjektId]/maler", grunn: "redirect → oppsett/produksjon/sjekklistemaler (Rapportmaler-flata fjernet, vei b 2026-09-12)" },
   { test: (r) => r === "/dashbord/firma/timer/onboarding", grunn: "redirect → firma/timer (innhold flyttet til timer-hjem)" },
   { test: (r) => r === "/dashbord/firma/oppsett", grunn: "firma-onboarding-veiviser (handling-flate, nås via banner på /dashbord/firma + kom-i-gang; forsvinner når fullført)" },
   { test: (r) => r === "/dashbord/[prosjektId]/dokumentleser", grunn: "reader uten nav-hjem — ekskludert v1 (K13-d)" },

@@ -92,50 +92,74 @@ export function HentFraArkivModal({
     _count: { objects: number };
   };
   type SentralMal = { id: string; navn: string; referanse: string; versjon: string };
+  type SentralKapittel = { id: string; kode: string; navn: string; maler: SentralMal[] };
+  type SentralStandard = { id: string; kode: string; kapitler: SentralKapittel[] };
 
   const firmaListe = (firmamaler.data ?? []) as FirmaMal[];
-  const sentralMaler: SentralMal[] = (
-    (standarder.data ?? []) as Array<{
-      kapitler: Array<{ maler: SentralMal[] }>;
-    }>
-  ).flatMap((s) => s.kapitler.flatMap((k) => k.maler));
+  const sentralStandarder = (standarder.data ?? []) as SentralStandard[];
 
-  const firmaRader: ArkivRad[] = firmaListe.map((fm) => ({
-    id: fm.id,
-    navn: fm.name,
-    meta: [
-      t("maler.arkiv.kildeFirma"),
-      t(`maler.domain.${fm.domain}`),
-      `v${fm.version}`,
-      t("maler.firmaarkiv.punkter", { antall: fm._count.objects }),
-    ].join(" · "),
-    hentet: hentetFirma.has(fm.id),
-    laster: kopierMutation.isPending && aktivRad === fm.id,
-    hentTekst: t("maler.arkiv.hentKopi"),
-    hentetTekst: t("maler.arkiv.hentetTilProsjekt"),
-    onHent: () => {
-      setAktivRad(fm.id);
-      setFeil(null);
-      kopierMutation.mutate({ organizationTemplateId: fm.id, projectId });
-    },
+  function byggFirmaRad(fm: FirmaMal): ArkivRad {
+    return {
+      id: fm.id,
+      navn: fm.name,
+      meta: [
+        t("maler.arkiv.kildeFirma"),
+        t(`maler.domain.${fm.domain}`),
+        `v${fm.version}`,
+        t("maler.firmaarkiv.punkter", { antall: fm._count.objects }),
+      ].join(" · "),
+      hentet: hentetFirma.has(fm.id),
+      laster: kopierMutation.isPending && aktivRad === fm.id,
+      hentTekst: t("maler.arkiv.hentKopi"),
+      hentetTekst: t("maler.arkiv.hentetTilProsjekt"),
+      onHent: () => {
+        setAktivRad(fm.id);
+        setFeil(null);
+        kopierMutation.mutate({ organizationTemplateId: fm.id, projectId });
+      },
+    };
+  }
+
+  function byggSitedocRad(m: SentralMal): ArkivRad {
+    return {
+      id: m.id,
+      navn: m.navn,
+      meta: [t("maler.arkiv.kildeSitedoc"), m.referanse, `v${m.versjon}`].join(" · "),
+      hentet: hentetSitedoc.has(m.id),
+      laster: laanMutation.isPending && aktivRad === m.id,
+      hentTekst: t("maler.arkiv.hentKopiTilFirma"),
+      hentetTekst: t("maler.arkiv.hentetTilFirma"),
+      deaktivert: !organizationId,
+      onHent: () => {
+        if (!organizationId) return;
+        setAktivRad(m.id);
+        setFeil(null);
+        laanMutation.mutate({ organizationId, bibliotekMalId: m.id });
+      },
+    };
+  }
+
+  // Firmaarkiv har ingen kapittelkobling (OrganizationTemplate mangler den). Grupperer
+  // derfor på fagområde (domain) — den eneste ekte akselen i dataene (meldt i rapport).
+  const firmaDomener = [...new Set(firmaListe.map((fm) => fm.domain))];
+  const firmaGrupper: ArkivGruppe[] = firmaDomener.map((domain) => ({
+    key: domain,
+    tittel: t(`maler.domain.${domain}`),
+    rader: firmaListe.filter((fm) => fm.domain === domain).map(byggFirmaRad),
   }));
 
-  const sitedocRader: ArkivRad[] = sentralMaler.map((m) => ({
-    id: m.id,
-    navn: m.navn,
-    meta: [t("maler.arkiv.kildeSitedoc"), m.referanse, `v${m.versjon}`].join(" · "),
-    hentet: hentetSitedoc.has(m.id),
-    laster: laanMutation.isPending && aktivRad === m.id,
-    hentTekst: t("maler.arkiv.hentKopiTilFirma"),
-    hentetTekst: t("maler.arkiv.hentetTilFirma"),
-    deaktivert: !organizationId,
-    onHent: () => {
-      if (!organizationId) return;
-      setAktivRad(m.id);
-      setFeil(null);
-      laanMutation.mutate({ organizationId, bibliotekMalId: m.id });
-    },
-  }));
+  // SiteDoc-arkivet: nøstet standard → kapittel finnes allerede i dataene. Viser
+  // kapitteloverskrifter (Kenneth-funn) så 20-30 kapitler ikke blir én lang, flat liste.
+  const sitedocGrupper: ArkivGruppe[] = sentralStandarder.flatMap((s) =>
+    s.kapitler
+      .filter((k) => k.maler.length > 0)
+      .map((k) => ({
+        key: k.id,
+        tittel: `${s.kode} · ${k.kode} ${k.navn}`,
+        rader: k.maler.map(byggSitedocRad),
+      })),
+  );
+  const sitedocAntall = sitedocGrupper.reduce((n, g) => n + g.rader.length, 0);
 
   function faneKnapp(id: "firma" | "sitedoc", label: string, laast: boolean) {
     const aktiv = aktivFane === id;
@@ -185,13 +209,13 @@ export function HentFraArkivModal({
         </div>
       ) : (
         <div className="mt-3">
-          {/* Firmaarkiv-fanen */}
+          {/* Firmaarkiv-fanen — gruppert på fagområde */}
           {aktivFane === "firma" && (
             <ArkivListe
               laster={firmamaler.isLoading}
               tom={firmaListe.length === 0}
               tomTekst={t("maler.arkiv.ingenFirma")}
-              rader={firmaRader}
+              grupper={firmaGrupper}
               fotnote={
                 kanSitedoc
                   ? t("maler.arkiv.fotFirmaRediger")
@@ -200,13 +224,13 @@ export function HentFraArkivModal({
             />
           )}
 
-          {/* SiteDoc-arkiv-fanen (firmaadmin+) */}
+          {/* SiteDoc-arkiv-fanen (firmaadmin+) — gruppert på standard → kapittel */}
           {aktivFane === "sitedoc" && kanSitedoc && (
             <ArkivListe
               laster={standarder.isLoading}
-              tom={sentralMaler.length === 0}
+              tom={sitedocAntall === 0}
               tomTekst={t("maler.arkiv.ingenSitedoc")}
-              rader={sitedocRader}
+              grupper={sitedocGrupper}
               fotnote={t("maler.arkiv.fotSitedoc")}
             />
           )}
@@ -232,17 +256,40 @@ type ArkivRad = {
   onHent: () => void;
 };
 
+type ArkivGruppe = { key: string; tittel: string; rader: ArkivRad[] };
+
+function ArkivRadElement({ r }: { r: ArkivRad }) {
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-gray-200 px-3.5 py-2.5">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium text-gray-900">{r.navn}</div>
+        <div className="truncate text-xs text-gray-400">{r.meta}</div>
+      </div>
+      {r.hentet ? (
+        <span className="flex flex-shrink-0 items-center gap-1 text-sm font-medium text-sitedoc-success">
+          <Check className="h-4 w-4" />
+          {r.hentetTekst}
+        </span>
+      ) : (
+        <Button variant="secondary" onClick={r.onHent} loading={r.laster} disabled={r.deaktivert}>
+          {r.hentTekst}
+        </Button>
+      )}
+    </li>
+  );
+}
+
 function ArkivListe({
   laster,
   tom,
   tomTekst,
-  rader,
+  grupper,
   fotnote,
 }: {
   laster: boolean;
   tom: boolean;
   tomTekst: string;
-  rader: ArkivRad[];
+  grupper: ArkivGruppe[];
   fotnote: string;
 }) {
   if (laster) {
@@ -255,36 +302,27 @@ function ArkivListe({
   if (tom) {
     return <p className="py-8 text-center text-sm text-gray-500">{tomTekst}</p>;
   }
+  // Overskrifter kun når det er mer enn én gruppe — én gruppe (typisk firmaarkiv med ett
+  // fagområde) trenger ingen overskrift, men SiteDoc-arkivets mange kapitler gjør (Krav 6).
+  const visOverskrifter = grupper.length > 1;
   return (
     <>
-      <ul className="max-h-[55vh] space-y-2 overflow-y-auto">
-        {rader.map((r) => (
-          <li
-            key={r.id}
-            className="flex items-center gap-3 rounded-lg border border-gray-200 px-3.5 py-2.5"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-gray-900">{r.navn}</div>
-              <div className="truncate text-xs text-gray-400">{r.meta}</div>
-            </div>
-            {r.hentet ? (
-              <span className="flex flex-shrink-0 items-center gap-1 text-sm font-medium text-sitedoc-success">
-                <Check className="h-4 w-4" />
-                {r.hentetTekst}
-              </span>
-            ) : (
-              <Button
-                variant="secondary"
-                onClick={r.onHent}
-                loading={r.laster}
-                disabled={r.deaktivert}
-              >
-                {r.hentTekst}
-              </Button>
+      <div className="max-h-[55vh] space-y-3 overflow-y-auto">
+        {grupper.map((g) => (
+          <div key={g.key}>
+            {visOverskrifter && (
+              <h4 className="sticky top-0 bg-white pb-1 pt-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                {g.tittel}
+              </h4>
             )}
-          </li>
+            <ul className="space-y-2">
+              {g.rader.map((r) => (
+                <ArkivRadElement key={r.id} r={r} />
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
       <p className="mt-3 text-xs text-gray-500">{fotnote}</p>
     </>
   );

@@ -6,7 +6,7 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Library, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download } from "lucide-react";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
@@ -444,18 +444,9 @@ export function MalListe({
           <DropdownItem disabled>{t("handling.eksporter")}</DropdownItem>
         </Dropdown>
 
-        {/* Søk + kryss-lenke til prosjekt-arbeidsflaten */}
+        {/* Søk. Kryss-lenken «Bruk i prosjekt» er fjernet — den pekte til
+            Rapportmaler-flata som er borte (vei b, 2026-09-12). */}
         <div className="ml-auto flex items-center gap-2">
-          {prosjektId && (
-            <button
-              type="button"
-              onClick={() => router.push(`/dashbord/${prosjektId}/maler`)}
-              className="inline-flex items-center gap-1 text-xs text-sitedoc-primary hover:underline"
-            >
-              <Library className="h-3.5 w-3.5" />
-              {t("maler.brukIProsjekt")}
-            </button>
-          )}
           <SearchInput
             verdi={sok}
             onChange={setSok}

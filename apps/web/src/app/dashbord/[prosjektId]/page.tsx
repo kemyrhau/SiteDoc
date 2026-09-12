@@ -89,7 +89,9 @@ export default function ProsjektOversikt() {
     {
       label: t("dashbord.maler"),
       verdi: prosjekt.templates.length,
-      href: `${basePath}/maler`,
+      // Rapportmaler-flata fjernet (vei b, 2026-09-12) — telleren består, destinasjonen
+      // er nå Oppsett › Produksjon der malene forvaltes.
+      href: `/dashbord/oppsett/produksjon/sjekklistemaler`,
     },
     {
       label: t("dashbord.medlemmer"),
