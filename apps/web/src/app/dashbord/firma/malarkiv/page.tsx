@@ -13,6 +13,7 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -32,6 +33,9 @@ export default function MalarkivSide() {
   const [visLaan, setVisLaan] = useState(false);
   const [redigerId, setRedigerId] = useState<string | null>(null);
   const [slettMal, setSlettMal] = useState<{ id: string; navn: string } | null>(null);
+  const [oppdaterArkivMal, setOppdaterArkivMal] = useState<{ id: string; navn: string } | null>(
+    null,
+  );
 
   const utils = trpc.useUtils();
   const { data: maler, isLoading } = trpc.firmamal.list.useQuery(
@@ -46,6 +50,12 @@ export default function MalarkivSide() {
     onSuccess: () => {
       utils.firmamal.list.invalidate();
       setSlettMal(null);
+    },
+  });
+  const oppdaterFraArkivMutation = trpc.firmamal.oppdaterFraSentralarkiv.useMutation({
+    onSuccess: () => {
+      utils.firmamal.list.invalidate();
+      setOppdaterArkivMal(null);
     },
   });
 
@@ -167,6 +177,17 @@ export default function MalarkivSide() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
+                      {mal.laantFraBibliotekMalId && (
+                        <button
+                          onClick={() =>
+                            setOppdaterArkivMal({ id: mal.id, navn: mal.name })
+                          }
+                          className="rounded p-1.5 text-gray-500 hover:bg-sitedoc-primary/10 hover:text-sitedoc-primary"
+                          title={t("firma.malarkiv.oppdaterFraArkiv")}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => setRedigerId(mal.id)}
                         className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
@@ -211,6 +232,33 @@ export default function MalarkivSide() {
           organizationId={orgId}
           onLukk={() => setVisLaan(false)}
         />
+      )}
+      {oppdaterArkivMal && (
+        <Modal
+          open
+          onClose={() => setOppdaterArkivMal(null)}
+          title={t("firma.malarkiv.oppdaterFraArkivTittel")}
+        >
+          <p className="text-sm text-gray-600">
+            {t("firma.malarkiv.oppdaterFraArkivBekreft", { navn: oppdaterArkivMal.navn })}
+          </p>
+          <p className="mt-2 text-xs text-gray-500">
+            {t("firma.malarkiv.oppdaterFraArkivKonsekvens")}
+          </p>
+          <div className="mt-4 flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setOppdaterArkivMal(null)}>
+              {t("handling.avbryt")}
+            </Button>
+            <Button
+              disabled={oppdaterFraArkivMutation.isPending}
+              onClick={() => oppdaterFraArkivMutation.mutate({ id: oppdaterArkivMal.id })}
+            >
+              {oppdaterFraArkivMutation.isPending
+                ? t("firma.malarkiv.oppdaterer")
+                : t("firma.malarkiv.oppdaterFraArkivKnapp")}
+            </Button>
+          </div>
+        </Modal>
       )}
       {slettMal && (
         <Modal open onClose={() => setSlettMal(null)} title={t("firma.malarkiv.slettTittel")}>
