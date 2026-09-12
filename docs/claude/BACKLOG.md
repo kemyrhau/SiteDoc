@@ -2359,7 +2359,9 @@ Etter fylling: kjør `pnpm dlx tsx src/i18n/generate.ts` fra `packages/shared`. 
 
 **Ordre-feil, ikke utfører-feil:** del6b pkt 5 listet fila i et web-punkt, mens pkt 6 + kjerneregelen sier «ingen mobil-filer, mobil er fase 2». redesign-Opus valgte regelen fremfor lista og flagget motsigelsen. Fabel: *«han valgte riktig — regelen slår lista når de motsier hverandre, og motsigelsen var min.»* Ført som ordre-feil i del6b-verifiseringsloggen. **Hører i fase 2 (mobil-løftet).**
 
-### 🟡 Mal-dualiteten er redundans, ikke to roller (redesign-Opus exit 2026-07-16)
+### ✅ Mal-dualiteten er redundans, ikke to roller (redesign-Opus exit 2026-07-16) — LUKKET `feat/hent-fra-arkiv` 2026-09-12
+
+**Lukket denne runden (fabels funn 4 + BACKLOG vei (a)):** `[prosjektId]/maler` er rendyrket til lese-og-bruk — «Ny mal»-modalen (den stille `category="sjekkliste"`-tvangen) er fjernet, `[malId]`-ruten er redusert til lesevisning (ikke lenger en andre inngang til MalBygger), og flata har fått «Hent fra arkiv». Opprettelse skjer nå kun i malbyggeren (Oppsett › Produksjon), som setter kategori/prefiks. To uavhengige analyser (fabel + denne raden) landet på samme vei.
 
 **Mistanke fra den eneste som har sett begge flatene innenfra.** Del6b pkt 4 antok «arbeidsflate vs konfig» og leverte copy + kryss-lenker (`297f5670`). Hans vurdering etter å ha bygget dem: *«et plaster over redundansen, ikke en oppløsning»*.
 
@@ -2369,7 +2371,7 @@ Begge er prosjekt-scopet `ReportTemplate`-CRUD mot samme `trpc.mal.*`. `[prosjek
 
 **Reell effekt i stedet:** flata **tvinger stille** `category="sjekkliste"` — den sender `{projectId, name, description}`, ingen category. Vil du lage en oppgavemal der, kan du ikke, og du får ingen tilbakemelding om hvorfor. `MalListe:293` filtrerer på `m.category === kategori`.
 
-**Ekte fiks (ikke gjort — datamodell-/router-nært, utenfor «kun copy»):** (a) rendyrk `[prosjektId]/maler` til lese-og-bruk, fjern CRUD, pek til oppsett — eller (b) fjern flata og fold inn i oppsett. **Mistanke, ikke funn.** `MalBygger.tsx` (stalest kode, 2026-04-17) sitter under alle tre flatene; har redundansen en rot, ligger den trolig der.
+**Ekte fiks (utført 2026-09-12 via `feat/hent-fra-arkiv`):** vei (a) — `[prosjektId]/maler` rendyrket til lese-og-bruk, CRUD fjernet, peker til oppsett. **Mistanken om `MalBygger.tsx` er målt og avkreftet:** ingen duplisert malbygger-komponent finnes — alle tre flatene (og alle fem `[malId]`-ruter) importerer samme `@/components/malbygger`. Redundansens rot var den fattige CRUD-flaten (nå fjernet), ikke byggeren.
 
 ### 🟡 Prosjekt-tilhørighet er avledet via `template.projectId`, ikke egen på instansen (redesign-Opus exit 2026-07-16)
 

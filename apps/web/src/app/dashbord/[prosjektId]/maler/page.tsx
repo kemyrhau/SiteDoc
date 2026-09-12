@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
-import { Button, Input, Textarea, Modal, Spinner, EmptyState, Badge, Table } from "@sitedoc/ui";
+import { Button, Spinner, EmptyState, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
-import { Plus, Settings2 } from "lucide-react";
+import { Download, Settings2 } from "lucide-react";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useTranslation } from "react-i18next";
+import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
 
 export default function MalerSide() {
   useToppbarFiltre({ byggeplass: false });
@@ -15,9 +16,7 @@ export default function MalerSide() {
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
-  const [visModal, setVisModal] = useState(false);
-  const [navn, setNavn] = useState("");
-  const [beskrivelse, setBeskrivelse] = useState("");
+  const [visHentArkiv, setVisHentArkiv] = useState(false);
 
   const { data: tillatelser, isLoading: lasterTillatelser } =
     trpc.gruppe.hentMineTillatelser.useQuery({ projectId: params.prosjektId });
@@ -29,34 +28,18 @@ export default function MalerSide() {
     { enabled: harTilgang },
   );
 
-  const opprettMutation = trpc.mal.opprett.useMutation({
-    onSuccess: () => {
-      utils.mal.hentForProsjekt.invalidate({ projectId: params.prosjektId });
-      setVisModal(false);
-      setNavn("");
-      setBeskrivelse("");
-    },
-  });
-
+  // Opprettelse skjer i malbyggeren (setter kategori/prefiks riktig) — ikke via en
+  // slank «Ny mal»-modal her (funn 4, fabel 2026-09-12). Arbeidsflatens add-vei er
+  // «Hent fra arkiv»; ny mal fra bunnen lages via «Administrer i malbygger».
   useVerktoylinje([
     {
-      id: "ny-mal",
-      label: t("maler.nyMal"),
-      ikon: <Plus className="h-4 w-4" />,
-      onClick: () => setVisModal(true),
+      id: "hent-arkiv",
+      label: t("maler.arkiv.tittel"),
+      ikon: <Download className="h-4 w-4" />,
+      onClick: () => setVisHentArkiv(true),
       variant: "primary",
     },
   ]);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!navn.trim()) return;
-    opprettMutation.mutate({
-      projectId: params.prosjektId,
-      name: navn.trim(),
-      description: beskrivelse.trim() || undefined,
-    });
-  }
 
   if (lasterTillatelser || isLoading) {
     return (
@@ -101,7 +84,9 @@ export default function MalerSide() {
         <EmptyState
           title={t("maler.ingenMaler")}
           description={t("maler.ingenMalerBeskrivelse")}
-          action={<Button onClick={() => setVisModal(true)}>{t("maler.opprettMal")}</Button>}
+          action={
+            <Button onClick={() => setVisHentArkiv(true)}>{t("maler.arkiv.tittel")}</Button>
+          }
         />
       ) : (
         <Table<MalRad>
@@ -147,31 +132,15 @@ export default function MalerSide() {
         />
       )}
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title={t("maler.nyRapportmal")}>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Input
-            label={t("maler.malnavn")}
-            placeholder={t("maler.malnavnPlaceholder")}
-            value={navn}
-            onChange={(e) => setNavn(e.target.value)}
-            required
-          />
-          <Textarea
-            label={t("tabell.beskrivelse")}
-            placeholder={t("maler.beskrivelsePlaceholder")}
-            value={beskrivelse}
-            onChange={(e) => setBeskrivelse(e.target.value)}
-          />
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={opprettMutation.isPending}>
-              {t("handling.opprett")}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setVisModal(false)}>
-              {t("handling.avbryt")}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Hent fra arkiv — samme modal og regler som Oppsett › Produksjon */}
+      <HentFraArkivModal
+        projectId={params.prosjektId}
+        open={visHentArkiv}
+        onClose={() => setVisHentArkiv(false)}
+        onImportert={() =>
+          utils.mal.hentForProsjekt.invalidate({ projectId: params.prosjektId })
+        }
+      />
     </div>
   );
 }

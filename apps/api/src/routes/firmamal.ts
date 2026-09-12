@@ -248,6 +248,49 @@ export const firmamalRouter = router({
       return erFirmaAdminForProsjekt(ctx.userId, input.projectId);
     }),
 
+  /**
+   * Klient-gate for «Hent fra arkiv»-modalen (ordre hent-fra-arkiv, Krav 3). Returnerer
+   * hvilke arkiv-faner brukeren kan HENTE fra — matrisen `autoriserMalTilgang` er ENESTE
+   * kilde, ingen rollelogikk dupliseres i komponenten (fabel-vilkår 2026-09-12). Query,
+   * ikke gate: alle prosjektmedlemmer må kunne spørre «hva ser jeg?».
+   *
+   *  - kanHenteFraFirma  = firma/les (prosjektadmin+ låner ETT nivå opp → firmaarkivet)
+   *  - kanHenteFraSitedoc = sitedoc/les (firmaadmin+ låner fra sentralarkivet til firmaarkivet)
+   *
+   * `organizationId` = prosjektets eier-firma, målet for `laanFraSentralarkiv`.
+   */
+  arkivTilgang: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const sjekk = async (fn: () => Promise<void>): Promise<boolean> => {
+        try {
+          await fn();
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      const kanHenteFraFirma = await sjekk(() =>
+        autoriserMalTilgang(ctx.userId, {
+          nivaa: "firma",
+          handling: "les",
+          viaProjectId: input.projectId,
+        }),
+      );
+      const kanHenteFraSitedoc = await sjekk(() =>
+        autoriserMalTilgang(ctx.userId, { nivaa: "sitedoc", handling: "les" }),
+      );
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+      return {
+        kanHenteFraFirma,
+        kanHenteFraSitedoc,
+        organizationId: prosjekt?.primaryOrganizationId ?? null,
+      };
+    }),
+
   /** Én firmamal med hele objekt-treet (for redigering/preview i firma-modus). */
   hent: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))

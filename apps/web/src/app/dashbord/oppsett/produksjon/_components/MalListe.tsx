@@ -6,10 +6,10 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Library } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Library, Download } from "lucide-react";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
-import { BibliotekPanel } from "@/components/bibliotek/BibliotekPanel";
+import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
 
 type MalKategori = "oppgave" | "sjekkliste" | "hms";
 
@@ -152,8 +152,7 @@ export function MalListe({
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
   // Unikhet (2026-08-10): server-CONFLICT (navn/prefiks) vises i opprett/rediger-modalen.
   const [malFeil, setMalFeil] = useState<string | null>(null);
-  const [visBibliotek, setVisBibliotek] = useState(false);
-  const [visFirmaarkiv, setVisFirmaarkiv] = useState(false);
+  const [visHentArkiv, setVisHentArkiv] = useState(false);
 
   // Opprett-felter
   const [navn, setNavn] = useState("");
@@ -383,17 +382,20 @@ export function MalListe({
           <DropdownItem onClick={() => setVisOpprettModal(true)}>
             {t("maler.opprettNy")}
           </DropdownItem>
-          {kategori === "sjekkliste" && (
-            <DropdownItem onClick={() => setVisBibliotek(true)}>
-              <span className="flex items-center gap-1.5"><Library className="h-3.5 w-3.5" />{t("bibliotek.hentFraBibliotek")}</span>
-            </DropdownItem>
-          )}
           <DropdownItem disabled>{t("maler.importerFraProsjekt")}</DropdownItem>
-          <DropdownItem onClick={() => setVisFirmaarkiv(true)}>
-            <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{t("maler.importerFraFirma")}</span>
-          </DropdownItem>
           <DropdownItem disabled>{t("maler.opprettFraPdf")}</DropdownItem>
         </Dropdown>
+
+        {/* Hent fra arkiv — grensesnittet mot firma-/SiteDoc-arkivet (ordre 2026-09-12).
+            Erstatter «Importer fra firma» + «Hent fra bibliotek» i Legg til-dropdownen:
+            aldri to veier til samme handling. */}
+        <button
+          onClick={() => setVisHentArkiv(true)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-sitedoc-primary px-4 py-2 text-sm font-medium text-sitedoc-primary hover:bg-blue-50 transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          {t("maler.arkiv.tittel")}
+        </button>
 
         {/* Rediger */}
         <button
@@ -1158,109 +1160,16 @@ export function MalListe({
         })()}
       </Modal>
 
-      {/* Bibliotek-panel */}
-      {kategori === "sjekkliste" && prosjektId && (
-        <BibliotekPanel
-          projectId={prosjektId}
-          open={visBibliotek}
-          onClose={() => setVisBibliotek(false)}
-          onImportert={() => utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId })}
-        />
-      )}
-
-      {/* Firmaarkiv-velger (AM4 steg 4 — «Fra firmaarkivet») */}
-      {visFirmaarkiv && prosjektId && (
-        <FirmaarkivVelger
+      {/* Hent fra arkiv — Firmaarkiv + SiteDoc-arkiv i én modal (ordre 2026-09-12) */}
+      {prosjektId && (
+        <HentFraArkivModal
           projectId={prosjektId}
           fane={kategori}
-          onLukk={() => setVisFirmaarkiv(false)}
+          open={visHentArkiv}
+          onClose={() => setVisHentArkiv(false)}
           onImportert={() => utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId })}
         />
       )}
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  FirmaarkivVelger — hent firmamal ned i prosjektet (steg 4, ≤3 klikk) */
-/* ------------------------------------------------------------------ */
-
-function FirmaarkivVelger({
-  projectId,
-  fane,
-  onLukk,
-  onImportert,
-}: {
-  projectId: string;
-  fane: MalKategori;
-  onLukk: () => void;
-  onImportert: () => void;
-}) {
-  const { t } = useTranslation();
-  const { data: firmamaler, isLoading } = trpc.firmamal.listeForProsjekt.useQuery({
-    projectId,
-    fane,
-  });
-  const [hentetId, setHentetId] = useState<string | null>(null);
-  const [feil, setFeil] = useState<string | null>(null);
-
-  const kopierMutation = trpc.firmamal.kopierTilProsjekt.useMutation({
-    onSuccess: () => {
-      onImportert();
-      onLukk();
-    },
-    onError: (e) => setFeil(e.message),
-    onSettled: () => setHentetId(null),
-  });
-
-  return (
-    <Modal open onClose={onLukk} title={t("maler.firmaarkiv.tittel")} className="max-w-lg">
-      <p className="mb-3 text-sm text-gray-600">{t("maler.firmaarkiv.beskrivelse")}</p>
-      {feil && <p className="mb-3 text-sm text-red-600">{feil}</p>}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Spinner />
-        </div>
-      ) : !firmamaler || firmamaler.length === 0 ? (
-        <p className="py-6 text-center text-sm text-gray-500">
-          {t("maler.firmaarkiv.ingen")}
-        </p>
-      ) : (
-        <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
-          {firmamaler.map((fm) => (
-            <li
-              key={fm.id}
-              className="flex items-center justify-between rounded border border-gray-100 px-3 py-2"
-            >
-              <span className="text-sm text-gray-700">
-                {fm.name}
-                {fm.prefix && <span className="ml-1.5 text-gray-400">{fm.prefix}</span>}
-                <span className="ml-1.5 text-xs text-gray-400">
-                  {t("maler.firmaarkiv.punkter", { antall: fm._count.objects })}
-                </span>
-              </span>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setHentetId(fm.id);
-                  setFeil(null);
-                  kopierMutation.mutate({ organizationTemplateId: fm.id, projectId });
-                }}
-                disabled={kopierMutation.isPending && hentetId === fm.id}
-              >
-                {kopierMutation.isPending && hentetId === fm.id
-                  ? t("maler.firmaarkiv.henter")
-                  : t("maler.firmaarkiv.hent")}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-4 flex justify-end">
-        <Button variant="secondary" onClick={onLukk}>
-          {t("handling.lukk")}
-        </Button>
-      </div>
-    </Modal>
   );
 }
