@@ -104,6 +104,15 @@ export interface MalDatakilde {
   refetch: () => Promise<void>;
 }
 
+// TS2589-vakt (CLAUDE.md § Kodestil): en ternær `erFirma ? firmaMut : prosjektMut` tvinger
+// TS til å beregne UNIONEN av to DYPE tRPC-mutasjonstyper FØR castet virker — det sprenger
+// dybdegrensen på en KALD bygg (Docker; inkrementell `tsbuildinfo` skjulte det lokalt).
+// Ved å ta grenene inn som `unknown` erstattes de dype typene på funksjonsgrensen, så
+// ternæren forener bare `unknown | unknown` og castet gir den smale typen. Ingen `any`.
+function velgMutasjon<I>(brukFirma: boolean, firma: unknown, prosjekt: unknown): Muterbar<I> {
+  return (brukFirma ? firma : prosjekt) as Muterbar<I>;
+}
+
 interface DatakildeParams {
   nivaa: MalNivaa;
   malId: string;
@@ -120,11 +129,14 @@ export function useMalDatakilde(params: DatakildeParams): MalDatakilde {
   const utils = trpc.useUtils();
 
   const refetch = useCallback(async () => {
-    const oppdatert = erFirma
-      ? await utils.firmamal.hent.fetch({ id: malId })
-      : await utils.mal.hentMedId.fetch({ id: malId });
+    // Samme TS2589-vakt som velgMutasjon: caster hver fetch til `Promise<unknown>` FØR
+    // ternæren, ellers forenes to dype query-resultat-typer og dybdegrensen sprenger (kald bygg).
+    const oppdatert = await (erFirma
+      ? (utils.firmamal.hent.fetch({ id: malId }) as Promise<unknown>)
+      : (utils.mal.hentMedId.fetch({ id: malId }) as Promise<unknown>));
     if (oppdatert) {
-      setObjekter((oppdatert.objects as MalObjektRad[]).map(tilMalObjekt));
+      const rader = (oppdatert as { objects: MalObjektRad[] }).objects;
+      setObjekter(rader.map(tilMalObjekt));
     }
   }, [erFirma, malId, utils, setObjekter]);
 
@@ -178,11 +190,11 @@ export function useMalDatakilde(params: DatakildeParams): MalDatakilde {
   const oppdaterMalF = trpc.firmamal.oppdater.useMutation(oppdaterMalCb);
 
   return {
-    leggTilObjekt: (erFirma ? leggTilF : leggTilP) as unknown as Muterbar<LeggTilObjektInput>,
-    slettObjekt: (erFirma ? slettF : slettP) as unknown as Muterbar<{ id: string }>,
-    oppdaterRekkefolge: (erFirma ? rekkefolgeF : rekkefolgeP) as unknown as Muterbar<OppdaterRekkefolgeInput>,
-    oppdaterObjekt: (erFirma ? oppdaterObjektF : oppdaterObjektP) as unknown as Muterbar<OppdaterObjektInput>,
-    oppdaterMal: (erFirma ? oppdaterMalF : oppdaterMalP) as unknown as Muterbar<OppdaterMalInput>,
+    leggTilObjekt: velgMutasjon<LeggTilObjektInput>(erFirma, leggTilF, leggTilP),
+    slettObjekt: velgMutasjon<{ id: string }>(erFirma, slettF, slettP),
+    oppdaterRekkefolge: velgMutasjon<OppdaterRekkefolgeInput>(erFirma, rekkefolgeF, rekkefolgeP),
+    oppdaterObjekt: velgMutasjon<OppdaterObjektInput>(erFirma, oppdaterObjektF, oppdaterObjektP),
+    oppdaterMal: velgMutasjon<OppdaterMalInput>(erFirma, oppdaterMalF, oppdaterMalP),
     refetch,
   };
 }
