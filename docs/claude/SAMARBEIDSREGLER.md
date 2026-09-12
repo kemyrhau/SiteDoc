@@ -1310,6 +1310,21 @@ mens det sto i `shared-pakker.md:46`, og et mobil-test-krav ble skrevet uoppfyll
 BACKLOG §153 (2026-09-07) alt slo fast at `apps/mobile` mangler test-runner. Begge fanget av
 agentene, ikke av cowork. Ett grep-kall hadde spart en analyserunde.
 
+**🔴 Kald web-bygg når web-filer er rørt (lærdom 2026-09-12).**
+`apps/web/tsconfig.json` har `"incremental": true`. **En lokal `pnpm --filter
+@sitedoc/web build` gjenbruker `tsconfig.tsbuildinfo` og kan være grønn på kode
+Docker-byggen avviser** — det skjedde på `109f7d2e`, der TS2589 først dukket opp i
+deploy-byggen etter at to agenter hadde meldt grønt.
+**Rører ordren filer i `apps/web`, skal gaten kjøres kaldt:**
+```sh
+rm -f apps/web/tsconfig.tsbuildinfo apps/web/.next/cache/.tsbuildinfo && rm -rf apps/web/.next
+pnpm --filter @sitedoc/web build
+```
+⚠️ **`tsc` stopper på FØRSTE TS2589.** **Kjør kaldt iterativt til grønn** — på `a4036ede`
+dukket det andre stedet (`:132`) først opp da det første (`:181`) var fikset.
+🟢 **Negativ kontroll er billig her:** kald bygg på den ødelagte koden skal reprodusere
+feilen. Gjør den ikke det, har du målt cachen og ikke årsaken.
+
 **De fire virksomme linjene — skal stå ORDRETT i ufravikelig-blokka:**
 
 | Linje | Hva den fanget 2026-07-15/16 |
