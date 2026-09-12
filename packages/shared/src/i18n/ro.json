@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Acest lucru șterge definitiv toate {{antall}} documente din coșul de gunoi. Această acțiune nu poate fi anulată.",
   "papirkurv.resultatSlettet": "Au fost șterse {{sjekklister}} liste de verificare și {{oppgaver}} sarcini.",
   "papirkurv.resultatGjenopprettet": "Au fost restaurate {{sjekklister}} liste de verificare și {{oppgaver}} sarcini.",
+  "papirkurv.forhandsvisTittel": "Previzualizare",
+  "papirkurv.forhandsvisTomt": "Acest document nu are conținut de afișat.",
   "hjelp.papirkurv.tekst": "Listele de verificare și sarcinile șterse live aici. Creatorul le vede pe ale lor; administratorii de proiect văd totul în proiect. Restaurare readuce documentul cu aceeași stare pe care o avea înainte de ștergere. Ștergerea îl elimină definitiv înainte de termenul limită de 90 de zile (numai administratorii de proiect). După 90 de zile documentul este șters automat.",
   "timer.tittel": "Timp de înregistrare",
   "timer.dagsseddel": "Foaia de pontaj",

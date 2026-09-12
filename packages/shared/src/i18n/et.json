@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "See kustutab jäädavalt kõik {{antall}} prügikastis olevat dokumenti. Seda toimingut ei saa tagasi võtta.",
   "papirkurv.resultatSlettet": "Kustutatud {{sjekklister}} kontrollnimekirjad ja {{oppgaver}} ülesanded.",
   "papirkurv.resultatGjenopprettet": "Taastatud {{sjekklister}} kontrollnimekirjad ja {{oppgaver}} ülesanded.",
+  "papirkurv.forhandsvisTittel": "Eelvaade",
+  "papirkurv.forhandsvisTomt": "Sellel dokumendil pole sisu, mida näidata.",
   "hjelp.papirkurv.tekst": "Kustutatud kontrollnimekirjad ja ülesanded asuvad siin. Looja näeb oma; projekti administraatorid näevad projektis kõike. Taastamine paneb dokumendi tagasi samasse olekusse, mis see oli enne kustutamist. Kustuta eemaldab selle jäädavalt enne 90-päevast tähtaega (ainult projektiadministraatoritele). 90 päeva pärast kustutatakse dokument automaatselt.",
   "timer.tittel": "Aja registreerimine",
   "timer.dagsseddel": "Ajaleht",

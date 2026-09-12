@@ -23,8 +23,10 @@ function lagTx() {
   return {
     documentTransfer: { deleteMany: vi.fn() },
     image: { deleteMany: vi.fn() },
-    checklist: { deleteMany: vi.fn(), updateMany: vi.fn() },
-    task: { deleteMany: vi.fn(), updateMany: vi.fn() },
+    checklist: { deleteMany: vi.fn(), updateMany: vi.fn(), delete: vi.fn() },
+    task: { deleteMany: vi.fn(), updateMany: vi.fn(), delete: vi.fn() },
+    // Frigjøring av koblede kontrollpunkter FØR sjekkliste-sletting (base krav 5).
+    kontrollplanPunkt: { updateMany: vi.fn() },
   };
 }
 
@@ -71,6 +73,12 @@ describe("papirkurv.tomPapirkurv", () => {
     expect(ctx._tx.image.deleteMany).toHaveBeenCalledWith({ where: { checklistId: { in: [SJEKK] } } });
     expect(ctx._tx.checklist.deleteMany).toHaveBeenCalledWith({ where: { id: { in: [SJEKK] } } });
     expect(ctx._tx.task.deleteMany).toHaveBeenCalledWith({ where: { id: { in: [OPPG] } } });
+    // Base krav 5: koblede kontrollpunkter frigjøres (status → planlagt, kobling nullstilt)
+    // så ingen punkter blir stående som «Påbegynt» på slettede dokumenter.
+    expect(ctx._tx.kontrollplanPunkt.updateMany).toHaveBeenCalledWith({
+      where: { sjekklisteId: { in: [SJEKK] } },
+      data: { sjekklisteId: null, status: "planlagt" },
+    });
   });
 
   it("ikke-admin: FORBIDDEN, ingenting slettet", async () => {
@@ -119,6 +127,39 @@ describe("papirkurv.slettEndeligFlere", () => {
       }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(ctx.prisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("papirkurv.slettEndelig (enkelt) — frigjør koblet punkt (base krav 5)", () => {
+  it("admin: hardsletter sjekkliste og frigjør koblet punkt (status→planlagt, kobling nullstilt)", async () => {
+    tilgang.mockResolvedValue({ erProsjektAdmin: true, erSitedocAdmin: false });
+    const tx = lagTx();
+    const ctx = {
+      userId: "user-1",
+      tokenKilde: null,
+      sessionToken: null,
+      req: { log: { info: vi.fn(), warn: vi.fn() } },
+      nyttSessionTokenForRespons: { value: null },
+      prisma: {
+        checklist: {
+          findUnique: vi.fn().mockResolvedValue({
+            deletedAt: new Date("2026-09-01T00:00:00Z"),
+            bestillerUserId: "x",
+            template: { projectId: PROSJEKT },
+          }),
+        },
+        $transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
+      },
+      _tx: tx,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+    const caller = papirkurvRouter.createCaller(ctx);
+    await caller.slettEndelig({ id: SJEKK, type: "checklist" });
+    expect(tx.kontrollplanPunkt.updateMany).toHaveBeenCalledWith({
+      where: { sjekklisteId: SJEKK },
+      data: { sjekklisteId: null, status: "planlagt" },
+    });
+    expect(tx.checklist.delete).toHaveBeenCalledWith({ where: { id: SJEKK } });
   });
 });
 

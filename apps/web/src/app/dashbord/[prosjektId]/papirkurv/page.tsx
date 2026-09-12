@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Trash2, RotateCcw, Trash } from "lucide-react";
+import { Trash2, RotateCcw, Trash, Eye } from "lucide-react";
 import { Spinner, Button, Modal, StatusBadge } from "@sitedoc/ui";
-import { formaterNummer } from "@sitedoc/shared";
+import { formaterNummer, byggObjektTre } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
+import { RapportObjektVisning } from "@/components/RapportObjektVisning";
+import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -49,6 +51,7 @@ export default function PapirkurvSide() {
   const utils = trpc.useUtils();
 
   const [slettEndeligMål, setSlettEndeligMål] = useState<PapirkurvDok | null>(null);
+  const [forhåndsvisMål, setForhåndsvisMål] = useState<PapirkurvDok | null>(null);
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettValgte, setVisSlettValgte] = useState(false);
   const [visTøm, setVisTøm] = useState(false);
@@ -166,10 +169,15 @@ export default function PapirkurvSide() {
             <p className="mt-1 text-sm text-gray-600">{t("papirkurv.beskrivelse")}</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Krav 2 (Kenneth-vedtak): «Gjenopprett» er den trygge, primære handlingen —
+                «Tøm papirkurv» er en sjelden, destruktiv nødutgang og skal være visuelt
+                underordnet. Dempet ghost-stil med rød-på-hover, ikke en fylt primærknapp.
+                Bekreftelses-modalen er uendret (fanger et feilklikk). */}
             {erProsjektadmin && dokumenter.length > 0 && (
               <Button
-                variant="danger"
+                variant="ghost"
                 size="sm"
+                className="text-gray-500 hover:text-sitedoc-error"
                 onClick={() => {
                   setResultat(null);
                   setVisTøm(true);
@@ -273,7 +281,19 @@ export default function PapirkurvSide() {
                         />
                       </td>
                       <td className="px-4 py-2">
-                        <div className="font-medium text-gray-900">{d.title}</div>
+                        {/* Klikk på tittel → forhåndsvisning (krav 1). Innholdet hentes
+                            på forespørsel i modalen, ikke for alle radene. */}
+                        <button
+                          type="button"
+                          onClick={() => setForhåndsvisMål(d)}
+                          className="group flex items-center gap-1.5 text-left"
+                          title={t("papirkurv.forhandsvisTittel")}
+                        >
+                          <span className="font-medium text-gray-900 group-hover:text-sitedoc-primary group-hover:underline">
+                            {d.title}
+                          </span>
+                          <Eye className="h-3.5 w-3.5 flex-shrink-0 text-gray-300 group-hover:text-sitedoc-primary" />
+                        </button>
                         <div className="text-xs text-gray-400">{dokNummer(d)}</div>
                       </td>
                       <td className="px-4 py-2 text-gray-600">{typeLabel(d.type)}</td>
@@ -396,6 +416,74 @@ export default function PapirkurvSide() {
           </Button>
         </div>
       </Modal>
+
+      {/* Forhåndsvisning (krav 1) — LESE-ONLY. Innholdet lastes på forespørsel per rad. */}
+      <Modal
+        open={forhåndsvisMål !== null}
+        onClose={() => setForhåndsvisMål(null)}
+        title={forhåndsvisMål?.title ?? t("papirkurv.forhandsvisTittel")}
+        className="max-w-3xl max-h-[85vh] overflow-y-auto"
+        lukkVedBackdropKlikk
+      >
+        {forhåndsvisMål && (
+          <Forhåndsvisning
+            key={dokNøkkel(forhåndsvisMål)}
+            id={forhåndsvisMål.id}
+            type={forhåndsvisMål.type}
+          />
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+/**
+ * Read-only forhåndsvisning av ett slettet dokuments innhold. Henter data + malens
+ * objekter på forespørsel (`papirkurv.hentInnhold`) og gjenbruker den samme rene
+ * lesevisningen som «skriv ut»-siden (`RapportObjektVisning`) — ingen ny renderer, ingen
+ * redigering. Signaturlister vises som «Se signaturliste i dokumentet» (signaturData ikke
+ * hentet her — det er en full runde-oppslag som ikke hører hjemme i en kjapp forhåndsvisning).
+ */
+interface ForhåndsvisNode extends RapportObjekt {
+  children: ForhåndsvisNode[];
+}
+
+function Forhåndsvisning({ id, type }: { id: string; type: "checklist" | "task" }) {
+  const { t } = useTranslation();
+  const { data, isLoading, error } = trpc.papirkurv.hentInnhold.useQuery({ id, type });
+
+  const treObjekter = useMemo(() => {
+    if (!data) return [];
+    return byggObjektTre((data.objekter ?? []) as RapportObjekt[]) as ForhåndsvisNode[];
+  }, [data]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner />
+      </div>
+    );
+  }
+  if (error) {
+    return <p className="py-8 text-center text-sm text-sitedoc-error">{error.message}</p>;
+  }
+
+  const verdier = (data?.data ?? {}) as Record<string, { verdi?: unknown }>;
+  if (treObjekter.length === 0) {
+    return <p className="py-8 text-center text-sm text-gray-400">{t("papirkurv.forhandsvisTomt")}</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {treObjekter.map((objekt) => (
+        <RapportObjektVisning
+          key={objekt.id}
+          objekt={objekt}
+          verdi={verdier[objekt.id]?.verdi ?? null}
+          nestingNivå={0}
+          data={verdier}
+        />
+      ))}
     </div>
   );
 }

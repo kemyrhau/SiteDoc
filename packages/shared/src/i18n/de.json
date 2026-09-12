@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Dadurch werden alle {{antall}} Dokumente im Papierkorb dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
   "papirkurv.resultatSlettet": "{{sjekklister}} Checklisten und {{oppgaver}} Aufgaben gelöscht.",
   "papirkurv.resultatGjenopprettet": "{{sjekklister}} Checklisten und {{oppgaver}} Aufgaben wiederhergestellt.",
+  "papirkurv.forhandsvisTittel": "Vorschau",
+  "papirkurv.forhandsvisTomt": "Dieses Dokument hat keinen anzuzeigenden Inhalt.",
   "hjelp.papirkurv.tekst": "Gelöschte Checklisten und Aufgaben leben hier. Der Schöpfer sieht ihr eigenes; Projektadministratoren sehen alles im Projekt. Durch die Wiederherstellung wird das Dokument wieder in den gleichen Status versetzt, den es vor dem Löschen hatte. Durch Löschen wird es vor Ablauf der 90-Tage-Frist dauerhaft entfernt (nur Projektadministratoren). Nach 90 Tagen wird das Dokument automatisch gelöscht.",
   "timer.tittel": "Zeiterfassung",
   "timer.dagsseddel": "Stundenzettel",

@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Tādējādi tiek neatgriezeniski izdzēsti visi {{antall}} atkritnē esošie dokumenti. Šo darbību nevar atsaukt.",
   "papirkurv.resultatSlettet": "Izdzēsti {{sjekklister}} kontrolsaraksti un {{oppgaver}} uzdevumi.",
   "papirkurv.resultatGjenopprettet": "Atjaunoti {{sjekklister}} kontrolsaraksti un {{oppgaver}} uzdevumi.",
+  "papirkurv.forhandsvisTittel": "Priekšskatījums",
+  "papirkurv.forhandsvisTomt": "Šim dokumentam nav satura, ko parādīt.",
   "hjelp.papirkurv.tekst": "Izdzēstie kontrolsaraksti un uzdevumi ir pieejami šeit. Radītājs redz savējos; projekta administratori redz visu projektā. Atjaunot, dokuments tiek atjaunots ar tādu pašu statusu, kāds tam bija pirms dzēšanas. Dzēst tas tiek neatgriezeniski noņemts pirms 90 dienu termiņa beigām (tikai projekta administratoriem). Pēc 90 dienām dokuments tiek automātiski izdzēsts.",
   "timer.tittel": "Laika reģistrācija",
   "timer.dagsseddel": "Laika lapa",

@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Kjo fshin përgjithmonë të gjitha dokumentet {{antall}} në kosh. Ky veprim nuk mund të zhbëhet.",
   "papirkurv.resultatSlettet": "U fshinë {{sjekklister}} lista kontrolli dhe {{oppgaver}} detyra.",
   "papirkurv.resultatGjenopprettet": "U rivendosën {{sjekklister}} listat kontrolluese dhe detyrat {{oppgaver}}.",
+  "papirkurv.forhandsvisTittel": "Parapamje",
+  "papirkurv.forhandsvisTomt": "Ky dokument nuk ka përmbajtje për të treguar.",
   "hjelp.papirkurv.tekst": "Listat kontrolluese dhe detyrat e fshira jetojnë këtu. Krijuesi sheh të tyren; administratorët e projektit i shohin të gjitha në projekt. Rivendosja e kthen dokumentin me të njëjtin status që kishte përpara fshirjes. Delete e heq përgjithmonë përpara afatit 90-ditor (vetëm administratorët e projektit). Pas 90 ditësh dokumenti fshihet automatikisht.",
   "timer.tittel": "Regjistrimi në kohë",
   "timer.dagsseddel": "Fleta e kohës",

@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Detta tar permanent bort alla {{antall}} dokument i papperskorgen. Denna åtgärd kan inte ångras.",
   "papirkurv.resultatSlettet": "Raderade {{sjekklister}} checklistor och {{oppgaver}} uppgifter.",
   "papirkurv.resultatGjenopprettet": "Återställda {{sjekklister}} checklistor och {{oppgaver}} uppgifter.",
+  "papirkurv.forhandsvisTittel": "Förhandsvisning",
+  "papirkurv.forhandsvisTomt": "Detta dokument har inget innehåll att visa.",
   "hjelp.papirkurv.tekst": "Raderade checklistor och uppgifter live här. Skaparen ser sina egna; projektadministratörer ser allt i projektet. Återställ återställer dokumentet med samma status som det hade före raderingen. Ta bort tar bort det permanent innan deadline på 90 dagar (endast projektadministratörer). Efter 90 dagar raderas dokumentet automatiskt.",
   "timer.tittel": "Tidsregistrering",
   "timer.dagsseddel": "Tidsrapport",

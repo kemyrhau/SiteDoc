@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "Tämä poistaa pysyvästi kaikki {{antall}} asiakirjaa roskakorista. Tätä toimintoa ei voi kumota.",
   "papirkurv.resultatSlettet": "Poistettu {{sjekklister}} tarkistuslistat ja {{oppgaver}} tehtävää.",
   "papirkurv.resultatGjenopprettet": "Palautettiin {{sjekklister}} tarkistuslistaa ja {{oppgaver}} tehtävää.",
+  "papirkurv.forhandsvisTittel": "Esikatselu",
+  "papirkurv.forhandsvisTomt": "Tällä asiakirjalla ei ole näytettävää sisältöä.",
   "hjelp.papirkurv.tekst": "Poistetut tarkistuslistat ja tehtävät ovat täällä. Luoja näkee omansa; projektin ylläpitäjät näkevät kaikki projektissa. Palauta palauttaa asiakirjan samaan tilaan kuin se oli ennen poistamista. Poista poistaa sen pysyvästi ennen 90 päivän määräaikaa (vain projektin ylläpitäjät). 90 päivän kuluttua asiakirja poistetaan automaattisesti.",
   "timer.tittel": "Ajan rekisteröinti",
   "timer.dagsseddel": "Kellokortti",

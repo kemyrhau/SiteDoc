@@ -204,6 +204,25 @@ skjemaet, men ble aldri fylt — planen viste 0 % selv om sjekklister var godkje
 Statusløft er kun `planlagt → pagar` ved kobling; startet/utført/godkjent arbeid røres aldri.
 Aktiv varsling (scheduler) er Leveranse 2/3.
 
+**Slett punkt + LEVENDE kobling (Kenneth-vedtak 2026-09-12):** `kontrollplan.slettPunkt`
+(`apps/api/src/routes/kontrollplan.ts`) blokkerer kun når punktet har en **levende** koblet
+sjekkliste (`sjekkliste.deletedAt == null`), ikke bare når `sjekklisteId` er satt. Bakgrunn:
+sjekkliste-sletting er MYK (`sjekkliste.slett`, `sjekkliste.ts:~1916` — setter `deletedAt`),
+så FK-ens `ON DELETE SET NULL` fyrer aldri ved den vanlige veien; en vakt på `sjekklisteId`
+låste derfor et punkt permanent så snart sjekklisten lå i papirkurven. Nå: er sjekklisten i
+papirkurven (eller hardslettet), er punktet ubrukt igjen og kan slettes — et punkt kan aldri
+bli permanent låst. Klienten (`RedigerPunktDialog.tsx`) speiler regelen (viser slett-knapp på
+`!harLevendeSjekkliste`, ikke på `status === "planlagt"`), og `slettPunkt`-mutasjonen har
+`onError` som viser serverens melding.
+
+**Fremdrift = levende kobling:** `avledPunktFremdrift`/`avledPunktTilstand`
+(`packages/shared/src/utils/kontrollplanFremdrift.ts`) teller en sjekkliste i papirkurven som
+**ingen kobling** → punktet vises som «planlagt», ikke «Påbegynt»/«Godkjent» for et dokument
+som er borte fra planen. Ved **hard** sletting (`papirkurv.slettEndelig`/`tomPapirkurv`/
+`slettEndeligFlere`) frigjøres et koblet punkt i samme transaksjon (`sjekklisteId = null`,
+`status = "planlagt"`), så ingen punkter blir stående som «Påbegynt» på slettede dokumenter.
+Legacy `punkt.status` (manuell, satt før koble-mekanikken) bevares kun for ukoblede punkter.
+
 **Prosjektisolering på tegnings-referanser (delt vakt):** `settPunktPlassering` (kontrollplan)
 og `sjekkliste.oppdater` skriver samme `drawingId`-felt fra hver sin dør. Vakten som krever at
 tegningen tilhører samme prosjekt bor i `verifiserTegningIProsjekt`

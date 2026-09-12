@@ -1,10 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 
 /**
- * kontrollplan.slettPunkt — kriteriet er KOBLINGEN (sjekklisteId), ikke statusen
- * (Kenneth 2026-09-11). Et ubrukt punkt (sjekklisteId=null) skal kunne slettes uansett
- * status; et koblet punkt skal blokkeres med PRECONDITION_FAILED + neste steg, ALDRI en
- * generisk `throw new Error`. Drives via createCaller med mocket ctx (som slettevern-testene).
+ * kontrollplan.slettPunkt — kriteriet er en LEVENDE kobling, ikke `sjekklisteId`
+ * (Kenneth-vedtak 2026-09-12). Sjekkliste-sletting er MYK (`sjekkliste.slett` setter bare
+ * `deletedAt`), så FK-ens `ON DELETE SET NULL` fyrer aldri ved den vanlige veien — raden
+ * består og `sjekklisteId` blir stående. En vakt på `sjekklisteId !== null` låste derfor et
+ * punkt PERMANENT så snart sjekklisten lå i papirkurven. Ny regel: et punkt kan slettes så
+ * lenge det ikke har en LEVENDE (ikke-slettet) koblet sjekkliste.
+ *
+ * Regresjonsvakt (TILLEGG-krav): testen «papirkurv-sjekkliste → kan slettes» FEILER hvis
+ * vakten igjen låser på `sjekklisteId`/en slettet kobling. Drives via createCaller med
+ * mocket ctx (som slettevern-testene).
  */
 
 vi.mock("../trpc/tilgangskontroll", () => ({
@@ -23,7 +29,7 @@ const PUNKT = "punkt-1";
 const PROSJEKT = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
 function lagCtx(
-  punkt: { status: string; sjekklisteId: string | null },
+  sjekkliste: { deletedAt: Date | null } | null,
   del: ReturnType<typeof vi.fn>,
 ) {
   return {
@@ -36,9 +42,8 @@ function lagCtx(
       kontrollplanPunkt: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           id: PUNKT,
-          status: punkt.status,
-          sjekklisteId: punkt.sjekklisteId,
           kontrollplan: { projectId: PROSJEKT },
+          sjekkliste,
         }),
         delete: del,
       },
@@ -47,34 +52,30 @@ function lagCtx(
   } as any;
 }
 
-describe("kontrollplan.slettPunkt — kobling, ikke status", () => {
-  it("ubrukt punkt (sjekklisteId=null) slettes selv om status er utfort", async () => {
+describe("kontrollplan.slettPunkt — levende kobling, ikke sjekklisteId", () => {
+  it("ubrukt punkt (ingen koblet sjekkliste) slettes", async () => {
+    const del = vi.fn().mockResolvedValue({ id: PUNKT });
+    const caller = kontrollplanRouter.createCaller(lagCtx(null, del));
+    await caller.slettPunkt({ punktId: PUNKT });
+    expect(del).toHaveBeenCalledWith({ where: { id: PUNKT } });
+  });
+
+  it("REGRESJONSVAKT: punkt med sjekkliste i papirkurven (deletedAt satt) slettes — aldri permanent låst", async () => {
     const del = vi.fn().mockResolvedValue({ id: PUNKT });
     const caller = kontrollplanRouter.createCaller(
-      lagCtx({ status: "utfort", sjekklisteId: null }, del),
+      lagCtx({ deletedAt: new Date("2026-09-01T00:00:00Z") }, del),
     );
     await caller.slettPunkt({ punktId: PUNKT });
     expect(del).toHaveBeenCalledWith({ where: { id: PUNKT } });
   });
 
-  it("ubrukt punkt med status planlagt slettes (uendret for det vanlige tilfellet)", async () => {
-    const del = vi.fn().mockResolvedValue({ id: PUNKT });
-    const caller = kontrollplanRouter.createCaller(
-      lagCtx({ status: "planlagt", sjekklisteId: null }, del),
-    );
-    await caller.slettPunkt({ punktId: PUNKT });
-    expect(del).toHaveBeenCalledOnce();
-  });
-
-  it("koblet punkt (sjekklisteId satt) blokkeres med PRECONDITION_FAILED + neste steg, IKKE slettet", async () => {
+  it("punkt med LEVENDE sjekkliste (deletedAt null) blokkeres med PRECONDITION_FAILED + neste steg, IKKE slettet", async () => {
     const del = vi.fn();
-    const caller = kontrollplanRouter.createCaller(
-      lagCtx({ status: "planlagt", sjekklisteId: "sjekk-1" }, del),
-    );
+    const caller = kontrollplanRouter.createCaller(lagCtx({ deletedAt: null }, del));
     await expect(caller.slettPunkt({ punktId: PUNKT })).rejects.toMatchObject({
       code: "PRECONDITION_FAILED",
       message:
-        "Punktet har en sjekkliste koblet til seg og kan ikke slettes. Fjern koblingen til sjekklisten først.",
+        "Punktet har en aktiv sjekkliste koblet til seg og kan ikke slettes. Slett sjekklisten først.",
     });
     expect(del).not.toHaveBeenCalled();
   });

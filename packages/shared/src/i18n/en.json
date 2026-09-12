@@ -194,6 +194,8 @@
   "papirkurv.tomBekreft": "This permanently deletes all {{antall}} documents in the trash. This action cannot be undone.",
   "papirkurv.resultatSlettet": "Deleted {{sjekklister}} checklists and {{oppgaver}} tasks.",
   "papirkurv.resultatGjenopprettet": "Restored {{sjekklister}} checklists and {{oppgaver}} tasks.",
+  "papirkurv.forhandsvisTittel": "Preview",
+  "papirkurv.forhandsvisTomt": "This document has no content to show.",
   "hjelp.papirkurv.tekst": "Deleted checklists and tasks live here. The creator sees their own; project admins see all in the project. Restore puts the document back with the same status it had before deletion. Delete permanently removes it before the 90-day deadline (project admins only). After 90 days the document is deleted automatically.",
   "timer.tittel": "Time Registration",
   "timer.dagsseddel": "Time sheet",
