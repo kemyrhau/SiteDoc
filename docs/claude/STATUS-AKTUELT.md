@@ -397,7 +397,7 @@ stien. **Det betyr ikke at treet kan ryddes.**
 | Agent | Worktree | Tilstand | Spor |
 |---|---|---|---|
 | **kontrollplan** | `SiteDoc-kontrollplan` | 🔴 **STOPPET** — `fix/kontrollpunkt-laasning` | ⚠️ **Duplikat — skal IKKE gjenopptas.** Låsningen ble løst av dokgen (`44487811`, merget runde 85) mens dokgens arbeid lå upushet og usynlig i `git branch -r`. Cowork bestilte samme fiks her; det var coworks feil, ikke kontrollplans |
-| **redesign** | `SiteDoc-redesign` | 🔴 **ORDRE GITT** — `feat/hent-fra-arkiv` | Fabels mockup + fjern to-nivå-hopp + stram lesing av sentralarkivet. ⚠️ Branch finnes verken lokalt eller på origin ennå |
+| **redesign** | `SiteDoc-redesign` | 🔴 **ORDRE GITT** — `feat/hent-fra-arkiv` | Fabels mockup + fjern to-nivå-hopp + stram lesing av sentralarkivet. 🔴 **Coworks `inbox-hent-fra-arkiv.md` er ERSTATTET av fabels `avvik-arkivinngang-ordre-fabel-2026-09-12.md`** (committet `docs/redesign/`, runde 86) — coworks versjon skal IKKE relayes. Fabels er mer presis: knapp også på `/dashbord/[prosjekt]/maler`, `FirmaarkivVelger` flyttes (ikke dupliseres), låst SiteDoc-fane har forklaringstekst. ⚠️ **Scoping (cowork):** steg 1–2 (knapp/modal/faner/hengelås) bygges nå; **steg 3 versjonspublisering er egen runde** — se åpen tråd under. Branch finnes verken lokalt eller på origin ennå |
 | **dokgen** | `SiteDoc-dokgen` | 🟢 **LEDIG** — `44487811` detached (merget commit) | Papirkurv-forhåndsvisning + dempet «Tøm» + slett-vakt på levende kobling merget runde 85 (`652cdbda`). Løste låsningen Kenneth var blokkert av. Venter neste FUNN-ordre |
 | **mal-Opus** | `SiteDoc-mal` | 🟢 **LEDIG** — `5a271c61` detached (merget commit) | Venter neste mal-ordre fra fabel. KA7 + KB2 levert og merget |
 | **merge-agent** | `SiteDoc-merge` | 🟢 **LEDIG** — `merge-restart` @ `652cdbda` (= develop) | Runde 85 sist: merget dokgens papirkurv-forhåndsvisning |
@@ -410,8 +410,7 @@ list`. Fjernet fra registeret.
 ### 🔴 Åpne tråder uten eier (målt 12.09)
 
 - ~~**Forhåndsvisning + flervalg i papirkurven**~~ — ✅ levert av dokgen + merget runde 85 (`652cdbda`), inkl. slett-vakt på levende kobling som løste låsningen
-- **Arkivredigering med versjonering** — fabels notat `til-repo-2026-09-12-1700` er utpakket men
-  **ikke committet**. Krever ny versjonstabell; `DrawingRevision` er husmønsteret
+- **Arkivredigering med versjonering (= redesign steg 3)** — fabels designnotat `arkivredigering-designnotat-fabel-2026-09-12.md` + `MAL-PLAN.md` + KB4-ordre committet `docs/redesign/`/`docs/claude/` (runde 86). 🔴 **Versjonspublisering er egen runde:** ingen versjonsrader for maler finnes i dag (kun tellere — `BibliotekMal.versjon` er `String "1.0"`, `OrganizationTemplate.version` er `Int`). Krever ny tabell etter `DrawingRevision`-mønsteret (`schema.prisma:961-973`) + skjemaendring **Kenneth gater**
 - **Bug: `ProsjektBibliotekValg` orphanes** ved firmamal-sletting — verifisert, ikke rutet til agent
 - **Prod ligger 62 commits bak develop** — ingen release planlagt
 
