@@ -358,45 +358,62 @@ ikke var der i det hele tatt.** Ingen av dem kunne build eller typecheck ha fang
 1+2) · lokasjonOmfang · arkiv-PDF for oppgave/HMS. **Verifiser på test som innlogget først** —
 malbyggeren fikk 91 nye linjer og brukes av alt.
 
-## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, **målt 2026-09-11 natt**)
+## 📋 STATUSTAVLE — hvem gjør hva nå (vedlikeholdes av cowork, **målt 2026-09-12**)
 
-🔴 **Tavla sto på 07.09 til 11.09.** Den påsto develop `3d177db5` og prod «13 runder bak».
-**Andre gang samme drift — forrige gang sto den fra 28.08 til 07.09.** Kenneth fanget den begge
-ganger. **Tavla er coworks ansvar, ikke Kenneths, og den skal måles ved sesjonsstart.**
+🔴 **Forrige tavle sto på 11.09 natt gjennom rundene 74–84** — fem agenter, ~15 ordrer, ingenting
+ført. **Tredje gang samme drift** (28.08→07.09 · 07.09→11.09 · 11.09→12.09). **Rotårsak målt:
+cowork påsto i ~15 t at dokgen arbeidet uten å kjøre `git branch -r` én gang.** Tavla er coworks
+ansvar, måles ved sesjonsstart — den er det eneste som overlever en compact
+(SAMARBEIDSREGLER `:610`).
 
-**Målt tilstand nå:**
+**Målt tilstand nå (verifisert mot git 2026-09-12):**
 
 | Hva | Hash | Merknad |
 |---|---|---|
-| `develop` | **`adbbd2a8`** | |
-| `main` / prod | **`af0093b8`** | 🟢 **Deployet 11.09 etter 44 runder.** ~30 min nedetid, rotårsak i [DEPLOY-RUNBOK § 5b](DEPLOY-RUNBOK.md) |
-| **test** | `74d641f5` | |
-| **OTA test-kanal** | `7242ea83` | Update group `f19d0904` |
+| `develop` | **`758a193a`** | Verifisert `= origin/develop` |
+| `main` / prod | **`af0093b8`** | 🔴 **Uendret siden 11.09 — 62 commits bak develop** (git-målt, ikke ~45 som meldt). Ingen release planlagt |
+| **test** | `758a193a` | Cowork verifiserte med `/version`. ⚠️ Kan ikke git-verifiseres herfra (`/version` gir HTML, ikke SHA); test≠prod bekreftet via ulik CSS-hash |
 
-🟢 **Testtall på develop-tippen:** api **421** · pdf 120 · shared **780** · web 210.
+🟢 **Ingen åpne fjernbranches** — `git branch -r` viser kun `develop`, `main`,
+`redesign/navigasjon`, `wip/diag-exif`, `wip/diag-ko-trigger` (de to `wip/`-ene er umerget MED
+VILJE, se under).
 
-### 🔴 Agentregister — målt 2026-09-11, ikke husket
+🟢 **Gate ved siste måling (cowork-tall):** db 2 · api **457** · pdf 120 · shared **796** · web **223**.
 
-⚠️ **Cowork kan IKKE måle worktrees selv.** Et worktree har en `.git`-**fil** med absolutt sti til
-`.git/worktrees/<navn>` i hovedtreet — den stien finnes ikke i coworks sandkasse, så `git` feiler
-der. **Cowork kan lese FILER i trærne, men ikke hash, branch eller status. Det må Kenneth kjøre:**
+### 🔴 Agentregister — målt med `git branch -r` + `git worktree list` 2026-09-12
+
+⚠️ **Cowork kan IKKE måle worktree-HEAD selv.** Et worktree har en `.git`-**fil** med absolutt sti
+til `.git/worktrees/<navn>` i hovedtreet — den stien finnes ikke i coworks sandkasse, så `git`
+feiler der. **Cowork kan lese FILER i trærne og kjøre `git branch -r` (delte refs), men ikke
+HEAD/branch/status per tre. Det må Kenneth (eller merge-agenten i hovedtreet) kjøre:**
 
 ```sh
-cd ~/Documents/Programmering/SiteDoc && git fetch -q origin && for w in dokgen kontrollplan redesign merge simulator; do p=~/Documents/Programmering/SiteDoc-$w; if [ -d "$p" ]; then echo "$w: $(git -C $p rev-parse --short HEAD) [$(git -C $p rev-parse --abbrev-ref HEAD)] · $(git rev-list --count $(git -C $p rev-parse HEAD)..origin/develop) bak · $(git -C $p status --porcelain | wc -l | tr -d ' ') urene"; else echo "$w: MANGLER"; fi; done
+cd ~/Documents/Programmering/SiteDoc && git fetch -q origin && for w in dokgen kontrollplan redesign mal merge simulator; do p=~/Documents/Programmering/SiteDoc-$w; if [ -d "$p" ]; then echo "$w: $(git -C $p rev-parse --short HEAD) [$(git -C $p rev-parse --abbrev-ref HEAD)] · $(git rev-list --count $(git -C $p rev-parse HEAD)..origin/develop) bak · $(git -C $p status --porcelain | wc -l | tr -d ' ') urene"; else echo "$w: MANGLER"; fi; done
 ```
 
 ⚠️ **`prunable` i coworks `git worktree list` er STØY** — det speiler bare at sandkassen ikke når
 stien. **Det betyr ikke at treet kan ryddes.**
 
-| Agent | Worktree | HEAD 11.09 | Bak develop | Urene | Spor |
-|---|---|---|---|---|---|
-| **dokgen** | `SiteDoc-dokgen` | `368c3898` | 15 | 🟢 0 | FUNN — offline sjekklister (ordre gitt) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `1a2f484a` | 15 | 🟢 0 | PLAN — ledig, MK C konverteringsliste neste |
-| **redesign** | `SiteDoc-redesign` | `94e9c426` | 14 | 🟢 0 | Avstandsbånd → lønnsart (ordre klar) |
-| **merge** | `SiteDoc-merge` | `74d641f5` | 8 | 🟢 0 | Ledig |
-| **mal-Opus** | `SiteDoc-mal` | `b7c93535` (detached på `origin/develop`) | 🟢 0 | 🟡 1 (`CLAUDE.local.md`, ignoreres denne runden) | NY 11.09 — bygger sjekklistemaler i `packages/db/prisma/seed-bibliotek.ts` etter fabels selvbærende ordrer, **én mal om gangen**; leverer skjermbilde-bevis (fabel gater innhold · cowork gater teknikk + merger). Metode: [MAL-METODE.md](MAL-METODE.md). Første ordre: KA7-revisjon (`docs/redesign/ordre-ka7-revisjon-fabel-2026-09-11.md`) |
-| **simulator** | `SiteDoc-simulator` | `bc3efdca` | **382** | 🟢 0 | ⚠️ **Ute av drift** — se under |
-| ~~mobil-device~~ | `SiteDoc-mobil-device` | — | — | — | 🔴 **FORELDRELØS** — se under |
+| Agent | Worktree | Tilstand | Spor |
+|---|---|---|---|
+| **kontrollplan** | `SiteDoc-kontrollplan` | 🔴 **ORDRE GITT** — `fix/kontrollpunkt-laasning` | Kontrollpunkt låses permanent når koblet sjekkliste myk-slettes. **HASTER — Kenneth blokkert.** ⚠️ Branch finnes verken lokalt eller på origin ennå — kvittering kun via Kenneths melding, ikke målbar |
+| **redesign** | `SiteDoc-redesign` | 🔴 **ORDRE GITT** — `feat/hent-fra-arkiv` | Fabels mockup + fjern to-nivå-hopp + stram lesing av sentralarkivet. ⚠️ Branch finnes verken lokalt eller på origin ennå |
+| **dokgen** | `SiteDoc-dokgen` | 🟡 **LOKAL BRANCH** — `fix/papirkurv-forhandsvisning` @ `46e75556` | ⚠️ **Coworks «LEDIG — ordre aldri kjørt» stemte ikke ved måling:** treet står på en lokal branch med commit `46e75556` (ikke pushet). Ordre-inbox lå død ~15 t; låsningen flyttet til kontrollplan. **Forhåndsvisning + flervalg gjenstår ubestilt** |
+| **mal-Opus** | `SiteDoc-mal` | 🟢 **LEDIG** — `5a271c61` detached (merget commit) | Venter neste mal-ordre fra fabel. KA7 + KB2 levert og merget |
+| **merge-agent** | `SiteDoc-merge` | 🟢 **LEDIG** — `758a193a` detached (= develop) | Runde 84 sist |
+| **simulator** | `SiteDoc-simulator` | ⚠️ **UTE AV DRIFT** — `bc3efdca` detached | Se «To trær som trenger et vedtak» under. Ikke i coworks 12.09-tabell, men treet finnes |
+| **deploy** | `SiteDoc-deploy` | 🟢 **LEDIG** — `4d00e94f` detached | Ingen ordre |
+
+🔴 **`SiteDoc-mobil-device` er BORTE** — sto foreldreløs 11.09, er ikke lenger i `git worktree
+list`. Fjernet fra registeret.
+
+### 🔴 Åpne tråder uten eier (målt 12.09)
+
+- **Forhåndsvisning + flervalg i papirkurven** — ubestilt etter at låsningen ble skilt ut til kontrollplan
+- **Arkivredigering med versjonering** — fabels notat `til-repo-2026-09-12-1700` er utpakket men
+  **ikke committet**. Krever ny versjonstabell; `DrawingRevision` er husmønsteret
+- **Bug: `ProsjektBibliotekValg` orphanes** ved firmamal-sletting — verifisert, ikke rutet til agent
+- **Prod ligger 62 commits bak develop** — ingen release planlagt
 
 ### 🟢 Trærne har IKKE driftet — målt, ikke antatt
 
