@@ -107,3 +107,37 @@ Kun ÉN mal, uten å røre de 11 andre: generér en målrettet `UPDATE bibliotek
 - **Revisjonsveien er den målrettede UPDATE-en (§6a), ikke seeden** — inntil `/admin/bibliotek` (retteveien i UI) finnes.
 - **Tre veier, hver sin eier:** seed = førstegangs oppsett (oppretter det som mangler) · rå SQL (§6a) = byggeveien for revisjoner · `/admin/bibliotek` = retteveien i UI (bygges parallelt, ikke mal-Opus').
 - Seeden skiller nå **opprettet** fra **hoppet over fordi finnes** i output og navngir de hoppede med referanse — «N maler seedet» uten det skjuler at en revisjon i fila aldri nådde databasen.
+
+### 6c. Få en revidert mal SYNLIG i test — biblioteket ≠ firmamalen (målt KB2 2026-09-12)
+
+§6a oppdaterer **bibliotek-raden** (`bibliotek_maler`). Men det arbeideren/du ser i MalBygger er nesten alltid en **firmamal** — en **frossen kopi** som `importerMal` (`apps/api/src/routes/bibliotek.ts:96`) lagde da malen ble importert til et prosjekt. **Kopier oppdateres ALDRI når biblioteket endres** (med vilje — en importert mal skal ikke skifte under føttene på et prosjekt). Konsekvens:
+
+1. 🔴 **En §6a-UPDATE vises ikke i eksisterende firmamaler.** For å se den reviderte malen må du **importere den på nytt** fra bibliotek-velgeren («legg til fra bibliotek») i et prosjekt — det lager en fersk firmamal fra dagens bibliotek-rad.
+2. **Versjons-sjekk uten kommando:** i den ferske importen ser du feltene som ble endret. KB2 v2: «Planhet …» = **Enkeltvalg** (ikke Desimaltall), «Fall …» = **Trafikklys**. Er de fortsatt Desimaltall, ser du en gammel kopi / gammelt bibliotek.
+
+**Fella — foreldreløst bibliotekvalg (produktbug, ikke mal-Opus å fikse):** `ProsjektBibliotekValg.sjekklisteMalId` (`schema.prisma`) er en **svak, nullable peker uten cascade** til firmamalen. Sletter du firmamalen (ikke «fjern fra prosjekt»), blir valg-raden stående. Da:
+- bibliotek-velgeren viser malen med **grønt ✓** («allerede importert») → du får ikke importert på nytt;
+- klikk på den → `mal.hentMedId` gjør `findUniqueOrThrow` på en slettet id → **«Malen ble ikke funnet»**.
+
+**Rydde-løype (Kenneth kjører, samme `psql -f`-vei som §6a — tre separate enlinjere):**
+1. **Diagnostisér først (ren les):** en `.sql` som lister bibliotek-raden + alle valg for malen og om firmamalen finnes:
+   ```sql
+   SELECT v.id, v.prosjekt_id, v.sjekkliste_mal_id, (t.id IS NOT NULL) AS firmamal_finnes
+     FROM prosjekt_bibliotek_valg v
+     JOIN bibliotek_maler b ON b.id = v.bibliotek_mal_id
+     LEFT JOIN report_templates t ON t.id = v.sjekkliste_mal_id
+    WHERE b.referanse='<REF>';
+   ```
+   `firmamal_finnes = f` = foreldreløst valg (blokkerer re-import).
+2. **Rydd KUN foreldreløse valg** (WHERE-vakten rører aldri et valg med levende firmamal; pakk i `BEGIN; SELECT …; DELETE …; COMMIT;` så du ser hva som slettes):
+   ```sql
+   DELETE FROM prosjekt_bibliotek_valg v
+    USING bibliotek_maler b
+    WHERE v.bibliotek_mal_id = b.id AND b.referanse='<REF>'
+      AND (v.sjekkliste_mal_id IS NULL
+           OR NOT EXISTS (SELECT 1 FROM report_templates t WHERE t.id = v.sjekkliste_mal_id));
+   ```
+   ⚠️ **Kjør diagnosen på nytt rett før DELETE** — tilstanden kan endre seg mellom kjøringene (KB2 2026-09-12: en ekstra firmamal ble slettet mellom diagnose og rydd, så DELETE traff 2 rader, ikke 1 — begge var da genuint foreldreløse, så trygt). DELETE-en rører **kun** koblingsrader (`prosjekt_bibliotek_valg`), aldri en firmamal.
+3. Etter rydd: det grønne ✓-merket blir tom avkryssingsboks → **importer på nytt** → fersk firmamal med revisjonen.
+
+**Produktbug å rute til cowork/backlog (ikke mal-Opus):** firmamal-sletting og `fjernValg` er ikke synkronisert — sletting av firmamal rydder ikke valget, og `importerMal` avviser re-import (CONFLICT) i stedet for å erstatte et foreldreløst valg. Riktig fiks er i koden (cascade/opprydding ved sletting, eller la re-import overta et dødt valg), ikke gjentatt manuell SQL.
