@@ -807,6 +807,26 @@ export const firmamalRouter = router({
     .mutation(async ({ ctx, input }) => {
       await autoriserAdminForFirma(ctx.userId, input.organizationId);
 
+      // Dobbelt-lån-vakt: hvert klikk på «Lån fra SiteDoc-arkivet» lagde før en ny,
+      // identisk firmamal (ingen findFirst, ingen @@unique) — Kenneth så KB4 tre ganger.
+      // Serveren er gaten: klienten deaktiverer alt lånte, men kan omgås. 🔴 @@unique i
+      // schema gjenstår (egen runde — eksisterende duplikater ville brutt migreringen).
+      const alleredeLaant = await ctx.prisma.organizationTemplate.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          laantFraBibliotekMalId: input.bibliotekMalId,
+        },
+        select: { id: true },
+      });
+      if (alleredeLaant) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Denne malen er allerede lånt inn i firmaarkivet. Bruk «Oppdater» (↻) på den " +
+            "eksisterende firmamalen for å hente nyeste versjon fra sentralarkivet.",
+        });
+      }
+
       const bibMal = await ctx.prisma.bibliotekMal.findUniqueOrThrow({
         where: { id: input.bibliotekMalId },
         include: { kapittel: { include: { standard: true } } },

@@ -60,6 +60,19 @@ export default function MalarkivSide() {
     },
   });
 
+  // Hvilke sentralmaler firmaet ALT har lånt (Krav 2). Gjenbruker tabellens data —
+  // ingen ny query. ⚠️ Fane-skopet: dekker gjeldende fane. Server-vakten (CONFLICT)
+  // er den fulle gaten på tvers av faner.
+  const alleredeLaantIder = useMemo(
+    () =>
+      new Set(
+        (maler ?? [])
+          .map((m) => m.laantFraBibliotekMalId)
+          .filter((x): x is string => !!x),
+      ),
+    [maler],
+  );
+
   if (!kanAdministrereFirma) {
     return (
       <div className="max-w-5xl">
@@ -125,7 +138,9 @@ export default function MalarkivSide() {
               <tr className="text-left text-xs font-medium uppercase tracking-wide text-gray-500">
                 <th className="px-4 py-3">{t("firma.malarkiv.kolonne.navn")}</th>
                 <th className="px-4 py-3">{t("firma.malarkiv.kolonne.prefiks")}</th>
-                <th className="px-4 py-3">{t("firma.malarkiv.kolonne.versjon")}</th>
+                <th className="px-4 py-3" title={t("firma.malarkiv.versjonHjelp")}>
+                  {t("firma.malarkiv.kolonne.firmaversjon")}
+                </th>
                 <th className="px-4 py-3">{t("firma.malarkiv.kolonne.punkter")}</th>
                 <th className="px-4 py-3">{t("firma.malarkiv.kolonne.bruk")}</th>
                 <th className="px-4 py-3">{t("firma.malarkiv.kolonne.standard")}</th>
@@ -150,7 +165,12 @@ export default function MalarkivSide() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-600">{mal.prefix ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-600">v{mal.version}</td>
+                  <td
+                    className="px-4 py-3 text-gray-600"
+                    title={t("firma.malarkiv.versjonHjelp")}
+                  >
+                    v{mal.version}
+                  </td>
                   <td className="px-4 py-3 text-gray-600">{mal._count.objects}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {mal._count.copiedTo > 0
@@ -237,6 +257,7 @@ export default function MalarkivSide() {
       {visLaan && orgId && (
         <LaanFraSentralarkivDialog
           organizationId={orgId}
+          alleredeLaantIder={alleredeLaantIder}
           onLukk={() => setVisLaan(false)}
         />
       )}
@@ -516,9 +537,11 @@ const KOLLAPS_TERSKEL = 20; // >20 maler totalt → start kollapset (L2)
 
 function LaanFraSentralarkivDialog({
   organizationId,
+  alleredeLaantIder,
   onLukk,
 }: {
   organizationId: string;
+  alleredeLaantIder: Set<string>;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -655,6 +678,7 @@ function LaanFraSentralarkivDialog({
                             <MalRad
                               key={bm.id}
                               bm={bm}
+                              alleredeLaant={alleredeLaantIder.has(bm.id)}
                               laaner={laanMutation.isPending && laantId === bm.id}
                               onLaan={() => laan(bm.id)}
                             />
@@ -684,10 +708,12 @@ function LaanFraSentralarkivDialog({
 
 function MalRad({
   bm,
+  alleredeLaant,
   laaner,
   onLaan,
 }: {
   bm: { id: string; navn: string; referanse: string; verifisert: boolean };
+  alleredeLaant: boolean;
   laaner: boolean;
   onLaan: () => void;
 }) {
@@ -700,7 +726,16 @@ function MalRad({
     { enabled: apen },
   );
 
-  const laanKnapp = (
+  // Alt lånt (Krav 2): deaktiver lånet og pek på ↻ som veien til nyeste versjon.
+  // Speiler server-vakten (CONFLICT) så brukeren ser det FØR klikket.
+  const laanKnapp = alleredeLaant ? (
+    <span
+      className="inline-flex shrink-0 items-center rounded bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500"
+      title={t("firma.malarkiv.alleredeLaantHjelp")}
+    >
+      {t("firma.malarkiv.alleredeLaant")}
+    </span>
+  ) : (
     <Button variant="secondary" onClick={onLaan} disabled={laaner}>
       {laaner ? t("firma.malarkiv.laaner") : t("firma.malarkiv.laanKnapp")}
     </Button>
