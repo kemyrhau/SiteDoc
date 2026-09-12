@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -135,7 +136,13 @@ export default function MalarkivSide() {
               {maler.map((mal) => (
                 <tr key={mal.id} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900">{mal.name}</span>
+                    <Link
+                      href={`/dashbord/firma/malarkiv/${mal.id}`}
+                      className="font-medium text-gray-900 hover:text-sitedoc-primary hover:underline"
+                      title={t("firma.malarkiv.redigerInnhold")}
+                    >
+                      {mal.name}
+                    </Link>
                     {mal.laantFraBibliotekMalId && (
                       <Badge variant="default" className="ml-2">
                         {t("firma.malarkiv.badge.laant")}
