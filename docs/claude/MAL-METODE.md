@@ -47,9 +47,12 @@ Når en mal revideres, tar ordren stilling til malens rader i MK C-konverterings
 
 Kapittel K først, så F: KA7 → KB2 → KB4 → KB6 → KC3.1 → KD1 → (FB2, FC1, FD2, FE1, FB4, FD3).
 
+🔴 **Autoritativ «hva finnes i biblioteket» måles i DB, ikke her** (Kenneth 2026-09-12): `select referanse, navn, verifisert from bibliotek_maler order by referanse`. Tabellen under er kun en lettvekts oversikt over rekkefølge og gate-runder — ikke et vedlikeholdt register. Er du i tvil om hva som er bygget, spør databasen.
+
 | Mal | Ordre | Bygget | Gatet |
 |---|---|---|---|
 | KA7 | ordre-ka7-revisjon-fabel-2026-09-11.md (v2, absorberer MK C :166–:168) | ✓ `feat/mal-ka7-revisjon` `2a1602a8` | ✓ fabel 2026-09-11 → cowork teknisk gate + merge |
+| KB2 | ordre-kb2-revisjon-fabel + v2 (felt 4/7/8, kravsvar mot varierende flate) | ✓ `feat/mal-kb2-revisjon` `1372b93f` | ✓ fabel 2026-09-12 → cowork teknisk gate + merge |
 | øvrige | – | – | – |
 
 Merknad til FE1 (fra cowork, rutes inn når FE1 kommer opp): hjelpetekstene på «Gjenfylling lagvis» (:516) og varselbånd (:529) bærer metodekrav («maks 30 cm», «30 cm over») i rene trafikklys — fabel vurderer feltform mot normen.
