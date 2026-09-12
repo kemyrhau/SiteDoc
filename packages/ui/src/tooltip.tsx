@@ -20,6 +20,18 @@ interface TooltipProps {
   tekst: string;
   /** Valgfri fet tittel-linje over brødteksten (f.eks. «Send → Mottatt»). */
   tittel?: string;
+  /**
+   * Valgfritt rikt tilleggsinnhold UNDER brødteksten — f.eks. en oversatt variant
+   * i kursiv under en skillelinje. Rendres kun når satt; de eksisterende kallstedene
+   * som bare gir `tekst`/`tittel` er uendret.
+   */
+  innhold?: ReactNode;
+  /**
+   * Valgfri overstyring av maksbredde (Tailwind `max-w-*`-klasse). Default
+   * `max-w-[280px]` beholdes for alle andre kallsteder — kun flater med langt
+   * innhold (FeltWrapper) skrur den opp, aldri de korte etikett-tooltipsene.
+   */
+  maxBreddeKlasse?: string;
   children: ReactNode;
   /** Ønsket side. Auto-flippes til motsatt side ved skjermkant. */
   side?: Side;
@@ -73,6 +85,8 @@ function beregnKoord(rect: DOMRect, s: Side): { left: number; top: number } {
 export function Tooltip({
   tekst,
   tittel,
+  innhold,
+  maxBreddeKlasse = "max-w-[280px]",
   children,
   side = "right",
   delayMs = 300,
@@ -189,12 +203,13 @@ export function Tooltip({
         top: koord?.top ?? 0,
         transform: TRANSFORM[løstSide],
       }}
-      className={`pointer-events-none z-[9999] max-w-[280px] break-words [text-wrap:pretty] rounded bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg transition-opacity duration-100 ${
+      className={`pointer-events-none z-[9999] ${maxBreddeKlasse} break-words [text-wrap:pretty] rounded bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg transition-opacity duration-100 ${
         open ? "opacity-100" : "invisible opacity-0"
       }`}
     >
       {tittel && <span className="block font-semibold">{tittel}</span>}
       <span className="block whitespace-normal">{tekst}</span>
+      {innhold}
     </span>
   );
 

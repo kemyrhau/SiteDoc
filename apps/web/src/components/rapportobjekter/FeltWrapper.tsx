@@ -100,12 +100,25 @@ export function FeltWrapper({
             {t("malbygger.paakrevd")}
           </span>
         )}
-        {/* Delt Tooltip (portal + z-[9999] + max-w-[280px] break-words): bryter riktig, klippes
-            aldri av scroll-container, og åpner mot høyre så den ikke skjules bak venstre sidefelt.
-            Erstatter håndrullet w-56/z-10-boks. Den oversatte hjelpeteksten kan den delte
-            komponenten ikke bære (tar kun streng) — den rendres inline under etiketten nedenfor. */}
+        {/* Delt Tooltip (portal + z-[9999] + break-words): bryter riktig, klippes aldri av
+            scroll-container, og åpner mot høyre så den ikke skjules bak venstre sidefelt.
+            Bredere tak (max-w-[400px]) fordi hjelpeteksten + den oversatte varianten kan bli
+            lang; de korte etikett-tooltipsene ellers i appen beholder default 280px. Den
+            oversatte hjelpeteksten ligger i hover-boksen under en skillelinje (Kenneth-vedtak
+            2026-09-11: skjult til noen spør), kun når oversettelse er aktiv. */}
         {typeof objekt.config.helpText === "string" && objekt.config.helpText && (
-          <Tooltip tekst={objekt.config.helpText} side="right">
+          <Tooltip
+            tekst={objekt.config.helpText}
+            side="right"
+            maxBreddeKlasse="max-w-[400px]"
+            innhold={
+              visOversettelse && oversattHjelpetekst ? (
+                <span className="mt-1 block border-t border-gray-600 pt-1 italic text-blue-300">
+                  {oversattHjelpetekst}
+                </span>
+              ) : undefined
+            }
+          >
             <Info size={14} className="text-blue-400" />
           </Tooltip>
         )}
@@ -128,11 +141,6 @@ export function FeltWrapper({
       </div>
       {visOversettelse && oversattLabel && (
         <p className="mb-1 text-xs italic text-blue-600">{oversattLabel}</p>
-      )}
-      {/* Oversatt hjelpetekst: flyttet ut av tooltipen (delt komponent tar kun streng) og
-          rendres her, i samme stil som den oversatte etiketten over. Overlever fra gammel markup. */}
-      {visOversettelse && oversattHjelpetekst && (
-        <p className="mb-1 text-xs italic text-blue-500">{oversattHjelpetekst}</p>
       )}
       </>
       )}
