@@ -19,6 +19,7 @@ import {
   EMNE_KATEGORIER,
   STOETTEDE_SPRAAK,
   formaterNummer,
+  grupperMedOverskrift,
   type ReportObjectType,
   type TemplateZone,
   type EmneKategori,
@@ -1092,24 +1093,17 @@ function PsiForhandsvisning({ objekter, malNavn, onLukk }: { objekter: MalObjekt
   const { t } = useTranslation();
   const [aktivSeksjon, setAktivSeksjon] = useState(0);
 
-  // Del inn i seksjoner basert på headings
+  // Del inn i seksjoner per rot-grense (heading/undertittel). Konsolidert til den
+  // delte `grupperMedOverskrift` (runde 91, Krav 4) — den inline-kopien her var den
+  // tredje av samme utledning. Formen `{tittel, objekter}` beholdes: overskrift null
+  // (ledende felter / topptekst) titles med «introduksjon», som før.
   const seksjoner = useMemo(() => {
     const rot = [...objekter].sort((a, b) => a.sortOrder - b.sortOrder).filter((o) => !o.parentId);
-    const result: Array<{ tittel: string; objekter: MalObjekt[] }> = [];
-    let gjeldende: { tittel: string; objekter: MalObjekt[] } | null = null;
-
-    for (const obj of rot) {
-      if (obj.type === "heading") {
-        if (gjeldende) result.push(gjeldende);
-        gjeldende = { tittel: obj.label, objekter: [] };
-      } else {
-        if (!gjeldende) gjeldende = { tittel: t("malbygger.introduksjon"), objekter: [] };
-        gjeldende.objekter.push(obj);
-      }
-    }
-    if (gjeldende) result.push(gjeldende);
-    return result;
-  }, [objekter]);
+    return grupperMedOverskrift(rot).map((s) => ({
+      tittel: s.overskrift ? s.overskrift.label : t("malbygger.introduksjon"),
+      objekter: s.felter,
+    }));
+  }, [objekter, t]);
 
   const seksjon = seksjoner[aktivSeksjon];
 

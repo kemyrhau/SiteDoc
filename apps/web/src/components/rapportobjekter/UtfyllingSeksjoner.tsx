@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Check, AlertTriangle } from "lucide-react";
-import { grupperMedOverskrift, beregnSeksjonUtfylling } from "@sitedoc/shared";
+import {
+  grupperMedOverskrift,
+  beregnSeksjonUtfylling,
+  kanSlasSammen,
+  nesteKollapsTilstand,
+  type SeksjonTilstand,
+} from "@sitedoc/shared";
 import type { RapportObjekt } from "./typer";
 
 /**
@@ -43,7 +49,35 @@ export function UtfyllingSeksjoner({
   const seksjoner = grupperMedOverskrift(objekter);
   const [kollapsede, setKollapsede] = useState<Set<string>>(new Set());
 
-  // Ingen rot-headings → behold ren flat visning uten seksjons-krom.
+  // Utfyllingstilstand per overskrifts-seksjon — grunnlaget for både badgen og
+  // auto-kollapsen (Krav 1). Foldbarhet styres av grense-objektets config-flagg.
+  const overskriftSeksjoner = seksjoner
+    .filter((s) => s.overskrift !== null)
+    .map((s) => ({
+      id: s.overskrift!.id,
+      tilstand: beregnSeksjonUtfylling(s.felter, feltStatus).tilstand,
+      kanFoldes: kanSlasSammen(s.overskrift!.config),
+    }));
+
+  // Auto-kollaps (Krav 1): kantutløst på overgang til `komplett`. Ren logikk i
+  // `@sitedoc/shared` (delt m/mobil); komponenten holder bare forrige tilstand
+  // (ref) og `kollapsede` (state). Effekten kjører KUN når en tilstand faktisk
+  // endrer seg — nøkkelen serialiserer (id, tilstand, kanFoldes).
+  const forrigeTilstandRef = useRef<Map<string, SeksjonTilstand>>(new Map());
+  const tilstandNøkkel = overskriftSeksjoner
+    .map((s) => `${s.id}:${s.tilstand}:${s.kanFoldes ? 1 : 0}`)
+    .join("|");
+  useEffect(() => {
+    setKollapsede((forrige) =>
+      nesteKollapsTilstand(overskriftSeksjoner, forrigeTilstandRef.current, forrige),
+    );
+    forrigeTilstandRef.current = new Map(overskriftSeksjoner.map((s) => [s.id, s.tilstand]));
+    // Kun tilstandsnøkkelen — `overskriftSeksjoner` gjenskapes hver render, men
+    // effekten skal bare reagere på reelle tilstandsendringer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tilstandNøkkel]);
+
+  // Ingen rot-grenser → behold ren flat visning uten seksjons-krom.
   if (!seksjoner.some((s) => s.overskrift !== null)) {
     return <div className="flex flex-col gap-3">{objekter.map(render)}</div>;
   }
@@ -68,29 +102,42 @@ export function UtfyllingSeksjoner({
           );
         }
         const id = seksjon.overskrift.id;
-        const kollapset = kollapsede.has(id);
+        const kanFoldes = kanSlasSammen(seksjon.overskrift.config);
+        const kollapset = kanFoldes && kollapsede.has(id);
         const status = beregnSeksjonUtfylling(seksjon.felter, feltStatus);
-        return (
-          <div key={id} className="overflow-hidden rounded-lg border border-gray-200 print-no-break">
-            <button
-              type="button"
-              onClick={() => veksle(id)}
-              className="flex w-full items-center justify-between gap-3 bg-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-100 print:bg-white"
-            >
-              <span className="text-base font-semibold text-gray-900">
-                {seksjon.overskrift.label}
-              </span>
-              <span className="flex shrink-0 items-center gap-2">
-                {status.tilstand !== "tom" && (
-                  <SeksjonStatusMerke status={status} t={t} />
-                )}
+        const innhold = (
+          <>
+            <span className="text-base font-semibold text-gray-900">
+              {seksjon.overskrift.label}
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              {status.tilstand !== "tom" && <SeksjonStatusMerke status={status} t={t} />}
+              {kanFoldes && (
                 <ChevronDown
                   className={`h-5 w-5 shrink-0 text-gray-500 transition-transform print:hidden ${
                     kollapset ? "-rotate-90" : ""
                   }`}
                 />
-              </span>
-            </button>
+              )}
+            </span>
+          </>
+        );
+        return (
+          <div key={id} className="overflow-hidden rounded-lg border border-gray-200 print-no-break">
+            {/* Ikke-foldbar (Kenneth fjernet haken): seksjon uten chevron, alltid åpen. */}
+            {kanFoldes ? (
+              <button
+                type="button"
+                onClick={() => veksle(id)}
+                className="flex w-full items-center justify-between gap-3 bg-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-100 print:bg-white"
+              >
+                {innhold}
+              </button>
+            ) : (
+              <div className="flex w-full items-center justify-between gap-3 bg-gray-50 px-4 py-3 text-left print:bg-white">
+                {innhold}
+              </div>
+            )}
             <div
               className={`flex-col gap-3 px-4 py-3 ${kollapset ? "hidden print:flex" : "flex"}`}
             >
