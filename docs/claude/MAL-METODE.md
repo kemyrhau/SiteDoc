@@ -37,7 +37,7 @@ Flyt per mal — **én mal om gangen**, neste ordre skrives først når forrige 
 2. **Kenneth** relayer ordren til mal-Opus (fabel snakker aldri direkte med cowork/mal-Opus).
 3. **mal-Opus** bygger i `seed-bibliotek.ts` iht. ordren, med eksisterende hjelpefunksjoner (`valg`/`trafikklys`/`desimal`/`felt`) — aldri hardkodet JSON. Kjører seed mot lokal DB, verifiserer idempotent re-kjøring, og leverer **skjermbilde-bevis**: malen i MalBygger + utfyllingsvisningen. Avvik fra ordren meldes eksplisitt.
 4. **fabel** gater INNHOLD mot ordren (feltene, hjelpetekstene, fasene, utfyllingsopplevelsen). Godkjent → melder «klar for commit».
-5. **cowork** gater TEKNISKE husregler før merge — og rører aldri innholdet: MalBygger-objekter, aldri hardkodet (Kenneth-vedtak 2026-09-05); `verifisert: false` eksplisitt + prod-gate urørt; seed-idempotens (upsert, aldri deleteMany); i18n på nye synlige strenger. Cowork eier merge-timing og deploy alene.
+5. **cowork** gater TEKNISKE husregler før merge — og rører aldri innholdet: MalBygger-objekter, aldri hardkodet (Kenneth-vedtak 2026-09-05); `verifisert: false` eksplisitt + prod-gate urørt; seed-oppførsel (**kun opprett** via `opprettMalHvisMangler`, aldri update/`deleteMany`); i18n på nye synlige strenger. Cowork eier merge-timing og deploy alene.
 
 En mal som kompilerer og seeder kan fortsatt være ubrukelig på skjermen — derfor er skjermbilde-beviset obligatorisk før gate (presedens: kontrollplan L1-gaten).
 
