@@ -35,13 +35,9 @@ export interface DypSide {
 }
 
 export const dypeSider: DypSide[] = [
-  {
-    id: "maler",
-    labelKey: "innstillinger.maler.tittel",
-    brodsmuleKeys: ["nav.soneProsjekt"],
-    href: (p) => (p ? `/dashbord/${p}/maler` : null),
-    kreverProsjekt: true,
-  },
+  // Rapportmaler-flata (`[prosjektId]/maler`) fjernet (vei b, 2026-09-12). Malforvaltning
+  // søkes nå via Oppsett-innstillingskortet «Maler» (innstillinger-kort.tsx) → ingen egen
+  // dyp-side her. En dyp-side som pekte på en fjernet rute ville gitt et dødt søketreff.
   {
     id: "firmaAttestering",
     labelKey: "nav.timerAttestering",
