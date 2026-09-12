@@ -120,7 +120,7 @@ export async function opprettMalHvisMangler(
 
 interface FeltDef {
   label: string;
-  type: "traffic_light" | "decimal" | "list_single" | "heading";
+  type: "traffic_light" | "decimal" | "integer" | "list_single" | "heading";
   zone: "topptekst" | "datafelter";
   fase?: string;
   config?: Record<string, unknown>;
@@ -140,6 +140,10 @@ function trafikklys(label: string, fase: string, helpText?: string): FeltDef {
 
 function desimal(label: string, fase: string, config: Record<string, unknown>, helpText?: string): FeltDef {
   return felt(label, "decimal", fase, { ...config, ...(helpText ? { helpText } : {}) });
+}
+
+function heltall(label: string, fase: string, config: Record<string, unknown> = {}, helpText?: string): FeltDef {
+  return felt(label, "integer", fase, { ...config, ...(helpText ? { helpText } : {}) });
 }
 
 async function main() {
@@ -237,8 +241,8 @@ async function main() {
           "KB2 b5: Jord leveres med varedeklarasjon iht. NS 2890 og skal tilfredsstille Tabell K2 (pH 5,5–7,0, uten rotugras). Ta bilde av varedeklarasjonen."),
 
         // UNDER
-        desimal("Lagtykkelse vekstjord – minste måling (cm)", "UNDER", { enhet: "cm" },
-          "Tabell K4: blomstereng 10, gras/utplanting 20, stauder/busker 40, trær 60 cm. Tykkelsen gjelder etter at jorda har satt seg — legg ut med overhøyde. Mål på minst 3 punkter og før inn laveste måling."),
+        heltall("Lagtykkelse vekstjord – minste måling (cm)", "UNDER", { enhet: "cm" },
+          "Tabell K4: blomstereng 10, gras/utplanting 20, stauder/busker 40, trær 60 cm. Tykkelsen gjelder etter at jorda har satt seg — legg ut med overhøyde. Mål på minst 3 punkter og før inn laveste måling (hele cm)."),
         valg("Maks steinstørrelse", "UNDER",
           [
             "OK – under 20 mm (gras/blomstereng)",
