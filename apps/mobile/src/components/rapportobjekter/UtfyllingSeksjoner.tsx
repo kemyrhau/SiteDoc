@@ -95,9 +95,19 @@ export function UtfyllingSeksjoner<T extends MinObjekt>({
         const kanFoldes = kanSlasSammen(seksjon.overskrift.config);
         const kollapset = kanFoldes && kollapsede.has(id);
         const status = beregnSeksjonUtfylling(seksjon.felter, feltStatus);
+        // Undertittel = ett nivå under overskrift (runde 91-oppfølger): mindre skrift +
+        // lettere vekt + svakere farge (samme akser som web), OG innrykk — på smal skjerm
+        // bærer plasseringen hierarkiet der skriftgrad alene forsvinner.
+        const erUndertittel = seksjon.overskrift.type === "subtitle";
         const header = (
           <>
-            <Text className="flex-1 text-base font-semibold text-gray-900">
+            <Text
+              className={`flex-1 ${
+                erUndertittel
+                  ? "text-sm font-medium text-gray-600"
+                  : "text-base font-semibold text-gray-900"
+              }`}
+            >
               {seksjon.overskrift.label}
             </Text>
             <View className="flex-row shrink-0 items-center gap-2">
@@ -112,7 +122,12 @@ export function UtfyllingSeksjoner<T extends MinObjekt>({
           </>
         );
         return (
-          <View key={id} className="mb-2 overflow-hidden rounded-xl border border-gray-200">
+          <View
+            key={id}
+            className={`mb-2 overflow-hidden rounded-xl border border-gray-200 ${
+              erUndertittel ? "ml-4" : ""
+            }`}
+          >
             {/* Ikke-foldbar (Kenneth fjernet haken): ingen chevron, alltid åpen. */}
             {kanFoldes ? (
               <Pressable

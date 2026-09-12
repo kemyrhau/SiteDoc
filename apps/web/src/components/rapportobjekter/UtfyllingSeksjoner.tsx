@@ -105,9 +105,20 @@ export function UtfyllingSeksjoner({
         const kanFoldes = kanSlasSammen(seksjon.overskrift.config);
         const kollapset = kanFoldes && kollapsede.has(id);
         const status = beregnSeksjonUtfylling(seksjon.felter, feltStatus);
+        // Undertittel leses som ett nivå UNDER overskrift (runde 91-oppfølger): samme
+        // akser som appens inline Overskrift/Undertittel (`text-lg/bold/gray-900` vs
+        // `text-base/semibold/gray-600`), + innrykk som nesting-signal. Kun vekt/plass
+        // endres — folding, teller og merke er uendret.
+        const erUndertittel = seksjon.overskrift.type === "subtitle";
         const innhold = (
           <>
-            <span className="text-base font-semibold text-gray-900">
+            <span
+              className={
+                erUndertittel
+                  ? "text-sm font-medium text-gray-600"
+                  : "text-base font-semibold text-gray-900"
+              }
+            >
               {seksjon.overskrift.label}
             </span>
             <span className="flex shrink-0 items-center gap-2">
@@ -123,7 +134,12 @@ export function UtfyllingSeksjoner({
           </>
         );
         return (
-          <div key={id} className="overflow-hidden rounded-lg border border-gray-200 print-no-break">
+          <div
+            key={id}
+            className={`overflow-hidden rounded-lg border border-gray-200 print-no-break ${
+              erUndertittel ? "ml-4" : ""
+            }`}
+          >
             {/* Ikke-foldbar (Kenneth fjernet haken): seksjon uten chevron, alltid åpen. */}
             {kanFoldes ? (
               <button
