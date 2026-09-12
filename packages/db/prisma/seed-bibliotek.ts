@@ -271,25 +271,38 @@ async function main() {
       ],
     },
 
-    // ── KB4 – Grasdekke ──
+    // ── KB4 – Grasdekker ──
     {
       kapittelKode: "KB",
-      navn: "KB4 – Grasdekke",
+      navn: "KB4 – Grasdekker",
       referanse: "KB4",
-      beskrivelse: "Etablering, vedlikehold, overtakelse",
+      beskrivelse: "Etablering av grasdekke ved såing eller ferdigplen — materialkontroll, utførelse og overtakelseskrav (post KB4)",
       felter: [
-        valg("Type etablering", "FØR",
-          ["Såing – dokumentert frøblanding", "Rullegress", "Ferdigplen"],
-          "KB4: Frøblanding eller type rullegress/ferdigplen skal dokumenteres."),
-        trafikklys("Jordlag løsgjort og finplanert", "FØR"),
-        desimal("Fall (%)", "FØR", { enhet: "%", min: 2.0 },
-          "Minimum 2 % fall for drenering."),
-        trafikklys("God kontakt frø/plen mot jord", "UNDER"),
-        trafikklys("Vannet etter legging/såing", "UNDER"),
-        desimal("Markdekningsgrad (%)", "ETTER", { enhet: "%", min: 95 },
-          "KB4 c4: Minimum 95 % markdekningsgrad ved overtakelse. Bedøm visuelt eller ved prøverute."),
-        trafikklys("Klippet jevnlig frem til overtakelse", "ETTER",
-          "KB a1/c3: Prisen inkluderer skjøtsel frem til overtakelse."),
+        // FØR
+        valg("Formål", "FØR",
+          ["Grasplen", "Grasbane", "Grasbakke og eng", "Annet – angi i kommentar"],
+          "Matrise KB4:1. Formålet avgjør overtakelseskravet: grasplen/grasbane følger KB4 c4, grasbakke KB4 c5 (samme krav + minst 100 mm høyt)."),
+        valg("Metode", "FØR",
+          ["Sådd (ikke sprøytesådd)", "Sprøytesådd", "Ferdigplen", "Annen metode – angi i kommentar"],
+          "Matrise KB4:2. Metoden skal samsvare med posten i beskrivelsen."),
+        trafikklys("Frø/ferdigplen kontrollert og dokumentert", "FØR",
+          "KB4 b1: Opphavsmaterialet for frøslag skal dokumenteres og emballasjen være merket. KB4 b2: Ferdigplen skal ha høy skuddtetthet og godt utviklet rot- og utløpersystem. Frøblanding og frømengde per m² står i beskrivelsen. Ta bilde av emballasje/etikett eller følgeseddel."),
+        trafikklys("Jordlag løsgjort og finplanert", "FØR",
+          "Underlaget skal være klart for etablering — løsgjøring og finplanering, se KB2.5. Jordlagets kvalitet og fall dokumenteres i KB2-sjekklisten."),
+
+        // UNDER
+        trafikklys("God kontakt frø/plen mot jord", "UNDER",
+          "KB4 c1: Ved såing god kontakt mellom frø og jord, f.eks. ved nedmolding eller tromling. KB4 c2: Ferdigplen legges tett sammen, i forband og i god kontakt med underlaget. Ta bilde."),
+        trafikklys("Vannet etter legging/såing", "UNDER",
+          "Vanning etter såing/legging sikrer etableringen. Prosjektspesifikke skjøtselskrav står i beskrivelsen."),
+        trafikklys("Klippet jevnlig frem til overtakelse", "UNDER",
+          "KB4 c3: Grasplen og grasbane skal klippes jevnlig fram til overtakelse. Gjelder ikke grasbakke/eng — sett «Ikke relevant»."),
+
+        // ETTER
+        desimal("Markdekningsgrad (%)", "ETTER", { enhet: "%" },
+          "KB4 c4/c5: Minst 95 % markdekningsgrad ved overtakelse, med mindre annet står i beskrivelsen (KB4 y5.5). Bedøm visuelt eller ved prøverute — før målt/bedømt verdi."),
+        trafikklys("Ferdig gressflate godkjent for overtakelse", "ETTER",
+          "KB4 c4/c5: Graset skal være homogent og i god vekst, uten åpne flekker større enn 1,0 dm². Grasbakke skal i tillegg være minst 100 mm høyt. Ta bilde av ferdig flate."),
       ],
     },
 
