@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body { margin:0; background:#eef1f6; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; color:#1e293b; }
+a { color:#2451b3; } a:hover { color:#1a3d8f; }
+</style>
+</helmet>
+<div style="max-width:1500px; margin:0 auto;">
+  <div style="background:#fef9e7; border-bottom:1px solid #e8dfb8; padding:12px 24px; display:flex; flex-wrap:wrap; align-items:center; gap:16px;">
+    <div style="min-width:260px; flex:1;">
+      <div style="font-size:13px; font-weight:700; letter-spacing:0.04em; color:#8a6d1a;">MOCKUP — «Hent fra arkiv» på mallisten (til cowork)</div>
+      <div style="font-size:13px; color:#6b5b22; margin-top:2px;">Inngangen er listesiden vi har i dag — ingen ny malbygger. Én ny knapp åpner arkivet; hent legger en kopi rett i prosjektets malliste. Synlighet mot arkiv følger rollen.</div>
+    </div>
+    <div style="display:flex; gap:0; border:1px solid #cbbf8a; border-radius:8px; overflow:hidden;">
+      <sc-for list="{{ roles }}" as="r" hint-placeholder-count="3">
+        <button onClick="{{ r.pick }}" style="{{ r.btnStyle }}">{{ r.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+  <div style="background:#2451b3; color:#fff; padding:10px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+    <div style="font-weight:700; font-size:15px;">⛑ SiteDoc</div>
+    <div style="font-size:13px; opacity:0.9;">Sitedoc Boligfelt B12 › Oppsett › Produksjon › Sjekklistemaler</div>
+    <div style="background:rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.35); border-radius:6px; padding:2px 10px; font-size:11px; font-weight:700; letter-spacing:0.06em;">{{ roleBadge }}</div>
+  </div>
+  <div style="display:grid; grid-template-columns:210px minmax(0,1fr); gap:0; background:#fff; min-height:620px; position:relative;">
+    <div style="border-right:1px solid #e8edf4; padding:18px 12px;">
+      <div style="font-size:15px; font-weight:700; padding:0 8px 12px 8px;">Innstillinger</div>
+      <div style="display:flex; flex-direction:column; gap:2px; font-size:13px;">
+        <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="7">
+          <div style="{{ n.style }}">{{ n.label }}</div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="padding:18px 24px;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <button style="background:#5a691f; color:#fff; border:none; border-radius:7px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer;">+ Legg til ▾</button>
+        <button onClick="{{ openArchive }}" style="background:#fff; color:#2451b3; border:1px solid #2451b3; border-radius:7px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 0 0 3px rgba(36,81,179,0.12);">⬇ Hent fra arkiv</button>
+        <span style="background:#eef4fd; color:#2451b3; font-size:11px; font-weight:700; padding:3px 8px; border-radius:5px;">NY</span>
+        <span style="color:#94a3b8; font-size:13px;">Rediger · Slett · Mer ▾</span>
+        <span style="margin-left:auto; color:#64748b; font-size:13px;">🔍 Søk…</span>
+      </div>
+      <div style="margin-top:16px; border:1px solid #e8edf4; border-radius:8px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:minmax(0,1fr) 110px 90px 90px 80px; gap:0; background:#f8fafc; font-size:11px; font-weight:700; letter-spacing:0.06em; color:#64748b; padding:9px 14px;">
+          <div>NAVN</div><div>FAGOMRÅDE</div><div>PUNKTER</div><div>PREFIKS</div><div>VERSJON</div>
+        </div>
+        <sc-for list="{{ projectTemplates }}" as="t" hint-placeholder-count="3">
+          <div style="{{ t.rowStyle }}">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0;"><span>📋</span><span style="font-weight:600; font-size:13px;">{{ t.name }}</span><span style="{{ t.tagStyle }}">{{ t.tag }}</span></div>
+            <div style="font-size:13px; color:#475569;">{{ t.fag }}</div>
+            <div style="font-size:13px; color:#475569;">{{ t.punkter }}</div>
+            <div style="font-size:13px; color:#475569;">{{ t.prefiks }}</div>
+            <div style="font-size:13px; color:#475569;">{{ t.versjon }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:14px; color:#64748b; font-size:13px;">🔒 Klikk for å låse sjekklistemaler</div>
+    </div>
+    <sc-if value="{{ archiveOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute; inset:0; background:rgba(15,23,42,0.45); display:flex; align-items:center; justify-content:center; padding:24px; z-index:10;">
+        <div style="background:#fff; border-radius:12px; width:min(720px,100%); max-height:90%; overflow:auto; box-shadow:0 20px 50px rgba(15,23,42,0.3);">
+          <div style="padding:16px 20px; border-bottom:1px solid #e8edf4; display:flex; align-items:center; gap:12px;">
+            <div>
+              <div style="font-size:16px; font-weight:700;">Hent fra arkiv</div>
+              <div style="font-size:12px; color:#64748b;">Henter en kopi inn i prosjektets malliste — originalen røres ikke</div>
+            </div>
+            <button onClick="{{ closeArchive }}" style="margin-left:auto; background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer;">✕</button>
+          </div>
+          <div style="display:flex; gap:0; border-bottom:1px solid #e8edf4; padding:0 20px;">
+            <button onClick="{{ pickFirma }}" style="{{ tabFirmaStyle }}">Firmaarkiv</button>
+            <button onClick="{{ pickSitedoc }}" style="{{ tabSitedocStyle }}">SiteDoc-arkiv {{ sitedocLockIcon }}</button>
+          </div>
+          <sc-if value="{{ showLockedPanel }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:32px 24px; text-align:center;">
+              <div style="font-size:22px;">🔒</div>
+              <div style="font-size:13px; font-weight:600; margin-top:6px;">Ikke synlig på prosjektnivå</div>
+              <div style="font-size:12px; color:#64748b; margin-top:4px; text-wrap:pretty;">SiteDoc-arkivet er to nivåer opp. Prosjektet henter fra firmaarkivet; firmaet henter fra SiteDoc.</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showArchiveList }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:14px 20px 20px 20px;">
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <sc-for list="{{ archiveItems }}" as="m" hint-placeholder-count="3">
+                  <div style="border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:10px;">
+                    <div style="min-width:0; flex:1;">
+                      <div style="font-size:13px; font-weight:600;">{{ m.name }}</div>
+                      <div style="font-size:11px; color:#94a3b8;">{{ m.meta }}</div>
+                    </div>
+                    <sc-if value="{{ m.imported }}" hint-placeholder-val="{{ false }}">
+                      <span style="color:#1e7a3c; font-size:12px; font-weight:600;">✓ Hentet til prosjektet</span>
+                    </sc-if>
+                    <sc-if value="{{ m.notImported }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ m.fetch }}" style="background:#2451b3; color:#fff; border:none; border-radius:7px; padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer; flex-shrink:0;">Hent kopi</button>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="font-size:12px; color:#64748b; margin-top:12px; text-wrap:pretty;">{{ footNote }}</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1500,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { role: 'prosjekt', tab: 'firma', archiveOpen: true, imported: [] };
+  renderVals() {
+    const { role, archiveOpen, imported } = this.state;
+    let tab = this.state.tab;
+    const ROLES = [
+      { id: 'sitedoc', label: 'A · SiteDoc-admin' },
+      { id: 'firma', label: 'B · Firmaadmin' },
+      { id: 'prosjekt', label: 'C · Prosjektadmin' },
+    ];
+    // synlighet mot arkiv (Kenneths regel — vises ikke som matrise, den ER funksjonen)
+    const RIGHTS = {
+      sitedoc: { firma: 'edit', sitedoc: 'edit' },
+      firma: { firma: 'edit', sitedoc: 'read' },
+      prosjekt: { firma: 'read', sitedoc: 'hidden' },
+    };
+    const r = RIGHTS[role];
+    const roles = ROLES.map(x => ({
+      label: x.label,
+      pick: () => this.setState({ role: x.id, tab: 'firma' }),
+      btnStyle: 'padding:7px 14px; font-size:12px; font-weight:600; border:none; cursor:pointer; ' +
+        (x.id === role ? 'background:#8a6d1a; color:#fff;' : 'background:#fffdf4; color:#6b5b22;'),
+    }));
+    const navItems = ['Kontakter', 'Byggeplasser', 'Produksjon', 'Dokumentflyt', 'Oppgavemaler', 'Sjekklistemaler', 'HMS-maler', 'Moduler', 'Mappeoppsett', 'PSI'].map(label => ({
+      label,
+      style: 'padding:6px 10px; border-radius:6px; color:' +
+        (label === 'Sjekklistemaler' ? '#2451b3; background:#eef4fd; font-weight:700;' : '#475569;') +
+        (['Dokumentflyt','Oppgavemaler','Sjekklistemaler','HMS-maler','Moduler','Mappeoppsett','PSI'].includes(label) ? ' margin-left:14px;' : ' font-weight:600;'),
+    }));
+    const rowBase = 'display:grid; grid-template-columns:minmax(0,1fr) 110px 90px 90px 80px; gap:0; padding:11px 14px; border-top:1px solid #eef1f6; align-items:center;';
+    const base = [
+      { name: 'Befaringsnotat', fag: 'Bygg', punkter: '3', prefiks: 'BEF', versjon: '1.0', tag: '', tagStyle: 'display:none;', rowStyle: rowBase },
+      { name: 'KS avvik', fag: 'Bygg', punkter: '3', prefiks: 'K-avv', versjon: '1.0', tag: '', tagStyle: 'display:none;', rowStyle: rowBase },
+    ];
+    const ARCHIVE = {
+      firma: [
+        { id: 'f1', name: 'KB2 – Vekstjord (Myrhaug-tilpasset)', meta: 'Firmamal · Bygg · v1.1 · 12 punkter' },
+        { id: 'f2', name: 'Betong – overflatekontroll', meta: 'Firmamal · Bygg · v2.0 · 8 punkter' },
+        { id: 'f3', name: 'SJA – varmearbeider', meta: 'Firmamal · HMS · v1.0 · 6 punkter' },
+      ],
+      sitedoc: [
+        { id: 's1', name: 'KB2 – Vekstjord på terreng', meta: 'SiteDoc-standard · Bygg · v1.2' },
+        { id: 's2', name: 'NS3420 – grunnarbeider kontroll', meta: 'SiteDoc-standard · Bygg · v1.0' },
+        { id: 's3', name: 'SJA – arbeid i høyden', meta: 'SiteDoc-standard · HMS · v1.4' },
+      ],
+    };
+    const importedRows = imported.map(id => {
+      const src = [...ARCHIVE.firma, ...ARCHIVE.sitedoc].find(m => m.id === id);
+      return { name: src.name, fag: src.meta.includes('HMS') ? 'HMS' : 'Bygg', punkter: '—', prefiks: '—', versjon: 'kopi',
+        tag: 'Hentet fra arkiv', tagStyle: 'background:#eaf6ee; color:#1e7a3c; font-size:11px; font-weight:600; padding:2px 8px; border-radius:5px; flex-shrink:0;',
+        rowStyle: rowBase + ' background:#f6fbf7;' };
+    });
+    const archiveItems = ARCHIVE[tab].map(m => ({
+      name: m.name, meta: m.meta,
+      imported: imported.includes(m.id),
+      notImported: !imported.includes(m.id),
+      fetch: () => this.setState(s => ({ imported: [...s.imported, m.id] })),
+    }));
+    return {
+      roles,
+      roleBadge: 'VIST SOM: ' + ROLES.find(x => x.id === role).label.toUpperCase(),
+      navItems,
+      projectTemplates: [...base, ...importedRows],
+      openArchive: () => this.setState({ archiveOpen: true }),
+      closeArchive: () => this.setState({ archiveOpen: false }),
+      archiveOpen,
+      pickFirma: () => this.setState({ tab: 'firma' }),
+      pickSitedoc: () => this.setState({ tab: 'sitedoc' }),
+      tabFirmaStyle: tabStyle(tab === 'firma', false),
+      tabSitedocStyle: tabStyle(tab === 'sitedoc', r.sitedoc === 'hidden'),
+      sitedocLockIcon: r.sitedoc === 'hidden' ? '🔒' : '',
+      showLockedPanel: tab === 'sitedoc' && r.sitedoc === 'hidden',
+      showArchiveList: !(tab === 'sitedoc' && r.sitedoc === 'hidden'),
+      archiveItems,
+      footNote: tab === 'firma'
+        ? (r.firma === 'edit' ? 'Du kan også redigere firmaarkivet (firmanivå eller høyere).' : 'Kun lesing — du henter kopier, firmaarkivet redigeres på firmanivå.')
+        : 'SiteDoc-arkivet redigeres kun av SiteDoc-admin.',
+    };
+    function tabStyle(active, disabled) {
+      return 'padding:10px 12px; font-size:13px; border:none; background:none; cursor:' + (disabled ? 'not-allowed' : 'pointer') + '; ' +
+        (active ? 'font-weight:700; color:#2451b3; border-bottom:2px solid #2451b3;' :
+         'font-weight:500; color:' + (disabled ? '#b6c0cf' : '#64748b') + '; border-bottom:2px solid transparent;');
+    }
+  }
+}
+</script>
+</body>
+</html>
