@@ -2437,6 +2437,7 @@
   "malbygger.konfigurasjon": "Configuration",
   "malbygger.etikett": "Étiquette",
   "malbygger.paakrevdFelt": "Champ obligatoire",
+  "malbygger.kanSlasSammen": "Peut être effondré",
   "malbygger.hjelpetekst": "Texte d'aide",
   "malbygger.flerlinjet": "Multiligne",
   "malbygger.enhet": "Unité",

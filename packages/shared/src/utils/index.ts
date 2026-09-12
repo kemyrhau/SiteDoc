@@ -154,9 +154,12 @@ export type { Grense, GrenseStatus, KravType, GrenseVariant } from "./grenseSjek
 export {
   grupperMedOverskrift,
   beregnSeksjonUtfylling,
+  kanSlasSammen,
+  nesteKollapsTilstand,
   IKKE_TELLBARE_FELTTYPER,
+  SEKSJONSGRENSE_TYPER,
 } from "./seksjoner";
-export type { Seksjon, SeksjonUtfylling } from "./seksjoner";
+export type { Seksjon, SeksjonUtfylling, SeksjonTilstand } from "./seksjoner";
 export {
   HURTIGVALG_STANDARD,
   PERIODE_NOEKKEL,

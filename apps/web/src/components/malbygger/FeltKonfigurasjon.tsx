@@ -73,6 +73,7 @@ export function FeltKonfigurasjon({
     JSON.stringify(config) !== JSON.stringify(objekt.config);
 
   const erBarn = objekt.parentId != null;
+  const erSeksjonsgrense = objekt.type === "heading" || objekt.type === "subtitle";
   const harAktivBetingelse = objekt.config.conditionActive === true;
 
   // Finn foreldrefeltets label for barnefelt
@@ -99,15 +100,42 @@ export function FeltKonfigurasjon({
           onChange={(e) => setLabel(e.target.value)}
         />
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={påkrevd}
-            onChange={(e) => setPåkrevd(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          {t("malbygger.paakrevdFelt")}
-        </label>
+        {/* Krav 5 (runde 91): «Påkrevd felt» gir ikke mening for en overskrift/undertittel
+            — de tar ingen brukerinndata. Skjules for dem (forvirret Kenneth i panelet). */}
+        {!erSeksjonsgrense && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={påkrevd}
+              onChange={(e) => setPåkrevd(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            {t("malbygger.paakrevdFelt")}
+          </label>
+        )}
+
+        {/* Krav 2 (runde 91): «Kan slås sammen» — KUN heading/subtitle. Styrer om
+            seksjonen kan foldes ved utfylling. STANDARD PÅ: fravær i config leses som
+            true (seksjoner.ts `kanSlasSammen`), så eksisterende maler beholder foldingen.
+            Uhaket → `config.kanSlasSammen = false`; haket → nøkkelen fjernes (ren config). */}
+        {erSeksjonsgrense && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={config.kanSlasSammen !== false}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  const { kanSlasSammen: _, ...resten } = config;
+                  setConfig(resten);
+                } else {
+                  setConfig({ ...config, kanSlasSammen: false });
+                }
+              }}
+              className="rounded border-gray-300"
+            />
+            {t("malbygger.kanSlasSammen")}
+          </label>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-600">{t("malbygger.hjelpetekst")}</label>

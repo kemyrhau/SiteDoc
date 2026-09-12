@@ -2437,6 +2437,7 @@
   "malbygger.konfigurasjon": "Konfiguration",
   "malbygger.etikett": "Märka",
   "malbygger.paakrevdFelt": "Obligatoriskt fält",
+  "malbygger.kanSlasSammen": "Kan fällas ihop",
   "malbygger.hjelpetekst": "Hjälptext",
   "malbygger.flerlinjet": "Flerlinje",
   "malbygger.enhet": "Enhet",
