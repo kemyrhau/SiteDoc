@@ -396,11 +396,11 @@ stien. **Det betyr ikke at treet kan ryddes.**
 
 | Agent | Worktree | Tilstand | Spor |
 |---|---|---|---|
-| **kontrollplan** | `SiteDoc-kontrollplan` | 🔴 **ORDRE GITT** — `fix/kontrollpunkt-laasning` | Kontrollpunkt låses permanent når koblet sjekkliste myk-slettes. **HASTER — Kenneth blokkert.** ⚠️ Branch finnes verken lokalt eller på origin ennå — kvittering kun via Kenneths melding, ikke målbar |
+| **kontrollplan** | `SiteDoc-kontrollplan` | 🔴 **STOPPET** — `fix/kontrollpunkt-laasning` | ⚠️ **Duplikat — skal IKKE gjenopptas.** Låsningen ble løst av dokgen (`44487811`, merget runde 85) mens dokgens arbeid lå upushet og usynlig i `git branch -r`. Cowork bestilte samme fiks her; det var coworks feil, ikke kontrollplans |
 | **redesign** | `SiteDoc-redesign` | 🔴 **ORDRE GITT** — `feat/hent-fra-arkiv` | Fabels mockup + fjern to-nivå-hopp + stram lesing av sentralarkivet. ⚠️ Branch finnes verken lokalt eller på origin ennå |
-| **dokgen** | `SiteDoc-dokgen` | 🟡 **LOKAL BRANCH** — `fix/papirkurv-forhandsvisning` @ `46e75556` | ⚠️ **Coworks «LEDIG — ordre aldri kjørt» stemte ikke ved måling:** treet står på en lokal branch med commit `46e75556` (ikke pushet). Ordre-inbox lå død ~15 t; låsningen flyttet til kontrollplan. **Forhåndsvisning + flervalg gjenstår ubestilt** |
+| **dokgen** | `SiteDoc-dokgen` | 🟢 **LEDIG** — `44487811` detached (merget commit) | Papirkurv-forhåndsvisning + dempet «Tøm» + slett-vakt på levende kobling merget runde 85 (`652cdbda`). Løste låsningen Kenneth var blokkert av. Venter neste FUNN-ordre |
 | **mal-Opus** | `SiteDoc-mal` | 🟢 **LEDIG** — `5a271c61` detached (merget commit) | Venter neste mal-ordre fra fabel. KA7 + KB2 levert og merget |
-| **merge-agent** | `SiteDoc-merge` | 🟢 **LEDIG** — `758a193a` detached (= develop) | Runde 84 sist |
+| **merge-agent** | `SiteDoc-merge` | 🟢 **LEDIG** — `merge-restart` @ `652cdbda` (= develop) | Runde 85 sist: merget dokgens papirkurv-forhåndsvisning |
 | **simulator** | `SiteDoc-simulator` | ⚠️ **UTE AV DRIFT** — `bc3efdca` detached | Se «To trær som trenger et vedtak» under. Ikke i coworks 12.09-tabell, men treet finnes |
 | **deploy** | `SiteDoc-deploy` | 🟢 **LEDIG** — `4d00e94f` detached | Ingen ordre |
 
@@ -409,7 +409,7 @@ list`. Fjernet fra registeret.
 
 ### 🔴 Åpne tråder uten eier (målt 12.09)
 
-- **Forhåndsvisning + flervalg i papirkurven** — ubestilt etter at låsningen ble skilt ut til kontrollplan
+- ~~**Forhåndsvisning + flervalg i papirkurven**~~ — ✅ levert av dokgen + merget runde 85 (`652cdbda`), inkl. slett-vakt på levende kobling som løste låsningen
 - **Arkivredigering med versjonering** — fabels notat `til-repo-2026-09-12-1700` er utpakket men
   **ikke committet**. Krever ny versjonstabell; `DrawingRevision` er husmønsteret
 - **Bug: `ProsjektBibliotekValg` orphanes** ved firmamal-sletting — verifisert, ikke rutet til agent
