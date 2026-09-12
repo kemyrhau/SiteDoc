@@ -399,13 +399,18 @@ stien. **Det betyr ikke at treet kan ryddes.**
 | **kontrollplan** | `SiteDoc-kontrollplan` | 🔴 **STOPPET** — `fix/kontrollpunkt-laasning` | ⚠️ **Duplikat — skal IKKE gjenopptas.** Låsningen ble løst av dokgen (`44487811`, merget runde 85) mens dokgens arbeid lå upushet og usynlig i `git branch -r`. Cowork bestilte samme fiks her; det var coworks feil, ikke kontrollplans |
 | **redesign** | `SiteDoc-redesign` | 🟢 **LEDIG** — `5a9ae99b` detached (merget commit) | «Fjern Rapportmaler-flata» (vei b) + kapittelgruppering **merget runde 90 (`71202903`)**: `[prosjektId]/maler` + layout + `MalerPanel` fjernet → redirect, «Hent fra arkiv»-modal grupperer (SiteDoc: standard→kapittel, firma: fagområde). 16 ubrukte `maler.*`-i18n-nøkler slettet, alle 5 testtall stille. ⚠️ **Branchen lå i redesign-worktreet — Kenneth meldte «kontrollplan ble ferdig», men worktree-plasseringen sier redesign. Kontrollplan står fortsatt detached `d770acec` (STOPPET, urørt).** *(a)→(b)-vedtaket ligger i runde 88-raden over.* Forrige: dobbelt-lån-vakt runde 88 (`78a6bbbf`), «Hent fra arkiv» runde 87 (`a517c3ec`) |
 | **dokgen** | `SiteDoc-dokgen` | 🟢 **LEDIG** — `5e80a56e` detached (merget commit) | Auto-kollaps + «Kan slås sammen» + undertittel-nivå **merget runde 91 (`758ea071`)**: `kanSlasSammen(config)` (fravær→true, standardverdi ved lesing), `nesteKollapsTilstand` kantutløst på overgang til `komplett`, `tom` folder aldri, undertittel = seksjonsgrense (flat form). shared 802→814 (12 tester i `seksjoner.test.ts`). 🔴 **Mobilfiler rørt → OTA når dette skal ut.** Tidligere: papirkurv-forhåndsvisning runde 85 (`652cdbda`) |
-| **mal-Opus** | `SiteDoc-mal` | 🟢 **LEDIG** — `10bf4900` detached (merget commit) | Venter neste mal-ordre fra fabel. KA7 + KB2 + **KB4 v2 Grasdekker (9 felter/3 faser)** levert og merget (runde 86) |
+| **mal-Opus** | `SiteDoc-mal` | 🟡 **VENTER på fabels innholdsgate** — `feat/mal-kb6-revisjon` @ `a66c18f4` (pushet, IKKE merget) | KB6 v2 Planting. 🔴 **Merge-ordre runde 92 TRUKKET TILBAKE — for tidlig.** Teknisk ren (én fil `seed-bibliotek.ts`, create-only), men KB6 venter på fabels INNHOLDSGATE. ⚠️ **Åpent: NS 4400-detalj i Plantekvalitet-hjelpeteksten** — kan gi revidert ordre + NY commit. 🔴 **Ikke merge før cowork navngir hashen.** Tidligere: KA7 + KB2 + KB4 v2 merget (runde 86) |
 | **merge-agent** | `SiteDoc-merge` | 🟢 **LEDIG** — `merge-restart` @ develop | Runde 91 sist: merget auto-kollaps (`758ea071`). Web-deploy + OTA samles |
 | **simulator** | `SiteDoc-simulator` | ⚠️ **UTE AV DRIFT** — `bc3efdca` detached | Se «To trær som trenger et vedtak» under. Ikke i coworks 12.09-tabell, men treet finnes |
 | **deploy** | `SiteDoc-deploy` | 🟢 **LEDIG** — `4d00e94f` detached | Ingen ordre |
 
 🔴 **`SiteDoc-mobil-device` er BORTE** — sto foreldreløs 11.09, er ikke lenger i `git worktree
 list`. Fjernet fra registeret.
+
+🟡 **Lærdom (runde 92, KB6 trukket tilbake):** en teknisk ren mal-branch er IKKE klar for merge —
+maler har en **innholdsgate hos fabel** i tillegg til kodegaten. Cowork skal ikke bestille merge av
+`seed-bibliotek.ts`-runder før fabel har gatet innholdet. KB6 gatet teknisk (create-only, én fil),
+men innholdet (NS 4400-detalj i Plantekvalitet) var ikke avklart.
 
 ### 🔴 Åpne tråder uten eier (målt 12.09)
 
