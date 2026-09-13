@@ -4,6 +4,30 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟡 2026-09-13 — Docs: ett navn per arkivnivå (Kenneth-vedtak). Ingen kode, ingen deploy.
+
+**Vedtak ført i `terminologi.md § 0`** (rett under rettighetsmatrisen fra `a3e73a09`): hvert arkivnivå
+skal hete **én** ting på flatene brukeren ser — **SiteDoc-arkiv** (`BibliotekMal`) · **Firmaarkiv**
+(`OrganizationTemplate`) · **Prosjektarkiv** (`ReportTemplate`). «Bibliotek»/«Sentralarkiv»/«Malarkiv» utgår
+som synlige begreper. 🔴 **Presisert at vedtaket IKKE er en datamodell-/rute-refaktorering** — tabellnavn,
+ruter og kodeidentifikatorer (`BibliotekMal`, `/admin/bibliotek`, `bibliotek.ts`, `firma-nav.tsx`) røres ikke.
+**Målt selv 13.09 (`nb.json`):** SiteDoc **6** navn · Firma **2** · Prosjekt **0** (nivået hadde aldri fått
+et navn — sannsynlig grunn til gjentatt feilrekonstruksjon av tre-nivå-modellen). Selve streng-harmoniseringen
+er egen oppgave under fabels IA-sak.
+
+**Tre nye funn ført i BACKLOG (#18–#20, alle eier fabel):** #18 `admin/bibliotek` lover malbygger men kan
+kun `oppdaterMal` · #19 «Hent fra arkiv»-modalen mangler kollaps + søk (gamle lånedialog hadde søk) · #20 ingen
+flate viser hvilket arkivnivå du står i.
+
+**Tavle:**
+- 🟢 **Runde 97 verifisert av Kenneth på test:** avslutt-flaten, «Oppdatert»-merket og retur-lenken virker.
+  ⚠️ **Ferskhetsgaten IKKE bekreftet utløst ennå** — Kenneth må prøve å avslutte med arkiv eldre enn siste endring.
+- ⚠️ **«Tilbake til …» er et GENERELT behov** (Kenneth), ikke bare i papirkurven. Primitiven finnes i
+  `papirkurv/page.tsx` fra runde 97 (sti-validert, whitelistet etikett). Går til fabel som del av IA-saken —
+  ikke bestill flate for flate.
+
+---
+
 ## 🟡 2026-09-13 — Runde 97: arkivgaten måler ferskhet + tre veier ut. Web-deploy samles.
 
 **To merger, dokgen først (flere nøkler) så redesign på toppen:**

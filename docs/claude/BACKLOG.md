@@ -99,6 +99,11 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 | 15 | Kundeansvar for NS-verifisering har ingen flate | MAL-METODE §7a pkt. 5 | 🟡 | Bruksvilkår/onboarding | 🔴 **Juridisk — ikke cowork** |
 | 16 | Hvitt merke i mobil-header er DØD knapp etter fjernet expo-print | `sjekkliste/[id].tsx:113`, `ArkivPdfForhandsvisning.tsx:21` | 🟡 | Fjernes | ✅ **BESTILT — dokgen, `fix/fjern-doed-utkastknapp`** |
 | 17 | «Avslutt prosjekt» har ingen UI | `prosjekt.ts:580` bygget · flate «kommende» `prosjektoppsett/page.tsx:231,557`, `EksportSeksjon.tsx:53` | 🟡 | Knapp i prosjektoppsett | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+| 18 | `admin/bibliotek` lover mer enn den kan | `bibliotek.ts` (kun `oppdaterMal`) — ingen felt-palett/dra-og-slipp/slett | 🟡 | Teksten «Rediger malene alle kunder importerer fra» lover en malbygger; editoren kan kun endre tekst + rekkefølge, ikke legge til/fjerne objekter. To editorer med ulik makt, der den svakeste påstår mest | 🔴 **fabel (IA) + Kenneth (om den skal bli full malbygger)** |
+| 19 | «Hent fra arkiv»-modalen mangler kollaps og søk | `HentFraArkivModal.tsx` (standard→kapittel, ingen chevron/kollaps-state/søkefelt) | 🟡 | Den gamle lånedialogen (`firma/malarkiv/page.tsx:552`) HAR søk på navn + referanse — den nye arvet grupperingen, ikke søket. Kollaps-primitiven finnes i `UtfyllingSeksjoner.tsx` (chevron + `Set<string>`) | 🔴 **fabel — hører i Malforvaltning-strukturen** |
+| 20 | Ingen flate sier hvilket arkivnivå du står i | Kenneth: «lite indikasjoner på at det faktisk er prosjektarkiv» | 🟡 | Nivå-indikasjon på arkivflatene (jf. ett-navn-per-nivå-vedtaket, `terminologi.md § 0`) | 🔴 **fabel** |
+
+🔵 **Tillegg 13.09 kveld:** #18–#20 er målt samme dag som de 17 første, etter Kenneths arkiv-navnetest. Masterlist-tittelen «17 målte funn» beholdes som anker; disse tre er ført som fortsettelse.
 
 ⚠️ **#12 er 🟠, ikke 🟡:** enhver innlogget bruker i ethvert kundefirma kan lese hele
 NS 3420-arkivet, inkludert uverifiserte utkast. Ingen kan endre noe — men innholdet er produktet.
@@ -106,7 +111,8 @@ NS 3420-arkivet, inkludert uverifiserte utkast. Ingen kan endre noe — men innh
 **Status på tavla 13.09:** #1/#2/#3/#17 pågår hos redesign (`fix/synliggjor-malforvaltning`) ·
 #16 pågår hos dokgen (`fix/fjern-doed-utkastknapp`; enhet-gaten oppfylt — Kenneth bekreftet PDF-forhåndsvisning
 på fysisk iPhone 13.09) · #5/#6/#7/#9 er én samlet IA-sak åpen hos fabel · #8/#10 venter på Kenneth ·
-`feat/mal-kc31-revisjon` venter på Kenneths innholdsgate.
+`feat/mal-kc31-revisjon` venter på Kenneths innholdsgate. **#18/#19/#20 (13.09 kveld) er alle fabel** —
+#18 også Kenneth-gate på malbygger-ambisjon; #19/#20 hører i IA-saken.
 
 ---
 

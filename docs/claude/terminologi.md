@@ -43,7 +43,7 @@ SiteDoc (plattform)                            ← SiteDoc-admin. Sentralarkiv/m
 
 Malverket har tre arkiv-nivåer som speiler hierarkiet over, hver med sin egen tabell:
 
-**SiteDoc-arkiv (`BibliotekMal`) → Firmaarkiv (`OrganizationTemplate`) → Prosjektmal (`ReportTemplate`).**
+**SiteDoc-arkiv (`BibliotekMal`) → Firmaarkiv (`OrganizationTemplate`) → Prosjektarkiv (`ReportTemplate`).**
 
 **Rettighetsmatrise (Kenneth-vedtak 2026-09-12/13) — ÉN sannhetskilde, andre filer peker hit:**
 
@@ -57,6 +57,22 @@ Malverket har tre arkiv-nivåer som speiler hierarkiet over, hver med sin egen t
 🔴 **Regelen som følger av matrisen: «Lån kun fra nivået rett over — aldri to opp.»** Hver rolle leser nivået over sitt eget for å låne derfra; ingen ser to nivåer opp.
 
 **Målt mot koden 2026-09-13:** matrisen er implementert i `autoriserMalTilgang` (`apps/api/src/trpc/tilgangskontroll.ts:1791`) med nivå-typen `MalArkivNivaa` (`:1746`) — funksjonen håndhever alle fire rader. ⚠️ **Én celle er uttrykt i logikken men ikke wiret ved kallstedet ennå:** firmaadmin→SiteDoc-arkiv *les* (`bibliotek.hentStandarder` strammes i egen runde sammen med lånet — se åpen tråd i STATUS-AKTUELT). De øvrige cellene er wiret.
+
+#### Kenneth-vedtak 2026-09-13 — ett navn per arkivnivå
+
+Hvert nivå skal hete **én** ting på flatene brukeren ser. ÉN sannhetskilde — andre filer peker hit, gjentar ikke.
+
+| Nivå | Synlig navn | Tabell |
+|---|---|---|
+| SiteDoc | **SiteDoc-arkiv** | `BibliotekMal` |
+| Firma | **Firmaarkiv** | `OrganizationTemplate` |
+| Prosjekt | **Prosjektarkiv** | `ReportTemplate` |
+
+🔴 **«Bibliotek», «Sentralarkiv» og «Malarkiv» UTGÅR som synlige begreper** — erstattes av navnet for nivået sitt.
+
+⚠️ **Hva vedtaket IKKE er:** det gjelder **kun det brukeren ser** (UI-strenger, overskrifter, hjelpetekst). **Tabellnavn, ruter og kodeidentifikatorer røres IKKE** — `BibliotekMal`, `/admin/bibliotek`, `bibliotek.ts`, `firma-nav.tsx`, `malarkiv/page.tsx` beholder navnene sine. Vedtaket er ingen datamodell- eller rute-refaktorering.
+
+**Målt 2026-09-13 (`packages/shared/src/i18n/nb.json` som kilde):** samme nivå het ulike ting avhengig av hvor brukeren sto — **SiteDoc: seks navn** («Sentralarkiv» · «SiteDoc-arkiv» · «SiteDoc-sentralarkivet» · «sjekklistebiblioteket» · «Bibliotek» · «Hent fra bibliotek») · **Firma: to** («Firmaarkiv» i tekst, «Malarkiv» i navigasjonen, `firmaNav.malarkiv`/`firma.malarkiv.tittel`) · **Prosjekt: null** (ingen treff på «prosjektarkiv»; het «Sjekklistemaler»/«Rapportmaler»/«maler»). At prosjektnivået aldri fikk et navn er en sannsynlig grunn til at tre-nivå-modellen er blitt rekonstruert feil gjentatte ganger. Selve strengharmoniseringen i `nb.json` (+ 13-språk-generate) er en egen oppgave under fabels IA-sak — dette vedtaket fastsetter kun målnavnene.
 
 ### Begreper — endelig definisjon
 
