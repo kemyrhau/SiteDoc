@@ -1,12 +1,19 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { Modal, Button, Spinner } from "@sitedoc/ui";
-import { Lock, Check } from "lucide-react";
+import { Modal, Button, Spinner, Input } from "@sitedoc/ui";
+import { Lock, Check, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { malHorerTilFane, type ArkivFane } from "./arkiv-fane-filter";
+import {
+  byggKildeIndeks,
+  byggSitedocGrupper,
+  filtrerOgFold,
+  grupperFirmaMaler,
+  type ArkivFane,
+  type FoldetGruppe,
+} from "./arkiv-fane-filter";
 
 /**
  * «Hent fra arkiv» — grensesnittet mellom prosjekt, firma og SiteDoc-sentralarkiv
@@ -47,6 +54,16 @@ export function HentFraArkivModal({
   const [hentetFirma, setHentetFirma] = useState<Set<string>>(new Set());
   const [hentetSitedoc, setHentetSitedoc] = useState<Set<string>>(new Set());
   const [aktivRad, setAktivRad] = useState<string | null>(null);
+  // Søk over BEGGE faner (Krav 1) — ligger over fanene, deles av dem.
+  const [sok, setSok] = useState("");
+  // Kollaps per fane, økt-tilstand (L2). Tom = alt sammenslått (Krav 2: sammenslått start).
+  const [utfoldedeFirma, setUtfoldedeFirma] = useState<Set<string>>(new Set());
+  const [utfoldedeSitedoc, setUtfoldedeSitedoc] = useState<Set<string>>(new Set());
+
+  function lukk() {
+    setSok("");
+    onClose();
+  }
 
   const tilgang = trpc.firmamal.arkivTilgang.useQuery(
     { projectId },
@@ -64,9 +81,13 @@ export function HentFraArkivModal({
     { enabled: open && aktivFane === "firma" },
   );
 
-  // Sentralarkivet lastes bare når firmaadmin+ faktisk åpner den fanen (klient-gate).
+  // Sentralarkivet lastes når SiteDoc-fanen åpnes (firmaadmin+, klient-gate) ELLER når
+  // firmaarkiv-fanen er aktiv: firma-grupperingen utleder kapittel fra kilden via denne
+  // (Krav 2). `hentStandarder` er uten server-gate og innholdet (NS 3420-K) er ikke
+  // sensitivt, så oppslaget er trygt også for prosjektadmin — det brukes kun til å
+  // navngi grupper, ikke til å eksponere lån.
   const standarder = trpc.bibliotek.hentStandarder.useQuery(undefined, {
-    enabled: open && aktivFane === "sitedoc" && kanSitedoc,
+    enabled: open && (aktivFane === "firma" || (aktivFane === "sitedoc" && kanSitedoc)),
   });
 
   const kopierMutation = trpc.firmamal.kopierTilProsjekt.useMutation({
@@ -93,6 +114,9 @@ export function HentFraArkivModal({
     name: string;
     domain: string;
     version: number;
+    // Avstamning til SiteDoc-sentralmalen (schema.prisma:1145) — bærer kapittelet når
+    // malen er lånt. null = egenlagd firmamal (Krav 2).
+    laantFraBibliotekMalId: string | null;
     _count: { objects: number };
   };
   type SentralMal = {
@@ -108,11 +132,19 @@ export function HentFraArkivModal({
 
   const firmaListe = (firmamaler.data ?? []) as FirmaMal[];
   const sentralStandarder = (standarder.data ?? []) as SentralStandard[];
+  // Kilde-indeks: bibliotekMalId → kapittel. Utleder firmamalens gruppe fra lånet (Krav 2)
+  // og gir den arvede referansen som firma-søket også treffer på.
+  const kildeIndeks = byggKildeIndeks(sentralStandarder);
 
   function byggFirmaRad(fm: FirmaMal): ArkivRad {
+    const kildeRef = fm.laantFraBibliotekMalId
+      ? kildeIndeks.get(fm.laantFraBibliotekMalId)?.referanse
+      : undefined;
     return {
       id: fm.id,
       navn: fm.name,
+      // Søket treffer navn + arvet referanse (Krav 1) — firmamaler har ingen egen referanse.
+      sok: [fm.name, kildeRef].filter(Boolean).join(" ").toLowerCase(),
       meta: [
         t("maler.arkiv.kildeFirma"),
         t(`maler.domain.${fm.domain}`),
@@ -135,6 +167,7 @@ export function HentFraArkivModal({
     return {
       id: m.id,
       navn: m.navn,
+      sok: [m.navn, m.referanse].join(" ").toLowerCase(),
       meta: [t("maler.arkiv.kildeSitedoc"), m.referanse, `v${m.versjon}`].join(" · "),
       hentet: hentetSitedoc.has(m.id),
       laster: laanMutation.isPending && aktivRad === m.id,
@@ -150,30 +183,25 @@ export function HentFraArkivModal({
     };
   }
 
-  // Firmaarkiv har ingen kapittelkobling (OrganizationTemplate mangler den). Grupperer
-  // derfor på fagområde (domain) — den eneste ekte akselen i dataene (meldt i rapport).
-  const firmaDomener = [...new Set(firmaListe.map((fm) => fm.domain))];
-  const firmaGrupper: ArkivGruppe[] = firmaDomener.map((domain) => ({
-    key: domain,
-    tittel: t(`maler.domain.${domain}`),
-    rader: firmaListe.filter((fm) => fm.domain === domain).map(byggFirmaRad),
+  // SAMME modell i begge faner (Krav 2): standard → kapittel, «Egenlagde» som egen gruppe,
+  // sammenslått start. Firmaarkivet utleder kapitlet fra lånet via kilde-indeksen.
+  const firmaGrupper: ArkivGruppe[] = grupperFirmaMaler(
+    firmaListe,
+    kildeIndeks,
+    t("maler.arkiv.gruppeEgenlagde"),
+  ).map((g) => ({ key: g.key, tittel: g.tittel, rader: g.maler.map(byggFirmaRad) }));
+
+  // SiteDoc-arkivet: typefilter per flate (Krav 3) kjøres FØR gruppering, så søket aldri
+  // kan omgå det. Kapitler som tømmes av filteret faller bort.
+  const sitedocGrupper: ArkivGruppe[] = byggSitedocGrupper(sentralStandarder, fane).map((g) => ({
+    key: g.key,
+    tittel: g.tittel,
+    rader: g.maler.map(byggSitedocRad),
   }));
 
-  // SiteDoc-arkivet: nøstet standard → kapittel finnes allerede i dataene. Viser
-  // kapitteloverskrifter (Kenneth-funn) så 20-30 kapitler ikke blir én lang, flat liste.
-  // Typefilter (krav 1): kun maler som hører til flaten `fane` — samme akse som
-  // firmaarkiv-fanen. Kapitler som tømmes av filteret faller bort.
-  const sitedocGrupper: ArkivGruppe[] = sentralStandarder.flatMap((s) =>
-    s.kapitler
-      .map((k) => ({ k, maler: k.maler.filter((m) => malHorerTilFane(fane, m)) }))
-      .filter(({ maler }) => maler.length > 0)
-      .map(({ k, maler }) => ({
-        key: k.id,
-        tittel: `${s.kode} · ${k.kode} ${k.navn}`,
-        rader: maler.map(byggSitedocRad),
-      })),
-  );
-  const sitedocAntall = sitedocGrupper.reduce((n, g) => n + g.rader.length, 0);
+  // Søk + kollaps, felles primitiv (Krav 1): treff folder ut sammenslåtte grupper.
+  const firmaFoldet = filtrerOgFold(firmaGrupper, sok, utfoldedeFirma);
+  const sitedocFoldet = filtrerOgFold(sitedocGrupper, sok, utfoldedeSitedoc);
 
   // Tom-tilstanden skal si HVORFOR den er tom (TILLEGG 2), ellers leses innholdsgapet som
   // en bug. Seks kombinasjoner (tre flater × to faner):
@@ -183,14 +211,26 @@ export function HentFraArkivModal({
   //  - Firmaarkiv-fanen, tom: firmaet har ikke lånt inn den typen ennå. Peker videre.
   //    For prosjektadmin (kanSitedoc=false) er SiteDoc-fanen låst, så teksten peker IKKE
   //    dit — den navngir hvem som henter inn i stedet (TILLEGG 3).
-  const sitedocTomTekst = fane
+  const sitedocTomTekstBase = fane
     ? t("maler.arkiv.ingenSitedocForklart")
     : t("maler.arkiv.ingenSitedoc");
-  const firmaTomTekst = !fane
+  const firmaTomTekstBase = !fane
     ? t("maler.arkiv.ingenFirma")
     : kanSitedoc
       ? t("maler.arkiv.ingenFirmaForklart", { type: t(`maler.arkiv.type.${fane}`) })
       : t("maler.arkiv.ingenFirmaForklartLaast", { type: t(`maler.arkiv.type.${fane}`) });
+  // Under søk uten treff vinner «ingen treff» over den (irrelevante) tom-forklaringen.
+  const firmaTomTekst = firmaFoldet.harSok ? t("maler.arkiv.ingenTreff") : firmaTomTekstBase;
+  const sitedocTomTekst = sitedocFoldet.harSok ? t("maler.arkiv.ingenTreff") : sitedocTomTekstBase;
+
+  function toggle(setter: Dispatch<SetStateAction<Set<string>>>, key: string) {
+    setter((prev) => {
+      const neste = new Set(prev);
+      if (neste.has(key)) neste.delete(key);
+      else neste.add(key);
+      return neste;
+    });
+  }
 
   function faneKnapp(id: "firma" | "sitedoc", label: string, laast: boolean) {
     const aktiv = aktivFane === id;
@@ -216,8 +256,19 @@ export function HentFraArkivModal({
   const visLaastPanel = aktivFane === "sitedoc" && !tilgang.isLoading && !kanSitedoc;
 
   return (
-    <Modal open={open} onClose={onClose} title={t("maler.arkiv.tittel")} className="max-w-2xl">
+    <Modal open={open} onClose={lukk} title={t("maler.arkiv.tittel")} className="max-w-2xl">
       <p className="-mt-2 mb-3 text-sm text-gray-500">{t("maler.arkiv.undertittel")}</p>
+
+      {/* Søk over BEGGE faner (Krav 1) — over fanene, ikke inni hver fane */}
+      <div className="relative mb-3">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Input
+          value={sok}
+          onChange={(e) => setSok(e.target.value)}
+          placeholder={t("maler.arkiv.sokPlassholder")}
+          className="pl-9"
+        />
+      </div>
 
       {/* Faner */}
       <div className="flex gap-1 border-b border-gray-200">
@@ -240,13 +291,15 @@ export function HentFraArkivModal({
         </div>
       ) : (
         <div className="mt-3">
-          {/* Firmaarkiv-fanen — gruppert på fagområde */}
+          {/* Firmaarkiv-fanen — standard → kapittel + «Egenlagde» (Krav 2) */}
           {aktivFane === "firma" && (
             <ArkivListe
-              laster={firmamaler.isLoading}
-              tom={firmaListe.length === 0}
+              laster={firmamaler.isLoading || standarder.isLoading}
+              tom={firmaFoldet.synlige.length === 0}
               tomTekst={firmaTomTekst}
-              grupper={firmaGrupper}
+              grupper={firmaFoldet.synlige}
+              harSok={firmaFoldet.harSok}
+              onToggle={(key) => toggle(setUtfoldedeFirma, key)}
               fotnote={
                 kanRedigereFirma ? (
                   <Link
@@ -266,9 +319,11 @@ export function HentFraArkivModal({
           {aktivFane === "sitedoc" && kanSitedoc && (
             <ArkivListe
               laster={standarder.isLoading}
-              tom={sitedocAntall === 0}
+              tom={sitedocFoldet.synlige.length === 0}
               tomTekst={sitedocTomTekst}
-              grupper={sitedocGrupper}
+              grupper={sitedocFoldet.synlige}
+              harSok={sitedocFoldet.harSok}
+              onToggle={(key) => toggle(setUtfoldedeSitedoc, key)}
               fotnote={
                 kanRedigereSitedoc ? (
                   <Link
@@ -296,6 +351,8 @@ export function HentFraArkivModal({
 type ArkivRad = {
   id: string;
   navn: string;
+  /** Ferdig normalisert søkestreng (navn [+ referanse]) — brukes av `filtrerOgFold`. */
+  sok: string;
   meta: string;
   hentet: boolean;
   laster: boolean;
@@ -333,12 +390,16 @@ function ArkivListe({
   tom,
   tomTekst,
   grupper,
+  harSok,
+  onToggle,
   fotnote,
 }: {
   laster: boolean;
   tom: boolean;
   tomTekst: string;
-  grupper: ArkivGruppe[];
+  grupper: FoldetGruppe<ArkivRad>[];
+  harSok: boolean;
+  onToggle: (key: string) => void;
   fotnote: ReactNode;
 }) {
   if (laster) {
@@ -351,24 +412,34 @@ function ArkivListe({
   if (tom) {
     return <p className="py-8 text-center text-sm text-gray-500">{tomTekst}</p>;
   }
-  // Overskrifter kun når det er mer enn én gruppe — én gruppe (typisk firmaarkiv med ett
-  // fagområde) trenger ingen overskrift, men SiteDoc-arkivets mange kapitler gjør (Krav 6).
-  const visOverskrifter = grupper.length > 1;
+  // Kollapsbare kapittel-grupper (Krav 2). Under søk er alle grupper med treff tvunget
+  // åpne og chevronen deaktivert (Krav 1) — økt-tilstanden styrer kun uten søk.
   return (
     <>
-      <div className="max-h-[55vh] space-y-3 overflow-y-auto">
+      <div className="max-h-[55vh] space-y-2 overflow-y-auto">
         {grupper.map((g) => (
-          <div key={g.key}>
-            {visOverskrifter && (
-              <h4 className="sticky top-0 bg-white pb-1 pt-0.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                {g.tittel}
-              </h4>
+          <div key={g.key} className="rounded border border-gray-100">
+            <button
+              type="button"
+              onClick={() => !harSok && onToggle(g.key)}
+              disabled={harSok}
+              className="flex w-full items-center gap-1.5 px-2.5 py-2 text-left text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent"
+            >
+              {g.apen ? (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              )}
+              <span className="min-w-0 flex-1 truncate">{g.tittel}</span>
+              <span className="shrink-0 font-normal text-gray-400">· {g.rader.length}</span>
+            </button>
+            {g.apen && (
+              <ul className="space-y-2 px-2 pb-2">
+                {g.rader.map((r) => (
+                  <ArkivRadElement key={r.id} r={r} />
+                ))}
+              </ul>
             )}
-            <ul className="space-y-2">
-              {g.rader.map((r) => (
-                <ArkivRadElement key={r.id} r={r} />
-              ))}
-            </ul>
           </div>
         ))}
       </div>
