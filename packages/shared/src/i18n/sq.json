@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Ky shabllon nuk ka ende fusha.",
   "firma.malarkiv.fase.for": "Para ekzekutimit",
   "firma.malarkiv.fase.under": "Gjatë ekzekutimit",
-  "firma.malarkiv.fase.etter": "Pas ekzekutimit"
+  "firma.malarkiv.fase.etter": "Pas ekzekutimit",
+  "nivaabanner.duRedigererI": "Ju jeni duke redaktuar në",
+  "nivaabanner.duErI": "Ju jeni në",
+  "nivaabanner.sitedoc.merke": "Arkivi SiteDoc",
+  "nivaabanner.firma.merke": "Arkivi i kompanisë",
+  "nivaabanner.prosjekt.merke": "Arkivi i projektit",
+  "nivaabanner.sitedoc.scope": "Ndryshimet zbatohen në arkivin e SiteDoc. Kompanitë që marrin shabllonin më vonë marrin versionin e ri – kopjet e hequra tashmë janë të tyret dhe nuk preken.",
+  "nivaabanner.firma.scope": "Ndryshimet zbatohen në arkivin e kompanisë, të ndarë në të gjitha projektet në kompani. Projektet që marrin shabllonin më vonë marrin versionin e ri - kopjet e tërhequra tashmë janë të tyret dhe nuk preken.",
+  "nivaabanner.prosjekt.scope": "Ndryshimet vlejnë vetëm për këtë projekt. Asnjë projekt tjetër nuk preket."
 }

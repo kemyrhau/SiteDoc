@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Acest șablon nu are încă câmpuri.",
   "firma.malarkiv.fase.for": "Înainte de execuție",
   "firma.malarkiv.fase.under": "În timpul execuției",
-  "firma.malarkiv.fase.etter": "După execuție"
+  "firma.malarkiv.fase.etter": "După execuție",
+  "nivaabanner.duRedigererI": "Editezi în",
+  "nivaabanner.duErI": "esti in",
+  "nivaabanner.sitedoc.merke": "Arhiva SiteDoc",
+  "nivaabanner.firma.merke": "Arhiva companiei",
+  "nivaabanner.prosjekt.merke": "Arhiva proiectului",
+  "nivaabanner.sitedoc.scope": "Modificările se aplică arhivei SiteDoc. Companiile care preiau șablonul ulterior primesc noua versiune - copiile deja trase sunt proprii și nu sunt afectate.",
+  "nivaabanner.firma.scope": "Modificările se aplică arhivei companiei, partajată în toate proiectele din companie. Proiectele care preiau șablonul mai târziu primesc noua versiune - copiile deja trase sunt proprii și nu sunt afectate.",
+  "nivaabanner.prosjekt.scope": "Modificările se aplică numai acestui proiect. Niciun alt proiect nu este afectat."
 }

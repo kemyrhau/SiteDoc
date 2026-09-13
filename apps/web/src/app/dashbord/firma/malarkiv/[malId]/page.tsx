@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { MalBygger } from "@/components/malbygger";
+import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
 
 /**
  * Firmamal-innholdsredigering (Krav 2) — samme MalBygger som prosjekt- og sentralnivå,
@@ -36,14 +35,11 @@ export default function FirmamalInnholdSide() {
   }
 
   return (
-    <div>
-      <Link
-        href="/dashbord/firma/malarkiv"
-        className="mb-3 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {t("firma.malarkiv.tilbake")}
-      </Link>
+    <div className="flex flex-col gap-4">
+      <Nivaabanner
+        nivaa="firma"
+        tilbake={{ href: "/dashbord/firma/malarkiv", labelKey: "firma.malarkiv.tilbake" }}
+      />
       <MalBygger
         nivaa="firma"
         mal={

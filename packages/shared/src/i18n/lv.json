@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Šai veidnei vēl nav lauku.",
   "firma.malarkiv.fase.for": "Pirms izpildes",
   "firma.malarkiv.fase.under": "Izpildes laikā",
-  "firma.malarkiv.fase.etter": "Pēc izpildes"
+  "firma.malarkiv.fase.etter": "Pēc izpildes",
+  "nivaabanner.duRedigererI": "Jūs rediģējat",
+  "nivaabanner.duErI": "Jūs esat iekšā",
+  "nivaabanner.sitedoc.merke": "SiteDoc arhīvs",
+  "nivaabanner.firma.merke": "Uzņēmuma arhīvs",
+  "nivaabanner.prosjekt.merke": "Projektu arhīvs",
+  "nivaabanner.sitedoc.scope": "Izmaiņas attiecas uz SiteDoc arhīvu. Uzņēmumi, kas ienes veidni vēlāk, iegūst jauno versiju — jau izņemtās kopijas ir pašu un netiek ietekmētas.",
+  "nivaabanner.firma.scope": "Izmaiņas attiecas uz uzņēmuma arhīvu, kas tiek koplietots visos uzņēmuma projektos. Projektiem, kas ienes veidni vēlāk, tiek iegūta jaunā versija — jau izņemtās kopijas ir pašu kopijas, un tās netiek ietekmētas.",
+  "nivaabanner.prosjekt.scope": "Izmaiņas attiecas tikai uz šo projektu. Citi projekti netiek ietekmēti."
 }

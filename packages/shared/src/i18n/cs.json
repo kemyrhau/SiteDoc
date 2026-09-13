@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Tato šablona zatím neobsahuje žádná pole.",
   "firma.malarkiv.fase.for": "Před popravou",
   "firma.malarkiv.fase.under": "Během provádění",
-  "firma.malarkiv.fase.etter": "Po provedení"
+  "firma.malarkiv.fase.etter": "Po provedení",
+  "nivaabanner.duRedigererI": "Upravujete v",
+  "nivaabanner.duErI": "Jste v",
+  "nivaabanner.sitedoc.merke": "Archiv SiteDoc",
+  "nivaabanner.firma.merke": "Firemní archiv",
+  "nivaabanner.prosjekt.merke": "Archiv projektu",
+  "nivaabanner.sitedoc.scope": "Změny se týkají archivu SiteDoc. Společnosti, které šablonu načítají později, získají novou verzi – již stažené kopie jsou jejich vlastní a nejsou ovlivněny.",
+  "nivaabanner.firma.scope": "Změny se týkají firemního archivu sdíleného napříč všemi projekty ve společnosti. Projekty, které načítají šablonu později, získají novou verzi – již stažené kopie jsou jejich vlastní a nejsou ovlivněny.",
+  "nivaabanner.prosjekt.scope": "Změny se týkají pouze tohoto projektu. Žádné další projekty nejsou ovlivněny."
 }

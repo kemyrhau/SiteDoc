@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Ce modèle n'a pas encore de champs.",
   "firma.malarkiv.fase.for": "Avant l'exécution",
   "firma.malarkiv.fase.under": "Pendant l'exécution",
-  "firma.malarkiv.fase.etter": "Après l'exécution"
+  "firma.malarkiv.fase.etter": "Après l'exécution",
+  "nivaabanner.duRedigererI": "Vous éditez dans",
+  "nivaabanner.duErI": "Vous êtes dans",
+  "nivaabanner.sitedoc.merke": "Archives SiteDoc",
+  "nivaabanner.firma.merke": "Archives de l'entreprise",
+  "nivaabanner.prosjekt.merke": "Archives du projet",
+  "nivaabanner.sitedoc.scope": "Les modifications s'appliquent à l'archive SiteDoc. Les entreprises qui récupèrent le modèle plus tard obtiennent la nouvelle version : les copies déjà extraites sont les leurs et ne sont pas affectées.",
+  "nivaabanner.firma.scope": "Les modifications s'appliquent aux archives de l'entreprise, partagées dans tous les projets de l'entreprise. Les projets qui récupèrent le modèle ultérieurement obtiennent la nouvelle version : les copies déjà extraites sont les leurs et ne sont pas affectées.",
+  "nivaabanner.prosjekt.scope": "Les modifications s'appliquent uniquement à ce projet. Aucun autre projet n'est concerné."
 }

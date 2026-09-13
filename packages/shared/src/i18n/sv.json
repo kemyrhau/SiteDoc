@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Denna mall har inga fält ännu.",
   "firma.malarkiv.fase.for": "Innan avrättningen",
   "firma.malarkiv.fase.under": "Under utförandet",
-  "firma.malarkiv.fase.etter": "Efter avrättning"
+  "firma.malarkiv.fase.etter": "Efter avrättning",
+  "nivaabanner.duRedigererI": "Du redigerar in",
+  "nivaabanner.duErI": "Du är med",
+  "nivaabanner.sitedoc.merke": "SiteDoc-arkiv",
+  "nivaabanner.firma.merke": "Företagsarkiv",
+  "nivaabanner.prosjekt.merke": "Projektarkiv",
+  "nivaabanner.sitedoc.scope": "Ändringar gäller för SiteDoc-arkivet. Företag som hämtar mallen senare får den nya versionen - kopior som redan har dragits ner är deras egna och påverkas inte.",
+  "nivaabanner.firma.scope": "Ändringar gäller för företagsarkivet, delat över alla projekt i företaget. Projekt som hämtar mallen senare får den nya versionen - kopior som redan har dragits ner är deras egna och påverkas inte.",
+  "nivaabanner.prosjekt.scope": "Ändringar gäller endast detta projekt. Inga andra projekt berörs."
 }

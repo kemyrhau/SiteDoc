@@ -4485,5 +4485,13 @@
   "paneler.antallMedlemmer": "{{antall}} medlemmer",
   "paneler.objekterSjekklister": "{{objekter}} objekter · {{sjekklister}} sjekklister",
   "errorBoundary.reactFeil": "React-feil:",
-  "errorBoundary.stack": "Stack"
+  "errorBoundary.stack": "Stack",
+  "nivaabanner.duRedigererI": "Du redigerer i",
+  "nivaabanner.duErI": "Du er i",
+  "nivaabanner.sitedoc.merke": "SiteDoc-arkiv",
+  "nivaabanner.firma.merke": "Firmaarkiv",
+  "nivaabanner.prosjekt.merke": "Prosjektarkiv",
+  "nivaabanner.sitedoc.scope": "Endringer gjelder SiteDoc-arkivet. Firmaer som senere henter malen får den nye versjonen — kopier som alt er hentet ned, er egne kopier og påvirkes ikke.",
+  "nivaabanner.firma.scope": "Endringer gjelder firmaarkivet, felles for alle prosjekter i firmaet. Prosjekter som senere henter malen får den nye versjonen — kopier som alt er hentet ned, er egne kopier og påvirkes ikke.",
+  "nivaabanner.prosjekt.scope": "Endringer gjelder kun dette prosjektet. Ingen andre prosjekter berøres."
 }

@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Šiame šablone dar nėra laukų.",
   "firma.malarkiv.fase.for": "Prieš vykdymą",
   "firma.malarkiv.fase.under": "Vykdymo metu",
-  "firma.malarkiv.fase.etter": "Po egzekucijos"
+  "firma.malarkiv.fase.etter": "Po egzekucijos",
+  "nivaabanner.duRedigererI": "Jūs redaguojate",
+  "nivaabanner.duErI": "Jūs esate",
+  "nivaabanner.sitedoc.merke": "SiteDoc archyvas",
+  "nivaabanner.firma.merke": "Įmonės archyvas",
+  "nivaabanner.prosjekt.merke": "Projekto archyvas",
+  "nivaabanner.sitedoc.scope": "Pakeitimai taikomi SiteDoc archyvui. Įmonės, kurios vėliau gauna šabloną, gauna naują versiją – jau ištrauktos kopijos yra jų pačių ir neturi įtakos.",
+  "nivaabanner.firma.scope": "Pakeitimai taikomi įmonės archyvui, dalijamasi visuose įmonės projektuose. Projektai, kurie vėliau gauna šabloną, gauna naują versiją – jau ištrauktos kopijos yra jų pačių ir neturi įtakos.",
+  "nivaabanner.prosjekt.scope": "Pakeitimai taikomi tik šiam projektui. Jokie kiti projektai įtakos neturi."
 }

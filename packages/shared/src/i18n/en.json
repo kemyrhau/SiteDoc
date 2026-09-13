@@ -4485,5 +4485,13 @@
   "paneler.antallMedlemmer": "{{antall}} members",
   "paneler.objekterSjekklister": "{{objekter}} objects · {{sjekklister}} checklists",
   "errorBoundary.reactFeil": "React error:",
-  "errorBoundary.stack": "Stack"
+  "errorBoundary.stack": "Stack",
+  "nivaabanner.duRedigererI": "You are editing in",
+  "nivaabanner.duErI": "You are in",
+  "nivaabanner.sitedoc.merke": "SiteDoc archive",
+  "nivaabanner.firma.merke": "Company archive",
+  "nivaabanner.prosjekt.merke": "Project archive",
+  "nivaabanner.sitedoc.scope": "Changes apply to the SiteDoc archive. Companies that fetch the template later get the new version — copies already pulled down are their own and are not affected.",
+  "nivaabanner.firma.scope": "Changes apply to the company archive, shared across all projects in the company. Projects that fetch the template later get the new version — copies already pulled down are their own and are not affected.",
+  "nivaabanner.prosjekt.scope": "Changes apply only to this project. No other projects are affected."
 }

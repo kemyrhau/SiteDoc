@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Sellel mallil pole veel välju.",
   "firma.malarkiv.fase.for": "Enne hukkamist",
   "firma.malarkiv.fase.under": "Täitmise ajal",
-  "firma.malarkiv.fase.etter": "Pärast hukkamist"
+  "firma.malarkiv.fase.etter": "Pärast hukkamist",
+  "nivaabanner.duRedigererI": "Te redigeerite sisse",
+  "nivaabanner.duErI": "Olete sees",
+  "nivaabanner.sitedoc.merke": "SiteDoc arhiiv",
+  "nivaabanner.firma.merke": "Ettevõtte arhiiv",
+  "nivaabanner.prosjekt.merke": "Projekti arhiiv",
+  "nivaabanner.sitedoc.scope": "Muudatused kehtivad SiteDoci arhiivi kohta. Ettevõtted, kes malli toovad hiljem, saavad uue versiooni – juba maha võetud koopiad on nende omad ja see ei mõjuta.",
+  "nivaabanner.firma.scope": "Muudatused rakenduvad ettevõtte arhiivile, mida jagatakse kõigi ettevõtte projektide vahel. Projektid, mis malli toovad hiljem, saavad uue versiooni – juba maha tõmmatud koopiad on nende omad ja neid ei mõjutata.",
+  "nivaabanner.prosjekt.scope": "Muudatused kehtivad ainult sellele projektile. Muid projekte see ei mõjuta."
 }

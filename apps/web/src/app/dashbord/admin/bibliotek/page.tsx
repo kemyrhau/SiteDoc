@@ -6,6 +6,7 @@ import { Spinner, Input } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Check, AlertCircle } from "lucide-react";
 import { FeltKonfigurasjon } from "@/components/malbygger/FeltKonfigurasjon";
+import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
 import {
   feltTilObjekt,
   grupperEtterFase,
@@ -36,7 +37,9 @@ export default function BibliotekAdminSide() {
   const [valgtMalId, setValgtMalId] = useState<string | null>(null);
 
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex h-full flex-col gap-4">
+      <Nivaabanner nivaa="sitedoc" kontekst="liste" />
+      <div className="flex flex-1 gap-4 overflow-hidden">
       {/* Venstre — trestruktur */}
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto rounded-lg border border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-4 py-3">
@@ -91,6 +94,7 @@ export default function BibliotekAdminSide() {
           </div>
         )}
       </section>
+      </div>
     </div>
   );
 }

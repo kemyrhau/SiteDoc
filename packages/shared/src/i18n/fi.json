@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Tässä mallissa ei ole vielä kenttiä.",
   "firma.malarkiv.fase.for": "Ennen toteutusta",
   "firma.malarkiv.fase.under": "Toteutuksen aikana",
-  "firma.malarkiv.fase.etter": "Suorituksen jälkeen"
+  "firma.malarkiv.fase.etter": "Suorituksen jälkeen",
+  "nivaabanner.duRedigererI": "Olet muokkaamassa",
+  "nivaabanner.duErI": "Olet mukana",
+  "nivaabanner.sitedoc.merke": "SiteDoc-arkisto",
+  "nivaabanner.firma.merke": "Yrityksen arkisto",
+  "nivaabanner.prosjekt.merke": "Hankkeen arkisto",
+  "nivaabanner.sitedoc.scope": "Muutokset koskevat SiteDoc-arkistoa. Yritykset, jotka hakevat mallin myöhemmin, saavat uuden version – jo vedetyt kopiot ovat omia, eivätkä vaikuta niihin.",
+  "nivaabanner.firma.scope": "Muutokset koskevat yrityksen arkistoa, joka on jaettu kaikissa yrityksen projekteissa. Projektit, jotka hakevat mallin myöhemmin, saavat uuden version – jo vedetyt kopiot ovat omia, eivätkä vaikuta niihin.",
+  "nivaabanner.prosjekt.scope": "Muutokset koskevat vain tätä projektia. Tämä ei vaikuta muihin hankkeisiin."
 }
