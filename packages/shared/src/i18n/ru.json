@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Предварительный просмотр PDF",
   "arkiv.del": "Делиться",
   "arkiv.lasterForhandsvisning": "Загрузка PDF…",
+  "arkiv.forhandsvisningFeiletTittel": "Не удалось показать предварительный просмотр",
+  "arkiv.forhandsvisningFeiletHjelp": "Кнопка «Поделиться» вверху позволяет напрямую поделиться PDF-файлом.",
   "arkiv.lokalFallback": "Местный",
   "handling.kopier": "Копировать",
   "handling.flytt": "Двигаться",

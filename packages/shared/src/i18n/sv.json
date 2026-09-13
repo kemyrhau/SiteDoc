@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Förhandsgranska PDF",
   "arkiv.del": "Dela",
   "arkiv.lasterForhandsvisning": "Laddar PDF …",
+  "arkiv.forhandsvisningFeiletTittel": "Det gick inte att visa förhandsgranskningen",
+  "arkiv.forhandsvisningFeiletHjelp": "Dela-knappen längst upp delar PDF-filen direkt.",
   "arkiv.lokalFallback": "Lokal",
   "handling.kopier": "Kopiera",
   "handling.flytt": "Flytta",

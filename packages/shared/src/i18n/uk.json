@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Попередній перегляд PDF",
   "arkiv.del": "Поділіться",
   "arkiv.lasterForhandsvisning": "Завантаження PDF…",
+  "arkiv.forhandsvisningFeiletTittel": "Не вдалося показати попередній перегляд",
+  "arkiv.forhandsvisningFeiletHjelp": "Кнопка «Поділитися» вгорі надає доступ до PDF-файлу безпосередньо.",
   "arkiv.lokalFallback": "Місцевий",
   "handling.kopier": "Копія",
   "handling.flytt": "рухатися",

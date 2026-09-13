@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Previzualizează PDF",
   "arkiv.del": "Distribuie",
   "arkiv.lasterForhandsvisning": "Se încarcă PDF...",
+  "arkiv.forhandsvisningFeiletTittel": "Previzualizarea nu a putut fi afișată",
+  "arkiv.forhandsvisningFeiletHjelp": "Butonul Partajare din partea de sus partajează direct PDF-ul.",
   "arkiv.lokalFallback": "Local",
   "handling.kopier": "Copie",
   "handling.flytt": "Mişcare",

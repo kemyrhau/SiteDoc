@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Esikatsele PDF",
   "arkiv.del": "Jakaa",
   "arkiv.lasterForhandsvisning": "Ladataan PDF…",
+  "arkiv.forhandsvisningFeiletTittel": "Esikatselua ei voitu näyttää",
+  "arkiv.forhandsvisningFeiletHjelp": "Ylhäällä oleva Jaa-painike jakaa PDF-tiedoston suoraan.",
   "arkiv.lokalFallback": "Paikallinen",
   "handling.kopier": "Kopioida",
   "handling.flytt": "Liikkua",

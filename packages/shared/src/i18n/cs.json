@@ -795,6 +795,8 @@
   "arkiv.forhandsvis": "Náhled PDF",
   "arkiv.del": "Podíl",
   "arkiv.lasterForhandsvisning": "Načítání PDF…",
+  "arkiv.forhandsvisningFeiletTittel": "Náhled se nepodařilo zobrazit",
+  "arkiv.forhandsvisningFeiletHjelp": "Tlačítko Sdílet v horní části sdílí soubor PDF přímo.",
   "arkiv.lokalFallback": "Místní",
   "handling.kopier": "Kopie",
   "handling.flytt": "Pohyb",
