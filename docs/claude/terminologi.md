@@ -10,32 +10,53 @@ implementert ennå.
 ### Tre nivåer (arkitektur-anker)
 
 ```
-Firma (Organization)                  ← Selskapet (A.Markussen AS, Veidekke)
-├── Firmaadministrasjon               ← Modulvalg, prosjektmalverk
-│   ├── Firmamoduler (tverrgående):   ← Slås av/på for hele firmaet
-│   │   ├── Timeregistrering
-│   │   ├── Maskinregistrering
-│   │   ├── Kompetanse
-│   │   ├── Varelager
-│   │   └── Fremdriftsplanlegging
-│   └── Prosjektmalverk               ← Standardoppsett for nye prosjekter
-│
-└── Prosjekter
-    └── Prosjekt: NRK
-        ├── Faggrupper + Dokumentflyt              ← Alltid på (prosjektspesifikk dokumentflyt)
-        ├── Tegninger                              ← Alltid på (representerer byggeplass)
-        └── Prosjektmoduler:                       ← Slås av/på per prosjekt
-            ├── Sjekklister + Oppgaver + Godkjenning   ← Samlet aktivering (én pakke)
-            ├── Dokumentsøk + Oversettelse + AI-søk    ← Samlet aktivering (dokument-intelligens-pakke)
-            ├── Mapper
-            ├── HMS-avvik
-            ├── 3D-visning
-            ├── Økonomi (FTD)
-            ├── PSI (med innsjekk/utsjekk + mannskaps-vy)
-            └── Kontrollplan
+SiteDoc (plattform)                            ← SiteDoc-admin. Sentralarkiv/malbibliotek (BibliotekMal)
+└── Firma (Organization)                       ← Selskapet (A.Markussen AS, Veidekke). Firmaarkiv (OrganizationTemplate)
+    └── Firmaadministrasjon                    ← Firmanivået: modulvalg, prosjektmalverk, eier prosjektene
+        ├── Firmamoduler (tverrgående):        ← Slås av/på for hele firmaet
+        │   ├── Timeregistrering
+        │   ├── Maskinregistrering
+        │   ├── Kompetanse
+        │   ├── Varelager
+        │   └── Fremdriftsplanlegging
+        ├── Prosjektmalverk                    ← Standardoppsett for nye prosjekter
+        └── Prosjekter
+            └── Prosjekt: NRK                  ← Prosjektadmin. Prosjektmal (ReportTemplate)
+                ├── Faggrupper + Dokumentflyt              ← Alltid på (prosjektspesifikk dokumentflyt)
+                ├── Tegninger                              ← Alltid på (representerer byggeplass)
+                └── Prosjektmoduler:                       ← Slås av/på per prosjekt
+                    ├── Sjekklister + Oppgaver + Godkjenning   ← Samlet aktivering (én pakke)
+                    ├── Dokumentsøk + Oversettelse + AI-søk    ← Samlet aktivering (dokument-intelligens-pakke)
+                    ├── Mapper
+                    ├── HMS-avvik
+                    ├── 3D-visning
+                    ├── Økonomi (FTD)
+                    ├── PSI (med innsjekk/utsjekk + mannskaps-vy)
+                    └── Kontrollplan
 ```
 
+**Tre nivåer, øverst og ned:** **SiteDoc** (plattformen, sentralarkivet) → **Firma** (via Firmaadministrasjon: modulvalg, prosjektmalverk, og eierskap til prosjektene) → **Prosjekt**. Firmaadministrasjon er et undernivå av Firma, ikke en søsken av Prosjekter. Malverket speiler disse nivåene — se § Malverkets tre arkiv-nivåer under.
+
 > **🟢 ARKITEKTUR-ANKER (etablert 2026-04-28):** Treet over er **styrende sannhetskilde for modul-typologi**. Spørsmål om hvilke moduler er prosjekt- vs firmamodul, eller hvilket nivå funksjonalitet hører til, sjekkes mot dette treet først. Andre dokumenter (`arkitektur-syntese.md`, modul-filer i `docs/claude/`) skal reconcileres mot dette treet ved konflikt — ikke omvendt. Pågående reconciliations spores i [oppryddings-plan-2026-04-28.md § Dokument-samhandlings-lukking](oppryddings-plan-2026-04-28.md).
+
+### Malverkets tre arkiv-nivåer og rettighetsmatrise
+
+Malverket har tre arkiv-nivåer som speiler hierarkiet over, hver med sin egen tabell:
+
+**SiteDoc-arkiv (`BibliotekMal`) → Firmaarkiv (`OrganizationTemplate`) → Prosjektmal (`ReportTemplate`).**
+
+**Rettighetsmatrise (Kenneth-vedtak 2026-09-12/13) — ÉN sannhetskilde, andre filer peker hit:**
+
+| Rolle | Prosjekt | Firma | SiteDoc |
+|---|---|---|---|
+| **Bruker** | les | nei | nei |
+| **Prosjektadmin** | rediger | les | nei |
+| **Firmaadmin** | rediger | rediger | les |
+| **SiteDoc-admin** | rediger | rediger | rediger |
+
+🔴 **Regelen som følger av matrisen: «Lån kun fra nivået rett over — aldri to opp.»** Hver rolle leser nivået over sitt eget for å låne derfra; ingen ser to nivåer opp.
+
+**Målt mot koden 2026-09-13:** matrisen er implementert i `autoriserMalTilgang` (`apps/api/src/trpc/tilgangskontroll.ts:1791`) med nivå-typen `MalArkivNivaa` (`:1746`) — funksjonen håndhever alle fire rader. ⚠️ **Én celle er uttrykt i logikken men ikke wiret ved kallstedet ennå:** firmaadmin→SiteDoc-arkiv *les* (`bibliotek.hentStandarder` strammes i egen runde sammen med lånet — se åpen tråd i STATUS-AKTUELT). De øvrige cellene er wiret.
 
 ### Begreper — endelig definisjon
 

@@ -397,7 +397,7 @@ stien. **Det betyr ikke at treet kan ryddes.**
 | Agent | Worktree | Tilstand | Spor |
 |---|---|---|---|
 | **kontrollplan** | `SiteDoc-kontrollplan` | 🔴 **STOPPET** — `fix/kontrollpunkt-laasning` | ⚠️ **Duplikat — skal IKKE gjenopptas.** Låsningen ble løst av dokgen (`44487811`, merget runde 85) mens dokgens arbeid lå upushet og usynlig i `git branch -r`. Cowork bestilte samme fiks her; det var coworks feil, ikke kontrollplans |
-| **redesign** | `SiteDoc-redesign` | 🟢 **LEDIG** — `5a9ae99b` detached (merget commit) | «Fjern Rapportmaler-flata» (vei b) + kapittelgruppering **merget runde 90 (`71202903`)**: `[prosjektId]/maler` + layout + `MalerPanel` fjernet → redirect, «Hent fra arkiv»-modal grupperer (SiteDoc: standard→kapittel, firma: fagområde). 16 ubrukte `maler.*`-i18n-nøkler slettet, alle 5 testtall stille. ⚠️ **Branchen lå i redesign-worktreet — Kenneth meldte «kontrollplan ble ferdig», men worktree-plasseringen sier redesign. Kontrollplan står fortsatt detached `d770acec` (STOPPET, urørt).** *(a)→(b)-vedtaket ligger i runde 88-raden over.* Forrige: dobbelt-lån-vakt runde 88 (`78a6bbbf`), «Hent fra arkiv» runde 87 (`a517c3ec`) |
+| **redesign** | `SiteDoc-redesign` | 🟡 **PÅGÅR** — `fix/arkivmodal-typefilter` | Typefilter i SiteDoc-fanen, rollestyrte bunntekster, tom-tekster. **Fire ordrefiler: grunnordre + TILLEGG 1–3.** Forrige: «Fjern Rapportmaler-flata» (vei b) merget runde 90 (`71202903`) — `[prosjektId]/maler`+layout+`MalerPanel` fjernet→redirect, 16 ubrukte `maler.*`-i18n-nøkler slettet |
 | **dokgen** | `SiteDoc-dokgen` | 🟢 **LEDIG** — `d47702d2` detached (merget commit) | iOS-forhåndsvisning av arkiv-PDF **merget runde 93 (`75d9e70d`)**: `allowingReadAccessToURL` på WKWebView-source (Android-propene var no-op på iOS), `onError`/`onHttpError` → feil-overlay som stopper spinneren, `kilde` fortsatt ren `useMemo([filUri])`. 2 i18n-nøkler. 🔴 **ÅPEN GATE: Kenneth må se den virke på fysisk iPhone.** Tidligere: auto-kollaps runde 91 (`758ea071`). 🔴 **Mobilfiler rørt → OTA.** |
 | **mal-Opus** | `SiteDoc-mal` | 🟢 **LEDIG** — `a66c18f4` detached (merget commit) | KB6 v2 Planting (10 felter/3 faser) **merget runde 93 (`c3a92b7a`)**. 🟢 **Gatet av KENNETH 13.09** («gjennomgått og godkjent … bilder kontrollert mot telefon»), **ikke av fabel** — Kenneth er produkteier, ikke let etter et fabel-svar. 🟢 **NS 4400-tråden lukket som PRINSIPP** (MAL-METODE §7a: NS-standarder refereres med utgave/år, ordlyd gjengis aldri) — KB6 trengte ingen innholdsendring, ikke gjenåpne per mal. create-only bekreftet på merge-resultat. Også: MAL-METODE §7/§7a docs-branch merget samme runde. Tidligere: KA7 + KB2 + KB4 v2 (runde 86) |
 | **merge-agent** | `SiteDoc-merge` | 🟢 **LEDIG** — `merge-restart` @ develop | Runde 93 sist: tre merger — iOS-PDF + docs MAL-METODE §7/§7a + KB6 v2 Planting (`c3a92b7a`). 🔴 **OTA-gjeld runde 91 (kollaps) + 93 (iOS-PDF) — én OTA dekker begge.** |
@@ -410,7 +410,16 @@ list`. Fjernet fra registeret.
 🟡 **Lærdom (runde 92, KB6 trukket tilbake):** en teknisk ren mal-branch er IKKE klar for merge —
 maler har en **innholdsgate hos fabel** i tillegg til kodegaten. Cowork skal ikke bestille merge av
 `seed-bibliotek.ts`-runder før fabel har gatet innholdet. KB6 gatet teknisk (create-only, én fil),
-men innholdet (NS 4400-detalj i Plantekvalitet) var ikke avklart.
+men innholdet (NS 4400-detalj i Plantekvalitet) var ikke avklart. *(KB6 senere gatet av Kenneth selv 13.09 og merget runde 93.)*
+
+🔴 **Lærdom (runde 93/94, inbox-overskriving):** cowork overskrev `relay/inbox-merge.md` med en ny ordre
+FØR den forrige var meldt ferdig — ordren (rettighetsmatrisen) forsvant uten å ha vært kjørt.
+**Regelen som følger: en inbox-fil overskrives ALDRI før forrige ordre er meldt ferdig.** Er den ikke
+meldt, er den enten fortsatt aktiv eller tapt — begge krever at cowork spør, ikke skriver over.
+
+🔵 **Rettelser fra runde 93 (ført så de ikke gjentas):** coworks ordre sa «KB6 v2 Grasdekker» —
+**KB6 er Planting; Grasdekker er KB4** — og oppga base `652cdbda`, mens faktisk merge-base var `4564d4ed`.
+Merge-agenten målte begge og rettet commit-meldingen til «Planting».
 
 ### 🔴 Åpne tråder uten eier (målt 12.09)
 
