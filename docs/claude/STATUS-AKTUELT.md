@@ -15,6 +15,8 @@ ruter og kodeidentifikatorer (`BibliotekMal`, `/admin/bibliotek`, `bibliotek.ts`
 et navn — sannsynlig grunn til gjentatt feilrekonstruksjon av tre-nivå-modellen). Selve streng-harmoniseringen
 er egen oppgave under fabels IA-sak.
 
+🟢 **Navnevedtaket er nå komplett (kveld 13.09):** arkiv + entall (SiteDoc-mal · Firmamal · Prosjektmal), begge i `terminologi.md § 0`. Strengharmonisering i `nb.json` gjenstår og eies av fabels IA-sak.
+
 **Tre nye funn ført i BACKLOG (#18–#20, alle eier fabel):** #18 `admin/bibliotek` lover malbygger men kan
 kun `oppdaterMal` · #19 «Hent fra arkiv»-modalen mangler kollaps + søk (gamle lånedialog hadde søk) · #20 ingen
 flate viser hvilket arkivnivå du står i.

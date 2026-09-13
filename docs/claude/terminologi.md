@@ -60,13 +60,15 @@ Malverket har tre arkiv-nivåer som speiler hierarkiet over, hver med sin egen t
 
 #### Kenneth-vedtak 2026-09-13 — ett navn per arkivnivå
 
-Hvert nivå skal hete **én** ting på flatene brukeren ser. ÉN sannhetskilde — andre filer peker hit, gjentar ikke.
+Hvert nivå skal hete **én** ting på flatene brukeren ser — både arkivet (samlingen) og én enkelt mal i det. ÉN sannhetskilde — andre filer peker hit, gjentar ikke.
 
-| Nivå | Synlig navn | Tabell |
-|---|---|---|
-| SiteDoc | **SiteDoc-arkiv** | `BibliotekMal` |
-| Firma | **Firmaarkiv** | `OrganizationTemplate` |
-| Prosjekt | **Prosjektarkiv** | `ReportTemplate` |
+| Nivå | Arkivet | Én mal | Tabell |
+|---|---|---|---|
+| SiteDoc | **SiteDoc-arkiv** | **SiteDoc-mal** | `BibliotekMal` |
+| Firma | **Firmaarkiv** | **Firmamal** | `OrganizationTemplate` |
+| Prosjekt | **Prosjektarkiv** | **Prosjektmal** | `ReportTemplate` |
+
+🟢 **«Firmamal» og «Prosjektmal» er ikke nye begreper — begge er alt i bruk:** «Firmamal» i UI-et (`nb.json`: «Ny firmamal», «Rediger firmamal», «firmamalen» m.fl.), «Prosjektmal» i dette dokumentets hierarki-tre over (`ReportTemplate`). «SiteDoc-mal» er det eneste som innføres nytt her.
 
 🔴 **«Bibliotek», «Sentralarkiv» og «Malarkiv» UTGÅR som synlige begreper** — erstattes av navnet for nivået sitt.
 
