@@ -804,7 +804,6 @@
   "arkiv.lasterForhandsvisning": "Henter PDF …",
   "arkiv.forhandsvisningFeiletTittel": "Kunne ikke vise forhåndsvisningen",
   "arkiv.forhandsvisningFeiletHjelp": "Del-knappen øverst deler PDF-en direkte.",
-  "arkiv.lokalFallback": "Lokal",
   "handling.kopier": "Kopier",
   "handling.flytt": "Flytt",
   "handling.filtrer": "Filtrer",

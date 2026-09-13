@@ -804,7 +804,6 @@
   "arkiv.lasterForhandsvisning": "Ładowanie pliku PDF…",
   "arkiv.forhandsvisningFeiletTittel": "Nie udało się wyświetlić podglądu",
   "arkiv.forhandsvisningFeiletHjelp": "Przycisk Udostępnij u góry umożliwia bezpośrednie udostępnienie pliku PDF.",
-  "arkiv.lokalFallback": "Lokalny",
   "handling.kopier": "Kopia",
   "handling.flytt": "Przenosić",
   "handling.filtrer": "Filtr",
