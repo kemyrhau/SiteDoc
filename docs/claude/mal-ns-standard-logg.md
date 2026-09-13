@@ -22,6 +22,12 @@ interne, ikke oppslag i en fremmed standard.
 revideres og en ekstern NS-referanse **legges til, endres eller fjernes**, oppdateres
 denne loggen i **samme branch/commit** som mal-endringen. Høy viktighet.
 
+**Hvordan NS-krav uttrykkes — se MAL-METODE § 7a (STYRENDE):** referer med utgave/år,
+gjengi aldri ordlyden (opphavsrett + drift); sjekklistene holdes rene for lovtekst og
+ansvarsfraskrivelser; ansvaret for å verifisere mot gjeldende standard legges på kunden
+ÉN gang sentralt. **Denne loggen er datagrunnlaget for den framtidige kundeoversikten**
+(«last ned avvik i sjekklister») — kundevisningen bygges når UI er klart, ikke nå.
+
 ## Kolonne «Målbar verdi i teksten?»
 
 - **❌ Nei** = feltet punkter arbeideren til standarden/beskrivelsen uten en verdi han
@@ -30,7 +36,9 @@ denne loggen i **samme branch/commit** som mal-endringen. Høy viktighet.
 - **✅ Ja / Delvis** = feltet gir en konkret verdi (mm/s, pH, mm, %) selv om det også
   nevner en standard. Utenfor problemet.
 
-## Logg (sist målt 2026-09-13)
+## Kategori 1 — eksterne NS-standarder (sist målt 2026-09-13)
+
+Felt som viser til en fremmed NS-standard i navn, hjelpetekst eller valgopsjoner.
 
 | Mal | Rad | Felt | Standard | Målbar verdi i teksten? |
 |---|---|---|---|---|
@@ -39,7 +47,34 @@ denne loggen i **samme branch/commit** som mal-endringen. Høy viktighet.
 | FC1 – Sprengning/rystelser | 2 | Rystelsesmåler plassert | NS 8141 | ✅ Ja — «typisk 20 mm/s bolig». |
 | FC1 – Sprengning/rystelser | 3 | Maks rystelsesnivå (mm/s) | NS 8141 | ✅ Ja — 20 / 35 / 70 mm/s per kategori, målbart tallfelt. |
 
-**Åpne kandidater for fabel (❌):** KB6 rad 2 (Plantekvalitet → NS 4400).
+**Åpen kandidat (❌ — ingen målbar verdi):** KB6 rad 2 (Plantekvalitet → NS 4400). Per
+MAL-METODE § 7a løses dette IKKE ved å gjengi NS 4400 — kunden verifiserer mot standarden
+selv (sentralt ansvar), ev. angir kriteriene i prosjektbeskrivelsen.
+
+## Kategori 2 — felt som forutsetter at kunden angir noe i prosjektbeskrivelsen (sist målt 2026-09-13)
+
+Ikke en mangel — dette er med vilje (MAL-METODE § 1: prosjektspesifikke krav peker til
+beskrivelsen, ikke en universell tallverdi malen ikke kan kjenne). Datagrunnlag for
+kundeoversikten «hva du må angi selv». Dekker foreløpig de reviderte malene (KA7/KB2/KB4/KB6);
+ureviderte maler (KC3.1, KD1, F-serien) er ikke målt for dette ennå.
+
+| Mal | Rad | Felt |
+|---|---|---|
+| KA7 | 1 | Type materiale |
+| KA7 | 2 | Materialstatus |
+| KA7 | 5 | Materialer rengjort |
+| KA7 | 6 | Materialer sortert |
+| KA7 | 7 | Godkjenningskriterier i beskrivelsen oppfylt |
+| KA7 | 8 | Dokumentasjonskrav levert |
+| KB2 | 1 | Formål / planteformål |
+| KB2 | 8 | Fall minst 2 % mot avrenning |
+| KB4 | 2 | Metode |
+| KB4 | 3 | Frø/ferdigplen kontrollert og dokumentert |
+| KB4 | 6 | Vannet etter legging/såing |
+| KB4 | 8 | Markdekningsgrad (%) |
+| KB6 | 1 | Plantegruppe |
+| KB6 | 2 | Plantekvalitet |
+| KB6 | 10 | Krav oppfylt og dokumentasjon levert |
 
 ## Reproduserbar sjekk (kjør mot arkivet, ikke fila)
 
@@ -60,3 +95,13 @@ ORDER BY m.referanse, t.ord;
 `radnr` er 1-indeksert posisjon i `mal_innhold` (samme rekkefølge som feltene vises).
 Treff må deretter vurderes for hånd mot «Målbar verdi i teksten?»-kolonnen — regex
 finner NS-referansen, ikke om det finnes en målbar verdi ved siden av.
+
+Kategori 2 (delegerer til prosjektbeskrivelsen):
+
+```sql
+SELECT m.referanse, t.ord AS radnr, t.elem->>'label' AS felt
+FROM bibliotek_maler m,
+     jsonb_array_elements(m.mal_innhold) WITH ORDINALITY AS t(elem, ord)
+WHERE t.elem->'config'->>'helpText' ~* 'beskrivelse|postgrunnlag|posten i'
+ORDER BY m.referanse, t.ord;
+```
