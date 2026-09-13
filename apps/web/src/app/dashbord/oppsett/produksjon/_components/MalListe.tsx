@@ -2,12 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download, RefreshCw, FileText, ClipboardList } from "lucide-react";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
@@ -147,6 +147,9 @@ export function MalListe({
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
   const router = useRouter();
+  // Krav 2: papirkurv-lenken bærer med seg hvor brukeren står nå, så papirkurven
+  // kan tilby en vei tilbake hit. Faktisk sti (ingen gjetning), ikke hardkodet.
+  const pathname = usePathname();
   const utils = trpc.useUtils();
 
   const [valgtId, setValgtId] = useState<string | null>(null);
@@ -570,15 +573,23 @@ export function MalListe({
                       {mal.promotedToFirma && (
                         <Badge variant="success">{t("maler.badge.iFirmaarkivet")}</Badge>
                       )}
-                      {/* «X versjoner bak» + ↻ (krav 1) — speiler MalBygger. Vises kun når
-                          kopien faktisk henger etter firmamalen. ↻ stopper rad-select. */}
+                      {/* Tilstand for maler fra firmaarkivet (krav 1) — vises ALLTID når
+                          kopien har avstamning, så fraværet av ↻ ikke forveksles med at
+                          funksjonen mangler. «N versjoner bak» + ↻ når kopien henger etter;
+                          rolig «Oppdatert» når den er à jour. ↻ stopper rad-select. */}
                       {(() => {
                         if (!mal.copiedFromOrgTemplate) return null;
                         const versjonerBak = Math.max(
                           0,
                           mal.copiedFromOrgTemplate.version - (mal.versjonAvHovedmal ?? 1),
                         );
-                        if (versjonerBak <= 0) return null;
+                        if (versjonerBak <= 0) {
+                          return (
+                            <Badge variant="success">
+                              {t("malbygger.firmaarkiv.oppdatert")}
+                            </Badge>
+                          );
+                        }
                         return (
                           <>
                             <Badge variant="warning">
@@ -1175,6 +1186,26 @@ export function MalListe({
           const iKurv = slettbarhet?.iKurv ?? 0;
           const iKontrollplan = slettbarhet?.iKontrollplan ?? 0;
           const blokkert = aktive > 0 || iKurv > 0 || iKontrollplan > 0;
+          // Krav 3: hver sperre-grunn skal føre brukeren dit grunnen bor. Aktive
+          // dokumenter → modul-lista filtrert på malens prefiks (sjekkliste/oppgave
+          // har URL-drevet `sok`; HMS-lista har det ikke → lander på HMS-lista uten
+          // filter — meldt som oppfølger). Prefiks + kategori kommer fra lista-dataen,
+          // ingen ny prosedyre. «Antall per byggeplass» ville krevd ny spørring — utsatt.
+          const dokRute = (() => {
+            if (!prosjektId) return null;
+            const kat = valgtMal?.category;
+            if (kat === "hms") return `/dashbord/${prosjektId}/hms`;
+            const base = kat === "oppgave" ? "oppgaver" : "sjekklister";
+            const sok = valgtMal?.prefix
+              ? `?sok=${encodeURIComponent(valgtMal.prefix)}`
+              : "";
+            return `/dashbord/${prosjektId}/${base}${sok}`;
+          })();
+          // Papirkurv-lenken bærer retur-sti + kilde, så papirkurven kan lede tilbake hit.
+          const papirkurvRute =
+            prosjektId != null
+              ? `/dashbord/${prosjektId}/papirkurv?retur=${encodeURIComponent(pathname)}&kilde=maler`
+              : null;
           return (
             <div className="flex flex-col gap-4">
               {blokkert ? (
@@ -1191,15 +1222,34 @@ export function MalListe({
                   {iKontrollplan > 0 && (
                     <p>{t("maler.slettVern.harKontrollplan", { n: iKontrollplan })}</p>
                   )}
-                  {/* Krav 2: sperren bærer veien ut. Serveren eier betingelsen (tellingen
-                      over), klienten lenker til stedet som opphever den — papirkurven. */}
-                  {iKurv > 0 && prosjektId && (
+                  {/* Krav 2 + 3: sperren bærer veien ut. Serveren eier betingelsen
+                      (tellingen over), klienten lenker til stedet som opphever hver
+                      enkelt grunn — aktive dokumenter, papirkurven, kontrollplanen. */}
+                  {aktive > 0 && dokRute && (
                     <Link
-                      href={`/dashbord/${prosjektId}/papirkurv`}
+                      href={dokRute}
+                      className="inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t("maler.slettVern.tilDokumenter")}
+                    </Link>
+                  )}
+                  {iKurv > 0 && papirkurvRute && (
+                    <Link
+                      href={papirkurvRute}
                       className="inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
                     >
                       <Trash2 className="h-4 w-4" />
                       {t("maler.slettVern.tilPapirkurv")}
+                    </Link>
+                  )}
+                  {iKontrollplan > 0 && prosjektId && (
+                    <Link
+                      href={`/dashbord/${prosjektId}/kontrollplan`}
+                      className="inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      {t("maler.slettVern.tilKontrollplan")}
                     </Link>
                   )}
                 </div>
