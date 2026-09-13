@@ -146,3 +146,17 @@ Kun ÉN mal, uten å røre de 11 andre: generér en målrettet `UPDATE bibliotek
 3. Etter rydd: det grønne ✓-merket blir tom avkryssingsboks → **importer på nytt** → fersk firmamal med revisjonen.
 
 **Produktbug å rute til cowork/backlog (ikke mal-Opus):** firmamal-sletting og `fjernValg` er ikke synkronisert — sletting av firmamal rydder ikke valget, og `importerMal` avviser re-import (CONFLICT) i stedet for å erstatte et foreldreløst valg. Riktig fiks er i koden (cascade/opprydding ved sletting, eller la re-import overta et dødt valg), ikke gjentatt manuell SQL.
+
+## 7. NS-standard-loggen — mal-Opus' vedlikeholdsplikt (Kenneth 2026-09-13, HØY VIKTIGHET)
+
+🔴 **[docs/claude/mal-ns-standard-logg.md](mal-ns-standard-logg.md) er mal-Opus' ansvar å holde à jour.** Loggen lister hvert sjekkliste-felt som viser til en **ekstern NS-standard** (NS 4400, NS 2890, NS 8141, NS 4417, …) i feltnavn, hjelpetekst eller valgopsjoner — og markerer om feltet **også** gir en konkret, felt-målbar verdi eller bare punkter arbeideren til standarden. Bakgrunn: en arbeider har sjelden den fremmede standarden foran seg (jf. § 1 «informativ om kravet der arbeideren står»); et felt som kun sier «tilfredsstille NS XXXX» uten målbar verdi er en kandidat fabel skal berike.
+
+**Ufravikelig regel — del av DoD på HVER mal-bygg/revisjon:**
+
+1. **Etter at malen er seedet lokalt**, kjør NS-sjekken (SQL-en står i loggens § «Reproduserbar sjekk») mot arkivet.
+2. **Legger, endrer eller fjerner malen en ekstern NS-referanse**, oppdater `mal-ns-standard-logg.md` — rad(er), standard og «Målbar verdi i teksten?»-vurdering — i **SAMME branch/commit** som mal-endringen. Aldri «logg senere».
+3. **NS 3420-K selv teller ikke** (internt sjekklistegrunnlag, ikke fremmed oppslag). Bare eksterne standarder.
+4. **Ingen ny ekstern NS-referanse → ingen logg-endring**, men sjekken skal likevel være kjørt (negativ kontroll: tom output kan bety at du grep i feil felt-sti — `config->>'helpText'`, ikke `->>'helpText'`).
+
+**Meld i mal-rapporten** (§ 6 pkt. 8) om malen rørte NS-loggen, og hvilke rader.
+
