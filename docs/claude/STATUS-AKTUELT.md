@@ -6,28 +6,38 @@ sist_verifisert_mot_kode: 2026-08-09
 
 ## 🟡 2026-09-13 — Fabels samlede IA-tegning for Malforvaltning committet. Ingen kode, ingen deploy.
 
-**Mottatt og committet** (`docs/redesign/malforvaltning-ia-mockup-fabel-2026-09-13.dc.html` + `-notat-…md`),
-uendret, fra fabel-pakke `til-repo-2026-09-13-2210`. Verifisert: kun de to filene, ingen `.DS_Store`, ingen fantes fra før.
+**Mottatt og committet, deretter ERSTATTET med pakke `til-repo-2026-09-13-2245`** (samme to filnavn i
+`docs/redesign/`, uendret innhold ellers). Diff `2210`→`2245` = kun to blokker: låsespørsmålet (notat linje 34–39
++ mockup-banneret) og «Neste steg» — begge fordi Kenneth gatet låsen direkte med fabel 13.09 kveld. Verifisert:
+ingen nye filnavn, ingen `.DS_Store`.
 
-### 🔴 ÅPEN KONFLIKT — føres, ikke lukkes: SiteDoc-fanen låst/ulåst på prosjektnivå
+### 🟢 LUKKET (var ÅPEN KONFLIKT): SiteDoc-fanen er ULÅST på prosjektnivå — Kenneth-gatet 13.09 kveld
 
-- **Fabels tegning:** SiteDoc-arkiv-fanen er tegnet **ULÅST** på prosjektnivå, attribuert «etter coworks forslag».
-- **Skrevet Kenneth-vedtak imot:** «Lån kun fra nivået rett over — aldri to opp» (`terminologi.md § 0`, `a3e73a09`).
-  Det var regelen som fjernet `BibliotekPanel` i runde 87.
-- **Coworks innsigelse:** cowork foreslo aldri å låse den opp — forslaget gjaldt **kollaps** («SiteDoc-fanen starter
-  sammenslått»), ikke **tilgang**. Mulig kilde til misforståelsen: funn #12 (`hentStandarder` mangler tilgangssjekk)
-  — som skal LUKKES, ikke brukes som begrunnelse for å åpne UI-et.
-- 🟢 **Min egen lesning av notatet (linje 34–35 + «Neste steg» pkt. 1):** fabel fører dette selv som
-  **«⚠ Åpent Kenneth-valg»** og listet det til Kenneth-gate — ikke som avgjort. Attribusjonen «etter coworks forslag»
-  står ordrett, men beslutningen er ikke tatt i tegningen.
-- 🔴 **Kenneth avgjør. Ikke valgt her.**
+- **Avgjort:** et prosjekt kan hente **direkte** fra SiteDoc-arkivet. v3-låsen utgår. Begrunnelse: en engangsmal for
+  ett prosjekt skal ikke måtte innom firmaarkivet først.
+- 🔴 **Rettelse (ikke bare lukking):** attribusjonen i `2210` var feil — «ulåst» var **fabels lesning av punkt E**,
+  ikke coworks forslag. Coworks forslag gjaldt **kollaps og søk**, aldri tilgang. Ført her så feillesningen ikke
+  reproduseres.
+- **Ankeret rettet:** `terminologi.md § 0` bar «Lån kun fra nivået rett over — aldri to opp». Snudd der med ⚠️-blokk;
+  det gamle vedtaket beholdt synlig under det nye (SAMARBEIDSREGLER: snudd vedtak rettes DER DET STO).
+
+### 🔴 NY ÅPEN TRÅD — direktehentet prosjektmal har ingen ↻-vei
+
+- **Konsekvens av ulåsingen (MÅLT av cowork, `packages/db` `schema.prisma` → `ReportTemplate`):** en direktehentet
+  mal blir en **prosjektmal** og følger IKKE firmaets ↻-forvaltning. `ReportTemplate` har kun `organizationTemplateId`
+  — peker den ikke på en firmamal, finnes ingen ↻ og ingen «versjoner bak».
+- 🔴 **Krever et nytt avstamningsfelt mot `BibliotekMal` — skjemaendring Kenneth gater.** Fabel førte den som «senere
+  vurdering»; her løftet til åpen tråd så ingen oppdager frosset-for-alltid-malen i prod.
 
 ### Øvrige punkter
 - 🟢 **Fabel trakk rekkefølgekravet på #8** — coworks innvending tatt (hullet fantes fra før; #1/#2 innførte ikke oppdateringsveien).
 - 🟢 **Kenneth overstyrte coworks E-forslag:** begge faner i «Hent fra arkiv» bruker nå SAMME modell — gruppert på
   standard/kapittel, «Egenlagde» egen gruppe, sammenslått ved start, søket folder ut treff. Coworks åpne-Firmaarkiv-fane forkastet.
-- 🟡 **ÅPENT KENNETH-VALG: N dager før papirkurv auto-tømmes.** Dagens verdi målt N=**90** (`services/papirkurv-sweep.ts`, UI-tekst «90 dager»). Fabel spør om N.
+- 🟡 **SISTE GATE-VALG: N dager før papirkurv auto-tømmes.** Dagens verdi målt N=**90** (`services/papirkurv-sweep.ts`,
+  UI-tekst «90 dager»). Spørsmålet er om Kenneth vil **endre** den — ikke sette den (den finnes allerede).
 - ⚠️ **Ubesvart (Kenneth):** skal papirkurv-søket treffe INNHOLD, ikke bare navn/metadata?
+- ⚠️ **Fabel melder 90 % kvotebruk og stopper her.** Neste steg på hans side er ordrer til redesign — kommer etter gate.
+- 🟢 **A og B er ute til bygging** (`feat/arkivmodal-sok-kollaps`, `feat/nivaabanner`). Upåvirket av `2245` (punkt B og E uendret).
 - 🔴 **Fabels «Ikke tegnet» (grensene, så ingen gjetter):** `MalRevisjon`-fanens innhold · diff/merge for ↻ ·
   SiteDoc-admins editor-kapasitet · `hentStandarder`-innstramming · HMS-lenken i slett-sperren · mobilvisning av
   Malforvaltning · strengharmoniseringen.

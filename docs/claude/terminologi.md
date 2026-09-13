@@ -54,7 +54,23 @@ Malverket har tre arkiv-nivåer som speiler hierarkiet over, hver med sin egen t
 | **Firmaadmin** | rediger | rediger | les |
 | **SiteDoc-admin** | rediger | rediger | rediger |
 
-🔴 **Regelen som følger av matrisen: «Lån kun fra nivået rett over — aldri to opp.»** Hver rolle leser nivået over sitt eget for å låne derfra; ingen ser to nivåer opp.
+> ⚠️ **VEDTAK SNUDD — Kenneth 2026-09-13 kveld (gatet direkte med fabel, notat `2245`):**
+> **Et prosjekt kan hente direkte fra SiteDoc-arkivet.** SiteDoc-fanen er ULÅST på prosjektnivå.
+> **Begrunnelse:** en engangsmal for ett prosjekt skal ikke måtte innom firmaarkivet først.
+> v3-låsen utgår.
+>
+> 🔴 **Konsekvens (MÅLT av cowork mot `packages/db` `schema.prisma`, `ReportTemplate`):** en
+> direktehentet mal er en **prosjektmal** og følger IKKE firmaets ↻-forvaltning. `ReportTemplate`
+> har kun `organizationTemplateId` — peker den ikke på en firmamal, finnes ingen ↻ og ingen
+> «versjoner bak». Åpen tråd på tavla: en direktehentet prosjektmal mangler avstamningsvei
+> (krever nytt felt mot `BibliotekMal` — skjemaendring Kenneth gater).
+>
+> **Gammelt vedtak — beholdes synlig, slettes aldri:** «Lån kun fra nivået rett over — aldri
+> to opp» (vedtatt 2026-09-12). Det var regelen som fjernet `BibliotekPanel` i runde 87.
+> **Snudd 2026-09-13.** *(Regelen bevares synlig fordi et snudd vedtak som ikke er sporbart
+> risikerer å bli «endret tilbake» av neste leser som tror det var en glipp.)*
+
+🔴 ~~**Regelen som følger av matrisen: «Lån kun fra nivået rett over — aldri to opp.»** Hver rolle leser nivået over sitt eget for å låne derfra; ingen ser to nivåer opp.~~ **← snudd, se ⚠️-blokken over.**
 
 **Målt mot koden 2026-09-13:** matrisen er implementert i `autoriserMalTilgang` (`apps/api/src/trpc/tilgangskontroll.ts:1791`) med nivå-typen `MalArkivNivaa` (`:1746`) — funksjonen håndhever alle fire rader. ⚠️ **Én celle er uttrykt i logikken men ikke wiret ved kallstedet ennå:** firmaadmin→SiteDoc-arkiv *les* (`bibliotek.hentStandarder` strammes i egen runde sammen med lånet — se åpen tråd i STATUS-AKTUELT). De øvrige cellene er wiret.
 

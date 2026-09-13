@@ -31,8 +31,12 @@ Dekker A–F med vedtatte navn (terminologi.md § 0). Fire skjermer i én DC.
   folder ut grupper med treff. SAMME modell i begge faner: gruppert på
   standard/kapittel («Egenlagde» som egen gruppe), sammenslått som start.
   Coworks forslag om åpen Firmaarkiv-fane er overstyrt av Kenneth.
-  ⚠ Åpent Kenneth-valg: v3 låste SiteDoc-fanen på prosjektnivå (to-nivå-regelen);
-  tegnet ULÅST etter coworks forslag. Typefilter per flate fra v3 gjelder fortsatt.
+  ✓ Kenneth-gatet 13.09 kveld: SiteDoc-fanen ULÅST på prosjektnivå — engangsmal
+  for ett prosjekt skal ikke måtte innom firmaarkivet. v3-låsen utgår.
+  (Attribusjonsretting: ulåst var fabels lesning av E, ikke coworks forslag —
+  hans forslag gjaldt kollaps/søk. Nå uansett avgjort av Kenneth.)
+  Konsekvens ført som senere vurdering: direktehentet mal er prosjektmal og
+  følger ikke firmaets ↻-forvaltning. Typefilter per flate fra v3 gjelder fortsatt.
 - **B-presisering (Kenneth 13.09 kveld):** venstre i banneret er NAVIGASJON
   (sidenavn fra whitelist, aldri et nivånavn — SiteDoc-admin: «Tilbake til
   mal-listen»), høyre er POSISJON («Du redigerer i» + nivåmerke + scope).
@@ -54,7 +58,6 @@ Coworks innvending tas: hullet fantes fra før, #1/#2 innførte ikke oppdatering
 Historikken starter når MalRevisjon-tabellen er vedtatt — uansett når.
 
 ## Neste steg
-1. Kenneth: gate tegningen + de to åpne valgene (SiteDoc-fanen låst/ulåst på
-   prosjektnivå; N dager auto-tømming).
+1. Kenneth: gate tegningen + N dager auto-tømming (SiteDoc-fanen er avgjort: ulåst).
 2. Etter gate: fabel skriver ordre(r) til redesign-Opus — Malforvaltning-flaten,
    nivåbanneret og modal-søk/kollaps kan gå som separate runder.
