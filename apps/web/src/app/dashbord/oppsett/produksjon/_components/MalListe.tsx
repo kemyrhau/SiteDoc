@@ -11,6 +11,7 @@ import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Downl
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
+import { OppdaterFraHovedmalModal } from "@/components/malbygger/OppdaterFraHovedmalModal";
 
 type MalKategori = "oppgave" | "sjekkliste" | "hms";
 
@@ -157,6 +158,8 @@ export function MalListe({
   // ↻ «Oppdater fra firmamal» (krav 1): feil vises som en linje over lista.
   const [oppdaterFeil, setOppdaterFeil] = useState<string | null>(null);
   const [oppdatererId, setOppdatererId] = useState<string | null>(null);
+  // TILLEGG 1: ↻ bekreftes i modal FØR kall (erstatning frakobler dokumentdata).
+  const [bekreftOppdater, setBekreftOppdater] = useState<{ id: string; antall: number } | null>(null);
   // Unikhet (2026-08-10): server-CONFLICT (navn/prefiks) vises i opprett/rediger-modalen.
   const [malFeil, setMalFeil] = useState<string | null>(null);
   const [visHentArkiv, setVisHentArkiv] = useState(false);
@@ -589,8 +592,12 @@ export function MalListe({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOppdaterFeil(null);
-                                setOppdatererId(mal.id);
-                                oppdaterFraHovedmalMutation.mutate({ templateId: mal.id });
+                                // Antall dokumenter som bruker malen — fra lista-dataen
+                                // (ingen ny tellerprosedyre): sjekklister + oppgaver.
+                                setBekreftOppdater({
+                                  id: mal.id,
+                                  antall: mal._count.checklists + mal._count.tasks,
+                                });
                               }}
                               disabled={oppdatererId === mal.id}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
@@ -1234,6 +1241,22 @@ export function MalListe({
           onImportert={() => utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId })}
         />
       )}
+
+      {/* ↻-bekreftelse (TILLEGG 1) — sier hva som skjer med utfylte felt før erstatning. */}
+      <OppdaterFraHovedmalModal
+        open={bekreftOppdater !== null}
+        antallDokumenter={bekreftOppdater?.antall}
+        laster={!!bekreftOppdater && oppdatererId === bekreftOppdater.id}
+        onClose={() => setBekreftOppdater(null)}
+        onConfirm={() => {
+          if (!bekreftOppdater) return;
+          setOppdatererId(bekreftOppdater.id);
+          oppdaterFraHovedmalMutation.mutate(
+            { templateId: bekreftOppdater.id },
+            { onSettled: () => setBekreftOppdater(null) },
+          );
+        }}
+      />
     </div>
   );
 }
