@@ -33,6 +33,7 @@ import { DragOverlayKomponent } from "./DragOverlay_";
 import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
 import { useMalDatakilde, tilMalObjekt, type MalNivaa } from "./useMalDatakilde";
+import { OppdaterFraHovedmalModal } from "./OppdaterFraHovedmalModal";
 import { MapPin, Pencil, FileText, Eye, EyeOff, AlertTriangle, Globe, Check, Building2, RefreshCw } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
@@ -218,6 +219,8 @@ export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
   // Malarkiv (AM4 steg 3) — promotering + firma-avstamnings-badges. Kun prosjektnivå
   // (firmamalen ER arkivet — den promoteres ikke opp fra seg selv). Gates av mal.projectId.
   const [firmaFeil, setFirmaFeil] = useState<string | null>(null);
+  // TILLEGG 1: prosjekt-↻ bekreftes i modal FØR kall (samme risiko som i mallista).
+  const [visOppdaterBekreft, setVisOppdaterBekreft] = useState(false);
   // Guard: én signaturliste pr. mal (SJA/HMS-runder keyer til dokumentet, ikke
   // feltet — to lister ville delt runder/deltakere). Klartekst, ikke grået knapp.
   const [guardFeil, setGuardFeil] = useState<string | null>(null);
@@ -748,9 +751,10 @@ export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
                 )}
                 {mal.copiedFromOrgTemplate && versjonerBak > 0 && (
                   <button
-                    onClick={() =>
-                      oppdaterFraHovedmalMutation.mutate({ templateId: mal.id })
-                    }
+                    onClick={() => {
+                      setFirmaFeil(null);
+                      setVisOppdaterBekreft(true);
+                    }}
                     disabled={oppdaterFraHovedmalMutation.isPending}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
                   >
@@ -1081,6 +1085,20 @@ export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
           </div>
         </Modal>
       )}
+
+      {/* ↻-bekreftelse (TILLEGG 1) — samme modal og tekst som mallista. Uten antall:
+          MalBygger henter ikke dokumenttellingen, og vi lager ingen ny tellerprosedyre. */}
+      <OppdaterFraHovedmalModal
+        open={visOppdaterBekreft}
+        laster={oppdaterFraHovedmalMutation.isPending}
+        onClose={() => setVisOppdaterBekreft(false)}
+        onConfirm={() => {
+          oppdaterFraHovedmalMutation.mutate(
+            { templateId: mal.id },
+            { onSettled: () => setVisOppdaterBekreft(false) },
+          );
+        }}
+      />
     </div>
   );
 }

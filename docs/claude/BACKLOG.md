@@ -110,6 +110,24 @@ på fysisk iPhone 13.09) · #5/#6/#7/#9 er én samlet IA-sak åpen hos fabel · 
 
 ---
 
+# 🟢 SYNLIGGJORT 2026-09-13 — branch `fix/synliggjor-malforvaltning` (samme mønster: bygget, vei manglet)
+
+> **Fire funn fra Kenneths to døgn i flaten, alle «noe er bygget, veien til det mangler».**
+> Ingen ny funksjonalitet — kun synliggjøring/kobling av avgjort mekanikk.
+
+| Sak | Levert |
+|---|---|
+| **«X versjoner bak» + ↻ i prosjekt-mallista** | `MalListe.tsx` navn-celle: badge + ↻ som kaller `firmamal.oppdaterKopiFraHovedmal` (samme som MalBygger). Krevde `copiedFromOrgTemplate` i `mal.hentForProsjekt` (`mal.ts`). 🔴 **Advarsel `firmamal.ts:766-768`: full erstatning gjør dokumentdata foreldreløs — bevisst klikk, ingen bekreftelse (speiler MalBygger)** |
+| **Slett-mal-sperren bærer veien ut** | Slett-modal lenker til papirkurven ved `iKurv>0`. Server eier betingelsen, klient bærer lenken. ⚠️ **Filtrering på malen krever endring i `papirkurv/page.tsx` (ufri fil) — ikke gjort** |
+| **Avslutt-gaten bærer veien ut** | Gate-feil (`PRECONDITION_FAILED`) lenker til `#eksport-arkiv` via ubrukt nøkkel `livssyklus.krevArkiv` |
+| **Avslutt-bekreftelse (modal)** | ⚠️ **Flaten EKSISTERTE alt** (`prosjektoppsett/page.tsx`, commit `36dc3029` 2026-09-06) som status-velger UTEN bekreftelse. La til modal-bekreftelse før completed/archived (sier hva som skjer + hvem mister tilgang). Tre «neste runde»-kommentarer var stale — rettet. Gjenåpning målt: virker e2e (banner + velger, begge `settLivssyklus:active`) |
+
+**Test:** `prosjekt-livssyklus-gate.test.ts` beviser at avslutt nektes uten ferdig eksport-arkiv (negativkontroll verifisert: uten gate blir de to «nekter»-testene røde).
+
+> **Dekker funn #1/#2/#3/#17 i tabellen over** (BESTILT → levert). Papirkurv-mal-filter (#3-nyanse) og `iKontrollplan`-lenken er oppfølgere; `faneWhere`-test (#11) urørt.
+
+---
+
 ## 0. Sikkerhet — Aikido-scan triagert 2026-08-12 (49 funn → 7 poster)
 
 **Kilde:** `Fra fabel/til-repo-2026-08-12-1558/FABEL-TRIAGE-aikido-49-funn.md`. Fabel triagerte alle 49; cowork har **verifisert hvert kodefunn mot repoet** før føring her. Aikidos alvorlighetsgrader er ikke fulgt blindt — to av dem er justert, se under.
