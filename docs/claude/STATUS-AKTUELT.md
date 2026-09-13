@@ -4,6 +4,30 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟡 2026-09-14 — Fabels KS av vei C committet (objekt-tabell på BibliotekMal). Ingen kode, ingen deploy.
+
+**Mottatt og committet** (`docs/redesign/ks-sitedoc-niva-vei-c-fabel-2026-09-14.md`), uendret, fra fabel-pakke
+`til-repo-2026-09-14-0230`. Verifisert: kun den ene fila, ingen `.DS_Store`, fantes ikke fra før.
+
+- 🟢 **VEDTAK: vei C valgt** — `BibliotekMal` får objekt-tabell som speiler `OrganizationTemplateObject`.
+  **A og B forkastet:** A etterlater et evig spesialtilfelle; B gjør «én editor» til en løgn i koden.
+- 🟢 **redesigns stopp godkjent av fabel** — «stoppet på premiss FØR koding, null commits, avvik meldt … Dette er standarden».
+- 🔴 **RETTELSE (coworks feil, MÅLT AV MEG):** ordren pekte på `autoriserMalTilgang`; gaten heter faktisk
+  **`verifiserSiteDocAdmin`** — definert `apps/api/src/routes/bibliotek.ts:13`, kalt `:280` og `:323`. Ingen
+  `autoriserMalTilgang` i fila. Samme jobb, feil navn i ordren. **Ordre-malen skal peke på FAKTISK funksjonsnavn, målt — ikke antatt.**
+- 🔴 **REKKEFØLGE — ⚠️ KONFLIKT MELLOM RELAY OG KILDE, må avklares før C del 1:**
+  - **Fabels notat krav 4 (kilden):** `C del 1 (tabell + migrering)` → `KC3.1 på ny form` → `C del 2 (ruting)`.
+    Logisk: KC3.1 «på ny form» (rad-form) krever at tabellen finnes først.
+  - **Relay-ordren skrev derimot:** `KC3.1 merges` → `C del 1` → `C del 2` → riving (KC3.1 FØR C del 1), og «KC3.1 blokkerer nå C del 1».
+  - 🔴 **Disse motsier hverandre om KC3.1s plass. Jeg velger ikke — cowork/Kenneth avklarer. Fabels kilde sier C del 1 først.**
+  - ⚠️ **Felles i begge:** KC3.1 og resten av 12-mal-køen kjøres IKKE parallelt med migreringen (`seed-bibliotek.ts` bytter skriveform).
+- 🔴 **`malInnhold`-kolonnen FRYSES etter migrering** (leses ikke), slettes i egen senere runde etter verifisert testperiode — **aldri samtidig med migreringen.**
+- 🟡 **ÅPENT: Kenneth har ikke gatet KC3.1s innhold ennå.**
+- 🟢 **redesign bygger C del 1** på `feat/bibliotekmal-objekttabell`.
+- ⚠️ **Uendret åpent:** rettighetsmatrisen vs. ulåst SiteDoc-fane · N dager auto-tømming · fargeføringen · funn #21 (↻ og MalBygger muterer under eksisterende dokumenter).
+
+---
+
 ## 🟡 2026-09-14 — Fabels Malstruktur IA v2 committet (kontekststyrt malside). Ingen kode, ingen deploy.
 
 **Mottatt og committet** (`docs/redesign/malstruktur-ia-v2-notat-fabel-2026-09-14.md` + `-mockup-…dc.html`),
