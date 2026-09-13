@@ -4,6 +4,23 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟢 2026-09-13 — Runde 98 merget: arkivmodal-søk/kollaps + nivåbanner. Utløser web-deploy (samles).
+
+**Merget til develop** (`--no-ff`, i rekkefølge dokgen→redesign, ingen kodeoverlapp — kun 15 i18n-JSON delt, `comm -12` bekreftet):
+- `feat/nivaabanner` (`0d9b0fc8`, dokgen) — nivåbanner + `TilbakeLenke`-primitiv utpakket (BACKLOG #20).
+- `feat/arkivmodal-sok-kollaps` (`6b75accd`, redesign) — søk over fanene + kollaps + samme gruppemodell begge faner (BACKLOG #19).
+
+**Gate grønn på develop-tippen:** `db 2 · api 478 · pdf 120 · shared 814` stille · `web 228→235` (+7, alle i `arkiv-sok-kollaps.test.ts`).
+Utfoldings-testen (søk i sammenslått gruppe → foldes ut) og typefilter-testen (oppgavemal filtrert bort FØR søk → 0 treff) begge til stede. Kald web-bygg grønn (`prisma generate` ×4, `.next` slettet). Én tilbake-lenke per flate; papirkurv bruker delt `TilbakeLenke`.
+
+- **redesign → LEDIG · dokgen → LEDIG.**
+- 🔴 **VEDTAK, IKKE bygget ennå — fargeføring (egen runde etter Kenneth ser dem på test):** firma-blå **snapper** til `sitedoc-primary #1e40af` (to nesten-like blå = drift) · SiteDoc-fiolett → nytt token **`arkiv-sitedoc`** · prosjekt-grønn → nytt token **`arkiv-prosjekt`**, **snapper IKKE** til `sitedoc-success #10b981` (for lys under hvit tekst; suksess-semantikk feil for et nivåmerke). Fabels mørke hex (`#5843a8`/`#2451b3`/`#3f6f1f`) beholdt som utgangspunkt i mergen — ingen farge endret her.
+- 🔴 **VEDTAK: «Prosjektarkiv» gis via banneret**, ikke som tvungen overskrift. Eventuell eksplisitt overskrift vurderes i harmoniseringsrunden — hvis i det hele tatt.
+- 🔴 **NY ÅPEN GJELD (MÅLT): i18n-drift.** `nb`/`en` = 4498 nøkler, de 13 andre = 4366 — **nøyaktig 132 mangler, identisk i alle.** **Kenneth-vedtak: ryddes som EGEN RUNDE FØR strengharmoniseringen** («ellers harmoniserer vi oppå drift»).
+- 🟡 **SISTE GATE-VALG til fabel: N dager auto-tømming av papirkurv.** Målt N=**90** i dag (`services/papirkurv-sweep.ts` + UI). Spørsmålet er om Kenneth vil endre den.
+
+---
+
 ## 🟡 2026-09-13 — Fabels samlede IA-tegning for Malforvaltning committet. Ingen kode, ingen deploy.
 
 **Mottatt og committet, deretter ERSTATTET med pakke `til-repo-2026-09-13-2245`** (samme to filnavn i
