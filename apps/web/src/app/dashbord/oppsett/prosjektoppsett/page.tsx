@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Archive,
   CircleDot,
+  Flag,
   X,
   Upload,
   ImageIcon,
@@ -33,28 +34,36 @@ const KartVelgerDynamic = dynamic(
 /*  Status-alternativ                                                  */
 /* ------------------------------------------------------------------ */
 
+// Livssyklus-velgeren skiller TILSTAND (hvor prosjektet er nå) fra HANDLING (hva knappen gjør).
+// Kenneth-funn 2026-09-13: en fast blå hake på «Avsluttet» ble lest som at prosjektet ALT var
+// avsluttet. Derfor: uvalgt boks bærer et VERB (`handlingKey` — «Avslutt prosjekt») og et
+// handlings-ikon; gjeldende tilstand bærer tilstandsordet (`tilstandKey`) og ÉN hake. Slik er
+// haken en «du er her»-markør på nåværende tilstand, ikke et løfte om at noe er gjort.
 const statusAlternativer = [
   {
     value: "active",
-    labelKey: "prosjektoppsett.aktivt",
+    tilstandKey: "prosjektoppsett.aktivt",
+    handlingKey: "livssyklus.gjenapneKort",
     beskrivelseKey: "prosjektoppsett.aktivtBeskrivelse",
-    ikon: <CircleDot className="h-5 w-5 text-green-500" />,
+    handlingIkon: <CircleDot className="h-5 w-5 text-green-500" />,
     fargeBg: "bg-green-50",
     fargeBorder: "border-green-200",
   },
   {
     value: "completed",
-    labelKey: "prosjektoppsett.fullfort",
+    tilstandKey: "prosjektoppsett.fullfort",
+    handlingKey: "livssyklus.avslutt",
     beskrivelseKey: "prosjektoppsett.fullfortBeskrivelse",
-    ikon: <CheckCircle2 className="h-5 w-5 text-blue-500" />,
+    handlingIkon: <Flag className="h-5 w-5 text-blue-500" />,
     fargeBg: "bg-blue-50",
     fargeBorder: "border-blue-200",
   },
   {
     value: "archived",
-    labelKey: "prosjektoppsett.arkivert",
+    tilstandKey: "prosjektoppsett.arkivert",
+    handlingKey: "livssyklus.arkiver",
     beskrivelseKey: "prosjektoppsett.arkivertBeskrivelse",
-    ikon: <Archive className="h-5 w-5 text-gray-400" />,
+    handlingIkon: <Archive className="h-5 w-5 text-gray-400" />,
     fargeBg: "bg-gray-50",
     fargeBorder: "border-gray-200",
   },
@@ -593,10 +602,12 @@ export default function ProsjektoppsettSide() {
                       : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
-                  {alt.ikon}
+                  {/* Hake KUN på gjeldende tilstand («du er her»); ellers handlings-ikonet. */}
+                  {erValgt ? <CheckCircle2 className="h-5 w-5 text-blue-500" /> : alt.handlingIkon}
                   <div>
                     <p className={`text-sm font-medium ${erValgt ? "text-gray-900" : "text-gray-700"}`}>
-                      {t(alt.labelKey)}
+                      {/* Gjeldende tilstand: tilstandsord. Tilgjengelig handling: verb. */}
+                      {erValgt ? t(alt.tilstandKey) : t(alt.handlingKey)}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">{t(alt.beskrivelseKey)}</p>
                   </div>
@@ -606,16 +617,22 @@ export default function ProsjektoppsettSide() {
           </div>
           {livssyklusMutation.error && (
             <div className="mt-3 text-sm">
-              <p className="text-red-600">{livssyklusMutation.error.message}</p>
-              {/* Krav 2: gaten bærer veien ut. Serveren eier betingelsen (PRECONDITION_FAILED
-                  = intet ferdig eksport-arkiv); klienten lenker til seksjonen som opphever den. */}
+              {/* Gaten sender en distinkt i18n-nøkkel som melding (arkivMangler / arkivUtlopt /
+                  arkivForGammelt) på PRECONDITION_FAILED — klienten oversetter så brukeren vet
+                  HVILKEN betingelse som feilet: lage et arkiv, eller lage et nytt. */}
+              <p className="text-red-600">
+                {livssyklusMutation.error.data?.code === "PRECONDITION_FAILED"
+                  ? t(livssyklusMutation.error.message)
+                  : livssyklusMutation.error.message}
+              </p>
+              {/* Alle tre løses i eksport-seksjonen over → gjenbruk #eksport-arkiv-lenken. */}
               {livssyklusMutation.error.data?.code === "PRECONDITION_FAILED" && (
                 <a
                   href="#eksport-arkiv"
                   className="mt-1 inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
                 >
                   <Archive className="h-4 w-4" />
-                  {t("livssyklus.krevArkiv")}
+                  {t("livssyklus.gate.tilArkiv")}
                 </a>
               )}
             </div>
