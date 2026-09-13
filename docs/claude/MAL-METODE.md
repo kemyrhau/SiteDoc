@@ -146,3 +146,25 @@ Kun ÉN mal, uten å røre de 11 andre: generér en målrettet `UPDATE bibliotek
 3. Etter rydd: det grønne ✓-merket blir tom avkryssingsboks → **importer på nytt** → fersk firmamal med revisjonen.
 
 **Produktbug å rute til cowork/backlog (ikke mal-Opus):** firmamal-sletting og `fjernValg` er ikke synkronisert — sletting av firmamal rydder ikke valget, og `importerMal` avviser re-import (CONFLICT) i stedet for å erstatte et foreldreløst valg. Riktig fiks er i koden (cascade/opprydding ved sletting, eller la re-import overta et dødt valg), ikke gjentatt manuell SQL.
+
+## 7. NS-standard-loggen — mal-Opus' vedlikeholdsplikt (Kenneth 2026-09-13, HØY VIKTIGHET)
+
+🔴 **[docs/claude/mal-ns-standard-logg.md](mal-ns-standard-logg.md) er mal-Opus' ansvar å holde à jour.** Loggen lister hvert sjekkliste-felt som viser til en **ekstern NS-standard** (NS 4400, NS 2890, NS 8141, NS 4417, …) i feltnavn, hjelpetekst eller valgopsjoner — og markerer om feltet **også** gir en konkret, felt-målbar verdi eller bare punkter arbeideren til standarden. Bakgrunn: en arbeider har sjelden den fremmede standarden foran seg (jf. § 1 «informativ om kravet der arbeideren står»); et felt som kun sier «tilfredsstille NS XXXX» uten målbar verdi er en kandidat fabel skal berike.
+
+**Ufravikelig regel — del av DoD på HVER mal-bygg/revisjon:**
+
+1. **Etter at malen er seedet lokalt**, kjør NS-sjekken (SQL-en står i loggens § «Reproduserbar sjekk») mot arkivet.
+2. **Legger, endrer eller fjerner malen en ekstern NS-referanse**, oppdater `mal-ns-standard-logg.md` — rad(er), standard og «Målbar verdi i teksten?»-vurdering — i **SAMME branch/commit** som mal-endringen. Aldri «logg senere».
+3. **NS 3420-K selv teller ikke** (internt sjekklistegrunnlag, ikke fremmed oppslag). Bare eksterne standarder.
+4. **Ingen ny ekstern NS-referanse → ingen logg-endring**, men sjekken skal likevel være kjørt (negativ kontroll: tom output kan bety at du grep i feil felt-sti — `config->>'helpText'`, ikke `->>'helpText'`).
+
+**Meld i mal-rapporten** (§ 6 pkt. 8) om malen rørte NS-loggen, og hvilke rader.
+
+### 7a. Kilde og ansvar — hvordan NS-krav uttrykkes (Kenneth 2026-09-13, STYRENDE)
+
+1. **Referer, gjengi aldri.** Hjelpetekster **refererer** NS-standarder ved post/punkt-nummer — de **gjengir aldri standardens ordlyd**. Vi har rett til å lese NS og lage sjekklister basert på den, men ikke nødvendigvis å reprodusere teksten. (Dette overstyrer et tidligere forslag om å bygge NS 4400-kriteriene inn i KB6 — det skal IKKE gjøres.)
+2. **Kilde med utgave.** Referansen bærer utgave/år. **NS 3420-K:2024 er allerede forankret på standard-nivå** (`bibliotekStandard`: «NS 3420-K:2024 Anleggsgartnerarbeider») — den er fasit, og trenger ikke gjentas inline i hver hjelpetekst. **Eksterne standarders utgave (NS 4400/2890/8141/4417) oppgis av fabel** — mal-Opus gjetter aldri årstall; mangler det, står bar referanse og loggen flagger «utgave mangler».
+3. **Den daterte kilden er aldri feil, og er selv drift-varselet.** Den sier hva malen ble bygget fra, ikke hva som gjelder i evig tid. Ser en leser årstallet og vet at en nyere utgave finnes → påminnelse om å sjekke om kravet fortsatt er gyldig.
+4. **Sjekklistene holdes rene.** Ingen reprodusert lovtekst, ingen ansvarsfraskrivelser per sjekkliste eller i hver nedlastede PDF.
+5. **Ansvaret legges på kunden ÉN gang sentralt.** «Du verifiserer mot gjeldende standard — da står sjekklisten seg på ditt ansvar» hører hjemme i bruksvilkår/onboarding/den ene «last ned avvik i sjekklister»-oversikten, **aldri gjentatt per sjekkliste**. NS-loggen er datagrunnlaget for den framtidige oversikten (kundevisning bygges når UI er klart — ikke nå).
+
