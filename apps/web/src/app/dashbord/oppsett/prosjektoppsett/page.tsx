@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
-import { Button, Input, Spinner } from "@sitedoc/ui";
+import { Button, Input, Spinner, Modal } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import {
   Save,
@@ -150,6 +150,10 @@ export default function ProsjektoppsettSide() {
   const [beskrivelse, setBeskrivelse] = useState("");
   const [adresse, setAdresse] = useState("");
   const [status, setStatus] = useState("active");
+  // Krav 3: avslutt/arkiver er irreversibel-følt (stenger tilgang) — bekreftes i modal
+  // FØR mutasjonen fyres. Holder den ventende overgangen (completed|archived). Gjenåpning
+  // (active) er ufarlig og trenger ingen bekreftelse.
+  const [bekreftLivssyklus, setBekreftLivssyklus] = useState<"completed" | "archived" | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [interntNummer, setInterntNummer] = useState("");
@@ -554,8 +558,9 @@ export default function ProsjektoppsettSide() {
         {prosjektId && <UtleggOrdningSeksjon prosjektId={prosjektId} />}
 
         {/* Eksport/arkiv — inngangsdør til den ferdig-byggede dataeksporten. Bor her
-            fordi «Avslutt prosjekt» (neste runde) kobles til den: arkivet må hentes
-            FØR avslutning, siden et avsluttet prosjekt er utilgjengelig. */}
+            fordi avslutt-seksjonen under gater på et ferdig arkiv: det må hentes FØR
+            avslutning, siden et avsluttet prosjekt er utilgjengelig. Gate-lenken (krav 2)
+            peker hit via #eksport-arkiv. */}
         {prosjektId && <EksportSeksjon prosjektId={prosjektId} />}
 
         {/* FL: Avslutt/arkiver — rett etter eksport-seksjonen, fordi arkivet må lages
@@ -572,13 +577,16 @@ export default function ProsjektoppsettSide() {
                 <button
                   key={alt.value}
                   disabled={livssyklusMutation.isPending || erValgt}
-                  onClick={() =>
-                    prosjektId &&
-                    livssyklusMutation.mutate({
-                      id: prosjektId,
-                      status: alt.value as "active" | "completed" | "archived",
-                    })
-                  }
+                  onClick={() => {
+                    if (!prosjektId) return;
+                    // Gjenåpning (active) er ufarlig → fyr direkte. Avslutt/arkiver stenger
+                    // tilgang → bekreft i modal først (krav 3).
+                    if (alt.value === "active") {
+                      livssyklusMutation.mutate({ id: prosjektId, status: "active" });
+                    } else {
+                      setBekreftLivssyklus(alt.value as "completed" | "archived");
+                    }
+                  }}
                   className={`flex items-start gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors disabled:cursor-default ${
                     erValgt
                       ? `${alt.fargeBg} ${alt.fargeBorder}`
@@ -597,7 +605,20 @@ export default function ProsjektoppsettSide() {
             })}
           </div>
           {livssyklusMutation.error && (
-            <p className="mt-3 text-sm text-red-600">{livssyklusMutation.error.message}</p>
+            <div className="mt-3 text-sm">
+              <p className="text-red-600">{livssyklusMutation.error.message}</p>
+              {/* Krav 2: gaten bærer veien ut. Serveren eier betingelsen (PRECONDITION_FAILED
+                  = intet ferdig eksport-arkiv); klienten lenker til seksjonen som opphever den. */}
+              {livssyklusMutation.error.data?.code === "PRECONDITION_FAILED" && (
+                <a
+                  href="#eksport-arkiv"
+                  className="mt-1 inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
+                >
+                  <Archive className="h-4 w-4" />
+                  {t("livssyklus.krevArkiv")}
+                </a>
+              )}
+            </div>
           )}
         </Seksjon>
 
@@ -613,6 +634,44 @@ export default function ProsjektoppsettSide() {
           </Button>
         </div>
       </div>
+
+      {/* Krav 3: bekreftelse FØR avslutt/arkiver — irreversibel-følt handling. Modal
+          (ikke confirm()), sier hva som skjer med dokumentene og hvem som mister tilgang. */}
+      <Modal
+        open={bekreftLivssyklus !== null}
+        onClose={() => setBekreftLivssyklus(null)}
+        title={
+          bekreftLivssyklus === "archived"
+            ? t("livssyklus.bekreftArkiverTittel")
+            : t("livssyklus.bekreftAvsluttTittel")
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-700">{t("livssyklus.bekreftBrodtekst")}</p>
+          <div className="flex gap-3 pt-1">
+            <Button
+              variant="danger"
+              loading={livssyklusMutation.isPending}
+              onClick={() => {
+                if (!prosjektId || !bekreftLivssyklus) return;
+                // Lukk uansett utfall: ved suksess er vi ferdige; ved gate-feil skal
+                // brukeren SE feilen + eksport-lenken i seksjonen bak (krav 2).
+                livssyklusMutation.mutate(
+                  { id: prosjektId, status: bekreftLivssyklus },
+                  { onSettled: () => setBekreftLivssyklus(null) },
+                );
+              }}
+            >
+              {bekreftLivssyklus === "archived"
+                ? t("livssyklus.arkiver")
+                : t("livssyklus.avslutt")}
+            </Button>
+            <Button variant="secondary" onClick={() => setBekreftLivssyklus(null)}>
+              {t("handling.avbryt")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

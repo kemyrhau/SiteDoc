@@ -160,6 +160,9 @@ type MalListeElement = Prisma.ReportTemplateGetPayload<{
   include: {
     _count: { select: { objects: true; checklists: true; tasks: true } };
     dokumentflytMaler: { select: { dokumentflytId: true } };
+    // Firmamal-avstamning: firmamalens GJELDENDE versjon, for «X versjoner bak»-badge
+    // + ↻ i mallista (ordre synliggjor-malforvaltning, krav 1). Speiler `hentMedId`.
+    copiedFromOrgTemplate: { select: { id: true; name: true; version: true } };
   };
 }> & { opprettbar: boolean; opprettbareFlytIder: string[] };
 
@@ -261,6 +264,8 @@ export const malRouter = router({
         include: {
           _count: { select: { objects: true, checklists: { where: IKKE_SLETTET }, tasks: { where: IKKE_SLETTET } } },
           dokumentflytMaler: { select: { dokumentflytId: true } },
+          // «X versjoner bak» = copiedFromOrgTemplate.version − versjonAvHovedmal (krav 1).
+          copiedFromOrgTemplate: { select: { id: true, name: true, version: true } },
         },
         orderBy: { updatedAt: "desc" },
       });

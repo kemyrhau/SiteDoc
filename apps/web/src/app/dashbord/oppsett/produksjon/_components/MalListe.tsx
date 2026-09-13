@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download, RefreshCw } from "lucide-react";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
@@ -49,6 +50,9 @@ type MalRad = {
   // Malarkiv (AM4) — firma-avstamning (valgfrie; prosjekt-egne maler har dem null/false)
   organizationTemplateId?: string | null;
   promotedToFirma?: boolean;
+  // «X versjoner bak» (krav 1): firmamalens gjeldende versjon − versjonen kopien fryste.
+  versjonAvHovedmal?: number;
+  copiedFromOrgTemplate?: { id: string; name: string; version: number } | null;
   _count: { objects: number; checklists: number; tasks: number };
 };
 
@@ -150,6 +154,9 @@ export function MalListe({
   const [visRedigerModal, setVisRedigerModal] = useState(false);
   const [visSlettBekreftelse, setVisSlettBekreftelse] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
+  // ↻ «Oppdater fra firmamal» (krav 1): feil vises som en linje over lista.
+  const [oppdaterFeil, setOppdaterFeil] = useState<string | null>(null);
+  const [oppdatererId, setOppdatererId] = useState<string | null>(null);
   // Unikhet (2026-08-10): server-CONFLICT (navn/prefiks) vises i opprett/rediger-modalen.
   const [malFeil, setMalFeil] = useState<string | null>(null);
   const [visHentArkiv, setVisHentArkiv] = useState(false);
@@ -246,6 +253,18 @@ export function MalListe({
       utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setValgtId(nyMal.id);
     },
+  });
+
+  // ↻ Oppdater prosjektmal-kopien til firmamalens gjeldende versjon (krav 1).
+  // SAMME prosedyre malbyggeren kaller — ingen ny mekanisme. 🔴 Full erstatning av
+  // objekt-treet (firmamal.ts:766-768): dokumentdata knyttet til gamle objekt-id-er
+  // blir foreldreløs. Derfor bevisst, eksplisitt klikk — aldri automatisk (som MalBygger).
+  const oppdaterFraHovedmalMutation = trpc.firmamal.oppdaterKopiFraHovedmal.useMutation({
+    onSuccess: () => {
+      utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    },
+    onError: (e: { message: string }) => setOppdaterFeil(e.message),
+    onSettled: () => setOppdatererId(null),
   });
 
   function handlePrefiksEndring(verdi: string) {
@@ -457,6 +476,13 @@ export function MalListe({
         </div>
       </div>
 
+      {/* ↻-feil (krav 1) — serverens melding, f.eks. hvis firmamal-avstamningen mangler. */}
+      {oppdaterFeil && (
+        <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {oppdaterFeil}
+        </p>
+      )}
+
       {/* Tabell */}
       {maler.length === 0 && !sok.trim() ? (
         <EmptyState
@@ -541,6 +567,42 @@ export function MalListe({
                       {mal.promotedToFirma && (
                         <Badge variant="success">{t("maler.badge.iFirmaarkivet")}</Badge>
                       )}
+                      {/* «X versjoner bak» + ↻ (krav 1) — speiler MalBygger. Vises kun når
+                          kopien faktisk henger etter firmamalen. ↻ stopper rad-select. */}
+                      {(() => {
+                        if (!mal.copiedFromOrgTemplate) return null;
+                        const versjonerBak = Math.max(
+                          0,
+                          mal.copiedFromOrgTemplate.version - (mal.versjonAvHovedmal ?? 1),
+                        );
+                        if (versjonerBak <= 0) return null;
+                        return (
+                          <>
+                            <Badge variant="warning">
+                              {t("malbygger.firmaarkiv.basertPaBak", {
+                                navn: mal.copiedFromOrgTemplate.name,
+                                antall: versjonerBak,
+                              })}
+                            </Badge>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOppdaterFeil(null);
+                                setOppdatererId(mal.id);
+                                oppdaterFraHovedmalMutation.mutate({ templateId: mal.id });
+                              }}
+                              disabled={oppdatererId === mal.id}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              {oppdatererId === mal.id
+                                ? t("handling.prosesserer")
+                                : t("malbygger.firmaarkiv.oppdater")}
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-600">
@@ -1121,6 +1183,17 @@ export function MalListe({
                   )}
                   {iKontrollplan > 0 && (
                     <p>{t("maler.slettVern.harKontrollplan", { n: iKontrollplan })}</p>
+                  )}
+                  {/* Krav 2: sperren bærer veien ut. Serveren eier betingelsen (tellingen
+                      over), klienten lenker til stedet som opphever den — papirkurven. */}
+                  {iKurv > 0 && prosjektId && (
+                    <Link
+                      href={`/dashbord/${prosjektId}/papirkurv`}
+                      className="inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {t("maler.slettVern.tilPapirkurv")}
+                    </Link>
                   )}
                 </div>
               ) : (
