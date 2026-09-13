@@ -4,6 +4,38 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟡 2026-09-13 — Fabels samlede IA-tegning for Malforvaltning committet. Ingen kode, ingen deploy.
+
+**Mottatt og committet** (`docs/redesign/malforvaltning-ia-mockup-fabel-2026-09-13.dc.html` + `-notat-…md`),
+uendret, fra fabel-pakke `til-repo-2026-09-13-2210`. Verifisert: kun de to filene, ingen `.DS_Store`, ingen fantes fra før.
+
+### 🔴 ÅPEN KONFLIKT — føres, ikke lukkes: SiteDoc-fanen låst/ulåst på prosjektnivå
+
+- **Fabels tegning:** SiteDoc-arkiv-fanen er tegnet **ULÅST** på prosjektnivå, attribuert «etter coworks forslag».
+- **Skrevet Kenneth-vedtak imot:** «Lån kun fra nivået rett over — aldri to opp» (`terminologi.md § 0`, `a3e73a09`).
+  Det var regelen som fjernet `BibliotekPanel` i runde 87.
+- **Coworks innsigelse:** cowork foreslo aldri å låse den opp — forslaget gjaldt **kollaps** («SiteDoc-fanen starter
+  sammenslått»), ikke **tilgang**. Mulig kilde til misforståelsen: funn #12 (`hentStandarder` mangler tilgangssjekk)
+  — som skal LUKKES, ikke brukes som begrunnelse for å åpne UI-et.
+- 🟢 **Min egen lesning av notatet (linje 34–35 + «Neste steg» pkt. 1):** fabel fører dette selv som
+  **«⚠ Åpent Kenneth-valg»** og listet det til Kenneth-gate — ikke som avgjort. Attribusjonen «etter coworks forslag»
+  står ordrett, men beslutningen er ikke tatt i tegningen.
+- 🔴 **Kenneth avgjør. Ikke valgt her.**
+
+### Øvrige punkter
+- 🟢 **Fabel trakk rekkefølgekravet på #8** — coworks innvending tatt (hullet fantes fra før; #1/#2 innførte ikke oppdateringsveien).
+- 🟢 **Kenneth overstyrte coworks E-forslag:** begge faner i «Hent fra arkiv» bruker nå SAMME modell — gruppert på
+  standard/kapittel, «Egenlagde» egen gruppe, sammenslått ved start, søket folder ut treff. Coworks åpne-Firmaarkiv-fane forkastet.
+- 🟡 **ÅPENT KENNETH-VALG: N dager før papirkurv auto-tømmes.** Dagens verdi målt N=**90** (`services/papirkurv-sweep.ts`, UI-tekst «90 dager»). Fabel spør om N.
+- ⚠️ **Ubesvart (Kenneth):** skal papirkurv-søket treffe INNHOLD, ikke bare navn/metadata?
+- 🔴 **Fabels «Ikke tegnet» (grensene, så ingen gjetter):** `MalRevisjon`-fanens innhold · diff/merge for ↻ ·
+  SiteDoc-admins editor-kapasitet · `hentStandarder`-innstramming · HMS-lenken i slett-sperren · mobilvisning av
+  Malforvaltning · strengharmoniseringen.
+- ⚠️ **Strengharmoniseringen er coworks jobb og utløses nå** — flatene navngitt av fabel: Malforvaltning med tre faner ·
+  MalBygger-banner · Hent fra arkiv · globalt søk-merke.
+
+---
+
 ## 🟡 2026-09-13 — Docs: ett navn per arkivnivå (Kenneth-vedtak). Ingen kode, ingen deploy.
 
 **Vedtak ført i `terminologi.md § 0`** (rett under rettighetsmatrisen fra `a3e73a09`): hvert arkivnivå
