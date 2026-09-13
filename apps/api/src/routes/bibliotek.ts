@@ -52,6 +52,12 @@ export const bibliotekRouter = router({
                   beskrivelse: true,
                   versjon: true,
                   verifisert: true,
+                  // To skalarfelt for KLIENT-typefilter i «Hent fra arkiv»-modalen
+                  // (ordre arkivmodal-typefilter, TILLEGG 3). SiteDoc-fanen filtreres på
+                  // samme akse som firmaarkiv-fanen (`faneWhere`). Ikke serverfilter,
+                  // ikke gating — kun signalet klienten trenger for å skille flatene.
+                  kategori: true,
+                  domene: true,
                 },
               },
             },

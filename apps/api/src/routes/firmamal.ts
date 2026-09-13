@@ -284,10 +284,31 @@ export const firmamalRouter = router({
         where: { id: input.projectId },
         select: { primaryOrganizationId: true },
       });
+      const organizationId = prosjekt?.primaryOrganizationId ?? null;
+      // rediger-signalene (ordre arkivmodal-typefilter, TILLEGG 1+3): styrer om
+      // modalens bunntekst blir en KLIKKBAR vei til arkiv-redigering. Samme
+      // `autoriserMalTilgang`-matrise — ingen ny rollelogikk i komponenten. les ≠
+      // rediger: firmaadmin har `les` på sitedoc men IKKE `rediger` (kun sitedoc_admin),
+      // og prosjektadmin har `les` på firma men IKKE `rediger` (kun firmaadmin+). Uten
+      // dette ville en firmaadmin fått lenke til en side som avviser ham.
+      const kanRedigereFirma = organizationId
+        ? await sjekk(() =>
+            autoriserMalTilgang(ctx.userId, {
+              nivaa: "firma",
+              handling: "rediger",
+              organizationId,
+            }),
+          )
+        : false;
+      const kanRedigereSitedoc = await sjekk(() =>
+        autoriserMalTilgang(ctx.userId, { nivaa: "sitedoc", handling: "rediger" }),
+      );
       return {
         kanHenteFraFirma,
         kanHenteFraSitedoc,
-        organizationId: prosjekt?.primaryOrganizationId ?? null,
+        kanRedigereFirma,
+        kanRedigereSitedoc,
+        organizationId,
       };
     }),
 

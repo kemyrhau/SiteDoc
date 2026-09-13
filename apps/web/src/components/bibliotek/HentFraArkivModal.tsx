@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Modal, Button, Spinner } from "@sitedoc/ui";
 import { Lock, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { malHorerTilFane, type ArkivFane } from "./arkiv-fane-filter";
 
 /**
  * «Hent fra arkiv» — grensesnittet mellom prosjekt, firma og SiteDoc-sentralarkiv
@@ -21,8 +23,6 @@ import { trpc } from "@/lib/trpc";
  * Sentralarkiv-innholdet (NS 3420-maler) er ikke sensitivt, så klient-gate er akseptabel
  * mellomlanding. Server-gate hentStandarder med sitedoc/les = egen runde.
  */
-
-type ArkivFane = "oppgave" | "sjekkliste" | "hms";
 
 interface HentFraArkivModalProps {
   projectId: string;
@@ -53,6 +53,10 @@ export function HentFraArkivModal({
     { enabled: open },
   );
   const kanSitedoc = tilgang.data?.kanHenteFraSitedoc ?? false;
+  // rediger-signalene gjør bunntekstene til KLIKKBARE veier (TILLEGG 1). Serveren svarer
+  // fra samme matrise — ingen rollelogikk her. les ≠ rediger, så disse er egne felt.
+  const kanRedigereFirma = tilgang.data?.kanRedigereFirma ?? false;
+  const kanRedigereSitedoc = tilgang.data?.kanRedigereSitedoc ?? false;
   const organizationId = tilgang.data?.organizationId ?? null;
 
   const firmamaler = trpc.firmamal.listeForProsjekt.useQuery(
@@ -91,7 +95,14 @@ export function HentFraArkivModal({
     version: number;
     _count: { objects: number };
   };
-  type SentralMal = { id: string; navn: string; referanse: string; versjon: string };
+  type SentralMal = {
+    id: string;
+    navn: string;
+    referanse: string;
+    versjon: string;
+    kategori: string;
+    domene: string;
+  };
   type SentralKapittel = { id: string; kode: string; navn: string; maler: SentralMal[] };
   type SentralStandard = { id: string; kode: string; kapitler: SentralKapittel[] };
 
@@ -150,16 +161,36 @@ export function HentFraArkivModal({
 
   // SiteDoc-arkivet: nøstet standard → kapittel finnes allerede i dataene. Viser
   // kapitteloverskrifter (Kenneth-funn) så 20-30 kapitler ikke blir én lang, flat liste.
+  // Typefilter (krav 1): kun maler som hører til flaten `fane` — samme akse som
+  // firmaarkiv-fanen. Kapitler som tømmes av filteret faller bort.
   const sitedocGrupper: ArkivGruppe[] = sentralStandarder.flatMap((s) =>
     s.kapitler
-      .filter((k) => k.maler.length > 0)
-      .map((k) => ({
+      .map((k) => ({ k, maler: k.maler.filter((m) => malHorerTilFane(fane, m)) }))
+      .filter(({ maler }) => maler.length > 0)
+      .map(({ k, maler }) => ({
         key: k.id,
         tittel: `${s.kode} · ${k.kode} ${k.navn}`,
-        rader: k.maler.map(byggSitedocRad),
+        rader: maler.map(byggSitedocRad),
       })),
   );
   const sitedocAntall = sitedocGrupper.reduce((n, g) => n + g.rader.length, 0);
+
+  // Tom-tilstanden skal si HVORFOR den er tom (TILLEGG 2), ellers leses innholdsgapet som
+  // en bug. Seks kombinasjoner (tre flater × to faner):
+  //  - SiteDoc-fanen, en flate som er tom: fast fasit — arkivet er i dag KUN NS 3420-K
+  //    sjekklistemaler (målt: alle 17 seed-maler er kategori=sjekkliste/domene=kvalitet).
+  //    Ordet «i dag» sier at tilstanden er midlertidig, ikke at funksjonen mangler.
+  //  - Firmaarkiv-fanen, tom: firmaet har ikke lånt inn den typen ennå. Peker videre.
+  //    For prosjektadmin (kanSitedoc=false) er SiteDoc-fanen låst, så teksten peker IKKE
+  //    dit — den navngir hvem som henter inn i stedet (TILLEGG 3).
+  const sitedocTomTekst = fane
+    ? t("maler.arkiv.ingenSitedocForklart")
+    : t("maler.arkiv.ingenSitedoc");
+  const firmaTomTekst = !fane
+    ? t("maler.arkiv.ingenFirma")
+    : kanSitedoc
+      ? t("maler.arkiv.ingenFirmaForklart", { type: t(`maler.arkiv.type.${fane}`) })
+      : t("maler.arkiv.ingenFirmaForklartLaast", { type: t(`maler.arkiv.type.${fane}`) });
 
   function faneKnapp(id: "firma" | "sitedoc", label: string, laast: boolean) {
     const aktiv = aktivFane === id;
@@ -214,12 +245,19 @@ export function HentFraArkivModal({
             <ArkivListe
               laster={firmamaler.isLoading}
               tom={firmaListe.length === 0}
-              tomTekst={t("maler.arkiv.ingenFirma")}
+              tomTekst={firmaTomTekst}
               grupper={firmaGrupper}
               fotnote={
-                kanSitedoc
-                  ? t("maler.arkiv.fotFirmaRediger")
-                  : t("maler.arkiv.fotFirmaLes")
+                kanRedigereFirma ? (
+                  <Link
+                    href="/dashbord/firma/malarkiv"
+                    className="text-sitedoc-primary hover:underline"
+                  >
+                    {t("maler.arkiv.fotFirmaRediger")}
+                  </Link>
+                ) : (
+                  t("maler.arkiv.fotFirmaLes")
+                )
               }
             />
           )}
@@ -229,9 +267,20 @@ export function HentFraArkivModal({
             <ArkivListe
               laster={standarder.isLoading}
               tom={sitedocAntall === 0}
-              tomTekst={t("maler.arkiv.ingenSitedoc")}
+              tomTekst={sitedocTomTekst}
               grupper={sitedocGrupper}
-              fotnote={t("maler.arkiv.fotSitedoc")}
+              fotnote={
+                kanRedigereSitedoc ? (
+                  <Link
+                    href="/dashbord/admin/bibliotek"
+                    className="text-sitedoc-primary hover:underline"
+                  >
+                    {t("maler.arkiv.fotSitedocRediger")}
+                  </Link>
+                ) : (
+                  t("maler.arkiv.fotSitedoc")
+                )
+              }
             />
           )}
         </div>
@@ -290,7 +339,7 @@ function ArkivListe({
   tom: boolean;
   tomTekst: string;
   grupper: ArkivGruppe[];
-  fotnote: string;
+  fotnote: ReactNode;
 }) {
   if (laster) {
     return (
