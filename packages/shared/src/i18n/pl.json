@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "Ten szablon nie ma jeszcze pól.",
   "firma.malarkiv.fase.for": "Przed egzekucją",
   "firma.malarkiv.fase.under": "Podczas egzekucji",
-  "firma.malarkiv.fase.etter": "Po wykonaniu"
+  "firma.malarkiv.fase.etter": "Po wykonaniu",
+  "nivaabanner.duRedigererI": "Edytujesz w",
+  "nivaabanner.duErI": "Jesteś w środku",
+  "nivaabanner.sitedoc.merke": "Archiwum SiteDoca",
+  "nivaabanner.firma.merke": "Archiwum firmowe",
+  "nivaabanner.prosjekt.merke": "Archiwum projektu",
+  "nivaabanner.sitedoc.scope": "Zmiany dotyczą archiwum SiteDoc. Firmy, które pobiorą szablon, otrzymają później nową wersję — kopie już pobrane są ich własnością i nie ma to na to wpływu.",
+  "nivaabanner.firma.scope": "Zmiany dotyczą archiwum firmowego, współdzielonego pomiędzy wszystkimi projektami w firmie. Projekty, które pobiorą szablon, otrzymają później nową wersję — kopie już pobrane są ich własnymi i nie ma to na to wpływu.",
+  "nivaabanner.prosjekt.scope": "Zmiany dotyczą wyłącznie tego projektu. Nie ma to wpływu na żadne inne projekty."
 }

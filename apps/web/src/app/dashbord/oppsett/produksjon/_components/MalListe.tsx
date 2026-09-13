@@ -12,6 +12,7 @@ import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
 import { OppdaterFraHovedmalModal } from "@/components/malbygger/OppdaterFraHovedmalModal";
+import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
 
 type MalKategori = "oppgave" | "sjekkliste" | "hms";
 
@@ -391,7 +392,9 @@ export function MalListe({
   const harValg = !!valgtId;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full gap-3">
+      {/* Krav 4: prosjektnivået får navnet sitt — PROSJEKTARKIV-merket øverst på lista. */}
+      <Nivaabanner nivaa="prosjekt" kontekst="liste" />
       {/* Verktøylinje */}
       <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-0">
         {/* + Tilføy dropdown */}

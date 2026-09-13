@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Trash2, RotateCcw, Trash, Eye, ArrowLeft } from "lucide-react";
+import { Trash2, RotateCcw, Trash, Eye } from "lucide-react";
 import { Spinner, Button, Modal, StatusBadge } from "@sitedoc/ui";
 import { formaterNummer, byggObjektTre } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
@@ -13,6 +12,7 @@ import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { TilbakeLenke } from "@/components/nivaa/TilbakeLenke";
 
 /**
  * F0 Papirkurv — soft-slettede sjekklister + oppgaver med «dager igjen» før
@@ -52,17 +52,8 @@ export default function PapirkurvSide() {
   const utils = trpc.useUtils();
 
   // Krav 2: papirkurven nås ofte fra en blokkerende slett-sperre («tøm papirkurven
-  // først»). Da må den kunne føre brukeren tilbake dit han kom fra — men bare når vi
-  // faktisk VET hvor det var. `retur` = sti (kun in-app, mot open redirect); `kilde`
-  // = kjent opphav som velger en presis etikett. Ingen param → ingen retur-lenke
-  // (han kom via menyen, ikke fra en avbrutt jobb).
-  const searchParams = useSearchParams();
-  const returParam = searchParams.get("retur");
-  const returSti = returParam && returParam.startsWith("/dashbord/") ? returParam : null;
-  const returKilde = searchParams.get("kilde");
-  const returLabelKey =
-    returKilde === "maler" ? "papirkurv.returMaler" : "papirkurv.returTilbake";
-
+  // først»). Da må den kunne føre brukeren tilbake dit han kom fra — retur-lenken er
+  // nå den delte, param-drevne <TilbakeLenke/> (whitelist + open-redirect-vakt).
   const [slettEndeligMål, setSlettEndeligMål] = useState<PapirkurvDok | null>(null);
   const [forhåndsvisMål, setForhåndsvisMål] = useState<PapirkurvDok | null>(null);
   const [valgte, setValgte] = useState<Set<string>>(new Set());
@@ -173,15 +164,7 @@ export default function PapirkurvSide() {
   return (
     <div className="max-w-5xl p-6">
       {/* Krav 2: retur til der brukeren ble avbrutt — kun når `retur` er kjent. */}
-      {returSti && (
-        <Link
-          href={returSti}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-sitedoc-primary hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t(returLabelKey)}
-        </Link>
-      )}
+      <TilbakeLenke />
       <SonetonetSidehode sone="prosjekt" className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>

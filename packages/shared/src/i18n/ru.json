@@ -4353,5 +4353,13 @@
   "firma.malarkiv.inspiserTomt": "В этом шаблоне пока нет полей.",
   "firma.malarkiv.fase.for": "Перед выполнением",
   "firma.malarkiv.fase.under": "Во время исполнения",
-  "firma.malarkiv.fase.etter": "После выполнения"
+  "firma.malarkiv.fase.etter": "После выполнения",
+  "nivaabanner.duRedigererI": "Вы редактируете в",
+  "nivaabanner.duErI": "Вы находитесь в",
+  "nivaabanner.sitedoc.merke": "Архив SiteDoc",
+  "nivaabanner.firma.merke": "Архив компании",
+  "nivaabanner.prosjekt.merke": "Архив проекта",
+  "nivaabanner.sitedoc.scope": "Изменения касаются архива SiteDoc. Компании, которые получат шаблон позже, получат новую версию — уже удаленные копии являются их собственными и не затрагиваются.",
+  "nivaabanner.firma.scope": "Изменения касаются архива компании, который доступен всем проектам компании. Проекты, которые извлекают шаблон позже, получают новую версию — уже удаленные копии являются их собственными и не затрагиваются.",
+  "nivaabanner.prosjekt.scope": "Изменения касаются только этого проекта. Другие проекты не затронуты."
 }
