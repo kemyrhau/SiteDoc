@@ -1154,7 +1154,17 @@ model OrganizationTemplate {
 
   @@index([organizationId])
   @@index([promotedFromTemplateId])
+  // Beholdes: enkeltkolonne-indeks betjener revers-oppslag på bibliotekmalen alene
+  // (SetNull-cascade ved sletting av BibliotekMal + «hvem har lånt denne malen»),
+  // som det sammensatte unique-indekset under IKKE kan (ledende kolonne = org).
   @@index([laantFraBibliotekMalId])
+  // Unik indeks mot dobbelt-lån av samme bibliotekmal til samme firma (funn #10,
+  // «Malforvaltning — 17 målte funn 2026-09-13»). Vakten i firmamal.ts (findFirst +
+  // CONFLICT) er PEN FEILMELDING; denne indeksen er GARANTIEN mot samtidige lån.
+  // laantFraBibliotekMalId er NULLABLE → flere egne (ikke-lånte) firmamaler har null,
+  // og Postgres behandler NULL som distinkt (NULLS DISTINCT), så to egne firmamaler
+  // er fortsatt lov. Kun lånte (samme bibliotekMalId) blokkeres.
+  @@unique([organizationId, laantFraBibliotekMalId])
   @@map("organization_templates")
 }
 
