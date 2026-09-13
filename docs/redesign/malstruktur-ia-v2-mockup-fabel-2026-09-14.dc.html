@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body { margin:0; background:#eef1f6; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; color:#1e293b; }
+a { color:#2451b3; } a:hover { color:#1a3d8f; }
+</style>
+</helmet>
+<div style="max-width:1500px; margin:0 auto; padding-bottom:40px;">
+  <div style="background:#fef9e7; border-bottom:1px solid #e8dfb8; padding:12px 24px; display:flex; flex-wrap:wrap; align-items:center; gap:16px;">
+    <div style="min-width:280px; flex:1;">
+      <div style="font-size:13px; font-weight:700; letter-spacing:0.04em; color:#8a6d1a;">MOCKUP — Malstruktur v2 (Kenneth 14.09): alt utledes fra Innstillinger › Produksjon</div>
+      <div style="font-size:13px; color:#6b5b22; margin-top:2px;">Maltype velges i venstremenyen (Oppgavemaler / Sjekklistemaler / HMS-maler — like egenskaper). Nivå styres av kontekstvelgeren øverst til venstre. Ingen andre innganger finnes.</div>
+    </div>
+    <div style="display:flex; gap:0; border:1px solid #cbbf8a; border-radius:8px; overflow:hidden; flex-wrap:wrap;">
+      <sc-for list="{{ screens }}" as="s" hint-placeholder-count="3">
+        <button onClick="{{ s.pick }}" style="{{ s.style }}">{{ s.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <sc-if value="{{ scr1 }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:24px; display:flex; flex-direction:column; gap:16px;">
+      <div style="font-size:16px; font-weight:700;">Sammenhengen: én maltype, tre nivåer — kopi nedover, aldri oppover</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; align-items:stretch;">
+        <sc-for list="{{ kjede }}" as="k" hint-placeholder-count="3">
+          <div style="background:#fff; border:1px solid #e8edf4; border-radius:10px; overflow:hidden; display:flex; flex-direction:column;">
+            <div style="{{ k.hodeStyle }}">
+              <span style="{{ k.badgeStyle }}">{{ k.badge }}</span>
+              <span style="font-size:12px;">{{ k.kontekst }}</span>
+            </div>
+            <div style="padding:12px 14px; display:flex; flex-direction:column; gap:8px; flex:1;">
+              <div style="font-size:13px; font-weight:700;">{{ k.eier }}</div>
+              <div style="font-size:12px; color:#475569; text-wrap:pretty;">{{ k.tekst }}</div>
+              <div style="border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; margin-top:auto;">
+                <div style="font-size:12px; font-weight:700;">{{ k.eksNavn }}</div>
+                <div style="font-size:11px; color:#94a3b8;">{{ k.eksMeta }}</div>
+                <sc-if value="{{ k.harTag }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">
+                    <span style="background:#fdf0e3; color:#a05b1f; border-radius:5px; padding:1px 8px; font-size:11px; font-weight:700;">{{ k.tag }}</span>
+                    <a href="#" onClick="{{ noop }}" style="font-size:11px; font-weight:600;">↻ Oppdater</a>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#475569;">
+        <div style="background:#fff; border:1px solid #e8edf4; border-radius:8px; padding:10px 14px; flex:1; min-width:260px;">→ <b>«Hent fra arkiv»</b> kopierer NEDOVER: SiteDoc-mal → firmakopi → prosjektkopi (eller SiteDoc → prosjekt direkte, vedtatt 13.09). Kopien er egen mal på sitt nivå.</div>
+        <div style="background:#fff; border:1px solid #e8edf4; border-radius:8px; padding:10px 14px; flex:1; min-width:260px;">↻ <b>«Oppdater»</b> henter NYESTE versjon fra nivået over til en eksisterende kopi. «X versjoner bak» vises på kopien — aldri på originalen.</div>
+        <div style="background:#fff; border:1px solid #e8edf4; border-radius:8px; padding:10px 14px; flex:1; min-width:260px;">✎ <b>«Rediger»</b> åpner ALLTID MalBygger på nivået du står i. Endring på ett nivå rører aldri nivåene under/over — kopiene er selvstendige til de ↻-oppdateres.</div>
+      </div>
+      <div style="background:#fffbe8; border:1px solid #e8dfb8; border-radius:8px; padding:10px 12px; font-size:12px; color:#6b5b22; text-wrap:pretty;">※ Samme modell gjelder alle tre maltyper i venstremenyen: Sjekklistemaler (tegnet her), Oppgavemaler og HMS-maler — identiske egenskaper, samme knapper, samme nivåkjede.</div>
+      <div style="background:#fff; border:1px solid #d9a49d; border-radius:10px; padding:14px 16px;">
+        <div style="font-size:13px; font-weight:700; color:#b03a2e;">Innganger som SLETTES (alle andre veier inn er ulovlige)</div>
+        <ul style="margin:8px 0 0 0; padding-left:18px; font-size:12px; color:#475569; display:flex; flex-direction:column; gap:4px;">
+          <li>«Malarkiv» i venstre FIRMA-meny — nivået nås ved å bytte kontekst øverst til venstre, ikke ved egen side.</li>
+          <li>«Bibliotek» i admin-menyen + hele admin/bibliotek-editoren — SiteDoc-maler redigeres i MalBygger via SITEDOC-ADMIN-kontekst.</li>
+          <li>Alle «rediger arkivet»-lenker i modaler og bunntekster som peker på lister.</li>
+          <li>Eneste innganger: Innstillinger › Produksjon › Oppgavemaler / Sjekklistemaler / HMS-maler + kontekstvelgeren.</li>
+        </ul>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ scr2 }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#2451b3; color:#fff; padding:10px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+      <div style="font-weight:700; font-size:15px;">⛑ SiteDoc</div>
+      <div style="display:flex; gap:0; border:1px solid rgba(255,255,255,0.4); border-radius:7px; overflow:hidden;">
+        <sc-for list="{{ ctxer }}" as="c" hint-placeholder-count="3">
+          <button onClick="{{ c.pick }}" style="{{ c.style }}">{{ c.label }}</button>
+        </sc-for>
+      </div>
+      <div style="font-size:13px; opacity:0.9;">{{ crumb }}</div>
+    </div>
+    <div style="display:grid; grid-template-columns:210px minmax(0,1fr); background:#fff; min-height:560px;">
+      <div style="border-right:1px solid #e8edf4; padding:18px 12px;">
+        <div style="font-size:15px; font-weight:700; padding:0 8px 12px 8px;">Innstillinger</div>
+        <div style="display:flex; flex-direction:column; gap:2px; font-size:13px;">
+          <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="10">
+            <div style="{{ n.style }}">{{ n.label }}</div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:16px 24px;">
+        <div style="{{ bannerStyle }}">
+          <span style="font-size:12px; opacity:0.8;">Du er i</span>
+          <span style="{{ bannerBadge }}">{{ nivaaNavn }}</span>
+          <span style="font-size:13px;">— {{ nivaaTekst }}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap;">
+          <button style="background:#5a691f; color:#fff; border:none; border-radius:7px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer;">+ Legg til ▾</button>
+          <sc-if value="{{ visHent }}" hint-placeholder-val="{{ true }}">
+            <button style="background:#fff; color:#2451b3; border:1px solid #2451b3; border-radius:7px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer;">⬇ Hent fra arkiv</button>
+          </sc-if>
+          <span style="color:#94a3b8; font-size:13px;">Rediger · Slett · Mer ▾</span>
+          <span style="margin-left:auto; color:#64748b; font-size:13px;">🔍 Søk…</span>
+        </div>
+        <div style="margin-top:14px; border:1px solid #e8edf4; border-radius:8px; overflow:hidden;">
+          <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1.2fr) 90px 100px; background:#f8fafc; font-size:11px; font-weight:700; letter-spacing:0.06em; color:#64748b; padding:9px 14px; gap:10px;">
+            <div>NAVN</div><div>{{ kol2 }}</div><div>PUNKTER</div><div>VERSJON</div>
+          </div>
+          <sc-for list="{{ rader }}" as="r" hint-placeholder-count="6">
+            <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1.2fr) 90px 100px; gap:10px; padding:10px 14px; border-top:1px solid #eef1f6; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px; min-width:0; flex-wrap:wrap;">
+                <span>📋</span><a href="#" onClick="{{ gaaBygger }}" style="font-weight:600; font-size:13px;">{{ r.navn }}</a>
+                <sc-if value="{{ r.harTag }}" hint-placeholder-val="{{ false }}"><span style="{{ r.tagStyle }}">{{ r.tag }}</span></sc-if>
+              </div>
+              <div style="min-width:0;">
+                <div style="font-size:12px; color:#475569;">{{ r.info }}</div>
+                <sc-if value="{{ r.bak }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex; gap:8px; align-items:center; margin-top:2px;">
+                    <span style="background:#fdf0e3; color:#a05b1f; border-radius:5px; padding:1px 8px; font-size:11px; font-weight:700;">{{ r.bakTekst }}</span>
+                    <a href="#" onClick="{{ noop }}" style="font-size:11px; font-weight:600;">↻ Oppdater</a>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="font-size:13px; color:#475569;">{{ r.punkter }}</div>
+              <div style="font-size:13px; color:#475569;">{{ r.versjon }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:12px; background:#fffbe8; border:1px solid #e8dfb8; border-radius:8px; padding:10px 12px; font-size:12px; color:#6b5b22; text-wrap:pretty;">{{ fotnote }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ scr3 }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:24px; display:flex; flex-direction:column; gap:14px;">
+      <div style="font-size:16px; font-weight:700;">MalBygger — nås KUN via malnavnet/Rediger på malsiden; nivået følger konteksten du sto i</div>
+      <div style="display:flex; gap:0; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; width:fit-content;">
+        <sc-for list="{{ lvler }}" as="l" hint-placeholder-count="3">
+          <button onClick="{{ l.pick }}" style="{{ l.style }}">{{ l.label }}</button>
+        </sc-for>
+      </div>
+      <div style="background:#fff; border:1px solid #e8edf4; border-radius:10px; overflow:hidden;">
+        <div style="background:#2451b3; color:#fff; padding:8px 18px; font-size:13px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;"><span style="font-weight:700;">⛑ SiteDoc</span><span style="opacity:0.9;">{{ bCrumb }}</span></div>
+        <div style="{{ bStrip }}">
+          <a href="#" onClick="{{ noop }}" style="color:inherit; font-weight:600; font-size:13px; text-decoration:none;">← {{ bTilbake }}</a>
+          <span style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:12px; opacity:0.75;">Du redigerer i</span>
+            <span style="{{ bBadge }}">{{ bNivaa }}</span>
+            <span style="font-size:13px;">— {{ bScope }}</span>
+          </span>
+        </div>
+        <div style="padding:12px 18px 6px 18px; display:flex; gap:14px; align-items:baseline; flex-wrap:wrap;">
+          <span style="font-weight:700; font-size:16px;">MalBygger — {{ bMal }}</span>
+          <span style="margin-left:auto; display:flex; gap:8px;">
+            <button style="background:#fff; border:1px solid #cbd5e1; border-radius:7px; padding:6px 12px; font-size:12px; font-weight:600; color:#475569; cursor:pointer;">Forhåndsvis</button>
+            <button onClick="{{ pubClick }}" style="background:#5a691f; color:#fff; border:none; border-radius:7px; padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer;">Publiser</button>
+          </span>
+        </div>
+        <sc-if value="{{ pubVarsel }}" hint-placeholder-val="{{ false }}">
+          <div style="position:relative;">
+            <div style="position:absolute; right:18px; top:-4px; z-index:10; background:#fff; border:1px solid #e8dfb8; border-radius:10px; box-shadow:0 14px 36px rgba(15,23,42,0.25); width:min(420px, 90vw); padding:16px 18px;">
+              <div style="font-size:14px; font-weight:700;">Du har byttet kontekst — lagre i {{ pubTil }}?</div>
+              <div style="font-size:12px; color:#475569; margin-top:6px; text-wrap:pretty;">Malen ble startet i <b>{{ pubFra }}</b>. Publiserer du nå, lagres den i <b>{{ pubTil }}</b> — {{ pubKonsekvens }}</div>
+              <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end; flex-wrap:wrap;">
+                <button onClick="{{ pubAvbryt }}" style="background:#fff; border:1px solid #cbd5e1; border-radius:7px; padding:7px 12px; font-size:12px; font-weight:600; color:#475569; cursor:pointer;">Nei — tilbake til {{ pubFra }}</button>
+                <button onClick="{{ pubBekreft }}" style="background:#5a691f; color:#fff; border:none; border-radius:7px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer;">Ja, lagre i {{ pubTil }}</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ pubOk }}" hint-placeholder-val="{{ false }}">
+          <div style="margin:0 18px; background:#e7f6ec; border:1px solid #b7e0c3; border-radius:8px; padding:8px 12px; font-size:12px; color:#1e7a3c; font-weight:600;">✓ Publisert i {{ pubTil }}</div>
+        </sc-if>
+        <div style="display:grid; grid-template-columns:160px minmax(0,1fr) 240px; border-top:1px solid #e8edf4;">
+          <div style="border-right:1px solid #e8edf4; padding:12px;">
+            <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; color:#64748b; margin-bottom:8px;">FELTER</div>
+            <div style="display:flex; flex-direction:column; gap:5px;">
+              <sc-for list="{{ palett }}" as="p" hint-placeholder-count="6">
+                <div style="border:1px dashed #cbd5e1; border-radius:6px; padding:6px 9px; font-size:12px; color:#475569; background:#f8fafc; cursor:grab;">{{ p }}</div>
+              </sc-for>
+            </div>
+            <div style="font-size:10px; color:#94a3b8; margin-top:8px; text-wrap:pretty;">Dra et felt inn i en fase</div>
+          </div>
+          <div style="padding:12px 14px; display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ bFaser }}" as="f" hint-placeholder-count="3">
+              <div style="border:1px solid #e8edf4; border-radius:8px; overflow:hidden;">
+                <div style="background:#f8fafc; padding:6px 12px; font-size:11px; font-weight:700; letter-spacing:0.06em; color:#64748b;">{{ f.tittel }}</div>
+                <sc-for list="{{ f.felter }}" as="x" hint-placeholder-count="2">
+                  <div style="{{ x.style }}">
+                    <span style="color:#cbd5e1; cursor:grab;">⠿</span>
+                    <span>{{ x.ikon }}</span>
+                    <span style="font-size:13px; font-weight:600; min-width:0; flex:1;">{{ x.navn }}</span>
+                    <span style="font-size:11px; color:#94a3b8;">{{ x.type }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+          <div style="border-left:1px solid #e8edf4; padding:12px; background:#f9fafb;">
+            <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; color:#64748b;">FELT-OPPSETT</div>
+            <div style="display:flex; flex-direction:column; gap:4px; margin-top:10px;">
+              <span style="font-size:11px; font-weight:600; color:#4b5563;">Etikett</span>
+              <span style="background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:6px 8px; font-size:12px;">{{ bSelNavn }}</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px; margin-top:10px;">
+              <span style="font-size:11px; font-weight:600; color:#4b5563;">Type</span>
+              <span style="background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:6px 8px; font-size:12px;">Trafikklys ▾</span>
+            </div>
+            <label style="display:flex; gap:8px; align-items:flex-start; font-size:12px; color:#374151; margin-top:12px;"><input type="checkbox" checked="{{ true }}" readOnly="{{ true }}" style="margin-top:2px;"></input><span>Obligatorisk</span></label>
+          </div>
+        </div>
+      </div>
+      <div style="background:#fffbe8; border:1px solid #e8dfb8; border-radius:8px; padding:10px 12px; font-size:12px; color:#6b5b22; text-wrap:pretty;">※ Kontekstvakt (Kenneth 14.09): malen TILHØRER nivået den ble åpnet/startet i. Bytter du kontekst inne i MalBygger og trykker Publiser, kommer bekreftelsen over — «Nei» hopper tilbake til startnivået. Uten kontekstbytte publiserer knappen rett. Prøv: åpne fra malsiden (skjerm 2), bytt nivå her, trykk Publiser. ※ SAMME editor på alle nivåer og for alle tre maltyper. Ingen egen «bibliotek-editor», ingen egen «firmaarkiv-editor». Banneret + kontekstvelgeren er eneste forskjell. Oppgavemaler og HMS-maler åpner samme MalBygger med sine faser/felt.</div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 0, ctx: 0, lvl: 0, openLvl: 0, pubVarsel: false, pubOk: false };
+  renderVals() {
+    const S = this.state, set = (p) => this.setState(p);
+    const btn = (act) => 'background:' + (act ? '#8a6d1a' : '#fef9e7') + '; color:' + (act ? '#fff' : '#6b5b22') + '; border:none; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer;';
+    const screens = ['1 · Sammenhengen', '2 · Malsiden (tre nivåer)', '3 · MalBygger'].map((label, i) => ({ label, pick: () => set({ screen: i }), style: btn(S.screen === i) }));
+    const LVL = [
+      { navn: 'PROSJEKTARKIV', c: '#3f6f1f', bg: '#eaf2e2', tc: '#2c4f16' },
+      { navn: 'FIRMAARKIV', c: '#1e40af', bg: '#e8eefc', tc: '#1e3a7a' },
+      { navn: 'SITEDOC-ARKIV', c: '#5843a8', bg: '#efeafb', tc: '#43327e' },
+    ];
+    const badge = (c) => 'background:' + c + '; color:#fff; border-radius:5px; padding:2px 10px; font-size:11px; font-weight:700; letter-spacing:0.06em; white-space:nowrap; flex-shrink:0;';
+    const kjede = [
+      { badge: 'SITEDOC-ARKIV', kontekst: 'Kontekst: SITEDOC ADMIN', eier: 'SiteDocs maler — kilden', tekst: 'Vedlikeholdes av SiteDoc-admin i MalBygger. Verifisert mot NS. Firmaer og prosjekter henter kopier herfra.', eksNavn: 'KC3.1 – Oppstøtting av trær', eksMeta: 'NS 3420-K:2024 · v2.3 · ✓ Verifisert' },
+      { badge: 'FIRMAARKIV', kontekst: 'Kontekst: FIRMA (Sitedoc Myrhaug)', eier: 'Firmaets kopier + egenlagde', tekst: 'Hentet fra SiteDoc-arkivet eller laget selv. Nye prosjekter henter herfra. Kopien varsler når kilden har nyere versjon.', eksNavn: 'KC3.1 – Oppstøtting av trær', eksMeta: 'Firmakopi · v2.1 · hentet fra SiteDoc-arkivet', harTag: true, tag: '2 versjoner bak' },
+      { badge: 'PROSJEKTARKIV', kontekst: 'Kontekst: PROSJEKT (Boligfelt B12)', eier: 'Prosjektets kopier + egenlagde', tekst: 'Hentet fra firmaarkivet eller SiteDoc-arkivet (vedtatt 13.09), eller laget i prosjektet. Utfylling skjer mot disse.', eksNavn: 'KC3.1 – Oppstøtting av trær 2', eksMeta: 'Prosjektkopi · v1.0', harTag: true, tag: 'Fra firmaarkivet · Oppdatert' },
+    ].reverse().map((k, i) => { const L = LVL[[2,1,0][i] === 2 ? 2 : [2,1,0][i]]; return k; });
+    kjede.reverse();
+    kjede.forEach((k, i) => { const L = LVL[2 - i]; k.badgeStyle = badge(L.c); k.hodeStyle = 'background:' + L.bg + '; color:' + L.tc + '; padding:8px 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:1px solid #e8edf4;'; });
+    const ctxBtn = (act) => 'background:' + (act ? 'rgba(255,255,255,0.25)' : 'transparent') + '; color:#fff; border:none; padding:6px 14px; font-size:12px; font-weight:700; letter-spacing:0.04em; cursor:pointer;';
+    const ctxer = ['PROSJEKT ▾', 'FIRMA ▾', 'SITEDOC ADMIN ▾'].map((label, i) => ({ label, pick: () => set({ ctx: i }), style: ctxBtn(S.ctx === i) }));
+    const L = LVL[S.ctx];
+    const crumbs = ['Sitedoc Boligfelt B12 · Bygg B12 › Innstillinger › Produksjon › Sjekklistemaler', 'Sitedoc Myrhaug › Innstillinger › Produksjon › Sjekklistemaler', 'SiteDoc-admin › Innstillinger › Produksjon › Sjekklistemaler'];
+    const nivaaTekster = ['endringer gjelder kun dette prosjektet. Ingen andre prosjekter berøres.', 'endringer gjelder alle prosjekter i Sitedoc Myrhaug.', 'endringer gjelder alle kunder som henter malen. Nedhentede kopier påvirkes ikke.'];
+    const nav = ['Kontakter', 'Byggeplasser', 'Produksjon', 'Dokumentflyt', 'Oppgavemaler', 'Sjekklistemaler', 'HMS-maler', 'Moduler', 'Mappeoppsett', 'PSI', 'AI-søk'].map((label) => ({ label, style: (['Dokumentflyt','Oppgavemaler','Sjekklistemaler','HMS-maler','Moduler','Mappeoppsett','PSI'].includes(label) ? 'padding:5px 10px 5px 26px;' : 'padding:7px 10px;') + ' border-radius:6px; cursor:pointer;' + (label === 'Sjekklistemaler' ? ' background:#e8eefc; color:#2451b3; font-weight:700;' : label === 'Produksjon' ? ' color:#2451b3; font-weight:700;' : ' color:#475569;') }));
+    const tag = 'background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; border-radius:5px; padding:1px 8px; font-size:11px; font-weight:600;';
+    const raderPer = [
+      [
+        { navn: 'Beraringsrapport', info: 'Egenlaget i prosjektet', punkter: '4', versjon: '1.0' },
+        { navn: 'KB6 – Planting', info: 'Fra firmaarkivet', punkter: '11', versjon: '1.0' },
+        { navn: 'KC3.1 – Oppstøtting av trær 2', info: 'Fra firmaarkivet', punkter: '12', versjon: '1.0', harTag: true, tag: 'Oppdatert', tagStyle: 'background:#e7f6ec; color:#1e7a3c; border:1px solid #b7e0c3; border-radius:5px; padding:1px 8px; font-size:11px; font-weight:600;' },
+        { navn: 'KD1 – Utendørsbelegg', info: 'Fra firmaarkivet', punkter: '10', versjon: '1.0' },
+      ],
+      [
+        { navn: 'KC3.1 – Oppstøtting av trær', info: 'Firmakopi v2.1 · kilde: SiteDoc-mal v2.3', punkter: '12', versjon: '2.1', bak: true, bakTekst: '2 versjoner bak' },
+        { navn: 'KB6 – Planting', info: 'Firmakopi v1.4 · à jour med SiteDoc-arkivet', punkter: '13', versjon: '1.4' },
+        { navn: 'Vinterstøp tilleggskontroll', info: 'Egenlaget i firmaet', punkter: '9', versjon: '1.0' },
+      ],
+      [
+        { navn: 'KC3.1 – Oppstøtting av trær', info: 'NS 3420-K:2024 · ✓ Verifisert', punkter: '12', versjon: '2.3' },
+        { navn: 'KB6 – Planting', info: 'NS 3420-K:2024 · ✓ Verifisert', punkter: '13', versjon: '1.4' },
+        { navn: 'FD2 – Fylling og komprimering', info: 'NS 3420-F:2022 · ✓ Verifisert', punkter: '10', versjon: '1.1' },
+      ],
+    ];
+    const fotnoter = [
+      '※ Prosjektnivå: «Hent fra arkiv» viser Firmaarkiv + SiteDoc-arkiv (gruppert per standard, søk). Malnavn/Rediger åpner MalBygger i PROSJEKTARKIV-kontekst (skjerm 3). Samme side, samme knapper for Oppgavemaler og HMS-maler.',
+      '※ Firmanivå: samme side i FIRMA-kontekst. «Hent fra arkiv» viser kun SiteDoc-arkivet. «X versjoner bak» + ↻ bor her. Rediger åpner MalBygger i FIRMAARKIV-kontekst.',
+      '※ SiteDoc-nivå: samme side i SITEDOC ADMIN-kontekst — dette ERSTATTER admin/bibliotek. Ingen «Hent fra arkiv» (kilden henter ikke fra noen). Rediger åpner MalBygger i SITEDOC-ARKIV-kontekst med full felt-palett.',
+    ];
+    const feltRad = 'display:flex; align-items:center; gap:9px; padding:8px 12px; border-top:1px solid #eef1f6;';
+    const fx = (ikon, navn, type, sel) => ({ ikon, navn, type, style: sel ? feltRad + ' background:#eff6ff; border-left:3px solid #2451b3;' : feltRad });
+    const faserKC = [
+      { tittel: 'FØR UTFØRELSE', felter: [fx('☑', 'Metode', 'Valg', false), fx('☑', 'Materiell kontrollert mot beskrivelsen', 'Valg', false)] },
+      { tittel: 'UNDER UTFØRELSE', felter: [fx('🚦', 'Solid og fast forankret – røtter uskadet', 'Trafikklys', true), fx('🚦', 'Bundet uten fare for gnag eller barkskade', 'Trafikklys', false), fx('🚦', 'Kronen kan bevege seg fritt', 'Trafikklys', false)] },
+      { tittel: 'ETTER UTFØRELSE', felter: [fx('🔢', 'Antall trær støttet (stk)', 'Heltall', false), fx('🚦', 'Krav oppfylt iht. beskrivelsen', 'Trafikklys', false)] },
+    ];
+    const lvlBtn = (act) => 'background:' + (act ? '#2451b3' : '#fff') + '; color:' + (act ? '#fff' : '#475569') + '; border:none; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer;';
+    const lvler = ['Prosjekt', 'Firma', 'SiteDoc'].map((label, i) => ({ label, pick: () => set({ lvl: i, pubVarsel: false, pubOk: false }), style: lvlBtn(S.lvl === i) }));
+    const NAVN = ['PROSJEKTARKIV', 'FIRMAARKIV', 'SITEDOC-ARKIV'];
+    const KONSEKVENS = ['den gjelder da kun Boligfelt B12.', 'den blir da synlig for ALLE prosjekter i Sitedoc Myrhaug.', 'den blir da tilgjengelig for ALLE kunder.'];
+    const BL = LVL[S.lvl];
+    const bCrumbs = ['Sitedoc Boligfelt B12 › Innstillinger › Produksjon › Sjekklistemaler › MalBygger', 'Sitedoc Myrhaug › Innstillinger › Produksjon › Sjekklistemaler › MalBygger', 'SiteDoc-admin › Innstillinger › Produksjon › Sjekklistemaler › MalBygger'];
+    const bMaler = ['KC3.1 – Oppstøtting av trær 2 (prosjektkopi)', 'KC3.1 – Oppstøtting av trær (firmakopi v2.1)', 'KC3.1 – Oppstøtting av trær (v2.3)'];
+    return {
+      screens, scr1: S.screen === 0, scr2: S.screen === 1, scr3: S.screen === 2,
+      kjede, noop: (e) => e.preventDefault(),
+      ctxer, crumb: crumbs[S.ctx], navItems: nav,
+      bannerStyle: 'background:' + L.bg + '; color:' + L.tc + '; padding:8px 14px; border-radius:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;',
+      bannerBadge: badge(L.c), nivaaNavn: L.navn, nivaaTekst: nivaaTekster[S.ctx],
+      visHent: S.ctx < 2, kol2: S.ctx === 0 ? 'OPPHAV' : S.ctx === 1 ? 'OPPHAV / KILDE' : 'STANDARD / STATUS',
+      rader: raderPer[S.ctx], fotnote: fotnoter[S.ctx], gaaBygger: () => set({ screen: 2, lvl: S.ctx, openLvl: S.ctx, pubVarsel: false, pubOk: false }),
+      pubClick: () => set(S.lvl === S.openLvl ? { pubOk: true, pubVarsel: false } : { pubVarsel: true, pubOk: false }),
+      pubAvbryt: () => set({ lvl: S.openLvl, pubVarsel: false }),
+      pubBekreft: () => set({ pubVarsel: false, pubOk: true, openLvl: S.lvl }),
+      pubVarsel: S.pubVarsel, pubOk: S.pubOk, pubFra: NAVN[S.openLvl], pubTil: NAVN[S.lvl], pubKonsekvens: KONSEKVENS[S.lvl],
+      lvler, bCrumb: bCrumbs[S.lvl], bMal: bMaler[S.lvl],
+      bStrip: 'background:' + BL.bg + '; color:' + BL.tc + '; padding:8px 18px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; border-bottom:1px solid #e8edf4;',
+      bBadge: badge(BL.c), bNivaa: BL.navn,
+      bScope: ['endringer gjelder kun Boligfelt B12', 'endringer gjelder alle prosjekter i Sitedoc Myrhaug', 'endringer gjelder alle kunder som henter malen'][S.lvl],
+      bTilbake: 'Tilbake til Sjekklistemaler', bFaser: faserKC, bSelNavn: 'Solid og fast forankret – røtter uskadet',
+      palett: ['☑ Valg', '🚦 Trafikklys', '🔢 Heltall', '𝟏.𝟐 Desimaltall', '✎ Tekst', '📷 Foto'],
+    };
+  }
+}
+</script>
+</body>
+</html>

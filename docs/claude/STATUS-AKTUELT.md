@@ -4,6 +4,43 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟡 2026-09-14 — Fabels Malstruktur IA v2 committet (kontekststyrt malside). Ingen kode, ingen deploy.
+
+**Mottatt og committet** (`docs/redesign/malstruktur-ia-v2-notat-fabel-2026-09-14.md` + `-mockup-…dc.html`),
+uendret, fra fabel-pakke `til-repo-2026-09-14-0210` (erstattet `0145`). Verifisert: kun de to filene, ingen `.DS_Store`, ingen fantes fra før.
+
+🔴 **v2 ERSTATTER fane-modellen fra 13.09** (Malforvaltning med tre faner) **der de kolliderer.** Bygg videre på v2, ikke fane-modellen.
+
+**Består UENDRET fra 13.09 (fabels egne ord):**
+- hente ≠ forvalte
+- «Hent fra arkiv»-modalen (gruppering per standard, søk, ulåst SiteDoc-fane)
+- nivåbanner og nivåfarger
+- papirkurv-vedtakene (tellefelle-vakt, globalt søk-merke, 90 d)
+- «rediger»-regelen · «Tilbake til …»-regelen · `terminologi.md § 0`
+
+**Grunnmodellen (ordrett fra notatet):**
+- **Inngang:** Innstillinger › Produksjon › Oppgavemaler / Sjekklistemaler / HMS-maler (dagens venstremeny-navn). Tre maltyper, identiske egenskaper.
+- **Nivå:** kontekstvelgeren øverst til venstre (PROSJEKT / FIRMA / SITEDOC ADMIN). **Samme side, ulikt innhold. Ingen egne sider per nivå.**
+- **Utledninger:** malnavn/Rediger → MalBygger i samme kontekst; «Hent fra arkiv» → modal (prosjekt: firma+SiteDoc · firma: kun SiteDoc · SiteDoc-nivå: ingen — kilden henter ikke).
+- 🔴 **SiteDoc-nivået på samme side ERSTATTER `admin/bibliotek` HELT.**
+- **Kontekstvakt i MalBygger (Kenneth 14.09):** malen tilhører nivået den ble åpnet/startet i (`openLvl`). Kontekstbytte inne i MalBygger er lov, men Publiser etter bytte krever eksplisitt bekreftelse med navngitt rekkevidde. Uten bytte publiserer knappen uten dialog.
+
+### 🔴 ÅPEN RIVNINGSLISTE (fabel — ordre følger etter Kenneths gate, IKKE bygget)
+1. «Malarkiv» i FIRMA-menyen
+2. «Bibliotek» i admin-menyen + `admin/bibliotek`-editoren
+3. Alle «rediger arkivet»-lenker som peker på lister
+4. Eneste innganger blir: de tre maltype-sidene + kontekstvelgeren
+
+### 🔴 Rettelse ført skriftlig (Kenneth 14.09)
+Cowork delte fabels 13.09-tegning i biter og merket punkt D («ÉN editor — SiteDoc-maler i samme MalBygger, `admin/bibliotek` utgår») som «retning, ikke bestilt» — derfor peker modalens bunntekst på en LISTE, ikke en malbygger. **Kenneth:** *«du klarer ikke å formidle fabels ordre til agentene … du endrer ordren til noe annet fordi du mener fabels ordre ikke fungerer.»* **Regelen som følger: cowork relayer fabels ordre HEL. Måling mot kode er coworks jobb; omskriving av omfanget er det ikke.**
+
+### ⚠️ Fabels «Ikke tegnet» (v2)
+Papirkurvens plassering i v2 (forslag «Vis papirkurv» på malsiden, samme komponent som 13.09 — Kenneth gater) · `MalRevisjon`/Historikk (eget skjemavedtak) · oppgave-/HMS-malsidenes konkrete kolonner (identisk mønster, tegnes ikke separat) · mobilvisning.
+
+🟢 **Neste steg er FABELS:** etter Kenneths gate skriver fabel rivnings- og byggeordre i rekkefølge (1: slett innganger · 2: kontekststyrt malside · 3: MalBygger-ruting). **Cowork skal IKKE skrive byggordrer på dette.**
+
+---
+
 ## 🟢 2026-09-13 — Runde 98 merget: arkivmodal-søk/kollaps + nivåbanner. Utløser web-deploy (samles).
 
 **Merget til develop** (`--no-ff`, i rekkefølge dokgen→redesign, ingen kodeoverlapp — kun 15 i18n-JSON delt, `comm -12` bekreftet):
