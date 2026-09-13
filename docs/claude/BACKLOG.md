@@ -67,6 +67,49 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 ---
 
+# 🟡 Malforvaltning — 17 målte funn 2026-09-13
+
+> **Kilde:** Kenneth brukte malforvaltnings-flaten i to døgn og meldte funn løpende. Denne
+> seksjonen samler dem til én liste med alvorlighet og eier, per SAMARBEIDSREGLER `:56-76`.
+> **Alle rader er målt i kode 13.09** — kode-referansen bæres per rad (dokumentasjons-standard.md:
+> presens krever referanse eller status-markør).
+>
+> ⚠️ **Løsningskolonnen er ikke vedtak.** **#5–#9 er fabels IA-sak å tegne, ikke coworks å
+> bestemme.** Radene beskriver funn og retning, ikke bestilt løsning — unntatt de fem som er
+> eksplisitt merket BESTILT med branch-navn.
+
+**Legenda grad:** 🔴 krever skjema/Kenneth-gate · 🟠 sikkerhet · 🟡 UX/IA · 🔵 innhold.
+
+| # | Funn | Målt (kode-ref) | Grad | Retning/løsning | Eier |
+|---|---|---|---|---|---|
+| 1 | ↻ firma→prosjekt gjemt i MalBygger | `firmamal.ts:770`, `MalBygger.tsx:235` | 🟡 | Ut i mallista | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+| 2 | «X versjoner bak» vises ikke i lista | `MalBygger.tsx` (`versjonerBak`) | 🟡 | Samme runde som #1 | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+| 3 | To sperrer sier hva, ikke hvor | `mal.ts:500`, `prosjekt.ts:626` | 🟡 | Lenke til stedet som opphever sperren | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+| 4 | ~~Mal må frigjøres fra dokumentflyt~~ | `DokumentflytMal` `onDelete: Cascade` | 🟢 | **AVKREFTET 13.09 — rydder seg selv via cascade. Ikke gjenreis.** | — |
+| 5 | Malarkiv er egen destinasjon | `firma-nav.tsx:51` | 🟡 | Integreres i «Hent fra arkiv» (Kenneth-retning) | 🔴 **fabel — IA-sak** |
+| 6 | Papirkurv nås fra venstre felt | `sidebar-elementer.tsx:195` | 🟡 | Samme IA-runde | 🔴 **fabel — IA-sak.** Beslektet: papirkurv-livssyklus (§ under, ~2797–2864) — annen vinkel (plassering, ikke «tøm») |
+| 7 | Tre arkivnivåer nås tre steder | `admin/layout.tsx:55`, `firma-nav.tsx:51`, Oppsett | 🟡 | Samles under Innstillinger | 🔴 **fabel — IA-sak.** Kenneth: «jeg skal administrere ALLE maler fra innstillinger» |
+| 8 | Ingen versjonshistorikk for maler | `version` `Int`, `versjon` `String` (ingen historikk-tabell) | 🔴 | Ny tabell etter mønster `DrawingRevision` (`schema.prisma:961-973`) | 🔴 **Kenneth gater skjema** |
+| 9 | Ingen gjenopprettingsvei for feilslettet dokument | Papirkurv-mekanikk finnes, ingen søkevei | 🟡 | Søk + avslutningsrutine | 🔴 **fabel — IA-sak.** Beslektet mønster: byggeplass/tegning-slett mangler vei (§ under, ~2731) |
+| 10 | Duplikater i firmaarkivet (KB4×3, KB6×2) | Sett på test 13.09 | 🟡 | `@@unique(organizationId, laantFraBibliotekMalId)` + rydding | 🔴 **Kenneth gater skjema + datasletting** |
+| 11 | `faneWhere` mangler negativkontroll | `firmamal.ts:64-77` | 🟡 | Én test med feil-type-rad | Egen runde |
+| 12 | `hentStandarder` uten tilgangssjekk | `bibliotek.ts:36` | 🟠 | Wire `sitedoc/les` ved kallstedet | Egen runde |
+| 13 | Ingen oppgave-/HMS-maler i sentralarkivet | Alle 17 seed-maler `sjekkliste`/`kvalitet` | 🔵 | Innhold | 🔴 **Kenneths malarbeid** |
+| 14 | KD1 `verifisert = false`, brukt i to prosjekter | DB-måling 12.09 | 🔵 | Innhold | 🔴 **Kenneths malarbeid** |
+| 15 | Kundeansvar for NS-verifisering har ingen flate | MAL-METODE §7a pkt. 5 | 🟡 | Bruksvilkår/onboarding | 🔴 **Juridisk — ikke cowork** |
+| 16 | Hvitt merke i mobil-header er DØD knapp etter fjernet expo-print | `sjekkliste/[id].tsx:113`, `ArkivPdfForhandsvisning.tsx:21` | 🟡 | Fjernes | ✅ **BESTILT — dokgen, `fix/fjern-doed-utkastknapp`** |
+| 17 | «Avslutt prosjekt» har ingen UI | `prosjekt.ts:580` bygget · flate «kommende» `prosjektoppsett/page.tsx:231,557`, `EksportSeksjon.tsx:53` | 🟡 | Knapp i prosjektoppsett | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+
+⚠️ **#12 er 🟠, ikke 🟡:** enhver innlogget bruker i ethvert kundefirma kan lese hele
+NS 3420-arkivet, inkludert uverifiserte utkast. Ingen kan endre noe — men innholdet er produktet.
+
+**Status på tavla 13.09:** #1/#2/#3/#17 pågår hos redesign (`fix/synliggjor-malforvaltning`) ·
+#16 pågår hos dokgen (`fix/fjern-doed-utkastknapp`; enhet-gaten oppfylt — Kenneth bekreftet PDF-forhåndsvisning
+på fysisk iPhone 13.09) · #5/#6/#7/#9 er én samlet IA-sak åpen hos fabel · #8/#10 venter på Kenneth ·
+`feat/mal-kc31-revisjon` venter på Kenneths innholdsgate.
+
+---
+
 ## 0. Sikkerhet — Aikido-scan triagert 2026-08-12 (49 funn → 7 poster)
 
 **Kilde:** `Fra fabel/til-repo-2026-08-12-1558/FABEL-TRIAGE-aikido-49-funn.md`. Fabel triagerte alle 49; cowork har **verifisert hvert kodefunn mot repoet** før føring her. Aikidos alvorlighetsgrader er ikke fulgt blindt — to av dem er justert, se under.

@@ -4,6 +4,16 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟡 2026-09-13 — Malforvaltnings-funnene samlet i BACKLOG
+
+Kenneth brukte malforvaltnings-flaten i to døgn og meldte funn løpende. De 17 funnene er nå
+ført som én seksjon i [BACKLOG § Malforvaltning — 17 målte funn](BACKLOG.md) med funn ·
+kode-ref · grad · eier — i stedet for spredt prosa-svar (SAMARBEIDSREGLER `:56-76`). #1/#2/#3/#17
+bestilt hos redesign (`fix/synliggjor-malforvaltning`), #16 hos dokgen (`fix/fjern-doed-utkastknapp`);
+#5/#6/#7/#9 samlet IA-sak hos fabel; #8/#10 venter på Kenneths skjema-/data-gate; #4 AVKREFTET.
+
+---
+
 ## 🟢 PROD DEPLOYET 2026-09-11 — `af0093b8`. 44 merger ute. Frysen er over.
 
 **Prod sto på `1a74904b` fra 8. september. Nå: `af0093b8`.**
