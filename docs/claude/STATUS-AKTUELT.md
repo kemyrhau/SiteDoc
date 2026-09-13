@@ -4,6 +4,20 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟡 2026-09-13 — Runde 96: synliggjøring + i18n-relikvie merget. Web-deploy samles.
+
+**To merger, dokgen først (eldre base) så redesign på toppen:**
+- `d363ef25` (dokgen `b08035ad`) — slettet foreldreløs `arkiv.lokalFallback` × 15 språk (0 kode-kallere).
+- `da23361f` (redesign `c03c2d1a`) — synliggjøring (#1/#2/#3/#17): `versjonerBak`/↻ i mallista,
+  sperrelenker, avslutt-bekreftelse, `OppdaterFraHovedmalModal` på BEGGE prosjekt-↻.
+
+**i18n-mergen gikk rent** — verifisert at dokgens fjerning forble borte OG redesigns nøkler kom med, ingen tapt.
+`api` 468→473 (+5, alle i `prosjekt-livssyklus-gate.test.ts`); `db` 2 · `pdf` 120 · `shared` 814 · `web` 228 stille;
+kald web-bygg grønn. develop `<hash under>`. 🔴 **Ingen migrering/OTA denne runden — men runde 95-migreringen venter fortsatt.**
+Fire nye funn ført under (iKontrollplan-sperre, papirkurv mal-filter, ↻ diff-vs-erstatning, «Avslutt prosjekt»-stale-kommentar-rettelse).
+
+---
+
 ## 🔴 2026-09-13 — Runde 95: unik indeks mot dobbelt-lån merget. UTLØSER DEPLOY MED MIGRERING.
 
 **Merget til develop:** `ebda4946` (`Merge: unik indeks mot dobbelt-lån … fe3e2ed6`). `--no-ff`,
@@ -418,10 +432,10 @@ stien. **Det betyr ikke at treet kan ryddes.**
 | Agent | Worktree | Tilstand | Spor |
 |---|---|---|---|
 | **kontrollplan** | `SiteDoc-kontrollplan` | 🔴 **STOPPET** — `fix/kontrollpunkt-laasning` | ⚠️ **Duplikat — skal IKKE gjenopptas.** Låsningen ble løst av dokgen (`44487811`, merget runde 85) mens dokgens arbeid lå upushet og usynlig i `git branch -r`. Cowork bestilte samme fiks her; det var coworks feil, ikke kontrollplans |
-| **redesign** | `SiteDoc-redesign` | 🟢 **LEDIG** — `c4953991` detached (merget commit) | Typefilter på SiteDoc-fanen + rollestyrte bunntekst-lenker **merget runde 94 (`ecd390c6`)**: klient-typefilter (`arkiv-fane-filter.ts`), `kanRedigereFirma`/`kanRedigereSitedoc` fra `autoriserMalTilgang`, forklarende tom-tilstand. `bibliotek.ts` kun `select` (`kategori`/`domene`), ingen serverfilter. api 465→468 (+3 rediger-signal), web 223→228 (+5 typefilter, m/eksklusjons-asserts). 🔴 **Nytt funn IKKE fikset: `faneWhere` (`firmamal.ts:64-77`) mangler negativkontroll — egen runde.** ⚠️ **`fix/synliggjor-malforvaltning` er PUSHET (funn #1/#2/#3/#17) men IKKE rapportert → IKKE merget.** Forrige: fjern Rapportmaler-flata runde 90 (`71202903`) |
-| **dokgen** | `SiteDoc-dokgen` | 🟢 **LEDIG** — `d47702d2` detached (merget commit) | iOS-forhåndsvisning av arkiv-PDF **merget runde 93 (`75d9e70d`)**: `allowingReadAccessToURL` på WKWebView-source (Android-propene var no-op på iOS), `onError`/`onHttpError` → feil-overlay som stopper spinneren, `kilde` fortsatt ren `useMemo([filUri])`. 2 i18n-nøkler. 🟢 **GATE OPPFYLT 13.09: Kenneth bekreftet PDF-forhåndsvisningen virker på fysisk iPhone.** ⚠️ **`fix/fjern-doed-utkastknapp` er PUSHET (funn #16) men IKKE rapportert → IKKE merget.** Tidligere: auto-kollaps runde 91 (`758ea071`). 🔴 **Mobilfiler rørt → OTA.** |
+| **redesign** | `SiteDoc-redesign` | 🟢 **LEDIG** — `c4953991` detached (merget commit) | Typefilter på SiteDoc-fanen + rollestyrte bunntekst-lenker **merget runde 94 (`ecd390c6`)**: klient-typefilter (`arkiv-fane-filter.ts`), `kanRedigereFirma`/`kanRedigereSitedoc` fra `autoriserMalTilgang`, forklarende tom-tilstand. `bibliotek.ts` kun `select` (`kategori`/`domene`), ingen serverfilter. api 465→468 (+3 rediger-signal), web 223→228 (+5 typefilter, m/eksklusjons-asserts). 🟢 **Synliggjøring + bekreftelse (#1/#2/#3/#17) MERGET runde 96 (`da23361f`, `c03c2d1a`):** `versjonerBak`/↻ i mallista, sperrelenker, avslutt-bekreftelse, og `OppdaterFraHovedmalModal` på BEGGE prosjekt-↻ (`MalListe.tsx` + `MalBygger.tsx`) — ikke på firma←SiteDoc (`malarkiv/page.tsx` urørt, tilsiktet: bytte der er trygt). api 468→473 (+5, alle i `prosjekt-livssyklus-gate.test.ts`). Scope-avvik godkjent av cowork (mal.ts +5 `copiedFromOrgTemplate`, teller kun i mallista, ingen web-test). 🔴 **Nytt funn IKKE fikset: `faneWhere` (`firmamal.ts:64-77`) mangler negativkontroll — egen runde.** Forrige: fjern Rapportmaler-flata runde 90 (`71202903`) |
+| **dokgen** | `SiteDoc-dokgen` | 🟢 **LEDIG** — `d47702d2` detached (merget commit) | iOS-forhåndsvisning av arkiv-PDF **merget runde 93 (`75d9e70d`)**: `allowingReadAccessToURL` på WKWebView-source (Android-propene var no-op på iOS), `onError`/`onHttpError` → feil-overlay som stopper spinneren, `kilde` fortsatt ren `useMemo([filUri])`. 2 i18n-nøkler. 🟢 **GATE OPPFYLT 13.09: Kenneth bekreftet PDF-forhåndsvisningen virker på fysisk iPhone.** 🟢 **`arkiv.lokalFallback` (foreldreløs, 0 kode-kallere) SLETTET × 15 språk, MERGET runde 96 (`d363ef25`, `b08035ad`).** `shared` stod på 814 gjennom slettingen — ingen test leste nøkkelen. Tidligere: auto-kollaps runde 91 (`758ea071`). 🟢 **Runde 96 var ren i18n → ingen OTA.** |
 | **mal-Opus** | `SiteDoc-mal` | 🟢 **LEDIG** — `a66c18f4` detached (merget commit) | KB6 v2 Planting (10 felter/3 faser) **merget runde 93 (`c3a92b7a`)**. 🟢 **Gatet av KENNETH 13.09** («gjennomgått og godkjent … bilder kontrollert mot telefon»), **ikke av fabel** — Kenneth er produkteier, ikke let etter et fabel-svar. 🟢 **NS 4400-tråden lukket som PRINSIPP** (MAL-METODE §7a: NS-standarder refereres med utgave/år, ordlyd gjengis aldri) — KB6 trengte ingen innholdsendring, ikke gjenåpne per mal. create-only bekreftet på merge-resultat. Også: MAL-METODE §7/§7a docs-branch merget samme runde. 🟢 **LEDIG også etter unik-indeks-runden (95, `fe3e2ed6` merget).** 🔴 **`feat/mal-kc31-revisjon` venter fortsatt på Kenneths innholdsgate.** Tidligere: KA7 + KB2 + KB4 v2 (runde 86) |
-| **merge-agent** | `SiteDoc-merge` | 🟢 **LEDIG** — `merge-restart` @ develop | Runde 95 sist: merget unik indeks mot dobbelt-lån (`ebda4946`, mal-Opus `fe3e2ed6`). Alle fem testtall stille (db 2 · api 468 · pdf 120 · shared 814 · web 228 — integrasjonstesten kjøres ikke av `pnpm test`), kald web-bygg grønn. 🔴 **UTLØSER DEPLOY MED MIGRERING** (BUILD → MIGRATE → UP; se prod-krav under). Også med i pushen: docs-commit `80fad9e2` (BACKLOG malforvaltning) fra runde 94b — var lokal på merge-restart, aldri pushet. 🔴 **OTA-gjeld runde 91 (kollaps) + 93 (iOS-PDF) — én OTA dekker begge.** Web-deploy samles |
+| **merge-agent** | `SiteDoc-merge` | 🟢 **LEDIG** — `merge-restart` @ develop | Runde 96 sist: merget dokgen (`d363ef25`, i18n-slett) FØRST, så redesign (`da23361f`, synliggjøring) på toppen — i18n-mergen ren, verifisert at slettet nøkkel forble borte OG nye nøkler kom med. api 468→473 (+5 livssyklus-gate), øvrige stille (db 2 · pdf 120 · shared 814 · web 228), kald web-bygg grønn. 🔴 **Web-deploy samles.** 🔴 **Migreringen fra runde 95 (`20260913140000_firmaarkiv_unik_indeks`) venter FORTSATT på Kenneths deploy — prod-dry-run-kravet står under.** 🔴 **OTA-gjeld runde 91 (kollaps) + 93 (iOS-PDF) — én OTA dekker begge.** |
 | **simulator** | `SiteDoc-simulator` | ⚠️ **UTE AV DRIFT** — `bc3efdca` detached | Se «To trær som trenger et vedtak» under. Ikke i coworks 12.09-tabell, men treet finnes |
 | **deploy** | `SiteDoc-deploy` | 🟢 **LEDIG** — `4d00e94f` detached | Ingen ordre |
 
@@ -462,6 +476,10 @@ Merge-agenten målte begge og rettet commit-meldingen til «Planting».
 - ⚠️ **Klient-hintet «Allerede lånt» er fane-skopet** (akseptert, runde 88): gjenbruker tabellens liste per fane. **Server-vakten er den fulle gaten på tvers av faner** — hintet er kun UX
 - **Bug: `ProsjektBibliotekValg` orphanes** ved firmamal-sletting — verifisert, ikke rutet til agent
 - **Prod ligger 62 commits bak develop** — ingen release planlagt
+- 🔴 **NYTT FUNN runde 96 (ikke fikset): slett-sperren har en TREDJE grunn — `iKontrollplan`** — som peker til kontrollplanen, ikke papirkurven. De to andre sperregrunnene fikk sperrelenke i denne runden (#3); denne mangler lenke til stedet som opphever den. Egen runde
+- 🔴 **NYTT FUNN runde 96 (ikke fikset): papirkurv-lenken mangler mal-filter** — lenken fra slett-sperren peker til papirkurven, men uten filter på malen. Krever `useSearchParams` i `papirkurv/page.tsx` slik at brukeren lander på riktig mals dokumenter. Egen runde
+- 🔴 **NYTT FUNN runde 96: den ekte løsningen på ↻-risikoen er diff/merge, ikke full erstatning** (`firmamal.ts:765`, merket «backlog» i koden). Bekreftelsesmodalen (#1-runden) **kjøper tid, den fjerner ikke årsaken** — full objekt-tre-erstatning foreldreløser dokumentdata. Egen større runde
+- 🔵 **RETTELSE runde 96: «Avslutt prosjekt»-flaten fantes fra `36dc3029` (06.09).** De tre «neste runde»-kommentarene i `prosjektoppsett/page.tsx`/`EksportSeksjon.tsx` var STALE og er rettet av redesign. **Cowork (og BACKLOG-funn #17) leste kodekommentarer som gjeldende tilstand** — koden er fasit, ikke kommentaren
 
 ### 🟢 Trærne har IKKE driftet — målt, ikke antatt
 
