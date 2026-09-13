@@ -44,6 +44,7 @@ Felt som viser til en fremmed NS-standard i navn, hjelpetekst eller valgopsjoner
 |---|---|---|---|---|
 | KB2 – Vekstjord på terreng | 3 | Varedeklarasjon kontrollert | NS 2890 | ✅ Delvis — gir pH 5,5–7,0, uten rotugras. NS 2890 gjelder deklarasjonens format. |
 | KB6 – Planting | 2 | Plantekvalitet | **NS 4400** | ❌ **Nei** — «tilfredsstille NS 4400 … kontroller mot beskrivelsen». Ingen målbar verdi. |
+| KC3.1 – Oppstøtting av trær | 8 | Krav oppfylt iht. beskrivelsen | NS 3420-ZK:2024 (ZK2.7112) — *NS 3420-familie: logg-definisjon avklares av fabel* | — Scope-avgrensning, ikke krav mot arbeideren: peker til egen post for vedlikehold/fjerning av oppstøttingen, ingen verdi å måle. ⚠️ Feltteksten skriver bar «ZK2.7112» uten utgave — utgave 2024 forankret i ordren, ikke i feltteksten. Regex-sjekken (`NS ?[0-9]`) fanger IKKE en bar «ZKxxxx» — funnet manuelt. |
 | FC1 – Sprengning/rystelser | 2 | Rystelsesmåler plassert | NS 8141 | ✅ Ja — «typisk 20 mm/s bolig». |
 | FC1 – Sprengning/rystelser | 3 | Maks rystelsesnivå (mm/s) | NS 8141 | ✅ Ja — 20 / 35 / 70 mm/s per kategori, målbart tallfelt. |
 
@@ -55,8 +56,8 @@ selv (sentralt ansvar), ev. angir kriteriene i prosjektbeskrivelsen.
 
 Ikke en mangel — dette er med vilje (MAL-METODE § 1: prosjektspesifikke krav peker til
 beskrivelsen, ikke en universell tallverdi malen ikke kan kjenne). Datagrunnlag for
-kundeoversikten «hva du må angi selv». Dekker foreløpig de reviderte malene (KA7/KB2/KB4/KB6);
-ureviderte maler (KC3.1, KD1, F-serien) er ikke målt for dette ennå.
+kundeoversikten «hva du må angi selv». Dekker foreløpig de reviderte malene (KA7/KB2/KB4/KB6/KC3.1);
+ureviderte maler (KD1, F-serien) er ikke målt for dette ennå.
 
 | Mal | Rad | Felt |
 |---|---|---|
@@ -75,6 +76,9 @@ ureviderte maler (KC3.1, KD1, F-serien) er ikke målt for dette ennå.
 | KB6 | 1 | Plantegruppe |
 | KB6 | 2 | Plantekvalitet |
 | KB6 | 10 | Krav oppfylt og dokumentasjon levert |
+| KC3.1 | 1 | Metode |
+| KC3.1 | 2 | Materiell kontrollert mot beskrivelsen |
+| KC3.1 | 8 | Krav oppfylt iht. beskrivelsen |
 
 ## Reproduserbar sjekk (kjør mot arkivet, ikke fila)
 
