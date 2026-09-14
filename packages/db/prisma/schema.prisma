@@ -207,17 +207,17 @@ model EksportJobb {
   dokumentType   String? @map("dokument_type") // dokument: hvilken dokumenttype
   dokumentId     String? @map("dokument_id") // dokument: id-en
 
-  bestiltAvUserId   String  @map("bestilt_av_user_id") // svak FK → users
+  bestiltAvUserId   String    @map("bestilt_av_user_id") // svak FK → users
   feilmelding       String?
-  antallTotalt      Int?     @map("antall_totalt") // progresjon (jf. blocksTotal)
-  antallFerdig      Int?     @map("antall_ferdig")
-  resultatSti       String?  @map("resultat_sti") // disk-sti under uploads/privat/eksport/
-  resultatStorrelse Int?     @map("resultat_storrelse") // bytes
+  antallTotalt      Int?      @map("antall_totalt") // progresjon (jf. blocksTotal)
+  antallFerdig      Int?      @map("antall_ferdig")
+  resultatSti       String?   @map("resultat_sti") // disk-sti under uploads/privat/eksport/
+  resultatStorrelse Int?      @map("resultat_storrelse") // bytes
   utloperVed        DateTime? @map("utloper_ved") // artefakt slettes + status=utløpt etter dette
   startetVed        DateTime? @map("startet_ved")
   fullfortVed       DateTime? @map("fullfort_ved")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -244,13 +244,13 @@ model EksportJobb {
 // ---------------------------------------------------------------------------
 
 model OrganizationMember {
-  id             String   @id @default(uuid())
-  userId         String   @map("user_id")
-  organizationId String   @map("organization_id")
-  ansattRolle    String   @default("ansatt") @map("ansatt_rolle")
-  firmaRoller    String[] @default([]) @map("firma_roller")
-  ansattnummer   String?
-  avdelingId     String?  @map("avdeling_id")
+  id                 String    @id @default(uuid())
+  userId             String    @map("user_id")
+  organizationId     String    @map("organization_id")
+  ansattRolle        String    @default("ansatt") @map("ansatt_rolle")
+  firmaRoller        String[]  @default([]) @map("firma_roller")
+  ansattnummer       String?
+  avdelingId         String?   @map("avdeling_id")
   // Ansettelsesstatus (registreringsmodell fase 1, 2026-08-28). "aktiv" | "deaktivert".
   // String (ikke DB-enum) som ansattRolle/firmaRoller — utvidbar uten migrasjon.
   // Deaktivering er ÉN reversibel fakta lest ved porten (tilgangskontroll.ts:
@@ -273,8 +273,8 @@ model OrganizationMember {
   // nytt prosjekt (prosjekt.opprett) og ny ansatt onboardes (organisasjon.inviterBruker).
   // "avdeling" er BLOKKERT (Project mangler avdelingId) og behandles som "manuell".
   prosjektTilgang    String?   @map("prosjekt_tilgang")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -308,17 +308,17 @@ model OrganizationMember {
 // i apps/api/src/services/modul/resolver.ts sammen med ProjectModule-bryteren.
 // Prosjektfamilien (de ni i PROSJEKT_MODULER) har INGEN rad her og får aldri et firmatak.
 model OrganizationModule {
-  id                  String    @id @default(uuid())
-  organizationId      String    @map("organization_id")
-  moduleSlug          String    @map("module_slug") // "timer" | "maskin" | "varelager" (fremtidig: "kompetanse"/"fremdrift")
-  status              String    @default("aktiv") // "aktiv" | "arkivert"
-  aktivertVed         DateTime  @default(now()) @map("aktivert_ved")
-  aktivertAvUserId    String?   @map("aktivert_av_user_id") // ingen FK — A.3-mønster
-  deaktivertVed       DateTime? @map("deaktivert_ved")
-  deaktivertAvUserId  String?   @map("deaktivert_av_user_id") // ingen FK — A.3-mønster
-  config              Json?     // Per-modul-konfig om nødvendig
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  id                 String    @id @default(uuid())
+  organizationId     String    @map("organization_id")
+  moduleSlug         String    @map("module_slug") // "timer" | "maskin" | "varelager" (fremtidig: "kompetanse"/"fremdrift")
+  status             String    @default("aktiv") // "aktiv" | "arkivert"
+  aktivertVed        DateTime  @default(now()) @map("aktivert_ved")
+  aktivertAvUserId   String?   @map("aktivert_av_user_id") // ingen FK — A.3-mønster
+  deaktivertVed      DateTime? @map("deaktivert_ved")
+  deaktivertAvUserId String?   @map("deaktivert_av_user_id") // ingen FK — A.3-mønster
+  config             Json? // Per-modul-konfig om nødvendig
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -392,7 +392,7 @@ model OrganizationSetting {
   // kan flytte defaulten til 'alle'/'avdeling' selv. Lagt til fase 2. EVALUERES fra
   // fase 3 (2026-09-02) av prosjektTilgangEvaluator.ts som firmadefault når en ansatt
   // har prosjektTilgang = NULL. 'avdeling' behandles som 'manuell' inntil Project.avdelingId finnes.
-  prosjektTilgangDefault    String @default("manuell") @map("prosjekt_tilgang_default")
+  prosjektTilgangDefault String @default("manuell") @map("prosjekt_tilgang_default")
 
   // Per Fase 0.5 § 2 — hvem kan registrere AnsattKompetanse-rader
   // Verdier: 'firma_admin' | 'bruker_egen' | 'alle'
@@ -401,21 +401,21 @@ model OrganizationSetting {
 
   // Timer-modul (Fase 3 Infrastruktur, vedtatt 2026-05-01)
   // Dagsnorm i timer per arbeidsdag — auto-fordeling til normaltid/overtid
-  dagsnorm               Decimal @default(7.5) @map("dagsnorm") @db.Decimal(4, 2)
+  dagsnorm                     Decimal @default(7.5) @map("dagsnorm") @db.Decimal(4, 2)
   // Terskel for overtidsmat-tillegg (timer)
-  overtidsmatTerskel     Decimal @default(9.0) @map("overtidsmat_terskel") @db.Decimal(4, 2)
+  overtidsmatTerskel           Decimal @default(9.0) @map("overtidsmat_terskel") @db.Decimal(4, 2)
   // Slice 4b-2 (2026-06-21) — arbeidstids-varsel-terskel (timer per dagsseddel).
   // Total av alle timer-rader (inkl. reise) > denne → varsel-badge i attestering
   // (IKKE blokkering). Default 13 (AML § 10-6 alminnelig/utvidet); firma hever
   // til 16 ved tariff via samme felt. SiteDoc flagger, firmaets HMS eier ansvaret.
-  arbeidstidVarselTimer  Int     @default(13) @map("arbeidstid_varsel_timer")
+  arbeidstidVarselTimer        Int     @default(13) @map("arbeidstid_varsel_timer")
   // Tillater ansatte å attestere egen dagsseddel (selv-attestering)
-  tillattSelvAttestering Boolean @default(true) @map("tillatt_selv_attestering")
+  tillattSelvAttestering       Boolean @default(true) @map("tillatt_selv_attestering")
   // Antall dager før dagsseddel låses for endring (NULL = ingen alders-grense, status styrer låsing)
-  timerLockEtterDager    Int?    @map("timer_lock_etter_dager")
+  timerLockEtterDager          Int?    @map("timer_lock_etter_dager")
   // T.5 (2026-05-11) — Tidsrunding i minutter ved timer-registrering.
   // Støttede verdier: 15, 30, 60, null (ingen avrunding). Default 15.
-  tidsrundingMinutter    Int?    @default(15) @map("tidsrunding_minutter")
+  tidsrundingMinutter          Int?    @default(15) @map("tidsrunding_minutter")
   // T7-2b2 (2026-05-14) — Tillater firma-admin å redigere sedel-rader direkte
   // under attestering, uten å returnere sedelen til arbeider. T7-5b-1
   // (2026-05-17): default endret fra false til true — lederverktøy bør
@@ -427,48 +427,48 @@ model OrganizationSetting {
   // Brukes som forhåndsutfylling i TimerRadModal når ingen kalender-overstyring
   // gjelder. ArbeidstidsKalender-rader for sommertid_start/slutt og halvdag
   // kan overstyre per periode.
-  standardStartTid String @default("07:00") @map("standard_start_tid")
-  standardSluttTid String @default("15:00") @map("standard_slutt_tid")
-  standardPauseMin Int    @default(30)      @map("standard_pause_min")
+  standardStartTid        String  @default("07:00") @map("standard_start_tid")
+  standardSluttTid        String  @default("15:00") @map("standard_slutt_tid")
+  standardPauseMin        Int     @default(30) @map("standard_pause_min")
   // 2026-07-08: pausevindu regnes nå relativt til skiftets start:
   //   [skiftStart + standardPauseEtterTimer, + standardPauseMin].
   // Default 4,0 t → 07:00-start gir 11:00–11:30 (ingen regresjon). Fungerer også
   // for nattskift (21:00-start → 01:00–01:30) der et fast klokkeslett var meningsløst.
-  standardPauseEtterTimer Float @default(4.0) @map("standard_pause_etter_timer")
+  standardPauseEtterTimer Float   @default(4.0) @map("standard_pause_etter_timer")
   // DEPRECATED 2026-07-08 (to-stegs migrering): erstattet av standardPauseEtterTimer.
   // Beholdes til data er migrert; droppes i senere release. Nullable HH:MM.
-  standardPauseFra String? @map("standard_pause_fra")
+  standardPauseFra        String? @map("standard_pause_fra")
 
   // Reise-regelsett (Fase 3 / T.10 § B) — firmainnstilling, ikke regelmotor.
   // Terskel/retning/lovlighet er avtale-avhengig (tariff), derfor konfigurerbart.
   // Reisetid = lønnsart-rad (arbeidstid, utenfor overtid by default), IKKE
   // avstands-/godtgjørelse-sats (km-godtgjørelse er separate lønnsarter, regnskap
   // eier satsene). Klassifisering: reisetid < terskel → underType, ≥ terskel → overType.
-  reiseTerskelMin       Int     @default(30)            @map("reise_terskel_min")
+  reiseTerskelMin       Int     @default(30) @map("reise_terskel_min")
   // Reise-terskel-km (2026-09-08): firmaet velger om terskelen måles i TID eller
   // AVSTAND. A.Markussen bruker km-grense; andre firmaer bruker tid. Default
   // "minutter" er BEVISST — den gjør at ingen eksisterende firma endrer lønns-
   // klassifisering når kolonnen innføres (reiseTerskelMin=30 gjelder uendret).
   // Bytt ALDRI defaulten til "km" — det ville stille endre lønn for alle.
   // "minutter" | "km".
-  reiseTerskelEnhet     String  @default("minutter")    @map("reise_terskel_enhet")
+  reiseTerskelEnhet     String  @default("minutter") @map("reise_terskel_enhet")
   // Terskel i METER, aktiv KUN når reiseTerskelEnhet = "km" (7,5 km → 7500).
   // Meter (Int) framfor km (Float): OSRM-avstanden er meter, og heltall unngår
   // avrundingsdrift i sammenligningen avstandM < reiseTerskelM. Nullable —
   // minutter-firmaer har den ikke. reiseTerskelMin beholdes uansett (bytter
   // firma tilbake til tid, står tid-verdien der fortsatt).
-  reiseTerskelM         Int?                            @map("reise_terskel_m")
+  reiseTerskelM         Int?    @map("reise_terskel_m")
   // "arbeidstid" | "reisetid" — hva reisetid UNDER terskelen klassifiseres som.
-  reiseUnderTerskelType String  @default("arbeidstid")  @map("reise_under_terskel_type")
+  reiseUnderTerskelType String  @default("arbeidstid") @map("reise_under_terskel_type")
   // "arbeidstid" | "reisetid" — hva reisetid OVER/LIK terskelen klassifiseres som.
-  reiseOverTerskelType  String  @default("reisetid")    @map("reise_over_terskel_type")
+  reiseOverTerskelType  String  @default("reisetid") @map("reise_over_terskel_type")
   // Hvis true: reise-timer inngår i arbeidstime-grunnlaget før normaltid/overtid-
   // splittet (kan skyve totalen til overtid). Default false: reise er separat rad
   // utenfor overtid-fordelingen.
-  reisetidTellerOvertid Boolean @default(false)         @map("reisetid_teller_overtid")
+  reisetidTellerOvertid Boolean @default(false) @map("reisetid_teller_overtid")
   // Konkret reise-lønnsart (svak FK → timer.Lonnsart, A.20-mønster, ingen @relation
   // — ligger i db-timer). NULL → fallback til navne-match ("reise/transport").
-  reiseLonnsartId       String?                         @map("reise_lonnsart_id")
+  reiseLonnsartId       String? @map("reise_lonnsart_id")
 
   // Auto-prosjektadmin (B Kloss 2b, 2026-07-24) — løser hierarki-invarianten
   // (firma-admin ≥ prosjektadmin i eget firma) via MEDLEMSKAP, ikke flyt-nivå.
@@ -644,33 +644,33 @@ model VerificationToken {
 }
 
 model Project {
-  id                        String    @id @default(uuid())
-  projectNumber             String    @unique @map("project_number")
-  name                      String
-  description               String?
-  address                   String?
-  latitude                  Float?    @map("latitude")
-  longitude                 Float?    @map("longitude")
-  internalProjectNumber     String?   @map("internal_project_number")
-  externalProjectNumber     String?   @map("external_project_number")
-  logoUrl                   String?   @map("logo_url")
+  id                     String    @id @default(uuid())
+  projectNumber          String    @unique @map("project_number")
+  name                   String
+  description            String?
+  address                String?
+  latitude               Float?    @map("latitude")
+  longitude              Float?    @map("longitude")
+  internalProjectNumber  String?   @map("internal_project_number")
+  externalProjectNumber  String?   @map("external_project_number")
+  logoUrl                String?   @map("logo_url")
   /// Gater SiteDoc-nummeret (SD-…), IKKE internt prosjektnummer — tross kolonnenavnet.
   /// Kolonnen beholder `show_internal_project_number` for å unngå migrering;
   /// omdøping av kolonnen er notert som oppfølger. Se terminologi.md § Tre prosjektnumre.
-  visSiteDocNummer          Boolean   @default(true) @map("show_internal_project_number")
-  utskriftsinnstillinger    Json?     @map("utskrifts_innstillinger") // { logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer }
-  sourceLanguage            String    @default("nb") @map("source_language") // Kildespråk for prosjektet
-  status                    String    @default("active")
+  visSiteDocNummer       Boolean   @default(true) @map("show_internal_project_number")
+  utskriftsinnstillinger Json?     @map("utskrifts_innstillinger") // { logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer }
+  sourceLanguage         String    @default("nb") @map("source_language") // Kildespråk for prosjektet
+  status                 String    @default("active")
   // type (Fase 2 / T.10): "kunde" | "internt". Interne prosjekter er firma-eide
   // bærere for ikke-prosjekt-tid (internt arbeid + maskinvedlikehold) i Timer.
   // Additivt — alle eksisterende prosjekter er "kunde". Filtreres ut av
   // kundevendte lister; nås kun via timer-flate (T.10, vilkår 3: enabler ingen
   // andre prosjektmoduler).
-  type                      String    @default("kunde")
-  trialExpiresAt            DateTime? @map("trial_expires_at")
-  primaryOrganizationId     String?   @map("primary_organization_id") // Per fase-0-beslutninger.md § E steg 4 (nullable per B.4 interim)
-  createdAt                 DateTime  @default(now()) @map("created_at")
-  updatedAt                 DateTime  @updatedAt @map("updated_at")
+  type                   String    @default("kunde")
+  trialExpiresAt         DateTime? @map("trial_expires_at")
+  primaryOrganizationId  String?   @map("primary_organization_id") // Per fase-0-beslutninger.md § E steg 4 (nullable per B.4 interim)
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
 
   members              ProjectMember[]
   faggrupper           Faggruppe[]
@@ -746,26 +746,26 @@ model FaggruppeKobling {
 }
 
 model ProjectGroup {
-  id          String   @id @default(uuid())
-  projectId   String   @map("project_id")
-  name        String
-  slug        String
-  category    String   @default("field") // generelt, field, brukergrupper
-  permissions Json     @default("[]")
-  domains     Json     @default("[]") // ["bygg"], ["hms"], ["bygg","hms"], etc.
+  id           String   @id @default(uuid())
+  projectId    String   @map("project_id")
+  name         String
+  slug         String
+  category     String   @default("field") // generelt, field, brukergrupper
+  permissions  Json     @default("[]")
+  domains      Json     @default("[]") // ["bygg"], ["hms"], ["bygg","hms"], etc.
   // Systemnøkkel — entydig identitet for systemstyrte grupper (2026-09-10).
   // null = vanlig brukeropprettet gruppe; "hms" = prosjektets HMS-behandlergruppe.
   // Domenet "hms" er BREDDE-tilgang (prosjekt-admin bærer det også) og duger ikke
   // som identitet; denne nøkkelen gjør HMS-gruppa entydig. Partiell unik-indeks
   // (project_id, system_nokkel) WHERE NOT NULL i migreringen hindrer duplikat.
-  systemNokkel String? @map("system_nokkel")
-  modules     Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
+  systemNokkel String?  @map("system_nokkel")
+  modules      Json     @default("[\"sjekklister\",\"oppgaver\",\"tegninger\",\"3d\"]") // aktive moduler
   // building_ids jsonb droppet 2026-05-01 (Fase 0.5 § 3) — erstattet av
   // ProjectGroupByggeplass m2m-koblingstabell. Per Prinsipp C-verifisering var
   // feltet dødt (skrevet, aldri lest) — ingen data å migrere.
-  isDefault   Boolean  @default(false) @map("is_default")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   project               Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   members               ProjectGroupMember[]
@@ -915,12 +915,12 @@ model Drawing {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  byggeplass Byggeplass?       @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
-  revisions  DrawingRevision[]
-  tasks      Task[]
-  checklists Checklist[]
-  omrader    Omrade[]
+  project             Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  byggeplass          Byggeplass?         @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
+  revisions           DrawingRevision[]
+  tasks               Task[]
+  checklists          Checklist[]
+  omrader             Omrade[]
   kontrollplanPunkter KontrollplanPunkt[] // L2: kontrollpunkt-markører på tegningen
 
   @@index([projectId])
@@ -980,34 +980,34 @@ model DrawingRevision {
 }
 
 model Byggeplass {
-  id          String   @id @default(uuid())
-  projectId   String   @map("project_id")
-  number      Int?     @map("number")
-  name        String
-  description String?
-  address     String?
-  type        String   @default("bygg") // "bygg" | "anlegg"
-  status      String   @default("unpublished")
+  id           String   @id @default(uuid())
+  projectId    String   @map("project_id")
+  number       Int?     @map("number")
+  name         String
+  description  String?
+  address      String?
+  type         String   @default("bygg") // "bygg" | "anlegg"
+  status       String   @default("unpublished")
   // Fase 1c: geofence avledet fra georeferert tegning (eller manuelt overstyrt).
   // Brukes til GPS-identifikasjon av byggeplass i timer (1c-mobil). Nullable —
   // settes når en koblet tegning georefereres, eller manuelt.
-  latitude    Float?   @map("latitude")
-  longitude   Float?   @map("longitude")
-  radiusM     Int?     @map("radius_m") // geofence-radius (tegningsutstrekning + buffer)
+  latitude     Float?   @map("latitude")
+  longitude    Float?   @map("longitude")
+  radiusM      Int?     @map("radius_m") // geofence-radius (tegningsutstrekning + buffer)
   // HMSREG-lokasjon-ID — ruting-nøkkel for §15-push til /api/v2/registration.
   // HMSREG «location» = fysisk checkpoint/byggeplass (derfor på Byggeplass, ikke
   // Project). Int? matcher HMSREG-typen (number). Nullable — kun satt for
   // byggeplasser koblet mot HMSREG. Push-fasen er ubygd (se BACKLOG).
-  hmsregNummer Int?    @map("hmsreg_nummer")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  hmsregNummer Int?     @map("hmsreg_nummer")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  project         Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  drawings        Drawing[]
-  pointClouds     PointCloud[]
-  checklists      Checklist[]
-  ftdKontrakter   FtdKontrakt[]
-  gruppeKoblinger ProjectGroupByggeplass[]
+  project          Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  drawings         Drawing[]
+  pointClouds      PointCloud[]
+  checklists       Checklist[]
+  ftdKontrakter    FtdKontrakt[]
+  gruppeKoblinger  ProjectGroupByggeplass[]
   psiEr            Psi[]
   omrader          Omrade[]
   kontrollplaner   Kontrollplan[]
@@ -1118,46 +1118,40 @@ model ReportObject {
 // ---------------------------------------------------------------------------
 
 model OrganizationTemplate {
-  id                     String   @id @default(uuid())
-  organizationId         String   @map("organization_id")
-  name                   String
-  description            String?
-  prefix                 String?
-  category               String   @default("sjekkliste") // "oppgave" | "sjekkliste"
-  domain                 String   @default("bygg") // "bygg" | "hms" | "kvalitet"
-  subjects               Json?    @default("[]")
-  showSubject            Boolean  @default(true) @map("show_subject")
-  showFaggruppe          Boolean  @default(true) @map("show_faggruppe")
-  showLocation           Boolean  @default(true) @map("show_location")
-  showPriority           Boolean  @default(true) @map("show_priority")
-  version                Int      @default(1)
-  enableChangeLog        Boolean  @default(false) @map("enable_change_log")
-  kontrollomrade         String?
+  id                       String   @id @default(uuid())
+  organizationId           String   @map("organization_id")
+  name                     String
+  description              String?
+  prefix                   String?
+  category                 String   @default("sjekkliste") // "oppgave" | "sjekkliste"
+  domain                   String   @default("bygg") // "bygg" | "hms" | "kvalitet"
+  subjects                 Json?    @default("[]")
+  showSubject              Boolean  @default(true) @map("show_subject")
+  showFaggruppe            Boolean  @default(true) @map("show_faggruppe")
+  showLocation             Boolean  @default(true) @map("show_location")
+  showPriority             Boolean  @default(true) @map("show_priority")
+  version                  Int      @default(1)
+  enableChangeLog          Boolean  @default(false) @map("enable_change_log")
+  kontrollomrade           String?
   // Malarkiv (AM4/B3, 2026-09-04): HMS-maler i firmaarkivet. Speiler ReportTemplate:973-974.
-  subdomain              String?  @map("subdomain") // "avvik" | "sja" | "ruh" — kun ved domain="hms"
-  hmsSynlighet           String?  @map("hms_synlighet") // "privat" | "apen" — kun ved domain="hms"
+  subdomain                String?  @map("subdomain") // "avvik" | "sja" | "ruh" — kun ved domain="hms"
+  hmsSynlighet             String?  @map("hms_synlighet") // "privat" | "apen" — kun ved domain="hms"
   // Seeding-flagg (F4): seedes automatisk inn i nye prosjekter ved modulaktivering.
-  standardForNyeProsjekter Boolean @default(false) @map("standard_for_nye_prosjekter")
-  promotedFromTemplateId String?  @map("promoted_from_template_id")
+  standardForNyeProsjekter Boolean  @default(false) @map("standard_for_nye_prosjekter")
+  promotedFromTemplateId   String?  @map("promoted_from_template_id")
   // Malarkiv (AM4/B4, 2026-09-04): STRUKTURERT avstamning når firmamalen er lånt fra
   // SiteDoc-sentralarkivet (BibliotekMal). Spørrbar peker, aldri fritekst i description.
   // SetNull ved sletting av bibliotekmalen (samme semantikk som L5) — lånet består.
-  laantFraBibliotekMalId String?  @map("laant_fra_bibliotek_mal_id")
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @updatedAt @map("updated_at")
+  laantFraBibliotekMalId   String?  @map("laant_fra_bibliotek_mal_id")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
-  organization       Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  promotedFrom       ReportTemplate?              @relation("PromotedTemplate", fields: [promotedFromTemplateId], references: [id], onDelete: SetNull)
-  laantFraBibliotek  BibliotekMal?                @relation("LaantFraBibliotek", fields: [laantFraBibliotekMalId], references: [id], onDelete: SetNull)
-  objects            OrganizationTemplateObject[]
-  copiedTo           ReportTemplate[]             @relation("CopiedFromOrgTemplate")
+  organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  promotedFrom      ReportTemplate?              @relation("PromotedTemplate", fields: [promotedFromTemplateId], references: [id], onDelete: SetNull)
+  laantFraBibliotek BibliotekMal?                @relation("LaantFraBibliotek", fields: [laantFraBibliotekMalId], references: [id], onDelete: SetNull)
+  objects           OrganizationTemplateObject[]
+  copiedTo          ReportTemplate[]             @relation("CopiedFromOrgTemplate")
 
-  @@index([organizationId])
-  @@index([promotedFromTemplateId])
-  // Beholdes: enkeltkolonne-indeks betjener revers-oppslag på bibliotekmalen alene
-  // (SetNull-cascade ved sletting av BibliotekMal + «hvem har lånt denne malen»),
-  // som det sammensatte unique-indekset under IKKE kan (ledende kolonne = org).
-  @@index([laantFraBibliotekMalId])
   // Unik indeks mot dobbelt-lån av samme bibliotekmal til samme firma (funn #10,
   // «Malforvaltning — 17 målte funn 2026-09-13»). Vakten i firmamal.ts (findFirst +
   // CONFLICT) er PEN FEILMELDING; denne indeksen er GARANTIEN mot samtidige lån.
@@ -1165,6 +1159,12 @@ model OrganizationTemplate {
   // og Postgres behandler NULL som distinkt (NULLS DISTINCT), så to egne firmamaler
   // er fortsatt lov. Kun lånte (samme bibliotekMalId) blokkeres.
   @@unique([organizationId, laantFraBibliotekMalId])
+  @@index([organizationId])
+  @@index([promotedFromTemplateId])
+  // Beholdes: enkeltkolonne-indeks betjener revers-oppslag på bibliotekmalen alene
+  // (SetNull-cascade ved sletting av BibliotekMal + «hvem har lånt denne malen»),
+  // som det sammensatte unique-indekset under IKKE kan (ledende kolonne = org).
+  @@index([laantFraBibliotekMalId])
   @@map("organization_templates")
 }
 
@@ -1258,13 +1258,6 @@ model Checklist {
   signaturRunder     SignaturRunde[]
   signaturDeltakere  DokumentDeltaker[]
 
-  @@index([templateId])
-  @@index([bestillerUserId])
-  @@index([recipientUserId])
-  @@index([dueDate])
-  @@index([status])
-  @@index([dokumentflytId, status])
-  @@index([deletedAt])
   // Løpenummer er unikt pr. mal. Uten dette kunne to samtidige opprettelser lese
   // samme MAX(number) og få samme nummer (Read Committed, ingen lås). NULL er
   // distinkt i Postgres → nummerløse maler (uten prefix) påvirkes ikke. Full
@@ -1272,6 +1265,13 @@ model Checklist {
   // slettede rader for nummer-monotoni, så et slettet og et nytt dokument skal
   // heller ikke dele nummer. Prod-telling 2026-09-08: 0 duplikater.
   @@unique([templateId, number], map: "checklists_template_id_number_key")
+  @@index([templateId])
+  @@index([bestillerUserId])
+  @@index([recipientUserId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([dokumentflytId, status])
+  @@index([deletedAt])
   @@map("checklists")
 }
 
@@ -1337,6 +1337,9 @@ model Task {
   signaturRunder     SignaturRunde[]
   signaturDeltakere  DokumentDeltaker[]
 
+  // Løpenummer unikt pr. mal — se Checklist. Full constraint (nummer-monotoni
+  // teller soft-slettede), NULL distinkt. Prod-telling 2026-09-08: 0 duplikater.
+  @@unique([templateId, number], map: "tasks_template_id_number_key")
   @@index([templateId])
   @@index([bestillerUserId])
   @@index([recipientUserId])
@@ -1344,9 +1347,6 @@ model Task {
   @@index([status])
   @@index([dokumentflytId, status])
   @@index([deletedAt])
-  // Løpenummer unikt pr. mal — se Checklist. Full constraint (nummer-monotoni
-  // teller soft-slettede), NULL distinkt. Prod-telling 2026-09-08: 0 duplikater.
-  @@unique([templateId, number], map: "tasks_template_id_number_key")
   @@map("tasks")
 }
 
@@ -1521,13 +1521,13 @@ model Dokumentflyt {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  project       Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  faggruppe     Faggruppe?           @relation("dokumentflytFaggruppe", fields: [faggruppeId], references: [id], onDelete: SetNull)
-  medlemmer     DokumentflytMedlem[]
-  maler         DokumentflytMal[]
-  checklists    Checklist[]
-  tasks         Task[]
-  godkjenninger Godkjenning[]
+  project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  faggruppe           Faggruppe?           @relation("dokumentflytFaggruppe", fields: [faggruppeId], references: [id], onDelete: SetNull)
+  medlemmer           DokumentflytMedlem[]
+  maler               DokumentflytMal[]
+  checklists          Checklist[]
+  tasks               Task[]
+  godkjenninger       Godkjenning[]
   // L1.5: kontrollpunkter kan forhåndsvelge denne flyten. onDelete SetNull på
   // punktsiden → sletter noen flyten, faller punktet tilbake til registrator-regelen.
   kontrollplanPunkter KontrollplanPunkt[]
@@ -2164,23 +2164,23 @@ model DokumentDeltaker {
 }
 
 model DokumentSignatur {
-  id             String   @id @default(uuid())
-  rundeId        String   @map("runde_id")
-  deltakerId     String   @map("deltaker_id")
+  id                String    @id @default(uuid())
+  rundeId           String    @map("runde_id")
+  deltakerId        String    @map("deltaker_id")
   // Identitet bor på deltakeren; signaturen bærer kort/bilde/tidspunkt.
-  hmsKortNr      String?  @map("hms_kort_nr")
-  harIkkeHmsKort Boolean  @default(false) @map("har_ikke_hms_kort")
-  signaturbilde  String?  @map("signaturbilde")
+  hmsKortNr         String?   @map("hms_kort_nr")
+  harIkkeHmsKort    Boolean   @default(false) @map("har_ikke_hms_kort")
+  signaturbilde     String?   @map("signaturbilde")
   // Server-tidspunkt (UTC) for ordering/audit.
-  completedAt    DateTime @default(now()) @map("completed_at")
+  completedAt       DateTime  @default(now()) @map("completed_at")
   // Signeringstidspunkt som lokal ISO-8601 med offset (klientens signaturTidspunktNaa()).
   // Veggklokka er innbakt → vises identisk på tvers av flater/tidssoner via @sitedoc/shared
   // formaterSignaturTidspunkt («dd.mm.åååå kl. hh:mm») — samme form som signaturfeltet.
-  signertTidspunkt String? @map("signert_tidspunkt")
+  signertTidspunkt  String?   @map("signert_tidspunkt")
   // Dokumentets innholdsVersjon da signaturen ble avgitt (SJA varig arbeid, fabel
   // 2026-09-06). `signertVersjon < dokumentets innholdsVersjon` = signert før en
   // senere endring → vises amber. Default 1 = eksisterende rader ved innføring.
-  signertVersjon   Int      @default(1) @map("signert_versjon")
+  signertVersjon    Int       @default(1) @map("signert_versjon")
   // «Krev ny signatur» (ansvarlig): flytter en signatur avgitt før endring TILBAKE
   // til manko UTEN å slette den (består i logg/PDF for sin versjon). null = gjelder.
   // Menneskets kall, aldri automatikk — derfor egen tilstand, ikke avledet av versjon.
@@ -2191,7 +2191,7 @@ model DokumentSignatur {
   // skal si «bekreftet av <navn>», aldri påstå at gjesten selv signerte. Signerer man
   // sin egen rad forblir feltet null (signaturen er sin egen). userId — svakt felt,
   // ingen @relation. Ingen backfill: eldre rader er null = vises som før.
-  bekreftetAvUserId String?  @map("bekreftet_av_user_id")
+  bekreftetAvUserId String?   @map("bekreftet_av_user_id")
 
   runde    SignaturRunde    @relation(fields: [rundeId], references: [id], onDelete: Cascade)
   deltaker DokumentDeltaker @relation(fields: [deltakerId], references: [id], onDelete: Cascade)
@@ -2275,28 +2275,59 @@ model BibliotekKapittel {
 }
 
 model BibliotekMal {
-  id             String                  @id @default(cuid())
-  kapittelId     String                  @map("kapittel_id")
-  kapittel       BibliotekKapittel       @relation(fields: [kapittelId], references: [id], onDelete: Cascade)
-  navn           String
-  referanse      String
-  beskrivelse    String?
-  versjon        String                  @default("1.0")
-  aktiv          Boolean                 @default(true)
-  prioritet      Int                     @default(1) // 1=grunnpakke, 2=utvidet, 3=spesialist
+  id                  String                  @id @default(cuid())
+  kapittelId          String                  @map("kapittel_id")
+  kapittel            BibliotekKapittel       @relation(fields: [kapittelId], references: [id], onDelete: Cascade)
+  navn                String
+  referanse           String
+  beskrivelse         String?
+  versjon             String                  @default("1.0")
+  aktiv               Boolean                 @default(true)
+  prioritet           Int                     @default(1) // 1=grunnpakke, 2=utvidet, 3=spesialist
   // Per fase-0-beslutninger.md § E steg 8 — lukker P-KRITISK-3 (bibliotek.ts hardkodet category/domain)
-  kategori       String                  @default("sjekkliste") // "oppgave" | "sjekkliste" — matcher ReportTemplate.category
-  domene         String                  @default("kvalitet") // "bygg" | "hms" | "kvalitet" — sentralbibliotek er NS 3420-K
-  kobletTilModul String?                 @map("koblet_til_modul") // Slug til prosjektmodul (f.eks. "okonomi", "psi")
-  verifisert     Boolean                 @default(false) // True når malen er verifisert mot kilde-norm
-  opprettet      DateTime                @default(now()) @map("opprettet")
-  malInnhold     Json                    @map("mal_innhold")
-  prosjektValg   ProsjektBibliotekValg[]
+  kategori            String                  @default("sjekkliste") // "oppgave" | "sjekkliste" — matcher ReportTemplate.category
+  domene              String                  @default("kvalitet") // "bygg" | "hms" | "kvalitet" — sentralbibliotek er NS 3420-K
+  kobletTilModul      String?                 @map("koblet_til_modul") // Slug til prosjektmodul (f.eks. "okonomi", "psi")
+  verifisert          Boolean                 @default(false) // True når malen er verifisert mot kilde-norm
+  opprettet           DateTime                @default(now()) @map("opprettet")
+  // FRYSES vei C del 1 (ordre bibliotekmal-objekttabell): innholdet bor nå i
+  // `objekter`-radene (BibliotekMalObjekt). Leses IKKE lenger av lån/import/seed.
+  // Beholdes (ikke slettet) per to-stegs-migreringspolicy; egen senere runde dropper den.
+  malInnhold          Json                    @map("mal_innhold")
+  // Rad-modellen (vei C del 1): speiler OrganizationTemplateObject, ENESTE kilde etter migrering.
+  objekter            BibliotekMalObjekt[]
+  prosjektValg        ProsjektBibliotekValg[]
   // AM4/B4: firmamaler lånt fra denne sentralmalen (avstamning, SetNull ved sletting)
-  laantAvOrgTemplates OrganizationTemplate[] @relation("LaantFraBibliotek")
+  laantAvOrgTemplates OrganizationTemplate[]  @relation("LaantFraBibliotek")
 
   @@index([kapittelId])
   @@map("bibliotek_maler")
+}
+
+// Sentralmalens objekt-tre — speiler OrganizationTemplateObject FELT FOR FELT (ordre
+// bibliotekmal-objekttabell, Krav 1). Vei C: alle tre nivåer (prosjekt/firma/sitedoc) får
+// samme rad-modell, så MalBygger kan redigere sentralmaler i del 2 og lånevegen kopierer
+// rader verbatim i stedet for å generere overskrifter.
+model BibliotekMalObjekt {
+  id           String   @id @default(uuid())
+  templateId   String   @map("template_id")
+  parentId     String?  @map("parent_id")
+  type         String
+  label        String
+  config       Json     @default("{}")
+  translations Json     @default("{}")
+  sortOrder    Int      @map("sort_order")
+  required     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  template BibliotekMal         @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  parent   BibliotekMalObjekt?  @relation("BibliotekObjektHierarki", fields: [parentId], references: [id], onDelete: Cascade)
+  children BibliotekMalObjekt[] @relation("BibliotekObjektHierarki")
+
+  @@index([templateId])
+  @@index([parentId])
+  @@map("bibliotek_mal_objekter")
 }
 
 model ProsjektBibliotekValg {
@@ -2328,9 +2359,9 @@ model Kontrollplan {
   opprettet    DateTime  @default(now())
   oppdatert    DateTime  @updatedAt
 
-  project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  byggeplass Byggeplass          @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
-  godkjentAv User?               @relation("KontrollplanGodkjenner", fields: [godkjentAvId], references: [id], onDelete: SetNull)
+  project    Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass           @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
+  godkjentAv User?                @relation("KontrollplanGodkjenner", fields: [godkjentAvId], references: [id], onDelete: SetNull)
   milepeler  Milepel[]
   punkter    KontrollplanPunkt[]
   importer   KontrollplanImport[]
@@ -2599,8 +2630,8 @@ model Oppmotested {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  avdeling         Avdeling?          @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avdeling         Avdeling?         @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
   reisetidMatriser ReisetidMatrise[]
 
   @@unique([organizationId, navn])
@@ -2771,13 +2802,13 @@ model ProjectGroupByggeplass {
 // ---------------------------------------------------------------------------
 
 model ArbeidstidsKalender {
-  id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
-  aar            Int // duplikat av year(dato) for raskt år-filtrering og import-idempotens
-  dato           DateTime @db.Date
-  type           String // helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri
-  navn           String // F.eks. «1. mai», «Skjærtorsdag», «Fellesferie uke 28-30»
-  timerOverstyr  Decimal? @map("timer_overstyr") @db.Decimal(4, 2) // kun satt for halvdag-type
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  aar              Int // duplikat av year(dato) for raskt år-filtrering og import-idempotens
+  dato             DateTime @db.Date
+  type             String // helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri
+  navn             String // F.eks. «1. mai», «Skjærtorsdag», «Fellesferie uke 28-30»
+  timerOverstyr    Decimal? @map("timer_overstyr") @db.Decimal(4, 2) // kun satt for halvdag-type
   // T.4 (2026-05-16) — Periode-overstyring av firma-default arbeidstid.
   // Settes typisk for sommertid_start (sommer-regime: f.eks. 07:00-15:30,
   // pause 30) og sommertid_slutt (tilbake til vinter: 07:00-14:30, pause 30).
@@ -2788,9 +2819,9 @@ model ArbeidstidsKalender {
   standardStartTid String?  @map("standard_start_tid")
   standardSluttTid String?  @map("standard_slutt_tid")
   pauseMin         Int?     @map("pause_min")
-  aktiv          Boolean  @default(true)
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  aktiv            Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 

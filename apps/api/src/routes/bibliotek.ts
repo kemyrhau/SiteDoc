@@ -4,6 +4,7 @@ import { type PrismaClient, Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { finnLedigeMalVerdier } from "./mal";
+import { kopierObjektTre } from "./objektkopi";
 
 /**
  * Sentralarkivet er SiteDocs eget, delt av alle kunder — redigering er kun
@@ -153,14 +154,12 @@ export const bibliotekRouter = router({
         include: { kapittel: { include: { standard: true } } },
       });
 
-      const malInnhold = bibMal.malInnhold as Array<{
-        label: string;
-        type: string;
-        zone: string;
-        fase?: string;
-        config?: Record<string, unknown>;
-        sortOrder: number;
-      }>;
+      // Vei C: objekt-treet leses fra RADENE (BibliotekMalObjekt), ikke fra `malInnhold`.
+      // Overskriftene ligger som egne heading-rader og kopieres verbatim — ingen generering.
+      const kildeObjekter = await ctx.prisma.bibliotekMalObjekt.findMany({
+        where: { templateId: bibMal.id },
+        orderBy: { sortOrder: "asc" },
+      });
 
       // Unikhet (2026-08-10): auto-generér ledig navn + prefiks. Bibliotek-navn/
       // referanse-token kan kollidere med eksisterende prosjekt-mal → ville brutt
@@ -185,56 +184,18 @@ export const bibliotekRouter = router({
         },
       });
 
-      // Opprett ReportObjects (felt) fra malInnhold
-      if (Array.isArray(malInnhold) && malInnhold.length > 0) {
-        // Legg til et heading-felt for fasen, gruppert
-        const faser = [...new Set(malInnhold.map((f) => f.fase).filter(Boolean))];
-        let sortIdx = 0;
-
-        for (const fase of faser) {
-          // Fase-overskrift
-          sortIdx++;
-          await ctx.prisma.reportObject.create({
-            data: {
-              templateId: template.id,
-              type: "heading",
-              label: fase === "FØR" ? "Kontroll FØR utførelse" : fase === "UNDER" ? "Kontroll UNDER utførelse" : "Kontroll ETTER utførelse",
-              sortOrder: sortIdx,
-              config: { zone: "datafelter" },
-            },
-          });
-
-          // Felt for denne fasen
-          const faseFelt = malInnhold.filter((f) => f.fase === fase);
-          for (const f of faseFelt) {
-            sortIdx++;
-            await ctx.prisma.reportObject.create({
-              data: {
-                templateId: template.id,
-                type: f.type,
-                label: f.label,
-                sortOrder: sortIdx,
-                config: { zone: f.zone ?? "datafelter", ...f.config },
-              },
-            });
-          }
-        }
-
-        // Felt uten fase
-        const utenFase = malInnhold.filter((f) => !f.fase);
-        for (const f of utenFase) {
-          sortIdx++;
-          await ctx.prisma.reportObject.create({
-            data: {
-              templateId: template.id,
-              type: f.type,
-              label: f.label,
-              sortOrder: sortIdx,
-              config: { zone: f.zone ?? "datafelter", ...f.config },
-            },
-          });
-        }
-      }
+      // Kopiér objekt-treet verbatim fra radene til ReportObject (to-pass id-map for
+      // parentId; sentralarkivet er flatt i dag, så pass 2 er tomt).
+      await kopierObjektTre(
+        kildeObjekter,
+        (data) =>
+          ctx.prisma.reportObject.create({
+            data: { templateId: template.id, ...data },
+            select: { id: true },
+          }),
+        (id, parentId) =>
+          ctx.prisma.reportObject.update({ where: { id }, data: { parentId } }).then(() => undefined),
+      );
 
       // Opprett ProsjektBibliotekValg
       await ctx.prisma.prosjektBibliotekValg.create({

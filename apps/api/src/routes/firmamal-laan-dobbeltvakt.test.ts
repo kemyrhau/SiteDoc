@@ -33,12 +33,16 @@ const BIB_MAL = {
   beskrivelse: "Kontroll av grasdekker",
   kategori: "sjekkliste",
   domene: "kvalitet",
-  malInnhold: [
-    { label: "Type", type: "list_single", zone: "datafelter", fase: "FØR", sortOrder: 0 },
-    { label: "Resultat", type: "traffic_light", zone: "datafelter", fase: "ETTER", sortOrder: 1 },
-  ],
   kapittel: { standard: { kode: "NS 3420" } },
 };
+
+// Vei C: lånevegen leser objekt-RADENE (BibliotekMalObjekt), ikke lenger malInnhold.
+const BIB_RADER = [
+  { id: "r1", parentId: null, type: "heading", label: "Kontroll FØR utførelse", config: {}, translations: {}, sortOrder: 1, required: false },
+  { id: "r2", parentId: null, type: "list_single", label: "Type", config: { zone: "datafelter" }, translations: {}, sortOrder: 2, required: false },
+  { id: "r3", parentId: null, type: "heading", label: "Kontroll ETTER utførelse", config: {}, translations: {}, sortOrder: 3, required: false },
+  { id: "r4", parentId: null, type: "traffic_light", label: "Resultat", config: { zone: "datafelter" }, translations: {}, sortOrder: 4, required: false },
+];
 
 // Delt in-memory-lager: findFirst (ctx.prisma) og create (tx) ser samme tilstand,
 // slik at ANDRE lån finner det FØRSTE la inn.
@@ -54,7 +58,10 @@ function lagPrisma() {
         return { id: `ot-${lagrede.length}` };
       }),
     },
-    organizationTemplateObject: { create: vi.fn().mockResolvedValue({ id: "obj" }) },
+    organizationTemplateObject: {
+      create: vi.fn().mockResolvedValue({ id: "obj" }),
+      update: vi.fn().mockResolvedValue({ id: "obj" }),
+    },
   };
   return {
     _lagrede: lagrede,
@@ -69,6 +76,7 @@ function lagPrisma() {
       ),
     },
     bibliotekMal: { findUniqueOrThrow: vi.fn().mockResolvedValue(BIB_MAL) },
+    bibliotekMalObjekt: { findMany: vi.fn().mockResolvedValue(BIB_RADER) },
     $transaction: vi.fn().mockImplementation(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   };
 }

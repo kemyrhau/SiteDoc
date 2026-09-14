@@ -12,6 +12,8 @@
  * (SetNull ved sletting) blir stående. Se relay/inbox-seed-kun-opprett.md.
  */
 import { PrismaClient } from "@prisma/client";
+import { byggBibliotekRader } from "@sitedoc/shared";
+import type { BibliotekFeltData } from "@sitedoc/shared";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
 
@@ -90,12 +92,18 @@ export interface BibliotekMalSeed {
  * returneres «finnes» og raden RØRES IKKE (en revidert mal i DB skrives aldri tilbake
  * til fila sitt innhold). Mangler den, opprettes den og «opprettet» returneres.
  *
+ * Vei C del 1 (ordre bibliotekmal-objekttabell, Krav 6): innholdet skrives nå som
+ * `BibliotekMalObjekt`-RADER (inkl. materialiserte heading-rader), etter NØYAKTIG samme
+ * regel som migreringen — `byggBibliotekRader` (@sitedoc/shared) er den delte fasiten.
+ * `malInnhold` skrives som TOM array: kolonnen er frossen (leses ikke), og vi skriver
+ * ALDRI innholdet til begge former (Krav 4 — sannheten skal bo ett sted).
+ *
  * `db` injiseres slik at seeden kjører mot ekte PrismaClient og testen mot en fake —
  * testen verifiserer at en eksisterende rad aldri får create/update (vakten mot at
  * seeden igjen begynner å overskrive).
  */
 export async function opprettMalHvisMangler(
-  db: Pick<PrismaClient, "bibliotekMal">,
+  db: Pick<PrismaClient, "bibliotekMal" | "bibliotekMalObjekt">,
   kapittelId: string,
   mal: BibliotekMalSeed,
 ): Promise<"opprettet" | "finnes"> {
@@ -103,7 +111,7 @@ export async function opprettMalHvisMangler(
     where: { kapittelId, referanse: mal.referanse },
   });
   if (eksisterende) return "finnes";
-  await db.bibliotekMal.create({
+  const opprettetMal = await db.bibliotekMal.create({
     data: {
       kapittelId,
       referanse: mal.referanse,
@@ -111,10 +119,24 @@ export async function opprettMalHvisMangler(
       beskrivelse: mal.beskrivelse,
       prioritet: mal.prioritet,
       verifisert: mal.verifisert,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      malInnhold: mal.malInnhold as any,
+      malInnhold: [], // frossen kolonne — innholdet bor i radene under
     },
+    select: { id: true },
   });
+  const rader = byggBibliotekRader((mal.malInnhold ?? []) as BibliotekFeltData[]);
+  for (const rad of rader) {
+    await db.bibliotekMalObjekt.create({
+      data: {
+        templateId: opprettetMal.id,
+        type: rad.type,
+        label: rad.label,
+        config: rad.config,
+        translations: rad.translations,
+        sortOrder: rad.sortOrder,
+        required: rad.required,
+      },
+    });
+  }
   return "opprettet";
 }
 

@@ -35,6 +35,7 @@ import {
   autoriserMalTilgang,
 } from "../trpc/tilgangskontroll";
 import { finnLedigeMalVerdier } from "./mal";
+import { kopierObjektTre } from "./objektkopi";
 
 // Config-schema (som mal.ts): vilkårlig JSON for rapportobjekt-konfigurasjon.
 const configSchema = z.preprocess(
@@ -78,55 +79,6 @@ function faneWhere(fane: (typeof FANER)[number]): Prisma.OrganizationTemplateWhe
   }
 }
 
-// Kilde-objekt slik det leses fra begge mal-tabellene (felles form).
-type KildeObjekt = {
-  id: string;
-  parentId: string | null;
-  type: string;
-  label: string;
-  config: Prisma.JsonValue;
-  translations: Prisma.JsonValue;
-  sortOrder: number;
-  required: boolean;
-};
-
-/**
- * Dyp kopi av objekt-treet mellom ReportObject <-> OrganizationTemplateObject.
- * To-pass id-mapping (som mal.ts kopier): pass 1 oppretter uten parentId og bygger
- * gammel→ny id-map, pass 2 setter parentId. Bevarer treet uansett sortOrder, og
- * kopierer `config`/`translations` VERBATIM (zone-regelen).
- */
-async function kopierObjektTre(
-  kildeObjekter: KildeObjekt[],
-  opprett: (data: {
-    type: string;
-    label: string;
-    config: Prisma.InputJsonValue;
-    translations: Prisma.InputJsonValue;
-    sortOrder: number;
-    required: boolean;
-  }) => Promise<{ id: string }>,
-  settParent: (id: string, parentId: string) => Promise<void>,
-): Promise<void> {
-  const idMap = new Map<string, string>();
-  for (const obj of kildeObjekter) {
-    const nytt = await opprett({
-      type: obj.type,
-      label: obj.label,
-      config: (obj.config ?? {}) as Prisma.InputJsonValue,
-      translations: (obj.translations ?? {}) as Prisma.InputJsonValue,
-      sortOrder: obj.sortOrder,
-      required: obj.required,
-    });
-    idMap.set(obj.id, nytt.id);
-  }
-  for (const obj of kildeObjekter) {
-    if (!obj.parentId) continue;
-    const nyId = idMap.get(obj.id);
-    const nyParentId = idMap.get(obj.parentId);
-    if (nyId && nyParentId) await settParent(nyId, nyParentId);
-  }
-}
 
 // `malInnhold`-formen slik den leses fra BibliotekMal (felles for lån + oppdatering).
 type BibliotekFelt = {
@@ -147,7 +99,7 @@ type BibliotekFelt = {
  * (re-synk): begge må bygge IDENTISK tre, ellers ville en oppdatering avvike fra et
  * ferskt lån av samme mal.
  */
-async function byggFirmamalObjekterFraBibliotek(
+export async function byggFirmamalObjekterFraBibliotek(
   create: (data: {
     type: string;
     label: string;
@@ -853,7 +805,13 @@ export const firmamalRouter = router({
         include: { kapittel: { include: { standard: true } } },
       });
 
-      const malInnhold = bibMal.malInnhold as BibliotekFelt[];
+      // Vei C: objekt-treet leses fra RADENE (BibliotekMalObjekt), ikke lenger fra
+      // `malInnhold`. Overskriftene ligger som egne heading-rader og KOPIERES verbatim —
+      // ingen generering (den flyttet inn i migreringen/seeden via byggBibliotekRader).
+      const kildeObjekter = await ctx.prisma.bibliotekMalObjekt.findMany({
+        where: { templateId: bibMal.id },
+        orderBy: { sortOrder: "asc" },
+      });
 
       const nyId = await ctx.prisma.$transaction(async (tx) => {
         const nyMal = await tx.organizationTemplate.create({
@@ -870,10 +828,17 @@ export const firmamalRouter = router({
           select: { id: true },
         });
 
-        await byggFirmamalObjekterFraBibliotek(
+        await kopierObjektTre(
+          kildeObjekter,
           (data) =>
-            tx.organizationTemplateObject.create({ data: { templateId: nyMal.id, ...data } }),
-          malInnhold,
+            tx.organizationTemplateObject.create({
+              data: { templateId: nyMal.id, ...data },
+              select: { id: true },
+            }),
+          (id, parentId) =>
+            tx.organizationTemplateObject
+              .update({ where: { id }, data: { parentId } })
+              .then(() => undefined),
         );
 
         return nyMal.id;
@@ -925,15 +890,26 @@ export const firmamalRouter = router({
         include: { kapittel: { include: { standard: true } } },
       });
 
-      const malInnhold = bibMal.malInnhold as BibliotekFelt[];
+      // Vei C: objekt-treet leses fra radene, kopieres verbatim (som laanFraSentralarkiv).
+      const kildeObjekter = await ctx.prisma.bibliotekMalObjekt.findMany({
+        where: { templateId: bibMal.id },
+        orderBy: { sortOrder: "asc" },
+      });
 
       await ctx.prisma.$transaction(async (tx) => {
         // Full erstatning av objekt-treet (som oppdaterKopiFraHovedmal).
         await tx.organizationTemplateObject.deleteMany({ where: { templateId: firmamal.id } });
-        await byggFirmamalObjekterFraBibliotek(
+        await kopierObjektTre(
+          kildeObjekter,
           (data) =>
-            tx.organizationTemplateObject.create({ data: { templateId: firmamal.id, ...data } }),
-          malInnhold,
+            tx.organizationTemplateObject.create({
+              data: { templateId: firmamal.id, ...data },
+              select: { id: true },
+            }),
+          (id, parentId) =>
+            tx.organizationTemplateObject
+              .update({ where: { id }, data: { parentId } })
+              .then(() => undefined),
         );
         await tx.organizationTemplate.update({
           where: { id: firmamal.id },

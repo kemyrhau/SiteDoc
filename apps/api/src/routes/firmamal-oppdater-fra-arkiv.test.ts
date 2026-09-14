@@ -7,8 +7,8 @@ import { describe, it, expect, vi } from "vitest";
  * holde:
  *   (1) avstamning mangler (`laantFraBibliotekMalId = null`) → forklarende BAD_REQUEST,
  *       ingen skriving,
- *   (2) objekt-treet faktisk erstattet: gammelt tre slettes, nytt bygges fra
- *       bibliotekmalens `malInnhold`, og navn/beskrivelse/versjon oppdateres,
+ *   (2) objekt-treet faktisk erstattet: gammelt tre slettes, nytt KOPIERES fra
+ *       bibliotekmalens objekt-RADER (vei C), og navn/beskrivelse/versjon oppdateres,
  *   (3) prosjektmaler er UROERT: verken `reportTemplate` eller `reportObject` skrives —
  *       oppdatering av firmamalen dytter aldri noe ut i prosjektene (krav 4).
  *
@@ -41,19 +41,24 @@ const BIB_MAL = {
   beskrivelse: "Ny hjelpetekst",
   kategori: "sjekkliste",
   domene: "kvalitet",
-  malInnhold: [
-    { label: "Type materiale", type: "list_single", zone: "datafelter", fase: "FØR", sortOrder: 0 },
-    { label: "Bæreevne", type: "traffic_light", zone: "datafelter", fase: "ETTER", sortOrder: 1 },
-    { label: "Kommentar", type: "text", zone: "datafelter", sortOrder: 2 },
-  ],
   kapittel: { standard: { kode: "NS 3420" } },
 };
+
+// Vei C: treet kopieres fra RADENE. 3 felt + 2 fase-headinger = 5 rader.
+const BIB_RADER = [
+  { id: "r1", parentId: null, type: "heading", label: "Kontroll FØR utførelse", config: {}, translations: {}, sortOrder: 1, required: false },
+  { id: "r2", parentId: null, type: "list_single", label: "Type materiale", config: { zone: "datafelter" }, translations: {}, sortOrder: 2, required: false },
+  { id: "r3", parentId: null, type: "heading", label: "Kontroll ETTER utførelse", config: {}, translations: {}, sortOrder: 3, required: false },
+  { id: "r4", parentId: null, type: "traffic_light", label: "Bæreevne", config: { zone: "datafelter" }, translations: {}, sortOrder: 4, required: false },
+  { id: "r5", parentId: null, type: "text", label: "Kommentar", config: { zone: "datafelter" }, translations: {}, sortOrder: 5, required: false },
+];
 
 function lagPrisma(laantFraBibliotekMalId: string | null = BIB) {
   const tx = {
     organizationTemplateObject: {
       deleteMany: vi.fn().mockResolvedValue({ count: 3 }),
       create: vi.fn().mockResolvedValue({ id: "obj-ny" }),
+      update: vi.fn().mockResolvedValue({ id: "obj-ny" }),
     },
     organizationTemplate: { update: vi.fn().mockResolvedValue({ id: MAL }) },
     // Fanges hvis prosjekt-tabeller berøres (krav 4) — skal ALDRI kalles.
@@ -67,6 +72,7 @@ function lagPrisma(laantFraBibliotekMalId: string | null = BIB) {
         .mockResolvedValue({ id: MAL, organizationId: ORG, laantFraBibliotekMalId }),
     },
     bibliotekMal: { findUniqueOrThrow: vi.fn().mockResolvedValue(BIB_MAL) },
+    bibliotekMalObjekt: { findMany: vi.fn().mockResolvedValue(BIB_RADER) },
     reportTemplate: { create: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
     reportObject: { create: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn().mockImplementation(async (fn: (t: typeof tx) => unknown) => fn(tx)),

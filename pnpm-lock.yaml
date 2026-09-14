@@ -496,6 +496,9 @@ importers:
         specifier: ^6.3.0
         version: 6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3)
     devDependencies:
+      '@sitedoc/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.13

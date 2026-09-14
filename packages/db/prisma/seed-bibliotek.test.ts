@@ -8,6 +8,9 @@ import { opprettMalHvisMangler, type BibliotekMalSeed } from "./seed-bibliotek";
  * kjørte — den FEILER hvis create-only-regelen fjernes:
  *  - finnes malen fra før → ingen create, ingen update, status «finnes».
  * Reintroduseres upsert (update på eksisterende rad), slår `update`-forventningen til.
+ *
+ * Vei C del 1: seeden skriver nå BibliotekMalObjekt-RADER (inkl. heading-rad pr. fase) og
+ * TOM `malInnhold`. Testen låser begge: rader skrives, malInnhold er tom.
  */
 
 const malSeed: BibliotekMalSeed = {
@@ -25,16 +28,17 @@ function lagFakeDb(finnesFraFor: boolean) {
   // `update` finnes på ekte PrismaClient — tas med her nettopp for å kunne bevise at
   // den ALDRI kalles på en eksisterende rad. Kaller en fremtidig regresjon update, feiler testen.
   const update = vi.fn().mockResolvedValue({ id: "eksisterende-id" });
-  const db = { bibliotekMal: { findFirst, create, update } } as unknown as Pick<
-    PrismaClient,
-    "bibliotekMal"
-  >;
-  return { db, findFirst, create, update };
+  const objektCreate = vi.fn().mockResolvedValue({ id: "obj-id" });
+  const db = {
+    bibliotekMal: { findFirst, create, update },
+    bibliotekMalObjekt: { create: objektCreate },
+  } as unknown as Pick<PrismaClient, "bibliotekMal" | "bibliotekMalObjekt">;
+  return { db, findFirst, create, update, objektCreate };
 }
 
 describe("opprettMalHvisMangler — kun opprett, aldri oppdater", () => {
-  it("rører ALDRI en mal som finnes fra før (ingen create, ingen update)", async () => {
-    const { db, findFirst, create, update } = lagFakeDb(true);
+  it("rører ALDRI en mal som finnes fra før (ingen create, ingen update, ingen rader)", async () => {
+    const { db, findFirst, create, update, objektCreate } = lagFakeDb(true);
 
     const status = await opprettMalHvisMangler(db, "kap-id", malSeed);
 
@@ -44,18 +48,34 @@ describe("opprettMalHvisMangler — kun opprett, aldri oppdater", () => {
     });
     expect(create).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
+    expect(objektCreate).not.toHaveBeenCalled();
   });
 
-  it("oppretter malen når den mangler", async () => {
-    const { db, create, update } = lagFakeDb(false);
+  it("oppretter malen med TOM malInnhold og skriver rader (heading + felt)", async () => {
+    const { db, create, update, objektCreate } = lagFakeDb(false);
 
     const status = await opprettMalHvisMangler(db, "kap-id", malSeed);
 
     expect(status).toBe("opprettet");
     expect(create).toHaveBeenCalledTimes(1);
     expect(update).not.toHaveBeenCalled();
-    const arg = create.mock.calls[0]![0] as { data: { referanse: string; kapittelId: string } };
-    expect(arg.data.referanse).toBe("KA7");
-    expect(arg.data.kapittelId).toBe("kap-id");
+
+    const malArg = create.mock.calls[0]![0] as {
+      data: { referanse: string; kapittelId: string; malInnhold: unknown };
+    };
+    expect(malArg.data.referanse).toBe("KA7");
+    expect(malArg.data.kapittelId).toBe("kap-id");
+    // Frossen kolonne — innholdet bor i radene, ikke her (Krav 4).
+    expect(malArg.data.malInnhold).toEqual([]);
+
+    // 1 felt med fase FØR → 1 heading-rad + 1 feltrad.
+    expect(objektCreate).toHaveBeenCalledTimes(2);
+    const typer = objektCreate.mock.calls.map(
+      (c) => (c[0] as { data: { type: string } }).data.type,
+    );
+    expect(typer).toEqual(["heading", "list_single"]);
+    // Heading-raden har tom config.
+    const headingData = objektCreate.mock.calls[0]![0] as { data: { config: unknown } };
+    expect(headingData.data.config).toEqual({});
   });
 });
