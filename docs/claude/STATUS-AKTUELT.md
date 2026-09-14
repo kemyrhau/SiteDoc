@@ -4,6 +4,29 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟡 2026-09-14 — Fabels avviksgodkjenning B (heading-rader) + KC3.1 lagt bort. Ingen kode, ingen deploy.
+
+**Committet** (`docs/redesign/avviksgodkjenning-b-heading-rader-fabel-2026-09-14.md`), uendret, fra fabel-pakke
+`til-repo-2026-09-14-0940`. Verifisert: kun den ene fila, ingen `.DS_Store`, fantes ikke fra før.
+
+- 🟢 **VEDTAK: Design B** — heading-rader materialiseres, **rad per felt + én heading-rad per distinkt fase.** A avvist
+  (`config.fase` viderefører spesialtilfellet C skulle fjerne, bryter Kenneths krav om like egenskaper på alle tre nivåer).
+- 🟢 **Krav 2a revidert (erstatter vei C § krav 1):** dry-run per mal viser TRE tall — felt i JSON · distinkte faser ·
+  rader etter migrering — og **radantall == felt + faser** (KC3.1: 8+3=11). Negativ kontroll: heading-rader har ingen config/hjelpetekst.
+  Idempotens (×2 = samme) uendret. **Fabel: «Krav 2a var formulert mot en antakelse redesigns måling motbeviste — da er det
+  kravet som skal justeres, ikke speilingen.»** Overskriftene genereres ved lån (`firmamal.ts:161-176`), ikke fra JSON-felt.
+- 🔴 **Konsekvens for lånevegen (krav 2 skjerpet):** round-trip-testen skal nå OGSÅ bevise at rad-veiens genererte
+  overskrifter == malInnhold-veiens. Heading-radene **erstatter** genereringen i `firmamal.ts:161-176`, ikke dobles — genereringen fjernes i C del 2.
+- 🟢 **KC3.1 LAGT BORT (Kenneth 14.09):** «KC3.1 er ikke helt ferdig → den er IKKE viktig → bruk versjonen som er der i dag.»
+  `feat/mal-kc31-revisjon` **merges ikke, står åpen og urørt.** Migreringen tar databasens nåværende innhold. **Ingen blokkering av C del 1.**
+- 🔴 **MÅLT 14.09 — seeden er IKKE fasit for databasen:** KC3.1 har `antall_felt = 9` i `sitedoc_test`, mens develop-seeden gir 4
+  og `feat/mal-kc31-revisjon` gir 8. Seeden legger ikke til heading-objekter (`seed-bibliotek.ts:129-146`). Noe har skrevet til
+  `mal_innhold` utenom seeden — sannsynligvis `oppdaterMal`. **Migrerings-dry-run må måle mot faktisk DB, ikke seed.**
+- ⚠️ **Nytt målt, ikke bestilt:** `BibliotekMal` har `opprettet`, men **INGEN `updatedAt`** (`schema.prisma`). SiteDoc-nivået har
+  ingen endringshistorikk. Henger sammen med funn #8.
+
+---
+
 ## 🟡 2026-09-14 — Fabels KS av vei C committet (objekt-tabell på BibliotekMal). Ingen kode, ingen deploy.
 
 **Mottatt og committet** (`docs/redesign/ks-sitedoc-niva-vei-c-fabel-2026-09-14.md`), uendret, fra fabel-pakke
@@ -15,14 +38,8 @@ sist_verifisert_mot_kode: 2026-08-09
 - 🔴 **RETTELSE (coworks feil, MÅLT AV MEG):** ordren pekte på `autoriserMalTilgang`; gaten heter faktisk
   **`verifiserSiteDocAdmin`** — definert `apps/api/src/routes/bibliotek.ts:13`, kalt `:280` og `:323`. Ingen
   `autoriserMalTilgang` i fila. Samme jobb, feil navn i ordren. **Ordre-malen skal peke på FAKTISK funksjonsnavn, målt — ikke antatt.**
-- 🔴 **REKKEFØLGE — ⚠️ KONFLIKT MELLOM RELAY OG KILDE, må avklares før C del 1:**
-  - **Fabels notat krav 4 (kilden):** `C del 1 (tabell + migrering)` → `KC3.1 på ny form` → `C del 2 (ruting)`.
-    Logisk: KC3.1 «på ny form» (rad-form) krever at tabellen finnes først.
-  - **Relay-ordren skrev derimot:** `KC3.1 merges` → `C del 1` → `C del 2` → riving (KC3.1 FØR C del 1), og «KC3.1 blokkerer nå C del 1».
-  - 🔴 **Disse motsier hverandre om KC3.1s plass. Jeg velger ikke — cowork/Kenneth avklarer. Fabels kilde sier C del 1 først.**
-  - ⚠️ **Felles i begge:** KC3.1 og resten av 12-mal-køen kjøres IKKE parallelt med migreringen (`seed-bibliotek.ts` bytter skriveform).
+- 🟢 **REKKEFØLGE-konflikten jeg flagget her er BORTFALT (Kenneth 14.09):** KC3.1 er lagt bort — se runde-toppen. Migreringen tar databasens nåværende innhold; ingen KC3.1-avhengighet igjen. *(Historikk: jeg flagget at relay-ordren la KC3.1 før C del 1 mens fabels krav 4 la C del 1 først — spørsmålet er nå moot.)*
 - 🔴 **`malInnhold`-kolonnen FRYSES etter migrering** (leses ikke), slettes i egen senere runde etter verifisert testperiode — **aldri samtidig med migreringen.**
-- 🟡 **ÅPENT: Kenneth har ikke gatet KC3.1s innhold ennå.**
 - 🟢 **redesign bygger C del 1** på `feat/bibliotekmal-objekttabell`.
 - ⚠️ **Uendret åpent:** rettighetsmatrisen vs. ulåst SiteDoc-fane · N dager auto-tømming · fargeføringen · funn #21 (↻ og MalBygger muterer under eksisterende dokumenter).
 
