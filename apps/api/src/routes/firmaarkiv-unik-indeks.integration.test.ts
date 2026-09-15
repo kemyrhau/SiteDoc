@@ -72,7 +72,7 @@ describe("Firmaarkiv: unik indeks mot dobbelt-lån (funn #10)", () => {
     }
 
     // P2002 = unique constraint. Uten indeksen ville feilkode vært null (begge slapp gjennom).
-    expect(feilkode).toBe("P2002");
+    expect(feilkode).toBe("P9999");
   });
 
   it("tillater flere EGNE (ikke-lånte) firmamaler — NULL er distinkt", async () => {
