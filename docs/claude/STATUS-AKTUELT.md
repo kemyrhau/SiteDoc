@@ -4,6 +4,25 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟢 2026-09-15 — `admin/bibliotek` ekte lese-only (TILLEGG 2) merget (`8c84cc77`). Utløser web-deploy.
+
+**Merget `fix/admin-bibliotek-laast-visning` (ren fast-forward `e204f00f..8c84cc77`).** Én fil, +29/−10:
+`apps/web/src/app/dashbord/admin/bibliotek/page.tsx`. Ingen i18n-, skjema- eller API-endring. Gate fra ROT grønn:
+`db 2 · api 486 · pdf 120 · shared 823 · web 235` — alle stille.
+
+- 🟢 **VEI C DEL 1 VERIFISERT PÅ TEST 15.09** — begge lånevegene virker mot rad-veien: prosjekt
+  (`oppsett/produksjon/sjekklistemaler` → «Hent fra arkiv» → SiteDoc-arkiv) og firma (`firma/malarkiv` → «Lån fra SiteDoc-arkivet»). Kenneth bekreftet.
+- 🟢 **`admin/bibliotek` er nå EKTE lese-only** — høyre panel (`FeltKonfigurasjon` + type/fase-nedtrekk) skjules når flaten er låst.
+  Venstre + midten står: tre, malnavn, referanse, beskrivelse, feltliste gruppert per fase med felttype-merke.
+- 🟢 **Kun låsebanneret vises.** Nivåbanneret skjules på låst flate (vei a) — `nivaabanner.sitedoc.scope` er URØRT, MalBygger trenger den i del 2.
+- 🔴 **Kenneth-vedtak 15.09: ingen `laast`-prop i `FeltKonfigurasjon`** — delt komponent + flate som rives i del 2 = feil sted å bygge gjeld. Derfor skjules panelet.
+- ⚠️ **MELDT av redesign, Kenneth-gatet:** feltlisten viser etikett og type, men ikke per-felt hjelpetekst, påkrevd-flagg eller valgalternativer
+  (de lå kun i høyre panel). Akseptert fram til del 2.
+- 🔴 **NESTE i køen:** i18n-gjelden (mal-Opus — tallet telles på nytt, 132 ble 134 etter TILLEGG 1) → strengharmonisering → vei C del 2.
+- ⚠️ **Uendret åpent:** rettighetsmatrisen vs. ulåst SiteDoc-fane · N dager auto-tømming · fargeføringen · funn #21 · `BibliotekMal` mangler `updatedAt`.
+
+---
+
 ## 🔴 2026-09-15 — Vei C del 1 MERGET til develop (`ac7afb33`). BÆRER MIGRERING — deploy BUILD→MIGRATE→UP.
 
 **Merget `feat/bibliotekmal-objekttabell` (ren fast-forward `fe13e5d8..ac7afb33`).** To commits: `a6bee514` (tabell + migrering, Design B)
