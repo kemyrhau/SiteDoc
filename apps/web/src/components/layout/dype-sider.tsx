@@ -70,9 +70,9 @@ export const dypeSider: DypSide[] = [
     id: "sitedocArkiv",
     labelKey: "sok.sitedocArkiv",
     brodsmuleKeys: [], // ingen egen sone i nav for SiteDoc-arkivet (meldt)
-    // 🔴 Følger flaten: når admin/bibliotek rives (vei C-oppfølger) flyttes MalBygger-inngangen
-    // til Innstillinger › Malforvaltning — oppdater denne href-en da, ellers blir den død lenke.
-    href: () => "/dashbord/admin/bibliotek",
+    // Flyttet fra det revne /dashbord/admin/bibliotek til Malforvaltning › SiteDoc-arkiv
+    // (ordre malforvaltning PR 1). Fanen velges i flaten; ingen query-param i søketreffet.
+    href: () => "/dashbord/firma/innstillinger/malforvaltning",
     kreverSitedocAdmin: true,
   },
 ];

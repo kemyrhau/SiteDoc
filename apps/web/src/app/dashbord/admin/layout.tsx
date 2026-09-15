@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Building2, Shield, FlaskConical, Database, SlidersHorizontal, HardDrive, Library } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Building2, Shield, FlaskConical, Database, SlidersHorizontal, HardDrive } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 
@@ -50,11 +50,8 @@ const navigasjon = [
     href: "/dashbord/admin/lagring",
     ikon: <HardDrive className="h-4 w-4" />,
   },
-  {
-    label: "Bibliotek",
-    href: "/dashbord/admin/bibliotek",
-    ikon: <Library className="h-4 w-4" />,
-  },
+  // «Bibliotek» fjernet (ordre malforvaltning): SiteDoc-sentralarkivet er flyttet til
+  // Firma › Innstillinger › Malforvaltning › SiteDoc-arkiv. admin/bibliotek er revet.
 ];
 
 export default function AdminLayout({

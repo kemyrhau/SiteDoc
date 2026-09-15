@@ -9,22 +9,13 @@ import { MalBygger } from "@/components/malbygger";
 import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
 
 /**
- * SiteDoc-sentralarkivet (`/dashbord/admin/bibliotek`, sitedoc_admin).
- *
- * Vei C del 2 (ordre malbygger-sitedoc-niva): venstre trestruktur (Standard → Kapittel →
- * Mal) er navigasjonen — den eneste som finnes til sentralmalene — og høyresiden er nå
- * MalBygger i sitedoc-modus (`nivaa="sitedoc"`, objekt-CRUD mot `trpc.bibliotek.*` →
- * BibliotekMalObjekt-radene). «C fjerner spesialtilfellet»: sentralmaler redigeres med
- * SAMME malbygger som firma og prosjekt, mot samme objekt-form.
- *
- * Låsen fra TILLEGG 1/2 er borte: redigering er ekte igjen, så låsebanneret («Endringer
- * lagres ikke») er fjernet og nivåbanneret er tilbake — scope-teksten er sann på nytt.
- *
- * Rivingen av flaten (flytting inn under Innstillinger › Malforvaltning) er en senere runde
- * etter Kenneths visuelle gate. De gamle prosedyrene `hentMalRedigering`/`oppdaterMal` er
- * arveløse etter denne runden (ingen kaller) — meldt ubrukte, slettes ved riving.
+ * SiteDoc-arkiv-fanen i Malforvaltning (flyttet fra `/dashbord/admin/bibliotek`, ordre
+ * malforvaltning Krav 3). Uendret form fra vei C del 2 som Kenneth gatet visuelt: venstre
+ * trestruktur (Standard → Kapittel → Mal) er navigasjonen, høyre er MalBygger i sitedoc-modus
+ * (`nivaa="sitedoc"`, objekt-CRUD mot `trpc.bibliotek.*` → BibliotekMalObjekt-radene).
+ * Gatingen ligger i flaten over (kun erSitedocAdmin ser denne fanen).
  */
-export default function BibliotekAdminSide() {
+export function SitedocArkivFane() {
   const { t } = useTranslation();
   const standarderQuery = trpc.bibliotek.hentStandarder.useQuery();
   const [apneStandarder, setApneStandarder] = useState<Record<string, boolean>>({});

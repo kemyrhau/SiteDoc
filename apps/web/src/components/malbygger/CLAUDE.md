@@ -14,8 +14,9 @@ samme malbygger som de to andre. Skjermbildet er IDENTISK; det eneste som skille
 datalaget.
 
 - `nivaa?: MalNivaa` på `MalBygger` (default `"prosjekt"`). Firma-inngang:
-  `dashbord/firma/malarkiv/[malId]/page.tsx`. Sitedoc-inngang: `dashbord/admin/bibliotek/
-  page.tsx` (venstre trestruktur = navigasjon, MalBygger til høyre ved malvalg).
+  `dashbord/firma/malarkiv/[malId]/page.tsx`. Sitedoc-inngang: `dashbord/firma/innstillinger/
+  malforvaltning` › SiteDoc-arkiv-fanen (venstre trestruktur = navigasjon, MalBygger til
+  høyre ved malvalg). Flyttet fra det revne `dashbord/admin/bibliotek` (ordre malforvaltning).
 - **`useMalDatakilde.ts`** kapsler skillet: alle tre routernes `useMutation` opprettes (hooks
   kan ikke kalles betinget; ubrukt mutasjon er inert), det aktive nivået velges via
   `velgMutasjon(nivaa, {prosjekt, firma, sitedoc})` — et oppslagsobjekt der HVER gren er

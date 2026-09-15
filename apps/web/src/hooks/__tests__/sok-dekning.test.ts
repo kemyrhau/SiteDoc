@@ -80,9 +80,7 @@ const UNNTAK: { test: (r: string) => boolean; grunn: string }[] = [
   { test: (r) => r === "/dashbord/[prosjektId]/modeller" || r === "/dashbord/[prosjektId]/punktskyer", grunn: "K4 3D-konsolidering (utsatt)" },
   { test: (r) => r === "/dashbord/nytt-prosjekt", grunn: "opprett-handling (K13-c)" },
   { test: (r) => r.startsWith("/dashbord/prosjekter"), grunn: "K9 legacy prosjekt-tre (redirect)" },
-  // admin/bibliotek er nå søkbart (dype-sider «SITEDOC-ARKIV», TILLEGG 1) → dekket, ikke unntatt.
-  // Resten av /dashbord/admin står i K11-unntaket.
-  { test: (r) => r.startsWith("/dashbord/admin") && r !== "/dashbord/admin/bibliotek", grunn: "K11 admin-redesign (utsatt)" },
+  { test: (r) => r.startsWith("/dashbord/admin"), grunn: "K11 admin-redesign (utsatt)" },
   // Mekaniske kategorier:
   { test: (r) => /\/\[[^\]]+\]$/.test(r), grunn: "detaljside (dynamisk [id])" },
   { test: (r) => /\/(ny|nytt)$/.test(r), grunn: "opprett-side (K13-c)" },
@@ -124,7 +122,7 @@ describe("K13 — søkedekning", () => {
  */
 describe("TILLEGG 1 — arkiv-søk gating (negativ kontroll)", () => {
   const FIRMA = "/dashbord/firma/malarkiv";
-  const SITEDOC = "/dashbord/admin/bibliotek";
+  const SITEDOC = "/dashbord/firma/innstillinger/malforvaltning";
   const hrefs = (sider: typeof dypeSider) => sider.map((s) => s.href(null));
 
   it("SiteDoc-admin ser BÅDE firmaarkiv og SiteDoc-arkiv i dype-sider", () => {

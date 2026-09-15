@@ -25,20 +25,6 @@ async function verifiserSiteDocAdmin(prisma: PrismaClient, userId: string): Prom
   }
 }
 
-// Ett felt i en bibliotekmals malInnhold (JSON). Speiler seed-formen
-// { label, type, zone, fase, config } + valgfri required/sortOrder som
-// feltredigeringen (FeltKonfigurasjon) fører. importerMal leser label/type/
-// zone/fase/config/sortOrder — alle bevares gjennom en redigering.
-const feltSchema = z.object({
-  label: z.string(),
-  type: z.string().min(1),
-  zone: z.string().optional(),
-  fase: z.string().nullable().optional(),
-  config: z.record(z.unknown()).optional(),
-  required: z.boolean().optional(),
-  sortOrder: z.number().optional(),
-});
-
 export const bibliotekRouter = router({
   /** Alle standarder med kapitler og maler */
   hentStandarder: protectedProcedure
@@ -247,82 +233,10 @@ export const bibliotekRouter = router({
       return { ok: true };
     }),
 
-  /**
-   * Full mal for redigering i /admin/bibliotek (sitedoc_admin). I motsetning til
-   * `hentMalInnhold` (som stripper config og fase-overskrifter for «inspiser før
-   * lån») returnerer denne RÅ malInnhold med config — feltredigeringen trenger alt.
-   */
-  hentMalRedigering: protectedProcedure
-    .input(z.object({ bibliotekMalId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
-      const mal = await ctx.prisma.bibliotekMal.findUniqueOrThrow({
-        where: { id: input.bibliotekMalId },
-        select: {
-          id: true,
-          navn: true,
-          referanse: true,
-          beskrivelse: true,
-          verifisert: true,
-          malInnhold: true,
-          kapittel: {
-            select: {
-              kode: true,
-              navn: true,
-              standard: { select: { kode: true, navn: true } },
-            },
-          },
-        },
-      });
-      return mal;
-    }),
-
-  /**
-   * Rediger en eksisterende sentralmal (sitedoc_admin). Retteveien inn i arkivet.
-   *
-   * Rører KUN arkivmalen: navn/referanse/beskrivelse + hele malInnhold-lista
-   * (felt-etikett, type, hjelpetekst, valgopsjoner, fase, rekkefølge). Kopierings-
-   * modellen (spec:631) er enveis — allerede importerte firma-/prosjektmaler er
-   * frosne snapshots og røres IKKE herfra.
-   *
-   * `verifisert` settes bevisst IKKE her: feltet betyr «fagkontrollert mot normen»,
-   * en tekstretting er ikke en fagkontroll, og prod-gaten (seed-bibliotek.ts:645)
-   * hviler på flagget. `aktiv`/`versjon`/`kategori`/`domene` er også utenfor scope.
-   */
-  oppdaterMal: protectedProcedure
-    .input(z.object({
-      bibliotekMalId: z.string(),
-      navn: z.string().min(1),
-      referanse: z.string().min(1),
-      beskrivelse: z.string().nullable(),
-      malInnhold: z.array(feltSchema),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
-
-      // Kaster NOT_FOUND hvis malen er borte — klienten viser meldingen (ingen stille feil).
-      await ctx.prisma.bibliotekMal.findUniqueOrThrow({
-        where: { id: input.bibliotekMalId },
-        select: { id: true },
-      });
-
-      // Normaliser sortOrder til array-rekkefølgen (innenfor hver fase gjelder
-      // array-orden i importerMal; eksplisitt sortOrder holder hentMalInnhold enig).
-      const malInnhold = input.malInnhold.map((f, i) => ({ ...f, sortOrder: i })) as unknown as Prisma.InputJsonValue;
-
-      const oppdatert = await ctx.prisma.bibliotekMal.update({
-        where: { id: input.bibliotekMalId },
-        data: {
-          navn: input.navn,
-          referanse: input.referanse,
-          // Tom beskrivelse lagres som null (DB skal aldri bære "" — defensivt uansett kaller).
-          beskrivelse: input.beskrivelse || null,
-          malInnhold,
-        },
-        select: { id: true, navn: true, referanse: true, beskrivelse: true, malInnhold: true },
-      });
-      return oppdatert;
-    }),
+  // hentMalRedigering + oppdaterMal SLETTET (ordre malforvaltning, Krav 3): den gamle
+  // /admin/bibliotek-editoren er revet, og de var arveløse (ingen kaller) etter vei C del 2.
+  // Redigering skjer nå gjennom MalBygger på sitedoc-nivå (hent/leggTilObjekt/oppdaterObjekt/
+  // oppdaterRekkefolge/slettObjekt/oppdater under) mot BibliotekMalObjekt-radene.
 
   /* --- Vei C del 2 (ordre malbygger-sitedoc-niva): MalBygger på SiteDoc-nivå ----------
    * Speiler firmamal.ts sine objekt-prosedyrer FELT FOR FELT, men mot BibliotekMalObjekt-

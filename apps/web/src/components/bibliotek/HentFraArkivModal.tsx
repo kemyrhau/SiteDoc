@@ -327,7 +327,7 @@ export function HentFraArkivModal({
               fotnote={
                 kanRedigereSitedoc ? (
                   <Link
-                    href="/dashbord/admin/bibliotek"
+                    href="/dashbord/firma/innstillinger/malforvaltning"
                     className="text-sitedoc-primary hover:underline"
                   >
                     {t("maler.arkiv.fotSitedocRediger")}
