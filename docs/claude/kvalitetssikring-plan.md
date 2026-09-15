@@ -1,7 +1,7 @@
 ---
 name: kvalitetssikring-plan
 description: 🟢 VEDTATT 2026-08-31 — fire lag mot regresjoner, rangert etter hva de garanterer. Utløst av tre regresjoner på én dag som alle kompilerte grønt.
-sist_verifisert_mot_kode: 2026-09-15
+sist_verifisert_mot_kode: 2026-09-16
 ---
 
 # Kvalitetssikring — fire lag mot regresjoner
@@ -176,6 +176,34 @@ jobb-oppdeling nødvendig ennå.
 🔴 **Dette lukker også et konkret hull:** `firmaarkiv-unik-indeks.integration.test.ts` ble
 skrevet i runde 95 for «stille tomhet»-krav (b) (DB-garanti mot duplikat), men var ekskludert
 fra `pnpm test` og hadde aldri kjørt. Kvitteringen «grønn» var aldri sann før nå.
+
+### 🟢 «Stille tomhet»-rekvittering 2026-09-16: tre mock-kvitteringer gjort ekte (integrasjon 17→33)
+
+Tre migreringer var kvittert mot CLAUDE.md § «Stille tomhet» krav (c) — *«en test som FEILER
+når feltet er tomt»* — men kun med **mockede** tester, som måler vakten, ikke dataen. Nå har
+de hver sin integrasjonstest mot engangs-Postgres (mockene BLIR STÅENDE — de tester andre ting):
+
+- **`20260908140000_dokumentnummer_unik`** → `dokumentnummer-unik.integration.test.ts` (6): begge
+  unike indekser (`checklists`/`tasks` `(template_id, number)`) biter (P2002); samme nummer under
+  ULIK mal er lovlig (indeksen er riktig avgrenset); **`number` er nullable** (maler uten `prefix`
+  får aldri nummer) → flere NULL kolliderer ikke (NULLS DISTINCT). En mock kan ikke skille en
+  riktig avgrenset indeks fra en for bred — det krever ekte Postgres-unikhet.
+- **`20260910130000_gruppe_systemnokkel`** → `gruppe-systemnokkel.integration.test.ts` (5): den
+  ALVORLIGSTE (saken som skapte regelen). `sikreHmsGruppe` bruker `systemNokkel`, ikke domener
+  (en bred `["bygg","hms","kvalitet"]`-gruppe tilfredsstiller ikke); en umarkert HMS-gruppe
+  (`systemNokkel=NULL`) detekteres IKKE (krav c i renform); idempotent. 🟢 **DB-garanti bekreftet:**
+  den partielle unik-indeksen `(project_id, system_nokkel) WHERE NOT NULL` gjør to
+  `system_nokkel='hms'` per prosjekt UMULIG (P2002) — garantien hviler IKKE på backfillen alene.
+- **`20260914120000_bibliotekmal_objekttabell`** → `bibliotekmal-objekttabell.integration.test.ts`
+  (5): heading-rader har FAKTISK tom `config` i JSONB (ikke `{zone}`, ikke NULL); `translations`
+  lagres som `{}` (ikke NULL); lån via rad-veien (`kopierObjektTre`) er verbatim mot ekte data;
+  rad-skrivingen er idempotent via en NOT EXISTS-vakt som speiler migreringen og seedens
+  `opprettMalHvisMangler` (den manuelle `ROLLBACK`-en gjort til en test). Vakten defineres i
+  testfila, ikke importeres fra `packages/db/prisma` — en kryss-pakke-import ville tatt seed-fila
+  inn i api-`tsc`-bygget (utenfor rootDir) og gjort `pnpm test` rød.
+
+🔴 **Negativ kontroll (krav 4) kjørt lokalt mot engangs-Postgres 2026-09-16** for alle tre: hver
+brutt, sett rød, tilbakestilt. Integrasjonstallet i CI stiger fra **17 → 33** (+16).
 
 🔴 **Samme form som de tre andre stille feilene i samme døgn:** en Entra-secret som gikk ut uten
 varsel, containere som ikke restarter uten varsel, og nå en migrering som feiler mens deployen ser
