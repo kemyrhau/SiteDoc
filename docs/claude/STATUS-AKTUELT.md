@@ -4,6 +4,31 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟢 2026-09-15 — Malforvaltning PR 1 merget (`c192104c`): skall + gating + SiteDoc-fane, `admin/bibliotek` REVET. Utløser web-deploy.
+
+**Merget `feat/malforvaltning` (ren fast-forward `4447fb0a..c192104c`).** 13 filer, +200/−214 (netto MINDRE kode). i18n kun `nb`/`en`.
+Gate fra ROT grønn (`pnpm install` + `prisma generate` ×4): **`db 2 · api 488 · pdf 120 · shared 823 · web 244`** — `api` FALT −4
+(`bibliotek-oppdater-mal.test.ts` slettet med `oppdaterMal`), `web` STEG +4 (`malforvaltning-tilgang.test.ts` gating-negativ-kontroll). Kald web-bygg grønn.
+
+- 🟢 **MALFORVALTNING PR 1 LEVERT** — `/dashbord/firma/innstillinger/malforvaltning`. Skall + gating + SiteDoc-arkiv-fanen.
+- 🔴 **`admin/bibliotek` ER REVET.** Flaten flyttet (git: rename R082) til `malforvaltning/_components/SitedocArkivFane.tsx`.
+  `bibliotek.hentMalRedigering` og `oppdaterMal` slettet — **verifisert arveløse repo-vidt (grep i web+mobil = null kallere).**
+  `/dashbord/admin`-unntaket i `sok-dekning.test.ts` gjenopprettet i full bredde.
+- 🟢 **Gating bevist:** ren `gateMalforvaltningFaner()` — SiteDoc-admin ser SiteDoc-fanen · prosjektadmin/-bruker ser INGEN fane → flaten skjult · direkte URL «ingen tilgang» · ingen søketreff.
+- 🔴 **KENNETH-VEDTAK 15.09, tre stykker:**
+  1. Firmaarkiv-fanen blir ÉN liste med filtrerbar maltype-kolonne — ikke underfaner. «L9-adskillingen tapes ikke — flyttes fra faner til kolonne + filter».
+  2. Papirkurv-fanen BLOKKERT: `firmamal.slett` hard-sletter (`firmamal.ts:499`), `OrganizationTemplate` mangler `deletedAt` — mockupens «Papirkurv (5)» har ingen data. Egen skjemarunde med backfill, DB-garanti og feilende test på tom kolonne. Samme runde definerer auto-tømming (N dager).
+  3. `firma/malarkiv` RIVES i PR 2 — men først når Malforvaltning beviselig dekker alt, med bevis per funksjon, redirect og oppdatert «Tilbake til …»-whitelist.
+- 🔴 **RETTELSE hos fabel:** hans vedtaksnotat leste «#3» som `firma/malarkiv`. Kenneths bilde #3 var `/dashbord/oppsett/produksjon/sjekklistemaler` — prosjektarkivet. Kenneth har aldri sagt at `firma/malarkiv` skal bestå.
+- 🟢 **LÅST OPP: lese/redigere-aksen.** Alle prosjektmedlemmer LESER fra alle tre arkivene via «Hent fra arkiv»; kun firma-/SiteDoc-admin FORVALTER. **Rettighetskonflikten fra 12.09 er løst — matrisen var ikke feil, den manglet en akse.** 🔴 `hentStandarder`-sikkerhetsrunden er nå ulåst; `terminologi.md § 0` skal oppdateres — begge bestilles av cowork.
+- 🟡 **MELDT (ingen handling nå):** ingen nav-lenke i PR 1 med vilje — en firmaadmin har ingen fane ennå, lenke til tom flate = samme løgn som `admin/bibliotek` var. Lenken legges i PR 2. Flaten nås via søk + fotnoten.
+- 🟡 **MELDT:** SiteDoc-arkivet lever nå under firma-kontekst og krever valgt firma, selv om arkivet er firma-uavhengig. Harmløst (SiteDoc-admin har alltid firma valgt via FirmaVelger). Nyanse, ikke feil.
+- ⚠️ **Ny i18n-gjeld: nøkler i `nb`/`en` som de tretten mangler.** 🔴 mal-Opus' nøkkelsett-test er bestilt, fanger klassen permanent.
+- 🔴 **NESTE: Kenneths visuelle gate på ny rute → PR 2.**
+- ⚠️ **Uendret åpent:** papirkurv i sidefeltet · funn #21 · `BibliotekMal` mangler `updatedAt` · fastefelt-kolonnene · N dager auto-tømming · fargeføringen.
+
+---
+
 ## 🟢 2026-09-15 — Malarkiv ut av sidefeltet + alle tre arkivnivåer søkbare merget (`aab32f9e`). Utløser web-deploy.
 
 **Merget `fix/malarkiv-ut-av-sidefelt` (ren fast-forward `84df84ab..aab32f9e`).** To commits: `ecf3df9d` (menypunkt ut) + `aab32f9e`
