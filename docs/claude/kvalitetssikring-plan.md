@@ -1,7 +1,7 @@
 ---
 name: kvalitetssikring-plan
 description: 🟢 VEDTATT 2026-08-31 — fire lag mot regresjoner, rangert etter hva de garanterer. Utløst av tre regresjoner på én dag som alle kompilerte grønt.
-sist_verifisert_mot_kode: 2026-08-31
+sist_verifisert_mot_kode: 2026-09-15
 ---
 
 # Kvalitetssikring — fire lag mot regresjoner
@@ -106,9 +106,23 @@ kontroller øverst — er de truffbare (`idb ui tap`, ikke øyemål).
 2. **`apps/mobile` har verken tester eller script.** Ikke skriv suiter for syns skyld —
    lag 2 dekker atferden bedre. Men et par rene enhetstester på `feltLaasing`-klassen og
    `flytPosisjon.nesteLedd` ville fanget logikk vi har brutt to ganger.
-3. **E2E kjøres ikke i CI.** Ti Playwright-filer finnes. Vurder om de er vedlikeholdt nok til
-   å slås på, eller om de skal arkiveres — en testsuite som ikke kjører er verre enn ingen,
-   fordi den ser ut som dekning.
+3. **E2E kjøres BEVISST IKKE i CI (avklart 2026-09-15).** Sju spec-er (`tests/e2e/tests/`,
+   8 test-case) dekker hele dokumentflyten — nettopp pilotflyten A.Markussen skal bruke. Men
+   suiten er en røyktest mot det **kjørende** test.sitedoc.no + api-test.sitedoc.no,
+   autentisert via hemmeligheten `DEV_LOGIN_SECRET`, og `global-setup.ts` **muterer den delte
+   `sitedoc_test`-DB-en** (lager/sletter E2E-firma og -dokumenter, kjører admin-sweep). Å
+   tvinge den inn i CI ville enten brutt «aldri mot `sitedoc_test`» eller krevd et efemært
+   miljø. Den er **ikke arkivert** — den kjøres manuelt (`pnpm e2e`) og er vedlikeholdt.
+
+   🟡 **PLANLAGT SPOR — efemær e2e-jobb i CI (omfangsestimat).** For å få pilotflyten inn i CI
+   uten å røre delt miljø, kreves en selvstendig jobb som per kjøring: (a) starter en
+   engangs-Postgres (samme pgvector-image), (b) `migrate deploy` + seeder testbrukere +
+   E2E-flyt (`seed-testbrukere.ts`, `seed-e2e-flyt.ts`), (c) bygger og starter web+api mot den
+   DB-en, (d) setter en CI-lokal `DEV_LOGIN_SECRET` og peker `E2E_BASE_URL`/`E2E_API_URL` mot
+   de lokale serverne, (e) kjører `pnpm e2e`. **Grovt anslag: 1–2 dedikerte runder** (web+api
+   build i CI + seed-orkestrering er det tunge), og kjøretid legger trolig flere minutter på —
+   da hører den hjemme som **egen parallell jobb**, ikke i `test`-jobben. Eget spor; ikke i
+   denne runden (som kun slår på eksisterende tester).
 
 ---
 
@@ -140,16 +154,28 @@ dokgen sammenlignet **11 migreringer** fra siste 14 dager mot **107 `@@map`-verd
 🟢 `db-timer` bruker skjema-kvalifisert `"timer"."eksport_oppsett"` korrekt.
 **Dette var en isolert skrivefeil, ikke et mønster.**
 
-### 🟡 Forslag: LAG 5 — kjør migreringene mot en tom engangs-DB i CI
+### 🟢 LAG 5 — REALISERT 2026-09-15: engangs-Postgres i CI (integrasjonstestene)
 
-En Postgres-service-container i `.github/workflows/ci.yml`, og
-`prisma migrate deploy` for alle fire db-pakker mot den.
+`.github/workflows/ci.yml` har nå en Postgres-service-container, kjører
+`prisma migrate deploy` (kun `@sitedoc/db` — integrasjonstestene rører bare kjernen) og
+deretter `pnpm test:integration` (17 tester i 4 filer) mot den. Engangs-DB, rives med
+jobben — aldri `sitedoc_test`/`sitedoc`.
 
-🟢 **Da feiler den i CI på en PR, ikke på test klokka 23:23** — og ingen bruker en natt på å finne
-ut hvorfor en kolonne mangler.
+🟢 **Da feiler en ødelagt migrering i CI på en PR, ikke på test klokka 23:23** — og migreringen
+`20260908120000`-klassen (feil `@@map`) ville blitt fanget her, fordi `migrate deploy` kjører
+det faktiske SQL-et mot en ekte DB.
 
-⚠️ **Ikke besluttet.** CI-endring, Kenneth-gate. Kostnad ikke målt (oppstartstid for en
-postgres-container per kjøring).
+⚠️ **Image = `pgvector/pgvector:pg16`, ikke ren `postgres:16`:** migrering `20260331120000`
+kjører `CREATE EXTENSION vector` (AI-søk-embeddings). Verifisert lokalt 2026-09-15 at ren
+postgres feiler `migrate deploy` på nettopp den utvidelsen.
+
+🟢 **Kostnad målt 2026-09-15:** før ≈ 1m55s–2m05s (siste fem develop-kjøringer), etter tillegg
+av container-oppstart + 197 migreringer + 17 tester. Godt under ti-minutters-taket → ingen
+jobb-oppdeling nødvendig ennå.
+
+🔴 **Dette lukker også et konkret hull:** `firmaarkiv-unik-indeks.integration.test.ts` ble
+skrevet i runde 95 for «stille tomhet»-krav (b) (DB-garanti mot duplikat), men var ekskludert
+fra `pnpm test` og hadde aldri kjørt. Kvitteringen «grønn» var aldri sann før nå.
 
 🔴 **Samme form som de tre andre stille feilene i samme døgn:** en Entra-secret som gikk ut uten
 varsel, containere som ikke restarter uten varsel, og nå en migrering som feiler mens deployen ser

@@ -10,6 +10,12 @@ name: CI
 # hele tiden og er blitt brutt gjentatte ganger — fordi regelen bare sto i et
 # dokument noen måtte huske å lese. Her håndheves den av maskinen i stedet.
 #
+# Utvidelse (2026-09-15): INTEGRASJONSTESTENE (`*.integration.test.ts`) kjøres nå
+# mot en engangs-Postgres. De var ekskludert fra `pnpm test` og kjørte aldri — så
+# `firmaarkiv-unik-indeks.integration.test.ts` (skrevet for «stille tomhet»-krav b)
+# hadde aldri bevist noe. E2E-suiten (`tests/e2e`) kjøres BEVISST IKKE her; se
+# kommentaren ved mobil-typecheck-steget nederst for hvorfor.
+#
 # Kjører både på pull_request og ved push til develop: merge-konvensjonen
 # er `git push origin HEAD:develop` fra et merge-tre (uten PR), så uten
 # push-triggeren ville kode som lander direkte aldri testes.
@@ -30,6 +36,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
+    # Engangs-Postgres KUN for integrasjonstestene. Rives med jobben — aldri
+    # sitedoc_test/sitedoc. Image = pgvector/pgvector:pg16 (ikke ren postgres:16):
+    # migrering 20260331120000 kjører `CREATE EXTENSION vector` (AI-søk-embeddings),
+    # som ren postgres mangler. Verifisert lokalt 2026-09-15: ren postgres feiler
+    # migrate deploy på nettopp den utvidelsen.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: sitedoc_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +81,34 @@ jobs:
           pnpm --filter @sitedoc/db-varelager exec prisma generate
 
       - run: pnpm test
+
+      # Integrasjonstestene er ekskludert fra `pnpm test` (vitest.config.ts) fordi de
+      # går DIREKTE mot en ekte DB gjennom hele tRPC-laget. Her får de engangs-DB-en.
+      # DATABASE_URL settes KUN på disse to stegene → unit-testene over forblir
+      # hermetiske (ingen ekte DB-tilkobling), og gate-tallet for `pnpm test` står
+      # stille. Kun @sitedoc/db-migreringer trengs — integrasjonstestene rører bare
+      # kjerne-Prisma (`@sitedoc/db`), ikke db-timer/maskin/varelager.
+      - name: Migrer engangs-DB (kun @sitedoc/db)
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/sitedoc_ci
+        run: pnpm --filter @sitedoc/db exec prisma migrate deploy
+
+      - name: Integrasjonstester (engangs-Postgres)
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/sitedoc_ci
+        run: pnpm test:integration
+
+      # E2E-suiten (`tests/e2e`) kjøres BEVISST IKKE i CI, og det er et bevisst
+      # valg mot falsk grønn — ikke en forglemmelse:
+      #  - den er en røyktest mot det KJØRENDE test.sitedoc.no + api-test.sitedoc.no,
+      #  - autentisert via hemmeligheten DEV_LOGIN_SECRET (bor i server-.env),
+      #  - og global-setup MUTERER den DELTE sitedoc_test-DB-en (lager/sletter
+      #    E2E-firma og -dokumenter, kjører admin-sweep).
+      # Å kjøre den her ville enten brutt «aldri mot sitedoc_test», eller krevd et
+      # helt efemært web+api+seedet-engangs-DB-miljø i CI. Det siste er et eget
+      # planlagt spor (omfangsestimat i kvalitetssikring-plan.md), fordi e2e dekker
+      # nettopp pilotflyten. Inntil da kjøres den manuelt: `pnpm e2e`
+      # (krever tests/e2e/.env.local med DEV_LOGIN_SECRET — se .env.local.example).
 
       # Regel 10, mobil-halvdelen. `if: always()` fordi en rød test ellers ville
       # skjult en rød typecheck — vi vil se begge, ikke den første som feiler.
