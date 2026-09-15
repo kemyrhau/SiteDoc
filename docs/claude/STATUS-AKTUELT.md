@@ -9,12 +9,12 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-16 · develop `a27f5131` · test `81b2a785` — ETT STEG BAK**
+**Sist ført: 2026-09-16 · develop `082d1a60` · test `81b2a785` — FLERE STEG BAK**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `feat/malforvaltning` | 🟢 **PR 1 MERGET + DEPLOYET** | **Kenneths visuelle gate**, så PR 2 |
-| **dokgen** | `SiteDoc-dokgen` | `ci/integrasjon-og-e2e` | 🟢 **LEVERT — CI bevist grønn→rød→grønn** | Merge |
+| **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | `test/i18n-nokkelsett` | 🔵 **ORDRE GITT** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
 | **kontrollplan** · **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
@@ -26,8 +26,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| **Re-kvittering «stille tomhet»** — fire migreringer kvittert med mock. Målt: `firmaarkiv_unik_indeks` (integrasjonstest fantes, kjørte aldri — **nå kjører den**) · `bibliotekmal_objekttabell` (5 mockede filer). 🔴 **`gruppe_systemnokkel` og `dokumentnummer_unik` er IKKE målt** | Nå | dokgen |
-| **Mobil testharness** — `jest-expo` + RNTL, første mål offline-katalogene. Lukker BACKLOG §153 og CLAUDE.md-unntaket for krav (c) | Etter re-kvitteringen | dokgen |
+| **Mobil testharness** — `jest-expo`/vitest + `better-sqlite3`, første mål offline-katalogene. Lukker BACKLOG-posten «apps/mobile har INGEN test-runner» og CLAUDE.md-unntaket for krav (c) | Nå (re-kvittering lukket 16.09) | dokgen |
 | **E2e i CI** — krever efemært miljø; suiten muterer `sitedoc_test`. Est. 1–2 runder | Etter mobil-harness | dokgen |
 | **Malforvaltning PR 2** — Firmaarkiv-fane (én liste + maltype-filter) + riving av `firma/malarkiv` med bevistabell | Kenneths visuelle gate av PR 1 | redesign |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
@@ -35,6 +34,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Strengharmonisering** | Etter nøkkelsett-testen | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-16 — «Stille tomhet»-rekvittering merget (`082d1a60`): tre ekte integrasjonstester. INGEN web-deploy.
+
+**Merget `test/stille-tomhet-rekvittering` (ren fast-forward `69c9ef2e..082d1a60`).** 4 filer, +457/−1: tre nye
+`*.integration.test.ts` + `kvalitetssikring-plan.md`. Ingen kodefil, ingen skjemaendring. Gate: `pnpm test` **6/6 tasks**,
+fem tall stille (`db 2 · api 488 · pdf 120 · shared 823 · web 244`). Fordeling: **unit-mock 158 · unit-ren 330 · integrasjon 17→33 · e2e 8** (integrasjon utenfor rot-kjeden). `find *.integration.test.ts` = **7** filer. CI på develop grønn.
+
+- 🟢 **«STILLE TOMHET»-REKVITTERINGEN LUKKET** — alle fire migreringer har nå en test som faktisk feiler når dataen mangler (`integrasjon` 17→33: dokumentnummer 6 · gruppe-systemnøkkel 5 · bibliotekmal-objekttabell 5; `firmaarkiv_unik_indeks` innfridd av CI-runden). Alle tre sett RØDE før grønne (dokgen brøt hver lokalt mot engangs-Postgres).
+- 🟢 **DB-garantien mot to `system_nokkel = 'hms'` per prosjekt FINNES** — `project_groups_prosjekt_systemnokkel_unik`, partiell unik-indeks `(project_id, system_nokkel) WHERE system_nokkel IS NOT NULL`. 🔴 Coworks bekymring om at den hvilte på backfillen alene var UBEGRUNNET — strøket.
+- 🔴 **MÅLT: `Checklist.number` og `Task.number` er `Int?`** — maler uten prefiks får aldri nummer. Postgres NULLS DISTINCT betyr at den unike indeksen tillater vilkårlig mange NULL-nummer per mal. Testet eksplisitt for begge tabeller — ikke en feil, men en felle som nå er dokumentert i test.
+- ⚠️ **De mockede testene BLIR STÅENDE** — de tester andre ting; integrasjonstestene kom i tillegg.
+- 🟡 **BACKLOG:** ingen dedikert post fantes for server-side migrering-rekvitteringen (målt — søk på migreringsnavn/«rekvittering» ga null). Posten «apps/mobile har INGEN test-runner» gjelder **mobil** offline og forblir ÅPEN (denne runden lukker den ikke). Ingen post opprettet (per ordre).
 
 ---
 
