@@ -48,7 +48,11 @@ export default function BibliotekAdminSide() {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <Nivaabanner nivaa="sitedoc" kontekst="liste" />
+      {/* Krav 2 vei (a) (TILLEGG 2): nivåbanneret skjules når flaten er låst. Dets scope-tekst
+          («Endringer gjelder SiteDoc-arkivet …») er usann under lås, og låsebanneret under
+          bærer allerede posisjonen («SiteDoc-malenes innhold …»). Én sann påstand > én sann +
+          én usann. Banneret er fortsatt nåbart i ulåst gren (del 2 slår av LAAST_REDIGERING). */}
+      {!LAAST_REDIGERING && <Nivaabanner nivaa="sitedoc" kontekst="liste" />}
       {LAAST_REDIGERING && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
@@ -238,9 +242,19 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
                       valgtIndeks === indeks ? "bg-amber-50" : ""
                     }`}
                   >
-                    <button className="flex-1 truncate text-left text-sm text-gray-800" onClick={() => setValgtIndeks(indeks)}>
-                      {felt.label || <span className="text-gray-400">—</span>}
-                    </button>
+                    {/* Låst: feltvalget mister sin eneste konsument (høyre panel er borte),
+                        så raden gjøres ikke-klikkbar — en markering uten mål er en tannløs
+                        affordans. valgtIndeks forblir null, så bg-amber-50-uthevingen fyrer
+                        aldri. Ulåst gren beholder knappen som velger felt for konfigurasjon. */}
+                    {LAAST_REDIGERING ? (
+                      <span className="flex-1 truncate text-left text-sm text-gray-800">
+                        {felt.label || <span className="text-gray-400">—</span>}
+                      </span>
+                    ) : (
+                      <button className="flex-1 truncate text-left text-sm text-gray-800" onClick={() => setValgtIndeks(indeks)}>
+                        {felt.label || <span className="text-gray-400">—</span>}
+                      </button>
+                    )}
                     <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
                       {t(FELTTYPER.find((ft) => ft.verdi === felt.type)?.nokkel ?? "") || felt.type}
                     </span>
@@ -278,8 +292,13 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
         )}
       </div>
 
-      {/* Høyre — feltkonfigurasjon (gjenbruk fra malbygger) + type/fase */}
-      {valgtFelt && valgtIndeks != null ? (
+      {/* Høyre — feltkonfigurasjon (gjenbruk fra malbygger) + type/fase.
+          Krav 1 (TILLEGG 2): hele høyre kolonne — type/fase-nedtrekk OG FeltKonfigurasjon —
+          rendres ikke når flaten er låst. Da forsvinner «den svakeste editoren påstår mest»:
+          ingen skrivbare kontroller uten effekt. FeltKonfigurasjon selv er URØRT; kun
+          render-betingelsen på kallstedet endres. Grenen er nåbar igjen når del 2 slår av
+          LAAST_REDIGERING. */}
+      {!LAAST_REDIGERING && (valgtFelt && valgtIndeks != null ? (
         <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-gray-200 bg-gray-50">
           <div className="flex flex-col gap-3 border-b border-gray-200 p-4">
             <div className="flex flex-col gap-1">
@@ -310,12 +329,12 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
               </select>
             </div>
           </div>
-          {/* FeltKonfigurasjon fører etikett, hjelpetekst, valgopsjoner og grense-config */}
+          {/* FeltKonfigurasjon fører etikett, hjelpetekst, valgopsjoner og grense-config.
+              Kun nåbar i ulåst gren nå, så onLagre er alltid den ekte skrive-veien. */}
           <FeltKonfigurasjon
             objekt={feltTilObjekt(valgtFelt, valgtIndeks)}
             alleObjekter={alleObjekter}
-            // Lese-only (TILLEGG 1): endringer persisteres ikke — onLagre er en no-op.
-            onLagre={LAAST_REDIGERING ? () => {} : ({ label, required, config }) => endreFelt(valgtIndeks, { label, required, config })}
+            onLagre={({ label, required, config }) => endreFelt(valgtIndeks, { label, required, config })}
             erLagrer={false}
           />
         </div>
@@ -323,7 +342,7 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
         <aside className="flex w-80 shrink-0 items-center justify-center border-l border-gray-200 bg-gray-50 p-4">
           <p className="text-center text-sm text-gray-400">{t("malbygger.velgFelt")}</p>
         </aside>
-      )}
+      ))}
     </div>
   );
 }
