@@ -4,25 +4,37 @@
 
 Dalux-stil malbygger med dnd-kit. 9 komponenter, ~1900 linjer. Tre-kolonne layout: FeltPalett (venstre) → DropSoner (midten) → FeltKonfigurasjon (høyre).
 
-## Nivå-parameterisering (`nivaa`-prop, ordre malbygger-tre-nivaa)
+## Nivå-parameterisering (`nivaa`-prop, ordre malbygger-tre-nivaa + malbygger-sitedoc-niva)
 
-Samme MalBygger brukes på to nivåer: **prosjekt** (`trpc.mal.*` → `ReportTemplate`,
-referansen — uendret oppførsel) og **firma** (`trpc.firmamal.*` → `OrganizationTemplate`,
-firmaarkivet). Skjermbildet er IDENTISK; det eneste som skiller dem er datalaget.
+Samme MalBygger brukes på TRE nivåer: **prosjekt** (`trpc.mal.*` → `ReportTemplate`,
+referansen — uendret oppførsel), **firma** (`trpc.firmamal.*` → `OrganizationTemplate`,
+firmaarkivet) og **sitedoc** (`trpc.bibliotek.*` → `BibliotekMalObjekt`, SiteDoc-
+sentralarkivet — vei C del 2). «C fjerner spesialtilfellet»: sentralmaler redigeres med
+samme malbygger som de to andre. Skjermbildet er IDENTISK; det eneste som skiller dem er
+datalaget.
 
 - `nivaa?: MalNivaa` på `MalBygger` (default `"prosjekt"`). Firma-inngang:
-  `dashbord/firma/malarkiv/[malId]/page.tsx` (klikk malnavnet i malarkiv-lista).
-- **`useMalDatakilde.ts`** kapsler skillet: begge routernes `useMutation` opprettes (hooks
-  kan ikke kalles betinget; ubrukt mutasjon er inert), det aktive nivået velges, og
-  onSuccess/onError (refetch + feil-modal) bakes i hooken — som før, ikke per-kall.
+  `dashbord/firma/malarkiv/[malId]/page.tsx`. Sitedoc-inngang: `dashbord/admin/bibliotek/
+  page.tsx` (venstre trestruktur = navigasjon, MalBygger til høyre ved malvalg).
+- **`useMalDatakilde.ts`** kapsler skillet: alle tre routernes `useMutation` opprettes (hooks
+  kan ikke kalles betinget; ubrukt mutasjon er inert), det aktive nivået velges via
+  `velgMutasjon(nivaa, {prosjekt, firma, sitedoc})` — et oppslagsobjekt der HVER gren er
+  `unknown` på funksjonsgrensen (TS2589-vakt: en tre-veis ternær over dype tRPC-typer
+  sprenger dybdegrensen på KALD bygg). `refetch`/`invaliderMal` er if/else-kjeder, aldri
+  ternær. onSuccess/onError (refetch + feil-modal) bakes i hooken — som før, ikke per-kall.
 - **Ikke nivå-felles, blir IGJEN på prosjektnivå:** PSI-oversettelse (`psiModus`) og
-  firmamal-promotering (`mal.projectId`) — gates uendret, skjules for firma.
-- **Firma har INGEN objektlås** (Krav 2): `OrganizationTemplateObject` bærer ingen
-  dokumentdata (ingen Checklist/Task peker dit), så `slettObjekt` sletter fritt og
-  `SlettBekreftelse` hopper over `sjekkObjektBruk` når `nivaa === "firma"`.
-- **Nivå→rettighet ligger ETT sted:** `autoriserMalTilgang` (tilgangskontroll.ts) —
-  matrisen (arkiv-nivå × les/rediger). Firma-objekt-CRUD gater firma+rediger;
-  `firmamal.listeForProsjekt` gater firma+les (prosjektadmin låner ett nivå opp).
+  firmamal-promotering (`mal.projectId`) — gates uendret, skjules for firma/sitedoc.
+- **Firma OG sitedoc har INGEN objektlås** (Krav 2 / vei C): `OrganizationTemplateObject`
+  og `BibliotekMalObjekt` bærer ingen dokumentdata (ingen Checklist/Task peker dit), så
+  `slettObjekt` sletter fritt og `SlettBekreftelse` kjører `sjekkObjektBruk` KUN når
+  `nivaa === "prosjekt"`.
+- **Sitedoc-avvik (meldt):** `BibliotekMal` mangler fastefelt-kolonnene (subjects/
+  showSubject/showLocation/showPriority) som firma/prosjekt har, så fastefelt-seksjonen
+  skjules når `nivaa === "sitedoc"` (ingen skjemaendring). Feltredigering (palett + tre)
+  er full paritet; kun malnavn (→ `BibliotekMal.navn`) er redigerbar metadata.
+- **Nivå→rettighet ligger ETT sted per nivå:** firma/prosjekt via `autoriserMalTilgang`
+  (matrisen). Sitedoc-objekt-CRUD gates av `verifiserSiteDocAdmin` (`bibliotek.ts`) —
+  sentralarkivet er SiteDocs eget, IKKE autoriserMalTilgang.
 
 ## Komponenthierarki
 
