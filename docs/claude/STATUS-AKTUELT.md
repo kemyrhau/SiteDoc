@@ -4,6 +4,53 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+# 🔴 TAVLA — hvem sitter hvor
+
+**Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
+origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
+
+**Sist ført: 2026-09-16 · develop `a27f5131` · test `81b2a785` — ETT STEG BAK**
+
+| Agent | Worktree | Branch | Tilstand | Venter på |
+|---|---|---|---|---|
+| **redesign** | `SiteDoc-redesign` | `feat/malforvaltning` | 🟢 **PR 1 MERGET + DEPLOYET** | **Kenneths visuelle gate**, så PR 2 |
+| **dokgen** | `SiteDoc-dokgen` | `ci/integrasjon-og-e2e` | 🟢 **LEVERT — CI bevist grønn→rød→grønn** | Merge |
+| **mal-Opus** | `SiteDoc-mal` | `test/i18n-nokkelsett` | 🔵 **ORDRE GITT** | — |
+| **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
+| **kontrollplan** · **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
+| **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
+
+**Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
+
+## 🔴 Coworks kø — bestilt, ikke skrevet
+
+| Sak | Utløser | Til |
+|---|---|---|
+| **Re-kvittering «stille tomhet»** — fire migreringer kvittert med mock. Målt: `firmaarkiv_unik_indeks` (integrasjonstest fantes, kjørte aldri — **nå kjører den**) · `bibliotekmal_objekttabell` (5 mockede filer). 🔴 **`gruppe_systemnokkel` og `dokumentnummer_unik` er IKKE målt** | Nå | dokgen |
+| **Mobil testharness** — `jest-expo` + RNTL, første mål offline-katalogene. Lukker BACKLOG §153 og CLAUDE.md-unntaket for krav (c) | Etter re-kvitteringen | dokgen |
+| **E2e i CI** — krever efemært miljø; suiten muterer `sitedoc_test`. Est. 1–2 runder | Etter mobil-harness | dokgen |
+| **Malforvaltning PR 2** — Firmaarkiv-fane (én liste + maltype-filter) + riving av `firma/malarkiv` med bevistabell | Kenneths visuelle gate av PR 1 | redesign |
+| **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
+| **`terminologi.md § 0`** — lese/redigere-aksen inn i rettighetsmatrisen | Med sikkerhetsrunden | — |
+| **Strengharmonisering** | Etter nøkkelsett-testen | mal-Opus |
+| **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
+| **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-16 — CI: integrasjonstestene slått på mot engangs-Postgres. INGEN web-deploy (CI rører ikke kjørende kode).
+
+**Merget `ci/integrasjon-og-e2e` (ren fast-forward `81b2a785..a27f5131`, tre commits bevart — ikke squashet).** 3 filer, +93/−11:
+`.github/workflows/ci.yml` · `package.json` (kun nytt `test:integration`-script) · `docs/claude/kvalitetssikring-plan.md`. Ingen kodefil.
+
+- 🟢 **Slått på:** 17 integrasjonstester (4 filer) kjører nå i CI mot en engangs-pgvector-Postgres — migreringene påføres, så testene. Utenfor CI: 8 e2e-spec-er.
+- 🟢 **Syklusen bevist i PR #4:** grønn på `0a01534e` (17 tester passed, «All migrations successfully applied») → RØD på `c5c5207d` (bevisst P2002→P9999-brudd; kun integrasjonssteget feilet, `pnpm test` 488 unit forble grønt — rent signal) → grønn igjen på `a27f5131` (revert). `git diff 0a01534e a27f5131` er tom (verifisert).
+- 🟢 **Kjøretid:** 1m48–54s → 2m19s (+29s: pgvector-init 22s, migrer 3s, integrasjon 6s).
+- 🔴 **e2e står bevisst UTENFOR CI** — suiten muterer `sitedoc_test`; efemært miljø kreves (dokgens kø, egen runde).
+- 🔴 **Gate-tall NY FORM (rot-`pnpm test`, helt stille): `db 2 · api 488 · pdf 120 · shared 823 · web 244`.** `api`-fordeling (dokgens måling): unit-mock 158 · unit-ren 330 · integrasjon 17 (i CI, eget script) · e2e 8 (utenfor CI). 158+330 = 488 ✓.
+
+---
+
 ## 🟢 2026-09-15 — Malforvaltning PR 1 merget (`c192104c`): skall + gating + SiteDoc-fane, `admin/bibliotek` REVET. Utløser web-deploy.
 
 **Merget `feat/malforvaltning` (ren fast-forward `4447fb0a..c192104c`).** 13 filer, +200/−214 (netto MINDRE kode). i18n kun `nb`/`en`.

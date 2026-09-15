@@ -820,6 +820,11 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
   Cowork eier *utførelsen* — hvem, hvor, hvilken branch, i hvilken rekkefølge, og gating mot
   faktisk kode før noe relayes. Cowork oppfinner ikke designbeslutninger; cowork skriver ned dem
   som allerede er tatt.
+  🔴 **Brutt 2026-09-15:** cowork spurte Kenneth *«skal jeg skrive ordren for 1?»* etter at
+  rangeringen var gjort og alternativ 1 var åpenbart (null nye tester, elleve eksisterende
+  slås på). **Arbeidsfordeling og ordre-rekkefølge er ikke Kenneths gate.** Spørsmål til
+  Kenneth skal være gate-spørsmål — innhold, skjema, design — ikke arbeidsledelse. Er
+  rangeringen gjort og valget åpenbart: skriv ordren, meld den.
 
 ## Meldingsflyt (ufravikelig)
 
@@ -940,6 +945,31 @@ du en gate, mål at den faktisk stopper — kjør den mot noe som feiler før du
 som bevis på at en opprydding var komplett — det gjenværende kallet het `setSlettFeil`, med
 stor S, og traff ikke mønsteret. **Et grep-treff på null er ikke bevis for fravær.** Bruk `-i`
 når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dette fortsatt».
+
+### 🔴 GATE-TALL SKAL SI HVA SOM KJØRTE (Kenneth/fabel 2026-09-15)
+
+Cowork brukte «488 grønne api-tester» som merge-grunnlag i en uke. Så ble det målt:
+**25 av 66 testfiler mocker Prisma**, og de eneste testene som beviser noe mot ekte DB
+eller ekte flyt — 4 integrasjonsfiler (17 tester) og 7 e2e-spec-er — var **ekskludert fra
+CI**. `apps/api/vitest.config.ts` filtrerte bort `*.integration.test.ts`; e2e kjørte kun
+manuelt.
+
+Verst: `firmaarkiv-unik-indeks.integration.test.ts` ble skrevet i runde 95 for å oppfylle
+«stille tomhet»-kravet (b). **Den hadde aldri kjørt. Kvitteringen «grønn» var aldri sann.**
+
+🔴 **Fem tall uten fordeling er ikke lenger gyldig kvittering.** Gate-tall skal oppgis som:
+
+    unit-mock: <n> · unit-ren: <n> · integrasjon: <n> · e2e: <n>
+
+- **«unit-mock»** = filen mocker Prisma (`vi.mock` på prisma/`@sitedoc/db`/`PrismaClient`).
+  Den måler vakten, ikke dataen.
+- 🔴 **«Stille tomhet er forbudt» krav (c) — en test som FEILER når feltet er tomt — kan
+  ALDRI oppfylles av en mocket test.** Kvitteres kravet med mock, er kvitteringen «delvis —
+  mock», og det skal stå på tavla til integrasjonstesten finnes.
+- **Klarer du ikke skille maskinelt: meld hvordan du telte, og hva som er usikkert. Ikke gjett.**
+
+**Cowork eier merge-timing og deploy — da eier cowork også at tallet bak «grønn» betyr noe.**
+Mål signalet du selv forvalter, før du stoler på det.
 
 ### 🔴 Mål mot RIKTIG database — og les tidsstemplene (lærdom 2026-08-23)
 
