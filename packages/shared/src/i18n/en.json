@@ -2537,6 +2537,8 @@
   "adminBibliotek.lagret": "Saved",
   "adminBibliotek.lagreFeiletTittel": "Could not save the template",
   "adminBibliotek.verifisertMerknad": "Editing does not mark the template as verified — «verified» is set separately.",
+  "adminBibliotek.laastTittel": "Editing has moved for now",
+  "adminBibliotek.laastTekst": "The SiteDoc templates' content now lives in the new archive structure, and borrowing and import read from there. Changes you make here are not saved and would not reach anyone. You can still see what the template contains. Editing returns in the template builder.",
   "malbygger.betinget": "Conditional",
   "malbygger.paakrevd": "Required",
   "malbygger.draDrop": "Drag and drop fields here",

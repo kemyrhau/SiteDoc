@@ -30,6 +30,16 @@ const FASE_NOKKEL: Record<string, string> = {
   ETTER: "adminBibliotek.faseETTER",
 };
 
+// Vei C del 1 (ordre TILLEGG 1, punkt 2 — Kenneth-gatet 15.09): sentralmalens innhold bor
+// nå i BibliotekMalObjekt-RADENE; denne flaten redigerer den FROSNE malInnhold-JSON-en, som
+// lån/import ikke lenger leser. En lagring her ville derfor vært stum (så ingen effekt).
+// Til den ekte redigeringsveien finnes (MalBygger på sitedoc-nivå, del 2) er flaten
+// LESE-ONLY: visningen beholdes, all skriving sperres. `oppdaterMal`-prosedyren + gaten
+// (verifiserSiteDocAdmin) er URØRT på serveren — del 2 bygger den ekte veien.
+// `: boolean` (ikke literal `true`) med vilje: del 2 slår den av, og typen holder begge
+// grener «nåbare» så verken lagre-veien eller kontrollene blir død kode nå.
+const LAAST_REDIGERING: boolean = true;
+
 export default function BibliotekAdminSide() {
   const { t } = useTranslation();
   const standarderQuery = trpc.bibliotek.hentStandarder.useQuery();
@@ -39,6 +49,15 @@ export default function BibliotekAdminSide() {
   return (
     <div className="flex h-full flex-col gap-4">
       <Nivaabanner nivaa="sitedoc" kontekst="liste" />
+      {LAAST_REDIGERING && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-sm font-medium text-amber-900">{t("adminBibliotek.laastTittel")}</p>
+            <p className="text-sm text-amber-800">{t("adminBibliotek.laastTekst")}</p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-1 gap-4 overflow-hidden">
       {/* Venstre — trestruktur */}
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto rounded-lg border border-gray-200 bg-white">
@@ -136,6 +155,9 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
   // Auto-persist: hver endring lagres direkte, så det finnes ingen ulagret draft å
   // miste. Kalles med eksplisitte verdier for å unngå stale closure.
   function persister(nyeFelter: BibliotekFelt[], meta?: { navn?: string; referanse?: string; beskrivelse?: string }) {
+    // Skriving sperret (TILLEGG 1, punkt 2): flaten er lese-only til del 2. Choke-punktet
+    // her stanser ALL persistering — kontrollene er dessuten deaktivert i UI-et.
+    if (LAAST_REDIGERING) return;
     oppdaterMutation.mutate({
       bibliotekMalId,
       navn: meta?.navn ?? navn,
@@ -175,6 +197,7 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
           <Input
             label={t("adminBibliotek.malnavn")}
             value={navn}
+            disabled={LAAST_REDIGERING}
             onChange={(e) => { setNavn(e.target.value); setLagretNaa(false); }}
             onBlur={() => navn && persister(felter, { navn })}
           />
@@ -182,6 +205,7 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
             <div className="w-40"><Input
               label={t("adminBibliotek.referanse")}
               value={referanse}
+              disabled={LAAST_REDIGERING}
               onChange={(e) => { setReferanse(e.target.value); setLagretNaa(false); }}
               onBlur={() => referanse && persister(felter, { referanse })}
             /></div>
@@ -189,8 +213,9 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-gray-600">{t("adminBibliotek.beskrivelse")}</label>
             <textarea
-              className="min-h-[60px] rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="min-h-[60px] rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
               value={beskrivelse}
+              disabled={LAAST_REDIGERING}
               onChange={(e) => { setBeskrivelse(e.target.value); setLagretNaa(false); }}
               onBlur={() => persister(felter, { beskrivelse })}
             />
@@ -219,10 +244,10 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
                     <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
                       {t(FELTTYPER.find((ft) => ft.verdi === felt.type)?.nokkel ?? "") || felt.type}
                     </span>
-                    <button title={t("adminBibliotek.flyttOpp")} onClick={() => flytt(indeks, "opp")} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                    <button disabled={LAAST_REDIGERING} title={t("adminBibliotek.flyttOpp")} onClick={() => flytt(indeks, "opp")} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent">
                       <ArrowUp className="h-3.5 w-3.5" />
                     </button>
-                    <button title={t("adminBibliotek.flyttNed")} onClick={() => flytt(indeks, "ned")} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                    <button disabled={LAAST_REDIGERING} title={t("adminBibliotek.flyttNed")} onClick={() => flytt(indeks, "ned")} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent">
                       <ArrowDown className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -260,8 +285,9 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">{t("adminBibliotek.felttype")}</label>
               <select
-                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 value={valgtFelt.type}
+                disabled={LAAST_REDIGERING}
                 onChange={(e) => endreFelt(valgtIndeks, { type: e.target.value })}
               >
                 {typer.map((ft) => (
@@ -272,8 +298,9 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-600">{t("adminBibliotek.fase")}</label>
               <select
-                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 value={valgtFelt.fase ?? ""}
+                disabled={LAAST_REDIGERING}
                 onChange={(e) => endreFelt(valgtIndeks, { fase: e.target.value || null })}
               >
                 {BIBLIOTEK_FASER.map((f) => (
@@ -287,7 +314,8 @@ function MalRedigering({ bibliotekMalId, onLagret }: { bibliotekMalId: string; o
           <FeltKonfigurasjon
             objekt={feltTilObjekt(valgtFelt, valgtIndeks)}
             alleObjekter={alleObjekter}
-            onLagre={({ label, required, config }) => endreFelt(valgtIndeks, { label, required, config })}
+            // Lese-only (TILLEGG 1): endringer persisteres ikke — onLagre er en no-op.
+            onLagre={LAAST_REDIGERING ? () => {} : ({ label, required, config }) => endreFelt(valgtIndeks, { label, required, config })}
             erLagrer={false}
           />
         </div>

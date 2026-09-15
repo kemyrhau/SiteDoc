@@ -26,7 +26,7 @@ export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
 export { harTegningsmarkor } from "./tegningsmarkor";
 export type { MarkorFelter } from "./tegningsmarkor";
-export { byggBibliotekRader, bibliotekFaseHeadingLabel } from "./bibliotekRader";
+export { byggBibliotekRader, bibliotekFaseHeadingLabel, faseFraHeadingLabel } from "./bibliotekRader";
 export type { BibliotekFeltData, BibliotekRadData } from "./bibliotekRader";
 export {
   nesteLedd,

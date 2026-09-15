@@ -56,6 +56,19 @@ export function bibliotekFaseHeadingLabel(fase: string): string {
 }
 
 /**
+ * Invers av `bibliotekFaseHeadingLabel`: gjenkjenn fase-koden fra en heading-rads label.
+ * Brukt av forhåndsvisningen (`bibliotek.hentMalInnhold`) til å rekonstruere hvilken fase
+ * hvert felt hører til når kilden nå er RADER (fase lever som heading-rader, ikke et
+ * felt-attributt). Ukjent label → null (ingen fase-gruppering for de feltene).
+ */
+export function faseFraHeadingLabel(label: string): string | null {
+  if (label === "Kontroll FØR utførelse") return "FØR";
+  if (label === "Kontroll UNDER utførelse") return "UNDER";
+  if (label === "Kontroll ETTER utførelse") return "ETTER";
+  return null;
+}
+
+/**
  * Bygg rad-listen fra `malInnhold`. Rekkefølge og gruppering er IDENTISK med
  * `byggFirmamalObjekterFraBibliotek` (den gamle genereringen), med to bevisste forskjeller
  * som Design B krever:

@@ -2537,6 +2537,8 @@
   "adminBibliotek.lagret": "Lagret",
   "adminBibliotek.lagreFeiletTittel": "Kunne ikke lagre malen",
   "adminBibliotek.verifisertMerknad": "Redigering merker ikke malen som fagkontrollert — «verifisert» settes separat.",
+  "adminBibliotek.laastTittel": "Redigering er midlertidig flyttet",
+  "adminBibliotek.laastTekst": "SiteDoc-malenes innhold ligger nå i den nye arkivstrukturen, og lån og import henter derfra. Endringer du gjør her lagres ikke og ville ikke nådd noen. Du kan fortsatt se hva malen inneholder. Redigering kommer tilbake i malbyggeren.",
   "malbygger.betinget": "Betinget",
   "malbygger.paakrevd": "Påkrevd",
   "malbygger.draDrop": "Dra og slipp felter her",

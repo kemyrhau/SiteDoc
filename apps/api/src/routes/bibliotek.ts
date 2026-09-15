@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { type PrismaClient, Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { faseFraHeadingLabel } from "@sitedoc/shared";
 import { finnLedigeMalVerdier } from "./mal";
 import { kopierObjektTre } from "./objektkopi";
 
@@ -70,30 +71,40 @@ export const bibliotekRouter = router({
   /**
    * Feltlisten for ÉN sentralmal — for «inspiser før lån» (L1, AM4b).
    *
-   * Lazy med vilje: `hentStandarder` selecter IKKE `malInnhold`, og skal ikke.
-   * Å laste malInnhold for alle maler ved dialog-åpning skalerer med totalt
-   * antall felt i HELE arkivet (regresjonen ordren skal hindre). Denne henter
-   * innhold for kun den malen brukeren faktisk åpner forhåndsvisningen på.
-   * Returnerer felt uten fase-overskrifter (de bygges ved lån), sortert på
-   * sortOrder og med fase for gruppering i UI.
+   * Vei C (ordre bibliotekmal-objekttabell TILLEGG 1, Krav 4): kilden er RADENE
+   * (`BibliotekMalObjekt`), ikke den frosne `malInnhold`-JSON-en — ellers viser
+   * forhåndsvisningen én ting og lånet (`firmamal.laanFraSentralarkiv`) en annen så
+   * snart en rad endres i del 2. Nå leser begge samme rader.
+   *
+   * Lazy med vilje: `hentStandarder` selecter IKKE innhold, og skal ikke. Å laste
+   * objektene for alle maler ved dialog-åpning skalerer med totalt antall felt i HELE
+   * arkivet (regresjonen ordren skal hindre). Denne henter kun radene for den malen
+   * brukeren faktisk åpner forhåndsvisningen på.
+   *
+   * Returkontrakten er uendret: felt UTEN heading-radene, i sortOrder-rekkefølge, med
+   * `fase` for gruppering i UI. Fasen lever nå som heading-rader, så den rekonstrueres:
+   * hvert felt arver fasen til nærmest foregående heading (samme gruppering som lånet gir).
    */
   hentMalInnhold: protectedProcedure
     .input(z.object({ bibliotekMalId: z.string() }))
     .query(async ({ ctx, input }) => {
       const mal = await ctx.prisma.bibliotekMal.findUniqueOrThrow({
         where: { id: input.bibliotekMalId },
-        select: { id: true, navn: true, referanse: true, malInnhold: true },
+        select: { id: true, navn: true, referanse: true },
       });
-      const raw = (mal.malInnhold ?? []) as Array<{
-        label: string;
-        type: string;
-        fase?: string | null;
-        sortOrder?: number;
-      }>;
-      const felter = [...raw]
-        .filter((f) => f && f.type !== "heading")
-        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-        .map((f) => ({ label: f.label, type: f.type, fase: f.fase ?? null }));
+      const objekter = await ctx.prisma.bibliotekMalObjekt.findMany({
+        where: { templateId: mal.id },
+        orderBy: { sortOrder: "asc" },
+      });
+      let gjeldendeFase: string | null = null;
+      const felter: { label: string; type: string; fase: string | null }[] = [];
+      for (const o of objekter) {
+        if (o.type === "heading") {
+          gjeldendeFase = faseFraHeadingLabel(o.label);
+          continue;
+        }
+        felter.push({ label: o.label, type: o.type, fase: gjeldendeFase });
+      }
       return { id: mal.id, navn: mal.navn, referanse: mal.referanse, felter };
     }),
 

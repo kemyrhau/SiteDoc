@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { byggBibliotekRader, bibliotekFaseHeadingLabel } from "./bibliotekRader";
+import { byggBibliotekRader, bibliotekFaseHeadingLabel, faseFraHeadingLabel } from "./bibliotekRader";
 import type { BibliotekFeltData } from "./bibliotekRader";
 
 /**
@@ -86,5 +86,16 @@ describe("byggBibliotekRader", () => {
     expect(bibliotekFaseHeadingLabel("UNDER")).toBe("Kontroll UNDER utførelse");
     expect(bibliotekFaseHeadingLabel("ETTER")).toBe("Kontroll ETTER utførelse");
     expect(bibliotekFaseHeadingLabel("ukjent")).toBe("Kontroll ETTER utførelse");
+  });
+
+  it("faseFraHeadingLabel er invers for de tre kjente labelene, null ellers", () => {
+    expect(faseFraHeadingLabel("Kontroll FØR utførelse")).toBe("FØR");
+    expect(faseFraHeadingLabel("Kontroll UNDER utførelse")).toBe("UNDER");
+    expect(faseFraHeadingLabel("Kontroll ETTER utførelse")).toBe("ETTER");
+    expect(faseFraHeadingLabel("Beskrivelse")).toBeNull();
+    // Round-trip: label → fase → label for de tre fasene.
+    for (const fase of ["FØR", "UNDER", "ETTER"]) {
+      expect(faseFraHeadingLabel(bibliotekFaseHeadingLabel(fase))).toBe(fase);
+    }
   });
 });

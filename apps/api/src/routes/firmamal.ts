@@ -18,8 +18,10 @@
  *
  * Zone-regelen (🔴 MALBYGGER.md): `config` (som bærer `config.zone`) kopieres VERBATIM
  * i begge retninger. Ingen felt-bygging fra bunnen som kunne tape zone → mobil fryser.
- * Unntak: laanFraSentralarkiv bygger objekter fra BibliotekMal.malInnhold og setter
- * `zone` eksplisitt (som bibliotek.ts importerMal).
+ * Vei C: laanFraSentralarkiv/oppdaterFraSentralarkiv kopierer nå BibliotekMalObjekt-RADER
+ * verbatim (via kopierObjektTre) — ikke lenger bygget fra BibliotekMal.malInnhold.
+ * `byggFirmamalObjekterFraBibliotek` beholdes KUN som uavhengig referanse-implementasjon
+ * for round-trip-testen (bibliotek-roundtrip-rad-json.test.ts); den kalles ikke i prod.
  */
 
 import { z } from "zod";
