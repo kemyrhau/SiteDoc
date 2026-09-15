@@ -4,6 +4,26 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟢 2026-09-15 — Malarkiv ut av sidefeltet + alle tre arkivnivåer søkbare merget (`aab32f9e`). Utløser web-deploy.
+
+**Merget `fix/malarkiv-ut-av-sidefelt` (ren fast-forward `84df84ab..aab32f9e`).** To commits: `ecf3df9d` (menypunkt ut) + `aab32f9e`
+(alle tre arkivnivåer søkbare). 6 filer, +143/−14. i18n traff KUN `nb`/`en` (3 nye nøkler). Gate fra ROT grønn
+(`pnpm install` + `prisma generate` ×4): **`db 2 · api 492 · pdf 120 · shared 823 · web 240`** — `web` steg +5 (gating-testen kjørte).
+
+- 🔴 **Malarkiv er UTE av firma-sidefeltet** (`firma-nav.tsx`). Ruta `/dashbord/firma/malarkiv` består; kun navigasjonsinngangen er borte. Kenneth-vedtak 13.09, endelig utført 15.09.
+- 🟢 **Inngang til firmaarkiv-redigering:** `oppsett/produksjon/*maler` → «Hent fra arkiv» → firma-fane-fotnoten. Alle tre maltypene (sjekkliste/oppgave/HMS) bruker `MalListe` → har modalen — ingen fane ble unåbar.
+- 🟢 **ALLE TRE ARKIVNIVÅER ER NÅ SØKBARE, alle tre EKTE registreringer** — ingen låner lenger fra sidefeltet.
+- 🔴 **MÅLT ROTÅRSAK (Kenneth 15.09):** firmaarkivet var søkbart kun fordi det sto i venstremenyen; SiteDoc-arkivet har aldri vært registrert. Tre-nivå-modellen bygget ett nivå om gangen uten at strukturen ble laget for tre — samme rot som at prosjektnivået manglet navn i `nb.json` før 13.09.
+- 🟡 **MELDT, KENNETH GATER:** de tre arkivene sitter i TO kilder, ikke én. Prosjekt i `innstillinger-kort` (nav-hjem under Oppsett), firma + SiteDoc i `dype-sider` (ingen nav-hjem). Én felles «arkiv-gruppe»-kilde krever større omstrukturering.
+- 🟢 **Gating bevist:** `gateDypeSider()` trukket ut som ren funksjon — SiteDoc-admin ser begge · prosjektbruker ser ingen · firmaadmin ser kun firma · antallskontroll fanger død gating.
+- 🟢 **`/dashbord/admin`-unntaket står** — kun `admin/bibliotek` tatt ut av det.
+- 🟡 **MELDT:** `innstillinger-kort.tsx` fikk et `arkiv`-søkeord (utenfor redesigns filliste, men prosjektarkivet BOR der). Cowork gater det som riktig.
+- ⚠️ **`firmaNav.malarkiv` er nå relikvi (0 kodereferanser).** IKKE slettet — ryddes i en i18n-runde, unngår drift mot de tretten.
+- 🔴 **NY i18n-gjeld samme dag den ble lukket: 3 nøkler i `nb`/`en` som de tretten mangler.** Nøyaktig mønsteret mal-Opus målte — hullet gjentar seg hver runde. 🔴 **Nøkkelsett-testen bestilles nå.**
+- ⚠️ **Uendret åpent:** Kenneths visuelle gate av vei C del 2 · riving av `admin/bibliotek` · papirkurv i sidefeltet · rettighetsmatrisen vs. ulåst SiteDoc-fane · funn #21 · `BibliotekMal` mangler `updatedAt` · fastefelt-kolonnene.
+
+---
+
 ## 🟢 2026-09-15 — i18n-gjeld lukket + vei C del 2 (MalBygger på SiteDoc-nivå) merget (`345476c8`). Utløser web-deploy.
 
 **Merget to brancher** (i18n `chore/i18n-gjeld` `d06daf02` fast-forward FØRST, så vei C del 2 `feat/malbygger-sitedoc-niva` `0f353a1c` som ekte `--no-ff`-merge — ingen filoverlapp, `comm -12` tom). Gate fra ROT grønn
