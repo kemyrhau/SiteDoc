@@ -25,7 +25,6 @@ import {
   Calendar,
   ShieldAlert,
   MapPin,
-  Library,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { trpc } from "@/lib/trpc";
@@ -48,7 +47,10 @@ export const firmaNavElementer: FirmaNavElement[] = [
   { labelKey: "firmaNav.kompetanse", href: "/dashbord/firma/kompetanse", ikon: <Award className="h-5 w-5" /> },
   { labelKey: "firmaNav.hms", href: "/dashbord/firma/hms", ikon: <ShieldAlert className="h-5 w-5" />, kreverHmsTilgang: true },
   { labelKey: "firmaNav.moduler", href: "/dashbord/firma/moduler", ikon: <Boxes className="h-5 w-5" /> },
-  { labelKey: "firmaNav.malarkiv", href: "/dashbord/firma/malarkiv", ikon: <Library className="h-5 w-5" /> },
+  // Malarkiv-inngangen fjernet fra sidefeltet (ordre malarkiv-ut-av-sidefelt, Kenneth 15.09 /
+  // fabels punkt A): en sidefelt-snarvei hoppet brukeren rett inn i firmaarkivet uten å ha
+  // vært innom prosjektet → uklart nivå. Ruta /dashbord/firma/malarkiv BEHOLDES; inngangen
+  // går nå via malflaten (oppsett/produksjon/*maler → «Hent fra arkiv» → firma-fane-fotnote).
   { labelKey: "firmaNav.timer", href: "/dashbord/firma/timer", ikon: <Clock className="h-5 w-5" />, kreverFirmaModul: "timer" },
   { labelKey: "firmaNav.timerRapport", href: "/dashbord/firma/timer/rapport", ikon: <BarChart3 className="h-5 w-5" />, kreverFirmaModul: "timer" },
   { labelKey: "firmaNav.kalender", href: "/dashbord/firma/kalender", ikon: <Calendar className="h-5 w-5" /> },

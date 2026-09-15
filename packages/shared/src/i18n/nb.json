@@ -144,7 +144,7 @@
   "maler.arkiv.kildeFirma": "Firmamal",
   "maler.arkiv.kildeSitedoc": "SiteDoc-standard",
   "maler.arkiv.fotFirmaLes": "Kun lesing — du henter kopier, firmaarkivet redigeres på firmanivå.",
-  "maler.arkiv.fotFirmaRediger": "Du kan også redigere firmaarkivet (Firma › Malarkiv).",
+  "maler.arkiv.fotFirmaRediger": "Rediger firmaarkivet — der oppretter og endrer du firmaets egne maler; prosjekter som henter herfra etterpå får den nye versjonen.",
   "maler.arkiv.fotSitedoc": "SiteDoc-arkivet redigeres kun av SiteDoc-admin.",
   "maler.arkiv.fotSitedocRediger": "Rediger sentralarkivet (Bibliotek-administrasjon).",
   "maler.arkiv.sokPlassholder": "Søk på navn eller referanse …",

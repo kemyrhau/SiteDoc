@@ -73,6 +73,7 @@ const UNNTAK: { test: (r: string) => boolean; grunn: string }[] = [
   { test: (r) => r === "/dashbord/[prosjektId]/maler", grunn: "redirect → oppsett/produksjon/sjekklistemaler (Rapportmaler-flata fjernet, vei b 2026-09-12)" },
   { test: (r) => r === "/dashbord/firma/timer/onboarding", grunn: "redirect → firma/timer (innhold flyttet til timer-hjem)" },
   { test: (r) => r === "/dashbord/firma/oppsett", grunn: "firma-onboarding-veiviser (handling-flate, nås via banner på /dashbord/firma + kom-i-gang; forsvinner når fullført)" },
+  { test: (r) => r === "/dashbord/firma/malarkiv", grunn: "inngang ut av sidefeltet OG søk (ordre malarkiv-ut-av-sidefelt): en snarvei rett inn i firmaarkivet skjulte hvilket nivå brukeren redigerte. Nås bevisst via oppsett/produksjon/*maler → «Hent fra arkiv» → firma-fane-fotnote" },
   { test: (r) => r === "/dashbord/[prosjektId]/dokumentleser", grunn: "reader uten nav-hjem — ekskludert v1 (K13-d)" },
   { test: (r) => r === "/dashbord/[prosjektId]/dokumenter/[dokumentId]/les", grunn: "per-dok reader (detalj)" },
   { test: (r) => r === "/dashbord/[prosjektId]/modeller" || r === "/dashbord/[prosjektId]/punktskyer", grunn: "K4 3D-konsolidering (utsatt)" },
