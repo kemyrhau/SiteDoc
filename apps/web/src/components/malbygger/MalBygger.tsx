@@ -156,6 +156,10 @@ function erEtterkommer(objekter: MalObjekt[], objektId: string, muligForelderId:
 export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
   const { t } = useTranslation();
   const psiModus = mal.category === "psi";
+  // Sitedoc-nivå (vei C del 2): BibliotekMal bærer IKKE fastefelt-kolonnene (subjects/
+  // showSubject/showLocation/showPriority), så fastefelt-seksjonen skjules — feltredigering
+  // (paletten + treet) er identisk med firma/prosjekt. Meldt avvik (ingen skjemaendring).
+  const erSitedoc = nivaa === "sitedoc";
   const utils = trpc.useUtils();
   const [valgtId, setValgtId] = useState<string | null>(null);
   const [visForhandsvisning, setVisForhandsvisning] = useState(false);
@@ -868,7 +872,9 @@ export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
             )}
           </div>
 
-          {/* Faste metadata-felter — vises ved opprettelse/utfylling */}
+          {/* Faste metadata-felter — vises ved opprettelse/utfylling. Skjult på sitedoc-nivå:
+              BibliotekMal har ingen kolonner for disse (meldt avvik, ingen skjemaendring). */}
+          {!erSitedoc && (
           <div className="mb-2">
             {!psiModus && (
             <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500 uppercase tracking-wide">
@@ -994,6 +1000,7 @@ export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
               )}
             </div>
           </div>
+          )}
 
           <DropSone
             zone="topptekst"
@@ -1291,17 +1298,18 @@ function SlettBekreftelse({
   onAvbryt: () => void;
 }) {
   const { t } = useTranslation();
-  // Firmamal-objekter bærer ingen dokumentdata (Krav 2) → ingen bruks-sjekk, ingen lås.
-  // Query kjøres kun på prosjektnivå (der finnes sjekkObjektBruk og faktisk innhold).
-  const erFirma = nivaa === "firma";
+  // Firma- OG sitedoc-mal-objekter bærer ingen dokumentdata (Krav 2 / vei C del 2) → ingen
+  // bruks-sjekk, ingen lås. sjekkObjektBruk finnes kun for prosjektobjekter (Checklist/Task
+  // peker på ReportObject), så query kjøres KUN på prosjektnivå.
+  const erProsjekt = nivaa === "prosjekt";
   const { data, isLoading } = trpc.mal.sjekkObjektBruk.useQuery(
     { id },
-    { enabled: !erFirma },
+    { enabled: erProsjekt },
   );
 
   const harBruk =
-    !erFirma && data && (data.sjekklister.length > 0 || data.oppgaver.length > 0);
-  const laster = !erFirma && isLoading;
+    erProsjekt && data && (data.sjekklister.length > 0 || data.oppgaver.length > 0);
+  const laster = erProsjekt && isLoading;
 
   return (
     <Modal open={true} title={t("malbygger.slettFelt", { label })} onClose={onAvbryt}>

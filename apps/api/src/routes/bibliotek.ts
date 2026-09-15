@@ -3,9 +3,15 @@ import { TRPCError } from "@trpc/server";
 import { type PrismaClient, Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
-import { faseFraHeadingLabel } from "@sitedoc/shared";
+import { faseFraHeadingLabel, reportObjectTypeSchema, templateZoneSchema } from "@sitedoc/shared";
 import { finnLedigeMalVerdier } from "./mal";
 import { kopierObjektTre } from "./objektkopi";
+
+// Config-schema (som firmamal.ts): vilkårlig JSON for rapportobjekt-konfigurasjon.
+const configSchema = z.preprocess(
+  (val) => val,
+  z.record(z.string(), z.unknown()),
+) as z.ZodType<Record<string, unknown>>;
 
 /**
  * Sentralarkivet er SiteDocs eget, delt av alle kunder — redigering er kun
@@ -316,5 +322,190 @@ export const bibliotekRouter = router({
         select: { id: true, navn: true, referanse: true, beskrivelse: true, malInnhold: true },
       });
       return oppdatert;
+    }),
+
+  /* --- Vei C del 2 (ordre malbygger-sitedoc-niva): MalBygger på SiteDoc-nivå ----------
+   * Speiler firmamal.ts sine objekt-prosedyrer FELT FOR FELT, men mot BibliotekMalObjekt-
+   * RADENE (ikke den frosne `malInnhold`-JSON-en). «C fjerner spesialtilfellet»: sentralmaler
+   * får samme redigeringsevne som firma/prosjekt. Gate: verifiserSiteDocAdmin (sentralarkivet
+   * er SiteDocs eget, delt av alle kunder) — IKKE autoriserMalTilgang. INGEN objektlås og
+   * INGEN slett-vern: ingen Checklist/Task peker på BibliotekMalObjekt (dokumentdata henger på
+   * ReportObject i prosjekt-kopier), så treet er fritt redigerbart — som firmanivå. */
+
+  /**
+   * Én sentralmal med hele objekt-treet — for redigering i MalBygger på sitedoc-nivå.
+   * Speiler firmamal.hent: rå objekt-rader i sortOrder, config verbatim. Mapper
+   * BibliotekMal-feltnavn til MalBygger-formen (navn→name, beskrivelse→description,
+   * kategori→category). `malId` er en cuid (BibliotekMal.id), derfor z.string() — ikke uuid.
+   */
+  hent: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+      const mal = await ctx.prisma.bibliotekMal.findUniqueOrThrow({
+        where: { id: input.id },
+        include: { objekter: { orderBy: { sortOrder: "asc" } } },
+      });
+      return {
+        id: mal.id,
+        name: mal.navn,
+        description: mal.beskrivelse,
+        category: mal.kategori,
+        objects: mal.objekter.map((o) => ({
+          id: o.id,
+          type: o.type,
+          label: o.label,
+          required: o.required,
+          sortOrder: o.sortOrder,
+          config: o.config,
+          parentId: o.parentId,
+        })),
+      };
+    }),
+
+  /**
+   * Oppdater sentralmal-metadata (MalBygger inline navn-redigering). BibliotekMal bærer
+   * IKKE fastefelt-kolonnene (subjects/showSubject/showLocation/showPriority) som firma/
+   * prosjekt har — de skjules derfor i MalBygger på sitedoc-nivå (meldt avvik, ingen
+   * skjemaendring denne runden). Kun navn/beskrivelse endres her; `malInnhold` (frossen)
+   * røres ikke. `referanse` og `verifisert` er utenfor scope (som oppdaterMal).
+   */
+  oppdater: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).max(200).optional(),
+        description: z.string().max(2000).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+      await ctx.prisma.bibliotekMal.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { id: true },
+      });
+      await ctx.prisma.bibliotekMal.update({
+        where: { id: input.id },
+        data: {
+          ...(input.name !== undefined ? { navn: input.name.trim() } : {}),
+          ...(input.description !== undefined ? { beskrivelse: input.description } : {}),
+        },
+        select: { id: true },
+      });
+      return { id: input.id };
+    }),
+
+  leggTilObjekt: protectedProcedure
+    .input(
+      z.object({
+        templateId: z.string(),
+        type: reportObjectTypeSchema,
+        label: z.string().min(1),
+        config: configSchema.default({}),
+        sortOrder: z.number().int().min(0),
+        required: z.boolean().default(false),
+        parentId: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+      // Ren NOT_FOUND ved ukjent mal i stedet for rå FK-feil.
+      await ctx.prisma.bibliotekMal.findUniqueOrThrow({
+        where: { id: input.templateId },
+        select: { id: true },
+      });
+      const { parentId, ...rest } = input;
+      // `translations` utelates → schema-default "{}" (tom, ikke NULL) — som firmanivå (Krav 1).
+      return ctx.prisma.bibliotekMalObjekt.create({
+        data: {
+          ...rest,
+          config: rest.config as Prisma.InputJsonValue,
+          ...(parentId !== undefined ? { parentId } : {}),
+        },
+      });
+    }),
+
+  oppdaterObjekt: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        // Tom streng er en gyldig, ønsket verdi (navnløst felt) — som firmamal.oppdaterObjekt.
+        label: z.string().optional(),
+        required: z.boolean().optional(),
+        config: configSchema.optional(),
+        parentId: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+      await ctx.prisma.bibliotekMalObjekt.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { id: true },
+      });
+      const { id, config, parentId, ...rest } = input;
+      return ctx.prisma.bibliotekMalObjekt.update({
+        where: { id },
+        data: {
+          ...rest,
+          ...(config !== undefined ? { config: config as Prisma.InputJsonValue } : {}),
+          ...(parentId !== undefined ? { parentId } : {}),
+        },
+      });
+    }),
+
+  oppdaterRekkefolge: protectedProcedure
+    .input(
+      z.object({
+        objekter: z.array(
+          z.object({
+            id: z.string().uuid(),
+            sortOrder: z.number().int().min(0),
+            zone: templateZoneSchema.optional(),
+            parentId: z.string().uuid().nullable().optional(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+      const forste = input.objekter[0];
+      if (!forste) return [];
+      return ctx.prisma.$transaction(async (tx) => {
+        const resultater = [];
+        for (const obj of input.objekter) {
+          const oppdatering: Record<string, unknown> = { sortOrder: obj.sortOrder };
+          if (obj.parentId !== undefined) oppdatering.parentId = obj.parentId;
+          if (obj.zone) {
+            const eksisterende = await tx.bibliotekMalObjekt.findUniqueOrThrow({
+              where: { id: obj.id },
+            });
+            const eksisterendeConfig =
+              typeof eksisterende.config === "object" && eksisterende.config !== null
+                ? (eksisterende.config as Record<string, unknown>)
+                : {};
+            oppdatering.config = {
+              ...eksisterendeConfig,
+              zone: obj.zone,
+            } as Prisma.InputJsonValue;
+          }
+          resultater.push(
+            await tx.bibliotekMalObjekt.update({ where: { id: obj.id }, data: oppdatering }),
+          );
+        }
+        return resultater;
+      });
+    }),
+
+  slettObjekt: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+      await ctx.prisma.bibliotekMalObjekt.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { id: true },
+      });
+      // Ingen slett-vern: sentralmal-objekter bærer ingen dokumentdata (som firmanivå).
+      // CASCADE fjerner barn (schema BibliotekObjektHierarki onDelete: Cascade).
+      return ctx.prisma.bibliotekMalObjekt.delete({ where: { id: input.id } });
     }),
 });
