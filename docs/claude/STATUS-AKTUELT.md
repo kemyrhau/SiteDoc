@@ -4,6 +4,29 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🟢 2026-09-15 — i18n-gjeld lukket + vei C del 2 (MalBygger på SiteDoc-nivå) merget (`345476c8`). Utløser web-deploy.
+
+**Merget to brancher** (i18n `chore/i18n-gjeld` `d06daf02` fast-forward FØRST, så vei C del 2 `feat/malbygger-sitedoc-niva` `0f353a1c` som ekte `--no-ff`-merge — ingen filoverlapp, `comm -12` tom). Gate fra ROT grønn
+(`pnpm install` + `prisma generate` ×4): **`db 2 · api 492 · pdf 120 · shared 823 · web 235`** — `api` steg +6 (paritetstesten kjørte). Kald web-bygg grønn.
+
+**i18n-gjeld:**
+- 🟢 **LUKKET** — 134 nøkler (ikke 132; mal-Opus talte selv, coworks tall var foreldet). Alle femten filer har nå identisk nøkkelsett (4500). Null relikvier begge veier.
+- 🔴 **OPPHAVET MÅLT:** 131 av 134 stammer fra ÉN runde — `bbc6cb36` «i18n-runde 1 — delte komponenter», der generatoren aldri ble kjørt. 2 fra `ac7afb33` (vei C del 1 TILLEGG 1), 3 fra `ed21b640`. ⚠️ Hullet gjentar seg hver runde som legger `nb`/`en`-nøkler uten å kjøre 13-språk-generatoren.
+- 🟡 **FORESLÅTT, IKKE BYGGET:** `packages/shared/src/i18n/nokkelsett.test.ts` — les alle femten, krev samme nøkkelsett som `nb`. Fanger både glemt generator og relikvier. Vanlig vitest-test. **Bestilles som egen liten runde ETTER denne mergen** (ville feilet på gjelden).
+
+**Vei C del 2:**
+- 🟢 **LEVERT — MalBygger redigerer nå SiteDoc-maler.** `MalNivaa = prosjekt | firma | sitedoc`. Seks nye prosedyrer på `bibliotek.ts` (`hent`, `oppdater`, `leggTilObjekt`, `oppdaterObjekt`, `oppdaterRekkefolge`, `slettObjekt`), alle gatet av `verifiserSiteDocAdmin`.
+- 🟢 **TS2589-fella omgått:** `velgMutasjon(nivaa, {prosjekt, firma, sitedoc})` med `Record<MalNivaa, unknown>` — hver gren møter `unknown` på funksjonsgrensen. Kald bygg grønn (verifisert her).
+- 🟢 **Paritet BEVIST:** `bibliotek-objekt-crud-paritet.test.ts` kjører samme input gjennom begge routere og sammenligner (fem operasjoner + gate-test).
+- 🟢 **`admin/bibliotek` er ikke lenger låst** — låsebanner og `LAAST_REDIGERING` fjernet, nivåbanneret tilbake. Venstre trestruktur beholdt som navigasjon, MalBygger til høyre.
+- 🔴 **AVVIK MELDT, KENNETH GATER:** `BibliotekMal` mangler fastefelt-kolonnene (`subjects`, `showSubject`, `showLocation`, `showPriority`) som firma/prosjekt har. Fastefelt-seksjonen skjules på sitedoc-nivå; feltredigering er full paritet, kun malnavn er redigerbar metadata. ⚠️ Reelt avvik fra «alle tre nivåer like» — krever skjemaendring.
+- ⚠️ **`hentMalRedigering` og `oppdaterMal` er nå arveløse.** MELDT ubrukte, IKKE slettet — slettes ved rivingen.
+- 🔴 **NESTE:** Kenneths visuelle gate på `/dashbord/admin/bibliotek` → riving av flaten → Innstillinger › Malforvaltning. Parallelt: strengharmonisering (nå ulåst).
+- ⚠️ **Parkert av Kenneth 15.09:** forhåndsvisning av felt ved klikk i «Hent fra arkiv»-modalen — «la dette vente. bygg ferdig så ser vi etterpå hva som mangler».
+- ⚠️ **Uendret åpent:** rettighetsmatrisen vs. ulåst SiteDoc-fane · N dager auto-tømming · fargeføringen · funn #21 · `BibliotekMal` mangler `updatedAt`.
+
+---
+
 ## 🟢 2026-09-15 — `admin/bibliotek` ekte lese-only (TILLEGG 2) merget (`8c84cc77`). Utløser web-deploy.
 
 **Merget `fix/admin-bibliotek-laast-visning` (ren fast-forward `e204f00f..8c84cc77`).** Én fil, +29/−10:
