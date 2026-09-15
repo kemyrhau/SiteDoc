@@ -281,6 +281,10 @@ export function useInnstillingerKort(): {
         beskrivelseKey: "innstillinger.maler.beskrivelse",
         ikon: <FileText className="h-5 w-5" />,
         synlig: kanManageField,
+        // Prosjektarkivet skal treffes av søk på «arkiv» — som firma-/SiteDoc-arkivet
+        // (ordre malarkiv-ut-av-sidefelt TILLEGG 1, alle tre nivåer søkbare). Prosjektet
+        // bor her (det HAR et nav-hjem), så «arkiv»-termen legges som sokeord på malkortet.
+        sokeordKey: "innstillinger.sokeord.maler",
         underlenker: [
           { labelKey: "innstillinger.lenke.sjekklistemaler", href: HUB_LENKER.sjekklistemaler },
           { labelKey: "innstillinger.lenke.oppgavemaler", href: HUB_LENKER.oppgavemaler },

@@ -8,10 +8,11 @@
  * Regel 1 før regel 2 (K13 §4.0): sider som er *innstillinger* får nav-hjem som
  * hub-underlenke (søk følger gratis) — de ligger IKKE her. Kun rene
  * arbeidsflater uten nav-hjem hører hjemme i denne lista:
- *   - `maler`            → prosjekt-bibliotekvalg (arbeidsflate, ikke konfig)
  *   - `firmaAttestering` → leder-attestering på firma-nivå (arbeidsflate)
  *   - `komIGang`         → onboarding (K13-a); verken firma- eller prosjekt-scopet
  *                          → INGEN sone-brødsmule (fabel-avgjørelse 2026-07-11)
+ *   - `firmaarkiv`       → firmaets malarkiv (nav-hjem tatt ut av sidefeltet, TILLEGG 1)
+ *   - `sitedocArkiv`     → SiteDoc-sentralarkivet (har aldri hatt nav-hjem)
  *
  * Gating bruker samme flagg-vokabular som nav (jf. K7) og gjenbruker signaler
  * som allerede beregnes (useFirma/useProsjekt) — ingen nye tRPC-kall.
@@ -31,6 +32,7 @@ export interface DypSide {
   // Gating — samme vokabular som nav:
   kreverProsjekt?: boolean;
   kreverFirmaAdmin?: boolean;
+  kreverSitedocAdmin?: boolean;
   kreverFirmaModul?: "timer" | "varelager" | "maskin";
 }
 
@@ -52,7 +54,50 @@ export const dypeSider: DypSide[] = [
     brodsmuleKeys: [], // K13-a: ingen sone — verken firma- eller prosjekt-scopet
     href: () => "/dashbord/kom-i-gang",
   },
+  // Arkiv-nivåene i søk (ordre malarkiv-ut-av-sidefelt TILLEGG 1). Firma- og SiteDoc-arkivet
+  // har INGEN nav-hjem (firmaets ble tatt ut av sidefeltet; SiteDocs har aldri hatt ett), så
+  // de hører hjemme her — ekte søke-registreringer, ikke lån fra navigasjonen. Prosjektarkivet
+  // ligger IKKE her: det HAR et nav-hjem (Oppsett › Produksjon), så det registreres i hub-
+  // kilden (innstillinger-kort). Etikettene bærer «arkiv» så søk på «arkiv» treffer dem.
+  {
+    id: "firmaarkiv",
+    labelKey: "sok.firmaarkiv",
+    brodsmuleKeys: ["nav.soneFirma"],
+    href: () => "/dashbord/firma/malarkiv",
+    kreverFirmaAdmin: true, // = fotnotens kanRedigereFirma: firmaadmin+ redigerer firmaarkivet
+  },
+  {
+    id: "sitedocArkiv",
+    labelKey: "sok.sitedocArkiv",
+    brodsmuleKeys: [], // ingen egen sone i nav for SiteDoc-arkivet (meldt)
+    // 🔴 Følger flaten: når admin/bibliotek rives (vei C-oppfølger) flyttes MalBygger-inngangen
+    // til Innstillinger › Malforvaltning — oppdater denne href-en da, ellers blir den død lenke.
+    href: () => "/dashbord/admin/bibliotek",
+    kreverSitedocAdmin: true,
+  },
 ];
+
+/** Tilgangssignaler for gating — samme vokabular som nav (useFirma/useProsjekt). */
+export interface DypSideTilgang {
+  prosjektId: string | null;
+  kanAdministrereFirma: boolean;
+  erSitedocAdmin: boolean;
+  firmamoduler: string[];
+}
+
+/**
+ * Ren gating-filter (testbar uten React-kontekst). Krav 3 (TILLEGG 1): den negative
+ * kontrollen — at en prosjektbruker IKKE ser firma-/SiteDoc-arkivet — bevises mot denne.
+ */
+export function gateDypeSider(sider: DypSide[], t: DypSideTilgang): DypSide[] {
+  return sider.filter((s) => {
+    if (s.kreverProsjekt && !t.prosjektId) return false;
+    if (s.kreverFirmaAdmin && !t.kanAdministrereFirma) return false;
+    if (s.kreverSitedocAdmin && !t.erSitedocAdmin) return false;
+    if (s.kreverFirmaModul && !t.firmamoduler.includes(s.kreverFirmaModul)) return false;
+    return true;
+  });
+}
 
 /**
  * Dype sider filtrert på brukerens tilgang (samme gating-signaler som nav).
@@ -60,13 +105,12 @@ export const dypeSider: DypSide[] = [
  */
 export function useDypeSider(): DypSide[] {
   const { prosjektId } = useProsjekt();
-  const { valgtFirma, kanAdministrereFirma } = useFirma();
-  const firmamoduler = valgtFirma?.aktiveFirmamoduler ?? [];
+  const { valgtFirma, kanAdministrereFirma, erSitedocAdmin } = useFirma();
 
-  return dypeSider.filter((s) => {
-    if (s.kreverProsjekt && !prosjektId) return false;
-    if (s.kreverFirmaAdmin && !kanAdministrereFirma) return false;
-    if (s.kreverFirmaModul && !firmamoduler.includes(s.kreverFirmaModul)) return false;
-    return true;
+  return gateDypeSider(dypeSider, {
+    prosjektId,
+    kanAdministrereFirma,
+    erSitedocAdmin,
+    firmamoduler: valgtFirma?.aktiveFirmamoduler ?? [],
   });
 }
