@@ -4,6 +4,30 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+## 🔴 2026-09-15 — Vei C del 1 MERGET til develop (`ac7afb33`). BÆRER MIGRERING — deploy BUILD→MIGRATE→UP.
+
+**Merget `feat/bibliotekmal-objekttabell` (ren fast-forward `fe13e5d8..ac7afb33`).** To commits: `a6bee514` (tabell + migrering, Design B)
++ `ac7afb33` (forhåndsvisning til rader + lås `admin/bibliotek`, TILLEGG 1). 21 filer, +1172/−364. Gate fra ROT grønn
+(`pnpm install` + `prisma generate` ×4): **`db 2 · api 486 · pdf 120 · shared 823 · web 235`** — alle forventede tall.
+i18n traff KUN `nb`/`en` (2 nøkler hver); de tretten urørt. **Jeg kjørte IKKE migreringen — Kenneth kjører den i deploy.**
+
+- 🔴 **Migreringsmappe (slik den står i develop):** `packages/db/prisma/migrations/20260914120000_bibliotekmal_objekttabell/`
+  (`migration.sql` + `DRY-RUN.sql`, sistnevnte read-only).
+- 🟢 **Dry-run mot `sitedoc_test` grønn (Kenneths kjøring, coworks referat):** 12 maler · 96 felt · 132 rader · null avvik
+  på alle fire negativkontroller (felt_uten_fase 0 · ukjente_nøkler tom · heading_i_json 0 · ikke-array 0).
+  ⚠️ Redesign målte lokalt 95 felt / 131 rader — differansen er ETT felt på KC3.1 alene (9 i test, 8 lokalt), forventet/forklart.
+- 🟢 **`BibliotekMalObjekt` speiler `OrganizationTemplateObject` felt for felt.** Design B: heading-rader materialisert, én per distinkt fase.
+- 🔴 **`malInnhold` er FROSSET** — leses ikke lenger av lån, import, forhåndsvisning eller seed. **Kolonnen SLETTES IKKE — egen senere runde.**
+- 🔴 **`admin/bibliotek` er LÅST TIL LESING** — flaten auto-persisterte hver endring; choke-punktet nøytralisert, kontrollene deaktivert,
+  banner forklarer hvor redigeringen flyttet. `bibliotek.oppdaterMal` + `verifiserSiteDocAdmin` er URØRT på serveren. Del 2 bygger den ekte veien.
+- 🟢 **`hentMalInnhold` (forhåndsvisning før lån) leser nå radene** — fase rekonstrueres fra heading-radene. Cowork fant den som krav 4-brudd før merge; redesign lukket den.
+- ⚠️ **MELDT, ikke løst:** felt uten fase arver nærmeste foregående headings fase i forhåndsvisningen. Null slike felt i test/lokal/seed, og lånet gjør det samme → konsistente.
+- ⚠️ **i18n-gjeld:** de tretten stiger fra 132 til **134** manglende nøkler. Mal-Opus' rydderunde skal telle selv, ikke bruke 132.
+- 🔴 **NESTE: vei C del 2** — ruting av MalBygger til sitedoc-nivå, `MalNivaa = "sitedoc"`, oppdateringsvei for eksisterende SiteDoc-maler. **Så riving av `admin/bibliotek`.**
+- ⚠️ **Uendret åpent:** rettighetsmatrisen vs. ulåst SiteDoc-fane · N dager auto-tømming · fargeføringen · funn #21 · `BibliotekMal` mangler `updatedAt`.
+
+---
+
 ## 🟡 2026-09-14 — Fabels avviksgodkjenning B (heading-rader) + KC3.1 lagt bort. Ingen kode, ingen deploy.
 
 **Committet** (`docs/redesign/avviksgodkjenning-b-heading-rader-fabel-2026-09-14.md`), uendret, fra fabel-pakke
