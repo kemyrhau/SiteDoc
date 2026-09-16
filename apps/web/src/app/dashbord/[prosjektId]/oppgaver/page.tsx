@@ -53,6 +53,17 @@ interface OppgaveRad {
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
   bestillerUserId?: string;
+  /** Retning på siste overgang — «paatvers» = videresendt (ramme 4). */
+  retning: string | null;
+  /** Siste overføring (take:1, nyeste først) — «hvem sendte + hvorfor» (ramme 4). */
+  transfers: {
+    senderId: string;
+    comment: string | null;
+    createdAt: string;
+    senderRolle: string | null;
+    senderEnterpriseName: string | null;
+    sender: { id: string; name: string | null } | null;
+  }[];
   dokumentflyt: {
     id: string;
     name: string;
@@ -635,6 +646,13 @@ export default function OppgaverSide() {
       filterAlternativer?: { value: string; label: string }[];
       filterSnarveier?: { label: string; verdier: string[] }[];
     }
+    // Ramme 4: siste overføring når dokumentet kom «paatvers» (videresendt) med kommentar OG
+    // ballen er hos innlogget bruker. Da vet vi «hvem sendte + hvorfor» — ikke bare «nytt dokument».
+    const paatversTilMeg = (rad: OppgaveRad) => {
+      const tilMeg = rad.recipientUser?.id != null && rad.recipientUser.id === minFlytInfo?.userId;
+      const t0 = rad.transfers?.[0];
+      return rad.retning === "paatvers" && tilMeg && t0?.comment ? t0 : null;
+    };
     const defs: Record<string, KolDef> = {
       prefix: {
         id: "prefix", header: t("tabell.prefix"),
@@ -651,7 +669,27 @@ export default function OppgaverSide() {
       },
       tittel: {
         id: "tittel", header: t("tabell.tittel"),
-        celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
+        celle: (rad) => {
+          const p4 = paatversTilMeg(rad);
+          if (!p4) return <span className="font-medium text-gray-900">{rad.title}</span>;
+          const avsender = p4.sender?.name ?? "?";
+          const rolle = p4.senderEnterpriseName ?? undefined;
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-gray-900">{rad.title}</span>
+              <span className="text-[11px] text-gray-500">
+                {rolle
+                  ? t("videresend.radAvsenderMedRolle", { avsender, rolle })
+                  : t("videresend.radAvsender", { avsender })}
+                {" · "}
+                {formaterDato(p4.createdAt)}
+              </span>
+              <span className="mt-0.5 rounded bg-gray-50 px-2 py-1 text-[11px] italic text-gray-600">
+                «{p4.comment}»
+              </span>
+            </div>
+          );
+        },
         sorterbar: true, sorterVerdi: (rad) => rad.title,
       },
       emne: {
@@ -664,17 +702,28 @@ export default function OppgaverSide() {
       },
       status: {
         id: "status", header: t("tabell.status"),
-        celle: (rad) => (
-          <div className="flex items-center gap-1.5">
-            <StatusBadge status={rad.status} />
-            {["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
-              (rad.recipientUser?.name || rad.recipientGroup?.name) && (
-                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                  {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
+        celle: (rad) => {
+          // Ramme 4 (videresend synlig konsekvens): kom dokumentet «paatvers» (videresendt) med
+          // kommentar, og har DU ballen? Da skal raden si «noen venter på DEG», ikke bare «Mottatt».
+          const p4 = paatversTilMeg(rad);
+          return (
+            <div className="flex items-center gap-1.5">
+              <StatusBadge status={rad.status} />
+              {p4 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 whitespace-nowrap">
+                  ⏳ {t("tabell.venterPaaDeg")}
                 </span>
+              ) : (
+                ["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
+                (rad.recipientUser?.name || rad.recipientGroup?.name) && (
+                  <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                    {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
+                  </span>
+                )
               )}
-          </div>
-        ),
+            </div>
+          );
+        },
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status,
         filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
         filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }],

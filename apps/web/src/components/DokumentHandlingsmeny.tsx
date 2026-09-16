@@ -28,8 +28,9 @@ import {
   type FlytPosisjonLedd,
   type LeddKlassifisering,
 } from "@sitedoc/shared";
-import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn, finnStandardMottaker } from "@/lib/videresend-valg";
+import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn, finnStandardMottaker, medlemmerForFlyt } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
+import { VideresendMottakervelger } from "@/components/VideresendMottakervelger";
 import { STATUS_LABEL_NOEKKEL, flythjelpTekst } from "@/lib/flytmatrise-def";
 import { byggLedd, finnAktivtIndex, type FlytMedlem } from "@/lib/flyt-ledd";
 
@@ -107,6 +108,15 @@ interface DokumentHandlingsmenyProps {
    * seksjon UTENFOR Admin når den ikke alt vises via admin-stien.
    */
   kanSletteSomOppretter?: boolean;
+  /**
+   * Videresend synlig konsekvens (ramme 2, gate B): server-verdikten fra
+   * `hentTilgjengeligeFlyter.kanFlytte` (= `kanByttFlyt`). Styrer om «Andre flyter»-seksjonen
+   * i mottakervelgeren vises. Dekker vei 3 (registrator) som klienten ikke kan utlede selv.
+   * Default false → kun «I denne flyten» (person-videresend) tilbys.
+   */
+  kanByttFlyt?: boolean;
+  /** Dokumentets tittel — til mottakervelgerens overskrift (valgfri). */
+  dokumentTittel?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -184,9 +194,13 @@ export function DokumentHandlingsmeny({
   // bestillerUserId: prop beholdt for API-kompat, men klienten utleder ikke mottaker (server gjør).
   lestAvMottakerVed,
   kanSletteSomOppretter,
+  kanByttFlyt,
+  dokumentTittel,
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
+  // Videresend synlig konsekvens (ramme 2): mottakervelger-modalen for flyt-bundne dok.
+  const [visVideresend, setVisVideresend] = useState(false);
   const [bekreft, setBekreft] = useState<{ nyStatus: string; tekstNoekkel: string; mottaker?: Mottaker; label: string; nudge?: boolean } | null>(null);
   const [visKommentar, setVisKommentar] = useState(false);
   const [kommentar, setKommentar] = useState("");
@@ -425,15 +439,18 @@ export function DokumentHandlingsmeny({
     draftSend && videresendValg.length > 1
       ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
       : [];
-  // Pilot-fiks A (2026-08-02, fabel-bindende): faggruppe-mottakervelgeren for Videresend blør gjennom
-  // split-▾ på flyt-bundne dok (bevis-03/07/08). Videresend på et flyt-bundet dok rutes uansett via
-  // posisjon (ikke manuell mottaker-plukk), så velger-innholdet er obsolet OG villedende → gate på
-  // `!harFlyt` (som draftMottaker). Velgeren hører KUN til flyt-LØSE (ad-hoc) dok. Se flagg i rapport:
-  // dette fjerner hele Videresend-affordansen for flyt-bundne dok (admin-only i praksis).
+  // Flyt-LØSE (ad-hoc) dok: den inline faggruppe-velgeren består (mottaker-valget binder flyten).
   const videresendOppforinger: MenyOppforing[] =
     !draftSend && harForwarded && !harFlyt
       ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel, videresendMottakere)
       : [];
+  // Ramme 1 (videresend synlig konsekvens, 2026-09-16): flyt-BUNDNE dok får Videresend TILBAKE —
+  // som ÉN «Videresend …»-oppføring som åpner mottakervelgeren (ramme 2), ikke som inline liste.
+  // Gate-grunnen fra pilot-fiks A (02.08: velger-innholdet «kastes» av posisjonsruting) er MÅLT
+  // gal for `forwarded`: mutasjonen returnerer på oppgave.ts:1515, FØR beregnRuting på :1549, og
+  // bruker eksplisitt input.recipientUserId/dokumentflytId. Kun `sent` rutes via posisjon.
+  const visVideresendModal = !draftSend && harForwarded && harFlyt;
+  const forwardedTekstNoekkel = forwardedHandling?.tekstNoekkel ?? "statushandling.videresend";
 
   // Øvrige statushandlinger (ikke primær, ikke forwarded, ikke admin-status), delt i
   // framover (nøytrale) og destruktive (Avvis, rød) for fabel-rekkefølgen.
@@ -517,6 +534,7 @@ export function DokumentHandlingsmeny({
     framoverOppforinger.length +
     destruktivOppforinger.length +
     videresendOppforinger.length +
+    (visVideresendModal ? 1 : 0) +
     oppretterSlettOppforinger.length +
     adminOppforinger.length;
   // Split vises kun ved primær + ≥1 øvrig lovlig. Deaktiverte alene utløser IKKE split
@@ -664,17 +682,51 @@ export function DokumentHandlingsmeny({
       framover={framoverOppforinger}
       destruktiv={destruktivOppforinger}
       videresend={videresendOppforinger}
+      visVideresendModal={visVideresendModal}
+      videresendModalBeskrivelse={t("videresend.menyBeskrivelse")}
+      onÅpneVideresendModal={() => {
+        setÅpenMeny(false);
+        setVisVideresend(true);
+      }}
       oppretterSlett={oppretterSlettOppforinger}
       admin={adminOppforinger}
       deaktivert={deaktiverteOppforinger}
       onVelg={klikk}
       sendLabel={t("statushandling.sendVidereTil")}
       videresendLabel={t("statushandling.videresend")}
+      videresendModalLabel={t("videresend.aapne")}
       adminLabel={t("statushandling.admin")}
       ankerRef={triggerRef}
       rootRef={dropdownRef}
     />
   );
+
+  // Ramme 2+3: mottakervelger-modal for flyt-bundne dok. Egen-flyt-medlemmer hentes fra
+  // flyt-definisjonen (robust); «Andre flyter» = medlemskaps-filtrert liste minus egen flyt.
+  const egenFlytMedlemmer = medlemmerForFlyt(dokumentflyter ?? [], aktivDokumentflytId);
+  const andreFlyter = videresendMottakere.filter((v) => v.dokumentflytId !== aktivDokumentflytId);
+  const egenFlytNavn = dokumentflyter?.find((df) => df.id === aktivDokumentflytId)?.name;
+  const ballHolderNavn = finnMottakerNavn(flytMedlemmer ?? [], recipientUserId, recipientGroupId);
+  const videresendModal = visVideresendModal ? (
+    <VideresendMottakervelger
+      åpen={visVideresend}
+      onLukk={() => setVisVideresend(false)}
+      dokumentTittel={dokumentTittel}
+      egenFlytNavn={egenFlytNavn}
+      aktivDokumentflytId={aktivDokumentflytId}
+      ballHolderNavn={ballHolderNavn}
+      egenFlytMedlemmer={egenFlytMedlemmer}
+      recipientUserId={recipientUserId}
+      recipientGroupId={recipientGroupId}
+      andreFlyter={andreFlyter}
+      kanByttFlyt={kanByttFlyt ?? false}
+      erLaster={erLaster}
+      onVideresend={(mottaker, kommentar) => {
+        onEndreStatus("forwarded", forwardedTekstNoekkel, kommentar, mottaker);
+        setVisVideresend(false);
+      }}
+    />
+  ) : null;
 
   return (
     <div className="flex flex-wrap items-center gap-2" ref={menyRef}>
@@ -756,6 +808,7 @@ export function DokumentHandlingsmeny({
           </button>
         )
       )}
+      {videresendModal}
     </div>
   );
 }
@@ -769,12 +822,16 @@ function DropdownMeny({
   framover,
   destruktiv,
   videresend,
+  visVideresendModal,
+  videresendModalBeskrivelse,
+  onÅpneVideresendModal,
   oppretterSlett,
   admin,
   deaktivert,
   onVelg,
   sendLabel,
   videresendLabel,
+  videresendModalLabel,
   adminLabel,
   ankerRef,
   rootRef,
@@ -785,8 +842,12 @@ function DropdownMeny({
   framover: MenyOppforing[];
   /** Destruktive handlinger (Avvis/Slett — rød) */
   destruktiv: MenyOppforing[];
-  /** Videresend: mottaker-liste (person-velger), etter destruktive */
+  /** Videresend (flyt-LØSE dok): inline mottaker-liste (person-velger), etter destruktive */
   videresend: MenyOppforing[];
+  /** Ramme 1: flyt-BUNDNE dok → én «Videresend …»-oppføring som åpner mottakervelger-modalen */
+  visVideresendModal: boolean;
+  videresendModalBeskrivelse: string;
+  onÅpneVideresendModal: () => void;
   /** Oppretter-slett: «Slett» for eget utkast, egen seksjon UTENFOR Admin (rød) */
   oppretterSlett: MenyOppforing[];
   /** Admin-overstyringer (Lukk/Trekk tilbake/Gjenåpne-når-sekundær) */
@@ -796,6 +857,7 @@ function DropdownMeny({
   onVelg: (o: MenyOppforing) => void;
   sendLabel: string;
   videresendLabel: string;
+  videresendModalLabel: string;
   adminLabel: string;
   /** ▾-triggeren nedtrekket forankres til (fixed-koordinater fra dens rect). */
   ankerRef: RefObject<HTMLButtonElement | null>;
@@ -951,6 +1013,22 @@ function DropdownMeny({
           {skille(true)}
           {overskrift(videresendLabel)}
           {videresend.map(mottakerRad)}
+        </>
+      )}
+
+      {/* Ramme 1: flyt-bundne dok → én «Videresend …» som åpner mottakervelgeren (ramme 2) */}
+      {visVideresendModal && (
+        <>
+          {skille(true)}
+          {overskrift(videresendLabel)}
+          <button
+            data-testid="handling-forwarded"
+            onClick={onÅpneVideresendModal}
+            className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-gray-50"
+          >
+            <span className="text-sm font-medium text-sitedoc-primary">{videresendModalLabel}</span>
+            <span className="mt-0.5 text-[11px] leading-snug text-gray-500">{videresendModalBeskrivelse}</span>
+          </button>
         </>
       )}
 

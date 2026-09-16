@@ -199,6 +199,39 @@ export function finnMottakerNavn(
   return null;
 }
 
+/**
+ * Presentasjon (videresend synlig konsekvens, ramme 2): flate medlemmer i EN gitt flyt,
+ * hentet direkte fra flyt-definisjonen — robust uavhengig av mal-match (i motsetning til
+ * `byggVideresendValg`, som filtrerer på templateId). Brukes til «I denne flyten»-seksjonen,
+ * der dokumentets EGEN flyt alltid skal vises flatt selv om malen ikke matcher listebygget.
+ * Ren utledning, ingen data-endring.
+ */
+export function medlemmerForFlyt(
+  dokumentflyter: DokumentflytData[],
+  dokumentflytId: string | undefined | null,
+): VideresendMedlem[] {
+  if (!dokumentflytId) return [];
+  const df = dokumentflyter.find((d) => d.id === dokumentflytId);
+  return df ? finnMedlemmer(df) : [];
+}
+
+/**
+ * Presentasjon (ramme 3): navnet på den som får ballen i et flyt-bytte-valg — dvs. valgets
+ * standard-mottaker (hovedansvarlig utfører), som serveren auto-utleder ved flyt-bytte
+ * (oppgave.ts:1434-1450). Resolves mot valgets egne medlemmer. Brukes i konsekvensboksen
+ * («ballen til N»). Ingen data-endring.
+ */
+export function mottakerNavnIValg(valg: VideresendValg): string | null {
+  const m = valg.mottaker;
+  if (!m) return null;
+  const treff = valg.medlemmer.find(
+    (x) =>
+      (m.userId != null && x.mottaker.userId === m.userId) ||
+      (m.groupId != null && x.mottaker.groupId === m.groupId),
+  );
+  return treff?.navn ?? null;
+}
+
 /** Finn mottaker fra dokumentflyt: utfører → bestiller → godkjenner */
 function finnMottaker(df: DokumentflytData): { userId?: string; groupId?: string } | undefined {
   for (const rollePrioritet of ["utforer", "bestiller", "godkjenner"]) {

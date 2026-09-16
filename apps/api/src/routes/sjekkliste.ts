@@ -189,6 +189,23 @@ export const sjekklisteRouter = router({
               },
             },
           },
+          // Ramme 4 (videresend synlig konsekvens): siste overføring, slik at
+          // mottakerens rad kan vise «hvem sendte + hvorfor», ikke bare et nytt dokument.
+          // READ-ONLY select-utvidelse — ingen ny prosedyre/signatur/tilgangssjekk. take:1
+          // gjør dette til ÉN batchet relasjons-spørring (ikke N+1). Feltene finnes allerede
+          // på DocumentTransfer (senderRolle/senderEnterpriseName er snapshot) — ingen schema-endring.
+          transfers: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            select: {
+              senderId: true,
+              comment: true,
+              createdAt: true,
+              senderRolle: true,
+              senderEnterpriseName: true,
+              sender: { select: { id: true, name: true } },
+            },
+          },
           _count: { select: { images: true, transfers: true } },
           // Kontrollplan-kobling: klienten skiller «hører til kontrollplanen» fra
           // «kommer i tillegg» via denne relasjonen (ingen nytt felt — relasjonen finnes).
