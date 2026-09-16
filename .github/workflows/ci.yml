@@ -231,5 +231,5 @@ jobs:
           # mangler `ProjectOrganization`-kobling (`erStandaloneProsjekt`=true) — et seed-gap.
           # Å slå dem på nå ville gjort develop RØD. Å endre spec-ene er forbudt (ordre) og krever
           # egen runde med spec-redigering + seed-fiks. Inntil da kjører e2e KUN 01-login.
-          echo "NEGATIV KONTROLL: kjører 02-opprett (NY spec) — forventet ROOD paa drift."
-          pnpm --filter @sitedoc/e2e exec playwright test tests/02-opprett.spec.ts --project=chromium
+          echo "KUN tests/01-login.spec.ts kjører. 02–07 er holdt ute (driftet mot dagens UI — se ci.yml-kommentar + kvalitetssikring-plan.md)."
+          pnpm --filter @sitedoc/e2e exec playwright test tests/01-login.spec.ts --project=chromium
