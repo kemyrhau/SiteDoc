@@ -199,7 +199,7 @@ jobs:
           export FIL_SIGNING_SECRET="$(openssl rand -hex 16)"
 
           # api (Fastify) — dev-login på, samme DEV_LOGIN_SECRET som e2e-klienten.
-          PORT=3001 HOST=127.0.0.1 ENABLE_DEV_LOGIN=true \
+          PORT=3099 HOST=127.0.0.1 ENABLE_DEV_LOGIN=true \
             pnpm --filter @sitedoc/api exec tsx src/server.ts > /tmp/api.log 2>&1 &
 
           # web (Next) — NODE_ENV=production krever AUTH_SECRET + FIL_SIGNING_SECRET (instrumentation).
