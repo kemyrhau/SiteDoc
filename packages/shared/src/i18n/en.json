@@ -49,7 +49,6 @@
   "firmaNav.kompetanse": "Competence",
   "firmaNav.hms": "HSE",
   "firmaNav.moduler": "Modules",
-  "firmaNav.malarkiv": "Template archive",
   "firma.malarkiv.kunFirmaAdmin": "Only company administrators can access the template archive.",
   "firma.malarkiv.tittel": "Template archive",
   "firma.malarkiv.beskrivelse": "The company's templates that new projects inherit from. Checklists, tasks and HSE are kept separate.",
