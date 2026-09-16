@@ -26,7 +26,6 @@ test("Gjenåpne fra Lukket → Hos N (received)", async ({ page, rt, apiFirma })
   await expect(badge).toHaveAttribute("data-status", "closed");
 
   await klikkFlythandling(page, "draft");
-  // NEGATIV KONTROLL (midlertidig): forventer den GAMLE driftede verdien «draft».
-  // CI skal bli RØD her — beviser at testen faktisk sjekker badgen. Tilbakestilles straks.
-  await expect(badge).toHaveAttribute("data-status", "draft");
+  // Gjenåpning gir «Hos N» (received), ikke «Utkast» — se filhode.
+  await expect(badge).toHaveAttribute("data-status", "received");
 });
