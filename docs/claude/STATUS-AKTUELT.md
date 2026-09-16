@@ -9,12 +9,12 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-16 · develop `b8ee57cc` · test `81b2a785` — FLERE STEG BAK**
+**Sist ført: 2026-09-16 · develop `d136340f` · test `81b2a785` — FLERE STEG BAK**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `feat/malforvaltning` | 🟢 **PR 1 MERGET + DEPLOYET** | **Kenneths visuelle gate**, så PR 2 |
-| **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | E2e i CI (neste spor) |
+| **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | E2e del 2 (neste spor) |
 | **mal-Opus** | `SiteDoc-mal` | `test/i18n-nokkelsett` | 🔵 **ORDRE GITT** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
 | **kontrollplan** · **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
@@ -26,13 +26,32 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| **E2e i CI** — krever efemært miljø; suiten muterer `sitedoc_test`. Est. 1–2 runder | Etter mobil-harness | dokgen |
+| **E2e del 2** — de seks andre spec-ene, `db-maskin`-støyen i e2e-miljøet, og blokkeringsspørsmålet (rapporterer vs. blokkerer merge — Kenneth avgjør etter stabil grønn over flere kjøringer) | Etter del 1 (levert 16.09) | dokgen |
 | **Malforvaltning PR 2** — Firmaarkiv-fane (én liste + maltype-filter) + riving av `firma/malarkiv` med bevistabell | Kenneths visuelle gate av PR 1 | redesign |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen inn i rettighetsmatrisen | Med sikkerhetsrunden | — |
 | **Strengharmonisering** | Etter nøkkelsett-testen | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-16 — E2e i CI del 1 merget (`d136340f`): efemært miljø + `01-login` grønn. INGEN deploy.
+
+**Merget `ci/e2e-efemert-miljo` (ren fast-forward `f6c13eca..d136340f`, fire commits bevart — ikke squashet).** 2 filer, +123/−19:
+`.github/workflows/ci.yml` + `kvalitetssikring-plan.md`. Ingen spec-fil, ingen kodefil. Gate: `pnpm test` 7/7 tasks, seks tall stille
+(`db 2 · api 488 · pdf 120 · shared 823 · web 244 · mobil 9`). **Begge CI-jobbene grønne på develop: `test` ✓ og `e2e-del1 (KUN 01-login)` ✓.**
+
+- 🟢 **E2E I CI DEL 1 LEVERT** — efemært miljø (pg+pgvector, migreringer, seed, api+web), `01-login` grønn i egen parallell jobb (3m25s, parallelt med `test`). Miljøet klart etter 4–5 s via helsesjekk, ikke `sleep`.
+- 🟢 **Begge negativkontroller kjørt i CI:** feil api-port → rød på HELSESJEKK før Playwright startet · feil testid → rød på assertionen. Riggen feiler tidlig og av riktig grunn. `git diff 1cee88fa d136340f` tom.
+- 🟢 **Seed kjørbar og idempotent** — `seed-testbrukere.ts` + `seed-e2e-flyt.ts`. E2e-suiten er IKKE avhengig av manuelt oppsatt tilstand i `sitedoc_test`.
+- 🟢 **Ingen GitHub-secret nødvendig for del 1** — jobb-generert `DEV_LOGIN_SECRET` (+ `AUTH_SECRET`, `FIL_SIGNING_SECRET`). Ingenting lagres.
+- 🔴 **ARKITEKTUR-FUNN:** web `/api/trpc` kjører tRPC-routeren IN-PROCESS, ikke som proxy til Fastify. Web er selvstendig for nettleser-flyten; api (Fastify) trengs for `global-setup` sin dev-login og `slåOppFlyt`. Verdt å vite ved ethvert miljøoppsett.
+- 🔴 **`next start` tvinger `NODE_ENV=production`** → trigger `assertFilSigneringEnv("web")` i `instrumentation.ts`; derfor kreves `FIL_SIGNING_SECRET` + `AUTH_SECRET` for å boote web overhodet.
+- 🟢 **Cookie-navn-grenen treffer riktig:** http-miljø → `authjs.session-token`, ikke `__Secure-`-varianten. Admin-sweepen er env-guardet til `sitedoc_test` og hopper trygt over.
+- ⚠️ **MELDT, ikke løst:** api-bakgrunnsworkeren logger `maskin.vegvesen_ko does not exist` fordi `db-maskin`-migreringene ikke kjøres i e2e-miljøet. Ufarlig for login. Vurderes i del 2.
+- 🟡 **Blokkeringsspørsmålet (dokgens anbefaling, cowork-gatet inntil videre):** e2e-jobben RAPPORTERER, blokkerer IKKE merge — «én grønn kjøring sier ingenting om flakiness». Kenneth avgjør i del 2 etter stabil grønn over flere kjøringer.
+- 🔴 **NESTE: e2e del 2** — de seks andre spec-ene, `db-maskin`-støyen, blokkeringsspørsmålet.
 
 ---
 
