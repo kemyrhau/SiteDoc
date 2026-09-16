@@ -56,7 +56,8 @@ describe("firmamal objekt-CRUD", () => {
   it("(1) leggTilObjekt skriver OrganizationTemplateObject + går gjennom matrisen (firma+rediger)", async () => {
     const prisma = {
       organizationTemplate: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ organizationId: ORG_A }),
+        // Soft-delete-guard (krav 3): autoriserFirmaObjektRedigering bruker nå findFirst(deletedAt:null).
+        findFirst: vi.fn().mockResolvedValue({ organizationId: ORG_A }),
       },
       organizationTemplateObject: {
         create: vi.fn().mockResolvedValue({ id: OBJ }),
@@ -92,7 +93,8 @@ describe("firmamal objekt-CRUD", () => {
         delete: vi.fn().mockResolvedValue({ id: OBJ }),
       },
       organizationTemplate: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ organizationId: ORG_A }),
+        // Soft-delete-guard (krav 3): gate-helperen bruker nå findFirst(deletedAt:null).
+        findFirst: vi.fn().mockResolvedValue({ organizationId: ORG_A }),
       },
       // Skulle en dokument-tabell blitt spurt (feilaktig lås), fanges det her.
       checklist: { count: vi.fn(), findMany: vi.fn() },
@@ -112,7 +114,8 @@ describe("firmamal objekt-CRUD", () => {
     );
     const prisma = {
       organizationTemplate: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ organizationId: ORG_A }),
+        // Soft-delete-guard (krav 3): gate-helperen bruker nå findFirst(deletedAt:null).
+        findFirst: vi.fn().mockResolvedValue({ organizationId: ORG_A }),
       },
       organizationTemplateObject: { create: vi.fn() },
     };

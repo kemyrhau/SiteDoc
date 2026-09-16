@@ -73,13 +73,19 @@ function fangCreateData(mock: { mock: { calls: unknown[][] } }): Record<string, 
 describe("(1) leggTilObjekt — sitedoc = firma mot samme objekt-form", () => {
   it("begge skriver identisk type/label/config/sortOrder/required/parentId", async () => {
     const firmaPrisma = {
-      organizationTemplate: { findUniqueOrThrow: vi.fn().mockResolvedValue({ organizationId: ORG_A }) },
+      organizationTemplate: { findFirst: vi.fn().mockResolvedValue({ organizationId: ORG_A }) },
       organizationTemplateObject: { create: vi.fn().mockResolvedValue({ id: OBJ }) },
     };
+    // Sitedoc bumper nå BibliotekMal.version i en $transaction (krav 1). Delt create-mock
+    // mellom prisma og tx slik at fangCreateData ser kallet uansett hvilken som brukes.
+    const sitedocCreate = vi.fn().mockResolvedValue({ id: OBJ });
+    const sitedocMalUpdate = vi.fn().mockResolvedValue({ id: MAL });
     const sitedocPrisma = {
       user: sitedocAdminBruker,
-      bibliotekMal: { findUniqueOrThrow: vi.fn().mockResolvedValue({ id: MAL }) },
-      bibliotekMalObjekt: { create: vi.fn().mockResolvedValue({ id: OBJ }) },
+      bibliotekMal: { findUniqueOrThrow: vi.fn().mockResolvedValue({ id: MAL }), update: sitedocMalUpdate },
+      bibliotekMalObjekt: { create: sitedocCreate },
+      $transaction: vi.fn().mockImplementation((cb: (t: unknown) => unknown) =>
+        cb({ bibliotekMalObjekt: { create: sitedocCreate }, bibliotekMal: { update: sitedocMalUpdate } })),
     };
 
     await firma(firmaPrisma).leggTilObjekt(INPUT_LEGG_TIL);
@@ -103,21 +109,26 @@ describe("(2) oppdaterObjekt — sitedoc = firma", () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({ templateId: MAL }),
         update: vi.fn().mockResolvedValue({ id: OBJ }),
       },
-      organizationTemplate: { findUniqueOrThrow: vi.fn().mockResolvedValue({ organizationId: ORG_A }) },
+      organizationTemplate: { findFirst: vi.fn().mockResolvedValue({ organizationId: ORG_A }) },
     };
+    // Sitedoc henter templateId (for bump) og oppdaterer i $transaction (krav 1).
+    const sitedocObjUpdate = vi.fn().mockResolvedValue({ id: OBJ });
+    const sitedocMalUpdate = vi.fn().mockResolvedValue({ id: MAL });
     const sitedocPrisma = {
       user: sitedocAdminBruker,
       bibliotekMalObjekt: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ id: OBJ }),
-        update: vi.fn().mockResolvedValue({ id: OBJ }),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ templateId: MAL }),
+        update: sitedocObjUpdate,
       },
+      $transaction: vi.fn().mockImplementation((cb: (t: unknown) => unknown) =>
+        cb({ bibliotekMalObjekt: { update: sitedocObjUpdate }, bibliotekMal: { update: sitedocMalUpdate } })),
     };
 
     await firma(firmaPrisma).oppdaterObjekt(inp);
     await sitedoc(sitedocPrisma).oppdaterObjekt(inp);
 
     const f = (firmaPrisma.organizationTemplateObject.update.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
-    const s = (sitedocPrisma.bibliotekMalObjekt.update.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
+    const s = (sitedocObjUpdate.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
     expect(s.label).toEqual(f.label);
     expect(s.required).toEqual(f.required);
     expect(s.config).toEqual(f.config);
@@ -144,7 +155,7 @@ describe("(3) oppdaterRekkefolge — sitedoc = firma (flytt)", () => {
     const firmaTx = lagTxPrisma("organizationTemplateObject");
     const firmaPrisma = {
       organizationTemplateObject: { findUniqueOrThrow: vi.fn().mockResolvedValue({ templateId: MAL }) },
-      organizationTemplate: { findUniqueOrThrow: vi.fn().mockResolvedValue({ organizationId: ORG_A }) },
+      organizationTemplate: { findFirst: vi.fn().mockResolvedValue({ organizationId: ORG_A }) },
       $transaction: firmaTx.$transaction,
     };
     const sitedocTx = lagTxPrisma("bibliotekMalObjekt");
@@ -172,16 +183,22 @@ describe("(4) slettObjekt — sitedoc = firma, ingen slett-vern", () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({ templateId: MAL }),
         delete: vi.fn().mockResolvedValue({ id: OBJ }),
       },
-      organizationTemplate: { findUniqueOrThrow: vi.fn().mockResolvedValue({ organizationId: ORG_A }) },
+      organizationTemplate: { findFirst: vi.fn().mockResolvedValue({ organizationId: ORG_A }) },
       checklist: { count: vi.fn(), findMany: vi.fn() },
       task: { count: vi.fn(), findMany: vi.fn() },
     };
+    // Sitedoc henter templateId (for bump) og sletter i $transaction (krav 1).
+    const sitedocDelete = vi.fn().mockResolvedValue({ id: OBJ });
+    const sitedocMalUpdate = vi.fn().mockResolvedValue({ id: MAL });
     const sitedocPrisma = {
       user: sitedocAdminBruker,
       bibliotekMalObjekt: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ id: OBJ }),
-        delete: vi.fn().mockResolvedValue({ id: OBJ }),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ templateId: MAL }),
+        delete: sitedocDelete,
       },
+      bibliotekMal: { update: sitedocMalUpdate },
+      $transaction: vi.fn().mockImplementation((cb: (t: unknown) => unknown) =>
+        cb({ bibliotekMalObjekt: { delete: sitedocDelete }, bibliotekMal: { update: sitedocMalUpdate } })),
       checklist: { count: vi.fn(), findMany: vi.fn() },
       task: { count: vi.fn(), findMany: vi.fn() },
     };
@@ -190,7 +207,7 @@ describe("(4) slettObjekt — sitedoc = firma, ingen slett-vern", () => {
     await sitedoc(sitedocPrisma).slettObjekt({ id: OBJ });
 
     expect(firmaPrisma.organizationTemplateObject.delete).toHaveBeenCalledWith({ where: { id: OBJ } });
-    expect(sitedocPrisma.bibliotekMalObjekt.delete).toHaveBeenCalledWith({ where: { id: OBJ } });
+    expect(sitedocDelete).toHaveBeenCalledWith({ where: { id: OBJ } });
     // Ingen dokument-oppslag på noen av nivåene (objektene bærer ingen dokumentdata).
     expect(sitedocPrisma.checklist.count).not.toHaveBeenCalled();
     expect(sitedocPrisma.task.count).not.toHaveBeenCalled();
@@ -201,7 +218,8 @@ describe("(5) oppdater mal — navnendring virker på begge", () => {
   it("firma skriver name, sitedoc skriver navn (samme handling, ulik kolonne = meldt avvik)", async () => {
     const firmaPrisma = {
       organizationTemplate: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ id: MAL, organizationId: ORG_A }),
+        // Soft-delete-guard (krav 3): firmamal.oppdater bruker nå findFirst(deletedAt:null).
+        findFirst: vi.fn().mockResolvedValue({ id: MAL, organizationId: ORG_A }),
         update: vi.fn().mockResolvedValue({ id: MAL }),
       },
     };
@@ -220,6 +238,9 @@ describe("(5) oppdater mal — navnendring virker på begge", () => {
     const s = (sitedocPrisma.bibliotekMal.update.mock.calls[0]![0] as { data: Record<string, unknown> }).data;
     expect(f.name).toBe("Nytt navn");
     expect(s.navn).toBe("Nytt navn");
+    // Paritet på versjonering (krav 1): begge nivåer bumper sin versjonsteller ved metadata-endring.
+    expect(f.version).toEqual({ increment: 1 });
+    expect(s.version).toEqual({ increment: 1 });
   });
 });
 

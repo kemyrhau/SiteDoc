@@ -1143,6 +1143,21 @@ model OrganizationTemplate {
   // SiteDoc-sentralarkivet (BibliotekMal). Spørrbar peker, aldri fritekst i description.
   // SetNull ved sletting av bibliotekmalen (samme semantikk som L5) — lånet består.
   laantFraBibliotekMalId   String?  @map("laant_fra_bibliotek_mal_id")
+  // Malarkiv-versjonering (ordre versjonssporing-softdelete, 2026-09-16): hvilken
+  // BibliotekMal.version denne LÅNTE firmamalen stammer fra. Speiler
+  // ReportTemplate.versjonAvHovedmal (L6) ETT nivå opp. Badge «X versjoner bak» på
+  // firmanivå = bibliotekMal.version − versjonAvHovedmal (beregnes i UI, redesign).
+  // NULLABLE med vilje (avvik fra ReportTemplate som er @default(1)): NULL = firmaets EGEN
+  // mal (ingen sentralarkiv-avstamning, laantFraBibliotekMalId = null); non-null = lånt.
+  // DB-garantien (CHECK i migrering, ikke uttrykkbar i Prisma-skjemaet) håndhever at en
+  // lånt mal ALLTID har snapshot — «stille tomhet»-krav (b). Se migreringens CHECK.
+  versjonAvHovedmal        Int?     @map("versjon_av_hovedmal")
+  // Soft delete (ordre versjonssporing-softdelete, krav 3) — låser opp Papirkurv-fanen i
+  // Malforvaltning. Speiler Checklist/Task (schema:1238/:1314). Guard-filteret
+  // `deletedAt IS NULL` skjuler slettede firmamaler fra alle lesende spørringer.
+  // deletedById er svakt String-felt uten @relation (bevisst — ingen FK-kobling til User).
+  deletedAt                DateTime? @map("deleted_at")
+  deletedById              String?  @map("deleted_by_id")
   createdAt                DateTime @default(now()) @map("created_at")
   updatedAt                DateTime @updatedAt @map("updated_at")
 
@@ -2282,6 +2297,13 @@ model BibliotekMal {
   referanse           String
   beskrivelse         String?
   versjon             String                  @default("1.0")
+  // Malarkiv-versjonering (ordre versjonssporing-softdelete, 2026-09-16): monoton
+  // revisjonsteller som BUMPES ved innholdsendring i sentralmalen. Speiler
+  // OrganizationTemplate.version / ReportTemplate.version (Int) — badge «X versjoner bak»
+  // på firmanivå = version − OrganizationTemplate.versjonAvHovedmal. `versjon String` over
+  // er en ANNEN størrelse (fritekst-etikett "1.0", aldri skrevet i kode) som fryses her og
+  // slettes i egen senere runde (to-stegs-migreringspolicy).
+  version             Int                     @default(1)
   aktiv               Boolean                 @default(true)
   prioritet           Int                     @default(1) // 1=grunnpakke, 2=utvidet, 3=spesialist
   // Per fase-0-beslutninger.md § E steg 8 — lukker P-KRITISK-3 (bibliotek.ts hardkodet category/domain)

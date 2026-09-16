@@ -53,10 +53,13 @@ async function autoriserFirmaObjektRedigering(
   userId: string,
   templateId: string,
 ): Promise<void> {
-  const mal = await prisma.organizationTemplate.findUniqueOrThrow({
-    where: { id: templateId },
+  const mal = await prisma.organizationTemplate.findFirst({
+    where: { id: templateId, deletedAt: null }, // soft-delete-guard (krav 3): ikke rediger objekter på slettet mal
     select: { organizationId: true },
   });
+  if (!mal) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+  }
   await autoriserMalTilgang(userId, {
     nivaa: "firma",
     handling: "rediger",
@@ -178,6 +181,7 @@ export const firmamalRouter = router({
       return ctx.prisma.organizationTemplate.findMany({
         where: {
           organizationId: input.organizationId,
+          deletedAt: null, // soft-delete-guard (krav 3): skjul papirkurven fra aktiv liste
           ...(input.fane ? faneWhere(input.fane) : {}),
         },
         include: { _count: { select: { objects: true, copiedTo: true } } },
@@ -270,10 +274,13 @@ export const firmamalRouter = router({
   hent: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const mal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.id },
+      const mal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.id, deletedAt: null }, // soft-delete-guard (krav 3)
         include: { objects: { orderBy: { sortOrder: "asc" } } },
       });
+      if (!mal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+      }
       await autoriserAdminForFirma(ctx.userId, mal.organizationId);
       return mal;
     }),
@@ -336,10 +343,13 @@ export const firmamalRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const mal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.id },
+      const mal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.id, deletedAt: null }, // soft-delete-guard (krav 3): slettet mal ikke redigerbar
         select: { id: true, organizationId: true },
       });
+      if (!mal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+      }
       await autoriserAdminForFirma(ctx.userId, mal.organizationId);
 
       await ctx.prisma.organizationTemplate.update({
@@ -485,20 +495,72 @@ export const firmamalRouter = router({
     }),
 
   /**
-   * Slett en firmamal. Prosjekt-kopier beholder sin frosne struktur — FK-en
-   * `report_templates.organization_template_id` er SetNull (schema:1003), så
-   * avstamningspekeren nulles av DB-en, ikke app-laget. Objekt-treet cascader.
+   * Soft-slett en firmamal (krav 3) — flytter den til Papirkurv-fanen i Malforvaltning
+   * i stedet for å fjerne raden. `deletedAt`/`deletedById` settes; alle lesende
+   * spørringer filtrerer `deletedAt: null`, så malen forsvinner fra lister, lån og
+   * seeding. Objekt-treet og avstamningspekeren (`report_templates.organization_template_id`)
+   * BEVARES — SetNull-FK-en fyrer kun ved HARD sletting (auto-tømming, krav 4).
+   *
+   * ⚠️ Den unike indeksen `(organizationId, laantFraBibliotekMalId)` (runde 95) teller
+   * fortsatt en soft-slettet lånt mal → samme sentralmal kan IKKE lånes på nytt før
+   * papirkurven tømmes. FUNN meldt (krav 3) — indeksen røres ikke denne runden.
    */
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const mal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.id },
+      const mal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.id, deletedAt: null },
         select: { id: true, organizationId: true },
       });
+      if (!mal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er allerede slettet" });
+      }
       await autoriserAdminForFirma(ctx.userId, mal.organizationId);
-      await ctx.prisma.organizationTemplate.delete({ where: { id: input.id } });
+      await ctx.prisma.organizationTemplate.update({
+        where: { id: input.id },
+        data: { deletedAt: new Date(), deletedById: ctx.userId },
+      });
       return { slettet: true as const };
+    }),
+
+  /**
+   * Krav 4 — auto-tømmings-MEKANISMEN (IKKE en kjørende jobb). Hard-sletter firmamaler
+   * som har ligget i papirkurven (`deletedAt` satt) lenger enn `eldreEnnDager`. Ved HARD
+   * sletting fyrer SetNull-FK-en (schema:1003) → prosjekt-kopier beholder sin frosne
+   * struktur, avstamningspekeren nulles av DB-en.
+   *
+   * 🔴 N er en PARAMETER — aldri hardkodet i en spørring (min 1, ingen default: kalleren
+   * MÅ oppgi den). Kenneth setter tallet når Papirkurv-flaten finnes (forslaget er 90).
+   * 🔴 Utløsning: en framtidig cron/admin-handling kaller denne med valgt N. INGENTING
+   * kaller den automatisk i denne runden — permanent sletting er Kenneth-gatet.
+   * sitedoc_admin-gatet (systemvedlikehold, permanent datasletting).
+   */
+  tomPapirkurvPermanent: protectedProcedure
+    .input(
+      z.object({
+        eldreEnnDager: z.number().int().min(1),
+        organizationId: z.string().uuid().optional(), // valgfri avgrensning til ett firma
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker?.role !== "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun SiteDoc-admin kan tømme papirkurven permanent",
+        });
+      }
+      const grense = new Date(Date.now() - input.eldreEnnDager * 24 * 60 * 60 * 1000);
+      const resultat = await ctx.prisma.organizationTemplate.deleteMany({
+        where: {
+          deletedAt: { not: null, lt: grense },
+          ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+        },
+      });
+      return { antallSlettet: resultat.count, grense };
     }),
 
   /**
@@ -591,10 +653,13 @@ export const firmamalRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      const firmamal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.organizationTemplateId },
+      const firmamal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.organizationTemplateId, deletedAt: null }, // soft-delete-guard (krav 3): slettet mal kan ikke lånes ned
         include: { objects: { orderBy: { sortOrder: "asc" } } },
       });
+      if (!firmamal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+      }
 
       // Firma-isolasjon: prosjektet må være koblet til firmamalens firma
       // (eier-firma eller part i prosjektet). Ellers lekker maler på tvers av firma.
@@ -704,6 +769,7 @@ export const firmamalRouter = router({
       return ctx.prisma.organizationTemplate.findMany({
         where: {
           organizationId: { in: [...orgIder] },
+          deletedAt: null, // soft-delete-guard (krav 3): slettede maler er ikke hentbare til prosjekt
           ...(input.fane ? faneWhere(input.fane) : {}),
         },
         include: { _count: { select: { objects: true } } },
@@ -737,10 +803,16 @@ export const firmamalRouter = router({
         });
       }
 
-      const firmamal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: mal.organizationTemplateId },
+      const firmamal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: mal.organizationTemplateId, deletedAt: null }, // soft-delete-guard (krav 3)
         include: { objects: { orderBy: { sortOrder: "asc" } } },
       });
+      if (!firmamal) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Firmamalen kopien stammer fra er slettet — kan ikke oppdatere fra den",
+        });
+      }
 
       await ctx.prisma.$transaction(async (tx) => {
         await tx.reportObject.deleteMany({ where: { templateId: mal.id } });
@@ -826,6 +898,7 @@ export const firmamalRouter = router({
             category: bibMal.kategori,
             domain: bibMal.domene,
             laantFraBibliotekMalId: bibMal.id, // strukturert avstamning (B4)
+            versjonAvHovedmal: bibMal.version, // fryser sentralmal-versjon (krav 2, L6 ett nivå opp)
           },
           select: { id: true },
         });
@@ -872,10 +945,13 @@ export const firmamalRouter = router({
   oppdaterFraSentralarkiv: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const firmamal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.id },
+      const firmamal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.id, deletedAt: null }, // soft-delete-guard (krav 3)
         select: { id: true, organizationId: true, laantFraBibliotekMalId: true },
       });
+      if (!firmamal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+      }
       // Firma-admin (L7) — firmamalen eies av firmaet, ikke SiteDoc.
       await autoriserAdminForFirma(ctx.userId, firmamal.organizationId);
 
@@ -919,6 +995,10 @@ export const firmamalRouter = router({
             name: bibMal.navn,
             description: bibliotekBeskrivelse(bibMal),
             version: { increment: 1 },
+            // Re-synk fryser nytt snapshot av sentralmalens GJELDENDE versjon (krav 2):
+            // firmanivå-badgen «X versjoner bak» nullstilles til 0. Egen akse fra
+            // `version` over (firmamalens egen teller, for prosjekt-kopienes badge).
+            versjonAvHovedmal: bibMal.version,
           },
         });
       });

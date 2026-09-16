@@ -112,7 +112,8 @@ Modell-antall er utledbart (`grep -c "^model " packages/db/prisma/schema.prisma`
 | `kontrollplan_historikk` | Historikk og sporbarhet for kontrollplan-endringer (SAK10 §10-1). Detaljer: [kontrollplan.md](kontrollplan.md) |
 | `bibliotek_standarder` | NS 3420-standarder i sentralarkivet (NS3420-K, NS3420-F, ...). Detaljer: [kontrollplan.md](kontrollplan.md) |
 | `bibliotek_kapitler` | Kapitler innenfor en standard (KA, KB, KC, KD, FB, FC, ...). Detaljer: [kontrollplan.md](kontrollplan.md) |
-| `bibliotek_maler` | Konkrete sjekklistemaler per kapittel med `malInnhold` JSON. Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `bibliotek_maler` | Konkrete sjekklistemaler per kapittel; innhold i `bibliotek_mal_objekter`-rader. `version` (Int, migrering `20260916120000`) er en monoton revisjonsteller som bumpes ved innholdsendring (navn/beskrivelse + objekt-CRUD) — grunnlaget for firmanivå-badgen «X versjoner bak». (`versjon String "1.0"` er en frosset relikvi, aldri skrevet — droppes senere runde.) Detaljer: [kontrollplan.md](kontrollplan.md) |
+| `organization_templates` | Firma-eid malarkiv (loan-pattern). `versjonAvHovedmal` (Int?, migrering `20260916120000`) fryser `bibliotek_maler.version` ved lån/re-synk — NULL for firmaets egne maler, non-null for lånte (DB-CHECK `organization_templates_laant_har_snapshot` håndhever invarianten; ikke uttrykkbar i Prisma-skjemaet). Soft-delete via `deletedAt`/`deletedById` (Papirkurv-fanen); alle lesende `firmamal.*`-spørringer + seeding (`modul.ts`) filtrerer `deletedAt: null`. Detaljer: [kontrollplan.md](kontrollplan.md) |
 | `prosjekt_bibliotek_valg` | Sporbarhet: hvilken `BibliotekMal` som er kopiert til prosjektets `ReportTemplate`. Detaljer: [kontrollplan.md](kontrollplan.md) |
 
 ## Viktige relasjoner

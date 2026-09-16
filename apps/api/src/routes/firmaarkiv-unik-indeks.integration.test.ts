@@ -57,14 +57,15 @@ afterAll(async () => {
 describe("Firmaarkiv: unik indeks mot dobbelt-lån (funn #10)", () => {
   it("blokkerer et andre lån av samme bibliotekmal til samme firma (P2002)", async () => {
     const forste = await prisma.organizationTemplate.create({
-      data: { organizationId: ids.orgId, name: "Lån 1", laantFraBibliotekMalId: ids.bibliotekMalId },
+      // versjonAvHovedmal kreves nå på lånte maler (CHECK, migrering 20260916120000).
+      data: { organizationId: ids.orgId, name: "Lån 1", laantFraBibliotekMalId: ids.bibliotekMalId, versjonAvHovedmal: 1 },
     });
     ids.orgTemplateIds.push(forste.id);
 
     let feilkode: string | null = null;
     try {
       const andre = await prisma.organizationTemplate.create({
-        data: { organizationId: ids.orgId, name: "Lån 2", laantFraBibliotekMalId: ids.bibliotekMalId },
+        data: { organizationId: ids.orgId, name: "Lån 2", laantFraBibliotekMalId: ids.bibliotekMalId, versjonAvHovedmal: 1 },
       });
       ids.orgTemplateIds.push(andre.id); // skal ikke nås — men ryddes hvis indeksen mangler
     } catch (e) {

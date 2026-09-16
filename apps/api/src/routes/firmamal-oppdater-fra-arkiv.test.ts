@@ -41,6 +41,7 @@ const BIB_MAL = {
   beskrivelse: "Ny hjelpetekst",
   kategori: "sjekkliste",
   domene: "kvalitet",
+  version: 3, // sentralmalen er revidert 3 ganger — re-synk fryser dette som nytt snapshot
   kapittel: { standard: { kode: "NS 3420" } },
 };
 
@@ -67,7 +68,8 @@ function lagPrisma(laantFraBibliotekMalId: string | null = BIB) {
   };
   return {
     organizationTemplate: {
-      findUniqueOrThrow: vi
+      // Soft-delete-guard (krav 3): oppdaterFraSentralarkiv bruker nå findFirst(deletedAt:null).
+      findFirst: vi
         .fn()
         .mockResolvedValue({ id: MAL, organizationId: ORG, laantFraBibliotekMalId }),
     },
@@ -128,6 +130,8 @@ describe("firmamal.oppdaterFraSentralarkiv", () => {
     expect(oppd.data.name).toBe("KA7 – Komprimering (revidert)");
     expect(oppd.data.description).toBe("NS 3420 KA7 — Ny hjelpetekst");
     expect(oppd.data.version).toEqual({ increment: 1 });
+    // Snapshot (krav 2): re-synk fryser sentralmalens GJELDENDE versjon → firmanivå-badgen nullstilles.
+    expect(oppd.data.versjonAvHovedmal).toBe(3);
     expect(res).toEqual({ id: MAL, malNavn: "KA7 – Komprimering (revidert)" });
   });
 

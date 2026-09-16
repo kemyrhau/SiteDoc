@@ -33,6 +33,7 @@ const BIB_MAL = {
   beskrivelse: "Kontroll av grasdekker",
   kategori: "sjekkliste",
   domene: "kvalitet",
+  version: 5, // sentralmalen står på versjon 5 → lånet skal fryse dette som snapshot (krav 2)
   kapittel: { standard: { kode: "NS 3420" } },
 };
 
@@ -47,13 +48,14 @@ const BIB_RADER = [
 // Delt in-memory-lager: findFirst (ctx.prisma) og create (tx) ser samme tilstand,
 // slik at ANDRE lån finner det FØRSTE la inn.
 function lagPrisma() {
-  const lagrede: Array<{ organizationId: string; laantFraBibliotekMalId: string | null }> = [];
+  const lagrede: Array<{ organizationId: string; laantFraBibliotekMalId: string | null; versjonAvHovedmal?: number }> = [];
   const tx = {
     organizationTemplate: {
-      create: vi.fn(async ({ data }: { data: { organizationId: string; laantFraBibliotekMalId: string | null } }) => {
+      create: vi.fn(async ({ data }: { data: { organizationId: string; laantFraBibliotekMalId: string | null; versjonAvHovedmal?: number } }) => {
         lagrede.push({
           organizationId: data.organizationId,
           laantFraBibliotekMalId: data.laantFraBibliotekMalId,
+          versjonAvHovedmal: data.versjonAvHovedmal,
         });
         return { id: `ot-${lagrede.length}` };
       }),
@@ -131,5 +133,12 @@ describe("firmamal.laanFraSentralarkiv — dobbelt-lån-vakt", () => {
     });
     expect(res.malNavn).toBe("KB4 – Grasdekker");
     expect(prisma._lagrede).toHaveLength(2);
+  });
+
+  it("(4) lånet fryser sentralmalens versjon som snapshot (krav 2)", async () => {
+    const prisma = lagPrisma();
+    await lagCaller(prisma).laanFraSentralarkiv({ organizationId: ORG, bibliotekMalId: BIB });
+    // versjonAvHovedmal settes = BibliotekMal.version (5) → firmanivå-badgen kan regne «X bak».
+    expect(prisma._lagrede[0]!.versjonAvHovedmal).toBe(5);
   });
 });

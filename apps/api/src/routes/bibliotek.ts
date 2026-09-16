@@ -303,6 +303,11 @@ export const bibliotekRouter = router({
         data: {
           ...(input.name !== undefined ? { navn: input.name.trim() } : {}),
           ...(input.description !== undefined ? { beskrivelse: input.description } : {}),
+          // Bump (krav 1): navn/beskrivelse KOPIERES inn i firmamalen ved lån
+          // (laanFraSentralarkiv) og re-synk (oppdaterFraSentralarkiv). En endring her
+          // gjør et tidligere lån «bak», så versjonen må stige — som de fire objekt-
+          // prosedyrene under.
+          version: { increment: 1 },
         },
         select: { id: true },
       });
@@ -330,12 +335,20 @@ export const bibliotekRouter = router({
       });
       const { parentId, ...rest } = input;
       // `translations` utelates → schema-default "{}" (tom, ikke NULL) — som firmanivå (Krav 1).
-      return ctx.prisma.bibliotekMalObjekt.create({
-        data: {
-          ...rest,
-          config: rest.config as Prisma.InputJsonValue,
-          ...(parentId !== undefined ? { parentId } : {}),
-        },
+      // Objekt-treet endres → bump BibliotekMal.version (krav 1), atomisk med opprettelsen.
+      return ctx.prisma.$transaction(async (tx) => {
+        const objekt = await tx.bibliotekMalObjekt.create({
+          data: {
+            ...rest,
+            config: rest.config as Prisma.InputJsonValue,
+            ...(parentId !== undefined ? { parentId } : {}),
+          },
+        });
+        await tx.bibliotekMal.update({
+          where: { id: input.templateId },
+          data: { version: { increment: 1 } },
+        });
+        return objekt;
       });
     }),
 
@@ -352,18 +365,26 @@ export const bibliotekRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
-      await ctx.prisma.bibliotekMalObjekt.findUniqueOrThrow({
+      const eksisterende = await ctx.prisma.bibliotekMalObjekt.findUniqueOrThrow({
         where: { id: input.id },
-        select: { id: true },
+        select: { templateId: true },
       });
       const { id, config, parentId, ...rest } = input;
-      return ctx.prisma.bibliotekMalObjekt.update({
-        where: { id },
-        data: {
-          ...rest,
-          ...(config !== undefined ? { config: config as Prisma.InputJsonValue } : {}),
-          ...(parentId !== undefined ? { parentId } : {}),
-        },
+      // Objekt-innhold endres → bump BibliotekMal.version (krav 1), atomisk.
+      return ctx.prisma.$transaction(async (tx) => {
+        const objekt = await tx.bibliotekMalObjekt.update({
+          where: { id },
+          data: {
+            ...rest,
+            ...(config !== undefined ? { config: config as Prisma.InputJsonValue } : {}),
+            ...(parentId !== undefined ? { parentId } : {}),
+          },
+        });
+        await tx.bibliotekMal.update({
+          where: { id: eksisterende.templateId },
+          data: { version: { increment: 1 } },
+        });
+        return objekt;
       });
     }),
 
@@ -406,6 +427,16 @@ export const bibliotekRouter = router({
             await tx.bibliotekMalObjekt.update({ where: { id: obj.id }, data: oppdatering }),
           );
         }
+        // Rekkefølge/zone kopieres verbatim ved lån → strukturendring. Bump ÉN gang for
+        // hele reorder-operasjonen (krav 1), ikke per objekt. Alle objektene tilhører
+        // samme mal (MalBygger sender ett tre av gangen).
+        const templateId = resultater[0]?.templateId;
+        if (templateId) {
+          await tx.bibliotekMal.update({
+            where: { id: templateId },
+            data: { version: { increment: 1 } },
+          });
+        }
         return resultater;
       });
     }),
@@ -414,12 +445,20 @@ export const bibliotekRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
-      await ctx.prisma.bibliotekMalObjekt.findUniqueOrThrow({
+      const eksisterende = await ctx.prisma.bibliotekMalObjekt.findUniqueOrThrow({
         where: { id: input.id },
-        select: { id: true },
+        select: { templateId: true },
       });
       // Ingen slett-vern: sentralmal-objekter bærer ingen dokumentdata (som firmanivå).
       // CASCADE fjerner barn (schema BibliotekObjektHierarki onDelete: Cascade).
-      return ctx.prisma.bibliotekMalObjekt.delete({ where: { id: input.id } });
+      // Sletting fjerner et felt et lån ville kopiert → bump BibliotekMal.version (krav 1).
+      return ctx.prisma.$transaction(async (tx) => {
+        const slettet = await tx.bibliotekMalObjekt.delete({ where: { id: input.id } });
+        await tx.bibliotekMal.update({
+          where: { id: eksisterende.templateId },
+          data: { version: { increment: 1 } },
+        });
+        return slettet;
+      });
     }),
 });
