@@ -8,8 +8,8 @@ import {
  * Malforvaltning-gating (ordre malforvaltning, Krav 1) — negativ kontroll.
  *
  * Lese ≠ redigere: prosjektbruker/-admin skal ALDRI se forvaltnings-flaten. Hele flaten er
- * synlig kun hvis minst én fane er det. PR 1 har KUN SiteDoc-arkiv-fanen (erSitedocAdmin);
- * firmaarkiv-fanen (kanAdministrereFirma) kommer i PR 2.
+ * synlig kun hvis minst én fane er det. PR 2: firmaarkiv-fanen (kanAdministrereFirma) er lagt
+ * til FØR sitedoc — flaten er dermed synlig for kanAdministrereFirma || erSitedocAdmin.
  */
 describe("gateMalforvaltningFaner — negativ kontroll", () => {
   const faner = (t: { kanAdministrereFirma: boolean; erSitedocAdmin: boolean }) =>
@@ -19,14 +19,27 @@ describe("gateMalforvaltningFaner — negativ kontroll", () => {
     expect(faner({ kanAdministrereFirma: false, erSitedocAdmin: true })).toContain("sitedoc");
   });
 
+  it("firma-admin ser Firmaarkiv-fanen (PR 2), IKKE SiteDoc-fanen", () => {
+    const f = faner({ kanAdministrereFirma: true, erSitedocAdmin: false });
+    expect(f).toContain("firmaarkiv");
+    expect(f).not.toContain("sitedoc");
+  });
+
+  it("firma-admin lander på Firmaarkiv — den står FØRST i registeret", () => {
+    expect(faner({ kanAdministrereFirma: true, erSitedocAdmin: true })[0]).toBe("firmaarkiv");
+  });
+
   it("prosjektadmin/-bruker (ingen admin-rett) ser INGEN fane → flaten skjult", () => {
+    // 🔴 Negativ kontroll (gate-krav): prosjektadmin skal fortsatt se INGENTING etter at
+    // firmaarkiv-fanen er lagt til. Begge flagg false → tom liste → flaten skjules.
     expect(faner({ kanAdministrereFirma: false, erSitedocAdmin: false })).toEqual([]);
   });
 
-  it("firma-admin uten sitedoc ser ingen fane i PR 1 (firmaarkiv-fanen kommer i PR 2)", () => {
-    // Dokumenterer PR 1-tilstanden: firma-admin bruker fortsatt /dashbord/firma/malarkiv til
-    // PR 2 flytter firmaarkivet hit. Bytt denne når firmaarkiv-fanen legges til.
-    expect(faner({ kanAdministrereFirma: true, erSitedocAdmin: false })).toEqual([]);
+  it("begge roller ser begge faner", () => {
+    expect(faner({ kanAdministrereFirma: true, erSitedocAdmin: true })).toEqual([
+      "firmaarkiv",
+      "sitedoc",
+    ]);
   });
 
   it("gatingen er ikke død — admin får FLERE faner enn en bruker uten rett", () => {

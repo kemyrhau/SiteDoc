@@ -74,6 +74,7 @@ const UNNTAK: { test: (r: string) => boolean; grunn: string }[] = [
   { test: (r) => r === "/dashbord/[prosjektId]/timer/godkjenning", grunn: "redirect → attestering (P27)" },
   { test: (r) => r === "/dashbord/[prosjektId]/maler", grunn: "redirect → oppsett/produksjon/sjekklistemaler (Rapportmaler-flata fjernet, vei b 2026-09-12)" },
   { test: (r) => r === "/dashbord/firma/timer/onboarding", grunn: "redirect → firma/timer (innhold flyttet til timer-hjem)" },
+  { test: (r) => r === "/dashbord/firma/malarkiv", grunn: "redirect → innstillinger/malforvaltning (firmaarkivet flyttet, PR 2 Del B). Søkbart via dype-sider firmaarkiv → ny rute" },
   { test: (r) => r === "/dashbord/firma/oppsett", grunn: "firma-onboarding-veiviser (handling-flate, nås via banner på /dashbord/firma + kom-i-gang; forsvinner når fullført)" },
   { test: (r) => r === "/dashbord/[prosjektId]/dokumentleser", grunn: "reader uten nav-hjem — ekskludert v1 (K13-d)" },
   { test: (r) => r === "/dashbord/[prosjektId]/dokumenter/[dokumentId]/les", grunn: "per-dok reader (detalj)" },
@@ -121,12 +122,12 @@ describe("K13 — søkedekning", () => {
  * prosjektbruker skal ikke finne dem. «Samme antall for begge brukertyper = gating død.»
  */
 describe("TILLEGG 1 — arkiv-søk gating (negativ kontroll)", () => {
-  const FIRMA = "/dashbord/firma/malarkiv";
-  const SITEDOC = "/dashbord/firma/innstillinger/malforvaltning";
-  const hrefs = (sider: typeof dypeSider) => sider.map((s) => s.href(null));
+  // Firmaarkiv og SiteDoc-arkiv deler nå URL (begge → Malforvaltning-flaten, fanen velges
+  // der). De skilles derfor på `id`, ikke href (ordre PR 2 Del B).
+  const ider = (sider: typeof dypeSider) => sider.map((s) => s.id);
 
   it("SiteDoc-admin ser BÅDE firmaarkiv og SiteDoc-arkiv i dype-sider", () => {
-    const synlige = hrefs(
+    const synlige = ider(
       gateDypeSider(dypeSider, {
         prosjektId: "p1",
         kanAdministrereFirma: true,
@@ -134,12 +135,12 @@ describe("TILLEGG 1 — arkiv-søk gating (negativ kontroll)", () => {
         firmamoduler: [],
       }),
     );
-    expect(synlige).toContain(FIRMA);
-    expect(synlige).toContain(SITEDOC);
+    expect(synlige).toContain("firmaarkiv");
+    expect(synlige).toContain("sitedocArkiv");
   });
 
   it("vanlig prosjektbruker ser HVERKEN firmaarkiv ELLER SiteDoc-arkiv (gating lever)", () => {
-    const synlige = hrefs(
+    const synlige = ider(
       gateDypeSider(dypeSider, {
         prosjektId: "p1",
         kanAdministrereFirma: false,
@@ -147,12 +148,12 @@ describe("TILLEGG 1 — arkiv-søk gating (negativ kontroll)", () => {
         firmamoduler: [],
       }),
     );
-    expect(synlige).not.toContain(FIRMA);
-    expect(synlige).not.toContain(SITEDOC);
+    expect(synlige).not.toContain("firmaarkiv");
+    expect(synlige).not.toContain("sitedocArkiv");
   });
 
   it("firma-admin uten sitedoc ser firmaarkivet, men IKKE SiteDoc-arkivet", () => {
-    const synlige = hrefs(
+    const synlige = ider(
       gateDypeSider(dypeSider, {
         prosjektId: "p1",
         kanAdministrereFirma: true,
@@ -160,8 +161,8 @@ describe("TILLEGG 1 — arkiv-søk gating (negativ kontroll)", () => {
         firmamoduler: [],
       }),
     );
-    expect(synlige).toContain(FIRMA);
-    expect(synlige).not.toContain(SITEDOC);
+    expect(synlige).toContain("firmaarkiv");
+    expect(synlige).not.toContain("sitedocArkiv");
   });
 
   it("gatingen gir FÆRRE treff for prosjektbruker enn for admin (ikke død)", () => {

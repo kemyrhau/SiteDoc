@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
+import { Fragment, useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Modal, Button, Spinner, Input } from "@sitedoc/ui";
@@ -13,6 +13,7 @@ import {
   grupperFirmaMaler,
   type ArkivFane,
   type FoldetGruppe,
+  type MedKapittel,
 } from "./arkiv-fane-filter";
 
 /**
@@ -127,8 +128,8 @@ export function HentFraArkivModal({
     kategori: string;
     domene: string;
   };
-  type SentralKapittel = { id: string; kode: string; navn: string; maler: SentralMal[] };
-  type SentralStandard = { id: string; kode: string; kapitler: SentralKapittel[] };
+  type SentralKapittel = { kode: string; navn: string; maler: SentralMal[] };
+  type SentralStandard = { kode: string; navn: string; kapitler: SentralKapittel[] };
 
   const firmaListe = (firmamaler.data ?? []) as FirmaMal[];
   const sentralStandarder = (standarder.data ?? []) as SentralStandard[];
@@ -136,13 +137,15 @@ export function HentFraArkivModal({
   // og gir den arvede referansen som firma-søket også treffer på.
   const kildeIndeks = byggKildeIndeks(sentralStandarder);
 
-  function byggFirmaRad(fm: FirmaMal): ArkivRad {
+  function byggFirmaRad(fm: FirmaMal & MedKapittel): ArkivRad {
     const kildeRef = fm.laantFraBibliotekMalId
       ? kildeIndeks.get(fm.laantFraBibliotekMalId)?.referanse
       : undefined;
     return {
       id: fm.id,
       navn: fm.name,
+      kapittelKode: fm.kapittelKode,
+      kapittelNavn: fm.kapittelNavn,
       // Søket treffer navn + arvet referanse (Krav 1) — firmamaler har ingen egen referanse.
       sok: [fm.name, kildeRef].filter(Boolean).join(" ").toLowerCase(),
       meta: [
@@ -163,10 +166,12 @@ export function HentFraArkivModal({
     };
   }
 
-  function byggSitedocRad(m: SentralMal): ArkivRad {
+  function byggSitedocRad(m: SentralMal & MedKapittel): ArkivRad {
     return {
       id: m.id,
       navn: m.navn,
+      kapittelKode: m.kapittelKode,
+      kapittelNavn: m.kapittelNavn,
       sok: [m.navn, m.referanse].join(" ").toLowerCase(),
       meta: [t("maler.arkiv.kildeSitedoc"), m.referanse, `v${m.versjon}`].join(" · "),
       hentet: hentetSitedoc.has(m.id),
@@ -183,8 +188,9 @@ export function HentFraArkivModal({
     };
   }
 
-  // SAMME modell i begge faner (Krav 2): standard → kapittel, «Egenlagde» som egen gruppe,
-  // sammenslått start. Firmaarkivet utleder kapitlet fra lånet via kilde-indeksen.
+  // SAMME modell i begge faner (Del C): kollaps på STANDARD, kapittel som underetikett,
+  // «Egenlagde» som egen gruppe, sammenslått start. Firmaarkivet utleder standard/kapittel
+  // fra lånet via kilde-indeksen.
   const firmaGrupper: ArkivGruppe[] = grupperFirmaMaler(
     firmaListe,
     kildeIndeks,
@@ -192,7 +198,7 @@ export function HentFraArkivModal({
   ).map((g) => ({ key: g.key, tittel: g.tittel, rader: g.maler.map(byggFirmaRad) }));
 
   // SiteDoc-arkivet: typefilter per flate (Krav 3) kjøres FØR gruppering, så søket aldri
-  // kan omgå det. Kapitler som tømmes av filteret faller bort.
+  // kan omgå det. Standarder som tømmes av filteret faller bort.
   const sitedocGrupper: ArkivGruppe[] = byggSitedocGrupper(sentralStandarder, fane).map((g) => ({
     key: g.key,
     tittel: g.tittel,
@@ -303,7 +309,7 @@ export function HentFraArkivModal({
               fotnote={
                 kanRedigereFirma ? (
                   <Link
-                    href="/dashbord/firma/malarkiv"
+                    href="/dashbord/firma/innstillinger/malforvaltning"
                     className="text-sitedoc-primary hover:underline"
                   >
                     {t("maler.arkiv.fotFirmaRediger")}
@@ -351,6 +357,9 @@ export function HentFraArkivModal({
 type ArkivRad = {
   id: string;
   navn: string;
+  /** Kapittel-etikett for underoverskrift inne i standard-gruppen (null = «Egenlagde»). */
+  kapittelKode: string | null;
+  kapittelNavn: string | null;
   /** Ferdig normalisert søkestreng (navn [+ referanse]) — brukes av `filtrerOgFold`. */
   sok: string;
   meta: string;
@@ -412,8 +421,10 @@ function ArkivListe({
   if (tom) {
     return <p className="py-8 text-center text-sm text-gray-500">{tomTekst}</p>;
   }
-  // Kollapsbare kapittel-grupper (Krav 2). Under søk er alle grupper med treff tvunget
-  // åpne og chevronen deaktivert (Krav 1) — økt-tilstanden styrer kun uten søk.
+  // Kollapsbare STANDARD-grupper (Del C). Kapitlene er statiske underetiketter inne i den
+  // utfoldede standarden — samme form som venstretreet i Malforvaltning. Under søk er alle
+  // grupper med treff tvunget åpne og chevronen deaktivert (Krav 1) — økt-tilstanden styrer
+  // kun uten søk.
   return (
     <>
       <div className="max-h-[55vh] space-y-2 overflow-y-auto">
@@ -435,9 +446,22 @@ function ArkivListe({
             </button>
             {g.apen && (
               <ul className="space-y-2 px-2 pb-2">
-                {g.rader.map((r) => (
-                  <ArkivRadElement key={r.id} r={r} />
-                ))}
+                {g.rader.map((r, i) => {
+                  // Underetikett når kapitlet skifter (og finnes — «Egenlagde» har null).
+                  const forrige = i > 0 ? g.rader[i - 1] : null;
+                  const nyttKapittel =
+                    !!r.kapittelKode && r.kapittelKode !== forrige?.kapittelKode;
+                  return (
+                    <Fragment key={r.id}>
+                      {nyttKapittel && (
+                        <li className="px-1 pt-1 text-[11px] font-medium text-gray-400">
+                          {r.kapittelKode} — {r.kapittelNavn}
+                        </li>
+                      )}
+                      <ArkivRadElement r={r} />
+                    </Fragment>
+                  );
+                })}
               </ul>
             )}
           </div>

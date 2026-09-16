@@ -57,24 +57,57 @@ describe("filtrerOgFold — søk folder ut sammenslåtte grupper", () => {
   });
 });
 
-/* ---- Krav 3: søk + typefilter + kollaps sammen ---- */
+/* ---- Del C: kollaps på STANDARD, kapittel som underetikett, referanse-sortering ---- */
 
 const standarder = [
   {
-    kode: "NS3420",
+    kode: "NS3420-K",
+    navn: "NS 3420-K Anleggsgartner",
     kapitler: [
       {
-        id: "kap1",
-        kode: "CU",
-        navn: "Betong",
+        kode: "KA",
+        navn: "Innledende",
         maler: [
-          { id: "m-sjekk", navn: "Armering kontroll", referanse: "CU3.1", kategori: "sjekkliste", domene: "kvalitet" },
-          { id: "m-oppg", navn: "Armering oppgave", referanse: "CU9.9", kategori: "oppgave", domene: "kvalitet" },
+          { id: "ka7", navn: "Rigg", referanse: "KA7", kategori: "sjekkliste", domene: "kvalitet" },
+          { id: "ka2", navn: "Oppmåling", referanse: "KA2", kategori: "sjekkliste", domene: "kvalitet" },
+        ],
+      },
+      {
+        kode: "KB",
+        navn: "Jord",
+        maler: [
+          { id: "kb10", navn: "Planering", referanse: "KB10", kategori: "sjekkliste", domene: "kvalitet" },
+          { id: "kb2", navn: "Vegetasjon", referanse: "KB2", kategori: "sjekkliste", domene: "kvalitet" },
+          { id: "kb-oppg", navn: "Jord oppgave", referanse: "KB9", kategori: "oppgave", domene: "kvalitet" },
         ],
       },
     ],
   },
 ];
+
+describe("byggSitedocGrupper — kollaps på standard, kapittel som etikett, referanse-orden (Del C)", () => {
+  it("én gruppe per standard, ikke per kapittel", () => {
+    const grupper = byggSitedocGrupper(standarder, "sjekkliste");
+    expect(grupper).toHaveLength(1);
+    expect(grupper[0]!.key).toBe("NS3420-K");
+    expect(grupper[0]!.tittel).toBe("NS3420-K — NS 3420-K Anleggsgartner");
+  });
+
+  it("malene sorteres kapittel-for-kapittel og på referanse (numerisk: KB2 før KB10)", () => {
+    const grupper = byggSitedocGrupper(standarder, "sjekkliste");
+    // KA før KB (server-sortering), referanse-orden innen kapitlet, oppgavemalen filtrert bort.
+    expect(grupper[0]!.maler.map((m) => m.id)).toEqual(["ka2", "ka7", "kb2", "kb10"]);
+  });
+
+  it("hver mal bærer sin kapittel-etikett så render kan skyte inn underoverskrift", () => {
+    const grupper = byggSitedocGrupper(standarder, "sjekkliste");
+    const etikett = Object.fromEntries(
+      grupper[0]!.maler.map((m) => [m.id, `${m.kapittelKode} ${m.kapittelNavn}`]),
+    );
+    expect(etikett["ka2"]).toBe("KA Innledende");
+    expect(etikett["kb10"]).toBe("KB Jord");
+  });
+});
 
 describe("byggSitedocGrupper + filtrerOgFold — søket omgår aldri typefilteret (Krav 3)", () => {
   it("sjekkliste-flaten: oppgavemalen er filtrert bort FØR søk, så et søk på den gir null", () => {
@@ -83,46 +116,52 @@ describe("byggSitedocGrupper + filtrerOgFold — søket omgår aldri typefiltere
       tittel: g.tittel,
       rader: g.maler.map((m) => ({ id: m.id, sok: `${m.navn} ${m.referanse}`.toLowerCase() })),
     }));
-    // Typefilteret har allerede fjernet oppgavemalen fra gruppen.
-    expect(grupper[0]!.rader.map((r) => r.id)).toEqual(["m-sjekk"]);
+    // Typefilteret har allerede fjernet oppgavemalen fra standard-gruppen.
+    expect(grupper[0]!.rader.map((r) => r.id)).not.toContain("kb-oppg");
 
     // Søk som matcher oppgavemalens navn kan ikke hente den tilbake på sjekklisteflaten.
     const oppgaveTreff = filtrerOgFold(grupper, "oppgave", new Set());
     expect(oppgaveTreff.synlige).toHaveLength(0);
 
-    // Søk på sjekklistemalen (i sammenslått gruppe) folder den ut.
-    const sjekkTreff = filtrerOgFold(grupper, "kontroll", new Set());
+    // Søk på en sjekklistemal (i sammenslått gruppe) folder standarden ut.
+    const sjekkTreff = filtrerOgFold(grupper, "vegetasjon", new Set());
     expect(sjekkTreff.synlige).toHaveLength(1);
     expect(sjekkTreff.synlige[0]!.apen).toBe(true);
-    expect(sjekkTreff.synlige[0]!.rader.map((r) => r.id)).toEqual(["m-sjekk"]);
+    expect(sjekkTreff.synlige[0]!.rader.map((r) => r.id)).toEqual(["kb2"]);
   });
 });
 
-/* ---- Krav 2: samme modell i begge faner (firma utleder kapittel fra lånet) ---- */
+/* ---- Del C: firma-fanen — samme standard-modell (utleder standard/kapittel fra lånet) ---- */
 
-describe("grupperFirmaMaler — standard→kapittel + «Egenlagde» (Krav 2)", () => {
+describe("grupperFirmaMaler — kollaps på standard + «Egenlagde» sist", () => {
   const indeks = byggKildeIndeks(standarder);
 
-  it("lånt firmamal grupperes under kildens kapittel; egenlagd havner i «Egenlagde» sist", () => {
+  it("lånte firmamaler grupperes under kildens standard, sortert på kapittel+referanse", () => {
     const firma = [
-      { id: "f1", laantFraBibliotekMalId: "m-sjekk" }, // lånt fra kap1
-      { id: "f2", laantFraBibliotekMalId: null }, // egenlagd
-      { id: "f3", laantFraBibliotekMalId: "finnes-ikke" }, // lån mot ukjent kilde → egenlagd
+      { id: "f-kb2", laantFraBibliotekMalId: "kb2" }, // KB
+      { id: "f-ka7", laantFraBibliotekMalId: "ka7" }, // KA
+      { id: "f-egen", laantFraBibliotekMalId: null }, // egenlagd
+      { id: "f-ukjent", laantFraBibliotekMalId: "finnes-ikke" }, // ukjent kilde → egenlagd
     ];
     const grupper = grupperFirmaMaler(firma, indeks, "Egenlagde");
 
     expect(grupper).toHaveLength(2);
-    // Kapittel-gruppen først, «Egenlagde» sist.
-    expect(grupper[0]!.key).toBe("kap1");
-    expect(grupper[0]!.tittel).toBe("NS3420 · CU Betong");
-    expect(grupper[0]!.maler.map((m) => m.id)).toEqual(["f1"]);
+    // Standard-gruppen først, «Egenlagde» sist.
+    expect(grupper[0]!.key).toBe("NS3420-K");
+    expect(grupper[0]!.tittel).toBe("NS3420-K — NS 3420-K Anleggsgartner");
+    // KA (sort 0) før KB (sort 1) — kapittel-for-kapittel.
+    expect(grupper[0]!.maler.map((m) => m.id)).toEqual(["f-ka7", "f-kb2"]);
+    expect(grupper[0]!.maler[0]!.kapittelKode).toBe("KA");
+    expect(grupper[0]!.maler[1]!.kapittelKode).toBe("KB");
 
     expect(grupper[1]!.key).toBe(EGENLAGDE_KEY);
-    expect(grupper[1]!.tittel).toBe("Egenlagde");
-    expect(grupper[1]!.maler.map((m) => m.id)).toEqual(["f2", "f3"]);
+    expect(grupper[1]!.maler.map((m) => m.id)).toEqual(["f-egen", "f-ukjent"]);
+    // Egenlagde har ingen kapittel-etikett → ingen underoverskrift i render.
+    expect(grupper[1]!.maler[0]!.kapittelKode).toBeNull();
   });
 
-  it("kilde-indeksen bærer den arvede referansen firma-søket treffer på", () => {
-    expect(indeks.get("m-sjekk")?.referanse).toBe("CU3.1");
+  it("kilde-indeksen bærer standard + arvet referanse firma-søket treffer på", () => {
+    expect(indeks.get("ka7")?.standardKode).toBe("NS3420-K");
+    expect(indeks.get("ka7")?.referanse).toBe("KA7");
   });
 });

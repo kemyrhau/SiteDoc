@@ -11,9 +11,11 @@
  * generaliserer «kanAdministrereFirma || erSitedocAdmin» korrekt etter hvert som faner
  * legges til (firmaarkiv i PR 2, papirkurv i egen skjemarunde).
  *
- * PR 1 (vei C-oppfølger): KUN SiteDoc-arkiv-fanen finnes. Firmaarkiv-fanen legges til i
- * PR 2 (én liste + maltype-filter), papirkurv-fanen i en senere skjemarunde (soft-delete
- * på OrganizationTemplate finnes ikke ennå). Ingen tom/placeholder-fane bygges.
+ * PR 2: firmaarkiv-fanen (én liste + maltype-filter) er lagt til FØR sitedoc — den krever
+ * `kanAdministrereFirma`. Hele flaten er dermed synlig for `kanAdministrereFirma ||
+ * erSitedocAdmin`, uttrykt korrekt gjennom fane-predikatene. Papirkurv-fanen kommer i en
+ * senere skjemarunde (soft-delete på OrganizationTemplate finnes ikke ennå). Ingen tom/
+ * placeholder-fane bygges.
  */
 
 export type MalforvaltningFaneId = "firmaarkiv" | "sitedoc";
@@ -29,8 +31,13 @@ export interface MalforvaltningFane {
   krever: (t: MalforvaltningTilgang) => boolean;
 }
 
-// Fane-registeret. PR 2 setter inn `firmaarkiv` (krever kanAdministrereFirma) FØR sitedoc.
+// Fane-registeret. `firmaarkiv` FØR `sitedoc`: en firma-admin lander på sitt eget arkiv.
 export const MALFORVALTNING_FANER: MalforvaltningFane[] = [
+  {
+    id: "firmaarkiv",
+    labelKey: "malforvaltning.fane.firmaarkiv",
+    krever: (t) => t.kanAdministrereFirma,
+  },
   { id: "sitedoc", labelKey: "malforvaltning.fane.sitedoc", krever: (t) => t.erSitedocAdmin },
 ];
 

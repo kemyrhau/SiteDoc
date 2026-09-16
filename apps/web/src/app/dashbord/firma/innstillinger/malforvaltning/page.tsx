@@ -11,6 +11,7 @@ import {
   type MalforvaltningFaneId,
 } from "@/lib/malforvaltning-tilgang";
 import { SitedocArkivFane } from "./_components/SitedocArkivFane";
+import { FirmaarkivFane } from "./_components/FirmaarkivFane";
 
 /**
  * Malforvaltning (ordre malforvaltning, Kenneth 15.09) — forvaltnings-flaten for firma- og
@@ -18,11 +19,10 @@ import { SitedocArkivFane } from "./_components/SitedocArkivFane";
  * ALDRI (de leser/henter fra arkivene inne i malbyggeren). Gatingen ligger i den rene
  * `gateMalforvaltningFaner` — hele flaten er synlig kun hvis minst én fane er det.
  *
- * PR 1: KUN SiteDoc-arkiv-fanen (flyttet fra det revne `/dashbord/admin/bibliotek`).
- * Firmaarkiv-fanen (én liste + maltype-filter) kommer i PR 2; papirkurv-fanen i en egen
- * skjemarunde. Skallet (fane-registeret + tab-baren) har plass til dem uten omskriving —
- * men ingen tom/placeholder-fane bygges (en fane som ikke gjør noe er samme løgn som den
- * revne låse-flaten var).
+ * PR 2: Firmaarkiv-fanen (én liste + maltype-filter, flyttet fra det revne
+ * `/dashbord/firma/malarkiv`) + SiteDoc-arkiv-fanen (flyttet fra `/dashbord/admin/bibliotek`
+ * i PR 1). Firmaarkiv vises for firma-admin, SiteDoc for sitedoc-admin. Papirkurv-fanen
+ * kommer i en egen skjemarunde. Ingen tom/placeholder-fane bygges.
  */
 export default function MalforvaltningSide() {
   const { t } = useTranslation();
@@ -63,7 +63,7 @@ export default function MalforvaltningSide() {
         <p className="text-sm text-gray-500">{t("malforvaltning.undertittel")}</p>
       </div>
 
-      {/* Nivåfaner. PR 1 har kun SiteDoc-arkiv; tab-baren er skallet for firmaarkiv (PR 2). */}
+      {/* Nivåfaner: Firmaarkiv (firma-admin) og SiteDoc-arkiv (sitedoc-admin). */}
       <div className="flex gap-1 border-b border-gray-200">
         {synligeFaner.map((f) => (
           <button
@@ -81,6 +81,7 @@ export default function MalforvaltningSide() {
       </div>
 
       <div className="min-h-0 flex-1">
+        {valgt === "firmaarkiv" && <FirmaarkivFane organizationId={valgtFirma.id} />}
         {valgt === "sitedoc" && <SitedocArkivFane />}
       </div>
     </div>

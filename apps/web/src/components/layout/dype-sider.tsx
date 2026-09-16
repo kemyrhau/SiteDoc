@@ -11,7 +11,7 @@
  *   - `firmaAttestering` → leder-attestering på firma-nivå (arbeidsflate)
  *   - `komIGang`         → onboarding (K13-a); verken firma- eller prosjekt-scopet
  *                          → INGEN sone-brødsmule (fabel-avgjørelse 2026-07-11)
- *   - `firmaarkiv`       → firmaets malarkiv (nav-hjem tatt ut av sidefeltet, TILLEGG 1)
+ *   - `firmaarkiv`       → firmaets malarkiv i Malforvaltning › Firmaarkiv (ingen nav-hjem)
  *   - `sitedocArkiv`     → SiteDoc-sentralarkivet (har aldri hatt nav-hjem)
  *
  * Gating bruker samme flagg-vokabular som nav (jf. K7) og gjenbruker signaler
@@ -63,7 +63,9 @@ export const dypeSider: DypSide[] = [
     id: "firmaarkiv",
     labelKey: "sok.firmaarkiv",
     brodsmuleKeys: ["nav.soneFirma"],
-    href: () => "/dashbord/firma/malarkiv",
+    // Flyttet fra den revne `/dashbord/firma/malarkiv` til Malforvaltning › Firmaarkiv
+    // (ordre PR 2 Del B). Fanen velges i flaten; ingen query-param i søketreffet.
+    href: () => "/dashbord/firma/innstillinger/malforvaltning",
     kreverFirmaAdmin: true, // = fotnotens kanRedigereFirma: firmaadmin+ redigerer firmaarkivet
   },
   {

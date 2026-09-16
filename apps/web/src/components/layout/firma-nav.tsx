@@ -25,6 +25,7 @@ import {
   Calendar,
   ShieldAlert,
   MapPin,
+  Library,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { trpc } from "@/lib/trpc";
@@ -47,10 +48,13 @@ export const firmaNavElementer: FirmaNavElement[] = [
   { labelKey: "firmaNav.kompetanse", href: "/dashbord/firma/kompetanse", ikon: <Award className="h-5 w-5" /> },
   { labelKey: "firmaNav.hms", href: "/dashbord/firma/hms", ikon: <ShieldAlert className="h-5 w-5" />, kreverHmsTilgang: true },
   { labelKey: "firmaNav.moduler", href: "/dashbord/firma/moduler", ikon: <Boxes className="h-5 w-5" /> },
-  // Malarkiv-inngangen fjernet fra sidefeltet (ordre malarkiv-ut-av-sidefelt, Kenneth 15.09 /
-  // fabels punkt A): en sidefelt-snarvei hoppet brukeren rett inn i firmaarkivet uten å ha
-  // vært innom prosjektet → uklart nivå. Ruta /dashbord/firma/malarkiv BEHOLDES; inngangen
-  // går nå via malflaten (oppsett/produksjon/*maler → «Hent fra arkiv» → firma-fane-fotnote).
+  // Malforvaltning (ordre PR 2 Del A): firma-admins inngang til forvaltnings-flaten der
+  // firmaarkivet + SiteDoc-arkivet redigeres. Denne lenken ble bevisst holdt tilbake i PR 1
+  // fordi flaten da bare hadde SiteDoc-fanen (sitedoc-admin) — for en firma-admin ville den
+  // løyet. Nå har firma-admin Firmaarkiv-fanen, så lenken er ærlig. Nivåbanneret i flaten
+  // rammer nivået (svar på «uklart nivå», som tok den gamle malarkiv-snarveien ut av
+  // sidefeltet). Ruta /dashbord/firma/malarkiv er nå kun redirect hit.
+  { labelKey: "firmaNav.malforvaltning", href: "/dashbord/firma/innstillinger/malforvaltning", ikon: <Library className="h-5 w-5" /> },
   { labelKey: "firmaNav.timer", href: "/dashbord/firma/timer", ikon: <Clock className="h-5 w-5" />, kreverFirmaModul: "timer" },
   { labelKey: "firmaNav.timerRapport", href: "/dashbord/firma/timer/rapport", ikon: <BarChart3 className="h-5 w-5" />, kreverFirmaModul: "timer" },
   { labelKey: "firmaNav.kalender", href: "/dashbord/firma/kalender", ikon: <Calendar className="h-5 w-5" /> },
