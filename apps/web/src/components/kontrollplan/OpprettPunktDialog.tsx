@@ -3,8 +3,9 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
-import { X, Plus, ChevronRight } from "lucide-react";
+import { X, Plus, ChevronRight, ChevronDown } from "lucide-react";
 import { UkeVelger } from "./UkeVelger";
+import { byggUnderkapittelBlokker } from "@/components/bibliotek/arkiv-fane-filter";
 
 interface Milepel {
   id: string;
@@ -55,7 +56,6 @@ export function OpprettPunktDialog({
   const [valgteOmradeIder, setValgteOmradeIder] = useState<Set<string>>(new Set());
   const [punktFrister, setPunktFrister] = useState<PunktFrist[]>([]);
   const [malSok, setMalSok] = useState("");
-  const [visHjelpetekst, setVisHjelpetekst] = useState(false);
 
   // Inline opprettelse
   const [visNyttOmrade, setVisNyttOmrade] = useState(false);
@@ -89,10 +89,16 @@ export function OpprettPunktDialog({
     },
   });
 
-  // Bygg trestruktur: Standard → Kapittel → Mal + "Prosjektmaler"
+  // Bygg trestruktur: Standard (Kenneths «kapittel») → flate maler + "Prosjektmaler".
+  // Underkapittel-overskrift (kodens «kapittel») skytes inn av byggUnderkapittelBlokker i
+  // render KUN ved 3+ maler — samme regel som de tre andre standard-flatene.
   interface MalNode { id: string; name: string; prefix: string | null }
-  interface KapittelNode { kode: string; navn: string; maler: MalNode[] }
-  interface StandardNode { kode: string; navn: string; kapitler: KapittelNode[] }
+  interface MalMedKapittel extends MalNode {
+    kapittelKode: string | null;
+    kapittelNavn: string | null;
+    referanse: string;
+  }
+  interface StandardNode { kode: string; navn: string; maler: MalMedKapittel[] }
 
   const malTre = useMemo(() => {
     if (!maler) return { standarder: [] as StandardNode[], prosjektmaler: [] as MalNode[] };
@@ -100,8 +106,11 @@ export function OpprettPunktDialog({
     const sjekklister = maler.filter((m: { category: string }) => m.category === "sjekkliste");
     const sok = malSok.toLowerCase();
 
-    // Bygg map: sjekklisteMalId → bibliotek-info
-    const bibMap = new Map<string, { kapittelKode: string; kapittelNavn: string; standardKode: string; standardNavn: string }>();
+    // Bygg map: sjekklisteMalId → bibliotek-info (inkl. referanse for rekkefølge)
+    const bibMap = new Map<
+      string,
+      { kapittelKode: string; kapittelNavn: string; standardKode: string; standardNavn: string; referanse: string }
+    >();
     if (bibliotekValg) {
       for (const v of bibliotekValg) {
         if (v.sjekklisteMalId && v.bibliotekMal) {
@@ -110,12 +119,13 @@ export function OpprettPunktDialog({
             kapittelNavn: v.bibliotekMal.kapittel.navn,
             standardKode: v.bibliotekMal.kapittel.standard.kode,
             standardNavn: v.bibliotekMal.kapittel.standard.navn,
+            referanse: v.bibliotekMal.referanse,
           });
         }
       }
     }
 
-    const standardMap = new Map<string, { kode: string; navn: string; kapitler: Map<string, { kode: string; navn: string; maler: MalNode[] }> }>();
+    const standardMap = new Map<string, { kode: string; navn: string; maler: MalMedKapittel[] }>();
     const prosjektmaler: MalNode[] = [];
 
     for (const m of sjekklister) {
@@ -126,13 +136,14 @@ export function OpprettPunktDialog({
       const bib = bibMap.get(mal.id);
       if (bib) {
         if (!standardMap.has(bib.standardKode)) {
-          standardMap.set(bib.standardKode, { kode: bib.standardKode, navn: bib.standardNavn, kapitler: new Map() });
+          standardMap.set(bib.standardKode, { kode: bib.standardKode, navn: bib.standardNavn, maler: [] });
         }
-        const std = standardMap.get(bib.standardKode)!;
-        if (!std.kapitler.has(bib.kapittelKode)) {
-          std.kapitler.set(bib.kapittelKode, { kode: bib.kapittelKode, navn: bib.kapittelNavn, maler: [] });
-        }
-        std.kapitler.get(bib.kapittelKode)!.maler.push(mal);
+        standardMap.get(bib.standardKode)!.maler.push({
+          ...mal,
+          kapittelKode: bib.kapittelKode,
+          kapittelNavn: bib.kapittelNavn,
+          referanse: bib.referanse,
+        });
       } else {
         prosjektmaler.push(mal);
       }
@@ -141,7 +152,13 @@ export function OpprettPunktDialog({
     const standarder: StandardNode[] = [...standardMap.values()].map((s) => ({
       kode: s.kode,
       navn: s.navn,
-      kapitler: [...s.kapitler.values()],
+      // Referanserekkefølge: underkapittel-for-underkapittel (kode), så referanse (numerisk,
+      // KC3.1 < KC10) — så byggUnderkapittelBlokker ser hvert underkapittel som én sekvens.
+      maler: [...s.maler].sort(
+        (a, b) =>
+          (a.kapittelKode ?? "").localeCompare(b.kapittelKode ?? "") ||
+          a.referanse.localeCompare(b.referanse, undefined, { numeric: true }),
+      ),
     }));
 
     return { standarder, prosjektmaler };
@@ -259,8 +276,6 @@ export function OpprettPunktDialog({
                   key={std.kode}
                   standard={std}
                   valgtMalId={valgtMalId}
-                  visHjelpetekst={visHjelpetekst}
-                  onVisHjelpetekstEndre={setVisHjelpetekst}
                   onVelg={(id) => { setValgtMalId(id); setMalSok(""); }}
                 />
               ))}
@@ -480,20 +495,44 @@ export function OpprettPunktDialog({
 function MalTreStandard({
   standard,
   valgtMalId,
-  visHjelpetekst,
-  onVisHjelpetekstEndre,
   onVelg,
 }: {
-  standard: { kode: string; navn: string; kapitler: { kode: string; navn: string; maler: { id: string; name: string; prefix: string | null }[] }[] };
+  standard: {
+    kode: string;
+    navn: string;
+    maler: { id: string; name: string; prefix: string | null; kapittelKode: string | null; kapittelNavn: string | null }[];
+  };
   valgtMalId: string;
-  visHjelpetekst: boolean;
-  onVisHjelpetekstEndre: (v: boolean) => void;
   onVelg: (id: string) => void;
 }) {
-  const { t } = useTranslation();
+  // Kollaps på standard (Kenneths «kapittel»), default åpen.
   const [aapen, setAapen] = useState(true);
-  // Sorter kapitler etter kode (KA, KB, KC...)
-  const sorterteKapitler = [...standard.kapitler].sort((a, b) => a.kode.localeCompare(b.kode));
+  // Underkapittel-overskrifter (>= terskel) starter åpne — settet holder de lukkede.
+  const [lukkedeUnder, setLukkedeUnder] = useState<Set<string>>(new Set());
+
+  function toggleUnder(key: string) {
+    setLukkedeUnder((prev) => {
+      const neste = new Set(prev);
+      if (neste.has(key)) neste.delete(key);
+      else neste.add(key);
+      return neste;
+    });
+  }
+
+  const malKnapp = (mal: { id: string; name: string }) => (
+    <button
+      key={mal.id}
+      type="button"
+      onClick={() => onVelg(mal.id)}
+      className={`w-full text-left px-4 py-1.5 text-xs border-b border-gray-50 ${
+        valgtMalId === mal.id
+          ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
+          : "text-gray-700 hover:bg-blue-50"
+      }`}
+    >
+      {mal.name}
+    </button>
+  );
 
   return (
     <div>
@@ -506,43 +545,36 @@ function MalTreStandard({
           <ChevronRight className={`h-3 w-3 transition-transform ${aapen ? "rotate-90" : ""}`} />
           {standard.navn}
         </button>
-        {aapen && (
-          <label className="flex items-center gap-1 pr-2 text-[10px] text-gray-400 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={visHjelpetekst}
-              onChange={(e) => onVisHjelpetekstEndre(e.target.checked)}
-              className="rounded text-sitedoc-primary h-3 w-3"
-            />
-            {t("kontrollplan.opprettPunkt.visKapitler")}
-          </label>
-        )}
       </div>
-      {aapen && sorterteKapitler.map((kap) => (
-        <div key={kap.kode}>
-          {/* Underkapittel-header — kun synlig med hjelpetekst */}
-          {visHjelpetekst && (
-            <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide bg-gray-50/50 border-b border-gray-100">
-              {kap.kode} — {kap.navn}
+      {aapen &&
+        byggUnderkapittelBlokker(standard.maler, standard.kode).map((blokk) => {
+          // Løse maler (underkapittel < terskel) — ingen overskrift.
+          if (blokk.type === "lose") {
+            return <div key={`lose-${blokk.maler[0]?.id}`}>{blokk.maler.map(malKnapp)}</div>;
+          }
+          // >= terskel → kollapsbar underkapittel-overskrift, default åpen.
+          const apenUnder = !lukkedeUnder.has(blokk.key);
+          return (
+            <div key={blokk.key}>
+              <button
+                type="button"
+                onClick={() => toggleUnder(blokk.key)}
+                className="flex w-full items-center gap-1 px-3 py-1 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400 bg-gray-50/50 border-b border-gray-100 hover:bg-gray-100"
+              >
+                {apenUnder ? (
+                  <ChevronDown className="h-3 w-3 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                )}
+                <span className="min-w-0 flex-1 truncate">
+                  {blokk.kode} — {blokk.navn}
+                </span>
+                <span className="shrink-0">· {blokk.maler.length}</span>
+              </button>
+              {apenUnder && blokk.maler.map(malKnapp)}
             </div>
-          )}
-          {/* Maler — direkte klikkbare, sortert etter prefix */}
-          {[...kap.maler].sort((a, b) => (a.prefix ?? "").localeCompare(b.prefix ?? "")).map((mal) => (
-            <button
-              key={mal.id}
-              type="button"
-              onClick={() => onVelg(mal.id)}
-              className={`w-full text-left px-4 py-1.5 text-xs border-b border-gray-50 ${
-                valgtMalId === mal.id
-                  ? "bg-sitedoc-primary/10 text-sitedoc-primary font-medium"
-                  : "text-gray-700 hover:bg-blue-50"
-              }`}
-            >
-              {mal.name}
-            </button>
-          ))}
-        </div>
-      ))}
+          );
+        })}
     </div>
   );
 }
