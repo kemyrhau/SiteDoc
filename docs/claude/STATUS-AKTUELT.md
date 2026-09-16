@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-16 · develop `d136340f` · test `81b2a785` — FLERE STEG BAK**
+**Sist ført: 2026-09-16 · develop `e599d40a` · test `81b2a785` — FLERE STEG BAK**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `feat/malforvaltning` | 🟢 **PR 1 MERGET + DEPLOYET** | **Kenneths visuelle gate**, så PR 2 |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | E2e del 2 (neste spor) |
-| **mal-Opus** | `SiteDoc-mal` | `test/i18n-nokkelsett` | 🔵 **ORDRE GITT** | — |
+| **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | Strengharmonisering (nå) |
 | **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
 | **kontrollplan** · **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
@@ -30,9 +30,24 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Malforvaltning PR 2** — Firmaarkiv-fane (én liste + maltype-filter) + riving av `firma/malarkiv` med bevistabell | Kenneths visuelle gate av PR 1 | redesign |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen inn i rettighetsmatrisen | Med sikkerhetsrunden | — |
-| **Strengharmonisering** | Etter nøkkelsett-testen | mal-Opus |
+| **Strengharmonisering** | Nå (nøkkelsett-testen levert 16.09) | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-16 — Nøkkelsett-testen merget (`e599d40a`): i18n-hullet kan ikke lenger gjenoppstå stille. Utløser web-deploy (samles).
+
+**Merget `test/i18n-nokkelsett` (ren fast-forward `0612f938..e599d40a`).** 16 filer, +160/−15: de femten språkfilene +
+`packages/shared/src/i18n/nokkelsett.test.ts`. Ingen kodefil utenom testen. Gate: `pnpm test` 7/7 tasks, **`shared` 823→824**
+(testen bor der), de fem andre stille (`db 2 · api 488 · pdf 120 · web 244 · mobil 9`). Begge CI-jobber grønne på develop.
+
+- 🟢 **NØKKELSETT-TESTEN LEVERT** — `packages/shared/src/i18n/nokkelsett.test.ts` leser alle femten filer og krever samme nøkkelsett som `nb`. **Feilklassen kan ikke lenger gjenoppstå stille.**
+- 🔴 **GJELDEN HADDE VOKST FRA 0 TIL 7 PÅ ETT DØGN** — fire nøkler fra Malforvaltning PR 1 (`malforvaltning.fane.sitedoc`/`.ingenTilgang`/`.tittel`/`.undertittel`), tre fra arkiv-søk (`sok.firmaarkiv`/`sok.sitedocArkiv`/`innstillinger.sokeord.maler`). Begge runder passerte coworks merge-gate uten at generatoren ble kjørt. Alle femten på 4506 etter runden.
+- 🟢 **Testen er SETT RØD før grønn** (`sok.firmaarkiv` fjernet fra `de.json` → rød). Feilmeldingen navngir nøkkel + fil og gir løsningskommandoen (`generate.ts --only <nøkkel>`).
+- 🟢 **`firmaNav.malarkiv` slettet i alle femten** — relikvi etter at menypunktet ble fjernet. Verifisert 0 kallere (grep i `apps/`+`packages/`). ⚠️ Testen fanger IKKE relikvier som finnes i ALLE filer — de må tas manuelt (nøyaktig scenariet kravet beskrev).
+- 🔴 **NY REGEL, i kraft fra denne mergen:** enhver runde som legger `nb`/`en`-nøkler MÅ kjøre `generate.ts --only <nøkler>`, ellers blir CI RØD (tilsiktet). Sperren mot at andre agenter enn mal-Opus kjører generatoren gjelder ikke lenger for deres EGNE nye nøkler — kun for eksisterende nøkler i de tretten.
+- ⚠️ **Lærdom (mal-Opus):** `git checkout <fil>` under en negativ kontroll reverterte også ugatet arbeid i samme fil. Ta backup av arbeidstre-versjonen FØR `git checkout`, ikke etter.
 
 ---
 
