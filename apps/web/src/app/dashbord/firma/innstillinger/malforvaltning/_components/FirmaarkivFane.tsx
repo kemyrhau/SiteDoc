@@ -18,6 +18,10 @@ import {
 } from "lucide-react";
 import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
 import { felttypeNokler } from "@/components/malbygger/PalettElement";
+import {
+  byggSitedocGrupper,
+  byggUnderkapittelBlokker,
+} from "@/components/bibliotek/arkiv-fane-filter";
 
 /**
  * Firmaarkiv-fanen i Malforvaltning (ordre PR 2 Del A). Flyttet fra den revne ruta
@@ -587,8 +591,10 @@ function LaanFraSentralarkivDialog({
   const [laantId, setLaantId] = useState<string | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
   const [sok, setSok] = useState("");
-  // Kapitler brukeren har utbrettet. Kun økt-tilstand (L2). null = ennå ikke initialisert.
+  // Standarder (Kenneths «kapittel») brukeren har utbrettet. null = ennå ikke initialisert.
   const [utbrettede, setUtbrettede] = useState<Set<string> | null>(null);
+  // Underkapittel-overskrifter (>= terskel) starter ÅPNE (vedtak a) — settet holder de lukkede.
+  const [lukkedeUnder, setLukkedeUnder] = useState<Set<string>>(new Set());
 
   const laanMutation = trpc.firmamal.laanFraSentralarkiv.useMutation({
     onSuccess: () => utils.firmamal.list.invalidate(),
@@ -606,11 +612,10 @@ function LaanFraSentralarkivDialog({
   );
   const startKollapset = totaltAntall > KOLLAPS_TERSKEL;
 
+  // Standard-nivå (Kenneths «kapittel»): default utbrettet med mindre >20 maler totalt.
   if (standarder && utbrettede === null) {
     const start = new Set<string>();
-    if (!startKollapset) {
-      for (const s of standarder) for (const kap of s.kapitler) start.add(kap.id);
-    }
+    if (!startKollapset) for (const s of standarder) start.add(s.kode);
     setUtbrettede(start);
   }
 
@@ -624,11 +629,20 @@ function LaanFraSentralarkivDialog({
     );
   }
 
-  function toggleKapittel(id: string) {
+  function toggleStandard(key: string) {
     setUtbrettede((prev) => {
       const neste = new Set(prev ?? []);
-      if (neste.has(id)) neste.delete(id);
-      else neste.add(id);
+      if (neste.has(key)) neste.delete(key);
+      else neste.add(key);
+      return neste;
+    });
+  }
+
+  function toggleUnder(key: string) {
+    setLukkedeUnder((prev) => {
+      const neste = new Set(prev);
+      if (neste.has(key)) neste.delete(key);
+      else neste.add(key);
       return neste;
     });
   }
@@ -639,17 +653,10 @@ function LaanFraSentralarkivDialog({
     laanMutation.mutate({ organizationId, bibliotekMalId });
   }
 
-  const synligeStandarder = (standarder ?? [])
-    .map((standard) => ({
-      ...standard,
-      kapitler: standard.kapitler
-        .map((kap) => ({
-          ...kap,
-          synligeMaler: harSok ? kap.maler.filter(malMatcher) : kap.maler,
-        }))
-        .filter((kap) => !harSok || kap.synligeMaler.length > 0),
-    }))
-    .filter((s) => s.kapitler.length > 0);
+  // Sortert/annotert per standard (samme primitiv som «Hent fra arkiv»), så søk-filtrert.
+  const synligeGrupper = byggSitedocGrupper(standarder ?? [], undefined)
+    .map((g) => ({ ...g, maler: harSok ? g.maler.filter(malMatcher) : g.maler }))
+    .filter((g) => g.maler.length > 0);
 
   return (
     <Modal open onClose={onLukk} title={t("firma.malarkiv.laanTittel")} className="max-w-2xl">
@@ -671,57 +678,87 @@ function LaanFraSentralarkivDialog({
         <div className="flex items-center justify-center py-8">
           <Spinner />
         </div>
-      ) : synligeStandarder.length === 0 ? (
+      ) : synligeGrupper.length === 0 ? (
         <p className="py-8 text-center text-sm text-gray-500">
           {harSok ? t("firma.malarkiv.laanIngenTreff") : t("firma.malarkiv.laanTomt")}
         </p>
       ) : (
-        <div className="max-h-[60vh] space-y-4 overflow-y-auto">
-          {synligeStandarder.map((standard) => (
-            <div key={standard.id}>
-              <h3 className="mb-1 text-sm font-semibold text-gray-800">
-                {standard.kode} — {standard.navn}
-              </h3>
-              <div className="space-y-1">
-                {standard.kapitler.map((kap) => {
-                  const apen = harSok || (utbrettede?.has(kap.id) ?? false);
-                  return (
-                    <div key={kap.id} className="rounded border border-gray-100">
-                      <button
-                        type="button"
-                        onClick={() => !harSok && toggleKapittel(kap.id)}
-                        disabled={harSok}
-                        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent"
-                      >
-                        {apen ? (
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                        )}
-                        <span>
-                          {kap.kode} {kap.navn}
-                        </span>
-                        <span className="text-gray-400">· {kap.synligeMaler.length}</span>
-                      </button>
-                      {apen && (
-                        <ul className="space-y-1 px-2 pb-2">
-                          {kap.synligeMaler.map((bm) => (
-                            <MalRad
-                              key={bm.id}
-                              bm={bm}
-                              alleredeLaant={alleredeLaantIder.has(bm.id)}
-                              laaner={laanMutation.isPending && laantId === bm.id}
-                              onLaan={() => laan(bm.id)}
-                            />
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
+        <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+          {synligeGrupper.map((g) => {
+            const apenStandard = harSok || (utbrettede?.has(g.key) ?? false);
+            const malRad = (bm: {
+              id: string;
+              navn: string;
+              referanse: string;
+              verifisert: boolean;
+            }) => (
+              <MalRad
+                key={bm.id}
+                bm={bm}
+                alleredeLaant={alleredeLaantIder.has(bm.id)}
+                laaner={laanMutation.isPending && laantId === bm.id}
+                onLaan={() => laan(bm.id)}
+              />
+            );
+            return (
+              <div key={g.key} className="rounded border border-gray-100">
+                {/* Kollaps på standard (Kenneths «kapittel») — eneste faste overskrift */}
+                <button
+                  type="button"
+                  onClick={() => !harSok && toggleStandard(g.key)}
+                  disabled={harSok}
+                  className="flex w-full items-center gap-1.5 px-2.5 py-2 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent"
+                >
+                  {apenStandard ? (
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{g.tittel}</span>
+                  <span className="shrink-0 font-normal text-gray-400">· {g.maler.length}</span>
+                </button>
+                {apenStandard && (
+                  <div className="space-y-1 px-2 pb-2">
+                    {byggUnderkapittelBlokker(g.maler, g.key).map((blokk) => {
+                      // Løse maler (underkapittel < terskel) — ingen overskrift.
+                      if (blokk.type === "lose") {
+                        return (
+                          <ul key={`lose-${blokk.maler[0]?.id}`} className="space-y-1">
+                            {blokk.maler.map(malRad)}
+                          </ul>
+                        );
+                      }
+                      // >= terskel → kollapsbar underkapittel-overskrift, default åpen.
+                      const apenUnder = harSok || !lukkedeUnder.has(blokk.key);
+                      return (
+                        <div key={blokk.key} className="rounded border border-gray-100">
+                          <button
+                            type="button"
+                            onClick={() => !harSok && toggleUnder(blokk.key)}
+                            disabled={harSok}
+                            className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent"
+                          >
+                            {apenUnder ? (
+                              <ChevronDown className="h-3 w-3 shrink-0 text-gray-400" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" />
+                            )}
+                            <span className="min-w-0 flex-1 truncate">
+                              {blokk.kode} — {blokk.navn}
+                            </span>
+                            <span className="shrink-0 text-gray-400">· {blokk.maler.length}</span>
+                          </button>
+                          {apenUnder && (
+                            <ul className="space-y-1 px-2 pb-2">{blokk.maler.map(malRad)}</ul>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
       <div className="mt-4 flex justify-end">

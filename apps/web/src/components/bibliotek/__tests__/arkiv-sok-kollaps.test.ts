@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   byggKildeIndeks,
   byggSitedocGrupper,
+  byggUnderkapittelBlokker,
   filtrerOgFold,
   grupperFirmaMaler,
   EGENLAGDE_KEY,
@@ -163,5 +164,68 @@ describe("grupperFirmaMaler — kollaps på standard + «Egenlagde» sist", () =
   it("kilde-indeksen bærer standard + arvet referanse firma-søket treffer på", () => {
     expect(indeks.get("ka7")?.standardKode).toBe("NS3420-K");
     expect(indeks.get("ka7")?.referanse).toBe("KA7");
+  });
+});
+
+/* ---- Underkapittel-overskrift kun ved >= terskel (Kenneth 16.09) ---- */
+
+describe("byggUnderkapittelBlokker — kollaps kun på kapittel, underkapittel-overskrift ved 3+", () => {
+  const mal = (id: string, kode: string | null, navn: string | null) => ({
+    id,
+    kapittelKode: kode,
+    kapittelNavn: navn,
+  });
+
+  it("underkapittel med 3+ maler → egen kollapsbar blokk; < 3 → løse maler uten overskrift", () => {
+    // Dagens data: KA=1, KB=3, KC=1, KD=1 → BARE KB utløser unntaket.
+    const maler = [
+      mal("ka7", "KA", "Innledende"),
+      mal("kb2", "KB", "Jord og vegetasjon"),
+      mal("kb4", "KB", "Jord og vegetasjon"),
+      mal("kb6", "KB", "Jord og vegetasjon"),
+      mal("kc31", "KC", "Vanning"),
+      mal("kd1", "KD", "Belegg"),
+    ];
+    const blokker = byggUnderkapittelBlokker(maler, "NS3420-K");
+
+    // KA løs · KB-overskrift · KC+KD løse (slått sammen, referanserekkefølge bevart).
+    expect(blokker.map((b) => b.type)).toEqual(["lose", "underkapittel", "lose"]);
+    expect(blokker[0]).toMatchObject({ type: "lose" });
+    expect(blokker[0]!.maler.map((m) => m.id)).toEqual(["ka7"]);
+
+    const kb = blokker[1]!;
+    expect(kb.type).toBe("underkapittel");
+    if (kb.type === "underkapittel") {
+      expect(kb.key).toBe("NS3420-K:KB");
+      expect(kb.kode).toBe("KB");
+      expect(kb.navn).toBe("Jord og vegetasjon");
+      expect(kb.maler.map((m) => m.id)).toEqual(["kb2", "kb4", "kb6"]);
+    }
+
+    expect(blokker[2]!.maler.map((m) => m.id)).toEqual(["kc31", "kd1"]);
+  });
+
+  it("nøyaktig 2 i et underkapittel → ingen overskrift (terskel er 3)", () => {
+    const blokker = byggUnderkapittelBlokker(
+      [mal("fb2", "FB", "x"), mal("fb4", "FB", "x")],
+      "NS3420-F",
+    );
+    expect(blokker).toHaveLength(1);
+    expect(blokker[0]!.type).toBe("lose");
+  });
+
+  it("egenlagde (kapittelKode = null) får ALDRI overskrift, selv med 3+", () => {
+    const blokker = byggUnderkapittelBlokker(
+      [mal("e1", null, null), mal("e2", null, null), mal("e3", null, null)],
+      "__egenlagde__",
+    );
+    expect(blokker).toHaveLength(1);
+    expect(blokker[0]!.type).toBe("lose");
+  });
+
+  it("under søk: filtrert liste under terskel mister overskriften (vedtak c)", () => {
+    // KB filtrert ned til 1 treff → ingen overskrift lenger.
+    const blokker = byggUnderkapittelBlokker([mal("kb2", "KB", "Jord")], "NS3420-K");
+    expect(blokker[0]!.type).toBe("lose");
   });
 });

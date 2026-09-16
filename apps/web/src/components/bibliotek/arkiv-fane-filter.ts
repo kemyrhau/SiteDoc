@@ -86,8 +86,62 @@ export function filtrerOgFold<R extends SokbarRad>(
  * serverens `orderBy` — den strammes i en egen runde.
  */
 
-/** Kapittel-etiketten en rad bærer, så render kan skyte inn underoverskrifter. */
+/** Underkapittel-etiketten en rad bærer, så render kan skyte inn underoverskrifter.
+ *  🔴 Kenneths ord: kodens `standard` = Kenneths «kapittel», kodens `kapittel` =
+ *  Kenneths «underkapittel». Modellnavnene døpes ikke om; vokabularet gjelder flatene. */
 export type MedKapittel = { kapittelKode: string | null; kapittelNavn: string | null };
+
+/**
+ * Terskel for underkapittel-overskrift (Kenneth 16.09): 3+ maler i SAMME underkapittel →
+ * kollapsbar underkapittel-overskrift. Under 3 → malene står løst rett under kapittelet
+ * (ingen overskrift). Kollaps kun på kapittel (standarden) ellers.
+ */
+export const UNDERKAPITTEL_TERSKEL = 3;
+
+/**
+ * En blokk i en utfoldet standard: enten løse maler (underkapittel < terskel, ingen
+ * overskrift) eller et underkapittel med egen kollapsbar overskrift (>= terskel).
+ */
+export type MalBlokk<R> =
+  | { type: "lose"; maler: R[] }
+  | { type: "underkapittel"; key: string; kode: string; navn: string; maler: R[] };
+
+/**
+ * Deler en standards (allerede sorterte) maler i blokker. Malene er sortert kapittel-for-
+ * kapittel (server-`sortering`) og på referanse innen kapitlet, så hvert underkapittel er én
+ * sammenhengende sekvens. Et underkapittel med >= terskel maler får egen overskrift;
+ * ellers slås malene inn i den løse blokken slik at referanserekkefølgen bevares på tvers.
+ * Under søk kalles denne på de FILTRERTE malene → antallet (og dermed overskriften) følger
+ * det som faktisk vises (Kenneth-vedtak c).
+ */
+export function byggUnderkapittelBlokker<R extends MedKapittel>(
+  maler: R[],
+  standardKey: string,
+): MalBlokk<R>[] {
+  const blokker: MalBlokk<R>[] = [];
+  let i = 0;
+  while (i < maler.length) {
+    const kode = maler[i]!.kapittelKode;
+    let j = i;
+    while (j < maler.length && maler[j]!.kapittelKode === kode) j++;
+    const sekvens = maler.slice(i, j);
+    if (kode && sekvens.length >= UNDERKAPITTEL_TERSKEL) {
+      blokker.push({
+        type: "underkapittel",
+        key: `${standardKey}:${kode}`,
+        kode,
+        navn: sekvens[0]!.kapittelNavn ?? kode,
+        maler: sekvens,
+      });
+    } else {
+      const forrige = blokker[blokker.length - 1];
+      if (forrige && forrige.type === "lose") forrige.maler.push(...sekvens);
+      else blokker.push({ type: "lose", maler: sekvens });
+    }
+    i = j;
+  }
+  return blokker;
+}
 
 /** Referanse-sammenligning: naturlig tallsortering innen én standard. */
 function sammenlignReferanse(a: string, b: string): number {

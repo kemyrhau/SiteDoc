@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
+import { useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Modal, Button, Spinner, Input } from "@sitedoc/ui";
@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import {
   byggKildeIndeks,
   byggSitedocGrupper,
+  byggUnderkapittelBlokker,
   filtrerOgFold,
   grupperFirmaMaler,
   type ArkivFane,
@@ -58,8 +59,13 @@ export function HentFraArkivModal({
   // Søk over BEGGE faner (Krav 1) — ligger over fanene, deles av dem.
   const [sok, setSok] = useState("");
   // Kollaps per fane, økt-tilstand (L2). Tom = alt sammenslått (Krav 2: sammenslått start).
+  // Standard-nivå (Kenneths «kapittel») starter sammenslått.
   const [utfoldedeFirma, setUtfoldedeFirma] = useState<Set<string>>(new Set());
   const [utfoldedeSitedoc, setUtfoldedeSitedoc] = useState<Set<string>>(new Set());
+  // Underkapittel-overskrifter (>= terskel) starter ÅPNE (Kenneth-vedtak a) — settet holder
+  // dem brukeren har LUKKET. Egen dimensjon per fane.
+  const [lukkedeUnderFirma, setLukkedeUnderFirma] = useState<Set<string>>(new Set());
+  const [lukkedeUnderSitedoc, setLukkedeUnderSitedoc] = useState<Set<string>>(new Set());
 
   function lukk() {
     setSok("");
@@ -297,7 +303,7 @@ export function HentFraArkivModal({
         </div>
       ) : (
         <div className="mt-3">
-          {/* Firmaarkiv-fanen — standard → kapittel + «Egenlagde» (Krav 2) */}
+          {/* Firmaarkiv-fanen — kollaps på standard; underkapittel-overskrift kun ved >= terskel */}
           {aktivFane === "firma" && (
             <ArkivListe
               laster={firmamaler.isLoading || standarder.isLoading}
@@ -306,6 +312,8 @@ export function HentFraArkivModal({
               grupper={firmaFoldet.synlige}
               harSok={firmaFoldet.harSok}
               onToggle={(key) => toggle(setUtfoldedeFirma, key)}
+              lukkedeUnder={lukkedeUnderFirma}
+              onToggleUnder={(key) => toggle(setLukkedeUnderFirma, key)}
               fotnote={
                 kanRedigereFirma ? (
                   <Link
@@ -321,7 +329,7 @@ export function HentFraArkivModal({
             />
           )}
 
-          {/* SiteDoc-arkiv-fanen (firmaadmin+) — gruppert på standard → kapittel */}
+          {/* SiteDoc-arkiv-fanen (firmaadmin+) — kollaps på standard, underkapittel kun ved >= terskel */}
           {aktivFane === "sitedoc" && kanSitedoc && (
             <ArkivListe
               laster={standarder.isLoading}
@@ -330,6 +338,8 @@ export function HentFraArkivModal({
               grupper={sitedocFoldet.synlige}
               harSok={sitedocFoldet.harSok}
               onToggle={(key) => toggle(setUtfoldedeSitedoc, key)}
+              lukkedeUnder={lukkedeUnderSitedoc}
+              onToggleUnder={(key) => toggle(setLukkedeUnderSitedoc, key)}
               fotnote={
                 kanRedigereSitedoc ? (
                   <Link
@@ -401,6 +411,8 @@ function ArkivListe({
   grupper,
   harSok,
   onToggle,
+  lukkedeUnder,
+  onToggleUnder,
   fotnote,
 }: {
   laster: boolean;
@@ -409,6 +421,8 @@ function ArkivListe({
   grupper: FoldetGruppe<ArkivRad>[];
   harSok: boolean;
   onToggle: (key: string) => void;
+  lukkedeUnder: Set<string>;
+  onToggleUnder: (key: string) => void;
   fotnote: ReactNode;
 }) {
   if (laster) {
@@ -421,10 +435,11 @@ function ArkivListe({
   if (tom) {
     return <p className="py-8 text-center text-sm text-gray-500">{tomTekst}</p>;
   }
-  // Kollapsbare STANDARD-grupper (Del C). Kapitlene er statiske underetiketter inne i den
-  // utfoldede standarden — samme form som venstretreet i Malforvaltning. Under søk er alle
-  // grupper med treff tvunget åpne og chevronen deaktivert (Krav 1) — økt-tilstanden styrer
-  // kun uten søk.
+  // Kollaps kun på STANDARD (Kenneths «kapittel»). Underkapittel-overskrift kun når
+  // underkapittelet har >= terskel maler (Kenneth 16.09) — da er den KOLLAPSBAR og starter
+  // åpen (vedtak a). Færre maler → de står løst rett under standarden, ingen overskrift.
+  // Under søk er alt tvunget åpent og chevronene deaktivert (Krav 1); antallet regnes på de
+  // filtrerte malene, så en overskrift forsvinner om søket tar underkapittelet under terskel.
   return (
     <>
       <div className="max-h-[55vh] space-y-2 overflow-y-auto">
@@ -445,24 +460,47 @@ function ArkivListe({
               <span className="shrink-0 font-normal text-gray-400">· {g.rader.length}</span>
             </button>
             {g.apen && (
-              <ul className="space-y-2 px-2 pb-2">
-                {g.rader.map((r, i) => {
-                  // Underetikett når kapitlet skifter (og finnes — «Egenlagde» har null).
-                  const forrige = i > 0 ? g.rader[i - 1] : null;
-                  const nyttKapittel =
-                    !!r.kapittelKode && r.kapittelKode !== forrige?.kapittelKode;
+              <div className="space-y-2 px-2 pb-2">
+                {byggUnderkapittelBlokker(g.rader, g.key).map((blokk) => {
+                  if (blokk.type === "lose") {
+                    return (
+                      <ul key={`lose-${blokk.maler[0]?.id}`} className="space-y-2">
+                        {blokk.maler.map((r) => (
+                          <ArkivRadElement key={r.id} r={r} />
+                        ))}
+                      </ul>
+                    );
+                  }
+                  const apen = harSok || !lukkedeUnder.has(blokk.key);
                   return (
-                    <Fragment key={r.id}>
-                      {nyttKapittel && (
-                        <li className="px-1 pt-1 text-[11px] font-medium text-gray-400">
-                          {r.kapittelKode} — {r.kapittelNavn}
-                        </li>
+                    <div key={blokk.key} className="rounded border border-gray-100">
+                      <button
+                        type="button"
+                        onClick={() => !harSok && onToggleUnder(blokk.key)}
+                        disabled={harSok}
+                        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[11px] font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-transparent"
+                      >
+                        {apen ? (
+                          <ChevronDown className="h-3 w-3 shrink-0 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3 shrink-0 text-gray-400" />
+                        )}
+                        <span className="min-w-0 flex-1 truncate">
+                          {blokk.kode} — {blokk.navn}
+                        </span>
+                        <span className="shrink-0 text-gray-400">· {blokk.maler.length}</span>
+                      </button>
+                      {apen && (
+                        <ul className="space-y-2 px-2 pb-2">
+                          {blokk.maler.map((r) => (
+                            <ArkivRadElement key={r.id} r={r} />
+                          ))}
+                        </ul>
                       )}
-                      <ArkivRadElement r={r} />
-                    </Fragment>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
             )}
           </div>
         ))}
