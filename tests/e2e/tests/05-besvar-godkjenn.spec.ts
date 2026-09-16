@@ -1,32 +1,36 @@
 import { test, expect, detaljUrl, authSti, klikkFlythandling } from "../lib/fixtures";
 import { opprettSjekkliste, settStatus } from "../lib/flyt";
 
-// (5) Utfører besvarer → dokumentet går FRAMOVER i flyten (badge «Hos N» = received) ;
-//     Godkjenn → Godkjent (godkjenner, terminal approved).
+// (5) Besvar → Besvart (utfører) ; Godkjenn → Godkjent (godkjenner).
+//     Hver handling utføres av den semantisk korrekte rollen i UI.
 //
-// MÅLT I CI (2026-09-16, ikke gjettet): når utfører klikker Besvar (handling-responded)
-// fra received, lander badgen på `data-status="received"` («Til behandling» / «Hos N»),
-// IKKE `responded`. `responded`/«Besvart» er RESERVERT for SENDT BAKOVER (fabel-vedtak
-// 02.08; avledStatus gir responded kun ved retning="tilbake"). En besvarelse framover er
-// received. Tidligere assertion `responded` sjekket en verdi UI-et ikke produserer for
-// denne flyten (samme spec-drift-klasse som 02-opprett). Navnet er endret bort fra
-// «→ Besvart» fordi utfallet er «Hos N», ikke «Besvart».
-//   MERK til leseren: en statisk lesing av beregnRuting (responded-grenen setter
-//   retning="tilbake") FORUTSIER responded — den lesningen holdt IKKE mot kjørende UI.
-//   Målingen står; mekanismen (hvorfor utfører-Besvar gir retning≠tilbake) er meldt for
-//   et eget blikk, men er utenfor denne spec-rundens mandat (avledStatus/ruting røres ikke).
+// MEKANISME-FUNN (2026-09-16, cowork-gate): en tidligere «fix» satte assertionen til
+// `received` fordi CI målte received etter et Besvar-klikk. Rotårsaken var IKKE at Besvar
+// gir received — modellen er koherent (beregnRuting:176-183 → retning="tilbake";
+// avledStatus:232 → responded). Rotårsaken var at Besvar KREVER begrunnelse
+// (STATUS_KREVER_BEGRUNNELSE ⊇ "responded"), så handlingsmenyen åpner en begrunnelse-dialog
+// i stedet for å fyre mutasjonen (DokumentHandlingsmeny.tsx:570-574). Spec-en klikket bare
+// knappen og leste badgen UMIDDELBART — dialogen ble aldri sendt, dokumentet ble stående på
+// `received` (tilstanden etter `sent`), og `received`-assertionen var grønn AV FEIL GRUNN.
+// Riktig test fullfører Besvar (fyller begrunnelsen + sender) og asserterer `responded`.
 
 test.describe("Besvar (utfører)", () => {
   test.use({ storageState: authSti.arbeider });
 
-  test("Besvar → Hos N (received)", async ({ page, rt, apiFirma }) => {
+  test("Besvar → Besvart", async ({ page, rt, apiFirma }) => {
     const id = await opprettSjekkliste(apiFirma, rt, "besvar");
     await settStatus(apiFirma, id, "sent"); // → received, ballen hos arbeider (utfører)
     await page.goto(detaljUrl(rt, id));
 
-    await klikkFlythandling(page, "responded"); // Besvar-knappen
-    // Utfører-Besvar bringer dokumentet framover → «Hos N» = received (se filhode).
-    await expect(page.getByTestId("status-badge").first()).toHaveAttribute("data-status", "received");
+    // Besvar krever begrunnelse → knappen åpner en dialog (fyrer IKKE mutasjonen).
+    await klikkFlythandling(page, "responded");
+    // Fyll den påkrevde begrunnelsen og send (Enter sender når feltet ikke er tomt,
+    // DokumentHandlingsmeny.tsx:645). Uten dette fullføres Besvar aldri.
+    const begrunnelse = page.getByPlaceholder("Skriv en begrunnelse...");
+    await begrunnelse.fill("e2e besvart");
+    await begrunnelse.press("Enter");
+
+    await expect(page.getByTestId("status-badge").first()).toHaveAttribute("data-status", "responded");
   });
 });
 

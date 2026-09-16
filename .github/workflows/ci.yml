@@ -220,12 +220,13 @@ jobs:
             || { echo "WEB ble ALDRI klar — se /tmp/web.log"; tail -30 /tmp/web.log; exit 1; }
           echo "Miljø klart etter $(( $(date +%s) - t0 ))s"
 
-          # DEL 4 (2026-09-16): 05 slås PÅ etter spec-de-drift. MÅLT i CI (run 35146521125): utfører-
-          # Besvar (handling-responded) fra received gir badge `received` («Hos N»), IKKE `responded`.
-          # `responded`/«Besvart» er reservert SENDT BAKOVER (fabel 02.08). 05-besvar-assertionen er
-          # rettet til received + testen omdøpt bort fra «→ Besvart». 05-godkjenn var alt grønn (approved).
-          # (En statisk beregnRuting-lesing forutså responded og bommet — målingen står; mekanismen
-          # meldt for eget blikk, avledStatus/ruting røres ikke i denne runden.)
+          # DEL 4 (2026-09-16): 05 slås PÅ etter spec-de-drift. MEKANISME-FUNN (cowork-gate): Besvar
+          # (responded) KREVER begrunnelse → handlingsmenyen åpner en dialog i stedet for å fyre
+          # mutasjonen (DokumentHandlingsmeny.tsx:570-574). Den tidligere spec-en klikket knappen og
+          # leste badgen straks → dialogen ble aldri sendt, dok ble stående på received, og en
+          # received-assertion var grønn AV FEIL GRUNN. Rettet: spec-en fyller begrunnelsen + sender,
+          # og asserterer `responded` (modellen er koherent: beregnRuting retning="tilbake" → avledStatus
+          # → responded). 05-godkjenn var alt grønn (approved).
           # 07-gjenapne slått PÅ (steg 2): gjenåpne (closed→draft-handling) gir badge `received`
           # («Hos N»), ikke `draft` — beregnRuting aapner-draft setter sendt=true + retning=frem →
           # avledStatus → received. Spec-drift rettet + testen omdøpt bort fra «→ Utkast».
