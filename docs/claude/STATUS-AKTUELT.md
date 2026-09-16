@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-17 · develop `d074d919` (bærer migrering `20260917120000`) · test `81b2a785` — FLERE STEG BAK (deploy m/ migrering føres av cowork nå)**
+**Sist ført: 2026-09-17 · develop `045e376d` (INGEN migrering denne runden — web-deploy) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
+| **redesign** | `SiteDoc-redesign` | `fix/videresend-personvalg` | 🔵 **ORDRE GITT** | person-velger innen egen flyt (mobil+web) |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | Strengharmonisering (nå) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/vern-oppdater-kopi` | 🟢 **LEVERT** | merge (`99310f66` pushet — egen runde, IKKE i d074d919) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
@@ -33,6 +33,32 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Strengharmonisering** | Nå (nøkkelsett-testen levert 16.09) | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-17 — Vern på firmaarkiv-↻ + fabels bundet-flyt-tegning (`045e376d`). WEB-DEPLOY, ingen migrering.
+
+**Én branch merget + én tegning som egen commit. `fix/e2e-status-assertions` HOLDT (under avklaring, meldt).** Strategi: **vern `--no-ff`** (`22a4dc2f`), **fabel-tegning egen commit** (`045e376d`).
+`firmamal.ts` ga **INGEN konflikt** selv om både indeks-mergen (forrige runde) og vern-branchen rører den: endringene er i ulike funksjoner og begge overlevde — **VERN-guard `oppdaterKopiFraHovedmal` `firmamal.ts:825-843`** (tellDokumenterMedInnhold `:830`) · **`deletedAt`-filter i dobbeltlån-vakten `firmamal.ts:894-900`** (`:898`). `merge-tree` dry-run var ren før merge.
+Gate: `pnpm test` 7/7 tasks — alle stille (`db` 2 · **`api` 490** · `pdf` 120 · `shared` 824 · `web` 257 · `mobil` 9). **Integrasjon 37→39** (+2: vern-testen begge retninger) — kjørt lokalt mot efemær `pgvector/pgvector:pg16`-sandkasse (CI-speil). **`api` STILLE på 490 som forventet** (kontrollplan la ingen enhetstest; sperren dekkes av integrasjonstest). Ingen schema-endring, ingen OTA.
+
+**A — sperre på firmaarkiv-↻ (funn #22, steg 1 av 2):**
+- 🔴 **`oppdaterKopiFraHovedmal` nekter nå når prosjektmalens objekter har faktisk innhold i et aktivt dokument.** Speiler `slettObjekt` — det var en inkonsistens, ikke en manglende funksjon. `oppdaterKopiFraHovedmal` gjorde `deleteMany` + gjenskaping med NYE id-er, kun `verifiserAdmin`-gatet → all dokumentdata ble foreldreløs.
+- 🟢 **Tellefunksjonen GJENBRUKT, ikke kopiert** — `tellDokumenterMedInnhold` i `mal.ts:85` fikk `export`, ingen andre kopi. Soft-slettede dokumenter teller ikke (`mal.ts:89-90`). `oppdaterFraSentralarkiv` verifisert trygg og URØRT (firmanivået bærer ingen dokumenter).
+- 🟢 **Utveien står i feilmeldingen:** «Hent fra arkiv» lager en ny prosjektmal.
+- 🔴 **STEG 2 SYNLIG PÅ BACKLOG:** Kenneths regel «forsvant et felt som har data?» krever at ↻ matcher gammelt mot nytt og BEHOLDER objekt-id-en (diff/merge, som koden selv kaller backlog `firmamal.ts:786`). **Sperren er MIDLERTIDIG.** Målt omfang 17.09: 40 prosjektmaler, 22 med dokumenter, 1 der malen alt er endret.
+- ⚠️ **COWORK-FEIL godkjent:** krav 3 ba om i18n-nøkler, men `apps/api` har INGEN i18n — kontrollplan målte premisset og avvek bevisst.
+
+**B — e2e `05` og `07` (HOLDT):**
+- 🟡 **`fix/e2e-status-assertions` (`3578f3e4`) IKKE merget denne runden — under avklaring** (Kenneth-instruks). Spec-en følger statusmodellen (`avledStatus` gir `responded` KUN ved `retning=tilbake`; besvarelse framover = `received`). Slås på egen runde.
+- 🔴 **`06-videresend` fortsatt ute** — ventet på en HANDLING fjernet fra menyen, slås på når `fix/videresend-personvalg` er inne.
+
+**C — VEDTAK: bundet flyt (fabels tegning, Kenneth-gatet 16.09):**
+- 🟢 **Navn: «Bundet flyt».** Motsatsen heter «fri flyt» i all mikrotekst. ⚠️ «Lukket» (dokumentstatus) og «låst» (maler) utelukket.
+- 🔴 **Default: FRI.** Feilen skal gå mot «for åpen»: glemt binding gir en flytting som uansett krever bekreftelse, navngitt målflyt, påkrevd kommentar og logg.
+- 🔴 **Nivå: per FLYT** — én boolsk kolonne på `Dokumentflyt`. **Ingen backfill** (alle eksisterende flyter forblir frie). Bryteren kan endres begge veier etter opprettelse — styrer kun hva som er lov framover, rører aldri dokumentdata.
+- 🟢 **Symbol: lucide `Anchor`** (0 treff, ledig). Kun på BUNDNE flyter. ⚠️ `Lock` utelukket (17 treff mallåsing, leses som «du mangler tilgang»). «Andre flyter» fjernes ikke stille — fotnote med anker forklarer: «Det gjelder alle i prosjektet, ikke bare deg.»
+- 🔴 **NESTE:** skjemaordre til kontrollplan, så UI til redesign.
 
 ---
 
