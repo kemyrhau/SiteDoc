@@ -1,4 +1,4 @@
-import { test, expect, detaljUrl, authSti } from "../lib/fixtures";
+import { test, expect, detaljUrl, authSti, klikkFlythandling } from "../lib/fixtures";
 import { opprettSjekkliste, settStatus } from "../lib/flyt";
 
 // (5) Besvar → Besvart (utfører) ; Godkjenn → Godkjent (godkjenner).
@@ -12,7 +12,7 @@ test.describe("Besvar (utfører)", () => {
     await settStatus(apiFirma, id, "sent"); // → received, ballen hos arbeider (utfører)
     await page.goto(detaljUrl(rt, id));
 
-    await page.getByTestId("handling-responded").click();
+    await klikkFlythandling(page, "responded");
     await expect(page.getByTestId("status-badge").first()).toHaveAttribute("data-status", "responded");
   });
 });
@@ -26,7 +26,7 @@ test.describe("Godkjenn (godkjenner)", () => {
     await settStatus(apiFirma, id, "responded"); // besvart (admin-driver i oppsett)
     await page.goto(detaljUrl(rt, id));
 
-    await page.getByTestId("handling-approved").click();
+    await klikkFlythandling(page, "approved");
     await expect(page.getByTestId("status-badge").first()).toHaveAttribute("data-status", "approved");
   });
 });

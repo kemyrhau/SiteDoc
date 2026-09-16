@@ -96,6 +96,16 @@ async function main() {
       },
     });
   }
+  // ProjectOrganization-join-raden (hovedeier) — UTEN denne teller
+  // `erStandaloneProsjekt` (prosjektGrense.ts) prosjektet som PRØVEprosjekt (maks 10
+  // sjekklister/oppgaver), og e2e-flyten treffer grensen. `primaryOrganizationId`
+  // (kolonnen over) og denne raden er to ULIKE kilder — begge må settes for at det
+  // seedede prosjektet skal ligne et ordinært firma-prosjekt (2026-09-16, e2e del 2-funn).
+  await prisma.projectOrganization.upsert({
+    where: { projectId_organizationId: { projectId: prosjekt.id, organizationId: org.id } },
+    create: { projectId: prosjekt.id, organizationId: org.id, rolle: "hovedeier" },
+    update: {},
+  });
   const finnesMedlem = await prisma.projectMember.findFirst({
     where: { projectId: prosjekt.id, userId: arbeider.id },
   });

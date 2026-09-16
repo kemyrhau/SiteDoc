@@ -89,9 +89,14 @@ export async function opprettSjekkliste(
   return res.id;
 }
 
-/** Sett status via API (admin-token). `sent` kollapser server-side til `received`. */
+/**
+ * Sett status via API (admin-token). `sent` kollapser server-side til `received`.
+ * `kommentar` sendes alltid: enkelte overganger (godkjenn/gjenåpne m.fl.) krever
+ * begrunnelse server-side («Begrunnelse er påkrevd for denne handlingen»), og en
+ * fast e2e-begrunnelse er ufarlig for de som ikke krever den.
+ */
 export async function settStatus(api: ApiKlient, id: string, nyStatus: string): Promise<void> {
-  await api.mutation("sjekkliste.endreStatus", { id, nyStatus });
+  await api.mutation("sjekkliste.endreStatus", { id, nyStatus, kommentar: "e2e" });
 }
 
 interface DokDetalj {
