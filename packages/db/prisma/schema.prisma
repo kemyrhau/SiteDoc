@@ -1169,11 +1169,20 @@ model OrganizationTemplate {
 
   // Unik indeks mot dobbelt-lån av samme bibliotekmal til samme firma (funn #10,
   // «Malforvaltning — 17 målte funn 2026-09-13»). Vakten i firmamal.ts (findFirst +
-  // CONFLICT) er PEN FEILMELDING; denne indeksen er GARANTIEN mot samtidige lån.
+  // CONFLICT) er PEN FEILMELDING; indeksen er GARANTIEN mot samtidige lån.
   // laantFraBibliotekMalId er NULLABLE → flere egne (ikke-lånte) firmamaler har null,
   // og Postgres behandler NULL som distinkt (NULLS DISTINCT), så to egne firmamaler
   // er fortsatt lov. Kun lånte (samme bibliotekMalId) blokkeres.
-  @@unique([organizationId, laantFraBibliotekMalId])
+  //
+  // 🔴 GARANTIEN ER PARTIELL og bæres IKKE av skjemaet (samme mønster som CHECK-en over):
+  // `CREATE UNIQUE INDEX ... (organization_id, laant_fra_bibliotek_mal_id) WHERE deleted_at
+  // IS NULL` (migrering 20260917120000_unik_indeks_partiell_soft_delete). Prisma kan ikke
+  // uttrykke partielle indekser — derfor rå SQL, og @@unique er FJERNET her med vilje.
+  // Uten WHERE-filteret ville en SOFT-SLETTET lånt mal fortsatt telle, så samme kapittelmal
+  // ikke kunne lånes på nytt før papirkurven tømmes (en angre-felle). Med filteret slipper
+  // slettede rader ut av unikhets-tellingen, mens to AKTIVE lån fortsatt avvises (P2002).
+  // ⚠️ Legg ALDRI @@unique([organizationId, laantFraBibliotekMalId]) tilbake — `prisma
+  // migrate dev` ville da gjenskapt den fulle, ikke-partielle indeksen som konkurrent.
   @@index([organizationId])
   @@index([promotedFromTemplateId])
   // Beholdes: enkeltkolonne-indeks betjener revers-oppslag på bibliotekmalen alene

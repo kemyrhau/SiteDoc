@@ -47,8 +47,15 @@ const BIB_RADER = [
 
 // Delt in-memory-lager: findFirst (ctx.prisma) og create (tx) ser samme tilstand,
 // slik at ANDRE lån finner det FØRSTE la inn.
+type LagretRad = {
+  organizationId: string;
+  laantFraBibliotekMalId: string | null;
+  versjonAvHovedmal?: number;
+  deletedAt: Date | null;
+};
+
 function lagPrisma() {
-  const lagrede: Array<{ organizationId: string; laantFraBibliotekMalId: string | null; versjonAvHovedmal?: number }> = [];
+  const lagrede: LagretRad[] = [];
   const tx = {
     organizationTemplate: {
       create: vi.fn(async ({ data }: { data: { organizationId: string; laantFraBibliotekMalId: string | null; versjonAvHovedmal?: number } }) => {
@@ -56,6 +63,7 @@ function lagPrisma() {
           organizationId: data.organizationId,
           laantFraBibliotekMalId: data.laantFraBibliotekMalId,
           versjonAvHovedmal: data.versjonAvHovedmal,
+          deletedAt: null,
         });
         return { id: `ot-${lagrede.length}` };
       }),
@@ -68,12 +76,19 @@ function lagPrisma() {
   return {
     _lagrede: lagrede,
     organizationTemplate: {
+      // Modellerer soft-delete-guarden: when where.deletedAt === null skal KUN aktive
+      // (ikke-slettede) rader telle — samme semantikk som Postgres-filteret.
       findFirst: vi.fn(
-        async ({ where }: { where: { organizationId: string; laantFraBibliotekMalId: string } }) =>
+        async ({
+          where,
+        }: {
+          where: { organizationId: string; laantFraBibliotekMalId: string; deletedAt?: Date | null };
+        }) =>
           lagrede.find(
             (r) =>
               r.organizationId === where.organizationId &&
-              r.laantFraBibliotekMalId === where.laantFraBibliotekMalId,
+              r.laantFraBibliotekMalId === where.laantFraBibliotekMalId &&
+              (where.deletedAt === undefined || r.deletedAt === where.deletedAt),
           ) ?? null,
       ),
     },
@@ -140,5 +155,21 @@ describe("firmamal.laanFraSentralarkiv — dobbelt-lån-vakt", () => {
     await lagCaller(prisma).laanFraSentralarkiv({ organizationId: ORG, bibliotekMalId: BIB });
     // versjonAvHovedmal settes = BibliotekMal.version (5) → firmanivå-badgen kan regne «X bak».
     expect(prisma._lagrede[0]!.versjonAvHovedmal).toBe(5);
+  });
+
+  it("(5) lån på nytt etter at et tidligere lån er soft-slettet → LOV (ordre unik-indeks-soft-delete, krav 2)", async () => {
+    const prisma = lagPrisma();
+    const caller = lagCaller(prisma);
+    // Første lån inn.
+    await caller.laanFraSentralarkiv({ organizationId: ORG, bibliotekMalId: BIB });
+    // Soft-slett det (raden består — som i papirkurven).
+    prisma._lagrede[0]!.deletedAt = new Date();
+
+    // Nytt lån av SAMME mal: vakten filtrerer på deletedAt: null, finner ingen AKTIV rad,
+    // og skal derfor IKKE gi CONFLICT. Uten deletedAt-filteret ville dette kastet CONFLICT.
+    const res = await caller.laanFraSentralarkiv({ organizationId: ORG, bibliotekMalId: BIB });
+    expect(res.malNavn).toBe("KB4 – Grasdekker");
+    // Ny rad lagt til ved siden av den slettede.
+    expect(prisma._lagrede).toHaveLength(2);
   });
 });
