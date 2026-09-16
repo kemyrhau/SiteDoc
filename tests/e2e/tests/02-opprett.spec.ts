@@ -8,8 +8,9 @@ test("opprett sjekkliste (UI) → Utkast", async ({ page, rt }) => {
   await page.goto(listeUrl(rt));
 
   await page.getByTestId("verktoy-ny-sjekkliste").click();
-  // Steg 1: velg mal (selekteres på navn — data vi styrer, språk-uavhengig).
-  await page.getByRole("button", { name: E2E_MAL_NAVN }).click();
+  // Steg 1: velg mal. OpprettMalVelger rendrer malene som role="option" i en listbox
+  // (UI-refaktor f567d339 2026-08-04) — spec-en følger den nye, riktigere semantikken.
+  await page.getByRole("option", { name: E2E_MAL_NAVN }).click();
 
   // Enkelt-flyt → opprettes direkte. Faller flyt-velger-steget inn, bekreft.
   const bekreft = page.getByTestId("opprett-flyt-bekreft");

@@ -47,3 +47,28 @@ export function detaljUrl(rt: Runtime, id: string): string {
 export function listeUrl(rt: Runtime): string {
   return `/dashbord/${rt.projectId}/sjekklister`;
 }
+
+/**
+ * Klikk en flyt-handling (`handling-<nyStatus>`) i DokumentHandlingsmeny.
+ *
+ * Robust mot to trekk i dagens UI som gjorde de gamle spec-ene røde (aldri validert
+ * fordi e2e aldri kjørte i CI):
+ *  1) Handlingen kan være PRIMÆR (synlig knapp) ELLER ligge i «Flere handlinger»-
+ *     nedtrekket (`handling-split-nedtrekk`, skjult til åpnet) — vi åpner nedtrekket
+ *     hvis handlingen ikke alt er synlig.
+ *  2) Den sticky skjerm-headeren (z-10) dekker knappen etter Playwrights auto-scroll,
+ *     så vi kaller `el.click()` direkte på DOM-noden (knappen er «visible/enabled/stable»
+ *     — kun pointer-interception feiler). `force:true` ville truffet overlayet, ikke knappen.
+ */
+export async function klikkFlythandling(
+  page: import("@playwright/test").Page,
+  nyStatus: string,
+): Promise<void> {
+  const mål = () => page.locator(`[data-testid="handling-${nyStatus}"]:visible`).first();
+  if (!(await mål().count())) {
+    // Handlingen ligger i nedtrekket — åpne det først.
+    await page.locator('[data-testid="handling-split-nedtrekk"]:visible').first().evaluate((el) => (el as HTMLElement).click());
+    await mål().waitFor({ state: "visible", timeout: 5000 });
+  }
+  await mål().evaluate((el) => (el as HTMLElement).click());
+}

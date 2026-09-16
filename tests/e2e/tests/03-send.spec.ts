@@ -1,4 +1,4 @@
-import { test, expect, detaljUrl, authSti } from "../lib/fixtures";
+import { test, expect, detaljUrl, authSti, klikkFlythandling } from "../lib/fixtures";
 import { opprettSjekkliste } from "../lib/flyt";
 
 // (3) Send → status kollapser til Mottatt (draft → received), ballen hos neste ledd.
@@ -11,6 +11,6 @@ test("Send → Mottatt", async ({ page, rt, apiFirma }) => {
   const badge = page.getByTestId("status-badge").first();
   await expect(badge).toHaveAttribute("data-status", "draft");
 
-  await page.getByTestId("handling-sent").click();
+  await klikkFlythandling(page, "sent");
   await expect(badge).toHaveAttribute("data-status", "received");
 });

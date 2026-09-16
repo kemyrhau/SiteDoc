@@ -130,33 +130,45 @@ kontroller øverst — er de truffbare (`idb ui tap`, ikke øyemål).
    dev-login-whitelisten (`apps/api/src/routes/dev-login.ts`) er **hardkodet, ikke miljøavhengig**
    → de tre testbrukerne slipper alltid gjennom i et friskt miljø.
 
-   🔴 **DEL 2 FUNN 2026-09-16 — de seks spec-ene (02–07) er DRIFTET, ikke bare avslåtte.** Målt
-   mot friskt efemært miljø (alle fire db-migreringer + seeds): 01-login grønn, **02–07 røde** —
-   men IKKE av rigg-feil. To årsaker, begge utenfor det denne runden eier (spec-er forbudt,
-   seeds ikke i «filer du eier»):
-   - **UI-selektor-drift (02/03/04/05/06):** spec-ene ble aldri validert mot UI-en fordi e2e
-     aldri kjørte i CI — nettopp gapet dette initiativet lukker. `02` velger
-     `getByRole("button", {E2E_MAL_NAVN})`, men `OpprettMalVelger.tsx` rendrer nå malen som
-     `role="option"` i en `listbox` (UI-refaktor `f567d339` 2026-08-04; spec sist rørt
-     2026-07-26 — 9 dager før). `03`/`05`/`06` venter på `handling-sent`/`handling-responded`/
-     `handling-videresend-nedtrekk`-testid-er som ikke finnes i dagens `DokumentHandlingsmeny`;
-     `04` en `toHaveAttribute`-mismatch.
-   - **Seed-gap (07):** prosjektet mangler `ProjectOrganization`-kobling → `erStandaloneProsjekt`
-     = true → prøveprosjekt-grensen (maks 10 sjekklister) fyrer. `seed-testbrukere.ts` setter kun
-     `primaryOrganizationId`, ikke join-raden `projectOrganizations`.
+   🟡 **DEL 2/3 (2026-09-16):** de seks andre spec-ene var DRIFTET (aldri validert siden e2e
+   aldri kjørte i CI). **De-drift (del 3) — resultat: 01–04 + 05-godkjenn grønne, 05-besvar/06/07
+   holdt ute for produkt-avgjørelse.**
 
-   🔴 **Konsekvens:** e2e i CI forblir **KUN 01-login** inntil en egen runde med
-   **spec-redigerings-mandat** de-drifter 02–07 mot dagens UI OG lukker seed-gapet (07). Å slå
-   dem på nå ville gjort develop rød. **db-maskin-støyen er lukket:** alle fire db-pakker migreres
-   nå i e2e-jobben (~2s ekstra).
+   🟢 **Fikset (grønne 01–04, 05-godkjenn):**
+   - **02:** `getByRole("button")` → `getByRole("option")` (OpprettMalVelger rendrer mal som
+     `role="option"` i listbox, refaktor `f567d339` 2026-08-04).
+   - **04:** `seed-e2e-flyt.ts` satte ALLE flyt-medlemmer på `steg:1` → `byggLedd` kollapset til
+     én ledd-boks mens slåOppFlyt teller tre roller. Fikset til distinkt steg 1/2/3 (samme
+     seed-matcher-ikke-produksjon-klasse som ProjectOrganization-gapet).
+   - **07 (delvis):** status-sti `in_progress` → `approved` (in_progress er HELT kollapset,
+     fabel-vedtak 2026-08-02 — `responded→in_progress` fjernet).
+   - **Sticky-header + nedtrekk:** `handling-*`-knapper er tvetydige (primær + meny + mobil) og
+     dekkes av den sticky skjerm-headeren (z-10) etter auto-scroll. Ny `klikkFlythandling`-helper
+     (`lib/fixtures.ts`) åpner «Flere handlinger»-nedtrekket ved behov og kaller `el.click()`
+     direkte på DOM-noden (`force:true` ville truffet overlayet, ikke knappen).
+   - **`seed-testbrukere.ts`:** `ProjectOrganization`-join-raden lagt til → prosjektet er ikke
+     lenger prøveprosjekt (maks 10). ⚠️ `seed-e2e-pilot.ts` + `seed-agent-mobil-test.ts` bygger på
+     samme prosjekt (var også trial-begrenset) — meldt, ikke rørt her.
+   - **`settStatus` (lib/flyt.ts):** sender alltid `kommentar` (godkjenn/gjenåpne krever begrunnelse).
 
-   🟡 **Blokkerings-anbefaling (krav 4, endelig):** **IKKE blokker merge; kjør KUN på PR (ikke
-   hver push); ha en vei forbi.** Med bare 01-login kjørende er e2e i dag et tynt signal —
-   blokkering gir liten verdi og risikerer å stoppe merges på rigg-flakiness. Kjør på PR (ikke
-   hver push, som koster ~3,5 min × hver push). Hvis rød og merge må skje: `git push
-   origin HEAD:develop` fra merge-treet omgår PR-gaten (eksisterende merge-konvensjon) — så en
-   rød e2e blokkerer aldri en nødvendig merge. Vurder blokkering på nytt FØRST når 02–07 er
-   de-driftet og har vist grønn stabilt over mange kjøringer.
+   🔴 **HOLDT UTE — krever produkt-semantikk-avgjørelse (ikke gjettet):**
+   - **05-besvar:** `avledStatus` (flytPosisjon.ts) gir `responded` KUN ved `retning="tilbake"`.
+     Når utfører besvarer FRAMOVER blir badge `received` («Hos godkjenner»). Spec-ens
+     `data-status="responded"` sjekker en verdi UI-modellen ikke lenger produserer for denne flyten.
+   - **06-videresend:** `handling-videresend-nedtrekk` er ikke synlig for firma-admin på received
+     (rolle-/synlighets-gating endret) — trenger avklaring på om videresend-tilbudet er flyttet.
+   - **07-gjenapne:** gjenåpne `closed→draft` viser `received` i badge (samme avledStatus-modell).
+   **Neste spor:** avklar forventet badge-utfall for besvar/gjenåpne i dagens modell, oppdater de
+   tre assertionene, slå på 05–07 i CI.
+
+   🔴 **DB-garanti-funn (meldt, kontrollplan eier skjemaet):** `Project.primaryOrganizationId` og
+   `ProjectOrganization`-raden er to UAVHENGIGE kilder UTEN constraint/trigger — de KAN divergere
+   (nettopp det seed-testbrukere gjorde). Trial-sjekken (`erStandaloneProsjekt`) bruker kun
+   join-raden. Vurder en garanti; ikke bygget her.
+
+   🟡 **Blokkerings-anbefaling (endelig):** ikke blokker; kjør kun på PR (ikke hver push); rød e2e
+   omgås av merge-tre-push (`git push origin HEAD:develop`). Vurder blokkering FØRST når alle sju
+   er grønne og stabile over mange kjøringer.
 
 ---
 

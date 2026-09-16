@@ -12,7 +12,7 @@ test("videresend synlig for admin, skjult for utfører (H3)", async ({ page, rt,
 
   // Firma (prosjektadmin): videresend-nedtrekket er synlig.
   await page.goto(detaljUrl(rt, id));
-  await expect(page.getByTestId("handling-videresend-nedtrekk")).toBeVisible();
+  await expect(page.locator('[data-testid="handling-videresend-nedtrekk"]:visible')).toHaveCount(1);
 
   // Arbeider (utfører, non-admin): Besvar synlig, men INGEN videresend.
   const ctx = await browser.newContext({ storageState: authSti.arbeider, baseURL: BASE_URL });

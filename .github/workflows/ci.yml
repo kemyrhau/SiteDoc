@@ -16,7 +16,8 @@ name: CI
 # hadde aldri bevist noe.
 #
 # Utvidelse (2026-09-16): E2E DEL 1 — egen `e2e`-jobb (parallell med `test`) reiser et
-# EFEMÆRT miljø (engangs-pgvector + seed + api + web) og kjører KUN `01-login.spec.ts`.
+# EFEMÆRT miljø (engangs-pgvector + 4 db-migreringer + seed + api + web). Kjører de
+# de-driftede spec-ene 01–04 (del 3). 05/06/07 holdt ute — produkt-semantikk.
 # ALDRI mot test.sitedoc.no (suiten muterer den delte DB-en). De seks andre spec-ene er
 # del 2 og kjøres IKKE her — ingen skip, ingen «allowed to fail».
 #
@@ -127,7 +128,7 @@ jobs:
   # `01-login.spec.ts`. Bevist lokalt ende-til-ende før CI. Del 2 (de seks andre spec-ene +
   # blokkerer-merge-avgjørelsen) er eget spor.
   e2e:
-    name: e2e-del1 (KUN 01-login)
+    name: e2e (01-04 de-driftet)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -171,9 +172,6 @@ jobs:
 
       # Skjema + testdata: begge seeds er idempotente og kjørbare (målt). seed-e2e-flyt
       # forutsetter seed-testbrukere (org + AGENT-TEST-0001 + brukere).
-      # ALLE FIRE db-pakker migreres (del 2, krav 2): db-timer/maskin/varelager-skjemaene
-      # må finnes, ellers logger api-bakgrunnsworkerne feil (`maskin.vegvesen_ko does not
-      # exist`) som kan maskere en ekte feil senere. Kostnad målt: ~2s ekstra.
       - name: Migrer + seed engangs-DB
         run: |
           pnpm --filter @sitedoc/db exec prisma migrate deploy
@@ -222,14 +220,16 @@ jobs:
             || { echo "WEB ble ALDRI klar — se /tmp/web.log"; tail -30 /tmp/web.log; exit 1; }
           echo "Miljø klart etter $(( $(date +%s) - t0 ))s"
 
-          # DEL 2-FUNN (2026-09-16): de seks andre spec-ene (02–07) er HOLDT UTE fordi de er
-          # DRIFTET mot dagens web-UI — de ble aldri validert siden e2e aldri kjørte i CI.
-          # Målt mot friskt miljø: 02 velger `getByRole("button")` mens `OpprettMalVelger.tsx`
-          # nå rendrer malen som `role="option"` i en listbox (UI-refaktor `f567d339` 2026-08-04,
-          # spec sist rørt 2026-07-26); 03/05/06 venter på `handling-*`-testid-er som ikke finnes;
-          # 04 attributt-mismatch; 07 treffer prøveprosjekt-grensen (maks 10) fordi prosjektet
-          # mangler `ProjectOrganization`-kobling (`erStandaloneProsjekt`=true) — et seed-gap.
-          # Å slå dem på nå ville gjort develop RØD. Å endre spec-ene er forbudt (ordre) og krever
-          # egen runde med spec-redigering + seed-fiks. Inntil da kjører e2e KUN 01-login.
-          echo "KUN tests/01-login.spec.ts kjører. 02–07 er holdt ute (driftet mot dagens UI — se ci.yml-kommentar + kvalitetssikring-plan.md)."
-          pnpm --filter @sitedoc/e2e exec playwright test tests/01-login.spec.ts --project=chromium
+          # DEL 3 (2026-09-16): de-driftet 01–04 + 05-godkjenn er verifisert grønne mot dagens UI.
+          # Vi kjører de FULLT grønne spec-FILENE 01–04. Holdt ute (eget spor, produkt-semantikk):
+          #  - 05-besvar: badge-modellen gir «received» (Hos godkjenner) på framover-besvar, ikke
+          #    «responded» — `responded` er nå BAKOVER-only (avledStatus, retning="tilbake",
+          #    in_progress-kollaps 2026-08-02). Spec-ens `data-status="responded"` sjekker en verdi
+          #    UI-et ikke lenger produserer for denne flyten → krever produkt-avgjørelse.
+          #  - 06-videresend: `handling-videresend-nedtrekk` ikke synlig for firma-admin på received.
+          #  - 07-gjenapne: gjenåpne closed→draft gir «received» i badge (samme avledStatus-modell).
+          # (05-godkjenn er grønn men deler fil med 05-besvar, så 05 kjøres ikke i CI ennå.)
+          echo "DEL 3: kjører de de-driftede, verifiserte 01–04. 05/06/07 holdt ute (produkt-semantikk — se kommentar + kvalitetssikring-plan.md)."
+          pnpm --filter @sitedoc/e2e exec playwright test \
+            tests/01-login.spec.ts tests/02-opprett.spec.ts tests/03-send.spec.ts tests/04-flytposisjon.spec.ts \
+            --project=chromium
