@@ -130,9 +130,33 @@ kontroller øverst — er de truffbare (`idb ui tap`, ikke øyemål).
    dev-login-whitelisten (`apps/api/src/routes/dev-login.ts`) er **hardkodet, ikke miljøavhengig**
    → de tre testbrukerne slipper alltid gjennom i et friskt miljø.
 
-   🟡 **DEL 2 (eget spor):** de seks andre spec-ene (opprett/send/flytposisjon/besvar/videresend/
-   gjenåpne) + avgjørelsen om e2e skal **blokkere merge** eller kun rapportere. Ikke i del 1 —
-   den beviser riggen på den billigste spec-en. Cowork/Kenneth avgjør blokkering i del 2.
+   🔴 **DEL 2 FUNN 2026-09-16 — de seks spec-ene (02–07) er DRIFTET, ikke bare avslåtte.** Målt
+   mot friskt efemært miljø (alle fire db-migreringer + seeds): 01-login grønn, **02–07 røde** —
+   men IKKE av rigg-feil. To årsaker, begge utenfor det denne runden eier (spec-er forbudt,
+   seeds ikke i «filer du eier»):
+   - **UI-selektor-drift (02/03/04/05/06):** spec-ene ble aldri validert mot UI-en fordi e2e
+     aldri kjørte i CI — nettopp gapet dette initiativet lukker. `02` velger
+     `getByRole("button", {E2E_MAL_NAVN})`, men `OpprettMalVelger.tsx` rendrer nå malen som
+     `role="option"` i en `listbox` (UI-refaktor `f567d339` 2026-08-04; spec sist rørt
+     2026-07-26 — 9 dager før). `03`/`05`/`06` venter på `handling-sent`/`handling-responded`/
+     `handling-videresend-nedtrekk`-testid-er som ikke finnes i dagens `DokumentHandlingsmeny`;
+     `04` en `toHaveAttribute`-mismatch.
+   - **Seed-gap (07):** prosjektet mangler `ProjectOrganization`-kobling → `erStandaloneProsjekt`
+     = true → prøveprosjekt-grensen (maks 10 sjekklister) fyrer. `seed-testbrukere.ts` setter kun
+     `primaryOrganizationId`, ikke join-raden `projectOrganizations`.
+
+   🔴 **Konsekvens:** e2e i CI forblir **KUN 01-login** inntil en egen runde med
+   **spec-redigerings-mandat** de-drifter 02–07 mot dagens UI OG lukker seed-gapet (07). Å slå
+   dem på nå ville gjort develop rød. **db-maskin-støyen er lukket:** alle fire db-pakker migreres
+   nå i e2e-jobben (~2s ekstra).
+
+   🟡 **Blokkerings-anbefaling (krav 4, endelig):** **IKKE blokker merge; kjør KUN på PR (ikke
+   hver push); ha en vei forbi.** Med bare 01-login kjørende er e2e i dag et tynt signal —
+   blokkering gir liten verdi og risikerer å stoppe merges på rigg-flakiness. Kjør på PR (ikke
+   hver push, som koster ~3,5 min × hver push). Hvis rød og merge må skje: `git push
+   origin HEAD:develop` fra merge-treet omgår PR-gaten (eksisterende merge-konvensjon) — så en
+   rød e2e blokkerer aldri en nødvendig merge. Vurder blokkering på nytt FØRST når 02–07 er
+   de-driftet og har vist grønn stabilt over mange kjøringer.
 
 ---
 
