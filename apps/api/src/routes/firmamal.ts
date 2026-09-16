@@ -856,12 +856,17 @@ export const firmamalRouter = router({
 
       // Dobbelt-lån-vakt: hvert klikk på «Lån fra SiteDoc-arkivet» lagde før en ny,
       // identisk firmamal (ingen findFirst, ingen @@unique) — Kenneth så KB4 tre ganger.
-      // Serveren er gaten: klienten deaktiverer alt lånte, men kan omgås. 🔴 @@unique i
-      // schema gjenstår (egen runde — eksisterende duplikater ville brutt migreringen).
+      // Serveren er gaten: klienten deaktiverer alt lånte, men kan omgås. Den PARTIELLE
+      // unik-indeksen (migrering 20260917120000, WHERE deleted_at IS NULL) er garantien;
+      // denne findFirst er den pene feilmeldingen.
+      // deletedAt: null MÅ være med (ordre unik-indeks-soft-delete, krav 2) — ellers gir
+      // vakten CONFLICT på en SOFT-SLETTET mal, og brukeren blokkeres fra å låne på nytt
+      // med en feilmelding like forvirrende som den fulle indeksen var.
       const alleredeLaant = await ctx.prisma.organizationTemplate.findFirst({
         where: {
           organizationId: input.organizationId,
           laantFraBibliotekMalId: input.bibliotekMalId,
+          deletedAt: null,
         },
         select: { id: true },
       });
