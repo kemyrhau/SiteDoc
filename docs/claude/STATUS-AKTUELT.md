@@ -9,15 +9,15 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-16 · develop `09d6df7f` (bærer migrering) · test `81b2a785` — FLERE STEG BAK (deploy m/ migrering føres av cowork nå)**
+**Sist ført: 2026-09-17 · develop `d074d919` (bærer migrering `20260917120000`) · test `81b2a785` — FLERE STEG BAK (deploy m/ migrering føres av cowork nå)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | Videresend/bytt-flyt-byggerunde (tegning committet) |
+| **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | Strengharmonisering (nå) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
-| **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/vern-oppdater-kopi` | 🟢 **LEVERT** | merge (`99310f66` pushet — egen runde, IKKE i d074d919) |
+| **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
 
@@ -33,6 +33,30 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Strengharmonisering** | Nå (nøkkelsett-testen levert 16.09) | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-17 — Tre brancher merget (`d074d919`): videresend synlig konsekvens · partiell unik-indeks (MIGRERING) · funn #22-måling. DEPLOY m/ MIGRERING.
+
+**Tre disjunkte brancher (parvis `comm -12` tom, verifisert mot ekte filer, alle base = `d8e051b2`).** Strategi: **unik-indeks `--no-ff`** (`3892f0f1`), **videresend `--no-ff`** (`a663a01f`), **funn21 `--no-ff`** (`d074d919`) — kun første kunne FF, resten disjunkte merge-commits, null konflikt.
+Gate: `pnpm test` 7/7 tasks — **`api` 489→490** (dobbeltlån-vakt case 5) · **`web` 253→257** (`videresend-mottakervelger.test.tsx`), øvrige stille (`db` 2 · `pdf` 120 · `shared` 824 · `mobil` 9). **Integrasjon 36→37 grønn** (gjenlån-retningen) — kjørt lokalt mot efemær `pgvector/pgvector:pg16`-sandkasse (CI-speil), migrate deploy m/ `20260917120000` uten feil. `tsc --noEmit` rød KUN på `bibliotek-mal.test.ts:25-26` (TS2532) — **verifisert pre-eksisterende** (filen urørt av mergen, kald `next build` grønn). **BÆRER MIGRERING `20260917120000_unik_indeks_partiell_soft_delete` — cowork fører BUILD→MIGRATE→UP.**
+
+**A — videresend synlig konsekvens (PILOTKRITISK):**
+- 🔴 **VIDERESEND ER TILBAKE FOR FLYT-BUNDNE DOKUMENTER.** Pilot-fiks A (02.08) hadde fjernet affordansen på både web og mobil. Serveren kunne det; menyen tilbød det ikke.
+- 🔴 **Gate-grunnen fra 02.08 var GAL:** `forwarded` returnerer på `oppgave.ts:1515`, FØR `beregnRuting` på `:1549`. Valget ble aldri kastet av posisjonsruting. Kodekommentaren på `DokumentHandlingsmeny.tsx:428-433` tok feil.
+- 🟢 **Kenneths tre scenarier er nå mulige fra flaten:** re-gate til person · rette feil dokumentflyt · tømrer→ledelsen→elektriker. Mottakervelger i to seksjoner («I denne flyten» / «Andre flyter» kun ved `kanFlytte`, ⇄-linje navngir målflyt). Bekreftelsessteg ved flytbytte: konsekvensboks + PÅKREVD kommentar + knapp som navngir målflyten.
+- 🟢 **Mottakeren ser «⏳ Venter på deg» + avsender med faggruppe og dato + kommentar i raden** — ikke bare et nytt dokument. **`DocumentTransfer` bar all dataen — ingen schema-endring.** `select`-kostnaden målt: `transfers: { take: 1 }` gir K→K+1 batchede spørringer, ikke N+1.
+- 🟡 **MOBIL: mindre enn antatt.** Mobil ALT har flyt-bytte-flyten (`visFlytBytte`-sheet, `kanFlytte`-gating). Det som mangler er en person-velger innen egen flyt — dataen er plumbet. 🔴 **Egen liten runde, trenger neppe tegnerunde.**
+
+**B — partiell unik-indeks (BÆRER MIGRERING):**
+- 🔴 **`20260917120000_unik_indeks_partiell_soft_delete`.** Soft-slettet mal blokkerer ikke lenger gjenlån. ⚠️ Fella var at en angrehandling tvang en destruktiv: du måtte tømme HELE papirkurven for å låne malen igjen.
+- 🔴 **Dobbeltlån-vakten (`firmamal.ts:861`) filtrerte IKKE på `deletedAt`** — nå fikset. Begge retninger sett røde (gjenlån etter soft-slett → `P2002` mot full indeks · to aktive lån → rød da indeksen ble droppet).
+- 🟢 **Dry-run gatet av Kenneth (`sitedoc_test` 17.09, read-only):** 0 soft-slettede firmamaler, 0 duplikat-lån. `CREATE UNIQUE INDEX` vil ikke feile. **`DRY-RUN.sql` verifisert read-only (kun SELECT).**
+
+**C — funn #22-måling (docs):**
+- 🔴 **Premisset nedjustert — to vern fantes allerede.** Cowork kalte strukturkopi «største umålte pilotrisiko»; måling viste at `mal.ts`-endringsvernet (07.09) + `grenseSnapshot` dekker mesteparten. Ett hull står i firmaarkiv-↻ (`oppdaterKopiFraHovedmal`); fiksen kommer som egen branch (`fix/vern-oppdater-kopi`, kontrollplan).
+- ⚠️ **Ført som funn #22** («#21» var alt tatt). ⚠️ **LÆRDOM: Subagent-rapport er input, ikke fasit** — en Explore-subagent ga feil svar («intet endringsvern») ved å hoppe over guard-linjene.
+- ⚠️ **AVVIK meldt:** funn21 rørte `docs/claude/BACKLOG.md` (additivt, funn #22 + nummer-note) — ordrens Steg 1 forventet den urørt. Harmløst (kun funn21 rørte den, kolliderer ikke med tavla).
 
 ---
 
