@@ -36,7 +36,7 @@ import {
   erFirmaAdminForProsjekt,
   autoriserMalTilgang,
 } from "../trpc/tilgangskontroll";
-import { finnLedigeMalVerdier } from "./mal";
+import { finnLedigeMalVerdier, tellDokumenterMedInnhold } from "./mal";
 import { kopierObjektTre } from "./objektkopi";
 
 // Config-schema (som mal.ts): vilkårlig JSON for rapportobjekt-konfigurasjon.
@@ -785,7 +785,10 @@ export const firmamalRouter = router({
    *
    * MVP-semantikk (L6): full erstatning av objekt-treet, ikke diff/merge (backlog).
    * 🔴 Erstatningen fjerner gamle objekt-id-er → dokumentdata knyttet til dem blir
-   * foreldreløs. Derfor bevisst handling bak eksplisitt knapp, aldri automatisk.
+   * foreldreløs. VERN (ordre vern-oppdater-kopi, dokgen funn #21): nekter ↻ når
+   * prosjektmalens nåværende objekter har faktisk innhold i et AKTIVT dokument — samme
+   * predikat/feilkode som mal.slettObjekt. Steg 1 av 2 (Kenneth-vedtak 17.09: sperre nå,
+   * diff/merge egen runde) — se BACKLOG. Utveien er «Hent fra arkiv» (ny prosjektmal).
    */
   oppdaterKopiFraHovedmal: protectedProcedure
     .input(z.object({ templateId: z.string().uuid() }))
@@ -811,6 +814,31 @@ export const firmamalRouter = router({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Firmamalen kopien stammer fra er slettet — kan ikke oppdatere fra den",
+        });
+      }
+
+      // VERN mot foreldreløs dokumentdata (krav 2/3). ↻ sletter hele prosjektmalens
+      // objekt-tre og lager nye id-er; Checklist/Task.data er nøklet på objekt-id og
+      // ville mistet koblingen. Nekt hvis NÅVÆRENDE objekter har faktisk innhold i et
+      // aktivt dokument. tellDokumenterMedInnhold filtrerer deletedAt IS NULL (verifisert
+      // mal.ts:89-90), så soft-slettede dokumenter blokkerer ikke. Samme feilkode som
+      // slettObjekt (PRECONDITION_FAILED). Tom liste → ANY('{}') matcher ingenting → 0.
+      const naavaerendeObjekter = await ctx.prisma.reportObject.findMany({
+        where: { templateId: mal.id },
+        select: { id: true },
+      });
+      const antallDok = await tellDokumenterMedInnhold(
+        ctx.prisma,
+        mal.id,
+        naavaerendeObjekter.map((o) => o.id),
+      );
+      if (antallDok > 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            `Oppdatering fra firmamalen er stoppet: ${antallDok} dokument${antallDok === 1 ? "" : "er"} ` +
+            `har utfylte felter som ville mistet dataene sine. Bruk «Hent fra arkiv» for å lage en ny ` +
+            `prosjektmal fra firmamalen i stedet — da beholder de eksisterende dokumentene sine.`,
         });
       }
 
