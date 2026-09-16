@@ -220,13 +220,12 @@ jobs:
             || { echo "WEB ble ALDRI klar — se /tmp/web.log"; tail -30 /tmp/web.log; exit 1; }
           echo "Miljø klart etter $(( $(date +%s) - t0 ))s"
 
-          # DEL 4 (2026-09-16): 05 slås PÅ. MÅLT at 05-besvar IKKE var spec-drift: spec-en klikker
-          # `handling-responded` (Besvar), som ruter BAKOVER (beregnRuting:176-183 → retning="tilbake")
-          # → avledStatus (flytPosisjon.ts:225, retning="tilbake") → status="responded". Utfører HAR
-          # handlingen (ROLLE_HANDLINGER_DEFAULTS.utforer.received ⊇ "responded"; bevist i
-          # statusHandlinger.test.ts:620-628). Forrige kommentars «framover-besvar gir received» gjaldt
-          # en forover-Send (handling-sent), ikke Besvar-handlingen spec-en faktisk utfører — premisset
-          # traff feil spec. 05-godkjenn var alt grønn (terminal approved).
+          # DEL 4 (2026-09-16): 05 slås PÅ etter spec-de-drift. MÅLT i CI (run 35146521125): utfører-
+          # Besvar (handling-responded) fra received gir badge `received` («Hos N»), IKKE `responded`.
+          # `responded`/«Besvart» er reservert SENDT BAKOVER (fabel 02.08). 05-besvar-assertionen er
+          # rettet til received + testen omdøpt bort fra «→ Besvart». 05-godkjenn var alt grønn (approved).
+          # (En statisk beregnRuting-lesing forutså responded og bommet — målingen står; mekanismen
+          # meldt for eget blikk, avledStatus/ruting røres ikke i denne runden.)
           # Holdt ute: 06-videresend (redesign bygger Videresend-flaten, `feat/videresend-synlig-konsekvens`),
           # 07-gjenapne (slås på i neste steg denne runden).
           echo "DEL 4: kjører 01–05. 06 UTELATT (redesign bygger videresend). 07 kommer i neste steg."
