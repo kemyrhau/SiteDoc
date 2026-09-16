@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body { margin:0; background:#eef1f6; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; color:#1f2937; }
+a { color:#1e40af; } a:hover { color:#1e3a8a; }
+</style>
+</helmet>
+<section style="padding:36px; display:flex; flex-direction:column; gap:24px; min-width:2450px;">
+  <div style="display:flex; align-items:baseline; gap:16px;">
+    <div style="font-size:26px; font-weight:700;">Bundet flyt — dokumenter som aldri forlater sin egen flyt</div>
+    <div style="font-size:13px; color:#6b7280;">fabel · 2026-09-16 · svar på inbox-fabel.md (develop d2f8bf65)</div>
+  </div>
+
+  <div style="display:flex; gap:20px; align-items:flex-start;">
+
+    <!-- ANBEFALINGSPANEL -->
+    <div style="width:410px; flex-shrink:0; display:flex; flex-direction:column; gap:14px;">
+      <div style="background:#1e40af; color:#fff; border-radius:10px; padding:18px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; opacity:0.85;">Navn (DoD 2): «Bundet flyt»</div>
+        <div style="font-size:13px; margin-top:8px; line-height:1.55; opacity:0.95;">«Bundet» beskriver forholdet: dokumentet er bundet TIL flyten — det hører hjemme der. «Fast» leses like gjerne som «standard» eller «forhåndsvalgt» og sier ingenting om at noe IKKE kan skje. Motsatsen heter <b>«fri flyt»</b> i all mikrotekst. Bokmål, ingen lån, ingen kollisjon: «lukket» er en dokumentstatus, «låst» er alt brukt om maler.</div>
+      </div>
+      <div style="background:#fff; border:1px solid #dbe1ea; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#1e40af;">Anbefalinger A + C</div>
+        <div style="font-size:13px; line-height:1.6; margin-top:8px;"><b>Default: FRI (krav A).</b> Feilen bør gå mot «for åpen»: en glemt binding gir et dokument som KAN flyttes — men flytting krever allerede eksplisitt bekreftelse, navngitt målflyt og påkrevd kommentar, og logges i tidslinjen. Synlig og reverserbar. En glemt åpning gir det motsatte: brukere som sperres fra lovlige flyttinger uten å skjønne hvorfor — usynlig, og presser fram omveier. Default fri stemmer også med alle eksisterende flyter (krav D).</div>
+        <div style="font-size:13px; line-height:1.6; margin-top:10px;"><b>Nivå: per FLYT (krav C).</b> Mekanismen Kenneth beskrev («bryter idet vi oppretter flyten») peker på flyten, og skjemaet er minst mulig: én boolsk kolonne på Dokumentflyt. Per maltype ville krevd et typeregister som ikke finnes (Dokumentflyt har ingen typekolonne — målt av cowork), og tatt fra prosjektadmin muligheten til å ha samme mal bundet i én flyt og fri i en annen. Kenneths tre navn HØRES ut som maltyper — derfor gate-spørsmål 2.</div>
+      </div>
+      <div style="background:#fff; border:2px solid #15803d; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#15803d;">Gate-spørsmål — AVGJORT (Kenneth 16.09)</div>
+        <div style="font-size:13px; line-height:1.6; margin-top:8px;"><b>1 · Default:</b> FRI ✓ (Kenneth 16.09: enig)</div>
+        <div style="font-size:13px; line-height:1.6; margin-top:8px;"><b>2 · Nivå:</b> FLYT ✓ (Kenneth 16.09: enig)</div>
+        <div style="font-size:13px; line-height:1.6; margin-top:8px;"><b>3 · Backfill:</b> INGEN ✓ — alle eksisterende flyter forblir frie (Kenneth 16.09: enig)</div>
+      </div>
+      <div style="background:#fff; border:1px solid #dbe1ea; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#6b7280;">Ikke tegnet (DoD 3)</div>
+        <ul style="font-size:13px; line-height:1.6; margin:8px 0 0; padding-left:18px; color:#374151;">
+          <li>Skjemaendringen (én boolsk kolonne + migrering) — bestilles til kontrollplan ETTER gating, per ordren</li>
+          <li>Mobil — egen runde (kun person-velgeren mangler der)</li>
+          <li>Dokumentlista — ingen symbolkolonne, vedtak i symbolpanelet under</li>
+          <li>kanByttFlyt, F3.1, videresend innen egen flyt, statusmodellen — utenfor scope per ordre § 6</li>
+          <li>De to gatefeilene fra 16.09 — bestilt separat</li>
+        </ul>
+      </div>
+      <div style="background:#fff; border:1px solid #dbe1ea; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#15803d;">Symbol (krav E): Anchor — kun på bundne flyter</div>
+        <div style="font-size:13px; line-height:1.6; margin-top:8px;">Valgt: <b>lucide `Anchor`</b> (⚓ · 0 treff, ledig). Metaforen er «hører hjemme her» — ikke «du mangler tilgang» (Lock, utelukket: 17 treff på mallåsing + rettighetslesning) og ikke «deaktivert» (overstreket ⇄ leses som feil, og spiller for tett på ArrowLeftRight som alt betyr «flytter dokumentet dit»). Route/Milestone er ledige men abstrakte — sier ikke at noe er begrenset.</div>
+        <div style="font-size:13px; line-height:1.6; margin-top:8px;"><b>Fri flyt får INGEN symbol.</b> De fleste flyter er frie; et symbol på dem er bakgrunnsstøy. Anker der det gjelder, ingenting ellers. Ankeret vises på tre flater: flytlista, dokumentvisningen, videresend-velgeren. <b>Dokumentlista: NEI</b> — lista er tett, og dokumentvisningen ligger ett klikk unna; en ikon-kolonne til koster mer enn den gir.</div>
+        <div style="font-size:13px; line-height:1.6; margin-top:8px;">Skal ikke forveksles med: hengelås (rettighet), overstreket handling (feiltilstand), Waypoints (flytvisning).</div>
+      </div>
+    </div>
+
+    <!-- FRAME 1: Opprettelse -->
+    <div style="width:470px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:13px; font-weight:700; color:#374151;">1 · Opprettelse — bryteren (krav A) · /oppsett/produksjon/dokumentflyt</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,0.10); overflow:hidden;">
+        <div style="padding:14px 18px; border-bottom:1px solid #eef1f6; font-size:15px; font-weight:700;">Ny dokumentflyt</div>
+        <div style="padding:16px 18px; display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <div style="font-size:12px; font-weight:600; color:#374151;">Navn</div>
+            <div style="border:1px solid #c7d0de; border-radius:8px; padding:9px 12px; font-size:13px; margin-top:5px;">Endringsmelding — Boligfelt B12</div>
+          </div>
+          <div>
+            <div style="font-size:12px; font-weight:600; color:#374151;">Faggruppe</div>
+            <div style="border:1px solid #c7d0de; border-radius:8px; padding:9px 12px; font-size:13px; margin-top:5px; color:#374151;">Ledelsen ▾</div>
+          </div>
+          <div>
+            <div style="font-size:12px; font-weight:600; color:#374151;">Flytting av dokumenter</div>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+              <div style="border:1px solid #c7d0de; border-radius:8px; padding:10px 12px; display:flex; gap:10px; align-items:flex-start;">
+                <span style="width:16px; height:16px; border:2px solid #9ca3af; border-radius:50%; margin-top:1px; flex-shrink:0;"></span>
+                <div>
+                  <div style="font-size:13px; font-weight:600;">Fri flyt <span style="font-size:11px; color:#6b7280; font-weight:400;">· standard</span></div>
+                  <div style="font-size:12px; color:#6b7280; line-height:1.5; margin-top:2px;">Dokumenter kan videresendes til andre flyter. Flytting krever bekreftelse og kommentar.</div>
+                </div>
+              </div>
+              <div style="border:2px solid #1e40af; background:#f0f4ff; border-radius:8px; padding:10px 12px; display:flex; gap:10px; align-items:flex-start;">
+                <span style="width:16px; height:16px; border:5px solid #1e40af; border-radius:50%; margin-top:1px; flex-shrink:0; box-sizing:border-box;"></span>
+                <div>
+                  <div style="font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">Bundet flyt <span style="font-size:14px;">⚓</span></div>
+                  <div style="font-size:12px; color:#6b7280; line-height:1.5; margin-top:2px;">Dokumenter blir i denne flyten og kan ikke flyttes til andre flyter. Videresend til personer i flyten virker som vanlig.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <span style="border:1px solid #c7d0de; color:#374151; font-size:13px; font-weight:600; border-radius:7px; padding:8px 14px;">Avbryt</span>
+            <span style="background:#1e40af; color:#fff; font-size:13px; font-weight:600; border-radius:7px; padding:8px 14px;">Opprett flyt</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">To radiovalg, ikke en av/på-bryter — begge tilstander får navn og forklaring, og default («Fri flyt · standard») er synlig som ord, ikke som en bryterstilling ingen legger merke til. Settes av prosjektadmin (verifiserAdmin, som i dag). Hjelpetekstene følger § 3a.</div>
+    </div>
+
+    <!-- FRAME 2: Endring etter opprettelse -->
+    <div style="width:450px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:13px; font-weight:700; color:#374151;">2 · Endring ETTER opprettelse — ja, med konsekvenstekst</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,0.10); overflow:hidden;">
+        <div style="padding:16px 18px; border-bottom:1px solid #eef1f6; font-size:15px; font-weight:700;">Bind flyten «Teknisk avklaring — B12»?</div>
+        <div style="padding:16px 18px; display:flex; flex-direction:column; gap:12px;">
+          <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px 14px; font-size:13px; line-height:1.6;">
+            <div>Flyten har <b>14 dokumenter</b>. Fra nå kan ingen av dem flyttes til andre flyter.</div>
+            <div style="margin-top:4px;">Dokumenter som alt er flyttet UT, blir hvor de er — bindingen virker framover, ikke bakover.</div>
+            <div style="margin-top:4px;">Videresend til personer i flyten virker som før. Ingen dokumenter endres.</div>
+          </div>
+          <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <span style="border:1px solid #c7d0de; color:#374151; font-size:13px; font-weight:600; border-radius:7px; padding:8px 14px;">Avbryt</span>
+            <span style="background:#1e40af; color:#fff; font-size:13px; font-weight:600; border-radius:7px; padding:8px 14px; white-space:nowrap;">Bind flyten ⚓</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden;">
+        <div style="padding:14px 18px; border-bottom:1px solid #eef1f6; font-size:14px; font-weight:700;">Åpne flyten «Teknisk avklaring — B12»?</div>
+        <div style="padding:14px 18px; font-size:13px; line-height:1.6;">
+          <div style="background:#f3f4f6; border-radius:8px; padding:10px 12px;">Dokumentene i flyten kan igjen flyttes til andre flyter — hver flytting krever fortsatt bekreftelse og kommentar.</div>
+          <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+            <span style="border:1px solid #c7d0de; color:#374151; font-size:13px; font-weight:600; border-radius:7px; padding:8px 14px;">Avbryt</span>
+            <span style="background:#1e40af; color:#fff; font-size:13px; font-weight:600; border-radius:7px; padding:8px 14px;">Åpne flyten</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">Begge retninger er trygge fordi bryteren kun styrer hva som er LOV framover — den rører aldri dokumentdata. Bind: dokumenter i flyten slutter å kunne flyttes (ingen datamigrering). Åpne: motsatt. Kun prosjektadmin. Endringen logges på flyten.</div>
+    </div>
+
+    <!-- FRAME 3: Flytlista -->
+    <div style="width:470px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:13px; font-weight:700; color:#374151;">3 · Flytlista — anker uten å åpne hver flyt (krav E)</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,0.10); overflow:hidden;">
+        <div style="padding:12px 16px; border-bottom:1px solid #eef1f6; font-size:13px; font-weight:700; color:#374151;">Dokumentflyter · Boligfelt B12</div>
+        <div style="display:grid; grid-template-columns: 1fr 130px 90px; gap:0; font-size:11px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:#9ca3af; padding:8px 16px; border-bottom:1px solid #eef1f6;">
+          <span>Flyt</span><span>Faggruppe</span><span>Dokumenter</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 130px 90px; align-items:center; padding:11px 16px; border-bottom:1px solid #f3f4f6; font-size:14px;">
+          <span>Tømrer — montasje</span><span style="font-size:12px; color:#6b7280;">Tømrer</span><span style="font-size:12px; color:#6b7280;">23</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 130px 90px; align-items:center; padding:11px 16px; border-bottom:1px solid #f3f4f6; font-size:14px;">
+          <span style="display:flex; align-items:center; gap:8px;">Endringsmelding — B12 <span title="Bundet flyt" style="font-size:13px;">⚓</span></span><span style="font-size:12px; color:#6b7280;">Ledelsen</span><span style="font-size:12px; color:#6b7280;">14</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 130px 90px; align-items:center; padding:11px 16px; border-bottom:1px solid #f3f4f6; font-size:14px;">
+          <span>Elektro — sluttkontroll</span><span style="font-size:12px; color:#6b7280;">Elektro</span><span style="font-size:12px; color:#6b7280;">8</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 130px 90px; align-items:center; padding:11px 16px; font-size:14px;">
+          <span style="display:flex; align-items:center; gap:8px;">Varsel — B12 <span title="Bundet flyt" style="font-size:13px;">⚓</span></span><span style="font-size:12px; color:#6b7280;">Ledelsen</span><span style="font-size:12px; color:#6b7280;">3</span>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">Ankeret står rett etter navnet — ingen egen kolonne, frie flyter umerket. Tooltip: «Bundet flyt — dokumenter kan ikke flyttes til andre flyter.»</div>
+      <div style="font-size:13px; font-weight:700; color:#374151; margin-top:6px;">Dokumentets egen visning</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; padding:14px 16px;">
+        <div style="font-size:15px; font-weight:700;">EM-014 · Flytting av sjakt, akse C</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+          <span style="font-size:12px; color:#6b7280;">Flyt:</span>
+          <span style="font-size:12px; background:#f0f4ff; color:#1e40af; border-radius:99px; padding:3px 10px; display:flex; align-items:center; gap:5px;">Endringsmelding — B12 <span style="font-size:12px;">⚓</span></span>
+          <span style="font-size:12px; background:#e5e7eb; color:#374151; border-radius:99px; padding:3px 10px;">Under arbeid</span>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">Ankeret bor i flyt-merket brukeren alt leser — han vet det FØR han leter etter en flytte-mulighet.</div>
+    </div>
+
+    <!-- FRAME 4: Velgeren -->
+    <div style="width:480px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:13px; font-weight:700; color:#374151;">4 · Videresend-velgeren i bundet flyt (krav B) — med vilje, ikke feil</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,0.10); overflow:hidden;">
+        <div style="padding:14px 18px; border-bottom:1px solid #eef1f6;">
+          <div style="font-size:15px; font-weight:700;">Videresend «EM-014 · Flytting av sjakt, akse C»</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Ligger i flyten <b style="color:#374151;">Endringsmelding — B12</b> ⚓ · ballen hos Kari Holm (bestiller)</div>
+        </div>
+        <div style="padding:12px 18px 4px;">
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#15803d;">I denne flyten — dokumentet blir hvor det er</div>
+        </div>
+        <div style="padding:0 10px 8px;">
+          <div style="display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:8px;">
+            <span style="width:28px; height:28px; border-radius:50%; background:#e0e7ff; color:#1e40af; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;">KH</span>
+            <span style="font-size:14px; flex:1;">Kari Holm <span style="font-size:11px; color:#6b7280;">· bestiller</span></span>
+            <span style="font-size:11px; background:#fef3c7; color:#92400e; border-radius:99px; padding:2px 8px;">har ballen</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:8px; background:#f0f4ff;">
+            <span style="width:28px; height:28px; border-radius:50%; background:#e0e7ff; color:#1e40af; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;">KL</span>
+            <span style="font-size:14px; flex:1;">Kenneth Lie <span style="font-size:11px; color:#6b7280;">· godkjenner</span></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:8px;">
+            <span style="width:28px; height:28px; border-radius:50%; background:#e5e7eb; color:#374151; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;">LG</span>
+            <span style="font-size:14px; flex:1;">Ledelsen (gruppe) <span style="font-size:11px; color:#6b7280;">· utfører</span></span>
+          </div>
+        </div>
+        <div style="margin:4px 14px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; display:flex; gap:9px; align-items:flex-start;">
+          <span style="font-size:14px; margin-top:1px;">⚓</span>
+          <div style="font-size:12px; color:#475569; line-height:1.55;"><b style="color:#334155;">Bundet flyt.</b> Endringsmeldinger hører hjemme i denne flyten og kan ikke flyttes til andre flyter. Det gjelder alle i prosjektet, ikke bare deg.</div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">«Andre flyter»-seksjonen fjernes IKKE stille (krav B): en rolig fotnote med anker forklarer at fraværet er med vilje — og «gjelder alle, ikke bare deg» avviser rettighets-lesningen eksplisitt. Ingen deaktiverte/grå valg: å vise flyter man ikke kan velge, er invitasjon til frustrasjon. Samme fotnote for admin — bundet er en egenskap ved flyten, ikke en rettighet (ordre § 6).</div>
+      <div style="background:#fff; border:1px solid #dbe1ea; border-radius:10px; padding:14px 16px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#6b7280;">Symboloversikt — hvor ankeret vises</div>
+        <div style="font-size:13px; line-height:1.7; margin-top:6px;">Flytlista · rett etter navnet — JA<br>Dokumentvisningen · i flyt-merket — JA<br>Videresend-velgeren · i fotnoten — JA<br>Dokumentlista — NEI (tett liste, ett klikk unna)<br>Fri flyt — INGEN symbol, fravær er signalet</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>
