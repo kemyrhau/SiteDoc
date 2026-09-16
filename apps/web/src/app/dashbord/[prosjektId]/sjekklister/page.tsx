@@ -62,6 +62,17 @@ interface SjekklisteRad {
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
   bestillerUserId?: string;
+  /** Retning på siste overgang — «paatvers» = videresendt (ramme 4). */
+  retning: string | null;
+  /** Siste overføring (take:1, nyeste først) — «hvem sendte + hvorfor» (ramme 4). */
+  transfers: {
+    senderId: string;
+    comment: string | null;
+    createdAt: string;
+    senderRolle: string | null;
+    senderEnterpriseName: string | null;
+    sender: { id: string; name: string | null } | null;
+  }[];
   dokumentflyt: {
     id: string;
     name: string;
@@ -620,6 +631,13 @@ export default function SjekklisteSide() {
       filtrerbar?: boolean; filterAlternativer?: { value: string; label: string }[];
       filterSnarveier?: { label: string; verdier: string[] }[];
     }
+    // Ramme 4 (videresend synlig konsekvens): siste overføring når dokumentet kom «paatvers»
+    // (videresendt) med kommentar OG ballen er hos innlogget bruker — «hvem sendte + hvorfor».
+    const paatversTilMeg = (rad: SjekklisteRad) => {
+      const tilMeg = rad.recipientUser?.id != null && rad.recipientUser.id === minFlytInfo?.userId;
+      const t0 = rad.transfers?.[0];
+      return rad.retning === "paatvers" && tilMeg && t0?.comment ? t0 : null;
+    };
     const defs: Record<string, KolDef> = {
       prefix: { id: "prefix", header: t("tabell.prefix"),
         celle: (rad) => rad.template?.prefix
@@ -630,23 +648,52 @@ export default function SjekklisteSide() {
       nr: { id: "nr", header: t("tabell.nr"),
         celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterLopenummer(rad)}</span>,
         bredde: "60px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0 },
-      tittel: { id: "tittel", header: t("tabell.tittel"), celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
+      tittel: { id: "tittel", header: t("tabell.tittel"), celle: (rad) => {
+          const p4 = paatversTilMeg(rad);
+          if (!p4) return <span className="font-medium text-gray-900">{rad.title}</span>;
+          const avsender = p4.sender?.name ?? "?";
+          const rolle = p4.senderEnterpriseName ?? undefined;
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-gray-900">{rad.title}</span>
+              <span className="text-[11px] text-gray-500">
+                {rolle
+                  ? t("videresend.radAvsenderMedRolle", { avsender, rolle })
+                  : t("videresend.radAvsender", { avsender })}
+                {" · "}
+                {formaterDato(p4.createdAt)}
+              </span>
+              <span className="mt-0.5 rounded bg-gray-50 px-2 py-1 text-[11px] italic text-gray-600">
+                «{p4.comment}»
+              </span>
+            </div>
+          );
+        },
         sorterbar: true, sorterVerdi: (rad) => rad.title },
       emne: { id: "emne", header: t("tabell.emne"), celle: (rad) => rad.subject
         ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{rad.subject}</span>
         : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.subject ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.emne ?? [] },
-      status: { id: "status", header: t("tabell.status"), celle: (rad) => (
+      status: { id: "status", header: t("tabell.status"), celle: (rad) => {
+          const p4 = paatversTilMeg(rad);
+          return (
           <div className="flex items-center gap-1.5">
             <StatusBadge status={rad.status} />
-            {["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
+            {p4 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 whitespace-nowrap">
+                ⏳ {t("tabell.venterPaaDeg")}
+              </span>
+            ) : (
+              ["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
               (rad.recipientUser?.name || rad.recipientGroup?.name) && (
                 <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
                   {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
                 </span>
-              )}
+              )
+            )}
           </div>
-        ),
+          );
+        },
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
         filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }] },
       ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"),

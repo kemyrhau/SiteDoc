@@ -129,6 +129,12 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // Videresend synlig konsekvens (ramme 2, gate B): gjenbruk av server-verdikten kanByttFlyt.
+  const { data: tilgjengeligeFlyter } = trpc.sjekkliste.hentTilgjengeligeFlyter.useQuery(
+    { id: params.sjekklisteId },
+    { enabled: !!params.sjekklisteId },
+  );
+
   const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -837,6 +843,8 @@ export default function SjekklisteDetaljSide() {
             bestillerUserId={fullSjekkliste?.bestillerUserId}
             lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
             kanSletteSomOppretter={erMelder && erUtkast}
+            kanByttFlyt={tilgjengeligeFlyter?.kanFlytte ?? false}
+            dokumentTittel={sjekkliste.title ?? undefined}
           />
           )}
           <div className="ml-auto flex items-center gap-2">

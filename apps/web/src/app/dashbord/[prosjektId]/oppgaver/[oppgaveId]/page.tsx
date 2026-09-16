@@ -208,6 +208,14 @@ export default function OppgaveDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // Videresend synlig konsekvens (ramme 2, gate B): server-verdikten kanByttFlyt gjenbrukes fra
+  // hentTilgjengeligeFlyter — styrer om «Andre flyter»-seksjonen i mottakervelgeren vises
+  // (dekker vei 3 registrator, som klienten ikke kan utlede selv).
+  const { data: tilgjengeligeFlyter } = trpc.oppgave.hentTilgjengeligeFlyter.useQuery(
+    { id: params.oppgaveId },
+    { enabled: !!params.oppgaveId },
+  );
+
   const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -865,6 +873,8 @@ export default function OppgaveDetaljSide() {
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
             kanSletteSomOppretter={erMelder && erUtkast}
+            kanByttFlyt={tilgjengeligeFlyter?.kanFlytte ?? false}
+            dokumentTittel={oppgave.title ?? undefined}
             onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
           />
           )}
