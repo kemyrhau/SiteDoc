@@ -113,23 +113,26 @@ kontroller øverst — er de truffbare (`idb ui tap`, ikke øyemål).
    Mobil-unntaket i CLAUDE.md kan dermed fjernes (cowork). Valg: sql.js, ikke `better-sqlite3`
    (native/ABI-følsom, node25-lokal↔node20-CI), ikke jest-expo (andre runner, RN-transforms
    ikke nødvendig for DB-lag+utils). **Bred mobildekning er eget spor.**
-3. **E2E kjøres BEVISST IKKE i CI (avklart 2026-09-15).** Sju spec-er (`tests/e2e/tests/`,
-   8 test-case) dekker hele dokumentflyten — nettopp pilotflyten A.Markussen skal bruke. Men
-   suiten er en røyktest mot det **kjørende** test.sitedoc.no + api-test.sitedoc.no,
-   autentisert via hemmeligheten `DEV_LOGIN_SECRET`, og `global-setup.ts` **muterer den delte
-   `sitedoc_test`-DB-en** (lager/sletter E2E-firma og -dokumenter, kjører admin-sweep). Å
-   tvinge den inn i CI ville enten brutt «aldri mot `sitedoc_test`» eller krevd et efemært
-   miljø. Den er **ikke arkivert** — den kjøres manuelt (`pnpm e2e`) og er vedlikeholdt.
+3. **🟢 E2E DEL 1 REALISERT 2026-09-16 — efemært miljø i CI, `01-login` grønn.** Sju spec-er
+   (`tests/e2e/tests/`, 8 test-case) dekker hele dokumentflyten (pilotflyten A.Markussen bruker).
+   Suiten er en røyktest mot et **kjørende** miljø, autentisert via `DEV_LOGIN_SECRET`, og
+   `global-setup.ts` muterer DB-en (lager/sletter E2E-dokumenter, admin-sweep). Den kan derfor
+   ALDRI kjøre mot delt `sitedoc_test`. **Løsning (egen `e2e`-jobb, parallell med `test`):** per
+   kjøring reises et efemært miljø — engangs-pgvector → `migrate deploy` → `seed-testbrukere.ts`
+   + `seed-e2e-flyt.ts` (begge idempotente/kjørbare, målt) → api (tsx) + web (`next start`) →
+   helsesjekk med hard timeout → `playwright test tests/01-login.spec.ts`. Bevist lokalt
+   ende-til-ende FØR CI.
 
-   🟡 **PLANLAGT SPOR — efemær e2e-jobb i CI (omfangsestimat).** For å få pilotflyten inn i CI
-   uten å røre delt miljø, kreves en selvstendig jobb som per kjøring: (a) starter en
-   engangs-Postgres (samme pgvector-image), (b) `migrate deploy` + seeder testbrukere +
-   E2E-flyt (`seed-testbrukere.ts`, `seed-e2e-flyt.ts`), (c) bygger og starter web+api mot den
-   DB-en, (d) setter en CI-lokal `DEV_LOGIN_SECRET` og peker `E2E_BASE_URL`/`E2E_API_URL` mot
-   de lokale serverne, (e) kjører `pnpm e2e`. **Grovt anslag: 1–2 dedikerte runder** (web+api
-   build i CI + seed-orkestrering er det tunge), og kjøretid legger trolig flere minutter på —
-   da hører den hjemme som **egen parallell jobb**, ikke i `test`-jobben. Eget spor; ikke i
-   denne runden (som kun slår på eksisterende tester).
+   🟢 **DEV_LOGIN_SECRET-funn:** i et efemært, isolert miljø leser api OG e2e-klienten SAMME
+   `DEV_LOGIN_SECRET` — en **jobb-generert** verdi (`openssl rand`) holder. Ingen GitHub-secret
+   nødvendig for del 1 (ingenting lagret, ingenting å lekke). Samme for `AUTH_SECRET` +
+   `FIL_SIGNING_SECRET` (web krever de to i `NODE_ENV=production` via `instrumentation.ts`).
+   dev-login-whitelisten (`apps/api/src/routes/dev-login.ts`) er **hardkodet, ikke miljøavhengig**
+   → de tre testbrukerne slipper alltid gjennom i et friskt miljø.
+
+   🟡 **DEL 2 (eget spor):** de seks andre spec-ene (opprett/send/flytposisjon/besvar/videresend/
+   gjenåpne) + avgjørelsen om e2e skal **blokkere merge** eller kun rapportere. Ikke i del 1 —
+   den beviser riggen på den billigste spec-en. Cowork/Kenneth avgjør blokkering i del 2.
 
 ---
 
