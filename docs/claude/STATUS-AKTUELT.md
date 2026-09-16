@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-16 · develop `0c7efe21` · test `81b2a785` — FLERE STEG BAK (web-deploy føres av cowork nå)**
+**Sist ført: 2026-09-16 · develop `09d6df7f` (bærer migrering) · test `81b2a785` — FLERE STEG BAK (deploy m/ migrering føres av cowork nå)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | Kenneths visuelle gate av PR 1+2 |
-| **dokgen** | `SiteDoc-dokgen` | — | 🔵 **ORDRE GITT** | De-drift e2e 02–07 + lukk seed-gap |
+| **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | Videresend/bytt-flyt-byggerunde (tegning committet) |
+| **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | Strengharmonisering (nå) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/versjonssporing-softdelete` | 🔵 **ORDRE GITT** | Versjonssporing + soft-delete (ikke pushet ennå) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
 | **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
@@ -27,12 +27,39 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| **De-drift e2e 02–07 + seed-gap** — SPEC-REDIGERINGS-MANDAT: rett de seks driftede spec-ene mot dagens UI, og legg `projectOrganization`-join-rad i `seed-testbrukere.ts`. Blokkeringsspørsmålet (rapporterer vs. blokkerer) avgjøres av Kenneth når 02–07 er stabilt grønne | Nå (e2e del 2 levert 16.09) | dokgen |
+| **e2e 05/06/07 gjenstår** — 01–04 de-driftet + grønne 16.09. 05 (besvar-godkjenn) + 07 (gjenåpne) er ren spec-drift. 🔴 **06-videresend er IKKE drift:** pilot-fiks A (02.08) gater Videresend bort for flyt-bundne dok — venter fabels videresend/bytt-flyt-byggerunde | Etter videresend-runden | dokgen |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen inn i rettighetsmatrisen | Med sikkerhetsrunden | — |
 | **Strengharmonisering** | Nå (nøkkelsett-testen levert 16.09) | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-16 — Tre brancher merget (`09d6df7f`): versjonssporing+soft-delete (MIGRERING) · kapittelkollaps · e2e-dedrift. DEPLOY m/ MIGRERING.
+
+**Tre disjunkte brancher (parvis `comm -12` tom, verifisert mot ekte filer).** Strategi: **kapittelkollaps ff** (`d15a7fc0`), **e2e-dedrift rebase+ff** (basert på develop-tippen),
+**versjonssporing rebase+ff** (branchet fra `0c7efe21`, før PR2-tavla — rebase replayet kun `de182bd2`, rørte ALDRI STATUS-AKTUELT; diffen var ren base-artefakt).
+Gate: `pnpm test` 7/7 tasks — **`api` 488→489 · `web` 249→253**, øvrige stille. **Integrasjon 33→36 grønn i CI** (kan ikke kjøre lokalt: `DATABASE_URL` ikke satt i merge-treet — antall 36 bekreftet ved collection). Kald web-bygg grønn. Begge CI-jobber grønne. **BÆRER MIGRERING `20260916120000_versjonssporing_softdelete` — cowork fører BUILD→MIGRATE→UP.**
+
+**A — versjonssporing + soft-delete (MIGRERING):**
+- 🟢 **Versjonsmønsteret komplett på tre nivåer** — kapittelmal egen `version`, firmamal `versjonAvHovedmal` mot kapittelarkivet, prosjektmal sin mot firmamalen.
+- 🔴 **Backfillen beviselig riktig** — `BibliotekMal.versjon` har aldri hatt skrivevei (`git log -S`), alle lån skjedde på versjon 1. Dry-run mot `sitedoc_test`: backfyller **6 rader hos SITEDOC MYRHAUG, 0 andre firmaer** (Kenneth-gatet, read-only verifisert).
+- 🟢 **`versjonAvHovedmal` NULLABLE med vilje** (default'et 1 ville skjult manglende snapshot). DB-garanti: rå-SQL `CHECK` (Prisma kan ikke uttrykke den). Integrasjonstest SETT RØD: droppet CHECK → rad slapp inn uten snapshot → rød.
+- 🔴 **FUNN: soft-delete blokkerer gjenlån** — unik-indeksen fra runde 95 teller soft-slettede rader. Fiks = partial unique index `WHERE deleted_at IS NULL`, egen runde. **Ført BACKLOG #21.**
+- 🔴 **FUNN: `OrganizationTemplate.version` bumpes ikke av eget objekt-CRUD** — firmanivå svakere versjonert enn kapittelnivå. **Ført BACKLOG #21.**
+- 🟡 **N dager auto-tømming IKKE satt** — `tomPapirkurvPermanent` tar `eldreEnnDager` som påkrevd input, ingen default/cron.
+
+**B — kapittelkollaps, fire flater:**
+- 🟢 **Kollaps kun på KAPITTEL** (`NS3420-K`/`NS3420-F`); underkapittel-etikettene borte. Kollapsbar underkapittel-overskrift KUN ved 3+ maler (i dag utløser bare `KB`). Én delt primitiv `byggUnderkapittelBlokker` i fire flater: «Hent fra arkiv» (begge faner) · trestrukturen i Malforvaltning · `LaanFraSentralarkivDialog` · `kontrollplan/OpprettPunktDialog`.
+- 🔴 **TERMINOLOGI-VEDTAK (Kenneth 16.09):** kapittel = én bokstav (`K`,`F`) · underkapittel = to (`KA`) · post = `KC3.1`. ⚠️ Kodens `BibliotekStandard` = Kenneths «kapittel»; `BibliotekKapittel` = hans «underkapittel» (forskjøvet ett hakk). **Modellnavn døpes IKKE om — vedtaket gjelder det brukeren ser.**
+- ⚠️ `kontrollplan.opprettPunkt.visKapitler` er nå relikvi («vis kapitler»-avkrysningen fjernet). La stå — mal-Opus rydder i18n.
+
+**C — e2e de-drift:**
+- 🟢 **01–04 de-driftet og grønne i CI, 5/5 kjøringer, ingen flaky.** 🔴 **INGEN `data-testid` lagt til** — dokgens del-2-diagnose var feil; testid-ene fantes, problemet var tvetydighet (3 treff) + sticky header-overlay. Ingen web-komponent rørt → ingen web-deploy fra denne.
+- 🔴 **SEED-FIKS:** `seed-testbrukere.ts` fikk `ProjectOrganization`-join-raden (prosjektet var prøveprosjekt fordi `erStandaloneProsjekt` teller den raden). ⚠️ `seed-e2e-pilot.ts` + `seed-agent-mobil-test.ts` fortsatt berørt (meldt, ikke rørt). **Ført BACKLOG (ProjectOrganization-post).**
+- 🔴 **FUNN: `Project.primaryOrganizationId` og `ProjectOrganization` er to UAVHENGIGE kilder UTEN constraint** — de kan divergere; seeden gjorde det. **Ført BACKLOG (ProjectOrganization-post).**
+- 🔴 **05/06/07 HOLDT UTE.** `06-videresend` er IKKE spec-drift: pilot-fiks A (02.08) gater Videresend bort for flyt-bundne dok (`DokumentHandlingsmeny.tsx:434` `!harFlyt`, mobil `DokumentHandlingslinje.tsx:208`). Fabels tegning 16.09 gjenåpner den — egen runde. **Fabels videresend/bytt-flyt-tegning committet denne runden (`f1ac764d`).**
 
 ---
 
