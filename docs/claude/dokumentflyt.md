@@ -269,6 +269,35 @@ Faggruppe 1 (fortsetter):
 [HE-Leder] → [Elektro] → [HE-Leder] → lukkes
 ```
 
+### Bundet flyt (fabel-tegning 2026-09-16, Kenneth-gatet)
+
+En dokumentflyt kan merkes **bundet** (`Dokumentflyt.bundet Boolean @default(false)`,
+migrering `20260917130000_bundet_flyt`). Bundet = dokumentene i flyten kan **ikke flyttes til
+andre flyter** (flyt-BYTTE nektes). Motsatsen heter **«fri flyt»** i all mikrotekst.
+
+- **Egenskap ved flyten, ikke en rettighet.** Skal ikke blandes med `kanByttFlyt`
+  (`tilgangskontroll.ts`) — den avgjør *hvem* som får bytte flyt; bundet avgjør *om flyten i det
+  hele tatt tillater det*. `kanByttFlyt` er urørt av denne runden.
+- **Default fri, ingen backfill.** `@default(false)` ER backfillen — alle eksisterende flyter blir
+  frie automatisk. Fabels begrunnelse: en glemt binding er synlig og reverserbar (flytting krever
+  bekreftelse + kommentar + logg), en glemt åpning sperrer brukere usynlig.
+- **Settes ved opprettelse og kan endres begge veier etterpå** (`dokumentflyt.opprett` /
+  `dokumentflyt.oppdater`, begge gates av `verifiserAdmin` — ingen ny gate). Bryteren styrer kun
+  hva som er LOV framover; den rører **aldri** dokumentdata. Alt som ble flyttet UT før binding
+  blir der det er (framover, ikke bakover).
+- **Serversperren:** `oppgave.endreStatus` og `sjekkliste.endreStatus`, i `forwarded`-grenen der
+  `input.dokumentflytId ≠ dokumentets nåværende flyt`. Er dokumentets nåværende flyt bundet →
+  `PRECONDITION_FAILED` (samme feilkode som `slettObjekt` og ↻-sperren). **Videresend INNEN egen
+  flyt** endrer ikke `dokumentflytId` → treffer ikke grenen og går fritt gjennom.
+  Feilmelding, ordrett: *«Bundet flyt: dokumenter hører hjemme i denne flyten og kan ikke flyttes
+  til andre flyter. Det gjelder alle i prosjektet, ikke bare deg.»* (sier at flyten er bundet, ikke
+  at brukeren mangler tilgang).
+- **Integrasjonstest** (`bundet-flyt-vern.integration.test.ts`), tre retninger: bundet→bytte
+  nektes · bundet→videresend-innen-flyt går gjennom · fri→bytte går gjennom (beviser at sperren
+  ikke over-anvender). Krav (c) mot «stille tomhet»: en test som feiler når sperren mangler.
+- **UI (radiovalg, `Anchor`-symbol, fotnote i videresend-velgeren): egen redesign-runde** — se
+  `docs/redesign/bundet-flyt-tegning-fabel-2026-09-16.dc.html`. Mobil: egen runde.
+
 ---
 
 ## 5. Redigerbarhet (Godkjenning)

@@ -309,6 +309,8 @@ export const createDokumentflytSchema = z.object({
   projectId: z.string().uuid(),
   faggruppeId: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
+  // Bundet flyt: true = dokumentene kan ikke flyttes til andre flyter. Default fri.
+  bundet: z.boolean().default(false),
   roller: z.array(rolleKonfigSchema).default([]),
   templateIds: z.array(z.string().uuid()).default([]),
   medlemmer: z.array(z.object({
@@ -324,6 +326,9 @@ export const updateDokumentflytSchema = z.object({
   id: z.string().uuid(),
   projectId: z.string().uuid(),
   name: z.string().min(1).max(255).optional(),
+  // Bundet flyt kan endres begge veier etter opprettelse (kun prosjektadmin, gates av
+  // verifiserAdmin som i dag). Styrer kun hva som er LOV framover — rører aldri dokumentdata.
+  bundet: z.boolean().optional(),
   templateIds: z.array(z.string().uuid()).optional(),
 });
 

@@ -1296,6 +1296,24 @@ export const sjekklisteRouter = router({
         // Sjekk om dokumentflyt/faggruppe endres
         let flytBytteData: { dokumentflytId: string; utforerFaggruppeId: string; nyFaggruppeNavn: string; nyFlytNavn: string } | null = null;
         if (input.dokumentflytId && input.dokumentflytId !== sjekkliste.dokumentflytId) {
+          // Bundet flyt (fabel-tegning 2026-09-16, Kenneth-gatet): en flyt merket `bundet`
+          // holder dokumentene sine — flyt-BYTTE ut av den er forbudt for ALLE i prosjektet.
+          // Egenskap VED FLYTEN, ikke en rettighet (kanByttFlyt er urørt). Videresend INNEN egen
+          // flyt endrer ikke dokumentflytId → treffer ikke denne grenen og går fritt gjennom.
+          // Samme feilkode som slettObjekt/↻-sperren (PRECONDITION_FAILED).
+          if (sjekkliste.dokumentflytId) {
+            const naavaerendeFlyt = await ctx.prisma.dokumentflyt.findUnique({
+              where: { id: sjekkliste.dokumentflytId },
+              select: { bundet: true },
+            });
+            if (naavaerendeFlyt?.bundet) {
+              throw new TRPCError({
+                code: "PRECONDITION_FAILED",
+                message:
+                  "Bundet flyt: dokumenter hører hjemme i denne flyten og kan ikke flyttes til andre flyter. Det gjelder alle i prosjektet, ikke bare deg.",
+              });
+            }
+          }
           const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
             where: { id: input.dokumentflytId },
             include: { faggruppe: { select: { id: true, name: true } } },
