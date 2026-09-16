@@ -9,12 +9,12 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-16 · develop `e599d40a` · test `81b2a785` — FLERE STEG BAK**
+**Sist ført: 2026-09-16 · develop `8ddad2e0` · test `81b2a785` — FLERE STEG BAK**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `feat/malforvaltning` | 🟢 **PR 1 MERGET + DEPLOYET** | **Kenneths visuelle gate**, så PR 2 |
-| **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | E2e del 2 (neste spor) |
+| **dokgen** | `SiteDoc-dokgen` | — | 🔵 **ORDRE GITT** | De-drift e2e 02–07 + lukk seed-gap |
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | Strengharmonisering (nå) |
 | **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
 | **kontrollplan** · **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
@@ -26,13 +26,30 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| **E2e del 2** — de seks andre spec-ene, `db-maskin`-støyen i e2e-miljøet, og blokkeringsspørsmålet (rapporterer vs. blokkerer merge — Kenneth avgjør etter stabil grønn over flere kjøringer) | Etter del 1 (levert 16.09) | dokgen |
+| **De-drift e2e 02–07 + seed-gap** — SPEC-REDIGERINGS-MANDAT: rett de seks driftede spec-ene mot dagens UI, og legg `projectOrganization`-join-rad i `seed-testbrukere.ts`. Blokkeringsspørsmålet (rapporterer vs. blokkerer) avgjøres av Kenneth når 02–07 er stabilt grønne | Nå (e2e del 2 levert 16.09) | dokgen |
 | **Malforvaltning PR 2** — Firmaarkiv-fane (én liste + maltype-filter) + riving av `firma/malarkiv` med bevistabell | Kenneths visuelle gate av PR 1 | redesign |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen inn i rettighetsmatrisen | Med sikkerhetsrunden | — |
 | **Strengharmonisering** | Nå (nøkkelsett-testen levert 16.09) | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-16 — E2e del 2 merget (`8ddad2e0`): riggen målt stabil, seks spec-er avslørt DRIFTET. INGEN deploy.
+
+**Merget `ci/e2e-del2` — IKKE fast-forward** (dokgen branchet fra `0612f938`, før nøkkelsett-mergen). **Strategi: rebase** (null overlapp
+mot det develop fikk i mellomtiden — `comm -12` tom; develop fikk kun i18n+test+STATUS, del2 rører kun `ci.yml`+`kvalitetssikring-plan.md`).
+Rebaset rent på develop, alle tre commits bevart (inkl. negativ-kontroll-sporet), så `--ff-only` `d08496e4..8ddad2e0`. 2 filer, +43/−4.
+Gate: `pnpm test` 7/7 tasks, seks tall (`db 2 · api 488 · pdf 120 · shared 824 · web 244 · mobil 9`). Begge CI-jobber grønne.
+
+- 🟢 **Riggen er MÅLT STABIL — 5/5 grønne kjøringer, ingen retries, miljø klart 4–5 s** (4m03s · 3m23s · 3m48s · 3m05s · 2m54s).
+- 🟢 **`db-maskin`-migreringene inn i e2e-miljøet** — `maskin.vegvesen_ko does not exist`-støyen er borte (verifisert i CI-logg, ~2 s).
+- 🔴 **HOVEDFUNN: SEKS AV SJU E2E-SPEC-ER ER DRIFTET.** Skrevet mot et UI som siden er endret; ingen merket det fordi suiten aldri kjørte i CI. `02-opprett` venter `role="button"` der `OpprettMalVelger.tsx` nå rendrer `role="option"` (UI-refaktor `f567d339` 04.08, spec sist rørt 26.07). Tre spec-er venter på testid-er som ikke finnes. Ingen flaky — alle feiler deterministisk. **Ført som egen BACKLOG-post.**
+- 🔴 **SEED-GAP (treffer mer enn e2e):** `seed-testbrukere.ts:95` setter `primaryOrganizationId` men oppretter ALDRI `projectOrganization`-join-raden. `erStandaloneProsjekt` (`prosjektGrense.ts`) teller den — er den 0, regnes prosjektet som PRØVEPROSJEKT (maks 10). Seedet produserer prosjekter som ikke ligner produksjon. **Ført som delfunn under eksisterende `ProjectOrganization`-legacy-post i BACKLOG.**
+- 🟢 **Negativ kontroll i CI:** `02-opprett` kjørt midlertidig → RØD på den diagnostiserte driften. Riggen fanger drift i CI, ikke bare lokalt.
+- 🔴 **E2e forblir KUN `01-login` i CI** inntil en egen runde med SPEC-REDIGERINGS-MANDAT har de-driftet 02–07 og lukket seed-gapet. Å slå dem på nå ville gjort develop rød.
+- 🟡 **Blokkering (dokgens anbefaling, cowork-gatet):** e2e blokkerer IKKE merge nå (for tynt signal med én spec); kun på PR, ikke hver push. Veien forbi finnes: `git push origin HEAD:develop` fra merge-treet omgår PR-gaten. Vurderes på nytt når 02–07 er grønne.
 
 ---
 

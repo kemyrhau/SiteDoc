@@ -65,6 +65,22 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
+### 🔴 Seks av sju e2e-spec-er er DRIFTET — krever spec-redigerings-runde (målt 2026-09-16, e2e del 2)
+
+Da e2e-suiten endelig kjørte i CI (efemært miljø, del 1+2), viste det seg at **6 av 7 spec-er ble skrevet mot et UI som siden er endret** — og ingen merket det fordi suiten aldri kjørte. En spec som ikke kjører råtner i stillhet; dette er nøyaktig hullet CI-e2e lukket, i sin reneste form.
+
+| Spec | Årsak (diagnostisert mot ekte UI) |
+|---|---|
+| `01-login` | 🟢 grønn (kjører i CI i dag) |
+| `02-opprett` | Venter `getByRole("button")`, men `OpprettMalVelger.tsx` rendrer malen som `role="option"` i en listbox — UI-refaktor `f567d339` 04.08, spec sist rørt 26.07 (ni dager før) |
+| `03-send` | Venter `handling-sent`-testid som ikke finnes |
+| `04-flytposisjon` | `toHaveAttribute`-mismatch |
+| `05-besvar-godkjenn` | Venter `handling-responded`-testid som ikke finnes |
+| `06-videresend-rolle` | Venter `handling-videresend-nedtrekk`-testid som ikke finnes |
+| `07-gjenapne` | SEED-GAP (ikke drift) — se `ProjectOrganization`-posten nedenfor |
+
+🟢 **Ingen er flaky — alle feiler deterministisk, av kjente årsaker** (bevist: `01-login` grønn i samme kjøring; negativ kontroll kjørte `02-opprett` i CI → rød på nøyaktig den diagnostiserte driften, revertert). **E2e forblir KUN `01-login` i CI inntil en runde med SPEC-REDIGERINGS-MANDAT de-drifter 02–07 og lukker seed-gapet.** Å slå dem på nå ville gjort develop rød. Til dokgen.
+
 ---
 
 # 🟡 Malforvaltning — 17 målte funn 2026-09-13
@@ -3993,6 +4009,8 @@ Funnet under Timer Fase 1b-data-sjekk (2026-06-09). `admin.ts:266` + `prosjekt.t
 **Konsekvens:** kode som avgjør firma-tilhørighet **kun** via `ProjectOrganization` (uten å falle tilbake på `primaryOrganizationId`) vil feilaktig behandle disse som ikke-firma-prosjekter. Fase 1b-helperen `verifiserProsjekterTilhørerFirma` dekker dette via union (eid ELLER koblet), men andre stier kan ikke ha samme beskyttelse.
 
 **Foreslått fiks:** backfill-migrasjon som setter inn manglende `ProjectOrganization`-rader for alle `Project` med `primaryOrganizationId IS NOT NULL` som ikke allerede har en kobling for den orgen (idempotent `INSERT ... WHERE NOT EXISTS`). Da kan union-fallbacken på sikt forenkles til ren ProjectOrganization-sjekk. **Krever migrasjon → prod = LÅS + Kenneth.** Lav hast (1b-unionen holder timer trygg i mellomtiden).
+
+🔴 **Samme klasse, ny kilde — MÅLT 2026-09-16 (e2e del 2):** `packages/db/scripts/seed-testbrukere.ts:95` setter `primaryOrganizationId`, men oppretter **ALDRI** `projectOrganization`-join-raden. `erStandaloneProsjekt` (`apps/api/src/utils/prosjektGrense.ts`) teller den raden — er den 0, regnes prosjektet som **PRØVEPROSJEKT med maks 10**. Konsekvens: seedet produserer prosjekter som **ikke ligner produksjon** (på `test.sitedoc.no` finnes join-raden manuelt; i et friskt e2e-/dev-miljø gjør den det ikke). Treffer alt som seedes, ikke bare e2e — derfor ført her som eget delfunn, ikke som e2e-sak. **Fiks:** legg join-rad-INSERT i seed-scriptet (idempotent), samme mønster som backfillen over.
 
 ### Split-identitet MS-login (web↔mobil) — ✅ DEPLOYET TIL PROD 2026-07-04 (`bb5aec05`)
 
