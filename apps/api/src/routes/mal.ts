@@ -80,7 +80,9 @@ export function samleEtterkommere(
 // firmamaler KOPIERES, aldri deles: firmamal.ts:379 / bibliotek.ts:144 / modul.ts:314) med
 // FAKTISK innhold for objektet eller en etterkommer. Gjenbruker `harFaktiskInnholdForObjekt` —
 // ETT predikat, tre kallsteder (slett, oppdater, rekkefølge) som ikke kan drifte fra hverandre.
-async function tellDokumenterMedInnhold(
+// Eksportert (ordre vern-oppdater-kopi, krav 1) så firmamal.oppdaterKopiFraHovedmal kan
+// gjenbruke NØYAKTIG samme telling som slettObjekt — én kilde, aldri en andre kopi.
+export async function tellDokumenterMedInnhold(
   prisma: PrismaClient,
   templateId: string,
   objektIder: string[],
