@@ -128,7 +128,7 @@ jobs:
   # `01-login.spec.ts`. Bevist lokalt ende-til-ende før CI. Del 2 (de seks andre spec-ene +
   # blokkerer-merge-avgjørelsen) er eget spor.
   e2e:
-    name: e2e (01-05, 06 utelatt)
+    name: e2e (01-05 + 07, 06 utelatt)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -226,10 +226,13 @@ jobs:
           # rettet til received + testen omdøpt bort fra «→ Besvart». 05-godkjenn var alt grønn (approved).
           # (En statisk beregnRuting-lesing forutså responded og bommet — målingen står; mekanismen
           # meldt for eget blikk, avledStatus/ruting røres ikke i denne runden.)
-          # Holdt ute: 06-videresend (redesign bygger Videresend-flaten, `feat/videresend-synlig-konsekvens`),
-          # 07-gjenapne (slås på i neste steg denne runden).
-          echo "DEL 4: kjører 01–05. 06 UTELATT (redesign bygger videresend). 07 kommer i neste steg."
+          # 07-gjenapne slått PÅ (steg 2): gjenåpne (closed→draft-handling) gir badge `received`
+          # («Hos N»), ikke `draft` — beregnRuting aapner-draft setter sendt=true + retning=frem →
+          # avledStatus → received. Spec-drift rettet + testen omdøpt bort fra «→ Utkast».
+          # Holdt ute: 06-videresend (redesign bygger Videresend-flaten, `feat/videresend-synlig-konsekvens`).
+          echo "DEL 5: kjører 01–05 + 07. 06 UTELATT (redesign bygger videresend)."
           pnpm --filter @sitedoc/e2e exec playwright test \
             tests/01-login.spec.ts tests/02-opprett.spec.ts tests/03-send.spec.ts \
             tests/04-flytposisjon.spec.ts tests/05-besvar-godkjenn.spec.ts \
+            tests/07-gjenapne.spec.ts \
             --project=chromium
