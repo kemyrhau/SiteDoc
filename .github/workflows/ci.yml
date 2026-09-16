@@ -171,9 +171,15 @@ jobs:
 
       # Skjema + testdata: begge seeds er idempotente og kjørbare (målt). seed-e2e-flyt
       # forutsetter seed-testbrukere (org + AGENT-TEST-0001 + brukere).
+      # ALLE FIRE db-pakker migreres (del 2, krav 2): db-timer/maskin/varelager-skjemaene
+      # må finnes, ellers logger api-bakgrunnsworkerne feil (`maskin.vegvesen_ko does not
+      # exist`) som kan maskere en ekte feil senere. Kostnad målt: ~2s ekstra.
       - name: Migrer + seed engangs-DB
         run: |
           pnpm --filter @sitedoc/db exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-timer exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-varelager exec prisma migrate deploy
           pnpm --filter @sitedoc/db exec tsx scripts/seed-testbrukere.ts
           pnpm --filter @sitedoc/db exec tsx scripts/seed-e2e-flyt.ts
 
@@ -216,5 +222,14 @@ jobs:
             || { echo "WEB ble ALDRI klar — se /tmp/web.log"; tail -30 /tmp/web.log; exit 1; }
           echo "Miljø klart etter $(( $(date +%s) - t0 ))s"
 
-          echo "DEL 1: kjører KUN tests/01-login.spec.ts. De seks andre spec-ene er IKKE med."
+          # DEL 2-FUNN (2026-09-16): de seks andre spec-ene (02–07) er HOLDT UTE fordi de er
+          # DRIFTET mot dagens web-UI — de ble aldri validert siden e2e aldri kjørte i CI.
+          # Målt mot friskt miljø: 02 velger `getByRole("button")` mens `OpprettMalVelger.tsx`
+          # nå rendrer malen som `role="option"` i en listbox (UI-refaktor `f567d339` 2026-08-04,
+          # spec sist rørt 2026-07-26); 03/05/06 venter på `handling-*`-testid-er som ikke finnes;
+          # 04 attributt-mismatch; 07 treffer prøveprosjekt-grensen (maks 10) fordi prosjektet
+          # mangler `ProjectOrganization`-kobling (`erStandaloneProsjekt`=true) — et seed-gap.
+          # Å slå dem på nå ville gjort develop RØD. Å endre spec-ene er forbudt (ordre) og krever
+          # egen runde med spec-redigering + seed-fiks. Inntil da kjører e2e KUN 01-login.
+          echo "KUN tests/01-login.spec.ts kjører. 02–07 er holdt ute (driftet mot dagens UI — se ci.yml-kommentar + kvalitetssikring-plan.md)."
           pnpm --filter @sitedoc/e2e exec playwright test tests/01-login.spec.ts --project=chromium
