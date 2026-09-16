@@ -9,15 +9,16 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-16 · develop `8ddad2e0` · test `81b2a785` — FLERE STEG BAK**
+**Sist ført: 2026-09-16 · develop `0c7efe21` · test `81b2a785` — FLERE STEG BAK (web-deploy føres av cowork nå)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | `feat/malforvaltning` | 🟢 **PR 1 MERGET + DEPLOYET** | **Kenneths visuelle gate**, så PR 2 |
+| **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | Kenneths visuelle gate av PR 1+2 |
 | **dokgen** | `SiteDoc-dokgen` | — | 🔵 **ORDRE GITT** | De-drift e2e 02–07 + lukk seed-gap |
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | Strengharmonisering (nå) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/versjonssporing-softdelete` | 🔵 **ORDRE GITT** | Versjonssporing + soft-delete (ikke pushet ennå) |
 | **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
-| **kontrollplan** · **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
+| **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
@@ -27,12 +28,28 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | Sak | Utløser | Til |
 |---|---|---|
 | **De-drift e2e 02–07 + seed-gap** — SPEC-REDIGERINGS-MANDAT: rett de seks driftede spec-ene mot dagens UI, og legg `projectOrganization`-join-rad i `seed-testbrukere.ts`. Blokkeringsspørsmålet (rapporterer vs. blokkerer) avgjøres av Kenneth når 02–07 er stabilt grønne | Nå (e2e del 2 levert 16.09) | dokgen |
-| **Malforvaltning PR 2** — Firmaarkiv-fane (én liste + maltype-filter) + riving av `firma/malarkiv` med bevistabell | Kenneths visuelle gate av PR 1 | redesign |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen inn i rettighetsmatrisen | Med sikkerhetsrunden | — |
 | **Strengharmonisering** | Nå (nøkkelsett-testen levert 16.09) | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-16 — Malforvaltning PR 2 merget (`0c7efe21`): `firma/malarkiv` REVET. UTLØSER WEB-DEPLOY.
+
+**Merget `feat/malforvaltning-pr2` (ren fast-forward `267f42b0..0c7efe21`).** 28 filer, +1456/−1017 (13 kode/test + 15 i18n).
+Alle femten språkfiler i takt på 4522 (verifisert likt nøkkelsett). Gate: `pnpm test` 7/7 tasks, **`web` 244→249** (+5 gating), `api` stille 488,
+øvrige stille. Kald web-bygg grønn. Begge CI-jobber grønne. **Første web-deploy på flere runder — cowork fører den.**
+
+- 🟢 **MALFORVALTNING PR 2 LEVERT — `firma/malarkiv` er REVET.** Firmaarkiv-fanen er én liste med filtrerbar maltype-kolonne. Nav-lenken PR 1 holdt tilbake er lagt inn. `/dashbord/firma/malarkiv` + `/[malId]` består som REDIRECTS (bevarer `malId`), ikke flater.
+- 🟢 **ELLEVE funksjoner flyttet med bevis per funksjon.** Fem av dem sto IKKE i coworks ordre — redesign målte flaten i stedet for å stole på lista (rediger-metadata-dialog · inspiser-før-lån · HMS-subdomain/synlighet · «allerede lånt»-vakt · søk-i-lån-dialog).
+- 🔴 **TO PREMISSFEIL I COWORKS ORDRE, målt og meldt av redesign:** (1) «versjonsavstand» i OPPHAV finnes ikke som data — cowork tok tallet fra fabels MOCKUP og behandlet en tegning som funksjonalitet. (2) slett-sperren `mal.ts:500` er PROSJEKTmal-sperren; `firmamal.slett` hard-sletter — ordren motsa seg selv. 🟢 Bygget ærlig: OPPHAV viser avstamning + ↻, sletting får permanent-advarsel + `copiedTo`.
+- 🔴 **FUNN: den generelle «Tilbake til …»-whitelisten finnes ikke.** `TilbakeLenke.ETIKETT_FRA_KILDE` er papirkurv-only; `Nivaabanner.tilbake` validerer ingenting. redesign repekte `Nivaabanner.tilbake` til malforvaltning-roten med ny nøkkel — ingen etikett forsvant.
+- 🟢 **Kollaps i «Hent fra arkiv» flyttet til STANDARD-nivå** (`NS3420-K`/`NS3420-F`, kapitler som statiske underetiketter), maler sortert på referanse med numerisk `localeCompare` (`KC3.1 < KC10`). **Serverens `orderBy` urørt.**
+- 🟡 **MELDT, KENNETH GATER:** `LaanFraSentralarkivDialog` har fortsatt per-kapittel-kollaps — utenfor Del C's scope; redesign utvidet ikke. Konsistensspørsmålet tas til Kenneth.
+- 🟢 **`sok-dekning`-testen:** firma- og SiteDoc-arkiv deler nå URL (begge → Malforvaltning) — endret til å skille på `id`, redirect-roten lagt i unntakslista.
+- 🔴 **Versjonssporing firmamal→SiteDoc-arkiv bygges NÅ av kontrollplan** (`feat/versjonssporing-softdelete`, ikke pushet ennå) — sammen med soft-delete som låser opp Papirkurv-fanen.
 
 ---
 
