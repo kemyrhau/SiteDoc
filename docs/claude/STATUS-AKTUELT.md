@@ -9,12 +9,12 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-16 · develop `082d1a60` · test `81b2a785` — FLERE STEG BAK**
+**Sist ført: 2026-09-16 · develop `b8ee57cc` · test `81b2a785` — FLERE STEG BAK**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `feat/malforvaltning` | 🟢 **PR 1 MERGET + DEPLOYET** | **Kenneths visuelle gate**, så PR 2 |
-| **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
+| **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | E2e i CI (neste spor) |
 | **mal-Opus** | `SiteDoc-mal` | `test/i18n-nokkelsett` | 🔵 **ORDRE GITT** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | 🔵 **ORDRE GITT** | — |
 | **kontrollplan** · **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
@@ -26,7 +26,6 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| **Mobil testharness** — `jest-expo`/vitest + `better-sqlite3`, første mål offline-katalogene. Lukker BACKLOG-posten «apps/mobile har INGEN test-runner» og CLAUDE.md-unntaket for krav (c) | Nå (re-kvittering lukket 16.09) | dokgen |
 | **E2e i CI** — krever efemært miljø; suiten muterer `sitedoc_test`. Est. 1–2 runder | Etter mobil-harness | dokgen |
 | **Malforvaltning PR 2** — Firmaarkiv-fane (én liste + maltype-filter) + riving av `firma/malarkiv` med bevistabell | Kenneths visuelle gate av PR 1 | redesign |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
@@ -34,6 +33,21 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Strengharmonisering** | Etter nøkkelsett-testen | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-16 — Mobil testharness merget (`b8ee57cc`): fase 2 offline AVBLOKKERT. INGEN deploy.
+
+**Merget `test/mobil-harness` (ren fast-forward `403be913..b8ee57cc`).** 7 filer, +338/−10: vitest-config + 2 testfiler i
+`apps/mobile`, `package.json` (test-script + devDeps), `pnpm-lock.yaml`, BACKLOG + kvalitetssikring-plan. `metro.config.js`/`app.json`/`eas.json` NULL diff.
+Gate: `pnpm test` **7/7 tasks**, seks tall: `db 2 · api 488 · pdf 120 · shared 823 · web 244 · mobil 9`. CI på develop grønn, `@sitedoc/mobile:test` kjørte der.
+
+- 🟢 **MOBIL TESTHARNESS LEVERT — fase 2 offline er AVBLOKKERT.** vitest i `apps/mobile`, 9 tester (unit-ren 6 · integrasjon 3), med i `pnpm test` fra ROT og i CI. **Gate-tall er SEKS fra nå:** `db · api · pdf · shared · web · mobil`.
+- 🟢 **Krav (c) EKTE oppfylt mot reell SQLite** (`sql.js` WASM, ikke `better-sqlite3` — node v25 lokalt / v20 CI ville gjort nativ modul ABI-følsom; avvik fra BACKLOG-anbefaling begrunnet ved måling). Tom `sjekkliste_id` → `NOT NULL constraint failed` fra SQLite selv, ikke mock. **Mobil-unntaket i CLAUDE.md er fjernet — «stille tomhet» gjelder nå uten unntak i hele repoet.**
+- 🟢 **To BACKLOG-poster lukket av dokgen (i branchen):** «apps/mobile har INGEN test-runner» (blokkerte fase 2) og `splittVedMidnatt` (lønns-sensitiv, tidligere kun manuelt `tsx`-verifisert).
+- 🔴 **MÅLT SQLite-quirk:** `PRIMARY KEY` alene håndhever IKKE `NOT NULL` på TEXT-kolonner. `sjekkliste_feltdata` har eksplisitt `NOT NULL` på både `id` og `sjekkliste_id` — ellers ville krav (c)-testen ikke bitt. Verdt å huske ved nye offline-tabeller.
+- ⚠️ **UVERIFISERT (meldt av dokgen):** faktisk `expo export`-bundle-diff er ikke kjørt. Reachability bevist statisk (testfiler + devDeps uåtakbare fra `expo-router/entry`); observert tom bundle-diff gjenstår — verifiseres ved neste EAS-bygg, ingen egen kvote brukes.
+- ⚠️ **CLAUDE.md-størrelse:** `wc -m` (tegn — regelens metrikk) = **40183 < 40960 ✓**. `wc -c` (bytes) = 41133. Ordrens anslag «~40 900» var mot bytes og traff ikke; unntakslinja var ~458 bytes, ikke ~690.
 
 ---
 
