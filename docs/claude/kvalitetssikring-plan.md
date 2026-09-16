@@ -103,9 +103,16 @@ kontroller øverst — er de truffbare (`idb ui tap`, ikke øyemål).
 1. **`apps/api` mangler `test`-script.** Legg til `"test": "vitest run"` → 29 tester begynner
    å gate i CI. 🔴 **Forventes å avdekke røde tester** som ingen har sett — det er poenget,
    men det er en egen ryddejobb, ikke en drive-by.
-2. **`apps/mobile` har verken tester eller script.** Ikke skriv suiter for syns skyld —
-   lag 2 dekker atferden bedre. Men et par rene enhetstester på `feltLaasing`-klassen og
-   `flytPosisjon.nesteLedd` ville fanget logikk vi har brutt to ganger.
+2. **🟢 `apps/mobile` har nå test-runner (vitest) — REALISERT 2026-09-16.** vitest lagt til
+   (`apps/mobile/vitest.config.ts`, `"test": "vitest run"`), automatisk med i `pnpm test`
+   (turbo) fra ROT → kjører i CI i samme jobb. Første fotfester: `dagsegment.test.ts` (6 rene
+   `splittVedMidnatt`/`kappGlemtDagSlutt`) + `migreringer.test.ts` (3, offline-DB mot EKTE
+   SQLite via sql.js). 🟢 **«Stille tomhet» krav (c) er nå oppfylt på mobil:** den faktiske
+   migrerings-SQL-en kjører mot en ekte SQLite-motor (sql.js WASM — kun expo-sqlite-BINDINGEN
+   er byttet, ikke SQLite selv), og en rad med tom identitetskolonne avvises av ekte NOT NULL.
+   Mobil-unntaket i CLAUDE.md kan dermed fjernes (cowork). Valg: sql.js, ikke `better-sqlite3`
+   (native/ABI-følsom, node25-lokal↔node20-CI), ikke jest-expo (andre runner, RN-transforms
+   ikke nødvendig for DB-lag+utils). **Bred mobildekning er eget spor.**
 3. **E2E kjøres BEVISST IKKE i CI (avklart 2026-09-15).** Sju spec-er (`tests/e2e/tests/`,
    8 test-case) dekker hele dokumentflyten — nettopp pilotflyten A.Markussen skal bruke. Men
    suiten er en røyktest mot det **kjørende** test.sitedoc.no + api-test.sitedoc.no,

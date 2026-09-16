@@ -9,6 +9,7 @@
     "build": "echo 'Mobilbygg kjøres via EAS'",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
+    "test": "vitest run",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },
@@ -71,9 +72,12 @@
     "@babel/plugin-transform-react-jsx": "7.28.6",
     "@sitedoc/api": "workspace:*",
     "@types/react": "^19.1.17",
+    "@types/sql.js": "^1.4.9",
     "babel-preset-expo": "~54.0.10",
     "eslint-plugin-react-hooks": "^4.6.2",
+    "sql.js": "^1.13.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
   }
 }

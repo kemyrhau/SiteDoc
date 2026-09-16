@@ -226,9 +226,25 @@ først.»* (`kontrollplan.ts:541`) — **en handling som ikke finnes i UI.**
 🟢 **Ikke pilotblokkerende, men «knappen skal ikke lyve» i meldingsform:** vi instruerer noe
 brukeren ikke kan gjøre. Trenger en `løsPunkt`-prosedyre (sett `sjekklisteId = null`) + inngang i UI.
 
-### 🔴 `apps/mobile` har INGEN test-runner — blokkerer fase 2 offline (målt 2026-09-07, eskalert 2026-09-11)
+### 🟢 LUKKET 2026-09-16 — `apps/mobile` har nå test-runner (vitest) i CI
 
-Målt av redesign da han skulle skrive en test ordren krevde: **`apps/mobile` har verken
+**Levert i runde mobil-harness (`test/mobil-harness`).** `apps/mobile` har nå `"test": "vitest run"`,
+en `vitest.config.ts`, og er automatisk med i `pnpm test` (turbo) fra ROT → kjører i CI i samme
+jobb som resten. Målt: `pnpm test` gir 7/7 tasks, mobil-tallet er 9 (6 rene `splittVedMidnatt` +
+3 offline-DB mot ekte SQLite). Krav (c) er EKTE oppfylt: den faktiske migrerings-SQL-en kjører mot
+sql.js (SQLite-WASM), og en `sjekkliste_feltdata`-rad med tom `sjekkliste_id`/`id` avvises av ekte
+NOT NULL-constraint. **Mobil-unntaket i CLAUDE.md § «Stille tomhet» kan nå fjernes av cowork.**
+
+⚠️ **Avvik fra anbefalingen under (begrunnet ved måling):** anbefalt retning var `better-sqlite3`,
+men den er en NATIV modul (node-gyp, ABI-følsom) — lokal node er v25, CI node v20, og ulik ABI gir
+build-risiko. **sql.js (WASM, ingen native build) er portabel på tvers og fortsatt EKTE SQLite** →
+krav (c) oppfylt uten native-risikoen. jest-expo ble ikke valgt: dets fortrinn er RN-komponent-
+transforms, som denne runden ikke trenger (kun rent DB-lag + utils), og det ville lagt en andre
+runner ved siden av vitest.
+
+<details><summary>Opprinnelig sak (historikk)</summary>
+
+Målt av redesign da han skulle skrive en test ordren krevde: **`apps/mobile` hadde verken
 `test`-script, vitest eller jest.** `pnpm test` (turbo) treffer api, pdf, shared og web — mobil er
 ikke med, og gate-kommandoene kjører kun typecheck + lint der.
 
@@ -261,6 +277,8 @@ den tynneste installasjonen som dekker behovet.
 
 ⚠️ **Pakkeinstall i mobilappen krever Kenneths gate** (CLAUDE.md § Spør alltid før du).
 **Ikke startet før pilot er i drift.**
+
+</details>
 
 ### 🟢 LUKKET 2026-09-08 — PSI scroll-gate er IKKE en manglende sikkerhetsgate
 
@@ -3840,9 +3858,20 @@ Fanget under R4-konsistens-sjekk (2026-06-11) — **ikke R-serie-introdusert** (
 
 Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og gi `byggeplassId` riktig Drizzle-type / `vitest` til devDependencies+tsconfig. Lav prio — ingen runtime-effekt.
 
-### `apps/mobile` mangler test-runner — rene utils udekket 🟡
+### 🟢 LUKKET 2026-09-16 — `apps/mobile` test-runner + `splittVedMidnatt` dekket
 
-`apps/mobile` har ingen test-runner (verken `test`-script, jest/vitest-config eller `*.test.ts`). Rene, logikk-tunge hjelpere er derfor udekket av automatiserte tester. Konkret fanget ved Slice 4a (2026-06-20): **`splittVedMidnatt`** (`apps/mobile/src/utils/dagsegment.ts`) ble kun manuelt verifisert (tsx-kjøring). Casene som bør dekkes når en test-beslutning tas: **nattskift 19→07 = 5t+7t=12t** (sum = reell total), **dagskift** (1 segment, uendret), **degenerert** (slutt ≤ start → ett 0-segment), **fler-døgn** (glemt-dag → N segmenter, sum = total). Vurder å **flytte den rene helperen til `@sitedoc/shared`** (web bruker allerede `vitest` — jf. `src/components/mengde/__tests__/`), evt. introdusere vitest i `apps/mobile`. Lav prio — ingen runtime-effekt, men midnatt-splitt er lønns-sensitiv logikk som fortjener regresjonsdekning.
+**Levert i runde mobil-harness.** vitest innført i `apps/mobile` (IKKE flyttet til `@sitedoc/shared`
+— hele poenget var at mobil skal kunne teste sin egen kode). `splittVedMidnatt` dekkes nå av
+`apps/mobile/src/utils/dagsegment.test.ts` med nøyaktig de spesifiserte casene: **nattskift
+19→07 = 5t+7t=12t** · **dagskift** (1 segment) · **degenerert** (slutt ≤ start → ett 0-segment) ·
+**fler-døgn** (N segmenter, sum = total). I tillegg dekkes `kappGlemtDagSlutt` (glemt-dag-cap).
+Negativ kontroll kjørt (bryt → rød → tilbakestill).
+
+<details><summary>Opprinnelig sak (historikk)</summary>
+
+`apps/mobile` hadde ingen test-runner (verken `test`-script, jest/vitest-config eller `*.test.ts`). Rene, logikk-tunge hjelpere var derfor udekket av automatiserte tester. Konkret fanget ved Slice 4a (2026-06-20): **`splittVedMidnatt`** (`apps/mobile/src/utils/dagsegment.ts`) ble kun manuelt verifisert (tsx-kjøring). Casene som bør dekkes: **nattskift 19→07 = 5t+7t=12t** (sum = reell total), **dagskift** (1 segment, uendret), **degenerert** (slutt ≤ start → ett 0-segment), **fler-døgn** (glemt-dag → N segmenter, sum = total).
+
+</details>
 
 ### Metro blockList — `.env.eas.local` knekker `expo run:ios` ✅ FIKSET 2026-07-06 (venter dual-review)
 
