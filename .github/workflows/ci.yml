@@ -128,7 +128,7 @@ jobs:
   # `01-login.spec.ts`. Bevist lokalt ende-til-ende før CI. Del 2 (de seks andre spec-ene +
   # blokkerer-merge-avgjørelsen) er eget spor.
   e2e:
-    name: e2e (01-04 de-driftet)
+    name: e2e (01-05, 06 utelatt)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -220,16 +220,17 @@ jobs:
             || { echo "WEB ble ALDRI klar — se /tmp/web.log"; tail -30 /tmp/web.log; exit 1; }
           echo "Miljø klart etter $(( $(date +%s) - t0 ))s"
 
-          # DEL 3 (2026-09-16): de-driftet 01–04 + 05-godkjenn er verifisert grønne mot dagens UI.
-          # Vi kjører de FULLT grønne spec-FILENE 01–04. Holdt ute (eget spor, produkt-semantikk):
-          #  - 05-besvar: badge-modellen gir «received» (Hos godkjenner) på framover-besvar, ikke
-          #    «responded» — `responded` er nå BAKOVER-only (avledStatus, retning="tilbake",
-          #    in_progress-kollaps 2026-08-02). Spec-ens `data-status="responded"` sjekker en verdi
-          #    UI-et ikke lenger produserer for denne flyten → krever produkt-avgjørelse.
-          #  - 06-videresend: `handling-videresend-nedtrekk` ikke synlig for firma-admin på received.
-          #  - 07-gjenapne: gjenåpne closed→draft gir «received» i badge (samme avledStatus-modell).
-          # (05-godkjenn er grønn men deler fil med 05-besvar, så 05 kjøres ikke i CI ennå.)
-          echo "DEL 3: kjører de de-driftede, verifiserte 01–04. 05/06/07 holdt ute (produkt-semantikk — se kommentar + kvalitetssikring-plan.md)."
+          # DEL 4 (2026-09-16): 05 slås PÅ. MÅLT at 05-besvar IKKE var spec-drift: spec-en klikker
+          # `handling-responded` (Besvar), som ruter BAKOVER (beregnRuting:176-183 → retning="tilbake")
+          # → avledStatus (flytPosisjon.ts:225, retning="tilbake") → status="responded". Utfører HAR
+          # handlingen (ROLLE_HANDLINGER_DEFAULTS.utforer.received ⊇ "responded"; bevist i
+          # statusHandlinger.test.ts:620-628). Forrige kommentars «framover-besvar gir received» gjaldt
+          # en forover-Send (handling-sent), ikke Besvar-handlingen spec-en faktisk utfører — premisset
+          # traff feil spec. 05-godkjenn var alt grønn (terminal approved).
+          # Holdt ute: 06-videresend (redesign bygger Videresend-flaten, `feat/videresend-synlig-konsekvens`),
+          # 07-gjenapne (slås på i neste steg denne runden).
+          echo "DEL 4: kjører 01–05. 06 UTELATT (redesign bygger videresend). 07 kommer i neste steg."
           pnpm --filter @sitedoc/e2e exec playwright test \
-            tests/01-login.spec.ts tests/02-opprett.spec.ts tests/03-send.spec.ts tests/04-flytposisjon.spec.ts \
+            tests/01-login.spec.ts tests/02-opprett.spec.ts tests/03-send.spec.ts \
+            tests/04-flytposisjon.spec.ts tests/05-besvar-godkjenn.spec.ts \
             --project=chromium
