@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-17 · develop `f6ed59f1` (web+api-deploy + OTA — ingen migrering denne runden) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
+**Sist ført: 2026-09-17 · develop `1d66e148` (api-deploy + MIGRERING `20260917140000_push_token` IKKE KJØRT — Kenneth eier den) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | — |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/push-datalag` | 🔵 **I ARBEID** | — |
+| **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
@@ -38,6 +38,22 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-17 — Pushvarsel runde A merget (`1d66e148`): datalag + sendetjeneste. API-DEPLOY + MIGRERING (IKKE KJØRT), ingen OTA.
+
+**Én branch, `feat/push-datalag`.** Kontrollplan hadde alt rebaset den oppå dagens develop (`feddad76`) og force-pushet før handoff — **hash `b1275423`, ikke `2e7f5434` som ordren sa; ren fast-forward, ingen rebase nødvendig.** Gate: `pnpm test` 7/7 — **`api` unit 490→495** (+5: pushVarsel + push-token) · **`integrasjon` 51→57** (+6, bevist i CI: `57 passed`). **`mobil` STÅR STILLE på 13** (fra bundet-flyt-mobil — ikke mistet). Resten stille (`db` 2 · `pdf` 120 · `shared` 824 · `web` 261). Begge CI-jobber grønne, fersk pgvector anvendte alle migreringer inkl. den nye.
+
+- 🟢 **PUSHVARSEL RUNDE A LEVERT** — `PushToken`-tabell (`push_tokens`) + migrering, sendetjeneste via `expo-server-sdk ^7.2.0`, nåbarhets-telling, logg i `activity_log` (`action="push.sendt"`). **Ingen UI, ingen i18n.**
+- 🟢 **`User` er HELT urørt** — `user_id` er svak String-FK uten `@relation`, samme mønster som `activity_log`. `schema.prisma`-diff mot develop = **0 slettinger** (30 tillegg). Migrering = **én `CREATE TABLE` + to indekser** (UNIQUE på `token`, indeks på `user_id`), ingen eksisterende tabell endret.
+- 🟢 **Nåbarhets-tellingen er poenget:** en formann skal ikke tro at 50 mann fikk beskjed når 12 gjorde det. `naabarhet()` returnerer `{valgt, naabare, utenToken[]}`.
+- 🟢 **Døde tokens ryddes KUN på `DeviceNotRegistered`** — forbigående feil (`MessageRateExceeded`, `InvalidCredentials`) fjerner ingen enhet. Token = enhetens identitet, `userId` = hvem som sitter der nå (upsert på token, «siste innlogging vinner»).
+- 🔴 **PUSH KAN IKKE TESTES I EXPO GO ELLER SIMULATOR.** Ende-til-ende-validering av runde B koster minst ett iOS- + ett Android-bygg; iOS forutsetter APNs-nøkkel i EAS FØRST, Android krever Firebase-prosjekt (FCM V1).
+- ⚠️ **FUNN — lokal sandkasse blokkert:** `20260906000000_sja_signaturrunder` feilet 09-09 og stopper `prisma migrate deploy` lokalt. **Femten migreringer ligger etter den.** CI upåvirket (fersk pgvector). Ikke rørt — DB-tilstand er Kenneths. **Neste agent som kjører integrasjonstester lokalt treffer dette.**
+- ⚠️ **`varsling.md` mangler statusmarkør og er skrevet i presens om fem modeller som ikke finnes.** Sett av kontrollplan (la inn peker «modellene i denne fila er IKKE bygget», rettet ikke resten). **Cowork ordrer oppfølgeren.**
+- 🟢 **BASE-FELLA UNNGÅTT:** ordren advarte at kontrollplans tall var målt mot `50fd9893` (to merger gammel). Målt selv: branchen var alt rebaset på `feddad76`, så fasit holdt — `integrasjon 57` (ikke 54 = mistet bundet-flyt-mobil, ikke 51 = mistet kontrollplan).
+- 🔴 **UTLØSER api-deploy + MIGRERING — Kenneth eier begge. Klart, ikke kjørt.**
 
 ---
 
