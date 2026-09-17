@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: ukjent
-sist_endret: 2026-04-28
+sist_verifisert_mot_kode: 2026-09-17 (kun § 1.1s syv «Mangler»-rader + Fase 2/7-seksjon, mot 50fd9893; resten uverifisert)
+sist_endret: 2026-09-17
 gjelder_versjon: tverrgående
 avhenger_av:
   - arkitektur.md
@@ -39,17 +39,17 @@ Norsk byggebransje har «prosjekthotell» som etablert produktkategori (Interaxo
 | Faggrupper og brukergrupper | Eksisterer |
 | Dokumentflyt | Eksisterer (kjernen) |
 | KS-dokumentasjon (Sjekkliste, Oppgave, Kontrollplan) | Eksisterer |
-| **Godkjenning** (utvidet dokumentflyt-type) | Mangler — Fase 0 (per A.2) |
+| **Godkjenning** (utvidet dokumentflyt-type) | 🟡 Delvis (målt 2026-09-17 @ `50fd9893`) — datamodell finnes: `model Godkjenning` (`packages/db/prisma/schema.prisma:1387`, Fase 0 §E steg 12) + type-integrasjon (`perspektivEtikett.ts:21` `PerspektivDokumentType "godkjenning"`, `EmneKategori`). MEN ingen router/prosedyre/UI: `prisma.godkjenning` = 0 treff i `apps/api/src`, ingen godkjenning-router, ingen web-flate (`timer/godkjenning` er timer-attestering, urelatert). Flyt-typen kan ikke opprettes/sendes ennå. |
 | HMS-oppfølging (rapporter, RUH, avvik) | Eksisterer per prosjekt |
 | Tegninger og IFC | Eksisterer |
 | Dokumentlagring (mapper, kontrakter) | Eksisterer |
 | Prosjektering | Eksisterer |
 | Mal-bibliotek (`BibliotekMal`, NS 3420) | Eksisterer |
-| **Mal-promotering (firma-bibliotek)** | Mangler — Fase 2 |
-| **HMS-statistikk på firma-nivå** | Mangler — Fase 7 |
-| **Møtemal** | Mangler — Fase 7 |
-| **Månedsrapport** | Mangler — Fase 7 |
-| **Street View for byggeplass** | Mangler — eget prosjekt |
+| **Mal-promotering (firma-bibliotek)** | ✅ Ferdig (målt 2026-09-17 @ `50fd9893`) — `OrganizationTemplate` (`schema.prisma:1120`) + `ReportTemplate.organizationTemplateId` (`:1070`); prosedyrer `firmamal.promoter:572` / `kanPromotere:198` / `kopierTilProsjekt:646` / `listeForProsjekt:740`; UI i `MalBygger.tsx` + `HentFraArkivModal.tsx`. Var planlagt Fase 2 — se § 5 Fase 2. |
+| **HMS-statistikk på firma-nivå** | ✅ Ferdig (målt 2026-09-17 @ `50fd9893`) — `hms.hentFirmaOversikt` aggregerer 4 KPI-er (`apps/api/src/routes/hms.ts:302-460`), rendret i `dashbord/firma/hms/page.tsx:381,405`, i18n `firma.hms.statistikk.*` (`nb.json:3804`). Var planlagt Fase 7 — se § 5 Fase 7. |
+| **Møtemal** | Mangler — Fase 7 (bekreftet 2026-09-17 @ `50fd9893`: 0 kodetreff + 0 i18n) |
+| **Månedsrapport** | Mangler — Fase 7 (bekreftet 2026-09-17 @ `50fd9893`: 0 kodetreff + 0 i18n) |
+| **Street View for byggeplass** | Mangler — eget prosjekt (bekreftet 2026-09-17 @ `50fd9893`: 0 kodetreff + 0 i18n) |
 | Varsling (firma konfigurerer) | Delvis |
 
 ### 1.2 Tilleggsmoduler ✅
@@ -244,7 +244,7 @@ Etablert mønster i tre eksisterende implementasjoner. **Kanon: `EquipmentAssign
 | Type | Modell | Lever i | Mal-bibliotek | Flyt | Status |
 |---|---|---|---|---|---|
 | Prosjekt-sjekkliste | `Checklist` | `db` | `BibliotekMal` (kategori='prosjekt-sjekkliste') | Faggruppe-flyt | Eksisterer |
-| Maskin-sjekkliste | `EquipmentChecklist` | `db-maskin` | `EquipmentChecklistTemplate` (i `db-maskin`) | Enkel: utfører + valgfri godkjenner | Mangler — Fase 1 (sammen med modul-gateway) |
+| Maskin-sjekkliste | `EquipmentChecklist` | `db-maskin` | `EquipmentChecklistTemplate` (i `db-maskin`) | Enkel: utfører + valgfri godkjenner | Mangler — Fase 1 (bekreftet 2026-09-17 @ `50fd9893`: `db-maskin` har 6 modeller — `Equipment`/`EquipmentAnsvarlig`/`EquipmentAssignment`/`ServiceRecord`/`Feilmelding`/`VegvesenKo` — ingen `EquipmentChecklist`; 0 UI-rute/i18n) |
 
 **Cross-package-grense respekteres:** `EquipmentChecklist` referrer til `User.id` som svak String-FK (etablert mønster i db-maskin — se §6).
 
@@ -376,6 +376,8 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 
 ### Fase 2 — Mal-promotering
 
+> ✅ **FERDIG — målt 2026-09-17 @ `50fd9893`.** Alle fire kulepunkt bygget. Kodereferanser i § 1.1-tabellen (raden «Mal-promotering (firma-bibliotek)»). Kulepunktene under er bevart som opprinnelig plan.
+
 - Utvid `BibliotekMal` med kategori/domene/kobletTilModul/verifisert (gjøres egentlig i Fase 0, men Fase 2 utnytter det)
 - `OrganizationTemplate` + `ReportTemplate.organizationTemplateId`
 - UI for «Send til firmabibliotek» på prosjekt-mal
@@ -410,6 +412,8 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 - Strekkode-skanning utvidelser
 
 ### Fase 7 — Prosjekthotell-utvidelser (parallelt spor)
+
+> 🟡 **DELVIS — målt 2026-09-17 @ `50fd9893`.** «HMS-statistikk på firma-nivå» er **bygget** (`hms.hentFirmaOversikt`, `apps/api/src/routes/hms.ts:302-460` + `dashbord/firma/hms/page.tsx`) — kom tidligere enn planlagt. Møtemal, Månedsrapport, Street View og auto-trigger maskin-sjekkliste **gjenstår** (bekreftet mangler samme dato). Kulepunktene under er bevart som opprinnelig plan.
 
 - Møtemal (ny dokumenttype)
 - Månedsrapport (auto-aggregering)
