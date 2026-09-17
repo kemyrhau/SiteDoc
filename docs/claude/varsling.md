@@ -44,6 +44,13 @@ Firma (Organization)
 2. **E-post** — via Resend (allerede satt opp). Daglig oppsummering eller umiddelbar
 3. **Push til mobil** — expo-notifications (fremtidig)
 
+> **📌 Peker (pushvarsel runde A, 2026-09-17):** Push-kanalen over forutsetter et sted å
+> lagre enhets-tokens — det manglet i denne designen. Datalaget for det ligger nå:
+> `PushToken`/`push_tokens` (`packages/db/prisma/schema.prisma`, migrering
+> `20260917140000_push_token`, unik på `token`) + sendetjeneste/nåbarhets-telling i
+> `apps/api/src/services/pushVarsel.ts`. **Rørene fyller kun et hull — modellene i denne
+> fila (`VarslingsRegel` m.fl.) er IKKE bygget** (hendelsesvarsler, utsatt av Kenneth).
+
 ### Oversiktsside
 
 Plassering: **Firmaadministrasjon → Varsling** (firmamodul)
