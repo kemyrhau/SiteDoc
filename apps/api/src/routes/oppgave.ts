@@ -1212,6 +1212,10 @@ export const oppgaveRouter = router({
         select: {
           id: true,
           name: true,
+          // Bundet flyt (bundet-flyt-mobil 2026-09-17): eksponer EGENSKAPEN på gjeldende flyt så
+          // mobil kan speile serversperren. kanByttFlyt/andre/kanFlytte er URØRT — bundet er en
+          // egenskap ved flyten, ikke en rettighet (Kenneth-vedtak).
+          bundet: true,
           faggruppe: { select: { id: true, name: true, color: true } },
           medlemmer: {
             select: {
@@ -1265,6 +1269,7 @@ export const oppgaveRouter = router({
           ? {
               id: gjeldendeFlyt.id,
               name: gjeldendeFlyt.name,
+              bundet: gjeldendeFlyt.bundet,
               faggruppe: gjeldendeFlyt.faggruppe,
               medlemmer: gjeldendeFlyt.medlemmer,
               brukersBoks: finnBrukersBoks(gjeldendeFlyt, tilgang),

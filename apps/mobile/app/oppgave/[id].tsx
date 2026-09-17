@@ -732,6 +732,7 @@ export default function OppgaveDetalj() {
             meg={{ userId: minFlytInfo?.userId, gruppeIder: minFlytInfo?.gruppeIder }}
             overforinger={overforinger}
             flytNavn={(tilgjengeligeFlyter as { gjeldende?: { name?: string | null } | null } | null | undefined)?.gjeldende?.name ?? null}
+            bundet={(tilgjengeligeFlyter as { gjeldende?: { bundet?: boolean } | null } | null | undefined)?.gjeldende?.bundet ?? false}
             formaterTid={formaterHistorikkDato}
           />
         )}

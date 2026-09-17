@@ -1113,6 +1113,9 @@ export const sjekklisteRouter = router({
         select: {
           id: true,
           name: true,
+          // Bundet flyt (bundet-flyt-mobil 2026-09-17): speil av oppgave.ts — eksponer EGENSKAPEN
+          // på gjeldende flyt så mobil kan speile serversperren. kanFlytte/andre er URØRT.
+          bundet: true,
           faggruppe: { select: { id: true, name: true, color: true } },
           medlemmer: {
             select: {
@@ -1167,6 +1170,7 @@ export const sjekklisteRouter = router({
           ? {
               id: gjeldendeFlyt.id,
               name: gjeldendeFlyt.name,
+              bundet: gjeldendeFlyt.bundet,
               faggruppe: gjeldendeFlyt.faggruppe,
               medlemmer: gjeldendeFlyt.medlemmer,
               brukersBoks: finnBrukersBoks(gjeldendeFlyt, tilgang),
