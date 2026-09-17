@@ -2,7 +2,7 @@
 name: LOKALT-OPPSETT
 description: SJEKK-FØRST-landingsside for alt miljø-/DB-/test-oppsett. Filkart over .env-filer + hvilken dyp-doc som svarer på hva. Les denne FØR du spør noen om oppsett.
 status: aktiv
-sist_verifisert_mot_kode: 2026-08-01
+sist_verifisert_mot_kode: 2026-09-17
 ---
 
 # Lokalt oppsett — sjekk-først-landingsside
@@ -45,7 +45,7 @@ Full detalj: **[lokal-dev.md](lokal-dev.md)** (verifisert 2026-07-15). Kort:
 | Lokal dev på Mac (se en endring på localhost, oppdatere test-data, feilsøke) | **[lokal-dev.md](lokal-dev.md)** |
 | iOS-simulator henger / IPv6 / NordVPN | [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md) |
 
-**Kjernefakta e2e (fra README):** suiten kjører **mot test.sitedoc.no** (ikke lokal DB), autentiserer via **dev-login-token** (`DEV_LOGIN_SECRET`), seedes én gang mot `sitedoc_test` via `seed-testbrukere.ts` + `seed-e2e-flyt.ts` (kjøres av Kenneth på server-ny — test-DB er ikke direkte nåbar fra Mac). `data-testid`-ene må være **deployet til test** før suiten er grønn. Det er altså **Vei A (remote)** by design — ikke en lokal sandkasse.
+**Kjernefakta e2e (fra README):** suiten kjører **mot test.sitedoc.no** (ikke lokal DB), autentiserer via **dev-login-token** (`DEV_LOGIN_SECRET`), seedes én gang mot `sitedoc_test` via `seed-testbrukere.ts` + `seed-e2e-flyt.ts` (begge i `packages/db/scripts/`) — kjøres **via SSH-tunnel til `sitedoc_test` på `localhost:5432`**, siden test-DB ikke er direkte nåbar fra Mac (postgres binder kun `127.0.0.1`). 🔴 **`.ts`-seeds går IKKE på server-ny** (ingen `node`/`node_modules`/`.ts`-kilder der, test-api-containeren er et prod-bygg uten `tsx`) — full seede-veileder, inkl. SQL-seeds via `docker cp`, i **[DEPLOY-RUNBOK § 7 Seeding mot test](DEPLOY-RUNBOK.md#7--seeding-mot-test)**. `data-testid`-ene må være **deployet til test** før suiten er grønn. Det er altså **Vei A (remote)** by design — ikke en lokal sandkasse.
 
 ## Eierskap — hvem eier hvilken DB
 
