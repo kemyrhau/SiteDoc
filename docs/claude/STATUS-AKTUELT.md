@@ -18,10 +18,13 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | — |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
-| **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
+| **simulator** | `SiteDoc-simulator` | — | 🔵 **I ARBEID** | SJA-skjermbildegate — etterkontroll mot prod |
+| **deploy** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
+
+> 🔵 **simulator — SJA-skjermbildegate:** SJA-signaturrundene ble deployet 06.09 (`f5d75571`, i main). **Gaten er etterkontroll, ikke en port** — avvik den finner blir nye ordrer, ikke rollback, med mindre de rammer lovpålagt dokumentasjon. Ordrefil: `docs/redesign/ORDRE-verifisering-sja-skjermbildegate-2026-09-17.md`.
 
 ## 🔴 Coworks kø — bestilt, ikke skrevet
 
