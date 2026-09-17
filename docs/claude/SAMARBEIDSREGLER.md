@@ -666,6 +666,19 @@ en løpende ordre. De ser like limbare ut, og Kenneth må gjette hvilken termina
 Ja — commit og push …
 ```
 
+🔴 **PRESISERING av formen over — hver limbar blokk ligger i sin egen fenced kodeblokk.**
+Destinasjonen på første linje sier *hvor* den skal; kodeblokken gir Kenneth kopiknappen som
+får den *dit* uten at han markerer tekst for hånd. Én kodeblokk pr. mottaker — aldri to
+mottakere i samme blokk. Løpende tekst med `→ SiteDoc-x` på første linje oppfyller regelen
+bokstavelig, men tvinger fram manuell markering; det teller ikke som fulgt.
+
+🔴 **PRESISERING av streken — venter cowork på et svar fra Kenneth, får det en egen merket
+overskrift.** Streken samler alt som er til Kenneth, men bolken rommer både status han bare
+skal vite og valg som venter på ham. Skill dem: det cowork trenger svar på står under en
+tydelig **«KREVER SVAR»**-overskrift, atskilt fra status og funn. Er det ingenting som venter,
+skal det STÅ — `Krever svar: ingenting` — så han slipper å lese hele bolken for å finne det ut.
+**En tom «krever svar»-seksjon er informasjon**, ikke noe som utelates.
+
 🔴 **Og alt som er til Kenneth selv skal stå UNDER en tydelig strek**, ikke blandet inn i samme
 melding. Det skjedde 2026-09-01: et klarsignal til dokgen sto over avsnitt om merge-agenten og
 deploy som var til Kenneth. Han limte hele meldingen og måtte spørre om det var feil.
