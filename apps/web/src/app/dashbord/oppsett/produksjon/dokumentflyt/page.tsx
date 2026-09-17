@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, useId, Fragment } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Button, Modal } from "@sitedoc/ui";
@@ -34,6 +34,7 @@ import { nesteAutoFarge, FARGE_MAP as FAGGRUPPE_FARGER } from "../_components/fa
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useMutasjonsFeil, MutasjonsFeil } from "@/components/MutasjonsFeil";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -111,8 +112,8 @@ function BundetFlytVelger({ bundet, onEndre }: { bundet: boolean; onEndre: (v: b
         return (
           <label
             key={String(v.verdi)}
-            className={`flex cursor-pointer gap-2.5 rounded-lg border px-3 py-2 ${
-              valgt ? "border-sitedoc-primary bg-blue-50/50" : "border-gray-200 hover:border-gray-300"
+            className={`flex cursor-pointer gap-2.5 rounded-lg border px-3 py-1.5 ${
+              valgt ? "border-sitedoc-primary bg-blue-50/50" : "border-gray-100 hover:border-gray-300"
             }`}
           >
             <input
@@ -179,6 +180,7 @@ function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string;
   const [visInput, setVisInput] = useState(false);
   const [navn, setNavn] = useState("");
   const [bundet, setBundet] = useState(false);
+  const navnFeltId = useId();
 
   const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
     onSuccess: () => {
@@ -211,31 +213,48 @@ function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string;
     if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim(), bundet });
   };
 
+  // Navnet er det påkrevde feltet; knappen er sperret så lenge det er tomt. `manglerNavn`
+  // skiller «tomt navn»-sperren fra `isPending`-sperren: kun den første får forklaring
+  // (ved isPending er `loading`-spinneren alt signalet).
+  const manglerNavn = !navn.trim();
+
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50/50 p-3">
-      <input
-        type="text"
-        value={navn}
-        onChange={(e) => setNavn(e.target.value)}
-        placeholder={t("dokumentflyt.dokumentflytNavn")}
-        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-        autoFocus
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && navn.trim()) opprett();
-          if (e.key === "Escape") lukk();
-        }}
-      />
+      {/* Løft navnefeltet til primært: synlig label + påkrevd-markør over selve inputen, plassert
+          først. Det er det påkrevde feltet — det skal veie tyngre enn det valgfrie flytvalget. */}
+      <div className="flex flex-col gap-1">
+        <label htmlFor={navnFeltId} className="text-sm font-semibold text-gray-700">
+          {t("dokumentflyt.navnLabel")}{" "}
+          <span className="text-sitedoc-error" aria-hidden="true">*</span>
+        </label>
+        <input
+          id={navnFeltId}
+          type="text"
+          value={navn}
+          onChange={(e) => setNavn(e.target.value)}
+          placeholder={t("dokumentflyt.dokumentflytNavn")}
+          aria-required="true"
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && navn.trim()) opprett();
+            if (e.key === "Escape") lukk();
+          }}
+        />
+      </div>
       {/* Ramme 1: to radiovalg — default («Fri flyt · standard») synlig som ord, ikke bryterstilling. */}
       <BundetFlytVelger bundet={bundet} onEndre={setBundet} />
       <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          onClick={opprett}
-          disabled={!navn.trim() || opprettMutation.isPending}
-          loading={opprettMutation.isPending}
-        >
-          {t("handling.opprett")}
-        </Button>
+        <KnappMedForklaring sperret={manglerNavn && !opprettMutation.isPending} forklaring={t("dokumentflyt.opprettManglerNavn")}>
+          <Button
+            size="sm"
+            onClick={opprett}
+            disabled={manglerNavn || opprettMutation.isPending}
+            loading={opprettMutation.isPending}
+          >
+            {t("handling.opprett")}
+          </Button>
+        </KnappMedForklaring>
         <Button size="sm" variant="secondary" onClick={lukk}>
           {t("handling.avbryt")}
         </Button>
@@ -1562,22 +1581,24 @@ export default function KontakterSide() {
               if (e.key === "Escape") { setVisNyFaggruppe(false); setNyFaggruppeNavn(""); }
             }}
           />
-          <button
-            onClick={() => {
-              if (nyFaggruppeNavn.trim()) {
-                opprettFaggruppeMutation.mutate({
-                  name: nyFaggruppeNavn.trim(),
-                  projectId: prosjektId!,
-                  color: nesteAutoFarge(alleFaggrupper.map((e) => e.color)),
-                  memberIds: [],
-                });
-              }
-            }}
-            disabled={!nyFaggruppeNavn.trim()}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {t("handling.lagre")}
-          </button>
+          <KnappMedForklaring sperret={!nyFaggruppeNavn.trim()} forklaring={t("faggrupper.lagreManglerNavn")}>
+            <button
+              onClick={() => {
+                if (nyFaggruppeNavn.trim()) {
+                  opprettFaggruppeMutation.mutate({
+                    name: nyFaggruppeNavn.trim(),
+                    projectId: prosjektId!,
+                    color: nesteAutoFarge(alleFaggrupper.map((e) => e.color)),
+                    memberIds: [],
+                  });
+                }
+              }}
+              disabled={!nyFaggruppeNavn.trim()}
+              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {t("handling.lagre")}
+            </button>
+          </KnappMedForklaring>
           <button
             onClick={() => { setVisNyFaggruppe(false); setNyFaggruppeNavn(""); }}
             className="rounded px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
