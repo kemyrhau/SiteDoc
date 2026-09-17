@@ -16,7 +16,7 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, ChevronDown } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, Anchor } from "lucide-react";
 import { Modal } from "@sitedoc/ui";
 import type { VideresendMedlem, VideresendValg } from "@/lib/videresend-valg";
 import { mottakerNavnIValg } from "@/lib/videresend-valg";
@@ -47,6 +47,13 @@ interface VideresendMottakervelgerProps {
   andreFlyter: VideresendValg[];
   /** Server-gaten (`kanByttFlyt` via hentTilgjengeligeFlyter): styrer om «Andre flyter» vises. */
   kanByttFlyt: boolean;
+  /**
+   * Bundet flyt (bundet-flyt-tegning 2026-09-16, ramme 3): dokumentets EGEN flyt er bundet →
+   * «Andre flyter» skal ALDRI vises, uansett `kanByttFlyt` (bundet er en EGENSKAP ved flyten,
+   * ikke en rettighet). I stedet vises en rolig fotnote med anker som forklarer fraværet — samme
+   * for admin. Serveren håndhever sperren; dette er kun å gjøre fraværet forståelig.
+   */
+  egenFlytBundet?: boolean;
   erLaster?: boolean;
   onVideresend: (mottaker: VideresendMottaker, kommentar: string | undefined) => void;
 }
@@ -63,6 +70,7 @@ export function VideresendMottakervelger({
   recipientGroupId,
   andreFlyter,
   kanByttFlyt,
+  egenFlytBundet,
   erLaster,
   onVideresend,
 }: VideresendMottakervelgerProps) {
@@ -264,8 +272,21 @@ export function VideresendMottakervelger({
           </div>
         )}
 
-        {/* Seksjon: Andre flyter (kun når kanByttFlyt) */}
-        {kanByttFlyt && andreFlyter.length > 0 && (
+        {/* Ramme 3: bundet flyt → «Andre flyter» forsvinner IKKE stille. En rolig fotnote med
+            anker forklarer at fraværet er med vilje. Siste setning avviser rettighets-lesningen —
+            samme fotnote for admin (bundet er en egenskap ved flyten, ikke en rettighet). */}
+        {egenFlytBundet && (
+          <div
+            data-testid="videresend-bundet-fotnote"
+            className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-[13px] leading-relaxed text-gray-600"
+          >
+            <Anchor className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+            <span>{t("videresend.bundetFotnote")}</span>
+          </div>
+        )}
+
+        {/* Seksjon: Andre flyter (kun når kanByttFlyt OG flyten ikke er bundet) */}
+        {!egenFlytBundet && kanByttFlyt && andreFlyter.length > 0 && (
           <div>
             <div className="px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-amber-700">
               {t("videresend.seksjonAndreFlyter")}

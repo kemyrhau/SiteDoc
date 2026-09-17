@@ -41,6 +41,7 @@ beforeAll(async () => {
           "videresend.modalTittel": "Videresend dokument",
           "videresend.seksjonEgenFlyt": "I denne flyten",
           "videresend.seksjonAndreFlyter": "Andre flyter",
+          "videresend.bundetFotnote": "Bundet flyt. Dokumentene hører hjemme i denne flyten og kan ikke flyttes til andre flyter. Det gjelder alle i prosjektet, ikke bare deg.",
           "videresend.harBallen": "har ballen",
           "videresend.antallPersoner": "{{antall}} personer",
           "videresend.konsekvensLinje": "Flytter dokumentet til flyten «{{flyt}}»",
@@ -198,5 +199,25 @@ describe("VideresendMottakervelger — to seksjoner + bekreftelse ved flyt-bytte
     rendr({ kanByttFlyt: true, dokumentTittel: "Befaringsnotat" });
     fireEvent.click(screen.getByTestId("videresend-andre-fgE"));
     expect(screen.getByText("Flytt «Befaringsnotat»?")).toBeTruthy();
+  });
+
+  // Bundet flyt (ramme 3): «Andre flyter» skal IKKE vises for en bundet flyt — selv når
+  // kanByttFlyt=true (bundet er en EGENSKAP ved flyten, ikke en rettighet). Denne testen FEILER
+  // hvis sperren ikke virker i UI: uten den vet vi ikke at fotnoten erstatter valglista.
+  it("bundet flyt: «Andre flyter» skjult tross kanByttFlyt=true, fotnote vist i stedet", () => {
+    rendr({ kanByttFlyt: true, egenFlytBundet: true });
+    // Valglista er borte — ingen flyt-bytte-valg, verken seksjon eller rad.
+    expect(screen.queryByText("Andre flyter")).toBeNull();
+    expect(screen.queryByTestId("videresend-andre-fgE")).toBeNull();
+    // Fotnoten forklarer fraværet, og siste setning avviser rettighets-lesningen.
+    expect(screen.getByTestId("videresend-bundet-fotnote")).toBeTruthy();
+    expect(screen.getByText(/Det gjelder alle i prosjektet, ikke bare deg\./)).toBeTruthy();
+  });
+
+  // Fri flyt (default): fotnoten skal IKKE vises, «Andre flyter» skal.
+  it("fri flyt: ingen bundet-fotnote, «Andre flyter» vises", () => {
+    rendr({ kanByttFlyt: true, egenFlytBundet: false });
+    expect(screen.queryByTestId("videresend-bundet-fotnote")).toBeNull();
+    expect(screen.getByText("Andre flyter")).toBeTruthy();
   });
 });

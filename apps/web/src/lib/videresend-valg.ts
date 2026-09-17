@@ -38,6 +38,9 @@ export interface VideresendValg {
 export interface DokumentflytData {
   id: string;
   name: string;
+  /** Bundet flyt (bundet-flyt-tegning 2026-09-16): dokumentene kan ikke flyttes til andre flyter.
+   * Presentasjon — serveren håndhever sperren; klienten skjuler «Andre flyter» og viser fotnoten. */
+  bundet?: boolean;
   faggruppeId: string | null;
   roller: Array<{ rolle: string; label?: string | null }>;
   maler: Array<{ template: { id: string } }>;

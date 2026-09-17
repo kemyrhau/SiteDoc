@@ -640,6 +640,7 @@ export function DokumentHandlingsmeny({
         </span>
         <input
           type="text"
+          data-testid="bekreft-begrunnelse-input"
           value={kommentar}
           onChange={(e) => setKommentar(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !manglerBegrunnelse) utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker); }}
@@ -649,6 +650,7 @@ export function DokumentHandlingsmeny({
         />
         <div className="flex items-center gap-2 shrink-0">
           <button
+            data-testid="bekreft-begrunnelse-send"
             onClick={() => utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker)}
             disabled={erLaster || manglerBegrunnelse}
             className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
@@ -705,7 +707,11 @@ export function DokumentHandlingsmeny({
   // flyt-definisjonen (robust); «Andre flyter» = medlemskaps-filtrert liste minus egen flyt.
   const egenFlytMedlemmer = medlemmerForFlyt(dokumentflyter ?? [], aktivDokumentflytId);
   const andreFlyter = videresendMottakere.filter((v) => v.dokumentflytId !== aktivDokumentflytId);
-  const egenFlytNavn = dokumentflyter?.find((df) => df.id === aktivDokumentflytId)?.name;
+  const egenFlyt = dokumentflyter?.find((df) => df.id === aktivDokumentflytId);
+  const egenFlytNavn = egenFlyt?.name;
+  // Ramme 3 (bundet-flyt-tegning): dokumentets egen flyt bundet → velgeren viser fotnote i stedet
+  // for «Andre flyter». Egenskap ved flyten, ikke rettighet (uavhengig av kanByttFlyt).
+  const egenFlytBundet = egenFlyt?.bundet ?? false;
   const ballHolderNavn = finnMottakerNavn(flytMedlemmer ?? [], recipientUserId, recipientGroupId);
   const videresendModal = visVideresendModal ? (
     <VideresendMottakervelger
@@ -720,6 +726,7 @@ export function DokumentHandlingsmeny({
       recipientGroupId={recipientGroupId}
       andreFlyter={andreFlyter}
       kanByttFlyt={kanByttFlyt ?? false}
+      egenFlytBundet={egenFlytBundet}
       erLaster={erLaster}
       onVideresend={(mottaker, kommentar) => {
         onEndreStatus("forwarded", forwardedTekstNoekkel, kommentar, mottaker);

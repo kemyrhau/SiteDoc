@@ -3,7 +3,7 @@
 import { useState, useMemo, Fragment } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
-import { Spinner, Button } from "@sitedoc/ui";
+import { Spinner, Button, Modal } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
@@ -21,6 +21,7 @@ import {
   Plus,
   Trash2,
   Pencil,
+  Anchor,
 } from "lucide-react";
 import {
   LeggTilMedlemDropdown,
@@ -82,10 +83,57 @@ interface RolleKonfig {
 interface Dokumentflyt {
   id: string;
   name: string;
+  /** Bundet flyt (bundet-flyt-tegning 2026-09-16): dokumentene kan ikke flyttes til andre flyter. */
+  bundet: boolean;
   faggruppeId: string | null;
   roller: RolleKonfig[];
   medlemmer: DokumentflytMedlem[];
   maler: Array<{ template: { id: string; name: string; category: string } }>;
+}
+
+/* ------------------------------------------------------------------ */
+/*  BundetFlytVelger — to radiovalg (ramme 1), gjenbrukt i opprett     */
+/* ------------------------------------------------------------------ */
+
+function BundetFlytVelger({ bundet, onEndre }: { bundet: boolean; onEndre: (v: boolean) => void }) {
+  const { t } = useTranslation();
+  const valg: Array<{ verdi: boolean; navn: string; forklaring: string }> = [
+    { verdi: false, navn: t("dokumentflyt.bundet.friNavn"), forklaring: t("dokumentflyt.bundet.friForklaring") },
+    { verdi: true, navn: t("dokumentflyt.bundet.bundetNavn"), forklaring: t("dokumentflyt.bundet.bundetForklaring") },
+  ];
+  return (
+    <fieldset className="flex flex-col gap-1.5">
+      <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        {t("dokumentflyt.bundet.seksjon")}
+      </legend>
+      {valg.map((v) => {
+        const valgt = bundet === v.verdi;
+        return (
+          <label
+            key={String(v.verdi)}
+            className={`flex cursor-pointer gap-2.5 rounded-lg border px-3 py-2 ${
+              valgt ? "border-sitedoc-primary bg-blue-50/50" : "border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <input
+              type="radio"
+              name="bundet-flyt"
+              checked={valgt}
+              onChange={() => onEndre(v.verdi)}
+              className="mt-0.5 shrink-0 accent-sitedoc-primary"
+            />
+            <span className="flex flex-col">
+              <span className="flex items-center gap-1 text-sm font-medium text-gray-800">
+                {v.navn}
+                {v.verdi && <Anchor className="h-3.5 w-3.5 text-gray-400" />}
+              </span>
+              <span className="text-[11px] leading-snug text-gray-500">{v.forklaring}</span>
+            </span>
+          </label>
+        );
+      })}
+    </fieldset>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -130,6 +178,7 @@ function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string;
   const mutFeil = useMutasjonsFeil();
   const [visInput, setVisInput] = useState(false);
   const [navn, setNavn] = useState("");
+  const [bundet, setBundet] = useState(false);
 
   const opprettMutation = trpc.dokumentflyt.opprett.useMutation({
     onSuccess: () => {
@@ -137,6 +186,7 @@ function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string;
       utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
       setVisInput(false);
       setNavn("");
+      setBundet(false);
     },
     onError: mutFeil.onError,
   });
@@ -156,34 +206,37 @@ function NyDokumentflytKnapp({ faggruppeId, prosjektId }: { faggruppeId: string;
     );
   }
 
+  const lukk = () => { setVisInput(false); setNavn(""); setBundet(false); };
+  const opprett = () => {
+    if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim(), bundet });
+  };
+
   return (
-    <div>
+    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50/50 p-3">
+      <input
+        type="text"
+        value={navn}
+        onChange={(e) => setNavn(e.target.value)}
+        placeholder={t("dokumentflyt.dokumentflytNavn")}
+        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && navn.trim()) opprett();
+          if (e.key === "Escape") lukk();
+        }}
+      />
+      {/* Ramme 1: to radiovalg — default («Fri flyt · standard») synlig som ord, ikke bryterstilling. */}
+      <BundetFlytVelger bundet={bundet} onEndre={setBundet} />
       <div className="flex items-center gap-2">
-        <input
-          type="text"
-          value={navn}
-          onChange={(e) => setNavn(e.target.value)}
-          placeholder={t("dokumentflyt.dokumentflytNavn")}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-          autoFocus
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && navn.trim()) {
-              opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
-            }
-            if (e.key === "Escape") { setVisInput(false); setNavn(""); }
-          }}
-        />
         <Button
           size="sm"
-          onClick={() => {
-            if (navn.trim()) opprettMutation.mutate({ projectId: prosjektId, faggruppeId, name: navn.trim() });
-          }}
+          onClick={opprett}
           disabled={!navn.trim() || opprettMutation.isPending}
           loading={opprettMutation.isPending}
         >
           {t("handling.opprett")}
         </Button>
-        <Button size="sm" variant="secondary" onClick={() => { setVisInput(false); setNavn(""); }}>
+        <Button size="sm" variant="secondary" onClick={lukk}>
           {t("handling.avbryt")}
         </Button>
       </div>
@@ -244,6 +297,15 @@ function DokumentflytKort({
     onError: mutFeil.onError,
   });
 
+  // Ramme 2: bind/åpne flyten etterpå — bekreftelsesmodal med konsekvenstekst (kun prosjektadmin).
+  const [visBundetModal, setVisBundetModal] = useState(false);
+  const settBundet = (verdi: boolean) => {
+    oppdaterMutation.mutate(
+      { id: df.id, projectId: prosjektId, bundet: verdi },
+      { onSuccess: () => setVisBundetModal(false) },
+    );
+  };
+
   const tilknyttedeMalIder = new Set(df.maler.map((m) => m.template.id));
 
   const toggleMal = (malId: string) => {
@@ -288,19 +350,78 @@ function DokumentflytKort({
               <X className="h-4 w-4" />
             </button>
           </div>
-        ) : erFlytAdmin ? (
-          <button
-            onClick={() => setErRedigering(true)}
-            className="flex-1 text-left text-sm font-semibold text-gray-700 hover:text-blue-600"
-            title={t("handling.rediger")}
-          >
-            {df.name}
-          </button>
         ) : (
-          // G: ikke-admin ser navnet som ren tekst (ingen rediger-trigger).
-          <span className="flex-1 text-left text-sm font-semibold text-gray-700">{df.name}</span>
+          <>
+            {erFlytAdmin ? (
+              <button
+                onClick={() => setErRedigering(true)}
+                className="text-left text-sm font-semibold text-gray-700 hover:text-blue-600"
+                title={t("handling.rediger")}
+              >
+                {df.name}
+              </button>
+            ) : (
+              // G: ikke-admin ser navnet som ren tekst (ingen rediger-trigger).
+              <span className="text-left text-sm font-semibold text-gray-700">{df.name}</span>
+            )}
+            {/* Ramme 4: anker rett etter navnet — kun på bundne flyter (fri flyt = ingen symbol). */}
+            {df.bundet && (
+              <Anchor className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-label={t("dokumentflyt.bundet.ankerTooltip")} />
+            )}
+            <span className="flex-1" />
+            {/* Ramme 2: bind/åpne-bryter — kun admin, åpner bekreftelsesmodal med konsekvenstekst. */}
+            {erFlytAdmin && (
+              <button
+                onClick={() => setVisBundetModal(true)}
+                className="shrink-0 rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-600"
+                title={df.bundet ? t("dokumentflyt.bundet.aapneHandling") : t("dokumentflyt.bundet.bindHandling")}
+              >
+                <Anchor className={`h-3.5 w-3.5 ${df.bundet ? "text-sitedoc-primary" : ""}`} />
+              </button>
+            )}
+          </>
         )}
       </div>
+
+      {/* Ramme 2: bekreftelsesmodal (bind/åpne), begge veier, med konsekvenstekst. */}
+      <Modal
+        open={visBundetModal}
+        onClose={() => setVisBundetModal(false)}
+        title={df.bundet
+          ? t("dokumentflyt.bundet.aapneTittel", { navn: df.name })
+          : t("dokumentflyt.bundet.bindTittel", { navn: df.name })}
+        className="max-w-md"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
+            {df.bundet ? (
+              <div>{t("dokumentflyt.bundet.aapneK1")}</div>
+            ) : (
+              <>
+                <div>{t("dokumentflyt.bundet.bindK1")}</div>
+                <div className="mt-1">{t("dokumentflyt.bundet.bindK2")}</div>
+                <div className="mt-1">{t("dokumentflyt.bundet.bindK3")}</div>
+              </>
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => setVisBundetModal(false)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {t("handling.avbryt")}
+            </button>
+            <button
+              onClick={() => settBundet(!df.bundet)}
+              disabled={oppdaterMutation.isPending}
+              className="flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {!df.bundet && <Anchor className="h-4 w-4" />}
+              {df.bundet ? t("dokumentflyt.bundet.aapneKnapp") : t("dokumentflyt.bundet.bindKnapp")}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <MutasjonsFeil melding={mutFeil.feil} />
 
@@ -1334,6 +1455,10 @@ export default function KontakterSide() {
                           return (
                             <div key={df.id} className="flex items-center gap-1.5 text-xs">
                               <span className="font-medium text-gray-600">{df.name}</span>
+                              {/* Ramme 4: anker rett etter navnet i flytlista — kun bundne flyter. */}
+                              {df.bundet && (
+                                <Anchor className="h-3 w-3 shrink-0 text-gray-400" aria-label={t("dokumentflyt.bundet.ankerTooltip")} />
+                              )}
                               {rolleNavn.length > 0 && (
                                 <span className="text-gray-400">
                                   ({rolleNavn.join(" → ")})
