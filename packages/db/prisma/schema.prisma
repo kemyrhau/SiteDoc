@@ -2566,6 +2566,39 @@ model Activity {
 }
 
 // ---------------------------------------------------------------------------
+// PushToken — knytter en bruker til én registrert enhet (Expo push-token).
+// Pushvarsel runde A (2026-09-17, Kenneth-gatet). Rene rør: ingen UI, ingen regler.
+//
+// SVAK String-FK på userId (BEVISST INGEN @relation, som Activity over):
+//   · holder User-modellen HELT urørt (et @relation ville krevd en pushTokens[]-linje
+//     inn i User → «Ingen eksisterende tabell endres» ville brutt)
+//   · en enhets-token er ikke persondata på samme måte som en audit-rad, men samme
+//     svake-FK-mønster passer: raden peker på en bruker uten å binde User-skjemaet.
+//
+// UNIK på token (krav 2b, «stille tomhet»): token er ENHETENS identitet. Samme telefon
+// skal aldri gi dobbelt varsel → én rad pr. token. Registrering (runde B) UPSERT-er på
+// token: ny bruker på samme enhet overtar raden («siste innlogging vinner» — enheten har
+// alltid nøyaktig én innlogget bruker). Samme bruker på NY telefon får en NY rad → varsles
+// på begge enheter. CREATE UNIQUE INDEX feiler høyt ved duplikat (tilsiktet).
+//
+// Ingen backfill (krav 2a): det finnes ingen historiske enhets-tokens å fylle inn.
+// Kanalen oppstår først når en app registrerer seg — tabellen fødes tom med hensikt,
+// ikke som en felle. En bruker uten en rad her er per definisjon IKKE nåbar (krav 4).
+// ---------------------------------------------------------------------------
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  plattform String // "ios" | "android"
+  sistSett  DateTime @map("sist_sett") @db.Timestamptz
+  opprettet DateTime @default(now()) @map("opprettet") @db.Timestamptz
+
+  @@index([userId])
+  @@map("push_tokens")
+}
+
+// ---------------------------------------------------------------------------
 // ExternalCostObject — felles kostnadsbærer-referanse (Underprosjekt i UI)
 // Per fase-0-beslutninger.md § A.1 + § E steg 11.
 // Refereres av Timer-modul (Fase 3) og Godkjenning-dokumentflyt (E.12).
