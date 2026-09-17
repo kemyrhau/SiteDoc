@@ -34,6 +34,7 @@ const ids = {
   oppgaveIBundet: "",
   oppgaveIBundet2: "",
   oppgaveIFri: "",
+  oppgaveIFriLes: "",
   sjekklisteIBundet: "",
 };
 
@@ -98,9 +99,20 @@ beforeAll(async () => {
   ids.friFlytId = await lagFlyt("Tømrer — montasje (fri)", false);
   ids.malFlytId = await lagFlyt("Varsel — B12 (mål)", false);
 
+  // Koble malen til flytene så `hentTilgjengeligeFlyter` (som filtrerer alleFlyter på
+  // `maler.some.templateId`) returnerer `gjeldende` non-null for dokumenter på disse flytene.
+  await prisma.dokumentflytMal.createMany({
+    data: [
+      { dokumentflytId: ids.bundetFlytId, templateId: ids.templateId },
+      { dokumentflytId: ids.friFlytId, templateId: ids.templateId },
+    ],
+  });
+
   ids.oppgaveIBundet = await lagOppgave("EM-014 i bundet flyt", ids.bundetFlytId);
   ids.oppgaveIBundet2 = await lagOppgave("EM-015 i bundet flyt", ids.bundetFlytId);
   ids.oppgaveIFri = await lagOppgave("Montasje-oppgave i fri flyt", ids.friFlytId);
+  // Egen fri-oppgave KUN for lese-testen (6) — `oppgaveIFri` flyt-byttes bort i test (3).
+  ids.oppgaveIFriLes = await lagOppgave("Les-oppgave i fri flyt", ids.friFlytId);
 
   const cl = await prisma.checklist.create({
     data: {
@@ -209,5 +221,24 @@ describe("bundet flyt — serversperre mot flyt-bytte (fabel-tegning 2026-09-16)
 
     const etter = await prisma.checklist.findUniqueOrThrow({ where: { id: ids.sjekklisteIBundet } });
     expect(etter.dokumentflytId).toBe(ids.bundetFlytId);
+  });
+
+  // Bundet flyt — MOBIL (bundet-flyt-mobil 2026-09-17): `hentTilgjengeligeFlyter.gjeldende` MÅ
+  // bære `bundet` så mobil kan speile serversperren (den leser gjeldende, ikke prosjektflytlista
+  // som web). Uten disse ville feltet kunne falle tomt stille — mobil får da rettighets-lesningen
+  // fotnoten ble skrevet for å avvise. Krav (c): FEILER hvis feltet mangler på gjeldende.
+  it("(5) hentTilgjengeligeFlyter.gjeldende.bundet = true for en bundet flyt (oppgave)", async () => {
+    const res = await oppgaveRouter.createCaller(ctx()).hentTilgjengeligeFlyter({ id: ids.oppgaveIBundet });
+    expect(res.gjeldende?.bundet).toBe(true);
+  });
+
+  it("(6) hentTilgjengeligeFlyter.gjeldende.bundet = false for en fri flyt (beviser ikke alltid true)", async () => {
+    const res = await oppgaveRouter.createCaller(ctx()).hentTilgjengeligeFlyter({ id: ids.oppgaveIFriLes });
+    expect(res.gjeldende?.bundet).toBe(false);
+  });
+
+  it("(7) hentTilgjengeligeFlyter.gjeldende.bundet = true også for sjekkliste-routeren", async () => {
+    const res = await sjekklisteRouter.createCaller(ctx()).hentTilgjengeligeFlyter({ id: ids.sjekklisteIBundet });
+    expect(res.gjeldende?.bundet).toBe(true);
   });
 });

@@ -15,7 +15,7 @@
 
 import { useMemo, useState } from "react";
 import { View, Text, Pressable, Modal, ScrollView } from "react-native";
-import { Star, X } from "lucide-react-native";
+import { Star, X, Anchor } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   byggLedd,
@@ -50,6 +50,9 @@ interface FlytlinjeProps {
   /** Skjermens dato-formaterer (unngår Date-avhengighet i komponenten). */
   /** Runde-2 (#7/#8): dokumentflytens navn — vises i sheet-tittelen (mobil-header uendret). */
   flytNavn?: string | null;
+  /** Bundet flyt (bundet-flyt-mobil 2026-09-17): anker etter flytnavnet — kun bundne flyter
+   * (fri flyt = intet symbol, fravær er signalet). Speiler web sin dokumentvisning. */
+  bundet?: boolean;
   formaterTid: (dato: string | Date) => string;
 }
 
@@ -63,6 +66,7 @@ export function Flytlinje({
   meg,
   overforinger,
   flytNavn,
+  bundet,
   formaterTid,
 }: FlytlinjeProps) {
   const { t } = useTranslation();
@@ -151,6 +155,7 @@ export function Flytlinje({
         meg={meg}
         overforinger={overforinger}
         flytNavn={flytNavn}
+        bundet={bundet}
         formaterTid={formaterTid}
       />
     </>
@@ -170,6 +175,7 @@ function FlytSheet({
   meg,
   overforinger,
   flytNavn,
+  bundet,
   formaterTid,
 }: {
   synlig: boolean;
@@ -180,6 +186,7 @@ function FlytSheet({
   meg?: MegInfo;
   overforinger?: Overforing[];
   flytNavn?: string | null;
+  bundet?: boolean;
   formaterTid: (dato: string | Date) => string;
 }) {
   const { t } = useTranslation();
@@ -192,9 +199,13 @@ function FlytSheet({
           <View className="mb-3 flex-row items-center justify-between">
             {/* Runde-2 (#7/#8): flyt-navnet som tittel, «Dokumentflyt» som undertekst (mobil-header uendret). */}
             <View>
-              <Text className="text-base font-semibold text-gray-800">
-                {flytNavn ?? t("flytlinje.flytTittel")}
-              </Text>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-base font-semibold text-gray-800">
+                  {flytNavn ?? t("flytlinje.flytTittel")}
+                </Text>
+                {/* Steg 3: anker etter flytnavnet — kun bundne flyter. Fri flyt = intet symbol. */}
+                {bundet && <Anchor size={15} color="#6b7280" />}
+              </View>
               {flytNavn && <Text className="text-[11px] text-gray-400">{t("flytlinje.flytTittel")}</Text>}
             </View>
             <Pressable onPress={onLukk} hitSlop={8} className="flex-row items-center gap-1">
