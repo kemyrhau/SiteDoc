@@ -7,7 +7,7 @@ import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift, ekspanderEndring, byggKolonnerPerFelt } from "@sitedoc/pdf";
 import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/pdf";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight, Anchor } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -176,6 +176,10 @@ export default function SjekklisteDetaljSide() {
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
     mineTillatelser,
   });
+
+  // Ramme 4 (bundet-flyt-tegning): anker i flyt-merket når dokumentets egen flyt er bundet.
+  const egenDokflytId = (fullSjekklisteRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? undefined;
+  const egenFlytBundet = dokumentflyter.find((df) => df.id === egenDokflytId)?.bundet ?? false;
 
   // --- Skjema-hook med rettighetsinfo ---
 
@@ -768,7 +772,12 @@ export default function SjekklisteDetaljSide() {
           <div className="mt-2">
             {/* Runde-2 (#7/#8): flyt-navn som caption over flytlinja (f.eks. «Sitedoc Ansatte»). */}
             {flytNavn && (
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{flytNavn}</div>
+              <div className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                {flytNavn}
+                {egenFlytBundet && (
+                  <Anchor className="h-3 w-3 shrink-0" aria-label={t("dokumentflyt.bundet.ankerTooltip")} />
+                )}
+              </div>
             )}
             <div className="hidden sm:block">
               <FlytIndikator

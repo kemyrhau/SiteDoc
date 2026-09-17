@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert, Download, Anchor } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
@@ -318,6 +318,10 @@ export default function OppgaveDetaljSide() {
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
     mineTillatelser,
   });
+
+  // Ramme 4 (bundet-flyt-tegning): anker i flyt-merket når dokumentets egen flyt er bundet.
+  const egenDokflytId = (fullOppgaveRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? undefined;
+  const egenFlytBundet = dokumentflyter.find((df) => df.id === egenDokflytId)?.bundet ?? false;
 
   // --- Skjema-hook med rettighetsinfo ---
 
@@ -797,7 +801,12 @@ export default function OppgaveDetaljSide() {
           <div className="mt-2">
             {/* Runde-2 (#7/#8): flyt-navn som caption over flytlinja (f.eks. «Sitedoc Ansatte»). */}
             {flytNavn && (
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{flytNavn}</div>
+              <div className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                {flytNavn}
+                {egenFlytBundet && (
+                  <Anchor className="h-3 w-3 shrink-0" aria-label={t("dokumentflyt.bundet.ankerTooltip")} />
+                )}
+              </div>
             )}
             {/* Desktop: full flyt */}
             <div className="hidden sm:block">
