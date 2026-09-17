@@ -18,13 +18,13 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | — |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
-| **simulator** | `SiteDoc-simulator` | — | 🔵 **I ARBEID** | SJA-skjermbildegate — etterkontroll mot prod |
+| **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
 
-> 🔵 **simulator — SJA-skjermbildegate:** SJA-signaturrundene ble deployet 06.09 (`f5d75571`, i main). **Gaten er etterkontroll, ikke en port** — avvik den finner blir nye ordrer, ikke rollback, med mindre de rammer lovpålagt dokumentasjon. Ordrefil: `docs/redesign/ORDRE-verifisering-sja-skjermbildegate-2026-09-17.md`.
+> ✅ **SJA-skjermbildegate — LUKKET 2026-09-17 (etterkontroll, delvis dekket).** SJA-signaturrundene er i prod (release-merge `ad18df93`). Etterkontrollen var en port for avvik, ikke rollback. **Flate 3 (signering på egen rad) er IKKE DEKKET:** demodataen har allerede Kenneths rad signert, og Kenneth vedtok 2026-09-17 «la SJA være» — de radene er BEVIS på at funksjonen virket, ikke støy å nullstille (`packages/db/prisma/reset-sja-runde2.sql`, merket «SKAL IKKE KJØRES»). Skal flate 3 verifiseres senere, seedes et NYTT demo-SJA ved siden av (se [DEPLOY-RUNBOK § 7](DEPLOY-RUNBOK.md#7--seeding-mot-test)). Ordrefil: `docs/redesign/ORDRE-verifisering-sja-skjermbildegate-2026-09-17.md`.
 
 ## 🔴 Coworks kø — bestilt, ikke skrevet
 
