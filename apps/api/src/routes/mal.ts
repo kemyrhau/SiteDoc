@@ -162,28 +162,57 @@ const configSchema = z.preprocess(
   z.record(z.string(), z.unknown()),
 ) as z.ZodType<Record<string, unknown>>;
 
-// Subdomain ↔ category-mapping (vedtatt 2026-05-29).
-// avvik+ruh bruker task-shape (oppgave); sja bruker checklist-shape.
-// HMS-fanene i hms.ts er hardkodet til disse datakildene — feilkombinasjon
-// gjør at dokumenter opprettes i feil tabell og forsvinner stille fra alle
-// visninger (HMS-fanen ekskluderer feil tabell; Oppgaver/Sjekklister-fanen
-// ekskluderer fordi domain="hms" filtreres bort der).
-function valideerSubdomainCategory(
-  subdomain: "avvik" | "sja" | "ruh" | null | undefined,
+// 🔴 ÉN EIER for lovlige (domain, subdomain)-par (svar-kontraktssak-domain-vs-subdomain
+// § 3). Valideringen leser DENNE, ikke en schema-kommentar som kan drifte. Neste leser
+// møter regelen der den håndheves. `subdomain` = undertype INNENFOR domenet:
+//   hms → avvik/sja/ruh (HMS-undertype) · bygg → kontrakt (Kontraktssak) · kvalitet → (ingen)
+const LOVLIG_SUBDOMAIN: Record<string, readonly string[]> = {
+  hms: ["avvik", "sja", "ruh"],
+  bygg: ["kontrakt"],
+  kvalitet: [],
+};
+
+// subdomain → påkrevd category (dokument-form/datatabell). avvik+ruh+kontrakt bruker
+// task-shape (oppgave); sja bruker checklist-shape. HMS-fanene i hms.ts er hardkodet til
+// disse datakildene — feil kombinasjon gjør at dokumenter opprettes i feil tabell og
+// forsvinner stille fra alle visninger.
+const SUBDOMAIN_FORM: Record<string, "oppgave" | "sjekkliste"> = {
+  avvik: "oppgave",
+  ruh: "oppgave",
+  sja: "sjekkliste",
+  kontrakt: "oppgave",
+};
+
+/**
+ * Validerer at (domain, subdomain, category) er en lovlig kombinasjon.
+ * 1) (domain, subdomain) må stå i LOVLIG_SUBDOMAIN. 🔴 Kontraktssak er ALDRI HMS
+ *    (uansett akse den kommer inn på) — egen klartekst.
+ * 2) subdomain må matche dokument-formen (SUBDOMAIN_FORM). HMS hopper over form-sjekken:
+ *    der bestemmer subdomain datatabellen, ikke category.
+ */
+export function valideerSubdomainKombinasjon(
+  domain: string | undefined,
+  subdomain: string | null | undefined,
   category: "oppgave" | "sjekkliste" | "hms" | undefined,
 ): void {
-  if (!subdomain || !category) return;
-  // HMS er egen topp-nivå-type; subdomain (avvik/sja/ruh) bestemmer datatabellen
-  // (task vs checklist), ikke category. Ingen shape-sjekk mot category nødvendig.
-  if (category === "hms") return;
-  const forventet: Record<"avvik" | "sja" | "ruh", "oppgave" | "sjekkliste"> = {
-    avvik: "oppgave",
-    ruh: "oppgave",
-    sja: "sjekkliste",
-  };
-  if (category !== forventet[subdomain]) {
+  if (!subdomain) return;
+  // Kontraktssak kan ikke være HMS — verken via domain=hms eller category=hms.
+  if (subdomain === "kontrakt" && (domain === "hms" || category === "hms")) {
+    throw new Error("Kontraktssak kan ikke være HMS.");
+  }
+  const effektivDomain = domain ?? "bygg";
+  const lovlige = LOVLIG_SUBDOMAIN[effektivDomain] ?? [];
+  if (!lovlige.includes(subdomain)) {
     throw new Error(
-      "SJA bruker sjekkliste-format. Avvik og RUH bruker oppgave-format.",
+      `Undertypen «${subdomain}» er ikke lovlig for domenet «${effektivDomain}».`,
+    );
+  }
+  // HMS: subdomain bestemmer datatabellen (task vs checklist), ikke category.
+  if (!category || category === "hms") return;
+  const forventet = SUBDOMAIN_FORM[subdomain];
+  if (forventet && category !== forventet) {
+    throw new Error(
+      "SJA bruker sjekkliste-format. Avvik, RUH og Kontraktssak bruker oppgave-format.",
     );
   }
 }
@@ -383,7 +412,7 @@ export const malRouter = router({
     .input(createTemplateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
-      valideerSubdomainCategory(input.subdomain, input.category);
+      valideerSubdomainKombinasjon(input.domain, input.subdomain, input.category);
       // Unikhet per prosjekt (navn på tvers, prefiks eks-PSI) — lesbar feil før DB-sperren.
       await sjekkMalUnikhet(ctx.prisma, {
         projectId: input.projectId,
@@ -418,7 +447,7 @@ export const malRouter = router({
         prefix: z.string().max(20).optional(),
         category: z.enum(["oppgave", "sjekkliste", "hms"]).optional(),
         domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
-        subdomain: z.enum(["avvik", "sja", "ruh"]).nullable().optional(),
+        subdomain: z.enum(["avvik", "sja", "ruh", "kontrakt"]).nullable().optional(),
         hmsSynlighet: z.enum(["privat", "apen"]).nullable().optional(),
         subjects: z.array(z.string().max(255)).optional(),
         showSubject: z.boolean().optional(),
@@ -443,12 +472,14 @@ export const malRouter = router({
       const effektivSubdomain =
         input.subdomain !== undefined
           ? input.subdomain
-          : (mal.subdomain as "avvik" | "sja" | "ruh" | null);
+          : (mal.subdomain as "avvik" | "sja" | "ruh" | "kontrakt" | null);
       const effektivCategory =
         input.category !== undefined
           ? input.category
           : (mal.category as "oppgave" | "sjekkliste" | "hms");
-      valideerSubdomainCategory(effektivSubdomain, effektivCategory);
+      const effektivDomain =
+        input.domain !== undefined ? input.domain : (mal.domain as string);
+      valideerSubdomainKombinasjon(effektivDomain, effektivSubdomain, effektivCategory);
 
       // Konverterings-validering: type (category) eller domain kan ikke
       // endres hvis dokumenter eksisterer. Domain-skift uten dokument-sjekk

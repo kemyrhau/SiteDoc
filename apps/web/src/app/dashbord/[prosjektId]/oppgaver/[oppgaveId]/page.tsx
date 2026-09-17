@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert, Download, Anchor } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert, Download, Anchor, Scale } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
@@ -543,6 +543,11 @@ export default function OppgaveDetaljSide() {
     [oppgave?.number, oppgave?.template?.prefix],
   );
 
+  // Kontraktssak-runde 1 (tavle 2): egen klasse-linje over tittelen. Nummeret flytter dit,
+  // så vanlige oppgaver er nøyaktig uendret (ingen ny høyde for dem).
+  const erKontraktssak =
+    (oppgave as unknown as { template?: { subdomain?: string | null } | null })?.template?.subdomain === "kontrakt";
+
   // Melder eier innholdet, behandler eier handlingen (Spor 2 / 5c): på HMS er
   // meldingsskjemaet ALLTID read-only unntatt for melderen mens saken er utkast.
   // Presentasjonsinvariant — decoupler fra flyt-rettighet (feltlås låser uansett
@@ -676,9 +681,23 @@ export default function OppgaveDetaljSide() {
             {t("hms.tittel")}
           </button>
         )}
+        {/* Kontraktssak-klasse (tavle 2): egen linje over tittelen, med nummeret. Kun for
+            kontraktssak-dokumenter — vanlige oppgaver beholder nummeret inline i Rad 1. */}
+        {erKontraktssak && (
+          <div className="mb-1 flex items-center gap-1.5 text-sm text-gray-700">
+            <Scale className="h-3.5 w-3.5 shrink-0 text-gray-700" aria-hidden="true" />
+            <span className="font-medium">{t("dokumentklasse.kontraktssak")}</span>
+            {oppgaveNummer && (
+              <>
+                <span className="text-gray-400">·</span>
+                <span>{oppgaveNummer}</span>
+              </>
+            )}
+          </div>
+        )}
         {/* Rad 1: Nummer + Tittel + Dato + Status */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {oppgaveNummer && (
+          {oppgaveNummer && !erKontraktssak && (
             <span className="text-sm font-bold text-gray-500">{oppgaveNummer}</span>
           )}
           {/* P4b: redigerbar tittel (utfyllingsmodus). */}

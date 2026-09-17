@@ -35,6 +35,7 @@ import {
   Send,
   Share2,
   Eye,
+  Scale,
 } from "lucide-react-native";
 import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
@@ -638,6 +639,10 @@ export default function OppgaveDetalj() {
   }
 
   const nummer = formaterNummer(oppgave.template?.prefix, oppgave.number);
+  // Kontraktssak-runde 1 (tavle 2, samme som web): egen klasse-linje med nummeret. Nummeret
+  // flyttes ut av header-baren dit, så vanlige oppgaver er uendret.
+  const erKontraktssak =
+    (oppgaveDetalj as { template?: { subdomain?: string | null } } | undefined)?.template?.subdomain === "kontrakt";
 
   // Spor 2 / 5a + Beslutning 1 (Blokk 10): HMS-melder redigerer sitt eget dokument når ballen
   // ligger hos melder-leddet (Ledd 1) og saken ikke er terminal — utkast (draft) ELLER etter
@@ -668,7 +673,7 @@ export default function OppgaveDetalj() {
             <ArrowLeft size={22} color="#ffffff" />
           </Pressable>
           <View className="flex-1 flex-row items-center gap-2 px-3">
-            {nummer && (
+            {nummer && !erKontraktssak && (
               <Text className="text-xs font-bold text-white/70">{nummer}</Text>
             )}
             <Text className="flex-1 text-sm font-semibold text-white" numberOfLines={1}>
@@ -737,6 +742,17 @@ export default function OppgaveDetalj() {
           />
         )}
       </View>
+
+      {/* Kontraktssak-klasse (tavle 2, web-paritet): egen linje med nummeret, under header. */}
+      {erKontraktssak && (
+        <View className="flex-row items-center gap-1.5 border-b border-gray-200 bg-white px-4 py-2">
+          <Scale size={14} color="#374151" />
+          <Text className="text-sm text-gray-700">
+            <Text className="font-medium">{t("dokumentklasse.kontraktssak")}</Text>
+            {nummer ? ` · ${nummer}` : ""}
+          </Text>
+        </View>
+      )}
 
       <KeyboardAvoidingView
         className="flex-1"
