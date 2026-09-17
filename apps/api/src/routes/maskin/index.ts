@@ -3,10 +3,12 @@ import { equipmentRouter } from "./equipment";
 import { vegvesenKoRouter } from "./vegvesenKo";
 import { ansvarligRouter } from "./ansvarlig";
 import { importRouter } from "./import";
+import { serviceRouter } from "./service";
 
 export const maskinRouter = router({
   equipment: equipmentRouter,
   vegvesenKo: vegvesenKoRouter,
   ansvarlig: ansvarligRouter,
   import: importRouter,
+  service: serviceRouter,
 });

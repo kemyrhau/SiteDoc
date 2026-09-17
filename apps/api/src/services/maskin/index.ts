@@ -30,3 +30,11 @@ export {
 export type { ForhandsvisningResultat } from "./vegvesen";
 
 export { startVegvesenWorker } from "./vegvesen-worker";
+
+export {
+  beregnNesteService,
+  beregnServiceVarsel,
+  SERVICE_VARSEL_SNART_TIMER,
+  SERVICE_VARSEL_PLANLAGT_TIMER,
+} from "./service-varsel";
+export type { ServiceVarselStatus } from "./service-varsel";

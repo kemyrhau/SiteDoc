@@ -91,12 +91,15 @@ jobs:
       # går DIREKTE mot en ekte DB gjennom hele tRPC-laget. Her får de engangs-DB-en.
       # DATABASE_URL settes KUN på disse to stegene → unit-testene over forblir
       # hermetiske (ingen ekte DB-tilkobling), og gate-tallet for `pnpm test` står
-      # stille. Kun @sitedoc/db-migreringer trengs — integrasjonstestene rører bare
-      # kjerne-Prisma (`@sitedoc/db`), ikke db-timer/maskin/varelager.
-      - name: Migrer engangs-DB (kun @sitedoc/db)
+      # stille. @sitedoc/db + @sitedoc/db-maskin migreres: fra 2026-09-18 rører
+      # service-timetall.integration.test.ts maskin-Prisma (`prismaMaskin`) for
+      # «stille tomhet»-krav (c) — uten maskin-migreringene finnes ikke tabellene.
+      - name: Migrer engangs-DB (@sitedoc/db + db-maskin)
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/sitedoc_ci
-        run: pnpm --filter @sitedoc/db exec prisma migrate deploy
+        run: |
+          pnpm --filter @sitedoc/db exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy
 
       - name: Integrasjonstester (engangs-Postgres)
         env:
