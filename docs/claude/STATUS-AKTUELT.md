@@ -44,6 +44,18 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
+## 🟢 2026-09-17b — To docs-brancher merget + branch-kartlegging ført. Ingen kode, ingen deploy, ingen migrering.
+
+**To rene docs-brancher inn på develop** (`docs/arkitektur-syntese-drift-2` `a1716dcc` · `docs/maaling-kundeonske-1` `391c0aaf`). **Gate står HELT stille** (ingen kode/test-fil rørt): `db` 2 · `api` 495 · `pdf` 120 · `shared` 824 · `web` 264 · `mobil` 13 · `integrasjon` 57 · 7/7.
+
+- 🟢 **mal-Opus:** `arkitektur-syntese.md` — tre drift-rader lukket med positiv kontroll mot `250dfc7f`: § 4 firma-modeller (alle fire bygget, `schema.prisma`-linjer), HMS-statistikk på firma-nivå (`hms.hentFirmaOversikt`), footer remålt (7 av 8 datamodell-steg bygget; PSI-utvidelsen steg 5 IKKE bygget; hel-Fase-0-status 🟡 usikker — egen runde).
+- 🟢 **kontrollplan:** ny `delplaner/maaling-kundeonske-1-2026-09-17.md` — målingen som veltet BACKLOG-raden om service↔timetall (kundeønske #1).
+- 🟢 **BRANCH-KARTLEGGING GJORT** (seks umergede origin-brancher, bevis: `git cherry` patch-ekvivalens + 3-punkts diff):
+  - 🟢 **DØD** (patch alt i develop, ingen unik rest): `ci/e2e-del2` · `fix/e2e-dedrift` (begge superseded — develops e2e-CI gikk videre til 05/07) · `feat/versjonssporing-softdelete` (begge migreringer + schema + firmamal soft-delete i develop via 17.09-mergen; **rettet memo-drift** — sto som «pending»).
+  - 🟡 **GLEMT ARBEID:** `feat/mal-kc31-revisjon` — unik KC3.1-revisjon (8 felt mot NS 3420-ZK2.7112), men bygget på stale seed-arkitektur → **skal PORTES, ikke merges** (festet i [BACKLOG § KC3.1-PORT](BACKLOG.md)).
+  - 🟢 **DØD kode / 🟡 måling beholdt:** `wip/diag-exif` (EXIF-fraværsårsaker) · 🔴 `wip/diag-ko-trigger` (kø-frys mens online — ÅPEN) — begge `__DEV__`, funnene festet i [BACKLOG § WIP-diagnostikkbranches](BACKLOG.md).
+  - 🔴 **Ingen branch slettet — Kenneth gater.** Tre funn festet i BACKLOG først (eneste bærer).
+
 ## 🟢 2026-09-17 — Docs + redesign merget: død Opprett-knapp forklart + seedeveien + design-leveranser. WEB-DEPLOY (redesign), ingen migrering, ingen OTA.
 
 **To brancher + design-leveransene inn på develop** (`docs/seederegler-runbok` `db80c755` · `fix/dokumentflyt-navn-primaert` `4568387e`). Gate: `pnpm test` **7/7** — **`web` 261→264** (+3 `knapp-med-forklaring.test.tsx`). Alle andre HELT stille: `db` 2 · `api` 495 · `pdf` 120 · `shared` 824 · `mobil` 13. `integrasjon` uendret 57 (redesign rørte null api/db, skal stå 57 i CI). `prisma generate` ×4 kjørt før test. ⚠️ Pre-eksisterende `tsc`-rød på `bibliotek-mal.test.ts:25-26` (ikke fra denne runden).

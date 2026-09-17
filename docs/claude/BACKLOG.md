@@ -633,22 +633,42 @@ domener enn HMS. **Om den bør det er et produktvalg — ubesvart.**
 **Tiltak, ikke bestilt:** hjelpetekst på gruppen som sier hva medlemskap gir. Kenneth må gate
 ordlyden; ordlyden hører i `hjelpetekster.md`-konvensjonen.
 
-### 🔵 To WIP-diagnostikkbranches fra 2026-09-04 står umerget — avklar før de ryddes
+### 🟡 To WIP-diagnostikkbranches fra 2026-09-04 — INNHOLD LEST 2026-09-17, målingene festet under
 
-**Målt av cowork 2026-09-09** da merge-køen ble tømt:
+**Målt av cowork 2026-09-09, commitene lest 2026-09-17** (branch-kartlegging, `git cherry`):
 
-| Branch | Siste commit | Utenfor develop | Status |
-|---|---|---|---|
-| `wip/diag-exif` | 2026-09-04 | 2 commits | 🔴 ikke merget |
-| `wip/diag-ko-trigger` | 2026-09-04 | 1 commit | 🔴 ikke merget |
+| Branch | Siste commit | Utenfor develop | Kode | Måling |
+|---|---|---|---|---|
+| `wip/diag-exif` | 2026-09-04 | 2 commits (unike, `+`) | 🟢 DØD — rent `__DEV__`, «SKAL IKKE MERGES» | 🟡 festet ↓ |
+| `wip/diag-ko-trigger` | 2026-09-04 | 1 commit (unik, `+`) | 🟢 DØD — rent `__DEV__`, «SKAL IKKE MERGES» | 🔴 festet ↓ |
 | `redesign/navigasjon` | 2026-07-15 | 0 commits | 🟢 merget — langlivet spor per CLAUDE.md, **rør ikke** |
 
-De to WIP-branchene bærer diagnostikk fra EXIF- og kø-feilsøkingen 03.–04.09 (samme døgn som de
-fem lærdommene i SAMARBEIDSREGLER). 🔴 **Innholdet er ikke lest.** Diagnostikk-kode er ofte
-midlertidig, **men den kan bære målinger ingen andre steder har.**
+Diagnostikk-KODEN er engangs-`__DEV__`-logging og skal aldri merges. **Målingene i commit-meldingene
+er festet her** — når Kenneth har bekreftet, kan begge branchene slettes (cowork sletter ikke).
 
-**Før sletting:** les de tre commitene og fang eventuelle målinger inn i en aktiv sannhetskilde.
-🔴 **Ikke slett på alder alene.**
+**🟡 EXIF-FUNN (`wip/diag-exif`, 09-04):** EXIF mangler av **to grunner** — «limited»
+bildebibliotek-tilgang og **Live Photo**. 🔴 **Før EXIF-parseren skrives må ekte iOS 26-EXIF-
+nøkkelform måles** (flat vs. nestet `DateTimeOriginal`/`GPS`) — parseren skal ikke antas.
+
+**🔴 KØ-FRYS (`wip/diag-ko-trigger`, 09-04) — ÅPEN, mobil / offline-håndtering / pilot:**
+opplastingskøen frøs — **tre vedlegg lå fem minutter uprosessert MENS ENHETEN VAR ONLINE.**
+🔴 **Datert ETTER kø-robusthet-mergen `9ff2ec04`, så den kan fortsatt være uløst.** Diagnostikken
+isolerer om `erPaaNettet` står stuck `false` eller `prosessererRef` stuck `true`
+(`OpplastingsKoProvider.tsx`). **Verifiser mot dagens kode før funnet regnes lukket.**
+
+### 🟡 KC3.1-PORT — glemt maldomene-arbeid på `feat/mal-kc31-revisjon` (funn 2026-09-17)
+
+**Branch-kartleggingen fant unikt innhold (`git cherry` = `+`, finnes IKKE i develop):** KC3.1
+«Oppstøtting av trær» er revidert fra **4 generiske felt til 8 mot NS 3420-ZK2.7112** — metode,
+materiell kontrollert, forankring (c1), gnag/barkskade (c2), fri kronebevegelse (c3), høyde ≤1/3
+(c4), antall trær støttet (stk), konklusjon — pluss rad i `mal-ns-standard-logg.md`. develop har
+fortsatt den **gamle 4-felts** KC3.1.
+
+🔴 **Branchen kan IKKE merges.** Diffen reverterer også `opprettMalHvisMangler` fra
+`BibliotekMalObjekt`-radskriving tilbake til blob-`malInnhold` (den er bygget på seed-arkitektur
+FØR objekttabellen, Vei C krav 6) — en merge ville **regretert objekttabell-seedingen.**
+**Skal PORTES:** KC3.1-feltene + logg-raden re-applliseres på dagens `seed-bibliotek.ts` (mal-Opus,
+egen liten runde), ikke merges. **Branchen er eneste bærer av innholdet — ikke slett før portert.**
 
 ### ⏸️ UTSATT MED VILJE 2026-09-09 — maskinoversettelsene er kontekstløse. IKKE START HER.
 
