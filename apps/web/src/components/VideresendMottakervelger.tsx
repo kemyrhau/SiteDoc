@@ -77,15 +77,28 @@ export function VideresendMottakervelger({
   const rolleEtikett = (r: string) => (ROLLE_NOEKKEL[r] ? t(ROLLE_NOEKKEL[r]) : r);
   // Steg: velg (seksjoner) → bekreft (kun ved flyt-bytte).
   const [bekreftValg, setBekreftValg] = useState<VideresendValg | null>(null);
+  // Valgt PERSON i «Andre flyter» (null = flyt-navn-klikk → serveren auto-utleder hovedansvarlig
+  // utfører). Feil 1 (Kenneth 17.09): personradene var ikke valgbare, så flyt-bytte gikk ALLTID
+  // til hovedansvarlig. Velger man en person, sendes dennes recipientUserId sammen med dokumentflytId.
+  const [bekreftMedlem, setBekreftMedlem] = useState<VideresendMedlem | null>(null);
   const [kommentar, setKommentar] = useState("");
   // Hvilke «Andre flyter»-rader er ekspandert (informativt persontall).
   const [ekspandert, setEkspandert] = useState<Set<string>>(new Set());
 
   const lukkAlt = () => {
     setBekreftValg(null);
+    setBekreftMedlem(null);
     setKommentar("");
     setEkspandert(new Set());
     onLukk();
+  };
+
+  // Åpne bekreftelsessteget for et flyt-bytte. `medlem` = valgt person (person-rad) eller null
+  // (flyt-navn → serveren auto-utleder hovedansvarlig utfører).
+  const åpneBekreft = (v: VideresendValg, medlem: VideresendMedlem | null) => {
+    setKommentar("");
+    setBekreftMedlem(medlem);
+    setBekreftValg(v);
   };
 
   const veksle = (key: string) =>
@@ -117,12 +130,14 @@ export function VideresendMottakervelger({
     lukkAlt();
   };
 
-  // Bekreft flyt-bytte: påkrevd kommentar. Server auto-utleder mottaker (hovedansvarlig) —
-  // vi sender dokumentflytId (+ valgets standard-mottaker, som serveren overstyrer ved bytte).
+  // Bekreft flyt-bytte: påkrevd kommentar. Valgte man en PERSON (bekreftMedlem) sendes dennes
+  // recipientUserId/-groupId — serveren honorerer det (oppgave.ts:1432-1433). Uten personvalg
+  // sender vi valgets standard-mottaker, som serveren auto-utleder til hovedansvarlig utfører.
   const videresendBytte = () => {
     if (!bekreftValg || kommentar.trim().length === 0) return;
+    const mottaker = bekreftMedlem?.mottaker ?? bekreftValg.mottaker ?? {};
     onVideresend(
-      { ...bekreftValg.mottaker, dokumentflytId: bekreftValg.dokumentflytId },
+      { ...mottaker, dokumentflytId: bekreftValg.dokumentflytId },
       kommentar.trim(),
     );
     lukkAlt();
@@ -134,10 +149,16 @@ export function VideresendMottakervelger({
 
   /* ---------------- Bekreftelsessteg (flyt-bytte) ---------------- */
   if (bekreftValg) {
-    const målMottaker = mottakerNavnIValg(bekreftValg);
+    // Valgte man en person: navngi DEN — ikke «hovedansvarlig utfører». Uten personvalg står
+    // hovedansvarlig-utleder, som serveren faktisk gjør (mottakerNavnIValg).
+    const autoMottaker = mottakerNavnIValg(bekreftValg);
     const kanSende = kommentar.trim().length > 0 && !erLaster;
+    // Feil 2 (Kenneth 17.09): bekreftelsessteget navnga ikke dokumentet. Ta tittelen med her også.
+    const bekreftTittel = dokumentTittel
+      ? t("videresend.bekreftTittelMed", { tittel: dokumentTittel })
+      : t("videresend.bekreftTittel");
     return (
-      <Modal open={åpen} onClose={lukkAlt} title={t("videresend.bekreftTittel")} className="max-w-md">
+      <Modal open={åpen} onClose={lukkAlt} title={bekreftTittel} className="max-w-md">
         <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900">
             <div>
@@ -147,9 +168,14 @@ export function VideresendMottakervelger({
               })}
             </div>
             <div className="mt-1">
-              {målMottaker
-                ? t("videresend.konsekvensBall", { mottaker: målMottaker })
-                : t("videresend.konsekvensBallUtenNavn")}
+              {bekreftMedlem
+                ? t("videresend.konsekvensBallPerson", {
+                    mottaker: bekreftMedlem.navn,
+                    rolle: rolleEtikett(bekreftMedlem.rolle),
+                  })
+                : autoMottaker
+                  ? t("videresend.konsekvensBall", { mottaker: autoMottaker })
+                  : t("videresend.konsekvensBallUtenNavn")}
             </div>
             <div className="mt-1">{t("videresend.konsekvensMottakerSer")}</div>
           </div>
@@ -173,6 +199,7 @@ export function VideresendMottakervelger({
             <button
               onClick={() => {
                 setBekreftValg(null);
+                setBekreftMedlem(null);
                 setKommentar("");
               }}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
@@ -256,10 +283,7 @@ export function VideresendMottakervelger({
                       />
                       <button
                         data-testid={`videresend-andre-${v.key}`}
-                        onClick={() => {
-                          setKommentar("");
-                          setBekreftValg(v);
-                        }}
+                        onClick={() => åpneBekreft(v, null)}
                         className="flex-1 text-left text-sm font-semibold text-gray-800"
                       >
                         {v.visningsnavn}
@@ -282,10 +306,16 @@ export function VideresendMottakervelger({
                     {erÅpen && antall > 0 && (
                       <div className="ml-[18px] mt-1.5 border-l-2 border-gray-200 pl-3">
                         {v.medlemmer.map((m) => (
-                          <div key={m.key} className="py-1 text-[13px] text-gray-600">
+                          <button
+                            key={m.key}
+                            data-testid={`videresend-andre-person-${v.key}-${m.key}`}
+                            onClick={() => åpneBekreft(v, m)}
+                            disabled={erLaster}
+                            className="flex w-full items-center rounded py-1 text-left text-[13px] text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                          >
                             {m.navn}
                             <span className="ml-1 text-[11px] text-gray-400">· {rolleEtikett(m.rolle)}</span>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}

@@ -46,8 +46,10 @@ beforeAll(async () => {
           "videresend.konsekvensLinje": "Flytter dokumentet til flyten «{{flyt}}»",
           "videresend.valgfriKommentarEgen": "Kommentar til mottaker (valgfri)",
           "videresend.bekreftTittel": "Flytt og videresend?",
+          "videresend.bekreftTittelMed": "Flytt «{{tittel}}»?",
           "videresend.konsekvensForlaterGaar": "Dokumentet forlater flyten {{fra}} og går inn i {{til}}.",
           "videresend.konsekvensBall": "Ballen går til {{mottaker}} (hovedansvarlig utfører). Status endres ikke.",
+          "videresend.konsekvensBallPerson": "Ballen går til {{mottaker}} ({{rolle}}). Status endres ikke.",
           "videresend.konsekvensBallUtenNavn": "Ballen går til den hovedansvarlige i mottaker-flyten. Status endres ikke.",
           "videresend.konsekvensMottakerSer": "Mottakeren ser hvem som sendte, og kommentaren under.",
           "videresend.kommentarPaakrevd": "Kommentar til mottaker",
@@ -56,6 +58,7 @@ beforeAll(async () => {
           "videresend.flyttKnapp": "Flytt til {{flyt}}",
           "videresend.rolle.utforer": "utfører",
           "videresend.rolle.bestiller": "bestiller",
+          "videresend.rolle.registrator": "registrator",
         },
       },
     },
@@ -80,7 +83,10 @@ const andreFlyter = [
     visningsnavn: "Elektro",
     farge: "#0ea5e9",
     mottaker: { userId: "per" },
-    medlemmer: [{ key: "u:per", navn: "Per Eng", rolle: "utforer", mottaker: { userId: "per" } }],
+    medlemmer: [
+      { key: "u:per", navn: "Per Eng", rolle: "utforer", mottaker: { userId: "per" } },
+      { key: "u:siri", navn: "Siri Vik", rolle: "registrator", mottaker: { userId: "siri" } },
+    ],
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ] as any;
@@ -160,5 +166,37 @@ describe("VideresendMottakervelger — to seksjoner + bekreftelse ved flyt-bytte
       { userId: "per", dokumentflytId: "dfE" },
       "Tømrer venter på sluttkontroll.",
     );
+  });
+
+  // Feil 1 (Kenneth 17.09): person-radene under «Andre flyter» MÅ være valgbare og sende den
+  // VALGTE personens recipientUserId — ikke den auto-utledede hovedansvarlige. Denne testen FEILER
+  // hvis person-valget slutter å sende mottaker (regresjonen slapp gjennom fordi ingen test dekket
+  // klikk på en personrad).
+  it("flyt-bytte til VALGT PERSON: sender personens recipientUserId (ikke auto-utledet), navngir personen", () => {
+    const { onVideresend } = rendr({ kanByttFlyt: true });
+    // Fold ut personlista i «Andre flyter» (Per = auto-utfører, Siri = registrator).
+    fireEvent.click(screen.getByText("2 personer"));
+    // Velg Siri (registrator) — IKKE hovedansvarlig utfører (Per).
+    fireEvent.click(screen.getByTestId("videresend-andre-person-fgE-u:siri"));
+    // Konsekvensboksen navngir Siri med hennes rolle — ALDRI «hovedansvarlig utfører».
+    expect(screen.getByText("Ballen går til Siri Vik (registrator). Status endres ikke.")).toBeTruthy();
+    expect(screen.queryByText(/hovedansvarlig utfører/)).toBeNull();
+    // Med kommentar → videresend fyrer med SIRIS userId, ikke Pers.
+    fireEvent.change(screen.getByPlaceholderText("Skriv hvorfor …"), {
+      target: { value: "Sendes direkte til registrator." },
+    });
+    fireEvent.click(screen.getByText("Flytt til Elektro — sluttkontroll"));
+    expect(onVideresend).toHaveBeenCalledWith(
+      { userId: "siri", dokumentflytId: "dfE" },
+      "Sendes direkte til registrator.",
+    );
+  });
+
+  // Feil 2 (Kenneth 17.09): bekreftelsessteget navnga ikke dokumentet. Med dokumentTittel skal
+  // tittelen si hvilket dokument som flyttes.
+  it("bekreftelsessteget navngir dokumentet når dokumentTittel er satt", () => {
+    rendr({ kanByttFlyt: true, dokumentTittel: "Befaringsnotat" });
+    fireEvent.click(screen.getByTestId("videresend-andre-fgE"));
+    expect(screen.getByText("Flytt «Befaringsnotat»?")).toBeTruthy();
   });
 });
