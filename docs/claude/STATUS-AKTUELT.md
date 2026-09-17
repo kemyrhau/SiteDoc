@@ -44,6 +44,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
+## 🟢 2026-09-17 — Docs + redesign merget: død Opprett-knapp forklart + seedeveien + design-leveranser. WEB-DEPLOY (redesign), ingen migrering, ingen OTA.
+
+**To brancher + design-leveransene inn på develop** (`docs/seederegler-runbok` `db80c755` · `fix/dokumentflyt-navn-primaert` `4568387e`). Gate: `pnpm test` **7/7** — **`web` 261→264** (+3 `knapp-med-forklaring.test.tsx`). Alle andre HELT stille: `db` 2 · `api` 495 · `pdf` 120 · `shared` 824 · `mobil` 13. `integrasjon` uendret 57 (redesign rørte null api/db, skal stå 57 i CI). `prisma generate` ×4 kjørt før test. ⚠️ Pre-eksisterende `tsc`-rød på `bibliotek-mal.test.ts:25-26` (ikke fra denne runden).
+
+- 🟢 **DØD OPPRETT-KNAPP FORKLART** — navnefeltet løftet til primært (fet `<label>` + rød påkrevd-`*`, `htmlFor`/`useId`, `aria-required`), `BundetFlytVelger` dempet minimalt (valgt-fyll beholdt som funksjonell indikator, radiovalg/ordlyd/anker urørt), tooltip via `@sitedoc/ui` på både «Opprett» og «Legg til faggruppe». Rekkefølge urørt. **Utløst av at Kenneth selv ble stoppet av sin egen flate under bundet flyt-gaten.**
+- 🔴 **MÅLT FUNN:** `pointer-events:none` på et disabled barn **bryter hover på wrapperen** (0 fyringer) — den vanlige folkloren er feil her. **Verifisert i ekte Chrome, ikke antatt;** derfor satt bevisst IKKE. Kontrakten er `aria-describedby` (test satt rød: fjernet wrapper → 2 av 3 falt).
+- 🟡 **20+ andre disabled-knapper mangler forklaring.** `KnappMedForklaring.tsx` er gjenbrukbar for dem — **egen runde** (meldt, ikke fikset).
+- 🟢 **DEPLOY-RUNBOK § 7 «Seeding mot test»** — `scp` → `docker cp` → `psql` (steg 1 agent, 2–3 Kenneths TTY; `-d sitedoc_test`≠`-d sitedoc`; legg-til-aldri-slett; `.ts`-seeds ikke på server; `SEED_CONFIRM_DB`-vakt). ⚠️ **Merket IKKE re-verifisert etter serverendringene 17.09.**
+- 🟢 **`LOKALT-OPPSETT.md:48` rettet** — «kjøres av Kenneth på server-ny» stemte ikke; nå SSH-tunnel + peker RUNBOK § 7.
+- 🟢 **SJA-GATEN LUKKET** — «etterkontroll, delvis dekket». **Flate 3 (signer egen rad) IKKE DEKKET** («la SJA være»). simulator → ⚪ LEDIG. Prod-hash rettet til release-merge `ad18df93`.
+- 🟢 **DESIGN-ROLLENS LEVERANSER INN** — kontraktssak runde 1 (designnotat + mockup 4 `.dc.html` + `support.js` + ORDRE ikke gitt ennå), `domain`-svaret, DESIGNSYSTEM-AUDIT, FABEL-KATALOG, § Feltstatus i `ui-standarder.md` (Kenneth-gatet). SJA-ordrefila fikk hovedtreets NYERE versjon (flate 3 valgfri), ikke dublett.
+- 🔴 **VEDTAK, design-rollen 17.09:** kontraktssak bruker `subdomain` i runde 1, `domain` i runde 2. **Coworks anbefaling om `domain` nå var FEIL:** `mal.ts:460-472` blokkerer endring av `domain` når malen har dokumenter — VAR-001 finnes, så konvertering var ugjennomførbar.
+- 🟢 **redesign var fra eldre base** (`70c1e556`) **og force-pushet** (ordrens `adfe0596` utdatert, faktisk tipp `4e123b9a`). **Merge gikk KONFLIKTFRITT — ingen rebase nødvendig;** redesigns utdaterte docs-endringer (SJA-ordrefil-opprett + gammel tavla) ble auto-superseded av develops nyere versjoner.
+
 ## 🟢 2026-09-17 — Pushvarsel runde A merget (`1d66e148`): datalag + sendetjeneste. API-DEPLOY + MIGRERING (IKKE KJØRT), ingen OTA.
 
 **Én branch, `feat/push-datalag`.** Kontrollplan hadde alt rebaset den oppå dagens develop (`feddad76`) og force-pushet før handoff — **hash `b1275423`, ikke `2e7f5434` som ordren sa; ren fast-forward, ingen rebase nødvendig.** Gate: `pnpm test` 7/7 — **`api` unit 490→495** (+5: pushVarsel + push-token) · **`integrasjon` 51→57** (+6, bevist i CI: `57 passed`). **`mobil` STÅR STILLE på 13** (fra bundet-flyt-mobil — ikke mistet). Resten stille (`db` 2 · `pdf` 120 · `shared` 824 · `web` 261). Begge CI-jobber grønne, fersk pgvector anvendte alle migreringer inkl. den nye.
