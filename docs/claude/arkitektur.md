@@ -124,6 +124,7 @@ Modell-antall er utledbart (`grep -c "^model " packages/db/prisma/schema.prisma`
 - Bilder har valgfri GPS-data (`gps_lat`, `gps_lng`, `gps_enabled`)
 - Oppgaver kan kobles til tegning med posisjon (`drawing_id`, `position_x`, `position_y`)
 - `report_objects` bruker selvrefererande relasjon (`parent_id`) for rekursiv nesting — CASCADE-sletting av barn
+- **`Checklist.data`/`Task.data` er nøklet på `report_objects.id`.** Ved oppdatering av en prosjektmal fra firmamalen (`firmamal.oppdaterKopiFraHovedmal`, ↻) gjør serveren en **diff/merge** (`diffObjektTre` i `objektkopi.ts`, ordre 2026-09-17): gamle objekter matches mot nye på `(type, label)` — ENTYDIG nøkkel matcher på tvers av forelder, tvetydig krever matchet forelder — og MATCHEDE objekter beholder sin id (`update`), så dokumentdata følger automatisk og røres aldri. ↻ NEKTES (`PRECONDITION_FAILED`, feltene navngis) kun når et umatchet gammelt objekt fortsatt har utfylt data i et aktivt dokument. **Firma-/sentralnivå har ingen slik sperre** — firmamaler skal alltid kunne redigeres/oppdateres (Kenneth-vedtak 17.09); `OrganizationTemplateObject` bæres aldri av dokumentdata.
 - `report_templates` har `category` (`oppgave` | `sjekkliste`), valgfritt `prefix` og valgfri `subjects` (forhåndsdefinerte emnetekster)
 - `byggeplasser` tilhører prosjekt, tegninger koblet via `building_id`. `type`-feltet er deprecated
 - `drawings` har full metadata med `drawing_revisions` for historikk. Valgfri `geoReference` (JSON) med 2 referansepunkter

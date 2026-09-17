@@ -22,37 +22,46 @@ import type { OversettelsesMotor } from "../services/oversettelse-service";
  * Deles av `sjekkObjektBruk` (klient-sjekk) OG `slettObjekt` (server-guard) så de to
  * ALLTID er enige — uenighet ga stille optimistisk fjerning + gjenoppretting ved refetch.
  */
+// Den indre «har verdien faktisk innhold»-CASE på `e.value` (fra jsonb_each(data) AS e(key,value)).
+// Ekstrahert (ordre diffmerge-oppdater-kopi, 2026-09-17) så EXISTS-tellingen OG per-objekt-
+// oppslaget (objektIderMedInnhold) deler NØYAKTIG samme regel — ett predikat, aldri to som drifter.
+function verdiErUtfylt(): Prisma.Sql {
+  return Prisma.sql`
+    CASE
+      WHEN jsonb_typeof(e.value) = 'object' THEN
+        CASE
+          WHEN (e.value ? 'verdi' OR e.value ? 'kommentar' OR e.value ? 'vedlegg') THEN (
+               (e.value -> 'verdi' IS NOT NULL
+                 AND e.value -> 'verdi' <> 'null'::jsonb
+                 AND e.value -> 'verdi' <> '""'::jsonb
+                 AND e.value -> 'verdi' <> '[]'::jsonb
+                 AND e.value -> 'verdi' <> '{}'::jsonb)
+            OR (e.value -> 'kommentar' IS NOT NULL
+                 AND e.value -> 'kommentar' <> 'null'::jsonb
+                 AND e.value -> 'kommentar' <> '""'::jsonb)
+            OR (e.value -> 'vedlegg' IS NOT NULL
+                 AND e.value -> 'vedlegg' <> 'null'::jsonb
+                 AND e.value -> 'vedlegg' <> '[]'::jsonb)
+          )
+          -- ukjent objektform (ikke {verdi,...}): konservativt «i bruk» om ikke tomt
+          ELSE e.value <> '{}'::jsonb
+        END
+      -- rå skalar/array direkte under nøkkelen (eldre data)
+      ELSE (
+        e.value <> 'null'::jsonb
+        AND e.value <> '""'::jsonb
+        AND e.value <> '[]'::jsonb
+      )
+    END
+  `;
+}
+
 function harFaktiskInnholdForObjekt(sletteIder: string[]): Prisma.Sql {
   return Prisma.sql`
     EXISTS (
       SELECT 1 FROM jsonb_each(data) AS e(key, value)
       WHERE e.key = ANY(${sletteIder})
-        AND CASE
-          WHEN jsonb_typeof(e.value) = 'object' THEN
-            CASE
-              WHEN (e.value ? 'verdi' OR e.value ? 'kommentar' OR e.value ? 'vedlegg') THEN (
-                   (e.value -> 'verdi' IS NOT NULL
-                     AND e.value -> 'verdi' <> 'null'::jsonb
-                     AND e.value -> 'verdi' <> '""'::jsonb
-                     AND e.value -> 'verdi' <> '[]'::jsonb
-                     AND e.value -> 'verdi' <> '{}'::jsonb)
-                OR (e.value -> 'kommentar' IS NOT NULL
-                     AND e.value -> 'kommentar' <> 'null'::jsonb
-                     AND e.value -> 'kommentar' <> '""'::jsonb)
-                OR (e.value -> 'vedlegg' IS NOT NULL
-                     AND e.value -> 'vedlegg' <> 'null'::jsonb
-                     AND e.value -> 'vedlegg' <> '[]'::jsonb)
-              )
-              -- ukjent objektform (ikke {verdi,...}): konservativt «i bruk» om ikke tomt
-              ELSE e.value <> '{}'::jsonb
-            END
-          -- rå skalar/array direkte under nøkkelen (eldre data)
-          ELSE (
-            e.value <> 'null'::jsonb
-            AND e.value <> '""'::jsonb
-            AND e.value <> '[]'::jsonb
-          )
-        END
+        AND ${verdiErUtfylt()}
     )
   `;
 }
@@ -92,6 +101,30 @@ export async function tellDokumenterMedInnhold(
     prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT count(*) AS n FROM tasks WHERE template_id = ${templateId} AND deleted_at IS NULL AND data IS NOT NULL AND ${harFaktiskInnholdForObjekt(objektIder)}`),
   ]);
   return Number(sjekk[0]?.n ?? 0) + Number(oppg[0]?.n ?? 0);
+}
+
+/**
+ * Hvilke av `objektIder` har FAKTISK innhold i minst ett aktivt dokument for denne malen.
+ * Samme predikat (`verdiErUtfylt`) som tellingen, men returnerer NØKLENE — brukt av
+ * `firmamal.oppdaterKopiFraHovedmal` (ordre diffmerge, krav 3) til å NAVNGI feltene som ville
+ * mistet data om de ikke matcher. Ett predikat, ingen drift mot slett-vernet.
+ */
+export async function objektIderMedInnhold(
+  prisma: PrismaClient,
+  templateId: string,
+  objektIder: string[],
+): Promise<Set<string>> {
+  if (objektIder.length === 0) return new Set();
+  const rader = await prisma.$queryRaw<{ key: string }[]>(Prisma.sql`
+    SELECT DISTINCT e.key FROM checklists, jsonb_each(data) AS e(key, value)
+      WHERE template_id = ${templateId} AND deleted_at IS NULL AND data IS NOT NULL
+        AND e.key = ANY(${objektIder}) AND ${verdiErUtfylt()}
+    UNION
+    SELECT DISTINCT e.key FROM tasks, jsonb_each(data) AS e(key, value)
+      WHERE template_id = ${templateId} AND deleted_at IS NULL AND data IS NOT NULL
+        AND e.key = ANY(${objektIder}) AND ${verdiErUtfylt()}
+  `);
+  return new Set(rader.map((r) => r.key));
 }
 
 // Config-nøkler som IKKE endrer HVA eller HVORDAN som ble kontrollert (cowork-gate 2026-09-06).

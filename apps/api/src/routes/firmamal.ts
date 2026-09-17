@@ -36,8 +36,8 @@ import {
   erFirmaAdminForProsjekt,
   autoriserMalTilgang,
 } from "../trpc/tilgangskontroll";
-import { finnLedigeMalVerdier, tellDokumenterMedInnhold } from "./mal";
-import { kopierObjektTre } from "./objektkopi";
+import { finnLedigeMalVerdier, objektIderMedInnhold } from "./mal";
+import { kopierObjektTre, diffObjektTre } from "./objektkopi";
 
 // Config-schema (som mal.ts): vilkårlig JSON for rapportobjekt-konfigurasjon.
 const configSchema = z.preprocess(
@@ -817,43 +817,89 @@ export const firmamalRouter = router({
         });
       }
 
-      // VERN mot foreldreløs dokumentdata (krav 2/3). ↻ sletter hele prosjektmalens
-      // objekt-tre og lager nye id-er; Checklist/Task.data er nøklet på objekt-id og
-      // ville mistet koblingen. Nekt hvis NÅVÆRENDE objekter har faktisk innhold i et
-      // aktivt dokument. tellDokumenterMedInnhold filtrerer deletedAt IS NULL (verifisert
-      // mal.ts:89-90), så soft-slettede dokumenter blokkerer ikke. Samme feilkode som
-      // slettObjekt (PRECONDITION_FAILED). Tom liste → ANY('{}') matcher ingenting → 0.
-      const naavaerendeObjekter = await ctx.prisma.reportObject.findMany({
+      // DIFF/MERGE (ordre diffmerge-oppdater-kopi, 2026-09-17, erstatter forrige rundes
+      // blankosperre). Kenneths regel: «prosjektmal kan kun oppdateres dersom tidligere lagrede
+      // data ikke berøres». Vi matcher gamle objekter mot nye (diffObjektTre) — MATCHEDE beholder
+      // sin id (update, ikke delete+create), så Checklist/Task.data følger automatisk og røres
+      // ALDRI. NEKT KUN når et umatchet GAMMELT objekt HAR DATA (da ville dataene blitt
+      // foreldreløse). Fri sletting/oppdatering ellers.
+      const gamleObjekter = await ctx.prisma.reportObject.findMany({
         where: { templateId: mal.id },
-        select: { id: true },
+        orderBy: { sortOrder: "asc" },
       });
-      const antallDok = await tellDokumenterMedInnhold(
-        ctx.prisma,
-        mal.id,
-        naavaerendeObjekter.map((o) => o.id),
-      );
-      if (antallDok > 0) {
+      const { par, opprett, slett } = diffObjektTre(gamleObjekter, firmamal.objects);
+
+      // Krav 3: hvilke umatchede GAMLE objekter har faktisk data? De ville forsvunnet → NEKT,
+      // og feilmeldingen NAVNGIR feltene (ikke bare teller dokumenter). Peker IKKE på «Hent fra
+      // arkiv» — den lager en andre prosjektmal og splitter dokumentene (Kenneth avviste den).
+      const slettIder = slett.map((o) => o.id);
+      const medData = await objektIderMedInnhold(ctx.prisma, mal.id, slettIder);
+      const feltSomForsvinner = slett.filter((o) => medData.has(o.id)).map((o) => o.label);
+      if (feltSomForsvinner.length > 0) {
+        const liste = feltSomForsvinner.map((l) => `«${l}»`).join(", ");
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message:
-            `Oppdatering fra firmamalen er stoppet: ${antallDok} dokument${antallDok === 1 ? "" : "er"} ` +
-            `har utfylte felter som ville mistet dataene sine. Bruk «Hent fra arkiv» for å lage en ny ` +
-            `prosjektmal fra firmamalen i stedet — da beholder de eksisterende dokumentene sine.`,
+            `Oppdatering fra firmamalen er stoppet: ${feltSomForsvinner.length} felt ` +
+            `(${liste}) er fjernet i firmamalen, men har utfylte data i minst ett aktivt dokument. ` +
+            `Behold feltet i firmamalen, eller ferdigstill dokumentene som har data i det, før du ` +
+            `oppdaterer.`,
         });
       }
 
       await ctx.prisma.$transaction(async (tx) => {
-        await tx.reportObject.deleteMany({ where: { templateId: mal.id } });
-        await kopierObjektTre(
-          firmamal.objects,
-          (data) =>
-            tx.reportObject.create({
-              data: { templateId: mal.id, ...data },
-              select: { id: true },
-            }),
-          (id, parentId) =>
-            tx.reportObject.update({ where: { id }, data: { parentId } }).then(() => undefined),
-        );
+        // Kartlegger hvert firmamal-objekt til sin ENDELIGE prosjektmal-id: matchet → gammel id
+        // (bevares), ellers → ny opprettet id. Brukes til reforeldring i pass D.
+        const nyIdTilFinal = new Map<string, string>();
+        for (const p of par) nyIdTilFinal.set(p.ny.id, p.gammel.id);
+
+        // Pass A — opprett umatchede nye objekter (uten parent ennå).
+        for (const n of opprett) {
+          const opprettet = await tx.reportObject.create({
+            data: {
+              templateId: mal.id,
+              type: n.type,
+              label: n.label,
+              config: (n.config ?? {}) as Prisma.InputJsonValue,
+              translations: (n.translations ?? {}) as Prisma.InputJsonValue,
+              sortOrder: n.sortOrder,
+              required: n.required,
+            },
+            select: { id: true },
+          });
+          nyIdTilFinal.set(n.id, opprettet.id);
+        }
+
+        // Pass B — oppdater matchede på plass (id bevart → data følger). parentId settes i pass D.
+        for (const p of par) {
+          await tx.reportObject.update({
+            where: { id: p.gammel.id },
+            data: {
+              type: p.ny.type,
+              label: p.ny.label,
+              config: (p.ny.config ?? {}) as Prisma.InputJsonValue,
+              translations: (p.ny.translations ?? {}) as Prisma.InputJsonValue,
+              sortOrder: p.ny.sortOrder,
+              required: p.ny.required,
+            },
+          });
+        }
+
+        // Pass D — reforeldre ALLE overlevende fra firmamal-treet FØR sletting, så ingen
+        // overlevende peker på et objekt som slettes (entydig-match kan ha matchet et barn hvis
+        // forelder slettes → cascade ville ellers tatt barnet). Gjøres før pass C av den grunn.
+        for (const n of firmamal.objects) {
+          const finalId = nyIdTilFinal.get(n.id);
+          if (!finalId) continue;
+          const finalParent = n.parentId ? nyIdTilFinal.get(n.parentId) ?? null : null;
+          await tx.reportObject.update({ where: { id: finalId }, data: { parentId: finalParent } });
+        }
+
+        // Pass C — slett umatchede gamle. Trygt nå: ingen overlevende refererer dem (pass D).
+        if (slettIder.length > 0) {
+          await tx.reportObject.deleteMany({ where: { id: { in: slettIder } } });
+        }
+
         await tx.reportTemplate.update({
           where: { id: mal.id },
           data: { versjonAvHovedmal: firmamal.version },
