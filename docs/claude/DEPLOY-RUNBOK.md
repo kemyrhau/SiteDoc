@@ -516,6 +516,12 @@ beholder fiksene i den; den andre kaster helt tilbake til JS-en i binæren og mi
 
 # 7 · Seeding mot test
 
+> ⚠️ **Ikke re-verifisert mot serveren etter 17.09.** Veien under er den generelle og riktige
+> måten å seede på (mal-Opus 2026-09-17), men den er **ikke** kjørt mot serveren etter endringene
+> gjort samme dag. **Første gang den brukes:** bekreft at container-navnet `postgres` og stien
+> `/tmp` fortsatt stemmer, og **rett seksjonen** hvis noe har flyttet seg.
+> *Kenneth 2026-09-17: «seed veien må sjekkes → vi har gjort endringer på serveren som kan endre noe».*
+
 > **Hvorfor dette er en runbok-seksjon:** spørsmålet «hvordan seeder vi mot test» kostet en hel
 > økt 2026-09-17, med Kenneth som prober i fire runder. Svaret fantes hos mal-Opus hele tiden.
 > Nå finnes det ett sted. **Alle punktene under er målt 2026-09-17.**
