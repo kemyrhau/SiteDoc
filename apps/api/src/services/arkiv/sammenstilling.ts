@@ -601,7 +601,11 @@ export async function byggOppgaveArkivHtml(
   const norm: NormalisertArkivDok = {
     id: oppgave.id,
     kategori: "oppgave",
-    dokumenttype: "Oppgave",
+    // Kontraktssak-runde 1 (D.13): topplinjas type-label blir «Kontraktssak» i stedet for
+    // «Oppgave» for kontraktssak-maler, så arkivkopien bærer klassen (flateparitet med skjerm).
+    // Arkiv-PDF-pakken er bevisst ikke i18n (grensesnapshot.ts:22) — labelen er hardkodet norsk
+    // som «Oppgave»/«Sjekkliste».
+    dokumenttype: oppgave.template?.subdomain === "kontrakt" ? "Kontraktssak" : "Oppgave",
     filnavnPrefix: "oppgave",
     signaturStrategi: "oppgave",
     objects: (oppgave.template?.objects ?? []) as unknown as RapportObjekt[],

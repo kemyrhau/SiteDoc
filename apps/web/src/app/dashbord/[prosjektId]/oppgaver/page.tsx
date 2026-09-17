@@ -9,7 +9,7 @@ import { beregnHarBallen, filtrerRader, formaterNummer } from "@sitedoc/shared";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
-import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronDown, ChevronRight, Scale } from "lucide-react";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
@@ -45,7 +45,7 @@ interface OppgaveRad {
   createdAt: string;
   updatedAt: string;
   data: Record<string, unknown> | null;
-  template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] } | null;
+  template: { id: string; prefix: string | null; name: string; subdomain: string | null; objects: MalObjekt[] } | null;
   bestiller: { name: string | null } | null;
   bestillerFaggruppe: { name: string } | null;
   utforerFaggruppe: { name: string } | null;
@@ -246,6 +246,8 @@ export default function OppgaverSide() {
   });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [mineOppgaver, setMineOppgaver] = useState(false);
+  // Kontraktssak-segment (tavle 1): lever i komponent-tilstand (økt) — ikke localStorage, ikke DB.
+  const [segment, setSegment] = useState<"alle" | "oppgaver" | "kontrakt">("alle");
   // Oppgave-opprett tar kun drawingId (oppgave.opprett har ikke byggeplassId —
   // byggeplass utledes via drawing.byggeplassId). Henter standardTegning som
   // kontekst-default (V2); byggeplass-uten-aktiv-tegning kan ikke festes på
@@ -261,7 +263,9 @@ export default function OppgaverSide() {
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // P4b-port (2026-08-03): les `opprettbareFlytIder` (server-beregnet, delt regel med opprett-
   // valideringen) — erstatter den skjøre klient-`matchDf`-heuristikken.
-  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "oppgave");
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; subdomain?: string | null; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "oppgave");
+  // Kontraktssak-segment (tavle 1) vises KUN når prosjektet har minst én kontraktssak-mal.
+  const harKontraktMal = oppgaveMaler.some((m) => m.subdomain === "kontrakt");
   // P4b pkt 0: skill opprettbare fra utilgjengelige (server-feltet, delt regel).
   // Velger + auto-hopp bruker KUN opprettbare; utilgjengelige vises bak «vis (N)».
   const opprettbareOppgaveMaler = oppgaveMaler.filter((m) => m.opprettbar !== false);
@@ -629,6 +633,17 @@ export default function OppgaverSide() {
     return resultat;
   }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier, mineOppgaver, minFlytInfo]);
 
+  // Kontraktssak-segment (tavle 1): tallene er antall ETTER øvrige aktive filtre
+  // (utledet av `filtrerte`), og Oppgaver + Kontraktssaker = Alle. Selve segmentet
+  // filtrerer bare visningen — det endrer aldri hvem som ser hva.
+  const erKontraktRad = (o: OppgaveRad) => o.template?.subdomain === "kontrakt";
+  const antKontrakt = useMemo(() => filtrerte.filter(erKontraktRad).length, [filtrerte]);
+  const synligeRader = useMemo(() => {
+    if (segment === "kontrakt") return filtrerte.filter(erKontraktRad);
+    if (segment === "oppgaver") return filtrerte.filter((o) => !erKontraktRad(o));
+    return filtrerte;
+  }, [filtrerte, segment]);
+
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
   }, []);
@@ -656,10 +671,27 @@ export default function OppgaverSide() {
     const defs: Record<string, KolDef> = {
       prefix: {
         id: "prefix", header: t("tabell.prefix"),
-        celle: (rad) => rad.template?.prefix
-          ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{rad.template.prefix}</span>
-          : <span className="text-gray-300">—</span>,
-        bredde: "70px", sorterbar: true, sorterVerdi: (rad) => rad.template?.prefix ?? "",
+        // Kontraktssak (tavle 1): ⚖ Scale 14px foran prefikset. Vanlige rader får en tom
+        // 14px-plassholder så prefiksene står på linje. Formen bærer signalet, ikke farge.
+        celle: (rad) => (
+          <span className="inline-flex items-center gap-1">
+            {erKontraktRad(rad) ? (
+              <span
+                className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center"
+                title={t("dokumentklasse.kontraktssak")}
+                aria-label={t("dokumentklasse.kontraktssak")}
+              >
+                <Scale className="h-3.5 w-3.5 text-gray-700" />
+              </span>
+            ) : (
+              <span className="inline-block h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            )}
+            {rad.template?.prefix
+              ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{rad.template.prefix}</span>
+              : <span className="text-gray-300">—</span>}
+          </span>
+        ),
+        bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.template?.prefix ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.prefix ?? [],
       },
       nr: {
@@ -875,6 +907,36 @@ export default function OppgaverSide() {
       {/* Filterbar */}
       {(oppgaver?.length ?? 0) > 0 && (
         <div className="mb-3 flex items-center gap-2">
+          {/* Kontraktssak-segment (tavle 1): til venstre for de øvrige filtrene. Vises kun når
+              prosjektet har en kontraktssak-mal. Tallene er antall etter øvrige aktive filtre. */}
+          {harKontraktMal && (
+            <div
+              role="group"
+              aria-label={t("dokumentklasse.segmentTittel")}
+              className="inline-flex overflow-hidden rounded-md border border-gray-200"
+            >
+              {([
+                { id: "alle", navn: t("dokumentklasse.alle"), antall: filtrerte.length, ikon: false },
+                { id: "oppgaver", navn: t("dokumentklasse.oppgaver"), antall: filtrerte.length - antKontrakt, ikon: false },
+                { id: "kontrakt", navn: t("dokumentklasse.kontraktssaker"), antall: antKontrakt, ikon: true },
+              ] as const).map((s, i) => {
+                const aktiv = segment === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSegment(s.id)}
+                    aria-pressed={aktiv}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium ${
+                      i > 0 ? "border-l border-gray-200" : ""
+                    } ${aktiv ? "bg-blue-50 text-sitedoc-primary" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    {s.ikon && <Scale className="h-3.5 w-3.5" />}
+                    {s.navn} ({s.antall})
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {/* Kolonnevelger */}
           <div className="relative">
             <button
@@ -937,7 +999,7 @@ export default function OppgaverSide() {
 
           {/* Antall */}
           <span className="ml-auto text-xs text-gray-400">
-            {filtrerte.length} av {oppgaver?.length ?? 0}
+            {synligeRader.length} av {oppgaver?.length ?? 0}
           </span>
         </div>
       )}
@@ -951,7 +1013,7 @@ export default function OppgaverSide() {
       ) : (
         <Table<OppgaveRad>
           kolonner={kolonneDefinisjoner}
-          data={filtrerte}
+          data={synligeRader}
           radNokkel={(rad) => rad.id}
           onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
           tomMelding={t("oppgaver.ingenMatcherFilter")}

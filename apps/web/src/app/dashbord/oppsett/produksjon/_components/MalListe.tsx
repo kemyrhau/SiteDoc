@@ -7,7 +7,7 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download, RefreshCw, FileText, ClipboardList } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download, RefreshCw, FileText, ClipboardList, Scale } from "lucide-react";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
@@ -44,7 +44,8 @@ type MalRad = {
   prefix: string | null;
   category: string;
   domain: string;
-  subdomain: HmsSubdomain | null;
+  // "kontrakt" (Kontraktssak) i tillegg til HMS-subdomains — undertype innenfor domenet.
+  subdomain: HmsSubdomain | "kontrakt" | null;
   hmsSynlighet: HmsSynlighet | null;
   version: number;
   subjects: unknown;
@@ -61,6 +62,64 @@ type MalRad = {
 // Default-synlighet per subdomain. Bruker kan overstyre manuelt.
 function defaultSynlighet(subdomain: HmsSubdomain): HmsSynlighet {
   return subdomain === "sja" ? "apen" : "privat";
+}
+
+/**
+ * Kontraktssak-runde 1 (tavle 3): typevalg på en OPPGAVE-mal — Oppgave (default) eller
+ * Kontraktssak. Erklærer `subdomain="kontrakt"` (ikke en skjemaendring). Vises KUN for
+ * oppgave-maler (ikke sjekkliste, ikke HMS). `konsekvensAntall` > 0 ved rediger av en mal
+ * med dokumenter → linja «Gjelder også de N …»; ingen bekreftelsesmodal (reversibelt valg).
+ */
+function MalTypeVelger({
+  erKontrakt,
+  onEndre,
+  konsekvensAntall,
+}: {
+  erKontrakt: boolean;
+  onEndre: (v: boolean) => void;
+  konsekvensAntall?: number;
+}) {
+  const { t } = useTranslation();
+  const valg: Array<{ verdi: boolean; navn: string; forklaring: string; ikon: boolean }> = [
+    { verdi: false, navn: t("mal.type.oppgave"), forklaring: t("mal.type.oppgaveForklaring"), ikon: false },
+    { verdi: true, navn: t("dokumentklasse.kontraktssak"), forklaring: t("mal.type.kontraktssakForklaring"), ikon: true },
+  ];
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-gray-700">{t("mal.type.tittel")}</label>
+      {valg.map((v) => {
+        const valgt = erKontrakt === v.verdi;
+        return (
+          <label
+            key={String(v.verdi)}
+            className={`flex cursor-pointer gap-2.5 rounded-lg border px-3 py-2 ${
+              valgt ? "border-sitedoc-primary bg-blue-50/50" : "border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <input
+              type="radio"
+              name="mal-type-kontrakt"
+              checked={valgt}
+              onChange={() => onEndre(v.verdi)}
+              className="mt-0.5 h-4 w-4 shrink-0 text-sitedoc-primary"
+            />
+            <span className="flex flex-col">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                {v.ikon && <Scale className="h-3.5 w-3.5 text-gray-700" />}
+                {v.navn}
+              </span>
+              <span className="text-[11px] leading-snug text-gray-500">{v.forklaring}</span>
+            </span>
+          </label>
+        );
+      })}
+      {erKontrakt && (konsekvensAntall ?? 0) > 0 && (
+        <p className="text-xs text-gray-500">
+          {t("mal.type.gjelderEksisterende", { count: konsekvensAntall })}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // Prefiks-mønster som matcher reserverte HMS-typer. Case-insensitiv.
@@ -177,6 +236,9 @@ export function MalListe({
   const erHms = kategori === "hms";
   const [subdomain, setSubdomain] = useState<HmsSubdomain>("avvik");
   const [hmsSynlighet, setHmsSynlighet] = useState<HmsSynlighet>("privat");
+  // Kontraktssak-runde 1: typevalg på oppgave-maler (subdomain="kontrakt"). Skilt fra
+  // HMS-subdomain (egen akse) — begge kan aldri være satt samtidig (server avviser).
+  const [erKontrakt, setErKontrakt] = useState(false);
   const [valgteWorkflowIds, setValgteWorkflowIds] = useState<Set<string>>(new Set());
   const [visFaggruppeTilknytning, setVisFaggruppeTilknytning] = useState(false);
   const [aktiverOppretting, _setAktiverOppretting] = useState(true);
@@ -194,6 +256,7 @@ export function MalListe({
   const redigerErHms = redigerCategory === "hms";
   const [redigerOpprinneligErHms, setRedigerOpprinneligErHms] = useState(false);
   const [redigerSubdomain, setRedigerSubdomain] = useState<HmsSubdomain>("avvik");
+  const [redigerErKontrakt, setRedigerErKontrakt] = useState(false);
   const [redigerHmsSynlighet, setRedigerHmsSynlighet] = useState<HmsSynlighet>("privat");
   const [redigerOpprinneligSynlighet, setRedigerOpprinneligSynlighet] = useState<HmsSynlighet | null>(null);
 
@@ -224,6 +287,7 @@ export function MalListe({
       setPrefiksFeil(null);
       setSubdomain("avvik");
       setHmsSynlighet("privat");
+      setErKontrakt(false);
       setValgteWorkflowIds(new Set());
       setMalFeil(null);
     },
@@ -291,7 +355,7 @@ export function MalListe({
       description: beskrivelse.trim() || undefined,
       category: kategori,
       domain: erHms ? "hms" : "bygg",
-      subdomain: erHms ? subdomain : null,
+      subdomain: erHms ? subdomain : erKontrakt ? "kontrakt" : null,
       hmsSynlighet: erHms ? hmsSynlighet : null,
       workflowIds: Array.from(valgteWorkflowIds),
     });
@@ -308,7 +372,7 @@ export function MalListe({
       description: redigerBeskrivelse.trim() || undefined,
       category: redigerCategory,
       domain: redigerErHms ? "hms" : "bygg",
-      subdomain: redigerErHms ? redigerSubdomain : null,
+      subdomain: redigerErHms ? redigerSubdomain : redigerErKontrakt ? "kontrakt" : null,
       hmsSynlighet: redigerErHms ? redigerHmsSynlighet : null,
       subjects: redigerSubjects.filter((s) => s.trim() !== ""),
       enableChangeLog: redigerEnableChangeLog,
@@ -335,9 +399,14 @@ export function MalListe({
     const erHmsNa = mal.domain === "hms";
     setRedigerCategory(erHmsNa ? "hms" : (mal.category as MalKategori));
     setRedigerOpprinneligErHms(erHmsNa);
-    const radSubdomain: HmsSubdomain = (mal.subdomain ?? "avvik");
+    // 🔴 «kontrakt» er IKKE en HMS-subdomain — cast den aldri inn i HMS-state (funn 0.1,
+    // MalListe.tsx:338). Kontraktssak spores i egen `redigerErKontrakt`; HMS-subdomain
+    // faller tilbake på "avvik" for ikke-HMS-maler (radioen vises kun ved redigerErHms).
+    const erHmsSub = mal.subdomain === "avvik" || mal.subdomain === "sja" || mal.subdomain === "ruh";
+    const radSubdomain: HmsSubdomain = erHmsSub ? (mal.subdomain as HmsSubdomain) : "avvik";
     const radSynlighet: HmsSynlighet = mal.hmsSynlighet ?? defaultSynlighet(radSubdomain);
     setRedigerSubdomain(radSubdomain);
+    setRedigerErKontrakt(mal.subdomain === "kontrakt");
     setRedigerHmsSynlighet(radSynlighet);
     setRedigerOpprinneligSynlighet(erHmsNa ? radSynlighet : null);
     const koblinger = (mal as { dokumentflytMaler?: Array<{ dokumentflytId: string }> }).dokumentflytMaler ?? [];
@@ -755,6 +824,11 @@ export function MalListe({
             </div>
           </div>
 
+          {/* Kontraktssak-runde 1 (tavle 3): typevalg kun på oppgave-maler. */}
+          {kategori === "oppgave" && (
+            <MalTypeVelger erKontrakt={erKontrakt} onEndre={setErKontrakt} />
+          )}
+
           {/* HMS-prefiks-hint: nudger brukeren til HMS-malbyggeren når prefikset
               ser ut som en HMS-type, men malen lages på oppgave-/sjekkliste-siden. */}
           {seerUtSomHmsPrefiks(prefiks) && !erHms && (
@@ -995,6 +1069,16 @@ export function MalListe({
               </div>
             );
           })()}
+
+          {/* Kontraktssak-runde 1 (tavle 3): typevalg kun på oppgave-maler. Konsekvens-linja
+              vises når malen alt har dokumenter (reversibelt valg, ingen bekreftelsesmodal). */}
+          {redigerCategory === "oppgave" && (
+            <MalTypeVelger
+              erKontrakt={redigerErKontrakt}
+              onEndre={setRedigerErKontrakt}
+              konsekvensAntall={(valgtMal?._count?.checklists ?? 0) + (valgtMal?._count?.tasks ?? 0)}
+            />
+          )}
 
           {/* HMS-prefiks-hint i rediger-modus */}
           {seerUtSomHmsPrefiks(redigerPrefiks) && !redigerErHms && (
