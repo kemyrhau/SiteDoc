@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-17 · develop `045e376d` (INGEN migrering denne runden — web-deploy) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
+**Sist ført: 2026-09-17 · develop `be2217d1` (BÆRER MIGRERING `20260917130000_bundet_flyt` — IKKE KJØRT; Kenneth kjører ved deploy) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -33,6 +33,32 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Strengharmonisering** | Nå (nøkkelsett-testen levert 16.09) | mal-Opus |
 | **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
 | **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+
+---
+
+## 🟢 2026-09-17 — Tre brancher merget (`be2217d1`): diff/merge på ↻ (erstatter blankosperre) · bundet flyt (MIGRERING) · e2e 05/07. DEPLOY m/ MIGRERING.
+
+**Tre disjunkte brancher, rekkefølge 1→2→3, `--no-ff` per branch.** Strategi: **e2e `10d656b8`** · **diff/merge `9cf21d37`** · **bundet flyt `be2217d1`**. `comm -12` tom mellom alle tre (målt selv). Base `7851f243`. `fix/e2e-status-assertions` var basert på `d2f8bf65` (bak develop), men develop rørte ikke dens tre filer → ren merge.
+🔴 **BÆRER MIGRERING `20260917130000_bundet_flyt` — IKKE KJØRT.** Kenneth kjører den ved deploy (BUILD→MIGRATE→UP). `ALTER TABLE dokumentflyter ADD COLUMN bundet BOOLEAN NOT NULL DEFAULT false` (default = backfillen; ingen rad fødes tom). DRY-RUN.sql bevist read-only (kun SELECT).
+Gate: `pnpm test` 7/7 tasks — alle stille (`db` 2 · **`api` 490** · `pdf` 120 · `shared` 824 · `web` 257 · `mobil` 9). **Integrasjon 44→48** (+5 diff/merge, +4 bundet flyt, −2 slettet blankosperre-test → netto på de to basene summerer til 48) — kjørt lokalt mot efemær `pgvector/pgvector:pg16`-sandkasse (CI-speil, port 5433). Begge CI-jobber grønne (`test` + `e2e 01–05/07`, run 35191786088).
+
+**A — diff/merge på ↻ (erstatter sperren):**
+- 🔴 **COWORK-FEIL RETTET.** Blankosperren fra forrige runde nektet oppdatering når noe dokument hadde data. Kenneths regel er at oppdatering nektes når data BERØRES. I drift ville sperren gjort at ingen prosjekt i bruk kunne motta maloppdateringer.
+- 🟢 **↻ matcher nå gammelt mot nytt på `(type, label)` og BEHOLDER objekt-id ved match.** Dokumentdata følger automatisk. Nekt utløses KUN når et felt som HAR DATA forsvinner — og feilmeldingen NAVNGIR feltene.
+- 🟢 **Entydighetsvakt ved kjøretid:** entydig nøkkel → match på tvers av overskrift (flyttet felt beholder data). Tvetydig → forelder-match, gjetter aldri.
+- 🔴 **Kenneth-vedtak 17.09, definisjonen som gjelder:** «firmamaler skal alltid kunne oppdateres — de er aldri bundet av en handling i prosjekt. prosjektmal — kan kun oppdateres dersom tidligere lagrede data ikke berøres.»
+- 🟡 **MELDT, IKKE BYGGET: tørrkjøring.** `firmamal.forhandsvisOppdatering` ~30–40 linjer, gjenbruker `diffObjektTre` uten transaksjon → «3 felt legges til, 1 fjernes, 12 beholdes» i ↻-bekreftelsen. Ingen skjemaendring. 🔴 Kenneth gater.
+- 🟢 **Erstattet testfil:** `firmamal-oppdater-vern.integration.test.ts` SLETTET (per mandat, test 1 feilet mot ny kode først); ingen annen test dekker blankosperren. Ny `firmamal-diffmerge.integration.test.ts` — 7 tester sett røde i fire negativkontroller (NK-4: brøt entydighetsvakten, beviste at testen fanger GJETTINGEN).
+
+**B — bundet flyt (BÆRER MIGRERING `20260917130000_bundet_flyt`):**
+- 🟢 **Kolonne på `Dokumentflyt`, default FRI. Serversperre i `oppgave.ts` og `sjekkliste.ts`** mot flyt-bytte UT av en bundet flyt. Videresend INNEN egen flyt virker fortsatt.
+- 🟢 **Dry-run: 18 flyter, 6 prosjekter, alle blir frie via defaulten. Ingen backfill.**
+- 🔴 **`kanByttFlyt` er URØRT** — bundet flyt er en egenskap ved flyten, ikke en rettighet.
+- ⚠️ **UI gjenstår:** radiovalg ved opprettelse, bryter i etterkant, fotnote, `Anchor`-symbol. Bestilles til redesign.
+
+**C — e2e `05` og `07`:**
+- 🔴 **FUNN: en test som passerte fordi handlingen aldri skjedde.** Samme feilklasse som de elleve testene som aldri kjørte. ⚠️ Avvis og Besvar krever begrunnelse; gjenåpne gjør ikke.
+- 🔴 **MELDT: begrunnelse-dialogen mangler `data-testid`** (`DokumentHandlingsmeny.tsx:646`) — spec-en henger i placeholder-tekst. Fikses IKKE her; redesign eier fila.
 
 ---
 
