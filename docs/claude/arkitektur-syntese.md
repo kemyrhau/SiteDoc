@@ -315,14 +315,16 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 
 ---
 
-## 4. Manglende firma-modeller (Fase 0) ✅
+## 4. Firma-modeller (Fase 0) — bygget ✅
 
-| Modell | Formål | Avhengigheter |
+> 🟢 **BYGGET — målt 2026-09-17 @ `250dfc7f`.** Alle fire modellene som opprinnelig sto som «manglende» finnes nå i `packages/db/prisma/schema.prisma`. Positiv kontroll per rad under.
+
+| Modell | Formål | Bygget |
 |---|---|---|
-| `OrganizationSetting` | Tilgangs-defaults og firma-flagg | — |
-| `OrganizationPartner` | Faste UE/byggherre/leverandører | — |
-| `OrganizationTemplate` | Firma-mal-bibliotek (mal-promotering) | — |
-| Firma-HMS-rolle (på User eller egen tabell) | Behandler firma-eide HMS-rapporter | — |
+| `OrganizationSetting` | Tilgangs-defaults og firma-flagg | ✅ `schema.prisma:372` |
+| `OrganizationPartner` | Faste UE/byggherre/leverandører | ✅ `schema.prisma:533` |
+| `OrganizationTemplate` | Firma-mal-bibliotek (mal-promotering) | ✅ `schema.prisma:1120` |
+| Firma-HMS-rolle (egen tabell valgt) | Behandler firma-eide HMS-rapporter | ✅ `OrganizationMember.firmaRoller` = `"hms_ansvarlig"` (`schema.prisma:251`) |
 
 **Modul-aktivering (gateway):** `ProjectModule` eksisterer allerede — utvides med `organizationId` + `status` per A.4/A.17 (3-nivå: aktivert/deaktivert/standalone). Ingen ny `OrganizationModule`-tabell.
 
@@ -574,7 +576,7 @@ GPS-validering (geofence-innsjekk) tilhører Mannskap-modul, ikke Timer — adap
 ### Funksjonelt
 - Møtemal (ny dokumenttype) — Fase 7
 - Månedsrapport (auto-generert) — Fase 7
-- HMS-statistikk på firma-nivå — Fase 7
+- ~~HMS-statistikk på firma-nivå — Fase 7~~ → ✅ **BYGGET** (kom tidligere enn planlagt, målt 2026-09-17 @ `50fd9893`): `hms.hentFirmaOversikt` (`apps/api/src/routes/hms.ts:305`), rendret i `dashbord/firma/hms/page.tsx`. Samme funn som § 3-rad «HMS-statistikk på firma-nivå» (linje 49) + § 5 Fase 7-markøren.
 - Street View for byggeplass — eget prosjekt
 - Multi-firma-bruker (modellering)
 - Mal-versjonering med push-down ved firma-mal-endring
@@ -616,4 +618,4 @@ Følgende memorier skal opprettes/oppdateres når implementeringen i ny chat beg
 ---
 
 *Sist oppdatert: 2026-04-26*
-*Status: Beslutninger låst, men venter på timer-modul-planlegging før Fase 0-koding kan starte. Timer kan medføre justeringer av Fase 0-beslutninger — se [fase-0-beslutninger.md](fase-0-beslutninger.md) § «Forutsetning før koding starter».*
+*Status (footer remålt 2026-09-17 @ `250dfc7f`): Fase 0-koding HAR startet, og datamodellen er i hovedsak bygget. 7 av 8 datamodell-steg i § 4-rekkefølgen finnes i `packages/db/prisma/schema.prisma`: `ProjectModule.organizationId`+`status` (`:1684-1685`), `OrganizationSetting` (`:372`), `OrganizationPartner` (`:533`), `OrganizationTemplate` (`:1120`), `Project.primaryOrganizationId` (`:671`), `BibliotekMal`-utvidelsen (`:2320` m.fl., merket «§ E steg 8»), `ProjectMember.periodeSlutt` (`:719`) og Firma-HMS-rolle (`OrganizationMember.firmaRoller`, `:251`). Timer-modulen er bygget, så den opprinnelige blokkeringen «venter på timer-modul-planlegging» er bortfalt. **Unntak (steg 5):** Psi-utvidelsen (`organizationId`, nullbar `projectId`, `kontekstType`) er IKKE bygget — `Psi.projectId` er fortsatt `String` (ikke-nullbar), og `OrganizationKontekstType` ble besluttet utelatt (§ 4). 🟡 **USIKKER — ikke målt her:** om HELE Fase 0 er komplett (§ E's 13 migrasjons-steg + infrastruktur-laget, f.eks. navngitt `prosjektProcedure`/`modulProcedure`, som ikke ble funnet under de navnene). Det krever en egen runde — [fase-0-beslutninger.md § E](fase-0-beslutninger.md) er sannhetskilden.*
