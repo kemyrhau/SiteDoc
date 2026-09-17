@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-17 · develop `ba7f6c0f` (web-deploy — ingen migrering denne runden) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
+**Sist ført: 2026-09-17 · develop `f6ed59f1` (web+api-deploy + OTA — ingen migrering denne runden) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | — |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `feat/push-datalag` | 🔵 **I ARBEID** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
 | **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
@@ -38,6 +38,22 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-17 — Tre brancher merget (`f6ed59f1`): bundet flyt mobil · fasetabell remålt · ordreformat presisert. WEB+API-DEPLOY + OTA, ingen migrering.
+
+**Tre fast-forward-brancher fra `50fd9893`, null felles filer:** 1. `docs/ordreformat-kopierbar` (SAMARBEIDSREGLER) · 2. `docs/remaaling-fasetabell` (arkitektur-syntese) · 3. `feat/bundet-flyt-mobil` (ett api-felt × 2 routere + mobil + tester). Merget i den rekkefølgen så #3 står alene i diffen. Gate: `pnpm test` 7/7 — **`mobil` 9→13** (+4: flytbytte-visning, inkl. testen som feiler hvis «Bytt flyt» vises for en bundet flyt). **`integrasjon` 48→51** (+3: `gjeldende.bundet` returneres i begge routere). Resten HELT stille (`db` 2 · `api` unit 490 · `pdf` 120 · `shared` 824 · `web` 261). De to docs-branchene flyttet ingen tall. Begge CI-jobber grønne.
+
+- 🟢 **BUNDET FLYT ER KOMPLETT PÅ BEGGE FLATER** — web kom i `ba7f6c0f`, mobil nå. Ett felt (`bundet`) lagt til på `gjeldende` i begge routere; **`kanByttFlyt`/`andre`/`kanFlytte` urørt — verifisert mot develop etter merge (api-diff rent additiv, 0 slettede linjer på rettighets-felt)**. Mobil skjuler «Bytt flyt» og viser fotnoten med anker i stedet.
+- 🔴 **HULLET SOM BLE LUKKET:** serversperren fantes og var testet, men mobil kunne ikke vite at en flyt var bundet — «Bytt flyt» var levende og feilet mot serveren uten forklaring. Fotnotens poeng («det gjelder alle i prosjektet, ikke bare deg») fantes bare på web.
+- 🟢 **Test som feiler hvis «Bytt flyt» vises for en bundet flyt** — sett rød først (`!egenFlytBundet`-vakten fjernet → testen falt). Integrasjon (5)+(6) sett rød på samme vis. Gjenbrukte `videresend.bundetFotnote` — ingen nye i18n-nøkler. `Anchor` verifisert i `lucide-react-native`.
+- 🟢 **FASETABELLEN REMÅLT mot `50fd9893`** — syv «Mangler»-påstander målt mot kode. Fase 2 arkivert som ferdig, Fase 7 markert delvis.
+- 🔴 **FUNN: «HMS-statistikk på firma-nivå» sto som «Mangler — Fase 7». Den er bygget** (`hms.hentFirmaOversikt`, `firma/hms/page.tsx`, fem i18n-nøkler). Ettermålt av cowork.
+- 🟡 **Godkjenning-modellen er DØD:** finnes i skjemaet, `prisma.godkjenning` = 0 treff i api. Ingen router, ingen flate. Ført som DELVIS, ikke «ferdig».
+- ⚠️ **MELDT, IKKE GJORT — tre rader til i `arkitektur-syntese.md` har drevet:** `:318` lister `OrganizationTemplate` som manglende (den finnes) · `:573` gjentar HMS-statistikk-feilen · `:615` sier Fase 0-koding ikke kan starte. **Cowork ordrer oppfølgeren.**
+- 🟢 **ORDREFORMATET PRESISERT** — limbare blokker i egen fenced kodeblokk, én pr. mottaker; spørsmål som venter på Kenneth får egen «KREVER SVAR»-overskrift, og står det ingenting, skal det STÅ. Utløst av Kenneth 17.09.
+- 🔴 **UTLØSER api-deploy + OTA — Kenneth eier begge. Klart, ikke deployet.**
 
 ---
 
