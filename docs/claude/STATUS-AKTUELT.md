@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-17 · develop `65e16a93` (web-deploy — ingen migrering denne runden) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
+**Sist ført: 2026-09-17 · develop `ba7f6c0f` (web-deploy — ingen migrering denne runden) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | Strengharmonisering (nå) |
+| **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | — |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **deploy** · **simulator** | — | — | ⚪ **LEDIG** | — |
@@ -38,6 +38,22 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-17 — Bundet flyt-UI + strengharmonisering (`ba7f6c0f`). WEB-DEPLOY, ingen migrering, ingen OTA.
+
+**To brancher, bindende rekkefølge:** **1. `chore/strengharmonisering`** (`--no-ff`, 15 i18n-filer, 165/165 ren tekst) · **2. `feat/bundet-flyt-ui`** (`--no-ff`, web + 15 i18n). Begge rører alle femten i18n-filer — landet i denne rekkefølgen for at bundet-flyt-UI blir en vanlig tillegg-merge oppå verdiendringene. Ingen konflikt. Kontrollert etter merge (3-veis JSON-merge feiler stille): **alle 15 filer 4569 nøkler, identisk sett**; **de 11 harmoniserte verdiene overlevde** (`adminBibliotek.tittel` = «SiteDoc-arkiv» i develop, verifisert med streng-diff mot forrige develop, ikke bare nøkkeltelling).
+Gate: `pnpm test` 7/7 tasks — **`web` 259→261** (+2: testen som feiler hvis «Andre flyter» vises for en bundet flyt). Resten stille (`db` 2 · `api` 490 · `pdf` 120 · `shared` 824 · `mobil` 9). Integrasjon uendret på 48 (branchene rører null api/integrasjonsfiler). Begge CI-jobber grønne.
+
+- 🟢 **BUNDET FLYT ER KOMPLETT** — kolonne og serversperre kom i `be2217d1`, UI-et nå. To radiovalg ved opprettelse («Fri flyt · standard» / «Bundet flyt ⚓»), bryter i etterkant med konsekvenstekst begge veier, fotnote som avviser rettighets-lesningen, `Anchor` på tre flater. **Fri flyt har INGEN symbol.**
+- 🟢 **Test som feiler hvis «Andre flyter» vises for en bundet flyt** — sett rød først (`!egenFlytBundet`-vakten fjernet → testen falt). `data-testid` på begrunnelse-dialogen tatt med (`bekreft-begrunnelse-input` + `-send`).
+- 🔴 **AVVIK FRA FASITEN, gatet av cowork:** fabels fotnote navnga «Endringsmeldinger». redesign generaliserte til «Dokumentene» fordi fotnoten vises i enhver bundet flyt (også «Varsel», «Teknisk avklaring»). Mikrotekst-standarden krever relasjonelle benevnelser. Siste setning står ordrett: «Det gjelder alle i prosjektet, ikke bare deg.»
+- 🟢 **STRENGHARMONISERING LEVERT** — «Sentralarkiv» og «sentralmalen» ut som synlige begreper. 11 verdier i femten språk. Ingen nøkkel-rename, ingen kodeendring.
+- 🟢 **Krav 5 var et ikke-problem:** ingen live UI sier «Standard» om `NS3420-K` — treet bruker dataens eget navn. «Standard for nye» står urørt.
+- ⚠️ **MELDT, IKKE GJORT: seks relikvi-nøkler med 0 kodereferanser** (`firma.malarkiv.tittel`, `.tilbake`, `.kunFirmaAdmin`, `bibliotek.tittel`, `.hentFraBibliotek`, `.beskrivelse`). Nøkkel-sletting er egen sak.
+- 🔴 **FALSK ALARM STRØKET:** mal-Opus meldte at `feat/bundet-flyt-skjema` ville felle nøkkelsett-testen ved å slette to nøkler fra `nb`/`en`. Målt: den ble merget for lenge siden (`be2217d1`), og begge nøklene finnes i alle femten filer. 2-punkts-diff mot en gammel branch-tipp.
+- 🟡 **TO ÅPNE, Kenneth gater:** `maler.arkiv.kildeSitedoc` = «SiteDoc-standard» — mal-Opus anbefaler «SiteDoc-mal» for paritet med «Firmamal» · `innstillinger.sokeord.maler` — legg til «firmaarkiv sitedoc-arkiv» uten å fjerne «malarkiv».
 
 ---
 
