@@ -1542,6 +1542,11 @@ model Dokumentflyt {
   faggruppeId String?  @map("faggruppe_id")
   name        String
   roller      Json     @default("[]") // Array<{ rolle: string, label?: string | null }>
+  // Bundet flyt (fabel-tegning 2026-09-16, Kenneth-gatet): true = dokumentene i flyten kan
+  // IKKE flyttes til andre flyter (flyt-bytte nektes på serveren, oppgave/sjekkliste.endreStatus).
+  // false = «fri flyt» (default). Egenskap VED FLYTEN, ikke en rettighet (jf. kanByttFlyt).
+  // Defaulten ER backfillen: alle eksisterende rader blir frie — ingen rad fødes tom.
+  bundet      Boolean  @default(false)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
