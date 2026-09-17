@@ -44,6 +44,16 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
+## 🟢 2026-09-18 — Service pr. timetall (kundeønske #1) merget. 🔴 DEPLOY MED MIGRERING (db-maskin, IKKE KJØRT), ingen OTA.
+
+**Én branch, `feat/service-timetall`** (`2926b625`, ren ff fra `fad2e71e` — ingen rebase). **🔴 Første migrering siden push_token:** `20260918120000_service_timetall` (db-maskin). **Verifisert additiv:** 2× `ADD COLUMN` (nullable), 2× CHECK-constraint (>0 eller NULL), 1× CREATE INDEX — **NULL DROP/TRUNCATE/DELETE i hele diffen.** Gate: **`api` 503→511** (+8) · **`pdf` 120→124** (+4) · **`web` 264→270** (+6) · **`integrasjon` 59→61** (+2, CI). `db` 2 · `shared` 824 · `mobil` 13 HELT stille (null mobilfiler rørt). 7/7. i18n: alle 15 filer **4585→4627** (+42/-0, identisk sett).
+
+- 🟢 **Kundeønske #1 levert (pilot-delene):** serviceintervall pr. maskin i maskinens innstillinger · servicelogg med skrivevei til `ServiceRecord` · automatisk fremskriving · terskelvarsel (`service-varsel-niva.ts`) · PDF-utskrift (`packages/pdf/service-rapport.ts`). **Del E (sjekkliste med avkrysning) er UTENFOR pilot-scope** (Kenneth).
+- 🟢 **«Neste service» bor BEGGE steder — bevisst, følger husets EU-kontroll-mønster:** `ServiceRecord` bærer **historikk**, ny `Equipment.nesteServiceTimer` bærer **gjeldende tilstand** (denormalisert fra fremskrivingen) — nøyaktig som `Equipment.euKontrollFrist` ligger ved siden av `ServiceRecord type="eu_kontroll"`. **Ikke en ny struktur.**
+- 🟢 **BACKLOG-raden var beviselig FEIL og er rettet (i branchen):** premisset sa `nesteServiceTimer` lå på `ServiceRecord` — det gjorde den ikke (lå ingen steder), var **aldri skrevet og aldri lest**, og `ServiceRecord` hadde **ingen produkt-skrivevei**. (Samme feilklasse som «stille tomhet»: en påstått kobling ingen leser hadde.)
+- 🟢 **ci.yml-endringen fulgte med og er merget:** integrasjonsjobben migrerte kun `@sitedoc/db`; kontrollplan la til `@sitedoc/db-maskin migrate deploy` fordi den nye `service-timetall.integration.test.ts` rører maskin-Prisma. **Reelt CI-hull, ikke scope-kryp** — flagget av ham, godkjent av cowork.
+- 🔴 **DEPLOY MED MIGRERING:** `20260918120000_service_timetall` mot `db-maskin` er IKKE kjørt — Kenneth deployer med migrering etterpå.
+
 ## 🟢 2026-09-17c — Kontraktssak runde 1 merget. WEB+API-DEPLOY, INGEN migrering (schema kun kommentar), ingen OTA-krav.
 
 **Én branch, `feat/kontraktssak-runde1`** (`0542d39b`, alt rebaset på dagens develop `1ea48a10` — **trengte ikke rebase**; ordrens `36539f74`/base `250dfc7f` var stale). Gate: **`api` 495→503** (+8, `mal-subdomain-validering.test.ts`) · **`integrasjon` 57→59** (+2, `kontraktssak.integration.test.ts`, bekreftes i CI). Alle andre HELT stille: `db` 2 · `pdf` 120 · `shared` 824 · `web` 264 · `mobil` 13. 7/7.
