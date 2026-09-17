@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f3f4f6; color: #111827; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #f3f4f6;">
+  <h1 style="margin: 8px 0 0; font-size: 22px; font-weight: 600;">Oppgaver</h1>
+  <div role="group" aria-label="Dokumentklasse" style="display: flex; gap: 8px;">
+    <sc-for list="{{chips}}" as="c" hint-placeholder-count="3">
+      <button onClick="{{c.velg}}" aria-pressed="{{c.aktiv}}" style="{{c.stil}}">
+        <sc-if value="{{c.ikon}}" hint-placeholder-val="{{false}}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+        </sc-if>
+        {{c.navn}} ({{c.antall}})
+      </button>
+    </sc-for>
+  </div>
+  <sc-for list="{{kort}}" as="k" hint-placeholder-count="5">
+    <div style="background: #ffffff; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-height: 44px;">
+      <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #374151;">
+        <sc-if value="{{k.kontrakt}}" hint-placeholder-val="{{false}}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Kontraktssak"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+        </sc-if>
+        <span style="font-weight: 600;">{{k.id}}</span>
+        <span style="flex-grow: 1;"></span>
+        <span style="{{k.statusStil}}">{{k.status}}</span>
+      </div>
+      <div style="font-size: 15px;">{{k.tittel}}</div>
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { valgt: "alle" };
+  }
+  renderVals() {
+    const alle = [
+      { id: "VAR-001", status: "Mottatt", st: "blue", tittel: "Endringer fra byggherren — flytting av kum K4", kontrakt: true },
+      { id: "BEF-012", status: "Sendt", st: "blue", tittel: "Befaring grøft akse 3", kontrakt: false },
+      { id: "K-avv-003", status: "Utkast", st: "gray", tittel: "Avvik komprimering lag 2", kontrakt: false },
+      { id: "VAR-002", status: "Utkast", st: "gray", tittel: "Svikt i byggherres medvirkning — manglende tegninger", kontrakt: true },
+      { id: "BEF-011", status: "Godkjent", st: "green", tittel: "Befaring kum K2", kontrakt: false }
+    ];
+    const farger = { blue: "background:#dbeafe;color:#1e40af;", gray: "background:#f3f4f6;color:#374151;", green: "background:#d1fae5;color:#065f46;" };
+    const v = this.state.valgt;
+    const kort = alle
+      .filter((k) => v === "alle" || (v === "kontrakt" ? k.kontrakt : !k.kontrakt))
+      .map((k) => ({ ...k, statusStil: "padding:2px 8px;border-radius:9999px;font-size:12px;font-weight:500;" + farger[k.st] }));
+    const antK = alle.filter((k) => k.kontrakt).length;
+    const def = [
+      { id: "alle", navn: "Alle", antall: alle.length, ikon: false },
+      { id: "vanlig", navn: "Oppgaver", antall: alle.length - antK, ikon: false },
+      { id: "kontrakt", navn: "Kontrakt", antall: antK, ikon: true }
+    ];
+    const chips = def.map((c) => ({
+      ...c,
+      aktiv: v === c.id,
+      velg: () => this.setState({ valgt: c.id }),
+      stil: "display:flex;align-items:center;gap:5px;min-height:36px;padding:0 12px;border-radius:9999px;font-size:14px;cursor:pointer;" +
+        (v === c.id ? "background:#1e40af;color:#ffffff;border:1px solid #1e40af;" : "background:#ffffff;color:#374151;border:1px solid #d1d5db;")
+    }));
+    return { kort, chips };
+  }
+}
+</script>
+</body>
+</html>

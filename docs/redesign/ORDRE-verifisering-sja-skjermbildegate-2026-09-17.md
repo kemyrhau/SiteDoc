@@ -36,6 +36,26 @@ underlag og skjerm er data til gaten, ikke feil fra deg.
 2. Bekreft at prosjekt `SD-DEMO-SJA-0001` og SJA «Løft mobilkran — Akse 4» finnes på test, med runde 1 avsluttet og runde 2 åpen (1 av 4).
    **Lesing mot `sitedoc_test`, aldri `sitedoc`.** Er dataen endret siden seeding (f.eks. noen har signert),
    **stopp og meld**. Re-seeding er Kenneths kommando, ikke din.
+
+   🔴 **Presisering 2026-09-17 (retter en mangel i denne ordren):** flate 3 (signering) er **VALGFRI**.
+   Den er den eneste som krever skriving mot testdata, og SJA har stått i prod siden 06.09. Gaten kan
+   lukkes som «etterkontroll, delvis dekket» med flate 3 ført som ikke dekket. **Ingen agent skal jakte
+   på en seedevei for å komme i mål med flate 3.**
+
+   Trengs flate 3 senere, er veien mal-Opus' (svar 2026-09-17), og den hører i DEPLOY-RUNBOK som egen
+   seksjon (cowork eier fila):
+
+   ```
+   scp <fil>.sql server-ny:/tmp/<fil>.sql
+   ssh -t server-ny "sudo docker cp /tmp/<fil>.sql postgres:/tmp/<fil>.sql"
+   ssh -t server-ny "sudo docker exec postgres psql -U sitedoc -d sitedoc_test -f /tmp/<fil>.sql"
+   ```
+
+   Steg 1 kan en agent kjøre. Steg 2 og 3 krever Kenneths TTY (`sudo docker`).
+   🔴 **SQL-en skal være ikke-destruktiv:** seed et NYTT demo-SJA ved siden av det gamle. Slett aldri
+   signaturer eller «bekreftet av»-rader fra 06.09 — de er bevis for at funksjonen virket.
+   `LOKALT-OPPSETT.md:48` beskriver en vei server-ny ikke har (ingen node, ingen kilder). Det er et eget
+   docs-funn, ikke noe denne gaten skal løse.
 3. **Mobil-innlogging:** seeden gjør `kemyrhau@gmail.com` til deltaker. Dev-login-brukere er ikke deltakere, så
    «Signer» vises ikke for dem på mobil. **Det er riktig gating, ikke en feil.** Verifiser mobil lesende
    (leder, manko, rekkefølge) og meld at «Signer» på mobil er umålt, med mindre Kenneth har seedet en
