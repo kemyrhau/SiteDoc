@@ -9,11 +9,11 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-17 · develop `be2217d1` (BÆRER MIGRERING `20260917130000_bundet_flyt` — IKKE KJØRT; Kenneth kjører ved deploy) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
+**Sist ført: 2026-09-17 · develop `65e16a93` (web-deploy — ingen migrering denne runden) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | `fix/videresend-personvalg` | 🔵 **ORDRE GITT** | person-velger innen egen flyt (mobil+web) |
+| **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | Strengharmonisering (nå) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
@@ -27,12 +27,28 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| **e2e 05/06/07 gjenstår** — 01–04 de-driftet + grønne 16.09. 05 (besvar-godkjenn) + 07 (gjenåpne) er ren spec-drift. 🔴 **06-videresend er IKKE drift:** pilot-fiks A (02.08) gater Videresend bort for flyt-bundne dok — venter fabels videresend/bytt-flyt-byggerunde | Etter videresend-runden | dokgen |
-| **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 **ULÅST 15.09** av lese/redigere-aksen | Etter PR 2 | — |
-| **`terminologi.md § 0`** — lese/redigere-aksen inn i rettighetsmatrisen | Med sikkerhetsrunden | — |
-| **Strengharmonisering** | Nå (nøkkelsett-testen levert 16.09) | mal-Opus |
-| **Soft-delete på `OrganizationTemplate`** + auto-tømming (N dager) — låser opp Papirkurv-fanen | Kenneth gater migrerings-SQL | — |
-| **Funn #21** — `Checklist` har ingen strukturkopi; maler muteres under utfylte dokumenter | Ikke planlagt — **største umålte pilotrisiko** | — |
+| **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
+| **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
+| **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 Ulåst 15.09 av lese/redigere-aksen | Nå | — |
+| **`terminologi.md § 0`** — lese/redigere-aksen i rettighetsmatrisen + kapittel/underkapittel/post | Med sikkerhetsrunden | — |
+| **`06-videresend`** — eneste e2e-spec som gjenstår. Var ikke drift: handlingen var fjernet fra menyen | Etter Kenneths visuelle gate av personvalget | dokgen |
+| **Tørrkjøring for ↻** — `firmamal.forhandsvisOppdatering`, ~30–40 linjer, gjenbruker `diffObjektTre` | 🔴 Kenneth gater | — |
+| **NUL-bytes i `objektkopi.ts`** — fire `\0` som feltskiller gjør fila binær for git og `grep`. Vi måler i den konstant | Med neste kontrollplan-runde | kontrollplan |
+| **`data-testid` på begrunnelse-dialogen** (`DokumentHandlingsmeny.tsx:646`) — spec henger i placeholder-tekst | Med neste redesign-runde | redesign |
+| **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
+| 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
+| **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-17 — Personvalg i videresend (`65e16a93`). WEB-DEPLOY, ingen migrering, ingen OTA.
+
+**Én branch merget** (`fix/videresend-personvalg`, `--no-ff`). Kun `apps/web` + 15 i18n-filer (17 filer, +113/−15). Ingen fil i `apps/api`, `apps/mobile`, `packages/db` eller `tests/e2e`.
+Gate: `pnpm test` 7/7 tasks — **`web` 257→259** (+2: regresjonstesten for personvalg). Resten stille (`db` 2 · `api` 490 · `pdf` 120 · `shared` 824 · `mobil` 9). **Integrasjon uendret på 48** (branchen rører null api/integrasjonsfiler — strukturelt uendret, ikke re-kjørt). Alle 15 i18n-filer på 4552 nøkler, identisk nøkkelsett (generatoren kjørt). Begge CI-jobber grønne.
+
+- 🟢 **PERSONVALG I VIDERESEND VIRKER.** Radene under «Andre flyter» var `<div>` — kun flytnavnet var klikkbart. Flyt-bytte gikk alltid til hovedansvarlig utfører.
+- 🟢 **Bekreftelsesboksen navngir valgt person med rolle; tittelen sier dokumentnavnet.** Valgt person → «Ballen går til Siri Vik (registrator)» · flytnavn → «Ballen går til Per Eng (hovedansvarlig utfører)». Tittel: «Flytt «Befaringsnotat»?».
+- 🔴 **COWORK-FEIL: ordren påstod at ordlyden for begge tilfeller alt fantes. Den gjorde ikke det.** Kun auto-utleder-varianten («hovedansvarlig utfører») eksisterte. redesign la til én ny nøkkel (`videresend.konsekvensBallPerson`) framfor å gjenbruke feil tekst — og meldte det.
 
 ---
 
