@@ -44,6 +44,17 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
+## 🟢 2026-09-17c — Kontraktssak runde 1 merget. WEB+API-DEPLOY, INGEN migrering (schema kun kommentar), ingen OTA-krav.
+
+**Én branch, `feat/kontraktssak-runde1`** (`0542d39b`, alt rebaset på dagens develop `1ea48a10` — **trengte ikke rebase**; ordrens `36539f74`/base `250dfc7f` var stale). Gate: **`api` 495→503** (+8, `mal-subdomain-validering.test.ts`) · **`integrasjon` 57→59** (+2, `kontraktssak.integration.test.ts`, bekreftes i CI). Alle andre HELT stille: `db` 2 · `pdf` 120 · `shared` 824 · `web` 264 · `mobil` 13. 7/7.
+
+- 🟢 **Kontraktssak runde 1 levert** — **visuelt skille i Oppgaver via `subdomain="kontrakt"`** (web + mobil oppgaveliste/-detalj), **klassen erklært på malen** (`ReportTemplate.subdomain`). Lovlige `(domain, subdomain)`-par eies av `LOVLIG_SUBDOMAIN` i `mal.ts:169` (`bygg → kontrakt`); `valideerSubdomainKombinasjon` (`mal.ts:193`) avviser kontrakt under HMS. **VEDTAK 17.09: `subdomain` i runde 1, `domain` i runde 2** (domain-endring blokkert av dokumenter, VAR-001).
+- 🟢 **INGEN migrering** — `schema.prisma`-diffen er **kun `//`-kommentar** på `subdomain`-feltet (felt-def byte-identisk), verifisert i diffen.
+- 🟢 **i18n: alle 15 filer nøyaktig +13 nøkler, identisk sett, `-0` slettinger** — ingen verdi tapt i mergen (kontrollert bevisst, ikke bare nøkkelsett-testen).
+- ⚠️ **PDF-labelen «Kontraktssak» er bevisst hardkodet norsk** (`sammenstilling.ts`, `dokumenttype`) — **arkiv-PDF-pakken er ikke i18n** (presedens `grensesnapshot.ts:22`).
+- ⚠️ **Api-feilmeldingen er hardkodet** — `apps/api` har ingen i18n-rigg.
+- 🔴 **kontrollplan bygger service/timetall og skal inn i `nb.json` ETTER dette.** Develop-hash å fetche FØR i18n røres føres ved push.
+
 ## 🟢 2026-09-17b — To docs-brancher merget + branch-kartlegging ført. Ingen kode, ingen deploy, ingen migrering.
 
 **To rene docs-brancher inn på develop** (`docs/arkitektur-syntese-drift-2` `a1716dcc` · `docs/maaling-kundeonske-1` `391c0aaf`). **Gate står HELT stille** (ingen kode/test-fil rørt): `db` 2 · `api` 495 · `pdf` 120 · `shared` 824 · `web` 264 · `mobil` 13 · `integrasjon` 57 · 7/7.
