@@ -5318,7 +5318,7 @@ Firma vil ha ansatte auto-inn i aktive prosjekters dokumentflyt. Verifisert: ing
 
 Liste mottatt 2026-05-06. Se også [STATUS-AKTUELT.md § Kundeønsker](STATUS-AKTUELT.md).
 
-- **#1 Sjekkliste for service koblet til timetall og status** 🟡 — DB-feltet `nesteServiceTimer` finnes i `packages/db-maskin/prisma/schema.prisma:188`. Mangler UI på maskin-detaljside + serviceintervall-konfigurasjon + sjekkliste med automatisk oppdatering.
+- **#1 Service koblet til timetall** 🟢 **PILOT LEVERT (branch `feat/service-timetall`, ikke deployet — migrering Kenneth-gatet).** ⚠️ **Premisset i denne raden var feil** (målt 2026-09-17): `nesteServiceTimer` lå på `ServiceRecord` (ikke `Equipment`), ble aldri skrevet, aldri lest, og `ServiceRecord` hadde ingen produkt-skrivevei. Levert 2026-09-18: `Equipment.serviceIntervallTimer` + `Equipment.nesteServiceTimer` (migrering `20260918120000_service_timetall`), skrivevei `maskin.service.registrerService` (fremskriving = timer ved service + intervall), terskelvarsel på maskin-detalj (tilpasset `EuKontrollBanner`) + PDF-servicerapport (`packages/pdf/service-rapport.ts`). Se [maskin.md § Service pr. timetall](maskin.md). **Utenfor pilot (Kenneth 2026-09-18):** full sjekkliste med avkrysning (del E, `EquipmentChecklist`), auto-driftstimer fra dagsseddel.
 - **#5 Registrering av HMS-gruppe på brukere** ⏸️ — parkert.
 - **#7 Rettighetsmatrise med rolle-styring (Prosjektleder + Bas)** 🔴 — ny rolle-modell + matrise-UI. Eksisterende roller dekker ikke `Prosjektleder`/`Bas` som DB-roller.
 - **#9 Justeringer på SJA (signatur/lesetilgang/deltaker)** 🔴 — utvidet sjekkliste-mekanikk: re-signaturforespørsel, auto-lesetilgang for prosjektmedlemmer, selv-påmelding som deltaker.

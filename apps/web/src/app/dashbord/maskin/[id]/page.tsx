@@ -15,12 +15,14 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Printer,
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Modal } from "@sitedoc/ui";
 import { TYPER_PER_KATEGORI, type MaskinKategori } from "@/lib/maskin-typer";
+import { serviceVarselNiva } from "@/lib/service-varsel-niva";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
 const STATUS_ALLE = [
@@ -89,6 +91,9 @@ interface UtstyrDetalj {
   loftKapasitet: string | number | null;
   maksVekt: number | null;
 
+  serviceIntervallTimer: number | null;
+  nesteServiceTimer: number | null;
+
   kalibreringsDato: string | Date | null;
   kalibreringsFrist: string | Date | null;
   sertifiseringsDato: string | Date | null;
@@ -146,6 +151,7 @@ export default function MaskinDetaljSide() {
     | "anleggsmaskinInfo"
     | "smautstyrInfo"
     | "utleie"
+    | "service"
     | "endrePrimaer"
     | "leggTilAnsvarlig"
   >(null);
@@ -435,6 +441,13 @@ export default function MaskinDetaljSide() {
         </Seksjon>
       )}
 
+      {/* Service pr. timetall (kundeønske #1) — firma bestemmer selv hvilket utstyr
+          som får intervall, derfor for alle kategorier. */}
+      <ServiceSeksjon
+        utstyr={utstyr}
+        onRedigerIntervall={() => setAktivModal("service")}
+      />
+
       {/* Utleie (Steg 4b Fase 2) */}
       <Seksjon
         tittel={t("maskin.utleie.seksjon")}
@@ -532,6 +545,13 @@ export default function MaskinDetaljSide() {
         <RedigerModal
           equipment={utstyr}
           felt="utleie"
+          onClose={() => setAktivModal(null)}
+        />
+      )}
+      {aktivModal === "service" && (
+        <RedigerModal
+          equipment={utstyr}
+          felt="service"
           onClose={() => setAktivModal(null)}
         />
       )}
@@ -773,6 +793,403 @@ function EuKontrollBanner({ frist }: { frist: string | Date }) {
       <CheckCircle2 className="h-3.5 w-3.5" />
       {t("maskin.detalj.euKontrollGyldig", { dager: dagerIgjen })}
     </div>
+  );
+}
+
+/* ==========================================================================
+ *  Service pr. timetall (kundeønske #1) — seksjon, banner, registrer-modal
+ * ======================================================================== */
+
+const SERVICE_TYPER = [
+  "service",
+  "repair",
+  "inspection",
+  "eu_kontroll",
+  "dekk",
+  "olje",
+] as const;
+
+interface ServiceRecordRad {
+  id: string;
+  type: string;
+  dato: string | Date;
+  timer: number | null;
+  km: number | null;
+  beskrivelse: string;
+  utfortAv: string | null;
+  kostnad: string | number | null;
+  nesteServiceTimer: number | null;
+}
+
+/** Last ned base64-PDF (samme mønster som timer-rapport). */
+function lastNedBase64Pdf(base64: string, filnavn: string): void {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filnavn;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function ServiceBanner({
+  driftstimer,
+  nesteServiceTimer,
+}: {
+  driftstimer: number | null;
+  nesteServiceTimer: number | null;
+}) {
+  const { t } = useTranslation();
+  const { niva, timerIgjen } = serviceVarselNiva(driftstimer, nesteServiceTimer);
+
+  if (niva === "ingen") return null;
+  if (niva === "forfalt") {
+    return (
+      <div className="mb-2 flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-800">
+        <AlertTriangle className="h-3.5 w-3.5" />
+        {t("maskin.service.varselForfalt", { timer: Math.abs(timerIgjen) })}
+      </div>
+    );
+  }
+  if (niva === "snart") {
+    return (
+      <div className="mb-2 flex items-center gap-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs text-orange-800">
+        <AlertTriangle className="h-3.5 w-3.5" />
+        {t("maskin.service.varselSnart", { timer: timerIgjen })}
+      </div>
+    );
+  }
+  if (niva === "planlagt") {
+    return (
+      <div className="mb-2 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-xs text-yellow-800">
+        <Clock className="h-3.5 w-3.5" />
+        {t("maskin.service.varselPlanlagt", { timer: timerIgjen })}
+      </div>
+    );
+  }
+  return (
+    <div className="mb-2 flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-1.5 text-xs text-green-800">
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      {t("maskin.service.varselOk", { timer: timerIgjen })}
+    </div>
+  );
+}
+
+function ServiceSeksjon({
+  utstyr,
+  onRedigerIntervall,
+}: {
+  utstyr: UtstyrDetalj;
+  onRedigerIntervall: () => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const [registrerApen, setRegistrerApen] = useState(false);
+  const [pdfLaster, setPdfLaster] = useState(false);
+
+  const { data: loggData } = trpc.maskin.service.listForEquipment.useQuery({
+    equipmentId: utstyr.id,
+  });
+  const logg = (loggData ?? []) as ServiceRecordRad[];
+
+  async function skrivUt() {
+    setPdfLaster(true);
+    try {
+      const typeEtiketter: Record<string, string> = {};
+      SERVICE_TYPER.forEach((v) => {
+        typeEtiketter[v] = t(`maskin.service.type.${v}`);
+      });
+      const res = await utils.maskin.service.pdfEksport.fetch({
+        equipmentId: utstyr.id,
+        filnavn: `SiteDoc-${t("maskin.service.pdf.filnavn")}-${utstyr.internNummer ?? utstyr.id.slice(0, 8)}.pdf`,
+        generertDato: new Date().toLocaleDateString("nb-NO"),
+        firmanavn: t("maskin.service.pdf.firmanavnFallback"),
+        kostnadSuffiks: "kr",
+        typeEtiketter,
+        tekster: {
+          dokumentTittel: t("maskin.service.pdf.tittel"),
+          maskin: t("maskin.service.pdf.maskin"),
+          ident: t("maskin.service.pdf.ident"),
+          serviceIntervall: t("maskin.service.intervall"),
+          nesteService: t("maskin.service.neste"),
+          gjeldendeDriftstimer: t("maskin.driftstimer"),
+          timerEnhet: t("maskin.service.timerEnhet"),
+          servicelogg: t("maskin.service.logg"),
+          kolDato: t("maskin.service.kol.dato"),
+          kolType: t("maskin.service.kol.type"),
+          kolDriftstimer: t("maskin.service.kol.driftstimer"),
+          kolKm: t("maskin.service.kol.km"),
+          kolBeskrivelse: t("maskin.service.kol.beskrivelse"),
+          kolUtfortAv: t("maskin.service.kol.utfortAv"),
+          kolKostnad: t("maskin.service.kol.kostnad"),
+          ingenData: t("maskin.service.ingenLogg"),
+          ikkeSatt: t("maskin.detalj.ikkeSatt"),
+          generert: t("maskin.service.pdf.generert"),
+        },
+      });
+      lastNedBase64Pdf(res.pdf, res.filnavn);
+    } finally {
+      setPdfLaster(false);
+    }
+  }
+
+  const enhet = t("maskin.service.timerEnhet");
+
+  return (
+    <div className="mb-3 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {t("maskin.service.seksjon")}
+        </h2>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={skrivUt}
+            disabled={pdfLaster}
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-sitedoc-primary disabled:opacity-50"
+          >
+            {pdfLaster ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Printer className="h-3 w-3" />
+            )}
+            {t("maskin.service.skrivUt")}
+          </button>
+          <button
+            onClick={onRedigerIntervall}
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-sitedoc-primary"
+          >
+            <Pencil className="h-3 w-3" />
+            {t("handling.rediger")}
+          </button>
+        </div>
+      </div>
+
+      <ServiceBanner
+        driftstimer={utstyr.driftstimer}
+        nesteServiceTimer={utstyr.nesteServiceTimer}
+      />
+
+      {/* Intervall er konsekvensbærende: er det tomt, virker ikke varselet
+          (ui-standarder § Feltstatus). Amber-markør + hjelpetekst i tomt tilfelle. */}
+      <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
+        <div className="flex justify-between gap-2">
+          <dt className="inline-flex items-center gap-1.5 text-gray-500">
+            {t("maskin.service.intervall")}
+            {utstyr.serviceIntervallTimer == null && (
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            )}
+          </dt>
+          <dd className="text-right text-gray-900">
+            {utstyr.serviceIntervallTimer != null
+              ? `${utstyr.serviceIntervallTimer} ${enhet}`
+              : t("maskin.detalj.ikkeSatt")}
+          </dd>
+        </div>
+        <Linje
+          label={t("maskin.driftstimer")}
+          verdi={
+            utstyr.driftstimer != null ? `${utstyr.driftstimer} ${enhet}` : null
+          }
+        />
+        <Linje
+          label={t("maskin.service.neste")}
+          verdi={
+            utstyr.nesteServiceTimer != null
+              ? `${utstyr.nesteServiceTimer} ${enhet}`
+              : null
+          }
+        />
+      </dl>
+
+      {utstyr.serviceIntervallTimer == null && (
+        <p className="mt-2 text-xs text-amber-700">
+          {t("maskin.service.intervallTomHjelp")}
+        </p>
+      )}
+
+      {/* Servicelogg */}
+      <div className="mt-4 border-t border-gray-100 pt-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-gray-600">
+            {t("maskin.service.logg")}
+          </span>
+          <button
+            onClick={() => setRegistrerApen(true)}
+            className="inline-flex items-center gap-1 rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:border-sitedoc-primary hover:text-sitedoc-primary"
+          >
+            <Plus className="h-3 w-3" />
+            {t("maskin.service.registrer")}
+          </button>
+        </div>
+        {logg.length === 0 ? (
+          <p className="text-xs italic text-gray-400">{t("maskin.service.ingenLogg")}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {logg.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-md bg-gray-50 px-2 py-1.5 text-xs text-gray-700"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900">
+                    {new Date(r.dato).toLocaleDateString("nb-NO")} ·{" "}
+                    {t(`maskin.service.type.${r.type}`)}
+                  </span>
+                  {r.timer != null && (
+                    <span className="text-gray-500">
+                      {r.timer} {enhet}
+                    </span>
+                  )}
+                </div>
+                <div className="text-gray-600">{r.beskrivelse}</div>
+                {(r.utfortAv || r.kostnad != null) && (
+                  <div className="mt-0.5 text-gray-400">
+                    {r.utfortAv}
+                    {r.utfortAv && r.kostnad != null ? " · " : ""}
+                    {r.kostnad != null ? `${r.kostnad} kr` : ""}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {registrerApen && (
+        <RegistrerServiceModal
+          utstyr={utstyr}
+          onClose={() => setRegistrerApen(false)}
+          onSuksess={() => {
+            setRegistrerApen(false);
+            void utils.maskin.service.listForEquipment.invalidate({
+              equipmentId: utstyr.id,
+            });
+            void utils.maskin.equipment.hentMedId.invalidate({ id: utstyr.id });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function RegistrerServiceModal({
+  utstyr,
+  onClose,
+  onSuksess,
+}: {
+  utstyr: UtstyrDetalj;
+  onClose: () => void;
+  onSuksess: () => void;
+}) {
+  const { t } = useTranslation();
+  const [dato, setDato] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [timer, setTimer] = useState<number | null>(utstyr.driftstimer);
+  const [type, setType] = useState<(typeof SERVICE_TYPER)[number]>("service");
+  const [beskrivelse, setBeskrivelse] = useState("");
+  const [utfortAv, setUtfortAv] = useState<string | null>(null);
+  const [kostnad, setKostnad] = useState<number | null>(null);
+  const [feil, setFeil] = useState<string | null>(null);
+
+  const registrer = trpc.maskin.service.registrerService.useMutation({
+    onSuccess: () => onSuksess(),
+    onError: (e: { message: string }) => setFeil(e.message),
+  }) as unknown as MutationVennlig<
+    {
+      equipmentId: string;
+      dato: string;
+      timer: number | null;
+      type: (typeof SERVICE_TYPER)[number];
+      beskrivelse: string;
+      utfortAv: string | null;
+      kostnad: number | null;
+    },
+    unknown
+  >;
+
+  function lagre() {
+    setFeil(null);
+    if (!beskrivelse.trim()) {
+      setFeil(t("maskin.service.beskrivelsePaakrevd"));
+      return;
+    }
+    registrer.mutate({
+      equipmentId: utstyr.id,
+      dato,
+      timer,
+      type,
+      beskrivelse: beskrivelse.trim(),
+      utfortAv,
+      kostnad,
+    });
+  }
+
+  return (
+    <Modal open={true} onClose={onClose} title={t("maskin.service.registrer")}>
+      <div className="space-y-3">
+        <Felt label={t("maskin.service.datoUtfort")}>
+          <DateInput v={dato} onChange={(v) => setDato(v ?? "")} />
+        </Felt>
+        <Felt label={t("maskin.service.driftstimerVedService")}>
+          <NumInput v={timer} onChange={setTimer} />
+          <span className="mt-1 block text-xs text-gray-500">
+            {t("maskin.service.driftstimerHjelp")}
+          </span>
+        </Felt>
+        <Felt label={t("maskin.service.type.label")}>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as (typeof SERVICE_TYPER)[number])}
+            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+          >
+            {SERVICE_TYPER.map((v) => (
+              <option key={v} value={v}>
+                {t(`maskin.service.type.${v}`)}
+              </option>
+            ))}
+          </select>
+        </Felt>
+        <Felt label={t("maskin.service.beskrivelse")}>
+          <textarea
+            value={beskrivelse}
+            onChange={(e) => setBeskrivelse(e.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+          />
+        </Felt>
+        <Felt label={t("maskin.service.utfortAv")}>
+          <Input v={utfortAv} onChange={setUtfortAv} />
+        </Felt>
+        <Felt label={t("maskin.service.kostnad") + " (kr)"}>
+          <NumInput v={kostnad} onChange={setKostnad} step={0.01} />
+        </Felt>
+
+        {feil && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {feil}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            onClick={onClose}
+            className="rounded-md px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900"
+          >
+            {t("handling.avbryt")}
+          </button>
+          <button
+            onClick={lagre}
+            disabled={registrer.isPending}
+            className="rounded-md bg-sitedoc-primary px-4 py-1.5 text-xs font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
+          >
+            {registrer.isPending ? t("handling.lagrer") : t("handling.lagre")}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -1037,6 +1454,8 @@ type RedigerInputs = {
   skuffeKapasitet?: number | null;
   loftKapasitet?: number | null;
   maksVekt?: number | null;
+  // Service pr. timetall
+  serviceIntervallTimer?: number | null;
   // Småutstyr-info
   kalibreringsDato?: string | null;
   kalibreringsFrist?: string | null;
@@ -1063,7 +1482,8 @@ function RedigerModal({
     | "kjoretoyInfo"
     | "anleggsmaskinInfo"
     | "smautstyrInfo"
-    | "utleie";
+    | "utleie"
+    | "service";
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -1090,7 +1510,9 @@ function RedigerModal({
             ? "maskin.detalj.rediger.anleggsmaskinInfo"
             : felt === "smautstyrInfo"
               ? "maskin.detalj.rediger.smautstyrInfo"
-              : "maskin.utleie.rediger";
+              : felt === "service"
+                ? "maskin.service.redigerIntervall"
+                : "maskin.utleie.rediger";
 
   return (
     <Modal open={true} onClose={onClose} title={t(tittelKey)}>
@@ -1337,6 +1759,43 @@ function RedigerModal({
           </>
         )}
 
+        {felt === "service" && (
+          <>
+            {/* Feltstatus (ui-standarder § Feltstatus): intervallet er konsekvens-
+                bærende — uten det slutter service-varselet å virke. Amber venstre-
+                kant + prikk + mikrotekst når tomt; markøren forsvinner når verdi
+                (også bevisst «ingen» = 0-avgjørelse) er satt. */}
+            <div
+              className={
+                inn.serviceIntervallTimer == null
+                  ? "border-l-[3px] border-amber-400 pl-3"
+                  : ""
+              }
+            >
+              <Felt
+                label={
+                  <span className="inline-flex items-center gap-1.5">
+                    {t("maskin.service.intervall")}
+                    {inn.serviceIntervallTimer == null && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                    )}
+                  </span>
+                }
+              >
+                <NumInput
+                  v={inn.serviceIntervallTimer}
+                  onChange={(v) => setInn({ ...inn, serviceIntervallTimer: v })}
+                />
+                <span className="mt-1 block text-xs text-gray-500">
+                  {inn.serviceIntervallTimer == null
+                    ? t("maskin.service.intervallTomHjelp")
+                    : t("maskin.service.intervallHjelp")}
+                </span>
+              </Felt>
+            </div>
+          </>
+        )}
+
         {feil && (
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
             {feil}
@@ -1408,6 +1867,12 @@ function byggInitielt(equipment: UtstyrDetalj, felt: string): RedigerInputs {
       maksVekt: equipment.maksVekt,
     };
   }
+  if (felt === "service") {
+    return {
+      ...base,
+      serviceIntervallTimer: equipment.serviceIntervallTimer,
+    };
+  }
   if (felt === "smautstyrInfo") {
     return {
       ...base,
@@ -1439,7 +1904,7 @@ function tilIsoDato(d: string | Date | null | undefined): string | null {
   }
 }
 
-function Felt({ label, children }: { label: string; children: React.ReactNode }) {
+function Felt({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <label className="block">
       <span className="mb-1 block text-xs font-medium text-gray-700">{label}</span>

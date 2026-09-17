@@ -87,5 +87,13 @@ export type { TegningPosisjonData, DetaljUtsnittData } from "./tegning";
 export { genererSluttrapportHtml } from "./sluttrapport";
 export type { SluttrapportData, SluttrapportPunkt } from "./sluttrapport";
 
+// Service-rapport (maskin — kundeønske #1, service pr. timetall)
+export { byggServiceRapportHtml } from "./service-rapport";
+export type {
+  ServiceRapportData,
+  ServiceRapportTekster,
+  ServiceRapportRad,
+} from "./service-rapport";
+
 // Arkivmal — datalag for dokumentgenerering (fase 3, rent lag, ingen Prisma)
 export * from "./arkivmal";
