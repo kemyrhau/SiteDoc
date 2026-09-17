@@ -41,6 +41,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
+## 🟢 2026-09-17 — To strengvedtak (`b4602e2c`). WEB-DEPLOY, ingen migrering, ingen OTA.
+
+**Én branch, `chore/strengvedtak-kilde-sokeord`, fast-forward oppå `ccad572a`. To i18n-VERDIER × 15 filer — ingen kode, ingen nye nøkler.** Gate: `pnpm test` 7/7 — alle seks tall helt stille (`db` 2 · `api` 490 · `pdf` 120 · `shared` 824 · `web` 261 · `mobil` 9). Integrasjon 48 (branchen rører null api/integrasjonsfiler). Alle 15 i18n-filer 4569 nøkler, identisk sett før/etter. Begge CI-jobber grønne (`test` + `e2e 01-05+07`).
+
+- 🟢 **TO STRENGVEDTAK LEVERT** — `maler.arkiv.kildeSitedoc` «SiteDoc-standard» → **«SiteDoc-mal»** (paritet med `kildeFirma` = «Firmamal»); `innstillinger.sokeord.maler` utvidet med **«firmaarkiv sitedoc-arkiv»** uten at «malarkiv» ble fjernet. **2 verdier × 15 språk. Ingen nøkkel-rename, ingen kodeendring.**
+- 🟢 **De to åpne punktene fra forrige bolk er dermed LUKKET** — begge gatet av Kenneth 17.09.
+- 🟢 **Ingen `kildeProsjekt`-søsternøkkel finnes** — målt, ikke antatt. **Eneste andre `sokeord`-nøkkel er `byggeplasser`, uten arkiv-termer.**
+- ⚠️ **HULL I TESTVERNET, meldt av mal-Opus:** *«testen vokter at nøkkelen bærer «arkiv», ikke «malarkiv» spesifikt — fjerner du kun «malarkiv» (men beholder andre arkiv-tokens) forblir den grønn. Broen «malarkiv» er altså ikke test-vernet i seg selv.»* **Ingen handling nå — men neste som rører søkeord skal vite det.**
+- 🟢 **Verifisert etter merge, før push (verdi-merge har ingen test som fanger fravær):** `kildeSitedoc` = «SiteDoc-mal» · `sokeord.maler` bærer BÅDE «malarkiv» OG «sitedoc-arkiv» · `adminBibliotek.tittel` = «SiteDoc-arkiv» (forrige rundes harmonisering ikke rullet tilbake).
+- 🟢 **mal-Opus ventet korrekt:** `git merge-base --is-ancestor` FØR han branchet, etter forrige rundes falske alarm. **Lærdommen satt.**
+- 🟡 **Cowork-funn, ikke blokkerende:** `pl.json` bøyer produktnavnet — «Szablon SiteDoca» (polsk genitiv). Grammatisk korrekt polsk, ikke oversettelsesfeil.
+
+---
+
 ## 🟢 2026-09-17 — Bundet flyt-UI + strengharmonisering (`ba7f6c0f`). WEB-DEPLOY, ingen migrering, ingen OTA.
 
 **To brancher, bindende rekkefølge:** **1. `chore/strengharmonisering`** (`--no-ff`, 15 i18n-filer, 165/165 ren tekst) · **2. `feat/bundet-flyt-ui`** (`--no-ff`, web + 15 i18n). Begge rører alle femten i18n-filer — landet i denne rekkefølgen for at bundet-flyt-UI blir en vanlig tillegg-merge oppå verdiendringene. Ingen konflikt. Kontrollert etter merge (3-veis JSON-merge feiler stille): **alle 15 filer 4569 nøkler, identisk sett**; **de 11 harmoniserte verdiene overlevde** (`adminBibliotek.tittel` = «SiteDoc-arkiv» i develop, verifisert med streng-diff mot forrige develop, ikke bare nøkkeltelling).
