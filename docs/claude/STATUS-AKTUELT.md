@@ -44,6 +44,15 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
+## 🟢 2026-09-18c — KC3.1-port + kø-mutex-herding merget. Kø-fiks OTA (kun JS), ingen migrering.
+
+**To brancher** (`feat/kc31-port` `48fc5dfc` · `fix/opplastingsko-finally` `b95c88ac`). Gate: **`db` 2→7** (+5, KC3.1-testen) · **`mobil` 13→14** (+1, kø-vaktest). Alle andre HELT stille: `api` 511 · `pdf` 124 · `shared` 824 · `web` 285. 7/7. Ingen migrering.
+
+- 🟢 **KC3.1-PORT levert (lukker GLEMT-ARBEID fra branch-kartleggingen):** KC3.1 «Oppstøtting av trær» revidert 4→8 felt (NS 3420-ZK2.7112) — portet på **dagens objekttabell-arkitektur**. **Skriveveien `opprettMalHvisMangler` er URØRT** (create-only bevart, `BibliotekMalObjekt`-radskriving ikke reversert — verifisert i merge-diffen). Testen låser 8 felt, sett rød mot dagens 4-felt-tilstand. **Den gamle `feat/mal-kc31-revisjon` (stale arkitektur) er nå overflødig.** [BACKLOG § KC3.1-PORT](BACKLOG.md) → 🟢 LØST.
+- 🟢 **Kø-mutex herdet — men IKKE en bevist feil rettet (ærlig framing):** `try/finally` erstatter åtte spredte nullstillinger av `prosessererRef`; rekursjonen flyttet ut av `try`, etter `finally`. Vaktest kjører ekte `prosesserNeste` med mocket drizzle (uten `finally`: rød, med logg «prosesserer: true» som bevis på at rekursjonen traff guarden). 🔴 **kontrollplan fant INGEN vei der `prosessererRef` faktisk blir stående — fiksen HERDER, den løser IKKE den observerte kø-frysen.**
+- 🔴 **HOVEDFUNN til egen runde — sannsynlig rotårsak til kø-frysen:** `NettverkProvider` har **ingen selvhelende mekanisme**. `erPaaNettet` settes **kun** av `addEventListener` — ingen `NetInfo.fetch()` ved mount, ingen `AppState`-sjekk, ingen polling. En **tapt reconnect-hendelse** låser `erPaaNettet = false` permanent og fryser køen. Forklarer «online, men fryst» bedre enn mutex-stien. **Egen runde kommer** ([BACKLOG § KØ-FRYS](BACKLOG.md) oppdatert).
+- **Reload:** OTA på kø-fiksen (kun JS). KC3.1 er seed (ingen reload-krav for eksisterende maler).
+
 ## 🟢 2026-09-18b — Dobbel «Type» i mal-dialogen rettet. WEB-DEPLOY, ingen migrering, ingen OTA.
 
 **Én branch, `fix/mal-dialog-dobbel-type`** (`dde98b07`, ren ff fra `6e78d56d`). Gate: **`web` 270→285** (+15, én testcase pr. språk). Alle andre HELT stille: `db` 2 · `api` 511 · `pdf` 124 · `shared` 824 · `mobil` 13. 7/7. i18n: nøkkeltallet **UENDRET 4627** i alle 15 — kun *verdien* av `mal.type.tittel` endret (+1/-1 pr. fil, ingen nøkkel lagt til/fjernet). **Null apps/api-filer rørt** → redesigns 14 lokale `projectGroup.create`-feil er miljø (umigrert lokal integrasjons-DB), ikke kode; CI mot fersk pgvector er fasit (integrasjon 61).

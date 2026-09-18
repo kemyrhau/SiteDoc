@@ -652,11 +652,29 @@ nøkkelform måles** (flat vs. nestet `DateTimeOriginal`/`GPS`) — parseren ska
 
 **🔴 KØ-FRYS (`wip/diag-ko-trigger`, 09-04) — ÅPEN, mobil / offline-håndtering / pilot:**
 opplastingskøen frøs — **tre vedlegg lå fem minutter uprosessert MENS ENHETEN VAR ONLINE.**
-🔴 **Datert ETTER kø-robusthet-mergen `9ff2ec04`, så den kan fortsatt være uløst.** Diagnostikken
-isolerer om `erPaaNettet` står stuck `false` eller `prosessererRef` stuck `true`
-(`OpplastingsKoProvider.tsx`). **Verifiser mot dagens kode før funnet regnes lukket.**
+Diagnostikken isolerte om `erPaaNettet` står stuck `false` eller `prosessererRef` stuck `true`
+(`OpplastingsKoProvider.tsx`).
 
-### 🟡 KC3.1-PORT — glemt maldomene-arbeid på `feat/mal-kc31-revisjon` (funn 2026-09-17)
+🟡 **DELVIS ADRESSERT 2026-09-18 (`fix/opplastingsko-finally`, merget):** `prosessererRef` nullstilles
+nå i `try/finally` (én invariant erstatter åtte spredte nullstillinger; rekursjonen flyttet ut av
+`try`, etter `finally`) + vaktest. 🔴 **Men dette HERDER — det retter ikke en bevist feil:**
+kontrollplan fant **INGEN vei** der `prosessererRef` faktisk blir stående `true`. **Kø-frysen er
+IKKE erklært løst.**
+
+🔴 **HOVEDFUNN — sannsynlig rotårsak, EGEN RUNDE KOMMER:** `NettverkProvider` har **ingen
+selvhelende mekanisme**. `erPaaNettet` settes **kun** av `addEventListener` — **ingen
+`NetInfo.fetch()` ved mount, ingen `AppState`-sjekk, ingen polling.** En **tapt
+reconnect-hendelse** låser `erPaaNettet = false` **permanent** og fryser køen. Det forklarer
+«online, men fryst» bedre enn mutex-stien. **Verifiser og fiks i dedikert runde.**
+
+### 🟢 KC3.1-PORT — LØST 2026-09-18 (`feat/kc31-port` merget, develop)
+
+🟢 **Portert riktig:** KC3.1-revisjonen (4→8 felt) ble re-applisert på dagens objekttabell-
+arkitektur i `feat/kc31-port` (`48fc5dfc`, merget). **Skriveveien `opprettMalHvisMangler` er URØRT**
+(create-only bevart, `BibliotekMalObjekt`-radskriving IKKE reversert — verifisert i merge-diffen),
+og en ny `kc31-mal.test.ts` låser de 8 feltene (sett rød mot dagens 4-felt-tilstand først). db 2→7.
+**Den gamle `feat/mal-kc31-revisjon` (stale seed-arkitektur) er nå overflødig — kan slettes når
+Kenneth gater.** Historikk under:
 
 **Branch-kartleggingen fant unikt innhold (`git cherry` = `+`, finnes IKKE i develop):** KC3.1
 «Oppstøtting av trær» er revidert fra **4 generiske felt til 8 mot NS 3420-ZK2.7112** — metode,
