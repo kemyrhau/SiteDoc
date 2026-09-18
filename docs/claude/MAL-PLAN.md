@@ -26,7 +26,7 @@ Hver ordre inneholder, i denne rekkefølgen:
 4. **Full feltliste** med navn, felttype, alternativer, config og hjelpetekst per felt — under tre H-overskrifter: «Kontroll FØR utførelse» / «Kontroll UNDER utførelse» / «Kontroll ETTER utførelse».
 5. **MK C-absorbering**: hva hver av malens rader i konverteringslista blir; radene strykes ved gate.
 6. Rammer (arves): hjelpefunksjoner (`valg`/`trafikklys`/`desimal`/`felt`), aldri hardkodet JSON, `verifisert: false`, prod-gate urørt, ingen intern sjargong i kundetekst, i18n på nye synlige strenger.
-7. Definition of Done: seed kjørt lokalt + idempotent re-kjøring, skjermbilde-bevis (MalBygger alle felter/faser + mobil utfyllingsvisning), avviksmelding.
+7. Definition of Done: seed kjørt lokalt + idempotent re-kjøring (eller unit-garantien), revisjons-SQL med versjonsøkning og full utskrift (tekstbevis, MAL-METODE §6a), avviksmelding. *Ingen skjermbilder — Kenneth 2026-09-18.*
 
 ## Designregler for feltene (destillat av MAL-METODE §1 — sjekk hver ordre mot disse)
 - 🔴 **Egne krav, ikke standarden (MAL-METODE §7b, Kenneth 2026-09-18):** navn = kode + egne ord (koden beholdes) · hjelpetekster uten tabell-/punktkoder · én linje «Faglig grunnlag: NS 3420-K:2024, post <kode>» i beskrivelsen · aldri (nesten-)ordrett normtekst.

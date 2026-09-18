@@ -35,11 +35,11 @@ Flyt per mal — **én mal om gangen**, neste ordre skrives først når forrige 
 
 1. **fabel** leser normkapitlet, måler dagens mal i `packages/db/prisma/seed-bibliotek.ts`, og skriver en selvbærende ordre (funn + full feltspesifikasjon + DoD). Ordren absorberer ev. rader for malen fra MK-konverteringslista (§4).
 2. **Kenneth** relayer ordren til mal-Opus (fabel snakker aldri direkte med cowork/mal-Opus).
-3. **mal-Opus** bygger i `seed-bibliotek.ts` iht. ordren, med eksisterende hjelpefunksjoner (`valg`/`trafikklys`/`desimal`/`felt`) — aldri hardkodet JSON. Kjører seed mot lokal DB, verifiserer idempotent re-kjøring, og leverer **skjermbilde-bevis**: malen i MalBygger + utfyllingsvisningen. Avvik fra ordren meldes eksplisitt.
+3. **mal-Opus** bygger i `seed-bibliotek.ts` iht. ordren, med eksisterende hjelpefunksjoner (`valg`/`trafikklys`/`desimal`/`felt`) — aldri hardkodet JSON. Kjører seed mot lokal DB, verifiserer idempotent re-kjøring, og leverer **tekstbevis** fra revisjons-SQL-en (§6a — fullt malinnhold skrevet ut av kontroll-SELECT-en). Avvik fra ordren meldes eksplisitt.
 4. **fabel** gater INNHOLD mot ordren (feltene, hjelpetekstene, fasene, utfyllingsopplevelsen). Godkjent → melder «klar for commit».
 5. **cowork** gater TEKNISKE husregler før merge — og rører aldri innholdet: MalBygger-objekter, aldri hardkodet (Kenneth-vedtak 2026-09-05); `verifisert: false` eksplisitt + prod-gate urørt; seed-oppførsel (**kun opprett** via `opprettMalHvisMangler`, aldri update/`deleteMany`); i18n på nye synlige strenger. Cowork eier merge-timing og deploy alene.
 
-En mal som kompilerer og seeder kan fortsatt være ubrukelig på skjermen — derfor er skjermbilde-beviset obligatorisk før gate (presedens: kontrollplan L1-gaten).
+🔴 **Tekstbevis erstatter skjermbilder (Kenneth 2026-09-18).** Det designgaten kontrollerer er tekst: fase-overskrifter, feltnavn, felttype, alternativer i rekkefølge, hjelpetekster og versjon. Revisjons-SQL-en skriver ut nøyaktig dette fra `sitedoc_test` (§6a), Kenneth limer utskriften til design-rollen, og gaten kjøres på den. Om malen faktisk vises, ser Kenneth selv med ett blikk i et testprosjekt. **Ingen agent skal jakte på skjermbilder av en mal** — mal-Opus har verken innlogget nettleser eller simulator.
 
 ## 4. Koordinering med MK-konverteringslista
 
@@ -74,8 +74,8 @@ Konkret løype, målt mot KA7-revisjonen 2026-09-11. **Én mal om gangen, kun et
    Seeden **oppretter kun** (`opprettMalHvisMangler`, aldri update/`deleteMany`), så andre kjøring per definisjon ikke endrer noe — den melder «N fantes fra før og ble IKKE rørt». ⚠️ **Bygger du en REVISJON av en mal som allerede finnes i din lokale DB, overskriver seeden den IKKE** — slett den ene raden først (`delete from bibliotek_maler where referanse='<REF>'`) eller start fra tom DB, ellers seeder du og ser fortsatt gammelt innhold.
 5. **Gate-bygg** (les baseline på develop-tippen selv; seed-data er ikke dekket av tester → alle skal stå stille): `pnpm install` → `prisma generate` for `db`/`db-timer`/`db-maskin`/`db-varelager` → `pnpm --filter @sitedoc/web build` → `pnpm --filter @sitedoc/mobile typecheck` → `pnpm test`.
 6. **Rebase rett før push**, verifiser at diffen mot develop er **kun** `seed-bibliotek.ts`, og push egen branch: `git rebase origin/develop && git diff --stat origin/develop..HEAD && git push -u origin feat/mal-<ref>-revisjon`. **Aldri `develop`** — cowork merger etter fabels innholdsgate.
-7. **Skjermbilde-bevis på web** (obligatorisk før gate): seed malen til `sitedoc_test` (§6a) og fang malen i MalBygger (alle felter + faser) + utfyllingsvisningen.
-8. **Meld ÉTT svar** til Kenneth (branch+hash · gate-tall målt selv · idempotens · skjermbildene · hvor fase-overskriften kom fra · avvik fra ordren). «Klar for commit» sier fabel, ikke mal-Opus.
+7. **Tekstbevis** (obligatorisk før gate): lever revisjons-SQL-en (§6a) med versjonsøkning og full utskrift. Kenneth kjører og limer utskriften til design-rollen. *(Skjermbilder utgikk 2026-09-18.)*
+8. **Meld ÉTT svar** til Kenneth (branch+hash · gate-tall målt selv · idempotens · SQL-enlinjerne · hvor fase-overskriften kom fra · avvik fra ordren). «Klar for commit» sier fabel, ikke mal-Opus.
 
 ### 6a. Revidere en mal i arkivet via målrettet UPDATE — den normale revisjonsveien
 
@@ -90,6 +90,18 @@ Konkret løype, målt mot KA7-revisjonen 2026-09-11. **Én mal om gangen, kun et
 > generert **byte-eksakt fra mal-konstanten via `byggBibliotekRader`**, ikke skrevet for hånd. Mønster:
 > `kd1-test.sql` (2026-09-18). DELETE-en er trygg: ingen tabell peker på en bibliotek-objekt-id
 > (firmamaler er uavhengige kopier), og cascade gjelder kun malens egne barn-rader.
+>
+> 🔴 **To krav i hver revisjons-SQL (Kenneth 2026-09-18):**
+> 1. **Versjonsstempel:** `version = version + 1` i metadata-UPDATE-en. Ellers ser verken Kenneth eller firmaene at en
+>    ny versjon er ute. (`versjon`-tekstkolonnen røres ikke uten egen beslutning.)
+>    ⚠️ **Felle — to felt, én bokstav:** `BibliotekMal` har `versjon String @default("1.0")` (schema:2313) OG
+>    `version Int @default(1)` (schema:2320). Badgen «X versjoner bak» leser **`version`** (Int) — `versjonerBak`
+>    i `MalListe.tsx:654` / `MalBygger.tsx:251`. Tekstkolonnen `versjon` skrives aldri (bevist `git log -S`) og er
+>    død for versjonsvisning. Øker SQL-en feil felt, skjer **ingenting synlig**, og feilen oppdages ikke før noen
+>    lurer på hvorfor badgen står stille.
+> 2. **Full utskrift før `COMMIT`:** `\x on`, så én SELECT av malens metadata (`referanse, navn, beskrivelse, version,
+>    verifisert`) og én av alle objekt-radene i rekkefølge (`sort_order, type, label, config->'options',
+>    config->>'helpText'`). Utskriften er tekstbeviset designgaten kjøres på.
 >
 > Leveringsveien (`scp` → `docker cp` → `psql -f`, tre enlinjere) under er uendret. Teksten under om
 > «`mal_innhold`» og «kilde til innholdet» gjelder bare maler revidert før 14.09.
