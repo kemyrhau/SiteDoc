@@ -21,6 +21,30 @@ En KS-sjekkliste skal hjelpe en arbeider med teknisk informasjon om kravene, og 
 - **Hele felttype-paletten er tilgjengelig — velges etter behov** (Kenneth 2026-09-12; paletten er ikke låst til valg/trafikklys/desimal). Typene rendreren støtter: `list_single` (enkeltvalg), `list_multi` (flervalg), `traffic_light`, `integer` (heltall), `decimal`, `date`, `date_time`. Predefinerte valg framfor fritekst står — nå med flere predefinerte former. Fabel velger felttype per felt i ordren; mal-Opus bygger med tilsvarende helper.
 - **Desimalpresisjon etter enhet — byggebransje-praksis** (Kenneth 2026-09-12): flere desimaler enn enheten krever skal ikke brukes. **Enhets-standard (tak/utgangspunkt):** mm → 0 desimaler (heltall `integer`, eller `decimal { desimaler: 0 }`) · cm → 1 desimal (`decimal { desimaler: 1 }`) · m og større → 2 desimaler (`decimal { desimaler: 2 }`). «Ingen måler 1,28 % / 1,28 cm.» **Men presisjonen følger hva som FAKTISK måles, ikke bare enheten** — måles størrelsen i grove/standard steg, brukes færre (eller 0) desimaler selv om enheten tilsier flere. Eksempel: lagtykkelse vekstjord måles i hele/standard cm (10/15/20/40) → **heltall (`integer`)**, ikke `decimal` med 1 desimal.
 
+## 1b. Felles regler for design og mal-Opus — lært 17.–18.09.2026 (STYRENDE)
+
+Design (ordrer og innholdsgate) og mal-Opus (bygging) jobber etter samme regler. De står her, ikke i noens minne.
+
+1. **Sjekklisten dokumenterer utført arbeid** — at jobben er gjort og objektet er klart for overlevering. Kontroll
+   som forutsetter at tid har gått (ettårsbefaring, sesongkontroll) er en annen arbeidsoppgave og hører ikke hjemme
+   i malen. Bindende vedtak: `domene-arbeidsflyt.md` § «en sjekkliste dokumenterer utført arbeid» (Kenneth 2026-09-18).
+2. **Samsvar, ikke tallfelt, på varierende flate og intervaller** (§1): fall, planhet, linjeføring, tykkelse-intervall,
+   fugebredde-intervall → trafikklys eller enkeltvalg per kravnivå. Tallfelt kun for én veldefinert måling
+   («Største …», «Minste …»), aldri med grenser som blokkerer registrering av avvik.
+3. **Egne krav, ikke standarden** (§7b): kode + egne ord i navnet, ingen tabell-/punktkoder i hjelpetekster, én linje
+   «Faglig grunnlag» i beskrivelsen, aldri (nesten-)ordrett normtekst.
+4. **Revisjons-SQL genereres, skrives aldri for hånd.** Fra KD2: én generell generator
+   (`packages/db/prisma/generer-mal-sql.ts <REF>`) lager SQL fra mal-konstanten — **revisjon** hvis referansen finnes
+   i arkivet (§6a: versjon +1, DELETE/INSERT objekt-rader), **ny mal** hvis den ikke finnes (INSERT med versjon 1).
+   Begge skriver ut hele malinnholdet før `COMMIT`.
+5. 🔴 **Revisjons-SQL kjøres ÉN gang mot test.** Kjøres den på nytt, øker versjonen igjen og objekt-radene byttes ut
+   igjen. En generert fil som ligger klar etter kjøring, skal merkes eller slettes. (KD1: `kd1-test.sql` ble kjørt
+   18.09 → version 2. Den skal ikke kjøres igjen.)
+6. **Designgaten kjøres på tekstbevis** (§3, §6a) — utskriften fra SQL-kjøringen. Ingen skjermbilder av maler.
+7. **Gate-ord** (SAMARBEIDSREGLER § design): «Innhold godkjent» slipper ikke videre. Bare «Designgatet – klar for
+   merge» gjør det. Mal-Opus kan committe og pushe egen branch når som helst.
+8. **Ordren skiller obligatorisk fra valgfritt.** Mangler et normfaktum i ordren: stopp og meld, gjett aldri.
+
 ## 2. Kilder — hvor NS 3420-PDF-ene ligger
 
 `kilder/ns3420/` i hovedtreet (Del 1, A, F, G, J, K, L, S, U, W, Z, ZK). Mappen er **gitignorert** (`.gitignore:78 kilder/*`) — agenter i worktrees ser den IKKE, og lisensiert normtekst skal ikke kopieres ut i worktrees.

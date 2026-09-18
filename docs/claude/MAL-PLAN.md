@@ -54,7 +54,7 @@ Nybygg skjer ETTER at revisjonskøen under er ferdig, hvis ikke Kenneth priorite
 | 4 | KB6 – Planting | (v2) | ✓ merget 2026-09-13 (`c3a92b7a`) | ✓ Kenneth 2026-09-13 | |
 | 5 | KC3.1 | port + fix | ✓ merget 2026-09-18 | ✓ | 8 felt etter vedtaket «sjekkliste = utført arbeid» (domene-arbeidsflyt.md, 2026-09-18) |
 | 6 | **KD1 – Utendørs belegg** | **ordre-kd1-revisjon-fabel-2026-09-18.md** | – | – | Avgrensning + feltliste gatet av Kenneth 2026-09-18. 7→10 felt, asfalt ut |
-| 7 | **KD2 – Kanter** (NY) | – | – | – | Kenneth 2026-09-18: foran Del F. Avgrensning først (MAL-PLAN § Nye maler) |
+| 7 | **KD2 – Setting av kantstein** (NY) | ordre-kd2-ny-mal-design-2026-09-18.md | – | – | Avgrensning + 10 felt gatet av Kenneth 2026-09-18. Naturstein + betong; plasstøpt, stål, andre og vishøyde > 300 mm ute. Første mal med generell SQL-generator |
 | 8 | **KM2 – Murer i terreng** (NY) | – | – | – | Kenneth 2026-09-18: foran Del F. Avgrensning først |
 | 9 | FB2 | – | – | – | Del F: kopier `NS 3420 Del F` fra kilder/ og finn nytt sidekart |
 | 10 | FC1 | – | – | – | |
