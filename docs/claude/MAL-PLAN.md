@@ -55,7 +55,7 @@ Nybygg skjer ETTER at revisjonskøen under er ferdig, hvis ikke Kenneth priorite
 | 5 | KC3.1 | port + fix | ✓ merget 2026-09-18 | ✓ | 8 felt etter vedtaket «sjekkliste = utført arbeid» (domene-arbeidsflyt.md, 2026-09-18) |
 | 6 | **KD1 – Utendørs belegg** | **ordre-kd1-revisjon-fabel-2026-09-18.md** | – | – | Avgrensning + feltliste gatet av Kenneth 2026-09-18. 7→10 felt, asfalt ut |
 | 7 | **KD2 – Setting av kantstein** (NY) | ordre-kd2-ny-mal-design-2026-09-18.md | – | – | Avgrensning + 10 felt gatet av Kenneth 2026-09-18. Naturstein + betong; plasstøpt, stål, andre og vishøyde > 300 mm ute. Første mal med generell SQL-generator |
-| 8 | **KM2 – Murer i terreng** (NY) | – | – | – | Kenneth 2026-09-18: foran Del F. Avgrensning først |
+| 8 | **KM2 – Mur av stein i terreng** (NY) | ordre-km2-ny-mal-design-2026-09-18.md | – | – | Gatet av Kenneth 2026-09-18. Beskrivelsesstyrt: normen har ingen utførelseskrav eller toleranser for mur, så ingen tall. Nytt kapittel KM. Starter etter KD2-merge. Gabioner ute (egen mal senere) |
 | 9 | FB2 | – | – | – | Del F: kopier `NS 3420 Del F` fra kilder/ og finn nytt sidekart |
 | 10 | FC1 | – | – | – | |
 | 11 | FD2 | – | – | – | |
