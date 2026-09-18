@@ -168,6 +168,36 @@ function heltall(label: string, fase: string, config: Record<string, unknown> = 
   return felt(label, "integer", fase, { ...config, ...(helpText ? { helpText } : {}) });
 }
 
+// KC3.1 – Oppstøtting av trær. Eksportert som egen definisjon slik at seed-testen kan låse
+// feltene (krav (c) «stille tomhet forbudt»). Bygget med eksisterende helpers; skriveveien
+// (opprettMalHvisMangler + felter→malInnhold-mapping) er urørt.
+export const KC31_MAL = {
+  kapittelKode: "KC",
+  navn: "KC3.1 – Oppstøtting av trær",
+  referanse: "KC3.1",
+  beskrivelse: "Oppstøtting og oppbinding",
+  felter: [
+    valg("Metode", "FØR",
+      ["Oppstøtting med stokker (KC3.11)", "Bardunering (KC3.12)", "Forankring i grunnen (KC3.13)", "Annet – angi i kommentar"],
+      "Posten i beskrivelsen angir metoden. Bardunering og forankring er egne poster (KC3.12/KC3.13) med egne krav — denne sjekklisten dekker kontrollpunktene felles; postspesifikke krav står i beskrivelsen."),
+    valg("Materiell kontrollert mot beskrivelsen", "FØR",
+      ["Iht. posten – type, antall stokker og bindemateriale stemmer", "Avvik – dokumentert i kommentar", "Mangler – må skaffes før montering"],
+      "KC3.11: type, antall stokker per oppstøtting og bindemateriale står i posten. Bruk mykt bindemateriale — aldri ståltråd direkte mot bark. Ta bilde av materiellet."),
+    trafikklys("Solid og fast forankret – røtter uskadet", "UNDER",
+      "KC3.1 c1: støtten skal stå solid og være fast forankret i bakken uten at røtter skades. Ta bilde av forankringen."),
+    trafikklys("Bundet uten fare for gnag eller barkskade", "UNDER",
+      "KC3.1 c2: bindingen skal ikke påføre treet mekanisk skade. Myk stropp eller gummibeskyttelse — aldri ståltråd direkte mot bark. Ta bilde av bindepunktet."),
+    trafikklys("Kronen kan bevege seg fritt", "UNDER",
+      "KC3.1 c3: støtten skal tillate fri bevegelse i kronen — stiv innspenning gir svak stamme."),
+    trafikklys("Høyde: så lav som mulig – maks 1/3 av treets høyde", "UNDER",
+      "KC3.1 c4, figur K7: støtten settes så lavt som mulig (ned mot 80 cm) og aldri over 1/3 av treets høyde. Ved avvik: noter målt høyde i kommentaren."),
+    heltall("Antall trær støttet (stk)", "ETTER", { enhet: "stk" },
+      "KC3.11 måles i stk trær. Før antallet som er støttet/bundet opp — dokumenterer levert mengde mot posten."),
+    trafikklys("Krav oppfylt iht. beskrivelsen", "ETTER",
+      "Konklusjon før overlevering: metode, materiell og antall iht. posten, alle kontrollpunkter besvart, bilder lagt ved dette dokumentet. Etterfølgende sesongskontroll og fjerning av oppstøttingen er vedlikehold (egen post, ZK2.7112) — ikke del av denne sjekklisten. FDV/sluttdokumentasjon leveres via egen dokumentasjonssjekkliste."),
+  ] as FeltDef[],
+};
+
 async function main() {
   console.log("Seeder sjekklistebibliotek (kun opprett — rører aldri eksisterende rader)...");
 
@@ -373,22 +403,8 @@ async function main() {
       ],
     },
 
-    // ── KC3.1 ──
-    {
-      kapittelKode: "KC",
-      navn: "KC3.1 – Oppstøtting av trær",
-      referanse: "KC3.1",
-      beskrivelse: "Oppstøtting og oppbinding",
-      felter: [
-        valg("Støttetype", "FØR",
-          ["Trestøtte 1-punkt", "Trestøtte 2-punkt", "Wirestøtte", "Jordanker", "Annet"],
-          "KC3.1: Støttetype skal være iht. spesifikasjon."),
-        trafikklys("Støtte plassert korrekt", "UNDER"),
-        trafikklys("Bindmateriale skadefritt for bark", "UNDER",
-          "Bruk myk stropp eller gummibeskyttelse – aldri ståltråd direkte mot bark."),
-        trafikklys("Kontrollert etter 1 sesong", "ETTER"),
-      ],
-    },
+    // ── KC3.1 ── (definisjon eksportert over: KC31_MAL)
+    KC31_MAL,
 
     // ── KD1 – Utendørsbelegg ──
     {
