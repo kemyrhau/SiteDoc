@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-18g · develop = denne docs-commit (§ design — rollen etter Fabel innfletta i SAMARBEIDSREGLER; seks fabel-steder merket historiske; design-rad på tavla. Ingen kode, ingen deploy, ingen OTA) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-18h · develop `4fb25469` (KD1-revisjon merget [WEB-DEPLOY seed, ingen migrering] + KD2-ordre/§1b docs merget) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -30,6 +30,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
+| 🔵 **RELAY KD2-ordren** — `docs/redesign/ordre-kd2-ny-mal-design-2026-09-18.md` (ny mal, kantstein). Ordre-branchen er merget (`4fb25469`, § design pkt 2 oppfylt — første praktiske bruk). mal-Opus lager KD2-branchen **fra develop** etter at KD1 er inne (nå) | Nå — KD1 er inne | mal-Opus |
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
 | 🔴 **KC3.1 §7b-runde** — undertittel «NS3420-K KC3.1 — Oppstøtting og oppbinding» er normens EGEN overskriftstekst. §7b (opphavsrett) krever navn = **kode + egne ord**, med «Faglig grunnlag: NS 3420-K:2024» som egen linje i beskrivelsen — ingen normtekst i navn/undertittel | Nå (§7b i develop `9c83f547`) | mal-Opus |
@@ -44,6 +45,15 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-18h — KD1-revisjon (første tekstbevis-gate) + KD2-ordre/§1b merget. WEB-DEPLOY (seed) for KD1, ingen migrering, ingen OTA.
+
+**To brancher, bindende rekkefølge, begge ff fra `031105ed`.** 1. `feat/mal-kd1-revisjon` `51caefda` → `6bbfe0dc`. 2. `docs/design-kd2` `828ddd73` → `4fb25469`.
+- 🟢 **KD1 «Belegg av stein og heller» — FØRSTE mal gatet på TEKSTBEVIS** (ikke skjermbilder). **Designgatens bevis:** version 2 · navn «KD1 – Belegg av stein og heller» · beskrivelse med «Faglig grunnlag» · **13 rader** med overskrifter på rad 1/5/9 · **6× enkeltvalg, 3× trafikklys, 1× heltall** · alternativer og hjelpetekster ord for ord mot ordren + TILLEGG 1 · ingen normkoder, **§7b oppfylt**.
+- 🟢 **Teknisk gate (cowork):** skrivevei `opprettMalHvisMangler` URØRT (bekreftet i diff-kommentar + grep), hjelpefunksjoner (ingen hardkodet JSON), `verifisert: false` eksplisitt, prod-gate urørt (uverifiserte seedes ikke i prod). Gate: **`db` 7→14** (+7, ny `kd1-mal.test.ts`; kjørt lokalt 14/14 grønt). Alle andre HELT stille: `api` 511 · `pdf` 124 · `shared` 824 · `web` 292 · `mobil` 14 · `integrasjon` 61. Ingen migrering. *(«version 2» kommer fra `kd1-test.sql` Kenneth kjørte på test 18.09 — MAL-METODE §1b pkt 5 — ikke fra seeden; seeden er create-only.)*
+- 🟢 **KD2 — designs FØRSTE leveranse etter den nye modellen.** Ren docs: KD2-ordre (kantstein), MAL-METODE **§1b** (felles regler for design + mal-Opus), MAL-PLAN KD2-rad. **Merget FØR relay (§ design pkt 2 — første praktiske bruk av regelen).** → KD2-relay lagt i Coworks kø.
+- **Reload:** ingen (seed; eksisterende maler urørt til re-seed).
+- ⚠️ `_gen-kd1-sql.ts` ble bevisst IKKE committet — KD2 leverer `generer-mal-sql.ts` generalisert; den KD1-spesifikke ville vært utdatert. Ikke etterlyst.
 
 ## 🟢 2026-09-18g — § design (rollen etter Fabel) innfletta i SAMARBEIDSREGLER + seks fabel-steder merket historiske. INGEN kode, ingen deploy, ingen OTA.
 
