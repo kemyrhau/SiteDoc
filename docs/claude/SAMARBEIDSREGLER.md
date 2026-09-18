@@ -580,6 +580,15 @@ kan — i den rekkefølgen.
 utdatert). Cowork leste feil fil og bygde en hel prioritering på den. Sjekk datoen i
 `## Rekkefølge`-overskriften.
 
+**14. Den som skriver en ordre lager nudgen i sin EGEN melding — cowork svarer KUN «kan
+relayes» eller «vent».** Da finnes det alltid nøyaktig **én kjent nudge**, og ingen kan tro
+at den andre har sendt den. «Kan relayes» er samtidig **gaten fra § design pkt 2** — cowork
+sier den først når han har sett hvilke filer ordren rører. Regelen supplerer 11 (ordren til
+fil FØR nudgen): fila overlever, og nudge-eierskapet er nå entydig.
+
+Utløst 2026-09-18: KD2-nudgen ble skrevet av cowork, limt til feil økt, og cowork førte
+«mal-Opus jobber med KD2» på tavla uten å måle. Design målte og fant worktreet urørt.
+
 ### Lesekart — hva cowork må vite for å ha regien
 
 | Spørsmål | Kilde |

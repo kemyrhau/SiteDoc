@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-18h · develop `4fb25469` (KD1-revisjon merget [WEB-DEPLOY seed, ingen migrering] + KD2-ordre/§1b docs merget) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-18i · develop `1056b302` (KM2-ordre merget [ren docs, ff] — KD1-revisjon + KD2-ordre/§1b alt inne fra 18h) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | — | ⚪ **LEDIG** | — |
+| **mal-Opus** | `SiteDoc-mal` | `feat/mal-kd1-revisjon` @ `51caefda` (KD1 merget, parkert) | ⚪ **LEDIG** | KD2-relay |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -30,7 +30,8 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| 🔵 **RELAY KD2-ordren** — `docs/redesign/ordre-kd2-ny-mal-design-2026-09-18.md` (ny mal, kantstein). Ordre-branchen er merget (`4fb25469`, § design pkt 2 oppfylt — første praktiske bruk). mal-Opus lager KD2-branchen **fra develop** etter at KD1 er inne (nå) | Nå — KD1 er inne | mal-Opus |
+| 🔴 **RELAY KD2-ordren — IKKE SENDT ENNÅ** (rettet 18i). `docs/redesign/ordre-kd2-ny-mal-design-2026-09-18.md` (ny mal, kantstein), merget `4fb25469`. Nudgen ble skrevet, men limt til feil økt — nådde ALDRI mal-Opus. Målt: mal-Opus står på `feat/mal-kd1-revisjon` @ `51caefda`, ingen KD2-branch, ingen KD2-filer. Branch blir `feat/mal-kd2-ny`, fra develop | Nå | mal-Opus |
+| 🔵 **RELAY KM2-ordren — VENTER PÅ KD2** (én mal om gangen). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (ny mal, mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts` — begge rører `seed-bibliotek.ts` + `generer-mal-sql.ts`, så KD2 må inn først. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | Etter KD2 er merget | mal-Opus |
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
 | 🔴 **KC3.1 §7b-runde** — undertittel «NS3420-K KC3.1 — Oppstøtting og oppbinding» er normens EGEN overskriftstekst. §7b (opphavsrett) krever navn = **kode + egne ord**, med «Faglig grunnlag: NS 3420-K:2024» som egen linje i beskrivelsen — ingen normtekst i navn/undertittel | Nå (§7b i develop `9c83f547`) | mal-Opus |
@@ -45,6 +46,13 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-18i — KM2-ordre merget (ren docs) + tavla rettet + nudge-rutine
+
+**Merge:** `docs/design-km2` `1056b302` → develop, ren fast-forward fra `3b32c646`. Diff = nøyaktig to filer: `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (ny) + `MAL-PLAN.md` (KM2-rad). Ingen kode → gate-tallene HELT stille (db 14 · api 511 · pdf 124 · shared 824 · web 292 · mobil 14 · integrasjon 61 · 7/7 — docs-only, ikke re-kjørt).
+- 🔴 **KM2-ordren IKKE relayet** — én mal om gangen. KM2 går til mal-Opus først når KD2 er merget (begge rører `seed-bibliotek.ts` + `generer-mal-sql.ts`; KM2 skal ligge etter `KD2_MAL` og bruker KD2-generatoren). KM2 = kontroll mot beskrivelsen, **ingen tall** (normen har ingen utførelseskrav/toleranser for mur — Kenneth sett og godkjent).
+- 🔴 **TAVLA RETTET — den løy:** kø-raden fremstilte KD2-relayet som gitt/aktivt («mal-Opus lager KD2-branchen … nå»). Målt av design: mal-Opus står fortsatt på `feat/mal-kd1-revisjon` @ `51caefda`, ingen KD2-branch, ingen KD2-filer. KD2-nudgen ble skrevet av cowork, men limt til feil økt — nådde ALDRI mal-Opus, og cowork førte «i arbeid» uten å måle. KD2 er ordret + committet, men IKKE startet; branch blir `feat/mal-kd2-ny`.
+- 🟢 **NY RUTINE — SAMARBEIDSREGLER § Meldingsflyt rule 14** (design foreslo praksisen; regelteksten er coworks): den som skriver en ordre lager nudgen i sin EGEN melding, cowork svarer KUN «kan relayes» eller «vent». «Kan relayes» er samtidig § design pkt 2-gaten — cowork sier den først når han har sett hvilke filer ordren rører. Da finnes alltid nøyaktig én kjent nudge.
 
 ## 🟢 2026-09-18h — KD1-revisjon (første tekstbevis-gate) + KD2-ordre/§1b merget. WEB-DEPLOY (seed) for KD1, ingen migrering, ingen OTA.
 
