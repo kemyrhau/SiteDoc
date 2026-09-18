@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-18e · develop `2073ffc0` (§7b design-docs + KC3.1 9→8 «sesongfelt ut» — WEB-DEPLOY seed, ingen migrering, ingen OTA) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-18f · develop `919897ff` (docs-runde: MAL-METODE tekstbevis erstatter skjermbilder + revisjons-SQL øker `version` + felle-note · TILLEGG-2 · BACKLOG #23 «Malinnhold som tekst». Ingen kode, ingen deploy, ingen OTA) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -44,6 +44,12 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-18f — Docs-runde: tekstbevis erstatter skjermbilder + BACKLOG #23. INGEN kode, ingen deploy, ingen OTA.
+
+**Tre commits, alle docs.** 1. `ef8f1d9b` — design-rollens tre filer overført fra hovedtreet (mal-Opus var BLOKKERT på TILLEGG-2): MAL-METODE §3/§6/§6a — **tekstbevis fra revisjons-SQL erstatter skjermbilder** (mal-Opus har verken innlogget nettleser eller simulator); hver revisjons-SQL **øker `bibliotek_maler.version` med 1** og skriver ut hele malinnholdet før `COMMIT` (tekstbeviset gaten kjøres på); MAL-PLAN oppskrift pkt 7; TILLEGG-2 (ny). **Felle-note tilføyd (autorisert av ordren):** `versjon String` (schema:2313) er død for versjonsvisning, `version Int` (schema:2320) er badge-kilden (`versjonerBak`, `MalListe.tsx:654`) — feil felt gir stille feil. 2. `919897ff` — BACKLOG #23 «Malinnhold som tekst» (superadmin-visning m/kopier-knapp, Kenneth-godkjent, ikke nå; erstatter §6a-utskriften når den finnes). 3. denne.
+- De to andre untrackede hovedtre-filene (TILLEGG-kd1-egne-krav, ordre-kd1-revisjon) er ALT i develop og byte-identiske — IKKE committet på nytt (verifisert `git diff` = tomt). Kenneth rydder dem selv.
+- 🔴 **`feat/mal-kd1-revisjon` MERGES IKKE** — fortsatt ikke designgatet. Gaten kjøres nå på **tekstbevis**, ikke skjermbilder: mal-Opus lager `kd1-test.sql` på nytt per TILLEGG-2, Kenneth kjører den og limer utskriften til design-rollen.
 
 ## 🟢 2026-09-18e — §7b opphavsrett (design-docs) + KC3.1 9→8 «sesongfelt ut» merget. WEB-DEPLOY (seed), ingen migrering, ingen OTA.
 
