@@ -2232,7 +2232,7 @@
   "dokumentklasse.alle": "Все",
   "dokumentklasse.oppgaver": "Задачи",
   "dokumentklasse.segmentTittel": "Тип документа",
-  "mal.type.tittel": "Тип",
+  "mal.type.tittel": "Класс документа",
   "mal.type.oppgave": "Задача",
   "mal.type.oppgaveForklaring": "Работы, которые необходимо выполнить, проверить или отслеживать.",
   "mal.type.kontraktssakForklaring": "Уведомление, претензия или ответ по договору. Отображается отмеченным в Задачах.",

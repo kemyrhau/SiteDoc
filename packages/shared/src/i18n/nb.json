@@ -2232,7 +2232,7 @@
   "dokumentklasse.alle": "Alle",
   "dokumentklasse.oppgaver": "Oppgaver",
   "dokumentklasse.segmentTittel": "Dokumenttype",
-  "mal.type.tittel": "Type",
+  "mal.type.tittel": "Dokumentklasse",
   "mal.type.oppgave": "Oppgave",
   "mal.type.oppgaveForklaring": "Arbeid som skal utføres, kontrolleres eller følges opp.",
   "mal.type.kontraktssakForklaring": "Varsel, krav eller svar etter kontrakten. Vises merket i Oppgaver.",

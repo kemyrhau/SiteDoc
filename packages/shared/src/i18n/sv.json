@@ -2232,7 +2232,7 @@
   "dokumentklasse.alle": "Alla",
   "dokumentklasse.oppgaver": "Uppgifter",
   "dokumentklasse.segmentTittel": "Dokumenttyp",
-  "mal.type.tittel": "Typ",
+  "mal.type.tittel": "Dokumentklass",
   "mal.type.oppgave": "Uppgift",
   "mal.type.oppgaveForklaring": "Arbete som ska utföras, besiktigas eller följas upp.",
   "mal.type.kontraktssakForklaring": "Meddelande, anspråk eller svar enligt avtalet. Visas markerat i Uppgifter.",

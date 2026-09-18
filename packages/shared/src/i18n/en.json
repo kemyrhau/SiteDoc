@@ -2232,7 +2232,7 @@
   "dokumentklasse.alle": "All",
   "dokumentklasse.oppgaver": "Tasks",
   "dokumentklasse.segmentTittel": "Document type",
-  "mal.type.tittel": "Type",
+  "mal.type.tittel": "Document class",
   "mal.type.oppgave": "Task",
   "mal.type.oppgaveForklaring": "Work to be carried out, inspected or followed up.",
   "mal.type.kontraktssakForklaring": "Notice, claim or reply under the contract. Shown marked in Tasks.",

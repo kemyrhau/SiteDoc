@@ -2232,7 +2232,7 @@
   "dokumentklasse.alle": "все",
   "dokumentklasse.oppgaver": "завдання",
   "dokumentklasse.segmentTittel": "Тип документа",
-  "mal.type.tittel": "Тип",
+  "mal.type.tittel": "Клас документа",
   "mal.type.oppgave": "завдання",
   "mal.type.oppgaveForklaring": "Робота, яка має бути виконана, перевірена чи подальша.",
   "mal.type.kontraktssakForklaring": "Повідомлення, претензія або відповідь за договором. Показано позначені в Завданнях.",
