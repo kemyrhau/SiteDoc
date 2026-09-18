@@ -2,22 +2,23 @@ import { describe, it, expect } from "vitest";
 import { KC31_MAL } from "./seed-bibliotek";
 
 /**
- * KC3.1 «Oppstøtting av trær» — portet fra feat/mal-kc31-revisjon (2026-09-13):
- * revidert fra 4 generiske felt til 8 mot NS 3420-K post KC3.1 c1–c4 + KC3.11.
+ * KC3.1 «Oppstøtting av trær» — revidert til NI felt mot NS 3420-K post KC3.1 c1–c4 + KC3.11.
+ * (Korreksjon 2026-09-18: 8→9. Nytt sesongkontroll-felt i ETTER + omdøpt konklusjon —
+ * Kenneths ferdigbygde versjon, avlest av cowork.)
  *
- * Krav (c) «stille tomhet forbudt»: testen FEILER hvis KC3.1 ikke bærer de åtte feltene.
+ * Krav (c) «stille tomhet forbudt»: testen FEILER hvis KC3.1 ikke bærer de ni feltene.
  * Den låser antall, rekkefølge, felttyper og de tre fasene — mister porten et felt,
  * blir den rød.
  */
 
-describe("KC3.1 – 8 felt mot NS 3420-K (portet fra feat/mal-kc31-revisjon)", () => {
+describe("KC3.1 – 9 felt mot NS 3420-K", () => {
   it("er malen for KC3.1", () => {
     expect(KC31_MAL.referanse).toBe("KC3.1");
     expect(KC31_MAL.kapittelKode).toBe("KC");
   });
 
-  it("har nøyaktig åtte datafelt i riktig rekkefølge", () => {
-    expect(KC31_MAL.felter).toHaveLength(8);
+  it("har nøyaktig ni datafelt i riktig rekkefølge", () => {
+    expect(KC31_MAL.felter).toHaveLength(9);
     expect(KC31_MAL.felter.map((f) => f.label)).toEqual([
       "Metode",
       "Materiell kontrollert mot beskrivelsen",
@@ -26,11 +27,12 @@ describe("KC3.1 – 8 felt mot NS 3420-K (portet fra feat/mal-kc31-revisjon)", (
       "Kronen kan bevege seg fritt",
       "Høyde: så lav som mulig – maks 1/3 av treets høyde",
       "Antall trær støttet (stk)",
-      "Krav oppfylt iht. beskrivelsen",
+      "Kontrollert etter 1. vekstsesong – etterstrammet/justert",
+      "Krav oppfylt og dokumentasjon levert",
     ]);
   });
 
-  it("har korrekte felttyper (2 valg, 5 trafikklys, 1 heltall)", () => {
+  it("har korrekte felttyper (2 valg, 6 trafikklys, 1 heltall)", () => {
     expect(KC31_MAL.felter.map((f) => f.type)).toEqual([
       "list_single",
       "list_single",
@@ -40,10 +42,11 @@ describe("KC3.1 – 8 felt mot NS 3420-K (portet fra feat/mal-kc31-revisjon)", (
       "traffic_light",
       "integer",
       "traffic_light",
+      "traffic_light",
     ]);
   });
 
-  it("grupperer feltene i FØR/UNDER/ETTER (ETTER bærer konklusjon + mengde)", () => {
+  it("grupperer feltene i FØR/UNDER/ETTER (ETTER bærer mengde, sesongkontroll, konklusjon)", () => {
     expect(KC31_MAL.felter.map((f) => f.fase)).toEqual([
       "FØR",
       "FØR",
@@ -53,6 +56,7 @@ describe("KC3.1 – 8 felt mot NS 3420-K (portet fra feat/mal-kc31-revisjon)", (
       "UNDER",
       "ETTER",
       "ETTER",
+      "ETTER",
     ]);
   });
 
@@ -60,5 +64,11 @@ describe("KC3.1 – 8 felt mot NS 3420-K (portet fra feat/mal-kc31-revisjon)", (
     const mengde = KC31_MAL.felter[6]!;
     expect(mengde.type).toBe("integer");
     expect(mengde.config?.enhet).toBe("stk");
+  });
+
+  it("sesongkontroll-feltet er trafikklys, foran konklusjonen", () => {
+    expect(KC31_MAL.felter[7]!.label).toBe("Kontrollert etter 1. vekstsesong – etterstrammet/justert");
+    expect(KC31_MAL.felter[7]!.type).toBe("traffic_light");
+    expect(KC31_MAL.felter[8]!.label).toBe("Krav oppfylt og dokumentasjon levert");
   });
 });
