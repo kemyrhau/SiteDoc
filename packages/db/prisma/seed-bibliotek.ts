@@ -198,6 +198,95 @@ export const KC31_MAL = {
   ] as FeltDef[],
 };
 
+// KD1 – Belegg av stein og heller. Eksportert som egen definisjon slik at seed-testen kan låse
+// feltene (krav (c) «stille tomhet forbudt»). Bygget med eksisterende helpers; skriveveien
+// (opprettMalHvisMangler + felter→malInnhold-mapping) er urørt.
+//
+// Revisjon 2026-09-18 (design-rollen, gatet av Kenneth): 7→10 felt for legging av stein-/hellebelegg.
+// «Asfalt» fjernet (hører til IH). Krav mot varierende flate (fall, planhet, fugebredde, tykkelse)
+// besvares med samsvar per kravnivå — ikke tallfelt (MAL-METODE §1). Én veldefinert måling (største
+// sprang ved fuger) forblir heltall uten maks-grense (blokkerer aldri registrering av avvik).
+// TILLEGG 2026-09-18 (§7b): malen fremstår med SiteDocs egne krav — ingen tabell-/punktkoder i
+// hjelpetekster; standarden nevnes én gang, i beskrivelsen («Faglig grunnlag»). Kodene i navn/referanse
+// beholdes (datanøkler + gjenkjennelse i beskrivelse/fremdriftsplan).
+export const KD1_MAL = {
+  kapittelKode: "KD",
+  navn: "KD1 – Belegg av stein og heller",
+  referanse: "KD1",
+  beskrivelse:
+    "Legging av belegg av naturstein, betong og tegl, også permeabelt belegg — settelag, fuger, fall og planhet. Faglig grunnlag: NS 3420-K:2024, post KD1.",
+  felter: [
+    valg("Belegningstype", "FØR",
+      [
+        "Storgatestein",
+        "Smågatestein",
+        "Mosaikkstein",
+        "Natursteinsplater – sagde sider",
+        "Natursteinsplater – råhogde kanter / bruddheller",
+        "Belegningsstein av naturstein",
+        "Betongheller",
+        "Belegningsstein av betong",
+        "Belegningsstein av tegl",
+        "Permeabelt belegg",
+        "Annet – se beskrivelsen",
+      ],
+      "Velg typen som er lagt — den avgjør kravene til settelag, fuger, fall og planhet i feltene under. Kontroller frostklassen i merkingen på pallen: naturstein og gatestein F1, betongheller og betongstein klasse 3 (merket D), tegl FP100. Ta bilde av pallelapp eller leveringsseddel."),
+    valg("Areal", "FØR",
+      ["Gangareal", "Kjøreareal"],
+      "Kjøreareal har strengere krav til fall og romsligere toleranse for planhet enn gangareal."),
+    valg("Settelag", "FØR",
+      [
+        "Natursand",
+        "Betong",
+        "Knust 0/8",
+        "Knust 0/11",
+        "Knust 2/8",
+        "Knust 2/11",
+        "Knust 2/5 (permeabelt)",
+        "Annet – se beskrivelsen",
+      ],
+      "Anbefalt: 0/8 eller 0/11 under belegningsstein og gatestein, 2/8 under natursteinsplater og betongheller, 2/11 ved maskinlegging. Permeabelt belegg: 2/5, 2/8 eller 2/11. Beskytt betong i settelag og fuger mot uttørking og frost."),
+    valg("Tykkelse settelag", "UNDER",
+      [
+        "OK – 20–40 mm (betongstein, betongheller, tegl)",
+        "OK – 30–50 mm (mosaikk, natursteinsplater, belegningsstein av naturstein)",
+        "OK – 50–70 mm (stor- og smågatestein)",
+        "OK – iht. leverandør (snøsmelteanlegg)",
+        "Avvik – utenfor intervallet for belegningstypen",
+      ],
+      "Legg med overhøyde, slik at belegget ender i riktig høyde etter komprimering: 3–5 mm, for gatestein 8–12 mm. Med snøsmelteanlegg gjelder leverandørens tykkelse. Ved avvik: noter målt tykkelse og sted i kommentaren."),
+    trafikklys("Fall mot avrenning", "UNDER",
+      "Minst 2 % på gangareal. Kjøreareal: minst 2,5 %, for gatestein minst 3 %. Permeabelt belegg: fallet står i beskrivelsen. Angir beskrivelsen noe annet, gjelder den. Kontroller flere punkter. Ved avvik: noter målt fall og sted i kommentaren."),
+    trafikklys("Fuger og striper i rette linjer eller jevne buer", "UNDER",
+      "Gatestein legges i forband, forskjøvet minst 1/3 stein, i buer minst 1/5. Ingen tilpassede biter mindre enn 30 % av en hel stein."),
+    valg("Fugebredde", "ETTER",
+      [
+        "OK – knas (gatestein, råhogd naturstein)",
+        "OK – 2–5 mm (betongheller, betongstein)",
+        "OK – 5–7 mm (belegningsstein av naturstein, sagde sider)",
+        "OK – 5–8 mm (natursteinsplater, sagde, under 80 mm)",
+        "OK – 9–12 mm (natursteinsplater, sagde, 80–150 mm)",
+        "OK – iht. beskrivelsen (tegl, permeabelt, bruddheller, over 150 mm)",
+        "Avvik – utenfor kravet for belegningstypen",
+      ],
+      "Enkeltsteiner kan avvike ±2 mm (sagde natursteinsplater) eller ±3 mm (belegningsstein av naturstein). Ved avvik: noter målt bredde og sted i kommentaren."),
+    valg("Planhet – svanker/bulninger over 3 m", "ETTER",
+      [
+        "OK – innenfor ±3 mm",
+        "OK – innenfor ±5 mm",
+        "OK – innenfor ±6 mm",
+        "OK – innenfor ±8 mm",
+        "OK – innenfor ±10 mm",
+        "Avvik – utenfor toleransen for type og areal",
+      ],
+      "Toleranse gang/kjøre, målt med 3 m rettholt: betongstein, betongheller, tegl og belegningsstein av naturstein ±3/±5 · smågatestein og mosaikk ±3/±5 · storgatestein ±5/±8 · sagde natursteinsplater ±5/±8 · råhogde natursteinsplater ±8/±10 · permeabelt maskinlagt ±3/±6. Mål flere steder og velg raden som gjelder. Ved avvik: noter største måling og sted i kommentaren."),
+    heltall("Største vertikale sprang ved fuger (mm)", "ETTER", { enhet: "mm" },
+      "Største tillatte sprang gang/kjøre: betongstein, betongheller, tegl og belegningsstein av naturstein 2/3 · smågatestein og mosaikk 3/5 · storgatestein 5/8 · sagde natursteinsplater 4/6 · råhogde natursteinsplater 6/8. Før inn den største målingen (hele mm)."),
+    trafikklys("Krav oppfylt og dokumentasjon levert", "ETTER",
+      "Belegget oppfyller kravene over, overflaten er feid ren for fugemasse, og flaten er klar for overlevering. Ta bilde av ferdig belegg."),
+  ] as FeltDef[],
+};
+
 async function main() {
   console.log("Seeder sjekklistebibliotek (kun opprett — rører aldri eksisterende rader)...");
 
@@ -406,31 +495,8 @@ async function main() {
     // ── KC3.1 ── (definisjon eksportert over: KC31_MAL)
     KC31_MAL,
 
-    // ── KD1 – Utendørsbelegg ──
-    {
-      kapittelKode: "KD",
-      navn: "KD1 – Utendørsbelegg",
-      referanse: "KD1",
-      beskrivelse: "Legging og kontroll – Tabell K11/K12",
-      felter: [
-        valg("Underlag", "FØR",
-          ["Komprimert og godkjent", "Komprimert med merknad", "Ikke tilstrekkelig – avvik"],
-          "KD1: Underlag skal komprimeres og kontrolleres. Settelag iht. Tabell K9."),
-        valg("Belegningstype", "FØR",
-          ["Belegningsstein", "Heller", "Naturstein", "Asfalt", "Annet"],
-          "Kontroller at type og kvalitet stemmer med spesifikasjon."),
-        desimal("Fall gangarealer (%)", "UNDER", { enhet: "%", min: 2.0 },
-          "Tabell K11: Gangarealer minimum 2,0 % fall."),
-        desimal("Fall kjørearealer (%)", "UNDER", { enhet: "%", min: 2.5 },
-          "Tabell K11: Kjørearealer minimum 2,5 % fall."),
-        trafikklys("Fuger – rette linjer/jevne kurver", "UNDER",
-          "KD1 c5: Gjennomgående fuger skal danne rette linjer eller jevne kurver."),
-        desimal("Planhet over 3 m (mm)", "ETTER", { enhet: "mm", toleranse: 3 },
-          "Tabell K12: Belegningsstein gangarealer ±3 mm, kjørearealer ±5 mm over 3 m rettholt."),
-        desimal("Vertikalt sprang fuger (mm)", "ETTER", { enhet: "mm", maks: 2 },
-          "Tabell K12: Belegningsstein maks 2 mm, naturstein maks 3 mm."),
-      ],
-    },
+    // ── KD1 ── (definisjon eksportert over: KD1_MAL)
+    KD1_MAL,
   ];
 
   // ── NS 3420-F:2024 Grunnarbeider ──────────────────────────────────
