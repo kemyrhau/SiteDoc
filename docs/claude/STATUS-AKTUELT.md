@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-19a · develop `c1e29dc9` (KD2-mal merget [no-ff] + NettverkProvider-selvheling + maløype-docs + `.gitignore` `/*-test.sql`) · db 14→25 · mobil 14→16 · KD2 = FØRSTE mal via maløypa (design↔mal-Opus direkte — fungerte) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-19b · develop `e27a0dd7` (ren docs, ff — ordre «forklar sperrede knapper» committet, til redesign) · gate urørt fra 19a: db 25 · mobil 16 · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -30,6 +30,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
+| 🔵 **RELAY «forklar sperrede knapper»** — ordre committet `e27a0dd7` (`docs/redesign/ordre-forklar-sperrede-knapper-design-2026-09-19.md`). **Steg 1 = ren kartlegging** (web + mobil, rangert etter pilotflyter på mobil) → tabell til `relay/inbox-design.md` → design godkjenner tekstene → steg 2 bygger. **Betingelsene på knappene røres ikke.** | Nå (cowork relayer) | redesign |
 | ✅ **KD2 MERGET `c1e29dc9`** (2026-09-19a) — første mal via maløypa, design↔mal-Opus direkte. Se datert seksjon under | Ferdig | — |
 | 🔵 **KM2 — KD2 er nå inne → mal-Opus kan starte** (han sjekker selv). Går på maløypa (design → mal-Opus direkte). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts`. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | KD2 inne (nå) | design → mal-Opus |
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
