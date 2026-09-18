@@ -14,6 +14,9 @@ interface FaggruppeTilknytningModalProps {
   kategori: "oppgave" | "sjekkliste";
   valgteWorkflowIds: Set<string>;
   onBekreft: (ids: Set<string>) => void;
+  /** Overstyr bekreft-/avbryt-teksten (f.eks. «Velg»/«Hopp over» i hent-fra-arkiv-flyten). */
+  bekreftTekst?: string;
+  avbrytTekst?: string;
 }
 
 export function FaggruppeTilknytningModal({
@@ -23,6 +26,8 @@ export function FaggruppeTilknytningModal({
   kategori,
   valgteWorkflowIds,
   onBekreft,
+  bekreftTekst,
+  avbrytTekst,
 }: FaggruppeTilknytningModalProps) {
   const { t } = useTranslation();
   const [lokaleValg, setLokaleValg] = useState<Set<string>>(new Set());
@@ -113,9 +118,11 @@ export function FaggruppeTilknytningModal({
 
           <div className="flex gap-3 pt-4">
             <Button variant="secondary" onClick={onClose}>
-              {t("handling.avbryt")}
+              {avbrytTekst ?? t("handling.avbryt")}
             </Button>
-            <Button onClick={() => onBekreft(lokaleValg)}>{t("handling.ok")}</Button>
+            <Button onClick={() => onBekreft(lokaleValg)}>
+              {bekreftTekst ?? t("handling.ok")}
+            </Button>
           </div>
         </div>
       )}

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Modal, Button, Spinner, Input } from "@sitedoc/ui";
 import { Lock, Check, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { FaggruppeTilknytningModal } from "@/app/dashbord/oppsett/produksjon/_components/FaggruppeTilknytningModal";
 import {
   byggKildeIndeks,
   byggSitedocGrupper,
@@ -16,6 +17,11 @@ import {
   type FoldetGruppe,
   type MedKapittel,
 } from "./arkiv-fane-filter";
+import {
+  flytvalgHandling,
+  skalTilbyFlytvalg,
+  type FlytvalgUtgang,
+} from "./flytvalg-etter-hent";
 
 /**
  * «Hent fra arkiv» — grensesnittet mellom prosjekt, firma og SiteDoc-sentralarkiv
@@ -66,6 +72,12 @@ export function HentFraArkivModal({
   // dem brukeren har LUKKET. Egen dimensjon per fane.
   const [lukkedeUnderFirma, setLukkedeUnderFirma] = useState<Set<string>>(new Set());
   const [lukkedeUnderSitedoc, setLukkedeUnderSitedoc] = useState<Set<string>>(new Set());
+  // Flytvalg-steg (Kenneth 2026-09-18): satt til den nettopp hentede prosjektmalen når
+  // steget skal tilbys. null = ikke aktivt. Kun firma-hent (lager prosjektmal).
+  const [flytvalgFor, setFlytvalgFor] = useState<{
+    malId: string;
+    kategori: "oppgave" | "sjekkliste";
+  } | null>(null);
 
   function lukk() {
     setSok("");
@@ -97,10 +109,38 @@ export function HentFraArkivModal({
     enabled: open && (aktivFane === "firma" || (aktivFane === "sitedoc" && kanSitedoc)),
   });
 
+  // Prosjektets dokumentflyter — brukes bare til å avgjøre OM flytvalg-steget skal
+  // tilbys etter hent (tomt prosjekt → skjul steget). Selve velgeren henter på nytt.
+  const flyter = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId },
+    { enabled: open },
+  );
+
+  // Knytter en nettopp hentet prosjektmal til valgte flyter. Gjenbruker den etablerte
+  // skriveveien (erstatter koblingssettet); en fersk mal har ingen fra før, så det blir
+  // et rent tillegg. Ingen endring av selve henten eller DokumentflytMal-skjemaet.
+  const knyttFlytMutation = trpc.mal.oppdaterMal.useMutation({
+    onSuccess: () => onImportert(),
+    onError: (e) => setFeil(e.message),
+  });
+
   const kopierMutation = trpc.firmamal.kopierTilProsjekt.useMutation({
-    onSuccess: (_res, variabler) => {
+    onSuccess: (res, variabler) => {
       setHentetFirma((s) => new Set(s).add(variabler.organizationTemplateId));
       onImportert();
+      // Tilby flytvalg for den nye prosjektmalen — kun oppgave/sjekkliste (HMS er flyt-løs)
+      // og kun når prosjektet faktisk har minst én flyt å velge.
+      const hentet = (firmamaler.data as FirmaMal[] | undefined)?.find(
+        (m) => m.id === variabler.organizationTemplateId,
+      );
+      const kategori = hentet?.category;
+      if (
+        res?.id &&
+        (kategori === "oppgave" || kategori === "sjekkliste") &&
+        skalTilbyFlytvalg({ antallFlyter: flyter.data?.length ?? 0, kategori })
+      ) {
+        setFlytvalgFor({ malId: res.id, kategori });
+      }
     },
     onError: (e) => setFeil(e.message),
     onSettled: () => setAktivRad(null),
@@ -120,6 +160,8 @@ export function HentFraArkivModal({
     id: string;
     name: string;
     domain: string;
+    // Dokument-form: gater flytvalg-steget etter hent (HMS-maler er flyt-løse).
+    category: "oppgave" | "sjekkliste" | "hms";
     version: number;
     // Avstamning til SiteDoc-sentralmalen (schema.prisma:1145) — bærer kapittelet når
     // malen er lånt. null = egenlagd firmamal (Krav 2).
@@ -267,7 +309,20 @@ export function HentFraArkivModal({
 
   const visLaastPanel = aktivFane === "sitedoc" && !tilgang.isLoading && !kanSitedoc;
 
+  // De to likestilte utgangene i flytvalg-steget. «hoppOver» knytter aldri — malen er
+  // allerede hentet; steget lukkes uten kobling. «velg» knytter de valgte flytene.
+  function fullforFlytvalg(utgang: FlytvalgUtgang, valgteIder: string[]) {
+    if (flytvalgFor) {
+      const handling = flytvalgHandling(utgang, valgteIder);
+      if (handling.knytt) {
+        knyttFlytMutation.mutate({ id: flytvalgFor.malId, workflowIds: handling.workflowIds });
+      }
+    }
+    setFlytvalgFor(null);
+  }
+
   return (
+    <>
     <Modal open={open} onClose={lukk} title={t("maler.arkiv.tittel")} className="max-w-2xl">
       <p className="-mt-2 mb-3 text-sm text-gray-500">{t("maler.arkiv.undertittel")}</p>
 
@@ -357,6 +412,23 @@ export function HentFraArkivModal({
         </div>
       )}
     </Modal>
+
+    {/* Flytvalg rett etter hent (Kenneth 2026-09-18): to likestilte utganger — «Velg»
+        knytter malen til valgte flyter, «Hopp over» lukker uten kobling. Lag oppå
+        hent-modalen (z-60), som blir stående så flere maler kan hentes. */}
+    {flytvalgFor && (
+      <FaggruppeTilknytningModal
+        open
+        prosjektId={projectId}
+        kategori={flytvalgFor.kategori}
+        valgteWorkflowIds={new Set()}
+        onBekreft={(ids) => fullforFlytvalg("velg", Array.from(ids))}
+        onClose={() => fullforFlytvalg("hoppOver", [])}
+        bekreftTekst={t("handling.velg")}
+        avbrytTekst={t("handling.hoppOver")}
+      />
+    )}
+    </>
   );
 }
 
