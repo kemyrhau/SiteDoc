@@ -32,6 +32,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 |---|---|---|
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
+| 🔴 **KC3.1 tilbake til 8 felt** — fjern «Kontrollert etter 1. vekstsesong» (`seed-bibliotek.ts` ~196, test tilbake til 8). Bryter nytt bindende vedtak (sjekkliste = utført arbeid, ikke etter-overlevering-kontroll) | Nå | mal-Opus |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 Ulåst 15.09 av lese/redigere-aksen | Nå | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen i rettighetsmatrisen + kapittel/underkapittel/post | Med sikkerhetsrunden | — |
 | **`06-videresend`** — eneste e2e-spec som gjenstår. Var ikke drift: handlingen var fjernet fra menyen | Etter Kenneths visuelle gate av personvalget | dokgen |
