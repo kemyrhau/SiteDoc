@@ -44,7 +44,17 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
-## 🟢 2026-09-18 — Service pr. timetall (kundeønske #1) merget. 🔴 DEPLOY MED MIGRERING (db-maskin, IKKE KJØRT), ingen OTA.
+## 🟢 2026-09-18b — Dobbel «Type» i mal-dialogen rettet. WEB-DEPLOY, ingen migrering, ingen OTA.
+
+**Én branch, `fix/mal-dialog-dobbel-type`** (`dde98b07`, ren ff fra `6e78d56d`). Gate: **`web` 270→285** (+15, én testcase pr. språk). Alle andre HELT stille: `db` 2 · `api` 511 · `pdf` 124 · `shared` 824 · `mobil` 13. 7/7. i18n: nøkkeltallet **UENDRET 4627** i alle 15 — kun *verdien* av `mal.type.tittel` endret (+1/-1 pr. fil, ingen nøkkel lagt til/fjernet). **Null apps/api-filer rørt** → redesigns 14 lokale `projectGroup.create`-feil er miljø (umigrert lokal integrasjons-DB), ikke kode; CI mot fersk pgvector er fasit (integrasjon 61).
+
+- 🟢 **Dobbel «Type» rettet.** To akser bar samme navn: det **gamle låste** feltet styrer dokument-**FORM** (oppgave/sjekkliste/HMS — hvilken tabell dokumentet havner i); det **nye** styrer dokument-**KLASSE**. redesign omdøpte SIN EGEN overskrift (`mal.type.tittel`) til **«Dokumentklasse»** og lot det låste feltet stå.
+- 🟢 **Låsen på det gamle feltet har reell grunn (målt):** opprett-modalen leser kontekst (hardkodet `readOnly`), rediger-modalen låser når `harDokumenter` — å bytte form etter at dokumenter finnes ville **foreldreløst dem i feil tabell.**
+- 🟢 **Testen er en i18n-INVARIANT, ikke render-test:** form- og klasse-overskriften kan aldri løse til samme streng, i alle 15 språk. Leser JSON, ingen DOM — bevisst for å unngå skjørhet.
+- 🟢 **FUNN, rettet som bieffekt:** fransk `mal.type.tittel` sto som **«Taper»** (verbet «å taste», ikke substantivet) → «Classe de documents».
+- ⚠️ **MELDT, IKKE FIKSET — PRE-EKSISTERENDE dobbel «Type» i HMS-fanen:** den gamle låste Type-blokken er ikke guardet mot HMS, så den vises sammen med `hms.subdomain.label="Type"` i `erHms`-blokken. **Gatet HMS-område, urørt** (egen runde).
+
+## 🟢 2026-09-18 — Service pr. timetall (kundeønske #1) merget. ✅ DEPLOYET TIL TEST 01:12 MED MIGRERING (db-maskin), ingen OTA.
 
 **Én branch, `feat/service-timetall`** (`2926b625`, ren ff fra `fad2e71e` — ingen rebase). **🔴 Første migrering siden push_token:** `20260918120000_service_timetall` (db-maskin). **Verifisert additiv:** 2× `ADD COLUMN` (nullable), 2× CHECK-constraint (>0 eller NULL), 1× CREATE INDEX — **NULL DROP/TRUNCATE/DELETE i hele diffen.** Gate: **`api` 503→511** (+8) · **`pdf` 120→124** (+4) · **`web` 264→270** (+6) · **`integrasjon` 59→61** (+2, CI). `db` 2 · `shared` 824 · `mobil` 13 HELT stille (null mobilfiler rørt). 7/7. i18n: alle 15 filer **4585→4627** (+42/-0, identisk sett).
 
@@ -52,7 +62,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 - 🟢 **«Neste service» bor BEGGE steder — bevisst, følger husets EU-kontroll-mønster:** `ServiceRecord` bærer **historikk**, ny `Equipment.nesteServiceTimer` bærer **gjeldende tilstand** (denormalisert fra fremskrivingen) — nøyaktig som `Equipment.euKontrollFrist` ligger ved siden av `ServiceRecord type="eu_kontroll"`. **Ikke en ny struktur.**
 - 🟢 **BACKLOG-raden var beviselig FEIL og er rettet (i branchen):** premisset sa `nesteServiceTimer` lå på `ServiceRecord` — det gjorde den ikke (lå ingen steder), var **aldri skrevet og aldri lest**, og `ServiceRecord` hadde **ingen produkt-skrivevei**. (Samme feilklasse som «stille tomhet»: en påstått kobling ingen leser hadde.)
 - 🟢 **ci.yml-endringen fulgte med og er merget:** integrasjonsjobben migrerte kun `@sitedoc/db`; kontrollplan la til `@sitedoc/db-maskin migrate deploy` fordi den nye `service-timetall.integration.test.ts` rører maskin-Prisma. **Reelt CI-hull, ikke scope-kryp** — flagget av ham, godkjent av cowork.
-- 🔴 **DEPLOY MED MIGRERING:** `20260918120000_service_timetall` mot `db-maskin` er IKKE kjørt — Kenneth deployer med migrering etterpå.
+- ✅ **DEPLOYET TIL TEST 01:12 MED MIGRERING:** `20260918120000_service_timetall` mot `db-maskin` er KJØRT — Service-seksjonen viser data med korrekt fremskriving. (Prod gjenstår — Kenneth gater.)
 
 ## 🟢 2026-09-17c — Kontraktssak runde 1 merget. WEB+API-DEPLOY, INGEN migrering (schema kun kommentar), ingen OTA-krav.
 
