@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-18f · develop `919897ff` (docs-runde: MAL-METODE tekstbevis erstatter skjermbilder + revisjons-SQL øker `version` + felle-note · TILLEGG-2 · BACKLOG #23 «Malinnhold som tekst». Ingen kode, ingen deploy, ingen OTA) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-18g · develop = denne docs-commit (§ design — rollen etter Fabel innfletta i SAMARBEIDSREGLER; seks fabel-steder merket historiske; design-rad på tavla. Ingen kode, ingen deploy, ingen OTA) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -20,7 +20,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
-| **fabel** | ingen repo-tilgang | — | ⚪ **LEDIG** | — |
+| **design** (tidligere fabel) | `SiteDoc-design` 🔴 ikke opprettet ennå (Kenneth) | `docs/design-<emne>`-brancher | ⚪ **LEDIG** | plan-sporet (redesign + maler) |
 
 **Tilstander:** ⚪ LEDIG · 🟠 FERDIGSKREVET (ikke relayet) · 🔵 ORDRE GITT · 🟢 LEVERT · 🔴 BLOKKERT
 
@@ -44,6 +44,16 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-18g — § design (rollen etter Fabel) innfletta i SAMARBEIDSREGLER + seks fabel-steder merket historiske. INGEN kode, ingen deploy, ingen OTA.
+
+**Kilde:** `relay/forslag-samarbeidsregler-designrollen-2026-09-18.md` (gitignorert), Kenneth-godkjent v2 i sin helhet.
+- 🟢 **Nytt § design** flettet inn i SAMARBEIDSREGLER rett etter § Roller (før «redesign-Opus»-seksjonen). Sitatblokken (seks punkter: eget worktree · ingen relay før cowork har sett filene · egen innboks `inbox-design.md` · faste gate-ord · bevis agenten kan levere · uenighet maks én runde) tatt inn **ordrett** — verifisert byte-identisk mot kilden (`diff` tomt).
+- 🟢 **Seks fabel-steder merket historiske (ikke slettet):** SAMARBEIDSREGLER § Leveranser fra fabel · meldingsflyt `fabel → …/Fra fabel/til-repo-*` · § Dokument-eierskap · `informasjonsflyt-fabel-cowork.md` (øverst) · MAL-METODE «Hvor fabels ordrer lander» + «fabel snakker aldri direkte». Banner-linje øverst i hvert.
+- 🟢 **To steder navnebyttet (gjelder fortsatt):** roller-raden `fabel` → «design (tidligere fabel)» · «redesign-Opus»-seksjonens overskrift + generell regel → design. **Det daterte 04.09-tilfellet forblir «fabel»** (det VAR fabel — historisk faktum).
+- 🟢 **Tavla:** `fabel`-raden erstattet av **design** (`SiteDoc-design`, `docs/design-<emne>`-brancher, plan-sporet). 🔴 **Worktreet finnes ikke ennå — Kenneth oppretter det** (`git worktree add ~/Documents/Programmering/SiteDoc-design -b design-base origin/develop`).
+- 🔴 **`relay/KONVENSJON.md` er GITIGNORERT — IKKE rørt.** Tre steder der inne peker fortsatt på fabel (:21 regel 7, :36 «Unntaket = fabel», :44 «fabel → cowork»). **Kenneth retter dem selv i hovedtreet** — en endring herfra når ingen.
+- MAL-METODE/MAL-PLAN fabel→design-swap er valgfri («når filene uansett røres») — IKKE gjort denne runden (utenfor ordren).
 
 ## 🟢 2026-09-18f — Docs-runde: tekstbevis erstatter skjermbilder + BACKLOG #23. INGEN kode, ingen deploy, ingen OTA.
 

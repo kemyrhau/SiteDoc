@@ -27,6 +27,8 @@ En KS-sjekkliste skal hjelpe en arbeider med teknisk informasjon om kravene, og 
 
 **Regel:** hver mal-ordre fra fabel er SELVBÆRENDE — alle normutledede fakta (sidetall, poster, tallkrav, tabellverdier) står i ordren. Mal-Opus gjetter aldri på normkrav; mangler et faktum → stopp og meld tilbake.
 
+*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
+
 **Hvor fabels ordrer lander (viktig etter compact/`/clear`):** ferdige ordrer fra fabel legges i **`~/Documents/Programmering/SiteDoc/Fra fabel/`** — i hovedtreet, utenfor worktrees — i daterte undermapper, f.eks. `til-repo-<dato-tid>/docs/redesign/ordre-<ref>-fabel-<dato>.md` (ev. medfølgende `docs/claude/MAL-METODE.md`-tillegg fra fabel). Kenneth relayer stien; mal-Opus henter ordren **der**, ikke fra worktreet. Når Kenneth sier «se meldingen fra fabel», er det denne plasseringen.
 
 ## 3. Hvem gjør hva, når (regel)
@@ -35,6 +37,7 @@ Flyt per mal — **én mal om gangen**, neste ordre skrives først når forrige 
 
 1. **fabel** leser normkapitlet, måler dagens mal i `packages/db/prisma/seed-bibliotek.ts`, og skriver en selvbærende ordre (funn + full feltspesifikasjon + DoD). Ordren absorberer ev. rader for malen fra MK-konverteringslista (§4).
 2. **Kenneth** relayer ordren til mal-Opus (fabel snakker aldri direkte med cowork/mal-Opus).
+   *Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
 3. **mal-Opus** bygger i `seed-bibliotek.ts` iht. ordren, med eksisterende hjelpefunksjoner (`valg`/`trafikklys`/`desimal`/`felt`) — aldri hardkodet JSON. Kjører seed mot lokal DB, verifiserer idempotent re-kjøring, og leverer **tekstbevis** fra revisjons-SQL-en (§6a — fullt malinnhold skrevet ut av kontroll-SELECT-en). Avvik fra ordren meldes eksplisitt.
 4. **fabel** gater INNHOLD mot ordren (feltene, hjelpetekstene, fasene, utfyllingsopplevelsen). Godkjent → melder «klar for commit».
 5. **cowork** gater TEKNISKE husregler før merge — og rører aldri innholdet: MalBygger-objekter, aldri hardkodet (Kenneth-vedtak 2026-09-05); `verifisert: false` eksplisitt + prod-gate urørt; seed-oppførsel (**kun opprett** via `opprettMalHvisMangler`, aldri update/`deleteMany`); i18n på nye synlige strenger. Cowork eier merge-timing og deploy alene.

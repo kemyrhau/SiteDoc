@@ -729,6 +729,8 @@ skiftet er markert.
 
 ### Leveranser fra fabel — egen protokoll
 
+*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
+
 Fabel har **ingen skrivetilgang til repoet**. Alt kommer via nedlastingspakker Kenneth
 pakker ut, og det er der flyten svikter — ikke i innholdet.
 
@@ -783,7 +785,7 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 | **Kenneth** | ⚠️ **Endret 2026-09-01:** kjører ikke lenger *alle* kommandoer — kun det som krever **TTY/passord** (`sudo docker` test+prod, `deploy-test.sh`, EAS-bygg, push til `main`), pluss produktbeslutninger, UI-gates og relay mellom økter. Git-mekanikk, bygg og tester er flyttet til merge-agenten. Koder ikke. | Ja — det som krever passord | — |
 | **merge-agent** | Utfører commit-orden cowork har gatet: merge til develop fra `SiteDoc-merge`, `merge-base`-verifisering, branch-opprydding, regel 10-bygget, docs-commits. **Hender, ikke dømmekraft** — gater aldri selv, merger aldri en branch cowork ikke har navngitt. Fem fences i § MERGE-AGENTEN. | Ja (git/bygg, aldri `sudo`) | `merge-restart` |
 | **cowork** | Eier **commit-orden** + tverr-koordinering: merge-rekkefølge, regel 9/10-håndheving, prod-løp, konfliktvakt (frossen sone), BACKLOG, deploy-disiplin. Skriver timer/PSI-kode + gate-verifiserer. Gir Kenneth kommandoer. **Alt som lander på develop/main passerer cowork.** | Nei (gir Kenneth) | pipeline + timer |
-| **fabel** | Eier redesignet. Skriver ordre til kode-agenter (hva kodes, designkrav, akseptkriterier) og leverer dem via `Fra fabel/til-repo-*`, designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering. **Rører aldri git-koreografi.** | Nei | redesign-retning |
+| **design (tidligere fabel)** | Eier redesignet. Skriver ordre til kode-agenter (hva kodes, designkrav, akseptkriterier) og leverer dem via `Fra fabel/til-repo-*`, designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering. **Rører aldri git-koreografi.** | Nei | redesign-retning |
 | **kode-agent** (oppgavenavngitt) | Koder ÉN oppgave i ETT worktree på EGEN branch. Får ordre fra cowork via `relay/inbox-<navn>.md`, eller fra fabel via `docs/redesign/`. Pusher egen branch, **aldri develop**. Rører ikke frossen sone (nav/layout). | Ja (egen branch) | egen feature-branch |
 | **verifiserings-agent** | Verifiserer i nettleser eller simulator. **Rapporterer funn — konkluderer ikke om årsak.** Skriver ikke kode. | Nei/begrenset | — |
 
@@ -807,13 +809,65 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 > detach på `origin/develop`). En agent uten rad er en agent ingen har oversikt over.
 | **simulator-Opus** | Verifiserer på iOS-simulator (Metro @ develop) OG web. Kjører idb/simctl lokalt; leser test-DB via tunnel. Rapporterer observasjoner med kandidatmengde — konkluderer ikke om kode-atferd uten kodeverifisering. Skriver ikke produktkode; docs-endringer rutes via cowork. | Ja (simulator/lokalt) | — |
 
-### 🔴 «redesign-Opus» i en fabel-ordre = et worktree COWORK klargjør (Kenneth 2026-09-04)
+> ### 🔴 design — rollen etter Fabel (Kenneth-vedtak 2026-09-18)
+>
+> Fabel forsvant 2026-09-17. Rollen heter nå **design** (som agentene ellers heter etter oppgaven: `mal`, `dokgen`,
+> `kontrollplan`). Design har samme ansvar som fabel hadde — eier designet, skriver designnotater, vedtak og
+> ordrer, designgater — **pluss** ordrene og innholdsgaten for sjekklistemalene (MAL-METODE). Forskjellen er at
+> design har skrivetilgang. Omtal rollen som «design», ikke med pronomen. Nye filer fra design har `-design-` i
+> navnet; eldre `-fabel-`-filer beholder navnet sitt.
+>
+> **1. Design jobber som de andre agentene.** Eget worktree `~/Documents/Programmering/SiteDoc-design` på basen
+> `design-base`. Hver leveranse (designnotat, ordre, tillegg, docs-endring) committes på en egen branch
+> `docs/design-<emne>` laget fra **`origin/develop`** (ikke fra `design-base`) og pushes. **Merge-agenten merger**
+> etter samme regler som for alle andre. Design pusher aldri `develop`, merger aldri, deployer aldri. Force-push kun
+> på egen branch etter rebase, og bare med Kenneths ok. **Ingen løse filer i hovedtreet fra design** — hovedtreet er
+> Kenneths og coworks.
+>
+> **2. Ingen ordre relayes uten at cowork har sett hvilke filer den rører.** Ordrer peker bare på committede filer.
+> Design melder branch + hash; **cowork merger ordre-branchen før relay — ikke som formalitet, men fordi cowork er
+> den eneste som holder kollisjonskartet** over hvem som er i hvilke filer. (Målt 2026-09-18: tre agenter hadde
+> ærend i `nb.json` samtidig; cowork sekvenserte dem.) Nudgen navngir fila med sti i repoet.
+>
+> **3. Egen innboks: `relay/inbox-design.md`.** Erstatter `inbox-fabel.md`. Cowork appender dit etter
+> KONVENSJON-reglene, og Kenneth nudger med én linje: «les
+> `/Users/kennethmyrhaug/Documents/Programmering/SiteDoc/relay/inbox-design.md`». Design skriver til
+> `inbox-cowork.md` og til agentenes innbokser på samme måte. Kenneth limer ikke hele meldinger.
+>
+> **4. Faste gate-ord.**
+>
+> | Ord | Betyr | Slipper videre? |
+> |---|---|---|
+> | «Innhold godkjent» | Teksten stemmer med ordren | Nei |
+> | «Designgatet – klar for merge» | Design er ferdig | **Ja** — cowork tar teknisk gate og merge-timing |
+> | «Avvik: …» | Ett konkret avvik som må rettes | Nei |
+>
+> Agenter kan committe og pushe egen branch når som helst. **Merge skjer bare etter «klar for merge».**
+>
+> **5. Ordrer rangerer, og ber bare om bevis agenten kan levere.** Hver ordre skiller obligatorisk fra valgfritt.
+> Bevis som krever utstyr agenten ikke har (innlogget nettleser, simulator), bestilles ikke av den agenten. For
+> maler gjelder tekstbevis (MAL-METODE §6a).
+>
+> **6. Uenighet mellom design og cowork: maks én runde, så Kenneth.**
+>
+> | Hvem avgjør | Hva |
+> |---|---|
+> | **Design** | Design, tekst, malinnhold |
+> | **Cowork** | Merge, rekkefølge, timing, kollisjoner |
+> | **Kenneth** | Alt som endrer hva som bygges: innhold, skjema, rettigheter — og grensesaker |
+>
+> Den ene melder uenighet, den andre svarer **én gang**. Er vi fortsatt uenige, går saken til Kenneth i **én
+> melding** med begge standpunktene, hva hver har målt, og en rangert anbefaling. Ingen avgjør stille, og Kenneth
+> skal ikke måtte lese en tråd. (Presedens 2026-09-17: `domain` vs `subdomain` — design hadde målt tre ting cowork
+> ikke hadde sjekket; det fungerte fordi Kenneth så begge sider.)
+
+### 🔴 «redesign-Opus» i en design-ordre (tidligere fabel) = et worktree COWORK klargjør (Kenneth 2026-09-04)
 
 > **Kenneth 2026-09-04:** *«Det refereres til redesign fra fabel — du må i din dokumentasjon
 > forstå det slik: cowork gater ordren til et worktree som cowork har klargjort for å utføre
 > oppgaven.»*
 
-Fabels ordrer er adressert «til redesign-Opus (relayes av Kenneth)». **Det er en rolle, ikke en
+Designs ordrer er adressert «til redesign-Opus (relayes av Kenneth)». **Det er en rolle, ikke en
 instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har hett
 «redesign-Opus» på uker.
 
@@ -842,6 +896,9 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 ## Meldingsflyt (ufravikelig)
 
 **Alle ordrer går via Kenneth — han limer, han ser alt. Ingen agent instruerer en annen direkte.**
+
+*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
+
 - fabel → kode-/verifiseringsagent: formuleres ferdig av fabel, leveres via
   `Fra fabel/til-repo-*`, Kenneth relayer.
 - cowork → kode-/verifiseringsagent: formuleres ferdig av cowork i
@@ -1152,6 +1209,8 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 **B-2 og A-3b kjøres etter denne sløyfen** når N3-valget er tatt.
 
 ## Dokument-eierskap: fabel leverer, cowork plasserer (vedtatt 2026-07-21)
+
+*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
 
 **Problemet:** fire ganger 2026-07-21 skrev fabel «ført i `delplaner/…`» om dokumenter som ikke fantes i repoet. Fabel har **kun lesetilgang** til repo-mappen — han kan verifisere plassering, ikke utføre den. Konsekvensen var at repoet lå ett relay bak, og at ordrer viste til stier ingen Opus kunne lese.
 
