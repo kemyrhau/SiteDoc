@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-18i · develop `1056b302` (KM2-ordre merget [ren docs, ff] — KD1-revisjon + KD2-ordre/§1b alt inne fra 18h) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-18j · develop `1056b302` (+ docs-branch `docs/samarbeidsregler-maloype`, ikke merget) · 🔴 MALØYPA ENDRET (Kenneth 18.09): sjekklistemaler går design ↔ mal-Opus DIREKTE (ordre leses fra pushet docs-branch, ikke merget først); cowork får kopi i `inbox-cowork.md` → rolle GATE→VAKTHOLD. Se SAMARBEIDSREGLER § MALØYPE. Redesign-sporet uendret · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | `feat/mal-kd1-revisjon` @ `51caefda` (KD1 merget, parkert) | ⚪ **LEDIG** | KD2-relay |
+| **mal-Opus** | `SiteDoc-mal` | `feat/mal-kd1-revisjon` @ `51caefda` (KD1 merget, parkert) | 🔵 **KD2 GITT DIREKTE av design** (maløypa) | — |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -30,8 +30,8 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| 🔴 **RELAY KD2-ordren — IKKE SENDT ENNÅ** (rettet 18i). `docs/redesign/ordre-kd2-ny-mal-design-2026-09-18.md` (ny mal, kantstein), merget `4fb25469`. Nudgen ble skrevet, men limt til feil økt — nådde ALDRI mal-Opus. Målt: mal-Opus står på `feat/mal-kd1-revisjon` @ `51caefda`, ingen KD2-branch, ingen KD2-filer. Branch blir `feat/mal-kd2-ny`, fra develop | Nå | mal-Opus |
-| 🔵 **RELAY KM2-ordren — VENTER PÅ KD2** (én mal om gangen). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (ny mal, mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts` — begge rører `seed-bibliotek.ts` + `generer-mal-sql.ts`, så KD2 må inn først. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | Etter KD2 er merget | mal-Opus |
+| ✅ **KD2-relayet ER IKKE LENGER COWORKS** — maløypa endret 18j. Design gir KD2-ordren direkte til mal-Opus (`docs/redesign/ordre-kd2-ny-mal-design-2026-09-18.md`, kantstein, merget `4fb25469`; mal-Opus leser fra pushet branch). **Cowork holder VAKTHOLD, ikke relay:** kopi i `inbox-cowork.md` med filer + hash. Branch blir `feat/mal-kd2-ny`, fra develop | — (på maløypa) | design → mal-Opus |
+| 🔵 **KM2 — VENTER PÅ KD2, går også på maløypa** (design → mal-Opus direkte). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (ny mal, mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts` — begge rører `seed-bibliotek.ts` + `generer-mal-sql.ts`, så KD2 må inn først. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | Etter KD2 er merget | design → mal-Opus |
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
 | 🔴 **KC3.1 §7b-runde** — undertittel «NS3420-K KC3.1 — Oppstøtting og oppbinding» er normens EGEN overskriftstekst. §7b (opphavsrett) krever navn = **kode + egne ord**, med «Faglig grunnlag: NS 3420-K:2024» som egen linje i beskrivelsen — ingen normtekst i navn/undertittel | Nå (§7b i develop `9c83f547`) | mal-Opus |

@@ -589,6 +589,10 @@ fil FØR nudgen): fila overlever, og nudge-eierskapet er nå entydig.
 Utløst 2026-09-18: KD2-nudgen ble skrevet av cowork, limt til feil økt, og cowork førte
 «mal-Opus jobber med KD2» på tavla uten å måle. Design målte og fant worktreet urørt.
 
+⚠️ **Unntak for sjekklistemaler:** på maløypa gjelder ikke denne nudge-eierskaps-regelen — design og
+mal-Opus går direkte, og cowork får kopi i `inbox-cowork.md`, ikke gate-i-forkant. Se § MALØYPE (i § design).
+Gjelder kun maler; for redesign-sporet står regel 14 uendret.
+
 ### Lesekart — hva cowork må vite for å ha regien
 
 | Spørsmål | Kilde |
@@ -838,6 +842,9 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 > den eneste som holder kollisjonskartet** over hvem som er i hvilke filer. (Målt 2026-09-18: tre agenter hadde
 > ærend i `nb.json` samtidig; cowork sekvenserte dem.) Nudgen navngir fila med sti i repoet.
 >
+> > ⚠️ **Unntak for sjekklistemaler:** på maløypa merges ordre-branchen **ikke** før relay — mal-Opus leser den fra
+> > designs pushede branch. Se § MALØYPE nedenfor. Gjelder kun maler; for redesign-sporet står pkt 2 uendret.
+>
 > **3. Egen innboks: `relay/inbox-design.md`.** Erstatter `inbox-fabel.md`. Cowork appender dit etter
 > KONVENSJON-reglene, og Kenneth nudger med én linje: «les
 > `/Users/kennethmyrhaug/Documents/Programmering/SiteDoc/relay/inbox-design.md`». Design skriver til
@@ -869,6 +876,36 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 > melding** med begge standpunktene, hva hver har målt, og en rangert anbefaling. Ingen avgjør stille, og Kenneth
 > skal ikke måtte lese en tråd. (Presedens 2026-09-17: `domain` vs `subdomain` — design hadde målt tre ting cowork
 > ikke hadde sjekket; det fungerte fordi Kenneth så begge sider.)
+
+> ### 🔴 MALØYPE — sjekklistemaler går design ↔ mal-Opus direkte (Kenneth-vedtak 2026-09-18)
+>
+> **Gjelder KUN sjekklistemaler.** Redesign-sporet er uendret — der står § design pkt 2 og meldingsflyt regel 14 som før.
+>
+> > **Kenneth 2026-09-18:** *«du og mal må kommunisere dere imellom — når arbeidet er inne og godkjent sendes
+> > arbeidet til cowork for å oppdatere alle statuser.»*
+>
+> **1. Design og mal-Opus går direkte.** Ordre, spørsmål, avvik og tekstbevis-gate flyter mellom de to uten
+> mellomledd. Mal-Opus leser ordren fra designs **pushede** docs-branch med
+> `git show origin/docs/design-<emne>:<sti>` — ordren trenger **ikke** merges før den gis.
+>
+> **2. Kenneth trengs bare til to ting:** SQL mot test (krever TTY) og innholdsbeslutninger.
+>
+> **3. Ved «Designgatet – klar for merge» får cowork ÉN melding** med mal-branch, hash, filer og docs-branch.
+> Cowork merger **begge** og oppdaterer tavla, MAL-PLAN og status.
+>
+> **4. Kollisjonskartet består — cowork får kopi, ikke veto-i-forkant.** Når design gir mal-Opus en ordre, får
+> cowork en kopi i `inbox-cowork.md` med filene ordren rører **og hash-en på docs-branchen**. Cowork kan si stopp;
+> ingen venter på ja.
+>
+> > 🔴 **Kopien skal bære HASH, ikke bare branchnavn.** Force-pusher design docs-branchen etter at mal-Opus har lest
+> > den, leser mal-Opus noe annet enn det cowork fikk kopi av — og vetoet hviler da på feil fil.
+>
+> **🔴 KONSEKVENS — coworks rolle på maløypa går fra GATE til VAKTHOLD.** Ingen venter på et ja, så en kollisjon
+> lander hvis cowork ikke leser `inbox-cowork.md`. Det er en bevisst avveining, ikke en forglemmelse — og den skal
+> stå skrevet, ikke være en stilltiende forventning.
+>
+> **Dette erstatter, KUN for maløypa:** § design pkt 2 (cowork merger ordre-branchen før relay) og meldingsflyt
+> regel 14 (nudge-eierskap). Begge beholdes uendret for redesign-sporet.
 
 ### 🔴 «redesign-Opus» i en design-ordre (tidligere fabel) = et worktree COWORK klargjør (Kenneth 2026-09-04)
 
