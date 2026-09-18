@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-17 · develop `1d66e148` (api-deploy + MIGRERING `20260917140000_push_token` IKKE KJØRT — Kenneth eier den) · test `81b2a785` — FLERE STEG BAK (deploy føres av cowork)**
+**Sist ført: 2026-09-18e · develop `2073ffc0` (§7b design-docs + KC3.1 9→8 «sesongfelt ut» — WEB-DEPLOY seed, ingen migrering, ingen OTA) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -32,7 +32,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 |---|---|---|
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
-| 🔴 **KC3.1 tilbake til 8 felt** — fjern «Kontrollert etter 1. vekstsesong» (`seed-bibliotek.ts` ~196, test tilbake til 8). Bryter nytt bindende vedtak (sjekkliste = utført arbeid, ikke etter-overlevering-kontroll) | Nå | mal-Opus |
+| 🔴 **KC3.1 §7b-runde** — undertittel «NS3420-K KC3.1 — Oppstøtting og oppbinding» er normens EGEN overskriftstekst. §7b (opphavsrett) krever navn = **kode + egne ord**, med «Faglig grunnlag: NS 3420-K:2024» som egen linje i beskrivelsen — ingen normtekst i navn/undertittel | Nå (§7b i develop `9c83f547`) | mal-Opus |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 Ulåst 15.09 av lese/redigere-aksen | Nå | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen i rettighetsmatrisen + kapittel/underkapittel/post | Med sikkerhetsrunden | — |
 | **`06-videresend`** — eneste e2e-spec som gjenstår. Var ikke drift: handlingen var fjernet fra menyen | Etter Kenneths visuelle gate av personvalget | dokgen |
@@ -44,6 +44,13 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-18e — §7b opphavsrett (design-docs) + KC3.1 9→8 «sesongfelt ut» merget. WEB-DEPLOY (seed), ingen migrering, ingen OTA.
+
+**Tre commits, alle på develop.** 1. `9c83f547` — design-rollens fire filer overført fra hovedtreet (mal-Opus var BLOKKERT på dem): MAL-METODE **§7b** (malene er SiteDocs egne sjekklister, skal ikke fremstå som NS 3420 — opphavsrett; navn = kode + egne ord, ingen tabell-/punktkoder i hjelpetekster, «Faglig grunnlag: NS 3420-K:2024, post <kode>» én gang i beskrivelsen), **§6a** rettet (revisjons-SQL treffer `bibliotek_mal_objekter`, ikke `mal_innhold` — feil i metoden siden 14.09), **§5** KD2/KM2 foran Del F; MAL-PLAN statustabell remålt mot develop. 2. `37e98b0c` — merge `fix/kc31-sesongfelt-ut` (KC3.1 9→8 felt: sesongkontroll-feltet fjernet fra `seed-bibliotek.ts`, omdøpt konklusjon beholdt). 3. `2073ffc0` — bindende vedtak oppdatert: sesongfeltet ER fjernet (hash).
+- Gate: **`db` 8→7** (−1, testtilfellet fjernet MED feltet — uvanlig retning, bekreftet ved kjøring: `db`-test 7/7 grønt lokalt). Alle andre HELT stille: `api` 511 · `pdf` 124 · `shared` 824 · `web` 292 · `mobil` 14 · `integrasjon` 61. Branchen rørte kun `packages/db` (seed+test) + to docs-filer.
+- 🔴 **§7b-KONSEKVENS FOR KC3.1 (nettopp merget) — i køen, IKKE fikset:** malens undertittel «NS3420-K KC3.1 — Oppstøtting og oppbinding» er normens egen overskriftstekst. Under §7b skal navnet være **kode + egne ord**. KC3.1 trenger en §7b-runde → Coworks kø, mal-Opus.
+- **Reload:** ingen (seed; eksisterende maler urørt til re-seed).
 
 ## 🟢 2026-09-18d — KC3.1 niende felt + flytvalg etter «Hent fra arkiv» merget. WEB-DEPLOY, ingen migrering, ingen OTA.
 
