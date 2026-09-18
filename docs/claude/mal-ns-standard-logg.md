@@ -36,7 +36,7 @@ ansvarsfraskrivelser; ansvaret for å verifisere mot gjeldende standard legges p
 - **✅ Ja / Delvis** = feltet gir en konkret verdi (mm/s, pH, mm, %) selv om det også
   nevner en standard. Utenfor problemet.
 
-## Kategori 1 — eksterne NS-standarder (sist målt 2026-09-13)
+## Kategori 1 — eksterne NS-standarder (sist målt 2026-09-18)
 
 Felt som viser til en fremmed NS-standard i navn, hjelpetekst eller valgopsjoner.
 
@@ -48,16 +48,21 @@ Felt som viser til en fremmed NS-standard i navn, hjelpetekst eller valgopsjoner
 | FC1 – Sprengning/rystelser | 2 | Rystelsesmåler plassert | NS 8141 | ✅ Ja — «typisk 20 mm/s bolig». |
 | FC1 – Sprengning/rystelser | 3 | Maks rystelsesnivå (mm/s) | NS 8141 | ✅ Ja — 20 / 35 / 70 mm/s per kategori, målbart tallfelt. |
 
+*(KD1 – Belegg av stein og heller har INGEN ekstern NS-standard i felttekst etter §7b-revisjonen
+2026-09-18: hjelpetekstene nevner kun produktmerkingen brukeren ser på pallen — F1, klasse 3 merket
+D, FP100 — ikke produktstandardene NS-EN 1338/1339/1341/1342/1344. NS 3420-K:2024 i beskrivelsens
+«Faglig grunnlag» teller ikke, jf. § 7 pkt 3. Derfor ingen KD1-rad her.)*
+
 **Åpen kandidat (❌ — ingen målbar verdi):** KB6 rad 2 (Plantekvalitet → NS 4400). Per
 MAL-METODE § 7a løses dette IKKE ved å gjengi NS 4400 — kunden verifiserer mot standarden
 selv (sentralt ansvar), ev. angir kriteriene i prosjektbeskrivelsen.
 
-## Kategori 2 — felt som forutsetter at kunden angir noe i prosjektbeskrivelsen (sist målt 2026-09-13)
+## Kategori 2 — felt som forutsetter at kunden angir noe i prosjektbeskrivelsen (sist målt 2026-09-18)
 
 Ikke en mangel — dette er med vilje (MAL-METODE § 1: prosjektspesifikke krav peker til
 beskrivelsen, ikke en universell tallverdi malen ikke kan kjenne). Datagrunnlag for
-kundeoversikten «hva du må angi selv». Dekker foreløpig de reviderte malene (KA7/KB2/KB4/KB6/KC3.1);
-ureviderte maler (KD1, F-serien) er ikke målt for dette ennå.
+kundeoversikten «hva du må angi selv». Dekker foreløpig de reviderte malene (KA7/KB2/KB4/KB6/KC3.1/KD1);
+ureviderte maler (F-serien) er ikke målt for dette ennå.
 
 | Mal | Rad | Felt |
 |---|---|---|
@@ -79,6 +84,10 @@ ureviderte maler (KD1, F-serien) er ikke målt for dette ennå.
 | KC3.1 | 1 | Metode |
 | KC3.1 | 2 | Materiell kontrollert mot beskrivelsen |
 | KC3.1 | 8 | Krav oppfylt og dokumentasjon levert |
+| KD1 | 1 | Belegningstype (opsjon «Annet – se beskrivelsen») |
+| KD1 | 3 | Settelag (opsjon «Annet – se beskrivelsen») |
+| KD1 | 5 | Fall mot avrenning (permeabelt belegg: fallet står i beskrivelsen) |
+| KD1 | 7 | Fugebredde (opsjon «iht. beskrivelsen» — tegl, permeabelt, bruddheller, over 150 mm) |
 
 ## Reproduserbar sjekk (kjør mot arkivet, ikke fila)
 
