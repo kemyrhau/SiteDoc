@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-18j · develop `1056b302` (+ docs-branch `docs/samarbeidsregler-maloype`, ikke merget) · 🔴 MALØYPA ENDRET (Kenneth 18.09): sjekklistemaler går design ↔ mal-Opus DIREKTE (ordre leses fra pushet docs-branch, ikke merget først); cowork får kopi i `inbox-cowork.md` → rolle GATE→VAKTHOLD. Se SAMARBEIDSREGLER § MALØYPE. Redesign-sporet uendret · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-19a · develop `c1e29dc9` (KD2-mal merget [no-ff] + NettverkProvider-selvheling + maløype-docs + `.gitignore` `/*-test.sql`) · db 14→25 · mobil 14→16 · KD2 = FØRSTE mal via maløypa (design↔mal-Opus direkte — fungerte) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | `feat/mal-kd1-revisjon` @ `51caefda` (KD1 merget, parkert) | 🔵 **KD2 GITT DIREKTE av design** (maløypa) | — |
+| **mal-Opus** | `SiteDoc-mal` | KD2 merget `c1e29dc9` | 🔵 **KM2 neste** (starter når KD2 er inne — nå; han sjekker selv) | — |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -30,8 +30,8 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| ✅ **KD2-relayet ER IKKE LENGER COWORKS** — maløypa endret 18j. Design gir KD2-ordren direkte til mal-Opus (`docs/redesign/ordre-kd2-ny-mal-design-2026-09-18.md`, kantstein, merget `4fb25469`; mal-Opus leser fra pushet branch). **Cowork holder VAKTHOLD, ikke relay:** kopi i `inbox-cowork.md` med filer + hash. Branch blir `feat/mal-kd2-ny`, fra develop | — (på maløypa) | design → mal-Opus |
-| 🔵 **KM2 — VENTER PÅ KD2, går også på maløypa** (design → mal-Opus direkte). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (ny mal, mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts` — begge rører `seed-bibliotek.ts` + `generer-mal-sql.ts`, så KD2 må inn først. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | Etter KD2 er merget | design → mal-Opus |
+| ✅ **KD2 MERGET `c1e29dc9`** (2026-09-19a) — første mal via maløypa, design↔mal-Opus direkte. Se datert seksjon under | Ferdig | — |
+| 🔵 **KM2 — KD2 er nå inne → mal-Opus kan starte** (han sjekker selv). Går på maløypa (design → mal-Opus direkte). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts`. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | KD2 inne (nå) | design → mal-Opus |
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
 | 🔴 **KC3.1 §7b-runde** — undertittel «NS3420-K KC3.1 — Oppstøtting og oppbinding» er normens EGEN overskriftstekst. §7b (opphavsrett) krever navn = **kode + egne ord**, med «Faglig grunnlag: NS 3420-K:2024» som egen linje i beskrivelsen — ingen normtekst i navn/undertittel | Nå (§7b i develop `9c83f547`) | mal-Opus |
@@ -44,6 +44,30 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-19a — KD2-mal + NettverkProvider-selvheling merget. OTA (NettverkProvider), ingen migrering. develop `c1e29dc9`.
+
+**Fire ting inne** (KD2 `--no-ff`, resten ff-kjede fra `5d4dabff`): maløype-docs (`5d4dabff`), NettverkProvider (`7d383605`), KD2-mal (merge `c1e29dc9`), `.gitignore /*-test.sql`.
+
+**Gate — kun db og mobil steg, resten HELT stille:** db 14→25 (+11) · api 511 · pdf 124 · shared 824 · web 292 · mobil 14→16 (+2) · integrasjon 61 · 7/7. Prisma generate ×4 kjørt før gaten. Web build gir null signal (KD2-filene ligger i `packages/db/prisma/`, ikke i byggets flate; NettverkProvider er mobil-only).
+
+### KD2 «Setting av kantstein» — Bygget ✓ / Gatet ✓ design 2026-09-19
+- 🟢 **Første NYE mal i biblioteket**, og **første med den generelle generatoren** (`generer-mal-sql.ts <REF> <ny|revisjon>`) — erstatter det KD1-spesifikke skriptet som bevisst aldri ble committet.
+- **Tekstbevis (design gatet på):** version 1 · «KD2 – Setting av kantstein» · «Faglig grunnlag» i beskrivelsen · 13 rader med overskrifter på 1/5/8 · 4 enkeltvalg, 5 trafikklys, 1 heltall · ingen normkoder, §7b oppfylt.
+- ⚠️ **`kd2-test.sql` er kjørt mot test ÉN gang og skal IKKE kjøres igjen.**
+- 🟢 **Første runde maløypa ble brukt:** design og mal-Opus gikk direkte, cowork fikk ÉN melding med branch, hash, filer og docs-branch. **Den fungerte.**
+
+### NettverkProvider-selvheling — OTA (kun JS)
+- Selvheler nå fastlåst `erPaaNettet`. To mekanismer gjennom samme `anvendTilstand()`: **AppState→active-refresh** (telefon låst under nett-overgang) + et **offline-BARE intervall på 20s** som river seg ned ved første online-probe → null batterikost online.
+- 🔴 **MÅLT FUNN: `TimerSyncProvider` sitt 30s-intervall redder IKKE** — gated på `erPaaNettet` både i effekt-oppsettet (`:198`, river ned intervallet når false) og inne i `triggerSync` (`:167`), og kaller aldri `NetInfo.fetch()`. Samme sykdom, ikke kur. Ingen eksisterende mekanisme selvhelet tilstanden.
+- `erPaaNettet` leses i 13 konsumentfiler; **fem fryser arbeid** (OpplastingsKoProvider, VaerKoProvider, TimerSyncProvider, skjema-sync i `useSjekklisteSkjema`/`useOppgaveSkjema`) — resten er ren UI-tilstand uten datatap.
+- Valgte `isConnected`, ikke `isInternetReachable` (sistnevnte prober Googles connectivity-endepunkt, blokkerbart på anleggsnett selv når vårt API er nåbart; server-nåbarhet avgjøres av køens retry/backoff). Bevisst IKKE bygget: mount-fetch (`addEventListener` leverer initialtilstand ved subscribe).
+- 🔴 **ÆRLIG (KRAV 4):** dette retter et **konkret strukturelt hull** — ikke bare «ingenting hindrer det» som forrige runde. HVIS årsaken var fastlåst `erPaaNettet`, lukker dette den og bounder frysen til ≤20s i forgrunn / umiddelbart ved opplåsing. **MEN kontrollplan har ikke reprodusert felt-hendelsen** og kan ikke bevise at stuck-false var årsaken; en tredje umodellert årsak kan ikke utelukkes. Selvhelingen er forgrunns-scopet. **IKKE ført som «kø-frysen løst».**
+
+### `.gitignore`: `/*-test.sql`
+- MAL-METODE sa mal-revisjons-SQL var ignorert; det stemte ikke — de var bare aldri `git add`-et. Verifisert før linja: ingen slik regel fantes, ingen slike filer i hovedtreet. Én linje gjør dokumentasjonen sann før noen committer en ved uhell.
 
 ---
 

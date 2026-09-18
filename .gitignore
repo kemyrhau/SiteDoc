@@ -78,3 +78,6 @@ tests/e2e/*-state.json
 # Se kilder/LES-MEG.md (den ene fila som versjoneres).
 kilder/*
 !kilder/LES-MEG.md
+
+# Mal-revisjons-SQL (kjøres mot test, aldri versjoneres) — MAL-METODE sier de er ignorert.
+/*-test.sql
