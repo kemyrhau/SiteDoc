@@ -287,6 +287,72 @@ export const KD1_MAL = {
   ] as FeltDef[],
 };
 
+// KD2 – Setting av kantstein. Første NYE mal (ikke revisjon) etter den nye design↔mal-Opus-
+// løypen. Eksportert som egen definisjon slik at seed-testen kan låse feltene (krav (c) «stille
+// tomhet forbudt»). Bygget med eksisterende helpers; skriveveien (opprettMalHvisMangler +
+// felter→malInnhold-mapping) er urørt.
+//
+// Ordre KD2 2026-09-18 (design-rollen, gatet av Kenneth): 10 felt for setting av kantstein av
+// naturstein (KD2.2) og betong (KD2.3). Avgrenset: plasstøpte kanter (KD2.4), stål (KD2.5) og
+// andre materialer (KD2.7) er ute; vishøyde over 300 mm er mur (KM2). Krav mot en flate som
+// varierer (linjeføring, planhet) besvares med samsvar per kravnivå — ikke tallfelt (MAL-METODE
+// §1). Én veldefinert måling (største sprang ved fuger) er heltall uten maks-grense (blokkerer
+// aldri avviksregistrering). §7b: SiteDocs egne krav, ingen normkoder i hjelpetekster; standarden
+// nevnes én gang, i beskrivelsen.
+export const KD2_MAL = {
+  kapittelKode: "KD",
+  navn: "KD2 – Setting av kantstein",
+  referanse: "KD2",
+  beskrivelse:
+    "Setting av kantstein av naturstein og betong — fundament, linjeføring, planhet og fuger. Faglig grunnlag: NS 3420-K:2024, post KD2.",
+  felter: [
+    valg("Kantsteinstype", "FØR",
+      [
+        "Naturstein – råkilt",
+        "Naturstein – gradet eller flammet",
+        "Betongkantstein",
+        "Annet – se beskrivelsen",
+      ],
+      "Styrer kravene til linjeføring, planhet og sprang i feltene under. Kontroller frostmerkingen på pallen: naturstein F1, betong klasse 3 merket D. Ta bilde av pallelapp eller leveringsseddel. I kurver med radius under 20 m bør steinen være radiushogd."),
+    valg("Montering", "FØR",
+      [
+        "I betong (for- og bakstøp)",
+        "Limt",
+        "Spikret",
+        "Annet – se beskrivelsen",
+      ],
+      "Settes kantsteinen i betong, må betongen beskyttes mot uttørking og frost."),
+    trafikklys("Vishøyde iht. beskrivelsen", "FØR",
+      "Vishøyden er det som står over ferdig terreng eller belegg. Er den over 300 mm, er det en mur og ikke en kant — bruk malen for mur."),
+    trafikklys("Minst 100 mm betong under hele steinen", "UNDER",
+      "Gjelder kantstein satt i betong. Forkant tilpasset vishøyden og belegget, bakkant så høy som mulig. Ta bilde før gjenfylling."),
+    trafikklys("For- og bakstøp pakket, glattet og lagt samtidig med settingen", "UNDER",
+      "Gir god støtte for steinen og jevn herding. Legg for- og bakstøp i samme arbeidsgang som settelaget og steinen."),
+    valg("Linjeføring i høyde og side", "ETTER",
+      [
+        "OK – innenfor 5 mm",
+        "OK – innenfor 6 mm",
+        "OK – innenfor 8 mm",
+        "Avvik – utenfor toleransen for steintypen",
+      ],
+      "Målt langs toppen av visflaten over 3 m: betong 5 mm, gradet eller flammet naturstein 6 mm, råkilt naturstein 8 mm. Kantene skal følge rette linjer eller jevne buer. Ved avvik: noter største måling og sted i kommentaren."),
+    valg("Planhet på overside og visflate", "ETTER",
+      [
+        "OK – innenfor 4 mm",
+        "OK – innenfor 5 mm",
+        "OK – innenfor 7 mm",
+        "Avvik – utenfor toleransen for steintypen",
+      ],
+      "Svanker og bulninger over 3 m: betong 4 mm, gradet eller flammet naturstein 5 mm, råkilt naturstein 7 mm. Ved avvik: noter største måling og sted i kommentaren."),
+    heltall("Største sprang ved fuger (mm)", "ETTER", { enhet: "mm" },
+      "Største tillatte sprang: betong og gradet eller flammet naturstein 3 mm, råkilt naturstein 4 mm. Før inn den største målingen (hele mm)."),
+    trafikklys("Fuger og synlige flater", "ETTER",
+      "Fugene er godt pakket og svakt inntrukket, og synlige flater er rengjort for fugemasse. Naturstein med presise fugesider er satt med fugeavstand. Alle synlige flater, også endene, har samme struktur."),
+    trafikklys("Krav oppfylt og dokumentasjon levert", "ETTER",
+      "Kanten oppfyller kravene over og er klar for overlevering. Ta bilde av ferdig kant."),
+  ] as FeltDef[],
+};
+
 async function main() {
   console.log("Seeder sjekklistebibliotek (kun opprett — rører aldri eksisterende rader)...");
 
@@ -497,6 +563,9 @@ async function main() {
 
     // ── KD1 ── (definisjon eksportert over: KD1_MAL)
     KD1_MAL,
+
+    // ── KD2 ── (definisjon eksportert over: KD2_MAL)
+    KD2_MAL,
   ];
 
   // ── NS 3420-F:2024 Grunnarbeider ──────────────────────────────────
