@@ -44,6 +44,18 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
+## 🟢 2026-09-18d — KC3.1 niende felt + flytvalg etter «Hent fra arkiv» merget. WEB-DEPLOY, ingen migrering, ingen OTA.
+
+**To brancher** (`feat/kc31-niende-felt` `41835523` · `feat/hent-fra-arkiv-flytvalg` `c7049531`, begge ren ff, null felles filer). Gate (etter `prisma generate` ×4): **`db` 7→8** (+1) · **`web` 285→292** (+7). Alle andre HELT stille: `api` 511 · `pdf` 124 · `shared` 824 · `mobil` 14. 7/7. ⚠️ De 6 lokale typecheck-feilene (maskin/service.ts + bibliotek-mal.test.ts) var **stale db-maskin Prisma-klient** etter service-migreringen — borte etter `generate`, verifisert grønn. Ingen migrering.
+
+- 🟢 **KC3.1 rettet 8→9 felt:** nytt «Kontrollert etter 1. vekstsesong – etterstrammet/justert» (trafikklys) i ETTER-fasen; siste felt omdøpt til «Krav oppfylt og dokumentasjon levert». **Skriveveien `opprettMalHvisMangler` fortsatt URØRT.** Testen låst på 9, sett rød mot dagens 8.
+- 🔴 **ÅPENT (meldt av mal-Opus) — grenseoppgang for Kenneth:** konklusjonens hjelpetekst sier fortsatt «Etterfølgende sesongskontroll … er vedlikehold (egen post) — ikke del av denne sjekklisten», mens **rad 9 nå ER en sesongkontroll.** mal-Opus rørte den ikke (ordre: «alt annet uendret»). **Kenneth avgjør grensen.**
+- 🔴 **ÅPENT:** hjelpeteksten på det nye feltet er mal-Opus' egen formulering, **ikke avlest fra Kenneths skjerm** — Kenneth kan overstyre.
+- 🟢 **Flytvalg etter «Hent fra arkiv»:** etter at en mal hentes fra **FIRMA-arkivet** til et prosjekt, åpnes «Velg dokumentflyt» lagvis over hent-modalen, med «Velg» og «Hopp over» **likestilt**. Fler-velger (`DokumentflytMal` har `@@unique([dokumentflytId, templateId])` = mange-til-mange), gjenbruker `FaggruppeTilknytningModal`. **Steget skjules helt når prosjektet ikke har dokumentflyter** (et «Velg» til tom liste er blindvei).
+- 🔴 **PREMISS-KORRIGERING (målt av redesign):** Kenneth ba om «begge arkiver», men det er **schema-umulig for SiteDoc-lån**: `laanFraSentralarkiv` lager en firma-`OrganizationTemplate` UTEN `projectId`, mens `Dokumentflyt`/`DokumentflytMal` er prosjekt-scoped (`schema.prisma:1541/1608`). Kravet oppfylles **indirekte**: enhver mal som faktisk entrer prosjektet gjør det via `kopierTilProsjekt` — også en lånt SiteDoc-mal (lånes først til firmaarkivet, hentes deretter til prosjektet).
+- 🟢 **Ingen nye i18n-nøkler** — `maler.velgDokumentflyt`, `handling.velg`, `handling.hoppOver` fantes alle.
+- ⚠️ **EDGE, meldt:** flyter uten `faggruppeId` vises ikke i velgeren (pre-eksisterende picker-atferd).
+
 ## 🟢 2026-09-18c — KC3.1-port + kø-mutex-herding merget. Kø-fiks OTA (kun JS), ingen migrering.
 
 **To brancher** (`feat/kc31-port` `48fc5dfc` · `fix/opplastingsko-finally` `b95c88ac`). Gate: **`db` 2→7** (+5, KC3.1-testen) · **`mobil` 13→14** (+1, kø-vaktest). Alle andre HELT stille: `api` 511 · `pdf` 124 · `shared` 824 · `web` 285. 7/7. Ingen migrering.
