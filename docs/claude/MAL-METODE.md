@@ -14,7 +14,7 @@ sist_verifisert_mot_kode: 2026-09-11
 En KS-sjekkliste skal hjelpe en arbeider med teknisk informasjon om kravene, og etterlate dokumentasjon som viser hva som er levert og bekrefter at kravene er fulgt.
 
 - **Effektiv utfylling.** Minst mulig tekst å skrive. Svar med predefinerte alternativer (trafikklys, enkeltvalg) så langt det lar seg gjøre; fritekst er unntaket. Kommentar/vedlegg/tegning finnes allerede per felt — malen skal ikke duplisere dem.
-- **Informativ om NS 3420-krav.** Hjelpetekst per felt gir det tekniske kravet der arbeideren står (tall, toleranser, tabellreferanser). Der kravene er prosjektspesifikke, peker hjelpeteksten til prosjektbeskrivelsen/posten. Aldri påstå normkrav som ikke finnes i normen.
+- **Informativ om kravene.** Hjelpetekst per felt gir det tekniske kravet der arbeideren står (tall og toleranser), **formulert som vårt eget krav — uten tabell- og punktkoder fra standarden** (§7b, Kenneth 2026-09-18). Der kravene er prosjektspesifikke, peker hjelpeteksten til prosjektbeskrivelsen/posten. Aldri påstå normkrav som ikke finnes i normen.
 - **Enklest mulig dokumentasjonsprinsipp.** Bilder er primærbevis — hjelpetekster ber eksplisitt om foto der bildet beviser leveransen. Egne felt sier HVA som er levert (type/materiale) — ellers viser dokumentet bare at «noe» ble gjort.
 - **Strukturert og oversiktlig.** Feltene grupperes under fase-overskrifter (H-felt): «Kontroll FØR utførelse» / «Kontroll UNDER utførelse» / «Kontroll ETTER utførelse». Seksjonene kollapser og viser teller («0 av 3») — viktig fordi sjekklister fylles ut over tid. ETTER-fasen bærer konklusjonen: krav oppfylt + dokumentasjonskrav levert.
 - **Tallfelt kun når ett veldefinert tall dokumenterer leveransen** (Kenneth 2026-09-11, KB2-testen). Feltnavnet skal si hvilken måling som føres (minste/største). Krav mot en flate som varierer (fall, planhet) besvares med samsvar — trafikklys eller enkeltvalg per kravnivå — og målt verdi/sted hører i kommentaren. Min/maks-grenser på tallfelt skal aldri blokkere registrering av et avvik.
@@ -47,7 +47,7 @@ Når en mal revideres, tar ordren stilling til malens rader i MK C-konverterings
 
 ## 5. Rekkefølge og status
 
-Kapittel K først, så F: KA7 → KB2 → KB4 → KB6 → KC3.1 → KD1 → (FB2, FC1, FD2, FE1, FB4, FD3).
+Kapittel K først, så F: KA7 → KB2 → KB4 → KB6 → KC3.1 → KD1 → **KD2 (ny) → KM2 (ny)** → (FB2, FC1, FD2, FE1, FB4, FD3). *(KD2/KM2 foran Del F: Kenneth 2026-09-18. Status per mal: MAL-PLAN.)*
 
 🔴 **Autoritativ «hva finnes i biblioteket» måles i DB, ikke her** (Kenneth 2026-09-12): `select referanse, navn, verifisert from bibliotek_maler order by referanse`. Tabellen under er kun en lettvekts oversikt over rekkefølge og gate-runder — ikke et vedlikeholdt register. Er du i tvil om hva som er bygget, spør databasen.
 
@@ -78,6 +78,21 @@ Konkret løype, målt mot KA7-revisjonen 2026-09-11. **Én mal om gangen, kun et
 8. **Meld ÉTT svar** til Kenneth (branch+hash · gate-tall målt selv · idempotens · skjermbildene · hvor fase-overskriften kom fra · avvik fra ordren). «Klar for commit» sier fabel, ikke mal-Opus.
 
 ### 6a. Revidere en mal i arkivet via målrettet UPDATE — den normale revisjonsveien
+
+> 🔴 **ENDRET SIDEN MIGRERING `20260914120000_bibliotekmal_objekttabell` (presisert 2026-09-18, meldt av mal-Opus ved KD1):**
+> innholdet bor nå i **`bibliotek_mal_objekter`**, ikke i `mal_innhold`. Seeden fryser `mal_innhold` til `[]`
+> (`seed-bibliotek.ts` ~:122), og både forhåndsvisning og import leser kun objekt-radene
+> (`apps/api/src/routes/bibliotek.ts` :87 og :162). **En `UPDATE … mal_innhold` er en død skrivning som aldri
+> vises i UI.**
+>
+> **Revisjons-SQL-en er derfor:** `UPDATE bibliotek_maler` (kun metadata: `navn`, `beskrivelse`, `verifisert=false`)
+> + `DELETE FROM bibliotek_mal_objekter WHERE template_id = <malens id>` + `INSERT` av de nye radene —
+> generert **byte-eksakt fra mal-konstanten via `byggBibliotekRader`**, ikke skrevet for hånd. Mønster:
+> `kd1-test.sql` (2026-09-18). DELETE-en er trygg: ingen tabell peker på en bibliotek-objekt-id
+> (firmamaler er uavhengige kopier), og cascade gjelder kun malens egne barn-rader.
+>
+> Leveringsveien (`scp` → `docker cp` → `psql -f`, tre enlinjere) under er uendret. Teksten under om
+> «`mal_innhold`» og «kilde til innholdet» gjelder bare maler revidert før 14.09.
 
 🔴 **Seeden oppdaterer ikke lenger (§6b), og er heller ikke del av deploy.** Verken seed, `deploy-test.sh` eller migreringene rører en eksisterende `bibliotek_maler`-rad. Skal en **revidert** mal inn i et arkiv (test for web-bevis, eller generelt), er den målrettede UPDATE-en veien — **ikke et unntak for bevis, men den normale revisjonsveien inntil `/admin/bibliotek` (retteveien i UI) finnes** (målt 2026-09-11, KA7).
 
@@ -163,8 +178,50 @@ Kun ÉN mal, uten å røre de 11 andre: generér en målrettet `UPDATE bibliotek
 ### 7a. Kilde og ansvar — hvordan NS-krav uttrykkes (Kenneth 2026-09-13, STYRENDE)
 
 1. **Referer, gjengi aldri.** Hjelpetekster **refererer** NS-standarder ved post/punkt-nummer — de **gjengir aldri standardens ordlyd**. Vi har rett til å lese NS og lage sjekklister basert på den, men ikke nødvendigvis å reprodusere teksten. (Dette overstyrer et tidligere forslag om å bygge NS 4400-kriteriene inn i KB6 — det skal IKKE gjøres.)
-2. **Kilde med utgave.** Referansen bærer utgave/år. **NS 3420-K:2024 er allerede forankret på standard-nivå** (`bibliotekStandard`: «NS 3420-K:2024 Anleggsgartnerarbeider») — den er fasit, og trenger ikke gjentas inline i hver hjelpetekst. **Eksterne standarders utgave (NS 4400/2890/8141/4417) oppgis av fabel** — mal-Opus gjetter aldri årstall; mangler det, står bar referanse og loggen flagger «utgave mangler».
+2. **Kilde med utgave.** Referansen bærer utgave/år. *(Presisert av §7b 2026-09-18: henvisningen til NS 3420 står ÉN gang per mal, i beskrivelsen — og standardens navn skal ikke bære biblioteket i UI.)* **NS 3420-K:2024 er allerede forankret på standard-nivå** (`bibliotekStandard`: «NS 3420-K:2024 Anleggsgartnerarbeider») — den er fasit, og trenger ikke gjentas inline i hver hjelpetekst. **Eksterne standarders utgave (NS 4400/2890/8141/4417) oppgis av fabel** — mal-Opus gjetter aldri årstall; mangler det, står bar referanse og loggen flagger «utgave mangler».
 3. **Den daterte kilden er aldri feil, og er selv drift-varselet.** Den sier hva malen ble bygget fra, ikke hva som gjelder i evig tid. Ser en leser årstallet og vet at en nyere utgave finnes → påminnelse om å sjekke om kravet fortsatt er gyldig.
 4. **Sjekklistene holdes rene.** Ingen reprodusert lovtekst, ingen ansvarsfraskrivelser per sjekkliste eller i hver nedlastede PDF.
 5. **Ansvaret legges på kunden ÉN gang sentralt.** «Du verifiserer mot gjeldende standard — da står sjekklisten seg på ditt ansvar» hører hjemme i bruksvilkår/onboarding/den ene «last ned avvik i sjekklister»-oversikten, **aldri gjentatt per sjekkliste**. NS-loggen er datagrunnlaget for den framtidige oversikten (kundevisning bygges når UI er klart — ikke nå).
+
+### 7b. 🔴 Malene er SiteDocs egne sjekklister — de fremstår ikke som standarden (Kenneth-vedtak 2026-09-18, STYRENDE)
+
+**Bakgrunn — Kenneth, 2026-09-18:** standarden er opphavsrettsbeskyttet. *«Jeg har rett å lese dokumentet og lage
+mine egne maler basert på informasjon i dokumentet. Jeg kan henvise til hvor man finner informasjon og krav. Men jeg
+kan ikke ordrett gjengi standarden. … Vi bør ikke fremstå som at dokumentene er NS 3420 standard. De bør fremstå med
+krav uten å påstå at det er standarden som ligger til grunn.»*
+
+**Regelen (fem punkter, godkjent av Kenneth):**
+
+1. **Navn = koden + arbeidsoperasjonen med våre egne ord.** Kapittel- og underkapittelkoden **beholdes**
+   (Kenneth, samme dag: *«av praktiske årsaker — det er koder som benyttes i beskrivelser og sammenfaller med
+   fremdriftsplaner»*). Teksten etter koden er vår egen, ikke standardens tittel.
+   ✅ «KD1 – Belegg av stein og heller» · ❌ «KD1 – Utendørs belegg» (standardens tittel).
+2. **Hjelpetekst = kravet som vårt krav, med tallene.** Ingen tabell- eller punktkoder fra standarden.
+   ✅ «Fall minst 2 % på gangareal og 2,5 % på kjøreareal (gatestein 3 %).» · ❌ «Tabell K11: …», ❌ «KD1 c5: …».
+3. **Standarden nevnes én gang per mal, i beskrivelsen:** `Faglig grunnlag: NS 3420-K:2024, post <kode>.` Ikke i
+   felt, ikke i hjelpetekster. (Koden i navnet er en henvisning til posten i beskrivelsen og fremdriftsplanen — ikke
+   en påstand om at malen er standarden.)
+4. **Kodene er synlige og stabile.** `referanse` (`KD1`) og `kapittelKode` (`KD`) røres ikke. De er både datanøkler
+   og det brukeren kjenner igjen fra beskrivelse og fremdriftsplan.
+5. **Aldri ordrett tekst fra standarden** — heller ikke nesten-ordrett. Skriv kravet slik en bas ville sagt det.
+   ❌ «Gjennomgående fuger skal danne rette linjer eller jevne kurver» · ✅ «Fugene følger rette linjer eller jevne buer».
+
+**Hva som forblir tillatt:** tallkrav (fall, toleranser, tykkelser, frostklasser) — det er fakta, ikke formuleringer.
+Produktmerking brukeren ser på pallen («F1», «klasse 3 merket D», «FP100») nevnes uten å navngi produktstandarden.
+
+**Ordrene (design-rollens arbeidsregel, 2026-09-18):** normfakta i en ordre skrives som **egen sammenstilling** —
+krav per valg i malen, med egne ord og tall — ikke som avskrift av standardens tabeller i standardens oppsett.
+Ordren kan si hvor faktumet står (normside), slik at gaten kan kontrollere det.
+
+**Status ved vedtaket (målt på develop 2026-09-18):**
+
+| Hvor | Brudd | Tiltak |
+|---|---|---|
+| KD1 (under bygging) | Standardens tittel i navn, tabell-/punktkoder i hjelpetekster | Rettes før commit — `TILLEGG-kd1-egne-krav-fabel-2026-09-18.md` |
+| KA7, KB2, KB4, KB6, KC3.1 | 32 hjelpetekster åpner med tabell-/punktkode; navnene sjekkes mot punkt 1 | Én samlet ordre til mal-Opus etter KD1-gaten |
+| Biblioteket i UI | Standardens navn vises som overskrift (`OpprettPunktDialog.tsx:546`) | Kapittelkodene beholdes. Om standardnavnet skal stå som overskrift, avgjøres i strengharmoniseringen (cowork) |
+| Fabels ordrer KA7–KB4 i `docs/redesign/` | Tabeller avskrevet i standardens oppsett | Kenneths avgjørelse — ikke rørt |
+
+**Forholdet til §7 (NS-loggen):** NS 3420 selv teller fortsatt ikke i loggen. Eksterne produktstandarder
+(NS-EN 1338 osv.) nevnes ikke lenger i hjelpetekster når produktmerkingen alene sier det arbeideren skal sjekke.
 
