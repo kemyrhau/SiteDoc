@@ -353,6 +353,87 @@ export const KD2_MAL = {
   ] as FeltDef[],
 };
 
+// KM2 – Mur av stein i terreng. Ny mal, nytt kapittel KM (finnes ikke i biblioteket i dag).
+// Normen har INGEN utførelseskrav eller toleranser for murer i terreng — malen er en kontroll
+// mot prosjektets beskrivelse (MAL-METODE §1: prosjektspesifikke krav peker til beskrivelsen).
+// Ingen tallfelt og ingen normtall i hjelpetekstene. Ett unntak: felt 1 bærer definisjonen
+// «vishøyde over 300 mm» — grensen mur/kant (jf. KD2), ikke et utførelseskrav; arbeideren
+// trenger den for å velge riktig mal. §7b: SiteDocs egne krav, standarden nevnes kun i beskrivelsen.
+export const KM2_MAL = {
+  kapittelKode: "KM",
+  navn: "KM2 – Mur av stein i terreng",
+  referanse: "KM2",
+  beskrivelse:
+    "Ensidig og tosidig mur, tørrmur og murt mur — fundament, oppbygging og fuger kontrollert mot beskrivelsen. Faglig grunnlag: NS 3420-K:2024, post KM2.",
+  felter: [
+    // FØR
+    valg("Murtype", "FØR",
+      [
+        "Ensidig tørrmur",
+        "Ensidig murt mur",
+        "Tosidig tørrmur",
+        "Tosidig murt mur",
+        "Ett-skifts mur",
+        "Annet – se beskrivelsen",
+      ],
+      "Ensidig mur har visflate på én side, tosidig på begge sider med kjerne mellom. Ett-skifts mur har ett element i høyden og vishøyde over 300 mm — lavere enn det er en kant, ikke en mur."),
+    valg("Materiale", "FØR",
+      [
+        "Naturstein",
+        "Betongstein",
+        "Imitert stein",
+        "Annet – se beskrivelsen",
+      ],
+      "Kontroller steinen mot materialspesifikasjonen i beskrivelsen: bergart eller type, utseende, dimensjon og bearbeiding av visflaten. Ta bilde av leveransen."),
+    trafikklys("Fundament, filterlag og drenering på plass", "FØR",
+      "Fundament, filterlag og drensledning er egne poster, men muren skal ikke settes før de er ferdige og slik beskrivelsen angir. Ta bilde før muringen starter — etterpå er det ikke synlig."),
+
+    // UNDER
+    trafikklys("Helning og tverrsnitt iht. beskrivelsen", "UNDER",
+      "Kontroller helningen og tverrsnittet mot beskrivelsen eller tegningen. Ved avvik: noter hva som er målt og hvor i kommentaren."),
+    valg("Bindere, forankring eller armering", "UNDER",
+      [
+        "OK – iht. beskrivelsen",
+        "Ikke krevd i beskrivelsen",
+        "Avvik",
+      ],
+      "Kontroller type, plassering og antall mot beskrivelsen. Ta bilde før de dekkes."),
+    valg("Kjernefyll", "UNDER",
+      [
+        "OK – iht. beskrivelsen",
+        "Ikke aktuelt – ensidig mur",
+        "Avvik",
+      ],
+      "Gjelder tosidig mur. Kontroller at kjernen er fylt med materialet beskrivelsen angir."),
+    valg("Drenshull", "UNDER",
+      [
+        "OK – iht. beskrivelsen",
+        "Ikke krevd i beskrivelsen",
+        "Avvik",
+      ],
+      "Kontroller plassering og antall mot beskrivelsen, og at hullene er åpne."),
+
+    // ETTER
+    trafikklys("Ligge- og stussfuger iht. beskrivelsen", "ETTER",
+      "Kontroller tetting, bredde og materiale i fugene mot beskrivelsen. Ved avvik: noter sted og hva som avviker."),
+    trafikklys("Linjeføring, mønster og toleranser iht. beskrivelsen", "ETTER",
+      "Toleransene for mur står i beskrivelsen, ikke som faste tall. Kontroller synlig flate, linjeføring og mønster mot dem. Ved avvik: noter største måling og sted."),
+    trafikklys("Krav oppfylt og dokumentasjon levert", "ETTER",
+      "Muren er utført slik beskrivelsen angir og er klar for overlevering. Ta bilde av ferdig mur."),
+  ] as FeltDef[],
+};
+
+// Kapitler i NS 3420-K-arkivet (kode, navn, sortering). Eksportert (design-godkjent 2026-09-18)
+// slik at generer-mal-sql.ts kan opprette et manglende kapittel i samme transaksjon (ordre KM2 §4).
+// Seeden bruker den via finnEllerOpprettKapittel (KUN OPPRETT — eksisterende rader røres ikke).
+export const KAPITTEL_DATA_K = [
+  { kode: "KA", navn: "Innledende arbeider", sortering: 1 },
+  { kode: "KB", navn: "Jord og vegetasjon", sortering: 2 },
+  { kode: "KC", navn: "Vanningsanlegg, sikring og beskyttelse", sortering: 3 },
+  { kode: "KD", navn: "Utendørsbelegg, kanter, renner", sortering: 4 },
+  { kode: "KM", navn: "Murer i terreng", sortering: 5 },
+];
+
 async function main() {
   console.log("Seeder sjekklistebibliotek (kun opprett — rører aldri eksisterende rader)...");
 
@@ -365,12 +446,7 @@ async function main() {
     create: { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
   });
 
-  const kapittelData = [
-    { kode: "KA", navn: "Innledende arbeider", sortering: 1 },
-    { kode: "KB", navn: "Jord og vegetasjon", sortering: 2 },
-    { kode: "KC", navn: "Vanningsanlegg, sikring og beskyttelse", sortering: 3 },
-    { kode: "KD", navn: "Utendørsbelegg, kanter, renner", sortering: 4 },
-  ];
+  const kapittelData = KAPITTEL_DATA_K;
 
   const kap: Record<string, string> = {};
   for (const k of kapittelData) {
@@ -566,6 +642,9 @@ async function main() {
 
     // ── KD2 ── (definisjon eksportert over: KD2_MAL)
     KD2_MAL,
+
+    // ── KM2 ── (definisjon eksportert over: KM2_MAL) — ny mal, nytt kapittel KM
+    KM2_MAL,
   ];
 
   // ── NS 3420-F:2024 Grunnarbeider ──────────────────────────────────
@@ -877,9 +956,9 @@ async function main() {
     },
   ];
 
-  // Alle 12 malene er AI-utkast → verifisert: false (settes eksplisitt, ikke bare schema-default).
+  // Alle 14 malene er AI-utkast → verifisert: false (settes eksplisitt, ikke bare schema-default).
   // Prod-gate: uverifiserte maler seedes ikke i prod — prod holdes på 0 maler til fagkontroll er
-  // registrert (via en fremtidig «Merk verifisert»-handling). Test/lokal får alle 12.
+  // registrert (via en fremtidig «Merk verifisert»-handling). Test/lokal får alle 14.
   const erProd = erProdDatabase();
   let opprettet = 0;
   let hoppetProdGate = 0;
