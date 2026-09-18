@@ -1075,9 +1075,9 @@ Formuleringen «lås ved dagens slutt» (Kenneth 05.09) var et spesialtilfelle �
 
 **Bakgrunn:** KC3.1 «Oppstøtting av trær» fikk 2026-09-18 et felt «Kontrollert etter 1. vekstsesong
 – etterstrammet/justert» (`feat/kc31-niende-felt`, merget `e0d399a4`). Det er nettopp en
-etter-overlevering-kontroll og bryter dette vedtaket. 🔴 **Feltet står FORTSATT i
-`seed-bibliotek.ts` (KC3.1-blokka, ~linje 196) per `e0d399a4` — det skal fjernes (KC3.1 tilbake
-til 8 felt), egen mal-Opus-runde.** Konklusjonens egen hjelpetekst sa allerede det riktige
+etter-overlevering-kontroll og bryter dette vedtaket. ✅ **Feltet ER fjernet fra
+`seed-bibliotek.ts` (KC3.1 tilbake til 8 felt) i `37e98b0c` (merge av `fix/kc31-sesongfelt-ut`,
+db-test 8→7).** Konklusjonens egen hjelpetekst sa allerede det riktige
 («etterfølgende sesongskontroll er vedlikehold — egen post»), men prinsippet lå kun som én setning
 i ett felt, ikke som en regel noen leser før de bygger. Derfor dette vedtaket.
 
