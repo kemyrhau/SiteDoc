@@ -193,8 +193,6 @@ export const KC31_MAL = {
       "KC3.1 c4, figur K7: støtten settes så lavt som mulig (ned mot 80 cm) og aldri over 1/3 av treets høyde. Ved avvik: noter målt høyde i kommentaren."),
     heltall("Antall trær støttet (stk)", "ETTER", { enhet: "stk" },
       "KC3.11 måles i stk trær. Før antallet som er støttet/bundet opp — dokumenterer levert mengde mot posten."),
-    trafikklys("Kontrollert etter 1. vekstsesong – etterstrammet/justert", "ETTER",
-      "Kontroll etter første vekstsesong: etterstram bindinger og juster oppstøttingen ved behov. Ta bilde av tilstanden."),
     trafikklys("Krav oppfylt og dokumentasjon levert", "ETTER",
       "Konklusjon før overlevering: metode, materiell og antall iht. posten, alle kontrollpunkter besvart, bilder lagt ved dette dokumentet. Etterfølgende sesongskontroll og fjerning av oppstøttingen er vedlikehold (egen post, ZK2.7112) — ikke del av denne sjekklisten. FDV/sluttdokumentasjon leveres via egen dokumentasjonssjekkliste."),
   ] as FeltDef[],
