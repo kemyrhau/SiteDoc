@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Najpierw napisz komentarz do odbiorcy",
   "sperret.plasserMarkor": "Najpierw umieść znacznik na rysunku",
   "sperret.tilordneFaggruppe": "Najpierw wymień przynajmniej jeden przedmiot",
-  "sperret.ryddValideringsfeil": "Najpierw napraw błędy na liście"
+  "sperret.ryddValideringsfeil": "Najpierw napraw błędy na liście",
+  "sperret.googleIkkeTilgjengelig": "Logowanie przez Google nie jest dostępne w tej wersji"
 }

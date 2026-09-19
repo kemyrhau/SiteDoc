@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Skriv en kommentar till mottagaren först",
   "sperret.plasserMarkor": "Placera en markör på ritningen först",
   "sperret.tilordneFaggruppe": "Ge minst en vara en byte först",
-  "sperret.ryddValideringsfeil": "Åtgärda felen i listan först"
+  "sperret.ryddValideringsfeil": "Åtgärda felen i listan först",
+  "sperret.googleIkkeTilgjengelig": "Google-inloggning är inte tillgänglig i den här versionen"
 }

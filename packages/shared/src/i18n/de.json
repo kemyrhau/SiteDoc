@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Schreiben Sie zunächst einen Kommentar an den Empfänger",
   "sperret.plasserMarkor": "Platzieren Sie zunächst einen Marker auf der Zeichnung",
   "sperret.tilordneFaggruppe": "Geben Sie zuerst mindestens einem Gegenstand einen Tausch",
-  "sperret.ryddValideringsfeil": "Beheben Sie zunächst die Fehler in der Liste"
+  "sperret.ryddValideringsfeil": "Beheben Sie zunächst die Fehler in der Liste",
+  "sperret.googleIkkeTilgjengelig": "Die Google-Anmeldung ist in dieser Version nicht verfügbar"
 }

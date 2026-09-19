@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Skriv en kommentar til mottakeren først",
   "sperret.plasserMarkor": "Plasser en markør på tegningen først",
   "sperret.tilordneFaggruppe": "Gi minst ett punkt en faggruppe først",
-  "sperret.ryddValideringsfeil": "Rett feilene i lista først"
+  "sperret.ryddValideringsfeil": "Rett feilene i lista først",
+  "sperret.googleIkkeTilgjengelig": "Google-innlogging er ikke tilgjengelig i denne versjonen"
 }

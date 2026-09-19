@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Écrivez d'abord un commentaire au destinataire",
   "sperret.plasserMarkor": "Placez d'abord un marqueur sur le dessin",
   "sperret.tilordneFaggruppe": "Échangez d'abord au moins un objet",
-  "sperret.ryddValideringsfeil": "Corrigez d'abord les erreurs dans la liste"
+  "sperret.ryddValideringsfeil": "Corrigez d'abord les erreurs dans la liste",
+  "sperret.googleIkkeTilgjengelig": "La connexion Google n'est pas disponible dans cette version"
 }

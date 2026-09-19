@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Esmalt kirjuta adressaadile kommentaar",
   "sperret.plasserMarkor": "Kõigepealt asetage joonisele marker",
   "sperret.tilordneFaggruppe": "Tehke esmalt vähemalt üks kaup",
-  "sperret.ryddValideringsfeil": "Parandage kõigepealt loendis olevad vead"
+  "sperret.ryddValideringsfeil": "Parandage kõigepealt loendis olevad vead",
+  "sperret.googleIkkeTilgjengelig": "Google'i sisselogimine pole selles versioonis saadaval"
 }

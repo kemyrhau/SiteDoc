@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Kirjoita kommentti ensin vastaanottajalle",
   "sperret.plasserMarkor": "Aseta ensin merkki piirustukseen",
   "sperret.tilordneFaggruppe": "Tee vähintään yksi tuote kauppa ensin",
-  "sperret.ryddValideringsfeil": "Korjaa ensin luettelon virheet"
+  "sperret.ryddValideringsfeil": "Korjaa ensin luettelon virheet",
+  "sperret.googleIkkeTilgjengelig": "Google-sisäänkirjautuminen ei ole käytettävissä tässä versiossa"
 }

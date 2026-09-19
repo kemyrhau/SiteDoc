@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Scrieți mai întâi un comentariu destinatarului",
   "sperret.plasserMarkor": "Puneți mai întâi un marker pe desen",
   "sperret.tilordneFaggruppe": "Oferiți mai întâi cel puțin un articol",
-  "sperret.ryddValideringsfeil": "Remediați mai întâi erorile din listă"
+  "sperret.ryddValideringsfeil": "Remediați mai întâi erorile din listă",
+  "sperret.googleIkkeTilgjengelig": "Conectarea la Google nu este disponibilă în această versiune"
 }
