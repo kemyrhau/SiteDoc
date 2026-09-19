@@ -502,6 +502,96 @@ export const FD1_MAL = {
   ] as FeltDef[],
 };
 
+// FS2 – Utlegging av masser i lag. Omkoding av tidligere «FD2 – Fylling og komprimering» (ordre FS2
+// 2026-09-19, gatet av Kenneth): utlegging hører til FS «Utlegging av løsmasser», ikke FD (uttak).
+// Omkodingen frigjør samtidig FD2-koden til den nye grøftemalen (senere ordre). Nytt kapittel FS
+// legges til KAPITTEL_DATA_F. Fylling (FS1.1) og lag (FS2) i én mal; grøft/tilbakefylling/under vann
+// er avgrenset ut. 11 felt, INGEN tallfelt: lagtykkelse, komprimering, høyde og jevnhet besvares med
+// samsvar per kravnivå (MAL-METODE §1), målt verdi/sted i kommentaren. De gamle desimalfeltene
+// (lagtykkelse cm, komprimeringsgrad %, planhet mm) og «Overflate og drenering» (fall gjelder ikke FS)
+// utgår. §7b: SiteDocs egne krav — ingen tabell-/punktkoder i hjelpetekstene; standarden kun i
+// beskrivelsen. Kodene i navn/referanse beholdes (datanøkler + gjenkjennelse).
+export const FS2_MAL = {
+  kapittelKode: "FS",
+  navn: "FS2 – Utlegging av masser i lag",
+  referanse: "FS2",
+  beskrivelse:
+    "Utlegging av fylling og lag — masser, lagtykkelse, komprimering og toleranser. Faglig grunnlag: NS 3420-F:2024, post FS1 og FS2.",
+  felter: [
+    // FØR
+    valg("Type lag", "FØR",
+      [
+        "Fylling",
+        "Forsterkningslag",
+        "Bærelag",
+        "Underlag for konstruksjon",
+        "Annet – se beskrivelsen",
+      ],
+      "Typen lag avgjør hvilken høydetoleranse som gjelder. For vei og plass gjelder vegvesenets krav i beskrivelsen."),
+    valg("Masser", "FØR",
+      [
+        "Riktig masse – vareseddel kontrollert",
+        "Stedlige masser – godkjent",
+        "Avvik – feil masse",
+      ],
+      "Sjekk vareseddelen mot beskrivelsen. Massene skal ikke være frosne eller på annen måte skade laget. Største stein er maks 2/3 av lagtykkelsen."),
+    trafikklys("Underlaget er klart", "FØR",
+      "Underlaget er uten snø, is, organisk materiale og stående vann, og er godkjent før laget legges."),
+
+    // UNDER
+    valg("Lagtykkelse", "UNDER",
+      [
+        "Innenfor angitt tykkelse",
+        "For tykt – rettes",
+      ],
+      "Tykkelsen etter komprimering skal i snitt ikke være større enn kravet i beskrivelsen. Enkeltmålinger kan avvike ±20 %. Husk at laget synker når det komprimeres."),
+    valg("Komprimering", "UNDER",
+      [
+        "Normal – utført",
+        "Lett – utført",
+        "Ingen komprimering angitt",
+        "Ikke som angitt – avvik",
+      ],
+      "Komprimer lag for lag slik beskrivelsen angir (normal, lett eller ingen), med utstyr og antall overfarter etter komprimeringsplanen."),
+    valg("Kontroll av komprimering", "UNDER",
+      [
+        "Utført – resultat godkjent",
+        "Ikke angitt i beskrivelsen",
+        "Under krav – avvik",
+      ],
+      "Beskrivelsen sier hvor mye som skal kontrolleres (begrenset, normal eller utvidet). Legg ved måleresultatet."),
+    trafikklys("Massene er ikke blandet", "UNDER",
+      "Ulike masser og lag er holdt adskilt."),
+
+    // ETTER
+    valg("Høyde på topp", "ETTER",
+      [
+        "Fylling – innenfor ±100 mm",
+        "Underlag for konstruksjon – innenfor ±20 mm",
+        "Bærelag på idrettsplass – innenfor ±15 mm",
+        "Krav i beskrivelsen – oppfylt",
+        "Utenfor – avvik",
+      ],
+      "Kontroller toppen mot prosjektert høyde flere steder. Velg linjen for typen lag. Står det strengere krav i beskrivelsen, gjelder de. Noter største avvik i kommentaren."),
+    valg("Jevnhet på 3 m rettholt", "ETTER",
+      [
+        "Innenfor ±10 mm",
+        "Ikke aktuelt",
+        "Utenfor – avvik",
+      ],
+      "Gjelder underlag og bærelag for konstruksjoner. Et lag som skal forkiles, må være jevnt før forkilingen."),
+    valg("Kant på topp og fot", "ETTER",
+      [
+        "Innenfor +150/−0 mm",
+        "Ikke aktuelt",
+        "Utenfor – avvik",
+      ],
+      "Gjelder fylling. Kanten kan ligge inntil 150 mm utenfor prosjektert linje, men ikke innenfor."),
+    trafikklys("Laget er godkjent før neste lag legges", "ETTER",
+      "Laget oppfyller kravene over og er klart for neste lag eller neste arbeid. Ta bilde."),
+  ] as FeltDef[],
+};
+
 // KA7/KB2/KB4/KB6 – eksportert som egne definisjoner (§7b-retting 2026-09-19) slik at
 // generer-mal-sql.ts finner dem (samme mønster som KC31_MAL/KD1_MAL) og §7b-testen kan iterere
 // alle K-malene. Bygget med eksisterende helpers; skriveveien er urørt.
@@ -702,6 +792,9 @@ export const KAPITTEL_DATA_F = [
   { kode: "FC", navn: "Sprengning", sortering: 2 },
   { kode: "FD", navn: "Uttak av løsmasser", sortering: 3 },
   { kode: "FE", navn: "Grøfter for kabler og ledninger", sortering: 4 },
+  // FS lagt til ved FS2-omkodingen (ordre FS2 §3). Sortering 6 følger normens rekkefølge
+  // (… FH, FS …): plass 5 er reservert for FH (ennå ikke i biblioteket), FS kommer etter.
+  { kode: "FS", navn: "Utlegging av løsmasser", sortering: 6 },
 ];
 
 async function main() {
@@ -823,52 +916,8 @@ async function main() {
       ],
     },
 
-    // ── FD2 – Fylling og komprimering ──
-    {
-      kapittelKode: "FD",
-      navn: "FD2 – Fylling og komprimering",
-      referanse: "FD2",
-      beskrivelse: "Masseutlegging, lagvis komprimering, bæreevne",
-      prioritet: 1,
-      felter: [
-        // FØR
-        valg("Massetype", "FØR",
-          [
-            "Sprengstein – dokumentert",
-            "Grus/sand – dokumentert",
-            "Knust fjell – dokumentert",
-            "Lette masser (lettklinker/skumglass)",
-            "Avvik – feil massetype",
-          ],
-          "FD2 b1: Kontroller at tilkjørte masser stemmer med spesifikasjon. Sjekk vareseddel mot bestilling."),
-        trafikklys("Underlag klargjort", "FØR",
-          "FD2 b2: Underlag skal være fritt for snø, is, organisk materiale og stående vann. Overflate jevnet."),
-
-        // UNDER
-        desimal("Lagtykkelse (cm)", "UNDER", { enhet: "cm" },
-          "FD2 c1: Mål utlagt lagtykkelse før komprimering. Maks: sprengstein 60 cm, grus/sand 30 cm, lette masser 50 cm."),
-        valg("Komprimering", "UNDER",
-          [
-            "Komprimert iht. instruks – OK",
-            "Komprimert – krever flere overfarter",
-            "Ikke komprimeringskontrollert",
-          ],
-          "FD2 c2: Antall overfarter iht. komprimeringsinstruks. Kontroller visuelt – ingen synlig deformasjon under vals."),
-        desimal("Komprimeringsgrad (%)", "UNDER", { enhet: "%" },
-          "FD2 c3: Standard Proctor eller modifisert Proctor. Krav typisk ≥95 % for bærelag, ≥97 % for forsterkningslag."),
-
-        // ETTER
-        desimal("Planhet – avvik (mm)", "ETTER", { enhet: "mm" },
-          "FD2 c4: Kontroller med 3 m rettholt. Toleranse: ±30 mm fylling, ±20 mm planum, ±10 mm bærelag."),
-        valg("Overflate og drenering", "ETTER",
-          [
-            "Jevn overflate med fall – OK",
-            "Jevn overflate – mangler fall",
-            "Ujevn – krever utbedring",
-          ],
-          "FD2 c5: Ferdig overflate skal ha fall mot dreneringsgrøft/sluk. Ingen vannlommer."),
-      ],
-    },
+    // ── FS2 – Utlegging av masser i lag ── (definisjon eksportert over: FS2_MAL — omkoding av FD2)
+    FS2_MAL,
 
     // ── FE1 – Ledningsgrøfter ──
     {

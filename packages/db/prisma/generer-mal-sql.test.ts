@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { byggMalSql, byggFlerRevisjonSql, filnavnFor, malRegister } from "./generer-mal-sql";
-import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL } from "./seed-bibliotek";
+import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FS2_MAL } from "./seed-bibliotek";
 
 /**
  * Ren unit-test (ingen DB) for den generelle mal-SQL-generatoren (MAL-METODE §1b pkt 4).
@@ -12,6 +12,7 @@ import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL } from "./seed-bibliotek";
 const KD2 = KD2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const KM2 = KM2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const FD1 = FD1_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const FS2 = FS2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 
 describe("generer-mal-sql", () => {
   it("ny: version-verdi 1, INGEN DELETE, \\x on", () => {
@@ -170,5 +171,45 @@ describe("standard per mal + omkoding (--fra)", () => {
 
   it("registeret finner FD1 (F-mal) blant de eksporterte *_MAL-konstantene", () => {
     expect(malRegister().get("FD1")?.referanse).toBe("FD1");
+  });
+});
+
+// Ordre FS2 §5: omkodingssporet (--fra) oppretter manglende MÅLKAPITTEL i samme transaksjon,
+// før UPDATE … referanse, med samme WHERE NOT EXISTS som modus `ny`. FS2 flytter til nytt kapittel
+// FS; FD1s mål (FD) finnes allerede → samme blokk er en no-op der.
+describe("omkoding oppretter manglende målkapittel (--fra)", () => {
+  it("FS2 --fra FD2: kapittel-INSERT (FS) kommer FØR UPDATE … referanse", () => {
+    const s = byggMalSql(FS2, "revisjon", { fraRef: "FD2" });
+    expect(s).toContain("INSERT INTO bibliotek_kapitler");
+    expect(s).toContain("'FS', 'Utlegging av løsmasser', 6");
+    expect(s).toMatch(/NOT EXISTS[\s\S]*k\.kode = 'FS'/);
+    const kapIdx = s.indexOf("INSERT INTO bibliotek_kapitler");
+    // Ankre på UPDATE-formen «referanse = 'FS2',» (komma) — guarden bruker «m.referanse = 'FS2'».
+    const refIdx = s.indexOf("referanse = 'FS2',");
+    expect(kapIdx).toBeGreaterThan(-1);
+    expect(kapIdx).toBeLessThan(refIdx);
+    // Guard + standard som FD1-mønsteret.
+    expect(s).toContain("FD2 finnes ikke i NS3420-F");
+    expect(s).toContain("FS2 finnes allerede i NS3420-F");
+  });
+
+  it("FD1 --fra FB2: samme kapittelblokk finnes nå (no-op for eksisterende FD), før UPDATE referanse", () => {
+    // Valgt: FD1 får den samme (no-op) kapittelblokken — uniform kodevei, ikke byte-lik med før FS2.
+    const s = byggMalSql(FD1, "revisjon", { fraRef: "FB2" });
+    expect(s).toContain("INSERT INTO bibliotek_kapitler");
+    expect(s).toContain("'FD', 'Uttak av løsmasser', 3");
+    expect(s.indexOf("INSERT INTO bibliotek_kapitler")).toBeLessThan(s.indexOf("referanse = 'FD1',"));
+  });
+
+  it("FS2 gir NS3420-F og version+1 + DELETE (revisjon etter omkoding)", () => {
+    const s = byggMalSql(FS2, "revisjon", { fraRef: "FD2" });
+    expect(s).toContain("s.kode = 'NS3420-F'");
+    expect(s).not.toContain("NS3420-K");
+    expect(s).toContain("version = version + 1");
+    expect(s).toContain("DELETE FROM bibliotek_mal_objekter");
+  });
+
+  it("registeret finner FS2 (F-mal)", () => {
+    expect(malRegister().get("FS2")?.referanse).toBe("FS2");
   });
 });
