@@ -5,17 +5,23 @@
  * for `<REF>` via `byggBibliotekRader` (@sitedoc/shared) — samme funksjon som seeden bruker,
  * slik at generert SQL og seed ALDRI kan skille lag.
  *
- *   pnpm --filter @sitedoc/db exec tsx prisma/generer-mal-sql.ts <REF> <ny|revisjon>
+ *   pnpm --filter @sitedoc/db exec tsx prisma/generer-mal-sql.ts <REF> <ny|revisjon> [--fra <gammelRef>]
+ *
+ * Standarden slås opp PER MAL (ordre FD1 §5): kapittelKode i `KAPITTEL_DATA_K` → NS3420-K, i
+ * `KAPITTEL_DATA_F` → NS3420-F. K-maler gir byte-lik SQL som før (standarden løses til NS3420-K).
  *
  * `ny`       — INSERT i `bibliotek_maler` (version=1, verifisert=false, mal_innhold='[]') +
  *              INSERT av objekt-radene. Kapittel slås opp på `bibliotek_kapitler.kode` =
- *              malens `kapittelKode` innenfor standarden NS3420-K. Finnes ikke kapittelet
- *              (f.eks. KM ved KM2), opprettes det i SAMME transaksjon fra `KAPITTEL_DATA_K`
+ *              malens `kapittelKode` innenfor malens standard. Finnes ikke kapittelet
+ *              (f.eks. KM ved KM2), opprettes det i SAMME transaksjon fra KAPITTEL_DATA_K/F
  *              (WHERE NOT EXISTS → gjenbrukes hvis det finnes). Avbryter hvis referansen
  *              allerede finnes.
  * `revisjon` — metadata-UPDATE (`version = version + 1`, Int — IKKE tekstfeltet `versjon`) +
  *              DELETE av malens objekt-rader + INSERT av de nye. Avbryter hvis referansen
  *              ikke finnes. Mønster: `kd1-test.sql` (§6a).
+ * `--fra`    — omkoding (ordre FD1 §5): før revisjonen får samme bibliotekrad ny referanse og
+ *              nytt kapittel (lånene beholder id-koblingen), og kilde-/målkapittelets navn rettes
+ *              til normen. Kun sammen med ÉN REF i modus revisjon (f.eks. `FD1 revisjon --fra FB2`).
  *
  * Begge: `BEGIN … COMMIT`, og før `COMMIT` full utskrift etter §6a (`\x on`, metadata + alle
  * objekt-rader i rekkefølge). Resultatet skrives til `<ref>-test.sql` i repo-roten.
@@ -28,8 +34,6 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { byggBibliotekRader, type BibliotekFeltData } from "@sitedoc/shared";
 import * as seed from "./seed-bibliotek";
-
-const STANDARD_KODE = "NS3420-K"; // sentralarkivet er NS 3420-K
 
 export interface MalKonstant {
   kapittelKode: string;
@@ -61,14 +65,35 @@ export function filnavnFor(ref: string): string {
   return `${ref.toLowerCase().replace(/\./g, "")}-test.sql`;
 }
 
-/** Kapittel-metadata (navn, sortering) for en kapittelkode, fra seedens KAPITTEL_DATA_K. */
-function kapittelMeta(kode: string): { navn: string; sortering: number } {
-  const rad = ((seed as { KAPITTEL_DATA_K?: { kode: string; navn: string; sortering: number }[] })
-    .KAPITTEL_DATA_K ?? []).find((k) => k.kode === kode);
-  if (!rad) {
-    throw new Error(`Ukjent kapittelkode «${kode}» — mangler i KAPITTEL_DATA_K (seed-bibliotek.ts).`);
+interface KapittelRad { kode: string; navn: string; sortering: number }
+
+/** Kapittel-arrayene med sin standard-kode. Ordre FD1 §5: standarden slås opp per mal
+ *  (K- eller F-arrayet) i stedet for et hardkodet STANDARD_KODE. */
+function kapittelArrays(): { standard: string; data: KapittelRad[] }[] {
+  const s = seed as { KAPITTEL_DATA_K?: KapittelRad[]; KAPITTEL_DATA_F?: KapittelRad[] };
+  return [
+    { standard: "NS3420-K", data: s.KAPITTEL_DATA_K ?? [] },
+    { standard: "NS3420-F", data: s.KAPITTEL_DATA_F ?? [] },
+  ];
+}
+
+/** Standarden malen hører til, funnet via kapittelKode i K-/F-arrayet (ordre FD1 §5 pkt 1). */
+function standardForMal(mal: MalKonstant): string {
+  for (const { standard, data } of kapittelArrays()) {
+    if (data.some((k) => k.kode === mal.kapittelKode)) return standard;
   }
-  return { navn: rad.navn, sortering: rad.sortering };
+  throw new Error(
+    `Fant ikke standard for kapittel «${mal.kapittelKode}» — mangler i KAPITTEL_DATA_K/F (seed-bibliotek.ts).`,
+  );
+}
+
+/** Kapittel-metadata (navn, sortering) for en kapittelkode, fra seedens KAPITTEL_DATA_K/F. */
+function kapittelMeta(kode: string): { navn: string; sortering: number } {
+  for (const { data } of kapittelArrays()) {
+    const rad = data.find((k) => k.kode === kode);
+    if (rad) return { navn: rad.navn, sortering: rad.sortering };
+  }
+  throw new Error(`Ukjent kapittelkode «${kode}» — mangler i KAPITTEL_DATA_K/F (seed-bibliotek.ts).`);
 }
 
 /**
@@ -83,7 +108,7 @@ function opprettKapittelSql(mal: MalKonstant): string {
 INSERT INTO bibliotek_kapitler (id, standard_id, kode, navn, sortering)
 SELECT gen_random_uuid()::text, s.id, '${kode}', '${sql(navn)}', ${sortering}
 FROM bibliotek_standarder s
-WHERE s.kode = '${STANDARD_KODE}'
+WHERE s.kode = '${standardForMal(mal)}'
   AND NOT EXISTS (
     SELECT 1 FROM bibliotek_kapitler k WHERE k.standard_id = s.id AND k.kode = '${kode}'
   );`;
@@ -148,7 +173,7 @@ INSERT INTO bibliotek_maler
 SELECT gen_random_uuid()::text, k.id, '${sql(ref)}', '${sql(mal.navn)}', '${sql(mal.beskrivelse)}', 1, false, 1, '[]'::jsonb
 FROM bibliotek_kapitler k
 JOIN bibliotek_standarder s ON s.id = k.standard_id
-WHERE k.kode = '${sql(mal.kapittelKode)}' AND s.kode = '${STANDARD_KODE}';
+WHERE k.kode = '${sql(mal.kapittelKode)}' AND s.kode = '${standardForMal(mal)}';
 
 INSERT INTO bibliotek_mal_objekter
   (id, template_id, type, label, config, translations, sort_order, required)
@@ -203,8 +228,102 @@ ${radVerdier(mal)}
 WHERE m.referanse = '${sql(ref)}';`;
 }
 
-function genererRevisjon(mal: MalKonstant): string {
+/** Kapittelkoden en referanse hører til = de innledende bokstavene (FB2→FB, FD1→FD, KC3.1→KC). */
+function kapittelKodeFor(ref: string): string {
+  return ref.match(/^[A-ZÆØÅ]+/)?.[0] ?? "";
+}
+
+/**
+ * Omkoding (ordre FD1 §5 pkt 2–3): samme bibliotekrad får ny referanse og nytt kapittel FØR
+ * revisjonen — lånene beholder id-koblingen. Kjøres kun via `--fra <gammelRef>`. Guard avbryter
+ * med klartekst hvis den gamle referansen mangler (allerede omkodet) eller den nye finnes fra før.
+ * Kapittelnavnene for kilde- og målkapittelet rettes til normen (KAPITTEL_DATA_F), ikke som generell
+ * generatorlogikk, men som del av omkodingen. Alt scopes til malens standard.
+ */
+function omkodingSql(mal: MalKonstant, fraRef: string): string {
+  const std = standardForMal(mal);
+  const nyRef = mal.referanse;
+  const tilKap = mal.kapittelKode;
+  const fraKap = kapittelKodeFor(fraRef);
+  const iStandard = (alias: string) =>
+    `${alias} JOIN bibliotek_kapitler k ON k.id = ${alias}.kapittel_id ` +
+    `JOIN bibliotek_standarder s ON s.id = k.standard_id`;
+  const kapittelId = (kode: string) =>
+    `(SELECT k.id FROM bibliotek_kapitler k JOIN bibliotek_standarder s ON s.id = k.standard_id ` +
+    `WHERE k.kode = '${sql(kode)}' AND s.kode = '${std}')`;
+
+  const kapittelKoder = [...new Set([fraKap, tilKap])].filter(Boolean);
+  const kapittelNavnRetting = kapittelKoder
+    .map((kode) => {
+      const { navn } = kapittelMeta(kode);
+      return `UPDATE bibliotek_kapitler k SET navn = '${sql(navn)}'
+FROM bibliotek_standarder s
+WHERE s.id = k.standard_id AND s.kode = '${std}' AND k.kode = '${sql(kode)}';`;
+    })
+    .join("\n");
+
+  return `-- Omkoding ${fraRef} → ${nyRef} (samme bibliotekrad, ny kode + kapittel; lånene beholder id-koblingen).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM bibliotek_maler ${iStandard("m")}
+    WHERE m.referanse = '${sql(fraRef)}' AND s.kode = '${std}'
+  ) THEN
+    RAISE EXCEPTION '${sql(fraRef)} finnes ikke i ${std} — omkoding kan ikke utføres (allerede omkodet?)';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM bibliotek_maler ${iStandard("m")}
+    WHERE m.referanse = '${sql(nyRef)}' AND s.kode = '${std}'
+  ) THEN
+    RAISE EXCEPTION '${sql(nyRef)} finnes allerede i ${std} — omkoding ville kollidere';
+  END IF;
+END $$;
+
+-- Kapittelnavn rettet til normen (${kapittelKoder.join(", ")}) i ${std}.
+${kapittelNavnRetting}
+
+-- ${fraRef} → ${nyRef}: ny referanse + flytt til kapittel ${tilKap} (samme rad, id uendret).
+UPDATE bibliotek_maler SET
+  referanse = '${sql(nyRef)}',
+  kapittel_id = ${kapittelId(tilKap)}
+WHERE referanse = '${sql(fraRef)}'
+  AND kapittel_id IN (
+    SELECT k.id FROM bibliotek_kapitler k JOIN bibliotek_standarder s ON s.id = k.standard_id
+    WHERE s.kode = '${std}'
+  );`;
+}
+
+/** Ekstra utskrift (ordre FD1 §5 pkt 4): kapittelkode og -navn for malen, i tillegg til §6a-beviset. */
+function kapittelBevisSql(ref: string): string {
+  return `-- Kapittelkode og -navn for malen (ordre FD1 §5 pkt 4).
+SELECT m.referanse, k.kode AS kapittel_kode, k.navn AS kapittel_navn
+  FROM bibliotek_maler m
+  JOIN bibliotek_kapitler k ON k.id = m.kapittel_id
+ WHERE m.referanse = '${sql(ref)}';`;
+}
+
+function genererRevisjon(mal: MalKonstant, fraRef?: string): string {
   const ref = mal.referanse;
+  if (fraRef) {
+    return `-- ${ref} → arkiv (modus REVISJON MED OMKODING fra ${fraRef}, §6a + ordre FD1 §5).
+-- Omkoder ${fraRef}→${ref} (samme rad, lån beholdt), retter kapittelnavn, så revisjon:
+-- UPDATE metadata (version+1) + DELETE gamle objekt-rader + INSERT nye. verifisert=false.
+-- version (Int) bumpes; versjon (String) røres IKKE. Kjøres ÉN gang mot test (§1b pkt 5).
+BEGIN;
+
+${omkodingSql(mal, fraRef)}
+
+${revisjonMutasjon(mal)}
+
+${telling(ref)}
+
+${tekstbevis(ref)}
+
+${kapittelBevisSql(ref)}
+
+COMMIT;
+`;
+  }
   return `-- ${ref}-revisjon → arkiv (modus REVISJON, §6a). Generert fra ${ref}_MAL via byggBibliotekRader.
 -- UPDATE metadata (version+1) + DELETE gamle objekt-rader + INSERT nye. verifisert=false.
 -- version (Int) bumpes; versjon (String) røres IKKE. Kjøres ÉN gang mot test (§1b pkt 5).
@@ -220,8 +339,16 @@ COMMIT;
 `;
 }
 
-export function byggMalSql(mal: MalKonstant, modus: "ny" | "revisjon"): string {
-  return modus === "ny" ? genererNy(mal) : genererRevisjon(mal);
+export function byggMalSql(
+  mal: MalKonstant,
+  modus: "ny" | "revisjon",
+  opts: { fraRef?: string } = {},
+): string {
+  if (modus === "ny") {
+    if (opts.fraRef) throw new Error("Omkoding (--fra) støttes kun i modus revisjon.");
+    return genererNy(mal);
+  }
+  return genererRevisjon(mal, opts.fraRef);
 }
 
 /** Filnavn for en samlet fler-revisjon (ordre §7b pkt 4 — én fil, én transaksjon). */
@@ -262,12 +389,29 @@ const kjørtDirekte =
   realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
 
 if (kjørtDirekte) {
-  const args = process.argv.slice(2);
-  const modus = args.at(-1);
-  const refs = args.slice(0, -1);
+  const raw = process.argv.slice(2);
+  // --fra <gammelRef> (ordre FD1 §5): omkoding før revisjonen. Trekkes ut før posisjonell parsing.
+  let fraRef: string | undefined;
+  const fraIdx = raw.indexOf("--fra");
+  let posisjonelle = raw;
+  if (fraIdx !== -1) {
+    fraRef = raw[fraIdx + 1];
+    if (!fraRef) {
+      console.error("--fra krever en gammel referanse, f.eks. «--fra FB2».");
+      process.exit(1);
+    }
+    posisjonelle = raw.filter((_, i) => i !== fraIdx && i !== fraIdx + 1);
+  }
+  const modus = posisjonelle.at(-1);
+  const refs = posisjonelle.slice(0, -1);
   if (refs.length === 0 || (modus !== "ny" && modus !== "revisjon")) {
-    console.error("Bruk: tsx prisma/generer-mal-sql.ts <REF...> <ny|revisjon>");
+    console.error("Bruk: tsx prisma/generer-mal-sql.ts <REF...> <ny|revisjon> [--fra <gammelRef>]");
     console.error("  Én REF → <ref>-test.sql. Flere REF (kun revisjon) → 7b-retting-test.sql (én transaksjon).");
+    console.error("  --fra <gammelRef>: omkoding (kun én REF + revisjon), f.eks. «FD1 revisjon --fra FB2».");
+    process.exit(1);
+  }
+  if (fraRef && (refs.length !== 1 || modus !== "revisjon")) {
+    console.error("--fra (omkoding) støttes kun med ÉN referanse i modus revisjon.");
     process.exit(1);
   }
   const register = malRegister();
@@ -285,8 +429,9 @@ if (kjørtDirekte) {
   if (maler.length === 1) {
     const mal = maler[0]!;
     const utsti = join(repoRot, filnavnFor(mal.referanse));
-    writeFileSync(utsti, byggMalSql(mal, modus), "utf8");
-    console.log(`Skrev ${filnavnFor(mal.referanse)} (${mal.felter.length} felt, modus ${modus}).`);
+    writeFileSync(utsti, byggMalSql(mal, modus, { fraRef }), "utf8");
+    const omkoding = fraRef ? `, omkoding fra ${fraRef}` : "";
+    console.log(`Skrev ${filnavnFor(mal.referanse)} (${mal.felter.length} felt, modus ${modus}${omkoding}).`);
   } else {
     if (modus !== "revisjon") {
       console.error("Flere referanser støttes kun i modus revisjon.");

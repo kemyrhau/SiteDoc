@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { byggMalSql, byggFlerRevisjonSql, filnavnFor, malRegister } from "./generer-mal-sql";
-import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL } from "./seed-bibliotek";
+import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL } from "./seed-bibliotek";
 
 /**
  * Ren unit-test (ingen DB) for den generelle mal-SQL-generatoren (MAL-METODE §1b pkt 4).
@@ -11,6 +11,7 @@ import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL } from "./seed-bibliotek";
 
 const KD2 = KD2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const KM2 = KM2_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const FD1 = FD1_MAL as unknown as Parameters<typeof byggMalSql>[0];
 
 describe("generer-mal-sql", () => {
   it("ny: version-verdi 1, INGEN DELETE, \\x on", () => {
@@ -118,5 +119,56 @@ describe("byggFlerRevisjonSql", () => {
 
   it("tom liste er en feil", () => {
     expect(() => byggFlerRevisjonSql([])).toThrow();
+  });
+});
+
+// Ordre FD1 §5: standard slås opp per mal (K→NS3420-K, F→NS3420-F), og `--fra` (omkoding)
+// legger en referanse-UPDATE FØR revisjonens DELETE — samme rad, lån beholdt.
+describe("standard per mal + omkoding (--fra)", () => {
+  it("K-mal (ny) gir fortsatt NS3420-K", () => {
+    const s = byggMalSql(KD2, "ny");
+    expect(s).toContain("s.kode = 'NS3420-K'");
+    expect(s).not.toContain("NS3420-F");
+  });
+
+  it("FD1 (omkoding) gir NS3420-F", () => {
+    const s = byggMalSql(FD1, "revisjon", { fraRef: "FB2" });
+    expect(s).toContain("s.kode = 'NS3420-F'");
+    expect(s).not.toContain("NS3420-K");
+  });
+
+  it("--fra: UPDATE ... referanse (omkoding) kommer FØR DELETE av objekt-radene", () => {
+    const s = byggMalSql(FD1, "revisjon", { fraRef: "FB2" });
+    expect(s).toContain("UPDATE bibliotek_maler SET\n  referanse = 'FD1'");
+    expect(s).toContain("WHERE referanse = 'FB2'");
+    const omkodingIdx = s.indexOf("referanse = 'FD1'");
+    const deleteIdx = s.indexOf("DELETE FROM bibliotek_mal_objekter");
+    expect(omkodingIdx).toBeGreaterThan(-1);
+    expect(omkodingIdx).toBeLessThan(deleteIdx);
+  });
+
+  it("--fra: guard avbryter hvis FB2 mangler eller FD1 finnes; retter kapittelnavn og viser kapittel", () => {
+    const s = byggMalSql(FD1, "revisjon", { fraRef: "FB2" });
+    expect(s).toContain("FB2 finnes ikke i NS3420-F");
+    expect(s).toContain("FD1 finnes allerede i NS3420-F");
+    // Kapittelnavn rettet til normen (FB→Markrydding, FD→Uttak av løsmasser).
+    expect(s).toContain("navn = 'Markrydding'");
+    expect(s).toContain("navn = 'Uttak av løsmasser'");
+    // Ekstra kapittel-utskrift (§5 pkt 4).
+    expect(s).toContain("kapittel_navn");
+  });
+
+  it("revisjon UTEN --fra er uendret (ingen omkoding, ingen referanse-UPDATE)", () => {
+    const s = byggMalSql(KD2, "revisjon");
+    expect(s).not.toContain("Omkoding");
+    expect(s).not.toContain("referanse = 'FB2'");
+  });
+
+  it("--fra i modus ny er en feil", () => {
+    expect(() => byggMalSql(FD1, "ny", { fraRef: "FB2" })).toThrow();
+  });
+
+  it("registeret finner FD1 (F-mal) blant de eksporterte *_MAL-konstantene", () => {
+    expect(malRegister().get("FD1")?.referanse).toBe("FD1");
   });
 });
