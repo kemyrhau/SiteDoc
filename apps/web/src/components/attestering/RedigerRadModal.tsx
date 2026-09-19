@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
@@ -486,20 +487,25 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 </Button>
                 {/* T7-5f: grønn farge når harEndringer for å signalere at
                     klikk vil lagre. Samme mønster som AttesteringDetalj_Edit. */}
-                <Button
-                  size="sm"
-                  onClick={handleLagre}
-                  disabled={lagre.isPending || !harEndringer}
-                  className={
-                    harEndringer
-                      ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500"
-                      : ""
-                  }
+                <KnappMedForklaring
+                  sperret={!harEndringer && !lagre.isPending}
+                  forklaring={t("sperret.ingenEndringer")}
                 >
-                  {lagre.isPending
-                    ? t("handling.lagrer")
-                    : t("timer.rediger.lagre")}
-                </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleLagre}
+                    disabled={lagre.isPending || !harEndringer}
+                    className={
+                      harEndringer
+                        ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500"
+                        : ""
+                    }
+                  >
+                    {lagre.isPending
+                      ? t("handling.lagrer")
+                      : t("timer.rediger.lagre")}
+                  </Button>
+                </KnappMedForklaring>
               </div>
             </div>
 

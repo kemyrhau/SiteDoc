@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { AlertTriangle, Plus, Trash2, Info } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { DeaktiverKnapp } from "@/components/deaktiver/DeaktiverKnapp";
@@ -361,21 +362,23 @@ export default function UtleggskategorierSide() {
                           </option>
                         ))}
                       </select>
-                      <Button
-                        variant="secondary"
-                        onClick={() =>
-                          nyOverstyringProsjekt &&
-                          settOverstyring.mutate({
-                            organizationId: orgId,
-                            prosjektId: nyOverstyringProsjekt,
-                            expenseCategoryId: k.id,
-                            ordning: nyOverstyringOrdning as (typeof ORDNINGER)[number],
-                          })
-                        }
-                        disabled={!nyOverstyringProsjekt || settOverstyring.isPending}
-                      >
-                        {t("handling.lagre")}
-                      </Button>
+                      <KnappMedForklaring sperret={!nyOverstyringProsjekt && !settOverstyring.isPending} forklaring={t("sperret.velgProsjekt")}>
+                        <Button
+                          variant="secondary"
+                          onClick={() =>
+                            nyOverstyringProsjekt &&
+                            settOverstyring.mutate({
+                              organizationId: orgId,
+                              prosjektId: nyOverstyringProsjekt,
+                              expenseCategoryId: k.id,
+                              ordning: nyOverstyringOrdning as (typeof ORDNINGER)[number],
+                            })
+                          }
+                          disabled={!nyOverstyringProsjekt || settOverstyring.isPending}
+                        >
+                          {t("handling.lagre")}
+                        </Button>
+                      </KnappMedForklaring>
                       <button
                         onClick={() => setAapenOverstyringFor(null)}
                         className="text-sm text-gray-500 hover:underline"

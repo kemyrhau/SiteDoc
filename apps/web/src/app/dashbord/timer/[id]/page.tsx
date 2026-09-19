@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import {
   ArrowLeft,
   Pencil,
@@ -691,18 +692,23 @@ export default function DagsseddelDetaljSide() {
               {t("timer.detalj.slett")}
             </Button>
           )}
-          <Button
-            onClick={() => {
-              setFeil(null);
-              send.mutate({ id: sheet.id });
-            }}
-            disabled={send.isPending || timerRader.length === 0}
+          <KnappMedForklaring
+            sperret={timerRader.length === 0 && !send.isPending}
+            forklaring={t("sperret.minstEnRad")}
           >
-            <Send className="mr-1 h-4 w-4" />
-            {sheet.status === "returned"
-              ? t("timer.detalj.sendPaaNytt")
-              : t("timer.detalj.sendTilLeder")}
-          </Button>
+            <Button
+              onClick={() => {
+                setFeil(null);
+                send.mutate({ id: sheet.id });
+              }}
+              disabled={send.isPending || timerRader.length === 0}
+            >
+              <Send className="mr-1 h-4 w-4" />
+              {sheet.status === "returned"
+                ? t("timer.detalj.sendPaaNytt")
+                : t("timer.detalj.sendTilLeder")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       )}
 
@@ -2216,20 +2222,27 @@ function TimerRadDialog({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button
-            type="submit"
-            disabled={
-              lagrer ||
-              !lonnsartId ||
-              !aktivitetId ||
-              !timer ||
-              // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2.
-              !fraTid ||
-              !tilTid
+          <KnappMedForklaring
+            sperret={
+              (!lonnsartId || !aktivitetId || !timer || !fraTid || !tilTid) && !lagrer
             }
+            forklaring={t("sperret.timerRad")}
           >
-            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
-          </Button>
+            <Button
+              type="submit"
+              disabled={
+                lagrer ||
+                !lonnsartId ||
+                !aktivitetId ||
+                !timer ||
+                // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2.
+                !fraTid ||
+                !tilTid
+              }
+            >
+              {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       </form>
     </Modal>
@@ -2518,9 +2531,11 @@ function TilleggRadDialog({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button type="submit" disabled={lagrer || !tilleggId}>
-            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
-          </Button>
+          <KnappMedForklaring sperret={!tilleggId && !lagrer} forklaring={t("sperret.velgTillegg")}>
+            <Button type="submit" disabled={lagrer || !tilleggId}>
+              {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       </form>
     </Modal>
@@ -3164,9 +3179,11 @@ function UtleggRadDialog({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button type="submit" disabled={lagrer || !kategoriId}>
-            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
-          </Button>
+          <KnappMedForklaring sperret={!kategoriId && !lagrer} forklaring={t("sperret.velgKategori")}>
+            <Button type="submit" disabled={lagrer || !kategoriId}>
+              {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       </form>
     </Modal>
@@ -3590,12 +3607,17 @@ function MaskinRadDialog({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button
-            type="submit"
-            disabled={lagrer || !vehicleId || !timer || kapasitet.overstiger}
+          <KnappMedForklaring
+            sperret={(!vehicleId || !timer) && !lagrer}
+            forklaring={t("sperret.maskinRad")}
           >
-            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
-          </Button>
+            <Button
+              type="submit"
+              disabled={lagrer || !vehicleId || !timer || kapasitet.overstiger}
+            >
+              {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       </form>
     </Modal>
@@ -3798,13 +3820,15 @@ function NyProsjektDialog({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button
-            type="button"
-            onClick={() => valgtId && onVelg(valgtId)}
-            disabled={!valgtId}
-          >
-            {t("handling.leggTil")}
-          </Button>
+          <KnappMedForklaring sperret={!valgtId} forklaring={t("sperret.velgProsjekt")}>
+            <Button
+              type="button"
+              onClick={() => valgtId && onVelg(valgtId)}
+              disabled={!valgtId}
+            >
+              {t("handling.leggTil")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       </div>
     </Modal>

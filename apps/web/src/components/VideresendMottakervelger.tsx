@@ -18,6 +18,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, ChevronDown, Anchor } from "lucide-react";
 import { Modal } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import type { VideresendMedlem, VideresendValg } from "@/lib/videresend-valg";
 import { mottakerNavnIValg } from "@/lib/videresend-valg";
 
@@ -214,13 +215,18 @@ export function VideresendMottakervelger({
             >
               {t("handling.avbryt")}
             </button>
-            <button
-              onClick={videresendBytte}
-              disabled={!kanSende}
-              className="rounded-lg bg-sitedoc-primary px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            <KnappMedForklaring
+              sperret={kommentar.trim().length === 0 && !erLaster}
+              forklaring={t("sperret.kommentar")}
             >
-              {t("videresend.flyttKnapp", { flyt: bekreftValg.dokumentflytNavn })}
-            </button>
+              <button
+                onClick={videresendBytte}
+                disabled={!kanSende}
+                className="rounded-lg bg-sitedoc-primary px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {t("videresend.flyttKnapp", { flyt: bekreftValg.dokumentflytNavn })}
+              </button>
+            </KnappMedForklaring>
           </div>
         </div>
       </Modal>

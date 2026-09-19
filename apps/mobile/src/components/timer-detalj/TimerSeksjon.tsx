@@ -87,6 +87,7 @@ import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
 import { SplittRadModal } from "./SplittRadModal";
+import { KnappMedForklaring } from "../KnappMedForklaring";
 
 /** P1 (maskin-i-rad): valgfri maskin fra timerrad-modalens maskin-seksjon.
  *  null = ingen maskin valgt (ingen sheet_machine-rad skrives). */
@@ -1671,17 +1672,19 @@ function TimerRadModal({
 
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
-          <Pressable
-            onPress={lagre}
-            disabled={!kanLagre}
-            className={`mt-4 items-center rounded-lg px-6 py-4 ${
-              kanLagre ? "bg-blue-600 active:bg-blue-700" : "bg-blue-300"
-            }`}
-          >
-            <Text className="text-base font-semibold text-white">
-              {t("handling.lagre")}
-            </Text>
-          </Pressable>
+          <KnappMedForklaring sperret={!kanLagre} forklaring={t("sperret.timerRad")}>
+            <Pressable
+              onPress={lagre}
+              disabled={!kanLagre}
+              className={`mt-4 items-center rounded-lg px-6 py-4 ${
+                kanLagre ? "bg-blue-600 active:bg-blue-700" : "bg-blue-300"
+              }`}
+            >
+              <Text className="text-base font-semibold text-white">
+                {t("handling.lagre")}
+              </Text>
+            </Pressable>
+          </KnappMedForklaring>
         </ScrollView>
         </KeyboardAvoidingView>
         <TastaturFerdig />

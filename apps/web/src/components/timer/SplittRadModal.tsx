@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { Button, Modal } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { trpc } from "@/lib/trpc";
 import { RedigerTimerRad } from "./RedigerTimerRad";
 import { RedigerTilleggRad } from "./RedigerTilleggRad";
@@ -445,9 +446,14 @@ export function SplittRadModal(props: Props) {
           <Button variant="secondary" onClick={props.onLukk} disabled={lagre.isPending}>
             {t("handling.avbryt")}
           </Button>
-          <Button onClick={handleLagre} disabled={!erBalansert || radTeller < 2 || lagre.isPending}>
-            {lagre.isPending ? t("handling.lagrer") : t("timer.splitt.lagre")}
-          </Button>
+          <KnappMedForklaring
+            sperret={(!erBalansert || radTeller < 2) && !lagre.isPending}
+            forklaring={t("sperret.splittBalanse")}
+          >
+            <Button onClick={handleLagre} disabled={!erBalansert || radTeller < 2 || lagre.isPending}>
+              {lagre.isPending ? t("handling.lagrer") : t("timer.splitt.lagre")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       </div>
     </Modal>

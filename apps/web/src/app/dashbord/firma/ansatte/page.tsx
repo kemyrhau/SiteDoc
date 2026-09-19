@@ -2,6 +2,7 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Shield, ShieldAlert, User, Pencil, Plus, X, UserMinus, UserCheck, FolderPlus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -91,14 +92,16 @@ export default function FirmaBrukere() {
                 {t("firma.ansatte.visSluttede", { antall: antallSluttede })}
               </label>
             )}
-            <button
-              onClick={() => setInviterÅpen(true)}
-              disabled={!orgId}
-              className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-              {t("firma.ansatte.inviter.knapp")}
-            </button>
+            <KnappMedForklaring sperret={!orgId} forklaring={t("sperret.kreverFirma")}>
+              <button
+                onClick={() => setInviterÅpen(true)}
+                disabled={!orgId}
+                className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" />
+                {t("firma.ansatte.inviter.knapp")}
+              </button>
+            </KnappMedForklaring>
           </div>
         </div>
       </SonetonetSidehode>

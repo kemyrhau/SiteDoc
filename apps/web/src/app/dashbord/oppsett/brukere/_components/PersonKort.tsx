@@ -18,6 +18,7 @@
 import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Modal } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import { X, Pencil, Check, Shield, Plus, CreditCard, Building2 } from "lucide-react";
@@ -575,22 +576,27 @@ export function PersonKort({
             <button onClick={() => setEndreFirmaAapen(false)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">
               {t("handling.avbryt")}
             </button>
-            <button
-              disabled={!nyttFirmaId || !bruker.organization || endreFirmaMutation.isPending}
-              onClick={() => {
-                if (!nyttFirmaId || !bruker.organization) return;
-                endreFirmaMutation.mutate({
-                  projectId: prosjektId,
-                  projectMemberId: medlem.id,
-                  fraOrganizationId: bruker.organization.id,
-                  tilOrganizationId: nyttFirmaId,
-                  modus: firmaModus,
-                });
-              }}
-              className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+            <KnappMedForklaring
+              sperret={(!nyttFirmaId || !bruker.organization) && !endreFirmaMutation.isPending}
+              forklaring={t("sperret.velgFirma")}
             >
-              {t("kontakter.endreFirmaBekreft")}
-            </button>
+              <button
+                disabled={!nyttFirmaId || !bruker.organization || endreFirmaMutation.isPending}
+                onClick={() => {
+                  if (!nyttFirmaId || !bruker.organization) return;
+                  endreFirmaMutation.mutate({
+                    projectId: prosjektId,
+                    projectMemberId: medlem.id,
+                    fraOrganizationId: bruker.organization.id,
+                    tilOrganizationId: nyttFirmaId,
+                    modus: firmaModus,
+                  });
+                }}
+                className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+              >
+                {t("kontakter.endreFirmaBekreft")}
+              </button>
+            </KnappMedForklaring>
           </div>
         </div>
       </Modal>

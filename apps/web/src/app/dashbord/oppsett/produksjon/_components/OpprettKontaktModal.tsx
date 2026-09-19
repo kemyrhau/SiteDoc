@@ -24,6 +24,7 @@
 import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import { Plus, Search, UserPlus } from "lucide-react";
 
@@ -256,14 +257,16 @@ export function OpprettKontaktModal({
                   {k.alleredeITarget ? (
                     <span className="shrink-0 text-xs text-gray-400">{altMedLabel}</span>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => leggTilKandidat(k)}
-                      disabled={sender || (gruppeKontekst && !erAdmin)}
-                      className="shrink-0 rounded-md bg-sitedoc-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-                    >
-                      {laster ? `${t("handling.leggTil")}…` : t("handling.leggTil")}
-                    </button>
+                    <KnappMedForklaring sperret={!!gruppeKontekst && !erAdmin && !sender} forklaring={t("sperret.kreverGruppeAdmin")}>
+                      <button
+                        type="button"
+                        onClick={() => leggTilKandidat(k)}
+                        disabled={sender || (gruppeKontekst && !erAdmin)}
+                        className="shrink-0 rounded-md bg-sitedoc-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                      >
+                        {laster ? `${t("handling.leggTil")}…` : t("handling.leggTil")}
+                      </button>
+                    </KnappMedForklaring>
                   )}
                 </div>
               );

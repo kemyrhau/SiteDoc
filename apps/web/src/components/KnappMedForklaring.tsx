@@ -25,14 +25,21 @@ export function KnappMedForklaring({
   sperret,
   forklaring,
   children,
+  wrapperKlasse,
 }: {
   sperret: boolean;
   forklaring: string;
   children: ReactElement;
+  /**
+   * Valgfri wrapper-klasse for Tooltip-spanet. Default (`relative inline-flex`)
+   * passer innholdsbredde-knapper. Full-bredde-knapper (`w-full`) sender
+   * `"relative flex w-full"` så knappen ikke krymper når den er sperret.
+   */
+  wrapperKlasse?: string;
 }) {
   if (!sperret) return children;
   return (
-    <Tooltip tekst={forklaring} side="top">
+    <Tooltip tekst={forklaring} side="top" wrapperClassName={wrapperKlasse}>
       {children}
     </Tooltip>
   );

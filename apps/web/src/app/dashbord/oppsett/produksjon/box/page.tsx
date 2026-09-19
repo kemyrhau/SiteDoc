@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Input, Spinner, Select } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import {
   FolderOpen,
   ChevronDown,
@@ -1469,16 +1470,18 @@ export default function BoxSide() {
             <Button variant="secondary" onClick={() => setKontraktModal(null)}>
               Avbryt
             </Button>
-            <Button
-              disabled={!valgtKontraktId}
-              onClick={() => {
-                if (kontraktModal && valgtKontraktId) {
-                  settKontraktMut.mutate({ folderId: kontraktModal.id, kontraktId: valgtKontraktId });
-                }
-              }}
-            >
-              Koble
-            </Button>
+            <KnappMedForklaring sperret={!valgtKontraktId} forklaring={t("sperret.velgKontrakt")}>
+              <Button
+                disabled={!valgtKontraktId}
+                onClick={() => {
+                  if (kontraktModal && valgtKontraktId) {
+                    settKontraktMut.mutate({ folderId: kontraktModal.id, kontraktId: valgtKontraktId });
+                  }
+                }}
+              >
+                Koble
+              </Button>
+            </KnappMedForklaring>
           </div>
         </div>
       </Modal>

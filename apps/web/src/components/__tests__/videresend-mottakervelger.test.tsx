@@ -24,6 +24,9 @@ vi.mock("@sitedoc/ui", () => ({
         {children}
       </div>
     ) : null,
+  // KnappMedForklaring (rundt «Flytt til …»-knappen) rendrer Tooltip når kommentar
+  // mangler — passthrough her, så knappen fortsatt finnes i testen.
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 import { VideresendMottakervelger } from "../VideresendMottakervelger";

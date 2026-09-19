@@ -15,6 +15,7 @@ import {
   type TimerKolKey,
 } from "@sitedoc/shared";
 import { Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -1728,32 +1729,38 @@ function TilpassetModal({
             </div>
             <div className="flex flex-wrap gap-2">
               {redigererEksisterende && (
-                <button
-                  type="button"
-                  onClick={onLagreEndring}
-                  disabled={ingenValgt || utenNavn || lagrer}
-                  className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
-                >
-                  {t("firma.timer.rapport.tilpasset.lagre")}
-                </button>
+                <KnappMedForklaring sperret={(ingenValgt || utenNavn) && !lagrer} forklaring={t("sperret.rapportOppsett")}>
+                  <button
+                    type="button"
+                    onClick={onLagreEndring}
+                    disabled={ingenValgt || utenNavn || lagrer}
+                    className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
+                  >
+                    {t("firma.timer.rapport.tilpasset.lagre")}
+                  </button>
+                </KnappMedForklaring>
               )}
-              <button
-                type="button"
-                onClick={() => onLagreSomNy("personlig")}
-                disabled={ingenValgt || utenNavn || lagrer}
-                className="rounded-md border border-sitedoc-primary px-3 py-1.5 text-sm font-medium text-sitedoc-primary hover:bg-sitedoc-primary/5 disabled:opacity-50"
-              >
-                {t("firma.timer.rapport.tilpasset.lagreSomMin")}
-              </button>
-              {kanLagreFirma && (
+              <KnappMedForklaring sperret={(ingenValgt || utenNavn) && !lagrer} forklaring={t("sperret.rapportOppsett")}>
                 <button
                   type="button"
-                  onClick={() => onLagreSomNy("firma")}
+                  onClick={() => onLagreSomNy("personlig")}
                   disabled={ingenValgt || utenNavn || lagrer}
                   className="rounded-md border border-sitedoc-primary px-3 py-1.5 text-sm font-medium text-sitedoc-primary hover:bg-sitedoc-primary/5 disabled:opacity-50"
                 >
-                  {t("firma.timer.rapport.tilpasset.lagreSomFirma")}
+                  {t("firma.timer.rapport.tilpasset.lagreSomMin")}
                 </button>
+              </KnappMedForklaring>
+              {kanLagreFirma && (
+                <KnappMedForklaring sperret={(ingenValgt || utenNavn) && !lagrer} forklaring={t("sperret.rapportOppsett")}>
+                  <button
+                    type="button"
+                    onClick={() => onLagreSomNy("firma")}
+                    disabled={ingenValgt || utenNavn || lagrer}
+                    className="rounded-md border border-sitedoc-primary px-3 py-1.5 text-sm font-medium text-sitedoc-primary hover:bg-sitedoc-primary/5 disabled:opacity-50"
+                  >
+                    {t("firma.timer.rapport.tilpasset.lagreSomFirma")}
+                  </button>
+                </KnappMedForklaring>
               )}
             </div>
             {/* Si HVA som mangler når lagre-knappene er avslått — knappen forklarer
@@ -1812,18 +1819,20 @@ function TilpassetModal({
             >
               {t("firma.timer.rapport.tilpasset.avbryt")}
             </button>
-            <button
-              type="button"
-              onClick={onEksporter}
-              disabled={ingenValgt}
-              className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {/* Knappen sier hva som faktisk skjer (du får en fil), ikke hva vi
-                  IKKE gjør (mikrotekst-standard). Teksten følger valgt filtype. */}
-              {format === "pdf"
-                ? t("firma.timer.rapport.tilpasset.lastNedPdf")
-                : t("firma.timer.rapport.tilpasset.lastNedExcel")}
-            </button>
+            <KnappMedForklaring sperret={ingenValgt} forklaring={t("sperret.velgRadtype")}>
+              <button
+                type="button"
+                onClick={onEksporter}
+                disabled={ingenValgt}
+                className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {/* Knappen sier hva som faktisk skjer (du får en fil), ikke hva vi
+                    IKKE gjør (mikrotekst-standard). Teksten følger valgt filtype. */}
+                {format === "pdf"
+                  ? t("firma.timer.rapport.tilpasset.lastNedPdf")
+                  : t("firma.timer.rapport.tilpasset.lastNedExcel")}
+              </button>
+            </KnappMedForklaring>
           </div>
         </div>
       </div>

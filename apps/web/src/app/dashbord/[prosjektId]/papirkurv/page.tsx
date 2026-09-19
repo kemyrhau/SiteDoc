@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Trash2, RotateCcw, Trash, Eye } from "lucide-react";
 import { Spinner, Button, Modal, StatusBadge } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { formaterNummer, byggObjektTre } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { RapportObjektVisning } from "@/components/RapportObjektVisning";
@@ -221,15 +222,20 @@ export default function PapirkurvSide() {
                 {t("papirkurv.antallValgt", { antall: antallValgt })}
               </span>
               <div className="ml-auto flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => gjenopprettFlere.mutate({ projectId: prosjektId, items: valgteItems })}
-                  disabled={!kanGjenoppretteValgte || bulkKjører}
+                <KnappMedForklaring
+                  sperret={!kanGjenoppretteValgte && !bulkKjører}
+                  forklaring={antallValgt === 0 ? t("sperret.velgMinstEn") : t("sperret.bareEgneDokumenter")}
                 >
-                  <RotateCcw className="mr-1 h-4 w-4" />
-                  {t("papirkurv.gjenopprettValgte")}
-                </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => gjenopprettFlere.mutate({ projectId: prosjektId, items: valgteItems })}
+                    disabled={!kanGjenoppretteValgte || bulkKjører}
+                  >
+                    <RotateCcw className="mr-1 h-4 w-4" />
+                    {t("papirkurv.gjenopprettValgte")}
+                  </Button>
+                </KnappMedForklaring>
                 {erProsjektadmin && (
                   <Button
                     variant="danger"
