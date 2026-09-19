@@ -9,11 +9,11 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-19c · develop `b9d8ddec` (KM2-mal [no-ff] + sperrede-knapper [no-ff, 57 filer]) · db 25→34 · mobil 16→18 · web 292 STILLE · i18n 4627→4662 (+35, alle 15 filer identisk, 0 nøkler fjernet) · CLAUDE.md-strammingen `3dc7c9bc` også inne · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-19d · develop `7212edb3` (to docs-brancher [no-ff], rene docs — §7b-retting-ordre + statusfarger-notat/ordre) · GATE STILLE: db 34 · api 511 · pdf 124 · shared 824 · web 292 · mobil 18 · integrasjon 61 · 7/7 (uendret — ingen kode rørt) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
+| **redesign** | `SiteDoc-redesign` | `feat/statusfarger-paritet` (ny) | 🔵 **ORDRE GITT** — statusfarger-paritet (`docs/redesign/ordre-statusfarger-paritet-design-2026-09-19.md`, inne på develop `7212edb3`) | bygger |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | KM2 merget `a59d0e44` (KD2 `c1e29dc9`) | ⚪ **LEDIG** | — |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
@@ -35,7 +35,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | 🔵 **KM2 — KD2 er nå inne → mal-Opus kan starte** (han sjekker selv). Går på maløypa (design → mal-Opus direkte). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts`. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | KD2 inne (nå) | design → mal-Opus |
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
-| 🔴 **KC3.1 §7b-runde** — undertittel «NS3420-K KC3.1 — Oppstøtting og oppbinding» er normens EGEN overskriftstekst. §7b (opphavsrett) krever navn = **kode + egne ord**, med «Faglig grunnlag: NS 3420-K:2024» som egen linje i beskrivelsen — ingen normtekst i navn/undertittel | Nå (§7b i develop `9c83f547`) | mal-Opus |
+| ✅ **§7b-RETTING ORDRE MERGET `e3dc2566`** (2026-09-19d) — KA7, KB2, KB4, KB6 **og KC3.1** i én samlet runde (`docs/redesign/ordre-7b-retting-fem-maler-design-2026-09-19.md`, Kenneth-gatet). Lukker den gamle KC3.1-§7b-raden (sto siden 18.09). Allerede gitt mal-Opus via maløypa (branch `feat/mal-7b-retting`, han sjekker selv) | Ordre gitt | design → mal-Opus |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 Ulåst 15.09 av lese/redigere-aksen | Nå | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen i rettighetsmatrisen + kapittel/underkapittel/post | Med sikkerhetsrunden | — |
 | **`06-videresend`** — eneste e2e-spec som gjenstår. Var ikke drift: handlingen var fjernet fra menyen | Etter Kenneths visuelle gate av personvalget | dokgen |
@@ -45,6 +45,23 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-19d — To docs-brancher merget. Rene docs, ingen migrering, ingen kode. develop `7212edb3`.
+
+**To docs-brancher, begge `--no-ff`, ingen felles filer, begge ff fra `c7349cd6`.** Ingen kode rørt → **gaten står HELT stille** (db 34 · api 511 · pdf 124 · shared 824 · web 292 · mobil 18 · integrasjon 61 · 7/7). Ingen test kjørt (docs-only).
+
+### §7b-retting-ordre (`e3dc2566`) — KA7, KB2, KB4, KB6, KC3.1
+- `docs/redesign/ordre-7b-retting-fem-maler-design-2026-09-19.md` + `MAL-PLAN.md`-loggrad. Tekst-only retting av fem maler; KC3.1 minimalt. Kenneth-gatet.
+- **Allerede gitt mal-Opus via maløypa** (design → mal-Opus direkte), branch `feat/mal-7b-retting`. Merget her lukker den gamle KC3.1-§7b-raden i køen (sto siden 18.09).
+
+### Statusfarger-paritet (`7212edb3`) — designnotat + ordre
+- `docs/redesign/designnotat-statusfarger-paritet-design-2026-09-19.md` (én fargetabell web+mobil, fem farge-familier) + `ordre-...md`. **Kenneth-gatet § 8.**
+- **To vedtak:** (1) `responded` er **blå** i lister, gul bare på detaljside for godkjenner. (2) 🔴 `in_progress` heter **«Under arbeid» for ALLE** — dette **overstyrer** runde-2-vedtaket 2026-08-02 (Q1=A: «Mottatt»). Ført som overstyring i § 8, ikke som parallelt vedtak.
+- **Ordren relayes til redesign** (LEDIG) av cowork nå — omfang: `perspektivEtikett` (NOEYTRAL-eksport), web-`StatusBadge` + mobil `StatusMerkelapp`/`STATUS_MAP` utledes fra NOEYTRAL, mobil detaljsider tar i bruk `perspektivEtikett`.
+
+**BACKLOG § 1:** ny post fra designs etterkontroll av kontraktssaken — `aria-label` `dokumentklasse.segmentTittel` sier «Dokumenttype», maldialogen sier «Dokumentklasse» (samme begrep, to ord).
 
 ---
 

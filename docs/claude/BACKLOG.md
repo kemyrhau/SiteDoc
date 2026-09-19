@@ -247,6 +247,12 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 - **Videresend-kommentaren** er påkrevd uten å være merket påkrevd.
 - **Google-innlogging mobil kan bli varig grå** — kontrollplan har runden.
 
+### `aria-label` og synlig etikett bruker to ord om samme begrep (design, etterkontroll kontraktssak 2026-09-19)
+
+- **`dokumentklasse.segmentTittel` (`aria-label`) sier «Dokumenttype», maldialogen sier «Dokumentklasse».**
+  Samme begrep, to ord. Liten, men nettopp slike skaper tvil om de betyr noe forskjellig. Harmoniser til
+  ett ord (maldialogens «Dokumentklasse» er den synlige, nyeste). i18n-nøkkel i begge språkfiler.
+
 ### 🔴 Ingen vei til å FJERNE koblingen mellom et kontrollpunkt og en sjekkliste (målt 2026-09-11)
 
 **Målt:** `kontrollplan.koblePunkt` (`apps/api/src/routes/kontrollplan.ts:551`) setter
