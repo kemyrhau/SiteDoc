@@ -9,7 +9,9 @@
  *
  * `ny`       — INSERT i `bibliotek_maler` (version=1, verifisert=false, mal_innhold='[]') +
  *              INSERT av objekt-radene. Kapittel slås opp på `bibliotek_kapitler.kode` =
- *              malens `kapittelKode` innenfor standarden NS3420-K. Avbryter hvis referansen
+ *              malens `kapittelKode` innenfor standarden NS3420-K. Finnes ikke kapittelet
+ *              (f.eks. KM ved KM2), opprettes det i SAMME transaksjon fra `KAPITTEL_DATA_K`
+ *              (WHERE NOT EXISTS → gjenbrukes hvis det finnes). Avbryter hvis referansen
  *              allerede finnes.
  * `revisjon` — metadata-UPDATE (`version = version + 1`, Int — IKKE tekstfeltet `versjon`) +
  *              DELETE av malens objekt-rader + INSERT av de nye. Avbryter hvis referansen
@@ -57,6 +59,34 @@ function sql(s: string): string {
 
 export function filnavnFor(ref: string): string {
   return `${ref.toLowerCase().replace(/\./g, "")}-test.sql`;
+}
+
+/** Kapittel-metadata (navn, sortering) for en kapittelkode, fra seedens KAPITTEL_DATA_K. */
+function kapittelMeta(kode: string): { navn: string; sortering: number } {
+  const rad = ((seed as { KAPITTEL_DATA_K?: { kode: string; navn: string; sortering: number }[] })
+    .KAPITTEL_DATA_K ?? []).find((k) => k.kode === kode);
+  if (!rad) {
+    throw new Error(`Ukjent kapittelkode «${kode}» — mangler i KAPITTEL_DATA_K (seed-bibliotek.ts).`);
+  }
+  return { navn: rad.navn, sortering: rad.sortering };
+}
+
+/**
+ * SQL som oppretter kapittelet hvis det mangler, ellers gjenbruker det. WHERE NOT EXISTS gjør
+ * INSERT-en til en no-op når kapittelet finnes (idempotent), slik at den etterfølgende mal-
+ * INSERT-en alltid finner et kapittel å henge malen på. Kun for modus `ny` (ordre KM2 §4).
+ */
+function opprettKapittelSql(mal: MalKonstant): string {
+  const { navn, sortering } = kapittelMeta(mal.kapittelKode);
+  const kode = sql(mal.kapittelKode);
+  return `-- Opprett kapittel ${kode} hvis det mangler (gjenbrukes ellers — WHERE NOT EXISTS).
+INSERT INTO bibliotek_kapitler (id, standard_id, kode, navn, sortering)
+SELECT gen_random_uuid()::text, s.id, '${kode}', '${sql(navn)}', ${sortering}
+FROM bibliotek_standarder s
+WHERE s.kode = '${STANDARD_KODE}'
+  AND NOT EXISTS (
+    SELECT 1 FROM bibliotek_kapitler k WHERE k.standard_id = s.id AND k.kode = '${kode}'
+  );`;
 }
 
 /** VALUES-radene (heading- + felt-rader) fra mal-konstanten — byte-eksakt via byggBibliotekRader. */
@@ -110,6 +140,8 @@ BEGIN
     RAISE EXCEPTION '${sql(ref)} finnes allerede i arkivet — bruk modus revisjon';
   END IF;
 END $$;
+
+${opprettKapittelSql(mal)}
 
 INSERT INTO bibliotek_maler
   (id, kapittel_id, referanse, navn, beskrivelse, prioritet, verifisert, version, mal_innhold)

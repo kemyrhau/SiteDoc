@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { byggMalSql, filnavnFor, malRegister } from "./generer-mal-sql";
-import { KD2_MAL } from "./seed-bibliotek";
+import { KD2_MAL, KM2_MAL } from "./seed-bibliotek";
 
 /**
  * Ren unit-test (ingen DB) for den generelle mal-SQL-generatoren (MAL-METODE §1b pkt 4).
@@ -10,6 +10,7 @@ import { KD2_MAL } from "./seed-bibliotek";
  */
 
 const KD2 = KD2_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const KM2 = KM2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 
 describe("generer-mal-sql", () => {
   it("ny: version-verdi 1, INGEN DELETE, \\x on", () => {
@@ -47,5 +48,30 @@ describe("generer-mal-sql", () => {
 
   it("registeret finner KD2 blant de eksporterte *_MAL-konstantene", () => {
     expect(malRegister().get("KD2")?.referanse).toBe("KD2");
+  });
+
+  // Ordre KM2 §4: modus `ny` skal opprette et manglende kapittel i samme transaksjon,
+  // og gjenbruke det hvis det finnes. Begge tilfeller emitterer samme idempotente INSERT
+  // (WHERE NOT EXISTS) — testen dekker kapittel som IKKE finnes (KM) og som finnes (KD).
+  it("ny: oppretter manglende kapittel KM i samme transaksjon (idempotent, WHERE NOT EXISTS)", () => {
+    const s = byggMalSql(KM2, "ny");
+    expect(s).toContain("INSERT INTO bibliotek_kapitler");
+    expect(s).toContain("'KM', 'Murer i terreng', 5");
+    // Idempotent: gjenbrukes hvis det finnes.
+    expect(s).toMatch(/NOT EXISTS[\s\S]*bibliotek_kapitler k WHERE k\.standard_id = s\.id AND k\.kode = 'KM'/);
+    // Kapittel-INSERT kommer FØR mal-INSERT (rekkefølge — malen må ha et kapittel å henge på).
+    expect(s.indexOf("INSERT INTO bibliotek_kapitler")).toBeLessThan(s.indexOf("INSERT INTO bibliotek_maler"));
+  });
+
+  it("ny: eksisterende kapittel KD gjenbrukes — samme idempotente INSERT emitteres", () => {
+    const s = byggMalSql(KD2, "ny");
+    expect(s).toContain("INSERT INTO bibliotek_kapitler");
+    expect(s).toContain("'KD', 'Utendørsbelegg, kanter, renner', 4");
+    expect(s).toMatch(/NOT EXISTS[\s\S]*k\.kode = 'KD'/);
+  });
+
+  it("revisjon rører aldri kapittel-tabellen (kapittelet finnes allerede)", () => {
+    expect(byggMalSql(KM2, "revisjon")).not.toContain("bibliotek_kapitler");
+    expect(byggMalSql(KD2, "revisjon")).not.toContain("bibliotek_kapitler");
   });
 });
