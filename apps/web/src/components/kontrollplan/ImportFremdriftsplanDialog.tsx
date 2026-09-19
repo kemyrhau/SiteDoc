@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import {
   X,
@@ -577,14 +578,19 @@ export function ImportFremdriftsplanDialog({
             </button>
 
             {steg === 1 && (
-              <button
-                onClick={() => { initSteg2(); setSteg(2); }}
-                disabled={selectedUIDs.size === 0}
-                className="flex items-center gap-1 px-4 py-1.5 bg-sitedoc-primary text-white text-sm rounded hover:bg-sitedoc-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              <KnappMedForklaring
+                sperret={selectedUIDs.size === 0}
+                forklaring={t("sperret.velgMinstEn")}
               >
-                {t("kontrollplan.importNeste")}
-                <ArrowRight className="h-3.5 w-3.5" />
-              </button>
+                <button
+                  onClick={() => { initSteg2(); setSteg(2); }}
+                  disabled={selectedUIDs.size === 0}
+                  className="flex items-center gap-1 px-4 py-1.5 bg-sitedoc-primary text-white text-sm rounded hover:bg-sitedoc-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {t("kontrollplan.importNeste")}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </KnappMedForklaring>
             )}
 
             {steg === 2 && (
@@ -598,14 +604,19 @@ export function ImportFremdriftsplanDialog({
             )}
 
             {steg === 3 && (
-              <button
-                onClick={() => setSteg("oppsummering")}
-                disabled={importPunkter.filter((p) => p.faggruppeId).length === 0}
-                className="flex items-center gap-1 px-4 py-1.5 bg-sitedoc-primary text-white text-sm rounded hover:bg-sitedoc-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              <KnappMedForklaring
+                sperret={importPunkter.filter((p) => p.faggruppeId).length === 0}
+                forklaring={t("sperret.tilordneFaggruppe")}
               >
-                {t("kontrollplan.importOppsummering")}
-                <ArrowRight className="h-3.5 w-3.5" />
-              </button>
+                <button
+                  onClick={() => setSteg("oppsummering")}
+                  disabled={importPunkter.filter((p) => p.faggruppeId).length === 0}
+                  className="flex items-center gap-1 px-4 py-1.5 bg-sitedoc-primary text-white text-sm rounded hover:bg-sitedoc-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {t("kontrollplan.importOppsummering")}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </KnappMedForklaring>
             )}
 
             {steg === "oppsummering" && (

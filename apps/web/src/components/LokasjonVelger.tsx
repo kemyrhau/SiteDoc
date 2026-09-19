@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, Button } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { harTegningsmarkor } from "@sitedoc/shared";
@@ -462,9 +463,11 @@ export function LokasjonVelger({
           )}
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <Button onClick={handleLagre} disabled={!valgtTegningId}>
-              {t("handling.lagre")}
-            </Button>
+            <KnappMedForklaring sperret={!valgtTegningId} forklaring={t("sperret.velgTegning")}>
+              <Button onClick={handleLagre} disabled={!valgtTegningId}>
+                {t("handling.lagre")}
+              </Button>
+            </KnappMedForklaring>
             <Button variant="secondary" onClick={() => setOpen(false)}>
               {t("handling.avbryt")}
             </Button>

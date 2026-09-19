@@ -43,6 +43,7 @@ import { AUTH_CONFIG } from "../../config/auth";
 import { trpc } from "../../lib/trpc";
 import type { UtleggRad, Utleggskategori } from "../../types/timer-detalj";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
+import { KnappMedForklaring } from "../KnappMedForklaring";
 
 /**
  * UtleggSeksjon (U4) — registrering av utlegg/fakturert på mobil, mockup 8c.
@@ -562,6 +563,15 @@ function UtleggRadModal({
     return null;
   }, [erRedigering, valgtKategoriId, ordning, belopTall, pendingFoto, t]);
 
+  // Sperret pga. manglende kategori/beløp → forklar under knappen. Kvitterings-
+  // tilfellet har alt sin egen hint (:818), og `arbeider` er en mutasjon (spinner
+  // er signalet) — begge holdes utenfor. Sammenlikner mot samme `t()`-verdier som
+  // `lagreGatetAv` returnerer, så det følger gate-logikken uten å duplisere den.
+  const sperretUtlegg =
+    !arbeider &&
+    (lagreGatetAv === t("timer.feil.kategoriPaakrevd") ||
+      lagreGatetAv === t("timer.feil.belopPaakrevd"));
+
   async function lagre() {
     setFeil(null);
     if (lagreGatetAv) {
@@ -802,18 +812,20 @@ function UtleggRadModal({
 
             {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
-            <Pressable
-              onPress={lagre}
-              disabled={!!lagreGatetAv || arbeider}
-              className={`mt-4 items-center rounded-lg px-6 py-4 ${
-                lagreGatetAv || arbeider ? "bg-gray-300" : "bg-blue-600 active:bg-blue-700"
-              }`}
-              style={{ minHeight: 44 }}
-            >
-              <Text className="text-base font-semibold text-white">
-                {t("handling.lagre")}
-              </Text>
-            </Pressable>
+            <KnappMedForklaring sperret={sperretUtlegg} forklaring={t("sperret.utleggKategoriBelop")}>
+              <Pressable
+                onPress={lagre}
+                disabled={!!lagreGatetAv || arbeider}
+                className={`mt-4 items-center rounded-lg px-6 py-4 ${
+                  lagreGatetAv || arbeider ? "bg-gray-300" : "bg-blue-600 active:bg-blue-700"
+                }`}
+                style={{ minHeight: 44 }}
+              >
+                <Text className="text-base font-semibold text-white">
+                  {t("handling.lagre")}
+                </Text>
+              </Pressable>
+            </KnappMedForklaring>
             {/* Gate-forklaring (mockup 8c): «Lagre aktiveres når bildet er tatt». */}
             {!erRedigering && ordning && kreverKvittering(ordning) && !pendingFoto && (
               <Text className="text-center text-xs text-gray-400">

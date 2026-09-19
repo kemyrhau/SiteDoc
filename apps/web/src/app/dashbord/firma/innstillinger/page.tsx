@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Save, HelpCircle, X, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
@@ -252,14 +253,19 @@ export default function FirmaInnstillinger() {
 
         {/* Lagre-knapp */}
         <div className="mt-6 flex items-center gap-3">
-          <button
-            onClick={lagre}
-            disabled={!harEndringer || !navnGyldig || !epostGyldig || oppdater.isPending}
-            className="inline-flex items-center gap-2 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          <KnappMedForklaring
+            sperret={(!harEndringer || !navnGyldig || !epostGyldig) && !oppdater.isPending}
+            forklaring={!harEndringer ? t("sperret.ingenEndringer") : t("sperret.rettNavnEpost")}
           >
-            <Save className="h-4 w-4" />
-            {oppdater.isPending ? "Lagrer..." : "Lagre endringer"}
-          </button>
+            <button
+              onClick={lagre}
+              disabled={!harEndringer || !navnGyldig || !epostGyldig || oppdater.isPending}
+              className="inline-flex items-center gap-2 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {oppdater.isPending ? "Lagrer..." : "Lagre endringer"}
+            </button>
+          </KnappMedForklaring>
           {oppdater.isSuccess && (
             <p className="text-sm text-green-600">Endringer lagret</p>
           )}
@@ -1114,16 +1120,21 @@ function StandardArbeidstidSeksjon() {
       )}
 
       <div className="mt-4 flex justify-end">
-        <button
-          type="button"
-          onClick={lagre}
-          disabled={!skitten || !validBeløp || oppdater.isPending}
-          className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+        <KnappMedForklaring
+          sperret={(!skitten || !validBeløp) && !oppdater.isPending}
+          forklaring={!skitten ? t("sperret.ingenEndringer") : t("sperret.gyldigBelop")}
         >
-          {oppdater.isPending
-            ? t("handling.lagrer")
-            : t("handling.lagre")}
-        </button>
+          <button
+            type="button"
+            onClick={lagre}
+            disabled={!skitten || !validBeløp || oppdater.isPending}
+            className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {oppdater.isPending
+              ? t("handling.lagrer")
+              : t("handling.lagre")}
+          </button>
+        </KnappMedForklaring>
       </div>
 
       {oppdater.isError && (
@@ -1476,14 +1487,16 @@ function ReiseSeksjon() {
       </label>
 
       <div className="mt-4 flex justify-end">
-        <button
-          type="button"
-          onClick={lagre}
-          disabled={!skitten || oppdater.isPending}
-          className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {oppdater.isPending ? t("handling.lagrer") : t("handling.lagre")}
-        </button>
+        <KnappMedForklaring sperret={!skitten && !oppdater.isPending} forklaring={t("sperret.ingenEndringer")}>
+          <button
+            type="button"
+            onClick={lagre}
+            disabled={!skitten || oppdater.isPending}
+            className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {oppdater.isPending ? t("handling.lagrer") : t("handling.lagre")}
+          </button>
+        </KnappMedForklaring>
       </div>
 
       {oppdater.isError && (
@@ -1599,14 +1612,19 @@ function ReiseSeksjon() {
         )}
 
         <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            onClick={lagreGrenser}
-            disabled={!grenseSkitten || grenseDuplikat || settGrenser.isPending}
-            className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          <KnappMedForklaring
+            sperret={(!grenseSkitten || grenseDuplikat) && !settGrenser.isPending}
+            forklaring={!grenseSkitten ? t("sperret.ingenEndringer") : t("sperret.grenseDuplikat")}
           >
-            {settGrenser.isPending ? t("handling.lagrer") : t("handling.lagre")}
-          </button>
+            <button
+              type="button"
+              onClick={lagreGrenser}
+              disabled={!grenseSkitten || grenseDuplikat || settGrenser.isPending}
+              className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {settGrenser.isPending ? t("handling.lagrer") : t("handling.lagre")}
+            </button>
+          </KnappMedForklaring>
         </div>
         {settGrenser.isError && (
           <p className="mt-3 text-sm text-red-500">{settGrenser.error.message}</p>

@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput, Badge } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download, RefreshCw, FileText, ClipboardList, Scale } from "lucide-react";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
@@ -495,32 +496,36 @@ export function MalListe({
         </button>
 
         {/* Rediger */}
-        <button
-          onClick={apneRediger}
-          disabled={!harValg}
-          className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
-            harValg
-              ? "text-gray-600 hover:text-gray-900"
-              : "text-gray-300 cursor-not-allowed"
-          }`}
-        >
-          <Pencil className="h-4 w-4" />
-          {t("handling.rediger")}
-        </button>
+        <KnappMedForklaring sperret={!harValg} forklaring={t("sperret.velgIListe")}>
+          <button
+            onClick={apneRediger}
+            disabled={!harValg}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
+              harValg
+                ? "text-gray-600 hover:text-gray-900"
+                : "text-gray-300 cursor-not-allowed"
+            }`}
+          >
+            <Pencil className="h-4 w-4" />
+            {t("handling.rediger")}
+          </button>
+        </KnappMedForklaring>
 
         {/* Slett */}
-        <button
-          onClick={() => setVisSlettBekreftelse(true)}
-          disabled={!harValg}
-          className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
-            harValg
-              ? "text-gray-600 hover:text-red-600"
-              : "text-gray-300 cursor-not-allowed"
-          }`}
-        >
-          <Trash2 className="h-4 w-4" />
-          {t("handling.slett")}
-        </button>
+        <KnappMedForklaring sperret={!harValg} forklaring={t("sperret.velgIListe")}>
+          <button
+            onClick={() => setVisSlettBekreftelse(true)}
+            disabled={!harValg}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
+              harValg
+                ? "text-gray-600 hover:text-red-600"
+                : "text-gray-300 cursor-not-allowed"
+            }`}
+          >
+            <Trash2 className="h-4 w-4" />
+            {t("handling.slett")}
+          </button>
+        </KnappMedForklaring>
 
         {/* Mer-meny */}
         <Dropdown

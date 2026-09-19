@@ -7,6 +7,7 @@ import { trpc } from "../../lib/trpc";
 import { RadCheckbox } from "./RadCheckbox";
 import { ReturnerModal } from "./ReturnerModal";
 import { isoTidspunktTilHHMM, formatNorskDato } from "../../utils/dato";
+import { KnappMedForklaring } from "../KnappMedForklaring";
 
 type RadBase = {
   id: string;
@@ -113,6 +114,8 @@ export function AttesteringDetaljMobil({
 
   const antallValgt = valgteTimer.size + valgteTillegg.size + valgteMaskin.size;
   const kanHandle = sheet?.status === "sent" && antallValgt > 0;
+  // Sedelen kan attesteres, men ingen rad er huket av → forklar det under raden.
+  const ingenRadValgt = sheet?.status === "sent" && antallValgt === 0;
   const totaltimer = timerRader.reduce((acc, r) => acc + tilTall(r.timer), 0);
 
   function toggle(
@@ -364,6 +367,7 @@ export function AttesteringDetaljMobil({
         <Text className="mb-2 text-center text-xs text-gray-500">
           {t("timer.attestering.radValg.antallValgt", { antall: antallValgt })}
         </Text>
+        <KnappMedForklaring sperret={ingenRadValgt} forklaring={t("sperret.velgMinstEn")}>
         <View className="flex-row gap-2">
           <Pressable
             onPress={() => setReturnerVises(true)}
@@ -392,6 +396,7 @@ export function AttesteringDetaljMobil({
             </Text>
           </Pressable>
         </View>
+        </KnappMedForklaring>
       </View>
 
       {returnerVises && (

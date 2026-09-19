@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { MoreVertical, Settings, Printer, Download, Check, ArrowRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
@@ -227,17 +228,23 @@ export default function ProsjektOversikt() {
               </button>
               {merMenyAapen && (
                 <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-xl">
-                  <button
-                    onClick={() => {
-                      setMerMenyAapen(false);
-                      router.push("/dashbord/oppsett");
-                    }}
-                    disabled={!erAdmin}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  <KnappMedForklaring
+                    sperret={!erAdmin}
+                    forklaring={t("sperret.kreverProsjektAdmin")}
+                    wrapperKlasse="relative flex w-full"
                   >
-                    <Settings className="h-4 w-4" />
-                    {t("dashbord.prosjektinnstillinger")}
-                  </button>
+                    <button
+                      onClick={() => {
+                        setMerMenyAapen(false);
+                        router.push("/dashbord/oppsett");
+                      }}
+                      disabled={!erAdmin}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Settings className="h-4 w-4" />
+                      {t("dashbord.prosjektinnstillinger")}
+                    </button>
+                  </KnappMedForklaring>
                   <button
                     onClick={() => {
                       setMerMenyAapen(false);

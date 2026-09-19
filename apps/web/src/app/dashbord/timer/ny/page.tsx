@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Button, Input, Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { STANDARD_ARBEIDSTID_FALLBACK } from "@sitedoc/shared";
 import { ArrowLeft } from "lucide-react";
 
@@ -335,9 +336,11 @@ export default function NyDagsseddelSide() {
             >
               {t("handling.avbryt")}
             </Button>
-            <Button type="submit" disabled={opprett.isPending || !projectId}>
-              {opprett.isPending ? t("handling.lagrer") : t("timer.opprett")}
-            </Button>
+            <KnappMedForklaring sperret={!projectId && !opprett.isPending} forklaring={t("sperret.velgProsjekt")}>
+              <Button type="submit" disabled={opprett.isPending || !projectId}>
+                {opprett.isPending ? t("handling.lagrer") : t("timer.opprett")}
+              </Button>
+            </KnappMedForklaring>
           </div>
         </div>
       </form>

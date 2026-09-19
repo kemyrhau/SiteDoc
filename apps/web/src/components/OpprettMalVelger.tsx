@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 
 /**
  * Unifisert opprett-velger (Funn C, 2026-08-03; gruppering v2, 2026-08-04) — ÉN interaksjonskilde
@@ -234,14 +235,19 @@ export function OpprettMalVelger({
       {footer}
 
       <div className="flex pt-1">
-        <Button
-          data-testid="opprettvelger-opprett"
-          loading={opprettPending}
-          disabled={flate.length === 0}
-          onClick={velgMarkør}
+        <KnappMedForklaring
+          sperret={flate.length === 0}
+          forklaring={t("sperret.plasserMarkor")}
         >
-          {t("handling.opprett")}
-        </Button>
+          <Button
+            data-testid="opprettvelger-opprett"
+            loading={opprettPending}
+            disabled={flate.length === 0}
+            onClick={velgMarkør}
+          >
+            {t("handling.opprett")}
+          </Button>
+        </KnappMedForklaring>
       </div>
     </div>
   );

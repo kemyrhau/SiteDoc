@@ -14,6 +14,7 @@ import {
 } from "@sitedoc/shared";
 import { harMeningsfullLabel } from "@sitedoc/pdf";
 import { Input, Button, Badge } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import type { MalObjekt } from "./DraggbartFelt";
 
@@ -444,15 +445,21 @@ export function FeltKonfigurasjon({
       </div>
 
       <div className="mt-6">
-        <Button
-          onClick={handleLagre}
-          disabled={!harEndringer}
-          loading={erLagrer}
-          size="sm"
-          className="w-full"
+        <KnappMedForklaring
+          sperret={!harEndringer && !erLagrer}
+          forklaring={t("sperret.ingenEndringer")}
+          wrapperKlasse="relative flex w-full"
         >
-          {t("prosjektoppsett.lagreEndringer")}
-        </Button>
+          <Button
+            onClick={handleLagre}
+            disabled={!harEndringer}
+            loading={erLagrer}
+            size="sm"
+            className="w-full"
+          >
+            {t("prosjektoppsett.lagreEndringer")}
+          </Button>
+        </KnappMedForklaring>
       </div>
     </aside>
   );

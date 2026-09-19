@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { REISE_LONNSART_REGEX } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Plus, Pencil, Star } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { DeaktiverKnapp } from "@/components/deaktiver/DeaktiverKnapp";
@@ -521,9 +522,11 @@ function LonnsartDialog({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button type="submit" disabled={lagrer || !navn.trim()}>
-            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
-          </Button>
+          <KnappMedForklaring sperret={!navn.trim() && !lagrer} forklaring={t("sperret.navn")}>
+            <Button type="submit" disabled={lagrer || !navn.trim()}>
+              {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       </form>
     </Modal>

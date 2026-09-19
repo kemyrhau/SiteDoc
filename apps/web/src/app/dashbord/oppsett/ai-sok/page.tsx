@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import {
   Brain,
@@ -204,14 +205,16 @@ export default function AiSokSide() {
                 {t("aiSok.stopp")}
               </Button>
             ) : (
-              <Button
-                size="sm"
-                onClick={() => genererMut.mutate({ projectId: prosjektId! })}
-                disabled={genererMut.isPending || !harApiNøkkel}
-              >
-                <Play className="mr-1.5 h-3.5 w-3.5" />
-                {status.ventende > 0 ? t("aiSok.generer") : t("aiSok.regenAlle")}
-              </Button>
+              <KnappMedForklaring sperret={!harApiNøkkel && !genererMut.isPending} forklaring={t("sperret.apiNokkel")}>
+                <Button
+                  size="sm"
+                  onClick={() => genererMut.mutate({ projectId: prosjektId! })}
+                  disabled={genererMut.isPending || !harApiNøkkel}
+                >
+                  <Play className="mr-1.5 h-3.5 w-3.5" />
+                  {status.ventende > 0 ? t("aiSok.generer") : t("aiSok.regenAlle")}
+                </Button>
+              </KnappMedForklaring>
             )}
           </div>
 
@@ -422,12 +425,14 @@ export default function AiSokSide() {
 
       {/* Lagre-knapp */}
       <div className="flex items-center gap-3">
-        <Button
-          onClick={lagreInnstillinger}
-          disabled={!harEndringer || oppdaterMut.isPending}
-        >
-          {oppdaterMut.isPending ? t("handling.lagrer") : t("aiSok.lagreInnstillinger")}
-        </Button>
+        <KnappMedForklaring sperret={!harEndringer && !oppdaterMut.isPending} forklaring={t("sperret.ingenEndringer")}>
+          <Button
+            onClick={lagreInnstillinger}
+            disabled={!harEndringer || oppdaterMut.isPending}
+          >
+            {oppdaterMut.isPending ? t("handling.lagrer") : t("aiSok.lagreInnstillinger")}
+          </Button>
+        </KnappMedForklaring>
         {lagret && (
           <span className="flex items-center gap-1 text-sm text-green-600">
             <CheckCircle2 className="h-4 w-4" />

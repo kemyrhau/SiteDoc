@@ -44,6 +44,7 @@ import {
   UnderprosjektVelgerModal,
 } from "./TimerSeksjon";
 import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
+import { KnappMedForklaring } from "../KnappMedForklaring";
 
 type Props =
   | {
@@ -490,6 +491,10 @@ export function SplittRadModal(props: Props) {
 
             {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
+            <KnappMedForklaring
+              sperret={!balansert || radTeller < 2}
+              forklaring={t("sperret.splittBalanse")}
+            >
             <Pressable
               onPress={handleLagre}
               disabled={!balansert || radTeller < 2}
@@ -507,6 +512,7 @@ export function SplittRadModal(props: Props) {
                 {t("timer.splitt.lagre")}
               </Text>
             </Pressable>
+            </KnappMedForklaring>
           </ScrollView>
         </KeyboardAvoidingView>
         <TastaturFerdig />
