@@ -67,4 +67,5 @@ Nybygg skjer ETTER at revisjonskøen under er ferdig, hvis ikke Kenneth priorite
 - 2026-09-11: KA7-format vedtatt som mønster (9 felter/3 faser, ETTER = konklusjon). Kenneth bekreftet kollapset åpning er ønsket presentasjon.
 - 2026-09-11: mal-Opus opprettet som byggeansvarlig; fabel gater innhold, cowork gater teknisk + merge (MAL-METODE §3).
 - 2026-09-11: MK C-absorberingsregel (MAL-METODE §4).
+- 2026-09-19: §7b-retting av KA7, KB2, KB4, KB6 og KC3.1 i én samlet runde (ordre-7b-retting-fem-maler-design-2026-09-19.md, Kenneth-gatet). Bare tekst; KC3.1 minimalt.
 - 2026-09-18: KD2 Kanter og KM2 Murer i terreng (nye maler) prioriteres foran Del F-revisjonene (Kenneth). Tabellen over oppdatert mot develop samme dag — den hadde stått uendret siden 13.09.
