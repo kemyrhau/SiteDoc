@@ -1,7 +1,7 @@
 # Designnotat: én fargetabell for dokumentstatus — web og mobil
 
 **Fra:** design · **Til:** Kenneth-gate · **Dato:** 2026-09-19
-**Status:** 🟡 TIL KENNETH-GATE — to spørsmål i § 5
+**Status:** ✅ GATET av Kenneth 2026-09-19 — se § 8 (spørsmål 2 besvart annerledes enn anbefalt)
 **Grunnlag:** DESIGNSYSTEM-AUDIT-2026-09-17 § 4 og § 6 pkt 1 · `ui-standarder.md § Feltstatus` (gul = «noen må ta stilling»)
 
 ---
@@ -94,3 +94,21 @@ er audit § 6 pkt 3).
 Design skriver ordren (redesign er ledig). Omfang: `perspektivEtikett` (NOEYTRAL-cellen, eksport av nøytral oppslag),
 web-`StatusBadge` (utled fra NOEYTRAL), mobil `StatusMerkelapp`/`STATUS_MAP` (utled fra NOEYTRAL), mobil detaljsider
 (`perspektivEtikett`). Frosne rader i `perspektivEtikett.test.ts` oppdateres etter vedtaket i § 5.
+
+## 8. Vedtak (Kenneth 2026-09-19)
+
+**Status:** ✅ GATET.
+
+1. **`responded` er blå i lista.** Gult bare på detaljsiden for den som skal godkjenne.
+2. **`in_progress` heter «Under arbeid» — for alle.** Kenneth: *«Under arbeid betyr at en oppgave jobbes med, eller at
+   en mangel må utbedres. "Mottatt" er en beskjed om at jeg har mottatt noe — det kan også bety at noen andre har
+   mottatt noe.»* Anbefalingen min (nøytralt «Mottatt») ble **ikke** valgt.
+
+   Følger:
+   - `received` = **«Mottatt»**: dokumentet er kommet fram, hos meg eller hos en annen. Blå nøytralt, gul «Til
+     behandling» for den som har ballen.
+   - `in_progress` = **«Under arbeid»**: noen jobber med det eller utbedrer en mangel. Blå nøytralt, gul for den som
+     har ballen.
+   - **Runde-2-vedtaket 2026-08-02 (Q1=A: `in_progress` vises som «Mottatt») er overstyrt.** Det gjelder lister,
+     filterknapper og tidslinjer på web og mobil. NOEYTRAL-cellen i `perspektivEtikett` var allerede «Under arbeid» og
+     står.
