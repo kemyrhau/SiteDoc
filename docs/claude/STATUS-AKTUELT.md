@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-19g · develop `5ac878ff` (docs/design-fd1 + feat/mal-fd1-omkoding, begge [no-ff] — FD1 omkodet fra FB2) · GATE: db 51→65 (+14) · api 511 · pdf 124 · shared 824 · web 292 · mobil 21 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen i18n · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-20 · develop `083ac0da` (FD2 «Graving av grøft» + UM1/UU1/MAL-PLAN docs, alle [no-ff]) · GATE: db 76→83 (+7, FD2-seedtest) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · shared/web/mobil-tallene ble løftet i mellomrunden `5e4bb483` (statusfarger-paritet + FS2, seks brancher — ikke ført som egen tavlelinje) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `feat/statusfarger-paritet` | 🟠 **FRYST — venter designgate** (statusfarger). 🔴 Branchen måler mobil 18→31 fra `f3c0affa`; varig-grå (`1dace3b0`) satte develop-mobil til 21 → **han må rebase + måle på nytt (base blir 21)** før merge | designgate → rebase |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | FD1-omkoding merget `5ac878ff` | ⚪ **LEDIG** | Neste Del F-ordre: FD2 fylling → FS2 (design leser norm → forslag til Kenneth) |
+| **mal-Opus** | `SiteDoc-mal` | FD2 «Graving av grøft» merget `11f83fae` (i develop `083ac0da`) | ⚪ **LEDIG** (worktree står på merget FD2-branch, ingen ny branch pushet) | Neste: FH1 → FS3 (ordrer alt committet, tas etter hverandre — rører samme filer, ikke parallelt) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,22 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-20 — FD2 «Graving av grøft» (ny mal) + tre docs merget. Ingen migrering, ingen mobil-endring. develop `083ac0da`.
+
+**Fire brancher, FD2 først:** `feat/mal-fd2-ny` `11f83fae` (`packages/db/prisma/seed-bibliotek.ts` + `fd2-mal.test.ts`) · `docs/design-um1` `1bb0409a` · `docs/design-uu1` `80bc8a55` · `docs/design-malplan` `eeda9440` (`docs/claude/MAL-PLAN.md`). Alle `--no-ff`.
+
+**Branch 4 ikke-ff (base `3616d140`), merget etter to reproduserte trygghetsmålinger:** `git log 3616d140..origin/develop -- docs/claude/MAL-PLAN.md` → tom (develop hadde ikke rørt fila), og `git merge-tree` → 0 konfliktmarkører. Ingen rebase — historikk urørt.
+
+**Gate — KUN db steg, alle andre HELT stille:** db 76→83 (**+7**, FD2-seedtest) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7. Ingen migrering, ingen mobil-endring, ingen i18n.
+
+**Koden FD2 var ledig** etter at gamle FD2 ble omkodet til FS2 i mellomrunden. 🟡 **Bevisst mellomtilstand (ikke drift — ingen skal «rette» den):** FD3 under «Uttak av løsmasser», FC1/FE1 i gamle kapitler — venter egne omkodinger. Neste Del F: FH1 → FS3.
+
+### 🔴 Guard i seed-SQL verifisert tannete i FELT (2026-09-20)
+- `fd2-test.sql` ble kjørt **to ganger** mot `sitedoc_test` ved et **uhell**. **Vakten stoppet den andre kjøringen («FD2 finnes allerede») og rullet alt tilbake — ingen skade, ingen dublett.**
+- 🔴 **Ført som bevis, ikke anekdote:** guarden ble testet av et uhell, ikke av en planlagt negativkontroll. **Det gjør beviset sterkere** — den ekte skrivestien traff vakten, ikke en konstruert test. Idempotens-guarden i seed-SQL-en er dermed verifisert i drift, ikke bare i teori.
 
 ---
 
