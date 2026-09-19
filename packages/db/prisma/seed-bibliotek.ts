@@ -502,6 +502,93 @@ export const FD1_MAL = {
   ] as FeltDef[],
 };
 
+// FD2 – Graving av grøft. NY mal i eksisterende kapittel FD «Uttak av løsmasser» (ordre FD2
+// 2026-09-19, gatet av Kenneth). Ingen omkoding — FD2-koden ble frigjort da FS2 omkodet den gamle
+// «FD2 – Fylling». Dekker graving av grøft for rør, kabler og fundament + åpne grøfter + avstiving
+// med grøftekasse; legging/gjenfylling (FS3), spunt, under vann og sprengning er avgrenset ut.
+// 12 felt, INGEN tallfelt: bunn- og sideavvik besvares med samsvar mot toleransen (MAL-METODE §1),
+// målt verdi/sted i kommentaren. §7b: SiteDocs egne krav — standarden kun i beskrivelsen.
+export const FD2_MAL = {
+  kapittelKode: "FD",
+  navn: "FD2 – Graving av grøft",
+  referanse: "FD2",
+  beskrivelse:
+    "Graving av grøft for rør, kabler og fundament — påvisning, avstiving, bunn og toleranser. Faglig grunnlag: NS 3420-F:2024, post FD2.",
+  felter: [
+    // FØR
+    valg("Type grøft", "FØR",
+      [
+        "Rørgrøft",
+        "Fundamentgrøft",
+        "Åpen grøft",
+        "Annen grøft",
+      ],
+      "Typen grøft avgjør hvilken bunntoleranse som gjelder."),
+    valg("Kabler og ledninger påvist", "FØR",
+      [
+        "Påvist og merket i terrenget",
+        "Ingen i området – bekreftet",
+        "Ikke påvist – stopp graving",
+      ],
+      "Kabler og ledninger skal være påvist og merket før gravingen starter. Ta bilde av merkingen."),
+    valg("Grøft i fylling", "FØR",
+      [
+        "Ikke i fylling",
+        "Fylling komprimert minst 0,5 m over øverste ledning",
+        "Ikke ferdig fylt – vent",
+      ],
+      "Skal grøften graves i en ny fylling, må fyllingen være lagt ut og komprimert til minst 0,5 m over øverste ledning før du graver."),
+    trafikklys("Utstikking etter tegning", "FØR",
+      "Trasé og bunnhøyde er stukket ut etter tegningen før gravingen starter."),
+
+    // UNDER
+    valg("Skråning og avstiving", "UNDER",
+      [
+        "Skråning etter tegning – stabil",
+        "Grøftekasse",
+        "Annen avstiving",
+        "Ustabil – stopp",
+      ],
+      "Grøfter dypere enn 2 m sikres med avstiving eller forsvarlig skråning. Vurder stabiliteten uansett dybde, og på nytt etter nedbør. Grøftekasser trekkes eller løftes seksjonsvis, så massene rundt ledningen ikke forstyrres."),
+    valg("Vannhåndtering", "UNDER",
+      [
+        "Tørt – ingen tiltak",
+        "Lensing/pumpe etablert – kontrollert",
+        "Drenering/avskjæringsgrøft etablert",
+        "Vanninntrengning – ustabil skråningsfot – stopp",
+      ],
+      "Vann i grøfta graver ut skråningsfoten. Kontroller ved hver arbeidsstart og etter nedbør. Pump ut vannet før noen går ned."),
+    valg("Avdekkede ledninger og kabler", "UNDER",
+      [
+        "Ingen avdekket",
+        "Avdekket og sikret",
+        "Skadet – meldt",
+      ],
+      "Ledninger og kabler som blir avdekket under gravingen, skal sikres. Skader meldes straks til eieren."),
+    trafikklys("Grøftebredden er ikke større enn nødvendig", "UNDER",
+      "En smal grøft gir røret støtte fra sidene. Grav ikke bredere enn tegningen og arbeidet krever."),
+
+    // ETTER
+    valg("Bunnhøyde", "ETTER",
+      [
+        "Innenfor toleransen for grøftetypen",
+        "Krav i beskrivelsen – oppfylt",
+        "Utenfor – krever avretting",
+      ],
+      "Tillatt avvik i bunnen: rørgrøft i jord ±50 mm, rørgrøft i sprengstein +50 til +100 mm, fundamentgrøft i jord ±50 mm, fundamentgrøft i sprengstein ±100 mm, åpen grøft +50 til +200 mm, andre grøfter ±100 mm. Står det strengere krav i beskrivelsen, gjelder de. Noter største avvik i kommentaren."),
+    valg("Sideavvik", "ETTER",
+      [
+        "Innenfor ±150 mm",
+        "Utenfor – avvik",
+      ],
+      "Kontroller grøftekanten mot utstikkingen. Tillatt sideavvik er ±150 mm når beskrivelsen ikke sier noe annet."),
+    trafikklys("Bunnen er ren og klar for ledning eller fundament", "ETTER",
+      "Bunnen er fri for løse masser, ikke forstyrret eller frossen, og godkjent før ledning eller fundament legges. Ta bilde."),
+    trafikklys("Grøften er sikret", "ETTER",
+      "Åpen grøft er sperret og skiltet, og sikret mot overvann og ras ved nedbør."),
+  ] as FeltDef[],
+};
+
 // FS2 – Utlegging av masser i lag. Omkoding av tidligere «FD2 – Fylling og komprimering» (ordre FS2
 // 2026-09-19, gatet av Kenneth): utlegging hører til FS «Utlegging av løsmasser», ikke FD (uttak).
 // Omkodingen frigjør samtidig FD2-koden til den nye grøftemalen (senere ordre). Nytt kapittel FS
@@ -869,6 +956,9 @@ async function main() {
   const malerF: MalDef[] = [
     // ── FD1 – Graving av byggegrop ── (definisjon eksportert over: FD1_MAL — omkoding av FB2)
     FD1_MAL,
+
+    // ── FD2 – Graving av grøft ── (definisjon eksportert over: FD2_MAL — ny mal i kapittel FD)
+    FD2_MAL,
 
     // ── FC1 – Sprengning ──
     {
