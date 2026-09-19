@@ -247,6 +247,12 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 - **Videresend-kommentaren** er påkrevd uten å være merket påkrevd.
 - **Google-innlogging mobil kan bli varig grå** — kontrollplan har runden.
 
+### `firma-hurtig-modal.tsx` viser råstrengen «dismissed» i status-dropdownen (redesign, målt 2026-09-19)
+
+- **Status-dropdownen viser den rå enum-verdien «dismissed» i stedet for oversatt tekst.** Cowork har målt at
+  nøkkelen **finnes** (`flytmatrise.status.dismissed`) — modalen bruker den bare ikke. Triviell fiks,
+  pre-eksisterende (ikke fra en av rundene). Kjør verdien gjennom `t('flytmatrise.status.dismissed')`.
+
 ### `aria-label` og synlig etikett bruker to ord om samme begrep (design, etterkontroll kontraktssak 2026-09-19)
 
 - **`dokumentklasse.segmentTittel` (`aria-label`) sier «Dokumenttype», maldialogen sier «Dokumentklasse».**

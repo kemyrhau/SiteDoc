@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-19e · develop `5cd113ab` (feat/mal-7b-retting [no-ff] — §7b-retting av KA7/KB2/KB4/KB6/KC3.1, ren tekstretting) · GATE: db 34→51 (+17) · api 511 · pdf 124 · shared 824 · web 292 · mobil 18 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen i18n · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-19f · develop `1dace3b0` (fix/innlogging-varig-graa [no-ff] — varig-grå Google-innloggingsknapp mobil, OTA) · GATE: db 51 · api 511 · pdf 124 · shared 824 · web 292 · mobil 18→21 (+3) · integrasjon 61 · 7/7 · KUN mobil steg, alle andre HELT stille · ingen migrering · i18n +1 nøkkel (`sperret.googleIkkeTilgjengelig`, 15 språk, shared-telling uendret) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | `feat/statusfarger-paritet` (ny) | 🔵 **ORDRE GITT** — statusfarger-paritet (`docs/redesign/ordre-statusfarger-paritet-design-2026-09-19.md`, inne på develop `7212edb3`) | bygger |
+| **redesign** | `SiteDoc-redesign` | `feat/statusfarger-paritet` | 🟠 **FRYST — venter designgate** (statusfarger). 🔴 Branchen måler mobil 18→31 fra `f3c0affa`; varig-grå (`1dace3b0`) satte develop-mobil til 21 → **han må rebase + måle på nytt (base blir 21)** før merge | designgate → rebase |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | §7b-retting merget `5cd113ab` (KM2 `a59d0e44`) | ⚪ **LEDIG** | Del F — venter Kenneths godkjenning av designs forslag (FB2 først) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/innlogging-varig-graa` `7b305aa2` (pushet) | 🟢 **LEVERT** | cowork merger — neste i køen |
+| **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,22 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-19f — Varig-grå Google-innloggingsknapp merget. OTA, ingen migrering. develop `1dace3b0`.
+
+**`fix/innlogging-varig-graa` `--no-ff`.** **Ikke ff** — develop flyttet `f3c0affa → f2867985` (§7b-mergen) mens kontrollplan jobbet. **Cowork målte: ingen rebase nødvendig** — §7b rørte `mal-ns-standard-logg.md`/`packages/db/*`/tavla, branchen rører `apps/mobile/*` + `packages/shared/i18n/*`. Null filoverlapp → `--no-ff` gikk rent (test-merge bekreftet). **Branchen ikke rørt.**
+
+**Gate — KUN mobil steg, alle andre HELT stille:** db 51 · api 511 · pdf 124 · shared 824 · web 292 · mobil 18→21 (**+3**) · integrasjon 61 · 7/7. `sperret.googleIkkeTilgjengelig` lagt i alle 15 språk uten at shared-tellingen (824) rører seg. **Reload: OTA.**
+
+### Varig-grå innloggingsknapp — Bygget ✓ (kontrollplan)
+- **Bug:** Google-innloggingsknappen på mobil kunne stå **død permanent** når `useAuthRequest` gir `request=null` (`logg-inn.tsx`). Nå forklarer den seg via `KnappMedForklaring` + ny helper `apps/mobile/src/utils/innlogging-sperre.ts` (+ vaktest rød→grønn).
+- Ny nøkkel: `sperret.googleIkkeTilgjengelig` = «Google-innlogging er ikke tilgjengelig i denne versjonen».
+- **Scope:** regelen utelater bevisst `laster` — spinneren er signalet der. **Kun Google-knappen** er i scope; Microsoft og test er kun disabled på `laster` og har ingen varig-grå-tilstand.
+
+### 🔴 PROSESSFUNN — ordren lå kun i nudgen, ikke i fil (coworks brudd på SAMARBEIDSREGLER regel 11)
+Ordren til kontrollplan lå **kun i nudgen**, ikke i en `relay/inbox-*.md`-fil. Den forsvant med kontrollplans `/clear` og måtte rekonstrueres fra tavla, BACKLOG og koden. **Det var coworks brudd** — regel 11 krever at ordren bor i fil, ikke bare i den flyktige nudgen. Herfra: hver ordre skrives til `relay/inbox-<navn>.md` FØR nudgen limes, uten unntak.
 
 ---
 
