@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-19d · develop `7212edb3` (to docs-brancher [no-ff], rene docs — §7b-retting-ordre + statusfarger-notat/ordre) · GATE STILLE: db 34 · api 511 · pdf 124 · shared 824 · web 292 · mobil 18 · integrasjon 61 · 7/7 (uendret — ingen kode rørt) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-19e · develop `5cd113ab` (feat/mal-7b-retting [no-ff] — §7b-retting av KA7/KB2/KB4/KB6/KC3.1, ren tekstretting) · GATE: db 34→51 (+17) · api 511 · pdf 124 · shared 824 · web 292 · mobil 18 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen i18n · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `feat/statusfarger-paritet` (ny) | 🔵 **ORDRE GITT** — statusfarger-paritet (`docs/redesign/ordre-statusfarger-paritet-design-2026-09-19.md`, inne på develop `7212edb3`) | bygger |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | KM2 merget `a59d0e44` (KD2 `c1e29dc9`) | ⚪ **LEDIG** | — |
-| **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
+| **mal-Opus** | `SiteDoc-mal` | §7b-retting merget `5cd113ab` (KM2 `a59d0e44`) | ⚪ **LEDIG** | Del F — venter Kenneths godkjenning av designs forslag (FB2 først) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/innlogging-varig-graa` `7b305aa2` (pushet) | 🟢 **LEVERT** | cowork merger — neste i køen |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
@@ -35,7 +35,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | 🔵 **KM2 — KD2 er nå inne → mal-Opus kan starte** (han sjekker selv). Går på maløypa (design → mal-Opus direkte). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts`. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | KD2 inne (nå) | design → mal-Opus |
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
-| ✅ **§7b-RETTING ORDRE MERGET `e3dc2566`** (2026-09-19d) — KA7, KB2, KB4, KB6 **og KC3.1** i én samlet runde (`docs/redesign/ordre-7b-retting-fem-maler-design-2026-09-19.md`, Kenneth-gatet). Lukker den gamle KC3.1-§7b-raden (sto siden 18.09). Allerede gitt mal-Opus via maløypa (branch `feat/mal-7b-retting`, han sjekker selv) | Ordre gitt | design → mal-Opus |
+| ✅ **§7b-RETTING BYGGET + MERGET `5cd113ab`** (2026-09-19e) — KA7, KB2, KB4, KB6 **og KC3.1** rettet, alle version 2. Designgatet på tekstbevis. Lukker den gamle KC3.1-§7b-raden (sto siden 18.09). **Hele NS 3420-K-biblioteket (KA7–KM2) følger nå MAL-METODE §7b — opphavsrettssaken lukket for biblioteket** | Ferdig | — |
 | **`hentStandarder`-sikkerhetsrunde** — ingen tilgangsgate. 🟢 Ulåst 15.09 av lese/redigere-aksen | Nå | — |
 | **`terminologi.md § 0`** — lese/redigere-aksen i rettighetsmatrisen + kapittel/underkapittel/post | Med sikkerhetsrunden | — |
 | **`06-videresend`** — eneste e2e-spec som gjenstår. Var ikke drift: handlingen var fjernet fra menyen | Etter Kenneths visuelle gate av personvalget | dokgen |
@@ -45,6 +45,21 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-19e — §7b-retting av fem maler merget. Ingen migrering, ingen i18n. develop `5cd113ab`.
+
+**`feat/mal-7b-retting` `--no-ff`.** Branchen var **ikke fast-forward** — develop flyttet fra `c7349cd6` til `f3c0affa` (19d-runden, 6 docs-commits) mens mal-Opus jobbet. **Cowork målte: ingen rebase nødvendig** — develops nye commits rører kun `MAL-PLAN.md`/`docs/redesign/*`/`STATUS-AKTUELT.md`/`BACKLOG.md`, branchen rører `mal-ns-standard-logg.md` + fire `packages/db/`-filer. Null filoverlapp → `--no-ff`-merge gikk rent uten konflikt (test-merge bekreftet før commit). **mal-Opus' branch ble ikke rørt.**
+
+**Gate — KUN db steg, alle andre HELT stille:** db 34→51 (**+17**) · api 511 · pdf 124 · shared 824 · web 292 · mobil 18 · integrasjon 61 · 7/7. Full `pnpm test` fra ROT grønn; db-tellingen verifisert direkte (51 passed). Ingen migrering, ingen i18n.
+
+### §7b-retting KA7, KB2, KB4, KB6, KC3.1 — Bygget ✓ / Gatet ✓ design (tekstbevis) 2026-09-19
+- **Ren tekstretting, ikke innholdsendring.** Antall felt og typer uendret. Designgatens bevis: alle fem på **version 2**, rader **11/12/12/13/11**, navn og beskrivelser med «Faglig grunnlag», **INGEN normkoder eller standardnavn i hjelpetekster eller alternativer** — standarden nevnes kun i beskrivelsen.
+- 🟢 **Hele NS 3420-K-biblioteket (KA7–KM2) følger nå MAL-METODE §7b. Opphavsrettssaken er lukket for biblioteket.**
+- Den gamle KC3.1-§7b-kø-raden (sto siden 18.09) er dermed lukket.
+- Ny `mal-7b.test.ts` (§7b-vakt over K-malene) + utvidet `generer-mal-sql.ts`/-test. `7b-retting-test.sql` er kjørt **én gang** mot test og skal **ikke** kjøres igjen (gitignorert).
+- 🔴 **Reelt funn rettet i samme runde:** NS-loggens «Reproduserbar sjekk»-SQL (`mal-ns-standard-logg.md`) spurte kolonnen `mal_innhold`, som har vært **fryst tom siden migrering `20260914120000`** (innholdet bor i `bibliotek_mal_objekter`). SQL-en returnerte derfor ingenting og kunne få en leser til å tro at malene var tomme. Nå rettet til `bibliotek_mal_objekter`. **Merk: dette var aldri en formell BACKLOG-post** (grep på `mal_innhold` i BACKLOG.md = 0 treff) — funnet bodde i loggfila. Ført lukket her.
 
 ---
 
