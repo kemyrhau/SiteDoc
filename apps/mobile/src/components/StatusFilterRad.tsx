@@ -2,13 +2,13 @@ import { useMemo } from "react";
 import { Text, Pressable, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import { DOCUMENT_STATUSES } from "@sitedoc/shared";
-import { STATUS_MAP } from "./StatusMerkelapp";
+import { statusMerkelappInfo } from "./statusFarger";
 
 /**
  * Delt status-filter for mobil-lister (sjekkliste / oppgave / HMS).
  * Horisontal chip-rad: «Alle» + kun statuser som faktisk finnes i lista
  * (renere UI — ingen chip for en status uten dokumenter). Farger fra delt
- * `STATUS_MAP`. Single-select, klientside — små lister, ingen ekstra henting.
+ * `statusMerkelappInfo`. Single-select, klientside — små lister, ingen ekstra henting.
  *
  * Rendres ikke når det er ≤ 1 distinkt status (ingenting å filtrere på).
  * Chips er ≥ 44px høye (mobil hit-target).
@@ -61,14 +61,14 @@ export function StatusFilterRad({
         onPress={() => onVelg(null)}
       />
       {sorterte.map((status) => {
-        const info = STATUS_MAP[status];
+        const info = statusMerkelappInfo(status);
         return (
           <Chip
             key={status}
-            label={info ? t(info.noekkel) : status}
+            label={t(info.noekkel)}
             aktiv={valgt === status}
-            bg={info?.bg ?? "bg-gray-100"}
-            tekstFarge={info?.tekstFarge ?? "text-gray-700"}
+            bg={info.bg}
+            tekstFarge={info.tekstFarge}
             onPress={() => onVelg(status)}
           />
         );

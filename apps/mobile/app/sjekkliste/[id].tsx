@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
@@ -813,7 +813,14 @@ export default function SjekklisteUtfylling() {
                   ? <CloudOff size={18} color="#fbbf24" />
                   : <Share2 size={18} color="#ffffff" />}
             </Pressable>
-            <StatusMerkelapp status={sjekkliste.status} />
+            <StatusMerkelapp
+              status={sjekkliste.status}
+              perspektiv={erHms ? undefined : perspektivEtikett(
+                sjekkliste.status,
+                { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.adminNiva != null },
+                "sjekkliste",
+              )}
+            />
             {(() => {
               const recipientGroup = (sjekklisteDetalj as { recipientGroup?: { id: string; name: string | null } | null } | undefined)?.recipientGroup;
               if (!["sent", "received", "in_progress"].includes(sjekkliste.status)) return null;

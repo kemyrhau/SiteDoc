@@ -194,7 +194,7 @@ export type {
   TilstandVisning,
   UkeRef,
 } from "./kontrollplanFremdrift";
-export { perspektivEtikett, utledPerspektiv, kvitteringEtikett } from "./perspektivEtikett";
+export { perspektivEtikett, utledPerspektiv, kvitteringEtikett, noeytralEtikett } from "./perspektivEtikett";
 export type {
   BadgeVariant,
   Perspektiv,
