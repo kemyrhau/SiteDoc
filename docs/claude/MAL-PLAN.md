@@ -15,7 +15,7 @@ Ingenting annet trengs — MAL-METODE + MAL-PLAN + normen + seed-fila er hele ko
 
 ## Lese normen (praktisk, for fabel)
 - PDF-ene ligger i `kilder/ns3420/` i hovedtreet (gitignorert — derfor er ordrene selvbærende).
-- PDF-ene er skannet uten tekstlag: kopier PDF-en inn i prosjektet, render sider som bilder (pdf.js-viewer, `kilder/pdf-viewer.html` finnes allerede) og les dem visuelt. Sidekart Del K: PDF-side = normside + 8. Rendring er treg (~45 s/side ved scale 1.6) — ta 4–5 sider per pulje.
+- PDF-ene er skannet uten tekstlag: kopier PDF-en inn i prosjektet, render sider som bilder (pdf.js-viewer, `kilder/pdf-viewer.html` finnes allerede) og les dem visuelt. Sidekart Del K: PDF-side = normside + 8. Del F: PDF-side = normside + 12 (innhold PDF 3–10). Rendring er treg (~45 s/side ved scale 1.6) — ta 4–5 sider per pulje.
 - Del K innhold (normside): KA7 s.13 · KB2 Jord s.15 · KB4 Grasdekker s.42–44 (PDF 50–52, bekreftet) · KB5 Blomstereng s.44 · KB6 Trær/busker/stauder s.45 · KC3 s.? · KD1 s.? — slå opp i innholdsfortegnelsen (PDF-side 3–4) for eksakte sider før hver mal.
 
 ## Fast ordre-oppskrift (per mal)
@@ -53,17 +53,21 @@ Nybygg skjer ETTER at revisjonskøen under er ferdig, hvis ikke Kenneth priorite
 | 3 | KB4 – Grasdekker | ordre-kb4-revisjon-fabel-2026-09-12.md | ✓ merget 2026-09-12 (`0a4e7ea3`) | ✓ | |
 | 4 | KB6 – Planting | (v2) | ✓ merget 2026-09-13 (`c3a92b7a`) | ✓ Kenneth 2026-09-13 | |
 | 5 | KC3.1 | port + fix | ✓ merget 2026-09-18 | ✓ | 8 felt etter vedtaket «sjekkliste = utført arbeid» (domene-arbeidsflyt.md, 2026-09-18) |
-| 6 | **KD1 – Utendørs belegg** | **ordre-kd1-revisjon-fabel-2026-09-18.md** | – | – | Avgrensning + feltliste gatet av Kenneth 2026-09-18. 7→10 felt, asfalt ut |
-| 7 | **KD2 – Setting av kantstein** (NY) | ordre-kd2-ny-mal-design-2026-09-18.md | – | – | Avgrensning + 10 felt gatet av Kenneth 2026-09-18. Naturstein + betong; plasstøpt, stål, andre og vishøyde > 300 mm ute. Første mal med generell SQL-generator |
-| 8 | **KM2 – Mur av stein i terreng** (NY) | ordre-km2-ny-mal-design-2026-09-18.md | – | – | Gatet av Kenneth 2026-09-18. Beskrivelsesstyrt: normen har ingen utførelseskrav eller toleranser for mur, så ingen tall. Nytt kapittel KM. Starter etter KD2-merge. Gabioner ute (egen mal senere) |
-| 9 | FB2 | – | – | – | Del F: kopier `NS 3420 Del F` fra kilder/ og finn nytt sidekart |
-| 10 | FC1 | – | – | – | |
-| 11 | FD2 | – | – | – | |
-| 12 | FE1 | – | – | – | Cowork-funn: :516/:529 metodekrav («maks 30 cm») i rene trafikklys — vurder feltform |
-| 13 | FB4 | – | – | – | |
-| 14 | FD3 | – | – | – | |
+| 6 | KD1 – Belegg av stein og heller | ordre-kd1-revisjon-fabel-2026-09-18.md (+ TILLEGG) | ✓ merget 2026-09-18 | ✓ | 10 felt, asfalt ut (egen mal fra Del J senere) |
+| 7 | KD2 – Setting av kantstein (NY) | ordre-kd2-ny-mal-design-2026-09-18.md | ✓ merget | ✓ | Første mal med generell SQL-generator |
+| 8 | KM2 – Mur av stein i terreng (NY) | ordre-km2-ny-mal-design-2026-09-18.md | ✓ merget | ✓ | Beskrivelsesstyrt (ingen normtall). Nytt kapittel KM. Gabioner ute |
+| 9 | FD1 – Graving av byggegrop (omkodet fra FB2) | ordre-fd1-omkoding-design-2026-09-19.md | ✓ merget 2026-09-19 (`5ac878ff`) | ✓ | Seed-kodene i Del F fulgte ikke normen (verken 2008 eller 2024). Kapitler rettet: FB Markrydding, FD Uttak av løsmasser. Generator: standard per mal + `--fra` |
+| 10 | FS2 – Utlegging av masser i lag (omkodet fra FD2) | ordre-fs2-omkoding-design-2026-09-19.md | ✓ `edc176ed` | ✓ klar for merge | Fylling (FS1) + lag (FS2) i én mal. Nytt kapittel FS |
+| 11 | FD2 – Graving av grøft (NY) | ordre-fd2-ny-mal-design-2026-09-19.md | – | – | Starter når FS2 er merget (referansen FD2 frigjøres) |
+| 12 | FH1 – Sprengning i dagen (omkodet fra FC1) | ordre-fh1-omkoding-design-2026-09-19.md | – | – | Nytt kapittel FH. Tomt kildekapittel FC slettes (NOT EXISTS-vakt). Starter etter FD2 |
+| 13 | FS3 – Legging og gjenfylling i grøft (omkodet fra FE1) | ordre-fs3-omkoding-design-2026-09-19.md | – | – | FS3, ikke FV3 (samlepost for prising). Fall/trykkprøve ut → Del U. Tomt FE slettes. Starter etter FH1 |
+| 14 | FB4 – Spunting og avstiving | – | – | – | PARKERT: spunt står ikke i Del F (mangler normdel) |
+| 15 | FD3 – Grunnforsterkning | – | – | – | PARKERT: hører til NS 3420-G:2019 kap. GB, ikke FD3 (= graving av groper) |
+| 16 | Del U – rørledning i grøft (NY) | – | – | – | Neste nybygg (Kenneth 2026-09-19): fall, tetthet, trykkprøving |
 
 ## Vedtakslogg (kort)
+- 2026-09-19: Del F-kodene i seed rettes til normen (Kenneth): FB2→FD1, FD2→FS2, FC1→FH1, FE1→FS3, ny FD2 grøft. Samme bibliotekrad (lån beholder id). Tomme feil-kapitler (FC, FE) slettes. FB4 og FD3 parkert.
+- 2026-09-19: Etter Del F: Del U rørledning i grøft (Kenneth).
 - 2026-09-11: KA7-format vedtatt som mønster (9 felter/3 faser, ETTER = konklusjon). Kenneth bekreftet kollapset åpning er ønsket presentasjon.
 - 2026-09-11: mal-Opus opprettet som byggeansvarlig; fabel gater innhold, cowork gater teknisk + merge (MAL-METODE §3).
 - 2026-09-11: MK C-absorberingsregel (MAL-METODE §4).
