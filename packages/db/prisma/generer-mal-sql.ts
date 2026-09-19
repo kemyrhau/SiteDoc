@@ -234,11 +234,13 @@ function kapittelKodeFor(ref: string): string {
 }
 
 /**
- * Omkoding (ordre FD1 §5 pkt 2–3): samme bibliotekrad får ny referanse og nytt kapittel FØR
- * revisjonen — lånene beholder id-koblingen. Kjøres kun via `--fra <gammelRef>`. Guard avbryter
- * med klartekst hvis den gamle referansen mangler (allerede omkodet) eller den nye finnes fra før.
- * Kapittelnavnene for kilde- og målkapittelet rettes til normen (KAPITTEL_DATA_F), ikke som generell
- * generatorlogikk, men som del av omkodingen. Alt scopes til malens standard.
+ * Omkoding (ordre FD1 §5 pkt 2–3, utvidet FS2 §5): samme bibliotekrad får ny referanse og nytt
+ * kapittel FØR revisjonen — lånene beholder id-koblingen. Kjøres kun via `--fra <gammelRef>`. Guard
+ * avbryter med klartekst hvis den gamle referansen mangler (allerede omkodet) eller den nye finnes.
+ * Mangler MÅLKAPITTELET (f.eks. FS ved FS2), opprettes det i samme transaksjon med samme WHERE
+ * NOT EXISTS-mekanisme som modus `ny` (no-op hvis det finnes, f.eks. FD ved FD1). Kapittelnavnene
+ * for kilde- og målkapittelet rettes til normen (KAPITTEL_DATA_F) som del av omkodingen. Alt scopes
+ * til malens standard.
  */
 function omkodingSql(mal: MalKonstant, fraRef: string): string {
   const std = standardForMal(mal);
@@ -278,6 +280,8 @@ BEGIN
     RAISE EXCEPTION '${sql(nyRef)} finnes allerede i ${std} — omkoding ville kollidere';
   END IF;
 END $$;
+
+${opprettKapittelSql(mal)}
 
 -- Kapittelnavn rettet til normen (${kapittelKoder.join(", ")}) i ${std}.
 ${kapittelNavnRetting}
