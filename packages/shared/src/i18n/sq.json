@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Shkruani një koment për marrësin fillimisht",
   "sperret.plasserMarkor": "Vendosni fillimisht një shënues në vizatim",
   "sperret.tilordneFaggruppe": "Jepni së pari të paktën një artikull një tregtim",
-  "sperret.ryddValideringsfeil": "Fillimisht rregulloni gabimet në listë"
+  "sperret.ryddValideringsfeil": "Fillimisht rregulloni gabimet në listë",
+  "sperret.googleIkkeTilgjengelig": "Identifikimi në Google nuk ofrohet në këtë version"
 }

@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Спочатку напишіть коментар одержувачу",
   "sperret.plasserMarkor": "Спочатку помістіть маркер на малюнок",
   "sperret.tilordneFaggruppe": "Спочатку обміняйте принаймні один предмет",
-  "sperret.ryddValideringsfeil": "Спочатку виправте помилки в списку"
+  "sperret.ryddValideringsfeil": "Спочатку виправте помилки в списку",
+  "sperret.googleIkkeTilgjengelig": "У цій версії вхід через Google недоступний"
 }

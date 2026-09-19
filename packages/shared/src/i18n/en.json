@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Write a comment to the recipient first",
   "sperret.plasserMarkor": "Place a marker on the drawing first",
   "sperret.tilordneFaggruppe": "Give at least one item a trade first",
-  "sperret.ryddValideringsfeil": "Fix the errors in the list first"
+  "sperret.ryddValideringsfeil": "Fix the errors in the list first",
+  "sperret.googleIkkeTilgjengelig": "Google sign-in isn't available in this version"
 }

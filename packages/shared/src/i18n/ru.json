@@ -4660,5 +4660,6 @@
   "sperret.kommentar": "Сначала напишите комментарий получателю",
   "sperret.plasserMarkor": "Сначала поместите маркер на рисунок",
   "sperret.tilordneFaggruppe": "Сначала дайте хотя бы один товар в обмен",
-  "sperret.ryddValideringsfeil": "Сначала исправьте ошибки в списке"
+  "sperret.ryddValideringsfeil": "Сначала исправьте ошибки в списке",
+  "sperret.googleIkkeTilgjengelig": "Вход в Google недоступен в этой версии."
 }

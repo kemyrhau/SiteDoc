@@ -7,6 +7,8 @@ import * as WebBrowser from "expo-web-browser";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../src/providers/AuthProvider";
 import { erMicrosoftKonfigurert, erTestLoginAktiv } from "../src/config/auth";
+import { KnappMedForklaring } from "../src/components/KnappMedForklaring";
+import { googleKnappSperret } from "../src/utils/innlogging-sperre";
 
 // Whitelistede testbrukere (må matche dev-login.ts + seed-testbrukere.ts).
 // «Egen bruker» = ekte sitedoc_admin-konto med prosjektmedlemskap (whitelistet
@@ -110,15 +112,20 @@ export default function LoggInnSkjerm() {
 
         {/* Innloggingsknapper */}
         <View className="w-full gap-4">
-          <Pressable
-            onPress={handleGoogleLogin}
-            disabled={laster || (Platform.OS !== "web" && !googleRequest)}
-            className="flex-row items-center justify-center rounded-lg border border-gray-300 bg-white px-6 py-4 active:bg-gray-50"
+          <KnappMedForklaring
+            sperret={googleKnappSperret(Platform.OS, !!googleRequest)}
+            forklaring={t("sperret.googleIkkeTilgjengelig")}
           >
-            <Text className="text-base font-medium text-gray-700">
-              {t("auth.loggInnGoogle")}
-            </Text>
-          </Pressable>
+            <Pressable
+              onPress={handleGoogleLogin}
+              disabled={laster || (Platform.OS !== "web" && !googleRequest)}
+              className="flex-row items-center justify-center rounded-lg border border-gray-300 bg-white px-6 py-4 active:bg-gray-50"
+            >
+              <Text className="text-base font-medium text-gray-700">
+                {t("auth.loggInnGoogle")}
+              </Text>
+            </Pressable>
+          </KnappMedForklaring>
 
           {erMicrosoftKonfigurert && (
             <Pressable
