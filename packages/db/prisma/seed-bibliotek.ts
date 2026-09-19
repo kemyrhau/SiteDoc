@@ -175,26 +175,26 @@ export const KC31_MAL = {
   kapittelKode: "KC",
   navn: "KC3.1 – Oppstøtting av trær",
   referanse: "KC3.1",
-  beskrivelse: "Oppstøtting og oppbinding",
+  beskrivelse: "Oppstøtting og oppbinding av nyplantede trær. Faglig grunnlag: NS 3420-K:2024, post KC3.1.",
   felter: [
     valg("Metode", "FØR",
-      ["Oppstøtting med stokker (KC3.11)", "Bardunering (KC3.12)", "Forankring i grunnen (KC3.13)", "Annet – angi i kommentar"],
-      "Posten i beskrivelsen angir metoden. Bardunering og forankring er egne poster (KC3.12/KC3.13) med egne krav — denne sjekklisten dekker kontrollpunktene felles; postspesifikke krav står i beskrivelsen."),
+      ["Oppstøtting med stokker", "Bardunering", "Forankring i grunnen", "Annet – angi i kommentar"],
+      "Metoden står i beskrivelsen. Bardunering og forankring har egne krav i beskrivelsen — denne sjekklisten dekker kontrollpunktene som gjelder for alle metodene."),
     valg("Materiell kontrollert mot beskrivelsen", "FØR",
       ["Iht. posten – type, antall stokker og bindemateriale stemmer", "Avvik – dokumentert i kommentar", "Mangler – må skaffes før montering"],
-      "KC3.11: type, antall stokker per oppstøtting og bindemateriale står i posten. Bruk mykt bindemateriale — aldri ståltråd direkte mot bark. Ta bilde av materiellet."),
+      "Type, antall stokker per tre og bindemateriale står i beskrivelsen. Bruk mykt bindemateriale — aldri ståltråd rett mot barken. Ta bilde av materiellet."),
     trafikklys("Solid og fast forankret – røtter uskadet", "UNDER",
-      "KC3.1 c1: støtten skal stå solid og være fast forankret i bakken uten at røtter skades. Ta bilde av forankringen."),
+      "Støtten står stødig og er godt festet i bakken, uten at røttene er skadet. Ta bilde av forankringen."),
     trafikklys("Bundet uten fare for gnag eller barkskade", "UNDER",
-      "KC3.1 c2: bindingen skal ikke påføre treet mekanisk skade. Myk stropp eller gummibeskyttelse — aldri ståltråd direkte mot bark. Ta bilde av bindepunktet."),
+      "Bindingen skal ikke skade treet. Bruk myk stropp eller gummibeskyttelse — aldri ståltråd rett mot barken. Ta bilde av bindepunktet."),
     trafikklys("Kronen kan bevege seg fritt", "UNDER",
-      "KC3.1 c3: støtten skal tillate fri bevegelse i kronen — stiv innspenning gir svak stamme."),
+      "Kronen skal kunne bevege seg fritt. Er treet spent fast, blir stammen svak."),
     trafikklys("Høyde: så lav som mulig – maks 1/3 av treets høyde", "UNDER",
-      "KC3.1 c4, figur K7: støtten settes så lavt som mulig (ned mot 80 cm) og aldri over 1/3 av treets høyde. Ved avvik: noter målt høyde i kommentaren."),
+      "Sett støtten så lavt som mulig, gjerne ned mot 80 cm, og aldri høyere enn 1/3 av treets høyde. Ved avvik: noter målt høyde i kommentaren."),
     heltall("Antall trær støttet (stk)", "ETTER", { enhet: "stk" },
-      "KC3.11 måles i stk trær. Før antallet som er støttet/bundet opp — dokumenterer levert mengde mot posten."),
+      "Før inn antall trær som er støttet eller bundet opp. Det dokumenterer levert mengde mot beskrivelsen."),
     trafikklys("Krav oppfylt og dokumentasjon levert", "ETTER",
-      "Konklusjon før overlevering: metode, materiell og antall iht. posten, alle kontrollpunkter besvart, bilder lagt ved dette dokumentet. Etterfølgende sesongskontroll og fjerning av oppstøttingen er vedlikehold (egen post, ZK2.7112) — ikke del av denne sjekklisten. FDV/sluttdokumentasjon leveres via egen dokumentasjonssjekkliste."),
+      "Konklusjon før overlevering: metode, materiell og antall iht. posten, alle kontrollpunkter besvart, bilder lagt ved dette dokumentet. Etterfølgende sesongskontroll og fjerning av oppstøttingen er vedlikehold (egen oppgave) — ikke del av denne sjekklisten. FDV/sluttdokumentasjon leveres via egen dokumentasjonssjekkliste."),
   ] as FeltDef[],
 };
 
@@ -423,6 +423,185 @@ export const KM2_MAL = {
   ] as FeltDef[],
 };
 
+// KA7/KB2/KB4/KB6 – eksportert som egne definisjoner (§7b-retting 2026-09-19) slik at
+// generer-mal-sql.ts finner dem (samme mønster som KC31_MAL/KD1_MAL) og §7b-testen kan iterere
+// alle K-malene. Bygget med eksisterende helpers; skriveveien er urørt.
+//
+// §7b (design-rollen, gatet av Kenneth 2026-09-19): malene fremstår med SiteDocs egne krav — ingen
+// tabell-/punktkoder eller eksterne NS-standarder i navn, hjelpetekster eller svaralternativer.
+// Standarden nevnes én gang, i beskrivelsen («Faglig grunnlag»). Kodene i navn/referanse beholdes
+// (datanøkler + gjenkjennelse i beskrivelse/fremdriftsplan). Felt, typer og faser er uendret.
+export const KA7_MAL = {
+  kapittelKode: "KA",
+  navn: "KA7 – Rengjøring og sortering av gjenbruksmaterialer",
+  referanse: "KA7",
+  beskrivelse:
+    "Rengjøring og sortering av stein, betong og treverk som skal brukes om igjen. Gjenbruk av jord dekkes ikke her. Faglig grunnlag: NS 3420-K:2024, post KA7.",
+  felter: [
+    valg("Type materiale", "FØR",
+      ["Belegningsstein/heller", "Naturstein", "Kantstein", "Murblokk", "Treverk", "Annet – angi i kommentar"],
+      "Angi hvilket materiale som gjenbrukes. Mengde og bruksområde står i beskrivelsen."),
+    valg("Materialstatus", "FØR",
+      ["Sortert og godkjent", "Delvis sortert", "Ikke sortert", "Uegnet"],
+      "Vurder tilstanden ved mottak/oppstart. Kravene til godkjenning står i prosjektbeskrivelsen. Ta bilde av materialene slik de står."),
+    trafikklys("Dokumentasjon på opprinnelse", "FØR",
+      "Hvor kommer materialene fra? Legg ved følgeseddel/foto hvis tilgjengelig."),
+    trafikklys("Lagringsplass godkjent", "FØR",
+      "Tørt, stabilt underlag uten fare for tilsøling eller skade frem til bruk."),
+    trafikklys("Materialer rengjort", "UNDER",
+      "Rengjort slik beskrivelsen krever. Ta bilde etter rengjøring."),
+    trafikklys("Materialer sortert", "UNDER",
+      "Sortert etter type og kvalitet slik beskrivelsen krever. Uegnede materialer er skilt ut. Ta bilde av de sorterte fraksjonene."),
+    trafikklys("Godkjenningskriterier i beskrivelsen oppfylt", "ETTER",
+      "Kontroller mot godkjenningskriteriene i prosjektbeskrivelsen for posten."),
+    trafikklys("Dokumentasjonskrav levert", "ETTER",
+      "Bilder og øvrig dokumentasjon som beskrivelsen krever er lagt ved dette dokumentet."),
+  ] as FeltDef[],
+};
+
+export const KB2_MAL = {
+  kapittelKode: "KB",
+  navn: "KB2 – Utlegging av vekstjord",
+  referanse: "KB2",
+  beskrivelse:
+    "Utlegging av vekstjord på terreng — lagtykkelse, jordkvalitet, planhet og fall. Faglig grunnlag: NS 3420-K:2024, post KB2.2.",
+  felter: [
+    // FØR
+    valg("Formål / planteformål", "FØR",
+      [
+        "Blomstereng (10 cm vekstjord)",
+        "Grasbakke (20 cm)",
+        "Grasplen (20 cm)",
+        "Grasbane (20 cm)",
+        "Utplantingsplanter (20 cm)",
+        "Stauder og prydgras (40 cm)",
+        "Busker (40 cm)",
+        "Kombinasjonsplantinger (40 cm)",
+        "Trær (60 cm)",
+      ],
+      "Formålet avgjør anbefalt tykkelse på vekstjorda over egnet undergrunn (tallet i parentes). Over steinfylling, berg eller tett leire kommer et lag mineraljord i tillegg, til sammen 40, 70 eller 100 cm. Vekstjord tykkere enn 50 cm legges i to lag, det nederste med lite mold. Beskrivelsen kan angi andre tykkelser."),
+    valg("Underlag", "FØR",
+      [
+        "Stedlig jord – godkjent og drenert",
+        "Stedlig jord – krever løsgjøring/utbedring",
+        "Steinfylling/berg – mineraljordlag påført",
+        "Steinfylling/berg – krever mineraljordlag",
+      ],
+      "Løs opp hardpakket undergrunn før utlegging, og unngå å kjøre den sammen igjen."),
+    trafikklys("Varedeklarasjon kontrollert", "FØR",
+      "Jorda skal leveres med varedeklarasjon. Kontroller at pH ligger mellom 5,5 og 7,0 og at jorda er fri for rotugras. Ta bilde av varedeklarasjonen."),
+
+    // UNDER
+    heltall("Lagtykkelse vekstjord – minste måling (cm)", "UNDER", { enhet: "cm" },
+      "Anbefalt tykkelse: blomstereng 10, gras og utplanting 20, stauder og busker 40, trær 60 cm. Tykkelsen gjelder etter at jorda har satt seg — legg ut med overhøyde. Mål på minst 3 punkter og før inn den laveste målingen (hele cm)."),
+    valg("Maks steinstørrelse", "UNDER",
+      [
+        "OK – under 20 mm (gras/blomstereng)",
+        "OK – under 60 mm (busker/stauder/utplanting)",
+        "OK – under 100 mm (trær)",
+        "Avvik – for store steiner funnet",
+      ],
+      "Største tillatte stein: 20 mm under gras og blomstereng, 60 mm under utplanting, busker og stauder, 100 mm under trær."),
+    trafikklys("Jord ikke komprimert", "UNDER",
+      "Jorda pakkes bare lett. Verken undergrunn eller jordlag skal komprimeres under utleggingen."),
+
+    // ETTER
+    valg("Planhet – svanker/bulninger over 3 m", "ETTER",
+      [
+        "OK – innenfor 15 mm (green/fairway/tee)",
+        "OK – innenfor 20 mm (grasbane)",
+        "OK – innenfor 30 mm (grasplen)",
+        "OK – innenfor 50 mm (grasbakke/eng)",
+        "Avvik – utenfor toleranse for dekketypen",
+      ],
+      "Toleransen avhenger av dekketypen. Kontroller flere steder med 3 m rettholt og velg raden for dekketypen. Ved avvik: noter største måling og sted i kommentaren. For gras kontrolleres planheten på ferdig grasdekke."),
+    trafikklys("Fall minst 2 % mot avrenning", "ETTER",
+      "Ferdig overflate skal ha minst 2 % fall (1:50), med mindre beskrivelsen sier noe annet. Kontroller flere steder. Ved avvik: noter målt fall og sted i kommentaren."),
+    trafikklys("Overflate jevn, fri for stein og ugras", "ETTER",
+      "Flater og overganger er jevne, uten stein som hindrer skjøtsel, og fri for rotugras. Ta bilde av ferdig flate."),
+  ] as FeltDef[],
+};
+
+export const KB4_MAL = {
+  kapittelKode: "KB",
+  navn: "KB4 – Etablering av gras",
+  referanse: "KB4",
+  beskrivelse:
+    "Etablering av gras ved såing eller ferdigplen — materialkontroll, utførelse og krav ved overlevering. Faglig grunnlag: NS 3420-K:2024, post KB4.",
+  felter: [
+    // FØR
+    valg("Formål", "FØR",
+      ["Grasplen", "Grasbane", "Grasbakke og eng", "Annet – angi i kommentar"],
+      "Formålet avgjør kravet ved overlevering: grasbakke og eng skal i tillegg være minst 100 mm høy."),
+    valg("Metode", "FØR",
+      ["Sådd (ikke sprøytesådd)", "Sprøytesådd", "Ferdigplen", "Annen metode – angi i kommentar"],
+      "Metoden skal være den beskrivelsen angir."),
+    trafikklys("Frø/ferdigplen kontrollert og dokumentert", "FØR",
+      "Frø: emballasjen skal være merket og opphavet dokumentert. Ferdigplen: tett gras med godt utviklede røtter og utløpere. Frøblanding og mengde per m² står i beskrivelsen. Ta bilde av etiketten eller følgeseddelen."),
+    trafikklys("Jordlag løsgjort og finplanert", "FØR",
+      "Jordlaget er løst opp og finplanert, klart for såing eller legging. Jordas kvalitet og fall dokumenteres i sjekklisten KB2."),
+
+    // UNDER
+    trafikklys("God kontakt frø/plen mot jord", "UNDER",
+      "Frø: god kontakt med jorda, for eksempel ved nedmolding eller tromling. Ferdigplen: lagt tett, i forband og med god kontakt mot underlaget. Ta bilde."),
+    trafikklys("Vannet etter legging/såing", "UNDER",
+      "Vanning etter såing/legging sikrer etableringen. Prosjektspesifikke skjøtselskrav står i beskrivelsen."),
+    trafikklys("Klippet jevnlig frem til overtakelse", "UNDER",
+      "Grasplen og grasbane klippes jevnlig fram til overlevering. Gjelder ikke grasbakke og eng — sett «Ikke relevant»."),
+
+    // ETTER
+    desimal("Markdekningsgrad (%)", "ETTER", { enhet: "%" },
+      "Minst 95 % av marka skal være dekket ved overlevering, med mindre beskrivelsen sier noe annet. Bedøm visuelt eller med prøverute, og før inn verdien."),
+    trafikklys("Ferdig gressflate godkjent for overtakelse", "ETTER",
+      "Graset er jevnt og i god vekst, uten bare flekker større enn 1 dm². Grasbakke er i tillegg minst 100 mm høyt. Ta bilde av ferdig flate."),
+  ] as FeltDef[],
+};
+
+export const KB6_MAL = {
+  kapittelKode: "KB",
+  navn: "KB6 – Planting",
+  referanse: "KB6",
+  beskrivelse:
+    "Planting av trær, busker, stauder, utplantingsplanter, løk og knoller — mottakskontroll, utførelse og krav ved overlevering. Faglig grunnlag: NS 3420-K:2024, post KB6.",
+  felter: [
+    // FØR
+    valg("Plantegruppe", "FØR",
+      ["Trær", "Busker", "Stauder", "Utplantingsplanter", "Løk og knoller", "Blandet – angi i kommentar"],
+      "Avgjør hvilke krav som gjelder i feltene under. Art, sort, størrelse, leveringsform og planteavstand står i beskrivelsen."),
+    valg("Plantekvalitet", "FØR",
+      ["Godkjent – iht. plantelista", "Avvik – dokumentert i kommentar", "Underkjent – returneres"],
+      "Kontroller art, størrelse, leveringsform og kvalitet mot plantelista i beskrivelsen. Ta bilde av leveransen og eventuelt mottaksskjemaet."),
+    valg("Tilstand ved ankomst", "FØR",
+      ["Saftspente og fuktige", "Noe tørre – vannes straks", "Uttørket – returneres"],
+      "Plantene skal være saftspente og ha fuktig rotklump når de plantes."),
+
+    // UNDER
+    valg("Plantedybde og rothals", "UNDER",
+      [
+        "Trær/busker: rothals over jorda, klump tildekket",
+        "Stauder/utplanting: klumpen akkurat dekket",
+        "Podede roser: podested dekket av jord",
+        "Avvik – må justeres",
+      ],
+      "Trær og busker: rothalsen over jorda og rotklumpen dekket. Stauder og utplantingsplanter: klumpen akkurat dekket, så den ikke tørker ut. Podede roser: podestedet dekket av jord."),
+    trafikklys("Pakking og kontakt rot/jord", "UNDER",
+      "God kontakt mellom rot og jord. Trær: pakk jorda under rotklumpen og plant litt høyt, så treet ikke synker under terrenget — men ikke så hardt at dreneringen i plantehullet blir dårlig. Barrotsplanter plantes mens de er i hvile; røttene skal ikke bøyes, men kan stusses."),
+    trafikklys("Rotbløyte utført", "UNDER",
+      "Vann grundig ved planting."),
+    trafikklys("Beskjæring ved planting", "UNDER",
+      "Beskjær bare skadde greiner ved planting. Unntak: hekkplanter uten gjennomgående stamme toppes, så de forgreiner seg godt."),
+
+    // ETTER
+    valg("Oppbinding/støtte", "ETTER",
+      ["Montert – kontrolleres i sjekklisten KC3.1", "Ikke nødvendig", "Mangler"],
+      "Oppstøtting og oppbinding er ikke en del av plantingen. Kravene står i sjekklisten KC3.1."),
+    trafikklys("Plantefelt fritt for ugras", "ETTER",
+      "Plantefeltet er fritt for ugras ved overlevering. Ta bilde av ferdig plantefelt."),
+    trafikklys("Krav oppfylt og dokumentasjon levert", "ETTER",
+      "Kontroller mot beskrivelsen: riktig antall og planteavstand, alle krav oppfylt. Bilder og eventuelt mottaksskjema er lagt ved dette dokumentet."),
+  ] as FeltDef[],
+};
+
 // Kapitler i NS 3420-K-arkivet (kode, navn, sortering). Eksportert (design-godkjent 2026-09-18)
 // slik at generer-mal-sql.ts kan opprette et manglende kapittel i samme transaksjon (ordre KM2 §4).
 // Seeden bruker den via finnEllerOpprettKapittel (KUN OPPRETT — eksisterende rader røres ikke).
@@ -463,176 +642,17 @@ async function main() {
   }
 
   const maler: MalDef[] = [
-    // ── KA7 ──
-    {
-      kapittelKode: "KA",
-      navn: "KA7 – Forberedende arbeider ved gjenbruk av materialer",
-      referanse: "KA7",
-      beskrivelse: "Rengjøring og sortering av gjenbruksmaterialer (post KA7.2/KA7.3). Gjelder ikke gjenbruk av jord — se KB2.3.",
-      felter: [
-        valg("Type materiale", "FØR",
-          ["Belegningsstein/heller", "Naturstein", "Kantstein", "Murblokk", "Treverk", "Annet – angi i kommentar"],
-          "Angi hvilket materiale som gjenbrukes. Mengde og bruksområde står i beskrivelsen (post KA7.2/KA7.3)."),
-        valg("Materialstatus", "FØR",
-          ["Sortert og godkjent", "Delvis sortert", "Ikke sortert", "Uegnet"],
-          "Vurder tilstanden ved mottak/oppstart. Kravene til godkjenning står i prosjektbeskrivelsen. Ta bilde av materialene slik de står."),
-        trafikklys("Dokumentasjon på opprinnelse", "FØR",
-          "Hvor kommer materialene fra? Legg ved følgeseddel/foto hvis tilgjengelig."),
-        trafikklys("Lagringsplass godkjent", "FØR",
-          "Tørt, stabilt underlag uten fare for tilsøling eller skade frem til bruk."),
-        trafikklys("Materialer rengjort", "UNDER",
-          "Rengjort iht. utførelseskrav i beskrivelsen (post KA7.2). Ta bilde etter rengjøring."),
-        trafikklys("Materialer sortert", "UNDER",
-          "Sortert etter type/kvalitet iht. beskrivelsen (post KA7.3). Uegnede materialer skilt ut. Ta bilde av sorterte fraksjoner."),
-        trafikklys("Godkjenningskriterier i beskrivelsen oppfylt", "ETTER",
-          "Kontroller mot godkjenningskriteriene i prosjektbeskrivelsen for posten."),
-        trafikklys("Dokumentasjonskrav levert", "ETTER",
-          "Bilder og øvrig dokumentasjon som beskrivelsen krever er lagt ved dette dokumentet."),
-      ],
-    },
+    // ── KA7 ── (definisjon eksportert over: KA7_MAL)
+    KA7_MAL,
 
-    // ── KB2 – Vekstjord på terreng ──
-    {
-      kapittelKode: "KB",
-      navn: "KB2 – Vekstjord på terreng",
-      referanse: "KB2",
-      beskrivelse: "Utlegging av vekstjord (KB2.2) — lagtykkelse, jordkvalitet, planhet iht. Tabell K2/K3/K4",
-      felter: [
-        // FØR
-        valg("Formål / planteformål", "FØR",
-          [
-            "Blomstereng (10 cm vekstjord)",
-            "Grasbakke (20 cm)",
-            "Grasplen (20 cm)",
-            "Grasbane (20 cm)",
-            "Utplantingsplanter (20 cm)",
-            "Stauder og prydgras (40 cm)",
-            "Busker (40 cm)",
-            "Kombinasjonsplantinger (40 cm)",
-            "Trær (60 cm)",
-          ],
-          "Tabell K4: anbefalt vekstjordtykkelse over egnet undergrunnsjord. Over steinfylling/berg/tett leire kommer mineraljord i tillegg (sum 40/70/100 cm). Vekstjordlag over 50 cm deles i to lag — nederste moldfattig. Prosjektbeskrivelsen kan angi andre tykkelser."),
-        valg("Underlag", "FØR",
-          [
-            "Stedlig jord – godkjent og drenert",
-            "Stedlig jord – krever løsgjøring/utbedring",
-            "Steinfylling/berg – mineraljordlag påført",
-            "Steinfylling/berg – krever mineraljordlag",
-          ],
-          "KB2.2 c2: Hardpakket undergrunnsjord skal løses. Undergrunnen skal ikke komprimeres under utlegging."),
-        trafikklys("Varedeklarasjon kontrollert", "FØR",
-          "KB2 b5: Jord leveres med varedeklarasjon iht. NS 2890 og skal tilfredsstille Tabell K2 (pH 5,5–7,0, uten rotugras). Ta bilde av varedeklarasjonen."),
+    // ── KB2 ── (definisjon eksportert over: KB2_MAL)
+    KB2_MAL,
 
-        // UNDER
-        heltall("Lagtykkelse vekstjord – minste måling (cm)", "UNDER", { enhet: "cm" },
-          "Tabell K4: blomstereng 10, gras/utplanting 20, stauder/busker 40, trær 60 cm. Tykkelsen gjelder etter at jorda har satt seg — legg ut med overhøyde. Mål på minst 3 punkter og før inn laveste måling (hele cm)."),
-        valg("Maks steinstørrelse", "UNDER",
-          [
-            "OK – under 20 mm (gras/blomstereng)",
-            "OK – under 60 mm (busker/stauder/utplanting)",
-            "OK – under 100 mm (trær)",
-            "Avvik – for store steiner funnet",
-          ],
-          "KB2.2 b1: Maks 20 mm for grasarealer/blomstereng, 60 mm for utplanting/busker/stauder, 100 mm for trær."),
-        trafikklys("Jord ikke komprimert", "UNDER",
-          "KB2.2 c2 og a1: Jorda skal kun pakkes lett — ingen komprimering av undergrunn eller jordlag under utlegging."),
+    // ── KB4 ── (definisjon eksportert over: KB4_MAL)
+    KB4_MAL,
 
-        // ETTER
-        valg("Planhet – svanker/bulninger over 3 m", "ETTER",
-          [
-            "OK – innenfor 15 mm (green/fairway/tee)",
-            "OK – innenfor 20 mm (grasbane)",
-            "OK – innenfor 30 mm (grasplen)",
-            "OK – innenfor 50 mm (grasbakke/eng)",
-            "Avvik – utenfor toleranse for dekketypen",
-          ],
-          "Tabell K3: toleransen avhenger av dekketypen. Kontroller flere punkter med 3 m rettholt uten knaster; velg raden for dekketypen. Ved avvik: noter største målte verdi og sted i kommentaren. For grasdekker: kontrolleres på ferdig grasdekke."),
-        trafikklys("Fall minst 2 % mot avrenning", "ETTER",
-          "KB2.2 c1: Ferdig overflate skal ha fall på minst 2 % (1:50) hvis ikke annet er spesifisert i beskrivelsen. Kontroller flere punkter på objektet. Ved avvik: noter målt fall og hvor det er målt i kommentaren."),
-        trafikklys("Overflate jevn, fri for stein og ugras", "ETTER",
-          "KB c1/c2 og KB2 c3: Jevne flater og overganger, uten stein til ulempe for skjøtsel, fritt for rotugras. Ta bilde av ferdig flate."),
-      ],
-    },
-
-    // ── KB4 – Grasdekker ──
-    {
-      kapittelKode: "KB",
-      navn: "KB4 – Grasdekker",
-      referanse: "KB4",
-      beskrivelse: "Etablering av grasdekke ved såing eller ferdigplen — materialkontroll, utførelse og overtakelseskrav (post KB4)",
-      felter: [
-        // FØR
-        valg("Formål", "FØR",
-          ["Grasplen", "Grasbane", "Grasbakke og eng", "Annet – angi i kommentar"],
-          "Matrise KB4:1. Formålet avgjør overtakelseskravet: grasplen/grasbane følger KB4 c4, grasbakke KB4 c5 (samme krav + minst 100 mm høyt)."),
-        valg("Metode", "FØR",
-          ["Sådd (ikke sprøytesådd)", "Sprøytesådd", "Ferdigplen", "Annen metode – angi i kommentar"],
-          "Matrise KB4:2. Metoden skal samsvare med posten i beskrivelsen."),
-        trafikklys("Frø/ferdigplen kontrollert og dokumentert", "FØR",
-          "KB4 b1: Opphavsmaterialet for frøslag skal dokumenteres og emballasjen være merket. KB4 b2: Ferdigplen skal ha høy skuddtetthet og godt utviklet rot- og utløpersystem. Frøblanding og frømengde per m² står i beskrivelsen. Ta bilde av emballasje/etikett eller følgeseddel."),
-        trafikklys("Jordlag løsgjort og finplanert", "FØR",
-          "Underlaget skal være klart for etablering — løsgjøring og finplanering, se KB2.5. Jordlagets kvalitet og fall dokumenteres i KB2-sjekklisten."),
-
-        // UNDER
-        trafikklys("God kontakt frø/plen mot jord", "UNDER",
-          "KB4 c1: Ved såing god kontakt mellom frø og jord, f.eks. ved nedmolding eller tromling. KB4 c2: Ferdigplen legges tett sammen, i forband og i god kontakt med underlaget. Ta bilde."),
-        trafikklys("Vannet etter legging/såing", "UNDER",
-          "Vanning etter såing/legging sikrer etableringen. Prosjektspesifikke skjøtselskrav står i beskrivelsen."),
-        trafikklys("Klippet jevnlig frem til overtakelse", "UNDER",
-          "KB4 c3: Grasplen og grasbane skal klippes jevnlig fram til overtakelse. Gjelder ikke grasbakke/eng — sett «Ikke relevant»."),
-
-        // ETTER
-        desimal("Markdekningsgrad (%)", "ETTER", { enhet: "%" },
-          "KB4 c4/c5: Minst 95 % markdekningsgrad ved overtakelse, med mindre annet står i beskrivelsen (KB4 y5.5). Bedøm visuelt eller ved prøverute — før målt/bedømt verdi."),
-        trafikklys("Ferdig gressflate godkjent for overtakelse", "ETTER",
-          "KB4 c4/c5: Graset skal være homogent og i god vekst, uten åpne flekker større enn 1,0 dm². Grasbakke skal i tillegg være minst 100 mm høyt. Ta bilde av ferdig flate."),
-      ],
-    },
-
-    // ── KB6 – Planting ──
-    {
-      kapittelKode: "KB",
-      navn: "KB6 – Planting",
-      referanse: "KB6",
-      beskrivelse: "Planting av trær, busker, stauder, utplantingsplanter, løk og knoller — mottakskontroll, utførelse og overtakelse (KB6)",
-      felter: [
-        // FØR
-        valg("Plantegruppe", "FØR",
-          ["Trær", "Busker", "Stauder", "Utplantingsplanter", "Løk og knoller", "Blandet – angi i kommentar"],
-          "Avgjør hvilke utførelseskrav som gjelder (KB6.1–KB6.5). Art, sort, størrelse, leveringsform og planteavstand står i beskrivelsen."),
-        valg("Plantekvalitet", "FØR",
-          ["Godkjent – iht. NS 4400 og plantelista", "Avvik – dokumentert i kommentar", "Underkjent – returneres"],
-          "KB6 b1: Trær, busker og stauder skal tilfredsstille NS 4400. Kontroller art, størrelse og leveringsform mot beskrivelsen. Ta bilde av leveransen og eventuelt mottaksskjema."),
-        valg("Tilstand ved ankomst", "FØR",
-          ["Saftspente og fuktige", "Noe tørre – vannes straks", "Uttørket – returneres"],
-          "KB6 c1: Planter skal være saftspente og godt gjennomfuktet før planting."),
-
-        // UNDER
-        valg("Plantedybde og rothals", "UNDER",
-          [
-            "Trær/busker: rothals over jorda, klump tildekket",
-            "Stauder/utplanting: klumpen akkurat dekket",
-            "Podede roser: podested dekket av jord",
-            "Avvik – må justeres",
-          ],
-          "KB6.1 c1 / KB6.2 c1: Rothalsen skal være over jorda og rotklumpen tildekket av jord. KB6.3 c1 / KB6.4 c1: Kontainer-, klump- og pluggplanter plantes slik at klumpen akkurat er dekket — hindrer uttørking. KB6.2 c2: Podede roser med podestedet dekket av jorda."),
-        trafikklys("Pakking og kontakt rot/jord", "UNDER",
-          "KB6 c3: God kontakt mellom rot og jord. For trær (KB6.1 c2): pakk jorda under rotklumpen og plant med noe overhøyde så treet ikke synker under terrenget — pakkingen skal ikke gå ut over dreneringen i plantehullet. Barrotsplanter (KB6 c2): plantes i hvile; røttene skal ikke bøyes, men kan stusses."),
-        trafikklys("Rotbløyte utført", "UNDER",
-          "KB6 c4: Ved planting skal det vannes grundig (rotbløyte)."),
-        trafikklys("Beskjæring ved planting", "UNDER",
-          "KB6.1 c3 / KB6.2 c3: Kun skadde grener beskjæres ved planting. Unntak: ungplanter til hekk uten gjennomgående stamme toppes for å sikre god forgreining."),
-
-        // ETTER
-        valg("Oppbinding/støtte", "ETTER",
-          ["Montert – kontrolleres etter KC3.1", "Ikke nødvendig", "Mangler"],
-          "KB6 y2.1: Midlertidig oppstøtting og oppbinding inngår ikke i plantingen — egen post, se KC3.1-sjekklisten for kravene."),
-        trafikklys("Plantefelt fritt for ugras", "ETTER",
-          "KB6 c5: Ved overtakelse skal plantefeltet være fritt for ugras. Ta bilde av ferdig plantefelt."),
-        trafikklys("Krav oppfylt og dokumentasjon levert", "ETTER",
-          "Kontroller mot beskrivelsen: riktig antall og planteavstand, alle krav oppfylt. Bilder og eventuelt mottaksskjema er lagt ved dette dokumentet."),
-      ],
-    },
+    // ── KB6 ── (definisjon eksportert over: KB6_MAL)
+    KB6_MAL,
 
     // ── KC3.1 ── (definisjon eksportert over: KC31_MAL)
     KC31_MAL,
