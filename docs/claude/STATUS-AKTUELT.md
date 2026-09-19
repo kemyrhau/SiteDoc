@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-19f · develop `1dace3b0` (fix/innlogging-varig-graa [no-ff] — varig-grå Google-innloggingsknapp mobil, OTA) · GATE: db 51 · api 511 · pdf 124 · shared 824 · web 292 · mobil 18→21 (+3) · integrasjon 61 · 7/7 · KUN mobil steg, alle andre HELT stille · ingen migrering · i18n +1 nøkkel (`sperret.googleIkkeTilgjengelig`, 15 språk, shared-telling uendret) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-19g · develop `5ac878ff` (docs/design-fd1 + feat/mal-fd1-omkoding, begge [no-ff] — FD1 omkodet fra FB2) · GATE: db 51→65 (+14) · api 511 · pdf 124 · shared 824 · web 292 · mobil 21 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen i18n · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `feat/statusfarger-paritet` | 🟠 **FRYST — venter designgate** (statusfarger). 🔴 Branchen måler mobil 18→31 fra `f3c0affa`; varig-grå (`1dace3b0`) satte develop-mobil til 21 → **han må rebase + måle på nytt (base blir 21)** før merge | designgate → rebase |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | §7b-retting merget `5cd113ab` (KM2 `a59d0e44`) | ⚪ **LEDIG** | Del F — venter Kenneths godkjenning av designs forslag (FB2 først) |
+| **mal-Opus** | `SiteDoc-mal` | FD1-omkoding merget `5ac878ff` | ⚪ **LEDIG** | Neste Del F-ordre: FD2 fylling → FS2 (design leser norm → forslag til Kenneth) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-19g — FD1 (omkoding fra FB2) merget. Ingen migrering, ingen i18n. develop `5ac878ff`.
+
+**To brancher, docs først:** `docs/design-fd1` (ordrefil, ikke ff — develops nye commits siden `f2867985` rører mobil/i18n/tavla, null overlapp med ny ordrefil; test-merge bekreftet) + `feat/mal-fd1-omkoding` (fem filer, alle `packages/db/prisma`). Begge `--no-ff`.
+
+**Gate — KUN db steg, alle andre HELT stille:** db 51→65 (**+14**) · api 511 · pdf 124 · shared 824 · web 292 · mobil 21 · integrasjon 61 · 7/7. Ingen migrering, ingen i18n. **Prod-gaten røres ikke.**
+
+### FD1 «Uttak av løsmasser» — Bygget ✓ / Gatet ✓ design (tekstbevis, ordrett mot ordren) 2026-09-19
+- **Første OMKODING:** FB2 → FD1. **version 2**, 11 felt + 3 headings, nytt kapittel **FD «Uttak av løsmasser»**. **Id bevart — lånet er intakt.**
+- `fd1-test.sql` kjørt **én gang** mot test og skal **ikke** kjøres igjen (gitignorert).
+- 🟡 **KJENT MELLOMTILSTAND, bevisst (ikke drift — ingen skal «rette» den):** FB4 ligger fortsatt under «Markrydding», FD2 (fylling) og FD3 under «Uttak av løsmasser» — begge venter egne omkodinger. Neste Del F-ordre: **FD2 fylling → FS2**.
+- 🔴 **§7b-vakten (`mal-7b.test.ts`) er nå K-filtrert** (FD1 ligger i `malRegister`, F-maler har egne vakter som `fd1-mal.test.ts`). Design godkjente. **Cowork verifiserte at vakten fortsatt FEILER på K-brudd:** injisert «Tabell K» i KA7-hjelpetekst → `KA7: ingen forbudte referanser` ble RØD. Filtreringen snevrer inn *hvilke* maler den ser på, ikke *hva* den krever. Meta-testen krever dessuten at alle 8 K-maler er til stede, så en K-mal kan ikke forsvinne stille ut av registeret.
 
 ---
 
