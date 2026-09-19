@@ -36,15 +36,18 @@ ansvarsfraskrivelser; ansvaret for å verifisere mot gjeldende standard legges p
 - **✅ Ja / Delvis** = feltet gir en konkret verdi (mm/s, pH, mm, %) selv om det også
   nevner en standard. Utenfor problemet.
 
-## Kategori 1 — eksterne NS-standarder (sist målt 2026-09-18)
+## Kategori 1 — eksterne NS-standarder (sist målt 2026-09-19)
 
 Felt som viser til en fremmed NS-standard i navn, hjelpetekst eller valgopsjoner.
 
+> **§7b-retting 2026-09-19 (design-rollen, gatet av Kenneth):** KB2 (NS 2890) og KB6 (NS 4400) er
+> fjernet fra hjelpetekstene — malene fremstår nå med SiteDocs egne krav, uten eksterne NS-referanser.
+> Radene er derfor strøket herfra. KC3.1s konklusjon mistet samtidig «(egen post, ZK2.7112)» → «(egen
+> oppgave)», så feltet bærer ingen NS 3420-ZK-referanse lenger; raden er strøket. **Flagget til design:**
+> ordren nevnte bare KB2/KB6 — KC3.1-raden er tatt ut fordi §6-endringen fjernet ZK-referansen den beskrev.
+
 | Mal | Rad | Felt | Standard | Målbar verdi i teksten? |
 |---|---|---|---|---|
-| KB2 – Vekstjord på terreng | 3 | Varedeklarasjon kontrollert | NS 2890 | ✅ Delvis — gir pH 5,5–7,0, uten rotugras. NS 2890 gjelder deklarasjonens format. |
-| KB6 – Planting | 2 | Plantekvalitet | **NS 4400** | ❌ **Nei** — «tilfredsstille NS 4400 … kontroller mot beskrivelsen». Ingen målbar verdi. |
-| KC3.1 – Oppstøtting av trær | 8 | Krav oppfylt og dokumentasjon levert | NS 3420-ZK:2024 (ZK2.7112) — *NS 3420-familie: logg-definisjon avklares av fabel* | — Scope-avgrensning, ikke krav mot arbeideren: peker til egen post for vedlikehold/fjerning av oppstøttingen, ingen verdi å måle. ⚠️ Feltteksten skriver bar «ZK2.7112» uten utgave — utgave 2024 forankret i ordren, ikke i feltteksten. Regex-sjekken (`NS ?[0-9]`) fanger IKKE en bar «ZKxxxx» — funnet manuelt. |
 | FC1 – Sprengning/rystelser | 2 | Rystelsesmåler plassert | NS 8141 | ✅ Ja — «typisk 20 mm/s bolig». |
 | FC1 – Sprengning/rystelser | 3 | Maks rystelsesnivå (mm/s) | NS 8141 | ✅ Ja — 20 / 35 / 70 mm/s per kategori, målbart tallfelt. |
 
@@ -53,9 +56,10 @@ Felt som viser til en fremmed NS-standard i navn, hjelpetekst eller valgopsjoner
 D, FP100 — ikke produktstandardene NS-EN 1338/1339/1341/1342/1344. NS 3420-K:2024 i beskrivelsens
 «Faglig grunnlag» teller ikke, jf. § 7 pkt 3. Derfor ingen KD1-rad her.)*
 
-**Åpen kandidat (❌ — ingen målbar verdi):** KB6 rad 2 (Plantekvalitet → NS 4400). Per
-MAL-METODE § 7a løses dette IKKE ved å gjengi NS 4400 — kunden verifiserer mot standarden
-selv (sentralt ansvar), ev. angir kriteriene i prosjektbeskrivelsen.
+**Åpen kandidat — LØST 2026-09-19 (§7b-retting):** KB6 rad 2 (Plantekvalitet) refererte tidligere
+NS 4400 uten målbar verdi. Referansen er nå fjernet fra hjelpetekst og alternativ («Godkjent – iht.
+plantelista»); kvalitetskriteriene ligger i plantelista/beskrivelsen (kundens ansvar, jf. § 7a). Ingen
+åpne eksterne-standard-kandidater blant K-malene per denne målingen.
 
 ## Kategori 2 — felt som forutsetter at kunden angir noe i prosjektbeskrivelsen (sist målt 2026-09-18)
 
@@ -91,30 +95,34 @@ ureviderte maler (F-serien) er ikke målt for dette ennå.
 
 ## Reproduserbar sjekk (kjør mot arkivet, ikke fila)
 
-`helpText`/`options` ligger under `config` i `mal_innhold`. Kjør mot DB-en som bærer
-arkivet (lokal `sitedoc`, eller `sitedoc_test` på server-ny):
+🔴 **Oppdatert 2026-09-19:** innholdet bor nå i **`bibliotek_mal_objekter`** (rad-modellen), ikke i
+`mal_innhold` — seeden fryser `mal_innhold` til `[]` (jf. MAL-METODE §6a). En sjekk mot `mal_innhold`
+returnerer derfor tomt uansett. `helpText`/`options` ligger under `config` på objekt-radene. Kjør mot
+DB-en som bærer arkivet (`sitedoc_test` på server-ny, eller en fullt migrert lokal DB):
 
 ```sql
-SELECT m.referanse, t.ord AS radnr, t.elem->>'label' AS felt,
-       coalesce(t.elem->'config'->>'helpText','') ||
-         coalesce(' | opsjoner: ' || (t.elem->'config'->>'options'),'') AS tekst
-FROM bibliotek_maler m,
-     jsonb_array_elements(m.mal_innhold) WITH ORDINALITY AS t(elem, ord)
-WHERE coalesce(t.elem->'config'->>'helpText','') ~ 'NS ?[0-9]'
-   OR coalesce(t.elem->'config'->>'options','') ~ 'NS ?[0-9]'
-ORDER BY m.referanse, t.ord;
+SELECT m.referanse, o.sort_order AS radnr, o.label AS felt,
+       coalesce(o.config->>'helpText','') ||
+         coalesce(' | opsjoner: ' || (o.config->>'options'),'') AS tekst
+FROM bibliotek_maler m
+JOIN bibliotek_mal_objekter o ON o.template_id = m.id
+WHERE coalesce(o.config->>'helpText','') ~ 'NS ?[0-9]'
+   OR coalesce(o.config->>'options','') ~ 'NS ?[0-9]'
+ORDER BY m.referanse, o.sort_order;
 ```
 
-`radnr` er 1-indeksert posisjon i `mal_innhold` (samme rekkefølge som feltene vises).
-Treff må deretter vurderes for hånd mot «Målbar verdi i teksten?»-kolonnen — regex
-finner NS-referansen, ikke om det finnes en målbar verdi ved siden av.
+`radnr` = `sort_order` (samme rekkefølge som feltene vises; heading-rader teller med). Treff må
+deretter vurderes for hånd mot «Målbar verdi i teksten?»-kolonnen — regex finner NS-referansen, ikke
+om det finnes en målbar verdi ved siden av. Regex-en fanger heller ikke bar «ZKxxxx» eller «Tabell K»
+/ «Matrise K» — utvid mønsteret ved behov (`§7b-vakten` i `packages/db/prisma/mal-7b.test.ts` dekker
+alle disse programmatisk over de eksporterte K-malene).
 
 Kategori 2 (delegerer til prosjektbeskrivelsen):
 
 ```sql
-SELECT m.referanse, t.ord AS radnr, t.elem->>'label' AS felt
-FROM bibliotek_maler m,
-     jsonb_array_elements(m.mal_innhold) WITH ORDINALITY AS t(elem, ord)
-WHERE t.elem->'config'->>'helpText' ~* 'beskrivelse|postgrunnlag|posten i'
-ORDER BY m.referanse, t.ord;
+SELECT m.referanse, o.sort_order AS radnr, o.label AS felt
+FROM bibliotek_maler m
+JOIN bibliotek_mal_objekter o ON o.template_id = m.id
+WHERE o.config->>'helpText' ~* 'beskrivelse|postgrunnlag|posten i'
+ORDER BY m.referanse, o.sort_order;
 ```

@@ -167,14 +167,14 @@ COMMIT;
 `;
 }
 
-function genererRevisjon(mal: MalKonstant): string {
+/**
+ * Den muterende kjernen i en revisjon (guard + UPDATE metadata + DELETE objekt-rader + INSERT
+ * nye), UTEN BEGIN/COMMIT og uten utskrift. Delt mellom enkel- og fler-revisjon slik at de to
+ * veiene aldri kan skille lag.
+ */
+function revisjonMutasjon(mal: MalKonstant): string {
   const ref = mal.referanse;
-  return `-- ${ref}-revisjon → arkiv (modus REVISJON, §6a). Generert fra ${ref}_MAL via byggBibliotekRader.
--- UPDATE metadata (version+1) + DELETE gamle objekt-rader + INSERT nye. verifisert=false.
--- version (Int) bumpes; versjon (String) røres IKKE. Kjøres ÉN gang mot test (§1b pkt 5).
-BEGIN;
-
-DO $$
+  return `DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM bibliotek_maler WHERE referanse = '${sql(ref)}') THEN
     RAISE EXCEPTION '${sql(ref)} finnes ikke i arkivet — bruk modus ny';
@@ -200,7 +200,17 @@ FROM bibliotek_maler m,
 (VALUES
 ${radVerdier(mal)}
 ) AS r(type, label, config, translations, sort_order, required)
-WHERE m.referanse = '${sql(ref)}';
+WHERE m.referanse = '${sql(ref)}';`;
+}
+
+function genererRevisjon(mal: MalKonstant): string {
+  const ref = mal.referanse;
+  return `-- ${ref}-revisjon → arkiv (modus REVISJON, §6a). Generert fra ${ref}_MAL via byggBibliotekRader.
+-- UPDATE metadata (version+1) + DELETE gamle objekt-rader + INSERT nye. verifisert=false.
+-- version (Int) bumpes; versjon (String) røres IKKE. Kjøres ÉN gang mot test (§1b pkt 5).
+BEGIN;
+
+${revisjonMutasjon(mal)}
 
 ${telling(ref)}
 
@@ -214,26 +224,76 @@ export function byggMalSql(mal: MalKonstant, modus: "ny" | "revisjon"): string {
   return modus === "ny" ? genererNy(mal) : genererRevisjon(mal);
 }
 
+/** Filnavn for en samlet fler-revisjon (ordre §7b pkt 4 — én fil, én transaksjon). */
+export const FLER_REVISJON_FILNAVN = "7b-retting-test.sql";
+
+/**
+ * Fler-revisjon i ÉN transaksjon (ordre §7b pkt 4): alle malene revideres (version+1 hver),
+ * så full utskrift av ALLE før COMMIT. Feiler én (f.eks. RAISE fordi referansen mangler),
+ * rulles hele transaksjonen tilbake — ingen mal revideres halvveis. Kjøres ÉN gang mot test.
+ */
+export function byggFlerRevisjonSql(maler: MalKonstant[]): string {
+  if (maler.length === 0) throw new Error("byggFlerRevisjonSql: ingen maler oppgitt.");
+  const refs = maler.map((m) => m.referanse).join(", ");
+  const mutasjoner = maler
+    .map((m) => `-- ── ${m.referanse}: ${m.navn} ──\n${revisjonMutasjon(m)}`)
+    .join("\n\n");
+  const bevis = maler
+    .map((m) => `-- ── ${m.referanse} ──\n${telling(m.referanse)}\n\n${tekstbevis(m.referanse)}`)
+    .join("\n\n");
+  return `-- §7b-retting → arkiv (modus REVISJON, §6a) for ${maler.length} maler: ${refs}.
+-- ÉN transaksjon: alle revisjoner (version+1 hver) + full utskrift av alle FØR COMMIT.
+-- Feiler én, rulles ALT tilbake. version (Int) bumpes; versjon (String) røres IKKE.
+-- Kjøres ÉN gang mot test (MAL-METODE §1b pkt 5).
+BEGIN;
+
+${mutasjoner}
+
+-- ══ Full utskrift (§6a) av alle ${maler.length} malene før COMMIT ══
+${bevis}
+
+COMMIT;
+`;
+}
+
 // CLI — kjør KUN når fila startes direkte, ikke ved import (testen importerer byggMalSql).
 const kjørtDirekte =
   process.argv[1] !== undefined &&
   realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
 
 if (kjørtDirekte) {
-  const [ref, modus] = process.argv.slice(2);
-  if (!ref || (modus !== "ny" && modus !== "revisjon")) {
-    console.error("Bruk: tsx prisma/generer-mal-sql.ts <REF> <ny|revisjon>");
+  const args = process.argv.slice(2);
+  const modus = args.at(-1);
+  const refs = args.slice(0, -1);
+  if (refs.length === 0 || (modus !== "ny" && modus !== "revisjon")) {
+    console.error("Bruk: tsx prisma/generer-mal-sql.ts <REF...> <ny|revisjon>");
+    console.error("  Én REF → <ref>-test.sql. Flere REF (kun revisjon) → 7b-retting-test.sql (én transaksjon).");
     process.exit(1);
   }
-  const mal = malRegister().get(ref);
-  if (!mal) {
-    const kjente = [...malRegister().keys()].join(", ") || "(ingen)";
-    console.error(`Ukjent referanse «${ref}» — finnes ikke blant de eksporterte *_MAL-konstantene. Kjente: ${kjente}`);
-    process.exit(1);
-  }
-  const sqlTekst = byggMalSql(mal, modus);
+  const register = malRegister();
+  const maler = refs.map((ref) => {
+    const mal = register.get(ref);
+    if (!mal) {
+      const kjente = [...register.keys()].join(", ") || "(ingen)";
+      console.error(`Ukjent referanse «${ref}» — finnes ikke blant de eksporterte *_MAL-konstantene. Kjente: ${kjente}`);
+      process.exit(1);
+    }
+    return mal;
+  });
   const repoRot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-  const utsti = join(repoRot, filnavnFor(ref));
-  writeFileSync(utsti, sqlTekst, "utf8");
-  console.log(`Skrev ${filnavnFor(ref)} (${mal.felter.length} felt, modus ${modus}).`);
+
+  if (maler.length === 1) {
+    const mal = maler[0]!;
+    const utsti = join(repoRot, filnavnFor(mal.referanse));
+    writeFileSync(utsti, byggMalSql(mal, modus), "utf8");
+    console.log(`Skrev ${filnavnFor(mal.referanse)} (${mal.felter.length} felt, modus ${modus}).`);
+  } else {
+    if (modus !== "revisjon") {
+      console.error("Flere referanser støttes kun i modus revisjon.");
+      process.exit(1);
+    }
+    const utsti = join(repoRot, FLER_REVISJON_FILNAVN);
+    writeFileSync(utsti, byggFlerRevisjonSql(maler), "utf8");
+    console.log(`Skrev ${FLER_REVISJON_FILNAVN} (${maler.length} maler: ${maler.map((m) => m.referanse).join(", ")}).`);
+  }
 }
