@@ -7,8 +7,10 @@ import { malRegister } from "./generer-mal-sql";
  * standarder i HJELPETEKSTER eller SVARALTERNATIVER. Standarden nevnes kun i beskrivelsen
  * («Faglig grunnlag»), som derfor ikke testes her.
  *
- * Testen går over ALLE eksporterte K-maler (KA7 … KM2 via malRegister) og feiler hvis en
- * hjelpetekst eller et svaralternativ inneholder en forbudt referanse.
+ * Testen går over alle eksporterte K-maler (KA7 … KM2 via malRegister, filtrert på kapittelKode
+ * K*) og feiler hvis en hjelpetekst eller et svaralternativ inneholder en forbudt referanse.
+ * F-maler (NS 3420-F) har egne, F-spesifikke §7b-vakter (f.eks. `fd1-mal.test.ts`) — de forbudte
+ * mønstrene her er K-spesifikke (Tabell K, normpunktkode K[A-M]…) og skal ikke kjøres over dem.
  *
  * Unntak (tillatt):
  *  - henvisning til egen sjekkliste på formen «sjekklisten KB2» / «sjekklisten KC3.1»
@@ -59,15 +61,16 @@ function testbareTekster(felter: { config?: Record<string, unknown> }[]): string
 }
 
 describe("§7b — ingen normkoder/eksterne NS-standarder i hjelpetekster eller alternativer", () => {
-  const register = malRegister();
+  // Kun K-maler: de forbudte mønstrene under er K-spesifikke. F-maler har egne vakter.
+  const kMaler = [...malRegister()].filter(([, m]) => m.kapittelKode.startsWith("K"));
 
   it("registeret dekker alle åtte K-malene (KA7 … KM2)", () => {
-    expect([...register.keys()].sort()).toEqual(
+    expect(kMaler.map(([ref]) => ref).sort()).toEqual(
       ["KA7", "KB2", "KB4", "KB6", "KC3.1", "KD1", "KD2", "KM2"].sort(),
     );
   });
 
-  for (const [ref, mal] of malRegister()) {
+  for (const [ref, mal] of kMaler) {
     it(`${ref}: ingen forbudte referanser`, () => {
       const brudd: { tekst: string; treff: string[] }[] = [];
       for (const tekst of testbareTekster(mal.felter)) {

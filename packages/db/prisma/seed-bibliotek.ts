@@ -423,6 +423,85 @@ export const KM2_MAL = {
   ] as FeltDef[],
 };
 
+// FD1 – Graving av byggegrop. Omkoding av tidligere «FB2 – Graving» (ordre FD1 2026-09-19,
+// gatet av Kenneth): graving hører til FD (uttak av løsmasser), ikke FB (markrydding). Samme
+// bibliotekrad omkodes FB2→FD1 i arkivet (lånene beholder id-koblingen) — se generer-mal-sql.ts
+// `--fra FB2`. Grøft er skilt ut til egen mal (FD2 grøft, senere ordre). 11 felt, INGEN tallfelt:
+// bunn- og sideavvik besvares med samsvar mot toleransen (MAL-METODE §1), målt verdi i kommentaren.
+// §7b: SiteDocs egne krav — ingen tabell-/punktkoder i hjelpetekstene; standarden nevnes kun i
+// beskrivelsen («Faglig grunnlag»). Kodene i navn/referanse beholdes (datanøkler + gjenkjennelse).
+export const FD1_MAL = {
+  kapittelKode: "FD",
+  navn: "FD1 – Graving av byggegrop",
+  referanse: "FD1",
+  beskrivelse:
+    "Graving av byggegrop og groper — påvisning, sikring, bunn og toleranser. Faglig grunnlag: NS 3420-F:2024, post FD1 og FD3.",
+  felter: [
+    // FØR
+    valg("Kabler og ledninger påvist", "FØR",
+      [
+        "Påvist og merket i terrenget",
+        "Ingen i området – bekreftet",
+        "Ikke påvist – stopp graving",
+      ],
+      "Kabler og ledninger skal være påvist og merket før gravingen starter. Ledninger som blir avdekket, skal sikres. Ta bilde av merkingen."),
+    valg("Grunnforhold", "FØR",
+      [
+        "Som i geoteknisk rapport",
+        "Avvik fra rapporten – meldt til prosjekterende",
+        "Ingen rapport – vurdert på stedet",
+      ],
+      "Sjekk jordart, grunnvann og fare for kvikkleire mot rapporten. Leire og silt kan miste fastheten når de røres opp — grav forsiktig der beskrivelsen krever det."),
+    trafikklys("Utstikking etter tegning", "FØR",
+      "Gravegrense, skråning og bunnhøyde er stukket ut etter tegningen før gravingen starter."),
+
+    // UNDER
+    valg("Skråning og sikring", "UNDER",
+      [
+        "Skråning etter tegning – stabil",
+        "Avstivet",
+        "Ustabil – stopp og sikre",
+      ],
+      "Gravingen må ikke svekke stabiliteten i grunnen. Groper dypere enn 2 m sikres med avstiving eller forsvarlig skråning. Vurder stabiliteten uansett dybde, og på nytt etter nedbør."),
+    valg("Vannhåndtering", "UNDER",
+      [
+        "Tørt – ingen tiltak",
+        "Lensing/pumpe etablert – kontrollert",
+        "Drenering/avskjæringsgrøft etablert",
+        "Vanninntrengning – ustabil skråningsfot – stopp",
+      ],
+      "Vann i gropa graver ut skråningsfoten. Kontroller ved hver arbeidsstart og etter nedbør. Pump ut vannet før noen går ned."),
+    trafikklys("Masser holdt adskilt", "UNDER",
+      "Ulike typer masser er ikke blandet. Vekstjord er tatt av for seg før gravingen."),
+    trafikklys("Eksisterende anlegg og trær som skal stå, er ikke skadet", "UNDER",
+      "Ledninger, kabler, konstruksjoner og røtter til trær som skal bevares, er ikke skadet av gravingen."),
+
+    // ETTER
+    valg("Bunnhøyde", "ETTER",
+      [
+        "Innenfor ±100 mm",
+        "Strengere krav i beskrivelsen – oppfylt",
+        "Utenfor – krever avretting",
+      ],
+      "Kontroller bunnen mot prosjektert høyde flere steder. Tillatt avvik er ±100 mm når beskrivelsen ikke sier noe annet. Trengs strengere krav, avrettes bunnen etterpå. Noter største avvik i kommentaren."),
+    valg("Sideavvik", "ETTER",
+      [
+        "Innenfor ±150 mm",
+        "Utenfor – avvik",
+      ],
+      "Kontroller gravegrensen mot utstikkingen. Tillatt sideavvik er ±150 mm når beskrivelsen ikke sier noe annet."),
+    valg("Avstand fra skråning til fundament", "ETTER",
+      [
+        "Oppfyller minsteavstanden",
+        "Ikke aktuelt – ingen fundament",
+        "For smalt – avvik",
+      ],
+      "Fundament inntil 1,0 m høyt: minst 1,0 m fra fundamentkanten til skråningen eller avstivingen. Høyere fundament: minst 1,5 m. Beskrivelsen kan kreve mer. Gjelder ikke rør og ledninger."),
+    trafikklys("Bunnen er ren, ikke omrørt og klar for neste arbeid", "ETTER",
+      "Bunnen er fri for løse masser, ikke forstyrret eller frossen, og godkjent før fundament, ledning eller fylling legges. Ta bilde."),
+  ] as FeltDef[],
+};
+
 // KA7/KB2/KB4/KB6 – eksportert som egne definisjoner (§7b-retting 2026-09-19) slik at
 // generer-mal-sql.ts finner dem (samme mønster som KC31_MAL/KD1_MAL) og §7b-testen kan iterere
 // alle K-malene. Bygget med eksisterende helpers; skriveveien er urørt.
@@ -613,6 +692,18 @@ export const KAPITTEL_DATA_K = [
   { kode: "KM", navn: "Murer i terreng", sortering: 5 },
 ];
 
+// Kapitler i NS 3420-F-arkivet. Eksportert (ordre FD1 §5) slik at generer-mal-sql.ts kan slå opp
+// standarden en F-mal hører til (i stedet for hardkodet NS3420-K) og hente kapittelnavn ved omkoding.
+// Navnene rettet til normen 2026-09-19 (ordre FD1 §3): graving hører til FD «Uttak av løsmasser»,
+// ikke FB «Markrydding». Seeden bruker den via finnEllerOpprettKapittel (KUN OPPRETT — eksisterende
+// kapittel-rader røres ikke; navne-rettingen i test-arkivet skjer via omkodings-SQL, ikke seeden).
+export const KAPITTEL_DATA_F = [
+  { kode: "FB", navn: "Markrydding", sortering: 1 },
+  { kode: "FC", navn: "Sprengning", sortering: 2 },
+  { kode: "FD", navn: "Uttak av løsmasser", sortering: 3 },
+  { kode: "FE", navn: "Grøfter for kabler og ledninger", sortering: 4 },
+];
+
 async function main() {
   console.log("Seeder sjekklistebibliotek (kun opprett — rører aldri eksisterende rader)...");
 
@@ -675,12 +766,7 @@ async function main() {
     create: { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
   });
 
-  const kapittelDataF = [
-    { kode: "FB", navn: "Graving, spunting, avstiving", sortering: 1 },
-    { kode: "FC", navn: "Sprengning", sortering: 2 },
-    { kode: "FD", navn: "Fylling og komprimering", sortering: 3 },
-    { kode: "FE", navn: "Grøfter for kabler og ledninger", sortering: 4 },
-  ];
+  const kapittelDataF = KAPITTEL_DATA_F;
 
   const kapF: Record<string, string> = {};
   for (const k of kapittelDataF) {
@@ -688,62 +774,8 @@ async function main() {
   }
 
   const malerF: MalDef[] = [
-    // ── FB2 – Graving ──
-    {
-      kapittelKode: "FB",
-      navn: "FB2 – Graving",
-      referanse: "FB2",
-      beskrivelse: "Graving av byggegrop og grøft — sikring, profil, bunn",
-      prioritet: 1,
-      felter: [
-        // FØR
-        valg("Kabelpåvisning og grunnforhold", "FØR",
-          [
-            "Påvist og merket – grunnforhold iht. rapport",
-            "Påvist og merket – avvik fra rapport",
-            "Ikke påvist – stopp graving",
-          ],
-          "FB2 b1: Kontroller at kabler/ledninger er påvist og merket i terreng. Sjekk grunnundersøkelse mot prosjektert profil."),
-        trafikklys("Graveprofil kontrollert", "FØR",
-          "FB2 c1: Kontroller at tegning viser korrekt dybde, bredde og skråningsvinkel. Mål opp og merk med stikk."),
-
-        // UNDER
-        valg("Graveskråning og sikring", "UNDER",
-          [
-            "≤2 m dybde – stabil grunn – OK uten tiltak",
-            "≤2 m dybde – ustabil grunn – sikret med skråning/avstiving",
-            ">2 m – sand/grus – skråning ≥1:1,5 eller avstivet",
-            ">2 m – leire/silt – skråning ≥1:2 eller avstivet",
-            ">2 m – spuntet/avstivet – godkjent",
-            "Avvik – ikke tilstrekkelig sikret – STOPP",
-          ],
-          "Arbeidstilsynets forskrift §21-4: Grøfter dypere enn 2 m skal sikres med avstiving eller forsvarlig skråning. Skråningsvinkel avhenger av jordart. Vurder alltid stabiliteten uavhengig av dybde."),
-        valg("Vannhåndtering i grøft", "UNDER",
-          [
-            "Tørt – ingen tiltak nødvendig",
-            "Lensing/pumpe etablert – kontrollert",
-            "Drenering/avskjæringsgrøft etablert",
-            "Vanninntrengning – ustabil skråningsfot – STOPP",
-          ],
-          "Vann i grøft graver ut skråningsfoten og forårsaker ras. Kontroller ved hver arbeidsstart og etter nedbør. Pump alltid vann før personell går ned."),
-        valg("Gravebunn", "UNDER",
-          [
-            "Riktig kote og jevn bunn",
-            "Riktig kote – krever utjevning",
-            "Overgravet – krever tilbakefylling",
-            "Feil kote – avvik",
-          ],
-          "FB2 c3: Bunn skal være jevn, fri for løsmasser og på riktig kote. Ikke overgraves – bruk heller utjevningsmasse."),
-        desimal("Avvik fra prosjektert profil (mm)", "UNDER", { enhet: "mm" },
-          "FB2 c4: Mål avvik fra prosjektert dybde på minst 3 punkter. Toleranse avhenger av prosjektspesifikasjon, typisk ±50 mm."),
-
-        // ETTER
-        trafikklys("Gravebunn godkjent for neste operasjon", "ETTER",
-          "FB2 c5: Bunn skal godkjennes av ansvarlig før fundament, ledning eller fylling legges. Fotodokumenter."),
-        trafikklys("Grøft sikret", "ETTER",
-          "Åpne grøfter skal sikres med sperring og skilting. Sikre mot overvann og ras ved nedbør."),
-      ],
-    },
+    // ── FD1 – Graving av byggegrop ── (definisjon eksportert over: FD1_MAL — omkoding av FB2)
+    FD1_MAL,
 
     // ── FC1 – Sprengning ──
     {
