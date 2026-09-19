@@ -37,7 +37,7 @@ import {
   Eye,
   Scale,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -711,7 +711,14 @@ export default function OppgaveDetalj() {
                   ? <CloudOff size={18} color="#fbbf24" />
                   : <Share2 size={18} color="#ffffff" />}
             </Pressable>
-            <StatusMerkelapp status={oppgave.status} />
+            <StatusMerkelapp
+              status={oppgave.status}
+              perspektiv={perspektivEtikett(
+                oppgave.status,
+                { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.adminNiva != null },
+                "oppgave",
+              )}
+            />
             {(() => {
               const recipientGroup = (oppgaveDetalj as { recipientGroup?: { id: string; name: string | null } | null } | undefined)?.recipientGroup;
               if (!["sent", "received", "in_progress"].includes(oppgave.status)) return null;

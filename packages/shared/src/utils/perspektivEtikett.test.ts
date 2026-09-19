@@ -3,6 +3,7 @@ import {
   perspektivEtikett,
   utledPerspektiv,
   kvitteringEtikett,
+  noeytralEtikett,
   type PerspektivDokumentType,
   type PerspektivSeerKontekst,
   type BadgeVariant,
@@ -220,5 +221,27 @@ describe("utledPerspektiv — admin dominerer, registrator er ordinær deltaker 
     // Ballen er irrelevant for en uten flytrolle — A/B/C-splittet finnes ikke.
     expect(utledPerspektiv({ rolle: null, harBallen: false })).toBe("noeytral");
     expect(utledPerspektiv({ rolle: null, harBallen: true })).toBe("noeytral");
+  });
+});
+
+describe("noeytralEtikett — nøytralt oppslag for lister/filtre/tidslinjer", () => {
+  // Fasit fra ordre-statusfarger-paritet § «Fasit», nøytral kolonne. Web-`StatusBadge`
+  // og mobil-`statusMerkelappInfo` utledes fra denne, så de ikke kan drifte.
+  const fasit: Array<[string, string, BadgeVariant]> = [
+    ["draft", "status.utkast", "default"],
+    ["sent", "status.sendt", "primary"],
+    ["received", "status.mottatt", "primary"],
+    ["in_progress", "status.underArbeid", "primary"], // Runde-2-«Mottatt» overstyrt (§ 8)
+    ["responded", "status.besvart", "primary"], // blå i lista, ikke gul (§ 8.1)
+    ["approved", "status.godkjent", "success"],
+    ["dismissed", "status.avvist", "danger"],
+    ["closed", "status.lukket", "default"],
+    ["cancelled", "status.avbrutt", "danger"],
+  ];
+  it.each(fasit)("%s → %s / %s", (status, etikettKey, variant) => {
+    expect(noeytralEtikett(status)).toEqual({ etikettKey, variant });
+  });
+  it("ukjent status → status-strengen selv + default (samme fallback som perspektivEtikett)", () => {
+    expect(noeytralEtikett("ukjent_xyz")).toEqual({ etikettKey: "ukjent_xyz", variant: "default" });
   });
 });

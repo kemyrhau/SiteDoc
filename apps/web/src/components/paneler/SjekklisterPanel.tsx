@@ -18,9 +18,11 @@ const statusGrupper: StatusGruppe[] = [
   { id: "alle", labelKey: "status.alle", farge: "bg-gray-500" },
   { id: "draft", labelKey: "status.utkast", farge: "bg-gray-400" },
   { id: "sent", labelKey: "status.sendt", farge: "bg-blue-500" },
-  { id: "received", labelKey: "status.mottatt", farge: "bg-indigo-500" },
-  { id: "in_progress", labelKey: "status.underArbeid", farge: "bg-yellow-500" },
-  { id: "responded", labelKey: "status.besvart", farge: "bg-purple-500" },
+  // Nøytralt fargespråk (designnotat-statusfarger-paritet § 2/§ 8): «i flyt» = blå.
+  // received/in_progress/responded var indigo/gul/lilla — drift; alle tre er blå nøytralt.
+  { id: "received", labelKey: "status.mottatt", farge: "bg-blue-500" },
+  { id: "in_progress", labelKey: "status.underArbeid", farge: "bg-blue-500" },
+  { id: "responded", labelKey: "status.besvart", farge: "bg-blue-500" },
   { id: "approved", labelKey: "status.godkjent", farge: "bg-green-500" },
   { id: "avvist", labelKey: "status.avvist", farge: "bg-red-500" },
   { id: "closed", labelKey: "status.lukket", farge: "bg-gray-600" },

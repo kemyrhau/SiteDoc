@@ -12,6 +12,7 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@sitedoc/shared": "workspace:*",
     "i18next": "^26.0.3",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
