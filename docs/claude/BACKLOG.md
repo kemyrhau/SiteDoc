@@ -236,6 +236,17 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### Fire oppfølgere fra sperrede-knapper-runden (design, 2026-09-19 — ingen blokkerende)
+
+- 🔴 **Web-tsc-gjeld, pre-eksisterende og målt på ren develop:** `papirkurv/page.tsx` (TS2589) og
+  `bibliotek-mal.test.ts` (TS2532) feiler `tsc --noEmit`. **CI kjører IKKE web-tsc**, så disse fanges
+  ikke — det er et **hull i gaten**, ikke bare to feil. (Regel 10-web-bygget fanger api-drift transitivt,
+  men ikke isolert web-tsc av disse to filene.)
+- **«Kopier mal» i `MalListe`** er et menyvalg og fikk ingen sperre-forklaring, selv om Rediger og Slett
+  ved siden av har det.
+- **Videresend-kommentaren** er påkrevd uten å være merket påkrevd.
+- **Google-innlogging mobil kan bli varig grå** — kontrollplan har runden.
+
 ### 🔴 Ingen vei til å FJERNE koblingen mellom et kontrollpunkt og en sjekkliste (målt 2026-09-11)
 
 **Målt:** `kontrollplan.koblePunkt` (`apps/api/src/routes/kontrollplan.ts:551`) setter

@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-19b · develop `e27a0dd7` (ren docs, ff — ordre «forklar sperrede knapper» committet, til redesign) · gate urørt fra 19a: db 25 · mobil 16 · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-19c · develop `b9d8ddec` (KM2-mal [no-ff] + sperrede-knapper [no-ff, 57 filer]) · db 25→34 · mobil 16→18 · web 292 STILLE · i18n 4627→4662 (+35, alle 15 filer identisk, 0 nøkler fjernet) · CLAUDE.md-strammingen `3dc7c9bc` også inne · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | — | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | KD2 merget `c1e29dc9` | 🔵 **KM2 neste** (starter når KD2 er inne — nå; han sjekker selv) | — |
+| **mal-Opus** | `SiteDoc-mal` | KM2 merget `a59d0e44` (KD2 `c1e29dc9`) | ⚪ **LEDIG** | — |
 | **kontrollplan** | `SiteDoc-kontrollplan` | — | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -30,8 +30,8 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 | Sak | Utløser | Til |
 |---|---|---|
-| 🔵 **RELAY «forklar sperrede knapper»** — ordre committet `e27a0dd7` (`docs/redesign/ordre-forklar-sperrede-knapper-design-2026-09-19.md`). **Steg 1 = ren kartlegging** (web + mobil, rangert etter pilotflyter på mobil) → tabell til `relay/inbox-design.md` → design godkjenner tekstene → steg 2 bygger. **Betingelsene på knappene røres ikke.** | Nå (cowork relayer) | redesign |
-| ✅ **KD2 MERGET `c1e29dc9`** (2026-09-19a) — første mal via maløypa, design↔mal-Opus direkte. Se datert seksjon under | Ferdig | — |
+| ✅ **SPERREDE KNAPPER MERGET `b9d8ddec`** (2026-09-19c) — 48 knapper web+mobil, `KnappMedForklaring`, 35 nøkler under `sperret.*`. Fire oppfølgere → BACKLOG § 1. Se datert seksjon under | Ferdig | — |
+| ✅ **KM2 MERGET `a59d0e44`** (2026-09-19c) + **KD2 `c1e29dc9`** (19a) — begge via maløypa. Se dater seksjoner under | Ferdig | — |
 | 🔵 **KM2 — KD2 er nå inne → mal-Opus kan starte** (han sjekker selv). Går på maløypa (design → mal-Opus direkte). `docs/redesign/ordre-km2-ny-mal-design-2026-09-18.md` (mur av stein i terreng), merget `1056b302`. KM2 bruker generatoren fra KD2 og skal ligge **etter `KD2_MAL`** i `seed-bibliotek.ts`. Normen har ingen utførelseskrav/toleranser for mur → **kontroll mot beskrivelsen, ingen tall** (Kenneth godkjent). Branch `feat/mal-km2` | KD2 inne (nå) | design → mal-Opus |
 | **Bundet flyt — UI** | Nå. Kolonne + serversperre er inne (`be2217d1`); radiovalg ved opprettelse, bryter i etterkant, fotnote og `Anchor`-symbol mangler | redesign |
 | **Strengharmonisering** — «Sentralarkiv»/«Malarkiv» ut som synlige begreper + kapittel/underkapittel/post | Nå. Har ventet siden 16.09 | mal-Opus |
@@ -45,6 +45,27 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-19c — KM2-mal + sperrede knapper merget. Ingen migrering. develop `b9d8ddec`.
+
+**To uavhengige runder, KM2 først** (liten + isolert, så en feil i den store står alene i diffen). Begge `--no-ff`, null felles filer. Mellom 19b og denne: CLAUDE.md § «Commit + push» skrevet om + strammet (`496579d2`/`3dc7c9bc` — Opus pusher egen branch på grønn gate uten klarsignal; frys etter «klar for merge»).
+
+**Gate — db og mobil steg, web og resten HELT stille:** db 25→34 (KM2 +9) · api 511 · pdf 124 · shared 824 · web 292 (stille) · mobil 16→18 (+2) · integrasjon 61 · 7/7. Prisma generate ×4 + web build (regel 10) + mobil typecheck — alle grønne.
+
+**i18n (57-fils-runden — største flate på lenge):** 4627→4662 = **+35** i alle 15 filer, **identisk nøkkelsett**, **0 nøkler fjernet** (verifisert nøkkel-for-nøkkel mot `a59d0e44`; numstats «1 deleted» er komma-artefakten på `videresend.radAvsenderMedRolle`, ikke en sletting).
+
+### KM2 «mur av stein i terreng» — Bygget ✓ / Gatet ✓ design 2026-09-19
+- Tekstbevis: kapittel KM + mal lagt inn, version 1, 13 rader (overskrifter 1/5/10), 5 enkeltvalg + 5 trafikklys, **NULL tallfelt**.
+- ⚠️ **Eneste tall i hele malen er definisjonen «300 mm»** — Kenneth-gatet unntak: det definerer *hva en mur er*, ikke *hvordan den utføres*. §5-testen beviser at unntaket er smalt.
+- Seedkommentaren rettet til 14 maler. `km2-test.sql` kjørt mot test ÉN gang — skal IKKE kjøres igjen.
+
+### Sperrede knapper — Bygget ✓ / Gatet ✓ design 2026-09-19
+- 48 knapper kartlagt (web + mobil), 35 nøkler under `sperret.*`. Ny mobil-komponent `KnappMedForklaring`. Alle designs rettelser brukt.
+- 🔴 **Fler-grunn-knapper velger forklaring etter hvilken grunn som faktisk slår til.** «Ingen endringer å lagre ennå» vises BARE når det virkelig ikke er endringer — ellers ville teksten lyve.
+- **Betingelsene er urørt.** Vi forklarer *hvorfor* en knapp er sperret; vi endrer ikke *når* den er det.
+- **Fire oppfølgere → BACKLOG § 1 Teknisk gjeld** (ingen blokkerende): 🔴 web-tsc-gjeld (papirkurv/page.tsx TS2589 + bibliotek-mal.test.ts TS2532 — CI kjører ikke web-tsc = hull i gaten) · «Kopier mal» i MalListe mangler forklaring · videresend-kommentar påkrevd uten å være merket · Google-innlogging mobil kan bli varig grå (kontrollplan har runden).
 
 ---
 
