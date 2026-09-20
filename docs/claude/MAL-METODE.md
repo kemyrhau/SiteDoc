@@ -264,3 +264,29 @@ Ordren kan si hvor faktumet står (normside), slik at gaten kan kontrollere det.
 **Forholdet til §7 (NS-loggen):** NS 3420 selv teller fortsatt ikke i loggen. Eksterne produktstandarder
 (NS-EN 1338 osv.) nevnes ikke lenger i hjelpetekster når produktmerkingen alene sier det arbeideren skal sjekke.
 
+
+## 8. Malfasit — teksten er låst (Kenneth 2026-09-20)
+
+**Hullet som lukkes:** maltestene låser navn, felttype og fase. Hjelpetekster og alternativer var bare sjekket
+negativt (§7b: ingen normkoder). Selve teksten var sett én gang, i psql-utskriften ved gaten. Endret noen et tall i en
+hjelpetekst etterpå, sa ingenting fra.
+
+**Regelen:** hele innholdet i hver eksportert `*_MAL` — referanse, navn, beskrivelse, og per felt type, label, fase,
+alternativer, hjelpetekst og config — ligger i en **fasitfil i repoet**, skrevet ut av testen. En test sammenligner
+malene mot fasiten ved hver kjøring.
+
+1. **Endring i fasitfilen er bare lov sammen med en designgatet ordre.** Diffen skal vise gammel og ny tekst, og den
+   skal være akkurat det ordren ber om. Fasitendring uten ordre er et avvik, og design holder merge.
+2. Ved revisjon oppdateres fasiten i samme branch som malen, aldri i en egen «rett opp testen»-commit.
+3. Nye maler legger til sin del av fasiten i samme branch.
+4. Fasiten låser seeden, ikke databasen. At arkivet faktisk har samme innhold, vises fortsatt av tekstbeviset (§6a) ved
+   hver kjøring.
+
+### §8b. SQL-kjøringens rolle (Kenneth 2026-09-20)
+
+Tekstbeviset hentes lokalt (`skriv-mal.ts`, samme form som §6a) og er låst av fasiten i §8. Derfor:
+
+1. **Innholdsgaten går på den lokale utskriften** — malen seedes ikke for at design skal lese teksten.
+2. **SQL mot test kjøres per runde, ikke per mal**, og alltid når `generer-mal-sql.ts` eller `byggBibliotekRader` er
+   endret. Det er der beviset for kolonner, vakter og kapitteloppslag mot et ekte skjema ligger.
+3. §1b-regelen står: SQL kjøres ÉN gang per fil, aldri to. Kenneth kjører den.
