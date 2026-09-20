@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-20 · develop `c0985f7c` (ren docs: to ordrefiler FB1 + UP1 for runde C, [no-ff]) · GATE (`--force`, ingen FULL TURBO): ALT HELT stille — db 137 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · runden rører ingen kode · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-20 · develop `ca44f9e3` (Runde C: UP1+FB1 v1 + nytt kap UP + runde D-ordrene FF1/JH2 + MAL-METODE §7c, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): db 137→156 (+19, UP1+FB1-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · SQL kjørt av Kenneth (`up1-fb1-test.sql`) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -48,13 +48,37 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 ---
 
+## 🟢 2026-09-20 — Runde C: UP1 + FB1 (nytt kap UP) merget + runde D-ordrene lagt lesbare. VA-kjeden komplett. Ingen migrering, ingen mobil. develop `ca44f9e3`.
+
+**To brancher, begge `--no-ff` — runde C først (blokkerte D):**
+- **1 — `feat/mal-runde-c` `aec7688f`** (🔴 ikke ff, base `37864435`; seks filer, alle `packages/db/prisma`): `seed-bibliotek.ts` · `up1-mal.test.ts` + `fb1-mal.test.ts` · `generer-mal-sql.ts` (`+76/−4`) + `generer-mal-sql.test.ts` · `mal-fasit.snap.md`. **Non-ff trygghetsmålt selv:** alle fire kodefiler 0 commits på develop siden basen, `merge-tree` → 0 konfliktmarkører. Ingen rebase.
+- **2 — `docs/design-runde-d` `63b56af7`** (ff-bar): `docs/claude/MAL-METODE.md` (§7c) + `ordre-ff1-ny-mal-design-2026-09-20.md` + `ordre-jh2-ny-mal-design-2026-09-20.md`.
+
+**🔴 REN FLYTTING/TILLEGG — verifisert med tall:** `git diff --numstat` på `mal-fasit.snap.md` = **`113 0`** (0 slettinger). Ingen eksisterende maltekst endret.
+
+**UP1 (12 felt + 3 headings) + FB1 (10 felt + 3 headings), begge v1.** **Nytt kapittel UP** (i NS 3420-U). **Kapittelet FB er ikke lenger tomt.** **Biblioteket har nå 19 maler**, og **VA-kjeden er komplett: FD2 → UM1 → UP1 → FS3 → UU1.**
+
+**🟢 GODKJENT UTVIDELSE (ikke drift):** mal-Opus løste sorteringsrettingen (UU → sortering 3) som et `--sorter KODE=n`-valg i generatoren i stedet for håndskrevet SQL — smal, innenfor riktig standard, kun modus `ny`, testdekket. Design har godkjent.
+
+**Gate — KUN db steg, alle andre HELT stille (`--force`, 0 cached, ingen FULL TURBO):** db 137→156 (**+19**, UP1+FB1-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. Ingen migrering, ingen mobil-endring, ingen i18n.
+
+**SQL-regelen (§8b) utløst og fulgt:** generatoren er endret (`+76/−4`), så SQL mot test kreves. **Kjørt av Kenneth, `up1-fb1-test.sql`:** kapittel UP opprettet, UP1 v1, FB1 v1, `UPDATE 1` flyttet UU til sortering 3. 🔴 §1b: én kjøring per fil — merge-agenten kjørte ikke SQL selv.
+
+**Runde D-ordrene (FF1, JH2) + MAL-METODE §7c ligger lesbare i develop.** 🟡 **Målt: mal-Opus har IKKE startet runde D** — worktreet står fortsatt på `feat/mal-runde-c`, ingen runde-D-kodebranch finnes. Startsignalet sender design.
+
+### 🟡 BACKLOG-post fra runde C — kapittel-sortering mangler tiebreaker
+- `bibliotek.ts:37` sorterer kapittel-lista kun på `sortering`, uten tiebreaker. To kapitler med samme tall gir udefinert rekkefølge i UI-et — samme klasse som «stille tomhet».
+- **Selve tilfellet er løst i runde C** (UU flyttet til egen sortering). Koden bør sortere på `sortering`, deretter `kode`. **Ikke hastesak, ikke fikset i denne runden — ført til cowork/BACKLOG.**
+
+---
+
 ## 🟢 2026-09-20 — Ordrefiler for runde C (FB1 + UP1) lagt i develop. Ren docs. develop `c0985f7c`.
 
 **Én branch `docs/design-runde-c` `ea7f5d48` [no-ff]:** to NYE ordrefiler i `docs/redesign/` — `ordre-fb1-ny-mal-design-2026-09-20.md` (130 linjer) + `ordre-up1-ny-mal-design-2026-09-20.md` (162 linjer). Begge status `A`, 0 slettede linjer, ingen eksisterende fil rørt.
 
 **Gate — ALT HELT stille (`--force`, 0 cached, ingen FULL TURBO):** db 137 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. Runden rører ingen kode.
 
-🔴 **Ordrene er kun gjort LESBARE for mal-Opus — IKKE påbegynt arbeid.** Startsignalet til mal-Opus sender design, ikke merge og ikke cowork.
+🔴 **RETTELSE (korreksjon av påstand, ikke en statusendring):** denne seksjonen sa opprinnelig at ordrefilene var «klare for mal-Opus / ingen har startet». **Det var feil.** Runde C var på det tidspunktet allerede **bygget, frosset og designgatet** (`feat/mal-runde-c` `aec7688f`). Feilen kom fra coworks ordre, som skrev «ingen har startet» uten å ha lest inboksen. **Det som faktisk skjedde:** ordrefilene ble lagt i develop mens malbygget allerede var gatet — ikke som et startsignal.
 
 ---
 

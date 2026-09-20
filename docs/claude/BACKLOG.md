@@ -236,6 +236,14 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 Kapittel-sortering mangler tiebreaker (mal-runde C, målt 2026-09-20)
+
+- `bibliotek.ts:37` sorterer kapittel-lista **kun på `sortering`**, uten tiebreaker. To kapitler med
+  samme `sortering`-tall gir **udefinert rekkefølge i UI-et** — samme klasse som «stille tomhet»
+  (identitet/rekkefølge utledet av en ikke-entydig egenskap).
+- **Selve tilfellet er løst** i runde C (UU flyttet til egen `sortering` via generatorens `--sorter`).
+  Koden bør sortere på `sortering`, deretter `kode`. **Ikke hastesak.**
+
 ### Fire oppfølgere fra sperrede-knapper-runden (design, 2026-09-19 — ingen blokkerende)
 
 - 🔴 **Web-tsc-gjeld, pre-eksisterende og målt på ren develop:** `papirkurv/page.tsx` (TS2589) og
