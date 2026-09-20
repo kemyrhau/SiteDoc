@@ -57,13 +57,24 @@ Nybygg skjer ETTER at revisjonskøen under er ferdig, hvis ikke Kenneth priorite
 | 7 | KD2 – Setting av kantstein (NY) | ordre-kd2-ny-mal-design-2026-09-18.md | ✓ merget | ✓ | Første mal med generell SQL-generator |
 | 8 | KM2 – Mur av stein i terreng (NY) | ordre-km2-ny-mal-design-2026-09-18.md | ✓ merget | ✓ | Beskrivelsesstyrt (ingen normtall). Nytt kapittel KM. Gabioner ute |
 | 9 | FD1 – Graving av byggegrop (omkodet fra FB2) | ordre-fd1-omkoding-design-2026-09-19.md | ✓ merget 2026-09-19 (`5ac878ff`) | ✓ | Seed-kodene i Del F fulgte ikke normen (verken 2008 eller 2024). Kapitler rettet: FB Markrydding, FD Uttak av løsmasser. Generator: standard per mal + `--fra` |
-| 10 | FS2 – Utlegging av masser i lag (omkodet fra FD2) | ordre-fs2-omkoding-design-2026-09-19.md | ✓ `edc176ed` | ✓ klar for merge | Fylling (FS1) + lag (FS2) i én mal. Nytt kapittel FS |
-| 11 | FD2 – Graving av grøft (NY) | ordre-fd2-ny-mal-design-2026-09-19.md | – | – | Starter når FS2 er merget (referansen FD2 frigjøres) |
-| 12 | FH1 – Sprengning i dagen (omkodet fra FC1) | ordre-fh1-omkoding-design-2026-09-19.md | – | – | Nytt kapittel FH. Tomt kildekapittel FC slettes (NOT EXISTS-vakt). Starter etter FD2 |
-| 13 | FS3 – Legging og gjenfylling i grøft (omkodet fra FE1) | ordre-fs3-omkoding-design-2026-09-19.md | – | – | FS3, ikke FV3 (samlepost for prising). Fall/trykkprøve ut → Del U. Tomt FE slettes. Starter etter FH1 |
-| 14 | FB4 – Spunting og avstiving | – | – | – | PARKERT: spunt står ikke i Del F (mangler normdel). **Låst i malfasiten 2026-09-20, men ikke voktet**: §7b-vakten er K-filtrert (`mal-7b.test.ts`), og FB4 har ingen egen vakt — normkodene i hjelpetekstene ligger urørt uten alarm. Ved revisjon: egen vakt eller plass i en F-vakt (coworks funn) |
-| 15 | FD3 – Grunnforsterkning | – | – | – | PARKERT: hører til NS 3420-G:2019 kap. GB, ikke FD3 (= graving av groper). Samme som FB4: låst i fasiten, ikke voktet av §7b — ordne vakt ved revisjon |
-| 16 | Del U – rørledning i grøft (NY) | – | – | – | Neste nybygg (Kenneth 2026-09-19): fall, tetthet, trykkprøving |
+| 10 | FS2 – Utlegging av masser i lag (omkodet fra FD2) | ordre-fs2-omkoding-design-2026-09-19.md | ✓ merget 2026-09-19 | ✓ | Fylling (FS1) + lag (FS2) i én mal. Nytt kapittel FS |
+| 11 | FD2 – Graving av grøft (NY) | ordre-fd2-ny-mal-design-2026-09-19.md | ✓ merget 2026-09-20 | ✓ | Koden ble ledig da gamle FD2 ble FS2 |
+| 12 | FH1 – Sprengning i dagen (omkodet fra FC1) | ordre-fh1-omkoding-design-2026-09-19.md | ✓ merget 2026-09-20 (runde A) | ✓ | Nytt kapittel FH. Tomt kildekapittel FC slettet |
+| 13 | FS3 – Legging og gjenfylling i grøft (omkodet fra FE1) | ordre-fs3-omkoding-design-2026-09-19.md | ✓ merget 2026-09-20 (runde A) | ✓ | FS3, ikke FV3. Fall og trykkprøve flyttet til Del U. Tomt FE slettet. **Del F ferdig omkodet** |
+| 14 | UM1 – Legging av VA-ledninger (NY) | ordre-um1-ny-mal-design-2026-09-19.md | ✓ merget 2026-09-20 (runde B) | ✓ | **Tredje standard: NS 3420-U:2019.** Nytt kapittel UM |
+| 15 | UU1 – Prøving av VA-ledninger (NY) | ordre-uu1-ny-mal-design-2026-09-19.md | ✓ merget 2026-09-20 (runde B) | ✓ | Egen mal fordi prøving ofte gjøres av andre enn leggerne (Kenneth). Kapittel UU |
+| 16 | UP1 – Setting av kum i grunnen (NY) | ordre-up1-ny-mal-design-2026-09-20.md | ✓ merget 2026-09-20 (runde C) | ✓ | Kapittel UP. **VA-kjeden komplett: FD2 → UM1 → UP1 → FS3 → UU1** |
+| 17 | FB1 – Markrydding og avtaking av vekstjord (NY) | ordre-fb1-ny-mal-design-2026-09-20.md | ✓ merget 2026-09-20 (runde C) | ✓ | Fyller kapittelet FB, som sto tomt etter omkodingen |
+| 18 | FF1 – Avretting (NY) | ordre-ff1-ny-mal-design-2026-09-20.md | ✓ `fe97e498` (runde D) | ✓ klar for merge | Nytt kapittel FF. Malen de andre F-malene peker til |
+| 19 | JH2 – Asfaltdekke (NY) | ordre-jh2-ny-mal-design-2026-09-20.md | ✓ `fe97e498` (runde D) | ✓ klar for merge | **Fjerde standard: NS 3420-J:2008.** Første mal som navngir N200 (§7c). Lukker asfalthullet fra KD1 |
+| 20 | FB4 – Spunting og avstiving | – | – | – | PARKERT: spunt står ikke i Del F (mangler normdel). Låst i malfasiten 2026-09-20, men **ikke voktet** av §7b (K-filtrert vakt) — ved revisjon: egen vakt eller plass i en F-vakt |
+| 21 | FD3 – Grunnforsterkning | – | – | – | PARKERT: hører til NS 3420-G:2019 kap. GB. Samme vaktmangel som FB4 |
+
+**Status 2026-09-20:** 21 maler i fire standarder — K (8), F (8), U (3), J (1). To parkert. Neste kandidater står i
+`docs/redesign/status-designsporet-2026-09-20.md`.
+
+**Arbeidsform fra 2026-09-20:** to maler per runde i én branch (samlerunde-tillegget), innholdsgate på lokal
+`skriv-mal`-utskrift låst av malfasiten (§8), SQL mot test per runde og alltid når generatoren endres (§8b).
 
 ## Vedtakslogg (kort)
 - 2026-09-19: Del F-kodene i seed rettes til normen (Kenneth): FB2→FD1, FD2→FS2, FC1→FH1, FE1→FS3, ny FD2 grøft. Samme bibliotekrad (lån beholder id). Tomme feil-kapitler (FC, FE) slettes. FB4 og FD3 parkert.
