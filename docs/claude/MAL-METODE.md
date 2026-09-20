@@ -290,3 +290,16 @@ Tekstbeviset hentes lokalt (`skriv-mal.ts`, samme form som §6a) og er låst av 
 2. **SQL mot test kjøres per runde, ikke per mal**, og alltid når `generer-mal-sql.ts` eller `byggBibliotekRader` er
    endret. Det er der beviset for kolonner, vakter og kapitteloppslag mot et ekte skjema ligger.
 3. §1b-regelen står: SQL kjøres ÉN gang per fil, aldri to. Kenneth kjører den.
+
+### §7c. Gratis offentlige dokumenter kan navngis (Kenneth 2026-09-20)
+
+§7b forbyr å navngi standarder i hjelpetekster. Regelen har ett unntak, og skillet er om arbeideren kan slå opp kilden:
+
+1. **Gratis og fritt tilgjengelig** (vegvesenets håndbøker, f.eks. N200, fritt nedlastbare fra vegvesen.no):
+   **kan navngis** med navn og kapittel. Det hjelper den som står i grøfta til å finne kravet.
+2. **Bak betaling** (NS 3420, NS-EN, NS 3458, VA/Miljø-blad, Norsk Vann-rapporter): navngis ikke i hjelpetekst.
+   En henvisning dit er verdiløs for en arbeider som ikke har tilgang.
+3. **Uansett kilde:** tekst og tabeller kopieres aldri. Kravet skrives med egne ord, eller det pekes til beskrivelsen.
+
+Eksisterende maler som sier «vegvesenets krav i beskrivelsen» (bl.a. FS2) kan få N200 navngitt **når de revideres** —
+det er en tekstendring og krever egen designgatet ordre, jf. §8.
