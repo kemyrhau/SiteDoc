@@ -50,3 +50,33 @@ Fasitendring er bare lov sammen med en designgatet ordre, i samme branch som mal
 5. Leveranse nederst i `relay/inbox-design.md` + «design har post» til Kenneth.
 
 Design gater på diffen — ingen SQL i denne runden. Deretter runde B (UM1 + UU1), som legger til sin del av fasiten.
+
+---
+
+## TILLEGG 2026-09-20 (Kenneth gatet): lokalt tekstbevis — del av samme runde
+
+Coworks funn A. Bygges i samme branch som fasiten.
+
+**5. Én kommando som skriver ut en mal lokalt**, uten database, scp, docker eller TTY:
+
+```
+pnpm --filter @sitedoc/db exec tsx prisma/skriv-mal.ts <REF...>
+```
+
+- Skriver ut referanse, navn, beskrivelse og alle rader i rekkefølge med type, label, fase, alternativer og
+  hjelpetekst — **samme form som §6a-utskriften** design gater på i dag, så gaten er uendret i innhold.
+- Bygger radene med `byggBibliotekRader`, samme funksjon som seeden og generatoren. Utskriften er per definisjon det
+  seeden ville skrevet.
+- Flere referanser i samme kjøring, i den rekkefølgen de står. Ukjent referanse: stopp med klartekst.
+- Navnet på scriptet velger du; hold det i `packages/db/prisma/` ved siden av generatoren.
+
+**6. SQL-kjøringens nye rolle** (Kenneth 2026-09-20). Dette er vedtaket ordren bygger på — MAL-METODE oppdateres av
+design:
+
+1. **Innholdsgaten kjøres på den lokale utskriften**, låst av fasiten. Ingen seeding for å lese tekst.
+2. **SQL mot test kjøres per runde, ikke per mal**, og **alltid** når `generer-mal-sql.ts` eller `byggBibliotekRader`
+   er endret — der ligger beviset for skjema, vakter og kapitteloppslag.
+3. «SQL kjøres ÉN gang» står uendret: én kjøring per fil, aldri to.
+
+**DoD utvides med:** scriptet kjørt for én K-mal og én F-mal, og utskriften limt inn i leveransen som bevis på at den
+er identisk i form med §6a-utskriften.

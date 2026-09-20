@@ -281,3 +281,12 @@ malene mot fasiten ved hver kjøring.
 3. Nye maler legger til sin del av fasiten i samme branch.
 4. Fasiten låser seeden, ikke databasen. At arkivet faktisk har samme innhold, vises fortsatt av tekstbeviset (§6a) ved
    hver kjøring.
+
+### §8b. SQL-kjøringens rolle (Kenneth 2026-09-20)
+
+Tekstbeviset hentes lokalt (`skriv-mal.ts`, samme form som §6a) og er låst av fasiten i §8. Derfor:
+
+1. **Innholdsgaten går på den lokale utskriften** — malen seedes ikke for at design skal lese teksten.
+2. **SQL mot test kjøres per runde, ikke per mal**, og alltid når `generer-mal-sql.ts` eller `byggBibliotekRader` er
+   endret. Det er der beviset for kolonner, vakter og kapitteloppslag mot et ekte skjema ligger.
+3. §1b-regelen står: SQL kjøres ÉN gang per fil, aldri to. Kenneth kjører den.
