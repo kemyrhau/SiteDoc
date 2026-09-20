@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { byggMalSql, byggFlerRevisjonSql, filnavnFor, malRegister } from "./generer-mal-sql";
-import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FS2_MAL } from "./seed-bibliotek";
+import { byggMalSql, byggFlerRevisjonSql, filnavnFor, flerFilnavn, malRegister } from "./generer-mal-sql";
+import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FS2_MAL, FH1_MAL, FS3_MAL } from "./seed-bibliotek";
 
 /**
  * Ren unit-test (ingen DB) for den generelle mal-SQL-generatoren (MAL-METODE §1b pkt 4).
@@ -13,6 +13,8 @@ const KD2 = KD2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const KM2 = KM2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const FD1 = FD1_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const FS2 = FS2_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const FH1 = FH1_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const FS3 = FS3_MAL as unknown as Parameters<typeof byggMalSql>[0];
 
 describe("generer-mal-sql", () => {
   it("ny: version-verdi 1, INGEN DELETE, \\x on", () => {
@@ -211,5 +213,95 @@ describe("omkoding oppretter manglende målkapittel (--fra)", () => {
 
   it("registeret finner FS2 (F-mal)", () => {
     expect(malRegister().get("FS2")?.referanse).toBe("FS2");
+  });
+});
+
+// Ordre FH1 §3/§5: omkoding sletter TOMT kildekapittel (NOT EXISTS-vakt) etter UPDATE referanse.
+describe("omkoding sletter tomt kildekapittel (--fra)", () => {
+  it("FH1 --fra FC1: kapittel-INSERT (FH) → UPDATE referanse → DELETE bibliotek_kapitler (FC), i rekkefølge", () => {
+    const s = byggMalSql(FH1, "revisjon", { fraRef: "FC1" });
+    const kapInsert = s.indexOf("INSERT INTO bibliotek_kapitler");
+    const refUpd = s.indexOf("referanse = 'FH1',");
+    const kapDelete = s.indexOf("DELETE FROM bibliotek_kapitler");
+    expect(kapInsert).toBeGreaterThan(-1);
+    expect(refUpd).toBeGreaterThan(kapInsert);
+    expect(kapDelete).toBeGreaterThan(refUpd);
+    // NOT EXISTS-vakt mot gjenværende maler:
+    expect(s).toMatch(/DELETE FROM bibliotek_kapitler[\s\S]*NOT EXISTS \(SELECT 1 FROM bibliotek_maler/);
+    expect(s).toContain("k.kode = 'FC'");
+  });
+
+  it("FD1 --fra FB2: sletter også kildekapittel FB (no-op i praksis, FB har FB4) — NOT EXISTS-vakt", () => {
+    const s = byggMalSql(FD1, "revisjon", { fraRef: "FB2" });
+    expect(s).toContain("DELETE FROM bibliotek_kapitler");
+    expect(s).toContain("k.kode = 'FB'");
+    // FB navne-rettes fortsatt (overlever), men FC/tomt kildekap. gjør det ikke — se FH1.
+    expect(s).toContain("navn = 'Markrydding'");
+  });
+
+  it("fjernet kildekapittel navne-rettes IKKE (FC ikke i KAPITTEL_DATA_F)", () => {
+    const s = byggMalSql(FH1, "revisjon", { fraRef: "FC1" });
+    // Kun ÉN navn-UPDATE (målkapittel FH). Var FC med, ville det vært to (jf. FD1: FB+FD).
+    expect((s.match(/UPDATE bibliotek_kapitler k SET navn/g) ?? []).length).toBe(1);
+    expect(s).toContain("navn = 'Uttak av berg'");
+    // FC nevnes bare i DELETE-en (kildekapittel), aldri i en navn-UPDATE.
+    expect(s).toContain("k.kode = 'FC'");
+    // Kontroll: FD1 (kilde FB overlever) har to navn-UPDATE-er.
+    const fd1 = byggMalSql(FD1, "revisjon", { fraRef: "FB2" });
+    expect((fd1.match(/UPDATE bibliotek_kapitler k SET navn/g) ?? []).length).toBe(2);
+  });
+});
+
+// Tillegg samlerunder §2: --fra med ett par per mal → fler-mal-omkoding i én transaksjon.
+describe("fler-mal-omkoding (par NY=GAMMEL)", () => {
+  const fraMap = new Map([
+    ["FH1", "FC1"],
+    ["FS3", "FE1"],
+  ]);
+
+  it("to UPDATE … referanse i riktig rekkefølge (FH1 før FS3), én transaksjon", () => {
+    const s = byggFlerRevisjonSql([FH1, FS3], fraMap);
+    expect(s.match(/BEGIN;/g)).toHaveLength(1);
+    expect(s.match(/COMMIT;/g)).toHaveLength(1);
+    const fh1 = s.indexOf("referanse = 'FH1',");
+    const fs3 = s.indexOf("referanse = 'FS3',");
+    expect(fh1).toBeGreaterThan(-1);
+    expect(fs3).toBeGreaterThan(fh1);
+  });
+
+  it("hver mal får kapittel-INSERT, DELETE tomt kildekapittel og version+1", () => {
+    const s = byggFlerRevisjonSql([FH1, FS3], fraMap);
+    expect(s.match(/version = version \+ 1/g)).toHaveLength(2);
+    expect(s.match(/DELETE FROM bibliotek_kapitler/g)).toHaveLength(2);
+    expect(s).toContain("k.kode = 'FC'"); // FH1s kildekapittel
+    expect(s).toContain("k.kode = 'FE'"); // FS3s kildekapittel
+    expect(s).toContain("'FH', 'Uttak av berg', 5"); // FH opprettes
+  });
+
+  it("utskrift per mal (\\x on + metadata-SELECT + kildekapittel-bevis for hver)", () => {
+    const s = byggFlerRevisjonSql([FH1, FS3], fraMap);
+    expect(s.match(/\\x on/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(s).toContain("WHERE referanse = 'FH1';");
+    expect(s).toContain("WHERE referanse = 'FS3';");
+    expect(s).toContain("kildekapittel_finnes_fortsatt");
+  });
+
+  it("en ref uten par revideres uten omkoding (blandet)", () => {
+    const s = byggFlerRevisjonSql([FH1, KD2], new Map([["FH1", "FC1"]]));
+    expect(s).toContain("referanse = 'FH1',"); // FH1 omkodes
+    expect(s).not.toContain("referanse = 'KD2',"); // KD2 ren revisjon, ingen omkoding
+    expect(s.match(/version = version \+ 1/g)).toHaveLength(2);
+  });
+
+  it("fler-revisjon uten fraMap er ren revisjon (ingen omkoding, ingen kapittel-tabell)", () => {
+    const s = byggFlerRevisjonSql([KD2, KM2]);
+    expect(s).not.toContain("bibliotek_kapitler");
+    expect(s).not.toContain("Omkoding");
+  });
+
+  it("flerFilnavn: refs → «<ref1>-<ref2>-…-test.sql», punktum fjernet", () => {
+    expect(flerFilnavn(["FH1", "FS3"])).toBe("fh1-fs3-test.sql");
+    expect(flerFilnavn(["UM1", "UU1"])).toBe("um1-uu1-test.sql");
+    expect(flerFilnavn(["KC3.1", "KD2"])).toBe("kc31-kd2-test.sql");
   });
 });
