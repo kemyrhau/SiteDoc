@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { byggMalSql, byggFlerRevisjonSql, filnavnFor, flerFilnavn, malRegister } from "./generer-mal-sql";
-import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FS2_MAL, FH1_MAL, FS3_MAL } from "./seed-bibliotek";
+import { byggMalSql, byggFlerRevisjonSql, byggFlerNySql, filnavnFor, flerFilnavn, malRegister } from "./generer-mal-sql";
+import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FD2_MAL, FS2_MAL, FH1_MAL, FS3_MAL, UM1_MAL, UU1_MAL } from "./seed-bibliotek";
 
 /**
  * Ren unit-test (ingen DB) for den generelle mal-SQL-generatoren (MAL-METODE §1b pkt 4).
@@ -15,6 +15,8 @@ const FD1 = FD1_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const FS2 = FS2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const FH1 = FH1_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const FS3 = FS3_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const UM1 = UM1_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const UU1 = UU1_MAL as unknown as Parameters<typeof byggMalSql>[0];
 
 describe("generer-mal-sql", () => {
   it("ny: version-verdi 1, INGEN DELETE, \\x on", () => {
@@ -303,5 +305,101 @@ describe("fler-mal-omkoding (par NY=GAMMEL)", () => {
     expect(flerFilnavn(["FH1", "FS3"])).toBe("fh1-fs3-test.sql");
     expect(flerFilnavn(["UM1", "UU1"])).toBe("um1-uu1-test.sql");
     expect(flerFilnavn(["KC3.1", "KD2"])).toBe("kc31-kd2-test.sql");
+  });
+});
+
+// Ordre UM1 §3/§5: modus `ny` oppretter en manglende STANDARD (NS3420-U) i samme transaksjon, før
+// kapittel og mal. K-/F-maler hører til en standard som alltid seedes → deres standard-INSERT er en
+// idempotent no-op (WHERE NOT EXISTS). MELDT: K/F får en no-op standard-INSERT, ikke ingen.
+describe("standard-opprett i modus ny (ordre UM1 §3)", () => {
+  it("UM1 ny: standard-INSERT (NS3420-U) FØR kapittel-INSERT (UM) FØR mal-INSERT", () => {
+    const s = byggMalSql(UM1, "ny");
+    const stdIdx = s.indexOf("INSERT INTO bibliotek_standarder");
+    const kapIdx = s.indexOf("INSERT INTO bibliotek_kapitler");
+    const malIdx = s.indexOf("INSERT INTO bibliotek_maler");
+    expect(stdIdx).toBeGreaterThan(-1);
+    expect(stdIdx).toBeLessThan(kapIdx);
+    expect(kapIdx).toBeLessThan(malIdx);
+    // Ny standard NS3420-U, idempotent (WHERE NOT EXISTS), med navn + sortering fra STANDARD_DATA.
+    expect(s).toContain("'NS3420-U', 'NS 3420-U:2019 Rørinstallasjoner', 3");
+    expect(s).toMatch(/NOT EXISTS[\s\S]*bibliotek_standarder WHERE kode = 'NS3420-U'/);
+    // Kapittel UM opprettes i NS3420-U.
+    expect(s).toContain("'UM', 'Utendørs rørledninger', 1");
+    expect(s).toContain("s.kode = 'NS3420-U'");
+    expect(s).not.toContain("NS3420-K");
+  });
+
+  it("K-mal (ny) får en NO-OP standard-INSERT for NS3420-K (WHERE NOT EXISTS), ikke ingen", () => {
+    const s = byggMalSql(KD2, "ny");
+    expect(s).toContain("INSERT INTO bibliotek_standarder");
+    expect(s).toMatch(/NOT EXISTS[\s\S]*bibliotek_standarder WHERE kode = 'NS3420-K'/);
+  });
+
+  it("F-mal (ny) får en NO-OP standard-INSERT for NS3420-F (WHERE NOT EXISTS)", () => {
+    const s = byggMalSql(FD2_MAL as unknown as Parameters<typeof byggMalSql>[0], "ny");
+    expect(s).toContain("INSERT INTO bibliotek_standarder");
+    expect(s).toMatch(/NOT EXISTS[\s\S]*bibliotek_standarder WHERE kode = 'NS3420-F'/);
+  });
+
+  it("revisjon rører aldri standard-tabellen", () => {
+    expect(byggMalSql(KD2, "revisjon")).not.toContain("bibliotek_standarder WHERE kode");
+  });
+});
+
+// Runde B: UM1 + UU1 er begge NYE maler i én transaksjon (multi-ny). UM1 oppretter standard NS3420-U
+// + kapittel UM; UU1 gjenbruker standarden (no-op) og oppretter kapittel UU.
+describe("byggFlerNySql (multi-ny, runde B)", () => {
+  it("én transaksjon (ett BEGIN, ett COMMIT) rundt begge nye maler", () => {
+    const s = byggFlerNySql([UM1, UU1]);
+    expect(s.match(/BEGIN;/g)).toHaveLength(1);
+    expect(s.match(/COMMIT;/g)).toHaveLength(1);
+  });
+
+  it("hver mal INSERT-es fersk (version=1), INGEN DELETE, INGEN version+1", () => {
+    const s = byggFlerNySql([UM1, UU1]);
+    expect(s.match(/INSERT INTO bibliotek_maler/g)).toHaveLength(2);
+    expect(s.match(/false, 1, '\[\]'::jsonb/g)).toHaveLength(2);
+    expect(s).not.toContain("DELETE");
+    expect(s).not.toContain("version = version + 1");
+  });
+
+  it("standard NS3420-U og begge kapitler (UM, UU) opprettes WHERE NOT EXISTS", () => {
+    const s = byggFlerNySql([UM1, UU1]);
+    expect(s).toContain("'NS3420-U', 'NS 3420-U:2019 Rørinstallasjoner', 3");
+    expect(s).toContain("'UM', 'Utendørs rørledninger', 1");
+    expect(s).toContain("'UU', 'Felles arbeider for utendørs rørledningsanlegg', 2");
+    // UM1 kommer før UU1 (rekkefølge).
+    expect(s.indexOf("referanse = 'UM1'")).toBeLessThan(s.indexOf("referanse = 'UU1'"));
+  });
+
+  it("guard: hver mal avbryter hvis referansen finnes fra før (bruk revisjon)", () => {
+    const s = byggFlerNySql([UM1, UU1]);
+    expect(s).toContain("UM1 finnes allerede i arkivet — bruk modus revisjon");
+    expect(s).toContain("UU1 finnes allerede i arkivet — bruk modus revisjon");
+  });
+
+  it("full utskrift per mal før COMMIT (\\x on + metadata-SELECT for hver)", () => {
+    const s = byggFlerNySql([UM1, UU1]);
+    const commitIdx = s.indexOf("COMMIT;");
+    expect(s).toContain("WHERE referanse = 'UM1';");
+    expect(s).toContain("WHERE referanse = 'UU1';");
+    expect(s.indexOf("\\x on")).toBeGreaterThan(-1);
+    expect(s.indexOf("\\x on")).toBeLessThan(commitIdx);
+  });
+
+  it("bygger objekt-radene fra hver mal-konstant (heading + felt)", () => {
+    const s = byggFlerNySql([UM1, UU1]);
+    expect(s).toContain("'heading', 'Kontroll FØR utførelse'");
+    expect(s).toContain("'list_single', 'Type ledning'"); // UM1 felt 1
+    expect(s).toContain("'list_single', 'Hva prøves'"); // UU1 felt 1
+  });
+
+  it("tom liste er en feil", () => {
+    expect(() => byggFlerNySql([])).toThrow();
+  });
+
+  it("registeret finner UM1 og UU1 (U-maler)", () => {
+    expect(malRegister().get("UM1")?.referanse).toBe("UM1");
+    expect(malRegister().get("UU1")?.referanse).toBe("UU1");
   });
 });

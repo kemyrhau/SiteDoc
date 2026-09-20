@@ -68,13 +68,44 @@ export function filnavnFor(ref: string): string {
 interface KapittelRad { kode: string; navn: string; sortering: number }
 
 /** Kapittel-arrayene med sin standard-kode. Ordre FD1 §5: standarden slås opp per mal
- *  (K- eller F-arrayet) i stedet for et hardkodet STANDARD_KODE. */
+ *  (K-/F-/U-arrayet) i stedet for et hardkodet STANDARD_KODE. U lagt til ved UM1/UU1 (ordre §3). */
 function kapittelArrays(): { standard: string; data: KapittelRad[] }[] {
-  const s = seed as { KAPITTEL_DATA_K?: KapittelRad[]; KAPITTEL_DATA_F?: KapittelRad[] };
+  const s = seed as {
+    KAPITTEL_DATA_K?: KapittelRad[];
+    KAPITTEL_DATA_F?: KapittelRad[];
+    KAPITTEL_DATA_U?: KapittelRad[];
+  };
   return [
     { standard: "NS3420-K", data: s.KAPITTEL_DATA_K ?? [] },
     { standard: "NS3420-F", data: s.KAPITTEL_DATA_F ?? [] },
+    { standard: "NS3420-U", data: s.KAPITTEL_DATA_U ?? [] },
   ];
+}
+
+interface StandardRad { kode: string; navn: string; sortering: number }
+
+/** Standard-metadata (navn, sortering) fra seedens STANDARD_DATA — delt kilde med seeden, så
+ *  generert standard-INSERT og seed-upsert aldri kan skille lag (ordre UM1 §3). */
+function standardMeta(kode: string): { navn: string; sortering: number } {
+  const data = (seed as { STANDARD_DATA?: StandardRad[] }).STANDARD_DATA ?? [];
+  const rad = data.find((s) => s.kode === kode);
+  if (!rad) throw new Error(`Ukjent standard «${kode}» — mangler i STANDARD_DATA (seed-bibliotek.ts).`);
+  return { navn: rad.navn, sortering: rad.sortering };
+}
+
+/**
+ * SQL som oppretter standarden hvis den mangler, ellers gjenbruker den (WHERE NOT EXISTS →
+ * idempotent no-op). Kun for modus `ny` (ordre UM1 §3): en helt ny standard som NS3420-U må
+ * finnes før kapittel-INSERT-en (som slår opp `bibliotek_standarder.kode`) og mal-INSERT-en.
+ * For K-/F-maler er standarden alltid seedet fra før → dette blir en no-op.
+ */
+function opprettStandardSql(mal: MalKonstant): string {
+  const kode = standardForMal(mal);
+  const { navn, sortering } = standardMeta(kode);
+  return `-- Opprett standard ${kode} hvis den mangler (gjenbrukes ellers — WHERE NOT EXISTS).
+INSERT INTO bibliotek_standarder (id, kode, navn, sortering)
+SELECT gen_random_uuid()::text, '${kode}', '${sql(navn)}', ${sortering}
+WHERE NOT EXISTS (SELECT 1 FROM bibliotek_standarder WHERE kode = '${kode}');`;
 }
 
 /** Standarden malen hører til, funnet via kapittelKode i K-/F-arrayet (ordre FD1 §5 pkt 1). */
@@ -171,6 +202,8 @@ BEGIN
     RAISE EXCEPTION '${sql(ref)} finnes allerede i arkivet — bruk modus revisjon';
   END IF;
 END $$;
+
+${opprettStandardSql(mal)}
 
 ${opprettKapittelSql(mal)}
 
@@ -406,6 +439,37 @@ export function flerFilnavn(refs: string[]): string {
 }
 
 /**
+ * Fler-mal NY i ÉN transaksjon (runde B: UM1 + UU1). Hver mal INSERT-es fersk (version 1), med
+ * standard- og kapittel-opprett WHERE NOT EXISTS foran hver — slik at UM1 kan opprette den nye
+ * standarden NS3420-U + kapittel UM, og UU1 gjenbruker standarden (no-op) og oppretter kapittel UU
+ * i SAMME transaksjon. Så full §6a-utskrift PER MAL i rekkefølge FØR COMMIT. Feiler én (guard
+ * RAISE hvis referansen finnes), rulles ALT tilbake — ingen mal opprettes halvveis. Kjøres ÉN gang
+ * mot test (MAL-METODE §1b pkt 5); ny guard avbryter en utilsiktet ny kjøring.
+ */
+export function byggFlerNySql(maler: MalKonstant[]): string {
+  if (maler.length === 0) throw new Error("byggFlerNySql: ingen maler oppgitt.");
+  const refs = maler.map((m) => m.referanse).join(", ");
+  const mutasjoner = maler
+    .map((m) => `-- ── ${m.referanse}: ${m.navn} ──\n${nyMutasjon(m)}`)
+    .join("\n\n");
+  const bevis = maler
+    .map((m) => `-- ── ${m.referanse} ──\n${malBevis(m)}`)
+    .join("\n\n");
+  return `-- Fler-mal NY → arkiv (§6a) for ${maler.length} maler: ${refs}.
+-- ÉN transaksjon: hver mal INSERT-es (version=1), standard/kapittel opprettes WHERE NOT EXISTS,
+-- + full utskrift PER MAL. Feiler én, rulles ALT tilbake. Kjøres ÉN gang mot test (§1b pkt 5).
+BEGIN;
+
+${mutasjoner}
+
+-- ══ Full utskrift (§6a) av alle ${maler.length} malene før COMMIT ══
+${bevis}
+
+COMMIT;
+`;
+}
+
+/**
  * Fler-mal-revisjon i ÉN transaksjon (tillegg samlerunder §2–3): hver mal revideres (version+1),
  * med per-mal omkoding der `fraMap` gir en gammel referanse (par-form NY=GAMMEL), så full §6a-
  * utskrift PER MAL i rekkefølge FØR COMMIT. Feiler én (RAISE), rulles ALT tilbake — ingen mal
@@ -515,13 +579,15 @@ if (kjørtDirekte) {
     const omkoding = fraRef ? `, omkoding fra ${fraRef}` : "";
     console.log(`Skrev ${filnavnFor(mal.referanse)} (${mal.felter.length} felt, modus ${modus}${omkoding}).`);
   } else {
-    if (modus !== "revisjon") {
-      console.error("Flere referanser støttes foreløpig kun i modus revisjon.");
-      process.exit(1);
-    }
     const filnavn = flerFilnavn(refs);
-    writeFileSync(join(repoRot, filnavn), byggFlerRevisjonSql(maler, fraMap), "utf8");
-    const omkodinger = [...fraMap.entries()].map(([ny, g]) => `${g}→${ny}`).join(", ") || "ingen";
-    console.log(`Skrev ${filnavn} (${maler.length} maler: ${refs.join(", ")}; omkoding: ${omkodinger}).`);
+    if (modus === "ny") {
+      // --fra (omkoding) er allerede avvist for modus ny over; multi-ny har ingen omkoding.
+      writeFileSync(join(repoRot, filnavn), byggFlerNySql(maler), "utf8");
+      console.log(`Skrev ${filnavn} (${maler.length} nye maler: ${refs.join(", ")}).`);
+    } else {
+      writeFileSync(join(repoRot, filnavn), byggFlerRevisjonSql(maler, fraMap), "utf8");
+      const omkodinger = [...fraMap.entries()].map(([ny, g]) => `${g}→${ny}`).join(", ") || "ingen";
+      console.log(`Skrev ${filnavn} (${maler.length} maler: ${refs.join(", ")}; omkoding: ${omkodinger}).`);
+    }
   }
 }
