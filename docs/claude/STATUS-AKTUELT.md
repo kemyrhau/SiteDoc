@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-20 · develop `a0349089` (FB4/FD3 inline→export inn i malfasit + ordre-docs, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): db 111 HELT stille (ingen ny testfil, kun snapshot-innhold) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7 · ALLE HELT stille · ingen migrering, ingen mobil-endring, ingen SQL · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-20 · develop `0b1506d1` (Runde B: UM1+UU1 v1 + ny standard NS 3420-U + MAL-PLAN, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): db 111→137 (+26, UM1+UU1-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · SQL kjørt av Kenneth (`um1-uu1-test.sql`, §3b-regelen utløst og fulgt) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,27 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-20 — Runde B: UM1 + UU1 (ny standard NS 3420-U) + MAL-PLAN merget. Del U påbegynt. Ingen migrering, ingen mobil. develop `0b1506d1`.
+
+**To brancher, begge `--no-ff`, begge ff-mulig mot `717f5981`:**
+- **1 — `feat/mal-um1-uu1` `9c9af247`** (seks filer, alle `packages/db/prisma`): `seed-bibliotek.ts` (UM1+UU1, hver 11 felt + 3 headings, modus «ny»; kapitlene UM og UU) · `um1-mal.test.ts` + `uu1-mal.test.ts` · `generer-mal-sql.ts` (`+75/−9`) + `generer-mal-sql.test.ts` (`+100/−2`) · `mal-fasit.snap.md`.
+- **2 — `docs/design-malplan-2` `b6076127`**: `docs/claude/MAL-PLAN.md`.
+
+**🟢 GODKJENT AVVIK (ikke drift):** ordrene fra 19.09 sa separate brancher for UM1 og UU1; **én felles branch fulgt Kenneths samlerunde-vedtak 20.09**. Innholdet er uendret. Design har godkjent.
+
+**Biblioteket har nå TRE standarder: NS 3420-K, -F og -U.** **Generatoren er utvidet:** den kan nå **opprette en manglende standard** (`opprettStandardSql`) og **bygge flere nye maler i én fil** (`byggFlerNySql`). K- og F-maler får no-op standard-INSERT.
+
+**🔴 REN FLYTTING/TILLEGG — verifisert med tall:** `git diff --numstat` på `mal-fasit.snap.md` = **`111 0`** (111 tillegg, **0 slettinger**). Ingen eksisterende maltekst endret.
+
+**Gate — KUN db steg, alle andre HELT stille (`--force`, 0 cached, ingen FULL TURBO):** db 111→137 (**+26**, UM1+UU1-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. Ingen migrering, ingen mobil-endring, ingen i18n.
+
+### 🔴 SQL-REGELEN UTLØST OG FULGT — første gang i praksis (2026-09-20)
+- Dette er **første runde som treffer den nye SQL-regelen** (MAL-METODE §8b): generatoren ER endret (`generer-mal-sql.ts` `+75/−9`), og regelen sier da at SQL mot test **skal** kjøres.
+- **Den er kjørt — av Kenneth, `um1-uu1-test.sql`** (designgate-input): ny standard NS 3420-U opprettet, kapitlene UM og UU opprettet, UM1 og UU1 v1 med 11 felt + 3 headings hver, tekstbevis ordrett (45 og 49 tekster, målt av design).
+- 🔴 **§1b: én kjøring per fil, aldri to.** Merge-agenten kjørte ikke SQL selv.
 
 ---
 
