@@ -2,6 +2,43 @@
 # Regenerer KUN sammen med en designgatet ordre, i samme branch som malendringen:
 #   pnpm --filter @sitedoc/db exec vitest run mal-fasit -u
 
+### FB4
+FB4 navn        = FB4 – Spunting og avstiving
+FB4 beskrivelse = Spuntvegg, avstiving, setningskontroll
+FB4 f01 fase  = FØR
+FB4 f01 type  = list_single
+FB4 f01 label = Spunt levert iht. spesifikasjon
+FB4 f01 alt   = Riktig type og dimensjon – godkjent | Riktig type – feil dimensjon | Feil type – stopp og avklar
+FB4 f01 hjelp = FB4 b1: Kontroller spuntprofil, stålkvalitet og lengde mot prosjektert løsning. Vanlige typer: stålspunt (U/Z-profil), sekantpeler, berlinervegg.
+FB4 f02 fase  = FØR
+FB4 f02 type  = traffic_light
+FB4 f02 label = Nabokontroll utført
+FB4 f02 hjelp = FB4 b2: Tilstandsregistrering av bygninger og konstruksjoner innenfor influensområdet. Foto + rapport før oppstart.
+FB4 f03 fase  = UNDER
+FB4 f03 type  = decimal
+FB4 f03 label = Vertikalitet – avvik (mm/m)
+FB4 f03 hjelp = FB4 c1: Mål avvik fra lodd etter hvert element. Krav typisk ≤1 % av lengde. Korrigering vanskelig etter nedramming.
+FB4 f03 config = {"enhet":"mm/m"}
+FB4 f04 fase  = UNDER
+FB4 f04 type  = list_single
+FB4 f04 label = Tetthet mellom elementer
+FB4 f04 alt   = Tett – ingen synlig lekkasje | Mindre lekkasje – akseptabelt | Lekkasje – krever tetting | Gjennombrudd – STOPP
+FB4 f04 hjelp = FB4 c2: Kontroller låser/skjøter etter ramming. Vannlekkasje indikerer manglende sammenlåsing eller skadet profil.
+FB4 f05 fase  = UNDER
+FB4 f05 type  = decimal
+FB4 f05 label = Stagkraft (kN)
+FB4 f05 hjelp = FB4 c3: Mål stagkraft ved forspenning. Sammenlign med prosjektert verdi. Avvik >10 % → varsle geotekniker/prosjekterende.
+FB4 f05 config = {"enhet":"kN"}
+FB4 f06 fase  = ETTER
+FB4 f06 type  = list_single
+FB4 f06 label = Setningskontroll nabolag
+FB4 f06 alt   = Innenfor toleranse | Overvåkes – tiltaksgrense nærmer seg | Tiltak nødvendig – varsle prosjekterende
+FB4 f06 hjelp = FB4 c4: Sammenlign innmåling med nullmåling. Tiltaksgrense typisk 10–20 mm avhengig av konstruksjon.
+FB4 f07 fase  = ETTER
+FB4 f07 type  = traffic_light
+FB4 f07 label = Spuntvegg stabil
+FB4 f07 hjelp = FB4 c5: Visuell kontroll av deformasjon, lekkasje og erosjon bak spunt. Fotodokumenter.
+
 ### FD1
 FD1 navn        = FD1 – Graving av byggegrop
 FD1 beskrivelse = Graving av byggegrop og groper — påvisning, sikring, bunn og toleranser. Faglig grunnlag: NS 3420-F:2024, post FD1 og FD3.
@@ -116,6 +153,43 @@ FD2 f12 fase  = ETTER
 FD2 f12 type  = traffic_light
 FD2 f12 label = Grøften er sikret
 FD2 f12 hjelp = Åpen grøft er sperret og skiltet, og sikret mot overvann og ras ved nedbør.
+
+### FD3
+FD3 navn        = FD3 – Grunnforsterkning
+FD3 beskrivelse = KC-peler, jetinjeksjon, masseutskifting — kontroll
+FD3 f01 fase  = FØR
+FD3 f01 type  = list_single
+FD3 f01 label = Metode iht. prosjektering
+FD3 f01 alt   = Iht. spesifikasjon – godkjent | Avvik fra spesifikasjon – avklar med geotekniker
+FD3 f01 hjelp = FD3 b1: Kontroller at utførelsesmetode stemmer med geoteknisk rapport. Vanlige metoder: KC-peler, jetinjeksjon, masseutskifting, forbelastning med vertikaldren.
+FD3 f02 fase  = FØR
+FD3 f02 type  = traffic_light
+FD3 f02 label = Grunnundersøkelse verifisert
+FD3 f02 hjelp = FD3 b2: Kontroller at geoteknisk rapport dekker aktuelt område. Sjekk at antatt jordart og lagfølge stemmer med observert.
+FD3 f03 fase  = UNDER
+FD3 f03 type  = decimal
+FD3 f03 label = Dybde (m)
+FD3 f03 hjelp = FD3 c1: Mål pelehull/injeksjonsdybde mot prosjektert. KC-peler: til antatt fast grunn eller angitt dybde. Avvik >0,5 m → varsle geotekniker.
+FD3 f03 config = {"enhet":"m"}
+FD3 f04 fase  = UNDER
+FD3 f04 type  = list_single
+FD3 f04 label = Bindemiddelmengde
+FD3 f04 alt   = Iht. resept – dokumentert | Avvik <10 % – justert | Avvik >10 % – stopp og varsle
+FD3 f04 hjelp = FD3 c2: Bindemiddelforbruk (kg/m) skal logges per pel/punkt. Resept fra geotekniker angir type (kalk, sement, KC) og mengde.
+FD3 f05 fase  = ETTER
+FD3 f05 type  = list_single
+FD3 f05 label = Prøvebelastning
+FD3 f05 alt   = Bestått – bæreevne OK | Marginal – tilleggskontroll | Ikke bestått – tiltak nødvendig
+FD3 f05 hjelp = FD3 c3: Statisk eller dynamisk prøvebelastning iht. geoteknikers anvisning. Dokumenter last-setningskurve.
+FD3 f06 fase  = ETTER
+FD3 f06 type  = decimal
+FD3 f06 label = Setning (mm)
+FD3 f06 hjelp = FD3 c4: Mål setning etter belastning. Sammenlign med beregnet. Typisk krav <25 mm totalsetning, <10 mm differansesetning.
+FD3 f06 config = {"enhet":"mm"}
+FD3 f07 fase  = ETTER
+FD3 f07 type  = traffic_light
+FD3 f07 label = Bæreevne dokumentert
+FD3 f07 hjelp = FD3 c5: Geotekniker har signert at bæreevne er tilstrekkelig for planlagt konstruksjon.
 
 ### FH1
 FH1 navn        = FH1 – Sprengning i dagen

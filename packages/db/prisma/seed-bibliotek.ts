@@ -881,6 +881,94 @@ export const KA7_MAL = {
   ] as FeltDef[],
 };
 
+export const FB4_MAL = {
+  kapittelKode: "FB",
+  navn: "FB4 – Spunting og avstiving",
+  referanse: "FB4",
+  beskrivelse: "Spuntvegg, avstiving, setningskontroll",
+  prioritet: 2,
+  felter: [
+    // FØR
+    valg("Spunt levert iht. spesifikasjon", "FØR",
+      [
+        "Riktig type og dimensjon – godkjent",
+        "Riktig type – feil dimensjon",
+        "Feil type – stopp og avklar",
+      ],
+      "FB4 b1: Kontroller spuntprofil, stålkvalitet og lengde mot prosjektert løsning. Vanlige typer: stålspunt (U/Z-profil), sekantpeler, berlinervegg."),
+    trafikklys("Nabokontroll utført", "FØR",
+      "FB4 b2: Tilstandsregistrering av bygninger og konstruksjoner innenfor influensområdet. Foto + rapport før oppstart."),
+
+    // UNDER
+    desimal("Vertikalitet – avvik (mm/m)", "UNDER", { enhet: "mm/m" },
+      "FB4 c1: Mål avvik fra lodd etter hvert element. Krav typisk ≤1 % av lengde. Korrigering vanskelig etter nedramming."),
+    valg("Tetthet mellom elementer", "UNDER",
+      [
+        "Tett – ingen synlig lekkasje",
+        "Mindre lekkasje – akseptabelt",
+        "Lekkasje – krever tetting",
+        "Gjennombrudd – STOPP",
+      ],
+      "FB4 c2: Kontroller låser/skjøter etter ramming. Vannlekkasje indikerer manglende sammenlåsing eller skadet profil."),
+    desimal("Stagkraft (kN)", "UNDER", { enhet: "kN" },
+      "FB4 c3: Mål stagkraft ved forspenning. Sammenlign med prosjektert verdi. Avvik >10 % → varsle geotekniker/prosjekterende."),
+
+    // ETTER
+    valg("Setningskontroll nabolag", "ETTER",
+      [
+        "Innenfor toleranse",
+        "Overvåkes – tiltaksgrense nærmer seg",
+        "Tiltak nødvendig – varsle prosjekterende",
+      ],
+      "FB4 c4: Sammenlign innmåling med nullmåling. Tiltaksgrense typisk 10–20 mm avhengig av konstruksjon."),
+    trafikklys("Spuntvegg stabil", "ETTER",
+      "FB4 c5: Visuell kontroll av deformasjon, lekkasje og erosjon bak spunt. Fotodokumenter."),
+  ] as FeltDef[],
+};
+
+export const FD3_MAL = {
+  kapittelKode: "FD",
+  navn: "FD3 – Grunnforsterkning",
+  referanse: "FD3",
+  beskrivelse: "KC-peler, jetinjeksjon, masseutskifting — kontroll",
+  prioritet: 2,
+  felter: [
+    // FØR
+    valg("Metode iht. prosjektering", "FØR",
+      [
+        "Iht. spesifikasjon – godkjent",
+        "Avvik fra spesifikasjon – avklar med geotekniker",
+      ],
+      "FD3 b1: Kontroller at utførelsesmetode stemmer med geoteknisk rapport. Vanlige metoder: KC-peler, jetinjeksjon, masseutskifting, forbelastning med vertikaldren."),
+    trafikklys("Grunnundersøkelse verifisert", "FØR",
+      "FD3 b2: Kontroller at geoteknisk rapport dekker aktuelt område. Sjekk at antatt jordart og lagfølge stemmer med observert."),
+
+    // UNDER
+    desimal("Dybde (m)", "UNDER", { enhet: "m" },
+      "FD3 c1: Mål pelehull/injeksjonsdybde mot prosjektert. KC-peler: til antatt fast grunn eller angitt dybde. Avvik >0,5 m → varsle geotekniker."),
+    valg("Bindemiddelmengde", "UNDER",
+      [
+        "Iht. resept – dokumentert",
+        "Avvik <10 % – justert",
+        "Avvik >10 % – stopp og varsle",
+      ],
+      "FD3 c2: Bindemiddelforbruk (kg/m) skal logges per pel/punkt. Resept fra geotekniker angir type (kalk, sement, KC) og mengde."),
+
+    // ETTER
+    valg("Prøvebelastning", "ETTER",
+      [
+        "Bestått – bæreevne OK",
+        "Marginal – tilleggskontroll",
+        "Ikke bestått – tiltak nødvendig",
+      ],
+      "FD3 c3: Statisk eller dynamisk prøvebelastning iht. geoteknikers anvisning. Dokumenter last-setningskurve."),
+    desimal("Setning (mm)", "ETTER", { enhet: "mm" },
+      "FD3 c4: Mål setning etter belastning. Sammenlign med beregnet. Typisk krav <25 mm totalsetning, <10 mm differansesetning."),
+    trafikklys("Bæreevne dokumentert", "ETTER",
+      "FD3 c5: Geotekniker har signert at bæreevne er tilstrekkelig for planlagt konstruksjon."),
+  ] as FeltDef[],
+};
+
 export const KB2_MAL = {
   kapittelKode: "KB",
   navn: "KB2 – Utlegging av vekstjord",
@@ -1135,95 +1223,11 @@ async function main() {
     // ── FS3 – Legging og gjenfylling i grøft ── (definisjon eksportert over: FS3_MAL — omkoding av FE1)
     FS3_MAL,
 
-    // ── FB4 – Spunting og avstiving ──
-    {
-      kapittelKode: "FB",
-      navn: "FB4 – Spunting og avstiving",
-      referanse: "FB4",
-      beskrivelse: "Spuntvegg, avstiving, setningskontroll",
-      prioritet: 2,
-      felter: [
-        // FØR
-        valg("Spunt levert iht. spesifikasjon", "FØR",
-          [
-            "Riktig type og dimensjon – godkjent",
-            "Riktig type – feil dimensjon",
-            "Feil type – stopp og avklar",
-          ],
-          "FB4 b1: Kontroller spuntprofil, stålkvalitet og lengde mot prosjektert løsning. Vanlige typer: stålspunt (U/Z-profil), sekantpeler, berlinervegg."),
-        trafikklys("Nabokontroll utført", "FØR",
-          "FB4 b2: Tilstandsregistrering av bygninger og konstruksjoner innenfor influensområdet. Foto + rapport før oppstart."),
+    // ── FB4 – Spunting og avstiving ── (definisjon eksportert over: FB4_MAL)
+    FB4_MAL,
 
-        // UNDER
-        desimal("Vertikalitet – avvik (mm/m)", "UNDER", { enhet: "mm/m" },
-          "FB4 c1: Mål avvik fra lodd etter hvert element. Krav typisk ≤1 % av lengde. Korrigering vanskelig etter nedramming."),
-        valg("Tetthet mellom elementer", "UNDER",
-          [
-            "Tett – ingen synlig lekkasje",
-            "Mindre lekkasje – akseptabelt",
-            "Lekkasje – krever tetting",
-            "Gjennombrudd – STOPP",
-          ],
-          "FB4 c2: Kontroller låser/skjøter etter ramming. Vannlekkasje indikerer manglende sammenlåsing eller skadet profil."),
-        desimal("Stagkraft (kN)", "UNDER", { enhet: "kN" },
-          "FB4 c3: Mål stagkraft ved forspenning. Sammenlign med prosjektert verdi. Avvik >10 % → varsle geotekniker/prosjekterende."),
-
-        // ETTER
-        valg("Setningskontroll nabolag", "ETTER",
-          [
-            "Innenfor toleranse",
-            "Overvåkes – tiltaksgrense nærmer seg",
-            "Tiltak nødvendig – varsle prosjekterende",
-          ],
-          "FB4 c4: Sammenlign innmåling med nullmåling. Tiltaksgrense typisk 10–20 mm avhengig av konstruksjon."),
-        trafikklys("Spuntvegg stabil", "ETTER",
-          "FB4 c5: Visuell kontroll av deformasjon, lekkasje og erosjon bak spunt. Fotodokumenter."),
-      ],
-    },
-
-    // ── FD3 – Grunnforsterkning ──
-    {
-      kapittelKode: "FD",
-      navn: "FD3 – Grunnforsterkning",
-      referanse: "FD3",
-      beskrivelse: "KC-peler, jetinjeksjon, masseutskifting — kontroll",
-      prioritet: 2,
-      felter: [
-        // FØR
-        valg("Metode iht. prosjektering", "FØR",
-          [
-            "Iht. spesifikasjon – godkjent",
-            "Avvik fra spesifikasjon – avklar med geotekniker",
-          ],
-          "FD3 b1: Kontroller at utførelsesmetode stemmer med geoteknisk rapport. Vanlige metoder: KC-peler, jetinjeksjon, masseutskifting, forbelastning med vertikaldren."),
-        trafikklys("Grunnundersøkelse verifisert", "FØR",
-          "FD3 b2: Kontroller at geoteknisk rapport dekker aktuelt område. Sjekk at antatt jordart og lagfølge stemmer med observert."),
-
-        // UNDER
-        desimal("Dybde (m)", "UNDER", { enhet: "m" },
-          "FD3 c1: Mål pelehull/injeksjonsdybde mot prosjektert. KC-peler: til antatt fast grunn eller angitt dybde. Avvik >0,5 m → varsle geotekniker."),
-        valg("Bindemiddelmengde", "UNDER",
-          [
-            "Iht. resept – dokumentert",
-            "Avvik <10 % – justert",
-            "Avvik >10 % – stopp og varsle",
-          ],
-          "FD3 c2: Bindemiddelforbruk (kg/m) skal logges per pel/punkt. Resept fra geotekniker angir type (kalk, sement, KC) og mengde."),
-
-        // ETTER
-        valg("Prøvebelastning", "ETTER",
-          [
-            "Bestått – bæreevne OK",
-            "Marginal – tilleggskontroll",
-            "Ikke bestått – tiltak nødvendig",
-          ],
-          "FD3 c3: Statisk eller dynamisk prøvebelastning iht. geoteknikers anvisning. Dokumenter last-setningskurve."),
-        desimal("Setning (mm)", "ETTER", { enhet: "mm" },
-          "FD3 c4: Mål setning etter belastning. Sammenlign med beregnet. Typisk krav <25 mm totalsetning, <10 mm differansesetning."),
-        trafikklys("Bæreevne dokumentert", "ETTER",
-          "FD3 c5: Geotekniker har signert at bæreevne er tilstrekkelig for planlagt konstruksjon."),
-      ],
-    },
+    // ── FD3 – Grunnforsterkning ── (definisjon eksportert over: FD3_MAL)
+    FD3_MAL,
   ];
 
   // Alle 14 malene er AI-utkast → verifisert: false (settes eksplisitt, ikke bare schema-default).
