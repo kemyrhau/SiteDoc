@@ -93,6 +93,37 @@ function standardMeta(kode: string): { navn: string; sortering: number } {
   return { navn: rad.navn, sortering: rad.sortering };
 }
 
+/** Standarden en kapittelkode hører til, funnet via K-/F-/U-arrayet. Kapittelkoder er globalt
+ *  unike, så oppslaget er entydig. Brukes av sortering-rettingen (--sorter). */
+function standardForKapittelKode(kode: string): string {
+  for (const { standard, data } of kapittelArrays()) {
+    if (data.some((k) => k.kode === kode)) return standard;
+  }
+  throw new Error(`Ukjent kapittelkode «${kode}» — mangler i KAPITTEL_DATA_K/F/U (seed-bibliotek.ts).`);
+}
+
+export interface SorteringRetting { kode: string; sortering: number }
+
+/**
+ * Målrettet sortering-retting på eksisterende kapitler i SAMME transaksjon (Runde C, design-gatet
+ * 2026-09-20). Bakgrunn: en ny kapittel (UP=2) satt inn FØR en søster (UU) som allerede ligger i
+ * arkivet på samme sorteringstall, gir udefinert rekkefølge — kapittel-lista sorterer kun på
+ * `sortering` (`bibliotek.ts`, ingen kode-tiebreaker). Seeden er KUN OPPRETT og rører ikke søsteren,
+ * så rettingen leveres i mal-SQL-en. Idempotent: setter et fast tall. Scopet til kapittelkodens
+ * standard. En fersk seed har allerede riktig sortering fra KAPITTEL_DATA_* → rettingen er da no-op.
+ */
+function sorteringRettingSql(rettinger: SorteringRetting[]): string {
+  return rettinger
+    .map(({ kode, sortering }) => {
+      const std = standardForKapittelKode(kode);
+      return `-- Rett sortering: kapittel ${kode} → ${sortering} i ${std} (unngå kollisjon; KUN OPPRETT rører den ikke).
+UPDATE bibliotek_kapitler k SET sortering = ${sortering}
+FROM bibliotek_standarder s
+WHERE s.id = k.standard_id AND s.kode = '${std}' AND k.kode = '${sql(kode)}';`;
+    })
+    .join("\n\n");
+}
+
 /**
  * SQL som oppretter standarden hvis den mangler, ellers gjenbruker den (WHERE NOT EXISTS →
  * idempotent no-op). Kun for modus `ny` (ordre UM1 §3): en helt ny standard som NS3420-U må
@@ -446,12 +477,19 @@ export function flerFilnavn(refs: string[]): string {
  * RAISE hvis referansen finnes), rulles ALT tilbake — ingen mal opprettes halvveis. Kjøres ÉN gang
  * mot test (MAL-METODE §1b pkt 5); ny guard avbryter en utilsiktet ny kjøring.
  */
-export function byggFlerNySql(maler: MalKonstant[]): string {
+export function byggFlerNySql(
+  maler: MalKonstant[],
+  sorterRettinger: SorteringRetting[] = [],
+): string {
   if (maler.length === 0) throw new Error("byggFlerNySql: ingen maler oppgitt.");
   const refs = maler.map((m) => m.referanse).join(", ");
   const mutasjoner = maler
     .map((m) => `-- ── ${m.referanse}: ${m.navn} ──\n${nyMutasjon(m)}`)
     .join("\n\n");
+  const retting =
+    sorterRettinger.length > 0
+      ? `\n\n-- ══ Sortering-retting på eksisterende søster-kapitler (samme transaksjon) ══\n${sorteringRettingSql(sorterRettinger)}`
+      : "";
   const bevis = maler
     .map((m) => `-- ── ${m.referanse} ──\n${malBevis(m)}`)
     .join("\n\n");
@@ -460,7 +498,7 @@ export function byggFlerNySql(maler: MalKonstant[]): string {
 -- + full utskrift PER MAL. Feiler én, rulles ALT tilbake. Kjøres ÉN gang mot test (§1b pkt 5).
 BEGIN;
 
-${mutasjoner}
+${mutasjoner}${retting}
 
 -- ══ Full utskrift (§6a) av alle ${maler.length} malene før COMMIT ══
 ${bevis}
@@ -523,6 +561,18 @@ if (kjørtDirekte) {
     }
     posisjonelle = raw.filter((_, i) => i !== fraIdx && i !== fraIdx + 1);
   }
+  // --sorter: målrettet kapittel-sortering-retting i samme transaksjon (kun modus ny). Form
+  // «--sorter UU=3,XX=n» (KODE=SORTERING, komma mellom). Runde C: gi UP plass FØR UU i arkivet.
+  let sorterRaw: string | undefined;
+  const sorterIdx = posisjonelle.indexOf("--sorter");
+  if (sorterIdx !== -1) {
+    sorterRaw = posisjonelle[sorterIdx + 1];
+    if (!sorterRaw) {
+      console.error("--sorter krever et argument: «--sorter UU=3» eller «--sorter UU=3,UP=2».");
+      process.exit(1);
+    }
+    posisjonelle = posisjonelle.filter((_, i) => i !== sorterIdx && i !== sorterIdx + 1);
+  }
   const modus = posisjonelle.at(-1);
   const refs = posisjonelle.slice(0, -1);
   if (refs.length === 0 || (modus !== "ny" && modus !== "revisjon")) {
@@ -559,6 +609,23 @@ if (kjørtDirekte) {
       fraMap.set(refs[0]!, fraRaw);
     }
   }
+  // Bygg sorterRettinger: KODE=SORTERING. Kun modus ny (arkiv-retting sammen med nye kapitler).
+  const sorterRettinger: SorteringRetting[] = [];
+  if (sorterRaw) {
+    if (modus !== "ny") {
+      console.error("--sorter (kapittel-sortering-retting) støttes kun i modus ny.");
+      process.exit(1);
+    }
+    for (const par of sorterRaw.split(",")) {
+      const [kode, tall] = par.split("=").map((s) => s?.trim());
+      const n = Number(tall);
+      if (!kode || !tall || !Number.isInteger(n)) {
+        console.error(`Ugyldig sorter-par «${par}» — forventet KODE=HELTALL.`);
+        process.exit(1);
+      }
+      sorterRettinger.push({ kode, sortering: n });
+    }
+  }
   const register = malRegister();
   const maler = refs.map((ref) => {
     const mal = register.get(ref);
@@ -571,6 +638,10 @@ if (kjørtDirekte) {
   });
   const repoRot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
+  if (sorterRettinger.length > 0 && maler.length === 1) {
+    console.error("--sorter støttes foreløpig kun sammen med fler-mal ny (der en søster-kollisjon oppstår).");
+    process.exit(1);
+  }
   if (maler.length === 1) {
     const mal = maler[0]!;
     const fraRef = fraMap.get(mal.referanse);
@@ -582,8 +653,9 @@ if (kjørtDirekte) {
     const filnavn = flerFilnavn(refs);
     if (modus === "ny") {
       // --fra (omkoding) er allerede avvist for modus ny over; multi-ny har ingen omkoding.
-      writeFileSync(join(repoRot, filnavn), byggFlerNySql(maler), "utf8");
-      console.log(`Skrev ${filnavn} (${maler.length} nye maler: ${refs.join(", ")}).`);
+      writeFileSync(join(repoRot, filnavn), byggFlerNySql(maler, sorterRettinger), "utf8");
+      const sort = sorterRettinger.length > 0 ? `; sortering-retting: ${sorterRettinger.map((r) => `${r.kode}=${r.sortering}`).join(", ")}` : "";
+      console.log(`Skrev ${filnavn} (${maler.length} nye maler: ${refs.join(", ")}${sort}).`);
     } else {
       writeFileSync(join(repoRot, filnavn), byggFlerRevisjonSql(maler, fraMap), "utf8");
       const omkodinger = [...fraMap.entries()].map(([ny, g]) => `${g}→${ny}`).join(", ") || "ingen";

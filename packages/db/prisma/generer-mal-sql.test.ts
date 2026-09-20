@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { byggMalSql, byggFlerRevisjonSql, byggFlerNySql, filnavnFor, flerFilnavn, malRegister } from "./generer-mal-sql";
-import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FD2_MAL, FS2_MAL, FH1_MAL, FS3_MAL, UM1_MAL, UU1_MAL } from "./seed-bibliotek";
+import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FD2_MAL, FS2_MAL, FH1_MAL, FS3_MAL, UM1_MAL, UP1_MAL, UU1_MAL, FB1_MAL } from "./seed-bibliotek";
 
 /**
  * Ren unit-test (ingen DB) for den generelle mal-SQL-generatoren (MAL-METODE §1b pkt 4).
@@ -16,7 +16,9 @@ const FS2 = FS2_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const FH1 = FH1_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const FS3 = FS3_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const UM1 = UM1_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const UP1 = UP1_MAL as unknown as Parameters<typeof byggMalSql>[0];
 const UU1 = UU1_MAL as unknown as Parameters<typeof byggMalSql>[0];
+const FB1 = FB1_MAL as unknown as Parameters<typeof byggMalSql>[0];
 
 describe("generer-mal-sql", () => {
   it("ny: version-verdi 1, INGEN DELETE, \\x on", () => {
@@ -402,5 +404,44 @@ describe("byggFlerNySql (multi-ny, runde B)", () => {
   it("registeret finner UM1 og UU1 (U-maler)", () => {
     expect(malRegister().get("UM1")?.referanse).toBe("UM1");
     expect(malRegister().get("UU1")?.referanse).toBe("UU1");
+  });
+});
+
+// Runde C (design-gatet 2026-09-20): UP settes inn på sortering 2 FØR UU, men test-arkivets UU
+// står på 2 fra runde B (KUN OPPRETT rører den ikke). --sorter UU=3 legger en målrettet UPDATE i
+// SAMME transaksjon som mal-INSERT-ene, scopet til UUs standard (NS3420-U). Fersk seed er allerede
+// riktig → rettingen er da no-op.
+describe("byggFlerNySql + sortering-retting (Runde C, --sorter)", () => {
+  it("emitter UU→3 UPDATE scopet til NS3420-U, i samme transaksjon (ett BEGIN/COMMIT)", () => {
+    const s = byggFlerNySql([UP1, FB1], [{ kode: "UU", sortering: 3 }]);
+    expect(s.match(/BEGIN;/g)).toHaveLength(1);
+    expect(s.match(/COMMIT;/g)).toHaveLength(1);
+    expect(s).toContain("UPDATE bibliotek_kapitler k SET sortering = 3");
+    // Scopet til UUs standard (NS3420-U, utledet fra KAPITTEL_DATA_U) og k.kode='UU'.
+    expect(s).toMatch(/SET sortering = 3[\s\S]*s\.kode = 'NS3420-U' AND k\.kode = 'UU'/);
+  });
+
+  it("rettingen kommer etter mal-INSERT-ene og før COMMIT", () => {
+    const s = byggFlerNySql([UP1, FB1], [{ kode: "UU", sortering: 3 }]);
+    const sisteMalInsert = s.lastIndexOf("INSERT INTO bibliotek_mal_objekter");
+    const retting = s.indexOf("UPDATE bibliotek_kapitler k SET sortering = 3");
+    const commit = s.indexOf("COMMIT;");
+    expect(retting).toBeGreaterThan(sisteMalInsert);
+    expect(retting).toBeLessThan(commit);
+  });
+
+  it("uten sortering-retting emitteres ingen sortering-UPDATE (uendret runde B-oppførsel)", () => {
+    const s = byggFlerNySql([UP1, FB1]);
+    expect(s).not.toContain("SET sortering =");
+  });
+
+  it("standard utledes fra kapittelkoden: FB-retting scopes til NS3420-F", () => {
+    const s = byggFlerNySql([UP1, FB1], [{ kode: "FB", sortering: 1 }]);
+    expect(s).toMatch(/SET sortering = 1[\s\S]*s\.kode = 'NS3420-F' AND k\.kode = 'FB'/);
+  });
+
+  it("registeret finner UP1 og FB1", () => {
+    expect(malRegister().get("UP1")?.referanse).toBe("UP1");
+    expect(malRegister().get("FB1")?.referanse).toBe("FB1");
   });
 });
