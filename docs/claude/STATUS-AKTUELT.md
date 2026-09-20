@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-20 · develop `ca44f9e3` (Runde C: UP1+FB1 v1 + nytt kap UP + runde D-ordrene FF1/JH2 + MAL-METODE §7c, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): db 137→156 (+19, UP1+FB1-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · SQL kjørt av Kenneth (`up1-fb1-test.sql`) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-20 · develop `42bdb03e` (Runde D: FF1+JH2 v1 + fjerde standard NS 3420-J + MAL-PLAN-rydding, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): db 156→175 (+19, FF1+JH2-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · SQL kjørt av Kenneth (`ff1-jh2-test.sql`) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,32 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-20 — Runde D: FF1 + JH2 (fjerde standard NS 3420-J) merget + MAL-PLAN-rydding. Biblioteket har 21 maler i fire standarder. Ingen migrering, ingen mobil. develop `42bdb03e`.
+
+**To brancher, begge `--no-ff`, begge ff-mulig mot `692dfefd`:**
+- **1 — `feat/mal-runde-d` `fe97e498`** (seks filer, alle `packages/db/prisma`): `seed-bibliotek.ts` · `ff1-mal.test.ts` + `jh2-mal.test.ts` · `generer-mal-sql.ts` (4 linjer) + `generer-mal-sql.test.ts` · `mal-fasit.snap.md`.
+- **2 — `docs/design-rydding` `c946c01c`**: `docs/claude/MAL-PLAN.md` (`+18/−7`) + `docs/redesign/status-designsporet-2026-09-20.md` (ny).
+
+**🔴 REN TILLEGG — verifisert med tall:** `git diff --numstat` på `mal-fasit.snap.md` = **`110 0`** (0 slettinger). Ingen eksisterende maltekst endret.
+
+**🟢 MAL-PLAN-rydding er statusoppdatering, ikke drift:** de sju slettede linjene i `MAL-PLAN.md` var **stale status-/planrader** (gamle statuser «klar for merge»/«–»/«Starter etter …» for FS2/FD2/FH1/FS3, FB4/FD3-parkeringsrader, og planplassholderen «Del U – rørledning i grøft») — alle **erstattet av korrekte merget-rader** (nå rad 10–21). Intet innhold forsvant uten erstatning.
+
+**FF1 (10 felt + 3 headings) + JH2 (11 felt + 3 headings), begge v1.** **Kapitlene FF og JH opprettet.** **Biblioteket har nå 21 maler i fire standarder — K, F, U og J.**
+
+**🔴 To ting eksplisitt:**
+- **§7c virker i praksis:** JH2 navngir **N200 ordrett** — første mal som peker arbeideren til en kilde han faktisk kan åpne (gratis offentlig vegvesen-håndbok; NS-standarden navngis ikke).
+- **FF fikk sortering 4** — som var **ledig mellom FD og FH**. **Ingen eksisterende kapitler flyttet.**
+
+**🟢 GODKJENT GENERATORENDRING (ikke drift):** `kapittelArrays()` kjente bare K/F/U; den fjerde standarden krevde `KAPITTEL_DATA_J` + oppslag i `kapittelArrays()`. Nødvendig for standard nr. 4, testdekket.
+
+**Gate — KUN db steg, alle andre HELT stille (`--force`, 0 cached, ingen FULL TURBO):** db 156→175 (**+19**, FF1+JH2-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. Ingen migrering, ingen mobil-endring, ingen i18n.
+
+**SQL-regelen (§8b) utløst og fulgt:** generatoren er endret (`generer-mal-sql.ts`, 4 linjer), så SQL mot test kreves. **Kjørt av Kenneth, `ff1-jh2-test.sql`:** fjerde standard NS 3420-J:2008 opprettet, kapitlene FF og JH opprettet, FF1 v1 (10 felt + 3 headings), JH2 v1 (11 felt + 3 headings). 🔴 §1b: én kjøring per fil — merge-agenten kjørte ikke SQL selv.
+
+**Ingen ny malordre i kø.** 🟡 **Målt: mal-Opus har ikke startet ny runde** — worktreet står på `feat/mal-runde-d` (nå merget), ingen kodebranch utover runde D. Neste kandidater står i `docs/redesign/status-designsporet-2026-09-20.md`; startsignalet sender design.
 
 ---
 
