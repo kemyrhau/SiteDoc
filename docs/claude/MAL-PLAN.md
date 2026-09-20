@@ -61,8 +61,8 @@ Nybygg skjer ETTER at revisjonskøen under er ferdig, hvis ikke Kenneth priorite
 | 11 | FD2 – Graving av grøft (NY) | ordre-fd2-ny-mal-design-2026-09-19.md | – | – | Starter når FS2 er merget (referansen FD2 frigjøres) |
 | 12 | FH1 – Sprengning i dagen (omkodet fra FC1) | ordre-fh1-omkoding-design-2026-09-19.md | – | – | Nytt kapittel FH. Tomt kildekapittel FC slettes (NOT EXISTS-vakt). Starter etter FD2 |
 | 13 | FS3 – Legging og gjenfylling i grøft (omkodet fra FE1) | ordre-fs3-omkoding-design-2026-09-19.md | – | – | FS3, ikke FV3 (samlepost for prising). Fall/trykkprøve ut → Del U. Tomt FE slettes. Starter etter FH1 |
-| 14 | FB4 – Spunting og avstiving | – | – | – | PARKERT: spunt står ikke i Del F (mangler normdel) |
-| 15 | FD3 – Grunnforsterkning | – | – | – | PARKERT: hører til NS 3420-G:2019 kap. GB, ikke FD3 (= graving av groper) |
+| 14 | FB4 – Spunting og avstiving | – | – | – | PARKERT: spunt står ikke i Del F (mangler normdel). **Låst i malfasiten 2026-09-20, men ikke voktet**: §7b-vakten er K-filtrert (`mal-7b.test.ts`), og FB4 har ingen egen vakt — normkodene i hjelpetekstene ligger urørt uten alarm. Ved revisjon: egen vakt eller plass i en F-vakt (coworks funn) |
+| 15 | FD3 – Grunnforsterkning | – | – | – | PARKERT: hører til NS 3420-G:2019 kap. GB, ikke FD3 (= graving av groper). Samme som FB4: låst i fasiten, ikke voktet av §7b — ordne vakt ved revisjon |
 | 16 | Del U – rørledning i grøft (NY) | – | – | – | Neste nybygg (Kenneth 2026-09-19): fall, tetthet, trykkprøving |
 
 ## Vedtakslogg (kort)
