@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-20 · develop `0b1506d1` (Runde B: UM1+UU1 v1 + ny standard NS 3420-U + MAL-PLAN, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): db 111→137 (+26, UM1+UU1-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · SQL kjørt av Kenneth (`um1-uu1-test.sql`, §3b-regelen utløst og fulgt) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-20 · develop `c0985f7c` (ren docs: to ordrefiler FB1 + UP1 for runde C, [no-ff]) · GATE (`--force`, ingen FULL TURBO): ALT HELT stille — db 137 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · runden rører ingen kode · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,16 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-20 — Ordrefiler for runde C (FB1 + UP1) lagt i develop. Ren docs. develop `c0985f7c`.
+
+**Én branch `docs/design-runde-c` `ea7f5d48` [no-ff]:** to NYE ordrefiler i `docs/redesign/` — `ordre-fb1-ny-mal-design-2026-09-20.md` (130 linjer) + `ordre-up1-ny-mal-design-2026-09-20.md` (162 linjer). Begge status `A`, 0 slettede linjer, ingen eksisterende fil rørt.
+
+**Gate — ALT HELT stille (`--force`, 0 cached, ingen FULL TURBO):** db 137 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. Runden rører ingen kode.
+
+🔴 **Ordrene er kun gjort LESBARE for mal-Opus — IKKE påbegynt arbeid.** Startsignalet til mal-Opus sender design, ikke merge og ikke cowork.
 
 ---
 
