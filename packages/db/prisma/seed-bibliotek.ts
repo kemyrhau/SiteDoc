@@ -1112,6 +1112,179 @@ export const KB6_MAL = {
   ] as FeltDef[],
 };
 
+// UM1 – Legging av VA-ledninger. Første mal fra NY standard NS 3420-U (ordre UM1 2026-09-19,
+// gatet av Kenneth). Nytt kapittel UM «Utendørs rørledninger» i en tredje standard NS3420-U —
+// verken standarden eller kapittelet finnes i biblioteket i dag. Grøfteløpet: FD2 (graving) →
+// UM1 (legging) → FS3 (omfylling) → UU1 (prøving). 11 felt, INGEN tallfelt: plassering, fall og
+// avstand besvares med samsvar mot toleransen (MAL-METODE §1), målt verdi/sted i kommentaren.
+// §7b: SiteDocs egne krav — ingen normkoder eller eksterne standarder i hjelpetekstene; standarden
+// nevnes kun i beskrivelsen. Prøving er egen mal (UU1) — ofte andre utførende.
+export const UM1_MAL = {
+  kapittelKode: "UM",
+  navn: "UM1 – Legging av VA-ledninger",
+  referanse: "UM1",
+  beskrivelse:
+    "Legging og skjøting av vann-, avløps- og drensledninger i grøft — rørmateriell, fundament, skjøter, fall og plassering. Faglig grunnlag: NS 3420-U:2019, post UM1.",
+  felter: [
+    // FØR
+    valg("Type ledning", "FØR",
+      [
+        "Vannledning",
+        "Avløp, selvfall",
+        "Avløp, trykk",
+        "Drensledning",
+        "Annen ledning",
+      ],
+      "Typen ledning avgjør skjøtemetode og hvilken prøving som skal gjøres etterpå."),
+    valg("Rør og deler kontrollert", "FØR",
+      [
+        "Rene og uskadde",
+        "Skadet – kassert eller reparert",
+      ],
+      "Rør og deler skal være rene inn- og utvendig før montering. Plastrør lagres skjermet mot sol og varme. PE-rør: utvendige riper høyst 10 % av veggtykkelsen, ingen innvendige riper. Dypere skader kappes ut eller repareres."),
+    trafikklys("Grøftebunn og fundament klare", "FØR",
+      "Bunnen er fri for tele, snø og is. Øverste tredjedel av fundamentet er løsnet langs senterlinjen, minst en halv rørdiameter bredt. Grav ut for muffene så røret hviler på fundamentet."),
+
+    // UNDER
+    valg("Skjøting", "UNDER",
+      [
+        "Muffe",
+        "PE-sveis",
+        "Flens eller kobling",
+        "Avvik",
+      ],
+      "Rørene sentreres, og skjøtekraften skal virke langs røret. Rør som brukes som mothold, støttes så de ikke forskyves. Flensskjøter ettertrekkes. Klemringskobling på PE-rør skal ha støttehylse innvendig."),
+    valg("Sveiselogg for PE", "UNDER",
+      [
+        "Ført og signert, skjøter merket",
+        "Ikke PE-sveis",
+        "Mangler",
+      ],
+      "Sveis beskyttet mot støv og nedbør, og ikke under 0 °C uten oppvarmet telt. Skrap med godkjent verktøy, ikke for hånd. Før hver sveis i skjemaet med parametre og signatur, og merk skjøten med sveiserens ID."),
+    trafikklys("Røret hviler på fundamentet, ingen skolinger", "UNDER",
+      "Røret skal ligge jevnt på fundamentet hele veien og ikke på klosser eller steiner."),
+    trafikklys("Ledningen holdt ren innvendig", "UNDER",
+      "Slam, jord og fremmedlegemer skal ikke komme inn i ledningen. Tett åpne ender når arbeidet stopper."),
+    valg("Avstand til kum og andre ledninger", "UNDER",
+      [
+        "Minst 100 mm",
+        "Tiltak mot kontakt utført",
+        "Avvik",
+      ],
+      "Minst 100 mm fra kumvegg og fra ledninger og kabler som krysser eller går forbi. Ligger ledningene i flere lag, omfylles og komprimeres den nederste opp til neste før den legges."),
+
+    // ETTER
+    valg("Plassering i høyde og side", "ETTER",
+      [
+        "Innenfor ±30 mm høyde og ±100 mm side",
+        "Avvik",
+      ],
+      "Kontroller mot prosjektert plassering, både for hvert rør og for hele strekningen. Noter største avvik i kommentaren."),
+    valg("Fall", "ETTER",
+      [
+        "Innenfor toleransen for prosjektert fall",
+        "Avvik",
+      ],
+      "Tillatt avvik: ±2 ‰ når fallet er under 10 ‰, ±3 ‰ ved 10–20 ‰, og ±5 ‰ når fallet er over 20 ‰. Gjelder hvert rør og hele strekningen."),
+    trafikklys("Ledningen er klar for omfylling", "ETTER",
+      "Ledningen er lagt, skjøtt og kontrollert og kan omfylles. Ta bilde før den dekkes til."),
+  ] as FeltDef[],
+};
+
+// UU1 – Prøving av VA-ledninger. Andre mal i NS 3420-U (ordre UU1 2026-09-19, gatet av Kenneth).
+// Nytt kapittel UU «Felles arbeider for utendørs rørledningsanlegg» i samme standard NS3420-U
+// (opprettet av UM1). Prøving gjøres ofte av andre enn dem som legger — malen står på egne ben og
+// bekrefter selv at ledningen er ferdig før prøving. 11 felt, INGEN tallfelt: tetthet, trykk og
+// deformasjon besvares med samsvar (bestått/avvik), tall/verdier i rapporten. §7b: SiteDocs egne
+// krav — standarden nevnes kun i beskrivelsen.
+export const UU1_MAL = {
+  kapittelKode: "UU",
+  navn: "UU1 – Prøving av VA-ledninger",
+  referanse: "UU1",
+  beskrivelse:
+    "Prøving og klargjøring av vann-, avløps- og drensledninger og kummer — tetthet, trykk, deformasjon, inspeksjon, spyling, desinfisering og rapport. Faglig grunnlag: NS 3420-U:2019, post UU1.",
+  felter: [
+    // FØR
+    valg("Hva prøves", "FØR",
+      [
+        "Avløp, selvfall",
+        "Trykkledning",
+        "Kum",
+        "Drensledning",
+        "Annet",
+      ],
+      "Hva som prøves, avgjør metode og krav. Metode og prøvetrykk står i beskrivelsen."),
+    trafikklys("Ledningen er gjenfylt og ferdig", "FØR",
+      "Prøving gjøres etter at ledningen er gjenfylt og ferdigstilt. Sjekk at legging og gjenfylling er godkjent før du starter."),
+    trafikklys("Prøvestrekningen er klargjort", "FØR",
+      "Tettingspropper i hver ende og ved alle avgreininger. Ledning og kum er sikret så de ikke forskyver seg. Før prøving med luft tømmes de for vann. Prøves en kum med trykk, forankres kjeglen eller topplaten."),
+
+    // UNDER
+    valg("Prøvemedium", "UNDER",
+      [
+        "Luft",
+        "Vann",
+        "Undertrykk",
+      ],
+      "Vann til prøving av drikkevannsledning skal ha drikkevannskvalitet."),
+    valg("Tetthetsprøving", "UNDER",
+      [
+        "Bestått",
+        "Ikke bestått – utbedres og prøves på nytt",
+        "Ikke aktuelt",
+      ],
+      "Prøv etter metoden i beskrivelsen. Kum med vann: betongkum står minst 4 timer før prøving, synket måles i 30 minutter, og påfylt vann skal være under 0,2 liter per m² innvendig flate. Før resultatet i rapporten."),
+    valg("Trykkprøving", "UNDER",
+      [
+        "Bestått",
+        "Ikke bestått – utbedres og prøves på nytt",
+        "Ikke aktuelt",
+      ],
+      "Gjelder ledninger som skal stå under trykk. Prøvetrykk og metode står i beskrivelsen. Før prøvetrykk, prøvetid og trykkfall i rapporten."),
+    valg("Deformasjon", "UNDER",
+      [
+        "Innenfor kravet",
+        "Over kravet – avvik",
+        "Ikke aktuelt",
+      ],
+      "Gjelder plast- og GRP-rør. Ved overtakelse: plastrør høyst 5 % (8 % ved reduserte krav), GRP høyst 3 %. Punktvis deformasjon høyst en tredjedel av dette."),
+    valg("Kamerainspeksjon", "UNDER",
+      [
+        "Utført – ingen feil",
+        "Utført – feil registrert",
+        "Ikke krav",
+      ],
+      "Inspeksjon gjøres med kamera. Feil og mangler registreres og legges ved rapporten."),
+
+    // ETTER
+    valg("Spyling", "ETTER",
+      [
+        "Utført – ledningen ren",
+        "Ikke krav",
+      ],
+      "Spyl med vann fra nettet. Etterpå skal ledningen være fri for sand, grus, avleiringer og fremmedlegemer."),
+    valg("Desinfisering", "ETTER",
+      [
+        "Utført – prøver godkjent",
+        "Venter på prøvesvar",
+        "Ikke vannledning",
+      ],
+      "Mål restene av desinfeksjonsmiddel etter 24 timer. Bakterieprøver analyseres av sertifisert laboratorium. Vannet skal ikke inn i nett som er i drift, og slippes ut miljøforsvarlig. Venter du på prøvesvar, lagre sjekklisten og fullfør når svaret kommer."),
+    trafikklys("Prøverapporten er skrevet og signert", "ETTER",
+      "Rapporten viser bestiller, kontrollør, sted, ledning eller kum med type og dimensjon, lengde, krav, prøvetrykk og tid, resultat og signatur. Legg den ved."),
+  ] as FeltDef[],
+};
+
+// Standarder i biblioteket (kode, navn, sortering). Eksportert (ordre UM1 §3) slik at
+// generer-mal-sql.ts kan opprette en manglende standard (NS3420-U) i samme transaksjon som
+// kapittel + mal (WHERE NOT EXISTS), og seeden bygger sine upserts fra samme kilde — ingen drift
+// mellom seed og generator. KUN OPPRETT (upsert med update:{}); eksisterende standard-rad røres ikke.
+export const STANDARD_DATA = [
+  { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
+  { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
+  { kode: "NS3420-U", navn: "NS 3420-U:2019 Rørinstallasjoner", sortering: 3 },
+];
+
 // Kapitler i NS 3420-K-arkivet (kode, navn, sortering). Eksportert (design-godkjent 2026-09-18)
 // slik at generer-mal-sql.ts kan opprette et manglende kapittel i samme transaksjon (ordre KM2 §4).
 // Seeden bruker den via finnEllerOpprettKapittel (KUN OPPRETT — eksisterende rader røres ikke).
@@ -1138,17 +1311,33 @@ export const KAPITTEL_DATA_F = [
   { kode: "FS", navn: "Utlegging av løsmasser", sortering: 6 },
 ];
 
+// Kapitler i NS 3420-U-arkivet (ny standard, ordre UM1/UU1 §3). UM «Utendørs rørledninger» (UM1),
+// UU «Felles arbeider for utendørs rørledningsanlegg» (UU1). Eksportert slik at generer-mal-sql.ts
+// kan slå opp standarden en U-mal hører til og opprette manglende kapittel. Seeden bruker den via
+// finnEllerOpprettKapittel (KUN OPPRETT — eksisterende kapittel-rader røres ikke).
+export const KAPITTEL_DATA_U = [
+  { kode: "UM", navn: "Utendørs rørledninger", sortering: 1 },
+  { kode: "UU", navn: "Felles arbeider for utendørs rørledningsanlegg", sortering: 2 },
+];
+
+/** Standard: KUN OPPRETT fra STANDARD_DATA. `update: {}` → finnes koden, blir raden urørt. */
+async function opprettStandard(kode: string) {
+  const d = STANDARD_DATA.find((s) => s.kode === kode);
+  if (!d) throw new Error(`Ukjent standard «${kode}» — mangler i STANDARD_DATA.`);
+  return prisma.bibliotekStandard.upsert({
+    where: { kode: d.kode },
+    update: {},
+    create: { kode: d.kode, navn: d.navn, sortering: d.sortering },
+  });
+}
+
 async function main() {
   console.log("Seeder sjekklistebibliotek (kun opprett — rører aldri eksisterende rader)...");
 
   avbrytHvisProdUtenBekreftelse();
 
-  // Standard: KUN OPPRETT. `update: {}` → finnes koden, blir raden urørt.
-  const standard = await prisma.bibliotekStandard.upsert({
-    where: { kode: "NS3420-K" },
-    update: {},
-    create: { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
-  });
+  // Standard: KUN OPPRETT (fra STANDARD_DATA). `update: {}` → finnes koden, blir raden urørt.
+  const standard = await opprettStandard("NS3420-K");
 
   const kapittelData = KAPITTEL_DATA_K;
 
@@ -1194,11 +1383,7 @@ async function main() {
 
   // ── NS 3420-F:2024 Grunnarbeider ──────────────────────────────────
 
-  const standardF = await prisma.bibliotekStandard.upsert({
-    where: { kode: "NS3420-F" },
-    update: {},
-    create: { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
-  });
+  const standardF = await opprettStandard("NS3420-F");
 
   const kapittelDataF = KAPITTEL_DATA_F;
 
@@ -1230,20 +1415,44 @@ async function main() {
     FD3_MAL,
   ];
 
-  // Alle 14 malene er AI-utkast → verifisert: false (settes eksplisitt, ikke bare schema-default).
+  // ── NS 3420-U:2019 Rørinstallasjoner ──────────────────────────────
+  // Ny standard (ordre UM1/UU1 §3). UM1 (legging) i kapittel UM, UU1 (prøving) i kapittel UU.
+
+  const standardU = await opprettStandard("NS3420-U");
+
+  const kapittelDataU = KAPITTEL_DATA_U;
+
+  const kapU: Record<string, string> = {};
+  for (const k of kapittelDataU) {
+    kapU[k.kode] = await finnEllerOpprettKapittel(prisma, standardU.id, k);
+  }
+
+  const malerU: MalDef[] = [
+    // ── UM1 – Legging av VA-ledninger ── (definisjon eksportert over: UM1_MAL — ny mal, ny standard)
+    UM1_MAL,
+
+    // ── UU1 – Prøving av VA-ledninger ── (definisjon eksportert over: UU1_MAL — ny mal, kapittel UU)
+    UU1_MAL,
+  ];
+
+  // Kapittel-id per kode på tvers av alle tre standarder. Kapittelkoder er globalt unike
+  // (KA…KM, FB…FS, UM/UU), så en samlet oppslags-map er entydig — dispatch på malens kapittelKode.
+  const alleKap: Record<string, string> = { ...kap, ...kapF, ...kapU };
+
+  // Alle malene er AI-utkast → verifisert: false (settes eksplisitt, ikke bare schema-default).
   // Prod-gate: uverifiserte maler seedes ikke i prod — prod holdes på 0 maler til fagkontroll er
-  // registrert (via en fremtidig «Merk verifisert»-handling). Test/lokal får alle 14.
+  // registrert (via en fremtidig «Merk verifisert»-handling). Test/lokal får alle.
   const erProd = erProdDatabase();
   let opprettet = 0;
   let hoppetProdGate = 0;
   const hoppetFinnes: string[] = [];
-  for (const mal of [...maler, ...malerF]) {
+  for (const mal of [...maler, ...malerF, ...malerU]) {
     const verifisert = false;
     if (erProd && !verifisert) {
       hoppetProdGate++;
       continue;
     }
-    const kapittelId = (mal.kapittelKode.startsWith("K") ? kap : kapF)[mal.kapittelKode]!;
+    const kapittelId = alleKap[mal.kapittelKode]!;
     const malInnhold = mal.felter.map((f, i) => ({ ...f, sortOrder: i + 1 }));
     const status = await opprettMalHvisMangler(prisma, kapittelId, {
       navn: mal.navn,
