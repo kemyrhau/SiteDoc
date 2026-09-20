@@ -423,6 +423,87 @@ export const KM2_MAL = {
   ] as FeltDef[],
 };
 
+// FB1 – Markrydding og avtaking av vekstjord. NY mal som fyller det tomme kapittelet FB
+// «Markrydding» (ordre FB1 2026-09-20, gatet av Kenneth, Runde C). FB ble tomt etter at FB2 ble
+// omkodet til FD1 (Del F-omkodingen). Dekker det som skjer først på jobben: vegetasjonsrydding,
+// felling, stubbebehandling og avtaking av vekstjord til ranke/depot; rydding under vann, transport
+// bort, depotdrift og ugressbehandling er avgrenset ut. 10 felt, INGEN tallfelt: ryddegrense,
+// masseskille og opplegging besvares med samsvar (MAL-METODE §1). §7b: SiteDocs egne krav —
+// standarden kun i beskrivelsen. Legges FØRST i F-arrayet (foran FD1).
+export const FB1_MAL = {
+  kapittelKode: "FB",
+  navn: "FB1 – Markrydding og avtaking av vekstjord",
+  referanse: "FB1",
+  beskrivelse:
+    "Rydding av vegetasjon og avtaking av vekstjord — ryddegrense, fremmede arter, masseskille og opplegging. Faglig grunnlag: NS 3420-F:2024, post FB1 og FB2.",
+  felter: [
+    // FØR
+    valg("Hva ryddes", "FØR",
+      [
+        "Vegetasjonsdekke og busker",
+        "Trær",
+        "Begge deler",
+        "Bare vekstjord",
+      ],
+      "Sier hva jobben omfatter, og styrer hvilke felt under som er aktuelle."),
+    valg("Fremmede arter", "FØR",
+      [
+        "Ingen registrert",
+        "Registrert – tiltaksplan følges",
+        "Ikke undersøkt – avklar",
+      ],
+      "Er det fare for fremmede arter, skal det finnes en rapport med tiltaksplan, og massene skal håndteres etter den. Masser med og uten fremmede arter holdes fra hverandre."),
+    trafikklys("Ryddegrensen er merket", "FØR",
+      "Grensen går 2,0 m utenfor prosjektert skjæringstopp eller fyllingsfot når beskrivelsen ikke sier noe annet. Trær og vegetasjon som skal stå, er merket og beskyttet."),
+
+    // UNDER
+    valg("Trær og stubber", "UNDER",
+      [
+        "Felt, stubber tatt opp",
+        "Stubber frest",
+        "Ikke aktuelt",
+        "Avvik",
+      ],
+      "Felte trær, stubber og røtter kjøres til oppsamlingsplass eller behandles på stedet. Trær i kanten av området felles så de som blir stående, tåler å stå fritt."),
+    trafikklys("Massene holdes adskilt", "UNDER",
+      "Vegetasjonsdekke, vekstjord og øvrige masser legges hver for seg, og blandes ikke."),
+    valg("Vekstjorda tatt av uten innblanding", "UNDER",
+      [
+        "Tatt av ren",
+        "Blandet med massene under – avvik",
+        "Ingen vekstjord på stedet",
+      ],
+      "Vekstjorda skal ikke blandes med massene under eller andre materialer, og skal ikke forringes. Skal den brukes til revegetering, tas den av skånsomt slik beskrivelsen sier."),
+    valg("Opplegging", "UNDER",
+      [
+        "Løse hauger eller ranker, høyst 2 m",
+        "Høyere enn 2 m – avvik",
+        "Kjørt til depot",
+      ],
+      "Vekstjorda legges løst og høyst 2 m høyt når beskrivelsen ikke sier noe annet. Unngå komprimering — ikke kjør på jorda."),
+    valg("Behandling av kvist og stubber", "UNDER",
+      [
+        "Fliskuttet",
+        "Oppkuttet",
+        "Sortert",
+        "Kjørt bort",
+        "Ikke aktuelt",
+      ],
+      "Velg det beskrivelsen angir. Masser som kjøres bort, håndteres etter tiltaksplanen når fremmede arter er registrert."),
+
+    // ETTER
+    trafikklys("Området er ryddet til avtalt grense", "ETTER",
+      "Ryddingen følger den merkede grensen, og vegetasjon som skulle stå, er uskadd. Ta bilde."),
+    valg("Vekstjorddepotet er merket", "ETTER",
+      [
+        "Merket etter plan",
+        "Ikke aktuelt",
+        "Mangler merking",
+      ],
+      "Der det er fare for fremmede arter, merkes hauger og ranker etter hvilket område jorda kommer fra, så massene ikke blandes senere."),
+  ] as FeltDef[],
+};
+
 // FD1 – Graving av byggegrop. Omkoding av tidligere «FB2 – Graving» (ordre FD1 2026-09-19,
 // gatet av Kenneth): graving hører til FD (uttak av løsmasser), ikke FB (markrydding). Samme
 // bibliotekrad omkodes FB2→FD1 i arkivet (lånene beholder id-koblingen) — se generer-mal-sql.ts
@@ -1275,6 +1356,96 @@ export const UU1_MAL = {
   ] as FeltDef[],
 };
 
+// UP1 – Setting av kum i grunnen. Tredje mal i NS 3420-U (ordre UP1 2026-09-20, gatet av Kenneth,
+// Runde C). Nytt kapittel UP «Kummer i grunnen» i standard NS3420-U (fra runde B), plassert FØR UU
+// i normens rekkefølge (UM, UP, UU). Fullfører VA-kjeden: FD2 → UM1 → UP1 → FS3 → UU1. 12 felt,
+// INGEN tallfelt: plassering, sandvolum, lokkhøyde og ramme-høyde besvares med samsvar mot kravet,
+// målt verdi/sted i kommentaren. §7b: SiteDocs egne krav — standarden kun i beskrivelsen.
+// Styrkeklasser (A 15 … F 900) og «T-merket» er produktmerking brukeren ser, og er tillatt.
+export const UP1_MAL = {
+  kapittelKode: "UP",
+  navn: "UP1 – Setting av kum i grunnen",
+  referanse: "UP1",
+  beskrivelse:
+    "Setting av nedstigningskum, sandfang og inspeksjonskum — fundament, plassering, skjøter, omfylling, ramme og lokk. Faglig grunnlag: NS 3420-U:2019, post UP1.",
+  felter: [
+    // FØR
+    valg("Type kum", "FØR",
+      [
+        "Nedstigningskum",
+        "Sandfangkum",
+        "Inspeksjonskum",
+        "Annen kum",
+      ],
+      "Typen kum avgjør hvilke krav som gjelder under."),
+    valg("Kum og deler kontrollert", "FØR",
+      [
+        "Riktig type og dimensjon, uskadd",
+        "Avvik – feil type eller skadet",
+      ],
+      "Sjekk dimensjon, bunnseksjon og pakninger mot beskrivelsen. Der kummen skal være tett, skal den være T-merket. Skadde elementer settes ikke ned."),
+    trafikklys("Grøftebunn og fundament klare", "FØR",
+      "Bunnen er fri for tele, snø og is, og fundamentet er avrettet så kummen får jevnt anlegg."),
+
+    // UNDER
+    valg("Plassering", "UNDER",
+      [
+        "Innenfor ±30 mm høyde og ±100 mm side",
+        "Avvik",
+      ],
+      "Kontroller kote og plassering mot tegningen før omfylling. Noter største avvik i kommentaren."),
+    valg("Skjøter og gjennomføringer", "UNDER",
+      [
+        "Pakninger på plass, tette skjøter",
+        "Avvik",
+      ],
+      "Skjøter mellom elementene og gjennomføringer for ledninger skal ha pakning og sitte riktig. Hold minst 100 mm mellom kumveggen og ledninger som går forbi utenfor."),
+    valg("Renneløp gjennom kummen", "UNDER",
+      [
+        "Riktig løp og fall",
+        "Ikke aktuelt",
+        "Avvik",
+      ],
+      "Bunnseksjonen skal ha det løpet beskrivelsen angir, med jevnt fall gjennom kummen. Kum med mellomdekke skal ha nedstigningsåpningene forskjøvet i forhold til hverandre."),
+    valg("Sandvolum og høyde til utløp", "UNDER",
+      [
+        "Minst 0,8 m³ og 1 m",
+        "Ikke sandfang",
+        "Under kravet",
+      ],
+      "Gjelder sandfang: sandvolumet bør ikke være mindre enn 0,8 m³, og høyden fra bunn til utløp bør være minst 1 m."),
+    valg("Omfylling rundt kummen", "UNDER",
+      [
+        "Lagvis og komprimert, kummen står stødig",
+        "Avvik",
+      ],
+      "Fyll og komprimer lagvis hele veien rundt, så kummen ikke forskyves eller kommer ut av lodd. Ikke tipp massene rett fra lasteplanet."),
+
+    // ETTER
+    valg("Justeringsringer og ramme", "ETTER",
+      [
+        "Samlet høyde høyst 0,40 m",
+        "Avvik",
+      ],
+      "Overdekningen over topplata skal være minst 0,3 m. Samlet høyde av justeringsringer og ramme bør ikke være over 0,40 m."),
+    valg("Lokk eller rist", "ETTER",
+      [
+        "Riktig styrkeklasse for stedet",
+        "Avvik",
+      ],
+      "Styrkeklassen står i beskrivelsen: A 15, B 125, C 250, D 400 eller F 900. Lokk med lås eller pakning monteres der beskrivelsen krever det."),
+    valg("Lokkhøyde mot dekket", "ETTER",
+      [
+        "Vei eller plass: +0/−10 mm",
+        "Grønt eller grøft: +10/−100 mm",
+        "Avvik",
+      ],
+      "Mål mot ferdig dekke eller terreng. I vei og på plass skal lokket ikke stikke opp. I grøntanlegg og grøfter er kravet romsligere."),
+    trafikklys("Kummen er ren, innmålt og klar", "ETTER",
+      "Sand og slam er spylt ut, kummen er målt inn, og den er klar for prøving og overlevering. Ta bilde."),
+  ] as FeltDef[],
+};
+
 // Standarder i biblioteket (kode, navn, sortering). Eksportert (ordre UM1 §3) slik at
 // generer-mal-sql.ts kan opprette en manglende standard (NS3420-U) i samme transaksjon som
 // kapittel + mal (WHERE NOT EXISTS), og seeden bygger sine upserts fra samme kilde — ingen drift
@@ -1317,7 +1488,11 @@ export const KAPITTEL_DATA_F = [
 // finnEllerOpprettKapittel (KUN OPPRETT — eksisterende kapittel-rader røres ikke).
 export const KAPITTEL_DATA_U = [
   { kode: "UM", navn: "Utendørs rørledninger", sortering: 1 },
-  { kode: "UU", navn: "Felles arbeider for utendørs rørledningsanlegg", sortering: 2 },
+  // UP lagt til (ordre UP1, Runde C): kummer i grunnen, FØR UU i normens rekkefølge (UM, UP, UU).
+  // UU flyttet fra 2→3 for å gi plass. MERK (KUN OPPRETT-drift): et arkiv seedet i runde B har UU
+  // på sortering 2 fra før — seeden rører den ikke. En fersk seed får UM/UP/UU = 1/2/3.
+  { kode: "UP", navn: "Kummer i grunnen", sortering: 2 },
+  { kode: "UU", navn: "Felles arbeider for utendørs rørledningsanlegg", sortering: 3 },
 ];
 
 /** Standard: KUN OPPRETT fra STANDARD_DATA. `update: {}` → finnes koden, blir raden urørt. */
@@ -1393,6 +1568,9 @@ async function main() {
   }
 
   const malerF: MalDef[] = [
+    // ── FB1 – Markrydding og avtaking av vekstjord ── (FB1_MAL — ny mal, fyller tomt kapittel FB)
+    FB1_MAL,
+
     // ── FD1 – Graving av byggegrop ── (definisjon eksportert over: FD1_MAL — omkoding av FB2)
     FD1_MAL,
 
@@ -1430,6 +1608,9 @@ async function main() {
   const malerU: MalDef[] = [
     // ── UM1 – Legging av VA-ledninger ── (definisjon eksportert over: UM1_MAL — ny mal, ny standard)
     UM1_MAL,
+
+    // ── UP1 – Setting av kum i grunnen ── (definisjon eksportert over: UP1_MAL — ny mal, kapittel UP)
+    UP1_MAL,
 
     // ── UU1 – Prøving av VA-ledninger ── (definisjon eksportert over: UU1_MAL — ny mal, kapittel UU)
     UU1_MAL,
