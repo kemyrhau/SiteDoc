@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-20 · develop `c1d51726` (malfasit-snapshot + skriv-mal lokalt tekstbevis + MAL-METODE §8/§8b, begge [no-ff]) · GATE: db 106→111 (+5, malfasit + skriv-mal-tester) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring, ingen SQL · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-20 · develop `a0349089` (FB4/FD3 inline→export inn i malfasit + ordre-docs, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): db 111 HELT stille (ingen ny testfil, kun snapshot-innhold) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7 · ALLE HELT stille · ingen migrering, ingen mobil-endring, ingen SQL · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,24 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-20 — FB4/FD3 løftet inn i malfasiten + SAMARBEIDSREGLER: gate-tall fra `--force`. Ingen migrering, ingen mobil, ingen SQL. develop `a0349089`.
+
+**To brancher, begge `--no-ff`:**
+- **1 — `feat/mal-fasit-fb4-fd3` `10e04f72`** (ff-bar): `seed-bibliotek.ts` (FB4/FD3 løftet fra inline-blokk til `export const *_MAL`) + `mal-fasit.snap.md` (FB4/FD3 nå med i snapshotet).
+- **2 — `docs/design-fasit-fb4-fd3` `c05897fe`** (🔴 ikke ff, base `af349b0e`): `docs/redesign/ordre-fasit-fb4-fd3-design-2026-09-20.md`. Trygghetsmålt: fila urørt på develop siden basen (0 commits), `merge-tree` → 0 konfliktmarkører. Ingen rebase.
+
+**🔴 REN FLYTTING — verifisert med tall:** `git diff --numstat` på `mal-fasit.snap.md` = **`74 0`** (74 tillegg, **0 slettinger**). Ingen eksisterende maltekst endret; FB4/FD3-teksten er identisk, kun løftet inn i fasitens dekningsområde. `seed-bibliotek.ts` viser 92/88 (strukturell inline→export-flytting) — men snapshotens 0 slettinger er garantien for at innholdet er uendret.
+
+**Gate — ALLE HELT stille, kjørt med `--force` (0 cached, ingen FULL TURBO):** db **111 uendret** (runden la ikke til testfil, bare innhold i eksisterende snapshot) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. Ingen migrering, ingen mobil-endring, ingen i18n, ingen SQL.
+
+**🟡 MÅLT (ikke endret): FB4/FD3 er nå med i `malRegister()`** (kjente refs: FB4, FD1, FD2, FD3, FH1, FS2, FS3, KA7, KB2, KB4, KB6, KC3.1, KD1, KD2, KM2). Konsekvens: `generer-mal-sql.ts` **kan** nå produsere SQL for dem, og §7b-vakter kan se dem. Ingen effekt i denne runden (generator/SQL ikke rørt), men **kjør ikke generatoren mot FB4/FD3 før normkode-revisjonen er Kenneth-gatet**.
+
+**🔴 FB4/FD3-fasithullet fra forrige runde er nå LUKKET.** Presisering: **normkodene i FB4/FD3-hjelpetekstene står fortsatt urettet** — det er bevisst, Kenneth-gatet. De rettes ved revisjon og vil da vises som ekte diff mot fasiten.
+
+**SAMARBEIDSREGLER (samme commit):** ny regel «Gate-tall skal komme fra `--force`, ikke fra cache» lagt inn under § «GATE-TALL SKAL SI HVA SOM KJØRTE» — et FULL TURBO-treff er ikke en gate-kjøring; gaten er en observasjon, ikke et oppslag.
 
 ---
 

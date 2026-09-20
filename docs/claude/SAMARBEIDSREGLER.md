@@ -1087,6 +1087,21 @@ Verst: `firmaarkiv-unik-indeks.integration.test.ts` ble skrevet i runde 95 for �
 **Cowork eier merge-timing og deploy — da eier cowork også at tallet bak «grønn» betyr noe.**
 Mål signalet du selv forvalter, før du stoler på det.
 
+#### 🔴 Gate-tall skal komme fra `--force`, ikke fra cache (Kenneth-gatet 2026-09-20)
+
+**Bakgrunn:** i merge-runden med malfasit cachet turbo `pnpm test` (FULL TURBO), og
+gate-tallene kom fra cache uten at testene kjørte på merge-agentens eget tre. Tallene var
+korrekte — turbo hash-nøkler cachen på filinnhold — men gaten hviler på at agenten
+**observerer sin egen kjøring**, ikke på et oppslag i en cache.
+
+- 🔴 **Gate-tall skal alltid komme fra `pnpm test --force` fra ROT** (i praksis
+  `pnpm exec turbo run test --force`, siden `--force` ellers spises av `pnpm` selv). **Et
+  FULL TURBO-treff er ikke en gate-kjøring.**
+- 🔴 **Ser du «FULL TURBO» i output, er tallene ikke ferske** — kjør på nytt med `--force`
+  før du rapporterer.
+- 🔴 **Begrunnelsen står:** et cache-treff gir riktige tall, men beviser ikke at testene
+  kjørte på ditt tre. **Gaten er en observasjon, ikke et oppslag.**
+
 ### 🔴 Mål mot RIKTIG database — og les tidsstemplene (lærdom 2026-08-23)
 
 **Kenneth tester på `test.sitedoc.no` → databasen heter `sitedoc_test`.** `-d sitedoc` er
