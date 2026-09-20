@@ -679,6 +679,172 @@ export const FS2_MAL = {
   ] as FeltDef[],
 };
 
+// FH1 – Sprengning i dagen. Omkoding av tidligere «FC1 – Sprengning» (ordre FH1 2026-09-19, gatet av
+// Kenneth): sprengning hører til FH «Uttak av berg», ikke FC (finnes ikke i normen). Nytt kapittel FH;
+// tomt kildekapittel FC slettes av omkodings-SQL-en. Dekker sikkerhetstiltak + sprengning i dagen;
+// under jord/vann, kontursprengning, rensk, pigging og grøft/grop er avgrenset ut. 12 felt, INGEN
+// tallfelt: endelig flate og profil besvares med toleranseklassen fra beskrivelsen (samsvar), ikke
+// tallfelt. §7b: SiteDocs egne krav — standarden kun i beskrivelsen. Grenseverdier står i beskrivelsen.
+export const FH1_MAL = {
+  kapittelKode: "FH",
+  navn: "FH1 – Sprengning i dagen",
+  referanse: "FH1",
+  beskrivelse:
+    "Sprengning i dagen — planer, varsling, boring og lading, vibrasjoner, endelig flate og salverapport. Faglig grunnlag: NS 3420-F:2024, post FH1.",
+  felter: [
+    // FØR
+    trafikklys("Sprengningsplan og risikovurdering er skriftlige", "FØR",
+      "Sprengningsplanen og risikovurderingen skal være skriftlige før sprengningsarbeidet starter, og tas vare på i minst 3 år etter at arbeidet er ferdig."),
+    valg("Salveplan", "FØR",
+      [
+        "Skriftlig salveplan foreligger",
+        "Mangler – ikke lad",
+      ],
+      "Hver salve skal ha skriftlig salveplan i god tid før den skytes, i tråd med sprengningsplanen."),
+    valg("Varsling, sperring og dekking", "FØR",
+      [
+        "Berørte varslet, område sperret, salven dekket",
+        "Mangler – ikke skyt",
+      ],
+      "Naboer og berørte er varslet, området er sperret og skiltet med vakter på plass, og salven er dekket etter planen."),
+    valg("Vibrasjonsmåling", "FØR",
+      [
+        "Målere satt ut etter plan",
+        "Ikke krav i beskrivelsen",
+        "Mangler – ikke skyt",
+      ],
+      "Grenseverdiene for vibrasjon, støy og støv står i beskrivelsen. Plasser målerne slik planen sier før salven skytes."),
+
+    // UNDER
+    valg("Boring i endelig flate", "UNDER",
+      [
+        "Ansett innenfor 100 mm og retning innenfor 2 %",
+        "Ikke endelig flate i denne salven",
+        "Avvik",
+      ],
+      "Ingen hull skal settes an innenfor den endelige flaten. Ansettet skal ligge innenfor 100 mm fra planlagt punkt, og retningen kan avvike høyst 2 % per pall."),
+    trafikklys("Redusert ladning i endelig flate", "UNDER",
+      "Hullene i endelig flate, og ved behov raden innenfor, lades med redusert ladning tilpasset hullavstand og berg, så flaten ikke svekkes unødig."),
+
+    // ETTER
+    valg("Vibrasjon, støy og støv", "ETTER",
+      [
+        "Innenfor grenseverdiene",
+        "Ikke krav – ikke målt",
+        "Over grenseverdi – stopp og meld",
+      ],
+      "Les av målerne etter hver salve. Over grenseverdien: stopp, meld fra og vurder salveplanen før neste salve."),
+    valg("Skutt ut nok i bunnen", "ETTER",
+      [
+        "OK – ikke berg over såle",
+        "Gjenstående berg – pigges eller skytes",
+      ],
+      "Kontroller etter hver salve. Det skal ikke stå igjen berg over prosjektert nivå i sålen."),
+    valg("Endelig flate", "ETTER",
+      [
+        "Innenfor toleranseklassen i beskrivelsen",
+        "Knøler utenfor klassen – fjernes",
+        "Avvik",
+      ],
+      "Toleranseklassen står i beskrivelsen: klasse 0 tillater ingen knøler innenfor endelig flate, klasse 1 enkeltknøler på høyst 0,15 m, klasse 2 høyst 0,5 m, klasse 3 har ingen krav."),
+    valg("Avstand fra skjæring til konstruksjon", "ETTER",
+      [
+        "Oppfyller minsteavstanden",
+        "Ikke aktuelt",
+        "For smalt – avvik",
+      ],
+      "Betongvegg: minst 1,5 m fra skjæringen når den er inntil 8 m høy, ellers 2,0 m. Fundament: minst 1,0 m når fundamentet er inntil 1,0 m høyt, ellers 1,5 m. Beskrivelsen kan kreve mer."),
+    valg("Udetonert sprengstoff", "ETTER",
+      [
+        "Kontrollert – ingen funnet",
+        "Funnet – håndtert etter rutine",
+      ],
+      "Der det er sprengt før, kan det ligge igjen sprengstoff som ikke har gått av. Kontroller før pigging, rensk og opplasting."),
+    trafikklys("Salverapport er skriftlig", "ETTER",
+      "Rapporten viser boring, lading, tenning, dekking og målinger for salven, vurderer hvordan den gikk, og beskriver avvik og hvordan de ble håndtert."),
+  ] as FeltDef[],
+};
+
+// FS3 – Legging og gjenfylling i grøft. Omkoding av tidligere «FE1 – Ledningsgrøfter» (ordre FS3
+// 2026-09-19, gatet av Kenneth): legging og gjenfylling i grøft hører til FS3, ikke FE (finnes ikke i
+// normen). Kapittel FS finnes (fra FS2); tomt kildekapittel FE slettes av omkodings-SQL-en. Grøfteløpet
+// er FD2 (graving) → FS3 (legging). Ledningsfall og tetthets-/trykkprøving flyttet ut (Del U). 11 felt,
+// INGEN tallfelt: fundament, sidefylling og gjenfylling besvares med samsvar (kravene i alternativ +
+// hjelpetekst), målt verdi i kommentaren. §7b: SiteDocs egne krav — standarden kun i beskrivelsen.
+export const FS3_MAL = {
+  kapittelKode: "FS",
+  navn: "FS3 – Legging og gjenfylling i grøft",
+  referanse: "FS3",
+  beskrivelse:
+    "Fundament, sidefylling, beskyttelse, markering og gjenfylling i grøft for rør og kabler. Faglig grunnlag: NS 3420-F:2024, post FS3.",
+  felter: [
+    // FØR
+    valg("Innhold i grøfta", "FØR",
+      [
+        "Rørledning",
+        "Kabel eller kabelrør",
+        "Kulvert eller kanal",
+        "Flere typer",
+      ],
+      "Hva som ligger i grøfta, avgjør kravene til fundament, beskyttelseslag og masser."),
+    trafikklys("Grøftebunnen er godkjent", "FØR",
+      "Bunnen er kontrollert og godkjent i sjekklisten for graving av grøft før fundamentet legges."),
+    valg("Masser", "FØR",
+      [
+        "Riktig masse – vareseddel kontrollert",
+        "Stedlige masser – godkjent av byggherre",
+        "Avvik",
+      ],
+      "Sjekk vareseddelen mot beskrivelsen. Stedlige masser skal være godkjent av byggherren. Stein over 500 mm sorteres ut der fyllingen skal komprimeres."),
+
+    // UNDER
+    valg("Fundament", "UNDER",
+      [
+        "Riktig tykkelse, overkant innenfor ±30 mm",
+        "Avvik",
+      ],
+      "Rør: overkant fundament innenfor ±30 mm. Vanlig minste tykkelse er 150 mm for rør under DN 400, tykkere for større rør — se beskrivelsen. Kabel og kabelrør: minst 50 mm, med masser inntil 8 mm for kabel og 16 mm for kabelrør. Røret skal ikke heve seg når fundamentet komprimeres."),
+    valg("Sidefylling og beskyttelseslag", "UNDER",
+      [
+        "Lagvis på begge sider, godt pakket",
+        "Avvik",
+      ],
+      "Legg massene forsiktig og lagvis på begge sider, og pakk godt rundt ledningen. Ikke tipp rett fra lasteplanet. Fyll i hele grøftebredden til 0,3 m over øverste ledning. Kabel: beskyttelseslag minst 100 mm med masser inntil 8 mm."),
+    valg("Komprimering ved ledningen", "UNDER",
+      [
+        "Utstyr innenfor vektgrensen for rørtypen",
+        "Avvik – for tungt utstyr",
+      ],
+      "Største vekt på komprimeringsutstyr ved siden av ledningen: plastrør og korrugerte stålrør 60 kg, betong-, stål- og støpejernsrør 100 kg (over DN 1000: 200 kg). Røret skal ikke skades eller forskyves."),
+    trafikklys("Innmåling før gjenfylling", "UNDER",
+      "Ledninger og kabler er målt inn før de dekkes til."),
+    valg("Beskyttelse og skille", "UNDER",
+      [
+        "Lagt etter beskrivelsen",
+        "Ikke krav",
+        "Mangler",
+      ],
+      "Varerør, lastfordelingsplater, dekkplater og skillestein legges slik beskrivelsen sier. Ligger to eller flere kabler i samme grøft, skal det være en tett rekke skillestein eller skilleplater mellom dem."),
+    valg("Markeringsbånd", "UNDER",
+      [
+        "Lagt midt over øverste ledning",
+        "Ikke krav",
+        "Mangler",
+      ],
+      "Båndet legges oppå beskyttelseslaget, midt over øverste ledning. Det skal være minst 40 mm bredt og ha en holdbar, lys kontrastfarge."),
+
+    // ETTER
+    valg("Gjenfylling", "ETTER",
+      [
+        "Lagvis og komprimert etter beskrivelsen",
+        "Avvik",
+      ],
+      "Fyll lagvis og komprimer slik beskrivelsen angir. Ikke tipp rett fra lasteplanet, og ikke kjør tunge maskiner over ledningen før overdekningen er stor nok. Over ubeskyttet kabel skal de første 0,20 m være masser inntil 45 mm."),
+    trafikklys("Grøfta er ferdig gjenfylt og klar for overlevering", "ETTER",
+      "Grøfta er fylt opp til prosjektert høyde, og ledningene er uskadet. Ta bilde."),
+  ] as FeltDef[],
+};
+
 // KA7/KB2/KB4/KB6 – eksportert som egne definisjoner (§7b-retting 2026-09-19) slik at
 // generer-mal-sql.ts finner dem (samme mønster som KC31_MAL/KD1_MAL) og §7b-testen kan iterere
 // alle K-malene. Bygget med eksisterende helpers; skriveveien er urørt.
@@ -876,11 +1042,11 @@ export const KAPITTEL_DATA_K = [
 // kapittel-rader røres ikke; navne-rettingen i test-arkivet skjer via omkodings-SQL, ikke seeden).
 export const KAPITTEL_DATA_F = [
   { kode: "FB", navn: "Markrydding", sortering: 1 },
-  { kode: "FC", navn: "Sprengning", sortering: 2 },
   { kode: "FD", navn: "Uttak av løsmasser", sortering: 3 },
-  { kode: "FE", navn: "Grøfter for kabler og ledninger", sortering: 4 },
-  // FS lagt til ved FS2-omkodingen (ordre FS2 §3). Sortering 6 følger normens rekkefølge
-  // (… FH, FS …): plass 5 er reservert for FH (ennå ikke i biblioteket), FS kommer etter.
+  // FH lagt til ved FH1-omkodingen (ordre FH1 §3): sprengning hører til FH «Uttak av berg», ikke
+  // FC. Sortering 5 følger normens rekkefølge (FB, FD, FH, FS). FC er fjernet — det blir tomt etter
+  // FC1→FH1 og slettes av omkodings-SQL-en (NOT EXISTS-vakt). Tilsvarende FE (fjernet ved FS3).
+  { kode: "FH", navn: "Uttak av berg", sortering: 5 },
   { kode: "FS", navn: "Utlegging av løsmasser", sortering: 6 },
 ];
 
@@ -960,101 +1126,14 @@ async function main() {
     // ── FD2 – Graving av grøft ── (definisjon eksportert over: FD2_MAL — ny mal i kapittel FD)
     FD2_MAL,
 
-    // ── FC1 – Sprengning ──
-    {
-      kapittelKode: "FC",
-      navn: "FC1 – Sprengning",
-      referanse: "FC1",
-      beskrivelse: "Bergsprengning — salveplan, rystelser, profil",
-      prioritet: 2,
-      felter: [
-        // FØR
-        valg("Salveplan og varsling", "FØR",
-          [
-            "Salveplan godkjent – alle varslet",
-            "Salveplan godkjent – mangler varsling",
-            "Salveplan ikke godkjent",
-          ],
-          "FC1 b1: Salveplan skal være godkjent av bergsprenger med gyldig sertifikat. Naboer og berørte skal være varslet iht. varslingsplan."),
-        trafikklys("Rystelsesmåler plassert", "FØR",
-          "FC1 b2: Plasser rystelsesmåler på nærmeste bygning/konstruksjon. Dokumenter avstand og grenseverdi (typisk 20 mm/s bolig, NS 8141)."),
-
-        // UNDER
-        desimal("Maks rystelsesnivå (mm/s)", "UNDER", { enhet: "mm/s" },
-          "FC1 c1: Les av maks rystelse etter salve. Grenseverdier iht. NS 8141: 20 mm/s bolig, 35 mm/s industri, 70 mm/s fjell. Overskridelse → stopp og revurder salveplan."),
-        valg("Sprengningsresultat", "UNDER",
-          [
-            "Iht. profil – ren kontur",
-            "Overberg – krever pigging/meisling",
-            "Underberg – krever ekstra salve",
-            "Blokknedfall – rensk nødvendig",
-          ],
-          "FC1 c2: Kontroller profil mot tegning. Vurder om det er overberg (for mye fjernet) eller underberg (for lite fjernet)."),
-
-        // ETTER
-        trafikklys("Rensk utført og dokumentert", "ETTER",
-          "FC1 c3: All løs stein skal fjernes fra skjæring/tak/vegger. Rensk med maskin eller manuelt. Fotodokumenter resultat."),
-        desimal("Profilkontroll – avvik (mm)", "ETTER", { enhet: "mm" },
-          "FC1 c4: Mål avvik fra prosjektert profil. Typisk toleranse: ±100 mm byggegrop, ±150 mm vegskjæring."),
-        valg("Skader på omgivelser", "ETTER",
-          [
-            "Ingen skader observert",
-            "Kosmetisk skade – dokumentert",
-            "Konstruktiv skade – stopp og meld",
-          ],
-          "FC1 c5: Inspiser bygninger og konstruksjoner i sikringssonen etter hver salve. Sammenlign med tilstandsrapport fra før sprengning."),
-      ],
-    },
+    // ── FH1 – Sprengning i dagen ── (definisjon eksportert over: FH1_MAL — omkoding av FC1)
+    FH1_MAL,
 
     // ── FS2 – Utlegging av masser i lag ── (definisjon eksportert over: FS2_MAL — omkoding av FD2)
     FS2_MAL,
 
-    // ── FE1 – Ledningsgrøfter ──
-    {
-      kapittelKode: "FE",
-      navn: "FE1 – Ledningsgrøfter",
-      referanse: "FE1",
-      beskrivelse: "Grøfter for VA og kabel — profil, fundament, tetthet",
-      prioritet: 1,
-      felter: [
-        // FØR
-        trafikklys("Eksisterende ledninger påvist", "FØR",
-          "FE1 b1: Bestill kabelpåvisning fra netteier. Merk i terreng med spray/stikk. Grav forsiktig innenfor 1 m fra påvist kabel."),
-        valg("Grøfteprofil og fundament", "FØR",
-          [
-            "Iht. tegning – riktig dybde og bredde",
-            "Bredde OK – dybde avviker",
-            "Begge avviker – krever justering",
-          ],
-          "FE1 b2: Kontroller at grøfteprofil stemmer med VA-norm eller prosjektert profil. Riktig bredde og dybde."),
-
-        // UNDER
-        valg("Fundament og sidefylling", "UNDER",
-          [
-            "Riktig masse – jevnt fundament",
-            "Riktig masse – ujevnt fundament",
-            "Feil masse – avvik",
-          ],
-          "FE1 c1: Ledning skal ligge på jevnt fundament. Sidefylling komprimeres forsiktig i lag. Bruk spesifisert masse (typisk 0–8 mm)."),
-        desimal("Ledningsfall (‰)", "UNDER", { enhet: "‰" },
-          "FE1 c2: Mål fall med laser eller vater. Minstekrav: spillvann 10 ‰ (DN≤150), overvann 5 ‰. Selvfallsledninger skal ha jevnt fall uten motfall."),
-        trafikklys("Gjenfylling lagvis", "UNDER",
-          "FE1 c3: Gjenfyll i lag à maks 30 cm. Ikke slipp stein direkte på rør. Bruk beskyttelsesmasse min. 15 cm over ledning."),
-
-        // ETTER
-        valg("Tetthetsprøve / trykkprøve", "ETTER",
-          [
-            "Bestått – ingen lekkasje",
-            "Bestått – innenfor toleranse",
-            "Ikke bestått – utbedring nødvendig",
-          ],
-          "FE1 c4: Utfør iht. VA-norm. Trykkprøve: 1,5× driftstrykk i 30 min. Tetthetsprøve: maks tillatt lekkasje iht. NS-EN 1610."),
-        trafikklys("Innmåling utført", "ETTER",
-          "FE1 c5: Innmål topp rør, bunn grøft og alle knekkpunkt. Lever innmålingsdata til ledningseier (SOSI/GML)."),
-        trafikklys("Varselbånd og merking", "ETTER",
-          "FE1 c6: Legg varselbånd 30 cm over ledning. Farge: blå=vann, brun=spillvann, grønn=drenering, rød=el, gul=gass."),
-      ],
-    },
+    // ── FS3 – Legging og gjenfylling i grøft ── (definisjon eksportert over: FS3_MAL — omkoding av FE1)
+    FS3_MAL,
 
     // ── FB4 – Spunting og avstiving ──
     {

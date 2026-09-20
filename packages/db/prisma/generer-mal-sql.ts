@@ -96,6 +96,12 @@ function kapittelMeta(kode: string): { navn: string; sortering: number } {
   throw new Error(`Ukjent kapittelkode «${kode}» — mangler i KAPITTEL_DATA_K/F (seed-bibliotek.ts).`);
 }
 
+/** Finnes kapittelkoden i KAPITTEL_DATA_K/F? Et kildekapittel som er FJERNET (f.eks. FC/FE etter
+ *  omkoding) skal ikke navne-rettes — det slettes i stedet. */
+function harKapittelMeta(kode: string): boolean {
+  return kapittelArrays().some(({ data }) => data.some((k) => k.kode === kode));
+}
+
 /**
  * SQL som oppretter kapittelet hvis det mangler, ellers gjenbruker det. WHERE NOT EXISTS gjør
  * INSERT-en til en no-op når kapittelet finnes (idempotent), slik at den etterfølgende mal-
@@ -152,14 +158,14 @@ SELECT o.sort_order, o.type, o.label,
  ORDER BY o.sort_order;`;
 }
 
-function genererNy(mal: MalKonstant): string {
+/**
+ * Den muterende kjernen i en NY mal (guard + opprett kapittel + INSERT mal + INSERT objekt-rader),
+ * UTEN BEGIN/COMMIT og uten utskrift. Delt mellom enkel- og fler-mal slik at de to veiene aldri kan
+ * skille lag (fler-mal modus `ny` er forberedt for runde B: UM1/UU1).
+ */
+function nyMutasjon(mal: MalKonstant): string {
   const ref = mal.referanse;
-  return `-- ${ref} → arkiv (modus NY). Generert fra ${ref}_MAL via byggBibliotekRader (samme fasit som seeden).
--- INSERT bibliotek_maler (version=1, verifisert=false, mal_innhold='[]') + INSERT objekt-rader.
--- Avbryter hvis ${ref} finnes fra før. Kjøres ÉN gang mot test (MAL-METODE §1b pkt 5).
-BEGIN;
-
-DO $$
+  return `DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM bibliotek_maler WHERE referanse = '${sql(ref)}') THEN
     RAISE EXCEPTION '${sql(ref)} finnes allerede i arkivet — bruk modus revisjon';
@@ -182,7 +188,17 @@ FROM bibliotek_maler m,
 (VALUES
 ${radVerdier(mal)}
 ) AS r(type, label, config, translations, sort_order, required)
-WHERE m.referanse = '${sql(ref)}';
+WHERE m.referanse = '${sql(ref)}';`;
+}
+
+function genererNy(mal: MalKonstant): string {
+  const ref = mal.referanse;
+  return `-- ${ref} → arkiv (modus NY). Generert fra ${ref}_MAL via byggBibliotekRader (samme fasit som seeden).
+-- INSERT bibliotek_maler (version=1, verifisert=false, mal_innhold='[]') + INSERT objekt-rader.
+-- Avbryter hvis ${ref} finnes fra før. Kjøres ÉN gang mot test (MAL-METODE §1b pkt 5).
+BEGIN;
+
+${nyMutasjon(mal)}
 
 ${telling(ref)}
 
@@ -239,8 +255,10 @@ function kapittelKodeFor(ref: string): string {
  * avbryter med klartekst hvis den gamle referansen mangler (allerede omkodet) eller den nye finnes.
  * Mangler MÅLKAPITTELET (f.eks. FS ved FS2), opprettes det i samme transaksjon med samme WHERE
  * NOT EXISTS-mekanisme som modus `ny` (no-op hvis det finnes, f.eks. FD ved FD1). Kapittelnavnene
- * for kilde- og målkapittelet rettes til normen (KAPITTEL_DATA_F) som del av omkodingen. Alt scopes
- * til malens standard.
+ * for kilde- og målkapittelet rettes til normen (KAPITTEL_DATA_F) — men kun for kapitler som
+ * overlever (et fjernet kildekapittel som FC/FE navne-rettes ikke). Til slutt slettes et TOMT
+ * kildekapittel (NOT EXISTS-vakt, ordre FH1 §3): FC/FE forsvinner, FB/FD er no-op. Alt scopes til
+ * malens standard.
  */
 function omkodingSql(mal: MalKonstant, fraRef: string): string {
   const std = standardForMal(mal);
@@ -254,7 +272,9 @@ function omkodingSql(mal: MalKonstant, fraRef: string): string {
     `(SELECT k.id FROM bibliotek_kapitler k JOIN bibliotek_standarder s ON s.id = k.standard_id ` +
     `WHERE k.kode = '${sql(kode)}' AND s.kode = '${std}')`;
 
-  const kapittelKoder = [...new Set([fraKap, tilKap])].filter(Boolean);
+  // Navne-rett kun kapitler som OVERLEVER (finnes i KAPITTEL_DATA_*). Et kildekapittel som er
+  // fjernet fra arrayet (FC/FE etter omkoding) skal ikke rettes — det slettes lenger ned.
+  const kapittelKoder = [...new Set([fraKap, tilKap])].filter((k) => k && harKapittelMeta(k));
   const kapittelNavnRetting = kapittelKoder
     .map((kode) => {
       const { navn } = kapittelMeta(kode);
@@ -294,7 +314,14 @@ WHERE referanse = '${sql(fraRef)}'
   AND kapittel_id IN (
     SELECT k.id FROM bibliotek_kapitler k JOIN bibliotek_standarder s ON s.id = k.standard_id
     WHERE s.kode = '${std}'
-  );`;
+  );
+
+-- Slett tomt kildekapittel ${fraKap} (KUN hvis ingen maler igjen — NOT EXISTS-vakt). No-op når
+-- kapittelet fortsatt har maler (f.eks. FB/FD). Trygt: kun bibliotek_maler.kapittel_id peker hit.
+DELETE FROM bibliotek_kapitler k
+USING bibliotek_standarder s
+WHERE k.standard_id = s.id AND s.kode = '${std}' AND k.kode = '${sql(fraKap)}'
+  AND NOT EXISTS (SELECT 1 FROM bibliotek_maler m WHERE m.kapittel_id = k.id);`;
 }
 
 /** Ekstra utskrift (ordre FD1 §5 pkt 4): kapittelkode og -navn for malen, i tillegg til §6a-beviset. */
@@ -306,24 +333,44 @@ SELECT m.referanse, k.kode AS kapittel_kode, k.navn AS kapittel_navn
  WHERE m.referanse = '${sql(ref)}';`;
 }
 
+/** Utskrift som viser om kildekapittelet fortsatt finnes (forventet borte etter sletting). */
+function kildekapittelBevisSql(mal: MalKonstant, fraRef: string): string {
+  const std = standardForMal(mal);
+  const fraKap = kapittelKodeFor(fraRef);
+  return `-- Kildekapittel ${fraKap}: forventet BORTE etter sletting (ingen rad = slettet).
+SELECT k.kode AS kildekapittel_finnes_fortsatt
+  FROM bibliotek_kapitler k JOIN bibliotek_standarder s ON s.id = k.standard_id
+ WHERE s.kode = '${std}' AND k.kode = '${sql(fraKap)}';`;
+}
+
+/** Muterende kjerne per mal, UTEN BEGIN/COMMIT/utskrift. `ny` → nyMutasjon; `revisjon` med `fraRef`
+ *  → omkoding (guard/kapittel/UPDATE/slett tomt kildekapittel) + revisjonMutasjon; uten `fraRef` →
+ *  ren revisjonMutasjon. Delt mellom enkel- og fler-mal-veien. */
+function malMutasjon(mal: MalKonstant, modus: "ny" | "revisjon", fraRef?: string): string {
+  if (modus === "ny") return nyMutasjon(mal);
+  return fraRef ? `${omkodingSql(mal, fraRef)}\n\n${revisjonMutasjon(mal)}` : revisjonMutasjon(mal);
+}
+
+/** §6a-utskrift per mal: telling + tekstbevis, og ved omkoding også kapittel- og kildekapittel-bevis. */
+function malBevis(mal: MalKonstant, fraRef?: string): string {
+  const ref = mal.referanse;
+  let b = `${telling(ref)}\n\n${tekstbevis(ref)}`;
+  if (fraRef) b += `\n\n${kapittelBevisSql(ref)}\n\n${kildekapittelBevisSql(mal, fraRef)}`;
+  return b;
+}
+
 function genererRevisjon(mal: MalKonstant, fraRef?: string): string {
   const ref = mal.referanse;
   if (fraRef) {
-    return `-- ${ref} → arkiv (modus REVISJON MED OMKODING fra ${fraRef}, §6a + ordre FD1 §5).
--- Omkoder ${fraRef}→${ref} (samme rad, lån beholdt), retter kapittelnavn, så revisjon:
--- UPDATE metadata (version+1) + DELETE gamle objekt-rader + INSERT nye. verifisert=false.
+    return `-- ${ref} → arkiv (modus REVISJON MED OMKODING fra ${fraRef}, §6a + ordre FD1/FH1 §5).
+-- Omkoder ${fraRef}→${ref} (samme rad, lån beholdt), retter kapittelnavn, sletter tomt kildekapittel,
+-- så revisjon: UPDATE metadata (version+1) + DELETE gamle objekt-rader + INSERT nye. verifisert=false.
 -- version (Int) bumpes; versjon (String) røres IKKE. Kjøres ÉN gang mot test (§1b pkt 5).
 BEGIN;
 
-${omkodingSql(mal, fraRef)}
+${malMutasjon(mal, "revisjon", fraRef)}
 
-${revisjonMutasjon(mal)}
-
-${telling(ref)}
-
-${tekstbevis(ref)}
-
-${kapittelBevisSql(ref)}
+${malBevis(mal, fraRef)}
 
 COMMIT;
 `;
@@ -333,11 +380,9 @@ COMMIT;
 -- version (Int) bumpes; versjon (String) røres IKKE. Kjøres ÉN gang mot test (§1b pkt 5).
 BEGIN;
 
-${revisjonMutasjon(mal)}
+${malMutasjon(mal, "revisjon")}
 
-${telling(ref)}
-
-${tekstbevis(ref)}
+${malBevis(mal)}
 
 COMMIT;
 `;
@@ -355,25 +400,31 @@ export function byggMalSql(
   return genererRevisjon(mal, opts.fraRef);
 }
 
-/** Filnavn for en samlet fler-revisjon (ordre §7b pkt 4 — én fil, én transaksjon). */
-export const FLER_REVISJON_FILNAVN = "7b-retting-test.sql";
+/** Filnavn for en samlet fler-mal-fil: «<ref1>-<ref2>-…-test.sql» (tillegg samlerunder §4). */
+export function flerFilnavn(refs: string[]): string {
+  return refs.map((r) => r.toLowerCase().replace(/\./g, "")).join("-") + "-test.sql";
+}
 
 /**
- * Fler-revisjon i ÉN transaksjon (ordre §7b pkt 4): alle malene revideres (version+1 hver),
- * så full utskrift av ALLE før COMMIT. Feiler én (f.eks. RAISE fordi referansen mangler),
- * rulles hele transaksjonen tilbake — ingen mal revideres halvveis. Kjøres ÉN gang mot test.
+ * Fler-mal-revisjon i ÉN transaksjon (tillegg samlerunder §2–3): hver mal revideres (version+1),
+ * med per-mal omkoding der `fraMap` gir en gammel referanse (par-form NY=GAMMEL), så full §6a-
+ * utskrift PER MAL i rekkefølge FØR COMMIT. Feiler én (RAISE), rulles ALT tilbake — ingen mal
+ * revideres halvveis. `fraMap` tom → ren fler-revisjon (som §7b-runden). Kjøres ÉN gang mot test.
  */
-export function byggFlerRevisjonSql(maler: MalKonstant[]): string {
+export function byggFlerRevisjonSql(
+  maler: MalKonstant[],
+  fraMap: Map<string, string> = new Map(),
+): string {
   if (maler.length === 0) throw new Error("byggFlerRevisjonSql: ingen maler oppgitt.");
   const refs = maler.map((m) => m.referanse).join(", ");
   const mutasjoner = maler
-    .map((m) => `-- ── ${m.referanse}: ${m.navn} ──\n${revisjonMutasjon(m)}`)
+    .map((m) => `-- ── ${m.referanse}: ${m.navn} ──\n${malMutasjon(m, "revisjon", fraMap.get(m.referanse))}`)
     .join("\n\n");
   const bevis = maler
-    .map((m) => `-- ── ${m.referanse} ──\n${telling(m.referanse)}\n\n${tekstbevis(m.referanse)}`)
+    .map((m) => `-- ── ${m.referanse} ──\n${malBevis(m, fraMap.get(m.referanse))}`)
     .join("\n\n");
-  return `-- §7b-retting → arkiv (modus REVISJON, §6a) for ${maler.length} maler: ${refs}.
--- ÉN transaksjon: alle revisjoner (version+1 hver) + full utskrift av alle FØR COMMIT.
+  return `-- Fler-mal-revisjon → arkiv (§6a) for ${maler.length} maler: ${refs}.
+-- ÉN transaksjon: hver mal revideres (version+1), omkoding der --fra gir par, + full utskrift PER MAL.
 -- Feiler én, rulles ALT tilbake. version (Int) bumpes; versjon (String) røres IKKE.
 -- Kjøres ÉN gang mot test (MAL-METODE §1b pkt 5).
 BEGIN;
@@ -394,14 +445,16 @@ const kjørtDirekte =
 
 if (kjørtDirekte) {
   const raw = process.argv.slice(2);
-  // --fra <gammelRef> (ordre FD1 §5): omkoding før revisjonen. Trekkes ut før posisjonell parsing.
-  let fraRef: string | undefined;
+  // --fra: omkoding før revisjonen. To former (tillegg samlerunder §2):
+  //   bar   «--fra FB2»              — kun med ÉN REF (gammel form).
+  //   par   «--fra FH1=FC1,FS3=FE1»  — NY=GAMMEL, komma mellom parene (flere maler).
+  let fraRaw: string | undefined;
   const fraIdx = raw.indexOf("--fra");
   let posisjonelle = raw;
   if (fraIdx !== -1) {
-    fraRef = raw[fraIdx + 1];
-    if (!fraRef) {
-      console.error("--fra krever en gammel referanse, f.eks. «--fra FB2».");
+    fraRaw = raw[fraIdx + 1];
+    if (!fraRaw) {
+      console.error("--fra krever et argument: «--fra FB2» eller «--fra NY=GAMMEL,NY2=GAMMEL2».");
       process.exit(1);
     }
     posisjonelle = raw.filter((_, i) => i !== fraIdx && i !== fraIdx + 1);
@@ -409,14 +462,38 @@ if (kjørtDirekte) {
   const modus = posisjonelle.at(-1);
   const refs = posisjonelle.slice(0, -1);
   if (refs.length === 0 || (modus !== "ny" && modus !== "revisjon")) {
-    console.error("Bruk: tsx prisma/generer-mal-sql.ts <REF...> <ny|revisjon> [--fra <gammelRef>]");
-    console.error("  Én REF → <ref>-test.sql. Flere REF (kun revisjon) → 7b-retting-test.sql (én transaksjon).");
-    console.error("  --fra <gammelRef>: omkoding (kun én REF + revisjon), f.eks. «FD1 revisjon --fra FB2».");
+    console.error("Bruk: tsx prisma/generer-mal-sql.ts <REF...> <ny|revisjon> [--fra <par>]");
+    console.error("  Én REF → <ref>-test.sql. Flere REF → <ref1>-<ref2>-…-test.sql (én transaksjon).");
+    console.error("  --fra: «FB2» (én REF) eller «FH1=FC1,FS3=FE1» (par NY=GAMMEL, kun revisjon).");
     process.exit(1);
   }
-  if (fraRef && (refs.length !== 1 || modus !== "revisjon")) {
-    console.error("--fra (omkoding) støttes kun med ÉN referanse i modus revisjon.");
-    process.exit(1);
+  // Bygg fraMap: ref → gammel referanse (omkoding). Kun modus revisjon.
+  const fraMap = new Map<string, string>();
+  if (fraRaw) {
+    if (modus !== "revisjon") {
+      console.error("--fra (omkoding) støttes kun i modus revisjon.");
+      process.exit(1);
+    }
+    if (fraRaw.includes("=")) {
+      for (const par of fraRaw.split(",")) {
+        const [ny, gammel] = par.split("=").map((s) => s?.trim());
+        if (!ny || !gammel) {
+          console.error(`Ugyldig par «${par}» — forventet NY=GAMMEL.`);
+          process.exit(1);
+        }
+        if (!refs.includes(ny)) {
+          console.error(`Par «${par}» viser til en ref som ikke er med i kjøringen: ${ny}.`);
+          process.exit(1);
+        }
+        fraMap.set(ny, gammel);
+      }
+    } else {
+      if (refs.length !== 1) {
+        console.error("Bar «--fra <ref>» støttes kun med ÉN REF; bruk par-form NY=GAMMEL for flere.");
+        process.exit(1);
+      }
+      fraMap.set(refs[0]!, fraRaw);
+    }
   }
   const register = malRegister();
   const maler = refs.map((ref) => {
@@ -432,17 +509,19 @@ if (kjørtDirekte) {
 
   if (maler.length === 1) {
     const mal = maler[0]!;
+    const fraRef = fraMap.get(mal.referanse);
     const utsti = join(repoRot, filnavnFor(mal.referanse));
     writeFileSync(utsti, byggMalSql(mal, modus, { fraRef }), "utf8");
     const omkoding = fraRef ? `, omkoding fra ${fraRef}` : "";
     console.log(`Skrev ${filnavnFor(mal.referanse)} (${mal.felter.length} felt, modus ${modus}${omkoding}).`);
   } else {
     if (modus !== "revisjon") {
-      console.error("Flere referanser støttes kun i modus revisjon.");
+      console.error("Flere referanser støttes foreløpig kun i modus revisjon.");
       process.exit(1);
     }
-    const utsti = join(repoRot, FLER_REVISJON_FILNAVN);
-    writeFileSync(utsti, byggFlerRevisjonSql(maler), "utf8");
-    console.log(`Skrev ${FLER_REVISJON_FILNAVN} (${maler.length} maler: ${maler.map((m) => m.referanse).join(", ")}).`);
+    const filnavn = flerFilnavn(refs);
+    writeFileSync(join(repoRot, filnavn), byggFlerRevisjonSql(maler, fraMap), "utf8");
+    const omkodinger = [...fraMap.entries()].map(([ny, g]) => `${g}→${ny}`).join(", ") || "ingen";
+    console.log(`Skrev ${filnavn} (${maler.length} maler: ${refs.join(", ")}; omkoding: ${omkodinger}).`);
   }
 }
