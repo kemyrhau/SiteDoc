@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-20 · develop `d876932a` (FH1 + FS3 omkodet + samlerunder-docs, alle [no-ff] — Del F ferdig omkodet) · GATE: db 83→106 (+23, FH1+FS3-tester) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-20 · develop `c1d51726` (malfasit-snapshot + skriv-mal lokalt tekstbevis + MAL-METODE §8/§8b, begge [no-ff]) · GATE: db 106→111 (+5, malfasit + skriv-mal-tester) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring, ingen SQL · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,27 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-20 — Malfasit + lokalt tekstbevis (skriv-mal) merget. Ingen migrering, ingen mobil, ingen SQL. develop `c1d51726`.
+
+**To brancher, begge `--no-ff`, begge ff-mulig mot `af349b0e`:**
+- **A — `feat/mal-fasit` `fa60f2b2`** (fire filer, alle `packages/db/prisma`): `mal-fasit.snap.md` + `mal-fasit.test.ts` (låser HELE maltekstene — hjelpetekster **og** alternativer, ikke bare etiketter; endres en tekst senere blir det en diff i `pnpm test`, ikke en stille passering) · `skriv-mal.ts` + `skriv-mal.test.ts` (skriver ut malen lokalt i §6a-form via `byggBibliotekRader`, uten DB/scp/docker/TTY).
+- **B — `docs/design-malfasit` `b7bb1f4a`** (to filer): `docs/claude/MAL-METODE.md` §8/§8b + `docs/redesign/ordre-malfasit-design-2026-09-20.md`. Kenneth-gatet 2026-09-20.
+
+**Runden legger et lag OVER seeden — `seed-bibliotek.ts` og `generer-mal-sql.ts` er URØRT.** Innholdsgaten går nå på **lokal utskrift** (`skriv-mal.ts`, låst av malfasiten), ikke på SQL mot test. **SQL mot test kjøres per RUNDE (ikke per mal), og alltid når `generer-mal-sql.ts`/`byggBibliotekRader` er endret** (MAL-METODE §8b, Kenneth-gatet).
+
+**Gate — KUN db steg, alle andre HELT stille:** db 106→111 (**+5**, malfasit + skriv-mal-tester, to nye testfiler) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7. Ingen migrering, ingen mobil-endring, ingen i18n, ingen SQL.
+
+**`docs/design-um1` + `docs/design-uu1` IKKE merget** — begge er allerede i develop (inn med `083ac0da` 19.09; verifisert med `git merge-base --is-ancestor` → ancestor). Å merge dem ville gitt tomme merge-commits.
+
+**§4-verifisering utført:** `skriv-mal.ts` kjørt for FD1 (`pnpm --filter @sitedoc/db exec tsx prisma/skriv-mal.ts FD1`) — full §6a-utskrift kom (metadata + 13+ objektrader med type/label/alternativer/hjelpetekst). Scriptet virker, ikke bare grønn test.
+
+### 🔴 HULL I FASITEN — `FB4` og `FD3` er inline-blokker, ikke dekket (2026-09-20)
+- `FB4` og `FD3` ligger som **inline-blokker i F-arrayet** i `seed-bibliotek.ts`, ikke som eksporterte konstanter. Malfasiten dekker kun eksporterte `*_MAL`-konstanter → **teksten deres er fortsatt ULÅST**.
+- Begge bærer **gamle normkoder i hjelpetekstene**.
+- 🔴 **Ikke fikset — Kenneth avgjør timingen.** Ført her kun for at hullet skal være synlig. (design står alt på `docs/design-fasit-fb4-fd3`.)
 
 ---
 
