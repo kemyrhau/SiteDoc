@@ -9,11 +9,11 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-20 · develop `083ac0da` (FD2 «Graving av grøft» + UM1/UU1/MAL-PLAN docs, alle [no-ff]) · GATE: db 76→83 (+7, FD2-seedtest) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · shared/web/mobil-tallene ble løftet i mellomrunden `5e4bb483` (statusfarger-paritet + FS2, seks brancher — ikke ført som egen tavlelinje) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-20 · develop `d876932a` (FH1 + FS3 omkodet + samlerunder-docs, alle [no-ff] — Del F ferdig omkodet) · GATE: db 83→106 (+23, FH1+FS3-tester) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | `feat/statusfarger-paritet` | 🟠 **FRYST — venter designgate** (statusfarger). 🔴 Branchen måler mobil 18→31 fra `f3c0affa`; varig-grå (`1dace3b0`) satte develop-mobil til 21 → **han må rebase + måle på nytt (base blir 21)** før merge | designgate → rebase |
+| **redesign** | `SiteDoc-redesign` | statusfarger-paritet merget `b1eb484c` (i `5e4bb483`, remote-branch ryddet) | ⚪ **LEDIG** (worktree står på merget branch, ingen ny pushet) | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
 | **mal-Opus** | `SiteDoc-mal` | FD2 «Graving av grøft» merget `11f83fae` (i develop `083ac0da`) | ⚪ **LEDIG** (worktree står på merget FD2-branch, ingen ny branch pushet) | Neste: FH1 → FS3 (ordrer alt committet, tas etter hverandre — rører samme filer, ikke parallelt) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
@@ -45,6 +45,16 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-20 — FH1 + FS3 omkodet + samlerunder-docs merget. Del F ferdig omkodet. develop `d876932a`.
+
+**To brancher:** `feat/mal-fh1-fs3` `00cd602f` (`seed-bibliotek.ts` + `fh1-mal.test.ts` + `fs3-mal.test.ts` + `generer-mal-sql.ts` + `generer-mal-sql.test.ts`) · `docs/design-samlerunder` `ba70270f` (`docs/redesign/tillegg-samlerunder-design-2026-09-20.md`). Begge `--no-ff`, begge ff-mulig mot `6b294d58`.
+
+**Gate — KUN db steg, alle andre HELT stille:** db 83→106 (**+23**, FH1+FS3-tester) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · integrasjon 61 · 7/7. Ingen migrering, ingen mobil-endring, ingen i18n.
+
+**Del F er nå ferdig omkodet.** FH1 v2 (12 felt + 3 headings, nytt kapittel FH) + FS3 v2 (11 felt + 3 headings, i FS), begge tekstbevis ordrett (designgate 2026-09-20, Kenneth kjørte `fh1-fs3-test.sql` mot `sitedoc_test`). **Kildekapitlene FC og FE slettet (tomme — bevis viser 0 rader). Lån intakt, id bevart.** FC1/FE1-delen av den bevisste mellomtilstanden er dermed avviklet (FD3 under «Uttak av løsmasser» ikke nevnt i denne ordren — ikke målt her).
 
 ---
 
