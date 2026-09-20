@@ -141,8 +141,17 @@ kapittel-logikk. Eksporter som `JH2_MAL`.
 ## 4. Rammer
 
 §7b-sjekk i `jh2-mal.test.ts`: ingen hjelpetekst eller alternativ inneholder `JH2 `, `JH1 `, `Matrise`, `NS-EN`,
-`NS 3420`, `NS 3458` eller `Håndbok`. Asfalttypene (Ab, Ska, Ma …) og klebemidlene er bransjebetegnelser på produktet og
-er tillatt — standardene bak navngis ikke. **«Statens vegvesen» og håndboknummer skal ikke stå i malen**; skriv
-«beskrivelsen» i stedet.
+`NS 3420` eller `NS 3458`. Asfalttypene (Ab, Ska, Ma …) og klebemidlene er bransjebetegnelser på produktet og er
+tillatt — standardene bak navngis ikke.
+
+**Endring 2026-09-20 (Kenneth):** vegvesenets håndbok **N200 kan navngis** i hjelpetekst. Den er gratis og fritt
+nedlastbar fra vegvesen.no, så arbeideren kan faktisk slå den opp — i motsetning til NS-standardene, som ligger bak
+betaling. Se MAL-METODE §7c. Navn og kapittel er tillatt; tekst og tabeller derfra skal **ikke** kopieres.
+
+Konkret i denne malen: i felt **10 (Jevnhet og høyde)** skal hjelpeteksten lyde
+
+> Jevnheten måles med rettholt. Tillatt sideavvik er +100 / −0 mm. For bind- og slitelag i veg gjelder toleransene i vegvesenets håndbok N200 — beskrivelsen sier hvilke som er avtalt for jobben.
+
+Øvrige felt er uendret.
 
 Ellers gjelder rammene, DoD-en og SQL-avsnittet i FF1-ordren for hele runden.
