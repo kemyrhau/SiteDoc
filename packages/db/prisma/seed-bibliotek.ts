@@ -1446,6 +1446,180 @@ export const UP1_MAL = {
   ] as FeltDef[],
 };
 
+// FF1 – Avretting. Ny mal (ordre FF1 2026-09-20, gatet av Kenneth, Runde D). Nytt kapittel FF
+// «Avretting og rensk» i NS3420-F, plassert MELLOM FD (3) og FH (5) på sortering 4 — ledig tall,
+// ingen søster må flyttes (ingen --sorter). Dekker avretting med/uten tilføring og ved fjerning
+// (FF1.2–FF1.4) + kontroll av underlaget (FF1.1); under vann, arrondering og rensk av berg er ute.
+// 10 felt, INGEN tallfelt (§1): høyde, planhet og fall besvares med samsvar mot kravet i
+// beskrivelsen, målt verdi/sted i kommentaren. §7b: SiteDocs egne krav, standarden kun i beskrivelsen.
+export const FF1_MAL = {
+  kapittelKode: "FF",
+  navn: "FF1 – Avretting",
+  referanse: "FF1",
+  beskrivelse:
+    "Avretting av planum, lag og grøftebunn — metode, masser, høyde, planhet og fall. Faglig grunnlag: NS 3420-F:2024, post FF1.",
+  felter: [
+    // FØR
+    valg("Hva avrettes", "FØR",
+      [
+        "Planum eller traubunn",
+        "Forsterkningslag",
+        "Bærelag",
+        "Grusdekke",
+        "Bunn eller fundament i grøft",
+        "Annen flate",
+      ],
+      "Hvilken flate som avrettes, avgjør hvilke krav beskrivelsen setter til høyde og planhet."),
+    valg("Underlaget kontrollert", "FØR",
+      [
+        "Nivå, jevnhet og fall kontrollert",
+        "Avvik funnet – meldt",
+        "Ikke bestilt som egen kontroll",
+      ],
+      "Er kontroll av underlaget bestilt, skal den dokumenteres. Rekomprimeres flaten, kontrolleres den på nytt etterpå."),
+    valg("Metode", "FØR",
+      [
+        "Uten tilføring av masser",
+        "Med tilføring av masser",
+        "Ved fjerning av masser",
+      ],
+      "Uten tilføring brukes massene som ligger der. Vurder om kravet er mulig å nå med den største steinen i underlaget — hvis ikke, skal det tilføres masser."),
+
+    // UNDER
+    valg("Masser til avretting", "UNDER",
+      [
+        "Fraksjon tilpasset underlaget",
+        "Ikke aktuelt – avrettes uten tilføring",
+        "Avvik",
+      ],
+      "Ved tilføring skal fraksjonen passe til underlaget og til kravet som skal nås. Husk at massene endrer seg ved komprimering."),
+    trafikklys("Overskuddsmasser fjernet", "UNDER",
+      "Masser som blir til overs ved avrettingen, er fjernet fra flaten."),
+    valg("Etterkomprimering", "UNDER",
+      [
+        "Utført",
+        "Ikke krav",
+        "Avvik",
+      ],
+      "Avrettingen avsluttes med komprimering slik beskrivelsen angir."),
+
+    // ETTER
+    valg("Høyde", "ETTER",
+      [
+        "Innenfor kravet i beskrivelsen",
+        "Utenfor – rettes",
+      ],
+      "Beskrivelsen velger kravet: ±10 mm, ±20 mm, ±50 mm, +0 til 20 mm, +0 til 50 mm eller +20 til 0 mm. Noter største avvik i kommentaren."),
+    valg("Planhet", "ETTER",
+      [
+        "Innenfor kravet i beskrivelsen",
+        "Utenfor – rettes",
+      ],
+      "Mål langs en rett linje mellom to punkter som ligger 3 m fra hverandre. Beskrivelsen velger kravet, fra ±10 mm til ±50 mm."),
+    valg("Fall og avrenning", "ETTER",
+      [
+        "Fall som prosjektert",
+        "Ikke krav til fall",
+        "Vannlommer – rettes",
+      ],
+      "Kontroller at vannet renner dit det skal, og at det ikke blir stående igjen på flaten."),
+    trafikklys("Flaten er godkjent for neste lag", "ETTER",
+      "Flaten oppfyller kravene over og kan bygges videre på. Ta bilde."),
+  ] as FeltDef[],
+};
+
+// JH2 – Asfaltdekke. Ny mal (ordre JH2 2026-09-20, gatet av Kenneth, Runde D). FJERDE standard
+// NS3420-J:2008 «Dekke- og banearbeider» (merk årstallet — K/F er 2024, U er 2019); nytt kapittel
+// JH «Asfaltdekker», sortering 1. Dekker varmprodusert asfaltdekke (JH2.1) med behandling av
+// underlaget (JH1) og avstrøing (JH2.81); kaldasfalt, bitumen-/sementbærelag, oppmerking, humper,
+// kanter, kunstgress/kunststoff og flyplass er ute. 11 felt, INGEN tallfelt (§1). §7b: SiteDocs egne
+// krav — NS-standardene navngis ikke. §7c (Kenneth 2026-09-20): vegvesenets håndbok N200 er gratis
+// og fritt nedlastbar, og KAN navngis i hjelpetekst (felt 10). Asfalttyper (Ab, Ska, Ma …) er
+// produktbetegnelser og er tillatt.
+export const JH2_MAL = {
+  kapittelKode: "JH",
+  navn: "JH2 – Asfaltdekke",
+  referanse: "JH2",
+  beskrivelse:
+    "Varmprodusert asfaltdekke — rengjøring, klebing, utlegging, komprimering, skjøter og ferdig overflate. Faglig grunnlag: NS 3420-J:2008, post JH2.",
+  felter: [
+    // FØR
+    valg("Type lag", "FØR",
+      [
+        "Slitelag",
+        "Bindlag",
+        "Opprettingslag",
+        "Annet lag",
+      ],
+      "Beskrivelsen sier hvilket lag som legges, med asfalttype, steinstørrelse og tykkelse."),
+    valg("Underlaget rengjort", "FØR",
+      [
+        "Feid",
+        "Spylt",
+        "Ikke krav",
+        "Avvik – ikke rent",
+      ],
+      "Underlaget skal være rent før klebing. Er det forurenset, håndteres det slik beskrivelsen sier."),
+    valg("Klebing", "FØR",
+      [
+        "Utført, virksom over hele flaten",
+        "Ikke krav",
+        "Avvik",
+      ],
+      "Klebemiddelet skal virke over hele arealet. Velg type og mengde etter beskrivelsen."),
+    valg("Vær og underlag", "FØR",
+      [
+        "Tørt underlag – klart for legging",
+        "Fritt vann på underlaget – vent",
+        "Underlaget for kaldt eller vått – vent",
+      ],
+      "Det skal ikke asfalteres når det står fritt vann på underlaget."),
+
+    // UNDER
+    valg("Masse og temperatur", "UNDER",
+      [
+        "Type og temperatur som beskrevet",
+        "Avvik – meldt",
+      ],
+      "Massen skal være homogen, og filler, finstoff og fiber tørre ved innmatning. Følgeseddel kontrolleres mot beskrivelsen."),
+    valg("Komprimering fullført i tide", "UNDER",
+      [
+        "Ja – før temperaturen falt 50 °C under laveste utleggingstemperatur",
+        "Avvik",
+      ],
+      "Valsingen skal være ferdig mens massen fortsatt er varm nok. Kommer den for sent, blir dekket ikke tett."),
+    valg("Skjøter og kanter", "UNDER",
+      [
+        "Følger vegens geometri, langsgående skjøt utenfor mest kjørte felt",
+        "Avvik",
+      ],
+      "Legg langsgående skjøter der det kjøres minst. Skjøter og kanter skal følge vegens linjer."),
+    valg("Trafikk på klebet flate", "UNDER",
+      [
+        "Ikke trafikkert før legging",
+        "Trafikkert – strødd med sand først",
+        "Avvik",
+      ],
+      "Klebet flate bør ikke kjøres på før laget legges. Må den kjøres på, strøs den med sand først."),
+
+    // ETTER
+    valg("Overflaten", "ETTER",
+      [
+        "Homogen og ensartet",
+        "Sprekker, hull eller fete partier – utbedres",
+      ],
+      "Dekket skal være jevnt i utseende og friksjon. Manglende vedheft mellom lagene løses ved å frese bort laget, klebe på nytt og legge ny asfalt."),
+    valg("Jevnhet og høyde", "ETTER",
+      [
+        "Innenfor kravene i beskrivelsen",
+        "Avvik",
+      ],
+      "Jevnheten måles med rettholt. Tillatt sideavvik er +100 / −0 mm. For bind- og slitelag i veg gjelder toleransene i vegvesenets håndbok N200 — beskrivelsen sier hvilke som er avtalt for jobben."),
+    trafikklys("Ferdig dekke godkjent og dokumentert", "ETTER",
+      "Avstrøing er utført der det kreves, følgesedler er samlet, og dekket er klart for overlevering. Ta bilde."),
+  ] as FeltDef[],
+};
+
 // Standarder i biblioteket (kode, navn, sortering). Eksportert (ordre UM1 §3) slik at
 // generer-mal-sql.ts kan opprette en manglende standard (NS3420-U) i samme transaksjon som
 // kapittel + mal (WHERE NOT EXISTS), og seeden bygger sine upserts fra samme kilde — ingen drift
@@ -1454,6 +1628,9 @@ export const STANDARD_DATA = [
   { kode: "NS3420-K", navn: "NS 3420-K:2024 Anleggsgartnerarbeider", sortering: 1 },
   { kode: "NS3420-F", navn: "NS 3420-F:2024 Grunnarbeider", sortering: 2 },
   { kode: "NS3420-U", navn: "NS 3420-U:2019 Rørinstallasjoner", sortering: 3 },
+  // NS3420-J lagt til (ordre JH2, Runde D): fjerde standard, dekke- og banearbeider. MERK årstallet
+  // 2008 — K/F er 2024, U er 2019. Hullet vi selv laget da asfalt ble tatt ut av KD1.
+  { kode: "NS3420-J", navn: "NS 3420-J:2008 Dekke- og banearbeider", sortering: 4 },
 ];
 
 // Kapitler i NS 3420-K-arkivet (kode, navn, sortering). Eksportert (design-godkjent 2026-09-18)
@@ -1475,6 +1652,9 @@ export const KAPITTEL_DATA_K = [
 export const KAPITTEL_DATA_F = [
   { kode: "FB", navn: "Markrydding", sortering: 1 },
   { kode: "FD", navn: "Uttak av løsmasser", sortering: 3 },
+  // FF lagt til (ordre FF1, Runde D): avretting og rensk, MELLOM FD (3) og FH (5). Sortering 4 er
+  // ledig — ingen søster må flyttes (ingen --sorter i SQL-en, i motsetning til UP/UU i runde C).
+  { kode: "FF", navn: "Avretting og rensk", sortering: 4 },
   // FH lagt til ved FH1-omkodingen (ordre FH1 §3): sprengning hører til FH «Uttak av berg», ikke
   // FC. Sortering 5 følger normens rekkefølge (FB, FD, FH, FS). FC er fjernet — det blir tomt etter
   // FC1→FH1 og slettes av omkodings-SQL-en (NOT EXISTS-vakt). Tilsvarende FE (fjernet ved FS3).
@@ -1493,6 +1673,13 @@ export const KAPITTEL_DATA_U = [
   // på sortering 2 fra før — seeden rører den ikke. En fersk seed får UM/UP/UU = 1/2/3.
   { kode: "UP", navn: "Kummer i grunnen", sortering: 2 },
   { kode: "UU", navn: "Felles arbeider for utendørs rørledningsanlegg", sortering: 3 },
+];
+
+// Kapitler i NS 3420-J-arkivet (ny standard, ordre JH2 §3, Runde D). JH «Asfaltdekker» (JH2).
+// Eksportert slik at generer-mal-sql.ts kan slå opp standarden en J-mal hører til og opprette
+// manglende kapittel. Seeden bruker den via finnEllerOpprettKapittel (KUN OPPRETT).
+export const KAPITTEL_DATA_J = [
+  { kode: "JH", navn: "Asfaltdekker", sortering: 1 },
 ];
 
 /** Standard: KUN OPPRETT fra STANDARD_DATA. `update: {}` → finnes koden, blir raden urørt. */
@@ -1586,6 +1773,9 @@ async function main() {
     // ── FS3 – Legging og gjenfylling i grøft ── (definisjon eksportert over: FS3_MAL — omkoding av FE1)
     FS3_MAL,
 
+    // ── FF1 – Avretting ── (definisjon eksportert over: FF1_MAL — ny mal, nytt kapittel FF)
+    FF1_MAL,
+
     // ── FB4 – Spunting og avstiving ── (definisjon eksportert over: FB4_MAL)
     FB4_MAL,
 
@@ -1616,9 +1806,26 @@ async function main() {
     UU1_MAL,
   ];
 
-  // Kapittel-id per kode på tvers av alle tre standarder. Kapittelkoder er globalt unike
-  // (KA…KM, FB…FS, UM/UU), så en samlet oppslags-map er entydig — dispatch på malens kapittelKode.
-  const alleKap: Record<string, string> = { ...kap, ...kapF, ...kapU };
+  // ── NS 3420-J:2008 Dekke- og banearbeider ─────────────────────────
+  // Ny standard (ordre JH2 §3, Runde D). JH2 (asfaltdekke) i nytt kapittel JH.
+
+  const standardJ = await opprettStandard("NS3420-J");
+
+  const kapittelDataJ = KAPITTEL_DATA_J;
+
+  const kapJ: Record<string, string> = {};
+  for (const k of kapittelDataJ) {
+    kapJ[k.kode] = await finnEllerOpprettKapittel(prisma, standardJ.id, k);
+  }
+
+  const malerJ: MalDef[] = [
+    // ── JH2 – Asfaltdekke ── (definisjon eksportert over: JH2_MAL — ny mal, ny standard NS3420-J)
+    JH2_MAL,
+  ];
+
+  // Kapittel-id per kode på tvers av alle fire standarder. Kapittelkoder er globalt unike
+  // (KA…KM, FB…FS, UM/UU, JH), så en samlet oppslags-map er entydig — dispatch på malens kapittelKode.
+  const alleKap: Record<string, string> = { ...kap, ...kapF, ...kapU, ...kapJ };
 
   // Alle malene er AI-utkast → verifisert: false (settes eksplisitt, ikke bare schema-default).
   // Prod-gate: uverifiserte maler seedes ikke i prod — prod holdes på 0 maler til fagkontroll er
@@ -1627,7 +1834,7 @@ async function main() {
   let opprettet = 0;
   let hoppetProdGate = 0;
   const hoppetFinnes: string[] = [];
-  for (const mal of [...maler, ...malerF, ...malerU]) {
+  for (const mal of [...maler, ...malerF, ...malerU, ...malerJ]) {
     const verifisert = false;
     if (erProd && !verifisert) {
       hoppetProdGate++;

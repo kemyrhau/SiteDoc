@@ -74,11 +74,15 @@ function kapittelArrays(): { standard: string; data: KapittelRad[] }[] {
     KAPITTEL_DATA_K?: KapittelRad[];
     KAPITTEL_DATA_F?: KapittelRad[];
     KAPITTEL_DATA_U?: KapittelRad[];
+    KAPITTEL_DATA_J?: KapittelRad[];
   };
   return [
     { standard: "NS3420-K", data: s.KAPITTEL_DATA_K ?? [] },
     { standard: "NS3420-F", data: s.KAPITTEL_DATA_F ?? [] },
     { standard: "NS3420-U", data: s.KAPITTEL_DATA_U ?? [] },
+    // NS3420-J lagt til (ordre JH2, Runde D): så standardForMal/kapittelMeta finner JH-kapitlet og
+    // opprettStandardSql/opprettKapittelSql kan opprette NS3420-J + JH i modus ny (WHERE NOT EXISTS).
+    { standard: "NS3420-J", data: s.KAPITTEL_DATA_J ?? [] },
   ];
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { byggMalSql, byggFlerRevisjonSql, byggFlerNySql, filnavnFor, flerFilnavn, malRegister } from "./generer-mal-sql";
-import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FD2_MAL, FS2_MAL, FH1_MAL, FS3_MAL, UM1_MAL, UP1_MAL, UU1_MAL, FB1_MAL } from "./seed-bibliotek";
+import { KA7_MAL, KB2_MAL, KD2_MAL, KM2_MAL, FD1_MAL, FD2_MAL, FS2_MAL, FH1_MAL, FS3_MAL, UM1_MAL, UP1_MAL, UU1_MAL, FB1_MAL, FF1_MAL, JH2_MAL } from "./seed-bibliotek";
 
 /**
  * Ren unit-test (ingen DB) for den generelle mal-SQL-generatoren (MAL-METODE §1b pkt 4).
@@ -443,5 +443,54 @@ describe("byggFlerNySql + sortering-retting (Runde C, --sorter)", () => {
   it("registeret finner UP1 og FB1", () => {
     expect(malRegister().get("UP1")?.referanse).toBe("UP1");
     expect(malRegister().get("FB1")?.referanse).toBe("FB1");
+  });
+});
+
+// Runde D (design-gatet 2026-09-20): FF1 (nytt kapittel FF i eksisterende NS3420-F) + JH2 (FJERDE
+// standard NS3420-J:2008, nytt kapittel JH) — begge NYE maler i én transaksjon (multi-ny). FF krever
+// ingen --sorter (sortering 4 er ledig mellom FD=3 og FH=5).
+describe("byggFlerNySql (multi-ny, runde D — FF1 + JH2)", () => {
+  const FF1 = FF1_MAL as unknown as Parameters<typeof byggMalSql>[0];
+  const JH2 = JH2_MAL as unknown as Parameters<typeof byggMalSql>[0];
+
+  it("JH2 ny: standard-INSERT (NS3420-J) FØR kapittel-INSERT (JH) FØR mal-INSERT", () => {
+    const s = byggMalSql(JH2, "ny");
+    const stdIdx = s.indexOf("INSERT INTO bibliotek_standarder");
+    const kapIdx = s.indexOf("INSERT INTO bibliotek_kapitler");
+    const malIdx = s.indexOf("INSERT INTO bibliotek_maler");
+    expect(stdIdx).toBeGreaterThan(-1);
+    expect(stdIdx).toBeLessThan(kapIdx);
+    expect(kapIdx).toBeLessThan(malIdx);
+    // Ny standard NS3420-J, idempotent (WHERE NOT EXISTS), navn + sortering fra STANDARD_DATA.
+    expect(s).toContain("'NS3420-J', 'NS 3420-J:2008 Dekke- og banearbeider', 4");
+    expect(s).toMatch(/NOT EXISTS[\s\S]*bibliotek_standarder WHERE kode = 'NS3420-J'/);
+    // Kapittel JH opprettes i NS3420-J.
+    expect(s).toContain("'JH', 'Asfaltdekker', 1");
+    expect(s).toContain("s.kode = 'NS3420-J'");
+  });
+
+  it("FF1 ny: NS3420-F (eksisterende standard, no-op INSERT) + nytt kapittel FF på sortering 4", () => {
+    const s = byggMalSql(FF1, "ny");
+    expect(s).toContain("INSERT INTO bibliotek_standarder");
+    expect(s).toMatch(/NOT EXISTS[\s\S]*bibliotek_standarder WHERE kode = 'NS3420-F'/);
+    expect(s).toContain("'FF', 'Avretting og rensk', 4");
+    expect(s).toMatch(/NOT EXISTS[\s\S]*k\.kode = 'FF'/);
+    expect(s).not.toContain("NS3420-J");
+  });
+
+  it("FF1 + JH2 i én transaksjon (ett BEGIN/COMMIT), begge INSERT-es ferske (version=1)", () => {
+    const s = byggFlerNySql([FF1, JH2]);
+    expect(s.match(/BEGIN;/g)).toHaveLength(1);
+    expect(s.match(/COMMIT;/g)).toHaveLength(1);
+    expect(s.match(/INSERT INTO bibliotek_maler/g)).toHaveLength(2);
+    expect(s.match(/false, 1, '\[\]'::jsonb/g)).toHaveLength(2);
+    expect(s).not.toContain("DELETE");
+    // FF1 kommer før JH2 (rekkefølge).
+    expect(s.indexOf("referanse = 'FF1'")).toBeLessThan(s.indexOf("referanse = 'JH2'"));
+  });
+
+  it("registeret finner FF1 og JH2", () => {
+    expect(malRegister().get("FF1")?.referanse).toBe("FF1");
+    expect(malRegister().get("JH2")?.referanse).toBe("JH2");
   });
 });
