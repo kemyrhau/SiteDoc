@@ -116,7 +116,7 @@ Nytt kapittel i `NS3420-F`: kode `FP`, navn «Sikring av berg og løsmasser», p
 - Mer enn 5 % underkjent – utvidet prøving
 - Ikke aktuelt
 
-> Prøvetrekk minst halvparten av de første 100 boltene, til 10 % over dimensjonerende last. Blir mer enn 5 % underkjent, prøves halvparten av de neste 100 til underkjenningen er under 5 %. Deretter 50 bolter per 1000.
+> Prøvetrekk minst halvparten av de første 100 boltene, til 10 % over dimensjonerende last. Blir mer enn 5 % underkjent, prøves halvparten av de neste 100 til underkjenningen er under 5 %. Deretter 50 bolter pr. 1000 satte.
 
 **9. Visuell kontroll av fullt innstøpte bolter** — `valg`
 - Kontrollert – vinkel, halvkule og mørtel i orden
@@ -140,5 +140,9 @@ Nytt kapittel i `NS3420-F`: kode `FP`, navn «Sikring av berg og løsmasser», p
 §7b-sjekk i `fp1-mal.test.ts`: ingen hjelpetekst eller alternativ inneholder `FP1 `, `Tabell F`, `figur F`, `Matrise`,
 `NS-EN`, `NS 3420`, `NS 3576` eller `NFF`. Fasthetsklassen «B20» er en materialbetegnelse og er tillatt — standarden bak
 navngis ikke.
+
+**Retting 2026-09-21 (design, etter mal-Opus' flagg):** hjelpeteksten i felt 8 sa «50 bolter per 1000». Husstilen
+(CLAUDE.md) bruker **«pr.»** i satser og enheter, så teksten skal lyde «Deretter 50 bolter pr. 1000 satte.» Rettet i
+feltlista over. Mal-Opus flagget riktig i stedet for å endre en gatet ordlyd selv.
 
 Ellers gjelder rammene, DoD-en og SQL-avsnittet i FJ1-ordren for hele runden.
