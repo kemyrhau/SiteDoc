@@ -16,8 +16,17 @@ vist**, fordi vilkåret ikke slo til. I dag skrives det «Ikke utfylt» — en u
 **Kenneths vedtak 2026-09-21:** felt som aldri ble vist, **skal ikke stå i rapporten i det hele tatt.** Et spørsmål som
 ikke var en del av valgene for denne jobben, er støy for den som leser sluttrapporten.
 
-Design foreslo først en egen «Ikke aktuelt»-rad med begrunnelse. Kenneth valgte utelatelse, og det er hans vurdering av
-hva rapporten er til for. Den ene innvendingen — at malens fulle omfang blir usynlig — dekkes av én setning, se § 2 pkt 4.
+**Kenneths begrunnelse, som er selve regelen:** rapporten skal vise **de valgene og kravene som faktisk gjaldt arbeidet
+som ble utført**. Det følger vedtaket om at en sjekkliste dokumenterer utført arbeid, ikke alt som kunne vært gjort.
+
+Design foreslo først en egen «Ikke aktuelt»-rad med begrunnelse. Kenneth valgte utelatelse. Den ene innvendingen — at
+malens fulle omfang blir usynlig — dekkes av én setning, se § 2 pkt 4.
+
+🔴 **Skillet som må bygges riktig:** et felt der **«Ikke aktuelt» er et svar**, skal BLI STÅENDE. Da har en fagperson
+sett på forholdet og konkludert — f.eks. «Siltskjørt: Ikke aktuelt» eller «Bånd og nett: Ikke aktuelt». Det er
+dokumentasjon av en vurdering, og byggherren skal se at den ble gjort. Det som utelates, er felt som **aldri ble vist**:
+legger du på ubundet bærelag, er klebing ikke et spørsmål noen skal ta stilling til — de riktige spørsmålene er om
+underlaget er tilstrekkelig komprimert og tilstrekkelig plant.
 
 | Tilstand | Når | I rapporten |
 |---|---|---|

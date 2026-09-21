@@ -319,3 +319,18 @@ skal slippe å gjette. Ved tvil er **fasitfilen fasit**, fordi ordren og testen 
 Bakgrunn: designs gatemelding for JH2 sa «felt 13», som var radnummeret i psql-utskriften. Ordren sa felt 10, og det
 var riktig. Merge-agenten nektet å føre et tall den ikke kunne verifisere, og skrev setningen uten feltnummer i stedet.
 Det var riktig håndtering: heller utelate et tall enn å feste feil tall (cowork og merge, 2026-09-20).
+
+### §1c. Vurdert uaktuelt er ikke det samme som aldri aktuelt (Kenneth 2026-09-21)
+
+To ting ser like tomme ut, men er helt ulike, og skillet styrer både malbygging og rapport:
+
+| | Hva det er | I malen | I rapporten |
+|---|---|---|---|
+| **Vurdert uaktuelt** | en fagperson så på forholdet og konkluderte | **et svar**: «Ikke aktuelt», «Ikke krav» | **står** — dokumenterer at vurderingen ble gjort |
+| **Aldri aktuelt** | spørsmålet gjaldt ikke denne jobben | **betinget felt** som ikke vises | **utelates** — rapporten viser det som faktisk gjaldt |
+
+**Regel for feltvalg:** skal arbeideren aktivt ta stilling til om noe gjelder — typisk sikring, miljø og HMS — er det et
+**svaralternativ**. Følger uaktualiteten av et valg han allerede har gjort, er det et **betinget felt**.
+
+Eksempel: legges dekket på ubundet bærelag, er de riktige spørsmålene om underlaget er tilstrekkelig komprimert og
+tilstrekkelig plant. Klebing er da ikke et spørsmål noen skal svare «ikke aktuelt» på — det skal ikke vises.
