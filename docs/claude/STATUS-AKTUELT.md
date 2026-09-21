@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `dba927e7` (docs/design-betinget-per-barn `--no-ff`: to ordrer — app-spor betinget-per-barn + mal-spor del A-tre; JH2-pilot bevisst stanset) · GATE (`--force`): api 513 · db 189 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 (ALLE stille — ren docs) · diff = 2 docs-filer + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `14fd4bd0` (to brancher `--no-ff`: PDF-rapportordre [docs] + betinget-per-barn app-endring [kode+mobil]) · GATE (`--force`): shared 834→**844** (+10 `betingelse.test.ts`) · db 189 · api 513 (begge stille) · pdf 124 · web 304 · mobil 34 (uendret) · 7/7 · diff = 26 filer + tavla · ingen migrering/SQL · 🔴 MOBIL Reload: OTA (Kenneth) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | tre små rettinger merget `e4ada0e3` (worktree står på `fix/tre-smaa-rettinger` `2438886b`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet) | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | `feat/mal-tre-kapasitet` (del A-tre) — worktreet står på branchen, HEAD = `ac4658d2` (opprettet fra develop, **ingen commit/push ennå — ikke på origin**) | 🔵 **JOBBER** (del A-tre, uavhengig spor) | Ingen gate — del A rører ikke `apps/`, ingen SQL |
+| **mal-Opus** | `SiteDoc-mal` | `feat/mal-tre-kapasitet` `b1818339` (på origin) — 🔴 **STOPPET, IKKE MERGET:** `forgrening()` setter `conditionValues` på barnet, men app-endringen leser `conditionOwnValues`. Bevisst stans på nøkkelnavn-feil, ikke glemt | 🔴 **BLOKKERT** (venter nøkkelnavn) | Design sender rette-ordre nå som app-nøkkelen er i develop |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,28 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — PDF-rapportordre (docs) + betinget-per-barn app-endring (kode+mobil) merget. 🔴 MOBIL Reload: OTA. develop `14fd4bd0`.
+
+🟢 **Begge designgatet MED hash, begge frosne (tippen = gatet hash — cowork verifiserte selv):** `docs/design-pdf-ikke-aktuelt` `dbe609e1`, `feat/betinget-per-barn` `80373ebf`. Begge `--no-ff`, ff-mulig, `merge-tree` 0 markører.
+
+### PDF-rapportvedtaket (Kenneth 2026-09-21) — MAL-METODE + ordre
+- **Felt som ALDRI ble vist, utelates helt** fra rapporten; tomme overskrifter faller bort. Én setning vises når noe er utelatt: «Felt som ikke gjaldt dette arbeidet, er utelatt.»
+- 🔴 **«Ikke utfylt» står fortsatt der feltet VAR synlig og er tomt** — en reell mangel skal synes.
+- 🔴 **Skillet (MAL-METODE §1c):** «Ikke aktuelt» som **svar** blir stående — en fagperson har vurdert og konkludert. Det som utelates er felt som aldri ble vist.
+- **Selve PDF-endringen bygges ikke ennå** — ordren merges nå, agent velges etterpå.
+
+### App-endringen — betinget-per-barn (`feat/betinget-per-barn`)
+- **Delt `erBetingelseOppfylt` i `@sitedoc/shared`** (`utils/betingelse.ts`), fire hook-kopier borte (web+mobil sjekkliste+oppgave kaller nå den delte funksjonen).
+- 🔴 **Godkjent avvik, ikke drift:** ordren sa gjenbruk `conditionValues`; redesign målte at en kontainer som selv er betinget barn allerede bruker `conditionValues` i **forelder-rollen**, og at malbyggeren støtter nøsting — gjenbruk ville blitt en stille felle. Ny nøkkel **`conditionOwnValues`** (0 treff på develop før, ny). Cowork-verifisert: 0 db/migrering/schema · i18n 30 tillegg/0 slettinger (ingen eksisterende nøkkel rørt) · alle fire hooks kaller `erBetingelseOppfylt`.
+- 🔴 **Reload: OTA** (kun JS/hook-logikk, ingen native) — Kenneth eier deploy, cowork kjører ikke OTA selv.
+
+### 🔴 `feat/mal-tre-kapasitet` `b1818339` — STOPPET, IKKE MERGET (bevisst)
+Design fant en reell feil: `forgrening()` setter **`conditionValues`** på barnet, men app-endringen leser **`conditionOwnValues`**. Appen ville falt tilbake til forelderens sett og forgreningen ville ikke virket — uten feilmelding. Årsaken var rekkefølgen: app-branchen var ikke merget, så nøkkelnavnet var ikke synlig for mal-Opus. 🟢 **Derfor merges app-endringen FØRST** — nå ser mal-Opus nøkkelen i develop og kan rette mot kode. Branchen står **urørt på origin**; design sender rette-ordre.
+
+**Gate (`--force`, ingen FULL TURBO):** shared 834→**844** (+10 `betingelse.test.ts`) · db 189 · api 513 (begge stille) · pdf 124 · web 304 · mobil 34 (uendret) · 7/7.
 
 ---
 
