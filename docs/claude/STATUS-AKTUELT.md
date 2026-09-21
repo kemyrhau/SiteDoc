@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `325edf37` (CLAUDE.md § i18n: regel om ENDRING av eksisterende nøkkel løftet fra shared-pakker.md) · GATE (`--force`, ingen FULL TURBO): ALT HELT stille — db 175 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · runden rører ingen kode · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `e4ada0e3` (tre rettinger + Runde E FJ1+FP1 + ordrene, alle [no-ff]) · GATE (`--force`, ingen FULL TURBO): api 511→513 (tiebreaker-test) · db 175→189 (FJ1+FP1) · pdf 124 · shared 834 · web 304 · mobil 34 (alle fire stille) · 7/7 · ingen migrering, ingen mobil-kode · SQL kjørt av Kenneth · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | statusfarger-paritet merget `b1eb484c` (i `5e4bb483`, remote-branch ryddet) | ⚪ **LEDIG** (worktree står på merget branch, ingen ny pushet) | — |
+| **redesign** | `SiteDoc-redesign` | tre små rettinger merget `e4ada0e3` (worktree står på `fix/tre-smaa-rettinger` `2438886b`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet) | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | Runde D (FF1+JH2) merget `42bdb03e` (worktree står på `feat/mal-runde-d` `fe97e498`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet utover runde D) | Ingen malordre i kø — design melder neste (kandidater i `docs/redesign/status-designsporet-2026-09-20.md`) |
+| **mal-Opus** | `SiteDoc-mal` | Runde E (FJ1+FP1) merget `e4ada0e3` (worktree står på `feat/mal-runde-e` `963d34d6`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet utover runde E) | Ingen malordre i kø — design melder neste |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,28 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — Tre rettinger + Runde E (FJ1 + FP1) + ordrene merget. Ingen migrering, ingen mobil-kode. develop `e4ada0e3`.
+
+**Tre brancher, alle `--no-ff`, alle konfliktfrie mot develop (merge-tree 0 markører — verifisert selv etter at develop hadde flyttet til `2d2a32b9` for CLAUDE.md-runden):**
+- **1 — `fix/tre-smaa-rettinger` `2438886b`** (18 filer: 2 api, 1 web hms, 15 i18n).
+- **2 — `feat/mal-runde-e` `963d34d6`** (5 filer, `packages/db/prisma`): `seed-bibliotek.ts` · `fj1-mal.test.ts` + `fp1-mal.test.ts` · `generer-mal-sql.test.ts` · `mal-fasit.snap.md`.
+- **3 — `docs/design-runde-e` `73869c99`** (🔴 ikke ff, base `4b46aa2b`): to nye ordrefiler `ordre-fj1-…` + `ordre-fp1-…`. Non-ff trygghetsmålt selv: begge nye, 0 commits på develop siden basen, merge-tree 0 markører.
+
+### De tre rettingene — designgatet per sak
+- **`dismissed`-råstreng:** `dismissed: "status.avvist"` i `STATUS_I18N`. Funnet bekreftet — `dismissed` sto i `FIRMA_TERMINALE` og ble vist rått. `rejected` er inert og latt stå (som ordren sa).
+- **Tiebreaker:** `orderBy: [{ sortering }, { kode }]` på både standarder og kapitler; enhetstesten sett rød først (`api` 511→513). 🔴 **Presisering (ordrett i innhold):** enhetstesten låser at spørringen **ber om** tiebreakeren; at databasen faktisk **leverer** den rekkefølgen kan bare en integrasjonstest vise. Design har vurdert dekningen som god nok her.
+- **Dokumentklasse:** `nb.json` «Dokumentklasse», `en.json` «Document class», 13 språkfiler med én endret linje hver. Ingen drift dratt med.
+
+### Runde E — FJ1 + FP1
+- **FJ1 + FP1 v1.** 🟢 **Generatoren (`generer-mal-sql.ts`) er URØRT** — kun `generer-mal-sql.test.ts` endret. **SQL-regelen utløses altså ikke av generatorendring denne runden**, men malene er nye, så Kenneth kjørte SQL-en (gatemelding). Merge-agenten kjørte ikke SQL selv.
+- **🔴 REN TILLEGG — verifisert med tall:** `git diff --numstat` på `mal-fasit.snap.md` = **`108 0`** (0 slettinger). **Biblioteket har nå 23 maler.**
+
+**Gate (`--force`, 0 cached, ingen FULL TURBO):** api 511→**513** (tiebreaker) · db 175→**189** (FJ1+FP1) · pdf 124 · shared 834 · web 304 · mobil 34 (alle fire stille) · 7/7. Ingen migrering, ingen mobil-kode. *(web/shared kunne steget på i18n-endringen, men gjorde det ikke — endringene var verdiendringer, ikke nye nøkler/tester.)*
+
+🔴 **i18n-fella er ALLEREDE dokumentert** i `shared-pakker.md` (kodelinje `generate.ts:70`, filteret `!eksisterende[key]`, «Bekreftet på nytt 2026-09-11»). **Dette er fjerde gang den ikke ble funnet** — det er selve poenget, og grunnen til at regelen ble løftet til `CLAUDE.md` i egen runde (`325edf37`). **Ikke skrevet inn på nytt i `shared-pakker.md`.**
 
 ---
 
