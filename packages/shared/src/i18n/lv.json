@@ -846,6 +846,7 @@
   "arkiv.advarselMangler": "Arhīva PDF fails ir lejupielādēts, taču trūkst {{antall}} pielikuma(-u) — dokuments nav pilnīgs.",
   "arkiv.vedleggIkkeLastetOpp": "Joprojām tiek augšupielādēts(-i) {{antall}} pielikums(-i). Tie tiks iekļauti arhīvā un sūtīšanas laikā, tiklīdz rinda beigsies.",
   "arkiv.feil": "Nevarēja izveidot arhīva PDF failu. Lūdzu, mēģiniet vēlreiz.",
+  "arkiv.utelatelseNotis": "Lauki, kas neattiecās uz šo darbu, ir izlaisti.",
   "arkiv.kreverTilkobling": "PDF fails tiek ģenerēts serverī, un tam ir nepieciešams savienojums. Mēģiniet vēlreiz, kad esat tiešsaistē.",
   "arkiv.forhandsvis": "Priekšskatīt PDF",
   "arkiv.del": "Dalīties",

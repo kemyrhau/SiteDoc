@@ -241,3 +241,96 @@ describe("byggOppgaveArkivHtml — task/HMS-adapter", () => {
     expect(r.html).toContain("Oppgave");
   });
 });
+
+// Betinget synlighet i rapporten: et felt som ALDRI ble vist (vilkåret slo ikke til)
+// utelates helt; et felt der «Ikke aktuelt» er et SVAR blir STÅENDE (Kenneth-vedtak
+// 2026-09-21). Synligheten avgjøres av delt erObjektSynlig — rapporten bygger ingen
+// egen vurdering.
+function prismaBetinget(
+  objects: Array<Record<string, unknown>>,
+  data: Record<string, unknown>,
+): PrismaClient {
+  return {
+    checklist: {
+      findUniqueOrThrow: async () => ({
+        id: "cB",
+        title: "Dekkelegging",
+        number: 3,
+        status: "approved",
+        createdAt: new Date("2026-09-01T08:00:00.000Z"),
+        subject: null,
+        drawingId: null,
+        positionX: null,
+        positionY: null,
+        lokasjonOmfang: null,
+        lokasjonFritekst: null,
+        data,
+        template: { projectId: "p1", prefix: "BEF", enableChangeLog: false, objects },
+        bestiller: { name: "Ola" },
+        utforerFaggruppe: { name: "HE" },
+        bestillerFaggruppe: { name: "BL" },
+        byggeplass: { name: "Blokk B" },
+      }),
+    },
+    project: { findUnique: async () => ({ name: "P", projectNumber: "1", primaryOrganization: null }) },
+    documentTransfer: { findMany: async () => [] },
+    checklistChangeLog: { findMany: async () => [] },
+    user: { findMany: async () => [] },
+  } as unknown as PrismaClient;
+}
+
+describe("byggSjekklisteArkivHtml — betinget synlighet (aldri-vist vs. «Ikke aktuelt» som svar)", () => {
+  it("aldri-vist felt utelates HELT (ikke «Ikke utfylt») når vilkåret ikke slo til", async () => {
+    // Forelder «Bærelagstype» = ubundet. Barnet «Klebing utført» vises kun ved bundet
+    // (conditionValues=["bundet"]) → aldri vist. Skal ikke stå i rapporten i det hele tatt.
+    // conditionActive/conditionValues bor på FORELDEREN (den styrer barna); barnet arver
+    // settet — nøyaktig som erObjektSynlig leser det.
+    const objects = [
+      {
+        id: "p", type: "list_single", label: "Bærelagstype", required: false, sortOrder: 0, parentId: null,
+        config: { conditionActive: true, conditionValues: ["bundet"], options: [{ value: "bundet", label: "Bundet" }, { value: "ubundet", label: "Ubundet bærelag" }] },
+      },
+      {
+        id: "b", type: "list_single", label: "Klebing utført", required: false, sortOrder: 1, parentId: "p",
+        config: { options: [{ value: "ja", label: "Ja" }] },
+      },
+    ];
+    const data = { p: { verdi: "ubundet" }, b: { verdi: null } };
+
+    const r = await byggSjekklisteArkivHtml(prismaBetinget(objects, data), "cB", { hentBildeBytes: async () => null, generertTekst: "x" });
+
+    // Forelderen (som var synlig og besvart) står.
+    expect(r.html).toContain("Bærelagstype");
+    // Aldri-vist barn er UTELATT — verken label eller «Ikke utfylt» for det.
+    expect(r.html).not.toContain("Klebing utført");
+  });
+
+  it("«Ikke aktuelt» som SVAR blir STÅENDE, mens et aldri-vist søsken utelates", async () => {
+    // Forelder «Tiltak» = klebing → barna vurderes. «Siltskjørt» arver forelderens sett
+    // (vises) og er besvart «Ikke aktuelt» — en fagvurdering som SKAL synes. «Klebeprimer»
+    // har eget utløsersett ["ubundet"] → med klebing valgt ble det ALDRI vist.
+    const objects = [
+      {
+        id: "p", type: "list_single", label: "Tiltak", required: false, sortOrder: 0, parentId: null,
+        config: { conditionActive: true, conditionValues: ["klebing"], options: [{ value: "klebing", label: "Klebing" }, { value: "ubundet", label: "Ubundet" }] },
+      },
+      {
+        id: "vist", type: "list_single", label: "Siltskjørt", required: false, sortOrder: 1, parentId: "p",
+        config: { options: [{ value: "ikke_aktuelt", label: "Ikke aktuelt" }, { value: "montert", label: "Montert" }] },
+      },
+      {
+        id: "skjult", type: "list_single", label: "Klebeprimer", required: false, sortOrder: 2, parentId: "p",
+        config: { conditionOwnValues: ["ubundet"], options: [{ value: "ja", label: "Ja" }] },
+      },
+    ];
+    const data = { p: { verdi: "klebing" }, vist: { verdi: "ikke_aktuelt" }, skjult: { verdi: null } };
+
+    const r = await byggSjekklisteArkivHtml(prismaBetinget(objects, data), "cB", { hentBildeBytes: async () => null, generertTekst: "x" });
+
+    // Fagvurderingen «Siltskjørt: Ikke aktuelt» står — dokumentasjon av at forholdet ble vurdert.
+    expect(r.html).toContain("Siltskjørt");
+    expect(r.html).toContain("Ikke aktuelt");
+    // Det aldri-viste søskenet er borte.
+    expect(r.html).not.toContain("Klebeprimer");
+  });
+});

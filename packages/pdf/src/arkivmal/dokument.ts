@@ -8,7 +8,7 @@
  * timer/utlegg/kontrollplan sammenstilles i det egne datakilde-steget.
  */
 
-import { formaterDatoKort } from "../hjelpere";
+import { esc, formaterDatoKort } from "../hjelpere";
 import { hentArkivCss } from "./arkiv-css";
 import { tolkInnstillinger } from "./innstillinger";
 import { byggTopptekst, byggProsjektblokk, byggEmneblokk, byggStatusblokk, byggBunntekst } from "./ramme";
@@ -38,6 +38,12 @@ export function byggArkivSide(input: ArkivDokumentInput): string {
     // FASTE FELT (designlås 1): emne som første datafelt, før sjekkliste-innholdet.
     byggEmneblokk(input.emne),
     input.innholdHtml,
+    // Betinget synlighet: notis rett under innholdet når felt er utelatt (tom/utelatt → "").
+    // Inline stil (som felt.ts' avvikslinje) — holder CSS-strengen byte-lik for maler uten
+    // betingede felt, der notisen aldri rendres. Nøytral grå kursiv (ikke en mangel/feil).
+    input.utelatelseNotis
+      ? `<div style="margin-top:8px;font-size:9px;font-style:italic;color:#6b7280;">${esc(input.utelatelseNotis)}</div>`
+      : "",
     byggMangelMerknad(input.manglendeVedlegg ?? []),
     // D2b (Kenneth-vedtak 2026-08-21): helside(r) tegningsprint I rapportkroppen —
     // innhold → TEGNINGSSIDE(R) → dokumenthistorikk → endringslogg → signatur.

@@ -846,6 +846,7 @@
   "arkiv.advarselMangler": "Arkiv-PDF-en er lastet ned, men mangler {{antall}} vedlegg — dokumentet er ikke komplett.",
   "arkiv.vedleggIkkeLastetOpp": "{{antall}} vedlegg lastes fortsatt opp. De kommer med i arkivet og ved sending så snart køen er ferdig.",
   "arkiv.feil": "Kunne ikke lage arkiv-PDF. Prøv igjen.",
+  "arkiv.utelatelseNotis": "Felt som ikke gjaldt dette arbeidet, er utelatt.",
   "arkiv.kreverTilkobling": "PDF-en genereres på serveren og krever nett-tilkobling. Prøv igjen når du er tilkoblet.",
   "arkiv.forhandsvis": "Forhåndsvis PDF",
   "arkiv.del": "Del",

@@ -846,6 +846,7 @@
   "arkiv.advarselMangler": "Le PDF d'archive a été téléchargé, mais {{antall}} pièces jointes sont manquantes : le document n'est pas complet.",
   "arkiv.vedleggIkkeLastetOpp": "{{antall}} attachment(s) are still uploading. They will be included in the archive and when sending as soon as the queue finishes.",
   "arkiv.feil": "Impossible de créer le PDF d'archive. Veuillez réessayer.",
+  "arkiv.utelatelseNotis": "Les champs qui ne s'appliquaient pas à ce travail ont été omis.",
   "arkiv.kreverTilkobling": "Le PDF est généré sur le serveur et nécessite une connexion. Réessayez lorsque vous êtes en ligne.",
   "arkiv.forhandsvis": "Aperçu du PDF",
   "arkiv.del": "Partager",
