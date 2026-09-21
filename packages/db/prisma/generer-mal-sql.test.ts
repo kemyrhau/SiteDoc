@@ -187,7 +187,8 @@ describe("omkoding oppretter manglende målkapittel (--fra)", () => {
   it("FS2 --fra FD2: kapittel-INSERT (FS) kommer FØR UPDATE … referanse", () => {
     const s = byggMalSql(FS2, "revisjon", { fraRef: "FD2" });
     expect(s).toContain("INSERT INTO bibliotek_kapitler");
-    expect(s).toContain("'FS', 'Utlegging av løsmasser', 6");
+    // FS flyttet 6→8 i KAPITTEL_DATA_F (runde E: FJ=6, FP=7 satt inn mellom FH og FS).
+    expect(s).toContain("'FS', 'Utlegging av løsmasser', 8");
     expect(s).toMatch(/NOT EXISTS[\s\S]*k\.kode = 'FS'/);
     const kapIdx = s.indexOf("INSERT INTO bibliotek_kapitler");
     // Ankre på UPDATE-formen «referanse = 'FS2',» (komma) — guarden bruker «m.referanse = 'FS2'».
