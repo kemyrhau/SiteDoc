@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `aa9fd26b` (Runde E-rettelse: FP1 f08 «per 1000»→«pr. 1000 satte», husstil pr., [no-ff]) · GATE (`--force`): api 513 · db 189 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 (ALLE stille — rettelsen endrer tekst, ikke antall tester) · fasit-diff nøyaktig `1 1` · `per 1000` = 0 treff i kodefiler · ingen migrering, ingen SQL (Kenneth kjører `fj1-fp1-test.sql`), ingen mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `854f6ef4` (to docs-brancher, begge non-ff, begge designgatet med ordene «Designgatet – klar for merge» — første runde etter regelen: FP1-ordren rettet + pilot betingede felt lesbar) · GATE (`--force`): api 513 · db 189 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 (ALLE stille — ren docs) · diff = 3 docs-filer + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,29 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — To docs-brancher: FP1-ordren rettet + pilot betingede felt. Ren docs. develop `854f6ef4`.
+
+🟢 **Første runde etter § MALØYPE-regelen om gate-melding:** begge brancher bar ordene «Designgatet – klar for merge» — gate-ordet på plass for begge, ikke bare målt eksistens.
+
+**To brancher, begge `--no-ff`, begge non-ff verifisert selv:**
+- **1 — `docs/design-runde-e` `e4498500`** (base `73869c99`): `ordre-fp1-…md` +5/−1.
+- **2 — `docs/design-betingede-felt` `f0980684`** (base `7c328207`): `designnotat-betingede-felt-…md` +90, `ordre-jh2-revisjon-betinget-…md` +183.
+
+🔴 **Non-ff-målingen gjort mot BASEN, ikke 2-punktsdiffen:** begge brancher har eldre base enn develop-tippen (`81da4795`), så `git diff develop..branch` er falskt reversert (viser develops arbeid som «fjernet»). Målt riktig: hver branchs EGNE endring mot sin base = kun de listede filene · filene hver branch rører er urørt på develop siden basen (0 develop-commits) · `merge-tree` = **0 konfliktmarkører** for begge. Samlet merge-resultat mot develop = de 3 docs-filene, ingenting annet.
+
+### FP1-ordren rettet — bestilling OG opptegnelse
+- **Feltlista (bestillingen) rettet:** felt 8 «50 bolter **per 1000**» → «50 bolter **pr. 1000 satte**», husstil «pr.» i satser. Dette er ordren mal-Opus bygger etter.
+- **Gammel ordlyd bevart som datert sitat** med begrunnelse — opptegnelsen skrives ikke om. Begge deler samtidig: bestillingen rettes, historikken står.
+- 🟢 **Krediteringen bevart:** merknaden «etter mal-Opus' flagg — flagget riktig i stedet for å endre en gatet ordlyd selv». Det er atferden vi vil ha mer av.
+
+### Pilot betingede felt (JH2 v2) — lesbar, IKKE startet
+- **Designnotat + JH2 v2-ordre** ligger i develop med Kenneths faglige rettinger (Ag/Agb/Ab, bundet mot ubundet underlag, mykasfalt produseres varm).
+- 🔴 **Mal-Opus har IKKE startet piloten.** Design sender startsignalet ETTER denne mergen. (Tavla-raden hans måles, ikke antas — står fortsatt ⚪ LEDIG.)
+
+**Gate (`--force`, ingen FULL TURBO):** api 513 · db 189 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. ALLE stille — runden rører ingen kode.
 
 ---
 
