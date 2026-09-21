@@ -1620,6 +1620,172 @@ export const JH2_MAL = {
   ] as FeltDef[],
 };
 
+// FJ1 – Vannhåndtering. Ny mal (ordre FJ1 2026-09-21, gatet av Kenneth, Runde E). Nytt kapittel FJ
+// «Vannhåndtering» i NS 3420-F:2024, plassert MELLOM FH (5) og FS (6): FJ=6, FP=7, og FS flyttet
+// 6→8 (se KAPITTEL_DATA_F). Dekker lensing (FJ1), drenering av bergoverflate (FJ2), sedimentering og
+// rensing (FJ6), kontroll av utslipp (FJ7) og siltskjørt (FJ8.2); infiltrasjon, tunnellekkasje,
+// plastavfall, grunnvannsbrønner/wellpoint og injeksjon er ute. 10 felt, INGEN tallfelt (§1). §7b:
+// SiteDocs egne krav — NS-standardene navngis ikke; standarden nevnes kun i beskrivelsen.
+export const FJ1_MAL = {
+  kapittelKode: "FJ",
+  navn: "FJ1 – Vannhåndtering",
+  referanse: "FJ1",
+  beskrivelse:
+    "Lensing, drenering, sedimentering og kontroll av utslipp — utstyr, beredskap, måling og slamhåndtering. Faglig grunnlag: NS 3420-F:2024, post FJ1.",
+  felter: [
+    // FØR
+    valg("Hva håndteres", "FØR",
+      [
+        "Lensing av byggegrop eller grøft",
+        "Drenering av bergoverflate",
+        "Sedimentering og rensing før utslipp",
+        "Flere av delene",
+      ],
+      "Sier hva jobben omfatter, og styrer hvilke felt under som er aktuelle."),
+    valg("Krav til utslipp", "FØR",
+      [
+        "Krav og tillatelse er kjent",
+        "Ikke krav til utslippet",
+        "Ikke avklart – stopp før utslipp",
+      ],
+      "Krav til utslippsvann og krav fra myndighetene står i beskrivelsen eller i tillatelsen. Slipp ikke vann ut før dette er avklart."),
+    trafikklys("Utstyret er rigget", "FØR",
+      "Pumper, slanger, lenseledning og strøm er på plass og virker, og det er avklart hvem som følger opp utstyret utenom arbeidstid."),
+
+    // UNDER
+    valg("Vannmengden dokumenteres", "UNDER",
+      [
+        "Vannmåler",
+        "Dokumentert på annen måte",
+        "Ikke dokumentert – avvik",
+      ],
+      "Vannmengden som håndteres, skal dokumenteres. Vannmåler er det enkleste, men pumpekapasitet ganget med driftstid kan også brukes når det er avtalt."),
+    valg("Beredskap utenom arbeidstid", "UNDER",
+      [
+        "Avklart og på plass",
+        "Ikke behov",
+        "Uavklart – avvik",
+      ],
+      "Lensingen må også virke i helger, på helligdager og i ferier så lenge arbeidet pågår. Avklar hvem som sjekker, og hva som skjer ved lange pauser."),
+    valg("Sedimentering og rensing", "UNDER",
+      [
+        "I drift",
+        "Ikke krav",
+        "Ute av drift – stopp utslippet",
+      ],
+      "Anlegget skal resirkulere vannet så mye som mulig. Ved tømming av slam pumpes vannet over slamnivået ut først."),
+    valg("Kontroll av utslipp", "UNDER",
+      [
+        "Målt etter avtalt frekvens",
+        "Ikke krav",
+        "Ikke målt – avvik",
+      ],
+      "Typiske målinger er pH og partikkelinnhold. Frekvens og prosedyre står i beskrivelsen. Før resultatene i loggen."),
+    valg("Siltskjørt", "UNDER",
+      [
+        "Montert riktig, grenseverdiene overholdes",
+        "Ikke aktuelt",
+        "Grenseverdi overskredet – tiltak",
+      ],
+      "Gjelder arbeid ved eller i vann. Skjørtet skal være riktig montert og virke etter hensikten, og partikkelspredningen skal holdes innenfor grensen."),
+
+    // ETTER
+    valg("Slam levert til godkjent mottak", "ETTER",
+      [
+        "Levert – kvittering foreligger",
+        "Ikke aktuelt",
+        "Mangler kvittering",
+      ],
+      "Slam leveres til godkjent mottak om ikke annet er avtalt. Ta vare på kvitteringen."),
+    trafikklys("Nedrigging og dokumentasjon", "ETTER",
+      "Utstyret er tatt ned, målinger og kvitteringer er samlet, og området er ryddet. Ta bilde."),
+  ] as FeltDef[],
+};
+
+// FP1 – Sikring av berg. Ny mal (ordre FP1 2026-09-21, gatet av Kenneth, Runde E). Nytt kapittel FP
+// «Sikring av berg og løsmasser» i NS 3420-F:2024, plassert ETTER FJ (6) og før FS: FP=7 (se
+// KAPITTEL_DATA_F). Hører sammen med sprengningsmalen FH1 — det som er sprengt ut, skal sikres.
+// Dekker rensk (FP1.1), sikringsbolter (FP1.3) og bånd/nett (FP1.5); klatrelag, løsmassesikring,
+// fanggjerder, sprøytebetong og injeksjon er ute. 11 felt, INGEN tallfelt (§1). §7b: SiteDocs egne
+// krav — NS-standardene navngis ikke. «B20» er en materialbetegnelse og er tillatt (ordre §4).
+export const FP1_MAL = {
+  kapittelKode: "FP",
+  navn: "FP1 – Sikring av berg",
+  referanse: "FP1",
+  beskrivelse:
+    "Rensk, sikringsbolter og nett i bergskjæring — borhull, innstøping, prøvetrekking og kontroll. Faglig grunnlag: NS 3420-F:2024, post FP1.",
+  felter: [
+    // FØR
+    valg("Type sikring", "FØR",
+      [
+        "Rensk",
+        "Bolter",
+        "Bånd og nett",
+        "Flere av delene",
+      ],
+      "Sier hva jobben omfatter, og styrer hvilke felt under som er aktuelle."),
+    trafikklys("Sikringsplanen foreligger", "FØR",
+      "Det skal være prosjektert hva som skal sikres, hvor, og med hvilken bolttype, lengde og eventuelt nett. Midlertidig sikring skal også være planlagt."),
+    valg("Materiell kontrollert", "FØR",
+      [
+        "Som spesifisert – uskadd",
+        "Avvik – feil type eller skadet",
+      ],
+      "Sjekk bolttype, lengde og korrosjonsbeskyttelse mot beskrivelsen. Boltene skal leveres med sfærisk skive, mutter og halvkule. Nett: steinsprangnett eller flettverksnett etter beskrivelsen."),
+
+    // UNDER
+    valg("Rensk før sikring", "UNDER",
+      [
+        "Manuell rensk",
+        "Maskinell rensk",
+        "Ikke aktuelt",
+        "Avvik",
+      ],
+      "Løs stein tas ned før bolting og nett monteres. Et manuelt renskelag er minst to personer, i tillegg til hjelpemannskap."),
+    valg("Borhull", "UNDER",
+      [
+        "Diameter og lengde tilpasset boltetypen",
+        "Avvik",
+      ],
+      "Hullet skal passe til bolten: minst 10 mm større enn bolten for fullt innstøpte, og 5–15 mm større når bolten forankres med syntetisk lim."),
+    valg("Innstøping og forankring", "UNDER",
+      [
+        "Fullt innstøpt – helt omhyllet",
+        "Endeforankret – tiltrukket 50 kN",
+        "Ikke aktuelt",
+        "Avvik",
+      ],
+      "Fullt innstøpte bolter skal være helt omhyllet av massen. Mørtelen skal være minst fasthetsklasse B20 med ekspanderende tilsetning. Endeforankrede bolter tiltrekkes med 50 kN."),
+    valg("Bånd og nett", "UNDER",
+      [
+        "Montert etter planen, god kontakt med berget",
+        "Ikke aktuelt",
+        "Avvik",
+      ],
+      "Nettet skal ligge inntil berget og følge ujevnhetene, og festeboltene settes slik planen viser."),
+
+    // ETTER
+    valg("Prøvetrekking av endeforankrede bolter", "ETTER",
+      [
+        "Utført etter planen – godkjent",
+        "Mer enn 5 % underkjent – utvidet prøving",
+        "Ikke aktuelt",
+      ],
+      "Prøvetrekk minst halvparten av de første 100 boltene, til 10 % over dimensjonerende last. Blir mer enn 5 % underkjent, prøves halvparten av de neste 100 til underkjenningen er under 5 %. Deretter 50 bolter per 1000."),
+    valg("Visuell kontroll av fullt innstøpte bolter", "ETTER",
+      [
+        "Kontrollert – vinkel, halvkule og mørtel i orden",
+        "Ikke aktuelt",
+        "Avvik",
+      ],
+      "Se etter at bolten står med riktig vinkel, at halvkula ligger riktig an, at det er mørtelrester under platen eller i returslangen, og at sekkene viser riktig mørteltype."),
+    trafikklys("Dokumentasjon", "ETTER",
+      "Plassering og antall bolter, prøveresultater og hvilken mørtel som er brukt, er ført. Legg ved måleresultatene."),
+    trafikklys("Sikringen er godkjent og området frigitt", "ETTER",
+      "Sikringen er kontrollert og området kan slippes til videre arbeid. Ta bilde."),
+  ] as FeltDef[],
+};
+
 // Standarder i biblioteket (kode, navn, sortering). Eksportert (ordre UM1 §3) slik at
 // generer-mal-sql.ts kan opprette en manglende standard (NS3420-U) i samme transaksjon som
 // kapittel + mal (WHERE NOT EXISTS), og seeden bygger sine upserts fra samme kilde — ingen drift
@@ -1659,7 +1825,14 @@ export const KAPITTEL_DATA_F = [
   // FC. Sortering 5 følger normens rekkefølge (FB, FD, FH, FS). FC er fjernet — det blir tomt etter
   // FC1→FH1 og slettes av omkodings-SQL-en (NOT EXISTS-vakt). Tilsvarende FE (fjernet ved FS3).
   { kode: "FH", navn: "Uttak av berg", sortering: 5 },
-  { kode: "FS", navn: "Utlegging av løsmasser", sortering: 6 },
+  // FJ + FP lagt til (ordre FJ1/FP1, Runde E): vannhåndtering og bergsikring, MELLOM FH (5) og FS.
+  // Normens rekkefølge er FB, FD, FF, FH, FJ, FP, FS. FS var på 6 — flyttet til 8 for å gi FJ (6) og
+  // FP (7) plass. MERK (KUN OPPRETT-drift): et arkiv seedet før runde E har FS på 6 fra før — seeden
+  // rører den ikke; --sorter FS=8 i runde-E-SQL-en flytter den i test-arkivet. En fersk seed får
+  // FB/FD/FF/FH/FJ/FP/FS = 1/3/4/5/6/7/8 direkte.
+  { kode: "FJ", navn: "Vannhåndtering", sortering: 6 },
+  { kode: "FP", navn: "Sikring av berg og løsmasser", sortering: 7 },
+  { kode: "FS", navn: "Utlegging av løsmasser", sortering: 8 },
 ];
 
 // Kapitler i NS 3420-U-arkivet (ny standard, ordre UM1/UU1 §3). UM «Utendørs rørledninger» (UM1),
@@ -1775,6 +1948,12 @@ async function main() {
 
     // ── FF1 – Avretting ── (definisjon eksportert over: FF1_MAL — ny mal, nytt kapittel FF)
     FF1_MAL,
+
+    // ── FJ1 – Vannhåndtering ── (definisjon eksportert over: FJ1_MAL — ny mal, nytt kapittel FJ)
+    FJ1_MAL,
+
+    // ── FP1 – Sikring av berg ── (definisjon eksportert over: FP1_MAL — ny mal, nytt kapittel FP)
+    FP1_MAL,
 
     // ── FB4 – Spunting og avstiving ── (definisjon eksportert over: FB4_MAL)
     FB4_MAL,
