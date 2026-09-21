@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `3ecbdff2` (feat/synlighet-samlet `--no-ff`: `erObjektSynlig` samlet, fire hook-kopier borte) · GATE (`--force`): shared 844→**852** (+8) · db 189 · api 513 · pdf 124 · web 304 · mobil 34 (resten stille) · 7/7 · diff = 8 filer + tavla · ingen migrering/SQL · 🔴 MOBIL Reload: OTA (Kenneth) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-22 · develop `e6fc4483` (feat/pdf-ikke-aktuelt `--no-ff`: rapportfilter, aldri-viste felt utelates via delt `erObjektSynlig`) · GATE (`--force`): api 513→**522** (+9) · db 189 · pdf 124 · shared 852 · web 304 · mobil 34 (resten stille) · 7/7 · diff = 21 filer + tavla + BACKLOG · ingen migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,28 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — Rapportfilter (pdf-ikke-aktuelt): aldri-viste felt utelates. Ren api+pdf, ingen mobil. develop `e6fc4483`.
+
+🟢 **Designgatet, frossen (tippen = gatet hash — cowork verifiserte selv).** `feat/pdf-ikke-aktuelt` `dbd2d86a`, `--no-ff`, ff-mulig, `merge-tree` 0 markører.
+
+### Rapporten filtrerer via delt kilde — ingen egen vurdering
+- **`synlighet.ts:19` importerer og kaller `erObjektSynlig`** (@sitedoc/shared) — samme kilde som skjemaet. Ingen re-implementasjon: `conditionActive`/`utenfor_krav`/`conditionValues` finnes bare i én kommentar (linje 85), ikke som egen evaluering. Cowork-verifisert: 0 db/schema/migrering/mobile, `betingelse.ts` urørt.
+- 🔴 **§1c-skillet demonstrert i ÉN rapport:** Siltskjørt → «Ikke aktuelt» **står** (fagperson vurderte) · Klebeprimer → **utelatt** (aldri vist) · Merknad → «Ikke utfylt» **står** (var synlig, tomt).
+- 🔴 **Negativkontrollene — leveransens sterkeste del:** no-op-filter → **begge** tester røde; fjern-alle-betingede → **kun** testen som vokter fagvurderingen rød. Asymmetrien beviser at de to testene måler ulike ting.
+- **Byte-likhet for maler uten betingelser** bygget inn i regelen (før==etter), ikke bare testet.
+
+### Tre godkjente avvik (ikke drift)
+1. Notisen lagt i `dokument.ts`/`typer.ts` (dokumentnivå), ikke `felt.ts` — den er en dokument-notis, ikke en feltverdi.
+2. Ferdig nb-streng inn i pdf-pakken — **`packages/pdf/src/arkivmal/` har null `t()`-kall**; branchen følger pakkens mønster, bryter det ikke. 🟡 **Ført i BACKLOG § 1** (arkiv-PDF ikke flerspråklig) så det ikke må gjenoppdages.
+3. Tom-overskrift-fjerning trigges mest i kontainere, men bygget generelt.
+
+### Køen etter denne
+dokgen har rapporten inne → **mal-Opus retter nøkkelnavnet i del A** (`feat/mal-tre-kapasitet` `b1818339`, urørt — nøkkelnavn-feilen `conditionValues`→`conditionOwnValues` står) → JH2-piloten. 🔴 **Mal-Opus har IKKE startet — design sender ordren.**
+
+**Gate (`--force`, ingen FULL TURBO):** api 513→**522** (+9) · db 189 · pdf 124 · shared 852 · web 304 · mobil 34 (resten stille) · 7/7.
 
 ---
 

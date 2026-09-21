@@ -236,6 +236,12 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 Arkiv-PDF er ikke flerspråklig (målt 2026-09-21)
+
+- `packages/pdf/src/arkivmal/` har **null `t()`-kall**; api sender ferdig nb-streng inn. Nøkkelen
+  `arkiv.utelatelseNotis` finnes på 15 språk. **Dagen arkivet skal bli flerspråklig, er dette ett av
+  stedene som må bytte kilde.** Ikke hastesak.
+
 ### 🟡 Kapittel-sortering mangler tiebreaker (mal-runde C, målt 2026-09-20)
 
 - `bibliotek.ts:37` sorterer kapittel-lista **kun på `sortering`**, uten tiebreaker. To kapitler med
