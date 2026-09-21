@@ -1,4 +1,4 @@
-# Ordre: tre tilstander i rapporten — besvart, ikke utfylt, ikke aktuelt
+# Ordre: rapporten skal utelate felt som aldri gjaldt jobben
 
 **Til:** cowork velger agent (app-sporet) · **Fra:** design · **Dato:** 2026-09-21
 **Branch-forslag:** `feat/pdf-ikke-aktuelt` fra `origin/develop` **etter at `feat/betinget-per-barn` er merget** — den
@@ -10,24 +10,20 @@ delte synlighetsfunksjonen er forutsetningen.
 
 ## 1. Hvorfor
 
-Rapporten skiller i dag mellom besvart og tomt. Med betingede felt oppstår en tredje tilstand som ikke har noe navn:
-feltet ble **aldri vist**, fordi vilkåret ikke slo til.
+Rapporten skiller i dag mellom besvart og tomt. Med betingede felt oppstår en tredje situasjon: feltet ble **aldri
+vist**, fordi vilkåret ikke slo til. I dag skrives det «Ikke utfylt» — en usann påstand om at noen glemte noe.
 
-«Ikke utfylt» er da en usann påstand. Den sier at noen glemte noe. Havner rapporten i en tvist, leser byggherren de
-radene som hull i kontrollen, og entreprenøren kan ikke motbevise det ut fra dokumentet. Å skjule feltene helt er
-bedre, men da mister leseren at spørsmålet fantes.
+**Kenneths vedtak 2026-09-21:** felt som aldri ble vist, **skal ikke stå i rapporten i det hele tatt.** Et spørsmål som
+ikke var en del av valgene for denne jobben, er støy for den som leser sluttrapporten.
 
-**Vedtatt løsning: tre tilstander.**
+Design foreslo først en egen «Ikke aktuelt»-rad med begrunnelse. Kenneth valgte utelatelse, og det er hans vurdering av
+hva rapporten er til for. Den ene innvendingen — at malens fulle omfang blir usynlig — dekkes av én setning, se § 2 pkt 4.
 
-| Tilstand | Når | Vises som |
+| Tilstand | Når | I rapporten |
 |---|---|---|
 | Besvart | feltet var synlig og fylt ut | verdien, som i dag |
-| Ikke utfylt | feltet **var synlig**, men står tomt | «Ikke utfylt», som i dag — dette skal fortsatt synes |
-| **Ikke aktuelt** | feltet ble **aldri vist** (vilkåret slo ikke til) | «Ikke aktuelt», med kort begrunnelse |
-
-**Begrunnelsen** skal vise hvorfor, hentet fra svaret som styrte det. Form: «Ikke aktuelt – forelderens spørsmål:
-forelderens svar», for eksempel «Ikke aktuelt – Underlaget består av: Ubundet lag». Da er dokumentet selvforklarende
-for en som leser det to år senere.
+| Ikke utfylt | feltet **var synlig**, men står tomt | «Ikke utfylt», som i dag — dette er en reell mangel og skal synes |
+| Aldri vist | vilkåret slo ikke til | **utelates helt** |
 
 ## 2. Hva som skal bygges
 
@@ -35,12 +31,15 @@ for en som leser det to år senere.
    `feat/betinget-per-barn`) — **ikke** en egen vurdering. App og rapport skal ikke kunne si ulike ting om hva som var
    synlig. Det er hele poenget med at funksjonen ble samlet ett sted.
 2. **Sammenstillingen** (`apps/api/src/services/arkiv/sammenstilling.ts`) bygger i dag fra alle malobjekter uten
-   synlighetsfilter. Den må vurdere hvert barn mot forelderens lagrede svar og merke det som ikke aktuelt når vilkåret
-   ikke slo til.
-3. **Rendreren** (`packages/pdf/src/felt.ts`, fem steder med «Ikke utfylt») skiller de to tomme tilstandene. «Ikke
-   aktuelt» skal være visuelt roligere enn «Ikke utfylt» — den er ikke en mangel.
-4. **i18n:** ny nøkkel for «Ikke aktuelt» i `nb.json` og `en.json`, deretter
-   `pnpm dlx tsx src/i18n/generate.ts --only <nøkkelen>` fra `packages/shared`. Husk fella: endrer du en eksisterende
+   synlighetsfilter. Den skal vurdere hvert barn mot forelderens lagrede svar og **utelate** det når vilkåret ikke slo
+   til.
+3. **Tomme seksjoner:** blir en fase- eller gruppeoverskrift stående alene fordi alle feltene under er utelatt, skal
+   overskriften også utelates. En tom overskrift er like mye støy som raden var.
+4. **Én setning om filtreringen**, plassert der rapporten forklarer seg selv (f.eks. under sjekklistens tittel eller i
+   bunnteksten): *«Felt som ikke gjaldt dette arbeidet, er utelatt.»* Den skal bare vises når noe faktisk er utelatt.
+   Da vet leseren at listen er filtrert, i stedet for å lure på om noe er fjernet i ettertid. Egen i18n-nøkkel.
+5. **i18n:** nye nøkler i `nb.json` og `en.json`, deretter
+   `pnpm dlx tsx src/i18n/generate.ts --only <nøklene>` fra `packages/shared`. Husk fella: endrer du en eksisterende
    verdi, må den slettes fra målspråkene først — `--only` fyller bare det som mangler.
 
 ## 3. Grenser
@@ -53,13 +52,13 @@ for en som leser det to år senere.
 
 ## 4. Definition of Done
 
-1. Tre tilstander i rapporten, med begrunnelse på «Ikke aktuelt».
-2. **Rød først:** en test med en mal der ett barn aldri ble vist og ett var synlig og tomt — den skal vise «Ikke
-   utfylt» for begge før endringen, og riktig tilstand for hver etter.
+1. Aldri-viste felt utelates, tomme overskrifter faller bort, og setningen om filtrering vises når noe er utelatt.
+2. **Rød først:** en test med en mal der ett barn aldri ble vist og ett var synlig og tomt — før endringen står begge
+   som «Ikke utfylt»; etter skal det første være borte og det andre stå igjen.
 3. Regresjon: eksisterende rapporter uten betingede felt er **byte-likt** uendret. Vis det.
 4. **Tekstbevis:** de tre tilstandene gjengitt fra en generert rapport, limt i leveransen. Ingen skjermbilder.
 5. Gate-tall via `pnpm exec turbo run test --force`, web build og mobil typecheck.
 6. Diff: `sammenstilling.ts`, `packages/pdf/src/felt.ts`, i18n-nøkkelen og tester. Rører du noe annet, meld hvorfor.
 7. Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
 
-Design gater at de tre tilstandene er riktige og at begrunnelsen er lesbar for en byggherre. Cowork gater teknisk.
+Design gater at riktig felt forsvinner og at «Ikke utfylt» fortsatt står der det skal. Cowork gater teknisk.
