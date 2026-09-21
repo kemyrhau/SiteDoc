@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `b506d551` (ren docs: MAL-METODE §6b feltnummer-vs-radnummer + ordre tre små rettinger, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): ALT HELT stille — db 175 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · runden rører ingen kode · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `325edf37` (CLAUDE.md § i18n: regel om ENDRING av eksisterende nøkkel løftet fra shared-pakker.md) · GATE (`--force`, ingen FULL TURBO): ALT HELT stille — db 175 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · runden rører ingen kode · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,18 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — CLAUDE.md § i18n: regel om ENDRING av eksisterende nøkkel løftet inn. Ren docs, ingen branch. develop `325edf37`.
+
+**Ingen merge-branch — én direkte commit på `CLAUDE.md` (Kenneth-gatet):** i18n-punkt 3 fikk én setning — **endrer du en EKSISTERENDE nøkkel, slett den fra de 13 målspråkene først; `--only` fyller kun manglende, oppdaterer aldri.**
+
+🔴 **Begrunnelse (hvorfor den flyttes, ikke bare at den finnes): tredje gjenoppdagelse.** Fella er allerede dokumentert i `shared-pakker.md` (kodelinje `generate.ts:70`, filteret `!eksisterende[key]`, «Bekreftet på nytt 2026-09-11»), men `CLAUDE.md:223` — det agentene leser ved sesjonsstart — beskrev bare `--only` for å LEGGE TIL nøkler. Regelen løftes dit fordi det er der den blir lest.
+
+**Størrelsesgate (`wc -m`, ikke `wc -c`):** CLAUDE.md 40486 → **40541 tegn, margin 419** (grense 40960; krav ≥400). Komprimerte tre eksempler/datoer i samme i18n-blokk — **kun eksempler og datoer, ingen begrunnelse rørt**: datoen «(funnet 2026-08-24)» på ikke-JSX-punktet, parentesen «(lærdom `hjelp.flyt.*` 2026-05-23)» på diagnostikk-regelen, og ett av tre gjenbruks-eksempler (`handling.avbryt`). Reglenes hvorfor-setninger står intakt.
+
+**Gate — ALT HELT stille (`--force`, 0 cached, ingen FULL TURBO):** db 175 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. Runden rører ingen kode.
 
 ---
 
