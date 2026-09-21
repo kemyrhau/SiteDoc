@@ -303,3 +303,19 @@ Tekstbeviset hentes lokalt (`skriv-mal.ts`, samme form som §6a) og er låst av 
 
 Eksisterende maler som sier «vegvesenets krav i beskrivelsen» (bl.a. FS2) kan få N200 navngitt **når de revideres** —
 det er en tekstendring og krever egen designgatet ordre, jf. §8.
+
+### §6b. To tellinger — si hvilken du bruker (design 2026-09-21)
+
+Et felt i en mal har **to tall**, og de er ikke like:
+
+| Tall | Hvor det står | Teller med overskrifter? |
+|---|---|---|
+| **Feltnummer** (`f10`) | ordren, maltesten, fasitfilen (`mal-fasit.snap.md`) | Nei — bare datafelt |
+| **Radnummer** (`RECORD 13`) | psql-utskriften ved §6a-kjøring, `sort_order` | Ja — fase-overskriftene teller med |
+
+**Regel:** skriv alltid hvilken telling du bruker — «felt 10» eller «rad 13 i utskriften». Den som skal verifisere,
+skal slippe å gjette. Ved tvil er **fasitfilen fasit**, fordi ordren og testen bruker samme telling som den.
+
+Bakgrunn: designs gatemelding for JH2 sa «felt 13», som var radnummeret i psql-utskriften. Ordren sa felt 10, og det
+var riktig. Merge-agenten nektet å føre et tall den ikke kunne verifisere, og skrev setningen uten feltnummer i stedet.
+Det var riktig håndtering: heller utelate et tall enn å feste feil tall (cowork og merge, 2026-09-20).
