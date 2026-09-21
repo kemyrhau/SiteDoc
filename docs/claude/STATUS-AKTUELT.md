@@ -9,12 +9,12 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `9157d961` (docs/design-synlighet-samlet `--no-ff`: ordre for samlet `erObjektSynlig`; låser opp redesign→dokgen→JH2) · GATE (`--force`): db 189 · api 513 · pdf 124 · shared 844 · web 304 · mobil 34 · 7/7 (ALLE stille — ren docs) · diff = 1 docs-fil + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `3ecbdff2` (feat/synlighet-samlet `--no-ff`: `erObjektSynlig` samlet, fire hook-kopier borte) · GATE (`--force`): shared 844→**852** (+8) · db 189 · api 513 · pdf 124 · web 304 · mobil 34 (resten stille) · 7/7 · diff = 8 filer + tavla · ingen migrering/SQL · 🔴 MOBIL Reload: OTA (Kenneth) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | worktree står på `fix/tre-smaa-rettinger` `2438886b` (i develop) — ingen ny branch pushet | ⚪ **LEDIG** — synlighet-ordre (`erObjektSynlig`) ligger i develop `9157d961`, **nudge går etter denne mergen** (ikke startet) | — |
-| **dokgen** | `SiteDoc-dokgen` | ordre ferdig, ikke gitt | 🔴 **HOLDT TILBAKE** (bevisst) — rapporten må kalle samlet synlighetsfunksjon som ikke finnes ennå | redesigns `erObjektSynlig` inne |
+| **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
+| **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
 | **mal-Opus** | `SiteDoc-mal` | `feat/mal-tre-kapasitet` `b1818339` (på origin) — 🔴 **STOPPET, IKKE MERGET:** `forgrening()` setter `conditionValues` på barnet, men app-endringen leser `conditionOwnValues`. Bevisst stans på nøkkelnavn-feil, ikke glemt | 🔴 **BLOKKERT** (venter nøkkelnavn) | Design sender rette-ordre nå som app-nøkkelen er i develop |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
@@ -45,6 +45,27 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — `erObjektSynlig` samlet synlighetsvurdering merget (kode+mobil). 🔴 MOBIL Reload: OTA. develop `3ecbdff2`.
+
+🟢 **Designgatet, frossen (tippen = gatet hash — cowork verifiserte selv).** `feat/synlighet-samlet` `c9353a31`, `--no-ff`, ff-mulig, `merge-tree` 0 markører.
+
+### Én synlighetskilde
+- **`erObjektSynlig` lagt over `erBetingelseOppfylt` (uendret).** Fire hook-kopier av `sjekkSynlighet` borte (web+mobil, sjekkliste+oppgave), hver mister 27–33 linjer. `conditionActive`, `utenfor_krav`, foreldrekjede-rekursjon, dybdevakt på 10, repeater-unntak — alt samlet i `packages/shared/src/utils/betingelse.ts`.
+- **Cowork-verifisert tro flytting:** 0 db/api/schema/migrering · `erBetingelseOppfylt` urørt · alle fire hooks kaller `erObjektSynlig`. Diff = 8 filer (`packages/shared/src/utils/CLAUDE.md` = mappe-doc, IKKE rot-CLAUDE.md).
+- 🔴 **Reload: OTA** (JS-only, mobil-hooks endret) — Kenneth eier deploy, cowork kjører ikke OTA selv.
+
+### 🔴 § 2b — de fire hookene VAR identiske, bekreftet ved lesing linje for linje
+Ikke antatt: noen leste de fire kopiene linje for linje før flyttingen. **Både designs og coworks tidligere «funn» om avvik viste seg å være kommentarer, ikke kode** — den faktiske synlighetslogikken var lik i alle fire.
+
+### 🟢 dokgen stoppet RIKTIG — stoppregelen virket
+dokgen målte at `erObjektSynlig` bare fantes i docs på develop (ordren, ikke koden) og bygde **ikke** rundt den. Nå som funksjonen er i develop, er han låst opp. 🔴 **Ikke startet ennå — cowork nudger etter mergen.**
+
+**Køen etter denne:** dokgen bygger rapporten → mal-Opus retter nøkkelnavnet i del A (`feat/mal-tre-kapasitet`) → JH2-piloten.
+
+**Gate (`--force`, ingen FULL TURBO):** shared 844→**852** (+8) · db 189 · api 513 · pdf 124 · web 304 · mobil 34 (resten stille) · 7/7.
 
 ---
 
