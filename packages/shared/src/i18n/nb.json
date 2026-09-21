@@ -2231,7 +2231,7 @@
   "dokumentklasse.kontraktKort": "Kontrakt",
   "dokumentklasse.alle": "Alle",
   "dokumentklasse.oppgaver": "Oppgaver",
-  "dokumentklasse.segmentTittel": "Dokumenttype",
+  "dokumentklasse.segmentTittel": "Dokumentklasse",
   "mal.type.tittel": "Dokumentklasse",
   "mal.type.oppgave": "Oppgave",
   "mal.type.oppgaveForklaring": "Arbeid som skal utføres, kontrolleres eller følges opp.",

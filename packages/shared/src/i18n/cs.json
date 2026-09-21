@@ -2231,7 +2231,7 @@
   "dokumentklasse.kontraktKort": "Smlouva",
   "dokumentklasse.alle": "Vše",
   "dokumentklasse.oppgaver": "Úkoly",
-  "dokumentklasse.segmentTittel": "Typ dokumentu",
+  "dokumentklasse.segmentTittel": "Třída dokumentů",
   "mal.type.tittel": "Třída dokumentů",
   "mal.type.oppgave": "Úkol",
   "mal.type.oppgaveForklaring": "Práce, která má být provedena, zkontrolována nebo sledována.",

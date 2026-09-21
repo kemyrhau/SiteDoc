@@ -2231,7 +2231,7 @@
   "dokumentklasse.kontraktKort": "Leping",
   "dokumentklasse.alle": "Kõik",
   "dokumentklasse.oppgaver": "Ülesanded",
-  "dokumentklasse.segmentTittel": "Dokumendi tüüp",
+  "dokumentklasse.segmentTittel": "Dokumendiklass",
   "mal.type.tittel": "Dokumendiklass",
   "mal.type.oppgave": "Ülesanne",
   "mal.type.oppgaveForklaring": "Tööd, mida tuleb teha, kontrollida või järelkontrollida.",

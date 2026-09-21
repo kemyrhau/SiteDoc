@@ -31,10 +31,10 @@ export const bibliotekRouter = router({
     .query(async ({ ctx }) => {
       return ctx.prisma.bibliotekStandard.findMany({
         where: { aktiv: true },
-        orderBy: { sortering: "asc" },
+        orderBy: [{ sortering: "asc" }, { kode: "asc" }],
         include: {
           kapitler: {
-            orderBy: { sortering: "asc" },
+            orderBy: [{ sortering: "asc" }, { kode: "asc" }],
             include: {
               maler: {
                 where: { aktiv: true },
