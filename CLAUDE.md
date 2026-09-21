@@ -216,13 +216,13 @@ fargepalett (`sitedoc-primary` `#1e40af` m.fl.). **Styrende — les før ny UI-f
   omgår hele per/pr.-spørsmålet.
 - **i18n gjelder også ikke-JSX:** arknavn i Excel-eksport, PDF-overskrifter og filnavn er
   synlige strenger og skal gjennom `t()`. `addWorksheet("Per prosjekt")` slapp unna i
-  ett år fordi flaten ikke er JSX (funnet 2026-08-24).
+  ett år fordi flaten ikke er JSX.
 - **i18n-krav:** Alle synlige UI-strenger i web-appen MÅ bruke `t()` fra react-i18next — ALDRI hardkod norsk tekst i JSX. Ved nye sider/komponenter:
-  1. Nøkler i **både** `nb.json` og `en.json` (`packages/shared/src/i18n/`). Format `seksjon.noekkel`; gjenbruk eksisterende (`handling.lagre`, `handling.avbryt`, `tabell.navn`).
+  1. Nøkler i **både** `nb.json` og `en.json` (`packages/shared/src/i18n/`). Format `seksjon.noekkel`; gjenbruk eksisterende (`handling.lagre`, `tabell.navn`).
   2. Data utenfor komponenter (arrays, configs): `labelKey` i stedet for `label`, kall `t()` ved rendering.
-  3. 13-språk-generate fra `packages/shared`: `pnpm dlx tsx src/i18n/generate.ts --only seksjon.dinNøkkel,seksjon.annen` (oversetter fra `en.json` = master). **Bruk alltid `--only <dine nøkler>`** når du legger egne nøkler — uten flagget genereres alle manglende nøkler, og du drar med deg annen drift inn i din egen diff. **`dlx`, ikke `exec`** — `tsx` er ikke en dependency. Ukjent nøkkel → generatoren stopper og navngir den.
+  3. 13-språk-generate fra `packages/shared`: `pnpm dlx tsx src/i18n/generate.ts --only seksjon.dinNøkkel,seksjon.annen` (oversetter fra `en.json` = master). **Bruk alltid `--only <dine nøkler>`** når du legger egne nøkler — uten flagget genereres alle manglende nøkler, og du drar med deg annen drift inn i din egen diff. **`dlx`, ikke `exec`** — `tsx` er ikke en dependency. 🔴 **Endrer du en EKSISTERENDE nøkkel:** slett den fra de 13 målspråkene først — `--only` fyller kun manglende, oppdaterer aldri. Ukjent nøkkel → generatoren stopper og navngir den.
   4. Full arbeidsflyt + kjente quirks: [shared-pakker.md § i18n](docs/claude/shared-pakker.md).
-- **i18n-diagnostikk-regel:** Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Finnes nøkkelen ikke i `*.ts`/`*.tsx` er det en relikvi som skal slettes, ikke en bug som skal fylles (lærdom `hjelp.flyt.*` 2026-05-23).
+- **i18n-diagnostikk-regel:** Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Finnes nøkkelen ikke i `*.ts`/`*.tsx` er det en relikvi som skal slettes, ikke en bug som skal fylles.
 - **Mikrotekst-standard for handlingstekst (STYRENDE, 2026-07-24):** All handlingstekst (menyer, bekreftelsesdialoger, toasts/kvitteringer, knapper, varsler — web+mobil) følger [docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md § 3/§ 3a](docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md): svar på **hvor dokumentet flytter · hvem får ballen · hva ser motparten**, med **relasjonelle benevnelser** («den som sendte det», «neste mottaker») — aldri faste rollenavn som kan mangle i en gitt flyt. Nye handlingstekster følger den (ordre-DoD); eksisterende oppgraderes opportunistisk når flaten røres.
 
 ## Terminologi og hierarki
