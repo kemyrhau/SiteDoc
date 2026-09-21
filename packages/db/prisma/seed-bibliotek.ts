@@ -140,12 +140,16 @@ export async function opprettMalHvisMangler(
   return "opprettet";
 }
 
-interface FeltDef {
+export interface FeltDef {
   label: string;
   type: "traffic_light" | "decimal" | "integer" | "list_single" | "heading";
   zone: "topptekst" | "datafelter";
   fase?: string;
   config?: Record<string, unknown>;
+  // Betingede felt (del A, ordre 2026-09-21): `ref` på en forelder, `parentRef` på et barn.
+  // Settes av `forgrening` — aldri for hånd. `byggBibliotekRader` løser dem til id/parentId.
+  ref?: string;
+  parentRef?: string;
 }
 
 function felt(label: string, type: FeltDef["type"], fase: string, config: Record<string, unknown> = {}): FeltDef {
@@ -166,6 +170,33 @@ function desimal(label: string, fase: string, config: Record<string, unknown>, h
 
 function heltall(label: string, fase: string, config: Record<string, unknown> = {}, helpText?: string): FeltDef {
   return felt(label, "integer", fase, { ...config, ...(helpText ? { helpText } : {}) });
+}
+
+/**
+ * Betingede felt (del A, ordre 2026-09-21) — en FORELDER (`list_single`) med barn som bare vises
+ * for bestemte svar. Returnerer `[forelder, ...barn]` i rekkefølge (barn rett etter forelder, samme
+ * fase). Forelderen får `conditionActive: true` og en stabil `ref`; hvert barn får `parentRef = ref`
+ * og sitt EGET utløsersett i `config.conditionValues` (formen app-endringen 2026-09-21 innfører —
+ * barnets sett gjelder når det finnes, ellers arves forelderens). Et barn kan selv være en forelder:
+ * send da et helt undertre (utdata fra en nestet `forgrening`) som `felt`, så beholder hodet sin `ref`.
+ *
+ * `ref` må være unik innenfor malen. Aldri sett `ref`/`parentRef` for hånd — bruk denne.
+ */
+export function forgrening(
+  ref: string,
+  forelder: FeltDef,
+  barn: { naar: string[]; felt: FeltDef | FeltDef[] }[],
+): FeltDef[] {
+  const ut: FeltDef[] = [
+    { ...forelder, ref, config: { ...(forelder.config ?? {}), conditionActive: true } },
+  ];
+  for (const { naar, felt: b } of barn) {
+    const [hode, ...resten] = Array.isArray(b) ? b : [b];
+    if (!hode) continue;
+    ut.push({ ...hode, parentRef: ref, config: { ...(hode.config ?? {}), conditionValues: naar } });
+    ut.push(...resten);
+  }
+  return ut;
 }
 
 // KC3.1 – Oppstøtting av trær. Eksportert som egen definisjon slik at seed-testen kan låse

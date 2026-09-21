@@ -186,16 +186,72 @@ WHERE s.kode = '${standardForMal(mal)}'
   );`;
 }
 
-/** VALUES-radene (heading- + felt-rader) fra mal-konstanten — byte-eksakt via byggBibliotekRader. */
-function radVerdier(mal: MalKonstant): string {
+/** Rad-listen fra mal-konstanten via byggBibliotekRader (delt fasit med seeden). */
+function malRader(mal: MalKonstant) {
   const malInnhold = mal.felter.map((f, i) => ({ ...f, sortOrder: i + 1 })) as BibliotekFeltData[];
-  return byggBibliotekRader(malInnhold)
+  return byggBibliotekRader(malInnhold);
+}
+
+/** Har malen betingede felt (forelder/barn, del A)? Da må parent_id skrives. Flate maler = false. */
+function harTre(mal: MalKonstant): boolean {
+  return malRader(mal).some((r) => r.id != null || r.parentId != null);
+}
+
+/** VALUES-radene for en FLAT mal (6 datakolonner) — byte-eksakt som før del A. */
+function radVerdier(mal: MalKonstant): string {
+  return malRader(mal)
     .map((r) => {
       const config = sql(JSON.stringify(r.config));
       const translations = sql(JSON.stringify(r.translations));
       return `  ('${r.type}', '${sql(r.label)}', '${config}'::jsonb, '${translations}'::jsonb, ${r.sortOrder}, ${r.required})`;
     })
     .join(",\n");
+}
+
+/**
+ * VALUES-radene for en mal MED tre (del A): id + parent_id med i raden. Nøklene namespaces med
+ * malens referanse (`<ref>:<lokalnøkkel>`) så flere maler i samme fler-transaksjon ikke kolliderer.
+ * En forelder får literal id fra sin `ref`; et løvbarn uten egen `ref` får `gen_random_uuid()`;
+ * et barn peker `parent_id` til forelderens nøkkel. Foreldre står før barn (byggBibliotekRader
+ * bevarer forfatter-rekkefølgen fra `forgrening`), og self-FK-en valideres ved statement-slutt.
+ */
+function radVerdierTre(mal: MalKonstant): string {
+  const ref = mal.referanse;
+  return malRader(mal)
+    .map((r) => {
+      const idUttrykk = r.id != null ? `'${sql(`${ref}:${r.id}`)}'` : `gen_random_uuid()::text`;
+      const parentUttrykk = r.parentId != null ? `'${sql(`${ref}:${r.parentId}`)}'` : `NULL::text`;
+      const config = sql(JSON.stringify(r.config));
+      const translations = sql(JSON.stringify(r.translations));
+      return `  (${idUttrykk}, ${parentUttrykk}, '${r.type}', '${sql(r.label)}', '${config}'::jsonb, '${translations}'::jsonb, ${r.sortOrder}, ${r.required})`;
+    })
+    .join(",\n");
+}
+
+/**
+ * INSERT-blokken for objekt-radene. FLAT mal → nøyaktig som før (id = gen_random_uuid, ingen
+ * parent_id-kolonne). Mal MED tre → id/parent_id per rad fra VALUES. Delt av ny- og revisjons-veien.
+ */
+function insertObjektRader(mal: MalKonstant): string {
+  const ref = mal.referanse;
+  if (!harTre(mal)) {
+    return `INSERT INTO bibliotek_mal_objekter
+  (id, template_id, type, label, config, translations, sort_order, required)
+SELECT gen_random_uuid()::text, m.id, r.type, r.label, r.config, r.translations, r.sort_order, r.required
+FROM bibliotek_maler m,
+(VALUES
+${radVerdier(mal)}
+) AS r(type, label, config, translations, sort_order, required)
+WHERE m.referanse = '${sql(ref)}';`;
+  }
+  return `INSERT INTO bibliotek_mal_objekter
+  (id, template_id, parent_id, type, label, config, translations, sort_order, required)
+SELECT r.id, m.id, r.parent_id, r.type, r.label, r.config, r.translations, r.sort_order, r.required
+FROM bibliotek_maler m,
+(VALUES
+${radVerdierTre(mal)}
+) AS r(id, parent_id, type, label, config, translations, sort_order, required)
+WHERE m.referanse = '${sql(ref)}';`;
 }
 
 function telling(ref: string): string {
@@ -249,14 +305,7 @@ FROM bibliotek_kapitler k
 JOIN bibliotek_standarder s ON s.id = k.standard_id
 WHERE k.kode = '${sql(mal.kapittelKode)}' AND s.kode = '${standardForMal(mal)}';
 
-INSERT INTO bibliotek_mal_objekter
-  (id, template_id, type, label, config, translations, sort_order, required)
-SELECT gen_random_uuid()::text, m.id, r.type, r.label, r.config, r.translations, r.sort_order, r.required
-FROM bibliotek_maler m,
-(VALUES
-${radVerdier(mal)}
-) AS r(type, label, config, translations, sort_order, required)
-WHERE m.referanse = '${sql(ref)}';`;
+${insertObjektRader(mal)}`;
 }
 
 function genererNy(mal: MalKonstant): string {
@@ -302,14 +351,7 @@ DELETE FROM bibliotek_mal_objekter o
 USING bibliotek_maler m
 WHERE o.template_id = m.id AND m.referanse = '${sql(ref)}';
 
-INSERT INTO bibliotek_mal_objekter
-  (id, template_id, type, label, config, translations, sort_order, required)
-SELECT gen_random_uuid()::text, m.id, r.type, r.label, r.config, r.translations, r.sort_order, r.required
-FROM bibliotek_maler m,
-(VALUES
-${radVerdier(mal)}
-) AS r(type, label, config, translations, sort_order, required)
-WHERE m.referanse = '${sql(ref)}';`;
+${insertObjektRader(mal)}`;
 }
 
 /** Kapittelkoden en referanse hører til = de innledende bokstavene (FB2→FB, FD1→FD, KC3.1→KC). */

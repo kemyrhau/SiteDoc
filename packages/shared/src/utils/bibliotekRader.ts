@@ -26,12 +26,21 @@ export interface BibliotekFeltData {
   config?: Record<string, unknown> | null;
   required?: boolean;
   sortOrder?: number;
+  /**
+   * Betingede felt (del A, ordre 2026-09-21). `ref` = stabil lokal nøkkel på en FORELDER
+   * (et enkeltvalg med betingede barn); `parentRef` peker et BARN til forelderens `ref`.
+   * Nøklene kobler forelder/barn uten DB-id — generatoren og seeden løser dem til `parent_id`.
+   * Utløsersettet (`config.conditionValues`) legges på BARNET; forelderen bærer `conditionActive`.
+   */
+  ref?: string | null;
+  parentRef?: string | null;
 }
 
 /**
- * Én rad klar for `BibliotekMalObjekt.create` (uten id — DB genererer). `parentId` er
- * alltid null: sentralarkivet nester ikke i dag (målt), men rad-modellen bærer feltet så
- * evnen finnes (Kenneths MAL-METODE, C gir evnen — del 2/senere).
+ * Én rad klar for `BibliotekMalObjekt.create`. `id`/`parentId` er null for FLATE felt
+ * (DB genererer id, ingen forelder) — uendret for alle 23 dagens maler. For betingede felt
+ * (del A 2026-09-21) bærer en forelder `id = ref` (stabil lokal nøkkel) og et barn
+ * `parentId = parentRef`, slik at generatoren kan skrive `parent_id` med foreldre før barn.
  */
 export interface BibliotekRadData {
   type: string;
@@ -40,7 +49,8 @@ export interface BibliotekRadData {
   translations: Record<string, unknown>;
   sortOrder: number;
   required: boolean;
-  parentId: null;
+  id: string | null;
+  parentId: string | null;
 }
 
 /**
@@ -94,7 +104,9 @@ export function byggBibliotekRader(malInnhold: BibliotekFeltData[]): BibliotekRa
     translations: {},
     sortOrder: ++sortOrder,
     required: f.required ?? false,
-    parentId: null,
+    // Flate felt: id/parentId null (uendret). Betinget forelder bærer id=ref, barn parentId=parentRef.
+    id: f.ref ?? null,
+    parentId: f.parentRef ?? null,
   });
 
   // Distinkte faser i første-opptreden-rekkefølge (tomme/null = «uten fase»).
@@ -108,6 +120,7 @@ export function byggBibliotekRader(malInnhold: BibliotekFeltData[]): BibliotekRa
       translations: {},
       sortOrder: ++sortOrder,
       required: false,
+      id: null,
       parentId: null,
     });
     for (const f of malInnhold.filter((x) => x.fase === fase)) rader.push(feltRad(f));
