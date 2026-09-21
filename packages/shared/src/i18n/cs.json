@@ -846,6 +846,7 @@
   "arkiv.advarselMangler": "Archiv PDF byl stažen, ale chybí {{antall}} přílohy — dokument není kompletní.",
   "arkiv.vedleggIkkeLastetOpp": "{{antall}} přílohy se stále nahrávají. Budou zahrnuty do archivu a při odesílání, jakmile skončí fronta.",
   "arkiv.feil": "Archiv PDF nelze vytvořit. Zkuste to prosím znovu.",
+  "arkiv.utelatelseNotis": "Pole, která se na tuto práci nevztahovala, byla vynechána.",
   "arkiv.kreverTilkobling": "PDF se generuje na serveru a vyžaduje připojení. Zkuste to znovu, až budete online.",
   "arkiv.forhandsvis": "Náhled PDF",
   "arkiv.del": "Podíl",

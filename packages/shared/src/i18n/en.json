@@ -846,6 +846,7 @@
   "arkiv.advarselMangler": "The archive PDF has been downloaded, but {{antall}} attachment(s) are missing — the document is not complete.",
   "arkiv.vedleggIkkeLastetOpp": "{{antall}} attachment(s) are still uploading. They will be included in the archive and when sending as soon as the queue finishes.",
   "arkiv.feil": "Could not create the archive PDF. Please try again.",
+  "arkiv.utelatelseNotis": "Fields that did not apply to this work have been omitted.",
   "arkiv.kreverTilkobling": "The PDF is generated on the server and needs a connection. Try again when you're online.",
   "arkiv.forhandsvis": "Preview PDF",
   "arkiv.del": "Share",

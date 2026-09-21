@@ -846,6 +846,7 @@
   "arkiv.advarselMangler": "Archiwalny plik PDF został pobrany, ale brakuje załączników ({{antall}}) — dokument nie jest kompletny.",
   "arkiv.vedleggIkkeLastetOpp": "Nadal przesyłane są załączniki ({{antall}}). Zostaną one uwzględnione w archiwum i podczas wysyłania zaraz po zakończeniu kolejki.",
   "arkiv.feil": "Nie można utworzyć archiwum PDF. Spróbuj ponownie.",
+  "arkiv.utelatelseNotis": "Pola, które nie dotyczyły tej pracy zostały pominięte.",
   "arkiv.kreverTilkobling": "Plik PDF jest generowany na serwerze i wymaga połączenia. Spróbuj ponownie, gdy będziesz online.",
   "arkiv.forhandsvis": "Podgląd pliku PDF",
   "arkiv.del": "Udział",

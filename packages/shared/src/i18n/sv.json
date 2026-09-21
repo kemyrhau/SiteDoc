@@ -846,6 +846,7 @@
   "arkiv.advarselMangler": "Arkiv-PDF-filen har laddats ner, men {{antall}} bilagor saknas – dokumentet är inte komplett.",
   "arkiv.vedleggIkkeLastetOpp": "{{antall}} bilagor laddas fortfarande upp. De kommer att finnas med i arkivet och vid sändning så snart kön slutar.",
   "arkiv.feil": "Det gick inte att skapa PDF-arkivet. Försök igen.",
+  "arkiv.utelatelseNotis": "Fält som inte gällde detta arbete har utelämnats.",
   "arkiv.kreverTilkobling": "PDF-filen genereras på servern och behöver en anslutning. Försök igen när du är online.",
   "arkiv.forhandsvis": "Förhandsgranska PDF",
   "arkiv.del": "Dela",

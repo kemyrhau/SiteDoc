@@ -237,6 +237,12 @@ export interface ArkivDokumentInput {
    */
   emne?: string | null;
   /**
+   * Betinget synlighet (2026-09-21): kort notis rett under innholdet når rapporten har
+   * utelatt felt som aldri ble vist. Ferdig streng (api er i18n-kilden — pakken er i18n-fri).
+   * Utelatt/tom → ingen notis (vises KUN når noe faktisk ble filtrert bort).
+   */
+  utelatelseNotis?: string;
+  /**
    * D2 (2026-08-21): dokument-lokasjon (tegningsmarkør) rendret av
    * `byggLokasjonsblokk`, plassert ØVERST side 1 rett under dokumenthodet.
    * Tom streng/utelatt → ingen lokasjonsseksjon (aldri tom kartboks).
