@@ -2231,7 +2231,7 @@
   "dokumentklasse.kontraktKort": "Договор",
   "dokumentklasse.alle": "Все",
   "dokumentklasse.oppgaver": "Задачи",
-  "dokumentklasse.segmentTittel": "Тип документа",
+  "dokumentklasse.segmentTittel": "Класс документа",
   "mal.type.tittel": "Класс документа",
   "mal.type.oppgave": "Задача",
   "mal.type.oppgaveForklaring": "Работы, которые необходимо выполнить, проверить или отслеживать.",
