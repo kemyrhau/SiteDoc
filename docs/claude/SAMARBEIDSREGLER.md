@@ -893,6 +893,14 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 > **3. Ved «Designgatet – klar for merge» får cowork ÉN melding** med mal-branch, hash, filer og docs-branch.
 > Cowork merger **begge** og oppdaterer tavla, MAL-PLAN og status.
 >
+> > 🔴 **En pushet branch er IKKE et klarsignal — gate-MELDINGEN utløser merge, ikke branchens eksistens.**
+> > Merge skjer først når ordene «Designgatet – klar for merge» står i `relay/inbox-cowork.md` for nøyaktig
+> > den branchen. Er design taus om en pushet branch, er den ikke gatet. 🔴 **Gjelder også når cowork har målt
+> > branchen på origin — måling beviser at den finnes, ikke at den er godkjent.**
+> > **Begrunnelse:** `0ab36a84` merget runde E ugatet fordi coworks ordre bygde på at branchen fantes, ikke på
+> > en gate-melding — og la feil ordlyd («per 1000» i stedet for husstilens «pr. 1000») inn i develop. Ingen
+> > skade, fordi SQL-en ikke var kjørt — men det var flaks, ikke system.
+>
 > **4. Kollisjonskartet består — cowork får kopi, ikke veto-i-forkant.** Når design gir mal-Opus en ordre, får
 > cowork en kopi i `inbox-cowork.md` med filene ordren rører **og hash-en på docs-branchen**. Cowork kan si stopp;
 > ingen venter på ja.

@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `e4ada0e3` (tre rettinger + Runde E FJ1+FP1 + ordrene, alle [no-ff]) · GATE (`--force`, ingen FULL TURBO): api 511→513 (tiebreaker-test) · db 175→189 (FJ1+FP1) · pdf 124 · shared 834 · web 304 · mobil 34 (alle fire stille) · 7/7 · ingen migrering, ingen mobil-kode · SQL kjørt av Kenneth · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `aa9fd26b` (Runde E-rettelse: FP1 f08 «per 1000»→«pr. 1000 satte», husstil pr., [no-ff]) · GATE (`--force`): api 513 · db 189 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 (ALLE stille — rettelsen endrer tekst, ikke antall tester) · fasit-diff nøyaktig `1 1` · `per 1000` = 0 treff i kodefiler · ingen migrering, ingen SQL (Kenneth kjører `fj1-fp1-test.sql`), ingen mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | tre små rettinger merget `e4ada0e3` (worktree står på `fix/tre-smaa-rettinger` `2438886b`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet) | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | Runde E (FJ1+FP1) merget `e4ada0e3` (worktree står på `feat/mal-runde-e` `963d34d6`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet utover runde E) | Ingen malordre i kø — design melder neste |
+| **mal-Opus** | `SiteDoc-mal` | Runde E + FP1-rettelse merget `aa9fd26b` (worktree på `feat/mal-runde-e` `172529ed`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet utover runde E) | Ingen malordre i kø — design melder neste |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,24 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — Runde E-rettelse: FP1 f08 følger husstilen «pr.» i satser. Ingen migrering, ingen SQL, ingen mobil. develop `aa9fd26b`.
+
+**Én branch, `--no-ff`:** `feat/mal-runde-e` `172529ed` — to kodefiler (`seed-bibliotek.ts` + `mal-fasit.snap.md`), hver `1 1`.
+
+### Rettelsen
+- **FP1 f08 hjelpetekst:** «Deretter 50 bolter **per 1000**.» → «Deretter 50 bolter **pr. 1000 satte**.» I både seed (`FP1_MAL`) og fasiten. Følger husstilen «pr.» i satser/enheter (CLAUDE.md § Språk). Ingen annen tekst rørt.
+- ⚠️ **Eneste gang fasiten endres uten at slettetallet er 0 — og det er riktig her:** en RETTELSE av eksisterende tekst SKAL vise 1 slettet + 1 lagt til. Fasit-diff målt = nøyaktig **`1 1`**.
+- **`per 1000` = 0 treff i kodefiler** (seed + fasit) på develop etter merge. De 2 gjenværende repo-treffene ligger i design-ordredokumentet `ordre-fp1-ny-mal-design-2026-09-21.md` — historisk record av malteksten, korrekt latt urørt.
+
+### 🔴 PROSESSFUNN — runde E ble merget UGATET (coworks ansvar)
+`0ab36a84` merget runde E til develop **før design hadde gatet den.** Årsaken var coworks ordre: branchen ble tatt inn fordi cowork hadde **målt at den fantes på origin**, ikke fordi det forelå en «Designgatet – klar for merge». Design holdt den tilbake nettopp med denne tekstrettelsen — men meldingen gikk til mal-Opus, ikke cowork. **Ingen skade, fordi SQL-en ikke var kjørt — men det var flaks, ikke system.**
+
+⚠️ **Ikke designs feil:** deres tilbakeholdelse gikk til mal-Opus. Coworks egen merge-regel skulle uansett fanget det.
+
+🔴 **Ny regel i `SAMARBEIDSREGLER.md` § MALØYPE (etter punkt 3):** en pushet branch er IKKE et klarsignal — gate-MELDINGEN «Designgatet – klar for merge» i `relay/inbox-cowork.md` for nøyaktig den branchen utløser merge, ikke branchens eksistens. Gjelder også når cowork har målt branchen på origin.
 
 ---
 
