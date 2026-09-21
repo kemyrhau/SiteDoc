@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Väärä vastaus – yritä uudelleen",
   "quiz.riktig": "Korjata!",
   "malbygger.betingelse": "Kunto",
+  "malbygger.barnUtloser.arver": "Perii vanhemman liipaisimet",
+  "malbygger.barnUtloser.hjelp": "Näytä tämä kenttä vain tietyille vastauksille (tyhjä = sama kuin vanhempi):",
   "malbygger.fjernFraBetingelse": "Poista tilasta",
   "malbygger.fjernBetingelse": "Poista ehto",
   "malbygger.valgalternativer": "Vaihtoehdot",

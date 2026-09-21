@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Răspuns greșit — încercați din nou",
   "quiz.riktig": "Corecta!",
   "malbygger.betingelse": "Stare",
+  "malbygger.barnUtloser.arver": "Moștenește declanșatoarele părintelui",
+  "malbygger.barnUtloser.hjelp": "Afișați acest câmp numai pentru anumite răspunsuri (gol = același cu părintele):",
   "malbygger.fjernFraBetingelse": "Scoateți din stare",
   "malbygger.fjernBetingelse": "Eliminați starea",
   "malbygger.valgalternativer": "Opțiuni",

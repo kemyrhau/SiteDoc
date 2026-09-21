@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Nepareiza atbilde — mēģiniet vēlreiz",
   "quiz.riktig": "Pareizi!",
   "malbygger.betingelse": "Stāvoklis",
+  "malbygger.barnUtloser.arver": "Pārmanto vecāku izraisītājus",
+  "malbygger.barnUtloser.hjelp": "Rādīt šo lauku tikai noteiktām atbildēm (tukšs = tāds pats kā vecākam):",
   "malbygger.fjernFraBetingelse": "Noņemt no stāvokļa",
   "malbygger.fjernBetingelse": "Noņemt nosacījumu",
   "malbygger.valgalternativer": "Iespējas",

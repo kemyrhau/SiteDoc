@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Klaidingas atsakymas – bandykite dar kartą",
   "quiz.riktig": "Teisingai!",
   "malbygger.betingelse": "Būklė",
+  "malbygger.barnUtloser.arver": "Paveldi tėvų trigerius",
+  "malbygger.barnUtloser.hjelp": "Rodyti šį lauką tik tam tikriems atsakymams (tuščias = toks pat kaip pirminis):",
   "malbygger.fjernFraBetingelse": "Pašalinti iš būklės",
   "malbygger.fjernBetingelse": "Pašalinti sąlygą",
   "malbygger.valgalternativer": "Parinktys",

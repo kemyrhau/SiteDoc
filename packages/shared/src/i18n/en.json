@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Wrong answer — try again",
   "quiz.riktig": "Correct!",
   "malbygger.betingelse": "Condition",
+  "malbygger.barnUtloser.arver": "Inherits the parent's triggers",
+  "malbygger.barnUtloser.hjelp": "Show this field only for certain answers (empty = same as the parent):",
   "malbygger.fjernFraBetingelse": "Remove from condition",
   "malbygger.fjernBetingelse": "Remove condition",
   "malbygger.valgalternativer": "Options",

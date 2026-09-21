@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Vale vastus – proovi uuesti",
   "quiz.riktig": "Õige!",
   "malbygger.betingelse": "Seisund",
+  "malbygger.barnUtloser.arver": "Pärib vanema käivitajad",
+  "malbygger.barnUtloser.hjelp": "Kuva see väli ainult teatud vastuste puhul (tühi = sama mis vanem):",
   "malbygger.fjernFraBetingelse": "Eemalda seisukorrast",
   "malbygger.fjernBetingelse": "Eemalda tingimus",
   "malbygger.valgalternativer": "Valikud",

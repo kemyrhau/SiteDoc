@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Përgjigje e gabuar - provoni përsëri",
   "quiz.riktig": "E sakte!",
   "malbygger.betingelse": "gjendja",
+  "malbygger.barnUtloser.arver": "Trashëgon nxitësit e prindit",
+  "malbygger.barnUtloser.hjelp": "Shfaq këtë fushë vetëm për përgjigje të caktuara (bosh = njësoj si prindi):",
   "malbygger.fjernFraBetingelse": "Hiqeni nga gjendja",
   "malbygger.fjernBetingelse": "Hiq gjendjen",
   "malbygger.valgalternativer": "Opsionet",

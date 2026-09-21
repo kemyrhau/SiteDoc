@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Feil svar — prøv igjen",
   "quiz.riktig": "Riktig!",
   "malbygger.betingelse": "Betingelse",
+  "malbygger.barnUtloser.arver": "Arver forelderens utløsere",
+  "malbygger.barnUtloser.hjelp": "Vis dette feltet kun ved bestemte svar (tomt = som forelderen):",
   "malbygger.fjernFraBetingelse": "Fjern fra betingelse",
   "malbygger.fjernBetingelse": "Fjern betingelse",
   "malbygger.valgalternativer": "Valgalternativer",

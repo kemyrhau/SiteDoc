@@ -154,6 +154,12 @@ export {
 } from "./grenseSjekk";
 export type { Grense, GrenseStatus, KravType, GrenseVariant } from "./grenseSjekk";
 export {
+  erBetingelseOppfylt,
+  harEgetUtloserSett,
+  settForelderBetingelseVerdier,
+  BETINGELSE_EGEN_NOKKEL,
+} from "./betingelse";
+export {
   grupperMedOverskrift,
   beregnSeksjonUtfylling,
   kanSlasSammen,
