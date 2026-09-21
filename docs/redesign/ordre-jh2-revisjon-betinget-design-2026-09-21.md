@@ -71,7 +71,7 @@ asfaltbetong (Ab), skjelettasfalt (Ska), mykasfalt (Ma), asfaltgrusbetong (Agb),
 - Asfaltgrusbetong (Agb)
 - Annen type – se beskrivelsen
 
-> Type masse, nominell steinstørrelse og bindemiddel står i beskrivelsen. Kontroller følgeseddelen mot den.
+> Type masse, nominell steinstørrelse og bindemiddel står i beskrivelsen. Kontroller følgeseddelen mot den. Alle typene over er varmproduserte. Kalde masser som emulsjonsgrus (Eg) og enkelte gjenbrukstyper (Gja), og halvvarme masser som Mjøg, dekkes ikke av denne malen.
 
 **3. Underlaget består av** — `valg` · **forelder for felt 4 og 5**
 - Ubundet lag: grus, forkilt pukk eller knust fjell
@@ -114,7 +114,7 @@ asfaltbetong (Ab), skjelettasfalt (Ska), mykasfalt (Ma), asfaltgrusbetong (Agb),
 - Type og temperatur som beskrevet
 - Avvik – meldt
 
-> Massen skal være homogen, og filler, finstoff og fiber tørre ved innmatning. Laveste utleggingstemperatur følger massetypen og står i beskrivelsen — mykasfalt (Ma) legges ved langt lavere temperatur enn varm asfaltbetong (Ab).
+> Massen skal være homogen, og filler, finstoff og fiber tørre ved innmatning. Laveste utleggingstemperatur følger massetypen og står i beskrivelsen. Kontroller temperaturen ved innmatning, ikke bare på følgeseddelen.
 
 **9. Komprimering fullført i tide** — `valg`
 - Ja – før temperaturen falt 50 °C under laveste utleggingstemperatur
@@ -173,6 +173,11 @@ test selv.**
 6. Diff: `seed-bibliotek.ts`, `jh2-mal.test.ts`, `mal-fasit.snap.md`, `generer-mal-sql.ts`, `skriv-mal.ts` og deres
    tester. Rører du noe annet, meld hvorfor.
 7. Leveranse i hovedtreets `relay/inbox-design.md` + «design har post».
+
+**Retting 2026-09-21 (Kenneth):** mykasfalt (Ma) produseres varm og hører hjemme i denne malen. Det er de kalde
+massene — emulsjonsgrus (Eg) og enkelte gjenbrukstyper (Gja) — og de halvvarme, som Mjøg, som ligger utenfor
+avgrensningen. Hjelpetekstene i felt 2 og 8 er rettet etter dette. Kravet om at komprimeringen skal være ferdig før
+temperaturen har sunket 50 °C under laveste utleggingstemperatur, gjelder uansett massetype.
 
 Design gater felt for felt, og leser treet særlig nøye: dette er første mal der struktur og innhold endres i samme
 runde.
