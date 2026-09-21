@@ -9,12 +9,12 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `14fd4bd0` (to brancher `--no-ff`: PDF-rapportordre [docs] + betinget-per-barn app-endring [kode+mobil]) · GATE (`--force`): shared 834→**844** (+10 `betingelse.test.ts`) · db 189 · api 513 (begge stille) · pdf 124 · web 304 · mobil 34 (uendret) · 7/7 · diff = 26 filer + tavla · ingen migrering/SQL · 🔴 MOBIL Reload: OTA (Kenneth) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `9157d961` (docs/design-synlighet-samlet `--no-ff`: ordre for samlet `erObjektSynlig`; låser opp redesign→dokgen→JH2) · GATE (`--force`): db 189 · api 513 · pdf 124 · shared 844 · web 304 · mobil 34 · 7/7 (ALLE stille — ren docs) · diff = 1 docs-fil + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | tre små rettinger merget `e4ada0e3` (worktree står på `fix/tre-smaa-rettinger` `2438886b`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet) | — |
-| **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
+| **redesign** | `SiteDoc-redesign` | worktree står på `fix/tre-smaa-rettinger` `2438886b` (i develop) — ingen ny branch pushet | ⚪ **LEDIG** — synlighet-ordre (`erObjektSynlig`) ligger i develop `9157d961`, **nudge går etter denne mergen** (ikke startet) | — |
+| **dokgen** | `SiteDoc-dokgen` | ordre ferdig, ikke gitt | 🔴 **HOLDT TILBAKE** (bevisst) — rapporten må kalle samlet synlighetsfunksjon som ikke finnes ennå | redesigns `erObjektSynlig` inne |
 | **mal-Opus** | `SiteDoc-mal` | `feat/mal-tre-kapasitet` `b1818339` (på origin) — 🔴 **STOPPET, IKKE MERGET:** `forgrening()` setter `conditionValues` på barnet, men app-endringen leser `conditionOwnValues`. Bevisst stans på nøkkelnavn-feil, ikke glemt | 🔴 **BLOKKERT** (venter nøkkelnavn) | Design sender rette-ordre nå som app-nøkkelen er i develop |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
@@ -45,6 +45,22 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — Ordre for samlet synlighetsvurdering (`erObjektSynlig`). Ren docs. develop `9157d961`.
+
+🟢 **Designgatet MED hash, frossen (tippen = gatet hash — cowork verifiserte selv).** Design gatet først `fa618e53`, tok inn coworks krav, re-gatet `0b7d2fe0`. Merget `0b7d2fe0`, `--no-ff`, ff-mulig, `merge-tree` 0 markører.
+
+- **`docs/design-synlighet-samlet` `0b7d2fe0`** (fra develop `7e9dfb9a`): ny ordrefil `ordre-synlighet-samlet-…md` +81.
+
+### Hva ordren låser opp
+- **`erBetingelseOppfylt` dekker kun verdimatchen.** `conditionActive`, `utenfor_krav` og foreldrekjede-rekursjonen ligger fortsatt i fire hooks. Ny **`erObjektSynlig`** legges over — én samlet synlighetsfunksjon.
+- 🔴 **dokgen er BEVISST HOLDT TILBAKE**, ikke glemt: rapporten hans må kalle den samlede synlighetsfunksjonen, som ikke finnes ennå.
+- **Kjeden: redesign → dokgen → JH2-piloten.** Denne ordren låser opp redesign, som låser opp dokgen.
+- 🔴 **Redesign har IKKE startet** — nudgen går etter denne mergen. (Målt tilstand: ⚪ LEDIG, ingen ny branch pushet.)
+
+**Gate (`--force`, ingen FULL TURBO):** db 189 · api 513 · pdf 124 · shared 844 · web 304 · mobil 34 · 7/7. ALLE stille — ren docs.
 
 ---
 
