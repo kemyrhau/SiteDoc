@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-20 · develop `42bdb03e` (Runde D: FF1+JH2 v1 + fjerde standard NS 3420-J + MAL-PLAN-rydding, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): db 156→175 (+19, FF1+JH2-tester + utvidet generator-test) · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · KUN db steg, alle andre HELT stille · ingen migrering, ingen mobil-endring · SQL kjørt av Kenneth (`ff1-jh2-test.sql`) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `b506d551` (ren docs: MAL-METODE §6b feltnummer-vs-radnummer + ordre tre små rettinger, begge [no-ff]) · GATE (`--force`, ingen FULL TURBO): ALT HELT stille — db 175 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 · runden rører ingen kode · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | statusfarger-paritet merget `b1eb484c` (i `5e4bb483`, remote-branch ryddet) | ⚪ **LEDIG** (worktree står på merget branch, ingen ny pushet) | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | FD2 «Graving av grøft» merget `11f83fae` (i develop `083ac0da`) | ⚪ **LEDIG** (worktree står på merget FD2-branch, ingen ny branch pushet) | Neste: FH1 → FS3 (ordrer alt committet, tas etter hverandre — rører samme filer, ikke parallelt) |
+| **mal-Opus** | `SiteDoc-mal` | Runde D (FF1+JH2) merget `42bdb03e` (worktree står på `feat/mal-runde-d` `fe97e498`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet utover runde D) | Ingen malordre i kø — design melder neste (kandidater i `docs/redesign/status-designsporet-2026-09-20.md`) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — MAL-METODE §6b (feltnummer vs. radnummer) + ordre «tre små rettinger» merget. Ren docs. develop `b506d551`.
+
+**To brancher, begge `--no-ff`, begge ff-mulig mot `4b46aa2b`:**
+- **1 — `docs/design-feltnummer` `003ceaea`**: `docs/claude/MAL-METODE.md` (`+16/−0`) — §6b.
+- **2 — `docs/design-tre-smaa` `efc4453b`**: `docs/redesign/ordre-tre-smaa-rettinger-design-2026-09-21.md` (ny) — dismissed-råstreng, kapittel-tiebreaker, Dokumenttype→Dokumentklasse.
+
+**MAL-METODE §6b er inne:** et felt har to tall — **feltnummer** (ordre/test/fasit, uten overskrifter) og **radnummer** (psql-utskrift/`sort_order`, med overskrifter). Regelen: si alltid hvilken telling; ved tvil er fasitfilen fasit. (Løser JH2-forvirringen fra runde D — «felt 13» i gatemeldingen var radnummeret; feltnummeret er 10.)
+
+**Ordren for de tre små rettingene ligger lesbar i develop** — redesign eier dem. 🔴 **Redesign har IKKE startet; nudgen sendes etter denne mergen.**
+
+**Gate — ALT HELT stille (`--force`, 0 cached, ingen FULL TURBO):** db 175 · api 511 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. Runden rører ingen kode.
 
 ---
 
