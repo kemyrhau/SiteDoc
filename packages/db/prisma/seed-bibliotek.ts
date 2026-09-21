@@ -1771,7 +1771,7 @@ export const FP1_MAL = {
         "Mer enn 5 % underkjent – utvidet prøving",
         "Ikke aktuelt",
       ],
-      "Prøvetrekk minst halvparten av de første 100 boltene, til 10 % over dimensjonerende last. Blir mer enn 5 % underkjent, prøves halvparten av de neste 100 til underkjenningen er under 5 %. Deretter 50 bolter per 1000."),
+      "Prøvetrekk minst halvparten av de første 100 boltene, til 10 % over dimensjonerende last. Blir mer enn 5 % underkjent, prøves halvparten av de neste 100 til underkjenningen er under 5 %. Deretter 50 bolter pr. 1000 satte."),
     valg("Visuell kontroll av fullt innstøpte bolter", "ETTER",
       [
         "Kontrollert – vinkel, halvkule og mørtel i orden",
