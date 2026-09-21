@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Zła odpowiedź — spróbuj ponownie",
   "quiz.riktig": "Prawidłowy!",
   "malbygger.betingelse": "Stan",
+  "malbygger.barnUtloser.arver": "Dziedziczy wyzwalacze rodzica",
+  "malbygger.barnUtloser.hjelp": "Pokaż to pole tylko dla niektórych odpowiedzi (puste = takie samo jak element nadrzędny):",
   "malbygger.fjernFraBetingelse": "Usuń ze stanu",
   "malbygger.fjernBetingelse": "Usuń warunek",
   "malbygger.valgalternativer": "Opcje",

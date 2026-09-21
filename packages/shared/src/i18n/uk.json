@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Неправильна відповідь — спробуйте ще раз",
   "quiz.riktig": "Правильно!",
   "malbygger.betingelse": "Хвороба",
+  "malbygger.barnUtloser.arver": "Успадковує батьківські тригери",
+  "malbygger.barnUtloser.hjelp": "Показувати це поле лише для певних відповідей (порожнє = те саме, що й батьківське):",
   "malbygger.fjernFraBetingelse": "Вилучити з умов",
   "malbygger.fjernBetingelse": "Видалити умову",
   "malbygger.valgalternativer": "Опції",

@@ -77,10 +77,32 @@ export function FeltKonfigurasjon({
   const erSeksjonsgrense = objekt.type === "heading" || objekt.type === "subtitle";
   const harAktivBetingelse = objekt.config.conditionActive === true;
 
-  // Finn foreldrefeltets label for barnefelt
-  const forelderLabel = erBarn
-    ? alleObjekter.find((o) => o.id === objekt.parentId)?.label ?? "Ukjent"
-    : null;
+  // Finn foreldrefeltet for barnefelt
+  const forelder = erBarn ? alleObjekter.find((o) => o.id === objekt.parentId) : undefined;
+  const forelderLabel = erBarn ? forelder?.label ?? "Ukjent" : null;
+
+  // Per-barn-utløsere (2026-09-21): et barn kan ha SITT EGET utløsersett (`conditionOwnValues`)
+  // — egen nøkkel, ikke forelderens `conditionValues` (som kolliderer i nøstede kontainere).
+  // Kun meningsfullt når forelderen er en VERDI-utløser (ikke repeater, ikke «utenfor krav»).
+  const forelderErVerdiUtloser =
+    forelder?.config.conditionActive === true &&
+    forelder.config.conditionType !== "utenfor_krav" &&
+    forelder.type !== "repeater";
+  const forelderOpsjoner = ((forelder?.config.options as unknown[]) ?? []).map(opsjonTilStreng);
+  const egneUtloser = ((config.conditionOwnValues as unknown[]) ?? []).map(opsjonTilStreng);
+
+  function toggleEgenUtloser(verdi: string) {
+    const nye = egneUtloser.includes(verdi)
+      ? egneUtloser.filter((v) => v !== verdi)
+      : [...egneUtloser, verdi];
+    if (nye.length === 0) {
+      // Tomt = arv forelderen → fjern nøkkelen helt (arv er FRAVÆR av nøkkel).
+      const { conditionOwnValues: _fjernet, ...rest } = config;
+      setConfig(rest);
+    } else {
+      setConfig({ ...config, conditionOwnValues: nye });
+    }
+  }
 
   // Tell barnefelt for foreldrefelt (direkte barn)
   const antallBarn = harAktivBetingelse
@@ -410,6 +432,34 @@ export function FeltKonfigurasjon({
                   >
                     {t("malbygger.fjernFraBetingelse")}
                   </Button>
+                )}
+
+                {forelderErVerdiUtloser && forelderOpsjoner.length > 0 && (
+                  <div className="mt-1 flex flex-col gap-1.5">
+                    <p className="text-xs text-gray-500">{t("malbygger.barnUtloser.hjelp")}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {forelderOpsjoner.map((o) => {
+                        const valgt = egneUtloser.includes(o);
+                        return (
+                          <button
+                            key={o}
+                            type="button"
+                            onClick={() => toggleEgenUtloser(o)}
+                            className={
+                              valgt
+                                ? "rounded-full border border-blue-400 bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
+                                : "rounded-full border border-dashed border-gray-300 bg-white px-2.5 py-0.5 text-xs text-gray-500 hover:border-blue-300 hover:text-blue-600"
+                            }
+                          >
+                            {o}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {egneUtloser.length === 0 && (
+                      <p className="text-xs italic text-gray-400">{t("malbygger.barnUtloser.arver")}</p>
+                    )}
+                  </div>
                 )}
               </div>
             )}

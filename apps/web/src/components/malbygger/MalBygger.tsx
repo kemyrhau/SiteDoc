@@ -20,6 +20,7 @@ import {
   STOETTEDE_SPRAAK,
   formaterNummer,
   grupperMedOverskrift,
+  settForelderBetingelseVerdier,
   type ReportObjectType,
   type TemplateZone,
   type EmneKategori,
@@ -355,24 +356,9 @@ export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
   }
 
   function handleOppdaterBetingelseVerdier(parentId: string, verdier: string[]) {
-    setObjekter((prev) => {
-      const neste = [...prev];
-      const idx = neste.findIndex((o) => o.id === parentId);
-      if (idx === -1) return prev;
-
-      const forelder = neste[idx];
-      if (!forelder) return prev;
-
-      neste[idx] = {
-        ...forelder,
-        config: {
-          ...forelder.config,
-          conditionValues: verdier,
-        },
-      };
-
-      return neste;
-    });
+    // Ren tre-transform: rører KUN forelderen, aldri et barns eget `conditionOwnValues`
+    // (delt kilde + testdekket i @sitedoc/shared — DoD #4).
+    setObjekter((prev) => settForelderBetingelseVerdier(prev, parentId, verdier));
 
     const forelder = objekter.find((o) => o.id === parentId);
     if (forelder) {

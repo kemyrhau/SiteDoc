@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt, erBetingelseOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -321,12 +321,9 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           return utenforKravOppfylt(forelder, hentFeltVerdi(parentId).verdi, (id) => hentFeltVerdi(id).verdi);
         }
 
-        const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
+        // Verdimatch-utløser — delt funksjon (per-barn: barnets eget sett vinner, ellers arves forelderens).
         const forelderVerdi = hentFeltVerdi(parentId).verdi;
-
-        if (typeof forelderVerdi === "string") return triggerVerdier.includes(forelderVerdi);
-        if (Array.isArray(forelderVerdi)) return forelderVerdi.some((v) => triggerVerdier.includes(v));
-        return false;
+        return erBetingelseOppfylt(forelder, obj, forelderVerdi);
       }
       return sjekkSynlighet(objekt, 0);
     },

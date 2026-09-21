@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Falsche Antwort – versuchen Sie es noch einmal",
   "quiz.riktig": "Richtig!",
   "malbygger.betingelse": "Zustand",
+  "malbygger.barnUtloser.arver": "Erbt die Auslöser des übergeordneten Elements",
+  "malbygger.barnUtloser.hjelp": "Dieses Feld nur für bestimmte Antworten anzeigen (leer = dasselbe wie das übergeordnete Feld):",
   "malbygger.fjernFraBetingelse": "Aus dem Zustand nehmen",
   "malbygger.fjernBetingelse": "Bedingung entfernen",
   "malbygger.valgalternativer": "Optionen",

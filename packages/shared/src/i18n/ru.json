@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Неправильный ответ — попробуйте еще раз",
   "quiz.riktig": "Правильный!",
   "malbygger.betingelse": "Состояние",
+  "malbygger.barnUtloser.arver": "Наследует триггеры родителя",
+  "malbygger.barnUtloser.hjelp": "Показывать это поле только для определенных ответов (пусто = то же, что и родительский):",
   "malbygger.fjernFraBetingelse": "Удалить из состояния",
   "malbygger.fjernBetingelse": "Удалить условие",
   "malbygger.valgalternativer": "Параметры",

@@ -8,7 +8,7 @@ import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
 import { samleSignerteVedleggUrler, resolveSignerteUrler } from "../utils/signerteUrler";
 import { useAuth } from "../providers/AuthProvider";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, sammenstillMedLokaleVedlegg, utelatFeltMedLokaleVedlegg, settVedleggUrlIDokument, utenforKravOppfylt, erBetingelseOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 import type { Vedlegg, FeltVerdi, Tilfoyelse } from "./useSjekklisteSkjema";
 
@@ -646,12 +646,9 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           return utenforKravOppfylt(forelder, hentFeltVerdi(parentId).verdi, (id) => hentFeltVerdi(id).verdi);
         }
 
-        const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
+        // Verdimatch-utløser — delt funksjon (per-barn: barnets eget sett vinner, ellers arves forelderens).
         const forelderVerdi = hentFeltVerdi(parentId).verdi;
-
-        if (typeof forelderVerdi === "string") return triggerVerdier.includes(forelderVerdi);
-        if (Array.isArray(forelderVerdi)) return forelderVerdi.some((v) => triggerVerdier.includes(v));
-        return false;
+        return erBetingelseOppfylt(forelder, obj, forelderVerdi);
       }
       return sjekkSynlighet(objekt, 0);
     },

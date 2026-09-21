@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Špatná odpověď – zkuste to znovu",
   "quiz.riktig": "Opravit!",
   "malbygger.betingelse": "Stav",
+  "malbygger.barnUtloser.arver": "Zdědí rodičovské spouštěče",
+  "malbygger.barnUtloser.hjelp": "Zobrazit toto pole pouze pro určité odpovědi (prázdné = stejné jako nadřazené):",
   "malbygger.fjernFraBetingelse": "Odebrat z podmínky",
   "malbygger.fjernBetingelse": "Odstraňte stav",
   "malbygger.valgalternativer": "Možnosti",

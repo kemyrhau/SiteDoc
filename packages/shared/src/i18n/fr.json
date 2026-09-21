@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Mauvaise réponse – réessayez",
   "quiz.riktig": "Correcte!",
   "malbygger.betingelse": "Condition",
+  "malbygger.barnUtloser.arver": "Hérite des déclencheurs du parent",
+  "malbygger.barnUtloser.hjelp": "Afficher ce champ uniquement pour certaines réponses (vide = identique au parent) :",
   "malbygger.fjernFraBetingelse": "Retirer de l'état",
   "malbygger.fjernBetingelse": "Supprimer la condition",
   "malbygger.valgalternativer": "Possibilités",

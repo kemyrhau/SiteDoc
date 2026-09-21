@@ -2565,6 +2565,8 @@
   "quiz.feilSvar": "Fel svar – försök igen",
   "quiz.riktig": "Rätta!",
   "malbygger.betingelse": "Skick",
+  "malbygger.barnUtloser.arver": "Ärver förälderns triggers",
+  "malbygger.barnUtloser.hjelp": "Visa detta fält endast för vissa svar (tomt = samma som föräldern):",
   "malbygger.fjernFraBetingelse": "Ta bort från skick",
   "malbygger.fjernBetingelse": "Ta bort skick",
   "malbygger.valgalternativer": "Alternativ",
