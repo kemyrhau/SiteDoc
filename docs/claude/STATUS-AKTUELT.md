@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-21 · develop `854f6ef4` (to docs-brancher, begge non-ff, begge designgatet med ordene «Designgatet – klar for merge» — første runde etter regelen: FP1-ordren rettet + pilot betingede felt lesbar) · GATE (`--force`): api 513 · db 189 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 (ALLE stille — ren docs) · diff = 3 docs-filer + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-21 · develop `dba927e7` (docs/design-betinget-per-barn `--no-ff`: to ordrer — app-spor betinget-per-barn + mal-spor del A-tre; JH2-pilot bevisst stanset) · GATE (`--force`): api 513 · db 189 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7 (ALLE stille — ren docs) · diff = 2 docs-filer + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | tre små rettinger merget `e4ada0e3` (worktree står på `fix/tre-smaa-rettinger` `2438886b`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet) | — |
 | **dokgen** | `SiteDoc-dokgen` | — | ⚪ **LEDIG** | — |
-| **mal-Opus** | `SiteDoc-mal` | Runde E + FP1-rettelse merget `aa9fd26b` (worktree på `feat/mal-runde-e` `172529ed`, som er i develop) | ⚪ **LEDIG** (ingen ny branch pushet utover runde E) | Ingen malordre i kø — design melder neste |
+| **mal-Opus** | `SiteDoc-mal` | `feat/mal-tre-kapasitet` (del A-tre) — worktreet står på branchen, HEAD = `ac4658d2` (opprettet fra develop, **ingen commit/push ennå — ikke på origin**) | 🔵 **JOBBER** (del A-tre, uavhengig spor) | Ingen gate — del A rører ikke `apps/`, ingen SQL |
 | **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,26 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-21 — Ordrer for betinget-per-barn (app-spor) + del A-tre (mal-spor). JH2-pilot stanset. Ren docs. develop `dba927e7`.
+
+🟢 **Designgatet med ordene «Designgatet – klar for merge».** Én branch, `--no-ff`, ekte ff-mulig (develop var ancestor), `merge-tree` 0 markører.
+
+- **`docs/design-betinget-per-barn` `56267af9`** (fra develop `ac4658d2`): to nye ordrefiler — `ordre-betinget-per-barn-…md` +77, `ordre-mal-del-a-tre-…md` +46.
+
+### 🔴 Grensen mal-Opus fant — og STOPPET FØR bygging fordi han målte
+JH2 v2-piloten (betingede felt) traff en reell grense: **`conditionValues` ligger på FORELDEREN og deles av alle barna** (`useSjekklisteSkjema.ts:324`), så «vis felt A ved svar 1 og felt B ved svar 2» er ikke uttrykkbart i dagens modell. 🟢 **Mal-Opus målte dette på begge plattformer i stedet for å bygge en halv løsning** — det er atferden vi vil ha, og den skal være synlig her, ikke bare i en innboks. Design verifiserte grensen i koden (`useSjekklisteSkjema.ts:324`). **Kenneth gatet app-endringen.**
+
+### To spor ut av grensen
+- **App-sporet** (`ordre-betinget-per-barn`) → **redesign.** 🔴 Redesign har **IKKE startet** — pekeren ligger i `relay/inbox-redesign.md`, nudgen sendes ETTER denne mergen (ellers peker ordren på en fil som ikke finnes i hans worktree).
+- **Mal-sporet** (`ordre-mal-del-a-tre`) → **mal-Opus**, på `feat/mal-tre-kapasitet`. Uavhengig spor, ingen SQL, rører ikke `apps/`. Målt tilstand: worktreet står på branchen, men HEAD = develop-tip `ac4658d2` — **ingen commit/push ennå, ikke på origin**.
+
+### 🔴 JH2-piloten er STANSET — bevisst, ikke åpent løst
+JH2 v2 (betingede felt) bygges **ikke** før app-endringen (betinget-per-barn) er inne. Dette er en bevisst stans forankret i en målt modellgrense, ikke et halvferdig arbeid som drifter.
+
+**Gate (`--force`, ingen FULL TURBO):** api 513 · db 189 · pdf 124 · shared 834 · web 304 · mobil 34 · 7/7. ALLE stille — ren docs.
 
 ---
 
