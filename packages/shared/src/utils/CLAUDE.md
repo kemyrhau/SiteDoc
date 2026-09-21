@@ -186,6 +186,28 @@ mobil — react-native `Text`). 🔴 `packages/pdf` har en **tvungen** tvilling 
 arg-rekkefølge `(nummer, prefix)`) fordi pakken er null-runtime-avhengigheter — endres logikken her,
 må speilet følge. Alt voktet av test (`dokumentnummer.test.ts`, per form + 0-regelen).
 
+### Betinget synlighet (`betingelse.ts`)
+
+To lag: `erBetingelseOppfylt` svarer på **verdimatchen** alene (matcher forelderens svar
+barnets utløsersett — per barn: barnets `conditionOwnValues` vinner, ellers arves forelderens
+`conditionValues`). `erObjektSynlig(objekt, alleObjekter, hentVerdi)` er lagt **OVER** den og
+svarer på **hele** synlighetsspørsmålet.
+
+| Funksjon | Beskrivelse |
+|----------|-------------|
+| `erBetingelseOppfylt(forelder, barn, forelderVerdi)` → `boolean` | Verdimatch. Barnets eget sett vinner, ellers arves forelderens. Rå `includes` (streng = enkeltvalg, array = flervalg) |
+| `harEgetUtloserSett(barn)` → `boolean` | Har barnet ≥1 verdi i `conditionOwnValues`? Tomt/fravær → arver forelderen |
+| `erObjektSynlig(objekt, alleObjekter, hentVerdi)` → `boolean` | **Hele vurderingen i én kilde:** rekursjon oppover (barn av skjult forelder er skjult, maks 10 nivåer), `conditionActive`-av, repeater-unntak, `utenfor_krav`-avviksregel, og til slutt verdimatchen via `erBetingelseOppfylt`. `hentVerdi(id)` gir feltets svar direkte (ikke FeltVerdi-objekt) |
+| `settForelderBetingelseVerdier(objekter, parentId, verdier)` → `T[]` | Malbygger-transform: setter KUN forelderens `conditionValues`, rører ikke barnas sett |
+
+**Én kilde de fem kaller:** de fire synlighets-hookene (web+mobil × sjekkliste+oppgave)
+kaller `erObjektSynlig` — hookens `sjekkSynlighet`-blokk (som lå firedoblet og identisk) er
+borte. Rapport-byggeren (dokgen) kaller den samme, så skjerm og rapport per definisjon ikke kan
+være uenige om hva som var synlig. Fasit er sannhetstabellen i `betingelse.test.ts` (generert
+fra koden: tre med forelder, to søsken der ett har eget sett og ett arver, og et barnebarn).
+`SynlighetsObjekt` er en strukturell type (løsere enn appenes `RapportObjekt`) så `@sitedoc/shared`
+slipper å avhenge av dem.
+
 ### Grense + resolver (`grenseSjekk.ts`)
 
 Grenseverdier for `integer`/`decimal` — delt kilde for MalBygger-editor, utfyllings-rendering

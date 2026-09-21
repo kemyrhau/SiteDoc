@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt, erBetingelseOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, erObjektSynlig, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
@@ -332,33 +332,10 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     [planleggLagring, oppgave, slettBildeMutation],
   );
 
-  // Betinget synlighet (rekursiv — sjekker hele foreldrekjeden, maks 10 nivåer)
+  // Betinget synlighet — hele vurderingen (rekursjon, conditionActive, utenfor_krav) i én delt kilde.
   const erSynlig = useCallback(
-    (objekt: RapportObjekt): boolean => {
-      function sjekkSynlighet(obj: RapportObjekt, dybde: number): boolean {
-        if (dybde > 10) return true; // Sikkerhetsvakt mot uendelig rekursjon
-
-        const parentId = obj.parentId ?? (obj.config.conditionParentId as string | undefined);
-        if (!parentId) return true;
-
-        const forelder = alleObjekter.find((o) => o.id === parentId);
-        if (!forelder) return true;
-
-        if (!sjekkSynlighet(forelder, dybde + 1)) return false;
-        if (forelder.type === "repeater") return true;
-        if (!forelder.config.conditionActive) return true;
-
-        // Avviksfelt-utløser (trinn 3 del C): tallfelt-forelder → vis barn når verdien bryter kravet.
-        if (forelder.config.conditionType === "utenfor_krav") {
-          return utenforKravOppfylt(forelder, hentFeltVerdi(parentId).verdi, (id) => hentFeltVerdi(id).verdi);
-        }
-
-        // Verdimatch-utløser — delt funksjon (per-barn: barnets eget sett vinner, ellers arves forelderens).
-        const forelderVerdi = hentFeltVerdi(parentId).verdi;
-        return erBetingelseOppfylt(forelder, obj, forelderVerdi);
-      }
-      return sjekkSynlighet(objekt, 0);
-    },
+    (objekt: RapportObjekt): boolean =>
+      erObjektSynlig(objekt, alleObjekter, (id) => hentFeltVerdi(id).verdi),
     [alleObjekter, hentFeltVerdi],
   );
 

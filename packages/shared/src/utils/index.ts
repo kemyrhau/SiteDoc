@@ -155,10 +155,12 @@ export {
 export type { Grense, GrenseStatus, KravType, GrenseVariant } from "./grenseSjekk";
 export {
   erBetingelseOppfylt,
+  erObjektSynlig,
   harEgetUtloserSett,
   settForelderBetingelseVerdier,
   BETINGELSE_EGEN_NOKKEL,
 } from "./betingelse";
+export type { SynlighetsObjekt } from "./betingelse";
 export {
   grupperMedOverskrift,
   beregnSeksjonUtfylling,
