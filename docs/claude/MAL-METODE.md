@@ -319,3 +319,33 @@ skal slippe å gjette. Ved tvil er **fasitfilen fasit**, fordi ordren og testen 
 Bakgrunn: designs gatemelding for JH2 sa «felt 13», som var radnummeret i psql-utskriften. Ordren sa felt 10, og det
 var riktig. Merge-agenten nektet å føre et tall den ikke kunne verifisere, og skrev setningen uten feltnummer i stedet.
 Det var riktig håndtering: heller utelate et tall enn å feste feil tall (cowork og merge, 2026-09-20).
+
+### §1c. Vurdert uaktuelt er ikke det samme som aldri aktuelt (Kenneth 2026-09-21)
+
+To ting ser like tomme ut, men er helt ulike, og skillet styrer både malbygging og rapport:
+
+| | Hva det er | I malen | I rapporten |
+|---|---|---|---|
+| **Vurdert uaktuelt** | en fagperson så på forholdet og konkluderte | **et svar**: «Ikke aktuelt», «Ikke krav» | **står** — dokumenterer at vurderingen ble gjort |
+| **Aldri aktuelt** | spørsmålet gjaldt ikke denne jobben | **betinget felt** som ikke vises | **utelates** — rapporten viser det som faktisk gjaldt |
+
+**Regel for feltvalg:** skal arbeideren ta stilling til om et krav gjelder for jobben, er det et **svaralternativ**.
+Følger uaktualiteten av et valg han allerede har gjort, er det et **betinget felt**.
+
+Eksempel på hver: «Siltskjørt: Ikke aktuelt» er en vurdering noen har gjort, og den står. Klebing på et ubundet
+bærelag er ikke et spørsmål noen skal svare på — der er de riktige spørsmålene om underlaget er tilstrekkelig
+komprimert og tilstrekkelig plant, og klebefeltet vises ikke.
+
+### §1d. Hva en KS-sjekkliste dekker (Kenneth 2026-09-21)
+
+**Malen følger normens krav til utførelsen.** Stiller normen et krav, hører det hjemme i malen — også når kravet har
+en sikkerhetsside. Graveskråning i grøft, sikring av åpen grøft og skriftlig salveplan er en del av den grunnleggende
+forståelsen av hvordan jobben gjøres, ikke et HMS-tillegg som skal skilles ut.
+
+**Det som ikke hører hjemme i en KS-mal**, er dokumenter i HMS-sporet med sin egen hensikt og sin egen mal: SJA,
+risikovurdering av arbeidsoperasjonen, vernerunder og personlig verneutstyr. De handler om sikkerheten til dem som
+utfører arbeidet, ikke om kvaliteten på det som leveres.
+
+**Bakgrunn:** design foreslo 2026-09-21 å fjerne sikrings- og miljøfelt fra fem maler som «HMS på avveie». Kenneth
+trakk forslaget: feltene står i normen malene bygger på, og skal bli. Grensen går ved dokumenttypen, ikke ved om et
+krav tilfeldigvis også beskytter noen.
