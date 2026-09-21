@@ -38,6 +38,23 @@ erObjektSynlig(objekt, alleObjekter, hentVerdi) → boolean
 - **De fire hookene bytter til å kalle den** og mister sin egen kopi av logikken. Det er poenget; uten det har vi
   fortsatt fire kilder.
 
+## 2b. Mål før du flytter (coworks tillegg, godtatt av design)
+
+Ordren sa først «ingen ny oppførsel — en flytting». **Det var en påstand, ikke en måling**, og den holder bare hvis de
+fire hookenes ytre logikk allerede er identisk. At logikken lå firedoblet, er nettopp grunnen til at per-barn-grensen
+fikk ligge uoppdaget.
+
+**Krav:** mål selv om `conditionActive`, `utenfor_krav`, repeater-unntaket og rekursjonen oppover er identiske i de fire
+hookene, og **meld resultatet**. Finner du en reell forskjell — mellom oppgave og sjekkliste, eller mellom web og
+mobil — **stopp og meld**. Ikke velg én variant og kall det en flytting. Hvilken som er riktig, er en beslutning for
+design og Kenneth.
+
+**Designs egen måling 2026-09-21, som utgangspunkt, ikke som fasit:** `sjekkSynlighet` i de fire hookene er logisk
+identisk. Den eneste forskjellen mellom web/sjekkliste og web/oppgave er en kommentar på slutten av en linje
+(`// Sikkerhets-fallback`). Coworks grep-tall skyldtes kommentarer, ikke kode. **Verifiser dette selv** — og se
+særlig etter plattformspesifikk logikk som ligger *utenfor* `sjekkSynlighet` og som en konsolidering kan komme til å
+svelge.
+
 ## 3. Rammer
 
 - **Ingen endring i oppførsel.** Dette er en flytting, ikke en ny regel. Alt som vises i dag, skal vises etterpå — det
