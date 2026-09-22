@@ -236,6 +236,15 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 Flytvalg-modalen godtar tomt valg uten varsel (målt 2026-09-22, redesign)
+
+- Alle flyt-checkbokser er AV som standard, og «Velg» uten noe avkrysset går gjennom uten melding.
+  Malen blir liggende utilgjengelig, og det oppdages først i mal-velgeren («Ingen av dine
+  dokumentflyter har denne malen»).
+- **Samme klasse som «stille tomhet»** — handlingen lykkes, resultatet er ubrukelig, ingen sier fra.
+  Traff redesign under verifiseringen 2026-09-22; han brente en malkopi på det. **En kunde som bygger
+  sin første firmamal vil treffe den.** Kenneth gater timingen.
+
 ### 🟡 Arkiv-PDF er ikke flerspråklig (målt 2026-09-21)
 
 - `packages/pdf/src/arkivmal/` har **null `t()`-kall**; api sender ferdig nb-streng inn. Nøkkelen

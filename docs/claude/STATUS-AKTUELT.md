@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `e6fc4483` (feat/pdf-ikke-aktuelt `--no-ff`: rapportfilter, aldri-viste felt utelates via delt `erObjektSynlig`) · GATE (`--force`): api 513→**522** (+9) · db 189 · pdf 124 · shared 852 · web 304 · mobil 34 (resten stille) · 7/7 · diff = 21 filer + tavla + BACKLOG · ingen migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-22 · develop `826c8c2f` (ren docs — verifisering av betinget-kjeden ført i tavla, ingen branch merget) · GATE (`--force`): db 189 · api 522 · pdf 124 · shared 852 · web 304 · mobil 34 · 7/7 (ALLE stille — ingen kode) · diff = STATUS-AKTUELT + BACKLOG · betinget-kjeden BEVIST på test `826c8c2f` (web+mobil ekte enhet) · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -45,6 +45,36 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — Betinget-kjeden VERIFISERT på ekte data (test `826c8c2f`). Ren docs, ingen branch. develop `826c8c2f`.
+
+🔴 **Ingen branch merget.** Kjeden betinget-per-barn → `erObjektSynlig` → rapportfilteret er verifisert på ekte data på test, og føres her så beviset ikke bare finnes i en chat. **Test kjørte `826c8c2f` under hele verifiseringen.**
+
+### redesign (web, malbygger)
+- Per-barn-utløsere vises som knapper på barnet og settes uavhengig.
+- 🔴 **Redigering av forelderens utløsere sletter IKKE barnas egne sett** — målt programmatisk gjennom **to** redigeringer, sett identisk før og etter. **Dette var den dyreste mulige feilen** (hele grunnen til `conditionOwnValues`).
+- Tomt sett på barn3 gir arv, ikke «aldri synlig». Barnebarn følger foreldrekjeden. Skjult påkrevd felt blokkerer ikke innsending.
+
+### dokgen (rapport, web)
+- `BT2-001`: aldri-vist felt **helt borte** · **«Ikke aktuelt» som SVAR står** · synlig-tom = «Ikke utfylt» · notisen vises.
+- Regresjon `KB6-006` (flat mal): **alle 3 overskrifter, alle 8 felt, ingen notis.**
+
+### Kenneth (mobil, ekte enhet via OTA til test-kanal)
+- `BT2-003` opprettet, utfylt og sendt **på mobil**, mottatt. Tre nivåer: **bundet → epoksy → Kommentar fuge.** Årsak ubundet borte, notisen vist.
+- 🔴 **Innsending gikk gjennom med skjult påkrevd felt** — mobil-valideringen bevist for seg.
+- 🔴 **Regresjon `KB6-007` på mobil: alle 3 overskrifter, alle 8 felt, INGEN notis.**
+
+🔴 **Viktigst for piloten: alle A.Markussens maler er flate.** De fire hookene mistet 27–33 linjer hver, og «tro flytting» er nå bevist på **ekte mobil-flate**, ikke bare i enhetstest.
+
+### Testdata som står igjen på test — FØRT, ikke slett
+`BT2` + `BT2-001`, `BT2-003` · `BT`-kopi (ubrukt, uten flyt) · `KB6-006`, `KB6-007`. 🔴 **Kenneth avgjør oppryddingen — cowork sletter ingenting.**
+
+### Funn → BACKLOG § 1
+🟡 **Flytvalg-modalen godtar tomt valg uten varsel** (redesign, samme klasse som stille tomhet) — se BACKLOG § 1 Teknisk gjeld. Kenneth gater timingen.
+
+**Gate (`--force`, ingen FULL TURBO):** db 189 · api 522 · pdf 124 · shared 852 · web 304 · mobil 34 · 7/7. ALLE stille — ingen kode.
 
 ---
 
