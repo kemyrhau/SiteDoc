@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `38333944` (`feat/simulator-xcode27-oppkobling` `--no-ff`: dokumenter Xcode 27-bruddet på simulator-oppkobling) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 2 docs-filer + tavla + STATUS.md · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-22 · develop `13b1cf60` (ingen branch — verifiseringsføring: faggruppe-utledning bevist på test) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = STATUS-AKTUELT.md + BACKLOG.md · ingen kode/migrering/SQL/mobil · opprett-runden nå VERIFISERT (flagg fjernet); gjenstår Kenneths mobil-UI-måling**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
 | **mal-Opus** | `SiteDoc-mal` | JH2 v2 merget `9b83b285`. **KD1 v3-ordre nå i develop `8136dd23`** (`ordre-kd1-revisjon-betinget-design-2026-09-22.md`) + §1e hjelpetekst-veiledning | 🔵 **KD1 v3 bestilt — design sender startsignalet** (ikke startet) | Designs KD1-startsignal (direkte + linje i `inbox-cowork.md`) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal (`feat/opprett-uten-modal` `21520673`) 🟢 **MERGET** develop `9b83b285` — server utleder faggruppe via `utledBestillerUtforer` (sjekkliste+oppgave); mobil-modal bort fra standardveien; emne inn i dokumentet. **Reload: OTA.** 🔴 **IKKE verifisert — 4 dokumenter på test gjenstår** | ⚪ **LEDIG** | Kenneths OTA + verifisering (4 dok på test) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal (`feat/opprett-uten-modal` `21520673`) 🟢 **MERGET** develop `9b83b285` — server utleder faggruppe via `utledBestillerUtforer`; mobil-modal bort fra standardveien; emne inn i dokumentet. **Reload: OTA (kjørt 2026-09-22).** 🟢 **VERIFISERT på test** (dokgen, 4 dok + negativkontroll). Gjenstår kun Kenneths mobil-UI-måling på telefon | ⚪ **LEDIG** | Kenneths mobil-UI-måling (OTA kjørt) |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | Xcode 27-oppkobling dokumentert (`feat/simulator-xcode27-oppkobling` `4d7901b1`) 🟢 **MERGET** develop `38333944` | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,32 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — Faggruppe-utledningen VERIFISERT på test (opprett-uten-modal). Ren docs, ingen branch. develop `13b1cf60`.
+
+🟢 Opprett-runden (`feat/opprett-uten-modal`, merget `9b83b285`) er nå bevist på test av dokgen. **«Ikke verifisert»-flagget fjernet.** Gate `--force`, 0 cached (IKKE FULL TURBO): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE · 7/7.
+
+### 🔴 Hva som er BEVIST — fire dokumenter, `psql` mot `sitedoc_test`
+Alle fire lest med `psql`: dokumentets lagrede `bestiller_faggruppe_id`/`utforer_faggruppe_id` joinet mot `dokumentflyter.faggruppe_id` — uavhengig av skjerm OG av API-svaret. For 3 og 4 skrev klienten aldri verdien.
+
+| # | Type | Flate | Flyt (eier) | Bestiller | Utfører |
+|---|---|---|---|---|---|
+| 1 | Sjekkliste | Web UI | BH→HE-TA (Byggherre) | Byggherre | Byggherre |
+| 2 | Oppgave | Web UI | BL→BH (Byggherre) | Byggherre | Byggherre |
+| 3 | Sjekkliste | API uten faggruppe | Elektro→HE (Elektro) | **Elektro** | **Elektro** |
+| 4 | Oppgave | API uten faggruppe | Elektro→HE (Elektro) | **Elektro** | **Elektro** |
+
+🔴 **Negativkontrollen — rundens avgjørende bevis:** samme mal (`Befaringsrapport`, `1eb8999a`), ingen faggruppe sendt, to flyter: **Elektro→HE gav Elektro · Tømrer→HE gav Tømrer.** To ulike svar fra IDENTISK mal → utledningen følger flyten, er ikke en Byggherre-default og kommer ikke fra klienten.
+
+**Mobil-UI utgår** (ufullstendig Xcode) — dekket via samme kontrakt som `OpprettVelger` bruker. **Kenneth måler mobil-UI på telefon etter OTA** (OTA kjørt 2026-09-22).
+
+### 🔴 Eget funn — registrator-gaten (ikke fotnote)
+Dokgen meldte først at web-velgeren viste bare Byggherre-flyter «fordi bare de har maler». Det var feil, og han målte: Elektro har 4 maler, Tømrer 2, HE-Ansatte 6. **Virkelig årsak:** `opprett` kaster **FORBIDDEN** «Du er ikke oppretter-medlem av valgt dokumentflyt» hvis brukeren ikke er registrator-medlem. **Kenneth er registrator kun på Byggherre-flytene — prosjekt-admin-rollen omgår IKKE gaten.** Bekreftet ved at API-kall mot Elektro-flyten gav FORBIDDEN. Forklarer en tilstand Kenneth møter i UI-et hver dag. → BACKLOG § 1.
+
+### 🟢 Dokgens oppsett var reversibelt og ryddet
+La seg selv som registrator på to flyter for å komme forbi gaten, merket radene «(dokgen-test)», og **slettet dem etterpå — 0 gjenstår.** Flytenes eier-faggruppe ble aldri endret. Testdokumentene STÅR (trengs når KD1 testes).
 
 ---
 

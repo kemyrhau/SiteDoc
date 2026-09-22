@@ -236,6 +236,19 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 Mobil har nå to opprett-flater (design 2026-09-22)
+
+- Den nye `OpprettVelger` og den gamle `OpprettDokumentModal` (for «opprett fra tegning») lever side om
+  side. **Riktig prioritering nå, men de bør til slutt se like ut** — ellers lærer brukeren to mønstre
+  for samme handling. Kenneth gater timingen.
+
+### 🟡 Prosjekt-admin omgår ikke registrator-gaten (målt 2026-09-22, dokgen)
+
+- `opprett` krever registrator-medlemskap i flyten (kaster FORBIDDEN «Du er ikke oppretter-medlem av
+  valgt dokumentflyt» ellers). **En prosjekt-admin ser dermed bare flyter han selv er registrator på i
+  opprett-velgeren, uten forklaring.** Prosjekt-admin-rollen omgår IKKE gaten. **Om det er tilsiktet er
+  ikke avklart — Kenneth gater** om det er en feil i det hele tatt.
+
 ### 🟡 Lånt mal kan miste forelder-koblingen (målt 2026-09-22, mal-Opus)
 
 - Et firma kan bryte forelder-koblingen i sin egen kopi i malbyggeren. **En lånt mal som mister
