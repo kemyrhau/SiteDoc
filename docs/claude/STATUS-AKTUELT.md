@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `8136dd23` (to docs-brancher `--no-ff`: MAL-METODE §1e hjelpetekst-veiledning + ordre KD1 v3) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 2 docs-filer + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-22 · develop `38333944` (`feat/simulator-xcode27-oppkobling` `--no-ff`: dokumenter Xcode 27-bruddet på simulator-oppkobling) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 2 docs-filer + tavla + STATUS.md · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -18,7 +18,7 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **mal-Opus** | `SiteDoc-mal` | JH2 v2 merget `9b83b285`. **KD1 v3-ordre nå i develop `8136dd23`** (`ordre-kd1-revisjon-betinget-design-2026-09-22.md`) + §1e hjelpetekst-veiledning | 🔵 **KD1 v3 bestilt — design sender startsignalet** (ikke startet) | Designs KD1-startsignal (direkte + linje i `inbox-cowork.md`) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal (`feat/opprett-uten-modal` `21520673`) 🟢 **MERGET** develop `9b83b285` — server utleder faggruppe via `utledBestillerUtforer` (sjekkliste+oppgave); mobil-modal bort fra standardveien; emne inn i dokumentet. **Reload: OTA.** 🔴 **IKKE verifisert — 4 dokumenter på test gjenstår** | ⚪ **LEDIG** | Kenneths OTA + verifisering (4 dok på test) |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
-| **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
+| **simulator** | `SiteDoc-simulator` | Xcode 27-oppkobling dokumentert (`feat/simulator-xcode27-oppkobling` `4d7901b1`) 🟢 **MERGET** develop `38333944` | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
 | **design** (tidligere fabel) | `SiteDoc-design` 🔴 ikke opprettet ennå (Kenneth) | `docs/design-<emne>`-brancher | ⚪ **LEDIG** | plan-sporet (redesign + maler) |
 
@@ -45,6 +45,19 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — Simulator-dokumentasjon (Xcode 27-oppkobling). Ren docs. develop `38333944`.
+
+🟢 **Merget** `feat/simulator-xcode27-oppkobling` `4d7901b1` `--no-ff`, ff mot `47f24ed8`. Diff = 2 docs-filer (`simulator-opus-oppkobling.md` +53, `simulator-runbook.md` +178) + tavla + STATUS.md. GATE `--force`, 0 cached (IKKE FULL TURBO): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (rører ingen kode) · 7/7. *(Design gatet at denne er coworks sak, ikke deres — derfor manglet gate-frasen, riktig her.)*
+
+### Hva som er dokumentert
+- Xcode 27 brøt simulator-oppkoblingen. Dokumentert med eksakte feilmeldinger: SimulatorKit-symlinken (kommando, hvorfor, at den endrer Xcode-bunten, hvordan den fjernes), oppstart fra null, dev-login, env-presedens, prod-sperre og 7 nye feilsøkingsrader.
+- 🔴 **Mest sannsynlige gjentakelse:** en Xcode-oppdatering vil trolig fjerne symlinken uten å si fra. Da ser feilen ut som «idb virker ikke lenger». Står i feilsøkingstabellen nå.
+
+### 🔴 Tilstand på Kenneths maskin
+- **Symlinken STÅR** — Kenneth-gatet til testrunden er ferdig. **Xcode-bunten er dermed modifisert mellom øktene** (ført her så ingen oppdager det som en overraskelse). Å fjerne symlinken krever Kenneths sudo; egen jobb, ikke nå.
 
 ---
 
