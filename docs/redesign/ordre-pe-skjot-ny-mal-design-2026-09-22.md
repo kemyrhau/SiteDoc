@@ -299,7 +299,45 @@ posten, og beskrivelsen sier det.
 opptatt av eksisterende mal. Da måtte referansen bli noe annet, og design vil ikke finne opp en referanse som ikke står
 i normen.
 
-**Det ene fagspørsmålet som står igjen:** et bend har to ender, og dermed to skjøter. Er det **to sjekklister** — én pr.
-skjøt, som normen krever — eller **én for bendet**? To lister på samme bend får identisk emne (`VL P120`), og da
-kolliderer de. Design heller mot **én liste pr. skjøt, med a/b i emnet** (`VL P120a`, `VL P120b`), siden normens c3.2.8
-krever eget skjema pr. sveis. Kenneth avgjør.
+## 8b. ✅ GATET 2026-09-22: to sjekklister pr. bend, og sveisenummeret skiller dem
+
+Kenneth: **«To lister … men de er lokalisert på samme sted og det kan være 6 timer å sveise på et bend sdr11 Ø630
+PE».**
+
+**Svaret er to lister**, og tidsanslaget er begrunnelsen: **en sveis kan ta seks timer.** Seks timers arbeid med
+egne parametre, egen operatør og egen avkjølingstid er ikke et delspørsmål i en annen liste — det er en leveranse.
+Og normens c3.2.8 krever eget skjema pr. sveis uansett.
+
+🔴 **Kollisjonen løses med sveisenummeret, ikke med a/b.** Design foreslo `VL P120a` / `VL P120b`. Det er unødvendig
+å finne opp, fordi **normen alt krever sveisenummer** i skjemaet (c3.2.8: «sveisenummer, muffeidentitet,
+sveisetrykk …»). Nummeret finnes altså allerede, det er unikt i prosjektet, og det står på skjøten (c3.2.9).
+
+**Emnet for en sveiseskjøt blir derfor:**
+
+| Del | Eksempel |
+|---|---|
+| Ledningstype | `VL` |
+| Pelnummer | `P120` |
+| **Sveisenummer** | **`S14`** |
+| **Samlet** | **`VL P120 S14`** |
+
+**Rekkefølgen er valgt for sortering:** ledning først, så posisjon, så sveis. Da grupperer listen seg etter
+strekning, og de to skjøtene på samme bend står ved siden av hverandre — som de skal, siden de er samme arbeid.
+
+🔴 **Felt 1s hjelpetekst i § 5 må oppdateres tilsvarende.** Den sier i dag «VL P120 for vannledning, SP P340 for
+spillvann, OV P95 for overvann». **Ny ordlyd, som skal stå ordrett:**
+
+> Skriv ledningen, pelnummeret og sveisenummeret i emnefeltet: VL P120 S14 for vannledning, SP P340 S22 for spillvann, OV P95 S07 for overvann. Sveisenummeret er det samme som i sveiseskjemaet og på merkingen av skjøten, og det er det som skiller to skjøter på samme bend. Én sjekkliste pr. skjøt — et bend har to ender og gir to lister. Kontrollen gjelder uansett om bendet eller muffen er priset som egen post eller inngår i løpemeterprisen — en skjøt som svikter, svikter like fullt.
+
+**Og felt 17 «Skjøten merket» skal nevne nummeret**, siden merkingen og emnet nå bruker samme nøkkel — se § 5.
+
+---
+
+## 8. Åpent punkt design gater hos Kenneth før SQL — LUKKET
+
+**Referansen `UM1.1` er gatet** (Kenneth: «um1.1 benyttes både til PE bend og muffer og sveiseskjøt»). Normen kaller
+UM1.1 «Utendørs vannledninger» (side 260), og skjøten er en matriseegenskap, ikke en egen post. Malen brukes altså
+bredere enn posten, og **beskrivelsen sier det eksplisitt**. Design foreslo `UM1` som alternativ, men den referansen
+er opptatt av den eksisterende malen, og design finner ikke opp referanser som ikke står i normen.
+
+✅ **Ingenting står åpent for Kenneth i denne ordren.**

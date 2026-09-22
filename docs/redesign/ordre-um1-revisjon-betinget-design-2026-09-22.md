@@ -108,18 +108,36 @@ kummene bruker, så VA-sporet har én konvensjon; sveiseskjøten bruker den med 
 
 > Drensledningen skal omgis av den filtermassen beskrivelsen angir, og duken skal ligge slik at finstoff ikke vaskes inn i røret. Et drensrør som gror igjen, kan ikke utbedres senere uten å grave opp.
 
-**4. Perforering og retning** — `valg` · **vises for «Drensledning»** · fase **UNDER**
-- Lagt som beskrevet
+**4. Perforeringen vendt opp** — `valg` · **vises for «Drensledning»** · fase **UNDER**
+- Slissene ligger opp
+- Avvik – rettes før omfylling
+
+> Slissene skal ligge opp. Silt og finstoff bygger seg opp fra bunnen av røret, så perforering vendt ned tetter seg igjen — og da kan ledningen ikke utbedres uten å grave opp. Kontroller også at spylepunkter og utløp er der tegningen viser.
+
+🔴 **RETTET 2026-09-22 etter Kenneth: «Opp, silt bygger seg opp fra bunnen».** Designs første utkast lot
+beskrivelsen bestemme retningen og hadde svaret «Lagt som beskrevet». **Det var for svakt** — det finnes en
+hovedregel, og malen skal si den. Både feltnavnet og begrunnelsen er Kenneths, og de skal stå ordrett.
+
+**5. Forankring av bend** — `valg` · **vises for «Vannledning» og «Avløp, trykk»** · fase **UNDER**
+- Forankret som beskrevet – bend over 15° med muffeskjøter
+- Ikke krav – ledningen er sveist, skjøtene er strekkfaste
+- Ikke krav – ingen bend over 15° på denne strekningen
 - Avvik
 
-> Beskrivelsen angir hvordan røret skal ligge — slissene opp eller ned følger av hva ledningen skal drenere. Kontroller også at spylepunkter og utløp er der tegningen viser, slik at ledningen kan spyles senere.
+> Kenneth 2026-09-22: forankring gjelder bend over 15° og trykkledninger med muffer. En sveist PE-ledning får ikke forankring — sveiseskjøtene er strekkfaste og tar kraften selv. En trykkledning skyver seg utover i bend, T-rør, reduksjoner og endelokk, og forankringen skal være på plass før ledningen settes under trykk.
 
-**5. Forankring av bend og avgreininger** — `valg` · **vises for «Vannledning» og «Avløp, trykk»** · fase **UNDER**
-- Forankret eller strekkfaste skjøter, som beskrevet
-- Ikke krav på denne strekningen
-- Avvik
+🔴 **RETTET 2026-09-22 etter Kenneth: «Ja, men jeg tror det må være over 15 grader bend og trykkledninger med
+muffer. sveiste PE ledninger får ikke forankring».** To ting fulgte av det:
 
-> En trykkledning skyver seg ut i bend, T-rør, reduksjoner og endelokk. Beskrivelsen sier om kraften tas opp av mothold eller av strekkfaste skjøter. Forankringen skal være på plass før ledningen settes under trykk.
+1. **15°-grensen og muffekravet er nå i svaralternativene**, ikke bare i hjelpeteksten. Designs «Forankret eller
+   strekkfaste skjøter, som beskrevet» var for løst — det skjulte at de to er ulike tilstander med ulik årsak.
+2. 🔴 **Skjøtemetoden avgjør, men den kan IKKE være forelder her.** Feltet henger på ledningstypen (felt 1), og et
+   barn har bare én forelder. Løsningen er at **«sveist» er et SVAR og ikke en betingelse** — alternativ 2. Det er
+   ærligere enn en to-forelder-konstruksjon, og det dokumenterer *hvorfor* forankring ikke var krevd.
+   **Ikke forsøk å binde feltet til felt 8 «Skjøting».**
+
+**Hjelpeteksten i malen begynner med «Forankring gjelder bend over 15° …»** — Kenneth-attribusjonen over er en
+kildemerknad til mal-Opus og skal ikke inn i malen.
 
 **6. Rør og deler kontrollert** — `valg` *(uendret fra v1, ordrett)*
 
@@ -209,17 +227,30 @@ tre enlinjerne. **Ikke kjør mot test selv.**
 6. Diff: `seed-bibliotek.ts`, `um1-mal.test.ts`, `mal-fasit.snap.md` og SQL-en. Rører du noe annet, meld hvorfor.
 7. Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
 
-## 7. Fagpunkter design gater hos Kenneth før SQL
+## 7. Fagpunkter — ALLE FIRE GATET av Kenneth 2026-09-22
 
-Disse fire er designs forslag, ikke Kenneths ord. De skal stå i ordren slik at mal-Opus kan bygge, men **SQL kjøres ikke
-før Kenneth har sagt ja til dem.** Feiler ett av dem, er det en ren tekstretting i samme branch.
+✅ **SQL-sperren er opphevet.** Alle fire punktene er besvart, og rettingene er gjort i feltene over.
 
-1. **Fall for drensledning.** Design har lagt drensledning i samme gruppe som selvfall, fordi en drensledning også
-   legges med fall. Gjelder de samme ‰-toleransene, eller har drensledning sitt eget krav?
-2. **Perforering — opp eller ned.** Design lar beskrivelsen bestemme, i stedet for å påstå en retning. Er det for
-   forsiktig? Finnes det en hovedregel arbeideren bør minnes på?
-3. **Forankring for vannledning og trykkavløp.** Design antar at begge trenger det. Er «Ikke krav på denne strekningen»
-   et svar som hører hjemme, eller skal forankring alltid være et krav når det er trykk i ledningen?
+1. ✅ **Fall for drensledning: «ja».** De samme ‰-toleransene gjelder. Drensledning blir liggende i samme
+   utløsersett som selvfall, som design foreslo. Ingen endring.
+2. ✅ **Perforering: «Opp, silt bygger seg opp fra bunnen».** Feltet er omskrevet — se felt 4. Design lot
+   beskrivelsen bestemme; det var for svakt, og hovedregelen står nå i malen med Kenneths begrunnelse.
+3. ✅ **Forankring: «Ja, men … over 15 grader bend og trykkledninger med muffer. sveiste PE ledninger får ikke
+   forankring».** Feltet er omskrevet — se felt 5. 15°-grensen og muffekravet ligger i svaralternativene, og
+   «sveist» er et **svar** og ikke en betingelse, fordi et barn bare kan ha én forelder.
+4. ✅ **Emnefeltet for ledning:** emnet er kumnavnene med «til» mellom — `SP-04 til SP-05`. Går strekningen ikke
+   mellom to kummer, brukes ledningstype og peler: `VL P120 til P180`. Kenneth: «skillet går på vannledning og
+   spillvannsledning i tillegg til pel nummer» og «SP-04–SP-05 er litt mange dash».
+
+## 7b. ✅ Fasemålingen (§ 4) er BESVART — POSITIV
+
+**Mal-Opus, levert i `relay/inbox-design.md` 2026-09-22:** ja, et barn kan ha annen fase enn forelderen. Verste
+tilfelle — forelder UNDER, barn ETTER — er empirisk bekreftet i `byggBibliotekRader`, `skriv-mal`, generator-SQL og
+en ekte Postgres parse-test med self-FK på `parent_id`. Trekoblingen er uavhengig av rekkefølge, barnet vises under
+sin egen ETTER-overskrift, og self-FK-en holder på tvers av fasegrensen.
+
+**Ingen stopp-og-meld.** UM1 v2, UM1.1 og UP-delingen kan bygges med fasene som beskrevet. Tre ikke-blokkerende
+edger står i relay-leveransen.
 4. ~~**Emnefeltet for ledning.**~~ **Avklart 2026-09-22, se felt 1:** emnet er kumnavnene med «til» mellom —
    `SP-04 til SP-05`. Går strekningen ikke mellom to kummer, brukes ledningstype og peler: `VL P120 til P180`. Selve
    sveiseskjøten dokumenteres i egen mal med `VL P120`. Kenneth: «skillet går på vannledning og spillvannsledning i
