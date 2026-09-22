@@ -644,9 +644,9 @@ ikke løses i malbranchen.**
    avvik — fire maler i alt, se § B1 og § B5.
 2. **Årsakslisten** i felt 2 — åtte valg, designs forslag. Mangler noen? Er noen overflødige? Listen skal
    være kort nok å velge fra på telefon i en grøft.
-3. **Felt 5, trafikkavvikling** — hører den i en byggelederrapport, eller er den ren HMS og skal ut? Design har
-   tatt den inn som byggelederens **observasjon**, ikke som HMS-behandling, men grensen er din (MAL-METODE
-   §1d).
+3. ✅ **Felt 5, sikring og orden: GATET 2026-09-22 — «ta det med».** Feltet blir stående i begge maler, som
+   byggelederens **observasjon** og ikke som HMS-behandling. Avvik meldes fortsatt i HMS-sporet (MAL-METODE §1d) —
+   den grensen står.
 4. **Ansvarsside pr. årsak** (designnotatet § 4c) er **ikke** i denne malen. Den hører i rapporten og
    uttrekket, ikke i utfyllingen — byggelederen skal registrere hva som skjedde, ikke hvem som skal betale.
    Bekreft at det er riktig.
