@@ -1,0 +1,214 @@
+# Ordre: byggelederens befaringsrapport — trasé og pel som identitet, dekning som visning
+
+**Til:** cowork fordeler — **Del A** til app-sporet, **Del B** til mal-Opus · **Fra:** design · **Dato:** 2026-09-22
+**Branch-forslag:** `feat/befaringsrapport` (Del A) og `feat/mal-befaring` (Del B) fra `origin/develop`.
+**Gatet av Kenneth 2026-09-22:** «vei → 100 m, VA → kumgruppe-spenn. skriv ordren.»
+**Bakgrunn:** `docs/redesign/designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md`
+§ 4c–4e. Les den først — den bærer formålet, fargedefinisjonen og prinsippet.
+
+---
+
+## 1. Hvorfor
+
+Kenneth 2026-09-22:
+
+> «jeg har nettopp besluttet at jeg trenger å lage en sjekkliste som byggeleder til vei eller VA prosjekter.
+> Sjekklisten startes → den lager en rapport som oppgave pr 100 pel meter og fordeles pr trase/vei … hvorfor
+> ikke bare en sjekkliste som dekker hele prosjektet → fordi det blir kanskje vanskelig å finne rapportene som
+> gjelder et strekk»
+
+**Formålet er ikke et dashbord — det er bevis til sluttoppgjøret** (designnotatet § 4c). Kenneth:
+«når sluttoppgjøret kommer → ta frem alle rapporter med gul og rød fremdrift → det kan være med å forklare
+hvorfor et prosjekt er forsinket → men det krever gode rapporter».
+
+**Frekvens, gatet:** 2–3 ganger ukentlig, med månedlig oppsummering (egen BACKLOG-post).
+
+---
+
+# Del A — identitet og dekning (app-sporet)
+
+## A1. Problemet Kenneth stilte, og svaret
+
+> «hva gjør jeg dersom jeg er på pel 100, da trenger jeg å dokumentere P 50-150 → hvordan løser jeg det?»
+
+**Faste 100-metersbolker som *beholdere* løser det ikke:** arbeidsstuffen ligger sjelden pent inne i en bolk, og
+da må byggelederen enten skrive to rapporter eller velge en bolk vilkårlig. Begge er feil.
+
+🔴 **Løsningen er å skille hvor rapporten gjelder fra hvordan den finnes igjen:**
+
+- **Intervallet ligger på rapporten.** Én rapport: `Austadvegen P 50–150`.
+- **Inndelingen er en indeks, ikke en beholder.** Rapporten treffer **hver** bolk den overlapper — både
+  0–100 og 100–200. Søk på pel 120 finner den; søk på pel 60 finner den samme.
+
+**Overlapp, ikke innhold.** Da trenger ikke arbeidet passe til rutenettet.
+
+## A2. Identitetsmodellen
+
+| Nivå | Påkrevd | Eksempel |
+|---|---|---|
+| Trasé eller vei | **ja** | Austadvegen |
+| Strekning fra–til | nei | P 50–150 |
+
+**Tomt intervall er gyldig.** Kenneth: «Dersom det ikke pågår arbeid i austadvegen kan rapporten bli kun
+austadvegen, en oppgave for den delen.» En trasé-rapport uten pel er like gyldig som en med.
+
+**Indeksen følger arbeidets egen enhet — gatet av Kenneth 2026-09-22:**
+
+| Prosjekttype | Indeks |
+|---|---|
+| **Vei** | 100 m pel |
+| **VA** | **kumgruppe-spenn** |
+
+**Grunnen til at VA ikke bruker 100 m:** kumgrupper står 60–80 m fra hverandre, satt av hvor langt
+rørinspeksjonstraktoren rekker å filme (Kenneth 2026-09-22). Den naturlige strekningen i et VA-prosjekt er
+kum til kum, og **emnet for den er alt låst**: `SP-04 til SP-05` (se UM1 v2-ordren). Da kobler
+befaringsrapporten seg rett på kum- og strekningsdokumentene uten oversetting.
+
+🔴 **Emnekonvensjonen er koblingsnøkkelen for hele fremdriftssporet** (designnotatet § 4d). Bruk den; ikke
+innfør en parallell stedsnøkkel.
+
+## A3. Dekning er en VISNING, ikke forhåndslagde oppgaver
+
+Kenneths skisse sier at sjekklisten «lager en rapport som oppgave pr 100 pel meter». **Design anbefaler å ikke
+opprette dem på forhånd**, og begrunnelsen skal stå i leveransen så Kenneth kan overprøve den:
+
+- Et 1100-metersprosjekt gir 11 bolker **pr. trasé**. Med 2–3 rapporter i uken fyller tomme oppgaver listen
+  på en måned.
+- **En tom oppgave lyver om status** — den ser ut som uferdig arbeid, og den forsvinner ikke av seg selv.
+
+**I stedet:** rapporten opprettes når byggelederen er der, og **rutenettet regnes ut fra rapportene** som en
+dekningsvisning.
+
+🔴 **Dekningsvisningen er der sluttoppgjørsverdien ligger: den viser hullene.** «Austadvegen P 300–400, ingen
+rapporter i mai» er et hull som kan lukkes mens noen husker hvorfor — eller forklares. Det er Kenneths eget
+krav om **ubrutt serie** (designnotatet § 4c), gjort synlig.
+
+## A4. Utfylling på stedet
+
+GPS vet omtrent hvor byggelederen står. Skjermen **foreslår** `Austadvegen P 50–150` ferdig utfylt, og han
+justerer. Ett trykk.
+
+🔴 **Prinsippet for hele sporet (designnotatet § 4e): SiteDoc foreslår, mennesket forplikter seg.** Forslaget
+skal aldri lagres uten at han har bekreftet det.
+
+## A5. Dette skal måles, ikke antas — meld i leveransen
+
+1. **Hvor bor trasé og strekning?** Dokumentet har i dag lokasjon via byggeplass og tegning, og emnefeltet
+   bærer identiteten for kum og strekning. Skal trasé være en **byggeplass**, et **område**
+   (`KontrollplanPunkt.omradeId`), eller noe nytt? **Mål hva som finnes før du innfører en ny modell.** Design
+   heller mot å gjenbruke det som finnes, men vil ikke velge uten målingen.
+2. **Er pel et tall eller en streng?** `P 50–150` må kunne sorteres og overlappsøkes numerisk. Lagres det som
+   tekst i emnet, virker ikke overlappsøket. Meld hva som kreves.
+3. **Offline.** Byggelederen står i en grøft. Oppretting og utfylling må virke uten nett, som for
+   sjekklistene.
+4. **Kan et dokument ha to indekstreff** uten at noe i arkivet eller utskriften teller det dobbelt? Sjekk
+   sammenstillingen.
+
+## A6. Rammer og DoD (Del A)
+
+- Ingen endring i `packages/db/prisma` uten at § A5 pkt 1 er målt og meldt først.
+- **Rød først** på overlappsøket: en rapport `P 50–150` skal treffe bolk 0–100 **og** 100–200, og **ikke**
+  200–300.
+- **Rød først** på dekningsvisningen: et hull skal vises som hull, og en trasé-rapport uten pel skal ikke
+  fylle noen bolk.
+- Prod-gaten røres ikke. Gate-tall via `pnpm exec turbo run test --force`, web build og mobil typecheck.
+- **Tekstbevis:** overlappstabellen gjengitt fra en test. Ingen skjermbilder.
+- Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
+
+---
+
+# Del B — befaringsmalen (mal-Opus)
+
+## B1. Plasseringen er et vedtak, ikke en begrensning
+
+**Dette er ikke en NS 3420-mal.** Den beskriver byggelederens egen befaring, ikke en post i en
+mengdebeskrivelse.
+
+**Målt av design 2026-09-22:** `BibliotekStandard.kode` er en **fri unik streng**
+(`schema.prisma:2283`) — biblioteket kan altså bære en ikke-NS-standard. Det er teknisk mulig.
+
+🔴 **Men det legger en ny node øverst i bibliotektreet, og det er Kenneths vedtak.** Se § B4. **Ikke opprett
+noen standard før vedtaket er gatet.**
+
+## B2. Malen
+
+Fasene FØR/UNDER/ETTER passer dårlig på en befaring — den er én tilstandsvurdering på ett tidspunkt. Bruk
+dem likevel som i alle andre maler (strukturen er delt), med hoveddelen i **UNDER**.
+
+**1. Fremdrift** — `valg` · **forelder for felt 2**
+- Grønn – normal fremdrift
+- Gul – manglende fremdrift
+- Rød – ingen eller svært svak fremdrift
+
+> Skriv trasé og strekning i emnefeltet, slik de står på tegningen: Austadvegen P 50–150 for vei, SP-04 til SP-05 for VA-strekning. Står det ikke arbeid i traseen, skriv bare traseen. Grønn krever ingen forklaring. Gul og rød krever at du sier hva som ikke fungerer.
+
+🔴 **Fargedefinisjonen er Kenneths og skal stå ordrett** (designnotatet § 4c): grønn = normal fremdrift · gul =
+manglende fremdrift, **forklar hva som ikke fungerer optimalt** · rød = ingen eller svært svak fremdrift,
+**forklar** — er det ingen arbeidere på anlegget?
+
+**2. Årsak** — `valg` · **vises for «Gul» og «Rød»**
+- Ingen mannskap på anlegget
+- Venter på leveranse
+- Venter på godkjenning eller befaring
+- Fjell eller grunnforhold
+- Vær
+- Maskinstans
+- Omdisponert til annet arbeid
+- Annet – forklar i kommentaren
+
+> Velg årsaken som veier tyngst. Er det flere, skriv de øvrige i kommentaren. Årsakene telles over tid, og da svarer de på om det er leveranser eller bemanning som er det egentlige problemet — det gjør de ikke hvis alt havner i fritekst.
+
+🔴 **Årsakslisten er designs forslag, ikke Kenneths ord**, med unntak av «ingen mannskap på anlegget», som er
+hans eget eksempel. Den gates før SQL — se § B4.
+
+**3. Arbeid som pågår på strekningen** — `valg`
+- Graving og grøft
+- Ledningslegging
+- Kum eller kumgruppe
+- Gjenfylling og komprimering
+- Dekke, kantstein eller asfalt
+- Ingen aktivitet
+- Annet – se kommentaren
+
+> Hva som faktisk foregikk da du var der. Feltet gjør rapportene sammenlignbare over tid, og det er det som viser når en aktivitet står stille fra uke til uke.
+
+**4. Posisjon dokumentert med bilde** — `trafikklys`
+
+> Ta bilde med posisjon slått på. Bildene knyttes til strekningen og kan vises på tegningen etterpå.
+
+**5. Trafikkavvikling og sikring av grøft** — `valg`
+- I orden
+- Avvik – varslet
+- Ikke aktuelt her
+
+> Gjelder byggelederens observasjon av at skilting, gjerder og grøftesikring er på plass. Dette er en observasjon, ikke en HMS-behandling — avvik meldes i HMS-sporet.
+
+**6. Befaringen er ført og sendt** — `trafikklys`
+
+> Rapporten er datert, ført og sendt til motparten. En rapport som ikke er sendt, finnes ikke i et sluttoppgjør.
+
+## B3. Rammer og DoD (Del B)
+
+- Vedtaket i § B4 må være gatet **før** standarden eller malen opprettes.
+- **Strukturtest:** årsaksfeltet er barn av fremdriftsfeltet, med **to** utløsere (Gul, Rød), og er ikke
+  alltid synlig. Rød først. Bruk `forgrening` og `BETINGELSE_EGEN_NOKKEL`, aldri `conditionValues`.
+- §7b: ingen `NS 3420`, `NS-EN`, `Matrise`. Ingen i18n-nøkler.
+- Fasit (§8) og `skriv-mal` viser treet. Gate-tall via `pnpm exec turbo run test --force`.
+- SQL: **ikke kjør mot test selv.** Parse-test mot engangsdatabase, slett den, lever de tre enlinjerne.
+- Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
+
+## B4. Hva Kenneth skal ta stilling til før SQL
+
+1. 🔴 **Hvor bor malen?** Den er ikke en NS 3420-post. Designs forslag: **ny standard `BYGGELEDELSE`** med
+   kapittel for befaring — teknisk mulig (§ B1), men det legger en ny node øverst i bibliotektreet. Alternativ:
+   den bor som firmamal utenfor biblioteket. **Design anbefaler egen standard**, fordi befaringsrapporten skal
+   kunne lånes og revideres på samme måte som de andre malene — men konsekvensen for malvelgeren er Kenneths
+   å veie.
+2. **Årsakslisten** i felt 2 — åtte valg, designs forslag. Mangler noen? Er noen overflødige? Listen skal
+   være kort nok å velge fra på telefon i en grøft.
+3. **Felt 5, trafikkavvikling** — hører den i en byggelederrapport, eller er den ren HMS og skal ut? Design har
+   tatt den inn som byggelederens **observasjon**, ikke som HMS-behandling, men grensen er din (MAL-METODE
+   §1d).
+4. **Ansvarsside pr. årsak** (designnotatet § 4c) er **ikke** i denne malen. Den hører i rapporten og
+   uttrekket, ikke i utfyllingen — byggelederen skal registrere hva som skjedde, ikke hvem som skal betale.
+   Bekreft at det er riktig.
