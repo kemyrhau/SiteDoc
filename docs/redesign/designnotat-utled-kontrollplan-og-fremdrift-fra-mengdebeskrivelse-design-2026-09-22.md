@@ -180,6 +180,41 @@ gått, men fordi det så at ingenting skjedde.
 Ratebasert varsling kommer etter at raten er målt på noen prosjekter; da er den reell og firmaets egen.
 Dette er tatt inn i rekkefølgen i § 7.
 
+### 🔴 Hva som faktisk gikk galt — og hvor bibliotekets grense går
+
+Design spurte om en sjekkliste ville fanget det rotete strekket. **Kenneth 2026-09-22: nei.**
+
+> «en sjekkliste ville ikke fanget rotet → entreprenøren skulle spare penger på å sprenge hele strekket i en
+> runde fordelt på flere boringer og salver istedenfor fortløpende graving, boring, sprenging og uttak av
+> stein»
+
+**Arbeidet var ikke dårlig utført — rekkefølgen var feil valgt, før arbeidet begynte.** Det er et
+metodevalg, og en KS-sjekkliste stiller ikke det spørsmålet. Det er den samme grensen Kenneth selv satte
+(MAL-METODE §1d): KS behandler kvaliteten på levert arbeid.
+
+**Det er riktig at biblioteket ikke fanger dette, og grensen skal stå.** Sjekklistene dokumenterer at
+arbeidet er riktig utført; utledningen fanger at arbeidet ikke blir gjort. To ulike jobber, og ingen av dem
+skal late som den gjør den andres.
+
+**Men signaturen til et blokkert strekk er skarpere enn stopp-varsling alene:**
+
+| Situasjon | Timer | Godkjente dokumenter |
+|---|---|---|
+| Normal, treg fremdrift | går | kommer, bare sakte |
+| **Blokkert arbeidsstuff** | **går** | **står stille** |
+| Stans i arbeidet | står | står |
+
+🔴 **Kombinasjonen «timer går, dokumenter står» er detektoren.** Den skiller et metodevalg som blokkerer
+stuffen fra ren treghet **og** fra en planlagt stans — og den trenger verken rate eller kvalitetsvurdering.
+Begge tallene finnes: timer ført på prosjektet i dagsseddelen, og godkjente dokumenter pr. strekning.
+
+Med 60 m fylt av sprengt stein som ikke er tatt ut, blir ingen strekning ferdig mens timene løper. Tre uker
+inn ville det vært synlig.
+
+**Observasjon design ikke gjør noe med:** et metodevalg som dette hører i en sprengningsplan eller
+metodebeskrivelse, ikke i en sjekkliste. Om SiteDoc skal ha en slik dokumenttype, er et annet spørsmål enn
+malbiblioteket — notert her for at det ikke skal bli borte.
+
 ### Dette snur hva planen er til for
 
 Modellen kan ikke forutse at en entreprenør roter et strekk, og skal ikke prøve. **Den kan gjøre det synlig
@@ -228,8 +263,9 @@ Rekkefølge design anbefaler:
 1. **Oppslaget** `nsKode` → mal-referanse (lengste prefiks). Målbart alene: hvor mange poster i et
    virkelig prosjekt treffer en mal? Det tallet avgjør om resten er verdt å bygge.
 2. **Punktutledning** fra poster med treff, med antall fra `mengdeAnbud` og enhet.
-3. **Stopp-varsling** — ingen godkjente dokumenter på et strekk i N uker. **Rate-fri**, og fanger tilfellet
-   som kostet Kenneth 2,5 måned (§ 4b).
+3. **Stopp-varsling** — ingen godkjente dokumenter på et strekk i N uker, **mens timer føres på prosjektet**.
+   **Rate-fri**, og fanger tilfellet som kostet Kenneth 2,5 måned (§ 4b). Timekravet er det som skiller et
+   blokkert strekk fra en planlagt stans, og som gjør varselet verdt å stole på.
 4. **Måling av raten** fra dagsseddel på et ferdig prosjekt, ikke et anslag i en tabell.
 5. **Ratetabellen** firmaet eier, fylt fra steg 4, med antall ledninger som parameter.
 6. **Fristene** fra ratene, skrevet til `fristUke`/`fristAar`.
@@ -259,7 +295,8 @@ systematisk halv byggetid.
    → jeg har ikke prøvd å utlede tallet». Raten er et anslag. Design har utledet ~2,9–3,2 m/dag fra
    1100-metersprosjektet (§ 4b), med forbehold om at laget sto der sammenhengende. **Nytt spørsmål:**
    ligger det prosjektet i SiteDoc med timer, slik at raten kan måles fra dagsseddelen?
-6. **Hva ble rotet på det strekket?** Var det noe en sjekkliste ville fanget — fundament, komprimering,
-   ledning på skolinger, en skjøt som ikke holdt — er det det sterkeste argumentet for hele biblioteket.
-   Var det fjell, grunnvann eller ukjent kabel, hører det under forholdstillegget på raten i § 6. Design
-   har ikke svaret og gjetter ikke.
+6. ~~**Hva ble rotet på det strekket?**~~ **Besvart 2026-09-22:** et metodevalg, ikke en kvalitetsfeil — hele
+   strekket skulle sprenges i én runde i stedet for fortløpende syklus. **En sjekkliste ville ikke fanget
+   det, og skal ikke gjøre det.** Se § 4b. Funnet ga i stedet detektoren «timer går, dokumenter står».
+   **Nytt spørsmål:** skal metodebeskrivelse eller sprengningsplan være en egen dokumenttype i SiteDoc?
+   Design foreslår ingenting nå — spørsmålet er notert så det ikke blir borte.
