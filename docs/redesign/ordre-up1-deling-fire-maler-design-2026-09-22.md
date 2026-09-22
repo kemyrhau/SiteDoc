@@ -1,4 +1,4 @@
-# Ordre: UP1 deles i tre maler — nedstigningskum, sandfangkum og nedgravd ventil
+# Ordre: UP1 deles i fire maler — nedstigningskum, inspeksjonskum, sandfangkum og nedgravd ventil
 
 **Til:** mal-Opus · **Fra:** design · **Dato:** 2026-09-22
 **Metode:** MAL-METODE §1, §1c, §1e, §6a, §6b, §7b, §8 og §8b.
@@ -6,7 +6,7 @@
 forutsetningen.
 **Gatet av Kenneth 2026-09-22:** kumtypene og forkortelsene · at renneløp er felles for SP/OV/AF · at brannkum
 **ikke** er egen type men en egenskap ved ventilen · at Baio-kum er en nedgravd ventil med gatelokk · og til sist
-**«ja, del UP1 i tre maler»**.
+**«ja, del UP1 i tre maler»** og **«ja, ta UP2 som fjerde mal»**.
 
 **Normgrunnlag lest av design 2026-09-22** i `kilder/ns3420/NS 3420 Del U Rørinstallasjoner.pdf` (NS 3420-U:2019).
 Normsidene står i § 3.
@@ -28,12 +28,12 @@ er avslått av Kenneth — «jeg tror vi effektiviserer litt for langt». **Ikke
 Kapittel UP deler etter konstruksjon, og sandfang er en egen post. Baio-kummen er ikke en kum i det hele tatt —
 den er en ventil, i et annet kapittel.
 
-**Kenneth 2026-09-22: «ja, del UP1 i tre maler.»**
+**Kenneth 2026-09-22: «ja, del UP1 i tre maler.»** Og kort etter: **«ja, ta UP2 som fjerde mal.»** Fire maler.
 
 🔴 **Delingen er også en forutsetning for kontrollplan-utledningen** — se
 `designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md` § 2. Utledningen slår
 opp mal fra NS-koden i mengdebeskrivelsen ved lengste prefiks. Det virker bare når **mal og post er samme ting**.
-En mal som dekker tre poster, kan ingen utledning treffe.
+En mal som dekker fire poster, kan ingen utledning treffe.
 
 ## 2. Terminologi — gatet av Kenneth, bruk ordrett
 
@@ -73,11 +73,10 @@ malene.**
 **Følgene:** sandfang hører i UP3, ikke i UP1 · Baio-kummen hører i UO2.1, ikke i UP-kapittelet i det hele tatt ·
 og brannkumskiltet har sin egen post, UP8.2, som bekrefter at skiltet er noe eget.
 
-🔴 **UP2 «Inspeksjonskummer» — et hull design melder og ikke skjuler.** v1 hadde «Inspeksjonskum» som
-svaralternativ. Med delingen faller det ut av UP1, fordi UP1 er nedstigningskummer. **Design har IKKE lagt det
-inn i noen av de tre malene**, og anbefaler en **fjerde mal `UP2` senere** — samme mønster som de andre. Til den
-finnes, dekkes en inspeksjonskum av «Annen kum» i UP1. Kenneth gatet tre maler; dette er meldt som neste steg,
-ikke bygget.
+✅ **UP2 «Inspeksjonskummer» — meldt som hull, og gatet i samme runde.** v1 hadde «Inspeksjonskum» som
+svaralternativ. Med delingen falt det ut av UP1, siden UP1 er nedstigningskummer. Design meldte hullet og
+anbefalte en fjerde mal; **Kenneth gatet den umiddelbart: «ja, ta UP2 som fjerde mal.»** Malen står i § 6b, og
+ingen inspeksjonskum havner dermed i «Annen kum».
 
 ## 4. Dette skal måles før du bygger — og meldes
 
@@ -91,9 +90,9 @@ og her gjelder det både barn og barnebarn.
   stilling, ikke du.
 - Verste tilfelle: skiltet i UO2.1, der forelderen er UNDER og barnet ETTER.
 
-## 5. 🔴 Basisfeltene deles av alle tre malene — ordrett
+## 5. 🔴 Basisfeltene deles av alle fire malene — ordrett
 
-Ni felt gjelder enhver nedsetting i grøft og skal være **ord for ord identiske** i alle tre maler:
+Ni felt gjelder enhver nedsetting i grøft og skal være **ord for ord identiske** i alle fire maler:
 
 | # | Felt | Type |
 |---|---|---|
@@ -118,7 +117,7 @@ malene. Rød først. Uten den drifter de fra hverandre ved første revisjon av �
 sammenligne kontrollen av to kummer i samme grøft. Samme regel som gjorde at fasitfilen ble innført.
 
 🔴 **B4 «Skjøter og gjennomføringer» passer dårlig på en nedgravd ventil.** Bygg det likevel som alltid synlig i
-alle tre — design gater det etter bruk. **Ikke forgren det på eget initiativ.**
+alle fire — design gater det etter bruk. **Ikke forgren det på eget initiativ.**
 
 ---
 
@@ -183,7 +182,65 @@ tretten · annen kum ti.
 
 ---
 
-## 7. Mal 2 — `UP3` «Sandfangkum og hjelpesluk» (NY)
+## 6b. Mal 2 — `UP2` «Inspeksjonskum i grunnen» (NY)
+
+**Gatet av Kenneth 2026-09-22: «ja, ta UP2 som fjerde mal.»** Dermed er hullet i § 3 lukket i samme runde, og
+ingen inspeksjonskum havner i «Annen kum».
+
+```
+kapittelKode: "UP"
+referanse:    "UP2"
+navn:         "UP2 – Inspeksjonskum i grunnen"
+beskrivelse:  "Setting av inspeksjonskum i grunnen — materiale, gjennomløp, skjøt, fundament, omfylling, ramme og lokk. Én kum per sjekkliste. Faglig grunnlag: NS 3420-U:2019, post UP2."
+```
+
+**Normgrunnlaget (normside 347):** UP2.1 er inspeksjonskum **av plast** med gjennomløp (rett, med én avgrening,
+med to avgreninger) og diameter DN 315–630. UP2.2 er **av betong** med kumskjøt (falsskjøt med glidering, eller
+not og fjær) og gjennomløp (rett, rett med plastliner, Y, Y med plastliner). **Materialet er det som avgjør hvilke
+krav som gjelder** — derfor er det forelderen.
+
+**1. Materiale** — `valg` · **forelder for felt 3 og 4**
+- Plast
+- Betong
+
+> Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel SP-07. Bruk samme skrivemåte gjennom hele prosjektet. Materialet avgjør hvilke kontrollpunkter som vises under.
+
+**2. Gjennomløp og fall** — `valg`
+- Riktig gjennomløp og jevnt fall
+- Avvik
+
+> Gjennomløpet skal være det beskrivelsen angir — rett, med avgreining, eller Y — med jevnt fall gjennom kummen. Kontroller mot tegningen at avgreiningene peker rett vei før omfylling.
+
+**3. Oppføringsrør og form** — `valg` · **vises for «Plast»**
+- Kappet i riktig høyde, røret er rundt og uskadd
+- Avvik
+
+> Oppføringsrøret kappes så rammen får jevnt anlegg og lokket kommer i riktig høyde. Kontroller at røret ikke er blitt ovalt av gravemaskin eller ensidig omfylling — en deformert kum kan ikke spyles eller filmes.
+
+**4. Kumskjøt og plastliner** — `valg` · **vises for «Betong»**
+- Skjøt som beskrevet, liner hel der den er krevd
+- Avvik
+
+> Skjøten er falsskjøt med glidering eller not og fjær, etter beskrivelsen. Er gjennomløpet beskrevet med plastliner, kontroller at lineren er hel og at overgangen mot røret er tett. Krav om T-merking dekkes av kontrollen av kum og deler.
+
+🔴 **Siste setning i felt 4 er der for å unngå dobbeltføring:** T-merking står i basisfeltet B1, og skal ikke
+spørres om to ganger. **Legg den ikke inn her.**
+
+**5. Kummen kan spyles og inspiseres fra overflaten** — `trafikklys`
+
+> En inspeksjonskum er for liten å gå ned i — hele hensikten er at ledningen kan spyles og filmes herfra. Kontroller at det er fri passasje ned og at gjennomløpet er rent før lokket legges på.
+
+**Deretter basisfeltene B1–B9** (§ 5), i samme rekkefølge som i UP1.
+
+**Struktur:** 14 felt. Tolv alltid synlige (1, 2, 5, B1–B9). Plast viser tretten, betong tretten.
+
+🔴 **Ingen nedstigningsfelt.** Malen skal **ikke** ha mellomdekke, stige eller nedstigningsåpning — kummen er
+DN 315–630 og kan ikke gås ned i. Det er nettopp det som skiller den fra UP1, og feltet «kummen kan spyles og
+inspiseres fra overflaten» er konsekvensen.
+
+---
+
+## 7. Mal 3 — `UP3` «Sandfangkum og hjelpesluk» (NY)
 
 ```
 kapittelKode: "UP"
@@ -215,7 +272,7 @@ skille den ut.
 
 ---
 
-## 8. Mal 3 — `UO2.1` «Nedgravd stengeventil» (NY, NYTT KAPITTEL)
+## 8. Mal 4 — `UO2.1` «Nedgravd stengeventil» (NY, NYTT KAPITTEL)
 
 ```
 kapittelKode: "UO"
@@ -272,42 +329,47 @@ beskrivelsen for at fagfolk skal kjenne den igjen.
 
 ## 9. Rammer
 
-- §7b-sjekk i `up1-mal.test.ts`, `up3-mal.test.ts` og `uo2-1-mal.test.ts`: ingen `Matrise`, `NS-EN`, `NS 3420`,
-  ingen referanse som prefiks i feltnavn, og **ingen forekomst av «bajonett»**. Forkortelsene SP, OV, AF, V og SF
-  er prosjekteringsbetegnelser og er tillatt (§7c).
-- **Strukturtest pr. mal:** UP1 — renneløp har **tre** utløsere, ventil **én**, skiltet er barn av
-  uttaksfeltet og ikke av typefeltet. UP3 — **ingen** forgrening, alle felt alltid synlige. UO2.1 — skiltet er
-  barn av uttaksfeltet. Rød først.
-- **Delt-tekst-test** på basisfeltene (§ 5). Rød først.
+- §7b-sjekk i `up1-mal.test.ts`, `up2-mal.test.ts`, `up3-mal.test.ts` og `uo2-1-mal.test.ts`: ingen `Matrise`,
+  `NS-EN`, `NS 3420`, ingen referanse som prefiks i feltnavn, og **ingen forekomst av «bajonett»**.
+  Forkortelsene SP, OV, AF, V og SF er prosjekteringsbetegnelser og er tillatt (§7c).
+- **Strukturtest pr. mal:** UP1 — renneløp har **tre** utløsere, ventil **én**, skiltet er barn av uttaksfeltet og
+  ikke av typefeltet. UP2 — materialet er forelder, oppføringsrør bare for plast og kumskjøt bare for betong.
+  UP3 — **ingen** forgrening, alle felt alltid synlige. UO2.1 — skiltet er barn av uttaksfeltet. Rød først.
+- **Delt-tekst-test** på basisfeltene (§ 5), på tvers av **alle fire**. Rød først.
+- 🔴 **Negativ test i UP2:** malen skal **ikke** inneholde mellomdekke, stige eller nedstigningsåpning, og **ikke**
+  T-merking i felt 4 (dekkes av B1). Negative krav glemmes oftest — de skal testes.
 - Utløsere ligger på barnets **eget** sett (`BETINGELSE_EGEN_NOKKEL`), aldri `conditionValues`. Bruk
   `forgrening`.
-- Fasit (§8) og `skriv-mal` viser trærne for alle tre. Ingen i18n-nøkler. Ingen endring i `packages/shared` eller
+- Fasit (§8) og `skriv-mal` viser trærne for alle fire. Ingen i18n-nøkler. Ingen endring i `packages/shared` eller
   appene. Prod-gaten røres ikke. Ingen migrering.
 - Gate-tall via `pnpm exec turbo run test --force`.
 
 ## 10. SQL og DoD
 
-Tre kall: `generer-mal-sql.ts UP1 revisjon` · `UP3 ny` · `UO2.1 ny`. **UO2.1 krever nytt kapittel UO på
-sortering 2 med `--sorter UP=3 --sorter UU=4`.** Lever alt i **én transaksjon pr. mal**, parse-test mot
-engangsdatabase, slett den etterpå, lever de tre enlinjerne pr. fil. **Ikke kjør mot test selv.**
+Fire kall: `generer-mal-sql.ts UP1 revisjon` · `UP2 ny` · `UP3 ny` · `UO2.1 ny`. **UO2.1 krever nytt kapittel UO
+på sortering 2 med `--sorter UP=3 --sorter UU=4`.** UP2 og UP3 går i eksisterende kapittel UP og trenger ingen
+`--sorter`. Lever alt i **én transaksjon pr. mal**, parse-test mot engangsdatabase, slett den etterpå, lever de
+tre enlinjerne pr. fil. **Ikke kjør mot test selv.**
 
 **DoD:**
 1. Målingen i § 4 besvart — fase på barn og barnebarn mot forelder. Er svaret nei, er malene ikke bygget: meld.
-2. Tre maler som over, ordrett, med riktige foreldre og utløsersett.
-3. Basisfeltene identiske, låst av delt-tekst-testen.
-4. Strukturtester og §7b-sjekker grønne, fasit oppdatert i samme branch.
-5. **Tekstbevis:** `skriv-mal` for alle tre limt i leveransen, som viser hvilke svar som utløser hvilke felt.
+2. **Fire** maler som over, ordrett, med riktige foreldre og utløsersett.
+3. Basisfeltene identiske på tvers av alle fire, låst av delt-tekst-testen.
+4. Strukturtester, negativ test i UP2 og §7b-sjekker grønne, fasit oppdatert i samme branch.
+5. **Tekstbevis:** `skriv-mal` for alle fire limt i leveransen, som viser hvilke svar som utløser hvilke felt.
 6. Kapittel-innsettingen meldt: hvilke søstre ble flyttet, og at ingen lånt mal mistet sin plass.
 7. Gate-bygg med gate-tall.
-8. Diff: `seed-bibliotek.ts`, de tre testfilene, `KAPITTEL_DATA_U`, `mal-fasit.snap.md` og SQL-filene. Rører du
-   noe annet, meld hvorfor.
+8. Diff: `seed-bibliotek.ts`, de **fire** testfilene, `KAPITTEL_DATA_U`, `mal-fasit.snap.md` og SQL-filene. Rører
+   du noe annet, meld hvorfor.
 9. Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
 
 ## 11. Åpent for Kenneth før SQL
 
-1. **UP2 «Inspeksjonskum»** (§ 3) — fjerde mal senere, eller dekkes den permanent av «Annen kum» i UP1? Design
-   anbefaler egen mal, av samme grunn som delingen: utledningen fra mengdebeskrivelsen treffer bare når mal og
-   post er samme ting.
+1. ~~**UP2 «Inspeksjonskum»**~~ ✅ **GATET 2026-09-22: «ja, ta UP2 som fjerde mal.»** Malen står i § 6b.
+   **Nytt spørsmål som følger av den:** normen skiller plast (UP2.1) og betong (UP2.2), og design har brukt
+   **materialet** som forelder. Er det riktig skille i praksis, eller er det **gjennomløpet** — rett, avgreining,
+   Y — du først vil vite om? Design valgte materialet fordi normen deler postene der, men du kjenner rekkefølgen
+   arbeideren tenker i.
 2. **«Baio» i beskrivelsen** (§ 8) — normens ord i malen, eller produktnavnet i parentes så fagfolk kjenner den
    igjen?
 3. **Stikkledning fra vannkum.** Kenneth 2026-09-22: «i noen tilfeller ønsker kommunen å koble stikkledninger fra
