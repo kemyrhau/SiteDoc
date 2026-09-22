@@ -3,8 +3,8 @@
 **Til:** mal-Opus · **Fra:** design · **Dato:** 2026-09-22
 **Metode:** MAL-METODE §1, §1c, §1e, §6a, §6b, §7b, §8 og §8b.
 **Branch:** `feat/mal-up1-betinget` fra `origin/develop` **etter at JH2 v2 er merget** — `forgrening` er forutsetningen.
-**Gatet av Kenneth 2026-09-22:** kumtypene, forkortelsene, at renneløp er felles for SP/OV/AF, og at brannkum er
-egen type.
+**Gatet av Kenneth 2026-09-22:** kumtypene, forkortelsene, at renneløp er felles for SP/OV/AF, at brannkum **ikke** er
+egen type men en egenskap ved ventilen, og at Baio-kum kommer inn som type.
 
 Andre mal som bruker betingede felt. JH2 var piloten; her brukes mønsteret på en mal der forgreningen følger **typen
 objekt**, ikke typen underlag.
@@ -36,7 +36,7 @@ Kenneth sorterer på **funksjon**. Derfor byttes listen.
 | Overvannskum | OV | «OV (overvann)» |
 | Felleskum | AF | «AF (Avløp Felles)» |
 | Vannkum | V | «V (vannkum)» |
-| Bajokum | V | «Bajo kum er en nedgravd vannventil med et gatelokk på vei med avstenging og mulighet for brannuttak i enkelte tilfeller» |
+| Baio-kum | V | «Bajo kum er en nedgravd vannventil med et gatelokk på vei med avstenging og mulighet for brannuttak i enkelte tilfeller» |
 | Sandfangkum | SF | «SF (sandfang)» |
 
 **Alle tre avløpskummene (SP, OV, AF) har renneløp i bunnen** — Kenneth 2026-09-22: «alle disse har renneløp i bunnen».
@@ -62,7 +62,7 @@ samme form som JH2 bruker for klebing → trafikk på klebet flate.
 |---|---|
 | SP · OV · AF | Renneløp gjennom kummen |
 | SF | Sandvolum og høyde til utløp · Dykker og tilgang for tømming |
-| V · Bajokum | Hovedventil · Brannvannsuttak på ventilen |
+| V · Baio-kum | Hovedventil · Brannvannsuttak på ventilen |
 | ↳ «Ja – kummen er brannkum» | Brannkumskilt – avstand og retning |
 
 **Hvorfor brannuttaket ligger under vannkummen og ikke i typelisten:** fordi det er slik kummen faktisk er merket.
@@ -110,7 +110,7 @@ Revisjon: `version + 1`.
 - Overvannskum (OV)
 - Felleskum (AF)
 - Vannkum (V)
-- Bajokum – nedgravd ventil med gatelokk (V)
+- Baio-kum – nedgravd ventil med gatelokk (V)
 - Sandfangkum (SF)
 - Annen kum – se beskrivelsen
 
@@ -135,13 +135,13 @@ Revisjon: `version + 1`.
 
 > Dykkeren holder flytende materiale tilbake og skal sitte som beskrevet. Kummen må stå slik at slamsugebil kommer til.
 
-**5. Hovedventil** — `valg` · **vises for Vannkum og Bajokum**
+**5. Hovedventil** — `valg` · **vises for Vannkum og Baio-kum**
 - Riktig type og stilling, spindel kan betjenes
 - Avvik
 
 > Ventiltype og dimensjon står i beskrivelsen. Spindelen skal kunne betjenes fra overflaten, og stillingen skal være som prosjektert ved overlevering. Kontroller at ventilen ikke er skadet under nedsetting. I en nedgravd ventil betjenes spindelen gjennom dekselet — prøv avstengingen før gatelokket legges på plass.
 
-**6. Brannvannsuttak på ventilen** — `valg` · **vises for Vannkum og Bajokum** · **forelder for felt 7**
+**6. Brannvannsuttak på ventilen** — `valg` · **vises for Vannkum og Baio-kum** · **forelder for felt 7**
 - Ja – kummen er brannkum
 - Nei – ordinær vannkum
 
@@ -196,8 +196,8 @@ viser avstand og retning fram til kummen, og det er slik brannvesenet finner den
 |---|---|
 | SP · OV · AF | 11 (renneløp) |
 | Sandfangkum | 12 (sandvolum, dykker) |
-| Vannkum eller Bajokum uten uttak | 12 (ventil, uttaksspørsmål besvart «nei») |
-| Vannkum eller Bajokum med uttak = brannkum | 13 (ventil, uttak, skilt) |
+| Vannkum eller Baio-kum uten uttak | 12 (ventil, uttaksspørsmål besvart «nei») |
+| Vannkum eller Baio-kum med uttak = brannkum | 13 (ventil, uttak, skilt) |
 | Annen kum | 10 |
 
 **Ikke gjør:** «Lokkhøyde mot dekket» **skal ikke** forgrenes på hvor kummen står. Design vurderte det og forkastet det:
@@ -237,17 +237,22 @@ og ikke i typelisten (§2), og at hjelpeteksten om emnefeltet står ordrett — 
 
 ---
 
-## 8. Bajokum — og feilen design gjorde underveis
+## 8. Baio-kum — og feilen design gjorde underveis
 
 Kenneth 2026-09-22: «det er en type → Bajo kum er en nedgravd vannventil med et gatelokk på vei med avstenging og
 mulighet for brannuttak i enkelte tilfeller».
 
 **Design tok først feil på to måter, og rettingen er verdt å lese fordi den viser hvor grensen for malen går:**
 
-1. Design skrev «bajonettkobling». Kenneth: «ikke bajonett → det er en kniv på et våpen». Ordet skal ikke stå noe sted i
-   malen. Typen heter **Bajokum**, og i hjelpetekst beskrives den som **nedgravd ventil med gatelokk**.
+1. Design skrev «bajonettkobling», etter et websøk som slo feil. Kenneth: «ikke bajonett → det er en kniv på et våpen».
+   **Ordet skal ikke stå noe sted i malen.** Riktig skrivemåte er **Baio** — Kenneth viste til leverandørsiden
+   `innva.no/hva-er-baio-systemet/`. Den beskriver Baio som et **bolteløst og korrosjonsfritt system for nedgraving**:
+   spindelforlengere monteres på ventiltoppen og fungerer samtidig som forankring i grunnen, deretter fylles det igjen
+   og betongringer og kumlokk settes over. Muffen tar PVC, PE og støpejern ved å bytte pakning.
+   *(Kilden er leverandørens egen markedsføringsside — den er brukt til å få navn og oppbygging riktig, ikke som
+   kravgrunnlag. Ingen tall eller påstander derfra skal inn i malen.)*
 2. Design antok at typen ikke passer i UP1, fordi en nedgravd ventil mangler kumramme og lokk. **Det er galt** —
-   Bajokummen har gatelokk i vei. Dermed gjelder både lokkets styrkeklasse og lokkhøyden +0/−10 mm mot ferdig dekke, og
+   Baio-kummen har gatelokk i vei. Dermed gjelder både lokkets styrkeklasse og lokkhøyden +0/−10 mm mot ferdig dekke, og
    **ETTER-bolken skal ikke forgrenes.** Typen legges rett inn i listen, og ventil- og uttaksfeltene deles med
    vannkummen via utløsersettet — samme mekanikk som renneløpet deler tre typer.
 
@@ -257,3 +262,13 @@ topplate. Hjelpeteksten dekker begge, se § 5. Ingen nye felt.
 🔴 **Ett spørsmål design gater etter bygging, ikke før:** felt 11 «Skjøter og gjennomføringer» handler om pakninger i
 kumvegg, og passer dårlig på en nedgravd ventil. Bygg det som alltid synlig nå — design tar stilling til om det skal
 forgrenes når Kenneth har sett malen i bruk. **Ikke forgren det på eget initiativ.**
+
+🔴 **Åpent for mal-Opus å svare på, før du bygger felt 1:** Baio er et **produktnavn** fra én leverandør, ikke en
+generisk betegnelse slik Ab og Ska er i asfalt. To spørsmål henger sammen:
+
+1. **Hva sier NS 3420-U:2019 om nedgravd ventil eller armatur i grunnen?** Design har ikke normen tilgjengelig i sitt
+   tre — **du har den**. Slå opp, og meld hvilken post og hvilket ord normen bruker. Hører dette overhodet til UP1
+   («setting av kum»), eller til en armaturpost? Svaret avgjør om typen skal stå i denne malen eller i en egen.
+2. **Skrivemåten i typelisten.** Designs forslag er `Baio-kum – nedgravd ventil med gatelokk`, som beholder ordet
+   fagfolk bruker og samtidig sier hva det er. Finner du normens eget ord, foreslå det i stedet — da slipper malen å
+   bære et varemerke. **Meld, ikke velg.**
