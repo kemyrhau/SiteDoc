@@ -5262,6 +5262,60 @@ direkte fra listen.
 
 ## 3. Fremtidige faser
 
+### 🔴 Befaringsnotat med fremdriftslys → autogenerert månedsrapport (Kenneth 2026-09-22)
+
+**Bestilt av Kenneth 2026-09-22:** *«er det mulig å autogenerere notatene inn i en månedsrapport → dette
+må vi lage en backlogg på»*. Vokste ut av designnotatet
+[designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md](../redesign/designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md),
+som har hele kjeden og målingene. Ikke startet, ikke gatet for bygging.
+
+**Formålet er ikke et dashbord — det er bevis til sluttoppgjøret.** Kenneth: *«når sluttoppgjøret kommer →
+ta frem alle rapporter med gul og rød fremdrift → det kan være med å forklare hvorfor et prosjekt er
+forsinket → men det krever gode rapporter»*. Det avgjør designet: notatet må være et **dokument i
+dokumentflyten**, ikke en redigerbar status. En gul uke som kan endres i ettertid, er verdiløs i et oppgjør,
+og det sterkeste ved flyten er at **motparten mottok den**.
+
+**Delene:**
+
+1. **Befaringsnotat som dokumenttype**, skrevet **2–3 ganger ukentlig** (Kenneths tall — 10–12 i måneden er
+   nok til at en tre-ukers stans ikke kan bortforklares, og lite nok til at hvert notat er ett skjermbilde).
+2. **Fremdriftslys, Kenneths definisjon:** grønn = normal fremdrift, ingen krav · gul = manglende fremdrift,
+   **forklar hva som ikke fungerer optimalt** · rød = ingen eller svært svak fremdrift, **forklar** — er det
+   ingen arbeidere på anlegget? 🔴 **Gul og rød KREVER forklaring.** Det gjør at systemet spør i stedet for å
+   konkludere, og da tåler lyset at datagrunnlaget er omtrentlig.
+3. **Forhåndsdefinert årsaksliste** (ikke fritekst — CLAUDE.md § UI-prinsipper). Designs forslag, ikke gatet:
+   ingen mannskap på anlegget · venter på leveranse · venter på godkjenning eller befaring · fjell eller
+   grunnforhold · vær · maskinstans · omdisponert til annet arbeid · annet (fritekst). Talt over tid svarer
+   listen på om det er leveranser eller bemanning som er problemet.
+4. **Ansvarsside pr. årsak**, **innstillbar pr. kontrakt og aldri hardkodet** — SiteDoc dokumenterer, det
+   avgjør ikke. Ingen juridisk konklusjon i UI.
+5. **Automatisk fargeforslag** fra timer og godkjente dokumenter. 🔴 **Utledningen skal skrive utkastet, ikke
+   dømme.** En omtrentlig rate er god nok til å foreslå en farge et menneske bekrefter, men ikke god nok til
+   å sette en frist. Signaturen på et blokkert strekk er **«timer går, dokumenter står»**.
+6. **Månedsrapport** = sammendragstabell (deterministisk: antall notater pr. farge, dager pr. farge, årsaker
+   talt og gruppert, lengste sammenhengende gule/røde periode, ferdigstilte objekter, timer, berørte
+   strekninger) + **notatene gjengitt ORDRETT med dato** + byggelederens egen oppsummering.
+   🔴 **Ingen AI i beviskjeden.** Sitat er trygt, parafrase er det ikke — motparten leser den setningen nøye.
+7. **Sorterbar liste** på farge, årsak og periode, med uttrekk til sluttoppgjør.
+
+**Hva som finnes fra før (målt 2026-09-22):** `apps/api/src/services/arkiv/sammenstilling.ts` bygger alt et
+samlet dokument fra et sett dokumenter, og `packages/pdf` renderer det — **månedsrapporten er i praksis en
+sammenstilling filtrert på periode og dokumenttype**, pluss aggregeringstabellen. `ftd_spec_posts` har
+`prosentFerdig`, dagsseddelen har timene, og `kontrollplanFremdrift.ts` skiller «pågår» fra «godkjent». Det
+nye er notat-dokumenttypen og tabellen, ikke rapportmotoren.
+
+**Risikoen som avgjør om det virker:** et notat som koster innsats, blir ikke skrevet — og da er serien
+brutt der den betyr mest. Ubrutt serie er ett av fire krav Kenneth selv formulerte; de andre er datert og
+låst, mottatt av motparten, og samme årsaksvokabular hele veien.
+
+**Beslektet, eget spor, ikke designet:** 360-video med GPS-logget rute (Kenneth 2026-09-22, «google
+streetview-versjon til prosjektet»). En GPS-logget rute er en **datert posisjon** og dermed et finere
+fremdriftssignal enn dokumentene — to turer med to ukers mellomrom gir den faktiske raten, målt i stedet for
+gjettet. Tegningsvisningen har alt posisjonsmarkører og bilder GPS-tagges; det som mangler er ruteloggen og
+koblingen posisjon → bildepunkt.
+
+---
+
 Detaljert plan: [arkitektur-syntese.md § 5](arkitektur-syntese.md).
 Beslutningsgrunnlag: [fase-0-beslutninger.md](fase-0-beslutninger.md).
 Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg dokumentert der.

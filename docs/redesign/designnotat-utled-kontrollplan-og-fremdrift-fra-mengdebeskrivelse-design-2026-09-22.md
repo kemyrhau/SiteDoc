@@ -230,6 +230,60 @@ innen en uke. Sammen med `prosentFerdig` på postene og timene i dagsseddelen ha
 En utledet startplan som er feil med ett år, er lite verdt. En baseline som viser at et strekk har stått
 stille i tre uker, er mye verdt — og den tåler at raten er omtrentlig.
 
+## 4c. Fremdriftslyset — og hvorfor det er bevis, ikke dashbord
+
+Kenneth 2026-09-22, under samtalen: «du gir meg en god ide → som byggeleder → trafikklys på fremdrift».
+Design foreslo en definisjon basert på timer og dokumenter. **Kenneths definisjon er bedre, og forskjellen er
+prinsipiell:**
+
+| Lys | Betyr | Krav |
+|---|---|---|
+| **Grønn** | normal fremdrift | ingen |
+| **Gul** | manglende fremdrift | **forklar hva som ikke fungerer optimalt** |
+| **Rød** | ingen eller svært svak fremdrift | **forklar** — er det ingen arbeidere på anlegget? |
+
+🔴 **Gul og rød krever en forklaring. Da konkluderer ikke systemet — det spør.** Et lys som stiller et
+spørsmål, tåler at datagrunnlaget er omtrentlig; et lys som feller en dom, gjør det ikke. Det løser problemet
+design selv pekte på: godkjente dokumenter er for grov takt til å dømme fremdrift uke for uke.
+
+**Forklaringen skal være forhåndsdefinerte valg** (CLAUDE.md § UI-prinsipper), ikke fritekst. Designs
+forslag, ikke gatet: ingen mannskap på anlegget · venter på leveranse · venter på godkjenning eller befaring ·
+fjell eller grunnforhold · vær · maskinstans · omdisponert til annet arbeid · annet (fritekst). Talt over tid
+svarer listen på om det er leveranser eller bemanning som er firmaets problem.
+
+**Formålet er sluttoppgjøret.** Kenneth: «når sluttoppgjøret kommer → ta frem alle rapporter med gul og rød
+fremdrift → det kan være med å forklare hvorfor et prosjekt er forsinket → men det krever gode rapporter».
+
+🔴 **Det avgjør ett designvalg: notatet må være et dokument i dokumentflyten, ikke en redigerbar status.** En
+gul uke som kan endres i ettertid, er verdiløs i et oppgjør. Og det sterkeste ved flyten er ikke låsingen —
+det er at **motparten mottok den**. En gul uke entreprenøren fikk og ikke bestred, veier tungt; et notat i
+byggelederens egen perm veier nesten ingenting.
+
+**Kenneths fire krav til «gode rapporter»:** datert og låst etter sending · mottatt av motparten · **ubrutt
+serie** (er uke 1–10 dokumentert og 11–20 tomme, svekker hullet hele bunken) · samme årsaksvokabular hele
+veien.
+
+**Ansvarsside pr. årsak** gjør summen til et kravgrunnlag i stedet for en følelse — men **den skal være
+innstillbar pr. kontrakt og aldri hardkodet.** SiteDoc dokumenterer; det avgjør ikke. Ingenting i UI skal se
+ut som en juridisk konklusjon.
+
+**Frekvens, gatet av Kenneth:** **2–3 ganger ukentlig med månedlig oppsummering.** Det gir 10–12 notater i
+måneden — nok til at en tre-ukers stans ikke kan bortforklares, lite nok til at hvert notat er ett
+skjermbilde. Design foreslo ukentlig; Kenneths tall er tettere og bedre.
+
+**Og her finner den automatiske utledningen sin rette plass:** systemet **foreslår** fargen fra timer og
+dokumenter, byggelederen bekrefter eller overstyrer, velger årsak og sender. **Utledningen skriver utkastet,
+den dømmer ikke.** En omtrentlig rate er god nok til å foreslå en farge et menneske bekrefter — men ikke god
+nok til å sette en frist. Det var brikken som manglet i § 4b.
+
+**Risikoen som avgjør alt:** et notat som koster innsats, blir ikke skrevet, og da er serien brutt der den
+betyr mest. Ett skjermbilde, under ett minutt, forhåndsfylt.
+
+**Månedsrapporten** er bestilt som egen backlog-post (`docs/claude/BACKLOG.md § 3`). Kort: sammendragstabellen
+er **deterministisk** — en telleoppgave, ikke en AI-oppgave — notatene gjengis **ordrett med dato**, og
+oppsummeringen er byggelederens egne ord. 🔴 **Ingen AI i beviskjeden:** sitat er trygt, parafrase er det
+ikke. Arkiv-sammenstillingen og PDF-pakken gjør mesteparten alt; det nye er notat-dokumenttypen og tabellen.
+
 ## 5. Tre hull, som skal stå i planen og ikke skjules
 
 1. **«lm komplett».** Er bend, muffer og skjøter ikke egne poster, finnes antallet ikke i beskrivelsen.
