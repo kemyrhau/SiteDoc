@@ -33,6 +33,7 @@ import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { EmneFelt } from "../../src/components/EmneFelt";
 import { trpc } from "../../src/lib/trpc";
 import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
@@ -147,7 +148,8 @@ export default function SjekklisteUtfylling() {
   const sjekklisteDetalj = detaljQuery.data as {
     number?: number | null;
     transfers?: Transfer[];
-    template?: { enableChangeLog?: boolean };
+    subject?: string | null;
+    template?: { enableChangeLog?: boolean; subjects?: string[]; showSubject?: boolean };
     changeLog?: EndringsloggRad[];
     drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
     drawingId?: string | null;
@@ -923,6 +925,21 @@ export default function SjekklisteUtfylling() {
             {!leseModus && <ChevronDown size={14} color="#9ca3af" />}
           </View>
         </Pressable>
+
+        {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
+            (ordre 2026-09-22). Redigerbart for den som kan redigere (samme leseModus),
+            «Ingen emne» med etikett i lesemodus for andre. Skjules når malen sier
+            showSubject === false. */}
+        {sjekklisteDetalj?.template?.showSubject !== false && (
+          <View className="rounded-lg bg-white px-4 py-3">
+            <EmneFelt
+              emne={sjekklisteDetalj?.subject ?? null}
+              forslag={sjekklisteDetalj?.template?.subjects ?? []}
+              leseModus={leseModus}
+              onLagre={(emne) => oppdaterMutasjon.mutate({ id: id!, subject: emne })}
+            />
+          </View>
+        )}
 
         {/* Kollisjons-varsel (live): verdien din ble notert som tilføyelse fordi feltet
             alt var fylt. Ingenting forsvant — verdien står ved feltet. */}

@@ -13,6 +13,7 @@ import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { medNummerRetry } from "../utils/nummerRetry";
+import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
@@ -413,7 +414,29 @@ export const sjekklisteRouter = router({
             message: "Dokumentflyt er påkrevd for denne sjekklistetypen. Velg en flyt som bruker malen.",
           });
         }
-        // Standard: faggrupper påkrevd
+        // Utled bestiller/utfører fra flyten når klienten ikke sender dem (mobil-
+        // opprettelsen gjør det ikke lenger — opprett-modalen fjernet, ordre 2026-09-22).
+        // Speiler L1.5/web: bestiller = flytens eier-faggruppe, utfører = utfører-medlem
+        // (fallback eier). Web sender fortsatt samme verdi → utledningen flytter INGEN
+        // rettighet (tilhørighetssjekken under kjører på samme faggruppe som før).
+        if (!effektivBestiller || !effektivUtforer) {
+          const flyt = await ctx.prisma.dokumentflyt.findUnique({
+            where: { id: effektivFlytId },
+            select: {
+              faggruppeId: true,
+              medlemmer: {
+                where: { rolle: "utforer", periodeSlutt: null },
+                select: { faggruppeId: true },
+              },
+            },
+          });
+          const utledet = utledBestillerUtforer(
+            flyt ? { faggruppeId: flyt.faggruppeId, utforerMedlemmer: flyt.medlemmer } : null,
+          );
+          effektivBestiller = effektivBestiller ?? utledet.bestiller;
+          effektivUtforer = effektivUtforer ?? utledet.utforer;
+        }
+        // Standard: faggrupper påkrevd (etter utledningsforsøket over)
         if (!effektivBestiller || !effektivUtforer) {
           throw new TRPCError({
             code: "BAD_REQUEST",

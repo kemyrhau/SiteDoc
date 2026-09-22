@@ -43,6 +43,7 @@ import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
+import { EmneFelt } from "../../src/components/EmneFelt";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -874,6 +875,21 @@ export default function OppgaveDetalj() {
                 <Text className="text-xs text-purple-500">{t("lokasjonVelger.gjelderByggeplass")}</Text>
               )}
             </View>
+          </View>
+        )}
+
+        {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
+            (ordre 2026-09-22). Redigerbart for den som kan redigere (samme leseModus),
+            «Ingen emne» med etikett i lesemodus for andre. Skjules når malen sier
+            showSubject === false. */}
+        {(oppgave as { template?: { showSubject?: boolean } }).template?.showSubject !== false && (
+          <View className="rounded-lg bg-white px-4 py-3">
+            <EmneFelt
+              emne={(oppgave as { subject?: string | null }).subject ?? null}
+              forslag={(oppgave as { template?: { subjects?: string[] } }).template?.subjects ?? []}
+              leseModus={leseModus}
+              onLagre={(emne) => oppdaterMutasjon.mutate({ id: oppgave.id, subject: emne })}
+            />
           </View>
         )}
 

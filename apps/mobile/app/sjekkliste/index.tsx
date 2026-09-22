@@ -24,8 +24,7 @@ import {
 } from "../../src/services/sjekklisteKatalog";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
-import { MalVelger } from "../../src/components/MalVelger";
-import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { FilterOgSorteringSheet } from "../../src/components/dokumentliste/FilterOgSorteringSheet";
 import {
@@ -45,14 +44,6 @@ function formaterTidspunkt(ms: number): string {
   return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} kl. ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-interface MalData {
-  id: string;
-  name: string;
-  prefix: string | null;
-  category: string;
-  opprettbareFlytIder?: string[];
-}
-
 export default function SjekklisteListe() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
@@ -62,7 +53,6 @@ export default function SjekklisteListe() {
   const queryClient = useQueryClient();
 
   const [visVelger, settVisVelger] = useState(false);
-  const [valgtMal, settValgtMal] = useState<MalData | null>(null);
   const [statusFilter, settStatusFilter] = useState<string | null>(null);
 
   // Dokumentsøk + filter + sortering (dokumentliste-nivå-tilstand). Overlever
@@ -417,26 +407,15 @@ export default function SjekklisteListe() {
         onLukk={() => settVisSheet(false)}
       />
 
-      <MalVelger
-        synlig={visVelger && !valgtMal}
+      <OpprettVelger
+        synlig={visVelger}
         kategori="sjekkliste"
-        onVelg={(mal) => {
-          settVisVelger(false);
-          settValgtMal(mal);
-        }}
-        onLukk={() => settVisVelger(false)}
-      />
-
-      <OpprettDokumentModal
-        synlig={!!valgtMal}
-        kategori="sjekkliste"
-        mal={valgtMal ?? { id: "", name: "", prefix: null, category: "" }}
         onOpprettet={(id) => {
-          settValgtMal(null);
+          settVisVelger(false);
           queryClient.invalidateQueries();
           router.push(`/sjekkliste/${id}`);
         }}
-        onLukk={() => settValgtMal(null)}
+        onLukk={() => settVisVelger(false)}
       />
     </SafeAreaView>
   );
