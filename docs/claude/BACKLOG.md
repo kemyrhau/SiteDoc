@@ -242,12 +242,15 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
   side. **Riktig prioritering nå, men de bør til slutt se like ut** — ellers lærer brukeren to mønstre
   for samme handling. Kenneth gater timingen.
 
-### 🟡 Prosjekt-admin omgår ikke registrator-gaten (målt 2026-09-22, dokgen)
+### 🟡 «Opprett på vegne av» ikke innført (Kenneth-gatet 2026-09-22)
 
-- `opprett` krever registrator-medlemskap i flyten (kaster FORBIDDEN «Du er ikke oppretter-medlem av
-  valgt dokumentflyt» ellers). **En prosjekt-admin ser dermed bare flyter han selv er registrator på i
-  opprett-velgeren, uten forklaring.** Prosjekt-admin-rollen omgår IKKE gaten. **Om det er tilsiktet er
-  ikke avklart — Kenneth gater** om det er en feil i det hele tatt.
+- En prosjektadmin kan ikke opprette dokumenter i faggrupper han ikke er registrator i. **Skal det
+  komme, må dokumentet vise både hvem som opprettet og for hvem — ellers ser dokumentet ut som noe det
+  ikke er.** Egen runde, ikke et flagg.
+- *Avklaring 2026-09-22:* registrator-gaten er **tilsiktet og BEHOLDES** (sjekklisten dokumenterer hvem
+  som utførte/kontrollerte arbeidet). Den tidligere åpne «er dette en feil?»-posten er dermed avklart.
+  Det som VAR en feil — at utilgjengelige flyter forsvant stille fra opprett-velgeren uten forklaring —
+  bygges av kontrollplan (`ordre-utilgjengelige-flyter-design-2026-09-22.md`), uavhengig av dette.
 
 ### 🟡 Lånt mal kan miste forelder-koblingen (målt 2026-09-22, mal-Opus)
 

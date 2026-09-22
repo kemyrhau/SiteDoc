@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `13b1cf60` (ingen branch — verifiseringsføring: faggruppe-utledning bevist på test) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = STATUS-AKTUELT.md + BACKLOG.md · ingen kode/migrering/SQL/mobil · opprett-runden nå VERIFISERT (flagg fjernet); gjenstår Kenneths mobil-UI-måling**
+**Sist ført: 2026-09-22 · develop `6d98c697` (`docs/design-utilgjengelige-flyter` `--no-ff`: ordre til kontrollplan — rett stille forsvinning av utilgjengelige flyter) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 1 docs-fil + tavla + BACKLOG · ingen kode/migrering/SQL/mobil · registrator-gaten BEHOLDES (Kenneth-vedtak)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
 | **mal-Opus** | `SiteDoc-mal` | JH2 v2 merget `9b83b285`. **KD1 v3-ordre nå i develop `8136dd23`** (`ordre-kd1-revisjon-betinget-design-2026-09-22.md`) + §1e hjelpetekst-veiledning | 🔵 **KD1 v3 bestilt — design sender startsignalet** (ikke startet) | Designs KD1-startsignal (direkte + linje i `inbox-cowork.md`) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal (`feat/opprett-uten-modal` `21520673`) 🟢 **MERGET** develop `9b83b285` — server utleder faggruppe via `utledBestillerUtforer`; mobil-modal bort fra standardveien; emne inn i dokumentet. **Reload: OTA (kjørt 2026-09-22).** 🟢 **VERIFISERT på test** (dokgen, 4 dok + negativkontroll). Gjenstår kun Kenneths mobil-UI-måling på telefon | ⚪ **LEDIG** | Kenneths mobil-UI-måling (OTA kjørt) |
+| **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal 🟢 MERGET `9b83b285`, VERIFISERT på test. **Ny ordre i develop `6d98c697`** (`ordre-utilgjengelige-flyter-design-2026-09-22.md`): rett den stille forsvinningen av utilgjengelige flyter i opprett-velgeren | 🔵 **ORDRE GITT — nudge etter denne mergen** (ikke startet) | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | Xcode 27-oppkobling dokumentert (`feat/simulator-xcode27-oppkobling` `4d7901b1`) 🟢 **MERGET** develop `38333944` | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — Ordre: utilgjengelige flyter + Kenneth-vedtak om registrator-gaten. Ren docs. develop `6d98c697`.
+
+🟢 **Merget** `docs/design-utilgjengelige-flyter` `e8aa810f` `--no-ff`, ff mot `e32e8f84`. Ny ordre-fil (+62) kontrollplan skal lese i sitt worktree (nudge etter mergen). Gate `--force`, 0 cached (IKKE FULL TURBO): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE · 7/7.
+
+### 🔴 Kenneth-vedtak 2026-09-22 om registrator-gaten (tre punkter)
+1. 🟢 **Gaten BEHOLDES.** Den som oppretter et dokument skal tilhøre faggruppen — **en sjekkliste dokumenterer hvem som utførte og kontrollerte arbeidet.** Oppretter byggherren en elektro-sjekkliste, ser dokumentet ut som noe det ikke er. (Begrunnelsen følger vedtaket om at sjekklisten viser utført arbeid.)
+2. 🟡 **«Opprett på vegne av» innføres IKKE nå.** Skal det komme, må dokumentet vise både hvem som opprettet og for hvem. Egen runde, ikke et flagg. → BACKLOG § 1.
+3. 🔴 **Den stille forsvinningen rettes — uansett hva svaret på punkt 1 hadde blitt.** Fire Elektro-maler og to Tømrer-maler usynlige for en prosjektadmin, uten forklaring. **kontrollplan bygger.**
+
+### 🟢 Hvordan funnet kom
+dokgen målte hvorfor Kenneth så færre maler enn ventet. **Ingenting hadde krasjet — malene var bare ikke der.** Funnet kom av at noen sjekket en forventning mot virkeligheten, ikke av en feilmelding.
 
 ---
 
