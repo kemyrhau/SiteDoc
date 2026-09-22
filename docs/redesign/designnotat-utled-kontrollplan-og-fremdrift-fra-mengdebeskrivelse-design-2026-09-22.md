@@ -335,6 +335,63 @@ kunne uttrykkes som «pel 340 innen uke 34» eller «kumgruppe S-03 ferdig uke 3
 plan · gul = bak plan · rød = ingen bevegelse siden forrige notat. **Forklaringen kreves fortsatt** —
 systemet foreslår fargen, byggelederen bekrefter.
 
+## 4e. 🔴 To roller — og det forklarer hvorfor § 4b og § 4d så motstridende ut
+
+Kenneth 2026-09-22:
+
+> «sitedok kan jobbe på to måter → som entreprenør eller byggherre
+> **entreprenør:** må lage fremdriftsplan basert på priset mengdebeskrivelse
+> **byggherre:** måler entreprenørens arbeid opp mot hans egen fremdriftsplan»
+
+**De to sporene i dette notatet er ikke motstridende — de er to roller.**
+
+| Rolle | Trenger | Del |
+|---|---|---|
+| **Entreprenør** | lage planen fra priset mengdebeskrivelse → **må ha rate** | § 4b |
+| **Byggherre** | måle arbeidet mot entreprenørens egen plan → **trenger ingen rate** | § 4d |
+
+**Ratemodellen er altså ikke død — den hører til entreprenørrollen.** Og der er anslaget hans **egen risiko**,
+ikke en tredjeparts estimat. Det gjør faktor-to-funnet i § 4b viktigere, ikke mindre viktig: en plan som lover
+halv byggetid, er et løfte han blir målt på.
+
+**Følge for entreprenørutledningen:** den skal vise et **bånd**, ikke ett tall. Kalibrering fra firmaets egne
+ferdige prosjekter er det som gjør båndet smalere over tid — og da er det firmaets egne rater, ikke
+erfaringstall.
+
+**Sammenligningsmotoren er den samme i begge roller.** Bare kilden til «forventet posisjon» er ulik: utledet
+fra beskrivelsen, eller mottatt fra entreprenøren. Målt posisjon kommer fra befaringsnotatene uansett, med
+samme emnekonvensjon (§ 4d).
+
+### Rollemodellen løser den røde målingen i § 4d
+
+§ 4d satte som kritisk måling om **historisk plantilstand kan rekonstrueres pr. dato** — ellers kan
+entreprenøren revidere planen og slette sin egen avvikshistorikk. Rollemodellen gir svaret:
+
+🔴 **Fremdriftsplanen skal være et dokument i dokumentflyten, ikke en fil som overskrives.** Da er «hvilken
+plan gjaldt 12. mai» besvart av flytens egen historikk, på samme måte som for befaringsnotatene.
+**Import-historikken i `KontrollplanImport` trenger ikke repareres** — planen skal komme inn samme vei som alt
+annet som skal kunne bevises. Målingen i § 7 steg 4 omformuleres fra «kan historikken rekonstrueres» til «hva
+kreves for at planen kan mottas som dokument».
+
+### Prinsippet som har avgjort tre valg i dag
+
+> **SiteDoc foreslår. Mennesket forplikter seg.**
+
+1. **Fargen** på fremdriftslyset (§ 4c) — systemet foreslår, byggelederen bekrefter og forklarer.
+2. **Fremdriftsplanen** entreprenøren utleder (§ 4b) — systemet utleder, entreprenøren justerer og forplikter
+   seg.
+3. **Kontrollplanen** fra beskrivelsen (§ 2) — systemet foreslår punktene, en admin gater dem.
+
+Når samme prinsipp avgjør tre uavhengige valg, er det ikke et valg lenger, men en regel for hele sporet.
+**Og den beskytter mot den ene feilen som ville drept tilliten:** at SiteDoc både lager planen og dømmer den.
+
+### Kryssorg-forbeholdet
+
+Bruker begge sider SiteDoc, er planen entreprenøren utledet **den samme planen** byggherren måler mot — samme
+pel, samme kumnavn, ingen ny nøkling. Teknisk er det tett; men det krysser firmagrensen, og **kryssorg-deling
+er av som standard og kun push** (CLAUDE.md § Kryssorg-deling). Det er en reell funksjonskrysning som må
+designes, ikke noe som følger gratis av rollemodellen.
+
 ## 5. Tre hull, som skal stå i planen og ikke skjules
 
 1. **«lm komplett».** Er bend, muffer og skjøter ikke egne poster, finnes antallet ikke i beskrivelsen.
@@ -371,23 +428,25 @@ Rekkefølge design anbefaler:
 3. **Stopp-varsling** — ingen godkjente dokumenter på et strekk i N uker, **mens timer føres på prosjektet**.
    **Rate-fri**, og fanger tilfellet som kostet Kenneth 2,5 måned (§ 4b). Timekravet er det som skiller et
    blokkert strekk fra en planlagt stans, og som gjør varselet verdt å stole på.
-4. **Måling: kan den historiske plantilstanden rekonstrueres pr. dato?** (§ 4d pkt 2). Kan den ikke det, har
-   ingen av stegene under evidensverdi, og det må rettes først. **Dette er nå den viktigste målingen i
+4. **Måling: hva kreves for at fremdriftsplanen kan mottas som dokument i flyten?** (§ 4e). Det er dette som
+   gir plantilstand pr. dato, og uten det har stegene under ingen evidensverdi. **Den viktigste målingen i
    notatet.**
 5. **Posisjonsaksen** — planens aktiviteter knyttet til pel og kumgruppe, med emnekonvensjonen som nøkkel.
    Byggelederen kobler én gang pr. prosjekt.
 6. **Avviksberegning** forventet mot målt posisjon, med **planens egen rate** for å gjøre meter om til dager.
-7. *(bortfaller hvis entreprenørens plan finnes)* egen ratetabell målt fra dagsseddel. Beholdes bare som
-   fallback for prosjekter uten innmatet plan.
+   Dette er **byggherrerollen** og trenger ingen rate i SiteDoc (§ 4e).
+7. **Entreprenørrollen:** utled planen fra beskrivelsen, med **bånd og ikke ett tall**, kalibrert fra firmaets
+   egne ferdige prosjekter. Dette er der ratemodellen i § 4b faktisk hører hjemme.
 
 **Steg 1 og 4 er målinger, ikke bygginger.** Steg 1 bør kjøres først, mot et virkelig prosjekt med importert
 beskrivelse.
 
-🔴 **Rekkefølgen er endret to ganger 2026-09-22.** Først fordi Kenneth opplyste at 6 m/dag er et anslag han
-ikke har utledet: stopp-varsling ble flyttet foran ratetabellen, og tabellen skal **ikke seedes med
-anslaget**. Deretter fordi Kenneth foreslo å mate inn **entreprenørens fremdriftsplan** (§ 4d): da **bortfaller
-SiteDocs egen ratetabell helt** for prosjekter med innmatet plan, og tyngdepunktet flyttes til
-plantilstand-målingen i steg 4. Egen rate beholdes bare som fallback.
+🔴 **Rekkefølgen er endret tre ganger 2026-09-22, og hver gang av en opplysning fra Kenneth.** Først fordi
+6 m/dag er et anslag han ikke har utledet: stopp-varsling ble flyttet foran ratetabellen, og tabellen skal
+**ikke seedes med anslaget**. Deretter fordi entreprenørens fremdriftsplan kan mates inn (§ 4d): tyngdepunktet
+flyttet til plantilstand. Til sist fordi SiteDoc har **to roller** (§ 4e): ratemodellen bortfaller ikke, den
+hører til entreprenørrollen, og byggherrerollen trenger den ikke. Steg 6 og 7 er de to rollene, ikke to faser
+— **de kan bygges i hvilken som helst rekkefølge, og byggherrerollen er den enkleste.**
 
 ## 8. Hva Kenneth skal ta stilling til
 
