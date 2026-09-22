@@ -236,6 +236,17 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 Lånt mal kan miste forelder-koblingen (målt 2026-09-22, mal-Opus)
+
+- Et firma kan bryte forelder-koblingen i sin egen kopi i malbyggeren. **En lånt mal som mister
+  koblingen, viser plutselig alle felt** — betingede/skjulte felt blir synlige fordi barnet ikke
+  lenger vet hvilken forelder som styrer det. Ikke rettet. Kenneth gater timingen.
+
+### 🟡 Lokal DB er bak på migreringer — blokkerer integrasjonstester lokalt (målt 2026-09-22, kontrollplan)
+
+- Seed avvises mot lokal DB, så **ingen agent kan kjøre integrasjonstester lokalt.** Rammer alle spor,
+  ikke én runde. Kenneth gater timingen.
+
 ### 🟡 Flytvalg-modalen godtar tomt valg uten varsel (målt 2026-09-22, redesign)
 
 - Alle flyt-checkbokser er AV som standard, og «Velg» uten noe avkrysset går gjennom uten melding.

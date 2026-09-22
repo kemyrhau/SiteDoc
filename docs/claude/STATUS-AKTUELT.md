@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `fc2e5c04` (feat/mal-tre-kapasitet `--no-ff`: tre-støtte i malverktøyene — forgrening bruker delt `BETINGELSE_EGEN_NOKKEL` fra `@sitedoc/shared`) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 200 · shared 854 (begge STEG) · api 522 · pdf 124 · web 304 · mobil 34 (stille) · 7/7 · fasit-diff TOM (23 maler urørt) · apps/ 0 filer · diff = 7 filer + tavla · ingen migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-22 · develop `9b83b285` (tre brancher `--no-ff`: JH2 v2 betinget mal + MAL-METODE §6c + opprett-uten-modal) · GATE (`--force`, IKKE FULL TURBO — 0 cached): api 525 · mobil 38 · web 306 · db 207 (JH2-testen STEG fra 200) · shared 854 · pdf 124 (stille) · 7/7 · JH2-fasit: slettede linjer utenfor JH2-blokken = 0 (v1→v2-revisjon, kun JH2 rørt) · diff = 19 filer + tavla + BACKLOG · Reload: OTA (branch 3 rører 5 mobilskjermer) · ingen migrering · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
-| **mal-Opus** | `SiteDoc-mal` | Del A (`feat/mal-tre-kapasitet` `2efcdcf4`) 🟢 **MERGET** develop `fc2e5c04` — nøkkelnavn-feilen rettet: forgrening bruker delt `BETINGELSE_EGEN_NOKKEL`, deler samme konstant som appen | ⚪ **LEDIG** — 🔴 **JH2 er ULÅST, men design sender startsignalet** (ikke startet) | Designs JH2-startsignal (går direkte, ikke via innboks) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal-ordre ligger i develop `2fd9fe09` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
+| **mal-Opus** | `SiteDoc-mal` | JH2 v2 (`feat/mal-jh2-betinget` `4f5f6c33`) 🟢 **MERGET** develop `9b83b285` — **FØRSTE bibliotekmal med betingede felt**, verifisert i arkivet (version 2, 12 felt + 3 headings). §6c (`docs/design-6a-tre`) også merget | ⚪ **LEDIG** | — |
+| **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal (`feat/opprett-uten-modal` `21520673`) 🟢 **MERGET** develop `9b83b285` — server utleder faggruppe via `utledBestillerUtforer` (sjekkliste+oppgave); mobil-modal bort fra standardveien; emne inn i dokumentet. **Reload: OTA.** 🔴 **IKKE verifisert — 4 dokumenter på test gjenstår** | ⚪ **LEDIG** | Kenneths OTA + verifisering (4 dok på test) |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,27 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — JH2 v2 (første betingede bibliotekmal) + §6c + opprett-uten-modal. develop `9b83b285`.
+
+🟢 **Tre brancher merget** `--no-ff`, alle ff mot `d738c5ce`: `feat/mal-jh2-betinget` `4f5f6c33` · `docs/design-6a-tre` `bcdcaf21` · `feat/opprett-uten-modal` `21520673`. Diff = 19 filer + tavla + BACKLOG. GATE `--force`, 0 cached (IKKE FULL TURBO): api 525 · mobil 38 · web 306 · db 207 (JH2-testen steg fra 200) · shared 854 · pdf 124 stille · 7/7.
+
+### 🔴 JH2 v2 — FØRSTE bibliotekmal med betingede felt
+- Kenneth kjørte SQL-en: **version 2, 12 felt + 3 headings.** Treet **verifisert i ARKIVET, ikke bare i fasiten** — rad 5 og 6 under «Underlaget består av» med hvert sitt utløsersett, rad 7 under «Rengjøring og klebing».
+- 🔴 **Fasiten hadde SLETTEDE linjer for første gang** (`50 tillegg, 37 slettinger`). Forventet: JH2 er en REVISJON (v1→v2), ikke ny mal. **Cowork verifiserte: kun `JH2`-rader berørt, slettede linjer utenfor JH2-blokken = 0.** v1-felt «Underlaget rengjort»+«Klebing» slått sammen til felt 5, «Overflaten» slått sammen i felt 10.
+
+### §6c — lukket hull i vår EGEN rutine
+- §6a-utskriften viste ikke foreldrekobling eller utløsere. Ved JH2 så design femten korrekte rader uten å kunne se om treet hadde landet, måtte etterspørre egen spørring. **§6c krever nå at revisjons-SQL skriver ut forelder + utløsersett for maler med betingede felt** — Kenneth kjører SQL én gang, gaten gjøres på det ene resultatet. Hullet lå i rutinen, ikke i koden.
+
+### Opprett-uten-modal (kontrollplan, branch 3)
+- Server utleder faggruppe via `utledBestillerUtforer` (kalt i BEGGE ruter — `sjekkliste.ts`, `oppgave.ts`) · mobil-modalen bort fra standardveien · emnefeltet inn i dokumentet på begge flater. 7 nye mobilkomponenter, 7 `t()`-kall hver, null hardkodet norsk; web-`EmneVelger` gjenbruker `emneVelger.ingenEmne` (0 i18n-filer).
+- 🔴 **Godkjent avvik:** ordren sa serveren utledet alt på standard-veien. Den gjorde det bare på kontrollplan-start. Kontrollplan meldte det i stedet for å bygge etter feil premiss.
+- 🔴 **Reload: OTA** (JS-only, 5 mobilskjermer). **Ikke verifisert — cowork + design enige: fire dokumenter på test (sjekkliste + oppgave, web + mobil) med bestiller/utfører kontrollert. Enhetstesten beviser helperen, ikke koblingen.**
+
+### 🟡 Prosessfunn ført til BACKLOG § 1
+- Lånt mal kan miste forelder-kobling → viser plutselig alle felt (mal-Opus). · Lokal DB bak på migreringer → ingen agent kan kjøre integrasjonstester lokalt (kontrollplan). Begge Kenneth-gatet på timing.
 
 ---
 
