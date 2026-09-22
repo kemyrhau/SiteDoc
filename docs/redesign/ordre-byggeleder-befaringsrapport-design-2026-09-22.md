@@ -1,9 +1,9 @@
 # Ordre: byggelederens befaringsrapport — trasé og pel som identitet, dekning som visning
 
-**Til:** cowork fordeler — **Del A og A2** til app-sporet, **Del B** til mal-Opus · **Fra:** design ·
+**Til:** cowork fordeler — **Del A og Del A-TILLEGG** til app-sporet, **Del B** til mal-Opus · **Fra:** design ·
 **Dato:** 2026-09-22
-**Branch-forslag:** `feat/befaringsrapport` (Del A), `feat/tegning-bildelag` (Del A2) og `feat/mal-befaring`
-(Del B) fra `origin/develop`. **A2 kan bygges uavhengig av A** — den henger ikke på identitetsmodellen.
+**Branch-forslag:** `feat/befaringsrapport` (Del A), `feat/tegning-bildelag` (Del A-TILLEGG) og `feat/mal-befaring`
+(Del B) fra `origin/develop`. **Tillegget kan bygges uavhengig av Del A** — den henger ikke på identitetsmodellen.
 **Gatet av Kenneth 2026-09-22:** «vei → 100 m, VA → kumgruppe-spenn. skriv ordren.»
 **Bakgrunn:** `docs/redesign/designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md`
 § 4c–4e. Les den først — den bærer formålet, fargedefinisjonen og prinsippet.
@@ -44,22 +44,41 @@ da må byggelederen enten skrive to rapporter eller velge en bolk vilkårlig. Be
 
 **Overlapp, ikke innhold.** Da trenger ikke arbeidet passe til rutenettet.
 
-## A2. Identitetsmodellen
+## A2. Identitetsmodellen — én modell, tre prosjekttyper
 
-| Nivå | Påkrevd | Eksempel |
-|---|---|---|
-| Trasé eller vei | **ja** | Austadvegen |
-| Strekning fra–til | nei | P 50–150 |
+**Utvidet 2026-09-22 etter Kenneth:**
 
-**Tomt intervall er gyldig.** Kenneth: «Dersom det ikke pågår arbeid i austadvegen kan rapporten bli kun
-austadvegen, en oppgave for den delen.» En trasé-rapport uten pel er like gyldig som en med.
+> «jeg mener som byggeleder → sjekkliste for å dokumentere hele byggeplassen → gjøres ved å opprette oppgaver
+> pr punkt eller pr etasje, kanskje kombinasjon av begge deler ved behov 1 etasje for generelle bilder, egen
+> rapport for en feil/mangel som oppdages»
 
-**Indeksen følger arbeidets egen enhet — gatet av Kenneth 2026-09-22:**
+**Det viser at modellen må bære to ting samtidig, og at de har ulik granularitet:**
 
-| Prosjekttype | Indeks |
-|---|---|
-| **Vei** | 100 m pel |
-| **VA** | **kumgruppe-spenn** |
+| Rapporttype | Dekker | Posisjon | Dokument |
+|---|---|---|---|
+| **Områderapport** — generell | et område: etasje, pel-intervall, kumspenn | **ingen** | befaringsrapporten (sjekkliste) |
+| **Punktrapport** — feil eller mangel | ett punkt | **eksakt på tegningen** | **oppgave** |
+
+🔴 **Punktrapporten trenger ingen ny dokumenttype.** `Task` har alt `drawingId` + `positionX/Y`
+(`schema.prisma:1316`) — en oppgave **er** punktdokumentet. Design foreslår ingen ny modell for avvik.
+
+🔴 **Og punktrapporten skal opprettes FRA befaringen**, slik at lenken finnes. Da kan sluttoppgjøret vise
+kjeden: «befaring 12. mai, gul, årsak *venter på leveranse*, og disse fire avvikene ble registrert samme dag.»
+Uten lenken er de to bunker som ingen kan knytte sammen.
+
+### Områdeenheten pr. prosjekttype
+
+**Nivå 1 er påkrevd, nivå 2 er valgfritt** — det er den samme formen i alle tre tilfeller:
+
+| Prosjekttype | Nivå 1 (påkrevd) | Nivå 2 (valgfritt) | Emne-eksempel |
+|---|---|---|---|
+| **Vei** | trasé | 100 m pel fra–til | `Austadvegen P 50–150` |
+| **VA** | trasé | **kumgruppe-spenn** | `SP-04 til SP-05` |
+| **Bygg** | **byggeplass + etasje** | sone, hvis noen trenger det | `Bygg B12, 1. etasje` |
+
+**Tomt nivå 2 er gyldig.** Kenneth: «Dersom det ikke pågår arbeid i austadvegen kan rapporten bli kun
+austadvegen, en oppgave for den delen.» For bygg er «1. etasje for generelle bilder» nøyaktig det samme —
+områderapporten dekker etasjen, uten å peke på et punkt.
 
 **Grunnen til at VA ikke bruker 100 m:** kumgrupper står 60–80 m fra hverandre, satt av hvor langt
 rørinspeksjonstraktoren rekker å filme (Kenneth 2026-09-22). Den naturlige strekningen i et VA-prosjekt er
@@ -68,6 +87,41 @@ befaringsrapporten seg rett på kum- og strekningsdokumentene uten oversetting.
 
 🔴 **Emnekonvensjonen er koblingsnøkkelen for hele fremdriftssporet** (designnotatet § 4d). Bruk den; ikke
 innfør en parallell stedsnøkkel.
+
+🔴 **Ikke bygg soner for bygg i denne runden.** Nivå 2 for bygg står som «hvis noen trenger det» fordi ingen har
+bedt om det. En stor etasje kan kreve inndeling, men det er en måling som kommer av bruk — **ikke en modell som
+skal finnes opp nå.** Et etasjenivå som virker, er bedre enn et sonenivå ingen fyller ut.
+
+### 🔴 Gatet 2026-09-22: egen malversjon for bygg, men samme mekanisme
+
+Kenneth: **«vi kan lage en tilpasset versjon for bygg».**
+
+**Design leser det som: del malen, del ikke mekanismen.**
+
+| Lag | Deles eller deles opp |
+|---|---|
+| **Mekanismen** (område + valgfri avgrensning, overlappsøk, dekningsvisning, punktrapport via oppgave) | **deles** — én implementasjon |
+| **Malinnholdet** | **deles opp** — «Befaring anlegg» og «Befaring bygg» |
+
+**Hvorfor mekanismen deles:** formen er identisk. Et område som er påkrevd, en avgrensning som er valgfri, og
+et overlappsøk. Bare **kilden** til nivå 1 er ulik — en trasé for anlegg, `Drawing.floor` for bygg. To
+implementasjoner av samme form ville driftet fra hverandre, og dekningsvisningen måtte bygges to ganger.
+
+**Hvorfor malen deles opp:** innholdet er genuint ulikt. Feltet «arbeid som pågår» har ingen felles verdier —
+graving, ledningslegging og kum mot råbygg, tett hus og innvendig komplettering. En felles mal med forgrening
+på prosjekttype ville gitt et førstefelt hvis eneste jobb er å skjule halve malen, og to korte maler er
+ærligere enn én lang med en bryter øverst.
+
+**Følgen for § A5 pkt 1:** målingen skal ikke lenger lete etter én modell som passer begge. Den skal svare på
+**om nivå 1 for bygg kan utledes av valgt tegnings `floor`** uten nytt felt, og hva trasé for anlegg krever.
+
+### Konsekvens for etasjeregelen i tillegget
+
+Områderapporten for en etasje peker på **etasjens tegning**. Dermed faller bildene fra den i **nivå 2** i
+etasjeregelen (Del A-TILLEGG § AT.2b): riktig etasje, ingen eksakt posisjon — og de skal listes ved siden av
+tegningen, ikke plasseres. **Punktrapportene** faller i nivå 1: eksakt markør, fordi oppgaven har posisjon.
+**Det er den kombinasjonen Kenneth beskriver, og de to nivåene i etasjeregelen er nettopp de to
+rapporttypene.**
 
 ## A3. Dekning er en VISNING, ikke forhåndslagde oppgaver
 
@@ -95,10 +149,12 @@ skal aldri lagres uten at han har bekreftet det.
 
 ## A5. Dette skal måles, ikke antas — meld i leveransen
 
-1. **Hvor bor trasé og strekning?** Dokumentet har i dag lokasjon via byggeplass og tegning, og emnefeltet
-   bærer identiteten for kum og strekning. Skal trasé være en **byggeplass**, et **område**
-   (`KontrollplanPunkt.omradeId`), eller noe nytt? **Mål hva som finnes før du innfører en ny modell.** Design
-   heller mot å gjenbruke det som finnes, men vil ikke velge uten målingen.
+1. **Hvor bor nivå 1 og nivå 2?** To spørsmål, ikke ett — Kenneth har gatet at bygg får egen malversjon, så
+   målingen skal ikke lete etter én modell som passer begge:
+   **(a)** Kan nivå 1 for **bygg** utledes av valgt tegnings `Drawing.floor` uten noe nytt felt?
+   **(b)** Hva krever **trasé** for anlegg? Byggeplass, område (`KontrollplanPunkt.omradeId`), eller noe nytt?
+   **Mål hva som finnes før du innfører en ny modell.** Design heller mot å gjenbruke det som finnes, men vil
+   ikke velge uten målingen.
 2. **Er pel et tall eller en streng?** `P 50–150` må kunne sorteres og overlappsøkes numerisk. Lagres det som
    tekst i emnet, virker ikke overlappsøket. Meld hva som kreves.
 3. **Offline.** Byggelederen står i en grøft. Oppretting og utfylling må virke uten nett, som for
@@ -119,12 +175,12 @@ skal aldri lagres uten at han har bekreftet det.
 
 ---
 
-# Del A2 — TILLEGG: «vis bilder» som lag i tegningsvisningen
+# Del A-TILLEGG — «vis bilder» som lag i tegningsvisningen
 
 **Tilføyd 2026-09-22 etter Kenneths spørsmål:** «alle bilder logges og kan vises i en georeferert tegning.
 hvordan fungerer det? Kan vi slå av og på vis bilder i en tegning?» → **«ja, skriv det som tillegg til Del A»**.
 
-## A2.1 Målingen — nesten alt finnes, og det er feltverifisert
+## AT.1 Målingen — nesten alt finnes, og det er feltverifisert
 
 Design har lest koden 2026-09-22. **Ingenting av matematikken skal bygges på nytt.**
 
@@ -147,7 +203,7 @@ om linjen mellom kalibreringspunktene, selv om den traff de to punktene eksakt (
 2026-08-13, rettet i `georeferanse.ts`). **Tre punkter gir affin transformasjon og er tryggere enn to.**
 Kalibrerings-UI-et bør si det.
 
-## A2.2 Hva som skal bygges
+## AT.2 Hva som skal bygges
 
 1. **Bryter «Vis bilder»** i tegningsvisningen (web og mobil), som slår bildemarkørene av og på.
 2. **Standard AV.** En tegning skal ikke åpne seg dekket av nåler (CLAUDE.md § renest mulig UI).
@@ -168,13 +224,13 @@ Kalibrerings-UI-et bør si det.
 vei til kalibreringen — ikke en bryter som ser aktiv ut og ikke gjør noe. Det er CLAUDE.md § «stille tomhet er
 forbudt» anvendt på UI.
 
-## A2.2b 🔴 RETTING: etasjer — GPS kan ikke skille dem
+## AT.2b 🔴 RETTING: etasjer — GPS kan ikke skille dem
 
 **Kenneth 2026-09-22:** «hvis en tegning vises i rapporten → la oss si det er et 3 etasjes bygg og rapporten
 velger 1.etasje → knytter vi bildene til denne etasjen → eller klarer vi ikke å skille bilder fra 1 og 3 etasje
 fra hverandre?»
 
-🔴 **Design spesifiserte A2.2 feil, og Kenneth fanget det.** «Bilder med GPS innenfor tegningen vises» ville
+🔴 **Design spesifiserte AT.2 feil, og Kenneth fanget det.** «Bilder med GPS innenfor tegningen vises» ville
 lagt bilder fra 3. etasje oppå 1.-etasjeplanen. **GPS-høyde er ±15–30 m ute og ubrukelig inne** — et bilde fra
 3. etasje har praktisk talt samme lat/lon som ett fra 1.
 
@@ -198,7 +254,7 @@ skal GPS **ikke** brukes til plassering — dokumentet er mer pålitelig enn koo
 🔴 **Nivå 3 skal ikke plassere noe når etasjen er tvetydig.** Tvetydighet er beregnelig: tegningen har `floor`
 satt, **og** det finnes en annen georeferert tegning på samme byggeplass med annen `floor` og overlappende
 utstrekning. Da skal bildet **ikke** vises — det skal **telles og begrunnes**: «7 bilder har GPS, men etasje kan
-ikke bestemmes». Samme mønster som utenfor-tellingen i A2.2 pkt 8, og samme regel som CLAUDE.md § «stille
+ikke bestemmes». Samme mønster som utenfor-tellingen i AT.2 pkt 8, og samme regel som CLAUDE.md § «stille
 tomhet er forbudt».
 
 🔴 **Nivå 2: finn ikke opp en posisjon.** Dokumentet vet etasjen, men ingen har plassert markøren. Bildene
@@ -221,7 +277,7 @@ forsøkes korrigert automatisk.
   plasseres, og skal telles med begrunnelse.
 - **Rød først:** samme bilde i et vei-prosjekt der tegningen ikke har `floor`, **skal** plasseres.
 
-## A2.3 Grenser
+## AT.3 Grenser
 
 - **Ingen ny matematikk.** Alt går gjennom `georeferanse.ts`. Finner du behov for en ny transformasjon, er det
   et funn som skal meldes, ikke løses.
@@ -231,7 +287,7 @@ forsøkes korrigert automatisk.
 - Ingen migrering, med mulig unntak for brukerminnet i pkt 3: **mål om det finnes en lagringsvei før du lager
   en.**
 
-## A2.4 DoD (Del A2)
+## AT.4 DoD (Del A-TILLEGG)
 
 1. **Rød først:** et bilde med GPS innenfor en georeferert tegning får riktig tegningskoordinat via
    `gpsTilTegning`; et bilde utenfor havner i utenfor-tellingen og ikke på tegningen.
@@ -245,7 +301,7 @@ forsøkes korrigert automatisk.
 6. Gate-tall via `pnpm exec turbo run test --force`, web build og mobil typecheck.
 7. Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
 
-## A2.5 Hva Kenneth skal ta stilling til
+## AT.5 Hva Kenneth skal ta stilling til
 
 1. **Er 30 dager riktig standardperiode** for laget, eller vil du se hele prosjektet med gruppering i stedet?
 2. **Skal laget vise alle prosjektets bilder, eller bare bilder fra befaringsrapporter?** Design heller mot
@@ -298,7 +354,9 @@ manglende fremdrift, **forklar hva som ikke fungerer optimalt** · rød = ingen 
 🔴 **Årsakslisten er designs forslag, ikke Kenneths ord**, med unntak av «ingen mannskap på anlegget», som er
 hans eget eksempel. Den gates før SQL — se § B4.
 
-**3. Arbeid som pågår på strekningen** — `valg`
+**3. Arbeid som pågår** — `valg` · **den ENE forskjellen mellom de to malene, se § B2b**
+
+*Befaring anlegg:*
 - Graving og grøft
 - Ledningslegging
 - Kum eller kumgruppe
@@ -313,22 +371,69 @@ hans eget eksempel. Den gates før SQL — se § B4.
 
 > Ta bilde med posisjon slått på. Bildene knyttes til strekningen og kan vises på tegningen etterpå.
 
-**5. Trafikkavvikling og sikring av grøft** — `valg`
+**5. Sikring og orden på stedet** — `valg` · **ordlyd varierer, se § B2b**
 - I orden
 - Avvik – varslet
 - Ikke aktuelt her
 
+*Befaring anlegg:*
 > Gjelder byggelederens observasjon av at skilting, gjerder og grøftesikring er på plass. Dette er en observasjon, ikke en HMS-behandling — avvik meldes i HMS-sporet.
 
 **6. Befaringen er ført og sendt** — `trafikklys`
 
 > Rapporten er datert, ført og sendt til motparten. En rapport som ikke er sendt, finnes ikke i et sluttoppgjør.
 
+## B2b. To maler — «Befaring anlegg» og «Befaring bygg»
+
+**Gatet av Kenneth 2026-09-22:** «vi kan lage en tilpasset versjon for bygg.» Begrunnelsen for å dele malen og
+ikke mekanismen står i § A2.
+
+```
+referanse: "BEFARING-A"   navn: "Befaring anlegg – byggelederens rapport"
+referanse: "BEFARING-B"   navn: "Befaring bygg – byggelederens rapport"
+```
+*(Referansene er designs forslag og henger på vedtaket i § B4 pkt 1.)*
+
+🔴 **Fem av seks felt er IDENTISKE, ordrett.** Felt 1 (fremdrift), 2 (årsak), 4 (bilde), 6 (ført og sendt) og
+svaralternativene i felt 5 skal være **ord for ord de samme** i begge maler. **Fasiten skal låse det** — drifter
+de to fra hverandre, blir rapportene usammenlignbare, og hele poenget med å telle farger og årsaker over tid
+faller. Det er samme regel som gjorde at fasitfilen ble innført.
+
+**Det som varierer:**
+
+**Felt 3, «Arbeid som pågår» — Befaring bygg:**
+- Grunn og fundament
+- Råbygg
+- Tett hus – tak, vinduer og fasade
+- Tekniske fag
+- Innvendig komplettering
+- Utvendig komplettering og utomhus
+- Ingen aktivitet
+- Annet – se kommentaren
+
+> Hva som faktisk foregikk da du var der. Feltet gjør rapportene sammenlignbare over tid, og det er det som viser når en aktivitet står stille fra uke til uke.
+
+**Felt 5, hjelpetekst — Befaring bygg:**
+
+> Gjelder byggelederens observasjon av at rekkverk, dekkeåpninger, stillas og adkomst er sikret, og at det er ryddet. Dette er en observasjon, ikke en HMS-behandling — avvik meldes i HMS-sporet.
+
+**Felt 1, hjelpetekst — Befaring bygg** (emne-eksempelet byttes):
+
+> Skriv byggeplass og etasje i emnefeltet, slik de står på tegningen: Bygg B12, 1. etasje. Grønn krever ingen forklaring. Gul og rød krever at du sier hva som ikke fungerer.
+
+🔴 **Ikke lag en felles mal med forgrening på prosjekttype.** Det ville gitt et førstefelt hvis eneste jobb er å
+skjule halve malen. To korte maler er ærligere enn én lang med en bryter øverst — og det er den ene gangen i dag
+forgrening **ikke** er svaret.
+
 ## B3. Rammer og DoD (Del B)
 
-- Vedtaket i § B4 må være gatet **før** standarden eller malen opprettes.
+- Vedtaket i § B4 må være gatet **før** standarden eller malene opprettes.
 - **Strukturtest:** årsaksfeltet er barn av fremdriftsfeltet, med **to** utløsere (Gul, Rød), og er ikke
-  alltid synlig. Rød først. Bruk `forgrening` og `BETINGELSE_EGEN_NOKKEL`, aldri `conditionValues`.
+  alltid synlig — **i begge maler**. Rød først. Bruk `forgrening` og `BETINGELSE_EGEN_NOKKEL`, aldri
+  `conditionValues`.
+- 🔴 **Delt-tekst-test:** en test som låser at felt 1, 2, 4 og 6 og svaralternativene i felt 5 er **ord for ord
+  identiske** mellom `BEFARING-A` og `BEFARING-B`. Rød først. Uten den drifter de to fra hverandre, og
+  fargestatistikken blir usammenlignbar.
 - §7b: ingen `NS 3420`, `NS-EN`, `Matrise`. Ingen i18n-nøkler.
 - Fasit (§8) og `skriv-mal` viser treet. Gate-tall via `pnpm exec turbo run test --force`.
 - SQL: **ikke kjør mot test selv.** Parse-test mot engangsdatabase, slett den, lever de tre enlinjerne.
