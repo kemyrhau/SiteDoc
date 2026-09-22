@@ -12,7 +12,7 @@
  * (SetNull ved sletting) blir stående. Se relay/inbox-seed-kun-opprett.md.
  */
 import { PrismaClient } from "@prisma/client";
-import { byggBibliotekRader } from "@sitedoc/shared";
+import { byggBibliotekRader, BETINGELSE_EGEN_NOKKEL } from "@sitedoc/shared";
 import type { BibliotekFeltData } from "@sitedoc/shared";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
@@ -176,9 +176,13 @@ function heltall(label: string, fase: string, config: Record<string, unknown> = 
  * Betingede felt (del A, ordre 2026-09-21) — en FORELDER (`list_single`) med barn som bare vises
  * for bestemte svar. Returnerer `[forelder, ...barn]` i rekkefølge (barn rett etter forelder, samme
  * fase). Forelderen får `conditionActive: true` og en stabil `ref`; hvert barn får `parentRef = ref`
- * og sitt EGET utløsersett i `config.conditionValues` (formen app-endringen 2026-09-21 innfører —
- * barnets sett gjelder når det finnes, ellers arves forelderens). Et barn kan selv være en forelder:
- * send da et helt undertre (utdata fra en nestet `forgrening`) som `felt`, så beholder hodet sin `ref`.
+ * og sitt EGET utløsersett i `config[BETINGELSE_EGEN_NOKKEL]` (= `conditionOwnValues`).
+ *
+ * 🔴 Utløseren ligger på barnets EGNE nøkkel, IKKE `conditionValues` (app-endringen 2026-09-21,
+ * `@sitedoc/shared/betingelse.ts`): `conditionValues` på et barn er barnets FORELDER-rolle (hva
+ * DETS barn utløses av) og ville kollidere i nøstede kontainere. Nøkkelen importeres — aldri skrevet
+ * som streng — så seed og app ikke kan drifte. Et barn kan selv være en forelder: send da et helt
+ * undertre (utdata fra en nestet `forgrening`) som `felt`, så beholder hodet sin `ref` + conditionActive.
  *
  * `ref` må være unik innenfor malen. Aldri sett `ref`/`parentRef` for hånd — bruk denne.
  */
@@ -193,7 +197,11 @@ export function forgrening(
   for (const { naar, felt: b } of barn) {
     const [hode, ...resten] = Array.isArray(b) ? b : [b];
     if (!hode) continue;
-    ut.push({ ...hode, parentRef: ref, config: { ...(hode.config ?? {}), conditionValues: naar } });
+    ut.push({
+      ...hode,
+      parentRef: ref,
+      config: { ...(hode.config ?? {}), [BETINGELSE_EGEN_NOKKEL]: naar },
+    });
     ut.push(...resten);
   }
   return ut;

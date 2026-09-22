@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { BETINGELSE_EGEN_NOKKEL } from "@sitedoc/shared";
 import { malRegister } from "./generer-mal-sql";
 
 /**
@@ -66,10 +67,11 @@ export function fasitLinjerForMal(mal: FasitMal): string[] {
     const config = { ...(f.config ?? {}) } as Record<string, unknown>;
     const options = config.options as string[] | undefined;
     const helpText = config.helpText as string | undefined;
-    const conditionValues = config.conditionValues as string[] | undefined;
+    // Barnets EGET utløsersett (conditionOwnValues) — vises som «vises-når». conditionActive tas ut.
+    const egetSett = config[BETINGELSE_EGEN_NOKKEL] as string[] | undefined;
     delete config.options;
     delete config.helpText;
-    delete config.conditionValues;
+    delete config[BETINGELSE_EGEN_NOKKEL];
     delete config.conditionActive;
     linjer.push(`${r} f${nr} fase  = ${f.fase ?? ""}`);
     linjer.push(`${r} f${nr} type  = ${f.type}`);
@@ -78,8 +80,8 @@ export function fasitLinjerForMal(mal: FasitMal): string[] {
     if (helpText) linjer.push(`${r} f${nr} hjelp = ${helpText}`);
     if (f.ref) linjer.push(`${r} f${nr} ref   = ${f.ref}`);
     if (f.parentRef) linjer.push(`${r} f${nr} barn-av = ${f.parentRef}`);
-    if (conditionValues && conditionValues.length > 0)
-      linjer.push(`${r} f${nr} vises-når = ${conditionValues.join(" | ")}`);
+    if (egetSett && egetSett.length > 0)
+      linjer.push(`${r} f${nr} vises-når = ${egetSett.join(" | ")}`);
     if (Object.keys(config).length > 0) linjer.push(`${r} f${nr} config = ${stabilJson(config)}`);
   });
   linjer.push("");

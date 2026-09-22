@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { BETINGELSE_EGEN_NOKKEL } from "@sitedoc/shared";
 import { forgrening, type FeltDef } from "./seed-bibliotek";
 import { byggMalSql, type MalKonstant } from "./generer-mal-sql";
 import { fasitLinjerForMal } from "./mal-fasit.test";
@@ -54,23 +55,35 @@ function byggTestMal(): MalKonstant {
 describe("del A — forgrening (seed-helper)", () => {
   const felter = byggTestMal().felter as unknown as FeltDef[];
 
-  it("forelder får ref + conditionActive; barna får parentRef + eget conditionValues", () => {
+  it("forelder får ref + conditionActive; barna får parentRef + eget conditionOwnValues", () => {
     const [underlag, planhet, klebing, trafikk] = felter;
     expect(underlag!.ref).toBe("underlag");
     expect(underlag!.config?.conditionActive).toBe(true);
     expect(underlag!.parentRef).toBeUndefined();
 
     expect(planhet!.parentRef).toBe("underlag");
-    expect(planhet!.config?.conditionValues).toEqual(["Ubundet"]);
+    expect(planhet!.config?.[BETINGELSE_EGEN_NOKKEL]).toEqual(["Ubundet"]);
 
     // Nesting: klebing er BÅDE barn av underlag OG forelder for trafikk.
     expect(klebing!.parentRef).toBe("underlag");
-    expect(klebing!.config?.conditionValues).toEqual(["Bundet", "Gammelt"]);
+    expect(klebing!.config?.[BETINGELSE_EGEN_NOKKEL]).toEqual(["Bundet", "Gammelt"]);
     expect(klebing!.ref).toBe("klebing");
     expect(klebing!.config?.conditionActive).toBe(true);
 
     expect(trafikk!.parentRef).toBe("klebing");
-    expect(trafikk!.config?.conditionValues).toEqual(["Klebet"]);
+    expect(trafikk!.config?.[BETINGELSE_EGEN_NOKKEL]).toEqual(["Klebet"]);
+  });
+
+  it("🔴 utløseren ligger på conditionOwnValues, ALDRI conditionValues på et barn", () => {
+    // conditionValues på et barn er barnets FORELDER-rolle; utløseren MÅ på egen nøkkel (app-endring
+    // 2026-09-21). Denne feiler hvis noen bytter tilbake til conditionValues i forgrening.
+    expect(BETINGELSE_EGEN_NOKKEL).toBe("conditionOwnValues");
+    for (const barn of felter.filter((x) => x.parentRef)) {
+      expect(barn.config, `«${barn.label}» skal ikke ha conditionValues`).not.toHaveProperty(
+        "conditionValues",
+      );
+      expect(barn.config?.[BETINGELSE_EGEN_NOKKEL]).toBeDefined();
+    }
   });
 
   it("rekkefølge: forelder står før barna", () => {
@@ -133,9 +146,10 @@ describe("del A — fasiten viser treet", () => {
     expect(linjer).toContain("vises-når = Klebet");
   });
 
-  it("conditionValues/conditionActive er IKKE i det generiske config-dumpet", () => {
-    expect(linjer).not.toContain("conditionValues");
+  it("conditionOwnValues/conditionActive er IKKE i det generiske config-dumpet", () => {
+    expect(linjer).not.toContain("conditionOwnValues");
     expect(linjer).not.toContain("conditionActive");
+    expect(linjer).not.toContain("conditionValues");
   });
 });
 

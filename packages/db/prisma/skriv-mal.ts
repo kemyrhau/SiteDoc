@@ -17,7 +17,7 @@
  */
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
-import { byggBibliotekRader, type BibliotekFeltData } from "@sitedoc/shared";
+import { byggBibliotekRader, BETINGELSE_EGEN_NOKKEL, type BibliotekFeltData } from "@sitedoc/shared";
 import { malRegister } from "./generer-mal-sql";
 
 /** Mal-formen skriv-mal trenger (metadata + felter) — MalKonstant fra malRegister passer. */
@@ -52,7 +52,7 @@ export function skrivMalTekst(mal: SkrivbarMal): string {
     const cfg = (r.config ?? {}) as Record<string, unknown>;
     const options = cfg.options as string[] | undefined;
     const help = cfg.helpText as string | undefined;
-    const triggere = cfg.conditionValues as string[] | undefined;
+    const triggere = cfg[BETINGELSE_EGEN_NOKKEL] as string[] | undefined;
     ut.push(`-[ rad ${r.sortOrder} ]`);
     ut.push(`  type         : ${r.type}`);
     ut.push(`  label        : ${r.label}`);

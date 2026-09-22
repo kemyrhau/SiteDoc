@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { byggBibliotekRader, bibliotekFaseHeadingLabel, faseFraHeadingLabel } from "./bibliotekRader";
 import type { BibliotekFeltData } from "./bibliotekRader";
+import { BETINGELSE_EGEN_NOKKEL } from "./betingelse";
 
 /**
  * Spesifikasjon for JSON → rad-transformasjonen (vei C del 1). Seeden og migreringen
@@ -117,9 +118,9 @@ describe("byggBibliotekRader — forelder/barn (del A)", () => {
       { label: "Underlag", type: "list_single", fase: "FØR", ref: "underlag",
         config: { options: ["Ubundet", "Bundet"], conditionActive: true } },
       { label: "Planhet", type: "list_single", fase: "FØR", parentRef: "underlag",
-        config: { options: ["OK", "Avvik"], conditionValues: ["Ubundet"] } },
+        config: { options: ["OK", "Avvik"], [BETINGELSE_EGEN_NOKKEL]: ["Ubundet"] } },
       { label: "Klebing", type: "list_single", fase: "FØR", parentRef: "underlag",
-        config: { options: ["OK", "Avvik"], conditionValues: ["Bundet"] } },
+        config: { options: ["OK", "Avvik"], [BETINGELSE_EGEN_NOKKEL]: ["Bundet"] } },
     ];
     const rader = byggBibliotekRader(tre);
     // heading + forelder + 2 barn = 4 rader; barn rett etter forelder.
@@ -136,9 +137,9 @@ describe("byggBibliotekRader — forelder/barn (del A)", () => {
     expect(forelder.parentId).toBeNull();
     expect(planhet.parentId).toBe("underlag");
     expect(klebing.parentId).toBe("underlag");
-    // Utløsersettene ligger PÅ BARNET (ulike per barn) — det app-endringen leser.
-    expect(planhet.config.conditionValues).toEqual(["Ubundet"]);
-    expect(klebing.config.conditionValues).toEqual(["Bundet"]);
+    // Utløsersettene ligger PÅ BARNET (conditionOwnValues, ulike per barn) — det app-endringen leser.
+    expect(planhet.config[BETINGELSE_EGEN_NOKKEL]).toEqual(["Ubundet"]);
+    expect(klebing.config[BETINGELSE_EGEN_NOKKEL]).toEqual(["Bundet"]);
     // Forelderen kommer FØR barna (parent_id kan skrives med foreldre først).
     expect(rader.indexOf(forelder)).toBeLessThan(rader.indexOf(planhet));
     expect(rader.indexOf(forelder)).toBeLessThan(rader.indexOf(klebing));

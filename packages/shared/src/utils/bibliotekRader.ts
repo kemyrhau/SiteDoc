@@ -30,7 +30,8 @@ export interface BibliotekFeltData {
    * Betingede felt (del A, ordre 2026-09-21). `ref` = stabil lokal nøkkel på en FORELDER
    * (et enkeltvalg med betingede barn); `parentRef` peker et BARN til forelderens `ref`.
    * Nøklene kobler forelder/barn uten DB-id — generatoren og seeden løser dem til `parent_id`.
-   * Utløsersettet (`config.conditionValues`) legges på BARNET; forelderen bærer `conditionActive`.
+   * Utløsersettet (`config.conditionOwnValues`, `BETINGELSE_EGEN_NOKKEL`) legges på BARNET;
+   * forelderen bærer `conditionActive`.
    */
   ref?: string | null;
   parentRef?: string | null;
