@@ -71,11 +71,30 @@ Revisjon: `version + 1`. Beskrivelsen får med **forankring**, som er nytt innho
 - Drensledning
 - Annen ledning
 
-> Typen ledning avgjør skjøtemetode, hvilke krav som gjelder for fall og forankring, og hvilken prøving som skal gjøres etterpå. Skriv ledningen og strekningen i emnefeltet, slik de står på tegningen: VL V-01–V-02 for vannledning, SP S-04–S-05 for spillvann, OV O-02–O-03 for overvann. Det er slik strekningen finnes igjen senere.
+> Typen ledning avgjør skjøtemetode, hvilke krav som gjelder for fall og forankring, og hvilken prøving som skal gjøres etterpå. Skriv strekningen i emnefeltet med kumnavnene fra tegningen: SP-04 til SP-05, V-01 til V-02, OV-02 til OV-03. Går ikke strekningen mellom to kummer, skriver du ledningstypen og pelene i stedet: VL P120 til P180. Det er slik strekningen finnes igjen senere.
 
-🔴 **Eksemplene skal stå ordrett, alle tre.** Kenneth 2026-09-22: «disse forklaringer i hjelpetekst er nyttig». Ett
-eksempel viser et tilfelle; tre viser mønsteret. Samme forkortelser som kummene (VL, SP, OV, AF) — VA-sporet har én
-konvensjon, og sveiseskjøtene bruker den samme med pelnummer i stedet for kumnavn.
+🔴 **Emnet for en strekning — rettet to ganger av Kenneth 2026-09-22, les hele punktet:**
+
+Design foreslo først `VL V-01–V-02`, altså ledningstype pluss kumnavn. **Den falt på to punkter:**
+
+1. **Ledningstypen er overflødig når strekningen går mellom to kummer.** Går den fra SP-04 til SP-05, *er* det en
+   spillvannsledning — kumnavnet sier det. Og siden spillvannskummen heter **SP**-04 (ikke S-04, som design feilaktig
+   skrev i første utkast), ble forslaget `SP SP-04–SP-05`, som sier det samme to ganger.
+2. **Tankestrek mellom kumnavnene gir tre bindestreker på rad.** Kenneth: «SP-04–SP-05 er litt mange dash». Riktig form
+   er **`SP-04 til SP-05`**, med ordet «til».
+
+**Design anbefalte «til» framfor «mellom … og …» av én grunn: sortering.** Begynner emnet med «mellom», sorterer hver
+eneste strekning under M, og kumnavnet — det man leter etter — ligger gjemt inne i teksten. Starter emnet med `SP-04`,
+grupperer listen seg selv etter startkum. Gatet av Kenneth.
+
+| Strekningen går | Emne |
+|---|---|
+| mellom to kummer | kumnavnene: `SP-04 til SP-05` |
+| ellers (drensledning, stikkledning, tilkobling) | ledningstype + pel: `VL P120 til P180` |
+
+**Alle tre kumeksemplene skal stå ordrett** — Kenneth 2026-09-22: «disse forklaringer i hjelpetekst er nyttig». Ett
+eksempel viser et tilfelle; tre viser mønsteret. Ledningstypene (VL, SP, OV, AF) er de samme forkortelsene som
+kummene bruker, så VA-sporet har én konvensjon; sveiseskjøten bruker den med pelnummer i stedet for kumnavn.
 
 **2. Fall** — `valg` · **vises for «Avløp, selvfall» og «Drensledning»** · fase **ETTER**
 - Innenfor toleransen for prosjektert fall
@@ -201,6 +220,7 @@ før Kenneth har sagt ja til dem.** Feiler ett av dem, er det en ren tekstrettin
    forsiktig? Finnes det en hovedregel arbeideren bør minnes på?
 3. **Forankring for vannledning og trykkavløp.** Design antar at begge trenger det. Er «Ikke krav på denne strekningen»
    et svar som hører hjemme, eller skal forankring alltid være et krav når det er trykk i ledningen?
-4. ~~**Emnefeltet for ledning.**~~ **Avklart 2026-09-22:** emnet bærer ledningen og strekningen, `VL V-01–V-02`, med
-   samme forkortelser som kummene (VL, SP, OV, AF). Selve sveiseskjøten dokumenteres i egen mal med `VL P120` —
-   ledningstype og pelnummer. Kenneth: «skillet går på vannledning og spillvannsledning i tillegg til pel nummer».
+4. ~~**Emnefeltet for ledning.**~~ **Avklart 2026-09-22, se felt 1:** emnet er kumnavnene med «til» mellom —
+   `SP-04 til SP-05`. Går strekningen ikke mellom to kummer, brukes ledningstype og peler: `VL P120 til P180`. Selve
+   sveiseskjøten dokumenteres i egen mal med `VL P120`. Kenneth: «skillet går på vannledning og spillvannsledning i
+   tillegg til pel nummer» og «SP-04–SP-05 er litt mange dash».
