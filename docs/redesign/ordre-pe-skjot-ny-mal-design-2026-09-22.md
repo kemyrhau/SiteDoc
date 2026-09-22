@@ -1,233 +1,305 @@
-# Ordre: ny mal UM1.1 – skjøting av PE-rør, én sjekkliste pr. skjøt
+# Ordre: ny mal UM1.1 – skjøt på PE-ledning, én sjekkliste pr. skjøt
 
 **Til:** mal-Opus · **Fra:** design · **Dato:** 2026-09-22
 **Metode:** MAL-METODE §1, §1c, §1e, §6a, §6b, §7b, §8 og §8b.
 **Branch:** samme som UM1 v2 — `feat/mal-um1-betinget`. **De to malene bygges sammen**, se § 1.
-**Gatet av Kenneth 2026-09-22:** «for PE sveis eller PE sveisemuffer → en sjekkliste pr skjøt» og «skillet går på
-vannledning og spillvannsledning i tillegg til pel nummer».
+**Gatet av Kenneth 2026-09-22:** «en sjekkliste pr skjøt» · «skillet går på vannledning og spillvannsledning i tillegg
+til pel nummer» · «um1.1 benyttes både til PE bend og muffer og sveiseskjøt» · «for mindre PE ledninger fins det andre
+alternativer, disse ledningene leveres på kveil og stikkledninger tas ut».
+
+**Normgrunnlag lest av design 2026-09-22** i `kilder/ns3420/NS 3420 Del U Rørinstallasjoner.pdf` (NS 3420-U:2019).
+Kenneth ga stien; design har verifisert hvert krav mot normteksten i stedet for å gjette. Normsidene står i § 3.
 
 ---
 
 ## 1. Hvorfor — og hvorfor den hører sammen med UM1
 
-UM1 v1 har feltet «Sveiselogg for PE — ført og signert». **Ett svar for en strekning som kan ha tjue skjøter.** Det er
-ikke en sveiselogg; det er en påstand om at det finnes en et annet sted.
+UM1 v1 har feltet «Sveiselogg for PE — ført og signert». **Ett svar for en strekning som kan ha tjue skjøter.**
 
-Kenneths vedtak: **én sjekkliste pr. skjøt.** Da får hver skjøt sin egen signatur, sine egne parametre og sitt eget
-bilde — som er hele grunnen til at en sveiselogg finnes.
+**Normen krever det Kenneth krever.** NS 3420-U:2019, c3.2.8 (normside 251): sveisene skal dokumenteres **i eget
+skjema** der sveisenummer, muffeidentitet, sveisetrykk, sveisetemperatur, sveisetid, værforhold, lufttemperatur og
+tildekking framgår, **signert av utførende sveiser**. Og c3.2.9: **hver skjøt skal merkes med sveiserens
+identifikasjon**.
 
-Det følger samme regel som kummene: **dokumentets enhet er den enheten som skal kunne finnes igjen.** For en kum er det
-kummen, for en strekning er det strekningen, for en sveis er det skjøten.
+Kenneths «en sjekkliste pr skjøt» er altså ikke en preferanse — det er kravet, skrevet ned. Dokumentets enhet er
+skjøten, slik den for en kum er kummen og for en strekning er strekningen.
 
 🔴 **UM1 felt 9 er endret i samme runde** til «Sveiseskjøter dokumentert — alle skjøter har egen sjekkliste». Det feltet
-peker på denne malen. **Merges den ene uten den andre, peker UM1 på noe som ikke finnes.** Begge ordrene ligger på samme
-branch og skal bygges i samme leveranse.
+peker på denne malen. **Merges den ene uten den andre, peker UM1 på noe som ikke finnes.** Én leveranse.
 
 ## 2. Emnefeltet — ledningstype og pelnummer
 
 Kenneth 2026-09-22: sveisemuffer merkes med **P-nummer**, altså **pelnummer**, og skillet går på **vannledning og
 spillvannsledning i tillegg til pelnummeret**.
 
-**Emnet blir derfor `VL P120`, `SP P340`, `OV P95`** — ledningstype og pel. Forkortelsene er de samme som for kummene
-(VL vannledning, SP spillvann, OV overvann, AF avløp felles), så VA-sporet har én konvensjon.
+**Emnet blir `VL P120`, `SP P340`, `OV P95`.** Forkortelsene er de samme som for kummene (VL, SP, OV, AF), så VA-sporet
+har én konvensjon.
 
-🔴 **Skrivemåten er «pel», ikke «pæl».** Kenneth tok den selv: «jeg tror det skrives Pel». Det er riktig, og forskjellen
-er reell i faget — **pel** er merkestaven og posisjonen langs traseen, **pæl** er en fundamenteringspæl. Står det «pæl
-120» i et byggedokument, sier dokumentet at det finnes en fundamenteringspæl der. **Ordet «pæl» skal ikke forekomme i
-malen.**
+🔴 **Skrivemåten er «pel», ikke «pæl».** Kenneth tok den selv. **pel** er merkestaven og posisjonen langs traseen, **pæl**
+er en fundamenteringspæl. **Ordet «pæl» skal ikke forekomme i malen**, og §7b-testen skal fange det.
 
-**Hvorfor pel og ikke et løpenummer:** «skjøt 3» er en telling som mister betydning så snart noen legger inn en skjøt
-til. Et pelnummer er en innmålt posisjon som står i tegningen for alltid. Og fordi ledningstypen står foran, kolliderer
-ikke to skjøter som ligger ved samme pel i samme grøft.
+**Hvorfor pel og ikke et løpenummer:** «skjøt 3» mister betydning så snart noen legger inn en skjøt til. Et pelnummer er
+en innmålt posisjon som står i tegningen for alltid. Normen krever bare sveiserens ID på skjøten (c3.2.9); pelnummeret er
+Kenneths tillegg, og det er det som gjør skjøten gjenfinnbar.
 
-## 3. Referansen — besvart av Kenneth, ikke av normoppslaget
+## 3. Hva normen faktisk krever — verifisert, med normside
 
-**Kenneth 2026-09-22:** «um1.1 benyttes både til PE bend og muffer og sveiseskjøt. noen ganger er bend og muffer egen
-post, andre ganger er det lm komplett».
+Alt under er lest i normteksten, ikke gjettet. Kravene er **omskrevet til SiteDocs egne ord** (§7b) — standardene
+navngis ikke i malen.
 
-**Referansen er `UM1.1`, i eksisterende kapittel `UM`** — samme kapittel som UM1 selv. Ingen nytt kapittel, ingen ny
-standard. Designs oppslagsbestilling er dermed trukket; Kenneths ord går foran normen når de spriker (§7b-linja).
+| Normpunkt | Side | Krav |
+|---|---|---|
+| c2.2 | 29 | PE-sveising skal utføres av **sertifisert operatør** |
+| c2.3 | 29 | **Sveisemaskinen skal være kalibrert** |
+| c2.4 | 29 | **Sveiseprosedyre skal utarbeides før arbeidet starter**, på grunnlag fra rørprodusenten. Ved uklarhet gjelder produsentens anvisning |
+| c3.1.1 | 250 | Tidligere lagte rør brukt som mothold skal være understøttet og forankret |
+| c3.2.1 | 250 | Utvendig ripe høyst **10 % av godstykkelsen**; rensk jevnt med skarp kniv **før** måling; skarpe riper avrundes og fylles med ekstrudersveis; dypere skade kappes bort eller dekkes med elektrisk reparasjonssadel |
+| c3.2.2 | 250 | **Ingen innvendige riper** aksepteres |
+| c3.2.3 | 250 | Klemringskobling på PE: **støttehylse innvendig** |
+| c3.2.4 | 251 | **Flenseskjøter skal ettertrekkes** — PE relakserer |
+| c3.2.5 | 251 | Sveising beskyttet mot støv og nedbør; ikke under 0 °C uten oppvarmet telt; **rørender tildekkes med plast**; **kappe fjernes før sveising** |
+| c3.2.6 | 251 | **Ovalitet og toleranser kontrolleres og rettes før sveising**, med rundingsverktøy; sveiseområdet oppspennes så muffen står stabil; verktøy levert eller godkjent av muffeleverandøren |
+| c3.2.7 | 252 | Elektromuffe: skraping med leverandørens verktøy og instruks. **Håndskraping er ikke tillatt** |
+| c3.2.8 | 252 | Sveisen dokumenteres i **eget skjema** med parametrene over, signert av utførende sveiser |
+| c3.2.9 | 252 | **Hver skjøt merkes med sveiserens identifikasjon** |
+| UM1.181 b1 / a3 | 265 | Anboringsklammer og T-rør **tilpasset rørmaterialene**; ledningen rengjøres utvendig |
 
-🔴 **To følger, og den andre er den viktige:**
+**Skjøtetypene** står i Matrise UM:2 (normside 254): muffeskjøt strekkfast / ikke strekkfast · sveiseskjøt ·
+**buttsveisskjøt** · **elektro muffesveis** · klemringsskjøt · laminert skjøt · løsflens · flenseskjøt · skjøtemansjett ·
+annen.
 
-1. **Malen dekker mer enn sveisen.** UM1.1 brukes til **PE-bend, muffer og sveiseskjøt**. Derfor får malen et nytt
-   første felt — «Hva skjøtes» — og bendet får sitt eget kontrollpunkt. Navnet endres fra designs arbeidstittel
-   «PE-skjøt» til **«UM1.1 – Skjøting av PE-rør»**, som dekker alle tre.
-2. **Prisformen skal ikke avgjøre om kontrollen gjøres.** Kenneth: bend og muffer er «noen ganger egen post, andre
-   ganger lm komplett». Inngår bendet i løpemeterprisen, finnes det ingen egen post å henge en sjekkliste på — men
-   skjøten er like avgjørende for at ledningen holder. **Malen sier det eksplisitt i felt 1s hjelpetekst**, slik at
-   ingen hopper over kontrollen fordi delen ikke ble priset for seg.
+🔴 **Design tok feil, og retter seg selv:** i forrige melding meldte design at normen ikke bruker ordet «speilsveis».
+**Det gjør den** — c3.2.5 heter «Speilsveising og elmuffe-sveising». Matrisen bruker «Buttsveisskjøt», brødteksten
+bruker «Speilsveising». Begge er normens ord. Malen bruker **«Speilsveis (buttsveis)»** og **«Elektromuffesveis»**, som
+dekker begge skrivemåter.
 
-**Det ene som fortsatt skal bekreftes av deg, og det er en bekreftelse og ikke et oppslag:** at `UM1.1` finnes som post
-og at kapittel `UM` allerede bærer `UM1`. Stemmer det ikke, **stopp og meld** — feil referanse gir en bibliotekrad som
-må rettes med lån-bevaring etterpå.
+**Referansen:** `UM1.1` er i normen «Utendørs vannledninger» (side 260), ikke en skjøtepost — skjøten er en
+matriseegenskap. Kenneth valgte likevel UM1.1, fordi det er posten han skriver i beskrivelsene, og fordi bend, muffer og
+sveiseskjøt prises der. **Beskrivelsen sier derfor eksplisitt at malen gjelder PE-skjøter på alle VA-ledninger**, ikke
+bare vannledning. Dette punktet er gatet: se § 7.
 
-**Metodenavnene** står fortsatt åpne: designs arbeidstitler er *elektromuffesveis* og *speilsveis*. Bruker normen andre
-ord, meld dem — men Kenneth sa «PE sveisemuffer», og hans ord går foran.
+## 4. Kveilrør — grunnen til at malen ble omskrevet
 
-**Meld bekreftelsen før du bygger.**
+Kenneth 2026-09-22: «for mindre PE ledninger fins det andre alternativer, disse ledningene leveres på kveil og
+stikkledninger tas ut».
 
-## 4. Malen
+Designs første utkast spurte bare om **sveisemetode**. Det ville tvunget en klemringsskjøt på et kveilrør gjennom
+spørsmål om avkjølingstid og smelteindikatorer — felt som ikke gjelder den i det hele tatt.
+
+**Malen dekker derfor skjøten, ikke sveisen.** Klemringsskjøt og flenseskjøt er egne skjøtetyper i normen med egne krav
+(c3.2.3 og c3.2.4), og stikkledningsuttak er en egen post (UM1.181). Alle tre er nå med, og alle tre er forgrenet — en
+klemringsskjøt viser seks felt, en full elektromuffesveis tolv.
+
+**Det finnes ingen «ingen skjøt på stedet».** Kenneth: bendet skjøtes i grøfta enten det kommer ferdig fra fabrikk med
+elektromuffer eller uten. Malen har derfor ingen unntakssti for prefabrikkerte deler.
+
+## 5. Malen
 
 ```
 kapittelKode: "UM"
 referanse:    "UM1.1"
-navn:         "UM1.1 – Skjøting av PE-rør"
-beskrivelse:  "Skjøting av PE-rør — sveiseskjøt, bend og muffe: metode, forberedelse, parametre, avkjøling, visuell kontroll og merking. Én sjekkliste pr. skjøt. Faglig grunnlag: NS 3420-U:2019, post UM1.1."
+navn:         "UM1.1 – Skjøt på PE-ledning"
+beskrivelse:  "Skjøt på PE-ledning for vann, avløp og drens — skjøtetype, rørkontroll, sveiseprosedyre, parametre, avkjøling og merking. Én sjekkliste pr. skjøt. Gjelder sveiste og mekaniske skjøter, bend, muffer og stikkledningsuttak. Faglig grunnlag: NS 3420-U:2019, post UM1.1."
 ```
 
-**Alle felt er `valg` eller `trafikklys` — ingen tallfelt (§1).** Parametre og verdier hører i sveiseprotokollen og i
-kommentaren, ikke som tallfelt i sjekklisten.
+**Alle felt er `valg` eller `trafikklys` — ingen tallfelt (§1).** Parametrene hører i sveiseskjemaet, ikke som tallfelt i
+sjekklisten.
 
 ### Kontroll FØR utførelse
 
-**1. Hva skjøtes** — `valg` · **forelder for felt 2**
+**1. Hva skjøtes** — `valg` · **forelder for felt 2 og 3**
 - Skjøt på rett rør
 - Bend
 - Muffe eller overgang
+- Uttak av stikkledning
 - Annen del – se beskrivelsen
 
 > Skriv ledningen og pelnummeret i emnefeltet: VL P120 for vannledning, SP P340 for spillvann, OV P95 for overvann. Det er slik skjøten finnes igjen senere, og slik to skjøter ved samme pel holdes fra hverandre. Én sjekkliste pr. skjøt. Kontrollen gjelder uansett om bendet eller muffen er priset som egen post eller inngår i løpemeterprisen — en skjøt som svikter, svikter like fullt.
 
-🔴 **Eksemplene skal stå ordrett.** Kenneth 2026-09-22: «VL P120, SP P340, OV P95 → disse forklaringer i hjelpetekst er
-nyttig». Tre eksempler viser mønsteret der ett bare viser et tilfelle — og de tre dekker de ledningstypene som faktisk
-sveises i PE. Ikke kort dem ned til ett.
-
-🔴 **Setningen om prisform skal også stå ordrett.** Den kommer av Kenneths «noen ganger er bend og muffer egen post,
-andre ganger er det lm komplett». Inngår delen i løpemeterprisen, finnes ingen egen post å henge en sjekkliste på — og
-da er det nettopp hjelpeteksten som må si at kontrollen gjelder likevel.
+🔴 **To setninger som skal stå ordrett:** emne-eksemplene (Kenneth: «disse forklaringer i hjelpetekst er nyttig» — tre
+eksempler viser mønsteret, ett viser et tilfelle) og setningen om prisform (Kenneth: «noen ganger er bend og muffer egen
+post, andre ganger er det lm komplett» — inngår delen i løpemeterprisen, finnes ingen post å henge sjekklisten på, og da
+er det hjelpeteksten som må si at kontrollen gjelder likevel).
 
 **2. Bendets retning og vinkel** — `valg` · **vises for «Bend»**
 - Riktig vinkel og retning, forankret som beskrevet
 - Forankring ikke krevd her
 - Avvik
 
-> Kontroller vinkelen og retningen mot tegningen før skjøten sveises — et bend som peker feil, rives opp igjen. Står ledningen under trykk, skyver bendet seg utover, og kraften skal tas opp av mothold eller strekkfaste skjøter slik beskrivelsen angir.
+> Kontroller vinkelen og retningen mot tegningen før skjøten lages — et bend som peker feil, rives opp igjen. Står ledningen under trykk, skyver bendet seg utover, og kraften skal tas opp av mothold eller strekkfaste skjøter slik beskrivelsen angir.
 
-**3. Sveisemetode** — `valg` · **forelder for felt 6 og 10**
-- Elektromuffe (sveisemuffe)
-- Speilsveis
-- Annen metode – se beskrivelsen
+**3. Anboring og uttak** — `valg` · **vises for «Uttak av stikkledning»**
+- Klammer og deler tilpasset rørmaterialene, ledningen rengjort, uttaket tett
+- Avvik
 
-> Metoden avgjør hvilke kontrollpunkter som vises under. Elektromuffe og speilsveis forberedes og kontrolleres på helt ulike måter.
+> Anboringsklammer og T-rør skal passe til rørmaterialet i både hovedledning og stikkledning. Rengjør ledningen utvendig der klammeret settes på. Kontroller at uttaket er tett, og at hovedledningen ikke er svekket av boringen.
 
 **4. Rør og deler kontrollert** — `valg`
-- Riktig dimensjon og trykklasse, rene og uskadde
-- Avvik – kassert eller kappet bort
+- Riktig dimensjon og trykklasse, riper innenfor grensen
+- Skade kappet bort eller reparert
+- Avvik
 
-> Dimensjon, trykklasse og materiale skal stemme med beskrivelsen, og delene som skjøtes skal passe sammen. Utvendige riper høyst 10 % av veggtykkelsen, ingen innvendige riper. Dypere skader kappes ut.
+> Utvendig ripe kan være høyst 10 % av godstykkelsen. Rensk området jevnt med rørflaten med skarp kniv før du måler dybden — ellers måler du feil. Skarpe riper avrundes og fylles med ekstrudersveis. Er skaden dypere, kappes delen bort, eller den dekkes med en elektrisk reparasjonssadel. Innvendige riper aksepteres ikke. Rør levert på kveil rettes ut, og eventuell kappe fjernes der skjøten skal lages.
 
-**5. Forholdene på stedet** — `valg`
-- Tørt og skjermet, temperatur som foreskrevet
+**5. Skjøtetype** — `valg` · **forelder for felt 6–10 (sveis), 11–12, 13–14, 15 og 16**
+- Elektromuffesveis
+- Speilsveis (buttsveis)
+- Klemringsskjøt
+- Flenseskjøt eller løsflens
+- Annen skjøt – se beskrivelsen
+
+> Skjøtetypen avgjør hva som kontrolleres. Mindre dimensjoner leveres på kveil og skjøtes ofte med klemring i stedet for sveis — da gjelder helt andre krav enn ved sveising.
+
+### Sveisegruppe — **utløses av «Elektromuffesveis» OG «Speilsveis (buttsveis)»**
+
+**6. Prosedyre, kalibrering og sertifikat** — `valg`
+- Prosedyre foreligger, maskinen kalibrert, sveiseren sertifisert
+- Avvik
+
+> Sveiseprosedyren for denne maskinen og dette rørmaterialet skal være utarbeidet før arbeidet starter, på grunnlag fra rørprodusenten. Er noe uklart, er det produsentens anvisning som gjelder. Maskinen skal være kalibrert, og sveiseren skal ha gyldig sertifikat for metoden.
+
+**7. Forholdene på stedet** — `valg`
+- Tørt og skjermet, rørendene tildekket
 - Telt eller oppvarming brukt
 - Avvik – sveiset likevel
 
-> Sveis skal være beskyttet mot støv, vind og nedbør. Ikke sveis under 0 °C uten oppvarmet telt. Fukt i skjøteflaten gir en sveis som ser riktig ut og likevel ikke holder.
+> Sveising skal være beskyttet mot støv og nedbør, og skal ikke utføres under 0 °C uten oppvarmet telt. Dekk rørendene med plast for å hindre trekk og avkjøling gjennom røret.
 
-### Kontroll UNDER utførelse
-
-**6a. Skraping og rengjøring** — `valg` · **vises for «Elektromuffe (sveisemuffe)»**
-- Skrapt med godkjent verktøy over hele muffelengden, rengjort
+**8. Ovalitet og oppspenning** — `valg`
+- Ovalitet kontrollert og rettet, sveiseområdet oppspent
 - Avvik
 
-> Skrap med godkjent skrapeverktøy, aldri for hånd eller med sandpapir — oksidsjiktet skal bort, ikke bare pusses. Rengjør med foreskrevet rensemiddel og la flaten tørke før muffen settes på. Ta ikke på skjøteflaten etter rengjøring.
+> Ovalitet og toleranser kontrolleres og rettes før sveising, med rundingsverktøy. Kveilrør er alltid ovalt og skal rundes. Sveiseområdet spennes opp så muffen står stabil gjennom hele sveisen. Bruk verktøy levert eller godkjent av muffeleverandøren.
 
-**6b. Høvling og oppretting** — `valg` · **vises for «Speilsveis»**
-- Endene høvlet, rørene i samme akse, kantavvik innenfor kravet
+**9. Sveiseparametre ført i skjema** — `valg`
+- Ført og signert av utførende sveiser
 - Avvik
 
-> Høvle begge ender umiddelbart før sveising, og kontroller at flatene ligger an mot hverandre hele veien rundt. Rørene skal ligge i samme akse — kantavvik gir en svak sveis selv med riktige parametre.
+> Skjemaet skal vise sveisenummer, muffeidentitet, sveisetrykk, sveisetemperatur, sveisetid, værforhold, lufttemperatur og tildekking, og være signert av den som sveiset. Legg skjemaet ved.
 
-**7. Fiksering** — `valg`
-- Rørene fastspent, ingen bevegelse
+**10. Avkjøling** — `valg`
+- Full avkjølingstid, uten belastning
 - Avvik
 
-> Rørene skal være fastspent slik at ingenting beveger seg under sveising og avkjøling. Bevegelse i avkjølingsfasen ødelegger skjøten.
+> Skjøten skal stå hele den foreskrevne avkjølingstiden, og skal ikke belastes, beveges eller trykkprøves før tiden er ute. Dette er punktet som oftest ryker under tidspress.
 
-**8. Sveiseparametre** — `valg`
-- Som foreskrevet, protokoll tatt vare på
-- Avvik – meldt
+### Elektromuffe — **utløses av «Elektromuffesveis»**
 
-> Følg parametrene for denne dimensjonen og metoden. Elektromuffe: bruk muffens egen kode, og kontroller at maskinen leste den riktig. Speilsveis: temperatur, trykk og tider etter tabellen. Protokollen fra maskinen er dokumentasjonen — ta vare på den og legg den ved.
-
-**9. Avkjøling** — `valg`
-- Full avkjølingstid i klemme, uten belastning
+**11. Skraping av røroverflaten** — `valg`
+- Skrapt med leverandørens verktøy over hele muffelengden
 - Avvik
 
-> Skjøten skal stå i klemme hele den foreskrevne avkjølingstiden, og den skal ikke belastes, beveges eller trykkprøves før tiden er ute. Dette er det punktet som oftest ryker under tidspress.
+> Skrap med verktøy levert eller godkjent av muffeleverandøren, etter leverandørens instruks. Håndskraping er ikke tillatt — oksidsjiktet skal bort, ikke bare pusses. Ta ikke på skjøteflaten etterpå.
 
-### Kontroll ETTER utførelse
-
-**10a. Smelteindikatorer** — `valg` · **vises for «Elektromuffe (sveisemuffe)»**
+**12. Smelteindikatorer** — `valg`
 - Indikatorer ute på begge sider, muffen sitter i posisjon
 - Avvik
 
 > Begge indikatorene skal ha kommet ut. Har bare én kommet ut, er skjøten ikke godkjent — den kappes ut. Kontroller også at muffen ikke har forskjøvet seg.
 
-**10b. Vulsten** — `valg` · **vises for «Speilsveis»**
+### Speilsveis — **utløses av «Speilsveis (buttsveis)»**
+
+**13. Høvling og oppstilling** — `valg`
+- Endene høvlet, rørene i samme akse, kantavvik innenfor kravet
+- Avvik
+
+> Høvle begge ender umiddelbart før sveising, og kontroller at flatene ligger an mot hverandre hele veien rundt. Rørene skal ligge i samme akse — kantavvik gir en svak sveis selv med riktige parametre.
+
+**14. Vulsten** — `valg`
 - Jevn og symmetrisk hele veien rundt
 - Avvik
 
 > Vulsten skal være jevn og like stor på begge sider hele veien rundt røret. Skjev eller ujevn vulst betyr skjev oppstilling eller feil parametre — skjøten kappes ut og sveises på nytt.
 
-**11. Skjøten merket** — `valg`
-- Merket med sveiserens ID og pelnummer
+### Mekaniske skjøter
+
+**15. Støttehylse og tiltrekking** — `valg` · **vises for «Klemringsskjøt»**
+- Støttehylse montert innvendig, koblingen trukket til
 - Avvik
 
-> Merk skjøten på røret med sveiserens ID og pelnummeret, slik at den kan knyttes til denne sjekklisten når grøfta er fylt igjen.
+> Klemringskobling på PE-rør skal ha støttehylse innvendig. Uten den trekker røret seg sammen under klemringen, og skjøten begynner å lekke. Trekk til etter leverandørens anvisning.
 
-**12. Skjøten er dokumentert og klar** — `trafikklys`
+**16. Ettertrekking av flens** — `valg` · **vises for «Flenseskjøt eller løsflens»**
+- Ettertrukket etter montering
+- Avvik
 
-> Protokollen er tatt vare på, skjøten er merket og innmålt, og den kan omfylles. Ta bilde av skjøten og av merkingen før den dekkes til.
+> Flenseskjøter skal ettertrekkes. PE gir seg over tid, og en flens som bare er trukket én gang, lekker senere.
 
-**Struktur:** malen har **14 felt**, og **ni vises alltid** (1, 3, 4, 5, 7, 8, 9, 11, 12). To forgreninger legger på:
+### Kontroll ETTER utførelse
+
+**17. Skjøten merket** — `valg`
+- Merket med pelnummer, og med sveiserens ID der det er sveiset
+- Avvik
+
+> Hver sveiset skjøt skal merkes med sveiserens identifikasjon. Ta med pelnummeret på alle skjøter, også de mekaniske, så kan skjøten knyttes til denne sjekklisten når grøfta er fylt igjen.
+
+**18. Skjøten er dokumentert og klar** — `trafikklys`
+
+> Skjema og følgesedler er tatt vare på, skjøten er merket og innmålt, og den kan omfylles. Ta bilde av skjøten og av merkingen før den dekkes til.
+
+**Struktur:** malen har **18 felt**, og **fem vises alltid** (1, 4, 5, 17, 18). Skjøtetypen avgjør resten:
 
 | Situasjon | Synlige felt |
 |---|---|
-| Skjøt på rett rør, elektromuffe | 11 (+ 6a, 10a) |
-| Skjøt på rett rør, speilsveis | 11 (+ 6b, 10b) |
-| Bend, elektromuffe | 12 (+ 2, 6a, 10a) |
-| «Annen del» og «Annen metode» | 9 |
+| Klemringsskjøt på kveilrør | **6** |
+| Flenseskjøt | 6 |
+| Stikkledningsuttak med klemring | 7 |
+| Elektromuffesveis på rett rør | **12** |
+| Speilsveis på rett rør | 12 |
+| Bend med elektromuffesveis | 13 |
+| «Annen skjøt», «Annen del» | 5 |
 
-**To foreldre:** felt 1 «Hva skjøtes» utløser bendfeltet, og felt 3 «Sveisemetode» utløser de to metodeparene. Samme
+**To foreldre:** felt 1 «Hva skjøtes» utløser bend- og anboringsfeltene, og felt 5 «Skjøtetype» utløser resten. Samme
 mønster som UM1 v2, der ledningstype og skjøtemetode er to uavhengige trær.
 
-## 5. Rammer
+**Det er hele poenget med forgreningen:** en klemringsskjøt på et kveilrør viser seks felt. Uten forgrening måtte den
+samme mannen svare «ikke aktuelt» på avkjølingstid, smelteindikatorer, vulst, høvling og sveiseprosedyre.
 
-- §7b-sjekk i en ny `um1-1-mal.test.ts`: ingen `Matrise`, `NS-EN`, `NS 3420`, ingen `UM1.1 ` som prefiks i feltnavn, og
-  **ingen forekomst av «pæl»**. `PE`, `SDR`, `elektromuffe` og `speilsveis` er produkt- og metodebetegnelser og er
-  tillatt (§7c).
-- **Strukturtest:** låse begge trærne — at 6a/10a hører til elektromuffe, 6b/10b til speilsveis, at bendfeltet hører
-  til felt 1 og ikke til felt 3, og at ingen av de fem er alltid synlige. Rød først.
-- To barn under samme utløser = **to egne poster** i `barn`-arrayet med samme `naar` (`seed-bibliotek.ts:197–206`).
-  Det gjelder begge metodene her: 6a+10a er ett par, 6b+10b et annet.
+## 6. Rammer
+
+- §7b-sjekk i en ny `um1-1-mal.test.ts`: ingen `Matrise`, `NS-EN`, `NS 3420`, `NS 416`, `DS/INF`, ingen `UM1.1 ` som
+  prefiks i feltnavn, og **ingen forekomst av «pæl»**. `PE`, `SDR`, `elektromuffe`, `speilsveis` og `buttsveis` er
+  produkt- og metodebetegnelser og er tillatt (§7c).
+- **Strukturtest:** låse begge trærne — at bend- og anboringsfeltene henger på felt 1 · at sveisegruppen (6–10) har
+  **to** utløsere · at 11–12 bare gjelder elektromuffe, 13–14 bare speilsveis, 15 bare klemring og 16 bare flens · og at
+  ingen av de tretten er alltid synlige. Rød først.
+- **Fem barn under samme utløserpar** (felt 6–10) = **fem egne poster** i `barn`-arrayet med samme `naar`
+  (`seed-bibliotek.ts:197–206`). Legger du dem som `felt: [a, b, c, d, e]`, får bare `a` sin `parentRef` og de fire
+  andre blir alltid synlige. Dette er den største forgreningen i biblioteket så langt — test den hardest.
 - Utløseren ligger på barnets **eget** sett (`BETINGELSE_EGEN_NOKKEL`).
 - Fasit (§8) og `skriv-mal` viser treet. Ingen i18n-nøkler. Ingen endring i `packages/shared` eller appene.
   Prod-gaten røres ikke. Ingen migrering.
 
-## 6. SQL og DoD
+## 7. SQL og DoD
 
-`generer-mal-sql.ts UM1.1 ny`. Kapittel `UM` finnes fra UM1 — **ingen nytt kapittel skal opprettes.** Trenger UM1.1 en
-plass i sorteringen rett etter UM1, bruk `--sorter` som i tidligere runder, og meld hvilke søstre som flyttes. Lag
-SQL-filen, parse-test mot engangsdatabase, slett den etterpå, lever de tre enlinjerne. **Ikke kjør mot test selv.**
+`generer-mal-sql.ts UM1.1 ny`. Kapittel `UM` finnes fra UM1 — **ingen nytt kapittel skal opprettes.** Trenger UM1.1
+plass rett etter UM1 i sorteringen, bruk `--sorter` og meld hvilke søstre som flyttes. Lag SQL-filen, parse-test mot
+engangsdatabase, slett den etterpå, lever de tre enlinjerne. **Ikke kjør mot test selv.**
 
 **DoD:**
-1. § 3 bekreftet: `UM1.1` finnes som post, og kapittel `UM` bærer allerede `UM1`. Stemmer det ikke — stopp og meld.
-2. Malen med 14 felt som over, ordrett, med riktige foreldre og utløsersett.
-3. UM1 felt 9 endret i samme leveranse — de to malene hører sammen.
-4. Strukturtest og §7b-sjekk grønne, fasit oppdatert i samme branch.
-5. **Tekstbevis:** `skriv-mal UM1.1` limt i leveransen, som viser at bendfeltet henger på felt 1 og metodeparene på
-   felt 3.
-6. Gate-tall via `pnpm exec turbo run test --force`.
+1. Malen med 18 felt som over, ordrett, med riktige foreldre og utløsersett.
+2. UM1 felt 9 endret i samme leveranse — de to malene hører sammen.
+3. Strukturtest og §7b-sjekk grønne, fasit oppdatert i samme branch.
+4. **Tekstbevis:** `skriv-mal UM1.1` limt i leveransen, som viser at sveisegruppen har to utløsere og at de fire
+   metodespesifikke gruppene er skilt.
+5. Gate-tall via `pnpm exec turbo run test --force`.
+6. Diff: `seed-bibliotek.ts`, `um1-1-mal.test.ts`, `mal-fasit.snap.md`, `um1-mal.test.ts` og SQL-en. Rører du noe annet,
+   meld hvorfor.
 7. Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
 
-## 7. Fagpunkter design gater hos Kenneth før SQL
+**Normoppslaget er trukket** — design har lest normen selv, se § 3. Du skal ikke slå opp noe for denne malen.
 
-Designs forslag, ikke Kenneths ord:
+## 8. Åpent punkt design gater hos Kenneth før SQL
 
-1. **To metoder er nok?** Elektromuffe og speilsveis, pluss «Annen metode». Kenneth nevnte sveisemuffer særskilt, så
-   design antar elektromuffe er den vanligste.
-2. **Merkingen i felt 11** — design foreslår sveiserens ID og pelnummer på røret. Er det slik dere merker i dag?
-3. **Én sjekkliste pr. skjøt gir mange dokumenter.** Design har ikke foreslått noen forenkling, fordi Kenneth avslo
-   gjentakelse for kumgrupper 2026-09-22 som «litt for langt». Blir antallet et problem i praksis, er det en måling —
-   ikke en designendring nå.
+**Referansen `UM1.1`.** Normen kaller UM1.1 «Utendørs vannledninger» (side 260), og skjøten er en matriseegenskap, ikke
+en egen post. Kenneth valgte UM1.1 fordi det er posten han skriver i beskrivelsene. Malen brukes altså bredere enn
+posten, og beskrivelsen sier det.
+
+**Alternativet, hvis Kenneth heller vil:** legge malen på `UM1`, som i normen dekker vann, avløp og drens — men `UM1` er
+opptatt av eksisterende mal. Da måtte referansen bli noe annet, og design vil ikke finne opp en referanse som ikke står
+i normen.
+
+**Det ene fagspørsmålet som står igjen:** et bend har to ender, og dermed to skjøter. Er det **to sjekklister** — én pr.
+skjøt, som normen krever — eller **én for bendet**? To lister på samme bend får identisk emne (`VL P120`), og da
+kolliderer de. Design heller mot **én liste pr. skjøt, med a/b i emnet** (`VL P120a`, `VL P120b`), siden normens c3.2.8
+krever eget skjema pr. sveis. Kenneth avgjør.
