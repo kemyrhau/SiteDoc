@@ -36,6 +36,7 @@ Kenneth sorterer på **funksjon**. Derfor byttes listen.
 | Overvannskum | OV | «OV (overvann)» |
 | Felleskum | AF | «AF (Avløp Felles)» |
 | Vannkum | V | «V (vannkum)» |
+| Bajokum | V | «Bajo kum er en nedgravd vannventil med et gatelokk på vei med avstenging og mulighet for brannuttak i enkelte tilfeller» |
 | Sandfangkum | SF | «SF (sandfang)» |
 
 **Alle tre avløpskummene (SP, OV, AF) har renneløp i bunnen** — Kenneth 2026-09-22: «alle disse har renneløp i bunnen».
@@ -61,7 +62,7 @@ samme form som JH2 bruker for klebing → trafikk på klebet flate.
 |---|---|
 | SP · OV · AF | Renneløp gjennom kummen |
 | SF | Sandvolum og høyde til utløp · Dykker og tilgang for tømming |
-| V | Hovedventil · Brannvannsuttak på ventilen |
+| V · Bajokum | Hovedventil · Brannvannsuttak på ventilen |
 | ↳ «Ja – kummen er brannkum» | Brannkumskilt – avstand og retning |
 
 **Hvorfor brannuttaket ligger under vannkummen og ikke i typelisten:** fordi det er slik kummen faktisk er merket.
@@ -109,6 +110,7 @@ Revisjon: `version + 1`.
 - Overvannskum (OV)
 - Felleskum (AF)
 - Vannkum (V)
+- Bajokum – nedgravd ventil med gatelokk (V)
 - Sandfangkum (SF)
 - Annen kum – se beskrivelsen
 
@@ -133,13 +135,13 @@ Revisjon: `version + 1`.
 
 > Dykkeren holder flytende materiale tilbake og skal sitte som beskrevet. Kummen må stå slik at slamsugebil kommer til.
 
-**5. Hovedventil** — `valg` · **vises for V**
+**5. Hovedventil** — `valg` · **vises for Vannkum og Bajokum**
 - Riktig type og stilling, spindel kan betjenes
 - Avvik
 
-> Ventiltype og dimensjon står i beskrivelsen. Spindelen skal kunne betjenes fra overflaten, og stillingen skal være som prosjektert ved overlevering. Kontroller at ventilen ikke er skadet under nedsetting.
+> Ventiltype og dimensjon står i beskrivelsen. Spindelen skal kunne betjenes fra overflaten, og stillingen skal være som prosjektert ved overlevering. Kontroller at ventilen ikke er skadet under nedsetting. I en nedgravd ventil betjenes spindelen gjennom dekselet — prøv avstengingen før gatelokket legges på plass.
 
-**6. Brannvannsuttak på ventilen** — `valg` · **vises for V** · **forelder for felt 7**
+**6. Brannvannsuttak på ventilen** — `valg` · **vises for Vannkum og Bajokum** · **forelder for felt 7**
 - Ja – kummen er brannkum
 - Nei – ordinær vannkum
 
@@ -169,8 +171,14 @@ ordrett som i dagens `UP1_MAL`.
 
 ### Kontroll ETTER utførelse
 
-**13. Justeringsringer og ramme** · **14. Lokk eller rist** · **15. Lokkhøyde mot dekket** · **16. Kummen er ren,
-innmålt og klar** — **uendret fra v1**, ordrett.
+**13. Justeringsringer og ramme** — svaralternativene **uendret fra v1**, men hjelpeteksten utvides så den også dekker
+den nedgravde ventilen, som ikke har topplate eller justeringsringer:
+
+> Overdekningen over topplata skal være minst 0,3 m. Samlet høyde av justeringsringer og ramme bør ikke være over 0,40 m. For nedgravd ventil gjelder i stedet at teleskop og deksel står i riktig høyde, og at ventilen kan betjenes gjennom dekselet.
+
+**14. Lokk eller rist** · **15. Lokkhøyde mot dekket** · **16. Kummen er ren, innmålt og klar** — **uendret fra v1**,
+ordrett. Gatelokket over en nedgravd ventil ligger i vei og dekkes av de samme kravene: styrkeklasse etter
+beskrivelsen, og +0/−10 mm mot ferdig dekke.
 
 **Utgår fra v1:**
 - **Typelisten** (nedstigningskum / sandfangkum / inspeksjonskum / annen kum) — erstattet av funksjonslisten i felt 1.
@@ -188,8 +196,8 @@ viser avstand og retning fram til kummen, og det er slik brannvesenet finner den
 |---|---|
 | SP · OV · AF | 11 (renneløp) |
 | Sandfangkum | 12 (sandvolum, dykker) |
-| Vannkum uten uttak | 12 (ventil, uttaksspørsmål besvart «nei») |
-| Vannkum med uttak = brannkum | 13 (ventil, uttak, skilt) |
+| Vannkum eller Bajokum uten uttak | 12 (ventil, uttaksspørsmål besvart «nei») |
+| Vannkum eller Bajokum med uttak = brannkum | 13 (ventil, uttak, skilt) |
 | Annen kum | 10 |
 
 **Ikke gjør:** «Lokkhøyde mot dekket» **skal ikke** forgrenes på hvor kummen står. Design vurderte det og forkastet det:
@@ -229,13 +237,23 @@ og ikke i typelisten (§2), og at hjelpeteksten om emnefeltet står ordrett — 
 
 ---
 
-## 8. Åpent punkt — nedgravd ventil (ikke bygg før dette er avklart)
+## 8. Bajokum — og feilen design gjorde underveis
 
-Kenneth 2026-09-22: «det er en type → søk på Bajo → dette er en vannventil som er nedgravd». Det er en sluseventil som
-legges **direkte i grunnen**, med bajonettkobling til spindelforlenger og betjening gjennom et ventildeksel i overflaten
-— altså uten kum.
+Kenneth 2026-09-22: «det er en type → Bajo kum er en nedgravd vannventil med et gatelokk på vei med avstenging og
+mulighet for brannuttak i enkelte tilfeller».
 
-**Dette er ikke avklart, og malen skal ikke bygges med en slik type før design har gatet det.** Grunnen: tre av
-UP1s alltid-synlige ETTER-felt (justeringsringer og ramme, lokk eller rist, lokkhøyde mot dekket) gjelder en kumramme
-som en nedgravd ventil ikke har. Skal typen inn i denne malen, må hele ETTER-bolken forgrenes. Design legger fram
-alternativene for Kenneth før ordren oppdateres.
+**Design tok først feil på to måter, og rettingen er verdt å lese fordi den viser hvor grensen for malen går:**
+
+1. Design skrev «bajonettkobling». Kenneth: «ikke bajonett → det er en kniv på et våpen». Ordet skal ikke stå noe sted i
+   malen. Typen heter **Bajokum**, og i hjelpetekst beskrives den som **nedgravd ventil med gatelokk**.
+2. Design antok at typen ikke passer i UP1, fordi en nedgravd ventil mangler kumramme og lokk. **Det er galt** —
+   Bajokummen har gatelokk i vei. Dermed gjelder både lokkets styrkeklasse og lokkhøyden +0/−10 mm mot ferdig dekke, og
+   **ETTER-bolken skal ikke forgrenes.** Typen legges rett inn i listen, og ventil- og uttaksfeltene deles med
+   vannkummen via utløsersettet — samme mekanikk som renneløpet deler tre typer.
+
+Det ene feltet som må formuleres om, er felt 13: en nedgravd ventil har teleskop og deksel, ikke justeringsringer og
+topplate. Hjelpeteksten dekker begge, se § 5. Ingen nye felt.
+
+🔴 **Ett spørsmål design gater etter bygging, ikke før:** felt 11 «Skjøter og gjennomføringer» handler om pakninger i
+kumvegg, og passer dårlig på en nedgravd ventil. Bygg det som alltid synlig nå — design tar stilling til om det skal
+forgrenes når Kenneth har sett malen i bruk. **Ikke forgren det på eget initiativ.**
