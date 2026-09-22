@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `2fd9fe09` (docs/design-opprett-uten-modal `--no-ff`: ordre — mobil kopierer web-mønster for opprettelse) · GATE (`--force`): db 189 · api 522 · pdf 124 · shared 852 · web 304 · mobil 34 · 7/7 (ALLE stille — ren docs) · diff = 2 docs-filer + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-22 · develop `fc2e5c04` (feat/mal-tre-kapasitet `--no-ff`: tre-støtte i malverktøyene — forgrening bruker delt `BETINGELSE_EGEN_NOKKEL` fra `@sitedoc/shared`) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 200 · shared 854 (begge STEG) · api 522 · pdf 124 · web 304 · mobil 34 (stille) · 7/7 · fasit-diff TOM (23 maler urørt) · apps/ 0 filer · diff = 7 filer + tavla · ingen migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
-| **mal-Opus** | `SiteDoc-mal` | `feat/mal-tre-kapasitet` `b1818339` (på origin) — 🔴 **STOPPET, IKKE MERGET:** `forgrening()` setter `conditionValues` på barnet, men app-endringen leser `conditionOwnValues`. Bevisst stans på nøkkelnavn-feil, ikke glemt | 🔴 **BLOKKERT** (venter nøkkelnavn) | Design sender rette-ordre nå som app-nøkkelen er i develop |
+| **mal-Opus** | `SiteDoc-mal` | Del A (`feat/mal-tre-kapasitet` `2efcdcf4`) 🟢 **MERGET** develop `fc2e5c04` — nøkkelnavn-feilen rettet: forgrening bruker delt `BETINGELSE_EGEN_NOKKEL`, deler samme konstant som appen | ⚪ **LEDIG** — 🔴 **JH2 er ULÅST, men design sender startsignalet** (ikke startet) | Designs JH2-startsignal (går direkte, ikke via innboks) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal-ordre ligger i develop `2fd9fe09` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,26 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — Del A: tre-støtte i malverktøyene. Ingen migrering/SQL/mobil. develop `fc2e5c04`.
+
+🟢 **Merget** `feat/mal-tre-kapasitet` `2efcdcf4` (ikke gårsdagens `b1818339`) `--no-ff`. Diff = 7 filer, `apps/` 0 filer, fasit-snap byte-identisk (23 maler urørt). GATE `--force`, 0 cached (IKKE FULL TURBO): **db 200 · shared 854 STEG** (`tre-kapasitet.test.ts` + `bibliotekRader.test.ts`) · api 522 · pdf 124 · web 304 · mobil 34 stille · 7/7.
+
+### Del A er inne
+- Malverktøyene kan bygge **forgreninger**. Nøkkelen deles med appen: `seed-bibliotek.ts:15` importerer `BETINGELSE_EGEN_NOKKEL` fra `@sitedoc/shared` og bruker den som computed key `:203` — ingen hardkodet `"conditionOwnValues"`-streng. Seed og app kan ikke drifte fra hverandre igjen.
+
+### Hva feilen var (rekkefølge, ikke slurv)
+- `forgrening()` satte `conditionValues` på barnet, mens appen leser `conditionOwnValues`. Appen ville aldri funnet barnets eget sett, falt tilbake til forelderens, og forgreningen ville ikke virket — **uten feilmelding**. Årsak: app-branchen var ikke merget da mal-Opus bygde, så nøkkelnavnet fantes ikke i develop. **Design fanget det før merge.**
+- 🟢 **Mal-Opus la inn en regresjonstest** (`mal-fasit.test.ts:512` — `expect(linjer).not.toContain("conditionOwnValues")`) som feiler hvis et barn i en forgrening får `conditionValues` — uten at ordren krevde det.
+
+### 🔴 JH2-piloten er nå ULÅST
+- JH2 har ventet siden **2026-09-21**, da mal-Opus **stoppet foran den og målte at mønsteret ikke lot seg uttrykke** i malverktøyene. Hele kjeden som fulgte — per-barn-utløsere, `erObjektSynlig`, rapportfilteret, verifiseringen på ekte data — startet med den stoppen.
+- ⚠️ **Mal-Opus har IKKE startet JH2. Design sender startsignalet etter denne mergen.**
+
+### 🟡 Prosessfunn (design 2026-09-22)
+- Meldinger design↔mal-Opus går **direkte, ikke gjennom innboksen**. Cowork ser bare om en branch beveger seg, og purret på feil grunnlag. **Designs fiks:** én linje i `inbox-cowork.md` når en direkteordre sendes.
 
 ---
 
