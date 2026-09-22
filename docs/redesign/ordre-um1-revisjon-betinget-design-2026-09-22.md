@@ -71,7 +71,11 @@ Revisjon: `version + 1`. Beskrivelsen får med **forankring**, som er nytt innho
 - Drensledning
 - Annen ledning
 
-> Typen ledning avgjør skjøtemetode, hvilke krav som gjelder for fall og forankring, og hvilken prøving som skal gjøres etterpå. Skriv strekningen i emnefeltet, slik den står på tegningen — for eksempel kum til kum, eller profilnummer. Det er slik strekningen finnes igjen senere.
+> Typen ledning avgjør skjøtemetode, hvilke krav som gjelder for fall og forankring, og hvilken prøving som skal gjøres etterpå. Skriv ledningen og strekningen i emnefeltet, slik de står på tegningen: VL V-01–V-02 for vannledning, SP S-04–S-05 for spillvann, OV O-02–O-03 for overvann. Det er slik strekningen finnes igjen senere.
+
+🔴 **Eksemplene skal stå ordrett, alle tre.** Kenneth 2026-09-22: «disse forklaringer i hjelpetekst er nyttig». Ett
+eksempel viser et tilfelle; tre viser mønsteret. Samme forkortelser som kummene (VL, SP, OV, AF) — VA-sporet har én
+konvensjon, og sveiseskjøtene bruker den samme med pelnummer i stedet for kumnavn.
 
 **2. Fall** — `valg` · **vises for «Avløp, selvfall» og «Drensledning»** · fase **ETTER**
 - Innenfor toleransen for prosjektert fall
@@ -112,11 +116,16 @@ Revisjon: `version + 1`. Beskrivelsen får med **forankring**, som er nytt innho
 
 > Rørene sentreres, og skjøtekraften skal virke langs røret. Rør som brukes som mothold, støttes så de ikke forskyves. Flensskjøter ettertrekkes. Klemringskobling på PE-rør skal ha støttehylse innvendig.
 
-**9. Sveiselogg for PE** — `valg` · **vises når felt 8 = «PE-sveis»**
-- Ført og signert, skjøter merket
+**9. Sveiseskjøter dokumentert** — `valg` · **vises når felt 8 = «PE-sveis»**
+- Alle skjøter har egen sjekkliste
 - Mangler
 
-> Sveis beskyttet mot støv og nedbør, og ikke under 0 °C uten oppvarmet telt. Skrap med godkjent verktøy, ikke for hånd. Før hver sveis i skjemaet med parametre og signatur, og merk skjøten med sveiserens ID.
+> Hver sveiseskjøt dokumenteres i sin egen sjekkliste, med sveiseparametre, sveiserens ID og signatur. Dette feltet bekrefter bare at ingen skjøt på strekningen mangler — selve loggen hører ikke hjemme her.
+
+🔴 **Dette feltet erstatter v1s «Sveiselogg for PE», og endringen er Kenneths:** «for PE sveis eller PE sveisemuffer →
+en sjekkliste pr skjøt» (2026-09-22). En strekning kan ha tjue skjøter; ett svar for alle tjue er ikke en sveiselogg.
+Selve loggen flyttes til en egen mal, se `ordre-pe-skjot-ny-mal-design-2026-09-22.md` i samme branch. **De to ordrene
+skal merges og bygges sammen** — felt 9 peker på en mal som må finnes.
 
 **10. Røret hviler på fundamentet, ingen skolinger** · **11. Ledningen holdt ren innvendig** — `trafikklys`,
 **uendret fra v1**, ordrett.
@@ -192,5 +201,6 @@ før Kenneth har sagt ja til dem.** Feiler ett av dem, er det en ren tekstrettin
    forsiktig? Finnes det en hovedregel arbeideren bør minnes på?
 3. **Forankring for vannledning og trykkavløp.** Design antar at begge trenger det. Er «Ikke krav på denne strekningen»
    et svar som hører hjemme, eller skal forankring alltid være et krav når det er trykk i ledningen?
-4. **Emnefeltet for ledning.** For kum er emnet kummens navn. For ledning foreslår design **strekningen** — kum til kum,
-   eller profilnummer. Er det slik du vil finne dem igjen?
+4. ~~**Emnefeltet for ledning.**~~ **Avklart 2026-09-22:** emnet bærer ledningen og strekningen, `VL V-01–V-02`, med
+   samme forkortelser som kummene (VL, SP, OV, AF). Selve sveiseskjøten dokumenteres i egen mal med `VL P120` —
+   ledningstype og pelnummer. Kenneth: «skillet går på vannledning og spillvannsledning i tillegg til pel nummer».
