@@ -92,7 +92,7 @@ og her gjelder det både barn og barnebarn.
 
 ## 5. 🔴 Basisfeltene deles av alle fire malene — ordrett
 
-Ni felt gjelder enhver nedsetting i grøft og skal være **ord for ord identiske** i alle fire maler:
+**Ti** felt gjelder enhver nedsetting i grøft og skal være **ord for ord identiske** i alle fire maler:
 
 | # | Felt | Type |
 |---|---|---|
@@ -100,19 +100,38 @@ Ni felt gjelder enhver nedsetting i grøft og skal være **ord for ord identiske
 | B2 | Grøftebunn og fundament klare | `trafikklys` |
 | B3 | Plassering | `valg` |
 | B4 | Skjøter og gjennomføringer | `valg` |
-| B5 | Omfylling rundt kummen | `valg` |
-| B6 | Justeringsringer og ramme | `valg` |
-| B7 | Lokk eller rist | `valg` |
-| B8 | Lokkhøyde mot dekket | `valg` |
-| B9 | Ren, innmålt og klar | `trafikklys` |
+| **B5** | **Oppdrift og vann i grøfta** | **`valg` — NYTT, se under** |
+| B6 | Omfylling rundt kummen | `valg` |
+| B7 | Justeringsringer og ramme | `valg` |
+| B8 | Lokk eller rist | `valg` |
+| B9 | Lokkhøyde mot dekket | `valg` |
+| B10 | Ren, innmålt og klar | `trafikklys` |
 
 **Alternativer og hjelpetekster tas ordrett fra dagens `UP1_MAL`**, med to unntak:
 
-- **B1 og B5**, ordet «kummen» byttes til **«enheten»** i UO2.1, siden en nedgravd ventil ikke er en kum.
-- **B6**, hjelpeteksten utvides i UO2.1: en nedgravd ventil har teleskop og deksel, ikke justeringsringer og
+- **B1 og B6**, ordet «kummen» byttes til **«enheten»** i UO2.1, siden en nedgravd ventil ikke er en kum.
+- **B7**, hjelpeteksten utvides i UO2.1: en nedgravd ventil har teleskop og deksel, ikke justeringsringer og
   topplate.
 
-🔴 **Delt-tekst-test:** en test som låser at B1–B5 og B7–B9 er **ord for ord identiske** på tvers av de fire
+### 🔴 B5 «Oppdrift og vann i grøfta» — NYTT basisfelt, gatet av Kenneth 2026-09-22
+
+Kenneth: **«behold oppdrift, husk at dette gjelder alle kummer som monteres i grunnvann, spesielt plast.»**
+
+Design la først oppdrift i plastgrenen (M3). **Det var for smalt.** Oppdrift gjelder **enhver** kum som settes i
+vann — plast er bare den letteste. Derfor er det et **basisfelt**, alltid synlig i alle fire maler, og **plassert
+før omfyllingen**, fordi sikringen må stå før massene kommer.
+
+**B5. Oppdrift og vann i grøfta** — `valg`
+- Tørt i grøfta – ingen fare for oppdrift
+- Vann i grøfta – sikret mot oppdrift før omfylling
+- Avvik – ikke sikret
+
+> Står det vann i grøfta, kan kummen løfte seg. Det gjelder alle kummer, og særlig kummer av plast, som er lette. Sikringen — ballast, forankring eller lensing — skal være på plass FØR omfyllingen begynner. En kum som har løftet seg, ser riktig ut helt til dekket sprekker eller fallet snur.
+
+🔴 **Rekkefølgen er en del av kravet.** B5 skal stå **før** B6 «Omfylling», ikke etter. Et felt som spør om
+oppdriftssikring etter at omfyllingen er kvittert, er for sent til å hjelpe noen.
+
+🔴 **Delt-tekst-test:** en test som låser at B1–B6 og B8–B10 er **ord for ord identiske** på tvers av de fire
 malene. Rød først. Uten den drifter de fra hverandre ved første revisjon av én av dem, og da kan ingen
 sammenligne kontrollen av to kummer i samme grøft. Samme regel som gjorde at fasitfilen ble innført.
 
@@ -152,15 +171,15 @@ ventil — men den er ikke «ingen forgrening».
 
 > Elementene skjøtes med falsskjøt og glidering, eller med not og fjær, etter beskrivelsen. Krav om T-merking der kummen skal være tett, dekkes av kontrollen av kum og deler.
 
-**M3. Oppføringsrør, form og oppdrift** — `valg` · **vises for «Plast»**
-- Kappet i riktig høyde, røret er rundt, sikret mot oppdrift
+**M3. Oppføringsrør og form** — `valg` · **vises for «Plast»**
+- Kappet i riktig høyde, røret er rundt og uskadd
 - Avvik
 
-> Oppføringsrøret kappes så rammen får jevnt anlegg og lokket kommer i riktig høyde. Kontroller at røret ikke er blitt ovalt av gravemaskin eller ensidig omfylling. Står det vann i grøfta, skal kummen være sikret mot oppdrift før omfyllingen — en plastkum flyter, og den løfter seg uten at noen ser det før dekket sprekker.
+> Oppføringsrøret kappes så rammen får jevnt anlegg og lokket kommer i riktig høyde. Kontroller at røret ikke er blitt ovalt av gravemaskin eller ensidig omfylling — en deformert kum kan ikke spyles eller filmes. Oppdrift dekkes av eget kontrollpunkt, som gjelder alle materialer.
 
-🔴 **Oppdriftspunktet er designs tillegg og skal meldes til Kenneth for gating.** Det står ikke i normteksten
-design leste, men en plastkum i grunnvann er et kjent problem. Er det overflødig i praksis, tas setningen ut —
-men den er billig og feilen er dyr.
+🔴 **Oppdrift er FLYTTET ut av M3** til basisfeltet B5 (§ 5), etter Kenneths retting: «dette gjelder alle kummer
+som monteres i grunnvann, spesielt plast». **Legg det ikke tilbake her.** Siste setning i hjelpeteksten er
+krysshenvisningen som hindrer at noen bygger det to steder.
 
 **M4. Plasstøpt kumbunn** — `valg` · **vises for «Kumbunn av plasstøpt betong»** · **KUN i UP1**
 - Forskaling, gjennomføringer og renneløp støpt som beskrevet
@@ -225,7 +244,18 @@ listen** — de har egne maler.
 
 > Brannkummen markeres med skilt som viser avstand og retning fram til kummen, slik at brannvesenet finner den. Skiltet skal stå før overlevering. Ta bilde av skiltet.
 
-**Deretter materialeblokken M1–M4** (§ 5b), med alle tre alternativene, og **deretter basisfeltene B1–B9** (§ 5) i
+**6. Stikkledningsuttak fra kummen** — `valg` · **vises for V** · **gatet av Kenneth 2026-09-22**
+- Ingen stikkledninger fra denne kummen
+- Uttak montert som beskrevet, avstenging kan betjenes
+- Avvik
+
+> Kenneth 2026-09-22: kommunen ønsker i noen tilfeller at stikkledninger kobles fra vannkummen i stedet for med anboring på hovedledningen. Er det beskrevet, skal uttakene ha den dimensjonen og avstengingen beskrivelsen angir, og avstengingen skal kunne betjenes etter at kummen er satt. «Ingen stikkledninger» er et gyldig svar — de fleste vannkummer har ingen.
+
+🔴 **Feltet hører i UP1, ikke i UM1.1** — gatet av Kenneth: «stikkledning i UP1». Sitatet i hjelpeteksten over er
+en **kilde­merknad til mal-Opus og skal IKKE stå i malen** — hjelpeteksten begynner med «Kommunen ønsker i noen
+tilfeller …». Resten står ordrett.
+
+**Deretter materialeblokken M1–M4** (§ 5b), med alle tre alternativene, og **deretter basisfeltene B1–B10** (§ 5) i
 denne rekkefølgen: B1, B2 i FØR · B3, B4, B5 i UNDER · B6, B7, B8, B9 i ETTER.
 
 **To foreldre i denne malen:** felt 1 «Type kum» og M1 «Materiale». Uavhengige trær, som i UM1 v2 — bruk **to
@@ -235,7 +265,7 @@ ulike `ref`-verdier** (`kumtype`, `materiale`) og la strukturtesten vise at de i
 som felt (flyttet til UP3) · «Ikke aktuelt» på renneløp, fordi feltet nå bare vises for kummer som **har**
 renneløp (§1c).
 
-**Struktur:** 18 felt. Elleve alltid synlige (1, M1, B1–B9). Én kumtype-gren og én materialegren vises i tillegg:
+**Struktur:** 20 felt. Tolv alltid synlige (1, M1, B1–B10). Én kumtype-gren og én materialegren vises i tillegg:
 en betongkum på spillvann viser tretten · en plastkum på vann uten uttak fjorten · en brannkum av betong femten.
 
 ---
@@ -275,7 +305,7 @@ krav som gjelder** — derfor er det forelderen.
 > En inspeksjonskum er for liten å gå ned i — hele hensikten er at ledningen kan spyles og filmes herfra. Kontroller at det er fri passasje ned og at gjennomløpet er rent før lokket legges på.
 
 **Deretter materialeblokken M1–M3** (§ 5b) med alternativene **Betong · Plast** — **ikke** M4, som bare finnes i
-UP1 — og **deretter basisfeltene B1–B9** (§ 5), i samme rekkefølge som i UP1.
+UP1 — og **deretter basisfeltene B1–B10** (§ 5), i samme rekkefølge som i UP1.
 
 **To foreldre:** felt 1 «Gjennomløp og fall» og M1 «Materiale». To ulike `ref`-verdier.
 
@@ -283,7 +313,7 @@ UP1 — og **deretter basisfeltene B1–B9** (§ 5), i samme rekkefølge som i U
 nå delt opp riktig: **skjøten hører i materialeblokkens M2** (delt med UP1 og UP3), og **plastliner hører i felt 2**,
 fordi liner er en egenskap ved gjennomløpet og ikke ved skjøten. **Bygg ikke begge i ett felt.**
 
-**Struktur:** 14 felt. Elleve alltid synlige (1, 3, M1, B1–B9). Betong med liner viser tretten, plast med liner
+**Struktur:** 15 felt. Tolv alltid synlige (1, 3, M1, B1–B10). Betong med liner viser fjorten, plast med liner
 tretten.
 
 🔴 **Ingen nedstigningsfelt.** Malen skal **ikke** ha mellomdekke, stige eller nedstigningsåpning — kummen er
@@ -324,12 +354,12 @@ dykker**, og **UP3.5 er hjelpesluk**. Det gir to foreldre, ikke ingen — se ret
 > Normen har sandfang både med og uten dykker, så «ikke krevd» er et gyldig svar og ikke en unnvikelse. Dykkeren holder flytende materiale tilbake og skal sitte som beskrevet. Kummen må stå slik at slamsugebil kommer til — er adkomsten sperret etter at anlegget er ferdig, kan kummen ikke driftes.
 
 **Deretter materialeblokken M1–M3** (§ 5b) med alternativene **Betong · Plast** — **ikke** M4 — og **deretter
-basisfeltene B1–B9** (§ 5). **B7 «Lokk eller rist»** er særlig aktuell her, siden et sandfang normalt har rist;
+basisfeltene B1–B10** (§ 5). **B7 «Lokk eller rist»** er særlig aktuell her, siden et sandfang normalt har rist;
 alternativene er uendret.
 
 **To foreldre:** felt 1 «Type» og M1 «Materiale». To ulike `ref`-verdier.
 
-**Struktur:** 14 felt. Elleve alltid synlige (1, M1, B1–B9). Et sandfang av betong viser fjorten, et hjelpesluk av
+**Struktur:** 15 felt. Tolv alltid synlige (1, M1, B1–B10). Et sandfang av betong viser femten, et hjelpesluk av
 plast tolv.
 
 🔴 **Rettelse fra forrige versjon av ordren:** design skrev «ingen forgrening, alle felt alltid synlige — det er
@@ -377,26 +407,28 @@ søstre som flyttes og bekreft at ingen lånt mal mister sin plass.**
 
 > Spindelforlengeren monteres på ventiltoppen og fungerer samtidig som forankring i grunnen. Kontroller at den står i lodd og i riktig høyde før gjenfylling — etterpå kommer ingen til.
 
-**Deretter basisfeltene B1–B9** (§ 5), med de to ordbyttene fra § 5: «enheten» i B1 og B5, og utvidet hjelpetekst
+**Deretter basisfeltene B1–B10** (§ 5), med de to ordbyttene fra § 5: «enheten» i B1 og B6, og utvidet hjelpetekst
 i B6.
 
 🔴 **Ingen renneløp, ingen nedstigning.** Men gatelokket ligger i vei, så **B7 og B8 gjelder fullt ut** —
 styrkeklasse etter beskrivelsen og +0/−10 mm mot ferdig dekke. **ETTER-bolken skal ikke forgrenes.** Design
 antok først at den måtte; Kenneth rettet det: kummen har gatelokk.
 
-**Struktur:** tretten felt. Tolv alltid synlige; skiltet vises bare ved brannvannsuttak.
+**Struktur:** fjorten felt. Tretten alltid synlige; skiltet vises bare ved brannvannsuttak.
 
-🔴 **Åpent, meldes i leveransen:** «Baio» er et **produktnavn** fra én leverandør, ikke en generisk betegnelse
-slik Ab og Ska er i asfalt. Malen bruker derfor normens ord — **nedgravd stengeventil** — og nevner **ikke** Baio
-i felt eller hjelpetekster. **Bekreft at det er riktig**, eller meld om Kenneth vil ha «(Baio-type)» i
-beskrivelsen for at fagfolk skal kjenne den igjen.
+✅ **GATET 2026-09-22: «bruk normens ord for baio».** Malen heter **UO2.1 – Nedgravd stengeventil**, og **ordet
+«Baio» skal ikke forekomme noe sted** — verken i navn, beskrivelse, feltnavn eller hjelpetekst.
+
+🔴 **§7b-testen for `uo2-1-mal.test.ts` skal derfor forby både «Baio», «Bajo» og «bajonett».** Produktnavnet er
+utelukket fordi det er én leverandørs varemerke og ikke en generisk betegnelse slik Ab og Ska er i asfalt. Det
+står i ordren her, slik at ingen senere runde «hjelpsomt» legger det inn igjen for gjenkjennelighet.
 
 ---
 
 ## 9. Rammer
 
 - §7b-sjekk i `up1-mal.test.ts`, `up2-mal.test.ts`, `up3-mal.test.ts` og `uo2-1-mal.test.ts`: ingen `Matrise`,
-  `NS-EN`, `NS 3420`, ingen referanse som prefiks i feltnavn, og **ingen forekomst av «bajonett»**.
+  `NS-EN`, `NS 3420`, ingen referanse som prefiks i feltnavn, og **ingen forekomst av «bajonett»**. I `uo2-1-mal.test.ts` i tillegg: ingen «Baio» og ingen «Bajo» (§ 8).
   Forkortelsene SP, OV, AF, V og SF er prosjekteringsbetegnelser og er tillatt (§7c).
 - **Strukturtest pr. mal — alle har nå TO foreldre unntatt UO2.1:** UP1 — kumtype og materiale som to uavhengige
   trær, renneløp har tre utløsere, ventil én, skiltet er barn av uttaksfeltet. UP2 — gjennomløp og materiale.
@@ -436,8 +468,14 @@ tre enlinjerne pr. fil. **Ikke kjør mot test selv.**
    **materialet** som forelder. Er det riktig skille i praksis, eller er det **gjennomløpet** — rett, avgreining,
    Y — du først vil vite om? Design valgte materialet fordi normen deler postene der, men du kjenner rekkefølgen
    arbeideren tenker i.
-2. **«Baio» i beskrivelsen** (§ 8) — normens ord i malen, eller produktnavnet i parentes så fagfolk kjenner den
-   igjen?
-3. **Stikkledning fra vannkum.** Kenneth 2026-09-22: «i noen tilfeller ønsker kommunen å koble stikkledninger fra
-   en vannkum». Det er et kontrollpunkt ingen av malene har. Inn i vannkum-grenen i UP1, eller dekkes det av
-   stikkledningsfeltet i UM1.1?
+2. ~~**«Baio» i beskrivelsen**~~ ✅ **GATET 2026-09-22: «bruk normens ord for baio».** Malen heter «Nedgravd
+   stengeventil», og «Baio» forekommer ikke noe sted. §7b-testen forbyr det (§ 8).
+3. ~~**Stikkledning fra vannkum**~~ ✅ **GATET 2026-09-22: «stikkledning i UP1».** Felt 6 i UP1, i vannkum-grenen
+   (§ 6).
+4. ✅ **Oppdrift: GATET 2026-09-22** — «behold oppdrift, husk at dette gjelder alle kummer som monteres i
+   grunnvann, spesielt plast». Flyttet fra plastgrenen til basisfeltet B5, alltid synlig, plassert før omfyllingen
+   (§ 5).
+
+**Ingenting står åpent for Kenneth i denne ordren lenger, bortsett fra ett spørsmål som følger av UP2-malen: er
+materialet riktig forelder, eller er det gjennomløpet?** (pkt 1). Alt annet er gatet, og malene kan bygges når
+JH2 v2 er merget og fasemålingen i § 4 er besvart.
