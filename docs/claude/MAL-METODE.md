@@ -372,3 +372,28 @@ WHERE m.referanse = '<REF>' ORDER BY o.sort_order;
 
 **Hvorfor det hører i utskriften og ikke i en ekstra kommando:** Kenneth kjører SQL-en én gang, og gaten skal kunne
 gjøres på det ene resultatet. En oppfølgingsspørring er et ekstra steg som blir glemt den dagen noen har dårlig tid.
+
+### §1e. Betingede felt endrer hva en hjelpetekst kan være (Kenneth 2026-09-22)
+
+Etter JH2 v2 skrev Kenneth: *«dette er genialt → vi må utvide bruken av måten vi bygger sjekklister → nå kan
+hjelpetekst i større grad gi ekstra veiledning for hvordan kontrollen skal utføres og med hvilke krav.»*
+
+**Hvorfor det følger av betingede felt:** før måtte ett felt dekke alle varianter, fordi det ble vist uansett hva
+jobben var. Kravene måtte da ligge som alternativer — «OK innenfor 5 mm · OK innenfor 6 mm · OK innenfor 8 mm» — og
+arbeideren måtte selv vite hvilken linje som gjaldt hans steintype. Nå vises feltet bare for én situasjon, og da kan
+teksten si nøyaktig hva som gjelder **der**.
+
+**Regelen for hjelpetekst i et betinget felt:**
+
+1. **Skriv kravet, ikke alle kravene.** Ett tall, ikke en tabell. Gjelder feltet bare gradet naturstein, står 6 mm der
+   — de andre står i sine egne felt.
+2. **Si hvordan det måles.** «Målt over 3 m med rettholt», «kontroller flere steder», «be om måleresultatet». Det er
+   der en sjekkliste skiller seg fra en huskeliste.
+3. **Si hva som skal skje ved avvik**, når normen sier noe om det: rettes før neste lag, freses bort og klebes på nytt,
+   stopp og meld.
+4. **Alternativene blir enkle igjen:** «Innenfor kravet» og «Avvik». Tallet hører i teksten, ikke i knappen.
+
+**Følgen for eksisterende maler:** de som i dag bærer flere kravsett som alternativer, er kandidater for omskriving —
+KD1 (tre toleransesett for belegningstyper), FD2 (seks bunntoleranser etter grøftetype), FS2 (tre høydekrav etter
+lagtype), UP1 (kumtype) og UU1 (hva som prøves). **Struktur og innhold endres da i samme runde**, og da leses
+tekstbeviset ekstra nøye (jf. JH2 v2).
