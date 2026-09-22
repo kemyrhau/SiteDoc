@@ -25,6 +25,12 @@ Det gir to krav som henger sammen:
 2. **Kumnavnet står i emnefeltet.** Emnet er ikke en merkelapp her — det er kummens identitet (SP-01, OV-03, V-02).
    Malen skal si det, i hjelpeteksten på typefeltet.
 
+**Skrivemåten eies av tegningen, ikke av malen.** Kenneth 2026-09-22: «V i emnefeltet → V-01, V-02 … eller V01, V02 …».
+Begge former er i bruk, og malen skal ikke tvinge én av dem — den skal si at kummen skrives **som på tegningen**, og at
+samme skrivemåte brukes gjennom hele prosjektet. Det er konsistens **innenfor** prosjektet som gjør sorteringen mulig;
+et krav om én form på tvers av alle firmaer ville bare blitt brutt. En Baio-kum heter **V**, som en vanlig vannkum
+(gatet 2026-09-22).
+
 Dagens typeliste bommer på behovet: den skiller på byggemåte (nedstigningskum, sandfangkum, inspeksjonskum), mens
 Kenneth sorterer på **funksjon**. Derfor byttes listen.
 
@@ -114,7 +120,7 @@ Revisjon: `version + 1`.
 - Sandfangkum (SF)
 - Annen kum – se beskrivelsen
 
-> Skriv kummens prosjektnavn i emnefeltet, for eksempel SP-01. Det er slik kummen finnes igjen og sorteres på type senere. Én kum per sjekkliste — settes flere kummer i samme kumgruppe, fylles én liste for hver. Typen avgjør hvilke kontrollpunkter som vises under.
+> Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel V-01 eller V01. Bruk samme skrivemåte gjennom hele prosjektet, ellers havner kummene i ulike bunker når de sorteres. Det er slik kummen finnes igjen senere. Én kum per sjekkliste — settes flere kummer i samme kumgruppe, fylles én liste for hver. Typen avgjør hvilke kontrollpunkter som vises under.
 
 **2. Renneløp gjennom kummen** — `valg` · **vises for SP, OV og AF**
 - Riktig løp og fall
