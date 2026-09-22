@@ -168,6 +168,59 @@ Kalibrerings-UI-et bør si det.
 vei til kalibreringen — ikke en bryter som ser aktiv ut og ikke gjør noe. Det er CLAUDE.md § «stille tomhet er
 forbudt» anvendt på UI.
 
+## A2.2b 🔴 RETTING: etasjer — GPS kan ikke skille dem
+
+**Kenneth 2026-09-22:** «hvis en tegning vises i rapporten → la oss si det er et 3 etasjes bygg og rapporten
+velger 1.etasje → knytter vi bildene til denne etasjen → eller klarer vi ikke å skille bilder fra 1 og 3 etasje
+fra hverandre?»
+
+🔴 **Design spesifiserte A2.2 feil, og Kenneth fanget det.** «Bilder med GPS innenfor tegningen vises» ville
+lagt bilder fra 3. etasje oppå 1.-etasjeplanen. **GPS-høyde er ±15–30 m ute og ubrukelig inne** — et bilde fra
+3. etasje har praktisk talt samme lat/lon som ett fra 1.
+
+**Målt 2026-09-22:** bildemodellen har `gpsLat`, `gpsLng`, `gpsEnabled` og **ingen `drawingId`, ingen etasje**
+(`schema.prisma:1478`). Skillet finnes ett nivå opp: **`Checklist` og `Task` har `drawingId` + `positionX/Y`**
+(`schema.prisma:1232`, `:1316`), og **`Drawing` har `floor`** (`:893` — U2, U1, 01, 02, 03, Tak).
+
+**En sjekkliste som peker på 3.-etasjetegningen, plasserer bildene sine i 3. etasje uten at GPS er involvert.**
+
+### Regelen — tre nivåer, i denne rekkefølgen
+
+| Nivå | Kilde | Etasje | Posisjon | Vises |
+|---|---|---|---|---|
+| **1** | dokumentets `drawingId` + `positionX/Y` | riktig | eksakt | markør på tegningen |
+| **2** | dokumentets `drawingId`, ingen posisjon | riktig | **ukjent** | **liste ved siden av tegningen** |
+| **3** | bildets GPS, dokument uten `drawingId` | **ubestemt** | omtrentlig | markør, **kun når etasjen ikke er tvetydig** |
+
+🔴 **Nivå 1 og 2 er autoritative. GPS er bare fallback, og den er etasjeblind.** Er dokumentets tegning satt,
+skal GPS **ikke** brukes til plassering — dokumentet er mer pålitelig enn koordinaten.
+
+🔴 **Nivå 3 skal ikke plassere noe når etasjen er tvetydig.** Tvetydighet er beregnelig: tegningen har `floor`
+satt, **og** det finnes en annen georeferert tegning på samme byggeplass med annen `floor` og overlappende
+utstrekning. Da skal bildet **ikke** vises — det skal **telles og begrunnes**: «7 bilder har GPS, men etasje kan
+ikke bestemmes». Samme mønster som utenfor-tellingen i A2.2 pkt 8, og samme regel som CLAUDE.md § «stille
+tomhet er forbudt».
+
+🔴 **Nivå 2: finn ikke opp en posisjon.** Dokumentet vet etasjen, men ingen har plassert markøren. Bildene
+listes ved siden av tegningen — «4 bilder i denne etasjen uten plassering» — og kan plasseres manuelt derfra
+(`plasseringsmodus` finnes alt på bilder-siden). **En markør i et hjørne som ser målt ut, er verre enn ingen
+markør.**
+
+**Regelen degraderer pent for vei og VA:** der har tegningene sjelden `floor` satt, tvetydigheten oppstår ikke,
+og GPS-fallbacken virker som tenkt. **Ingen særregel for anleggsprosjekter skal bygges.**
+
+**Ærlig avgrensning:** nivå 1 og 2 er **tilskrevet**, ikke målt. Er et bilde fra 3. etasje lastet opp i en
+sjekkliste for 1. etasje, havner det i 1. etasje. Det er menneskelig feil, ikke systemfeil, og skal ikke
+forsøkes korrigert automatisk.
+
+### DoD-tillegg for etasjeregelen
+
+- **Rød først:** to bilder med samme GPS, ett i et dokument som peker på 1.-etasjetegningen og ett på
+  3.-etasjetegningen, skal havne på **hver sin** tegning — ikke begge på begge.
+- **Rød først:** et GPS-bilde uten dokumenttegning, i et bygg med to georefererte etasjeplaner, skal **ikke**
+  plasseres, og skal telles med begrunnelse.
+- **Rød først:** samme bilde i et vei-prosjekt der tegningen ikke har `floor`, **skal** plasseres.
+
 ## A2.3 Grenser
 
 - **Ingen ny matematikk.** Alt går gjennom `georeferanse.ts`. Finner du behov for en ny transformasjon, er det
