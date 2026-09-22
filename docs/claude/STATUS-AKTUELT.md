@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `826c8c2f` (ren docs — verifisering av betinget-kjeden ført i tavla, ingen branch merget) · GATE (`--force`): db 189 · api 522 · pdf 124 · shared 852 · web 304 · mobil 34 · 7/7 (ALLE stille — ingen kode) · diff = STATUS-AKTUELT + BACKLOG · betinget-kjeden BEVIST på test `826c8c2f` (web+mobil ekte enhet) · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-22 · develop `2fd9fe09` (docs/design-opprett-uten-modal `--no-ff`: ordre — mobil kopierer web-mønster for opprettelse) · GATE (`--force`): db 189 · api 522 · pdf 124 · shared 852 · web 304 · mobil 34 · 7/7 (ALLE stille — ren docs) · diff = 2 docs-filer + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
 | **mal-Opus** | `SiteDoc-mal` | `feat/mal-tre-kapasitet` `b1818339` (på origin) — 🔴 **STOPPET, IKKE MERGET:** `forgrening()` setter `conditionValues` på barnet, men app-endringen leser `conditionOwnValues`. Bevisst stans på nøkkelnavn-feil, ikke glemt | 🔴 **BLOKKERT** (venter nøkkelnavn) | Design sender rette-ordre nå som app-nøkkelen er i develop |
-| **kontrollplan** | `SiteDoc-kontrollplan` | varig-grå merget `1dace3b0` | ⚪ **LEDIG** | — |
+| **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal-ordre ligger i develop `2fd9fe09` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,23 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — Ordre: opprettelse uten modal (mobil kopierer web-mønster). Ren docs. develop `2fd9fe09`.
+
+🟢 **Designgatet med hash.** `docs/design-opprett-uten-modal` `a83089e8`, `--no-ff`, ff-mulig, `merge-tree` 0 markører. To nye docs: `designnotat-…md` +78, `ordre-…md` +74.
+
+### Kenneth-vedtak 2026-09-22
+- Opprett-modalen på mobil **bort fra standardveien** · faggruppe **utledes av flyten** · emnefeltet inn i dokumentet på **begge** flater · «likt for web og mobil, i hvert fall så likt vi kan».
+
+### 🔴 Funnet som gjør jobben mindre
+- **Web gjør det allerede riktig:** `sjekklister/page.tsx:334` setter `bestillerFaggruppeId` fra flyten; maler listes gruppert faggruppe → dokumentflyt → mal. **Mobil er den som avviker — oppgaven er å kopiere web-mønsteret**, ikke bygge nytt.
+- **Emne-vedtaket (2026-08-29) er halvveis innfridd:** emne kan endres etter sending, men `EmneVelger.tsx:117` viser i lesemodus bare blek grå kursiv «ingen emne» uten etikett — **derfor tror brukeren feltet er borte.**
+
+🔴 **kontrollplan har IKKE startet — nudgen går etter denne mergen.** (Målt: ⚪ LEDIG.) Han eier bygging av endringen.
+
+**Gate (`--force`, ingen FULL TURBO):** db 189 · api 522 · pdf 124 · shared 852 · web 304 · mobil 34 · 7/7. ALLE stille — ren docs.
 
 ---
 
