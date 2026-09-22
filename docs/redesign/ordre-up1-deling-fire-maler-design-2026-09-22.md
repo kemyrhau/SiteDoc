@@ -78,7 +78,17 @@ svaralternativ. Med delingen falt det ut av UP1, siden UP1 er nedstigningskummer
 anbefalte en fjerde mal; **Kenneth gatet den umiddelbart: «ja, ta UP2 som fjerde mal.»** Malen står i § 6b, og
 ingen inspeksjonskum havner dermed i «Annen kum».
 
-## 4. Dette skal måles før du bygger — og meldes
+## 4. ✅ Fasemålingen er BESVART — POSITIV
+
+**Mal-Opus, levert i `relay/inbox-design.md` 2026-09-22:** ja, et barn kan ha annen fase enn forelderen. Verste
+tilfelle — forelder UNDER, barn ETTER, som brannkumskiltet i UO2.1 — er empirisk bekreftet i `byggBibliotekRader`,
+`skriv-mal`, generator-SQL og en ekte Postgres parse-test med self-FK på `parent_id`. Trekoblingen er uavhengig av
+rekkefølge, barnet vises under sin egen ETTER-overskrift, og self-FK-en holder på tvers av fasegrensen.
+
+✅ **Ingen stopp-og-meld. De fire malene kan bygges med fasene som beskrevet.** Tre ikke-blokkerende edger står i
+relay-leveransen.
+
+### Opprinnelig målebestilling, beholdt som historikk
 
 **Kan et barn ha en annen fase enn forelderen?** Typefeltet er FØR. Renneløp, ventil og uttak kontrolleres
 **UNDER**, og brannkumskiltet **ETTER**. I JH2 lå alle barna i samme fase som forelderen, så dette er utestet —
@@ -450,7 +460,7 @@ på sortering 2 med `--sorter UP=3 --sorter UU=4`.** UP2 og UP3 går i eksistere
 tre enlinjerne pr. fil. **Ikke kjør mot test selv.**
 
 **DoD:**
-1. Målingen i § 4 besvart — fase på barn og barnebarn mot forelder. Er svaret nei, er malene ikke bygget: meld.
+1. ✅ Målingen i § 4 er besvart og positiv — ingen sperre. (Punktet beholdes som spor.)
 2. **Fire** maler som over, ordrett, med riktige foreldre og utløsersett.
 3. Basisfeltene identiske på tvers av alle fire, låst av delt-tekst-testen.
 4. Strukturtester, negativ test i UP2 og §7b-sjekker grønne, fasit oppdatert i samme branch.
@@ -476,5 +486,4 @@ tre enlinjerne pr. fil. **Ikke kjør mot test selv.**
    (§ 5).
 
 ✅ **INGENTING STÅR ÅPENT FOR KENNETH I DENNE ORDREN.** Alle punkter er gatet 2026-09-22. Malene kan bygges når
-JH2 v2 er merget og fasemålingen i § 4 er besvart — og fasemålingen er mal-Opus egen leveranse, ikke noe som
-venter på Kenneth.
+JH2 v2 er merget. **Fasemålingen i § 4 er besvart og positiv**, så ingenting annet står i veien.
