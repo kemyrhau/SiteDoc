@@ -143,8 +143,42 @@ forklarer ~50. **~148 dager står igjen uforklart** — og de faller på plass h
 🔴 **Den avgjørende ukjente er derfor ikke raten, men hva raten er et mål på:** en **god dag i normal grøft**,
 eller et **prosjektsnitt** som bærer kryssinger, fjellpartier, gjenfylling, asfalt og dagene det står stille.
 Ligger modellen på god-dag-rate, vil den systematisk love halv byggetid — den farligste feilen den kan
-gjøre, fordi svaret ser rimelig ut. **Design velger ikke dette; Kenneth avgjør det, og det står som
-spørsmål 5 i § 8.**
+gjøre, fordi svaret ser rimelig ut.
+
+### 🔴 Raten er et anslag, ikke en måling — og prosjektet sier noe annet
+
+Kenneth 2026-09-22, uoppfordret: **«jeg gjetter på 6 m pr dag → jeg har ikke prøvd å utlede tallet».**
+
+Det er den viktigste opplysningen i notatet, fordi hele ratemodellen hviler på det tallet. Og Kenneths eget
+prosjekt lar det utledes:
+
+| Ledd | Regning | Resultat |
+|---|---|---|
+| Arbeidsdager, 2 år året rundt | ~230 × 2 | ~460 |
+| Kumgrupper | 16 × 5 dager | 79 |
+| Igjen til grøft | 460 − 79 | 381 |
+| **Utledet rate** | 1100 / 381 | **2,9 m/dag** |
+| Uten det rotete strekket | 1040 / 321 | **3,2 m/dag** |
+
+**Anslaget var 6. Prosjektet gir ~3.** Det stemmer med tabellen over: 3 m/dag treffer byggetiden.
+
+**Forbeholdet design ikke kan sjekke:** at mannskapet sto på den grøfta sammenhengende i to år. Flyttet
+laget seg mellom jobber, var de reelle grøftedagene færre og raten høyere. **Timene i dagsseddelen avgjør
+det presist** — timer ført på prosjektet delt på lagstørrelse gir faktiske dager på stedet. Ligger
+prosjektet i SiteDoc med timer, kan raten måles i stedet for gjettes. Det er en måling, ikke en bygging.
+
+**Følge for byggerekkefølgen: ikke seed ratetabellen med anslaget.** En tabell med et tall som er dobbelt
+feil, er verre enn en tom tabell — den gir falsk presisjon og systematisk halv byggetid.
+
+### Stopp-varsling først — den trenger ingen rate
+
+Har et strekk **ingen godkjente dokumenter på tre uker**, er det verdt et varsel enten raten er 3 eller 6.
+De 60 meterne på tre måneder ville blitt fanget uansett — ikke fordi systemet visste hvor fort det *burde*
+gått, men fordi det så at ingenting skjedde.
+
+**Stopp-varsling er rate-fritt, og det er den eneste avviksdeteksjonen som virker før noe er målt.**
+Ratebasert varsling kommer etter at raten er målt på noen prosjekter; da er den reell og firmaets egen.
+Dette er tatt inn i rekkefølgen i § 7.
 
 ### Dette snur hva planen er til for
 
@@ -194,12 +228,20 @@ Rekkefølge design anbefaler:
 1. **Oppslaget** `nsKode` → mal-referanse (lengste prefiks). Målbart alene: hvor mange poster i et
    virkelig prosjekt treffer en mal? Det tallet avgjør om resten er verdt å bygge.
 2. **Punktutledning** fra poster med treff, med antall fra `mengdeAnbud` og enhet.
-3. **Ratetabellen** firmaet eier, seedet med Kenneths tall, med antall ledninger som parameter.
-4. **Fristene** fra ratene, skrevet til `fristUke`/`fristAar`.
-5. *(senere)* kalibrering fra dagsseddel.
+3. **Stopp-varsling** — ingen godkjente dokumenter på et strekk i N uker. **Rate-fri**, og fanger tilfellet
+   som kostet Kenneth 2,5 måned (§ 4b).
+4. **Måling av raten** fra dagsseddel på et ferdig prosjekt, ikke et anslag i en tabell.
+5. **Ratetabellen** firmaet eier, fylt fra steg 4, med antall ledninger som parameter.
+6. **Fristene** fra ratene, skrevet til `fristUke`/`fristAar`.
+7. *(senere)* løpende kalibrering fra dagsseddel og `prosentFerdig`.
 
-**Steg 1 er en måling, ikke en bygging.** Den bør kjøres først, mot et virkelig prosjekt med importert
+**Steg 1 og 4 er målinger, ikke bygginger.** Steg 1 bør kjøres først, mot et virkelig prosjekt med importert
 beskrivelse.
+
+🔴 **Rekkefølgen er endret 2026-09-22** etter at Kenneth opplyste at 6 m/dag er et anslag han ikke har
+utledet. Stopp-varsling (steg 3) er flyttet foran ratetabellen, og ratetabellen skal **ikke seedes med
+anslaget** — den fylles fra måling. En tabell med et tall som er dobbelt feil, gir falsk presisjon og
+systematisk halv byggetid.
 
 ## 8. Hva Kenneth skal ta stilling til
 
@@ -213,10 +255,10 @@ beskrivelse.
 4. **Stikkledning fra vannkum.** Kenneth 2026-09-22: «i noen tilfeller ønsker kommunen å koble
    stikkledninger fra en vannkum». Det er et kontrollpunkt UP1 ikke har i dag. Skal det inn i
    vannkum-grenen i UP1 v2, eller holder feltet i UM1.1 om stikkledningsuttak?
-5. 🔴 **Er 6 m/dag en god dag eller et prosjektsnitt?** Se § 4b. Dette er det viktigste enkeltsvaret i hele
-   notatet. Er det en god dag, trengs en faktor mellom god-dag-rate og prosjektsnitt, og **det er den
-   faktoren som er modellens egentlige ukjente** — ikke ratene. Er det et prosjektsnitt, var
-   1100-metersprosjektet uvanlig tungt, og modellen stemmer for normale jobber.
+5. ~~**Er 6 m/dag en god dag eller et prosjektsnitt?**~~ **Besvart 2026-09-22:** «jeg gjetter på 6 m pr dag
+   → jeg har ikke prøvd å utlede tallet». Raten er et anslag. Design har utledet ~2,9–3,2 m/dag fra
+   1100-metersprosjektet (§ 4b), med forbehold om at laget sto der sammenhengende. **Nytt spørsmål:**
+   ligger det prosjektet i SiteDoc med timer, slik at raten kan måles fra dagsseddelen?
 6. **Hva ble rotet på det strekket?** Var det noe en sjekkliste ville fanget — fundament, komprimering,
    ledning på skolinger, en skjøt som ikke holdt — er det det sterkeste argumentet for hele biblioteket.
    Var det fjell, grunnvann eller ukjent kabel, hører det under forholdstillegget på raten i § 6. Design
