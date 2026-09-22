@@ -284,6 +284,57 @@ er **deterministisk** — en telleoppgave, ikke en AI-oppgave — notatene gjeng
 oppsummeringen er byggelederens egne ord. 🔴 **Ingen AI i beviskjeden:** sitat er trygt, parafrase er det
 ikke. Arkiv-sammenstillingen og PDF-pakken gjør mesteparten alt; det nye er notat-dokumenttypen og tabellen.
 
+## 4d. 🔴 Entreprenørens plan fjerner rateproblemet helt
+
+Kenneth 2026-09-22: «hvis man mater inn entreprenørens fremdriftsplan → rapportene forteller possisjon f.eks
+kummgrupper, pelnummer på ledninger til gitte tidspunkter → da har vi en formening om fremdrift overholdes,
+ligger foran eller bak».
+
+**Dette løser problemet § 4b ikke klarte.** Hele notatet frem til nå har lett etter en produksjonsrate —
+6 m/dag var et anslag, prosjektet ga ~3. **Med entreprenørens plan inne trengs ingen rate i SiteDoc.**
+Entreprenøren eier raten, fordi den ligger i hans egen plan. SiteDoc sammenligner bare **forventet posisjon**
+mot **målt posisjon**.
+
+🔴 **Og det er kontraktsmessig mye sterkere:** å ligge bak måles mot entreprenørens **eget løfte**, ikke mot
+SiteDocs anslag. Sin egen plan kan man ikke bestride. Det er forskjellen mellom et tall som kan diskuteres og
+et tall som ikke kan.
+
+| Størrelse | Kilde |
+|---|---|
+| Forventet posisjon pr. dato | entreprenørens fremdriftsplan |
+| Målt posisjon pr. dato | befaringsnotatet — pel, kumgruppe |
+| Ferdigstilte objekter pr. dato | godkjente kum- og strekningsdokumenter |
+| **Avvik** | meter foran/bak, og dager omregnet med **planens egen rate** |
+
+**Koblingsnøkkelen er emnekonvensjonen som ble låst 2026-09-22:** `SP-04`, `V-01`, `VL P120`. Planens
+aktiviteter, notatets posisjon og sjekklistenes emne peker på de samme identifikatorene. Emnearbeidet ble
+gjort for sorterbarhet; det viser seg å være **posisjonsaksen** hele fremdriftsmålingen hviler på.
+
+**Maskineriet finnes:** `KontrollplanImport` importerer MS Project-planer med `importTaskUid`, `importWbs`,
+`importNavn` og rad-identitet som tåler revisjoner (§ 1). Det som mangler er **posisjonsaksen** — planen må
+kunne uttrykkes som «pel 340 innen uke 34» eller «kumgruppe S-03 ferdig uke 31».
+
+### Tre forbehold, og det andre er det kritiske
+
+1. **Entreprenørens plan er sjelden uttrykt i pel.** Den sier «Etappe 2, VA-grøft» med datoer. Byggelederen
+   må knytte aktivitet til posisjon **én gang**. Det er en engangsjobb og akseptabel — men den skal vises som
+   en jobb, ikke skjules bak et inntrykk av at systemet gjør det selv.
+
+2. 🔴 **MÅ MÅLES FØRST: avvik skal måles mot planen som gjaldt på den datoen, ikke mot siste revisjon.**
+   Ellers kan entreprenøren revidere planen og slette sin egen avvikshistorikk. **Dette er den viktigste
+   enkeltregelen for at hele sporet har verdi i et sluttoppgjør.** `KontrollplanImport` beholder
+   import-rader, men om den **historiske plantilstanden** kan rekonstrueres pr. dato, er **ikke målt** —
+   `importNavn` er dokumentert som «SISTE KJENTE», ikke opprinnelig. Skal måles før noe bygges.
+
+3. **Verktøyet peker begge veier, og det må det si tydelig.** Ligger entreprenøren bak fordi han ventet på en
+   godkjenning eller befaring, viser samme serie det — årsakslisten i § 4c har byggherresidene med. Oppfattes
+   dette som byggherrens pisk, blir notatene aldri fylt ut ærlig, og da er serien verdiløs uansett hvor god
+   mekanikken er.
+
+**Fargen får nå et presist utløsende kriterium**, uten at Kenneths definisjon endres: grønn = på eller foran
+plan · gul = bak plan · rød = ingen bevegelse siden forrige notat. **Forklaringen kreves fortsatt** —
+systemet foreslår fargen, byggelederen bekrefter.
+
 ## 5. Tre hull, som skal stå i planen og ikke skjules
 
 1. **«lm komplett».** Er bend, muffer og skjøter ikke egne poster, finnes antallet ikke i beskrivelsen.
@@ -320,18 +371,23 @@ Rekkefølge design anbefaler:
 3. **Stopp-varsling** — ingen godkjente dokumenter på et strekk i N uker, **mens timer føres på prosjektet**.
    **Rate-fri**, og fanger tilfellet som kostet Kenneth 2,5 måned (§ 4b). Timekravet er det som skiller et
    blokkert strekk fra en planlagt stans, og som gjør varselet verdt å stole på.
-4. **Måling av raten** fra dagsseddel på et ferdig prosjekt, ikke et anslag i en tabell.
-5. **Ratetabellen** firmaet eier, fylt fra steg 4, med antall ledninger som parameter.
-6. **Fristene** fra ratene, skrevet til `fristUke`/`fristAar`.
-7. *(senere)* løpende kalibrering fra dagsseddel og `prosentFerdig`.
+4. **Måling: kan den historiske plantilstanden rekonstrueres pr. dato?** (§ 4d pkt 2). Kan den ikke det, har
+   ingen av stegene under evidensverdi, og det må rettes først. **Dette er nå den viktigste målingen i
+   notatet.**
+5. **Posisjonsaksen** — planens aktiviteter knyttet til pel og kumgruppe, med emnekonvensjonen som nøkkel.
+   Byggelederen kobler én gang pr. prosjekt.
+6. **Avviksberegning** forventet mot målt posisjon, med **planens egen rate** for å gjøre meter om til dager.
+7. *(bortfaller hvis entreprenørens plan finnes)* egen ratetabell målt fra dagsseddel. Beholdes bare som
+   fallback for prosjekter uten innmatet plan.
 
 **Steg 1 og 4 er målinger, ikke bygginger.** Steg 1 bør kjøres først, mot et virkelig prosjekt med importert
 beskrivelse.
 
-🔴 **Rekkefølgen er endret 2026-09-22** etter at Kenneth opplyste at 6 m/dag er et anslag han ikke har
-utledet. Stopp-varsling (steg 3) er flyttet foran ratetabellen, og ratetabellen skal **ikke seedes med
-anslaget** — den fylles fra måling. En tabell med et tall som er dobbelt feil, gir falsk presisjon og
-systematisk halv byggetid.
+🔴 **Rekkefølgen er endret to ganger 2026-09-22.** Først fordi Kenneth opplyste at 6 m/dag er et anslag han
+ikke har utledet: stopp-varsling ble flyttet foran ratetabellen, og tabellen skal **ikke seedes med
+anslaget**. Deretter fordi Kenneth foreslo å mate inn **entreprenørens fremdriftsplan** (§ 4d): da **bortfaller
+SiteDocs egen ratetabell helt** for prosjekter med innmatet plan, og tyngdepunktet flyttes til
+plantilstand-målingen i steg 4. Egen rate beholdes bare som fallback.
 
 ## 8. Hva Kenneth skal ta stilling til
 
