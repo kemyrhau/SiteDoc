@@ -1,10 +1,11 @@
-# Ordre: byggelederens befaringsrapport — trasé og pel som identitet, dekning som visning
+# Ordre: byggelederens befaring og avvik — fire maler i ny standard BYGGELEDELSE
 
 **Til:** cowork fordeler — **Del A og Del A-TILLEGG** til app-sporet, **Del B** til mal-Opus · **Fra:** design ·
 **Dato:** 2026-09-22
 **Branch-forslag:** `feat/befaringsrapport` (Del A), `feat/tegning-bildelag` (Del A-TILLEGG) og `feat/mal-befaring`
 (Del B) fra `origin/develop`. **Tillegget kan bygges uavhengig av Del A** — den henger ikke på identitetsmodellen.
-**Gatet av Kenneth 2026-09-22:** «vei → 100 m, VA → kumgruppe-spenn. skriv ordren.»
+**Gatet av Kenneth 2026-09-22:** «vei → 100 m, VA → kumgruppe-spenn. skriv ordren.» · «ja, egen standard
+BYGGELEDELSE» · «sjekklistemal for selve befaringen med telling · oppgavemal for veg/VA og Bygg».
 **Bakgrunn:** `docs/redesign/designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md`
 § 4c–4e. Les den først — den bærer formålet, fargedefinisjonen og prinsippet.
 
@@ -331,19 +332,24 @@ malvelgeren på web og mobil tåler det uten endringer — den grupperer i dag f
 standarden er et nivå over. **Finner du at den ikke tåler det, stopp og meld** — det er en app-endring, ikke en
 malendring, og den skal ikke gjøres i denne branchen.
 
-🔴 **ÅPENT — dette blokkerer Del B:** er befaringsmalene **oppgave-maler** eller **sjekkliste-maler**? Kenneths
-melding 2026-09-22 bærer begge ord: «egen standard BYGGELEDELSE (sjekkliste)» og «→oppgave →vei og VA ·
-→Oppgave →Bygg». Forskjellen er strukturell:
+✅ **GATET 2026-09-22 — maltypene:** «sjekklistemal for selve befaringen med telling · oppgavemal for veg/VA og
+Bygg».
 
-| | Oppgave-mal | Sjekkliste-mal |
+**Standarden `BYGGELEDELSE` får fire maler:**
+
+| Mal | Type | Dekker |
 |---|---|---|
-| Posisjon på tegning | **innebygd** (`Task.drawingId` + `positionX/Y`) | via dokumentet |
-| Fase-struktur FØR/UNDER/ETTER | nei | ja |
-| Punktrapporten (feil/mangel) | **samme dokumenttype** som områderapporten | annen type |
+| `BEFARING-A` | **sjekkliste** | befaring anlegg — område, trafikklys, årsak, eksakt telling |
+| `BEFARING-B` | **sjekkliste** | befaring bygg — etasje, trafikklys, årsak, fag + omtrentlig antall |
+| `AVVIK-A` | **oppgave** | feil eller mangel, veg og VA — ett punkt med posisjon |
+| `AVVIK-B` | **oppgave** | feil eller mangel, bygg — ett punkt med posisjon |
+*(Referansene er designs forslag.)*
 
-**Design heller mot oppgave-mal:** Kenneth beskrev selv rapporten som «en oppgave for den delen», posisjonen er
-innebygd, og punktrapporten blir da samme type som områderapporten — bare med posisjon satt. **Men design velger
-ikke dette. Ikke bygg Del B før svaret er gatet.**
+**Områderapporten er en sjekkliste** — den dekker et område og har ingen posisjon. **Punktrapporten er en
+oppgave** — `Task` har `drawingId` + `positionX/Y` innebygd (`schema.prisma:1316`), og det er nettopp derfor
+avviket hører der. Ingen ny dokumenttype skal bygges.
+
+🔴 **Malinnholdet for de fire står i § B2 (befaring) og § B5 (avvik).**
 
 ## B2. Malen
 
@@ -572,11 +578,70 @@ forgrening **ikke** er svaret.
 - SQL: **ikke kjør mot test selv.** Parse-test mot engangsdatabase, slett den, lever de tre enlinjerne.
 - Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
 
+## B5. Oppgavemalene for avvik — `AVVIK-A` og `AVVIK-B`
+
+**Gatet 2026-09-22:** «oppgavemal for veg/VA og Bygg». Dette er punktrapporten Kenneth beskrev: «egen rapport for
+en feil/mangel som oppdages».
+
+🔴 **MÅL FØRST, og meld: hvilke felt har `Task` allerede innebygd?** Tittel, beskrivelse, frist, ansvarlig og
+posisjon er sannsynligvis native på oppgaven. **Malens felter skal bare legge til det som IKKE finnes.** Dupliserer
+malen frist eller ansvarlig, får byggelederen to steder å skrive samme ting, og de kan bli ulike. **Finner du at
+et felt finnes native, ta det ut av malen og meld det.**
+
+### Felles i begge avviksmaler — ordrett
+
+**1. Hva er avviket** — `valg` · **den ENE forskjellen, se under**
+
+**2. Må rettes før** — `valg`
+- Før arbeidet går videre på dette punktet
+- Før overtakelse
+- Ingen frist – registreres for oppfølging
+
+> Sier hvor mye det haster, ikke en dato. Dato settes på oppgaven.
+
+**3. Avviket er dokumentert med bilde** — `trafikklys`
+
+> Ta bilde av avviket, og av omfanget hvis det er større enn ett punkt. Oppgaven bærer posisjonen på tegningen, så bildet trenger ikke vise hvor du står.
+
+**4. Motparten er varslet** — `valg`
+- Varslet på stedet
+- Varslet ved oversending av oppgaven
+- Avvik – ikke varslet ennå
+
+> Et avvik motparten ikke er varslet om, har liten verdi i et oppgjør. Sier du det på stedet, skriv hvem du snakket med i kommentaren.
+
+### Felt 1 — `AVVIK-A`, veg og VA
+
+- Grøft, fundament eller komprimering
+- Ledning, kum eller skjøt
+- Dekke, kantstein eller asfalt
+- Grøftesikring eller trafikkavvikling
+- Skade på eksisterende anlegg eller kabel
+- Rydding og orden
+- Annet – se kommentaren
+
+### Felt 1 — `AVVIK-B`, bygg
+
+- Utførelse eller håndverk
+- Manglende arbeid
+- Avvik fra tegning eller beskrivelse
+- Skade
+- Fukt eller tetthet
+- Sikring, adkomst eller rydding
+- Annet – se kommentaren
+
+🔴 **Felt 2, 3 og 4 skal være ord for ord identiske i de to avviksmalene**, av samme grunn som fargefeltet i
+befaringsmalene: de skal kunne telles på tvers av prosjekttyper. Delt-tekst-testen dekker begge par.
+
+🔴 **Avviket skal kunne opprettes FRA befaringen** (§ A2), slik at kjeden finnes: befaring 12. mai, gul, årsak
+*venter på leveranse*, og disse fire avvikene. **Om det krever en app-endring, er det et funn som skal meldes —
+ikke løses i malbranchen.**
+
 ## B4. Hva Kenneth skal ta stilling til før SQL
 
 1. ~~**Hvor bor malen?**~~ ✅ **GATET 2026-09-22: «ja, egen standard BYGGELEDELSE».** Se § B1.
-1b. 🔴 **ÅPENT OG BLOKKERENDE: oppgave-mal eller sjekkliste-mal?** Se § B1. Kenneths melding bærer begge ord.
-   Design heller mot oppgave-mal, men velger ikke. **Del B bygges ikke før dette er svart.**
+1b. ~~**Oppgave-mal eller sjekkliste-mal?**~~ ✅ **GATET 2026-09-22:** sjekklistemal for befaringen, oppgavemal for
+   avvik — fire maler i alt, se § B1 og § B5.
 2. **Årsakslisten** i felt 2 — åtte valg, designs forslag. Mangler noen? Er noen overflødige? Listen skal
    være kort nok å velge fra på telefon i en grøft.
 3. **Felt 5, trafikkavvikling** — hører den i en byggelederrapport, eller er den ren HMS og skal ut? Design har
