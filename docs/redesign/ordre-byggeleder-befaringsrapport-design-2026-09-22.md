@@ -1,7 +1,9 @@
 # Ordre: byggelederens befaringsrapport — trasé og pel som identitet, dekning som visning
 
-**Til:** cowork fordeler — **Del A** til app-sporet, **Del B** til mal-Opus · **Fra:** design · **Dato:** 2026-09-22
-**Branch-forslag:** `feat/befaringsrapport` (Del A) og `feat/mal-befaring` (Del B) fra `origin/develop`.
+**Til:** cowork fordeler — **Del A og A2** til app-sporet, **Del B** til mal-Opus · **Fra:** design ·
+**Dato:** 2026-09-22
+**Branch-forslag:** `feat/befaringsrapport` (Del A), `feat/tegning-bildelag` (Del A2) og `feat/mal-befaring`
+(Del B) fra `origin/develop`. **A2 kan bygges uavhengig av A** — den henger ikke på identitetsmodellen.
 **Gatet av Kenneth 2026-09-22:** «vei → 100 m, VA → kumgruppe-spenn. skriv ordren.»
 **Bakgrunn:** `docs/redesign/designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md`
 § 4c–4e. Les den først — den bærer formålet, fargedefinisjonen og prinsippet.
@@ -114,6 +116,88 @@ skal aldri lagres uten at han har bekreftet det.
 - Prod-gaten røres ikke. Gate-tall via `pnpm exec turbo run test --force`, web build og mobil typecheck.
 - **Tekstbevis:** overlappstabellen gjengitt fra en test. Ingen skjermbilder.
 - Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
+
+---
+
+# Del A2 — TILLEGG: «vis bilder» som lag i tegningsvisningen
+
+**Tilføyd 2026-09-22 etter Kenneths spørsmål:** «alle bilder logges og kan vises i en georeferert tegning.
+hvordan fungerer det? Kan vi slå av og på vis bilder i en tegning?» → **«ja, skriv det som tillegg til Del A»**.
+
+## A2.1 Målingen — nesten alt finnes, og det er feltverifisert
+
+Design har lest koden 2026-09-22. **Ingenting av matematikken skal bygges på nytt.**
+
+| Del | Hvor |
+|---|---|
+| Georeferanse på tegningen | `Drawing.geoReference` (Json, 2+ referansepunkter) + `coordinateSystem` (utm33, ntm6 …) |
+| Transformasjon | `packages/shared/src/utils/georeferanse.ts:191` `beregnTransformasjon` — 2 punkter gir similaritet (skalering, rotasjon, speiling), 3+ gir affin |
+| GPS → tegningskoordinat | `georeferanse.ts:305` `gpsTilTegning` |
+| Innenfor tegningen? | `georeferanse.ts:363` `erInnenforTegning` |
+| Kalibreringsfeil i meter | `georeferanse.ts:376` `beregnKalibreringsFeil` |
+| Bilder utenfor alle tegninger | `bilder/page.tsx:109` `harGpsUtenforTegninger` |
+| Kalibrerings-UI | `apps/web/src/components/GeoReferanseEditor.tsx` |
+| GPS på bildet | `latitude` / `longitude` |
+
+**Det som mangler er bare laget i den ordinære tegningsvisningen.** Bilder-siden har visningen; tegningsvisningen
+har georeferansen men ingen bildemarkører man kan slå av og på.
+
+🔴 **Feltverifisert lærdom som skal stå i hjelpeteksten:** to-punktskalibrering speilet alle andre posisjoner
+om linjen mellom kalibreringspunktene, selv om den traff de to punktene eksakt (funnet Lakselv lufthavn
+2026-08-13, rettet i `georeferanse.ts`). **Tre punkter gir affin transformasjon og er tryggere enn to.**
+Kalibrerings-UI-et bør si det.
+
+## A2.2 Hva som skal bygges
+
+1. **Bryter «Vis bilder»** i tegningsvisningen (web og mobil), som slår bildemarkørene av og på.
+2. **Standard AV.** En tegning skal ikke åpne seg dekket av nåler (CLAUDE.md § renest mulig UI).
+3. **Tilstanden huskes** pr. bruker pr. tegning, slik at den som jobber med bilder ikke må slå på hver gang.
+4. **Periodefilter på laget.** Gjenbruk `PeriodeFilter`, som bilder-siden alt bruker. **Standard: siste 30
+   dager**, ikke «alle» — et prosjekt med 2–3 befaringer i uken gir hundrevis av bilder på et år, og «alle»
+   gjør tegningen ubrukelig første gang den åpnes.
+5. **Gruppering ved tett plassering.** Flere bilder på samme sted vises som én markør med antall, som åpnes ved
+   klikk. Uten dette er en 340-metersgrøft en vegg av markører.
+6. **Klikk på markør** åpner bildet, og viser **hvilket dokument det kom fra** — det er lenken tilbake til
+   befaringsrapporten, og den er hele grunnen til at laget er verdt noe for byggelederen.
+7. **Kalibreringsfeilen vises én gang** i laget, f.eks. «kalibrering ±2,4 m», fra `beregnKalibreringsFeil`. Da
+   vet den som ser på det hvor mye presisjon han kan stole på, i stedet for å tro at en markør er meterpresis.
+8. **Bilder utenfor tegningen skjules, men telles og meldes** — «12 bilder har posisjon utenfor denne
+   tegningen». `harGpsUtenforTegninger` finnes alt. Bilder **uten** GPS telles for seg.
+
+🔴 **Tegning uten georeferanse:** bryteren skal være **slått av og deaktivert, med begrunnelsen synlig** og en
+vei til kalibreringen — ikke en bryter som ser aktiv ut og ikke gjør noe. Det er CLAUDE.md § «stille tomhet er
+forbudt» anvendt på UI.
+
+## A2.3 Grenser
+
+- **Ingen ny matematikk.** Alt går gjennom `georeferanse.ts`. Finner du behov for en ny transformasjon, er det
+  et funn som skal meldes, ikke løses.
+- **Ingen endring i hvordan bilder lagres eller GPS-tagges.**
+- **Bilder-siden røres ikke.** Den virker; dette er et lag i en annen flate. Ser du duplisert logikk mellom
+  dem, **meld det** — design vurderer om noe skal løftes til en delt komponent, men ikke i denne runden.
+- Ingen migrering, med mulig unntak for brukerminnet i pkt 3: **mål om det finnes en lagringsvei før du lager
+  en.**
+
+## A2.4 DoD (Del A2)
+
+1. **Rød først:** et bilde med GPS innenfor en georeferert tegning får riktig tegningskoordinat via
+   `gpsTilTegning`; et bilde utenfor havner i utenfor-tellingen og ikke på tegningen.
+2. Bryter med standard av, tilstand husket, periodefilter med 30-dagers standard, gruppering, klikk til bilde
+   med dokumentlenke, kalibreringsfeil synlig, deaktivert bryter med begrunnelse på ukalibrert tegning.
+3. Regresjon: bilder-siden er uendret. Vis det.
+4. **Tekstbevis:** en tabell fra test som viser bilde-GPS → tegningskoordinat for tre bilder, inkludert ett
+   utenfor. Ingen skjermbilder.
+5. i18n: nye nøkler i `nb.json` og `en.json`, deretter `--only`-generering fra `packages/shared`. Husk fella
+   ved endring av eksisterende nøkkel.
+6. Gate-tall via `pnpm exec turbo run test --force`, web build og mobil typecheck.
+7. Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
+
+## A2.5 Hva Kenneth skal ta stilling til
+
+1. **Er 30 dager riktig standardperiode** for laget, eller vil du se hele prosjektet med gruppering i stedet?
+2. **Skal laget vise alle prosjektets bilder, eller bare bilder fra befaringsrapporter?** Design heller mot
+   **alle** — et bilde fra en kumsjekkliste er like nyttig på tegningen — men da blir det flere markører, og
+   valget er ditt.
 
 ---
 
