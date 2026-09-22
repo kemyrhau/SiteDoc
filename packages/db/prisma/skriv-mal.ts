@@ -17,16 +17,24 @@
  */
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
-import { byggBibliotekRader, type BibliotekFeltData } from "@sitedoc/shared";
+import { byggBibliotekRader, BETINGELSE_EGEN_NOKKEL, type BibliotekFeltData } from "@sitedoc/shared";
 import { malRegister } from "./generer-mal-sql";
 
-/** Én mals tekstbevis i §6a-form (metadata + rad-tabell). */
-export function skrivMal(referanse: string): string {
-  const mal = malRegister().get(referanse);
-  if (!mal) {
-    const kjente = [...malRegister().keys()].join(", ") || "(ingen)";
-    throw new Error(`Ukjent referanse «${referanse}». Kjente: ${kjente}`);
-  }
+/** Mal-formen skriv-mal trenger (metadata + felter) — MalKonstant fra malRegister passer. */
+interface SkrivbarMal {
+  referanse: string;
+  navn: string;
+  beskrivelse: string;
+  felter: BibliotekFeltData[];
+}
+
+/**
+ * Én mals tekstbevis i §6a-form fra selve mal-objektet (eksportert så del A-testen kan verifisere
+ * treet på en testmal uten å legge den i seed-arrayet / malRegister). Betingede felt (del A):
+ * `barn av` viser forelderens nøkkel (`parentId` fra byggBibliotekRader), `vises når` viser barnets
+ * eget utløsersett (`config.conditionValues`). Flate maler har ingen av delene → uendret utskrift.
+ */
+export function skrivMalTekst(mal: SkrivbarMal): string {
   const malInnhold = mal.felter.map((f, i) => ({ ...f, sortOrder: i + 1 })) as BibliotekFeltData[];
   const rader = byggBibliotekRader(malInnhold);
 
@@ -44,13 +52,26 @@ export function skrivMal(referanse: string): string {
     const cfg = (r.config ?? {}) as Record<string, unknown>;
     const options = cfg.options as string[] | undefined;
     const help = cfg.helpText as string | undefined;
+    const triggere = cfg[BETINGELSE_EGEN_NOKKEL] as string[] | undefined;
     ut.push(`-[ rad ${r.sortOrder} ]`);
     ut.push(`  type         : ${r.type}`);
     ut.push(`  label        : ${r.label}`);
     if (options && options.length > 0) ut.push(`  alternativer : ${JSON.stringify(options)}`);
     if (help) ut.push(`  hjelpetekst  : ${help}`);
+    if (r.parentId) ut.push(`  barn av      : ${r.parentId}`);
+    if (triggere && triggere.length > 0) ut.push(`  vises når    : ${JSON.stringify(triggere)}`);
   }
   return ut.join("\n");
+}
+
+/** Én mals tekstbevis via referanse (slår opp i malRegister). */
+export function skrivMal(referanse: string): string {
+  const mal = malRegister().get(referanse);
+  if (!mal) {
+    const kjente = [...malRegister().keys()].join(", ") || "(ingen)";
+    throw new Error(`Ukjent referanse «${referanse}». Kjente: ${kjente}`);
+  }
+  return skrivMalTekst(mal as SkrivbarMal);
 }
 
 // CLI — kjør KUN når fila startes direkte (ikke ved import).

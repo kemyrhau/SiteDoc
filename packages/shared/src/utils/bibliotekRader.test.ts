@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { byggBibliotekRader, bibliotekFaseHeadingLabel, faseFraHeadingLabel } from "./bibliotekRader";
 import type { BibliotekFeltData } from "./bibliotekRader";
+import { BETINGELSE_EGEN_NOKKEL } from "./betingelse";
 
 /**
  * Spesifikasjon for JSON → rad-transformasjonen (vei C del 1). Seeden og migreringen
@@ -97,5 +98,50 @@ describe("byggBibliotekRader", () => {
     for (const fase of ["FØR", "UNDER", "ETTER"]) {
       expect(faseFraHeadingLabel(bibliotekFaseHeadingLabel(fase))).toBe(fase);
     }
+  });
+});
+
+/**
+ * Del A (betingede felt, ordre 2026-09-21): `ref` på en forelder → rad-`id`; `parentRef` på et barn
+ * → rad-`parentId`. Flate felt beholder id/parentId = null (uendret for alle 23 dagens maler).
+ */
+describe("byggBibliotekRader — forelder/barn (del A)", () => {
+  it("flate felt har id og parentId null (uendret)", () => {
+    for (const r of byggBibliotekRader(MAL)) {
+      expect(r.id).toBeNull();
+      expect(r.parentId).toBeNull();
+    }
+  });
+
+  it("forelder får id=ref, barn får parentId=parentRef, i forfatter-rekkefølge", () => {
+    const tre: BibliotekFeltData[] = [
+      { label: "Underlag", type: "list_single", fase: "FØR", ref: "underlag",
+        config: { options: ["Ubundet", "Bundet"], conditionActive: true } },
+      { label: "Planhet", type: "list_single", fase: "FØR", parentRef: "underlag",
+        config: { options: ["OK", "Avvik"], [BETINGELSE_EGEN_NOKKEL]: ["Ubundet"] } },
+      { label: "Klebing", type: "list_single", fase: "FØR", parentRef: "underlag",
+        config: { options: ["OK", "Avvik"], [BETINGELSE_EGEN_NOKKEL]: ["Bundet"] } },
+    ];
+    const rader = byggBibliotekRader(tre);
+    // heading + forelder + 2 barn = 4 rader; barn rett etter forelder.
+    expect(rader.map((r) => `${r.type}:${r.label}`)).toEqual([
+      "heading:Kontroll FØR utførelse",
+      "list_single:Underlag",
+      "list_single:Planhet",
+      "list_single:Klebing",
+    ]);
+    const forelder = rader.find((r) => r.label === "Underlag")!;
+    const planhet = rader.find((r) => r.label === "Planhet")!;
+    const klebing = rader.find((r) => r.label === "Klebing")!;
+    expect(forelder.id).toBe("underlag");
+    expect(forelder.parentId).toBeNull();
+    expect(planhet.parentId).toBe("underlag");
+    expect(klebing.parentId).toBe("underlag");
+    // Utløsersettene ligger PÅ BARNET (conditionOwnValues, ulike per barn) — det app-endringen leser.
+    expect(planhet.config[BETINGELSE_EGEN_NOKKEL]).toEqual(["Ubundet"]);
+    expect(klebing.config[BETINGELSE_EGEN_NOKKEL]).toEqual(["Bundet"]);
+    // Forelderen kommer FØR barna (parent_id kan skrives med foreldre først).
+    expect(rader.indexOf(forelder)).toBeLessThan(rader.indexOf(planhet));
+    expect(rader.indexOf(forelder)).toBeLessThan(rader.indexOf(klebing));
   });
 });

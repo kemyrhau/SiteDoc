@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { BETINGELSE_EGEN_NOKKEL } from "@sitedoc/shared";
 import { malRegister } from "./generer-mal-sql";
 
 /**
@@ -31,6 +32,62 @@ function stabilJson(obj: Record<string, unknown>): string {
   return JSON.stringify(sortert);
 }
 
+/** Ett felt slik fasiten leser det (speiler seedens FeltDef + del A-tre-nøklene). */
+interface FasitFelt {
+  label: string;
+  type: string;
+  fase?: string | null;
+  config?: Record<string, unknown> | null;
+  ref?: string | null;
+  parentRef?: string | null;
+}
+interface FasitMal {
+  referanse: string;
+  navn: string;
+  beskrivelse: string;
+  felter: FasitFelt[];
+}
+
+/**
+ * Fasit-linjene for ÉN mal (eksportert så del A-testen kan verifisere treet på en testmal uten å
+ * legge den i seed-arrayet). Betingede felt (del A): `ref` markerer en forelder, `barn-av` +
+ * `vises-når` viser hvilken forelder og hvilke svar som utløser et barn — ellers kan en kobling
+ * endres stille. `conditionActive`/`conditionValues` tas UT av det generiske config-dumpet og vises
+ * eksplisitt; flate maler har ingen av delene, så fasiten deres er uendret.
+ */
+export function fasitLinjerForMal(mal: FasitMal): string[] {
+  const r = mal.referanse;
+  const linjer: string[] = [
+    `### ${r}`,
+    `${r} navn        = ${mal.navn}`,
+    `${r} beskrivelse = ${mal.beskrivelse}`,
+  ];
+  mal.felter.forEach((f, i) => {
+    const nr = String(i + 1).padStart(2, "0");
+    const config = { ...(f.config ?? {}) } as Record<string, unknown>;
+    const options = config.options as string[] | undefined;
+    const helpText = config.helpText as string | undefined;
+    // Barnets EGET utløsersett (conditionOwnValues) — vises som «vises-når». conditionActive tas ut.
+    const egetSett = config[BETINGELSE_EGEN_NOKKEL] as string[] | undefined;
+    delete config.options;
+    delete config.helpText;
+    delete config[BETINGELSE_EGEN_NOKKEL];
+    delete config.conditionActive;
+    linjer.push(`${r} f${nr} fase  = ${f.fase ?? ""}`);
+    linjer.push(`${r} f${nr} type  = ${f.type}`);
+    linjer.push(`${r} f${nr} label = ${f.label}`);
+    if (options && options.length > 0) linjer.push(`${r} f${nr} alt   = ${options.join(" | ")}`);
+    if (helpText) linjer.push(`${r} f${nr} hjelp = ${helpText}`);
+    if (f.ref) linjer.push(`${r} f${nr} ref   = ${f.ref}`);
+    if (f.parentRef) linjer.push(`${r} f${nr} barn-av = ${f.parentRef}`);
+    if (egetSett && egetSett.length > 0)
+      linjer.push(`${r} f${nr} vises-når = ${egetSett.join(" | ")}`);
+    if (Object.keys(config).length > 0) linjer.push(`${r} f${nr} config = ${stabilJson(config)}`);
+  });
+  linjer.push("");
+  return linjer;
+}
+
 /** Serialisér alle eksporterte *_MAL til én deterministisk, selv-identifiserende tekst. */
 export function byggFasit(): string {
   const linjer: string[] = [
@@ -40,27 +97,7 @@ export function byggFasit(): string {
     "",
   ];
   const maler = [...malRegister().values()].sort((a, b) => a.referanse.localeCompare(b.referanse, "nb"));
-  for (const mal of maler) {
-    const r = mal.referanse;
-    linjer.push(`### ${r}`);
-    linjer.push(`${r} navn        = ${mal.navn}`);
-    linjer.push(`${r} beskrivelse = ${mal.beskrivelse}`);
-    mal.felter.forEach((f, i) => {
-      const nr = String(i + 1).padStart(2, "0");
-      const config = { ...(f.config ?? {}) } as Record<string, unknown>;
-      const options = config.options as string[] | undefined;
-      const helpText = config.helpText as string | undefined;
-      delete config.options;
-      delete config.helpText;
-      linjer.push(`${r} f${nr} fase  = ${f.fase ?? ""}`);
-      linjer.push(`${r} f${nr} type  = ${f.type}`);
-      linjer.push(`${r} f${nr} label = ${f.label}`);
-      if (options && options.length > 0) linjer.push(`${r} f${nr} alt   = ${options.join(" | ")}`);
-      if (helpText) linjer.push(`${r} f${nr} hjelp = ${helpText}`);
-      if (Object.keys(config).length > 0) linjer.push(`${r} f${nr} config = ${stabilJson(config)}`);
-    });
-    linjer.push("");
-  }
+  for (const mal of maler) linjer.push(...fasitLinjerForMal(mal as unknown as FasitMal));
   return linjer.join("\n");
 }
 
