@@ -1567,52 +1567,110 @@ export const FF1_MAL = {
   ] as FeltDef[],
 };
 
-// JH2 – Asfaltdekke. Ny mal (ordre JH2 2026-09-20, gatet av Kenneth, Runde D). FJERDE standard
-// NS3420-J:2008 «Dekke- og banearbeider» (merk årstallet — K/F er 2024, U er 2019); nytt kapittel
-// JH «Asfaltdekker», sortering 1. Dekker varmprodusert asfaltdekke (JH2.1) med behandling av
-// underlaget (JH1) og avstrøing (JH2.81); kaldasfalt, bitumen-/sementbærelag, oppmerking, humper,
-// kanter, kunstgress/kunststoff og flyplass er ute. 11 felt, INGEN tallfelt (§1). §7b: SiteDocs egne
-// krav — NS-standardene navngis ikke. §7c (Kenneth 2026-09-20): vegvesenets håndbok N200 er gratis
-// og fritt nedlastbar, og KAN navngis i hjelpetekst (felt 10). Asfalttyper (Ab, Ska, Ma …) er
-// produktbetegnelser og er tillatt.
+// JH2 – Asfaltdekke. Revidert til v2 (ordre JH2 v2 2026-09-21, gatet av Kenneth). PILOTEN på
+// betingede felt (forelder/barn) i bibliotekmaler — første mal som bruker `forgrening` (del A).
+// FJERDE standard NS3420-J:2008 «Dekke- og banearbeider» (merk årstallet — K/F er 2024, U er 2019);
+// kapittel JH «Asfaltdekker», sortering 1. Dekker varmprodusert asfaltdekke (JH2.1) med behandling
+// av underlaget (JH1) og avstrøing (JH2.81); kaldasfalt, bitumen-/sementbærelag, oppmerking, humper,
+// kanter, kunstgress/kunststoff og flyplass er ute. 12 felt, INGEN tallfelt (§1).
+//
+// TRE (§3): felt 3 «Underlaget består av» er forelder for felt 4 (ubundet → planhet/komprimering)
+// og felt 5 (bundet/gammelt → rengjøring/klebing); felt 5 er igjen forelder for felt 6 (trafikk på
+// klebet flate, bare når det er klebet). Ni felt vises alltid (1, 2, 3, 7, 8, 9, 10, 11, 12); 4/5
+// vises etter svaret i felt 3, og 6 bare når det er klebet (MAL-METODE §1c: «Ikke aktuelt» som SVAR
+// = svaralternativ som blir stående; det som SKJULES er felt som aldri gjaldt). Bygget med
+// `forgrening` — utløseren ligger på barnets EGET sett (conditionOwnValues), aldri conditionValues.
+//
+// §7b: SiteDocs egne krav — de betalte NS-standardene navngis ikke. §7c (Kenneth 2026-09-20):
+// vegvesenets håndbok N200 er gratis og fritt nedlastbar, og KAN navngis i hjelpetekst (felt 4, 11).
+// Asfalttyper (Ab, Ska, Ma, Agb, Ag …) er produktbetegnelser og er tillatt; fullt navn første gang,
+// forkortelse i parentes. Utgår fra v1: «Underlaget rengjort» + «Klebing» (slått sammen til felt 5),
+// «Overflaten» (slått sammen med skjøter/kanter i felt 10).
 export const JH2_MAL = {
   kapittelKode: "JH",
   navn: "JH2 – Asfaltdekke",
   referanse: "JH2",
   beskrivelse:
-    "Varmprodusert asfaltdekke — rengjøring, klebing, utlegging, komprimering, skjøter og ferdig overflate. Faglig grunnlag: NS 3420-J:2008, post JH2.",
+    "Varmprodusert asfaltdekke — underlag, klebing, utlegging, komprimering, skjøter og ferdig overflate. Faglig grunnlag: NS 3420-J:2008, post JH2.",
   felter: [
-    // FØR
+    // FØR — felt 1, 2 alltid synlige
     valg("Type lag", "FØR",
       [
         "Slitelag",
         "Bindlag",
         "Opprettingslag",
-        "Annet lag",
       ],
-      "Beskrivelsen sier hvilket lag som legges, med asfalttype, steinstørrelse og tykkelse."),
-    valg("Underlaget rengjort", "FØR",
+      "Beskrivelsen sier hvilket lag som legges, med tykkelse og masse. Bærelag av asfalt hører til et eget kapittel i normen og får egen mal — bruk ikke denne for det."),
+    valg("Asfalttype", "FØR",
       [
-        "Feid",
-        "Spylt",
-        "Ikke krav",
-        "Avvik – ikke rent",
+        "Asfaltbetong (Ab)",
+        "Skjelettasfalt (Ska)",
+        "Mykasfalt (Ma)",
+        "Asfaltgrusbetong (Agb)",
+        "Annen type – se beskrivelsen",
       ],
-      "Underlaget skal være rent før klebing. Er det forurenset, håndteres det slik beskrivelsen sier."),
-    valg("Klebing", "FØR",
+      "Type masse, nominell steinstørrelse og bindemiddel står i beskrivelsen. Kontroller følgeseddelen mot den. Alle typene over er varmproduserte. Kalde masser som emulsjonsgrus (Eg) og enkelte gjenbrukstyper (Gja), og halvvarme masser som Mjøg, dekkes ikke av denne malen."),
+
+    // FØR — tre: felt 3 (forelder) → felt 4 | felt 5 (forelder) → felt 6
+    ...forgrening(
+      "underlag",
+      valg("Underlaget består av", "FØR",
+        [
+          "Ubundet lag: grus, forkilt pukk eller knust fjell",
+          "Bundet lag: asfaltert grus (Ag), asfaltgrusbetong (Agb) eller annet bitumenstabilisert lag",
+          "Gammelt asfaltdekke",
+        ],
+        "Hva du legger på, avgjør hva som må kontrolleres: et ubundet lag skal være komprimert og jevnt, mens et bundet lag skal rengjøres og klebes."),
       [
-        "Utført, virksom over hele flaten",
-        "Ikke krav",
-        "Avvik",
+        {
+          naar: ["Ubundet lag: grus, forkilt pukk eller knust fjell"],
+          felt: valg("Planhet og komprimering på underlaget", "FØR",
+            [
+              "Kontrollert – innenfor kravene",
+              "Oppretting utført før legging",
+              "Avvik – rettes før legging",
+            ],
+            "Mål planheten med 3 m rettholt mot kravet i beskrivelsen. For veg gjelder toleransene i vegvesenets håndbok N200. Laget skal være komprimert og kontrollert før dekket legges — be om måleresultatet i stedet for å anta. Ujevnheter rettes med opprettingslag, ikke ved å variere tykkelsen på slitelaget."),
+        },
+        {
+          naar: [
+            "Bundet lag: asfaltert grus (Ag), asfaltgrusbetong (Agb) eller annet bitumenstabilisert lag",
+            "Gammelt asfaltdekke",
+          ],
+          felt: forgrening(
+            "klebing",
+            valg("Rengjøring og klebing", "FØR",
+              [
+                "Rengjort og klebet – virksom over hele flaten",
+                "Rengjort – klebing ikke krevd",
+                "Avvik",
+              ],
+              "Rengjør ved feiing eller spyling før klebing. Klebemiddelet skal virke over hele arealet. Også et bundet bærelag, for eksempel asfaltert grus (Ag), skal klebes før neste lag legges. Fås ikke vedheft mellom lagene, freses laget bort, det klebes på nytt, og ny asfalt legges."),
+            [
+              {
+                naar: ["Rengjort og klebet – virksom over hele flaten"],
+                felt: valg("Trafikk på klebet flate", "FØR",
+                  [
+                    "Ikke trafikkert før legging",
+                    "Trafikkert – strødd med sand først",
+                    "Avvik",
+                  ],
+                  "Klebet flate bør ikke kjøres på før laget legges. Må den kjøres på, strøs den med sand først."),
+              },
+            ],
+          ),
+        },
       ],
-      "Klebemiddelet skal virke over hele arealet. Velg type og mengde etter beskrivelsen."),
+    ),
+
+    // FØR — felt 7 alltid synlig
     valg("Vær og underlag", "FØR",
       [
         "Tørt underlag – klart for legging",
         "Fritt vann på underlaget – vent",
-        "Underlaget for kaldt eller vått – vent",
+        "Frossent eller for kaldt underlag – vent",
       ],
-      "Det skal ikke asfalteres når det står fritt vann på underlaget."),
+      "Det skal ikke asfalteres når det står fritt vann på underlaget. Frossent underlag gir dårlig vedheft og skal ikke asfalteres."),
 
     // UNDER
     valg("Masse og temperatur", "UNDER",
@@ -1620,34 +1678,22 @@ export const JH2_MAL = {
         "Type og temperatur som beskrevet",
         "Avvik – meldt",
       ],
-      "Massen skal være homogen, og filler, finstoff og fiber tørre ved innmatning. Følgeseddel kontrolleres mot beskrivelsen."),
+      "Massen skal være homogen, og filler, finstoff og fiber tørre ved innmatning. Laveste utleggingstemperatur følger massetypen og står i beskrivelsen. Kontroller temperaturen ved innmatning, ikke bare på følgeseddelen."),
     valg("Komprimering fullført i tide", "UNDER",
       [
         "Ja – før temperaturen falt 50 °C under laveste utleggingstemperatur",
         "Avvik",
       ],
       "Valsingen skal være ferdig mens massen fortsatt er varm nok. Kommer den for sent, blir dekket ikke tett."),
-    valg("Skjøter og kanter", "UNDER",
-      [
-        "Følger vegens geometri, langsgående skjøt utenfor mest kjørte felt",
-        "Avvik",
-      ],
-      "Legg langsgående skjøter der det kjøres minst. Skjøter og kanter skal følge vegens linjer."),
-    valg("Trafikk på klebet flate", "UNDER",
-      [
-        "Ikke trafikkert før legging",
-        "Trafikkert – strødd med sand først",
-        "Avvik",
-      ],
-      "Klebet flate bør ikke kjøres på før laget legges. Må den kjøres på, strøs den med sand først."),
 
     // ETTER
-    valg("Overflaten", "ETTER",
+    valg("Skjøter, kanter og overflate", "ETTER",
       [
-        "Homogen og ensartet",
+        "Følger vegens geometri, overflaten er homogen",
         "Sprekker, hull eller fete partier – utbedres",
+        "Skjøt eller kant avviker – utbedres",
       ],
-      "Dekket skal være jevnt i utseende og friksjon. Manglende vedheft mellom lagene løses ved å frese bort laget, klebe på nytt og legge ny asfalt."),
+      "Langsgående skjøter legges der det kjøres minst, og skjøter og kanter følger vegens linjer. Dekket skal være jevnt i utseende og friksjon."),
     valg("Jevnhet og høyde", "ETTER",
       [
         "Innenfor kravene i beskrivelsen",
