@@ -393,9 +393,25 @@ hans eget eksempel. Den gates før SQL — se § B4.
 
 > Ta bilde med posisjon slått på. Bildene knyttes til strekningen og kan vises på tegningen etterpå.
 
-### Bemanning og maskiner — gatet av Kenneth 2026-09-22
+### Bemanning og maskiner — ULIKT i de to malene
 
-Kenneth: «Antall mannskaper, antall gravemaskiner, antall hjullastere».
+Kenneth 2026-09-22: «Antall mannskaper, antall gravemaskiner, antall hjullastere» — og deretter, om bygg:
+
+> «på et bygg så teller mann opp i en etasje → i en annen etasje er det andre → noen går mellom etasjer mens
+> befaringen pågår → det er vanskelig å holde telling med antall → tallene blir aldri helt rett. man kan telle
+> pr fag»
+
+🔴 **Det endrer hva feltet måler for bygg: kan tallet aldri bli riktig, skal malen ikke spørre om et riktig
+tall.** Det som **er** pålitelig observerbart, er **hvilke fag som var der**. Ser byggelederen en elektriker
+jobbe, er det et faktum uansett om han gikk ned en etasje fem minutter senere. Tilstedeværelsen er presis,
+mengden er omtrentlig — og malen skal si det.
+
+**Og det er tilstedeværelsen som veier i et sluttoppgjør:** «ingen tømrere på bygget i tre uker» er tungt. Om
+det var fire eller fem den tirsdagen, endrer ingenting.
+
+#### Befaring anlegg — eksakt telling, `heltall`
+
+Ett lag på én arbeidsstuff. Da er en eksakt telling både mulig og meningsfull.
 
 **4a. Antall mannskaper** — `heltall`
 
@@ -406,6 +422,49 @@ Kenneth: «Antall mannskaper, antall gravemaskiner, antall hjullastere».
 **4c. Antall hjullastere** — `heltall`
 
 > Annet utstyr skriver du i kommentaren. Tellingen skal gå fort — poenget er utviklingen over tid, ikke et komplett maskinregister.
+
+#### Befaring bygg — fag eksakt, antall omtrentlig
+
+**4a. Fag til stede i etasjen** — `list_multi`
+- Tømrer
+- Elektro
+- Ventilasjon
+- Rørlegger
+- Grunn- og utomhusarbeid
+- Annet fag – se kommentaren
+
+> Kryss av for fagene du faktisk så arbeide i denne etasjen. Ingen avkryssing betyr at ingen arbeidet her da du var innom — og det er et gyldig og viktig svar.
+
+**4b. Omtrentlig antall personer i etasjen** — `heltall`
+
+> Anslå. Folk går mellom etasjer mens befaringen pågår, så tallet blir aldri helt presist — det er derfor det heter omtrentlig. Fagene over er den presise delen.
+
+🔴 **Ordet «omtrentlig» skal stå i etiketten, ikke bare i hjelpeteksten.** Da er upresisheten en del av
+dokumentet i stedet for en skjult svakhet, og tallet kan ikke angripes som en usann eksakt påstand.
+
+**Ingen maskinfelt for bygg.** Kran og lift står der hele byggetiden — å telle dem ved hver befaring gir ingen
+informasjon. Maskiner i bruk skrives i kommentaren når det er verdt å nevne.
+
+#### Regelen som følger av dobbelttellingen
+
+🔴 **Månedsrapporten skal ALDRI summere bemanning på tvers av etasjer.** Én mann som gikk mellom to etasjer,
+ville blitt to. Visningen er **pr. fag pr. etasje over tid** — aldri en totalsum for bygget. Ført inn i
+BACKLOG-posten.
+
+**Områderapporten er pr. etasje, og det er det som redder tellingen:** tallet er «observert i 1. etasje, denne
+dagen» — en ærlig påstand, ikke en påstand om hele bygget.
+
+#### Forkastet i denne runden, og hvorfor
+
+Kenneth foreslo «bruke foreldre, barn, flervalg» — altså `list_multi` som forelder med et `heltall`-barn pr.
+valgt fag. **Design anbefalte mot det nå, av to grunner, og Kenneth gatet anbefalingen:**
+
+1. **Frekvensen avgjør.** 2–3 befaringer i uken. Et felt som tar tjue sekunder blir fylt ut; et som tar to
+   minutter blir det ikke — og et tomt felt bryter den ubrutte serien, som er hele poenget med sporet.
+2. 🔴 **Det er umålt om `list_multi` kan være forelder.** Alle forgreninger i biblioteket bruker `valg`
+   (enkeltvalg). Om betingelseslogikken håndterer en verdi som er en **liste**, vet ingen.
+   **Mål det og meld det** — ikke som del av denne malen, men som et funn. Er svaret ja, er antall-pr-fag en
+   ren revisjon senere, ikke en omskriving.
 
 🔴 **Disse tre er unntaket fra MAL-METODE §1 «ingen tallfelt», og unntaket skal begrunnes i seed-kommentaren.**
 §1 finnes for at normkrav skal besvares som **samsvar** og ikke som en måleverdi som hører i en protokoll.
@@ -447,11 +506,25 @@ referanse: "BEFARING-B"   navn: "Befaring bygg – byggelederens rapport"
 ```
 *(Referansene er designs forslag og henger på vedtaket i § B4 pkt 1.)*
 
-🔴 **Alt unntatt felt 3 og to hjelpetekster er IDENTISK, ordrett.** Felt 1 (fremdrift), 2 (årsak), 4 (bilde),
-**4a–4c (bemanning og maskiner)**, 6 (ført og sendt) og svaralternativene i felt 5 skal være **ord for ord de
-samme** i begge maler. **Fasiten skal låse det** — drifter de to fra hverandre, blir rapportene
-usammenlignbare, og hele poenget med å telle farger, årsaker og bemanning over tid faller. Det er samme regel
-som gjorde at fasitfilen ble innført.
+**Hva som deles og hva som varierer:**
+
+| Felt | Deles ordrett | Varierer |
+|---|---|---|
+| 1 fremdrift — alternativer | ✅ | hjelpetekstens emne-eksempel |
+| 2 årsak | ✅ | — |
+| 3 arbeid som pågår | — | **hele feltet** |
+| 4 bilde | ✅ | — |
+| **4a–4c bemanning** | — | **hele blokken** (§ B2) |
+| 5 sikring — alternativer | ✅ | hjelpeteksten |
+| 6 ført og sendt | ✅ | — |
+
+🔴 **Felt 1, 2, 4 og 6 skal være ord for ord de samme, og svaralternativene i 1, 2 og 5 likeså. Fasiten skal
+låse det** — drifter de to fra hverandre, blir rapportene usammenlignbare, og hele poenget med å telle farger
+og årsaker over tid faller. Det er samme regel som gjorde at fasitfilen ble innført.
+
+🔴 **Bemanningsblokken deles IKKE**, og det er bevisst: anlegg teller eksakt, bygg teller fag eksakt og antall
+omtrentlig (§ B2). Delt-tekst-testen skal derfor **ikke** kreve likhet i 4a–4c — men den skal kreve at
+**fargefeltet og årsakslisten er identiske**, siden det er de som skal telles på tvers av prosjekttyper.
 
 **Det som varierer:**
 
@@ -485,11 +558,15 @@ forgrening **ikke** er svaret.
 - **Strukturtest:** årsaksfeltet er barn av fremdriftsfeltet, med **to** utløsere (Gul, Rød), og er ikke
   alltid synlig — **i begge maler**. Rød først. Bruk `forgrening` og `BETINGELSE_EGEN_NOKKEL`, aldri
   `conditionValues`.
-- 🔴 **Delt-tekst-test:** en test som låser at felt 1, 2, 4, **4a–4c** og 6 og svaralternativene i felt 5 er
-  **ord for ord identiske** mellom `BEFARING-A` og `BEFARING-B`. Rød først. Uten den drifter de to fra
-  hverandre, og fargestatistikken blir usammenlignbar.
-- 🔴 **Tallfelt-unntaket** (§ B2, felt 4a–4c) skal begrunnes i seed-kommentaren, med Kenneths ord og med hvorfor
-  §1 ikke gjelder her. Ellers blir de fjernet av neste runde som «brudd på §1».
+- 🔴 **Delt-tekst-test:** en test som låser at felt 1, 2, 4 og 6 og svaralternativene i felt 1, 2 og 5 er **ord
+  for ord identiske** mellom `BEFARING-A` og `BEFARING-B`. Rød først. **Bemanningsblokken (4a–4c) er unntatt** —
+  den skal være ulik, se § B2b. Uten testen drifter fargefeltet og årsakslisten fra hverandre, og statistikken
+  blir usammenlignbar på tvers av prosjekttyper.
+- 🔴 **Tallfelt-unntaket** (§ B2) skal begrunnes i seed-kommentaren, med Kenneths ord og med hvorfor §1 ikke
+  gjelder her. Ellers blir feltene fjernet av neste runde som «brudd på §1».
+- 🔴 **Meld målingen:** kan `list_multi` være forelder i en `forgrening`? Alle forgreninger i biblioteket bruker
+  `valg`. Svaret bestemmer om antall-pr-fag kan bygges som revisjon senere (§ B2). **Bygg det ikke nå — bare
+  mål og meld.**
 - §7b: ingen `NS 3420`, `NS-EN`, `Matrise`. Ingen i18n-nøkler.
 - Fasit (§8) og `skriv-mal` viser treet. Gate-tall via `pnpm exec turbo run test --force`.
 - SQL: **ikke kjør mot test selv.** Parse-test mot engangsdatabase, slett den, lever de tre enlinjerne.
@@ -508,8 +585,9 @@ forgrening **ikke** er svaret.
 4. **Ansvarsside pr. årsak** (designnotatet § 4c) er **ikke** i denne malen. Den hører i rapporten og
    uttrekket, ikke i utfyllingen — byggelederen skal registrere hva som skjedde, ikke hvem som skal betale.
    Bekreft at det er riktig.
-5. **Bemanning og maskiner (felt 4a–4c)** — tre heltallsfelt: mannskaper, gravemaskiner, hjullastere, etter
-   Kenneths egne ord. **Er tre nok?** Design har bevisst **ikke** lagt inn dumper, valse, borerigg, lastebil,
-   kran eller lift, fordi tellingen skal gå på under et minutt og poenget er utviklingen over tid, ikke et
-   maskinregister. Annet utstyr skrives i kommentaren. Vil du ha flere faste felt, sier du hvilke — men hvert
-   felt koster tid ved hver befaring, 2–3 ganger i uken.
+5. **Bemanning — gatet 2026-09-22**, se § B2. Anlegg: eksakt telling av mannskaper, gravemaskiner, hjullastere.
+   Bygg: `list_multi` fag + omtrentlig antall, fordi «tallene blir aldri helt rett». Design har bevisst **ikke**
+   lagt inn dumper, valse, borerigg eller lastebil på anlegg, og ingen maskinfelt på bygg. **Ett åpent punkt:**
+   er **fagliste for bygg** riktig — tømrer, elektro, ventilasjon, rørlegger, grunn- og utomhusarbeid, annet?
+   Du nevnte de tre første. Hvert valg koster tid ved hver befaring, 2–3 ganger i uken, så listen skal være kort
+   nok å krysse av på telefon.
