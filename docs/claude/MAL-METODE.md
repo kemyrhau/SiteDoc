@@ -349,3 +349,26 @@ utfører arbeidet, ikke om kvaliteten på det som leveres.
 **Bakgrunn:** design foreslo 2026-09-21 å fjerne sikrings- og miljøfelt fra fem maler som «HMS på avveie». Kenneth
 trakk forslaget: feltene står i normen malene bygger på, og skal bli. Grensen går ved dokumenttypen, ikke ved om et
 krav tilfeldigvis også beskytter noen.
+
+### §6c. Utskriften må vise treet (design 2026-09-22)
+
+§6a-utskriften viser referanse, navn, beskrivelse og radene med type, label, alternativer og hjelpetekst. **Den viser
+ikke foreldrekobling eller utløsere.** For en flat mal spiller det ingen rolle. For en mal med betingede felt gater vi
+da i blinde på nettopp det som er nytt.
+
+**Funnet konkret:** ved JH2 v2 (første mal med tre, 2026-09-22) viste §6a-utskriften femten korrekte rader uten å
+avsløre om treet i det hele tatt hadde landet i arkivet. Det måtte etterspørres med en egen spørring.
+
+**Regel:** for en mal med betingede felt skal revisjons-SQL-en også skrive ut, per rad, **forelderens label** og
+**barnets utløsersett** (`conditionOwnValues`). Formen står fritt; denne spørringen gjorde jobben:
+
+```sql
+SELECT o.sort_order, o.label, p.label AS forelder, o.config->'conditionOwnValues' AS vises_naar
+FROM bibliotek_mal_objekter o
+JOIN bibliotek_maler m ON m.id = o.template_id
+LEFT JOIN bibliotek_mal_objekter p ON p.id = o.parent_id
+WHERE m.referanse = '<REF>' ORDER BY o.sort_order;
+```
+
+**Hvorfor det hører i utskriften og ikke i en ekstra kommando:** Kenneth kjører SQL-en én gang, og gaten skal kunne
+gjøres på det ene resultatet. En oppfølgingsspørring er et ekstra steg som blir glemt den dagen noen har dårlig tid.
