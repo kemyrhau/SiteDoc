@@ -5294,9 +5294,27 @@ og det sterkeste ved flyten er at **motparten mottok den**.
    å sette en frist. Signaturen på et blokkert strekk er **«timer går, dokumenter står»**.
 6. **Månedsrapport** = sammendragstabell (deterministisk: antall notater pr. farge, dager pr. farge, årsaker
    talt og gruppert, lengste sammenhengende gule/røde periode, ferdigstilte objekter, timer, berørte
-   strekninger) + **notatene gjengitt ORDRETT med dato** + byggelederens egen oppsummering.
-   🔴 **Ingen AI i beviskjeden.** Sitat er trygt, parafrase er det ikke — motparten leser den setningen nøye.
-7. **Sorterbar liste** på farge, årsak og periode, med uttrekk til sluttoppgjør.
+   strekninger, **bemanning og maskiner**) + **notatene gjengitt ORDRETT med dato** + byggelederens egen
+   oppsummering. 🔴 **Ingen AI i beviskjeden.** Sitat er trygt, parafrase er det ikke — motparten leser den
+   setningen nøye.
+7. **Tre målinger mot entreprenørens fremdriftsplan** — Kenneth 2026-09-22: «klarer vi å måle mot en
+   fremdriftsplan i en månedsrapport? Antall mannskaper, antall gravemaskiner, antall hjullastere». Målingene er
+   **posisjon** mot planens dato · **bemanning** mot planens forutsatte lag · **fargefordeling med årsaker**.
+   Antok planen seks mann og to maskiner og tellingene viser to og null, er forsinkelsen forklart med tall og
+   ikke med en formulering som kan bestrides.
+   🔴 **Bemanningstellingen er byggherrens ENESTE måling av innsats.** Han har ingen tilgang til entreprenørens
+   dagsseddel; entreprenøren kan måle timene sine, byggherren har bare øynene sine. Derfor er feltet viktigere
+   enn det ser ut, og derfor er det et unntak fra MAL-METODE §1 «ingen tallfelt» — tellingen ER observasjonen og
+   har ingen annen plass å bo.
+   🔴 **ALDRI summer bemanning på tvers av etasjer i et bygg.** Kenneth 2026-09-22: «noen går mellom etasjer
+   mens befaringen pågår → tallene blir aldri helt rett». Én mann som gikk mellom to etasjer, ville blitt to.
+   Visningen er **pr. fag pr. etasje over tid** — aldri en totalsum for bygget. For anlegg er det ett lag på én
+   arbeidsstuff, og der er summering forsvarlig.
+   🔴 **Bygg-tallet er merket «omtrentlig» i malen, og rapporten skal bære merkingen videre.** Et tall som
+   presenteres som eksakt når det ikke er det, kan angripes; et tall merket omtrentlig kan det ikke. For bygg er
+   det **fagene** (`list_multi`) som er den presise delen — se
+   `docs/redesign/ordre-byggeleder-befaringsrapport-design-2026-09-22.md` § B2.
+8. **Sorterbar liste** på farge, årsak og periode, med uttrekk til sluttoppgjør.
 
 **Hva som finnes fra før (målt 2026-09-22):** `apps/api/src/services/arkiv/sammenstilling.ts` bygger alt et
 samlet dokument fra et sett dokumenter, og `packages/pdf` renderer det — **månedsrapporten er i praksis en
