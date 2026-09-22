@@ -464,10 +464,9 @@ tre enlinjerne pr. fil. **Ikke kjør mot test selv.**
 ## 11. Åpent for Kenneth før SQL
 
 1. ~~**UP2 «Inspeksjonskum»**~~ ✅ **GATET 2026-09-22: «ja, ta UP2 som fjerde mal.»** Malen står i § 6b.
-   **Nytt spørsmål som følger av den:** normen skiller plast (UP2.1) og betong (UP2.2), og design har brukt
-   **materialet** som forelder. Er det riktig skille i praksis, eller er det **gjennomløpet** — rett, avgreining,
-   Y — du først vil vite om? Design valgte materialet fordi normen deler postene der, men du kjenner rekkefølgen
-   arbeideren tenker i.
+   ✅ **Og forelderen er gatet 2026-09-22: «materiale, det er skillet i praksis».** Design spurte om det i stedet
+   burde være gjennomløpet; svaret er materiale, både i normen og i felt. **M1 «Materiale» er forelder i UP2, og
+   det skal ikke stokkes om.**
 2. ~~**«Baio» i beskrivelsen**~~ ✅ **GATET 2026-09-22: «bruk normens ord for baio».** Malen heter «Nedgravd
    stengeventil», og «Baio» forekommer ikke noe sted. §7b-testen forbyr det (§ 8).
 3. ~~**Stikkledning fra vannkum**~~ ✅ **GATET 2026-09-22: «stikkledning i UP1».** Felt 6 i UP1, i vannkum-grenen
@@ -476,6 +475,6 @@ tre enlinjerne pr. fil. **Ikke kjør mot test selv.**
    grunnvann, spesielt plast». Flyttet fra plastgrenen til basisfeltet B5, alltid synlig, plassert før omfyllingen
    (§ 5).
 
-**Ingenting står åpent for Kenneth i denne ordren lenger, bortsett fra ett spørsmål som følger av UP2-malen: er
-materialet riktig forelder, eller er det gjennomløpet?** (pkt 1). Alt annet er gatet, og malene kan bygges når
-JH2 v2 er merget og fasemålingen i § 4 er besvart.
+✅ **INGENTING STÅR ÅPENT FOR KENNETH I DENNE ORDREN.** Alle punkter er gatet 2026-09-22. Malene kan bygges når
+JH2 v2 er merget og fasemålingen i § 4 er besvart — og fasemålingen er mal-Opus egen leveranse, ikke noe som
+venter på Kenneth.
