@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `9b83b285` (tre brancher `--no-ff`: JH2 v2 betinget mal + MAL-METODE §6c + opprett-uten-modal) · GATE (`--force`, IKKE FULL TURBO — 0 cached): api 525 · mobil 38 · web 306 · db 207 (JH2-testen STEG fra 200) · shared 854 · pdf 124 (stille) · 7/7 · JH2-fasit: slettede linjer utenfor JH2-blokken = 0 (v1→v2-revisjon, kun JH2 rørt) · diff = 19 filer + tavla + BACKLOG · Reload: OTA (branch 3 rører 5 mobilskjermer) · ingen migrering · test flere steg bak (deploy føres av cowork)**
+**Sist ført: 2026-09-22 · develop `8136dd23` (to docs-brancher `--no-ff`: MAL-METODE §1e hjelpetekst-veiledning + ordre KD1 v3) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 2 docs-filer + tavla · ingen kode/migrering/SQL/mobil · test flere steg bak (deploy føres av cowork)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
-| **mal-Opus** | `SiteDoc-mal` | JH2 v2 (`feat/mal-jh2-betinget` `4f5f6c33`) 🟢 **MERGET** develop `9b83b285` — **FØRSTE bibliotekmal med betingede felt**, verifisert i arkivet (version 2, 12 felt + 3 headings). §6c (`docs/design-6a-tre`) også merget | ⚪ **LEDIG** | — |
+| **mal-Opus** | `SiteDoc-mal` | JH2 v2 merget `9b83b285`. **KD1 v3-ordre nå i develop `8136dd23`** (`ordre-kd1-revisjon-betinget-design-2026-09-22.md`) + §1e hjelpetekst-veiledning | 🔵 **KD1 v3 bestilt — design sender startsignalet** (ikke startet) | Designs KD1-startsignal (direkte + linje i `inbox-cowork.md`) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal (`feat/opprett-uten-modal` `21520673`) 🟢 **MERGET** develop `9b83b285` — server utleder faggruppe via `utledBestillerUtforer` (sjekkliste+oppgave); mobil-modal bort fra standardveien; emne inn i dokumentet. **Reload: OTA.** 🔴 **IKKE verifisert — 4 dokumenter på test gjenstår** | ⚪ **LEDIG** | Kenneths OTA + verifisering (4 dok på test) |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | — | ⚪ **LEDIG** | — |
@@ -45,6 +45,23 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-22 — §1e (hjelpetekst-veiledning) + KD1 v3-ordre. Ren docs. develop `8136dd23`.
+
+🟢 **To docs-brancher merget** `--no-ff`, begge ff mot `c17ab1a9`: `docs/design-hjelpetekst-veiledning` `f649823c` (§1e i MAL-METODE.md) · `docs/design-kd1-betinget` `50032404` (KD1 v3-ordre). Diff = 2 docs-filer + tavla. GATE `--force`, 0 cached (IKKE FULL TURBO): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (rører ingen kode) · 7/7.
+
+### §1e — hjelpetekst gir nå ekstra veiledning
+- Kenneths ord etter å ha prøvd JH2 på telefonen: **«dette er genialt → vi må utvide bruken av måten vi bygger sjekklister → nå kan hjelpetekst i større grad gi ekstra veiledning for hvordan kontrollen skal utføres og med hvilke krav.»**
+- **Hvorfor:** før måtte ett felt dekke alle varianter, kravene lå som alternativer og arbeideren fant sin egen rad. Nå vises feltet bare for én situasjon, og teksten kan si nøyaktig hva som gjelder. **Regelen:** skriv kravet (ikke alle) · si hvordan det måles · si hva som skjer ved avvik · la alternativene bli «Innenfor kravet»/«Avvik».
+
+### KD1 v3 bestilt
+- Fire felt bærer i dag hver sin kravtabell (tykkelse settelag, fugebredde, planhet, sprang). **Etter runden: ATTEN grener i malen, men arbeideren ser FIRE** — de som gjelder steinen han la.
+- 🔴 **Byggekrav mal-Opus skal MÅLE før bygging (ikke noe som virker):** barna hører til andre faser enn forelderen (forelder i FØR, planhet/fugebredde i ETTER). `forgrening()` legger barn rett etter forelderen, så helperen må kunne feste et barn lenger ned. Avstand forelder↔barn er IKKE verifisert i utfyllingen. **Finner han at det ikke virker: STOPP — da tas kravfeltene i samme fase i stedet.**
+
+### 🟡 Nytt funn under måling (ikke bestilt som fiks)
+- `JH2` og `KD1` mangler dokumentprefiks i mal-velgeren. `schema.prisma:1287`: maler uten prefiks er NUMMERLØSE, og unikhetsvakten gjelder dem ikke. **redesign måler årsaken nå — design skriver ordren når den er kjent.**
 
 ---
 
