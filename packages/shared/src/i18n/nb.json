@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Ingen oppgavemaler funnet",
   "malVelger.visUtilgjengelige": "Vis utilgjengelige ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Ingen av dine dokumentflyter bruker denne malen",
+  "malVelger.ikkeRegistratorIFaggruppe": "Du er ikke registrator i {{faggruppe}}",
   "tegningsvelger.velgTegning": "Velg tegning",
   "tegningsvelger.velgFraListe": "Velg en tegning fra listen nedenfor",
   "tegningsvelger.tarBilde": "Tar bilde...",

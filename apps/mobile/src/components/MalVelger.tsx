@@ -26,6 +26,9 @@ interface MalData {
   // Flytresolusjon: de opprettbare flyt-idene (delt regel) bæres videre til
   // opprett-modalen, som bruker dem til flyt-valg (én sannhet med velgeren).
   opprettbareFlytIder?: string[];
+  // Utilgjengelig-årsak (2026-09-22): når opprettbar=false sier serveren HVORFOR (delt kilde
+  // med opprett-valideringen). Velgeren viser årsaken dempet — malen forsvinner ikke stille.
+  utilgjengeligÅrsak?: { grunn: "ikkeRegistrator"; faggruppe: string } | { grunn: "ingenFlyt" } | null;
   // harAktivLocation-propen er FJERNET 2026-09-02: location-tvangen er opphevet
   // (Kenneth-vedtak), og propen ble aldri lest av noen logikk (deklarert, ubrukt).
 }
@@ -187,7 +190,11 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
                       >
                         <Text className="text-sm font-medium text-gray-500">{item.name}</Text>
                         <Text className="text-xs text-gray-400">
-                          {t("malVelger.ingenFlytBrukerMal")}
+                          {item.utilgjengeligÅrsak?.grunn === "ikkeRegistrator"
+                            ? t("malVelger.ikkeRegistratorIFaggruppe", {
+                                faggruppe: item.utilgjengeligÅrsak.faggruppe,
+                              })
+                            : t("malVelger.ingenFlytBrukerMal")}
                         </Text>
                       </View>
                     ))}

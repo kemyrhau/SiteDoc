@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Nebyly nalezeny žádné šablony úkolů",
   "malVelger.visUtilgjengelige": "Zobrazit nedostupné ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Žádný z vašich toků dokumentů tuto šablonu nepoužívá",
+  "malVelger.ikkeRegistratorIFaggruppe": "Nejste registrátorem v {{faggruppe}}",
   "tegningsvelger.velgTegning": "Vyberte kresbu",
   "tegningsvelger.velgFraListe": "Vyberte výkres ze seznamu níže",
   "tegningsvelger.tarBilde": "Fotografování...",

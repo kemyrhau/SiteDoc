@@ -44,6 +44,9 @@ interface MalData {
   category: string;
   opprettbar?: boolean;
   opprettbareFlytIder?: string[];
+  // Utilgjengelig-årsak (2026-09-22): når opprettbar=false sier serveren HVORFOR (delt kilde
+  // med opprett-valideringen). Vises dempet under navnet — malen forsvinner ikke stille.
+  utilgjengeligÅrsak?: { grunn: "ikkeRegistrator"; faggruppe: string } | { grunn: "ingenFlyt" } | null;
 }
 
 interface DokumentflytData {
@@ -307,7 +310,13 @@ export function OpprettVelger({ synlig, kategori, onOpprettet, onLukk }: Opprett
                 {utilgjengeligeMaler.map((mal) => (
                   <View key={mal.id} className="border-b border-gray-100 bg-white px-4 py-3 opacity-60">
                     <Text className="text-sm font-medium text-gray-500">{mal.name}</Text>
-                    <Text className="text-xs text-gray-400">{t("malVelger.ingenFlytBrukerMal")}</Text>
+                    <Text className="text-xs text-gray-400">
+                      {mal.utilgjengeligÅrsak?.grunn === "ikkeRegistrator"
+                        ? t("malVelger.ikkeRegistratorIFaggruppe", {
+                            faggruppe: mal.utilgjengeligÅrsak.faggruppe,
+                          })
+                        : t("malVelger.ingenFlytBrukerMal")}
+                    </Text>
                   </View>
                 ))}
               </View>

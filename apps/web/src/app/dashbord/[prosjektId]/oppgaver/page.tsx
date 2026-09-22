@@ -263,7 +263,7 @@ export default function OppgaverSide() {
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // P4b-port (2026-08-03): les `opprettbareFlytIder` (server-beregnet, delt regel med opprett-
   // valideringen) — erstatter den skjøre klient-`matchDf`-heuristikken.
-  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; subdomain?: string | null; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "oppgave");
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; subdomain?: string | null; opprettbar?: boolean; opprettbareFlytIder?: string[]; utilgjengeligÅrsak?: { grunn: "ikkeRegistrator"; faggruppe: string } | { grunn: "ingenFlyt" } | null }>).filter((m) => m.category === "oppgave");
   // Kontraktssak-segment (tavle 1) vises KUN når prosjektet har minst én kontraktssak-mal.
   const harKontraktMal = oppgaveMaler.some((m) => m.subdomain === "kontrakt");
   // P4b pkt 0: skill opprettbare fra utilgjengelige (server-feltet, delt regel).
@@ -1113,7 +1113,7 @@ export default function OppgaverSide() {
                       <span className="text-sm font-medium text-gray-500">{m.name}</span>
                       {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
                     </span>
-                    <span className="text-xs text-gray-400">{t("dokumentflyt.feil.ingenFlytMedMal")}</span>
+                    <span className="text-xs text-gray-400">{m.utilgjengeligÅrsak?.grunn === "ikkeRegistrator" ? t("malVelger.ikkeRegistratorIFaggruppe", { faggruppe: m.utilgjengeligÅrsak.faggruppe }) : t("dokumentflyt.feil.ingenFlytMedMal")}</span>
                   </div>
                 ))}
               </div>

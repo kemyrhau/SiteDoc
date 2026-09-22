@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Keine Aufgabenvorlagen gefunden",
   "malVelger.visUtilgjengelige": "Nicht verfügbar anzeigen ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Keiner Ihrer Dokumentenflüsse verwendet diese Vorlage",
+  "malVelger.ikkeRegistratorIFaggruppe": "Sie sind kein Registrar in {{faggruppe}}",
   "tegningsvelger.velgTegning": "Zeichnung auswählen",
   "tegningsvelger.velgFraListe": "Wählen Sie eine Zeichnung aus der Liste unten aus",
   "tegningsvelger.tarBilde": "Foto machen...",

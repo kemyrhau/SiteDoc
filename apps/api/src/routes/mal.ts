@@ -228,7 +228,7 @@ type MalListeElement = Prisma.ReportTemplateGetPayload<{
     // + ↻ i mallista (ordre synliggjor-malforvaltning, krav 1). Speiler `hentMedId`.
     copiedFromOrgTemplate: { select: { id: true; name: true; version: true } };
   };
-}> & { opprettbar: boolean; opprettbareFlytIder: string[] };
+}> & { opprettbar: boolean; opprettbareFlytIder: string[]; utilgjengeligÅrsak: UtilgjengeligÅrsak | null };
 
 // Slett-vern (2026-08-10): tell mal-dokumenter — aktive og i papirkurv separat.
 // Papirkurv (KUN_SLETTET) teller med: 90-dagers gjenoppretting ville ellers gjort
@@ -317,6 +317,41 @@ export async function finnLedigeMalVerdier(
   return { name: navn, prefix: prefiks };
 }
 
+// Utilgjengelig-årsak (2026-09-22, «utilgjengelige maler forklarer seg»-runden): når en mal
+// IKKE er opprettbar, sier serveren HVORFOR — fra SAMME beregning som `opprettbar`, aldri en ny
+// klient-vurdering (to kilder kan divergere; den fella lukket synlighetssporet over tre runder).
+// «ikkeRegistrator» = malen ligger i ≥1 flyt med eier-faggruppe der brukeren ikke er registrator
+// (med faggruppens navn). «ingenFlyt» = ingen flyt med eier-faggruppe bruker malen.
+export type UtilgjengeligÅrsak =
+  | { grunn: "ikkeRegistrator"; faggruppe: string }
+  | { grunn: "ingenFlyt" };
+
+// Opprettbarhet + årsak for ÉN mal — ren funksjon (delt kilde, enhetstestbar). Speiler
+// P4b-regelen: HMS er alltid opprettbar (flyt-løs, auto-rutes til HMS-gruppen); ellers opprettbar
+// hvis malen ligger i ≥1 av brukerens gyldige flyter (registrator-medlem MED eier-faggruppe). Er
+// den ikke det, forklarer `utilgjengeligÅrsak` hvorfor — SAMME data avgjør begge (én kilde).
+export function beregnMalOpprettbarhet(
+  mal: { domain: string | null; dokumentflytMaler: { dokumentflytId: string }[] },
+  gyldigeFlytIder: Set<string>,
+  flytFaggruppeNavn: Map<string, string | null>,
+): { opprettbar: boolean; opprettbareFlytIder: string[]; utilgjengeligÅrsak: UtilgjengeligÅrsak | null } {
+  const erHms = mal.domain === "hms";
+  const malFlytIder = mal.dokumentflytMaler.map((dm) => dm.dokumentflytId);
+  const opprettbareFlytIder = erHms ? [] : malFlytIder.filter((id) => gyldigeFlytIder.has(id));
+  const opprettbar = erHms || opprettbareFlytIder.length > 0;
+  if (opprettbar) return { opprettbar, opprettbareFlytIder, utilgjengeligÅrsak: null };
+  // Utilgjengelig: skille «ligger i flyt med eier-faggruppe (men ikke registrator der)» fra
+  // «ingen flyt med eier-faggruppe bruker malen». Navnene hentes fra flytene malen faktisk ligger i.
+  const faggruppeNavn = [
+    ...new Set(malFlytIder.map((id) => flytFaggruppeNavn.get(id)).filter((n): n is string => !!n)),
+  ];
+  const utilgjengeligÅrsak: UtilgjengeligÅrsak =
+    faggruppeNavn.length > 0
+      ? { grunn: "ikkeRegistrator", faggruppe: faggruppeNavn.join(", ") }
+      : { grunn: "ingenFlyt" };
+  return { opprettbar, opprettbareFlytIder, utilgjengeligÅrsak };
+}
+
 export const malRouter = router({
   // Hent alle maler for et prosjekt
   hentForProsjekt: protectedProcedure
@@ -334,41 +369,41 @@ export const malRouter = router({
         orderBy: { updatedAt: "desc" },
       });
 
-      // P4b pkt 0: opprettbarhet som ADDITIV metadata (ikke hard-filter — mal-admin
-      // trenger alle). DELT kilde med opprett-valideringen: en mal er opprettbar hvis
-      // den ligger i ≥1 dokumentflyt der brukeren er registrator-medlem
-      // (hentBrukersOpprettFlytMedlemskap — samme fn opprett-valideringen avviser på)
-      // OG flyten har eier-faggruppe (bestiller kan utledes). HMS-maler er alltid
-      // opprettbare (auto-rutes til HMS-gruppen, flyt-løse). En mal som ville feile
-      // ved Opprett får opprettbar=false og skjules i velgerne (web + mobil).
-      const opprettFlytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, input.projectId);
-      const flyterMedEierFaggruppe =
-        opprettFlytIder.length > 0
+      // P4b pkt 0: opprettbarhet som ADDITIV metadata (ikke hard-filter — mal-admin trenger
+      // alle). DELT kilde med opprett-valideringen: en mal er opprettbar hvis den ligger i ≥1
+      // dokumentflyt der brukeren er registrator-medlem (hentBrukersOpprettFlytMedlemskap — samme
+      // fn opprett-valideringen avviser på) OG flyten har eier-faggruppe (bestiller kan utledes).
+      // HMS-maler er alltid opprettbare (auto-rutes til HMS-gruppen, flyt-løse). Er en mal IKKE
+      // opprettbar, bærer `utilgjengeligÅrsak` HVORFOR — velgerne viser den dempet, i stedet for å
+      // skjule malen (2026-09-22-runden). Årsaken kommer fra SAMME data som `opprettbar`.
+      const opprettFlytIder = new Set(
+        await hentBrukersOpprettFlytMedlemskap(ctx.userId, input.projectId),
+      );
+      // Faggruppe-navn for ALLE flytene malene ligger i (ett kall) — mater både gyldige flyter og
+      // årsaks-teksten. Én kilde: `opprettbar` og årsak utledes av samme `flytFaggruppeNavn`.
+      const alleMalFlytIder = [
+        ...new Set(maler.flatMap((m) => m.dokumentflytMaler.map((dm) => dm.dokumentflytId))),
+      ];
+      const flytInfo =
+        alleMalFlytIder.length > 0
           ? await ctx.prisma.dokumentflyt.findMany({
-              where: { id: { in: opprettFlytIder }, faggruppeId: { not: null } },
-              select: { id: true },
+              where: { id: { in: alleMalFlytIder } },
+              select: { id: true, faggruppe: { select: { name: true } } },
             })
           : [];
-      const gyldigeFlytIder = new Set(flyterMedEierFaggruppe.map((f) => f.id));
+      const flytFaggruppeNavn = new Map<string, string | null>(
+        flytInfo.map((f) => [f.id, f.faggruppe?.name ?? null]),
+      );
+      // Gyldig opprett-flyt = brukerens registrator-flyt SOM har eier-faggruppe. Utledet fra samme
+      // `flytFaggruppeNavn` (flyter uten mal er irrelevante — de treffer aldri en mals flyt-liste).
+      const gyldigeFlytIder = new Set(
+        [...opprettFlytIder].filter((id) => flytFaggruppeNavn.get(id) != null),
+      );
 
-      // Location-tvangen (vedtatt 2026-08-19) er OPPHEVET 2026-09-02 (Kenneth-vedtak:
-      // ingen tvang — har malen lokasjonsmulighet og brukeren lar den stå tom, har
-      // rapporten ingen tegning). Beregningen av aktivLocationMalIds + harAktivLocation
-      // var aldri koblet til noen håndhevelse (målt: ingen konsument leste feltet), så
-      // dette fjerner en halvbygd mekanisme, ikke en virkende regel.
-      return maler.map((mal) => {
-        const erHms = mal.domain === "hms";
-        const opprettbareFlytIder = erHms
-          ? []
-          : mal.dokumentflytMaler
-              .map((dm) => dm.dokumentflytId)
-              .filter((id) => gyldigeFlytIder.has(id));
-        return {
-          ...mal,
-          opprettbar: erHms || opprettbareFlytIder.length > 0,
-          opprettbareFlytIder,
-        };
-      });
+      return maler.map((mal) => ({
+        ...mal,
+        ...beregnMalOpprettbarhet(mal, gyldigeFlytIder, flytFaggruppeNavn),
+      }));
     }),
 
   // Hent én mal med alle objekter

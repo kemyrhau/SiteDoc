@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Nav atrasta neviena uzdevuma veidne",
   "malVelger.visUtilgjengelige": "Rādīt nav pieejams ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Neviena no jūsu dokumentu plūsmām neizmanto šo veidni",
+  "malVelger.ikkeRegistratorIFaggruppe": "Jūs neesat reģistrators grupā {{faggruppe}}",
   "tegningsvelger.velgTegning": "Izvēlieties zīmējumu",
   "tegningsvelger.velgFraListe": "Tālāk esošajā sarakstā atlasiet zīmējumu",
   "tegningsvelger.tarBilde": "Notiek fotoattēla uzņemšana...",

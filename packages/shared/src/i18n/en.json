@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "No task templates found",
   "malVelger.visUtilgjengelige": "Show unavailable ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "None of your document flows use this template",
+  "malVelger.ikkeRegistratorIFaggruppe": "You are not a registrar in {{faggruppe}}",
   "tegningsvelger.velgTegning": "Select drawing",
   "tegningsvelger.velgFraListe": "Select a drawing from the list below",
   "tegningsvelger.tarBilde": "Taking photo...",

@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Aucun modèle de tâche trouvé",
   "malVelger.visUtilgjengelige": "Afficher indisponible ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Aucun de vos flux de documents n'utilise ce modèle",
+  "malVelger.ikkeRegistratorIFaggruppe": "Vous n'êtes pas un registraire dans {{faggruppe}}",
   "tegningsvelger.velgTegning": "Sélectionner un dessin",
   "tegningsvelger.velgFraListe": "Sélectionnez un dessin dans la liste ci-dessous",
   "tegningsvelger.tarBilde": "Prendre une photo...",

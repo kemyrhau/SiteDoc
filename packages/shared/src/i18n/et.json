@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Ülesandemalle ei leitud",
   "malVelger.visUtilgjengelige": "Näita pole saadaval ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Ükski teie dokumendivoog ei kasuta seda malli",
+  "malVelger.ikkeRegistratorIFaggruppe": "Te ei ole {{faggruppe}} registripidaja",
   "tegningsvelger.velgTegning": "Valige joonis",
   "tegningsvelger.velgFraListe": "Valige allolevast loendist joonis",
   "tegningsvelger.tarBilde": "Pildistamine...",

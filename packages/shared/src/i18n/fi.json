@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Tehtävämalleja ei löytynyt",
   "malVelger.visUtilgjengelige": "Näytä ei saatavilla ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Mikään asiakirjavirroistasi ei käytä tätä mallia",
+  "malVelger.ikkeRegistratorIFaggruppe": "Et ole rekisteröijä ryhmässä {{faggruppe}}",
   "tegningsvelger.velgTegning": "Valitse piirustus",
   "tegningsvelger.velgFraListe": "Valitse piirros alla olevasta luettelosta",
   "tegningsvelger.tarBilde": "Otetaan valokuvaa...",

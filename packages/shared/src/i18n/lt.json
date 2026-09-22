@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Nerasta užduočių šablonų",
   "malVelger.visUtilgjengelige": "Rodyti nepasiekiamas ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Nė vienas iš jūsų dokumentų srautų nenaudoja šio šablono",
+  "malVelger.ikkeRegistratorIFaggruppe": "Jūs nesate {{faggruppe}} registratorius",
   "tegningsvelger.velgTegning": "Pasirinkite piešinį",
   "tegningsvelger.velgFraListe": "Pasirinkite piešinį iš toliau pateikto sąrašo",
   "tegningsvelger.tarBilde": "Fotografuojama...",
