@@ -112,12 +112,67 @@ Ni felt gjelder enhver nedsetting i grøft og skal være **ord for ord identiske
 - **B6**, hjelpeteksten utvides i UO2.1: en nedgravd ventil har teleskop og deksel, ikke justeringsringer og
   topplate.
 
-🔴 **Delt-tekst-test:** en test som låser at B1–B5 og B7–B9 er **ord for ord identiske** på tvers av de tre
+🔴 **Delt-tekst-test:** en test som låser at B1–B5 og B7–B9 er **ord for ord identiske** på tvers av de fire
 malene. Rød først. Uten den drifter de fra hverandre ved første revisjon av én av dem, og da kan ingen
 sammenligne kontrollen av to kummer i samme grøft. Samme regel som gjorde at fasitfilen ble innført.
 
 🔴 **B4 «Skjøter og gjennomføringer» passer dårlig på en nedgravd ventil.** Bygg det likevel som alltid synlig i
 alle fire — design gater det etter bruk. **Ikke forgren det på eget initiativ.**
+
+## 5b. 🔴 Materialeblokken — en ANDRE delt blokk, i UP1, UP2 og UP3
+
+**Kenneth 2026-09-22: «materiale gjelder for UP1 også.»** Design hadde bare lagt materiale i UP2. Normmålingen
+bekrefter at det gjelder bredere — og at design tok feil om UP3:
+
+| Post | Normens underposter | Side |
+|---|---|---|
+| UP1.1 / UP1.2 / UP1.3 | betongelementer · kumbunn av plasstøpt betong · plast | 341 / 345 / 346 |
+| UP2.1 / UP2.2 | plast · betong | 347 |
+| UP3.1–UP3.4 | betong m/dykker · betong u/dykker · plast m/dykker · plast u/dykker | 348 |
+| UP3.5 | hjelpesluk | 348 |
+
+🔴 **Design tok feil om UP3 og retter seg:** ordren sa «UP3 — ingen forgrening, alle felt alltid synlige. Det er
+hele gevinsten ved å skille den ut.» **Det var galt.** UP3 deler både på materiale og på dykker, og har hjelpesluk
+som egen underpost. Gevinsten ved å skille UP3 ut er fortsatt reell — et sandfang slipper spørsmål om renneløp og
+ventil — men den er ikke «ingen forgrening».
+
+### Materialefeltet og barna — deles ordrett
+
+**M1. Materiale** — `valg` · **forelder**. **Alternativene varierer pr. mal:**
+
+| Mal | Alternativer |
+|---|---|
+| UP1 | Betongelementer · Kumbunn av plasstøpt betong · Plast |
+| UP2 | Betong · Plast |
+| UP3 | Betong · Plast |
+
+**M2. Kumskjøt og pakninger** — `valg` · **vises for betong** *(i UP1: «Betongelementer»)*
+- Elementer med falsskjøt og glidering som beskrevet
+- Avvik
+
+> Elementene skjøtes med falsskjøt og glidering, eller med not og fjær, etter beskrivelsen. Krav om T-merking der kummen skal være tett, dekkes av kontrollen av kum og deler.
+
+**M3. Oppføringsrør, form og oppdrift** — `valg` · **vises for «Plast»**
+- Kappet i riktig høyde, røret er rundt, sikret mot oppdrift
+- Avvik
+
+> Oppføringsrøret kappes så rammen får jevnt anlegg og lokket kommer i riktig høyde. Kontroller at røret ikke er blitt ovalt av gravemaskin eller ensidig omfylling. Står det vann i grøfta, skal kummen være sikret mot oppdrift før omfyllingen — en plastkum flyter, og den løfter seg uten at noen ser det før dekket sprekker.
+
+🔴 **Oppdriftspunktet er designs tillegg og skal meldes til Kenneth for gating.** Det står ikke i normteksten
+design leste, men en plastkum i grunnvann er et kjent problem. Er det overflødig i praksis, tas setningen ut —
+men den er billig og feilen er dyr.
+
+**M4. Plasstøpt kumbunn** — `valg` · **vises for «Kumbunn av plasstøpt betong»** · **KUN i UP1**
+- Forskaling, gjennomføringer og renneløp støpt som beskrevet
+- Avvik
+
+> Rørgjennomføringene skal støpes inn tette, og renneløpet skal få det fallet og løpet beskrivelsen angir. Betongen skal ha herdet før kummen belastes. Dette er den ene kumtypen der bunnen ikke kan byttes hvis den blir feil.
+
+🔴 **M2 og M3 skal være ord for ord identiske i UP1, UP2 og UP3.** Betong er betong. **Delt-tekst-testen utvides
+til å dekke materialeblokken**, ikke bare basisfeltene. **M4 finnes bare i UP1** og er unntatt.
+
+🔴 **UO2.1 har INGEN materialeblokk.** Den er en ventilpost, ikke en kumpost, og normen deler den ikke på
+materiale. **Legg den ikke inn der.**
 
 ---
 
@@ -170,15 +225,18 @@ listen** — de har egne maler.
 
 > Brannkummen markeres med skilt som viser avstand og retning fram til kummen, slik at brannvesenet finner den. Skiltet skal stå før overlevering. Ta bilde av skiltet.
 
-**Deretter basisfeltene B1–B9** (§ 5), i denne rekkefølgen: B1, B2 i FØR · B3, B4, B5 i UNDER · B6, B7, B8, B9 i
-ETTER.
+**Deretter materialeblokken M1–M4** (§ 5b), med alle tre alternativene, og **deretter basisfeltene B1–B9** (§ 5) i
+denne rekkefølgen: B1, B2 i FØR · B3, B4, B5 i UNDER · B6, B7, B8, B9 i ETTER.
 
-**Utgår fra v1:** «Sandfangkum» og «Inspeksjonskum» fra typelisten (egen mal / § 3) · «Sandvolum og høyde til
-utløp» som felt (flyttet til UP3) · «Ikke aktuelt» på renneløp, fordi feltet nå bare vises for kummer som **har**
+**To foreldre i denne malen:** felt 1 «Type kum» og M1 «Materiale». Uavhengige trær, som i UM1 v2 — bruk **to
+ulike `ref`-verdier** (`kumtype`, `materiale`) og la strukturtesten vise at de ikke blander seg.
+
+**Utgår fra v1:** «Sandfangkum» og «Inspeksjonskum» fra typelisten (egne maler) · «Sandvolum og høyde til utløp»
+som felt (flyttet til UP3) · «Ikke aktuelt» på renneløp, fordi feltet nå bare vises for kummer som **har**
 renneløp (§1c).
 
-**Struktur:** 14 felt. Ti alltid synlige (1, B1–B9). SP/OV/AF viser elleve · vannkum uten uttak tolv · brannkum
-tretten · annen kum ti.
+**Struktur:** 18 felt. Elleve alltid synlige (1, M1, B1–B9). Én kumtype-gren og én materialegren vises i tillegg:
+en betongkum på spillvann viser tretten · en plastkum på vann uten uttak fjorten · en brannkum av betong femten.
 
 ---
 
@@ -199,40 +257,34 @@ med to avgreninger) og diameter DN 315–630. UP2.2 er **av betong** med kumskj�
 not og fjær) og gjennomløp (rett, rett med plastliner, Y, Y med plastliner). **Materialet er det som avgjør hvilke
 krav som gjelder** — derfor er det forelderen.
 
-**1. Materiale** — `valg` · **forelder for felt 3 og 4**
-- Plast
-- Betong
-
-> Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel SP-07. Bruk samme skrivemåte gjennom hele prosjektet. Materialet avgjør hvilke kontrollpunkter som vises under.
-
-**2. Gjennomløp og fall** — `valg`
+**1. Gjennomløp og fall** — `valg` · **forelder for felt 2**
 - Riktig gjennomløp og jevnt fall
 - Avvik
 
-> Gjennomløpet skal være det beskrivelsen angir — rett, med avgreining, eller Y — med jevnt fall gjennom kummen. Kontroller mot tegningen at avgreiningene peker rett vei før omfylling.
+> Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel SP-07. Bruk samme skrivemåte gjennom hele prosjektet. Gjennomløpet skal være det beskrivelsen angir — rett, med avgreining, eller Y — med jevnt fall gjennom kummen. Kontroller mot tegningen at avgreiningene peker rett vei før omfylling.
 
-**3. Oppføringsrør og form** — `valg` · **vises for «Plast»**
-- Kappet i riktig høyde, røret er rundt og uskadd
+**2. Plastliner i gjennomløpet** — `valg` · **vises når felt 1 = «Riktig gjennomløp og jevnt fall»**
+- Liner hel, overgang mot røret tett
+- Ikke krevd i beskrivelsen
 - Avvik
 
-> Oppføringsrøret kappes så rammen får jevnt anlegg og lokket kommer i riktig høyde. Kontroller at røret ikke er blitt ovalt av gravemaskin eller ensidig omfylling — en deformert kum kan ikke spyles eller filmes.
+> Normen har gjennomløp både med og uten plastliner. Er liner beskrevet, skal den være hel og overgangen mot røret tett — en revnet liner gir slitasje og innlekking, og den kan ikke byttes uten å grave opp.
 
-**4. Kumskjøt og plastliner** — `valg` · **vises for «Betong»**
-- Skjøt som beskrevet, liner hel der den er krevd
-- Avvik
-
-> Skjøten er falsskjøt med glidering eller not og fjær, etter beskrivelsen. Er gjennomløpet beskrevet med plastliner, kontroller at lineren er hel og at overgangen mot røret er tett. Krav om T-merking dekkes av kontrollen av kum og deler.
-
-🔴 **Siste setning i felt 4 er der for å unngå dobbeltføring:** T-merking står i basisfeltet B1, og skal ikke
-spørres om to ganger. **Legg den ikke inn her.**
-
-**5. Kummen kan spyles og inspiseres fra overflaten** — `trafikklys`
+**3. Kummen kan spyles og inspiseres fra overflaten** — `trafikklys`
 
 > En inspeksjonskum er for liten å gå ned i — hele hensikten er at ledningen kan spyles og filmes herfra. Kontroller at det er fri passasje ned og at gjennomløpet er rent før lokket legges på.
 
-**Deretter basisfeltene B1–B9** (§ 5), i samme rekkefølge som i UP1.
+**Deretter materialeblokken M1–M3** (§ 5b) med alternativene **Betong · Plast** — **ikke** M4, som bare finnes i
+UP1 — og **deretter basisfeltene B1–B9** (§ 5), i samme rekkefølge som i UP1.
 
-**Struktur:** 14 felt. Tolv alltid synlige (1, 2, 5, B1–B9). Plast viser tretten, betong tretten.
+**To foreldre:** felt 1 «Gjennomløp og fall» og M1 «Materiale». To ulike `ref`-verdier.
+
+🔴 **Kumskjøtfeltet skal IKKE dupliseres.** Design skrev først et eget «Kumskjøt og plastliner»-felt i UP2. Det er
+nå delt opp riktig: **skjøten hører i materialeblokkens M2** (delt med UP1 og UP3), og **plastliner hører i felt 2**,
+fordi liner er en egenskap ved gjennomløpet og ikke ved skjøten. **Bygg ikke begge i ett felt.**
+
+**Struktur:** 14 felt. Elleve alltid synlige (1, 3, M1, B1–B9). Betong med liner viser tretten, plast med liner
+tretten.
 
 🔴 **Ingen nedstigningsfelt.** Malen skal **ikke** ha mellomdekke, stige eller nedstigningsåpning — kummen er
 DN 315–630 og kan ikke gås ned i. Det er nettopp det som skiller den fra UP1, og feltet «kummen kan spyles og
@@ -249,26 +301,40 @@ navn:         "UP3 – Sandfangkum og hjelpesluk"
 beskrivelse:  "Setting av sandfangkum og hjelpesluk i grunnen — sandvolum, dykker, tilgang for tømming, fundament, omfylling, ramme og rist. Én kum per sjekkliste. Faglig grunnlag: NS 3420-U:2019, post UP3."
 ```
 
-**Ingen typeforelder.** Malen ER typen — det er derfor den er egen mal.
+🔴 **Normen deler UP3 i fem underposter** (normside 348): UP3.1–UP3.4 er **betong eller plast × med eller uten
+dykker**, og **UP3.5 er hjelpesluk**. Det gir to foreldre, ikke ingen — se rettingen i § 5b.
 
-**1. Sandvolum og høyde til utløp** — `valg`
+**1. Type** — `valg` · **forelder for felt 2 og 3**
+- Sandfangkum
+- Hjelpesluk
+
+> Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel SF-03. Bruk samme skrivemåte gjennom hele prosjektet. Et hjelpesluk har ikke sandfangvolum, så de to kontrolleres ulikt.
+
+**2. Sandvolum og høyde til utløp** — `valg` · **vises for «Sandfangkum»**
 - Minst 0,8 m³ og 1 m
 - Under kravet
 
-> Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel SF-03. Bruk samme skrivemåte gjennom hele prosjektet. Sandvolumet bør ikke være mindre enn 0,8 m³, og høyden fra bunn til utløp bør være minst 1 m. Noter målt verdi i kommentaren.
+> Sandvolumet bør ikke være mindre enn 0,8 m³, og høyden fra bunn til utløp bør være minst 1 m. Noter målt verdi i kommentaren.
 
-**2. Dykker og tilgang for tømming** — `valg`
+**3. Dykker og tilgang for tømming** — `valg` · **vises for «Sandfangkum»**
 - Dykker montert, kummen kan tømmes
 - Dykker ikke krevd i beskrivelsen
 - Avvik
 
-> Dykkeren holder flytende materiale tilbake og skal sitte som beskrevet. Kummen må stå slik at slamsugebil kommer til — er adkomsten sperret etter at anlegget er ferdig, kan kummen ikke driftes.
+> Normen har sandfang både med og uten dykker, så «ikke krevd» er et gyldig svar og ikke en unnvikelse. Dykkeren holder flytende materiale tilbake og skal sitte som beskrevet. Kummen må stå slik at slamsugebil kommer til — er adkomsten sperret etter at anlegget er ferdig, kan kummen ikke driftes.
 
-**Deretter basisfeltene B1–B9** (§ 5). **B7 «Lokk eller rist»** er særlig aktuell her, siden et sandfang normalt
-har rist — alternativene er uendret.
+**Deretter materialeblokken M1–M3** (§ 5b) med alternativene **Betong · Plast** — **ikke** M4 — og **deretter
+basisfeltene B1–B9** (§ 5). **B7 «Lokk eller rist»** er særlig aktuell her, siden et sandfang normalt har rist;
+alternativene er uendret.
 
-**Struktur:** elleve felt, alle alltid synlige. **Ingen forgrening i denne malen** — det er hele gevinsten ved å
-skille den ut.
+**To foreldre:** felt 1 «Type» og M1 «Materiale». To ulike `ref`-verdier.
+
+**Struktur:** 14 felt. Elleve alltid synlige (1, M1, B1–B9). Et sandfang av betong viser fjorten, et hjelpesluk av
+plast tolv.
+
+🔴 **Rettelse fra forrige versjon av ordren:** design skrev «ingen forgrening, alle felt alltid synlige — det er
+hele gevinsten ved å skille den ut». **Det var galt**, og normen sier noe annet. Gevinsten er fortsatt reell — et
+sandfang slipper spørsmål om renneløp, ventil og brannuttak — men den er ikke fravær av forgrening.
 
 ---
 
@@ -332,12 +398,12 @@ beskrivelsen for at fagfolk skal kjenne den igjen.
 - §7b-sjekk i `up1-mal.test.ts`, `up2-mal.test.ts`, `up3-mal.test.ts` og `uo2-1-mal.test.ts`: ingen `Matrise`,
   `NS-EN`, `NS 3420`, ingen referanse som prefiks i feltnavn, og **ingen forekomst av «bajonett»**.
   Forkortelsene SP, OV, AF, V og SF er prosjekteringsbetegnelser og er tillatt (§7c).
-- **Strukturtest pr. mal:** UP1 — renneløp har **tre** utløsere, ventil **én**, skiltet er barn av uttaksfeltet og
-  ikke av typefeltet. UP2 — materialet er forelder, oppføringsrør bare for plast og kumskjøt bare for betong.
-  UP3 — **ingen** forgrening, alle felt alltid synlige. UO2.1 — skiltet er barn av uttaksfeltet. Rød først.
-- **Delt-tekst-test** på basisfeltene (§ 5), på tvers av **alle fire**. Rød først.
+- **Strukturtest pr. mal — alle har nå TO foreldre unntatt UO2.1:** UP1 — kumtype og materiale som to uavhengige
+  trær, renneløp har tre utløsere, ventil én, skiltet er barn av uttaksfeltet. UP2 — gjennomløp og materiale.
+  UP3 — type og materiale; sandvolum og dykker bare for sandfangkum. UO2.1 — skiltet er barn av uttaksfeltet. Rød først.
+- **Delt-tekst-test** på basisfeltene (§ 5) på tvers av alle fire, OG på materialeblokkens M2 og M3 (§ 5b) på tvers av UP1, UP2 og UP3. Rød først.
 - 🔴 **Negativ test i UP2:** malen skal **ikke** inneholde mellomdekke, stige eller nedstigningsåpning, og **ikke**
-  T-merking i felt 4 (dekkes av B1). Negative krav glemmes oftest — de skal testes.
+  T-merking noe sted (den hører i B1). Negative krav glemmes oftest — de skal testes.
 - Utløsere ligger på barnets **eget** sett (`BETINGELSE_EGEN_NOKKEL`), aldri `conditionValues`. Bruk
   `forgrening`.
 - Fasit (§8) og `skriv-mal` viser trærne for alle fire. Ingen i18n-nøkler. Ingen endring i `packages/shared` eller
