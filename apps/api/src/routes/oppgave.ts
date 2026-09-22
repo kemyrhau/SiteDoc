@@ -7,6 +7,7 @@ import { kollisjonsmerge, type Kollisjon } from "../services/kollisjonsmerge";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { medNummerRetry } from "../utils/nummerRetry";
+import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
@@ -474,6 +475,12 @@ export const oppgaveRouter = router({
 
       const erHms = mal.domain === "hms";
 
+      // Effektiv bestiller/utfører: klientens input, ELLER server-utledning fra flyten
+      // når klienten ikke sender dem (mobil-opprettelsen gjør det ikke lenger — ordre
+      // 2026-09-22). Utledes i standard-grenen under.
+      let effektivBestiller = input.bestillerFaggruppeId;
+      let effektivUtforer = input.utforerFaggruppeId;
+
       // HMS-oppgaver: auto-rut til HMS-gruppen, ingen faggruppe
       let recipientGroupId: string | undefined;
       // F1b (HMS flyt-binding): server binder HMS-oppgaven til prosjektets HMS-flyt.
@@ -518,14 +525,36 @@ export const oppgaveRouter = router({
             message: "Dokumentflyt er påkrevd for denne oppgavetypen. Velg en flyt som bruker malen.",
           });
         }
-        // Standard: faggrupper påkrevd
-        if (!input.bestillerFaggruppeId || !input.utforerFaggruppeId) {
+        // Utled bestiller/utfører fra flyten når klienten ikke sender dem (mobil-
+        // opprettelsen gjør det ikke lenger). Speiler sjekkliste.opprett/web: bestiller =
+        // flytens eier-faggruppe, utfører = utfører-medlem (fallback eier). Web sender
+        // fortsatt samme verdi → utledningen flytter INGEN rettighet (tilhørighetssjekken
+        // under kjører på samme faggruppe som før).
+        if (!effektivBestiller || !effektivUtforer) {
+          const flyt = await ctx.prisma.dokumentflyt.findUnique({
+            where: { id: input.dokumentflytId },
+            select: {
+              faggruppeId: true,
+              medlemmer: {
+                where: { rolle: "utforer", periodeSlutt: null },
+                select: { faggruppeId: true },
+              },
+            },
+          });
+          const utledet = utledBestillerUtforer(
+            flyt ? { faggruppeId: flyt.faggruppeId, utforerMedlemmer: flyt.medlemmer } : null,
+          );
+          effektivBestiller = effektivBestiller ?? utledet.bestiller;
+          effektivUtforer = effektivUtforer ?? utledet.utforer;
+        }
+        // Standard: faggrupper påkrevd (etter utledningsforsøket over)
+        if (!effektivBestiller || !effektivUtforer) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Bestiller- og utfører-faggruppe er påkrevd for denne oppgavetypen",
           });
         }
-        await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
+        await verifiserFaggruppeTilhorighet(ctx.userId, effektivBestiller);
 
         // F1/B2 (paritet): valider at (a) flyten har den valgte malen og (b) brukeren er oppretter-
         // medlem (rollen lagret som "registrator"). Ingen bypass — også admin må være registrator-
@@ -624,8 +653,8 @@ export const oppgaveRouter = router({
             templateId: input.templateId,
             bestillerUserId: ctx.userId,
             eierUserId: ctx.userId,
-            bestillerFaggruppeId: input.bestillerFaggruppeId ?? null,
-            utforerFaggruppeId: input.utforerFaggruppeId ?? null,
+            bestillerFaggruppeId: effektivBestiller ?? null,
+            utforerFaggruppeId: effektivUtforer ?? null,
             title: input.title,
             subject: input.subject,
             description: input.description,

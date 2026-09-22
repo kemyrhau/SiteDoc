@@ -17,8 +17,7 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { StatusFilterRad } from "../../src/components/StatusFilterRad";
-import { MalVelger } from "../../src/components/MalVelger";
-import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 
@@ -37,14 +36,6 @@ const PRIORITETS_FARGE: Record<string, string> = {
   critical: "text-red-600",
 };
 
-interface MalData {
-  id: string;
-  name: string;
-  prefix: string | null;
-  category: string;
-  // Flytresolusjon: bæres fra mal-lista til opprett-modalen (delt opprett-regel).
-  opprettbareFlytIder?: string[];
-}
 
 // Cast-type for å unngå TS2589 (excessively deep type instantiation)
 interface OppgaveRad {
@@ -73,7 +64,6 @@ export default function OppgaveListe() {
   const queryClient = useQueryClient();
 
   const [visVelger, settVisVelger] = useState(false);
-  const [valgtMal, settValgtMal] = useState<MalData | null>(null);
   const [statusFilter, settStatusFilter] = useState<string | null>(null);
   // Kontraktssak-segment (tavle 4): økt-tilstand, ikke lokal DB.
   const [segment, settSegment] = useState<"alle" | "oppgaver" | "kontrakt">("alle");
@@ -256,27 +246,16 @@ export default function OppgaveListe() {
       )}
 
       {/* Malvelger */}
-      <MalVelger
-        synlig={visVelger && !valgtMal}
+      {/* Opprett oppgave — gruppert velger, oppretter direkte (server utleder faggruppe). */}
+      <OpprettVelger
+        synlig={visVelger}
         kategori="oppgave"
-        onVelg={(mal) => {
-          settVisVelger(false);
-          settValgtMal(mal);
-        }}
-        onLukk={() => settVisVelger(false)}
-      />
-
-      {/* Opprett oppgave */}
-      <OpprettDokumentModal
-        synlig={!!valgtMal}
-        kategori="oppgave"
-        mal={valgtMal ?? { id: "", name: "", prefix: null, category: "" }}
         onOpprettet={(id) => {
-          settValgtMal(null);
+          settVisVelger(false);
           queryClient.invalidateQueries();
           router.push(`/oppgave/${id}`);
         }}
-        onLukk={() => settValgtMal(null)}
+        onLukk={() => settVisVelger(false)}
       />
     </SafeAreaView>
   );

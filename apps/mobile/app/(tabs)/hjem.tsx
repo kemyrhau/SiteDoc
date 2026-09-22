@@ -31,8 +31,7 @@ import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { ProsjektVelger } from "../../src/components/ProsjektVelger";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { FirmaVelger } from "../../src/components/FirmaVelger";
-import { MalVelger } from "../../src/components/MalVelger";
-import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { OpprettVelger } from "../../src/components/OpprettVelger";
 import { formaterNummer } from "../../src/components/dokumentliste/DokumentRadHjelpere";
 import { HjemTimerChip } from "../../src/components/HjemTimerChip";
 import { MannskapInnsjekkKort } from "../../src/components/MannskapInnsjekkKort";
@@ -40,15 +39,6 @@ import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 
 const AKTIVE_STATUSER = ["sent", "received", "in_progress"];
 
-interface MalData {
-  id: string;
-  name: string;
-  prefix: string | null;
-  category: string;
-  subjects?: string[];
-  // Flytresolusjon: bæres fra mal-lista til opprett-modalen (delt opprett-regel).
-  opprettbareFlytIder?: string[];
-}
 
 // Fabel C: antall innboksrader vist inline på Hjem før «Se alle»-raden.
 const INNBOKS_MAKS = 3;
@@ -105,7 +95,6 @@ export default function HjemSkjerm() {
   const [velgerSynlig, setVelgerSynlig] = useState(false);
   const [visFirmaVelger, setVisFirmaVelger] = useState(false);
   const [opprettKategori, setOpprettKategori] = useState<"sjekkliste" | "oppgave" | null>(null);
-  const [valgtMal, setValgtMal] = useState<MalData | null>(null);
   const [visAndroidMeny, setVisAndroidMeny] = useState(false);
   // Fabel C: «Se alle»/«Vis færre» utvider innboksen inline til dagens tak (10).
   // Lokal (ikke persistert) — resettes ved remount, bevisst enkel løsning.
@@ -279,7 +268,6 @@ export default function HjemSkjerm() {
   const håndterOpprettet = useCallback(
     (id: string) => {
       const kat = opprettKategori;
-      setValgtMal(null);
       setOpprettKategori(null);
       if (valgtProsjektId) {
         utils.sjekkliste.hentForProsjekt.invalidate({ projectId: valgtProsjektId });
@@ -673,24 +661,12 @@ export default function HjemSkjerm() {
         </Pressable>
       </RNModal>
 
-      {/* Malvelger-modal */}
-      <MalVelger
-        synlig={!!opprettKategori && !valgtMal}
+      {/* Gruppert opprett-velger — oppretter direkte (server utleder faggruppe). */}
+      <OpprettVelger
+        synlig={!!opprettKategori}
         kategori={opprettKategori ?? "sjekkliste"}
-        onVelg={(mal) => setValgtMal(mal)}
-        onLukk={() => setOpprettKategori(null)}
-      />
-
-      {/* Opprett dokument-modal */}
-      <OpprettDokumentModal
-        synlig={!!opprettKategori && !!valgtMal}
-        kategori={opprettKategori ?? "sjekkliste"}
-        mal={valgtMal ?? { id: "", name: "", prefix: null, category: "" }}
         onOpprettet={håndterOpprettet}
-        onLukk={() => {
-          setValgtMal(null);
-          setOpprettKategori(null);
-        }}
+        onLukk={() => setOpprettKategori(null)}
       />
     </SafeAreaView>
   );
