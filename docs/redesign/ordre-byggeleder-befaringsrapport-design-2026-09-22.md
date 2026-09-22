@@ -312,16 +312,38 @@ forsøkes korrigert automatisk.
 
 # Del B — befaringsmalen (mal-Opus)
 
-## B1. Plasseringen er et vedtak, ikke en begrensning
+## B1. Plasseringen — GATET av Kenneth 2026-09-22
 
 **Dette er ikke en NS 3420-mal.** Den beskriver byggelederens egen befaring, ikke en post i en
 mengdebeskrivelse.
 
-**Målt av design 2026-09-22:** `BibliotekStandard.kode` er en **fri unik streng**
-(`schema.prisma:2283`) — biblioteket kan altså bære en ikke-NS-standard. Det er teknisk mulig.
+**Målt av design 2026-09-22:** `BibliotekStandard.kode` er en **fri unik streng** (`schema.prisma:2283`) —
+biblioteket kan bære en ikke-NS-standard.
 
-🔴 **Men det legger en ny node øverst i bibliotektreet, og det er Kenneths vedtak.** Se § B4. **Ikke opprett
-noen standard før vedtaket er gatet.**
+✅ **Kenneth 2026-09-22: «ja, egen standard BYGGELEDELSE».** Vedtaket er tatt.
+
+```
+standardkode: "BYGGELEDELSE"
+```
+
+**Det legger en ny node øverst i bibliotektreet ved siden av de fire NS-standardene.** Bekreft i leveransen at
+malvelgeren på web og mobil tåler det uten endringer — den grupperer i dag faggruppe → dokumentflyt → mal, og
+standarden er et nivå over. **Finner du at den ikke tåler det, stopp og meld** — det er en app-endring, ikke en
+malendring, og den skal ikke gjøres i denne branchen.
+
+🔴 **ÅPENT — dette blokkerer Del B:** er befaringsmalene **oppgave-maler** eller **sjekkliste-maler**? Kenneths
+melding 2026-09-22 bærer begge ord: «egen standard BYGGELEDELSE (sjekkliste)» og «→oppgave →vei og VA ·
+→Oppgave →Bygg». Forskjellen er strukturell:
+
+| | Oppgave-mal | Sjekkliste-mal |
+|---|---|---|
+| Posisjon på tegning | **innebygd** (`Task.drawingId` + `positionX/Y`) | via dokumentet |
+| Fase-struktur FØR/UNDER/ETTER | nei | ja |
+| Punktrapporten (feil/mangel) | **samme dokumenttype** som områderapporten | annen type |
+
+**Design heller mot oppgave-mal:** Kenneth beskrev selv rapporten som «en oppgave for den delen», posisjonen er
+innebygd, og punktrapporten blir da samme type som områderapporten — bare med posisjon satt. **Men design velger
+ikke dette. Ikke bygg Del B før svaret er gatet.**
 
 ## B2. Malen
 
@@ -371,6 +393,37 @@ hans eget eksempel. Den gates før SQL — se § B4.
 
 > Ta bilde med posisjon slått på. Bildene knyttes til strekningen og kan vises på tegningen etterpå.
 
+### Bemanning og maskiner — gatet av Kenneth 2026-09-22
+
+Kenneth: «Antall mannskaper, antall gravemaskiner, antall hjullastere».
+
+**4a. Antall mannskaper** — `heltall`
+
+> Hvor mange arbeidere som var på stedet da du var der. Null er et gyldig og viktig svar.
+
+**4b. Antall gravemaskiner** — `heltall`
+
+**4c. Antall hjullastere** — `heltall`
+
+> Annet utstyr skriver du i kommentaren. Tellingen skal gå fort — poenget er utviklingen over tid, ikke et komplett maskinregister.
+
+🔴 **Disse tre er unntaket fra MAL-METODE §1 «ingen tallfelt», og unntaket skal begrunnes i seed-kommentaren.**
+§1 finnes for at normkrav skal besvares som **samsvar** og ikke som en måleverdi som hører i en protokoll.
+**Her finnes ingen protokoll og ingen norm:** tellingen er selve observasjonen, den har ingen annen plass å bo,
+og et `valg` med intervaller («1–3», «4–6») ville gjort summering over en måned meningsløs. **Heltall er
+riktig.** Bygg dem som `heltall`, ikke som `valg`.
+
+🔴 **Hvorfor feltet er viktigere enn det ser ut — og det skal stå i seed-kommentaren:** byggherren har **ingen
+tilgang til entreprenørens dagsseddel**. Entreprenøren kan måle timene sine; byggherren har bare øynene sine.
+**Bemanningstellingen er byggherrens eneste måling av innsats** — hans motstykke til dagsseddelen. Den gjør også
+årsaken «ingen mannskap på anlegget» (felt 2) til et tall i stedet for en påstand: «0 mannskaper, 12. mai» er
+dokumentasjon.
+
+**Sammenhengen med månedsrapporten** (BACKLOG § 3, Kenneth: «Månedsrapport er backlogg jobb»): tre målinger mot
+entreprenørens plan — **posisjon** mot planens dato, **bemanning** mot planens forutsatte lag, og
+**fargefordeling med årsaker**. Antok planen seks mann og to maskiner, og tellingene i mai viser to mann og null
+maskiner, er forsinkelsen forklart med tall og ikke med en formulering som kan bestrides.
+
 **5. Sikring og orden på stedet** — `valg` · **ordlyd varierer, se § B2b**
 - I orden
 - Avvik – varslet
@@ -394,10 +447,11 @@ referanse: "BEFARING-B"   navn: "Befaring bygg – byggelederens rapport"
 ```
 *(Referansene er designs forslag og henger på vedtaket i § B4 pkt 1.)*
 
-🔴 **Fem av seks felt er IDENTISKE, ordrett.** Felt 1 (fremdrift), 2 (årsak), 4 (bilde), 6 (ført og sendt) og
-svaralternativene i felt 5 skal være **ord for ord de samme** i begge maler. **Fasiten skal låse det** — drifter
-de to fra hverandre, blir rapportene usammenlignbare, og hele poenget med å telle farger og årsaker over tid
-faller. Det er samme regel som gjorde at fasitfilen ble innført.
+🔴 **Alt unntatt felt 3 og to hjelpetekster er IDENTISK, ordrett.** Felt 1 (fremdrift), 2 (årsak), 4 (bilde),
+**4a–4c (bemanning og maskiner)**, 6 (ført og sendt) og svaralternativene i felt 5 skal være **ord for ord de
+samme** i begge maler. **Fasiten skal låse det** — drifter de to fra hverandre, blir rapportene
+usammenlignbare, og hele poenget med å telle farger, årsaker og bemanning over tid faller. Det er samme regel
+som gjorde at fasitfilen ble innført.
 
 **Det som varierer:**
 
@@ -431,9 +485,11 @@ forgrening **ikke** er svaret.
 - **Strukturtest:** årsaksfeltet er barn av fremdriftsfeltet, med **to** utløsere (Gul, Rød), og er ikke
   alltid synlig — **i begge maler**. Rød først. Bruk `forgrening` og `BETINGELSE_EGEN_NOKKEL`, aldri
   `conditionValues`.
-- 🔴 **Delt-tekst-test:** en test som låser at felt 1, 2, 4 og 6 og svaralternativene i felt 5 er **ord for ord
-  identiske** mellom `BEFARING-A` og `BEFARING-B`. Rød først. Uten den drifter de to fra hverandre, og
-  fargestatistikken blir usammenlignbar.
+- 🔴 **Delt-tekst-test:** en test som låser at felt 1, 2, 4, **4a–4c** og 6 og svaralternativene i felt 5 er
+  **ord for ord identiske** mellom `BEFARING-A` og `BEFARING-B`. Rød først. Uten den drifter de to fra
+  hverandre, og fargestatistikken blir usammenlignbar.
+- 🔴 **Tallfelt-unntaket** (§ B2, felt 4a–4c) skal begrunnes i seed-kommentaren, med Kenneths ord og med hvorfor
+  §1 ikke gjelder her. Ellers blir de fjernet av neste runde som «brudd på §1».
 - §7b: ingen `NS 3420`, `NS-EN`, `Matrise`. Ingen i18n-nøkler.
 - Fasit (§8) og `skriv-mal` viser treet. Gate-tall via `pnpm exec turbo run test --force`.
 - SQL: **ikke kjør mot test selv.** Parse-test mot engangsdatabase, slett den, lever de tre enlinjerne.
@@ -441,11 +497,9 @@ forgrening **ikke** er svaret.
 
 ## B4. Hva Kenneth skal ta stilling til før SQL
 
-1. 🔴 **Hvor bor malen?** Den er ikke en NS 3420-post. Designs forslag: **ny standard `BYGGELEDELSE`** med
-   kapittel for befaring — teknisk mulig (§ B1), men det legger en ny node øverst i bibliotektreet. Alternativ:
-   den bor som firmamal utenfor biblioteket. **Design anbefaler egen standard**, fordi befaringsrapporten skal
-   kunne lånes og revideres på samme måte som de andre malene — men konsekvensen for malvelgeren er Kenneths
-   å veie.
+1. ~~**Hvor bor malen?**~~ ✅ **GATET 2026-09-22: «ja, egen standard BYGGELEDELSE».** Se § B1.
+1b. 🔴 **ÅPENT OG BLOKKERENDE: oppgave-mal eller sjekkliste-mal?** Se § B1. Kenneths melding bærer begge ord.
+   Design heller mot oppgave-mal, men velger ikke. **Del B bygges ikke før dette er svart.**
 2. **Årsakslisten** i felt 2 — åtte valg, designs forslag. Mangler noen? Er noen overflødige? Listen skal
    være kort nok å velge fra på telefon i en grøft.
 3. **Felt 5, trafikkavvikling** — hører den i en byggelederrapport, eller er den ren HMS og skal ut? Design har
@@ -454,3 +508,8 @@ forgrening **ikke** er svaret.
 4. **Ansvarsside pr. årsak** (designnotatet § 4c) er **ikke** i denne malen. Den hører i rapporten og
    uttrekket, ikke i utfyllingen — byggelederen skal registrere hva som skjedde, ikke hvem som skal betale.
    Bekreft at det er riktig.
+5. **Bemanning og maskiner (felt 4a–4c)** — tre heltallsfelt: mannskaper, gravemaskiner, hjullastere, etter
+   Kenneths egne ord. **Er tre nok?** Design har bevisst **ikke** lagt inn dumper, valse, borerigg, lastebil,
+   kran eller lift, fordi tellingen skal gå på under et minutt og poenget er utviklingen over tid, ikke et
+   maskinregister. Annet utstyr skrives i kommentaren. Vil du ha flere faste felt, sier du hvilke — men hvert
+   felt koster tid ved hver befaring, 2–3 ganger i uken.
