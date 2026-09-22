@@ -109,6 +109,58 @@ kontrollplanen og fristene, altså fremdriften.
 340-metersgrøft, før sveiseskjøter. Det er tallet Kenneth bør reagere på, ikke en følelse av «flere
 sjekklister».
 
+## 4b. 🔴 Modellen ble målt mot et virkelig prosjekt, og bommet med faktor to
+
+Kenneth 2026-09-22: «jeg hadde et prosjekt på 1100m grøft som hadde byggetid 2 år».
+
+| Ledd | Regning | Resultat |
+|---|---|---|
+| Grøft | 1100 / 6 | 183 dager |
+| Kumgrupper | 1100 / 70 = 16 grupper × 5 dager | 79 dager |
+| **Modellens svar** | | **262 dager ≈ 52 uker ≈ 1 år** |
+| **Faktisk byggetid** | | **2 år** |
+
+**Feilen ligger ikke i ratene — den ligger i at design forvekslet produksjonsdager med kalendertid.**
+1100 m på to år er 550 m/år, som ved 6 m/dag blir 92 grøftedager i året. Raten er altså plausibel; det er
+de resterende dagene i kalenderåret modellen ikke vet om.
+
+**Følgen for designet: modellen må ha to lag.** Produksjonsdager fra mengde og rate, og deretter en
+kalenderomregning. Å skrive 262 dager rett i `fristUke` ville gitt en plan som er feil med ett år — og det
+er verre enn ingen plan, fordi den ser presis ut.
+
+**Én av årsakene er kjent.** Kenneth 2026-09-22: «entreprenøren rotet et strekk → 60 m tok over 3 mnd
+produksjon». Ved 6 m/dag skulle 60 m tatt 10 dager; det tok over 60. Det er ~50 tapte dager.
+
+**Vintersesong er utelukket.** Kenneth 2026-09-22: «vi jobbet sommer og vinter». Året rundt gir ~230
+arbeidsdager, altså ~460 på to år. Modellen sa 262; differansen er ~198 dager, og det rotete strekket
+forklarer ~50. **~148 dager står igjen uforklart** — og de faller på plass hvis raten er lest feil:
+
+| Rate | Grøft | + kumgrupper | Sum | Mot ~460 arbeidsdager |
+|---|---|---|---|---|
+| 6 m/dag | 183 d | 79 d | 262 d | halvparten |
+| **3 m/dag** | 367 d | 79 d | **446 d** | **treffer** |
+
+🔴 **Den avgjørende ukjente er derfor ikke raten, men hva raten er et mål på:** en **god dag i normal grøft**,
+eller et **prosjektsnitt** som bærer kryssinger, fjellpartier, gjenfylling, asfalt og dagene det står stille.
+Ligger modellen på god-dag-rate, vil den systematisk love halv byggetid — den farligste feilen den kan
+gjøre, fordi svaret ser rimelig ut. **Design velger ikke dette; Kenneth avgjør det, og det står som
+spørsmål 5 i § 8.**
+
+### Dette snur hva planen er til for
+
+Modellen kan ikke forutse at en entreprenør roter et strekk, og skal ikke prøve. **Den kan gjøre det synlig
+mens det ennå er 20 meter og ikke 60.** 6 m/dag er ikke et løfte, det er en målestokk: står det 8 meter
+etter tre uker der planen sa 90, skal noen vite det da.
+
+**Målestokken finnes allerede i malarbeidet.** 340 m gir 15 kum-dokumenter og 12 strekningsdokumenter (§ 4).
+Hvert godkjent dokument er et målbart steg, og granulariteten er fin nok til å se et strekk som står stille
+innen en uke. Sammen med `prosentFerdig` på postene og timene i dagsseddelen har SiteDoc nok til å se det
+**uten at noen rapporterer noe ekstra**.
+
+🔴 **Derfor snus anbefalingen i § 7: avviksdeteksjon er den primære verdien, startplanen er bieffekten.**
+En utledet startplan som er feil med ett år, er lite verdt. En baseline som viser at et strekk har stått
+stille i tre uker, er mye verdt — og den tåler at raten er omtrentlig.
+
 ## 5. Tre hull, som skal stå i planen og ikke skjules
 
 1. **«lm komplett».** Er bend, muffer og skjøter ikke egne poster, finnes antallet ikke i beskrivelsen.
@@ -161,3 +213,11 @@ beskrivelse.
 4. **Stikkledning fra vannkum.** Kenneth 2026-09-22: «i noen tilfeller ønsker kommunen å koble
    stikkledninger fra en vannkum». Det er et kontrollpunkt UP1 ikke har i dag. Skal det inn i
    vannkum-grenen i UP1 v2, eller holder feltet i UM1.1 om stikkledningsuttak?
+5. 🔴 **Er 6 m/dag en god dag eller et prosjektsnitt?** Se § 4b. Dette er det viktigste enkeltsvaret i hele
+   notatet. Er det en god dag, trengs en faktor mellom god-dag-rate og prosjektsnitt, og **det er den
+   faktoren som er modellens egentlige ukjente** — ikke ratene. Er det et prosjektsnitt, var
+   1100-metersprosjektet uvanlig tungt, og modellen stemmer for normale jobber.
+6. **Hva ble rotet på det strekket?** Var det noe en sjekkliste ville fanget — fundament, komprimering,
+   ledning på skolinger, en skjøt som ikke holdt — er det det sterkeste argumentet for hele biblioteket.
+   Var det fjell, grunnvann eller ukjent kabel, hører det under forholdstillegget på raten i § 6. Design
+   har ikke svaret og gjetter ikke.
