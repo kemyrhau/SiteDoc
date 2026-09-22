@@ -3,6 +3,29 @@
 **Fra:** design · **Til:** Kenneth-gate · **Dato:** 2026-09-22
 **Utløst av:** Kenneths spørsmål under malarbeidet 2026-09-22.
 
+🔴 **STATUS 2026-09-22: IDÉMYLDRING — INGENTING ER LÅST, INGENTING SKAL BYGGES.**
+
+Kenneth 2026-09-22: **«backlogg for nå. vi må drøfte videre før bygging. ingenting låst → kun idemyldring».**
+
+**Det gjelder hele dette notatet.** Rekkefølgen i § 7 er **ikke** en godkjent plan, ratemodellen i § 4b er **ikke**
+vedtatt, og 80 m-regelen som byggbarhetsvarsel er **ikke** bestilt. Notatet er et beslutningsgrunnlag for en
+drøfting som ikke er holdt.
+
+**Ingen agent skal opprette en branch eller skrive kode med dette notatet som grunnlag.** Det som ER bestilt av
+Kenneth og lever videre, er to ting, og de har egne dokumenter:
+
+- **Befaringsnotat med fremdriftslys** → `docs/claude/BACKLOG.md § 3` og
+  `ordre-byggeleder-befaringsrapport-design-2026-09-22.md`
+- **Månedsrapporten** → samme BACKLOG-post
+
+🔴 **Og én forutsetning falt bort:** Kenneth 2026-09-22, på spørsmål om 1100-metersprosjektet ligger i SiteDoc med
+timer slik at raten kan måles: **«nei».** Det betyr at **ratemodellen ikke kan kalibreres mot et virkelig prosjekt
+i dag** — den ene målingen som skulle erstatte anslaget på 6 m/dag, finnes ikke som data. Se § 4b: anslaget står
+fortsatt uutledet, og utledningen design gjorde fra kalendertid (~2,9–3,2 m/dag) er alt vi har.
+
+🔴 **Metodebeskrivelse eller sprengningsplan som egen dokumenttype** (§ 4b, siste avsnitt): Kenneth 2026-09-22
+**«vet ikke enda → drøftes».** Står åpent, ikke avvist.
+
 > «Akkurat nå lurer jeg på → går det å utlede en fremdriftsplan og en kontrollplan ut fra en priset
 > mengdebeskrivelse på en enkel måte for et VA prosjekt?»
 
