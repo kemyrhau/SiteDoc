@@ -24,3 +24,12 @@ SELECT project_id, COUNT(*) AS antall_omrader
 FROM omrader
 GROUP BY project_id
 ORDER BY antall_omrader DESC;
+
+-- 4) CHECK-en legges til i denne migreringen: bevis at INGEN eksisterende rad ville brutt den
+--    (lokasjon_omfang='omrade' MED omrade_id IS NULL). Forventet: 0 og 0 — «omrade» som omfang
+--    fantes ikke før denne runden, så ALTER ... ADD CONSTRAINT ... CHECK kan ikke feile på data.
+SELECT 'checklists' AS tabell, COUNT(*) AS ville_brutt_check
+FROM checklists WHERE lokasjon_omfang = 'omrade' AND omrade_id IS NULL
+UNION ALL
+SELECT 'tasks' AS tabell, COUNT(*) AS ville_brutt_check
+FROM tasks WHERE lokasjon_omfang = 'omrade' AND omrade_id IS NULL;

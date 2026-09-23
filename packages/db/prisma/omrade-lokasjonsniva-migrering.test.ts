@@ -42,4 +42,14 @@ describe("migrering 20260923120000_omrade_lokasjonsniva", () => {
     expect(kjørbar).not.toMatch(/DROP\s/i);
     expect(kjørbar).not.toMatch(/"omrade_id"\s+TEXT\s+NOT NULL/i);
   });
+
+  it("har CHECK mot tvetydigheten omfang=omrade UTEN omradeId, på begge tabeller", () => {
+    // «omrade valgt, men ingen område» skal være DB-ulovlig — koblingen forblir valgfri ellers.
+    const checkLinjer = kjørbar.match(
+      /CHECK\s*\(\s*"lokasjon_omfang"\s*<>\s*'omrade'\s*OR\s*"omrade_id"\s+IS NOT NULL\s*\)/g,
+    ) ?? [];
+    expect(checkLinjer.length).toBe(2);
+    expect(kjørbar).toMatch(/ADD CONSTRAINT "checklists_omrade_omfang_check"/);
+    expect(kjørbar).toMatch(/ADD CONSTRAINT "tasks_omrade_omfang_check"/);
+  });
 });

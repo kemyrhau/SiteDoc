@@ -11,13 +11,17 @@
 --       (feltet fantes ikke). Kolonnen skal være tom der prosjektet ikke bruker områder
 --       («dersom prosjektet mener dette er nyttig», Kenneth 2026-09-23) — en tom kolonne er
 --       her den korrekte tilstanden, ikke en felle.
---   (b) DB-GARANTI — WAIVES for denne kolonnen (design/ordre 2026-09-23): omradeId er en
---       VALGFRI kobling, ikke en identitet. Den eneste ugyldige tilstanden — lokasjonOmfang=
---       "omrade" MED omradeId=null — håndheves i app-laget (validering i oppgave/sjekkliste),
---       ikke med en DB-CHECK, slik at feilmeldingen blir lesbar og enkeltkilde med klienten.
---   (c) TEST — omrade-lokasjonsomfang.test.ts (api) feiler når et dokument har omfang="omrade"
---       og omradeId=null (DoD 12), og omrade-lokasjonsniva-migrering.test.ts (db) feiler hvis
---       denne migreringen slutter å være additiv/nullable eller mister SET NULL.
+--   (b) DB-GARANTI — CHECK mot TVETYDIGHET (design SNUDDE 2026-09-23): koblingen forblir
+--       VALGFRI, men tilstanden lokasjonOmfang="omrade" MED omradeId=null er en navngivbar
+--       tvetydighet — «område er valgt, men INGEN område». CHECK-en gjør nettopp DEN ulovlig,
+--       uten å tvinge omradeId på rader med annet/ikke omfang. App-vaktene (oppgave/sjekkliste,
+--       fire skriveveier) STÅR i tillegg — de gir lesbar feil på veiene som finnes i dag; CHECK-en
+--       fanger den femte veien som kommer (og enhver rå skriv). Additiv: en CHECK er ikke NOT NULL.
+--   (c) TEST — omrade-lokasjonsomfang.test.ts (api) feiler når app-laget slipper omfang="omrade"
+--       + omradeId=null (DoD 12); omrade-check-constraint.integration.test.ts (api) beviser at
+--       DB-en selv AVVISER kombinasjonen (sett rød først: uten CHECK går raden inn); og
+--       omrade-lokasjonsniva-migrering.test.ts (db) låser at migreringen forblir additiv +
+--       SET NULL + at CHECK-en er til stede.
 
 -- AlterTable: additiv nullable område-referanse
 ALTER TABLE "checklists" ADD COLUMN "omrade_id" TEXT;
@@ -30,3 +34,13 @@ ALTER TABLE "tasks" ADD CONSTRAINT "tasks_omrade_id_fkey" FOREIGN KEY ("omrade_i
 -- CreateIndex: oppslag pr. område (og FK-ytelse)
 CREATE INDEX "checklists_omrade_id_idx" ON "checklists"("omrade_id");
 CREATE INDEX "tasks_omrade_id_idx" ON "tasks"("omrade_id");
+
+-- CHECK: DB-garanti mot tvetydigheten «omfang=omrade UTEN et område». Koblingen er fortsatt
+-- valgfri (omradeId kan være null for punkt/byggeplass/ingen omfang) — men velges "omrade",
+-- MÅ et område være satt. Speiler app-vaktene (DoD 12), backstop for enhver rå/framtidig skriv.
+ALTER TABLE "checklists"
+    ADD CONSTRAINT "checklists_omrade_omfang_check"
+    CHECK ("lokasjon_omfang" <> 'omrade' OR "omrade_id" IS NOT NULL);
+ALTER TABLE "tasks"
+    ADD CONSTRAINT "tasks_omrade_omfang_check"
+    CHECK ("lokasjon_omfang" <> 'omrade' OR "omrade_id" IS NOT NULL);
