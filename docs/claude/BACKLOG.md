@@ -248,18 +248,28 @@ skulle vokte. Det er «stille tomhet» i en fjerde variant.
 
 **Hva som skal bygges:** en **oppstartssjekk pr. image** som logger høyt når en **påkrevd** binær mangler.
 
-🔴 **Og den avgjørende presiseringen, som kom av coworks retting 2026-09-23:** sjekken må skille
-**«mangler og er påkrevd»** fra **«mangler med vilje»**. `CloudCompare`, `PotreeConverter`, `dwgread` og
-`ODAFileConverter` mangler i **begge** containere, bevisst og dokumentert (`Dockerfile.api:36-46`), og
-punktsky-koden kaster alt en lesbar feil. **En sjekk som skriker om dem ved hver oppstart, blir ignorert innen
-en uke — og da er vakten død.**
+🔴 **Sjekken skal dekke ALLE fire binærene — korrigert 2026-09-23.** Design hevdet først at den bare skulle
+liste det hvert image «krever», fordi de tre andre manglet «med vilje». **Kenneth viste at de ikke gjorde det:
+alle tre virket på gammel server.** Da finnes ingen «med vilje»-kategori, og sjekken skal rope om alle.
 
-**Derfor: en eksplisitt liste over hva HVERT image krever**, ikke en automatisk skanning av alle binærnavn i
-koden. Web krever `pdftoppm`. Api krever `pdftoppm`. Resten er opsjonelle og skal ikke nevnes.
+🔴 **Men støyproblemet er reelt, og løsningen er en FORVENTET TILSTAND pr. binær pr. image — ikke bare en
+liste over navn:**
+
+| Tilstand | Betyr | Logg |
+|---|---|---|
+| **påkrevd** | skal finnes; mangler = feil | **høyt, og røyklista skal feile** |
+| **utsatt** | bevisst ikke installert ennå, med **dato og BACKLOG-referanse** | **én linje ved oppstart**, ikke gjentatt støy |
+
+**Poenget med «utsatt» er at den tvinger fram en beslutning.** Å flytte en binær dit krever at noen skriver
+hvorfor og hvor saken står. **Å la den stå som «påkrevd» og ignorere loggen, er det som skjedde fra juni til
+september.** En sjekk uten denne todelingen blir slått av innen en uke — og da er vakten død på nytt.
+
+**Utgangstilstand:** `pdftoppm` **påkrevd** i både web og api. `dwgread`/`ODAFileConverter` og
+`CloudCompare`/`PotreeConverter` **utsatt**, med referanse til posten under, til noen bestemmer noe annet.
 
 ---
 
-### 🔴 DWG-opplasting feiler på `server-ny` — dokumentert i en Dockerfile-kommentar, ikke her (funnet 2026-09-23)
+### 🔴 TRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10 — uoppdaget i tre og en halv måned (funnet 2026-09-23)
 
 **Kilde:** coworks måling 2026-09-23, etter at Kenneth kjørte `command -v` i begge containere.
 
@@ -269,19 +279,32 @@ koden. Web krever `pdftoppm`. Api krever `pdftoppm`. Resten er opsjonelle og ska
 | `dwgread` · `ODAFileConverter` | mangler | **mangler** |
 | `CloudCompare` · `PotreeConverter` | mangler | **mangler** |
 
-🔴 **DWG→DXF-konvertering har aldri virket på `server-ny`.** Det står i `docker/Dockerfile.api:36-38`:
-libredwg finnes ikke i bookworm-apt, den gamle serveren bygde fra kilde, og ODAFileConverter-blokken på
-`:40-46` er **bevisst utkommentert** fordi den krever ODA-konto og en `.deb` i `docker/vendor/`.
+🔴 **KORRIGERT 2026-09-23. Dette er ikke en akseptert mangel — det er tapt funksjonalitet.**
 
-⚠️ **Mangelen er altså kjent og dokumentert — men bare i en Dockerfile-kommentar.** Det er ikke der noen leter.
-**En kunde som laster opp en DWG i dag, får en feil ingen har planlagt for.**
+**Kenneth, ordrett:** *«jeg kjørte 3d, dwg og pdf tegninger fra gammel server → jeg har ikke testet dette etter
+flytting av server til server-ny».*
+
+**Alle tre virket på Kenspill. Ingen av dem er testet etter serverbyttet 2026-06-10.**
+
+| Funksjon | Binær | Tilstand | Kostnad |
+|---|---|---|---|
+| **PDF-tegning** | `pdftoppm` | 🟡 **delvis** — i api, mangler i web | 🟢 én linje i `Dockerfile.web` |
+| **DWG** | `dwgread` / `ODAFileConverter` | 🔴 **borte** | ODA-konto + `.deb`, eller libredwg fra kilde |
+| **3D / punktsky** | `CloudCompare` + `PotreeConverter` | 🔴 **borte** | ⚠️ **ikke målt** |
+
+⚠️ **Kommentaren i `docker/Dockerfile.api:36-38`** — «Uten det feiler KUN DWG→DXF-konvertering; resten av
+API-et virker» — **ble lest som en akseptert avveining. Den var en notis til seg selv om noe som skulle ordnes
+senere.** «Senere» kom aldri, fordi ingen testet. ODAFileConverter-blokken på `:40-46` står bevisst
+utkommentert (krever ODA-konto og en `.deb` i `docker/vendor/`).
+
+🔴 **En kunde som laster opp en DWG i dag, får en feil ingen har planlagt for — i tre og en halv måned.**
 
 **Skal det virke, kreves ett av to:** ODA-konto + `.deb` i `docker/vendor/` (blokken finnes, utkommentert), eller
 libredwg bygget fra kilde i imaget.
 
-🟢 **Punktsky er i bedre stand enn DWG:** `punktskyKonvertering.ts:52` og `:102` kaster «CloudCompare er ikke
-installert på serveren» — en **lesbar** feil. Det er en dokumentert mangel med en forståelig melding, ikke en
-stille svikt.
+⚠️ **Punktsky feiler i det minste lesbart:** `punktskyKonvertering.ts:52` og `:102` kaster «CloudCompare er
+ikke installert på serveren». **Men en lesbar feil på en funksjon som SKAL virke, er ikke en dokumentert
+mangel — det er en tapt funksjon med god feilmelding.** Design leste den først som det første; det var galt.
 
 🔴 **Og banneret lyver for alle konverteringsfeil:** `tegninger/page.tsx:883` sier «DWG-konvertering feilet»
 uansett hva som feilet. **Det kostet PDF-undersøkelsen 2026-09-23 en runde i feil retning.** Enlinjefiks:
