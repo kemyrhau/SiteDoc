@@ -236,6 +236,30 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 Georeferanse: nord dreier ved to-punktskalibrering — og den bedre metoden finnes alt (2026-09-23)
+
+**Kenneth 2026-09-23:** georeferering med to koordinater speiler/dreier tegningen, «da er ikke Nord lenger mot
+nord». Og: *«kalibrerer vi med beste metode? … dakux benytter en metode der man setter et koordinat inn i en
+tegning»*.
+
+🔴 **Full utredning med årsak, tall og revidert anbefaling:**
+[designnotat-georeferanse-speiling-design-2026-09-23.md](../redesign/designnotat-georeferanse-speiling-design-2026-09-23.md)
+
+**Kort, bare nok til å vite om saken angår deg:** `dwgKonvertering.ts:969-991` detekterer koordinatsystemet og
+konverterer DWG-ens `extents` — og degraderer så den eksakte transformasjonen til **to punkter på diagonalen**,
+som mates inn i en similaritet som ikke kan uttrykke ulik skala i x og y. **Mistenkte kalibreringer er derfor
+ALLE auto-georefererte DWG-tegninger, ikke bare manuelt kalibrerte.**
+
+**Notatet har fire ting BACKLOG ikke gjentar:** matematikken bak begge årsakene · regnestykket som gir ~71°
+dreining på en 2:1-tegning · metodetabellen som gjør tre punkter til *fallback* og utledning fra `extents` til
+hovedvei · og tre målinger som skal gjøres før noe bygges, der den første er om
+`detekterKoordinatSystem(filnavn, …)` egentlig gjetter fra filnavnet.
+
+**Kenneth-valg som venter i notatet § 7 og tillegget:** metodevalg pr. tegningstype, og om eksisterende
+kalibreringer skal varsles framfor å «fikses» automatisk.
+
+---
+
 ### 🔴 Oppstartssjekk for PÅKREVDE binærer — vakten som mangler (design 2026-09-23)
 
 **Utløst av PDF-feilen 2026-09-23:** `pdftoppm` finnes i `sitedoc-api` men ikke i `sitedoc-web`, og tRPC kjører
