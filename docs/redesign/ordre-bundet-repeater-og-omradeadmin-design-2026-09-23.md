@@ -1,8 +1,8 @@
 # Ordre: bundet repeater — og område-administrasjonen den hviler på
 
 **Til:** cowork fordeler til app-sporet · **Fra:** design · **Dato:** 2026-09-23
-**Branch-forslag:** `feat/omradeadmin` (steg 1+2) og `feat/bundet-repeater` (steg 3) fra `origin/develop`.
-**Gatet av Kenneth 2026-09-23:** «A. Bundet repeater først» og «ja, skriv ordren med alle tre stegene».
+**Branch-forslag:** `feat/omradeadmin` (steg 1+2) · `feat/omrade-lokasjonsniva` (steg 2b) · `feat/bundet-repeater` (steg 3), alle fra `origin/develop`.
+**Gatet av Kenneth 2026-09-23:** «A. Bundet repeater først» · «ja, skriv ordren med alle tre stegene» · «blokkere → hvis feltet inneholder data fra før, og bare admin» · «en sjekkliste bør også tilhøre et rom eller et område … En oppgave bør være et punkt fortrinnsvis → men den kan representere et område eller rom ved behov».
 **Forutsetning for:** `BEF1` og `BEF2` i
 `ordre-byggeleder-befaringsrapport-design-2026-09-22.md`. **Malene kan ikke bygges som beskrevet før steg 3
 finnes** — mal-Opus er varslet.
@@ -159,6 +159,69 @@ på befaringsraden, ikke på traseen (se befaringsordren § A2).
 
 ---
 
+## Steg 2b — område som lokasjonsnivå på sjekkliste og oppgave
+
+**Gatet av Kenneth 2026-09-23:**
+
+> «en sjekkliste bør også tilhøre et rom eller et område dersom prosjektet mener dette er nyttig. En oppgave
+> bør være et punkt fortrinnsvis → men den kan representere et område eller rom ved behov»
+
+### Målingen — modellen har alt riktig form, og friteksten avslører hullet
+
+**`omradeId` finnes i dag KUN på `KontrollplanPunkt`** (`schema.prisma:2429`). Verken `Checklist` eller `Task`
+har områdereferanse.
+
+**Men begge har `lokasjonOmfang`** — `"punkt" | "byggeplass" | null` (`schema.prisma:1235`, `:1320`) — der
+`punkt` er pin på tegning og `byggeplass` er et bevisst valg om hele anlegget. **Og begge har en
+fritekst-lokasjon**, innført 2026-09-06 som «en PRESISERING innenfor byggeplassen når det ikke finnes tegning
+å pinne på», med kodeeksemplene **«Akse 4»** og **«Nordre rampe»**.
+
+🔴 **Den friteksten er det samme problemet som trasénavnene i § 1.** «Akse 4» skrevet inn pr. dokument drifter
+nøyaktig som «Austadvegn» skrevet inn pr. befaring. **Området er det manglende mellomnivået mellom punkt og
+byggeplass — og friteksten var omveien rundt at nivået ikke finnes.**
+
+### Hva som skal bygges
+
+1. **`lokasjonOmfang` får en tredje verdi: `"omrade"`.** Enumen finnes; verdien mangler.
+2. **`omradeId String?` på `Checklist` og `Task`**, med `onDelete: SetNull` som på `KontrollplanPunkt`, og
+   indeks.
+3. **Lokasjonsvelgeren (web og mobil) får område som valg** — men **bare når prosjektet har definert områder**
+   på byggeplassen. Har det ingen, skal valget ikke vises. **Ikke et tomt nedtrekk.**
+4. **Kenneths preferanse skal ligge i standardvalget, ikke bare i dokumentasjonen:**
+
+   | Dokument | Standard | Tillatt |
+   |---|---|---|
+   | **Oppgave** | **punkt** | område · byggeplass |
+   | **Sjekkliste** | som i dag | **område** · punkt · byggeplass |
+
+   «Fortrinnsvis punkt» for oppgave betyr at punkt skal være det som er forvalgt når det finnes en tegning —
+   ikke at område skal være vanskelig å velge.
+5. **Rapport og arkiv:** kommentaren i schemaet sier at PDF og web **skiller byggeplass fra punkt**. En tredje
+   verdi krever at de også håndterer område. **Mål hvor det skillet gjøres, og meld hvor mange steder som må
+   utvides** — det er sannsynligvis flere enn de to åpenbare.
+
+### 🔴 «Stille tomhet»-regelen gjelder ikke her, og det skal stå eksplisitt
+
+CLAUDE.md krever backfill, DB-garanti og en feilende test for **en ny kolonne som bærer identitet eller
+kobling**. **`omradeId` på `Checklist`/`Task` er unntaket, og grunnen er at den skal være tom:** Kenneth sier
+«dersom prosjektet mener dette er nyttig». Et prosjekt uten områder har korrekt `null` på hver rad, og det er
+ingenting å backfille.
+
+**Det som likevel gjelder fra regelen:** en test som viser at et dokument med `lokasjonOmfang = "omrade"` og
+`omradeId = null` er **ugyldig** — velger man område som omfang, skal området være satt. Det er der tomheten
+ville vært stille.
+
+### Forholdet til fritekst-lokasjonen
+
+**Ikke fjern friteksten.** Den er utveien for prosjekter uten tegning og uten definerte områder, og den ble
+innført av en grunn. **Men når prosjektet HAR områder, skal område være førstevalget over fritekst** — samme
+logikk som kommentaren i schemaet bruker om tegning: «Tegning forblir førstevalget; dette er utveien.»
+
+**Meld om friteksten og område kan settes samtidig i dag**, og om det gir mening — et område pluss «Akse 4»
+kan være riktig presisering, eller det kan være to kilder til samme sannhet.
+
+---
+
 ## Steg 3 — bundet repeater
 
 **Radens identitet skal være en `omradeId`, ikke en streng.**
@@ -207,9 +270,9 @@ dokument blir til.** Det er ny oppførsel, og den skal designes her og ikke oppd
 
 ## Rammer
 
-- **Steg 1+2 og steg 3 er to leveranser.** Steg 1+2 kan merges og tas i bruk før steg 3 finnes.
-- Ingen endring i `packages/db/prisma` utover det § Steg 2 sier om enumen — og den er i `omrade.ts`, ikke i
-  schemaet. **Trenger du en migrering, meld hvorfor før du skriver den.**
+- **Tre leveranser, ikke to:** steg 1+2 (områdeadmin og `trase`) · steg 2b (område som lokasjonsnivå) · steg 3 (bundet repeater). **Hver kan merges alene**, og 2b er den eneste som krever migrering.
+- 🔴 **Steg 1, 2 og 3 krever INGEN migrering.** Enumen i steg 2 ligger i `omrade.ts`, ikke i schemaet. Trenger du en migrering der, meld hvorfor før du skriver den.
+- 🔴 **Steg 2b krever migrering:** `omradeId String?` på `Checklist` og `Task`, med indeks og `onDelete: SetNull`. Den er **additiv og nullable** — to-stegs-policyen (CLAUDE.md) er oppfylt av at ingenting slettes eller settes NOT NULL.
 - i18n: nye nøkler i `nb.json` og `en.json`, deretter `--only`-generering fra `packages/shared`. Husk fella
   ved endring av eksisterende nøkkel.
 - Prod-gaten røres ikke.
@@ -240,3 +303,17 @@ dokument blir til.** Det er ny oppførsel, og den skal designes her og ikke oppd
 🔴 **Det eneste som fortsatt kan snu noe i steg 3, er en måling og ikke et valg:** kan et felt inne i en
 repeater-rad være forelder i en `forgrening`? Er svaret nei, kommer saken tilbake til design — ikke til
 Kenneth.
+
+---
+
+## Tillegg til DoD for steg 2b
+
+10. `lokasjonOmfang = "omrade"` finnes, `omradeId` er lagt til på `Checklist` og `Task`, og lokasjonsvelgeren
+    viser område **bare** når byggeplassen har definerte områder.
+11. **Oppgave har punkt som standard** når det finnes tegning; sjekkliste kan velge område like enkelt som de
+    andre nivåene.
+12. **Rød først:** et dokument med `lokasjonOmfang = "omrade"` og `omradeId = null` skal være **ugyldig**.
+13. **Meldt:** hvor mange steder i rapport, arkiv og PDF som skiller `byggeplass` fra `punkt` og derfor må
+    utvides med `omrade`. Kommentaren i schemaet lover at skillet finnes — tallet er ukjent.
+14. **Meldt:** om fritekst-lokasjon og område kan settes samtidig i dag, og om det er ønskelig eller er to
+    kilder til samme sannhet.
