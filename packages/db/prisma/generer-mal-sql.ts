@@ -308,14 +308,21 @@ WHERE k.kode = '${sql(mal.kapittelKode)}' AND s.kode = '${standardForMal(mal)}';
 ${insertObjektRader(mal)}`;
 }
 
-function genererNy(mal: MalKonstant): string {
+function genererNy(mal: MalKonstant, sorterRettinger: SorteringRetting[] = []): string {
   const ref = mal.referanse;
+  // Sortering-retting på eksisterende søster-kapitler (samme transaksjon). Ordre UP-deling: UO2.1 er
+  // ÉN ny mal som oppretter kapittel UO på sortering 2 og må flytte UP=3/UU=4 — derfor tillatt også for
+  // enkelt-mal ny, ikke bare fler-mal (byggFlerNySql). Kjøres via `--sorter UP=3 --sorter UU=4`.
+  const sortBlokk =
+    sorterRettinger.length > 0
+      ? `\n\n-- ══ Sortering-retting på eksisterende søster-kapitler (samme transaksjon) ══\n${sorteringRettingSql(sorterRettinger)}`
+      : "";
   return `-- ${ref} → arkiv (modus NY). Generert fra ${ref}_MAL via byggBibliotekRader (samme fasit som seeden).
 -- INSERT bibliotek_maler (version=1, verifisert=false, mal_innhold='[]') + INSERT objekt-rader.
 -- Avbryter hvis ${ref} finnes fra før. Kjøres ÉN gang mot test (MAL-METODE §1b pkt 5).
 BEGIN;
 
-${nyMutasjon(mal)}
+${nyMutasjon(mal)}${sortBlokk}
 
 ${telling(ref)}
 
@@ -501,12 +508,13 @@ COMMIT;
 export function byggMalSql(
   mal: MalKonstant,
   modus: "ny" | "revisjon",
-  opts: { fraRef?: string } = {},
+  opts: { fraRef?: string; sorterRettinger?: SorteringRetting[] } = {},
 ): string {
   if (modus === "ny") {
     if (opts.fraRef) throw new Error("Omkoding (--fra) støttes kun i modus revisjon.");
-    return genererNy(mal);
+    return genererNy(mal, opts.sorterRettinger ?? []);
   }
+  if (opts.sorterRettinger?.length) throw new Error("--sorter (kapittel-sortering) støttes kun i modus ny.");
   return genererRevisjon(mal, opts.fraRef);
 }
 
@@ -684,17 +692,14 @@ if (kjørtDirekte) {
   });
   const repoRot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
-  if (sorterRettinger.length > 0 && maler.length === 1) {
-    console.error("--sorter støttes foreløpig kun sammen med fler-mal ny (der en søster-kollisjon oppstår).");
-    process.exit(1);
-  }
   if (maler.length === 1) {
     const mal = maler[0]!;
     const fraRef = fraMap.get(mal.referanse);
     const utsti = join(repoRot, filnavnFor(mal.referanse));
-    writeFileSync(utsti, byggMalSql(mal, modus, { fraRef }), "utf8");
+    writeFileSync(utsti, byggMalSql(mal, modus, { fraRef, sorterRettinger }), "utf8");
     const omkoding = fraRef ? `, omkoding fra ${fraRef}` : "";
-    console.log(`Skrev ${filnavnFor(mal.referanse)} (${mal.felter.length} felt, modus ${modus}${omkoding}).`);
+    const sort = sorterRettinger.length > 0 ? `; sortering-retting: ${sorterRettinger.map((r) => `${r.kode}=${r.sortering}`).join(", ")}` : "";
+    console.log(`Skrev ${filnavnFor(mal.referanse)} (${mal.felter.length} felt, modus ${modus}${omkoding}${sort}).`);
   } else {
     const filnavn = flerFilnavn(refs);
     if (modus === "ny") {

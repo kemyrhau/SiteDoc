@@ -1466,88 +1466,205 @@ export const UU1_MAL = {
 // INGEN tallfelt: plassering, sandvolum, lokkhøyde og ramme-høyde besvares med samsvar mot kravet,
 // målt verdi/sted i kommentaren. §7b: SiteDocs egne krav — standarden kun i beskrivelsen.
 // Styrkeklasser (A 15 … F 900) og «T-merket» er produktmerking brukeren ser, og er tillatt.
-export const UP1_MAL = {
-  kapittelKode: "UP",
-  navn: "UP1 – Setting av kum i grunnen",
-  referanse: "UP1",
-  beskrivelse:
-    "Setting av nedstigningskum, sandfang og inspeksjonskum — fundament, plassering, skjøter, omfylling, ramme og lokk. Faglig grunnlag: NS 3420-U:2019, post UP1.",
-  felter: [
-    // FØR
-    valg("Type kum", "FØR",
-      [
-        "Nedstigningskum",
-        "Sandfangkum",
-        "Inspeksjonskum",
-        "Annen kum",
-      ],
-      "Typen kum avgjør hvilke krav som gjelder under."),
+// ── UP-delingen (ordre UP1-deling-fire-maler 2026-09-22, gatet av Kenneth) ─────────────────────────
+// UP1 (revisjon) + UP2/UP3/UO2.1 (nye). To DELTE blokker: basisfeltene B1–B10 (`upBasisfelter`) og
+// materialeblokken M1–M4 (`materialeblokk`), ord for ord identiske på tvers av malene og låst av
+// delt-tekst-testen. Typeforeldre står i FØR med barn i UNDER/ETTER → `barnAv` (kryss-fase, §1f);
+// samme-fase-barn (UP2 gjennomløp→plastliner) → `forgrening`. Fase for materialeblokk (M1=FØR,
+// M2–M4=UNDER) og de type-spesifikke feltene er UTLEDET av §4-mønsteret (ordren oppgir dem ikke
+// eksplisitt) — meldt til design i pre-bygg-avklaring 2026-09-23.
+
+// Stabil sortering på fase (FØR<UNDER<ETTER). `byggBibliotekRader` lager fase-overskriftene i
+// FØRSTE-OPPTREDEN-rekkefølge; står typeforelderen i UNDER (UP2/UO2.1), ville FØR-seksjonen ellers
+// havne nederst. Sorteringen sikrer riktig overskrift-rekkefølge. Trekoblingen (ref/parentRef) er
+// posisjonsuavhengig, og en forelder ligger i tidligere-eller-lik fase enn barnet, så forelder-før-barn
+// bevares. Innen samme fase beholdes rekkefølgen (stabil sort + indeks-tiebreaker).
+const FASE_RANG: Record<string, number> = { FØR: 0, UNDER: 1, ETTER: 2 };
+function faseSortert(felter: FeltDef[]): FeltDef[] {
+  return felter
+    .map((f, i) => ({ f, i }))
+    .sort((a, b) => (FASE_RANG[a.f.fase ?? "ETTER"]! - FASE_RANG[b.f.fase ?? "ETTER"]!) || a.i - b.i)
+    .map((x) => x.f);
+}
+
+// Delt basisblokk B1–B10 (ordre §5). Ord for ord identisk; UO2.1 (`erVentil`) bytter «kummen»→«enheten»
+// i B1 og B6, og utvider B7 (teleskop/deksel). B5 «Oppdrift» er NYTT, plassert i UNDER FØR B6. Faser:
+// B1,B2=FØR · B3,B4,B5=UNDER · B6–B10=ETTER.
+function upBasisfelter(erVentil: boolean): FeltDef[] {
+  const b6Label = erVentil ? "Omfylling rundt enheten" : "Omfylling rundt kummen";
+  const b7Hjelp = erVentil
+    ? "En nedgravd ventil har teleskop og deksel, ikke justeringsringer og topplate. Kontroller at teleskopet står i riktig høyde og i lodd, så dekselet ligger jevnt mot gatelokket."
+    : "Overdekningen over topplata skal være minst 0,3 m. Samlet høyde av justeringsringer og ramme bør ikke være over 0,40 m.";
+  return [
     valg("Kum og deler kontrollert", "FØR",
-      [
-        "Riktig type og dimensjon, uskadd",
-        "Avvik – feil type eller skadet",
-      ],
-      "Sjekk dimensjon, bunnseksjon og pakninger mot beskrivelsen. Der kummen skal være tett, skal den være T-merket. Skadde elementer settes ikke ned."),
+      ["Riktig type og dimensjon, uskadd", "Avvik – feil type eller skadet"],
+      erVentil
+        ? "Sjekk dimensjon, bunnseksjon og pakninger mot beskrivelsen. Der enheten skal være tett, skal den være T-merket. Skadde elementer settes ikke ned."
+        : "Sjekk dimensjon, bunnseksjon og pakninger mot beskrivelsen. Der kummen skal være tett, skal den være T-merket. Skadde elementer settes ikke ned."),
     trafikklys("Grøftebunn og fundament klare", "FØR",
       "Bunnen er fri for tele, snø og is, og fundamentet er avrettet så kummen får jevnt anlegg."),
-
-    // UNDER
     valg("Plassering", "UNDER",
-      [
-        "Innenfor ±30 mm høyde og ±100 mm side",
-        "Avvik",
-      ],
+      ["Innenfor ±30 mm høyde og ±100 mm side", "Avvik"],
       "Kontroller kote og plassering mot tegningen før omfylling. Noter største avvik i kommentaren."),
     valg("Skjøter og gjennomføringer", "UNDER",
-      [
-        "Pakninger på plass, tette skjøter",
-        "Avvik",
-      ],
+      ["Pakninger på plass, tette skjøter", "Avvik"],
       "Skjøter mellom elementene og gjennomføringer for ledninger skal ha pakning og sitte riktig. Hold minst 100 mm mellom kumveggen og ledninger som går forbi utenfor."),
-    valg("Renneløp gjennom kummen", "UNDER",
-      [
-        "Riktig løp og fall",
-        "Ikke aktuelt",
-        "Avvik",
-      ],
-      "Bunnseksjonen skal ha det løpet beskrivelsen angir, med jevnt fall gjennom kummen. Kum med mellomdekke skal ha nedstigningsåpningene forskjøvet i forhold til hverandre."),
-    valg("Sandvolum og høyde til utløp", "UNDER",
-      [
-        "Minst 0,8 m³ og 1 m",
-        "Ikke sandfang",
-        "Under kravet",
-      ],
-      "Gjelder sandfang: sandvolumet bør ikke være mindre enn 0,8 m³, og høyden fra bunn til utløp bør være minst 1 m."),
-    valg("Omfylling rundt kummen", "UNDER",
-      [
-        "Lagvis og komprimert, kummen står stødig",
-        "Avvik",
-      ],
-      "Fyll og komprimer lagvis hele veien rundt, så kummen ikke forskyves eller kommer ut av lodd. Ikke tipp massene rett fra lasteplanet."),
-
-    // ETTER
+    valg("Oppdrift og vann i grøfta", "UNDER",
+      ["Tørt i grøfta – ingen fare for oppdrift", "Vann i grøfta – sikret mot oppdrift før omfylling", "Avvik – ikke sikret"],
+      "Står det vann i grøfta, kan kummen løfte seg. Det gjelder alle kummer, og særlig kummer av plast, som er lette. Sikringen — ballast, forankring eller lensing — skal være på plass FØR omfyllingen begynner. En kum som har løftet seg, ser riktig ut helt til dekket sprekker eller fallet snur."),
+    valg(b6Label, "ETTER",
+      [erVentil ? "Lagvis og komprimert, enheten står stødig" : "Lagvis og komprimert, kummen står stødig", "Avvik"],
+      erVentil
+        ? "Fyll og komprimer lagvis hele veien rundt, så enheten ikke forskyves eller kommer ut av lodd. Ikke tipp massene rett fra lasteplanet."
+        : "Fyll og komprimer lagvis hele veien rundt, så kummen ikke forskyves eller kommer ut av lodd. Ikke tipp massene rett fra lasteplanet."),
     valg("Justeringsringer og ramme", "ETTER",
-      [
-        "Samlet høyde høyst 0,40 m",
-        "Avvik",
-      ],
-      "Overdekningen over topplata skal være minst 0,3 m. Samlet høyde av justeringsringer og ramme bør ikke være over 0,40 m."),
+      ["Samlet høyde høyst 0,40 m", "Avvik"],
+      b7Hjelp),
     valg("Lokk eller rist", "ETTER",
-      [
-        "Riktig styrkeklasse for stedet",
-        "Avvik",
-      ],
+      ["Riktig styrkeklasse for stedet", "Avvik"],
       "Styrkeklassen står i beskrivelsen: A 15, B 125, C 250, D 400 eller F 900. Lokk med lås eller pakning monteres der beskrivelsen krever det."),
     valg("Lokkhøyde mot dekket", "ETTER",
-      [
-        "Vei eller plass: +0/−10 mm",
-        "Grønt eller grøft: +10/−100 mm",
-        "Avvik",
-      ],
+      ["Vei eller plass: +0/−10 mm", "Grønt eller grøft: +10/−100 mm", "Avvik"],
       "Mål mot ferdig dekke eller terreng. I vei og på plass skal lokket ikke stikke opp. I grøntanlegg og grøfter er kravet romsligere."),
-    trafikklys("Kummen er ren, innmålt og klar", "ETTER",
+    trafikklys("Ren, innmålt og klar", "ETTER",
       "Sand og slam er spylt ut, kummen er målt inn, og den er klar for prøving og overlevering. Ta bilde."),
-  ] as FeltDef[],
+  ];
+}
+
+// Delt materialeblokk M1–M4 (ordre §5b). M1 «Materiale» forelder (FØR); M2/M3/M4 barn (UNDER, `barnAv`
+// kryss-fase). M2/M3 ord for ord identiske i UP1/UP2/UP3 (låst av delt-tekst-test); M4 kun UP1.
+// `betongTrigger` = M1-alternativet som utløser M2 (UP1: «Betongelementer», UP2/UP3: «Betong»).
+function materialeblokk(m1options: string[], betongTrigger: string, medM4: boolean): FeltDef[] {
+  const felter: FeltDef[] = [
+    forelderFelt("materiale", valg("Materiale", "FØR", m1options,
+      "Materialet avgjør hvilke kontrollpunkter som vises under.")),
+    barnAv("materiale", [betongTrigger],
+      valg("Kumskjøt og pakninger", "UNDER", ["Elementer med falsskjøt og glidering som beskrevet", "Avvik"],
+        "Elementene skjøtes med falsskjøt og glidering, eller med not og fjær, etter beskrivelsen. Krav om T-merking der kummen skal være tett, dekkes av kontrollen av kum og deler.")),
+    barnAv("materiale", ["Plast"],
+      valg("Oppføringsrør og form", "UNDER", ["Kappet i riktig høyde, røret er rundt og uskadd", "Avvik"],
+        "Oppføringsrøret kappes så rammen får jevnt anlegg og lokket kommer i riktig høyde. Kontroller at røret ikke er blitt ovalt av gravemaskin eller ensidig omfylling — en deformert kum kan ikke spyles eller filmes. Oppdrift dekkes av eget kontrollpunkt, som gjelder alle materialer.")),
+  ];
+  if (medM4) {
+    felter.push(barnAv("materiale", ["Kumbunn av plasstøpt betong"],
+      valg("Plasstøpt kumbunn", "UNDER", ["Forskaling, gjennomføringer og renneløp støpt som beskrevet", "Avvik"],
+        "Rørgjennomføringene skal støpes inn tette, og renneløpet skal få det fallet og løpet beskrivelsen angir. Betongen skal ha herdet før kummen belastes. Dette er den ene kumtypen der bunnen ikke kan byttes hvis den blir feil.")));
+  }
+  return felter;
+}
+
+// Kumtyper UP1 (ordre §2, Kenneths forkortelser). Én kilde → typeliste + utløsersett kan ikke drifte.
+const UP1_KUMTYPER = {
+  sp: "Spillvannskum (SP)",
+  ov: "Overvannskum (OV)",
+  af: "Felleskum (AF)",
+  v: "Vannkum (V)",
+  annen: "Annen kum – se beskrivelsen",
+} as const;
+const UPBRANN = "Ja – kummen er brannkum";
+
+// Mal 1 — UP1 «Nedstigningskum i grunnen» (REVISJON). To uavhengige trær: kumtype (FØR) og materiale
+// (FØR). Kumtype-grener renneløp/ventil/uttak/stikkledning i UNDER, brannkumskilt (barn av uttak) i
+// ETTER → alle `barnAv` (kryss-fase). 20 felt, 12 alltid synlige (Type kum, M1, B1–B10).
+export const UP1_MAL = {
+  kapittelKode: "UP",
+  navn: "UP1 – Nedstigningskum i grunnen",
+  referanse: "UP1",
+  beskrivelse:
+    "Setting av nedstigningskum i grunnen — type og plassering, fundament, skjøter, kumbunn, omfylling, ramme og lokk. Én kum per sjekkliste. Faglig grunnlag: NS 3420-U:2019, post UP1.",
+  felter: faseSortert([
+    forelderFelt("kumtype",
+      valg("Type kum", "FØR", Object.values(UP1_KUMTYPER),
+        "Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel V-01 eller V01. Bruk samme skrivemåte gjennom hele prosjektet, ellers havner kummene i ulike bunker når de sorteres. Det er slik kummen finnes igjen senere. Én kum per sjekkliste — settes flere kummer i samme kumgruppe, fylles én liste for hver. Typen avgjør hvilke kontrollpunkter som vises under.")),
+    barnAv("kumtype", [UP1_KUMTYPER.sp, UP1_KUMTYPER.ov, UP1_KUMTYPER.af],
+      valg("Renneløp gjennom kummen", "UNDER", ["Riktig løp og fall", "Avvik"],
+        "Bunnseksjonen skal ha det løpet beskrivelsen angir, med jevnt fall gjennom kummen, uten kanter eller sprang som samler slam. Kum med mellomdekke skal ha nedstigningsåpningene forskjøvet i forhold til hverandre.")),
+    barnAv("kumtype", [UP1_KUMTYPER.v],
+      valg("Hovedventil", "UNDER", ["Riktig type og stilling, spindel kan betjenes", "Avvik"],
+        "Ventiltype og dimensjon står i beskrivelsen. Spindelen skal kunne betjenes, og stillingen skal være som prosjektert ved overlevering. Kontroller at ventilen ikke er skadet under nedsetting.")),
+    barnAv("kumtype", [UP1_KUMTYPER.v],
+      forelderFelt("uttak",
+        valg("Brannvannsuttak på ventilen", "UNDER", [UPBRANN, "Nei – ordinær vannkum"],
+          "Har ventilen uttak for brannvann, er kummen en brannkum. Den heter fortsatt V i emnefeltet — det er dette svaret som skiller den ut. Kontroller at uttaket har den kuplingen beskrivelsen angir, at det er fri adkomst, og at det er frostsikret slik beskrivelsen krever."))),
+    barnAv("uttak", [UPBRANN],
+      valg("Brannkumskilt", "ETTER", ["Skilt montert med avstand og retning", "Skilt ikke montert – utestår", "Avvik"],
+        "Brannkummen markeres med skilt som viser avstand og retning fram til kummen, slik at brannvesenet finner den. Skiltet skal stå før overlevering. Ta bilde av skiltet.")),
+    barnAv("kumtype", [UP1_KUMTYPER.v],
+      valg("Stikkledningsuttak fra kummen", "UNDER", ["Ingen stikkledninger fra denne kummen", "Uttak montert som beskrevet, avstenging kan betjenes", "Avvik"],
+        "Kommunen ønsker i noen tilfeller at stikkledninger kobles fra vannkummen i stedet for med anboring på hovedledningen. Er det beskrevet, skal uttakene ha den dimensjonen og avstengingen beskrivelsen angir, og avstengingen skal kunne betjenes etter at kummen er satt. «Ingen stikkledninger» er et gyldig svar — de fleste vannkummer har ingen.")),
+    ...materialeblokk(["Betongelementer", "Kumbunn av plasstøpt betong", "Plast"], "Betongelementer", true),
+    ...upBasisfelter(false),
+  ]) as FeltDef[],
+};
+
+// Mal 2 — UP2 «Inspeksjonskum i grunnen» (NY). To trær: gjennomløp (UNDER, forelder for plastliner i
+// SAMME fase → `forgrening`) og materiale (FØR). Felt 3 «kan spyles» (trafikklys) i ETTER, alltid
+// synlig. Ingen nedstigningsfelt (negativ test). Materialeblokk uten M4.
+export const UP2_MAL = {
+  kapittelKode: "UP",
+  navn: "UP2 – Inspeksjonskum i grunnen",
+  referanse: "UP2",
+  beskrivelse:
+    "Setting av inspeksjonskum i grunnen — materiale, gjennomløp, skjøt, fundament, omfylling, ramme og lokk. Én kum per sjekkliste. Faglig grunnlag: NS 3420-U:2019, post UP2.",
+  felter: faseSortert([
+    ...forgrening("gjennomlop",
+      valg("Gjennomløp og fall", "UNDER", ["Riktig gjennomløp og jevnt fall", "Avvik"],
+        "Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel SP-07. Bruk samme skrivemåte gjennom hele prosjektet. Gjennomløpet skal være det beskrivelsen angir — rett, med avgreining, eller Y — med jevnt fall gjennom kummen. Kontroller mot tegningen at avgreiningene peker rett vei før omfylling."),
+      [{ naar: ["Riktig gjennomløp og jevnt fall"],
+        felt: valg("Plastliner i gjennomløpet", "UNDER", ["Liner hel, overgang mot røret tett", "Ikke krevd i beskrivelsen", "Avvik"],
+          "Normen har gjennomløp både med og uten plastliner. Er liner beskrevet, skal den være hel og overgangen mot røret tett — en revnet liner gir slitasje og innlekking, og den kan ikke byttes uten å grave opp.") }]),
+    trafikklys("Kummen kan spyles og inspiseres fra overflaten", "ETTER",
+      "En inspeksjonskum er for liten å gå ned i — hele hensikten er at ledningen kan spyles og filmes herfra. Kontroller at det er fri passasje ned og at gjennomløpet er rent før lokket legges på."),
+    ...materialeblokk(["Betong", "Plast"], "Betong", false),
+    ...upBasisfelter(false),
+  ]) as FeltDef[],
+};
+
+// Mal 3 — UP3 «Sandfangkum og hjelpesluk» (NY). To trær: type (FØR, forelder for sandvolum+dykker i
+// UNDER → `barnAv` kryss-fase) og materiale (FØR). Materialeblokk uten M4.
+export const UP3_MAL = {
+  kapittelKode: "UP",
+  navn: "UP3 – Sandfangkum og hjelpesluk",
+  referanse: "UP3",
+  beskrivelse:
+    "Setting av sandfangkum og hjelpesluk i grunnen — sandvolum, dykker, tilgang for tømming, fundament, omfylling, ramme og rist. Én kum per sjekkliste. Faglig grunnlag: NS 3420-U:2019, post UP3.",
+  felter: faseSortert([
+    forelderFelt("type",
+      valg("Type", "FØR", ["Sandfangkum", "Hjelpesluk"],
+        "Skriv kummens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel SF-03. Bruk samme skrivemåte gjennom hele prosjektet. Et hjelpesluk har ikke sandfangvolum, så de to kontrolleres ulikt.")),
+    barnAv("type", ["Sandfangkum"],
+      valg("Sandvolum og høyde til utløp", "UNDER", ["Minst 0,8 m³ og 1 m", "Under kravet"],
+        "Sandvolumet bør ikke være mindre enn 0,8 m³, og høyden fra bunn til utløp bør være minst 1 m. Noter målt verdi i kommentaren.")),
+    barnAv("type", ["Sandfangkum"],
+      valg("Dykker og tilgang for tømming", "UNDER", ["Dykker montert, kummen kan tømmes", "Dykker ikke krevd i beskrivelsen", "Avvik"],
+        "Normen har sandfang både med og uten dykker, så «ikke krevd» er et gyldig svar og ikke en unnvikelse. Dykkeren holder flytende materiale tilbake og skal sitte som beskrevet. Kummen må stå slik at slamsugebil kommer til — er adkomsten sperret etter at anlegget er ferdig, kan kummen ikke driftes.")),
+    ...materialeblokk(["Betong", "Plast"], "Betong", false),
+    ...upBasisfelter(false),
+  ]) as FeltDef[],
+};
+
+// Mal 4 — UO2.1 «Nedgravd stengeventil» (NY, NYTT KAPITTEL UO). Ett tre: uttak (forelder for skiltet).
+// Ventil/uttak/spindelforlenger i UNDER, skilt i ETTER → `barnAv` (kryss-fase). INGEN materialeblokk.
+// Basisfelt med «enheten»-bytte (B1/B6) + utvidet B7. «Baio»/«Bajo»/«bajonett» forekommer ikke.
+export const UO21_MAL = {
+  kapittelKode: "UO",
+  navn: "UO2.1 – Nedgravd stengeventil",
+  referanse: "UO2.1",
+  beskrivelse:
+    "Setting av nedgravd stengeventil med gatelokk — ventil, brannvannsuttak, teleskop og deksel, omfylling og lokkhøyde. Én ventil per sjekkliste. Faglig grunnlag: NS 3420-U:2019, post UO2.1.",
+  felter: faseSortert([
+    valg("Hovedventil", "UNDER", ["Riktig type og stilling, spindel kan betjenes", "Avvik"],
+      "Skriv ventilens prosjektnavn i emnefeltet, slik det står på tegningen — for eksempel V-04. Bruk samme skrivemåte gjennom hele prosjektet. Ventiltype og dimensjon står i beskrivelsen. Spindelen betjenes gjennom dekselet — prøv avstengingen før gatelokket legges på plass."),
+    forelderFelt("uttak",
+      valg("Brannvannsuttak på ventilen", "UNDER", ["Ja – ventilen har brannvannsuttak", "Nei – ordinær stengeventil"],
+        "Har ventilen uttak for brannvann, skal uttaket ha den kuplingen beskrivelsen angir, det skal være fri adkomst, og det skal være frostsikret slik beskrivelsen krever.")),
+    barnAv("uttak", ["Ja – ventilen har brannvannsuttak"],
+      valg("Brannkumskilt", "ETTER", ["Skilt montert med avstand og retning", "Skilt ikke montert – utestår", "Avvik"],
+        "Uttaket markeres med skilt som viser avstand og retning fram til det, slik at brannvesenet finner det. Skiltet skal stå før overlevering. Ta bilde av skiltet.")),
+    valg("Spindelforlenger og forankring", "UNDER", ["Montert som beskrevet, ventilen står stabilt", "Avvik"],
+      "Spindelforlengeren monteres på ventiltoppen og fungerer samtidig som forankring i grunnen. Kontroller at den står i lodd og i riktig høyde før gjenfylling — etterpå kommer ingen til."),
+    ...upBasisfelter(true),
+  ]) as FeltDef[],
 };
 
 // FF1 – Avretting. Ny mal (ordre FF1 2026-09-20, gatet av Kenneth, Runde D). Nytt kapittel FF
@@ -1991,11 +2108,13 @@ export const KAPITTEL_DATA_F = [
 // finnEllerOpprettKapittel (KUN OPPRETT — eksisterende kapittel-rader røres ikke).
 export const KAPITTEL_DATA_U = [
   { kode: "UM", navn: "Utendørs rørledninger", sortering: 1 },
-  // UP lagt til (ordre UP1, Runde C): kummer i grunnen, FØR UU i normens rekkefølge (UM, UP, UU).
-  // UU flyttet fra 2→3 for å gi plass. MERK (KUN OPPRETT-drift): et arkiv seedet i runde B har UU
-  // på sortering 2 fra før — seeden rører den ikke. En fersk seed får UM/UP/UU = 1/2/3.
-  { kode: "UP", navn: "Kummer i grunnen", sortering: 2 },
-  { kode: "UU", navn: "Felles arbeider for utendørs rørledningsanlegg", sortering: 3 },
+  // UO lagt til (ordre UP-deling, 2026-09-22): utendørs ventiler, på sortering 2 i normens rekkefølge
+  // (UM 249, UO 308, UP 339, UU 374). UP flyttet 2→3, UU 3→4 for å gi plass. MERK (KUN OPPRETT-drift):
+  // et EKSISTERENDE arkiv har UP=2/UU=3 fra før — seeden rører dem ikke. Arkiv-rettingen skjer via
+  // generatorens `--sorter UP=3 --sorter UU=4` i UO2.1-SQL-en. En fersk seed får UM/UO/UP/UU = 1/2/3/4.
+  { kode: "UO", navn: "Utendørs ventiler og utstyr", sortering: 2 },
+  { kode: "UP", navn: "Kummer i grunnen", sortering: 3 },
+  { kode: "UU", navn: "Felles arbeider for utendørs rørledningsanlegg", sortering: 4 },
 ];
 
 // Kapitler i NS 3420-J-arkivet (ny standard, ordre JH2 §3, Runde D). JH «Asfaltdekker» (JH2).
@@ -2128,8 +2247,11 @@ async function main() {
     // ── UM1 – Legging av VA-ledninger ── (definisjon eksportert over: UM1_MAL — ny mal, ny standard)
     UM1_MAL,
 
-    // ── UP1 – Setting av kum i grunnen ── (definisjon eksportert over: UP1_MAL — ny mal, kapittel UP)
+    // ── UP-delingen (ordre UP-deling-fire-maler): UP1 revidert + UP2/UP3 nye i kap. UP, UO2.1 i nytt kap. UO
     UP1_MAL,
+    UP2_MAL,
+    UP3_MAL,
+    UO21_MAL,
 
     // ── UU1 – Prøving av VA-ledninger ── (definisjon eksportert over: UU1_MAL — ny mal, kapittel UU)
     UU1_MAL,

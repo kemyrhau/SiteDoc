@@ -370,8 +370,9 @@ describe("byggFlerNySql (multi-ny, runde B)", () => {
     const s = byggFlerNySql([UM1, UU1]);
     expect(s).toContain("'NS3420-U', 'NS 3420-U:2019 Rørinstallasjoner', 3");
     expect(s).toContain("'UM', 'Utendørs rørledninger', 1");
-    // UU flyttet 2→3 i KAPITTEL_DATA_U ved Runde C (UP satt inn på 2, FØR UU). Speiler seed-konstanten.
-    expect(s).toContain("'UU', 'Felles arbeider for utendørs rørledningsanlegg', 3");
+    // UU flyttet 3→4 i KAPITTEL_DATA_U ved UP-delingen (nytt kap. UO på 2, UP 2→3, UU 3→4 — normens
+    // rekkefølge UM/UO/UP/UU). Speiler seed-konstanten.
+    expect(s).toContain("'UU', 'Felles arbeider for utendørs rørledningsanlegg', 4");
     // UM1 kommer før UU1 (rekkefølge).
     expect(s.indexOf("referanse = 'UM1'")).toBeLessThan(s.indexOf("referanse = 'UU1'"));
   });
