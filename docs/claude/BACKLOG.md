@@ -250,10 +250,20 @@ konverterer DWG-ens `extents` — og degraderer så den eksakte transformasjonen
 som mates inn i en similaritet som ikke kan uttrykke ulik skala i x og y. **Mistenkte kalibreringer er derfor
 ALLE auto-georefererte DWG-tegninger, ikke bare manuelt kalibrerte.**
 
-**Notatet har fire ting BACKLOG ikke gjentar:** matematikken bak begge årsakene · regnestykket som gir ~71°
-dreining på en 2:1-tegning · metodetabellen som gjør tre punkter til *fallback* og utledning fra `extents` til
-hovedvei · og tre målinger som skal gjøres før noe bygges, der den første er om
-`detekterKoordinatSystem(filnavn, …)` egentlig gjetter fra filnavnet.
+**Notatet har fire ting BACKLOG ikke gjentar:** matematikken bak begge årsakene · regnestykket som gir
+**~18,4°** dreining på en 2:1-tegning (`rotasjon = 45° − atan(H/W)`, alltid under 45°) · metodetabellen som
+gjør tre punkter til *fallback* og utledning fra `extents` til hovedvei · og tre målinger som skal gjøres før
+noe bygges, der den første er om `detekterKoordinatSystem(filnavn, …)` egentlig gjetter fra filnavnet.
+
+🔴 **RETTET 2026-09-23:** notatets førsteversjon oppgav **~71,6°**. Tallet var regnet i det uspeilede rommet og
+dobbeltalte speilingen fiksen alt folder inn. Riktig er **~18,4°** — fortsatt ~32 m avvik 100 m fra
+kalibreringsaksen, så konklusjonen står.
+
+🟢 **Og mistenktmengden er innsnevret (Kenneth 2026-09-23: «jeg har konsekvent 3 koordinater på tegningene»).**
+Målt at tre punkter faktisk velger `beregnAffine` (`georeferanse.ts:49-55,199-200`) og at editoren lagrer dem
+(`GeoReferanseEditor.tsx:690,715`). **Manuelt kalibrerte tegninger er derfor IKKE rammet.** Autoveien setter
+aldri `ekstraPunkter` (`dwgKonvertering.ts:979-991`) — **mistenkte er auto-georefererte DWG, ikke brukerens
+arbeid.**
 
 **Kenneth-valg som venter i notatet § 7 og tillegget:** metodevalg pr. tegningstype, og om eksisterende
 kalibreringer skal varsles framfor å «fikses» automatisk.

@@ -1,6 +1,7 @@
 # Designnotat: hvorfor speilingen blir feil vei — og hvorfor nord slutter å være nord
 
 **Fra:** design · **Til:** Kenneth-gate · **Dato:** 2026-09-23
+**🔴 Rettet 2026-09-23:** tallet i § 2 var ~71,6° — riktig er ~18,4°. Se rettelsesboksen der. Ny § 3b.
 **Utløst av:** Kenneth 2026-09-23.
 
 > «vi har nå en feil med speiling av tegning/bilde når vi georefererer med to koordinater. Jeg forstår ikke
@@ -56,6 +57,31 @@ seks frihetsgrader og tillater **ulik skala i x og y, pluss skjevhet**.
 
 🟢 **Den absorberer formatforholdet gratis, og den bestemmer kiraliteten selv** — tre ikke-kollineære punkter
 kan bare avbildes på én måte. **Begge årsakene over forsvinner i samme grep.**
+
+## 3b. 🟢 Kenneth bruker konsekvent TRE punkter — det innsnevrer mistenktmengden
+
+**Kenneth 2026-09-23:** *«jeg har konsekvent 3 koordinater på tegningene»*.
+
+**Målt at det faktisk får effekt:**
+
+| Ledd | Utfall | Målt |
+|---|---|---|
+| Typen bærer 3+ | `ekstraPunkter?: GeoReferansePunkt[]` | `types/index.ts:908` |
+| Valideringen godtar dem | `ekstraPunkter: z.array(...).optional()` | `validation/index.ts:90` |
+| Editoren lagrer dem | punkt 3, 4 … `gyldigeEkstraPunkter` | `GeoReferanseEditor.tsx:390,690,715` |
+| Beregningen teller dem | `hentAllePunkter` pusher `ekstraPunkter` | `georeferanse.ts:49-55` |
+| → grenen som velges | `>= 3` → `beregnAffine` | `georeferanse.ts:199-200` |
+
+🟢 **Kenneths manuelt kalibrerte tegninger går altså den affine veien og har ALDRI vært innom
+2-punktssimilariteten.** Begge årsakene i § 1 og § 2 gjelder dem ikke.
+
+🔴 **Men autoveien setter aldri `ekstraPunkter`.** `dwgKonvertering.ts:979-991` skriver `point1` + `point2` og
+ingenting mer — så hver auto-georeferert DWG treffer 2-punktsgrenen uansett hva brukeren gjør.
+
+⚠️ **Konsekvens for mistenktmengden:** den er **ikke** «alle kalibrerte tegninger», og den er ikke Kenneths
+eget arbeid. **Den er auto-georefererte DWG-tegninger — koordinatfestet av kode, med to punkter kode selv
+valgte.** Det skjerper anbefalingen under: feilen bor i autoveien, og autoveien har den eksakte informasjonen
+tilgjengelig når den kaster den.
 
 ## 4. 🔴 Fellen som gjør feilen usynlig: kalibreringsfeilen er ALLTID 0 med to punkter
 
@@ -136,13 +162,35 @@ nøyaktig den similariteten som ikke kan uttrykke ulik skala i x og y (§ 2).
 De to punktene ligger på **diagonalen**. I prosentrommet peker vektoren fra p1 til p2 i **45°**. I metrisk rom
 peker den i retning `(bredde, −høyde)`.
 
-**For en tegning som er 2:1 — si 200 × 100 m:** metrisk diagonal er `(200, −100)`, altså **−26,6°**.
-Similariteten **må** rotere 45° over på −26,6°. **Hele tegningen dreies ~71,6°** — på en tegning som er
-nord-opp og skal ha 0°.
+> 🔴 **RETTET 2026-09-23 — tallet i denne seksjonen var galt.** Første versjon oppgav **~71,6°**. Det var regnet
+> i det **uspeilede** geografiske rommet, og dobbeltalte dermed speilingen som fiksen fra 2026-08-13 alt folder
+> inn (`gy1 = -point1.gps.lat`, `georeferanse.ts:241-244`). **Riktig tall for en 2:1-tegning er ~18,4°.**
+> Mekanismen, årsaken og anbefalingen i notatet er uendret — bare størrelsen.
 
-🔴 **Det er ikke en speiling som gikk feil vei. Det er en tvangsrotasjon på over 70 grader, og den er verst for
-de mest avlange tegningene.** Kvadratiske tegninger treffer 45° = 45° og ser riktige ut — **derfor har feilen
-overlevd.**
+**Tilpasningen skjer i speilet rom.** Koden setter `ĝy = −lat` før den løser for `a` og `b`
+(`georeferanse.ts:241-244`), så vektoren p1→p2 i tilpasningsrommet er `(W, +H)` — ikke `(W, −H)`. Punkt 2 ligger
+**sør** for punkt 1, og med `ĝy = −lat` vokser ĝy sørover.
+
+**For en tegning som er 2:1 — si 200 × 100 m:**
+
+```
+prosentrommet:      p1(0,0) → p2(100,100)      retning  45,0°
+tilpasningsrommet:  (W, H) = (200, 100)        retning  26,6°   ← atan(100/200)
+tvangsrotasjon:     45,0° − 26,6°            =         18,4°
+```
+
+**Kontroll mot den utadvendte matrisen** `M = [a −b; −b −a]`: med `a = 0,6` og `b = −0,2` avbildes nord
+`(0, +1)` på piksel­retningen `(0,2, −0,6)`, som ligger **18,4° øst for opp**. Samme tall, uavhengig vei.
+
+🟢 **Og formelen generelt: `rotasjon = 45° − atan(H/W)`.** Kvadratisk tegning gir **0°** og ser riktig ut —
+**derfor har feilen overlevd.**
+
+🔴 **Den formelen gir også en øvre grense: |rotasjon| < 45°, alltid.** En similaritet tilpasset én diagonal kan
+ikke dreie mer enn det. **Det alene viser at 71,6° var umulig** — en kontroll førsteversjonen skulle hatt.
+
+⚠️ **18,4° er fortsatt alvorlig.** Et punkt 100 m fra kalibreringsaksen forskyves ~32 m
+(`100 · sin 18,4°`). **Konklusjonen står: dette er tiere av meter på avlange VA-traseer, ikke en kosmetisk
+skjevhet.**
 
 ## Den bedre metoden, som ikke krever kalibrering i det hele tatt
 
