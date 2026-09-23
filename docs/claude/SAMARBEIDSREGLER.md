@@ -960,6 +960,15 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
   hovedtreet.
 - Kommandoer (git/build/sudo/deploy): formuleres til Kenneth, som kjører.
 
+### 🔴 Innboksfilen er kanalen — direktemeldinger er kun varsler (Kenneth 2026-09-23)
+
+**Bakgrunn:** design sendte ordreinnhold som direktemeldinger mens filene lå **upushet**, meldte hasher som ikke fantes på origin, og byttet filnavn uten å føre det i innboksen. Cowork gjorde samme feilklasse den andre veien: påsto at brancher var «amendet» uten å ha målt det — sannheten var at de aldri var pushet. **To uklare kanaler samtidig gir fire feil av samme rot.** Alle fire ville blitt fanget av ett `ls-remote` før hashen ble meldt.
+
+- **Innboksfilen (`relay/inbox-<navn>.md`) er kanalen. Branch + filnavn er innholdet. Direktemeldinger (nudger, bro-meldinger) er kun varsler** — de bærer aldri sannheten alene.
+- **Ingenting finnes for en agent før cowork har merget til develop.** En branch som finnes lokalt eller er «levert» finnes ikke i mottakerens worktree.
+- 🔴 **Avsender VERIFISERER mot origin FØR en hash meldes:** `git ls-remote --heads origin <branch>`. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.** Gjelder **begge veier** — design som melder en gate, og cowork som påstår noe om en branchs tilstand.
+- **Endres et filnavn, føres det gamle navnet som DØDT i innboksen** — ellers leter noen etter en fil som ikke finnes.
+
 ## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)
 
 **Miljøspørsmål besvares fra [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + sjekk-først — aldri ved å be Kenneth gjenta oppsett.** Kunnskapen om `.env`-filer, lokal DB og test-kjøring bor i repoet ([LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) → [lokal-dev.md](lokal-dev.md), [tests/e2e/README.md](../../tests/e2e/README.md), [dev-login-agent.md](dev-login-agent.md)). Compaction sletter agentens minne om at filene finnes — ikke filene.

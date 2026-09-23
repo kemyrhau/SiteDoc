@@ -260,7 +260,7 @@ export default function SjekklisteSide() {
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // P4b pkt 0: opprettbar/opprettbareFlytIder kommer nå fra serveren (delt regel
   // med opprett-valideringen) — ikke lenger klient-utledet fra mineOpprettFlyter.
-  const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "sjekkliste");
+  const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string; opprettbar?: boolean; opprettbareFlytIder?: string[]; utilgjengeligÅrsak?: { grunn: "ikkeRegistrator"; faggruppe: string } | { grunn: "ingenFlyt" } | null }>).filter((m) => m.category === "sjekkliste");
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
@@ -378,11 +378,13 @@ export default function SjekklisteSide() {
         flyter: Map<string, { flytId: string; flytNavn: string; maler: Array<{ malId: string; malNavn: string; prefix?: string; kandidat: FlytKandidat }> }>;
       }
     >();
-    const utilgjengelig: Array<{ malId: string; malNavn: string; prefix?: string; grunn: string }> = [];
+    const utilgjengelig: Array<{ malId: string; malNavn: string; prefix?: string; utilgjengeligÅrsak?: { grunn: "ikkeRegistrator"; faggruppe: string } | { grunn: "ingenFlyt" } | null }> = [];
     for (const mal of sjekklisteMaler) {
       const status = malFlytStatus.get(mal.id);
       if (!status || status.type === "ingen") {
-        utilgjengelig.push({ malId: mal.id, malNavn: mal.name, prefix: mal.prefix, grunn: status?.type === "ingen" ? status.grunn : "ingenFlytMedMal" });
+        // Årsaks-teksten kommer fra SERVEREN (`mal.utilgjengeligÅrsak` — samme kilde som `opprettbar`),
+        // ikke fra klient-utledningen `malFlytStatus`, som ikke kan skille registrator-gaten fra «ingen flyt».
+        utilgjengelig.push({ malId: mal.id, malNavn: mal.name, prefix: mal.prefix, utilgjengeligÅrsak: mal.utilgjengeligÅrsak });
         continue;
       }
       const kandidater = status.type === "en" ? [status.kandidat] : status.kandidater;
@@ -972,7 +974,7 @@ export default function SjekklisteSide() {
                         <span className="text-sm font-medium text-gray-500">{m.malNavn}</span>
                         {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
                       </span>
-                      <span className="text-xs text-gray-400">{t(`dokumentflyt.feil.${m.grunn}`)}</span>
+                      <span className="text-xs text-gray-400">{m.utilgjengeligÅrsak?.grunn === "ikkeRegistrator" ? t("malVelger.ikkeRegistratorIFaggruppe", { faggruppe: m.utilgjengeligÅrsak.faggruppe }) : t("dokumentflyt.feil.ingenFlytMedMal")}</span>
                     </div>
                   ))}
                 </div>

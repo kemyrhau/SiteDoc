@@ -9,14 +9,14 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-23 · develop `7212f7cb` (fire docs-branches `--no-ff` i Kenneths rekkefølge: UP1-deling · UM1 v2+UM1.1+PE-skjot · BYGGELEDELSE · utled-plan idémyldring) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 5 nye redesign-filer + BACKLOG + tavla · ingen kode/migrering/SQL/i18n · branch 1 hadde eldre base (e32e8f84), merget rent (disjunkt)**
+**Sist ført: 2026-09-23 · develop ← `fix/utilgjengelige-flyter` `131dfe7b` `--no-ff` (utilgjengelige maler forklarer seg + kanalregel i SAMARBEIDSREGLER + døde filnavn) · GATE (`--force`, IKKE FULL TURBO — kjørt på nytt): api 531 (+6) · db 207 · pdf 124 · shared 854 · web 306 · mobil 38 — resten STILLE · 7/7 · diff = 21 filer (6 kode + 15 i18n) + tavla + BACKLOG + SAMARBEIDSREGLER · Reload: OTA · non-ff verifisert selv (base `6aa933c0`, mal.ts/sjekklister urørt på develop siden basen, merge-tree 0 konflikt)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
 | **mal-Opus** | `SiteDoc-mal` | JH2 v2 merget `9b83b285`. **Malkø i develop `7212f7cb`** (alle Kenneth-gatet): KD1 v3 → **UP1-deling (UP1 rev + UP2/UP3/UO2.1)** → UM1 v2+UM1.1 (hører sammen: UM1 felt 9 peker UM1.1) → PE-skjot → BYGGELEDELSE Del B (4 maler). Fasemåling besvart POSITIV, ført i ordrene | 🔵 **Malkø bestilt — design sender startsignal per ordre** (ikke startet) | Designs startsignal (direkte + linje i `inbox-cowork.md`) |
-| **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal 🟢 MERGET `9b83b285`, VERIFISERT på test. **Ny ordre i develop `6d98c697`** (`ordre-utilgjengelige-flyter-design-2026-09-22.md`): rett den stille forsvinningen av utilgjengelige flyter i opprett-velgeren | 🔵 **ORDRE GITT — nudge etter denne mergen** (ikke startet) | — |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `fix/utilgjengelige-flyter` 🟢 **MERGET** develop (`131dfe7b`, `--no-ff`) — utilgjengelige maler forklarer seg + eksisterende klient-gjetning fjernet. **Reload: OTA** | ⚪ **LEDIG** | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | Xcode 27-oppkobling dokumentert (`feat/simulator-xcode27-oppkobling` `4d7901b1`) 🟢 **MERGET** develop `38333944` | ⚪ **LEDIG** | — |
 | **deploy** | — | — | ⚪ **LEDIG** | — |
@@ -47,6 +47,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-23 — Utilgjengelige maler forklarer seg. `fix/utilgjengelige-flyter` `131dfe7b` `--no-ff`. 🔴 MOBIL (OTA).
+
+🟢 Designgatet (design 2026-09-23) + coworks tekniske gate. Merge `--no-ff` (base `6aa933c0`, 40 commits bak). Non-ff verifisert selv: `mal.ts` og `sjekklister/page.tsx` urørt på develop siden basen, `merge-tree` = 0 konfliktmarkører. Gate `--force` (kjørt på nytt, ikke FULL TURBO): **api 531 (+6)** · db 207 · pdf 124 · shared 854 · web 306 · mobil 38 · 7/7.
+
+- **Utilgjengelige maler forklarer seg:** ny `beregnMalOpprettbarhet` returnerer `utilgjengeligÅrsak` fra **samme kilde** som `opprettbar`. Ny i18n-nøkkel `malVelger.ikkeRegistratorIFaggruppe` («Du er ikke registrator i {{faggruppe}}»), 15 språk.
+- 🔴 **Eksisterende feil funnet og fjernet:** `sjekklister/page.tsx` hadde **allerede** en klient-gjetning (`ingenFlytMedMal`) som **aldri kunne se registrator-årsaken**. Lå der fra før — kontrollplan innførte den ikke, han fant den mens han gjorde noe annet. **Eget funn.**
+- **Negativ test sett rød først:** 6 tester, 6/6 røde → grønne (`mal-opprettbar-arsak.test.ts`). Teksten vises, tilgangen står.
+- 🟢 **`opprettbar` bit-identisk — avklart:** cowork meldte at `faggruppeId IS NOT NULL` → non-null faggruppe-**navn** ikke var bit-identisk. Målt etter designs forespørsel: `Dokumentflyt.faggruppe` er **håndhevet FK** (`onDelete: SetNull`) og `Faggruppe.name` er `String` (ikke nullbar) → **mengdene er IDENTISKE**. Innvendingen var riktig i form, avviket er null i praksis. Kontrollplans «bit-identisk» stemmer.
+- 🟢 **Fold-paritet i `OpprettVelger`: NEI, designgatet** (alltid utfoldet oppfyller «synlig med begrunnelse» bedre). ⚠️ **Designs betingelse for framtiden:** blir listen lang, foldes den **MED ANTALL i overskriften** — «3 maler krever registrator-tilgang» — aldri en fold som skjuler at de finnes.
+- 🔴 **DØDE FILNAVN** (føres så ingen leter): `ordre-up1-revisjon-betinget-…` ble `-tre-maler` ble **`ordre-up1-deling-fire-maler-design-2026-09-22.md`**. **Kun det siste finnes.**
+- 🟢 **Alle tre malordrene er i develop** (`1e2d20cd`, `03f2acc4`, `d21e7011`). **Mal-Opus er IKKE blokkert.**
+- 🟡 **Oppfølger → BACKLOG § 1:** undefined-årsak-fallback i `sjekklister/page.tsx` (se BACKLOG).
+- **Ny regel i SAMARBEIDSREGLER § Meldingsflyt:** innboksfilen er kanalen, `ls-remote`-verifisering før hash meldes, døde filnavn føres — gjelder begge veier.
 
 ## 🟢 2026-09-23 — Fire docs-branches fra design (Kenneths rekkefølge). Ren docs. develop `7212f7cb`.
 

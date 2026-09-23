@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Nuk u gjetën shabllone detyrash",
   "malVelger.visUtilgjengelige": "Shfaq i padisponueshëm ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Asnjë nga flukset e dokumenteve tuaja nuk e përdor këtë shabllon",
+  "malVelger.ikkeRegistratorIFaggruppe": "Ju nuk jeni një regjistrues në {{faggruppe}}",
   "tegningsvelger.velgTegning": "Zgjidhni vizatimin",
   "tegningsvelger.velgFraListe": "Zgjidhni një vizatim nga lista e mëposhtme",
   "tegningsvelger.tarBilde": "Duke bere foto...",

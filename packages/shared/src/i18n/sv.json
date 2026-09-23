@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Inga uppgiftsmallar hittades",
   "malVelger.visUtilgjengelige": "Visa ej tillgänglig ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Inget av dina dokumentflöden använder den här mallen",
+  "malVelger.ikkeRegistratorIFaggruppe": "Du är inte en registrar i {{faggruppe}}",
   "tegningsvelger.velgTegning": "Välj ritning",
   "tegningsvelger.velgFraListe": "Välj en ritning från listan nedan",
   "tegningsvelger.tarBilde": "Tar foto...",

@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Nie znaleziono szablonów zadań",
   "malVelger.visUtilgjengelige": "Pokaż niedostępne ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Żaden z Twoich przepływów dokumentów nie korzysta z tego szablonu",
+  "malVelger.ikkeRegistratorIFaggruppe": "Nie jesteś rejestratorem w {{faggruppe}}",
   "tegningsvelger.velgTegning": "Wybierz rysunek",
   "tegningsvelger.velgFraListe": "Wybierz rysunek z poniższej listy",
   "tegningsvelger.tarBilde": "Robię zdjęcie...",

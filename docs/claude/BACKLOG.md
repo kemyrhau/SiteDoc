@@ -236,6 +236,15 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🟡 Tekst påstår en årsak den ikke kjenner (design 2026-09-23)
+
+- I `sjekklister/page.tsx` faller teksten tilbake til `dokumentflyt.feil.ingenFlytMedMal` også når
+  `utilgjengeligÅrsak` er **undefined** — altså når serveren ikke sendte noen årsak. Da påstår teksten
+  en årsak den ikke kjenner. **Samme gjetning som den vi nettopp fjernet (`fix/utilgjengelige-flyter`
+  `131dfe7b`), i miniatyr — den overlever i fallbacken.**
+- Forslag: nøytral «Ikke tilgjengelig» når årsaken er ukjent, og behold `ingenFlytMedMal` kun når
+  grunnen faktisk er `ingenFlyt`. Én i18n-nøkkel. Oppfølger, ikke i den branchen (designgatet).
+
 ### 🟡 Mobil har nå to opprett-flater (design 2026-09-22)
 
 - Den nye `OpprettVelger` og den gamle `OpprettDokumentModal` (for «opprett fra tegning») lever side om

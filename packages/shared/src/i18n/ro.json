@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Nu s-au găsit șabloane de sarcini",
   "malVelger.visUtilgjengelige": "Afișați indisponibil ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Niciunul dintre fluxurile dvs. de documente nu utilizează acest șablon",
+  "malVelger.ikkeRegistratorIFaggruppe": "Nu sunteți registrator în {{faggruppe}}",
   "tegningsvelger.velgTegning": "Selectați desenul",
   "tegningsvelger.velgFraListe": "Selectați un desen din lista de mai jos",
   "tegningsvelger.tarBilde": "Se fac fotografie...",

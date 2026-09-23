@@ -1530,6 +1530,7 @@
   "malVelger.ingenOppgavemaler": "Шаблоны задач не найдены",
   "malVelger.visUtilgjengelige": "Показать недоступные ({{antall}})",
   "malVelger.ingenFlytBrukerMal": "Ни один из ваших потоков документов не использует этот шаблон.",
+  "malVelger.ikkeRegistratorIFaggruppe": "Вы не являетесь регистратором в {{faggruppe}}",
   "tegningsvelger.velgTegning": "Выберите рисунок",
   "tegningsvelger.velgFraListe": "Выберите рисунок из списка ниже",
   "tegningsvelger.tarBilde": "Делаю фото...",
