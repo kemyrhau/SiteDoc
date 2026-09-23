@@ -77,18 +77,53 @@ Områder hører under byggeplassen. **Ingen ny side, ingen ny navigasjon.**
 4. 🔴 **Slett — MED VAKT.** Se § Slettevakten under. **Ikke koble opp `omrade.slett` som den står.**
 5. **Sortering** — `sortering` finnes på modellen; rekkefølgen i lista er rekkefølgen i repeateren senere.
 
-### 🔴 Slettevakten — obligatorisk, ikke valgfri
+### 🔴 Slettevakten — GATET av Kenneth 2026-09-23: «blokkere → hvis feltet inneholder data fra før»
 
 **`slett` skal utvides på serveren før den nås fra UI:**
 
 - **Tell først.** Returner antall kontrollplanpunkter og rapportobjekter som refererer området.
-- **Er tallet 0:** slett som i dag.
-- **Er tallet > 0:** **ikke slett.** Returner tellingen, og la UI vise hva som vil skje. Kenneth-vedtaket om
-  slett-bekreftelse via modal (CLAUDE.md § UI-designprinsipper) gjelder — og her skal modalen vise **tallet**,
-  ikke bare spørre «er du sikker?».
-- **Design anbefaler å blokkere, ikke bare advare**, når området er i bruk i en kontrollplan. Begrunnelsen er
-  `@@unique`-fella over: konsekvensen er stille duplikater, ikke en synlig feil, og da er en advarsel for
-  svak.
+- **Er tallet 0 — området er ubrukt:** slett, som i dag. **Ikke blokkér et tomt område**; da blir lista
+  umulig å rydde i.
+- **Er tallet > 0 — området inneholder data fra før:** 🔴 **BLOKKÉR.** Ikke advar, ikke tilby «slett
+  likevel». Returner tellingen, og la UI si hva som bruker området.
+- **Feilmeldingen skal navngi tallet**, ikke bare nekte: «Området brukes av 4 kontrollplanpunkter og kan ikke
+  slettes.» En nektelse uten tall sender brukeren på leting.
+
+**Begrunnelsen for at blokkering er riktig og advarsel er for svak:** `@@unique`-fella over gir **stille
+duplikater**, ikke en synlig feil. En advarsel forutsetter at brukeren forstår konsekvensen — og konsekvensen
+her er usynlig til noen lurer på hvorfor kontrollplanen mistet inndelingen sin.
+
+**Veien ut for brukeren er omdøping, ikke sletting.** Er området feil, retter han navnet. Skal det bort, må
+punktene flyttes først — og det er en bevisst handling, ikke en bieffekt.
+
+### 🔴 Tilgang — GATET av Kenneth 2026-09-23: «og bare admin»
+
+**Bytt `verifiserProsjektmedlem` til `verifiserAdmin`** (`apps/api/src/trpc/tilgangskontroll.ts:578`) på
+**`opprett`, `oppdater` og `slett`** i `omrade.ts`. Funksjonen finnes og gjør nøyaktig det som trengs:
+`sitedoc_admin`-bypass, aktiv ansettelse, ikke-frosset prosjekt, `ProjectMember.role === "admin"`, og
+firma-admin-fallback.
+
+**Lesetilgangen (`hentForProsjekt`, `hentForByggeplass`, `hentForTegning`) røres IKKE.** Alle må kunne se
+lista; bare admin skal kunne endre den.
+
+🔴 **KONSEKVENS SOM MÅ MELDES FØR DEN BYGGES — den treffer to eksisterende flater:**
+
+`omrade.opprett` kalles i dag fra to steder, og begge er tilgjengelige for **alle prosjektmedlemmer**:
+
+| Flate | Hva som skjer med admin-kravet |
+|---|---|
+| `tegninger/page.tsx:235` — tegne polygon på tegning | et medlem uten admin får **FORBIDDEN** der det i dag virker |
+| `kontrollplan/OpprettPunktDialog.tsx:77` — opprette område inline | samme |
+
+**Design bygger det som gatet — admin på alle tre skriveveiene — fordi det er det som gjør lista stabil.** Et
+medlem som kan opprette, kan skrive «Austadvegn», og da drifter identiteten uansett hvor streng sletting er.
+
+⚠️ **Men de to flatene skal ikke bare begynne å feile.** Kravet er: **skjul eller deaktivér
+opprett-muligheten for ikke-admin**, med begrunnelsen synlig — ikke la brukeren trykke og få en feilmelding.
+Det er samme regel som `fix/utilgjengelige-flyter` innførte for maler: **synlig med begrunnelse, ikke stille
+eller ved feil.**
+
+**Meld i leveransen hvor mange steder som må endres for å nå det**, og om noen av dem er i mobil.
 
 **Rød først:** en test som sletter et område brukt av to kontrollplanpunkter med samme mal, og viser at
 resultatet i dag blir to punkter med `omradeId = NULL` som **ikke** brytes av unik-indeksen. **Den testen skal
@@ -195,11 +230,13 @@ dokument blir til.** Det er ny oppførsel, og den skal designes her og ikke oppd
    tester. Rører du noe annet, meld hvorfor.
 9. Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
 
-## Hva Kenneth skal ta stilling til
+## ✅ Alle punkter GATET — ingenting venter på Kenneth
 
-1. **Blokkere eller advare** når et område i bruk slettes? Design anbefaler **blokkere** for områder brukt i en
-   kontrollplan, fordi konsekvensen er stille duplikater og ikke en synlig feil.
-2. **Skal områdelista kunne redigeres av prosjektmedlem, eller bare prosjektadmin?** Design heller mot
-   **admin**: lista er prosjektets felles identitet, og drift i den ødelegger sammenlignbarheten for alle.
-   `omrade.opprett` krever i dag bare `verifiserProsjektmedlem`, så dagens tilstand er «alle medlemmer» — en
-   innstramming er en endring, og den skal være ditt valg.
+1. ✅ **Blokkere eller advare: «blokkere → hvis feltet inneholder data fra før»** (2026-09-23). Ubrukt område
+   slettes fritt; område i bruk blokkeres med tallet i meldingen. Se § Slettevakten.
+2. ✅ **Tilgang: «og bare admin»** (2026-09-23). `verifiserAdmin` på alle tre skriveveiene, lesetilgang urørt.
+   Se § Tilgang — **med den meldeplikten som følger for de to eksisterende opprett-flatene.**
+
+🔴 **Det eneste som fortsatt kan snu noe i steg 3, er en måling og ikke et valg:** kan et felt inne i en
+repeater-rad være forelder i en `forgrening`? Er svaret nei, kommer saken tilbake til design — ikke til
+Kenneth.
