@@ -407,7 +407,7 @@ selftest() {
   fi
   # ...og en KORREKT UTSATT (dato + BACKLOG) skal IKKE utløse advarsel
   ref_for=$UTSATT_UTEN_REF
-  lint_utsatt "__syntetisk_ok__" "utsatt 2026-06-10 · BACKLOG § Pakke D" >/dev/null 2>&1
+  lint_utsatt "__syntetisk_ok__" "utsatt 2026-06-10 · BACKLOG «FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN»" >/dev/null 2>&1
   if [ "$UTSATT_UTEN_REF" -eq "$ref_for" ]; then
     printf "  ${G}✓${N} korrekt UTSATT (dato + BACKLOG) gir ingen advarsel\n"
   else
