@@ -268,6 +268,12 @@ arbeid.**
 **Kenneth-valg som venter i notatet § 7 og tillegget:** metodevalg pr. tegningstype, og om eksisterende
 kalibreringer skal varsles framfor å «fikses» automatisk.
 
+🔴 **BINDING TIL «FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN» (målt 2026-09-24):** autoveien er den ENESTE
+som bygger en georeferanse automatisk (`dwgKonvertering.ts:980` — PDF-veien gjør det ikke), og den kan ikke
+kjøre i dag fordi `dwg2dxf`/`dwg2SVG` mangler. **Saken har derfor ingen levende offer — men en frist:** første
+DWG som lastes opp etter at binærene er tilbake, får en rotert georeferanse. **Fiksen må ligge i SAMME release
+som DWG-gjenopprettingen, ikke etter.**
+
 ---
 
 ### 🔴 3D-koordinatfesting mot tegning: fiksen kunne ikke nå fram (2026-09-23)
@@ -398,6 +404,12 @@ utkommentert (krever ODA-konto og en `.deb` i `docker/vendor/`).
 
 **Skal det virke, kreves ett av to:** ODA-konto + `.deb` i `docker/vendor/` (blokken finnes, utkommentert), eller
 libredwg bygget fra kilde i imaget.
+
+🔴 **BINDING TIL GEOREFERANSE-SAKEN (målt 2026-09-24):** DWG-gjenoppretting er **ikke** en ren binærsak.
+Autoveien degraderer tegningens eksakte `extents` til to punkter på diagonalen (`dwgKonvertering.ts:979-991`)
+og treffer dermed 2-punktssimilariteten, som tvangsroterer alt som ikke er kvadratisk — `45° − atan(H/W)`.
+**Kommer binærene tilbake alene, er første konsekvens en rotert georeferanse på første opplastede DWG.**
+Se posten over + notatet. **Rekkefølge: binær og georeferansefiks i samme release.**
 
 ⚠️ **Punktsky feiler i det minste lesbart:** `punktskyKonvertering.ts:52` og `:102` kaster «CloudCompare er
 ikke installert på serveren». **Men en lesbar feil på en funksjon som SKAL virke, er ikke en dokumentert
