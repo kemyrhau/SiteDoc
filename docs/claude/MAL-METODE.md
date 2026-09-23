@@ -397,3 +397,37 @@ teksten si nøyaktig hva som gjelder **der**.
 KD1 (tre toleransesett for belegningstyper), FD2 (seks bunntoleranser etter grøftetype), FS2 (tre høydekrav etter
 lagtype), UP1 (kumtype) og UU1 (hva som prøves). **Struktur og innhold endres da i samme runde**, og da leses
 tekstbeviset ekstra nøye (jf. JH2 v2).
+
+### §1f. Hvilken forgrenings-hjelper — `barnAv` ved kryss-fase, `forgrening` ved samme fase (design 2026-09-23)
+
+**Gatet av design 2026-09-23, etter mal-Opus' KD1 v3-leveranse.** Regelen ble først gitt i en melding; den står
+her fordi **en gate gitt i en melding er usynlig for den som leser ordren et halvår senere.**
+
+| Situasjon | Bruk |
+|---|---|
+| Barnet ligger i **samme fase** som forelderen | `forgrening(ref, forelder, barn[])` — nøstet, barna står rett etter forelderen |
+| Barnet ligger i en **annen fase** enn forelderen | **`forelderFelt(ref, felt)` + `barnAv(ref, naar, felt)`** — flatt, barnet har egen plass og egen fase |
+
+`forelderFelt` og `barnAv` ble lagt til av mal-Opus i KD1 v3 (`seed-bibliotek.ts:218` og `:228`, eksportert og
+gjenbrukbare). De fester et barn til en forelder-ref **lenger opp i lista**, i stedet for å kreve at barnet
+nøstes inne i forelderens kall.
+
+🔴 **Hvorfor det betyr noe:** JH2 var piloten, og der lå alle barna i samme fase som forelderen. Fra UP-delingen
+og UM1 v2 er kryss-fase normen — en typeforelder i FØR med barn i UNDER og ETTER. Nøstet `forgrening` tvinger
+da barnet til å bli lest på forelderens plass, mens `barnAv` lar det stå der det faktisk hører i utfyllingen.
+
+**Fasemålingen som gjorde dette trygt** (mal-Opus, 2026-09-22): et barn KAN ha annen fase enn forelderen.
+Empirisk bekreftet i `byggBibliotekRader`, `skriv-mal`, generator-SQL og en Postgres parse-test med self-FK på
+`parent_id`. Trekoblingen er uavhengig av rekkefølge, og barnet vises under sin egen fase-overskrift.
+
+⚠️ **Én forutsetning fra samme måling:** forelderens fase må komme **før** barnets i rekkefølgen
+FØR → UNDER → ETTER. Motsatt retning (forelder ETTER, barn UNDER) gir barn-rad før forelder-rad — et
+lesbarhetsproblem, ikke et dataproblem, men unngå det.
+
+⚠️ **Og hold minst ett alltid-synlig felt i hver fase som er vert for et betinget barn.** En fase-seksjon hvis
+eneste medlem er et skjult barn, viser en tom overskrift på skjerm (arkiv-PDF stripper den,
+`synlighet.ts:95-100`).
+
+**Ordrer skrevet før 2026-09-23 sier «bruk `forgrening`»** fordi `barnAv` ikke fantes. **Denne regelen går
+foran ordrens bokstav der de er i konflikt** — det gjelder UP-delingen, UM1 v2 og UM1.1. Utføreren melder i
+leveransen hvilken hjelper som ble brukt hvor, så fasiten viser det.
