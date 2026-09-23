@@ -293,7 +293,21 @@ september.** En sjekk uten denne todelingen blir slått av innen en uke — og d
 
 ---
 
-### 🔴 FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10 — uoppdaget i tre og en halv måned (funnet 2026-09-23)
+### 🔴 FEM FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10 — uoppdaget i tre og en halv måned (funnet 2026-09-23)
+
+> 🔴 **FEMTE, funnet 2026-09-23 av kapabilitetsproben mot `server-ny`: `SITEDOC_INTEGRATION_KEY` finnes ikke.**
+> Lengde **0** i BÅDE `sitedoc-api` og `sitedoc-web`, **0 treff** i `felles.env`/`api.env`/`web.env`.
+> Den **var** satt på gammel prod (`historikk-2026-05.md:2922` — begge `ecosystem.config.js`-blokker, 64 tegn verifisert) og fulgte ikke med flyttingen.
+>
+> **Konsekvens:** firma-integrasjoner (`OrganizationIntegration.apiKey` — Proadm/HR/GPS/SmartDok) kan ikke lagres. `packages/db/src/encryption.ts:23` kaster ved **kall**, ikke ved oppstart, så prosessen starter fint. `admin.ts:845` melder `konfigurert: false`, som leses som «ikke satt opp ennå» — ikke som «ødelagt».
+>
+> ⚠️ **Dette er den eneste av de fem som ikke er en binær.** De fire andre ble funnet fordi noe ikke rendret; denne ville blitt funnet først når en kunde skulle koblet til Proadm.
+>
+> 🟢 **Målt 2026-09-23: `organization_integrations` har 0 rader på prod.** Ingenting er kryptert med den gamle nøkkelen → en ny nøkkel taper ingen data.
+>
+> ✅ **LUKKET SAMME DAG 2026-09-23.** Kenneth genererte ny nøkkel i `felles.env` (`DEPLOY-RUNBOK § 4`-formen: backup → `>>` → telling = 1), recreatet `sitedoc-api` + `sitedoc-web` med `up -d --no-deps`, og verifiserte lengde-only: `INTEGRATION_len=64` i begge containere. `FIL_SIGNING_len` uendret 64 — `felles.env` kom ikke i veien for `api.env`/`web.env`. **Nøkkelen bor nå i `felles.env`, altså ÉN kilde for begge prosesser, slik `DOCKER-NOTES.md:141` krever.**
+>
+> 🟡 **Beslektet avvik, samme måling:** `FIL_SIGNING_SECRET` er virksom (lengde 64 i begge containere), men ligger **duplisert** i `api.env` og `web.env` mens `felles.env` er tom. `DOCKER-NOTES.md:141` forbyr nettopp det — `felles.env` finnes for at api og web ikke skal kunne komme i utakt ved rotasjon. **Ikke ødelagt, men rotasjons-fella står åpen.** Egen oppfølger.
 
 **Kilde:** coworks måling 2026-09-23, etter at Kenneth kjørte `command -v` i begge containere.
 

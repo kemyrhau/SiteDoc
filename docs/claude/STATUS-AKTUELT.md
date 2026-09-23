@@ -13,6 +13,19 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-23 · develop `bc311165` ← `feat/server-kapabilitetsprobe` `f0e5702d` `--no-ff` (lesende kapabilitetsprobe + `ny-server-veileder § 7`). Designgatet, ingen vilkår. Docs-commit `58cf2e59` rett før. Mergen la til nøyaktig TO filer: `docker/kapabilitetsprobe.sh` (+466) og `docs/claude/ny-server-veileder.md` (+50). GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · shared 854 · web 307 · mobil 38 · 7/7 — ALT STILLE (proben har ingen testflate). web build exit=0, mobil typecheck exit=0. Hovedtreet ff'et 5634f884 → bc311165 (43 commits), rent.**
 
+### 🔴 2026-09-23 — KAPABILITETSPROBEN KJØRTE MOT `server-ny` OG FANT EN FEMTE TAPT FUNKSJON
+
+**Første kjøring mot ekte server. Exit 1, fire KREVES-mangler — cowork forutså to.**
+
+| Funn | Tilstand |
+|---|---|
+| `sitedoc-web` mangler `pdftoppm` + `tesseract` | 🔴 Bekreftet. `sitedoc-api` har begge. Kontrollplans hotfix treffer riktig |
+| 🔴 **`SITEDOC_INTEGRATION_KEY` fantes ikke** — lengde 0 i begge containere, 0 treff i alle tre env-filer | ✅ **LUKKET samme dag.** Ny nøkkel i `felles.env`, `INTEGRATION_len=64` verifisert i begge. 0 rader i `organization_integrations` → ingen data tapt. **Femte tapte funksjon fra serverflyttingen** ([BACKLOG](BACKLOG.md)) |
+| 🟡 `FIL_SIGNING_SECRET` virksom (64), men duplisert i `api.env`+`web.env` mens `felles.env` var tom | Åpen — `DOCKER-NOTES.md:141` forbyr duplisering. Rotasjons-fella står. **Egen runde; ikke ri med** |
+| ⚠️ Probens env-sjekk leste ÉN fil og meldte «MANGLER» | 🟢 Rettet av simulator (`fix/probe-env-sjekk` `fecb3747`) — skiller nå «finnes ikke» fra «ikke her», og melder duplisering som eget `ENV_DRIFT`-avvik som ikke teller mot exit |
+
+🟢 **Proben tjente inn seg selv på første kjøring.** De fire binærmanglene var kjent; den femte var det ikke, og den ville blitt funnet først når en kunde skulle koblet til Proadm.
+
 ### Én branch pushet, ikke merget
 
 | Branch | Hash | Hva | Tilstand |
