@@ -339,11 +339,28 @@ Bygg».
 
 | Mal | Type | Dekker |
 |---|---|---|
-| `BEFARING-A` | **sjekkliste** | befaring anlegg — område, trafikklys, årsak, eksakt telling |
-| `BEFARING-B` | **sjekkliste** | befaring bygg — etasje, trafikklys, årsak, fag + omtrentlig antall |
-| `AVVIK-A` | **oppgave** | feil eller mangel, veg og VA — ett punkt med posisjon |
-| `AVVIK-B` | **oppgave** | feil eller mangel, bygg — ett punkt med posisjon |
-*(Referansene er designs forslag.)*
+| `BEF1` | **sjekkliste** | befaring anlegg — område, trafikklys, årsak, eksakt telling |
+| `BEF2` | **sjekkliste** | befaring bygg — etasje, trafikklys, årsak, fag + omtrentlig antall |
+| `AVV1` | **oppgave** | feil eller mangel, veg og VA — ett punkt med posisjon |
+| `AVV2` | **oppgave** | feil eller mangel, bygg — ett punkt med posisjon |
+
+🔴 **RETTET 2026-09-23 — referansene var for lange, og det er MÅLT hvorfor.** Design skrev først
+`BEFARING-A`, `BEFARING-B`, `AVVIK-A`, `AVVIK-B`.
+
+**Målingen:** `apps/api/src/routes/bibliotek.ts:174` lager prosjektmalens prefiks fra referansen —
+`bibMal.referanse.split(/[\s\/]/)[0]` — og **prefikset blir dokumentnummerets prefiks**. Referansen
+`BEFARING-A` ville altså gitt dokumenter som het **`BEFARING-A-001`**.
+
+**Derfor: `BEF1`, `BEF2`, `AVV1`, `AVV2`.** Dokumentene blir `BEF1-001` og `AVV2-014` — lesbare, korte, og
+fire distinkte prefikser som **ikke** utløser auto-suffikset i `finnLedigeMalVerdier`.
+
+🔴 **Utløst av coworks funn 2026-09-23:** han observerte kjeden `BEF` → `BEF_` → `BEF__` i mal-listen på
+test. **Det er prosjektdata, ikke bibliotekdata** (design har målt: ingen byggeleder-mal finnes i
+`seed-bibliotek.ts`), men mekanismen er den samme — og **fire nye maler som lander samtidig er nettopp det
+som ville lagt en ny kjede oppå den.** Distinkte referanser er hele forebyggingen.
+
+⚠️ **Avhengighet:** redesign måler prefiks-tildelingen nå. Endrer den seg, er disse fire første testtilfelle.
+Referansene over er valgt så de virker med dagens mekanikk **og** tåler at den strammes.
 
 **Områderapporten er en sjekkliste** — den dekker et område og har ingen posisjon. **Punktrapporten er en
 oppgave** — `Task` har `drawingId` + `positionX/Y` innebygd (`schema.prisma:1316`), og det er nettopp derfor
@@ -507,8 +524,8 @@ maskiner, er forsinkelsen forklart med tall og ikke med en formulering som kan b
 ikke mekanismen står i § A2.
 
 ```
-referanse: "BEFARING-A"   navn: "Befaring anlegg – byggelederens rapport"
-referanse: "BEFARING-B"   navn: "Befaring bygg – byggelederens rapport"
+referanse: "BEF1"   navn: "Befaring anlegg – byggelederens rapport"
+referanse: "BEF2"   navn: "Befaring bygg – byggelederens rapport"
 ```
 *(Referansene er designs forslag og henger på vedtaket i § B4 pkt 1.)*
 
@@ -565,7 +582,7 @@ forgrening **ikke** er svaret.
   alltid synlig — **i begge maler**. Rød først. Bruk `forgrening` og `BETINGELSE_EGEN_NOKKEL`, aldri
   `conditionValues`.
 - 🔴 **Delt-tekst-test:** en test som låser at felt 1, 2, 4 og 6 og svaralternativene i felt 1, 2 og 5 er **ord
-  for ord identiske** mellom `BEFARING-A` og `BEFARING-B`. Rød først. **Bemanningsblokken (4a–4c) er unntatt** —
+  for ord identiske** mellom `BEF1` og `BEF2`. Rød først. **Bemanningsblokken (4a–4c) er unntatt** —
   den skal være ulik, se § B2b. Uten testen drifter fargefeltet og årsakslisten fra hverandre, og statistikken
   blir usammenlignbar på tvers av prosjekttyper.
 - 🔴 **Tallfelt-unntaket** (§ B2) skal begrunnes i seed-kommentaren, med Kenneths ord og med hvorfor §1 ikke
@@ -578,7 +595,7 @@ forgrening **ikke** er svaret.
 - SQL: **ikke kjør mot test selv.** Parse-test mot engangsdatabase, slett den, lever de tre enlinjerne.
 - Leveranse nederst i hovedtreets `relay/inbox-design.md` + «design har post».
 
-## B5. Oppgavemalene for avvik — `AVVIK-A` og `AVVIK-B`
+## B5. Oppgavemalene for avvik — `AVV1` og `AVV2`
 
 **Gatet 2026-09-22:** «oppgavemal for veg/VA og Bygg». Dette er punktrapporten Kenneth beskrev: «egen rapport for
 en feil/mangel som oppdages».
@@ -610,7 +627,7 @@ et felt finnes native, ta det ut av malen og meld det.**
 
 > Et avvik motparten ikke er varslet om, har liten verdi i et oppgjør. Sier du det på stedet, skriv hvem du snakket med i kommentaren.
 
-### Felt 1 — `AVVIK-A`, veg og VA
+### Felt 1 — `AVV1`, veg og VA
 
 - Grøft, fundament eller komprimering
 - Ledning, kum eller skjøt
@@ -620,7 +637,7 @@ et felt finnes native, ta det ut av malen og meld det.**
 - Rydding og orden
 - Annet – se kommentaren
 
-### Felt 1 — `AVVIK-B`, bygg
+### Felt 1 — `AVV2`, bygg
 
 - Utførelse eller håndverk
 - Manglende arbeid
