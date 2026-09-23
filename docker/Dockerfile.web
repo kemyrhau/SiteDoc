@@ -6,7 +6,15 @@
 FROM node:20-bookworm-slim AS build
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ openssl \
+# python3 make g++ openssl = build-tid native (prisma engines, sharp, node-gyp).
+# poppler-utils + tesseract = RUNTIME: tRPC kjorer in-process i web (route.ts importerer
+# appRouter), saa tRPC-prosedyrer som shell-er ut til pdftoppm (PDF-tegninger, tegning.ts)
+# og tesseract (OCR, ftd-prosessering.ts) trenger binaerene i DETTE imaget. Dockerfile.web
+# er ett-stegs (build ER runtime), saa de maa staa her. xvfb er UTELATT med vilje — den
+# hoerer til DWG/3D-veiene som er utsatt (BACKLOG § FEM FUNKSJONER TAPT VED SERVERFLYTTINGEN).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 make g++ openssl \
+      poppler-utils tesseract-ocr tesseract-ocr-nor \
     && rm -rf /var/lib/apt/lists/*
 COPY . .
 RUN pnpm install --frozen-lockfile
