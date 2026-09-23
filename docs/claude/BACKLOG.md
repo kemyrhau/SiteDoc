@@ -236,6 +236,62 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 Oppstartssjekk for PÅKREVDE binærer — vakten som mangler (design 2026-09-23)
+
+**Utløst av PDF-feilen 2026-09-23:** `pdftoppm` finnes i `sitedoc-api` men ikke i `sitedoc-web`, og tRPC kjører
+**in-process i web**. Tegningsvisning for PDF-tegninger var derfor ødelagt i prod.
+
+🔴 **Testen som skulle fanget det, kan per konstruksjon ikke fange det.**
+`apps/api/src/…/tegning-pdf-batch-dims.test.ts` **mocker bort `node:child_process`** med kommentaren at
+«pdftoppm lykkes uten å kjøre». **En mocket vakt er ikke en vakt** — den er grønn fordi den har fjernet det den
+skulle vokte. Det er «stille tomhet» i en fjerde variant.
+
+**Hva som skal bygges:** en **oppstartssjekk pr. image** som logger høyt når en **påkrevd** binær mangler.
+
+🔴 **Og den avgjørende presiseringen, som kom av coworks retting 2026-09-23:** sjekken må skille
+**«mangler og er påkrevd»** fra **«mangler med vilje»**. `CloudCompare`, `PotreeConverter`, `dwgread` og
+`ODAFileConverter` mangler i **begge** containere, bevisst og dokumentert (`Dockerfile.api:36-46`), og
+punktsky-koden kaster alt en lesbar feil. **En sjekk som skriker om dem ved hver oppstart, blir ignorert innen
+en uke — og da er vakten død.**
+
+**Derfor: en eksplisitt liste over hva HVERT image krever**, ikke en automatisk skanning av alle binærnavn i
+koden. Web krever `pdftoppm`. Api krever `pdftoppm`. Resten er opsjonelle og skal ikke nevnes.
+
+---
+
+### 🔴 DWG-opplasting feiler på `server-ny` — dokumentert i en Dockerfile-kommentar, ikke her (funnet 2026-09-23)
+
+**Kilde:** coworks måling 2026-09-23, etter at Kenneth kjørte `command -v` i begge containere.
+
+| Binær | `sitedoc-web` | `sitedoc-api` |
+|---|---|---|
+| `pdftoppm` | 🔴 mangler | 🟢 `/usr/bin/pdftoppm` |
+| `dwgread` · `ODAFileConverter` | mangler | **mangler** |
+| `CloudCompare` · `PotreeConverter` | mangler | **mangler** |
+
+🔴 **DWG→DXF-konvertering har aldri virket på `server-ny`.** Det står i `docker/Dockerfile.api:36-38`:
+libredwg finnes ikke i bookworm-apt, den gamle serveren bygde fra kilde, og ODAFileConverter-blokken på
+`:40-46` er **bevisst utkommentert** fordi den krever ODA-konto og en `.deb` i `docker/vendor/`.
+
+⚠️ **Mangelen er altså kjent og dokumentert — men bare i en Dockerfile-kommentar.** Det er ikke der noen leter.
+**En kunde som laster opp en DWG i dag, får en feil ingen har planlagt for.**
+
+**Skal det virke, kreves ett av to:** ODA-konto + `.deb` i `docker/vendor/` (blokken finnes, utkommentert), eller
+libredwg bygget fra kilde i imaget.
+
+🟢 **Punktsky er i bedre stand enn DWG:** `punktskyKonvertering.ts:52` og `:102` kaster «CloudCompare er ikke
+installert på serveren» — en **lesbar** feil. Det er en dokumentert mangel med en forståelig melding, ikke en
+stille svikt.
+
+🔴 **Og banneret lyver for alle konverteringsfeil:** `tegninger/page.tsx:883` sier «DWG-konvertering feilet»
+uansett hva som feilet. **Det kostet PDF-undersøkelsen 2026-09-23 en runde i feil retning.** Enlinjefiks:
+«Konvertering feilet».
+
+**Beslektet, og viktigere enn saken selv:** `tegning-pdf-batch-dims.test.ts` mocker bort `node:child_process`
+og kan **per konstruksjon** aldri fange at en binær mangler. Se BACKLOG-posten om oppstartssjekk for påkrevde
+binærer.
+
+
 ### 🔴 Stille duplikater i kontrollplanen — en vakt som slipper NULL forbi (design 2026-09-23, målt)
 
 - `omrade.slett` (`omrade.ts:122`) er en **naken `prisma.omrade.delete`** — ingen opptelling, ingen vakt.
