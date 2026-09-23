@@ -9,7 +9,9 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-23 · develop `861c570e` ← `docs/design-georeferanse-speiling` `6edda731` `--no-ff` (georeferanse-notat + konsolidert BACKLOG). To andre BACKLOG-branches IKKE merget SOM EGNE — `6edda731` er STABLET oppå `docs/design-dwg-backlog` `648a3179` og fletter inn `docs/design-tapte-funksjoner` `b591899f` (via `a1b30efc`), så deres commits kom inn under toppmergen (verifisert: alle tre ###-poster finnes). Å merge kun toppen ga én ren merge; separate merges ville kollidert på `§ 1`. GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · web 307 · shared 854 · mobil 38 · 7/7 — ALT STILLE. Diff = 2 docs-filer + tavla. `fix/pdf-omrade-navn` `b223d036` urørt (ugatet).**
+**Sist ført: 2026-09-23 · develop `77308515` ← `docs/design-fjerde-tapte-funksjon` `362521ce` `--no-ff` (OCR som fjerde tapte funksjon; `dwgread`-navn rettet). Non-ff, målt trygt selv: base `6edda731` i develop, `BACKLOG.md` 0 rørt på develop siden basen, `merge-tree` 0 konfliktmarkører. Faktisk endring mot develop = KUN `BACKLOG.md` +19/−3 (2-punkts-diffen viste også STATUS-AKTUELT.md fordi branch-base var før georeferanse-tavla; 3-veis merge beholdt develop-versjonen — verifisert intakt). GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · shared 854 · web 307 · mobil 38 · 7/7 — ALT STILLE. `feat/server-kapabilitetsprobe` `a82baa9d` (gatet m/ endring, ny hash kommer) + `fix/pdf-omrade-navn` `b223d036` (ugatet) urørt.**
+
+**Tidligere ført: 2026-09-23 · develop `861c570e` ← `docs/design-georeferanse-speiling` `6edda731` `--no-ff` (georeferanse-notat + konsolidert BACKLOG). To andre BACKLOG-branches IKKE merget SOM EGNE — `6edda731` er STABLET oppå `docs/design-dwg-backlog` `648a3179` og fletter inn `docs/design-tapte-funksjoner` `b591899f` (via `a1b30efc`), så deres commits kom inn under toppmergen (verifisert: alle tre ###-poster finnes). Å merge kun toppen ga én ren merge; separate merges ville kollidert på `§ 1`. GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · web 307 · shared 854 · mobil 38 · 7/7 — ALT STILLE. Diff = 2 docs-filer + tavla. `fix/pdf-omrade-navn` `b223d036` urørt (ugatet).**
 
 **Tidligere ført: 2026-09-23 · develop `18fec301` ← fire branches `--no-ff`: `feat/omrade-lokasjonsniva` `d4d2a3e3` (steg 2b + migrering m/ CHECK-garanti) + `feat/mal-up-deling` `a2680cf6` (UP1→UP1/UP2/UP3/UO2.1) + `docs/design-up-ordre-retting` `b134f5b8` (UP-ordre begge runder; erstattet uintegrert `97908d78`) + `fix/pdf-omrade-lokasjon` `698c36c8` (arkiv-PDF områdenavn) · GATE (`--force`, 0 cached): db 243 (+32) · api 542 (+6) · pdf 128 (+4) · web 307 (+1) · shared 854 · mobil 38 — shared/mobil STILLE · 7/7 · diff = 41 filer + tavla · slettede fasit-linjer utenfor UP/UO/UM = 0 (verifisert selv) · branch 3-tipp var `b134f5b8`, ikke `97908d78`. 🔴 IKKE GLATT: Prisma-klient i merge-treet var stale mot ny schema → `api#build` feilet TS2353/TS2339 på `omradeId`; regenerert (`pnpm --filter @sitedoc/db generate`), gate grønn på nytt kjøring**
 
@@ -49,6 +51,19 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-23 — OCR som fjerde tapte funksjon + `dwgread`-navnretting. Én branch `--no-ff`. develop `77308515`. Ren docs.
+
+🟢 Designgatet. Non-ff, målt trygt SELV: base `6edda731` allerede i develop, `BACKLOG.md` 0 commits rørt på develop siden basen, `merge-tree` 0 konfliktmarkører — ikke rebaset. Faktisk endring mot develop = KUN `BACKLOG.md` +19/−3 (2-punkts-diffen viste også STATUS-AKTUELT.md, men branch-base lå før georeferanse-tavla; 3-veis merge beholdt develop-versjonen — georeferanse-tavla verifisert intakt). Gate `--force` (0 cached): db 243 · api 542 · pdf 128 · shared 854 · web 307 · mobil 38 · 7/7 — **ALT STILLE**.
+
+**Retter to feil, begge båret videre umålt:**
+
+- 🔴 **`dwgread` kalles ikke i det hele tatt.** Cowork navnga den fra et grovt grep, design kopierte navnet inn i BACKLOG uten å måle. Simulator fant at de faktiske libredwg-binærene er **`dwg2dxf`** (`dwgKonvertering.ts:80,892`) og **`dwg2SVG`** (`:930`). Ført som RETTING av en påstand, ikke ny opplysning — begge ledd videreførte noe ingen hadde målt.
+- 🔴 **OCR er den FJERDE tapte funksjonen — og svikter STILLERE enn de tre andre.** FtD-prosesseringen startes fire-and-forget (`mengde.ts`: `prosesserDokument(...).catch((err) => console.error(...))`), så en manglende `tesseract` ender som ÉN LINJE i en containerlogg. **PDF-tegning ga i det minste et banner; et skannet dokument uten søkbar tekst ser bare ut som et skannet dokument — derfor har ingen meldt det.**
+
+### 🔴 Konsekvens for hotfixen (ingen ordre skrevet ennå)
+
+**`Dockerfile.web` skal ha TO pakker, ikke én:** `poppler-utils` OG `tesseract-ocr` + `tesseract-ocr-nor`. Begge er énlinjes, begge er LIVE funksjoner — den andre ville ellers ligget igjen usett. Å bygge hotfixen er egen runde; cowork skriver ordren.
 
 ## 🟢 2026-09-23 — Georeferanse-notat + konsolidert BACKLOG. Én branch `--no-ff`. develop `861c570e`. Ren docs.
 
