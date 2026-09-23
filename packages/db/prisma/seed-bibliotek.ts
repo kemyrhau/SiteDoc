@@ -207,6 +207,28 @@ export function forgrening(
   return ut;
 }
 
+/**
+ * Merk et felt som en forgrenings-FORELDER uten å binde barna inline (KD1 v3, ordre §3). Brukes når
+ * barna er SPREDT — i ulike faser og ikke rett etter forelderen — slik at `forgrening` (som legger
+ * barna sammenhengende rett etter forelderen) ikke passer. Forelderen får `ref` + `conditionActive`;
+ * barna festes hver for seg med `barnAv(ref, …)` der de faktisk hører hjemme i lista. `byggBibliotekRader`
+ * kobler `parentId` fra `ref`/`parentRef` uavhengig av rekkefølge, så avstand mellom forelder og barn
+ * er trygt (verifisert §4-fasemåling 2026-09-23: barn i en senere fase enn forelderen vises/skjules riktig).
+ */
+export function forelderFelt(ref: string, felt: FeltDef): FeltDef {
+  return { ...felt, ref, config: { ...(felt.config ?? {}), conditionActive: true } };
+}
+
+/**
+ * Et betinget BARN som peker til en forelder-`ref` lenger opp i lista (KD1 v3, ordre §3). I motsetning
+ * til `forgrening` beholder barnet sin EGEN plass i array-rekkefølgen (og dermed sin egen fase). Barnet
+ * får `parentRef = ref` og sitt eget utløsersett i `config[BETINGELSE_EGEN_NOKKEL]` (= `conditionOwnValues`,
+ * aldri `conditionValues` — jf. `forgrening`). Forelderen må være merket med `forelderFelt(ref, …)`.
+ */
+export function barnAv(ref: string, naar: string[], felt: FeltDef): FeltDef {
+  return { ...felt, parentRef: ref, config: { ...(felt.config ?? {}), [BETINGELSE_EGEN_NOKKEL]: naar } };
+}
+
 // KC3.1 – Oppstøtting av trær. Eksportert som egen definisjon slik at seed-testen kan låse
 // feltene (krav (c) «stille tomhet forbudt»). Bygget med eksisterende helpers; skriveveien
 // (opprettMalHvisMangler + felter→malInnhold-mapping) er urørt.
@@ -238,16 +260,40 @@ export const KC31_MAL = {
 };
 
 // KD1 – Belegg av stein og heller. Eksportert som egen definisjon slik at seed-testen kan låse
-// feltene (krav (c) «stille tomhet forbudt»). Bygget med eksisterende helpers; skriveveien
+// feltene (krav (c) «stille tomhet forbudt»). Bygget med hjelpefunksjonene; skriveveien
 // (opprettMalHvisMangler + felter→malInnhold-mapping) er urørt.
 //
-// Revisjon 2026-09-18 (design-rollen, gatet av Kenneth): 7→10 felt for legging av stein-/hellebelegg.
-// «Asfalt» fjernet (hører til IH). Krav mot varierende flate (fall, planhet, fugebredde, tykkelse)
-// besvares med samsvar per kravnivå — ikke tallfelt (MAL-METODE §1). Én veldefinert måling (største
-// sprang ved fuger) forblir heltall uten maks-grense (blokkerer aldri registrering av avvik).
-// TILLEGG 2026-09-18 (§7b): malen fremstår med SiteDocs egne krav — ingen tabell-/punktkoder i
-// hjelpetekster; standarden nevnes én gang, i beskrivelsen («Faglig grunnlag»). Kodene i navn/referanse
-// beholdes (datanøkler + gjenkjennelse i beskrivelse/fremdriftsplan).
+// Revisjon 2026-09-18 (§7b): SiteDocs egne krav, ingen tabell-/punktkoder; standarden nevnes én gang.
+//
+// Revisjon v3 2026-09-22 (ordre KD1 v3, gatet av Kenneth «alternativ 1»): BETINGEDE KRAVFELT.
+// `Belegningstype` (f01) blir FORELDER; de fire kravfeltene (tykkelse, fugebredde, planhet, sprang)
+// splittes i én GREN per kravsett, hver utløst av typene som deler kravet — 18 grener totalt, men
+// arbeideren ser fire (ett per kravfelt, skreddersydd for typen). Alternativene forenkles til
+// «Innenfor kravet»/«Avvik – måles og noteres» og tallet flyttes til hjelpeteksten (§1e); sprang
+// forblir heltall (§1, én veldefinert måling). Barna er SPREDT (tykkelse i FØR etter f03; fugebredde,
+// planhet og sprang i ETTER) mens forelderen står i FØR → bygget med `forelderFelt` + `barnAv`, ikke
+// `forgrening` (som legger barna sammenhengende). Kryss-fase-barn er verifisert trygt (§4-fasemåling
+// 2026-09-23). Gang/kjøreareal skilles fortsatt i hjelpeteksten (en gren kan bare henge på ett svar).
+// `KD1_TYPER` er ÉN kilde for de 11 belegningstypene: f01-alternativene OG grenenes utløsersett bygges
+// fra den, så en utløser ikke kan drifte fra et alternativ (en feil utløser sender til feil krav).
+const KD1_TYPER = {
+  storgatestein: "Storgatestein",
+  smaagatestein: "Smågatestein",
+  mosaikk: "Mosaikkstein",
+  plateSagd: "Natursteinsplater – sagde sider",
+  plateRaahogd: "Natursteinsplater – råhogde kanter / bruddheller",
+  belegningNatur: "Belegningsstein av naturstein",
+  betongheller: "Betongheller",
+  belegningBetong: "Belegningsstein av betong",
+  belegningTegl: "Belegningsstein av tegl",
+  permeabelt: "Permeabelt belegg",
+  annet: "Annet – se beskrivelsen",
+} as const;
+const T = KD1_TYPER;
+
+// Felles alternativer for de tre samsvars-kravfeltene (tykkelse/fugebredde/planhet).
+const KD1_KRAV_SVAR = ["Innenfor kravet", "Avvik – måles og noteres"];
+
 export const KD1_MAL = {
   kapittelKode: "KD",
   navn: "KD1 – Belegg av stein og heller",
@@ -255,21 +301,11 @@ export const KD1_MAL = {
   beskrivelse:
     "Legging av belegg av naturstein, betong og tegl, også permeabelt belegg — settelag, fuger, fall og planhet. Faglig grunnlag: NS 3420-K:2024, post KD1.",
   felter: [
-    valg("Belegningstype", "FØR",
-      [
-        "Storgatestein",
-        "Smågatestein",
-        "Mosaikkstein",
-        "Natursteinsplater – sagde sider",
-        "Natursteinsplater – råhogde kanter / bruddheller",
-        "Belegningsstein av naturstein",
-        "Betongheller",
-        "Belegningsstein av betong",
-        "Belegningsstein av tegl",
-        "Permeabelt belegg",
-        "Annet – se beskrivelsen",
-      ],
-      "Velg typen som er lagt — den avgjør kravene til settelag, fuger, fall og planhet i feltene under. Kontroller frostklassen i merkingen på pallen: naturstein og gatestein F1, betongheller og betongstein klasse 3 (merket D), tegl FP100. Ta bilde av pallelapp eller leveringsseddel."),
+    // ── FØR ──
+    forelderFelt("belegningstype",
+      valg("Belegningstype", "FØR",
+        Object.values(KD1_TYPER),
+        "Velg typen som er lagt — den avgjør kravene til settelag, fuger, fall og planhet i feltene under. Kontroller frostklassen i merkingen på pallen: naturstein og gatestein F1, betongheller og betongstein klasse 3 (merket D), tegl FP100. Ta bilde av pallelapp eller leveringsseddel.")),
     valg("Areal", "FØR",
       ["Gangareal", "Kjøreareal"],
       "Kjøreareal har strengere krav til fall og romsligere toleranse for planhet enn gangareal."),
@@ -285,42 +321,71 @@ export const KD1_MAL = {
         "Annet – se beskrivelsen",
       ],
       "Anbefalt: 0/8 eller 0/11 under belegningsstein og gatestein, 2/8 under natursteinsplater og betongheller, 2/11 ved maskinlegging. Permeabelt belegg: 2/5, 2/8 eller 2/11. Beskytt betong i settelag og fuger mot uttørking og frost."),
-    valg("Tykkelse settelag", "UNDER",
-      [
-        "OK – 20–40 mm (betongstein, betongheller, tegl)",
-        "OK – 30–50 mm (mosaikk, natursteinsplater, belegningsstein av naturstein)",
-        "OK – 50–70 mm (stor- og smågatestein)",
-        "OK – iht. leverandør (snøsmelteanlegg)",
-        "Avvik – utenfor intervallet for belegningstypen",
-      ],
-      "Legg med overhøyde, slik at belegget ender i riktig høyde etter komprimering: 3–5 mm, for gatestein 8–12 mm. Med snøsmelteanlegg gjelder leverandørens tykkelse. Ved avvik: noter målt tykkelse og sted i kommentaren."),
+    // Tykkelse settelag — fire grener (FØR, barn av belegningstype)
+    barnAv("belegningstype", [T.betongheller, T.belegningBetong, T.belegningTegl],
+      valg("Tykkelse settelag", "FØR", KD1_KRAV_SVAR,
+        "Settelaget skal være 20–40 mm. Legg med overhøyde på 3–5 mm, så belegget ender i riktig høyde etter komprimering. Ved avvik: noter målt tykkelse og sted i kommentaren.")),
+    barnAv("belegningstype", [T.mosaikk, T.plateSagd, T.plateRaahogd, T.belegningNatur],
+      valg("Tykkelse settelag", "FØR", KD1_KRAV_SVAR,
+        "Settelaget skal være 30–50 mm. Legg med overhøyde på 3–5 mm. Ved avvik: noter målt tykkelse og sted i kommentaren.")),
+    barnAv("belegningstype", [T.storgatestein, T.smaagatestein],
+      valg("Tykkelse settelag", "FØR", KD1_KRAV_SVAR,
+        "Settelaget skal være 50–70 mm. Gatestein legges med overhøyde på 8–12 mm. Ved avvik: noter målt tykkelse og sted i kommentaren.")),
+    barnAv("belegningstype", [T.permeabelt, T.annet],
+      valg("Tykkelse settelag", "FØR", KD1_KRAV_SVAR,
+        "Tykkelsen står i beskrivelsen. Med snøsmelteanlegg gjelder leverandørens tykkelse. Ved avvik: noter målt tykkelse og sted i kommentaren.")),
+    // ── UNDER ──
     trafikklys("Fall mot avrenning", "UNDER",
       "Minst 2 % på gangareal. Kjøreareal: minst 2,5 %, for gatestein minst 3 %. Permeabelt belegg: fallet står i beskrivelsen. Angir beskrivelsen noe annet, gjelder den. Kontroller flere punkter. Ved avvik: noter målt fall og sted i kommentaren."),
     trafikklys("Fuger og striper i rette linjer eller jevne buer", "UNDER",
       "Gatestein legges i forband, forskjøvet minst 1/3 stein, i buer minst 1/5. Ingen tilpassede biter mindre enn 30 % av en hel stein."),
-    valg("Fugebredde", "ETTER",
-      [
-        "OK – knas (gatestein, råhogd naturstein)",
-        "OK – 2–5 mm (betongheller, betongstein)",
-        "OK – 5–7 mm (belegningsstein av naturstein, sagde sider)",
-        "OK – 5–8 mm (natursteinsplater, sagde, under 80 mm)",
-        "OK – 9–12 mm (natursteinsplater, sagde, 80–150 mm)",
-        "OK – iht. beskrivelsen (tegl, permeabelt, bruddheller, over 150 mm)",
-        "Avvik – utenfor kravet for belegningstypen",
-      ],
-      "Enkeltsteiner kan avvike ±2 mm (sagde natursteinsplater) eller ±3 mm (belegningsstein av naturstein). Ved avvik: noter målt bredde og sted i kommentaren."),
-    valg("Planhet – svanker/bulninger over 3 m", "ETTER",
-      [
-        "OK – innenfor ±3 mm",
-        "OK – innenfor ±5 mm",
-        "OK – innenfor ±6 mm",
-        "OK – innenfor ±8 mm",
-        "OK – innenfor ±10 mm",
-        "Avvik – utenfor toleransen for type og areal",
-      ],
-      "Toleranse gang/kjøre, målt med 3 m rettholt: betongstein, betongheller, tegl og belegningsstein av naturstein ±3/±5 · smågatestein og mosaikk ±3/±5 · storgatestein ±5/±8 · sagde natursteinsplater ±5/±8 · råhogde natursteinsplater ±8/±10 · permeabelt maskinlagt ±3/±6. Mål flere steder og velg raden som gjelder. Ved avvik: noter største måling og sted i kommentaren."),
-    heltall("Største vertikale sprang ved fuger (mm)", "ETTER", { enhet: "mm" },
-      "Største tillatte sprang gang/kjøre: betongstein, betongheller, tegl og belegningsstein av naturstein 2/3 · smågatestein og mosaikk 3/5 · storgatestein 5/8 · sagde natursteinsplater 4/6 · råhogde natursteinsplater 6/8. Før inn den største målingen (hele mm)."),
+    // ── ETTER ──
+    // Fugebredde — fem grener (ETTER, barn av belegningstype)
+    barnAv("belegningstype", [T.storgatestein, T.smaagatestein, T.mosaikk, T.plateRaahogd],
+      valg("Fugebredde", "ETTER", KD1_KRAV_SVAR,
+        "Fugene legges i knas — steinene ligger tett mot hverandre. Ved avvik: noter sted i kommentaren.")),
+    barnAv("belegningstype", [T.betongheller, T.belegningBetong],
+      valg("Fugebredde", "ETTER", KD1_KRAV_SVAR,
+        "Fugebredden skal være 2–5 mm. Ved avvik: noter målt bredde og sted i kommentaren.")),
+    barnAv("belegningstype", [T.belegningNatur],
+      valg("Fugebredde", "ETTER", KD1_KRAV_SVAR,
+        "Fugebredden skal være 5–7 mm. Enkeltsteiner kan avvike ±3 mm. Ved avvik: noter målt bredde og sted.")),
+    barnAv("belegningstype", [T.plateSagd],
+      valg("Fugebredde", "ETTER", KD1_KRAV_SVAR,
+        "Fugebredden avhenger av platetykkelsen: 5–8 mm for plater under 80 mm, og 9–12 mm for plater fra 80 til 150 mm. Over 150 mm står bredden i beskrivelsen. Enkeltplater kan avvike ±2 mm.")),
+    barnAv("belegningstype", [T.belegningTegl, T.permeabelt, T.annet],
+      valg("Fugebredde", "ETTER", KD1_KRAV_SVAR,
+        "Fugebredden står i beskrivelsen. Ved avvik: noter målt bredde og sted i kommentaren.")),
+    // Planhet – svanker/bulninger over 3 m — fire grener (ETTER, barn av belegningstype)
+    barnAv("belegningstype", [T.betongheller, T.belegningBetong, T.belegningTegl, T.belegningNatur, T.smaagatestein, T.mosaikk],
+      valg("Planhet – svanker/bulninger over 3 m", "ETTER", KD1_KRAV_SVAR,
+        "Målt med 3 m rettholt: svanker og bulninger skal være innenfor ±3 mm på gangareal og ±5 mm på kjøreareal. Mål flere steder. Ved avvik: noter største måling og sted.")),
+    barnAv("belegningstype", [T.storgatestein, T.plateSagd],
+      valg("Planhet – svanker/bulninger over 3 m", "ETTER", KD1_KRAV_SVAR,
+        "Målt med 3 m rettholt: innenfor ±5 mm på gangareal og ±8 mm på kjøreareal. Mål flere steder. Ved avvik: noter største måling og sted.")),
+    barnAv("belegningstype", [T.plateRaahogd],
+      valg("Planhet – svanker/bulninger over 3 m", "ETTER", KD1_KRAV_SVAR,
+        "Målt med 3 m rettholt: innenfor ±8 mm på gangareal og ±10 mm på kjøreareal. Mål flere steder. Ved avvik: noter største måling og sted.")),
+    barnAv("belegningstype", [T.permeabelt, T.annet],
+      valg("Planhet – svanker/bulninger over 3 m", "ETTER", KD1_KRAV_SVAR,
+        "Målt med 3 m rettholt: for maskinlagt permeabelt belegg gjelder ±3 mm på gangareal og ±6 mm på kjøreareal. Ellers står kravet i beskrivelsen.")),
+    // Største vertikale sprang ved fuger (mm) — fem grener (ETTER, heltall, barn av belegningstype)
+    barnAv("belegningstype", [T.betongheller, T.belegningBetong, T.belegningTegl, T.belegningNatur],
+      heltall("Største vertikale sprang ved fuger (mm)", "ETTER", { enhet: "mm" },
+        "Største tillatte sprang er 2 mm på gangareal og 3 mm på kjøreareal. Før inn den største målingen i hele mm.")),
+    barnAv("belegningstype", [T.smaagatestein, T.mosaikk],
+      heltall("Største vertikale sprang ved fuger (mm)", "ETTER", { enhet: "mm" },
+        "Største tillatte sprang er 3 mm på gangareal og 5 mm på kjøreareal. Før inn den største målingen i hele mm.")),
+    barnAv("belegningstype", [T.storgatestein],
+      heltall("Største vertikale sprang ved fuger (mm)", "ETTER", { enhet: "mm" },
+        "Største tillatte sprang er 5 mm på gangareal og 8 mm på kjøreareal. Før inn den største målingen i hele mm.")),
+    barnAv("belegningstype", [T.plateSagd],
+      heltall("Største vertikale sprang ved fuger (mm)", "ETTER", { enhet: "mm" },
+        "Største tillatte sprang er 4 mm på gangareal og 6 mm på kjøreareal. Før inn den største målingen i hele mm.")),
+    barnAv("belegningstype", [T.plateRaahogd, T.permeabelt, T.annet],
+      heltall("Største vertikale sprang ved fuger (mm)", "ETTER", { enhet: "mm" },
+        "Største tillatte sprang er 6 mm på gangareal og 8 mm på kjøreareal for råhogde plater. For permeabelt og annet står kravet i beskrivelsen. Før inn den største målingen i hele mm.")),
+    // Konklusjon (ETTER)
     trafikklys("Krav oppfylt og dokumentasjon levert", "ETTER",
       "Belegget oppfyller kravene over, overflaten er feid ren for fugemasse, og flaten er klar for overlevering. Ta bilde av ferdig belegg."),
   ] as FeltDef[],
