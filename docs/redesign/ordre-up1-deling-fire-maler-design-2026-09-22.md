@@ -323,8 +323,7 @@ UP1 — og **deretter basisfeltene B1–B10** (§ 5), i samme rekkefølge som i 
 nå delt opp riktig: **skjøten hører i materialeblokkens M2** (delt med UP1 og UP3), og **plastliner hører i felt 2**,
 fordi liner er en egenskap ved gjennomløpet og ikke ved skjøten. **Bygg ikke begge i ett felt.**
 
-**Struktur:** 15 felt. Tolv alltid synlige (1, 3, M1, B1–B10). Betong med liner viser fjorten, plast med liner
-tretten.
+**Struktur:** 16 felt. **Tretten** alltid synlige (1, 3, M1, B1–B10). Betong med liner viser femten, plast med liner femten. *(RETTET 2026-09-23: ordren sa 15/12 — tallet var stalt etter at B5 «Oppdrift» kom inn og basisblokken gikk fra ni til ti felt. Funnet av mal-Opus.)*
 
 🔴 **Ingen nedstigningsfelt.** Malen skal **ikke** ha mellomdekke, stige eller nedstigningsåpning — kummen er
 DN 315–630 og kan ikke gås ned i. Det er nettopp det som skiller den fra UP1, og feltet «kummen kan spyles og
@@ -369,8 +368,7 @@ alternativene er uendret.
 
 **To foreldre:** felt 1 «Type» og M1 «Materiale». To ulike `ref`-verdier.
 
-**Struktur:** 15 felt. Tolv alltid synlige (1, M1, B1–B10). Et sandfang av betong viser femten, et hjelpesluk av
-plast tolv.
+**Struktur:** 16 felt. **Tretten** alltid synlige (1, M1, B1–B10). Et sandfang av betong viser seksten, et hjelpesluk av plast tretten. *(RETTET 2026-09-23: samme off-by-one som UP2 — ordren sa 15/12 før B5 kom inn.)*
 
 🔴 **Rettelse fra forrige versjon av ordren:** design skrev «ingen forgrening, alle felt alltid synlige — det er
 hele gevinsten ved å skille den ut». **Det var galt**, og normen sier noe annet. Gevinsten er fortsatt reell — et
@@ -535,3 +533,30 @@ innholdet er teleskop og deksel, som hører til «Justeringsringer og ramme», i
 Brannvannsuttak er forelderen (`ref=uttak`) for felt 3 Skiltet. **Struktur-linjen «tretten alltid synlige» var
 den som stemte.** Glippen oppsto fordi UP1 har både ventil og uttak som barn av kumtypen, og strukturen ble
 kopiert til UO2.1 — der finnes ingen kumtype, malen **er** ventilen.
+
+## 🔴 RETTINGER 2026-09-23, runde to — tre flagg fra leveransen
+
+**4. § 9 sa «ikke T-merking noe sted». Det var for grovt formulert.** § 5b gir M2 krysshenvisningen «Krav om
+T-merking … dekkes av kontrollen av kum og deler», og de to leste som en motsigelse.
+
+**Gjeldende regel:** **T-merking som KRAV skal bare stå i B1.** En **krysshenvisning** fra M2 dit er tillatt og
+ønsket — den er det motsatte av dobbeltføring, fordi den forteller hvor kravet bor. Mal-Opus bygde M2 med
+krysshenvisningen og la til en negativ test som viser at kravet bare finnes i B1. **Riktig lest.**
+
+**5. Feltantallene for UP2 og UP3 var stale.** Ordren sa 15 felt / 12 alltid synlige for begge. **Riktig er
+16 / 13.** Tallene ble skrevet før B5 «Oppdrift» kom inn og basisblokken gikk fra ni til ti felt; de ble aldri
+oppdatert. **UP1 (20) og UO2.1 (14) var riktige.** Rettet i § 6b og § 7.
+
+**6. Generator-relaxeringen er godkjent.** Ordren skriver `--sorter UP=3 --sorter UU=4`; generatoren tar
+komma-formen `--sorter UP=3,UU=4` — samme resultat, ingen retting nødvendig. Mal-Opus måtte i tillegg **relaksere
+generatoren fra «kun fler-mal ny» til «også enkelt-mal ny»**, fordi UO2.1 oppretter kapittel UO alene og må
+resortere søstrene.
+
+**Design godkjenner relaxeringen, og grunnen er at den er så smal den kan bli:** en presis vakt («tillat bare
+når kapittelet er nytt») krever et DB-oppslag, og generatoren gjør bevisst ingen. Det som står igjen er trygt:
+`--sorter` er **eksplisitt** og aldri en default · vakten mot bruk i **modus `revisjon`** står, og det var den
+farlige varianten · og rettingene **ekkoes nå i konsoll-linja**, så operatøren ser hva som flyttes.
+
+**7. `faseSortert` — ny hjelper mal-Opus måtte legge til.** Står typeforelderen i UNDER (UP2, UO2.1), havnet
+FØR-seksjonen nederst uten den. **Det er en feil bare bygging avdekker**, og den hører i samme klasse som
+fasemålingen: mekanikken var riktig, rekkefølgen av overskrifter var ikke.
