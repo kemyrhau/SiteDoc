@@ -1024,7 +1024,7 @@ model Omrade {
   byggeplassId String   @map("byggeplass_id")
   tegningId    String?  @map("tegning_id")
   navn         String
-  type         String   @default("sone") // sone | rom | etasje
+  type         String   @default("sone") // sone | rom | etasje | trase (trase lagt til 2026-09-23; enum håndheves i omrade.ts)
   polygon      Json     @default("[]") // [{x: number, y: number}, ...]
   farge        String   @default("#3b82f6")
   sortering    Int      @default(0)
@@ -1034,6 +1034,10 @@ model Omrade {
   byggeplass          Byggeplass          @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
   tegning             Drawing?            @relation(fields: [tegningId], references: [id], onDelete: SetNull)
   kontrollplanPunkter KontrollplanPunkt[]
+  // Steg 2b (2026-09-23): område kan være lokasjonsnivå på dokumenter (onDelete: SetNull —
+  // sletting nullstiller referansen, som på KontrollplanPunkt).
+  checklists          Checklist[]
+  tasks               Task[]
 
   @@index([projectId])
   @@index([byggeplassId])
@@ -1232,10 +1236,15 @@ model Checklist {
   drawingId            String?   @map("drawing_id")
   positionX            Float?    @map("position_x")
   positionY            Float?    @map("position_y")
+  // Steg 2b (2026-09-23): valgfri område-referanse (mellomnivået mellom punkt og byggeplass).
+  // Nullable — et prosjekt uten områder har korrekt null. Håndheves sammen med
+  // lokasjonOmfang="omrade" (app-validering: omrade-omfang KREVER omradeId). onDelete: SetNull.
+  omradeId             String?   @map("omrade_id")
   // Lokasjonsomfang (2026-09-04): "punkt" = pin/tegning satt · "byggeplass" = bevisst hele
   // byggeplassen (én observasjon om hele anlegget, f.eks. «alle gatelysene mangler merking»)
-  // · null = ikke valgt ennå (auto-åpning kan trigge i utkast). PDF/web skiller byggeplass fra
-  // et tomt felt — et tomt felt der noe var ment er en usann påstand.
+  // · "omrade" = et definert område (steg 2b, 2026-09-23) — krever omradeId · null = ikke valgt
+  // ennå (auto-åpning kan trigge i utkast). PDF/web skiller byggeplass fra et tomt felt — et
+  // tomt felt der noe var ment er en usann påstand.
   lokasjonOmfang       String?   @map("lokasjon_omfang")
   // Fritekst-lokasjon (2026-09-06): en PRESISERING innenfor byggeplassen når det ikke
   // finnes tegning å pinne på — «Akse 4», «Nordre rampe». Påheng på byggeplass-valget
@@ -1272,6 +1281,7 @@ model Checklist {
   dokumentflyt       Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   byggeplass         Byggeplass?          @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
   drawing            Drawing?             @relation(fields: [drawingId], references: [id], onDelete: SetNull)
+  omrade             Omrade?              @relation(fields: [omradeId], references: [id], onDelete: SetNull)
   recipientUser      User?                @relation("ChecklistRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   recipientGroup     ProjectGroup?        @relation("ChecklistRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
   transfers          DocumentTransfer[]
@@ -1296,6 +1306,7 @@ model Checklist {
   @@index([status])
   @@index([dokumentflytId, status])
   @@index([deletedAt])
+  @@index([omradeId])
   @@map("checklists")
 }
 
@@ -1316,7 +1327,9 @@ model Task {
   drawingId            String?   @map("drawing_id")
   positionX            Float?    @map("position_x")
   positionY            Float?    @map("position_y")
-  // Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | null — speiler Checklist.lokasjonOmfang.
+  // Steg 2b (2026-09-23): valgfri område-referanse — speiler Checklist.omradeId. onDelete: SetNull.
+  omradeId             String?   @map("omrade_id")
+  // Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | "omrade" (steg 2b) | null — speiler Checklist.lokasjonOmfang.
   lokasjonOmfang       String?   @map("lokasjon_omfang")
   // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass-valget. Se Checklist.
   lokasjonFritekst     String?   @map("lokasjon_fritekst")
@@ -1352,6 +1365,7 @@ model Task {
   drawing            Drawing?           @relation(fields: [drawingId], references: [id])
   dokumentflyt       Dokumentflyt?      @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   checklist          Checklist?         @relation(fields: [checklistId], references: [id], onDelete: SetNull)
+  omrade             Omrade?            @relation(fields: [omradeId], references: [id], onDelete: SetNull)
   recipientUser      User?              @relation("TaskRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
   recipientGroup     ProjectGroup?      @relation("TaskRecipientGroup", fields: [recipientGroupId], references: [id], onDelete: SetNull)
   transfers          DocumentTransfer[]
@@ -1371,6 +1385,7 @@ model Task {
   @@index([status])
   @@index([dokumentflytId, status])
   @@index([deletedAt])
+  @@index([omradeId])
   @@map("tasks")
 }
 

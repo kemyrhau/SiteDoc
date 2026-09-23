@@ -948,6 +948,7 @@ export default function OppgaveDetaljSide() {
             positionY={oppgaveLokasjon.positionY ?? undefined}
             lokasjonOmfang={oppgaveLokasjon.lokasjonOmfang}
             lokasjonFritekst={oppgaveLokasjon.lokasjonFritekst}
+            omradeId={oppgaveLokasjon.omradeId}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -957,6 +958,7 @@ export default function OppgaveDetaljSide() {
                 positionY: data.positionY ?? null,
                 lokasjonOmfang: data.lokasjonOmfang ?? null,
                 lokasjonFritekst: data.lokasjonFritekst ?? null,
+                omradeId: data.omradeId ?? null,
               });
             }}
             // Cowork-vedtak 2026-08-29: speil server-vakten (oppgave.ts:670, draft-only) —
