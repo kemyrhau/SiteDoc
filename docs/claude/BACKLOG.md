@@ -293,7 +293,7 @@ september.** En sjekk uten denne todelingen blir slått av innen en uke — og d
 
 ---
 
-### 🔴 TRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10 — uoppdaget i tre og en halv måned (funnet 2026-09-23)
+### 🔴 FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10 — uoppdaget i tre og en halv måned (funnet 2026-09-23)
 
 **Kilde:** coworks måling 2026-09-23, etter at Kenneth kjørte `command -v` i begge containere.
 
@@ -313,8 +313,24 @@ flytting av server til server-ny».*
 | Funksjon | Binær | Tilstand | Kostnad |
 |---|---|---|---|
 | **PDF-tegning** | `pdftoppm` | 🟡 **delvis** — i api, mangler i web | 🟢 én linje i `Dockerfile.web` |
-| **DWG** | `dwgread` / `ODAFileConverter` | 🔴 **borte** | ODA-konto + `.deb`, eller libredwg fra kilde |
-| **3D / punktsky** | `CloudCompare` + `PotreeConverter` | 🔴 **borte** | ⚠️ **ikke målt** |
+| 🔴 **OCR (Fil-til-database)** | `tesseract` + språkdata `nor` | 🟡 **delvis** — i api, mangler i web | 🟢 én linje i `Dockerfile.web` |
+| **DWG** | `dwg2dxf` + `dwg2SVG` (libredwg) | 🔴 **borte i BEGGE** | libredwg fra kilde, eller ODA-konto + `.deb` |
+| **3D / punktsky** | `CloudCompare` + `PotreeConverter` | 🔴 **borte i BEGGE** | ⚠️ **ikke målt** |
+| *(støtte)* | `xvfb-run` | mangler i web | følger DWG/3D |
+
+🔴 **TO RETTINGER 2026-09-23, begge av simulator, begge samme feilklasse:**
+
+**1. `dwgread` kalles ikke i det hele tatt.** Cowork navnga den, design kopierte navnet inn her **uten å måle
+det**. De faktiske binærene er **`dwg2dxf`** (`dwgKonvertering.ts:80,892`) og **`dwg2SVG`** (`:930`).
+
+**2. 🔴 OCR er den FJERDE tapte funksjonen, og ingen hadde nevnt den.** `tesseract` kalles fra
+`ftd-prosessering.ts:344` og mangler i web — **nøyaktig samme årsak som PDF-tegning: tRPC kjører in-process i
+web, binæren ligger bare i api-imaget.**
+
+⚠️ **Og OCR svikter STILLERE enn de andre tre.** FtD-prosesseringen startes fire-and-forget
+(`mengde.ts`: `prosesserDokument(...).catch((err) => console.error(...))`), så en manglende `tesseract` ender
+som en linje i en containerlogg. **PDF-tegning ga i det minste et banner. Et skannet dokument uten søkbar tekst
+ser bare ut som et skannet dokument.**
 
 ⚠️ **Kommentaren i `docker/Dockerfile.api:36-38`** — «Uten det feiler KUN DWG→DXF-konvertering; resten av
 API-et virker» — **ble lest som en akseptert avveining. Den var en notis til seg selv om noe som skulle ordnes
