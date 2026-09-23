@@ -9,7 +9,9 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-23 · develop `18fec301` ← fire branches `--no-ff`: `feat/omrade-lokasjonsniva` `d4d2a3e3` (steg 2b + migrering m/ CHECK-garanti) + `feat/mal-up-deling` `a2680cf6` (UP1→UP1/UP2/UP3/UO2.1) + `docs/design-up-ordre-retting` `b134f5b8` (UP-ordre begge runder; erstattet uintegrert `97908d78`) + `fix/pdf-omrade-lokasjon` `698c36c8` (arkiv-PDF områdenavn) · GATE (`--force`, 0 cached): db 243 (+32) · api 542 (+6) · pdf 128 (+4) · web 307 (+1) · shared 854 · mobil 38 — shared/mobil STILLE · 7/7 · diff = 41 filer + tavla · slettede fasit-linjer utenfor UP/UO/UM = 0 (verifisert selv) · branch 3-tipp var `b134f5b8`, ikke `97908d78`. 🔴 IKKE GLATT: Prisma-klient i merge-treet var stale mot ny schema → `api#build` feilet TS2353/TS2339 på `omradeId`; regenerert (`pnpm --filter @sitedoc/db generate`), gate grønn på nytt kjøring**
+**Sist ført: 2026-09-23 · develop `861c570e` ← `docs/design-georeferanse-speiling` `6edda731` `--no-ff` (georeferanse-notat + konsolidert BACKLOG). To andre BACKLOG-branches (`docs/design-dwg-backlog` `648a3179`, `docs/design-tapte-funksjoner` `b591899f`) IKKE merget — konsolidert INN i `6edda731` (verifisert: alle tre ###-poster finnes før drop). GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · web 307 · shared 854 · mobil 38 · 7/7 — ALT STILLE. Diff = 2 docs-filer + tavla. `fix/pdf-omrade-navn` `b223d036` urørt (ugatet).**
+
+**Tidligere ført: 2026-09-23 · develop `18fec301` ← fire branches `--no-ff`: `feat/omrade-lokasjonsniva` `d4d2a3e3` (steg 2b + migrering m/ CHECK-garanti) + `feat/mal-up-deling` `a2680cf6` (UP1→UP1/UP2/UP3/UO2.1) + `docs/design-up-ordre-retting` `b134f5b8` (UP-ordre begge runder; erstattet uintegrert `97908d78`) + `fix/pdf-omrade-lokasjon` `698c36c8` (arkiv-PDF områdenavn) · GATE (`--force`, 0 cached): db 243 (+32) · api 542 (+6) · pdf 128 (+4) · web 307 (+1) · shared 854 · mobil 38 — shared/mobil STILLE · 7/7 · diff = 41 filer + tavla · slettede fasit-linjer utenfor UP/UO/UM = 0 (verifisert selv) · branch 3-tipp var `b134f5b8`, ikke `97908d78`. 🔴 IKKE GLATT: Prisma-klient i merge-treet var stale mot ny schema → `api#build` feilet TS2353/TS2339 på `omradeId`; regenerert (`pnpm --filter @sitedoc/db generate`), gate grønn på nytt kjøring**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -47,6 +49,24 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-23 — Georeferanse-notat + konsolidert BACKLOG. Én branch `--no-ff`. develop `861c570e`. Ren docs.
+
+🟢 Designgatet, ff mot develop `6047b91e`. **Tre BACKLOG-branches rørte alle `§ 1` og ville kollidert — design konsoliderte de to andre INN i `6edda731`.** 🔴 **Verifisert selv at alle tre ###-postene finnes før de to andre ble droppet:** «Georeferanse: nord dreier ved to-punktskalibrering», «Oppstartssjekk for PÅKREVDE binærer» (dekker DWG, 11 DWG-treff), «TRE FUNKSJONER TAPT VED SERVERFLYTTINGEN». Innholdet er omskrevet, ikke kopiert linje-for-linje. Gate `--force` (0 cached): db 243 · api 542 · pdf 128 · web 307 · shared 854 · mobil 38 · 7/7 — **ALT STILLE**. Diff = 2 docs-filer + tavla. `fix/pdf-omrade-navn` `b223d036` urørt (ugatet).
+
+### 🔴 Georeferanse-funnet — rundens innhold (ingenting bygges ennå)
+
+Kenneth spurte om vi kalibrerer med beste metode. **Svaret er nei, målingen er entydig:** `dwgKonvertering.ts:969-991` detekterer koordinatsystemet og konverterer DWG-ens `extents` til WGS84, men pakker så den EKSAKTE transformasjonen ned i **to punkter på diagonalen** (`pixel (0,0)` og `(100,100)`), matet inn i en similaritet som **ikke kan uttrykke ulik skala i x og y**.
+
+🔴 **Regnestykket som forklarer symptomet:** de to punktene gir **45° i prosentrommet**; metrisk peker diagonalen i `(bredde, −høyde)` — for en 200×100 m tegning er det **−26,6°**. Similariteten MÅ rotere 45° over på −26,6°, så tegningen dreies **~71°** på noe som skal ha 0°. ⚠️ **Kvadratiske tegninger treffer 45° mot 45° og ser riktige ut — DERFOR har feilen overlevd.**
+
+🔴 **Omfanget er større enn antatt:** auto-georeferansen fra DWG-konverteringen er OGSÅ to punkter. De mistenkte kalibreringene er **ALLE auto-georefererte DWG-tegninger** — ikke bare de manuelt kalibrerte. Sannsynligvis flertallet.
+
+🟢 **Den bedre metoden krever ingen kalibrering:** `extents` gir en eksakt affin transformasjon direkte — ulik skala faller ut av seg selv, kiraliteten faller ut av y-inversjonen. Tre punkter nedgradert fra hovedanbefaling til fallback for tegninger uten koordinater.
+
+### 🔴 BETINGELSE før noen koder georeferanse-fiksen
+
+**Notatets § «Hva som skal måles» har tre målinger; den FØRSTE kan velte forslaget:** `detekterKoordinatSystem(filnavn, extents)` **tar FILNAVNET som argument.** ⚠️ Er deteksjonen i praksis en gjetning fra filnavn, MÅ brukeren kunne bekrefte eller overstyre systemet. 🔴 **Mål dette FØR noen koder — betingelse, ikke detalj.** Ingen ordre finnes ennå; tre målinger først.
 
 ## 🟢 2026-09-23 — Steg 2b + UP-deling + UP-ordre + PDF-vakt. Fire branches `--no-ff`. develop `18fec301`.
 
