@@ -26,8 +26,12 @@
 #
 # Exit-kode:
 #   0  = alt KREVES er på plass
-#   1  = minst én KREVES-avhengighet MANGLER (VALGFRI-mangler teller IKKE)
+#   1  = minst én KREVES-avhengighet MANGLER (UTSATT og VALGFRI teller IKKE)
 #   2  = brukerfeil (ukjent flagg o.l.)
+#
+# Tre nivåer (ordre 2026-09-23): KREVES (skal virke i dag → exit 1) · UTSATT
+# (bevisst utsatt, krever dato + BACKLOG-ref) · VALGFRI (har fallback). En probe
+# som alltid feiler blir ignorert innen en uke — derfor teller kun KREVES.
 #
 # Listen under er UTLEDET FRA KODEN (grep execFile/spawn + docker-compose +
 # Dockerfile.* + process.env). Fil:linje står i kommentarene så den kan revideres
@@ -59,7 +63,9 @@ else
 fi
 
 MANGLER_KREVES=0
+MANGLER_UTSATT=0
 MANGLER_VALGFRI=0
+UTSATT_UTEN_REF=0
 
 # --- Kjernefunksjon: finnes binæren? -----------------------------------------
 # $1 = container ("" = lokal/verts-modus), $2 = binærnavn eller absolutt sti
@@ -76,21 +82,40 @@ finn_bin() {
   return 1
 }
 
+# --- Lint på UTSATT: KREVER dato + BACKLOG-referanse -------------------------
+# Uten dem er UTSATT bare en måte å slå av alarmen på uten å skrive hvorfor —
+# nøyaktig mekanismen vi prøver å unngå. Advarer, men teller IKKE mot exit
+# (exit 1 skal bety «en LIVE-funksjon virker ikke», ikke «config-lint feilet»).
+lint_utsatt() {
+  local bin="$1" notat="$2" ok=1
+  printf '%s' "$notat" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || ok=0
+  printf '%s' "$notat" | grep -qi 'BACKLOG'                    || ok=0
+  if [ "$ok" -eq 0 ]; then
+    printf "      ${R}${B}⚠ UTSATT '%s' mangler dato og/eller BACKLOG-ref${N} ${DIM}— å flytte hit KREVER at noen skriver hvorfor + hvor saken står${N}\n" "$bin"
+    UTSATT_UTEN_REF=$((UTSATT_UTEN_REF + 1))
+  fi
+}
+
 # --- Rapportlinje for én binær ----------------------------------------------
-# $1 = container, $2 = binær, $3 = nivå (KREVES|VALGFRI), $4 = notat
+# $1 = container, $2 = binær, $3 = nivå (KREVES|UTSATT|VALGFRI), $4 = notat
 rapporter_bin() {
   local container="$1" bin="$2" nivaa="$3" notat="${4:-}" sti
   if sti="$(finn_bin "$container" "$bin")"; then
     printf "    %-22s ${G}OK${N}      ${DIM}%s${N}\n" "$bin" "$sti"
-  else
-    if [ "$nivaa" = "KREVES" ]; then
-      printf "    %-22s ${R}${B}MANGLER${N}  ${DIM}%s${N}\n" "$bin" "$notat"
-      MANGLER_KREVES=$((MANGLER_KREVES + 1))
-    else
-      printf "    %-22s ${Y}mangler${N}  ${DIM}(valgfri) %s${N}\n" "$bin" "$notat"
-      MANGLER_VALGFRI=$((MANGLER_VALGFRI + 1))
-    fi
+    return
   fi
+  case "$nivaa" in
+    KREVES)
+      printf "    %-22s ${R}${B}MANGLER${N}  ${DIM}%s${N}\n" "$bin" "$notat"
+      MANGLER_KREVES=$((MANGLER_KREVES + 1)) ;;
+    UTSATT)
+      printf "    %-22s ${Y}UTSATT${N}   ${DIM}%s${N}\n" "$bin" "$notat"
+      MANGLER_UTSATT=$((MANGLER_UTSATT + 1))
+      lint_utsatt "$bin" "$notat" ;;
+    *)  # VALGFRI
+      printf "    %-22s ${Y}valgfri${N}  ${DIM}(fallback finnes) %s${N}\n" "$bin" "$notat"
+      MANGLER_VALGFRI=$((MANGLER_VALGFRI + 1)) ;;
+  esac
 }
 
 # --- Er containeren oppe? ----------------------------------------------------
@@ -125,14 +150,27 @@ container_kjorer() {
 # ============================================================================
 
 # Binærer som api+web (Node-appen) trenger. Format: "navn|nivå|notat"
+#
+# NIVÅ-SEMANTIKK (jf. ordre 2026-09-23):
+#   KREVES  = skal virke i dag. Teller mot exit 1. LIVE-funksjoner.
+#   UTSATT  = bevisst ikke installert ennå. Teller IKKE mot exit. KREVER
+#             dato + BACKLOG-referanse i notatet (lint_utsatt håndhever).
+#   VALGFRI = har fallback, trengs ikke. Teller ikke mot exit.
+#
+# KREVES = pdftoppm + tesseract(+nor): LIVE, men ødelagt i web i dag (web kjører
+#   appRouter in-process uten poppler/tesseract). DE SKAL gi exit 1 — hele poenget.
+# UTSATT = DWG (dwg2dxf/dwg2SVG) + 3D (CloudCompare/PotreeConverter) + xvfb-run
+#   (kun DWG/3D-veiene bruker den). Falt ved serverflyttingen 2026-06-10, venter
+#   Kenneth-beslutning + ODA-konto. IKKE valgfrie av natur — bevisst utsatt.
+# VALGFRI = ODAFileConverter: valgfri av natur, dwg2dxf er fallback.
 BINARER_NODE=(
   "pdftoppm|KREVES|poppler-utils — PDF→bilde (tegning, OCR, blokk)"
   "tesseract|KREVES|tesseract-ocr — OCR i ftd-prosessering; trenger språkdata 'nor'"
-  "xvfb-run|KREVES|xvfb — virtuell X for ODA/CloudCompare"
-  "dwg2dxf|KREVES|libredwg — DWG→DXF (ikke i bookworm-apt, bygges fra kilde)"
-  "dwg2SVG|KREVES|libredwg — DWG→SVG"
-  "CloudCompare|KREVES|E57/PLY→LAS for punktsky (3D)"
-  "PotreeConverter|KREVES|LAS→Potree octree (3D)"
+  "xvfb-run|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — virtuell X for DWG/3D-veiene"
+  "dwg2dxf|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — libredwg DWG→DXF, venter Kenneth-beslutning"
+  "dwg2SVG|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — libredwg DWG→SVG"
+  "CloudCompare|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — E57/PLY→LAS (3D-punktsky)"
+  "PotreeConverter|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — LAS→Potree octree (3D)"
   "ODAFileConverter|VALGFRI|bedre DWG enn libredwg; dwg2dxf er fallback"
 )
 
@@ -155,13 +193,15 @@ sjekk_node_container() {
     rapporter_bin "$navn" "$bin" "$nivaa" "$notat"
   done
   # tesseract-språkdata "nor" — egen apt-pakke (tesseract-ocr-nor). Sjekk lesende.
-  if [ -n "$navn" ] || [ "$MODUS" = "lokal" ]; then
-    local c="$navn"
-    if $DOCKER exec "${c:-__host__}" sh -c 'tesseract --list-langs 2>/dev/null | grep -qx nor' 2>/dev/null \
+  # KUN når tesseract-binæren finnes — ellers dobbelttelles samme rotårsak
+  # (mangler tesseract, mangler nor trivielt). Da er nor en egen KREVES-linje
+  # bare når binæren er der men språkdataen ikke er.
+  if finn_bin "$navn" "tesseract" >/dev/null; then
+    if $DOCKER exec "${navn:-__host__}" sh -c 'tesseract --list-langs 2>/dev/null | grep -qx nor' 2>/dev/null \
        || { [ "$MODUS" = "lokal" ] && tesseract --list-langs 2>/dev/null | grep -qx nor; }; then
       printf "    %-22s ${G}OK${N}      ${DIM}norsk språkdata${N}\n" "tesseract:nor"
     else
-      printf "    %-22s ${R}${B}MANGLER${N}  ${DIM}tesseract-ocr-nor (norsk OCR)${N}\n" "tesseract:nor"
+      printf "    %-22s ${R}${B}MANGLER${N}  ${DIM}tesseract-ocr-nor (norsk OCR) — tesseract finnes, språkdata ikke${N}\n" "tesseract:nor"
       MANGLER_KREVES=$((MANGLER_KREVES + 1))
     fi
   fi
@@ -357,6 +397,22 @@ selftest() {
   else
     printf "  ${R}✗${N} syntetisk mangel ble IKKE fanget — exit-logikken er død\n"; feil=1
   fi
+  # 3) UTSATT-lint: en oppføring uten dato/ref skal utløse advarsel
+  local ref_for=$UTSATT_UTEN_REF
+  lint_utsatt "__syntetisk__" "notat uten dato eller referanse" >/dev/null 2>&1
+  if [ "$UTSATT_UTEN_REF" -gt "$ref_for" ]; then
+    printf "  ${G}✓${N} UTSATT uten dato/BACKLOG-ref fanget av lint\n"
+  else
+    printf "  ${R}✗${N} UTSATT-lint fanget ikke manglende ref\n"; feil=1
+  fi
+  # ...og en KORREKT UTSATT (dato + BACKLOG) skal IKKE utløse advarsel
+  ref_for=$UTSATT_UTEN_REF
+  lint_utsatt "__syntetisk_ok__" "utsatt 2026-06-10 · BACKLOG § Pakke D" >/dev/null 2>&1
+  if [ "$UTSATT_UTEN_REF" -eq "$ref_for" ]; then
+    printf "  ${G}✓${N} korrekt UTSATT (dato + BACKLOG) gir ingen advarsel\n"
+  else
+    printf "  ${R}✗${N} lint slo ut på en korrekt UTSATT-linje (falsk positiv)\n"; feil=1
+  fi
   echo
   if [ "$feil" -eq 0 ]; then
     printf "${G}Selvtest bestått: proben skiller OK fra MANGLER og teller mangler.${N}\n"
@@ -393,12 +449,14 @@ printf "\n${B}─── OPPSUMMERING ───${N}\n"
 if [ "$MANGLER_KREVES" -eq 0 ]; then
   printf "${G}${B}Alt KREVES er på plass.${N}"
 else
-  printf "${R}${B}%s KREVES-avhengighet(er) MANGLER.${N}" "$MANGLER_KREVES"
+  printf "${R}${B}%s KREVES-avhengighet(er) MANGLER${N} ${DIM}— noe som skulle virke, virker ikke${N}" "$MANGLER_KREVES"
 fi
-if [ "$MANGLER_VALGFRI" -gt 0 ]; then
-  printf "  ${Y}(%s valgfri mangler — teller ikke mot exit)${N}" "$MANGLER_VALGFRI"
-fi
+[ "$MANGLER_UTSATT"  -gt 0 ] && printf "  ${Y}(%s utsatt — bevisst, teller ikke)${N}" "$MANGLER_UTSATT"
+[ "$MANGLER_VALGFRI" -gt 0 ] && printf "  ${Y}(%s valgfri — teller ikke)${N}" "$MANGLER_VALGFRI"
 printf "\n"
+if [ "$UTSATT_UTEN_REF" -gt 0 ]; then
+  printf "${R}${B}⚠ %s UTSATT-oppføring(er) uten dato/BACKLOG-ref${N} ${DIM}— fyll inn, ellers er UTSATT bare en avslått alarm${N}\n" "$UTSATT_UTEN_REF"
+fi
 
 # HVA PROBEN IKKE KAN SJEKKE (går videre til flytte-sjekklisten i ny-server-veileder.md § 7):
 printf "${DIM}Proben verifiserer IKKE: DNS/Cloudflare-tunnel, OAuth redirect-URI-er hos\n"
