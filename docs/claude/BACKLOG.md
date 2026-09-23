@@ -236,6 +236,109 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 Georeferanse: nord dreier ved to-punktskalibrering — og den bedre metoden finnes alt (2026-09-23)
+
+**Kenneth 2026-09-23:** georeferering med to koordinater speiler/dreier tegningen, «da er ikke Nord lenger mot
+nord». Og: *«kalibrerer vi med beste metode? … dakux benytter en metode der man setter et koordinat inn i en
+tegning»*.
+
+🔴 **Full utredning med årsak, tall og revidert anbefaling:**
+[designnotat-georeferanse-speiling-design-2026-09-23.md](../redesign/designnotat-georeferanse-speiling-design-2026-09-23.md)
+
+**Kort, bare nok til å vite om saken angår deg:** `dwgKonvertering.ts:969-991` detekterer koordinatsystemet og
+konverterer DWG-ens `extents` — og degraderer så den eksakte transformasjonen til **to punkter på diagonalen**,
+som mates inn i en similaritet som ikke kan uttrykke ulik skala i x og y. **Mistenkte kalibreringer er derfor
+ALLE auto-georefererte DWG-tegninger, ikke bare manuelt kalibrerte.**
+
+**Notatet har fire ting BACKLOG ikke gjentar:** matematikken bak begge årsakene · regnestykket som gir ~71°
+dreining på en 2:1-tegning · metodetabellen som gjør tre punkter til *fallback* og utledning fra `extents` til
+hovedvei · og tre målinger som skal gjøres før noe bygges, der den første er om
+`detekterKoordinatSystem(filnavn, …)` egentlig gjetter fra filnavnet.
+
+**Kenneth-valg som venter i notatet § 7 og tillegget:** metodevalg pr. tegningstype, og om eksisterende
+kalibreringer skal varsles framfor å «fikses» automatisk.
+
+---
+
+### 🔴 Oppstartssjekk for PÅKREVDE binærer — vakten som mangler (design 2026-09-23)
+
+**Utløst av PDF-feilen 2026-09-23:** `pdftoppm` finnes i `sitedoc-api` men ikke i `sitedoc-web`, og tRPC kjører
+**in-process i web**. Tegningsvisning for PDF-tegninger var derfor ødelagt i prod.
+
+🔴 **Testen som skulle fanget det, kan per konstruksjon ikke fange det.**
+`apps/api/src/…/tegning-pdf-batch-dims.test.ts` **mocker bort `node:child_process`** med kommentaren at
+«pdftoppm lykkes uten å kjøre». **En mocket vakt er ikke en vakt** — den er grønn fordi den har fjernet det den
+skulle vokte. Det er «stille tomhet» i en fjerde variant.
+
+**Hva som skal bygges:** en **oppstartssjekk pr. image** som logger høyt når en **påkrevd** binær mangler.
+
+🔴 **Sjekken skal dekke ALLE fire binærene — korrigert 2026-09-23.** Design hevdet først at den bare skulle
+liste det hvert image «krever», fordi de tre andre manglet «med vilje». **Kenneth viste at de ikke gjorde det:
+alle tre virket på gammel server.** Da finnes ingen «med vilje»-kategori, og sjekken skal rope om alle.
+
+🔴 **Men støyproblemet er reelt, og løsningen er en FORVENTET TILSTAND pr. binær pr. image — ikke bare en
+liste over navn:**
+
+| Tilstand | Betyr | Logg |
+|---|---|---|
+| **påkrevd** | skal finnes; mangler = feil | **høyt, og røyklista skal feile** |
+| **utsatt** | bevisst ikke installert ennå, med **dato og BACKLOG-referanse** | **én linje ved oppstart**, ikke gjentatt støy |
+
+**Poenget med «utsatt» er at den tvinger fram en beslutning.** Å flytte en binær dit krever at noen skriver
+hvorfor og hvor saken står. **Å la den stå som «påkrevd» og ignorere loggen, er det som skjedde fra juni til
+september.** En sjekk uten denne todelingen blir slått av innen en uke — og da er vakten død på nytt.
+
+**Utgangstilstand:** `pdftoppm` **påkrevd** i både web og api. `dwgread`/`ODAFileConverter` og
+`CloudCompare`/`PotreeConverter` **utsatt**, med referanse til posten under, til noen bestemmer noe annet.
+
+---
+
+### 🔴 TRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10 — uoppdaget i tre og en halv måned (funnet 2026-09-23)
+
+**Kilde:** coworks måling 2026-09-23, etter at Kenneth kjørte `command -v` i begge containere.
+
+| Binær | `sitedoc-web` | `sitedoc-api` |
+|---|---|---|
+| `pdftoppm` | 🔴 mangler | 🟢 `/usr/bin/pdftoppm` |
+| `dwgread` · `ODAFileConverter` | mangler | **mangler** |
+| `CloudCompare` · `PotreeConverter` | mangler | **mangler** |
+
+🔴 **KORRIGERT 2026-09-23. Dette er ikke en akseptert mangel — det er tapt funksjonalitet.**
+
+**Kenneth, ordrett:** *«jeg kjørte 3d, dwg og pdf tegninger fra gammel server → jeg har ikke testet dette etter
+flytting av server til server-ny».*
+
+**Alle tre virket på Kenspill. Ingen av dem er testet etter serverbyttet 2026-06-10.**
+
+| Funksjon | Binær | Tilstand | Kostnad |
+|---|---|---|---|
+| **PDF-tegning** | `pdftoppm` | 🟡 **delvis** — i api, mangler i web | 🟢 én linje i `Dockerfile.web` |
+| **DWG** | `dwgread` / `ODAFileConverter` | 🔴 **borte** | ODA-konto + `.deb`, eller libredwg fra kilde |
+| **3D / punktsky** | `CloudCompare` + `PotreeConverter` | 🔴 **borte** | ⚠️ **ikke målt** |
+
+⚠️ **Kommentaren i `docker/Dockerfile.api:36-38`** — «Uten det feiler KUN DWG→DXF-konvertering; resten av
+API-et virker» — **ble lest som en akseptert avveining. Den var en notis til seg selv om noe som skulle ordnes
+senere.** «Senere» kom aldri, fordi ingen testet. ODAFileConverter-blokken på `:40-46` står bevisst
+utkommentert (krever ODA-konto og en `.deb` i `docker/vendor/`).
+
+🔴 **En kunde som laster opp en DWG i dag, får en feil ingen har planlagt for — i tre og en halv måned.**
+
+**Skal det virke, kreves ett av to:** ODA-konto + `.deb` i `docker/vendor/` (blokken finnes, utkommentert), eller
+libredwg bygget fra kilde i imaget.
+
+⚠️ **Punktsky feiler i det minste lesbart:** `punktskyKonvertering.ts:52` og `:102` kaster «CloudCompare er
+ikke installert på serveren». **Men en lesbar feil på en funksjon som SKAL virke, er ikke en dokumentert
+mangel — det er en tapt funksjon med god feilmelding.** Design leste den først som det første; det var galt.
+
+🔴 **Og banneret lyver for alle konverteringsfeil:** `tegninger/page.tsx:883` sier «DWG-konvertering feilet»
+uansett hva som feilet. **Det kostet PDF-undersøkelsen 2026-09-23 en runde i feil retning.** Enlinjefiks:
+«Konvertering feilet».
+
+**Beslektet, og viktigere enn saken selv:** `tegning-pdf-batch-dims.test.ts` mocker bort `node:child_process`
+og kan **per konstruksjon** aldri fange at en binær mangler. Se BACKLOG-posten om oppstartssjekk for påkrevde
+binærer.
+
+
 ### 🔴 Stille duplikater i kontrollplanen — en vakt som slipper NULL forbi (design 2026-09-23, målt)
 
 - `omrade.slett` (`omrade.ts:122`) er en **naken `prisma.omrade.delete`** — ingen opptelling, ingen vakt.
