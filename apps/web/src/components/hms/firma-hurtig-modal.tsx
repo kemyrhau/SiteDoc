@@ -16,6 +16,7 @@ const STATUS_I18N: Record<string, string> = {
   responded: "status.besvart",
   approved: "status.godkjent",
   rejected: "status.avvist",
+  dismissed: "status.avvist",
   closed: "status.lukket",
   cancelled: "status.avbrutt",
 };

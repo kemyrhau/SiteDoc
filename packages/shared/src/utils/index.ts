@@ -16,8 +16,8 @@ export { GRATIS_DOKUMENT_GRENSE, grenseNaadd } from "./prosjektGrense";
 export type { GrenseVilkaar } from "./prosjektGrense";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
-export { klassifiserReise, estimerReisetidMin, REISE_LONNSART_REGEX } from "./reise";
-export type { ReiseKategori, ReiseRegelsett, ReiseEnhet, ReiseMaaling } from "./reise";
+export { klassifiserReise, estimerReisetidMin, løsReiseLonnsartId, REISE_LONNSART_REGEX } from "./reise";
+export type { ReiseKategori, ReiseRegelsett, ReiseEnhet, ReiseMaaling, ReiseGrensepunkt } from "./reise";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";
 export type { KoordinatSystem } from "./koordinatKonvertering";
 export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } from "./koordinatBro";
@@ -26,6 +26,8 @@ export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
 export { harTegningsmarkor } from "./tegningsmarkor";
 export type { MarkorFelter } from "./tegningsmarkor";
+export { byggBibliotekRader, bibliotekFaseHeadingLabel, faseFraHeadingLabel } from "./bibliotekRader";
+export type { BibliotekFeltData, BibliotekRadData } from "./bibliotekRader";
 export {
   nesteLedd,
   forrigeBallLedd,
@@ -152,11 +154,22 @@ export {
 } from "./grenseSjekk";
 export type { Grense, GrenseStatus, KravType, GrenseVariant } from "./grenseSjekk";
 export {
+  erBetingelseOppfylt,
+  erObjektSynlig,
+  harEgetUtloserSett,
+  settForelderBetingelseVerdier,
+  BETINGELSE_EGEN_NOKKEL,
+} from "./betingelse";
+export type { SynlighetsObjekt } from "./betingelse";
+export {
   grupperMedOverskrift,
   beregnSeksjonUtfylling,
+  kanSlasSammen,
+  nesteKollapsTilstand,
   IKKE_TELLBARE_FELTTYPER,
+  SEKSJONSGRENSE_TYPER,
 } from "./seksjoner";
-export type { Seksjon, SeksjonUtfylling } from "./seksjoner";
+export type { Seksjon, SeksjonUtfylling, SeksjonTilstand } from "./seksjoner";
 export {
   HURTIGVALG_STANDARD,
   PERIODE_NOEKKEL,
@@ -167,6 +180,13 @@ export {
 } from "./periode";
 export type { Periode, PeriodeHurtigvalg } from "./periode";
 export { ENDELSE_FRA_MIME, saniter, sikreEndelse } from "./filnavn";
+export { velgOfflineListeKilde } from "./offlineListe";
+export type {
+  OfflineListeKilde,
+  OfflineListeTilstand,
+  OfflineListeInput,
+  OfflineListeValg,
+} from "./offlineListe";
 export {
   avledSjekklisteFremdrift,
   avledPunktFremdrift,
@@ -182,7 +202,7 @@ export type {
   TilstandVisning,
   UkeRef,
 } from "./kontrollplanFremdrift";
-export { perspektivEtikett, utledPerspektiv, kvitteringEtikett } from "./perspektivEtikett";
+export { perspektivEtikett, utledPerspektiv, kvitteringEtikett, noeytralEtikett } from "./perspektivEtikett";
 export type {
   BadgeVariant,
   Perspektiv,

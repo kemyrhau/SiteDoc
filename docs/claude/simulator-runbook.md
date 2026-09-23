@@ -2,7 +2,7 @@
 name: simulator-runbook
 description: iOS-simulator ende-til-ende — oppstart, innlogging, tastene, brukerbytte og feilsøkingstabell. Alt verifisert 2026-07-07 under 2a-verifiseringsrunden. Hindrer at feilsøkingsløypa gjentas.
 status: aktiv
-sist_verifisert_mot_kode: 2026-07-07
+sist_verifisert_mot_kode: 2026-09-22 — Xcode 27-oppstartsløypa (headless xcodebuild+simctl, SimulatorKit-symlink, deployment-target-fiks, env-presedens, prod-sperre) verifisert ende-til-ende mot test (gitSha 47f24ed8). Den gamle `expo run:ios`-GUI-veien (§1) er Xcode ≤ 16 og ikke re-verifisert.
 ---
 
 # Simulator-runbook — oppstart til innlogget (test-miljø)
@@ -36,6 +36,114 @@ Ende-til-ende-oppskrift for å teste mobil-appen i iOS-simulator mot **test-API*
 Sikkerhetsgrense, testbrukere og tunnelens rotårsak: se
 [dev-login-agent.md](dev-login-agent.md) (dette dokumentet er den praktiske løypa,
 dev-login-agent.md er kilden for whitelist/secret/tunnel-teori).
+
+## 🔴 Xcode 27 (fra sept. 2026) — den gamle oppkoblingen virker ikke. Les denne først.
+
+Xcode 27 (build `27A266a`) la om simulator-verktøyene. Tre ting brøt samtidig, og
+`npx expo run:ios` / `open -a Simulator` er **død vei** nå. Symptomer og fiks står i
+[§ 4 Feilsøkingstabell](#4-feilsøkingstabell-symptom--årsak--fiks); her er den **gjeldende
+oppstartsløypa** som faktisk virker. Agenten trenger ikke GUI-vinduet — `simctl` (headless) +
+`idb` + `simctl io screenshot` leser skjermen uten det.
+
+**Hva som brøt (kort — detalj i feilsøkingstabellen):**
+1. **`Simulator.app` er fjernet fra Xcode-bunten.** Apple flyttet hjelpe-appene fra
+   `Contents/Developer/Applications/` til `Contents/Applications/` og droppet den frittstående
+   `Simulator.app` (erstattet av `DeviceHub.app`). `expo run:ios` feiler med
+   `Can't determine id of Simulator app`. **Xcode.app er ~3,7 GB og ser avkuttet ut — det er
+   den ikke.** Reinstall hjelper ikke (kostet en full reinstall å bekrefte 2026-09-22).
+2. **`idb ui tap`/`text`/`swipe` (HID) feiler** fordi idb leter etter `SimulatorKit.framework`
+   på gammel sti. Krever symlink (steg 0 under). `idb ui describe-all` (a11y-lesing) virker uten.
+3. **`xcodebuild` feiler** fordi gamle Pods har `IPHONEOS_DEPLOYMENT_TARGET` < 15.0. Løses med
+   én flagg-overstyring (steg 3 under).
+
+### Steg 0 — SimulatorKit-symlink (ÉN gang, krever Kenneths `sudo`)
+
+idb trenger `SimulatorKit.framework` på den gamle stien. Xcode 27 flyttet den til
+`Contents/SharedFrameworks/`. Pek gammel sti dit:
+
+```bash
+sudo mkdir -p /Applications/Xcode.app/Contents/Developer/Library/PrivateFrameworks
+```
+
+```bash
+sudo ln -s /Applications/Xcode.app/Contents/SharedFrameworks/SimulatorKit.framework /Applications/Xcode.app/Contents/Developer/Library/PrivateFrameworks/SimulatorKit.framework
+```
+
+🔴 **Dette endrer Xcode-bunten.** Den overlever til neste Xcode-oppdatering (som kan gjenskape
+den gamle mappa og gjøre symlinken overflødig eller stå i veien). **Fjern den når testøkta er
+ferdig** — eller meld eksplisitt at den står:
+
+```bash
+sudo rm /Applications/Xcode.app/Contents/Developer/Library/PrivateFrameworks/SimulatorKit.framework
+```
+
+*(Merk: hver ny agent-økt trenger symlinken. Lar du den stå, slipper neste økt steg 0 — men da
+er Xcode-bunten modifisert mellom øktene, og det skal være et bevisst valg, ikke en glemsel.)*
+
+### Steg 1 — boot device (headless, ingen GUI)
+
+```bash
+xcrun simctl boot "iPhone 16 Plus"
+```
+
+```bash
+xcrun simctl list devices booted | grep Booted
+```
+
+### Steg 2 — SSH-tunnel (Kenneths hånd — delt/prod-host, sandkassen blokkerer agenten)
+
+```bash
+ssh -N -L 3301:localhost:3301 server-ny
+```
+
+Ingen output = står. Prompt tilbake = falt ned.
+
+### Steg 3 — Metro + native bygg (fra `apps/mobile`)
+
+Metro først (Debug henter JS + `EXPO_PUBLIC_*` fra Metro ved runtime):
+
+```bash
+npx expo start --clear
+```
+
+Bygg headless med **deployment-target-overstyringen** (uten den: `BUILD FAILED` på gamle Pods):
+
+```bash
+UDID=$(xcrun simctl list devices booted | awk -F'[()]' '/Booted/{print $2; exit}')
+xcodebuild -workspace ios/SiteDoc.xcworkspace -scheme SiteDoc -configuration Debug -sdk iphonesimulator -destination "id=$UDID" -derivedDataPath ios/build IPHONEOS_DEPLOYMENT_TARGET=15.1 -quiet build
+```
+
+### Steg 4 — installer + start appen
+
+```bash
+xcrun simctl install booted ios/build/Build/Products/Debug-iphonesimulator/SiteDoc.app
+```
+
+```bash
+xcrun simctl launch booted com.kemyrhau.sitedoc
+```
+
+### Steg 5 — les skjermen (a11y, ikke skjermbilde)
+
+```bash
+IDB_UDID=$(xcrun simctl list devices booted | awk -F'[()]' '/Booted/{print $2; exit}') idb ui describe-all
+```
+
+Tap/tekst/swipe krever symlinken fra steg 0. Skjermbilde ved visuelt behov:
+`xcrun simctl io booted screenshot skjerm.png`.
+
+### 🔴 Sperre FØR du logger inn: verifiser at appen IKKE peker på prod
+
+`.env`-filene vinner over shell-eksport, og en `.env.local` med prod-URL kan sende appen mot
+**produksjon** uten at du merker det (se [§ 3a Env-presedens](#3a-env-presedens--pek-appen-mot-test-uten-å-røre-envlocal)).
+Kjør denne i `apps/mobile` og **avbryt hvis den viser `api.sitedoc.no`**:
+
+```bash
+cd apps/mobile; for f in .env.development.local .env.local .env; do [ -f "$f" ] || continue; V=$(grep -E '^EXPO_PUBLIC_API_URL=' "$f" | head -1 | cut -d= -f2-); [ -n "$V" ] && { echo "API_URL=$V  (fra $f)"; break; }; done
+```
+
+Runtime-bekreftelse: dev-login **lykkes** kun mot test — prod svarer `404` på `/dev-login`.
+Ser du prod-404, står appen på prod. Fiks env (§ 3a) før du gjør noe mer.
 
 ## 0. Fast simulator-worktree (`SiteDoc-simulator`) — kjør dette først
 
@@ -85,6 +193,10 @@ Kenneth kan starte simulatoren selv herfra når som helst; simulator-Opus bruker
 (koordiner så ikke to Metro-instanser kjemper om samme device).
 
 ## 1. Oppstartssekvens (to terminaler)
+
+> 🔴 **På Xcode 27 er `npx expo run:ios` død vei** (den frittstående `Simulator.app` finnes
+> ikke). Bruk den headless-løypa i **§ Xcode 27-oppstart** øverst i dokumentet. Avsnittet under
+> beskriver den gamle GUI-veien og gjelder kun Xcode ≤ 16, der `Simulator.app` finnes.
 
 **Terminal A — SSH-tunnel (hold åpen hele økta):**
 ```
@@ -157,10 +269,74 @@ Kaldstart uten gyldig token lander på innloggingsskjermen. (Bi-observasjon: `Ny
 navigasjon`-togglen kan vises stale i utloggingsvinduet — `bruker.hentMin`-cachen
 tømmes ved kaldstart/ny innlogging.) Se [BACKLOG](BACKLOG.md).
 
+## 3a. Env-presedens — pek appen mot test uten å røre `.env.local`
+
+🔴 **Dette funnet gjelder ikke bare simulatoren — det gjelder ethvert Expo-bygg.**
+
+Expo (`@expo/env`) laster `.env`-filene med **«first-wins»**: den FØRSTE fila som setter en
+nøkkel, vinner, og senere filer overstyrer ikke. I development-modus (`expo start`) er
+rekkefølgen:
+
+```
+.env.development.local  →  .env.local  →  .env.development  →  .env
+```
+
+**To feller som kostet flere runder 2026-09-22:**
+
+1. **Shell-eksport overstyrer IKKE `.env`-filene.** `EXPO_PUBLIC_API_URL=... npx expo start`
+   blir ignorert — `@expo/env` vinner over prosessmiljøet (motsatt av vanlig dotenv). Verifisert.
+2. **`apps/mobile/.env.local` (gitignorert) peker på PROD.** Den setter
+   `EXPO_PUBLIC_API_URL=https://api.sitedoc.no` og slår `.env` sin `http://localhost:3301`.
+   Resultat: appen traff **produksjon** stille, og dev-login ga `404` (prod har ikke `/dev-login`).
+
+**Env-filene som finnes nå (målt 2026-09-22):**
+
+| Fil | `EXPO_PUBLIC_API_URL` | Merknad |
+|---|---|---|
+| `.env` | `http://localhost:3301` | + `EXPO_PUBLIC_DEV_LOGIN_SECRET` (secreten bor KUN her) |
+| `.env.local` | `https://api.sitedoc.no` (**PROD**) | Kenneths — **rør aldri** |
+| `.env.test` | `https://api-test.sitedoc.no` | |
+| `.env.production` | `https://api.sitedoc.no` | |
+
+**Riktig måte å tvinge appen mot test (localhost:3301) uten å røre `.env.local`:** lag en
+**midlertidig** `.env.development.local` (høyest presedens), og slett den etterpå.
+
+Verifiser at den er gitignorert FØR du skriver den:
+
+```bash
+git check-ignore -v apps/mobile/.env.development.local
+```
+
+Skriv den (kun API_URL — secreten arves fra `.env` fordi first-wins er per nøkkel):
+
+```bash
+printf 'EXPO_PUBLIC_API_URL=http://localhost:3301\n' > apps/mobile/.env.development.local
+```
+
+Restart Metro med `--clear` (`EXPO_PUBLIC_*` inlines per fil ved transform, cache-nøklet på
+filinnhold — uten `--clear` gjenbrukes gammel verdi):
+
+```bash
+npx expo start --clear
+```
+
+Slett den når du er ferdig og bekreft:
+
+```bash
+rm -f apps/mobile/.env.development.local && ls apps/mobile/.env.development.local 2>/dev/null || echo "slettet"
+```
+
 ## 4. Feilsøkingstabell (symptom → årsak → fiks)
 
 | Symptom | Årsak | Fiks |
 |---|---|---|
+| `CommandError: Can't determine id of Simulator app; the Simulator is most likely not installed` (fra `npx expo run:ios` **og** `open -a Simulator`) | **Xcode 27** fjernet den frittstående `Simulator.app` fra bunten (hjelpe-appene flyttet til `Contents/Applications/`, GUI erstattet av `DeviceHub.app`) | **Ikke reinstaller Xcode** (3,7 GB er normalt for 27, ikke avkuttet — bekreftet med full reinstall). Bygg headless: `xcodebuild` + `simctl install/launch` (se § Xcode 27-oppstart øverst) |
+| `SimulatorKit is required for HID interactions: Error ... '/Applications/Xcode.app/Contents/Developer/Library/PrivateFrameworks/SimulatorKit.framework' ... does not exist` (fra `idb ui tap`/`text`/`swipe`) | Xcode 27 flyttet `SimulatorKit.framework` til `Contents/SharedFrameworks/`; idb leter på gammel sti | Symlink gammel→ny sti (sudo, se steg 0 øverst). `idb ui describe-all` (a11y) virker uten symlinken — kun input krever den |
+| `error: The iOS Simulator deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 12.0, but the range of supported deployment target versions is 15.0 to 27.0.x` → `** BUILD FAILED **` (Pods: ReachabilitySwift, react-native-maps, SDWebImage, RNSVG m.fl.) | Gamle Pods deklarerer deployment target < 15.0; Xcode 27 krever minst 15.0 | Legg `IPHONEOS_DEPLOYMENT_TARGET=15.1` på `xcodebuild`-kommandolinjen (overstyrer alle targets, ingen Podfile-endring) |
+| Dev-login feiler: `Dev-login ikke aktiv (https://api.sitedoc.no/dev-login → 404)` | `.env.local` overstyrer `EXPO_PUBLIC_API_URL` til **PROD** (first-wins slår `.env`) | Midlertidig `.env.development.local=http://localhost:3301` + `expo start --clear` (se § 3a). **Kjør prod-sperren først.** |
+| Shell-eksport `EXPO_PUBLIC_API_URL=... npx expo start` ignoreres | `@expo/env` first-wins fra `.env`-filer slår prosessmiljøet | Bruk `.env.development.local` (høyest presedens), ikke shell-eksport (§ 3a) |
+| Appens versjon-footer viser gammel git-hash etter tre-oppdatering | Git-SHA bakes inn i native `Constants.manifest` ved `xcodebuild`-tid; Metro-JS er allerede fersk | Rebuild native (`xcodebuild`) for å regenerere manifesten. JS-atferden er allerede oppdatert via Metro — footeren er kun etikett |
+| «Send til …»-knappen virker død (ingen sending, dialog eller logg) | RN-dev-toasten `Open debugger to view warnings` ligger over knappen og avskjærer tappet | Dismiss toasten (tapp `×`) før du tapper Send. Gjelder Debug-bygg |
 | `Invalid regular expression flag` fra `.env.eas.local` ved `expo run:ios` | Metro `blockList`-glob traff env-fil | Fikset (Metro `blockList`-mønster) — nevnes fordi den blokkerte hele bygget. Ved retur: sjekk `metro.config.js` blockList |
 | `Network request failed` (RN-fetch) | (a) tunnel nede · (b) iOS Local Network-privacy · (c) feil API-URL | (a) sjekk Terminal A henger · (b) loopback omgår klassen — bruk `localhost` · (c) `apps/mobile/.env` = `http://localhost:3301` |
 | `401` / `SECRET_MANGLER` fra `/dev-login` | `DEV_LOGIN_SECRET` matcher ikke mellom mobil-bundel og server-container | Sjekksum-prosedyre (aldri echo verdien): sammenlign `sha1sum` av Mac-`.env`-verdi, `docker/env/api-test.env` på server, og container-runtime (`/proc/PID/environ`). Env-endring krever **recreate** api + **force-recreate** web — se [DOCKER-NOTES.md punkt 8](../../docker/DOCKER-NOTES.md) |

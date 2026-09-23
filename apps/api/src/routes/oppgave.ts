@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
+import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
@@ -7,6 +8,7 @@ import { kollisjonsmerge, type Kollisjon } from "../services/kollisjonsmerge";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { medNummerRetry } from "../utils/nummerRetry";
+import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
@@ -203,6 +205,23 @@ export const oppgaveRouter = router({
                 },
                 orderBy: { steg: "asc" },
               },
+            },
+          },
+          // Ramme 4 (videresend synlig konsekvens): siste overføring, slik at
+          // mottakerens rad kan vise «hvem sendte + hvorfor», ikke bare et nytt dokument.
+          // READ-ONLY select-utvidelse — ingen ny prosedyre/signatur/tilgangssjekk. take:1
+          // gjør dette til ÉN batchet relasjons-spørring (ikke N+1). Feltene finnes allerede
+          // på DocumentTransfer (senderRolle/senderEnterpriseName er snapshot) — ingen schema-endring.
+          transfers: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            select: {
+              senderId: true,
+              comment: true,
+              createdAt: true,
+              senderRolle: true,
+              senderEnterpriseName: true,
+              sender: { select: { id: true, name: true } },
             },
           },
           _count: { select: { images: true, transfers: true } },
@@ -435,8 +454,10 @@ export const oppgaveRouter = router({
         drawingId: z.string().uuid().optional(),
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
-        // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
-        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        // Lokasjonsomfang (2026-09-04): "byggeplass" = hele byggeplassen · "punkt" = pin ·
+        // "omrade" (steg 2b) = et definert område (krever omradeId — DoD 12).
+        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
         dokumentflytId: z.string().uuid().optional(),
         checklistId: z.string().uuid().optional(),
@@ -444,6 +465,8 @@ export const oppgaveRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // DoD 12 (steg 2b): omfang="omrade" krever et valgt område.
+      krevOmradeVedOmradeOmfang(input.lokasjonOmfang, input.omradeId);
       // Hent malen for å sjekke domain (HMS vs standard)
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id: input.templateId },
@@ -456,6 +479,12 @@ export const oppgaveRouter = router({
       });
 
       const erHms = mal.domain === "hms";
+
+      // Effektiv bestiller/utfører: klientens input, ELLER server-utledning fra flyten
+      // når klienten ikke sender dem (mobil-opprettelsen gjør det ikke lenger — ordre
+      // 2026-09-22). Utledes i standard-grenen under.
+      let effektivBestiller = input.bestillerFaggruppeId;
+      let effektivUtforer = input.utforerFaggruppeId;
 
       // HMS-oppgaver: auto-rut til HMS-gruppen, ingen faggruppe
       let recipientGroupId: string | undefined;
@@ -501,14 +530,36 @@ export const oppgaveRouter = router({
             message: "Dokumentflyt er påkrevd for denne oppgavetypen. Velg en flyt som bruker malen.",
           });
         }
-        // Standard: faggrupper påkrevd
-        if (!input.bestillerFaggruppeId || !input.utforerFaggruppeId) {
+        // Utled bestiller/utfører fra flyten når klienten ikke sender dem (mobil-
+        // opprettelsen gjør det ikke lenger). Speiler sjekkliste.opprett/web: bestiller =
+        // flytens eier-faggruppe, utfører = utfører-medlem (fallback eier). Web sender
+        // fortsatt samme verdi → utledningen flytter INGEN rettighet (tilhørighetssjekken
+        // under kjører på samme faggruppe som før).
+        if (!effektivBestiller || !effektivUtforer) {
+          const flyt = await ctx.prisma.dokumentflyt.findUnique({
+            where: { id: input.dokumentflytId },
+            select: {
+              faggruppeId: true,
+              medlemmer: {
+                where: { rolle: "utforer", periodeSlutt: null },
+                select: { faggruppeId: true },
+              },
+            },
+          });
+          const utledet = utledBestillerUtforer(
+            flyt ? { faggruppeId: flyt.faggruppeId, utforerMedlemmer: flyt.medlemmer } : null,
+          );
+          effektivBestiller = effektivBestiller ?? utledet.bestiller;
+          effektivUtforer = effektivUtforer ?? utledet.utforer;
+        }
+        // Standard: faggrupper påkrevd (etter utledningsforsøket over)
+        if (!effektivBestiller || !effektivUtforer) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Bestiller- og utfører-faggruppe er påkrevd for denne oppgavetypen",
           });
         }
-        await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
+        await verifiserFaggruppeTilhorighet(ctx.userId, effektivBestiller);
 
         // F1/B2 (paritet): valider at (a) flyten har den valgte malen og (b) brukeren er oppretter-
         // medlem (rollen lagret som "registrator"). Ingen bypass — også admin må være registrator-
@@ -607,8 +658,8 @@ export const oppgaveRouter = router({
             templateId: input.templateId,
             bestillerUserId: ctx.userId,
             eierUserId: ctx.userId,
-            bestillerFaggruppeId: input.bestillerFaggruppeId ?? null,
-            utforerFaggruppeId: input.utforerFaggruppeId ?? null,
+            bestillerFaggruppeId: effektivBestiller ?? null,
+            utforerFaggruppeId: effektivUtforer ?? null,
             title: input.title,
             subject: input.subject,
             description: input.description,
@@ -619,6 +670,7 @@ export const oppgaveRouter = router({
             positionX: input.positionX,
             positionY: input.positionY,
             lokasjonOmfang: input.lokasjonOmfang,
+            omradeId: input.omradeId,
             lokasjonFritekst: input.lokasjonFritekst,
             dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
             checklistId: input.checklistId,
@@ -665,7 +717,8 @@ export const oppgaveRouter = router({
         drawingId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
-        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
     )
@@ -689,6 +742,14 @@ export const oppgaveRouter = router({
       );
 
       const { id, ...data } = input;
+
+      // DoD 12 (steg 2b): valider mot EFFEKTIV tilstand (input der satt, ellers dagens verdi) —
+      // så «sett omfang=omrade uten å sende omradeId» fanges hvis raden ikke alt har et område,
+      // og «tøm omradeId mens omfang=omrade» fanges (undefined = ikke rørt, null = eksplisitt tømt).
+      krevOmradeVedOmradeOmfang(
+        input.lokasjonOmfang !== undefined ? input.lokasjonOmfang : oppgave.lokasjonOmfang,
+        input.omradeId !== undefined ? input.omradeId : oppgave.omradeId,
+      );
 
       // Append-only: metadata (tittel/lokasjon/faggruppe/frist osv.) kan kun endres i utkast.
       // UNNTAK — `subject` (emne): det er en merkelapp for gjenfinning, ikke dokumentasjon av
@@ -1195,6 +1256,10 @@ export const oppgaveRouter = router({
         select: {
           id: true,
           name: true,
+          // Bundet flyt (bundet-flyt-mobil 2026-09-17): eksponer EGENSKAPEN på gjeldende flyt så
+          // mobil kan speile serversperren. kanByttFlyt/andre/kanFlytte er URØRT — bundet er en
+          // egenskap ved flyten, ikke en rettighet (Kenneth-vedtak).
+          bundet: true,
           faggruppe: { select: { id: true, name: true, color: true } },
           medlemmer: {
             select: {
@@ -1248,6 +1313,7 @@ export const oppgaveRouter = router({
           ? {
               id: gjeldendeFlyt.id,
               name: gjeldendeFlyt.name,
+              bundet: gjeldendeFlyt.bundet,
               faggruppe: gjeldendeFlyt.faggruppe,
               medlemmer: gjeldendeFlyt.medlemmer,
               brukersBoks: finnBrukersBoks(gjeldendeFlyt, tilgang),
@@ -1370,6 +1436,24 @@ export const oppgaveRouter = router({
         // Sjekk om dokumentflyt/faggruppe endres
         let flytBytteData: { dokumentflytId: string; utforerFaggruppeId: string; nyFaggruppeNavn: string; nyFlytNavn: string } | null = null;
         if (input.dokumentflytId && input.dokumentflytId !== oppgave.dokumentflytId) {
+          // Bundet flyt (fabel-tegning 2026-09-16, Kenneth-gatet): en flyt merket `bundet`
+          // holder dokumentene sine — flyt-BYTTE ut av den er forbudt for ALLE i prosjektet.
+          // Egenskap VED FLYTEN, ikke en rettighet (kanByttFlyt er urørt). Videresend INNEN egen
+          // flyt endrer ikke dokumentflytId → treffer ikke denne grenen og går fritt gjennom.
+          // Samme feilkode som slettObjekt/↻-sperren (PRECONDITION_FAILED).
+          if (oppgave.dokumentflytId) {
+            const naavaerendeFlyt = await ctx.prisma.dokumentflyt.findUnique({
+              where: { id: oppgave.dokumentflytId },
+              select: { bundet: true },
+            });
+            if (naavaerendeFlyt?.bundet) {
+              throw new TRPCError({
+                code: "PRECONDITION_FAILED",
+                message:
+                  "Bundet flyt: dokumenter hører hjemme i denne flyten og kan ikke flyttes til andre flyter. Det gjelder alle i prosjektet, ikke bare deg.",
+              });
+            }
+          }
           const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
             where: { id: input.dokumentflytId },
             include: { faggruppe: { select: { id: true, name: true } } },

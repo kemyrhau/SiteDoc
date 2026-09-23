@@ -9,7 +9,7 @@ import { beregnHarBallen, filtrerRader, formaterNummer } from "@sitedoc/shared";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
-import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronDown, ChevronRight, Scale } from "lucide-react";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
@@ -45,7 +45,7 @@ interface OppgaveRad {
   createdAt: string;
   updatedAt: string;
   data: Record<string, unknown> | null;
-  template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] } | null;
+  template: { id: string; prefix: string | null; name: string; subdomain: string | null; objects: MalObjekt[] } | null;
   bestiller: { name: string | null } | null;
   bestillerFaggruppe: { name: string } | null;
   utforerFaggruppe: { name: string } | null;
@@ -53,6 +53,17 @@ interface OppgaveRad {
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
   bestillerUserId?: string;
+  /** Retning på siste overgang — «paatvers» = videresendt (ramme 4). */
+  retning: string | null;
+  /** Siste overføring (take:1, nyeste først) — «hvem sendte + hvorfor» (ramme 4). */
+  transfers: {
+    senderId: string;
+    comment: string | null;
+    createdAt: string;
+    senderRolle: string | null;
+    senderEnterpriseName: string | null;
+    sender: { id: string; name: string | null } | null;
+  }[];
   dokumentflyt: {
     id: string;
     name: string;
@@ -235,6 +246,8 @@ export default function OppgaverSide() {
   });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [mineOppgaver, setMineOppgaver] = useState(false);
+  // Kontraktssak-segment (tavle 1): lever i komponent-tilstand (økt) — ikke localStorage, ikke DB.
+  const [segment, setSegment] = useState<"alle" | "oppgaver" | "kontrakt">("alle");
   // Oppgave-opprett tar kun drawingId (oppgave.opprett har ikke byggeplassId —
   // byggeplass utledes via drawing.byggeplassId). Henter standardTegning som
   // kontekst-default (V2); byggeplass-uten-aktiv-tegning kan ikke festes på
@@ -250,7 +263,9 @@ export default function OppgaverSide() {
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // P4b-port (2026-08-03): les `opprettbareFlytIder` (server-beregnet, delt regel med opprett-
   // valideringen) — erstatter den skjøre klient-`matchDf`-heuristikken.
-  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "oppgave");
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; subdomain?: string | null; opprettbar?: boolean; opprettbareFlytIder?: string[]; utilgjengeligÅrsak?: { grunn: "ikkeRegistrator"; faggruppe: string } | { grunn: "ingenFlyt" } | null }>).filter((m) => m.category === "oppgave");
+  // Kontraktssak-segment (tavle 1) vises KUN når prosjektet har minst én kontraktssak-mal.
+  const harKontraktMal = oppgaveMaler.some((m) => m.subdomain === "kontrakt");
   // P4b pkt 0: skill opprettbare fra utilgjengelige (server-feltet, delt regel).
   // Velger + auto-hopp bruker KUN opprettbare; utilgjengelige vises bak «vis (N)».
   const opprettbareOppgaveMaler = oppgaveMaler.filter((m) => m.opprettbar !== false);
@@ -618,6 +633,17 @@ export default function OppgaverSide() {
     return resultat;
   }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier, mineOppgaver, minFlytInfo]);
 
+  // Kontraktssak-segment (tavle 1): tallene er antall ETTER øvrige aktive filtre
+  // (utledet av `filtrerte`), og Oppgaver + Kontraktssaker = Alle. Selve segmentet
+  // filtrerer bare visningen — det endrer aldri hvem som ser hva.
+  const erKontraktRad = (o: OppgaveRad) => o.template?.subdomain === "kontrakt";
+  const antKontrakt = useMemo(() => filtrerte.filter(erKontraktRad).length, [filtrerte]);
+  const synligeRader = useMemo(() => {
+    if (segment === "kontrakt") return filtrerte.filter(erKontraktRad);
+    if (segment === "oppgaver") return filtrerte.filter((o) => !erKontraktRad(o));
+    return filtrerte;
+  }, [filtrerte, segment]);
+
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
   }, []);
@@ -635,13 +661,37 @@ export default function OppgaverSide() {
       filterAlternativer?: { value: string; label: string }[];
       filterSnarveier?: { label: string; verdier: string[] }[];
     }
+    // Ramme 4: siste overføring når dokumentet kom «paatvers» (videresendt) med kommentar OG
+    // ballen er hos innlogget bruker. Da vet vi «hvem sendte + hvorfor» — ikke bare «nytt dokument».
+    const paatversTilMeg = (rad: OppgaveRad) => {
+      const tilMeg = rad.recipientUser?.id != null && rad.recipientUser.id === minFlytInfo?.userId;
+      const t0 = rad.transfers?.[0];
+      return rad.retning === "paatvers" && tilMeg && t0?.comment ? t0 : null;
+    };
     const defs: Record<string, KolDef> = {
       prefix: {
         id: "prefix", header: t("tabell.prefix"),
-        celle: (rad) => rad.template?.prefix
-          ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{rad.template.prefix}</span>
-          : <span className="text-gray-300">—</span>,
-        bredde: "70px", sorterbar: true, sorterVerdi: (rad) => rad.template?.prefix ?? "",
+        // Kontraktssak (tavle 1): ⚖ Scale 14px foran prefikset. Vanlige rader får en tom
+        // 14px-plassholder så prefiksene står på linje. Formen bærer signalet, ikke farge.
+        celle: (rad) => (
+          <span className="inline-flex items-center gap-1">
+            {erKontraktRad(rad) ? (
+              <span
+                className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center"
+                title={t("dokumentklasse.kontraktssak")}
+                aria-label={t("dokumentklasse.kontraktssak")}
+              >
+                <Scale className="h-3.5 w-3.5 text-gray-700" />
+              </span>
+            ) : (
+              <span className="inline-block h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            )}
+            {rad.template?.prefix
+              ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600">{rad.template.prefix}</span>
+              : <span className="text-gray-300">—</span>}
+          </span>
+        ),
+        bredde: "90px", sorterbar: true, sorterVerdi: (rad) => rad.template?.prefix ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.prefix ?? [],
       },
       nr: {
@@ -651,7 +701,27 @@ export default function OppgaverSide() {
       },
       tittel: {
         id: "tittel", header: t("tabell.tittel"),
-        celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
+        celle: (rad) => {
+          const p4 = paatversTilMeg(rad);
+          if (!p4) return <span className="font-medium text-gray-900">{rad.title}</span>;
+          const avsender = p4.sender?.name ?? "?";
+          const rolle = p4.senderEnterpriseName ?? undefined;
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-gray-900">{rad.title}</span>
+              <span className="text-[11px] text-gray-500">
+                {rolle
+                  ? t("videresend.radAvsenderMedRolle", { avsender, rolle })
+                  : t("videresend.radAvsender", { avsender })}
+                {" · "}
+                {formaterDato(p4.createdAt)}
+              </span>
+              <span className="mt-0.5 rounded bg-gray-50 px-2 py-1 text-[11px] italic text-gray-600">
+                «{p4.comment}»
+              </span>
+            </div>
+          );
+        },
         sorterbar: true, sorterVerdi: (rad) => rad.title,
       },
       emne: {
@@ -664,17 +734,28 @@ export default function OppgaverSide() {
       },
       status: {
         id: "status", header: t("tabell.status"),
-        celle: (rad) => (
-          <div className="flex items-center gap-1.5">
-            <StatusBadge status={rad.status} />
-            {["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
-              (rad.recipientUser?.name || rad.recipientGroup?.name) && (
-                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                  {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
+        celle: (rad) => {
+          // Ramme 4 (videresend synlig konsekvens): kom dokumentet «paatvers» (videresendt) med
+          // kommentar, og har DU ballen? Da skal raden si «noen venter på DEG», ikke bare «Mottatt».
+          const p4 = paatversTilMeg(rad);
+          return (
+            <div className="flex items-center gap-1.5">
+              <StatusBadge status={rad.status} />
+              {p4 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 whitespace-nowrap">
+                  ⏳ {t("tabell.venterPaaDeg")}
                 </span>
+              ) : (
+                ["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
+                (rad.recipientUser?.name || rad.recipientGroup?.name) && (
+                  <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                    {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
+                  </span>
+                )
               )}
-          </div>
-        ),
+            </div>
+          );
+        },
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status,
         filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
         filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }],
@@ -826,6 +907,36 @@ export default function OppgaverSide() {
       {/* Filterbar */}
       {(oppgaver?.length ?? 0) > 0 && (
         <div className="mb-3 flex items-center gap-2">
+          {/* Kontraktssak-segment (tavle 1): til venstre for de øvrige filtrene. Vises kun når
+              prosjektet har en kontraktssak-mal. Tallene er antall etter øvrige aktive filtre. */}
+          {harKontraktMal && (
+            <div
+              role="group"
+              aria-label={t("dokumentklasse.segmentTittel")}
+              className="inline-flex overflow-hidden rounded-md border border-gray-200"
+            >
+              {([
+                { id: "alle", navn: t("dokumentklasse.alle"), antall: filtrerte.length, ikon: false },
+                { id: "oppgaver", navn: t("dokumentklasse.oppgaver"), antall: filtrerte.length - antKontrakt, ikon: false },
+                { id: "kontrakt", navn: t("dokumentklasse.kontraktssaker"), antall: antKontrakt, ikon: true },
+              ] as const).map((s, i) => {
+                const aktiv = segment === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSegment(s.id)}
+                    aria-pressed={aktiv}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium ${
+                      i > 0 ? "border-l border-gray-200" : ""
+                    } ${aktiv ? "bg-blue-50 text-sitedoc-primary" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    {s.ikon && <Scale className="h-3.5 w-3.5" />}
+                    {s.navn} ({s.antall})
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {/* Kolonnevelger */}
           <div className="relative">
             <button
@@ -888,7 +999,7 @@ export default function OppgaverSide() {
 
           {/* Antall */}
           <span className="ml-auto text-xs text-gray-400">
-            {filtrerte.length} av {oppgaver?.length ?? 0}
+            {synligeRader.length} av {oppgaver?.length ?? 0}
           </span>
         </div>
       )}
@@ -902,7 +1013,7 @@ export default function OppgaverSide() {
       ) : (
         <Table<OppgaveRad>
           kolonner={kolonneDefinisjoner}
-          data={filtrerte}
+          data={synligeRader}
           radNokkel={(rad) => rad.id}
           onRadKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
           tomMelding={t("oppgaver.ingenMatcherFilter")}
@@ -1002,7 +1113,7 @@ export default function OppgaverSide() {
                       <span className="text-sm font-medium text-gray-500">{m.name}</span>
                       {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
                     </span>
-                    <span className="text-xs text-gray-400">{t("dokumentflyt.feil.ingenFlytMedMal")}</span>
+                    <span className="text-xs text-gray-400">{m.utilgjengeligÅrsak?.grunn === "ikkeRegistrator" ? t("malVelger.ikkeRegistratorIFaggruppe", { faggruppe: m.utilgjengeligÅrsak.faggruppe }) : t("dokumentflyt.feil.ingenFlytMedMal")}</span>
                   </div>
                 ))}
               </div>

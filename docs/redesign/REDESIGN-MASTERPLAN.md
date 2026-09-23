@@ -65,7 +65,52 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 
 - ~~**0a. SJA-signaturrunder**~~ ✅ **LEVERT OG MERGET** (`e2e87123`), på test. **Venter kun fabels skjermbilde-gate.**
 - ~~**0b. MK B+D malrevisjon**~~ ✅ **LEVERT OG MERGET** (`3c40df3e`). **MK C (Vei B) gjenstår** og trenger MalBygger-UI-design først.
-- **0c. DG-tillegg: PDF viser grensekrav** (premiss 3-utskillelsen — arkiv-PDF viser i dag målt verdi uten kravet; snapshot-spørsmålet bor her). 🔴 **Nå øverst i køen** — eneste gjenstående punkt fra fabels egen rekkefølge.
+- ~~**0c. DG-tillegg: PDF viser grensekrav**~~ ✅ **LEVERT** — se remålingen under.
+
+---
+
+## 🔴 REMÅLING MOT KODE 2026-09-11 — planen var fem dager og 44 merge-runder utdatert
+
+> **Kenneth 2026-09-11:** *«vi må oppdatere masterplanen -> det kan være noe som er ferdig der»*.
+> **Han hadde rett.** Alt under er målt mot KODE, ikke mot dokumentasjon — en setning i en
+> docs-fil teller ikke som bevis. `fil:linje` på hver påstand, to søkeformer før «ikke bygget».
+
+### ✅ LEVERT siden planen sist ble ført — fem punkter
+
+| Kode | Bevis |
+|---|---|
+| **0c** DG: PDF viser grensekrav | `packages/pdf/src/hjelpere.ts:32-45` (`GRENSE_STATUSORD`, `byggGrenseVerdi`, s/h-trygt) · `typer.ts:54-57` — **kravsnapshot lagres sidestilt med `verdi`, så snapshot-spørsmålet er løst i praksis** · tester `hjelpere.test.ts:89-110` |
+| **PM** interim-guard | `packages/shared/src/utils/prosjektGrense.ts:11-36` (`GRATIS_DOKUMENT_GRENSE=10`) kalt fra `sjekkliste.ts:449-465` + `oppgave.ts:538-554`. Commit `ded8ddbb`, i `main`. 🔴 **Planen sa «⚠️ IKKE MÅLT» — den var levert** |
+| **MK C** resolver (Vei B) | `malbygger/FeltKonfigurasjon.tsx:432-585` + **seks lesere på begge flater** + delt kjerne `shared/utils/grenseSjekk.ts`. 🔴 **Sekvenslåsen er dermed oppfylt — konverteringslista for de 34 trafikklysene kan nå låses** |
+| **Del 9** modul-oppsettswizard | `lib/onboarding-wizard.ts:38` generisk `OnboardingWizardConfig<T>` + tre instanser (prosjekt/firma/timer) + delt UI `onboarding/veiviser-ui.tsx:31` |
+| **K15** vedlegg på tillegg | `SheetTilleggVedlegg` + REST-opplasting `timer/dagsseddel.ts:1041-1055`, `:1541-1542` |
+| **FL** prosjekt-livssyklus | `36dc3029` — `verifiserProsjektIkkeFrosset` (`tilgangskontroll.ts:78`) på alle 11 porter. **Ikke på noen liste; funnet ved remålingen** |
+
+### ⚠️ DELVIS — mer bygget enn planen tror
+
+| Kode | Hva finnes | Hva gjenstår |
+|---|---|---|
+| **EX** eksport | `EksportJobb` (`schema.prisma:198`) · `routes/eksport.ts:16` · UI `EksportSeksjon.tsx` (`3c6df4bf`) · mobil `Share2` | 🔴 **Navnevedtaket er ikke gjennomført** — «Arkiv-PDF» står fortsatt i `sjekklister/[id]/page.tsx:247`, `oppgaver/[id]/page.tsx:267`, `mobile/app/oppgave/[id].tsx:425` |
+| **AM 2** attestering | STEG 1 `overtidsgrunnlag.ts` + `ukenorm.ts:46` · STEG 2 `5c4d1e8b` pivot + `beregnUkeAvvik` | **STEG 3 attestantvarsel** — koden ber selv om det: `AttesteringPivot.tsx:13` «FABEL → STEG 3». ⚠️ **«40-timers» finnes ikke som begrep** — normen er konfigurerbar ukenorm |
+| **ON** onboarding | `harLokasjon` + `harTegning` skilt (`prosjekt.ts:287-291`) · firmaveiviser i bruk | Selve gaten er en **menneskelig test** — kan ikke måles i kode |
+| **AG** ansvarsgrense | Fabels tekst levert (`ag-ansvarsgrense-produkttekst-fabel-2026-09-06.md`) | **Null treff i kode og i18n** — teksten er skrevet, ikke innplassert |
+| **P2** inndata-validering | Timer krever kommentar (`dagsseddel.ts:3022`) | Dokumentflyt: `endreStatus` (`sjekkliste.ts:1169`) har `kommentar: z.string().optional()` — **«Send tilbake» uten innhold er fortsatt mulig** |
+
+### ❌ IKKE BYGGET — begge søkeformer
+
+**LP** (`lokasjonOmfang` har kun `punkt`/`byggeplass`, `schema.prisma:1168`) · **BL** (`Byggeplass` har kun `status`, `:953`) · **Del 7** seddel-statusfarger · **Del 8** dokumentflyt-redesign · **10/K11 + 10a fase 2** (`admin/prosjekter/` lever) · **K14** admin i søkeregisteret
+
+### 🔴 «Ingenting kan ordres uten fabel» stemmer ikke lenger
+
+**Planen påsto det 2026-09-06 (`:155-157`). Remålingen finner fem saker som kan ordres nå:**
+
+1. **EX ledd 1 — navnebyttet** «Arkiv-PDF» → eksport-språk. Vedtaket er alt tatt; dette er rename over kjente kallsteder.
+2. **P2 — kommentarkrav på `endreStatus`.** Mønsteret finnes i timer. Portering, ikke design.
+3. **MK C konverteringslista** for de 34 trafikklysene — sekvenslåsen er oppfylt.
+4. **10a fase 2** sletting av global prosjektliste — halv designsak (Ctrl+K-erstatningen må bestemmes).
+5. **ON-restansen** — delstatus på lokasjonssteget nå som `harTegning` finnes separat.
+
+**Krever fortsatt fabel:** LP · BL · AG (plassering) · AM 2 steg 3 · EX ledd 2 · Del 7 · Del 8 · 10/K11 · K14.
 
 ⚠️ **Fabels caveat, gjentatt fordi den gjelder:** hendelser mellom 20.08 og 04.09 som ikke gikk
 gjennom fabel er ikke oppdatert i radene hans — særlig DG-status etter HMS-PDF-en 04.09.

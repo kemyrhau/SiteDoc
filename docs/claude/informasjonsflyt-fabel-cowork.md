@@ -7,6 +7,8 @@ sist_endret: 2026-08-20
 
 # Informasjonsflyt fabel ↔ cowork
 
+*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
+
 **Grunnvilkåret:** fabel har **ingen skrivetilgang til SiteDoc-mappen**. Han leverer ved å
 lage en nedlastingspakke som Kenneth pakker ut manuelt. Alt som går galt i flyten, går galt
 her — ikke i innholdet.

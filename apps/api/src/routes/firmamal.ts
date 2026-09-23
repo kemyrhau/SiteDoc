@@ -18,20 +18,54 @@
  *
  * Zone-regelen (🔴 MALBYGGER.md): `config` (som bærer `config.zone`) kopieres VERBATIM
  * i begge retninger. Ingen felt-bygging fra bunnen som kunne tape zone → mobil fryser.
- * Unntak: laanFraSentralarkiv bygger objekter fra BibliotekMal.malInnhold og setter
- * `zone` eksplisitt (som bibliotek.ts importerMal).
+ * Vei C: laanFraSentralarkiv/oppdaterFraSentralarkiv kopierer nå BibliotekMalObjekt-RADER
+ * verbatim (via kopierObjektTre) — ikke lenger bygget fra BibliotekMal.malInnhold.
+ * `byggFirmamalObjekterFraBibliotek` beholdes KUN som uavhengig referanse-implementasjon
+ * for round-trip-testen (bibliotek-roundtrip-rad-json.test.ts); den kalles ikke i prod.
  */
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
+import type { PrismaClient } from "@sitedoc/db";
+import { reportObjectTypeSchema, templateZoneSchema } from "@sitedoc/shared";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   autoriserAdminForFirma,
   verifiserAdmin,
   erFirmaAdminForProsjekt,
+  autoriserMalTilgang,
 } from "../trpc/tilgangskontroll";
-import { finnLedigeMalVerdier } from "./mal";
+import { finnLedigeMalVerdier, objektIderMedInnhold } from "./mal";
+import { kopierObjektTre, diffObjektTre } from "./objektkopi";
+
+// Config-schema (som mal.ts): vilkårlig JSON for rapportobjekt-konfigurasjon.
+const configSchema = z.preprocess(
+  (val) => val,
+  z.record(z.string(), z.unknown()),
+) as z.ZodType<Record<string, unknown>>;
+
+// Firma-objektredigering går gjennom matrisen (Krav 3): firma-arkiv + rediger. Resolver
+// firmaet fra objektets template og gater. Ett sted for nivå→rettighet — en framtidig
+// rettighetsmatrise byttes i autoriserMalTilgang, ikke her.
+async function autoriserFirmaObjektRedigering(
+  prisma: PrismaClient,
+  userId: string,
+  templateId: string,
+): Promise<void> {
+  const mal = await prisma.organizationTemplate.findFirst({
+    where: { id: templateId, deletedAt: null }, // soft-delete-guard (krav 3): ikke rediger objekter på slettet mal
+    select: { organizationId: true },
+  });
+  if (!mal) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+  }
+  await autoriserMalTilgang(userId, {
+    nivaa: "firma",
+    handling: "rediger",
+    organizationId: mal.organizationId,
+  });
+}
 
 // Faner (L9). Firmaarkivet blander aldri de tre kategoriene i én liste.
 //  - oppgave: category="oppgave"
@@ -50,54 +84,84 @@ function faneWhere(fane: (typeof FANER)[number]): Prisma.OrganizationTemplateWhe
   }
 }
 
-// Kilde-objekt slik det leses fra begge mal-tabellene (felles form).
-type KildeObjekt = {
-  id: string;
-  parentId: string | null;
-  type: string;
+
+// `malInnhold`-formen slik den leses fra BibliotekMal (felles for lån + oppdatering).
+type BibliotekFelt = {
   label: string;
-  config: Prisma.JsonValue;
-  translations: Prisma.JsonValue;
+  type: string;
+  zone: string;
+  fase?: string;
+  config?: Record<string, unknown>;
   sortOrder: number;
-  required: boolean;
 };
 
 /**
- * Dyp kopi av objekt-treet mellom ReportObject <-> OrganizationTemplateObject.
- * To-pass id-mapping (som mal.ts kopier): pass 1 oppretter uten parentId og bygger
- * gammel→ny id-map, pass 2 setter parentId. Bevarer treet uansett sortOrder, og
- * kopierer `config`/`translations` VERBATIM (zone-regelen).
+ * Bygg firmamalens objekt-tre fra en bibliotekmals `malInnhold`. Faser (FØR/UNDER/
+ * ETTER) får en `heading` foran feltene sine, felt uten fase legges til slutt.
+ * Zone settes eksplisitt (zone-regelen, MALBYGGER.md) — som bibliotek.ts importerMal.
+ *
+ * Delt av `laanFraSentralarkiv` (førstegangs lån) og `oppdaterFraSentralarkiv`
+ * (re-synk): begge må bygge IDENTISK tre, ellers ville en oppdatering avvike fra et
+ * ferskt lån av samme mal.
  */
-async function kopierObjektTre(
-  kildeObjekter: KildeObjekt[],
-  opprett: (data: {
+export async function byggFirmamalObjekterFraBibliotek(
+  create: (data: {
     type: string;
     label: string;
-    config: Prisma.InputJsonValue;
-    translations: Prisma.InputJsonValue;
     sortOrder: number;
-    required: boolean;
-  }) => Promise<{ id: string }>,
-  settParent: (id: string, parentId: string) => Promise<void>,
+    config: Prisma.InputJsonValue;
+  }) => Promise<unknown>,
+  malInnhold: BibliotekFelt[],
 ): Promise<void> {
-  const idMap = new Map<string, string>();
-  for (const obj of kildeObjekter) {
-    const nytt = await opprett({
-      type: obj.type,
-      label: obj.label,
-      config: (obj.config ?? {}) as Prisma.InputJsonValue,
-      translations: (obj.translations ?? {}) as Prisma.InputJsonValue,
-      sortOrder: obj.sortOrder,
-      required: obj.required,
+  if (!Array.isArray(malInnhold) || malInnhold.length === 0) return;
+
+  const faser = [...new Set(malInnhold.map((f) => f.fase).filter(Boolean))];
+  let sortIdx = 0;
+
+  for (const fase of faser) {
+    sortIdx++;
+    await create({
+      type: "heading",
+      label:
+        fase === "FØR"
+          ? "Kontroll FØR utførelse"
+          : fase === "UNDER"
+            ? "Kontroll UNDER utførelse"
+            : "Kontroll ETTER utførelse",
+      sortOrder: sortIdx,
+      config: { zone: "datafelter" },
     });
-    idMap.set(obj.id, nytt.id);
+    for (const f of malInnhold.filter((x) => x.fase === fase)) {
+      sortIdx++;
+      await create({
+        type: f.type,
+        label: f.label,
+        sortOrder: sortIdx,
+        config: { zone: f.zone ?? "datafelter", ...f.config },
+      });
+    }
   }
-  for (const obj of kildeObjekter) {
-    if (!obj.parentId) continue;
-    const nyId = idMap.get(obj.id);
-    const nyParentId = idMap.get(obj.parentId);
-    if (nyId && nyParentId) await settParent(nyId, nyParentId);
+
+  for (const f of malInnhold.filter((x) => !x.fase)) {
+    sortIdx++;
+    await create({
+      type: f.type,
+      label: f.label,
+      sortOrder: sortIdx,
+      config: { zone: f.zone ?? "datafelter", ...f.config },
+    });
   }
+}
+
+/** Referanse-beskrivelse fra en bibliotekmal (standard-kode + referanse + beskrivelse). */
+function bibliotekBeskrivelse(bibMal: {
+  referanse: string;
+  beskrivelse: string | null;
+  kapittel: { standard: { kode: string } };
+}): string {
+  return `${bibMal.kapittel.standard.kode} ${bibMal.referanse}${
+    bibMal.beskrivelse ? " — " + bibMal.beskrivelse : ""
+  }`;
 }
 
 export const firmamalRouter = router({
@@ -117,6 +181,7 @@ export const firmamalRouter = router({
       return ctx.prisma.organizationTemplate.findMany({
         where: {
           organizationId: input.organizationId,
+          deletedAt: null, // soft-delete-guard (krav 3): skjul papirkurven fra aktiv liste
           ...(input.fane ? faneWhere(input.fane) : {}),
         },
         include: { _count: { select: { objects: true, copiedTo: true } } },
@@ -141,14 +206,81 @@ export const firmamalRouter = router({
       return erFirmaAdminForProsjekt(ctx.userId, input.projectId);
     }),
 
+  /**
+   * Klient-gate for «Hent fra arkiv»-modalen (ordre hent-fra-arkiv, Krav 3). Returnerer
+   * hvilke arkiv-faner brukeren kan HENTE fra — matrisen `autoriserMalTilgang` er ENESTE
+   * kilde, ingen rollelogikk dupliseres i komponenten (fabel-vilkår 2026-09-12). Query,
+   * ikke gate: alle prosjektmedlemmer må kunne spørre «hva ser jeg?».
+   *
+   *  - kanHenteFraFirma  = firma/les (prosjektadmin+ låner ETT nivå opp → firmaarkivet)
+   *  - kanHenteFraSitedoc = sitedoc/les (firmaadmin+ låner fra sentralarkivet til firmaarkivet)
+   *
+   * `organizationId` = prosjektets eier-firma, målet for `laanFraSentralarkiv`.
+   */
+  arkivTilgang: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const sjekk = async (fn: () => Promise<void>): Promise<boolean> => {
+        try {
+          await fn();
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      const kanHenteFraFirma = await sjekk(() =>
+        autoriserMalTilgang(ctx.userId, {
+          nivaa: "firma",
+          handling: "les",
+          viaProjectId: input.projectId,
+        }),
+      );
+      const kanHenteFraSitedoc = await sjekk(() =>
+        autoriserMalTilgang(ctx.userId, { nivaa: "sitedoc", handling: "les" }),
+      );
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+      const organizationId = prosjekt?.primaryOrganizationId ?? null;
+      // rediger-signalene (ordre arkivmodal-typefilter, TILLEGG 1+3): styrer om
+      // modalens bunntekst blir en KLIKKBAR vei til arkiv-redigering. Samme
+      // `autoriserMalTilgang`-matrise — ingen ny rollelogikk i komponenten. les ≠
+      // rediger: firmaadmin har `les` på sitedoc men IKKE `rediger` (kun sitedoc_admin),
+      // og prosjektadmin har `les` på firma men IKKE `rediger` (kun firmaadmin+). Uten
+      // dette ville en firmaadmin fått lenke til en side som avviser ham.
+      const kanRedigereFirma = organizationId
+        ? await sjekk(() =>
+            autoriserMalTilgang(ctx.userId, {
+              nivaa: "firma",
+              handling: "rediger",
+              organizationId,
+            }),
+          )
+        : false;
+      const kanRedigereSitedoc = await sjekk(() =>
+        autoriserMalTilgang(ctx.userId, { nivaa: "sitedoc", handling: "rediger" }),
+      );
+      return {
+        kanHenteFraFirma,
+        kanHenteFraSitedoc,
+        kanRedigereFirma,
+        kanRedigereSitedoc,
+        organizationId,
+      };
+    }),
+
   /** Én firmamal med hele objekt-treet (for redigering/preview i firma-modus). */
   hent: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const mal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.id },
+      const mal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.id, deletedAt: null }, // soft-delete-guard (krav 3)
         include: { objects: { orderBy: { sortOrder: "asc" } } },
       });
+      if (!mal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+      }
       await autoriserAdminForFirma(ctx.userId, mal.organizationId);
       return mal;
     }),
@@ -203,14 +335,21 @@ export const firmamalRouter = router({
         subdomain: z.string().max(40).nullable().optional(),
         hmsSynlighet: z.enum(["privat", "apen"]).nullable().optional(),
         subjects: z.array(z.string()).optional(),
+        // Faste-felt-brytere fra malbyggeren (samme sett som mal.oppdaterMal på prosjektnivå).
+        showSubject: z.boolean().optional(),
+        showLocation: z.boolean().optional(),
+        showPriority: z.boolean().optional(),
         standardForNyeProsjekter: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const mal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.id },
+      const mal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.id, deletedAt: null }, // soft-delete-guard (krav 3): slettet mal ikke redigerbar
         select: { id: true, organizationId: true },
       });
+      if (!mal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+      }
       await autoriserAdminForFirma(ctx.userId, mal.organizationId);
 
       await ctx.prisma.organizationTemplate.update({
@@ -224,6 +363,9 @@ export const firmamalRouter = router({
           ...(input.subjects !== undefined
             ? { subjects: input.subjects as Prisma.InputJsonValue }
             : {}),
+          ...(input.showSubject !== undefined ? { showSubject: input.showSubject } : {}),
+          ...(input.showLocation !== undefined ? { showLocation: input.showLocation } : {}),
+          ...(input.showPriority !== undefined ? { showPriority: input.showPriority } : {}),
           ...(input.standardForNyeProsjekter !== undefined
             ? { standardForNyeProsjekter: input.standardForNyeProsjekter }
             : {}),
@@ -234,21 +376,191 @@ export const firmamalRouter = router({
       return { id: input.id };
     }),
 
+  /* --- Objekt-CRUD på firmamalens tre (MalBygger i firma-modus, L8) ---------------
+   * Speiler mal.ts (mal.leggTilObjekt/oppdaterObjekt/oppdaterRekkefølge/slettObjekt), men
+   * mot OrganizationTemplateObject. INGEN endringsvern og INGEN slett-vern: ingen
+   * Checklist/Task peker på firmamal-objekter (målt — kommentar i oppdaterFraSentralarkiv),
+   * så firmamalen er fritt redigerbar (Krav 2). Auth: firma-arkiv + rediger via matrisen. */
+
+  leggTilObjekt: protectedProcedure
+    .input(
+      z.object({
+        templateId: z.string().uuid(),
+        type: reportObjectTypeSchema,
+        label: z.string().min(1),
+        config: configSchema.default({}),
+        sortOrder: z.number().int().min(0),
+        required: z.boolean().default(false),
+        parentId: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserFirmaObjektRedigering(ctx.prisma, ctx.userId, input.templateId);
+      const { parentId, ...rest } = input;
+      return ctx.prisma.organizationTemplateObject.create({
+        data: {
+          ...rest,
+          config: rest.config as Prisma.InputJsonValue,
+          ...(parentId !== undefined ? { parentId } : {}),
+        },
+      });
+    }),
+
+  oppdaterObjekt: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        // Tom streng er en gyldig, ønsket verdi (navnløst felt) — som mal.oppdaterObjekt.
+        label: z.string().optional(),
+        required: z.boolean().optional(),
+        config: configSchema.optional(),
+        parentId: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const objekt = await ctx.prisma.organizationTemplateObject.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { templateId: true },
+      });
+      await autoriserFirmaObjektRedigering(ctx.prisma, ctx.userId, objekt.templateId);
+      const { id, config, parentId, ...rest } = input;
+      return ctx.prisma.organizationTemplateObject.update({
+        where: { id },
+        data: {
+          ...rest,
+          ...(config !== undefined ? { config: config as Prisma.InputJsonValue } : {}),
+          ...(parentId !== undefined ? { parentId } : {}),
+        },
+      });
+    }),
+
+  oppdaterRekkefolge: protectedProcedure
+    .input(
+      z.object({
+        objekter: z.array(
+          z.object({
+            id: z.string().uuid(),
+            sortOrder: z.number().int().min(0),
+            zone: templateZoneSchema.optional(),
+            parentId: z.string().uuid().nullable().optional(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const forste = input.objekter[0];
+      if (!forste) return [];
+      const objekt = await ctx.prisma.organizationTemplateObject.findUniqueOrThrow({
+        where: { id: forste.id },
+        select: { templateId: true },
+      });
+      await autoriserFirmaObjektRedigering(ctx.prisma, ctx.userId, objekt.templateId);
+      return ctx.prisma.$transaction(async (tx) => {
+        const resultater = [];
+        for (const obj of input.objekter) {
+          const oppdatering: Record<string, unknown> = { sortOrder: obj.sortOrder };
+          if (obj.parentId !== undefined) oppdatering.parentId = obj.parentId;
+          if (obj.zone) {
+            const eksisterende = await tx.organizationTemplateObject.findUniqueOrThrow({
+              where: { id: obj.id },
+            });
+            const eksisterendeConfig =
+              typeof eksisterende.config === "object" && eksisterende.config !== null
+                ? (eksisterende.config as Record<string, unknown>)
+                : {};
+            oppdatering.config = {
+              ...eksisterendeConfig,
+              zone: obj.zone,
+            } as Prisma.InputJsonValue;
+          }
+          resultater.push(
+            await tx.organizationTemplateObject.update({ where: { id: obj.id }, data: oppdatering }),
+          );
+        }
+        return resultater;
+      });
+    }),
+
+  slettObjekt: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const objekt = await ctx.prisma.organizationTemplateObject.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { templateId: true },
+      });
+      await autoriserFirmaObjektRedigering(ctx.prisma, ctx.userId, objekt.templateId);
+      // Ingen slett-vern: firmamal-objekter bærer ingen dokumentdata (Krav 2). CASCADE
+      // fjerner barn (schema OrgObjektHierarki onDelete: Cascade).
+      return ctx.prisma.organizationTemplateObject.delete({ where: { id: input.id } });
+    }),
+
   /**
-   * Slett en firmamal. Prosjekt-kopier beholder sin frosne struktur — FK-en
-   * `report_templates.organization_template_id` er SetNull (schema:1003), så
-   * avstamningspekeren nulles av DB-en, ikke app-laget. Objekt-treet cascader.
+   * Soft-slett en firmamal (krav 3) — flytter den til Papirkurv-fanen i Malforvaltning
+   * i stedet for å fjerne raden. `deletedAt`/`deletedById` settes; alle lesende
+   * spørringer filtrerer `deletedAt: null`, så malen forsvinner fra lister, lån og
+   * seeding. Objekt-treet og avstamningspekeren (`report_templates.organization_template_id`)
+   * BEVARES — SetNull-FK-en fyrer kun ved HARD sletting (auto-tømming, krav 4).
+   *
+   * ⚠️ Den unike indeksen `(organizationId, laantFraBibliotekMalId)` (runde 95) teller
+   * fortsatt en soft-slettet lånt mal → samme sentralmal kan IKKE lånes på nytt før
+   * papirkurven tømmes. FUNN meldt (krav 3) — indeksen røres ikke denne runden.
    */
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const mal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.id },
+      const mal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.id, deletedAt: null },
         select: { id: true, organizationId: true },
       });
+      if (!mal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er allerede slettet" });
+      }
       await autoriserAdminForFirma(ctx.userId, mal.organizationId);
-      await ctx.prisma.organizationTemplate.delete({ where: { id: input.id } });
+      await ctx.prisma.organizationTemplate.update({
+        where: { id: input.id },
+        data: { deletedAt: new Date(), deletedById: ctx.userId },
+      });
       return { slettet: true as const };
+    }),
+
+  /**
+   * Krav 4 — auto-tømmings-MEKANISMEN (IKKE en kjørende jobb). Hard-sletter firmamaler
+   * som har ligget i papirkurven (`deletedAt` satt) lenger enn `eldreEnnDager`. Ved HARD
+   * sletting fyrer SetNull-FK-en (schema:1003) → prosjekt-kopier beholder sin frosne
+   * struktur, avstamningspekeren nulles av DB-en.
+   *
+   * 🔴 N er en PARAMETER — aldri hardkodet i en spørring (min 1, ingen default: kalleren
+   * MÅ oppgi den). Kenneth setter tallet når Papirkurv-flaten finnes (forslaget er 90).
+   * 🔴 Utløsning: en framtidig cron/admin-handling kaller denne med valgt N. INGENTING
+   * kaller den automatisk i denne runden — permanent sletting er Kenneth-gatet.
+   * sitedoc_admin-gatet (systemvedlikehold, permanent datasletting).
+   */
+  tomPapirkurvPermanent: protectedProcedure
+    .input(
+      z.object({
+        eldreEnnDager: z.number().int().min(1),
+        organizationId: z.string().uuid().optional(), // valgfri avgrensning til ett firma
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker?.role !== "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun SiteDoc-admin kan tømme papirkurven permanent",
+        });
+      }
+      const grense = new Date(Date.now() - input.eldreEnnDager * 24 * 60 * 60 * 1000);
+      const resultat = await ctx.prisma.organizationTemplate.deleteMany({
+        where: {
+          deletedAt: { not: null, lt: grense },
+          ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+        },
+      });
+      return { antallSlettet: resultat.count, grense };
     }),
 
   /**
@@ -341,10 +653,13 @@ export const firmamalRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
 
-      const firmamal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: input.organizationTemplateId },
+      const firmamal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.organizationTemplateId, deletedAt: null }, // soft-delete-guard (krav 3): slettet mal kan ikke lånes ned
         include: { objects: { orderBy: { sortOrder: "asc" } } },
       });
+      if (!firmamal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+      }
 
       // Firma-isolasjon: prosjektet må være koblet til firmamalens firma
       // (eier-firma eller part i prosjektet). Ellers lekker maler på tvers av firma.
@@ -430,7 +745,13 @@ export const firmamalRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      await verifiserAdmin(ctx.userId, input.projectId);
+      // Prosjektadmin låner ETT nivå opp: firma+les via matrisen (TILLEGG 1). Firma-
+      // isolasjonen håndheves under (kun prosjektets egne org-ider returneres).
+      await autoriserMalTilgang(ctx.userId, {
+        nivaa: "firma",
+        handling: "les",
+        viaProjectId: input.projectId,
+      });
 
       const orgIder = new Set<string>();
       const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
@@ -448,6 +769,7 @@ export const firmamalRouter = router({
       return ctx.prisma.organizationTemplate.findMany({
         where: {
           organizationId: { in: [...orgIder] },
+          deletedAt: null, // soft-delete-guard (krav 3): slettede maler er ikke hentbare til prosjekt
           ...(input.fane ? faneWhere(input.fane) : {}),
         },
         include: { _count: { select: { objects: true } } },
@@ -463,7 +785,10 @@ export const firmamalRouter = router({
    *
    * MVP-semantikk (L6): full erstatning av objekt-treet, ikke diff/merge (backlog).
    * 🔴 Erstatningen fjerner gamle objekt-id-er → dokumentdata knyttet til dem blir
-   * foreldreløs. Derfor bevisst handling bak eksplisitt knapp, aldri automatisk.
+   * foreldreløs. VERN (ordre vern-oppdater-kopi, dokgen funn #21): nekter ↻ når
+   * prosjektmalens nåværende objekter har faktisk innhold i et AKTIVT dokument — samme
+   * predikat/feilkode som mal.slettObjekt. Steg 1 av 2 (Kenneth-vedtak 17.09: sperre nå,
+   * diff/merge egen runde) — se BACKLOG. Utveien er «Hent fra arkiv» (ny prosjektmal).
    */
   oppdaterKopiFraHovedmal: protectedProcedure
     .input(z.object({ templateId: z.string().uuid() }))
@@ -481,23 +806,100 @@ export const firmamalRouter = router({
         });
       }
 
-      const firmamal = await ctx.prisma.organizationTemplate.findUniqueOrThrow({
-        where: { id: mal.organizationTemplateId },
+      const firmamal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: mal.organizationTemplateId, deletedAt: null }, // soft-delete-guard (krav 3)
         include: { objects: { orderBy: { sortOrder: "asc" } } },
       });
+      if (!firmamal) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Firmamalen kopien stammer fra er slettet — kan ikke oppdatere fra den",
+        });
+      }
+
+      // DIFF/MERGE (ordre diffmerge-oppdater-kopi, 2026-09-17, erstatter forrige rundes
+      // blankosperre). Kenneths regel: «prosjektmal kan kun oppdateres dersom tidligere lagrede
+      // data ikke berøres». Vi matcher gamle objekter mot nye (diffObjektTre) — MATCHEDE beholder
+      // sin id (update, ikke delete+create), så Checklist/Task.data følger automatisk og røres
+      // ALDRI. NEKT KUN når et umatchet GAMMELT objekt HAR DATA (da ville dataene blitt
+      // foreldreløse). Fri sletting/oppdatering ellers.
+      const gamleObjekter = await ctx.prisma.reportObject.findMany({
+        where: { templateId: mal.id },
+        orderBy: { sortOrder: "asc" },
+      });
+      const { par, opprett, slett } = diffObjektTre(gamleObjekter, firmamal.objects);
+
+      // Krav 3: hvilke umatchede GAMLE objekter har faktisk data? De ville forsvunnet → NEKT,
+      // og feilmeldingen NAVNGIR feltene (ikke bare teller dokumenter). Peker IKKE på «Hent fra
+      // arkiv» — den lager en andre prosjektmal og splitter dokumentene (Kenneth avviste den).
+      const slettIder = slett.map((o) => o.id);
+      const medData = await objektIderMedInnhold(ctx.prisma, mal.id, slettIder);
+      const feltSomForsvinner = slett.filter((o) => medData.has(o.id)).map((o) => o.label);
+      if (feltSomForsvinner.length > 0) {
+        const liste = feltSomForsvinner.map((l) => `«${l}»`).join(", ");
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            `Oppdatering fra firmamalen er stoppet: ${feltSomForsvinner.length} felt ` +
+            `(${liste}) er fjernet i firmamalen, men har utfylte data i minst ett aktivt dokument. ` +
+            `Behold feltet i firmamalen, eller ferdigstill dokumentene som har data i det, før du ` +
+            `oppdaterer.`,
+        });
+      }
 
       await ctx.prisma.$transaction(async (tx) => {
-        await tx.reportObject.deleteMany({ where: { templateId: mal.id } });
-        await kopierObjektTre(
-          firmamal.objects,
-          (data) =>
-            tx.reportObject.create({
-              data: { templateId: mal.id, ...data },
-              select: { id: true },
-            }),
-          (id, parentId) =>
-            tx.reportObject.update({ where: { id }, data: { parentId } }).then(() => undefined),
-        );
+        // Kartlegger hvert firmamal-objekt til sin ENDELIGE prosjektmal-id: matchet → gammel id
+        // (bevares), ellers → ny opprettet id. Brukes til reforeldring i pass D.
+        const nyIdTilFinal = new Map<string, string>();
+        for (const p of par) nyIdTilFinal.set(p.ny.id, p.gammel.id);
+
+        // Pass A — opprett umatchede nye objekter (uten parent ennå).
+        for (const n of opprett) {
+          const opprettet = await tx.reportObject.create({
+            data: {
+              templateId: mal.id,
+              type: n.type,
+              label: n.label,
+              config: (n.config ?? {}) as Prisma.InputJsonValue,
+              translations: (n.translations ?? {}) as Prisma.InputJsonValue,
+              sortOrder: n.sortOrder,
+              required: n.required,
+            },
+            select: { id: true },
+          });
+          nyIdTilFinal.set(n.id, opprettet.id);
+        }
+
+        // Pass B — oppdater matchede på plass (id bevart → data følger). parentId settes i pass D.
+        for (const p of par) {
+          await tx.reportObject.update({
+            where: { id: p.gammel.id },
+            data: {
+              type: p.ny.type,
+              label: p.ny.label,
+              config: (p.ny.config ?? {}) as Prisma.InputJsonValue,
+              translations: (p.ny.translations ?? {}) as Prisma.InputJsonValue,
+              sortOrder: p.ny.sortOrder,
+              required: p.ny.required,
+            },
+          });
+        }
+
+        // Pass D — reforeldre ALLE overlevende fra firmamal-treet FØR sletting, så ingen
+        // overlevende peker på et objekt som slettes (entydig-match kan ha matchet et barn hvis
+        // forelder slettes → cascade ville ellers tatt barnet). Gjøres før pass C av den grunn.
+        for (const n of firmamal.objects) {
+          const finalId = nyIdTilFinal.get(n.id);
+          if (!finalId) continue;
+          const finalParent = n.parentId ? nyIdTilFinal.get(n.parentId) ?? null : null;
+          await tx.reportObject.update({ where: { id: finalId }, data: { parentId: finalParent } });
+        }
+
+        // Pass C — slett umatchede gamle. Trygt nå: ingen overlevende refererer dem (pass D).
+        if (slettIder.length > 0) {
+          await tx.reportObject.deleteMany({ where: { id: { in: slettIder } } });
+        }
+
         await tx.reportTemplate.update({
           where: { id: mal.id },
           data: { versjonAvHovedmal: firmamal.version },
@@ -526,19 +928,43 @@ export const firmamalRouter = router({
     .mutation(async ({ ctx, input }) => {
       await autoriserAdminForFirma(ctx.userId, input.organizationId);
 
+      // Dobbelt-lån-vakt: hvert klikk på «Lån fra SiteDoc-arkivet» lagde før en ny,
+      // identisk firmamal (ingen findFirst, ingen @@unique) — Kenneth så KB4 tre ganger.
+      // Serveren er gaten: klienten deaktiverer alt lånte, men kan omgås. Den PARTIELLE
+      // unik-indeksen (migrering 20260917120000, WHERE deleted_at IS NULL) er garantien;
+      // denne findFirst er den pene feilmeldingen.
+      // deletedAt: null MÅ være med (ordre unik-indeks-soft-delete, krav 2) — ellers gir
+      // vakten CONFLICT på en SOFT-SLETTET mal, og brukeren blokkeres fra å låne på nytt
+      // med en feilmelding like forvirrende som den fulle indeksen var.
+      const alleredeLaant = await ctx.prisma.organizationTemplate.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          laantFraBibliotekMalId: input.bibliotekMalId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (alleredeLaant) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Denne malen er allerede lånt inn i firmaarkivet. Bruk «Oppdater» (↻) på den " +
+            "eksisterende firmamalen for å hente nyeste versjon fra sentralarkivet.",
+        });
+      }
+
       const bibMal = await ctx.prisma.bibliotekMal.findUniqueOrThrow({
         where: { id: input.bibliotekMalId },
         include: { kapittel: { include: { standard: true } } },
       });
 
-      const malInnhold = bibMal.malInnhold as Array<{
-        label: string;
-        type: string;
-        zone: string;
-        fase?: string;
-        config?: Record<string, unknown>;
-        sortOrder: number;
-      }>;
+      // Vei C: objekt-treet leses fra RADENE (BibliotekMalObjekt), ikke lenger fra
+      // `malInnhold`. Overskriftene ligger som egne heading-rader og KOPIERES verbatim —
+      // ingen generering (den flyttet inn i migreringen/seeden via byggBibliotekRader).
+      const kildeObjekter = await ctx.prisma.bibliotekMalObjekt.findMany({
+        where: { templateId: bibMal.id },
+        orderBy: { sortOrder: "asc" },
+      });
 
       const nyId = await ctx.prisma.$transaction(async (tx) => {
         const nyMal = await tx.organizationTemplate.create({
@@ -547,67 +973,115 @@ export const firmamalRouter = router({
             name: bibMal.navn,
             // Beskrivelse = ren referanse-tekst. Avstamningen ligger i den
             // strukturerte pekeren under (B4), ikke gjemt i fritekst.
-            description: `${bibMal.kapittel.standard.kode} ${bibMal.referanse}${
-              bibMal.beskrivelse ? " — " + bibMal.beskrivelse : ""
-            }`,
+            description: bibliotekBeskrivelse(bibMal),
             category: bibMal.kategori,
             domain: bibMal.domene,
             laantFraBibliotekMalId: bibMal.id, // strukturert avstamning (B4)
+            versjonAvHovedmal: bibMal.version, // fryser sentralmal-versjon (krav 2, L6 ett nivå opp)
           },
           select: { id: true },
         });
 
-        if (Array.isArray(malInnhold) && malInnhold.length > 0) {
-          const faser = [...new Set(malInnhold.map((f) => f.fase).filter(Boolean))];
-          let sortIdx = 0;
-
-          for (const fase of faser) {
-            sortIdx++;
-            await tx.organizationTemplateObject.create({
-              data: {
-                templateId: nyMal.id,
-                type: "heading",
-                label:
-                  fase === "FØR"
-                    ? "Kontroll FØR utførelse"
-                    : fase === "UNDER"
-                      ? "Kontroll UNDER utførelse"
-                      : "Kontroll ETTER utførelse",
-                sortOrder: sortIdx,
-                config: { zone: "datafelter" },
-              },
-            });
-            for (const f of malInnhold.filter((x) => x.fase === fase)) {
-              sortIdx++;
-              await tx.organizationTemplateObject.create({
-                data: {
-                  templateId: nyMal.id,
-                  type: f.type,
-                  label: f.label,
-                  sortOrder: sortIdx,
-                  config: { zone: f.zone ?? "datafelter", ...f.config },
-                },
-              });
-            }
-          }
-
-          for (const f of malInnhold.filter((x) => !x.fase)) {
-            sortIdx++;
-            await tx.organizationTemplateObject.create({
-              data: {
-                templateId: nyMal.id,
-                type: f.type,
-                label: f.label,
-                sortOrder: sortIdx,
-                config: { zone: f.zone ?? "datafelter", ...f.config },
-              },
-            });
-          }
-        }
+        await kopierObjektTre(
+          kildeObjekter,
+          (data) =>
+            tx.organizationTemplateObject.create({
+              data: { templateId: nyMal.id, ...data },
+              select: { id: true },
+            }),
+          (id, parentId) =>
+            tx.organizationTemplateObject
+              .update({ where: { id }, data: { parentId } })
+              .then(() => undefined),
+        );
 
         return nyMal.id;
       });
 
       return { id: nyId, malNavn: bibMal.navn };
+    }),
+
+  /**
+   * Oppdater en LÅNT firmamal fra sentralarkivet den ble lånt fra — det manglende
+   * leddet i propageringskjeden (arkiv → firmamal → prosjekt). `laanFraSentralarkiv`
+   * er en engangskopi; er sentralmalen revidert etterpå, arver hvert nye prosjekt den
+   * gamle versjonen (fordi `kopierTilProsjekt` henter fra FIRMAMALEN). Denne veien
+   * synker firmamalen slik at `oppdaterKopiFraHovedmal` kan bære endringen videre ned.
+   *
+   * Full erstatning (navn, beskrivelse, hele objekt-treet) — samme semantikk som
+   * `oppdaterKopiFraHovedmal` (L6): konsistens i kjeden slår ny design. Aldri
+   * automatisk; utløses av eksplisitt knapp i firmaarkivet.
+   *
+   * 🟢 Trygt å bytte ut objekt-treet: ingen `Checklist`/`Task` peker på
+   * `OrganizationTemplateObject`. `ReportTemplate.organizationTemplateId` peker på
+   * MALEN, ikke objektene — så full-erstatning gjør ingen dokumentdata foreldreløs.
+   * (Advarselen i `oppdaterKopiFraHovedmal` gjelder PROSJEKTnivået, ikke her.)
+   *
+   * `version` inkrementeres slik at prosjekt-kopier som allerede peker hit vises som
+   * «bak» (via `versjonAvHovedmal`) og kan hente den nye versjonen når det passer.
+   * Krav 4: denne veien dytter ALDRI noe ut i prosjektene.
+   */
+  oppdaterFraSentralarkiv: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const firmamal = await ctx.prisma.organizationTemplate.findFirst({
+        where: { id: input.id, deletedAt: null }, // soft-delete-guard (krav 3)
+        select: { id: true, organizationId: true, laantFraBibliotekMalId: true },
+      });
+      if (!firmamal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Firmamalen finnes ikke eller er slettet" });
+      }
+      // Firma-admin (L7) — firmamalen eies av firmaet, ikke SiteDoc.
+      await autoriserAdminForFirma(ctx.userId, firmamal.organizationId);
+
+      if (!firmamal.laantFraBibliotekMalId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Malen er firmaets egen og har ingen avstamning til sentralarkivet å oppdatere fra",
+        });
+      }
+
+      const bibMal = await ctx.prisma.bibliotekMal.findUniqueOrThrow({
+        where: { id: firmamal.laantFraBibliotekMalId },
+        include: { kapittel: { include: { standard: true } } },
+      });
+
+      // Vei C: objekt-treet leses fra radene, kopieres verbatim (som laanFraSentralarkiv).
+      const kildeObjekter = await ctx.prisma.bibliotekMalObjekt.findMany({
+        where: { templateId: bibMal.id },
+        orderBy: { sortOrder: "asc" },
+      });
+
+      await ctx.prisma.$transaction(async (tx) => {
+        // Full erstatning av objekt-treet (som oppdaterKopiFraHovedmal).
+        await tx.organizationTemplateObject.deleteMany({ where: { templateId: firmamal.id } });
+        await kopierObjektTre(
+          kildeObjekter,
+          (data) =>
+            tx.organizationTemplateObject.create({
+              data: { templateId: firmamal.id, ...data },
+              select: { id: true },
+            }),
+          (id, parentId) =>
+            tx.organizationTemplateObject
+              .update({ where: { id }, data: { parentId } })
+              .then(() => undefined),
+        );
+        await tx.organizationTemplate.update({
+          where: { id: firmamal.id },
+          data: {
+            name: bibMal.navn,
+            description: bibliotekBeskrivelse(bibMal),
+            version: { increment: 1 },
+            // Re-synk fryser nytt snapshot av sentralmalens GJELDENDE versjon (krav 2):
+            // firmanivå-badgen «X versjoner bak» nullstilles til 0. Egen akse fra
+            // `version` over (firmamalens egen teller, for prosjekt-kopienes badge).
+            versjonAvHovedmal: bibMal.version,
+          },
+        });
+      });
+
+      return { id: firmamal.id, malNavn: bibMal.navn };
     }),
 });

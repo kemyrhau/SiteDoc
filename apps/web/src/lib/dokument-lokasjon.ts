@@ -15,10 +15,12 @@ export interface DokumentLokasjon {
   bygningNavn: string | null;
   positionX: number | null;
   positionY: number | null;
-  /** Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | null. */
-  lokasjonOmfang: "punkt" | "byggeplass" | null;
+  /** Lokasjonsomfang (2026-09-04): "punkt" | "byggeplass" | "omrade" (steg 2b) | null. */
+  lokasjonOmfang: "punkt" | "byggeplass" | "omrade" | null;
   /** Fritekst-sted (2026-09-06) — påheng på byggeplass når tegning mangler. */
   lokasjonFritekst: string | null;
+  /** Område-referanse (steg 2b, 2026-09-23) — satt når lokasjonOmfang="omrade". */
+  omradeId: string | null;
 }
 
 export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
@@ -27,8 +29,9 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
         drawingId?: string | null;
         positionX?: number | null;
         positionY?: number | null;
-        lokasjonOmfang?: "punkt" | "byggeplass" | null;
+        lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
         lokasjonFritekst?: string | null;
+        omradeId?: string | null;
         drawing?: { name?: string | null; byggeplass?: { name?: string | null } | null } | null;
       }
     | undefined;
@@ -40,5 +43,6 @@ export function lesDokumentLokasjon(raaDok: unknown): DokumentLokasjon {
     positionY: d?.positionY ?? null,
     lokasjonOmfang: d?.lokasjonOmfang ?? null,
     lokasjonFritekst: d?.lokasjonFritekst ?? null,
+    omradeId: d?.omradeId ?? null,
   };
 }

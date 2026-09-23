@@ -29,6 +29,7 @@ import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { VersjonsFooter } from "../../src/components/VersjonsFooter";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
+import { refreshSjekklisteKatalog } from "../../src/services/sjekklisteKatalog";
 import { byttSpraak } from "../../src/lib/i18n";
 import { useFirmamodulSkjult } from "../../src/hooks/useFirmamodul";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -68,6 +69,7 @@ export default function MerSkjerm() {
   );
 
   const oppdaterSpraakMut = trpc.bruker.oppdaterSpraak.useMutation();
+  const utils = trpc.useUtils();
 
   const startOffline = useCallback(async () => {
     if (!tegningerQuery.data) {
@@ -80,13 +82,24 @@ export default function MerSkjerm() {
         tegningerQuery.data as Array<{ id: string; name: string; fileUrl: string | null; fileType: string | null; updatedAt?: string }>,
         (s) => setOfflineTekst(`${s.steg} ${s.ferdigeProsent}%`),
       );
-      setOfflineTekst(`Ferdig: ${resultat.tegningerLastet} tegninger, ${resultat.ifcLastet} 3D-modeller`);
+      // Sjekkliste-katalog i EGEN try/catch: feiler den, er tegningene ALT
+      // lastet (krav 6 rad 3 — ett nytt steg river ikke med seg det som virket).
+      let sjekklisteTekst = "";
+      if (valgtProsjektId) {
+        try {
+          const s = await refreshSjekklisteKatalog(utils.client, valgtProsjektId);
+          sjekklisteTekst = `, ${s.sjekklister} sjekklister`;
+        } catch {
+          sjekklisteTekst = ", sjekklister feilet";
+        }
+      }
+      setOfflineTekst(`Ferdig: ${resultat.tegningerLastet} tegninger, ${resultat.ifcLastet} 3D-modeller${sjekklisteTekst}`);
       setTimeout(() => setOfflineTekst(null), 4000);
     } catch (err) {
       setOfflineTekst(`Feil: ${err instanceof Error ? err.message : String(err)}`);
       setTimeout(() => setOfflineTekst(null), 5000);
     }
-  }, [tegningerQuery.data]);
+  }, [tegningerQuery.data, valgtProsjektId, utils.client]);
 
   const velgSpraak = useCallback(async (kode: SpraakKode) => {
     setVisSpraakModal(false);

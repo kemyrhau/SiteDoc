@@ -2,6 +2,8 @@
 
 Én felles malbygger der bruker velger dokumenttype ved oppstart. Typen bestemmer flyt, låseregler og ruting.
 
+> 🔴 **Bygger du sjekklistemaler fra NS 3420: les [docs/claude/MAL-METODE.md](docs/claude/MAL-METODE.md) først.** Den bærer rollefordelingen (fabel = normfakta og innholdsgate · mal-Opus = bygg og skjermbilde-bevis · cowork = teknisk gate og merge), at normkildene i `kilder/ns3420/` er gitignorerte slik at hver ordre må være selvbærende, og status per mal. **Én mal om gangen.**
+
 ## Grunnprinsipp — type vs modifikator
 
 **Oppgave og Sjekkliste er fundamentalt forskjellige dokumenttyper** med separate tabeller (`Task` vs `Checklist`), ulike låseregler og ulike workflow-mønstre. De skal aldri slås sammen til én liste eller blandes i UI.

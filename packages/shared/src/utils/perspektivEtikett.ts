@@ -224,3 +224,20 @@ const KVITTERING: Record<string, Celle> = {
 export function kvitteringEtikett(handlingNoekkel: string): { etikettKey: string; variant: BadgeVariant } | null {
   return KVITTERING[handlingNoekkel] ?? null;
 }
+
+/**
+ * Nøytralt oppslag (kolonne D) for lister, filterknapper og tidslinjer — samme
+ * kilde web-`StatusBadge` og mobil-`STATUS_MAP` skal utledes fra, så de ikke kan
+ * drifte fra hverandre (designnotat-statusfarger-paritet § 3 + § 8). Ingen celle
+ * endres — leser `NOEYTRAL` direkte med SAMME fallback som `perspektivEtikett`
+ * (ukjent status → status-strengen selv, `default`). Dekker ikke ikke-flyt-
+ * statuser (`active`/`archived`/`completed`) eller legacy `rejected` (F3 merget
+ * inn i `in_progress`; `dismissed` er kanonisk «Avvist») — de bæres av
+ * konsumentens egen lille tabell.
+ */
+export function noeytralEtikett(status: string): { etikettKey: string; variant: BadgeVariant } {
+  const celle = NOEYTRAL[status];
+  return celle
+    ? { etikettKey: celle.etikettKey, variant: celle.variant }
+    : { etikettKey: status, variant: "default" };
+}

@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Plus } from "lucide-react";
 import { RedigerTimerRad } from "./RedigerTimerRad";
 import { RedigerTilleggRad } from "./RedigerTilleggRad";
@@ -486,19 +487,24 @@ export function AttesteringDetaljEdit({
             for å signalere at klikk vil lagre. Speiler i prinsipp samme
             mønster som RedigerRadModal — der mangler grønn fargeskift; se
             oppfølger i historikk-2026-05.md § T7-5f. */}
-        <Button
-          onClick={handleLagre}
-          disabled={lagre.isPending || !harUlagredeEndringer}
-          className={
-            harUlagredeEndringer
-              ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500"
-              : ""
-          }
+        <KnappMedForklaring
+          sperret={!harUlagredeEndringer && !lagre.isPending}
+          forklaring={t("sperret.ingenEndringer")}
         >
-          {lagre.isPending
-            ? t("handling.lagrer")
-            : t("timer.rediger.lagre")}
-        </Button>
+          <Button
+            onClick={handleLagre}
+            disabled={lagre.isPending || !harUlagredeEndringer}
+            className={
+              harUlagredeEndringer
+                ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500"
+                : ""
+            }
+          >
+            {lagre.isPending
+              ? t("handling.lagrer")
+              : t("timer.rediger.lagre")}
+          </Button>
+        </KnappMedForklaring>
       </div>
 
       {/* T7-2c3: splitt-modal — åpnes per rad via Splitt-knapp */}

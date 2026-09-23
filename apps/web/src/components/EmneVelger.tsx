@@ -115,7 +115,15 @@ export function EmneVelger({
   }
 
   if (leseModus) {
-    return <div className="text-sm italic text-gray-400">{t("emneVelger.ingenEmne")}</div>;
+    // Tomt emne i lesemodus vises som en tydelig, rammet «Ingen emne»-merkelapp med
+    // ikon — ikke blek grå kursiv uten kontekst (ordre 2026-09-22). Etiketten over
+    // (byggInnhold-wrapperen) gir feltet navn; her leser tilstanden som bevisst tom.
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-3 py-1 text-sm text-gray-400">
+        <Tag className="h-3.5 w-3.5" />
+        {t("emneVelger.ingenEmne")}
+      </span>
+    );
   }
 
   return (

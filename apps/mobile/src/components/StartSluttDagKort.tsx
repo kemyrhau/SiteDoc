@@ -517,10 +517,11 @@ function genererForslag(
         },
       );
       if (kategori === "reisetid") {
-        // Resolver reise-lønnsart via delt helper — samme kilde som render-
-        // laget bruker for reise-merking, så generering og visning aldri
-        // drifter fra hverandre (reiseLonnsartId ellers navne-match).
-        reiseLonnsartId = hentReiseLonnsartId(orgId);
+        // Resolver reise-lønnsart via delt helper. `avstandM` (i scope fra
+        // matrise-rad/GPS-fallback over) lar resolveren velge firmaets
+        // avstandsbånd; uten treff/uten avstand faller den tilbake på
+        // reiseLonnsartId/navne-match (samme kilde som render-laget).
+        reiseLonnsartId = hentReiseLonnsartId(orgId, avstandM);
         // Bare foreslå reisetid hvis vi faktisk har en art å føre den på.
         if (reiseLonnsartId) {
           reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;

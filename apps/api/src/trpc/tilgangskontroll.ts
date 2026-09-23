@@ -1738,3 +1738,91 @@ export function kanByttFlyt(
       tilgang.gruppeIder.has(dokumentRecipient.recipientGroupId));
   return harBallen && brukerHarAndreFlyter;
 }
+
+/* ------------------------------------------------------------------------ */
+/*  Malverk-tilgang — ÉN kobling nivå → rettighet (ordre malbygger-tre-nivaa) */
+/* ------------------------------------------------------------------------ */
+
+export type MalArkivNivaa = "sitedoc" | "firma" | "prosjekt";
+export type MalHandling = "les" | "rediger";
+
+// Diskriminert union: hvert nivå bærer akkurat konteksten sin vakt trenger. Firma-les tar
+// enten viaProjectId (prosjektadmin låner ETT nivå opp) eller organizationId (firma-admin
+// leser sitt eget arkiv) — begge veier finnes i matrisen.
+export type MalTilgangArg =
+  | { nivaa: "sitedoc"; handling: MalHandling }
+  | { nivaa: "firma"; handling: "rediger"; organizationId: string }
+  | { nivaa: "firma"; handling: "les"; organizationId?: string; viaProjectId?: string }
+  | { nivaa: "prosjekt"; handling: MalHandling; projectId: string };
+
+// Er brukeren firma_admin i MINST ETT (aktivt) firma? Grunnlaget for «firmaadmin leser
+// sentralarkivet» (sitedoc+les) i matrisen. Speiler `erFirmaAdmin`s status-/rolle-regel.
+async function erFirmaAdminIEnOrg(userId: string): Promise<boolean> {
+  const medlemskap = await prisma.organizationMember.findMany({
+    where: { userId, status: "aktiv" },
+    select: { firmaRoller: true },
+  });
+  return medlemskap.some((m) => m.firmaRoller.includes("firma_admin"));
+}
+
+/**
+ * ÉN kobling nivå → rettighet for malverket på tre nivåer (SiteDoc → Firma → Prosjekt),
+ * uttrykt som matrisen (arkiv-nivå × handling). Bygget for ordre «malbygger-tre-nivaa»
+ * Krav 3 + TILLEGG 1: en framtidig `OrganizationRole`-rettighetsmatrise byttes inn HER —
+ * ikke på tjue kallsteder. Innfører ingen nye roller; bruker `User.role`,
+ * `OrganizationMember.firmaRoller[]` og prosjekt-rollene via de eksisterende vaktene.
+ *
+ *   Rolle          | Firmaarkiv | Sentralarkiv
+ *   ---------------|------------|-------------
+ *   sitedoc_admin  | rediger    | rediger
+ *   firmaadmin     | rediger    | les
+ *   prosjektadmin  | les        | ingen
+ *
+ * Matrisen ER ett-nivå-opp-regelen: hver rolle leser nivået OVER sitt eget for å låne
+ * derfra, og ingen ser to nivåer opp.
+ *
+ * Wiret denne runden: **firma+rediger** (firmamal-objektredigering) og **firma+les**
+ * (prosjektadmins lesing av firmaarkivet — `firmamal.listeForProsjekt`). **sitedoc+les**
+ * (firmaadmin leser sentralarkivet) er UTTRYKT her, men bevisst IKKE wiret ennå:
+ * `bibliotek.hentStandarder`/`hentMalInnhold` strammes i egen runde sammen med lånet, fordi
+ * `BibliotekPanel` i dag er den ENESTE arkiv→prosjekt-veien og leser sentralarkivet som
+ * prosjektbruker — strammer vi før erstatningen finnes, brekker vi den veien (TILLEGG 1).
+ */
+export async function autoriserMalTilgang(
+  userId: string,
+  arg: MalTilgangArg,
+): Promise<void> {
+  switch (arg.nivaa) {
+    case "prosjekt":
+      // Prosjektmaler: rediger = prosjektadmin (samme gate som mal.ts), les = prosjektmedlem.
+      if (arg.handling === "rediger") return verifiserAdmin(userId, arg.projectId);
+      return verifiserProsjektmedlem(userId, arg.projectId);
+
+    case "firma":
+      // Firmaarkiv: rediger = firma-admin (autoriserAdminForFirma dekker sitedoc_admin òg).
+      if (arg.handling === "rediger") {
+        return autoriserAdminForFirma(userId, arg.organizationId);
+      }
+      // Les: prosjektadmin låner ETT nivå opp via et prosjekt i firmaet (verifiserAdmin
+      // passerer for prosjektadmin, firma-admin og sitedoc_admin). Firma-isolasjonen —
+      // kun prosjektets EGNE firmaer — håndheves av kallstedet (listeForProsjekt filtrerer
+      // på prosjektets org-ider). Firma-admin kan òg lese direkte via organizationId.
+      if (arg.viaProjectId) return verifiserAdmin(userId, arg.viaProjectId);
+      if (arg.organizationId) return autoriserAdminForFirma(userId, arg.organizationId);
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Firma-lesing krever organizationId eller viaProjectId",
+      });
+
+    case "sitedoc": {
+      // Sentralarkiv: rediger = kun sitedoc_admin; les = sitedoc_admin ELLER firmaadmin.
+      const bruker = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (bruker?.role === "sitedoc_admin") return;
+      if (arg.handling === "les" && (await erFirmaAdminIEnOrg(userId))) return;
+      throw new TRPCError({ code: "FORBIDDEN", message: "Krever SiteDoc-administrator" });
+    }
+  }
+}

@@ -50,8 +50,9 @@ function formaterDatoTid(d: string | Date): string {
 /**
  * Eksport-/arkiv-seksjon i prosjektoppsettet (dataeksport-UI, 2026-09-06).
  * Backend finnes og kjører (eksport.ts + worker); dette er inngangsdøren.
- * Bor sammen med (kommende) «Avslutt prosjekt» — et avsluttet prosjekt er
- * utilgjengelig, så kunden må kunne hente arkivet FØR avslutning.
+ * Bor sammen med «Avslutt prosjekt»-seksjonen under — et avsluttet prosjekt er
+ * utilgjengelig, så kunden må kunne hente arkivet FØR avslutning. Avslutt-gaten
+ * lenker hit (#eksport-arkiv) når den nekter uten et ferdig arkiv.
  */
 export function EksportSeksjon({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
@@ -173,7 +174,8 @@ export function EksportSeksjon({ prosjektId }: { prosjektId: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white">
+    // id-anker: avslutt-gaten (krav 2) lenker hit når serveren nekter uten et ferdig arkiv.
+    <div id="eksport-arkiv" className="scroll-mt-4 rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 px-6 py-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
           <Archive className="h-4 w-4 text-gray-400" />

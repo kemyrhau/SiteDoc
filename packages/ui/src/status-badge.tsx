@@ -1,40 +1,24 @@
 import { Badge } from "./badge";
 import { useTranslation } from "react-i18next";
-
-const STATUS_I18N: Record<string, string> = {
-  draft: "status.utkast",
-  sent: "status.sendt",
-  received: "status.mottatt",
-  // Runde-2 (2026-08-02, Q1=A): `in_progress` er kollapset — vises som «Mottatt» (received), også i
-  // tidslinjeloggen (rå DocumentTransfer.toStatus). Ingen «Under arbeid» noe sted; loggen bruker
-  // samme avledningsvokabular som statusen. «Venter på»-nyansen leveres seer-relativt av chippen.
-  in_progress: "status.mottatt",
-  responded: "status.besvart",
-  approved: "status.godkjent",
-  rejected: "status.avvist",
-  closed: "status.lukket",
-  cancelled: "status.avbrutt",
-  active: "status.aktiv",
-  archived: "status.arkivert",
-  completed: "status.ferdig",
-};
-
-const statusVariant: Record<string, "default" | "primary" | "success" | "warning" | "danger"> = {
-  draft: "default",
-  sent: "primary",
-  received: "primary",
-  in_progress: "primary", // Runde-2: kollapset til received-farge (samme «Mottatt»-vokabular)
-  responded: "warning",
-  approved: "success",
-  rejected: "danger",
-  closed: "default",
-  cancelled: "danger",
-  active: "success",
-  archived: "default",
-  completed: "success",
-};
+import { noeytralEtikett } from "@sitedoc/shared";
 
 type BadgeVariant = "default" | "primary" | "success" | "warning" | "danger";
+
+/**
+ * Statuser UTENFOR dokumentflyt-modellen — `noeytralEtikett` dekker dem ikke, så
+ * de bærer sin egen etikett + variant her. Dokumentstatusene (draft/sent/received/
+ * in_progress/responded/approved/dismissed/closed/cancelled) utledes derimot fra
+ * `noeytralEtikett`, så web og mobil ikke kan drifte (designnotat-statusfarger-
+ * paritet § 8; Runde-2-«Mottatt» for `in_progress` er overstyrt — nå «Under arbeid»
+ * for alle, `responded` er blå i lista). `rejected` er legacy (F3 merget inn i
+ * `in_progress`; `dismissed` er kanonisk «Avvist») men beholdes defensivt.
+ */
+const IKKE_FLYT: Record<string, { i18n: string; variant: BadgeVariant }> = {
+  active: { i18n: "status.aktiv", variant: "success" },
+  archived: { i18n: "status.arkivert", variant: "default" },
+  completed: { i18n: "status.ferdig", variant: "success" },
+  rejected: { i18n: "status.avvist", variant: "danger" },
+};
 
 interface StatusBadgeProps {
   status: string;
@@ -79,12 +63,13 @@ export function StatusBadge({ status, className, lestAvMottakerVed, perspektiv }
     );
   }
 
-  const variant = statusVariant[status] ?? "default";
-  const i18nKey = STATUS_I18N[status];
-  const label = i18nKey ? t(i18nKey) : status;
+  const egen = IKKE_FLYT[status];
+  const { etikettKey, variant } = egen
+    ? { etikettKey: egen.i18n, variant: egen.variant }
+    : noeytralEtikett(status);
   return (
     <Badge variant={variant} className={className} data-testid="status-badge" data-status={status}>
-      {label}
+      {t(etikettKey)}
     </Badge>
   );
 }

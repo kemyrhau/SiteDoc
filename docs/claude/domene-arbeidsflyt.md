@@ -1051,6 +1051,36 @@ ekte runde på det farlige.
 Formuleringen «lås ved dagens slutt» (Kenneth 05.09) var et spesialtilfelle — en jobb som varte
 én dag. Ti dagers kranarbeid er ÉN runde; ny mann på dag 5 legges til og signerer inn i den.
 
+## 🔴 BINDENDE VEDTAK: en sjekkliste dokumenterer utført arbeid — ikke oppfølging i ettertid (Kenneth 2026-09-18)
+
+**Kenneths ord, ordrett:**
+
+> «jeg har ikke snudd -> jeg har hele tiden sakt at 1 års kontroll er en del av 1 års befaring.
+>
+> Sjekklister skal dokumentere jobben utført og objektet er klart for overlevering til byggherre.
+> Kun det -> kontroll etter et år er en annen arbeidsoppgave og skal ikke sammenblandes med
+> utførelse av arbeid. dette er den grunnleggende forståelsen opus/fabel må forstå dersom jeg skal
+> få hjelp med å bygge sjekklister»
+
+**Hva det binder:**
+
+- En **utførelses-sjekkliste avsluttes ved overlevering** til byggherre. Alt som skjer *etter*
+  overlevering hører til en **annen arbeidsoppgave** (befaring, vedlikehold, garantioppfølging) —
+  aldri samme sjekkliste.
+- Kontrollpunkter som **forutsetter at tid har gått** — vekstsesong, ettårskontroll,
+  garantibefaring — skal **ALDRI** inn i en utførelses-sjekkliste. **Heller ikke «bare som et felt
+  til slutt».** Et felt som ikke kan besvares ved overlevering hører ikke hjemme i lista.
+- Gjelder **alle som bygger eller foreslår sjekklistemaler** — både Opus-agentene og fabel. Les
+  dette vedtaket før du legger til et felt.
+
+**Bakgrunn:** KC3.1 «Oppstøtting av trær» fikk 2026-09-18 et felt «Kontrollert etter 1. vekstsesong
+– etterstrammet/justert» (`feat/kc31-niende-felt`, merget `e0d399a4`). Det er nettopp en
+etter-overlevering-kontroll og bryter dette vedtaket. ✅ **Feltet ER fjernet fra
+`seed-bibliotek.ts` (KC3.1 tilbake til 8 felt) i `37e98b0c` (merge av `fix/kc31-sesongfelt-ut`,
+db-test 8→7).** Konklusjonens egen hjelpetekst sa allerede det riktige
+(«etterfølgende sesongskontroll er vedlikehold — egen post»), men prinsippet lå kun som én setning
+i ett felt, ikke som en regel noen leser før de bygger. Derfor dette vedtaket.
+
 ## Koblinger til tekniske dokumenter
 
 | Arbeidsflyt-element | Teknisk dokument |

@@ -10,6 +10,17 @@ name: CI
 # hele tiden og er blitt brutt gjentatte ganger — fordi regelen bare sto i et
 # dokument noen måtte huske å lese. Her håndheves den av maskinen i stedet.
 #
+# Utvidelse (2026-09-15): INTEGRASJONSTESTENE (`*.integration.test.ts`) kjøres nå
+# mot en engangs-Postgres. De var ekskludert fra `pnpm test` og kjørte aldri — så
+# `firmaarkiv-unik-indeks.integration.test.ts` (skrevet for «stille tomhet»-krav b)
+# hadde aldri bevist noe.
+#
+# Utvidelse (2026-09-16): E2E DEL 1 — egen `e2e`-jobb (parallell med `test`) reiser et
+# EFEMÆRT miljø (engangs-pgvector + 4 db-migreringer + seed + api + web). Kjører de
+# de-driftede spec-ene 01–04 (del 3). 05/06/07 holdt ute — produkt-semantikk.
+# ALDRI mot test.sitedoc.no (suiten muterer den delte DB-en). De seks andre spec-ene er
+# del 2 og kjøres IKKE her — ingen skip, ingen «allowed to fail».
+#
 # Kjører både på pull_request og ved push til develop: merge-konvensjonen
 # er `git push origin HEAD:develop` fra et merge-tre (uten PR), så uten
 # push-triggeren ville kode som lander direkte aldri testes.
@@ -30,6 +41,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
+    # Engangs-Postgres KUN for integrasjonstestene. Rives med jobben — aldri
+    # sitedoc_test/sitedoc. Image = pgvector/pgvector:pg16 (ikke ren postgres:16):
+    # migrering 20260331120000 kjører `CREATE EXTENSION vector` (AI-søk-embeddings),
+    # som ren postgres mangler. Verifisert lokalt 2026-09-15: ren postgres feiler
+    # migrate deploy på nettopp den utvidelsen.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: sitedoc_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -55,6 +87,37 @@ jobs:
 
       - run: pnpm test
 
+      # Integrasjonstestene er ekskludert fra `pnpm test` (vitest.config.ts) fordi de
+      # går DIREKTE mot en ekte DB gjennom hele tRPC-laget. Her får de engangs-DB-en.
+      # DATABASE_URL settes KUN på disse to stegene → unit-testene over forblir
+      # hermetiske (ingen ekte DB-tilkobling), og gate-tallet for `pnpm test` står
+      # stille. @sitedoc/db + @sitedoc/db-maskin migreres: fra 2026-09-18 rører
+      # service-timetall.integration.test.ts maskin-Prisma (`prismaMaskin`) for
+      # «stille tomhet»-krav (c) — uten maskin-migreringene finnes ikke tabellene.
+      - name: Migrer engangs-DB (@sitedoc/db + db-maskin)
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/sitedoc_ci
+        run: |
+          pnpm --filter @sitedoc/db exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy
+
+      - name: Integrasjonstester (engangs-Postgres)
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/sitedoc_ci
+        run: pnpm test:integration
+
+      # E2E-suiten (`tests/e2e`) kjøres BEVISST IKKE i CI, og det er et bevisst
+      # valg mot falsk grønn — ikke en forglemmelse:
+      #  - den er en røyktest mot det KJØRENDE test.sitedoc.no + api-test.sitedoc.no,
+      #  - autentisert via hemmeligheten DEV_LOGIN_SECRET (bor i server-.env),
+      #  - og global-setup MUTERER den DELTE sitedoc_test-DB-en (lager/sletter
+      #    E2E-firma og -dokumenter, kjører admin-sweep).
+      # Å kjøre den her ville enten brutt «aldri mot sitedoc_test», eller krevd et
+      # helt efemært web+api+seedet-engangs-DB-miljø i CI. Det siste er et eget
+      # planlagt spor (omfangsestimat i kvalitetssikring-plan.md), fordi e2e dekker
+      # nettopp pilotflyten. Inntil da kjøres den manuelt: `pnpm e2e`
+      # (krever tests/e2e/.env.local med DEV_LOGIN_SECRET — se .env.local.example).
+
       # Regel 10, mobil-halvdelen. `if: always()` fordi en rød test ellers ville
       # skjult en rød typecheck — vi vil se begge, ikke den første som feiler.
       # Forutsetter Prisma-klientene generert over: uten dem rapporterer tsc
@@ -62,3 +125,118 @@ jobs:
       - name: Mobil typecheck (regel 10)
         if: always()
         run: pnpm --filter @sitedoc/mobile typecheck
+
+  # E2E DEL 1 (2026-09-16): egen jobb, PARALLELL med `test` — gjør den ikke tregere for alle.
+  # Reiser et efemært miljø (engangs-pgvector + migrer + seed + api + web) og kjører KUN
+  # `01-login.spec.ts`. Bevist lokalt ende-til-ende før CI. Del 2 (de seks andre spec-ene +
+  # blokkerer-merge-avgjørelsen) er eget spor.
+  e2e:
+    name: e2e (01-05 + 07, 06 utelatt)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    # Engangs-Postgres — samme pgvector-image som `test`-jobben (CREATE EXTENSION vector).
+    # ALDRI sitedoc_test/sitedoc: rives med jobben.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: sitedoc_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/sitedoc_e2e
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generer Prisma-klienter
+        run: |
+          pnpm --filter @sitedoc/db exec prisma generate
+          pnpm --filter @sitedoc/db-timer exec prisma generate
+          pnpm --filter @sitedoc/db-maskin exec prisma generate
+          pnpm --filter @sitedoc/db-varelager exec prisma generate
+
+      # Skjema + testdata: begge seeds er idempotente og kjørbare (målt). seed-e2e-flyt
+      # forutsetter seed-testbrukere (org + AGENT-TEST-0001 + brukere).
+      - name: Migrer + seed engangs-DB
+        run: |
+          pnpm --filter @sitedoc/db exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-timer exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy
+          pnpm --filter @sitedoc/db-varelager exec prisma migrate deploy
+          pnpm --filter @sitedoc/db exec tsx scripts/seed-testbrukere.ts
+          pnpm --filter @sitedoc/db exec tsx scripts/seed-e2e-flyt.ts
+
+      # Bygg web (next start krever bygg). api kjøres via tsx (ingen build).
+      - name: Bygg web
+        run: pnpm --filter @sitedoc/web build
+
+      - name: Installer Playwright-nettleser
+        run: pnpm --filter @sitedoc/e2e run e2e:install
+
+      # Alt i ETT steg så bakgrunns-serverne lever mens Playwright kjører (GHA kan drepe
+      # bakgrunnsprosesser mellom steg). Efemært, isolert miljø → DEV_LOGIN_SECRET/AUTH_SECRET/
+      # FIL_SIGNING_SECRET genereres per kjøring; api og e2e-klient leser SAMME DEV_LOGIN_SECRET.
+      # Ingen GitHub-secret nødvendig for del 1 (ingenting lagret, ingenting å lekke).
+      - name: Reis miljø + kjør 01-login (del 1)
+        env:
+          E2E_BASE_URL: http://localhost:3100
+          E2E_API_URL: http://localhost:3001
+        run: |
+          set -euo pipefail
+          export DEV_LOGIN_SECRET="$(openssl rand -hex 16)"
+          export AUTH_SECRET="$(openssl rand -hex 16)"
+          export FIL_SIGNING_SECRET="$(openssl rand -hex 16)"
+
+          # api (Fastify) — dev-login på, samme DEV_LOGIN_SECRET som e2e-klienten.
+          PORT=3001 HOST=127.0.0.1 ENABLE_DEV_LOGIN=true \
+            pnpm --filter @sitedoc/api exec tsx src/server.ts > /tmp/api.log 2>&1 &
+
+          # web (Next) — NODE_ENV=production krever AUTH_SECRET + FIL_SIGNING_SECRET (instrumentation).
+          NODE_ENV=production API_PORT=3001 \
+            pnpm --filter @sitedoc/web exec next start -p 3100 > /tmp/web.log 2>&1 &
+
+          # Helsesjekk med HARD timeout → feiler tydelig og TIDLIG hvis en server ikke svarer,
+          # ikke som en 45s Playwright-timeout inne i testen.
+          echo "Venter på api /health…"; t0=$(date +%s)
+          timeout 120 bash -c 'until curl -sf http://127.0.0.1:3001/health >/dev/null; do sleep 2; done' \
+            || { echo "API ble ALDRI klar — se /tmp/api.log"; tail -30 /tmp/api.log; exit 1; }
+          echo "Venter på web /logg-inn…"
+          timeout 120 bash -c 'until curl -sf http://127.0.0.1:3100/logg-inn >/dev/null; do sleep 2; done' \
+            || { echo "WEB ble ALDRI klar — se /tmp/web.log"; tail -30 /tmp/web.log; exit 1; }
+          echo "Miljø klart etter $(( $(date +%s) - t0 ))s"
+
+          # DEL 4 (2026-09-16): 05 slås PÅ etter spec-de-drift. MEKANISME-FUNN (cowork-gate): Besvar
+          # (responded) KREVER begrunnelse → handlingsmenyen åpner en dialog i stedet for å fyre
+          # mutasjonen (DokumentHandlingsmeny.tsx:570-574). Den tidligere spec-en klikket knappen og
+          # leste badgen straks → dialogen ble aldri sendt, dok ble stående på received, og en
+          # received-assertion var grønn AV FEIL GRUNN. Rettet: spec-en fyller begrunnelsen + sender,
+          # og asserterer `responded` (modellen er koherent: beregnRuting retning="tilbake" → avledStatus
+          # → responded). 05-godkjenn var alt grønn (approved).
+          # 07-gjenapne slått PÅ (steg 2): gjenåpne (closed→draft-handling) gir badge `received`
+          # («Hos N»), ikke `draft` — beregnRuting aapner-draft setter sendt=true + retning=frem →
+          # avledStatus → received. Spec-drift rettet + testen omdøpt bort fra «→ Utkast».
+          # Holdt ute: 06-videresend (redesign bygger Videresend-flaten, `feat/videresend-synlig-konsekvens`).
+          echo "DEL 5: kjører 01–05 + 07. 06 UTELATT (redesign bygger videresend)."
+          pnpm --filter @sitedoc/e2e exec playwright test \
+            tests/01-login.spec.ts tests/02-opprett.spec.ts tests/03-send.spec.ts \
+            tests/04-flytposisjon.spec.ts tests/05-besvar-godkjenn.spec.ts \
+            tests/07-gjenapne.spec.ts \
+            --project=chromium

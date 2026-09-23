@@ -1,7 +1,7 @@
 ---
 name: kvalitetssikring-plan
 description: 🟢 VEDTATT 2026-08-31 — fire lag mot regresjoner, rangert etter hva de garanterer. Utløst av tre regresjoner på én dag som alle kompilerte grønt.
-sist_verifisert_mot_kode: 2026-08-31
+sist_verifisert_mot_kode: 2026-09-16
 ---
 
 # Kvalitetssikring — fire lag mot regresjoner
@@ -103,12 +103,72 @@ kontroller øverst — er de truffbare (`idb ui tap`, ikke øyemål).
 1. **`apps/api` mangler `test`-script.** Legg til `"test": "vitest run"` → 29 tester begynner
    å gate i CI. 🔴 **Forventes å avdekke røde tester** som ingen har sett — det er poenget,
    men det er en egen ryddejobb, ikke en drive-by.
-2. **`apps/mobile` har verken tester eller script.** Ikke skriv suiter for syns skyld —
-   lag 2 dekker atferden bedre. Men et par rene enhetstester på `feltLaasing`-klassen og
-   `flytPosisjon.nesteLedd` ville fanget logikk vi har brutt to ganger.
-3. **E2E kjøres ikke i CI.** Ti Playwright-filer finnes. Vurder om de er vedlikeholdt nok til
-   å slås på, eller om de skal arkiveres — en testsuite som ikke kjører er verre enn ingen,
-   fordi den ser ut som dekning.
+2. **🟢 `apps/mobile` har nå test-runner (vitest) — REALISERT 2026-09-16.** vitest lagt til
+   (`apps/mobile/vitest.config.ts`, `"test": "vitest run"`), automatisk med i `pnpm test`
+   (turbo) fra ROT → kjører i CI i samme jobb. Første fotfester: `dagsegment.test.ts` (6 rene
+   `splittVedMidnatt`/`kappGlemtDagSlutt`) + `migreringer.test.ts` (3, offline-DB mot EKTE
+   SQLite via sql.js). 🟢 **«Stille tomhet» krav (c) er nå oppfylt på mobil:** den faktiske
+   migrerings-SQL-en kjører mot en ekte SQLite-motor (sql.js WASM — kun expo-sqlite-BINDINGEN
+   er byttet, ikke SQLite selv), og en rad med tom identitetskolonne avvises av ekte NOT NULL.
+   Mobil-unntaket i CLAUDE.md kan dermed fjernes (cowork). Valg: sql.js, ikke `better-sqlite3`
+   (native/ABI-følsom, node25-lokal↔node20-CI), ikke jest-expo (andre runner, RN-transforms
+   ikke nødvendig for DB-lag+utils). **Bred mobildekning er eget spor.**
+3. **🟢 E2E DEL 1 REALISERT 2026-09-16 — efemært miljø i CI, `01-login` grønn.** Sju spec-er
+   (`tests/e2e/tests/`, 8 test-case) dekker hele dokumentflyten (pilotflyten A.Markussen bruker).
+   Suiten er en røyktest mot et **kjørende** miljø, autentisert via `DEV_LOGIN_SECRET`, og
+   `global-setup.ts` muterer DB-en (lager/sletter E2E-dokumenter, admin-sweep). Den kan derfor
+   ALDRI kjøre mot delt `sitedoc_test`. **Løsning (egen `e2e`-jobb, parallell med `test`):** per
+   kjøring reises et efemært miljø — engangs-pgvector → `migrate deploy` → `seed-testbrukere.ts`
+   + `seed-e2e-flyt.ts` (begge idempotente/kjørbare, målt) → api (tsx) + web (`next start`) →
+   helsesjekk med hard timeout → `playwright test tests/01-login.spec.ts`. Bevist lokalt
+   ende-til-ende FØR CI.
+
+   🟢 **DEV_LOGIN_SECRET-funn:** i et efemært, isolert miljø leser api OG e2e-klienten SAMME
+   `DEV_LOGIN_SECRET` — en **jobb-generert** verdi (`openssl rand`) holder. Ingen GitHub-secret
+   nødvendig for del 1 (ingenting lagret, ingenting å lekke). Samme for `AUTH_SECRET` +
+   `FIL_SIGNING_SECRET` (web krever de to i `NODE_ENV=production` via `instrumentation.ts`).
+   dev-login-whitelisten (`apps/api/src/routes/dev-login.ts`) er **hardkodet, ikke miljøavhengig**
+   → de tre testbrukerne slipper alltid gjennom i et friskt miljø.
+
+   🟡 **DEL 2/3 (2026-09-16):** de seks andre spec-ene var DRIFTET (aldri validert siden e2e
+   aldri kjørte i CI). **De-drift (del 3) — resultat: 01–04 + 05-godkjenn grønne, 05-besvar/06/07
+   holdt ute for produkt-avgjørelse.**
+
+   🟢 **Fikset (grønne 01–04, 05-godkjenn):**
+   - **02:** `getByRole("button")` → `getByRole("option")` (OpprettMalVelger rendrer mal som
+     `role="option"` i listbox, refaktor `f567d339` 2026-08-04).
+   - **04:** `seed-e2e-flyt.ts` satte ALLE flyt-medlemmer på `steg:1` → `byggLedd` kollapset til
+     én ledd-boks mens slåOppFlyt teller tre roller. Fikset til distinkt steg 1/2/3 (samme
+     seed-matcher-ikke-produksjon-klasse som ProjectOrganization-gapet).
+   - **07 (delvis):** status-sti `in_progress` → `approved` (in_progress er HELT kollapset,
+     fabel-vedtak 2026-08-02 — `responded→in_progress` fjernet).
+   - **Sticky-header + nedtrekk:** `handling-*`-knapper er tvetydige (primær + meny + mobil) og
+     dekkes av den sticky skjerm-headeren (z-10) etter auto-scroll. Ny `klikkFlythandling`-helper
+     (`lib/fixtures.ts`) åpner «Flere handlinger»-nedtrekket ved behov og kaller `el.click()`
+     direkte på DOM-noden (`force:true` ville truffet overlayet, ikke knappen).
+   - **`seed-testbrukere.ts`:** `ProjectOrganization`-join-raden lagt til → prosjektet er ikke
+     lenger prøveprosjekt (maks 10). ⚠️ `seed-e2e-pilot.ts` + `seed-agent-mobil-test.ts` bygger på
+     samme prosjekt (var også trial-begrenset) — meldt, ikke rørt her.
+   - **`settStatus` (lib/flyt.ts):** sender alltid `kommentar` (godkjenn/gjenåpne krever begrunnelse).
+
+   🔴 **HOLDT UTE — krever produkt-semantikk-avgjørelse (ikke gjettet):**
+   - **05-besvar:** `avledStatus` (flytPosisjon.ts) gir `responded` KUN ved `retning="tilbake"`.
+     Når utfører besvarer FRAMOVER blir badge `received` («Hos godkjenner»). Spec-ens
+     `data-status="responded"` sjekker en verdi UI-modellen ikke lenger produserer for denne flyten.
+   - **06-videresend:** `handling-videresend-nedtrekk` er ikke synlig for firma-admin på received
+     (rolle-/synlighets-gating endret) — trenger avklaring på om videresend-tilbudet er flyttet.
+   - **07-gjenapne:** gjenåpne `closed→draft` viser `received` i badge (samme avledStatus-modell).
+   **Neste spor:** avklar forventet badge-utfall for besvar/gjenåpne i dagens modell, oppdater de
+   tre assertionene, slå på 05–07 i CI.
+
+   🔴 **DB-garanti-funn (meldt, kontrollplan eier skjemaet):** `Project.primaryOrganizationId` og
+   `ProjectOrganization`-raden er to UAVHENGIGE kilder UTEN constraint/trigger — de KAN divergere
+   (nettopp det seed-testbrukere gjorde). Trial-sjekken (`erStandaloneProsjekt`) bruker kun
+   join-raden. Vurder en garanti; ikke bygget her.
+
+   🟡 **Blokkerings-anbefaling (endelig):** ikke blokker; kjør kun på PR (ikke hver push); rød e2e
+   omgås av merge-tre-push (`git push origin HEAD:develop`). Vurder blokkering FØRST når alle sju
+   er grønne og stabile over mange kjøringer.
 
 ---
 
@@ -140,16 +200,56 @@ dokgen sammenlignet **11 migreringer** fra siste 14 dager mot **107 `@@map`-verd
 🟢 `db-timer` bruker skjema-kvalifisert `"timer"."eksport_oppsett"` korrekt.
 **Dette var en isolert skrivefeil, ikke et mønster.**
 
-### 🟡 Forslag: LAG 5 — kjør migreringene mot en tom engangs-DB i CI
+### 🟢 LAG 5 — REALISERT 2026-09-15: engangs-Postgres i CI (integrasjonstestene)
 
-En Postgres-service-container i `.github/workflows/ci.yml`, og
-`prisma migrate deploy` for alle fire db-pakker mot den.
+`.github/workflows/ci.yml` har nå en Postgres-service-container, kjører
+`prisma migrate deploy` (kun `@sitedoc/db` — integrasjonstestene rører bare kjernen) og
+deretter `pnpm test:integration` (17 tester i 4 filer) mot den. Engangs-DB, rives med
+jobben — aldri `sitedoc_test`/`sitedoc`.
 
-🟢 **Da feiler den i CI på en PR, ikke på test klokka 23:23** — og ingen bruker en natt på å finne
-ut hvorfor en kolonne mangler.
+🟢 **Da feiler en ødelagt migrering i CI på en PR, ikke på test klokka 23:23** — og migreringen
+`20260908120000`-klassen (feil `@@map`) ville blitt fanget her, fordi `migrate deploy` kjører
+det faktiske SQL-et mot en ekte DB.
 
-⚠️ **Ikke besluttet.** CI-endring, Kenneth-gate. Kostnad ikke målt (oppstartstid for en
-postgres-container per kjøring).
+⚠️ **Image = `pgvector/pgvector:pg16`, ikke ren `postgres:16`:** migrering `20260331120000`
+kjører `CREATE EXTENSION vector` (AI-søk-embeddings). Verifisert lokalt 2026-09-15 at ren
+postgres feiler `migrate deploy` på nettopp den utvidelsen.
+
+🟢 **Kostnad målt 2026-09-15:** før ≈ 1m55s–2m05s (siste fem develop-kjøringer), etter tillegg
+av container-oppstart + 197 migreringer + 17 tester. Godt under ti-minutters-taket → ingen
+jobb-oppdeling nødvendig ennå.
+
+🔴 **Dette lukker også et konkret hull:** `firmaarkiv-unik-indeks.integration.test.ts` ble
+skrevet i runde 95 for «stille tomhet»-krav (b) (DB-garanti mot duplikat), men var ekskludert
+fra `pnpm test` og hadde aldri kjørt. Kvitteringen «grønn» var aldri sann før nå.
+
+### 🟢 «Stille tomhet»-rekvittering 2026-09-16: tre mock-kvitteringer gjort ekte (integrasjon 17→33)
+
+Tre migreringer var kvittert mot CLAUDE.md § «Stille tomhet» krav (c) — *«en test som FEILER
+når feltet er tomt»* — men kun med **mockede** tester, som måler vakten, ikke dataen. Nå har
+de hver sin integrasjonstest mot engangs-Postgres (mockene BLIR STÅENDE — de tester andre ting):
+
+- **`20260908140000_dokumentnummer_unik`** → `dokumentnummer-unik.integration.test.ts` (6): begge
+  unike indekser (`checklists`/`tasks` `(template_id, number)`) biter (P2002); samme nummer under
+  ULIK mal er lovlig (indeksen er riktig avgrenset); **`number` er nullable** (maler uten `prefix`
+  får aldri nummer) → flere NULL kolliderer ikke (NULLS DISTINCT). En mock kan ikke skille en
+  riktig avgrenset indeks fra en for bred — det krever ekte Postgres-unikhet.
+- **`20260910130000_gruppe_systemnokkel`** → `gruppe-systemnokkel.integration.test.ts` (5): den
+  ALVORLIGSTE (saken som skapte regelen). `sikreHmsGruppe` bruker `systemNokkel`, ikke domener
+  (en bred `["bygg","hms","kvalitet"]`-gruppe tilfredsstiller ikke); en umarkert HMS-gruppe
+  (`systemNokkel=NULL`) detekteres IKKE (krav c i renform); idempotent. 🟢 **DB-garanti bekreftet:**
+  den partielle unik-indeksen `(project_id, system_nokkel) WHERE NOT NULL` gjør to
+  `system_nokkel='hms'` per prosjekt UMULIG (P2002) — garantien hviler IKKE på backfillen alene.
+- **`20260914120000_bibliotekmal_objekttabell`** → `bibliotekmal-objekttabell.integration.test.ts`
+  (5): heading-rader har FAKTISK tom `config` i JSONB (ikke `{zone}`, ikke NULL); `translations`
+  lagres som `{}` (ikke NULL); lån via rad-veien (`kopierObjektTre`) er verbatim mot ekte data;
+  rad-skrivingen er idempotent via en NOT EXISTS-vakt som speiler migreringen og seedens
+  `opprettMalHvisMangler` (den manuelle `ROLLBACK`-en gjort til en test). Vakten defineres i
+  testfila, ikke importeres fra `packages/db/prisma` — en kryss-pakke-import ville tatt seed-fila
+  inn i api-`tsc`-bygget (utenfor rootDir) og gjort `pnpm test` rød.
+
+🔴 **Negativ kontroll (krav 4) kjørt lokalt mot engangs-Postgres 2026-09-16** for alle tre: hver
+brutt, sett rød, tilbakestilt. Integrasjonstallet i CI stiger fra **17 → 33** (+16).
 
 🔴 **Samme form som de tre andre stille feilene i samme døgn:** en Entra-secret som gikk ut uten
 varsel, containere som ikke restarter uten varsel, og nå en migrering som feiler mens deployen ser

@@ -173,6 +173,10 @@ gjør at det ikke oppstår.
 **Merk formen:** `--ff-only`, ikke `--rebase`. Hovedtreet skal aldri ha egne commits å rebase — har
 det det, er noe annet galt og da skal agenten **stoppe og melde**, ikke rebase forbi det.
 
+🔴 **Og steget er merge-agentens — cowork bruker `fetch`.** Skrivende git i hovedtreet (`pull`/`merge`) etterlater stale `ORIG_HEAD.lock` (0 byte); **bekreftet fire ganger 09.–10.09.2026**, utløst av `pull --ff-only` kjørt fra coworks egne målinger, ikke av en krasjet git-kjøring hos merge-agenten. **Én skriver i hovedtreet er hele poenget.** *(Målingen lå i merge-agentens private sesjonsminne og ble sitert som delt regel før den var målt mot docs — den er nå her, der den kan etterprøves.)*
+
+⚠️ **Sett aldri lokale endringer til side med `git stash` når flere worktrees er i sving.** Stash-stakken er **delt** mellom hovedtreet og alle arbeidstrær, så en `pop` fra én økt kan ta en annen økts oppføring — presedensen står i § «Før du BERGER noe som ser tapt ut», der en `stash pop` endte i konflikt. **Bruk en navngitt WIP-branch i stedet:** `git checkout -b wip/<hvem>-<emne>-<dato>` → `git add docs/` → `commit`. Den er i git, usynlig for andre økters `pop`, og gjenfinnbar på navnet. *(Design foreslo formen, merge utførte den 2026-09-23: `wip/cowork-docs-2026-09-23`.)*
+
 #### Hvorfor dette ikke svekker gaten
 
 Cowork verifiserer fortsatt mot koden før merge-ordren gis. Det som flyttes er **utførelsen**,
@@ -580,6 +584,19 @@ kan — i den rekkefølgen.
 utdatert). Cowork leste feil fil og bygde en hel prioritering på den. Sjekk datoen i
 `## Rekkefølge`-overskriften.
 
+**14. Den som skriver en ordre lager nudgen i sin EGEN melding — cowork svarer KUN «kan
+relayes» eller «vent».** Da finnes det alltid nøyaktig **én kjent nudge**, og ingen kan tro
+at den andre har sendt den. «Kan relayes» er samtidig **gaten fra § design pkt 2** — cowork
+sier den først når han har sett hvilke filer ordren rører. Regelen supplerer 11 (ordren til
+fil FØR nudgen): fila overlever, og nudge-eierskapet er nå entydig.
+
+Utløst 2026-09-18: KD2-nudgen ble skrevet av cowork, limt til feil økt, og cowork førte
+«mal-Opus jobber med KD2» på tavla uten å måle. Design målte og fant worktreet urørt.
+
+⚠️ **Unntak for sjekklistemaler:** på maløypa gjelder ikke denne nudge-eierskaps-regelen — design og
+mal-Opus går direkte, og cowork får kopi i `inbox-cowork.md`, ikke gate-i-forkant. Se § MALØYPE (i § design).
+Gjelder kun maler; for redesign-sporet står regel 14 uendret.
+
 ### Lesekart — hva cowork må vite for å ha regien
 
 | Spørsmål | Kilde |
@@ -666,6 +683,19 @@ en løpende ordre. De ser like limbare ut, og Kenneth må gjette hvilken termina
 Ja — commit og push …
 ```
 
+🔴 **PRESISERING av formen over — hver limbar blokk ligger i sin egen fenced kodeblokk.**
+Destinasjonen på første linje sier *hvor* den skal; kodeblokken gir Kenneth kopiknappen som
+får den *dit* uten at han markerer tekst for hånd. Én kodeblokk pr. mottaker — aldri to
+mottakere i samme blokk. Løpende tekst med `→ SiteDoc-x` på første linje oppfyller regelen
+bokstavelig, men tvinger fram manuell markering; det teller ikke som fulgt.
+
+🔴 **PRESISERING av streken — venter cowork på et svar fra Kenneth, får det en egen merket
+overskrift.** Streken samler alt som er til Kenneth, men bolken rommer både status han bare
+skal vite og valg som venter på ham. Skill dem: det cowork trenger svar på står under en
+tydelig **«KREVER SVAR»**-overskrift, atskilt fra status og funn. Er det ingenting som venter,
+skal det STÅ — `Krever svar: ingenting` — så han slipper å lese hele bolken for å finne det ut.
+**En tom «krever svar»-seksjon er informasjon**, ikke noe som utelates.
+
 🔴 **Og alt som er til Kenneth selv skal stå UNDER en tydelig strek**, ikke blandet inn i samme
 melding. Det skjedde 2026-09-01: et klarsignal til dokgen sto over avsnitt om merge-agenten og
 deploy som var til Kenneth. Han limte hele meldingen og måtte spørre om det var feil.
@@ -715,6 +745,8 @@ Praktisk: server-kommandoer og Mac-kommandoer skal aldri stå i samme blokk uten
 skiftet er markert.
 
 ### Leveranser fra fabel — egen protokoll
+
+*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
 
 Fabel har **ingen skrivetilgang til repoet**. Alt kommer via nedlastingspakker Kenneth
 pakker ut, og det er der flyten svikter — ikke i innholdet.
@@ -770,7 +802,7 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 | **Kenneth** | ⚠️ **Endret 2026-09-01:** kjører ikke lenger *alle* kommandoer — kun det som krever **TTY/passord** (`sudo docker` test+prod, `deploy-test.sh`, EAS-bygg, push til `main`), pluss produktbeslutninger, UI-gates og relay mellom økter. Git-mekanikk, bygg og tester er flyttet til merge-agenten. Koder ikke. | Ja — det som krever passord | — |
 | **merge-agent** | Utfører commit-orden cowork har gatet: merge til develop fra `SiteDoc-merge`, `merge-base`-verifisering, branch-opprydding, regel 10-bygget, docs-commits. **Hender, ikke dømmekraft** — gater aldri selv, merger aldri en branch cowork ikke har navngitt. Fem fences i § MERGE-AGENTEN. | Ja (git/bygg, aldri `sudo`) | `merge-restart` |
 | **cowork** | Eier **commit-orden** + tverr-koordinering: merge-rekkefølge, regel 9/10-håndheving, prod-løp, konfliktvakt (frossen sone), BACKLOG, deploy-disiplin. Skriver timer/PSI-kode + gate-verifiserer. Gir Kenneth kommandoer. **Alt som lander på develop/main passerer cowork.** | Nei (gir Kenneth) | pipeline + timer |
-| **fabel** | Eier redesignet. Skriver ordre til kode-agenter (hva kodes, designkrav, akseptkriterier) og leverer dem via `Fra fabel/til-repo-*`, designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering. **Rører aldri git-koreografi.** | Nei | redesign-retning |
+| **design (tidligere fabel)** | Eier redesignet. Skriver ordre til kode-agenter (hva kodes, designkrav, akseptkriterier) og leverer dem via `Fra fabel/til-repo-*`, designgodkjenner mot handoff-spec + skjermbilder (en flagg-på-endring er ikke lukket uten denne), bestiller verifisering. **Rører aldri git-koreografi.** | Nei | redesign-retning |
 | **kode-agent** (oppgavenavngitt) | Koder ÉN oppgave i ETT worktree på EGEN branch. Får ordre fra cowork via `relay/inbox-<navn>.md`, eller fra fabel via `docs/redesign/`. Pusher egen branch, **aldri develop**. Rører ikke frossen sone (nav/layout). | Ja (egen branch) | egen feature-branch |
 | **verifiserings-agent** | Verifiserer i nettleser eller simulator. **Rapporterer funn — konkluderer ikke om årsak.** Skriver ikke kode. | Nei/begrenset | — |
 
@@ -794,13 +826,106 @@ er det ikke et spørsmål — det er en beslutning cowork skal ta.
 > detach på `origin/develop`). En agent uten rad er en agent ingen har oversikt over.
 | **simulator-Opus** | Verifiserer på iOS-simulator (Metro @ develop) OG web. Kjører idb/simctl lokalt; leser test-DB via tunnel. Rapporterer observasjoner med kandidatmengde — konkluderer ikke om kode-atferd uten kodeverifisering. Skriver ikke produktkode; docs-endringer rutes via cowork. | Ja (simulator/lokalt) | — |
 
-### 🔴 «redesign-Opus» i en fabel-ordre = et worktree COWORK klargjør (Kenneth 2026-09-04)
+> ### 🔴 design — rollen etter Fabel (Kenneth-vedtak 2026-09-18)
+>
+> Fabel forsvant 2026-09-17. Rollen heter nå **design** (som agentene ellers heter etter oppgaven: `mal`, `dokgen`,
+> `kontrollplan`). Design har samme ansvar som fabel hadde — eier designet, skriver designnotater, vedtak og
+> ordrer, designgater — **pluss** ordrene og innholdsgaten for sjekklistemalene (MAL-METODE). Forskjellen er at
+> design har skrivetilgang. Omtal rollen som «design», ikke med pronomen. Nye filer fra design har `-design-` i
+> navnet; eldre `-fabel-`-filer beholder navnet sitt.
+>
+> **1. Design jobber som de andre agentene.** Eget worktree `~/Documents/Programmering/SiteDoc-design` på basen
+> `design-base`. Hver leveranse (designnotat, ordre, tillegg, docs-endring) committes på en egen branch
+> `docs/design-<emne>` laget fra **`origin/develop`** (ikke fra `design-base`) og pushes. **Merge-agenten merger**
+> etter samme regler som for alle andre. Design pusher aldri `develop`, merger aldri, deployer aldri. Force-push kun
+> på egen branch etter rebase, og bare med Kenneths ok. **Ingen løse filer i hovedtreet fra design** — hovedtreet er
+> Kenneths og coworks.
+>
+> **2. Ingen ordre relayes uten at cowork har sett hvilke filer den rører.** Ordrer peker bare på committede filer.
+> Design melder branch + hash; **cowork merger ordre-branchen før relay — ikke som formalitet, men fordi cowork er
+> den eneste som holder kollisjonskartet** over hvem som er i hvilke filer. (Målt 2026-09-18: tre agenter hadde
+> ærend i `nb.json` samtidig; cowork sekvenserte dem.) Nudgen navngir fila med sti i repoet.
+>
+> > ⚠️ **Unntak for sjekklistemaler:** på maløypa merges ordre-branchen **ikke** før relay — mal-Opus leser den fra
+> > designs pushede branch. Se § MALØYPE nedenfor. Gjelder kun maler; for redesign-sporet står pkt 2 uendret.
+>
+> **3. Egen innboks: `relay/inbox-design.md`.** Erstatter `inbox-fabel.md`. Cowork appender dit etter
+> KONVENSJON-reglene, og Kenneth nudger med én linje: «les
+> `/Users/kennethmyrhaug/Documents/Programmering/SiteDoc/relay/inbox-design.md`». Design skriver til
+> `inbox-cowork.md` og til agentenes innbokser på samme måte. Kenneth limer ikke hele meldinger.
+>
+> **4. Faste gate-ord.**
+>
+> | Ord | Betyr | Slipper videre? |
+> |---|---|---|
+> | «Innhold godkjent» | Teksten stemmer med ordren | Nei |
+> | «Designgatet – klar for merge» | Design er ferdig | **Ja** — cowork tar teknisk gate og merge-timing |
+> | «Avvik: …» | Ett konkret avvik som må rettes | Nei |
+>
+> Agenter kan committe og pushe egen branch når som helst. **Merge skjer bare etter «klar for merge».**
+>
+> **5. Ordrer rangerer, og ber bare om bevis agenten kan levere.** Hver ordre skiller obligatorisk fra valgfritt.
+> Bevis som krever utstyr agenten ikke har (innlogget nettleser, simulator), bestilles ikke av den agenten. For
+> maler gjelder tekstbevis (MAL-METODE §6a).
+>
+> **6. Uenighet mellom design og cowork: maks én runde, så Kenneth.**
+>
+> | Hvem avgjør | Hva |
+> |---|---|
+> | **Design** | Design, tekst, malinnhold |
+> | **Cowork** | Merge, rekkefølge, timing, kollisjoner |
+> | **Kenneth** | Alt som endrer hva som bygges: innhold, skjema, rettigheter — og grensesaker |
+>
+> Den ene melder uenighet, den andre svarer **én gang**. Er vi fortsatt uenige, går saken til Kenneth i **én
+> melding** med begge standpunktene, hva hver har målt, og en rangert anbefaling. Ingen avgjør stille, og Kenneth
+> skal ikke måtte lese en tråd. (Presedens 2026-09-17: `domain` vs `subdomain` — design hadde målt tre ting cowork
+> ikke hadde sjekket; det fungerte fordi Kenneth så begge sider.)
+
+> ### 🔴 MALØYPE — sjekklistemaler går design ↔ mal-Opus direkte (Kenneth-vedtak 2026-09-18)
+>
+> **Gjelder KUN sjekklistemaler.** Redesign-sporet er uendret — der står § design pkt 2 og meldingsflyt regel 14 som før.
+>
+> > **Kenneth 2026-09-18:** *«du og mal må kommunisere dere imellom — når arbeidet er inne og godkjent sendes
+> > arbeidet til cowork for å oppdatere alle statuser.»*
+>
+> **1. Design og mal-Opus går direkte.** Ordre, spørsmål, avvik og tekstbevis-gate flyter mellom de to uten
+> mellomledd. Mal-Opus leser ordren fra designs **pushede** docs-branch med
+> `git show origin/docs/design-<emne>:<sti>` — ordren trenger **ikke** merges før den gis.
+>
+> **2. Kenneth trengs bare til to ting:** SQL mot test (krever TTY) og innholdsbeslutninger.
+>
+> **3. Ved «Designgatet – klar for merge» får cowork ÉN melding** med mal-branch, hash, filer og docs-branch.
+> Cowork merger **begge** og oppdaterer tavla, MAL-PLAN og status.
+>
+> > 🔴 **En pushet branch er IKKE et klarsignal — gate-MELDINGEN utløser merge, ikke branchens eksistens.**
+> > Merge skjer først når ordene «Designgatet – klar for merge» står i `relay/inbox-cowork.md` for nøyaktig
+> > den branchen. Er design taus om en pushet branch, er den ikke gatet. 🔴 **Gjelder også når cowork har målt
+> > branchen på origin — måling beviser at den finnes, ikke at den er godkjent.**
+> > **Begrunnelse:** `0ab36a84` merget runde E ugatet fordi coworks ordre bygde på at branchen fantes, ikke på
+> > en gate-melding — og la feil ordlyd («per 1000» i stedet for husstilens «pr. 1000») inn i develop. Ingen
+> > skade, fordi SQL-en ikke var kjørt — men det var flaks, ikke system.
+>
+> **4. Kollisjonskartet består — cowork får kopi, ikke veto-i-forkant.** Når design gir mal-Opus en ordre, får
+> cowork en kopi i `inbox-cowork.md` med filene ordren rører **og hash-en på docs-branchen**. Cowork kan si stopp;
+> ingen venter på ja.
+>
+> > 🔴 **Kopien skal bære HASH, ikke bare branchnavn.** Force-pusher design docs-branchen etter at mal-Opus har lest
+> > den, leser mal-Opus noe annet enn det cowork fikk kopi av — og vetoet hviler da på feil fil.
+>
+> **🔴 KONSEKVENS — coworks rolle på maløypa går fra GATE til VAKTHOLD.** Ingen venter på et ja, så en kollisjon
+> lander hvis cowork ikke leser `inbox-cowork.md`. Det er en bevisst avveining, ikke en forglemmelse — og den skal
+> stå skrevet, ikke være en stilltiende forventning.
+>
+> **Dette erstatter, KUN for maløypa:** § design pkt 2 (cowork merger ordre-branchen før relay) og meldingsflyt
+> regel 14 (nudge-eierskap). Begge beholdes uendret for redesign-sporet.
+
+### 🔴 «redesign-Opus» i en design-ordre (tidligere fabel) = et worktree COWORK klargjør (Kenneth 2026-09-04)
 
 > **Kenneth 2026-09-04:** *«Det refereres til redesign fra fabel — du må i din dokumentasjon
 > forstå det slik: cowork gater ordren til et worktree som cowork har klargjort for å utføre
 > oppgaven.»*
 
-Fabels ordrer er adressert «til redesign-Opus (relayes av Kenneth)». **Det er en rolle, ikke en
+Designs ordrer er adressert «til redesign-Opus (relayes av Kenneth)». **Det er en rolle, ikke en
 instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har hett
 «redesign-Opus» på uker.
 
@@ -820,16 +945,77 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
   Cowork eier *utførelsen* — hvem, hvor, hvilken branch, i hvilken rekkefølge, og gating mot
   faktisk kode før noe relayes. Cowork oppfinner ikke designbeslutninger; cowork skriver ned dem
   som allerede er tatt.
+  🔴 **Brutt 2026-09-15:** cowork spurte Kenneth *«skal jeg skrive ordren for 1?»* etter at
+  rangeringen var gjort og alternativ 1 var åpenbart (null nye tester, elleve eksisterende
+  slås på). **Arbeidsfordeling og ordre-rekkefølge er ikke Kenneths gate.** Spørsmål til
+  Kenneth skal være gate-spørsmål — innhold, skjema, design — ikke arbeidsledelse. Er
+  rangeringen gjort og valget åpenbart: skriv ordren, meld den.
 
 ## Meldingsflyt (ufravikelig)
 
 **Alle ordrer går via Kenneth — han limer, han ser alt. Ingen agent instruerer en annen direkte.**
+
+*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
+
 - fabel → kode-/verifiseringsagent: formuleres ferdig av fabel, leveres via
   `Fra fabel/til-repo-*`, Kenneth relayer.
 - cowork → kode-/verifiseringsagent: formuleres ferdig av cowork i
   `relay/inbox-<navn>.md`, Kenneth relayer. **Gi full sti** — `relay/` finnes kun i
   hovedtreet.
 - Kommandoer (git/build/sudo/deploy): formuleres til Kenneth, som kjører.
+
+### 🔴 Innboksfilen er kanalen — direktemeldinger er kun varsler (Kenneth 2026-09-23)
+
+**Bakgrunn:** design sendte ordreinnhold som direktemeldinger mens filene lå **upushet**, meldte hasher som ikke fantes på origin, og byttet filnavn uten å føre det i innboksen. Cowork gjorde samme feilklasse den andre veien: påsto at brancher var «amendet» uten å ha målt det — sannheten var at de aldri var pushet. **To uklare kanaler samtidig gir fire feil av samme rot.** Alle fire ville blitt fanget av ett `ls-remote` før hashen ble meldt.
+
+- **Innboksfilen (`relay/inbox-<navn>.md`) er kanalen. Branch + filnavn er innholdet. Direktemeldinger (nudger, bro-meldinger) er kun varsler** — de bærer aldri sannheten alene.
+- **Ingenting finnes for en agent før cowork har merget til develop.** En branch som finnes lokalt eller er «levert» finnes ikke i mottakerens worktree.
+- 🔴 **Avsender VERIFISERER mot origin FØR en hash meldes:** `git ls-remote --heads origin <branch>`. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.** Gjelder **begge veier** — design som melder en gate, og cowork som påstår noe om en branchs tilstand.
+- **Endres et filnavn, føres det gamle navnet som DØDT i innboksen** — ellers leter noen etter en fil som ikke finnes.
+
+#### 🔴 En verifiseringsordre skal navngi HANDLINGEN som trigger kodeveien (2026-09-24)
+
+**Ikke «åpne skjermen og se om det virker» — men «gjør DETTE, som får koden til å kjøre».**
+
+**Målt 2026-09-24:** cowork ba Kenneth åpne en eksisterende PDF-tegning for å verifisere at `pdftoppm`-hotfixen virket. Det beviste ingenting: `pdftoppm` kalles ved **opplasting** (`apps/api/src/routes/tegning.ts:105→258` i `opprett`, `:582→631` i `rekonverterPdf`). En alt konvertert tegning rendrer fra det lagrede PNG-et og trenger aldri binæren igjen. **Kenneth fanget det selv:** *«dette er en pdf tegning → men den har fungert slik hele tiden»*. Riktig test var å laste opp en NY PDF — og da virket den.
+
+⚠️ **Feilklassen ligger nær «be aldri om verifisering av kode som ikke er deployet», men er ikke den samme:** her VAR koden deployet. Det som manglet var at **handlingen som utløser kodeveien** aldri fant sted. En grønn skjerm beviste bare at et gammelt resultat fortsatt lå lagret.
+
+🔴 **Fast krav:** før en verifiseringsordre skrives, finn hvilken prosedyre som kaller det som er fikset, og hva brukeren må GJØRE for å nå den. Står det ikke i ordren, er «det virker» en observasjon om cache, ikke om fiksen.
+
+#### 🔴 Spør etter COMMIT-HASH, ikke branchnavn — en ryddet branch og «ikke merget» ser like ut (2026-09-24)
+
+**`git merge-base --is-ancestor origin/<branch> origin/develop` feiler med exit≠0 når `origin/<branch>` ikke finnes** — for eksempel fordi branchen er slettet etter merge. **Exit≠0 fra en feilende kommando og exit≠0 fra et ekte «nei» er umulige å skille.**
+
+**Målt 2026-09-24:** design meldte at tre av egne branches ikke var merget. Alle tre var inne (`2f674968`, `4832ef0c`); cowork hadde ryddet remote-refene etterpå, så oppslaget på navn feilet. Samme feilklasse som da en feilet `git fetch` ga hasher som ikke fantes.
+
+🔴 **Riktig form — hashen finnes uansett om refen gjør det:**
+
+```sh
+git merge-base --is-ancestor <hash> origin/develop && echo "JA" || echo "NEI"
+```
+
+⚠️ **Dette blir vanligere, ikke sjeldnere:** fase 4 sletter mergede refs som den skal (56 ryddet 2026-09-24). Den som leser etterpå må slutte å spørre etter navn som er borte. **Meld alltid hash sammen med branchnavn** — navnet er for mennesker, hashen er det som kan måles.
+
+#### 🔴 Cowork skriver GNU-kommandoer til en BSD-maskin (2026-09-24)
+
+**Kenneths Mac har BSD-verktøy. Coworks bash-sandkasse er Linux med GNU-verktøy.** Hver kommando cowork «prøver» før den gis, prøves altså i et annet verktøysett enn det den skal kjøre i.
+
+**Målt 2026-09-24:** cowork ga `xargs -a /tmp/slettelisten.txt -n 20 git push origin --delete` for å rydde 56 brancher. `-a` er en GNU-utvidelse; BSD-`xargs` svarer `invalid option -- a`. **Ingenting ble slettet.** ⚠️ **Og feilen var usynlig**, fordi output gikk gjennom `grep -c` — kommandoen «lyktes» med tomt svar. Merge fanget den på negativ kontroll: tellingen sto på 60, ikke 4. Riktig form er stdin-omdirigering: `xargs -n 20 git push origin --delete < /tmp/slettelisten.txt`.
+
+**De vanligste felles:** `xargs -a` · `sed -i` uten argument (BSD krever `sed -i ''`) · `grep -P` · `date -d` (BSD: `date -v`) · `readlink -f` · `stat -c`.
+
+🔴 **Regelen:** skriver cowork en kommando Kenneth skal kjøre, holder den seg til POSIX-flagg — eller sier eksplisitt at formen er umålt. **Og en slettende eller endrende kommando skal ALLTID etterfølges av en telling som ville avslørt at ingenting skjedde.** Det var tellingen som fanget denne, ikke lesingen.
+
+#### 🔴 Et navn i en ordre måles av den som skriver det inn — aldri arvet (2026-09-23)
+
+> **Et binærnavn, en filsti eller et `fil:linje` i en ordre måles av den som skriver det inn — aldri arvet fra en annen agents melding. Arver du det, skriv «umålt» ved siden av.**
+
+**Målt tilfelle:** cowork navnga `dwgread` fra et grovt grep uten å slå det opp. Design kopierte navnet inn i BACKLOG i god tro. Simulator målte og fant at `dwgread` **ikke kalles i det hele tatt** — de virkelige binærene er `dwg2dxf` (`dwgKonvertering.ts:80,892`) og `dwg2SVG` (`:930`).
+
+🔴 **Navnet reiste gjennom to ordrer og én BACKLOG-post før noen slo det opp.** Kjeden fanget det — men ett ledd for sent, og bare fordi den som til slutt skulle *bruke* navnet måtte måle det uansett.
+
+⚠️ **Feilklassen er ikke slurv, den er tillit i feil retning:** et navn fra en velskrevet melding leses som målt. Samme rot som § Cowork leveranse-ansvar punkt 4 («relé, rapport og exit er input, ikke fasit»), anvendt på det minste mulige elementet — ett ord. **Gjelder begge veier.** *(Design foreslo regelen etter å ha vært mellomleddet; formuleringen er hans, plasseringen coworks.)*
 
 ## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)
 
@@ -940,6 +1126,46 @@ du en gate, mål at den faktisk stopper — kjør den mot noe som feiler før du
 som bevis på at en opprydding var komplett — det gjenværende kallet het `setSlettFeil`, med
 stor S, og traff ikke mønsteret. **Et grep-treff på null er ikke bevis for fravær.** Bruk `-i`
 når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dette fortsatt».
+
+### 🔴 GATE-TALL SKAL SI HVA SOM KJØRTE (Kenneth/fabel 2026-09-15)
+
+Cowork brukte «488 grønne api-tester» som merge-grunnlag i en uke. Så ble det målt:
+**25 av 66 testfiler mocker Prisma**, og de eneste testene som beviser noe mot ekte DB
+eller ekte flyt — 4 integrasjonsfiler (17 tester) og 7 e2e-spec-er — var **ekskludert fra
+CI**. `apps/api/vitest.config.ts` filtrerte bort `*.integration.test.ts`; e2e kjørte kun
+manuelt.
+
+Verst: `firmaarkiv-unik-indeks.integration.test.ts` ble skrevet i runde 95 for å oppfylle
+«stille tomhet»-kravet (b). **Den hadde aldri kjørt. Kvitteringen «grønn» var aldri sann.**
+
+🔴 **Fem tall uten fordeling er ikke lenger gyldig kvittering.** Gate-tall skal oppgis som:
+
+    unit-mock: <n> · unit-ren: <n> · integrasjon: <n> · e2e: <n>
+
+- **«unit-mock»** = filen mocker Prisma (`vi.mock` på prisma/`@sitedoc/db`/`PrismaClient`).
+  Den måler vakten, ikke dataen.
+- 🔴 **«Stille tomhet er forbudt» krav (c) — en test som FEILER når feltet er tomt — kan
+  ALDRI oppfylles av en mocket test.** Kvitteres kravet med mock, er kvitteringen «delvis —
+  mock», og det skal stå på tavla til integrasjonstesten finnes.
+- **Klarer du ikke skille maskinelt: meld hvordan du telte, og hva som er usikkert. Ikke gjett.**
+
+**Cowork eier merge-timing og deploy — da eier cowork også at tallet bak «grønn» betyr noe.**
+Mål signalet du selv forvalter, før du stoler på det.
+
+#### 🔴 Gate-tall skal komme fra `--force`, ikke fra cache (Kenneth-gatet 2026-09-20)
+
+**Bakgrunn:** i merge-runden med malfasit cachet turbo `pnpm test` (FULL TURBO), og
+gate-tallene kom fra cache uten at testene kjørte på merge-agentens eget tre. Tallene var
+korrekte — turbo hash-nøkler cachen på filinnhold — men gaten hviler på at agenten
+**observerer sin egen kjøring**, ikke på et oppslag i en cache.
+
+- 🔴 **Gate-tall skal alltid komme fra `pnpm test --force` fra ROT** (i praksis
+  `pnpm exec turbo run test --force`, siden `--force` ellers spises av `pnpm` selv). **Et
+  FULL TURBO-treff er ikke en gate-kjøring.**
+- 🔴 **Ser du «FULL TURBO» i output, er tallene ikke ferske** — kjør på nytt med `--force`
+  før du rapporterer.
+- 🔴 **Begrunnelsen står:** et cache-treff gir riktige tall, men beviser ikke at testene
+  kjørte på ditt tre. **Gaten er en observasjon, ikke et oppslag.**
 
 ### 🔴 Mål mot RIKTIG database — og les tidsstemplene (lærdom 2026-08-23)
 
@@ -1109,6 +1335,8 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 **B-2 og A-3b kjøres etter denne sløyfen** når N3-valget er tatt.
 
 ## Dokument-eierskap: fabel leverer, cowork plasserer (vedtatt 2026-07-21)
+
+*Historisk — gjaldt Fabel, som ikke hadde skrivetilgang. Rollen heter nå design og følger § design — rollen etter Fabel (2026-09-18).*
 
 **Problemet:** fire ganger 2026-07-21 skrev fabel «ført i `delplaner/…`» om dokumenter som ikke fantes i repoet. Fabel har **kun lesetilgang** til repo-mappen — han kan verifisere plassering, ikke utføre den. Konsekvensen var at repoet lå ett relay bak, og at ordrer viste til stier ingen Opus kunne lese.
 
@@ -1291,6 +1519,39 @@ Cowork skal gi denne linjen med agentens hash **hver gang** en merge meldes ferd
 [5. FORVENTET OUTPUT]      Per funn: hva, hvordan målt, alvorlighet. Mistanker merket separat.
 [6. OPPRYDDING]            Hvem sletter branchen. Vanligvis cowork — økta gjør ingenting.
 ```
+
+**🔴 Steg 0 — grep BACKLOG før kravene skrives (Kenneth-vedtak 2026-09-11).**
+Før cowork formulerer ett eneste krav (blokk 3 over): `grep -n -i "<sakens nøkkelord>"
+docs/claude/BACKLOG.md`. **Minst to søkeformer** — funksjonsnavnet og symptomet, siden saken
+like gjerne kan stå oppført under den ene som den andre.
+**Treff refereres eksplisitt i ordren** (`§<linje>`, dato, markør), enten som
+«denne ordren lukker §X» eller «§X er målt foreldet, se under».
+**Null treff skrives også** — «BACKLOG-grep: ingen treff på `<ord1>`/`<ord2>`» — slik at
+neste leser vet at det ble gjort, ikke bare glemt.
+⚠️ **BACKLOG er ikke fasit — koden er.** Et treff betyr «mål dette», ikke «dette er sant».
+**Tre rader har vist seg ferdigbygget ved måling** (reise-terskel 09.09, P2-begrunnelse
+09.09, mobil-PSI §220 11.09). **Steget hindrer at cowork bestiller noe umulig eller
+allerede levert — det erstatter ikke målingen.**
+
+**Bakgrunn (2026-09-11):** to hendelser samme dag — et i18n-funn ble meldt «står ingen steder»
+mens det sto i `shared-pakker.md:46`, og et mobil-test-krav ble skrevet uoppfyllbart fordi
+BACKLOG §153 (2026-09-07) alt slo fast at `apps/mobile` mangler test-runner. Begge fanget av
+agentene, ikke av cowork. Ett grep-kall hadde spart en analyserunde.
+
+**🔴 Kald web-bygg når web-filer er rørt (lærdom 2026-09-12).**
+`apps/web/tsconfig.json` har `"incremental": true`. **En lokal `pnpm --filter
+@sitedoc/web build` gjenbruker `tsconfig.tsbuildinfo` og kan være grønn på kode
+Docker-byggen avviser** — det skjedde på `109f7d2e`, der TS2589 først dukket opp i
+deploy-byggen etter at to agenter hadde meldt grønt.
+**Rører ordren filer i `apps/web`, skal gaten kjøres kaldt:**
+```sh
+rm -f apps/web/tsconfig.tsbuildinfo apps/web/.next/cache/.tsbuildinfo && rm -rf apps/web/.next
+pnpm --filter @sitedoc/web build
+```
+⚠️ **`tsc` stopper på FØRSTE TS2589.** **Kjør kaldt iterativt til grønn** — på `a4036ede`
+dukket det andre stedet (`:132`) først opp da det første (`:181`) var fikset.
+🟢 **Negativ kontroll er billig her:** kald bygg på den ødelagte koden skal reprodusere
+feilen. Gjør den ikke det, har du målt cachen og ikke årsaken.
 
 **De fire virksomme linjene — skal stå ORDRETT i ufravikelig-blokka:**
 

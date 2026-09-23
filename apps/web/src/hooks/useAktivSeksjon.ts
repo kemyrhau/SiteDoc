@@ -8,7 +8,8 @@ const seksjonMap: Record<string, Seksjon> = {
   sjekklister: "sjekklister",
   oppgaver: "oppgaver",
   hms: "hms",
-  maler: "maler",
+  // "maler"-segmentet fjernet: Rapportmaler-flata er borte (vei b, 2026-09-12). URL-en
+  // redirecter til Oppsett, som treffer oppsett-grenen over — ingen egen seksjon her.
   tegninger: "tegninger",
   punktskyer: "3d-visning",
   modeller: "3d-visning",

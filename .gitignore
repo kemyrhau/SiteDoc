@@ -59,6 +59,7 @@ Lønnsarter til sortering.txt
 .playwright-mcp/
 
 .claude/settings.local.json
+CLAUDE.local.md
 
 # Fabel-leveranser (staging-inbox; kanoniske docs ligger i docs/claude/)
 Fra fabel/
@@ -77,3 +78,9 @@ tests/e2e/*-state.json
 # Se kilder/LES-MEG.md (den ene fila som versjoneres).
 kilder/*
 !kilder/LES-MEG.md
+
+# Mal-revisjons-SQL (kjøres mot test, aldri versjoneres) — MAL-METODE sier de er ignorert.
+/*-test.sql
+
+# Kenneths lokale 3D-testfiler (Pix4D/punktsky) — aldri i repo, aldri til server
+3D eksempelfiler/

@@ -38,6 +38,9 @@ export interface VideresendValg {
 export interface DokumentflytData {
   id: string;
   name: string;
+  /** Bundet flyt (bundet-flyt-tegning 2026-09-16): dokumentene kan ikke flyttes til andre flyter.
+   * Presentasjon — serveren håndhever sperren; klienten skjuler «Andre flyter» og viser fotnoten. */
+  bundet?: boolean;
   faggruppeId: string | null;
   roller: Array<{ rolle: string; label?: string | null }>;
   maler: Array<{ template: { id: string } }>;
@@ -197,6 +200,39 @@ export function finnMottakerNavn(
     if (m?.group?.name) return m.group.name;
   }
   return null;
+}
+
+/**
+ * Presentasjon (videresend synlig konsekvens, ramme 2): flate medlemmer i EN gitt flyt,
+ * hentet direkte fra flyt-definisjonen — robust uavhengig av mal-match (i motsetning til
+ * `byggVideresendValg`, som filtrerer på templateId). Brukes til «I denne flyten»-seksjonen,
+ * der dokumentets EGEN flyt alltid skal vises flatt selv om malen ikke matcher listebygget.
+ * Ren utledning, ingen data-endring.
+ */
+export function medlemmerForFlyt(
+  dokumentflyter: DokumentflytData[],
+  dokumentflytId: string | undefined | null,
+): VideresendMedlem[] {
+  if (!dokumentflytId) return [];
+  const df = dokumentflyter.find((d) => d.id === dokumentflytId);
+  return df ? finnMedlemmer(df) : [];
+}
+
+/**
+ * Presentasjon (ramme 3): navnet på den som får ballen i et flyt-bytte-valg — dvs. valgets
+ * standard-mottaker (hovedansvarlig utfører), som serveren auto-utleder ved flyt-bytte
+ * (oppgave.ts:1434-1450). Resolves mot valgets egne medlemmer. Brukes i konsekvensboksen
+ * («ballen til N»). Ingen data-endring.
+ */
+export function mottakerNavnIValg(valg: VideresendValg): string | null {
+  const m = valg.mottaker;
+  if (!m) return null;
+  const treff = valg.medlemmer.find(
+    (x) =>
+      (m.userId != null && x.mottaker.userId === m.userId) ||
+      (m.groupId != null && x.mottaker.groupId === m.groupId),
+  );
+  return treff?.navn ?? null;
 }
 
 /** Finn mottaker fra dokumentflyt: utfører → bestiller → godkjenner */

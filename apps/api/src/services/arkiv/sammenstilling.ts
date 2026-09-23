@@ -11,7 +11,7 @@
 
 import type { PrismaClient } from "@sitedoc/db";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { standardFeltNavn } from "@sitedoc/shared";
+import { standardFeltNavn, nb } from "@sitedoc/shared";
 import {
   byggInnhold,
   byggArkivLogg,
@@ -45,6 +45,7 @@ import { inlineBilder } from "./bilde-inliner";
 import { lesHendelseslogg, lesEndringslogg } from "./logg-lesere";
 import { samleRepeaterMarkorer, byggUtsnittCrop, malBildeDimensjoner, type RepeaterMarkor } from "./tegningsmarkorer";
 import { injiserGrenseSnapshot } from "./grensesnapshot";
+import { filtrerSynligeArkivObjekter } from "./synlighet";
 
 interface BildeRef { url: string; filnavn?: string; type?: string }
 
@@ -191,6 +192,11 @@ interface NormalisertArkivDok {
   lokasjonOmfang: string | null;
   lokasjonFritekst: string | null;
   byggeplassNavn: string | null;
+  // Områdenavn/-type når lokasjonOmfang="omrade" (steg 2b). Navnet er stedet i PDF-en;
+  // typen dempet kontekst under. Slettet område (Omrade → SetNull) → begge null →
+  // byggLokasjonsblokk skriver nøytral linje, ikke tom seksjon.
+  omradeNavn: string | null;
+  omradeType: string | null;
   // Metadata
   title: string;
   number: number | null;
@@ -258,8 +264,18 @@ async function byggArkivHtmlKjerne(
   norm: NormalisertArkivDok,
   opts: SammenstillingOpts,
 ): Promise<SammenstillingResultat> {
-  const objects = norm.objects;
   const raaData = norm.raaData;
+
+  // 0) Betinget synlighet (Kenneth-vedtak 2026-09-21): et felt som ALDRI ble vist (vilkåret
+  // slo ikke til) utelates HELT — ikke som «Ikke utfylt». Delt `erObjektSynlig` (via
+  // filtrerSynligeArkivObjekter) avgjør synligheten mot de LAGREDE svarene, samme kilde som
+  // skjermen. Et synlig felt besvart «Ikke aktuelt» er en fagvurdering og blir stående.
+  // Byte-likt for maler uten betingede felt (ingenting filtreres). Filtrert liste brukes
+  // konsekvent nedover (tre/markører/kolonner) så en aldri-vist markør heller ikke tegnes.
+  const { objekter: objects, noeUtelatt } = filtrerSynligeArkivObjekter(
+    norm.objects,
+    (feltId) => raaData[feltId]?.verdi,
+  );
 
   // 1) persons-UUID → navn (aldri rå nøkkel til byggherre).
   const dataMedNavn = await resolverPersonnavn(prisma, raaData, objects);
@@ -381,11 +397,11 @@ async function byggArkivHtmlKjerne(
   // id → samme data (MalBygger sikrer én pr. dokument). Arkiv-PDF bærer full
   // logg — byggherren skal se at laget signerte ved hver runde.
   const signaturOppslag: Record<string, SignaturListeData> = {};
-  const harSignaturListe = norm.objects.some((o) => o.type === "signature_list");
+  const harSignaturListe = objects.some((o) => o.type === "signature_list");
   if (harSignaturListe) {
     const signaturData = await hentSignaturListeData(prisma, norm.loggRef);
     if (signaturData) {
-      for (const o of norm.objects) {
+      for (const o of objects) {
         if (o.type === "signature_list") signaturOppslag[o.id] = signaturData;
       }
     }
@@ -419,6 +435,8 @@ async function byggArkivHtmlKjerne(
       tegningNavn: docTegning ? tegningNavn(docTegning) : null,
       lokasjonOmfang: norm.lokasjonOmfang,
       lokasjonFritekst: norm.lokasjonFritekst,
+      omradeNavn: norm.omradeNavn,
+      omradeType: norm.omradeType,
     },
     tegningsOppslag,
   );
@@ -486,6 +504,10 @@ async function byggArkivHtmlKjerne(
     innholdHtml,
     // FASTE FELT (designlås 1): emne som første datafelt.
     emne: norm.subject,
+    // Betinget synlighet: notis KUN når noe faktisk ble utelatt, så leseren vet at listen
+    // er filtrert (ikke at noe ble fjernet i ettertid). Arkiv-PDF er i18n-fri → api sender
+    // ferdig norsk streng (samme mønster som generertTekst).
+    utelatelseNotis: noeUtelatt ? nb["arkiv.utelatelseNotis"] : undefined,
     lokasjonHtml,
     tegningssiderHtml,
     logg,
@@ -534,6 +556,7 @@ export async function byggSjekklisteArkivHtml(
       utforerFaggruppe: { select: { name: true } },
       bestiller: { select: { name: true } },
       byggeplass: { select: { name: true } },
+      omrade: { select: { navn: true, type: true } },
     },
   });
 
@@ -554,6 +577,8 @@ export async function byggSjekklisteArkivHtml(
     lokasjonOmfang: sjekkliste.lokasjonOmfang,
     lokasjonFritekst: sjekkliste.lokasjonFritekst,
     byggeplassNavn: sjekkliste.byggeplass?.name ?? null,
+    omradeNavn: sjekkliste.omrade?.navn ?? null,
+    omradeType: sjekkliste.omrade?.type ?? null,
     title: sjekkliste.title,
     number: sjekkliste.number,
     subject: sjekkliste.subject,
@@ -587,6 +612,7 @@ export async function byggOppgaveArkivHtml(
       utforerFaggruppe: { select: { name: true } },
       bestiller: { select: { name: true } },
       drawing: { select: { byggeplass: { select: { name: true } } } },
+      omrade: { select: { navn: true, type: true } },
     },
   });
 
@@ -601,7 +627,11 @@ export async function byggOppgaveArkivHtml(
   const norm: NormalisertArkivDok = {
     id: oppgave.id,
     kategori: "oppgave",
-    dokumenttype: "Oppgave",
+    // Kontraktssak-runde 1 (D.13): topplinjas type-label blir «Kontraktssak» i stedet for
+    // «Oppgave» for kontraktssak-maler, så arkivkopien bærer klassen (flateparitet med skjerm).
+    // Arkiv-PDF-pakken er bevisst ikke i18n (grensesnapshot.ts:22) — labelen er hardkodet norsk
+    // som «Oppgave»/«Sjekkliste».
+    dokumenttype: oppgave.template?.subdomain === "kontrakt" ? "Kontraktssak" : "Oppgave",
     filnavnPrefix: "oppgave",
     signaturStrategi: "oppgave",
     objects: (oppgave.template?.objects ?? []) as unknown as RapportObjekt[],
@@ -615,6 +645,8 @@ export async function byggOppgaveArkivHtml(
     lokasjonOmfang: oppgave.lokasjonOmfang,
     lokasjonFritekst: oppgave.lokasjonFritekst,
     byggeplassNavn: oppgave.drawing?.byggeplass?.name ?? null,
+    omradeNavn: oppgave.omrade?.navn ?? null,
+    omradeType: oppgave.omrade?.type ?? null,
     title: oppgave.title,
     number: oppgave.number,
     subject: oppgave.subject,

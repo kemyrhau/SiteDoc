@@ -100,6 +100,7 @@ export const dokumentflytRouter = router({
     .input(createDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      // `data` bærer name/faggruppeId/bundet videre til create (bundet defaulter til fri i schema).
       const { templateIds, medlemmer, roller, ...data } = input;
       // Default: ny dokumentflyt starter med Registrator som eneste rolle.
       // Bruker legger til Bestiller/Utfører/Godkjenner via «+ Legg til rolle».
@@ -134,6 +135,7 @@ export const dokumentflytRouter = router({
     .input(updateDokumentflytSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
+      // `data` bærer name/bundet videre til update — bundet kan slås av/på begge veier her.
       const { id, projectId: _projectId, templateIds, ...data } = input;
 
       if (Object.keys(data).length > 0) {

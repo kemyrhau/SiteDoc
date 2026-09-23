@@ -81,6 +81,18 @@ model Equipment {
   effektW             Int?      @map("effekt_w")
   vekt                Int? // kg
 
+  // Service pr. timetall (kundeønske #1, 2026-09-18)
+  // serviceIntervallTimer: intervallet i driftstimer, konfigureres i maskinens innstillinger.
+  //   Firma bestemmer selv hvilket utstyr som får intervall (Kenneth 2026-09-18) — derfor på
+  //   Equipment generelt, ikke låst til anleggsmaskin. NULL = ikke satt, ingen varsling.
+  // nesteServiceTimer: GJELDENDE terskel «skal til service ved X driftstimer». Denormalisert
+  //   hit (speiler euKontrollFrist-mønsteret) så terskelvarselet leses uten en ServiceRecord-
+  //   spørring pr. maskin. Historikken bor på ServiceRecord.nesteServiceTimer. Skrives av
+  //   fremskrivingen når en service registreres. NULL = ingen service framskrevet ennå.
+  // Begge NULL ved backfill (se migrering) + CHECK > 0 (0/negativt intervall er meningsløst).
+  serviceIntervallTimer Int? @map("service_intervall_timer")
+  nesteServiceTimer     Int? @map("neste_service_timer")
+
   // Steg 4b Fase 2 — utleieobjekt (utleie-transaksjons-flow utsatt til Steg 4d)
   erUtleieobjekt    Boolean  @default(false) @map("er_utleieobjekt")
   utleieprisPerDogn Decimal? @map("utleiepris_per_dogn") @db.Decimal(10, 2)
@@ -110,6 +122,7 @@ model Equipment {
   @@index([euKontrollFrist])
   @@index([kalibreringsFrist])
   @@index([sertifiseringsFrist])
+  @@index([nesteServiceTimer]) // terskelvarsel-liste (varsling): WHERE neste_service_timer IS NOT NULL
   @@map("equipment")
   @@schema("maskin")
 }

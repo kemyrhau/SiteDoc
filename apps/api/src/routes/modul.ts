@@ -307,6 +307,7 @@ export const modulRouter = router({
             where: {
               organizationId: prosjektForFirma.primaryOrganizationId,
               standardForNyeProsjekter: true,
+              deletedAt: null, // soft-delete-guard (krav 3): en slettet mal seedes ikke inn i nye prosjekter
             },
             include: { objects: { orderBy: { sortOrder: "asc" } } },
           });

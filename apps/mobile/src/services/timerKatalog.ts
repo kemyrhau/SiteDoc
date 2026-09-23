@@ -2,6 +2,7 @@ import { eq, and, asc } from "drizzle-orm";
 import {
   utledOrdning,
   erGyldigOrdning,
+  løsReiseLonnsartId,
   REISE_LONNSART_REGEX,
   type UtleggOrdning,
 } from "@sitedoc/shared";
@@ -15,6 +16,7 @@ import {
   prosjektOrdningOverstyringLocal,
 } from "../db/schema";
 import { hentOrganizationSettingLokalt } from "./organizationSettingKatalog";
+import { hentReiseGrensepunkterLokalt } from "./reiseGrensepunktKatalog";
 import type { trpc } from "../lib/trpc";
 
 // REISE_LONNSART_REGEX bor nå i @sitedoc/shared (én kilde delt med serverens
@@ -263,17 +265,38 @@ export function harOvertidLonnsartLokalt(organizationId: string): boolean {
 /**
  * Resolver firmaets reise-lønnsart fra lokal cache — ÉN sannhetskilde delt
  * mellom generering (genererForslag) og render (reise-merking). Prioritet:
- *   1. OrganizationSetting.reiseLonnsartId (eksplisitt valgt av firma-admin)
- *   2. Navne-match (/reise|transport/i) mot aktive lønnsarter
+ *   1. Avstandsbånd-treff (`løsReiseLonnsartId` mot lokale grensepunkter) —
+ *      KUN når `avstandM` er oppgitt og et grensepunkt med en art treffer
+ *   2. OrganizationSetting.reiseLonnsartId (eksplisitt valgt av firma-admin)
+ *   3. Navne-match (/reise|transport/i) mot aktive lønnsarter
  * Returnerer null hvis ingen passende lønnsart finnes.
+ *
+ * `avstandM` er VALGFRITT. Utelatt (undefined) → nøyaktig som før: båndene leses
+ * ikke, prioritet 2→3 avgjør (render-laget `TimerSeksjon` har ingen avstand i
+ * scope, jf. `sheet_timer_local` bærer ikke avstand). Oppgitt (tall eller null)
+ * → `løsReiseLonnsartId` avgjør: treff i et bånd med art vinner, ellers faller
+ * den konservativt tilbake på prioritet 2→3 (avstand null/<0/hull → fallback).
  */
-export function hentReiseLonnsartId(organizationId: string): string | null {
+export function hentReiseLonnsartId(
+  organizationId: string,
+  avstandM?: number | null,
+): string | null {
   const regel = hentOrganizationSettingLokalt(organizationId);
-  if (regel?.reiseLonnsartId) return regel.reiseLonnsartId;
-  const match = hentLonnsarterLokalt(organizationId).find((l) =>
-    REISE_LONNSART_REGEX.test(l.navn),
+  // Fallback = dagens oppførsel (prioritet 2→3): eksplisitt art, ellers navne-match.
+  const fallback =
+    regel?.reiseLonnsartId ??
+    hentLonnsarterLokalt(organizationId).find((l) =>
+      REISE_LONNSART_REGEX.test(l.navn),
+    )?.id ??
+    null;
+  // Uten avstand → uendret oppførsel, båndene røres ikke (render-laget).
+  if (avstandM === undefined) return fallback;
+  // Med avstand → delt resolver velger båndets art, ellers fallback.
+  return løsReiseLonnsartId(
+    avstandM,
+    hentReiseGrensepunkterLokalt(organizationId),
+    fallback,
   );
-  return match?.id ?? null;
 }
 
 export function hentAktiviteterLokalt(organizationId: string) {

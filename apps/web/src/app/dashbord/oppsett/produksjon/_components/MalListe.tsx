@@ -1,15 +1,19 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, SearchInput, Badge } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Library } from "lucide-react";
+import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Download, RefreshCw, FileText, ClipboardList, Scale } from "lucide-react";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
-import { BibliotekPanel } from "@/components/bibliotek/BibliotekPanel";
+import { HentFraArkivModal } from "@/components/bibliotek/HentFraArkivModal";
+import { OppdaterFraHovedmalModal } from "@/components/malbygger/OppdaterFraHovedmalModal";
+import { Nivaabanner } from "@/components/nivaa/Nivaabanner";
 
 type MalKategori = "oppgave" | "sjekkliste" | "hms";
 
@@ -41,7 +45,8 @@ type MalRad = {
   prefix: string | null;
   category: string;
   domain: string;
-  subdomain: HmsSubdomain | null;
+  // "kontrakt" (Kontraktssak) i tillegg til HMS-subdomains — undertype innenfor domenet.
+  subdomain: HmsSubdomain | "kontrakt" | null;
   hmsSynlighet: HmsSynlighet | null;
   version: number;
   subjects: unknown;
@@ -49,12 +54,73 @@ type MalRad = {
   // Malarkiv (AM4) — firma-avstamning (valgfrie; prosjekt-egne maler har dem null/false)
   organizationTemplateId?: string | null;
   promotedToFirma?: boolean;
+  // «X versjoner bak» (krav 1): firmamalens gjeldende versjon − versjonen kopien fryste.
+  versjonAvHovedmal?: number;
+  copiedFromOrgTemplate?: { id: string; name: string; version: number } | null;
   _count: { objects: number; checklists: number; tasks: number };
 };
 
 // Default-synlighet per subdomain. Bruker kan overstyre manuelt.
 function defaultSynlighet(subdomain: HmsSubdomain): HmsSynlighet {
   return subdomain === "sja" ? "apen" : "privat";
+}
+
+/**
+ * Kontraktssak-runde 1 (tavle 3): typevalg på en OPPGAVE-mal — Oppgave (default) eller
+ * Kontraktssak. Erklærer `subdomain="kontrakt"` (ikke en skjemaendring). Vises KUN for
+ * oppgave-maler (ikke sjekkliste, ikke HMS). `konsekvensAntall` > 0 ved rediger av en mal
+ * med dokumenter → linja «Gjelder også de N …»; ingen bekreftelsesmodal (reversibelt valg).
+ */
+function MalTypeVelger({
+  erKontrakt,
+  onEndre,
+  konsekvensAntall,
+}: {
+  erKontrakt: boolean;
+  onEndre: (v: boolean) => void;
+  konsekvensAntall?: number;
+}) {
+  const { t } = useTranslation();
+  const valg: Array<{ verdi: boolean; navn: string; forklaring: string; ikon: boolean }> = [
+    { verdi: false, navn: t("mal.type.oppgave"), forklaring: t("mal.type.oppgaveForklaring"), ikon: false },
+    { verdi: true, navn: t("dokumentklasse.kontraktssak"), forklaring: t("mal.type.kontraktssakForklaring"), ikon: true },
+  ];
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-gray-700">{t("mal.type.tittel")}</label>
+      {valg.map((v) => {
+        const valgt = erKontrakt === v.verdi;
+        return (
+          <label
+            key={String(v.verdi)}
+            className={`flex cursor-pointer gap-2.5 rounded-lg border px-3 py-2 ${
+              valgt ? "border-sitedoc-primary bg-blue-50/50" : "border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <input
+              type="radio"
+              name="mal-type-kontrakt"
+              checked={valgt}
+              onChange={() => onEndre(v.verdi)}
+              className="mt-0.5 h-4 w-4 shrink-0 text-sitedoc-primary"
+            />
+            <span className="flex flex-col">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                {v.ikon && <Scale className="h-3.5 w-3.5 text-gray-700" />}
+                {v.navn}
+              </span>
+              <span className="text-[11px] leading-snug text-gray-500">{v.forklaring}</span>
+            </span>
+          </label>
+        );
+      })}
+      {erKontrakt && (konsekvensAntall ?? 0) > 0 && (
+        <p className="text-xs text-gray-500">
+          {t("mal.type.gjelderEksisterende", { count: konsekvensAntall })}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // Prefiks-mønster som matcher reserverte HMS-typer. Case-insensitiv.
@@ -142,6 +208,9 @@ export function MalListe({
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
   const router = useRouter();
+  // Krav 2: papirkurv-lenken bærer med seg hvor brukeren står nå, så papirkurven
+  // kan tilby en vei tilbake hit. Faktisk sti (ingen gjetning), ikke hardkodet.
+  const pathname = usePathname();
   const utils = trpc.useUtils();
 
   const [valgtId, setValgtId] = useState<string | null>(null);
@@ -150,10 +219,14 @@ export function MalListe({
   const [visRedigerModal, setVisRedigerModal] = useState(false);
   const [visSlettBekreftelse, setVisSlettBekreftelse] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
+  // ↻ «Oppdater fra firmamal» (krav 1): feil vises som en linje over lista.
+  const [oppdaterFeil, setOppdaterFeil] = useState<string | null>(null);
+  const [oppdatererId, setOppdatererId] = useState<string | null>(null);
+  // TILLEGG 1: ↻ bekreftes i modal FØR kall (erstatning frakobler dokumentdata).
+  const [bekreftOppdater, setBekreftOppdater] = useState<{ id: string; antall: number } | null>(null);
   // Unikhet (2026-08-10): server-CONFLICT (navn/prefiks) vises i opprett/rediger-modalen.
   const [malFeil, setMalFeil] = useState<string | null>(null);
-  const [visBibliotek, setVisBibliotek] = useState(false);
-  const [visFirmaarkiv, setVisFirmaarkiv] = useState(false);
+  const [visHentArkiv, setVisHentArkiv] = useState(false);
 
   // Opprett-felter
   const [navn, setNavn] = useState("");
@@ -164,6 +237,9 @@ export function MalListe({
   const erHms = kategori === "hms";
   const [subdomain, setSubdomain] = useState<HmsSubdomain>("avvik");
   const [hmsSynlighet, setHmsSynlighet] = useState<HmsSynlighet>("privat");
+  // Kontraktssak-runde 1: typevalg på oppgave-maler (subdomain="kontrakt"). Skilt fra
+  // HMS-subdomain (egen akse) — begge kan aldri være satt samtidig (server avviser).
+  const [erKontrakt, setErKontrakt] = useState(false);
   const [valgteWorkflowIds, setValgteWorkflowIds] = useState<Set<string>>(new Set());
   const [visFaggruppeTilknytning, setVisFaggruppeTilknytning] = useState(false);
   const [aktiverOppretting, _setAktiverOppretting] = useState(true);
@@ -181,6 +257,7 @@ export function MalListe({
   const redigerErHms = redigerCategory === "hms";
   const [redigerOpprinneligErHms, setRedigerOpprinneligErHms] = useState(false);
   const [redigerSubdomain, setRedigerSubdomain] = useState<HmsSubdomain>("avvik");
+  const [redigerErKontrakt, setRedigerErKontrakt] = useState(false);
   const [redigerHmsSynlighet, setRedigerHmsSynlighet] = useState<HmsSynlighet>("privat");
   const [redigerOpprinneligSynlighet, setRedigerOpprinneligSynlighet] = useState<HmsSynlighet | null>(null);
 
@@ -211,6 +288,7 @@ export function MalListe({
       setPrefiksFeil(null);
       setSubdomain("avvik");
       setHmsSynlighet("privat");
+      setErKontrakt(false);
       setValgteWorkflowIds(new Set());
       setMalFeil(null);
     },
@@ -249,6 +327,18 @@ export function MalListe({
     },
   });
 
+  // ↻ Oppdater prosjektmal-kopien til firmamalens gjeldende versjon (krav 1).
+  // SAMME prosedyre malbyggeren kaller — ingen ny mekanisme. 🔴 Full erstatning av
+  // objekt-treet (firmamal.ts:766-768): dokumentdata knyttet til gamle objekt-id-er
+  // blir foreldreløs. Derfor bevisst, eksplisitt klikk — aldri automatisk (som MalBygger).
+  const oppdaterFraHovedmalMutation = trpc.firmamal.oppdaterKopiFraHovedmal.useMutation({
+    onSuccess: () => {
+      utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
+    },
+    onError: (e: { message: string }) => setOppdaterFeil(e.message),
+    onSettled: () => setOppdatererId(null),
+  });
+
   function handlePrefiksEndring(verdi: string) {
     setPrefiks(verdi);
     setPrefiksFeil(null);
@@ -266,7 +356,7 @@ export function MalListe({
       description: beskrivelse.trim() || undefined,
       category: kategori,
       domain: erHms ? "hms" : "bygg",
-      subdomain: erHms ? subdomain : null,
+      subdomain: erHms ? subdomain : erKontrakt ? "kontrakt" : null,
       hmsSynlighet: erHms ? hmsSynlighet : null,
       workflowIds: Array.from(valgteWorkflowIds),
     });
@@ -283,7 +373,7 @@ export function MalListe({
       description: redigerBeskrivelse.trim() || undefined,
       category: redigerCategory,
       domain: redigerErHms ? "hms" : "bygg",
-      subdomain: redigerErHms ? redigerSubdomain : null,
+      subdomain: redigerErHms ? redigerSubdomain : redigerErKontrakt ? "kontrakt" : null,
       hmsSynlighet: redigerErHms ? redigerHmsSynlighet : null,
       subjects: redigerSubjects.filter((s) => s.trim() !== ""),
       enableChangeLog: redigerEnableChangeLog,
@@ -310,9 +400,14 @@ export function MalListe({
     const erHmsNa = mal.domain === "hms";
     setRedigerCategory(erHmsNa ? "hms" : (mal.category as MalKategori));
     setRedigerOpprinneligErHms(erHmsNa);
-    const radSubdomain: HmsSubdomain = (mal.subdomain ?? "avvik");
+    // 🔴 «kontrakt» er IKKE en HMS-subdomain — cast den aldri inn i HMS-state (funn 0.1,
+    // MalListe.tsx:338). Kontraktssak spores i egen `redigerErKontrakt`; HMS-subdomain
+    // faller tilbake på "avvik" for ikke-HMS-maler (radioen vises kun ved redigerErHms).
+    const erHmsSub = mal.subdomain === "avvik" || mal.subdomain === "sja" || mal.subdomain === "ruh";
+    const radSubdomain: HmsSubdomain = erHmsSub ? (mal.subdomain as HmsSubdomain) : "avvik";
     const radSynlighet: HmsSynlighet = mal.hmsSynlighet ?? defaultSynlighet(radSubdomain);
     setRedigerSubdomain(radSubdomain);
+    setRedigerErKontrakt(mal.subdomain === "kontrakt");
     setRedigerHmsSynlighet(radSynlighet);
     setRedigerOpprinneligSynlighet(erHmsNa ? radSynlighet : null);
     const koblinger = (mal as { dokumentflytMaler?: Array<{ dokumentflytId: string }> }).dokumentflytMaler ?? [];
@@ -367,7 +462,9 @@ export function MalListe({
   const harValg = !!valgtId;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full gap-3">
+      {/* Krav 4: prosjektnivået får navnet sitt — PROSJEKTARKIV-merket øverst på lista. */}
+      <Nivaabanner nivaa="prosjekt" kontekst="liste" />
       {/* Verktøylinje */}
       <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-0">
         {/* + Tilføy dropdown */}
@@ -383,45 +480,52 @@ export function MalListe({
           <DropdownItem onClick={() => setVisOpprettModal(true)}>
             {t("maler.opprettNy")}
           </DropdownItem>
-          {kategori === "sjekkliste" && (
-            <DropdownItem onClick={() => setVisBibliotek(true)}>
-              <span className="flex items-center gap-1.5"><Library className="h-3.5 w-3.5" />{t("bibliotek.hentFraBibliotek")}</span>
-            </DropdownItem>
-          )}
           <DropdownItem disabled>{t("maler.importerFraProsjekt")}</DropdownItem>
-          <DropdownItem onClick={() => setVisFirmaarkiv(true)}>
-            <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{t("maler.importerFraFirma")}</span>
-          </DropdownItem>
           <DropdownItem disabled>{t("maler.opprettFraPdf")}</DropdownItem>
         </Dropdown>
 
-        {/* Rediger */}
+        {/* Hent fra arkiv — grensesnittet mot firma-/SiteDoc-arkivet (ordre 2026-09-12).
+            Erstatter «Importer fra firma» + «Hent fra bibliotek» i Legg til-dropdownen:
+            aldri to veier til samme handling. */}
         <button
-          onClick={apneRediger}
-          disabled={!harValg}
-          className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
-            harValg
-              ? "text-gray-600 hover:text-gray-900"
-              : "text-gray-300 cursor-not-allowed"
-          }`}
+          onClick={() => setVisHentArkiv(true)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-sitedoc-primary px-4 py-2 text-sm font-medium text-sitedoc-primary hover:bg-blue-50 transition-colors"
         >
-          <Pencil className="h-4 w-4" />
-          {t("handling.rediger")}
+          <Download className="h-4 w-4" />
+          {t("maler.arkiv.tittel")}
         </button>
 
+        {/* Rediger */}
+        <KnappMedForklaring sperret={!harValg} forklaring={t("sperret.velgIListe")}>
+          <button
+            onClick={apneRediger}
+            disabled={!harValg}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
+              harValg
+                ? "text-gray-600 hover:text-gray-900"
+                : "text-gray-300 cursor-not-allowed"
+            }`}
+          >
+            <Pencil className="h-4 w-4" />
+            {t("handling.rediger")}
+          </button>
+        </KnappMedForklaring>
+
         {/* Slett */}
-        <button
-          onClick={() => setVisSlettBekreftelse(true)}
-          disabled={!harValg}
-          className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
-            harValg
-              ? "text-gray-600 hover:text-red-600"
-              : "text-gray-300 cursor-not-allowed"
-          }`}
-        >
-          <Trash2 className="h-4 w-4" />
-          {t("handling.slett")}
-        </button>
+        <KnappMedForklaring sperret={!harValg} forklaring={t("sperret.velgIListe")}>
+          <button
+            onClick={() => setVisSlettBekreftelse(true)}
+            disabled={!harValg}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
+              harValg
+                ? "text-gray-600 hover:text-red-600"
+                : "text-gray-300 cursor-not-allowed"
+            }`}
+          >
+            <Trash2 className="h-4 w-4" />
+            {t("handling.slett")}
+          </button>
+        </KnappMedForklaring>
 
         {/* Mer-meny */}
         <Dropdown
@@ -442,18 +546,9 @@ export function MalListe({
           <DropdownItem disabled>{t("handling.eksporter")}</DropdownItem>
         </Dropdown>
 
-        {/* Søk + kryss-lenke til prosjekt-arbeidsflaten */}
+        {/* Søk. Kryss-lenken «Bruk i prosjekt» er fjernet — den pekte til
+            Rapportmaler-flata som er borte (vei b, 2026-09-12). */}
         <div className="ml-auto flex items-center gap-2">
-          {prosjektId && (
-            <button
-              type="button"
-              onClick={() => router.push(`/dashbord/${prosjektId}/maler`)}
-              className="inline-flex items-center gap-1 text-xs text-sitedoc-primary hover:underline"
-            >
-              <Library className="h-3.5 w-3.5" />
-              {t("maler.brukIProsjekt")}
-            </button>
-          )}
           <SearchInput
             verdi={sok}
             onChange={setSok}
@@ -463,6 +558,13 @@ export function MalListe({
           {hjelpInnhold}
         </div>
       </div>
+
+      {/* ↻-feil (krav 1) — serverens melding, f.eks. hvis firmamal-avstamningen mangler. */}
+      {oppdaterFeil && (
+        <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {oppdaterFeil}
+        </p>
+      )}
 
       {/* Tabell */}
       {maler.length === 0 && !sok.trim() ? (
@@ -548,6 +650,54 @@ export function MalListe({
                       {mal.promotedToFirma && (
                         <Badge variant="success">{t("maler.badge.iFirmaarkivet")}</Badge>
                       )}
+                      {/* Tilstand for maler fra firmaarkivet (krav 1) — vises ALLTID når
+                          kopien har avstamning, så fraværet av ↻ ikke forveksles med at
+                          funksjonen mangler. «N versjoner bak» + ↻ når kopien henger etter;
+                          rolig «Oppdatert» når den er à jour. ↻ stopper rad-select. */}
+                      {(() => {
+                        if (!mal.copiedFromOrgTemplate) return null;
+                        const versjonerBak = Math.max(
+                          0,
+                          mal.copiedFromOrgTemplate.version - (mal.versjonAvHovedmal ?? 1),
+                        );
+                        if (versjonerBak <= 0) {
+                          return (
+                            <Badge variant="success">
+                              {t("malbygger.firmaarkiv.oppdatert")}
+                            </Badge>
+                          );
+                        }
+                        return (
+                          <>
+                            <Badge variant="warning">
+                              {t("malbygger.firmaarkiv.basertPaBak", {
+                                navn: mal.copiedFromOrgTemplate.name,
+                                antall: versjonerBak,
+                              })}
+                            </Badge>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOppdaterFeil(null);
+                                // Antall dokumenter som bruker malen — fra lista-dataen
+                                // (ingen ny tellerprosedyre): sjekklister + oppgaver.
+                                setBekreftOppdater({
+                                  id: mal.id,
+                                  antall: mal._count.checklists + mal._count.tasks,
+                                });
+                              }}
+                              disabled={oppdatererId === mal.id}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              {oppdatererId === mal.id
+                                ? t("handling.prosesserer")
+                                : t("malbygger.firmaarkiv.oppdater")}
+                            </button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-gray-600">
@@ -678,6 +828,11 @@ export function MalListe({
               </label>
             </div>
           </div>
+
+          {/* Kontraktssak-runde 1 (tavle 3): typevalg kun på oppgave-maler. */}
+          {kategori === "oppgave" && (
+            <MalTypeVelger erKontrakt={erKontrakt} onEndre={setErKontrakt} />
+          )}
 
           {/* HMS-prefiks-hint: nudger brukeren til HMS-malbyggeren når prefikset
               ser ut som en HMS-type, men malen lages på oppgave-/sjekkliste-siden. */}
@@ -920,6 +1075,16 @@ export function MalListe({
             );
           })()}
 
+          {/* Kontraktssak-runde 1 (tavle 3): typevalg kun på oppgave-maler. Konsekvens-linja
+              vises når malen alt har dokumenter (reversibelt valg, ingen bekreftelsesmodal). */}
+          {redigerCategory === "oppgave" && (
+            <MalTypeVelger
+              erKontrakt={redigerErKontrakt}
+              onEndre={setRedigerErKontrakt}
+              konsekvensAntall={(valgtMal?._count?.checklists ?? 0) + (valgtMal?._count?.tasks ?? 0)}
+            />
+          )}
+
           {/* HMS-prefiks-hint i rediger-modus */}
           {seerUtSomHmsPrefiks(redigerPrefiks) && !redigerErHms && (
             <p className="text-xs text-amber-600">
@@ -1111,17 +1276,75 @@ export function MalListe({
         {(() => {
           const aktive = slettbarhet?.aktive ?? 0;
           const iKurv = slettbarhet?.iKurv ?? 0;
-          const blokkert = aktive > 0 || iKurv > 0;
+          const iKontrollplan = slettbarhet?.iKontrollplan ?? 0;
+          const blokkert = aktive > 0 || iKurv > 0 || iKontrollplan > 0;
+          // Krav 3: hver sperre-grunn skal føre brukeren dit grunnen bor. Aktive
+          // dokumenter → modul-lista filtrert på malens prefiks (sjekkliste/oppgave
+          // har URL-drevet `sok`; HMS-lista har det ikke → lander på HMS-lista uten
+          // filter — meldt som oppfølger). Prefiks + kategori kommer fra lista-dataen,
+          // ingen ny prosedyre. «Antall per byggeplass» ville krevd ny spørring — utsatt.
+          const dokRute = (() => {
+            if (!prosjektId) return null;
+            const kat = valgtMal?.category;
+            if (kat === "hms") return `/dashbord/${prosjektId}/hms`;
+            const base = kat === "oppgave" ? "oppgaver" : "sjekklister";
+            const sok = valgtMal?.prefix
+              ? `?sok=${encodeURIComponent(valgtMal.prefix)}`
+              : "";
+            return `/dashbord/${prosjektId}/${base}${sok}`;
+          })();
+          // Papirkurv-lenken bærer retur-sti + kilde, så papirkurven kan lede tilbake hit.
+          const papirkurvRute =
+            prosjektId != null
+              ? `/dashbord/${prosjektId}/papirkurv?retur=${encodeURIComponent(pathname)}&kilde=maler`
+              : null;
           return (
             <div className="flex flex-col gap-4">
               {blokkert ? (
-                <p className="text-sm text-gray-700">
-                  {aktive > 0 && iKurv > 0
-                    ? t("maler.slettVern.harBegge", { aktive, kurv: iKurv })
-                    : aktive > 0
-                      ? t("maler.slettVern.harAktive", { n: aktive })
-                      : t("maler.slettVern.harKurv", { n: iKurv })}
-                </p>
+                <div className="flex flex-col gap-2 text-sm text-gray-700">
+                  {(aktive > 0 || iKurv > 0) && (
+                    <p>
+                      {aktive > 0 && iKurv > 0
+                        ? t("maler.slettVern.harBegge", { aktive, kurv: iKurv })
+                        : aktive > 0
+                          ? t("maler.slettVern.harAktive", { n: aktive })
+                          : t("maler.slettVern.harKurv", { n: iKurv })}
+                    </p>
+                  )}
+                  {iKontrollplan > 0 && (
+                    <p>{t("maler.slettVern.harKontrollplan", { n: iKontrollplan })}</p>
+                  )}
+                  {/* Krav 2 + 3: sperren bærer veien ut. Serveren eier betingelsen
+                      (tellingen over), klienten lenker til stedet som opphever hver
+                      enkelt grunn — aktive dokumenter, papirkurven, kontrollplanen. */}
+                  {aktive > 0 && dokRute && (
+                    <Link
+                      href={dokRute}
+                      className="inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t("maler.slettVern.tilDokumenter")}
+                    </Link>
+                  )}
+                  {iKurv > 0 && papirkurvRute && (
+                    <Link
+                      href={papirkurvRute}
+                      className="inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {t("maler.slettVern.tilPapirkurv")}
+                    </Link>
+                  )}
+                  {iKontrollplan > 0 && prosjektId && (
+                    <Link
+                      href={`/dashbord/${prosjektId}/kontrollplan`}
+                      className="inline-flex w-fit items-center gap-1.5 font-medium text-sitedoc-primary hover:underline"
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      {t("maler.slettVern.tilKontrollplan")}
+                    </Link>
+                  )}
+                </div>
               ) : (
                 <p className="text-sm text-gray-600">
                   {t("maler.slettMalBekreftelse", { navn: valgtMal?.name ?? "" })}
@@ -1150,109 +1373,32 @@ export function MalListe({
         })()}
       </Modal>
 
-      {/* Bibliotek-panel */}
-      {kategori === "sjekkliste" && prosjektId && (
-        <BibliotekPanel
-          projectId={prosjektId}
-          open={visBibliotek}
-          onClose={() => setVisBibliotek(false)}
-          onImportert={() => utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId })}
-        />
-      )}
-
-      {/* Firmaarkiv-velger (AM4 steg 4 — «Fra firmaarkivet») */}
-      {visFirmaarkiv && prosjektId && (
-        <FirmaarkivVelger
+      {/* Hent fra arkiv — Firmaarkiv + SiteDoc-arkiv i én modal (ordre 2026-09-12) */}
+      {prosjektId && (
+        <HentFraArkivModal
           projectId={prosjektId}
           fane={kategori}
-          onLukk={() => setVisFirmaarkiv(false)}
+          open={visHentArkiv}
+          onClose={() => setVisHentArkiv(false)}
           onImportert={() => utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId })}
         />
       )}
+
+      {/* ↻-bekreftelse (TILLEGG 1) — sier hva som skjer med utfylte felt før erstatning. */}
+      <OppdaterFraHovedmalModal
+        open={bekreftOppdater !== null}
+        antallDokumenter={bekreftOppdater?.antall}
+        laster={!!bekreftOppdater && oppdatererId === bekreftOppdater.id}
+        onClose={() => setBekreftOppdater(null)}
+        onConfirm={() => {
+          if (!bekreftOppdater) return;
+          setOppdatererId(bekreftOppdater.id);
+          oppdaterFraHovedmalMutation.mutate(
+            { templateId: bekreftOppdater.id },
+            { onSettled: () => setBekreftOppdater(null) },
+          );
+        }}
+      />
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  FirmaarkivVelger — hent firmamal ned i prosjektet (steg 4, ≤3 klikk) */
-/* ------------------------------------------------------------------ */
-
-function FirmaarkivVelger({
-  projectId,
-  fane,
-  onLukk,
-  onImportert,
-}: {
-  projectId: string;
-  fane: MalKategori;
-  onLukk: () => void;
-  onImportert: () => void;
-}) {
-  const { t } = useTranslation();
-  const { data: firmamaler, isLoading } = trpc.firmamal.listeForProsjekt.useQuery({
-    projectId,
-    fane,
-  });
-  const [hentetId, setHentetId] = useState<string | null>(null);
-  const [feil, setFeil] = useState<string | null>(null);
-
-  const kopierMutation = trpc.firmamal.kopierTilProsjekt.useMutation({
-    onSuccess: () => {
-      onImportert();
-      onLukk();
-    },
-    onError: (e) => setFeil(e.message),
-    onSettled: () => setHentetId(null),
-  });
-
-  return (
-    <Modal open onClose={onLukk} title={t("maler.firmaarkiv.tittel")} className="max-w-lg">
-      <p className="mb-3 text-sm text-gray-600">{t("maler.firmaarkiv.beskrivelse")}</p>
-      {feil && <p className="mb-3 text-sm text-red-600">{feil}</p>}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Spinner />
-        </div>
-      ) : !firmamaler || firmamaler.length === 0 ? (
-        <p className="py-6 text-center text-sm text-gray-500">
-          {t("maler.firmaarkiv.ingen")}
-        </p>
-      ) : (
-        <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
-          {firmamaler.map((fm) => (
-            <li
-              key={fm.id}
-              className="flex items-center justify-between rounded border border-gray-100 px-3 py-2"
-            >
-              <span className="text-sm text-gray-700">
-                {fm.name}
-                {fm.prefix && <span className="ml-1.5 text-gray-400">{fm.prefix}</span>}
-                <span className="ml-1.5 text-xs text-gray-400">
-                  {t("maler.firmaarkiv.punkter", { antall: fm._count.objects })}
-                </span>
-              </span>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setHentetId(fm.id);
-                  setFeil(null);
-                  kopierMutation.mutate({ organizationTemplateId: fm.id, projectId });
-                }}
-                disabled={kopierMutation.isPending && hentetId === fm.id}
-              >
-                {kopierMutation.isPending && hentetId === fm.id
-                  ? t("maler.firmaarkiv.henter")
-                  : t("maler.firmaarkiv.hent")}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-4 flex justify-end">
-        <Button variant="secondary" onClick={onLukk}>
-          {t("handling.lukk")}
-        </Button>
-      </div>
-    </Modal>
   );
 }

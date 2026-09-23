@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f9fafb; color: #111827; }
+    a { color: #1e40af; } a:hover { color: #1e3a8a; }
+    th { text-align: left; font-weight: 500; }
+  </style>
+</helmet>
+<div style="width: 1280px; height: 640px; box-sizing: border-box; padding: 24px 32px; display: flex; flex-direction: column; gap: 16px; background: #f9fafb;">
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600;">Oppgaver</h1>
+    <button style="background: #1e40af; color: #ffffff; border: 0; border-radius: 6px; padding: 8px 14px; font-size: 14px; font-weight: 500;">Ny oppgave</button>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <div role="group" aria-label="Dokumentklasse" style="display: flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; background: #ffffff;">
+      <sc-for list="{{segmenter}}" as="s" hint-placeholder-count="3">
+        <button onClick="{{s.velg}}" aria-pressed="{{s.aktiv}}" style="{{s.stil}}">
+          <sc-if value="{{s.ikon}}" hint-placeholder-val="{{false}}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+          </sc-if>
+          <span>{{s.navn}}</span>
+          <span style="color: #6b7280;">{{s.antall}}</span>
+        </button>
+      </sc-for>
+    </div>
+    <label style="display: flex; align-items: center; gap: 8px; flex-grow: 1; max-width: 360px; background: #ffffff; border: 1px solid #d1d5db; border-radius: 6px; padding: 7px 10px; font-size: 14px; color: #6b7280;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input aria-label="Søk" placeholder="Søk tittel eller nummer" style="border: 0; outline: none; font-size: 14px; flex-grow: 1; background: transparent;">
+    </label>
+    <div style="flex-grow: 1;"></div>
+    <button style="background: #ffffff; border: 1px solid #d1d5db; border-radius: 6px; padding: 7px 12px; font-size: 14px; color: #374151;">Kolonner</button>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <thead style="background: #f9fafb; color: #6b7280; font-size: 12px;">
+        <tr>
+          <th style="padding: 10px 12px; width: 110px;">Prefix</th>
+          <th style="padding: 10px 12px; width: 56px;">Nr</th>
+          <th style="padding: 10px 12px; width: 110px;">Status</th>
+          <th style="padding: 10px 12px;">Tittel</th>
+          <th style="padding: 10px 12px; width: 150px;">Emne</th>
+          <th style="padding: 10px 12px; width: 150px;">Ansvarlig</th>
+          <th style="padding: 10px 12px; width: 150px;">Flyt</th>
+          <th style="padding: 10px 12px; width: 100px;">Frist</th>
+        </tr>
+      </thead>
+      <tbody>
+        <sc-for list="{{rader}}" as="r" hint-placeholder-count="7">
+          <tr style="border-top: 1px solid #f3f4f6;">
+            <td style="padding: 10px 12px;">
+              <span style="display: inline-flex; align-items: center; gap: 6px; font-weight: 500;">
+                <sc-if value="{{r.kontrakt}}" hint-placeholder-val="{{false}}">
+                  <span title="Kontraktssak" style="display: inline-flex; color: #374151;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Kontraktssak"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+                  </span>
+                </sc-if>
+                <sc-if value="{{r.vanlig}}" hint-placeholder-val="{{true}}">
+                  <span style="display: inline-block; width: 14px;"></span>
+                </sc-if>
+                {{r.prefix}}
+              </span>
+            </td>
+            <td style="padding: 10px 12px; color: #374151;">{{r.nr}}</td>
+            <td style="padding: 10px 12px;"><span style="{{r.statusStil}}">{{r.status}}</span></td>
+            <td style="padding: 10px 12px;"><a href="Dokument.dc.html" style="text-decoration: none; color: #111827;">{{r.tittel}}</a></td>
+            <td style="padding: 10px 12px; color: #374151;">{{r.emne}}</td>
+            <td style="padding: 10px 12px; color: #374151;">{{r.ansvarlig}}</td>
+            <td style="padding: 10px 12px; color: #374151;">{{r.flyt}}</td>
+            <td style="padding: 10px 12px; color: #374151;">{{r.frist}}</td>
+          </tr>
+        </sc-for>
+      </tbody>
+    </table>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":640}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { valgt: "alle" };
+  }
+  renderVals() {
+    const alle = [
+      { prefix: "VAR", nr: "001", status: "Mottatt", st: "blue", tittel: "Endringer fra byggherren — flytting av kum K4", emne: "Endring", ansvarlig: "Byggherre", flyt: "Varsel", frist: "24.09", kontrakt: true },
+      { prefix: "BEF", nr: "012", status: "Sendt", st: "blue", tittel: "Befaring grøft akse 3", emne: "Grunnarbeid", ansvarlig: "Tømrer", flyt: "Befaring", frist: "20.09", kontrakt: false },
+      { prefix: "K-avv", nr: "003", status: "Utkast", st: "gray", tittel: "Avvik komprimering lag 2", emne: "Kontroll", ansvarlig: "Grunnarbeid", flyt: "Kontrollavvik", frist: "—", kontrakt: false },
+      { prefix: "VAR", nr: "002", status: "Utkast", st: "gray", tittel: "Svikt i byggherres medvirkning — manglende tegninger", emne: "Medvirkning", ansvarlig: "Byggherre", flyt: "Varsel", frist: "—", kontrakt: true },
+      { prefix: "BEF", nr: "011", status: "Godkjent", st: "green", tittel: "Befaring kum K2", emne: "VA", ansvarlig: "Rørlegger", flyt: "Befaring", frist: "12.09", kontrakt: false },
+      { prefix: "BEF", nr: "010", status: "Lukket", st: "gray", tittel: "Befaring riggområde", emne: "Rigg", ansvarlig: "Tømrer", flyt: "Befaring", frist: "05.09", kontrakt: false },
+      { prefix: "K-avv", nr: "002", status: "Avvist", st: "red", tittel: "Avvik armering fundament F3", emne: "Kontroll", ansvarlig: "Betong", flyt: "Kontrollavvik", frist: "09.09", kontrakt: false }
+    ];
+    const farger = {
+      blue: "background:#dbeafe;color:#1e40af;",
+      gray: "background:#f3f4f6;color:#374151;",
+      green: "background:#d1fae5;color:#065f46;",
+      red: "background:#fee2e2;color:#991b1b;"
+    };
+    const v = this.state.valgt;
+    const rader = alle
+      .filter((r) => v === "alle" || (v === "kontrakt" ? r.kontrakt : !r.kontrakt))
+      .map((r) => ({ ...r, vanlig: !r.kontrakt, statusStil: "display:inline-block;padding:2px 8px;border-radius:9999px;font-size:12px;font-weight:500;" + farger[r.st] }));
+    const antKontrakt = alle.filter((r) => r.kontrakt).length;
+    const seg = [
+      { id: "alle", navn: "Alle", antall: alle.length, ikon: false },
+      { id: "vanlig", navn: "Oppgaver", antall: alle.length - antKontrakt, ikon: false },
+      { id: "kontrakt", navn: "Kontraktssaker", antall: antKontrakt, ikon: true }
+    ];
+    const segmenter = seg.map((s, i) => ({
+      ...s,
+      aktiv: v === s.id,
+      velg: () => this.setState({ valgt: s.id }),
+      stil: "display:flex;align-items:center;gap:6px;padding:7px 12px;font-size:14px;border:0;cursor:pointer;" +
+        (i > 0 ? "border-left:1px solid #d1d5db;" : "") +
+        (v === s.id ? "background:#eff6ff;color:#1e40af;font-weight:500;" : "background:#ffffff;color:#374151;")
+    }));
+    return { rader, segmenter };
+  }
+}
+</script>
+</body>
+</html>

@@ -3,12 +3,13 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, Button } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { harTegningsmarkor } from "@sitedoc/shared";
 import { MapPin, X, Plus, ZoomIn, ZoomOut, RotateCcw, Loader2 } from "lucide-react";
 
-type LokasjonOmfang = "punkt" | "byggeplass";
+type LokasjonOmfang = "punkt" | "byggeplass" | "omrade";
 
 interface LokasjonVelgerProps {
   prosjektId: string;
@@ -24,6 +25,8 @@ interface LokasjonVelgerProps {
   lokasjonOmfang?: LokasjonOmfang | null;
   /** Fritekst-sted (2026-09-06) — påheng på byggeplass når tegning mangler («Akse 4»). */
   lokasjonFritekst?: string | null;
+  /** Område-referanse (steg 2b, 2026-09-23) — satt når lokasjonOmfang="omrade". */
+  omradeId?: string | null;
   visPosisjon?: boolean;
   onLagre: (data: {
     drawingId: string | null;
@@ -32,6 +35,7 @@ interface LokasjonVelgerProps {
     positionY?: number | null;
     lokasjonOmfang?: LokasjonOmfang | null;
     lokasjonFritekst?: string | null;
+    omradeId?: string | null;
   }) => void;
   leseModus?: boolean;
   /**
@@ -51,6 +55,7 @@ export function LokasjonVelger({
   positionY,
   lokasjonOmfang,
   lokasjonFritekst,
+  omradeId,
   visPosisjon,
   onLagre,
   leseModus,
@@ -60,6 +65,7 @@ export function LokasjonVelger({
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [open, setOpen] = useState(false);
   const [fritekst, setFritekst] = useState(lokasjonFritekst ?? "");
+  const [valgtOmradeId, setValgtOmradeId] = useState<string>(omradeId ?? "");
   const [valgtBygningId, setValgtBygningId] = useState<string>("");
   const [valgtTegningId, setValgtTegningId] = useState<string>("");
   const [punkt, setPunkt] = useState<{ x: number; y: number } | null>(null);
@@ -85,6 +91,16 @@ export function LokasjonVelger({
     floor: string | null; byggeplassId: string | null;
     fileUrl: string | null; fileType: string | null;
   }>).filter((t) => !valgtBygningId || t.byggeplassId === valgtBygningId);
+
+  // Områder (steg 2b): tilbys som lokasjonsnivå BARE når prosjektet har definert områder.
+  // Hentes når velgeren er åpen, eller når dokumentet alt HAR et område (så chipen kan vise navnet).
+  const { data: omraderRå } = trpc.omrade.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: open || lokasjonOmfang === "omrade" },
+  );
+  const omrader = (omraderRå ?? []) as Array<{ id: string; navn: string; type: string; byggeplass?: { name: string } | null }>;
+  const harOmrader = omrader.length > 0;
+  const valgtOmradeNavn = omrader.find((o) => o.id === (omradeId ?? valgtOmradeId))?.navn ?? null;
 
   // Auto-select bygning når kun én finnes — sparer brukeren et meningsløst valg.
   useEffect(() => {
@@ -192,19 +208,28 @@ export function LokasjonVelger({
       lokasjonOmfang: valgtTegningId ? "punkt" : null,
       // Presis pin → ingen fritekst-presisering (stedet ER pinnen).
       lokasjonFritekst: null,
+      omradeId: null,
     });
     setOpen(false);
   }
 
   function handleFjern() {
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: null, lokasjonFritekst: null });
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: null, lokasjonFritekst: null, omradeId: null });
+    setOpen(false);
+  }
+
+  // Område (steg 2b): et definert område er lokasjonsnivået — nullstiller tegning/pin/fritekst.
+  // omradeId følger med (DoD 12: omfang="omrade" krever omradeId — knappen er sperret uten valg).
+  function handleOmrade(id: string) {
+    if (!id) return;
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "omrade", lokasjonFritekst: null, omradeId: id });
     setOpen(false);
   }
 
   // «Gjelder hele byggeplassen» (krav 2): ett trykk, ingen obligatorisk bekreftelse. Nullstiller
   // tegning/pin — omfanget ER svaret. Fungerer både fra passiv tilstand og inne i (auto-)åpnet modal.
   function handleByggeplass() {
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: null });
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: null, omradeId: null });
     setOpen(false);
   }
 
@@ -214,7 +239,7 @@ export function LokasjonVelger({
   function handleFritekst() {
     const tekst = fritekst.trim();
     if (!tekst) return;
-    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: tekst });
+    onLagre({ drawingId: null, byggeplassId: null, positionX: null, positionY: null, lokasjonOmfang: "byggeplass", lokasjonFritekst: tekst, omradeId: null });
     setOpen(false);
   }
 
@@ -226,6 +251,7 @@ export function LokasjonVelger({
   const harMarkor = harTegningsmarkor({ drawingId: tegningId, positionX, positionY });
   const visChip = harLokasjon && (!leseModus || harMarkor);
   const erByggeplass = lokasjonOmfang === "byggeplass";
+  const erOmrade = lokasjonOmfang === "omrade";
   const tegningTekst = `${bygningNavn ? bygningNavn + " · " : ""}${tegningNavn ?? t("lokasjonVelger.tegning")}`;
 
   return (
@@ -237,7 +263,33 @@ export function LokasjonVelger({
       <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
         {t("lokasjonVelger.etikett")}
       </div>
-      {erByggeplass ? (
+      {erOmrade ? (
+        /* Område (steg 2b) — et definert mellomnivå, egen chip. Endre / Fjern kun i redigering. */
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+          <MapPin className="h-4 w-4 shrink-0 text-blue-500" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-gray-800">{valgtOmradeNavn ?? t("lokasjonVelger.omrade")}</div>
+            <div className="truncate text-xs text-gray-400">{t("lokasjonVelger.omradeNiva")}</div>
+          </div>
+          {!leseModus && (
+            <>
+              <button
+                onClick={åpne}
+                className="rounded px-2 py-1 text-xs font-medium text-sitedoc-secondary hover:bg-gray-100"
+              >
+                {t("handling.endre")}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleFjern(); }}
+                className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600"
+                title={t("lokasjonVelger.fjern")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      ) : erByggeplass ? (
         /* Bevisst hele byggeplassen — et svar, ikke et tomt felt. Egen chip så den aldri
            forveksles med «ingen lokasjon». Endre (→ velg tegning) / Fjern kun i redigering. */
         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
@@ -368,6 +420,33 @@ export function LokasjonVelger({
             </div>
           ) : null}
 
+          {/* Område (steg 2b) — vises BARE når prosjektet har definert områder. Når det finnes
+              områder, er dette førstevalget over fritekst (et definert nivå slår en løs streng). */}
+          {harOmrader && (
+            <div className="border-t border-gray-100 pt-3">
+              <label className="mb-1 block text-xs font-medium text-gray-500">
+                {t("lokasjonVelger.omradeVelg")}
+              </label>
+              <div className="flex gap-2">
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  value={valgtOmradeId}
+                  onChange={(e) => setValgtOmradeId(e.target.value)}
+                >
+                  <option value="">{t("lokasjonVelger.omradeVelgPlaceholder")}</option>
+                  {omrader.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.byggeplass?.name ? `${o.byggeplass.name} · ` : ""}{o.navn}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="secondary" disabled={!valgtOmradeId} onClick={() => handleOmrade(valgtOmradeId)}>
+                  {t("handling.lagre")}
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Fritekst-sted — utvei når tegning mangler (tegning er førstevalget over).
               En presisering innenfor byggeplassen; lagres med omfang "byggeplass". */}
           <div className="border-t border-gray-100 pt-3">
@@ -462,9 +541,11 @@ export function LokasjonVelger({
           )}
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <Button onClick={handleLagre} disabled={!valgtTegningId}>
-              {t("handling.lagre")}
-            </Button>
+            <KnappMedForklaring sperret={!valgtTegningId} forklaring={t("sperret.velgTegning")}>
+              <Button onClick={handleLagre} disabled={!valgtTegningId}>
+                {t("handling.lagre")}
+              </Button>
+            </KnappMedForklaring>
             <Button variant="secondary" onClick={() => setOpen(false)}>
               {t("handling.avbryt")}
             </Button>

@@ -2,7 +2,7 @@
 name: DEPLOY-RUNBOK
 description: ENESTE kilde for deploy-kommandoer — test, prod, OTA. Alle andre filer peker hit og bærer kun bakgrunn.
 status: 🔴 STYRENDE — kommandoer bor KUN her
-sist_verifisert_mot_kode: 2026-09-07
+sist_verifisert_mot_kode: 2026-09-17
 ---
 
 # Deploy-runbok — den eneste kilden til kommandoer
@@ -292,6 +292,102 @@ flatene selv — uleselige tegninger, lønnsdata i arkivet, uforklart manifest, 
 under føttene, og dokumentene som ikke var i arkivet i det hele tatt. **Ingen av dem kunne build
 eller typecheck ha fanget.**
 
+# 5b · 🔴 PROD-NEDETID 2026-09-11 — web-buildet kjørte aldri
+
+**~30 minutters nedetid på prod. Les denne før neste store deploy.**
+
+## Symptomet
+
+`https://sitedoc.no/api/auth/error?error=Configuration` — **både Google og Microsoft feilet.**
+En eksisterende sesjon kom inn på dashbordet, men fikk «Venter på prosjekttilgang».
+🔴 **`curl /version` svarte 200 med riktig SHA hele tiden** — den ruta rører ikke databasen.
+
+⚠️ **`error=Configuration` betyr IKKE at OAuth er feilkonfigurert.** Det er Auth.js sin generiske
+melding når adapteren feiler. **Gå rett i `docker logs sitedoc-web` — der står den ekte feilen.**
+
+## Rotårsaken
+
+**Web-loggen sa det ordrett:**
+
+```
+[auth][cause]: PrismaClientKnownRequestError:
+Invalid `prisma.account.findUnique()` invocation:
+The column `users.ny_navigasjon` does not exist in the current database.
+```
+
+**Målt etterpå:**
+
+```sh
+ssh -t server-ny "sudo docker inspect sitedoc-api:latest sitedoc-web:latest --format '{{.RepoTags}} {{.Created}}'"
+```
+
+| Image | Bygget |
+|---|---|
+| `sitedoc-api:latest` | 2026-09-10 22:40 — **i deployen** |
+| `sitedoc-web:latest` | 2026-09-08 06:49 — **to døgn gammelt** |
+
+🔴 **Web-buildet ble aldri kjørt.** `deploy-prod.sh` SKRIVER UT fire kommandoer, men kjører dem
+ikke. Kommando 2 av 4 (`build sitedoc-web`) ble hoppet over, og `up` startet det gamle imaget.
+**Resultat: ny api + ny database + to døgn gammel web med en Prisma-klient fra før
+`DROP COLUMN`.**
+
+## 🔴 Berging — kolonnen tilbake, ikke rollback
+
+**Raskeste vei opp når ny database møter en gammel klient:**
+
+```sh
+ssh -t server-ny "sudo docker exec postgres psql -U sitedoc -d sitedoc -c 'ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"ny_navigasjon\" BOOLEAN;'"
+```
+
+🟢 **Kolonnen er ubrukt i ny kode, så både gammel og ny klient fungerer med den der.**
+**Ingen rollback nødvendig — all ny kode ble stående.** **Prod var oppe på sekunder.**
+
+**Deretter bygges og startes web:**
+
+```sh
+ssh -t server-ny "cd ~/stack/sitedoc && sudo env GIT_SHA=af0093b8 BUILD_TID=\$(date -u +%Y-%m-%dT%H:%MZ) docker compose -f docker/docker-compose.yml build sitedoc-web"
+```
+
+```sh
+ssh -t server-ny "cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-web"
+```
+
+## 🔴 To tiltak som IKKE er gjort — begge kan gi samme nedetid igjen
+
+**1. `deploy-prod.sh` kan ikke se om du kjørte alle fire kommandoene.**
+Scriptet skriver dem ut og avslutter. **Hopper du over én, sier ingenting fra.**
+🔴 **Til det er løst: verifiser byggetidene FØR du kjører `up`:**
+
+```sh
+ssh -t server-ny "sudo docker inspect sitedoc-api:latest sitedoc-web:latest --format '{{.RepoTags}} {{.Created}}'"
+```
+**Begge skal være fra de siste minuttene.**
+
+**2. ⚠️ `prisma generate` traff Docker-cache i web-buildet 2026-09-11:**
+
+```
+=> CACHED [5/9] COPY . .
+=> CACHED [7/9] RUN pnpm --filter @sitedoc/db exec prisma generate ...
+=> [8/9] RUN pnpm turbo build --filter @sitedoc/web    105.3s
+```
+
+🔴 **`turbo build` kjørte, men `prisma generate` var cachet — selv om `schema.prisma` var endret.**
+**Koden ble ny; klienten var ikke bevist ny.**
+
+🟢 **LØST samme natt.** Web ble bygget om med `--no-cache` (349 s mot 266 s), og linje 7 kjørte
+da i 10,9 s i stedet for `CACHED`. **Kolonnen ble droppet etterpå, innlogging verifisert.**
+**Prod har ingen lapp igjen.**
+
+### 🔴 Rekkefølgen som gjelder når en droppet kolonne skal ryddes
+
+**1.** `build --no-cache sitedoc-web` — 🔴 **verifiser at linje 7 (`prisma generate`) IKKE er
+CACHED.** Er den det, STOPP: klienten er fortsatt gammel.
+**2.** `up -d --no-deps sitedoc-web` — 🔴 **FØR droppen.** Den gamle containeren kjører fortsatt
+gammel klient; dropper du først, er prod nede på sekundet.
+**3.** `DROP COLUMN IF EXISTS`.
+**4.** **Logg ut og inn i nettleseren.** `docker logs | grep -c` beviser lite — en stille logg kan
+bare bety at ingen har forsøkt å logge inn.
+
 # 6 · Rollback — når noe er ute og feiler
 
 ## 🔴 En dårlig prod-release — koden virker, men den er feil
@@ -415,6 +511,74 @@ gruppa* → skriv en melding som sier HVORFOR («ROLLBACK: forrige bundel pekte 
 
 🔴 **«Published Update», ikke «Embedded Update».** Den første går til forrige publiserte bundel og
 beholder fiksene i den; den andre kaster helt tilbake til JS-en i binæren og mister dem.
+
+---
+
+# 7 · Seeding mot test
+
+> ⚠️ **Ikke re-verifisert mot serveren etter 17.09.** Veien under er den generelle og riktige
+> måten å seede på (mal-Opus 2026-09-17), men den er **ikke** kjørt mot serveren etter endringene
+> gjort samme dag. **Første gang den brukes:** bekreft at container-navnet `postgres` og stien
+> `/tmp` fortsatt stemmer, og **rett seksjonen** hvis noe har flyttet seg.
+> *Kenneth 2026-09-17: «seed veien må sjekkes → vi har gjort endringer på serveren som kan endre noe».*
+
+> **Hvorfor dette er en runbok-seksjon:** spørsmålet «hvordan seeder vi mot test» kostet en hel
+> økt 2026-09-17, med Kenneth som prober i fire runder. Svaret fantes hos mal-Opus hele tiden.
+> Nå finnes det ett sted. **Alle punktene under er målt 2026-09-17.**
+
+**Miljø:** DB `sitedoc_test` på `server-ny` (Docker). Postgres eksponerer **kun `127.0.0.1:5432`**
+på server-ny ([`infrastruktur.md`](infrastruktur.md) § Nettverk) — den er **ikke** direkte nåbar
+fra Mac. Derfor går en SQL-seed via `scp` + `docker cp` + `psql` inne på verten.
+
+### Veien som faktisk brukes — en `.sql`-fil mot `sitedoc_test`
+
+```sh
+scp <fil>.sql server-ny:/tmp/<fil>.sql
+```
+
+```sh
+ssh -t server-ny "sudo docker cp /tmp/<fil>.sql postgres:/tmp/<fil>.sql"
+```
+
+```sh
+ssh -t server-ny "sudo docker exec postgres psql -U sitedoc -d sitedoc_test -f /tmp/<fil>.sql"
+```
+
+🔴 **Steg 1 (`scp`) kan en agent kjøre.** **Steg 2–3 krever Kenneths TTY** — `sudo docker` kan
+ikke kjøres ikke-interaktivt av Opus/kontroll-Claude (samme regel som all annen `sudo docker` i
+denne fila). Agenten skriver kommandoene ut; Kenneth kjører dem.
+
+### 🔴 `-d sitedoc_test` er TEST. `-d sitedoc` er PRODUKSJON.
+
+**`sitedoc_test` og `sitedoc` er separate databaser på samme postgres.** En seedekommando skal
+**ALDRI** ha `-d sitedoc` — det treffer prod. Les `-d`-argumentet før du gir kommandoen videre.
+
+### 🔴 En seed LEGGER TIL. Den sletter aldri ekte hendelser.
+
+En seed skal aldri slette rader som representerer noe som faktisk skjedde (signaturer,
+bekreftelser, innsendte dokumenter). **Skal en tilstand gjenskapes, seedes et NYTT objekt ved
+siden av det gamle** — et nytt demo-prosjekt/-SJA, ikke en `DELETE` mot det eksisterende.
+Referanse-eksempel på SQL-mønsteret (vakter, transaksjon, rapportering) — **merket «SKAL IKKE
+KJØRES» øverst, den er referanse, ikke verktøy:** `packages/db/prisma/reset-sja-runde2.sql`.
+
+### ⚠️ `.ts`-seeds går IKKE på server
+
+`server-ny:~/stack/sitedoc` har **verken `node`, `node_modules` eller `.ts`-kildene**, og
+test-api-containeren er et **produksjonsbygg uten `tsx`**. Så en TypeScript-seed
+(`packages/db/prisma/*.ts` som `seed-bibliotek.ts` / `seed-sja-signaturrunder.ts`, og
+`packages/db/scripts/*.ts` som `seed-testbrukere.ts` / `seed-e2e-flyt.ts`) kan **ikke** kjøres på
+verten. Den kjøres **mot lokal DB, eller mot `sitedoc_test` via SSH-tunnel til `localhost:5432`**.
+*(Ordre 2026-09-17 kalte pakken `packages/db-seeds` — den finnes ikke; seedene bor i `packages/db`.)*
+
+### 🔴 Prod-vakten i seed-scriptene — ikke omgå den «bare denne gangen»
+
+`.ts`-seedene har en innebygd guard (`avbrytHvisProdUtenBekreftelse`,
+`seed-bibliotek.ts:51` · `seed-sja-signaturrunder.ts`): peker `DATABASE_URL` mot **fjernvert +
+`/sitedoc`** (prod), aborterer seeden med mindre `SEED_CONFIRM_DB=<faktisk DB-navn>` er satt —
+et **fast** sentinel virker ikke, DB-navnet må skrives for hånd (Kenneth-vedtak 2026-09-05).
+`localhost`/`127.0.0.1` regnes som lokal sandkasse og slipper igjennom. 🔴 **Å sette
+`SEED_CONFIRM_DB=sitedoc` for å komme forbi er en bevisst prod-skriving — gjør det aldri for å
+«teste».** Referansedata bygges på test/lokal først.
 
 ---
 

@@ -18,6 +18,7 @@ import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rappo
 import { WebView } from "react-native-webview";
 import type { WebViewMessageEvent } from "react-native-webview";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
+import { KnappMedForklaring } from "../../src/components/KnappMedForklaring";
 
 interface PsiObjekt {
   id: string;
@@ -384,6 +385,7 @@ export default function PsiLeser() {
       </ScrollView>
 
       {/* Bunnknapper — Forrige + Neste */}
+      <KnappMedForklaring sperret={!kanGåVidere} forklaring={t("sperret.fullforPunkter")}>
       <View style={{ flexDirection: "row", gap: 8, borderTopWidth: 1, borderTopColor: "#e5e7eb", backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 12 }}>
         {aktivSeksjon > 0 && (
           <TouchableOpacity
@@ -422,6 +424,7 @@ export default function PsiLeser() {
           )}
         </TouchableOpacity>
       </View>
+      </KnappMedForklaring>
     </SafeAreaView>
   );
 }

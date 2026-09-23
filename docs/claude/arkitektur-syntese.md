@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: ukjent
-sist_endret: 2026-04-28
+sist_verifisert_mot_kode: 2026-09-17 (kun § 1.1s syv «Mangler»-rader + Fase 2/7-seksjon, mot 50fd9893; resten uverifisert)
+sist_endret: 2026-09-17
 gjelder_versjon: tverrgående
 avhenger_av:
   - arkitektur.md
@@ -39,17 +39,17 @@ Norsk byggebransje har «prosjekthotell» som etablert produktkategori (Interaxo
 | Faggrupper og brukergrupper | Eksisterer |
 | Dokumentflyt | Eksisterer (kjernen) |
 | KS-dokumentasjon (Sjekkliste, Oppgave, Kontrollplan) | Eksisterer |
-| **Godkjenning** (utvidet dokumentflyt-type) | Mangler — Fase 0 (per A.2) |
+| **Godkjenning** (utvidet dokumentflyt-type) | 🟡 Delvis (målt 2026-09-17 @ `50fd9893`) — datamodell finnes: `model Godkjenning` (`packages/db/prisma/schema.prisma:1387`, Fase 0 §E steg 12) + type-integrasjon (`perspektivEtikett.ts:21` `PerspektivDokumentType "godkjenning"`, `EmneKategori`). MEN ingen router/prosedyre/UI: `prisma.godkjenning` = 0 treff i `apps/api/src`, ingen godkjenning-router, ingen web-flate (`timer/godkjenning` er timer-attestering, urelatert). Flyt-typen kan ikke opprettes/sendes ennå. |
 | HMS-oppfølging (rapporter, RUH, avvik) | Eksisterer per prosjekt |
 | Tegninger og IFC | Eksisterer |
 | Dokumentlagring (mapper, kontrakter) | Eksisterer |
 | Prosjektering | Eksisterer |
 | Mal-bibliotek (`BibliotekMal`, NS 3420) | Eksisterer |
-| **Mal-promotering (firma-bibliotek)** | Mangler — Fase 2 |
-| **HMS-statistikk på firma-nivå** | Mangler — Fase 7 |
-| **Møtemal** | Mangler — Fase 7 |
-| **Månedsrapport** | Mangler — Fase 7 |
-| **Street View for byggeplass** | Mangler — eget prosjekt |
+| **Mal-promotering (firma-bibliotek)** | ✅ Ferdig (målt 2026-09-17 @ `50fd9893`) — `OrganizationTemplate` (`schema.prisma:1120`) + `ReportTemplate.organizationTemplateId` (`:1070`); prosedyrer `firmamal.promoter:572` / `kanPromotere:198` / `kopierTilProsjekt:646` / `listeForProsjekt:740`; UI i `MalBygger.tsx` + `HentFraArkivModal.tsx`. Var planlagt Fase 2 — se § 5 Fase 2. |
+| **HMS-statistikk på firma-nivå** | ✅ Ferdig (målt 2026-09-17 @ `50fd9893`) — `hms.hentFirmaOversikt` aggregerer 4 KPI-er (`apps/api/src/routes/hms.ts:302-460`), rendret i `dashbord/firma/hms/page.tsx:381,405`, i18n `firma.hms.statistikk.*` (`nb.json:3804`). Var planlagt Fase 7 — se § 5 Fase 7. |
+| **Møtemal** | Mangler — Fase 7 (bekreftet 2026-09-17 @ `50fd9893`: 0 kodetreff + 0 i18n) |
+| **Månedsrapport** | Mangler — Fase 7 (bekreftet 2026-09-17 @ `50fd9893`: 0 kodetreff + 0 i18n) |
+| **Street View for byggeplass** | Mangler — eget prosjekt (bekreftet 2026-09-17 @ `50fd9893`: 0 kodetreff + 0 i18n) |
 | Varsling (firma konfigurerer) | Delvis |
 
 ### 1.2 Tilleggsmoduler ✅
@@ -244,7 +244,7 @@ Etablert mønster i tre eksisterende implementasjoner. **Kanon: `EquipmentAssign
 | Type | Modell | Lever i | Mal-bibliotek | Flyt | Status |
 |---|---|---|---|---|---|
 | Prosjekt-sjekkliste | `Checklist` | `db` | `BibliotekMal` (kategori='prosjekt-sjekkliste') | Faggruppe-flyt | Eksisterer |
-| Maskin-sjekkliste | `EquipmentChecklist` | `db-maskin` | `EquipmentChecklistTemplate` (i `db-maskin`) | Enkel: utfører + valgfri godkjenner | Mangler — Fase 1 (sammen med modul-gateway) |
+| Maskin-sjekkliste | `EquipmentChecklist` | `db-maskin` | `EquipmentChecklistTemplate` (i `db-maskin`) | Enkel: utfører + valgfri godkjenner | Mangler — Fase 1 (bekreftet 2026-09-17 @ `50fd9893`: `db-maskin` har 6 modeller — `Equipment`/`EquipmentAnsvarlig`/`EquipmentAssignment`/`ServiceRecord`/`Feilmelding`/`VegvesenKo` — ingen `EquipmentChecklist`; 0 UI-rute/i18n) |
 
 **Cross-package-grense respekteres:** `EquipmentChecklist` referrer til `User.id` som svak String-FK (etablert mønster i db-maskin — se §6).
 
@@ -315,14 +315,16 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 
 ---
 
-## 4. Manglende firma-modeller (Fase 0) ✅
+## 4. Firma-modeller (Fase 0) — bygget ✅
 
-| Modell | Formål | Avhengigheter |
+> 🟢 **BYGGET — målt 2026-09-17 @ `250dfc7f`.** Alle fire modellene som opprinnelig sto som «manglende» finnes nå i `packages/db/prisma/schema.prisma`. Positiv kontroll per rad under.
+
+| Modell | Formål | Bygget |
 |---|---|---|
-| `OrganizationSetting` | Tilgangs-defaults og firma-flagg | — |
-| `OrganizationPartner` | Faste UE/byggherre/leverandører | — |
-| `OrganizationTemplate` | Firma-mal-bibliotek (mal-promotering) | — |
-| Firma-HMS-rolle (på User eller egen tabell) | Behandler firma-eide HMS-rapporter | — |
+| `OrganizationSetting` | Tilgangs-defaults og firma-flagg | ✅ `schema.prisma:372` |
+| `OrganizationPartner` | Faste UE/byggherre/leverandører | ✅ `schema.prisma:533` |
+| `OrganizationTemplate` | Firma-mal-bibliotek (mal-promotering) | ✅ `schema.prisma:1120` |
+| Firma-HMS-rolle (egen tabell valgt) | Behandler firma-eide HMS-rapporter | ✅ `OrganizationMember.firmaRoller` = `"hms_ansvarlig"` (`schema.prisma:251`) |
 
 **Modul-aktivering (gateway):** `ProjectModule` eksisterer allerede — utvides med `organizationId` + `status` per A.4/A.17 (3-nivå: aktivert/deaktivert/standalone). Ingen ny `OrganizationModule`-tabell.
 
@@ -376,6 +378,8 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 
 ### Fase 2 — Mal-promotering
 
+> ✅ **FERDIG — målt 2026-09-17 @ `50fd9893`.** Alle fire kulepunkt bygget. Kodereferanser i § 1.1-tabellen (raden «Mal-promotering (firma-bibliotek)»). Kulepunktene under er bevart som opprinnelig plan.
+
 - Utvid `BibliotekMal` med kategori/domene/kobletTilModul/verifisert (gjøres egentlig i Fase 0, men Fase 2 utnytter det)
 - `OrganizationTemplate` + `ReportTemplate.organizationTemplateId`
 - UI for «Send til firmabibliotek» på prosjekt-mal
@@ -410,6 +414,8 @@ Detaljer og tilhørende kontrakter i [fase-0-beslutninger.md § A.15-A.17](fase-
 - Strekkode-skanning utvidelser
 
 ### Fase 7 — Prosjekthotell-utvidelser (parallelt spor)
+
+> 🟡 **DELVIS — målt 2026-09-17 @ `50fd9893`.** «HMS-statistikk på firma-nivå» er **bygget** (`hms.hentFirmaOversikt`, `apps/api/src/routes/hms.ts:302-460` + `dashbord/firma/hms/page.tsx`) — kom tidligere enn planlagt. Møtemal, Månedsrapport, Street View og auto-trigger maskin-sjekkliste **gjenstår** (bekreftet mangler samme dato). Kulepunktene under er bevart som opprinnelig plan.
 
 - Møtemal (ny dokumenttype)
 - Månedsrapport (auto-aggregering)
@@ -570,7 +576,7 @@ GPS-validering (geofence-innsjekk) tilhører Mannskap-modul, ikke Timer — adap
 ### Funksjonelt
 - Møtemal (ny dokumenttype) — Fase 7
 - Månedsrapport (auto-generert) — Fase 7
-- HMS-statistikk på firma-nivå — Fase 7
+- ~~HMS-statistikk på firma-nivå — Fase 7~~ → ✅ **BYGGET** (kom tidligere enn planlagt, målt 2026-09-17 @ `50fd9893`): `hms.hentFirmaOversikt` (`apps/api/src/routes/hms.ts:305`), rendret i `dashbord/firma/hms/page.tsx`. Samme funn som § 3-rad «HMS-statistikk på firma-nivå» (linje 49) + § 5 Fase 7-markøren.
 - Street View for byggeplass — eget prosjekt
 - Multi-firma-bruker (modellering)
 - Mal-versjonering med push-down ved firma-mal-endring
@@ -612,4 +618,4 @@ Følgende memorier skal opprettes/oppdateres når implementeringen i ny chat beg
 ---
 
 *Sist oppdatert: 2026-04-26*
-*Status: Beslutninger låst, men venter på timer-modul-planlegging før Fase 0-koding kan starte. Timer kan medføre justeringer av Fase 0-beslutninger — se [fase-0-beslutninger.md](fase-0-beslutninger.md) § «Forutsetning før koding starter».*
+*Status (footer remålt 2026-09-17 @ `250dfc7f`): Fase 0-koding HAR startet, og datamodellen er i hovedsak bygget. 7 av 8 datamodell-steg i § 4-rekkefølgen finnes i `packages/db/prisma/schema.prisma`: `ProjectModule.organizationId`+`status` (`:1684-1685`), `OrganizationSetting` (`:372`), `OrganizationPartner` (`:533`), `OrganizationTemplate` (`:1120`), `Project.primaryOrganizationId` (`:671`), `BibliotekMal`-utvidelsen (`:2320` m.fl., merket «§ E steg 8»), `ProjectMember.periodeSlutt` (`:719`) og Firma-HMS-rolle (`OrganizationMember.firmaRoller`, `:251`). Timer-modulen er bygget, så den opprinnelige blokkeringen «venter på timer-modul-planlegging» er bortfalt. **Unntak (steg 5):** Psi-utvidelsen (`organizationId`, nullbar `projectId`, `kontekstType`) er IKKE bygget — `Psi.projectId` er fortsatt `String` (ikke-nullbar), og `OrganizationKontekstType` ble besluttet utelatt (§ 4). 🟡 **USIKKER — ikke målt her:** om HELE Fase 0 er komplett (§ E's 13 migrasjons-steg + infrastruktur-laget, f.eks. navngitt `prosjektProcedure`/`modulProcedure`, som ikke ble funnet under de navnene). Det krever en egen runde — [fase-0-beslutninger.md § E](fase-0-beslutninger.md) er sannhetskilden.*

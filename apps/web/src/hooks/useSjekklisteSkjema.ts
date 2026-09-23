@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, utenforKravOppfylt, løsKollisjonsVerdi } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, erObjektSynlig, løsKollisjonsVerdi } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -294,42 +294,10 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     [planleggLagring, sjekkliste, slettBildeMutation],
   );
 
-  // Rekursiv betinget synlighet (sjekker hele foreldrekjeden, maks 10 nivåer)
+  // Betinget synlighet — hele vurderingen (rekursjon, conditionActive, utenfor_krav) i én delt kilde.
   const erSynlig = useCallback(
-    (objekt: RapportObjekt): boolean => {
-      function sjekkSynlighet(obj: RapportObjekt, dybde: number): boolean {
-        if (dybde > 10) return true; // Sikkerhetsvakt mot uendelig rekursjon
-
-        // Bruk parentId fra DB-kolonne (ny) med fallback til config (gammel)
-        const parentId = obj.parentId ?? (obj.config.conditionParentId as string | undefined);
-        if (!parentId) return true;
-
-        const forelder = alleObjekter.find((o) => o.id === parentId);
-        if (!forelder) return true; // Sikkerhets-fallback
-
-        // Sjekk at forelderen selv er synlig (rekursivt)
-        if (!sjekkSynlighet(forelder, dybde + 1)) return false;
-
-        // Repeater-barn er alltid synlige (ingen betingelseslogikk)
-        if (forelder.type === "repeater") return true;
-
-        // Sjekk at forelderens betingelse er oppfylt
-        if (!forelder.config.conditionActive) return true;
-
-        // Avviksfelt-utløser (trinn 3 del C): tallfelt-forelder → vis barn når verdien bryter kravet.
-        if (forelder.config.conditionType === "utenfor_krav") {
-          return utenforKravOppfylt(forelder, hentFeltVerdi(parentId).verdi, (id) => hentFeltVerdi(id).verdi);
-        }
-
-        const triggerVerdier = (forelder.config.conditionValues as string[]) ?? [];
-        const forelderVerdi = hentFeltVerdi(parentId).verdi;
-
-        if (typeof forelderVerdi === "string") return triggerVerdier.includes(forelderVerdi);
-        if (Array.isArray(forelderVerdi)) return forelderVerdi.some((v) => triggerVerdier.includes(v));
-        return false;
-      }
-      return sjekkSynlighet(objekt, 0);
-    },
+    (objekt: RapportObjekt): boolean =>
+      erObjektSynlig(objekt, alleObjekter, (id) => hentFeltVerdi(id).verdi),
     [alleObjekter, hentFeltVerdi],
   );
 

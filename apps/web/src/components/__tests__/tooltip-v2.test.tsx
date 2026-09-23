@@ -62,4 +62,49 @@ describe("Tooltip v2 — struktur og a11y-kobling (portalet)", () => {
     expect(tip.textContent).toContain("Bare brødtekst");
     expect(tip.querySelector(".font-semibold")).toBeNull();
   });
+
+  it("rikt `innhold` rendres UNDER brødteksten inne i hover-boksen (oversatt variant)", () => {
+    render(
+      <Tooltip
+        tekst="Vekstjordlag over 50 cm deles i to lag."
+        innhold={<span className="oversatt-variant italic">Growth soil layer over 50 cm.</span>}
+      >
+        <span>ⓘ</span>
+      </Tooltip>,
+    );
+    const tip = screen.getByRole("tooltip");
+    // Både brødtekst og det rike tilleggsinnholdet ligger i SAMME tooltip-node.
+    expect(tip.textContent).toContain("Vekstjordlag over 50 cm deles i to lag.");
+    expect(tip.querySelector(".oversatt-variant")?.textContent).toBe("Growth soil layer over 50 cm.");
+  });
+
+  it("uten `innhold` rendres ingen tilleggsblokk — de eksisterende kallstedene er uendret", () => {
+    render(
+      <Tooltip tekst="Kort etikett">
+        <span>ⓘ</span>
+      </Tooltip>,
+    );
+    const tip = screen.getByRole("tooltip");
+    expect(tip.textContent).toBe("Kort etikett");
+  });
+
+  it("`maxBreddeKlasse` overstyrer default 280px kun når satt; default beholdes ellers", () => {
+    const { rerender } = render(
+      <Tooltip tekst="Lang hjelpetekst" maxBreddeKlasse="max-w-[400px]">
+        <span>ⓘ</span>
+      </Tooltip>,
+    );
+    let tip = screen.getByRole("tooltip");
+    expect(tip.className).toContain("max-w-[400px]");
+    expect(tip.className).not.toContain("max-w-[280px]");
+
+    // Uten overstyring faller den tilbake til default — de korte tooltipsene er urørt.
+    rerender(
+      <Tooltip tekst="Kort etikett">
+        <span>ⓘ</span>
+      </Tooltip>,
+    );
+    tip = screen.getByRole("tooltip");
+    expect(tip.className).toContain("max-w-[280px]");
+  });
 });

@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert, Download } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, Pencil, ArrowLeft, ShieldAlert, Download, Anchor, Scale } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
@@ -208,6 +208,14 @@ export default function OppgaveDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // Videresend synlig konsekvens (ramme 2, gate B): server-verdikten kanByttFlyt gjenbrukes fra
+  // hentTilgjengeligeFlyter — styrer om «Andre flyter»-seksjonen i mottakervelgeren vises
+  // (dekker vei 3 registrator, som klienten ikke kan utlede selv).
+  const { data: tilgjengeligeFlyter } = trpc.oppgave.hentTilgjengeligeFlyter.useQuery(
+    { id: params.oppgaveId },
+    { enabled: !!params.oppgaveId },
+  );
+
   const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -310,6 +318,10 @@ export default function OppgaveDetaljSide() {
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
     mineTillatelser,
   });
+
+  // Ramme 4 (bundet-flyt-tegning): anker i flyt-merket når dokumentets egen flyt er bundet.
+  const egenDokflytId = (fullOppgaveRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? undefined;
+  const egenFlytBundet = dokumentflyter.find((df) => df.id === egenDokflytId)?.bundet ?? false;
 
   // --- Skjema-hook med rettighetsinfo ---
 
@@ -531,6 +543,11 @@ export default function OppgaveDetaljSide() {
     [oppgave?.number, oppgave?.template?.prefix],
   );
 
+  // Kontraktssak-runde 1 (tavle 2): egen klasse-linje over tittelen. Nummeret flytter dit,
+  // så vanlige oppgaver er nøyaktig uendret (ingen ny høyde for dem).
+  const erKontraktssak =
+    (oppgave as unknown as { template?: { subdomain?: string | null } | null })?.template?.subdomain === "kontrakt";
+
   // Melder eier innholdet, behandler eier handlingen (Spor 2 / 5c): på HMS er
   // meldingsskjemaet ALLTID read-only unntatt for melderen mens saken er utkast.
   // Presentasjonsinvariant — decoupler fra flyt-rettighet (feltlås låser uansett
@@ -664,9 +681,23 @@ export default function OppgaveDetaljSide() {
             {t("hms.tittel")}
           </button>
         )}
+        {/* Kontraktssak-klasse (tavle 2): egen linje over tittelen, med nummeret. Kun for
+            kontraktssak-dokumenter — vanlige oppgaver beholder nummeret inline i Rad 1. */}
+        {erKontraktssak && (
+          <div className="mb-1 flex items-center gap-1.5 text-sm text-gray-700">
+            <Scale className="h-3.5 w-3.5 shrink-0 text-gray-700" aria-hidden="true" />
+            <span className="font-medium">{t("dokumentklasse.kontraktssak")}</span>
+            {oppgaveNummer && (
+              <>
+                <span className="text-gray-400">·</span>
+                <span>{oppgaveNummer}</span>
+              </>
+            )}
+          </div>
+        )}
         {/* Rad 1: Nummer + Tittel + Dato + Status */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {oppgaveNummer && (
+          {oppgaveNummer && !erKontraktssak && (
             <span className="text-sm font-bold text-gray-500">{oppgaveNummer}</span>
           )}
           {/* P4b: redigerbar tittel (utfyllingsmodus). */}
@@ -789,7 +820,12 @@ export default function OppgaveDetaljSide() {
           <div className="mt-2">
             {/* Runde-2 (#7/#8): flyt-navn som caption over flytlinja (f.eks. «Sitedoc Ansatte»). */}
             {flytNavn && (
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{flytNavn}</div>
+              <div className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                {flytNavn}
+                {egenFlytBundet && (
+                  <Anchor className="h-3 w-3 shrink-0" aria-label={t("dokumentflyt.bundet.ankerTooltip")} />
+                )}
+              </div>
             )}
             {/* Desktop: full flyt */}
             <div className="hidden sm:block">
@@ -865,6 +901,8 @@ export default function OppgaveDetaljSide() {
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
             kanSletteSomOppretter={erMelder && erUtkast}
+            kanByttFlyt={tilgjengeligeFlyter?.kanFlytte ?? false}
+            dokumentTittel={oppgave.title ?? undefined}
             onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
           />
           )}
@@ -910,6 +948,7 @@ export default function OppgaveDetaljSide() {
             positionY={oppgaveLokasjon.positionY ?? undefined}
             lokasjonOmfang={oppgaveLokasjon.lokasjonOmfang}
             lokasjonFritekst={oppgaveLokasjon.lokasjonFritekst}
+            omradeId={oppgaveLokasjon.omradeId}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -919,6 +958,7 @@ export default function OppgaveDetaljSide() {
                 positionY: data.positionY ?? null,
                 lokasjonOmfang: data.lokasjonOmfang ?? null,
                 lokasjonFritekst: data.lokasjonFritekst ?? null,
+                omradeId: data.omradeId ?? null,
               });
             }}
             // Cowork-vedtak 2026-08-29: speil server-vakten (oppgave.ts:670, draft-only) —

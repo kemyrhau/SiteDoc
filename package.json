@@ -5,6 +5,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "test": "turbo test",
+    "test:integration": "pnpm --filter @sitedoc/api test:integration",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "clean": "turbo clean",

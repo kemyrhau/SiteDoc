@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner, Card } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import {
   ShieldCheck,
   QrCode,
@@ -305,17 +306,18 @@ export default function PsiOppsettSide() {
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
                         </button>
-                        <button
-                          onClick={() => {
-                            setVisKopierForPsi(visKopierForPsi === psi.id ? null : psi.id);
-                            setKopierMålBygning("");
-                          }}
-                          className="rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                          title={t("psi.kopierTilBygning")}
-                          disabled={tilgjengeligeKopierBygninger.length === 0}
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
+                        <KnappMedForklaring sperret={tilgjengeligeKopierBygninger.length === 0} forklaring={t("sperret.ingenBygningerKopi")}>
+                          <button
+                            onClick={() => {
+                              setVisKopierForPsi(visKopierForPsi === psi.id ? null : psi.id);
+                              setKopierMålBygning("");
+                            }}
+                            className="rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                            disabled={tilgjengeligeKopierBygninger.length === 0}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        </KnappMedForklaring>
                         <button
                           onClick={() => {
                             if (confirm(t("psi.bekreftDeaktiver"))) {

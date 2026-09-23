@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { grupperMedOverskrift, beregnSeksjonUtfylling } from "./seksjoner";
+import {
+  grupperMedOverskrift,
+  beregnSeksjonUtfylling,
+  kanSlasSammen,
+  nesteKollapsTilstand,
+  type SeksjonTilstand,
+} from "./seksjoner";
 
 type O = { id: string; type: string; parentId?: string | null };
 const o = (id: string, type: string, parentId: string | null = null): O => ({ id, type, parentId });
@@ -49,6 +55,128 @@ describe("grupperMedOverskrift", () => {
 
   it("tom liste → ingen seksjoner", () => {
     expect(grupperMedOverskrift([])).toEqual([]);
+  });
+
+  // Krav 3 (runde 91): undertittel er også en rot-seksjonsgrense (flat, samme nivå).
+  it("rot-undertittel starter ny seksjon, felter til neste grense", () => {
+    const s = grupperMedOverskrift([
+      o("s1", "subtitle"),
+      o("a", "decimal"),
+      o("s2", "subtitle"),
+      o("b", "integer"),
+    ]);
+    expect(s).toHaveLength(2);
+    expect(s[0]!.overskrift?.id).toBe("s1");
+    expect(s[0]!.felter.map((f) => f.id)).toEqual(["a"]);
+    expect(s[1]!.overskrift?.id).toBe("s2");
+    expect(s[1]!.felter.map((f) => f.id)).toEqual(["b"]);
+  });
+
+  it("undertittel slutter ved neste undertittel OG ved neste overskrift", () => {
+    const s = grupperMedOverskrift([
+      o("h1", "heading"),
+      o("a", "decimal"),
+      o("s1", "subtitle"),
+      o("b", "text_field"),
+      o("h2", "heading"), // overskrift lukker undertittel-seksjonen
+      o("c", "integer"),
+    ]);
+    expect(s.map((x) => x.overskrift?.id)).toEqual(["h1", "s1", "h2"]);
+    expect(s[0]!.felter.map((f) => f.id)).toEqual(["a"]);
+    expect(s[1]!.felter.map((f) => f.id)).toEqual(["b"]);
+    expect(s[2]!.felter.map((f) => f.id)).toEqual(["c"]);
+  });
+
+  it("nestet undertittel (har parentId) er IKKE seksjonsgrense", () => {
+    const s = grupperMedOverskrift([
+      o("h1", "heading"),
+      o("rep", "repeater"),
+      o("nested", "subtitle", "rep"),
+      o("a", "decimal"),
+    ]);
+    expect(s).toHaveLength(1);
+    expect(s[0]!.overskrift?.id).toBe("h1");
+    expect(s[0]!.felter.map((f) => f.id)).toEqual(["rep", "nested", "a"]);
+  });
+});
+
+describe("kanSlasSammen (Krav 2 — standard er PÅ)", () => {
+  it("mangler feltet i config → foldbar (standard true)", () => {
+    expect(kanSlasSammen({})).toBe(true);
+    expect(kanSlasSammen(undefined)).toBe(true);
+    expect(kanSlasSammen(null)).toBe(true);
+    expect(kanSlasSammen({ helpText: "x" })).toBe(true);
+  });
+
+  it("kun eksplisitt false slår folding av", () => {
+    expect(kanSlasSammen({ kanSlasSammen: false })).toBe(false);
+    expect(kanSlasSammen({ kanSlasSammen: true })).toBe(true);
+  });
+
+  // NEGATIV KONTROLL (Krav 2): en overskrift UTEN feltet i config skal forbli foldbar.
+  // Snus standardverdien (fravær → false), FEILER denne. Vaktposten mot regresjon.
+  it("negativ kontroll: en overskrift uten config-flagg er foldbar", () => {
+    const overskriftUtenFlagg = { type: "heading", config: {} as Record<string, unknown> };
+    expect(kanSlasSammen(overskriftUtenFlagg.config)).toBe(true);
+  });
+});
+
+describe("nesteKollapsTilstand (Krav 1 — auto-kollaps ved fullført)", () => {
+  const s = (id: string, tilstand: SeksjonTilstand, kanFoldes = true) => ({ id, tilstand, kanFoldes });
+
+  it("overgang TIL komplett folder seksjonen", () => {
+    const neste = nesteKollapsTilstand(
+      [s("a", "komplett")],
+      new Map<string, SeksjonTilstand>([["a", "delvis"]]),
+      new Set(),
+    );
+    expect(neste.has("a")).toBe(true);
+  });
+
+  it("fyrer bare på overgangen — allerede komplett + åpnet av bruker forblir åpen", () => {
+    // forrige = komplett, nå = komplett → ingen overgang → kollaps-settet uendret.
+    const neste = nesteKollapsTilstand(
+      [s("a", "komplett")],
+      new Map<string, SeksjonTilstand>([["a", "komplett"]]),
+      new Set(), // brukeren har åpnet den igjen
+    );
+    expect(neste.has("a")).toBe(false);
+  });
+
+  it("et tømt felt (komplett → delvis) åpner seksjonen igjen", () => {
+    const neste = nesteKollapsTilstand(
+      [s("a", "delvis")],
+      new Map<string, SeksjonTilstand>([["a", "komplett"]]),
+      new Set(["a"]),
+    );
+    expect(neste.has("a")).toBe(false);
+  });
+
+  it("tom folder ALDRI", () => {
+    const neste = nesteKollapsTilstand(
+      [s("a", "tom")],
+      new Map<string, SeksjonTilstand>([["a", "urort"]]),
+      new Set(),
+    );
+    expect(neste.has("a")).toBe(false);
+  });
+
+  it("ikke-foldbar seksjon holdes alltid åpen", () => {
+    const neste = nesteKollapsTilstand(
+      [s("a", "komplett", false)],
+      new Map<string, SeksjonTilstand>([["a", "delvis"]]),
+      new Set(["a"]),
+    );
+    expect(neste.has("a")).toBe(false);
+  });
+
+  it("første måling (ingen forrige) folder ingenting", () => {
+    const neste = nesteKollapsTilstand(
+      [s("a", "komplett")],
+      new Map<string, SeksjonTilstand>(),
+      new Set(),
+    );
+    expect(neste.has("a")).toBe(false);
   });
 });
 

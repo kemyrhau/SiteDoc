@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { Spinner, Modal, SearchInput } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Plus, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
@@ -359,15 +360,20 @@ export default function HmsSide() {
           {/* Ordre 2.2/Funn E: «+ Meld HMS» åpner den unifiserte velgeren (samme som
               sjekkliste/oppgave). Åpne-regelen (Ordre 1.4): ≥1 mal → alltid velger,
               0 maler → knapp av. */}
-          <button
-            type="button"
-            onClick={() => setVisVelger(true)}
-            disabled={velgbareHmsMaler.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          <KnappMedForklaring
+            sperret={velgbareHmsMaler.length === 0}
+            forklaring={t("sperret.ingenHmsMaler")}
           >
-            <Plus className="h-4 w-4" />
-            {t("hms.handling.meld")}
-          </button>
+            <button
+              type="button"
+              onClick={() => setVisVelger(true)}
+              disabled={velgbareHmsMaler.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Plus className="h-4 w-4" />
+              {t("hms.handling.meld")}
+            </button>
+          </KnappMedForklaring>
         </div>
       </SonetonetSidehode>
 

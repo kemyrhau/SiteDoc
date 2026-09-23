@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import {
   FileCheck,
@@ -460,19 +461,21 @@ function OversettelsesInnstillinger({ prosjektId }: { prosjektId: string }) {
       )}
 
       <div className="mt-2 flex items-center gap-2">
-        <button
-          disabled={oppdaterMut.isPending || (valgtMotor.betalt && !apiKey)}
-          onClick={() => {
-            oppdaterMut.mutate({
-              projectId: prosjektId,
-              motor: motor as "opus-mt" | "google" | "deepl",
-              apiKey: valgtMotor.betalt ? apiKey : undefined,
-            });
-          }}
-          className="rounded bg-sitedoc-primary px-3 py-1 text-xs font-medium text-white hover:bg-sitedoc-secondary disabled:opacity-50"
-        >
-          {oppdaterMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
-        </button>
+        <KnappMedForklaring sperret={valgtMotor.betalt && !apiKey && !oppdaterMut.isPending} forklaring={t("sperret.apiNokkel")}>
+          <button
+            disabled={oppdaterMut.isPending || (valgtMotor.betalt && !apiKey)}
+            onClick={() => {
+              oppdaterMut.mutate({
+                projectId: prosjektId,
+                motor: motor as "opus-mt" | "google" | "deepl",
+                apiKey: valgtMotor.betalt ? apiKey : undefined,
+              });
+            }}
+            className="rounded bg-sitedoc-primary px-3 py-1 text-xs font-medium text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+          >
+            {oppdaterMut.isPending ? t("handling.lagrer") : t("handling.lagre")}
+          </button>
+        </KnappMedForklaring>
         {lagret && (
           <span className="flex items-center gap-1 text-xs text-green-600">
             <Check className="h-3 w-3" /> Lagret

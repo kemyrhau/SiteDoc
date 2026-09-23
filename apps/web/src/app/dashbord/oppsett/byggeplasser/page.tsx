@@ -6,6 +6,7 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
 import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import {
   DRAWING_DISCIPLINES,
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { OmradeAdmin } from "./_components/OmradeAdmin";
 
 // Leaflet-kart må lastes klient-side (window-avhengig) — SSR av.
 const KartVelgerDynamic = dynamic(
@@ -429,19 +431,21 @@ function RedigerLokasjon({
             <>
               <div className="fixed inset-0 z-10" onClick={() => setVisMerMeny(false)} />
               <div className="absolute left-0 top-full z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <button
-                  disabled={!valgtTegningId}
-                  onClick={() => {
-                    if (valgtTegningId) {
-                      tilknyttMutation.mutate({ drawingId: valgtTegningId, byggeplassId: null });
-                      setValgtTegningId(null);
-                    }
-                    setVisMerMeny(false);
-                  }}
-                  className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40"
-                >
-                  Fjern tegning
-                </button>
+                <KnappMedForklaring sperret={!valgtTegningId} forklaring={t("sperret.velgTegning")} wrapperKlasse="relative flex w-full">
+                  <button
+                    disabled={!valgtTegningId}
+                    onClick={() => {
+                      if (valgtTegningId) {
+                        tilknyttMutation.mutate({ drawingId: valgtTegningId, byggeplassId: null });
+                        setValgtTegningId(null);
+                      }
+                      setVisMerMeny(false);
+                    }}
+                    className="flex w-full items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    Fjern tegning
+                  </button>
+                </KnappMedForklaring>
               </div>
             </>
           )}
@@ -1034,32 +1038,38 @@ export default function LokasjonerSide() {
           <Plus className="mr-1.5 h-4 w-4" />
           {t("handling.leggTil")}
         </Button>
-        <button
-          disabled={!harValgt}
-          onClick={apneEndreNavn}
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Pencil className="h-4 w-4" />
-          {t("lokasjoner.endreNavn")}
-        </button>
-        <button
-          disabled={!harValgt}
-          onClick={() => {
-            if (valgtId) setRedigerLokasjonId(valgtId);
-          }}
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <LayoutGrid className="h-4 w-4" />
-          {t("nav.tegninger")}
-        </button>
-        <button
-          disabled={!harValgt}
-          onClick={handleSlettValgt}
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Trash2 className="h-4 w-4" />
-          {t("handling.slett")}
-        </button>
+        <KnappMedForklaring sperret={!harValgt} forklaring={t("sperret.velgIListe")}>
+          <button
+            disabled={!harValgt}
+            onClick={apneEndreNavn}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Pencil className="h-4 w-4" />
+            {t("lokasjoner.endreNavn")}
+          </button>
+        </KnappMedForklaring>
+        <KnappMedForklaring sperret={!harValgt} forklaring={t("sperret.velgIListe")}>
+          <button
+            disabled={!harValgt}
+            onClick={() => {
+              if (valgtId) setRedigerLokasjonId(valgtId);
+            }}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            {t("nav.tegninger")}
+          </button>
+        </KnappMedForklaring>
+        <KnappMedForklaring sperret={!harValgt} forklaring={t("sperret.velgIListe")}>
+          <button
+            disabled={!harValgt}
+            onClick={handleSlettValgt}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 className="h-4 w-4" />
+            {t("handling.slett")}
+          </button>
+        </KnappMedForklaring>
         <div className="relative">
           <button
             onClick={() => setVisMerMeny(!visMerMeny)}
@@ -1085,16 +1095,18 @@ export default function LokasjonerSide() {
                     {t("lokasjoner.publiser")}
                   </button>
                 )}
-                <button
-                  disabled={!harValgt}
-                  onClick={() => {
-                    handleSlettValgt();
-                    setVisMerMeny(false);
-                  }}
-                  className="flex w-full items-center px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50 disabled:opacity-40"
-                >
-                  {t("lokasjoner.slettLokasjon")}
-                </button>
+                <KnappMedForklaring sperret={!harValgt} forklaring={t("sperret.velgIListe")} wrapperKlasse="relative flex w-full">
+                  <button
+                    disabled={!harValgt}
+                    onClick={() => {
+                      handleSlettValgt();
+                      setVisMerMeny(false);
+                    }}
+                    className="flex w-full items-center px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    {t("lokasjoner.slettLokasjon")}
+                  </button>
+                </KnappMedForklaring>
               </div>
             </>
           )}
@@ -1207,6 +1219,16 @@ export default function LokasjonerSide() {
                   />
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Område-administrasjon for valgt byggeplass (steg 1, 2026-09-23) */}
+          {valgtLokasjon && prosjektId && (
+            <div className="mt-8">
+              <h3 className="mb-1 text-lg font-bold text-gray-900">
+                {t("omrade.seksjon.forByggeplass", { navn: valgtLokasjon.name })}
+              </h3>
+              <OmradeAdmin byggeplassId={valgtLokasjon.id} prosjektId={prosjektId} />
             </div>
           )}
         </>

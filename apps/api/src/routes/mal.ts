@@ -22,37 +22,46 @@ import type { OversettelsesMotor } from "../services/oversettelse-service";
  * Deles av `sjekkObjektBruk` (klient-sjekk) OG `slettObjekt` (server-guard) så de to
  * ALLTID er enige — uenighet ga stille optimistisk fjerning + gjenoppretting ved refetch.
  */
+// Den indre «har verdien faktisk innhold»-CASE på `e.value` (fra jsonb_each(data) AS e(key,value)).
+// Ekstrahert (ordre diffmerge-oppdater-kopi, 2026-09-17) så EXISTS-tellingen OG per-objekt-
+// oppslaget (objektIderMedInnhold) deler NØYAKTIG samme regel — ett predikat, aldri to som drifter.
+function verdiErUtfylt(): Prisma.Sql {
+  return Prisma.sql`
+    CASE
+      WHEN jsonb_typeof(e.value) = 'object' THEN
+        CASE
+          WHEN (e.value ? 'verdi' OR e.value ? 'kommentar' OR e.value ? 'vedlegg') THEN (
+               (e.value -> 'verdi' IS NOT NULL
+                 AND e.value -> 'verdi' <> 'null'::jsonb
+                 AND e.value -> 'verdi' <> '""'::jsonb
+                 AND e.value -> 'verdi' <> '[]'::jsonb
+                 AND e.value -> 'verdi' <> '{}'::jsonb)
+            OR (e.value -> 'kommentar' IS NOT NULL
+                 AND e.value -> 'kommentar' <> 'null'::jsonb
+                 AND e.value -> 'kommentar' <> '""'::jsonb)
+            OR (e.value -> 'vedlegg' IS NOT NULL
+                 AND e.value -> 'vedlegg' <> 'null'::jsonb
+                 AND e.value -> 'vedlegg' <> '[]'::jsonb)
+          )
+          -- ukjent objektform (ikke {verdi,...}): konservativt «i bruk» om ikke tomt
+          ELSE e.value <> '{}'::jsonb
+        END
+      -- rå skalar/array direkte under nøkkelen (eldre data)
+      ELSE (
+        e.value <> 'null'::jsonb
+        AND e.value <> '""'::jsonb
+        AND e.value <> '[]'::jsonb
+      )
+    END
+  `;
+}
+
 function harFaktiskInnholdForObjekt(sletteIder: string[]): Prisma.Sql {
   return Prisma.sql`
     EXISTS (
       SELECT 1 FROM jsonb_each(data) AS e(key, value)
       WHERE e.key = ANY(${sletteIder})
-        AND CASE
-          WHEN jsonb_typeof(e.value) = 'object' THEN
-            CASE
-              WHEN (e.value ? 'verdi' OR e.value ? 'kommentar' OR e.value ? 'vedlegg') THEN (
-                   (e.value -> 'verdi' IS NOT NULL
-                     AND e.value -> 'verdi' <> 'null'::jsonb
-                     AND e.value -> 'verdi' <> '""'::jsonb
-                     AND e.value -> 'verdi' <> '[]'::jsonb
-                     AND e.value -> 'verdi' <> '{}'::jsonb)
-                OR (e.value -> 'kommentar' IS NOT NULL
-                     AND e.value -> 'kommentar' <> 'null'::jsonb
-                     AND e.value -> 'kommentar' <> '""'::jsonb)
-                OR (e.value -> 'vedlegg' IS NOT NULL
-                     AND e.value -> 'vedlegg' <> 'null'::jsonb
-                     AND e.value -> 'vedlegg' <> '[]'::jsonb)
-              )
-              -- ukjent objektform (ikke {verdi,...}): konservativt «i bruk» om ikke tomt
-              ELSE e.value <> '{}'::jsonb
-            END
-          -- rå skalar/array direkte under nøkkelen (eldre data)
-          ELSE (
-            e.value <> 'null'::jsonb
-            AND e.value <> '""'::jsonb
-            AND e.value <> '[]'::jsonb
-          )
-        END
+        AND ${verdiErUtfylt()}
     )
   `;
 }
@@ -80,7 +89,9 @@ export function samleEtterkommere(
 // firmamaler KOPIERES, aldri deles: firmamal.ts:379 / bibliotek.ts:144 / modul.ts:314) med
 // FAKTISK innhold for objektet eller en etterkommer. Gjenbruker `harFaktiskInnholdForObjekt` —
 // ETT predikat, tre kallsteder (slett, oppdater, rekkefølge) som ikke kan drifte fra hverandre.
-async function tellDokumenterMedInnhold(
+// Eksportert (ordre vern-oppdater-kopi, krav 1) så firmamal.oppdaterKopiFraHovedmal kan
+// gjenbruke NØYAKTIG samme telling som slettObjekt — én kilde, aldri en andre kopi.
+export async function tellDokumenterMedInnhold(
   prisma: PrismaClient,
   templateId: string,
   objektIder: string[],
@@ -90,6 +101,30 @@ async function tellDokumenterMedInnhold(
     prisma.$queryRaw<{ n: bigint }[]>(Prisma.sql`SELECT count(*) AS n FROM tasks WHERE template_id = ${templateId} AND deleted_at IS NULL AND data IS NOT NULL AND ${harFaktiskInnholdForObjekt(objektIder)}`),
   ]);
   return Number(sjekk[0]?.n ?? 0) + Number(oppg[0]?.n ?? 0);
+}
+
+/**
+ * Hvilke av `objektIder` har FAKTISK innhold i minst ett aktivt dokument for denne malen.
+ * Samme predikat (`verdiErUtfylt`) som tellingen, men returnerer NØKLENE — brukt av
+ * `firmamal.oppdaterKopiFraHovedmal` (ordre diffmerge, krav 3) til å NAVNGI feltene som ville
+ * mistet data om de ikke matcher. Ett predikat, ingen drift mot slett-vernet.
+ */
+export async function objektIderMedInnhold(
+  prisma: PrismaClient,
+  templateId: string,
+  objektIder: string[],
+): Promise<Set<string>> {
+  if (objektIder.length === 0) return new Set();
+  const rader = await prisma.$queryRaw<{ key: string }[]>(Prisma.sql`
+    SELECT DISTINCT e.key FROM checklists, jsonb_each(data) AS e(key, value)
+      WHERE template_id = ${templateId} AND deleted_at IS NULL AND data IS NOT NULL
+        AND e.key = ANY(${objektIder}) AND ${verdiErUtfylt()}
+    UNION
+    SELECT DISTINCT e.key FROM tasks, jsonb_each(data) AS e(key, value)
+      WHERE template_id = ${templateId} AND deleted_at IS NULL AND data IS NOT NULL
+        AND e.key = ANY(${objektIder}) AND ${verdiErUtfylt()}
+  `);
+  return new Set(rader.map((r) => r.key));
 }
 
 // Config-nøkler som IKKE endrer HVA eller HVORDAN som ble kontrollert (cowork-gate 2026-09-06).
@@ -127,28 +162,57 @@ const configSchema = z.preprocess(
   z.record(z.string(), z.unknown()),
 ) as z.ZodType<Record<string, unknown>>;
 
-// Subdomain ↔ category-mapping (vedtatt 2026-05-29).
-// avvik+ruh bruker task-shape (oppgave); sja bruker checklist-shape.
-// HMS-fanene i hms.ts er hardkodet til disse datakildene — feilkombinasjon
-// gjør at dokumenter opprettes i feil tabell og forsvinner stille fra alle
-// visninger (HMS-fanen ekskluderer feil tabell; Oppgaver/Sjekklister-fanen
-// ekskluderer fordi domain="hms" filtreres bort der).
-function valideerSubdomainCategory(
-  subdomain: "avvik" | "sja" | "ruh" | null | undefined,
+// 🔴 ÉN EIER for lovlige (domain, subdomain)-par (svar-kontraktssak-domain-vs-subdomain
+// § 3). Valideringen leser DENNE, ikke en schema-kommentar som kan drifte. Neste leser
+// møter regelen der den håndheves. `subdomain` = undertype INNENFOR domenet:
+//   hms → avvik/sja/ruh (HMS-undertype) · bygg → kontrakt (Kontraktssak) · kvalitet → (ingen)
+const LOVLIG_SUBDOMAIN: Record<string, readonly string[]> = {
+  hms: ["avvik", "sja", "ruh"],
+  bygg: ["kontrakt"],
+  kvalitet: [],
+};
+
+// subdomain → påkrevd category (dokument-form/datatabell). avvik+ruh+kontrakt bruker
+// task-shape (oppgave); sja bruker checklist-shape. HMS-fanene i hms.ts er hardkodet til
+// disse datakildene — feil kombinasjon gjør at dokumenter opprettes i feil tabell og
+// forsvinner stille fra alle visninger.
+const SUBDOMAIN_FORM: Record<string, "oppgave" | "sjekkliste"> = {
+  avvik: "oppgave",
+  ruh: "oppgave",
+  sja: "sjekkliste",
+  kontrakt: "oppgave",
+};
+
+/**
+ * Validerer at (domain, subdomain, category) er en lovlig kombinasjon.
+ * 1) (domain, subdomain) må stå i LOVLIG_SUBDOMAIN. 🔴 Kontraktssak er ALDRI HMS
+ *    (uansett akse den kommer inn på) — egen klartekst.
+ * 2) subdomain må matche dokument-formen (SUBDOMAIN_FORM). HMS hopper over form-sjekken:
+ *    der bestemmer subdomain datatabellen, ikke category.
+ */
+export function valideerSubdomainKombinasjon(
+  domain: string | undefined,
+  subdomain: string | null | undefined,
   category: "oppgave" | "sjekkliste" | "hms" | undefined,
 ): void {
-  if (!subdomain || !category) return;
-  // HMS er egen topp-nivå-type; subdomain (avvik/sja/ruh) bestemmer datatabellen
-  // (task vs checklist), ikke category. Ingen shape-sjekk mot category nødvendig.
-  if (category === "hms") return;
-  const forventet: Record<"avvik" | "sja" | "ruh", "oppgave" | "sjekkliste"> = {
-    avvik: "oppgave",
-    ruh: "oppgave",
-    sja: "sjekkliste",
-  };
-  if (category !== forventet[subdomain]) {
+  if (!subdomain) return;
+  // Kontraktssak kan ikke være HMS — verken via domain=hms eller category=hms.
+  if (subdomain === "kontrakt" && (domain === "hms" || category === "hms")) {
+    throw new Error("Kontraktssak kan ikke være HMS.");
+  }
+  const effektivDomain = domain ?? "bygg";
+  const lovlige = LOVLIG_SUBDOMAIN[effektivDomain] ?? [];
+  if (!lovlige.includes(subdomain)) {
     throw new Error(
-      "SJA bruker sjekkliste-format. Avvik og RUH bruker oppgave-format.",
+      `Undertypen «${subdomain}» er ikke lovlig for domenet «${effektivDomain}».`,
+    );
+  }
+  // HMS: subdomain bestemmer datatabellen (task vs checklist), ikke category.
+  if (!category || category === "hms") return;
+  const forventet = SUBDOMAIN_FORM[subdomain];
+  if (forventet && category !== forventet) {
+    throw new Error(
+      "SJA bruker sjekkliste-format. Avvik, RUH og Kontraktssak bruker oppgave-format.",
     );
   }
 }
@@ -160,8 +224,11 @@ type MalListeElement = Prisma.ReportTemplateGetPayload<{
   include: {
     _count: { select: { objects: true; checklists: true; tasks: true } };
     dokumentflytMaler: { select: { dokumentflytId: true } };
+    // Firmamal-avstamning: firmamalens GJELDENDE versjon, for «X versjoner bak»-badge
+    // + ↻ i mallista (ordre synliggjor-malforvaltning, krav 1). Speiler `hentMedId`.
+    copiedFromOrgTemplate: { select: { id: true; name: true; version: true } };
   };
-}> & { opprettbar: boolean; opprettbareFlytIder: string[] };
+}> & { opprettbar: boolean; opprettbareFlytIder: string[]; utilgjengeligÅrsak: UtilgjengeligÅrsak | null };
 
 // Slett-vern (2026-08-10): tell mal-dokumenter — aktive og i papirkurv separat.
 // Papirkurv (KUN_SLETTET) teller med: 90-dagers gjenoppretting ville ellers gjort
@@ -169,14 +236,18 @@ type MalListeElement = Prisma.ReportTemplateGetPayload<{
 async function tellMalDokumenter(
   prisma: typeof import("@sitedoc/db").prisma,
   templateId: string,
-): Promise<{ aktive: number; iKurv: number }> {
-  const [aktivOppg, aktivSjekk, kurvOppg, kurvSjekk] = await Promise.all([
+): Promise<{ aktive: number; iKurv: number; iKontrollplan: number }> {
+  // iKontrollplan: KontrollplanPunkt.sjekklisteMalId er påkrevd uten onDelete → Prisma
+  // Restrict. Uten denne tellingen lover knappen sletting, men DB-en kaster
+  // kontrollplan_punkter_sjekkliste_mal_id_fkey rett i UI (Kenneth 2026-09-11).
+  const [aktivOppg, aktivSjekk, kurvOppg, kurvSjekk, iKontrollplan] = await Promise.all([
     prisma.task.count({ where: { templateId, ...IKKE_SLETTET } }),
     prisma.checklist.count({ where: { templateId, ...IKKE_SLETTET } }),
     prisma.task.count({ where: { templateId, ...KUN_SLETTET } }),
     prisma.checklist.count({ where: { templateId, ...KUN_SLETTET } }),
+    prisma.kontrollplanPunkt.count({ where: { sjekklisteMalId: templateId } }),
   ]);
-  return { aktive: aktivOppg + aktivSjekk, iKurv: kurvOppg + kurvSjekk };
+  return { aktive: aktivOppg + aktivSjekk, iKurv: kurvOppg + kurvSjekk, iKontrollplan };
 }
 
 // Mal-unikhet (2026-08-10): speiler de funksjonelle unik-indeksene (migrering
@@ -246,6 +317,41 @@ export async function finnLedigeMalVerdier(
   return { name: navn, prefix: prefiks };
 }
 
+// Utilgjengelig-årsak (2026-09-22, «utilgjengelige maler forklarer seg»-runden): når en mal
+// IKKE er opprettbar, sier serveren HVORFOR — fra SAMME beregning som `opprettbar`, aldri en ny
+// klient-vurdering (to kilder kan divergere; den fella lukket synlighetssporet over tre runder).
+// «ikkeRegistrator» = malen ligger i ≥1 flyt med eier-faggruppe der brukeren ikke er registrator
+// (med faggruppens navn). «ingenFlyt» = ingen flyt med eier-faggruppe bruker malen.
+export type UtilgjengeligÅrsak =
+  | { grunn: "ikkeRegistrator"; faggruppe: string }
+  | { grunn: "ingenFlyt" };
+
+// Opprettbarhet + årsak for ÉN mal — ren funksjon (delt kilde, enhetstestbar). Speiler
+// P4b-regelen: HMS er alltid opprettbar (flyt-løs, auto-rutes til HMS-gruppen); ellers opprettbar
+// hvis malen ligger i ≥1 av brukerens gyldige flyter (registrator-medlem MED eier-faggruppe). Er
+// den ikke det, forklarer `utilgjengeligÅrsak` hvorfor — SAMME data avgjør begge (én kilde).
+export function beregnMalOpprettbarhet(
+  mal: { domain: string | null; dokumentflytMaler: { dokumentflytId: string }[] },
+  gyldigeFlytIder: Set<string>,
+  flytFaggruppeNavn: Map<string, string | null>,
+): { opprettbar: boolean; opprettbareFlytIder: string[]; utilgjengeligÅrsak: UtilgjengeligÅrsak | null } {
+  const erHms = mal.domain === "hms";
+  const malFlytIder = mal.dokumentflytMaler.map((dm) => dm.dokumentflytId);
+  const opprettbareFlytIder = erHms ? [] : malFlytIder.filter((id) => gyldigeFlytIder.has(id));
+  const opprettbar = erHms || opprettbareFlytIder.length > 0;
+  if (opprettbar) return { opprettbar, opprettbareFlytIder, utilgjengeligÅrsak: null };
+  // Utilgjengelig: skille «ligger i flyt med eier-faggruppe (men ikke registrator der)» fra
+  // «ingen flyt med eier-faggruppe bruker malen». Navnene hentes fra flytene malen faktisk ligger i.
+  const faggruppeNavn = [
+    ...new Set(malFlytIder.map((id) => flytFaggruppeNavn.get(id)).filter((n): n is string => !!n)),
+  ];
+  const utilgjengeligÅrsak: UtilgjengeligÅrsak =
+    faggruppeNavn.length > 0
+      ? { grunn: "ikkeRegistrator", faggruppe: faggruppeNavn.join(", ") }
+      : { grunn: "ingenFlyt" };
+  return { opprettbar, opprettbareFlytIder, utilgjengeligÅrsak };
+}
+
 export const malRouter = router({
   // Hent alle maler for et prosjekt
   hentForProsjekt: protectedProcedure
@@ -257,45 +363,47 @@ export const malRouter = router({
         include: {
           _count: { select: { objects: true, checklists: { where: IKKE_SLETTET }, tasks: { where: IKKE_SLETTET } } },
           dokumentflytMaler: { select: { dokumentflytId: true } },
+          // «X versjoner bak» = copiedFromOrgTemplate.version − versjonAvHovedmal (krav 1).
+          copiedFromOrgTemplate: { select: { id: true, name: true, version: true } },
         },
         orderBy: { updatedAt: "desc" },
       });
 
-      // P4b pkt 0: opprettbarhet som ADDITIV metadata (ikke hard-filter — mal-admin
-      // trenger alle). DELT kilde med opprett-valideringen: en mal er opprettbar hvis
-      // den ligger i ≥1 dokumentflyt der brukeren er registrator-medlem
-      // (hentBrukersOpprettFlytMedlemskap — samme fn opprett-valideringen avviser på)
-      // OG flyten har eier-faggruppe (bestiller kan utledes). HMS-maler er alltid
-      // opprettbare (auto-rutes til HMS-gruppen, flyt-løse). En mal som ville feile
-      // ved Opprett får opprettbar=false og skjules i velgerne (web + mobil).
-      const opprettFlytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, input.projectId);
-      const flyterMedEierFaggruppe =
-        opprettFlytIder.length > 0
+      // P4b pkt 0: opprettbarhet som ADDITIV metadata (ikke hard-filter — mal-admin trenger
+      // alle). DELT kilde med opprett-valideringen: en mal er opprettbar hvis den ligger i ≥1
+      // dokumentflyt der brukeren er registrator-medlem (hentBrukersOpprettFlytMedlemskap — samme
+      // fn opprett-valideringen avviser på) OG flyten har eier-faggruppe (bestiller kan utledes).
+      // HMS-maler er alltid opprettbare (auto-rutes til HMS-gruppen, flyt-løse). Er en mal IKKE
+      // opprettbar, bærer `utilgjengeligÅrsak` HVORFOR — velgerne viser den dempet, i stedet for å
+      // skjule malen (2026-09-22-runden). Årsaken kommer fra SAMME data som `opprettbar`.
+      const opprettFlytIder = new Set(
+        await hentBrukersOpprettFlytMedlemskap(ctx.userId, input.projectId),
+      );
+      // Faggruppe-navn for ALLE flytene malene ligger i (ett kall) — mater både gyldige flyter og
+      // årsaks-teksten. Én kilde: `opprettbar` og årsak utledes av samme `flytFaggruppeNavn`.
+      const alleMalFlytIder = [
+        ...new Set(maler.flatMap((m) => m.dokumentflytMaler.map((dm) => dm.dokumentflytId))),
+      ];
+      const flytInfo =
+        alleMalFlytIder.length > 0
           ? await ctx.prisma.dokumentflyt.findMany({
-              where: { id: { in: opprettFlytIder }, faggruppeId: { not: null } },
-              select: { id: true },
+              where: { id: { in: alleMalFlytIder } },
+              select: { id: true, faggruppe: { select: { name: true } } },
             })
           : [];
-      const gyldigeFlytIder = new Set(flyterMedEierFaggruppe.map((f) => f.id));
+      const flytFaggruppeNavn = new Map<string, string | null>(
+        flytInfo.map((f) => [f.id, f.faggruppe?.name ?? null]),
+      );
+      // Gyldig opprett-flyt = brukerens registrator-flyt SOM har eier-faggruppe. Utledet fra samme
+      // `flytFaggruppeNavn` (flyter uten mal er irrelevante — de treffer aldri en mals flyt-liste).
+      const gyldigeFlytIder = new Set(
+        [...opprettFlytIder].filter((id) => flytFaggruppeNavn.get(id) != null),
+      );
 
-      // Location-tvangen (vedtatt 2026-08-19) er OPPHEVET 2026-09-02 (Kenneth-vedtak:
-      // ingen tvang — har malen lokasjonsmulighet og brukeren lar den stå tom, har
-      // rapporten ingen tegning). Beregningen av aktivLocationMalIds + harAktivLocation
-      // var aldri koblet til noen håndhevelse (målt: ingen konsument leste feltet), så
-      // dette fjerner en halvbygd mekanisme, ikke en virkende regel.
-      return maler.map((mal) => {
-        const erHms = mal.domain === "hms";
-        const opprettbareFlytIder = erHms
-          ? []
-          : mal.dokumentflytMaler
-              .map((dm) => dm.dokumentflytId)
-              .filter((id) => gyldigeFlytIder.has(id));
-        return {
-          ...mal,
-          opprettbar: erHms || opprettbareFlytIder.length > 0,
-          opprettbareFlytIder,
-        };
-      });
+      return maler.map((mal) => ({
+        ...mal,
+        ...beregnMalOpprettbarhet(mal, gyldigeFlytIder, flytFaggruppeNavn),
+      }));
     }),
 
   // Hent én mal med alle objekter
@@ -339,7 +447,7 @@ export const malRouter = router({
     .input(createTemplateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
-      valideerSubdomainCategory(input.subdomain, input.category);
+      valideerSubdomainKombinasjon(input.domain, input.subdomain, input.category);
       // Unikhet per prosjekt (navn på tvers, prefiks eks-PSI) — lesbar feil før DB-sperren.
       await sjekkMalUnikhet(ctx.prisma, {
         projectId: input.projectId,
@@ -374,7 +482,7 @@ export const malRouter = router({
         prefix: z.string().max(20).optional(),
         category: z.enum(["oppgave", "sjekkliste", "hms"]).optional(),
         domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
-        subdomain: z.enum(["avvik", "sja", "ruh"]).nullable().optional(),
+        subdomain: z.enum(["avvik", "sja", "ruh", "kontrakt"]).nullable().optional(),
         hmsSynlighet: z.enum(["privat", "apen"]).nullable().optional(),
         subjects: z.array(z.string().max(255)).optional(),
         showSubject: z.boolean().optional(),
@@ -399,12 +507,14 @@ export const malRouter = router({
       const effektivSubdomain =
         input.subdomain !== undefined
           ? input.subdomain
-          : (mal.subdomain as "avvik" | "sja" | "ruh" | null);
+          : (mal.subdomain as "avvik" | "sja" | "ruh" | "kontrakt" | null);
       const effektivCategory =
         input.category !== undefined
           ? input.category
           : (mal.category as "oppgave" | "sjekkliste" | "hms");
-      valideerSubdomainCategory(effektivSubdomain, effektivCategory);
+      const effektivDomain =
+        input.domain !== undefined ? input.domain : (mal.domain as string);
+      valideerSubdomainKombinasjon(effektivDomain, effektivSubdomain, effektivCategory);
 
       // Konverterings-validering: type (category) eller domain kan ikke
       // endres hvis dokumenter eksisterer. Domain-skift uten dokument-sjekk
@@ -464,8 +574,13 @@ export const malRouter = router({
     .query(async ({ ctx, input }) => {
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
-      const { aktive, iKurv } = await tellMalDokumenter(ctx.prisma, input.id);
-      return { aktive, iKurv, kanSlettes: aktive === 0 && iKurv === 0 };
+      const { aktive, iKurv, iKontrollplan } = await tellMalDokumenter(ctx.prisma, input.id);
+      return {
+        aktive,
+        iKurv,
+        iKontrollplan,
+        kanSlettes: aktive === 0 && iKurv === 0 && iKontrollplan === 0,
+      };
     }),
 
   // Slett mal — SLETT-VERN (2026-08-10): nekt hvis dokumenter finnes (aktive eller
@@ -477,14 +592,28 @@ export const malRouter = router({
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
       await verifiserAdmin(ctx.userId, mal.projectId);
 
-      const { aktive, iKurv } = await tellMalDokumenter(ctx.prisma, input.id);
-      if (aktive > 0 || iKurv > 0) {
-        const melding =
-          aktive > 0 && iKurv > 0
-            ? `Malen har ${aktive} dokument${aktive === 1 ? "" : "er"} og ${iKurv} i papirkurven, og kan ikke slettes. Fjern dokumentene og tøm papirkurven først.`
-            : aktive > 0
-              ? `Malen har ${aktive} dokument${aktive === 1 ? "" : "er"} og kan ikke slettes.`
-              : `Malen har ${iKurv} dokument${iKurv === 1 ? "" : "er"} i papirkurven. Tøm papirkurven først, så kan malen slettes.`;
+      const { aktive, iKurv, iKontrollplan } = await tellMalDokumenter(ctx.prisma, input.id);
+      if (aktive > 0 || iKurv > 0 || iKontrollplan > 0) {
+        // Komposisjon (ikke ternær-eksplosjon): navngi hver bruk + neste steg. Klienten
+        // viser sin egen tospråklige melding fra slettbarhet; dette er server-backstopen.
+        const grunner: string[] = [];
+        const steg: string[] = [];
+        if (aktive > 0) {
+          grunner.push(`${aktive} aktivt dokument${aktive === 1 ? "" : "er"}`);
+          steg.push("fjern dokumentene");
+        }
+        if (iKurv > 0) {
+          grunner.push(`${iKurv} dokument${iKurv === 1 ? "" : "er"} i papirkurven`);
+          steg.push("tøm papirkurven");
+        }
+        if (iKontrollplan > 0) {
+          grunner.push(`${iKontrollplan} kontrollpunkt${iKontrollplan === 1 ? "" : "er"} i en kontrollplan`);
+          steg.push("fjern punktet fra kontrollplanen");
+        }
+        const stegTekst = steg.join(", ");
+        const melding = `Malen er i bruk (${grunner.join(", ")}) og kan ikke slettes. ${
+          stegTekst.charAt(0).toUpperCase() + stegTekst.slice(1)
+        } først.`;
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: melding });
       }
       return ctx.prisma.reportTemplate.delete({ where: { id: input.id } });

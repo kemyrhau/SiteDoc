@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { REISE_LONNSART_REGEX } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { Plus, Pencil, Star } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { DeaktiverKnapp } from "@/components/deaktiver/DeaktiverKnapp";
@@ -67,6 +70,29 @@ export default function LonnsarterSide() {
   const rader = visInaktive
     ? alleRader
     : (alleRader ?? []).filter((r) => r.aktiv);
+
+  // Reise-kobling: vis hvilke lønnsarter reise-regelsettet faktisk bruker, slik
+  // at de to sidene henger sammen (Kenneth 2026-09-11).
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  // Art-IDer som ER wiret til reise: eksplisitt valgt art + alle bånd-arter.
+  const reiseWiretIder = useMemo(() => {
+    const s = new Set<string>();
+    if (setting?.reiseLonnsartId) s.add(setting.reiseLonnsartId);
+    for (const g of setting?.reiseGrenser ?? []) {
+      if (g.lonnsartId) s.add(g.lonnsartId);
+    }
+    return s;
+  }, [setting]);
+  // Navne-match er den AKTIVE reise-fallbacken KUN når verken en eksplisitt art
+  // eller et bånd med art finnes. Da (og bare da) merkes navnetreff — ellers
+  // ville et «Navnetreff» på fem arter løyet om aktiv bruk (knappen skal ikke lyve).
+  const navneMatchAktiv =
+    !!setting &&
+    !setting.reiseLonnsartId &&
+    !(setting.reiseGrenser ?? []).some((g) => g.lonnsartId != null);
 
   const deaktiver = trpc.timer.lonnsart.deaktiver.useMutation({
     onSuccess: () => utils.timer.lonnsart.list.invalidate(),
@@ -150,7 +176,29 @@ export default function LonnsarterSide() {
                   <td className="px-3 py-2 font-mono text-xs text-gray-700">
                     {rad.kode ?? "—"}
                   </td>
-                  <td className="px-3 py-2 font-medium text-gray-900">{rad.navn}</td>
+                  <td className="px-3 py-2 font-medium text-gray-900">
+                    <span className="inline-flex flex-wrap items-center gap-1.5">
+                      {rad.navn}
+                      {reiseWiretIder.has(rad.id) ? (
+                        <Link
+                          href="/dashbord/firma/innstillinger#reise-regelsett"
+                          title={t("firma.timer.lonnsarter.reiseMerkeTooltip")}
+                          className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 hover:bg-blue-200"
+                        >
+                          {t("firma.timer.lonnsarter.reiseMerke")}
+                        </Link>
+                      ) : navneMatchAktiv &&
+                        rad.aktiv &&
+                        REISE_LONNSART_REGEX.test(rad.navn) ? (
+                        <span
+                          title={t("firma.timer.lonnsarter.navnetreffTooltip")}
+                          className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500"
+                        >
+                          {t("firma.timer.lonnsarter.navnetreffMerke")}
+                        </span>
+                      ) : null}
+                    </span>
+                  </td>
                   <td className="px-3 py-2 text-gray-600">
                     {t(`firma.timer.type.${rad.type}`)}
                   </td>
@@ -474,9 +522,11 @@ function LonnsartDialog({
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button type="submit" disabled={lagrer || !navn.trim()}>
-            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
-          </Button>
+          <KnappMedForklaring sperret={!navn.trim() && !lagrer} forklaring={t("sperret.navn")}>
+            <Button type="submit" disabled={lagrer || !navn.trim()}>
+              {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+            </Button>
+          </KnappMedForklaring>
         </div>
       </form>
     </Modal>

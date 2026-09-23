@@ -14,6 +14,7 @@ import {
 } from "@sitedoc/shared";
 import { harMeningsfullLabel } from "@sitedoc/pdf";
 import { Input, Button, Badge } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { useTranslation } from "react-i18next";
 import type { MalObjekt } from "./DraggbartFelt";
 
@@ -73,12 +74,35 @@ export function FeltKonfigurasjon({
     JSON.stringify(config) !== JSON.stringify(objekt.config);
 
   const erBarn = objekt.parentId != null;
+  const erSeksjonsgrense = objekt.type === "heading" || objekt.type === "subtitle";
   const harAktivBetingelse = objekt.config.conditionActive === true;
 
-  // Finn foreldrefeltets label for barnefelt
-  const forelderLabel = erBarn
-    ? alleObjekter.find((o) => o.id === objekt.parentId)?.label ?? "Ukjent"
-    : null;
+  // Finn foreldrefeltet for barnefelt
+  const forelder = erBarn ? alleObjekter.find((o) => o.id === objekt.parentId) : undefined;
+  const forelderLabel = erBarn ? forelder?.label ?? "Ukjent" : null;
+
+  // Per-barn-utløsere (2026-09-21): et barn kan ha SITT EGET utløsersett (`conditionOwnValues`)
+  // — egen nøkkel, ikke forelderens `conditionValues` (som kolliderer i nøstede kontainere).
+  // Kun meningsfullt når forelderen er en VERDI-utløser (ikke repeater, ikke «utenfor krav»).
+  const forelderErVerdiUtloser =
+    forelder?.config.conditionActive === true &&
+    forelder.config.conditionType !== "utenfor_krav" &&
+    forelder.type !== "repeater";
+  const forelderOpsjoner = ((forelder?.config.options as unknown[]) ?? []).map(opsjonTilStreng);
+  const egneUtloser = ((config.conditionOwnValues as unknown[]) ?? []).map(opsjonTilStreng);
+
+  function toggleEgenUtloser(verdi: string) {
+    const nye = egneUtloser.includes(verdi)
+      ? egneUtloser.filter((v) => v !== verdi)
+      : [...egneUtloser, verdi];
+    if (nye.length === 0) {
+      // Tomt = arv forelderen → fjern nøkkelen helt (arv er FRAVÆR av nøkkel).
+      const { conditionOwnValues: _fjernet, ...rest } = config;
+      setConfig(rest);
+    } else {
+      setConfig({ ...config, conditionOwnValues: nye });
+    }
+  }
 
   // Tell barnefelt for foreldrefelt (direkte barn)
   const antallBarn = harAktivBetingelse
@@ -99,15 +123,42 @@ export function FeltKonfigurasjon({
           onChange={(e) => setLabel(e.target.value)}
         />
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={påkrevd}
-            onChange={(e) => setPåkrevd(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          {t("malbygger.paakrevdFelt")}
-        </label>
+        {/* Krav 5 (runde 91): «Påkrevd felt» gir ikke mening for en overskrift/undertittel
+            — de tar ingen brukerinndata. Skjules for dem (forvirret Kenneth i panelet). */}
+        {!erSeksjonsgrense && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={påkrevd}
+              onChange={(e) => setPåkrevd(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            {t("malbygger.paakrevdFelt")}
+          </label>
+        )}
+
+        {/* Krav 2 (runde 91): «Kan slås sammen» — KUN heading/subtitle. Styrer om
+            seksjonen kan foldes ved utfylling. STANDARD PÅ: fravær i config leses som
+            true (seksjoner.ts `kanSlasSammen`), så eksisterende maler beholder foldingen.
+            Uhaket → `config.kanSlasSammen = false`; haket → nøkkelen fjernes (ren config). */}
+        {erSeksjonsgrense && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={config.kanSlasSammen !== false}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  const { kanSlasSammen: _, ...resten } = config;
+                  setConfig(resten);
+                } else {
+                  setConfig({ ...config, kanSlasSammen: false });
+                }
+              }}
+              className="rounded border-gray-300"
+            />
+            {t("malbygger.kanSlasSammen")}
+          </label>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-600">{t("malbygger.hjelpetekst")}</label>
@@ -123,8 +174,11 @@ export function FeltKonfigurasjon({
                 setConfig(resten);
               }
             }}
+            // Vokser med innholdet (field-sizing: content) fra 2-rads minimum, med tak på
+            // max-h-52 (208px → intern scroll) så feltet ikke dytter «Lagre endringer» ut.
+            // rows={2} beholdt som fallback for nettlesere uten field-sizing-støtte.
             rows={2}
-            className="rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="max-h-52 min-h-[3.5rem] overflow-y-auto rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 [field-sizing:content] focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
         </div>
 
@@ -379,6 +433,34 @@ export function FeltKonfigurasjon({
                     {t("malbygger.fjernFraBetingelse")}
                   </Button>
                 )}
+
+                {forelderErVerdiUtloser && forelderOpsjoner.length > 0 && (
+                  <div className="mt-1 flex flex-col gap-1.5">
+                    <p className="text-xs text-gray-500">{t("malbygger.barnUtloser.hjelp")}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {forelderOpsjoner.map((o) => {
+                        const valgt = egneUtloser.includes(o);
+                        return (
+                          <button
+                            key={o}
+                            type="button"
+                            onClick={() => toggleEgenUtloser(o)}
+                            className={
+                              valgt
+                                ? "rounded-full border border-blue-400 bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
+                                : "rounded-full border border-dashed border-gray-300 bg-white px-2.5 py-0.5 text-xs text-gray-500 hover:border-blue-300 hover:text-blue-600"
+                            }
+                          >
+                            {o}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {egneUtloser.length === 0 && (
+                      <p className="text-xs italic text-gray-400">{t("malbygger.barnUtloser.arver")}</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -413,15 +495,21 @@ export function FeltKonfigurasjon({
       </div>
 
       <div className="mt-6">
-        <Button
-          onClick={handleLagre}
-          disabled={!harEndringer}
-          loading={erLagrer}
-          size="sm"
-          className="w-full"
+        <KnappMedForklaring
+          sperret={!harEndringer && !erLagrer}
+          forklaring={t("sperret.ingenEndringer")}
+          wrapperKlasse="relative flex w-full"
         >
-          {t("prosjektoppsett.lagreEndringer")}
-        </Button>
+          <Button
+            onClick={handleLagre}
+            disabled={!harEndringer}
+            loading={erLagrer}
+            size="sm"
+            className="w-full"
+          >
+            {t("prosjektoppsett.lagreEndringer")}
+          </Button>
+        </KnappMedForklaring>
       </div>
     </aside>
   );

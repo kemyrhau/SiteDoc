@@ -37,12 +37,27 @@ export function ArkivPdfForhandsvisning({
   // stående over en allerede-lastet PDF: så snart gjeldende filUri har fyrt
   // onLoadEnd, er laster=false uansett hvor mange ganger foreldren rendrer.
   const [lastetUri, settLastetUri] = useState<string | null>(null);
-  const laster = filUri != null && lastetUri !== filUri;
+  // Feil spores PER uri (samme mønster som lastetUri) — avledet, ingen effekt,
+  // så en ny filUri nullstiller feilen uten remontering.
+  const [feilUri, settFeilUri] = useState<string | null>(null);
+  const feil = filUri != null && feilUri === filUri;
+  const laster = filUri != null && lastetUri !== filUri && !feil;
 
   // Stabil source-referanse per filUri. Native reloader kun ved verdi-endring
   // (RNCWebViewImpl setSource: isEqualToDictionary), men et memoisert objekt
   // holder også JS-laget/framtidige versjoner fra å reloade på identitet.
-  const kilde = useMemo(() => (filUri ? { uri: filUri } : undefined), [filUri]);
+  //
+  // iOS-fiks (WKWebView): `allowFileAccess*`-propene under er ANDROID-only. På
+  // iOS må selve source-objektet bære `allowingReadAccessToURL` med KATALOGEN
+  // fila ligger i — ellers nekter WKWebView å lese file://-URI-en og flaten blir
+  // blank. Vi utleder katalogen fra filUri (alt til og med siste «/») så objektet
+  // fortsatt er en ren funksjon av filUri — memoiseringen holder, WebView-en
+  // reloader ikke ved hver foreldre-render.
+  const kilde = useMemo(() => {
+    if (!filUri) return undefined;
+    const katalog = filUri.substring(0, filUri.lastIndexOf("/") + 1);
+    return { uri: filUri, allowingReadAccessToURL: katalog };
+  }, [filUri]);
 
   return (
     <Modal
@@ -103,6 +118,31 @@ export function ArkivPdfForhandsvisning({
               </Text>
             </View>
           )}
+          {feil && (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 10,
+                alignItems: "center",
+                justifyContent: "center",
+                paddingHorizontal: 32,
+                backgroundColor: "#f3f4f6",
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: "600", color: "#111827", textAlign: "center" }}>
+                {t("arkiv.forhandsvisningFeiletTittel")}
+              </Text>
+              {/* Mikrotekst § 3: si hva brukeren KAN gjøre — Del-knappen øverst deler
+                  den samme fila uten å måtte vise den her. */}
+              <Text style={{ marginTop: 8, fontSize: 13, color: "#6b7280", textAlign: "center" }}>
+                {t("arkiv.forhandsvisningFeiletHjelp")}
+              </Text>
+            </View>
+          )}
           {kilde && (
             <WebView
               source={kilde}
@@ -110,6 +150,10 @@ export function ArkivPdfForhandsvisning({
               allowFileAccess
               allowFileAccessFromFileURLs
               onLoadEnd={() => settLastetUri(filUri)}
+              // Krav 3: en feilet lasting skal si fra, ikke henge i evig spinner.
+              // Både native lastefeil (file://-lesing) og ev. HTTP-status fanges.
+              onError={() => settFeilUri(filUri)}
+              onHttpError={() => settFeilUri(filUri)}
               style={{ flex: 1 }}
             />
           )}

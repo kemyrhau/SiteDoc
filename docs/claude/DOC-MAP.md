@@ -47,6 +47,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Arkitektur-syntese endres | `arkitektur-syntese.md` |
 | Navigasjonsredesign — paritet/funksjon flyttes | `redesign-paritetssjekkliste.md` |
 | Redesign-handoff / designreferanse / strategi endres | `docs/redesign/redesign-handoff.md` |
+| Ny eller revidert sjekklistemal (NS 3420) | `MAL-METODE.md` + `MALBYGGER.md` |
 
 ## Regel
 

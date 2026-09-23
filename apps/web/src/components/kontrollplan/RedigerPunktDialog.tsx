@@ -27,7 +27,7 @@ interface Punkt {
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
-  sjekkliste: { id: string; status: string; dokumentflytId: string | null; dokumentflyt: { id: string; name: string } | null } | null;
+  sjekkliste: { id: string; status: string; deletedAt?: string | Date | null; dokumentflytId: string | null; dokumentflyt: { id: string; name: string } | null } | null;
   dokumentflyt: { id: string; name: string } | null;
   drawing: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;
@@ -54,6 +54,14 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
   const [nyMalId, setNyMalId] = useState("");
   const [visKaskade, setVisKaskade] = useState(false);
   const [kaskadeUker, setKaskadeUker] = useState(1);
+  const [slettFeil, setSlettFeil] = useState<string | null>(null);
+
+  // Speiler serverens slett-vakt (kontrollplan.ts slettPunkt, Kenneth-vedtak 2026-09-12):
+  // kriteriet er en LEVENDE kobling, ikke `punkt.status`. En sjekkliste i papirkurven
+  // (`deletedAt` satt) teller ikke — punktet er da ubrukt og kan slettes. Den gamle gaten
+  // på `status === "planlagt"` skjulte slett-knappen for et `pagar`-punkt selv når serveren
+  // ville tillatt det, og viste den aldri igjen når sjekklisten lå i papirkurven.
+  const harLevendeSjekkliste = punkt.sjekkliste != null && punkt.sjekkliste.deletedAt == null;
 
   // Hent maler for bytt-mal
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery(
@@ -72,6 +80,12 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
     onSuccess: () => {
       onOppdatert();
       onLukk();
+    },
+    // Krav 4 (Kenneth: «måtte slette 3 ganger → svak varsling»): vis serverens melding.
+    // Vakten er skrevet for å forklare hva brukeren kan gjøre — den skal ikke forsvinne i
+    // en tom catch. Feilen blir stående i footeren til neste forsøk eller lukking.
+    onError: (feil) => {
+      setSlettFeil(feil.message);
     },
   });
 
@@ -343,22 +357,27 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t">
-          {punkt.status === "planlagt" ? (
-            <button
-              onClick={() => slettPunkt.mutate({ punktId: punkt.id })}
-              disabled={slettPunkt.isPending}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
-            >
-              <Trash2 className="h-3 w-3" />
-              {t("kontrollplan.slettPunkt")}
+        <div className="px-4 py-3 border-t">
+          <div className="flex items-center justify-between">
+            {!harLevendeSjekkliste ? (
+              <button
+                onClick={() => { setSlettFeil(null); slettPunkt.mutate({ punktId: punkt.id }); }}
+                disabled={slettPunkt.isPending}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+              >
+                <Trash2 className="h-3 w-3" />
+                {t("kontrollplan.slettPunkt")}
+              </button>
+            ) : (
+              <div />
+            )}
+            <button onClick={onLukk} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded">
+              {t("handling.lukk")}
             </button>
-          ) : (
-            <div />
+          </div>
+          {slettFeil && (
+            <p className="mt-2 text-xs text-sitedoc-error">{slettFeil}</p>
           )}
-          <button onClick={onLukk} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded">
-            {t("handling.lukk")}
-          </button>
         </div>
       </div>
     </div>

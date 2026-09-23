@@ -14,6 +14,148 @@ STATUS-AKTUELT.md § Pågående arbeid; ferdige PRs flyttes videre til
 
 Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avklaring.
 
+---
+
+# 🔴 REMÅLING MOT KODE 2026-09-11 — seks poster var levert uten at noen førte det
+
+> **Utløst av Kenneth 2026-09-11:** *«du sjekker for dårlig -> reise terskel er ferdig»*.
+> **Cowork hadde lest BACKLOG som fasit og bygget en prioriteringsliste på den.** Kenneth viste
+> skjermbildet: reise-regelsettet har «Måles i: Minutter/Kilometer», terskel, under/over-valg,
+> lønnsart-resolver og reisetid-matrise. **Alt bygget, posten sa åpent.**
+
+🔴 **REGELEN SOM BLE BRUTT — den står i CLAUDE.md og cowork håndhever den mot agentene daglig:**
+**dokumentasjon kan ha drift, koden er fasit.** **Les aldri en BACKLOG-post som nåtilstand uten å
+måle den mot kode først.** ⚠️ **Det gjelder også — særlig — når posten støtter konklusjonen du
+allerede har.**
+
+## ✅ LUKKET ved remålingen — ikke gjenåpne uten ny måling
+
+| Sak | Bevis |
+|---|---|
+| **Reise: km-terskel + enhet** | `packages/shared/src/utils/reise.ts:27` (`ReiseEnhet = "minutter" \| "km"`), `:44-57` regelsett, `:86+` `klassifiserReise`. Tester `reise.test.ts:90-119`. Mobil-speiling `db/schema.ts:585-596`. Server `organisasjon.ts:1175,1189`. UI `firma/innstillinger/page.tsx:1206-1257`. Commits `162ef59e`, `d70dbe75` |
+| **Reise-lønnsart «Automatisk (navne-match)»** | `reise.ts:36` `REISE_LONNSART_REGEX` (én delt kilde) · tvetydighetsvarsel `organisasjon.ts:1038-1049` · mobil-resolver `services/timerKatalog.ts:266-272` |
+| **Mobil-PSI viste «fullført» ved avvist signering** | `apps/mobile/app/psi/[psiId].tsx:196-214` — `await` først, `catch → Alert + return`, `setSeksjonFullfort` først etter bekreftelse. Speiler web `2ee6e343` |
+| **Byggeplass redigeres/slettes fra UI** | `oppsett/byggeplasser/page.tsx:879` (`bygning.oppdater`), `:1469` (`slett`), `:1467` (`hentSletteSammendrag`). ⚠️ **2D-tegning-delen av samme post står fortsatt åpen** |
+| **Serieopplasting av bilder + rekkefølge** | `apps/mobile/src/services/bilde.ts:259-292` — `allowsMultipleSelection` + `orderedSelection` med dokumentert Android-forbehold |
+| **A7 proxy-headers** | `apps/web/next.config.js:4` `poweredByHeader:false`, `:59-80` HSTS + `X-Frame-Options`. Commit `a23719dc` |
+
+## 🔴 FORTSATT EKTE — målt ikke bygget, to søkeformer hver
+
+**Blokkerer pilot i felt:**
+
+1. 🔴 **Offline for sjekkliste/oppgave/HMS.** `apps/mobile/src/db/schema.ts:13-595` har 25 tabeller,
+   men ingen for sjekkliste-/oppgave-/HMS-**katalog** — kun utkast-verdier (`sjekkliste_feltdata:13`,
+   `oppgave_feltdata:30`). Listene går rett på `trpc.…hentForProsjekt.useQuery`
+   (`app/sjekkliste/index.tsx:76`, `(tabs)/hjem.tsx:176,184`, `innboks/index.tsx:78,85`).
+   `offlineKlargjoring.ts:97-140` laster **bare plantegninger og IFC**.
+   2. søkeform: `persistQueryClient`/`createAsyncStoragePersister` → **0 treff**.
+   🔴 **Bryter CLAUDE.md: «Mobil-appen MÅ fungere offline». Anleggsgartner uten dekning får ingenting.**
+
+2. 🔴 **Avstandsbånd → lønnsart** (terskelen er løst, båndet er ikke).
+   `klassifiserReise` returnerer kun `"arbeidstid" | "reisetid"` (`reise.ts:20`) — ingen mapping
+   avstand → «Reise 7,5–15 km». 2. søkeform: `band|Band|bånd` i `reise.ts`, `organisasjon.ts`,
+   `timerKatalog.ts` → **0**. ⚠️ **Fem lønnsarter matcher regexen hos A.Markussen — feil art gir
+   feil utbetaling. Tvetydighetsvarselet demper, men løser ikke.**
+
+**Ikke pilotblokkerende, men ekte:** 2D-tegning rename/slett fra UI (API-en finnes,
+`tegning.oppdater:294`) ·
+PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før attestering ·
+**A4 hardkodet Norkart-nøkkel** (`GeoReferanseEditor.tsx:262`, i klartekst og i git-historikk) ·
+`apps/mobile` uten test-runner (`package.json:6-14`, 0 testfiler).
+
+**❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
+
+### 🔴 Seks av sju e2e-spec-er er DRIFTET — krever spec-redigerings-runde (målt 2026-09-16, e2e del 2)
+
+Da e2e-suiten endelig kjørte i CI (efemært miljø, del 1+2), viste det seg at **6 av 7 spec-er ble skrevet mot et UI som siden er endret** — og ingen merket det fordi suiten aldri kjørte. En spec som ikke kjører råtner i stillhet; dette er nøyaktig hullet CI-e2e lukket, i sin reneste form.
+
+| Spec | Årsak (diagnostisert mot ekte UI) |
+|---|---|
+| `01-login` | 🟢 grønn (kjører i CI i dag) |
+| `02-opprett` | Venter `getByRole("button")`, men `OpprettMalVelger.tsx` rendrer malen som `role="option"` i en listbox — UI-refaktor `f567d339` 04.08, spec sist rørt 26.07 (ni dager før) |
+| `03-send` | Venter `handling-sent`-testid som ikke finnes |
+| `04-flytposisjon` | `toHaveAttribute`-mismatch |
+| `05-besvar-godkjenn` | Venter `handling-responded`-testid som ikke finnes |
+| `06-videresend-rolle` | Venter `handling-videresend-nedtrekk`-testid som ikke finnes |
+| `07-gjenapne` | SEED-GAP (ikke drift) — se `ProjectOrganization`-posten nedenfor |
+
+🟢 **Ingen er flaky — alle feiler deterministisk, av kjente årsaker** (bevist: `01-login` grønn i samme kjøring; negativ kontroll kjørte `02-opprett` i CI → rød på nøyaktig den diagnostiserte driften, revertert). **E2e forblir KUN `01-login` i CI inntil en runde med SPEC-REDIGERINGS-MANDAT de-drifter 02–07 og lukker seed-gapet.** Å slå dem på nå ville gjort develop rød. Til dokgen.
+
+---
+
+# 🟡 Malforvaltning — 17 målte funn 2026-09-13
+
+> **Kilde:** Kenneth brukte malforvaltnings-flaten i to døgn og meldte funn løpende. Denne
+> seksjonen samler dem til én liste med alvorlighet og eier, per SAMARBEIDSREGLER `:56-76`.
+> **Alle rader er målt i kode 13.09** — kode-referansen bæres per rad (dokumentasjons-standard.md:
+> presens krever referanse eller status-markør).
+>
+> ⚠️ **Løsningskolonnen er ikke vedtak.** **#5–#9 er fabels IA-sak å tegne, ikke coworks å
+> bestemme.** Radene beskriver funn og retning, ikke bestilt løsning — unntatt de fem som er
+> eksplisitt merket BESTILT med branch-navn.
+
+**Legenda grad:** 🔴 krever skjema/Kenneth-gate · 🟠 sikkerhet · 🟡 UX/IA · 🔵 innhold.
+
+| # | Funn | Målt (kode-ref) | Grad | Retning/løsning | Eier |
+|---|---|---|---|---|---|
+| 1 | ↻ firma→prosjekt gjemt i MalBygger | `firmamal.ts:770`, `MalBygger.tsx:235` | 🟡 | Ut i mallista | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+| 2 | «X versjoner bak» vises ikke i lista | `MalBygger.tsx` (`versjonerBak`) | 🟡 | Samme runde som #1 | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+| 3 | To sperrer sier hva, ikke hvor | `mal.ts:500`, `prosjekt.ts:626` | 🟡 | Lenke til stedet som opphever sperren | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+| 4 | ~~Mal må frigjøres fra dokumentflyt~~ | `DokumentflytMal` `onDelete: Cascade` | 🟢 | **AVKREFTET 13.09 — rydder seg selv via cascade. Ikke gjenreis.** | — |
+| 5 | Malarkiv er egen destinasjon | `firma-nav.tsx:51` | 🟡 | Integreres i «Hent fra arkiv» (Kenneth-retning) | 🔴 **fabel — IA-sak** |
+| 6 | Papirkurv nås fra venstre felt | `sidebar-elementer.tsx:195` | 🟡 | Samme IA-runde | 🔴 **fabel — IA-sak.** Beslektet: papirkurv-livssyklus (§ under, ~2797–2864) — annen vinkel (plassering, ikke «tøm») |
+| 7 | Tre arkivnivåer nås tre steder | `admin/layout.tsx:55`, `firma-nav.tsx:51`, Oppsett | 🟡 | Samles under Innstillinger | 🔴 **fabel — IA-sak.** Kenneth: «jeg skal administrere ALLE maler fra innstillinger» |
+| 8 | Ingen versjonshistorikk for maler | `version` `Int`, `versjon` `String` (ingen historikk-tabell) | 🔴 | Ny tabell etter mønster `DrawingRevision` (`schema.prisma:961-973`) | 🔴 **Kenneth gater skjema** |
+| 9 | Ingen gjenopprettingsvei for feilslettet dokument | Papirkurv-mekanikk finnes, ingen søkevei | 🟡 | Søk + avslutningsrutine | 🔴 **fabel — IA-sak.** Beslektet mønster: byggeplass/tegning-slett mangler vei (§ under, ~2731) |
+| 10 | Duplikater i firmaarkivet (KB4×3, KB6×2) | Sett på test 13.09 | 🟡 | `@@unique(organizationId, laantFraBibliotekMalId)` + rydding | 🔴 **Kenneth gater skjema + datasletting** |
+| 11 | `faneWhere` mangler negativkontroll | `firmamal.ts:64-77` | 🟡 | Én test med feil-type-rad | Egen runde |
+| 12 | `hentStandarder` uten tilgangssjekk | `bibliotek.ts:36` | 🟠 | Wire `sitedoc/les` ved kallstedet | Egen runde |
+| 13 | Ingen oppgave-/HMS-maler i sentralarkivet | Alle 17 seed-maler `sjekkliste`/`kvalitet` | 🔵 | Innhold | 🔴 **Kenneths malarbeid** |
+| 14 | KD1 `verifisert = false`, brukt i to prosjekter | DB-måling 12.09 | 🔵 | Innhold | 🔴 **Kenneths malarbeid** |
+| 15 | Kundeansvar for NS-verifisering har ingen flate | MAL-METODE §7a pkt. 5 | 🟡 | Bruksvilkår/onboarding | 🔴 **Juridisk — ikke cowork** |
+| 16 | Hvitt merke i mobil-header er DØD knapp etter fjernet expo-print | `sjekkliste/[id].tsx:113`, `ArkivPdfForhandsvisning.tsx:21` | 🟡 | Fjernes | ✅ **BESTILT — dokgen, `fix/fjern-doed-utkastknapp`** |
+| 17 | «Avslutt prosjekt» har ingen UI | `prosjekt.ts:580` bygget · flate «kommende» `prosjektoppsett/page.tsx:231,557`, `EksportSeksjon.tsx:53` | 🟡 | Knapp i prosjektoppsett | ✅ **BESTILT — redesign, `fix/synliggjor-malforvaltning`** |
+| 18 | `admin/bibliotek` lover mer enn den kan | `bibliotek.ts` (kun `oppdaterMal`) — ingen felt-palett/dra-og-slipp/slett | 🟡 | Teksten «Rediger malene alle kunder importerer fra» lover en malbygger; editoren kan kun endre tekst + rekkefølge, ikke legge til/fjerne objekter. To editorer med ulik makt, der den svakeste påstår mest | 🔴 **fabel (IA) + Kenneth (om den skal bli full malbygger)** |
+| 19 | «Hent fra arkiv»-modalen mangler kollaps og søk | `HentFraArkivModal.tsx` (standard→kapittel, ingen chevron/kollaps-state/søkefelt) | 🟡 | Den gamle lånedialogen (`firma/malarkiv/page.tsx:552`) HAR søk på navn + referanse — den nye arvet grupperingen, ikke søket. Kollaps-primitiven finnes i `UtfyllingSeksjoner.tsx` (chevron + `Set<string>`) | 🔴 **fabel — hører i Malforvaltning-strukturen** |
+| 20 | Ingen flate sier hvilket arkivnivå du står i | Kenneth: «lite indikasjoner på at det faktisk er prosjektarkiv» | 🟡 | Nivå-indikasjon på arkivflatene (jf. ett-navn-per-nivå-vedtaket, `terminologi.md § 0`) | 🔴 **fabel** |
+| 21 | Soft-delete blokkerer gjenlån (målt 2026-09-16, versjonssporing-runden) | Den unike indeksen fra runde 95 (`@@unique(organizationId, laantFraBibliotekMalId)`) teller soft-slettede rader — samme kapittelmal kan ikke lånes på nytt før papirkurven tømmes | 🔴 | Partial unique index `WHERE deleted_at IS NULL` — krever migrering, egen runde. Beslektet: `OrganizationTemplate.version` bumpes ikke av eget objekt-CRUD (firmanivå har svakere versjonering enn kapittelnivå); N dager auto-tømming er ikke satt (`tomPapirkurvPermanent` tar `eldreEnnDager` som påkrevd input, ingen default/cron) | 🔴 **Kenneth gater skjema** |
+| 22 | Dokumenter leser malstruktur LIVE — firmaarkiv-↻ foreldreløsgjør dokumentdata (målt 2026-09-16) | `firmamal.ts:818` `oppdaterKopiFraHovedmal` gjør `deleteMany`+recreate av objekt-treet med NYE id-er, KUN `verifiserAdmin`-gatet, ingen dokument-sjekk. **Direkte MalBygger-redigering er ALLEREDE vernet** (endringsvern `mal.ts:666-681,848-866`, 2026-09-07) — dette er det ene gjenstående hullet. Firma-/kapittelnivå trygt (ingen Checklist/Task peker på OrganizationTemplateObject) | ✅ | **LØST via diff/merge (`feat/diffmerge-oppdater-kopi`, 2026-09-17):** `oppdaterKopiFraHovedmal` matcher gammelt↔nytt på `(type, label)` og beholder objekt-id, så dokumentdata bevares uten remapping. Den tidligere anbefalte blankosperren (`tellDokumenterMedInnhold`-guard) ble bygget som steg 1, men ERSTATTET — den blokkerte all oppdatering så snart et dokument hadde data. Full måling: [funn21-strukturkopi-maaling.md](funn21-strukturkopi-maaling.md) + [funn21-omfang.sql](funn21-omfang.sql) | ✅ **ERSTATTET av diff/merge — se «X versjoner bak»-raden** |
+| 23 | Ingen flate viser malinnhold som tekst (superadmin) | Kenneth-godkjent 2026-09-18 — i dag leses innhold KUN via §6a revisjons-SQL-utskrift (`MAL-METODE.md` §6a); ingen UI | 🟡 | **«Malinnhold som tekst»** i biblioteket for superadmin: fase-overskrifter, feltnavn, felttyper, alternativer, hjelpetekster, `version` + sist endret, med **kopier-knapp**. Nytte: Kenneth kopierer innholdet til design-rollen; kunder kan senere se hvilken versjon de har. **Erstatter SQL-utskriften (§6a) når den finnes.** Beslektet: #8 (versjonshistorikk) — leser samme `version`-felt | 🔴 **Kenneth-godkjent, IKKE nå** |
+
+> ⚠️ **Nummer-note:** ordren `inbox-dokgen.md` 2026-09-16 kalte strukturkopi-saken «funn #21», men #21 var
+> allerede tatt (soft-delete gjenlån, ført samme dag). Ført som **#22** for å ikke overskrive. Cowork reconcile ved behov.
+
+🔵 **Tillegg 13.09 kveld:** #18–#20 er målt samme dag som de 17 første, etter Kenneths arkiv-navnetest. Masterlist-tittelen «17 målte funn» beholdes som anker; disse tre er ført som fortsettelse.
+
+⚠️ **#12 er 🟠, ikke 🟡:** enhver innlogget bruker i ethvert kundefirma kan lese hele
+NS 3420-arkivet, inkludert uverifiserte utkast. Ingen kan endre noe — men innholdet er produktet.
+
+**Status på tavla 13.09:** #1/#2/#3/#17 pågår hos redesign (`fix/synliggjor-malforvaltning`) ·
+#16 pågår hos dokgen (`fix/fjern-doed-utkastknapp`; enhet-gaten oppfylt — Kenneth bekreftet PDF-forhåndsvisning
+på fysisk iPhone 13.09) · #5/#6/#7/#9 er én samlet IA-sak åpen hos fabel · #8/#10 venter på Kenneth ·
+`feat/mal-kc31-revisjon` venter på Kenneths innholdsgate. **#18/#19/#20 (13.09 kveld) er alle fabel** —
+#18 også Kenneth-gate på malbygger-ambisjon; #19/#20 hører i IA-saken.
+
+---
+
+# 🟢 SYNLIGGJORT 2026-09-13 — branch `fix/synliggjor-malforvaltning` (samme mønster: bygget, vei manglet)
+
+> **Fire funn fra Kenneths to døgn i flaten, alle «noe er bygget, veien til det mangler».**
+> Ingen ny funksjonalitet — kun synliggjøring/kobling av avgjort mekanikk.
+
+| Sak | Levert |
+|---|---|
+| **«X versjoner bak» + ↻ i prosjekt-mallista** | `MalListe.tsx` navn-celle: badge + ↻ som kaller `firmamal.oppdaterKopiFraHovedmal` (samme som MalBygger). Krevde `copiedFromOrgTemplate` i `mal.hentForProsjekt` (`mal.ts`). 🔴 **Advarsel `firmamal.ts:766-768`: full erstatning gjør dokumentdata foreldreløs — bevisst klikk, ingen bekreftelse (speiler MalBygger).** 🔁 **STEG 1 (`fix/vern-oppdater-kopi`, dokgen funn #21) — ERSTATTET, ikke levert: den midlertidige blankosperren (`PRECONDITION_FAILED` når NOE dokument har data, utvei «Hent fra arkiv») var feil regel — etter noen uker i drift har hvert prosjekt utfylte dokumenter, og da kunne INGEN motta maloppdateringer. Fjernet i steg 2.** ✅ **STEG 2 (`feat/diffmerge-oppdater-kopi`, 2026-09-17): ↻ gjør nå ekte diff/merge (`diffObjektTre` i `objektkopi.ts`) — matcher gammelt mot nytt på `(type, label)` (ENTYDIG nøkkel matcher på tvers av forelder; tvetydig krever matchet forelder + sortOrder) og BEHOLDER objekt-id via `update`, så `Checklist/Task.data` følger automatisk og røres aldri. NEKT KUN når et umatchet gammelt objekt HAR DATA — feilmeldingen NAVNGIR feltene, og peker IKKE på «Hent fra arkiv». Ingen skjemaendring. Krav (c): `firmamal-diffmerge.integration.test.ts`, syv retninger.** |
+| **Slett-mal-sperren bærer veien ut** | Slett-modal lenker til papirkurven ved `iKurv>0`. Server eier betingelsen, klient bærer lenken. ⚠️ **Filtrering på malen krever endring i `papirkurv/page.tsx` (ufri fil) — ikke gjort** |
+| **Avslutt-gaten bærer veien ut** | Gate-feil (`PRECONDITION_FAILED`) lenker til `#eksport-arkiv` via ubrukt nøkkel `livssyklus.krevArkiv` |
+| **Avslutt-bekreftelse (modal)** | ⚠️ **Flaten EKSISTERTE alt** (`prosjektoppsett/page.tsx`, commit `36dc3029` 2026-09-06) som status-velger UTEN bekreftelse. La til modal-bekreftelse før completed/archived (sier hva som skjer + hvem mister tilgang). Tre «neste runde»-kommentarer var stale — rettet. Gjenåpning målt: virker e2e (banner + velger, begge `settLivssyklus:active`) |
+
+**Test:** `prosjekt-livssyklus-gate.test.ts` beviser at avslutt nektes uten ferdig eksport-arkiv (negativkontroll verifisert: uten gate blir de to «nekter»-testene røde).
+
+> **Dekker funn #1/#2/#3/#17 i tabellen over** (BESTILT → levert). Papirkurv-mal-filter (#3-nyanse) og `iKontrollplan`-lenken er oppfølgere; `faneWhere`-test (#11) urørt.
+
+---
+
 ## 0. Sikkerhet — Aikido-scan triagert 2026-08-12 (49 funn → 7 poster)
 
 **Kilde:** `Fra fabel/til-repo-2026-08-12-1558/FABEL-TRIAGE-aikido-49-funn.md`. Fabel triagerte alle 49; cowork har **verifisert hvert kodefunn mot repoet** før føring her. Aikidos alvorlighetsgrader er ikke fulgt blindt — to av dem er justert, se under.
@@ -62,19 +204,16 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 Full vurdering med målinger og sammenhenger: **[sikkerhet.md](sikkerhet.md)** — ikke
 dupliser analysen hit. Her står kun oppgavene.
 
-- **`page.route`-abort i `pdf-render/server.mjs`** — dreper SSRF-vektoren
-  (`waitUntil: "networkidle"` lar Chromium hente URL-er som havner i rapport-HTML).
-  Én linje, endrer ikke normal drift. 🔴 Containeren deles med test og bygges ikke av
-  vanlige `--no-deps`-deploys → eget gatet steg. **Est. 30 min. Gjør denne nå.**
-- **`--no-sandbox` i pdf-render** — renderer-exploit ikke inneslutt. Lavere prioritet
-  når punktet over er gjort. Est. ukjent (krever test av Chromium i container).
-- **`landscape`-param i pdf-render er bygget i koden, men containeren er ikke bygget.**
+- 🟢 **LUKKET 2026-09-11 — `page.route`-abort i `pdf-render/server.mjs`** — dreper SSRF-vektoren
+  (`waitUntil: "networkidle"` lot Chromium hente URL-er som havner i rapport-HTML).
+  Levert i `2e2c25de`, **bygget og i drift 2026-09-11**. SSRF-vektoren ble målt live (intern
+  URL hentet: 1 → 0 blokkert; bilde-innbaking bit-identisk) — se [sikkerhet.md](sikkerhet.md).
+- **`--no-sandbox` i pdf-render** — renderer-exploit ikke inneslutt. 🔴 **Står åpent.** Lavere
+  prioritet (punktet over er nå gjort). Est. ukjent (krever test av Chromium i container).
+- 🟢 **LUKKET 2026-09-11 — `landscape`-param i pdf-render** — var bygget i koden, containeren nå bygget.
   Printmotor fase 4 (`eddc118b`, i prod siden `5dcdeb58`) sender `landscape` til
-  pdf-render; parameteren er valgfri med default `false`, så arkivutskrift er uendret og
-  ingenting er ødelagt — men **liggende Fakturagrunnlag virker ikke før containeren
-  bygges**. Samme container, samme gate som `page.route`-punktet over.
-  🔴 **Bunt dem:** ett gatet pdf-render-deploy dekker begge, i stedet for to runder mot
-  en container som deles med prod.
+  pdf-render; parameteren er valgfri med default `false`, så arkivutskrift er uendret. **Liggende
+  Fakturagrunnlag ble virksom ved pdf-render-byggen 2026-09-11** (samme deploy som `page.route`).
 
 🔵 **Tre punkter venter bevisst på serverflyttingen (~okt 2026):** test skriver i prods
 uploads-katalog, flatt `appnet` mellom test og prod, og pdf-render delt mellom dem. Alle
@@ -97,9 +236,338 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
-### 🟠 `apps/mobile` har INGEN test-runner — pilotens viktigste flate er uten enhetstester (målt 2026-09-07)
+### 🔴 Georeferanse: nord dreier ved to-punktskalibrering — og den bedre metoden finnes alt (2026-09-23)
 
-Målt av redesign da han skulle skrive en test ordren krevde: **`apps/mobile` har verken
+**Kenneth 2026-09-23:** georeferering med to koordinater speiler/dreier tegningen, «da er ikke Nord lenger mot
+nord». Og: *«kalibrerer vi med beste metode? … dakux benytter en metode der man setter et koordinat inn i en
+tegning»*.
+
+🔴 **Full utredning med årsak, tall og revidert anbefaling:**
+[designnotat-georeferanse-speiling-design-2026-09-23.md](../redesign/designnotat-georeferanse-speiling-design-2026-09-23.md)
+
+**Kort, bare nok til å vite om saken angår deg:** `dwgKonvertering.ts:969-991` detekterer koordinatsystemet og
+konverterer DWG-ens `extents` — og degraderer så den eksakte transformasjonen til **to punkter på diagonalen**,
+som mates inn i en similaritet som ikke kan uttrykke ulik skala i x og y. **Mistenkte kalibreringer er derfor
+ALLE auto-georefererte DWG-tegninger, ikke bare manuelt kalibrerte.**
+
+**Notatet har fire ting BACKLOG ikke gjentar:** matematikken bak begge årsakene · regnestykket som gir
+**~18,4°** dreining på en 2:1-tegning (`rotasjon = 45° − atan(H/W)`, alltid under 45°) · metodetabellen som
+gjør tre punkter til *fallback* og utledning fra `extents` til hovedvei · og tre målinger som skal gjøres før
+noe bygges, der den første er om `detekterKoordinatSystem(filnavn, …)` egentlig gjetter fra filnavnet.
+
+🔴 **RETTET 2026-09-23:** notatets førsteversjon oppgav **~71,6°**. Tallet var regnet i det uspeilede rommet og
+dobbeltalte speilingen fiksen alt folder inn. Riktig er **~18,4°** — fortsatt ~32 m avvik 100 m fra
+kalibreringsaksen, så konklusjonen står.
+
+🟢 **Og mistenktmengden er innsnevret (Kenneth 2026-09-23: «jeg har konsekvent 3 koordinater på tegningene»).**
+Målt at tre punkter faktisk velger `beregnAffine` (`georeferanse.ts:49-55,199-200`) og at editoren lagrer dem
+(`GeoReferanseEditor.tsx:690,715`). **Manuelt kalibrerte tegninger er derfor IKKE rammet.** Autoveien setter
+aldri `ekstraPunkter` (`dwgKonvertering.ts:979-991`) — **mistenkte er auto-georefererte DWG, ikke brukerens
+arbeid.**
+
+**Kenneth-valg som venter i notatet § 7 og tillegget:** metodevalg pr. tegningstype, og om eksisterende
+kalibreringer skal varsles framfor å «fikses» automatisk.
+
+🔴 **BINDING TIL «FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN» (målt 2026-09-24):** autoveien er den ENESTE
+som bygger en georeferanse automatisk (`dwgKonvertering.ts:980` — PDF-veien gjør det ikke), og den kan ikke
+kjøre i dag fordi `dwg2dxf`/`dwg2SVG` mangler. **Saken har derfor ingen levende offer — men en frist:** første
+DWG som lastes opp etter at binærene er tilbake, får en rotert georeferanse. **Fiksen må ligge i SAMME release
+som DWG-gjenopprettingen, ikke etter.**
+
+---
+
+### 🔴 3D-koordinatfesting mot tegning: fiksen kunne ikke nå fram (2026-09-23)
+
+**Kenneth 2026-09-23:** *«det var vanskelig å koordinatfeste 3d mot dwg/pdf tegninger. den ene fiksen ødela i
+den andre.»*
+
+🔴 **Full utredning med årsak, commit-hasher og rangert plan:**
+[designnotat-3d-koordinatfesting-design-2026-09-23.md](../redesign/designnotat-3d-koordinatfesting-design-2026-09-23.md)
+
+**Kort, bare nok til å vite om saken angår deg:** `c043b67f` (31.03) gjorde en direkte piksel↔3D-transform til
+primærvei i `tegning-3d/page.tsx:623-632` og den delte GPS-veien til fallback. `7dd4df8d` (13.08) rettet
+speilfeilen i `georeferanse.ts`. **De to commitene rører ikke én felles fil** — fiksen var riktig og for en
+kalibrert modell usynlig.
+
+**Notatet har fem ting BACKLOG ikke gjentar:** de tre koordinatmodellene og hvorfor `koordinatBro.ts` har ÉN
+commit siden mars · at `PointCloud.coordinateSystem` er et brudd på «Stille tomhet er forbudt» (null skrivevei,
+null lesevei siden `dd5df1a1`) · fella der `gpsOverride` bærer `lat/lng` og `transform` med **ulik alder** ·
+at UTM/NTM anbefales som felles nav framfor GPS, av samme matematiske grunn som ga speilfeilen · og hvorfor
+3D er riktig SIST i køen.
+
+🟢 **Målingen er utført 2026-09-23 (Kenneth, test + prod) — og den lukket den ene akutte delen.** Test har
+**1** tegning med `gps_override`; den mangler `geo_reference`, som er forutsetningen for at `lat/lng` skulle
+være speilforurenset. Prod har **0**. **Ingen backfill, ingen varsling — og vinduet er lukket siden
+funksjonen ble rettet 13. august.** Notatet § 4 er omskrevet fra «felle som venter» til målt og lukket.
+
+🟢 **Samme rad beviste hovedpoenget på data:** den eneste kalibrerte modellen er en IFC-tegning **uten**
+georeferanse, posisjonert utelukkende av `gpsOverride.transform`. Avkoblingen `c043b67f` innførte er dermed
+målt, ikke bare utledet av commit-innhold.
+
+**Kenneth-valg som venter i notatet § 9:** om punktsky skal koordinatfestes eller visningsveien avskrives, og
+om `gpsOverride.transform` skal bli en korreksjon på navet framfor en omvei rundt det.
+
+---
+
+### 🔴 Oppstartssjekk for PÅKREVDE binærer — vakten som mangler (design 2026-09-23)
+
+**Utløst av PDF-feilen 2026-09-23:** `pdftoppm` finnes i `sitedoc-api` men ikke i `sitedoc-web`, og tRPC kjører
+**in-process i web**. Tegningsvisning for PDF-tegninger var derfor ødelagt i prod.
+
+🔴 **Testen som skulle fanget det, kan per konstruksjon ikke fange det.**
+`apps/api/src/…/tegning-pdf-batch-dims.test.ts` **mocker bort `node:child_process`** med kommentaren at
+«pdftoppm lykkes uten å kjøre». **En mocket vakt er ikke en vakt** — den er grønn fordi den har fjernet det den
+skulle vokte. Det er «stille tomhet» i en fjerde variant.
+
+**Hva som skal bygges:** en **oppstartssjekk pr. image** som logger høyt når en **påkrevd** binær mangler.
+
+🔴 **Sjekken skal dekke ALLE fire binærene — korrigert 2026-09-23.** Design hevdet først at den bare skulle
+liste det hvert image «krever», fordi de tre andre manglet «med vilje». **Kenneth viste at de ikke gjorde det:
+alle tre virket på gammel server.** Da finnes ingen «med vilje»-kategori, og sjekken skal rope om alle.
+
+🔴 **Men støyproblemet er reelt, og løsningen er en FORVENTET TILSTAND pr. binær pr. image — ikke bare en
+liste over navn:**
+
+| Tilstand | Betyr | Logg |
+|---|---|---|
+| **påkrevd** | skal finnes; mangler = feil | **høyt, og røyklista skal feile** |
+| **utsatt** | bevisst ikke installert ennå, med **dato og BACKLOG-referanse** | **én linje ved oppstart**, ikke gjentatt støy |
+
+**Poenget med «utsatt» er at den tvinger fram en beslutning.** Å flytte en binær dit krever at noen skriver
+hvorfor og hvor saken står. **Å la den stå som «påkrevd» og ignorere loggen, er det som skjedde fra juni til
+september.** En sjekk uten denne todelingen blir slått av innen en uke — og da er vakten død på nytt.
+
+**Utgangstilstand:** `pdftoppm` **påkrevd** i både web og api. `dwgread`/`ODAFileConverter` og
+`CloudCompare`/`PotreeConverter` **utsatt**, med referanse til posten under, til noen bestemmer noe annet.
+
+---
+
+### 🔴 FEM FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10 — uoppdaget i tre og en halv måned (funnet 2026-09-23)
+
+> 🔴 **FEMTE, funnet 2026-09-23 av kapabilitetsproben mot `server-ny`: `SITEDOC_INTEGRATION_KEY` finnes ikke.**
+> Lengde **0** i BÅDE `sitedoc-api` og `sitedoc-web`, **0 treff** i `felles.env`/`api.env`/`web.env`.
+> Den **var** satt på gammel prod (`historikk-2026-05.md:2922` — begge `ecosystem.config.js`-blokker, 64 tegn verifisert) og fulgte ikke med flyttingen.
+>
+> **Konsekvens:** firma-integrasjoner (`OrganizationIntegration.apiKey` — Proadm/HR/GPS/SmartDok) kan ikke lagres. `packages/db/src/encryption.ts:23` kaster ved **kall**, ikke ved oppstart, så prosessen starter fint. `admin.ts:845` melder `konfigurert: false`, som leses som «ikke satt opp ennå» — ikke som «ødelagt».
+>
+> ⚠️ **Dette er den eneste av de fem som ikke er en binær.** De fire andre ble funnet fordi noe ikke rendret; denne ville blitt funnet først når en kunde skulle koblet til Proadm.
+>
+> 🟢 **Målt 2026-09-23: `organization_integrations` har 0 rader på prod.** Ingenting er kryptert med den gamle nøkkelen → en ny nøkkel taper ingen data.
+>
+> ✅ **LUKKET SAMME DAG 2026-09-23.** Kenneth genererte ny nøkkel i `felles.env` (`DEPLOY-RUNBOK § 4`-formen: backup → `>>` → telling = 1), recreatet `sitedoc-api` + `sitedoc-web` med `up -d --no-deps`, og verifiserte lengde-only: `INTEGRATION_len=64` i begge containere. `FIL_SIGNING_len` uendret 64 — `felles.env` kom ikke i veien for `api.env`/`web.env`. **Nøkkelen bor nå i `felles.env`, altså ÉN kilde for begge prosesser, slik `DOCKER-NOTES.md:141` krever.**
+>
+> 🟡 **Beslektet avvik, samme måling:** `FIL_SIGNING_SECRET` er virksom (lengde 64 i begge containere), men ligger **duplisert** i `api.env` og `web.env` mens `felles.env` er tom. `DOCKER-NOTES.md:141` forbyr nettopp det — `felles.env` finnes for at api og web ikke skal kunne komme i utakt ved rotasjon. **Ikke ødelagt, men rotasjons-fella står åpen.** Egen oppfølger.
+
+**Kilde:** coworks måling 2026-09-23, etter at Kenneth kjørte `command -v` i begge containere.
+
+| Binær | `sitedoc-web` | `sitedoc-api` |
+|---|---|---|
+| `pdftoppm` | 🔴 mangler | 🟢 `/usr/bin/pdftoppm` |
+| `dwgread` · `ODAFileConverter` | mangler | **mangler** |
+| `CloudCompare` · `PotreeConverter` | mangler | **mangler** |
+
+🔴 **KORRIGERT 2026-09-23. Dette er ikke en akseptert mangel — det er tapt funksjonalitet.**
+
+**Kenneth, ordrett:** *«jeg kjørte 3d, dwg og pdf tegninger fra gammel server → jeg har ikke testet dette etter
+flytting av server til server-ny».*
+
+**Alle tre virket på Kenspill. Ingen av dem er testet etter serverbyttet 2026-06-10.**
+
+| Funksjon | Binær | Tilstand | Kostnad |
+|---|---|---|---|
+| **PDF-tegning** | `pdftoppm` | 🟡 **delvis** — i api, mangler i web | 🟢 én linje i `Dockerfile.web` |
+| 🔴 **OCR (Fil-til-database)** | `tesseract` + språkdata `nor` | 🟡 **delvis** — i api, mangler i web | 🟢 én linje i `Dockerfile.web` |
+| **DWG** | `dwg2dxf` + `dwg2SVG` (libredwg) | 🔴 **borte i BEGGE** | libredwg fra kilde, eller ODA-konto + `.deb` |
+| **3D / punktsky** | `CloudCompare` + `PotreeConverter` | 🔴 **borte i BEGGE** | ⚠️ **ikke målt** |
+| *(støtte)* | `xvfb-run` | mangler i web | følger DWG/3D |
+
+🔴 **TO RETTINGER 2026-09-23, begge av simulator, begge samme feilklasse:**
+
+**1. `dwgread` kalles ikke i det hele tatt.** Cowork navnga den, design kopierte navnet inn her **uten å måle
+det**. De faktiske binærene er **`dwg2dxf`** (`dwgKonvertering.ts:80,892`) og **`dwg2SVG`** (`:930`).
+
+**2. 🔴 OCR er den FJERDE tapte funksjonen, og ingen hadde nevnt den.** `tesseract` kalles fra
+`ftd-prosessering.ts:344` og mangler i web — **nøyaktig samme årsak som PDF-tegning: tRPC kjører in-process i
+web, binæren ligger bare i api-imaget.**
+
+⚠️ **Og OCR svikter STILLERE enn de andre tre.** FtD-prosesseringen startes fire-and-forget
+(`mengde.ts`: `prosesserDokument(...).catch((err) => console.error(...))`), så en manglende `tesseract` ender
+som en linje i en containerlogg. **PDF-tegning ga i det minste et banner. Et skannet dokument uten søkbar tekst
+ser bare ut som et skannet dokument.**
+
+⚠️ **Kommentaren i `docker/Dockerfile.api:36-38`** — «Uten det feiler KUN DWG→DXF-konvertering; resten av
+API-et virker» — **ble lest som en akseptert avveining. Den var en notis til seg selv om noe som skulle ordnes
+senere.** «Senere» kom aldri, fordi ingen testet. ODAFileConverter-blokken på `:40-46` står bevisst
+utkommentert (krever ODA-konto og en `.deb` i `docker/vendor/`).
+
+🔴 **En kunde som laster opp en DWG i dag, får en feil ingen har planlagt for — i tre og en halv måned.**
+
+**Skal det virke, kreves ett av to:** ODA-konto + `.deb` i `docker/vendor/` (blokken finnes, utkommentert), eller
+libredwg bygget fra kilde i imaget.
+
+🔴 **BINDING TIL GEOREFERANSE-SAKEN (målt 2026-09-24):** DWG-gjenoppretting er **ikke** en ren binærsak.
+Autoveien degraderer tegningens eksakte `extents` til to punkter på diagonalen (`dwgKonvertering.ts:979-991`)
+og treffer dermed 2-punktssimilariteten, som tvangsroterer alt som ikke er kvadratisk — `45° − atan(H/W)`.
+**Kommer binærene tilbake alene, er første konsekvens en rotert georeferanse på første opplastede DWG.**
+Se posten over + notatet. **Rekkefølge: binær og georeferansefiks i samme release.**
+
+⚠️ **Punktsky feiler i det minste lesbart:** `punktskyKonvertering.ts:52` og `:102` kaster «CloudCompare er
+ikke installert på serveren». **Men en lesbar feil på en funksjon som SKAL virke, er ikke en dokumentert
+mangel — det er en tapt funksjon med god feilmelding.** Design leste den først som det første; det var galt.
+
+🔴 **Og banneret lyver for alle konverteringsfeil:** `tegninger/page.tsx:883` sier «DWG-konvertering feilet»
+uansett hva som feilet. **Det kostet PDF-undersøkelsen 2026-09-23 en runde i feil retning.** Enlinjefiks:
+«Konvertering feilet».
+
+**Beslektet, og viktigere enn saken selv:** `tegning-pdf-batch-dims.test.ts` mocker bort `node:child_process`
+og kan **per konstruksjon** aldri fange at en binær mangler. Se BACKLOG-posten om oppstartssjekk for påkrevde
+binærer.
+
+
+### 🔴 Stille duplikater i kontrollplanen — en vakt som slipper NULL forbi (design 2026-09-23, målt)
+
+- `omrade.slett` (`omrade.ts:122`) er en **naken `prisma.omrade.delete`** — ingen opptelling, ingen vakt.
+- Kontrollplan-relasjonen er `onDelete: SetNull` (`schema.prisma:2472`), og
+  `@@unique([kontrollplanId, omradeId, sjekklisteMalId])` (`schema.prisma:2483`) fanger **IKKE** resultatet,
+  fordi **Postgres regner NULL som distinkt.** Sletting av et område i bruk nullstiller `omradeId` på alle
+  punktene som brukte det → **duplikate kontrollplanpunkter uten at noe sier fra**, og en plan som har mistet
+  inndelingen sin.
+- ⚠️ **Dette er «stille tomhet»-klassen i ny form: ikke en manglende vakt, men en vakt som SER ut som den
+  dekker og slipper NULL forbi.**
+- 🟢 **Ikke utløst i dag:** `omrade.oppdater` og `omrade.slett` kalles **ingen steder i web eller mobil** —
+  skriveveien finnes på serveren men kan ikke nås. **Fella springer når noen kobler dem opp.**
+- Bundet-repeater ordre 2 (steg 1) bygger slettevakten (blokkér hvis i bruk) **med rød-først-test som viser
+  dagens oppførsel** — egen runde. Denne posten står til vakten er bygget.
+- 🟢 **Slettevakten er nå bygget** (`feat/omradeadmin`, merget develop): teller FK-punkter OG myk JSON-referanse.
+  De to oppfølgerne under gjenstår.
+
+### 🔴 Kommentar i omrade.slett som navngir vakten (design 2026-09-23)
+
+- Risikoen er **ikke** at karakteriseringstesten råtner — den tester Postgres' NULL-semantikk og kan bare
+  feile hvis Postgres endrer standard. **Risikoen er at noen fjerner vakten uten å kjenne begrunnelsen.**
+- Én linje i `omrade.slett` som navngir `omrade-slett-nullfelle.integration.test.ts` og sier hvorfor
+  `@@unique` ikke beskytter (Postgres regner NULL distinkt). Da er resonnementet nåbart fra stedet noen
+  ville rørt. Oppfølger.
+
+### 🟡 Schema-kommentar på Omrade.type retter i steg 2b (design 2026-09-23)
+
+- `Omrade.type`-kommentaren sier fortsatt «sone | rom | etasje». Kontrollplan lot den stå bevisst for å holde
+  `db` stille og spurte. **Rettes i STEG 2b**, som uansett rører schemaet. ⚠️ **Ikke bryt «db urørt»-invarianten
+  i steg 1 for en kommentar.**
+
+### 🟡 Tekst påstår en årsak den ikke kjenner (design 2026-09-23)
+
+- I `sjekklister/page.tsx` faller teksten tilbake til `dokumentflyt.feil.ingenFlytMedMal` også når
+  `utilgjengeligÅrsak` er **undefined** — altså når serveren ikke sendte noen årsak. Da påstår teksten
+  en årsak den ikke kjenner. **Samme gjetning som den vi nettopp fjernet (`fix/utilgjengelige-flyter`
+  `131dfe7b`), i miniatyr — den overlever i fallbacken.**
+- Forslag: nøytral «Ikke tilgjengelig» når årsaken er ukjent, og behold `ingenFlytMedMal` kun når
+  grunnen faktisk er `ingenFlyt`. Én i18n-nøkkel. Oppfølger, ikke i den branchen (designgatet).
+
+### 🟡 Mobil har nå to opprett-flater (design 2026-09-22)
+
+- Den nye `OpprettVelger` og den gamle `OpprettDokumentModal` (for «opprett fra tegning») lever side om
+  side. **Riktig prioritering nå, men de bør til slutt se like ut** — ellers lærer brukeren to mønstre
+  for samme handling. Kenneth gater timingen.
+
+### 🟡 «Opprett på vegne av» ikke innført (Kenneth-gatet 2026-09-22)
+
+- En prosjektadmin kan ikke opprette dokumenter i faggrupper han ikke er registrator i. **Skal det
+  komme, må dokumentet vise både hvem som opprettet og for hvem — ellers ser dokumentet ut som noe det
+  ikke er.** Egen runde, ikke et flagg.
+- *Avklaring 2026-09-22:* registrator-gaten er **tilsiktet og BEHOLDES** (sjekklisten dokumenterer hvem
+  som utførte/kontrollerte arbeidet). Den tidligere åpne «er dette en feil?»-posten er dermed avklart.
+  Det som VAR en feil — at utilgjengelige flyter forsvant stille fra opprett-velgeren uten forklaring —
+  bygges av kontrollplan (`ordre-utilgjengelige-flyter-design-2026-09-22.md`), uavhengig av dette.
+
+### 🟡 Lånt mal kan miste forelder-koblingen (målt 2026-09-22, mal-Opus)
+
+- Et firma kan bryte forelder-koblingen i sin egen kopi i malbyggeren. **En lånt mal som mister
+  koblingen, viser plutselig alle felt** — betingede/skjulte felt blir synlige fordi barnet ikke
+  lenger vet hvilken forelder som styrer det. Ikke rettet. Kenneth gater timingen.
+
+### 🟡 Lokal DB er bak på migreringer — blokkerer integrasjonstester lokalt (målt 2026-09-22, kontrollplan)
+
+- Seed avvises mot lokal DB, så **ingen agent kan kjøre integrasjonstester lokalt.** Rammer alle spor,
+  ikke én runde. Kenneth gater timingen.
+
+### 🟡 Flytvalg-modalen godtar tomt valg uten varsel (målt 2026-09-22, redesign)
+
+- Alle flyt-checkbokser er AV som standard, og «Velg» uten noe avkrysset går gjennom uten melding.
+  Malen blir liggende utilgjengelig, og det oppdages først i mal-velgeren («Ingen av dine
+  dokumentflyter har denne malen»).
+- **Samme klasse som «stille tomhet»** — handlingen lykkes, resultatet er ubrukelig, ingen sier fra.
+  Traff redesign under verifiseringen 2026-09-22; han brente en malkopi på det. **En kunde som bygger
+  sin første firmamal vil treffe den.** Kenneth gater timingen.
+
+### 🟡 Arkiv-PDF er ikke flerspråklig (målt 2026-09-21)
+
+- `packages/pdf/src/arkivmal/` har **null `t()`-kall**; api sender ferdig nb-streng inn. Nøkkelen
+  `arkiv.utelatelseNotis` finnes på 15 språk. **Dagen arkivet skal bli flerspråklig, er dette ett av
+  stedene som må bytte kilde.** Ikke hastesak.
+
+### 🟡 Kapittel-sortering mangler tiebreaker (mal-runde C, målt 2026-09-20)
+
+- `bibliotek.ts:37` sorterer kapittel-lista **kun på `sortering`**, uten tiebreaker. To kapitler med
+  samme `sortering`-tall gir **udefinert rekkefølge i UI-et** — samme klasse som «stille tomhet»
+  (identitet/rekkefølge utledet av en ikke-entydig egenskap).
+- **Selve tilfellet er løst** i runde C (UU flyttet til egen `sortering` via generatorens `--sorter`).
+  Koden bør sortere på `sortering`, deretter `kode`. **Ikke hastesak.**
+
+### Fire oppfølgere fra sperrede-knapper-runden (design, 2026-09-19 — ingen blokkerende)
+
+- 🔴 **Web-tsc-gjeld, pre-eksisterende og målt på ren develop:** `papirkurv/page.tsx` (TS2589) og
+  `bibliotek-mal.test.ts` (TS2532) feiler `tsc --noEmit`. **CI kjører IKKE web-tsc**, så disse fanges
+  ikke — det er et **hull i gaten**, ikke bare to feil. (Regel 10-web-bygget fanger api-drift transitivt,
+  men ikke isolert web-tsc av disse to filene.)
+- **«Kopier mal» i `MalListe`** er et menyvalg og fikk ingen sperre-forklaring, selv om Rediger og Slett
+  ved siden av har det.
+- **Videresend-kommentaren** er påkrevd uten å være merket påkrevd.
+- **Google-innlogging mobil kan bli varig grå** — kontrollplan har runden.
+
+### `firma-hurtig-modal.tsx` viser råstrengen «dismissed» i status-dropdownen (redesign, målt 2026-09-19)
+
+- **Status-dropdownen viser den rå enum-verdien «dismissed» i stedet for oversatt tekst.** Cowork har målt at
+  nøkkelen **finnes** (`flytmatrise.status.dismissed`) — modalen bruker den bare ikke. Triviell fiks,
+  pre-eksisterende (ikke fra en av rundene). Kjør verdien gjennom `t('flytmatrise.status.dismissed')`.
+
+### `aria-label` og synlig etikett bruker to ord om samme begrep (design, etterkontroll kontraktssak 2026-09-19)
+
+- **`dokumentklasse.segmentTittel` (`aria-label`) sier «Dokumenttype», maldialogen sier «Dokumentklasse».**
+  Samme begrep, to ord. Liten, men nettopp slike skaper tvil om de betyr noe forskjellig. Harmoniser til
+  ett ord (maldialogens «Dokumentklasse» er den synlige, nyeste). i18n-nøkkel i begge språkfiler.
+
+### 🔴 Ingen vei til å FJERNE koblingen mellom et kontrollpunkt og en sjekkliste (målt 2026-09-11)
+
+**Målt:** `kontrollplan.koblePunkt` (`apps/api/src/routes/kontrollplan.ts:551`) setter
+`KontrollplanPunkt.sjekklisteId` via `koblePunktTilSjekkliste`. **Ingen prosedyre løser den opp** —
+negativ kontroll: ingen skrivevei setter `sjekklisteId` tilbake til `null` (kun en WHERE-guard i
+`services/kontrollplanKobling.ts:85` og testmocks). Etter `64d25131` sier `slettPunkt` til brukeren:
+*«Punktet har en sjekkliste koblet til seg og kan ikke slettes. Fjern koblingen til sjekklisten
+først.»* (`kontrollplan.ts:541`) — **en handling som ikke finnes i UI.**
+
+🟢 **Ikke pilotblokkerende, men «knappen skal ikke lyve» i meldingsform:** vi instruerer noe
+brukeren ikke kan gjøre. Trenger en `løsPunkt`-prosedyre (sett `sjekklisteId = null`) + inngang i UI.
+
+### 🟢 LUKKET 2026-09-16 — `apps/mobile` har nå test-runner (vitest) i CI
+
+**Levert i runde mobil-harness (`test/mobil-harness`).** `apps/mobile` har nå `"test": "vitest run"`,
+en `vitest.config.ts`, og er automatisk med i `pnpm test` (turbo) fra ROT → kjører i CI i samme
+jobb som resten. Målt: `pnpm test` gir 7/7 tasks, mobil-tallet er 9 (6 rene `splittVedMidnatt` +
+3 offline-DB mot ekte SQLite). Krav (c) er EKTE oppfylt: den faktiske migrerings-SQL-en kjører mot
+sql.js (SQLite-WASM), og en `sjekkliste_feltdata`-rad med tom `sjekkliste_id`/`id` avvises av ekte
+NOT NULL-constraint. **Mobil-unntaket i CLAUDE.md § «Stille tomhet» kan nå fjernes av cowork.**
+
+⚠️ **Avvik fra anbefalingen under (begrunnet ved måling):** anbefalt retning var `better-sqlite3`,
+men den er en NATIV modul (node-gyp, ABI-følsom) — lokal node er v25, CI node v20, og ulik ABI gir
+build-risiko. **sql.js (WASM, ingen native build) er portabel på tvers og fortsatt EKTE SQLite** →
+krav (c) oppfylt uten native-risikoen. jest-expo ble ikke valgt: dets fortrinn er RN-komponent-
+transforms, som denne runden ikke trenger (kun rent DB-lag + utils), og det ville lagt en andre
+runner ved siden av vitest.
+
+<details><summary>Opprinnelig sak (historikk)</summary>
+
+Målt av redesign da han skulle skrive en test ordren krevde: **`apps/mobile` hadde verken
 `test`-script, vitest eller jest.** `pnpm test` (turbo) treffer api, pdf, shared og web — mobil er
 ikke med, og gate-kommandoene kjører kun typecheck + lint der.
 
@@ -116,6 +584,24 @@ api-tester — **ingen av dem er enhetstester på mobil-logikk.**
 
 **Ikke ordre.** Å legge inn jest/vitest med RN-preset er reell infra-endring som flytter
 baselinen og krever godkjenning. **Kenneth-beslutning.**
+
+🔴 **Eskalert 2026-09-11 — blokkerer fase 2 offline.** Krav (c) i «stille tomhet er forbudt»
+(*en test som FEILER når feltet er tomt*) kan derfor ikke oppfylles for noen offline-katalog på
+mobil. Første treff: `reise_grensepunkt_local` (runde 75) — wiringen `hentReiseGrensepunkterLokalt
+→ løsReiseLonnsartId` står utestet, mens begge ender er dekket (api-test + `shared/reise.test.ts`).
+
+🔴 **Gate:** **offline-runden for oppgaver/HMS (fase 2) skal ikke relayes før denne er lukket.**
+Den runden bygger nye kataloger med samme krav, og uten harness gjentas unntaket i stedet for å
+bli lukket. Unntaket er ført ved regelen selv i [CLAUDE.md § Stille tomhet er forbudt](../../CLAUDE.md).
+
+🟢 **Anbefalt retning (Kenneth 2026-09-11, valget tas i saken):** **vitest + `better-sqlite3`**,
+ikke `jest-expo`. Katalogene er ren SQLite-logikk uten native- eller UI-avhengigheter, og vitest er
+den tynneste installasjonen som dekker behovet.
+
+⚠️ **Pakkeinstall i mobilappen krever Kenneths gate** (CLAUDE.md § Spør alltid før du).
+**Ikke startet før pilot er i drift.**
+
+</details>
 
 ### 🟢 LUKKET 2026-09-08 — PSI scroll-gate er IKKE en manglende sikkerhetsgate
 
@@ -148,7 +634,7 @@ sikkerhetsgate og presenterte det for Kenneth som en etterlevelsessak. **Slutnin
 **Skal «må lese før signering» gjeninnføres, er det et produktvedtak — og robustheten må bygges på
 nytt før noe kobles inn.**
 
-### 🔴 MOBIL-PSI: seksjonen vises fullført selv når serveren avviste signeringen
+### 🟢 LUKKET 2026-09-11 — MOBIL-PSI: seksjonen vises fullført selv når serveren avviste signeringen
 
 **Funnet av dokgen 2026-09-09** mens web-varianten ble fikset (`fix/web-psi-signering`).
 
@@ -161,12 +647,14 @@ nytt før noe kobles inn.**
 🔴 **Men den grønne progresjonen viser seksjonen som fullført likevel**, fordi
 `setSeksjonFullfort` alt har kjørt. **Beskjed og skjermbilde sier motsatt ting.**
 
-**Web-varianten er rettet** i `2ee6e343`: i signaturgrenen markeres seksjonen fullført **kun
-etter** serverbekreftelse. 🔴 **Mobil har samme rekkefølge, samme fiks gjenstår.**
+**Web-varianten ble rettet** i `2ee6e343`: i signaturgrenen markeres seksjonen fullført **kun
+etter** serverbekreftelse.
 
-⚠️ **Ikke bygget fordi `apps/mobile/app/psi/[psiId].tsx` var kontrollplans fil i
-`fix/stille-mutasjoner`.** **Egen liten runde når den branchen er merget** — mønsteret ligger
-ferdig i web-fiksen.
+🟢 **LUKKET 2026-09-11 — mobil rettet.** Målt uavhengig to ganger (cowork + kontrollplan,
+[backlog-maaling-2026-09-11.md](backlog-maaling-2026-09-11.md) § 220):
+`apps/mobile/app/psi/[psiId].tsx:203-213` venter på serverbekreftelse (`await fullforMut.mutateAsync`)
+FØR `setSeksjonFullfort`; catch markerer seksjonen **ikke** fullført. Den gamle rekkefølgen
+(`setSeksjonFullfort` på `:189`) finnes ikke lenger. Levert via `fix/stille-mutasjoner`.
 
 ### 🟠 PSI-GJESTEFLATEN ER HARDKODET NORSK — arbeideren signerer på et språk han kanskje ikke leser
 
@@ -447,22 +935,60 @@ domener enn HMS. **Om den bør det er et produktvalg — ubesvart.**
 **Tiltak, ikke bestilt:** hjelpetekst på gruppen som sier hva medlemskap gir. Kenneth må gate
 ordlyden; ordlyden hører i `hjelpetekster.md`-konvensjonen.
 
-### 🔵 To WIP-diagnostikkbranches fra 2026-09-04 står umerget — avklar før de ryddes
+### 🟡 To WIP-diagnostikkbranches fra 2026-09-04 — INNHOLD LEST 2026-09-17, målingene festet under
 
-**Målt av cowork 2026-09-09** da merge-køen ble tømt:
+**Målt av cowork 2026-09-09, commitene lest 2026-09-17** (branch-kartlegging, `git cherry`):
 
-| Branch | Siste commit | Utenfor develop | Status |
-|---|---|---|---|
-| `wip/diag-exif` | 2026-09-04 | 2 commits | 🔴 ikke merget |
-| `wip/diag-ko-trigger` | 2026-09-04 | 1 commit | 🔴 ikke merget |
+| Branch | Siste commit | Utenfor develop | Kode | Måling |
+|---|---|---|---|---|
+| `wip/diag-exif` | 2026-09-04 | 2 commits (unike, `+`) | 🟢 DØD — rent `__DEV__`, «SKAL IKKE MERGES» | 🟡 festet ↓ |
+| `wip/diag-ko-trigger` | 2026-09-04 | 1 commit (unik, `+`) | 🟢 DØD — rent `__DEV__`, «SKAL IKKE MERGES» | 🔴 festet ↓ |
 | `redesign/navigasjon` | 2026-07-15 | 0 commits | 🟢 merget — langlivet spor per CLAUDE.md, **rør ikke** |
 
-De to WIP-branchene bærer diagnostikk fra EXIF- og kø-feilsøkingen 03.–04.09 (samme døgn som de
-fem lærdommene i SAMARBEIDSREGLER). 🔴 **Innholdet er ikke lest.** Diagnostikk-kode er ofte
-midlertidig, **men den kan bære målinger ingen andre steder har.**
+Diagnostikk-KODEN er engangs-`__DEV__`-logging og skal aldri merges. **Målingene i commit-meldingene
+er festet her** — når Kenneth har bekreftet, kan begge branchene slettes (cowork sletter ikke).
 
-**Før sletting:** les de tre commitene og fang eventuelle målinger inn i en aktiv sannhetskilde.
-🔴 **Ikke slett på alder alene.**
+**🟡 EXIF-FUNN (`wip/diag-exif`, 09-04):** EXIF mangler av **to grunner** — «limited»
+bildebibliotek-tilgang og **Live Photo**. 🔴 **Før EXIF-parseren skrives må ekte iOS 26-EXIF-
+nøkkelform måles** (flat vs. nestet `DateTimeOriginal`/`GPS`) — parseren skal ikke antas.
+
+**🔴 KØ-FRYS (`wip/diag-ko-trigger`, 09-04) — ÅPEN, mobil / offline-håndtering / pilot:**
+opplastingskøen frøs — **tre vedlegg lå fem minutter uprosessert MENS ENHETEN VAR ONLINE.**
+Diagnostikken isolerte om `erPaaNettet` står stuck `false` eller `prosessererRef` stuck `true`
+(`OpplastingsKoProvider.tsx`).
+
+🟡 **DELVIS ADRESSERT 2026-09-18 (`fix/opplastingsko-finally`, merget):** `prosessererRef` nullstilles
+nå i `try/finally` (én invariant erstatter åtte spredte nullstillinger; rekursjonen flyttet ut av
+`try`, etter `finally`) + vaktest. 🔴 **Men dette HERDER — det retter ikke en bevist feil:**
+kontrollplan fant **INGEN vei** der `prosessererRef` faktisk blir stående `true`. **Kø-frysen er
+IKKE erklært løst.**
+
+🔴 **HOVEDFUNN — sannsynlig rotårsak, EGEN RUNDE KOMMER:** `NettverkProvider` har **ingen
+selvhelende mekanisme**. `erPaaNettet` settes **kun** av `addEventListener` — **ingen
+`NetInfo.fetch()` ved mount, ingen `AppState`-sjekk, ingen polling.** En **tapt
+reconnect-hendelse** låser `erPaaNettet = false` **permanent** og fryser køen. Det forklarer
+«online, men fryst» bedre enn mutex-stien. **Verifiser og fiks i dedikert runde.**
+
+### 🟢 KC3.1-PORT — LØST 2026-09-18 (`feat/kc31-port` merget, develop)
+
+🟢 **Portert riktig:** KC3.1-revisjonen (4→8 felt) ble re-applisert på dagens objekttabell-
+arkitektur i `feat/kc31-port` (`48fc5dfc`, merget). **Skriveveien `opprettMalHvisMangler` er URØRT**
+(create-only bevart, `BibliotekMalObjekt`-radskriving IKKE reversert — verifisert i merge-diffen),
+og en ny `kc31-mal.test.ts` låser de 8 feltene (sett rød mot dagens 4-felt-tilstand først). db 2→7.
+**Den gamle `feat/mal-kc31-revisjon` (stale seed-arkitektur) er nå overflødig — kan slettes når
+Kenneth gater.** Historikk under:
+
+**Branch-kartleggingen fant unikt innhold (`git cherry` = `+`, finnes IKKE i develop):** KC3.1
+«Oppstøtting av trær» er revidert fra **4 generiske felt til 8 mot NS 3420-ZK2.7112** — metode,
+materiell kontrollert, forankring (c1), gnag/barkskade (c2), fri kronebevegelse (c3), høyde ≤1/3
+(c4), antall trær støttet (stk), konklusjon — pluss rad i `mal-ns-standard-logg.md`. develop har
+fortsatt den **gamle 4-felts** KC3.1.
+
+🔴 **Branchen kan IKKE merges.** Diffen reverterer også `opprettMalHvisMangler` fra
+`BibliotekMalObjekt`-radskriving tilbake til blob-`malInnhold` (den er bygget på seed-arkitektur
+FØR objekttabellen, Vei C krav 6) — en merge ville **regretert objekttabell-seedingen.**
+**Skal PORTES:** KC3.1-feltene + logg-raden re-applliseres på dagens `seed-bibliotek.ts` (mal-Opus,
+egen liten runde), ikke merges. **Branchen er eneste bærer av innholdet — ikke slett før portert.**
 
 ### ⏸️ UTSATT MED VILJE 2026-09-09 — maskinoversettelsene er kontekstløse. IKKE START HER.
 
@@ -691,7 +1217,7 @@ legge til én person.
 
 🟢 **Samlet bestilling til fabel:** [fabel-kontakter-ia.md](../redesign/fabel-kontakter-ia.md)
 
-### 🔴 TRETTEN UFERDIGE KOBLINGER funnet bak lint-gjelden (målt 2026-09-08)
+### 🔴 NI UFERDIGE KOBLINGER funnet bak lint-gjelden (målt 2026-09-08, snevret fra tretten 2026-09-11)
 
 **Lint-oppryddingen var ikke oppryddingen — den var funnet.** Kontrollplan vurderte hver «ubrukt»
 variabel enkeltvis i stedet for å prefikse den med `_`. Av 77 errors var **kun 18 atferds-nøytrale**.
@@ -704,22 +1230,24 @@ Hadde noen «ryddet» dem mekanisk, ville hver eneste ha blitt permanent usynlig
 
 | Sted | Hva som mangler |
 |---|---|
-| `oppsett/brukere:192` `fjernMutation` | `medlem.fjernFraFaggruppe` med `onSuccess` — **aldri kalt. Fjern-knappen er ikke wiret** |
-| `oppsett/brukere:1035` `tilgjengeligeFaggrupper` | «Legg til»-lista beregnes, **rendres aldri** |
 | `import-dialog:15,68` `FaggruppeVelger` | Importert, state finnes, **velgeren rendres aldri** |
 | `oppsett/produksjon/psi:96` `tilgjengeligeBygninger` | Opprett-nedtrekk beregnet, **rendres aldri** (søsteren `...KopierBygninger` brukes) |
-| `psi/[prosjektId]:343,374` `harScrolletNed` / `innholdKortNok` | Scroll-til-bunn-gate for PSI-onboarding **settes, leses aldri — kravet håndheves ikke** |
 | `SeddelKort:163` `pauseTimer` | Pausetimer beregnet i attesteringskortet, **vises aldri** |
 
-⚠️ **De to første henger sammen:** både «legg til» og «fjern» på faggruppe-medlemskap ser ut til å
-mangle i samme flate. **Det er ikke to funn, det er én uferdig flate.**
+🟢 **Snevret 2026-09-11 (fra tretten til ni), målt: [backlog-maaling-2026-09-11.md](backlog-maaling-2026-09-11.md) § 763.**
+**To LEVERT** (faggruppe-medlemskap-flaten, `ed21b640`-familien): `fjernMutation`→`fjernFaggruppeMutation`
+(`PersonKort.tsx:135`) og `tilgjengeligeFaggrupper`→`ledigeFaggrupper` (`PersonKort.tsx:177`, wiret `:367-382`).
+**Ett var aldri en uferdig kobling:** `harScrolletNed`/`innholdKortNok` ble **bevisst slettet i `547261c4`**
+(2026-04-03) — symbolene finnes ikke, verken hull eller levert. **De ni som står:** `FaggruppeVelger`,
+`tilgjengeligeBygninger`, `pauseTimer`, `verdi`, `mappeNavn`, `nyMalId`, `mandagIUke`, `nsDokumentIder`,
+`nåværendeOrgId`.
 
 #### 🟡 Svakere / grensetilfeller
 
 `psi/[prosjektId]:662` `verdi` (signatur sendes inn, canvas gjenoppretter den aldri) ·
 `box:110` `mappeNavn` (TilgangModal får navnet, viser det ikke) ·
 `oppsett/produksjon/psi:80` `nyMalId` (mal-velger-state, aldri wiret) ·
-`RedigerPunkt:563` `t` (**i18n-hull** — henter `t`, bruker hardkodet norsk) ·
+`RedigerPunkt:563` `t` (⚠️ **DELVIS** — `t` brukes for noen strenger `:587`/`:591`, men `handlingLabel :570-576` er fortsatt hardkodet norsk: Opprettet/Startet/Utført/…) ·
 `UkeVelger:28` `mandagIUke` (komplett dato-helper, 0 kallere)
 
 #### Målt av dokgen, samme dag
@@ -753,7 +1281,7 @@ den verdt mindre enn ingen gate. Lint står ikke som blokkerende steg i ordrer f
 🟢 **CI gater på `pnpm test` + mobil-typecheck**, så dette blokkerer ingen leveranse i dag.
 Relatert: `nåværendeOrgId`-linten (2026-08-26) er én av radene.
 
-### 🔴 Offline gjelder tegninger, ikke dokumenter — mot en ufravikelig regel (Kenneth på enhet 2026-09-07)
+### 🔴 Offline gjelder tegninger + sjekklister, ikke oppgaver/HMS — mot en ufravikelig regel (Kenneth på enhet 2026-09-07, snevret 2026-09-11)
 
 > **Kenneth 2026-09-07:** *«forbered offline fungerer for tegninger → oppgaver, sjekklister og HMS
 > er ikke en del av offline support»* · **Vedtak samme kveld:** *«offline må utbedres»*
@@ -767,8 +1295,9 @@ og for opplasting, ikke for dokumenttilgang. **Avviket var udokumentert til 07.0
 |---|---|
 | **Opplastingskøen** | 🟢 **Robust.** Bilde tatt i flymodus nådde serveren ved reconnect (verifisert på enhet 07.09) |
 | **Tegninger** | 🟢 «Forbered til offline» i `Mer` dekker dem |
-| **Sjekkliste / oppgave / HMS** | 🔴 **Nett-baserte tRPC-kall.** `sjekkliste.hentForProsjekt` + `oppgave.hentForProsjekt`; ingen SQLite-speiling (målt av redesign 07.09) |
-| **SQLite-katalogene** | Dekker timer, maskin, vær, byggeplass — **ikke dokumenter** |
+| **Sjekkliste** | 🟢 **Offline-speilet 2026-09-11** (`970045d7`): `sjekkliste_local` (`schema.ts:615`), `sjekklisteKatalog.ts` pr. prosjekt, list-skjerm via `velgOfflineListeKilde` (`sjekkliste/index.tsx:116`); dekket av «Forbered offline» (`mer.tsx:90-96`) |
+| **Oppgave / HMS** | 🔴 **FORTSATT nett-baserte tRPC-kall.** `oppgave.hentForProsjekt` (`oppgave/index.tsx:78`) + `hms.hentDokumenter` (`hms/index.tsx:56`); ingen SQLite-speiling |
+| **SQLite-katalogene** | Dekker timer, maskin, vær, byggeplass, **sjekklister** — **ikke oppgaver/HMS** |
 
 ⚠️ **Kenneths test virket fordi dokumentet var ÅPNET FØR han gikk offline.** Et uåpnet dokument
 ville ikke vært nåbart. **Ikke les testen som at tilgang virker.**
@@ -926,7 +1455,21 @@ være stille») var feil — firmaet har fem treff, ikke ett.
 | Spørsmål | Styres av | Status |
 |---|---|---|
 | Er reisen **arbeidstid eller reisetid**? | **Tid** (30 min) — 🔴 **eller km, se vedtaket over** | 🟢 tid bygget, i prod 09.06 |
-| **Hvilken** reise-lønnsart føres den på? | 🔴 **Avstand** — båndene over | ❌ **finnes ikke** |
+| **Hvilken** reise-lønnsart føres den på? | 🔴 **Avstand** — båndene over | 🟢 **BYGGET 09-11** (server+web+shared) — se under |
+
+> **🟢 AVSTANDSBÅND BYGGET 2026-09-11 (`feat/reise-avstandsband`, Kenneth-gate) — server+web+shared.**
+> Grensepunkter (ikke intervaller, Kenneth-vedtak): tabell `OrganizationReiseGrense
+> (organizationId, grenseM, lonnsartId?)` m/ `UNIQUE(orgId, grenseM)` → overlapp strukturelt umulig,
+> ingen btree_gist-extension. Migrering `20260911120000_reise_avstandsgrenser` (additiv, **KJØRES av
+> Kenneth-gate — ikke kjørt**). Delt resolver `løsReiseLonnsartId(avstandM, grensepunkter, fallback)`
+> i `@sitedoc/shared` (oppslag = høyeste `grenseM ≤ avstandM`; hull/`null`/under laveste/`avstandM<0`
+> → fallback). API: `settReiseGrensepunkter` (replace-all, validerer art i katalog, avviser dup) +
+> `hentSetting` returnerer grensene. Web: bånd-editor i `/dashbord/firma/innstillinger` + varsel-demping
+> når bånd finnes. **Presedens: bånd slår `reiseLonnsartId` når avstand finnes.**
+> 🔴 **MOBIL SKYVES bevisst til kort oppfølger etter dokgens merge** (dokgen eier `apps/mobile/src/db/schema.ts`
+> denne runden; båndene trenger en lokal kolonne i `organizationSettingLocal`). Mobil er **bit-for-bit
+> som i dag** denne runden — faller tilbake på `reiseLonnsartId`/navne-match. Firma **uten** bånd er
+> uendret på alle flater (regresjonstest i `reise.test.ts` beviser det).
 
 ⚠️ **Uten båndvalget havner alle reiser på samme lønnsart uansett lengde**, eller noen må velge
 manuelt hver gang. **Det er sannsynligvis grunnen til at A.Markussen måler i km.**
@@ -1306,6 +1849,13 @@ gate uten kvittering.
 
 > **[triage 2026-08-26]** verifisert åpen — Kan vente — én runde: symptom (changelog-støy) fikset, men rå `input.data`-lagring `sjekkliste.ts:807` består; signering idempotent → usynlig.
 
+🟢 **Delspørsmål avklart 2026-09-11** ([måling § 1388](backlog-maaling-2026-09-11.md)): **ingen
+korrupsjon.** `signerFilSti` (`hmac.ts:50`) stripper query (`sti.split("?")[0]`) FØR re-signering,
+så en allerede-signert URL re-signeres rent (fersk utløp) — aldri `?exp=..&sig=..?exp=..`.
+🔴 **Raden står likevel:** rotårsaken (rå `input.data`-lagring uten query-strip — `grep split("?")`
+i `sjekkliste.ts` = 0) består, og antall rader med signatur i `data` er **ikke målbart fra kode**
+(krever read-only prod-telling). Linjenumre driftet: BACKLOG 615/754/807 → nå 696/740/847/871.
+
 Funnet under endringslogg-runden (`fix/endringslogg-lesbar`). Symptomet var
 tjue støy-rader i BEF-001s endringslogg: fem repeater-endringer × tre celler,
 med samme tidsstempler som vær-radene. Diagnosen (måleskript mot prod,
@@ -1384,14 +1934,14 @@ Fabel har ført disse i [redesign/REDESIGN-MASTERPLAN.md](../redesign/REDESIGN-M
 **Posisjonsmodellen er i prod siden 2026-08-03** og virker: rutingen teller ledd, ikke rollenavn (`services/flytFakta.ts:151-212`, `packages/shared/src/utils/flytPosisjon.ts`, autorisasjon via `verifiserRetningsrett` i `tilgangskontroll.ts:905-968`). Bestiller/utfører-faggruppene er **ikke rutingsbærende**.
 
 **Men motoren mates ikke:**
-- Flytoppsettet sender **hardkodet** `steg={1}` — `dashbord/oppsett/produksjon/dokumentflyt/page.tsx:869` og `:886`, `OpprettKontaktModal.tsx:211`.
-- Standardflyter seedes med `steg: 1` for **både** bestiller og utfører — `prosjekt.ts:515` og `:529`. Begge kollapser til **ett ledd**.
-- Kun HMS-flyten setter steg eksplisitt (`modul.ts:61,68`).
+- Flytoppsettet sender **hardkodet** `steg={1}` — `dashbord/oppsett/produksjon/dokumentflyt/page.tsx:968` (`LeggTilMedlemDropdown`) og `:987` (`InviterNyMedlemModal`). *(Linjeref. driftet 2026-09-11 fra `:869`/`:886` + `OpprettKontaktModal.tsx:211`.)*
+- Standardflyter seedes med `steg: 1` for **både** bestiller og utfører — `services/prosjektSeed.ts:139` og `:152` (flyttet fra `prosjekt.ts:515`/`:529`). Begge kollapser til **ett ledd**.
+- Kun HMS-flyten setter steg eksplisitt (`modul.ts:79,86`). *(Driftet fra `:61,68`.)*
 - `klassifisering` settes heller ikke fra noe UI.
 
 Historiske rader ble reparert av backfill (`20260731120000_flytmodell_fase1_posisjon/migration.sql:36-56`, `DENSE_RANK()` over kanonisk rollerekkefølge). **Inngangen ble aldri reparert** — samme funn som `delplaner/flytposisjon-byggledd-fiks-ordre-2026-07-26.md:11`.
 
-🔴 **MÅ fikses sammen med `utledMinRolle`-klientporten.** `packages/shared/src/utils/flytRolle.ts:96-98` matcher faggruppe-bundne flytmedlemmer kun hvis faggruppen er bestiller **eller** utfører på dokumentet. Resultatet gater handlingsmenyen (`DokumentHandlingsmeny.tsx:556` → «Lesevisning», `DokumentHandlingslinje.tsx:223` → `null`). I en flyt med mer enn to faggruppe-bundne ledd får et tredje ledd `minRolle = null` og ser «Lesevisning» **selv når serveren tillater handlingen fordi brukeren har ballen**. Klient og server er uenige.
+🔴 **MÅ fikses sammen med `utledMinRolle`-klientporten.** `packages/shared/src/utils/flytRolle.ts:96-98` matcher faggruppe-bundne flytmedlemmer kun hvis faggruppen er bestiller **eller** utfører på dokumentet. Resultatet gater handlingsmenyen (`DokumentHandlingsmeny.tsx:587` → «Lesevisning», `DokumentHandlingslinje.tsx:223` → `null`). I en flyt med mer enn to faggruppe-bundne ledd får et tredje ledd `minRolle = null` og ser «Lesevisning» **selv når serveren tillater handlingen fordi brukeren har ballen**. Klient og server er uenige.
 
 Det slår ikke ut i dag nettopp fordi steg-inngangen hindrer slike flyter. Det slår ut i samme øyeblikk som steg fikses. **Fikses de hver for seg, innfører reparasjonen en ny feil.** Fabel har bevisst holdt dette utenfor kontrollplan-ordrene av samme grunn.
 
@@ -2255,7 +2805,11 @@ Etter fylling: kjør `pnpm dlx tsx src/i18n/generate.ts` fra `packages/shared`. 
 
 **Ordre-feil, ikke utfører-feil:** del6b pkt 5 listet fila i et web-punkt, mens pkt 6 + kjerneregelen sier «ingen mobil-filer, mobil er fase 2». redesign-Opus valgte regelen fremfor lista og flagget motsigelsen. Fabel: *«han valgte riktig — regelen slår lista når de motsier hverandre, og motsigelsen var min.»* Ført som ordre-feil i del6b-verifiseringsloggen. **Hører i fase 2 (mobil-løftet).**
 
-### 🟡 Mal-dualiteten er redundans, ikke to roller (redesign-Opus exit 2026-07-16)
+### ✅ Mal-dualiteten er redundans, ikke to roller (redesign-Opus exit 2026-07-16) — LUKKET `fix/fjern-prosjektmaler` 2026-09-12 (vei b)
+
+**Lukket med vei (b) — flata FJERNET (`fix/fjern-prosjektmaler`, Kenneth-vedtak 2026-09-12 kveld):** `[prosjektId]/maler` (+ `[malId]` + layout + `MalerPanel`) er fjernet og server-redirecter til `oppsett/produksjon/sjekklistemaler`. «Ny mal»-modalen (den stille `category="sjekkliste"`-tvangen) døde med flata. Dashbord-kort, nav-registeret (`dype-sider`/`useAktivSeksjon`) og krysslenken `brukIProsjekt` pekt om/fjernet. Malforvaltning bor nå kun på Oppsett › Produksjon (kategori-splittet, rikere). Aktive sjekklister har egen flate — visningsbehovet var dekket.
+
+> **Rettet fra vei (a):** runde 87 (`feat/hent-fra-arkiv`) lukket denne med vei (a) — rendyrket `[prosjektId]/maler` til lese-og-bruk + reduserte `[malId]` til lesevisning. Kenneth så flata på test og snudde til vei (b) fordi den fortsatt blandet sjekkliste/oppgave/HMS i én liste og ikke gjorde noe Oppsett › Produksjon ikke gjør bedre.
 
 **Mistanke fra den eneste som har sett begge flatene innenfra.** Del6b pkt 4 antok «arbeidsflate vs konfig» og leverte copy + kryss-lenker (`297f5670`). Hans vurdering etter å ha bygget dem: *«et plaster over redundansen, ikke en oppløsning»*.
 
@@ -2265,7 +2819,7 @@ Begge er prosjekt-scopet `ReportTemplate`-CRUD mot samme `trpc.mal.*`. `[prosjek
 
 **Reell effekt i stedet:** flata **tvinger stille** `category="sjekkliste"` — den sender `{projectId, name, description}`, ingen category. Vil du lage en oppgavemal der, kan du ikke, og du får ingen tilbakemelding om hvorfor. `MalListe:293` filtrerer på `m.category === kategori`.
 
-**Ekte fiks (ikke gjort — datamodell-/router-nært, utenfor «kun copy»):** (a) rendyrk `[prosjektId]/maler` til lese-og-bruk, fjern CRUD, pek til oppsett — eller (b) fjern flata og fold inn i oppsett. **Mistanke, ikke funn.** `MalBygger.tsx` (stalest kode, 2026-04-17) sitter under alle tre flatene; har redundansen en rot, ligger den trolig der.
+**Ekte fiks (utført 2026-09-12 via `fix/fjern-prosjektmaler`):** vei (b) — flata FJERNET med redirect (ikke vei (a); se rettelse i toppen av raden). **Mistanken om `MalBygger.tsx` er målt og avkreftet:** ingen duplisert malbygger-komponent finnes — alle flatene importerer samme `@/components/malbygger`. Redundansens rot var den fattige CRUD-flaten (nå fjernet), ikke byggeren.
 
 ### 🟡 Prosjekt-tilhørighet er avledet via `template.projectId`, ikke egen på instansen (redesign-Opus exit 2026-07-16)
 
@@ -2711,10 +3265,17 @@ rydde på. En bøtte uten bunn blir en bøtte ingen tømmer.
    godkjent og signert dokument bør trolig ikke kunne fjernes permanent av en vanlig
    prosjektmedlem; sporbarheten er det produktet selger. Krever rolle-/kapabilitetsvedtak.
 
-Del 1–3 er ren mangel og kan bygges. Del 4 venter på fabel.
+🟢 **Del 1 og 2 LEVERT 2026-09-11** (`64d25131`): `tomPapirkurv` (bekreftelsesmodal),
+`gjenopprettFlere`/`slettEndeligFlere`, avkryssing + «velg alle» i UI.
+🟢 **Del 3 (auto-sweep) var allerede levert:** `services/papirkurv-sweep.ts`, startet fra
+`server.ts:218`. 🔴❓ **Del 4 (hvem kan slette endelig) står åpen — fabel-sak, ikke rørt.**
 
-### 🔴 Papirkurven mangler «Tøm» og masseslett — meldingen ber om en handling som ikke finnes (Kenneth, test 2026-08-18)
+### 🟢 LUKKET 2026-09-11 — Papirkurven mangler «Tøm» og masseslett — meldingen ber om en handling som ikke finnes (Kenneth, test 2026-08-18)
 
+> **[LUKKET 2026-09-11]** Levert i `64d25131`: `tomPapirkurv`, `gjenopprettFlere`,
+> `slettEndeligFlere` + avkryssing/«velg alle» i web. «Slett mal»-meldingen peker nå på en
+> knapp som finnes. Se [backlog-maaling-2026-09-11.md](backlog-maaling-2026-09-11.md).
+>
 > **[triage 2026-08-26]** verifisert åpen — Skjemmer — noen runder: `papirkurv.ts` kun `slettEndelig({id,type})`; 0 checkbox/tøm i web; `mal.ts:387` ber «Tøm papirkurven først» uten at knappen finnes.
 
 **Målt i koden:** `apps/api/src/routes/papirkurv.ts` har `hentForProsjekt`, `gjenopprett`
@@ -3658,9 +4219,20 @@ Fanget under R4-konsistens-sjekk (2026-06-11) — **ikke R-serie-introdusert** (
 
 Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og gi `byggeplassId` riktig Drizzle-type / `vitest` til devDependencies+tsconfig. Lav prio — ingen runtime-effekt.
 
-### `apps/mobile` mangler test-runner — rene utils udekket 🟡
+### 🟢 LUKKET 2026-09-16 — `apps/mobile` test-runner + `splittVedMidnatt` dekket
 
-`apps/mobile` har ingen test-runner (verken `test`-script, jest/vitest-config eller `*.test.ts`). Rene, logikk-tunge hjelpere er derfor udekket av automatiserte tester. Konkret fanget ved Slice 4a (2026-06-20): **`splittVedMidnatt`** (`apps/mobile/src/utils/dagsegment.ts`) ble kun manuelt verifisert (tsx-kjøring). Casene som bør dekkes når en test-beslutning tas: **nattskift 19→07 = 5t+7t=12t** (sum = reell total), **dagskift** (1 segment, uendret), **degenerert** (slutt ≤ start → ett 0-segment), **fler-døgn** (glemt-dag → N segmenter, sum = total). Vurder å **flytte den rene helperen til `@sitedoc/shared`** (web bruker allerede `vitest` — jf. `src/components/mengde/__tests__/`), evt. introdusere vitest i `apps/mobile`. Lav prio — ingen runtime-effekt, men midnatt-splitt er lønns-sensitiv logikk som fortjener regresjonsdekning.
+**Levert i runde mobil-harness.** vitest innført i `apps/mobile` (IKKE flyttet til `@sitedoc/shared`
+— hele poenget var at mobil skal kunne teste sin egen kode). `splittVedMidnatt` dekkes nå av
+`apps/mobile/src/utils/dagsegment.test.ts` med nøyaktig de spesifiserte casene: **nattskift
+19→07 = 5t+7t=12t** · **dagskift** (1 segment) · **degenerert** (slutt ≤ start → ett 0-segment) ·
+**fler-døgn** (N segmenter, sum = total). I tillegg dekkes `kappGlemtDagSlutt` (glemt-dag-cap).
+Negativ kontroll kjørt (bryt → rød → tilbakestill).
+
+<details><summary>Opprinnelig sak (historikk)</summary>
+
+`apps/mobile` hadde ingen test-runner (verken `test`-script, jest/vitest-config eller `*.test.ts`). Rene, logikk-tunge hjelpere var derfor udekket av automatiserte tester. Konkret fanget ved Slice 4a (2026-06-20): **`splittVedMidnatt`** (`apps/mobile/src/utils/dagsegment.ts`) ble kun manuelt verifisert (tsx-kjøring). Casene som bør dekkes: **nattskift 19→07 = 5t+7t=12t** (sum = reell total), **dagskift** (1 segment, uendret), **degenerert** (slutt ≤ start → ett 0-segment), **fler-døgn** (glemt-dag → N segmenter, sum = total).
+
+</details>
 
 ### Metro blockList — `.env.eas.local` knekker `expo run:ios` ✅ FIKSET 2026-07-06 (venter dual-review)
 
@@ -3782,6 +4354,10 @@ Funnet under Timer Fase 1b-data-sjekk (2026-06-09). `admin.ts:266` + `prosjekt.t
 **Konsekvens:** kode som avgjør firma-tilhørighet **kun** via `ProjectOrganization` (uten å falle tilbake på `primaryOrganizationId`) vil feilaktig behandle disse som ikke-firma-prosjekter. Fase 1b-helperen `verifiserProsjekterTilhørerFirma` dekker dette via union (eid ELLER koblet), men andre stier kan ikke ha samme beskyttelse.
 
 **Foreslått fiks:** backfill-migrasjon som setter inn manglende `ProjectOrganization`-rader for alle `Project` med `primaryOrganizationId IS NOT NULL` som ikke allerede har en kobling for den orgen (idempotent `INSERT ... WHERE NOT EXISTS`). Da kan union-fallbacken på sikt forenkles til ren ProjectOrganization-sjekk. **Krever migrasjon → prod = LÅS + Kenneth.** Lav hast (1b-unionen holder timer trygg i mellomtiden).
+
+🔴 **Samme klasse, ny kilde — MÅLT 2026-09-16 (e2e del 2):** `packages/db/scripts/seed-testbrukere.ts:95` setter `primaryOrganizationId`, men oppretter **ALDRI** `projectOrganization`-join-raden. `erStandaloneProsjekt` (`apps/api/src/utils/prosjektGrense.ts`) teller den raden — er den 0, regnes prosjektet som **PRØVEPROSJEKT med maks 10**. Konsekvens: seedet produserer prosjekter som **ikke ligner produksjon** (på `test.sitedoc.no` finnes join-raden manuelt; i et friskt e2e-/dev-miljø gjør den det ikke). Treffer alt som seedes, ikke bare e2e — derfor ført her som eget delfunn, ikke som e2e-sak. **Fiks:** legg join-rad-INSERT i seed-scriptet (idempotent), samme mønster som backfillen over. 🟢 **Delvis lukket 2026-09-16 (e2e-dedrift `94cf574a`):** `seed-testbrukere.ts` fikk join-raden. ⚠️ **`seed-e2e-pilot.ts` og `seed-agent-mobil-test.ts` er fortsatt berørt (meldt, ikke rørt).**
+
+🔴 **STRUKTURFUNN samme klasse — MÅLT 2026-09-16 (e2e del 2):** `Project.primaryOrganizationId` og `ProjectOrganization` er **to UAVHENGIGE kilder UTEN constraint** — de kan divergere (seeden gjorde nettopp det: satt den ene, ikke den andre). Trial-sjekken (`erStandaloneProsjekt`) bruker KUN join-raden. Så lenge de to kildene kan settes uavhengig, vil enhver skrivevei som glemmer join-raden reprodusere prøveprosjekt-fella. **Retning:** enten en DB-constraint/trigger som holder dem i takt, eller én kanonisk kilde. Krever skjema-vurdering → Kenneth.
 
 ### Split-identitet MS-login (web↔mobil) — ✅ DEPLOYET TIL PROD 2026-07-04 (`bb5aec05`)
 
@@ -4914,6 +5490,78 @@ direkte fra listen.
 
 ## 3. Fremtidige faser
 
+### 🔴 Befaringsnotat med fremdriftslys → autogenerert månedsrapport (Kenneth 2026-09-22)
+
+**Bestilt av Kenneth 2026-09-22:** *«er det mulig å autogenerere notatene inn i en månedsrapport → dette
+må vi lage en backlogg på»*. Vokste ut av designnotatet
+[designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md](../redesign/designnotat-utled-kontrollplan-og-fremdrift-fra-mengdebeskrivelse-design-2026-09-22.md),
+som har hele kjeden og målingene. Ikke startet, ikke gatet for bygging.
+
+**Formålet er ikke et dashbord — det er bevis til sluttoppgjøret.** Kenneth: *«når sluttoppgjøret kommer →
+ta frem alle rapporter med gul og rød fremdrift → det kan være med å forklare hvorfor et prosjekt er
+forsinket → men det krever gode rapporter»*. Det avgjør designet: notatet må være et **dokument i
+dokumentflyten**, ikke en redigerbar status. En gul uke som kan endres i ettertid, er verdiløs i et oppgjør,
+og det sterkeste ved flyten er at **motparten mottok den**.
+
+**Delene:**
+
+1. **Befaringsnotat som dokumenttype**, skrevet **2–3 ganger ukentlig** (Kenneths tall — 10–12 i måneden er
+   nok til at en tre-ukers stans ikke kan bortforklares, og lite nok til at hvert notat er ett skjermbilde).
+2. **Fremdriftslys, Kenneths definisjon:** grønn = normal fremdrift, ingen krav · gul = manglende fremdrift,
+   **forklar hva som ikke fungerer optimalt** · rød = ingen eller svært svak fremdrift, **forklar** — er det
+   ingen arbeidere på anlegget? 🔴 **Gul og rød KREVER forklaring.** Det gjør at systemet spør i stedet for å
+   konkludere, og da tåler lyset at datagrunnlaget er omtrentlig.
+3. **Forhåndsdefinert årsaksliste** (ikke fritekst — CLAUDE.md § UI-prinsipper). Designs forslag, ikke gatet:
+   ingen mannskap på anlegget · venter på leveranse · venter på godkjenning eller befaring · fjell eller
+   grunnforhold · vær · maskinstans · omdisponert til annet arbeid · annet (fritekst). Talt over tid svarer
+   listen på om det er leveranser eller bemanning som er problemet.
+4. **Ansvarsside pr. årsak**, **innstillbar pr. kontrakt og aldri hardkodet** — SiteDoc dokumenterer, det
+   avgjør ikke. Ingen juridisk konklusjon i UI.
+5. **Automatisk fargeforslag** fra timer og godkjente dokumenter. 🔴 **Utledningen skal skrive utkastet, ikke
+   dømme.** En omtrentlig rate er god nok til å foreslå en farge et menneske bekrefter, men ikke god nok til
+   å sette en frist. Signaturen på et blokkert strekk er **«timer går, dokumenter står»**.
+6. **Månedsrapport** = sammendragstabell (deterministisk: antall notater pr. farge, dager pr. farge, årsaker
+   talt og gruppert, lengste sammenhengende gule/røde periode, ferdigstilte objekter, timer, berørte
+   strekninger, **bemanning og maskiner**) + **notatene gjengitt ORDRETT med dato** + byggelederens egen
+   oppsummering. 🔴 **Ingen AI i beviskjeden.** Sitat er trygt, parafrase er det ikke — motparten leser den
+   setningen nøye.
+7. **Tre målinger mot entreprenørens fremdriftsplan** — Kenneth 2026-09-22: «klarer vi å måle mot en
+   fremdriftsplan i en månedsrapport? Antall mannskaper, antall gravemaskiner, antall hjullastere». Målingene er
+   **posisjon** mot planens dato · **bemanning** mot planens forutsatte lag · **fargefordeling med årsaker**.
+   Antok planen seks mann og to maskiner og tellingene viser to og null, er forsinkelsen forklart med tall og
+   ikke med en formulering som kan bestrides.
+   🔴 **Bemanningstellingen er byggherrens ENESTE måling av innsats.** Han har ingen tilgang til entreprenørens
+   dagsseddel; entreprenøren kan måle timene sine, byggherren har bare øynene sine. Derfor er feltet viktigere
+   enn det ser ut, og derfor er det et unntak fra MAL-METODE §1 «ingen tallfelt» — tellingen ER observasjonen og
+   har ingen annen plass å bo.
+   🔴 **ALDRI summer bemanning på tvers av etasjer i et bygg.** Kenneth 2026-09-22: «noen går mellom etasjer
+   mens befaringen pågår → tallene blir aldri helt rett». Én mann som gikk mellom to etasjer, ville blitt to.
+   Visningen er **pr. fag pr. etasje over tid** — aldri en totalsum for bygget. For anlegg er det ett lag på én
+   arbeidsstuff, og der er summering forsvarlig.
+   🔴 **Bygg-tallet er merket «omtrentlig» i malen, og rapporten skal bære merkingen videre.** Et tall som
+   presenteres som eksakt når det ikke er det, kan angripes; et tall merket omtrentlig kan det ikke. For bygg er
+   det **fagene** (`list_multi`) som er den presise delen — se
+   `docs/redesign/ordre-byggeleder-befaringsrapport-design-2026-09-22.md` § B2.
+8. **Sorterbar liste** på farge, årsak og periode, med uttrekk til sluttoppgjør.
+
+**Hva som finnes fra før (målt 2026-09-22):** `apps/api/src/services/arkiv/sammenstilling.ts` bygger alt et
+samlet dokument fra et sett dokumenter, og `packages/pdf` renderer det — **månedsrapporten er i praksis en
+sammenstilling filtrert på periode og dokumenttype**, pluss aggregeringstabellen. `ftd_spec_posts` har
+`prosentFerdig`, dagsseddelen har timene, og `kontrollplanFremdrift.ts` skiller «pågår» fra «godkjent». Det
+nye er notat-dokumenttypen og tabellen, ikke rapportmotoren.
+
+**Risikoen som avgjør om det virker:** et notat som koster innsats, blir ikke skrevet — og da er serien
+brutt der den betyr mest. Ubrutt serie er ett av fire krav Kenneth selv formulerte; de andre er datert og
+låst, mottatt av motparten, og samme årsaksvokabular hele veien.
+
+**Beslektet, eget spor, ikke designet:** 360-video med GPS-logget rute (Kenneth 2026-09-22, «google
+streetview-versjon til prosjektet»). En GPS-logget rute er en **datert posisjon** og dermed et finere
+fremdriftssignal enn dokumentene — to turer med to ukers mellomrom gir den faktiske raten, målt i stedet for
+gjettet. Tegningsvisningen har alt posisjonsmarkører og bilder GPS-tagges; det som mangler er ruteloggen og
+koblingen posisjon → bildepunkt.
+
+---
+
 Detaljert plan: [arkitektur-syntese.md § 5](arkitektur-syntese.md).
 Beslutningsgrunnlag: [fase-0-beslutninger.md](fase-0-beslutninger.md).
 Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg dokumentert der.
@@ -5062,7 +5710,7 @@ Firma vil ha ansatte auto-inn i aktive prosjekters dokumentflyt. Verifisert: ing
 
 Liste mottatt 2026-05-06. Se også [STATUS-AKTUELT.md § Kundeønsker](STATUS-AKTUELT.md).
 
-- **#1 Sjekkliste for service koblet til timetall og status** 🟡 — DB-feltet `nesteServiceTimer` finnes i `packages/db-maskin/prisma/schema.prisma:188`. Mangler UI på maskin-detaljside + serviceintervall-konfigurasjon + sjekkliste med automatisk oppdatering.
+- **#1 Service koblet til timetall** 🟢 **PILOT LEVERT (branch `feat/service-timetall`, ikke deployet — migrering Kenneth-gatet).** ⚠️ **Premisset i denne raden var feil** (målt 2026-09-17): `nesteServiceTimer` lå på `ServiceRecord` (ikke `Equipment`), ble aldri skrevet, aldri lest, og `ServiceRecord` hadde ingen produkt-skrivevei. Levert 2026-09-18: `Equipment.serviceIntervallTimer` + `Equipment.nesteServiceTimer` (migrering `20260918120000_service_timetall`), skrivevei `maskin.service.registrerService` (fremskriving = timer ved service + intervall), terskelvarsel på maskin-detalj (tilpasset `EuKontrollBanner`) + PDF-servicerapport (`packages/pdf/service-rapport.ts`). Se [maskin.md § Service pr. timetall](maskin.md). **Utenfor pilot (Kenneth 2026-09-18):** full sjekkliste med avkrysning (del E, `EquipmentChecklist`), auto-driftstimer fra dagsseddel.
 - **#5 Registrering av HMS-gruppe på brukere** ⏸️ — parkert.
 - **#7 Rettighetsmatrise med rolle-styring (Prosjektleder + Bas)** 🔴 — ny rolle-modell + matrise-UI. Eksisterende roller dekker ikke `Prosjektleder`/`Bas` som DB-roller.
 - **#9 Justeringer på SJA (signatur/lesetilgang/deltaker)** 🔴 — utvidet sjekkliste-mekanikk: re-signaturforespørsel, auto-lesetilgang for prosjektmedlemmer, selv-påmelding som deltaker.

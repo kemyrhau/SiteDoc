@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body { margin:0; background:#eef1f6; font-family: -apple-system, "Segoe UI", system-ui, sans-serif; color:#1f2937; }
+a { color:#1e40af; } a:hover { color:#1e3a8a; }
+</style>
+</helmet>
+<section style="padding:36px; display:flex; flex-direction:column; gap:24px; min-width:2300px; border-bottom:2px dashed #c7d0de;">
+  <div style="display:flex; align-items:baseline; gap:16px;">
+    <div style="font-size:26px; font-weight:700;">I dag vs. ny — hva endres, og hva røres ikke</div>
+    <div style="font-size:13px; color:#6b7280;">fabel · 2026-09-16 · svar på Kenneths oppfølging (gate B: JA — vei 4 består)</div>
+  </div>
+  <div style="display:flex; gap:20px; align-items:flex-start;">
+
+    <!-- RISIKOPANEL -->
+    <div style="width:400px; flex-shrink:0; display:flex; flex-direction:column; gap:14px;">
+      <div style="background:#fff; border:2px solid #15803d; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#15803d;">Røres IKKE — vernet mot Opus-avdrift</div>
+        <ul style="font-size:13px; line-height:1.65; margin:8px 0 0; padding-left:18px;">
+          <li><b>Server-endepunktet</b> (`forwarded`, oppgave.ts) — null endring. All ny UI kaller det som i dag.</li>
+          <li><b>F3.1</b> — videresend endrer ikke status. Står.</li>
+          <li><b>kanByttFlyt</b> — alle fire veier består (Kenneth: JA 16.09).</li>
+          <li><b>H3-filteret</b> — ikke-admin ser fortsatt kun egne flyter.</li>
+          <li><b>byggVideresendValg</b> — samme datastruktur, kun ny presentasjon.</li>
+          <li><b>Draft-send</b> (kladd→sendt) — urørt sti.</li>
+          <li><b>Posisjonsruting</b> for Send/Besvar — urørt.</li>
+        </ul>
+      </div>
+      <div style="background:#fff; border:1px solid #dbe1ea; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#1e40af;">Endres — kun presentasjonslaget</div>
+        <ul style="font-size:13px; line-height:1.65; margin:8px 0 0; padding-left:18px;">
+          <li>Meny-gaten `!harFlyt` løftes for Videresend-oppføringen (web + mobil).</li>
+          <li>Mottakervelgeren får to seksjoner + ⇄-konsekvenslinje.</li>
+          <li>Nytt bekreftelsessteg KUN ved flyt-bytte (påkrevd kommentar).</li>
+          <li>Mottakerens dokumentrad viser avsender + kommentar + «Venter på deg».</li>
+        </ul>
+        <div style="font-size:12px; color:#6b7280; line-height:1.5; margin-top:10px;">Opus-risikoen håndteres i ordren: «Røres ikke»-lista over går inn som eksplisitte forbud i DoD, og hver endring pekes til fil+linje. Ingen endring i datamodell, ruter eller tilgangskontroll betyr at feilkoding ikke KAN skade flyten — verste utfall er feil i visning/dialog, som er reversibelt.</div>
+      </div>
+      <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#b45309;">Konsekvensen av dagens flyt (målt)</div>
+        <ul style="font-size:13px; line-height:1.65; margin:8px 0 0; padding-left:18px;">
+          <li>Flyt-bundne dok: Videresend finnes ikke i menyen — admin må gå omveier for alle tre scenariene dine.</li>
+          <li>Flyt-løse dok: valg av annen faggruppe bytter flyt <b>stille</b> — brukeren får aldri vite det.</li>
+          <li>Mottakeren ser bare et nytt dokument — «noen venter på deg» ligger gjemt i historikken.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- KOLONNE: I DAG -->
+    <div style="width:460px; flex-shrink:0; display:flex; flex-direction:column; gap:14px;">
+      <div style="font-size:14px; font-weight:700; color:#b91c1c; text-transform:uppercase; letter-spacing:0.06em;">I dag</div>
+      <div style="font-size:12px; font-weight:700; color:#374151;">Handlingsmeny, flyt-bundet dokument</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden;">
+        <div style="padding:12px 16px; border-bottom:1px solid #eef1f6; display:flex; gap:8px;">
+          <span style="background:#1e40af; color:#fff; font-size:12px; font-weight:600; border-radius:6px; padding:6px 12px;">Send til 3 · Elektro →</span>
+          <span style="border:1px solid #c7d0de; color:#1e40af; font-size:12px; font-weight:600; border-radius:6px; padding:6px 9px;">▾</span>
+        </div>
+        <div style="padding:8px 0;">
+          <div style="padding:7px 16px; font-size:14px;">Besvar til 1 · Tømrer ←</div>
+          <div style="padding:7px 16px; font-size:14px; color:#374151;">Lukk dokumentet</div>
+          <div style="padding:7px 16px; font-size:14px; color:#b91c1c;">Trekk tilbake</div>
+          <div style="margin:8px 12px 6px; border:1px dashed #fca5a5; background:#fef2f2; border-radius:8px; padding:8px 10px; font-size:12px; color:#b91c1c; line-height:1.5;">Videresend finnes ikke her — pilot-fiks A gater den bort for alle flyt-bundne dok (web `!harFlyt`, mobil `harFlyt ? []`). Re-gating, feilretting og tømrer→elektriker er alle unåelige fra menyen.</div>
+        </div>
+      </div>
+      <div style="font-size:12px; font-weight:700; color:#374151;">Mottakervelger (der den finnes: flyt-løse dok)</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden;">
+        <div style="padding:10px 16px; font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#9ca3af; border-bottom:1px solid #eef1f6;">Videresend</div>
+        <div style="padding:9px 16px; font-size:14px; display:flex; align-items:center; gap:10px;"><span style="width:10px; height:10px; border-radius:50%; background:#f59e0b;"></span>Tømrer <span style="font-size:12px; color:#9ca3af; margin-left:auto;">▸</span></div>
+        <div style="padding:9px 16px; font-size:14px; display:flex; align-items:center; gap:10px; background:#f0f4ff;"><span style="width:10px; height:10px; border-radius:50%; background:#0ea5e9;"></span>Elektro (Elektro — sluttkontroll) <span style="font-size:12px; color:#9ca3af; margin-left:auto;">▸</span></div>
+        <div style="padding:9px 16px; font-size:14px; display:flex; align-items:center; gap:10px;"><span style="width:10px; height:10px; border-radius:50%; background:#8b5cf6;"></span>Rørlegger (VVS — trykktest) <span style="font-size:12px; color:#9ca3af; margin-left:auto;">▸</span></div>
+        <div style="margin:6px 12px 12px; border:1px dashed #fca5a5; background:#fef2f2; border-radius:8px; padding:8px 10px; font-size:12px; color:#b91c1c; line-height:1.5;">Klikk på «Elektro» bytter dokumentflyt + faggruppe <b>uten forvarsel og uten bekreftelse</b> — null treff på flytbytte-tekst i hele apps/web. Personene ligger gjemt bak ▸.</div>
+      </div>
+      <div style="font-size:12px; font-weight:700; color:#374151;">Mottakerens liste</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden;">
+        <div style="padding:12px 16px; border-bottom:1px solid #eef1f6;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px; flex:1;">Tetting rundt gjennomføringer</span>
+            <span style="font-size:11px; background:#e0e7ff; color:#1e40af; border-radius:99px; padding:3px 10px;">Mottatt</span>
+          </div>
+        </div>
+        <div style="margin:10px 12px 12px; border:1px dashed #fca5a5; background:#fef2f2; border-radius:8px; padding:8px 10px; font-size:12px; color:#b91c1c; line-height:1.5;">Ser ut som et hvilket som helst nytt dokument. «Videresendt fra Tømrer til Elektriker: {kommentar}» ligger kun i historikk-loggen — elektrikeren skjønner ikke at noen venter.</div>
+      </div>
+    </div>
+
+    <!-- KOLONNE: NY -->
+    <div style="width:460px; flex-shrink:0; display:flex; flex-direction:column; gap:14px;">
+      <div style="font-size:14px; font-weight:700; color:#15803d; text-transform:uppercase; letter-spacing:0.06em;">Ny (detaljer i rammene under)</div>
+      <div style="font-size:12px; font-weight:700; color:#374151;">Handlingsmeny — Videresend tilbake, med mikrotekst</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden;">
+        <div style="padding:8px 0;">
+          <div style="padding:7px 16px; font-size:14px;">Besvar til 1 · Tømrer ←</div>
+          <div style="padding:8px 16px; background:#f0fdf4; border-left:3px solid #15803d;">
+            <div style="font-size:14px; font-weight:600; color:#15803d;">Videresend …</div>
+            <div style="font-size:12px; color:#6b7280; line-height:1.5; margin-top:2px;">Flytter dokumentet sideveis — status endres ikke. Velges en annen flyt, må du bekrefte.</div>
+          </div>
+          <div style="padding:7px 16px; font-size:14px; color:#374151;">Lukk dokumentet</div>
+        </div>
+      </div>
+      <div style="font-size:12px; font-weight:700; color:#374151;">Mottakervelger — person først, konsekvens i valgøyeblikket</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden;">
+        <div style="padding:8px 16px 2px; font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#15803d;">I denne flyten — dokumentet blir hvor det er</div>
+        <div style="padding:7px 16px; font-size:14px;">Ola Bakken <span style="font-size:11px; color:#6b7280;">· utfører</span> <span style="font-size:11px; background:#fef3c7; color:#92400e; border-radius:99px; padding:2px 8px; margin-left:6px;">har ballen</span></div>
+        <div style="padding:7px 16px; font-size:14px;">Kari Holm <span style="font-size:11px; color:#6b7280;">· bestiller</span></div>
+        <div style="padding:8px 16px 2px; font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#b45309;">Andre flyter — flytter dokumentet dit</div>
+        <div style="padding:7px 16px 12px;">
+          <div style="font-size:14px; font-weight:600;">Elektro (Elektro — sluttkontroll) <span style="font-size:12px; color:#6b7280; font-weight:400;">· 3 personer ▾</span></div>
+          <div style="font-size:12px; color:#b45309; margin-top:2px;">⇄ Flytter dokumentet til flyten «Elektro — sluttkontroll»</div>
+        </div>
+      </div>
+      <div style="font-size:12px; font-weight:700; color:#374151;">+ Bekreftelse KUN ved flyt-bytte (ramme 3) og synlig «Venter på deg» hos mottaker (ramme 4)</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; padding:12px 16px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:14px; font-weight:600; flex:1;">Tetting rundt gjennomføringer</span>
+          <span style="font-size:11px; font-weight:700; background:#fef3c7; color:#92400e; border-radius:99px; padding:3px 10px;">⏳ Venter på deg</span>
+        </div>
+        <div style="font-size:12px; color:#6b7280; margin-top:4px;">Videresendt av Kenneth Lie (Ledelsen) · «Tømrer venter på at sluttkontrollen din er ferdig …»</div>
+      </div>
+      <div style="font-size:12px; color:#15803d; line-height:1.5;">Samme server-kall som i dag i alle tre stegene — det eneste nye er hva brukeren FÅR VITE før og etter.</div>
+    </div>
+
+  </div>
+</section>
+<section style="padding:36px; display:flex; flex-direction:column; gap:24px; min-width:2300px;">
+  <div style="display:flex; align-items:baseline; gap:16px;">
+    <div style="font-size:26px; font-weight:700;">Videresend — skill hensikt med synlig konsekvens, ikke med to handlinger</div>
+    <div style="font-size:13px; color:#6b7280;">fabel · 2026-09-16 · svar på inbox-fabel.md (a49452a1)</div>
+  </div>
+
+  <div style="display:flex; gap:20px; align-items:flex-start;">
+
+    <!-- ANBEFALING / FAKTA-PANEL -->
+    <div style="width:400px; flex-shrink:0; display:flex; flex-direction:column; gap:14px;">
+      <div style="background:#1e40af; color:#fff; border-radius:10px; padding:18px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; opacity:0.85;">A · Anbefaling</div>
+        <div style="font-size:15px; font-weight:600; margin-top:8px; line-height:1.45;">ÉN handling — «Videresend» — men konsekvensen vises i valgøyeblikket og bekreftes eksplisitt ved flyt-bytte.</div>
+        <div style="font-size:13px; margin-top:10px; line-height:1.55; opacity:0.95;">Begrunnelse (målt): begge hensikter er samme server-operasjon. Flyt-byttet utledes av HVILKEN mottaker som velges (valgt flyt ≠ dokumentets flyt) — det finnes ikke noe eget «bytt flyt»-kall å henge en egen handling på. To menyoppføringer som gjør det samme tvinger brukeren til å selvdiagnostisere hensikt FØR han ser valgene. Fiksen er synlighet: mottakerlista deles i «I denne flyten» og «Andre flyter», og alt under «Andre flyter» bærer konsekvenslinje + bekreftelsessteg med påkrevd kommentar.</div>
+      </div>
+      <div style="background:#fff; border:1px solid #dbe1ea; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#b45309;">Tilleggsfunn — må med i ordren</div>
+        <div style="font-size:13px; line-height:1.55; margin-top:8px;">Pilot-fiks A (02.08) gater Videresend HELT bort for flyt-bundne dokumenter: web <code style="background:#f3f4f6; padding:1px 4px; border-radius:3px;">!harFlyt</code> (DokumentHandlingsmeny.tsx:434), mobil <code style="background:#f3f4f6; padding:1px 4px; border-radius:3px;">harFlyt ? []</code> (DokumentHandlingslinje.tsx:208). Kenneths tre scenarier gjelder nettopp flyt-bundne dokumenter — funksjonen serveren har, er unåelig fra handlingsmenyen der den trengs. Tegningen gjenåpner den bevisst, i formen under. Gate-grunnen (mottakervelger som «kastes» av posisjonsruting) løses ved at videresend-stien nå ALLTID sender eksplisitt mottaker + flyt-ID.</div>
+      </div>
+      <div style="background:#fff; border:1px solid #dbe1ea; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#1e40af;">B · Gate-spørsmål til Kenneth</div>
+        <div style="font-size:14px; line-height:1.55; margin-top:8px;">Flyt-bytte har i dag fire veier til ja (kanByttFlyt): sitedoc-admin, prosjektadmin, registrator, og den som HAR BALLEN og selv er medlem av målflyten. Skal den fjerde veien bestå?</div>
+        <div style="font-size:13px; margin-top:8px; color:#4b5563;">Svar med ett ord: <b>behold</b> (ball-holder kan flytte) eller <b>stram</b> (kun admin/registrator).</div>
+      </div>
+      <div style="background:#fff; border:1px solid #dbe1ea; border-radius:10px; padding:16px 20px;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#6b7280;">Ikke tegnet</div>
+        <ul style="font-size:13px; line-height:1.6; margin:8px 0 0; padding-left:18px; color:#374151;">
+          <li>Mobil-layout (samme modell og tekster gjelder; egen tegnerunde om cowork trenger den)</li>
+          <li>Statusmodell og F3.1 (videresend endrer ikke status) — urørt per ordre</li>
+          <li>Datamodell/ruter, HMS, Malforvaltning — utenfor scope per ordre</li>
+          <li>Varslingskanal (e-post/push) til mottaker — kun liste-visningen er tegnet</li>
+          <li>Draft-send (draft→sent) — bruker ufiltrert liste i dag, urørt</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- FRAME 1: Handlingsmeny -->
+    <div style="width:420px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:13px; font-weight:700; color:#374151;">1 · Handlingsmenyen — Videresend tilbake for flyt-bundne dok</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,0.10); overflow:hidden;">
+        <div style="padding:14px 16px; border-bottom:1px solid #eef1f6; display:flex; gap:8px; align-items:center;">
+          <span style="background:#1e40af; color:#fff; font-size:12px; font-weight:600; border-radius:6px; padding:6px 12px;">Send til 3 · Elektro →</span>
+          <span style="border:1px solid #c7d0de; color:#1e40af; font-size:12px; font-weight:600; border-radius:6px; padding:6px 9px;">▾</span>
+        </div>
+        <div style="padding:10px 0;">
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#9ca3af; padding:6px 16px;">Framover</div>
+          <div style="padding:8px 16px; font-size:14px;">Besvar til 1 · Tømrer ←</div>
+          <div style="height:1px; background:#eef1f6; margin:8px 0;"></div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#9ca3af; padding:6px 16px;">Videresend</div>
+          <div style="padding:8px 16px; background:#f0f4ff;">
+            <div style="font-size:14px; font-weight:600; color:#1e40af;">Videresend …</div>
+            <div style="font-size:12px; color:#6b7280; line-height:1.5; margin-top:3px;">Flytter dokumentet sideveis til en person eller faggruppe — status endres ikke. Velges en annen flyt, flytter dokumentet dit, og du må bekrefte. Mottakeren ser hvem som sendte og hvorfor.</div>
+          </div>
+          <div style="height:1px; background:#eef1f6; margin:8px 0;"></div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#9ca3af; padding:6px 16px;">Administrator</div>
+          <div style="padding:8px 16px; font-size:14px; color:#374151;">Lukk dokumentet</div>
+          <div style="padding:8px 16px; font-size:14px; color:#b91c1c;">Trekk tilbake</div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">Én oppføring, åpner mottakervelgeren (ramme 2). Mikroteksten følger § 3a: hvor · hvem · hva ser motparten. Ingen «Tildel»/«Bytt flyt» som egne handlinger — skillet gjøres synlig I velgeren, ikke i menyen.</div>
+    </div>
+
+    <!-- FRAME 2: Mottakervelger -->
+    <div style="width:480px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:13px; font-weight:700; color:#374151;">2 · Mottakervelgeren — person først, flyt-bytte merket i valgøyeblikket</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,0.10); overflow:hidden;">
+        <div style="padding:14px 18px; border-bottom:1px solid #eef1f6;">
+          <div style="font-size:15px; font-weight:700;">Videresend «Tetting rundt gjennomføringer»</div>
+          <div style="font-size:12px; color:#6b7280; margin-top:2px;">Ligger i flyten <b style="color:#374151;">Tømrer — montasje</b> · ballen hos Ola Bakken (utfører)</div>
+        </div>
+        <div style="padding:12px 18px 4px;">
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#15803d;">I denne flyten — dokumentet blir hvor det er</div>
+        </div>
+        <div style="padding:0 10px;">
+          <div style="display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:8px;">
+            <span style="width:28px; height:28px; border-radius:50%; background:#e0e7ff; color:#1e40af; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;">OB</span>
+            <span style="font-size:14px; flex:1;">Ola Bakken <span style="font-size:11px; color:#6b7280;">· utfører</span></span>
+            <span style="font-size:11px; background:#fef3c7; color:#92400e; border-radius:99px; padding:2px 8px;">har ballen</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:8px; background:#f0f4ff;">
+            <span style="width:28px; height:28px; border-radius:50%; background:#e0e7ff; color:#1e40af; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;">KH</span>
+            <span style="font-size:14px; flex:1;">Kari Holm <span style="font-size:11px; color:#6b7280;">· bestiller</span></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:8px;">
+            <span style="width:28px; height:28px; border-radius:50%; background:#e5e7eb; color:#374151; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;">TG</span>
+            <span style="font-size:14px; flex:1;">Tømrergruppen <span style="font-size:11px; color:#6b7280;">· godkjenner</span></span>
+          </div>
+        </div>
+        <div style="padding:14px 18px 4px;">
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#b45309;">Andre flyter — flytter dokumentet dit</div>
+        </div>
+        <div style="padding:0 10px 12px;">
+          <div style="padding:9px 8px; border-radius:8px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="width:10px; height:10px; border-radius:50%; background:#0ea5e9;"></span>
+              <span style="font-size:14px; font-weight:600; flex:1;">Elektro (Elektro — sluttkontroll)</span>
+              <span style="font-size:12px; color:#6b7280;">3 personer ▾</span>
+            </div>
+            <div style="font-size:12px; color:#b45309; margin:4px 0 0 20px;">⇄ Flytter dokumentet til flyten «Elektro — sluttkontroll»</div>
+            <div style="margin:6px 0 0 20px; border-left:2px solid #e5e7eb; padding-left:10px;">
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;">Per Eng <span style="font-size:11px; color:#6b7280;">· utfører · hovedansvarlig</span></div>
+              <div style="display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px;">Elektrikergruppen <span style="font-size:11px; color:#6b7280;">· utfører</span></div>
+            </div>
+          </div>
+          <div style="padding:9px 8px; border-radius:8px; display:flex; align-items:center; gap:10px;">
+            <span style="width:10px; height:10px; border-radius:50%; background:#8b5cf6;"></span>
+            <span style="font-size:14px; font-weight:600; flex:1;">Rørlegger (VVS — trykktest)</span>
+            <span style="font-size:12px; color:#6b7280;">2 personer ▸</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">Svar på C: personene er førstevalg — flytens medlemmer ligger flate og synlige øverst, ikke bak en ekspander. «Andre flyter» beholder faggruppe→flyt-strukturen fra byggVideresendValg, men hvert valg bærer ⇄-konsekvenslinjen. «Andre flyter»-seksjonen vises kun for dem kanByttFlyt slipper gjennom (gate-spørsmål B).</div>
+    </div>
+
+    <!-- FRAME 3: Bekreftelse flyt-bytte -->
+    <div style="width:440px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:13px; font-weight:700; color:#374151;">3 · Bekreftelse ved flyt-bytte — konsekvens + påkrevd kommentar</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,0.10); overflow:hidden;">
+        <div style="padding:16px 18px; border-bottom:1px solid #eef1f6; font-size:15px; font-weight:700;">Flytt og videresend?</div>
+        <div style="padding:16px 18px; display:flex; flex-direction:column; gap:12px;">
+          <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px 14px; font-size:13px; line-height:1.6;">
+            <div>Dokumentet forlater flyten <b>Tømrer — montasje</b> og går inn i <b>Elektro — sluttkontroll</b>.</div>
+            <div style="margin-top:4px;">Ballen går til <b>Per Eng</b> (hovedansvarlig utfører). Status endres ikke.</div>
+            <div style="margin-top:4px;">Per ser hvem som sendte, og kommentaren under.</div>
+          </div>
+          <div>
+            <div style="font-size:12px; font-weight:600; color:#374151;">Kommentar til mottaker <span style="color:#b91c1c;">*</span></div>
+            <div style="border:1px solid #c7d0de; border-radius:8px; padding:10px 12px; font-size:13px; color:#374151; margin-top:5px; min-height:44px;">Tømrer venter på at sluttkontrollen din er ferdig før han kan tette rundt gjennomføringene.</div>
+            <div style="font-size:11px; color:#6b7280; margin-top:4px;">Påkrevd ved flyt-bytte — mottakeren skal skjønne hvorfor dokumentet kommer.</div>
+          </div>
+          <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <span style="border:1px solid #c7d0de; color:#374151; font-size:13px; font-weight:600; border-radius:7px; padding:8px 14px;">Avbryt</span>
+            <span style="background:#1e40af; color:#fff; font-size:13px; font-weight:600; border-radius:7px; padding:8px 14px; white-space:nowrap;">Flytt til Elektro — sluttkontroll</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">Bekreftelsen fyres KUN når valgt flyt ≠ dokumentets flyt. Videresend innen egen flyt (ramme 2, øvre seksjon) går direkte med valgfri kommentar — det er normal drift, ingen friksjon. Knappeteksten navngir målflyten, aldri generisk «Bekreft».</div>
+    </div>
+
+    <!-- FRAME 4: Mottakerens liste -->
+    <div style="width:460px; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:13px; font-weight:700; color:#374151;">4 · Hva elektrikeren ser — «noen venter på deg», ikke bare et nytt dokument</div>
+      <div style="background:#fff; border:1px solid #d1d5db; border-radius:12px; box-shadow:0 8px 24px rgba(15,23,42,0.10); overflow:hidden;">
+        <div style="padding:12px 16px; border-bottom:1px solid #eef1f6; font-size:13px; font-weight:700; color:#374151;">Mine dokumenter · Per Eng</div>
+        <div style="padding:12px 16px; border-bottom:1px solid #eef1f6; background:#fffdf5;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px; font-weight:600; flex:1;">Tetting rundt gjennomføringer</span>
+            <span style="font-size:11px; font-weight:700; background:#fef3c7; color:#92400e; border-radius:99px; padding:3px 10px;">⏳ Venter på deg</span>
+          </div>
+          <div style="font-size:12px; color:#6b7280; margin-top:4px;">Videresendt av Kenneth Lie (Ledelsen) · i dag 11:40 · Elektro — sluttkontroll</div>
+          <div style="font-size:13px; color:#374151; background:#f3f4f6; border-radius:6px; padding:8px 10px; margin-top:6px; line-height:1.5;">«Tømrer venter på at sluttkontrollen din er ferdig før han kan tette rundt gjennomføringene.»</div>
+        </div>
+        <div style="padding:12px 16px; border-bottom:1px solid #eef1f6;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px; flex:1;">Kursfortegnelse tavle B2</span>
+            <span style="font-size:11px; background:#e0e7ff; color:#1e40af; border-radius:99px; padding:3px 10px;">Mottatt</span>
+          </div>
+        </div>
+        <div style="padding:12px 16px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:14px; flex:1;">Jordfeilmåling plan 3</span>
+            <span style="font-size:11px; background:#e5e7eb; color:#374151; border-radius:99px; padding:3px 10px;">Under arbeid</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:#6b7280; line-height:1.5;">Svar på D: loggen «Videresendt fra X til Y: {kommentar}» er ikke nok — den ligger i historikken, ikke i lista. Raden får (1) «Venter på deg»-badge når dokumentet kom paatvers med kommentar, (2) avsender med rolle, (3) kommentaren synlig i raden. Datagrunnlaget finnes allerede i DocumentTransfer (senderId, comment, retning=paatvers) — ingen schema-endring.</div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

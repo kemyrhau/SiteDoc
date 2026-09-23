@@ -945,4 +945,56 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide opplastings_ko med sheet_utlegg_id:", e);
   }
+
+  // Offline-sjekklister fase 1 (2026-09-11) — sjekkliste_local: offline-katalog
+  // for sjekklistelista. Read-only mirror, full-overskrives per prosjekt via
+  // sjekklisteKatalog.refreshSjekklisteKatalog. KUN lokal, synkes aldri opp.
+  // Idempotent CREATE IF NOT EXISTS. Bærer kun det lista viser/filtrerer på.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS sjekkliste_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      project_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL,
+      number INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      subject TEXT,
+      due_date TEXT,
+      byggeplass_id TEXT,
+      byggeplass_navn TEXT,
+      template_name TEXT,
+      template_prefix TEXT,
+      utforer_faggruppe_navn TEXT,
+      drawing_navn TEXT,
+      dokumentflyt_navn TEXT,
+      recipient_user_navn TEXT,
+      recipient_group_navn TEXT,
+      bestiller_navn TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sjekkliste_local_project
+      ON sjekkliste_local(project_id);
+  `);
+
+  // TILLEGG-2 (2026-09-11) — reise_grensepunkt_local: offline-cache av firmaets
+  // reise-grensepunkter (grenseM → lonnsartId, oppslag «største grenseM <=
+  // avstandM»). Komposit-PK (organization_id, grense_m) speiler serverens
+  // UNIQUE(organizationId, grenseM) → overlapp strukturelt umulig.
+  // 🔴 STÅR TOM OG UBRUKT etter denne runden MED VILJE — refresh-tjeneste +
+  // lesere bygges av feat/reise-avstandsband-oppfølgeren (redesign). Ikke rydd
+  // bort som ubrukt (jf. group_faggrupper: tom i 22 prosjekter et halvt år).
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS reise_grensepunkt_local (
+      organization_id TEXT NOT NULL,
+      grense_m INTEGER NOT NULL,
+      lonnsart_id TEXT,
+      sist_oppdatert INTEGER NOT NULL,
+      PRIMARY KEY (organization_id, grense_m)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_reise_grensepunkt_local_org
+      ON reise_grensepunkt_local(organization_id);
+  `);
 }

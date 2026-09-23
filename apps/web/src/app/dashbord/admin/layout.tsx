@@ -6,6 +6,9 @@ import { LayoutDashboard, FolderKanban, Building2, Shield, FlaskConical, Databas
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 
+// Merk: denne admin-navigasjonen bruker hardkodede norske labels (pre-eksisterende
+// mønster i hele fila) — «Bibliotek» følger samme konvensjon. Side-strengene i
+// bibliotek/page.tsx er i18n-et via t().
 const navigasjon = [
   {
     label: "Oversikt",
@@ -47,6 +50,8 @@ const navigasjon = [
     href: "/dashbord/admin/lagring",
     ikon: <HardDrive className="h-4 w-4" />,
   },
+  // «Bibliotek» fjernet (ordre malforvaltning): SiteDoc-sentralarkivet er flyttet til
+  // Firma › Innstillinger › Malforvaltning › SiteDoc-arkiv. admin/bibliotek er revet.
 ];
 
 export default function AdminLayout({

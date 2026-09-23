@@ -119,9 +119,14 @@ async function main() {
     await prisma.dokumentflytMal.create({ data: { dokumentflytId: flyt.id, templateId: mal.id } });
   }
 
-  // Medlemmer (periodeSlutt=null=aktiv, steg=1)
+  // Medlemmer med DISTINKTE steg (1/2/3) — én per rolle. byggLedd (FlytIndikator)
+  // grupperer på `steg`, så alle på steg=1 ville kollapset til ÉN ledd-boks, mens
+  // slåOppFlyt teller tre roller (antallLedd=3). De to kildene må stemme: et 3-rolles
+  // flyt HAR tre ledd. (2026-09-16, e2e del-3 04-funn — samme seed-matcher-ikke-
+  // produksjon-klasse som ProjectOrganization-gapet i seed-testbrukere.)
   async function sikreMedlem(
     rolle: string,
+    steg: number,
     binding: { projectMemberId?: string; faggruppeId?: string },
     erHovedansvarlig = false,
   ) {
@@ -130,17 +135,19 @@ async function main() {
     });
     if (!eksisterende) {
       await prisma.dokumentflytMedlem.create({
-        data: { dokumentflytId: flyt!.id, rolle, steg: 1, erHovedansvarlig, ...binding },
+        data: { dokumentflytId: flyt!.id, rolle, steg, erHovedansvarlig, ...binding },
       });
+    } else if (eksisterende.steg !== steg) {
+      await prisma.dokumentflytMedlem.update({ where: { id: eksisterende.id }, data: { steg } });
     }
   }
-  await sikreMedlem("registrator", { projectMemberId: firmaMedlem.id });
+  await sikreMedlem("registrator", 1, { projectMemberId: firmaMedlem.id });
   // Utfører bundet til BÅDE arbeiders projectMember (→ konkret recipientUserId,
   // «Venter på»-chip + ball-oppslag) OG Utfører-faggruppen (→ modalens
   // utforerFaggruppeId + faggruppe-rolleoppslag). Arbeider er non-admin → ekte
   // utfører-rettigheter (H3 videresend-per-rolle).
-  await sikreMedlem("utforer", { projectMemberId: arbeiderMedlem.id, faggruppeId: utforer.id }, true);
-  await sikreMedlem("godkjenner", { projectMemberId: firmaMedlem.id });
+  await sikreMedlem("utforer", 2, { projectMemberId: arbeiderMedlem.id, faggruppeId: utforer.id }, true);
+  await sikreMedlem("godkjenner", 3, { projectMemberId: firmaMedlem.id });
 
   console.log("E2E-flyt seedet:");
   console.log(`  Prosjekt : ${prosjekt.name} (${prosjekt.id})`);

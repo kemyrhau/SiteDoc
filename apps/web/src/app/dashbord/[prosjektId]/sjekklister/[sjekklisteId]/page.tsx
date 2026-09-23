@@ -7,7 +7,7 @@ import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift, ekspanderEndring, byggKolonnerPerFelt } from "@sitedoc/pdf";
 import type { ProsjektForPdf, Utskriftsinnstillinger, Segment } from "@sitedoc/pdf";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { Check, AlertCircle, Loader2, Pencil, ArrowLeft, ShieldAlert, Download, Clock, ChevronDown, ChevronRight, Anchor } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -129,6 +129,12 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // Videresend synlig konsekvens (ramme 2, gate B): gjenbruk av server-verdikten kanByttFlyt.
+  const { data: tilgjengeligeFlyter } = trpc.sjekkliste.hentTilgjengeligeFlyter.useQuery(
+    { id: params.sjekklisteId },
+    { enabled: !!params.sjekklisteId },
+  );
+
   const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -170,6 +176,10 @@ export default function SjekklisteDetaljSide() {
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
     mineTillatelser,
   });
+
+  // Ramme 4 (bundet-flyt-tegning): anker i flyt-merket når dokumentets egen flyt er bundet.
+  const egenDokflytId = (fullSjekklisteRå as { dokumentflytId?: string | null } | undefined)?.dokumentflytId ?? undefined;
+  const egenFlytBundet = dokumentflyter.find((df) => df.id === egenDokflytId)?.bundet ?? false;
 
   // --- Skjema-hook med rettighetsinfo ---
 
@@ -762,7 +772,12 @@ export default function SjekklisteDetaljSide() {
           <div className="mt-2">
             {/* Runde-2 (#7/#8): flyt-navn som caption over flytlinja (f.eks. «Sitedoc Ansatte»). */}
             {flytNavn && (
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{flytNavn}</div>
+              <div className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                {flytNavn}
+                {egenFlytBundet && (
+                  <Anchor className="h-3 w-3 shrink-0" aria-label={t("dokumentflyt.bundet.ankerTooltip")} />
+                )}
+              </div>
             )}
             <div className="hidden sm:block">
               <FlytIndikator
@@ -837,6 +852,8 @@ export default function SjekklisteDetaljSide() {
             bestillerUserId={fullSjekkliste?.bestillerUserId}
             lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
             kanSletteSomOppretter={erMelder && erUtkast}
+            kanByttFlyt={tilgjengeligeFlyter?.kanFlytte ?? false}
+            dokumentTittel={sjekkliste.title ?? undefined}
           />
           )}
           <div className="ml-auto flex items-center gap-2">
@@ -900,8 +917,9 @@ export default function SjekklisteDetaljSide() {
             bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
             positionX={(sjekkliste as unknown as { positionX?: number | null }).positionX}
             positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
-            lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null}
+            lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null }).lokasjonOmfang ?? null}
             lokasjonFritekst={(fullSjekkliste as unknown as { lokasjonFritekst?: string | null }).lokasjonFritekst ?? null}
+            omradeId={(fullSjekkliste as unknown as { omradeId?: string | null }).omradeId ?? null}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -912,6 +930,7 @@ export default function SjekklisteDetaljSide() {
                 positionY: data.positionY ?? null,
                 lokasjonOmfang: data.lokasjonOmfang ?? null,
                 lokasjonFritekst: data.lokasjonFritekst ?? null,
+                omradeId: data.omradeId ?? null,
               });
             }}
             leseModus={["closed", "approved"].includes(sjekkliste.status)}
@@ -919,7 +938,7 @@ export default function SjekklisteDetaljSide() {
                showLocation-gaten wrapper allerede blokka. Lukking uten valg lagrer ingenting. */
             autoÅpne={
               sjekkliste.status === "draft" &&
-              ((fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null) == null &&
+              ((fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null }).lokasjonOmfang ?? null) == null &&
               !(sjekkliste as unknown as { drawingId?: string | null }).drawingId
             }
           />

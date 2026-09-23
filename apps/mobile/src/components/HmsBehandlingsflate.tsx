@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, Pressable, TextInput } from "react-native";
 import { useTranslation } from "react-i18next";
+import { KnappMedForklaring } from "./KnappMedForklaring";
 
 /**
  * HMS-behandler-flate for mobil (H1, 2026-08-24) — port av web-`HmsHandlingsflate`.
@@ -122,6 +123,10 @@ export function HmsBehandlingsflate({
             className="min-h-[72px] rounded-lg border border-gray-200 px-3 py-2 text-sm"
             style={{ textAlignVertical: "top" }}
           />
+          <KnappMedForklaring
+            sperret={aktivDef.obligatorisk && !tekst.trim()}
+            forklaring={t("sperret.tekstPaakrevd")}
+          >
           <View className="flex-row items-center gap-2">
             <Pressable
               onPress={() => send(aktivDef)}
@@ -140,6 +145,7 @@ export function HmsBehandlingsflate({
               <Text className="text-sm text-gray-600">{t("handling.avbryt")}</Text>
             </Pressable>
           </View>
+          </KnappMedForklaring>
         </View>
       ) : (
         <View className="flex-row flex-wrap items-center gap-2">

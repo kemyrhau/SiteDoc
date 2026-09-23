@@ -226,6 +226,17 @@ export function OppgaveModal({
           </Pressable>
         </View>
 
+        {/* Sperret «Opprett» sitter i headeren (blå bakgrunn tåler ikke en linje under
+            knappen) — forklaringen står derfor rett under headeren, grå ikke amber.
+            Speiler OpprettDokumentModal-plasseringen. Vises bare når faggruppe mangler. */}
+        {!oppretterFaggruppeId && !opprettMutasjon.isPending ? (
+          <View className="px-4 py-2">
+            <Text className="text-xs text-gray-400">
+              {t("sperret.velgFaggruppeOppretter")}
+            </Text>
+          </View>
+        ) : null}
+
         <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
           {/* Tegningsposisjon */}
           <View className="border-b border-gray-100 px-4 py-3">

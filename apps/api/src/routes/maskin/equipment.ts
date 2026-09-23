@@ -297,6 +297,9 @@ export const equipmentRouter = router({
         // Anleggsmaskin-info
         serienummer: z.string().max(100).nullable().optional(),
         driftstimer: z.number().int().nullable().optional(),
+        // Service pr. timetall (kundeønske #1) — konfigureres i maskinens innstillinger.
+        // 0/negativt avvises: DB-CHECK + zod-min speiler hverandre (meningsløst intervall).
+        serviceIntervallTimer: z.number().int().min(1).nullable().optional(),
         skuffeKapasitet: z.number().nullable().optional(),
         loftKapasitet: z.number().nullable().optional(),
         maksVekt: z.number().int().nullable().optional(),

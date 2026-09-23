@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner, Textarea } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import {
   KOMPETANSE_KATEGORIER,
   type KompetanseKategori,
@@ -1460,13 +1461,18 @@ function ImportFraFilDialog({ onLukk }: { onLukk: () => void }) {
               <Button type="button" variant="secondary" onClick={() => setSteg("opplastning")}>
                 {t("firma.kompetanse.import.knapp.tilbake")}
               </Button>
-              <Button
-                type="button"
-                onClick={() => setSteg("bekreft")}
-                disabled={!kanGåVidere}
+              <KnappMedForklaring
+                sperret={!kanGåVidere}
+                forklaring={t("sperret.ryddValideringsfeil")}
               >
-                {t("firma.kompetanse.import.knapp.neste")}
-              </Button>
+                <Button
+                  type="button"
+                  onClick={() => setSteg("bekreft")}
+                  disabled={!kanGåVidere}
+                >
+                  {t("firma.kompetanse.import.knapp.neste")}
+                </Button>
+              </KnappMedForklaring>
             </div>
           </div>
         )}

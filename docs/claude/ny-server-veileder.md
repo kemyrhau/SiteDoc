@@ -12,7 +12,7 @@
 
 | App | Stack-mappe | Container(e) | Domene |
 |-----|-------------|--------------|--------|
-| sitedoc | `~/stack/sitedoc` | `sitedoc-api`, `sitedoc-web`, `sitedoc-embed`, `sitedoc-oversettelse` | sitedoc.no / api.sitedoc.no |
+| sitedoc | `~/stack/sitedoc` | `sitedoc-api`, `sitedoc-web`, `sitedoc-embed`, `sitedoc-oversettelse`, `sitedoc-pdf-render` | sitedoc.no / api.sitedoc.no |
 | salsaklubb | `~/stack/salsaklubb` | `salsaklubb` | sitedoc.online + *.sitedoc.site |
 | sendfil | `~/stack/sendfil` | `sendfil` | sendfil.sitedoc.site |
 | (delt) | `~/stack/postgres` | `postgres` (pgvector/pg16) | intern :5432 |
@@ -119,3 +119,51 @@ sudo ufw enable
 
 ⚠️ **Kjør kun med fysisk konsoll tilgjengelig.** `allow outgoing` er påkrevd — cloudflared, Tailscale,
 Open-Meteo, Resend, embed/oversettelse og docker-pull er alle utgående.
+
+---
+
+## 7. Flytte-sjekkliste — «skal serveren flyttes igjen»
+
+> **Hvorfor denne finnes.** Ved flyttingen 2026-06-10 sluttet **PDF-tegninger, DWG-konvertering
+> og 3D-punktsky** å virke fordi binærene de trenger (`pdftoppm`, `dwg2dxf`, `CloudCompare`,
+> `PotreeConverter`, `tesseract`, `xvfb`) ikke fulgte med det nye imaget. **Ingen test, ingen
+> oppstartssjekk og ingen røykliste fanget det** — det ble oppdaget først 3,5 måned senere, ved
+> at Kenneth så at en tegning ikke rendret (`spawn pdftoppm ENOENT`).
+>
+> Det er **samme feilklasse** som da en tidligere flytting mistet **68 MB opplastede filer —
+> 194 bilagsvedlegg** — fordi et bind-mount manglet (`Tromsosalsaklubb/CLAUDE.md`). I begge
+> tilfeller **forsvant noe uten at noe ropte.** Denne seksjonen + kapabilitets-proben er ropet.
+
+### 7.1 Steg 1 — kjør kapabilitets-proben (det et script KAN verifisere)
+
+```sh
+ssh server-ny
+cd ~/stack/sitedoc
+bash docker/kapabilitetsprobe.sh          # exit 0 = alt kreves finnes, exit 1 = noe mangler
+```
+
+Proben er **lesende** (rapporterer, installerer ingenting) og går gjennom hver container: sjekker
+binærer utledet fra koden (`command -v`), env-nøkler (`grep -q` — aldri verdier), volumer/mounts,
+`appnet`-nettet og pgvector. En rød `MANGLER`-linje kan ikke misleses klokka to om natten slik en
+avhuket sjekkliste kan. Listen den sjekker er utledet fra `execFile`/`spawn`-kall i `apps/api` +
+`docker-compose.yml` + `Dockerfile.*` — når koden får en ny ekstern avhengighet, **legg den til i
+proben i samme PR** (`docker/kapabilitetsprobe.sh`, `BINARER_NODE`-listen har fil:linje-kommentarer).
+
+🔴 **Proben er grunnlaget for en oppstartssjekk i web/api (egen sak, design har bedt om den).**
+Den er IKKE bygget ennå — inntil da er det å KJØRE proben etter hver flytting det eneste vernet.
+
+### 7.2 Steg 2 — det et script IKKE kan verifisere (manuelt, i rekkefølge)
+
+| # | Punkt | Hvorfor script ikke kan sjekke det | Fasit |
+|---|-------|-----------------------------------|-------|
+| 1 | **Backup FØR flytting** | Et script på ny boks vet ikke om gammel data finnes | Dump postgres (`sitedoc` + `sitedoc_test`) **og** `tar` av `~/stack/sitedoc/uploads` **før** noe røres. Verifiser at dumpen har rader og at tar-ballen har filer — en tom backup er verre enn ingen. |
+| 2 | **Volumer / bind-mounts** | Proben ser dem først *etter* at de er montert riktig; en tom mappe ser lik ut som en som mangler | `/home/kemyrhau/stack/sitedoc/uploads` MÅ bind-mountes (api rw, web ro) og innholdet MÅ kopieres over. **Dette er 68 MB-lærdommen.** `ml_models`-volumet kan gjenskapes (HF laster på nytt), men da må boksen nå `huggingface.co`. |
+| 3 | **`appnet`-nettet + postgres** | `external: true` i compose → nettet MÅ finnes før `up`, ellers feiler start | Opprett `appnet` og start den delte pgvector-containeren (egen compose i `~/stack/postgres`) FØR sitedoc-stacken. `pgvector`-extension må være aktiv i db-en (proben sjekker). |
+| 4 | **DNS / Cloudflare-tunnel** | Ligger hos Cloudflare, ikke på serveren | CNAME for hvert hostnavn peker på tunnelens `…cfargotunnel.com` (§ 4-tabellen). Ny tunnel-ID → alle CNAME må oppdateres. Hostnames utenfor cert-sonen rutes via dashboard, ikke `cloudflared tunnel route dns`. |
+| 5 | **OAuth redirect-URI-er** | Ligger hos Google og Azure, ikke i repo eller på serveren | Google Cloud Console + Azure Entra: redirect-URI må matche `https://sitedoc.no/api/auth/callback/{google,microsoft-entra-id}`. Flytter du domene/host endres disse. `redirect_uri_mismatch` = denne. |
+| 6 | **Env-filer (`docker/env/`)** | Gitignorert — finnes ingen steder i historikk hvis de tapes | Kopier `felles.env`, `api.env`, `web.env` manuelt (aldri via rsync uten `--exclude`, aldri `>`). Proben bekrefter at NØKLENE finnes, ikke at VERDIENE er riktige — det må du verifisere selv (særlig `DATABASE_URL`, `AUTH_SECRET`, `FIL_SIGNING_SECRET` som må være identisk i api+web). |
+| 7 | **Eksterne tjenester nås** | Utgående nett-tilgang måles ikke trygt av en lesende probe | Med brannmur (§ 6): `allow outgoing`. Tjenestene appen ringer: Google/Microsoft OAuth, HuggingFace, Resend, Vegvesen, Open-Meteo, Nominatim/OSRM/Geonorge/brreg, DeepL. |
+| 8 | **Backup ETTER + innlogget verifisering** | «HTTP 200» beviser bare at serveren svarer | Logg inn som ekte bruker, åpne et prosjekt, **render en PDF-tegning, en DWG og en 3D-punktsky** (de tre som røk sist), send en testinvitasjon (Resend). Ta ny backup når alt er bekreftet. |
+
+🔴 **Punkt 8, tegning+DWG+3D, er ikke valgfritt.** Det var nettopp disse tre som falt stille sist —
+og det eneste som beviser at proben ikke ga falsk trygghet.

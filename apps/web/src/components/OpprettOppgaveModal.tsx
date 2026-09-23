@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useId } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Modal, Select, Button } from "@sitedoc/ui";
+import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { trpc } from "@/lib/trpc";
 import { byggOpprettInput } from "@/lib/opprettFraTegning";
 
@@ -277,9 +278,14 @@ export function OpprettOppgaveModal({
 
         <p className="text-sm text-gray-500">{t("opprettOppgave.tittel")} {tittel}</p>
 
-        <Button type="submit" disabled={!kanOpprette} loading={opprettMutation.isPending}>
-          {t("oppgaver.opprett")}
-        </Button>
+        <KnappMedForklaring
+          sperret={!kanOpprette && !opprettMutation.isPending}
+          forklaring={t("sperret.malOgFlyt")}
+        >
+          <Button type="submit" disabled={!kanOpprette} loading={opprettMutation.isPending}>
+            {t("oppgaver.opprett")}
+          </Button>
+        </KnappMedForklaring>
       </form>
     </Modal>
   );

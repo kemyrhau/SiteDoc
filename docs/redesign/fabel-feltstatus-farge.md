@@ -1,6 +1,6 @@
 # Til fabel: hvilken farge betyr «her må noen ta en avgjørelse»?
 
-**Fra:** cowork · **Dato:** 2026-09-07 · **Status:** 🔴 ÅPEN — Kenneth har vedtatt prinsippet,
+**Fra:** cowork · **Dato:** 2026-09-07 · **Status:** ✅ BESVART 2026-09-17 — se `ui-standarder.md § Feltstatus` (tidligere: 🔴 ÅPEN — Kenneth hadde vedtatt prinsippet,
 fargespråket mangler
 
 ## Kenneths vedtak (2026-09-07)

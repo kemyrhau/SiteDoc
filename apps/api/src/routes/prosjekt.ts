@@ -619,21 +619,65 @@ export const prosjektRouter = router({
         });
       }
 
-      // «Avslutt»/«Arkiver» fra aktiv krever et ferdig dataeksport-arkiv. sitedoc-admin
-      // (nødutgang) unntas. Overgang mellom to frosne tilstander (completed→archived)
-      // krever ikke nytt arkiv — det ble laget ved avslutning.
+      // «Avslutt»/«Arkiver» fra aktiv krever et FERSKT, ikke-utløpt dataeksport-arkiv.
+      // sitedoc-admin (nødutgang) unntas. Overgang mellom to frosne tilstander
+      // (completed→archived) krever ikke nytt arkiv — det ble laget ved avslutning.
+      //
+      // Tre betingelser (løsning B, Kenneth-vedtak 2026-09-13) — alle må holde:
+      //   1. status = "klar"              — arkivet er ferdig bygget
+      //   2. utloperVed > nå (el. null)   — det er ikke utløpt/slettet
+      //   3. fullfortVed >= siste endring — arkivet er laget ETTER siste dokumentendring
+      //
+      // «Siste endring» = nyeste updatedAt på tvers av Checklist + Task for prosjektet.
+      // MÅLT (2026-09-13): dokument-mutasjonene (sjekkliste/oppgave/hms: oppdaterData,
+      // endreStatus, settVedleggUrl, opprett) skriver INGEN Activity-rad — Activity dekker
+      // kun livssyklus/eksport/timer/vareforbruk. `updatedAt` bumpes derimot av hver
+      // checklist.update/task.update (Prisma @updatedAt), så den fanger oppretting, utfylling,
+      // statusendring og vedlegg. Activity ville gått grønt på et prosjekt der noen fylte ut
+      // femti felter etter eksporten — derfor updatedAt, ikke Activity.
       const gårTilFrossen = input.status === "completed" || input.status === "archived";
       if (gårTilFrossen && prosjekt.status === "active" && !erSitedocAdmin) {
+        const naa = new Date();
+        // Nyeste ferdige arkiv: det har både ferskest fullfortVed og seneste utloperVed, så
+        // det dominerer eldre arkiver på begge akser — én kandidat er tilstrekkelig.
         const arkiv = await ctx.prisma.eksportJobb.findFirst({
           where: { projectId: input.id, status: "klar" },
-          select: { id: true },
+          orderBy: { fullfortVed: "desc" },
+          select: { fullfortVed: true, utloperVed: true },
         });
         if (!arkiv) {
-          throw new TRPCError({
-            code: "PRECONDITION_FAILED",
-            message:
-              "Lag et dataeksport-arkiv før du avslutter prosjektet — etter avslutning er dokumentene utilgjengelige for prosjektdeltakerne.",
-          });
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "livssyklus.gate.arkivMangler" });
+        }
+        // utloperVed = null → utløper aldri. Feltet betyr «artefakt slettes etter dette»;
+        // ingen verdi = ingen planlagt sletting, altså et permanent arkiv som består gaten.
+        if (arkiv.utloperVed !== null && arkiv.utloperVed <= naa) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "livssyklus.gate.arkivUtlopt" });
+        }
+        // Siste dokumentendring i prosjektet. Live dokumenter (deletedAt = null) — et slettet
+        // dokument skal ikke være i arkivet uansett, så det skal ikke gjøre arkivet «for gammelt».
+        // Begge når prosjektet via template.projectId; oppgave.opprett krever templateId, så
+        // ingen Task faller utenfor oppslaget.
+        const [sisteChecklist, sisteTask] = await Promise.all([
+          ctx.prisma.checklist.findFirst({
+            where: { template: { projectId: input.id }, deletedAt: null },
+            orderBy: { updatedAt: "desc" },
+            select: { updatedAt: true },
+          }),
+          ctx.prisma.task.findFirst({
+            where: { template: { projectId: input.id }, deletedAt: null },
+            orderBy: { updatedAt: "desc" },
+            select: { updatedAt: true },
+          }),
+        ]);
+        const endringer = [sisteChecklist?.updatedAt, sisteTask?.updatedAt].filter(
+          (d): d is Date => d != null,
+        );
+        const sisteEndring = endringer.length ? endringer.reduce((a, b) => (a > b ? a : b)) : null;
+        // Ingen dokumenter → ingenting å bli foreldet mot (gaten går grønt). Finnes endringer,
+        // må arkivet være fullført OG fullført etter den siste. fullfortVed kan i teorien være
+        // null på en klar-jobb; da kan vi ikke bevise ferskhet → nekt.
+        if (sisteEndring && (!arkiv.fullfortVed || arkiv.fullfortVed < sisteEndring)) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "livssyklus.gate.arkivForGammelt" });
         }
       }
 

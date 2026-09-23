@@ -321,17 +321,32 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     console.log("[KØ] prosesserNeste kalt, erPaaNettet:", erPaaNettet, "prosesserer:", prosessererRef.current);
     if (prosessererRef.current || !erPaaNettet) return;
     prosessererRef.current = true;
-    settErAktiv(true);
 
-    const db = hentDatabase();
-    if (!db) {
-      console.log("[KØ] Database ikke tilgjengelig");
-      prosessererRef.current = false;
-      settErAktiv(false);
-      return;
-    }
+    // Krav 2 (2026-09-18, kø-frys-runden): flagget nullstilles ÉN gang — i
+    // `finally` — så invarianten «flagget er false når prosessering er ferdig»
+    // er strukturell, ikke avhengig av at åtte spredte tilordninger alle er
+    // korrekte neste gang noen rører fila. Fella: rekursjonen MÅ kalles ETTER at
+    // flagget er false, ellers returnerer det rekursive kallet umiddelbart på
+    // guarden over. Løsning: veiene som før kalte `prosesserNeste()` inline
+    // setter i stedet `skalFortsetteMedNeste = true`, og selve rekursjonen
+    // flyttes UT av try-blokken til ETTER finally. Siden en `return` inne i try
+    // kjører finally og deretter hopper over koden etter blokken, bruker de
+    // rekurserende veiene if/else (ikke tidlig `return`) så kontrollen når
+    // finally + rekursjonen. De ikke-rekurserende veiene (ingen DB · alt i
+    // backoff/tom kø · total feil i ytre catch) beholder `return`/fall-through
+    // og lar flagget stå false uten å rekursere — akkurat som før.
+    let skalFortsetteMedNeste = false;
 
     try {
+      settErAktiv(true);
+
+      const db = hentDatabase();
+      if (!db) {
+        console.log("[KØ] Database ikke tilgjengelig");
+        settErAktiv(false);
+        return;
+      }
+
       // Kandidater: 'venter' (inkl. nett-feilede, som settes tilbake til venter)
       // ELLER 'feilet' under taket (harde feil). Sortert på forsøk stigende, så
       // ferske oppføringer går FØRST og en gjentatt-feilende sakker bakover
@@ -358,8 +373,8 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
       );
 
       if (!oppforing) {
-        // Ingen klar akkurat nå: enten tom kø, eller alle i backoff.
-        prosessererRef.current = false;
+        // Ingen klar akkurat nå: enten tom kø, eller alle i backoff. Flagget
+        // nullstilles i finally; re-trigger går via setTimeout, ikke rekursjon.
         settErAktiv(kandidater.length > 0);
         if (kandidater.length > 0) {
           const tidligste = Math.min(
@@ -399,195 +414,191 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           .run();
         nesteForsokRef.current.delete(oppforing.id);
         oppdaterTellere();
-        prosessererRef.current = false;
-        prosesserNeste().catch((f) => console.error("[KØ] Rekursiv prosesserNeste feilet:", f));
-        return;
-      }
-
-      // Marker som pågående
-      db.update(opplastingsKo)
-        .set({ status: "laster_opp" })
-        .where(eq(opplastingsKo.id, oppforing.id))
-        .run();
-      console.log("[KØ] Starter opplasting til:", `${AUTH_CONFIG.apiUrl}/upload`);
-
-      try {
-        const resultat = await lastOppFil(
-          oppforing.lokalSti,
-          oppforing.filnavn,
-          oppforing.mimeType,
-          // S1 Fase 1b: bilder (sjekkliste/oppgave) OG timer-kvitteringer → privat/
-          // (signatur-KUN). Alle køoppføringer bærer én av disse id-ene.
-          Boolean(
-            oppforing.sheetTilleggId ||
-              oppforing.sheetUtleggId ||
-              oppforing.sjekklisteId ||
-              oppforing.oppgaveId,
-          ),
-        );
-
-        console.log("[KØ] Opplasting vellykket:", resultat.fileUrl);
-        // Suksess — oppdater SQLite
+        // Fila mangler → hopp til neste (rekursjon etter finally, når flagget er false).
+        skalFortsetteMedNeste = true;
+      } else {
+        // Marker som pågående
         db.update(opplastingsKo)
-          .set({
-            status: "fullfort",
-            serverUrl: resultat.fileUrl,
-          })
+          .set({ status: "laster_opp" })
           .where(eq(opplastingsKo.id, oppforing.id))
           .run();
+        console.log("[KØ] Starter opplasting til:", `${AUTH_CONFIG.apiUrl}/upload`);
 
-        // U4: utlegg-vedlegg har egen registrerings-/oppdaterings-sti (speil av
-        // tillegg-grenen). Tidlig retur → sjekkliste/oppgave-koden under urørt.
-        if (oppforing.sheetUtleggId) {
-          registrerBildeIDatabase({
-            sheetUtleggId: oppforing.sheetUtleggId,
-            vedleggId: oppforing.vedleggId,
-            fileUrl: resultat.fileUrl,
-            fileName: resultat.fileName,
-            fileSize: resultat.fileSize,
-            mimeType: oppforing.mimeType,
-            gpsLat: oppforing.gpsLat,
-            gpsLng: oppforing.gpsLng,
-          }).catch((f) =>
-            console.warn("[KØ] Utlegg-vedlegg-registrering feilet (ikke-kritisk):", f),
+        try {
+          const resultat = await lastOppFil(
+            oppforing.lokalSti,
+            oppforing.filnavn,
+            oppforing.mimeType,
+            // S1 Fase 1b: bilder (sjekkliste/oppgave) OG timer-kvitteringer → privat/
+            // (signatur-KUN). Alle køoppføringer bærer én av disse id-ene.
+            Boolean(
+              oppforing.sheetTilleggId ||
+                oppforing.sheetUtleggId ||
+                oppforing.sjekklisteId ||
+                oppforing.oppgaveId,
+            ),
           );
-          fullforUtleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
-          await slettLokaltBilde(oppforing.lokalSti);
-          oppdaterTellere();
-          prosessererRef.current = false;
-          prosesserNeste().catch((f) =>
-            console.error("[KØ] Neste etter utlegg-vedlegg feilet:", f),
-          );
-          return;
-        }
 
-        // Funn #2: tillegg-vedlegg har egen registrerings-/oppdaterings-sti.
-        // Tidlig retur → den eksisterende sjekkliste/oppgave-koden under er
-        // urørt og kjører kun for ikke-tillegg-oppføringer.
-        if (oppforing.sheetTilleggId) {
-          registrerBildeIDatabase({
-            sheetTilleggId: oppforing.sheetTilleggId,
-            vedleggId: oppforing.vedleggId,
-            fileUrl: resultat.fileUrl,
-            fileName: resultat.fileName,
-            fileSize: resultat.fileSize,
-            mimeType: oppforing.mimeType,
-            gpsLat: oppforing.gpsLat,
-            gpsLng: oppforing.gpsLng,
-          }).catch((f) =>
-            console.warn("[KØ] Tillegg-vedlegg-registrering feilet (ikke-kritisk):", f),
-          );
-          fullforTilleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
-          await slettLokaltBilde(oppforing.lokalSti);
-          oppdaterTellere();
-          prosessererRef.current = false;
-          prosesserNeste().catch((f) =>
-            console.error("[KØ] Neste etter tillegg-vedlegg feilet:", f),
-          );
-          return;
-        }
-
-        // Registrer bildet i server-databasen (images-tabellen)
-        registrerBildeIDatabase({
-          sjekklisteId: oppforing.sjekklisteId,
-          oppgaveId: oppforing.oppgaveId,
-          // Idempotens: køen kan retrie samme foto → send vedlegg-id så serveren
-          // upserter på den i stedet for å lage en ny rad per forsøk.
-          vedleggId: oppforing.vedleggId,
-          fileUrl: resultat.fileUrl,
-          fileName: resultat.fileName,
-          fileSize: resultat.fileSize,
-          gpsLat: oppforing.gpsLat,
-          gpsLng: oppforing.gpsLng,
-          gpsAktivert: oppforing.gpsAktivert ?? true,
-        }).catch((f) => console.warn("[KØ] Bilderegistrering feilet (ikke-kritisk):", f));
-
-        // Utled dokumenttype og -ID
-        const dokumentType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;
-        const dokumentId = oppforing.oppgaveId ?? oppforing.sjekklisteId ?? "";
-
-        // Oppdater vedlegg-URL i feltdata (SQLite — samme-install-kilde)
-        const sqliteOk = oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl);
-
-        // Publiser til aktive hooks (live URL-oppdatering når skjermen er montert)
-        publiserFullfort(
-          dokumentId,
-          dokumentType,
-          oppforing.objektId,
-          oppforing.vedleggId,
-          resultat.fileUrl,
-        );
-
-        // Funn C: skriv den varige URL-en til server-JSON-en direkte — også når
-        // skjermen er demontert (da når publiserFullfort aldri hooken, og
-        // korreksjonen ville blitt liggende kun i SQLite, som viskes ved
-        // reinstall). Best-effort: tåler at prod-API-et ikke har prosedyren ennå.
-        // Gjelder BEGGE dokumenttyper — samme delte patch, prosedyre velges på type.
-        let serverOk = false;
-        if (dokumentId) {
-          serverOk = await patchVedleggUrl({
-            dokumentType,
-            dokumentId,
-            objektId: oppforing.objektId,
-            vedleggId: oppforing.vedleggId,
-            url: resultat.fileUrl,
-            filnavn: resultat.fileName,
-          });
-        }
-
-        // 🔴 Slett aldri lokalfila før erstatningen er persistert et sted som
-        // overlever behovet: server (reinstall-sikkert) ELLER SQLite
-        // (samme-install). Feiler begge — behold fila, så raden fortsatt viser
-        // det lokale bildet og ingenting går tapt.
-        if (sqliteOk || serverOk) {
-          await slettLokaltBilde(oppforing.lokalSti);
-        } else {
-          console.warn("[KØ] URL ikke persistert (SQLite+server feilet) — beholder lokalfil:", oppforing.filnavn);
-        }
-
-        oppdaterTellere();
-
-        // Prosesser neste umiddelbart
-        prosessererRef.current = false;
-        prosesserNeste().catch((f) => console.error("[KØ] Neste etter suksess feilet:", f));
-      } catch (feil) {
-        // Klassifiser: nett/timeout/5xx = forbigående (retry UTEN tak, tregt
-        // byggeplass-nett er normalen); hard 4xx = ugyldig fil/permission (teller
-        // mot taket). Ukjent → nett (tryggest: retry, ikke tap).
-        const kategori = feil instanceof OpplastingFeil ? feil.kategori : "nett";
-        const forsok = (oppforing.forsok ?? 0) + 1;
-        const melding = feil instanceof Error ? feil.message : "Ukjent feil";
-
-        // Backoff per oppføring (in-memory) — den feilede hoppes over til
-        // ventetiden er ute, køen går videre til andre imens (head-of-line-fri).
-        const ventetid = Math.min(Math.pow(2, forsok) * 1000, 30000);
-        nesteForsokRef.current.set(oppforing.id, Date.now() + ventetid);
-
-        if (kategori === "hard") {
-          console.error("[KØ] Opplasting feilet (hard):", melding, "forsøk:", forsok, "/", MAKS_FORSOK);
+          console.log("[KØ] Opplasting vellykket:", resultat.fileUrl);
+          // Suksess — oppdater SQLite
           db.update(opplastingsKo)
-            .set({ status: "feilet", forsok, feilmelding: melding })
+            .set({
+              status: "fullfort",
+              serverUrl: resultat.fileUrl,
+            })
             .where(eq(opplastingsKo.id, oppforing.id))
             .run();
-        } else {
-          // Nett: tilbake til 'venter' (alltid re-spørrbar, aldri permanent).
-          // `forsok` vokser kun for backoff + synliggjøring av vedvarende feil (D).
-          console.warn("[KØ] Opplasting nett-feil (retry uten tak):", melding, "forsøk:", forsok);
-          db.update(opplastingsKo)
-            .set({ status: "venter", forsok, feilmelding: melding })
-            .where(eq(opplastingsKo.id, oppforing.id))
-            .run();
-        }
 
-        oppdaterTellere();
-        prosessererRef.current = false;
-        // Gå til NESTE klare oppføring med en gang; den feilede er i backoff.
-        prosesserNeste().catch((f) => console.error("[KØ] Neste etter feil feilet:", f));
+          // U4: utlegg-vedlegg har egen registrerings-/oppdaterings-sti (speil av
+          // tillegg-grenen). Egen gren → sjekkliste/oppgave-koden under urørt.
+          if (oppforing.sheetUtleggId) {
+            registrerBildeIDatabase({
+              sheetUtleggId: oppforing.sheetUtleggId,
+              vedleggId: oppforing.vedleggId,
+              fileUrl: resultat.fileUrl,
+              fileName: resultat.fileName,
+              fileSize: resultat.fileSize,
+              mimeType: oppforing.mimeType,
+              gpsLat: oppforing.gpsLat,
+              gpsLng: oppforing.gpsLng,
+            }).catch((f) =>
+              console.warn("[KØ] Utlegg-vedlegg-registrering feilet (ikke-kritisk):", f),
+            );
+            fullforUtleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
+            await slettLokaltBilde(oppforing.lokalSti);
+            oppdaterTellere();
+          } else if (oppforing.sheetTilleggId) {
+            // Funn #2: tillegg-vedlegg har egen registrerings-/oppdaterings-sti.
+            // Egen gren → den eksisterende sjekkliste/oppgave-koden under er
+            // urørt og kjører kun for ikke-tillegg-oppføringer.
+            registrerBildeIDatabase({
+              sheetTilleggId: oppforing.sheetTilleggId,
+              vedleggId: oppforing.vedleggId,
+              fileUrl: resultat.fileUrl,
+              fileName: resultat.fileName,
+              fileSize: resultat.fileSize,
+              mimeType: oppforing.mimeType,
+              gpsLat: oppforing.gpsLat,
+              gpsLng: oppforing.gpsLng,
+            }).catch((f) =>
+              console.warn("[KØ] Tillegg-vedlegg-registrering feilet (ikke-kritisk):", f),
+            );
+            fullforTilleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
+            await slettLokaltBilde(oppforing.lokalSti);
+            oppdaterTellere();
+          } else {
+            // Registrer bildet i server-databasen (images-tabellen)
+            registrerBildeIDatabase({
+              sjekklisteId: oppforing.sjekklisteId,
+              oppgaveId: oppforing.oppgaveId,
+              // Idempotens: køen kan retrie samme foto → send vedlegg-id så serveren
+              // upserter på den i stedet for å lage en ny rad per forsøk.
+              vedleggId: oppforing.vedleggId,
+              fileUrl: resultat.fileUrl,
+              fileName: resultat.fileName,
+              fileSize: resultat.fileSize,
+              gpsLat: oppforing.gpsLat,
+              gpsLng: oppforing.gpsLng,
+              gpsAktivert: oppforing.gpsAktivert ?? true,
+            }).catch((f) => console.warn("[KØ] Bilderegistrering feilet (ikke-kritisk):", f));
+
+            // Utled dokumenttype og -ID
+            const dokumentType = oppforing.oppgaveId ? "oppgave" as const : "sjekkliste" as const;
+            const dokumentId = oppforing.oppgaveId ?? oppforing.sjekklisteId ?? "";
+
+            // Oppdater vedlegg-URL i feltdata (SQLite — samme-install-kilde)
+            const sqliteOk = oppdaterFeltdataVedlegg(dokumentId, dokumentType, oppforing.vedleggId, resultat.fileUrl);
+
+            // Publiser til aktive hooks (live URL-oppdatering når skjermen er montert)
+            publiserFullfort(
+              dokumentId,
+              dokumentType,
+              oppforing.objektId,
+              oppforing.vedleggId,
+              resultat.fileUrl,
+            );
+
+            // Funn C: skriv den varige URL-en til server-JSON-en direkte — også når
+            // skjermen er demontert (da når publiserFullfort aldri hooken, og
+            // korreksjonen ville blitt liggende kun i SQLite, som viskes ved
+            // reinstall). Best-effort: tåler at prod-API-et ikke har prosedyren ennå.
+            // Gjelder BEGGE dokumenttyper — samme delte patch, prosedyre velges på type.
+            let serverOk = false;
+            if (dokumentId) {
+              serverOk = await patchVedleggUrl({
+                dokumentType,
+                dokumentId,
+                objektId: oppforing.objektId,
+                vedleggId: oppforing.vedleggId,
+                url: resultat.fileUrl,
+                filnavn: resultat.fileName,
+              });
+            }
+
+            // 🔴 Slett aldri lokalfila før erstatningen er persistert et sted som
+            // overlever behovet: server (reinstall-sikkert) ELLER SQLite
+            // (samme-install). Feiler begge — behold fila, så raden fortsatt viser
+            // det lokale bildet og ingenting går tapt.
+            if (sqliteOk || serverOk) {
+              await slettLokaltBilde(oppforing.lokalSti);
+            } else {
+              console.warn("[KØ] URL ikke persistert (SQLite+server feilet) — beholder lokalfil:", oppforing.filnavn);
+            }
+
+            oppdaterTellere();
+          }
+
+          // Uansett suksess-gren: prosesser neste (etter finally, når flagget er false).
+          skalFortsetteMedNeste = true;
+        } catch (feil) {
+          // Klassifiser: nett/timeout/5xx = forbigående (retry UTEN tak, tregt
+          // byggeplass-nett er normalen); hard 4xx = ugyldig fil/permission (teller
+          // mot taket). Ukjent → nett (tryggest: retry, ikke tap).
+          const kategori = feil instanceof OpplastingFeil ? feil.kategori : "nett";
+          const forsok = (oppforing.forsok ?? 0) + 1;
+          const melding = feil instanceof Error ? feil.message : "Ukjent feil";
+
+          // Backoff per oppføring (in-memory) — den feilede hoppes over til
+          // ventetiden er ute, køen går videre til andre imens (head-of-line-fri).
+          const ventetid = Math.min(Math.pow(2, forsok) * 1000, 30000);
+          nesteForsokRef.current.set(oppforing.id, Date.now() + ventetid);
+
+          if (kategori === "hard") {
+            console.error("[KØ] Opplasting feilet (hard):", melding, "forsøk:", forsok, "/", MAKS_FORSOK);
+            db.update(opplastingsKo)
+              .set({ status: "feilet", forsok, feilmelding: melding })
+              .where(eq(opplastingsKo.id, oppforing.id))
+              .run();
+          } else {
+            // Nett: tilbake til 'venter' (alltid re-spørrbar, aldri permanent).
+            // `forsok` vokser kun for backoff + synliggjøring av vedvarende feil (D).
+            console.warn("[KØ] Opplasting nett-feil (retry uten tak):", melding, "forsøk:", forsok);
+            db.update(opplastingsKo)
+              .set({ status: "venter", forsok, feilmelding: melding })
+              .where(eq(opplastingsKo.id, oppforing.id))
+              .run();
+          }
+
+          oppdaterTellere();
+          // Gå til NESTE klare oppføring (etter finally); den feilede er i backoff.
+          skalFortsetteMedNeste = true;
+        }
       }
     } catch (feil) {
       console.error("[KØ] Køprosessering feilet helt:", feil);
-      prosessererRef.current = false;
       settErAktiv(false);
+      // Total feil → ingen rekursjon (skalFortsetteMedNeste forblir false),
+      // akkurat som før. Sikkerhetsnettet (15s) re-trigger ved behov.
+    } finally {
+      // ÉN nullstilling, ALLTID — uansett hvilken vei vi forlot blokken.
+      prosessererRef.current = false;
+    }
+
+    // Rekursjonen kjøres ETTER finally, dvs. etter at flagget er false — ellers
+    // ville det rekursive kallet returnert umiddelbart på guarden. Kun veiene
+    // som faktisk håndterte en oppføring (fil mangler · suksess · feil) fortsetter.
+    if (skalFortsetteMedNeste) {
+      prosesserNeste().catch((f) => console.error("[KØ] Neste etter håndtert oppføring feilet:", f));
     }
   }, [erPaaNettet, oppdaterTellere, oppdaterFeltdataVedlegg, publiserFullfort, fullforTilleggVedlegg, fullforUtleggVedlegg]);
 

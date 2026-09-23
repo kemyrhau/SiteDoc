@@ -2,7 +2,7 @@
 name: ui-standarder
 description: UI-designprinsipper, slett-bekreftelse, adaptive nedtrekk, filter-standard, toppbar-filtre og fargepalett. Flyttet ut av CLAUDE.md 2026-08-20 (størrelsesgrense).
 sist_verifisert_mot_kode: 2026-09-01
-sist_endret: 2026-09-01
+sist_endret: 2026-09-17
 ---
 
 # UI-standarder
@@ -134,6 +134,40 @@ Målt tre ganger før vedtaket, samme mønster hver gang:
 Den siste kostet konkret: Kenneth trodde funksjonen var ødelagt (01.09). En grå knapp uten begrunnelse leses som en **feil**, ikke som en betingelse.
 
 Dette er en **standard, ikke en mekanisme** — ingen delt `DisabledKnapp`-komponent, ingen sweep gjennom alle `disabled=`. Hver flate forklarer sin egen knapp, og betingelsen fjernes ikke — den forklares.
+
+### Feltstatus — felt som venter på en avgjørelse (Kenneth-vedtak 2026-09-17)
+
+> **Kenneth 2026-09-07:** *«alle felter som krever en instilling eller en avgjørelse bør få en
+> farve»* · **Visuell regel godkjent 2026-09-17** (design-rollen, grunnlag:
+> [DESIGNSYSTEM-AUDIT-2026-09-17 § 5](../../redesign/DESIGNSYSTEM-AUDIT-2026-09-17.md), besvarer
+> [fabel-feltstatus-farge.md](../../redesign/fabel-feltstatus-farge.md)).
+
+Et felt som venter på en menneskelig avgjørelse skal ikke se ut som et felt noen har svart på.
+
+| Tilstand | Eksempel | Visuelt | Tekst |
+|---|---|---|---|
+| **Påkrevd, tomt** — blokkerer lagring | Prosjektnavn | Rød ramme (`border-sitedoc-error`), **først etter lagreforsøk** | «Mangler: …» under feltet |
+| **Konsekvensbærende, tomt** — lagrer, men noe slutter å virke | Reise-lønnsart | **Amber venstrekant 3 px + amber prikk ved etiketten.** Hvit bakgrunn | Hjelpetekst: hva slutter å virke |
+| **Tvetydig** — systemet kan gjette, men gjetningen kan bli feil | To lønnsarter matcher «reise» | Samme amber-markør + «Foreslått: …» i feltet | «Bekreft eller velg» |
+| **Valgfritt, tomt** | Beskrivelse | Ingen markering | – |
+
+**Regler:**
+
+1. **Kant og prikk, aldri fyll.** Amber-fyll (`bg-amber-50/100`) betyr *melding* (bannere). Et felt
+   med amber bakgrunn ved siden av et amber banner gir to betydninger av samme farge.
+2. **Fargen erstatter aldri teksten.** Samme familie som «Deaktivert knapp skal si hva som mangler»:
+   si hva som mangler og hva konsekvensen er (mikrotekst-standarden).
+3. **Mer enn 5 markerte felt på én flate → oppsummering øverst** («4 innstillinger venter på en
+   avgjørelse») med hopp-lenker. Markørene per felt står fortsatt, men oppsummeringen er inngangen.
+   Fargen skal ikke bli tapet.
+4. **Markøren forsvinner når avgjørelsen er tatt**, også når svaret er «ingen» (et bevisst valg er
+   en avgjørelse).
+5. **Mobil:** samme regel der mobil har skjemaer. Kontorinnstillinger bor i web.
+6. **Tas i bruk opportunistisk**, når en flate uansett røres. Ingen sveip.
+
+⚠️ **Konsekvens for paletten:** amber skal over tid bety **«noen må ta stilling»** (felt + «din tur»
+i `perspektivEtikett`). Andre amber-bruk (favorittstjerne, «start dag»-knapp) flyttes når flaten
+røres. `accent` og `warning` har i dag samme verdi. Ryddingen er en egen sak (audit § 6 pkt 3).
 
 ## Fargepalett
 

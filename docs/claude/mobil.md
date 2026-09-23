@@ -250,6 +250,21 @@ const { t } = useTranslation();
 | `sjekkliste_feltdata` | Lokal sjekkliste-utfylling |
 | `oppgave_feltdata` | Lokal oppgave-utfylling |
 | `opplastings_ko` | Bakgrunnskø for filopplasting |
+| `sjekkliste_local` | Offline-katalog for sjekklist**elista** (read-only mirror, fase 1 2026-09-11) |
+
+**Offline sjekklisteliste (fase 1, 2026-09-11):** `app/sjekkliste/index.tsx` leste før rett på
+`trpc.sjekkliste.hentForProsjekt` uten fallback → tom liste uten dekning (brøt CLAUDE.md «Mobil-appen
+MÅ fungere offline»). Nå: `sjekkliste_local` speiler lista (`services/sjekklisteKatalog.ts`,
+`prosjektKatalog`-mønster: full-overskriv per prosjekt, henter HELE prosjektet uten `byggeplassId` så
+lokal lesing selv gjør byggeplass-scopingen `byggeplassFilterDirekte` gjør). Server-tilgangsfilter +
+HMS-eksklusjon er alt anvendt ved henting. Kildevalg via delt ren `velgOfflineListeKilde`
+(`@sitedoc/shared`, testet): **med nett + bekreftet svar er serveren autoritativ (også tomt) — like
+fersk som før**; uten (offline/henger/feilet) leses lokal cache. Banner skiller «frakoblet, lagrede
+data (sist hentet …)» fra «ikke synkronisert ennå». Refresh trigges i `triggerKatalogRefresh`
+(sekvensiell fei over aktive `prosjekt_local`-prosjekter, egen try/catch — de 13 timer-katalogene
+upåvirket) + `startOffline` (Mer, valgt prosjekt, egen try/catch så tegninger lastes uansett).
+🟡 **Fase 2:** oppgaver + HMS (samme mønster). Standalone-prosjekter (`organizationId=null`) er ikke i
+`prosjekt_local` → dekkes kun av `startOffline`/list-skjermen, ikke login-feien.
 
 **Lagringsstrategi:**
 - SQLite først (<10ms), deretter server-synk

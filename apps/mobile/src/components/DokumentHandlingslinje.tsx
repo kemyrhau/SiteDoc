@@ -30,7 +30,7 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { ChevronDown, Check, X } from "lucide-react-native";
+import { ChevronDown, Check, X, Anchor } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   hentPosisjonFiltrertHandlinger,
@@ -44,11 +44,15 @@ import {
   type LeddKlassifisering,
 } from "@sitedoc/shared";
 import { byggLedd, type FlytMedlem } from "../utils/dokumentflyt-ledd";
+import { utledFlytbytteVisning } from "../utils/flytbytte-visning";
 
 interface TilgjengeligeFlyter {
   gjeldende: {
     id: string;
     name: string;
+    /** Bundet flyt (bundet-flyt-mobil 2026-09-17): egenskap ved flyten — dokumentene kan ikke
+     * flyttes til andre flyter. Speiler serversperren; skjuler «Bytt flyt», viser fotnoten. */
+    bundet?: boolean;
     faggruppe: { id: string; name: string; color: string | null } | null;
     medlemmer: FlytMedlem[];
     brukersBoks: { steg: number; rolle: string; kilde: string } | null;
@@ -214,8 +218,14 @@ export function DokumentHandlingslinje({
     (h) => ADMIN_STATUSER.has(h.nyStatus as string) && h.nyStatus !== "forwarded",
   );
 
-  const harFlytBytte =
-    tilgjengeligeFlyter?.kanFlytte === true && (tilgjengeligeFlyter.andre.length ?? 0) > 0;
+  // Bundet flyt (bundet-flyt-mobil 2026-09-17, steg 2): egen flyt bundet → «Bytt flyt» skjules,
+  // men IKKE stille — fotnoten vises der knappen ville stått. `bundet` er en EGENSKAP (fra
+  // gjeldende), ikke rettigheten `kanFlytte` (URØRT). Ren utledning i egen testbar helper.
+  const { harFlytBytte, visBundetFotnote } = utledFlytbytteVisning({
+    kanFlytte: tilgjengeligeFlyter?.kanFlytte,
+    andreAntall: tilgjengeligeFlyter?.andre.length ?? 0,
+    egenFlytBundet: tilgjengeligeFlyter?.gjeldende?.bundet === true,
+  });
   const lagreOgLukkTilgjengelig = erRedigerbar && !!onLagreOgLukk;
 
   const harMeny =
@@ -224,6 +234,7 @@ export function DokumentHandlingslinje({
     videresendHandlinger.length > 0 ||
     adminHandlinger.length > 0 ||
     harFlytBytte ||
+    visBundetFotnote ||
     lagreOgLukkTilgjengelig;
 
   // --- Lese-/tomvisning ---
@@ -466,6 +477,20 @@ export function DokumentHandlingslinje({
                     setVisFlytBytte(true);
                   }}
                 />
+              )}
+
+              {/* Bundet flyt (steg 2): «Bytt flyt» erstattes av en rolig fotnote med anker — siste
+                  setning avviser rettighets-lesningen. Ikke trykkbar. Samme fotnote for admin. */}
+              {visBundetFotnote && (
+                <View
+                  accessibilityLabel={t("videresend.bundetFotnote")}
+                  className="flex-row items-start gap-2 border-b border-gray-100 py-3"
+                >
+                  <Anchor size={16} color="#9ca3af" style={{ marginTop: 2 }} />
+                  <Text className="flex-1 text-[13px] leading-5 text-gray-500">
+                    {t("videresend.bundetFotnote")}
+                  </Text>
+                </View>
               )}
 
               {/* Admin-handlinger */}

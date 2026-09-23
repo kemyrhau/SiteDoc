@@ -35,13 +35,15 @@ import {
   Send,
   Share2,
   Eye,
+  Scale,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harFeltVerdi, perspektivEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
+import { EmneFelt } from "../../src/components/EmneFelt";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -638,6 +640,10 @@ export default function OppgaveDetalj() {
   }
 
   const nummer = formaterNummer(oppgave.template?.prefix, oppgave.number);
+  // Kontraktssak-runde 1 (tavle 2, samme som web): egen klasse-linje med nummeret. Nummeret
+  // flyttes ut av header-baren dit, så vanlige oppgaver er uendret.
+  const erKontraktssak =
+    (oppgaveDetalj as { template?: { subdomain?: string | null } } | undefined)?.template?.subdomain === "kontrakt";
 
   // Spor 2 / 5a + Beslutning 1 (Blokk 10): HMS-melder redigerer sitt eget dokument når ballen
   // ligger hos melder-leddet (Ledd 1) og saken ikke er terminal — utkast (draft) ELLER etter
@@ -668,7 +674,7 @@ export default function OppgaveDetalj() {
             <ArrowLeft size={22} color="#ffffff" />
           </Pressable>
           <View className="flex-1 flex-row items-center gap-2 px-3">
-            {nummer && (
+            {nummer && !erKontraktssak && (
               <Text className="text-xs font-bold text-white/70">{nummer}</Text>
             )}
             <Text className="flex-1 text-sm font-semibold text-white" numberOfLines={1}>
@@ -706,7 +712,14 @@ export default function OppgaveDetalj() {
                   ? <CloudOff size={18} color="#fbbf24" />
                   : <Share2 size={18} color="#ffffff" />}
             </Pressable>
-            <StatusMerkelapp status={oppgave.status} />
+            <StatusMerkelapp
+              status={oppgave.status}
+              perspektiv={perspektivEtikett(
+                oppgave.status,
+                { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.adminNiva != null },
+                "oppgave",
+              )}
+            />
             {(() => {
               const recipientGroup = (oppgaveDetalj as { recipientGroup?: { id: string; name: string | null } | null } | undefined)?.recipientGroup;
               if (!["sent", "received", "in_progress"].includes(oppgave.status)) return null;
@@ -732,10 +745,22 @@ export default function OppgaveDetalj() {
             meg={{ userId: minFlytInfo?.userId, gruppeIder: minFlytInfo?.gruppeIder }}
             overforinger={overforinger}
             flytNavn={(tilgjengeligeFlyter as { gjeldende?: { name?: string | null } | null } | null | undefined)?.gjeldende?.name ?? null}
+            bundet={(tilgjengeligeFlyter as { gjeldende?: { bundet?: boolean } | null } | null | undefined)?.gjeldende?.bundet ?? false}
             formaterTid={formaterHistorikkDato}
           />
         )}
       </View>
+
+      {/* Kontraktssak-klasse (tavle 2, web-paritet): egen linje med nummeret, under header. */}
+      {erKontraktssak && (
+        <View className="flex-row items-center gap-1.5 border-b border-gray-200 bg-white px-4 py-2">
+          <Scale size={14} color="#374151" />
+          <Text className="text-sm text-gray-700">
+            <Text className="font-medium">{t("dokumentklasse.kontraktssak")}</Text>
+            {nummer ? ` · ${nummer}` : ""}
+          </Text>
+        </View>
+      )}
 
       <KeyboardAvoidingView
         className="flex-1"
@@ -850,6 +875,21 @@ export default function OppgaveDetalj() {
                 <Text className="text-xs text-purple-500">{t("lokasjonVelger.gjelderByggeplass")}</Text>
               )}
             </View>
+          </View>
+        )}
+
+        {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
+            (ordre 2026-09-22). Redigerbart for den som kan redigere (samme leseModus),
+            «Ingen emne» med etikett i lesemodus for andre. Skjules når malen sier
+            showSubject === false. */}
+        {(oppgave as { template?: { showSubject?: boolean } }).template?.showSubject !== false && (
+          <View className="rounded-lg bg-white px-4 py-3">
+            <EmneFelt
+              emne={(oppgave as { subject?: string | null }).subject ?? null}
+              forslag={(oppgave as { template?: { subjects?: string[] } }).template?.subjects ?? []}
+              leseModus={leseModus}
+              onLagre={(emne) => oppdaterMutasjon.mutate({ id: oppgave.id, subject: emne })}
+            />
           </View>
         )}
 

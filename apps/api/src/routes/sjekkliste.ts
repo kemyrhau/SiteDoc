@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
+import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
@@ -13,6 +14,7 @@ import { koblePunktTilSjekkliste, verifiserTegningIProsjekt } from "../services/
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { medNummerRetry } from "../utils/nummerRetry";
+import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
@@ -189,6 +191,23 @@ export const sjekklisteRouter = router({
               },
             },
           },
+          // Ramme 4 (videresend synlig konsekvens): siste overføring, slik at
+          // mottakerens rad kan vise «hvem sendte + hvorfor», ikke bare et nytt dokument.
+          // READ-ONLY select-utvidelse — ingen ny prosedyre/signatur/tilgangssjekk. take:1
+          // gjør dette til ÉN batchet relasjons-spørring (ikke N+1). Feltene finnes allerede
+          // på DocumentTransfer (senderRolle/senderEnterpriseName er snapshot) — ingen schema-endring.
+          transfers: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            select: {
+              senderId: true,
+              comment: true,
+              createdAt: true,
+              senderRolle: true,
+              senderEnterpriseName: true,
+              sender: { select: { id: true, name: true } },
+            },
+          },
           _count: { select: { images: true, transfers: true } },
           // Kontrollplan-kobling: klienten skiller «hører til kontrollplanen» fra
           // «kommer i tillegg» via denne relasjonen (ingen nytt felt — relasjonen finnes).
@@ -278,8 +297,10 @@ export const sjekklisteRouter = router({
         // plassering på tegning/kart — speiler oppgave.opprett-kontrakten.
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
-        // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
-        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        // Lokasjonsomfang (2026-09-04): "byggeplass" = hele byggeplassen · "punkt" = pin ·
+        // "omrade" (steg 2b) = et definert område (krever omradeId — DoD 12).
+        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        omradeId: z.string().nullable().optional(),
         // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass når tegning mangler.
         lokasjonFritekst: z.string().max(200).nullable().optional(),
         dueDate: z.string().datetime().optional(),
@@ -294,6 +315,8 @@ export const sjekklisteRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // DoD 12 (steg 2b): omfang="omrade" krever et valgt område.
+      krevOmradeVedOmradeOmfang(input.lokasjonOmfang, input.omradeId);
       // Hent malen for å sjekke domain (HMS vs standard)
       const malForDomain = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id: input.templateId },
@@ -396,7 +419,29 @@ export const sjekklisteRouter = router({
             message: "Dokumentflyt er påkrevd for denne sjekklistetypen. Velg en flyt som bruker malen.",
           });
         }
-        // Standard: faggrupper påkrevd
+        // Utled bestiller/utfører fra flyten når klienten ikke sender dem (mobil-
+        // opprettelsen gjør det ikke lenger — opprett-modalen fjernet, ordre 2026-09-22).
+        // Speiler L1.5/web: bestiller = flytens eier-faggruppe, utfører = utfører-medlem
+        // (fallback eier). Web sender fortsatt samme verdi → utledningen flytter INGEN
+        // rettighet (tilhørighetssjekken under kjører på samme faggruppe som før).
+        if (!effektivBestiller || !effektivUtforer) {
+          const flyt = await ctx.prisma.dokumentflyt.findUnique({
+            where: { id: effektivFlytId },
+            select: {
+              faggruppeId: true,
+              medlemmer: {
+                where: { rolle: "utforer", periodeSlutt: null },
+                select: { faggruppeId: true },
+              },
+            },
+          });
+          const utledet = utledBestillerUtforer(
+            flyt ? { faggruppeId: flyt.faggruppeId, utforerMedlemmer: flyt.medlemmer } : null,
+          );
+          effektivBestiller = effektivBestiller ?? utledet.bestiller;
+          effektivUtforer = effektivUtforer ?? utledet.utforer;
+        }
+        // Standard: faggrupper påkrevd (etter utledningsforsøket over)
         if (!effektivBestiller || !effektivUtforer) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -546,6 +591,7 @@ export const sjekklisteRouter = router({
             positionX: input.positionX,
             positionY: input.positionY,
             lokasjonOmfang: input.lokasjonOmfang,
+            omradeId: input.omradeId,
             lokasjonFritekst: input.lokasjonFritekst,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             // Spor 2 / 5a: HMS (SJA) opprettes nå som UTKAST (draft), ikke auto-sendt. Melder
@@ -599,7 +645,8 @@ export const sjekklisteRouter = router({
         byggeplassId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
-        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
     )
@@ -640,7 +687,14 @@ export const sjekklisteRouter = router({
       const rørerLaastFelt =
         input.drawingId !== undefined || input.positionX !== undefined ||
         input.positionY !== undefined || input.byggeplassId !== undefined ||
-        input.lokasjonOmfang !== undefined || input.lokasjonFritekst !== undefined;
+        input.lokasjonOmfang !== undefined || input.lokasjonFritekst !== undefined ||
+        input.omradeId !== undefined;
+
+      // DoD 12 (steg 2b): valider mot EFFEKTIV tilstand (input der satt, ellers dagens verdi).
+      krevOmradeVedOmradeOmfang(
+        input.lokasjonOmfang !== undefined ? input.lokasjonOmfang : sjekkliste.lokasjonOmfang,
+        input.omradeId !== undefined ? input.omradeId : sjekkliste.omradeId,
+      );
       if (rørerLaastFelt && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -1096,6 +1150,9 @@ export const sjekklisteRouter = router({
         select: {
           id: true,
           name: true,
+          // Bundet flyt (bundet-flyt-mobil 2026-09-17): speil av oppgave.ts — eksponer EGENSKAPEN
+          // på gjeldende flyt så mobil kan speile serversperren. kanFlytte/andre er URØRT.
+          bundet: true,
           faggruppe: { select: { id: true, name: true, color: true } },
           medlemmer: {
             select: {
@@ -1150,6 +1207,7 @@ export const sjekklisteRouter = router({
           ? {
               id: gjeldendeFlyt.id,
               name: gjeldendeFlyt.name,
+              bundet: gjeldendeFlyt.bundet,
               faggruppe: gjeldendeFlyt.faggruppe,
               medlemmer: gjeldendeFlyt.medlemmer,
               brukersBoks: finnBrukersBoks(gjeldendeFlyt, tilgang),
@@ -1279,6 +1337,24 @@ export const sjekklisteRouter = router({
         // Sjekk om dokumentflyt/faggruppe endres
         let flytBytteData: { dokumentflytId: string; utforerFaggruppeId: string; nyFaggruppeNavn: string; nyFlytNavn: string } | null = null;
         if (input.dokumentflytId && input.dokumentflytId !== sjekkliste.dokumentflytId) {
+          // Bundet flyt (fabel-tegning 2026-09-16, Kenneth-gatet): en flyt merket `bundet`
+          // holder dokumentene sine — flyt-BYTTE ut av den er forbudt for ALLE i prosjektet.
+          // Egenskap VED FLYTEN, ikke en rettighet (kanByttFlyt er urørt). Videresend INNEN egen
+          // flyt endrer ikke dokumentflytId → treffer ikke denne grenen og går fritt gjennom.
+          // Samme feilkode som slettObjekt/↻-sperren (PRECONDITION_FAILED).
+          if (sjekkliste.dokumentflytId) {
+            const naavaerendeFlyt = await ctx.prisma.dokumentflyt.findUnique({
+              where: { id: sjekkliste.dokumentflytId },
+              select: { bundet: true },
+            });
+            if (naavaerendeFlyt?.bundet) {
+              throw new TRPCError({
+                code: "PRECONDITION_FAILED",
+                message:
+                  "Bundet flyt: dokumenter hører hjemme i denne flyten og kan ikke flyttes til andre flyter. Det gjelder alle i prosjektet, ikke bare deg.",
+              });
+            }
+          }
           const nyFlyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
             where: { id: input.dokumentflytId },
             include: { faggruppe: { select: { id: true, name: true } } },

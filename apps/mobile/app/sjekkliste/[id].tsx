@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, ChevronRight, Share2, MapPin, Eye } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, utledFlytRettighet, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt, harTegningsmarkor, harFeltVerdi, perspektivEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, FlytMedlemRedigering, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { ModalFlate } from "../../src/components/ModalFlate";
@@ -33,6 +33,7 @@ import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { EmneFelt } from "../../src/components/EmneFelt";
 import { trpc } from "../../src/lib/trpc";
 import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
@@ -147,7 +148,8 @@ export default function SjekklisteUtfylling() {
   const sjekklisteDetalj = detaljQuery.data as {
     number?: number | null;
     transfers?: Transfer[];
-    template?: { enableChangeLog?: boolean };
+    subject?: string | null;
+    template?: { enableChangeLog?: boolean; subjects?: string[]; showSubject?: boolean };
     changeLog?: EndringsloggRad[];
     drawing?: { id: string; name: string; drawingNumber?: string | null; fileUrl?: string | null; imageWidth?: number | null; imageHeight?: number | null } | null;
     drawingId?: string | null;
@@ -813,7 +815,14 @@ export default function SjekklisteUtfylling() {
                   ? <CloudOff size={18} color="#fbbf24" />
                   : <Share2 size={18} color="#ffffff" />}
             </Pressable>
-            <StatusMerkelapp status={sjekkliste.status} />
+            <StatusMerkelapp
+              status={sjekkliste.status}
+              perspektiv={erHms ? undefined : perspektivEtikett(
+                sjekkliste.status,
+                { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.adminNiva != null },
+                "sjekkliste",
+              )}
+            />
             {(() => {
               const recipientGroup = (sjekklisteDetalj as { recipientGroup?: { id: string; name: string | null } | null } | undefined)?.recipientGroup;
               if (!["sent", "received", "in_progress"].includes(sjekkliste.status)) return null;
@@ -838,6 +847,7 @@ export default function SjekklisteUtfylling() {
             meg={{ userId: minFlytInfo?.userId, gruppeIder: minFlytInfo?.gruppeIder }}
             overforinger={overforinger}
             flytNavn={(tilgjengeligeFlyter as { gjeldende?: { name?: string | null } | null } | null | undefined)?.gjeldende?.name ?? null}
+            bundet={(tilgjengeligeFlyter as { gjeldende?: { bundet?: boolean } | null } | null | undefined)?.gjeldende?.bundet ?? false}
             formaterTid={formaterHistorikkDato}
           />
         )}
@@ -915,6 +925,21 @@ export default function SjekklisteUtfylling() {
             {!leseModus && <ChevronDown size={14} color="#9ca3af" />}
           </View>
         </Pressable>
+
+        {/* Emne — merkelapp for gjenfinning, synlig øverst i dokumentet også når tomt
+            (ordre 2026-09-22). Redigerbart for den som kan redigere (samme leseModus),
+            «Ingen emne» med etikett i lesemodus for andre. Skjules når malen sier
+            showSubject === false. */}
+        {sjekklisteDetalj?.template?.showSubject !== false && (
+          <View className="rounded-lg bg-white px-4 py-3">
+            <EmneFelt
+              emne={sjekklisteDetalj?.subject ?? null}
+              forslag={sjekklisteDetalj?.template?.subjects ?? []}
+              leseModus={leseModus}
+              onLagre={(emne) => oppdaterMutasjon.mutate({ id: id!, subject: emne })}
+            />
+          </View>
+        )}
 
         {/* Kollisjons-varsel (live): verdien din ble notert som tilføyelse fordi feltet
             alt var fylt. Ingenting forsvant — verdien står ved feltet. */}

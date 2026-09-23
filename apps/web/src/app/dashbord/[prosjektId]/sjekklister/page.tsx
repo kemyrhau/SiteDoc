@@ -14,6 +14,7 @@ import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { KolonneVelger, type KolonneVelgerGruppe } from "@/components/ui/KolonneVelger";
+import { faggruppeNavn } from "@/lib/sjekkliste-faggruppe";
 import { beregnHarBallen, filtrerRader, formaterNummer } from "@sitedoc/shared";
 
 // --- Typer ---
@@ -53,13 +54,25 @@ interface SjekklisteRad {
   data: Record<string, unknown>;
   template: { id: string; prefix: string | null; name: string; objects: MalObjekt[] };
   bestiller: { name: string | null } | null;
-  bestillerFaggruppe: { name: string };
-  utforerFaggruppe: { name: string };
+  // Kan bli null når faggruppen slettes (schema-relasjon SetNull) — leses alltid med vakt.
+  bestillerFaggruppe: { name: string } | null;
+  utforerFaggruppe: { name: string } | null;
   byggeplass: { id: string; name: string } | null;
   drawing: { name: string; floor: string | null } | null;
   recipientUser: { id: string; name: string | null } | null;
   recipientGroup: { id: string; name: string } | null;
   bestillerUserId?: string;
+  /** Retning på siste overgang — «paatvers» = videresendt (ramme 4). */
+  retning: string | null;
+  /** Siste overføring (take:1, nyeste først) — «hvem sendte + hvorfor» (ramme 4). */
+  transfers: {
+    senderId: string;
+    comment: string | null;
+    createdAt: string;
+    senderRolle: string | null;
+    senderEnterpriseName: string | null;
+    sender: { id: string; name: string | null } | null;
+  }[];
   dokumentflyt: {
     id: string;
     name: string;
@@ -247,7 +260,7 @@ export default function SjekklisteSide() {
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // P4b pkt 0: opprettbar/opprettbareFlytIder kommer nå fra serveren (delt regel
   // med opprett-valideringen) — ikke lenger klient-utledet fra mineOpprettFlyter.
-  const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "sjekkliste");
+  const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string; opprettbar?: boolean; opprettbareFlytIder?: string[]; utilgjengeligÅrsak?: { grunn: "ikkeRegistrator"; faggruppe: string } | { grunn: "ingenFlyt" } | null }>).filter((m) => m.category === "sjekkliste");
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
@@ -365,11 +378,13 @@ export default function SjekklisteSide() {
         flyter: Map<string, { flytId: string; flytNavn: string; maler: Array<{ malId: string; malNavn: string; prefix?: string; kandidat: FlytKandidat }> }>;
       }
     >();
-    const utilgjengelig: Array<{ malId: string; malNavn: string; prefix?: string; grunn: string }> = [];
+    const utilgjengelig: Array<{ malId: string; malNavn: string; prefix?: string; utilgjengeligÅrsak?: { grunn: "ikkeRegistrator"; faggruppe: string } | { grunn: "ingenFlyt" } | null }> = [];
     for (const mal of sjekklisteMaler) {
       const status = malFlytStatus.get(mal.id);
       if (!status || status.type === "ingen") {
-        utilgjengelig.push({ malId: mal.id, malNavn: mal.name, prefix: mal.prefix, grunn: status?.type === "ingen" ? status.grunn : "ingenFlytMedMal" });
+        // Årsaks-teksten kommer fra SERVEREN (`mal.utilgjengeligÅrsak` — samme kilde som `opprettbar`),
+        // ikke fra klient-utledningen `malFlytStatus`, som ikke kan skille registrator-gaten fra «ingen flyt».
+        utilgjengelig.push({ malId: mal.id, malNavn: mal.name, prefix: mal.prefix, utilgjengeligÅrsak: mal.utilgjengeligÅrsak });
         continue;
       }
       const kandidater = status.type === "en" ? [status.kandidat] : status.kandidater;
@@ -504,8 +519,8 @@ export default function SjekklisteSide() {
       emne: bygg(data.map((s) => s.subject)),
       ansvarlig: bygg(data.map((s) => formaterAnsvarlig(s))),
       opprettetAv: bygg(data.map((s) => s.bestiller?.name)),
-      bestillerFaggruppe: bygg(data.map((s) => s.bestillerFaggruppe.name)),
-      utforerFaggruppe: bygg(data.map((s) => s.utforerFaggruppe.name)),
+      bestillerFaggruppe: bygg(data.map((s) => faggruppeNavn(s.bestillerFaggruppe))),
+      utforerFaggruppe: bygg(data.map((s) => faggruppeNavn(s.utforerFaggruppe))),
       mal: bygg(data.map((s) => s.template.name)),
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
@@ -585,8 +600,8 @@ export default function SjekklisteSide() {
           case "emne": return s.subject ?? "";
           case "ansvarlig": return formaterAnsvarlig(s);
           case "opprettetAv": return s.bestiller?.name ?? "";
-          case "bestillerFaggruppe": return s.bestillerFaggruppe.name;
-          case "utforerFaggruppe": return s.utforerFaggruppe.name;
+          case "bestillerFaggruppe": return faggruppeNavn(s.bestillerFaggruppe);
+          case "utforerFaggruppe": return faggruppeNavn(s.utforerFaggruppe);
           case "mal": return s.template.name;
           case "bygning": return s.byggeplass?.name ?? "";
           case "etasje": return s.drawing?.floor ?? "";
@@ -618,6 +633,13 @@ export default function SjekklisteSide() {
       filtrerbar?: boolean; filterAlternativer?: { value: string; label: string }[];
       filterSnarveier?: { label: string; verdier: string[] }[];
     }
+    // Ramme 4 (videresend synlig konsekvens): siste overføring når dokumentet kom «paatvers»
+    // (videresendt) med kommentar OG ballen er hos innlogget bruker — «hvem sendte + hvorfor».
+    const paatversTilMeg = (rad: SjekklisteRad) => {
+      const tilMeg = rad.recipientUser?.id != null && rad.recipientUser.id === minFlytInfo?.userId;
+      const t0 = rad.transfers?.[0];
+      return rad.retning === "paatvers" && tilMeg && t0?.comment ? t0 : null;
+    };
     const defs: Record<string, KolDef> = {
       prefix: { id: "prefix", header: t("tabell.prefix"),
         celle: (rad) => rad.template?.prefix
@@ -628,23 +650,52 @@ export default function SjekklisteSide() {
       nr: { id: "nr", header: t("tabell.nr"),
         celle: (rad) => <span className="text-xs font-medium text-gray-500 whitespace-nowrap">{formaterLopenummer(rad)}</span>,
         bredde: "60px", sorterbar: true, sorterVerdi: (rad) => rad.number ?? 0 },
-      tittel: { id: "tittel", header: t("tabell.tittel"), celle: (rad) => <span className="font-medium text-gray-900">{rad.title}</span>,
+      tittel: { id: "tittel", header: t("tabell.tittel"), celle: (rad) => {
+          const p4 = paatversTilMeg(rad);
+          if (!p4) return <span className="font-medium text-gray-900">{rad.title}</span>;
+          const avsender = p4.sender?.name ?? "?";
+          const rolle = p4.senderEnterpriseName ?? undefined;
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-gray-900">{rad.title}</span>
+              <span className="text-[11px] text-gray-500">
+                {rolle
+                  ? t("videresend.radAvsenderMedRolle", { avsender, rolle })
+                  : t("videresend.radAvsender", { avsender })}
+                {" · "}
+                {formaterDato(p4.createdAt)}
+              </span>
+              <span className="mt-0.5 rounded bg-gray-50 px-2 py-1 text-[11px] italic text-gray-600">
+                «{p4.comment}»
+              </span>
+            </div>
+          );
+        },
         sorterbar: true, sorterVerdi: (rad) => rad.title },
       emne: { id: "emne", header: t("tabell.emne"), celle: (rad) => rad.subject
         ? <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{rad.subject}</span>
         : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.subject ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.emne ?? [] },
-      status: { id: "status", header: t("tabell.status"), celle: (rad) => (
+      status: { id: "status", header: t("tabell.status"), celle: (rad) => {
+          const p4 = paatversTilMeg(rad);
+          return (
           <div className="flex items-center gap-1.5">
             <StatusBadge status={rad.status} />
-            {["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
+            {p4 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 whitespace-nowrap">
+                ⏳ {t("tabell.venterPaaDeg")}
+              </span>
+            ) : (
+              ["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
               (rad.recipientUser?.name || rad.recipientGroup?.name) && (
                 <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
                   {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
                 </span>
-              )}
+              )
+            )}
           </div>
-        ),
+          );
+        },
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
         filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }] },
       ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"),
@@ -667,11 +718,11 @@ export default function SjekklisteSide() {
         ? <span className="text-gray-600">{rad.bestiller.name}</span> : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.bestiller?.name ?? "", filtrerbar: true, filterAlternativer: dynamiskFilter.opprettetAv ?? [] },
       bestillerFaggruppe: { id: "bestillerFaggruppe", header: t("tabell.bestillerFaggruppe"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.bestillerFaggruppe.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.bestillerFaggruppe.name, filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerFaggruppe ?? [] },
+        celle: (rad) => <span className="text-xs text-gray-500">{faggruppeNavn(rad.bestillerFaggruppe, "—")}</span>,
+        sorterbar: true, sorterVerdi: (rad) => faggruppeNavn(rad.bestillerFaggruppe), filtrerbar: true, filterAlternativer: dynamiskFilter.bestillerFaggruppe ?? [] },
       utforerFaggruppe: { id: "utforerFaggruppe", header: t("tabell.utforerFaggruppe"),
-        celle: (rad) => <span className="text-xs text-gray-500">{rad.utforerFaggruppe.name}</span>,
-        sorterbar: true, sorterVerdi: (rad) => rad.utforerFaggruppe.name, filtrerbar: true, filterAlternativer: dynamiskFilter.utforerFaggruppe ?? [] },
+        celle: (rad) => <span className="text-xs text-gray-500">{faggruppeNavn(rad.utforerFaggruppe, "—")}</span>,
+        sorterbar: true, sorterVerdi: (rad) => faggruppeNavn(rad.utforerFaggruppe), filtrerbar: true, filterAlternativer: dynamiskFilter.utforerFaggruppe ?? [] },
       mal: { id: "mal", header: t("tabell.mal"), celle: (rad) => <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{rad.template.name}</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.template.name, filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [] },
       opprettet: { id: "opprettet", header: t("tabell.opprettelsesdato"), celle: (rad) => <span className="text-xs text-gray-500">{formaterDato(rad.createdAt)}</span>,
@@ -923,7 +974,7 @@ export default function SjekklisteSide() {
                         <span className="text-sm font-medium text-gray-500">{m.malNavn}</span>
                         {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
                       </span>
-                      <span className="text-xs text-gray-400">{t(`dokumentflyt.feil.${m.grunn}`)}</span>
+                      <span className="text-xs text-gray-400">{m.utilgjengeligÅrsak?.grunn === "ikkeRegistrator" ? t("malVelger.ikkeRegistratorIFaggruppe", { faggruppe: m.utilgjengeligÅrsak.faggruppe }) : t("dokumentflyt.feil.ingenFlytMedMal")}</span>
                     </div>
                   ))}
                 </div>

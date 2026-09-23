@@ -256,7 +256,7 @@ Maskin-sjekklister kan «trigges av varsel» (eks. EU-kontroll-frist nærmer seg
 
 **Avgrensning:** Maskin-sjekkliste-trigger-mekanikk lever i `db-maskin` og maskin-modulen. Generell varsling-rammeverk lever i kjernen (per varsling.md). Maskin-modulen tar ansvar for sin domene-spesifikke trigger.
 
-**Manuell trigger (eksisterende):** Brukeren kan opprette sjekkliste manuelt fra maskinregister — denne utgjør allerede primær-veien (per § Designbeslutninger MVP-scope). Auto-trigger fra varsel kommer som tillegg.
+**Manuell trigger:** ❌ **IKKE IMPLEMENTERT (målt 2026-09-18).** Denne linja påsto at brukeren «allerede» kan opprette maskin-sjekkliste manuelt fra maskinregisteret, og at det er primær-veien. `EquipmentChecklist`-modellen finnes ikke i `packages/db-maskin/prisma/schema.prisma`, og det finnes ingen slik opprettingsvei i koden. Del E (sjekkliste med avkrysning) er utenfor pilot-scope (Kenneth 2026-09-18). Auto-trigger fra varsel forutsetter denne modellen og er også uimplementert.
 
 **Kilde:** Identifisert i Opus QA-runde 2 (2026-04-25), Nye svakheter punkt 7 — konsolidert hit 2026-04-28.
 
@@ -535,6 +535,8 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 | `rekkevidde` | `decimal?` | Maks graveradius/løftehøyde (m) |
 | `storrelsesklasse` | `text?` | mini, mellom, stor, ekstra_stor |
 | `driftstimer` | `int?` | Sist registrerte driftstimer |
+| `service_intervall_timer` | `int?` | Serviceintervall i driftstimer (kundeønske #1). CHECK `> 0`. NULL = ikke satt → ingen varsling |
+| `neste_service_timer` | `int?` | Gjeldende terskel «neste service ved X driftstimer» (denormalisert fra `service_records`, del C). CHECK `> 0` |
 | `tomgangstimer` | `int?` | Kumulativ tomgangstid |
 | `totalForbrukLiter` | `decimal?` | Totalt drivstofforbruk siden ny |
 | `telematikkId` | `text?` | KOMTRAX/Product Link/ActiveCare ID |
@@ -570,7 +572,50 @@ Kjøretøy uten registreringsnummer (anleggsmaskiner, gravemaskiner) registreres
 | `nesteServiceKm` | `int?` | Neste service ved km-stand |
 | `nesteServiceTimer` | `int?` | Neste service ved driftstimer |
 | `vedlegg` | `JSON?` | Filreferanser (fakturaer, bilder) |
+| `feilmeldingId` | `uuid?` FK → `feilmeldinger` | Lukker åpen feilmelding hvis satt |
+| `registrertAvUserId` | `text?` | Hvem registrerte servicen |
 | `createdAt` | `timestamptz` | |
+
+## Service pr. timetall (kundeønske #1) — 🟢 pilot levert 2026-09-18
+
+**Branch `feat/service-timetall` (ikke deployet — migrering Kenneth-gatet).** Løser
+kundeønske #1: en maskin skal kunne ha et serviceintervall i driftstimer, en
+skrivevei for utført service, fremskriving av neste service, og et terskelvarsel.
+
+**Måling som utløste ordren (2026-09-17):** `nesteServiceTimer` lå kun på
+`ServiceRecord`, ble aldri skrevet (ingen skrivevei fantes), aldri lest, og
+`ServiceRecord` hadde ingen produkt-skrivevei i det hele tatt. Tabellen var tom
+fordi ingenting kunne fylle den.
+
+**Levert:**
+- **Migrering `20260918120000_service_timetall`** — ren tillegg til `equipment`:
+  `service_intervall_timer int?` (intervallet) + `neste_service_timer int?`
+  (gjeldende terskel, denormalisert). CHECK `> 0` på begge · begge NULL ved
+  backfill (NULL = ikke satt → ingen varsling; en oppdiktet default ville varslet
+  om service ingen har bestemt).
+- **Hvor «neste service» bor — BEGGE:** `ServiceRecord.nesteServiceTimer` bærer
+  historikken («da vi utførte servicen var neste satt til X»); `Equipment.nesteServiceTimer`
+  bærer gjeldende tilstand for rask terskel-lesning. **Speiler EU-kontroll-mønsteret:**
+  `Equipment.euKontrollFrist` (gjeldende) ved siden av `ServiceRecord` med
+  `type="eu_kontroll"` (historikk).
+- **Skrivevei `maskin.service.registrerService`** (`apps/api/src/routes/maskin/service.ts`):
+  registrerer en `ServiceRecord`, framskriver neste = driftstimer ved service +
+  intervall (`beregnNesteService`, `services/maskin/service-varsel.ts`), skriver til
+  både record og equipment, og bumper `Equipment.driftstimer` til avlest verdi
+  (manuell avlesning ved service). `listForEquipment` for servicelogg.
+- **Terskelvarsel (del D)** på maskin-detalj — tilpasset `EuKontrollBanner`, men i
+  driftstimer (`serviceVarselNiva`, `apps/web/src/lib/service-varsel-niva.ts`;
+  terskler snart 50 t / planlagt 200 t).
+- **Innstilling (del A)** i maskinens innstillinger, per maskin. Firma bestemmer
+  selv hvilket utstyr som får intervall (Kenneth 2026-09-18) → feltet er
+  kategori-agnostisk. Følger `ui-standarder.md § Feltstatus`: intervallet er
+  konsekvensbærende — tomt gir amber venstrekant + prikk + hjelpetekst.
+- **PDF-servicerapport** (`packages/pdf/service-rapport.ts`, `maskin.service.pdfEksport`)
+  — servicelogg-tabell + gjeldende intervall/neste. i18n på overskrifter + filnavn.
+
+**Utenfor pilot (Kenneth 2026-09-18):** del E (sjekkliste med avkrysning,
+`EquipmentChecklist`), auto-oppdatering av driftstimer fra dagsseddel
+(dagsseddeltimer er fakturerbare arbeidstimer, ikke driftstimer).
 
 ### `gps_events` — posisjonsdata
 

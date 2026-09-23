@@ -595,3 +595,68 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   reiseLonnsartId: text("reise_lonnsart_id"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
+
+/**
+ * sjekkliste_local — offline-katalog for sjekklistelista (Offline-sjekklister
+ * fase 1, 2026-09-11). Speiler KUN det lista viser/filtrerer på (målt mot
+ * app/sjekkliste/index.tsx + dokumentliste/dokumentlisteFilter.ts) — ikke hele
+ * server-modellen. Read-only mirror: refresh full-overskriver per prosjekt fra
+ * `sjekkliste.hentForProsjekt` (uten byggeplassId → hele prosjektet, så lokal
+ * lesing selv gjør byggeplass-scopingen som serveren gjør med byggeplassFilterDirekte).
+ *
+ * Serverens tilgangsfilter + HMS-eksklusjon er allerede anvendt ved henting, så
+ * radene her er en tro kopi av det denne brukeren ville sett online.
+ *
+ * Konvensjoner (schema.ts § Timer Runde 2): id = server-id, datoer som ISO-streng,
+ * sistOppdatert Unix ms. Nested relasjoner flates til navn-kolonner (lista viser
+ * kun navn). byggeplassId er scoping-nøkkelen; byggeplassNavn er badge-teksten.
+ * KUN lokal, synkes aldri opp (utfylling bor i sjekkliste_feltdata).
+ */
+export const sjekklisteLocal = sqliteTable("sjekkliste_local", {
+  id: text("id").primaryKey(), // = server Checklist.id
+  projectId: text("project_id").notNull(),
+  title: text("title").notNull(),
+  status: text("status").notNull(),
+  number: integer("number"),
+  createdAt: text("created_at").notNull(), // ISO — sortering nyeste/eldste
+  updatedAt: text("updated_at").notNull(), // ISO — DokumentRad-paritet
+  subject: text("subject"),
+  dueDate: text("due_date"), // ISO — frist-filter
+  byggeplassId: text("byggeplass_id"), // scoping (null = hele prosjektet)
+  byggeplassNavn: text("byggeplass_navn"),
+  templateName: text("template_name"),
+  templatePrefix: text("template_prefix"),
+  utforerFaggruppeNavn: text("utforer_faggruppe_navn"),
+  drawingNavn: text("drawing_navn"),
+  dokumentflytNavn: text("dokumentflyt_navn"),
+  recipientUserNavn: text("recipient_user_navn"),
+  recipientGroupNavn: text("recipient_group_navn"),
+  bestillerNavn: text("bestiller_navn"),
+  sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — katalog-freshness (krav 7)
+});
+
+/**
+ * reise_grensepunkt_local — offline-cache av firmaets reise-grensepunkter
+ * (TILLEGG-2, 2026-09-11). Speiler serverens grensepunkt-tabell (redesign bygger
+ * den med UNIQUE(organizationId, grenseM)). GRENSEPUNKTER, ikke intervaller:
+ * `grenseM` = avstand (meter) der `lonnsartId` begynner å gjelde; oppslaget er
+ * «største grenseM <= avstandM». `lonnsartId` null = ingen reise-art fra det
+ * punktet (fallback). Komposit-PK (organizationId, grenseM) speiler server-unik
+ * og gjør overlapp strukturelt umulig.
+ *
+ * 🔴 STÅR TOM OG UBRUKT etter denne runden — MED VILJE. Refresh-tjeneste + lesere
+ * bygges av `feat/reise-avstandsband`-oppfølgeren (redesign). Ikke rydd bort som
+ * ubrukt (jf. group_faggrupper som sto tom i 22 prosjekter et halvt år).
+ */
+export const reiseGrensepunktLocal = sqliteTable(
+  "reise_grensepunkt_local",
+  {
+    organizationId: text("organization_id").notNull(),
+    grenseM: integer("grense_m").notNull(),
+    lonnsartId: text("lonnsart_id"),
+    sistOppdatert: integer("sist_oppdatert").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.organizationId, t.grenseM] }),
+  }),
+);
