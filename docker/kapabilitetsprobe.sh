@@ -66,6 +66,7 @@ MANGLER_KREVES=0
 MANGLER_UTSATT=0
 MANGLER_VALGFRI=0
 UTSATT_UTEN_REF=0
+ENV_DRIFT=0
 
 # --- Kjernefunksjon: finnes binæren? -----------------------------------------
 # $1 = container ("" = lokal/verts-modus), $2 = binærnavn eller absolutt sti
@@ -285,44 +286,70 @@ sjekk_postgres() {
 }
 
 # ---------------------------------------------------------------------------
-# ENV-FILER — kun EKSISTENS av nøkler. ALDRI verdier (CLAUDE.md § SIKKERHET).
+# ENV-FILER — søker HVER nøkkel på tvers av ALLE filene den lovlig kan bo i.
+#
+# 🔴 En env-sjekk som leser ÉN fil kan aldri si «mangler» — kun «ikke her».
+#    (Samme klasse som «et grep-treff på null er ikke bevis for fravær»,
+#    SAMARBEIDSREGLER § Merge-kjeden.) Målt 2026-09-23 mot server-ny:
+#    FIL_SIGNING_SECRET lå i api.env+web.env (ikke felles.env) — den gamle
+#    sjekken leste kun felles.env og meldte «MANGLER» om noe som fantes.
+#
+#    Derfor: MANGLER = fraværende i ALLE kandidatfiler. «finnes» sier HVOR.
+#    ALDRI verdier — kun `grep -q` på om nøkkelen finnes (CLAUDE.md § SIKKERHET).
 sjekk_env() {
-  printf "\n${B}ENV-FILER${N}  ${DIM}%s/docker/env/ — kun nøkkel-eksistens, aldri verdier${N}\n" "$STACK_DIR"
+  printf "\n${B}ENV-FILER${N}  ${DIM}%s/docker/env/ — søker hver nøkkel på tvers av kandidatfilene; aldri verdier${N}\n" "$STACK_DIR"
   local envdir="$STACK_DIR/docker/env"
   if [ ! -d "$envdir" ]; then
     printf "    ${Y}%s finnes ikke — kjør fra riktig --stack, eller env ligger annet sted${N}\n" "$envdir"
     return
   fi
-  # fil|nøkkel|nivå  (nøkler utledet fra process.env-grep + compose-kommentarer + .env.example)
+  # nøkkel|kandidatfiler|nivå|duplikat-forbudt-i|referanse
+  #   kandidatfiler       = alle stedene nøkkelen LOVLIG kan bo (funnet i én = OK)
+  #   duplikat-forbudt-i  = filer nøkkelen IKKE skal stå i (drift-avvik hvis den gjør)
   local krav=(
-    "felles.env|FIL_SIGNING_SECRET|KREVES"
-    "api.env|DATABASE_URL|KREVES"
-    "api.env|SITEDOC_INTEGRATION_KEY|KREVES"
-    "api.env|VEGVESEN_API_KEY|VALGFRI"
-    "api.env|RESEND_API_KEY|VALGFRI"
-    "web.env|AUTH_SECRET|KREVES"
-    "web.env|DATABASE_URL|KREVES"
-    "web.env|AUTH_GOOGLE_ID|KREVES"
-    "web.env|AUTH_GOOGLE_SECRET|KREVES"
-    "web.env|AUTH_MICROSOFT_ENTRA_ID_ID|VALGFRI"
-    "web.env|AUTH_MICROSOFT_ENTRA_ID_SECRET|VALGFRI"
+    "FIL_SIGNING_SECRET|felles.env,api.env,web.env|KREVES|api.env,web.env|DOCKER-NOTES.md:141 — felles.env skal være ENESTE hjem (hindrer rotasjons-drift)"
+    "DATABASE_URL|api.env,web.env|KREVES||"
+    "SITEDOC_INTEGRATION_KEY|api.env,felles.env|KREVES||"
+    "VEGVESEN_API_KEY|api.env|VALGFRI||"
+    "RESEND_API_KEY|api.env|VALGFRI||"
+    "AUTH_SECRET|web.env|KREVES||"
+    "AUTH_GOOGLE_ID|web.env|KREVES||"
+    "AUTH_GOOGLE_SECRET|web.env|KREVES||"
+    "AUTH_MICROSOFT_ENTRA_ID_ID|web.env|VALGFRI||"
+    "AUTH_MICROSOFT_ENTRA_ID_SECRET|web.env|VALGFRI||"
   )
-  local rad fil nokkel nivaa
+  local rad nokkel kandidater nivaa forbudt referanse
   for rad in "${krav[@]}"; do
-    IFS='|' read -r fil nokkel nivaa <<< "$rad"
-    if [ ! -f "$envdir/$fil" ]; then
-      printf "    %-14s %-30s ${R}${B}FIL MANGLER${N}\n" "$fil" "$nokkel"
-      [ "$nivaa" = "KREVES" ] && MANGLER_KREVES=$((MANGLER_KREVES + 1))
-      continue
-    fi
-    if grep -q "^${nokkel}=" "$envdir/$fil" 2>/dev/null; then
-      printf "    %-14s %-30s ${G}finnes${N}\n" "$fil" "$nokkel"
+    IFS='|' read -r nokkel kandidater nivaa forbudt referanse <<< "$rad"
+    # Søk i HVER kandidatfil — samle hvor den finnes.
+    local funnet_i="" fil kand_arr
+    IFS=',' read -ra kand_arr <<< "$kandidater"
+    for fil in "${kand_arr[@]}"; do
+      [ -f "$envdir/$fil" ] && grep -q "^${nokkel}=" "$envdir/$fil" 2>/dev/null \
+        && funnet_i="${funnet_i:+$funnet_i, }$fil"
+    done
+    if [ -n "$funnet_i" ]; then
+      printf "    %-30s ${G}finnes${N}   ${DIM}i %s   [søkt: %s]${N}\n" "$nokkel" "$funnet_i" "$kandidater"
+      # Drift: står nøkkelen i en fil der den IKKE skal stå?
+      if [ -n "$forbudt" ]; then
+        local drift_i="" ff forb_arr
+        IFS=',' read -ra forb_arr <<< "$forbudt"
+        for ff in "${forb_arr[@]}"; do
+          [ -f "$envdir/$ff" ] && grep -q "^${nokkel}=" "$envdir/$ff" 2>/dev/null \
+            && drift_i="${drift_i:+$drift_i, }$ff"
+        done
+        if [ -n "$drift_i" ]; then
+          printf "      ${R}${B}⚠ DRIFT${N} ${DIM}%s står i %s — %s${N}\n" "$nokkel" "$drift_i" "$referanse"
+          ENV_DRIFT=$((ENV_DRIFT + 1))
+        fi
+      fi
     else
+      # Fraværende i ALLE kandidater = ekte «finnes ikke».
       if [ "$nivaa" = "KREVES" ]; then
-        printf "    %-14s %-30s ${R}${B}MANGLER${N}\n" "$fil" "$nokkel"
+        printf "    %-30s ${R}${B}MANGLER${N}  ${DIM}finnes ikke — ikke i noen av: %s${N}\n" "$nokkel" "$kandidater"
         MANGLER_KREVES=$((MANGLER_KREVES + 1))
       else
-        printf "    %-14s %-30s ${Y}mangler${N} ${DIM}(valgfri)${N}\n" "$fil" "$nokkel"
+        printf "    %-30s ${Y}mangler${N}  ${DIM}(valgfri) finnes ikke — ikke i noen av: %s${N}\n" "$nokkel" "$kandidater"
         MANGLER_VALGFRI=$((MANGLER_VALGFRI + 1))
       fi
     fi
@@ -456,6 +483,9 @@ fi
 printf "\n"
 if [ "$UTSATT_UTEN_REF" -gt 0 ]; then
   printf "${R}${B}⚠ %s UTSATT-oppføring(er) uten dato/BACKLOG-ref${N} ${DIM}— fyll inn, ellers er UTSATT bare en avslått alarm${N}\n" "$UTSATT_UTEN_REF"
+fi
+if [ "$ENV_DRIFT" -gt 0 ]; then
+  printf "${R}${B}⚠ %s env-drift-avvik${N} ${DIM}— nøkkel finnes, men ikke der den skal (teller ikke mot exit; egen hygiene-akse)${N}\n" "$ENV_DRIFT"
 fi
 
 # HVA PROBEN IKKE KAN SJEKKE (går videre til flytte-sjekklisten i ny-server-veileder.md § 7):
