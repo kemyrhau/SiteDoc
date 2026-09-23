@@ -150,4 +150,45 @@ describe("byggLokasjonsblokk — dokumentnivå lokasjon (D2)", () => {
   it("lokasjonOmfang=punkt uten markør → \"\" (som i dag)", () => {
     expect(byggLokasjonsblokk({ lokasjonOmfang: "punkt" }, OPPSLAG)).toBe("");
   });
+
+  // RØD-FØRST (2026-09-23): mot dagens kode faller «omrade» gjennom til `!harMarkor` → "".
+  // Denne skal derfor FEILE med TOM STRENG før grenen finnes, og gi navnet etter.
+  it("lokasjonOmfang=omrade → skriver områdets NAVN, ALDRI utelatt", () => {
+    const html = byggLokasjonsblokk({ lokasjonOmfang: "omrade", omradeNavn: "Sone B" }, OPPSLAG);
+    expect(html).not.toBe("");
+    expect(html).toContain("Lokasjon");
+    expect(html).toContain("Sone B");
+  });
+
+  it("lokasjonOmfang=omrade → områdets type som dempet kontekstlinje under navnet", () => {
+    const etasje = byggLokasjonsblokk(
+      { lokasjonOmfang: "omrade", omradeNavn: "Plan 3", omradeType: "etasje" },
+      OPPSLAG,
+    );
+    expect(etasje).toContain("Plan 3");
+    expect(etasje).toContain("Etasje");
+    // «trase» får norsk etikett med æøå bevart.
+    const trase = byggLokasjonsblokk(
+      { lokasjonOmfang: "omrade", omradeNavn: "Grøft V2", omradeType: "trase" },
+      OPPSLAG,
+    );
+    expect(trase).toContain("Trasé");
+  });
+
+  it("lokasjonOmfang=omrade vinner over manglende markør (ingen tegning kreves)", () => {
+    const html = byggLokasjonsblokk(
+      { lokasjonOmfang: "omrade", omradeNavn: "Sone B", drawingId: null, positionX: null, positionY: null },
+      OPPSLAG,
+    );
+    expect(html).toContain("Sone B");
+  });
+
+  // PUNKT 6: navnet mangler (området slettet → SetNull, eller ennå ikke sammenstilt) →
+  // NØYTRAL linje, aldri tom streng. Et dokument som HADDE et sted skal ikke se tomt ut.
+  it("lokasjonOmfang=omrade uten navn → nøytral linje, ALDRI tom streng", () => {
+    const html = byggLokasjonsblokk({ lokasjonOmfang: "omrade" }, OPPSLAG);
+    expect(html).not.toBe("");
+    expect(html).toContain("Lokasjon");
+    expect(html).toContain("Et definert område");
+  });
 });

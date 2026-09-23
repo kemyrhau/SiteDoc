@@ -91,6 +91,39 @@ export interface LokasjonsData {
    * tegning å pinne på («Akse 4»). Vises SOM stedet i byggeplass-linja, aldri utelatt.
    */
   lokasjonFritekst?: string | null;
+  /**
+   * Områdenavn (2026-09-23): stedet når `lokasjonOmfang === "omrade"` — navnet på et
+   * definert `Omrade` (`Omrade.navn`), ikke id-en. Fylles i api-sammenstillingen der
+   * `byggeplassNavn` fylles (aldri DB-oppslag herfra — pakken er avhengighetsfri).
+   * Mangler navnet (området slettet → `SetNull`, eller ennå ikke sammenstilt) skrives
+   * en nøytral linje, aldri tom seksjon.
+   */
+  omradeNavn?: string | null;
+  /**
+   * Områdetype (2026-09-23): `Omrade.type` (sone | rom | etasje | trase) → dempet
+   * kontekstlinje under navnet, slik byggeplass-grenen skriver «På byggeplassen».
+   */
+  omradeType?: string | null;
+}
+
+/**
+ * `Omrade.type` → norsk etikett for kontekstlinja under områdenavnet. Ukjent/manglende
+ * type → `null` (ingen kontekstlinje). Norsk hardkodet, som resten av `packages/pdf`
+ * (server-side PDF er ikke i18n-et).
+ */
+function omradeTypeEtikett(type?: string | null): string | null {
+  switch (type) {
+    case "sone":
+      return "Sone";
+    case "rom":
+      return "Rom";
+    case "etasje":
+      return "Etasje";
+    case "trase":
+      return "Trasé";
+    default:
+      return null;
+  }
 }
 
 /**
@@ -114,6 +147,22 @@ export function byggLokasjonsblokk(
       ? `${esc(data.lokasjonFritekst)}<div style="font-size:9.5px;color:#6b7280;">På byggeplassen</div>`
       : "Gjelder hele byggeplassen";
     return `<div class="ark-lokasjon"><div class="ark-lokasjon-tittel">Lokasjon</div><div style="font-size:11px;color:#374151;">${stedTekst}</div></div>`;
+  }
+  // Et definert område er — som byggeplass — et bevisst lokasjonsvalg, ikke en manglende pin.
+  // Seksjonen skrives ALLTID når omfanget er «omrade», også uten markør. Navnet er stedet,
+  // med områdets type som dempet kontekst under (samme form som byggeplass-grenen).
+  if (data.lokasjonOmfang === "omrade") {
+    // Mangler navnet — området slettet (`Omrade` → `SetNull`) eller ennå ikke sammenstilt —
+    // skrives en NØYTRAL linje, aldri tom streng: et dokument som HADDE et sted skal ikke se
+    // ut som det aldri hadde noe.
+    if (!data.omradeNavn) {
+      return `<div class="ark-lokasjon"><div class="ark-lokasjon-tittel">Lokasjon</div><div style="font-size:11px;color:#374151;">Et definert område</div></div>`;
+    }
+    const typeEtikett = omradeTypeEtikett(data.omradeType);
+    const kontekstLinje = typeEtikett
+      ? `<div style="font-size:9.5px;color:#6b7280;">${esc(typeEtikett)}</div>`
+      : "";
+    return `<div class="ark-lokasjon"><div class="ark-lokasjon-tittel">Lokasjon</div><div style="font-size:11px;color:#374151;">${esc(data.omradeNavn)}${kontekstLinje}</div></div>`;
   }
   if (!harMarkor(data)) return "";
   const t = oppslag?.[data.drawingId];
