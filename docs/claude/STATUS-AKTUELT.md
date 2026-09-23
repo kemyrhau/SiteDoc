@@ -34,7 +34,26 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 🔴 **Konsekvens for prod:** en `develop → main`-merge er **rent additiv**. Risikoen ved prod-deployen ligger ikke i divergens — den er null — men i de **8+ umerkede migreringene** og i at `main` er 522 commits bak. **Migreringsgjennomgang er den avgrensede oppgaven som gjenstår før prod.**
 
-🔴 **HOTFIX MERGET `4d9fc788`:** `poppler-utils` + `tesseract-ocr` + `tesseract-ocr-nor` inn i `Dockerfile.web`. **Ikke deployet — feilen står i prod til den er det.**
+### ✅ 2026-09-24 — HOTFIX DEPLOYET TIL TEST OG VERIFISERT. Prod står fortsatt med feilen.
+
+**Test-deploy `0968c026`** (`gitSha` verifisert mot `/version`). `pdftoppm` + `tesseract` er nå i **både** `sitedoc-test-api` og `sitedoc-test-web` — de manglet i web før.
+
+🟢 **Kenneth verifiserte ved å laste opp en NY PDF-tegning: den konverteres og rendrer.** Kodeveien var død i går.
+
+🔴 **LÆRDOM — verifiseringsordren var først FEIL, og feilen er coworks.** Cowork ba Kenneth åpne en EKSISTERENDE PDF-tegning. Det beviser ingenting: `pdftoppm` kalles ved **opplasting** (`apps/api/src/routes/tegning.ts:105→258` i `opprett`, og `:582→631` i `rekonverterPdf`) — en alt konvertert tegning rendrer fra det lagrede PNG-et og trenger aldri binæren igjen. Kenneth fanget det selv: *«dette er en pdf tegning → men den har fungert slik hele tiden»*.
+
+⚠️ **Regelen som følger:** en verifiseringsordre skal navngi **hvilken handling som trigger kodeveien**, ikke bare hvilken skjerm man skal se på. Samme klasse som «be aldri om verifisering av kode som ikke er deployet» — her var koden deployet, men handlingen som utløser den fant ikke sted.
+
+🔴 **PROD ER IKKE DEPLOYET.** `pdftoppm` og `tesseract` mangler fortsatt i prod-web. Feilen er live for enhver som laster opp en PDF-tegning på sitedoc.no.
+
+### 🟡 Feltfunn 2026-09-24 (funn-sporet, ikke blokkerende)
+
+- **Zoom i tegningsvisningen bruker ikke musepekeren som origo.** Virker, men irriterer. Kenneth, test.sitedoc.no.
+- **Banneret sier «DWG-konvertering feilet» også for PDF-feil** (`apps/web/src/app/dashbord/[prosjektId]/tegninger/page.tsx:883`). Del av grunnen til at PDF-feilen så ut som en DWG-sak. Krever i18n i 15 språk.
+- 🔴 **AVKLART OG MÅLT — nedlastede filer får UUID som navn.** Symptomet så ut som en opplastingsfeil (ny tegning listet som `40ae60ab-…`), men opplastingen gjør riktig: `apps/web/src/app/dashbord/oppsett/byggeplasser/page.tsx:310` setter `setMetaNavn(fil.name.replace(/\.[^.]+$/, ""))` — filnavnet uten endelse. **UUID-en VAR filnavnet.** Kenneth lastet fila ned fra prod, og den kom ut som `<uuid>.pdf`.
+  **Rotårsak:** `apps/api/src/routes/upload.ts:133` lagrer på disk som `<uuid>.<ext>` (riktig — hindrer kollisjon), men `apps/api/src/server.ts:131` setter `Content-Disposition: inline` **uten `filename=`**. Nettleseren har da ingenting å gå på og bruker siste URL-ledd.
+  **Treffer alt en bruker laster ned:** tegning, vedlegg, arkiv-PDF. ⚠️ **Ikke målt:** om alle nedlastingsveier går gjennom `server.ts:131` eller om arkiv-PDF/vedlegg har egne — det avgjør om fiksen er ett eller tre steder.
+  ⚠️ **Nær 🔴-grensen:** ingen blokkeres, men et dokument som skal kunne vises til i en tvist, kan ikke hete `40ae60ab-2cd0-46a3-8238-1f9a4bf5ba65.pdf`.
 
 ### 🔴 2026-09-24 — DWG-BINÆRER OG GEOREFERANSEFIKS MÅ I SAMME RELEASE
 

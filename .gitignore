@@ -81,3 +81,6 @@ kilder/*
 
 # Mal-revisjons-SQL (kjøres mot test, aldri versjoneres) — MAL-METODE sier de er ignorert.
 /*-test.sql
+
+# Kenneths lokale 3D-testfiler (Pix4D/punktsky) — aldri i repo, aldri til server
+3D eksempelfiler/

@@ -973,6 +973,16 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 - 🔴 **Avsender VERIFISERER mot origin FØR en hash meldes:** `git ls-remote --heads origin <branch>`. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.** Gjelder **begge veier** — design som melder en gate, og cowork som påstår noe om en branchs tilstand.
 - **Endres et filnavn, føres det gamle navnet som DØDT i innboksen** — ellers leter noen etter en fil som ikke finnes.
 
+#### 🔴 En verifiseringsordre skal navngi HANDLINGEN som trigger kodeveien (2026-09-24)
+
+**Ikke «åpne skjermen og se om det virker» — men «gjør DETTE, som får koden til å kjøre».**
+
+**Målt 2026-09-24:** cowork ba Kenneth åpne en eksisterende PDF-tegning for å verifisere at `pdftoppm`-hotfixen virket. Det beviste ingenting: `pdftoppm` kalles ved **opplasting** (`apps/api/src/routes/tegning.ts:105→258` i `opprett`, `:582→631` i `rekonverterPdf`). En alt konvertert tegning rendrer fra det lagrede PNG-et og trenger aldri binæren igjen. **Kenneth fanget det selv:** *«dette er en pdf tegning → men den har fungert slik hele tiden»*. Riktig test var å laste opp en NY PDF — og da virket den.
+
+⚠️ **Feilklassen ligger nær «be aldri om verifisering av kode som ikke er deployet», men er ikke den samme:** her VAR koden deployet. Det som manglet var at **handlingen som utløser kodeveien** aldri fant sted. En grønn skjerm beviste bare at et gammelt resultat fortsatt lå lagret.
+
+🔴 **Fast krav:** før en verifiseringsordre skrives, finn hvilken prosedyre som kaller det som er fikset, og hva brukeren må GJØRE for å nå den. Står det ikke i ordren, er «det virker» en observasjon om cache, ikke om fiksen.
+
 #### 🔴 Spør etter COMMIT-HASH, ikke branchnavn — en ryddet branch og «ikke merget» ser like ut (2026-09-24)
 
 **`git merge-base --is-ancestor origin/<branch> origin/develop` feiler med exit≠0 når `origin/<branch>` ikke finnes** — for eksempel fordi branchen er slettet etter merge. **Exit≠0 fra en feilende kommando og exit≠0 fra et ekte «nei» er umulige å skille.**
