@@ -260,6 +260,34 @@ kalibreringer skal varsles framfor å «fikses» automatisk.
 
 ---
 
+### 🔴 3D-koordinatfesting mot tegning: fiksen kunne ikke nå fram (2026-09-23)
+
+**Kenneth 2026-09-23:** *«det var vanskelig å koordinatfeste 3d mot dwg/pdf tegninger. den ene fiksen ødela i
+den andre.»*
+
+🔴 **Full utredning med årsak, commit-hasher og rangert plan:**
+[designnotat-3d-koordinatfesting-design-2026-09-23.md](../redesign/designnotat-3d-koordinatfesting-design-2026-09-23.md)
+
+**Kort, bare nok til å vite om saken angår deg:** `c043b67f` (31.03) gjorde en direkte piksel↔3D-transform til
+primærvei i `tegning-3d/page.tsx:623-632` og den delte GPS-veien til fallback. `7dd4df8d` (13.08) rettet
+speilfeilen i `georeferanse.ts`. **De to commitene rører ikke én felles fil** — fiksen var riktig og for en
+kalibrert modell usynlig.
+
+**Notatet har fem ting BACKLOG ikke gjentar:** de tre koordinatmodellene og hvorfor `koordinatBro.ts` har ÉN
+commit siden mars · at `PointCloud.coordinateSystem` er et brudd på «Stille tomhet er forbudt» (null skrivevei,
+null lesevei siden `dd5df1a1`) · fella der `gpsOverride` bærer `lat/lng` og `transform` med **ulik alder** ·
+at UTM/NTM anbefales som felles nav framfor GPS, av samme matematiske grunn som ga speilfeilen · og hvorfor
+3D er riktig SIST i køen.
+
+⚠️ **Én måling skal ikke vente på køen** (notatet § 8 trinn 0a): antall rader i `drawings` der `gps_override`
+har både `lat/lng` og `transform` og er skrevet før 2026-08-13. Er svaret 0, er fella teoretisk. Lesende SQL,
+kjøres av Kenneth mot test.
+
+**Kenneth-valg som venter i notatet § 9:** om punktsky skal koordinatfestes eller visningsveien avskrives, og
+om `gpsOverride.transform` skal bli en korreksjon på navet framfor en omvei rundt det.
+
+---
+
 ### 🔴 Oppstartssjekk for PÅKREVDE binærer — vakten som mangler (design 2026-09-23)
 
 **Utløst av PDF-feilen 2026-09-23:** `pdftoppm` finnes i `sitedoc-api` men ikke i `sitedoc-web`, og tRPC kjører
