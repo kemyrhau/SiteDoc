@@ -969,6 +969,16 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 - 🔴 **Avsender VERIFISERER mot origin FØR en hash meldes:** `git ls-remote --heads origin <branch>`. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.** Gjelder **begge veier** — design som melder en gate, og cowork som påstår noe om en branchs tilstand.
 - **Endres et filnavn, føres det gamle navnet som DØDT i innboksen** — ellers leter noen etter en fil som ikke finnes.
 
+#### 🔴 Et navn i en ordre måles av den som skriver det inn — aldri arvet (2026-09-23)
+
+> **Et binærnavn, en filsti eller et `fil:linje` i en ordre måles av den som skriver det inn — aldri arvet fra en annen agents melding. Arver du det, skriv «umålt» ved siden av.**
+
+**Målt tilfelle:** cowork navnga `dwgread` fra et grovt grep uten å slå det opp. Design kopierte navnet inn i BACKLOG i god tro. Simulator målte og fant at `dwgread` **ikke kalles i det hele tatt** — de virkelige binærene er `dwg2dxf` (`dwgKonvertering.ts:80,892`) og `dwg2SVG` (`:930`).
+
+🔴 **Navnet reiste gjennom to ordrer og én BACKLOG-post før noen slo det opp.** Kjeden fanget det — men ett ledd for sent, og bare fordi den som til slutt skulle *bruke* navnet måtte måle det uansett.
+
+⚠️ **Feilklassen er ikke slurv, den er tillit i feil retning:** et navn fra en velskrevet melding leses som målt. Samme rot som § Cowork leveranse-ansvar punkt 4 («relé, rapport og exit er input, ikke fasit»), anvendt på det minste mulige elementet — ett ord. **Gjelder begge veier.** *(Design foreslo regelen etter å ha vært mellomleddet; formuleringen er hans, plasseringen coworks.)*
+
 ## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)
 
 **Miljøspørsmål besvares fra [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + sjekk-først — aldri ved å be Kenneth gjenta oppsett.** Kunnskapen om `.env`-filer, lokal DB og test-kjøring bor i repoet ([LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) → [lokal-dev.md](lokal-dev.md), [tests/e2e/README.md](../../tests/e2e/README.md), [dev-login-agent.md](dev-login-agent.md)). Compaction sletter agentens minne om at filene finnes — ikke filene.

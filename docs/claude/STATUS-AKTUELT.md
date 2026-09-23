@@ -9,7 +9,16 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-23 · develop `77308515` ← `docs/design-fjerde-tapte-funksjon` `362521ce` `--no-ff` (OCR som fjerde tapte funksjon; `dwgread`-navn rettet). Non-ff, målt trygt selv: base `6edda731` i develop, `BACKLOG.md` 0 rørt på develop siden basen, `merge-tree` 0 konfliktmarkører. Faktisk endring mot develop = KUN `BACKLOG.md` +19/−3 (2-punkts-diffen viste også STATUS-AKTUELT.md fordi branch-base var før georeferanse-tavla; 3-veis merge beholdt develop-versjonen — verifisert intakt). GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · shared 854 · web 307 · mobil 38 · 7/7 — ALT STILLE. `feat/server-kapabilitetsprobe` `a82baa9d` (gatet m/ endring, ny hash kommer) + `fix/pdf-omrade-navn` `b223d036` (ugatet) urørt.**
+**Sist ført: 2026-09-23 · develop `77308515` ← `docs/design-fjerde-tapte-funksjon` `362521ce` `--no-ff` (OCR som fjerde tapte funksjon; `dwgread`-navn rettet). Non-ff, målt trygt selv: base `6edda731` i develop, `BACKLOG.md` 0 rørt på develop siden basen, `merge-tree` 0 konfliktmarkører. Faktisk endring mot develop = KUN `BACKLOG.md` +19/−3 (2-punkts-diffen viste også STATUS-AKTUELT.md fordi branch-base var før georeferanse-tavla; 3-veis merge beholdt develop-versjonen — verifisert intakt). GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · shared 854 · web 307 · mobil 38 · 7/7 — ALT STILLE. `feat/server-kapabilitetsprobe` `f0e5702d` (designgatet — merges nå) + `fix/pdf-omrade-navn` `b223d036` (venter designs gate) urørt ved skriving.**
+
+### To brancher pushet, ingen merget (før probe-mergen under)
+
+| Branch | Hash | Hva | Tilstand |
+|---|---|---|---|
+| `feat/server-kapabilitetsprobe` | `f0e5702d` | lesende kapabilitetsprobe, tre nivåer KREVES/UTSATT/VALGFRI | 🟢 DESIGNGATET + teknisk gate grønn — MERGE KAN GÅ |
+| `fix/pdf-omrade-navn` | `b223d036` | dokgen runde 2 — `omradeNavn`/`omradeType` i arkiv-sammenstillingen, begge dokumenttyper | 🟢 LEVERT, teknisk gate grønn — 🔴 venter designs gate |
+
+🔴 **Rettet:** tidligere førte jeg `a82baa9d` på proben — riktig hash er `f0e5702d` (to revisjoner siden; `UTSATT`-nivå lagt til). **Lærdom ført i SAMARBEIDSREGLER (§ Meldingsflyt):** et navn/hash/`fil:linje` i en ordre måles av den som skriver det inn, aldri arvet. Rotfeil samme runde: en statusfil ble redigert i hovedtreet som merge-treet eide seks commits lenger fram (SAMARBEIDSREGLER § Kollisjons-sjekk pkt 4).
 
 **Tidligere ført: 2026-09-23 · develop `861c570e` ← `docs/design-georeferanse-speiling` `6edda731` `--no-ff` (georeferanse-notat + konsolidert BACKLOG). To andre BACKLOG-branches IKKE merget SOM EGNE — `6edda731` er STABLET oppå `docs/design-dwg-backlog` `648a3179` og fletter inn `docs/design-tapte-funksjoner` `b591899f` (via `a1b30efc`), så deres commits kom inn under toppmergen (verifisert: alle tre ###-poster finnes). Å merge kun toppen ga én ren merge; separate merges ville kollidert på `§ 1`. GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · web 307 · shared 854 · mobil 38 · 7/7 — ALT STILLE. Diff = 2 docs-filer + tavla. `fix/pdf-omrade-navn` `b223d036` urørt (ugatet).**
 
