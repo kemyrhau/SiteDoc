@@ -260,6 +260,39 @@ kalibreringer skal varsles framfor å «fikses» automatisk.
 
 ---
 
+### 🔴 3D-koordinatfesting mot tegning: fiksen kunne ikke nå fram (2026-09-23)
+
+**Kenneth 2026-09-23:** *«det var vanskelig å koordinatfeste 3d mot dwg/pdf tegninger. den ene fiksen ødela i
+den andre.»*
+
+🔴 **Full utredning med årsak, commit-hasher og rangert plan:**
+[designnotat-3d-koordinatfesting-design-2026-09-23.md](../redesign/designnotat-3d-koordinatfesting-design-2026-09-23.md)
+
+**Kort, bare nok til å vite om saken angår deg:** `c043b67f` (31.03) gjorde en direkte piksel↔3D-transform til
+primærvei i `tegning-3d/page.tsx:623-632` og den delte GPS-veien til fallback. `7dd4df8d` (13.08) rettet
+speilfeilen i `georeferanse.ts`. **De to commitene rører ikke én felles fil** — fiksen var riktig og for en
+kalibrert modell usynlig.
+
+**Notatet har fem ting BACKLOG ikke gjentar:** de tre koordinatmodellene og hvorfor `koordinatBro.ts` har ÉN
+commit siden mars · at `PointCloud.coordinateSystem` er et brudd på «Stille tomhet er forbudt» (null skrivevei,
+null lesevei siden `dd5df1a1`) · fella der `gpsOverride` bærer `lat/lng` og `transform` med **ulik alder** ·
+at UTM/NTM anbefales som felles nav framfor GPS, av samme matematiske grunn som ga speilfeilen · og hvorfor
+3D er riktig SIST i køen.
+
+🟢 **Målingen er utført 2026-09-23 (Kenneth, test + prod) — og den lukket den ene akutte delen.** Test har
+**1** tegning med `gps_override`; den mangler `geo_reference`, som er forutsetningen for at `lat/lng` skulle
+være speilforurenset. Prod har **0**. **Ingen backfill, ingen varsling — og vinduet er lukket siden
+funksjonen ble rettet 13. august.** Notatet § 4 er omskrevet fra «felle som venter» til målt og lukket.
+
+🟢 **Samme rad beviste hovedpoenget på data:** den eneste kalibrerte modellen er en IFC-tegning **uten**
+georeferanse, posisjonert utelukkende av `gpsOverride.transform`. Avkoblingen `c043b67f` innførte er dermed
+målt, ikke bare utledet av commit-innhold.
+
+**Kenneth-valg som venter i notatet § 9:** om punktsky skal koordinatfestes eller visningsveien avskrives, og
+om `gpsOverride.transform` skal bli en korreksjon på navet framfor en omvei rundt det.
+
+---
+
 ### 🔴 Oppstartssjekk for PÅKREVDE binærer — vakten som mangler (design 2026-09-23)
 
 **Utløst av PDF-feilen 2026-09-23:** `pdftoppm` finnes i `sitedoc-api` men ikke i `sitedoc-web`, og tRPC kjører
