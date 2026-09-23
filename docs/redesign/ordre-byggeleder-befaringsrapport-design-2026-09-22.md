@@ -637,22 +637,30 @@ befaringsmalene: de skal kunne telles på tvers av prosjekttyper. Delt-tekst-tes
 *venter på leveranse*, og disse fire avvikene. **Om det krever en app-endring, er det et funn som skal meldes —
 ikke løses i malbranchen.**
 
-## B4. Hva Kenneth skal ta stilling til før SQL
+## B4. ✅ Alle punkter GATET — ingenting venter på Kenneth
 
 1. ~~**Hvor bor malen?**~~ ✅ **GATET 2026-09-22: «ja, egen standard BYGGELEDELSE».** Se § B1.
 1b. ~~**Oppgave-mal eller sjekkliste-mal?**~~ ✅ **GATET 2026-09-22:** sjekklistemal for befaringen, oppgavemal for
    avvik — fire maler i alt, se § B1 og § B5.
-2. **Årsakslisten** i felt 2 — åtte valg, designs forslag. Mangler noen? Er noen overflødige? Listen skal
-   være kort nok å velge fra på telefon i en grøft.
+2. ✅ **Årsakslisten: GATET 2026-09-22** — «jeg har ingen kommentar til årssakslisten og faglisten → det er sikkert
+   ok og kan utvides senere». De åtte valgene bygges som de står.
 3. ✅ **Felt 5, sikring og orden: GATET 2026-09-22 — «ta det med».** Feltet blir stående i begge maler, som
    byggelederens **observasjon** og ikke som HMS-behandling. Avvik meldes fortsatt i HMS-sporet (MAL-METODE §1d) —
    den grensen står.
-4. **Ansvarsside pr. årsak** (designnotatet § 4c) er **ikke** i denne malen. Den hører i rapporten og
-   uttrekket, ikke i utfyllingen — byggelederen skal registrere hva som skjedde, ikke hvem som skal betale.
-   Bekreft at det er riktig.
+4. **Ansvarsside pr. årsak** (designnotatet § 4c) er **ikke** i denne malen — **designs valg, ikke et spørsmål**.
+   Begrunnelsen: byggelederen skal registrere hva som skjedde, ikke hvem som skal betale. Ansvarsfordelingen hører i
+   rapporten og uttrekket, der den kan stilles inn pr. kontrakt. Skal den likevel inn i utfyllingen, er det en
+   senere revisjon — ikke en omskriving.
 5. **Bemanning — gatet 2026-09-22**, se § B2. Anlegg: eksakt telling av mannskaper, gravemaskiner, hjullastere.
    Bygg: `list_multi` fag + omtrentlig antall, fordi «tallene blir aldri helt rett». Design har bevisst **ikke**
-   lagt inn dumper, valse, borerigg eller lastebil på anlegg, og ingen maskinfelt på bygg. **Ett åpent punkt:**
-   er **fagliste for bygg** riktig — tømrer, elektro, ventilasjon, rørlegger, grunn- og utomhusarbeid, annet?
-   Du nevnte de tre første. Hvert valg koster tid ved hver befaring, 2–3 ganger i uken, så listen skal være kort
-   nok å krysse av på telefon.
+   lagt inn dumper, valse, borerigg eller lastebil på anlegg, og ingen maskinfelt på bygg. ✅ **Faglisten for bygg:
+   GATET 2026-09-22** — tømrer, elektro, ventilasjon, rørlegger, grunn- og utomhusarbeid, annet.
+
+✅ **Alle punkter i § B4 er gatet 2026-09-22.** Kenneth om de to siste: «jeg har ingen kommentar til årssakslisten
+og faglisten → det er sikkert ok og kan utvides senere.» **Listene bygges som de står, og de er bygget for å kunne
+utvides** — nye årsaker og nye fag er tillegg i et `valg`/`list_multi`, ikke strukturendringer.
+
+🔴 **Men utvidelse har en pris som skal stå her, slik at neste runde vet det:** legges en ny årsak til etter at
+rapporter er skrevet, kan de gamle rapportene ikke reklassifiseres. Årsaksstatistikken over et helt prosjekt blir
+da delt i «før» og «etter». Det er akseptabelt, men det betyr at listen bør være så god som mulig **ved oppstart av
+et prosjekt** — ikke at den er låst for alltid.
