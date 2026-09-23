@@ -9,13 +9,13 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-22 · develop `6d98c697` (`docs/design-utilgjengelige-flyter` `--no-ff`: ordre til kontrollplan — rett stille forsvinning av utilgjengelige flyter) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 1 docs-fil + tavla + BACKLOG · ingen kode/migrering/SQL/mobil · registrator-gaten BEHOLDES (Kenneth-vedtak)**
+**Sist ført: 2026-09-23 · develop `7212f7cb` (fire docs-branches `--no-ff` i Kenneths rekkefølge: UP1-deling · UM1 v2+UM1.1+PE-skjot · BYGGELEDELSE · utled-plan idémyldring) · GATE (`--force`, IKKE FULL TURBO — 0 cached): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 5 nye redesign-filer + BACKLOG + tavla · ingen kode/migrering/SQL/i18n · branch 1 hadde eldre base (e32e8f84), merget rent (disjunkt)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
 | **redesign** | `SiteDoc-redesign` | `erObjektSynlig` levert + merget `3ecbdff2` (`feat/synlighet-samlet`) | ⚪ **LEDIG** | — |
 | **dokgen** | `SiteDoc-dokgen` | ordre ferdig — 🟢 **LÅST OPP:** `erObjektSynlig` er nå i develop `3ecbdff2` | ⚪ **LEDIG** — **nudge går etter denne mergen** (ikke startet) | — |
-| **mal-Opus** | `SiteDoc-mal` | JH2 v2 merget `9b83b285`. **KD1 v3-ordre nå i develop `8136dd23`** (`ordre-kd1-revisjon-betinget-design-2026-09-22.md`) + §1e hjelpetekst-veiledning | 🔵 **KD1 v3 bestilt — design sender startsignalet** (ikke startet) | Designs KD1-startsignal (direkte + linje i `inbox-cowork.md`) |
+| **mal-Opus** | `SiteDoc-mal` | JH2 v2 merget `9b83b285`. **Malkø i develop `7212f7cb`** (alle Kenneth-gatet): KD1 v3 → **UP1-deling (UP1 rev + UP2/UP3/UO2.1)** → UM1 v2+UM1.1 (hører sammen: UM1 felt 9 peker UM1.1) → PE-skjot → BYGGELEDELSE Del B (4 maler). Fasemåling besvart POSITIV, ført i ordrene | 🔵 **Malkø bestilt — design sender startsignal per ordre** (ikke startet) | Designs startsignal (direkte + linje i `inbox-cowork.md`) |
 | **kontrollplan** | `SiteDoc-kontrollplan` | opprett-uten-modal 🟢 MERGET `9b83b285`, VERIFISERT på test. **Ny ordre i develop `6d98c697`** (`ordre-utilgjengelige-flyter-design-2026-09-22.md`): rett den stille forsvinningen av utilgjengelige flyter i opprett-velgeren | 🔵 **ORDRE GITT — nudge etter denne mergen** (ikke startet) | — |
 | **merge** | `SiteDoc-merge` | `merge-restart` | ⚪ **LEDIG** | — |
 | **simulator** | `SiteDoc-simulator` | Xcode 27-oppkobling dokumentert (`feat/simulator-xcode27-oppkobling` `4d7901b1`) 🟢 **MERGET** develop `38333944` | ⚪ **LEDIG** | — |
@@ -45,6 +45,27 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **Mobil videresend** — kun person-velger innen egen flyt mangler; flyt-bytte finnes alt | Etter web er gatet | redesign |
 | 🔴 **REMÅL MASTERPLANEN MOT KODE** — `arkitektur-syntese.md:48,104,211` sier Fase 2 «mangler»/«bygges». Den ER bygget: `OrganizationTemplate` med objekt-tabell, versjonssporing, soft-delete, `firmamal.promoter`, Malforvaltning. Samme tilstand som BACKLOG hadde 11.09 («seks poster var levert uten at noen førte det»), ett nivå opp | 🔴 Kenneth velger: denne eller A.Markussen-lista først | — |
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
+
+---
+
+## 🟢 2026-09-23 — Fire docs-branches fra design (Kenneths rekkefølge). Ren docs. develop `7212f7cb`.
+
+🟢 Kenneth ga klarsignal til å merge fire docs-only branches i denne rekkefølgen. Alle ff-verifisert (branch 1 hadde eldre base `e32e8f84`, men merget rent — dens eneste endring mot basen er den nye ordre-fila, disjunkt fra mine tavla-edits). Gate `--force`, 0 cached (IKKE FULL TURBO): db 207 · api 525 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE · 7/7.
+
+| # | Branch | Hash | Innhold |
+|---|---|---|---|
+| 1 | `docs/design-up1-revisjon-betinget` | `1e2d20cd` | Ordre: UP1 deles i fire kummaler (UP1 revisjon + UP2/UP3/UO2.1 nye). Først i malkøen etter KD1 v3 |
+| 2 | `docs/design-um1-revisjon-betinget` | `03f2acc4` | Ordre: UM1 v2 + ny mal UM1.1 (samme branch — UM1 felt 9 peker på UM1.1, hører sammen) + PE-skjot ny mal |
+| 3 | `docs/design-byggeleder-befaring` | `d21e7011` | Ny standard BYGGELEDELSE, fire maler (Del B → mal-Opus). **Del A + Del A-TILLEGG er app-arbeid → app-sporet** |
+| 4 | `docs/design-utled-plan-fra-beskrivelse` | `86ed7196` | Designnotat + BACKLOG-post. 🔴 **IDÉMYLDRING — ingen agent oppretter branch/kode fra den; drøftes videre, ingenting låst** |
+
+### Til fordeling
+- **Malkø (mal-Opus):** KD1 v3 → UP1-deling → UM1 v2+UM1.1 → PE-skjot → BYGGELEDELSE Del B. Alle Kenneth-gatet, ingenting venter på ham. **Fasemålingen mal-Opus leverte (kan et barn ha annen fase enn forelderen) er besvart POSITIV og ført inn i ordrene.**
+- 🔴 **App-arbeid fra branch 3:** BYGGELEDELSE **Del A** (app) + **Del A-TILLEGG** (bildelag i tegningsvisningen) skal til app-sporet. Del A-TILLEGG kan bygges uavhengig av Del A.
+- **BACKLOG § 1 (branch 4):** 🔴 Befaringsnotat m/ fremdriftslys → autogenerert månedsrapport (bevis til sluttoppgjør, ikke dashbord). Ikke gatet for bygging.
+
+### 🟡 Prosessfunn (design, eier det selv)
+- Fire av branchene var ikke pushet før nå — `git fetch` feilet tidlig med nettverksfeil, ble ikke fulgt opp, og hasher ingen kunne nå ble meldt. Rettet, regel ført i designs minne.
 
 ---
 
