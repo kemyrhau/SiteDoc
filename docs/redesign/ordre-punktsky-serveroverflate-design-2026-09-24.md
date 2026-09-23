@@ -1,5 +1,5 @@
 ---
-status: 🟡 ORDRE — REVIDERT 2026-09-24 etter måling av Kenneths Pix4D-filer. Ett åpent spørsmål før bygging (se § 0)
+status: 🟡 ORDRE — REVIDERT TO GANGER 2026-09-24: Pix4D-måling, deretter LiDAR-premisset. A–C er inne igjen. Ett åpent spørsmål (se § 0)
 til: kode-agent (worktree og branch bestemmes av cowork)
 fra: design
 dato: 2026-09-24
@@ -80,6 +80,32 @@ MÅ nekte å sammenligne to overflater som ikke deler ramme.**
   på server. Feilteksten skal si hvorfor: «Overflatene ligger i ulike koordinatrammer og kan ikke sammenlignes.»
 - 🔴 **Test som FEILER hvis vakten fjernes** — to overflater, ulik `ramme`, skal avvises.
 - 🟡 **Manuell rammebinding er IKKE i denne ordren.** At bruker kan si «disse to er samme ramme» er en egen sak.
+
+### 🔴 REVISJON 2 — 2026-09-24: leveranseformen er RÅ LiDAR fra drone
+
+> **Kenneth 2026-09-24:** *«du skal tenke at du får en punktsky levert av en drone med lidarscanner»*
+
+**Det snur nedgraderingen av A–C tilbake.** Pix4D-funnet gjaldt Kenneths nåværende arbeidsflyt, ikke
+leveranseformen generelt. **En rå LiDAR-leveranse er en punktsky UTEN mesh** — ingen har klassifisert bakken,
+ingen har triangulert.
+
+| Leveranse | Hva som trengs | Status |
+|---|---|---|
+| **Rå LiDAR-punktsky** (LAS/LAZ fra drone) | A: les X/Y/Z med scale+offset · B: bakkefilter · C: trianguler | 🔴 **BESTILT igjen** |
+| **Ferdig mesh** (Pix4D PLY) | A′: PLY-import | 🔴 Bestilt |
+| Begge | D: lagring · E: kobling · F: ramme-vakt | 🔴 Bestilt |
+
+🔴 **A, B og C gjelder som opprinnelig skrevet — med ett tillegg.** Rå LiDAR fra drone er **normalt
+klassifisert av leverandøren** (ASPRS-klasser, bakke = 2). `lasInfo.harKlassifisering` finnes alt (`:23`).
+**Klasse-2-veien er derfor hovedveien for LiDAR, og min-Z er fallbacken** — ikke omvendt. Rekkefølgen i B
+pkt 2–3 er riktig; **understrek i rapporten hvilken som traff på testfila.**
+
+⚠️ **Og `delaunator` må inn i `apps/api` likevel.** Meld pakke + versjon før install, som B/C sa.
+
+🟢 **LiDAR gjør ramme-problemet MINDRE, ikke større:** en drone-LiDAR-leveranse kommer normalt i absolutt
+UTM/EUREF89, og **LAS-headerens scale+offset bærer det med full presisjon** — nettopp det PLY ikke kan.
+**`ramme` settes da fra `coordinateSystem`, ikke til `"lokal:<id>"`.** Vakten i F gjelder like fullt: en
+lokal PLY og en absolutt LAS skal ikke kunne sammenlignes.
 
 ### 🔴 Åpent Kenneth-spørsmål (besvares før A′ bygges)
 
