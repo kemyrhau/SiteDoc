@@ -232,6 +232,11 @@ export default function TegningerSide() {
     { enabled: !!aktivTegning?.id },
   );
 
+  // Område-opprett er ADMIN-only fra 2026-09-23 (Kenneth: «og bare admin» — stabil navneliste).
+  // Verktøyet skjules/deaktiveres for ikke-admin med begrunnelse, ikke en FORBIDDEN ved trykk.
+  const { data: minOmradeTilgang } = trpc.gruppe.hentMinTilgang.useQuery({ projectId: params.prosjektId });
+  const kanAdministrereOmrade = minOmradeTilgang?.erAdmin ?? false;
+
   const opprettOmradeMutation = trpc.omrade.opprett.useMutation({
     onSuccess: () => {
       utils.omrade.hentForTegning.invalidate({ tegningId: aktivTegning?.id ?? "" });
@@ -782,11 +787,12 @@ export default function TegningerSide() {
                 Inspeksjon
               </button>
               <button
+                disabled={!kanAdministrereOmrade}
                 onClick={() => { setKlikkModus("omrade"); setNyMarkør(null); setValgtElement(null); }}
                 className={`flex items-center gap-1 rounded-r px-2 py-1 text-xs ${
                   klikkModus === "omrade" ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
-                }`}
-                title="Tegn nytt område (polygon)"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                title={kanAdministrereOmrade ? "Tegn nytt område (polygon)" : "Kun administratorer kan opprette områder"}
               >
                 <Pentagon className="h-3 w-3" />
                 Område

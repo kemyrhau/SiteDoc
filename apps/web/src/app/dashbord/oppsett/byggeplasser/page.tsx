@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { OmradeAdmin } from "./_components/OmradeAdmin";
 
 // Leaflet-kart må lastes klient-side (window-avhengig) — SSR av.
 const KartVelgerDynamic = dynamic(
@@ -1218,6 +1219,16 @@ export default function LokasjonerSide() {
                   />
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Område-administrasjon for valgt byggeplass (steg 1, 2026-09-23) */}
+          {valgtLokasjon && prosjektId && (
+            <div className="mt-8">
+              <h3 className="mb-1 text-lg font-bold text-gray-900">
+                {t("omrade.seksjon.forByggeplass", { navn: valgtLokasjon.name })}
+              </h3>
+              <OmradeAdmin byggeplassId={valgtLokasjon.id} prosjektId={prosjektId} />
             </div>
           )}
         </>

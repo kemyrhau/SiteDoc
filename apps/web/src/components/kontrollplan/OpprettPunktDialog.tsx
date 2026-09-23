@@ -48,6 +48,10 @@ export function OpprettPunktDialog({
   const { data: omrader } = trpc.omrade.hentForByggeplass.useQuery({ byggeplassId });
   const { data: faggrupper } = trpc.faggruppe.hentForProsjekt.useQuery({ projectId });
   const { data: bibliotekValg } = trpc.bibliotek.hentProsjektValg.useQuery({ projectId });
+  // Område-opprett er ADMIN-only fra 2026-09-23 (Kenneth: «og bare admin»). Inline-opprett
+  // skjules for ikke-admin — de velger eksisterende områder fra nedtrekket i stedet.
+  const { data: minOmradeTilgang } = trpc.gruppe.hentMinTilgang.useQuery({ projectId });
+  const kanAdministrereOmrade = minOmradeTilgang?.erAdmin ?? false;
 
   // Formstate
   const [valgtMalId, setValgtMalId] = useState<string>("");
@@ -315,8 +319,8 @@ export function OpprettPunktDialog({
             ) : (
               <p className="text-xs text-gray-400">{t("kontrollplan.velgByggeplass")}</p>
             )}
-            {/* Inline opprett område */}
-            {!visNyttOmrade ? (
+            {/* Inline opprett område — ADMIN-only (skjult for ikke-admin) */}
+            {!kanAdministrereOmrade ? null : !visNyttOmrade ? (
               <button onClick={() => setVisNyttOmrade(true)} className="text-xs text-sitedoc-secondary hover:underline mt-1 flex items-center gap-1">
                 <Plus className="h-3 w-3" /> {t("kontrollplan.opprettOmrade")}
               </button>
