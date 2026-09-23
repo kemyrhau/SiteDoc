@@ -1,5 +1,5 @@
 ---
-status: 🟢 ORDRE — steg 1 klar til utførelse. Steg 2–3 skissert, ikke bestilt
+status: 🟡 ORDRE — REVIDERT 2026-09-24 etter måling av Kenneths Pix4D-filer. Ett åpent spørsmål før bygging (se § 0)
 til: kode-agent (worktree og branch bestemmes av cowork)
 fra: design
 dato: 2026-09-24
@@ -8,6 +8,94 @@ kenneth_vedtak: 2026-09-24 — «server, og skriv ordren». Formål: masseregnsk
 ---
 
 # Ordre: server-side overflate fra punktsky — steg 1
+
+## § 0 🔴 REVISJON 2026-09-24 — Kenneths ekte filer snur prioriteringen
+
+**Kenneth ga tilgang til et ekte prosjekt: `3D eksempelfiler/Rallkattlia test 4  bu`. Målt, ikke antatt.**
+
+**Det er et Pix4D-prosjekt** (`.p4s` = Pix4Dsurvey, `.bpc` = deres binære punktsky). Og i `meshes/` ligger
+**ferdige overflater**:
+
+| Fil | Format | Innhold |
+|---|---|---|
+| `032bbfb0…` (1,2 MB) | `ply format binary_little_endian 1.0` | **32 130 vertekser · 64 236 trekanter** |
+| `fca75c72…` (199 KB) | samme | **5 372 vertekser · 10 724 trekanter** |
+
+Begge har `property float x/y/z` + `element face … vertex_indices`. 🔴 **Det ER en TIN — presis det
+`beregnKuttFyll` tar inn.**
+
+**Koordinatene er LOKALE**, målt: X −399,99…399,99 · Y −588,99…567,82 · Z −99,12…125,28. Sentrert om null =
+avstander fra et prosjektorigo, ikke UTM. **Float32 er derfor uproblematisk: oppløsningen er ~0,06 mm ved den
+størrelsesordenen.** Den lille meshen ligger inni den store, altså samme ramme innenfor prosjektet.
+
+### 🔴 Konsekvens 1: Pix4D gjør alt steg A–C skulle gjøre
+
+Bakkeklassifisering, desimering og triangulering er **ferdig utført** av Pix4D, med bedre verktøy enn en
+min-Z-heuristikk. **Å lese LAS-punkter, filtrere bakke og Delaunay-triangulere løser et problem Kenneth ikke
+har.**
+
+🔴 **A, B og C NEDGRADERES til «ikke bestilt».** De blir relevante først for en kunde som laster opp en rå
+punktsky uten mesh. **`delaunator` skal ikke legges til `apps/api`** — behovet falt bort.
+
+### 🔴 Konsekvens 2: det ekte problemet er RAMMEN, ikke trianguleringen
+
+**PLY har ingen plass å oppgi origo eller koordinatsystem.** Float32 kan ikke bære absolutt UTM — ved
+7 000 000 er oppløsningen ~0,5 m, altså ubrukelig for masseregnskap.
+
+⚠️ **To Pix4D-prosjekter to uker fra hverandre får hvert sitt origo. To overflater i ulike lokale rammer kan
+ikke differanseberegnes — og volumet blir feil UTEN at noe protesterer.** Det er samme klasse som
+`-GLOBAL_SHIFT`-risikoen i notatets § 8, nå målt fra en annen kant.
+
+🔴 **Derfor er dette et krav, ikke en finesse: en lagret overflate MÅ bære hvilken ramme den er i, og systemet
+MÅ nekte å sammenligne to overflater som ikke deler ramme.**
+
+### 🟢 Revidert rangering
+
+| # | Hva | Status |
+|---|---|---|
+| **1** | **PLY-mesh-import** — parse binary_little_endian PLY → `TINData`. To typed-array-lesinger etter headeren. **Ingen nye avhengigheter.** | 🔴 **Bestilt (A′)** |
+| **2** | **Lagring av overflater + ramme-felt** — § D, utvidet med ramme | 🔴 **Bestilt** |
+| **3** | **Ramme-vakt** — nekt sammenligning på tvers av rammer | 🔴 **Bestilt (F)** |
+| **4** | Koble kutt/fyll til lagrede overflater — § E | 🔴 **Bestilt** |
+| ~~5~~ | ~~LAS-punktlesing, bakkefilter, server-triangulering (A–C)~~ | 🟡 **Ikke bestilt** — Pix4D dekker det |
+
+### 🔴 A′ (erstatter A–C) — PLY-mesh-import
+
+- **Aksepter `.ply`** som overflate-kilde. Parse headeren som tekst til `end_header\n`, les så
+  `vertex`-blokken (`nv × 3 × float32`) og `face`-blokken (pr. flate: `uchar` antall + `uint32 × n`).
+- 🔴 **Avvis det som ikke er forstått, tydelig.** Bare `binary_little_endian 1.0` med `float x/y/z` og
+  `vertex_indices`. Er formatet ascii, big-endian, eller har flatene ikke 3 hjørner: **feilmelding som sier
+  hvilken av dem.** ⚠️ **Aldri les et PLY-oppsett du ikke har verifisert** — tause feiltolkninger av binære
+  offsets gir plausible tall.
+- **Testfiler finnes:** de to i `3D eksempelfiler/Rallkattlia test 4  bu/meshes/`. **Bruk dem, og assertér på
+  de målte tallene: 32 130/64 236 og 5 372/10 724.** ⚠️ **Kopier inn en liten testfixture — ikke les fra
+  Kenneths mappe i en test.**
+- **`.bpc` støttes IKKE.** Proprietært og udokumentert. Feil tydelig og pek på PLY.
+
+### 🔴 F (ny) — ramme-vakt
+
+- `Overflate` får **`ramme`** (String) og **`origoBeskrivelse`** (String?) i tillegg til feltene i § D.
+  For PLY-import uten kjent origo: `ramme = "lokal:<pointCloudId eller importId>"`.
+- 🔴 **`beregnKuttFyll` skal ikke kunne kalles på to overflater med ulik `ramme`.** Blokkér i UI **og** valider
+  på server. Feilteksten skal si hvorfor: «Overflatene ligger i ulike koordinatrammer og kan ikke sammenlignes.»
+- 🔴 **Test som FEILER hvis vakten fjernes** — to overflater, ulik `ramme`, skal avvises.
+- 🟡 **Manuell rammebinding er IKKE i denne ordren.** At bruker kan si «disse to er samme ramme» er en egen sak.
+
+### 🔴 Åpent Kenneth-spørsmål (besvares før A′ bygges)
+
+**Hvilke eksportformater tilbyr din Pix4D for overflater?** `exports/`-mappa i prosjektet er tom, så det er
+ikke målt.
+
+**Design rangerer, med begrunnelse:**
+
+1. 🟢 **LandXML** — `landxml-parser.ts` finnes og virker alt, formatet er tekst med full presisjon, og det
+   **kan oppgi koordinatsystem**. **Kan Pix4D eksportere LandXML, kan Kenneth regne volum i dag, uten ny kode.**
+2. 🟢 **LAS** — har scale+offset i headeren nettopp for å bære absolutte koordinater med full presisjon.
+3. 🟡 **PLY** — enklest å parse, men kan ikke bære ramme. Greit innenfor ett prosjekt, risikabelt mellom to.
+
+⚠️ **Svarer Kenneth «LandXML», bør A′ vurderes på nytt** — da er PLY en snarvei framfor en nødvendighet.
+
+---
 
 ## [1] HVA SOM ER GJORT — og hva målingen avdekket
 
