@@ -1,5 +1,5 @@
 ---
-status: 🟡 ORDRE — REVIDERT TO GANGER 2026-09-24: Pix4D-måling, deretter LiDAR-premisset. A–C er inne igjen. Ett åpent spørsmål (se § 0)
+status: 🟢 ORDRE — KLAR. Revidert tre ganger 2026-09-24 (Pix4D-måling → LiDAR-premiss → én inngang). Ingen åpne spørsmål
 til: kode-agent (worktree og branch bestemmes av cowork)
 fra: design
 dato: 2026-09-24
@@ -107,19 +107,34 @@ UTM/EUREF89, og **LAS-headerens scale+offset bærer det med full presisjon** —
 **`ramme` settes da fra `coordinateSystem`, ikke til `"lokal:<id>"`.** Vakten i F gjelder like fullt: en
 lokal PLY og en absolutt LAS skal ikke kunne sammenlignes.
 
-### 🔴 Åpent Kenneth-spørsmål (besvares før A′ bygges)
+### 🟢 REVISJON 3 — 2026-09-24: ÉN inngang. Spørsmålet er lukket
 
-**Hvilke eksportformater tilbyr din Pix4D for overflater?** `exports/`-mappa i prosjektet er tom, så det er
-ikke målt.
+> **Kenneth 2026-09-24:** *«punktsky fra drone er svaret»*
 
-**Design rangerer, med begrunnelse:**
+**Det lukker det åpne spørsmålet om Pix4D-eksport, og det forenkler ordren vesentlig.**
 
-1. 🟢 **LandXML** — `landxml-parser.ts` finnes og virker alt, formatet er tekst med full presisjon, og det
-   **kan oppgi koordinatsystem**. **Kan Pix4D eksportere LandXML, kan Kenneth regne volum i dag, uten ny kode.**
-2. 🟢 **LAS** — har scale+offset i headeren nettopp for å bære absolutte koordinater med full presisjon.
-3. 🟡 **PLY** — enklest å parse, men kan ikke bære ramme. Greit innenfor ett prosjekt, risikabelt mellom to.
+| Del | Status etter revisjon 3 |
+|---|---|
+| **A** — les X/Y/Z med scale **og** offset | 🔴 **Bestilt** |
+| **B** — bakkeoverflate: klasse 2 først, min-Z som fallback | 🔴 **Bestilt** |
+| **C** — trianguler på server (`delaunator` inn i `apps/api`) | 🔴 **Bestilt** |
+| **D** — lagre overflaten (krever Kenneths ok til migrering) | 🔴 **Bestilt** |
+| **E** — koble kutt/fyll til lagrede overflater | 🔴 **Bestilt** |
+| **F** — ramme-felt + ramme-vakt | 🔴 **Bestilt** |
+| ~~**A′**~~ — PLY-mesh-import | 🟡 **IKKE bestilt** |
 
-⚠️ **Svarer Kenneth «LandXML», bør A′ vurderes på nytt** — da er PLY en snarvei framfor en nødvendighet.
+🟢 **Hvorfor det blir enklere:** en drone-LiDAR-leveranse kommer i **LAS med absolutt UTM**, og headerens
+scale+offset bærer det med full presisjon. **`ramme` settes fra `coordinateSystem`** — ingen `"lokal:<id>"`,
+ingen ukjent origo.
+
+🔴 **F beholdes likevel.** Vakten er billig, og den er forskjellen mellom et feil volumtall som protesterer og
+ett som ikke gjør det. **Kommer PLY eller en annen lokal kilde inn senere, står vakten alt der.**
+
+⚠️ **Konsekvens design tar som forutsetning, ikke som spørsmål:** de eksisterende Pix4D-meshene i
+`3D eksempelfiler/Rallkattlia test 4  bu/meshes/` **kan ikke importeres** når A′ ikke bygges. De to filene er
+fortsatt nyttige som **testdata for PLY senere**, og de målte tallene (32 130/64 236 og 5 372/10 724) står i
+§ 0. **Vil Kenneth ha Rallkattlia inn i SiteDoc, er A′ en egen liten sak — si fra, den er halvannen dags
+arbeid, ikke en omskriving.**
 
 ---
 
@@ -316,4 +331,11 @@ Cowork sletter branchen etter merge. Agenten gjør ingenting.
 | 8 | `beregnKuttFyll` og rutenettvalget urørt | `git diff` |
 
 🔴 **Ikke i steg 1:** LAZ · volum på server · 0,1/0,2 m rutenett · `-GLOBAL_SHIFT` · `coordinateSystem` ·
-LandXML-eksport · sletting av web-trianguleringen.
+LandXML-eksport · sletting av web-trianguleringen · **PLY-import (A′)**.
+
+🟡 **Og forkastet, så ingen foreslår det på nytt:** **LiDAR-skanning i mobilappen.** Kenneth 2026-09-24:
+*«lidar var bare et spørsmål. jeg forkaster det på nåværende tidspunkt. det er lett å misbruke. kanskje senere
+dersom teknologien blir bedre.»* **Begrunnelsen er riktig og bør ikke glemmes:** Apples LiDAR har ~5 m
+rekkevidde, hver ARKit-økt har vilkårlig origo, og et volumtall fra en telefon **ser** presist ut — det er
+derfor det er lett å misbruke. **Punktsky fra drone er svaret.** *(Ingen notat skrevet — Kenneth ba eksplisitt
+om at det ikke ble laget.)*
