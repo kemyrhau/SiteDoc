@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-23 · develop ← fire branches `--no-ff`: `feat/mal-kd1-v3-betinget` `6cb16ae1` (KD1 v3) + `feat/omradeadmin` `190d9687` (områdeadmin+slettevakt) + `docs/design-steg3-offline` `9ec08a58` (steg 3-tillegg) + `docs/design-barnav-mekanisme` `6446b638` (MAL-METODE §1f) · GATE (`--force`, 0 cached): db 211 (+4) · api 536 (+5) · pdf 124 · shared 854 · web 306 · mobil 38 — resten STILLE · 7/7 · diff = 30 filer + tavla + BACKLOG · slettede fasit-linjer utenfor KD1 = 0 (verifisert selv) · branch 1+4 samme runde**
+**Sist ført: 2026-09-23 · develop `18fec301` ← fire branches `--no-ff`: `feat/omrade-lokasjonsniva` `d4d2a3e3` (steg 2b + migrering m/ CHECK-garanti) + `feat/mal-up-deling` `a2680cf6` (UP1→UP1/UP2/UP3/UO2.1) + `docs/design-up-ordre-retting` `b134f5b8` (UP-ordre begge runder; erstattet uintegrert `97908d78`) + `fix/pdf-omrade-lokasjon` `698c36c8` (arkiv-PDF områdenavn) · GATE (`--force`, 0 cached): db 243 (+32) · api 542 (+6) · pdf 128 (+4) · web 307 (+1) · shared 854 · mobil 38 — shared/mobil STILLE · 7/7 · diff = 41 filer + tavla · slettede fasit-linjer utenfor UP/UO/UM = 0 (verifisert selv) · branch 3-tipp var `b134f5b8`, ikke `97908d78`. 🔴 IKKE GLATT: Prisma-klient i merge-treet var stale mot ny schema → `api#build` feilet TS2353/TS2339 på `omradeId`; regenerert (`pnpm --filter @sitedoc/db generate`), gate grønn på nytt kjøring**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -47,6 +47,32 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-23 — Steg 2b + UP-deling + UP-ordre + PDF-vakt. Fire branches `--no-ff`. develop `18fec301`.
+
+🟢 Alle fire designgatet med korrekt hash, alle ff mot develop `f1d4f9d5`. Branch 3 ERSTATTET uintegrert `97908d78` — tippen var `b134f5b8` (verifisert). Gate `--force` (0 cached, ikke FULL TURBO): **db 243 (+32) · api 542 (+6) · pdf 128 (+4) · web 307 (+1) · shared 854 · mobil 38 · 7/7** — shared/mobil STILLE. Diff = 41 filer + tavla. 🔴 **Slettede fasit-linjer utenfor UP/UO/UM = 0 (verifisert selv).**
+
+🔴 **IKKE GLATT:** Prisma-klienten i merge-treet var stale mot den nye schema-endringen (branch 1 la `omrade_id` på Checklist/Task). Første gate-kjøring: `api#build` feilet med TS2353/TS2339 på `omradeId` (testene passerte — kun tsc mot generert klient sviktet). Regenerert med `pnpm --filter @sitedoc/db generate`, gate grønn på ny kjøring. Ingen kodefeil — worktree-friksjon.
+
+### 🔴 DEPLOY-KRAV — gjelder NESTE DEPLOY TIL TEST, ikke mergen
+
+> **Runde 2 — fyll `omradeNavn` og `omradeType` i arkiv-sammenstillingen — SKAL INN FØR NESTE DEPLOY TIL TEST.**
+> **Rekker den ikke: SKJUL `omrade` som valg i lokasjonsvelgeren i den deployen.**
+> ⚠️ **Bedre å ikke tilby valget enn å sende en sluttrapport der hvert område-dokument sier «Et definert område». Valget skal være bevisst, ikke avgjort av hvilken branch som ble ferdig først.**
+
+**Hvorfor vinduet er akseptabelt (design-målt):** Merge til `develop` eksponerer ingenting — test oppdateres kun når Kenneth kjører `./deploy-test.sh`. Arkiv-PDF-en rendres PÅ FORESPØRSEL (`arkiv.ts:5` → `rendrArkivPdf`, `:106` ferskt tidsstempel) — et dokument opprettet i vinduet rendrer med riktig områdenavn i det øyeblikket runde 2 er ute. **Det ene som IKKE er selvhelende: en EKSPORTERT kopi** — en PDF noen lastet ned og sendte byggherren i vinduet bærer «Et definert område» for alltid. Ny rendring reparerer systemet, ikke en fil som har forlatt det. Runde 2 (api-fyllingen) er egen runde — cowork nudger dokgen etter denne mergen.
+
+| # | Branch | Hash | Innhold |
+|---|---|---|---|
+| 1 | `feat/omrade-lokasjonsniva` | `d4d2a3e3` | **Steg 2b:** område som lokasjonsnivå på sjekkliste/oppgave. **Migrering `20260923120000_omrade_lokasjonsniva` (ÉN mappe):** kun `ADD COLUMN`/`ADD CONSTRAINT`/`CREATE INDEX`, FK m/ `ON DELETE SET NULL`, **CHECK-garanti** (`lokasjon_omfang <> 'omrade' OR omrade_id IS NOT NULL`). Ingen `DROP`, ingen `NOT NULL`, ingen datamigrering. Negativkontroll flyttet til throwaway-tabell i `DRY-RUN.sql` (beviser at CHECK-en fanger, ikke en annen NOT NULL). 29 filer |
+| 2 | `feat/mal-up-deling` | `a2680cf6` | **UP1 deles i fire:** UP1/UP2/UP3/UO2.1 med betingede felt. Fasit `358 tillegg, 43 slettinger` — alle 43 slettelinjer i UP1-blokka. **Off-by-one i UP2 OG UP3 rettet** (tallene skrevet før B5 «Oppdrift» tok basisblokka fra 9→10 felt). `M2`/`M3` er SAMME KODE delt av tre maler — drift umulig, ikke bare testet mot. Generator-relaxering (`--sorter`, eksplisitt/aldri default, vakt i modus `revisjon` står). 9 filer |
+| 3 | `docs/design-up-ordre-retting` | `b134f5b8` | UP-ordren bærer nå BEGGE runder rettinger (T-merking bor i B1 m/ krysshenvisning fra M2; stale tellinger; generator). Erstatter uintegrert `97908d78` (runde 1), som `b134f5b8` sitter oppå. 1 docs-fil |
+| 4 | `fix/pdf-omrade-lokasjon` | `698c36c8` | Arkiv-PDF tegningsfelt viser områdenavn/-type. **Rød-først verifisert:** impl-fila stashet, alle fire testene feilet med TOM STRENG (manglende gren truffet, ikke tilfeldig assertion). Kun `packages/pdf`, 2 filer |
+
+### Prosess ført
+- 🔴 **Steg 2b inne med CHECK-garanti — kostnaden var én runde.** Cowork holdt merge tilbake mot designs gate, design ga cowork rett: migreringen var ikke merget, så CHECK-en kunne legges inn som ÉN linje i ÉN migrering i stedet for en andre migrering i historikken for alltid.
+- 🟢 **Kontrollplan uoppfordret:** migreringen bærer sin egen begrunnelse i kommentaren (inkl. at design snudde), og negativkontrollen på throwaway-tabell BEVISER at det er CHECK-en som fanger — i stedet for å skrive «verifisert» om noe `bestiller_user_id NOT NULL` stoppet først.
+- 🟢 **Design-verifisering av trevverdilogikk:** `omfang=NULL` + `omrade_id=NULL` gir `NULL OR FALSE` = NULL, og en CHECK er oppfylt med mindre den evaluerer FALSE — «ikke valgt ennå» passerer, som den skal.
 
 ## 🟢 2026-09-23 — KD1 v3 + områdeadmin + steg 3-offline + barnAv-mekanismen. Fire branches `--no-ff`.
 
