@@ -166,11 +166,11 @@ container_kjorer() {
 BINARER_NODE=(
   "pdftoppm|KREVES|poppler-utils — PDF→bilde (tegning, OCR, blokk)"
   "tesseract|KREVES|tesseract-ocr — OCR i ftd-prosessering; trenger språkdata 'nor'"
-  "xvfb-run|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — virtuell X for DWG/3D-veiene"
-  "dwg2dxf|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — libredwg DWG→DXF, venter Kenneth-beslutning"
-  "dwg2SVG|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — libredwg DWG→SVG"
-  "CloudCompare|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — E57/PLY→LAS (3D-punktsky)"
-  "PotreeConverter|UTSATT|utsatt 2026-06-10 · BACKLOG § Pakke D (serverflytting) — LAS→Potree octree (3D)"
+  "xvfb-run|UTSATT|utsatt 2026-06-10 · BACKLOG «FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10» — virtuell X for DWG/3D-veiene"
+  "dwg2dxf|UTSATT|utsatt 2026-06-10 · BACKLOG «FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10» — libredwg DWG→DXF, venter Kenneth-beslutning"
+  "dwg2SVG|UTSATT|utsatt 2026-06-10 · BACKLOG «FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10» — libredwg DWG→SVG"
+  "CloudCompare|UTSATT|utsatt 2026-06-10 · BACKLOG «FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10» — E57/PLY→LAS (3D-punktsky)"
+  "PotreeConverter|UTSATT|utsatt 2026-06-10 · BACKLOG «FIRE FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10» — LAS→Potree octree (3D)"
   "ODAFileConverter|VALGFRI|bedre DWG enn libredwg; dwg2dxf er fallback"
 )
 
