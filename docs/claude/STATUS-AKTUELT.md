@@ -26,6 +26,26 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 🟢 **Proben tjente inn seg selv på første kjøring.** De fire binærmanglene var kjent; den femte var det ikke, og den ville blitt funnet først når en kunde skulle koblet til Proadm.
 
+### 🟢 2026-09-24 — Opprydding + en måling som avgjør prod-deployen
+
+**Branch-opprydding:** 56 mergede referanser slettet fra origin, 4 igjen (`develop`, `redesign/navigasjon`, `feat/mal-up-deling`, `feat/synlighet-samlet` — de to siste aktive i worktrees). Alle 56 verifisert som ancestors av develop før sletting; listen ble målt fra `git worktree list`, ikke fra en fast liste. **Fase 4-etterslepet er ryddet** — samme klasse som de 86 branchene målt 2026-07-16.
+
+🟢 **MÅLT: `main` bærer INGENTING `develop` mangler.** Av 132 commits unike for `main` er **130 merge-commits** fra tidligere `--no-ff`-releaser. De to reelle er docs fra 07.09, og begge finnes i develop (`ec9d3f7e`, `041965d6`). **`git diff <merge-base> origin/main` er TOM.**
+
+🔴 **Konsekvens for prod:** en `develop → main`-merge er **rent additiv**. Risikoen ved prod-deployen ligger ikke i divergens — den er null — men i de **8+ umerkede migreringene** og i at `main` er 522 commits bak. **Migreringsgjennomgang er den avgrensede oppgaven som gjenstår før prod.**
+
+🔴 **HOTFIX MERGET `4d9fc788`:** `poppler-utils` + `tesseract-ocr` + `tesseract-ocr-nor` inn i `Dockerfile.web`. **Ikke deployet — feilen står i prod til den er det.**
+
+### 🔴 2026-09-24 — DWG-BINÆRER OG GEOREFERANSEFIKS MÅ I SAMME RELEASE
+
+**Designs måling (`docs/design-bind-239-296`):** `dwgKonvertering.ts:980` er det **eneste** stedet som bygger en georeferanse automatisk — PDF-veien gjør det ikke. Autoveien kan ikke kjøre i dag fordi `dwg2dxf`/`dwg2SVG` mangler.
+
+🔴 **Konsekvens: saken har intet levende offer, men en FRIST.** Første DWG som lastes opp etter at binærene er tilbake, får en rotert georeferanse (autoveien setter `point1`+`point2` og aldri `ekstraPunkter`, `dwgKonvertering.ts:979-991`). **Gjenoppretting av binærene og georeferansefiksen skal ligge i samme release — ikke i rekkefølge.**
+
+🟢 **Kenneths manuelt kalibrerte tegninger er IKKE berørt.** Mistenktmengden er auto-georefererte DWG — koordinatfestet av kode, med to punkter koden selv valgte. Manuelle tegninger med ≥3 punkter går til `beregnAffine` (`georeferanse.ts:199-200`) og har aldri vært innom 2-punktssimilariteten.
+
+⚠️ **`pdftoppm` + `tesseract` har INGEN slik kobling** og kan deployes fritt. Bindingen gjelder kun DWG.
+
 ### Én branch pushet, ikke merget
 
 | Branch | Hash | Hva | Tilstand |

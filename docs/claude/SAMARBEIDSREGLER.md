@@ -973,6 +973,30 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 - 🔴 **Avsender VERIFISERER mot origin FØR en hash meldes:** `git ls-remote --heads origin <branch>`. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.** Gjelder **begge veier** — design som melder en gate, og cowork som påstår noe om en branchs tilstand.
 - **Endres et filnavn, føres det gamle navnet som DØDT i innboksen** — ellers leter noen etter en fil som ikke finnes.
 
+#### 🔴 Spør etter COMMIT-HASH, ikke branchnavn — en ryddet branch og «ikke merget» ser like ut (2026-09-24)
+
+**`git merge-base --is-ancestor origin/<branch> origin/develop` feiler med exit≠0 når `origin/<branch>` ikke finnes** — for eksempel fordi branchen er slettet etter merge. **Exit≠0 fra en feilende kommando og exit≠0 fra et ekte «nei» er umulige å skille.**
+
+**Målt 2026-09-24:** design meldte at tre av egne branches ikke var merget. Alle tre var inne (`2f674968`, `4832ef0c`); cowork hadde ryddet remote-refene etterpå, så oppslaget på navn feilet. Samme feilklasse som da en feilet `git fetch` ga hasher som ikke fantes.
+
+🔴 **Riktig form — hashen finnes uansett om refen gjør det:**
+
+```sh
+git merge-base --is-ancestor <hash> origin/develop && echo "JA" || echo "NEI"
+```
+
+⚠️ **Dette blir vanligere, ikke sjeldnere:** fase 4 sletter mergede refs som den skal (56 ryddet 2026-09-24). Den som leser etterpå må slutte å spørre etter navn som er borte. **Meld alltid hash sammen med branchnavn** — navnet er for mennesker, hashen er det som kan måles.
+
+#### 🔴 Cowork skriver GNU-kommandoer til en BSD-maskin (2026-09-24)
+
+**Kenneths Mac har BSD-verktøy. Coworks bash-sandkasse er Linux med GNU-verktøy.** Hver kommando cowork «prøver» før den gis, prøves altså i et annet verktøysett enn det den skal kjøre i.
+
+**Målt 2026-09-24:** cowork ga `xargs -a /tmp/slettelisten.txt -n 20 git push origin --delete` for å rydde 56 brancher. `-a` er en GNU-utvidelse; BSD-`xargs` svarer `invalid option -- a`. **Ingenting ble slettet.** ⚠️ **Og feilen var usynlig**, fordi output gikk gjennom `grep -c` — kommandoen «lyktes» med tomt svar. Merge fanget den på negativ kontroll: tellingen sto på 60, ikke 4. Riktig form er stdin-omdirigering: `xargs -n 20 git push origin --delete < /tmp/slettelisten.txt`.
+
+**De vanligste felles:** `xargs -a` · `sed -i` uten argument (BSD krever `sed -i ''`) · `grep -P` · `date -d` (BSD: `date -v`) · `readlink -f` · `stat -c`.
+
+🔴 **Regelen:** skriver cowork en kommando Kenneth skal kjøre, holder den seg til POSIX-flagg — eller sier eksplisitt at formen er umålt. **Og en slettende eller endrende kommando skal ALLTID etterfølges av en telling som ville avslørt at ingenting skjedde.** Det var tellingen som fanget denne, ikke lesingen.
+
 #### 🔴 Et navn i en ordre måles av den som skriver det inn — aldri arvet (2026-09-23)
 
 > **Et binærnavn, en filsti eller et `fil:linje` i en ordre måles av den som skriver det inn — aldri arvet fra en annen agents melding. Arver du det, skriv «umålt» ved siden av.**
