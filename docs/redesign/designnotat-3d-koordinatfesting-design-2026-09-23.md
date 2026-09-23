@@ -1,5 +1,5 @@
 ---
-status: 🟡 UTREDNING — ingen beslutning tatt, ingenting bygget. § 4 lukket ved måling 2026-09-23
+status: 🟡 UTREDNING. § 4 lukket ved måling 2026-09-23. 🔴 § 8 trinn 2 RETTET 2026-09-24 — punktsky skal leve (masseregnskap)
 opprettet: 2026-09-23
 forfatter: design
 utløst_av: Kenneth 2026-09-23 — «det var vanskelig å koordinatfeste 3d mot dwg/pdf tegninger. den ene fiksen ødela i den andre. En utledning og en plan er nødvendig.»
@@ -246,19 +246,70 @@ Bygges **etter** at georeferansemetoden er valgt. Minste versjon som er verdt no
 - Dødt GPS-bein fjernet (`kalibPunktA.tegningGps`, `kalibTegningGpsB`) — ellers fortsetter koden å lyve om
   hvilken vei den går.
 
-### 🟡 Trinn 2 — punktsky: koordinatfest eller avskriv, men ikke la den ligge
+### 🔴 Trinn 2 — punktsky: RETTET 2026-09-24, formålet snur anbefalingen
 
-**To alternativer, rangert:**
+> 🔴 **Denne seksjonen anbefalte opprinnelig å AVSKRIVE visningsveien. Det var feil, og feilen var at jeg
+> vurderte punktskyen på om vieweren var nåbar — ikke på hva den er til.**
+>
+> **Kenneth 2026-09-24, ordrett:** *«en punktsky lastes opp, denne overflateberegnes → 2 uker senere lastes en
+> ny punktsky opp → begge sammenlignes → sammenligning av overflater kan gjøres → rød betyr at masser er
+> fjernet/gravd bort, blå overflate betyr fyll/tilfylt. beregning av volum kan utføres. Dette er viktig for å
+> dokumentere uttak og transport av masser.»*
 
-**A (anbefalt) — avskriv visningsveien, behold konverteringen.** Punktsky-vieweren er utilgjengelig via URL,
-`punktsky-triangulering.ts` har null kallere, og `3d-visning` viser den som tekst. **Å koordinatfeste en
-viewer ingen kan åpne er å bygge på toppen av død kode.** Rydd først: bestem om `/punktskyer` skal leve. Fyll
-`PointCloud.coordinateSystem` (samme `detekterKoordinatSystem` som DWG-veien bruker) og les LAS scale+offset —
-**det er «stille tomhet»-kravet, og det gjelder uansett hva som skjer med vieweren.**
+**Punktsky er ikke en visningsfunksjon. Den er et måleinstrument for masseregnskap.** Det endrer to ting: hva
+som mangler, og hvor alvorlig § 3 er.
 
-**B — full koordinatfesting nå.** Les LAS-header, send `-GLOBAL_SHIFT` til CloudCompare, `--projection` til
-PotreeConverter, la punktskyen gå gjennom navet. **Krever at binærene er tilbake først** (kan ikke testes
-ellers), og at vieweren gjenopplives. Større, og ingen har bedt om funksjonen.
+#### 🟢 Funksjonen finnes alt — og mer av den enn notatet påstod
+
+**`apps/web/src/lib/kutt-fyll.ts` (252 linjer) er koblet og i bruk**, i motsetning til
+`punktsky-triangulering.ts` som notatet målte til null kallere. De er to ulike filer, og førsteversjonen
+blandet dem.
+
+| Ledd | Finnes | Hvor |
+|---|---|---|
+| Fane i UI | `"kutt-fyll"` | `3d-visning/typer.ts:5`, `page.tsx:54,90-91` |
+| Komponent | `FaneKuttFyll` | `3d-visning/page.tsx:451` |
+| Beregning | `beregnKuttFyll(topp, bunn, celleStr)` | `kutt-fyll.ts:34`, kalt `page.tsx:502-503` |
+| Volum | `kuttVolum` / `fyllVolum` / `netto` i m³ | `kutt-fyll.ts:13-15` |
+| Fargelagt differanse | `genererDiffMesh` | `kutt-fyll.ts:185` |
+
+🔴 **FUNN — fargene er invertert mot Kenneths konvensjon:**
+
+| | Koden | Kenneth |
+|---|---|---|
+| Masse **fjernet** (kutt, ΔZ < 0) | 🔵 **blå** (`kutt-fyll.ts:32,208`) | 🔴 **rød** |
+| Masse **tilført** (fyll, ΔZ > 0) | 🔴 **rød** | 🔵 **blå** |
+
+**Volumtallene er riktig merket** — `kuttVolum` = «terreng fjernet», `fyllVolum` = «masse tilført»
+(`:13-14`). **Det er bare fargeleggingen som står motsatt.** Begge konvensjoner finnes i bransjen, så dette
+er ikke en regnefeil — det er et valg som må stemme med den som leser kartet i felt. **Kenneth-valg V1b.**
+
+⚠️ **En invertert fargelegende på et volumdokument er den typen feil som overlever, fordi begge varianter ser
+plausible ut.** Tallene stemmer uansett; det er tolkningen som snus.
+
+#### 🔴 Og § 3 er dermed ikke en opprydding — den er en forutsetning
+
+**To punktskyer kan bare differanseberegnes hvis de ligger i SAMME ramme.** Det er ikke georeferering mot en
+tegning det står på — det er at skann A og skann B har samme origo.
+
+| Hull (§ 3) | Konsekvens for masseregnskapet |
+|---|---|
+| 🔴 `-GLOBAL_SHIFT` sendes ikke til CloudCompare (`punktskyKonvertering.ts:55-60`) | **Velger CloudCompare shift selv, per fil, kan A og B få ULIKE origo.** Et rent Z-avvik gir da et plausibelt volum som er feil. ⚠️ **Må måles** — at flagget mangler er målt, at CloudCompare auto-shifter i `-SILENT`-modus er **ikke** målt |
+| LAS scale+offset leses aldri (`lasHeader.ts:77-205`) | Ingen kan verifisere at to skann har samme referanse |
+| `PointCloud.coordinateSystem` tom (`schema.prisma:944`) | Ingenting registrerer hvilket system en sky er i → ingenting kan avvise en sammenligning av to uforenlige skann |
+
+🔴 **Rangert, med formålet lagt til grunn:**
+
+**1. Mål shift-atferden først.** Konverter samme fil to ganger og to ulike filer fra samme sted; sammenlign
+origo. **Det er den ene målingen som avgjør om eksisterende volumtall kan stoles på.** Krever binærene tilbake.
+
+**2. Skriv `coordinateSystem` og les LAS-offset.** «Stille tomhet»-kravet, og her er det ikke formelt — det er
+det eneste som kan fange en sammenligning av to skann i ulike systemer.
+
+**3. Fargekonvensjonen rettes** når Kenneth har bekreftet retningen. Enlinjefiks i `genererDiffMesh`.
+
+**4. Georeferering mot tegning er SIST og valgfritt.** Masseregnskapet trenger at A og B er i samme ramme —
+ikke at rammen er knyttet til en tegning. **Det er en annen, mindre presserende funksjon.**
 
 ### 🟡 Trinn 3 — `gpsOverride.transform`: primærvei eller ikke
 
@@ -277,7 +328,9 @@ den lagres som en korreksjon *på* transformasjonen, ikke som en egen vei *rundt
 
 | # | Valg | Design anbefaler |
 |---|---|---|
-| **V1** | Skal punktsky koordinatfestes, eller er visningsveien avskrevet? | **Avskriv visningsveien først** (§ 8 trinn 2A). Den er utilgjengelig via URL og har null aktive kallere |
+| ~~**V1**~~ | 🟢 **BESVART 2026-09-24: punktsky skal leve.** Formålet er masseregnskap — overflatesammenligning + volum for å dokumentere uttak og transport | Anbefalingen om å avskrive er **trukket**. Se § 8 trinn 2 |
+| 🔴 **V1b** | **Fargekonvensjon:** koden gir rød = fyll, blå = kutt. Kenneth sier rød = fjernet, blå = tilfylt | **Kenneths konvensjon vinner** — han leser kartet i felt. Enlinjefiks, men bekreft retningen først |
+| 🔴 **V1c** | Skal shift-atferden måles før eksisterende volumtall brukes som dokumentasjon? | **Ja.** Uten den vet ingen om to skann lå i samme ramme |
 | **V2** | Skal `gpsOverride.transform` fortsatt være primærvei? | **Behold, men gjør den til korreksjon på navet, ikke omvei rundt det** |
 | **V3** | Skal Trinn 0-målingene kjøres nå, før alt annet? | **Ja for 0a** — én lesende SQL som avgjør om § 4 er reell |
 | **V4** | Er UTM/NTM som felles nav akseptert som retning? | **Ja** — det er samme nav søsternotatet peker på |
