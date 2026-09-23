@@ -334,3 +334,116 @@ describe("byggSjekklisteArkivHtml — betinget synlighet (aldri-vist vs. «Ikke 
     expect(r.html).not.toContain("Klebeprimer");
   });
 });
+
+// Områdelokasjon (steg 2b + runde 2): når lokasjonOmfang="omrade" skal arkiv-PDF-en vise
+// områdets NAVN (Omrade.navn), aldri råverdien/id-en. Oppslaget bor her i sammenstillingen —
+// byggLokasjonsblokk (@sitedoc/pdf) er avhengighetsfri og får navnet/typen ferdig. Testene
+// under er negativ-kontrollen på api-siden: fjernes mappingen (omrade?.navn/type), faller de
+// tilbake til den nøytrale linja «Et definert område» og assertene på navnet feiler.
+function prismaSjekklisteOmrade(omrade: { navn: string; type: string } | null): PrismaClient {
+  return {
+    checklist: {
+      findUniqueOrThrow: async () => ({
+        id: "cO",
+        title: "Grunnarbeid",
+        number: 4,
+        status: "approved",
+        createdAt: new Date("2026-09-23T08:00:00.000Z"),
+        subject: null,
+        drawingId: null,
+        positionX: null,
+        positionY: null,
+        lokasjonOmfang: "omrade",
+        lokasjonFritekst: null,
+        data: {},
+        template: { projectId: "p1", prefix: "GRU", enableChangeLog: false, objects: [] },
+        bestiller: { name: "Ola" },
+        utforerFaggruppe: { name: "HE" },
+        bestillerFaggruppe: { name: "BL" },
+        byggeplass: { name: "Blokk B" },
+        omrade,
+      }),
+    },
+    project: { findUnique: async () => ({ name: "P", projectNumber: "1", primaryOrganization: null }) },
+    documentTransfer: { findMany: async () => [] },
+    checklistChangeLog: { findMany: async () => [] },
+    user: { findMany: async () => [] },
+  } as unknown as PrismaClient;
+}
+
+function prismaOppgaveOmrade(omrade: { navn: string; type: string } | null): PrismaClient {
+  return {
+    task: {
+      findUniqueOrThrow: async () => ({
+        id: "tO",
+        title: "Utgraving",
+        number: 12,
+        status: "closed",
+        createdAt: new Date("2026-09-23T08:00:00.000Z"),
+        subject: null,
+        drawingId: null,
+        positionX: null,
+        positionY: null,
+        lokasjonOmfang: "omrade",
+        lokasjonFritekst: null,
+        data: null,
+        template: { projectId: "p1", prefix: "OPP", enableChangeLog: false, domain: null, objects: [] },
+        bestiller: { name: "Per" },
+        utforerFaggruppe: { name: "HE" },
+        bestillerFaggruppe: { name: "BL", projectId: "p1" },
+        drawing: null,
+        omrade,
+      }),
+    },
+    project: { findUnique: async () => ({ name: "P", projectNumber: "1", primaryOrganization: null }) },
+    drawing: { findMany: async () => [] },
+    documentTransfer: { findMany: async () => [] },
+    taskComment: { findMany: async () => [] },
+    taskChangeLog: { findMany: async () => [] },
+    user: { findMany: async () => [] },
+  } as unknown as PrismaClient;
+}
+
+describe("arkiv-lokasjon — områdenavn (steg 2b, begge dokumenttyper)", () => {
+  it("sjekkliste omfang=omrade → skriver områdets NAVN + type-kontekst, ikke nøytral linje", async () => {
+    const r = await byggSjekklisteArkivHtml(prismaSjekklisteOmrade({ navn: "Sone B", type: "sone" }), "cO", {
+      hentBildeBytes: async () => null,
+      generertTekst: "x",
+    });
+    expect(r.html).toContain("Sone B");
+    expect(r.html).toContain("Sone"); // type-etikett som dempet kontekstlinje
+    expect(r.html).not.toContain("Et definert område");
+  });
+
+  it("oppgave omfang=omrade → skriver områdets NAVN (dekker begge dokumenttyper)", async () => {
+    const r = await byggOppgaveArkivHtml(prismaOppgaveOmrade({ navn: "Grøft V2", type: "trase" }), "tO", {
+      hentBildeBytes: async () => null,
+      generertTekst: "x",
+    });
+    expect(r.html).toContain("Grøft V2");
+    expect(r.html).toContain("Trasé");
+    expect(r.html).not.toContain("Et definert område");
+  });
+
+  // § 3 — DEN NØYTRALE LINJA: onDelete=SetNull nuller omradeId, men lokasjonOmfang blir
+  // stående "omrade". Da er omrade=null → NØYTRAL linje «Et definert område», ALDRI tom
+  // streng. At navnet vises for et EKSISTERENDE område (testene over) beviser IKKE dette;
+  // det slettede tilfellet må testes for seg.
+  it("sjekkliste omfang=omrade med SLETTET område (omrade=null) → nøytral linje, ALDRI tom", async () => {
+    const r = await byggSjekklisteArkivHtml(prismaSjekklisteOmrade(null), "cO", {
+      hentBildeBytes: async () => null,
+      generertTekst: "x",
+    });
+    expect(r.html).toContain("Et definert område");
+    expect(r.html).not.toContain("Sone B");
+  });
+
+  it("oppgave omfang=omrade med SLETTET område (omrade=null) → nøytral linje, ALDRI tom", async () => {
+    const r = await byggOppgaveArkivHtml(prismaOppgaveOmrade(null), "tO", {
+      hentBildeBytes: async () => null,
+      generertTekst: "x",
+    });
+    expect(r.html).toContain("Et definert område");
+    expect(r.html).not.toContain("Grøft V2");
+  });
+});

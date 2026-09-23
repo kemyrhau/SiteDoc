@@ -192,6 +192,11 @@ interface NormalisertArkivDok {
   lokasjonOmfang: string | null;
   lokasjonFritekst: string | null;
   byggeplassNavn: string | null;
+  // Områdenavn/-type når lokasjonOmfang="omrade" (steg 2b). Navnet er stedet i PDF-en;
+  // typen dempet kontekst under. Slettet område (Omrade → SetNull) → begge null →
+  // byggLokasjonsblokk skriver nøytral linje, ikke tom seksjon.
+  omradeNavn: string | null;
+  omradeType: string | null;
   // Metadata
   title: string;
   number: number | null;
@@ -430,6 +435,8 @@ async function byggArkivHtmlKjerne(
       tegningNavn: docTegning ? tegningNavn(docTegning) : null,
       lokasjonOmfang: norm.lokasjonOmfang,
       lokasjonFritekst: norm.lokasjonFritekst,
+      omradeNavn: norm.omradeNavn,
+      omradeType: norm.omradeType,
     },
     tegningsOppslag,
   );
@@ -549,6 +556,7 @@ export async function byggSjekklisteArkivHtml(
       utforerFaggruppe: { select: { name: true } },
       bestiller: { select: { name: true } },
       byggeplass: { select: { name: true } },
+      omrade: { select: { navn: true, type: true } },
     },
   });
 
@@ -569,6 +577,8 @@ export async function byggSjekklisteArkivHtml(
     lokasjonOmfang: sjekkliste.lokasjonOmfang,
     lokasjonFritekst: sjekkliste.lokasjonFritekst,
     byggeplassNavn: sjekkliste.byggeplass?.name ?? null,
+    omradeNavn: sjekkliste.omrade?.navn ?? null,
+    omradeType: sjekkliste.omrade?.type ?? null,
     title: sjekkliste.title,
     number: sjekkliste.number,
     subject: sjekkliste.subject,
@@ -602,6 +612,7 @@ export async function byggOppgaveArkivHtml(
       utforerFaggruppe: { select: { name: true } },
       bestiller: { select: { name: true } },
       drawing: { select: { byggeplass: { select: { name: true } } } },
+      omrade: { select: { navn: true, type: true } },
     },
   });
 
@@ -634,6 +645,8 @@ export async function byggOppgaveArkivHtml(
     lokasjonOmfang: oppgave.lokasjonOmfang,
     lokasjonFritekst: oppgave.lokasjonFritekst,
     byggeplassNavn: oppgave.drawing?.byggeplass?.name ?? null,
+    omradeNavn: oppgave.omrade?.navn ?? null,
+    omradeType: oppgave.omrade?.type ?? null,
     title: oppgave.title,
     number: oppgave.number,
     subject: oppgave.subject,
