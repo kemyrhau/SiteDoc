@@ -341,3 +341,16 @@ bredere enn posten, og **beskrivelsen sier det eksplisitt**. Design foreslo `UM1
 er opptatt av den eksisterende malen, og design finner ikke opp referanser som ikke står i normen.
 
 ✅ **Ingenting står åpent for Kenneth i denne ordren.**
+
+---
+
+🔴 **MEKANISME-RETTING 2026-09-23 — gjelder foran denne ordrens bokstav.**
+
+Ordren sier «bruk `forgrening`». Den ble skrevet før `forelderFelt` + `barnAv` fantes
+(`seed-bibliotek.ts:218`/`:228`, lagt til av mal-Opus i KD1 v3). **Gjeldende regel er MAL-METODE §1f:**
+
+- **Samme fase** som forelderen → `forgrening`
+- **Annen fase** enn forelderen → **`forelderFelt` + `barnAv`**
+
+Denne malen har typeforeldre i **FØR** med barn i **UNDER** og **ETTER**. Der skal `barnAv` brukes. Utføreren
+melder i leveransen hvilken hjelper som ble brukt hvor.

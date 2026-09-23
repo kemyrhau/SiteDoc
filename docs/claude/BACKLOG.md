@@ -250,6 +250,22 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
   skriveveien finnes på serveren men kan ikke nås. **Fella springer når noen kobler dem opp.**
 - Bundet-repeater ordre 2 (steg 1) bygger slettevakten (blokkér hvis i bruk) **med rød-først-test som viser
   dagens oppførsel** — egen runde. Denne posten står til vakten er bygget.
+- 🟢 **Slettevakten er nå bygget** (`feat/omradeadmin`, merget develop): teller FK-punkter OG myk JSON-referanse.
+  De to oppfølgerne under gjenstår.
+
+### 🔴 Kommentar i omrade.slett som navngir vakten (design 2026-09-23)
+
+- Risikoen er **ikke** at karakteriseringstesten råtner — den tester Postgres' NULL-semantikk og kan bare
+  feile hvis Postgres endrer standard. **Risikoen er at noen fjerner vakten uten å kjenne begrunnelsen.**
+- Én linje i `omrade.slett` som navngir `omrade-slett-nullfelle.integration.test.ts` og sier hvorfor
+  `@@unique` ikke beskytter (Postgres regner NULL distinkt). Da er resonnementet nåbart fra stedet noen
+  ville rørt. Oppfølger.
+
+### 🟡 Schema-kommentar på Omrade.type retter i steg 2b (design 2026-09-23)
+
+- `Omrade.type`-kommentaren sier fortsatt «sone | rom | etasje». Kontrollplan lot den stå bevisst for å holde
+  `db` stille og spurte. **Rettes i STEG 2b**, som uansett rører schemaet. ⚠️ **Ikke bryt «db urørt»-invarianten
+  i steg 1 for en kommentar.**
 
 ### 🟡 Tekst påstår en årsak den ikke kjenner (design 2026-09-23)
 

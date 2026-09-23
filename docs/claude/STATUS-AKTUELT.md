@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-23 · develop ← to docs-branches `--no-ff`: `docs/design-byggeleder-befaring` delta `a5c06ed4` (BEF/AVV-referanser rettet, HASTER for mal-Opus) + `docs/design-bundet-repeater` `207637b6` (app-spor-ordre) · GATE (`--force`, IKKE FULL TURBO): db 207 · api 531 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 2 docs-filer + tavla + BACKLOG · non-ff verifisert selv (branch 1 base `d21e7011`, fila urørt på develop siden basen, merge-tree 0 konflikt) · gamle BEFARING-A-referanser: 0 aktive (kun forklarende prosa igjen)**
+**Sist ført: 2026-09-23 · develop ← fire branches `--no-ff`: `feat/mal-kd1-v3-betinget` `6cb16ae1` (KD1 v3) + `feat/omradeadmin` `190d9687` (områdeadmin+slettevakt) + `docs/design-steg3-offline` `9ec08a58` (steg 3-tillegg) + `docs/design-barnav-mekanisme` `6446b638` (MAL-METODE §1f) · GATE (`--force`, 0 cached): db 211 (+4) · api 536 (+5) · pdf 124 · shared 854 · web 306 · mobil 38 — resten STILLE · 7/7 · diff = 30 filer + tavla + BACKLOG · slettede fasit-linjer utenfor KD1 = 0 (verifisert selv) · branch 1+4 samme runde**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -47,6 +47,27 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-23 — KD1 v3 + områdeadmin + steg 3-offline + barnAv-mekanismen. Fire branches `--no-ff`.
+
+🟢 Alle fire designgatet + `ls-remote`-verifisert, alle ff mot develop `76e80925`, null filoverlapp. Branch 1+4 gikk i SAMME runde (KD1 v3 innfører `barnAv`; branch 4 gjør at ordrene ikke lenger motsier seeden). Gate `--force` (0 cached, ikke FULL TURBO): db 211 (+4) · api 536 (+5) · pdf 124 · shared 854 · web 306 · mobil 38 · 7/7 — web uendret (ordren sa «kan stige»), resten stille.
+
+| # | Branch | Hash | Innhold |
+|---|---|---|---|
+| 1 | `feat/mal-kd1-v3-betinget` | `6cb16ae1` | **KD1 v3:** 18 grener (partisjon dekker 11 typer per kravfelt: tykkelse/fugebredde/planhet/sprang), **arbeideren ser fire**. Fase-flytting «Tykkelse settelag» UNDER→FØR (ordrekrav). Heltall-felt m/ `{enhet:"mm"}` på sprang ved fuger. 🔴 **Slettede fasit-linjer utenfor KD1 = 0 (verifisert selv).** 🟢 Ny mekanisme `forelderFelt`/`barnAv` (`seed-bibliotek.ts:218/:228`) — fester barn til forelder-ref lenger opp, flatt i annen fase (bedre enn `forgrening` når barnet skal i ANNEN fase; treffer UP-delingen + UM1) |
+| 2 | `feat/omradeadmin` | `190d9687` | **Områdeadministrasjon + slettevakt.** Liste m/ bruksantall, opprett, omdøp, slett MED VAKT. Vakten teller **to kilder**: FK-punkter OG myk JSON-referanse (`omradeId` i `Checklist.data`/`Task.data` — ingen FK/kaskade). Kun admin (`verifiserAdmin`). 3 api + 4 web + 15 i18n, ingen db/migrering/mobil. Test A grønn før/etter, Test B rød først |
+| 3 | `docs/design-steg3-offline` | `9ec08a58` | Steg 3 fikk **BLOKKERENDE krav** (nytt DoD-punkt 15): mobil har ingen lokal `omrade`-tabell → områdelista TOM offline → bundet repeater UTEN RADER (verre enn fritekst). Befaring fylles i grøft 2–3×/uke. Rød først på at rad som viser til slettet område IKKE forsvinner |
+| 4 | `docs/design-barnav-mekanisme` | `6446b638` | **MAL-METODE §1f** + de tre malordrene (UP1-deling, UM1, PE-skjot) rettet: **samme fase → `forgrening` · annen fase → `forelderFelt`+`barnAv`**. Uten denne sto en ordre i develop som sa «bruk `forgrening`» ved siden av en seed som bruker `barnAv` — neste leser ville «rettet» det tilbake. To forutsetninger: forelder-fase før barn-fase; hver vert-fase må ha ≥1 alltid-synlig felt (`synlighet.ts:95-100`) |
+
+### Funn ført (ikke tapt)
+- 🔴 **«Stille tomhet» i TREDJE variant** (branch 2): `RomEgenskapObjekt`/`SoneEgenskapObjekt` lagrer `omradeId` som **myk streng i `Checklist.data`/`Task.data` — ingen FK, ingen kaskade.** Uten kontrollplans telling ville en sletting etterlatt dangling id-er stille. At han fant den mens han bygget vakten er grunnen til at vakten nå teller begge kilder.
+- 🟢 Steg 3-kravet kom av kontrollplans **egen måling** i en runde som ikke handlet om offline.
+- ⚠️ **Designs prosessfeil, rettet (branch 4):** `barnAv`-mekanismen ble gatet i en **chat-melding** til mal-Opus (som fulgte den korrekt og meldte at han gikk foran ordrenes bokstav). Da sto en ordre i develop som sa noe annet enn seeden. Branch 4 lukker gapet. Design skriver selv: «en gate i en chat-melding er ikke en sannhetskilde — samme klasse som de upushede hashene i morges.» **Andre gang samme dag** — kanalregelen vi førte i dag står på prøve.
+- **To oppfølgere → BACKLOG § 1:** kommentar i `omrade.slett` som navngir vakten; schema-kommentar på `Omrade.type` rettes i steg 2b.
+
+### Til fordeling
+- 🔴 **Steg 2b og steg 3 IKKE startet — cowork velger agent.** Steg 2b krever migrering (`omradeId` på `Checklist`+`Task`, additiv/nullable). Steg 3 er blokkerende på offline-områdeliste.
+- 🟢 **`forelderFelt`/`barnAv` festet i MAL-METODE §1f** — mekanismevalget er nå en regel, ikke en chat-melding. Treffer UP-delingen + UM1.
 
 ## 🟢 2026-09-23 — BEF-referanser rettet (HASTER) + bundet repeater-ordre. To docs-branches `--no-ff`. Ren docs.
 

@@ -48,7 +48,7 @@ verdt å merke seg som mønster: **forelderen skal være feltet som faktisk avgj
 1. **To barn under samme utløser = to egne poster** i `barn`-arrayet med samme `naar`. `felt: [a, b]` gir bare `a` sin
    `parentRef` (`seed-bibliotek.ts:197–206`). Det gjelder **drensledning-paret** (felt 3 og 4).
 2. Utløseren ligger på barnets **eget** sett (`BETINGELSE_EGEN_NOKKEL`), aldri `conditionValues`.
-3. To `forgrening`-kall i samme mal er ikke prøvd før. Bruk **to ulike `ref`-verdier** (`ledningstype`, `skjoting`), og
+3. To trær i samme mal er ikke prøvd før. Bruk **to ulike `ref`-verdier** (`ledningstype`, `skjoting`), og
    la strukturtesten vise at de ikke blander seg.
 
 ## 3. Malen (v2)
@@ -255,3 +255,16 @@ edger står i relay-leveransen.
    `SP-04 til SP-05`. Går strekningen ikke mellom to kummer, brukes ledningstype og peler: `VL P120 til P180`. Selve
    sveiseskjøten dokumenteres i egen mal med `VL P120`. Kenneth: «skillet går på vannledning og spillvannsledning i
    tillegg til pel nummer» og «SP-04–SP-05 er litt mange dash».
+
+---
+
+🔴 **MEKANISME-RETTING 2026-09-23 — gjelder foran denne ordrens bokstav.**
+
+Ordren sier «bruk `forgrening`». Den ble skrevet før `forelderFelt` + `barnAv` fantes
+(`seed-bibliotek.ts:218`/`:228`, lagt til av mal-Opus i KD1 v3). **Gjeldende regel er MAL-METODE §1f:**
+
+- **Samme fase** som forelderen → `forgrening`
+- **Annen fase** enn forelderen → **`forelderFelt` + `barnAv`**
+
+Denne malen har typeforeldre i **FØR** med barn i **UNDER** og **ETTER**. Der skal `barnAv` brukes. Utføreren
+melder i leveransen hvilken hjelper som ble brukt hvor.

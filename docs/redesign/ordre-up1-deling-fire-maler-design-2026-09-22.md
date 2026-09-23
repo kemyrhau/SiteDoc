@@ -487,3 +487,16 @@ tre enlinjerne pr. fil. **Ikke kjør mot test selv.**
 
 ✅ **INGENTING STÅR ÅPENT FOR KENNETH I DENNE ORDREN.** Alle punkter er gatet 2026-09-22. Malene kan bygges når
 JH2 v2 er merget. **Fasemålingen i § 4 er besvart og positiv**, så ingenting annet står i veien.
+
+---
+
+🔴 **MEKANISME-RETTING 2026-09-23 — gjelder foran denne ordrens bokstav.**
+
+Ordren sier «bruk `forgrening`». Den ble skrevet før `forelderFelt` + `barnAv` fantes
+(`seed-bibliotek.ts:218`/`:228`, lagt til av mal-Opus i KD1 v3). **Gjeldende regel er MAL-METODE §1f:**
+
+- **Samme fase** som forelderen → `forgrening`
+- **Annen fase** enn forelderen → **`forelderFelt` + `barnAv`**
+
+Denne malen har typeforeldre i **FØR** med barn i **UNDER** og **ETTER**. Der skal `barnAv` brukes. Utføreren
+melder i leveransen hvilken hjelper som ble brukt hvor.
