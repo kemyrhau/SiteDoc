@@ -9,7 +9,7 @@ sist_verifisert_mot_kode: 2026-08-09
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
-**Sist ført: 2026-09-23 · develop ← `fix/utilgjengelige-flyter` `131dfe7b` `--no-ff` (utilgjengelige maler forklarer seg + kanalregel i SAMARBEIDSREGLER + døde filnavn) · GATE (`--force`, IKKE FULL TURBO — kjørt på nytt): api 531 (+6) · db 207 · pdf 124 · shared 854 · web 306 · mobil 38 — resten STILLE · 7/7 · diff = 21 filer (6 kode + 15 i18n) + tavla + BACKLOG + SAMARBEIDSREGLER · Reload: OTA · non-ff verifisert selv (base `6aa933c0`, mal.ts/sjekklister urørt på develop siden basen, merge-tree 0 konflikt)**
+**Sist ført: 2026-09-23 · develop ← to docs-branches `--no-ff`: `docs/design-byggeleder-befaring` delta `a5c06ed4` (BEF/AVV-referanser rettet, HASTER for mal-Opus) + `docs/design-bundet-repeater` `207637b6` (app-spor-ordre) · GATE (`--force`, IKKE FULL TURBO): db 207 · api 531 · pdf 124 · shared 854 · web 306 · mobil 38 — ALT STILLE (ren docs) · 7/7 · diff = 2 docs-filer + tavla + BACKLOG · non-ff verifisert selv (branch 1 base `d21e7011`, fila urørt på develop siden basen, merge-tree 0 konflikt) · gamle BEFARING-A-referanser: 0 aktive (kun forklarende prosa igjen)**
 
 | Agent | Worktree | Branch | Tilstand | Venter på |
 |---|---|---|---|---|
@@ -47,6 +47,24 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 | **A.Markussen — seks kundeønsker urørt siden 06.05** — servicesjekkliste m/ timetall · rettighetsmatrise Prosjektleder/Bas · tre SJA-justeringer · pushvarsel/SMS. **Piloten starter i september** | 🔴 Kenneth velger | — |
 
 ---
+
+## 🟢 2026-09-23 — BEF-referanser rettet (HASTER) + bundet repeater-ordre. To docs-branches `--no-ff`. Ren docs.
+
+🟢 Begge designgatet + `ls-remote`-verifisert. Non-ff branch 1 verifisert selv: base `d21e7011` (alt merget), fila urørt på develop siden basen, `merge-tree` 0 konflikt. Gate `--force`: db 207 · api 531 · pdf 124 · shared 854 · web 306 · mobil 38 · 7/7 — ALT STILLE.
+
+| # | Branch | Hash | Innhold |
+|---|---|---|---|
+| 1 | `docs/design-byggeleder-befaring` (delta) | `a5c06ed4` | **HASTER:** malreferansene `BEFARING-A/B`, `AVVIK-A/B` → `BEF1/BEF2/AVV1/AVV2`. Prefikset utledes av referansen (`bibliotek.ts:174`) — lange referanser ville gitt dokumentnumre som `BEFARING-A-001`. Rettet før mal-Opus bygger ordre 3. 0 aktive gamle referanser igjen (kun forklarende prosa) |
+| 2 | `docs/design-bundet-repeater` | `207637b6` | App-spor-ordre: bundet repeater + områdeadministrasjon. **Fire leveranser, hver kan merges alene.** 🔴 Kun **steg 2b** krever migrering (`omradeId` på `Checklist`+`Task` — additiv/nullable, to-stegs OK). Steg 1/2/3 migreringsfrie |
+
+### Til fordeling — ordre 2 (app-sporet)
+- **Cowork velger agent** (ikke startet). Fire leveranser, uavhengige. Slettevakt = **blokkér hvis området er i bruk** (navngi tallet, vei ut = omdøp); tilgang = **kun admin** via `verifiserAdmin` på alle tre skriveveier.
+- 🔴 **Admin-kravet har åpen konsekvens:** `omrade.opprett` kalles i dag fra `tegninger/page.tsx:235` + `OpprettPunktDialog.tsx:77` (åpne for alle medlemmer). Admin-krav → FORBIDDEN → flatene må **skjule/deaktivere med begrunnelse** (samme mønster som `fix/utilgjengelige-flyter`).
+- **Avhengighet:** `BEF1`/`BEF2` i befaringsordren kan ikke bygges som beskrevet før bundet-repeater steg 3 finnes. Design varsler mal-Opus særskilt.
+- 🔴 **Aktivt kodefunn → BACKLOG § 1:** stille duplikater ved `omrade.slett` (vakt som slipper NULL forbi). Egen runde med rød-først-test.
+
+### 🔴 Observasjon — gjenbruk av branch-navn etter merge (ikke ny regel)
+Design pushet `a5c06ed4` oppå den alt-mergede `d21e7011` uten å melde ny hash først, og meldte det i etterkant. **Coworks vurdering:** frys-regelen gjelder mellom «klar for merge» og merge — `d21e7011` var alt merget, så branchen var ikke frosset, den var **gjenbrukt**. Deltaet flyttes ikke til egen branch (koster en runde, fjerner ingen risiko). ⚠️ Men gjenbruk av branch-navn etter merge gjør «er X merget?» tvetydig. Føres som observasjon her — **ikke som ny regel, ikke i `SAMARBEIDSREGLER.md` ennå.**
 
 ## 🟢 2026-09-23 — Utilgjengelige maler forklarer seg. `fix/utilgjengelige-flyter` `131dfe7b` `--no-ff`. 🔴 MOBIL (OTA).
 

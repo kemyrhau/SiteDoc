@@ -236,6 +236,21 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 Stille duplikater i kontrollplanen — en vakt som slipper NULL forbi (design 2026-09-23, målt)
+
+- `omrade.slett` (`omrade.ts:122`) er en **naken `prisma.omrade.delete`** — ingen opptelling, ingen vakt.
+- Kontrollplan-relasjonen er `onDelete: SetNull` (`schema.prisma:2472`), og
+  `@@unique([kontrollplanId, omradeId, sjekklisteMalId])` (`schema.prisma:2483`) fanger **IKKE** resultatet,
+  fordi **Postgres regner NULL som distinkt.** Sletting av et område i bruk nullstiller `omradeId` på alle
+  punktene som brukte det → **duplikate kontrollplanpunkter uten at noe sier fra**, og en plan som har mistet
+  inndelingen sin.
+- ⚠️ **Dette er «stille tomhet»-klassen i ny form: ikke en manglende vakt, men en vakt som SER ut som den
+  dekker og slipper NULL forbi.**
+- 🟢 **Ikke utløst i dag:** `omrade.oppdater` og `omrade.slett` kalles **ingen steder i web eller mobil** —
+  skriveveien finnes på serveren men kan ikke nås. **Fella springer når noen kobler dem opp.**
+- Bundet-repeater ordre 2 (steg 1) bygger slettevakten (blokkér hvis i bruk) **med rød-først-test som viser
+  dagens oppførsel** — egen runde. Denne posten står til vakten er bygget.
+
 ### 🟡 Tekst påstår en årsak den ikke kjenner (design 2026-09-23)
 
 - I `sjekklister/page.tsx` faller teksten tilbake til `dokumentflyt.feil.ingenFlytMedMal` også når
