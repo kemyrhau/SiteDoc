@@ -279,9 +279,14 @@ null lesevei siden `dd5df1a1`) · fella der `gpsOverride` bærer `lat/lng` og `t
 at UTM/NTM anbefales som felles nav framfor GPS, av samme matematiske grunn som ga speilfeilen · og hvorfor
 3D er riktig SIST i køen.
 
-⚠️ **Én måling skal ikke vente på køen** (notatet § 8 trinn 0a): antall rader i `drawings` der `gps_override`
-har både `lat/lng` og `transform` og er skrevet før 2026-08-13. Er svaret 0, er fella teoretisk. Lesende SQL,
-kjøres av Kenneth mot test.
+🟢 **Målingen er utført 2026-09-23 (Kenneth, test + prod) — og den lukket den ene akutte delen.** Test har
+**1** tegning med `gps_override`; den mangler `geo_reference`, som er forutsetningen for at `lat/lng` skulle
+være speilforurenset. Prod har **0**. **Ingen backfill, ingen varsling — og vinduet er lukket siden
+funksjonen ble rettet 13. august.** Notatet § 4 er omskrevet fra «felle som venter» til målt og lukket.
+
+🟢 **Samme rad beviste hovedpoenget på data:** den eneste kalibrerte modellen er en IFC-tegning **uten**
+georeferanse, posisjonert utelukkende av `gpsOverride.transform`. Avkoblingen `c043b67f` innførte er dermed
+målt, ikke bare utledet av commit-innhold.
 
 **Kenneth-valg som venter i notatet § 9:** om punktsky skal koordinatfestes eller visningsveien avskrives, og
 om `gpsOverride.transform` skal bli en korreksjon på navet framfor en omvei rundt det.

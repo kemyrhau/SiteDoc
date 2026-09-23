@@ -1,5 +1,5 @@
 ---
-status: 🟡 UTREDNING — ingen beslutning tatt, ingenting bygget
+status: 🟡 UTREDNING — ingen beslutning tatt, ingenting bygget. § 4 lukket ved måling 2026-09-23
 opprettet: 2026-09-23
 forfatter: design
 utløst_av: Kenneth 2026-09-23 — «det var vanskelig å koordinatfeste 3d mot dwg/pdf tegninger. den ene fiksen ødela i den andre. En utledning og en plan er nødvendig.»
@@ -106,30 +106,49 @@ testartefakt å måle en fiks mot.**
 
 ---
 
-## § 4 Fella som ligger og venter: `gpsOverride` er én blob med to aldre
+## § 4 🟢 Fella som var lukket før den ble funnet — MÅLT 2026-09-23
 
-Dette er det eneste i notatet som kan slå til uten at noen rører kode.
+**Denne seksjonen sa opprinnelig «en felle som venter på en helt normal handling». Målingen motbeviste det.
+Mekanismen finnes i koden; ingen rad oppfyller forutsetningen.**
 
-`gpsOverride` er ett JSON-felt (`schema.prisma:914`), skrevet i én mutasjon
-(`routes/tegning.ts:430-453`), men de to halvdelene har forskjellig alder:
+`gpsOverride` er ett JSON-felt (`schema.prisma:914`), skrevet i én mutasjon (`routes/tegning.ts:430-453`),
+med to halvdeler av ulik alder:
 
 | Halvdel | Hvordan den beregnes | Berørt av `7dd4df8d`? |
 |---|---|---|
-| `lat` / `lng` | `tegningTilGps({x:50,y:50}, transformasjon)` — **gjennom** `georeferanse.ts` (`tegning-3d/page.tsx:487`) | 🔴 **Ja** |
+| `lat` / `lng` | `tegningTilGps({x:50,y:50}, transformasjon)` — **gjennom** `georeferanse.ts` (`tegning-3d/page.tsx:487`) | Ja — **men bare når en georeferanse finnes** |
 | `transform:{a,b,tx,tz}` | tilpasset direkte fra klikkede pikselpar, uten GPS (`:453-470`) | Nei |
 
-**Alle modeller kalibrert før 2026-08-13 har et `lat/lng` beregnet med den speilfeil-rammede funksjonen.**
-`7dd4df8d` rettet funksjonen, men inneholdt **ingen migrering og ingen backfill** — bare `georeferanse.ts` +
-testen (målt: 2 filer).
+🔴 **Forutsetningen er en `geoReference`.** `transformasjon` utledes av den; uten den kan `tegningTilGps`
+ikke kalles, og `lat/lng` kan ikke ha kommet den veien.
 
-Så lenge `transform` finnes, er dette maskert: primærveien brukes, og `lat/lng` leses aldri til posisjonering.
-🔴 **Men `ifcOpprinnelse` leser `gpsOverride.lat/lng` med HØYESTE prioritet** (`tegning-3d/page.tsx:131-134`),
-foran `ifcMetadata`-GPS. **I det øyeblikket noen fjerner en kalibrering, eller en ny modell mangler
-`transform`, faller koden til `gpsTil3D` med et speil-forurenset origo — og modellen hopper.**
+### Målingen (Kenneth kjørte, test + prod, 2026-09-23)
 
-Det er ikke en feil noen har sett. Det er en felle som venter på en helt normal handling.
+| Base | Rader med `gps_override` | Med `transform` **og** `lat` | Skrevet før 2026-08-13 | Med `geo_reference` |
+|---|---|---|---|---|
+| `sitedoc_test` | **1** | 1 | 1 | 🟢 **0 — `har_georef = f`** |
+| `sitedoc` (prod) | 🟢 **0** | 0 | 0 | — |
 
----
+**Den ene raden:** `1264d656`, `file_type = ifc`, `updated_at 2026-04-15`,
+`{"lat":69.637…, "lng":18.915…, "transform":{a,b,tx,tz}}`, **`geo_reference` NULL**.
+
+🟢 **Konklusjon: ingen forurensede koordinater finnes.** Den ene kalibrerte tegningen har ingen georeferanse,
+så `lat/lng` er satt en annen vei (kartvelger eller IFCSITE) og har aldri vært gjennom den speilfeil-rammede
+funksjonen. Prod har ingen kalibrerte tegninger i det hele tatt. **Og vinduet er lukket:** funksjonen ble
+rettet 13. august, så enhver kalibrering fra da av bruker den rettede versjonen.
+
+**Ingen backfill kreves. Ingen varsling kreves.** Det som gjensto av saken var et tall, og tallet er 0.
+
+### 🟢 Men raden beviser § 1 — på data, ikke på commit-innhold
+
+**Den eneste kalibrerte modellen i systemet er en IFC-tegning UTEN georeferanse, posisjonert utelukkende av
+`gpsOverride.transform`.** Den fungerer uten noen kobling til GPS eller tegningens georeferanse. Det er presis
+avkoblingen `c043b67f` innførte — og den er nå målt, ikke utledet.
+
+⚠️ **Én bifunn i samme rad:** `coordinate_system` er **NULL** på en IFC-tegning, og
+`tegning-3d/page.tsx:145-150` defaulter da blindt til `"utm33"`. For Tromsø-området er utm33 tilfeldigvis
+riktig (Kartverket bruker sone 33 for hele fastlandet), **så feilen er usynlig her**. Den blinde defaulten
+står fortsatt — se § 5 og `koordinatKonvertering.ts:211-212`.
 
 ## § 5 Fire ting som ikke finnes, og ett stykke villedende kode
 
@@ -209,7 +228,7 @@ reell, og den kan kjøres uten at noe bygges.
 
 | # | Måling | Hvorfor den avgjør noe |
 |---|---|---|
-| **0a** | Antall rader i `drawings` med `gps_override` som har **både** `lat/lng` og `transform`, og hvor `updated_at < 2026-08-13` | Er svaret 0, er § 4 teoretisk og trinn 3 utgår. Er det > 0, er det en kjent felle med kjent størrelse |
+| ~~**0a**~~ | 🟢 **UTFØRT 2026-09-23.** Test: 1 rad, men `geo_reference` NULL. Prod: 0 rader | **§ 4 er lukket — ingen forurensede koordinater finnes.** Se § 4 |
 | **0b** | Antall rader i `point_clouds`, og hvor mange har `conversion_status = 'done'` | Er svaret 0, er § 3 en ren opprydding. Er det > 0, finnes det data ingen kan tolke |
 | **0c** | For hver punktsky som finnes: hva sier `bounding_box`-tallene? Seks- og syvsifret = UTM. Små tall = lokalt | Sier om systemet kan **utledes** fra data vi har, framfor å gjettes |
 
@@ -271,5 +290,7 @@ den lagres som en korreksjon *på* transformasjonen, ikke som en egen vei *rundt
   kjørte på Kenspill var visning, ikke koordinatfesting.
 - **Ikke at `c043b67f` var feil.** Den løste en reell drift. Feilen var at splittelsen aldri ble skrevet ned
   noe sted — og at ingen test bandt de to veiene sammen etterpå.
-- **Ikke at fella i § 4 har rammet noen.** Den er utledet av kode og commit-innhold. **Om den er reell,
-  avgjøres av måling 0a** — og til den er kjørt, er det en mistanke med adresse, ikke et funn.
+- 🟢 **Ikke at fella i § 4 har rammet noen — det er nå målt, og svaret er nei.** Seksjonen sto opprinnelig
+  som «en felle som venter». Måling 0a viste at den ene kalibrerte tegningen mangler `geo_reference`, som er
+  forutsetningen, og at prod har null kalibrerte tegninger. **Mistanken var riktig utledet av koden og feil om
+  dataene.** Den står igjen som § 4, omskrevet, fordi mekanismen fortsatt finnes i koden.
