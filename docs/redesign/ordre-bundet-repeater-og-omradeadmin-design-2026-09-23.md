@@ -317,3 +317,36 @@ Kenneth.
     utvides med `omrade`. Kommentaren i schemaet lover at skillet finnes — tallet er ukjent.
 14. **Meldt:** om fritekst-lokasjon og område kan settes samtidig i dag, og om det er ønskelig eller er to
     kilder til samme sannhet.
+
+---
+
+## 🔴 TILLEGG 2026-09-23 til STEG 3 — områdelista MÅ være tilgjengelig offline
+
+**Utløst av kontrollplans måling i steg 1-leveransen:**
+
+> «Offline: mobil har **ingen lokal omrade-tabell**; Rom/Sone-velgerne leser `trpc.omrade.hentForProsjekt`
+> online. Offline er område-lista tom. 🔴 Dette er et hull steg 3 (bundet repeater) må lukke.»
+
+**Han har rett, og det er blokkerende for steg 3 — ikke en pen-å-ha.** Grunnen er hele bruksmønsteret:
+
+**Befaringsrapporten fylles ut i en grøft, 2–3 ganger i uken** (befaringsordren § 1). Er områdelista tom
+offline, får byggelederen en **bundet repeater uten rader** — altså et tomt dokument der hele poenget var at
+traséene sto der ferdig. **Det er verre enn fritekst**, fordi fritekst i det minste lar ham skrive noe.
+
+🔴 **Krav til steg 3:** områdelista for prosjektets byggeplasser skal ligge **lokalt på mobil**, som resten av
+den offline-first modellen (CLAUDE.md: «Mobil-appen MÅ fungere offline»).
+
+- **Lista er lesetilgang og endres sjelden** — den er en god kandidat for enkel synk, ikke for
+  konflikthåndtering. Områder opprettes og omdøpes bare av admin, på web (steg 1).
+- **Meld hvordan mobil synker andre prosjektreferanser i dag**, og gjenbruk det mønsteret. **Ikke innfør en ny
+  synkmekanisme** for dette alene.
+- **Rader i en bundet repeater som viser til et område som er slettet på server** mens mobilen var offline:
+  raden skal **ikke** forsvinne. Den bærer et svar byggelederen har gitt. Vis den med området som navn og en
+  merknad — samme prinsipp som «svaret oppretter, det sletter aldri».
+
+**Dette er tatt inn i DoD som punkt 15.**
+
+## Tillegg til DoD
+
+15. **Offline:** områdelista er lesbar på mobil uten nett, den bundne repeateren får radene sine derfra, og en
+    rad som viser til et slettet område forsvinner ikke. **Rød først** på det siste.
