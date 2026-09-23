@@ -173,6 +173,10 @@ gjør at det ikke oppstår.
 **Merk formen:** `--ff-only`, ikke `--rebase`. Hovedtreet skal aldri ha egne commits å rebase — har
 det det, er noe annet galt og da skal agenten **stoppe og melde**, ikke rebase forbi det.
 
+🔴 **Og steget er merge-agentens — cowork bruker `fetch`.** Skrivende git i hovedtreet (`pull`/`merge`) etterlater stale `ORIG_HEAD.lock` (0 byte); **bekreftet fire ganger 09.–10.09.2026**, utløst av `pull --ff-only` kjørt fra coworks egne målinger, ikke av en krasjet git-kjøring hos merge-agenten. **Én skriver i hovedtreet er hele poenget.** *(Målingen lå i merge-agentens private sesjonsminne og ble sitert som delt regel før den var målt mot docs — den er nå her, der den kan etterprøves.)*
+
+⚠️ **Sett aldri lokale endringer til side med `git stash` når flere worktrees er i sving.** Stash-stakken er **delt** mellom hovedtreet og alle arbeidstrær, så en `pop` fra én økt kan ta en annen økts oppføring — presedensen står i § «Før du BERGER noe som ser tapt ut», der en `stash pop` endte i konflikt. **Bruk en navngitt WIP-branch i stedet:** `git checkout -b wip/<hvem>-<emne>-<dato>` → `git add docs/` → `commit`. Den er i git, usynlig for andre økters `pop`, og gjenfinnbar på navnet. *(Design foreslo formen, merge utførte den 2026-09-23: `wip/cowork-docs-2026-09-23`.)*
+
 #### Hvorfor dette ikke svekker gaten
 
 Cowork verifiserer fortsatt mot koden før merge-ordren gis. Det som flyttes er **utførelsen**,
