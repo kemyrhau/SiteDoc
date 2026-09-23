@@ -392,7 +392,7 @@ beskrivelse:  "Setting av nedgravd stengeventil med gatelokk — ventil, brannva
 derfor inn på **sortering 2**, og **UP flyttes til 3, UU til 4** — `--sorter UP=3 --sorter UU=4`. **Meld hvilke
 søstre som flyttes og bekreft at ingen lånt mal mister sin plass.**
 
-**1. Hovedventil** — `valg` · **forelder for felt 2**
+**1. Hovedventil** — `valg` · **alltid synlig** (RETTET 2026-09-23: ordren sa «forelder for felt 2», det var en glipp — malen ER ventilen, så det finnes ingen typeforelder å gate den på)
 - Riktig type og stilling, spindel kan betjenes
 - Avvik
 
@@ -417,7 +417,7 @@ søstre som flyttes og bekreft at ingen lånt mal mister sin plass.**
 
 > Spindelforlengeren monteres på ventiltoppen og fungerer samtidig som forankring i grunnen. Kontroller at den står i lodd og i riktig høyde før gjenfylling — etterpå kommer ingen til.
 
-**Deretter basisfeltene B1–B10** (§ 5), med de to ordbyttene fra § 5: «enheten» i B1 og B6, og utvidet hjelpetekst
+**Deretter basisfeltene B1–B10** (§ 5), med de to ordbyttene fra § 5: «enheten» i B1 og B6, og utvidet hjelpetekst i B7 (RETTET 2026-09-23: §8 sa B6, som var feil — teleskop og deksel hører til «Justeringsringer og ramme», ikke til «Omfylling»)
 i B6.
 
 🔴 **Ingen renneløp, ingen nedstigning.** Men gatelokket ligger i vei, så **B7 og B8 gjelder fullt ut** —
@@ -500,3 +500,38 @@ Ordren sier «bruk `forgrening`». Den ble skrevet før `forelderFelt` + `barnAv
 
 Denne malen har typeforeldre i **FØR** med barn i **UNDER** og **ETTER**. Der skal `barnAv` brukes. Utføreren
 melder i leveransen hvilken hjelper som ble brukt hvor.
+
+---
+
+## 🔴 RETTINGER 2026-09-23 — tre glipp funnet av mal-Opus før bygging
+
+Mal-Opus stoppet før han bygde og meldte tre punkter. **To var glipp i denne ordren, og det tredje manglet
+helt.** Alle tre er avklart, og han bygger som beskrevet under.
+
+**1. Fasene for type-grener og materialeblokk var ikke oppgitt.** § 4 ga bare type=FØR,
+renneløp/ventil/uttak=UNDER og skilt=ETTER. **Gjeldende fasetabell:**
+
+| Mal | Felt | Fase | Hjelper |
+|---|---|---|---|
+| Alle | M1 Materiale (forelder) | **FØR** | `forelderFelt` |
+| Alle | M2 · M3 · M4 | **UNDER** | `barnAv` (kryss-fase) |
+| UP1 | felt 6 Stikkledning | **UNDER** | `barnAv` |
+| UP2 | felt 1 Gjennomløp (forelder) | **UNDER** | `forelderFelt` |
+| UP2 | felt 2 Plastliner | **UNDER** — samme fase | **`forgrening`** |
+| UP2 | felt 3 Kan spyles | **ETTER** | — |
+| UP3 | felt 1 Type (forelder) | **FØR** | `forelderFelt` |
+| UP3 | felt 2 Sandvolum · 3 Dykker | **UNDER** | `barnAv` (kryss-fase) |
+| UO2.1 | felt 1 Ventil · 2 Uttak · 4 Spindelforlenger | **UNDER** | felt 2 = `forelderFelt` |
+| UO2.1 | felt 3 Skilt | **ETTER** | `barnAv` (kryss-fase) |
+
+**Kontrollert mot §1f-forutsetningen:** hver fase som er vert for et betinget barn har minst ett alltid-synlig
+felt i alle fire malene — ingen tomme overskrifter på skjerm.
+
+**2. § 5 og § 8 motsa hverandre om B6/B7 i UO2.1.** § 5 sa B7, § 8 sa B6. **B7 er riktig** —
+innholdet er teleskop og deksel, som hører til «Justeringsringer og ramme», ikke til «Omfylling». Ordlyden
+«enheten» gjelder fortsatt B1 **og** B6; det var to ulike ting i samme setning.
+
+**3. «Felt 1 forelder for felt 2» i UO2.1 var en glipp.** Felt 1 Hovedventil er **alltid synlig**; felt 2
+Brannvannsuttak er forelderen (`ref=uttak`) for felt 3 Skiltet. **Struktur-linjen «tretten alltid synlige» var
+den som stemte.** Glippen oppsto fordi UP1 har både ventil og uttak som barn av kumtypen, og strukturen ble
+kopiert til UO2.1 — der finnes ingen kumtype, malen **er** ventilen.
