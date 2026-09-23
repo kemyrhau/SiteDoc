@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
+import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
@@ -296,8 +297,10 @@ export const sjekklisteRouter = router({
         // plassering på tegning/kart — speiler oppgave.opprett-kontrakten.
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
-        // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
-        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        // Lokasjonsomfang (2026-09-04): "byggeplass" = hele byggeplassen · "punkt" = pin ·
+        // "omrade" (steg 2b) = et definert område (krever omradeId — DoD 12).
+        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        omradeId: z.string().nullable().optional(),
         // Fritekst-lokasjon (2026-09-06) — påheng på byggeplass når tegning mangler.
         lokasjonFritekst: z.string().max(200).nullable().optional(),
         dueDate: z.string().datetime().optional(),
@@ -312,6 +315,8 @@ export const sjekklisteRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // DoD 12 (steg 2b): omfang="omrade" krever et valgt område.
+      krevOmradeVedOmradeOmfang(input.lokasjonOmfang, input.omradeId);
       // Hent malen for å sjekke domain (HMS vs standard)
       const malForDomain = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id: input.templateId },
@@ -586,6 +591,7 @@ export const sjekklisteRouter = router({
             positionX: input.positionX,
             positionY: input.positionY,
             lokasjonOmfang: input.lokasjonOmfang,
+            omradeId: input.omradeId,
             lokasjonFritekst: input.lokasjonFritekst,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             // Spor 2 / 5a: HMS (SJA) opprettes nå som UTKAST (draft), ikke auto-sendt. Melder
@@ -639,7 +645,8 @@ export const sjekklisteRouter = router({
         byggeplassId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
-        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
     )
@@ -680,7 +687,14 @@ export const sjekklisteRouter = router({
       const rørerLaastFelt =
         input.drawingId !== undefined || input.positionX !== undefined ||
         input.positionY !== undefined || input.byggeplassId !== undefined ||
-        input.lokasjonOmfang !== undefined || input.lokasjonFritekst !== undefined;
+        input.lokasjonOmfang !== undefined || input.lokasjonFritekst !== undefined ||
+        input.omradeId !== undefined;
+
+      // DoD 12 (steg 2b): valider mot EFFEKTIV tilstand (input der satt, ellers dagens verdi).
+      krevOmradeVedOmradeOmfang(
+        input.lokasjonOmfang !== undefined ? input.lokasjonOmfang : sjekkliste.lokasjonOmfang,
+        input.omradeId !== undefined ? input.omradeId : sjekkliste.omradeId,
+      );
       if (rørerLaastFelt && (sjekkliste.status === "approved" || sjekkliste.status === "closed")) {
         throw new TRPCError({
           code: "BAD_REQUEST",

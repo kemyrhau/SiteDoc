@@ -917,8 +917,9 @@ export default function SjekklisteDetaljSide() {
             bygningNavn={(sjekkliste as unknown as { byggeplass?: { name?: string } | null }).byggeplass?.name}
             positionX={(sjekkliste as unknown as { positionX?: number | null }).positionX}
             positionY={(sjekkliste as unknown as { positionY?: number | null }).positionY}
-            lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null}
+            lokasjonOmfang={(fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null }).lokasjonOmfang ?? null}
             lokasjonFritekst={(fullSjekkliste as unknown as { lokasjonFritekst?: string | null }).lokasjonFritekst ?? null}
+            omradeId={(fullSjekkliste as unknown as { omradeId?: string | null }).omradeId ?? null}
             visPosisjon
             onLagre={(data) => {
               oppdaterMutasjon.mutate({
@@ -929,6 +930,7 @@ export default function SjekklisteDetaljSide() {
                 positionY: data.positionY ?? null,
                 lokasjonOmfang: data.lokasjonOmfang ?? null,
                 lokasjonFritekst: data.lokasjonFritekst ?? null,
+                omradeId: data.omradeId ?? null,
               });
             }}
             leseModus={["closed", "approved"].includes(sjekkliste.status)}
@@ -936,7 +938,7 @@ export default function SjekklisteDetaljSide() {
                showLocation-gaten wrapper allerede blokka. Lukking uten valg lagrer ingenting. */
             autoÅpne={
               sjekkliste.status === "draft" &&
-              ((fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | null }).lokasjonOmfang ?? null) == null &&
+              ((fullSjekkliste as unknown as { lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null }).lokasjonOmfang ?? null) == null &&
               !(sjekkliste as unknown as { drawingId?: string | null }).drawingId
             }
           />

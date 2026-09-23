@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
+import { krevOmradeVedOmradeOmfang } from "./lokasjon-omfang";
 import { byggEndringsloggInnslag, skrivEndringslogg } from "../services/endringslogg";
 import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
@@ -453,8 +454,10 @@ export const oppgaveRouter = router({
         drawingId: z.string().uuid().optional(),
         positionX: z.number().min(0).max(100).optional(),
         positionY: z.number().min(0).max(100).optional(),
-        // Lokasjonsomfang (2026-09-04): "byggeplass" = bevisst hele byggeplassen, "punkt" = pin.
-        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        // Lokasjonsomfang (2026-09-04): "byggeplass" = hele byggeplassen · "punkt" = pin ·
+        // "omrade" (steg 2b) = et definert område (krever omradeId — DoD 12).
+        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
         dokumentflytId: z.string().uuid().optional(),
         checklistId: z.string().uuid().optional(),
@@ -462,6 +465,8 @@ export const oppgaveRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // DoD 12 (steg 2b): omfang="omrade" krever et valgt område.
+      krevOmradeVedOmradeOmfang(input.lokasjonOmfang, input.omradeId);
       // Hent malen for å sjekke domain (HMS vs standard)
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id: input.templateId },
@@ -665,6 +670,7 @@ export const oppgaveRouter = router({
             positionX: input.positionX,
             positionY: input.positionY,
             lokasjonOmfang: input.lokasjonOmfang,
+            omradeId: input.omradeId,
             lokasjonFritekst: input.lokasjonFritekst,
             dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
             checklistId: input.checklistId,
@@ -711,7 +717,8 @@ export const oppgaveRouter = router({
         drawingId: z.string().uuid().nullable().optional(),
         positionX: z.number().min(0).max(100).nullable().optional(),
         positionY: z.number().min(0).max(100).nullable().optional(),
-        lokasjonOmfang: z.enum(["punkt", "byggeplass"]).nullable().optional(),
+        lokasjonOmfang: z.enum(["punkt", "byggeplass", "omrade"]).nullable().optional(),
+        omradeId: z.string().nullable().optional(),
         lokasjonFritekst: z.string().max(200).nullable().optional(),
       }),
     )
@@ -735,6 +742,14 @@ export const oppgaveRouter = router({
       );
 
       const { id, ...data } = input;
+
+      // DoD 12 (steg 2b): valider mot EFFEKTIV tilstand (input der satt, ellers dagens verdi) —
+      // så «sett omfang=omrade uten å sende omradeId» fanges hvis raden ikke alt har et område,
+      // og «tøm omradeId mens omfang=omrade» fanges (undefined = ikke rørt, null = eksplisitt tømt).
+      krevOmradeVedOmradeOmfang(
+        input.lokasjonOmfang !== undefined ? input.lokasjonOmfang : oppgave.lokasjonOmfang,
+        input.omradeId !== undefined ? input.omradeId : oppgave.omradeId,
+      );
 
       // Append-only: metadata (tittel/lokasjon/faggruppe/frist osv.) kan kun endres i utkast.
       // UNNTAK — `subject` (emne): det er en merkelapp for gjenfinning, ikke dokumentasjon av

@@ -24,6 +24,7 @@ describe("lesDokumentLokasjon", () => {
       positionY: 73.7,
       lokasjonOmfang: "punkt",
       lokasjonFritekst: null,
+      omradeId: null,
     });
   });
 
@@ -36,6 +37,7 @@ describe("lesDokumentLokasjon", () => {
       positionY: null,
       lokasjonOmfang: "byggeplass",
       lokasjonFritekst: null,
+      omradeId: null,
     });
   });
 
@@ -49,6 +51,7 @@ describe("lesDokumentLokasjon", () => {
       positionY: null,
       lokasjonOmfang: null,
       lokasjonFritekst: null,
+      omradeId: null,
     });
   });
 
@@ -61,11 +64,19 @@ describe("lesDokumentLokasjon", () => {
       positionY: null,
       lokasjonOmfang: null,
       lokasjonFritekst: null,
+      omradeId: null,
     });
   });
 
   it("tegning uten byggeplass (ukonvertert) → bygningNavn null, resten hentes", () => {
     const raa = { drawingId: "d-2", positionX: 1, positionY: 2, drawing: { name: "T", byggeplass: null } };
     expect(lesDokumentLokasjon(raa)).toMatchObject({ tegningId: "d-2", bygningNavn: null, positionX: 1 });
+  });
+
+  it("omfang=omrade (steg 2b) → omradeId hentes fra RÅ-formen", () => {
+    expect(lesDokumentLokasjon({ lokasjonOmfang: "omrade", omradeId: "omr-9" })).toMatchObject({
+      lokasjonOmfang: "omrade",
+      omradeId: "omr-9",
+    });
   });
 });
