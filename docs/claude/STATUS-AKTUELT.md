@@ -78,6 +78,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
   **Treffer alt en bruker laster ned:** tegning, vedlegg, arkiv-PDF. ⚠️ **Ikke målt:** om alle nedlastingsveier går gjennom `server.ts:131` eller om arkiv-PDF/vedlegg har egne — det avgjør om fiksen er ett eller tre steder.
   ⚠️ **Nær 🔴-grensen:** ingen blokkeres, men et dokument som skal kunne vises til i en tvist, kan ikke hete `40ae60ab-2cd0-46a3-8238-1f9a4bf5ba65.pdf`.
 
+### 🟢 2026-09-24 — Punktsky steg 1 (A–F) merget. develop `058b3ffa`.
+
+`feat/punktsky-overflate` `5b15c84e` + `docs/design-backlog-las-uverifisert` `9bac3b90`, begge `--no-ff`. **Gate traff blink:** db 248 (+5) · api 574 (+28) · pdf 128 · shared 854 · web 309 (+2) · mobil 38 · 7/7. Kald web-build exit 0 (ingen TS2589), mobil-typecheck exit 0.
+
+**Ny tabell `Overflate`** — migrering `20260924120000_overflate_tabell`: `CREATE TABLE` + partial unique + CHECK + 4 FK på en ny tom tabell. 🔴 **Ikke kjørt mot test ennå** — krever Kenneths TTY.
+
+🟢 **To avvik fra ordren, begge forbedringer, begge meldt av agenten før koding:**
+- `malavstandM`/`bakkeMetode` **nullable + CHECK** i stedet for non-null. § D og § E motsa hverandre — LandXML-flater i samme tabell har verken felt. Non-null ville tvunget fram oppdiktede verdier. **Design bekreftet at selvmotsigelsen var hans.**
+- **Float32-vertekser som offset fra bbox-origo** (float64 i headeren). Rå float32 på 6,7M UTM gir ~0,5 m; med offset <0,1 mm. Formen beholdt, presisjonen reddet, låst av en test på hver side.
+
+🔴 **BRUKS-BLOKKER, ikke merge-blokker:** en LAS-avledet overflate skal **ikke** brukes som volumdokumentasjon før én **ekte drone-LAS** er kjørt gjennom kjeden. Aritmetikken er bevist mot en syntetisk fixture med kjent fasit; at ekte filer *parses* er ikke bevist. Ført i [BACKLOG](BACKLOG.md). **Krever én fil fra Kenneth, ikke en ny leveranse.**
+
+🟢 **i18n-kollisjonen ble sekvensert, ikke oppdaget.** Punktsky og dokgens tegningsrunde rører begge 15 i18n-filer. Cowork målte innsettingspunktene (nb.json 1331 mot 1526) og la punktsky først; merge bekreftet 0 konfliktmarkører. **Kollisjons-sjekken virket som den skal for én gangs skyld i forkant.**
+
 ### 🔴 2026-09-24 — DWG-BINÆRER OG GEOREFERANSEFIKS MÅ I SAMME RELEASE
 
 **Designs måling (`docs/design-bind-239-296`):** `dwgKonvertering.ts:980` er det **eneste** stedet som bygger en georeferanse automatisk — PDF-veien gjør det ikke. Autoveien kan ikke kjøre i dag fordi `dwg2dxf`/`dwg2SVG` mangler.

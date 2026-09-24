@@ -261,6 +261,22 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ⚠️ **Konsekvensklasse: ytelse, ikke korrekthet.** Ingen data er feil; spørringer mot de fem tabellene er tregere enn i test. **Det gjør at forskjellen aldri viser seg som en feil — bare som at prod føles treg.**
 
+### 🟡 Sletting av en tegning etterlater filene på disk (funnet 2026-09-24 av dokgen)
+
+**`tegning.slett` er en ren `prisma.drawing.delete`.** Målt mot schema av dokgen ved bygging av slette-knappen:
+
+| Hva | Utfall |
+|---|---|
+| Revisjoner | 🟢 Cascade-slettes — DB-integriteten er trygg |
+| Oppgaver · sjekklister · områder · kontrollplanpunkter | 🟢 `SetNull` — radene overlever. **Og en slettevakt blokkerer nå sletting når noen av dem peker på tegningen** (samme mønster som `omrade.ts:122`, inkl. MYKE JSON-referanser fra `TegningPosisjon`) |
+| 🔴 **Diskfiler** | **Blir foreldreløse.** `fileUrl`, `originalFileUrl` og hver cascade-slettet revisjons `fileUrl` fjernes aldri fra disk |
+
+**Bevisst akseptert i runden som bygde slette-knappen** — scope var å låse opp seks tegninger som sto fast i prod, ikke å bygge disk-GC. **Atferden er ikke ny**, men knappen gjør den nåbar for brukere der den før krevde et direkte DB-inngrep.
+
+⚠️ **Henger sammen med [gdpr-kartlegging.md](gdpr-kartlegging.md):** persondata bor blant annet på disk, og det finnes ingen sletteløsning. **En «slett»-knapp som etterlater filen er et løfte systemet ikke holder** — det er den samme saken, sett fra tegningssiden.
+
+**Ikke målt:** hvor mange foreldreløse filer som alt ligger i `uploads/` fra tidligere slettinger. Det tallet bør inn før en GC bygges, så vi vet om dette er rydding eller en engangsopprydding.
+
 ### 🟡 Bbox-lesingen i `lasHeader.ts` er åtte byte forskjøvet (funnet 2026-09-24 av kontrollplan)
 
 `packages/…/lasHeader.ts:126-137` leser bounding-box-doubles fra offset 187, mens LAS-spesifikasjonen har `Max X` på **179**. Kommentaren i koden — *«La meg re-lese korrekt»* — røper at lesingen aldri ble fullført.
