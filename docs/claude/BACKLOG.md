@@ -344,6 +344,40 @@ som DWG-gjenopprettingen, ikke etter.**
 
 ---
 
+### 🔴 Rå Prisma-tekst kan nå brukerens skjerm — tRPC har ingen `errorFormatter` (2026-09-24)
+
+**Kenneth 2026-09-24, på test:** klikket Slett på en tegning og fikk i modalen
+«`Invalid prisma.drawing.findUniqueOrThrow() invocation … No record was found`».
+
+**Den konkrete veien er lukket** av `fix/tegning-slett-invalidering` (`49e9fbd4`): klienten viser nå kun
+`BAD_REQUEST`-meldinger og faller ellers til en generisk tekst. **Men det er en klientside-allowlist på ÉN
+flate — rotårsaken står.**
+
+🔴 **Rotårsaken, målt:** `apps/api/src/trpc/trpc.ts:6` er
+`initTRPC.context<Context>().create()` — **uten `errorFormatter`.** Prisma-feil går derfor uendret til
+klienten. **Omfang: 246 `findUniqueOrThrow` i 30 ikke-test-filer** i `apps/api/src/routes`. Hver av dem kan
+lekke rå ORM-tekst til enhver flate som viser `error.message`.
+
+**To skader, ulik alvorlighet:**
+
+| | Hva |
+|---|---|
+| **UX** | En rå ORM-streng svarer verken på hva som skjedde eller hva brukeren skal gjøre — brudd på mikrotekst-standarden (STYRENDE) |
+| ⚠️ **Informasjonslekkasje (lav)** | Meldingen navngir ORM og modellnavn (`prisma.drawing`). Lav alvorlighet, men det er gratis rekognosering |
+
+🟢 **Fiksen er ÉTT sted, ikke 246:** en `errorFormatter` i `trpc.ts:6` som kjenner igjen Prismas
+known-request-feil og oversetter dem — `P2025` (record not found) → `NOT_FOUND` med lesbar tekst, og alt
+ukjent → en generisk melding **uten** rå tekst i produksjon.
+
+🔴 **Og mønsteret klienten nå bruker bør bli standarden:** vis serverens melding **kun** for koder vi selv
+kaster (`BAD_REQUEST`, `NOT_FOUND`, `FORBIDDEN`), aldri for `INTERNAL_SERVER_ERROR`. Belegg finnes alt i
+`prosjektoppsett:624` og `vareforbruk:108`.
+
+⚠️ **Ikke hastesak, men den kommer tilbake:** Kenneth traff den fra tegninger. De 29 andre filene har samme
+vei, og neste gang er det en annen flate.
+
+---
+
 ### ⚠️ Overflate fra LAS er ARITMETISK bevist, men IKKE bevist mot en ekte drone-LAS (2026-09-24)
 
 **`feat/punktsky-overflate` steg 1 er levert og gatet.** Scale/offset-lesingen (`lasPunkter.ts`) er bevist mot
