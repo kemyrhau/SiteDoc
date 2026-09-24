@@ -261,6 +261,34 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ⚠️ **Konsekvensklasse: ytelse, ikke korrekthet.** Ingen data er feil; spørringer mot de fem tabellene er tregere enn i test. **Det gjør at forskjellen aldri viser seg som en feil — bare som at prod føles treg.**
 
+### 🔴 PROD HÅNDHEVER «ÉN PSI PER PROSJEKT» — en regel produktet ikke lenger har. `DROP CONSTRAINT` på en INDEKS er en stille no-op (målt 2026-09-24)
+
+**Funnet ved skjema-sammenligning test mot prod.** Tre avvik i hele skjemaet; dette er det eneste som går den farlige veien.
+
+| Miljø | `psi_project_id_key` | Regel som håndheves |
+|---|---|---|
+| **Prod** | 🔴 **finnes** | **Én PSI per prosjekt** |
+| **Test** | mangler | Én PSI per prosjekt **+ byggeplass** |
+| `schema.prisma` | — | `@@unique([projectId, byggeplassId])` — det som var ment |
+
+🔴 **Rotårsaken er en setning som lykkes uten å gjøre noe:**
+
+- `20260403090000_psi_modul` oppretter den som **`CREATE UNIQUE INDEX "psi_project_id_key"`**
+- `20260403120000_psi_building` skal fjerne den og gjør **`ALTER TABLE "psi" DROP CONSTRAINT IF EXISTS "psi_project_id_key"`**
+
+⚠️ **I Postgres er en `CREATE UNIQUE INDEX` ikke en constraint.** `DROP CONSTRAINT` på et indeksnavn treffer ingenting — og **`IF EXISTS` gjør at den ikke engang feiler.** Riktig setning er `DROP INDEX IF EXISTS`.
+
+**Målt konsekvens:** på prod avvises PSI nummer to på en annen byggeplass i samme prosjekt. På test går den gjennom. **Det er «verifisert på test» som ikke gjelder for prod.**
+
+🟡 **Ikke akutt i dag:** prod har **1 PSI-rad i 1 prosjekt** (målt). Ingen har truffet veggen.
+🔴 **Men den treffer piloten:** A.Markussen har flere byggeplasser per prosjekt, og den andre PSI-en er nøyaktig det som feiler.
+
+**Fiksen er én migrering:** `DROP INDEX IF EXISTS "psi_project_id_key"`, med en test som feiler hvis indeksen finnes. ⚠️ **Verifiser at prod-raden ikke er avhengig av den før den droppes.**
+
+⚠️ **Feilklassen er generell og verdt å lete etter:** `IF EXISTS` gjør en feilrettet setning usynlig. Samme familie som `xargs -a` på BSD og `cmd | grep | tail` som gate — **en kommando som lykkes med tomt resultat er ikke en måling.**
+
+**De to andre avvikene går motsatt vei og er ufarlige** (finnes kun i test): `ftd_documents.split_sources` og indeksen `idx_ftd_change_events_project`. **Ikke målt hvor de kommer fra.**
+
 ### 🟡 TEST OG PROD HAR ULIK MIGRERINGSHISTORIKK — seks rullet tilbake, ingen overlapp (målt 2026-09-24)
 
 **Funnet ved å verifisere at deployens migreringer faktisk gikk — ikke fordi noe klaget.** Samme klasse som de fem tapte binærene.
@@ -276,7 +304,17 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ⚠️ **Konsekvensen er ikke at noe er ødelagt i dag — den er at «test og prod har samme skjema» ikke lenger er en sannhet vi kan bygge en gate på.** En verifisering på test kan passere på noe prod ikke har, og omvendt.
 
-**Neste steg (ikke bestilt): én måling, ikke en fiks.** Sammenlign faktisk skjema — `information_schema.columns` + `pg_indexes` — mellom `sitedoc` og `sitedoc_test`, og mot `schema.prisma`. Det svarer på om de seks hullene betyr noe, eller om senere migreringer har dekket dem.
+✅ **MÅLINGEN ER KJØRT 2026-09-24.** `information_schema.columns` + `pg_indexes`, diffet på serveren mellom `sitedoc` og `sitedoc_test`.
+
+🟢 **Svaret er beroligende: TRE avvik i hele skjemaet.** De seks tilbakerullede migreringene er altså i all hovedsak dekket av senere migreringer — hullene lukket seg selv.
+
+| Avvik | Retning | Betydning |
+|---|---|---|
+| `psi_project_id_key` | **kun prod** | 🔴 **Eneste farlige** — egen post over |
+| `ftd_documents.split_sources` | kun test | 🟡 Ufarlig. Opphav ikke målt |
+| `idx_ftd_change_events_project` | kun test | 🟡 Ufarlig. Opphav ikke målt |
+
+**Konklusjon: «verifisert på test» er stort sett verdt det vi tror — men ikke for PSI.**
 
 ⚠️ **Coworks egen feil i samme måling:** første spørring brukte `NULLS FIRST LIMIT 3` og viste bare tre av fem. **Et `LIMIT` på et ukjent antall er ikke en telling.**
 
