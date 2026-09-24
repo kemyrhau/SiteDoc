@@ -158,6 +158,12 @@ kappløpet.
 2026-09-02 mens en tidligere docs-endring lå ukommitert; neste `pull --rebase` stoppet på
 «unstaged changes». Fire ganger samme dag. Hele mappa sveiper med det som ble hoppet over.
 
+🔴 **FAST FØRSTE STEG FØR HVER DEPLOY OG OTA: cowork gir docs til merge-agenten.** (2026-09-24, tredje forekomst.)
+
+**`eas update` stempler publiseringen med commit-hash + `*` hvis treet er skittent — og da vet ingen hva som gikk ut.** Tre ganger har asterisken kommet fra **coworks egne ukommiterte docs-filer**: 2026-09-07, 2026-09-10 og 2026-09-24. Hver gang var det ufarlig fordi docs ikke er i JS-bundelen — **men det måtte måles i etterkant hver gang, og regelen finnes nettopp fordi man normalt ikke KAN vite det.**
+
+⚠️ **Mønsteret er coworks arbeidsvane:** cowork skriver docs løpende i hovedtreet mens en deploy forberedes, og oppdager dem først når `git status` dukker opp i et deploy-steg. **Rekkefølgen skal snus: docs-commiten går FØR deploy-ordren gis, ikke som opprydding etterpå.**
+
 🔴 **Fast siste steg etter HVER merge: hent den inn i hovedtreet.**
 
 ```sh
