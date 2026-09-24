@@ -13,7 +13,7 @@ import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
-import { vurderPrivatFilForesporsel, assertFilSigneringEnv } from "./utils/hmac";
+import { vurderUploadsFilForesporsel, assertFilSigneringEnv } from "./utils/hmac";
 
 /**
  * Leser de første bytene av en fil og returnerer korrekt bilde-Content-Type
@@ -106,16 +106,16 @@ async function start() {
     limits: { fileSize: 500 * 1024 * 1024 },
   });
 
-  // S1 Fase 1 — autorisert filserving for sensitive filer.
-  // `/uploads/privat/*` er signatur-KUN (ingen sesjons-fallback): API signerer
+  // 🔴 S1 Fase 1b — autorisert filserving for HELE `/uploads/` (default-deny).
+  // Enhver `/uploads/`-fil er signatur-KUN (ingen sesjons-fallback): API signerer
   // stien ved emisjon etter authz, og denne hooken verifiserer HMAC-signaturen
-  // uten ny DB-authz. Utløpt/ugyldig/manglende signatur → 401. Non-privat
-  // `/uploads/*` er uendret i Fase 1 (global gate kommer i Fase 1b).
+  // uten ny DB-authz. Utløpt/ugyldig/manglende signatur → 401. (Fase 1 gatet kun
+  // `privat/`; resten ble servert rått — S1-hullet fra 2026-08-15.)
   server.addHook("onRequest", async (req, reply) => {
     // Normaliser stien FØR gate + signatursjekk — ellers omgås gaten av
     // `/./`, `//` og `/../`-former som fastifyStatic normaliserer og serverer
-    // likevel. Beslutningen ligger i vurderPrivatFilForesporsel (enhetstestet).
-    const vurdering = vurderPrivatFilForesporsel(req.url);
+    // likevel. Beslutningen ligger i vurderUploadsFilForesporsel (enhetstestet).
+    const vurdering = vurderUploadsFilForesporsel(req.url);
     if (vurdering.type === "avvist") {
       const melding =
         vurdering.kode === 400 ? "Ugyldig sti" : "Ugyldig eller utløpt fil-signatur";

@@ -2,8 +2,22 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { randomBytes } from "crypto";
 import type { Context } from "./context";
 import { sjekkRateLimitDetalj } from "../utils/rateLimiter";
+import { signerOutputHvisQuery } from "../utils/signerUploadsOutput";
 
 const t = initTRPC.context<Context>().create();
+
+/**
+ * 🔴 S1 Fase 1b — sentral signering av `/uploads/`-URL-er i ALLE query-svar
+ * (default-på). Enhver query som returnerer en rå `/uploads/`-streng får den
+ * signert ved emisjon uten et eget kall — se `signerUploadsOutput.ts` for hvorfor
+ * (opt-in sviktet i august) og hvorfor KUN queries (mutasjoner = D1-forgiftning).
+ * Idempotent, så eksisterende eksplisitte signeringskall dobbeltsigneres ikke.
+ * Ligger på basen (public + protected) så også fremtidige ruter arver den.
+ * Bevis + query-vs-mutasjon-kontrakt: `signerUploadsOutput.test.ts`.
+ */
+const uploadsSigneringsMiddleware = t.middleware(async ({ type, next }) =>
+  signerOutputHvisQuery(type, await next()),
+);
 
 // H1 mobil-token-rotasjon: roter Session.sessionToken hvis lastRotatedAt
 // er eldre enn dette antall millisekunder. 7 dager = audit-anbefaling.
@@ -11,7 +25,7 @@ const TOKEN_ROTASJON_TERSKEL_MS = 7 * 24 * 60 * 60 * 1000;
 const TOKEN_LEVETID_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+export const publicProcedure = t.procedure.use(uploadsSigneringsMiddleware);
 
 /**
  * Lager en rate-limit-middleware som kun aktiveres på mutations.
@@ -106,6 +120,7 @@ const mobilTokenRotasjon = t.middleware(async ({ ctx, type, next }) => {
  * krever innlogging.
  */
 export const protectedProcedure = t.procedure
+  .use(uploadsSigneringsMiddleware)
   .use(async ({ ctx, next }) => {
     if (!ctx.userId) {
       throw new TRPCError({

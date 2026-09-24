@@ -4,7 +4,7 @@ import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { byggTilgangsFilter } from "../trpc/tilgangskontroll";
 import { signerBilder } from "../utils/vedleggSignering";
 import { byggeplassFilterViaTegning, byggeplassFilterDirekte } from "../services/byggeplassFilter";
-import { normaliserFilSti } from "../utils/hmac";
+import { kanoniserForSletting } from "../utils/hmac";
 
 /**
  * S1 Fase 1b myk validering (STEG 2): bilder skal lastes opp til uploads/privat/.
@@ -258,15 +258,12 @@ export const bildeRouter = router({
     .input(z.object({ fileUrl: z.string(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      // S1 Fase 1b: klienten kan sende en SIGNERT URL (?exp=&sig=) eller en
-      // sti-variant. Lagret fileUrl er kanonisk uten query → normaliser bort
-      // query + sti-varianter før eksakt-match, ellers feiler slettingen stille.
-      let renUrl = input.fileUrl.split("?")[0] ?? input.fileUrl;
-      try {
-        renUrl = normaliserFilSti(renUrl);
-      } catch {
-        // ugyldig prosentkoding — behold rå (matcher da ikke, ingen sletting)
-      }
+      // 🔴 D2-invariant: klienten kan sende en SIGNERT URL (?exp=&sig=) eller en
+      // sti-variant. Lagret fileUrl er kanonisk uten query → kanoniser bort query
+      // + sti-varianter før EKSAKT-match, ellers feiler slettingen stille. Nå som
+      // HELE `/uploads/` signeres ved emisjon (Fase 1b), passerer alle vedlegg-
+      // URL-er denne veien signert. Vernet er testet (bilde-slett-signert.test.ts).
+      const renUrl = kanoniserForSletting(input.fileUrl);
       const resultat = await ctx.prisma.image.deleteMany({
         where: { fileUrl: renUrl },
       });
