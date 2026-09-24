@@ -86,6 +86,24 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 🔴 **Formålet: fem PDF-tegninger sto låst i prod siden 2026-09-16** med `spawn pdftoppm ENOENT` — en feil som ikke lenger gjaldt, men som verken kunne repareres eller slettes. `rekonverterPdf` fantes i koden hele tiden **uten en eneste kaller**. ⚠️ `Oversikt Lakselv lufthavn` blir stående — den mangler DWG-konverterer, ikke `pdftoppm`.
 
+### ✅ 2026-09-24 — TRE LAG, TRE FIKSER. De fem tegningene er ryddet i prod.
+
+**Kenneth bekreftet: «converter virket».** Fem PDF-tegninger som sto låst siden 2026-09-16 er konvertert.
+
+🔴 **Saken var tre lag av SAMME rotårsak — tRPC kjører in-process i `sitedoc-web`, så alt «api-arbeid» skjer der:**
+
+| # | Lag | Fiks |
+|---|---|---|
+| 1 | `pdftoppm` manglet i web | `Dockerfile.web` (`8fbf5180`) |
+| 2 | `tesseract` manglet i web | samme commit |
+| 3 | `uploads` montert **`:ro`** i web — konverteringen kunne ikke SKRIVE | `:ro` fjernet i begge compose-filer (`6be34c67`) |
+
+⚠️ **Ingen av dem var en regresjon. Hvert lag var maskert av det forrige.** Lag 3 kunne ikke sees før lag 1 var borte: først ga flaten `ENOENT`, så — etter hotfixen — skrivefeil. **Fire forsøk før de fem tegningene gikk gjennom.**
+
+🔴 **Coworks egen drift i samme sak:** `:ro`-endringen ble skrevet i hovedtreet og gitt til Kenneth som serverkommando, men **aldri committet**. Serveren hadde fiksen, repoet ikke — og `deploy-prod.sh` rsyncer fra repoet. **Neste deploy ville reverterat den stille.** Fanget av design. Rettet i `6be34c67` + `eb9071f2` (main), uten deploy — serveren var alt riktig.
+
+⚠️ **`main` `eb9071f2` bærer `:ro`-fiksen, IKKE signaturgaten.** Den er bevisst holdt tilbake fra prod.
+
 ### 🔴 2026-09-24 — `/uploads/*` SERVERES UTEN AUTENTISERING. Omfanget målt.
 
 **Designs funn, dokgens måling.** `server.ts:127-131` lar `fastifyStatic` levere rått — bilder, tegninger, vedlegg. Hvem som helst med URL-en får fila. Gaten på `:114-124` dekker **kun** `privat/`; kommentaren på `:113` sier «global gate kommer i Fase 1b».
