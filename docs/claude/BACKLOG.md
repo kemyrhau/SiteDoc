@@ -309,6 +309,31 @@ som DWG-gjenopprettingen, ikke etter.**
 
 ---
 
+### ⚠️ Overflate fra LAS er ARITMETISK bevist, men IKKE bevist mot en ekte drone-LAS (2026-09-24)
+
+**`feat/punktsky-overflate` steg 1 er levert og gatet.** Scale/offset-lesingen (`lasPunkter.ts`) er bevist mot
+en **syntetisk fixture med kjente tall**, med negativ kontroll. **Det finnes ingen ekte LAS i repoet**, og
+kontrollplan meldte begrensningen selv, uten å bli spurt.
+
+🔴 **Hva som ER bevist:** regnestykket. En syntetisk fixture med kjent fasit beviser aritmetikken *bedre* enn en
+ekte fil, fordi sannheten er kjent.
+
+🔴 **Hva som IKKE er bevist:** at en **ekte drone-LAS parses**. Virkelige filer varierer i punktformat, har
+`punktStørrelse` større enn standarden (ekstra bytes), VLR-er, og LAS 1.4 har både legacy og nye punkttellinger.
+**Ingen av de variantene er sett.**
+
+⚠️ **Konsekvens: en overflate avledet av LAS skal IKKE brukes som volumdokumentasjon før dette er kjørt.**
+Tallet kan være riktig — men ingen har målt at det er det.
+
+**Akseptkriterium (ordre § 5 pkt 3, fortsatt ÅPENT):** kjør en ekte drone-LAS gjennom `lasPunkter` →
+`bakkeOverflate` → `triangulering`, og vis at (a) koordinatene blir metriske i riktig størrelsesorden,
+(b) `bakkeMetode` blir `klasse2` når leveransen er klassifisert, og (c) punktantallet etter desimering stemmer
+med målavstanden. **Krever én ekte fil fra Kenneth — ikke en ny leveranse.**
+
+**Ordre:** [ordre-punktsky-serveroverflate-design-2026-09-24.md](../redesign/ordre-punktsky-serveroverflate-design-2026-09-24.md)
+
+---
+
 ### 🔴 3D-koordinatfesting mot tegning: fiksen kunne ikke nå fram (2026-09-23)
 
 **Kenneth 2026-09-23:** *«det var vanskelig å koordinatfeste 3d mot dwg/pdf tegninger. den ene fiksen ødela i
