@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Prisma } from "@sitedoc/db";
+import { TRPCError } from "@trpc/server";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -13,7 +14,7 @@ import {
   drawingStatusSchema,
   geoReferanseSchema,
 } from "@sitedoc/shared";
-import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { byggeplassFilterDirekte } from "../services/byggeplassFilter";
@@ -34,6 +35,30 @@ const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), "uploads");
 const fagdisipliner = drawingDisciplineSchema;
 const tegningstyper = drawingTypeSchema;
 const tegningStatuser = drawingStatusSchema;
+
+// Entall/flertall for slettevakt-meldingen (mikrotekst-standard: oppgi tallet + neste steg,
+// ikke bare «kan ikke slettes» — en nektelse uten tall sender brukeren på leting).
+function tall(n: number, entall: string, flertall: string): string {
+  return `${n} ${n === 1 ? entall : flertall}`;
+}
+
+// Slettevakt-melding for tegning: navngir HVER referansevei som er > 0. Speiler omrade.ts:23.
+// Referansene til en tegning er BÅDE harde FK-er (drawing_id/tegning_id, alle SetNull → ville
+// gitt dinglende markør) OG en myk JSON-referanse: rapportobjektet TegningPosisjon lagrer
+// `drawingId` i Checklist.data/Task.data (shared TegningPosisjonVerdi) uten FK.
+function byggTegningSlettevaktMelding(t: {
+  oppgaver: number;
+  sjekklister: number;
+  kontrollpunkter: number;
+  omrader: number;
+}): string {
+  const deler: string[] = [];
+  if (t.oppgaver > 0) deler.push(tall(t.oppgaver, "oppgave", "oppgaver"));
+  if (t.sjekklister > 0) deler.push(tall(t.sjekklister, "sjekkliste", "sjekklister"));
+  if (t.kontrollpunkter > 0) deler.push(tall(t.kontrollpunkter, "kontrollplanpunkt", "kontrollplanpunkter"));
+  if (t.omrader > 0) deler.push(tall(t.omrader, "område", "områder"));
+  return `Tegningen brukes av ${deler.join(", ")} og kan ikke slettes. Flytt markørene til en annen tegning, eller fjern det som bruker den, først.`;
+}
 
 export const tegningRouter = router({
   // Hent alle tegninger for et prosjekt
@@ -569,12 +594,37 @@ export const tegningRouter = router({
       return { status: "pending" };
     }),
 
-  // Slett tegning
+  // Slett tegning. ADMIN-gatet + SLETTEVAKT (speiler omrade.slett): alle referanse-FK-ene er
+  // SetNull (schema: tasks/checklists/kontrollplan_punkter.drawing_id, omrader.tegning_id) →
+  // en usett sletting ville etterlatt markører som peker på en tegning som ikke finnes. Teller
+  // distinkt per entitet (FK ELLER myk JSON-referanse i samme tabell), blokkerer hvis > 0 og sier
+  // hva som blokkerer og hvor mange. Foreldreløse DISKFILER aksepteres i denne runden (egen
+  // BACKLOG-sak, ref. gdpr-kartlegging) — det er dinglende markører vakten stopper, ikke disk-GC.
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
-      await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
+      await verifiserAdmin(ctx.userId, tegning.projectId);
+
+      const mykMonster = `%"${input.id}"%`;
+      const rader = await ctx.prisma.$queryRaw<
+        { oppgaver: bigint; sjekklister: bigint; kontrollpunkter: bigint; omrader: bigint }[]
+      >`
+        SELECT
+          (SELECT count(*) FROM tasks WHERE drawing_id = ${input.id} OR data::text LIKE ${mykMonster}) AS oppgaver,
+          (SELECT count(*) FROM checklists WHERE drawing_id = ${input.id} OR data::text LIKE ${mykMonster}) AS sjekklister,
+          (SELECT count(*) FROM kontrollplan_punkter WHERE drawing_id = ${input.id}) AS kontrollpunkter,
+          (SELECT count(*) FROM omrader WHERE tegning_id = ${input.id}) AS omrader
+      `;
+      const bruk = {
+        oppgaver: Number(rader[0]?.oppgaver ?? 0),
+        sjekklister: Number(rader[0]?.sjekklister ?? 0),
+        kontrollpunkter: Number(rader[0]?.kontrollpunkter ?? 0),
+        omrader: Number(rader[0]?.omrader ?? 0),
+      };
+      if (bruk.oppgaver + bruk.sjekklister + bruk.kontrollpunkter + bruk.omrader > 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: byggTegningSlettevaktMelding(bruk) });
+      }
       return ctx.prisma.drawing.delete({ where: { id: input.id } });
     }),
 

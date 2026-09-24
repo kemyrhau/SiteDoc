@@ -27,7 +27,8 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw } from "lucide-react";
+import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 
@@ -293,6 +294,29 @@ export default function TegningerSide() {
   const provKonverteringIgjenMutation = trpc.tegning.provKonverteringIgjen.useMutation({
     onSuccess: () => {
       utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
+  // Re-konverter feilede PDF-tegninger. Serverprosedyren er PROSJEKT-batch (tar projectId, ikke
+  // tegning-id) — den kjører alle PDF-tegninger i prosjektet som mangler/feilet konvertering.
+  // Derfor sier knappeteksten «alle». Admin-gatet i serveren (returnerer «Kun admin …»).
+  const rekonverterPdfMutation = trpc.tegning.rekonverterPdf.useMutation({
+    onSuccess: () => {
+      // Status settes til "converting" server-side → invalidér så banneret følger med.
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+    },
+  });
+
+  const [slettModalApen, setSlettModalApen] = useState(false);
+  const [slettFeil, setSlettFeil] = useState<string | null>(null);
+  const slettMutation = trpc.tegning.slett.useMutation({
+    onSuccess: () => {
+      setSlettModalApen(false);
+      router.push(`/dashbord/${params.prosjektId}/tegninger`);
+    },
+    // Slettevakten svarer BAD_REQUEST med en lesbar melding (hva som bruker tegningen + antall).
+    onError: (error: { message?: string }) => {
+      setSlettFeil(error.message ?? t("tegninger.slettFeilGenerisk"));
     },
   });
 
@@ -686,6 +710,10 @@ export default function TegningerSide() {
   const erDwgKonvertering = tegning.conversionStatus === "pending" || tegning.conversionStatus === "converting";
   const dwgFeilet = tegning.conversionStatus === "failed";
   const erUkonvertertDwg = fileType === "dwg"; // DWG kan ikke vises direkte i nettleser
+  // Feilet/konvertert PDF beholder fileType="pdf" (feilveien flipper ikke typen) → banner-tekst
+  // OG re-konverter-vei velges etter filtype (se konverteringBanner). `kanAdministrereOmrade`
+  // (gruppe.hentMinTilgang.erAdmin) er admin-proxy for slett/re-konverter; serveren er porten.
+  const banner = konverteringBanner(fileType);
   const erLaster = opprettOppgaveMutation.isPending || opprettSjekklisteMutation.isPending;
   const zoomProsent = Math.round(zoom * 100);
 
@@ -865,14 +893,29 @@ export default function TegningerSide() {
             </span>
           </>
         )}
+
+        {/* Slett tegning — kun admin. Åpner bekreftelsesmodal (ikke confirm()). Serveren har
+            slettevakt: er tegningen brukt av markører/rapportobjekter, blokkeres den med tallet. */}
+        {kanAdministrereOmrade && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <button
+              onClick={() => { setSlettFeil(null); setSlettModalApen(true); }}
+              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+              title={t("tegninger.slettTegning")}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </div>
 
-      {/* DWG konverteringsstatus */}
+      {/* Konverteringsstatus — tekst per filtype (PDF vs DWG) */}
       {erDwgKonvertering && (
         <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
           <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
           <span className="text-sm font-medium text-amber-800">
-            DWG-filen konverteres til visningsformat. Dette kan ta opptil 2 minutter...
+            {t(banner.konverteresNokkel)}
           </span>
         </div>
       )}
@@ -880,15 +923,29 @@ export default function TegningerSide() {
         <div className="flex items-center gap-3 border-b border-red-200 bg-red-50 px-6 py-3">
           <AlertTriangle className="h-5 w-5 text-red-600" />
           <span className="text-sm text-red-800">
-            DWG-konvertering feilet: {tegning.conversionError ?? "Ukjent feil"}
+            {t(banner.feiletNokkel, { feil: tegning.conversionError ?? t("tegninger.ukjentFeil") })}
           </span>
-          <button
-            onClick={() => provKonverteringIgjenMutation.mutate({ id: tegning.id })}
-            disabled={provKonverteringIgjenMutation.isPending}
-            className="ml-auto rounded border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
-          >
-            Prøv igjen
-          </button>
+          {/* PDF-feil → prosjekt-batch rekonverterPdf (kjører ALLE feilede PDF-er). DWG-feil →
+              provKonverteringIgjen (én tegning). Kun admin ser knappen; serveren er porten. */}
+          {kanAdministrereOmrade && (banner.handling === "rekonverterPdf" ? (
+            <button
+              onClick={() => rekonverterPdfMutation.mutate({ projectId: params.prosjektId })}
+              disabled={rekonverterPdfMutation.isPending}
+              title={t("tegninger.rekonverterPdfHjelp")}
+              className="ml-auto flex items-center gap-1.5 rounded border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${rekonverterPdfMutation.isPending ? "animate-spin" : ""}`} />
+              {t("tegninger.rekonverterPdf")}
+            </button>
+          ) : (
+            <button
+              onClick={() => provKonverteringIgjenMutation.mutate({ id: tegning.id })}
+              disabled={provKonverteringIgjenMutation.isPending}
+              className="ml-auto rounded border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+            >
+              {t("tegninger.provIgjen")}
+            </button>
+          ))}
         </div>
       )}
 
@@ -1233,6 +1290,37 @@ export default function TegningerSide() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Slett tegning — bekreftelsesmodal (ikke confirm()). Serverens slettevakt viser her
+          hvis tegningen er i bruk (hva + antall) og hindrer dinglende markører. */}
+      <Modal
+        open={slettModalApen}
+        onClose={() => setSlettModalApen(false)}
+        title={t("tegninger.slettTegning")}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-700">
+            {t("tegninger.slettBekreft", { navn: tegning.name })}
+          </p>
+          {slettFeil && (
+            <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{slettFeil}</p>
+          )}
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="danger"
+              loading={slettMutation.isPending}
+              onClick={() => slettMutation.mutate({ id: tegning.id })}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              {t("tegninger.slett")}
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setSlettModalApen(false)}>
+              {t("tegninger.avbryt")}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
