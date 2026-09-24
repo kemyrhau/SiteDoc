@@ -58,7 +58,14 @@ services:
     # `hentBildeBytesFraDisk` må LESE vedlegg fra disk. `:ro` gir lesetilgang
     # uten skriveflate. Arkiv-PDF skrives ikke til disk (vei 3b: retur i respons).
     volumes:
-      - /home/kemyrhau/stack/sitedoc/uploads:/app/apps/web/uploads:ro
+      # rw (ikke :ro) fra 2026-09-24 — SAMME endring som prod, med vilje.
+      # Retter vi bare prod, kan test ikke skrive, og en verifisering på test av
+      # konvertering blir verdiløs. Miljødrift er dyrere enn delta her.
+      # ⚠️ Merk at dette volumet er PRODS uploads (se linje 36) — test-web får
+      # dermed skrivetilgang til produksjonsfiler. Grensen var alt krysset av
+      # test-api; se sikkerhet.md funn #1 «Test skriver inn i prods
+      # uploads-katalog». Denne linja utvider den, den innfører den ikke.
+      - /home/kemyrhau/stack/sitedoc/uploads:/app/apps/web/uploads
     network_mode: "service:sitedoc-test-api"
     depends_on: [sitedoc-test-api]
     security_opt: ["no-new-privileges:true"]
