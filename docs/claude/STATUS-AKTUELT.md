@@ -34,7 +34,30 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 🔴 **Konsekvens for prod:** en `develop → main`-merge er **rent additiv**. Risikoen ved prod-deployen ligger ikke i divergens — den er null — men i de **8+ umerkede migreringene** og i at `main` er 522 commits bak. **Migreringsgjennomgang er den avgrensede oppgaven som gjenstår før prod.**
 
-### ✅ 2026-09-24 — HOTFIX DEPLOYET TIL TEST OG VERIFISERT. Prod står fortsatt med feilen.
+### ✅ 2026-09-24 — DEPLOYET TIL PROD. `main` `39e14648`. Binærene er tilbake.
+
+**Release-merge `39e14648`** (`develop` `4553aedd` → `main`, `--no-ff`). **450 filer, 54 825 linjer inn, 9 migreringer.** Steg 2-kontrollen (`git diff --stat origin/develop HEAD`) var **tom** — mergen er innholdslik med develop.
+
+🟢 **Verifisert i prod:** `pdftoppm` og `tesseract` finnes nå i **både** `sitedoc-api` og `sitedoc-web`. I går manglet begge i web.
+
+🟢 **Migreringsgjennomgangen før deploy — alle ni lest, ikke arvet:**
+- **Ingen `DROP`, ingen `SET NOT NULL`, ingen `DELETE`, ingen `TRUNCATE`.**
+- **Fire** `CREATE UNIQUE INDEX` (design pekte på tre — `reise_avstandsgrenser` og `push_token` sto ikke i hans liste). To er på helt nye tomme tabeller. De to andre er på `organization_templates`, **målt til 0 rader på prod** → kan ikke feile.
+- Den ene `UPDATE`-en kjører før sin egen CHECK — trygg ved konstruksjon.
+
+🟢 **`main` bar ingenting `develop` manglet.** Av 132 unike commits var 130 merge-commits fra tidligere releaser; de to reelle var docs som alt lå i develop. Diffen fra merge-basen til `main` var tom. **Det gjorde deployen til en kjent størrelse i stedet for et sprang på 522 commits.**
+
+✅ **OTA PUBLISERT samme runde.** Kanal `production`, update group `1e668259-cff1-4aea-b46c-b4974dbc4111`, commit `4553aedd`. **Bundelen målt før publisering: kun `https://api.sitedoc.no`, ingen `api-test`** — steg 2c gjort, ikke hoppet over.
+
+⚠️ **Asterisk etter commit-hashen (`4553aedd*`) — treet var skittent.** Målt: kun `SAMARBEIDSREGLER.md` og `STATUS-AKTUELT.md`, begge coworks ukommiterte docs-editer. **Ingen av dem er i JS-bundelen**, så bundelen bærer `4553aedd`s kode nøyaktig. 🔴 **Men regelen finnes fordi man normalt ikke KAN vite det — cowork skulle fått docs committet før deployen.**
+
+🟢 **Migreringene verifisert etterpå, ikke antatt:** alle ni har `finished_at` 2026-09-24 00:12. 🔴 **Og samme spørring avdekket at `20260430120000_add_klasse4_indekser` har ligget rullet tilbake siden april — 15 indekser mangler i prod, og Prisma prøver den aldri igjen.** Ført i [BACKLOG § 1](BACKLOG.md).
+
+🔴 **GJENSTÅR:** innlogget verifisering på `sitedoc.no` + opplasting av én ny PDF-tegning.
+
+⚠️ **Cowork slo falsk alarm på `/version`:** meldte at `39e14648` «ikke var den nye mergen» uten å slå den opp. Den **var** release-mergen. Samme feilklasse som regelen skrevet dagen før — *spør etter commit-hash og MÅL den*.
+
+### ✅ 2026-09-24 — HOTFIX DEPLOYET TIL TEST OG VERIFISERT (forløper til prod-runden over)
 
 **Test-deploy `0968c026`** (`gitSha` verifisert mot `/version`). `pdftoppm` + `tesseract` er nå i **både** `sitedoc-test-api` og `sitedoc-test-web` — de manglet i web før.
 

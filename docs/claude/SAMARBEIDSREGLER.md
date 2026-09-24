@@ -700,6 +700,39 @@ skal det STÅ — `Krever svar: ingenting` — så han slipper å lese hele bolk
 melding. Det skjedde 2026-09-01: et klarsignal til dokgen sto over avsnitt om merge-agenten og
 deploy som var til Kenneth. Han limte hele meldingen og måtte spørre om det var feil.
 
+#### 🔴 OMGJORT 2026-09-24 — destinasjonen står UTENFOR kodeblokken, ikke inne i den
+
+> **Kenneth 2026-09-24:** *«hvorfor skriver du til hvem og ordren i samme kopierbart objekt → det gjør at jeg må treffe nøyaktig med musen når jeg skal kopiere»*
+
+**Regelen over plasserte `→ SiteDoc-<navn>` som første linje INNE i fencen.** Den løste ett problem — Kenneth limer ikke til feil terminal — og skapte et annet: **kopiknappen gir ham da destinasjonslinja i tillegg til ordren**, så han må markere manuelt i stedet for å trykke.
+
+🔴 **Ny form: destinasjonen er en overskrift OVER blokken, i vanlig tekst. Kodeblokken inneholder KUN det agenten skal lese.**
+
+```
+**→ SiteDoc-dokgen**
+
+​```
+# Ordre: …
+​```
+```
+
+**Begge hensyn er oppfylt:** Kenneth ser mottakeren like tydelig, og kopiknappen gir ren tekst. **Det gamle vedtaket (destinasjon på første linje inne i fencen) er dermed opphevet** — det står bevart over fordi begrunnelsen for mottaker-merkingen fortsatt gjelder; kun plasseringen er endret.
+
+#### 🔴 TO BLOKKTYPER, TO REGLER — terminal-kommando er ikke en agent-ordre (Kenneth 2026-09-24)
+
+> **Kenneth:** *«du må skille på terminal ordre og agent ordrer → en ordre i terminal som inneholder til hvem og hvorfor er støy, de må stå utenfor.»*
+
+| Blokktype | Hva som skal INN i fencen | Hva som skal UT |
+|---|---|---|
+| **Terminal-kommando** (Kenneth kjører i et skall) | 🔴 **KUN kommandoen.** Ingenting annet | Mottaker · steg-nummer · «Kjør på Macen» · runbok-referanse · forventet utfall · advarsler — **alt i prosa rundt blokken** |
+| **Agent-ordre** (Kenneth limer i en agents chat) | **Hele ordren** — bakgrunn, krav, utenfor-tabell, gate, forventet output. **Agenten skal lese det** | Kun destinasjonen (`→ SiteDoc-<navn>`), som overskrift over |
+
+**Prøven er hvem som leser blokken.** Leser et *skall* den, er alt som ikke er kjørbart søppel. Leser en *agent* den, er forklaringen halve verdien.
+
+**Målt samme dag:** cowork skrev `Steg 1 av 6. Synk og les hashen. DEPLOY-RUNBOK § 1.` inne i en bash-blokk under prod-deployen. Kenneth limte den i terminalen.
+
+🔴 **Og det generelle poenget, som Kenneth formulerte:** *«det er lov å vurdere konteksten til en regel.»* Regelen om destinasjon på første linje var skrevet for agent-ordrer og ble anvendt mekanisk på bash. **En regel som anvendes uten å spørre hva den var til for, produserer nye problemer i stedet for å løse gamle.**
+
 **To ordrer til SAMME agent før den første er relayet — merk hvilken som gjelder**
 (Kenneth 2026-08-25). Rekker ikke Kenneth å sende den første, kan han ikke vite om den
 andre er et *tillegg* eller en *ny retning*. Skjedde tre ganger 2026-08-25; verste utfall

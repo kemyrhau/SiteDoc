@@ -236,6 +236,39 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 PROD MANGLER 15 INDEKSER SIDEN 30.04.2026 — migreringen feilet, ble rullet tilbake, og prøves ALDRI igjen (funnet 2026-09-24)
+
+**Målt ved prod-deployen 2026-09-24**, mot `_prisma_migrations` i prod-DB `sitedoc`:
+
+| Felt | Verdi |
+|---|---|
+| `migration_name` | `20260430120000_add_klasse4_indekser` |
+| `started_at` | 2026-04-30 17:20:54 |
+| `finished_at` | **NULL** |
+| `rolled_back_at` | 2026-04-30 17:34:00 |
+| `applied_steps_count` | **0** |
+| Feilkode | **42P01 — `undefined_table`** |
+
+🟢 **Tilstanden er REN:** ingenting ble delvis anvendt, og de ni migreringene 2026-09-24 gikk gjennom fordi raden er merket rullet tilbake.
+
+🔴 **Men hullet står:** migreringen skulle opprette **15 indekser** — på `folder_access` (3), `dokumentflyter` (2), `dokumentflyt_medlemmer` (3), `images` (2), `psi` (1) og fem `ftd_*`-tabeller. **Ingen av dem finnes i prod.** Test og lokal har dem.
+
+⚠️ **Og siden `rolled_back_at` er satt, prøver Prisma den ALDRI igjen.** Den er permanent hoppet over. Ingen feilmelding vil noensinne minne oss på det.
+
+**Hvorfor den feilet er ikke målt** — 42P01 betyr at en tabell ikke fantes 30.04, sannsynligvis `ftd_*`-familien. Alle `CREATE INDEX` er `IF NOT EXISTS`, så en ny kjøring er idempotent.
+
+**Neste steg (ikke bestilt):** mål hvilke av de 15 som faktisk mangler i prod (`pg_indexes`), og om alle tabellene finnes i dag. Er svaret ja, er fiksen å kjøre SQL-en manuelt — ikke å røre migreringshistorikken.
+
+⚠️ **Konsekvensklasse: ytelse, ikke korrekthet.** Ingen data er feil; spørringer mot de fem tabellene er tregere enn i test. **Det gjør at forskjellen aldri viser seg som en feil — bare som at prod føles treg.**
+
+### 🟡 Bbox-lesingen i `lasHeader.ts` er åtte byte forskjøvet (funnet 2026-09-24 av kontrollplan)
+
+`packages/…/lasHeader.ts:126-137` leser bounding-box-doubles fra offset 187, mens LAS-spesifikasjonen har `Max X` på **179**. Kommentaren i koden — *«La meg re-lese korrekt»* — røper at lesingen aldri ble fullført.
+
+🟢 **Punktsky-overflaten (steg 1) er upåvirket:** den beregner egen bbox fra de desimerte punktene. Funnet ble meldt, ikke fikset, fordi det lå utenfor ordren.
+
+⚠️ **Ikke målt:** om noen andre kodeveier leser bbox fra headeren. Det avgjør om dette er dødt felt eller en feil noen bruker.
+
 ### 🔴 Georeferanse: nord dreier ved to-punktskalibrering — og den bedre metoden finnes alt (2026-09-23)
 
 **Kenneth 2026-09-23:** georeferering med to koordinater speiler/dreier tegningen, «da er ikke Nord lenger mot
