@@ -20,6 +20,7 @@ import { organisasjonRouter } from "../routes/organisasjon";
 import { adminRouter } from "../routes/admin";
 import { lagringRouter } from "../routes/lagring";
 import { punktskyRouter } from "../routes/punktsky";
+import { overflateRouter } from "../routes/overflate";
 import { mengdeRouter } from "../routes/mengde";
 import { ftdSokRouter } from "../routes/ftdSok";
 import { kontraktRouter } from "../routes/kontrakt";
@@ -76,6 +77,7 @@ export const appRouter = router({
   admin: adminRouter,
   lagring: lagringRouter,
   punktsky: punktskyRouter,
+  overflate: overflateRouter,
   mengde: mengdeRouter,
   ftdSok: ftdSokRouter,
   kontrakt: kontraktRouter,
