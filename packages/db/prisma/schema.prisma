@@ -905,6 +905,14 @@ model Drawing {
   fileSize         Int?      @map("file_size") // Filstørrelse i bytes (null for DWG-layouts)
   imageWidth       Int?      @map("image_width") // Bildets bredde i piksler (for tegningsposisjon i PDF)
   imageHeight      Int?      @map("image_height") // Bildets høyde i piksler
+  // Måling i tegning (2026-09-24): mm pr. piksel PÅ PAPIRET, utledet av
+  // papirbredde (pdfinfo) ÷ pikselbredde (sharp) ved konvertering — ALDRI av
+  // DPI-konstanten. NULL når papirbredden er ukjent (aldri en gjettet verdi).
+  mmPrPiksel       Float?    @map("mm_pr_piksel")
+  // Kilde til `scale`: "tittelfelt" (auto, ubekreftet forslag) · "manuell"
+  // (menneske-bekreftet) · "kalibrert" (målt mot kjent lengde) · "georeferanse".
+  // Måleverktøyet er avslått til kilden er menneske-bekreftet eller georeferanse.
+  scaleKilde       String?   @map("scale_kilde")
   originalFileUrl  String?   @map("original_file_url") // Original DWG-fil (før konvertering)
   coordinateSystem String?   @map("coordinate_system") // Detektert koordinatsystem (utm33, ntm6, etc.)
   conversionStatus String?   @map("conversion_status") // pending, converting, done, failed

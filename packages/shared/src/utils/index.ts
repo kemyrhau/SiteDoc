@@ -16,6 +16,18 @@ export { GRATIS_DOKUMENT_GRENSE, grenseNaadd } from "./prosjektGrense";
 export type { GrenseVilkaar } from "./prosjektGrense";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
+export {
+  utledMmPrPiksel,
+  parseMalestokk,
+  finnMalestokkFraTekst,
+  loesGrepMalestokk,
+  pikselAvstand,
+  malMm,
+  malPolylinjeMm,
+  kanMale,
+  kalibrerMalestokk,
+} from "./maaling";
+export type { Punkt, ScaleKilde } from "./maaling";
 export { klassifiserReise, estimerReisetidMin, løsReiseLonnsartId, REISE_LONNSART_REGEX } from "./reise";
 export type { ReiseKategori, ReiseRegelsett, ReiseEnhet, ReiseMaaling, ReiseGrensepunkt } from "./reise";
 export { utmTilWgs84, ntmTilWgs84, konverterTilWgs84, detekterKoordinatSystem, EPSG_TIL_SYSTEM } from "./koordinatKonvertering";

@@ -14,6 +14,12 @@ import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
 import {
   beregnTransformasjon,
   tegningTilGps,
+  avstandMeter,
+  parseMalestokk,
+  kanMale,
+  kalibrerMalestokk,
+  malMm,
+  type Punkt,
 } from "@sitedoc/shared";
 import type { GeoReferanse } from "@sitedoc/shared";
 
@@ -27,7 +33,8 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler } from "lucide-react";
+import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
@@ -180,6 +187,14 @@ export default function TegningerSide() {
 
   // Ny markør-plassering
   const [nyMarkør, setNyMarkør] = useState<{ x: number; y: number } | null>(null);
+  // Måleverktøy: samler klikkpunkter (prosent). kalibrerModus samler 2 punkter
+  // for å utlede målestokk fra en kjent lengde.
+  const [maleAktiv, setMaleAktiv] = useState(false);
+  const [malePunkter, setMalePunkter] = useState<Punkt[]>([]);
+  const [visMalestokkPanel, setVisMalestokkPanel] = useState(false);
+  const [kalibrerModus, setKalibrerModus] = useState(false);
+  const [kalibrerLengde, setKalibrerLengde] = useState("");
+  const [egendefinertMalestokk, setEgendefinertMalestokk] = useState("");
   const [visOpprettModal, setVisOpprettModal] = useState(false);
   const [opprettType, setOpprettType] = useState<"oppgave" | "sjekkliste">("oppgave");
 
@@ -306,6 +321,13 @@ export default function TegningerSide() {
       // Status settes til "converting" server-side på FLERE tegninger → invalidér både den viste
       // tegningen (banner) OG lista (søsken-status). Se invaliderEtterRekonverter.
       invaliderEtterRekonverter(utils, params.prosjektId, aktivTegning?.id ?? "");
+    },
+  });
+
+  // Målestokk: bekreft forslag, velg manuelt, eller lagre kalibrert verdi.
+  const oppdaterMalestokkMutation = trpc.tegning.oppdater.useMutation({
+    onSuccess: () => {
+      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
     },
   });
 
@@ -510,6 +532,19 @@ export default function TegningerSide() {
       if (Math.sqrt(dx * dx + dy * dy) > 5) return;
     }
 
+    // Måle-/kalibrermodus: samle klikkpunkter (prosent). Kalibrering tar nøyaktig 2.
+    if (maleAktiv || kalibrerModus) {
+      const r = e.currentTarget.getBoundingClientRect();
+      const px = ((e.clientX - r.left) / r.width) * 100;
+      const py = ((e.clientY - r.top) / r.height) * 100;
+      if (kalibrerModus) {
+        setMalePunkter((p) => (p.length >= 2 ? [{ x: px, y: py }] : [...p, { x: px, y: py }]));
+      } else {
+        setMalePunkter((p) => [...p, { x: px, y: py }]);
+      }
+      return;
+    }
+
     // Inspeksjonsmodus: vis DWG-egenskaper
     if (klikkModus === "inspeksjon") {
       const target = e.target as SVGElement;
@@ -553,7 +588,7 @@ export default function TegningerSide() {
 
     setNyMarkør({ x, y });
     setVisOpprettModal(true);
-  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus]);
+  }, [posisjonsvelgerAktiv, aktivTegning, fullførPosisjonsvelger, router, klikkModus, maleAktiv, kalibrerModus]);
 
   // Modell-korreksjon (funn 2026-08-22): dokumentflyt er nøkkelen, ikke faggruppe.
   // Serveren (F1/B1) krever `dokumentflytId` for ikke-HMS og validerer at flyten har malen
@@ -721,6 +756,102 @@ export default function TegningerSide() {
   const erLaster = opprettOppgaveMutation.isPending || opprettSjekklisteMutation.isPending;
   const zoomProsent = Math.round(zoom * 100);
 
+  // --- Måleverktøy: utledet mm/piksel + kilde-sporet målestokk ---
+  const mmPrPiksel = tegning.mmPrPiksel ?? null;
+  const scaleKilde = tegning.scaleKilde ?? null;
+  const scaleDenom = parseMalestokk(tegning.scale);
+  const imgW = tegning.imageWidth ?? null;
+  const imgH = tegning.imageHeight ?? null;
+  // Georeferanse har FORTRINN når den finnes med 3+ punkter (måler bakken, ikke papiret,
+  // og tåler at tegningen er strukket). Kun 3+ punkter gir en trygg affin avbildning.
+  const antallGeoPunkter = geoRef ? 2 + (geoRef.ekstraPunkter?.length ?? 0) : 0;
+  const harGeoref = !!transformasjon && antallGeoPunkter >= 3;
+  const maaleKilde: string | null = harGeoref ? "georeferanse" : scaleKilde;
+  const kanMaleNaa = harGeoref || kanMale(tegning.scale, mmPrPiksel, scaleKilde);
+  // Lesbar grunn når verktøyet er avslått (ordre § D).
+  const maleAvslagGrunn: string | null = kanMaleNaa
+    ? null
+    : mmPrPiksel == null
+      ? t("maaling.avslagIngenMmPrPiksel")
+      : scaleDenom == null
+        ? t("maaling.avslagIngenMalestokk")
+        : scaleKilde === "tittelfelt"
+          ? t("maaling.avslagUbekreftet")
+          : t("maaling.avslagIngenMalestokk");
+
+  const formatMeter = (m: number) =>
+    `${m.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`;
+
+  // Kilde-etikett — «en måleverdi uten sin opprinnelse er en påstand» (ordre § D).
+  const kildeEtikett = (() => {
+    const k = maaleKilde;
+    if (k === "georeferanse") return t("maaling.kildeGeoreferanse");
+    if (k === "kalibrert") return t("maaling.kildeKalibrert");
+    if (k === "manuell") return t("maaling.kildeManuell");
+    if (k === "tittelfelt") return t("maaling.kildeTittelfelt");
+    return "";
+  })();
+  const malestokkEtikett = harGeoref
+    ? kildeEtikett
+    : tegning.scale
+      ? `${t("maaling.malestokk")} ${tegning.scale}, ${kildeEtikett}`
+      : kildeEtikett;
+
+  // Mål ett segment (meter). Georeferanse → GPS-avstand; ellers papir-målestokk.
+  const segMeter = (a: Punkt, b: Punkt): number | null => {
+    if (harGeoref && transformasjon) {
+      return avstandMeter(tegningTilGps(a, transformasjon), tegningTilGps(b, transformasjon));
+    }
+    if (mmPrPiksel != null && scaleDenom != null && imgW != null && imgH != null) {
+      return malMm(a, b, imgW, imgH, mmPrPiksel, scaleDenom) / 1000;
+    }
+    return null;
+  };
+
+  const maleSegmenter: MaalingSegment[] = [];
+  let maleTotalMeter = 0;
+  for (let i = 1; i < malePunkter.length; i++) {
+    const a = malePunkter[i - 1];
+    const b = malePunkter[i];
+    if (!a || !b) continue;
+    const m = segMeter(a, b);
+    if (m == null) continue;
+    maleTotalMeter += m;
+    maleSegmenter.push({ midx: (a.x + b.x) / 2, midy: (a.y + b.y) / 2, tekst: formatMeter(m) });
+  }
+
+  const nullstillMaling = () => {
+    setMalePunkter([]);
+  };
+  const avsluttMaling = () => {
+    setMaleAktiv(false);
+    setKalibrerModus(false);
+    setMalePunkter([]);
+    setKalibrerLengde("");
+  };
+
+  const settMalestokk = (verdi: string, kilde: "manuell" | "kalibrert") => {
+    oppdaterMalestokkMutation.mutate({ id: tegning.id, scale: verdi, scaleKilde: kilde });
+  };
+  const bekreftForslag = () => {
+    if (tegning.scale) oppdaterMalestokkMutation.mutate({ id: tegning.id, scaleKilde: "manuell" });
+  };
+  // Kalibrering: 2 punkter + kjent lengde (mm) → utled målestokk-nevner.
+  const lagreKalibrering = () => {
+    const a = malePunkter[0];
+    const b = malePunkter[1];
+    const mm = parseFloat(kalibrerLengde.replace(",", "."));
+    if (!a || !b || mmPrPiksel == null || imgW == null || imgH == null || !Number.isFinite(mm) || mm <= 0) return;
+    const nevner = kalibrerMalestokk(a, b, imgW, imgH, mmPrPiksel, mm);
+    if (nevner == null) return;
+    settMalestokk(`1:${Math.round(nevner)}`, "kalibrert");
+    setKalibrerModus(false);
+    setMalePunkter([]);
+    setKalibrerLengde("");
+  };
+
+  const MALESTOKK_VALG = ["1:20", "1:50", "1:100", "1:200", "1:500"];
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Posisjonsvelger-banner */}
@@ -792,6 +923,45 @@ export default function TegningerSide() {
             <ZoomIn className="h-4 w-4" />
           </button>
         </div>
+
+        {/* Måleverktøy — kun for bilde-tegninger (PNG/JPG/SVG) */}
+        {erBilde && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <div className="flex items-center rounded border border-gray-200">
+              <button
+                onClick={() => {
+                  setVisMalestokkPanel((v) => !v);
+                  setEgendefinertMalestokk("");
+                }}
+                className={`flex items-center gap-1 rounded-l px-2 py-1 text-xs ${
+                  visMalestokkPanel ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+                title={t("maaling.malestokkTittel")}
+              >
+                <Crosshair className="h-3 w-3" />
+                {tegning.scale && !harGeoref ? tegning.scale : t("maaling.malestokk")}
+              </button>
+              <button
+                disabled={!kanMaleNaa}
+                onClick={() => {
+                  const på = !maleAktiv;
+                  setMaleAktiv(på);
+                  setKalibrerModus(false);
+                  setMalePunkter([]);
+                  if (på) { setKlikkModus("plassering"); setNyMarkør(null); }
+                }}
+                className={`flex items-center gap-1 rounded-r px-2 py-1 text-xs ${
+                  maleAktiv ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-100"
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+                title={kanMaleNaa ? t("maaling.malTittel") : (maleAvslagGrunn ?? "")}
+              >
+                <Ruler className="h-3 w-3" />
+                {t("maaling.mal")}
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Klikkemodus — kun for DWG-konverterte SVG-tegninger */}
         {erSvgFil && (
@@ -953,6 +1123,121 @@ export default function TegningerSide() {
         </div>
       )}
 
+      {/* Målestokk-panel: velg/bekreft/kalibrer — forhåndsvalg, ikke fritekst */}
+      {erBilde && visMalestokkPanel && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs">
+          <span className="font-medium text-gray-700">{t("maaling.malestokkTittel")}:</span>
+          {harGeoref ? (
+            <span className="text-gray-600">{t("maaling.georeferertInfo")}</span>
+          ) : mmPrPiksel == null ? (
+            <span className="text-amber-700">{t("maaling.avslagIngenMmPrPiksel")}</span>
+          ) : (
+            <>
+              <select
+                value={tegning.scale && MALESTOKK_VALG.includes(tegning.scale) ? tegning.scale : "annet"}
+                onChange={(e) => {
+                  if (e.target.value === "annet") { setEgendefinertMalestokk(tegning.scale ?? ""); return; }
+                  settMalestokk(e.target.value, "manuell");
+                }}
+                className="rounded border border-gray-300 px-2 py-1"
+              >
+                {MALESTOKK_VALG.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+                <option value="annet">{t("maaling.annet")}</option>
+              </select>
+              {(!tegning.scale || !MALESTOKK_VALG.includes(tegning.scale)) && (
+                <span className="flex items-center gap-1">
+                  <input
+                    value={egendefinertMalestokk}
+                    onChange={(e) => setEgendefinertMalestokk(e.target.value)}
+                    placeholder="1:75"
+                    className="w-20 rounded border border-gray-300 px-2 py-1"
+                  />
+                  <button
+                    onClick={() => { if (parseMalestokk(egendefinertMalestokk)) settMalestokk(egendefinertMalestokk.trim(), "manuell"); }}
+                    disabled={!parseMalestokk(egendefinertMalestokk)}
+                    className="rounded bg-sitedoc-primary px-2 py-1 text-white disabled:opacity-40"
+                  >
+                    {t("handling.lagre")}
+                  </button>
+                </span>
+              )}
+              {scaleKilde === "tittelfelt" && tegning.scale && (
+                <button
+                  onClick={bekreftForslag}
+                  className="rounded border border-amber-400 bg-amber-50 px-2 py-1 font-medium text-amber-800 hover:bg-amber-100"
+                  title={t("maaling.bekreftForslagTittel")}
+                >
+                  {t("maaling.bekreftForslag", { scale: tegning.scale })}
+                </button>
+              )}
+              {tegning.scale && scaleKilde && scaleKilde !== "tittelfelt" && (
+                <span className="text-gray-500">({kildeEtikett})</span>
+              )}
+              {!kalibrerModus ? (
+                <button
+                  onClick={() => { setKalibrerModus(true); setMaleAktiv(false); setMalePunkter([]); setKlikkModus("plassering"); setNyMarkør(null); }}
+                  className="rounded border border-gray-300 px-2 py-1 text-gray-700 hover:bg-gray-100"
+                >
+                  {t("maaling.kalibrer")}
+                </button>
+              ) : (
+                <span className="flex items-center gap-1 rounded bg-blue-50 px-2 py-1">
+                  <span className="text-gray-700">
+                    {malePunkter.length < 2 ? t("maaling.kalibrerTrekk") : t("maaling.kalibrerLengde")}
+                  </span>
+                  {malePunkter.length >= 2 && (
+                    <>
+                      <input
+                        value={kalibrerLengde}
+                        onChange={(e) => setKalibrerLengde(e.target.value)}
+                        placeholder="mm"
+                        className="w-20 rounded border border-gray-300 px-2 py-1"
+                      />
+                      <button
+                        onClick={lagreKalibrering}
+                        disabled={!(parseFloat(kalibrerLengde.replace(",", ".")) > 0)}
+                        className="rounded bg-sitedoc-primary px-2 py-1 text-white disabled:opacity-40"
+                      >
+                        {t("handling.lagre")}
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => { setKalibrerModus(false); setMalePunkter([]); setKalibrerLengde(""); }}
+                    className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100"
+                  >
+                    {t("handling.avbryt")}
+                  </button>
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Måle-resultatstripe: alltid med kilde — «en måleverdi uten sin opprinnelse er en påstand» */}
+      {erBilde && maleAktiv && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-blue-200 bg-blue-50 px-4 py-2 text-xs">
+          <Ruler className="h-4 w-4 text-sitedoc-primary" />
+          {malePunkter.length < 2 ? (
+            <span className="text-gray-600">{t("maaling.klikkToPunkter")}</span>
+          ) : (
+            <span className="font-semibold text-gray-800">
+              {formatMeter(maleTotalMeter)}
+              <span className="ml-1 font-normal text-gray-500">({malestokkEtikett})</span>
+            </span>
+          )}
+          <button onClick={nullstillMaling} className="ml-auto rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
+            {t("maaling.nullstill")}
+          </button>
+          <button onClick={avsluttMaling} className="rounded border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-100">
+            {t("handling.lukk")}
+          </button>
+        </div>
+      )}
+
       {/* Tegningsvisning med markører */}
       {fileUrl && !erDwgKonvertering && !erUkonvertertDwg ? (
         erBilde ? (
@@ -993,6 +1278,14 @@ export default function TegningerSide() {
                 }))}
                 synlig={visOmrader && klikkModus !== "omrade"}
               />
+
+              {/* Måle-overlay: linje + punkter + segment-lengder */}
+              {(maleAktiv || kalibrerModus) && (
+                <MaalingOverlay
+                  punkter={malePunkter}
+                  segmenter={kalibrerModus ? [] : maleSegmenter}
+                />
+              )}
 
               {/* Område-tegneverktøy */}
               {klikkModus === "omrade" && aktivTegning && aktivByggeplass && (
