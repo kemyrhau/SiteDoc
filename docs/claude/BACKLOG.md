@@ -236,6 +236,74 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 PROD MANGLER 15 INDEKSER SIDEN 30.04.2026 — migreringen feilet, ble rullet tilbake, og prøves ALDRI igjen (funnet 2026-09-24)
+
+**Målt ved prod-deployen 2026-09-24**, mot `_prisma_migrations` i prod-DB `sitedoc`:
+
+| Felt | Verdi |
+|---|---|
+| `migration_name` | `20260430120000_add_klasse4_indekser` |
+| `started_at` | 2026-04-30 17:20:54 |
+| `finished_at` | **NULL** |
+| `rolled_back_at` | 2026-04-30 17:34:00 |
+| `applied_steps_count` | **0** |
+| Feilkode | **42P01 — `undefined_table`** |
+
+🟢 **Tilstanden er REN:** ingenting ble delvis anvendt, og de ni migreringene 2026-09-24 gikk gjennom fordi raden er merket rullet tilbake.
+
+🔴 **Men hullet står:** migreringen skulle opprette **15 indekser** — på `folder_access` (3), `dokumentflyter` (2), `dokumentflyt_medlemmer` (3), `images` (2), `psi` (1) og fem `ftd_*`-tabeller. **Ingen av dem finnes i prod.** Test og lokal har dem.
+
+⚠️ **Og siden `rolled_back_at` er satt, prøver Prisma den ALDRI igjen.** Den er permanent hoppet over. Ingen feilmelding vil noensinne minne oss på det.
+
+**Hvorfor den feilet er ikke målt** — 42P01 betyr at en tabell ikke fantes 30.04, sannsynligvis `ftd_*`-familien. Alle `CREATE INDEX` er `IF NOT EXISTS`, så en ny kjøring er idempotent.
+
+**Neste steg (ikke bestilt):** mål hvilke av de 15 som faktisk mangler i prod (`pg_indexes`), og om alle tabellene finnes i dag. Er svaret ja, er fiksen å kjøre SQL-en manuelt — ikke å røre migreringshistorikken.
+
+⚠️ **Konsekvensklasse: ytelse, ikke korrekthet.** Ingen data er feil; spørringer mot de fem tabellene er tregere enn i test. **Det gjør at forskjellen aldri viser seg som en feil — bare som at prod føles treg.**
+
+### 🟡 TEST OG PROD HAR ULIK MIGRERINGSHISTORIKK — seks rullet tilbake, ingen overlapp (målt 2026-09-24)
+
+**Funnet ved å verifisere at deployens migreringer faktisk gikk — ikke fordi noe klaget.** Samme klasse som de fem tapte binærene.
+
+| Miljø | Rullet tilbake | Hvilke |
+|---|---|---|
+| **Prod** (`sitedoc`) | **1** | `20260430120000_add_klasse4_indekser` |
+| **Test** (`sitedoc_test`) | **5** | `20260403120000_psi_building` · `20260429120000_add_klasse1_indekser` · `20260406020000_fiks_rolle_utforer` · `20260505000001_add_organization_module_fase_a` · `20260908120000_reise_terskel_km` |
+
+🟢 **Alle seks er i REN tilstand:** `rolled_back_at` satt, `applied_steps_count = 0`. Ingenting er delvis anvendt, og senere migreringer har gått gjennom.
+
+🔴 **Men listene overlapper ikke i én eneste rad.** Prod mangler klasse4-indeksene; test mangler fem helt andre ting. **Prisma prøver aldri en tilbakerullet migrering igjen** — så hvert miljø bærer sitt eget, permanente hull, og ingen feilmelding vil minne oss på det.
+
+⚠️ **Konsekvensen er ikke at noe er ødelagt i dag — den er at «test og prod har samme skjema» ikke lenger er en sannhet vi kan bygge en gate på.** En verifisering på test kan passere på noe prod ikke har, og omvendt.
+
+**Neste steg (ikke bestilt): én måling, ikke en fiks.** Sammenlign faktisk skjema — `information_schema.columns` + `pg_indexes` — mellom `sitedoc` og `sitedoc_test`, og mot `schema.prisma`. Det svarer på om de seks hullene betyr noe, eller om senere migreringer har dekket dem.
+
+⚠️ **Coworks egen feil i samme måling:** første spørring brukte `NULLS FIRST LIMIT 3` og viste bare tre av fem. **Et `LIMIT` på et ukjent antall er ikke en telling.**
+
+### 🟡 Sletting av en tegning etterlater filene på disk (funnet 2026-09-24 av dokgen)
+
+**`tegning.slett` er en ren `prisma.drawing.delete`.** Målt mot schema av dokgen ved bygging av slette-knappen:
+
+| Hva | Utfall |
+|---|---|
+| Revisjoner | 🟢 Cascade-slettes — DB-integriteten er trygg |
+| Oppgaver · sjekklister · områder · kontrollplanpunkter | 🟢 `SetNull` — radene overlever. **Og en slettevakt blokkerer nå sletting når noen av dem peker på tegningen** (samme mønster som `omrade.ts:122`, inkl. MYKE JSON-referanser fra `TegningPosisjon`) |
+| 🔴 **Diskfiler** | **Blir foreldreløse.** `fileUrl`, `originalFileUrl` og hver cascade-slettet revisjons `fileUrl` fjernes aldri fra disk |
+
+**Bevisst akseptert i runden som bygde slette-knappen** — scope var å låse opp seks tegninger som sto fast i prod, ikke å bygge disk-GC. **Atferden er ikke ny**, men knappen gjør den nåbar for brukere der den før krevde et direkte DB-inngrep.
+
+⚠️ **Henger sammen med [gdpr-kartlegging.md](gdpr-kartlegging.md):** persondata bor blant annet på disk, og det finnes ingen sletteløsning. **En «slett»-knapp som etterlater filen er et løfte systemet ikke holder** — det er den samme saken, sett fra tegningssiden.
+
+**Ikke målt:** hvor mange foreldreløse filer som alt ligger i `uploads/` fra tidligere slettinger. Det tallet bør inn før en GC bygges, så vi vet om dette er rydding eller en engangsopprydding.
+
+### 🟡 Bbox-lesingen i `lasHeader.ts` er åtte byte forskjøvet (funnet 2026-09-24 av kontrollplan)
+
+`packages/…/lasHeader.ts:126-137` leser bounding-box-doubles fra offset 187, mens LAS-spesifikasjonen har `Max X` på **179**. Kommentaren i koden — *«La meg re-lese korrekt»* — røper at lesingen aldri ble fullført.
+
+🟢 **Punktsky-overflaten (steg 1) er upåvirket:** den beregner egen bbox fra de desimerte punktene. Funnet ble meldt, ikke fikset, fordi det lå utenfor ordren.
+
+⚠️ **Ikke målt:** om noen andre kodeveier leser bbox fra headeren. Det avgjør om dette er dødt felt eller en feil noen bruker.
+
 ### 🔴 Georeferanse: nord dreier ved to-punktskalibrering — og den bedre metoden finnes alt (2026-09-23)
 
 **Kenneth 2026-09-23:** georeferering med to koordinater speiler/dreier tegningen, «da er ikke Nord lenger mot
@@ -273,6 +341,65 @@ som bygger en georeferanse automatisk (`dwgKonvertering.ts:980` — PDF-veien gj
 kjøre i dag fordi `dwg2dxf`/`dwg2SVG` mangler. **Saken har derfor ingen levende offer — men en frist:** første
 DWG som lastes opp etter at binærene er tilbake, får en rotert georeferanse. **Fiksen må ligge i SAMME release
 som DWG-gjenopprettingen, ikke etter.**
+
+---
+
+### 🔴 Rå Prisma-tekst kan nå brukerens skjerm — tRPC har ingen `errorFormatter` (2026-09-24)
+
+**Kenneth 2026-09-24, på test:** klikket Slett på en tegning og fikk i modalen
+«`Invalid prisma.drawing.findUniqueOrThrow() invocation … No record was found`».
+
+**Den konkrete veien er lukket** av `fix/tegning-slett-invalidering` (`49e9fbd4`): klienten viser nå kun
+`BAD_REQUEST`-meldinger og faller ellers til en generisk tekst. **Men det er en klientside-allowlist på ÉN
+flate — rotårsaken står.**
+
+🔴 **Rotårsaken, målt:** `apps/api/src/trpc/trpc.ts:6` er
+`initTRPC.context<Context>().create()` — **uten `errorFormatter`.** Prisma-feil går derfor uendret til
+klienten. **Omfang: 246 `findUniqueOrThrow` i 30 ikke-test-filer** i `apps/api/src/routes`. Hver av dem kan
+lekke rå ORM-tekst til enhver flate som viser `error.message`.
+
+**To skader, ulik alvorlighet:**
+
+| | Hva |
+|---|---|
+| **UX** | En rå ORM-streng svarer verken på hva som skjedde eller hva brukeren skal gjøre — brudd på mikrotekst-standarden (STYRENDE) |
+| ⚠️ **Informasjonslekkasje (lav)** | Meldingen navngir ORM og modellnavn (`prisma.drawing`). Lav alvorlighet, men det er gratis rekognosering |
+
+🟢 **Fiksen er ÉTT sted, ikke 246:** en `errorFormatter` i `trpc.ts:6` som kjenner igjen Prismas
+known-request-feil og oversetter dem — `P2025` (record not found) → `NOT_FOUND` med lesbar tekst, og alt
+ukjent → en generisk melding **uten** rå tekst i produksjon.
+
+🔴 **Og mønsteret klienten nå bruker bør bli standarden:** vis serverens melding **kun** for koder vi selv
+kaster (`BAD_REQUEST`, `NOT_FOUND`, `FORBIDDEN`), aldri for `INTERNAL_SERVER_ERROR`. Belegg finnes alt i
+`prosjektoppsett:624` og `vareforbruk:108`.
+
+⚠️ **Ikke hastesak, men den kommer tilbake:** Kenneth traff den fra tegninger. De 29 andre filene har samme
+vei, og neste gang er det en annen flate.
+
+---
+
+### ⚠️ Overflate fra LAS er ARITMETISK bevist, men IKKE bevist mot en ekte drone-LAS (2026-09-24)
+
+**`feat/punktsky-overflate` steg 1 er levert og gatet.** Scale/offset-lesingen (`lasPunkter.ts`) er bevist mot
+en **syntetisk fixture med kjente tall**, med negativ kontroll. **Det finnes ingen ekte LAS i repoet**, og
+kontrollplan meldte begrensningen selv, uten å bli spurt.
+
+🔴 **Hva som ER bevist:** regnestykket. En syntetisk fixture med kjent fasit beviser aritmetikken *bedre* enn en
+ekte fil, fordi sannheten er kjent.
+
+🔴 **Hva som IKKE er bevist:** at en **ekte drone-LAS parses**. Virkelige filer varierer i punktformat, har
+`punktStørrelse` større enn standarden (ekstra bytes), VLR-er, og LAS 1.4 har både legacy og nye punkttellinger.
+**Ingen av de variantene er sett.**
+
+⚠️ **Konsekvens: en overflate avledet av LAS skal IKKE brukes som volumdokumentasjon før dette er kjørt.**
+Tallet kan være riktig — men ingen har målt at det er det.
+
+**Akseptkriterium (ordre § 5 pkt 3, fortsatt ÅPENT):** kjør en ekte drone-LAS gjennom `lasPunkter` →
+`bakkeOverflate` → `triangulering`, og vis at (a) koordinatene blir metriske i riktig størrelsesorden,
+(b) `bakkeMetode` blir `klasse2` når leveransen er klassifisert, og (c) punktantallet etter desimering stemmer
+med målavstanden. **Krever én ekte fil fra Kenneth — ikke en ny leveranse.**
+
+**Ordre:** [ordre-punktsky-serveroverflate-design-2026-09-24.md](../redesign/ordre-punktsky-serveroverflate-design-2026-09-24.md)
 
 ---
 

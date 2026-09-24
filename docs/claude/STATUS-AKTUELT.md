@@ -34,7 +34,30 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 🔴 **Konsekvens for prod:** en `develop → main`-merge er **rent additiv**. Risikoen ved prod-deployen ligger ikke i divergens — den er null — men i de **8+ umerkede migreringene** og i at `main` er 522 commits bak. **Migreringsgjennomgang er den avgrensede oppgaven som gjenstår før prod.**
 
-### ✅ 2026-09-24 — HOTFIX DEPLOYET TIL TEST OG VERIFISERT. Prod står fortsatt med feilen.
+### ✅ 2026-09-24 — DEPLOYET TIL PROD. `main` `39e14648`. Binærene er tilbake.
+
+**Release-merge `39e14648`** (`develop` `4553aedd` → `main`, `--no-ff`). **450 filer, 54 825 linjer inn, 9 migreringer.** Steg 2-kontrollen (`git diff --stat origin/develop HEAD`) var **tom** — mergen er innholdslik med develop.
+
+🟢 **Verifisert i prod:** `pdftoppm` og `tesseract` finnes nå i **både** `sitedoc-api` og `sitedoc-web`. I går manglet begge i web.
+
+🟢 **Migreringsgjennomgangen før deploy — alle ni lest, ikke arvet:**
+- **Ingen `DROP`, ingen `SET NOT NULL`, ingen `DELETE`, ingen `TRUNCATE`.**
+- **Fire** `CREATE UNIQUE INDEX` (design pekte på tre — `reise_avstandsgrenser` og `push_token` sto ikke i hans liste). To er på helt nye tomme tabeller. De to andre er på `organization_templates`, **målt til 0 rader på prod** → kan ikke feile.
+- Den ene `UPDATE`-en kjører før sin egen CHECK — trygg ved konstruksjon.
+
+🟢 **`main` bar ingenting `develop` manglet.** Av 132 unike commits var 130 merge-commits fra tidligere releaser; de to reelle var docs som alt lå i develop. Diffen fra merge-basen til `main` var tom. **Det gjorde deployen til en kjent størrelse i stedet for et sprang på 522 commits.**
+
+✅ **OTA PUBLISERT samme runde.** Kanal `production`, update group `1e668259-cff1-4aea-b46c-b4974dbc4111`, commit `4553aedd`. **Bundelen målt før publisering: kun `https://api.sitedoc.no`, ingen `api-test`** — steg 2c gjort, ikke hoppet over.
+
+⚠️ **Asterisk etter commit-hashen (`4553aedd*`) — treet var skittent.** Målt: kun `SAMARBEIDSREGLER.md` og `STATUS-AKTUELT.md`, begge coworks ukommiterte docs-editer. **Ingen av dem er i JS-bundelen**, så bundelen bærer `4553aedd`s kode nøyaktig. 🔴 **Men regelen finnes fordi man normalt ikke KAN vite det — cowork skulle fått docs committet før deployen.**
+
+🟢 **Migreringene verifisert etterpå, ikke antatt:** alle ni har `finished_at` 2026-09-24 00:12. 🔴 **Og samme spørring avdekket at `20260430120000_add_klasse4_indekser` har ligget rullet tilbake siden april — 15 indekser mangler i prod, og Prisma prøver den aldri igjen.** Ført i [BACKLOG § 1](BACKLOG.md).
+
+🔴 **GJENSTÅR:** innlogget verifisering på `sitedoc.no` + opplasting av én ny PDF-tegning.
+
+⚠️ **Cowork slo falsk alarm på `/version`:** meldte at `39e14648` «ikke var den nye mergen» uten å slå den opp. Den **var** release-mergen. Samme feilklasse som regelen skrevet dagen før — *spør etter commit-hash og MÅL den*.
+
+### ✅ 2026-09-24 — HOTFIX DEPLOYET TIL TEST OG VERIFISERT (forløper til prod-runden over)
 
 **Test-deploy `0968c026`** (`gitSha` verifisert mot `/version`). `pdftoppm` + `tesseract` er nå i **både** `sitedoc-test-api` og `sitedoc-test-web` — de manglet i web før.
 
@@ -54,6 +77,20 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
   **Rotårsak:** `apps/api/src/routes/upload.ts:133` lagrer på disk som `<uuid>.<ext>` (riktig — hindrer kollisjon), men `apps/api/src/server.ts:131` setter `Content-Disposition: inline` **uten `filename=`**. Nettleseren har da ingenting å gå på og bruker siste URL-ledd.
   **Treffer alt en bruker laster ned:** tegning, vedlegg, arkiv-PDF. ⚠️ **Ikke målt:** om alle nedlastingsveier går gjennom `server.ts:131` eller om arkiv-PDF/vedlegg har egne — det avgjør om fiksen er ett eller tre steder.
   ⚠️ **Nær 🔴-grensen:** ingen blokkeres, men et dokument som skal kunne vises til i en tvist, kan ikke hete `40ae60ab-2cd0-46a3-8238-1f9a4bf5ba65.pdf`.
+
+### 🟢 2026-09-24 — Punktsky steg 1 (A–F) merget. develop `058b3ffa`.
+
+`feat/punktsky-overflate` `5b15c84e` + `docs/design-backlog-las-uverifisert` `9bac3b90`, begge `--no-ff`. **Gate traff blink:** db 248 (+5) · api 574 (+28) · pdf 128 · shared 854 · web 309 (+2) · mobil 38 · 7/7. Kald web-build exit 0 (ingen TS2589), mobil-typecheck exit 0.
+
+**Ny tabell `Overflate`** — migrering `20260924120000_overflate_tabell`: `CREATE TABLE` + partial unique + CHECK + 4 FK på en ny tom tabell. 🔴 **Ikke kjørt mot test ennå** — krever Kenneths TTY.
+
+🟢 **To avvik fra ordren, begge forbedringer, begge meldt av agenten før koding:**
+- `malavstandM`/`bakkeMetode` **nullable + CHECK** i stedet for non-null. § D og § E motsa hverandre — LandXML-flater i samme tabell har verken felt. Non-null ville tvunget fram oppdiktede verdier. **Design bekreftet at selvmotsigelsen var hans.**
+- **Float32-vertekser som offset fra bbox-origo** (float64 i headeren). Rå float32 på 6,7M UTM gir ~0,5 m; med offset <0,1 mm. Formen beholdt, presisjonen reddet, låst av en test på hver side.
+
+🔴 **BRUKS-BLOKKER, ikke merge-blokker:** en LAS-avledet overflate skal **ikke** brukes som volumdokumentasjon før én **ekte drone-LAS** er kjørt gjennom kjeden. Aritmetikken er bevist mot en syntetisk fixture med kjent fasit; at ekte filer *parses* er ikke bevist. Ført i [BACKLOG](BACKLOG.md). **Krever én fil fra Kenneth, ikke en ny leveranse.**
+
+🟢 **i18n-kollisjonen ble sekvensert, ikke oppdaget.** Punktsky og dokgens tegningsrunde rører begge 15 i18n-filer. Cowork målte innsettingspunktene (nb.json 1331 mot 1526) og la punktsky først; merge bekreftet 0 konfliktmarkører. **Kollisjons-sjekken virket som den skal for én gangs skyld i forkant.**
 
 ### 🔴 2026-09-24 — DWG-BINÆRER OG GEOREFERANSEFIKS MÅ I SAMME RELEASE
 

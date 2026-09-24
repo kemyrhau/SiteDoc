@@ -163,6 +163,17 @@ export function trekkUtEgenskaper(
   return grupper;
 }
 
+/**
+ * Brukervendt navn på en koordinatramme (§ F, betingelse 1: rammen skal SES i UI).
+ * "las-utm" er en PROVISORISK ramme (steg 1) — etiketten sier det eksplisitt slik at
+ * ingen tror sonen er bekreftet. En detektert sone (f.eks. "utm33") vises som den er.
+ */
+export function rammeEtikett(ramme: string, t: (k: string) => string): string {
+  if (ramme === "landxml") return t("3d.rammeLandxml");
+  if (ramme === "las-utm") return t("3d.rammeLasUtm");
+  return ramme;
+}
+
 /** Hjelpefunksjon for å parse LandXML og opprette OverflateData */
 export async function parseLandXMLFil(fil: File): Promise<OverflateData> {
   const tekst = await fil.text();

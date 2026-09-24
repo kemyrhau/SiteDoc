@@ -676,6 +676,7 @@ model Project {
   faggrupper           Faggruppe[]
   drawings             Drawing[]
   pointClouds          PointCloud[]
+  overflater           Overflate[]
   byggeplasser         Byggeplass[]
   omrader              Omrade[]
   templates            ReportTemplate[]
@@ -952,10 +953,50 @@ model PointCloud {
 
   project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
+  overflater Overflate[]
 
   @@index([projectId])
   @@index([byggeplassId])
   @@map("point_clouds")
+}
+
+// Lagret TIN-overflate — bro mellom punktsky/LandXML og kutt/fyll-analysen.
+// To kilder, én tabell: kilde="punktsky" (avledet server-side fra en LAS) eller
+// kilde="landxml" (importert TIN). Selve TIN-en ligger som binærfil på disk
+// (filUrl) — ikke i Postgres; en 15 cm TIN blir store filer. Se
+// apps/api/src/services/tinFil.ts for binærlayouten.
+model Overflate {
+  id               String   @id @default(uuid())
+  projectId        String   @map("project_id")
+  byggeplassId     String?  @map("byggeplass_id")
+  navn             String
+  kilde            String // "punktsky" | "landxml"
+  pointCloudId     String?  @map("point_cloud_id") // satt når kilde="punktsky"
+  filUrl           String   @map("fil_url") // binær TIN på disk (S3-klar)
+  // malavstandM/bakkeMetode er punktsky-spesifikke. NULL for landxml (importert
+  // TIN har verken målavstand eller bakkemetode). En DB-CHECK i migreringen tvinger
+  // dem NOT NULL når kilde="punktsky" — se migration.sql. Nullable + CHECK i stedet
+  // for NOT NULL, ellers ville landxml-rader kreve oppdiktede verdier («stille tomhet»).
+  malavstandM      Float?   @map("malavstand_m") // hva punktskya ble desimert til (m)
+  bakkeMetode      String?  @map("bakke_metode") // "klasse2" | "minZ"
+  // Koordinatramme — hvilket referansesystem TIN-en ligger i. Ramme-vakten (§ F)
+  // nekter å sammenligne to overflater med ulik ramme. "landxml" | "las-utm"
+  // (PROVISORISK, se overflateRamme.ts) | detektert coordinateSystem (steg 3).
+  ramme            String
+  origoBeskrivelse String?  @map("origo_beskrivelse")
+  punktAntall      Int?     @map("punkt_antall") // etter desimering
+  boundingBox      Json     @map("bounding_box") // {minX,minY,minZ,maxX,maxY,maxZ}
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  byggeplass Byggeplass? @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)
+  pointCloud PointCloud? @relation(fields: [pointCloudId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([byggeplassId])
+  @@index([pointCloudId])
+  @@map("overflater")
 }
 
 model DrawingRevision {
@@ -1005,6 +1046,7 @@ model Byggeplass {
   project          Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   drawings         Drawing[]
   pointClouds      PointCloud[]
+  overflater       Overflate[]
   checklists       Checklist[]
   ftdKontrakter    FtdKontrakt[]
   gruppeKoblinger  ProjectGroupByggeplass[]
@@ -1122,31 +1164,31 @@ model ReportObject {
 // ---------------------------------------------------------------------------
 
 model OrganizationTemplate {
-  id                       String   @id @default(uuid())
-  organizationId           String   @map("organization_id")
+  id                       String    @id @default(uuid())
+  organizationId           String    @map("organization_id")
   name                     String
   description              String?
   prefix                   String?
-  category                 String   @default("sjekkliste") // "oppgave" | "sjekkliste"
-  domain                   String   @default("bygg") // "bygg" | "hms" | "kvalitet"
-  subjects                 Json?    @default("[]")
-  showSubject              Boolean  @default(true) @map("show_subject")
-  showFaggruppe            Boolean  @default(true) @map("show_faggruppe")
-  showLocation             Boolean  @default(true) @map("show_location")
-  showPriority             Boolean  @default(true) @map("show_priority")
-  version                  Int      @default(1)
-  enableChangeLog          Boolean  @default(false) @map("enable_change_log")
+  category                 String    @default("sjekkliste") // "oppgave" | "sjekkliste"
+  domain                   String    @default("bygg") // "bygg" | "hms" | "kvalitet"
+  subjects                 Json?     @default("[]")
+  showSubject              Boolean   @default(true) @map("show_subject")
+  showFaggruppe            Boolean   @default(true) @map("show_faggruppe")
+  showLocation             Boolean   @default(true) @map("show_location")
+  showPriority             Boolean   @default(true) @map("show_priority")
+  version                  Int       @default(1)
+  enableChangeLog          Boolean   @default(false) @map("enable_change_log")
   kontrollomrade           String?
   // Malarkiv (AM4/B3, 2026-09-04): HMS-maler i firmaarkivet. Speiler ReportTemplate:973-974.
-  subdomain                String?  @map("subdomain") // undertype innenfor domenet: "avvik"|"sja"|"ruh" ved domain="hms" · "kontrakt" ved domain="bygg". Lovlige par eies av LOVLIG_SUBDOMAIN i mal.ts (valideerSubdomainKombinasjon)
-  hmsSynlighet             String?  @map("hms_synlighet") // "privat" | "apen" — kun ved domain="hms"
+  subdomain                String?   @map("subdomain") // undertype innenfor domenet: "avvik"|"sja"|"ruh" ved domain="hms" · "kontrakt" ved domain="bygg". Lovlige par eies av LOVLIG_SUBDOMAIN i mal.ts (valideerSubdomainKombinasjon)
+  hmsSynlighet             String?   @map("hms_synlighet") // "privat" | "apen" — kun ved domain="hms"
   // Seeding-flagg (F4): seedes automatisk inn i nye prosjekter ved modulaktivering.
-  standardForNyeProsjekter Boolean  @default(false) @map("standard_for_nye_prosjekter")
-  promotedFromTemplateId   String?  @map("promoted_from_template_id")
+  standardForNyeProsjekter Boolean   @default(false) @map("standard_for_nye_prosjekter")
+  promotedFromTemplateId   String?   @map("promoted_from_template_id")
   // Malarkiv (AM4/B4, 2026-09-04): STRUKTURERT avstamning når firmamalen er lånt fra
   // SiteDoc-sentralarkivet (BibliotekMal). Spørrbar peker, aldri fritekst i description.
   // SetNull ved sletting av bibliotekmalen (samme semantikk som L5) — lånet består.
-  laantFraBibliotekMalId   String?  @map("laant_fra_bibliotek_mal_id")
+  laantFraBibliotekMalId   String?   @map("laant_fra_bibliotek_mal_id")
   // Malarkiv-versjonering (ordre versjonssporing-softdelete, 2026-09-16): hvilken
   // BibliotekMal.version denne LÅNTE firmamalen stammer fra. Speiler
   // ReportTemplate.versjonAvHovedmal (L6) ETT nivå opp. Badge «X versjoner bak» på
@@ -1155,15 +1197,15 @@ model OrganizationTemplate {
   // mal (ingen sentralarkiv-avstamning, laantFraBibliotekMalId = null); non-null = lånt.
   // DB-garantien (CHECK i migrering, ikke uttrykkbar i Prisma-skjemaet) håndhever at en
   // lånt mal ALLTID har snapshot — «stille tomhet»-krav (b). Se migreringens CHECK.
-  versjonAvHovedmal        Int?     @map("versjon_av_hovedmal")
+  versjonAvHovedmal        Int?      @map("versjon_av_hovedmal")
   // Soft delete (ordre versjonssporing-softdelete, krav 3) — låser opp Papirkurv-fanen i
   // Malforvaltning. Speiler Checklist/Task (schema:1238/:1314). Guard-filteret
   // `deletedAt IS NULL` skjuler slettede firmamaler fra alle lesende spørringer.
   // deletedById er svakt String-felt uten @relation (bevisst — ingen FK-kobling til User).
   deletedAt                DateTime? @map("deleted_at")
-  deletedById              String?  @map("deleted_by_id")
-  createdAt                DateTime @default(now()) @map("created_at")
-  updatedAt                DateTime @updatedAt @map("updated_at")
+  deletedById              String?   @map("deleted_by_id")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
 
   organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   promotedFrom      ReportTemplate?              @relation("PromotedTemplate", fields: [promotedFromTemplateId], references: [id], onDelete: SetNull)

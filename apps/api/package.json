@@ -25,6 +25,7 @@
     "@trpc/server": "^11.10.0",
     "archiver": "^7.0.1",
     "csv-parse": "^6.2.1",
+    "delaunator": "^5.0.1",
     "dxf-parser": "^1.1.2",
     "exceljs": "^4.4.0",
     "expo-server-sdk": "^7.2.0",
