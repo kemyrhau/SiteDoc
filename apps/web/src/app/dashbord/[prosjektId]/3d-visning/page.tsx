@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "next/navigation";
+import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import {
   Upload,
@@ -19,13 +20,32 @@ import {
 import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
 import { EgenskapsPopup } from "./komponenter/EgenskapsPopup";
 import { FilterChipBar } from "./komponenter/FilterChipBar";
-import { parseLandXMLFil } from "./hjelpefunksjoner";
+import { rammeEtikett } from "./hjelpefunksjoner";
 import type {
   Fane,
   OverflateData,
+  LagretOverflate,
   KuttFyllResultatType,
 } from "./typer";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+
+/**
+ * Minimal form på tRPC-utils for overflate-kallene. Ny overflate-router dyttet
+ * AppRouter-unionen over TS2589-grensen når man driller ned i den fulle
+ * utils-proxyen — denne grunne casten bryter den (CLAUDE.md tRPC-fallgruve).
+ */
+type OverflateUtils = {
+  overflate: {
+    hentForProsjekt: { invalidate: () => Promise<void> };
+    hentForSammenligning: {
+      fetch: (input: { projectId: string; toppId: string; bunnId: string }) => Promise<{
+        topp: { id: string; filUrl: string };
+        bunn: { id: string; filUrl: string };
+        ramme: string;
+      }>;
+    };
+  };
+};
 
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
@@ -37,17 +57,7 @@ export default function TreDVisning() {
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const [aktivFane, setAktivFane] = useState<Fane>("3d-modell");
 
-  // Delt overflate-state mellom fane 2 og 3
-  const [overflater, setOverflater] = useState<OverflateData[]>([]);
-
-  const leggTilOverflate = useCallback((o: OverflateData) => {
-    setOverflater((prev) => [...prev, o]);
-  }, []);
-
-  const fjernOverflate = useCallback((id: string) => {
-    setOverflater((prev) => prev.filter((o) => o.id !== id));
-  }, []);
-
+  // Overflater bor nå på server (overlever reload) — hver fane henter dem selv.
   const faner: { id: Fane; label: string; ikon: JSX.Element }[] = [
     { id: "3d-modell", label: t("3d.modell"), ikon: <Box className="h-4 w-4" /> },
     { id: "overflater", label: t("3d.overflater"), ikon: <Mountain className="h-4 w-4" /> },
@@ -79,21 +89,8 @@ export default function TreDVisning() {
         <div className={`flex flex-1 overflow-hidden ${aktivFane !== "3d-modell" ? "pointer-events-none invisible absolute inset-0" : ""}`}>
           <Fane3DModell />
         </div>
-        {aktivFane === "overflater" && (
-          <FaneOverflater
-            prosjektId={prosjektId!}
-            overflater={overflater}
-            onLeggTil={leggTilOverflate}
-            onFjern={fjernOverflate}
-          />
-        )}
-        {aktivFane === "kutt-fyll" && (
-          <FaneKuttFyll
-            prosjektId={prosjektId!}
-            overflater={overflater}
-            onLeggTil={leggTilOverflate}
-          />
-        )}
+        {aktivFane === "overflater" && <FaneOverflater prosjektId={prosjektId!} />}
+        {aktivFane === "kutt-fyll" && <FaneKuttFyll prosjektId={prosjektId!} />}
       </div>
     </div>
   );
@@ -325,45 +322,82 @@ function Fane3DModell() {
 /*  FANE 2: Overflatemodeller                                          */
 /* ================================================================== */
 
-function FaneOverflater({
-  overflater,
-  onLeggTil,
-  onFjern,
-}: {
-  prosjektId: string;
-  overflater: OverflateData[];
-  onLeggTil: (o: OverflateData) => void;
-  onFjern: (id: string) => void;
-}) {
+function FaneOverflater({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
+  const utils = trpc.useUtils() as unknown as OverflateUtils;
   const [valgtOverflateId, setValgtOverflateId] = useState<string | null>(null);
   const [lasterInn, setLasterInn] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
+  const [valgtPunktskyId, setValgtPunktskyId] = useState<string>("");
+
+  const overflateQuery = trpc.overflate.hentForProsjekt.useQuery({ projectId: prosjektId });
+  const overflater = (overflateQuery.data ?? []) as LagretOverflate[];
+  // Konkret cast bryter tRPC-ens dype union (TS2589) før .filter — CLAUDE.md-fallgruve.
+  const punktskyQuery = trpc.punktsky.hentForProsjekt.useQuery({ projectId: prosjektId });
+  const punktskyer = (punktskyQuery.data ?? []) as Array<{ id: string; name: string; fileType: string }>;
+  const lasPunktskyer = punktskyer.filter((p) => p.fileType?.toLowerCase() === "las");
+
+  // _data: unknown i mutation-callbacks unngår TS2589 (CLAUDE.md tRPC-fallgruve).
+  const lagreLandXML = trpc.overflate.lagreLandXML.useMutation({
+    onSuccess: (o: unknown) => {
+      utils.overflate.hentForProsjekt.invalidate();
+      setValgtOverflateId((o as { id: string }).id);
+    },
+    onError: (e: unknown) => setFeil(e instanceof Error ? e.message : t("3d.beregningFeilet")),
+  });
+  const opprettFraPunktsky = trpc.overflate.opprettFraPunktsky.useMutation({
+    onSuccess: (o: unknown) => {
+      utils.overflate.hentForProsjekt.invalidate();
+      setValgtOverflateId((o as { id: string }).id);
+    },
+    onError: (e: unknown) => setFeil(e instanceof Error ? e.message : t("3d.beregningFeilet")),
+  });
+  const slettMutation = trpc.overflate.slett.useMutation({
+    onSuccess: () => utils.overflate.hentForProsjekt.invalidate(),
+  });
 
   async function handleLandXMLValgt(e: React.ChangeEvent<HTMLInputElement>) {
     const fil = e.target.files?.[0];
     if (!fil) return;
-
     setLasterInn(true);
     setFeil(null);
     try {
-      const nyOverflate = await parseLandXMLFil(fil);
-      onLeggTil(nyOverflate);
-      setValgtOverflateId(nyOverflate.id);
+      const formData = new FormData();
+      formData.append("file", fil);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error((await res.json()).error ?? t("3d.beregningFeilet"));
+      const data = await res.json();
+      await lagreLandXML.mutateAsync({
+        projectId: prosjektId,
+        navn: fil.name.replace(/\.[^.]+$/, ""),
+        fileUrl: data.fileUrl,
+      });
     } catch (err) {
-      setFeil(err instanceof Error ? err.message : "Kunne ikke parse LandXML");
+      setFeil(err instanceof Error ? err.message : "Kunne ikke lagre LandXML");
     } finally {
       setLasterInn(false);
       e.target.value = "";
     }
   }
 
+  function overflateberegn() {
+    if (!valgtPunktskyId) return;
+    setFeil(null);
+    const sky = lasPunktskyer.find((p) => p.id === valgtPunktskyId);
+    opprettFraPunktsky.mutate({
+      projectId: prosjektId,
+      pointCloudId: valgtPunktskyId,
+      navn: sky?.name ?? t("3d.overflater"),
+    });
+  }
+
   function fjernOverflate(id: string) {
-    onFjern(id);
+    slettMutation.mutate({ id });
     if (valgtOverflateId === id) setValgtOverflateId(null);
   }
 
   const valgt = overflater.find((o) => o.id === valgtOverflateId) ?? null;
+  const beregner = opprettFraPunktsky.isPending;
 
   return (
     <div className="flex h-full flex-1">
@@ -386,12 +420,37 @@ function FaneOverflater({
           </label>
         </div>
 
+        {/* Punktsky → overflate */}
+        <div className="border-b border-gray-200 px-4 py-3">
+          <label className="text-xs font-medium text-gray-500">{t("3d.overflateberegnPunktsky")}</label>
+          <select
+            value={valgtPunktskyId}
+            onChange={(e) => setValgtPunktskyId(e.target.value)}
+            className="mt-1 w-full rounded border border-gray-200 px-2 py-1.5 text-xs text-gray-700"
+            disabled={lasPunktskyer.length === 0}
+          >
+            <option value="">
+              {lasPunktskyer.length === 0 ? t("3d.ingenLasPunktsky") : t("3d.velgLasPunktsky")}
+            </option>
+            {lasPunktskyer.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={overflateberegn}
+            disabled={!valgtPunktskyId || beregner}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded bg-sitedoc-primary px-2.5 py-1.5 text-xs font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
+          >
+            {beregner ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mountain className="h-3.5 w-3.5" />}
+            {beregner ? t("3d.lagrerOverflate") : t("3d.overflateberegnPunktsky")}
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto">
           {overflater.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
               <Mountain className="h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-400">Ingen overflater</p>
-              <p className="text-xs text-gray-400">{t("handling.lastOpp")} LandXML-filer</p>
+              <p className="text-sm text-gray-400">{t("3d.ingenLagredeOverflater")}</p>
             </div>
           )}
 
@@ -407,15 +466,19 @@ function FaneOverflater({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-gray-900">{o.navn}</p>
                 <p className="text-xs text-gray-500">
-                  {o.kilde === "landxml" ? "LandXML" : t("3d.punktsky")} — {t("3d.trekanter", { antall: (o.triangles.length / 3).toLocaleString() })}
+                  {o.kilde === "landxml" ? t("3d.rammeLandxml") : t("3d.punktsky")}
+                  {o.punktAntall != null ? ` — ${o.punktAntall.toLocaleString()} pkt` : ""}
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  {t("3d.koordinatramme")}: {rammeEtikett(o.ramme, t)}
                 </p>
               </div>
-              <button
+              <span
                 onClick={(e) => { e.stopPropagation(); fjernOverflate(o.id); }}
                 className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              </span>
             </button>
           ))}
         </div>
@@ -433,13 +496,64 @@ function FaneOverflater({
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center text-gray-400">
               <Mountain className="mx-auto mb-2 h-12 w-12 text-gray-300" />
-              <p className="text-sm">{t("handling.lastOpp")} en LandXML-fil for å vise overflaten</p>
+              <p className="text-sm">{t("handling.lastOpp")} en LandXML-fil eller overflateberegn en punktsky</p>
             </div>
           </div>
         ) : (
-          <OverflateViewer overflate={valgt} />
+          <LagretOverflateViewer overflate={valgt} />
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Laster TIN-binæren for en lagret overflate (lazy) og viser den i OverflateViewer.
+ * Metadata-lista bærer ikke geometrien — den hentes fra filUrl først ved visning.
+ */
+function LagretOverflateViewer({ overflate }: { overflate: LagretOverflate }) {
+  const { t } = useTranslation();
+  const [data, setData] = useState<OverflateData | null>(null);
+  const [feil, setFeil] = useState<string | null>(null);
+
+  useEffect(() => {
+    let avbrutt = false;
+    setData(null);
+    setFeil(null);
+    import("@/lib/tin-fil")
+      .then(({ hentTin }) => hentTin(overflate.filUrl))
+      .then((tin) => {
+        if (avbrutt) return;
+        setData({
+          id: overflate.id,
+          navn: overflate.navn,
+          kilde: overflate.kilde === "landxml" ? "landxml" : "punktsky",
+          vertices: tin.vertices,
+          triangles: tin.triangles,
+          bbox: tin.bbox,
+          ramme: overflate.ramme,
+        });
+      })
+      .catch((e) => { if (!avbrutt) setFeil(e instanceof Error ? e.message : "Feil"); });
+    return () => { avbrutt = true; };
+  }, [overflate.id, overflate.filUrl, overflate.navn, overflate.kilde, overflate.ramme]);
+
+  if (feil) {
+    return <div className="flex flex-1 items-center justify-center text-sm text-red-500">{feil}</div>;
+  }
+  if (!data) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-sitedoc-primary" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-1 flex-col">
+      <div className="border-b border-gray-200 bg-white px-4 py-1.5 text-[11px] text-gray-500">
+        {t("3d.koordinatramme")}: <span className="font-medium text-gray-700">{rammeEtikett(overflate.ramme, t)}</span>
+      </div>
+      <OverflateViewer overflate={data} />
     </div>
   );
 }
@@ -448,43 +562,54 @@ function FaneOverflater({
 /*  FANE 3: Kutt/fyll-analyse                                          */
 /* ================================================================== */
 
-function FaneKuttFyll({
-  overflater,
-  onLeggTil,
-}: {
-  prosjektId: string;
-  overflater: OverflateData[];
-  onLeggTil: (o: OverflateData) => void;
-}) {
+function FaneKuttFyll({ prosjektId }: { prosjektId: string }) {
   const { t } = useTranslation();
+  const utils = trpc.useUtils() as unknown as OverflateUtils;
   const [toppId, setToppId] = useState<string | null>(null);
   const [bunnId, setBunnId] = useState<string | null>(null);
   const [celleStr, setCelleStr] = useState(1.0);
   const [resultat, setResultat] = useState<KuttFyllResultatType | null>(null);
+  const [brukRamme, setBrukRamme] = useState<string | null>(null);
   const [beregner, setBeregner] = useState(false);
   const [lasterInn, setLasterInn] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
 
+  const overflateQuery = trpc.overflate.hentForProsjekt.useQuery({ projectId: prosjektId });
+  const overflater = (overflateQuery.data ?? []) as LagretOverflate[];
+
+  const lagreLandXML = trpc.overflate.lagreLandXML.useMutation({
+    onSuccess: () => utils.overflate.hentForProsjekt.invalidate(),
+    onError: (e: unknown) => setFeil(e instanceof Error ? e.message : t("3d.beregningFeilet")),
+  });
+
   useEffect(() => {
-    if (overflater.length >= 1 && !bunnId) {
-      setBunnId(overflater[0]!.id);
-    }
-    if (overflater.length >= 2 && !toppId) {
-      setToppId(overflater[1]!.id);
-    }
+    if (overflater.length >= 1 && !bunnId) setBunnId(overflater[0]!.id);
+    if (overflater.length >= 2 && !toppId) setToppId(overflater[1]!.id);
   }, [overflater, bunnId, toppId]);
+
+  const toppOverflate = overflater.find((o) => o.id === toppId) ?? null;
+  const bunnOverflate = overflater.find((o) => o.id === bunnId) ?? null;
+  // § F (UI-del): ulik ramme → knapp av + forklaring. Server håndhever i tillegg.
+  const rammerUlik = !!toppOverflate && !!bunnOverflate && toppOverflate.ramme !== bunnOverflate.ramme;
 
   async function handleLandXMLValgt(e: React.ChangeEvent<HTMLInputElement>) {
     const fil = e.target.files?.[0];
     if (!fil) return;
-
     setLasterInn(true);
     setFeil(null);
     try {
-      const nyOverflate = await parseLandXMLFil(fil);
-      onLeggTil(nyOverflate);
+      const formData = new FormData();
+      formData.append("file", fil);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error((await res.json()).error ?? t("3d.beregningFeilet"));
+      const data = await res.json();
+      await lagreLandXML.mutateAsync({
+        projectId: prosjektId,
+        navn: fil.name.replace(/\.[^.]+$/, ""),
+        fileUrl: data.fileUrl,
+      });
     } catch (err) {
-      setFeil(err instanceof Error ? err.message : "Kunne ikke parse LandXML");
+      setFeil(err instanceof Error ? err.message : "Kunne ikke lagre LandXML");
     } finally {
       setLasterInn(false);
       e.target.value = "";
@@ -492,16 +617,24 @@ function FaneKuttFyll({
   }
 
   async function beregnAnalyse() {
-    const topp = overflater.find((o) => o.id === toppId);
-    const bunn = overflater.find((o) => o.id === bunnId);
-    if (!topp || !bunn) return;
-
+    if (!toppId || !bunnId) return;
     setBeregner(true);
     setFeil(null);
     try {
+      // 🔴 § F: server-ramme-vakt FØR beregning. Ulik ramme → kaster her, og
+      // beregnKuttFyll kjøres aldri. (Prosjektisolering håndheves samme sted.)
+      const par = await utils.overflate.hentForSammenligning.fetch({
+        projectId: prosjektId, toppId, bunnId,
+      });
+      const { hentTin } = await import("@/lib/tin-fil");
+      const [toppTin, bunnTin] = await Promise.all([
+        hentTin(par.topp.filUrl),
+        hentTin(par.bunn.filUrl),
+      ]);
       const { beregnKuttFyll } = await import("@/lib/kutt-fyll");
-      const res = beregnKuttFyll(topp, bunn, celleStr);
+      const res = beregnKuttFyll(toppTin, bunnTin, celleStr);
       setResultat(res);
+      setBrukRamme(par.ramme);
     } catch (err) {
       setFeil(err instanceof Error ? err.message : t("3d.beregningFeilet"));
     } finally {
@@ -574,9 +707,24 @@ function FaneKuttFyll({
               </select>
             </div>
 
+            {/* § F (UI): koordinatramme pr. valgt overflate + blokk ved ulik ramme */}
+            {(toppOverflate || bunnOverflate) && (
+              <div className="rounded bg-gray-50 px-2 py-1.5 text-[10px] text-gray-500">
+                {toppOverflate && (
+                  <div>{t("3d.koordinatramme")}: {rammeEtikett(toppOverflate.ramme, t)}</div>
+                )}
+                {bunnOverflate && bunnOverflate.ramme !== toppOverflate?.ramme && (
+                  <div>{t("3d.koordinatramme")}: {rammeEtikett(bunnOverflate.ramme, t)}</div>
+                )}
+              </div>
+            )}
+            {rammerUlik && (
+              <p className="text-xs text-amber-600">{t("3d.rammeUlik")}</p>
+            )}
+
             <button
               onClick={beregnAnalyse}
-              disabled={!toppId || !bunnId || toppId === bunnId || beregner}
+              disabled={!toppId || !bunnId || toppId === bunnId || rammerUlik || beregner}
               className="flex w-full items-center justify-center gap-2 rounded bg-sitedoc-primary px-3 py-2 text-xs font-medium text-white hover:bg-sitedoc-primary/90 disabled:opacity-50"
             >
               {beregner ? (
@@ -619,6 +767,9 @@ function FaneKuttFyll({
               </div>
 
               <div className="mt-3 space-y-1 text-[10px] text-gray-400">
+                {brukRamme && (
+                  <p>{t("3d.koordinatramme")}: {rammeEtikett(brukRamme, t)}</p>
+                )}
                 <p>Oppløsning: {resultat.celleStr}m × {resultat.celleStr}m</p>
                 <p>Rutenett: {resultat.gridBredde} × {resultat.gridHoyde} celler</p>
                 <p>ΔZ: {resultat.minDiff.toFixed(2)}m til {resultat.maxDiff.toFixed(2)}m</p>

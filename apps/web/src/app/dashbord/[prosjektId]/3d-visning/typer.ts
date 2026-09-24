@@ -80,6 +80,21 @@ export interface OverflateData {
   vertices: Float64Array;
   triangles: Uint32Array;
   bbox: { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number };
+  /** Koordinatramme (§ F) — satt for lagrede overflater, vises i UI. */
+  ramme?: string;
+}
+
+/** Metadata for en LAGRET overflate (fra server) — TIN-en lastes lazy via filUrl. */
+export interface LagretOverflate {
+  id: string;
+  navn: string;
+  kilde: string; // "punktsky" | "landxml"
+  ramme: string;
+  filUrl: string;
+  malavstandM: number | null;
+  bakkeMetode: string | null;
+  punktAntall: number | null;
+  boundingBox: unknown;
 }
 
 export interface ModellStatus {
