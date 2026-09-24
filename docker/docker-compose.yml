@@ -57,7 +57,15 @@ services:
     # uten at den eksponerte flaten kan skrive brukerdata. Arkiv-PDF skrives
     # ikke lenger til disk (vei 3b: returneres i responsen).
     volumes:
-      - /home/kemyrhau/stack/sitedoc/uploads:/app/apps/web/uploads:ro
+      # rw (ikke :ro) fra 2026-09-24: tRPC kjører IN-PROCESS i web, så
+      # rekonverterPdf/pdftoppm SKRIVER PNG-ene hit. Med :ro feilet konverteringen
+      # i prod — tredje lag av samme rotårsak (1: pdftoppm manglet, 2: tesseract
+      # manglet, 3: ingen skrivetilgang). Kenneth-gatet.
+      # 🔴 MIDLERTIDIG: riktig fiks er at konverteringen kjører i API, der
+      # skrivetilgangen hører hjemme. Se BACKLOG § FEM FUNKSJONER TAPT (femte lag).
+      # ⚠️ Revurderes ved serverflyttingen (~okt 2026) — da ligger web og api på
+      # ulike maskiner og «feil container» endrer form. Se sikkerhet.md.
+      - /home/kemyrhau/stack/sitedoc/uploads:/app/apps/web/uploads
     network_mode: "service:sitedoc-api"
     depends_on: [sitedoc-api]
     security_opt: ["no-new-privileges:true"]

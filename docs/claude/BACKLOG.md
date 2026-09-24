@@ -471,6 +471,19 @@ september.** En sjekk uten denne todelingen blir slått av innen en uke — og d
 
 ### 🔴 FEM FUNKSJONER TAPT VED SERVERFLYTTINGEN 2026-06-10 — uoppdaget i tre og en halv måned (funnet 2026-09-23)
 
+> 🔴 **FEMTE LAG av samme rotårsak, funnet 2026-09-24 da de fire første var fikset.** tRPC kjører **in-process i `sitedoc-web`**, så alt «api-arbeid» skjer der. Tre lag manglet i web-containeren, ett etter ett, hvert maskert av det forrige:
+> **1.** `pdftoppm` manglet → fikset `8fbf5180` · **2.** `tesseract` manglet → samme fiks · **3.** `uploads` var montert **`:ro`**, så konverteringen kunne ikke SKRIVE PNG-en.
+>
+> ⚠️ **Ingen av dem var en regresjon.** Hver fiks avdekket neste lag. Lag 3 kunne ikke sees før lag 1 var borte — Kenneth trykket «Konverter alle PDF-tegninger på nytt» i prod, og fikk skrivefeil der det før var ENOENT.
+>
+> 🟡 **Midlertidig fiks (Kenneth-gatet 2026-09-24):** `:ro` fjernet i `docker-compose.yml` og `docker-compose.test.yml`. Begge filer, med vilje — retter vi bare prod, kan test ikke skrive, og verifisering på test blir verdiløs.
+>
+> 🔴 **RIKTIG fiks, ikke bygget:** konverteringen skal kjøre i **API**, der skrivetilgangen hører hjemme. `:ro` var bevisst hygiene («web serverer, skriver ikke»); å fjerne den løsner en grense for å omgå at tRPC kjører i feil container.
+>
+> ⚠️ **Revurderes ved serverflyttingen (~okt 2026)** — da ligger web og api på ulike maskiner, og «feil container» endrer form. Se [sikkerhet.md](sikkerhet.md) § Planlagt serverflytting.
+>
+> ⚠️ **Om delt volum:** test-web får med dette skrivetilgang til PRODS uploads. **Grensen var alt krysset av test-api** — det er funn #1 i [sikkerhet.md](sikkerhet.md) («Test skriver inn i prods uploads-katalog», målt 2026-08-28, åpen). **Denne linja utvider det funnet, den innfører det ikke — derfor ingen ny post.**
+
 > 🔴 **FEMTE, funnet 2026-09-23 av kapabilitetsproben mot `server-ny`: `SITEDOC_INTEGRATION_KEY` finnes ikke.**
 > Lengde **0** i BÅDE `sitedoc-api` og `sitedoc-web`, **0 treff** i `felles.env`/`api.env`/`web.env`.
 > Den **var** satt på gammel prod (`historikk-2026-05.md:2922` — begge `ecosystem.config.js`-blokker, 64 tegn verifisert) og fulgte ikke med flyttingen.

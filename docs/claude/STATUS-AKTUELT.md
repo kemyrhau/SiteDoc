@@ -78,6 +78,34 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
   **Treffer alt en bruker laster ned:** tegning, vedlegg, arkiv-PDF. ⚠️ **Ikke målt:** om alle nedlastingsveier går gjennom `server.ts:131` eller om arkiv-PDF/vedlegg har egne — det avgjør om fiksen er ett eller tre steder.
   ⚠️ **Nær 🔴-grensen:** ingen blokkeres, men et dokument som skal kunne vises til i en tvist, kan ikke hete `40ae60ab-2cd0-46a3-8238-1f9a4bf5ba65.pdf`.
 
+### ✅ 2026-09-24 — ANDRE PROD-DEPLOY SAMME DAG. `main` `858f5c45`.
+
+**Release-merge `858f5c45`** (`develop` `bdc27879` → `main`, `--no-ff`). Steg 2-kontrollen tom — innholdslik med develop. Verifisert: `bdc27879` er ancestor av `main`, og `git diff origin/develop origin/main` er tom. **Én migrering: `20260924120000_overflate_tabell`** (CREATE TABLE + partial unique + CHECK på ny tom tabell).
+
+**Hva som gikk ut:** re-konverter-knappen i tegningsbanneret · slettevakt med myke JSON-referanser · type-korrekt banner (PDF sier PDF) · invalidering etter slett og re-konvertering · punktsky steg 1 (A–F) · LAZ-ordren.
+
+🔴 **Formålet: fem PDF-tegninger sto låst i prod siden 2026-09-16** med `spawn pdftoppm ENOENT` — en feil som ikke lenger gjaldt, men som verken kunne repareres eller slettes. `rekonverterPdf` fantes i koden hele tiden **uten en eneste kaller**. ⚠️ `Oversikt Lakselv lufthavn` blir stående — den mangler DWG-konverterer, ikke `pdftoppm`.
+
+### 🔴 2026-09-24 — `/uploads/*` SERVERES UTEN AUTENTISERING. Omfanget målt.
+
+**Designs funn, dokgens måling.** `server.ts:127-131` lar `fastifyStatic` levere rått — bilder, tegninger, vedlegg. Hvem som helst med URL-en får fila. Gaten på `:114-124` dekker **kun** `privat/`; kommentaren på `:113` sier «global gate kommer i Fase 1b».
+
+| Flate | Antall | Form |
+|---|---|---|
+| api **med** signering | 38 kall / 9 filer | 🔴 **No-op for offentlige filer** — dekker bare `privat/` |
+| api **uten** signering | ≥7 rutefiler | Returnerer `fileUrl` rått |
+| web | 50 linjer / 29 filer | `/api${fileUrl}` inline, **ingen hjelper** |
+| mobil | 11 filer | Inline base-URL + én `privat/`-hjelper |
+| `packages/pdf` | 1 hjelper | Server-side, egne regler |
+
+🔴 **Ad hoc overalt — ingen felles funksjon.** Og presedensen er målt, ikke antatt: `mobil/FeltDokumentasjon.tsx:191` bærer *«åpen /uploads/-sti (S1-hull, funnet ved prod-opprydding 2026-08-15)»*. **Opt-in-mønsteret har allerede sviktet i produksjon én gang.**
+
+🟢 **Fiksen er billigere enn tallet antyder:** signaturen rir i URL-en, så `<img src>` og `<Image uri>` virker uendret. **Api-side — ikke 61 konsumentendringer.** Sentralisert emisjon (tRPC-serialisering) + utvidet gate. **UUID-filnavnet og RFC 5987-kodingen legger seg på samme rute.**
+
+⚠️ **Coworks rangering var feil:** saken ble først kalt 🟡 kosmetisk. Pilotprøven («vil A.Markussen trenge at fila heter noe?») var riktig stilt for **filnavnet**, men ble anvendt på en sak som også handler om **hvem som får åpne fila**. Design omrangerte til 🔴 sikkerhet. **Et åpent dokumentlager er ikke et spørsmål om hva brukeren savner.**
+
+⚠️ **Ikke fasit ennå:** dokgen markerte at «7 rå rutefiler» er en grov proxy — «filen returnerer `fileUrl`» er ikke det samme som «returnerer den usignert til klient». Krever bekreftelse per prosedyre før det brukes som kravgrunnlag.
+
 ### 🟢 2026-09-24 — Punktsky steg 1 (A–F) merget. develop `058b3ffa`.
 
 `feat/punktsky-overflate` `5b15c84e` + `docs/design-backlog-las-uverifisert` `9bac3b90`, begge `--no-ff`. **Gate traff blink:** db 248 (+5) · api 574 (+28) · pdf 128 · shared 854 · web 309 (+2) · mobil 38 · 7/7. Kald web-build exit 0 (ingen TS2589), mobil-typecheck exit 0.
