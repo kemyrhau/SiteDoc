@@ -1,5 +1,5 @@
 ---
-status: 🟢 ORDRE — klar, MED én Kenneth-beslutning før del E
+status: 🟢 ORDRE — klar. 🔴 REVIDERT 2026-09-24: del E avgjort (15 min) og del G tilføyd. Ingen åpne beslutninger
 til: kode-agent (worktree og branch bestemmes av cowork)
 fra: design
 dato: 2026-09-24
@@ -111,16 +111,15 @@ sletting.**
 - D1: en mutasjonsoutput som klienten persisterer skal ikke bære `sig=`.
 - D2: `slettMedUrl` skal virke med en URL som har passert emisjonssignering.
 
-### 🔴 E. Signaturens levetid — KENNETH-BESLUTNING, bygg ikke før svar
+### 🟢 E. Signaturens levetid — AVGJORT 2026-09-24: 15 minutter for ALT
 
-`privat/` bruker 15 min. **Det er for kort for offentlige bilder i en liste som står åpen.**
+> **Kenneth 2026-09-24:** valgte selvfornyelse framfor lang levetid — *«gå for denne med din anbefaling»*.
 
-| Alternativ | Vurdering |
-|---|---|
-| 🟢 **Differensiert: `privat/` 15 min, øvrige `/uploads/` lengre (timer–dager)** | **Design anbefaler.** Poenget er å kreve autentisering ved UTSTEDELSE, ikke å gjøre lenker flyktige. **I dag virker URL-en evig og krever ingenting — enhver endelig levetid er en streng forbedring** |
-| 🟡 15 min for alt | Tryggest, men en åpen fane som lastes på nytt etter lunsj viser tomme rammer |
+**`privat/` beholder 15 min. Øvrige `/uploads/` får OGSÅ 15 min.** 🔴 **Det er bare forsvarlig fordi del G
+gjør en utløpt signatur usynlig.**
 
-⚠️ **Ikke bygg E før Kenneth har svart.** A–D er uavhengige av tallet.
+⚠️ **E og G hører sammen.** Bygges G ikke, skal E være **24 timer** — ellers får brukeren tomme bilderammer
+hver gang en fane står åpen over lunsj. **Leveres G delvis, settes 24 timer for de flatene G ikke dekker.**
 
 ### 🟡 F. Filnavn + RFC 5987 — EGEN sak, ikke denne ordren
 
@@ -131,12 +130,70 @@ DB. **Det krever en nedlastingsrute som slår opp navnet og setter
 🔴 **Holdt utenfor med vilje.** Gaten er sikkerhet, filnavnet er brukskvalitet. **Blandes de, blir en
 sikkerhetsfiks forsinket av en kosmetisk.** Egen ordre når denne er merget.
 
+### 🔴 G. Selvfornyelse — TILFØYD 2026-09-24. Formen er viktigere enn mekanismen
+
+**Kenneth valgte dette framfor lang levetid.** En utløpt signatur blir da et blunk i stedet for en tom ramme.
+
+🔴 **Men IKKE som `onError` på 50 steder. Det er nøyaktig opt-in-mønsteret som sviktet 15.08.**
+Målt 2026-09-24: **ingen delt bildekomponent finnes** — `packages/ui` har 15 komponenter, ingen for bilde;
+`BildeLightbox.tsx` er en lightbox. **Den skal lages.**
+
+#### G1 — én komponent pr. plattform, delt REGEL
+
+- `apps/web/src/components/SignertBilde.tsx` — wrapper `<img>`
+- mobil-ekvivalent — wrapper `<Image>`
+- 🔴 **Delt gjenforsøks-policy i `packages/shared`** (debounce-vindu, maks forsøk). **Web og mobil kan ikke dele
+  komponent** (`<img>` vs RN `<Image>`), **men de skal dele regelen** — ellers drifter de fra hverandre, og da
+  har vi to oppførsler ingen har bestemt.
+
+#### G2 — 🔴 ORDRENS VIKTIGSTE DESIGNVALG: debouncet invalidering, IKKE en signeringsprosedyre
+
+En `fil.signer({ sti })`-prosedyre ville vært enklere for komponenten. **Ikke bygg den.**
+
+🔴 **Begrunnelsen er sikkerhet:** en slik prosedyre må autorisere stien. Gjør den ikke det, er den et orakel som
+gjør «er innlogget + kjenner en sti» til «får fila» — **og da har vi gjenåpnet hullet for enhver innlogget
+bruker i et annet firma.** ⚠️ **En sti-basert signeringsprosedyre uten autorisasjonssjekk er en
+kryssfirma-lekkasje, ikke en bekvemmelighet.**
+
+🟢 **Riktig vei: `onError` → debouncet invalidering av tRPC-queriene → serveren re-emitterer signerte URL-er
+gjennom veien som ALT er autorisert.** Ingen ny prosedyre, ingen ny autorisasjonsflate.
+
+- **Debounce:** en side full av utløpte bilder skal utløse **én** invalidering, ikke femti.
+- **Maks ett gjenforsøk pr. bilde.** 🔴 **Feiler det igjen: vis en tydelig tilstand. Aldri en løkke mot 401.**
+- ⚠️ **Skill 401 fra 404.** En slettet fil skal ikke utløse evige gjenforsøk — det ville gjort en manglende fil
+  til et selvpåført DoS.
+
+#### G3 — gjør feilklassen ulovlig (lag 1 i kvalitetssikring-plan)
+
+🔴 **Dette er delen som hindrer at hullet gjenoppstår, og den er ikke valgfri.**
+
+**En lint-regel som FEILER på en rå `/uploads/`-sti i `src`/`uri` i JSX.**
+[kvalitetssikring-plan.md](../claude/kvalitetssikring-plan.md) lag 1 er «gjør feilklassen ulovlig (lint)» —
+**dette er presis tilfellet den ble skrevet for.**
+
+⚠️ **Uten G3 vokser de 50 + 11 inline-byggingene tilbake, og neste S1-hull kommer av samme grunn som forrige:
+ingen håndhevelse. Regelen ble husket i tre dager sist.**
+
+#### G4 — migrering: FULLSTENDIG, ingen unntaksliste
+
+**De 50 web-linjene (29 filer) og 11 mobil-filene bytter til komponenten i denne ordren.**
+
+🔴 **Ingen allowlist.** En delvis migrering pluss en liste over unntak **er** mønsteret som må huskes — og det
+blir glemt. Endringen er mekanisk (`<img src={`/api${fileUrl}`}>` → `<SignertBilde url={fileUrl}>`), stor i
+linjetall og lav i risiko.
+
+⚠️ **Blir migreringen større enn den ser ut: STOPP og meld, framfor å levere halvveis med en unntaksliste.**
+Da splitter vi ordren — **men standarden er fullstendig.**
+
 ## [4] UFRAVIKELIG
 
 - **Arbeidstre + branch:** cowork bestemmer.
 - **Filer ordren eier:** `apps/api/src/utils/hmac.ts` · `apps/api/src/server.ts` · de bekreftede rutefilene i C
-  · tester. 🔴 **De 50 web-linjene og 11 mobil-filene skal IKKE røres** — signaturen rir i URL-en.
-  ⚠️ **Rører du dem, har du valgt feil lag.**
+  · ny `SignertBilde` (web + mobil) · delt policy i `packages/shared` · lint-regel · de 50 web-linjene og 11
+  mobil-filene (**kun bytte til komponenten**) · tester.
+- 🔴 **Presisering etter at del G kom inn 2026-09-24:** konsumentene SKAL røres, men **kun ved å bytte til
+  komponenten.** ⚠️ **Ingen signeringslogikk i web eller mobil** — signaturen rir i URL-en og lages på
+  serveren. **Legger du signering i en klient, har du valgt feil lag.**
 - 🔴 **`packages/pdf` leser fra disk, ikke over HTTP** — den skal være upåvirket. **Bekreft det, ikke anta det.**
 - 🔴 **Din ordre er input, ikke fasit — mål premisset selv.** Alle linjenumre er målt på `origin/develop`
   2026-09-24.
@@ -179,5 +236,7 @@ Cowork sletter branchen etter merge. Agenten gjør ingenting.
 | 6 | Web/mobil-konsumentene **urørt** | `git diff` |
 | 7 | De 7 bekreftet per fil | Rapport |
 
-🔴 **Ikke i denne ordren:** filnavn/RFC 5987 (del F) · de 61 inline-URL-byggingene · levetiden før Kenneth
-har svart (del E).
+🔴 **Ikke i denne ordren:** filnavn/RFC 5987 (del F).
+
+⚠️ **Merk at de 61 inline-URL-byggingene NÅ ER i ordren** (G4). De sto som «ikke i denne ordren» i
+førsteversjonen, før del G kom inn.
