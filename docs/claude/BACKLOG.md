@@ -261,6 +261,28 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ⚠️ **Konsekvensklasse: ytelse, ikke korrekthet.** Ingen data er feil; spørringer mot de fem tabellene er tregere enn i test. **Det gjør at forskjellen aldri viser seg som en feil — bare som at prod føles treg.**
 
+### 🟡 `uploadsSti.ts` kom inn i `@sitedoc/shared` UTEN test på sitt eget nivå (funnet 2026-09-24 av merge-agenten)
+
+**Funnet fordi et forventet tall ikke steg.** Coworks merge-ordre sa at `shared` skulle stige med den nye delte utility-en. Den sto uendret på **854**.
+
+**Målt:** `packages/shared/src/utils/uploadsSti.ts` finnes, er eksportert i `utils/index.ts`, og har **0 testreferanser** i pakken.
+
+⚠️ **Atferden dekkes indirekte** av mobilens resolver-test og api-ets snubletråd-test. **Men delt kode uten test på sitt eget nivå betyr at den kan endres uten at noen merker det** — og at de to indirekte testene måler noe annet enn funksjonen selv.
+
+🟢 **Fangsten er verdt å merke seg som metode:** merge oppdaget det ikke ved å lese koden, men ved at et **forventet tall ikke materialiserte seg.** Gate-tall med forventning per pakke er derfor mer enn bokføring.
+
+### 🟡 `tsc --noEmit` i `apps/web` er rød på develop — regel 10 fanger den ikke (meldt 2026-09-24 av kontrollplan)
+
+**Kontrollplan meldte:** `apps/web/src/lib/__tests__/bibliotek-mal.test.ts:25–26` feiler `tsc --noEmit`, **også på ren `origin/develop`** — urørt av hans runde.
+
+⚠️ **Regel 10 gater med `next build` + `pnpm --filter @sitedoc/mobile typecheck`.** Begge var grønne. **Hvis `tsc --noEmit` er rød samtidig, finnes det en typefeil-klasse gaten ikke ser** — sannsynligvis fordi `next build` typesjekker byggegrafen, mens testfiler ikke er i den.
+
+🔴 **IKKE BEKREFTET av cowork.** `apps/web/tsconfig.json` inkluderer `**/*.ts` og ekskluderer kun `node_modules`, så filen ER i prosjektet — men om `next build` faktisk kjører den gjennom tsc, er ikke målt.
+
+**Neste steg: én kjøring.** `pnpm --filter @sitedoc/web exec tsc --noEmit` på ren develop. Er den rød mens `next build` er grønn, er det et hull i regel 10 og skal lukkes der — ikke i en enkeltfil.
+
+⚠️ **Feilklassen er kjent:** «en grønn gate som måler noe annet enn den tror». Samme familie som `cmd | grep | tail` og de 25 testfilene som mocket bort Prisma.
+
 ### 🔴 PROD HÅNDHEVER «ÉN PSI PER PROSJEKT» — en regel produktet ikke lenger har. `DROP CONSTRAINT` på en INDEKS er en stille no-op (målt 2026-09-24)
 
 **Funnet ved skjema-sammenligning test mot prod.** Tre avvik i hele skjemaet; dette er det eneste som går den farlige veien.
