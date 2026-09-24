@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { posix } from "node:path";
+import { UPLOADS_PREFIKS } from "@sitedoc/shared";
 
 /**
  * HMAC-signerte fil-URL-er (S1 autorisert filserving).
@@ -17,13 +18,21 @@ import { posix } from "node:path";
  * en `prefiks`-variant; Fase 1 signerer eksakt path.
  */
 
-// 🔴 Standard-levetid for fil-URL-er = 15 min (E, Kenneth-vedtak 2026-09-24).
-// Kort nok til at en lekket URL dør raskt; poenget er å kreve autentisering ved
-// UTSTEDELSE, ikke å gjøre lenker flyktige. Utløp er GJORT USYNLIG av G2: en
-// `<img>`/`<Image>` som får 401 på en utløpt signatur trigger debouncet
-// query-invalidering → re-emisjon gjennom den AUTORISERTE veien (aldri et
-// generisk «signer denne stien»-orakel). Derfor 15 min for ALT, ikke differensiert.
-const STANDARD_LEVETID_MS = 15 * 60 * 1000;
+// 🔴 Standard-levetid for fil-URL-er = 24 TIMER (E, Kenneth-vedtak 2026-09-24).
+//
+// MIDLERTIDIG: 24 t er valgt FORDI del G (selvfornyelse — `SignertBilde` + G2
+// debouncet re-emisjon) IKKE er levert ennå. Uten G ville 15 min gitt tomme
+// bilderammer hver gang en fane står åpen over lunsj (ordre E+G, linje 121-122).
+//
+// 🔴 NÅR G er live: senk til 15 min. Det er ikke valgfritt å huske — to
+// snubletråder håndhever det (`levetid-snubletraad.test.ts`): én feiler når
+// `SignertBilde` finnes men levetiden fortsatt er 24 t, én feiler når 30.11.2026
+// er passert uansett. En kommentar rotnet i 3,5 mnd (Dockerfile.api:36-38); en
+// rød test kan ikke ignoreres.
+export const STANDARD_LEVETID_MS = 24 * 60 * 60 * 1000;
+
+/** 15 min — MÅL-levetiden når del G (selvfornyelse) er live. Snubletråden peker hit. */
+export const LEVETID_NAAR_G_LEVERT_MS = 15 * 60 * 1000;
 
 // Dev-fallback så lokal utvikling/test uten satt secret ikke bryter. I produksjon
 // KREVES FIL_SIGNING_SECRET (kastes ved bruk) — flagget som deploy-forutsetning.
@@ -57,8 +66,6 @@ export function signerFilSti(sti: string, levetidMs = STANDARD_LEVETID_MS): stri
   const sig = beregnSignatur(path, exp);
   return `${path}?exp=${exp}&sig=${sig}`;
 }
-
-const UPLOADS_PREFIKS = "/uploads/";
 
 /** Bærer URL-en alt en `sig=`-parameter? → alt signert (idempotens-vakt). */
 function erAlleredeSignert(url: string): boolean {

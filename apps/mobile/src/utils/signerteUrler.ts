@@ -1,25 +1,23 @@
 /**
  * Display-tid-resolusjon av signerte vedlegg-URL-er (mobil).
  *
- * Bakgrunn: private bilder (`/uploads/privat/…`) serveres signatur-KUN. Serveren
- * signerer URL-ene ved EMISJON (`sjekkliste/oppgave.hentMedId` → `signerVedleggIData`),
- * aldri i lagret data. Rett etter en opplasting bærer `feltVerdier` den RÅ URL-en
- * (fra opplastingssvaret) fram til neste refetch — den 401-er i visning (tom ramme).
+ * 🔴 Fase 1b (2026-09-24): gjelder nå HELE `/uploads/`, ikke bare `privat/`.
+ * Serveren gater hele treet default-deny og signerer ALLE `/uploads/`-URL-er ved
+ * EMISJON (`sjekkliste/oppgave.hentMedId` → `signerVedleggIData`), aldri i lagret
+ * data. Rett etter en opplasting bærer `feltVerdier` den RÅ URL-en (fra
+ * opplastingssvaret) fram til neste refetch — den 401-er i visning (tom ramme).
+ * Før gjaldt dette KUN privat/; nå gjelder det ALT (feltverktøyets vanligste
+ * handling: ta et bilde i felt → vis det umiddelbart).
  *
  * Vi kan IKKE skrive den signerte URL-en tilbake i `feltVerdier`: da persisteres en
  * URL med utløp til `Checklist.data` («forgiftet URL», se `vedleggSignering.ts`).
- * I stedet resolver vi RÅ private URL-er til den signerte serverversjonen KUN i
+ * I stedet resolver vi RÅ `/uploads/`-URL-er til den signerte serverversjonen KUN i
  * visningen, via `hentFeltVerdi`. `feltVerdier` (og dermed synk) forblir rå.
+ *
+ * `UPLOADS_PREFIKS`/`erRaaUploadsUrl` deles med api-gaten via @sitedoc/shared —
+ * ingen tredje kopi av «/uploads/»-regelen.
  */
-
-/** Rå (usignert) privat URL — trenger signatur for å vises. */
-function erRaaPrivatUrl(url: unknown): url is string {
-  return (
-    typeof url === "string" &&
-    url.startsWith("/uploads/privat/") &&
-    !url.includes("sig=")
-  );
-}
+import { UPLOADS_PREFIKS, erRaaUploadsUrl } from "@sitedoc/shared";
 
 /**
  * Samle `vedleggId → URL` fra server-emittert data (`sjekkliste.data`), som ER
@@ -35,7 +33,7 @@ export function samleSignerteVedleggUrler(node: unknown, ut: Map<string, string>
     if (
       typeof o.id === "string" &&
       typeof o.url === "string" &&
-      o.url.startsWith("/uploads/privat/")
+      o.url.startsWith(UPLOADS_PREFIKS)
     ) {
       ut.set(o.id, o.url);
     }
@@ -44,7 +42,7 @@ export function samleSignerteVedleggUrler(node: unknown, ut: Map<string, string>
 }
 
 /**
- * Returnér en kopi av `node` der hvert RÅ private `url`-felt på et vedlegg (matchet
+ * Returnér en kopi av `node` der hvert RÅ `/uploads/`-`url`-felt på et vedlegg (matchet
  * på `id`) er byttet til den signerte serverversjonen. Immutabel: samme referanse
  * hvis ingenting endres (unngår unødvendige re-renders). Lokale `file://`-URL-er og
  * allerede signerte URL-er røres ikke.
@@ -69,7 +67,7 @@ export function resolveSignerteUrler<T>(node: T, map: Map<string, string>): T {
       if (r !== v) endret = true;
       ny[k] = r;
     }
-    if (typeof o.id === "string" && erRaaPrivatUrl(ny.url) && map.has(o.id)) {
+    if (typeof o.id === "string" && erRaaUploadsUrl(ny.url) && map.has(o.id)) {
       ny.url = map.get(o.id);
       endret = true;
     }

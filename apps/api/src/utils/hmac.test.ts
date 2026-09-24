@@ -107,14 +107,16 @@ describe("vurderUploadsFilForesporsel — gate", () => {
   });
 });
 
-describe("signerFilSti — standard-levetid (E = 15 min)", () => {
-  it("🔴 default-levetid er ~15 min (E-vedtak 2026-09-24), ikke lenger 5", () => {
+describe("signerFilSti — standard-levetid (E = 24 t midlertidig, til del G)", () => {
+  it("🔴 default-levetid er ~24 t (E-vedtak 2026-09-24 — G ikke levert ennå)", () => {
+    // Midlertidig 24 t fordi selvfornyelse (del G) ikke er live; snubletrådene i
+    // levetid-snubletraad.test.ts håndhever at den senkes til 15 min når G lander.
     const foer = Date.now();
     const signert = signerFilSti("/uploads/privat/x.jpg");
     const exp = Number(new URLSearchParams(signert.slice(signert.indexOf("?") + 1)).get("exp"));
-    const levetidMin = (exp - foer) / 60000;
-    expect(levetidMin).toBeGreaterThan(14);
-    expect(levetidMin).toBeLessThanOrEqual(15.1);
+    const levetidTimer = (exp - foer) / 3_600_000;
+    expect(levetidTimer).toBeGreaterThan(23.9);
+    expect(levetidTimer).toBeLessThanOrEqual(24.1);
   });
 });
 

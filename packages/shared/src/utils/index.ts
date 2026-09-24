@@ -351,3 +351,5 @@ export {
   matchScore,
   KJERNE_SYNONYMER,
 } from "./sokMatch";
+
+export { UPLOADS_PREFIKS, UPLOADS_PRIVAT_PREFIKS, erRaaUploadsUrl } from "./uploadsSti";
