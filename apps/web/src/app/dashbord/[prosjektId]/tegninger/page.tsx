@@ -29,6 +29,7 @@ interface DokumentflytRad {
 }
 import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw } from "lucide-react";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
+import { invaliderEtterSlett, invaliderEtterRekonverter, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 
@@ -302,8 +303,9 @@ export default function TegningerSide() {
   // Derfor sier knappeteksten «alle». Admin-gatet i serveren (returnerer «Kun admin …»).
   const rekonverterPdfMutation = trpc.tegning.rekonverterPdf.useMutation({
     onSuccess: () => {
-      // Status settes til "converting" server-side → invalidér så banneret følger med.
-      utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
+      // Status settes til "converting" server-side på FLERE tegninger → invalidér både den viste
+      // tegningen (banner) OG lista (søsken-status). Se invaliderEtterRekonverter.
+      invaliderEtterRekonverter(utils, params.prosjektId, aktivTegning?.id ?? "");
     },
   });
 
@@ -311,12 +313,14 @@ export default function TegningerSide() {
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
   const slettMutation = trpc.tegning.slett.useMutation({
     onSuccess: () => {
+      // Invalidér lista FØR navigering — ellers står den slettede raden igjen (samme route → ingen
+      // refetch) og neste klikk treffer findUniqueOrThrow på en rad som er borte.
+      invaliderEtterSlett(utils, params.prosjektId);
       setSlettModalApen(false);
       router.push(`/dashbord/${params.prosjektId}/tegninger`);
     },
-    // Slettevakten svarer BAD_REQUEST med en lesbar melding (hva som bruker tegningen + antall).
-    onError: (error: { message?: string }) => {
-      setSlettFeil(error.message ?? t("tegninger.slettFeilGenerisk"));
+    onError: (error: { message?: string; data?: { code?: string } | null }) => {
+      setSlettFeil(slettFeilTekst(error, t("tegninger.slettFeilGenerisk")));
     },
   });
 
