@@ -261,6 +261,25 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ⚠️ **Konsekvensklasse: ytelse, ikke korrekthet.** Ingen data er feil; spørringer mot de fem tabellene er tregere enn i test. **Det gjør at forskjellen aldri viser seg som en feil — bare som at prod føles treg.**
 
+### 🟡 TEST OG PROD HAR ULIK MIGRERINGSHISTORIKK — seks rullet tilbake, ingen overlapp (målt 2026-09-24)
+
+**Funnet ved å verifisere at deployens migreringer faktisk gikk — ikke fordi noe klaget.** Samme klasse som de fem tapte binærene.
+
+| Miljø | Rullet tilbake | Hvilke |
+|---|---|---|
+| **Prod** (`sitedoc`) | **1** | `20260430120000_add_klasse4_indekser` |
+| **Test** (`sitedoc_test`) | **5** | `20260403120000_psi_building` · `20260429120000_add_klasse1_indekser` · `20260406020000_fiks_rolle_utforer` · `20260505000001_add_organization_module_fase_a` · `20260908120000_reise_terskel_km` |
+
+🟢 **Alle seks er i REN tilstand:** `rolled_back_at` satt, `applied_steps_count = 0`. Ingenting er delvis anvendt, og senere migreringer har gått gjennom.
+
+🔴 **Men listene overlapper ikke i én eneste rad.** Prod mangler klasse4-indeksene; test mangler fem helt andre ting. **Prisma prøver aldri en tilbakerullet migrering igjen** — så hvert miljø bærer sitt eget, permanente hull, og ingen feilmelding vil minne oss på det.
+
+⚠️ **Konsekvensen er ikke at noe er ødelagt i dag — den er at «test og prod har samme skjema» ikke lenger er en sannhet vi kan bygge en gate på.** En verifisering på test kan passere på noe prod ikke har, og omvendt.
+
+**Neste steg (ikke bestilt): én måling, ikke en fiks.** Sammenlign faktisk skjema — `information_schema.columns` + `pg_indexes` — mellom `sitedoc` og `sitedoc_test`, og mot `schema.prisma`. Det svarer på om de seks hullene betyr noe, eller om senere migreringer har dekket dem.
+
+⚠️ **Coworks egen feil i samme måling:** første spørring brukte `NULLS FIRST LIMIT 3` og viste bare tre av fem. **Et `LIMIT` på et ukjent antall er ikke en telling.**
+
 ### 🟡 Sletting av en tegning etterlater filene på disk (funnet 2026-09-24 av dokgen)
 
 **`tegning.slett` er en ren `prisma.drawing.delete`.** Målt mot schema av dokgen ved bygging av slette-knappen:
