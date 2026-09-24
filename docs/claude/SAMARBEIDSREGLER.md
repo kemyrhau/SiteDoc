@@ -1012,6 +1012,16 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 - 🔴 **Avsender VERIFISERER mot origin FØR en hash meldes:** `git ls-remote --heads origin <branch>`. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.** Gjelder **begge veier** — design som melder en gate, og cowork som påstår noe om en branchs tilstand.
 - **Endres et filnavn, føres det gamle navnet som DØDT i innboksen** — ellers leter noen etter en fil som ikke finnes.
 
+#### 🔴 Cowork STADFESTER gaten i merge-ordren — merge skal aldri be om å sjekke den (2026-09-24)
+
+**Merge-agenten kan ikke lese `relay/inbox-cowork.md`.** Den er coworks kanal. En merge-ordre som sier *«merg KUN hvis design har gatet den — står ingen gate i inbox: hopp over»* ber derfor om en verifisering agenten ikke har noen måte å utføre.
+
+**Målt 2026-09-24:** `feat/uploads-signaturgate` @ `a7e9b63e` ble merget uten designgate. Ordren bar betingelsen, men merge kunne ikke prøve den, og leste den som kontekst. **Samme feilklasse som `0ab36a84`** — merge utløst av at branchen fantes, ikke av en gate-melding. 🟢 Konsekvens null: ingenting nådde `main`, verifisert med fire sjekker.
+
+🔴 **Regelen:** cowork **stadfester** gaten i ordren, med sitat og linjenummer — *«Designgatet, inbox-cowork.md:3370»* — eller skriver at den **mangler** og gir ingen merge-kommando i det hele tatt. **En betingelse mottakeren ikke kan prøve, er ikke en gate. Den er en forventning.**
+
+⚠️ **Generaliseringen er den nyttige:** et krav skal kunne oppfylles av den som får det. Kan mottakeren ikke måle betingelsen selv, må avsenderen ha målt den — ellers er kravet dekorasjon, som `cmd | grep | tail`-gaten som alltid returnerte 0.
+
 #### 🔴 En verifiseringsordre skal navngi HANDLINGEN som trigger kodeveien (2026-09-24)
 
 **Ikke «åpne skjermen og se om det virker» — men «gjør DETTE, som får koden til å kjøre».**
