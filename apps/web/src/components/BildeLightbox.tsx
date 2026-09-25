@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from "react";
 import { X, ChevronLeft, ChevronRight, MapPin, Calendar, FileText } from "lucide-react";
 import Link from "next/link";
+import { SignertBilde } from "@/components/SignertBilde";
 
 export interface LightboxBilde {
   id: string;
@@ -87,8 +88,8 @@ export function BildeLightbox({ bilder, aktivIndex, onLukk, onEndreIndex }: Bild
         className="flex max-h-[85vh] max-w-[90vw] flex-col items-center"
         onClick={(e) => e.stopPropagation()}
       >
-        <img
-          src={`/api${bilde.fileUrl}`}
+        <SignertBilde
+          url={bilde.fileUrl}
           alt={bilde.fileName}
           className="max-h-[75vh] max-w-full object-contain"
           crossOrigin="anonymous"

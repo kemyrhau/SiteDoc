@@ -1,9 +1,5 @@
 import type { RapportObjektProps } from "./typer";
-
-/** Web-URL for et opplastet bilde: absolutt URL slippes gjennom, ellers /api-prefiks. */
-function fullBildeUrl(url: string): string {
-  return url.startsWith("http") ? url : `/api${url}`;
-}
+import { SignertBilde } from "@/components/SignertBilde";
 
 /**
  * Bilde med bildetekst (ikke redigerbar) — for PSI og instruksjoner. Speiler
@@ -17,9 +13,8 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
 
   return (
     <figure className="my-3 flex flex-col items-center">
-      {/* eslint-disable-next-line @next/next/no-img-element -- brukeropplastet/ekstern URL, ikke bygg-tid-kjent */}
-      <img
-        src={fullBildeUrl(bildeUrl)}
+      <SignertBilde
+        url={bildeUrl}
         alt={caption || "Instruksjonsbilde"}
         className="max-h-[500px] max-w-full rounded-lg border border-gray-200 object-contain"
       />

@@ -18,20 +18,17 @@ import { UPLOADS_PREFIKS } from "@sitedoc/shared";
  * en `prefiks`-variant; Fase 1 signerer eksakt path.
  */
 
-// 🔴 Standard-levetid for fil-URL-er = 24 TIMER (E, Kenneth-vedtak 2026-09-24).
+// 🟢 Standard-levetid for fil-URL-er = 15 MINUTTER (E, Kenneth-vedtak 2026-09-24).
 //
-// MIDLERTIDIG: 24 t er valgt FORDI del G (selvfornyelse — `SignertBilde` + G2
-// debouncet re-emisjon) IKKE er levert ennå. Uten G ville 15 min gitt tomme
-// bilderammer hver gang en fane står åpen over lunsj (ordre E+G, linje 121-122).
-//
-// 🔴 NÅR G er live: senk til 15 min. Det er ikke valgfritt å huske — to
-// snubletråder håndhever det (`levetid-snubletraad.test.ts`): én feiler når
-// `SignertBilde` finnes men levetiden fortsatt er 24 t, én feiler når 30.11.2026
-// er passert uansett. En kommentar rotnet i 3,5 mnd (Dockerfile.api:36-38); en
-// rød test kan ikke ignoreres.
-export const STANDARD_LEVETID_MS = 24 * 60 * 60 * 1000;
+// Runde 2 (2026-09-25): del G (selvfornyelse — `SignertBilde` + G2 debouncet
+// re-emisjon) ER levert, så levetiden er senket fra den MIDLERTIDIGE 24 t til
+// mål-verdien 15 min. Det er forsvarlig NÅ fordi en utløpt signatur blir et blunk
+// (SignertBilde re-emitterer), ikke en tom bilderamme over lunsj. Snubletråden
+// (`levetid-snubletraad.test.ts`) håndhevet koblingen: da `SignertBilde.tsx` landet,
+// ble en 24 t-verdi her en RØD test — dette er den beslutningen den krevde.
+export const STANDARD_LEVETID_MS = 15 * 60 * 1000;
 
-/** 15 min — MÅL-levetiden når del G (selvfornyelse) er live. Snubletråden peker hit. */
+/** 15 min — MÅL-levetiden når del G (selvfornyelse) er live. Nå == STANDARD_LEVETID_MS. */
 export const LEVETID_NAAR_G_LEVERT_MS = 15 * 60 * 1000;
 
 // Dev-fallback så lokal utvikling/test uten satt secret ikke bryter. I produksjon
