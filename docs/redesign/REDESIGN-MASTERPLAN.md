@@ -94,7 +94,29 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 | **AM 2** attestering | STEG 1 `overtidsgrunnlag.ts` + `ukenorm.ts:46` · STEG 2 `5c4d1e8b` pivot + `beregnUkeAvvik` | **STEG 3 attestantvarsel** — koden ber selv om det: `AttesteringPivot.tsx:13` «FABEL → STEG 3». ⚠️ **«40-timers» finnes ikke som begrep** — normen er konfigurerbar ukenorm |
 | **ON** onboarding | `harLokasjon` + `harTegning` skilt (`prosjekt.ts:287-291`) · firmaveiviser i bruk | Selve gaten er en **menneskelig test** — kan ikke måles i kode |
 | **AG** ansvarsgrense | Fabels tekst levert (`ag-ansvarsgrense-produkttekst-fabel-2026-09-06.md`) | **Null treff i kode og i18n** — teksten er skrevet, ikke innplassert |
-| **P2** inndata-validering | Timer krever kommentar (`dagsseddel.ts:3022`) | Dokumentflyt: `endreStatus` (`sjekkliste.ts:1169`) har `kommentar: z.string().optional()` — **«Send tilbake» uten innhold er fortsatt mulig** |
+| ~~**P2** inndata-validering~~ | ✅ **LEVERT — raden var DRIFT.** Se korreksjonen under | — |
+
+### 🔴 KORREKSJON 2026-09-25 — P2 var LEVERT, raden over var drift
+
+**Målt av kontrollplan før bygging, på coworks ordre.** Remålingen 11.09 skrev at `endreStatus` godtar «Send tilbake» uten innhold. **Det stemte ikke.**
+
+**Kravet ble innført som Kenneth-vedtak 2026-07-21 og herdet i runde 2 (2026-08-02):**
+
+| Lag | Bevis |
+|---|---|
+| Delt kilde | `packages/shared/src/utils/index.ts:343` — `statusKreverBegrunnelse()`, `STATUS_KREVER_BEGRUNNELSE = {dismissed, responded}` |
+| Server-gate | `sjekkliste.ts:1514` + `oppgave.ts:1611` — kaster `BAD_REQUEST` uten `kommentar?.trim()` |
+| Web | `DokumentHandlingsmeny.tsx:572, 619-620` |
+| Mobil | `DokumentHandlingslinje.tsx:336, 625` |
+| Test | `statusHandlinger.test.ts:310-333` — beviser at `responded` + `dismissed` krever, resten ikke |
+
+🟢 **`.optional()` på Zod-nivå er BEVISST:** regelen er betinget per målstatus via runtime-guarden, ikke uniform. **Coworks seks `optional()`-treff var derfor et stedfortredertall, ikke seks hull** — to er guardet, to er riktig valgfrie (`hmsLukk` = admin-exit, ikke tilbakesending), to er kandidater.
+
+🟢 **Og `hmsReturner` er dekket separat:** `oppgave.ts:1815` krever `sporsmaal: z.string().trim().min(1)`. HMS-ens «send tilbake med spørsmål» har alltid krevd innhold.
+
+⚠️ **Dette er fjerde gang planen har bedt om noe som alt var levert** (reise-terskel 09.09, P2-begrunnelse 09.09, mobil-PSI §220 11.09, og nå P2 selv). **Målingen ble gjort fordi vi skulle bygge — og den sparte en hel runde.** Kenneth 2026-09-25: *«det er ikke vits å remåle noe som vi ikke har tenkt å bygge nå»*. **Regelen holder begge veier: mål det du skal bygge, ikke det du kanskje bygger.**
+
+🔴 **ÉN genuin beslutning gjenstår — meldt, ikke gjettet:** skal **Gjenåpne** kreve begrunnelse? Komplikasjonen er at `draft` bærer to handlinger — «Trekk tilbake» (`received→draft`, angre egen send) og «Gjenåpne» (`terminal→draft`). `statusKreverBegrunnelse` nøkler kun på `nyStatus` og kan ikke skille dem uten også å ta `fraStatus`.
 
 ### ❌ IKKE BYGGET — begge søkeformer
 

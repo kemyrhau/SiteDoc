@@ -824,6 +824,24 @@ setningen som førte trafikklys som eget funn, og svarte at de ikke var bestilt.
 spørsmålet var umulig å svare riktig på.** Samme klasse som de fem foreldede ordrefilene — en
 ordre som ikke lenger stemmer med virkeligheten, denne gangen fordi cowork selv flyttet den.
 
+### 🔴 KENNETH VIL HA FREMDRIFT, IKKE DIALOG (Kenneth-vedtak 2026-09-26)
+
+> **Kenneth:** *«du er den som skal foreslå neste oppgave og gi ordrer. JEG ER IKKE INTERESSERT I DIALOG. kun fremdrift. hvis jeg skal delegere oppgaven til design, så gjør jeg det.»*
+> *«din anbefaling drukner i masse svada om målinger som betaler seg på første forsøk. jeg er IKKE interessert i småprat.»*
+
+**Fire krav, alle brutt i samme melding 2026-09-26:**
+
+| Krav | Bruddet |
+|---|---|
+| 🔴 **Cowork BESLUTTER og gir ordre.** Spørsmål til Kenneth kun når beslutningen faktisk er hans | Cowork la «skal Gjenåpne kreve begrunnelse?» til Kenneth. Det var et produktvalg cowork hadde grunnlag for å ta — agenten hadde alt målt begge alternativene |
+| 🔴 **En anbefaling kommer ALLTID med kommandoen som utfører den** | Cowork ga tre alternativer og en anbefaling, og null limbar blokk. Kenneth måtte be om ordren |
+| 🔴 **Ingen småprat rundt anbefalingen** | «Målingen betalte for seg selv på første forsøk» er selvros som drukner budskapet |
+| 🔴 **Et forbehold skal være KONKRET eller utelates** | Cowork skrev «hvor ofte gjenåpnes dokumenter i praksis? Du kjenner arbeidsflyten». Kenneth: *«hvilken arbeidsflyt skal jeg forstå mot hvor ofte et dokument gjenåpnes? og i hvilken kontekst? jeg kan ikke forstå konsekvensen av en beslutning basert på denne vage beskrivelsen»*. **Han hadde rett: bruksfrekvensen var noe cowork kunne MÅLT med én spørring, ikke noe Kenneth skulle gjette** |
+
+🔴 **Regelen, operativt:** når cowork står mellom alternativer — **velg**, begrunn i én setning som kan etterprøves, og lever ordren i samme melding. **Er valget virkelig Kenneths** (rettigheter, skjema, penger, prod-risiko, produktretning), skal konflikten stå **tydelig navngitt** med konsekvensen av hvert alternativ i konkrete ord — ikke «det avhenger av arbeidsflyten din».
+
+⚠️ **Og et forbehold cowork kan måle bort, skal måles bort før meldingen sendes.** «Dette kan endre svaret, men jeg vet ikke» er ikke et forbehold — det er en umålt påstand.
+
 ### Spørsmål: samle, ikke drypp
 
 Mange små avklaringer koster Kenneth mer enn de sparer. Tenk ferdig, mål det som
