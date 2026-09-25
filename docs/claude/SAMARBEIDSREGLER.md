@@ -1077,7 +1077,25 @@ Før noen agent ber Kenneth om miljøoppsett: (1) `ls` etter `.env*` på kjente 
 All merge-koreografi går gjennom cowork:
 - **Rekkefølge:** timer og redesign treffer ikke develop samtidig uten build-gate mellom — én verifisert ting om gangen.
 - **Regel 9:** `redesign/navigasjon → develop` alltid `--no-ff` (synlige, revertbare grenser).
-- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck) **OG grønt `pnpm --filter @sitedoc/mobile typecheck` (exit 0)**. Mobil-gaten er nå blokkerende — baseline ble ryddet 2026-07-30 (`fba830da`, branch `fix/mobil-typecheck-groenn`).
+- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck) **OG grønt `pnpm --filter @sitedoc/mobile typecheck` (exit 0)**.
+
+  > 🔴 **HULL MÅLT 2026-09-24 — `next build` typesjekker IKKE testfiler.** Kontrollplan meldte at `tsc --noEmit` i `apps/web` var rød mens gaten var grønn; merge-agenten **bekreftet det på ren `origin/develop` (`4c5a02cb`)** etter `pnpm install` + fire `prisma generate`, så det var kodens tilstand og ikke treets:
+  >
+  > ```
+  > tsc exit=1
+  > src/lib/__tests__/bibliotek-mal.test.ts(25,14): error TS2532: Object is possibly 'undefined'.
+  > src/lib/__tests__/bibliotek-mal.test.ts(26,14): error TS2532: Object is possibly 'undefined'.
+  > ```
+  >
+  > **Årsaken:** `next build` typesjekker **byggegrafen**. `src/lib/__tests__/*` er ikke i den, selv om `apps/web/tsconfig.json` inkluderer `**/*.ts`. **Typedrift i web-testfiler har derfor vært usynlig for gaten.**
+  >
+  > 🔴 **Gaten utvides med et tredje ledd:**
+  > ```sh
+  > pnpm --filter @sitedoc/web exec tsc --noEmit > /tmp/tsc.log 2>&1; echo "tsc exit=$?"; tail -15 /tmp/tsc.log
+  > ```
+  > **Alle tre skal ha `exit=0`.** ⚠️ **Dette er ikke redundans:** de tre måler ulike ting — `next build` måler byggegrafen, `mobile typecheck` måler mobil, `tsc --noEmit` måler alt i web-prosjektet inkludert tester.
+  >
+  > 🟢 **Og fangsten er metodisk verdt å merke seg:** hullet ble funnet av en agent som meldte en rød tsc han ikke hadde forårsaket, framfor å ignorere den som «ikke min». **En gate man ikke har målt, er en påstand** — det gjaldt `cmd | grep | tail` i august, og det gjaldt denne i september. Mobil-gaten er nå blokkerende — baseline ble ryddet 2026-07-30 (`fba830da`, branch `fix/mobil-typecheck-groenn`).
 
   > **Kjør `prisma generate` for de 4 db-pakkene FØR gaten** (`db`, `db-timer`, `db-maskin`, `db-varelager`) — ellers rapporterer tsc 400+ falske «implicit any»-feil fra ugenererte Prisma-klienter (`.prisma/*-client`), som maskerer de reelle. I Docker-deployen bakes generate inn; lokalt/i gaten er det et eksplisitt forsteg.
   >

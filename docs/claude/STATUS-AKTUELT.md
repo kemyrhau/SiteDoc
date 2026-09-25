@@ -86,6 +86,23 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 🔴 **Formålet: fem PDF-tegninger sto låst i prod siden 2026-09-16** med `spawn pdftoppm ENOENT` — en feil som ikke lenger gjaldt, men som verken kunne repareres eller slettes. `rekonverterPdf` fantes i koden hele tiden **uten en eneste kaller**. ⚠️ `Oversikt Lakselv lufthavn` blir stående — den mangler DWG-konverterer, ikke `pdftoppm`.
 
+### 🟢 2026-09-25 — REGEL 10 HAR TRE LEDD, og `tsc --noEmit` er grønt for første gang. develop `4b5a148b`.
+
+`fix/zoom-musepeker` `3faadbec` + `feat/maaling-i-tegning` `c644bafb`, i den rekkefølgen — zoom først fordi den bar fiksen som gjorde det nye gate-leddet grønt.
+
+**Gate:** db 248 · api 605 · pdf 128 · shared 854→**867** (+13) · web 319→**321** (+2) · mobil 44 · 7/7. **Alle tre ledd exit=0.**
+
+🔴 **Regel 10 er utvidet med `pnpm --filter @sitedoc/web exec tsc --noEmit`.** Hullet ble målt 24.09: `next build` typesjekker byggegrafen, og `src/lib/__tests__/*` er ikke i den. **En TS2532 hadde ligget usett på develop.** Full begrunnelse i [SAMARBEIDSREGLER § Regel 10](SAMARBEIDSREGLER.md).
+
+🟢 **Zoom-fiksen:** `requestAnimationFrame` satte scroll FØR elementet fikk ny størrelse, så nettleseren klippet til gammelt maksimum og visningen landet for høyt. Flyttet til `useLayoutEffect([zoom])`. **Matematikken er urørt** — formelen er trukket ordrett ut i en ren funksjon, `git diff` viser ingen endring i regnestykket. Rød-først ga `expected +0 to be 100` — symptomet reprodusert i en test.
+🔴 **Visuell bekreftelse på ekte A3-tegning gjenstår** — at zoom faktisk treffer pekeren kan bare sees.
+
+🟢 **Måling i tegning:** `mmPrPiksel` **utledet** av papirbredde ÷ bildebredde (420,00 mm ÷ 3308 px), ikke av DPI-konstanten — med test som viser at 300 DPI gir samme virkelige mål. Akseptansetesten mot tegningens egne påførte mål traff **2869,4 mm mot 2870**, avvik **−0,021 %**. Målestokk-uttrekket ankret på «Mål»/«Målestokk»/«Scale» gir `1:50`; et løst grep gir `60/37` fra brannklassekoden `IV11_EI60/37dB`. **Begge vist, som ordren krevde.**
+
+⚠️ **Åpent:** Kenneth vil at tegningens egen målestokk skal huskes OG kunne overstyres ved kalibrering. Med dagens to felt kollapser opprinnelsen til «manuell» ved bekreftelse. **Egen runde — migreringen er additiv og ikke kjørt.**
+
+🟢 **Gate-tall som måling, ikke bokføring:** `shared` steg (+13) fordi `maaling.ts` kom **med** `maaling.test.ts`. Forrige runde sto `shared` stille fordi `uploadsSti.ts` kom **uten**. **Samme signal, motsatt utfall — og forskjellen var synlig i tallet før noen leste koden.**
+
 ### ✅ 2026-09-24 — TRE LAG, TRE FIKSER. De fem tegningene er ryddet i prod.
 
 **Kenneth bekreftet: «converter virket».** Fem PDF-tegninger som sto låst siden 2026-09-16 er konvertert.
