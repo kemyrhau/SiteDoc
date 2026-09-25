@@ -22,8 +22,8 @@ describe("bibliotek-mal — feltredigeringens rene hjelpere", () => {
       const g = grupperEtterFase(felter);
       expect(g.map((x) => x.fase)).toEqual(["FØR", "ETTER", null]);
       // FØR bevarer array-rekkefølgen (b før d) med sine globale indekser
-      expect(g[0].felter.map((f) => f.felt.label)).toEqual(["b", "d"]);
-      expect(g[0].felter.map((f) => f.indeks)).toEqual([1, 3]);
+      expect(g[0]!.felter.map((f) => f.felt.label)).toEqual(["b", "d"]);
+      expect(g[0]!.felter.map((f) => f.indeks)).toEqual([1, 3]);
     });
   });
 

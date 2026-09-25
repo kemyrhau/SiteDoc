@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { rensSvg } from "@/lib/sanitize";
 import { useByggeplass, velgerRehydreringsHandling } from "@/kontekst/byggeplass-kontekst";
 import { byggOpprettInput } from "@/lib/opprettFraTegning";
+import { ønsketZoomScroll } from "@/lib/zoom-scroll";
 import { useTranslation } from "react-i18next";
 import { avledPunktTilstand, isoUkeRef, OVER_FRIST_KANT, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
 import { PeriodeFilter } from "@/components/PeriodeFilter";
@@ -123,6 +124,9 @@ export default function TegningerSide() {
 
   // Zoom
   const [zoom, setZoom] = useState(STANDARD_ZOOM);
+  // Ønsket scroll etter musehjul-zoom; settes i useLayoutEffect (etter at
+  // bredden er oppdatert), ikke i rAF (før), slik at verdien ikke klippes.
+  const ønsketScrollRef = useRef<{ left: number; top: number } | null>(null);
 
   // Klikkemodus: inspeksjon (vis DWG-egenskaper) eller plassering (opprett oppgave)
   const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering" | "omrade">("plassering");
@@ -412,12 +416,10 @@ export default function TegningerSide() {
         const neste = Math.min(MAKS_ZOOM, Math.max(MIN_ZOOM, prev * faktor));
         const skala = neste / prev;
 
-        requestAnimationFrame(() => {
-          if (!el) return;
-          // Innholdspunktet under musen skaleres med faktoren
-          el.scrollLeft = contentX * skala - viewX;
-          el.scrollTop = contentY * skala - viewY;
-        });
+        // Lagre ønsket scroll; den settes i useLayoutEffect på `zoom` — etter at
+        // innholdet har fått sin nye bredde, ellers klipper nettleseren verdien
+        // til gammelt maksimum og visningen lander for høyt oppe.
+        ønsketScrollRef.current = ønsketZoomScroll({ contentX, contentY, viewX, viewY, skala });
 
         return neste;
       });
@@ -469,6 +471,18 @@ export default function TegningerSide() {
       window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [tegningId, isLoading]);
+
+  // Sett scroll etter musehjul-zoom. useLayoutEffect kjører etter DOM-mutasjon og
+  // layout (bredden er oppdatert til `zoom * 100%`), men før maling — så verdien
+  // klippes ikke til gammelt maksimum slik den gjorde i requestAnimationFrame.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    const mål = ønsketScrollRef.current;
+    if (!el || !mål) return;
+    el.scrollLeft = mål.left;
+    el.scrollTop = mål.top;
+    ønsketScrollRef.current = null;
+  }, [zoom]);
 
   function lukkModal() {
     setVisOpprettModal(false);
