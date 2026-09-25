@@ -15,6 +15,7 @@ import {
 import { harMeningsfullLabel } from "@sitedoc/pdf";
 import { Input, Button, Badge } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
+import { SignertBilde } from "@/components/SignertBilde";
 import { useTranslation } from "react-i18next";
 import type { MalObjekt } from "./DraggbartFelt";
 
@@ -317,8 +318,8 @@ export function FeltKonfigurasjon({
                 className="w-full text-xs file:mr-2 file:rounded file:border-0 file:bg-sitedoc-primary file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
               />
               {(config.imageUrl as string) && (
-                <img
-                  src={(config.imageUrl as string).startsWith("http") ? (config.imageUrl as string) : `/api${config.imageUrl as string}`}
+                <SignertBilde
+                  url={config.imageUrl as string}
                   alt={t("malbygger.forhandsvisning")}
                   className="mt-2 max-h-40 rounded-lg border border-gray-200 object-contain"
                 />

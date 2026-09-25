@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input } from "@sitedoc/ui";
+import { SignertBilde } from "@/components/SignertBilde";
 import {
   MapPin,
   Trash2,
@@ -888,8 +889,8 @@ export function GeoReferanseEditor({
                 )}
               </div>
             ) : erBilde ? (
-              <img
-                src={`/api${tegning.fileUrl}`}
+              <SignertBilde
+                url={tegning.fileUrl}
                 alt={tegning.name}
                 className="block w-full"
                 draggable={false}

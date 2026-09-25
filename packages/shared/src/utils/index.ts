@@ -353,3 +353,11 @@ export {
 } from "./sokMatch";
 
 export { UPLOADS_PREFIKS, UPLOADS_PRIVAT_PREFIKS, erRaaUploadsUrl } from "./uploadsSti";
+
+export {
+  SIGNERT_BILDE_DEBOUNCE_MS,
+  SIGNERT_BILDE_MAKS_FORSOK,
+  lesExpFraUrl,
+  erUtloptSignatur,
+  lagInvalideringsDebounce,
+} from "./signertBildePolicy";

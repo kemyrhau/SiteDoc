@@ -9,6 +9,7 @@ import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X, FileText, Download } fr
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { SignertBilde } from "@/components/SignertBilde";
 
 export default function DokumentLeser() {
   useToppbarFiltre({ byggeplass: false });
@@ -194,8 +195,8 @@ export default function DokumentLeser() {
             case "image":
               return blokk.imageUrl ? (
                 <figure key={blokk.id} className="my-4">
-                  <img
-                    src={`/api${blokk.imageUrl}`}
+                  <SignertBilde
+                    url={blokk.imageUrl}
                     alt=""
                     className={`mx-auto rounded-lg border border-gray-200 shadow-sm ${
                       blokk.imageUrl.includes("_full.") ? "w-full" : "max-w-full h-auto"

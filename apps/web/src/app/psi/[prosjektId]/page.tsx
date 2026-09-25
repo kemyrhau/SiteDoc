@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { ShieldCheck, ChevronRight, Check, Globe, CheckCircle, XCircle } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { SignertBilde } from "@/components/SignertBilde";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -545,10 +546,9 @@ function WebObjektRenderer({
       const url = (objekt.config.imageUrl as string) ?? "";
       const caption = oversatt(objekt, "caption", spraak);
       if (!url) return null;
-      const fullUrl = url.startsWith("http") ? url : `/api${url}`;
       return (
         <figure className="my-4">
-          <img src={fullUrl} alt={caption} className="mx-auto max-w-full rounded-lg" loading="lazy" />
+          <SignertBilde url={url} alt={caption} className="mx-auto max-w-full rounded-lg" loading="lazy" />
           {caption && <figcaption className="mt-1.5 text-center text-sm italic text-gray-500">{caption}</figcaption>}
         </figure>
       );

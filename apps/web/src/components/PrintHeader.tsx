@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { SignertBilde } from "@/components/SignertBilde";
 
 export interface PrintHeaderProps {
   prosjektnavn: string;
@@ -16,11 +17,6 @@ export interface PrintHeaderProps {
   status?: string | null;
   byggeplassNavn?: string | null;
   tegningNavn?: string | null;
-}
-
-function logoSrc(url: string): string {
-  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
-  return url;
 }
 
 export function PrintHeader({
@@ -50,8 +46,8 @@ export function PrintHeader({
       <div className="flex items-start justify-between border-b border-gray-300 px-4 py-2">
         <div className="flex items-start gap-4">
           {logoUrl && (
-            <img
-              src={logoSrc(logoUrl)}
+            <SignertBilde
+              url={logoUrl}
               alt="Firmalogo"
               className="max-h-[60px] max-w-[120px] object-contain"
             />

@@ -35,6 +35,7 @@ import type { MalObjekt } from "./DraggbartFelt";
 import type { TreObjekt } from "./typer";
 import { useMalDatakilde, tilMalObjekt, type MalNivaa } from "./useMalDatakilde";
 import { OppdaterFraHovedmalModal } from "./OppdaterFraHovedmalModal";
+import { SignertBilde } from "@/components/SignertBilde";
 import { MapPin, Pencil, FileText, Eye, EyeOff, AlertTriangle, Globe, Check, Building2, RefreshCw } from "lucide-react";
 
 // Hent streng-verdi fra opsjon (støtter både string og {label, value}-format)
@@ -1200,8 +1201,8 @@ function PsiPreviewObjekt({ objekt }: { objekt: MalObjekt }) {
       return (
         <figure className="mb-4">
           {url ? (
-            <img
-              src={url.startsWith("http") ? url : `/api${url}`}
+            <SignertBilde
+              url={url}
               alt={caption}
               className="max-w-full rounded-lg border border-gray-200"
             />

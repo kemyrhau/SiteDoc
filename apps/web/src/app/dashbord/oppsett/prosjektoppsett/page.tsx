@@ -23,6 +23,7 @@ import {
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { EksportSeksjon } from "./EksportSeksjon";
+import { SignertBilde } from "@/components/SignertBilde";
 
 // Leaflet krever window — laster dynamisk uten SSR
 const KartVelgerDynamic = dynamic(
@@ -298,8 +299,8 @@ export default function ProsjektoppsettSide() {
           <div className="flex items-center gap-4">
             {logoUrl ? (
               <div className="relative">
-                <img
-                  src={logoUrl.startsWith("/uploads/") ? `/api/uploads${logoUrl.replace("/uploads", "")}` : logoUrl}
+                <SignertBilde
+                  url={logoUrl}
                   alt="Firmalogo"
                   className="max-h-[60px] max-w-[200px] object-contain"
                 />

@@ -12,6 +12,7 @@ import { Spinner } from "@sitedoc/ui";
 import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
 import type { ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
 import { BildeLightbox, type LightboxBilde } from "@/components/BildeLightbox";
+import { SignertBilde } from "@/components/SignertBilde";
 import {
   beregnTransformasjon,
   gpsTilTegning,
@@ -455,8 +456,8 @@ export default function BilderSide() {
                                 onClick={() => åpneLightbox(bilder, idx)}
                                 className="group relative aspect-square overflow-hidden rounded-md border border-gray-100 bg-gray-50"
                               >
-                                <img
-                                  src={`/api${b.fileUrl}`}
+                                <SignertBilde
+                                  url={b.fileUrl}
                                   alt={b.fileName}
                                   className="h-full w-full object-cover transition-transform group-hover:scale-105"
                                   crossOrigin="anonymous"
@@ -759,8 +760,8 @@ export default function BilderSide() {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
               >
-                <img
-                  src={fileUrl}
+                <SignertBilde
+                  url={td?.fileUrl}
                   alt={aktivTegning.name}
                   className="block w-full"
                   crossOrigin="anonymous"
@@ -872,8 +873,8 @@ export default function BilderSide() {
                     onClick={() => åpneLightbox(gridBilder, idx)}
                     className="group relative aspect-square overflow-hidden rounded border border-gray-100 bg-gray-50"
                   >
-                    <img
-                      src={`/api${b.fileUrl}`}
+                    <SignertBilde
+                      url={b.fileUrl}
                       alt={b.fileName}
                       className="h-full w-full object-cover transition-transform group-hover:scale-105"
                       crossOrigin="anonymous"
@@ -1174,8 +1175,8 @@ function KartVisningMedValg({
                 key={b.id}
                 className="flex items-center gap-3 border-b border-gray-100 px-3 py-2"
               >
-                <img
-                  src={`/api${b.fileUrl}`}
+                <SignertBilde
+                  url={b.fileUrl}
                   alt={b.fileName}
                   className="h-12 w-12 shrink-0 rounded object-cover"
                   crossOrigin="anonymous"

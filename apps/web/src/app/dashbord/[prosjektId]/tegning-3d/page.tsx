@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useTreDViewer } from "@/kontekst/tred-viewer-kontekst";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { SignertBilde } from "@/components/SignertBilde";
 import {
   beregnTransformasjon,
   tegningTilGps,
@@ -835,9 +836,8 @@ export default function Tegning3DSide() {
                   </>
                 ) : (
                   /* Bilde (SVG/PNG) */
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={tegningUrl}
+                  <SignertBilde
+                    url={valgtTegning?.fileUrl}
                     alt={valgtTegning?.name ?? t("nav.tegninger")}
                     className="max-w-none select-none"
                     onPointerDown={handleImgPointerDown}

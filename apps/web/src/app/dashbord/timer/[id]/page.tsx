@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
+import { SignertBilde } from "@/components/SignertBilde";
 import {
   ArrowLeft,
   Pencil,
@@ -1403,8 +1404,8 @@ function RaderTillegg({
                       rel="noopener noreferrer"
                       title={v.fileName}
                     >
-                      <img
-                        src={`/api${v.fileUrl}`}
+                      <SignertBilde
+                        url={v.fileUrl}
                         alt={t("timer.vedlegg.tittel")}
                         className="h-14 w-14 rounded border border-gray-200 object-cover hover:opacity-80"
                       />
@@ -2489,9 +2490,8 @@ function TilleggRadDialog({
                 <div className="flex flex-wrap gap-2">
                   {radVedlegg.map((v) => (
                     <div key={v.id} className="relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api${v.fileUrl}`}
+                      <SignertBilde
+                        url={v.fileUrl}
                         alt={v.fileName}
                         className="h-16 w-16 rounded border border-gray-200 object-cover"
                       />
@@ -2648,9 +2648,8 @@ function RaderUtlegg({
                       rel="noopener noreferrer"
                       title={v.fileName}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api${v.fileUrl}`}
+                      <SignertBilde
+                        url={v.fileUrl}
                         alt={t("timer.vedlegg.tittel")}
                         className="h-14 w-14 rounded border border-gray-200 object-cover hover:opacity-80"
                       />
@@ -3135,9 +3134,8 @@ function UtleggRadDialog({
                 <div className="flex flex-wrap gap-2">
                   {radVedlegg.map((v) => (
                     <div key={v.id} className="relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api${v.fileUrl}`}
+                      <SignertBilde
+                        url={v.fileUrl}
                         alt={v.fileName}
                         className="h-16 w-16 rounded border border-gray-200 object-cover"
                       />

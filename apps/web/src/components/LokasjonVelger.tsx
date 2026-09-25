@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, Button } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
+import { SignertBilde } from "@/components/SignertBilde";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { harTegningsmarkor } from "@sitedoc/shared";
@@ -513,9 +514,9 @@ export function LokasjonVelger({
                     onClick={handleImgKlikk}
                   >
                     <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "center center", transition: isPanning ? "none" : "transform 0.1s" }}>
-                      <img
+                      <SignertBilde
                         ref={imgRef}
-                        src={tegningUrl}
+                        url={tegningInfo?.fileUrl}
                         alt="Tegning"
                         className="w-full"
                         draggable={false}

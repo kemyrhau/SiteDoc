@@ -32,6 +32,7 @@ import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
 import { invaliderEtterSlett, invaliderEtterRekonverter, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
+import { SignertBilde } from "@/components/SignertBilde";
 
 interface Markør {
   id: string;
@@ -976,8 +977,8 @@ export default function TegningerSide() {
                   dangerouslySetInnerHTML={{ __html: klikkModus === "inspeksjon" && svgInnholdInspeksjon ? svgInnholdInspeksjon : svgInnhold }}
                 />
               ) : (
-                <img
-                  src={fileUrl}
+                <SignertBilde
+                  url={tegning.fileUrl}
                   alt={tegning.name}
                   className="block w-full"
                   crossOrigin="anonymous"

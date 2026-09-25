@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Modal } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
+import { SignertBilde } from "@/components/SignertBilde";
 import type { Vedlegg } from "./typer";
 
 interface TegningsModalProps {
@@ -250,9 +251,9 @@ export function TegningsModal({
         {/* Tegningsvisning */}
         {valgtTegningDetalj?.fileUrl && (
           <div className="overflow-hidden rounded-lg border border-gray-200" style={{ maxHeight: 400 }}>
-            <img
+            <SignertBilde
               ref={bildeRef}
-              src={valgtTegningDetalj.fileUrl}
+              url={valgtTegningDetalj.fileUrl}
               alt={valgtTegningDetalj.name}
               className="w-full object-contain"
               crossOrigin="anonymous"

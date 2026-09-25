@@ -6,6 +6,7 @@ import { Paperclip, Upload, Clipboard, Trash2, Map, X, ChevronLeft, ChevronRight
 import { formaterDatoTidPunkt } from "@sitedoc/pdf";
 import type { Vedlegg } from "./typer";
 import { TegningsModal } from "./TegningsModal";
+import { SignertBilde } from "@/components/SignertBilde";
 
 interface FeltDokumentasjonProps {
   kommentar: string;
@@ -28,11 +29,6 @@ function erBildeType(filnavn: string): boolean {
   return /\.(png|jpg|jpeg|gif|webp)$/i.test(filnavn);
 }
 
-function vedleggUrl(url: string): string {
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
-  return url;
-}
 
 export function FeltDokumentasjon({
   kommentar,
@@ -180,8 +176,8 @@ export function FeltDokumentasjon({
                 style={{ width: 72, height: 72 }}
               >
                 {v.type === "bilde" ? (
-                  <img
-                    src={vedleggUrl(v.url)}
+                  <SignertBilde
+                    url={v.url}
                     alt={v.filnavn}
                     className="h-full w-full object-cover"
                   />
@@ -256,8 +252,8 @@ export function FeltDokumentasjon({
                 </button>
               </>
             )}
-            <img
-              src={vedleggUrl(lbBilde.url)}
+            <SignertBilde
+              url={lbBilde.url}
               alt={lbBilde.filnavn}
               className="max-h-[90vh] max-w-[90vw] rounded object-contain"
               onClick={(e) => e.stopPropagation()}
@@ -292,8 +288,8 @@ export function FeltDokumentasjon({
                   <div className="grid grid-cols-2 gap-3">
                     {bildeVedlegg.map((v) => (
                       <div key={v.id}>
-                        <img
-                          src={vedleggUrl(v.url)}
+                        <SignertBilde
+                          url={v.url}
                           alt={v.filnavn}
                           className="w-full rounded border border-gray-200 object-cover"
                           style={{ aspectRatio: "5/4" }}
