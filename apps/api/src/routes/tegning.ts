@@ -13,6 +13,8 @@ import {
   drawingTypeSchema,
   drawingStatusSchema,
   geoReferanseSchema,
+  utledMmPrPiksel,
+  finnMalestokkFraTekst,
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserProsjektIkkeFrosset, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
@@ -27,6 +29,50 @@ async function hentBildeDimensjoner(filsti: string): Promise<{ width: number; he
     if (meta.width && meta.height) return { width: meta.width, height: meta.height };
     return null;
   } catch { return null; }
+}
+
+/** Papirbredde (mm) fra pdfinfo ("Page size: W x H pts"). Null hvis ukjent. */
+async function hentPapirbreddeMm(pdfFilSti: string): Promise<number | null> {
+  try {
+    const { stdout } = await execFileAsync("pdfinfo", [pdfFilSti], { timeout: 15000 });
+    const breddeRaw = stdout.match(/Page size:\s*([\d.]+)\s*x\s*[\d.]+\s*pts/i)?.[1];
+    if (breddeRaw === undefined) return null;
+    const breddePts = parseFloat(breddeRaw);
+    if (!Number.isFinite(breddePts) || breddePts <= 0) return null;
+    return (breddePts * 25.4) / 72; // pts → mm
+  } catch {
+    return null;
+  }
+}
+
+/** Målestokk-forslag fra tittelfeltet (pdftotext side 1). Null hvis ikke funnet. */
+async function hentMalestokkForslag(pdfFilSti: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync("pdftotext", ["-f", "1", "-l", "1", pdfFilSti, "-"], { timeout: 15000 });
+    return finnMalestokkFraTekst(stdout);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Målemetadata etter PDF→PNG-konvertering: mm/piksel (papirbredde ÷ pikselbredde)
+ * og et målestokk-forslag fra tittelfeltet. Utledningen er selvvaliderende —
+ * endres DPI-flagget over, følger både papirbredde og pikselbredde med, så
+ * mm/piksel holder. pdfinfo/pdftotext følger med poppler-utils (samme pakke som
+ * pdftoppm), så ingen ny avhengighet. Feiler ett steg, blir feltet NULL — aldri
+ * en gjettet verdi.
+ */
+async function utledMaalemetadata(pdfFilSti: string, pngFilnavn: string): Promise<{
+  dim: { width: number; height: number } | null;
+  mmPrPiksel: number | null;
+  scaleForslag: string | null;
+}> {
+  const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, pngFilnavn));
+  const papirBreddeMm = await hentPapirbreddeMm(pdfFilSti);
+  const mmPrPiksel = papirBreddeMm && dim?.width ? utledMmPrPiksel(papirBreddeMm, dim.width) : null;
+  const scaleForslag = await hentMalestokkForslag(pdfFilSti);
+  return { dim, mmPrPiksel, scaleForslag };
 }
 
 // Absolutt sti til uploads — env-variabel for pålitelighet på tvers av web/api-prosesser
@@ -287,8 +333,13 @@ export const tegningRouter = router({
             const ms = Date.now() - start;
             console.log(`[PDF] Konvertering fullført på ${ms}ms: ${pngFilnavn}`);
 
-            // Hent dimensjoner fra konvertert PNG
-            const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, pngFilnavn));
+            // Dimensjoner + målemetadata (mm/piksel, målestokk-forslag) fra konvertert PNG
+            const { dim, mmPrPiksel, scaleForslag } = await utledMaalemetadata(pdfFilSti, pngFilnavn);
+            // Forhåndsutfyll målestokk KUN når brukeren ikke selv oppga én (aldri overskriv).
+            // Forslaget er «tittelfelt» og ubekreftet — verktøyet er avslått til et menneske bekrefter.
+            const settForslag = !input.scale && scaleForslag
+              ? { scale: scaleForslag, scaleKilde: "tittelfelt" as const }
+              : {};
 
             await ctx.prisma.drawing.update({
               where: { id: tegning.id },
@@ -297,10 +348,12 @@ export const tegningRouter = router({
                 fileType: "png",
                 imageWidth: dim?.width ?? null,
                 imageHeight: dim?.height ?? null,
+                mmPrPiksel,
+                ...settForslag,
                 conversionStatus: "done",
               },
             });
-            console.log(`[PDF] Database oppdatert: tegning ${tegning.id} → PNG`);
+            console.log(`[PDF] Database oppdatert: tegning ${tegning.id} → PNG (mm/px=${mmPrPiksel ?? "null"}, målestokk-forslag=${scaleForslag ?? "ingen"})`);
           } catch (err) {
             const melding = err instanceof Error ? err.message : "Ukjent feil";
             console.error(`[PDF] Konvertering FEILET for tegning ${tegning.id}: ${melding}`);
@@ -330,6 +383,9 @@ export const tegningRouter = router({
         status: tegningStatuser.optional(),
         floor: z.string().max(20).optional(),
         scale: z.string().max(20).optional(),
+        // Kilde til `scale` — settes når et menneske bekrefter/kalibrerer målestokken.
+        // Måleverktøyet er avslått til kilden er menneske-bekreftet eller georeferanse.
+        scaleKilde: z.enum(["tittelfelt", "manuell", "kalibrert", "georeferanse"]).optional(),
         description: z.string().optional(),
         originator: z.string().max(255).optional(),
         byggeplassId: z.string().uuid().nullable().optional(),
@@ -656,7 +712,7 @@ export const tegningRouter = router({
             { conversionStatus: "failed" },
           ],
         },
-        select: { id: true, fileUrl: true, name: true },
+        select: { id: true, fileUrl: true, name: true, scale: true },
       });
 
       if (pdfTegninger.length === 0) {
@@ -683,10 +739,14 @@ export const tegningRouter = router({
               pdfFilSti, pngUtSti,
             ], { timeout: 60000 });
 
-            // Hent dimensjoner fra konvertert PNG — som inline-veien (:270-274).
-            // hentBildeDimensjoner svelger feil og gir null, så en manglende
-            // avlesning ruller ikke tilbake en vellykket konvertering.
-            const dim = await hentBildeDimensjoner(join(UPLOADS_DIR, pngFilnavn));
+            // Dimensjoner + målemetadata — som inline-veien. utledMaalemetadata
+            // svelger feil og gir null-felt, så en manglende avlesning ruller
+            // ikke tilbake en vellykket konvertering.
+            const { dim, mmPrPiksel, scaleForslag } = await utledMaalemetadata(pdfFilSti, pngFilnavn);
+            // Forhåndsutfyll KUN når tegningen ikke alt har en målestokk (aldri overskriv brukerens).
+            const settForslag = !tegning.scale && scaleForslag
+              ? { scale: scaleForslag, scaleKilde: "tittelfelt" as const }
+              : {};
 
             await ctx.prisma.drawing.update({
               where: { id: tegning.id },
@@ -695,10 +755,12 @@ export const tegningRouter = router({
                 fileType: "png",
                 imageWidth: dim?.width ?? null,
                 imageHeight: dim?.height ?? null,
+                mmPrPiksel,
+                ...settForslag,
                 conversionStatus: "done",
               },
             });
-            console.log(`[PDF-batch] Ferdig: ${tegning.name}`);
+            console.log(`[PDF-batch] Ferdig: ${tegning.name} (mm/px=${mmPrPiksel ?? "null"}, målestokk-forslag=${scaleForslag ?? "ingen"})`);
           } catch (err) {
             const melding = err instanceof Error ? err.message : "Ukjent feil";
             console.error(`[PDF-batch] Feilet: ${tegning.name}: ${melding}`);
