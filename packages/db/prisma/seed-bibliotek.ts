@@ -234,7 +234,7 @@ export function barnAv(ref: string, naar: string[], felt: FeltDef): FeltDef {
 // havne nederst. Sorteringen sikrer riktig overskrift-rekkefølge. Trekoblingen (ref/parentRef) er
 // posisjonsuavhengig, og en forelder ligger i tidligere-eller-lik fase enn barnet, så forelder-før-barn
 // bevares. Innen samme fase beholdes rekkefølgen (stabil sort + indeks-tiebreaker). Definert her (før
-// første mal) så maler tidlig i fila (UM1/UM1.1) kan bruke den uten temporal-dead-zone på FASE_RANG.
+// første mal) så maler tidlig i fila (UM1/UM1S) kan bruke den uten temporal-dead-zone på FASE_RANG.
 const FASE_RANG: Record<string, number> = { FØR: 0, UNDER: 1, ETTER: 2 };
 function faseSortert(felter: FeltDef[]): FeltDef[] {
   return felter
@@ -1328,7 +1328,7 @@ export const KB6_MAL = {
 // på forankring (dokumenterer HVORFOR forankring ikke kreves), ikke en skjult sti. `faseSortert`
 // sikrer FØR→UNDER→ETTER-overskrifter når betingede barn er spredt over faser.
 // §7b: SiteDocs egne krav — standarden kun i beskrivelsen. Prøving er egen mal (UU1). Felt 9 peker
-// på UM1.1 (skjøt-pr-skjøt) — de to malene bygges og merges SAMMEN.
+// på UM1S (skjøt-pr-skjøt, omdøpt fra UM1.1) — de to malene bygges og merges SAMMEN.
 export const UM1_MAL = {
   kapittelKode: "UM",
   navn: "UM1 – Legging av VA-ledninger",
@@ -1435,8 +1435,11 @@ export const UM1_MAL = {
   ]) as FeltDef[],
 };
 
-// UM1.1 – Skjøt på PE-ledning. NY mal (ordre UM1.1 2026-09-22, gatet av Kenneth), bygget SAMMEN med
-// UM1 v2 (felt 9 der peker på denne). Standard NS3420-U:2019, kapittel UM (finnes fra UM1 — ingen
+// UM1S – Skjøt på PE-ledning. NY mal (ordre UM1.1 2026-09-22, gatet av Kenneth), bygget SAMMEN med
+// UM1 v2 (felt 9 der peker på denne). OMDØPT UM1.1 → UM1S (ordre um1s-omdoping 2026-09-26): normens
+// UM1.1 = «Utendørs vannledninger» (kun vann), mens malen dekker skjøt på alle VA — kollisjon målt i
+// referanse-verifiseringen. Bokstav framfor punktum-ledd fordi `finnLedigeMalVerdier` ville gitt
+// «UM1.12» (ekte norm-post) ved kollisjon. Standard NS3420-U:2019, kapittel UM (finnes fra UM1 — ingen
 // nytt kapittel). Dokumentets enhet er SKJØTEN: én sjekkliste pr. skjøt (normkrav c3.2.8/c3.2.9,
 // omskrevet til egne ord, §7b). 18 felt, INGEN tallfelt (§1) — parametrene hører i sveiseskjemaet.
 //
@@ -1452,12 +1455,12 @@ export const UM1_MAL = {
 // tretten øvrige er betingede. §7b/§7c: PE/SDR/elektromuffe/speilsveis/buttsveis er produkt- og
 // metodebetegnelser (tillatt); «pel» (posisjon), ALDRI «pæl» (fundamenteringspæl). Emnet bærer
 // ledning + pelnummer + sveisenummer (VL P120 S14) — sveisenummeret skiller to skjøter på samme bend.
-export const UM11_MAL = {
+export const UM1S_MAL = {
   kapittelKode: "UM",
-  navn: "UM1.1 – Skjøt på PE-ledning",
-  referanse: "UM1.1",
+  navn: "UM1S – Skjøt på PE-ledning",
+  referanse: "UM1S",
   beskrivelse:
-    "Skjøt på PE-ledning for vann, avløp og drens — skjøtetype, rørkontroll, sveiseprosedyre, parametre, avkjøling og merking. Én sjekkliste pr. skjøt. Gjelder sveiste og mekaniske skjøter, bend, muffer og stikkledningsuttak. Faglig grunnlag: NS 3420-U:2019, post UM1.1.",
+    "Skjøt på PE-ledning for vann, avløp og drens — skjøtetype, rørkontroll, sveiseprosedyre, parametre, avkjøling og merking. Én sjekkliste pr. skjøt. Gjelder sveiste og mekaniske skjøter, bend, muffer og stikkledningsuttak. Faglig grunnlag: NS 3420-U:2019, postgruppe UM1.",
   felter: faseSortert([
     // Tre A — «hvaskjotes» (FØR), barn i SAMME fase → forgrening
     ...forgrening("hvaskjotes",
@@ -2120,7 +2123,7 @@ export const FJ1_MAL = {
   navn: "FJ1 – Vannhåndtering",
   referanse: "FJ1",
   beskrivelse:
-    "Lensing, drenering, sedimentering og kontroll av utslipp — utstyr, beredskap, måling og slamhåndtering. Faglig grunnlag: NS 3420-F:2024, post FJ1.",
+    "Lensing, drenering, sedimentering og kontroll av utslipp — utstyr, beredskap, måling og slamhåndtering. Faglig grunnlag: NS 3420-F:2024, postgruppe FJ.",
   felter: [
     // FØR
     valg("Hva håndteres", "FØR",
@@ -2469,8 +2472,8 @@ async function main() {
     // ── UM1 – Legging av VA-ledninger ── (definisjon eksportert over: UM1_MAL — revidert v2, betinget)
     UM1_MAL,
 
-    // ── UM1.1 – Skjøt på PE-ledning ── (definisjon eksportert over: UM11_MAL — ny mal, kap. UM fra UM1)
-    UM11_MAL,
+    // ── UM1S – Skjøt på PE-ledning ── (definisjon eksportert over: UM1S_MAL — omdøpt fra UM1.1, kap. UM)
+    UM1S_MAL,
 
     // ── UP-delingen (ordre UP-deling-fire-maler): UP1 revidert + UP2/UP3 nye i kap. UP, UO2.1 i nytt kap. UO
     UP1_MAL,
