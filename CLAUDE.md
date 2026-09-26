@@ -297,7 +297,15 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 ## Dokumentasjons-regler (UFRAVIKELIGE)
 
 **Størrelsesbegrensninger:**
-- CLAUDE.md: maks 40 960 **tegn**. 🔴 Mål med `python3 -c "print(len(open('CLAUDE.md',encoding='utf-8').read()))"` — **ikke `wc`**. Æ, ø, å og emoji er to byte hver, så `wc -c` gir falske brudd. ⚠️ **Og `wc -m` teller BYTE i et POSIX-skall** — den er locale-avhengig og gir ulikt svar på ulike maskiner (målt 2026-09-26: samme fil ga 40 890 og 39 932). Overskrides aldri
+- CLAUDE.md: maks 40 960 **tegn** — overskrides aldri. 🔴 **Mål slik, ikke med `wc -m`:**
+  ```sh
+  python3 -c "print(len(open('CLAUDE.md',encoding='utf-8').read()))"
+  ```
+  ⚠️ **`wc -m` teller BYTE når locale ikke er UTF-8** — og i dette prosjektets skall er `LANG`/`LC_ALL` tomme.
+  **Målt 2026-09-26: «sjø» + linjeskift = 4 tegn, men `wc -c` OG `wc -m` svarer begge 5.** 🔴 **Samme fil gir
+  da ulikt svar på ulike maskiner — regelen blir maskinavhengig.** (`LC_ALL=en_US.UTF-8 wc -m` virker også,
+  men degraderer stille der den locale mangler.) Æ, ø, å og emoji er to byte hver, så et byte-tall gir falske
+  brudd
 - STATUS-AKTUELT.md § Pågående arbeid: maks 3 aktive PRs
 - Deprioritert/planlagt arbeid → [BACKLOG.md](docs/claude/BACKLOG.md) (ikke STATUS-AKTUELT.md)
 
