@@ -297,7 +297,7 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 ## Dokumentasjons-regler (UFRAVIKELIGE)
 
 **Størrelsesbegrensninger:**
-- CLAUDE.md: maks 40 960 tegn (40 × 1024) — overskrides aldri
+- CLAUDE.md: maks 40 960 **tegn** — mål med `wc -m`, ikke `wc -c`. 🔴 Æ, ø, å og emoji er to byte hver, så bytetallet er alltid høyere og gir falske brudd (målt 2026-09-26: 41 511 byte mot 40 541 tegn — «over med 551» var feil enhet). Overskrides aldri
 - STATUS-AKTUELT.md § Pågående arbeid: maks 3 aktive PRs
 - Deprioritert/planlagt arbeid → [BACKLOG.md](docs/claude/BACKLOG.md) (ikke STATUS-AKTUELT.md)
 
