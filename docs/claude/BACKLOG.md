@@ -261,6 +261,23 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ⚠️ **Konsekvensklasse: ytelse, ikke korrekthet.** Ingen data er feil; spørringer mot de fem tabellene er tregere enn i test. **Det gjør at forskjellen aldri viser seg som en feil — bare som at prod føles treg.**
 
+### 🔴 LENKE-RUNDEN — bundet av en kontrakt fra uploads-runde 2 (2026-09-26)
+
+**Nedlastingslenker, iframe og video er server-signert, men SELVFORNYER IKKE.** Dokgen målte: en `<a href download>` klikket etter at signaturen er utløpt får **401**. Knappen slutter å virke uten forklaring.
+
+🔴 **Derfor står levetiden på 24 timer**, ikke 15 minutter. Kenneth valgte 15 min, betinget av at selvfornyelsen gjør utløp usynlig — og den dekker kun `<img>` via `SignertBilde`.
+
+**Den holdbare veien (designs anbefaling):** `fetch` → blob → `a.download`. **Løser 401-synligheten OG UUID-filnavnet i samme grep**, og brukes alt av arkiv-PDF og timer-eksport.
+⚠️ **Med én grense som skal stå i ordren før noen begynner: blob holder fila i minnet.** Riktig for et dokument, feil for en 60 MB punktsky. **Store filer trenger egen vurdering.**
+
+🔴 **KONTRAKT — ordren MÅ oppfylle én av to:**
+1. produsere komponenten på nøyaktig **`apps/web/src/components/SignertLenke.tsx`**, eller
+2. **oppdatere markøren `lenkerSelvfornyer()`** i samme runde.
+
+**Hvorfor det er bindende:** snubletråden i `hmac`-testen flipper levetiden til 15 min først når `bilder selvfornyer OG lenker selvfornyer`. Lenke-markøren er `existsSync(SignertLenke.tsx)` — **dokgen navnga svakheten selv: heter artefakten noe annet, flipper markøren aldri.** Kontrakten gjør navnet til et krav mellom to runder i stedet for en gjetning om framtiden.
+
+🟢 **Fristen 30.11.2026 er gulvet** — den fyrer uansett og tvinger en bevisst beslutning selv om lenke-runden aldri kommer.
+
 ### 🟡 `uploadsSti.ts` kom inn i `@sitedoc/shared` UTEN test på sitt eget nivå (funnet 2026-09-24 av merge-agenten)
 
 **Funnet fordi et forventet tall ikke steg.** Coworks merge-ordre sa at `shared` skulle stige med den nye delte utility-en. Den sto uendret på **854**.
@@ -305,7 +322,15 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 🟡 **Ikke akutt i dag:** prod har **1 PSI-rad i 1 prosjekt** (målt). Ingen har truffet veggen.
 🔴 **Men den treffer piloten:** A.Markussen har flere byggeplasser per prosjekt, og den andre PSI-en er nøyaktig det som feiler.
 
-**Fiksen er én migrering:** `DROP INDEX IF EXISTS "psi_project_id_key"`, med en test som feiler hvis indeksen finnes. ⚠️ **Verifiser at prod-raden ikke er avhengig av den før den droppes.**
+✅ **FIKS LEVERT 2026-09-26** — `fix/psi-unik-indeks` @ `db880f25` (venter designs gate). Migrering `20260926120000_psi_drop_stale_unik_indeks` + DRY-RUN + statisk test, rød først.
+
+🟢 **Redesign målte i tillegg at den sammensatte garantien BESTÅR:** `20260403120000_psi_building:7` lager `psi_project_id_building_id_key` på `(project_id, building_id)`, og `20260405180000_navnegjennomgang:48` omdøper kolonnen `building_id` → `byggeplass_id` **uten** å omdøpe indeksen. **Riktige kolonner, gammelt navn.** Å droppe den enkle indeksen er derfor trygt.
+
+### 🟡 Indeksnavn-drift: `psi_project_id_building_id_key` mot schemas forventning (sidefunn 2026-09-26)
+
+Schema har `@@unique([projectId, byggeplassId])` **uten `map:`**, og forventer da navnet `psi_project_id_byggeplass_id_key`. Faktisk navn i DB er `psi_project_id_building_id_key` — restene etter kolonne-renamen 2026-04-05, som ikke omdøper indekser.
+
+🟢 **Funksjonelt korrekt** — indeksen dekker riktige kolonner. ⚠️ **Men `prisma migrate diff` vil se en forskjell**, og neste som leser schemaet finner ikke indeksen på navnet. **Egen migrering, ikke hastesak.**
 
 ⚠️ **Feilklassen er generell og verdt å lete etter:** `IF EXISTS` gjør en feilrettet setning usynlig. Samme familie som `xargs -a` på BSD og `cmd | grep | tail` som gate — **en kommando som lykkes med tomt resultat er ikke en måling.**
 

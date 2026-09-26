@@ -164,6 +164,24 @@ kappløpet.
 
 ⚠️ **Mønsteret er coworks arbeidsvane:** cowork skriver docs løpende i hovedtreet mens en deploy forberedes, og oppdager dem først når `git status` dukker opp i et deploy-steg. **Rekkefølgen skal snus: docs-commiten går FØR deploy-ordren gis, ikke som opprydding etterpå.**
 
+#### 🔴 RYDDESTEGET DETACHER AGENTER SOM JOBBER — coworks ordre er årsaken (2026-09-26)
+
+**Merge-ordrenes fase 4 inneholder `cd ~/…/SiteDoc-<agent> && git checkout --detach origin/develop`** for å frigjøre branchen før sletting. **Steget antar at treet er ledig. Det er det ofte ikke.**
+
+**Målt to ganger på samme dag:** redesign committet i detached HEAD, så `git push` sendte branch-refen — en tom branch — mens arbeidet lå igjen lokalt. Første gang oppdaget han det i reflogen etterpå; andre gang fanget han det før commit. **Begge ganger var utløseren et `checkout --detach` kjørt i treet hans mens han arbeidet.**
+
+🔴 **Regelen: cowork detacher ALDRI et tre uten at agenten har meldt leveransen ferdig.** Ryddesteget skal gates i kommandoen, ikke i antakelsen:
+
+```sh
+cd ~/Documents/Programmering/SiteDoc-<agent> && \
+  test -z "$(git status --porcelain)" && \
+  git checkout --detach origin/develop || echo "TREET ER I BRUK — hoppet over, meld til cowork"
+```
+
+⚠️ **`git status --porcelain` fanger ukommitert arbeid, men ikke en agent som står klar til å committe.** Derfor er hovedregelen fortsatt at ryddesteget kun gis for trær der agenten **har meldt hash og frosset branchen**.
+
+🟢 **Og `git ls-remote --heads origin <branch>` før en hash meldes er det som fanget begge tilfellene.** Regelen ble skrevet 23.09 av en annen grunn og har nå betalt for seg selv tre ganger — hver gang om en hash som så ekte ut lokalt.
+
 🔴 **Fast siste steg etter HVER merge: hent den inn i hovedtreet.**
 
 ```sh
