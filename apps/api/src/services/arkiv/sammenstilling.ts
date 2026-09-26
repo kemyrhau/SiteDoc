@@ -505,9 +505,9 @@ async function byggArkivHtmlKjerne(
     // FASTE FELT (designlås 1): emne som første datafelt.
     emne: norm.subject,
     // Betinget synlighet: notis KUN når noe faktisk ble utelatt, så leseren vet at listen
-    // er filtrert (ikke at noe ble fjernet i ettertid). Arkiv-PDF er i18n-fri → api sender
+    // er filtrert (ikke at noe ble fjernet i ettertid). Eksport-PDF er i18n-fri → api sender
     // ferdig norsk streng (samme mønster som generertTekst).
-    utelatelseNotis: noeUtelatt ? nb["arkiv.utelatelseNotis"] : undefined,
+    utelatelseNotis: noeUtelatt ? nb["eksport.utelatelseNotis"] : undefined,
     lokasjonHtml,
     tegningssiderHtml,
     logg,

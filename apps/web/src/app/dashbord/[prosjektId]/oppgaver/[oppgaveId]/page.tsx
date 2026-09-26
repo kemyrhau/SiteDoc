@@ -30,7 +30,7 @@ import { usePresence } from "@/hooks/usePresence";
 import { useTranslation } from "react-i18next";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
-/** Last ned en base64-PDF som fil (arkiv-PDF returneres i responsen, vei 3b). Speiler sjekkliste. */
+/** Last ned en base64-PDF som fil (eksport-PDF returneres i responsen, vei 3b). Speiler sjekkliste. */
 function lastNedPdfBase64(pdfBase64: string, filnavn: string): void {
   const bytes = Uint8Array.from(atob(pdfBase64), (c) => c.charCodeAt(0));
   const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
@@ -272,9 +272,9 @@ export default function OppgaveDetaljSide() {
     ? { drawingId: oppgaveLokasjon.tegningId, drawingName: oppgaveLokasjon.tegningNavn }
     : null;
 
-  // Arkiv-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF som sjekkliste.
+  // eksport-PDF (2026-09-05): oppgave + HMS avvik/RUH får samme server-rendrede PDF som sjekkliste.
   // Ikke-blokkerende melding: advarsel = amber (timeout/mangel), hard feil = rød.
-  const [arkivMelding, setArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
+  const [eksportMelding, setEksportMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
   const rendrArkiv = trpc.arkiv.rendr.useMutation({
     onSuccess: (res: {
       pdfBase64: string;
@@ -286,15 +286,15 @@ export default function OppgaveDetaljSide() {
       lastNedPdfBase64(res.pdfBase64, res.filnavn);
       const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
       if (res.renderTimeout) {
-        setArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselTimeout") });
+        setEksportMelding({ type: "advarsel", tekst: t("eksport.advarselTimeout") });
       } else if (antallMangler > 0) {
-        setArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselMangler", { antall: antallMangler }) });
+        setEksportMelding({ type: "advarsel", tekst: t("eksport.advarselMangler", { antall: antallMangler }) });
       } else {
-        setArkivMelding(null);
+        setEksportMelding(null);
       }
     },
     onError: (error: { message?: string }) => {
-      setArkivMelding({ type: "feil", tekst: error.message ?? t("arkiv.feil") });
+      setEksportMelding({ type: "feil", tekst: error.message ?? t("eksport.feil") });
     },
   });
   // A (2026-08-22): `returnerTil` (URL) peker tilbake til dokumentet som opprettet oppgaven — så
@@ -740,21 +740,21 @@ export default function OppgaveDetaljSide() {
             </div>
           )}
           <div className="ml-auto flex items-center gap-2">
-            {/* Arkiv-PDF (2026-09-05): server-rendret PDF for oppgave + HMS avvik/RUH. */}
+            {/* eksport-PDF (2026-09-05): server-rendret PDF for oppgave + HMS avvik/RUH. */}
             <button
               onClick={() =>
                 rendrArkiv.mutate({ dokumenter: [{ id: params.oppgaveId, type: "oppgave" }] })
               }
               disabled={rendrArkiv.isPending}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-              title={t("handling.lastNedArkivPdf")}
+              title={t("handling.lastNedPdf")}
             >
               {rendrArkiv.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              <span className="hidden sm:inline">{t("handling.lastNedArkivPdf")}</span>
+              <span className="hidden sm:inline">{t("handling.lastNedPdf")}</span>
             </button>
             {(fullOppgaveRå as { createdAt?: string })?.createdAt && (
               <span className="hidden sm:inline text-xs text-gray-400">
@@ -787,16 +787,16 @@ export default function OppgaveDetaljSide() {
           </div>
         </div>
 
-        {/* Arkiv-PDF: ikke-blokkerende melding (advarsel = amber, hard feil = rød) */}
-        {arkivMelding && (
+        {/* eksport-PDF: ikke-blokkerende melding (advarsel = amber, hard feil = rød) */}
+        {eksportMelding && (
           <div
             className={
-              arkivMelding.type === "feil"
+              eksportMelding.type === "feil"
                 ? "mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
                 : "mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"
             }
           >
-            {arkivMelding.tekst}
+            {eksportMelding.tekst}
           </div>
         )}
 

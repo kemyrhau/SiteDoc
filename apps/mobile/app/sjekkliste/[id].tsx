@@ -21,7 +21,7 @@ import { Flytlinje } from "../../src/components/Flytlinje";
 import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { HmsBehandlingsflate, type HmsHandlingType } from "../../src/components/HmsBehandlingsflate";
-import { ArkivPdfForhandsvisning } from "../../src/components/ArkivPdfForhandsvisning";
+import { EksportPdfForhandsvisning } from "../../src/components/EksportPdfForhandsvisning";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -109,12 +109,12 @@ export default function SjekklisteUtfylling() {
   const utils = trpc.useUtils();
 
   const [visFaggruppeListe, settVisFaggruppeListe] = useState<"oppretter" | "svarer" | null>(null);
-  // Arkiv-PDF (server-generert, ENESTE vei fra 2026-08-23 — mobil bygger ikke HTML lokalt lenger).
+  // eksport-PDF (server-generert, ENESTE vei fra 2026-08-23 — mobil bygger ikke HTML lokalt lenger).
   // Mangel-kontrakten speiler web (renderTimeout + manglendeVedlegg). Fase 3: den lokale
   // expo-print-veien (byggSjekklisteHtml) er fjernet — telefonen må uansett være på nett for
   // å hente bilder/tegninger til en PDF.
-  const [arkivMelding, settArkivMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
-  // Funn E: forhåndsvis den server-rendrede arkiv-PDF-en i appen. Samme motor
+  const [eksportMelding, settEksportMelding] = useState<{ type: "feil" | "advarsel"; tekst: string } | null>(null);
+  // Funn E: forhåndsvis den server-rendrede eksport-PDF-en i appen. Samme motor
   // (arkiv.rendr) — ett render kan enten deles (share sheet) eller vises i en
   // WebView. `arkivIntensjonRef` styrer hva onSuccess gjør (ref → ingen stale
   // closure i mutasjon-callbacken).
@@ -186,7 +186,7 @@ export default function SjekklisteUtfylling() {
   }, [sjekklisteOppgaver]);
 
   // H5-paritet (2026-08-23): kolonne-labels for repeater-diff i endringsloggen — brukes av
-  // ekspanderEndring (delt @sitedoc/pdf), samme som web + arkiv-PDF.
+  // ekspanderEndring (delt @sitedoc/pdf), samme som web + eksport-PDF.
   const kolonnerPerFelt = useMemo(() => {
     const objs = ((sjekklisteDetalj as unknown as { template?: { objects?: unknown[] } })?.template?.objects ?? []) as {
       id: string;
@@ -198,7 +198,7 @@ export default function SjekklisteUtfylling() {
 
   const { ventende, erAktiv, ventendePerDokument } = useOpplastingsKo();
   // D: vedlegg i DETTE dokumentet som ennå ikke er lastet opp → kommer ikke med
-  // i arkiv-PDF-en (server ekskluderer felt med lokale vedlegg, funn C). Vises
+  // i eksport-PDF-en (server ekskluderer felt med lokale vedlegg, funn C). Vises
   // ved PDF/Send så brukeren vet konsekvensen der den inntreffer.
   const antallIkkeLastet = (id && ventendePerDokument.get(id)) || 0;
 
@@ -560,8 +560,8 @@ export default function SjekklisteUtfylling() {
     return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
   }, [sjekkliste?.template?.objects, hentFeltVerdi, t]);
 
-  // --- Arkiv-PDF (ENESTE vei fra 2026-08-23) ----------------------------
-  // Server rendrer samme arkiv-PDF som web (`arkiv.rendr`). Auth via Bearer-token
+  // --- eksport-PDF (ENESTE vei fra 2026-08-23) ----------------------------
+  // Server rendrer samme eksport-PDF som web (`arkiv.rendr`). Auth via Bearer-token
   // på tRPC-klienten. PDF-en kommer som base64 → skrives til fil → deles via
   // `expo-sharing`. Ingen lokal HTML-bygging lenger (telefonen må være på nett for
   // å hente bilder/tegninger uansett).
@@ -590,32 +590,32 @@ export default function SjekklisteUtfylling() {
           });
         }
       } catch (feil) {
-        console.warn("Arkiv-PDF-håndtering feilet:", feil);
+        console.warn("eksport-PDF-håndtering feilet:", feil);
       }
       // Mangel-kontrakt (speiler web): timeout ≠ mangel. Ikke-blokkerende, inline.
       const antallMangler = res.dokumenter[0]?.manglendeVedlegg.length ?? 0;
       if (res.renderTimeout) {
-        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselTimeout") });
+        settEksportMelding({ type: "advarsel", tekst: t("eksport.advarselTimeout") });
       } else if (antallMangler > 0) {
-        settArkivMelding({ type: "advarsel", tekst: t("arkiv.advarselMangler", { antall: antallMangler }) });
+        settEksportMelding({ type: "advarsel", tekst: t("eksport.advarselMangler", { antall: antallMangler }) });
       } else {
-        settArkivMelding(null);
+        settEksportMelding(null);
       }
     },
     onError: (error: { message?: string }) => {
-      settArkivMelding({ type: "feil", tekst: error.message ?? t("arkiv.feil") });
+      settEksportMelding({ type: "feil", tekst: error.message ?? t("eksport.feil") });
     },
   });
 
-  const håndterArkivPdf = useCallback(() => {
+  const håndterEksport = useCallback(() => {
     if (!id) return;
     // Uten nett: si tydelig at PDF krever tilkobling, ikke feil stille.
     if (!erPaaNettet) {
-      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      settEksportMelding({ type: "advarsel", tekst: t("eksport.kreverTilkobling") });
       return;
     }
     arkivIntensjonRef.current = "del";
-    settArkivMelding(null);
+    settEksportMelding(null);
     rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
   }, [id, erPaaNettet, rendrArkiv, t]);
 
@@ -624,11 +624,11 @@ export default function SjekklisteUtfylling() {
   const håndterForhåndsvisPdf = useCallback(() => {
     if (!id) return;
     if (!erPaaNettet) {
-      settArkivMelding({ type: "advarsel", tekst: t("arkiv.kreverTilkobling") });
+      settEksportMelding({ type: "advarsel", tekst: t("eksport.kreverTilkobling") });
       return;
     }
     arkivIntensjonRef.current = "forhandsvis";
-    settArkivMelding(null);
+    settEksportMelding(null);
     rendrArkiv.mutate({ dokumenter: [{ id, type: "sjekkliste" }] });
   }, [id, erPaaNettet, rendrArkiv, t]);
 
@@ -800,14 +800,14 @@ export default function SjekklisteUtfylling() {
                 {lagreStatus === "feil" && <AlertTriangle size={16} color="#fca5a5" />}
               </>
             )}
-            {/* Server-generert arkiv-PDF (samme motor som web) — eneste vei. Offline:
+            {/* Server-generert eksport-PDF (samme motor som web) — eneste vei. Offline:
                 CloudOff-ikon signaliserer FØR tap at PDF krever nett; tap forklarer
-                med full mikrotekst (arkiv.kreverTilkobling). */}
+                med full mikrotekst (eksport.kreverTilkobling). */}
             <Pressable
-              onPress={håndterArkivPdf}
+              onPress={håndterEksport}
               hitSlop={12}
               disabled={rendrArkiv.isPending}
-              accessibilityLabel={erPaaNettet ? t("handling.lastNedArkivPdf") : t("arkiv.kreverTilkobling")}
+              accessibilityLabel={erPaaNettet ? t("handling.lastNedPdf") : t("eksport.kreverTilkobling")}
             >
               {rendrArkiv.isPending
                 ? <ActivityIndicator size="small" color="#ffffff" />
@@ -858,19 +858,19 @@ export default function SjekklisteUtfylling() {
       {antallIkkeLastet > 0 && (
         <View className="bg-blue-50 px-3 py-2">
           <Text className="text-xs text-blue-700">
-            {t("arkiv.vedleggIkkeLastetOpp", { antall: antallIkkeLastet })}
+            {t("eksport.vedleggIkkeLastetOpp", { antall: antallIkkeLastet })}
           </Text>
         </View>
       )}
 
-      {/* Arkiv-PDF-melding: inline, ikke-blokkerende (ingen toast). Trykk for å lukke. */}
-      {arkivMelding && (
+      {/* eksport-PDF-melding: inline, ikke-blokkerende (ingen toast). Trykk for å lukke. */}
+      {eksportMelding && (
         <Pressable
-          onPress={() => settArkivMelding(null)}
-          className={`px-3 py-2 ${arkivMelding.type === "feil" ? "bg-red-50" : "bg-amber-50"}`}
+          onPress={() => settEksportMelding(null)}
+          className={`px-3 py-2 ${eksportMelding.type === "feil" ? "bg-red-50" : "bg-amber-50"}`}
         >
-          <Text className={`text-xs ${arkivMelding.type === "feil" ? "text-red-700" : "text-amber-700"}`}>
-            {arkivMelding.tekst}
+          <Text className={`text-xs ${eksportMelding.type === "feil" ? "text-red-700" : "text-amber-700"}`}>
+            {eksportMelding.tekst}
           </Text>
         </Pressable>
       )}
@@ -1265,7 +1265,7 @@ export default function SjekklisteUtfylling() {
           (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
       <View className="border-t border-gray-200 bg-white px-4 py-3">
         {/* Funn E: kontroll før sending — forhåndsvis den server-rendrede
-            arkiv-PDF-en i appen. Ligger her, ved Send/Godkjenn, ikke bare som
+            eksport-PDF-en i appen. Ligger her, ved Send/Godkjenn, ikke bare som
             ikon i toppbaren. */}
         <Pressable
           onPress={håndterForhåndsvisPdf}
@@ -1279,13 +1279,13 @@ export default function SjekklisteUtfylling() {
             <Eye size={16} color="#1e40af" />
           )}
           <Text className="text-sm font-semibold text-sitedoc-blue">
-            {t("arkiv.forhandsvis")}
+            {t("eksport.forhandsvis")}
           </Text>
         </Pressable>
         {!erPaaNettet && (
           // Req 3: si HVORFOR det ikke går offline, ikke bare et ikon.
           <Text className="mb-3 text-center text-xs text-amber-700">
-            {t("arkiv.kreverTilkobling")}
+            {t("eksport.kreverTilkobling")}
           </Text>
         )}
         {erHms ? (
@@ -1362,11 +1362,11 @@ export default function SjekklisteUtfylling() {
 
       </KeyboardAvoidingView>
 
-      {/* Funn E: forhåndsvisning av arkiv-PDF (alltid montert, styrt av `synlig`). */}
-      <ArkivPdfForhandsvisning
+      {/* Funn E: forhåndsvisning av eksport-PDF (alltid montert, styrt av `synlig`). */}
+      <EksportPdfForhandsvisning
         synlig={pdfForhandsvisFil != null}
         filUri={pdfForhandsvisFil}
-        tittel={sjekkliste?.title ?? t("arkiv.forhandsvis")}
+        tittel={sjekkliste?.title ?? t("eksport.forhandsvis")}
         onDel={delForhåndsvistPdf}
         onLukk={() => settPdfForhandsvisFil(null)}
       />
