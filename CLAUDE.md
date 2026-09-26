@@ -185,7 +185,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Named exports (unntak: Next.js pages/layouts)
 - Zod-validering på alle API-endepunkter
 - Prisma (server), Drizzle (lokal SQLite)
-- ESLint v8 med `.eslintrc.json` — IKKE oppgrader til v9/v10
+- ESLint v8 — IKKE oppgrader til v9/v10. ⚠️ `apps/web` bruker `.eslintrc.js` fra 2026-09-26 (byttet fra `.json` for å bære kommentaren på `/uploads/`-lint-regelen); øvrige pakker har fortsatt `.eslintrc.json`
 - `@typescript-eslint/no-unused-vars`: prefiks med `_`
 - `eslint-config-next` MÅ matche Next.js-versjonen (v14)
 - Ikon-props: `JSX.Element` (ikke `React.ReactNode`) for å unngå `@types/react` v18/v19-kollisjon

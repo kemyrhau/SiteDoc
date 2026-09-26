@@ -1375,6 +1375,26 @@ comm -12 <(git diff --name-only origin/develop..origin/<branch-a> | sort) \
          <(git diff --name-only origin/develop..origin/<branch-b> | sort)
 ```
 
+#### 🔴 `git merge-tree` løy ANDRE gang — bruk ekte prøvemerge i et engangsklon (målt 2026-09-26)
+
+`git merge-tree <base> develop <branch>` ga **0 konfliktmarkører** for `docs/design-maalekommando`
+mot `develop@3e6fb25e`. Ekte merge ga **`CONFLICT (content): Merge conflict in CLAUDE.md`** — begge
+sider hadde skrevet om **samme linje** (tegn-måleregelen), design fra base `647d648e`, cowork i
+`3e6fb25e`. **Samme klasse som CLAUDE.md-konflikten 2026-09-25**, der merge-tree også sa 0.
+
+⚠️ **Tre-argument-`merge-tree` (git 2.34) er en PROXY.** Den leser ikke merge-strategien og fanger
+ikke rename/samme-linje-tilfellene. **Den skal aldri være det eneste belegget for «ingen konflikt».**
+
+🟢 **Kjør ekte prøvemerge — det koster sekunder og kan ikke lyve:**
+
+```sh
+cd /tmp && rm -rf konflikttest && git clone -q --no-hardlinks -s ~/Documents/Programmering/SiteDoc konflikttest && cd konflikttest && git checkout -q -B t origin/develop && git -c user.email=t@t -c user.name=t merge --no-ff --no-commit origin/<branch>; git status --porcelain | grep '^UU' || echo "REN MERGE"
+```
+
+🔴 **Og når prøvemergen konflikter, skal cowork stadfeste OPPLØSNINGEN i merge-ordren** — hvilken
+side som gjelder og hvorfor, målt i klonen først. Merge-agenten skal ikke ta en redaksjonell
+avgjørelse om innholdet i en fil cowork eier.
+
 Er branchene ikke skrevet ennå, gjør det samme på flatene ordrene *beskriver*: hvilke sider,
 hvilke komponenter de importerer. Filoverlapp på side-nivå fanger ikke delte komponenter — det
 sto allerede i kollisjons-sjekken (punkt 3), og ble likevel glemt fordi oppgavene *hørtes*
