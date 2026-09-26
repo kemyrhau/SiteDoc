@@ -229,6 +229,20 @@ export function barnAv(ref: string, naar: string[], felt: FeltDef): FeltDef {
   return { ...felt, parentRef: ref, config: { ...(felt.config ?? {}), [BETINGELSE_EGEN_NOKKEL]: naar } };
 }
 
+// Stabil sortering på fase (FØR<UNDER<ETTER). `byggBibliotekRader` lager fase-overskriftene i
+// FØRSTE-OPPTREDEN-rekkefølge; står typeforelderen i UNDER (UP2/UO2.1), ville FØR-seksjonen ellers
+// havne nederst. Sorteringen sikrer riktig overskrift-rekkefølge. Trekoblingen (ref/parentRef) er
+// posisjonsuavhengig, og en forelder ligger i tidligere-eller-lik fase enn barnet, så forelder-før-barn
+// bevares. Innen samme fase beholdes rekkefølgen (stabil sort + indeks-tiebreaker). Definert her (før
+// første mal) så maler tidlig i fila (UM1/UM1.1) kan bruke den uten temporal-dead-zone på FASE_RANG.
+const FASE_RANG: Record<string, number> = { FØR: 0, UNDER: 1, ETTER: 2 };
+function faseSortert(felter: FeltDef[]): FeltDef[] {
+  return felter
+    .map((f, i) => ({ f, i }))
+    .sort((a, b) => (FASE_RANG[a.f.fase ?? "ETTER"]! - FASE_RANG[b.f.fase ?? "ETTER"]!) || a.i - b.i)
+    .map((x) => x.f);
+}
+
 // KC3.1 – Oppstøtting av trær. Eksportert som egen definisjon slik at seed-testen kan låse
 // feltene (krav (c) «stille tomhet forbudt»). Bygget med eksisterende helpers; skriveveien
 // (opprettMalHvisMangler + felter→malInnhold-mapping) er urørt.
@@ -1297,30 +1311,74 @@ export const KB6_MAL = {
   ] as FeltDef[],
 };
 
-// UM1 – Legging av VA-ledninger. Første mal fra NY standard NS 3420-U (ordre UM1 2026-09-19,
-// gatet av Kenneth). Nytt kapittel UM «Utendørs rørledninger» i en tredje standard NS3420-U —
-// verken standarden eller kapittelet finnes i biblioteket i dag. Grøfteløpet: FD2 (graving) →
-// UM1 (legging) → FS3 (omfylling) → UU1 (prøving). 11 felt, INGEN tallfelt: plassering, fall og
-// avstand besvares med samsvar mot toleransen (MAL-METODE §1), målt verdi/sted i kommentaren.
-// §7b: SiteDocs egne krav — ingen normkoder eller eksterne standarder i hjelpetekstene; standarden
-// nevnes kun i beskrivelsen. Prøving er egen mal (UU1) — ofte andre utførende.
+// UM1 – Legging av VA-ledninger. REVIDERT til v2 med betingede felt (ordre UM1 v2 2026-09-22,
+// gatet av Kenneth). Standard NS3420-U:2019, kapittel UM. Grøfteløpet: FD2 (graving) → UM1
+// (legging) → FS3 (omfylling) → UU1 (prøving). 14 felt, INGEN tallfelt (§1): plassering, fall,
+// forankring og avstand besvares med samsvar, målt verdi/sted i kommentaren.
+//
+// TO UAVHENGIGE TRÆR (ordre §2):
+//  · «ledningstype» (felt 1, FØR) — forelder for fall (ETTER), filterlag/duk (UNDER),
+//    perforering (UNDER) og forankring (UNDER). Barna ligger i ANNEN fase enn forelderen →
+//    `barnAv` (kryss-fase, §1f). §4-fasemålingen er positiv (JH2/UP), bekreftet i relay 2026-09-22.
+//  · «skjoting» (felt 8, UNDER) — forelder for sveiseskjøt-dokumentasjon (UNDER). SAMME fase →
+//    `forgrening` (§1f). Sveiseloggen henger på SKJØTEMETODEN, ikke ledningstypen (ordre §2).
+//
+// Ni felt vises alltid (Type ledning, Rør og deler, Grøftebunn, Skjøting, Røret hviler, Ren
+// innvendig, Avstand, Plassering, Klar for omfylling); fem er betingede. §1c: «sveist» er et SVAR
+// på forankring (dokumenterer HVORFOR forankring ikke kreves), ikke en skjult sti. `faseSortert`
+// sikrer FØR→UNDER→ETTER-overskrifter når betingede barn er spredt over faser.
+// §7b: SiteDocs egne krav — standarden kun i beskrivelsen. Prøving er egen mal (UU1). Felt 9 peker
+// på UM1.1 (skjøt-pr-skjøt) — de to malene bygges og merges SAMMEN.
 export const UM1_MAL = {
   kapittelKode: "UM",
   navn: "UM1 – Legging av VA-ledninger",
   referanse: "UM1",
   beskrivelse:
-    "Legging og skjøting av vann-, avløps- og drensledninger i grøft — rørmateriell, fundament, skjøter, fall og plassering. Faglig grunnlag: NS 3420-U:2019, post UM1.",
-  felter: [
-    // FØR
-    valg("Type ledning", "FØR",
-      [
-        "Vannledning",
-        "Avløp, selvfall",
-        "Avløp, trykk",
-        "Drensledning",
-        "Annen ledning",
-      ],
-      "Typen ledning avgjør skjøtemetode og hvilken prøving som skal gjøres etterpå."),
+    "Legging og skjøting av vann-, avløps- og drensledninger i grøft — rørmateriell, fundament, skjøter, forankring, fall og plassering. Faglig grunnlag: NS 3420-U:2019, post UM1.",
+  felter: faseSortert([
+    // Tre 1 — «ledningstype» (FØR), barn i UNDER/ETTER → barnAv (kryss-fase)
+    forelderFelt("ledningstype",
+      valg("Type ledning", "FØR",
+        [
+          "Vannledning",
+          "Avløp, selvfall",
+          "Avløp, trykk",
+          "Drensledning",
+          "Annen ledning",
+        ],
+        "Typen ledning avgjør skjøtemetode, hvilke krav som gjelder for fall og forankring, og hvilken prøving som skal gjøres etterpå. Skriv strekningen i emnefeltet med kumnavnene fra tegningen: SP-04 til SP-05, V-01 til V-02, OV-02 til OV-03. Går ikke strekningen mellom to kummer, skriver du ledningstypen og pelene i stedet: VL P120 til P180. Det er slik strekningen finnes igjen senere.")),
+    barnAv("ledningstype", ["Avløp, selvfall", "Drensledning"],
+      valg("Fall", "ETTER",
+        [
+          "Innenfor toleransen for prosjektert fall",
+          "Avvik",
+        ],
+        "Tillatt avvik: ±2 ‰ når fallet er under 10 ‰, ±3 ‰ ved 10–20 ‰, og ±5 ‰ når fallet er over 20 ‰. Gjelder hvert rør og hele strekningen. Mål før omfylling — etterpå er det for sent å rette.")),
+    barnAv("ledningstype", ["Drensledning"],
+      valg("Filterlag og duk rundt ledningen", "UNDER",
+        [
+          "Filtermasse og duk som beskrevet",
+          "Avvik – rettes før omfylling",
+        ],
+        "Drensledningen skal omgis av den filtermassen beskrivelsen angir, og duken skal ligge slik at finstoff ikke vaskes inn i røret. Et drensrør som gror igjen, kan ikke utbedres senere uten å grave opp.")),
+    barnAv("ledningstype", ["Drensledning"],
+      valg("Perforeringen vendt opp", "UNDER",
+        [
+          "Slissene ligger opp",
+          "Avvik – rettes før omfylling",
+        ],
+        "Slissene skal ligge opp. Silt og finstoff bygger seg opp fra bunnen av røret, så perforering vendt ned tetter seg igjen — og da kan ledningen ikke utbedres uten å grave opp. Kontroller også at spylepunkter og utløp er der tegningen viser.")),
+    barnAv("ledningstype", ["Vannledning", "Avløp, trykk"],
+      valg("Forankring av bend", "UNDER",
+        [
+          "Forankret som beskrevet – bend over 15° med muffeskjøter",
+          "Ikke krav – ledningen er sveist, skjøtene er strekkfaste",
+          "Ikke krav – ingen bend over 15° på denne strekningen",
+          "Avvik",
+        ],
+        "Forankring gjelder bend over 15° og trykkledninger med muffer. En sveist PE-ledning får ikke forankring — sveiseskjøtene er strekkfaste og tar kraften selv. En trykkledning skyver seg utover i bend, T-rør, reduksjoner og endelokk, og forankringen skal være på plass før ledningen settes under trykk.")),
+
+    // FØR — alltid synlige (uendret fra v1)
     valg("Rør og deler kontrollert", "FØR",
       [
         "Rene og uskadde",
@@ -1330,22 +1388,29 @@ export const UM1_MAL = {
     trafikklys("Grøftebunn og fundament klare", "FØR",
       "Bunnen er fri for tele, snø og is. Øverste tredjedel av fundamentet er løsnet langs senterlinjen, minst en halv rørdiameter bredt. Grav ut for muffene så røret hviler på fundamentet."),
 
-    // UNDER
-    valg("Skjøting", "UNDER",
+    // Tre 2 — «skjoting» (UNDER), barn i SAMME fase → forgrening
+    ...forgrening("skjoting",
+      valg("Skjøting", "UNDER",
+        [
+          "Muffe",
+          "PE-sveis",
+          "Flens eller kobling",
+          "Avvik",
+        ],
+        "Rørene sentreres, og skjøtekraften skal virke langs røret. Rør som brukes som mothold, støttes så de ikke forskyves. Flensskjøter ettertrekkes. Klemringskobling på PE-rør skal ha støttehylse innvendig."),
       [
-        "Muffe",
-        "PE-sveis",
-        "Flens eller kobling",
-        "Avvik",
-      ],
-      "Rørene sentreres, og skjøtekraften skal virke langs røret. Rør som brukes som mothold, støttes så de ikke forskyves. Flensskjøter ettertrekkes. Klemringskobling på PE-rør skal ha støttehylse innvendig."),
-    valg("Sveiselogg for PE", "UNDER",
-      [
-        "Ført og signert, skjøter merket",
-        "Ikke PE-sveis",
-        "Mangler",
-      ],
-      "Sveis beskyttet mot støv og nedbør, og ikke under 0 °C uten oppvarmet telt. Skrap med godkjent verktøy, ikke for hånd. Før hver sveis i skjemaet med parametre og signatur, og merk skjøten med sveiserens ID."),
+        {
+          naar: ["PE-sveis"],
+          felt: valg("Sveiseskjøter dokumentert", "UNDER",
+            [
+              "Alle skjøter har egen sjekkliste",
+              "Mangler",
+            ],
+            "Hver sveiseskjøt dokumenteres i sin egen sjekkliste, med sveiseparametre, sveiserens ID og signatur. Dette feltet bekrefter bare at ingen skjøt på strekningen mangler — selve loggen hører ikke hjemme her."),
+        },
+      ]),
+
+    // UNDER — alltid synlige (uendret fra v1)
     trafikklys("Røret hviler på fundamentet, ingen skolinger", "UNDER",
       "Røret skal ligge jevnt på fundamentet hele veien og ikke på klosser eller steiner."),
     trafikklys("Ledningen holdt ren innvendig", "UNDER",
@@ -1358,22 +1423,192 @@ export const UM1_MAL = {
       ],
       "Minst 100 mm fra kumvegg og fra ledninger og kabler som krysser eller går forbi. Ligger ledningene i flere lag, omfylles og komprimeres den nederste opp til neste før den legges."),
 
-    // ETTER
+    // ETTER — alltid synlige
     valg("Plassering i høyde og side", "ETTER",
       [
         "Innenfor ±30 mm høyde og ±100 mm side",
         "Avvik",
       ],
       "Kontroller mot prosjektert plassering, både for hvert rør og for hele strekningen. Noter største avvik i kommentaren."),
-    valg("Fall", "ETTER",
+    trafikklys("Ledningen er klar for omfylling", "ETTER",
+      "Ledningen er lagt, skjøtt, innmålt og kontrollert og kan omfylles. Innmålingen tas før ledningen dekkes til — etterpå må det graves opp. Ta bilde."),
+  ]) as FeltDef[],
+};
+
+// UM1.1 – Skjøt på PE-ledning. NY mal (ordre UM1.1 2026-09-22, gatet av Kenneth), bygget SAMMEN med
+// UM1 v2 (felt 9 der peker på denne). Standard NS3420-U:2019, kapittel UM (finnes fra UM1 — ingen
+// nytt kapittel). Dokumentets enhet er SKJØTEN: én sjekkliste pr. skjøt (normkrav c3.2.8/c3.2.9,
+// omskrevet til egne ord, §7b). 18 felt, INGEN tallfelt (§1) — parametrene hører i sveiseskjemaet.
+//
+// TO UAVHENGIGE TRÆR (ordre §5):
+//  · «hvaskjotes» (felt 1, FØR) — forelder for bendets retning (FØR) og anboring/uttak (FØR).
+//    SAMME fase → `forgrening` (§1f).
+//  · «skjotetype» (felt 5, FØR) — forelder for hele resten: sveisegruppen (fem barn under samme
+//    utløserpar Elektromuffesveis+Speilsveis), elektromuffe-paret, speilsveis-paret, klemring og
+//    flens. Barna ligger i UNDER → `barnAv` (kryss-fase, §1f). Fem barn under samme utløserpar er
+//    bygget som FEM egne `barnAv`-kall (ikke `felt:[a..e]`), så hvert barn får sin egen parentRef.
+//
+// Fem felt vises alltid (Hva skjøtes, Rør og deler, Skjøtetype, Skjøten merket, Skjøten klar); de
+// tretten øvrige er betingede. §7b/§7c: PE/SDR/elektromuffe/speilsveis/buttsveis er produkt- og
+// metodebetegnelser (tillatt); «pel» (posisjon), ALDRI «pæl» (fundamenteringspæl). Emnet bærer
+// ledning + pelnummer + sveisenummer (VL P120 S14) — sveisenummeret skiller to skjøter på samme bend.
+export const UM11_MAL = {
+  kapittelKode: "UM",
+  navn: "UM1.1 – Skjøt på PE-ledning",
+  referanse: "UM1.1",
+  beskrivelse:
+    "Skjøt på PE-ledning for vann, avløp og drens — skjøtetype, rørkontroll, sveiseprosedyre, parametre, avkjøling og merking. Én sjekkliste pr. skjøt. Gjelder sveiste og mekaniske skjøter, bend, muffer og stikkledningsuttak. Faglig grunnlag: NS 3420-U:2019, post UM1.1.",
+  felter: faseSortert([
+    // Tre A — «hvaskjotes» (FØR), barn i SAMME fase → forgrening
+    ...forgrening("hvaskjotes",
+      valg("Hva skjøtes", "FØR",
+        [
+          "Skjøt på rett rør",
+          "Bend",
+          "Muffe eller overgang",
+          "Uttak av stikkledning",
+          "Annen del – se beskrivelsen",
+        ],
+        "Skriv ledningen, pelnummeret og sveisenummeret i emnefeltet: VL P120 S14 for vannledning, SP P340 S22 for spillvann, OV P95 S07 for overvann. Sveisenummeret er det samme som i sveiseskjemaet og på merkingen av skjøten, og det er det som skiller to skjøter på samme bend. Én sjekkliste pr. skjøt — et bend har to ender og gir to lister. Kontrollen gjelder uansett om bendet eller muffen er priset som egen post eller inngår i løpemeterprisen — en skjøt som svikter, svikter like fullt."),
       [
-        "Innenfor toleransen for prosjektert fall",
+        {
+          naar: ["Bend"],
+          felt: valg("Bendets retning og vinkel", "FØR",
+            [
+              "Riktig vinkel og retning, forankret som beskrevet",
+              "Forankring ikke krevd her",
+              "Avvik",
+            ],
+            "Kontroller vinkelen og retningen mot tegningen før skjøten lages — et bend som peker feil, rives opp igjen. Står ledningen under trykk, skyver bendet seg utover, og kraften skal tas opp av mothold eller strekkfaste skjøter slik beskrivelsen angir."),
+        },
+        {
+          naar: ["Uttak av stikkledning"],
+          felt: valg("Anboring og uttak", "FØR",
+            [
+              "Klammer og deler tilpasset rørmaterialene, ledningen rengjort, uttaket tett",
+              "Avvik",
+            ],
+            "Anboringsklammer og T-rør skal passe til rørmaterialet i både hovedledning og stikkledning. Rengjør ledningen utvendig der klammeret settes på. Kontroller at uttaket er tett, og at hovedledningen ikke er svekket av boringen."),
+        },
+      ]),
+
+    // FØR — alltid synlig
+    valg("Rør og deler kontrollert", "FØR",
+      [
+        "Riktig dimensjon og trykklasse, riper innenfor grensen",
+        "Skade kappet bort eller reparert",
         "Avvik",
       ],
-      "Tillatt avvik: ±2 ‰ når fallet er under 10 ‰, ±3 ‰ ved 10–20 ‰, og ±5 ‰ når fallet er over 20 ‰. Gjelder hvert rør og hele strekningen."),
-    trafikklys("Ledningen er klar for omfylling", "ETTER",
-      "Ledningen er lagt, skjøtt og kontrollert og kan omfylles. Ta bilde før den dekkes til."),
-  ] as FeltDef[],
+      "Utvendig ripe kan være høyst 10 % av godstykkelsen. Rensk området jevnt med rørflaten med skarp kniv før du måler dybden — ellers måler du feil. Skarpe riper avrundes og fylles med ekstrudersveis. Er skaden dypere, kappes delen bort, eller den dekkes med en elektrisk reparasjonssadel. Innvendige riper aksepteres ikke. Rør levert på kveil rettes ut, og eventuell kappe fjernes der skjøten skal lages."),
+
+    // Tre B — «skjotetype» (FØR), barn i UNDER → barnAv (kryss-fase)
+    forelderFelt("skjotetype",
+      valg("Skjøtetype", "FØR",
+        [
+          "Elektromuffesveis",
+          "Speilsveis (buttsveis)",
+          "Klemringsskjøt",
+          "Flenseskjøt eller løsflens",
+          "Annen skjøt – se beskrivelsen",
+        ],
+        "Skjøtetypen avgjør hva som kontrolleres. Mindre dimensjoner leveres på kveil og skjøtes ofte med klemring i stedet for sveis — da gjelder helt andre krav enn ved sveising.")),
+
+    // Sveisegruppe — fem barn under samme utløserpar (Elektromuffesveis + Speilsveis)
+    barnAv("skjotetype", ["Elektromuffesveis", "Speilsveis (buttsveis)"],
+      valg("Prosedyre, kalibrering og sertifikat", "UNDER",
+        [
+          "Prosedyre foreligger, maskinen kalibrert, sveiseren sertifisert",
+          "Avvik",
+        ],
+        "Sveiseprosedyren for denne maskinen og dette rørmaterialet skal være utarbeidet før arbeidet starter, på grunnlag fra rørprodusenten. Er noe uklart, er det produsentens anvisning som gjelder. Maskinen skal være kalibrert, og sveiseren skal ha gyldig sertifikat for metoden.")),
+    barnAv("skjotetype", ["Elektromuffesveis", "Speilsveis (buttsveis)"],
+      valg("Forholdene på stedet", "UNDER",
+        [
+          "Tørt og skjermet, rørendene tildekket",
+          "Telt eller oppvarming brukt",
+          "Avvik – sveiset likevel",
+        ],
+        "Sveising skal være beskyttet mot støv og nedbør, og skal ikke utføres under 0 °C uten oppvarmet telt. Dekk rørendene med plast for å hindre trekk og avkjøling gjennom røret.")),
+    barnAv("skjotetype", ["Elektromuffesveis", "Speilsveis (buttsveis)"],
+      valg("Ovalitet og oppspenning", "UNDER",
+        [
+          "Ovalitet kontrollert og rettet, sveiseområdet oppspent",
+          "Avvik",
+        ],
+        "Ovalitet og toleranser kontrolleres og rettes før sveising, med rundingsverktøy. Kveilrør er alltid ovalt og skal rundes. Sveiseområdet spennes opp så muffen står stabil gjennom hele sveisen. Bruk verktøy levert eller godkjent av muffeleverandøren.")),
+    barnAv("skjotetype", ["Elektromuffesveis", "Speilsveis (buttsveis)"],
+      valg("Sveiseparametre ført i skjema", "UNDER",
+        [
+          "Ført og signert av utførende sveiser",
+          "Avvik",
+        ],
+        "Skjemaet skal vise sveisenummer, muffeidentitet, sveisetrykk, sveisetemperatur, sveisetid, værforhold, lufttemperatur og tildekking, og være signert av den som sveiset. Legg skjemaet ved.")),
+    barnAv("skjotetype", ["Elektromuffesveis", "Speilsveis (buttsveis)"],
+      valg("Avkjøling", "UNDER",
+        [
+          "Full avkjølingstid, uten belastning",
+          "Avvik",
+        ],
+        "Skjøten skal stå hele den foreskrevne avkjølingstiden, og skal ikke belastes, beveges eller trykkprøves før tiden er ute. Dette er punktet som oftest ryker under tidspress.")),
+
+    // Elektromuffe — utløses av Elektromuffesveis
+    barnAv("skjotetype", ["Elektromuffesveis"],
+      valg("Skraping av røroverflaten", "UNDER",
+        [
+          "Skrapt med leverandørens verktøy over hele muffelengden",
+          "Avvik",
+        ],
+        "Skrap med verktøy levert eller godkjent av muffeleverandøren, etter leverandørens instruks. Håndskraping er ikke tillatt — oksidsjiktet skal bort, ikke bare pusses. Ta ikke på skjøteflaten etterpå.")),
+    barnAv("skjotetype", ["Elektromuffesveis"],
+      valg("Smelteindikatorer", "UNDER",
+        [
+          "Indikatorer ute på begge sider, muffen sitter i posisjon",
+          "Avvik",
+        ],
+        "Begge indikatorene skal ha kommet ut. Har bare én kommet ut, er skjøten ikke godkjent — den kappes ut. Kontroller også at muffen ikke har forskjøvet seg.")),
+
+    // Speilsveis — utløses av Speilsveis (buttsveis)
+    barnAv("skjotetype", ["Speilsveis (buttsveis)"],
+      valg("Høvling og oppstilling", "UNDER",
+        [
+          "Endene høvlet, rørene i samme akse, kantavvik innenfor kravet",
+          "Avvik",
+        ],
+        "Høvle begge ender umiddelbart før sveising, og kontroller at flatene ligger an mot hverandre hele veien rundt. Rørene skal ligge i samme akse — kantavvik gir en svak sveis selv med riktige parametre.")),
+    barnAv("skjotetype", ["Speilsveis (buttsveis)"],
+      valg("Vulsten", "UNDER",
+        [
+          "Jevn og symmetrisk hele veien rundt",
+          "Avvik",
+        ],
+        "Vulsten skal være jevn og like stor på begge sider hele veien rundt røret. Skjev eller ujevn vulst betyr skjev oppstilling eller feil parametre — skjøten kappes ut og sveises på nytt.")),
+
+    // Mekaniske skjøter
+    barnAv("skjotetype", ["Klemringsskjøt"],
+      valg("Støttehylse og tiltrekking", "UNDER",
+        [
+          "Støttehylse montert innvendig, koblingen trukket til",
+          "Avvik",
+        ],
+        "Klemringskobling på PE-rør skal ha støttehylse innvendig. Uten den trekker røret seg sammen under klemringen, og skjøten begynner å lekke. Trekk til etter leverandørens anvisning.")),
+    barnAv("skjotetype", ["Flenseskjøt eller løsflens"],
+      valg("Ettertrekking av flens", "UNDER",
+        [
+          "Ettertrukket etter montering",
+          "Avvik",
+        ],
+        "Flenseskjøter skal ettertrekkes. PE gir seg over tid, og en flens som bare er trukket én gang, lekker senere.")),
+
+    // ETTER — alltid synlige
+    valg("Skjøten merket", "ETTER",
+      [
+        "Merket med pelnummer, og med sveiserens ID der det er sveiset",
+        "Avvik",
+      ],
+      "Hver sveiset skjøt skal merkes med sveiserens identifikasjon. Ta med pelnummeret på alle skjøter, også de mekaniske, så kan skjøten knyttes til denne sjekklisten når grøfta er fylt igjen."),
+    trafikklys("Skjøten er dokumentert og klar", "ETTER",
+      "Skjema og følgesedler er tatt vare på, skjøten er merket og innmålt, og den kan omfylles. Ta bilde av skjøten og av merkingen før den dekkes til."),
+  ]) as FeltDef[],
 };
 
 // UU1 – Prøving av VA-ledninger. Andre mal i NS 3420-U (ordre UU1 2026-09-19, gatet av Kenneth).
@@ -1473,19 +1708,6 @@ export const UU1_MAL = {
 // samme-fase-barn (UP2 gjennomløp→plastliner) → `forgrening`. Fase for materialeblokk (M1=FØR,
 // M2–M4=UNDER) og de type-spesifikke feltene er UTLEDET av §4-mønsteret (ordren oppgir dem ikke
 // eksplisitt) — meldt til design i pre-bygg-avklaring 2026-09-23.
-
-// Stabil sortering på fase (FØR<UNDER<ETTER). `byggBibliotekRader` lager fase-overskriftene i
-// FØRSTE-OPPTREDEN-rekkefølge; står typeforelderen i UNDER (UP2/UO2.1), ville FØR-seksjonen ellers
-// havne nederst. Sorteringen sikrer riktig overskrift-rekkefølge. Trekoblingen (ref/parentRef) er
-// posisjonsuavhengig, og en forelder ligger i tidligere-eller-lik fase enn barnet, så forelder-før-barn
-// bevares. Innen samme fase beholdes rekkefølgen (stabil sort + indeks-tiebreaker).
-const FASE_RANG: Record<string, number> = { FØR: 0, UNDER: 1, ETTER: 2 };
-function faseSortert(felter: FeltDef[]): FeltDef[] {
-  return felter
-    .map((f, i) => ({ f, i }))
-    .sort((a, b) => (FASE_RANG[a.f.fase ?? "ETTER"]! - FASE_RANG[b.f.fase ?? "ETTER"]!) || a.i - b.i)
-    .map((x) => x.f);
-}
 
 // Delt basisblokk B1–B10 (ordre §5). Ord for ord identisk; UO2.1 (`erVentil`) bytter «kummen»→«enheten»
 // i B1 og B6, og utvider B7 (teleskop/deksel). B5 «Oppdrift» er NYTT, plassert i UNDER FØR B6. Faser:
@@ -2244,8 +2466,11 @@ async function main() {
   }
 
   const malerU: MalDef[] = [
-    // ── UM1 – Legging av VA-ledninger ── (definisjon eksportert over: UM1_MAL — ny mal, ny standard)
+    // ── UM1 – Legging av VA-ledninger ── (definisjon eksportert over: UM1_MAL — revidert v2, betinget)
     UM1_MAL,
+
+    // ── UM1.1 – Skjøt på PE-ledning ── (definisjon eksportert over: UM11_MAL — ny mal, kap. UM fra UM1)
+    UM11_MAL,
 
     // ── UP-delingen (ordre UP-deling-fire-maler): UP1 revidert + UP2/UP3 nye i kap. UP, UO2.1 i nytt kap. UO
     UP1_MAL,
