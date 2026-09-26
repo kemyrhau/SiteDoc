@@ -40,6 +40,16 @@ flyten til `closed`. Sletting krever `draft` ELLER `closed` (slettevakt) — alt
 Nye mikrotekst-nøkler: ingen (`handling.lukk`/`handling.slett`/`flythjelp.handling.lukk` fantes;
 sistnevntes tekst omskrevet til ny semantikk + regenerert for 13 språk).
 
+**Gjenåpne-vedtak (Kenneth 2026-09-26) — begrunnelse ved gjenåpning:** Gjenåpning
+(`approved/closed/dismissed → draft`) KREVER en ikke-tom begrunnelse — den endrer et ferdig
+kvalitetsdokument, og arkivet skal bære HVORFOR. **Trekk tilbake** (`received → draft`) krever den
+IKKE — det angrer din egen usendte ball, ingen mottaker finnes å forklare noe til. Begge har
+`nyStatus="draft"`, så `statusKreverBegrunnelse(nyStatus, fraStatus?)` tok en ny valgfri `fraStatus`
+for å skille dem. Uten `fraStatus` faller draft tilbake til «ikke påkrevd» (bakoverkompat med
+enkelt-arg-kallere). HMS-gjenåpne (`hmsGjenapne`, ruter til `responded`)
+guardes med samme delte regel via kanonisk form `statusKreverBegrunnelse("draft", fraStatus)`.
+`hmsLukk` forblir valgfri — administrativ exit, ikke tilbakesending.
+
 **F3 Merge «Under arbeid»:** `rejected` er merget inn i `in_progress` — Send tilbake
 (responded→in_progress) ruter direkte til Under arbeid, ingen Gjenoppta. `rejected`-rader
 migreres til `in_progress` (`20260725130000_merge_underarbeid_rejected`).

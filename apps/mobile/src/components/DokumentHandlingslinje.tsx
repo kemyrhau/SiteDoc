@@ -333,7 +333,8 @@ export function DokumentHandlingslinje({
   function utforHandling() {
     if (!visBekreftelse) return;
     // Avvis (dismissed) krever ikke-tom begrunnelse (speiler server-Zod, delt kilde).
-    if (statusKreverBegrunnelse(visBekreftelse.nyStatus) && !kommentar.trim()) return;
+    // Gjenåpne-vedtak: `status` (fraStatus) skiller gjenåpne (krever) fra trekk tilbake (ikke).
+    if (statusKreverBegrunnelse(visBekreftelse.nyStatus, status) && !kommentar.trim()) return;
     onEndreStatus(visBekreftelse.nyStatus, kommentar.trim() || undefined, visBekreftelse.mottaker);
     setVisBekreftelse(null);
     setKommentar("");
@@ -622,7 +623,7 @@ export function DokumentHandlingslinje({
         >
           <Pressable className="flex-1" onPress={() => setVisBekreftelse(null)} />
           {(() => {
-            const paakrevd = visBekreftelse ? statusKreverBegrunnelse(visBekreftelse.nyStatus) : false;
+            const paakrevd = visBekreftelse ? statusKreverBegrunnelse(visBekreftelse.nyStatus, status) : false;
             const manglerBegrunnelse = paakrevd && kommentar.trim().length === 0;
             return (
               <View className="rounded-t-2xl bg-white px-4 pb-8 pt-4">

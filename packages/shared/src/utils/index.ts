@@ -329,10 +329,17 @@ export function isValidStatusTransition(
  *   - `responded`   — Besvar
  * Videresend (`forwarded`) og Send (`sent`) er UNNTAK — krever ikke kommentar.
  * Hver mål-status er enekilde til sin handling (målt Ledd 1), så `nyStatus` alene
- * skiller rent uten per-flate if-er.
+ * skiller de fleste rent uten per-flate if-er.
  *
- * Delt kilde for server-validering (Zod-gate i endreStatus) og klient-validering
- * (web + mobil handlingsmeny), så regelen ikke kan divergere mellom lagene.
+ * Gjenåpne-vedtak (Kenneth 2026-09-26): Gjenåpning (terminal→draft) endrer et ferdig
+ * kvalitetsdokument — arkivet skal bære HVORFOR → begrunnelse påkrevd. Trekk tilbake
+ * (received→draft) angrer din egen usendte ball; ingen mottaker finnes å forklare noe
+ * til → IKKE påkrevd. Begge har `nyStatus="draft"`, så `fraStatus` er det eneste som
+ * skiller dem — derav den valgfrie parameteren. Uten `fraStatus` faller draft tilbake
+ * til «ikke påkrevd» (bakoverkompat med enkelt-arg-kallere).
+ *
+ * Delt kilde for server-validering (Zod-gate i endreStatus + HMS gjenåpne) og klient-
+ * validering (web + mobil handlingsmeny), så regelen ikke kan divergere mellom lagene.
  */
 // Runde-2 (2026-08-02): `in_progress` («Send tilbake») fjernet fra klassen — handlingen finnes ikke mer.
 const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
@@ -340,7 +347,19 @@ const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
   "responded",
 ]);
 
-export function statusKreverBegrunnelse(nyStatus: string): boolean {
+// Gjenåpne-vedtak: de terminale kildene som, ved gjenåpning til draft, endrer et ferdig
+// kvalitetsdokument. `received` (trekk tilbake) er bevisst UTELATT — usendt egen ball.
+const GJENAPNE_FRA_TERMINAL: ReadonlySet<string> = new Set([
+  "approved",
+  "closed",
+  "dismissed",
+]);
+
+export function statusKreverBegrunnelse(nyStatus: string, fraStatus?: string): boolean {
+  // Gjenåpning (terminal→draft) krever begrunnelse; trekk tilbake (received→draft) ikke.
+  if (nyStatus === "draft") {
+    return fraStatus !== undefined && GJENAPNE_FRA_TERMINAL.has(fraStatus);
+  }
   return STATUS_KREVER_BEGRUNNELSE.has(nyStatus);
 }
 

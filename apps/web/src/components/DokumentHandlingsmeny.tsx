@@ -567,9 +567,10 @@ export function DokumentHandlingsmeny({
     setÅpenMeny(false);
     const erBekreft = trengerBekreft(o.nyStatus);
     const erNudge = NUDGE_TEKSTNOEKLER.has(o.tekstNoekkel);
-    // P2: en handling som krever begrunnelse (Besvar/Send tilbake/Avvis) må åpne
+    // P2: en handling som krever begrunnelse (Besvar/Send tilbake/Avvis/gjenåpne) må åpne
     // bekreftelses-dialogen med påkrevd kommentar — aldri fyre direkte mot serveren.
-    const krevBegrunnelse = statusKreverBegrunnelse(o.nyStatus);
+    // Gjenåpne-vedtak: `status` (fraStatus) skiller gjenåpne (krever) fra trekk tilbake (ikke).
+    const krevBegrunnelse = statusKreverBegrunnelse(o.nyStatus, status);
     if (erBekreft || erNudge || krevBegrunnelse) {
       setBekreft({ nyStatus: o.nyStatus, tekstNoekkel: o.tekstNoekkel, mottaker: o.mottaker, label: o.label, nudge: (erNudge || krevBegrunnelse) && !erBekreft });
       return;
@@ -617,7 +618,8 @@ export function DokumentHandlingsmeny({
     const mottakerHarLest = erTrekkTilbake && lestAvMottakerVed != null;
     // F1 (gate-JA #2): Avvis (dismissed) krever en ikke-tom begrunnelse — blokker send til
     // feltet er fylt. Speiler server-Zod-gaten (statusKreverBegrunnelse), samme delte kilde.
-    const paakrevd = statusKreverBegrunnelse(bekreft.nyStatus);
+    // Gjenåpne-vedtak: `status` (fraStatus) skiller gjenåpne (krever) fra trekk tilbake (ikke).
+    const paakrevd = statusKreverBegrunnelse(bekreft.nyStatus, status);
     const manglerBegrunnelse = paakrevd && kommentar.trim().length === 0;
     // Nudge (Del 2.5): oppfordrer til begrunnelse ved retur, men krever den ikke.
     // Påkrevd (F1): egen overskrift som gjør tvangen tydelig.
