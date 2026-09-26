@@ -130,7 +130,9 @@ Alle deler måles mot de tre hensiktene (enkelhet / selvforklarende navigasjon /
 2. **P2 — kommentarkrav på `endreStatus`.** Mønsteret finnes i timer. Portering, ikke design.
 3. **MK C konverteringslista** for de 34 trafikklysene — sekvenslåsen er oppfylt.
 4. **10a fase 2** sletting av global prosjektliste — halv designsak (Ctrl+K-erstatningen må bestemmes).
-5. **ON-restansen** — delstatus på lokasjonssteget nå som `harTegning` finnes separat.
+5. ~~**ON-restansen** — delstatus på lokasjonssteget~~ ✅ **LEVERT — målt av kontrollplan 2026-09-26 før bygging.** Kjeden er komplett: `prosjekt.ts:291-292` beregner → `onboarding-wizard.ts:136-137` leser og setter `undertekstKey` → `[prosjektId]/page.tsx:166, 189-191` rendrer → `nb.json:1465` = **«Lokasjon ✓ · Tegning mangler»**, i alle 15 språk. Kom inn med `b32326a8`. Kommentaren på `:135` viser at det var bevisst: «Krever BÅDE byggeplass OG tegning — én byggeplass uten tegning holder ikke.»
+   ⚠️ **Coworks premiss om «null lesere» var tre grep-bom:** case-sensitivt søk (symbolene har stor L og T), feil ord (steget heter `"tegninger"`, ikke «lokasjon»), og `harTegningsmarkor` forvekslet med `harTegning`. **Samme felle som `setSlettFeil` i august, som alt står i SAMARBEIDSREGLER.**
+   🔴 **Mønster, andre gang på rad:** både P2 og ON sto på «kan ordres nå»-lista og var levert. **Cowork måler mot KODE før hver plan-ordre, ikke mot listen.**
 
 **Krever fortsatt fabel:** LP · BL · AG (plassering) · AM 2 steg 3 · EX ledd 2 · Del 7 · Del 8 · 10/K11 · K14.
 
