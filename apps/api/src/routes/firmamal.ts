@@ -28,7 +28,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import type { PrismaClient } from "@sitedoc/db";
-import { reportObjectTypeSchema, templateZoneSchema } from "@sitedoc/shared";
+import { reportObjectTypeSchema, templateZoneSchema, prefiksFraReferanse } from "@sitedoc/shared";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   autoriserAdminForFirma,
@@ -298,7 +298,16 @@ export const firmamalRouter = router({
         domain: z.enum(["bygg", "hms", "kvalitet"]).default("bygg"),
         subdomain: z.string().max(40).nullable().optional(),
         hmsSynlighet: z.enum(["privat", "apen"]).nullable().optional(),
-        prefix: z.string().max(40).nullable().optional(),
+        // Prefiks PÅKREVD (ordre prefiks-påkrevd §C): prefikset blir dokumentnummerets
+        // prefiks — en mal uten det produserer dokumenter som ikke kan siteres. `.regex(/\S/)`
+        // avviser blanke strenger og holder typen som ZodString (IKKE ZodEffects — `.trim()`
+        // tippet tRPC-inferensen i TS2589 på web-siden). Handleren trimmer. NB: NOT NULL i DB
+        // er IKKE i denne ordren (steg 3, senere release) — dette er skrivevei-gaten.
+        prefix: z
+          .string()
+          .min(1, "Prefiks er påkrevd")
+          .max(40)
+          .regex(/\S/, "Prefiks kan ikke være bare mellomrom"),
         description: z.string().max(2000).nullable().optional(),
         subjects: z.array(z.string()).optional(),
         standardForNyeProsjekter: z.boolean().optional(),
@@ -311,7 +320,7 @@ export const firmamalRouter = router({
           organizationId: input.organizationId,
           name: input.name.trim(),
           description: input.description ?? null,
-          prefix: input.prefix?.trim() || null,
+          prefix: input.prefix.trim(), // Zod garanterer ikke-tom (min(1)+regex); trim her
           category: input.category,
           domain: input.domain,
           subdomain: input.subdomain ?? null,
@@ -589,13 +598,36 @@ export const firmamalRouter = router({
       }
       await autoriserAdminForFirma(ctx.userId, orgId);
 
+      // Arv aldri null (ordre prefiks-påkrevd §C): en firmamal uten prefiks lager
+      // arkivdokumenter som ikke kan siteres. Kilden er en prosjektmal — er dens prefiks
+      // tomt, prøv å utlede fra opphavet (prosjektmal → firmamal → bibliotekmal.referanse,
+      // via samme delte funksjon som lån-veiene). Går heller ikke det: avvis.
+      let promoterPrefiks = kilde.prefix?.trim() || null;
+      if (!promoterPrefiks && kilde.organizationTemplateId) {
+        const opphav = await ctx.prisma.organizationTemplate.findUnique({
+          where: { id: kilde.organizationTemplateId },
+          select: { prefix: true, laantFraBibliotek: { select: { referanse: true } } },
+        });
+        promoterPrefiks =
+          opphav?.prefix?.trim() ||
+          (opphav?.laantFraBibliotek ? prefiksFraReferanse(opphav.laantFraBibliotek.referanse) : null);
+      }
+      if (!promoterPrefiks) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Malen mangler prefiks og kan ikke promoteres til firmaarkivet — et arkivdokument " +
+            "uten prefiks får ikke nummer. Sett en prefiks på malen før du promoterer den.",
+        });
+      }
+
       const nyId = await ctx.prisma.$transaction(async (tx) => {
         const nyMal = await tx.organizationTemplate.create({
           data: {
             organizationId: orgId,
             name: kilde.name,
             description: kilde.description,
-            prefix: kilde.prefix,
+            prefix: promoterPrefiks,
             category: kilde.category,
             domain: kilde.domain,
             subdomain: kilde.subdomain,
@@ -958,6 +990,20 @@ export const firmamalRouter = router({
         include: { kapittel: { include: { standard: true } } },
       });
 
+      // Rotårsaken (ordre prefiks-påkrevd §B): denne veien satte FØR ingen prefiks, mens
+      // bibliotek→prosjektmal satte den fra referansen. Samme kilde, samme regel nå — via
+      // den delte funksjonen. Gir referansen ingen prefiks: AVVIS heller enn å lagre en
+      // mal som ikke kan nummereres (nettopp tilstanden ordren fjerner).
+      const laanPrefiks = prefiksFraReferanse(bibMal.referanse);
+      if (!laanPrefiks) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            `Bibliotekmalen «${bibMal.navn}» har ingen referanse å utlede prefiks fra, og kan ` +
+            "derfor ikke lånes inn uten et dokumentprefiks. Meld fra til SiteDoc-arkivet.",
+        });
+      }
+
       // Vei C: objekt-treet leses fra RADENE (BibliotekMalObjekt), ikke lenger fra
       // `malInnhold`. Overskriftene ligger som egne heading-rader og KOPIERES verbatim —
       // ingen generering (den flyttet inn i migreringen/seeden via byggBibliotekRader).
@@ -971,6 +1017,7 @@ export const firmamalRouter = router({
           data: {
             organizationId: input.organizationId,
             name: bibMal.navn,
+            prefix: laanPrefiks, // ordre §B — samme utledning som bibliotek→prosjektmal
             // Beskrivelse = ren referanse-tekst. Avstamningen ligger i den
             // strukturerte pekeren under (B4), ikke gjemt i fritekst.
             description: bibliotekBeskrivelse(bibMal),
