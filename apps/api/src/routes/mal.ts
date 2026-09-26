@@ -312,7 +312,11 @@ export async function finnLedigeMalVerdier(
   let prefiks = ønsketPrefiks?.trim() || null;
   if (prefiks && category !== "psi") {
     const basisPrefiks = prefiks;
-    for (let i = 2; prefiksBrukt.has(normMal(prefiks)); i++) prefiks = `${basisPrefiks}${i}`;
+    // Skilletegn «-» ved kollisjon: uten det ble «UM1.1» → «UM1.12», som SELV er en ekte
+    // NS 3420-normkode (Del U). «UM1.1-2» kan ikke forveksles med en normkode. normMal
+    // (trim+lowercase) stripper IKKE bindestreken, så disambigueringen overlever
+    // unikhets-sjekken — målt: normMal er ren trim+lowercase.
+    for (let i = 2; prefiksBrukt.has(normMal(prefiks)); i++) prefiks = `${basisPrefiks}-${i}`;
   }
   return { name: navn, prefix: prefiks };
 }
@@ -479,7 +483,10 @@ export const malRouter = router({
         id: z.string().uuid(),
         name: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
-        prefix: z.string().max(20).optional(),
+        // .min(1)+.regex(/\S/): prefiks kan ikke blankes til "" (ordre mal-prefiks-integritet).
+        // .optional() beholdt (partiell update: utelatt = uendret). Ikke ZodEffects/.nullable(),
+        // så TS-typen forblir string|undefined — ingen web-break/TS2589.
+        prefix: z.string().min(1).max(20).regex(/\S/, "Prefiks kan ikke være tom").optional(),
         category: z.enum(["oppgave", "sjekkliste", "hms"]).optional(),
         domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
         subdomain: z.enum(["avvik", "sja", "ruh", "kontrakt"]).nullable().optional(),
