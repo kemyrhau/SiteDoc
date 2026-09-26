@@ -366,7 +366,11 @@ export const firmamalRouter = router({
         data: {
           ...(input.name !== undefined ? { name: input.name.trim() } : {}),
           ...(input.description !== undefined ? { description: input.description } : {}),
-          ...(input.prefix !== undefined ? { prefix: input.prefix?.trim() || null } : {}),
+          // Prefiks kan ALDRI tømmes til null via oppdater (ordre prefiks-residual-oppdater):
+          // en tom/blank streng betyr «ikke endre», ikke «fjern prefikset». Prefiks er påkrevd
+          // (steg 1+2) og backfillen fyller — denne veien skal ikke tømme igjen. Forutsetning
+          // for at steg 3 (NOT NULL) i det hele tatt kan vurderes: DB får aldri null herfra.
+          ...(input.prefix?.trim() ? { prefix: input.prefix.trim() } : {}),
           ...(input.subdomain !== undefined ? { subdomain: input.subdomain } : {}),
           ...(input.hmsSynlighet !== undefined ? { hmsSynlighet: input.hmsSynlighet } : {}),
           ...(input.subjects !== undefined
