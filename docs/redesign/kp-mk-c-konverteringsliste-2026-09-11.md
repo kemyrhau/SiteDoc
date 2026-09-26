@@ -264,6 +264,51 @@ ulikt.**
 
 ---
 
+## 7. 🔴 GATEN ER TRUKKET 2026-09-26 — grunnlaget hadde driftet i 15 dager
+
+**Design gatet denne lista 2026-09-26 og TREKKER gaten samme dag.** **Ingen skal bygge fase 2 fra den.**
+
+### Hva som var galt
+
+**Kontrollplan målte mot kode før bygging — som arbeidsformen krever — og fant at grunnlaget hadde driftet:**
+
+| Akse | Lista sier | Målt 2026-09-26 |
+|---|---|---|
+| Antall trafikklys | 34 | 🔴 **47** |
+| `list_single`-konverteringer | 8 | 🔴 **2** — kun `KA7:1068` og `FD3:1142` |
+| Malkoder | FB2 · FC1 · FE1 · FD2 | 🔴 **Omkodet:** FB2→FD1 · FC1→FH1 · FE1→FS3 · gammel FD2→FS2. **Dagens FD2 er en ny grøft-mal** |
+
+**Tre av de åtte er alt konvertert i senere runder. Tre er borte eller flyttet.**
+
+### 🔴 Og feilen er designs, ikke listas
+
+**Lista bar sin egen datering i frontmatteret: `sist_verifisert_mot_kode: 2026-09-11`.**
+
+🔴 **Design leste forbi den og gatet 15 dager gammelt grunnlag uten å måle om radene fortsatt fantes.**
+⚠️ **Det er den samme feilklassen design har gatet ANDRE på gjennom hele uka: rapporten er input, ikke fasit
+— mål premisset selv.** **Lista var ærlig; lesningen var det ikke.**
+
+### 🔴 Og en støttemåling i gaten var også feil
+
+Gaten hevdet at `gray` («Ikke relevant») aldri rendres, og brukte det til å bekrefte
+`list_single`-begrunnelsene. **Målt på nytt: `TrafikklysObjekt.tsx` finnes i BÅDE web og mobil, og begge
+rendrer grå.**
+
+⚠️ **Design målte i `RapportObjektVisning.tsx` og `RapportObjektRenderer.tsx` — men aldri i selve
+kontrollelementet.** 🔴 **En måling i feil fil er ikke en svakere måling. Den er en gjetning med
+kildehenvisning.**
+
+### Hva som skjer nå
+
+🟢 **Kriteriet i § 1 står** — det er fabels, det er gatet, og det er ikke rørt av driften.
+🟢 **Metoden i § 2–4 står som mønster** for hvordan en fase-1-måling skal se ut.
+🔴 **Tallene og radene i § 3 er ugyldige.** **Kontrollplan leverer fersk fase-1-måling av de 47.**
+
+⚠️ **Og kant 4.2–4.4 må vurderes på nytt** — de avvæpnet seg selv fordi 0 tall+grense, og det tallet kom fra
+et utdatert utvalg.
+
+---
+
 ## 5. Prod-spørring (Kenneth kjører før fase 2 bestilles)
 
 🔴 Prod-gaten er lest i **kode** (`seed-bibliotek.ts:628-637`: `erProd && !verifisert →
