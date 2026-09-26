@@ -387,7 +387,7 @@ function OpprettFirmamalDialog({
       name: navn,
       category,
       domain,
-      prefix: prefix.trim() || undefined,
+      prefix: prefix.trim(), // påkrevd (ordre prefiks-påkrevd §C) — tom avvises server-side
       description: beskrivelse.trim() || undefined,
       ...(erHms ? { subdomain, hmsSynlighet } : {}),
     });
@@ -420,10 +420,9 @@ function OpprettFirmamalDialog({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            {t("firma.malarkiv.felt.prefiks")}{" "}
-            <span className="text-gray-400">({t("label.valgfritt")})</span>
+            {t("firma.malarkiv.felt.prefiks")}
           </label>
-          <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} />
+          <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} required />
         </div>
         {erHms && (
           <div className="grid grid-cols-2 gap-3">

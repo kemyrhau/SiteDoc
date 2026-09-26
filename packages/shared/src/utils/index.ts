@@ -65,6 +65,7 @@ export type {
   Mottaker,
 } from "./flytPosisjon";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
+export { prefiksFraReferanse } from "./prefiks";
 export { formaterNummer } from "./dokumentnummer";
 export { lesSignaturVerdi, formaterSignaturLinje, formaterSignaturTidspunkt, signaturTidspunktNaa } from "./signaturVerdi";
 export type { SignaturVerdi } from "./signaturVerdi";
