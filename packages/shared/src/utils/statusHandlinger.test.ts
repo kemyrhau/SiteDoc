@@ -334,6 +334,28 @@ describe("statusKreverBegrunnelse — P2 (Kenneth-vedtak, valg B): kommentar-kla
   });
 });
 
+describe("statusKreverBegrunnelse — P2 gjenåpne-vedtak (2026-09-26): fraStatus skiller gjenåpne fra trekk-tilbake", () => {
+  // Vedtaket: Gjenåpning (terminal→draft) endrer et ferdig kvalitetsdokument — arkivet skal
+  // bære HVORFOR → begrunnelse påkrevd. Trekk tilbake (received→draft) angrer din egen usendte
+  // ball; ingen mottaker finnes å forklare noe til → begrunnelse IKKE påkrevd. Begge har
+  // nyStatus="draft", så fraStatus er det eneste som skiller dem.
+  it("gjenåpne fra terminal (approved/closed/dismissed) → draft KREVER begrunnelse", () => {
+    expect(statusKreverBegrunnelse("draft", "approved")).toBe(true);
+    expect(statusKreverBegrunnelse("draft", "closed")).toBe(true);
+    expect(statusKreverBegrunnelse("draft", "dismissed")).toBe(true);
+  });
+  it("trekk tilbake (received→draft) krever IKKE begrunnelse", () => {
+    expect(statusKreverBegrunnelse("draft", "received")).toBe(false);
+  });
+  it("bakoverkompat: draft uten fraStatus krever ikke begrunnelse (enkelt-arg-kallere)", () => {
+    expect(statusKreverBegrunnelse("draft")).toBe(false);
+  });
+  it("fraStatus endrer ikke base-klassen: Besvar/Avvis krever uansett", () => {
+    expect(statusKreverBegrunnelse("responded", "received")).toBe(true);
+    expect(statusKreverBegrunnelse("dismissed", "received")).toBe(true);
+  });
+});
+
 describe("harMinstEttUtfyltFelt — P2 tom-besvarelse-guard", () => {
   const felt = (id: string, type = "text") => ({ id, type });
 

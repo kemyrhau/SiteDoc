@@ -1511,7 +1511,9 @@ export const sjekklisteRouter = router({
 
       // P2 (Kenneth-vedtak 2026-07-21): Besvar/Send tilbake/Avvis krever ikke-tom
       // begrunnelse (statusKreverBegrunnelse — delt kilde, samme regel som klienten).
-      if (statusKreverBegrunnelse(input.nyStatus) && !input.kommentar?.trim()) {
+      // Gjenåpne-vedtak (2026-09-26): `fraStatus` skiller gjenåpne (terminal→draft, krever)
+      // fra trekk tilbake (received→draft, krever ikke) — begge har nyStatus="draft".
+      if (statusKreverBegrunnelse(input.nyStatus, sjekkliste.status) && !input.kommentar?.trim()) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Begrunnelse er påkrevd for denne handlingen",
@@ -1777,6 +1779,16 @@ export const sjekklisteRouter = router({
         },
         "gjenapne",
       );
+
+      // Gjenåpne-vedtak (2026-09-26): gjenåpning krever begrunnelse — arkivet skal bære HVORFOR
+      // et ferdig kvalitetsdokument åpnes. HMS ruter gjenåpne til `responded`, men regelen er
+      // den delte gjenåpne-regelen (terminal→draft som kanonisk form), ikke responded-tilfeldet.
+      if (statusKreverBegrunnelse("draft", sjekkliste.status) && !input.kommentar?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Begrunnelse er påkrevd for denne handlingen",
+        });
+      }
 
       // F3.3: HMS-gjenåpne ruter via posisjon (terminal nulles, ball tilbake mot oppretter/Ledd 1).
       const hmsMedlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
