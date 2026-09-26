@@ -1,6 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { PrismaClient } from "@prisma/client";
-import { opprettMalHvisMangler, type BibliotekMalSeed } from "./seed-bibliotek";
+import {
+  opprettMalHvisMangler,
+  type BibliotekMalSeed,
+  type FeltDef,
+  KA7_MAL,
+  KB2_MAL,
+  KB4_MAL,
+} from "./seed-bibliotek";
 
 /**
  * Vakt mot at seeden igjen begynner å OVERSKRIVE en eksisterende bibliotekmal
@@ -78,4 +85,42 @@ describe("opprettMalHvisMangler — kun opprett, aldri oppdater", () => {
     const headingData = objektCreate.mock.calls[0]![0] as { data: { config: unknown } };
     expect(headingData.data.config).toEqual({});
   });
+});
+
+/**
+ * MK C fase 2 — de tre gatede trafikklys→list_single-konverteringene (design-gatet 2026-09-26).
+ * Krav (c) «stille tomhet forbudt»: testen FEILER hvis en av de tre feltene fortsatt er
+ * `traffic_light`, mangler opsjoner, eller har feil opsjoner. Rød FØR konverteringen, grønn etter.
+ *
+ * Scope er nøyaktig disse tre — bevisst avgrenset (fersk fase-1-måling 2026-09-25). Ute av scope:
+ * FD3/FB4 (venter §7b-revisjon), KB2 «Fall minst 2 %» + KD1 «Fall mot avrenning» (§1-migrering).
+ * Huskonvensjonen (kommentar-krav ved gul/rød) er skilt ut til egen design-ordre — ikke testet her.
+ */
+describe("MK C fase 2 — tre trafikklys konvertert til list_single", () => {
+  const KONVERTERINGER: { mal: { referanse: string; felter: FeltDef[] }; label: string; opsjoner: string[] }[] = [
+    {
+      mal: KA7_MAL,
+      label: "Dokumentasjon på opprinnelse",
+      opsjoner: ["Foreligger – komplett", "Delvis – suppleres", "Mangler"],
+    },
+    {
+      mal: KB2_MAL,
+      label: "Varedeklarasjon kontrollert",
+      opsjoner: ["Foreligger – pH og renhet OK", "Avvik – dokumentert", "Mangler"],
+    },
+    {
+      mal: KB4_MAL,
+      label: "Klippet jevnlig frem til overtakelse",
+      opsjoner: ["Utført", "Ikke relevant (grasbakke/eng)", "Ikke utført"],
+    },
+  ];
+
+  for (const { mal, label, opsjoner } of KONVERTERINGER) {
+    it(`${mal.referanse} «${label}» er list_single med de gatede opsjonene`, () => {
+      const felt = mal.felter.find((f) => f.label === label);
+      expect(felt, `fant ikke feltet «${label}» i ${mal.referanse}`).toBeDefined();
+      expect(felt!.type).toBe("list_single");
+      expect(felt!.config?.options).toEqual(opsjoner);
+    });
+  }
 });
