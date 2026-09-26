@@ -297,7 +297,7 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 ## Dokumentasjons-regler (UFRAVIKELIGE)
 
 **Størrelsesbegrensninger:**
-- CLAUDE.md: maks 40 960 **tegn** — mål med `wc -m`, ikke `wc -c`. 🔴 Æ, ø, å og emoji er to byte hver, så bytetallet er alltid høyere og gir falske brudd (målt 2026-09-26: 41 511 byte mot 40 541 tegn — «over med 551» var feil enhet). Overskrides aldri
+- CLAUDE.md: maks 40 960 **tegn**. 🔴 Mål med `python3 -c "print(len(open('CLAUDE.md',encoding='utf-8').read()))"` — **ikke `wc`**. Æ, ø, å og emoji er to byte hver, så `wc -c` gir falske brudd. ⚠️ **Og `wc -m` teller BYTE i et POSIX-skall** — den er locale-avhengig og gir ulikt svar på ulike maskiner (målt 2026-09-26: samme fil ga 40 890 og 39 932). Overskrides aldri
 - STATUS-AKTUELT.md § Pågående arbeid: maks 3 aktive PRs
 - Deprioritert/planlagt arbeid → [BACKLOG.md](docs/claude/BACKLOG.md) (ikke STATUS-AKTUELT.md)
 
