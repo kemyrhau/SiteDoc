@@ -1259,7 +1259,7 @@ export const KB4_MAL = {
       "Vanning etter såing/legging sikrer etableringen. Prosjektspesifikke skjøtselskrav står i beskrivelsen."),
     valg("Klippet jevnlig frem til overtakelse", "UNDER",
       ["Utført", "Ikke relevant (grasbakke/eng)", "Ikke utført"],
-      "Grasplen og grasbane klippes jevnlig fram til overlevering. Gjelder ikke grasbakke og eng — sett «Ikke relevant»."),
+      "Grasplen og grasbane klippes jevnlig fram til overlevering. Gjelder ikke grasbakke og eng — sett «Ikke relevant (grasbakke/eng)»."),
 
     // ETTER
     desimal("Markdekningsgrad (%)", "ETTER", { enhet: "%" },
