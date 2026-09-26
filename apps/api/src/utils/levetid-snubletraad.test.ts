@@ -5,52 +5,75 @@ import { fileURLToPath } from "node:url";
 import { STANDARD_LEVETID_MS, LEVETID_NAAR_G_LEVERT_MS } from "./hmac";
 
 /**
- * 🔴 SNUBLETRÅD for den MIDLERTIDIGE 24t-levetiden (E, Kenneth-vedtak 2026-09-24).
+ * 🔴 KLASSE-BEVISST SNUBLETRÅD for 24t-levetiden (E, Kenneth-vedtak 2026-09-24;
+ * avvik-retting 2026-09-26).
  *
- * 24 t er valgt fordi del G (selvfornyelse — `SignertBilde` + G2 debouncet
- * re-emisjon) ikke er levert. Når G lander SKAL levetiden ned til 15 min.
+ * STANDARD_LEVETID_MS er ÉN global levetid for ALLE `/uploads/`-signaturer, satt av
+ * den SVAKESTE konsument-klassen. Signereren kan ikke vite om en URL blir et `<img>`
+ * eller en nedlasting — samme URL kan bli begge — så per-klasse levetid er umulig.
+ * 15 min er forsvarlig FØRST når HVER klasse selvfornyer:
+ *   - bilder  selvfornyer: `SignertBilde.tsx` finnes (del G, levert) — onError→re-emisjon.
+ *   - lenker  selvfornyer: MARKØR FRA LENKE-RUNDEN — IKKE levert ennå.
+ * Til BEGGE finnes hviler tråden på 24 t. Runde 2 senket for tidlig (bare bilder dekket);
+ * denne rettingen binder 15-min-kravet til AT ALLE klasser er dekket.
  *
- * Presedens: `Dockerfile.api:36-38` bar en «ordnes senere»-kommentar som rotnet i
- * 3,5 mnd. En kommentar holder ikke. To RØDE tester gjør — hver med sin egen grunn,
- * så det er entydig hvilken som slo ut (aldri to assertions i én test):
- *   Test 1 — G-koblingen: fanger «G levert, men levetiden står igjen på 24 t».
- *   Test 2 — fristen:     fanger «24 t har stått for lenge», uansett G.
+ * To RØDE tester, hver med sin egen grunn (aldri to assertions i én test):
+ *   Test 1 — klasse-kobling: fanger «alle klasser selvfornyer, men levetiden står på 24 t».
+ *   Test 2 — fristen (GULV): fanger «24 t har stått for lenge», uansett klasser. Gjeninnført
+ *            fra Runde 1 (`614a73b9`) — Runde 2 fjernet den da 15 min var nådd; nå tilbake
+ *            fordi 24 t er tilbake og skal ikke bli liggende umerket.
+ *
+ * 🔴 LENKE-MARKØREN (MELD, 2026-09-26): G-detektoren er filsystem-basert med vilje —
+ * «ikke et manuelt flagg som kan glemmes» (Runde 1). Lenke-selvfornyelse er ikke
+ * designet, så dens artefakt er ikke navngitt. `lenkerSelvfornyer()` speiler
+ * G-detektoren mot den NATURLIGE analoge stien `apps/web/src/components/SignertLenke.tsx`.
+ * Den er entydig (spesifikk sti) og kan ikke slå ut ved et uhell (kun en ekte
+ * SignertLenke-komponent utløser den). Bekreft eller omdøp ved lenke-runden; til den
+ * lander er markøren `false` og FRISTEN (Test 2) er forcing-funksjonen.
  */
 
 const HER = dirname(fileURLToPath(import.meta.url)); // apps/api/src/utils
 const REPO_ROT = resolve(HER, "../../../.."); // → monorepo-rot
 const SIGNERT_BILDE = resolve(REPO_ROT, "apps/web/src/components/SignertBilde.tsx");
+const SIGNERT_LENKE = resolve(REPO_ROT, "apps/web/src/components/SignertLenke.tsx");
 
 /**
- * G-DETEKTOR — entydig, filsystem-basert (ikke et manuelt flagg som kan glemmes).
- * Del G er «levert» når G1-komponenten finnes. Ordre G1 navngir den EKSAKT:
- * `apps/web/src/components/SignertBilde.tsx`. Cowork målte «0 treff på SignertBilde»
- * på develop → signalet slår ut presis når artefakten lander.
+ * BILDE-DETEKTOR — entydig, filsystem-basert. Bilder selvfornyer når G1-komponenten
+ * finnes. Ordre G1 navngir den EKSAKT: `apps/web/src/components/SignertBilde.tsx`.
  */
 export function delGErLevert(): boolean {
   return existsSync(SIGNERT_BILDE);
 }
 
-describe("levetid-snubletråd — 24t er midlertidig til del G lander", () => {
-  it("G-detektoren er ENTYDIG: false nå, men existsSync slår faktisk ut på en fil som finnes", () => {
-    // Uten denne kunne detektoren vært en forkledd `return false` som aldri fanger G.
-    expect(delGErLevert()).toBe(false); // develop: SignertBilde finnes ikke ennå
-    expect(existsSync(resolve(HER, "hmac.ts"))).toBe(true); // existsSync fungerer mot en ekte sti
+/**
+ * LENKE-DETEKTOR — samme filsystem-mønster (MELD: foreslått sti, se filhode).
+ * `false` nå (lenke-runden er ikke levert), flipper når en `SignertLenke`-komponent
+ * lander. Til da holder fristen (Test 2) 24 t ansvarlig.
+ */
+export function lenkerSelvfornyer(): boolean {
+  return existsSync(SIGNERT_LENKE);
+}
+
+describe("levetid-snubletråd — klasse-bevisst: 24 t til ALLE klasser selvfornyer", () => {
+  it("detektorene er ENTYDIGE: bilder true (SignertBilde levert), lenker false; existsSync slår ut på en ekte fil", () => {
+    expect(delGErLevert()).toBe(true); // SignertBilde finnes
+    expect(lenkerSelvfornyer()).toBe(false); // SignertLenke finnes ikke ennå
+    expect(existsSync(resolve(HER, "hmac.ts"))).toBe(true); // existsSync fungerer mot en ekte sti (ingen forkledd return)
   });
 
-  it("SNUBLETRÅD 1 (G-kobling): del G er levert → levetiden MÅ være 15 min", () => {
-    if (!delGErLevert()) return; // G ikke levert → 24 t er riktig, tråden hviler
+  it("SNUBLETRÅD 1 (klasse-kobling): BÅDE bilder OG lenker selvfornyer → levetiden MÅ være 15 min", () => {
+    if (!(delGErLevert() && lenkerSelvfornyer())) return; // ikke alle klasser dekket → 24 t er riktig, tråden hviler
     expect(
       STANDARD_LEVETID_MS,
-      "del G (SignertBilde) er levert — sett STANDARD_LEVETID_MS til LEVETID_NAAR_G_LEVERT_MS (15 min)",
+      "alle konsument-klasser (bilder + lenker) selvfornyer — sett STANDARD_LEVETID_MS til LEVETID_NAAR_G_LEVERT_MS (15 min)",
     ).toBe(LEVETID_NAAR_G_LEVERT_MS);
   });
 
-  it("SNUBLETRÅD 2 (frist): 24 t skulle vært midlertidig — ta en bevisst beslutning", () => {
+  it("SNUBLETRÅD 2 (frist, GULV): 24 t skulle vært midlertidig — ta en bevisst beslutning innen 30.11.2026", () => {
     const frist = Date.parse("2026-11-30T00:00:00Z");
     expect(
       Date.now(),
-      "30.11.2026 er passert og levetiden er fortsatt 24 t — senk til 15 min (om G er live) eller flytt fristen BEVISST",
+      "30.11.2026 er passert og levetiden er fortsatt 24 t — lever lenke-selvfornyelse (→15 min) eller flytt fristen BEVISST",
     ).toBeLessThan(frist);
   });
 

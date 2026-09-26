@@ -8,6 +8,7 @@ import type { RapportObjekt } from "./rapportobjekter/typer";
 import { formaterDato, formaterDatoTid } from "@sitedoc/pdf";
 import type { VaerVerdi } from "@sitedoc/pdf";
 import { harTegningsmarkor, normaliserOpsjon, oversettStandardtekst, type ReportObjectType } from "@sitedoc/shared";
+import { SignertBilde } from "@/components/SignertBilde";
 
 // Trafikklys-farge → label + CSS-klasse (web bruker Tailwind-klasser, ikke hex)
 const TRAFIKKLYS: Record<string, { label: string; klasse: string }> = {
@@ -126,12 +127,6 @@ export function RapportObjektVisning({
 /*  Vedlegg + kommentar for repeater-barn                               */
 /* ------------------------------------------------------------------ */
 
-function vedleggSrc(url: string): string {
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  if (url.startsWith("/uploads/")) return `/api/uploads${url.replace("/uploads", "")}`;
-  return url;
-}
-
 function RepeaterBarnVedlegg({
   vedlegg,
   kommentar,
@@ -156,8 +151,8 @@ function RepeaterBarnVedlegg({
         <div className="mt-1 grid grid-cols-2 gap-3">
           {bilder.map((bilde) => (
             <div key={bilde.id}>
-              <img
-                src={vedleggSrc(bilde.url)}
+              <SignertBilde
+                url={bilde.url}
                 alt={bilde.filnavn}
                 className="w-full rounded border border-gray-200 object-cover"
                 style={{ aspectRatio: "5/4" }}
@@ -351,12 +346,10 @@ function ObjektInnhold({
             {bilder.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
                 {bilder.map((bilde, idx) => {
-                  const url = bilde.url ?? "";
-                  const src = url.startsWith("/uploads/") ? `/api/uploads${url.replace("/uploads", "")}` : url;
                   return (
                     <div key={bilde.id ?? idx}>
-                      <img
-                        src={src}
+                      <SignertBilde
+                        url={bilde.url}
                         alt={bilde.filnavn ?? "Vedlegg"}
                         className="w-full rounded border border-gray-200 object-cover"
                         style={{ aspectRatio: "5/4" }}

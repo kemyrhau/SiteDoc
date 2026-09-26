@@ -30,6 +30,7 @@ import {
   Search,
 } from "lucide-react";
 import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
+import { SignertBilde } from "@/components/SignertBilde";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { OmradeAdmin } from "./_components/OmradeAdmin";
 
@@ -593,8 +594,8 @@ function RedigerLokasjon({
                       dangerouslySetInnerHTML={{ __html: svgInnhold }}
                     />
                   ) : (
-                    <img
-                      src={`/api${valgtTegning.fileUrl}`}
+                    <SignertBilde
+                      url={valgtTegning.fileUrl}
                       alt={valgtTegning.name}
                       className="max-w-full object-contain"
                       draggable={false}
