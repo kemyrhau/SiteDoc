@@ -5,59 +5,79 @@ import { fileURLToPath } from "node:url";
 import { STANDARD_LEVETID_MS, LEVETID_NAAR_G_LEVERT_MS } from "./hmac";
 
 /**
- * 🔴 LEVETID ↔ DEL G-KOBLING (E+G, Kenneth-vedtak 2026-09-24).
+ * 🔴 KLASSE-BEVISST SNUBLETRÅD for 24t-levetiden (E, Kenneth-vedtak 2026-09-24;
+ * avvik-retting 2026-09-26).
  *
- * Historikk: i Runde 1 bar dette en SNUBLETRÅD for den MIDLERTIDIGE 24t-levetiden.
- * 24 t var forsvarlig kun så lenge del G (selvfornyelse) IKKE var levert — uten G
- * ville 15 min gitt tomme bilderammer over lunsj. Tråden feilet rødt idet
- * `SignertBilde.tsx` landet, og tvang beslutningen «senk til 15 min».
+ * STANDARD_LEVETID_MS er ÉN global levetid for ALLE `/uploads/`-signaturer, satt av
+ * den SVAKESTE konsument-klassen. Signereren kan ikke vite om en URL blir et `<img>`
+ * eller en nedlasting — samme URL kan bli begge — så per-klasse levetid er umulig.
+ * 15 min er forsvarlig FØRST når HVER klasse selvfornyer:
+ *   - bilder  selvfornyer: `SignertBilde.tsx` finnes (del G, levert) — onError→re-emisjon.
+ *   - lenker  selvfornyer: MARKØR FRA LENKE-RUNDEN — IKKE levert ennå.
+ * Til BEGGE finnes hviler tråden på 24 t. Runde 2 senket for tidlig (bare bilder dekket);
+ * denne rettingen binder 15-min-kravet til AT ALLE klasser er dekket.
  *
- * Runde 2 (2026-09-25): del G ER levert og levetiden ER senket. Tråden har gjort
- * jobben; den er nå snudd til en PERMANENT regresjonsvakt om KOBLINGEN:
- *   - G er levert (SignertBilde finnes) ⇒ levetiden MÅ være 15 min.
- * Skulle noen fjerne SignertBilde uten å heve levetiden igjen, eller heve levetiden
- * uten å ta en bevisst beslutning, slår denne ut. Hver assertion i sin egen test,
- * så det er entydig hvilken kobling som brøt.
+ * To RØDE tester, hver med sin egen grunn (aldri to assertions i én test):
+ *   Test 1 — klasse-kobling: fanger «alle klasser selvfornyer, men levetiden står på 24 t».
+ *   Test 2 — fristen (GULV): fanger «24 t har stått for lenge», uansett klasser. Gjeninnført
+ *            fra Runde 1 (`614a73b9`) — Runde 2 fjernet den da 15 min var nådd; nå tilbake
+ *            fordi 24 t er tilbake og skal ikke bli liggende umerket.
  *
- * 🔴 KJENT FOR-BRED VAKT (målt 2026-09-25, meldt cowork/design): STANDARD_LEVETID_MS
- * er ÉN global levetid for ALLE `/uploads/`-signaturer. Selvfornyelsen (G) dekker
- * KUN `<img>` (og mobilens `<Image>`) via onError→invalidering. Nedlastingslenker
- * (`<a href download>`), PDF-iframes og `<video>` har INGEN fornyelse — en utløpt
- * signatur der gir 401 ved klikk (målt: gaten svarer 401 uansett konsument). Denne
- * vakten binder altså «img-fornyelse finnes» til «15 min for ALT», men begrunnelsen
- * («utløp er usynlig») holder bare for bilder. Velger design en egen (lengre) levetid
- * for nedlastingslenker, slutter levetiden å være én global konstant, og DENNE
- * assertion-en må bli klasse-bevisst. Til den beslutningen lander speiler vakten
- * korrekt dagens ene-globale tilstand (15 min).
+ * 🔴 LENKE-MARKØREN (MELD, 2026-09-26): G-detektoren er filsystem-basert med vilje —
+ * «ikke et manuelt flagg som kan glemmes» (Runde 1). Lenke-selvfornyelse er ikke
+ * designet, så dens artefakt er ikke navngitt. `lenkerSelvfornyer()` speiler
+ * G-detektoren mot den NATURLIGE analoge stien `apps/web/src/components/SignertLenke.tsx`.
+ * Den er entydig (spesifikk sti) og kan ikke slå ut ved et uhell (kun en ekte
+ * SignertLenke-komponent utløser den). Bekreft eller omdøp ved lenke-runden; til den
+ * lander er markøren `false` og FRISTEN (Test 2) er forcing-funksjonen.
  */
 
 const HER = dirname(fileURLToPath(import.meta.url)); // apps/api/src/utils
 const REPO_ROT = resolve(HER, "../../../.."); // → monorepo-rot
 const SIGNERT_BILDE = resolve(REPO_ROT, "apps/web/src/components/SignertBilde.tsx");
+const SIGNERT_LENKE = resolve(REPO_ROT, "apps/web/src/components/SignertLenke.tsx");
 
 /**
- * G-DETEKTOR — entydig, filsystem-basert. Del G er «levert» når G1-komponenten
+ * BILDE-DETEKTOR — entydig, filsystem-basert. Bilder selvfornyer når G1-komponenten
  * finnes. Ordre G1 navngir den EKSAKT: `apps/web/src/components/SignertBilde.tsx`.
  */
 export function delGErLevert(): boolean {
   return existsSync(SIGNERT_BILDE);
 }
 
-describe("levetid ↔ del G — koblingen er nå permanent låst (G levert)", () => {
-  it("G-detektoren er ENTYDIG: true nå (SignertBilde er levert), og existsSync virker mot en ekte sti", () => {
-    expect(delGErLevert()).toBe(true); // Runde 2: SignertBilde finnes
-    expect(existsSync(resolve(HER, "hmac.ts"))).toBe(true); // existsSync fungerer mot en ekte sti
+/**
+ * LENKE-DETEKTOR — samme filsystem-mønster (MELD: foreslått sti, se filhode).
+ * `false` nå (lenke-runden er ikke levert), flipper når en `SignertLenke`-komponent
+ * lander. Til da holder fristen (Test 2) 24 t ansvarlig.
+ */
+export function lenkerSelvfornyer(): boolean {
+  return existsSync(SIGNERT_LENKE);
+}
+
+describe("levetid-snubletråd — klasse-bevisst: 24 t til ALLE klasser selvfornyer", () => {
+  it("detektorene er ENTYDIGE: bilder true (SignertBilde levert), lenker false; existsSync slår ut på en ekte fil", () => {
+    expect(delGErLevert()).toBe(true); // SignertBilde finnes
+    expect(lenkerSelvfornyer()).toBe(false); // SignertLenke finnes ikke ennå
+    expect(existsSync(resolve(HER, "hmac.ts"))).toBe(true); // existsSync fungerer mot en ekte sti (ingen forkledd return)
   });
 
-  it("KOBLING: del G er levert → levetiden MÅ være 15 min", () => {
-    if (!delGErLevert()) return; // skulle G fjernes, hviler koblingen (24 t ville vært riktig igjen)
+  it("SNUBLETRÅD 1 (klasse-kobling): BÅDE bilder OG lenker selvfornyer → levetiden MÅ være 15 min", () => {
+    if (!(delGErLevert() && lenkerSelvfornyer())) return; // ikke alle klasser dekket → 24 t er riktig, tråden hviler
     expect(
       STANDARD_LEVETID_MS,
-      "del G (SignertBilde) er levert — STANDARD_LEVETID_MS skal være 15 min (LEVETID_NAAR_G_LEVERT_MS)",
+      "alle konsument-klasser (bilder + lenker) selvfornyer — sett STANDARD_LEVETID_MS til LEVETID_NAAR_G_LEVERT_MS (15 min)",
     ).toBe(LEVETID_NAAR_G_LEVERT_MS);
   });
 
-  it("dokumenterer nåtilstanden: STANDARD_LEVETID_MS er 15 min", () => {
-    expect(STANDARD_LEVETID_MS).toBe(15 * 60 * 1000);
+  it("SNUBLETRÅD 2 (frist, GULV): 24 t skulle vært midlertidig — ta en bevisst beslutning innen 30.11.2026", () => {
+    const frist = Date.parse("2026-11-30T00:00:00Z");
+    expect(
+      Date.now(),
+      "30.11.2026 er passert og levetiden er fortsatt 24 t — lever lenke-selvfornyelse (→15 min) eller flytt fristen BEVISST",
+    ).toBeLessThan(frist);
+  });
+
+  it("så lenge tråden hviler er STANDARD_LEVETID_MS 24 t (dokumenterer nåtilstanden)", () => {
+    expect(STANDARD_LEVETID_MS).toBe(24 * 60 * 60 * 1000);
   });
 });

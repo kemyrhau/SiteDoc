@@ -18,17 +18,22 @@ import { UPLOADS_PREFIKS } from "@sitedoc/shared";
  * en `prefiks`-variant; Fase 1 signerer eksakt path.
  */
 
-// 🟢 Standard-levetid for fil-URL-er = 15 MINUTTER (E, Kenneth-vedtak 2026-09-24).
+// 🟢 Standard-levetid for fil-URL-er = 24 TIMER (E, Kenneth-vedtak 2026-09-24;
+// avvik-retting 2026-09-26).
 //
-// Runde 2 (2026-09-25): del G (selvfornyelse — `SignertBilde` + G2 debouncet
-// re-emisjon) ER levert, så levetiden er senket fra den MIDLERTIDIGE 24 t til
-// mål-verdien 15 min. Det er forsvarlig NÅ fordi en utløpt signatur blir et blunk
-// (SignertBilde re-emitterer), ikke en tom bilderamme over lunsj. Snubletråden
-// (`levetid-snubletraad.test.ts`) håndhevet koblingen: da `SignertBilde.tsx` landet,
-// ble en 24 t-verdi her en RØD test — dette er den beslutningen den krevde.
-export const STANDARD_LEVETID_MS = 15 * 60 * 1000;
+// ÉN global levetid for ALLE `/uploads/`-signaturer, satt av den SVAKESTE
+// konsument-klassen. Runde 2 senket til 15 min fordi del G (selvfornyelse —
+// `SignertBilde` + G2 debouncet re-emisjon) dekket `<img>`. Men G dekker KUN bilder:
+// nedlastingslenker (`<a href download>`), PDF-iframes og `<video>` har INGEN
+// fornyelse — en utløpt signatur der gir 401 ved klikk (målt: gaten svarer 401
+// uansett konsument). Signereren kan ikke vite om en URL blir et `<img>` eller en
+// nedlasting — samme URL kan bli begge — så per-klasse levetid er ikke mulig.
+// Derfor: tilbake til 24 t til BÅDE bilder OG lenker selvfornyer. Snubletråden
+// (`levetid-snubletraad.test.ts`) er nå klasse-bevisst + har en frist (30.11.2026)
+// som gulv, så 24 t ikke blir liggende umerket.
+export const STANDARD_LEVETID_MS = 24 * 60 * 60 * 1000;
 
-/** 15 min — MÅL-levetiden når del G (selvfornyelse) er live. Nå == STANDARD_LEVETID_MS. */
+/** 15 min — MÅL-levetiden når ALLE konsument-klasser (bilder + lenker) selvfornyer. */
 export const LEVETID_NAAR_G_LEVERT_MS = 15 * 60 * 1000;
 
 // Dev-fallback så lokal utvikling/test uten satt secret ikke bryter. I produksjon

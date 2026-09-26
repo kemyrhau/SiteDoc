@@ -130,7 +130,7 @@ async function start() {
     setHeaders: (res, path) => {
       res.setHeader("Content-Disposition", "inline");
       res.setHeader("X-Content-Type-Options", "nosniff");
-      // Privat, signert fil: ALDRI mellomlagre. Signaturen er tidsbegrenset (15 min);
+      // Privat, signert fil: ALDRI mellomlagre. Signaturen er tidsbegrenset (STANDARD_LEVETID_MS);
       // en CDN/proxy (Cloudflare) som cacher URL-en kan ellers servere filen etter at
       // signaturen er utløpt — og mellomlagre et privat kundedokument på edge. `path`
       // er fs-stien; privat-filene ligger under `<root>/privat/`. no-store lukker begge.
