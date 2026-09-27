@@ -65,3 +65,62 @@ describe("psi: foreldreløs unik-indeks psi_project_id_key", () => {
     expect(alleMigreringer).not.toMatch(/DROP INDEX IF EXISTS "psi_project_id_byggeplass_id_key"/);
   });
 });
+
+/**
+ * Krav (c) del 1 (statisk): 20260926120000 lukker prosjektnivå-hullet i SAMME migrering som
+ * DROP INDEX — atomisk, så det aldri finnes et vindu der begge garantiene mangler (Kenneth-vedtak
+ * 2026-09-27: utvid den develop-mergede migreringen, ikke lag en ny på toppen).
+ */
+describe("psi: prosjektnivå-unikhet lukkes i drop-migreringen", () => {
+  const FIX = "20260926120000_psi_drop_stale_unik_indeks";
+
+  it("legger til partiell UNIK indeks psi_prosjektniva_unik WHERE byggeplass_id IS NULL", () => {
+    const fix = lesKjørbar(FIX);
+    expect(fix).toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS "psi_prosjektniva_unik" ON "psi"\("project_id"\) WHERE "byggeplass_id" IS NULL;/,
+    );
+  });
+
+  it("partiell CREATE kommer ETTER DROP INDEX (atomisk lukking, intet åpent vindu)", () => {
+    const fix = lesKjørbar(FIX);
+    const dropPos = fix.indexOf('DROP INDEX IF EXISTS "psi_project_id_key"');
+    const createPos = fix.indexOf("psi_prosjektniva_unik");
+    expect(dropPos).toBeGreaterThanOrEqual(0);
+    expect(createPos).toBeGreaterThan(dropPos);
+  });
+});
+
+/**
+ * Krav (c) del 2 (kontrakt): den regelen som avviser en ANDRE PSI på prosjektnivå i samme
+ * prosjekt. Kenneth 2026-09-27: `@@unique([projectId, byggeplassId])` hindrer IKKE to
+ * (project_id, NULL)-rader — Postgres regner NULL-er som ULIKE. Den PARTIELLE indeksen
+ * `WHERE byggeplass_id IS NULL` er DEN ENESTE håndheveren: `psi.opprett` (psi.ts:203) har ingen
+ * app-guard, og `psiWhere` (psi.ts:8) er definert men ubrukt. Uten en nåbar Postgres i
+ * vitest-miljøet (ingen DATABASE_URL/.env i db-pakken) kan vi ikke drive `psi.opprett` end-to-end;
+ * vi låser i stedet DDL-kontrakten som ER regelen, og premisset (nullable kolonne) den hviler på.
+ * En behavioral integrasjonstest mot `psi.opprett` hører hjemme i api-harnessen når en test-DB er
+ * koblet — anbefalt oppfølger.
+ */
+describe("psi: to PSI på prosjektnivå i samme prosjekt er umulig (NULL-hullet)", () => {
+  it("net-migreringen håndhever ≤1 prosjektnivå-PSI via partiell UNIK indeks", () => {
+    expect(alleMigreringer).toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS "psi_prosjektniva_unik" ON "psi"\("project_id"\) WHERE "byggeplass_id" IS NULL;/,
+    );
+  });
+
+  it("premiss: byggeplassId er nullable i schema — derfor er den partielle indeksen nødvendig", () => {
+    const schema = readFileSync(join(__dirname, "schema.prisma"), "utf8");
+    expect(schema).toMatch(/byggeplassId\s+String\?\s+@map\("byggeplass_id"\)/);
+  });
+
+  it("psi_prosjektniva_unik droppes ALDRI av en senere migrering (begge setningsformer)", () => {
+    // Krav (c) for den NYE garantien. Den statiske testen over fanger at setningen fjernes fra
+    // FILA; denne fanger drift-veien cowork målte 2026-09-27: en `migrate dev` som dropper den
+    // partielle indeksen i en NY migrering ville ellers passere alt. Verre enn aprilsaken —
+    // garantien kan STILLE slutte å eksistere, uten app-guard bak (psi.create:203 uten
+    // forhåndssjekk, psiWhere:8 død kode). Dekker BÅDE `DROP INDEX IF EXISTS "..."` og bar
+    // `DROP INDEX "..."`: her er det SETNINGSvarianten som er risikoen (Prisma-autogenerert drop
+    // bruker den bare formen), ikke navnevarianten som composite-vakten dekker.
+    expect(alleMigreringer).not.toMatch(/DROP INDEX (IF EXISTS )?"psi_prosjektniva_unik"/);
+  });
+});

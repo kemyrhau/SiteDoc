@@ -42,3 +42,16 @@ SELECT project_id,
 FROM psi
 GROUP BY project_id
 HAVING count(*) > 1;
+
+-- 4. 🔴 KRITISK FORHÅNDSSJEKK for den nye partielle indeksen psi_prosjektniva_unik
+--    (project_id WHERE byggeplass_id IS NULL). En CREATE UNIQUE INDEX FEILER og ruller HELE
+--    migreringen tilbake hvis det finnes duplikater — akkurat slik add_klasse4_indekser gjorde.
+--    Tell prosjekter som alt har MER ENN ÉN PSI på prosjektnivå (byggeplass_id IS NULL).
+--    Kjøres i BÅDE sitedoc (prod) OG sitedoc_test. MÅ returnere 0 rader begge steder før deploy.
+--    Er tallet > 0 noe sted: STOPP — de radene må ryddes/flettes først.
+SELECT project_id,
+       count(*) AS antall_prosjektniva_psi
+FROM psi
+WHERE byggeplass_id IS NULL
+GROUP BY project_id
+HAVING count(*) > 1;
