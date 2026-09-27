@@ -13,6 +13,44 @@ gjelder: apps/web, apps/mobile, packages/shared, apps/api
 **Kenneth vil ha trafikklys med tre lys OG trafikklys med fire lys.** 🔴 **Målingen viser at begge
 allerede finnes i koden — og at ingen av dem rendrer riktig.**
 
+## § 0 MÅLING — kjørt av Kenneth 2026-09-27, prod OG test
+
+🟢 **Ingen lagret verdi finnes på noe felt med egne `options`. Null i prod, null i test. Ingen
+foreldreløse. Ingen signerte dokumenter berøres.**
+
+**PROD (`sitedoc`):**
+
+| | |
+|---|---|
+| `traffic_light` totalt | **6** |
+| …med egne `options` | 🔴 **6 — alle** |
+| Lagrede verdier | 🟢 **0** |
+| Foreldreløse | 🟢 **0** |
+
+| Firma | Prosjekt | Felt | Lys |
+|---|---|---|---|
+| A.Markussen AS | 998 Instinniforbotn | Status | 3 |
+| A.Markussen AS | 999 ytterstifjorn | Status | 3 |
+| HRP AS | Fredriks testprosjekt | Status | 3 |
+| SITEDOC MYRHAUG | Testprosjekt | Status | 3 |
+| A.Markussen AS | 998 Instinniforbotn | Beslutning | 4 |
+| SITEDOC MYRHAUG | Testprosjekt | Beslutning | 4 |
+
+**TEST (`sitedoc_test`):** 45 `traffic_light`, **3** med egne `options` (Status ×2 med 3 lys, «Avvik?»
+med 4 lys). **0 lagrede verdier. 0 foreldreløse.**
+
+### 🔴 Funnet som ikke er «null»
+
+⚠️ **I prod har 6 av 6 trafikklys egne `options`. Det finnes ikke ett eneste trafikklys i prod som
+bruker standardsettet.** 🔴 **Altså rendrer SAMTLIGE trafikklys i prod feil i dag — ikke to
+systemmaler, men alle.**
+
+🟢 **Og ingen av dem er besvart ennå.** 🔴 **Vinduet er åpent NÅ og lukkes i det noen svarer på det
+første feltet.** ⚠️ **A.Markussen AS har fire av de seks feltene. Blir ett av dem besvart før fiksen
+lander, blir dette en sak om varsling til kunde i stedet for en stille retting.**
+
+**Det hever prioriteten. Det endrer ikke ordren.**
+
 ## § 1 Funnet som avgjør hele ordren
 
 **`type: "traffic_light"` er erklært 29 steder. 🔴 To av dem sender egne `options`:**
@@ -100,33 +138,11 @@ at det viser TRE lys med etikettene Åpent / Under behandling / Lukket.**
 ⚠️ **En test som bare sjekker at en konstruert config med tre nøkler gir tre lys, er svakere — den
 beviser ikke at de to virkelige malene ble reparert.** **Bruk de virkelige.**
 
-## § 5 Konsekvensen — samme verdi, nytt ord på et signert dokument
+## § 5 Konsekvens for signerte dokumenter — akademisk
 
-🔴 **Første versjon kalte dette «en retting, men synlig for brukere». Cowork avviste formuleringen, og
-med rett. Den faktiske mekanismen:**
-
-**Verdinøklene er de samme. Bare etikettene skifter.** ⚠️ **Et signert dokument beholder altså verdien
-sin og får et nytt ORD på den.**
-
-| Felt | Lagret verdi | Viser i dag | Viser etter |
-|---|---|---|---|
-| Godkjenning / «Beslutning» | `red` | «Avvik» | **«Avvist»** |
-| HMS-avvik / «Status» | `green` | «Godkjent» | 🔴 **«Lukket»** |
-| HMS-avvik / «Status» | `gray` | «Ikke relevant» | 🔴 **finnes ikke i settet — foreldreløs** |
-
-🔴 **`green` på et HMS-avvik er motsatt ende av skalaen: i dag leses det som en godkjenning, etter
-fiksen som et lukket avvik.** ⚠️ **Det er ordrett det endringsvernet finnes for å hindre —
-`mal.ts:130-136`: «kan endringen gjøre at et allerede SIGNERT dokument sier noe ANNET om hva som ble
-kontrollert mot?»**
-
-🔴 **Og det skjer gjennom type-nivået, som er blindsonen cowork førte i BACKLOG 2026-09-27.**
-**Endringsvernet står ikke ved den døren.**
-
-**Låst/signert er målt:** `ER_TERMINAL_STATUS` (`packages/shared/src/utils/statusHandlinger.ts:181`) =
-`approved`, `dismissed`, `closed`, `cancelled`, `rejected`. **Et utkast som skifter etikett er en
-bagatell. Et terminalt dokument er det ikke.**
-
-🟡 **§ 0-målingen avgjør om dette er akademisk. Ordren tildeles ikke før tallene finnes.**
+🟢 **§ 0 målte null lagrede verdier i både prod og test. Ingen etikett skifter på noe besvart eller
+signert dokument, og ingen verdi foreldreløses.** 🔴 **Mekanismen består likevel som blindsone —
+se § 9 pkt 3.**
 
 ## § 6 Rekkefølge mot konvensjonsordren — design sitt valg
 
@@ -164,11 +180,11 @@ flytte et felt mellom settene som en `config`-endring, og endringsvernet fyrer.*
 🔴 **Tresettet skal IKKE hardkodes som en egen liste.** **Det er en delmengde av de fire kanoniske
 nøklene, per § 2b.**
 
-## § 9 Anbefaling hvis tallene IKKE er null — rangert
+## § 9 Anbefaling — tallene ER null, så (a) gjelder
 
 🔴 **Design bygger ingen av dem. Dette er rangeringen cowork ba om.**
 
-### 🟢 1. (c) Rett HMS-avvik nå. Utsett Godkjenning.
+### 🟡 (c) Rett bare HMS-avvik — IKKE VALGT, § 0 fjernet grunnen
 
 **Begrunnelse: de to feltene er ikke like alvorlige, og i dag behandles de likt.**
 
@@ -178,13 +194,12 @@ nøklene, per § 2b.**
 - **Godkjenning viser «Avvik» der malen sier «Avvist».** **Nær-synonymt. Lav skade ved å vente, og
   ventingen kjøper en egen beslutning fra Kenneth.**
 
-### 🟡 2. (a) Deploy alt, med varsel til berørt firma
+### 🟢 VALGT: (a) Rett alt. Ingen varsling nødvendig.
 
-**Riktig hvis målingen viser at Godkjenning-feltene er urørt eller bare i utkast.** 🔴 **Er
-A.Markussen berørt på terminale dokumenter, er varsel ikke en høflighet — det er Kenneths beslutning
-før deploy, ikke vår.**
+🟢 **§ 0 viste 0 lagrede verdier. A.Markussen AS har fire av seks prod-felt, men ingen er besvart — så
+varsling er ikke nødvendig.** 🔴 **Gjør det før noen svarer.**
 
-### 🔴 3. (b) Frys etikettene ved signering — men IKKE som alternativ
+### 🔴 (b) Frys etikettene ved signering — egen senere ordre, uavhengig av dette
 
 ⚠️ **(b) løser ikke dagens rader.** **Et snapshot av `options` ved signering hindrer GJENTAKELSE; det
 gjør ingenting med dokumenter som alt er signert.** 🔴 **Den er derfor ikke et alternativ til (c) eller
