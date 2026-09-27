@@ -63,21 +63,59 @@ describe("SignertBilde", () => {
     expect(invalidate).toHaveBeenCalledTimes(1);
   });
 
-  it("🔴 GYLDIG signatur men feilet (404/slettet) → fallback, INGEN invalidering", () => {
+  it("🔴 KRAV(c)3: GYLDIG signatur men feilet (404/slettet) → fallback, 404 gjenforsøkes IKKE", () => {
+    // Rød grunn: en slettet fil har fersk signatur; et gjenforsøk gir bare en ny 404.
+    // Feiler hvis 404-skillet (erUtloptSignatur) forsvinner og 404 begynner å retries.
     render(<SignertBilde url={gyldig} alt="c" fallback={<span>borte</span>} />);
     fireEvent.error(screen.getByAltText("c"));
-    vi.advanceTimersByTime(600);
+    vi.advanceTimersByTime(5000); // godt forbi enhver backoff+debounce
     expect(invalidate).not.toHaveBeenCalled(); // en fersk signatur hjelper ikke en slettet fil
     expect(screen.getByText("borte")).toBeTruthy();
   });
 
-  it("🔴 maks ETT gjenforsøk: andre feil på samme url → fallback, ikke ny løkke", () => {
-    render(<SignertBilde url={utloept} alt="d" fallback={<span>feil</span>} />);
-    const img = screen.getByAltText("d");
-    fireEvent.error(img); // forsøk 1 → planlegger fornyelse
-    fireEvent.error(img); // forsøk 2 (samme url) → taket nådd → fallback
-    expect(screen.getByText("feil")).toBeTruthy();
-    vi.advanceTimersByTime(600);
-    expect(invalidate).toHaveBeenCalledTimes(1); // kun det første forsøket fornyet
+  it("🔴 KRAV(c)1: forsøk nummer TO gjøres — ett dekningsdropp ødelegger ikke bildet (var MAKS=1)", () => {
+    // Rød grunn: med det gamle taket (1) ga bildet opp etter første feilede fornyelse.
+    // Feiler hvis forsøk 2 ikke resulterer i en ny invalidering.
+    render(<SignertBilde url={utloept} alt="e" fallback={<span>feil</span>} />);
+    const img = screen.getByAltText("e");
+    fireEvent.error(img); // forsøk 1 (backoff 0 → umiddelbar planlegging)
+    vi.advanceTimersByTime(600); // debounce lukkes → invalidering #1
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    fireEvent.error(img); // forsøk 2 (backoff 1000, url uendret i test → forsokRef består)
+    vi.advanceTimersByTime(1000 + 600); // backoff + debounce
+    expect(invalidate).toHaveBeenCalledTimes(2); // forsøk 2 FAKTISK gjort
+    expect(screen.queryByText("feil")).toBeNull(); // ikke gitt opp
+  });
+
+  it("🔴 KRAV(c)2: maks TRE forsøk — fjerde feil gir feiltilstand, ALDRI en fjerde invalidering", () => {
+    // Rød grunn: en uendelig retry mot 401 er verre enn en feiltilstand.
+    // Feiler hvis det gjøres mer enn tre invalideringer, eller fallback uteblir.
+    render(<SignertBilde url={utloept} alt="f" fallback={<span>feil</span>} />);
+    const img = screen.getByAltText("f");
+    fireEvent.error(img); vi.advanceTimersByTime(600); // forsøk 1 → #1
+    fireEvent.error(img); vi.advanceTimersByTime(1000 + 600); // forsøk 2 → #2
+    fireEvent.error(img); vi.advanceTimersByTime(2000 + 600); // forsøk 3 → #3
+    expect(invalidate).toHaveBeenCalledTimes(3);
+    fireEvent.error(img); // fjerde feil → taket nådd
+    vi.advanceTimersByTime(5000);
+    expect(invalidate).toHaveBeenCalledTimes(3); // ALDRI en fjerde
+    expect(screen.getByText("feil")).toBeTruthy(); // samme tydelige feiltilstand som før
+  });
+
+  it("⚠️ koalescering holder: TRE bilder feiler samtidig → ÉN invalidering pr. forsøksnivå, ikke tre", () => {
+    // Vernet mot tordenskrall: tre forsøk pr. bilde × N bilder må ikke bli 3N invalideringer.
+    // Den modul-delte debounce-en koalescerer alle instansenes samtidige feil til én.
+    render(
+      <>
+        <SignertBilde url={utloept} alt="k1" />
+        <SignertBilde url={utloept} alt="k2" />
+        <SignertBilde url={utloept} alt="k3" />
+      </>,
+    );
+    fireEvent.error(screen.getByAltText("k1"));
+    fireEvent.error(screen.getByAltText("k2"));
+    fireEvent.error(screen.getByAltText("k3"));
+    vi.advanceTimersByTime(600); // forsøk 1 for alle tre (backoff 0) → debounce lukkes
+    expect(invalidate).toHaveBeenCalledTimes(1); // TRE bilder, ÉN invalidering
   });
 });

@@ -389,6 +389,9 @@ export { UPLOADS_PREFIKS, UPLOADS_PRIVAT_PREFIKS, erRaaUploadsUrl } from "./uplo
 export {
   SIGNERT_BILDE_DEBOUNCE_MS,
   SIGNERT_BILDE_MAKS_FORSOK,
+  SIGNERT_LENKE_MAKS_FORSOK,
+  SIGNERT_BILDE_BACKOFF_BASIS_MS,
+  backoffForsokMs,
   lesExpFraUrl,
   erUtloptSignatur,
   lagInvalideringsDebounce,

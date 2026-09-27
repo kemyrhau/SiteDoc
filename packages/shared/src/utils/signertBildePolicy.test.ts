@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   SIGNERT_BILDE_DEBOUNCE_MS,
   SIGNERT_BILDE_MAKS_FORSOK,
+  SIGNERT_BILDE_BACKOFF_BASIS_MS,
+  backoffForsokMs,
   lesExpFraUrl,
   erUtloptSignatur,
   lagInvalideringsDebounce,
@@ -83,7 +85,23 @@ describe("lagInvalideringsDebounce — femti feil = én invalidering", () => {
 });
 
 describe("gjenforsøks-tak", () => {
-  it("🔴 maks ETT gjenforsøk (aldri løkke mot 401)", () => {
-    expect(SIGNERT_BILDE_MAKS_FORSOK).toBe(1);
+  it("🔴 maks TRE gjenforsøk (var ETT — ett dropp på dårlig 4G ødela bildet)", () => {
+    expect(SIGNERT_BILDE_MAKS_FORSOK).toBe(3);
+  });
+});
+
+describe("backoffForsokMs — voksende ventetid mellom forsøk (aldri hamring)", () => {
+  it("forsøk 1 → 0 ms (umiddelbart, kun debounce-koalescering som før)", () => {
+    expect(backoffForsokMs(1)).toBe(0);
+  });
+
+  it("forsøk 2 og 3 vokser eksponentielt fra basis", () => {
+    expect(backoffForsokMs(2)).toBe(SIGNERT_BILDE_BACKOFF_BASIS_MS); // 1000
+    expect(backoffForsokMs(3)).toBe(SIGNERT_BILDE_BACKOFF_BASIS_MS * 2); // 2000
+  });
+
+  it("🔴 strengt voksende — et senere forsøk venter aldri kortere enn et tidligere", () => {
+    expect(backoffForsokMs(2)).toBeGreaterThan(backoffForsokMs(1));
+    expect(backoffForsokMs(3)).toBeGreaterThan(backoffForsokMs(2));
   });
 });

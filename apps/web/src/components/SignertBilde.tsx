@@ -11,6 +11,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import {
   SIGNERT_BILDE_MAKS_FORSOK,
+  backoffForsokMs,
   erUtloptSignatur,
   lagInvalideringsDebounce,
 } from "@sitedoc/shared";
@@ -27,9 +28,10 @@ import {
  * tRPC-queriene DEBOUNCET (femti utløpte bilder = én invalidering), så serveren
  * re-emitterer ferske signaturer gjennom veien som ALT er autorisert. Vi bygger
  * IKKE en `fil.signer({ sti })`-prosedyre — den måtte autorisert stien, ellers er
- * den et kryssfirma-orakel. Maks ETT gjenforsøk pr. bilde; feiler det igjen, eller
- * er feilen en 404 (slettet fil, gyldig signatur), vises en tydelig tilstand —
- * aldri en løkke mot 401.
+ * den et kryssfirma-orakel. Maks TRE gjenforsøk pr. bilde med backoff mellom (delt
+ * regel i `@sitedoc/shared`) — ett dekningsdropp på dårlig 4G skal ikke ødelegge
+ * bildet. Feiler det fortsatt etter tredje forsøk, eller er feilen en 404 (slettet
+ * fil, gyldig signatur), vises en tydelig tilstand — aldri en løkke mot 401.
  */
 
 const planleggInvalidering = lagInvalideringsDebounce();
@@ -69,12 +71,17 @@ export const SignertBilde = forwardRef<HTMLImageElement, SignertBildeProps>(
   function SignertBilde({ url, fallback = null, onError, alt = "", ...rest }, ref) {
     const utils = trpc.useUtils();
     const forsokRef = useRef(0);
+    const backoffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [feilet, setFeilet] = useState(false);
 
     // Ny `url` (typisk en fersk signatur fra en refetch) = nytt forsøk fra bunnen.
+    // Rydd også en ventende backoff-timer — den hørte til forrige url.
     useEffect(() => {
       forsokRef.current = 0;
       setFeilet(false);
+      return () => {
+        if (backoffTimerRef.current) clearTimeout(backoffTimerRef.current);
+      };
     }, [url]);
 
     if (!url || feilet) return <>{fallback}</>;
@@ -86,16 +93,24 @@ export const SignertBilde = forwardRef<HTMLImageElement, SignertBildeProps>(
         alt={alt}
         onError={(e) => {
           onError?.(e);
-          // Taket nådd, eller feilen er IKKE en utløpt signatur (404/ekte feil):
-          // vis tydelig tilstand, ingen fornyelse — ellers evig løkke / selvpåført DoS.
+          // Taket nådd (tre forsøk), eller feilen er IKKE en utløpt signatur (404/ekte
+          // feil): vis tydelig tilstand, ingen fornyelse — ellers evig løkke / selvpåført DoS.
           if (forsokRef.current >= SIGNERT_BILDE_MAKS_FORSOK || !erUtloptSignatur(raaForFornyelse(url))) {
             setFeilet(true);
             return;
           }
           forsokRef.current += 1;
-          planleggInvalidering(() => {
-            void utils.invalidate();
-          });
+          // Backoff mellom forsøk: forsøk 1 umiddelbart (kun debounce-koalescering, som før),
+          // forsøk 2/3 venter lenger så ett dekningsdropp får tid til å løse seg. Debounce-en
+          // koalescerer fortsatt 50 samtidige feil til én invalidering pr. forsøksnivå.
+          const planlegg = () => planleggInvalidering(() => void utils.invalidate());
+          const ventMs = backoffForsokMs(forsokRef.current);
+          if (ventMs === 0) {
+            planlegg();
+          } else {
+            if (backoffTimerRef.current) clearTimeout(backoffTimerRef.current);
+            backoffTimerRef.current = setTimeout(planlegg, ventMs);
+          }
         }}
         {...rest}
       />

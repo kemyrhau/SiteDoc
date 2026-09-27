@@ -23,11 +23,43 @@
 export const SIGNERT_BILDE_DEBOUNCE_MS = 500;
 
 /**
- * Maks antall gjenforsøk pr. bilde. 🔴 ETT. Feiler bildet igjen etter én
- * re-emisjon, vis en tydelig feiltilstand — ALDRI en løkke mot 401. Et
- * gjenforsøk = én invalidering som gir bildet en fersk signatur via refetch.
+ * Maks antall gjenforsøk pr. bilde. 🔴 TRE (var ÉTT — én feilet fornyelse på dårlig
+ * 4G ga opp, og med 15 min levetid fornyes en åpen fane ~96 ganger i døgnet, så ett
+ * dekningsdropp ødela bildet). Tre forsøk med backoff (se `backoffForsokMs`) lar et
+ * enkelt dropp løse seg. Feiler bildet fortsatt etter tredje forsøk, vis en tydelig
+ * feiltilstand — ALDRI en løkke mot 401. Et gjenforsøk = én invalidering som gir
+ * bildet en fersk signatur via refetch.
  */
-export const SIGNERT_BILDE_MAKS_FORSOK = 1;
+export const SIGNERT_BILDE_MAKS_FORSOK = 3;
+
+/**
+ * Lenke-klassens (`SignertLenke`) eget gjenforsøks-tak. 🔴 Holdt bevisst på ÉN.
+ * Lenke-fornyelse er KLIKK-drevet og åpner et placeholder-vindu pr. forsøk UTEN
+ * backoff — en annen mekanikk enn bildets `onError`-løkke, og `forsokRef` nullstilles
+ * aldri (ett forsøk pr. hook-levetid). Bildets tak (`SIGNERT_BILDE_MAKS_FORSOK`) ble
+ * hevet til 3 med backoff i 4G-reparasjonen 2026-09-28; lenke-klassen ble holdt utenfor
+ * den runden — en egen vurdering (placeholder-vindu-oppførsel + backoff) kreves før den
+ * eventuelt heves. Se `docs/claude/sikkerhet.md`.
+ */
+export const SIGNERT_LENKE_MAKS_FORSOK = 1;
+
+/**
+ * Backoff-basis mellom gjenforsøk. Forsøk 1 skjer umiddelbart (kun debounce-
+ * koalescering, som dagens ett-forsøk); forsøk 2 og 3 venter eksponentielt lenger,
+ * så et dekningsdropp får tid til å løse seg uten å hamre serveren.
+ */
+export const SIGNERT_BILDE_BACKOFF_BASIS_MS = 1000;
+
+/**
+ * Ventetid (ms) før gjenforsøk nr. `forsok` (1-indeksert) utløser sin invalidering.
+ * forsok 1 → 0 (umiddelbart), forsok 2 → 1000, forsok 3 → 2000. Eksponentiell fra
+ * forsøk 2, så de tre forsøkene sprer seg over ~3 s. Delt regel: web og mobil skal
+ * bruke NØYAKTIG samme backoff, derav her og ikke i komponenten.
+ */
+export function backoffForsokMs(forsok: number): number {
+  if (forsok <= 1) return 0;
+  return SIGNERT_BILDE_BACKOFF_BASIS_MS * 2 ** (forsok - 2);
+}
 
 /**
  * Les `exp`-parameteren (utløps-millis) fra en signert `/uploads/`-URL.
