@@ -1082,6 +1082,37 @@ git merge-base --is-ancestor <hash> origin/develop && echo "JA" || echo "NEI"
 
 ⚠️ **Dette blir vanligere, ikke sjeldnere:** fase 4 sletter mergede refs som den skal (56 ryddet 2026-09-24). Den som leser etterpå må slutte å spørre etter navn som er borte. **Meld alltid hash sammen med branchnavn** — navnet er for mennesker, hashen er det som kan måles.
 
+#### 🔴 HVER HASH I EN ORDRE SKAL VÆRE VERIFISERT PÅ ORIGIN FØR ORDREN SENDES (cowork-feil, tredje variant 2026-09-27)
+
+**Cowork oppga tre commit-hasher i en merge-ordre. Bare to fantes på origin.** Den tredje
+(`122df972`, SAMARBEIDSREGLER-regelen om gate-tall) var committet lokalt **etter** at Kenneth hadde
+pushet branchen. **Merge merget de to som fantes, og meldte den tredje som manglende.**
+
+🟢 **Merge diagnostiserte det riktig, og den vanskelige delen var å skille de to mulighetene:**
+branchen hadde to commits over basen · diffen mot `SAMARBEIDSREGLER.md` var tom · `grep` ga 0.
+**Konklusjon: commiten nådde aldri origin — mergen mistet ingenting.** ⚠️ **Merge gjenskapte den
+ikke, og lot branchen stå i stedet for å slette den. Begge valg var riktige.**
+
+🔴 **Dette er TREDJE variant av samme klasse i én økt, alle fra cowork:**
+
+| # | Formen | Hva som skjedde |
+|---|---|---|
+| 1 | Ukommittert edit i hovedtreet referert i en ordre | `CLAUDE.md`-editen «forsvant» — cowork committet den til en branch mens merge målte |
+| 2 | Gate-tall arvet fra en annen branch | `web +7` fra trafikklys-branchen inn i signert-lenke-ordren; merge brukte en runde på å lete etter tre tester som aldri fantes |
+| 3 | Hash committet lokalt etter at branchen var pushet | Ordren oppga tre hasher, origin hadde to |
+
+🔴 **Regelen etter #1 var «coworks egne editer kommer som pushet branch med hash, aldri som ligger i
+hovedtreet». Den holdt ikke — #3 brøt den på et nytt vis.** **Skjerpingen:**
+
+```sh
+git ls-remote --heads origin <branch>   # og sammenlign med hashen du skriver i ordren
+git merge-base --is-ancestor <hash> origin/<branch> && echo "PAA ORIGIN" || echo "IKKE PAA ORIGIN"
+```
+
+🟢 **Ingen hash går inn i en ordre før den er verifisert å finnes på origin — også coworks egne.**
+⚠️ **Og be aldri Kenneth pushe en branch du fortsatt skriver på.** **Er commiten ikke ferdig, er
+branchen ikke klar; skriv ferdig, push, verifiser, SÅ send ordren.**
+
 #### 🔴 Cowork skriver GNU-kommandoer til en BSD-maskin (2026-09-24)
 
 **Kenneths Mac har BSD-verktøy. Coworks bash-sandkasse er Linux med GNU-verktøy.** Hver kommando cowork «prøver» før den gis, prøves altså i et annet verktøysett enn det den skal kjøre i.
