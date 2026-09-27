@@ -366,6 +366,51 @@ P2002-herdingsrunden, som alt skal inn i `psi.ts`.**
 
 ⚠️ **Feilklassen er kjent:** «en grønn gate som måler noe annet enn den tror». Samme familie som `cmd | grep | tail` og de 25 testfilene som mocket bort Prisma.
 
+#### 🔴 STØRRE FUNN 2026-09-27: `packages/shared` HAR INGEN TYPECHECK-GATE NOE STED — og den er rød
+
+**Målt av cowork på REN `origin/develop` (a1caf20a), `packages/shared/node_modules/.bin/tsc --noEmit -p tsconfig.json`: exit 2, 22 feil i 4 filer.**
+
+🔴 **Tre av dem er i SRC, ikke i testfiler — og de står i fila som bærer `/uploads/`-signaturpolicyen:**
+
+```
+src/utils/signertBildePolicy.ts(40,19): error TS2304: Cannot find name 'URLSearchParams'.
+src/utils/signertBildePolicy.ts(87,32): error TS2304: Cannot find name 'setTimeout'.
+src/utils/signertBildePolicy.ts(92,13): error TS2304: Cannot find name 'setTimeout'.
+```
+
+**Rotårsak, målt:** rot-`tsconfig.json` har `"lib": ["ES2022"]` og ingenting mer.
+`packages/shared/tsconfig.json` arver det uten å legge til `DOM` eller `@types/node`, **så
+`URLSearchParams` og `setTimeout` er udeklarerte typer i hele pakken.** ⚠️ **Koden VIRKER — dette er
+type-nivå alene — men pakken kan ikke typesjekkes grønn slik den står.**
+
+🔴 **Og gapet er verre enn `apps/web`-saken over, fordi INGEN gate dekker `shared`:**
+
+| Gate | Dekker `shared`? |
+|---|---|
+| Regel 10 ledd 1 — `@sitedoc/web build` | 🔴 nei (transitivt bare det web importerer, og `next build` typesjekker byggegrafen) |
+| Regel 10 ledd 2 — `@sitedoc/mobile typecheck` | 🔴 nei |
+| Regel 10 ledd 3 — `@sitedoc/web exec tsc --noEmit` | 🔴 nei |
+| CI (`.github/workflows/ci.yml`) | 🔴 nei — kjører `pnpm test` + mobil-typecheck; web-typecheck er bevisst holdt ute pga. gjeld, shared er ikke nevnt |
+
+⚠️ **`shared` er pakken web, mobil OG api alle importerer.** **Den har et `typecheck`-script
+(`package.json:16`), men ingen kjører det.**
+
+**De 19 andre feilene er i testfiler og har én felles årsak:** `noUncheckedIndexedAccess: true` i
+rot-tsconfig gjør `arr[0]` til `T | undefined`, og testene indekserer uten guard
+(`betingelse.test.ts`, `maaling.test.ts`, `vedleggLokal.test.ts`). **Pluss `nokkelsett.test.ts` som
+mangler node-typer for `node:fs`/`node:path`/`import.meta.url`.**
+
+🟢 **REKKEFØLGE — ikke legg til et fjerde regel-10-ledd først.** CI-fila sier det selv: «En rød CI
+dag én blir ignorert.» **Riktig orden:**
+1. **Fiks de tre SRC-feilene** — `"lib": ["ES2022", "DOM"]` i `packages/shared/tsconfig.json`. **DOM
+   er riktig framfor `@types/node`, fordi `shared` også kjører i nettleser.** Billig, isolert.
+2. **Rydd de 19 testfil-feilene** — egen runde, mekanisk.
+3. **DA legg `pnpm --filter @sitedoc/shared exec tsc --noEmit` inn som regel 10 ledd 4**, og vurder
+   det samme i CI.
+
+🟡 **Ikke bestilt.** ⚠️ **Men merk at steg 1 rører fila `signertBildePolicy.ts`, som er fersk
+`/uploads/`-kode — den ble levert med rød typesjekk i sin egen pakke uten at noen gate så det.**
+
 ### 🔴 PROD HÅNDHEVER «ÉN PSI PER PROSJEKT» — en regel produktet ikke lenger har. `DROP CONSTRAINT` på en INDEKS er en stille no-op (målt 2026-09-24)
 
 **Funnet ved skjema-sammenligning test mot prod.** Tre avvik i hele skjemaet; dette er det eneste som går den farlige veien.
