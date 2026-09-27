@@ -1327,6 +1327,56 @@ ordren en måling, ikke en arv.**
 ⚠️ **Samme familie som § «Et navn i en ordre måles av den som skriver det inn — aldri arvet».**
 **Det gjelder tall like fullt som navn.**
 
+### 🔴 EN NEGATIV ASSERTION ER IKKE BEVIST FØR TRE TING ER VIST (design/cowork/kontrollplan 2026-09-27)
+
+**En `not.toMatch`/`not.toContain` som aldri har vært rød er ikke en test — den er en tillatelse.**
+⚠️ **Den passerer også når den er skrevet feil, og da er den verre enn ingen test: den ser ut som et
+vern.**
+
+**Tre krav, alle tre, før en negativ vakt regnes som levert:**
+
+**1. 🔴 Den skal ha vært RØD — og rødheten tas i en ENGANGSFIL, aldri i den ekte.**
+
+**En negativ assertion gjøres bare rød ved at det forbudte innholdet finnes der testen leser.**
+🔴 **Skriv det ALDRI inn i den ekte fila for å demonstrere.** ⚠️ **Ett glemt steg, og demonstrasjonen
+er blitt produksjonskoden.** **Bruk en engangsfil eller engangskatalog med et navn som ikke kan
+forveksles med noe ekte, og slett den.**
+
+**Kvittering — og et rent arbeidstre er IKKE nok:**
+
+```sh
+comm -13 <(git ls-tree --name-only origin/develop <katalog>/ | sort) \
+         <(git ls-tree --name-only origin/<branch> <katalog>/ | sort)
+```
+
+🔴 **Tomt utdata beviser at engangsfila ikke ble committet. `git status` beviser bare at den ikke
+ligger igjen lokalt.** **Verifiser på origin, ikke i treet.**
+
+**2. 🔴 Bevis-formen velges etter hvilken VARIANT risikoen kommer i — ikke etter hvilken som er
+lettest å skrive.**
+
+**Er det flere måter å skrive det forbudte på, skal beviset bruke den formen risikoen faktisk
+ankommer i.** 🟢 **Da beviser samme kjøring to ting: at vakten ikke er vakuøs, OG at den dekker den
+farlige varianten.**
+
+**Presedens:** vakten mot at `psi_prosjektniva_unik` droppes skulle dekke både
+`DROP INDEX IF EXISTS "…"` og bar `DROP INDEX "…"`. **Design foreslo `IF EXISTS`-formen som
+rød-bevis. Kontrollplan brukte den bare formen — den Prisma autogenererer.** ⚠️ **Designs forslag
+ville passert med en vakt som ikke dekket drift-veien.**
+
+**3. 🔴 Den skal ha en FALSK-POSITIV-sjekk: vis at vakten IKKE fyrer på den legitime setningen.**
+
+⚠️ **At en vakt fyrer, beviser ikke at den fyrer på det RIKTIGE.** **En for bred regex gjør hver
+legitim endring rød, og da blir vakten slettet av den neste som møter den.**
+
+**Presedens:** samme sak. **Vakten er `/DROP INDEX (IF EXISTS )?"psi_prosjektniva_unik"/`, og
+CREATE-linja i samme migrering inneholder både `INDEX` og navnet.** 🟢 **Sjekken viste 0 treff på
+CREATE-linja — det er den som skiller «fyrer» fra «fyrer riktig».**
+
+**Kilde:** `fix/psi-prosjektniva-unik` (`f7d872eb` → `05e8aff6`), gatet 2026-09-27. **Punkt 1 og 2
+kom fra cowork og kontrollplan, punkt 3 fra design** — tre sider av samme spørsmål: hva skiller en
+vakt fra en tillatelse.
+
 ### 🔴 Mål mot RIKTIG database — og les tidsstemplene (lærdom 2026-08-23)
 
 **Kenneth tester på `test.sitedoc.no` → databasen heter `sitedoc_test`.** `-d sitedoc` er
