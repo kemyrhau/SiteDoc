@@ -112,4 +112,15 @@ describe("psi: to PSI på prosjektnivå i samme prosjekt er umulig (NULL-hullet)
     const schema = readFileSync(join(__dirname, "schema.prisma"), "utf8");
     expect(schema).toMatch(/byggeplassId\s+String\?\s+@map\("byggeplass_id"\)/);
   });
+
+  it("psi_prosjektniva_unik droppes ALDRI av en senere migrering (begge setningsformer)", () => {
+    // Krav (c) for den NYE garantien. Den statiske testen over fanger at setningen fjernes fra
+    // FILA; denne fanger drift-veien cowork målte 2026-09-27: en `migrate dev` som dropper den
+    // partielle indeksen i en NY migrering ville ellers passere alt. Verre enn aprilsaken —
+    // garantien kan STILLE slutte å eksistere, uten app-guard bak (psi.create:203 uten
+    // forhåndssjekk, psiWhere:8 død kode). Dekker BÅDE `DROP INDEX IF EXISTS "..."` og bar
+    // `DROP INDEX "..."`: her er det SETNINGSvarianten som er risikoen (Prisma-autogenerert drop
+    // bruker den bare formen), ikke navnevarianten som composite-vakten dekker.
+    expect(alleMigreringer).not.toMatch(/DROP INDEX (IF EXISTS )?"psi_prosjektniva_unik"/);
+  });
 });
