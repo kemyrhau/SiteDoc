@@ -354,6 +354,49 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 🟢 **Redesign målte i tillegg at den sammensatte garantien BESTÅR:** `20260403120000_psi_building:7` lager `psi_project_id_building_id_key` på `(project_id, building_id)`, og `20260405180000_navnegjennomgang:48` omdøper kolonnen `building_id` → `byggeplass_id` **uten** å omdøpe indeksen. **Riktige kolonner, gammelt navn.** Å droppe den enkle indeksen er derfor trygt.
 
+#### De fem målepunktene (fase-1-status 2026-09-27, kontrollplan)
+
+Cowork bestilte fem lesende målinger. Fire var allerede tatt 2026-09-24 og står over; det femte (UI-kodeveien) var udekket og er målt nå.
+
+| # | Spørsmål | Status | Svar |
+|---|---|---|---|
+| 1 | Finnes `psi_project_id_key` i prod/test? | ✅ målt 24.09 | Prod: finnes · Test: mangler (over). 🟡 Re-bekreft mot dagens prod med DRY-RUN før deploy — se kommandoer under |
+| 2 | Prosjekter i prod med >1 byggeplass? | 🟡 **ikke tallfestet** — kun kvalitativt (A.Markussen har flere, `:351`). Presist tall via kommando under |
+| 3 | PSI-rader pr. prosjekt i prod? | ✅ målt 24.09 | 1 rad i 1 prosjekt (`:350`). Ingen med 2+ → indeksen ikke omgått |
+| 4 | Består den sammensatte garantien i prod? | ✅ målt 24.09 | Ja — `psi_project_id_building_id_key` på `(project_id, byggeplass_id)` (`:355`). BÅDE-mangler-utfallet er avkreftet |
+| 5 | Hva møter brukeren ved PSI nr. 2 i prod? | ✅ **målt nå (kode)** | Se under — stille/rå feil på annen-byggeplass-veien |
+
+**#5 — kodeveien fra knapp til insert:**
+
+- Knapp `psi/page.tsx:415` «Opprett ny» → skjema → `:447-454` `opprettMut.mutate({ projectId, byggeplassId? })`.
+- 🟢 Klienten **hindrer duplikat på SAMME byggeplass/prosjektnivå**: byggeplass-valget er `disabled={bygningerMedPsi.has(b.id)}` (`:438`), «hele prosjektet» er `disabled={harProsjektnivaPsi}` (`:434`). Utledet fra eksisterende PSI-rader (`:92-93`).
+- 🔴 **Men en ANNEN, PSI-løs byggeplass er tillatt i UI** — nettopp den veien den stale project_id-indeksen sperrer. Server `psi.ts:203` `prisma.psi.create` har **ingen forhåndssjekk og ingen P2002-fangst**; klientens `opprettMut` (`:46`) har **ingen `onError`**, og det finnes **ingen global tRPC-feil-toast**.
+- **Utfall:** PSI nr. 2 på en annen byggeplass → P2002 fra stale-indeksen → **stille feil (spinner stopper, ingenting skjer) eller rå konsoll-feil, ingen brukermelding.** Nøyaktig «rå Prisma-feil»-klassen (jf. slett-modalen).
+
+#### 🔴 Anbefalt migreringsstrategi (Kenneth ja/nei)
+
+**Ikke skriv ny migrering — den finnes alt** (`fix/psi-unik-indeks` @ `db880f25`, migrering `20260926120000_psi_drop_stale_unik_indeks`, `DROP INDEX IF EXISTS "psi_project_id_key"`, idempotent, DRY-RUN + rød-først-test). Rekkefølge:
+
+1. **Re-bekreft dagens prod** med DRY-RUN-en (lesende, kommandoer under) — at stale-indeksen fortsatt finnes, at composite BESTÅR, og at PSI-antallet er uendret. Fanger evt. drift siden 24.09.
+2. **Kenneth gater + deployer `db880f25`** til prod via ordinær `migrate deploy`. Test er allerede uten indeksen → der en trygg no-op.
+3. **Valgfri herding (egen liten sak, ikke DDL):** legg P2002→`CONFLICT` på `psi.opprett` + `onError` på klienten, så en fremtidig composite-kollisjon gir håndtert melding i stedet for stille/rå feil (#5-funnet).
+
+**Lim-klare re-bekreftelseskommandoer (Kenneth kjører — ÉN `postgres`-container, `-d` skiller prod/test):**
+
+```bash
+# Q1+Q4 PROD (sitedoc): alle indekser på psi, indexdef ordrett
+ssh -t server-ny "sudo docker exec \$(sudo docker ps --format '{{.Names}}' | grep -x postgres) psql -U sitedoc -d sitedoc -c \"SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'psi' ORDER BY indexname;\""
+# Q1 TEST (sitedoc_test): samme, forventet uten psi_project_id_key
+ssh -t server-ny "sudo docker exec \$(sudo docker ps --format '{{.Names}}' | grep -x postgres) psql -U sitedoc -d sitedoc_test -c \"SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'psi' ORDER BY indexname;\""
+# Q2 PROD: antall prosjekter med >1 byggeplass
+ssh -t server-ny "sudo docker exec \$(sudo docker ps --format '{{.Names}}' | grep -x postgres) psql -U sitedoc -d sitedoc -c \"SELECT count(*) FROM (SELECT project_id FROM byggeplasser GROUP BY project_id HAVING count(*) > 1) t;\""
+# Q3 PROD: PSI-rader totalt + prosjekter med 2+ PSI
+ssh -t server-ny "sudo docker exec \$(sudo docker ps --format '{{.Names}}' | grep -x postgres) psql -U sitedoc -d sitedoc -c \"SELECT count(*) AS rader, count(DISTINCT project_id) AS prosjekter FROM psi;\""
+ssh -t server-ny "sudo docker exec \$(sudo docker ps --format '{{.Names}}' | grep -x postgres) psql -U sitedoc -d sitedoc -c \"SELECT project_id, count(*) FROM psi GROUP BY project_id HAVING count(*) > 1;\""
+# Er fiks-migreringen alt kjørt? (prod, forventet 0 rader før deploy)
+ssh -t server-ny "sudo docker exec \$(sudo docker ps --format '{{.Names}}' | grep -x postgres) psql -U sitedoc -d sitedoc -c \"SELECT migration_name, finished_at FROM _prisma_migrations WHERE migration_name = '20260926120000_psi_drop_stale_unik_indeks';\""
+```
+
 ### 🟡 Indeksnavn-drift: `psi_project_id_building_id_key` mot schemas forventning (sidefunn 2026-09-26)
 
 Schema har `@@unique([projectId, byggeplassId])` **uten `map:`**, og forventer da navnet `psi_project_id_byggeplass_id_key`. Faktisk navn i DB er `psi_project_id_building_id_key` — restene etter kolonne-renamen 2026-04-05, som ikke omdøper indekser.
