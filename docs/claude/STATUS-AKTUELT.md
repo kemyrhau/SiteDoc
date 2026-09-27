@@ -13,6 +13,24 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-23 · develop `bc311165` ← `feat/server-kapabilitetsprobe` `f0e5702d` `--no-ff` (lesende kapabilitetsprobe + `ny-server-veileder § 7`). Designgatet, ingen vilkår. Docs-commit `58cf2e59` rett før. Mergen la til nøyaktig TO filer: `docker/kapabilitetsprobe.sh` (+466) og `docs/claude/ny-server-veileder.md` (+50). GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · shared 854 · web 307 · mobil 38 · 7/7 — ALT STILLE (proben har ingen testflate). web build exit=0, mobil typecheck exit=0. Hovedtreet ff'et 5634f884 → bc311165 (43 commits), rent.**
 
+**Sist ført: 2026-09-26 · develop `6b803433` ← tre docs-merger `--no-ff` i fast rekkefølge: `docs/design-maalekommando` `0d060146` (tegn-måleregelen — python3 med LC_ALL-alternativ og forbehold) · `docs/claudemd-eslintrc` `b6c67fac` (CLAUDE.md: `apps/web` bruker `.eslintrc.js`; SAMARBEIDSREGLER: merge-tree-funnet) · `docs/design-ordre-fb4-fd3-7b` `9b487c98` (§7b-ordre, ny fil). 🔴 **Merge 1 KONFLIKTERTE i CLAUDE.md** — begge sider hadde skrevet om tegn-måleregelen; `git merge-tree` ga 0 konfliktmarkører for ANDRE gang. Oppløsning stadfestet av cowork på forhånd (designs side gjelder), målt i engangsklon før ordren. **CLAUDE.md = 40 446 tegn** (python3), 514 under taket. GATE `--force`: db 269 · api 624 · pdf 128 · shared 886 · web 327 · mobil 44 · 7/7. Byggeledd hoppet over — alle tre merger er docs-only, 0 kodefiler. `feat/mal-up-deling` + `feat/synlighet-samlet` slettet fra origin (begge ancestors av develop, 0 filer utenfor). `redesign/navigasjon` bevart (Regel 9).**
+
+### 🔴 2026-09-26 — `git merge-tree` LØY ANDRE GANG PÅ TO DAGER
+
+**Begge gangene på CLAUDE.md, begge ganger samme mekanikk:** en branch skrevet mot en base der
+tegn-/størrelsesregionen så annerledes ut, og `develop` hadde rørt nøyaktig den regionen i
+mellomtiden. `git merge-tree <base> develop <branch>` ga **0** begge ganger; ekte merge ga
+`CONFLICT (content)` begge ganger.
+
+🟢 **Regelen er nå skrevet inn** ([SAMARBEIDSREGLER § Kollisjonssjekken](SAMARBEIDSREGLER.md)): ekte
+prøvemerge i et engangsklon er belegget, `merge-tree` er en proxy som aldri er eneste bevis — og
+**cowork stadfester OPPLØSNINGEN i merge-ordren** når prøvemergen konflikter, slik at merge-agenten
+ikke tar en redaksjonell avgjørelse i en fil cowork eier. Det ble utført slik i denne runden.
+
+⚠️ **Underliggende årsak, ikke løst:** CLAUDE.md får nå tre–fire editer pr. døgn fra ulike kilder mot
+overlappende regioner, og en branch rekker ikke å bli merget før basen er foreldet. **Docs-branchene
+som rører CLAUDE.md skal derfor merges samme døgn de gates**, ikke stables.
+
 ### 🔴 2026-09-23 — KAPABILITETSPROBEN KJØRTE MOT `server-ny` OG FANT EN FEMTE TAPT FUNKSJON
 
 **Første kjøring mot ekte server. Exit 1, fire KREVES-mangler — cowork forutså to.**
