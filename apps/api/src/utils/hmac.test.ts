@@ -107,17 +107,16 @@ describe("vurderUploadsFilForesporsel — gate", () => {
   });
 });
 
-describe("signerFilSti — standard-levetid (E = 24 t til alle klasser selvfornyer)", () => {
-  it("🟢 default-levetid er 24 t (avvik-retting 2026-09-26 — lenker selvfornyer ikke ennå)", () => {
-    // Runde 2 senket til 15 min basert på KUN bilde-selvfornyelse (SignertBilde). Men
-    // nedlastingslenker/PDF-iframes/video har ingen fornyelse → 24 t igjen til lenke-
-    // klassen også selvfornyer. Koblingen håndheves av levetid-snubletraad.test.ts.
+describe("signerFilSti — standard-levetid (E = 15 min: alle konsument-klasser selvfornyer)", () => {
+  it("🟢 default-levetid er 15 min (lenke-runden 2026-09-27 — SignertLenke lukket siste klasse)", () => {
+    // Bilder (SignertBilde) OG lenker (SignertLenke) selvfornyer nå → 15 min er forsvarlig
+    // for den ene globale levetiden. Koblingen håndheves av levetid-snubletraad.test.ts.
     const foer = Date.now();
     const signert = signerFilSti("/uploads/privat/x.jpg");
     const exp = Number(new URLSearchParams(signert.slice(signert.indexOf("?") + 1)).get("exp"));
     const levetidMin = (exp - foer) / 60_000;
-    expect(levetidMin).toBeGreaterThan(24 * 60 - 1);
-    expect(levetidMin).toBeLessThanOrEqual(24 * 60 + 1);
+    expect(levetidMin).toBeGreaterThan(14.9);
+    expect(levetidMin).toBeLessThanOrEqual(15.1);
   });
 });
 

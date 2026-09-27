@@ -2,6 +2,7 @@
 
 import { FileText, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 interface Treff {
   id: string;
@@ -24,6 +25,8 @@ interface TreffListeProps {
 
 export function TreffListe({ treff, onVelgTreff, valgtId }: TreffListeProps) {
   const { t } = useTranslation();
+  // Hook FØR den tidlige returnen under (Rules of Hooks).
+  const apneLenke = useSignertLenkeApner(treff.map((tr) => tr.fileUrl));
   if (treff.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-gray-400">
@@ -33,9 +36,7 @@ export function TreffListe({ treff, onVelgTreff, valgtId }: TreffListeProps) {
   }
 
   function åpneOriginal(tr: Treff) {
-    if (!tr.fileUrl) return;
-    const url = tr.fileUrl.startsWith("/api") ? tr.fileUrl : `/api${tr.fileUrl}`;
-    window.open(url, "_blank");
+    apneLenke(tr.fileUrl, { nyFane: true });
   }
 
   return (

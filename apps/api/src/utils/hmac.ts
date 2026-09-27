@@ -18,22 +18,21 @@ import { UPLOADS_PREFIKS } from "@sitedoc/shared";
  * en `prefiks`-variant; Fase 1 signerer eksakt path.
  */
 
-// 🟢 Standard-levetid for fil-URL-er = 24 TIMER (E, Kenneth-vedtak 2026-09-24;
-// avvik-retting 2026-09-26).
+// 🟢 Standard-levetid for fil-URL-er = 15 MINUTTER (E, Kenneth-vedtak 2026-09-24;
+// lenke-runden 2026-09-27).
 //
 // ÉN global levetid for ALLE `/uploads/`-signaturer, satt av den SVAKESTE
-// konsument-klassen. Runde 2 senket til 15 min fordi del G (selvfornyelse —
-// `SignertBilde` + G2 debouncet re-emisjon) dekket `<img>`. Men G dekker KUN bilder:
-// nedlastingslenker (`<a href download>`), PDF-iframes og `<video>` har INGEN
-// fornyelse — en utløpt signatur der gir 401 ved klikk (målt: gaten svarer 401
-// uansett konsument). Signereren kan ikke vite om en URL blir et `<img>` eller en
+// konsument-klassen. Signereren kan ikke vite om en URL blir et `<img>` eller en
 // nedlasting — samme URL kan bli begge — så per-klasse levetid er ikke mulig.
-// Derfor: tilbake til 24 t til BÅDE bilder OG lenker selvfornyer. Snubletråden
-// (`levetid-snubletraad.test.ts`) er nå klasse-bevisst + har en frist (30.11.2026)
-// som gulv, så 24 t ikke blir liggende umerket.
-export const STANDARD_LEVETID_MS = 24 * 60 * 60 * 1000;
+// 15 min er forsvarlig NÅ fordi HVER konsument-klasse selvfornyer ved utløp:
+//   - bilder (`<img>`)  → `SignertBilde` (onError → debouncet re-emisjon).
+//   - lenker/nedlasting → `SignertLenke` (sjekk før navigering → invalidér + åpne fersk).
+// En utløpt signatur blir da et blunk, ikke en 401 i ansiktet. Snubletråden
+// (`levetid-snubletraad.test.ts`) er en permanent regresjonsvakt: senkes dekningen
+// (en klasse mister selvfornyelse) eller heves levetiden umerket, slår den ut.
+export const STANDARD_LEVETID_MS = 15 * 60 * 1000;
 
-/** 15 min — MÅL-levetiden når ALLE konsument-klasser (bilder + lenker) selvfornyer. */
+/** 15 min — MÅL-levetiden når ALLE konsument-klasser (bilder + lenker) selvfornyer. Nå == STANDARD_LEVETID_MS. */
 export const LEVETID_NAAR_G_LEVERT_MS = 15 * 60 * 1000;
 
 // Dev-fallback så lokal utvikling/test uten satt secret ikke bryter. I produksjon

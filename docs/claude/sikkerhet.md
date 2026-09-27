@@ -148,6 +148,7 @@ sjekker på andre akser (ikke tenant-hull som de fem over), og vurderes i frys-v
 | Rot-lås på statisk servering | `server.ts:129` | 2026-08-28 |
 | Ingen sensitive filer på åpen sti | `audit-sensitive-apen-sti.ts` mot prod-DB, sum 0 | 2026-08-15 |
 | Signaturgate-omgåelse lukket | `//`, `/./`, `%2e` → ikke lenger 200 | 2026-08-12 |
+| `/uploads/` signaturgate — alle konsument-klasser selvfornyer, levetid 15 min | S1 Fase 1b default-deny (`hmac.ts:vurderUploadsFilForesporsel`); hver signert URL har kort levetid (`STANDARD_LEVETID_MS = 15 min`). Bilde-klassen fornyer via `SignertBilde` (onError), lenke-klassen via `SignertLenke` (sjekk før navigering) — LUKKET i lenke-runden 27.09. Snubletråd (`levetid-snubletraad.test.ts`) vokter at levetiden ikke heves umerket, eller senkes uten at en klasse mister dekning | 2026-09-27 |
 | Registrator er ikke superbruker | Fase A+B, `8a1de1a9` | 2026-07-21 |
 | 14 funn fra sikkerhets-audit adressert i prod | Se [historikk-2026-05.md](historikk-2026-05.md) | 2026-05-27 |
 | Ingen passord-innlogging finnes | `auth.ts` har kun Google + Microsoft Entra ID, ingen Credentials-provider | 2026-08-28 |

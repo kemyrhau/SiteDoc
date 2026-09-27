@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { KnappMedForklaring } from "@/components/KnappMedForklaring";
 import { SignertBilde } from "@/components/SignertBilde";
+import { SignertLenke } from "@/components/SignertLenke";
 import {
   ArrowLeft,
   Pencil,
@@ -1397,11 +1398,10 @@ function RaderTillegg({
               {rad.vedlegg && rad.vedlegg.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-2">
                   {rad.vedlegg.map((v) => (
-                    <a
+                    <SignertLenke
                       key={v.id}
-                      href={`/api${v.fileUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      url={v.fileUrl}
+                      nyFane
                       title={v.fileName}
                     >
                       <SignertBilde
@@ -1409,7 +1409,7 @@ function RaderTillegg({
                         alt={t("timer.vedlegg.tittel")}
                         className="h-14 w-14 rounded border border-gray-200 object-cover hover:opacity-80"
                       />
-                    </a>
+                    </SignertLenke>
                   ))}
                 </div>
               )}
@@ -2641,11 +2641,10 @@ function RaderUtlegg({
               {rad.vedlegg && rad.vedlegg.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-2">
                   {rad.vedlegg.map((v) => (
-                    <a
+                    <SignertLenke
                       key={v.id}
-                      href={`/api${v.fileUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      url={v.fileUrl}
+                      nyFane
                       title={v.fileName}
                     >
                       <SignertBilde
@@ -2653,7 +2652,7 @@ function RaderUtlegg({
                         alt={t("timer.vedlegg.tittel")}
                         className="h-14 w-14 rounded border border-gray-200 object-cover hover:opacity-80"
                       />
-                    </a>
+                    </SignertLenke>
                   ))}
                 </div>
               )}
