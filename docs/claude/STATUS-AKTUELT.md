@@ -17,6 +17,71 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-27 · develop `87038042` ← seks merger `--no-ff` etter `6b803433`: `fix/kb4-hjelpetekst-opsjonsnavn` `acbe1bdf` (bar MK C fase 2 `0eddfdb3` som ancestor — ÉN merge tok begge; db 269→272) · fem docs-merger (`fall-konsistens`, `fjern-graa-r2`, `trekk-graa-ordre`, `endringsvern-blindsone`, `trafikklys-verdisett`). GATE etter kode-mergen: db 272 · api 624 · pdf 128 · shared 886 · web 327 · mobil 44 · 7/7, alle tre byggeledd exit 0. Åtte brancher slettet fra origin i løpet av døgnet; `redesign/navigasjon` bevart (Regel 9). **Urørt ved skriving:** `feat/signert-lenke` `1c5f72a0` (hos design for gate) · `fix/trafikklys-foreldreloes-verdi` `8a3046fa` (returnert til dokgen av coworks gate).**
 
+**Sist ført: 2026-09-27 · develop `68302a94` ← seks merger etter `87038042`. Én av dem er kode: `feat/signert-lenke` `1c5f72a0` (to commits) — **`STANDARD_LEVETID_MS` senket fra 24 t til 15 min**, siste konsumentklasse på `/uploads/`-signaturgaten lukket. Fem er docs (PSI-måling, PSI-domeneregel + nullhull, FB4/FD3-normhenvisning, BACKLOG-leveranser, gate-tall-regelen). GATE på kode-mergen: db 272 · api 623 · pdf 128 · shared 886 · web 331 · mobil 44 · 7/7, tre byggeledd exit 0. **Urørt ved skriving:** `fix/psi-prosjektniva-unik` `05e8aff6` og `fix/trafikklys-foreldreloes-verdi` `2a4e03be`, begge hos design.**
+
+### 🟢 2026-09-27 — `/uploads/`-SIGNATURGATEN ER LUKKET. 24 t → 15 min
+
+**Lenke-klassen var det siste hullet.** `SignertLenke.tsx` + `useSignertLenkeApner` ruter alle **ni**
+kallsteder som åpnet en `/uploads/`-URL. **Mekanismen er sjekk FØR navigering**, ikke blob: en `<a>`
+eller `window.open` kan ikke fange en utløpt signatur — nettleseren navigerer og får 401, og det
+finnes ingen `onError` å henge seg på. Gyldig → åpne direkte · utløpt/rå → `erUtloptSignatur` →
+debouncet tRPC-invalidering → åpne den ferske URL-en, med `#page=N` bevart.
+
+🟢 **Negativ kontroll, målt av cowork:** 0 gjenstående rå `/uploads/`-mønstre i `apps/web/src`.
+**Ni kallsteder faktisk rutet — ikke seks filer berørt.**
+
+🟢 **Snubletråden er snudd fra provisorie-vakt til PERMANENT regresjonsvakt.** Fristen 30.11.2026 er
+fjernet fordi detektoren er **armert** (`expect(lenkerSelvfornyer()).toBe(true)`): slettes
+`SignertLenke.tsx` feiler test 1, heves levetiden feiler test 2 og 3. ⚠️ **Runde 2 fjernet samme
+frist mens koblingen var HVILENDE — det var derfor feil da og riktig nå.**
+
+⚠️ **Ett hull består, ført i BACKLOG:** tråden vokter to hardkodede filstier. **En tredje
+konsumentklasse ville blitt brutt av 15 min uten at noe fyrer.** Den negative kontrollen er målt én
+gang, ikke håndhevet. Design skriver ordren når de to gatene i kø er inne.
+
+### 🔴 2026-09-27 — PSI: EN DOMENEREGEL FRA KENNETH SNUDDE EN «KANTSAK» TIL PILOTBLOKKERENDE
+
+> «ikke alle byggeplasser skal ha psi. når psi er slått på → da skal byggeplassen kreve psi. det
+> betyr i praksis at et prosjekt kan ha ti forskjellige psi»
+
+**Den foreldreløse `psi_project_id_key`-indeksen i prod sperrer altså ikke et hjørne — den sperrer
+hovedveien.** Full regel: [domene-arbeidsflyt.md § PSI er PER BYGGEPLASS](domene-arbeidsflyt.md).
+
+🔴 **Og målingen avdekket at fiksen vi var i ferd med å deploye var HALV.** `Psi.byggeplassId` er
+nullable, og **Postgres regner NULL-er som ULIKE i en unik indeks** — så
+`@@unique([projectId, byggeplassId])` hindrer *ikke* to PSI-er på prosjektnivå.
+
+| Indeks | Hindrer ti byggeplass-PSI-er? | Hindrer to prosjektnivå-PSI-er? |
+|---|---|---|
+| `psi_project_id_key` (stale, i prod) | 🔴 **JA — feil** | 🟢 ja, ved et uhell |
+| `psi_project_id_building_id_key` | 🟢 nei | 🔴 **NEI — hullet** |
+
+**Kenneth valgte å utvide den develop-mergede migreringen** framfor en ny på toppen, så det aldri
+finnes et vindu der begge garantiene mangler. `DROP INDEX` + partiell
+`CREATE UNIQUE INDEX ... WHERE byggeplass_id IS NULL`, i den rekkefølgen, **og en test låser
+rekkefølgen.**
+
+🟢 **Tre forhåndssjekker kjørt av Kenneth — alle 0 rader:** migreringen finnes ikke i prods
+`_prisma_migrations` (redigeringen var lovlig) · 0 duplikater på prosjektnivå i prod · samme i test,
+**så `CREATE UNIQUE INDEX` kan ikke feile.** ⚠️ **Det var nøyaktig sjekken
+`20260430120000_add_klasse4_indekser` manglet i april — der 15 indekser lå rullet tilbake i fem
+måneder uten at noe sa fra.** 🔴 **GJENSTÅR: prod-deploy. Migreringen er kode, ikke tilstand.**
+
+### 🔴 2026-09-27 — TRE VARIANTER AV SAMME COWORK-FEIL PÅ ÉN ØKT
+
+**Alle tre kostet merge-agenten en runde, og alle tre ble fanget av ham, ikke av cowork:**
+
+| Formen | Hva som skjedde |
+|---|---|
+| Ukommittert edit i hovedtreet referert i en ordre | `CLAUDE.md`-editen «forsvant» — cowork committet den til en branch mens merge målte |
+| Gate-tall arvet fra en ANNEN branch | `web +7` fra trafikklys-branchen inn i signert-lenke-ordren; faktisk `+4`. Ordren hadde gjort tallet til en gate, så merge brukte en runde på å lete etter tre tester som aldri fantes |
+| Hash committet lokalt ETTER at branchen var pushet | Ordren oppga tre hasher, origin hadde to. Gate-tall-regelen landet ikke, selv om merge-commiten nevnte den |
+
+🟢 **Begge regler er nå på develop** ([SAMARBEIDSREGLER](SAMARBEIDSREGLER.md)): forventede gate-tall
+kopieres fra leverandørens rapport på **den** branchen ordren gjelder, og **hver hash i en ordre
+verifiseres på origin før ordren sendes** — også coworks egne. ⚠️ **Og: be aldri Kenneth pushe en
+branch cowork fortsatt skriver på.**
+
 ### 🔴 2026-09-27 — «FJERN DET FJERDE TRAFIKKLYSET» BLE TRUKKET, OG MÅLINGEN SNUDDE HELE SAKEN
 
 **Kenneth trakk ordren på premisset, ikke på utførelsen:**
