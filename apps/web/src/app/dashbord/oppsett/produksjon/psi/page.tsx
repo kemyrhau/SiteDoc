@@ -50,6 +50,17 @@ export default function PsiOppsettSide() {
       // Åpne malbygger for den nye PSI-malen
       router.push(`/dashbord/oppsett/produksjon/sjekklistemaler/${data.templateId}`);
     },
+    onError: (feil: { message?: string }) => {
+      // Serveren sender en stabil kode; teksten bor i i18n. Vis inline ved skjemaet —
+      // ikke en toast: brukeren står midt i opprettelsen og skal forstå hva han gjør i stedet.
+      const kode = feil.message ?? "";
+      const nokkel =
+        kode === "PSI_KONFLIKT_PROSJEKTNIVA" ? "psi.konflikt.prosjektniva"
+        : kode === "PSI_KONFLIKT_BYGGEPLASS" ? "psi.konflikt.byggeplass"
+        : kode === "PSI_KONFLIKT" ? "psi.konflikt.generell"
+        : "psi.opprettFeil";
+      setOpprettFeil(t(nokkel));
+    },
   });
 
   const bumpMut = trpc.psi.bumpVersjon.useMutation({
@@ -77,6 +88,7 @@ export default function PsiOppsettSide() {
   });
 
   const [visOpprettSkjema, setVisOpprettSkjema] = useState(false);
+  const [opprettFeil, setOpprettFeil] = useState<string | null>(null);
   const [nyMalId, setNyMalId] = useState("");
   const [nyBygningId, setNyBygningId] = useState("");
   const [visQRForPsi, setVisQRForPsi] = useState<string | null>(null);
@@ -447,6 +459,7 @@ export default function PsiOppsettSide() {
             <Button
               onClick={() => {
                 if (!prosjektId) return;
+                setOpprettFeil(null);
                 opprettMut.mutate({
                   projectId: prosjektId,
                   ...(nyBygningId ? { byggeplassId: nyBygningId } : {}),
@@ -456,10 +469,16 @@ export default function PsiOppsettSide() {
             >
               {opprettMut.isPending ? "Oppretter..." : "Opprett og åpne malbygger"}
             </Button>
-            <Button variant="secondary" onClick={() => { setVisOpprettSkjema(false); setNyBygningId(""); }}>
+            <Button variant="secondary" onClick={() => { setVisOpprettSkjema(false); setNyBygningId(""); setOpprettFeil(null); }}>
               {t("handling.avbryt")}
             </Button>
           </div>
+
+          {opprettFeil && (
+            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {opprettFeil}
+            </p>
+          )}
         </Card>
       )}
 

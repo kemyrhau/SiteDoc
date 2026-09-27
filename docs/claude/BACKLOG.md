@@ -480,18 +480,23 @@ migreringen. **Den fanger IKKE at noen kjører `migrate dev` og dropper indeksen
 `DROP INDEX ... "psi_prosjektniva_unik"`, samme form som den eksisterende vakten mot å droppe
 composite-indeksen.**
 
-#### 🔴 Stille feil ved PSI nr. 2 — ingen P2002-fangst noe sted (målt 2026-09-27, kontrollplan)
+#### ✅ LUKKET 2026-09-27 — Stille feil ved PSI nr. 2 — ingen P2002-fangst noe sted (`fix/psi-p2002-haandtert`, kontrollplan)
 
-**Kodeveien:** knapp `psi/page.tsx:415` → `:447-454` `opprettMut.mutate(...)` → server `psi.ts:203`
-`prisma.psi.create`.
+**Kodeveien var:** knapp `psi/page.tsx:415` → `:447-454` `opprettMut.mutate(...)` → server `psi.ts:203`
+`prisma.psi.create`. Ingen forhåndssjekk, ingen P2002-fangst på serveren, ingen `onError` på
+`opprettMut`, ingen global tRPC-feil-toast → spinneren stoppet og ingenting skjedde.
 
-🔴 **Ingen forhåndssjekk, ingen P2002-fangst på serveren. `opprettMut` (`:46`) har ingen `onError`.
-Det finnes ingen global tRPC-feil-toast.** **Utfall: spinneren stopper, ingenting skjer, ingen
-melding.** ⚠️ Samme klasse som den rå Prisma-feilen i slett-modalen.
-
-🟢 **Herdingen er liten og uavhengig av DDL-en:** P2002 → `CONFLICT` på `psi.opprett` + `onError` på
-klienten. **Bør bygges uansett hvilken vei indeks-saken går** — den sammensatte indeksen kan
-kollidere i framtida også. **Ikke bestilt.**
+🟢 **Fiks levert (samme mønster som `overflate.ts:122-131`):**
+- **Server:** `psi.opprett` (`psi.ts`) wrapper `psi.create` i try/catch og kaller ny ren hjelper
+  `tolkPsiOpprettFeil` (`psi-feil.ts`). Den skiller de **to** unike indeksene på `e.meta.target`
+  (`psi_project_id_building_id_key` → byggeplass-melding · `psi_prosjektniva_unik` → prosjektnivå-melding),
+  gir én melding sann for begge ved uklart mål, og **boble en P2002 fra en fremmed indeks opp URØRT**.
+- **Klient:** `onError` på `opprettMut` viser meldingen **inline** ved skjemaet (rød rute), ikke toast.
+- **i18n:** `psi.konflikt.{byggeplass,prosjektniva,generell}` + `psi.opprettFeil` via `t()` (nb+en+13).
+- **Krav (c):** `psi.tolkOpprettFeil.test.ts` — CONFLICT ved byggeplass-brudd, CONFLICT ved
+  prosjektnivå-brudd, og **falsk-positiv-vakt** (fremmed P2002 bobler urørt, sammenlignet mot
+  original-instansen). Mock av `PrismaClientKnownRequestError` med `meta.target` (ingen test-DB i
+  api-harnessen). Mønster + hvorfor: [api.md § P2002 → CONFLICT (psi.opprett)](api.md).
 
 ### 🟡 MANGEL: én PSI på prosjektet som DEKKER alle byggeplasser (Kenneth 2026-09-27)
 
