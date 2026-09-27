@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad, normaliserOpsjon, TRAFIKKLYS_VALG, nb } from "@sitedoc/shared";
+import { lesSignaturVerdi, formaterSignaturLinje, feltKartFraRad, normaliserOpsjon, TRAFIKKLYS_VALG, ukjentTrafikklysVerdi, nb } from "@sitedoc/shared";
 import {
   lesSignaturVerdiPdf,
   formaterSignaturLinjePdf,
   feltKartFraRadPdf,
   normaliserOpsjon as normaliserOpsjonPdf,
   TRAFIKKLYS,
+  renderFelt,
 } from "@sitedoc/pdf";
 
 /**
@@ -123,4 +124,49 @@ describe("trafikklys-tvilling: TRAFIKKLYS_VALG (shared) ↔ TRAFIKKLYS (pdf)", (
       expect(TRAFIKKLYS[value]!.label).toBe(nbMap[i18nKey]);
     }
   });
-})
+});
+
+/**
+ * 🔴 Beslutnings-paritet (ikke bare kart-paritet): like verdisett er NØDVENDIG, ikke
+ * tilstrekkelig — pdf og shared kan behandle tom streng/whitespace ulikt uten at kart-vakten
+ * merker det. Denne binder «foreldreløs?»-avgjørelsen: shared `ukjentTrafikklysVerdi` ↔ pdf
+ * `renderFelt`. `trim()` er valgt kanon på BEGGE flater (et mellomrom er ikke et svar).
+ */
+describe("trafikklys foreldreløs-beslutning: shared ukjentTrafikklysVerdi ↔ pdf renderFelt", () => {
+  const config = { bildeBaseUrl: "/api" } as Parameters<typeof renderFelt>[2];
+  const obj = {
+    id: "f", type: "traffic_light", label: "Status", required: false,
+    config: {}, sortOrder: 0, parentId: null, children: [],
+  } as unknown as Parameters<typeof renderFelt>[0];
+  const pdfHtml = (verdi: unknown) =>
+    renderFelt(obj, { verdi, kommentar: "", vedlegg: [] } as unknown as Parameters<typeof renderFelt>[1], config);
+
+  it("ukjent verdi → foreldreløs på BEGGE (rå verdi vises, ikke «Ikke utfylt»)", () => {
+    expect(ukjentTrafikklysVerdi("gray_gammel")).toBe("gray_gammel");
+    const html = pdfHtml("gray_gammel");
+    expect(html).toContain("gray_gammel");
+    expect(html).not.toContain("Ikke utfylt");
+  });
+
+  it("tom streng → ubesvart på BEGGE", () => {
+    expect(ukjentTrafikklysVerdi("")).toBeNull();
+    expect(pdfHtml("")).toContain("Ikke utfylt");
+  });
+
+  it("ett mellomrom → ubesvart på BEGGE (trim-kanon; ingen uenighet)", () => {
+    expect(ukjentTrafikklysVerdi(" ")).toBeNull();
+    expect(pdfHtml(" ")).toContain("Ikke utfylt");
+  });
+
+  it("ikke-streng → ubesvart på BEGGE", () => {
+    expect(ukjentTrafikklysVerdi(123)).toBeNull();
+    expect(pdfHtml(123)).toContain("Ikke utfylt");
+  });
+
+  it("gyldig verdi → kjent på BEGGE (label, ikke foreldreløs)", () => {
+    expect(ukjentTrafikklysVerdi("green")).toBeNull();
+    const html = pdfHtml("green");
+    expect(html).toContain("Godkjent");
+    expect(html).not.toContain("Ikke utfylt");
+  });
+});

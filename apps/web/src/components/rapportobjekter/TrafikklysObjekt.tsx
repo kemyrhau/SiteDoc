@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { TRAFIKKLYS_VALG } from "@sitedoc/shared";
+import { TRAFIKKLYS_VALG, ukjentTrafikklysVerdi } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
 // Fargeklasser per verdi — plattform-lokalt (tailwind aktiv/inaktiv). Verdisettet + etikettene
@@ -10,13 +10,6 @@ const FARGE: Record<string, { aktiv: string; inaktiv: string }> = {
   red: { aktiv: "bg-red-500", inaktiv: "bg-red-200" },
   gray: { aktiv: "bg-gray-400", inaktiv: "bg-gray-200" },
 };
-
-// Foreldreløs verdi: en ikke-tom streng utenfor TRAFIKKLYS_VALG (malen redigert / eldre verdisett).
-// Da matcher ingen brikke → uten dette ser feltet ubesvart ut mens databasen har et svar.
-function ukjentTrafikklysVerdi(verdi: unknown): string | null {
-  if (typeof verdi !== "string" || verdi === "") return null;
-  return TRAFIKKLYS_VALG.some((v) => v.value === verdi) ? null : verdi;
-}
 
 export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const { t } = useTranslation();

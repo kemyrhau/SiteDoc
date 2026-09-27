@@ -145,6 +145,23 @@ export const TRAFIKKLYS_VALG = [
   { value: "gray", i18nKey: "standardopsjon.ikkeRelevant" },
 ] as const;
 
+/**
+ * Foreldreløs trafikklys-verdi: `Checklist.templateId` er en levende FK — svarene bor i `data`
+ * Json, opsjonene i malen. Er den lagrede verdien en streng UTENFOR `TRAFIKKLYS_VALG` (malen
+ * redigert / eldre verdisett), matcher ingen brikke → feltet ser ubesvart ut mens DB har et svar.
+ * Denne avgjør «vis rått i stedet for stille tap»: returnerer den rå verdien når den er ukjent,
+ * ellers `null`.
+ *
+ * 🔴 ÉN kilde for BESLUTNINGEN (ikke bare verdisettet) — web + mobil importerer denne; `packages/pdf`
+ * er null-avhengig og speiler regelen i `felt.ts`, voktet av `pdf-shared-tvilling-paritet.test.ts`.
+ * `trim()`-en er tilsiktet: et mellomrom er ikke et svar (ubesvart), så whitespace-only → `null`
+ * på ALLE tre flater. Den rå (ikke-trimmede) verdien vises når den først er en foreldreløs verdi.
+ */
+export function ukjentTrafikklysVerdi(verdi: unknown): string | null {
+  if (typeof verdi !== "string" || verdi.trim() === "") return null;
+  return TRAFIKKLYS_VALG.some((v) => v.value === verdi) ? null : verdi;
+}
+
 // Oppslagsstrukturer (bygget én gang ved modul-last)
 const labelPerType = new Map<ReportObjectType, StandardFeltLabel>();
 for (const l of STANDARD_FELTLABELS) labelPerType.set(l.type, l);

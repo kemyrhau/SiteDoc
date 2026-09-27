@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { ukjentTrafikklysVerdi } from "./trafikklysFallback";
+import { ukjentTrafikklysVerdi } from "@sitedoc/shared";
 
 /**
- * 🔴 Foreldreløs trafikklys-verdi — mobil (samme feil som web: en verdi utenfor TRAFIKKLYS_VALG
- * gjør at ingen brikke matcher → feltet ser ubesvart ut). Mobilens test-miljø er node-only (ingen
- * react-native render-harness), så beslutningen — «hva skal rendereren vise for denne verdien?» —
- * testes rent, slik de øvrige mobil-testene gjør. `ukjentTrafikklysVerdi` er kilden komponentens
- * fallback-brikke leser: returnerer den rå verdien når den er ukjent, ellers null.
+ * 🔴 Foreldreløs trafikklys-verdi — mobil. Beslutningen bor nå i @sitedoc/shared
+ * (`ukjentTrafikklysVerdi`, én kilde for web+mobil); mobilens test-miljø er node-only (ingen
+ * react-native render-harness), så dette verifiserer at mobil-pakken konsumerer beslutningen
+ * komponentens fallback-brikke leser. Rendringen selv er ikke harness-bar på mobil; PDF og web
+ * dekker rendringen med egne flate-tester, og shared eier beslutnings-testen.
  */
 
 describe("ukjentTrafikklysVerdi (mobil-rendererens fallback-beslutning)", () => {

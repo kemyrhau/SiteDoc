@@ -1,8 +1,7 @@
 import { View, Text, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { TRAFIKKLYS_VALG } from "@sitedoc/shared";
+import { TRAFIKKLYS_VALG, ukjentTrafikklysVerdi } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
-import { ukjentTrafikklysVerdi } from "./trafikklysFallback";
 
 // Fargeklasser per verdi — plattform-lokalt. Verdisett + etiketter bor i @sitedoc/shared
 // (TRAFIKKLYS_VALG), delt med web; her bor bare fargene.
