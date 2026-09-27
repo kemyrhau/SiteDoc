@@ -37,6 +37,11 @@ describe("TrafikklysObjekt — foreldreløs verdi vises rått", () => {
     expect(screen.getByText("foreldreloes-42")).toBeTruthy();
   });
 
+  it("foreldreløs verdi → synlig mikrotekst «ikke et gyldig valg» (ikke bare title-hover)", () => {
+    render(<TrafikklysObjekt objekt={{} as never} verdi="foreldreloes-42" onEndreVerdi={noop} />);
+    expect(screen.getByText((nb as Record<string, string>)["rapportobjekt.ikkeGyldigValg"]!)).toBeTruthy();
+  });
+
   it("gyldig verdi (green) → INGEN foreldreløs-brikke (regresjonsvakt mot falsk-positiv)", () => {
     render(<TrafikklysObjekt objekt={{} as never} verdi="green" onEndreVerdi={noop} />);
     expect(screen.queryByTestId("trafikklys-foreldreloes")).toBeNull();

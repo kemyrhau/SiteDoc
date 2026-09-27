@@ -50,11 +50,14 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
         <div
           data-testid="trafikklys-foreldreloes"
           className="flex w-14 flex-col items-center gap-1"
-          title="Lagret verdi — ikke et gyldig valg"
         >
           <span className="h-5 w-5 shrink-0 rounded-full border-2 border-dashed border-gray-400 bg-gray-100" />
           <span className="text-center text-[10px] leading-tight font-medium text-gray-700 break-all">
             {foreldreloes}
+          </span>
+          {/* Synlig mikrotekst — samme ordlyd som arkiv-PDF-en, aldri bare i title-hover. */}
+          <span className="text-center text-[9px] leading-tight text-gray-500">
+            {t("rapportobjekt.ikkeGyldigValg")}
           </span>
         </div>
       )}

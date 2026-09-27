@@ -51,6 +51,10 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
           <Text className="text-center text-[10px] leading-tight font-medium text-gray-700">
             {foreldreloes}
           </Text>
+          {/* Synlig mikrotekst — samme ordlyd som arkiv-PDF-en (mobil har ingen hover å gjemme den i). */}
+          <Text className="text-center text-[9px] leading-tight text-gray-500">
+            {t("rapportobjekt.ikkeGyldigValg")}
+          </Text>
         </View>
       )}
     </View>

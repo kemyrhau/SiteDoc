@@ -2477,6 +2477,7 @@
   "standardopsjon.anmerkning": "Remark",
   "standardopsjon.avvik": "Nonconformity",
   "standardopsjon.ikkeRelevant": "Not relevant",
+  "rapportobjekt.ikkeGyldigValg": "not a valid choice",
   "standardopsjon.delvisGodkjent": "Partially approved",
   "standardopsjon.avvist": "Rejected",
   "standardopsjon.ikkeBehandlet": "Not processed",
