@@ -46,13 +46,15 @@ export function DragOverlayKomponent({ aktivt }: DragOverlayProps) {
   if (data?.fraKilde === "palett") {
     const type = data.type as ReportObjectType;
     const meta = REPORT_OBJECT_TYPE_META[type];
+    // Palett-variant (trafikklys tre/fire lys) bærer egen etikett; ellers type-navnet.
+    const label = (data.label as string | undefined) ?? meta.label;
     return (
       <DndDragOverlay>
         <div className="flex w-56 items-center gap-2.5 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm shadow-lg">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-100 text-xs">
             {ikonMap[meta.icon] ?? "?"}
           </span>
-          <span className="truncate font-medium text-gray-700">{meta.label}</span>
+          <span className="truncate font-medium text-gray-700">{label}</span>
         </div>
       </DndDragOverlay>
     );

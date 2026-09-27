@@ -7,6 +7,13 @@ import { useTranslation } from "react-i18next";
 interface PalettElementProps {
   type: ReportObjectType;
   meta: ReportObjectTypeMeta;
+  /**
+   * Palett-variant: flere paletteoppføringer som oppretter SAMME type, men sås med ulik config.
+   * Brukes for trafikklys (tre lys vs fire lys) — palett-valg, ikke typevalg, så et felt kan
+   * fortsatt flyttes mellom lyssett som en config-endring (endringsvernet fyrer). `dragId` gjør
+   * draggable-id-en unik, `labelKey` gir egen etikett, `seedConfig` overstyrer `meta.defaultConfig`.
+   */
+  variant?: { dragId: string; labelKey: string; seedConfig: Record<string, unknown> };
 }
 
 // Ikon-map med enkle tekst-representasjoner (Lucide-ikonnavn → korte symboler)
@@ -69,12 +76,17 @@ export const felttypeNokler: Record<string, string> = {
   quiz: "malbygger.quiz",
 };
 
-export function PalettElement({ type, meta }: PalettElementProps) {
+export function PalettElement({ type, meta, variant }: PalettElementProps) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `palett-${type}`,
-    data: { type, fraKilde: "palett" },
+    id: variant ? variant.dragId : `palett-${type}`,
+    data: { type, fraKilde: "palett", seedConfig: variant?.seedConfig, label: variant ? t(variant.labelKey) : undefined },
   });
+  const visLabel = variant
+    ? t(variant.labelKey)
+    : felttypeNokler[type]
+      ? t(felttypeNokler[type])
+      : meta.label;
 
   return (
     <div
@@ -88,7 +100,7 @@ export function PalettElement({ type, meta }: PalettElementProps) {
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gray-100 text-[11px]">
         {ikonMap[meta.icon] ?? "?"}
       </span>
-      <span className="truncate font-medium text-gray-700">{felttypeNokler[type] ? t(felttypeNokler[type]) : meta.label}</span>
+      <span className="truncate font-medium text-gray-700">{visLabel}</span>
     </div>
   );
 }

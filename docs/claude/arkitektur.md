@@ -321,7 +321,7 @@ draft / sent / received / in_progress → cancelled (irreversibel)
 | `integer` | tall | Heltall |
 | `decimal` | tall | Desimaltall |
 | `calculation` | tall | Beregning (formel) |
-| `traffic_light` | valg | Trafikklys (4 farger: Godkjent, Anmerkning, Avvik, Ikke relevant) |
+| `traffic_light` | valg | Trafikklys. Uten `config.options`: fire kanoniske lys (Godkjent/Anmerkning/Avvik/Ikke relevant). Med `config.options`: feltets egen delmengde + rekkefølge + valgfri egen etikett per verdi — se under |
 | `date` | dato | Dato |
 | `date_time` | dato | Dato og tid |
 | `person` | person | Enkeltperson |
@@ -342,6 +342,8 @@ draft / sent / received / in_progress → cancelled (irreversibel)
 | `quiz` | psi | Quiz med spørsmål og svaralternativer (PSI) |
 
 Metadata i `REPORT_OBJECT_TYPE_META`. Konfigurasjon lagres som JSON i `report_objects.config`.
+
+**Trafikklys — valgbart lyssett (2026-09-27):** `traffic_light` er ÉN felttype med et valgbart lyssett i `config.options`. Fargene er nøklet på VERDI (`green`/`yellow`/`red`/`gray`) i renderne (`FARGE` web/mobil, `TRAFIKKLYS` i `packages/pdf/konstanter.ts`); `config.options` bærer bare HVILKE av de fire kanoniske verdiene feltet tilbyr, i hvilken rekkefølge, med valgfri egen etikett per verdi. Rendreren (`TrafikklysObjekt` web+mobil, `felt.ts`/`arkivmal/repeater.ts` i pdf) leser `config.options` når den finnes og faller til det kanoniske firelys-settet ellers — delt lesing i `@sitedoc/shared.trafikklysOpsjoner` (`standardtekster.ts`), speilet i pdf (`trafikklysEtikettPdf`), voktet av `pdf-shared-tvilling-paritet.test.ts`. Egne etiketter som er seedet standardtekst oversettes ved rendring (`oversettStandardtekst`); firmaets egne strenger vises rått. Validering (`mal.ts`): hver verdi må være én kanonisk nøkkel, ingen duplikater, minst to lys — antallet er IKKE låst til 3/4. Systemmalene «HMS-avvik»/«Status» (tre lys: Åpent/Under behandling/Lukket) og «Godkjenning»/«Beslutning» (fire lys: Godkjent/Delvis godkjent/Avvist/Ikke behandlet) bruker dette; malbyggerens palett tilbyr ett tre-lys- og ett fire-lys-objekt (begge `traffic_light`, ulik seedet `options`).
 
 **Rekursiv kontainer-nesting:**
 - Kontainertyper: `list_single`, `list_multi`, `repeater` (`erKontainerType()`)

@@ -2399,6 +2399,8 @@
   "malbygger.enkeltvalg": "Єдиний вибір",
   "malbygger.flervalg": "Множинний вибір",
   "malbygger.trafikklys": "Світлофор",
+  "malbygger.trafikklys3": "Світлофор (3 вогні)",
+  "malbygger.trafikklys4": "Світлофор (4 ліхтарі)",
   "malbygger.heltall": "Ціле число",
   "malbygger.desimaltall": "Десятковий",
   "malbygger.beregning": "Розрахунок",

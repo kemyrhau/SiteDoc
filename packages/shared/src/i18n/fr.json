@@ -2399,6 +2399,8 @@
   "malbygger.enkeltvalg": "Choix unique",
   "malbygger.flervalg": "Choix multiple",
   "malbygger.trafikklys": "Feu de circulation",
+  "malbygger.trafikklys3": "Feu de circulation (3 feux)",
+  "malbygger.trafikklys4": "Feu de circulation (4 feux)",
   "malbygger.heltall": "Entier",
   "malbygger.desimaltall": "Décimale",
   "malbygger.beregning": "Calcul",

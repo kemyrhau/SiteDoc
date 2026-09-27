@@ -2399,6 +2399,8 @@
   "malbygger.enkeltvalg": "Yksittäinen valinta",
   "malbygger.flervalg": "Monivalinta",
   "malbygger.trafikklys": "Liikennevalo",
+  "malbygger.trafikklys3": "Liikennevalo (3 valoa)",
+  "malbygger.trafikklys4": "Liikennevalo (4 valoa)",
   "malbygger.heltall": "Kokonaisluku",
   "malbygger.desimaltall": "Desimaali",
   "malbygger.beregning": "Laskeminen",

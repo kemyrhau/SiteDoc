@@ -2399,6 +2399,8 @@
   "malbygger.enkeltvalg": "Единый выбор",
   "malbygger.flervalg": "Множественный выбор",
   "malbygger.trafikklys": "Светофор",
+  "malbygger.trafikklys3": "Светофор (3 светофора)",
+  "malbygger.trafikklys4": "Светофор (4 светофора)",
   "malbygger.heltall": "Целое число",
   "malbygger.desimaltall": "Десятичный",
   "malbygger.beregning": "Расчет",
