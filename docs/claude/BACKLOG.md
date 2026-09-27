@@ -65,6 +65,34 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
+### 🟡 ENDRINGSVERNET HAR EN BLINDSONE PÅ TYPE-NIVÅ — en felttypes default passerer det helt (målt 2026-09-27)
+
+**Funnet av design i `docs/design-ordre-fjern-graa-r3` (`f351433e`), som ble trukket sammen med
+grå-ordren. Funnet er ikke hjemløst: det står her.**
+
+🟢 **Vakten finnes og virker på mal-nivå.** `apps/api/src/routes/mal.ts:154` `endringsvernMelding()`,
+kastet som `PRECONDITION_FAILED` på `:787` og `:840` med antall berørte dokumenter i meldingen.
+**Målt: `KOSMETISKE_CONFIG_NOKLER` (`:136`) inneholder kun `helpText`, `placeholder`, `multiline`,
+`role`** — `options` er IKKE der, så endres en mals opsjoner mens utfylte dokumenter finnes,
+blokkerer vakten. **Det er riktig oppførsel.**
+
+🔴 **Men opsjonene finnes på TO nivåer, og vakten står bare ved det ene.** Felttypens default ligger i
+`packages/shared/src/types/index.ts:145` (`defaultConfig: { options: [] }` m.fl.) — en ren konstant i
+kode. **Endres den, treffer endringen hver mal som bruker typen, og ingen enkelt mal endres — så
+vakten ser ingenting.** ⚠️ **Målt: det finnes ingen test eller runtime-sjekk på `defaultConfig` i
+`apps/api/src` eller `packages/shared/src`.**
+
+🟢 **Fallback-ordren (`ordre-trafikklys-foreldreloes-verdi`) gjør skaden SYNLIG** — et lagret svar
+utenfor verdisettet vises i stedet for å se ubesvart ut. **Det er tiltaket som haster, og det er
+bestilt.**
+
+🟡 **Ikke bestilt:** om type-nivået også skal ha en vakt. **Egen beslutning.** ⚠️ **Merk at en vakt på
+type-nivå er vanskeligere enn på mal-nivå — den måtte kjøre ved kodeendring, ikke ved brukerhandling,
+så den hører nok hjemme som en test som teller berørte dokumenter, ikke som en runtime-blokkering.**
+
+**Relatert, meldt i samme runde:** `types/index.ts` og `standardtekster.ts` erklærer
+trafikklys-opsjonene hver for seg, uten test som binder dem sammen.
+
 ### 🔴 Seks av sju e2e-spec-er er DRIFTET — krever spec-redigerings-runde (målt 2026-09-16, e2e del 2)
 
 Da e2e-suiten endelig kjørte i CI (efemært miljø, del 1+2), viste det seg at **6 av 7 spec-er ble skrevet mot et UI som siden er endret** — og ingen merket det fordi suiten aldri kjørte. En spec som ikke kjører råtner i stillhet; dette er nøyaktig hullet CI-e2e lukket, i sin reneste form.
