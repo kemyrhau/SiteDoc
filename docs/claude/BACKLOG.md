@@ -339,10 +339,48 @@ på `:8`. **Null kall.**
 i stedet for å kalle hjelperen. **Så regelen finnes to steder: én som ikke kjører, og én kopi som
 gjør det.**
 
-🟢 **Enkleste retting: slett `psiWhere()`, eller bruk den på `:651`.** **Det siste er bedre** — da
-finnes normaliseringen (`byggeplassId ?? null`) på ett sted, og den er ikke triviell: det er
-nettopp NULL-håndteringen som bærer prosjektnivå-semantikken. **Ikke bestilt. Ta den som del av
-P2002-herdingsrunden, som alt skal inn i `psi.ts`.**
+✅ **LUKKET 2026-09-27** — `fix/psi-p2002-haandtert` @ `e0820f46`: `psiWhere` er tatt i bruk i
+`kopier`-forhåndssjekken og er ikke lenger død.
+
+🔴 **OG COWORKS BEGRUNNELSE VAR FEIL — kontrollplan målte det, og funnet er skarpere enn posten
+over.** Jeg skrev at `byggeplassId ?? null`-normaliseringen «bærer prosjektnivå-semantikken» og
+derfor burde bo på ett sted. **Den kunne aldri ha gjort det.**
+
+**Målt i den genererte klienten** (`node_modules/.pnpm/@prisma+client@6.19.2/.../.prisma/client/index.d.ts`):
+
+```ts
+export type PsiProjectIdByggeplassIdCompoundUniqueInput = {
+  projectId: string
+  byggeplassId: string      // 🔴 NON-NULL
+}
+```
+
+⚠️ **`findUnique` kan ikke identifisere en rad på NULL** — det er Postgres-semantikk som Prisma
+speiler i typene. `?? null` gir `string | null`, som typen avviser. 🔴 **Så `psiWhere` var ikke bare
+død: den var type-usunn, og et kall på prosjektnivå ville ikke kompilert.** **Den framsto som en
+delt regel, men var en regel som ikke kunne brukes.**
+
+🟢 **Kontrollplan leverte den type-ærlige varianten:** `psiWhere` krever konkret `byggeplassId`, og
+dokumenterer at prosjektnivå-oppslag går via `findFirst({ where: { projectId, byggeplassId: null } })`.
+**Alternativet var å beholde et villedende `?? null` bare for å matche coworks ordlyd.** 🔴 **Riktig
+valg — en ordre er input, ikke fasit.**
+
+⚠️ **Lærdommen er generell:** «legg normaliseringen ett sted» er god instinkt, men **NULL i en unik
+nøkkel er ikke en normaliserings-sak — det er to forskjellige oppslag.** Prosjektnivå og
+byggeplassnivå kan ikke dele samme `findUnique`-vei, uansett hvor pent hjelperen skrives.
+
+### 🟡 Ved P2002 på PSI-opprettelse blir auto-malen foreldreløs (meldt av kontrollplan 2026-09-27, ikke rørt)
+
+**`psi.opprett` lager auto-malen + `reportObjects` FØR `psi.create`.** 🔴 **Kaster `psi.create` en
+P2002, er malen og objektene allerede skrevet — og ingenting rydder dem.**
+
+🟢 **Kantsak i praksis:** klienten gater duplikater med `disabled`-valg
+(`psi/page.tsx:434`/`:438`), så veien treffes bare ved samtidige forsøk eller et klient/server-avvik.
+**Derfor ikke tatt i P2002-runden — den runden gjorde feilen SYNLIG, som var oppgaven.**
+
+🟡 **Retting når den tas: transaksjon rundt mal + objekter + `psi.create`**, slik at en kollisjon
+ruller hele opprettelsen tilbake. ⚠️ **Merk at det gjør P2002-fangsten mer, ikke mindre, nødvendig —
+en transaksjon som ruller tilbake gir fortsatt brukeren en feil som må oversettes.**
 
 ### 🟡 `uploadsSti.ts` kom inn i `@sitedoc/shared` UTEN test på sitt eget nivå (funnet 2026-09-24 av merge-agenten)
 
