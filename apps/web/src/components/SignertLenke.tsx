@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
 import {
-  SIGNERT_BILDE_MAKS_FORSOK,
+  SIGNERT_LENKE_MAKS_FORSOK,
   erUtloptSignatur,
   lagInvalideringsDebounce,
 } from "@sitedoc/shared";
@@ -124,7 +124,7 @@ export function useSignertLenkeApner(kildeUrls: Array<string | null | undefined>
         return;
       }
       // Utløpt/rå, og taket nådd → åpne som den er (best-effort; server 401-er, men aldri løkke).
-      if (forsokRef.current >= SIGNERT_BILDE_MAKS_FORSOK) {
+      if (forsokRef.current >= SIGNERT_LENKE_MAKS_FORSOK) {
         aapneFersk(url, opts, null);
         return;
       }
