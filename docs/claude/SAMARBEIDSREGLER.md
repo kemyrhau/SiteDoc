@@ -1270,6 +1270,32 @@ korrekte — turbo hash-nøkler cachen på filinnhold — men gaten hviler på a
 - 🔴 **Begrunnelsen står:** et cache-treff gir riktige tall, men beviser ikke at testene
   kjørte på ditt tre. **Gaten er en observasjon, ikke et oppslag.**
 
+#### 🔴 ET FORVENTET GATE-TALL SKAL KOMME FRA AGENTENS RAPPORT PÅ *DENNE* BRANCHEN (cowork-feil 2026-09-27)
+
+**Cowork skrev «web 327 → 334 (+7)» i merge-ordren for `feat/signert-lenke`.** Faktisk tall:
+**331 (+4)** — og merge stoppet, holdt branch-slettingen, og brukte en runde på å måle hvor de tre
+testene var blitt av. **De hadde aldri eksistert.**
+
+🔴 **`+7` kom fra dokgens rapport på en HELT ANNEN branch** —
+`fix/trafikklys-foreldreloes-verdi`, der paritet-utvidelsen (+5) og en render-test (+2) ga +7.
+Dokgens rapport på `signert-lenke` sa `331 (+4)` og var korrekt hele tiden. **Cowork hadde begge
+rapportene i samme økt og plukket feil.**
+
+⚠️ **Skaden er ikke tallet — den er at ordren sa «avvik fra DISSE tallene er et funn».** **Da blir
+et feil forventet tall en falsk alarm med full utrednings-plikt**, og merge gjorde helt riktig i å
+stoppe. **Kostnaden ble båret av den som fulgte regelen.**
+
+🔴 **Regelen: forventede gate-tall kopieres fra leverandørens rapport på den branchen ordren
+gjelder — aldri fra en annen branch, aldri fra hukommelse, aldri som anslag.** **Har cowork ikke
+tallet, skal ordren si «meld tallene» uten et forventet tall — ikke gjette ett.**
+
+🟢 **Og den billige verifikasjonen finnes:** `grep -c "it("` i de nye testfilene på branchen tar
+sekunder og hadde avslørt det før ordren gikk ut. **Cowork kan måle delta selv; da er tallet i
+ordren en måling, ikke en arv.**
+
+⚠️ **Samme familie som § «Et navn i en ordre måles av den som skriver det inn — aldri arvet».**
+**Det gjelder tall like fullt som navn.**
+
 ### 🔴 Mål mot RIKTIG database — og les tidsstemplene (lærdom 2026-08-23)
 
 **Kenneth tester på `test.sitedoc.no` → databasen heter `sitedoc_test`.** `-d sitedoc` er
