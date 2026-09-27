@@ -100,17 +100,33 @@ at det viser TRE lys med etikettene Åpent / Under behandling / Lukket.**
 ⚠️ **En test som bare sjekker at en konstruert config med tre nøkler gir tre lys, er svakere — den
 beviser ikke at de to virkelige malene ble reparert.** **Bruk de virkelige.**
 
-## § 5 Brukersynlig konsekvens — Kenneth må vite den
+## § 5 Konsekvensen — samme verdi, nytt ord på et signert dokument
 
-🟡 **«HMS-avvik» og «Godkjenning» er systemmaler i bruk. Etter fiksen viser de andre etiketter og
-«HMS-avvik» viser tre lys i stedet for fire.** **Det er en retting, men det er synlig.**
+🔴 **Første versjon kalte dette «en retting, men synlig for brukere». Cowork avviste formuleringen, og
+med rett. Den faktiske mekanismen:**
 
-🔴 **Og et lagret `gray` på et «HMS-avvik»-felt blir foreldreløst i samme øyeblikk** — **derfor er
-`fix/trafikklys-foreldreloes-verdi` en HARD forutsetning, ikke en anbefaling.** **Uten den forsvinner
-svaret stille, og vi har bygget skaden med åpne øyne.**
+**Verdinøklene er de samme. Bare etikettene skifter.** ⚠️ **Et signert dokument beholder altså verdien
+sin og får et nytt ORD på den.**
 
-🟡 **Design bestiller ikke opprydding av slike verdier. Fallbacken gjør dem synlige; hva de skal bli er
-Kenneths valg.**
+| Felt | Lagret verdi | Viser i dag | Viser etter |
+|---|---|---|---|
+| Godkjenning / «Beslutning» | `red` | «Avvik» | **«Avvist»** |
+| HMS-avvik / «Status» | `green` | «Godkjent» | 🔴 **«Lukket»** |
+| HMS-avvik / «Status» | `gray` | «Ikke relevant» | 🔴 **finnes ikke i settet — foreldreløs** |
+
+🔴 **`green` på et HMS-avvik er motsatt ende av skalaen: i dag leses det som en godkjenning, etter
+fiksen som et lukket avvik.** ⚠️ **Det er ordrett det endringsvernet finnes for å hindre —
+`mal.ts:130-136`: «kan endringen gjøre at et allerede SIGNERT dokument sier noe ANNET om hva som ble
+kontrollert mot?»**
+
+🔴 **Og det skjer gjennom type-nivået, som er blindsonen cowork førte i BACKLOG 2026-09-27.**
+**Endringsvernet står ikke ved den døren.**
+
+**Låst/signert er målt:** `ER_TERMINAL_STATUS` (`packages/shared/src/utils/statusHandlinger.ts:181`) =
+`approved`, `dismissed`, `closed`, `cancelled`, `rejected`. **Et utkast som skifter etikett er en
+bagatell. Et terminalt dokument er det ikke.**
+
+🟡 **§ 0-målingen avgjør om dette er akademisk. Ordren tildeles ikke før tallene finnes.**
 
 ## § 6 Rekkefølge mot konvensjonsordren — design sitt valg
 
@@ -132,3 +148,47 @@ farge kan ikke det.**
 🟡 **Meldt, ikke bestilt:** **`types/index.ts` og `standardtekster.ts` erklærer trafikklys-opsjonene
 hver for seg. Paritetstesten dekker pdf↔shared, ikke types↔standardtekster.** **Ser du en billig
 binding mens du er i filene — meld den.**
+
+## § 8 To malbyggeobjekter — Kenneths krav 2026-09-27
+
+🔴 **Malbyggerens palett SKAL tilby to trafikklys-objekter: ett med tre lys og ett med fire.**
+
+🟢 **Det bryter ikke én-type-valget i § 2a.** **Begge oppretter `type: "traffic_light"`. De skiller seg
+bare i `config.options` de sås med.** ⚠️ **Palett-valg, ikke typevalg — så `oppdaterObjekt` kan fortsatt
+flytte et felt mellom settene som en `config`-endring, og endringsvernet fyrer.**
+
+**Standard for de to:**
+- **Fire lys:** `TRAFIKKLYS_VALG` uendret — Godkjent / Anmerkning / Avvik / Ikke relevant
+- **Tre lys:** Godkjent / Anmerkning / Avvik — **`gray` utelatt**
+
+🔴 **Tresettet skal IKKE hardkodes som en egen liste.** **Det er en delmengde av de fire kanoniske
+nøklene, per § 2b.**
+
+## § 9 Anbefaling hvis tallene IKKE er null — rangert
+
+🔴 **Design bygger ingen av dem. Dette er rangeringen cowork ba om.**
+
+### 🟢 1. (c) Rett HMS-avvik nå. Utsett Godkjenning.
+
+**Begrunnelse: de to feltene er ikke like alvorlige, og i dag behandles de likt.**
+
+- **HMS-avvik viser `green` som «Godkjent» der malen sier «Lukket».** ⚠️ **Det er ikke en annen etikett,
+  det er en annen BETYDNING** — og feltet tilbyr i tillegg et `gray` malen aldri erklærte. 🔴 **Å la det
+  stå er den større skaden: dokumentet sier noe annet enn malen i dag.**
+- **Godkjenning viser «Avvik» der malen sier «Avvist».** **Nær-synonymt. Lav skade ved å vente, og
+  ventingen kjøper en egen beslutning fra Kenneth.**
+
+### 🟡 2. (a) Deploy alt, med varsel til berørt firma
+
+**Riktig hvis målingen viser at Godkjenning-feltene er urørt eller bare i utkast.** 🔴 **Er
+A.Markussen berørt på terminale dokumenter, er varsel ikke en høflighet — det er Kenneths beslutning
+før deploy, ikke vår.**
+
+### 🔴 3. (b) Frys etikettene ved signering — men IKKE som alternativ
+
+⚠️ **(b) løser ikke dagens rader.** **Et snapshot av `options` ved signering hindrer GJENTAKELSE; det
+gjør ingenting med dokumenter som alt er signert.** 🔴 **Den er derfor ikke et alternativ til (c) eller
+(a) — den er en egen, senere ordre.**
+
+🟢 **Men den bør skrives uansett utfall av målingen, fordi blindsonen på type-nivå består.** **Er
+tallene null i dag, er det flaks, ikke vern.**
