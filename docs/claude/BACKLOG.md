@@ -432,6 +432,54 @@ toppen enn å redigere den.** **Kenneth beslutter hvilken av de to.**
 🔴 **Og krav (c) mangler:** ingen test feiler i dag hvis to prosjektnivå-PSI-er opprettes. **En
 partiell indeks uten en rød-først-test er halve jobben.**
 
+##### ✅ LEVERT 2026-09-27 — `fix/psi-prosjektniva-unik` @ `f7d872eb` (kontrollplan)
+
+**Kenneth valgte vei 1: utvid den develop-mergede migreringen, ikke ny på toppen** — så det aldri
+finnes et vindu der begge garantiene mangler. `DROP INDEX` på `:20`, partiell `CREATE` på `:32`, i
+den rekkefølgen. **Én test låser nettopp rekkefølgen**, ikke bare at setningen finnes.
+
+🟢 **Krav (c) oppfylt så langt miljøet tillater, og avgrensningen er meldt i stedet for skjult:** det
+finnes ingen nåbar Postgres i `packages/db`-vitest (ingen `DATABASE_URL`), så `psi.opprett` kan ikke
+drives ende-til-ende der. Kontrollplan låste **DDL-kontrakten som ER regelen** + premisset
+(`byggeplassId` nullable). 🔴 **Det er riktig fordi den partielle indeksen er ENESTE håndhever:**
+`psiWhere()` (`psi.ts:8`) er død kode og `psi.opprett` (`:203`) har ingen app-guard. **Oppfølger:
+behavioral test i api-harnessen når en test-DB er koblet.** Gate: db 272 → 276 (+4), øvrige stille.
+
+🟢 **TRE FORHÅNDSSJEKKER KJØRT AV KENNETH 2026-09-27 — alle 0 rader:**
+
+| Sjekk | Svar | Betydning |
+|---|---|---|
+| Er `20260926120000` kjørt i prod `_prisma_migrations`? | **0 rader** | 🟢 Redigeringen av den develop-mergede migreringen var lovlig |
+| Prosjekter med 2+ PSI der `byggeplass_id IS NULL` — **prod** | **0 rader** | 🟢 `CREATE UNIQUE INDEX` kan ikke feile på duplikater |
+| Samme — **test** | **0 rader** | 🟢 Samme, og test-deploy er trygg |
+
+⚠️ **Den midterste er den som betyr noe:** en `CREATE UNIQUE INDEX` som treffer duplikater ruller
+**hele** migreringen tilbake — akkurat slik `20260430120000_add_klasse4_indekser` gjorde i april, og
+den ble liggende rullet tilbake i fem måneder uten at noe sa fra. **Sjekken er grunnen til at det
+ikke skjer igjen her.**
+
+🔴 **GJENSTÅR: prod-deploy.** Migreringen er kode, ikke tilstand. **Kenneth kjører `migrate deploy`
+når han vil** — test er en trygg no-op der (indeksen mangler alt, og `IF NOT EXISTS`/`IF EXISTS`
+gjør begge setningene idempotente).
+
+##### 🟡 Partielle indekser kan ikke uttrykkes i `schema.prisma` — `psi_prosjektniva_unik` lever kun i migreringen (meldt av kontrollplan 2026-09-27)
+
+**Prisma støtter ikke `WHERE` på `@@index`/`@@unique`**, så den partielle indeksen finnes i
+migreringen og ikke i skjemaet. 🔴 **Konsekvens: et framtidig `prisma migrate dev` kan se den som
+DRIFT og foreslå å fjerne den.**
+
+⚠️ **Samme familie som [indeksnavn-driften](#-indeksnavn-drift-psi_project_id_building_id_key-mot-schemas-forventning-sidefunn-2026-09-26)
+lenger ned:** DB-en bærer en garanti skjemaet ikke kjenner. **Forskjellen er at navne-driften er
+kosmetisk, mens denne er en REGEL som kan bli foreslått slettet.**
+
+🟢 **Billigste vern: en kommentar i `schema.prisma` ved `model Psi` som navngir indeksen og sier at
+den er bevisst utenfor skjemaet.** 🔴 **En kommentar er ikke en vakt** — den statiske testen i
+`psi-drop-stale-unik-indeks-migrering.test.ts` er vakten, og den fanger sletting av setningen fra
+migreringen. **Den fanger IKKE at noen kjører `migrate dev` og dropper indeksen i en NY migrering.**
+**Ikke bestilt — vurder en test som krever at ingen migrering inneholder
+`DROP INDEX ... "psi_prosjektniva_unik"`, samme form som den eksisterende vakten mot å droppe
+composite-indeksen.**
+
 #### 🔴 Stille feil ved PSI nr. 2 — ingen P2002-fangst noe sted (målt 2026-09-27, kontrollplan)
 
 **Kodeveien:** knapp `psi/page.tsx:415` → `:447-454` `opprettMut.mutate(...)` → server `psi.ts:203`
