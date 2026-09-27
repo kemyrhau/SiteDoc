@@ -1065,7 +1065,8 @@ export const KA7_MAL = {
     valg("Materialstatus", "FØR",
       ["Sortert og godkjent", "Delvis sortert", "Ikke sortert", "Uegnet"],
       "Vurder tilstanden ved mottak/oppstart. Kravene til godkjenning står i prosjektbeskrivelsen. Ta bilde av materialene slik de står."),
-    trafikklys("Dokumentasjon på opprinnelse", "FØR",
+    valg("Dokumentasjon på opprinnelse", "FØR",
+      ["Foreligger – komplett", "Delvis – suppleres", "Mangler"],
       "Hvor kommer materialene fra? Legg ved følgeseddel/foto hvis tilgjengelig."),
     trafikklys("Lagringsplass godkjent", "FØR",
       "Tørt, stabilt underlag uten fare for tilsøling eller skade frem til bruk."),
@@ -1197,7 +1198,8 @@ export const KB2_MAL = {
         "Steinfylling/berg – krever mineraljordlag",
       ],
       "Løs opp hardpakket undergrunn før utlegging, og unngå å kjøre den sammen igjen."),
-    trafikklys("Varedeklarasjon kontrollert", "FØR",
+    valg("Varedeklarasjon kontrollert", "FØR",
+      ["Foreligger – pH og renhet OK", "Avvik – dokumentert", "Mangler"],
       "Jorda skal leveres med varedeklarasjon. Kontroller at pH ligger mellom 5,5 og 7,0 og at jorda er fri for rotugras. Ta bilde av varedeklarasjonen."),
 
     // UNDER
@@ -1255,8 +1257,9 @@ export const KB4_MAL = {
       "Frø: god kontakt med jorda, for eksempel ved nedmolding eller tromling. Ferdigplen: lagt tett, i forband og med god kontakt mot underlaget. Ta bilde."),
     trafikklys("Vannet etter legging/såing", "UNDER",
       "Vanning etter såing/legging sikrer etableringen. Prosjektspesifikke skjøtselskrav står i beskrivelsen."),
-    trafikklys("Klippet jevnlig frem til overtakelse", "UNDER",
-      "Grasplen og grasbane klippes jevnlig fram til overlevering. Gjelder ikke grasbakke og eng — sett «Ikke relevant»."),
+    valg("Klippet jevnlig frem til overtakelse", "UNDER",
+      ["Utført", "Ikke relevant (grasbakke/eng)", "Ikke utført"],
+      "Grasplen og grasbane klippes jevnlig fram til overlevering. Gjelder ikke grasbakke og eng — sett «Ikke relevant (grasbakke/eng)»."),
 
     // ETTER
     desimal("Markdekningsgrad (%)", "ETTER", { enhet: "%" },
