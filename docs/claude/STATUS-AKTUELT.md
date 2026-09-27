@@ -19,26 +19,6 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-27 · develop `68302a94` ← seks merger etter `87038042`. Én av dem er kode: `feat/signert-lenke` `1c5f72a0` (to commits) — **`STANDARD_LEVETID_MS` senket fra 24 t til 15 min**, siste konsumentklasse på `/uploads/`-signaturgaten lukket. Fem er docs (PSI-måling, PSI-domeneregel + nullhull, FB4/FD3-normhenvisning, BACKLOG-leveranser, gate-tall-regelen). GATE på kode-mergen: db 272 · api 623 · pdf 128 · shared 886 · web 331 · mobil 44 · 7/7, tre byggeledd exit 0. **Urørt ved skriving:** `fix/psi-prosjektniva-unik` `05e8aff6` og `fix/trafikklys-foreldreloes-verdi` `2a4e03be`, begge hos design.**
 
-### 🟢 2026-09-27 — `/uploads/`-SIGNATURGATEN ER LUKKET. 24 t → 15 min
-
-**Lenke-klassen var det siste hullet.** `SignertLenke.tsx` + `useSignertLenkeApner` ruter alle **ni**
-kallsteder som åpnet en `/uploads/`-URL. **Mekanismen er sjekk FØR navigering**, ikke blob: en `<a>`
-eller `window.open` kan ikke fange en utløpt signatur — nettleseren navigerer og får 401, og det
-finnes ingen `onError` å henge seg på. Gyldig → åpne direkte · utløpt/rå → `erUtloptSignatur` →
-debouncet tRPC-invalidering → åpne den ferske URL-en, med `#page=N` bevart.
-
-🟢 **Negativ kontroll, målt av cowork:** 0 gjenstående rå `/uploads/`-mønstre i `apps/web/src`.
-**Ni kallsteder faktisk rutet — ikke seks filer berørt.**
-
-🟢 **Snubletråden er snudd fra provisorie-vakt til PERMANENT regresjonsvakt.** Fristen 30.11.2026 er
-fjernet fordi detektoren er **armert** (`expect(lenkerSelvfornyer()).toBe(true)`): slettes
-`SignertLenke.tsx` feiler test 1, heves levetiden feiler test 2 og 3. ⚠️ **Runde 2 fjernet samme
-frist mens koblingen var HVILENDE — det var derfor feil da og riktig nå.**
-
-⚠️ **Ett hull består, ført i BACKLOG:** tråden vokter to hardkodede filstier. **En tredje
-konsumentklasse ville blitt brutt av 15 min uten at noe fyrer.** Den negative kontrollen er målt én
-gang, ikke håndhevet. Design skriver ordren når de to gatene i kø er inne.
-
 ### 🔴 2026-09-27 — PSI: EN DOMENEREGEL FRA KENNETH SNUDDE EN «KANTSAK» TIL PILOTBLOKKERENDE
 
 > «ikke alle byggeplasser skal ha psi. når psi er slått på → da skal byggeplassen kreve psi. det
@@ -157,41 +137,6 @@ som rører CLAUDE.md skal derfor merges samme døgn de gates**, ikke stables.
 
 🔴 **Konsekvens for prod:** en `develop → main`-merge er **rent additiv**. Risikoen ved prod-deployen ligger ikke i divergens — den er null — men i de **8+ umerkede migreringene** og i at `main` er 522 commits bak. **Migreringsgjennomgang er den avgrensede oppgaven som gjenstår før prod.**
 
-### ✅ 2026-09-24 — DEPLOYET TIL PROD. `main` `39e14648`. Binærene er tilbake.
-
-**Release-merge `39e14648`** (`develop` `4553aedd` → `main`, `--no-ff`). **450 filer, 54 825 linjer inn, 9 migreringer.** Steg 2-kontrollen (`git diff --stat origin/develop HEAD`) var **tom** — mergen er innholdslik med develop.
-
-🟢 **Verifisert i prod:** `pdftoppm` og `tesseract` finnes nå i **både** `sitedoc-api` og `sitedoc-web`. I går manglet begge i web.
-
-🟢 **Migreringsgjennomgangen før deploy — alle ni lest, ikke arvet:**
-- **Ingen `DROP`, ingen `SET NOT NULL`, ingen `DELETE`, ingen `TRUNCATE`.**
-- **Fire** `CREATE UNIQUE INDEX` (design pekte på tre — `reise_avstandsgrenser` og `push_token` sto ikke i hans liste). To er på helt nye tomme tabeller. De to andre er på `organization_templates`, **målt til 0 rader på prod** → kan ikke feile.
-- Den ene `UPDATE`-en kjører før sin egen CHECK — trygg ved konstruksjon.
-
-🟢 **`main` bar ingenting `develop` manglet.** Av 132 unike commits var 130 merge-commits fra tidligere releaser; de to reelle var docs som alt lå i develop. Diffen fra merge-basen til `main` var tom. **Det gjorde deployen til en kjent størrelse i stedet for et sprang på 522 commits.**
-
-✅ **OTA PUBLISERT samme runde.** Kanal `production`, update group `1e668259-cff1-4aea-b46c-b4974dbc4111`, commit `4553aedd`. **Bundelen målt før publisering: kun `https://api.sitedoc.no`, ingen `api-test`** — steg 2c gjort, ikke hoppet over.
-
-⚠️ **Asterisk etter commit-hashen (`4553aedd*`) — treet var skittent.** Målt: kun `SAMARBEIDSREGLER.md` og `STATUS-AKTUELT.md`, begge coworks ukommiterte docs-editer. **Ingen av dem er i JS-bundelen**, så bundelen bærer `4553aedd`s kode nøyaktig. 🔴 **Men regelen finnes fordi man normalt ikke KAN vite det — cowork skulle fått docs committet før deployen.**
-
-🟢 **Migreringene verifisert etterpå, ikke antatt:** alle ni har `finished_at` 2026-09-24 00:12. 🔴 **Og samme spørring avdekket at `20260430120000_add_klasse4_indekser` har ligget rullet tilbake siden april — 15 indekser mangler i prod, og Prisma prøver den aldri igjen.** Ført i [BACKLOG § 1](BACKLOG.md).
-
-🔴 **GJENSTÅR:** innlogget verifisering på `sitedoc.no` + opplasting av én ny PDF-tegning.
-
-⚠️ **Cowork slo falsk alarm på `/version`:** meldte at `39e14648` «ikke var den nye mergen» uten å slå den opp. Den **var** release-mergen. Samme feilklasse som regelen skrevet dagen før — *spør etter commit-hash og MÅL den*.
-
-### ✅ 2026-09-24 — HOTFIX DEPLOYET TIL TEST OG VERIFISERT (forløper til prod-runden over)
-
-**Test-deploy `0968c026`** (`gitSha` verifisert mot `/version`). `pdftoppm` + `tesseract` er nå i **både** `sitedoc-test-api` og `sitedoc-test-web` — de manglet i web før.
-
-🟢 **Kenneth verifiserte ved å laste opp en NY PDF-tegning: den konverteres og rendrer.** Kodeveien var død i går.
-
-🔴 **LÆRDOM — verifiseringsordren var først FEIL, og feilen er coworks.** Cowork ba Kenneth åpne en EKSISTERENDE PDF-tegning. Det beviser ingenting: `pdftoppm` kalles ved **opplasting** (`apps/api/src/routes/tegning.ts:105→258` i `opprett`, og `:582→631` i `rekonverterPdf`) — en alt konvertert tegning rendrer fra det lagrede PNG-et og trenger aldri binæren igjen. Kenneth fanget det selv: *«dette er en pdf tegning → men den har fungert slik hele tiden»*.
-
-⚠️ **Regelen som følger:** en verifiseringsordre skal navngi **hvilken handling som trigger kodeveien**, ikke bare hvilken skjerm man skal se på. Samme klasse som «be aldri om verifisering av kode som ikke er deployet» — her var koden deployet, men handlingen som utløser den fant ikke sted.
-
-🔴 **PROD ER IKKE DEPLOYET.** `pdftoppm` og `tesseract` mangler fortsatt i prod-web. Feilen er live for enhver som laster opp en PDF-tegning på sitedoc.no.
-
 ### 🟡 Feltfunn 2026-09-24 (funn-sporet, ikke blokkerende)
 
 - **Zoom i tegningsvisningen bruker ikke musepekeren som origo.** Virker, men irriterer. Kenneth, test.sitedoc.no.
@@ -200,14 +145,6 @@ som rører CLAUDE.md skal derfor merges samme døgn de gates**, ikke stables.
   **Rotårsak:** `apps/api/src/routes/upload.ts:133` lagrer på disk som `<uuid>.<ext>` (riktig — hindrer kollisjon), men `apps/api/src/server.ts:131` setter `Content-Disposition: inline` **uten `filename=`**. Nettleseren har da ingenting å gå på og bruker siste URL-ledd.
   **Treffer alt en bruker laster ned:** tegning, vedlegg, arkiv-PDF. ⚠️ **Ikke målt:** om alle nedlastingsveier går gjennom `server.ts:131` eller om arkiv-PDF/vedlegg har egne — det avgjør om fiksen er ett eller tre steder.
   ⚠️ **Nær 🔴-grensen:** ingen blokkeres, men et dokument som skal kunne vises til i en tvist, kan ikke hete `40ae60ab-2cd0-46a3-8238-1f9a4bf5ba65.pdf`.
-
-### ✅ 2026-09-24 — ANDRE PROD-DEPLOY SAMME DAG. `main` `858f5c45`.
-
-**Release-merge `858f5c45`** (`develop` `bdc27879` → `main`, `--no-ff`). Steg 2-kontrollen tom — innholdslik med develop. Verifisert: `bdc27879` er ancestor av `main`, og `git diff origin/develop origin/main` er tom. **Én migrering: `20260924120000_overflate_tabell`** (CREATE TABLE + partial unique + CHECK på ny tom tabell).
-
-**Hva som gikk ut:** re-konverter-knappen i tegningsbanneret · slettevakt med myke JSON-referanser · type-korrekt banner (PDF sier PDF) · invalidering etter slett og re-konvertering · punktsky steg 1 (A–F) · LAZ-ordren.
-
-🔴 **Formålet: fem PDF-tegninger sto låst i prod siden 2026-09-16** med `spawn pdftoppm ENOENT` — en feil som ikke lenger gjaldt, men som verken kunne repareres eller slettes. `rekonverterPdf` fantes i koden hele tiden **uten en eneste kaller**. ⚠️ `Oversikt Lakselv lufthavn` blir stående — den mangler DWG-konverterer, ikke `pdftoppm`.
 
 ### 🟢 2026-09-25 — REGEL 10 HAR TRE LEDD, og `tsc --noEmit` er grønt for første gang. develop `4b5a148b`.
 
@@ -225,24 +162,6 @@ som rører CLAUDE.md skal derfor merges samme døgn de gates**, ikke stables.
 ⚠️ **Åpent:** Kenneth vil at tegningens egen målestokk skal huskes OG kunne overstyres ved kalibrering. Med dagens to felt kollapser opprinnelsen til «manuell» ved bekreftelse. **Egen runde — migreringen er additiv og ikke kjørt.**
 
 🟢 **Gate-tall som måling, ikke bokføring:** `shared` steg (+13) fordi `maaling.ts` kom **med** `maaling.test.ts`. Forrige runde sto `shared` stille fordi `uploadsSti.ts` kom **uten**. **Samme signal, motsatt utfall — og forskjellen var synlig i tallet før noen leste koden.**
-
-### ✅ 2026-09-24 — TRE LAG, TRE FIKSER. De fem tegningene er ryddet i prod.
-
-**Kenneth bekreftet: «converter virket».** Fem PDF-tegninger som sto låst siden 2026-09-16 er konvertert.
-
-🔴 **Saken var tre lag av SAMME rotårsak — tRPC kjører in-process i `sitedoc-web`, så alt «api-arbeid» skjer der:**
-
-| # | Lag | Fiks |
-|---|---|---|
-| 1 | `pdftoppm` manglet i web | `Dockerfile.web` (`8fbf5180`) |
-| 2 | `tesseract` manglet i web | samme commit |
-| 3 | `uploads` montert **`:ro`** i web — konverteringen kunne ikke SKRIVE | `:ro` fjernet i begge compose-filer (`6be34c67`) |
-
-⚠️ **Ingen av dem var en regresjon. Hvert lag var maskert av det forrige.** Lag 3 kunne ikke sees før lag 1 var borte: først ga flaten `ENOENT`, så — etter hotfixen — skrivefeil. **Fire forsøk før de fem tegningene gikk gjennom.**
-
-🔴 **Coworks egen drift i samme sak:** `:ro`-endringen ble skrevet i hovedtreet og gitt til Kenneth som serverkommando, men **aldri committet**. Serveren hadde fiksen, repoet ikke — og `deploy-prod.sh` rsyncer fra repoet. **Neste deploy ville reverterat den stille.** Fanget av design. Rettet i `6be34c67` + `eb9071f2` (main), uten deploy — serveren var alt riktig.
-
-⚠️ **`main` `eb9071f2` bærer `:ro`-fiksen, IKKE signaturgaten.** Den er bevisst holdt tilbake fra prod.
 
 ### 🔴 2026-09-24 — `/uploads/*` SERVERES UTEN AUTENTISERING. Omfanget målt.
 
@@ -1145,16 +1064,6 @@ Ordren til kontrollplan lå **kun i nudgen**, ikke i en `relay/inbox-*.md`-fil. 
 - 🟢 **FUNN, rettet som bieffekt:** fransk `mal.type.tittel` sto som **«Taper»** (verbet «å taste», ikke substantivet) → «Classe de documents».
 - ⚠️ **MELDT, IKKE FIKSET — PRE-EKSISTERENDE dobbel «Type» i HMS-fanen:** den gamle låste Type-blokken er ikke guardet mot HMS, så den vises sammen med `hms.subdomain.label="Type"` i `erHms`-blokken. **Gatet HMS-område, urørt** (egen runde).
 
-## 🟢 2026-09-18 — Service pr. timetall (kundeønske #1) merget. ✅ DEPLOYET TIL TEST 01:12 MED MIGRERING (db-maskin), ingen OTA.
-
-**Én branch, `feat/service-timetall`** (`2926b625`, ren ff fra `fad2e71e` — ingen rebase). **🔴 Første migrering siden push_token:** `20260918120000_service_timetall` (db-maskin). **Verifisert additiv:** 2× `ADD COLUMN` (nullable), 2× CHECK-constraint (>0 eller NULL), 1× CREATE INDEX — **NULL DROP/TRUNCATE/DELETE i hele diffen.** Gate: **`api` 503→511** (+8) · **`pdf` 120→124** (+4) · **`web` 264→270** (+6) · **`integrasjon` 59→61** (+2, CI). `db` 2 · `shared` 824 · `mobil` 13 HELT stille (null mobilfiler rørt). 7/7. i18n: alle 15 filer **4585→4627** (+42/-0, identisk sett).
-
-- 🟢 **Kundeønske #1 levert (pilot-delene):** serviceintervall pr. maskin i maskinens innstillinger · servicelogg med skrivevei til `ServiceRecord` · automatisk fremskriving · terskelvarsel (`service-varsel-niva.ts`) · PDF-utskrift (`packages/pdf/service-rapport.ts`). **Del E (sjekkliste med avkrysning) er UTENFOR pilot-scope** (Kenneth).
-- 🟢 **«Neste service» bor BEGGE steder — bevisst, følger husets EU-kontroll-mønster:** `ServiceRecord` bærer **historikk**, ny `Equipment.nesteServiceTimer` bærer **gjeldende tilstand** (denormalisert fra fremskrivingen) — nøyaktig som `Equipment.euKontrollFrist` ligger ved siden av `ServiceRecord type="eu_kontroll"`. **Ikke en ny struktur.**
-- 🟢 **BACKLOG-raden var beviselig FEIL og er rettet (i branchen):** premisset sa `nesteServiceTimer` lå på `ServiceRecord` — det gjorde den ikke (lå ingen steder), var **aldri skrevet og aldri lest**, og `ServiceRecord` hadde **ingen produkt-skrivevei**. (Samme feilklasse som «stille tomhet»: en påstått kobling ingen leser hadde.)
-- 🟢 **ci.yml-endringen fulgte med og er merget:** integrasjonsjobben migrerte kun `@sitedoc/db`; kontrollplan la til `@sitedoc/db-maskin migrate deploy` fordi den nye `service-timetall.integration.test.ts` rører maskin-Prisma. **Reelt CI-hull, ikke scope-kryp** — flagget av ham, godkjent av cowork.
-- ✅ **DEPLOYET TIL TEST 01:12 MED MIGRERING:** `20260918120000_service_timetall` mot `db-maskin` er KJØRT — Service-seksjonen viser data med korrekt fremskriving. (Prod gjenstår — Kenneth gater.)
-
 ## 🟢 2026-09-17c — Kontraktssak runde 1 merget. WEB+API-DEPLOY, INGEN migrering (schema kun kommentar), ingen OTA-krav.
 
 **Én branch, `feat/kontraktssak-runde1`** (`0542d39b`, alt rebaset på dagens develop `1ea48a10` — **trengte ikke rebase**; ordrens `36539f74`/base `250dfc7f` var stale). Gate: **`api` 495→503** (+8, `mal-subdomain-validering.test.ts`) · **`integrasjon` 57→59** (+2, `kontraktssak.integration.test.ts`, bekreftes i CI). Alle andre HELT stille: `db` 2 · `pdf` 120 · `shared` 824 · `web` 264 · `mobil` 13. 7/7.
@@ -1691,16 +1600,6 @@ Utfoldings-testen (søk i sammenslått gruppe → foldes ut) og typefilter-teste
 + mockup-banneret) og «Neste steg» — begge fordi Kenneth gatet låsen direkte med fabel 13.09 kveld. Verifisert:
 ingen nye filnavn, ingen `.DS_Store`.
 
-### 🟢 LUKKET (var ÅPEN KONFLIKT): SiteDoc-fanen er ULÅST på prosjektnivå — Kenneth-gatet 13.09 kveld
-
-- **Avgjort:** et prosjekt kan hente **direkte** fra SiteDoc-arkivet. v3-låsen utgår. Begrunnelse: en engangsmal for
-  ett prosjekt skal ikke måtte innom firmaarkivet først.
-- 🔴 **Rettelse (ikke bare lukking):** attribusjonen i `2210` var feil — «ulåst» var **fabels lesning av punkt E**,
-  ikke coworks forslag. Coworks forslag gjaldt **kollaps og søk**, aldri tilgang. Ført her så feillesningen ikke
-  reproduseres.
-- **Ankeret rettet:** `terminologi.md § 0` bar «Lån kun fra nivået rett over — aldri to opp». Snudd der med ⚠️-blokk;
-  det gamle vedtaket beholdt synlig under det nye (SAMARBEIDSREGLER: snudd vedtak rettes DER DET STO).
-
 ### 🔴 NY ÅPEN TRÅD — direktehentet prosjektmal har ingen ↻-vei
 
 - **Konsekvens av ulåsingen (MÅLT av cowork, `packages/db` `schema.prisma` → `ReportTemplate`):** en direktehentet
@@ -1828,15 +1727,6 @@ kolonnen droppet → **innlogging verifisert i nettleser.** **Prod har ingen lap
 kl. 01:30, ikke glemt. **Neste cowork tar den.**
 
 ---
-
-### ✅ LUKKET — frysevedtaket 2026-09-08
-
-> *«vi skal ikke gate til produksjon før den nye ui er ferdig og verifisert på develop»*
-
-**Betingelsen ble oppfylt 09.09** (Kontakter fase 2 merget · Kenneth verifiserte: *«Veldig bra
-design»* · fabels godkjenning gitt), **men sto uskrevet til 10.09 kveld.** ⚠️ **Lærdom: en
-oppfylt betingelse som ikke føres, holder arbeidet frosset like effektivt som en uoppfylt.**
-**Løst ved deployen over.**
 
 ### Gate-status på det som lå på test før prod-deployen
 
@@ -2588,26 +2478,6 @@ opp dit. Men det må lukkes før pilot.
 `ProsjektBibliotekValg` og nuller B4-avstamningen. Ordre skrevet
 (`relay/inbox-seed-bibliotek-idempotent.md`).
 
-### ✅ FUNN 2026-09-05 — malverkstedet finnes allerede: `sitedoc_test`
-
-Kenneth foreslo å gjenåpne Kenspill (legacy) som verksted for malbygging, fordi Opus der hadde fri
-DB-tilgang. **Målingen gjorde det unødvendig.**
-
-`sitedoc_test` på server-ny har alt: pgvector, kjørende AI-søk, ingen kundedata — og
-**NS 3420 komplett vektorisert**, ti dokumenter fra del A til Z:
-
-```
-f: 332 · k: 178 · l: 166 · z: 100 · j: 89 · a: 76 · gu: 57 · 1: 56 · d: 62 · cd: 55
-```
-
-⚠️ **Dublett funnet:** `NS 3420 Del K Anleggsgartnerarbeider.pdf` har **0 chunks** — samme
-dokument som den vektoriserte `…ns-3420-k_2024_no_001.pdf` (178). Ufarlig, men bør ryddes så
-ingen søker i feil kopi.
-
-🔴 **Kenspill er MÅLT UEGNET, ikke bare unødvendig:** kode fra juni (`aed86d0f`, branch `main`),
-`bibliotek_maler` = 0, embeddings = 0. Å bruke den ville krevd kodeoppdatering **og**
-dataflytting. **Ikke ta den opp igjen.**
-
 ### 🟡 FUNN 2026-09-05 — malarkivet mangler INNHOLD, og feltet for å kvalitetssikre det er dødt
 
 Kenneth lastet opp **NS 3420-kildedokumentene** til prosjektets mappestruktur 05.09 (ti kapitler
@@ -3252,74 +3122,7 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 
 **Retning (ikke besluttet):** enten sende `privat=1` fra `bilde.ts` og signere bildelenker som timer-flaten gjør, eller bygge Fase 1bs globale gate på hele `/uploads/*`. Første er mindre, men flytter ikke eksisterende 50 filer; andre er riktig sluttilstand. Krever beslutning + migrering av eksisterende filstier.
 
-## ✅ ARKIVERT — sikkerhetsfiks signaturgate `/uploads/privat/*` → [historikk-2026-08.md](historikk-2026-08.md)
-
-Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
-
 ## Pågående arbeid (PR-historikk)
-
-### ✅ Mobil-Microsoft dropper `User.Read` — ID-token framfor Graph /me (`19a2884e` + flertenant `7aa85094` — **I PROD `69ca9f62`, verifisert på telefon 2026-09-07**)
-
-**Saken:** mobil-MS ba om `User.Read` (Graph → hele Entra-profilen) for å hente e-post/navn/id som
-allerede ligger i ID-tokenet. Web ba om minimum (`openid profile email`); mobil var utliggeren.
-
-**Løsning:** mobilen returnerer nå **ID-tokenet** (ikke access-tokenet); api validerer det med `jose`
-mot Entras `/common`-JWKS, leser `oid`/`email`/`name` fra claims og **dropper Graph /me helt**.
-🔴 **Flertenant:** `iss` valideres mot tokenets eget `tid` (ikke pinnet til vår tenant — det ville
-sperret hver kunde som logger inn fra sin egen Entra), `aud` pinnet mot mobil-client-id. jose-feilkode
-+ sviktet claim logges (aldri token/verdier). Admission-gaten i `byttToken` verifisert å gjelde
-mobil-veien = den reelle grensen for hvem som slipper inn. `providerAccountId = oid` = uendret fra Graph-`id`-veien → **ingen
-brutte koblinger** (målt: 3 mobil-MS-kontoer i prod, et rått bytte til OIDC-`sub` hadde gitt dem ny
-konto). Scope: `["openid","email","profile"]`. Google urørt (0 mobil-kontoer, ba aldri om ekstra).
-
-**Ny api-avhengighet:** `jose@^6.1.3` (biblioteket Auth.js selv bruker web-side). **Ny api-env
-(test først):** `MICROSOFT_MOBILE_CLIENT_ID` (= `234ca0e0-…`) — se
-[infrastruktur.md § Env-filer](infrastruktur.md). Ingen issuer-env (flertenant). Ingen migrering.
-
-🔴 **OTA-landmine funnet + rettet i samme runde:** `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` var en
-plassholder i `.env.test`/`.env.production` (ekte kun i eas.json). Målt: alle OTA-er siden 04.09
-bar plassholderen → MS-innlogging på mobil har vært **død for testerne i en uke**. Uten env-fiksen
-ville denne auth-OTA-en brutt innlogging FØR ID-tokenet lages. Ekte (offentlig) client-id lagt inn
-i begge `.env`-filer (sporet i git → propagerer til publiseringstreet); re-eksport bekreftet ekte
-id i bundelen. Advarsel skrevet i [eas-build-veileder § OTA-logg](eas-build-veileder.md).
-
-🔴 **Azure:** koden trenger ikke lenger `User.Read` — Kenneth fjerner tillatelsen i portalen, men
-**FØRST etter at test-innlogging på telefon er verifisert** mot egen eksisterende konto.
-🔴 **Leveringsvei:** api-deploy + mobil `eas update` kanal `test`. Gate strengere: ingen prod før
-Kenneth har logget inn med MS på mobil mot test og landet på **egen** konto (samme prosjektliste).
-Gaten grønt lokalt (api tc · web build · mobil tc · 210 tester · mobil lint 0 err).
-
-### ✅ Arkiv-PDF for oppgave + HMS avvik/RUH — task-innholdsleser (`a2c7edc9` → develop `3c905298`, MERGET 04.09)
-
-> ⚠️ **Merk om lokasjonOmfang-raden som sto her:** den ble erstattet av denne i dokgens commit.
-> `feat/lokasjonomfang` (`9a94a249`) er **merget** til develop 04.09 — «Gjelder hele byggeplassen»
-> som eksplisitt valg, L9 sticky tegning, `showLocation`-paritetsfiks på oppgavesiden, migrering
-> `20260904140000_lokasjon_omfang` anvendt på test. Raden sto som «IKKE merget» i to timer etter
-> mergen fordi **cowork ikke oppdaterte tavla** — agenten ryddet den bort med rette.
-> 🔴 **Regelen «tavla har én skribent» virker bare hvis den ene skriver.**
-
-**Ordre:** `relay/inbox-arkiv-pdf-oppgave-hms.md`, gatet av cowork 04.09, Kenneth-bestilt. **RUH og avvik er lovpålagt HMS-dokumentasjon som ikke kunne leveres som PDF** — de er `Task`, og `render.ts` kastet for alt annet enn sjekkliste. SJA slapp unna fordi den er `Checklist`. Pilotblokkerer for A.Markussen.
-
-**Én rot, tre dokumenttyper, to flater:** `arkiv.rendr` godtok allerede `type:"oppgave"`; kun task-leseren manglet. Web + mobil kaller samme prosedyre.
-
-**Levert:**
-- **Task-innholdsleser (delt kjerne, krav 1):** `sammenstilling.ts` refaktorert til `byggArkivHtmlKjerne(norm)` + tynne `byggSjekkliste…`/`byggOppgave…`-adaptere over en `NormalisertArkivDok`. ~85 % delt (forskjellen liten → delt leser med type-diskriminant, ikke duplikat). Sjekkliste-utskrift **uendret** (151 arkiv-tester + 3 sjekkliste-orkestrator-tester grønne). Gjenbruker kanonisk repeater-traversering (`byggObjektTre`/`samleRepeaterMarkorer`/`byggInnhold`) — ingen tredje traversering.
-- **HMS virker, ikke bare oppgave (krav 2):** avvik/RUH (`Task`, `template.domain="hms"`, subdomain avvik/ruh) trenger **ingenting** utover task-leseren — kun standard felttyper, ingen HMS-egne kolonner. Målt funn: status/signatur var sjekkliste-semantisk (`/godkjent/`); task/HMS-terminalen er «Lukket» (`tilStatus==="closed"`). Egen `signaturStrategi`: sjekkliste = Utført/Godkjent · oppgave/HMS = Opprettet/Behandlet.
-- **`arkiv.rendr` (krav 3):** enum forblir `"sjekkliste" | "oppgave"` — **ingen egen `"hms"`-type.** Avvik/RUH ER tasks → «oppgave»-grenen dekker dem; domenet ligger på malen og styrer semantikk i leseren. En «hms»-type ville vært en redundant kontraktsendring mobilklienter i drift måtte lære. Tilgangskontroll + activity forgrenet på type (`task`/`checklist` + hmsSynlighet).
-- **Begge flater (krav 4):** PDF-nedlasting på web oppgave-side; del-ikon + «Forhåndsvis» + `ArkivPdfForhandsvisning` (WebView) på mobil oppgave-side. Komponenten var allerede type-agnostisk.
-- **Krav 5:** `ArkivPdfForhandsvisning` bruker allerede `ModalFlate` (ikke `SafeAreaView` i Modal).
-
-**Paritetsmatrise (etter denne runden):**
-
-| | Web | Mobil-app | Arkiv-PDF |
-|---|---|---|---|
-| Sjekkliste | ✅ | ✅ | ✅ |
-| Oppgave | ✅ (+ PDF-knapp) | ✅ (+ PDF/forhåndsvis) | ✅ (ny task-leser) |
-| HMS (avvik/SJA/RUH) | ✅ | ✅ | ✅ (SJA=Checklist fra før · avvik/RUH=task-leser) |
-
-**Målt avvik meldt:** mobil oppgave-detalj viste ingen dokumentlokasjon fra før (kun tegning-chip); ikke rørt utover PDF-knappen (egen sak). **Leveringsvei:** server-PDF + web → prod-deploy; mobil-UI via `eas update`.
-
-**Gate grønn (lokalt):** web build · api+mobil typecheck · mobil lint 0 · api 277/277 · pdf 97/97 · shared 636/636.
 
 ### 🟢 lokasjonOmfang — «Gjelder hele byggeplassen» som eksplisitt svar + L9 sticky tegning (`feat/lokasjonomfang`, MERGET develop `ea66590b`)
 
@@ -3338,66 +3141,6 @@ Gaten grønt lokalt (api tc · web build · mobil tc · 210 tester · mobil lint
 **Begrepsrydding (lukker masterplan-restansen «tre ting heter lokasjon»):** dokumentlokasjon / lokasjonstekst / feltpin / lokasjonsbryter — se [terminologi.md](terminologi.md).
 
 **Gate grønn (lokalt):** web build (typecheck+lint+next), api typecheck, mobil typecheck + lint 0 errors, pdf 97/97, shared 636/636, web 193/193 (inkl. tre navngitte repeater-regresjonstester + ny L9-test). **Leveringsvei:** web + server-PDF → prod-deploy; mobil-delen via OTA.
-
-### ✅ Kø-robusthet — opplastingskøen frøs i stillhet i 18 min (`fix/mobil-batch-opplasting`, MERGET — branch ryddet)
-
-**Avdekket av galleri-flervalg, men er en kø-robusthetssak, ikke en flervalg-sak.** Kenneth batchet 6 bilder i felt; de kom opp i sjekklista og til slutt på server — men det tok 18 min, og INGENTING sa at de var underveis. Målt årsak: `uploadAsync` hadde **ingen timeout**, så en hengende opplasting på tregt byggeplass-nett holdt `prosessererRef` true; 15s-sikkerhetsnettet er guardet på `!prosessererRef.current` og var dermed dødt. Bare reload (som nullstiller `laster_opp`→`venter` via `migreringer.ts:109` + fersk mount) løsnet den. Køen drenerte ikke av seg selv.
-
-**Levert:**
-- **Selv-drenering:** timeout (60s) på opplasting (`opplasting.ts`) + klassifisert feil (`OpplastingFeil` nett/hard). Nett/timeout/5xx retrier med backoff UTEN å telle mot `MAKS_FORSOK` (aldri permanent oppgitt på tregt nett); kun hard 4xx teller mot taket. Head-of-line-fri: per-oppføring backoff-kart, en feilende hopper bakover mens andre slipper fram.
-- **B — ingen stille sletting:** «fil mangler» → `console.warn`, ikke `log`.
-- **D — synlighet:** felt-badge «N vedlegg lastes opp» / «prøver fortsatt» (peker på hvilken rad), + persistent banner ved PDF/Send «kommer med når køen er ferdig». Køen eksponerer `feilendeVedleggIder` + `ventendePerDokument`.
-- **A (hygiene, IKKE årsaken):** unikt lagringsnavn `IMG_<ts>_<id8>.jpg` mot filnavn-kollisjon i rask løkke.
-- **C:** sekvensiell komprimering (dreper ~42-samtidige-native-kall-spiken) + per-bilde-isolasjon + catch + fremdrift.
-- **E:** append-race herdet — `leggTilVedleggIRad` skilt ut til `@sitedoc/shared` (testbar der batch-veien ikke kunne testes før), RepeaterObjekt appender funksjonelt mot forrige state.
-
-**Eget funn ført til BACKLOG:** `bilde.opprettFor*` er ikke idempotent (blind `image.create`, ingen `vedleggId`) → tapt-svar-retry gir duplikat `Image`-rad. Pre-eksisterende; krever DB-migrering + Kenneths godkjenning (med telling FØR unik constraint).
-
-**Gate grønn:** shared 621/621 (inkl. batch-integrasjonstest på ekte `{_radId,felter}`-form), pdf, mobil typecheck + lint 0, web build.
-
-### ✅ expo-updates — JS-fikser til telefonen uten nytt bygg (`e498bb14`, MERGET — **OTA I DRIFT fra 04.09**)
-
-**Bakgrunn (målt):** 3. september kostet fem rene JavaScript-funn tre av ~15 månedlige iOS-bygg.
-Ingen trengte en ny binær — bare en vei til telefonen (bygg 51 manglet en upushet fiks, preview-bygget
-testet en fiks som aldri var merget). Ordre `relay/inbox-expo-updates.md`, gatet av cowork mot kode.
-
-**Levert (`e498bb14`):** `expo-updates ~29.0.20` (SDK 54-matchet, via `expo install`) ·
-`runtimeVersion: fingerprint`-policy (ikke `appVersion` — JS kan aldri lande på binær med annet native
-lag) · `updates.fallbackToCacheTimeout: 0` + `checkAutomatically: ON_LOAD` (offline-first: starter alltid
-fra cachet bundle, henter i bakgrunnen) · én kanal pr. `eas.json`-profil · `VersjonsFooter` viser kjørende
-`Updates.updateId`. Datalaget urørt (bundler i egen katalog, ikke `documentDirectory`).
-
-**Gate grønn:** web build · mobil typecheck · mobil lint (0 errors). Kenneth verifiserte fingerprint,
-kanaler, offline-oppstart og updateId-visning mot kode 2026-09-03.
-
-**Grensen som avgjør (fra `eas-build-veileder.md § OTA`):** alt som rører native laget (native modul,
-`plugins`/`permissions`/`bundleIdentifier`/Info.plist, SDK-bump) krever nytt bygg. Kan OTA-es: ren
-JS/TS, komponenter, logikk, styling, i18n. **Trer i kraft først ved ett nytt bygg pr. kanal** — bygg 51
-kan ikke motta oppdateringer. Første `eas update` = Kenneths beslutning.
-
-> ⚠️ **VEDTAKET OVER ER SNUDD 2026-09-04 — `fingerprint` er forkastet (`e59bd7e8`, merget `d9ce38c0`).**
-> Teksten over står uendret med vilje: den som leser den først skal ikke bygge det forkastede.
->
-> **`runtimeVersion` er nå den eksplisitte strengen `"1"`, ikke en policy.**
->
-> **Hvorfor:** fingerprint-policyen kostet to feilede bygg (52 og 53) i «Configure expo-updates».
-> Bygg 52: `@expo/fingerprint` kunne ikke resolves lokalt → plassholderen `file:fingerprint` (rettet i
-> `3aca2d5a`). Bygg 53: begge sider regnet ekte avtrykk, men ulike, og EAS' diff-seksjon var **tom**.
->
-> **Målt rotårsak** (`eas fingerprint:generate --json`, cowork 2026-09-04): **42 av 50 kilder i
-> avtrykket er pnpm-stier med peer-avhengighetshash i katalognavnet**, f.eks.
-> `node_modules/.pnpm/react-native-maps@1.20.1_…_lyl6n7iahbvyhr2rfdmu4zmbky/`. EAS kjører `pnpm install`
-> i sitt eget miljø og får ikke identiske stier. **Ikke fiksbart i vår kode.** Kontrollmåling:
-> avtrykket var identisk med og uten `apps/mobile/ios/` — det native prosjektet var ikke årsaken.
->
-> 🔴 **Prisen, og den er reell:** setningen «fingerprinten endres og OTA-en leveres ikke» gjaldt et
-> sikkerhetsnett vi ikke lenger har. Med fingerprint **nektet** EAS å levere til en binær med annet
-> native-lag. Med fast streng **leverer** EAS oppdateringen — glemmer vi å bumpe, lander JS-en på en app
-> den ikke passer til.
->
-> **Derfor: `runtimeVersion` bumpes manuelt («1» → «2» …) ved enhver native-endring før bygg.**
-> Sjekklisten med de åtte triggerne står i [eas-build-veileder.md § OTA](eas-build-veileder.md).
-> `@expo/fingerprint` er beholdt som avhengighet — nyttig til diagnostikk, ikke lenger til policy.
 
 ### 🔴 PROD-FELLE lukket 31.08 (`73b30e71`) — tegningsposisjon-modalen kunne ikke lukkes
 
@@ -3670,19 +3413,6 @@ sjekkliste han skulle fylle ut.
 
 Kenneth-funn (prod): sjekklistelista viste faggruppenavn i ANSVARLIG på utkast. `formaterAnsvarlig` (sjekklister/page.tsx + IDENTISK i oppgaver/page.tsx) falt tilbake på `utforerFaggruppe.name` når dokumentet ikke var sendt — en faggruppe som ennå ikke hadde fått ansvar (utkast har verken `recipientUser` eller `recipientGroup`). Kenneth-vedtak: ansvarlig = den/de i flyten som skal svare ut dokumentet; **utkast → oppretteren** (`rad.bestiller?.name`), **ellers ingen mottaker → tom** («—» i cella). Ledd 1–2 (mottaker-person/-gruppe) beholdt. Fikset begge sider: funksjonen returnerer **tom streng** (ikke «—») så filterbyggingen (`bygg()` → Boolean-filter) ikke får en «—»-oppføring — cella rendrer «—», samme mønster som `opprettetAv`. Filter- OG sorteringsveien treffer `formaterAnsvarlig` begge steder → dekket. **Måling (mål-før-utvid):** den buggede fallbacken finnes KUN i disse to filene; HMS-flatene (`HmsFlytStripe`/`HmsFlytKort`/`flyt-ledd`) bruker «ansvarlig» i en annen, korrekt betydning (HMS-behandler/`erHovedansvarlig`) — ikke rørt. Ingen nye i18n-nøkler. Grønt: typecheck web, `pnpm test` 189/189. **Ingen prod.** Reload: n/a (web).
 
-### ✅ ARKIVERT — prod-deploy 2026-08-28 (`ba234fd1`, 26 commits) → [historikk-2026-08.md](historikk-2026-08.md)
-
-Registreringsmodell fase 1 (ansatt-status-guard i 11 porter), ansattvelger + delt `services/ansatt.ts`, fundament ut av gruppemodul, tre slettevakter, deaktivert bruker på dyplenke, død kode (`@xenova`). Verifisert innlogget 28.08. Migrering `20260828120000_organization_member_status` kjørt; `db-timer`/`db-maskin`/`db-varelager` sjekket — ingen ventende.
-
-### ✅ ARKIVERT — fjorten spor som lå som «venter gate», men var i prod → [historikk-2026-08.md](historikk-2026-08.md)
-
-Målt mot git 2026-08-28: `git branch -r --no-merged origin/develop` ga **kun `origin/main`**
-— ingen branch ventet på merge. Alle fjorten er forfedre av `origin/main`. Prosjektfilter ·
-fase 4-oppfølger · DG-sporet (seks merger) · F1 endringslogg · startbar kontrollplan · fem
-spor `d4e0d8f1` · arkivmal stage 4 · repeater-markør · oppgave-per-rad · oppgave-arver-flyt ·
-slettevern · slett-adminvakt · config-adminvakt · oppgave/flyt-bunt A–G · DG D2 ·
-kontekstvelger 1a. Fulltekst per spor i historikken.
-
 ### 🔴 Åpne gater og restanser høstet ut av de arkiverte innslagene
 
 Disse fulgte med innslagene over og ville forsvunnet i arkiveringen. Ingen av dem er kode
@@ -3736,63 +3466,6 @@ runde både funn 6 og F7s skjermbevis.
 stoppsted i FLYTEN; Lukk er administrativ exit». Slettevakten er `draft || closed`,
 `cancelled` er død status (0 rader i prod), Lukk er kun admin i begge lag.
 
-### ✅ ARKIVERT — printmotor fase 3 + 4 → [historikk-2026-08.md](historikk-2026-08.md)
-
-Sto som «PÅ TEST / Ingen prod». **Målt 2026-08-28: `eddc118b` og `17fd66f6` er begge
-forfedre av `5dcdeb58`** — de har vært i prod siden 06:23 den 28.08. `db-timer`-migreringen
-`20260827120000_eksport_oppsett` er også kjørt (målt: ingen ventende i noen av de tre
-modulpakkene). ⚠️ **Én rest er reell og flyttet til [BACKLOG](BACKLOG.md):** `landscape`-
-parameteren er i koden, men pdf-render-containeren er ikke bygget — liggende
-Fakturagrunnlag virker ikke ennå. Buntes med `page.route`-fiksen i ett gatet steg.
-
-### ✅✅ ARKIVERT — august-deployene (03.08–06.08) → [historikk-2026-08.md](historikk-2026-08.md)
-
-Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmodellen komplett + effektivitets-runden + mobil M1–M3 (`8b068c73` 03.08) · Funn A + Funn C (`0ac25705` 04.08) · Funn D + opprettvelger v2 + Spor 1 + kontaktside (`5bf25f83` 05.08) · Ordre 1.4 auto-hopp (`8a2f6d9c` 05.08) · Spor 2 HMS komplett (`70d2b752` 06.08).
-
-> ✅ **Mobil-forbehold LØST 2026-08-09:** EAS-bygg **44** er fyrt og levert TestFlight. Mobil detalj-redesign M1–M3 + hele bunt 44 er nå hos testerne. Kenneths fysiske re-test gjenstår. (Bygg 43 ble bygget 08.08 men **aldri sluppet til testere** — 44 erstatter det.)
-
-**Restanser etter deployene (åpne oppfølgere, ikke deprioritert backlog):**
-
-- **Flytmodell:** Playwright pilot-e2e-spec (`feat/flytmodell-5b-uie2e`, remote-rigg) · trekk-tilbake-status-semantikk (fabel, parkert) · bøtte 4 = byggeplass-kontekst arves ikke ved opprett (pilot-funn #2/#3 → fabels kontekst-fra-innlogging-spor).
-- **Statusmaskin:** F6-oppfølger (`received→approved` som default) · posisjonsutredning (H1/N-boks, `steg`-feltet finnes) · registrator-steg-1-validering · H2 (utførers venstre-send/tilbake-kant) · besvar=venstre-modellspenningen · § 0 delt-kilde-konsolidering (egen fase).
-- **Effektivitet:** **P4c timer** (7→1-2 klikk, arver chip-komponenten) — ikke startet. Øvrige restanser i [BACKLOG](BACKLOG.md).
-- **Mobil M1–M3:** #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd.
-### ✅✅ ARKIVERT — prod-deploy 2026-08-10 (`7f838d80`, 33 commits) → [historikk-2026-08.md](historikk-2026-08.md)
-
-Bunt 44 (mobil, via EAS 44) + web/api-siden + utlegg U3 + firma-admin prosjektopprett + mal-admin-gate + seed-verktøy + firmarolle-vakt Fase 1. Migrering `sheet_machine_timer_id` kjørt på prod. **A.Markussen fikk sine 5 utleggskategorier** — lønnsart 25/19 verifisert uendret.
-
-<details><summary>Detaljer bunt 44 (mobil) — beholdt for sporing mot TestFlight-tilbakemelding</summary>
-
-
-
-**Første mobilleveranse til felt siden EAS #40 (15.07).** Alt under er merget til `develop`, i bygg 44 og på TestFlight. **Ikke prod-deployet** (web/api-siden av HMS + utlegg U1 gikk prod `e37621e1` 08.08 — se historikk). Enhetsverifisert av simulator-Opus i tre runder; bevis i `relay/mobilverify-bevis/`.
-
-**Kilder:** Kenneths enhetstest 08.08 (prosjekt 998 Instinniforbotn) → fabels ordre `docs/claude/delplaner/ORDRE-mobil-devicefunn-2026-08-08.md` (Del A–D) + `FABEL-SVAR-cowork-blokk2-mobil-device.md` (A1/B1/B2-godkjenning) + simulator-Opus' egne funn.
-
-| Sak | Innhold | Verifisert |
-|---|---|---|
-| **fabel Del A** — tegnings-navigasjon | Trykk på tegningsrad åpner tegningen direkte (var: `router.push("/lokasjoner")` uten id → 2+ ekstra trykk). Delt `aapneTegning`-helper + nonce (`ts`) fordi `lokasjoner` er en montert tab-skjerm. «Fortsett der du slapp»-snarvei gjenbruker **eksisterende F1** (`ByggeplassKontekst.settSistTegning`, bygget men aldri wiret) framfor ny SQLite-tabell. Guard via `hentMedId` → slettet/feil prosjekt gir velger-fallback, aldri krasj | ✅ 1-trykk · snarvei etter kald-restart · offline · ugyldig-id-guard · nonce begge veier |
-| **fabel Del B pkt 1** — maskin ved redigering | Maskin kunne kun føres ved NY timer-rad ⇒ **auto-utfylt dag ga ingen vei til å føre maskin**. Nå: maskin-seksjon også ved redigering (drop `!eksisterendeRad`-gaten), prefill fra koblet rad. **Additiv nullable `sheetTimerId`** på `SheetMachine` + `sheet_machine_local` (migrering `20260808130000`, svak String-FK, ingen backfill) — bøtte-match på fire felt avvist: integritet i skjemaet, ikke i logikk som kan glemmes. Null-rader har kodekommentar som forklarer hvorfor null er lovlig (stopper framtidig heuristisk backfill) | ✅ ≤2 trykk fra rad · re-rediger gir ÉN maskinrad · sync round-trip · oppgradering over eksisterende lokal data |
-| **fabel Del B pkt 2+3** — cache + banner | `refreshMaskinKatalog` fanget pull-feil (`.catch(() => [])`) → destruktiv `delete` med tom liste ⇒ cachen tømte seg selv ved nettglipp, og bare re-login fylte den. Fjernet catchen (symmetri med `refreshKatalog`). Banner «Herav maskin 0.00t» skjules ved maskin = 0 | ✅ cache bevart etter framprovosert pull-feil, uten re-login |
-| **Katalog-cache systemisk (funn #3)** | Simulator-Opus sporet rå UUID-er i dagsseddel-raden til **samme bug i fem tjenester til** — `prosjekt`/`byggeplass`/`kalender`/`oppmotested`/`reisetidMatrise` + `timerKatalog`-ECO. Én offline kaldstart tømte samtlige. Alle seks nå symmetriske; `organizationSetting` bevarte allerede (tidlig-retur). ECO-catchen fjernet etter at begrunnelsen ble **verifisert moot** (`krevBrukersOrg` kaster FORBIDDEN på lonnsart før ECO spørres) | ✅ offline kaldstart → navn står, 0 UUID-er · byggeplass-velger ikke tom |
-| **fabel Del C + D** | Hjem-innboks maks 3 inline + «Se alle (N)»/«Vis færre» **inline-ekspansjon** (fabels `/boks`-destinasjon avvist — innboksen er sjekklister+oppgaver, `boks.tsx` er mappevisning; ingen samlet skjerm finnes). Byggeplass-velger markerer «· arves fra dagskortet» | ✅ ≤3-grenen live · D live |
-| **HMS-listefunn A/B/C** | `slett`/`hmsSendInn`-onSuccess invaliderer nå `hms.hentDokumenter` (lista hang til refresh) · Forkast-dialog bruker `hms.forkast.*` («legges i papirkurven, 90 dager») i stedet for generisk Slett · låst felt viser «—» | ✅ alle tre stier live |
-| **Funn #1 + #2** | `TekstfeltObjekt` (delt `text_field`, ALLE sjekkliste-/oppgaveskjemaer) viser «—» i leseModus · «Ingen byggeplass»-valg i sedel-velger, gatet bak `tillatIngen` så global `ByggeplassChip` er upåvirket | ✅ render-verifisert · ✅ live |
-
-**Til bygg 45 (notert, ikke skjult):** Require cycle `TimerSeksjon ↔ MaskinSeksjon ↔ SplittRadModal` (ikke-fatal dev-warning, men undefined-risiko ved endret import-rekkefølge) · A3 tom equipment-cache kun kode-verifisert (tilstanden er vanskeligere å nå etter cache-fiksen) · B3 legitim-tom kun strukturelt bevart (suksess-stien urørt av fiksen) · tegningsbildets render bekreftes først på TestFlight (bilde-host unåbar over SSH-tunnel; bilde-stien er urørt i diffen).
-
-</details>
-
-### ✅ ARKIVERT — HMS 5a+5b + utlegg U1 → [historikk-2026-08.md](historikk-2026-08.md)
-
-Begge prod-deployet `e37621e1` (08.08 kveld) og arkivert med mekanikk, asymmetri-tabell og verifisering. **Utlegg U3 web-registrering — MERGET develop (`aa111b45`), på test.** Mockup 8a+8b. API: `timer.expenseCategory.list` (utledet ordning + kilde per prosjekt) · `dagsseddel.tilfoy/oppdater/fjernUtleggRad` (`ordningVedFoering` stemplet ved insert, `sats` avvist — bæres av `SheetTillegg`) · `*UtleggVedlegg`; `hentMedId` returnerer `utlegg[]`. Web: `LeggTilVelger` (én inngang, to grupper, ordnings-pille som undertekst — aldri et valg), `UtleggRadDialog` (tre radformer + kilde-linje), `RaderUtlegg`. **Tillegg-flyten (sats) er urørt** — samme mutasjon/validering/lagring. **CHECK-constrainten er runtime-bevist på `sitedoc_test` 09.08:** fakturert+beløp avvist · fakturert+NULL godtatt · utlegg+NULL avvist · utlegg+beløp godtatt (alt rullet tilbake). ⚠️ **Før U5** står alle kategorier på `ordning='utlegg'` → flaten viser kun utlegg-formen på ekte data; `fakturert`/`sats` verifiseres via manuelt satt ordning. Navngitte oppfølgere: bro `ExpenseCategory`→lønnsart · utlegg i attesterings-redigering (arbeider-sti-only asymmetri).
-
-**Utlegg gjenstår:** U2 eksport-guard (utsatt — ingen Proadm-eksportmotor i kode) · E2E-verifisering av U3 · U4 mobil · U5 firma-admin overstyring-UI (**firma-admin setter ordning per kategori; default `utlegg`; må advare ved navnekollisjon mellom `Tillegg` og `ExpenseCategory`**) · U6 migrering av feilførte rader (egen gate). **HMS gjenstår:** SJA-Returner + flyt-stripe på web · dedikert mobil-HMS-behandling.
-### ✅ ARKIVERT — append-only-fiks + fase M-3a del 2 → [historikk-2026-08.md](historikk-2026-08.md)
-
-Begge sto som «venter merge». Målt 2026-08-28: `87dc15db` og `2f014f6e` er begge forfedre av
-`origin/main` — de har vært i prod siden juli. Restansene deres lå allerede i BACKLOG.
-
 ### 🎨 Redesign navigasjon (branch `redesign/navigasjon`, bak `nyNavigasjon`-flagg — av-default, inert i prod)
 
 **Aktiv front — steg viii (kunderunde mot prod-kopi) + pilot.** Infra reist + runbook komplett (2026-07-08); venter kunde-booking + Kenneth-drift: opprett demo-prosjekt m/ `oversettelse`-modul, kjør pre-flight-SQL, last opp SDS. Deretter pilot (flagg → `company_admin`).
@@ -3809,10 +3482,6 @@ Egen Docker-stack `docker-compose.redesign.yml` (web 3500 / api 3501), DB `sited
 - Georeferanse-panel v2 + Kartverket-adressesøk (G2), i18n 13 språk `a2a8d5c7` — prod `387d10a2` (2026-07-15, runde 3). Statuskilde: designprosjekt «Sitedoc redesign tips» → `verifisering/georef-panel-verifiseringslogg.md`. Prod-runde: [historikk-2026-07.md](historikk-2026-07.md).
 
 **Åpne oppfølgere (sporet annet sted):** redesign-mobil-restanser + steg vii/2c-leser-funn → [BACKLOG § Redesign-mobil](BACKLOG.md) + [§ Redesign steg vii/2c](BACKLOG.md); GPS-felttest av geofence → [BACKLOG § GPS-felttest](BACKLOG.md); MS-login mobil lokal dev-placeholder → BACKLOG.
-
-### ✅ ARKIVERT — juli-deployene (del 6 timeføring, F2/F3/F5, F-b/F-e/F-f/F-g, `hentEndringerSiden` fiks B) → [historikk-2026-07.md](historikk-2026-07.md)
-
-Alle fire deployet prod 13.–15.07 (`f888fecc`, `43299d03`) + EAS #38/#40. Full detalj flyttet dit 2026-08-20.
 
 ### PSI Fase A + Maskin + ③ + timer-paritet — mobil-restanser (web/DB i prod, mobil venter EAS)
 
@@ -3866,8 +3535,6 @@ Gjør firmamodul-onboarding synlig + veiledet ved aktivering. Bakgrunn: `organis
 
 **v1 = web-only** (mobil «oppsett ufullstendig»-visning = egen follow-up). i18n nb+en (generate.ts frossen under redesign → 13 språk faller tilbake til nb). **Konsolidering utsatt** (redirect gammel `onboarding`-fane → wizard + migrering/`aktiverTomKatalog` inn i steg 1) → [BACKLOG § Onboarding-wizard konsolidering](BACKLOG.md). **Gjenstår: prod-deploy** (adresserer også Åpne tråder pkt 1 — tom lønnsart-katalog på prod-firma synliggjøres nå av wizarden).
 
-### ✅ ARKIVERT — lønnsart/katalog-import A.Markussen (kjørt prod 2026-07-10) → [historikk-2026-07.md](historikk-2026-07.md)
-
 ### Gjenstående (åpent, ikke sporet annet sted)
 
 - **EAS Android-bygg + Play Store** — Android-distribusjon står igjen (iOS går via TestFlight/EAS). Ikke sporet i BACKLOG/oppryddings-plan → beholdes her.
@@ -3886,67 +3553,6 @@ Kunden ønsker sjekkliste der timetall kobles til servicestatus, og «neste serv
 
 **Status:** DB-feltet `nesteServiceTimer` finnes allerede i `packages/db-maskin/prisma/schema.prisma:188`. Mangler: UI-felt på maskin-detaljside, serviceintervall-konfigurasjon, visuell terskel-indikator, sjekkliste med avkrysningsbokser, automatisk oppdatering av neste service basert på driftstimer.
 
-### Firmakalender — T9a/b/c deployet til prod ✅, T9d gjenstår 🟡
-
-T9a/b/c deployet til prod 2026-05-15 (prod merge `ca71cf48`).
-Migrasjon `20260515114710_t9_arbeidstidskalender` kjørt 15:03:30.
-`/dashbord/firma/kalender` returnerer HTTP 200 i prod.
-
-Gjenstår: **T9d** mobil-cache `arbeidstidskalender_local` (avhenger av
-T.4/T.5-implementasjon). SummeringsBanner.tsx (T7-3a) trenger oppdatering
-etter T9d for å lese dagsnorm fra kalender-cache i stedet for
-`OrganizationSetting.dagsnorm`.
-
-### Topbar firma-kontekst + favoritter — deployet til prod ✅
-
-Deployet til prod 2026-05-15 (prod merge `0bd27466`). Topbar tilpasser seg
-pathname: i firma-kontekst (`/dashbord/firma/*`) vises ny «Firma ▾»-velger
-istedenfor `ProsjektVelger` + `ByggeplassVelger`. Favoritt-prosjekter og
-favoritt-byggeplasser persistert i localStorage med stjernemerking i alle
-tre velgere (`ProsjektVelger`, `FirmaKontekstVelger`, `ByggeplassVelger`).
-Søkefelt vises ved >7 elementer. 11 nye i18n-nøkler totalt
-(`topbar.*` + `byggeplassVelger.*`) auto-oversatt til 13 språk.
-
-**Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.
-
-### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟢 LUKKET 2026-05-16
-
-**Side:** Timeføring.
-
-Levert via T.4-bunken (prod-commit `5d36c8b9`) + T.5 tidsrunding (prod-commit `ba6ba243`).
-Server-Zod + DB-schema + web-UI + mobil-cache + mobil-UI deployet til prod 2026-05-16.
-Mobil-UI aktiveres på enhet ved neste EAS-bygg (server-respons + lokal SQLite-migrasjon
-er klare). T.5 leverer i tillegg konfigurerbar tidsrunding (15/30/60/null) — utover
-originalt kundeønske. fra<til-validering på mobil via delt `tilErEtterFra`
-(`@sitedoc/shared`; `fraErForTil`-helperen erstattet i M3 2026-07-10) + onBlur-runding på web.
-
-**T.4-implementasjons-bunke (planlagt 5 sub-PR-er):**
-
-| Sub-PR | Status | Innhold |
-|---|---|---|
-| **T4-a** | ✅ Merget til develop 2026-05-16 (merge `5acd2a5d`, impl `cfe51fc5`) | Schema + migrasjon. `OrganizationSetting.standardStartTid/SluttTid/PauseMin` (defaults 07:00/15:00/30) + `ArbeidstidsKalender.standardStartTid?/SluttTid?/pauseMin?` (overstyring for sommertid_start/slutt/halvdag). Additiv migrasjon, ingen breaking. |
-| **T4-b** | ✅ Merget til develop 2026-05-16 (merge `9bcfb5b1`, impl `088a1e37`) | `hentEffektivArbeidstid(orgId, dato)`-helper i `apps/api/src/services/timer/arbeidstid.ts` (sommertid-overstyring → firma-default). Hard sommertid-par-validering i kalender opprett/oppdater (`sommertid_start` krever `sommertid_slutt` samme år). |
-| **T4-c** | ✅ Deployet til test 2026-05-16 (merge `c02df657`, impl `39c43aa8`) | Server-Zod-utvidelse for de tre T4-a-feltene i `oppdaterSetting` + kalender `opprett`/`oppdater` (+ `validerTidsfelter`-helper). Innstillinger-side: ny `StandardArbeidstidSeksjon`. Kalender-modal: betinget visning av tidsfelter for sommertid_start/slutt/halvdag + klokke-badge i månedsliste. 15 nye i18n-nøkler → 13 språk (2277 totalt). Venter på visuell verifisering før prod-merge. |
-| **T4-d** | ✅ Merget til develop + deployet til test 2026-05-16 (merge `7bee1633`, impl `2f7bf42d`) | Mobil Drizzle: `fraTid`/`tilTid` på `sheet_timer_local` + `sheet_machine_local`. Nye lokale tabeller `arbeidstidskalender_local` + `organization_setting_local`. Nye services `kalenderKatalog.ts` (med `hentEffektivArbeidstidLokal`-helper, speil av server) + `organizationSettingKatalog.ts`. TimerSyncProvider utvidet til 2-stegs Promise.all (base-pulls → firma-spesifikke pulls per org-id fra prosjekt-cachen). `timerSync` push/pull utvidet med fraTid/tilTid per timer/maskin-rad. Server: ny medlems-tilgjengelig `organisasjon.hentArbeidstidDefaults` + fraTid/tilTid lagt til i `hentEndringerSiden`-respons-mapping. Typecheck 12 = 12 baseline. Venter på enhet-verifikasjon + prod-merge. |
-| **T4-e** | ✅ Merget til develop + deployet til test 2026-05-16 (merge `e992aca3`, impl `cea8f99e`) | Mobil UI. Ny `FraTilTidFelt`-fellekomponent (DateTimePicker mode=time, 2 felter side ved side). Montert i TimerRadModal + MaskinRadModal. Forhåndsutfylling: ny rad uten forrige rader → `hentEffektivArbeidstidLokal(orgId, dato)` (kalender + firma-default). Ny rad med forrige rader → forrige rads tilTid som fraTid. Rediger eksisterende → radens egne verdier. Validering: fraTid < tilTid hvis begge satt (`fraErForTil`-helper — erstattet av delt `tilErEtterFra` i M3 2026-07-10). Lagring til Drizzle med syncStatus=pending. SummeringsBanner: arbeidstidTimer faller tilbake til kalender-dagsnorm hvis sedel.startAt/endAt mangler — UI viser alltid relevant sammenligning. Rad-visning utvidet med `HH:MM–HH:MM`-tekst. 0 nye i18n-nøkler — gjenbruker `timer.felt.startTid/sluttTid` + `timer.feil.sluttForStart`. Typecheck 12 = 12 baseline. Venter på enhet-verifikasjon + prod-merge. |
-| **T.5 tidsrunding** | ✅ Deployet til prod 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`) | Server: `oppdaterSetting` Zod-input + `hentArbeidstidDefaults` select utvidet med `tidsrundingMinutter`. Validering: `z.union([15, 30, 60, null])`. Web: ny dropdown i `StandardArbeidstidSeksjon` (Ingen/15/30/60). RedigerTimerRad + RedigerMaskinRad: `step={tidsrundingMinutter * 60}` + onBlur-fallback-runding via `apps/web/src/lib/tidsrunding.ts`. AttesteringDetalj_Edit henter `tidsrundingMinutter` fra `hentSetting` og passerer som prop. Mobil-cache: `organization_setting_local.tidsrunding_minutter` (idempotent ALTER) + service skriver feltet. Mobil-UI: ny `apps/mobile/src/utils/tidsrunding.ts` (speil av web). FraTilTidFelt fikk ny `tidsrundingMinutter`-prop + runder onChange-verdi før callback. `minuteInterval` på DateTimePicker for 15/30 hint til pickeren. TimerSeksjon + MaskinSeksjon henter via `hentOrganizationSettingLokalt`. 6 nye i18n-nøkler → 13 språk (2277 → 2283 totalt). Test-QA godkjent. Prod-deploy 2026-05-16: HTTP/2 200 på sitedoc.no + api.sitedoc.no. Mobil-app-bygg via EAS gjenstår — feltet aktiveres på enhet når TestFlight/Play Store-versjonen oppdateres. |
-
-**T.4-bunken komplett på develop + test 2026-05-16:** Alle fem sub-PR-er (a/b/c/d/e) er merget og kjører på `test.sitedoc.no` + `api-test.sitedoc.no` (HTTP/2 200, migrasjoner kjørt i `sitedoc_test`). Neste: (1) Kenneth verifiserer T4-c web-UI + T4-d/e mobil-UI på testbygg (forhåndsutfylling, validering, fra/til-visning på rad). (2) Etter verifikasjon → prod-deploy av hele bunken samtidig (server-migrasjon, web-deploy, mobil-bygg via EAS → TestFlight/Play Store).
-
-**Auto-fordeling normaltid/overtid — besluttet å ikke implementere (2026-05-16).** Var tidligere notert som planlagt avhengighet av T.9-kalender. Kunden registrerer lønnsart manuelt per rad slik som i dag — `Lonnsart`-katalogen (firma-eid) dekker behovet med separate rader for «Ordinær 100», «Overtid 50%», «Overtid 100%» osv. Krever ingen ytterligere arkitektur eller regelmotor.
-
-### #4 — Redigering og splitting av timer ved attestering 🟡 DELVIS LEVERT
-
-**Side:** Attestering.
-
-**Levert 2026-05-14** via T7-2b-bunken:
-- ECO-flytt på attestering (Steg 4a, prod-commit `f98fa7a5` 2026-05-03) — leder kan endre kostnadsbærer per rad.
-- Per-rad-attestering med felleskomponent AttesteringDetalj (T7-2b1, prod-commit `3234c057`).
-- **Edit-modus: firma-admin kan redigere timeantall + ECO + fra/til på alle pending-rader** via `redigerSedelRader`-mutation (T7-2b2, prod-commit `755c542a`). Gated på `OrganizationSetting.tillattRedigerVedAttestering`-toggle (T7-2b3, prod-commit `af4a7deb`) — default false, firma-admin skrur på via `/dashbord/firma/innstillinger`.
-- T.5 tidsrunding (prod-commit `ba6ba243` 2026-05-16) avrunder fra/til-input i edit-modus til konfigurert intervall (15/30/60 min).
-
-**Gjenstår:** Rad-splitting (én rad → flere med ulike prosjekt/ECO/lønnsart/fra-til) krever `splittRad`-mutation. Audit-log med før/etter-snapshots per rad (T7-2b2 logger antall + actor; per-rad-snapshots utsatt til egen oppfølger).
-
 ### #5 — Registrering av HMS-gruppe på brukere ⏸️ PARKERT
 
 **Side:** Oppsett – Brukere.
@@ -3964,27 +3570,11 @@ originalt kundeønske. fra<til-validering på mobil via delt `tilErEtterFra`
 
 ---
 
-### #6 — Maskinmodul ikke synlig i prosjekt 998 Instinniforbotn ✅ Lukket 2026-05-12
-
-**Side:** Maskin (prosjekt 998 Instinniforbotn).
-
-✅ **Lukket 2026-05-12 — ikke en bug.** `ProjectModule maskin/aktiv` finnes på prod for prosjekt 998 (`5e8dd794-ab81-47b7-a146-d7384fac3a8a`), og `OrganizationModule maskin/aktiv` finnes for A.Markussen (`4488fe17-...`). Auto-sync fra Steg 1c (`87fb7292`) har gjort jobben sin.
-
-A.Markussen-ansatte (Malin, Silje, Florian — alle `company_admin` med `organization_id = 4488fe17-...` og `can_login=true`) ser Maskin-lenken korrekt i bunnen av HovedSidebar. Kenneth ser den ikke fordi hans bruker har `organization_id = NULL` (superadmin uten firma-tilknytning) — `organisasjon.hentMin` returnerer da `null` og `aktiveFirmamoduler = []`, slik at maskin-bunnelementet filtreres bort i `HovedSidebar.tsx:331`.
-
-**Løsning:** Bytt til brukervisning (impersonering eller logg inn som A.Markussen-ansatt) for å se det kunden ser. Diagnose-verifikasjon utført 2026-05-12 mot prod-DB.
-
 ### #7 — Rettighetsmatrise med rolle-styring (Prosjektleder + Bas) 🔴
 
 **Side:** Oppsett – Brukere/Roller.
 
 Ingen treff på `Prosjektleder`/`Bas` som DB-roller. Eksisterende roller: `User.role = sitedoc_admin | company_admin | user` og `ProjectMember.role = admin | member`. Krever ny rolle-modell + matrise-UI som viser tilganger per rolle.
-
-### #8 — Fagområde og oppgaver i sjekklistemaler-listevisning 🟢 LUKKET 2026-05-12
-
-**Side:** Innstillinger – Produksjon – Sjekklistemaler.
-
-Levert via commit `3eb7398f` (impl) + merge `542461e2` (prod) 2026-05-12. Fagområde-kolonne (Bygg/HMS/Kvalitet via `mal.domain`) + Antall punkter-kolonne (`mal._count.objects`) lagt til i `apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx`. 4 nye i18n-nøkler i 15 språk. Tabellen har nå 5 kolonner: Navn, Fagområde, Antall punkter, Prefiks, Versjon.
 
 ### #9 — Justeringer på SJA (signatur/lesetilgang/deltaker) 🔴
 
