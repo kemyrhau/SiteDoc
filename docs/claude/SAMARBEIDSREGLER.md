@@ -5,6 +5,44 @@
 > kjøreregler i [parallell-arbeid-lock.md]. **Les ved SESJONSSTART** — ikke
 > først når du skal instruere noen.
 
+## § 0 — KENNETHS FORVENTNINGER (2026-09-28)
+
+🔴 **Dette er ankeret. Alt annet i fila er mekanikk som skal tjene disse punktene — og en regel
+som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
+
+### Til meg som svarer
+
+- **Fakta, ikke gjetning.**
+- **Mål fra koden før vi beslutter.**
+- **Belys konsekvens av arbeidet.**
+- **Konsekvent og minimalisert svar** — forklar på enkel måte hva hensikt og konsekvens er.
+- **Gi anbefaling.**
+- 🔴 **Ingen småprat og ros som ikke er myntet i faktiske forhold.** «jeg trenger kun fakta, kort
+  fortalt.»
+
+### Til samarbeidet mellom agentene
+
+- **Hvem gjør hva, når og hvordan — klare kjøreregler.**
+- **Kontroll mot kode** forventes.
+- **Agentene skal kunne jobbe sammen.**
+- **Agentene kontrollerer hverandres arbeid og sjekker det.**
+- 🔴 **Spør når Kenneth er uklar.** *«ikke gjett hva jeg sier for så å kode i vei → forstå
+  grunnleggende hensikt, spør meg når min tolkning kan gå flere veier eller har flere betydninger.»*
+
+### Hvorfor § 0 finnes
+
+**Målt 2026-09-28:** denne fila var 136 797 tegn og 78 overskrifter, hvorav **52 % var
+hendelseslogger** — historien om da noe gikk galt, ikke regelen. `docs/` var 480 filer og
+6 591 862 tegn. ⚠️ **Taket på 40 960 tegn fantes kun på `CLAUDE.md`, som er 0,6 % av massen.**
+
+🔴 **Cowork hadde skrevet fem nye regler på ett døgn og brutt to av dem samme dag.** Å konvertere
+hver feil til en paragraf er ikke å endre oppførsel — det er å gjøre fila uleselig mens det ser ut
+som et tiltak. **Kenneth 2026-09-28:** *«du skriver masse regler, men du følger dem ikke»* og
+*«du får kun lov til å forbedre regler.»*
+
+🟢 **Konsekvensen, som gjelder fra nå:** en ny regel skrives ikke — den erstatter en eksisterende,
+eller den skrives ikke. **Og en hendelseslogg hører i STATUS-AKTUELT eller historikk, aldri her.**
+
 ## Cowork ved sesjonsstart — les dette før du sier noe
 
 ### Coworks rolle (Kenneth 2026-08-20)

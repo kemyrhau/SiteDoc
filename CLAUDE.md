@@ -8,7 +8,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 |-----|---------|
 | [docs/claude/SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) | **Veileder Opus:** sesjonsoppstart-veileder — vis ved sesjon-start |
 | [docs/claude/kontroll-claude-veileder.md](docs/claude/kontroll-claude-veileder.md) | **Veileder kontroll-Claude:** arbeidsmåte for verifiseringslaget over Opus — les `parallell-arbeid-lock.md` først |
-| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — cowork leser FØRST hver sesjon:** orkestratorrollen, arbeidsrutiner, statustavle-plikt, ordreformat, merge-mekanikk. **Ordrer bor i `relay/inbox-<navn>.md` i hovedtreet** — alt en ordre peker på må være committet først. **Tavla i STATUS-AKTUELT er agentregisteret** |
+| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **🔴 STYRENDE — les § 0 KENNETHS FORVENTNINGER FØRST:** fakta ikke gjetning · mål fra koden før beslutning · belys konsekvens · kort svar · gi anbefaling · spør ved uklarhet, ikke gjett. **En regel som ikke tjener § 0 slettes.** Deretter roller, ordreformat, merge-mekanikk. Ordrer bor i `relay/inbox-<navn>.md`. Tavla i STATUS-AKTUELT er agentregisteret |
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
 | [docs/claude/FUNKSJONSENDRINGER.md](docs/claude/FUNKSJONSENDRINGER.md) | **🔴 KENNETHS KONTROLLFLATE:** merger som endret det brukeren ser. Funksjonsendring krever hjemmel FØR ordren sendes; reparasjon føres til orientering |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
