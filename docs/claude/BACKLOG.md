@@ -472,13 +472,40 @@ DRIFT og foreslå å fjerne den.**
 lenger ned:** DB-en bærer en garanti skjemaet ikke kjenner. **Forskjellen er at navne-driften er
 kosmetisk, mens denne er en REGEL som kan bli foreslått slettet.**
 
-🟢 **Billigste vern: en kommentar i `schema.prisma` ved `model Psi` som navngir indeksen og sier at
-den er bevisst utenfor skjemaet.** 🔴 **En kommentar er ikke en vakt** — den statiske testen i
-`psi-drop-stale-unik-indeks-migrering.test.ts` er vakten, og den fanger sletting av setningen fra
-migreringen. **Den fanger IKKE at noen kjører `migrate dev` og dropper indeksen i en NY migrering.**
-**Ikke bestilt — vurder en test som krever at ingen migrering inneholder
-`DROP INDEX ... "psi_prosjektniva_unik"`, samme form som den eksisterende vakten mot å droppe
-composite-indeksen.**
+✅ **VAKTEN ER LEVERT** — `05e8aff6`:
+`expect(alleMigreringer).not.toMatch(/DROP INDEX (IF EXISTS )?"psi_prosjektniva_unik"/)`, med
+rød-først bevist i en engangskatalog og falsk-positiv-sjekk mot CREATE-linja. Standarden for slike
+vakter står nå i
+[SAMARBEIDSREGLER § En negativ assertion er ikke bevist før tre ting er vist](SAMARBEIDSREGLER.md).
+
+🔴 **KORRIGERT 2026-09-27 av cowork — mønsteret er IKKE nytt, og det endrer alvoret i to retninger.**
+Jeg skrev posten over som om en partiell indeks utenfor skjemaet var et unntak. **Målt: det er
+etablert praksis i dette repoet.**
+
+| Partiell unik indeks | Migrering | I `schema.prisma`? | DROP-vakt? |
+|---|---|---|---|
+| `overflater_pointcloud_malavstand_key` | `20260924120000_overflate_tabell` | 🔴 nei | 🔴 **nei** |
+| `bruker_innstilling_global_nokkel_unik` | `20260909180000_brukerinnstilling` | 🔴 nei | 🔴 **nei** |
+| `bruker_innstilling_prosjekt_nokkel_unik` | `20260909180000_brukerinnstilling` | 🔴 nei | 🔴 **nei** |
+| `psi_prosjektniva_unik` | `20260926120000_psi_drop_stale_unik_indeks` | 🔴 nei | 🟢 **JA (`05e8aff6`)** |
+
+🟢 **Den ene retningen:** hazarden er ikke ny, den er husstandard, og **ingen av de tre eldre har
+blitt droppet av drift** — så den akutte risikoen er lavere enn jeg først skrev. **Å ha en partiell
+unik indeks utenfor skjemaet er ikke en feil; det er den eneste måten Prisma tillater.**
+
+🔴 **Den andre retningen, og den er verre:** `psi_prosjektniva_unik` er den **FØRSTE** som har fått en
+DROP-vakt. **De tre andre har ingen**, og to av dem (`bruker_innstilling_*`) er den eneste
+garantien mot duplikate brukerinnstillinger, mens `overflater_*` er den eneste mot samme punktsky med
+samme målavstand. ⚠️ **Droppes en av dem av et `migrate dev`, sier ingenting fra.**
+
+🟢 **Billig, avgrenset oppfølger (ikke bestilt): én vakt-test som dekker ALLE fire navnene**, i
+mønsteret `05e8aff6` etablerte. **Da er husstandarden komplett i stedet for punktvis.** ⚠️ **Krever
+falsk-positiv-sjekk pr. navn — `overflater_pointcloud_malavstand_key` opprettes uten `IF NOT EXISTS`,
+så regexen må tåle begge formene der også.**
+
+🟡 **Og en kommentar i `schema.prisma` ved hver berørt modell som navngir indeksen og sier at den er
+bevisst utenfor skjemaet, hører med** — ikke som vakt, men fordi den neste som ser drift-forslaget fra
+`migrate dev` trenger å vite at det er forventet.
 
 #### 🔴 Stille feil ved PSI nr. 2 — ingen P2002-fangst noe sted (målt 2026-09-27, kontrollplan)
 
