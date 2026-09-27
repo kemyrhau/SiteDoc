@@ -306,6 +306,44 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 🟢 **Fristen 30.11.2026 er gulvet** — den fyrer uansett og tvinger en bevisst beslutning selv om lenke-runden aldri kommer.
 
+✅ **LEVERT 2026-09-27** — `feat/signert-lenke` @ `1c5f72a0`, designgatet. Kontrakten er oppfylt på
+alternativ 1: `apps/web/src/components/SignertLenke.tsx` finnes, alle ni kallsteder er rutet
+(negativ kontroll: 0 gjenstående rå `/uploads/`-lenker i `apps/web/src`), og `STANDARD_LEVETID_MS`
+er senket til 15 min. **Fristen er fjernet fordi tråden er ARMERT** —
+`expect(lenkerSelvfornyer()).toBe(true)` fanger sletting av komponenten, og en ubetinget
+`toBe(15 * 60 * 1000)` fanger at levetiden heves. **Fristen voktet en provisorisk tilstand som nå
+er oppløst.**
+
+#### 🟡 MEN SNUBLETRÅDEN VOKTER BARE DE DØRENE DEN KJENNER (design 2026-09-27)
+
+🔴 **Tråden sjekker to hardkodede filstier** (`SignertBilde.tsx`, `SignertLenke.tsx`). **En TREDJE
+konsument-klasse som ikke selvfornyer, ville blitt brutt av 15-min-levetiden uten at noe fyrer.**
+
+⚠️ **Coworks negative kontroll — «0 gjenstående rå `/uploads/`-lenker» — er målt ÉN GANG, ikke
+håndhevet.** 🟢 **Gjøres den til en permanent test, lukkes hullet:** en test som feiler hvis et rått
+`/uploads/`-mønster (`href={`/api…`, `window.open(url`, `window.open(`/api`) dukker opp i
+`apps/web/src` utenfor `SignertLenke.tsx`/`SignertBilde.tsx`.
+
+🔴 **Samme klasse som blindsonen på type-nivå lenger opp i denne fila:** vakten står ved de dørene
+den kjenner, og en ny dør fødes uten vakt. **Ikke bestilt — design skriver ordren når cowork ber.**
+⚠️ **Prioritet: den er billig og fanger en hel klasse, men den forbedrer ikke dagens tilstand — den
+hindrer at den forfaller. Etter pilot-kritiske saker.**
+
+### 🟡 `psiWhere()` er død kode som dokumenterer en regel ingen bruker (målt 2026-09-27)
+
+**Funnet av kontrollplan — men meldt inne i en kodekommentar i en testfil, ikke i rapporten.**
+🔴 **Cowork verifiserte:** `grep -c "psiWhere(" apps/api/src/routes/psi.ts` = **1** — definisjonen
+på `:8`. **Null kall.**
+
+⚠️ **Og `:651` inliner nøyaktig samme oppslag** (`projectId_byggeplassId: { projectId, byggeplassId }`)
+i stedet for å kalle hjelperen. **Så regelen finnes to steder: én som ikke kjører, og én kopi som
+gjør det.**
+
+🟢 **Enkleste retting: slett `psiWhere()`, eller bruk den på `:651`.** **Det siste er bedre** — da
+finnes normaliseringen (`byggeplassId ?? null`) på ett sted, og den er ikke triviell: det er
+nettopp NULL-håndteringen som bærer prosjektnivå-semantikken. **Ikke bestilt. Ta den som del av
+P2002-herdingsrunden, som alt skal inn i `psi.ts`.**
+
 ### 🟡 `uploadsSti.ts` kom inn i `@sitedoc/shared` UTEN test på sitt eget nivå (funnet 2026-09-24 av merge-agenten)
 
 **Funnet fordi et forventet tall ikke steg.** Coworks merge-ordre sa at `shared` skulle stige med den nye delte utility-en. Den sto uendret på **854**.
@@ -393,6 +431,54 @@ toppen enn å redigere den.** **Kenneth beslutter hvilken av de to.**
 
 🔴 **Og krav (c) mangler:** ingen test feiler i dag hvis to prosjektnivå-PSI-er opprettes. **En
 partiell indeks uten en rød-først-test er halve jobben.**
+
+##### ✅ LEVERT 2026-09-27 — `fix/psi-prosjektniva-unik` @ `f7d872eb` (kontrollplan)
+
+**Kenneth valgte vei 1: utvid den develop-mergede migreringen, ikke ny på toppen** — så det aldri
+finnes et vindu der begge garantiene mangler. `DROP INDEX` på `:20`, partiell `CREATE` på `:32`, i
+den rekkefølgen. **Én test låser nettopp rekkefølgen**, ikke bare at setningen finnes.
+
+🟢 **Krav (c) oppfylt så langt miljøet tillater, og avgrensningen er meldt i stedet for skjult:** det
+finnes ingen nåbar Postgres i `packages/db`-vitest (ingen `DATABASE_URL`), så `psi.opprett` kan ikke
+drives ende-til-ende der. Kontrollplan låste **DDL-kontrakten som ER regelen** + premisset
+(`byggeplassId` nullable). 🔴 **Det er riktig fordi den partielle indeksen er ENESTE håndhever:**
+`psiWhere()` (`psi.ts:8`) er død kode og `psi.opprett` (`:203`) har ingen app-guard. **Oppfølger:
+behavioral test i api-harnessen når en test-DB er koblet.** Gate: db 272 → 276 (+4), øvrige stille.
+
+🟢 **TRE FORHÅNDSSJEKKER KJØRT AV KENNETH 2026-09-27 — alle 0 rader:**
+
+| Sjekk | Svar | Betydning |
+|---|---|---|
+| Er `20260926120000` kjørt i prod `_prisma_migrations`? | **0 rader** | 🟢 Redigeringen av den develop-mergede migreringen var lovlig |
+| Prosjekter med 2+ PSI der `byggeplass_id IS NULL` — **prod** | **0 rader** | 🟢 `CREATE UNIQUE INDEX` kan ikke feile på duplikater |
+| Samme — **test** | **0 rader** | 🟢 Samme, og test-deploy er trygg |
+
+⚠️ **Den midterste er den som betyr noe:** en `CREATE UNIQUE INDEX` som treffer duplikater ruller
+**hele** migreringen tilbake — akkurat slik `20260430120000_add_klasse4_indekser` gjorde i april, og
+den ble liggende rullet tilbake i fem måneder uten at noe sa fra. **Sjekken er grunnen til at det
+ikke skjer igjen her.**
+
+🔴 **GJENSTÅR: prod-deploy.** Migreringen er kode, ikke tilstand. **Kenneth kjører `migrate deploy`
+når han vil** — test er en trygg no-op der (indeksen mangler alt, og `IF NOT EXISTS`/`IF EXISTS`
+gjør begge setningene idempotente).
+
+##### 🟡 Partielle indekser kan ikke uttrykkes i `schema.prisma` — `psi_prosjektniva_unik` lever kun i migreringen (meldt av kontrollplan 2026-09-27)
+
+**Prisma støtter ikke `WHERE` på `@@index`/`@@unique`**, så den partielle indeksen finnes i
+migreringen og ikke i skjemaet. 🔴 **Konsekvens: et framtidig `prisma migrate dev` kan se den som
+DRIFT og foreslå å fjerne den.**
+
+⚠️ **Samme familie som [indeksnavn-driften](#-indeksnavn-drift-psi_project_id_building_id_key-mot-schemas-forventning-sidefunn-2026-09-26)
+lenger ned:** DB-en bærer en garanti skjemaet ikke kjenner. **Forskjellen er at navne-driften er
+kosmetisk, mens denne er en REGEL som kan bli foreslått slettet.**
+
+🟢 **Billigste vern: en kommentar i `schema.prisma` ved `model Psi` som navngir indeksen og sier at
+den er bevisst utenfor skjemaet.** 🔴 **En kommentar er ikke en vakt** — den statiske testen i
+`psi-drop-stale-unik-indeks-migrering.test.ts` er vakten, og den fanger sletting av setningen fra
+migreringen. **Den fanger IKKE at noen kjører `migrate dev` og dropper indeksen i en NY migrering.**
+**Ikke bestilt — vurder en test som krever at ingen migrering inneholder
+`DROP INDEX ... "psi_prosjektniva_unik"`, samme form som den eksisterende vakten mot å droppe
+composite-indeksen.**
 
 #### 🔴 Stille feil ved PSI nr. 2 — ingen P2002-fangst noe sted (målt 2026-09-27, kontrollplan)
 
