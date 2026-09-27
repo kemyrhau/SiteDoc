@@ -306,6 +306,44 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 🟢 **Fristen 30.11.2026 er gulvet** — den fyrer uansett og tvinger en bevisst beslutning selv om lenke-runden aldri kommer.
 
+✅ **LEVERT 2026-09-27** — `feat/signert-lenke` @ `1c5f72a0`, designgatet. Kontrakten er oppfylt på
+alternativ 1: `apps/web/src/components/SignertLenke.tsx` finnes, alle ni kallsteder er rutet
+(negativ kontroll: 0 gjenstående rå `/uploads/`-lenker i `apps/web/src`), og `STANDARD_LEVETID_MS`
+er senket til 15 min. **Fristen er fjernet fordi tråden er ARMERT** —
+`expect(lenkerSelvfornyer()).toBe(true)` fanger sletting av komponenten, og en ubetinget
+`toBe(15 * 60 * 1000)` fanger at levetiden heves. **Fristen voktet en provisorisk tilstand som nå
+er oppløst.**
+
+#### 🟡 MEN SNUBLETRÅDEN VOKTER BARE DE DØRENE DEN KJENNER (design 2026-09-27)
+
+🔴 **Tråden sjekker to hardkodede filstier** (`SignertBilde.tsx`, `SignertLenke.tsx`). **En TREDJE
+konsument-klasse som ikke selvfornyer, ville blitt brutt av 15-min-levetiden uten at noe fyrer.**
+
+⚠️ **Coworks negative kontroll — «0 gjenstående rå `/uploads/`-lenker» — er målt ÉN GANG, ikke
+håndhevet.** 🟢 **Gjøres den til en permanent test, lukkes hullet:** en test som feiler hvis et rått
+`/uploads/`-mønster (`href={`/api…`, `window.open(url`, `window.open(`/api`) dukker opp i
+`apps/web/src` utenfor `SignertLenke.tsx`/`SignertBilde.tsx`.
+
+🔴 **Samme klasse som blindsonen på type-nivå lenger opp i denne fila:** vakten står ved de dørene
+den kjenner, og en ny dør fødes uten vakt. **Ikke bestilt — design skriver ordren når cowork ber.**
+⚠️ **Prioritet: den er billig og fanger en hel klasse, men den forbedrer ikke dagens tilstand — den
+hindrer at den forfaller. Etter pilot-kritiske saker.**
+
+### 🟡 `psiWhere()` er død kode som dokumenterer en regel ingen bruker (målt 2026-09-27)
+
+**Funnet av kontrollplan — men meldt inne i en kodekommentar i en testfil, ikke i rapporten.**
+🔴 **Cowork verifiserte:** `grep -c "psiWhere(" apps/api/src/routes/psi.ts` = **1** — definisjonen
+på `:8`. **Null kall.**
+
+⚠️ **Og `:651` inliner nøyaktig samme oppslag** (`projectId_byggeplassId: { projectId, byggeplassId }`)
+i stedet for å kalle hjelperen. **Så regelen finnes to steder: én som ikke kjører, og én kopi som
+gjør det.**
+
+🟢 **Enkleste retting: slett `psiWhere()`, eller bruk den på `:651`.** **Det siste er bedre** — da
+finnes normaliseringen (`byggeplassId ?? null`) på ett sted, og den er ikke triviell: det er
+nettopp NULL-håndteringen som bærer prosjektnivå-semantikken. **Ikke bestilt. Ta den som del av
+P2002-herdingsrunden, som alt skal inn i `psi.ts`.**
+
 ### 🟡 `uploadsSti.ts` kom inn i `@sitedoc/shared` UTEN test på sitt eget nivå (funnet 2026-09-24 av merge-agenten)
 
 **Funnet fordi et forventet tall ikke steg.** Coworks merge-ordre sa at `shared` skulle stige med den nye delte utility-en. Den sto uendret på **854**.
