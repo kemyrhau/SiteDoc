@@ -314,6 +314,62 @@ er senket til 15 min. **Fristen er fjernet fordi tråden er ARMERT** —
 `toBe(15 * 60 * 1000)` fanger at levetiden heves. **Fristen voktet en provisorisk tilstand som nå
 er oppløst.**
 
+#### 🔴 `SignertLenke`: ETT mislykket forsøk slår av fornyelsen for ALLE lenker i samme hook (design 2026-09-28)
+
+**Cowork meldte dette som «lenken er død etter ett feilet forsøk». Design målte to korreksjoner, og
+begge endrer saken.**
+
+🟢 **Korreksjon 1 — den er ikke død, og alvoret er lavere enn cowork skrev.** `SignertLenke.tsx:126-130`
+åpner den utløpte URL-en best-effort når taket er nådd: **brukeren får en 401 fra serveren — et synlig
+avslag, ikke stillhet.** Og er signaturen gyldig, åpner første gren direkte uansett `forsokRef`, så
+neste tRPC-refetch gjør klikket virksomt igjen.
+
+🔴 **Korreksjon 2 — men den ekte defekten er STØRRE.** `forsokRef` er **ÉN ref for hele hooken**
+(`:98`), og hooken tar en **LISTE** (`kildeUrls`, `:115`) der `aapne(url)` kalles pr. lenke.
+**Ett mislykket fornyelsesforsøk på ÉN fil slår av fornyelsesveien for ALLE lenker som deler
+hook-instansen.** ⚠️ **Én 4G-glipp på ett vedlegg, og resten av lista går rett til best-effort 401.**
+
+🔴 **Derfor er «hev `SIGNERT_LENKE_MAKS_FORSOK` til 3» FEIL fiks** — den gir tre GLOBALE forsøk, og
+lar fortsatt én fil brenne budsjettet for alle.
+
+🟢 **Riktig fiks: budsjett PR. STI.** Mønsteret finnes i fila — `ventendeRef` er alt nøklet på `sti`
+(`:135`). 🟢 **Og det forklarer hvorfor telleren aldri nullstilles:** `SignertBilde` kan nullstille på
+url-endring (`:80`) fordi den har ÉN url; hooken har mange, så det finnes ikke ett naturlig
+nullstillingspunkt for en global teller. **En teller pr. sti løser begge deler.**
+
+**Design skriver ordren sammen med `/uploads/`-ordren og shared-lib-steget — samme flate.** 🔴 **Ordren
+skal skrives mot dette funnet, ikke mot en tallheving.**
+
+#### 🔴 `psi-feil.ts`: array-grenen av `meta.target` er aldri testet, og den treffer ikke (design 2026-09-28)
+
+**Står på develop siden `e0820f46`.** `psi-feil.ts:14-18`:
+
+```ts
+const target = Array.isArray(e.meta?.target)
+  ? (e.meta.target as string[]).join(",")   // ← ALDRI testet
+  : String(e.meta?.target ?? "");
+if (target.includes("psi")) { … }
+```
+
+🔴 **Array-formen er nettopp den som bærer FELTNAVN.** Er `meta.target = ["projectId","byggeplassId"]`,
+blir strengen `"projectId,byggeplassId"` — som **ikke inneholder `"psi"`**. Da faller den gjennom til
+`throw e`, og brukeren får en rå P2002. ⚠️ **Nøyaktig det runden ble bygget for å hindre — mens alle
+fem testene passerer, fordi testhjelperen `p2002(target: string)` (`:21`) alltid sender en STRENG med
+et indeksnavn.**
+
+🔴 **Premisset «`meta.target` ER indeksnavnet» er ikke målt noe sted.** `nummerRetry.ts` bruker samme
+mønster, men matcher mot et constraint-navn kalleren sender inn — **den beviser ikke hva
+Postgres + Prisma faktisk leverer.**
+
+🟢 **Retting, tre deler:** (1) Kenneth utløser et ekte duplikat i test og leser hva `meta.target`
+faktisk er — én handling, definitivt svar · (2) **hard matcher uansett utfall:** gjenkjenn BÅDE
+indeksnavn-formen og feltnavn-formen, så den er robust mot at Prisma endrer form ved oppgradering ·
+(3) test for array-formen — **den utestede grenen er den som kan svikte.**
+
+🟡 **Opportunistisk i samme runde:** `psi.konflikt.generell` sier «velg en annen byggeplass», men i
+prosjektnivå-tilfellet har brukeren ikke valgt noen. **«endre byggeplass-valget» dekker begge.**
+⚠️ **Grenen er unåbar i dag fordi begge indeksnavn matcher — rett den når noen er i fila.**
+
 #### 🟡 MEN SNUBLETRÅDEN VOKTER BARE DE DØRENE DEN KJENNER (design 2026-09-27)
 
 🔴 **Tråden sjekker to hardkodede filstier** (`SignertBilde.tsx`, `SignertLenke.tsx`). **En TREDJE

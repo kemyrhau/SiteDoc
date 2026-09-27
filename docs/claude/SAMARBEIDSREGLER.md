@@ -1123,6 +1123,23 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 
 ⚠️ **Generaliseringen er den nyttige:** et krav skal kunne oppfylles av den som får det. Kan mottakeren ikke måle betingelsen selv, må avsenderen ha målt den — ellers er kravet dekorasjon, som `cmd | grep | tail`-gaten som alltid returnerte 0.
 
+🔴 **Det følger tre ting av setningen over, og cowork brøt alle tre 2026-09-27/28.** **Historiene står i
+[STATUS-AKTUELT](STATUS-AKTUELT.md); her står bare kravet:**
+
+- **Hver hash i en ordre er verifisert på origin først** (`git ls-remote --heads origin <branch>`).
+  Brutt tre ganger: ukommittert edit referert i en ordre · hash committet etter at branchen var pushet
+  (to ganger). **Be aldri Kenneth pushe en branch cowork fortsatt skriver på.**
+- **Forventede gate-tall kommer fra leverandørens rapport på DEN branchen ordren gjelder** — aldri fra
+  en annen branch, aldri som anslag. Brutt med `web +7` hentet fra en annen branch; merge brukte en
+  runde på å lete etter tre tester som aldri fantes.
+- **Gaten skal være I HÅNDEN før merge-ordren skrives.** Gate-forespørsel og merge-ordre går ikke i
+  samme melding — Kenneth relayer til fire terminaler og kan ikke vite at blokk 2 forutsetter svar på
+  blokk 1. Brutt for `0d20c9e9` og `e0820f46`: begge merget før gaten kom, og design fant etterpå et
+  ekte hull i `psi-feil.ts` som da alt sto på develop.
+- **Hver merge-ordre bærer en forutsetningslinje som gjør den idempotent:**
+  `git merge-base --is-ancestor <hash> origin/develop && echo "ALT MERGET — STOPP"`. **En duplisert
+  ordre skal stoppe seg selv, ikke koste mottakeren en runde på å bevise at avsenderen gjentok seg.**
+
 #### 🔴 En verifiseringsordre skal navngi HANDLINGEN som trigger kodeveien (2026-09-24)
 
 **Ikke «åpne skjermen og se om det virker» — men «gjør DETTE, som får koden til å kjøre».**
@@ -1146,37 +1163,6 @@ git merge-base --is-ancestor <hash> origin/develop && echo "JA" || echo "NEI"
 ```
 
 ⚠️ **Dette blir vanligere, ikke sjeldnere:** fase 4 sletter mergede refs som den skal (56 ryddet 2026-09-24). Den som leser etterpå må slutte å spørre etter navn som er borte. **Meld alltid hash sammen med branchnavn** — navnet er for mennesker, hashen er det som kan måles.
-
-#### 🔴 HVER HASH I EN ORDRE SKAL VÆRE VERIFISERT PÅ ORIGIN FØR ORDREN SENDES (cowork-feil, tredje variant 2026-09-27)
-
-**Cowork oppga tre commit-hasher i en merge-ordre. Bare to fantes på origin.** Den tredje
-(`122df972`, SAMARBEIDSREGLER-regelen om gate-tall) var committet lokalt **etter** at Kenneth hadde
-pushet branchen. **Merge merget de to som fantes, og meldte den tredje som manglende.**
-
-🟢 **Merge diagnostiserte det riktig, og den vanskelige delen var å skille de to mulighetene:**
-branchen hadde to commits over basen · diffen mot `SAMARBEIDSREGLER.md` var tom · `grep` ga 0.
-**Konklusjon: commiten nådde aldri origin — mergen mistet ingenting.** ⚠️ **Merge gjenskapte den
-ikke, og lot branchen stå i stedet for å slette den. Begge valg var riktige.**
-
-🔴 **Dette er TREDJE variant av samme klasse i én økt, alle fra cowork:**
-
-| # | Formen | Hva som skjedde |
-|---|---|---|
-| 1 | Ukommittert edit i hovedtreet referert i en ordre | `CLAUDE.md`-editen «forsvant» — cowork committet den til en branch mens merge målte |
-| 2 | Gate-tall arvet fra en annen branch | `web +7` fra trafikklys-branchen inn i signert-lenke-ordren; merge brukte en runde på å lete etter tre tester som aldri fantes |
-| 3 | Hash committet lokalt etter at branchen var pushet | Ordren oppga tre hasher, origin hadde to |
-
-🔴 **Regelen etter #1 var «coworks egne editer kommer som pushet branch med hash, aldri som ligger i
-hovedtreet». Den holdt ikke — #3 brøt den på et nytt vis.** **Skjerpingen:**
-
-```sh
-git ls-remote --heads origin <branch>   # og sammenlign med hashen du skriver i ordren
-git merge-base --is-ancestor <hash> origin/<branch> && echo "PAA ORIGIN" || echo "IKKE PAA ORIGIN"
-```
-
-🟢 **Ingen hash går inn i en ordre før den er verifisert å finnes på origin — også coworks egne.**
-⚠️ **Og be aldri Kenneth pushe en branch du fortsatt skriver på.** **Er commiten ikke ferdig, er
-branchen ikke klar; skriv ferdig, push, verifiser, SÅ send ordren.**
 
 #### 🔴 Cowork skriver GNU-kommandoer til en BSD-maskin (2026-09-24)
 
@@ -1365,32 +1351,6 @@ korrekte — turbo hash-nøkler cachen på filinnhold — men gaten hviler på a
   før du rapporterer.
 - 🔴 **Begrunnelsen står:** et cache-treff gir riktige tall, men beviser ikke at testene
   kjørte på ditt tre. **Gaten er en observasjon, ikke et oppslag.**
-
-#### 🔴 ET FORVENTET GATE-TALL SKAL KOMME FRA AGENTENS RAPPORT PÅ *DENNE* BRANCHEN (cowork-feil 2026-09-27)
-
-**Cowork skrev «web 327 → 334 (+7)» i merge-ordren for `feat/signert-lenke`.** Faktisk tall:
-**331 (+4)** — og merge stoppet, holdt branch-slettingen, og brukte en runde på å måle hvor de tre
-testene var blitt av. **De hadde aldri eksistert.**
-
-🔴 **`+7` kom fra dokgens rapport på en HELT ANNEN branch** —
-`fix/trafikklys-foreldreloes-verdi`, der paritet-utvidelsen (+5) og en render-test (+2) ga +7.
-Dokgens rapport på `signert-lenke` sa `331 (+4)` og var korrekt hele tiden. **Cowork hadde begge
-rapportene i samme økt og plukket feil.**
-
-⚠️ **Skaden er ikke tallet — den er at ordren sa «avvik fra DISSE tallene er et funn».** **Da blir
-et feil forventet tall en falsk alarm med full utrednings-plikt**, og merge gjorde helt riktig i å
-stoppe. **Kostnaden ble båret av den som fulgte regelen.**
-
-🔴 **Regelen: forventede gate-tall kopieres fra leverandørens rapport på den branchen ordren
-gjelder — aldri fra en annen branch, aldri fra hukommelse, aldri som anslag.** **Har cowork ikke
-tallet, skal ordren si «meld tallene» uten et forventet tall — ikke gjette ett.**
-
-🟢 **Og den billige verifikasjonen finnes:** `grep -c "it("` i de nye testfilene på branchen tar
-sekunder og hadde avslørt det før ordren gikk ut. **Cowork kan måle delta selv; da er tallet i
-ordren en måling, ikke en arv.**
-
-⚠️ **Samme familie som § «Et navn i en ordre måles av den som skriver det inn — aldri arvet».**
-**Det gjelder tall like fullt som navn.**
 
 ### 🔴 EN NEGATIV ASSERTION ER IKKE BEVIST FØR TRE TING ER VIST (design/cowork/kontrollplan 2026-09-27)
 
