@@ -15,6 +15,7 @@ import { DebugErrorBoundary } from "@/components/error-boundary";
 import { trpc } from "@/lib/trpc";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { SignertLenke, useSignertLenkeApner } from "@/components/SignertLenke";
 
 type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
 type DokType = "a_nota" | "t_nota";
@@ -954,9 +955,9 @@ function DokumentasjonPanel({
     }));
   }, [sider]);
 
+  const apneLenke = useSignertLenkeApner(gruppert.map((g) => g.dok.fileUrl));
   const apnePdf = (fileUrl: string | null, side: number) => {
-    if (!fileUrl) return;
-    window.open(`/api${fileUrl}#page=${side}`, "_blank");
+    apneLenke(fileUrl, { nyFane: true, fragment: `#page=${side}` });
   };
 
   return (
@@ -1308,14 +1309,14 @@ function NotaForsideOppsummering({
 
         {/* Last ned */}
         <div className="flex justify-end pt-4">
-          <a
-            href={`/api${dok.fileUrl}`}
+          <SignertLenke
+            url={dok.fileUrl}
             download
             className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
             <FileText className="h-3.5 w-3.5" />
             {t("okonomi.lastNed")}
-          </a>
+          </SignertLenke>
         </div>
       </div>
     </div>

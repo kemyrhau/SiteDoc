@@ -10,6 +10,7 @@ import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SignertBilde } from "@/components/SignertBilde";
+import { SignertLenke } from "@/components/SignertLenke";
 
 export default function DokumentLeser() {
   useToppbarFiltre({ byggeplass: false });
@@ -85,15 +86,14 @@ export default function DokumentLeser() {
             {t("dokumentleser.ikkeKlar")}
           </p>
           {data?.fileUrl && (
-            <a
-              href={`/api${data.fileUrl}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <SignertLenke
+              url={data.fileUrl}
+              nyFane
               className="flex items-center gap-2 rounded-lg bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-secondary"
             >
               <Download className="h-4 w-4" />
               {t("handling.lastNed")} PDF
-            </a>
+            </SignertLenke>
           )}
         </div>
       </div>

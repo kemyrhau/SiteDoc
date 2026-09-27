@@ -7,6 +7,7 @@ import { SortableContext, horizontalListSortingStrategy, useSortable, arrayMove 
 import { CSS } from "@dnd-kit/utilities";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { useSignertLenkeApner } from "@/components/SignertLenke";
 
 interface SpecPost {
   id: string;
@@ -848,10 +849,9 @@ function DokumentasjonSeksjon({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const kilder: SplitKilde[] = Array.isArray((splitDok as any)?.splitSources) ? (splitDok as any).splitSources : [];
 
+  const apneLenke = useSignertLenkeApner([(splitDok as { fileUrl?: string | null } | undefined)?.fileUrl]);
   const apnePdf = (fileUrl: string | null, side?: number) => {
-    if (!fileUrl) return;
-    const url = side ? `/api${fileUrl}#page=${side}` : `/api${fileUrl}`;
-    window.open(url, "_blank");
+    apneLenke(fileUrl, { nyFane: true, fragment: side ? `#page=${side}` : undefined });
   };
 
   function fmtRange(start: number, antall: number): string {

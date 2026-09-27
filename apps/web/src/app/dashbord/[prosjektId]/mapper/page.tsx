@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
+import { SignertLenke, useSignertLenkeApner } from "@/components/SignertLenke";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 import { useTranslation } from "react-i18next";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -127,6 +128,7 @@ export default function MapperSide() {
       },
     );
   const dokumenter = Array.isArray(dokumentData) ? dokumentData : dokumentData?.dokumenter;
+  const apneLenke = useSignertLenkeApner((dokumenter ?? []).map((d) => d.fileUrl));
   const mappeSprak = Array.isArray(dokumentData) ? ["nb"] : (dokumentData?.mappeSprak ?? ["nb"]);
   const prosjektKildesprak = Array.isArray(dokumentData) ? "nb" : ((dokumentData as unknown as { prosjektKildesprak?: string })?.prosjektKildesprak ?? "nb");
   const harOversettelse = mappeSprak.length > 1;
@@ -294,11 +296,9 @@ export default function MapperSide() {
     if (filInputRef.current) filInputRef.current.value = "";
   };
 
-  /** Åpne fil — dobbelt-klikk */
+  /** Åpne fil — dobbelt-klikk (selvfornyende signatur via SignertLenke-apneren) */
   function åpneFil(rad: DokumentRad) {
-    if (!rad.fileUrl) return;
-    const url = rad.fileUrl.startsWith("/api") ? rad.fileUrl : `/api${rad.fileUrl}`;
-    window.open(url, "_blank");
+    apneLenke(rad.fileUrl, { nyFane: true });
   }
 
   // F1: «Administrer mapper»-inngang → Mappeoppsett. Delt const slik at den vises
@@ -601,15 +601,14 @@ export default function MapperSide() {
                       <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-sitedoc-success" />
                     ) : null}
                   </Link>
-                  <a
-                    href={rad.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <SignertLenke
+                    url={rad.fileUrl}
+                    nyFane
                     className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                     title={t("handling.lastNed")}
                   >
                     <Download className="h-4 w-4" />
-                  </a>
+                  </SignertLenke>
                   <button
                     onClick={() => {
                       if (confirm(`Slett «${rad.filename}»?`)) {

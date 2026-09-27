@@ -350,6 +350,13 @@ Mobilappen bruker `hentStatusHandlinger()` direkte — skal migreres til posisjo
 - Sletting fra vedlegg: fjerner fra `data`-JSON OG fra `images`-tabellen via `bilde.slettMedUrl`
 - Bilder med GPS men uten tegningskobling: plasseres via georeferanse-fallback i Rapportlokasjon-modus
 
+## Signert filservering — selvfornyelse (S1 Fase 1b)
+
+`/uploads/`-filer serveres bak en HMAC-signaturgate (default-deny, se [sikkerhet.md](sikkerhet.md)); hver `fileUrl` fra en tRPC-query er ALT signert ved emisjon (`?exp=&sig=`) med en begrenset levetid (`STANDARD_LEVETID_MS`). Klienten legger ALDRI signeringslogikk til — og kaller ALDRI en `fil.signer({ sti })`-prosedyre (den måtte autorisert stien selv → kryssfirma-orakel). To komponenter håndterer selvfornyelse når en signatur utløper, ved å invalidere tRPC-queriene DEBOUNCET (`lagInvalideringsDebounce`, delt i `@sitedoc/shared`) så serveren re-emitterer ferske signaturer gjennom en ALT autorisert vei:
+
+- **`SignertBilde`** (`<img>`-klassen) — fanger 401 via `onError` og invaliderer (maks ETT forsøk; 404 skiller seg fra 401 via `erUtloptSignatur`).
+- **`SignertLenke`** (lenke-klassen) — nedlasting / ny fane / PDF-visning med `#page=N`. 🔴 **Kontrakt:** komponenten MÅ hete `apps/web/src/components/SignertLenke.tsx` — snubletråden `levetid-snubletraad.test.ts` (`lenkerSelvfornyer()`) detekterer eksistensen av denne stien. En `<a href>`/`window.open` kan IKKE fange et 401 (nettleseren navigerer og får feilen; ingen `onError`), så sjekken skjer FØR åpning: gyldig signatur → åpne direkte; utløpt/rå → invalidér, VENT på fersk `fileUrl`, åpne DEN (fragmentet `#page=N` bevares). Ny fane åpner et placeholder-vindu synkront i klikk-gesten (unngår popup-blokk). 🔴 **IKKE `fetch→blob→a.download`** (blob mister PDF-sidefragmentet; punktsky/E57 er titalls MB i minnet). To flater: `<SignertLenke url fragment nyFane download>`-komponenten (anker), og `useSignertLenkeApner(kildeUrls)`-hooken for imperative `window.open`-steder (rad-dobbeltklikk) — samme kjerne. De ni kallstedene (dokumentleser, mapper ×2, økonomi ×2, timer-vedlegg ×2, spec-post-tabell, FTD-søk) går alle gjennom den.
+
 ## Print-til-PDF
 
 ### Arkitektur
