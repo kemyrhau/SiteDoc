@@ -339,10 +339,48 @@ på `:8`. **Null kall.**
 i stedet for å kalle hjelperen. **Så regelen finnes to steder: én som ikke kjører, og én kopi som
 gjør det.**
 
-🟢 **Enkleste retting: slett `psiWhere()`, eller bruk den på `:651`.** **Det siste er bedre** — da
-finnes normaliseringen (`byggeplassId ?? null`) på ett sted, og den er ikke triviell: det er
-nettopp NULL-håndteringen som bærer prosjektnivå-semantikken. **Ikke bestilt. Ta den som del av
-P2002-herdingsrunden, som alt skal inn i `psi.ts`.**
+✅ **LUKKET 2026-09-27** — `fix/psi-p2002-haandtert` @ `e0820f46`: `psiWhere` er tatt i bruk i
+`kopier`-forhåndssjekken og er ikke lenger død.
+
+🔴 **OG COWORKS BEGRUNNELSE VAR FEIL — kontrollplan målte det, og funnet er skarpere enn posten
+over.** Jeg skrev at `byggeplassId ?? null`-normaliseringen «bærer prosjektnivå-semantikken» og
+derfor burde bo på ett sted. **Den kunne aldri ha gjort det.**
+
+**Målt i den genererte klienten** (`node_modules/.pnpm/@prisma+client@6.19.2/.../.prisma/client/index.d.ts`):
+
+```ts
+export type PsiProjectIdByggeplassIdCompoundUniqueInput = {
+  projectId: string
+  byggeplassId: string      // 🔴 NON-NULL
+}
+```
+
+⚠️ **`findUnique` kan ikke identifisere en rad på NULL** — det er Postgres-semantikk som Prisma
+speiler i typene. `?? null` gir `string | null`, som typen avviser. 🔴 **Så `psiWhere` var ikke bare
+død: den var type-usunn, og et kall på prosjektnivå ville ikke kompilert.** **Den framsto som en
+delt regel, men var en regel som ikke kunne brukes.**
+
+🟢 **Kontrollplan leverte den type-ærlige varianten:** `psiWhere` krever konkret `byggeplassId`, og
+dokumenterer at prosjektnivå-oppslag går via `findFirst({ where: { projectId, byggeplassId: null } })`.
+**Alternativet var å beholde et villedende `?? null` bare for å matche coworks ordlyd.** 🔴 **Riktig
+valg — en ordre er input, ikke fasit.**
+
+⚠️ **Lærdommen er generell:** «legg normaliseringen ett sted» er god instinkt, men **NULL i en unik
+nøkkel er ikke en normaliserings-sak — det er to forskjellige oppslag.** Prosjektnivå og
+byggeplassnivå kan ikke dele samme `findUnique`-vei, uansett hvor pent hjelperen skrives.
+
+### 🟡 Ved P2002 på PSI-opprettelse blir auto-malen foreldreløs (meldt av kontrollplan 2026-09-27, ikke rørt)
+
+**`psi.opprett` lager auto-malen + `reportObjects` FØR `psi.create`.** 🔴 **Kaster `psi.create` en
+P2002, er malen og objektene allerede skrevet — og ingenting rydder dem.**
+
+🟢 **Kantsak i praksis:** klienten gater duplikater med `disabled`-valg
+(`psi/page.tsx:434`/`:438`), så veien treffes bare ved samtidige forsøk eller et klient/server-avvik.
+**Derfor ikke tatt i P2002-runden — den runden gjorde feilen SYNLIG, som var oppgaven.**
+
+🟡 **Retting når den tas: transaksjon rundt mal + objekter + `psi.create`**, slik at en kollisjon
+ruller hele opprettelsen tilbake. ⚠️ **Merk at det gjør P2002-fangsten mer, ikke mindre, nødvendig —
+en transaksjon som ruller tilbake gir fortsatt brukeren en feil som må oversettes.**
 
 ### 🟡 `uploadsSti.ts` kom inn i `@sitedoc/shared` UTEN test på sitt eget nivå (funnet 2026-09-24 av merge-agenten)
 
@@ -365,6 +403,51 @@ P2002-herdingsrunden, som alt skal inn i `psi.ts`.**
 **Neste steg: én kjøring.** `pnpm --filter @sitedoc/web exec tsc --noEmit` på ren develop. Er den rød mens `next build` er grønn, er det et hull i regel 10 og skal lukkes der — ikke i en enkeltfil.
 
 ⚠️ **Feilklassen er kjent:** «en grønn gate som måler noe annet enn den tror». Samme familie som `cmd | grep | tail` og de 25 testfilene som mocket bort Prisma.
+
+#### 🔴 STØRRE FUNN 2026-09-27: `packages/shared` HAR INGEN TYPECHECK-GATE NOE STED — og den er rød
+
+**Målt av cowork på REN `origin/develop` (a1caf20a), `packages/shared/node_modules/.bin/tsc --noEmit -p tsconfig.json`: exit 2, 22 feil i 4 filer.**
+
+🔴 **Tre av dem er i SRC, ikke i testfiler — og de står i fila som bærer `/uploads/`-signaturpolicyen:**
+
+```
+src/utils/signertBildePolicy.ts(40,19): error TS2304: Cannot find name 'URLSearchParams'.
+src/utils/signertBildePolicy.ts(87,32): error TS2304: Cannot find name 'setTimeout'.
+src/utils/signertBildePolicy.ts(92,13): error TS2304: Cannot find name 'setTimeout'.
+```
+
+**Rotårsak, målt:** rot-`tsconfig.json` har `"lib": ["ES2022"]` og ingenting mer.
+`packages/shared/tsconfig.json` arver det uten å legge til `DOM` eller `@types/node`, **så
+`URLSearchParams` og `setTimeout` er udeklarerte typer i hele pakken.** ⚠️ **Koden VIRKER — dette er
+type-nivå alene — men pakken kan ikke typesjekkes grønn slik den står.**
+
+🔴 **Og gapet er verre enn `apps/web`-saken over, fordi INGEN gate dekker `shared`:**
+
+| Gate | Dekker `shared`? |
+|---|---|
+| Regel 10 ledd 1 — `@sitedoc/web build` | 🔴 nei (transitivt bare det web importerer, og `next build` typesjekker byggegrafen) |
+| Regel 10 ledd 2 — `@sitedoc/mobile typecheck` | 🔴 nei |
+| Regel 10 ledd 3 — `@sitedoc/web exec tsc --noEmit` | 🔴 nei |
+| CI (`.github/workflows/ci.yml`) | 🔴 nei — kjører `pnpm test` + mobil-typecheck; web-typecheck er bevisst holdt ute pga. gjeld, shared er ikke nevnt |
+
+⚠️ **`shared` er pakken web, mobil OG api alle importerer.** **Den har et `typecheck`-script
+(`package.json:16`), men ingen kjører det.**
+
+**De 19 andre feilene er i testfiler og har én felles årsak:** `noUncheckedIndexedAccess: true` i
+rot-tsconfig gjør `arr[0]` til `T | undefined`, og testene indekserer uten guard
+(`betingelse.test.ts`, `maaling.test.ts`, `vedleggLokal.test.ts`). **Pluss `nokkelsett.test.ts` som
+mangler node-typer for `node:fs`/`node:path`/`import.meta.url`.**
+
+🟢 **REKKEFØLGE — ikke legg til et fjerde regel-10-ledd først.** CI-fila sier det selv: «En rød CI
+dag én blir ignorert.» **Riktig orden:**
+1. **Fiks de tre SRC-feilene** — `"lib": ["ES2022", "DOM"]` i `packages/shared/tsconfig.json`. **DOM
+   er riktig framfor `@types/node`, fordi `shared` også kjører i nettleser.** Billig, isolert.
+2. **Rydd de 19 testfil-feilene** — egen runde, mekanisk.
+3. **DA legg `pnpm --filter @sitedoc/shared exec tsc --noEmit` inn som regel 10 ledd 4**, og vurder
+   det samme i CI.
+
+🟡 **Ikke bestilt.** ⚠️ **Men merk at steg 1 rører fila `signertBildePolicy.ts`, som er fersk
+`/uploads/`-kode — den ble levert med rød typesjekk i sin egen pakke uten at noen gate så det.**
 
 ### 🔴 PROD HÅNDHEVER «ÉN PSI PER PROSJEKT» — en regel produktet ikke lenger har. `DROP CONSTRAINT` på en INDEKS er en stille no-op (målt 2026-09-24)
 
@@ -472,13 +555,40 @@ DRIFT og foreslå å fjerne den.**
 lenger ned:** DB-en bærer en garanti skjemaet ikke kjenner. **Forskjellen er at navne-driften er
 kosmetisk, mens denne er en REGEL som kan bli foreslått slettet.**
 
-🟢 **Billigste vern: en kommentar i `schema.prisma` ved `model Psi` som navngir indeksen og sier at
-den er bevisst utenfor skjemaet.** 🔴 **En kommentar er ikke en vakt** — den statiske testen i
-`psi-drop-stale-unik-indeks-migrering.test.ts` er vakten, og den fanger sletting av setningen fra
-migreringen. **Den fanger IKKE at noen kjører `migrate dev` og dropper indeksen i en NY migrering.**
-**Ikke bestilt — vurder en test som krever at ingen migrering inneholder
-`DROP INDEX ... "psi_prosjektniva_unik"`, samme form som den eksisterende vakten mot å droppe
-composite-indeksen.**
+✅ **VAKTEN ER LEVERT** — `05e8aff6`:
+`expect(alleMigreringer).not.toMatch(/DROP INDEX (IF EXISTS )?"psi_prosjektniva_unik"/)`, med
+rød-først bevist i en engangskatalog og falsk-positiv-sjekk mot CREATE-linja. Standarden for slike
+vakter står nå i
+[SAMARBEIDSREGLER § En negativ assertion er ikke bevist før tre ting er vist](SAMARBEIDSREGLER.md).
+
+🔴 **KORRIGERT 2026-09-27 av cowork — mønsteret er IKKE nytt, og det endrer alvoret i to retninger.**
+Jeg skrev posten over som om en partiell indeks utenfor skjemaet var et unntak. **Målt: det er
+etablert praksis i dette repoet.**
+
+| Partiell unik indeks | Migrering | I `schema.prisma`? | DROP-vakt? |
+|---|---|---|---|
+| `overflater_pointcloud_malavstand_key` | `20260924120000_overflate_tabell` | 🔴 nei | 🔴 **nei** |
+| `bruker_innstilling_global_nokkel_unik` | `20260909180000_brukerinnstilling` | 🔴 nei | 🔴 **nei** |
+| `bruker_innstilling_prosjekt_nokkel_unik` | `20260909180000_brukerinnstilling` | 🔴 nei | 🔴 **nei** |
+| `psi_prosjektniva_unik` | `20260926120000_psi_drop_stale_unik_indeks` | 🔴 nei | 🟢 **JA (`05e8aff6`)** |
+
+🟢 **Den ene retningen:** hazarden er ikke ny, den er husstandard, og **ingen av de tre eldre har
+blitt droppet av drift** — så den akutte risikoen er lavere enn jeg først skrev. **Å ha en partiell
+unik indeks utenfor skjemaet er ikke en feil; det er den eneste måten Prisma tillater.**
+
+🔴 **Den andre retningen, og den er verre:** `psi_prosjektniva_unik` er den **FØRSTE** som har fått en
+DROP-vakt. **De tre andre har ingen**, og to av dem (`bruker_innstilling_*`) er den eneste
+garantien mot duplikate brukerinnstillinger, mens `overflater_*` er den eneste mot samme punktsky med
+samme målavstand. ⚠️ **Droppes en av dem av et `migrate dev`, sier ingenting fra.**
+
+🟢 **Billig, avgrenset oppfølger (ikke bestilt): én vakt-test som dekker ALLE fire navnene**, i
+mønsteret `05e8aff6` etablerte. **Da er husstandarden komplett i stedet for punktvis.** ⚠️ **Krever
+falsk-positiv-sjekk pr. navn — `overflater_pointcloud_malavstand_key` opprettes uten `IF NOT EXISTS`,
+så regexen må tåle begge formene der også.**
+
+🟡 **Og en kommentar i `schema.prisma` ved hver berørt modell som navngir indeksen og sier at den er
+bevisst utenfor skjemaet, hører med** — ikke som vakt, men fordi den neste som ser drift-forslaget fra
+`migrate dev` trenger å vite at det er forventet.
 
 #### ✅ LUKKET 2026-09-27 — Stille feil ved PSI nr. 2 — ingen P2002-fangst noe sted (`fix/psi-p2002-haandtert`, kontrollplan)
 
