@@ -18,6 +18,7 @@ import {
   STANDARD_FELTLABELS,
   STANDARD_OPSJONER,
   STANDARD_FELTLABEL_UNNTAK,
+  ukjentTrafikklysVerdi,
 } from "./standardtekster";
 import nb from "./i18n/nb.json";
 
@@ -104,5 +105,32 @@ describe("standardtekster — opsjonsstrenger", () => {
     for (const o of STANDARD_OPSJONER) {
       expect(nbMap[o.nokkel], `nb.json mangler ${o.nokkel}`).toBeDefined();
     }
+  });
+});
+
+/**
+ * BESLUTNINGEN (ikke bare verdisettet) — én kilde for web + mobil, speilet i pdf. Fanger
+ * uenighet om tom streng / whitespace / null vs undefined FØR de kan divergere mellom flatene.
+ */
+describe("ukjentTrafikklysVerdi — foreldreløs-beslutningen", () => {
+  it("ukjent, ikke-tom streng → den RÅ verdien (foreldreløs)", () => {
+    expect(ukjentTrafikklysVerdi("gray_gammel")).toBe("gray_gammel");
+    expect(ukjentTrafikklysVerdi("foreldreloes-42")).toBe("foreldreloes-42");
+  });
+  it("gyldig verdi → null (normal brikke matcher)", () => {
+    for (const { value } of ["green", "yellow", "red", "gray"].map((v) => ({ value: v }))) {
+      expect(ukjentTrafikklysVerdi(value)).toBeNull();
+    }
+  });
+  it("tom streng OG whitespace-only → null (et mellomrom er ikke et svar — trim tilsiktet)", () => {
+    expect(ukjentTrafikklysVerdi("")).toBeNull();
+    expect(ukjentTrafikklysVerdi(" ")).toBeNull();
+    expect(ukjentTrafikklysVerdi("   ")).toBeNull();
+  });
+  it("ikke-streng → null (ubesvart, ikke en foreldreløs verdi)", () => {
+    expect(ukjentTrafikklysVerdi(null)).toBeNull();
+    expect(ukjentTrafikklysVerdi(undefined)).toBeNull();
+    expect(ukjentTrafikklysVerdi(123)).toBeNull();
+    expect(ukjentTrafikklysVerdi({})).toBeNull();
   });
 });

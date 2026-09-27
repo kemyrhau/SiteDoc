@@ -1,6 +1,6 @@
 import { View, Text, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { TRAFIKKLYS_VALG } from "@sitedoc/shared";
+import { TRAFIKKLYS_VALG, ukjentTrafikklysVerdi } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
 // Fargeklasser per verdi — plattform-lokalt. Verdisett + etiketter bor i @sitedoc/shared
@@ -15,6 +15,7 @@ const FARGE: Record<string, { aktiv: string; inaktiv: string }> = {
 export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const { t } = useTranslation();
   const valgtVerdi = typeof verdi === "string" ? verdi : null;
+  const foreldreloes = ukjentTrafikklysVerdi(verdi);
 
   return (
     <View className="flex-row items-start gap-2 py-2">
@@ -41,6 +42,21 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
           </Pressable>
         );
       })}
+      {foreldreloes !== null && (
+        // Deaktivert brikke med den RÅ verdien — et lagret svar skal aldri forsvinne stille.
+        <View className="w-14 items-center">
+          <View className="h-11 w-11 items-center justify-center rounded-full">
+            <View className="h-6 w-6 rounded-full border-2 border-dashed border-gray-400 bg-gray-100" />
+          </View>
+          <Text className="text-center text-[10px] leading-tight font-medium text-gray-700">
+            {foreldreloes}
+          </Text>
+          {/* Synlig mikrotekst — samme ordlyd som arkiv-PDF-en (mobil har ingen hover å gjemme den i). */}
+          <Text className="text-center text-[9px] leading-tight text-gray-500">
+            {t("rapportobjekt.ikkeGyldigValg")}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
