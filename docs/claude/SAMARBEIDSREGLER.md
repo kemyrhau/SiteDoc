@@ -660,6 +660,71 @@ git: `git merge-base --is-ancestor origin/<branch> origin/develop`.
 > har.»* Og: *«jeg sliter med dette hver gang du compacter — så jobber du perfekt den siste
 > lille tiden før du compacter igjen.»*
 
+### 🔴 LUKKER HULL vs ENDRER FUNKSJON — Kenneths kontrollflate (Kenneth-vedtak 2026-09-27)
+
+> «jeg trenger å fange opp det som endrer funksjoner → jeg trenger ikke bruke tid på hull og
+> forbedringer uten funksjonsendring»
+
+**Bakgrunn:** 27.09 landet 39 merger, 10 av dem kode. **Fem endret noe en bruker ser, og tre av dem
+hadde ingen beslutning fra Kenneth bak seg.** ⚠️ **Ingen av dem var gale — men Kenneth fikk ikke se
+dem.** **Funn-sporet skilte ikke mellom å lukke et hull og å endre en funksjon**, og ordrene Kenneth
+leste handlet om mekanikk, ikke om hva brukeren ville oppleve annerledes.
+
+#### 🔴 DEFINISJONEN — den er Kenneths, og den er skarpere enn «merker brukeren det?»
+
+**Testen er ikke om brukeren merker noe. Testen er om INTENSJONEN endres.**
+
+| Spørsmål | Svar | Klassifisering |
+|---|---|---|
+| Var det meningen at dette skulle virke, og gjorde det ikke? | ja | 🟢 **REPARASJON** |
+| Bringer vi koden tilbake til noe du har sagt/spesifisert? | ja | 🟢 **REPARASJON** |
+| Bytter vi én intensjon mot en annen? | ja | 🔴 **FUNKSJONSENDRING** |
+| Endrer opplevelsen seg uten at det var en del av planen? | ja | 🔴 **FUNKSJONSENDRING** |
+
+**Kenneths tre presedenser, ordrett (2026-09-27):**
+
+- **P2002-meldingen** — før: stille feil. Etter: melding. 🟢 **REPARASJON.** *«hvis det var meningen at
+  dette skulle virke → da er det ikke en funksjonsendring.»*
+- **Signaturlevetid 24 t → 15 min** 🔴 **FUNKSJONSENDRING.** *«vi endrer signaturen fra 24→15.»*
+  ⚠️ **Merk: 15 min var PLANLAGT hele veien.** **At noe er planlagt gir det hjemmel — det fritar det
+  ikke fra registeret.**
+- **PSI partiell unik indeks** — blokkerer nå en andre prosjektnivå-PSI. 🟢 **REPARASJON.** *«dersom
+  endringen fører til en endring av opplevelsen for brukeren uten at dette var en del av planen [er det
+  funksjonsendring]. men hvis vi fikser dette fordi noen har misforstått min opprinnelige beskjed → da
+  er dette ikke en endring av funksjon.»*
+
+#### 🔴 SMUTTHULLET — og guarden som lukker det
+
+**Kan en agent påstå «dette var alltid meningen», tømmer registeret seg selv.** ⚠️ **Det er ikke
+teoretisk: alle tre endringene uten hjemmel 27.09 kan argumenteres som reparasjon.**
+
+🔴 **Intensjon teller BARE hvis den er skrevet ned FØR endringen** — en beslutning fra Kenneth, en
+spec, eller et styrende dokument, **med referanse i ordren.** Finnes ingen skriftlig intensjon, er
+endringen en **FUNKSJONSENDRING som standard.**
+
+🔴 **«Produktvalget er tatt» i en designordre er IKKE en hjemmel.** Målt 27.09:
+`ordre-prefiks-paakrevd-design-2026-09-26.md` skriver «Produktvalget er tatt — prefiks skal være
+PÅKREVD», men `grunnlag`-feltet er «coworks veikartlegging + SQL-målinger». **Design foreslår; Kenneth
+beslutter.**
+
+#### Løypa — gaten ligger på ORDRE-tidspunktet, ikke før merge
+
+🔴 **Før merge er arbeidet gjort, og da blir Kenneths innvending dyr for agenten.**
+
+1. **Cowork klassifiserer hver ordre** — reparasjon eller funksjonsendring — og skriver det i ordren.
+2. **En funksjonsendrings-ordre sendes ikke før den navngir hjemmelen** (beslutning + dato).
+   Finnes ingen: den går til Kenneth **først**, som én kort blokk — **hva brukeren ser i dag · hva han
+   ser etterpå · hvorfor.** Kenneth svarer ja, nei eller «endre».
+3. **Cowork fører [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md) ved merge**, aldri i ettertid.
+   **To seksjoner:** funksjonsendringer (krevde ja) og reparasjoner med synlig virkning (til
+   orientering, ingen godkjenning).
+
+🟢 **Reparasjoner går like fort som før.** ⚠️ **Prisen er reell: med denne regelen ville minst fire av
+27.09-mergene stoppet hos Kenneth før ordren gikk ut.** **Det er den samme prisen som å ha oversikt.**
+
+⚠️ **Feiltilfeller teller som funksjon.** Hvordan systemet oppfører seg når noe går galt, er noe
+brukeren opplever.
+
 ### Ordreformat til Kenneth: hvem → gjør hva → når
 
 Hver leveranse fra cowork skal si **hvem** som utfører, **hva** som skal gjøres,
