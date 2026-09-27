@@ -352,6 +352,76 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ✅ **FIKS LEVERT 2026-09-26** — `fix/psi-unik-indeks` @ `db880f25` (venter designs gate). Migrering `20260926120000_psi_drop_stale_unik_indeks` + DRY-RUN + statisk test, rød først.
 
+#### 🔴 OMKLASSIFISERT 2026-09-27: dette er PILOTBLOKKERENDE, og fiksen er ikke komplett
+
+**Kenneth ga domenefakta som endrer alvoret:**
+
+> «ikke alle byggeplasser skal ha psi. når psi er slått på → da skal byggeplassen kreve psi. det
+> betyr i praksis at et prosjekt kan ha ti forskjellige psi»
+
+🔴 **Den foreldreløse indeksen sperrer altså ikke en kantsak — den sperrer MODELLEN.** ⚠️ Linja over
+(«ikke akutt i dag, 1 PSI-rad i 1 prosjekt») målte at ingen har truffet veggen ennå. **Den målte ikke
+at veggen står i hovedveien.** Full domeneregel:
+[domene-arbeidsflyt.md § PSI er PER BYGGEPLASS](domene-arbeidsflyt.md).
+
+🔴 **OG `DROP INDEX` ALENE BYTTER ÉN FEIL MOT EN ANNEN — målt 2026-09-27:**
+
+`Psi.byggeplassId` er **nullable** (`schema.prisma:2142`, «null = gjelder hele prosjektet`). **I
+Postgres regner en unik indeks NULL-er som ULIKE**, så `@@unique([projectId, byggeplassId])`
+(`:2156`) hindrer **ikke** to PSI-er på prosjektnivå i samme prosjekt.
+
+| Indeks | Hindrer ti byggeplass-PSI-er? | Hindrer to prosjektnivå-PSI-er? |
+|---|---|---|
+| `psi_project_id_key` (stale, i prod) | 🔴 **JA — feil** | 🟢 ja, ved et uhell |
+| `psi_project_id_building_id_key` (riktig) | 🟢 nei | 🔴 **NEI — hullet** |
+
+🔴 **Fjernes den stale indeksen alene, åpnes prosjektnivå-hullet.** ⚠️ **I dag er det lukket ved et
+uhell, av indeksen som skal bort.** **Klienten gater det (`psi/page.tsx:434`
+`disabled={harProsjektnivaPsi}`), men det er en klientsjekk — ingen DB-garanti og ingen servervakt.**
+
+🟢 **Anbefalt: utvid migreringen `20260926120000_psi_drop_stale_unik_indeks` med en partiell unik
+indeks i SAMME release, FØR prod-deploy:**
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS "psi_prosjektniva_unik" ON "psi"("project_id") WHERE "byggeplass_id" IS NULL;
+```
+
+⚠️ **Migreringen er alt merget (`c7ded741`, 26.09), men IKKE deployet til prod.** **Den er derfor
+fortsatt redigerbar** — to-stegs-policyen forbyr redigering etter merge til `main`, ikke etter merge
+til `develop`, og denne har ikke vært i en release. 🔴 **Er den i tvil, lag heller en ny migrering på
+toppen enn å redigere den.** **Kenneth beslutter hvilken av de to.**
+
+🔴 **Og krav (c) mangler:** ingen test feiler i dag hvis to prosjektnivå-PSI-er opprettes. **En
+partiell indeks uten en rød-først-test er halve jobben.**
+
+#### 🔴 Stille feil ved PSI nr. 2 — ingen P2002-fangst noe sted (målt 2026-09-27, kontrollplan)
+
+**Kodeveien:** knapp `psi/page.tsx:415` → `:447-454` `opprettMut.mutate(...)` → server `psi.ts:203`
+`prisma.psi.create`.
+
+🔴 **Ingen forhåndssjekk, ingen P2002-fangst på serveren. `opprettMut` (`:46`) har ingen `onError`.
+Det finnes ingen global tRPC-feil-toast.** **Utfall: spinneren stopper, ingenting skjer, ingen
+melding.** ⚠️ Samme klasse som den rå Prisma-feilen i slett-modalen.
+
+🟢 **Herdingen er liten og uavhengig av DDL-en:** P2002 → `CONFLICT` på `psi.opprett` + `onError` på
+klienten. **Bør bygges uansett hvilken vei indeks-saken går** — den sammensatte indeksen kan
+kollidere i framtida også. **Ikke bestilt.**
+
+### 🟡 MANGEL: én PSI på prosjektet som DEKKER alle byggeplasser (Kenneth 2026-09-27)
+
+> «det bør kunne være en psi på et prosjekt som da støtter alle byggeplasser»
+
+🔴 **Støttes ikke i dag. Målt: det finnes ingen arveregel.** `psiWhere()` (`psi.ts:8`) slår opp på
+`projectId_byggeplassId` og faller ikke tilbake til prosjektnivå. `hentForProsjekt` (`:19`) og
+`hentForProsjektPublic` (`:611`) returnerer alle PSI-er flatt; klienten plukker.
+
+⚠️ **Dagens omvei er `kopier` (`:629`)** — deep copy til hver byggeplass. **Duplisering, ikke
+dekning: rettes teksten i én, drifter de andre.**
+
+**Tre spørsmål en ordre må svare på** (dekning-eller-arv · hvilken byggeplass en signatur gjaldt ·
+om en dekkende prosjekt-PSI oppfyller byggeplassens PSI-krav) står i
+[domene-arbeidsflyt.md § MANGEL](domene-arbeidsflyt.md). **Ikke bestilt.**
+
 🟢 **Redesign målte i tillegg at den sammensatte garantien BESTÅR:** `20260403120000_psi_building:7` lager `psi_project_id_building_id_key` på `(project_id, building_id)`, og `20260405180000_navnegjennomgang:48` omdøper kolonnen `building_id` → `byggeplass_id` **uten** å omdøpe indeksen. **Riktige kolonner, gammelt navn.** Å droppe den enkle indeksen er derfor trygt.
 
 ### 🟡 Indeksnavn-drift: `psi_project_id_building_id_key` mot schemas forventning (sidefunn 2026-09-26)
