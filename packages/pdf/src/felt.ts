@@ -83,6 +83,10 @@ export function renderFelt(
       const tl = typeof verdi === "string" ? TRAFIKKLYS[verdi] : null;
       if (tl) {
         verdiHtml = `<span class="trafikklys" style="background:${tl.farge};"></span> ${esc(tl.label)}`;
+      } else if (typeof verdi === "string" && verdi.trim() !== "") {
+        // Foreldreløs verdi (utenfor TRAFIKKLYS — malen redigert / eldre verdisett): vis den RÅ,
+        // aldri stille tap i et signert dokument. Hardkodet nb som resten av arkiv-PDF-en.
+        verdiHtml = `${esc(verdi)} <span class="tom">(ikke et gyldig valg)</span>`;
       } else {
         verdiHtml = `<span class="tom">Ikke utfylt</span>`;
       }
