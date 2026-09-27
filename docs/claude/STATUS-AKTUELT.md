@@ -15,6 +15,46 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-26 · develop `6b803433` ← tre docs-merger `--no-ff` i fast rekkefølge: `docs/design-maalekommando` `0d060146` (tegn-måleregelen — python3 med LC_ALL-alternativ og forbehold) · `docs/claudemd-eslintrc` `b6c67fac` (CLAUDE.md: `apps/web` bruker `.eslintrc.js`; SAMARBEIDSREGLER: merge-tree-funnet) · `docs/design-ordre-fb4-fd3-7b` `9b487c98` (§7b-ordre, ny fil). 🔴 **Merge 1 KONFLIKTERTE i CLAUDE.md** — begge sider hadde skrevet om tegn-måleregelen; `git merge-tree` ga 0 konfliktmarkører for ANDRE gang. Oppløsning stadfestet av cowork på forhånd (designs side gjelder), målt i engangsklon før ordren. **CLAUDE.md = 40 446 tegn** (python3), 514 under taket. GATE `--force`: db 269 · api 624 · pdf 128 · shared 886 · web 327 · mobil 44 · 7/7. Byggeledd hoppet over — alle tre merger er docs-only, 0 kodefiler. `feat/mal-up-deling` + `feat/synlighet-samlet` slettet fra origin (begge ancestors av develop, 0 filer utenfor). `redesign/navigasjon` bevart (Regel 9).**
 
+**Sist ført: 2026-09-27 · develop `87038042` ← seks merger `--no-ff` etter `6b803433`: `fix/kb4-hjelpetekst-opsjonsnavn` `acbe1bdf` (bar MK C fase 2 `0eddfdb3` som ancestor — ÉN merge tok begge; db 269→272) · fem docs-merger (`fall-konsistens`, `fjern-graa-r2`, `trekk-graa-ordre`, `endringsvern-blindsone`, `trafikklys-verdisett`). GATE etter kode-mergen: db 272 · api 624 · pdf 128 · shared 886 · web 327 · mobil 44 · 7/7, alle tre byggeledd exit 0. Åtte brancher slettet fra origin i løpet av døgnet; `redesign/navigasjon` bevart (Regel 9). **Urørt ved skriving:** `feat/signert-lenke` `1c5f72a0` (hos design for gate) · `fix/trafikklys-foreldreloes-verdi` `8a3046fa` (returnert til dokgen av coworks gate).**
+
+### 🔴 2026-09-27 — «FJERN DET FJERDE TRAFIKKLYSET» BLE TRUKKET, OG MÅLINGEN SNUDDE HELE SAKEN
+
+**Kenneth trakk ordren på premisset, ikke på utførelsen:**
+
+> «du har besluttet basert på en test på hva som brukes i dag → det er ikke rett → du kan ikke vite
+> hva som skal brukes i fremtiden. Det har vært behov for 4 trafikklys i andre prosjekter der
+> tilsvarende lys var brukt. det eksisterte bare 3 lys.»
+
+🟢 **Regelen som følger:** [`retningslinjer/bruk-er-ikke-behov.md`](retningslinjer/bruk-er-ikke-behov.md).
+**Design hadde målt at `gray` var ubrukt og konkludert at den ikke TRENGS.** ⚠️ **Det er en måling av
+fortiden brukt som beslutning om framtiden.**
+
+🔴 **Og da bestillingen ble snudd til «to lyssett», viste målingen at mekanismen finnes ALLEREDE — og
+at den er ødelagt:** `traffic_light` er erklært 29 steder, og `TrafikklysObjekt.tsx:14`
+destrukturerer `{ verdi, onEndreVerdi, leseModus }` uten å lese `objekt`. **`config.options` er
+uleselig for skjermen**, så en mal som erklærer eget lyssett blir ignorert.
+
+| Systemmal · felt | Malen erklærer | Skjermen viser |
+|---|---|---|
+| HMS-avvik · «Status» (`types/index.ts:568`) | tre lys: Åpent / Under behandling / Lukket | fire: Godkjent / Anmerkning / Avvik / Ikke relevant |
+| Godkjenning · «Beslutning» (`:534`) | … / **Avvist** / **Ikke behandlet** | … / **Avvik** / **Ikke relevant** |
+
+🔴 **PROD: 6 av 6 `traffic_light`-felt har egne `options`.** **Det finnes ikke ett felt i prod som
+bruker standardsettet — samtlige rendrer feil i dag.** **Fire av de seks tilhører A.Markussen.**
+🟢 **Ingen er besvart ennå — vinduet er åpent, og det lukkes i det noen svarer på det første.**
+
+🟢 **§0-målingen (Kenneth kjørte test + prod) var NULL overalt:** ingen lagret verdi på noe felt med
+egne `options`, ingen foreldreløse. **Ingen etikett skifter på et besvart eller signert dokument, så
+rettingen krever ingen kundevarsling.** ⚠️ **Verdiene er de samme nøklene — bare etikettene skifter —
+så hadde ett felt vært besvart, ville rettingen endret hva et signert dokument SIER at det ble
+kontrollert mot. Null er flaks her, ikke vern.**
+
+**Vedtatt modell (design, målt):** **én felttype, ikke to.** `oppdaterObjekt` kan ikke endre `type`
+(`mal.ts:759-768` tar bare label/required/config/parentId), så to typer ville tvunget et lyssett-bytte
+gjennom slett + nyopprett — **forbi endringsvernet**. Med én type er byttet en `config`-endring og
+vakten fyrer. 🟢 **Modellvalget ER vakten.** `TRAFIKKLYS_VALG` forblir kanonisk; `config.options`
+bærer delmengde og etiketter. **Ingen migrering, ingen ny kolonne.**
+
 ### 🔴 2026-09-26 — `git merge-tree` LØY ANDRE GANG PÅ TO DAGER
 
 **Begge gangene på CLAUDE.md, begge ganger samme mekanikk:** en branch skrevet mot en base der
