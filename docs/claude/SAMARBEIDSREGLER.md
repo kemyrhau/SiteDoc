@@ -250,86 +250,26 @@ docs-filer liggende, og to falske «NEI» avslørte at `&&`-kjeden brøt før m�
 løser slikt stille. **Derfor skal merge-agentens rapport alltid inneholde hva som IKKE gikk glatt**
 — ikke bare sluttresultatet.
 
-### 🔴 FEM LÆRDOMMER FRA DØGNET 2026-09-03/04 — alle med målt belegg
+### 🔴 FEM MÅLTE FEILKLASSER — reglene, ikke fortellingen (2026-09-03/04)
 
-Et døgn med seks feltfunn, seks merger, to feilede bygg og ett vellykket. **Fem av feilene var
-coworks, og alle fem har samme form: en påstand ble ført videre uten at kilden ble sjekket.**
+**Alle fem hadde samme form: en påstand ble ført videre uten at kilden ble sjekket.**
 
-#### 1. 🔴 Be ALDRI om verifisering av kode uten å måle hva den inneholder — tre ganger på ett døgn
-
-| Hendelse | Hva cowork ba om | Hva som faktisk var i koden |
-|---|---|---|
-| Bygg 51 | «test PDF-forhåndsvisningen» | Reload-fiksen `d1333599` lå **pushet, aldri merget** — ikke i bygget |
-| Preview-bygg | «test at fiksen virker» | Samme fiks, samme fravær. **Et bygg av kvoten brukt på å bekrefte en fiks som ikke var med** |
-| `feat/galleri-flervalg` | «test flervalget» | Branchen var bygget på et fire timer gammelt grunnlag og manglet **alle tre** fiksene fra samme kveld |
-
-Regel 10b sa «mål premisset før du skriver ORDREN». Den var for smal.
-
-🔴 **Utvidet: mål premisset før du ber noen TESTE noe.** Og konkret:
-**rebas en branch på `origin/develop` FØR du ber om test.** Én kommando fjerner hele klassen.
-Uten den tester noen «to halve verdier» — én med den nye funksjonen og gamle feil, én med
-fiksene og uten funksjonen — og bruker en time på å forstå hvorfor.
-
-#### 2. 🔴 Byggnummer, profil OG distribusjon leses fra kilden — cowork tok feil om bygg 51 to ganger på én time
-
-Først: «bygg 51 er ute hos testerne med de seks funnene» (ført i tavla, gjentatt i flere meldinger).
-Så, da `eas build:list` viste «internal distribution / preview»: «den nådde aldri testerne».
-Så viste App Store Connect **2 installasjoner og 53 økter** på nettopp bygg 51.
-
-**Begge påstandene kom fra hukommelsen om hva som ble *startet*.** Samme feilklasse som 31.08
-(«bygg 47 er hos testerne» etter at 48 var fyrt).
-
-**Regelen:** `eas build:list` **og** App Store Connect. Er de uenige — og det var de her — **står
-begge målingene i loggen til noen har målt hvorfor.** Ingen velges bort for å få en ryddig fortelling.
-
-#### 3. 🔴 En grønn test mot en datastruktur produksjonen ikke bruker, måler ingenting
-
-**Fire feil av samme klasse sto bak en grønn gate i to døgn:** `bildeNr` uteble i rike repeatere ·
-append-racet · opplastings-callbacken som aldri oppdaterte vedleggets URL · endringsloggens
-«Kolonne 2».
-
-Alle fire fordi kode itererte `Object.keys(rad)` og forventet flat form, mens produksjonen lagrer
-repeater-rader innpakket som `{ _radId, felter }` (rad-id-vedtak 2026-08-22).
-
-🔴 **Og testene var grønne fordi de bygde den FLATE legacy-formen.** De traff aldri
-produksjonsformen. Ikke for få tester — tester mot en form som ikke finnes.
-
-**Regelen: produksjonsformen testes FØRST.** Legacy-former beholdes i egen, navngitt
-bakoverkompatibilitet-blokk. Skriv én linje i testfila om hvilken form som er produksjonens og
-hvorfor. Kanonisk traversering ligger i `@sitedoc/shared/utils/repeaterRad.ts` med tvilling i
-`packages/pdf/src/arkivmal/repeaterRad.ts` (dep-regelen tvinger to; **ikke lag en tredje**).
-
-#### 4. 🔴 Simulatoren er ikke telefonen — lag 2 slapp gjennom to ting på ett døgn
-
-**PDF-forhåndsvisningen** ble meldt grønn på simulator og hang på Kenneths iPhone.
-**Kø-robusthetsrunden** var kodegjennomgått, gatet og verifisert — og køen leverte likevel ikke
-uten `r` på enhet.
-
-Simulatoren er fortsatt riktig port før bygg (den fanget mye), men **en flate som handler om
-timing, nett eller WebView-livssyklus er ikke verifisert før den er sett på en fysisk enhet.**
-
-Kenneth satte opp lokal Xcode-signering 03.–04.09 nettopp for dette. Sløyfen er nå:
-kode → `r` i Metro → ekte telefon, uten byggkvote. **Bruk den.**
-
-#### 5. 🔴 Mildne aldri et funn til noe mindre enn utfallet brukeren opplever
-
-Tre ganger samme døgn beskrev cowork et funn som mindre enn det var:
-
-- «Badgen viser at vedlegg lastes opp» — sagt om en skjerm der fire bilder var i ferd med å
-  forsvinne. Kenneth: *«bare fortsett å forsvare feil.»*
-- «Visning, ikke datatap» — fordi radene fantes i SQLite. Kenneth: `r` finnes ikke for en tømrer;
-  for brukeren var bildene borte.
-- «Du leter på feil sted» — om en byggeplass-chip som returnerte `null` uten feilmelding når
-  timer-cachen var tom.
-
-> **Kenneth 2026-09-03:** *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass,
-> så må man erkjenne at vi endret ikke på riktig plass når enkel logikk ikke fører til målet.»*
-
-🔴 **Akseptkriteriet som følger, og som gjelder hver runde:** en endring er ikke levert før noen
-som **ikke vet hva som ble endret** kan finne den. En komponent som finnes i koden er ikke en
-endring brukeren har fått. Verifiseringsordrer skal derfor be om **hvor** noe ble funnet og **hvor
-mange trykk** det tok — ikke bare om det virker.
-
+1. 🔴 **Mål premisset før du ber noen TESTE noe** — ikke bare før du skriver ordren. **Rebas branchen på
+   `origin/develop` FØR testforespørselen.** ⚠️ **Uten det tester noen «to halve verdier»:** én med den nye
+   funksjonen og de gamle feilene, én med fiksene og uten funksjonen.
+2. 🔴 **Byggnummer, profil og distribusjon leses fra kilden:** `eas build:list` **og** App Store Connect.
+   ⚠️ **Er de uenige, står BEGGE målingene i loggen til noen har målt hvorfor.** **Ingen velges bort for å få
+   en ryddig fortelling.**
+3. 🔴 **Produksjonsformen testes FØRST.** **En grønn test mot en datastruktur produksjonen ikke bruker, måler
+   ingenting.** Legacy-former i egen navngitt bakoverkompatibilitet-blokk, og én linje i testfila om hvilken
+   form som er produksjonens. **Kanonisk traversering: `@sitedoc/shared/utils/repeaterRad.ts` med tvilling i
+   `packages/pdf/src/arkivmal/repeaterRad.ts` — ikke lag en tredje.**
+4. 🔴 **Simulatoren er ikke telefonen.** **En flate som handler om timing, nett eller WebView-livssyklus er
+   IKKE verifisert før den er sett på fysisk enhet.** 🟢 **Sløyfen er kode → `r` i Metro → ekte telefon, uten
+   byggkvote.**
+5. 🔴 **Mildne aldri et funn til noe mindre enn utfallet brukeren opplever.** **En endring er ikke levert før
+   noen som IKKE vet hva som ble endret, kan finne den.** **Verifiseringsordrer skal be om HVOR noe ble funnet
+   og HVOR MANGE TRYKK det tok — ikke bare om det virker.**
 ### 🔴 DEPLOY KOSTER KENNETHS TID — MERGE GJØR IKKE (vedtak 2026-09-10)
 
 > **Kenneth 2026-09-10:** *«vi gater mange små fikser med deploys som tar mye tid → kan vi gjøre
@@ -1458,41 +1398,24 @@ visningen.
 2. **Ta alltid med `created_at` i utvalget.** Da er det synlig at radene er fra en annen tid
    enn arbeidet, i stedet for at man leser dem som ferske.
 
-### 🔴 `as unknown as` skjuler manglende felt — tre feil på to dager
+### 🔴 `as unknown as` skjuler manglende felt
 
-Mønsteret: en komponent caster et objekt til en type som lover felt objektet ikke har.
-Kompilatoren tier, feltet leses som `undefined`, og symptomet dukker opp langt unna.
+🔴 **Når en verdi «forsvinner» uten feilmelding: mistenk casten før logikken.** **Erstatt `as unknown as` med
+en typet hjelper som leser fra den rå kilden — da sier kompilatoren fra neste gang.**
 
-| Dato | Sted | Symptom |
-|---|---|---|
-| 08-22 | sjekkliste-siden leste `sjekkliste` (skjema-hook) i stedet for `fullSjekkliste` | dokument-lokasjon arvet ikke |
-| 08-23 | oppgave-siden leste omformet objekt uten `drawing`/`positionX` | «LOKASJON Ikke satt» på data som fantes |
-| 08-22 | cowork brukte `grep -c "slettFeil"` som bevis; kallet het `setSlettFeil` | tsc-feil nådde Docker-bygget |
+⚠️ **Og et grep-treff på null er ikke bevis for fravær. Kompilatoren og databasen er fasit, ikke
+søkemønsteret.**
+### 🔴 En kommentar som lover mer enn koden holder
 
-**Regel:** når en verdi «forsvinner» uten feilmelding, mistenk casten før logikken. Erstatt
-`as unknown as` med en typet hjelper som leser fra den rå kilden — da sier kompilatoren fra
-neste gang. Og et grep-treff på null er ikke bevis for fravær; kompilatoren og databasen er
-fasit, ikke søkemønsteret.
+🔴 **Skriver du «KUN X» i en kommentar, skal konstruksjonen HÅNDHEVE X — ikke dokumentere en intensjon.**
 
-### 🔴 En kommentar som lover mer enn koden holder — tre ganger på én dag (2026-08-23)
+- **Prisma:** `select`, aldri `include`, når kommentaren avgrenser.
+- **Bash:** `set -o pipefail` eller eksplisitt `exit=$?` — 🔴 **aldri en pipe som gate.** `cmd | grep | tail`
+  returnerer `tail` sin kode, altså alltid 0.
 
-Samme feilform tre ganger, i tre ulike lag:
-
-| Sted | Kommentaren lovet | Koden gjorde |
-|---|---|---|
-| `opplasting.ts` (mobil) | «`filnavn` bæres som multipart-filnavn så MIME-utledningen og filtype-blokklista fungerer» | `filnavn` ble aldri sendt — kun logget. `uploadAsync` har ingen filnavn-opsjon |
-| `dagsseddel.ts` (api) | «KUN beløp + kategorinavn» over et `utlegg`-oppslag | `include` uten `select` → alle skalarfelt, inkl. `kommentar` (`@db.Text`) |
-| `SAMARBEIDSREGLER.md` selv | «Kjeden er selv-gatende: feiler typecheck, kjøres verken tester eller deploy» | `cmd \| grep \| tail` returnerer `tail` sin kode — alltid 0 |
-
-**Regelen, formulert av dokgen:** *skriver du «KUN X» i en kommentar, skal konstruksjonen håndheve
-X — ikke dokumentere en intensjon.* Prisma: `select`, aldri `include`, når kommentaren avgrenser.
-Bash: `set -o pipefail` eller eksplisitt `exit=$?`, aldri en pipe som gate.
-
-**Hvorfor den er farlig og ikke bare slurv:** en kommentar som overdriver leses som en garanti av
-neste leser, og da slutter noen å måle. Alle tre tilfellene ble funnet ved måling, ingen ved
-lesing. Den sterkeste formen er en garanti ved konstruksjon — som `SheetUtleggVedlegg`, der svak
-FK uten `@relation` gjør vedlegg umulig å dra med. Da er kommentaren en observasjon, ikke et løfte.
-
+⚠️ **Hvorfor det ikke bare er slurv: en kommentar som overdriver leses som en GARANTI av neste leser, og da
+slutter noen å måle.** 🟢 **Sterkeste form er en garanti ved konstruksjon** — som svak FK uten `@relation`,
+der feilen er umulig i stedet for frarådet. **Da er kommentaren en observasjon, ikke et løfte.**
 ### 🔴 DELT LOGIKK SKAL NAVNGIS I ORDREN — ellers fødes den femte kopien (2026-09-06)
 
 **Regelen:** enhver ordre som lar en flate **lese eller tolke mal-config** skal **navngi den
@@ -1953,42 +1876,22 @@ En Opus' rapport svarer på det den **lette etter**. Exit-runden henter det som 
 
 Svar merket som usikkerhet er nyttige. En gjetning ført som funn er ikke.
 
-## Belegg for arbeidsrutinene (utdyper § Arbeidsrutiner for en fersk cowork)
+## 🔴 Kjøreregler fra målte feil — verifiser, og vit hvor filene bor
 
-> ⚠️ **Erstattet 2026-08-20:** en tidligere «Statustavle»-seksjon her sa at tavla skulle
-> **tømmes ved rundeslutt**. Det ville slettet registeret over hvilke agenter som finnes —
-> nøyaktig feilen som gjorde at cowork mistet oversikten uten at Kenneth merket det. Tavla
-> er permanent; rader legges til og fjernes per agent. Se
-> [§ Statustavla er første handling](#-statustavla-er-første-handling--før-du-sier-noe).
+> ⚠️ **Tavla tømmes ALDRI ved rundeslutt.** Den er registeret over hvilke agenter som finnes; rader legges til
+> og fjernes per agent. Se [§ Statustavla er første handling](#-statustavla-er-første-handling--før-du-sier-noe).
 
-Statusfiler er agentens siste kjente tilstand — ikke sannheten om repoet.
-Tre feil på én dag (2026-08-15), alle fra samme rot:
+**Statusfiler er agentens siste kjente tilstand — ikke sannheten om repoet.**
 
-- **«PUSHET» er en påstand.** Verifiser med `git branch -r | grep <branch>`
-  **før** merge-kommandoen gis. Cowork ga merge-kommandoen i samme melding som
-  nudgen som ba agenten pushe → `not something we can merge`.
-- **En `BLOKKERT`-status kan være utløpt.** Sjekk med
-  `git merge-base --is-ancestor <sha> develop`. Utlegg stod blokkert i to dager
-  og ventet på test-deploy av `ae752b34`, som lå i develop hele tiden. Agenten
-  kan ikke se develop; cowork må løsne den.
-- **Verifiser agentens kodepåstand mot koden.** «Samme mønster som
-  verifiserAdmin» stemte — men det ble bekreftet i
-  `trpc/tilgangskontroll.ts` (fire forekomster), ikke antatt.
-
-**Sesjonsstart: `git status` i hovedtreet.** 2026-08-15 lå 481 linjer ucommittet
-der — fire fabel-vedtaksdokumenter i `docs/redesign/` og 80 linjer Kenneth-vedtak
-i BACKLOG, én `git checkout` unna å forsvinne. Cowork hadde i tillegg bedt
-Kenneth lime inn fabel-dokumenter som allerede lå i repoet. **Søk i repoet før
-du ber om noe.**
-
-**Sandkasse-fella:** cowork kjører bash i en Linux-sandkasse uten Mac-stiene
-montert. `git worktree list` derfra merker **alle** trær `prunable`, også de som
-finnes og er i bruk. Ikke bedøm worktree-tilstand derfra.
-
-**`relay/` finnes KUN i hovedtreet (lærdom 2026-08-17).** Mappa er gitignored, så
-den følger aldri med til et worktree. En nudge som sier «les `relay/inbox-x.md`»
-sender agenten til en sti som ikke kan eksistere der han står. **Gi alltid full
-sti:** `~/Documents/Programmering/SiteDoc/relay/inbox-x.md`.
-
-**Aldri commit:** `tests/e2e/*-state.json` (Playwright storage-state med
-session-cookies).
+- 🔴 **«PUSHET» er en påstand.** Verifiser med `git ls-remote --heads origin <branch>` **før** merge-kommandoen
+  gis. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.**
+- 🔴 **En `BLOKKERT`-status kan være utløpt.** Sjekk med `git merge-base --is-ancestor <sha> origin/develop`.
+  ⚠️ **Agenten kan ikke se develop; cowork må løsne den.**
+- 🔴 **Verifiser agentens kodepåstand mot koden** — ikke mot at den klinger riktig.
+- 🔴 **Sesjonsstart: `git status` i hovedtreet.** **Søk i repoet før du ber om noe** — ucommittet arbeid der er
+  én `git checkout` unna å forsvinne.
+- 🔴 **Sandkasse-fella:** cowork kjører bash i en Linux-sandkasse uten Mac-stiene montert. **`git worktree
+  list` derfra merker ALLE trær `prunable`, også de som er i bruk.** Ikke bedøm worktree-tilstand derfra.
+- 🔴 **`relay/` finnes KUN i hovedtreet.** Mappa er gitignored og følger aldri med til et worktree. **Gi alltid
+  full sti:** `~/Documents/Programmering/SiteDoc/relay/inbox-<navn>.md`.
+- 🔴 **Aldri commit** `tests/e2e/*-state.json` — Playwright storage-state med session-cookies.
