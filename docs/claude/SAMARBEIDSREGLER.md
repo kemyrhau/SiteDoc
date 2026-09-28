@@ -629,44 +629,20 @@ beslutter.**
 ⚠️ **Feiltilfeller teller som funksjon.** Hvordan systemet oppfører seg når noe går galt, er noe
 brukeren opplever.
 
-#### 🔴 HENSIKT-LINJA — agenten gjentar den med egne ord FØR han bygger (Kenneth-vedtak 2026-09-28)
+#### 🔴 LES VEDTAKENE SOM STÅR I FILA — og navngi dem i svaret (Kenneth-vedtak 2026-09-29)
 
-> **Kenneth 2026-09-28:** *«det som er viktig → forstår agenten hensikten med det han skal kode»* —
-> og: *«dersom denne skrives tydelig og vi dropper småpraten, da kan jeg klare å fange opp avvik.»*
+🔴 **Før du endrer en komponent: les vedtakene som alt står som kommentarer i den fila, og navngi i
+svaret hvilke som gjelder endringen din.**
 
-🔴 **Hver ordre bærer ÉN `HENSIKT:`-linje. Agentens første svar gjentar den med SINE egne ord, før han
-bygger noe.** **Avviker gjenfortellingen fra ordren — stopp og spør. Ikke bygg.**
+**Målt belegg, og det er derfor regelen er så smal:** 🔴 **`TrafikklysObjekt.tsx:36` bar et Fabel-vedtak
+— «navnet vises ALLTID ved fargen (s/h + fargeblind), ikke i tooltip».** ⚠️ **Dokgen redigerte nettopp
+den fila og la forklaringen i en `title=`-tooltip.** **Vedtaket sto fire linjer over koden han endret.**
 
-**Hvorfor det ikke holder å si «spør når du er usikker»:** ⚠️ **en agent som har misforstått, vet ikke at
-han er usikker. Han er trygg på feil premiss.** 🟢 **Gjenfortellingen flytter oppdagelsen fra den som
-misforstår til den som leser — og det er den eneste som kan se den.**
+🟢 **Koster ett søk. Fanges av leseren i gaten, ikke av brukeren i felt.**
 
-🔴 **FORMKRAV, og det er dette som gjør regelen brukbar for Kenneth:** **hensikten skrives i brukerens
-ord. Ingen filnavn, ingen funksjonsnavn, ingen kode.** ⚠️ **Trenger man kodekjennskap for å sjekke
-gjenfortellingen, er den skrevet feil.** **Kenneth er leseren som skal fange avviket; en linje han ikke
-kan lese, fanger ingenting.**
-
-🔴 **Og her er det vanskelige, som er grunnen til at regelen finnes: to hensikter kan BEGGE være i
-brukerens ord, BEGGE være rimelige — og gi motsatt kode.** ⚠️ **Det er ikke en dårlig hensikt mot en
-god. Det er to gode som ikke er den samme.**
-
-**To målte par fra 2026-09-27/28:**
-
-| Hensikten agenten holdt | Hensikten som gjaldt | Forskjellen i kode |
-|---|---|---|
-| «trafikklyset skal ikke tilby en tilstand ingen bruker» | «en sjekkliste skal kunne si **ikke relevant** om et punkt som ikke gjelder» | 🔴 **fjern det fjerde lyset** mot 🟢 **behold det** |
-| «en lagret verdi som ikke lenger er gyldig skal **vises** i stedet for å forsvinne» | «brukeren skal **forstå** at svaret ikke lenger gjelder» | 🔴 **stiplet ring med teksten `gray`** mot 🟢 **synlig tekst «ikke et gyldig valg»** |
-
-**Begge venstrekolonner er forsvarlige setninger i brukerens ord. Begge ble fulgt lojalt. Begge ga feil
-resultat.** 🔴 **Ingen formulering av definisjonen ville skilt dem — bare en gjenfortelling gjør det,
-fordi den viser hvilken av de to agenten faktisk holder.**
-
-🔴 **Målt belegg (2026-09-28): alle fire avvikene dette døgnet var mekanismer som oppfylte ordren og
-bommet på hensikten** — det fjerde trafikklyset fjernet fordi bruk ble lest som behov · forklaringen på
-en foreldreløs verdi lagt i en tooltip ingen ser på touch · ett fornyelsesforsøk som oppfylte
-«selvfornyelse finnes» men ikke «utløp skal være usynlig» · en query-stripping som oppfylte mekanismen
-og ville brutt idempotensen. ⚠️ **Ingen av dem ble fanget av en lesning av ordren. Alle fire ble fanget
-av en måling etterpå.**
+⚠️ **Regelen gjelder vedtak i FILA — ikke en plikt til å lese hele repoet.** **Er vedtaket ikke skrevet
+der koden bor, er det ikke agentens feil at han ikke fant det; da er funnet at vedtaket står på feil
+sted.**
 
 ### Ordreformat til Kenneth: hvem → gjør hva → når
 
