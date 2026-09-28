@@ -80,18 +80,18 @@ modul-resolveren). De seks andre var feltfunn, en regresjon vi selv innførte, o
 etter oss selv. Dagen var ikke bortkastet — prod-fella låste piloten ute av mobilens viktigste
 flate — men **planen beveget seg nesten ikke**, og ingenting i arbeidsformen la merke til det.
 
-#### A — fast fordeling: én agent på planen, én på funn
+🔴 **A — FAST FORDELING: én agent på planen, én på funn.**
 
 **Plan-agenten har alltid neste masterplan-punkt.** Den røres ikke av feltfunn.
 **Funn-agenten tar det som kommer fra felt.** Er det ingenting, tar den fra BACKLOG.
 
-Uten dette kjører begge agentene reaktivt så snart noe haster — som de gjorde 31.08 — og
-planen står stille en hel dag uten at noen merker det før kvelden.
+⚠️ **Uten dette kjører begge agentene reaktivt så snart noe haster, og planen står stille et helt døgn
+uten at noen merker det.**
 
 🔴 **Cowork skal si eksplisitt hvilket spor en ordre hører til**, i tavla og i ordrens
 første linje. En ordre uten spor er som regel et feltfunn som har snik-prioritert seg.
 
-#### B — feltfunn samles, de blir ikke ordrer på minuttet
+🔴 **B — FELTFUNN SAMLES; de blir ikke ordrer på minuttet.**
 
 **Kenneth melder som før.** Cowork fører funnet i en liste med alvorlighet — **og skriver
 ikke ordre med det samme.**
@@ -104,16 +104,11 @@ ikke ordre med det samme.**
 
 **Kontrollspørsmålet før noe avbryter planen:** *kommer noen ikke videre uten dette?*
 
-**Målt eksempel fra 31.08:** tegningsfella var 🔴 — Kenneth måtte drepe appen, og A.Markussen
-kunne ikke stedfeste befaringer. Den skulle avbrutt, og gjorde det. **Endringslogg-støyen var
-🟡** — irriterende, ikke blokkerende. Den ble ordre samme kveld, og det var feil prioritering,
-ikke feil arbeid.
-
 🔴 **Hvorfor dette er vanskelig og må stå skrevet:** Kenneth er både finneren, gaten og
 relayet. Når han oppdager noe, har han nettopp kjent smerten — da føles alt akutt. **Det er
 coworks jobb å holde skalaen**, ikke Kenneths.
 
-#### Konsekvens for tavla
+**Konsekvens for tavla.**
 
 STATUS-AKTUELT skal vise **hvilket spor** hver agent kjører, og masterplanen skal ha en linje
 med **hva som faktisk ble lukket** siste uke. Uten det tallet gjentar 31.08 seg uten at noen
@@ -204,7 +199,7 @@ Drifter en av dem, rettes den **der den står**, ikke her.
 script, `ssh -t`, passord og verifisering — over en time totalt.
 🔴 **Bare to av de fem hastet.** De tre andre var rydding som ikke blokkerte noe.
 
-#### A — cowork merker HVER ordre 🔴 eller 🟡 fra start
+🔴 **A — cowork merker HVER ordre 🔴 eller 🟡 fra start.**
 
 | Merke | Betyr | Deploy |
 |---|---|---|
@@ -220,7 +215,7 @@ haster, men fordi den ikke skal bli for stor å diagnostisere.
 🟢 **Motvekten er regel 10-gaten på hver merge** — den har hittil fanget alt. **Derfor melder
 merge-agenten alltid tallene.**
 
-#### B — deploy blokkerer KUN merge-agenten
+🔴 **B — deploy blokkerer KUN merge-agenten.**
 
 `deploy-test.sh` har en hash-guard som feiler hvis develop flytter seg under kjøring.
 
@@ -230,9 +225,7 @@ merge-agenten alltid tallene.**
 | **Kode-agenter** | 🟢 **bygger videre** — egne brancher, rører ikke develop |
 | **Cowork** | 🟢 skriver ordrer, måler, gater |
 
-🔴 **Cowork skal IKKE vente på deploy før neste ordre gis.** Det var coworks flaskehals, ikke
-Kenneths — målt 09.–10.09, der agenter sto ledige mens cowork ventet på en verifisering som
-ikke blokkerte dem.
+🔴 **Cowork skal IKKE vente på deploy før neste ordre gis.** **Det er coworks flaskehals, ikke Kenneths.**
 
 ### Arbeidsrutiner for en fersk cowork (lærdommer 2026-08-13 → 08-20)
 
@@ -380,7 +373,7 @@ at bestillingen tilfeldigvis nevnte én type på én flate.
 (REDESIGN-MASTERPLAN § Rekkefølge). En funksjon som kun finnes i web er, for A.Markussens
 anleggsarbeidere, en funksjon som ikke finnes.
 
-#### 🔴 Men paritet er ikke likhet — mobil får det som hører i felt (Kenneth 2026-09-04)
+🔴 **Men paritet er ikke likhet — mobil får det som hører i felt** (Kenneth 2026-09-04).
 
 > **Kenneth 2026-09-04:** *«I den grad det er hensiktsmessig at vi gjør via app på mobil →
 > avanserte funksjoner overlater vi til web.»*
@@ -708,11 +701,9 @@ skal det STÅ — `Krever svar: ingenting` — så han slipper å lese hele bolk
 melding. Det skjedde 2026-09-01: et klarsignal til dokgen sto over avsnitt om merge-agenten og
 deploy som var til Kenneth. Han limte hele meldingen og måtte spørre om det var feil.
 
-#### 🔴 OMGJORT 2026-09-24 — destinasjonen står UTENFOR kodeblokken, ikke inne i den
+🔴 **Destinasjonen står UTENFOR kodeblokken, ikke inne i den** (omgjort 2026-09-24).
 
 > **Kenneth 2026-09-24:** *«hvorfor skriver du til hvem og ordren i samme kopierbart objekt → det gjør at jeg må treffe nøyaktig med musen når jeg skal kopiere»*
-
-**Regelen over plasserte `→ SiteDoc-<navn>` som første linje INNE i fencen.** Den løste ett problem — Kenneth limer ikke til feil terminal — og skapte et annet: **kopiknappen gir ham da destinasjonslinja i tillegg til ordren**, så han må markere manuelt i stedet for å trykke.
 
 🔴 **Ny form: destinasjonen er en overskrift OVER blokken, i vanlig tekst. Kodeblokken inneholder KUN det agenten skal lese.**
 
@@ -1058,50 +1049,22 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
   `git merge-base --is-ancestor <hash> origin/develop && echo "ALT MERGET — STOPP"`. **En duplisert
   ordre skal stoppe seg selv, ikke koste mottakeren en runde på å bevise at avsenderen gjentok seg.**
 
-#### 🔴 En verifiseringsordre skal navngi HANDLINGEN som trigger kodeveien (2026-09-24)
-
-**Ikke «åpne skjermen og se om det virker» — men «gjør DETTE, som får koden til å kjøre».**
-
-**Målt 2026-09-24:** cowork ba Kenneth åpne en eksisterende PDF-tegning for å verifisere at `pdftoppm`-hotfixen virket. Det beviste ingenting: `pdftoppm` kalles ved **opplasting** (`apps/api/src/routes/tegning.ts:105→258` i `opprett`, `:582→631` i `rekonverterPdf`). En alt konvertert tegning rendrer fra det lagrede PNG-et og trenger aldri binæren igjen. **Kenneth fanget det selv:** *«dette er en pdf tegning → men den har fungert slik hele tiden»*. Riktig test var å laste opp en NY PDF — og da virket den.
-
-⚠️ **Feilklassen ligger nær «be aldri om verifisering av kode som ikke er deployet», men er ikke den samme:** her VAR koden deployet. Det som manglet var at **handlingen som utløser kodeveien** aldri fant sted. En grønn skjerm beviste bare at et gammelt resultat fortsatt lå lagret.
-
-🔴 **Fast krav:** før en verifiseringsordre skrives, finn hvilken prosedyre som kaller det som er fikset, og hva brukeren må GJØRE for å nå den. Står det ikke i ordren, er «det virker» en observasjon om cache, ikke om fiksen.
-
-#### 🔴 Spør etter COMMIT-HASH, ikke branchnavn — en ryddet branch og «ikke merget» ser like ut (2026-09-24)
-
-**`git merge-base --is-ancestor origin/<branch> origin/develop` feiler med exit≠0 når `origin/<branch>` ikke finnes** — for eksempel fordi branchen er slettet etter merge. **Exit≠0 fra en feilende kommando og exit≠0 fra et ekte «nei» er umulige å skille.**
-
-**Målt 2026-09-24:** design meldte at tre av egne branches ikke var merget. Alle tre var inne (`2f674968`, `4832ef0c`); cowork hadde ryddet remote-refene etterpå, så oppslaget på navn feilet. Samme feilklasse som da en feilet `git fetch` ga hasher som ikke fantes.
-
-🔴 **Riktig form — hashen finnes uansett om refen gjør det:**
-
-```sh
-git merge-base --is-ancestor <hash> origin/develop && echo "JA" || echo "NEI"
-```
-
-⚠️ **Dette blir vanligere, ikke sjeldnere:** fase 4 sletter mergede refs som den skal (56 ryddet 2026-09-24). Den som leser etterpå må slutte å spørre etter navn som er borte. **Meld alltid hash sammen med branchnavn** — navnet er for mennesker, hashen er det som kan måles.
-
-#### 🔴 Cowork skriver GNU-kommandoer til en BSD-maskin (2026-09-24)
-
-**Kenneths Mac har BSD-verktøy. Coworks bash-sandkasse er Linux med GNU-verktøy.** Hver kommando cowork «prøver» før den gis, prøves altså i et annet verktøysett enn det den skal kjøre i.
-
-**Målt 2026-09-24:** cowork ga `xargs -a /tmp/slettelisten.txt -n 20 git push origin --delete` for å rydde 56 brancher. `-a` er en GNU-utvidelse; BSD-`xargs` svarer `invalid option -- a`. **Ingenting ble slettet.** ⚠️ **Og feilen var usynlig**, fordi output gikk gjennom `grep -c` — kommandoen «lyktes» med tomt svar. Merge fanget den på negativ kontroll: tellingen sto på 60, ikke 4. Riktig form er stdin-omdirigering: `xargs -n 20 git push origin --delete < /tmp/slettelisten.txt`.
-
-**De vanligste felles:** `xargs -a` · `sed -i` uten argument (BSD krever `sed -i ''`) · `grep -P` · `date -d` (BSD: `date -v`) · `readlink -f` · `stat -c`.
-
-🔴 **Regelen:** skriver cowork en kommando Kenneth skal kjøre, holder den seg til POSIX-flagg — eller sier eksplisitt at formen er umålt. **Og en slettende eller endrende kommando skal ALLTID etterfølges av en telling som ville avslørt at ingenting skjedde.** Det var tellingen som fanget denne, ikke lesingen.
-
-#### 🔴 Et navn i en ordre måles av den som skriver det inn — aldri arvet (2026-09-23)
-
-> **Et binærnavn, en filsti eller et `fil:linje` i en ordre måles av den som skriver det inn — aldri arvet fra en annen agents melding. Arver du det, skriv «umålt» ved siden av.**
-
-**Målt tilfelle:** cowork navnga `dwgread` fra et grovt grep uten å slå det opp. Design kopierte navnet inn i BACKLOG i god tro. Simulator målte og fant at `dwgread` **ikke kalles i det hele tatt** — de virkelige binærene er `dwg2dxf` (`dwgKonvertering.ts:80,892`) og `dwg2SVG` (`:930`).
-
-🔴 **Navnet reiste gjennom to ordrer og én BACKLOG-post før noen slo det opp.** Kjeden fanget det — men ett ledd for sent, og bare fordi den som til slutt skulle *bruke* navnet måtte måle det uansett.
-
-⚠️ **Feilklassen er ikke slurv, den er tillit i feil retning:** et navn fra en velskrevet melding leses som målt. Samme rot som § Cowork leveranse-ansvar punkt 4 («relé, rapport og exit er input, ikke fasit»), anvendt på det minste mulige elementet — ett ord. **Gjelder begge veier.** *(Design foreslo regelen etter å ha vært mellomleddet; formuleringen er hans, plasseringen coworks.)*
-
+- 🔴 **En verifiseringsordre skal navngi HANDLINGEN som trigger kodeveien** — ikke «åpne skjermen og se om
+  det virker», men «gjør DETTE, som får koden til å kjøre». **Finn hvilken prosedyre som kaller det som er
+  fikset, og hva brukeren må GJØRE for å nå den.** ⚠️ **Står det ikke i ordren, er «det virker» en
+  observasjon om cache, ikke om fiksen.**
+- 🔴 **Meld og mål på COMMIT-HASH, aldri på branchnavn.** `--is-ancestor origin/<branch>` feiler med
+  exit≠0 når refen er slettet, og **en feilende kommando er umulig å skille fra et ekte «nei»**. Riktig
+  form: `git merge-base --is-ancestor <hash> origin/develop`. ⚠️ **Navnet er for mennesker, hashen er det
+  som kan måles.**
+- 🔴 **Kommandoer Kenneth skal kjøre holder seg til POSIX-flagg.** **Hans Mac har BSD-verktøy; en
+  sandkasse-testet kommando er prøvd i et annet verktøysett.** Vanligste feller: `xargs -a` · `sed -i` uten
+  argument · `grep -P` · `date -d` · `readlink -f` · `stat -c`. 🔴 **Og en slettende eller endrende kommando
+  skal ALLTID følges av en telling som ville avslørt at ingenting skjedde.**
+- 🔴 **Et binærnavn, en filsti eller et `fil:linje` måles av den som skriver det inn — aldri arvet.**
+  **Arver du det, skriv «umålt» ved siden av.** ⚠️ **Et navn fra en velskrevet melding leses som målt:**
+  `dwgread` reiste gjennom to ordrer og én BACKLOG-post før noen slo det opp — de virkelige binærene er
+  `dwg2dxf` og `dwg2SVG`. **Gjelder begge veier.**
 ## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)
 
 **Miljøspørsmål besvares fra [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + sjekk-først — aldri ved å be Kenneth gjenta oppsett.** Kunnskapen om `.env`-filer, lokal DB og test-kjøring bor i repoet ([LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) → [lokal-dev.md](lokal-dev.md), [tests/e2e/README.md](../../tests/e2e/README.md), [dev-login-agent.md](dev-login-agent.md)). Compaction sletter agentens minne om at filene finnes — ikke filene.
@@ -1255,21 +1218,9 @@ Verst: `firmaarkiv-unik-indeks.integration.test.ts` ble skrevet i runde 95 for �
 **Cowork eier merge-timing og deploy — da eier cowork også at tallet bak «grønn» betyr noe.**
 Mål signalet du selv forvalter, før du stoler på det.
 
-#### 🔴 Gate-tall skal komme fra `--force`, ikke fra cache (Kenneth-gatet 2026-09-20)
-
-**Bakgrunn:** i merge-runden med malfasit cachet turbo `pnpm test` (FULL TURBO), og
-gate-tallene kom fra cache uten at testene kjørte på merge-agentens eget tre. Tallene var
-korrekte — turbo hash-nøkler cachen på filinnhold — men gaten hviler på at agenten
-**observerer sin egen kjøring**, ikke på et oppslag i en cache.
-
-- 🔴 **Gate-tall skal alltid komme fra `pnpm test --force` fra ROT** (i praksis
-  `pnpm exec turbo run test --force`, siden `--force` ellers spises av `pnpm` selv). **Et
-  FULL TURBO-treff er ikke en gate-kjøring.**
-- 🔴 **Ser du «FULL TURBO» i output, er tallene ikke ferske** — kjør på nytt med `--force`
-  før du rapporterer.
-- 🔴 **Begrunnelsen står:** et cache-treff gir riktige tall, men beviser ikke at testene
-  kjørte på ditt tre. **Gaten er en observasjon, ikke et oppslag.**
-
+- 🔴 **Gate-tall skal komme fra `pnpm exec turbo run test --force` fra ROT.** **Et FULL TURBO-treff er
+  ikke en gate-kjøring** — ser du «FULL TURBO», er tallene ikke ferske. 🔴 **Gaten er en observasjon, ikke
+  et oppslag:** et cache-treff gir riktige tall, men beviser ikke at testene kjørte på ditt tre.
 ### 🔴 EN NEGATIV ASSERTION ER IKKE BEVIST FØR TRE TING ER VIST (design/cowork/kontrollplan 2026-09-27)
 
 **En `not.toMatch`/`not.toContain` som aldri har vært rød er ikke en test — den er en tillatelse.**
