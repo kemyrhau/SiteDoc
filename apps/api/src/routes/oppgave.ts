@@ -6,13 +6,14 @@ import { byggeplassFilterViaTegning } from "../services/byggeplassFilter";
 import { frysGrenseSnapshots } from "../services/grenseLagring";
 import { kollisjonsmerge, type Kollisjon } from "../services/kollisjonsmerge";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
+import { signerBilder, signerDataRad, signerDataRader, avvisForgiftetVedleggIData } from "../utils/vedleggSignering";
 import { medNummerRetry } from "../utils/nummerRetry";
 import { utledBestillerUtforer } from "../utils/utledFaggruppe";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
 import { harFeltVerdi } from "@sitedoc/shared";
+import { erRaaUploadsUrl } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
@@ -792,6 +793,9 @@ export const oppgaveRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Del B: avvis at en signert («forgiftet») /uploads/-URL persisteres i data.
+      avvisForgiftetVedleggIData(input.data);
+
       // Tilgangssjekk
       const oppgave = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
@@ -1016,11 +1020,12 @@ export const oppgaveRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // Aldri persistér en lokal enhets-URL (file://) på server — det er hele
-      // feilklassen. Kun server-relative /uploads/-stier slipper inn.
-      if (!input.url.startsWith("/uploads/")) {
+      // feilklassen. Kun RÅ server-relative /uploads/-stier slipper inn: en signert
+      // («forgiftet») /uploads/-URL avvises også (del B), ellers dør signaturen i DB.
+      if (!erRaaUploadsUrl(input.url)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "settVedleggUrl krever en server-URL (/uploads/…)",
+          message: "settVedleggUrl krever en rå server-URL (/uploads/… uten ?exp=&sig=)",
         });
       }
 

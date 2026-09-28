@@ -384,7 +384,7 @@ export {
   KJERNE_SYNONYMER,
 } from "./sokMatch";
 
-export { UPLOADS_PREFIKS, UPLOADS_PRIVAT_PREFIKS, erRaaUploadsUrl } from "./uploadsSti";
+export { UPLOADS_PREFIKS, UPLOADS_PRIVAT_PREFIKS, erRaaUploadsUrl, erForgiftetUploadsUrl } from "./uploadsSti";
 
 export {
   SIGNERT_BILDE_DEBOUNCE_MS,

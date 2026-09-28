@@ -2,7 +2,7 @@
 name: sikkerhet
 description: Samlet sikkerhetsvurdering — hva er målt, hva er åpent, hva er avgjort. Erstatter spredte punkter i STATUS-AKTUELT og containertopologi-notatet.
 status: 🟠 LEVENDE — oppdateres ved hvert funn og hver lukking
-sist_verifisert_mot_kode: 2026-09-06
+sist_verifisert_mot_kode: 2026-09-28
 ---
 
 # Sikkerhet — samlet vurdering
@@ -35,6 +35,43 @@ Vi har allerede sett at gaten vår kunne omgås én gang (4).
 **Formildende, målt:** `audit-sensitive-apen-sti.ts` mot prod-DB 2026-08-15 ga **null**
 sensitive filreferanser på åpen sti — timer, kompetanse, maskin, `Image.file_url` og
 feltvedlegg, alle 0. Kategoriene er ryddet. **Stien er der fortsatt.**
+
+---
+
+## ✅ Femte /uploads/-funn: «forgiftet URL» — signaturgaten kunne gjøre gamle bilder usynlige (fikset 2026-09-28)
+
+**Feilklassen (ny, verd å kjenne):** en signert `/uploads/`-URL har innebygd utløp
+(`?exp=…&sig=…`). Havner den i lagret data (`checklists.data` / `tasks.data`) i stedet for
+kun på respons-veien, dør signaturen i databasen — den blir en **forgiftet URL**. Rotårsak
+var Fase 1 (`ca7f16b6`, 07.08): en signert URL ble skrevet til `data`. Målt 28.09: 5
+checklists + 1 task i prod bar en forgiftet URL, alle `received`/`draft` (ingen signert
+eller godkjent, ingen manglende bevis i et ferdig dokument).
+
+**Hvorfor den var permanent:** emisjonssigneringen (`hmac.ts:signerHvisPrivat` via
+`erAlleredeSignert`) spurte bare *om* det fantes `sig=` — en **død** signatur regnet den
+som «ferdig signert» og sendte den lagrede, utløpte URL-en ut uendret. `SignertBilde`
+invaliderte og hentet på nytt, fikk samme døde URL tilbake, ga opp etter tre forsøk.
+Bildet ble borte for godt.
+
+**Fiksen (tre deler), 2026-09-28:**
+- **A — heling på visnings-veien (kravet):** `erAlleredeSignert` leser nå `exp`; en
+  utløpt signatur er *ikke* ferdig — den faller gjennom til `signerFilSti`, som stripper
+  query og signerer stien på nytt. Gamle dokumenter viser bildene igjen **uten at
+  databasen røres**. Krav: *et lagret vedlegg skal alltid kunne vises*, uansett alder.
+- 🔴 **Idempotensen kan ikke ofres for å løse dette.** Løsningen re-signerer KUN utløpte
+  URL-er. En *gyldig* signert URL kommer uendret ut (`hmac.ts:erAlleredeSignert`,
+  `hmac.test.ts` KRAV 4). Å strippe + re-signere ved *hver* emisjon (den forkastede
+  ideen) ville brutt det dokumenterte idempotens-kravet (`hmac.ts:84-87`) OG gitt en ny
+  URL hvert kall — `SignertBilde`-koalesceringen og 15-min-levetiden hviler på at URL-en
+  er **stabil** i vinduet (jf. `fix/signert-bilde-flere-forsok`, `4ef039fd`).
+- **B — vakt mot ny forgiftning:** `avvisForgiftetVedleggIData` (bygget på
+  `erForgiftetUploadsUrl` i `@sitedoc/shared/uploadsSti.ts`, speilet av `erRaaUploadsUrl`
+  — ikke en femte kopi av regelen) kaster hvis en klient forsøker å skrive en signert
+  `/uploads/`-URL til `data`. Kalt i `sjekkliste`/`oppgave`-`oppdaterData`; `settVedleggUrl`
+  krever nå en *rå* sti.
+- **C — dataretting:** manuelle SQL-skript i
+  `packages/db/manuell/forgiftede-vedlegg-urler/` (DRY-RUN + rydding), bevisst **utenfor**
+  `prisma/migrations/` så de aldri auto-kjøres. Med A på plass er C rydding, ikke redning.
 
 ---
 
