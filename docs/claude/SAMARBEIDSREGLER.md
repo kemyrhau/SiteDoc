@@ -629,6 +629,38 @@ beslutter.**
 ⚠️ **Feiltilfeller teller som funksjon.** Hvordan systemet oppfører seg når noe går galt, er noe
 brukeren opplever.
 
+#### 🔴 HENSIKT-LINJA — agenten gjentar den med egne ord FØR han bygger (Kenneth-vedtak 2026-09-28)
+
+> **Kenneth 2026-09-28:** *«det som er viktig → forstår agenten hensikten med det han skal kode»* —
+> og: *«dersom denne skrives tydelig og vi dropper småpraten, da kan jeg klare å fange opp avvik.»*
+
+🔴 **Hver ordre bærer ÉN `HENSIKT:`-linje. Agentens første svar gjentar den med SINE egne ord, før han
+bygger noe.** **Avviker gjenfortellingen fra ordren — stopp og spør. Ikke bygg.**
+
+**Hvorfor det ikke holder å si «spør når du er usikker»:** ⚠️ **en agent som har misforstått, vet ikke at
+han er usikker. Han er trygg på feil premiss.** 🟢 **Gjenfortellingen flytter oppdagelsen fra den som
+misforstår til den som leser — og det er den eneste som kan se den.**
+
+🔴 **FORMKRAV, og det er dette som gjør regelen brukbar for Kenneth:** **hensikten skrives i brukerens
+ord. Ingen filnavn, ingen funksjonsnavn, ingen kode.** ⚠️ **Trenger man kodekjennskap for å sjekke
+gjenfortellingen, er den skrevet feil.** **Kenneth er leseren som skal fange avviket; en linje han ikke
+kan lese, fanger ingenting.**
+
+| | |
+|---|---|
+| 🟢 **Riktig** | `HENSIKT: en sjekkliste skal kunne si «ikke relevant» om et punkt som ikke gjelder.` |
+| 🔴 **Feil** | `HENSIKT: la TrafikklysObjekt lese objekt.config.options med TRAFIKKLYS_VALG som fallback.` |
+
+**Den andre er en oppskrift, ikke en hensikt. En agent kan følge den perfekt og fjerne det fjerde lyset
+i samme slag.**
+
+🔴 **Målt belegg (2026-09-28): alle fire avvikene dette døgnet var mekanismer som oppfylte ordren og
+bommet på hensikten** — det fjerde trafikklyset fjernet fordi bruk ble lest som behov · forklaringen på
+en foreldreløs verdi lagt i en tooltip ingen ser på touch · ett fornyelsesforsøk som oppfylte
+«selvfornyelse finnes» men ikke «utløp skal være usynlig» · en query-stripping som oppfylte mekanismen
+og ville brutt idempotensen. ⚠️ **Ingen av dem ble fanget av en lesning av ordren. Alle fire ble fanget
+av en måling etterpå.**
+
 ### Ordreformat til Kenneth: hvem → gjør hva → når
 
 Hver leveranse fra cowork skal si **hvem** som utfører, **hva** som skal gjøres,
