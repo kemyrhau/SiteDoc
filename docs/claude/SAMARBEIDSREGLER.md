@@ -646,13 +646,20 @@ ord. Ingen filnavn, ingen funksjonsnavn, ingen kode.** ⚠️ **Trenger man kode
 gjenfortellingen, er den skrevet feil.** **Kenneth er leseren som skal fange avviket; en linje han ikke
 kan lese, fanger ingenting.**
 
-| | |
-|---|---|
-| 🟢 **Riktig** | `HENSIKT: en sjekkliste skal kunne si «ikke relevant» om et punkt som ikke gjelder.` |
-| 🔴 **Feil** | `HENSIKT: la TrafikklysObjekt lese objekt.config.options med TRAFIKKLYS_VALG som fallback.` |
+🔴 **Og her er det vanskelige, som er grunnen til at regelen finnes: to hensikter kan BEGGE være i
+brukerens ord, BEGGE være rimelige — og gi motsatt kode.** ⚠️ **Det er ikke en dårlig hensikt mot en
+god. Det er to gode som ikke er den samme.**
 
-**Den andre er en oppskrift, ikke en hensikt. En agent kan følge den perfekt og fjerne det fjerde lyset
-i samme slag.**
+**To målte par fra 2026-09-27/28:**
+
+| Hensikten agenten holdt | Hensikten som gjaldt | Forskjellen i kode |
+|---|---|---|
+| «trafikklyset skal ikke tilby en tilstand ingen bruker» | «en sjekkliste skal kunne si **ikke relevant** om et punkt som ikke gjelder» | 🔴 **fjern det fjerde lyset** mot 🟢 **behold det** |
+| «en lagret verdi som ikke lenger er gyldig skal **vises** i stedet for å forsvinne» | «brukeren skal **forstå** at svaret ikke lenger gjelder» | 🔴 **stiplet ring med teksten `gray`** mot 🟢 **synlig tekst «ikke et gyldig valg»** |
+
+**Begge venstrekolonner er forsvarlige setninger i brukerens ord. Begge ble fulgt lojalt. Begge ga feil
+resultat.** 🔴 **Ingen formulering av definisjonen ville skilt dem — bare en gjenfortelling gjør det,
+fordi den viser hvilken av de to agenten faktisk holder.**
 
 🔴 **Målt belegg (2026-09-28): alle fire avvikene dette døgnet var mekanismer som oppfylte ordren og
 bommet på hensikten** — det fjerde trafikklyset fjernet fordi bruk ble lest som behov · forklaringen på
