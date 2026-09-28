@@ -1726,4 +1726,23 @@ tilstand før den handlet, og den andre ikke hadde det.**
 
 **Fabels ordre-mal (redesign-spor)** har samme anatomi og var like udokumentert: *bakgrunn · kodeverifisert · endringer · krav · DoD · eksplisitt utenfor scope*. Fungerende eksempel: **designprosjekt «Sitedoc redesign tips»: `delplaner/georef-panel-v2-ordre.md`** (peker navngir treet per §9 — fila bor ikke i repoet; cowork har ikke lest den, referansen er fabels). Rører fabel formen, oppdateres denne raden.
 
+---
+
+# Flyttet fra SAMARBEIDSREGLER.md 2026-09-28 — passering 3a (duplikat-oppløsning)
+
+**Kenneth avgjorde ordlyden. Reglene er konsolidert i SAMARBEIDSREGLER; belegget står her.**
+
+**2. Verifiser mot kode før du påstår.** Cowork gjettet feil fem ganger på tre dager:
+`config.zone` som frys-årsak (falsifisert), tilgangsrefaktoren som prosjektliste-årsak
+(koden var ikke engang i bygget), PNG som 0-byte-mønster (3 av 4 PNG hadde bytes), «ingen
+legg-til-vei for faggruppe» (grep fanget ikke `upsert`), og at simulator ikke reproduserte
+frysingen (feil mal testet). **Mål før du konkluderer — også når konklusjonen føles
+åpenbar.**
+
+
+
+🔴 **Kostnaden var null fordi ordrene bar «mål premisset selv» + «SI DET, ikke gjett».** Alle
+tre ble fanget før kode ble skrevet — og i den tredje ville coworks «fiks» gjort loggen
+**dårligere**, fordi den ba om å kopiere den svakeste av to sammenligninger. **De to linjene
+skal stå i hver eneste ordre.**
 

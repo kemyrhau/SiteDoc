@@ -179,9 +179,8 @@ Drifter en av dem, rettes den **der den står**, ikke her.
 
 **Alle fem hadde samme form: en påstand ble ført videre uten at kilden ble sjekket.**
 
-1. 🔴 **Mål premisset før du ber noen TESTE noe** — ikke bare før du skriver ordren. **Rebas branchen på
-   `origin/develop` FØR testforespørselen.** ⚠️ **Uten det tester noen «to halve verdier»:** én med den nye
-   funksjonen og de gamle feilene, én med fiksene og uten funksjonen.
+1. 🔴 **En branch som ikke er rebaset, tester halv kode.** **Se § Arbeidsrutiner pkt 2 — regelen om å måle
+   premisset bor der, med alle tre anvendelsene.**
 2. 🔴 **Byggnummer, profil og distribusjon leses fra kilden:** `eas build:list` **og** App Store Connect.
    ⚠️ **Er de uenige, står BEGGE målingene i loggen til noen har målt hvorfor.** **Ingen velges bort for å få
    en ryddig fortelling.**
@@ -239,12 +238,18 @@ ikke blokkerte dem.
 
 **1. Statustavla først.** Se seksjonen under. Uten den vet du ikke hvem som finnes.
 
-**2. Verifiser mot kode før du påstår.** Cowork gjettet feil fem ganger på tre dager:
-`config.zone` som frys-årsak (falsifisert), tilgangsrefaktoren som prosjektliste-årsak
-(koden var ikke engang i bygget), PNG som 0-byte-mønster (3 av 4 PNG hadde bytes), «ingen
-legg-til-vei for faggruppe» (grep fanget ikke `upsert`), og at simulator ikke reproduserte
-frysingen (feil mal testet). **Mål før du konkluderer — også når konklusjonen føles
-åpenbar.**
+🔴 **2. MÅL PREMISSET — tre anvendelser, én regel.** **Mål før du konkluderer, også når konklusjonen
+føles åpenbar.**
+
+- 🔴 **Før du ber noen TESTE noe.** **Rebas branchen på `origin/develop` FØR testforespørselen**, og sjekk
+  `merge-base --is-ancestor <fiks> <bygget som kjører>`. ⚠️ **Uten det tester noen «to halve verdier»:** én med
+  den nye funksjonen og de gamle feilene, én med fiksene og uten funksjonen.
+- 🔴 **Før du SKRIVER en ordre.** **Mål premisset i koden først — også for et sidefunn.** ⚠️ **En velskrevet
+  agentrapport er ikke en måling.**
+- 🔴 **På en INNKOMMENDE rapport.** **Den er input, ikke fasit.**
+
+🔴 **Og de to linjene «mål premisset selv» + «SI DET, ikke gjett» skal stå i HVER ordre.** 🟢 **Det er de som
+gjør at et feil premiss fanges før kode skrives, ikke etter.**
 
 **3. Verifiser mot git, ikke mot statusfiler eller agentrapporter.**
 `git merge-base --is-ancestor origin/<branch> origin/develop` er sannheten om hva som er
@@ -257,7 +262,7 @@ hoppet over tre ganger. Skriv én kjede med `&&` som avbryter seg selv.
 ganger. Vent på hashen.
 
 **6. Ordrefila skal være selvstendig.** En agent har ingen samtalehistorikk. Refererer du
-«steg 2–4», må stegene stå i fila. Gi **full sti** — `relay/` finnes kun i hovedtreet.
+«steg 2–4», må stegene stå i fila.
 
 **7. Rapporter fra verktøy vurderer ofte deklarerte verdier, ikke kjørende.** Aikido flagget
 `next ^14.2.0` som critical; prod kjørte allerede 14.2.35. Sjekk resolved versjon før du
@@ -303,18 +308,14 @@ eier svaret** — `pnpm lint` for lint, hele funksjonen for kontrollflyt, hele s
 «skjer dette». Er det for dyrt å måle ordentlig, skriv **«ikke målt»** i ordren i stedet for
 et tall.
 
-🔴 **Kostnaden var null fordi ordrene bar «mål premisset selv» + «SI DET, ikke gjett».** Alle
-tre ble fanget før kode ble skrevet — og i den tredje ville coworks «fiks» gjort loggen
-**dårligere**, fordi den ba om å kopiere den svakeste av to sammenligninger. **De to linjene
-skal stå i hver eneste ordre.**
+🟢 **Alle tre ble fanget før kode ble skrevet, fordi ordrene bar de to linjene fra pkt 2.**
 
 **10b. Et sidefunn er en påstand — gate det som alt annet før det blir en ordre.** Cowork
 gjorde to ordrer av uverifiserte premisser 2026-08-26: oppgave-PDF på mobil (serveren
 implementerer det ikke — `arkiv.ts:51` kaster) og «merge telles som falsk konflikt» (telleren
 leses av ingen; brukertallet kommer fra en DB-telling merge aldri setter). Begge kom fra
 agentrapporter cowork stolte på fordi de var velskrevne. Agenten oppdaget det selv i begge
-tilfeller — men da var runden brukt. **Mål premisset i koden før du skriver ordren**, ikke
-etterpå. Samme regel som § Cowork leveranse-ansvar punkt 4, anvendt på sidefunn.
+tilfeller — men da var runden brukt. **Pkt 2 gjelder også sidefunn.**
 
 **10d. Avslutt og gjenåpne agenter mellom oppgaver — og skriv til fil, så det er gratis**
 (Kenneth 2026-08-26). Hver handling en agent gjør, leser hele samtalen på nytt først. En økt
@@ -1003,8 +1004,7 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 - fabel → kode-/verifiseringsagent: formuleres ferdig av fabel, leveres via
   `Fra fabel/til-repo-*`, Kenneth relayer.
 - cowork → kode-/verifiseringsagent: formuleres ferdig av cowork i
-  `relay/inbox-<navn>.md`, Kenneth relayer. **Gi full sti** — `relay/` finnes kun i
-  hovedtreet.
+  `relay/inbox-<navn>.md`, Kenneth relayer.
 - Kommandoer (git/build/sudo/deploy): formuleres til Kenneth, som kjører.
 
 ### 🔴 Innboksfilen er kanalen — direktemeldinger er kun varsler (Kenneth 2026-09-23)
