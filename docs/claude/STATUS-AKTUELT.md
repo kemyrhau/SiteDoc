@@ -19,6 +19,27 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-27 · develop `68302a94` ← seks merger etter `87038042`. Én av dem er kode: `feat/signert-lenke` `1c5f72a0` (to commits) — **`STANDARD_LEVETID_MS` senket fra 24 t til 15 min**, siste konsumentklasse på `/uploads/`-signaturgaten lukket. Fem er docs (PSI-måling, PSI-domeneregel + nullhull, FB4/FD3-normhenvisning, BACKLOG-leveranser, gate-tall-regelen). GATE på kode-mergen: db 272 · api 623 · pdf 128 · shared 886 · web 331 · mobil 44 · 7/7, tre byggeledd exit 0. **Urørt ved skriving:** `fix/psi-prosjektniva-unik` `05e8aff6` og `fix/trafikklys-foreldreloes-verdi` `2a4e03be`, begge hos design.**
 
+**Sist ført: 2026-09-28 · develop `38567b33` ← ti merger etter `1c432a29`. Kode: `fix/signert-bilde-flere-forsok` `4ef039fd` (1→3 gjenforsøk med backoff, budsjett dekoblet fra lenke-klassen) · `fix/psi-p2002-haandtert` `e0820f46` (stille feil ved PSI nr. 2 lukket) · `feat/trafikklys-verdisett` `ab1efe2c` (rendreren leser `config.options`). GATE på siste: api 634 (+6) · shared 898 · web 349 · pdf 131 · db 277 · mobil 49 · 7/7, tre byggeledd exit 0. Docs: § 0 Kenneths forventninger, septemberarkiveringen, to designordrer. **Origin er ren — kun kjerne + `redesign/navigasjon` (Regel 9).** 🔴 **Prod er `eb9071f2` fra 24.09 — develop er 130+ commits foran med tre umigrerte migreringer og `/uploads/`-gaten som aldri har kjørt utenfor develop.**
+
+### 🟢 2026-09-28 — TRAFIKKLYS-VERDISETT: 6 AV 6 PROD-FELT VISTE FEIL ETIKETTER
+
+**Rendreren leste aldri `objekt.config.options`** (`TrafikklysObjekt.tsx:14` destrukturerte
+`{ verdi, onEndreVerdi, leseModus }`), så en mal som erklærte sitt eget lyssett ble ignorert.
+🔴 **Målt i prod: 6 av 6 `traffic_light`-felt har egne `options` — samtlige viste feil.** Fire tilhører
+A.Markussen. 🟢 **Ingen var besvart, så ingen lagret verdi skifter betydning.**
+
+**Vedtatt modell (design, målt):** **én felttype, ikke to.** `oppdaterObjekt` kan ikke endre `type`
+(`mal.ts:759-768`), så to typer ville tvunget et lyssett-bytte gjennom slett + nyopprett — **forbi
+endringsvernet.** Med én type er byttet en `config`-endring og vakten fyrer. 🟢 **Modellvalget ER vakten.**
+`TRAFIKKLYS_VALG` forblir kanonisk; `config.options` bærer delmengde og etiketter. **Ingen migrering, ingen
+ny kolonne, fargene urørt.**
+
+🔴 **Og gate-runden avdekket en selvmotsigelse i coworks egen ordre:** den sa «api stille», mens
+designordrens §3 ba om validering i `mal.ts`. Redesign meldte motsigelsen i stedet for å velge i stillhet;
+cowork returnerte branchen fordi **validering uten test er det gale svaret.** **api SKAL stige — 628 → 634.**
+🟢 **Rød først bevist mot en no-op valideringskropp: 4 failed | 2 passed → 6 passed.** Det skiller «vokter»
+fra «kompilerer».
+
 ### 🔴 2026-09-27 — PSI: EN DOMENEREGEL FRA KENNETH SNUDDE EN «KANTSAK» TIL PILOTBLOKKERENDE
 
 > «ikke alle byggeplasser skal ha psi. når psi er slått på → da skal byggeplassen kreve psi. det

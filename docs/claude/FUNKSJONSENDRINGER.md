@@ -59,6 +59,25 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 
 ## 🟢 REPARASJONER MED SYNLIG VIRKNING — til orientering, ingen godkjenning
 
+### 2026-09-28
+
+| Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
+|---|---|---|---|
+| `38567b33` | Trafikklys i sjekklister/oppgaver — web, mobil og arkiv-PDF | **Rendreren leste aldri `objekt.config.options`.** En mal som erklærte sitt eget lyssett ble ignorert, og feltet viste standardsettet Godkjent/Anmerkning/Avvik/Ikke relevant. **Nå vises malens eget sett, i malens rekkefølge, med malens etiketter** | 🔴 **Malene har erklært lyssettene hele tiden.** `TrafikklysObjekt.tsx:14` destrukturerte `{ verdi, onEndreVerdi, leseModus }` og leste aldri `objekt` — `config.options` var uleselig for skjermen |
+| `38567b33` | Malbyggeren | Én trafikklys-oppføring i paletten | **To:** ett tre-lys og ett fire-lys. Begge oppretter `traffic_light`; tresettet er en delmengde (firesettet minus `gray`), ikke en andre liste |
+| `38567b33` | Malbyggeren, lagring | Et lyssett kunne lagres med duplikater, ukjente verdier eller ett lys | **Avvises nå** med `BAD_REQUEST`. 🟢 **Antallet er IKKE låst til 3/4** — en hardkodet grense ville gjentatt feilen i [`bruk-er-ikke-behov.md`](retningslinjer/bruk-er-ikke-behov.md). Mangler `options` → kanonisk firelys-fallback, som verner de 27 dagens felt |
+
+🔴 **KUNDESYNLIG NÅR DET DEPLOYES:** målt at **6 av 6 `traffic_light`-felt i PROD har egne `options`** —
+altså viser samtlige feil etiketter i dag. **Fire av de seks tilhører A.Markussen.** 🟢 **Ingen er besvart
+ennå**, så ingen lagret verdi skifter betydning. ⚠️ **Ligger på develop; prod er ikke rørt.**
+
+🟡 **Én konsekvens å kjenne til, ikke en mangel:** seedede etiketter oversettes (`oversettStandardtekst`),
+**firmaets egne etiketter vises rått på alle 15 språk.** 🔴 **Det er et bevisst valg, og grunnen er ikke at
+vi ikke KAN oversette — det er at vi ikke SKAL:** en maskinoversatt etikett på et kontrollpunkt er en
+påstand om hva som ble kontrollert mot, og tar oversettelsen feil, **lyver et signert dokument.** Samme
+grunn som malreglene forbyr ordrett normtekst. 🟢 **Rammer bare den som aktivt overstyrer teksten — da er
+det hans tekst, på hans språk.**
+
 ### 2026-09-27
 
 | Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
