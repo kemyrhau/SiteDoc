@@ -68,11 +68,27 @@ export function signerFilSti(sti: string, levetidMs = STANDARD_LEVETID_MS): stri
   return `${path}?exp=${exp}&sig=${sig}`;
 }
 
-/** Bærer URL-en alt en `sig=`-parameter? → alt signert (idempotens-vakt). */
+/**
+ * Bærer URL-en en `sig=` som FORTSATT ER GYLDIG (exp ikke passert)? → alt signert
+ * (idempotens-vakt: en fersk emisjonssignatur står uendret gjennom begge lag).
+ *
+ * 🔴 En URL med `sig=` men UTLØPT `exp` er IKKE ferdig signert — den er forgiftet
+ * (en død signatur lagret i `Checklist.data`/`Task.data`, rotårsak i Fase 1
+ * `ca7f16b6`). Uten exp-sjekken regnet vi den som ferdig og sendte den lagrede,
+ * døde URL-en ut uendret for alltid → gamle dokumenter kunne aldri vise bildene
+ * sine igjen. Ved å svare `false` her faller den gjennom til `signerFilSti`, som
+ * stripper query og signerer stien på nytt — dokumentet virker selv om DB aldri
+ * rettes. Vi leser KUN `exp` (ikke full HMAC-verifisering): `/uploads/`-gaten
+ * avviser uansett en tuklet-men-ufersk signatur, og exp-sjekken holder fiksen på
+ * tre linjer uten å røre idempotens-stabiliteten for gyldige URL-er.
+ */
 function erAlleredeSignert(url: string): boolean {
   const q = url.indexOf("?");
   if (q === -1) return false;
-  return new URLSearchParams(url.slice(q + 1)).has("sig");
+  const params = new URLSearchParams(url.slice(q + 1));
+  if (!params.has("sig")) return false;
+  const exp = Number(params.get("exp"));
+  return Number.isFinite(exp) && exp > Date.now();
 }
 
 /**
@@ -82,13 +98,16 @@ function erAlleredeSignert(url: string): boolean {
  * delegerings-funksjonen: de eksplisitte kallstedene OG den sentrale
  * output-middleware (`signerUploadsOutput`) går alle hit.
  *
- * 🔴 Idempotens (KRAV): bærer URL-en alt `sig=`, returneres den uendret. Uten
- * dette dobbeltsigneres alt som passerer to lag (eksplisitt kall + middleware),
- * og den ytre signaturen ville dekket en path som alt inneholdt en query.
+ * 🔴 Idempotens (KRAV): bærer URL-en en FORTSATT GYLDIG `sig=`, returneres den
+ * uendret. Uten dette dobbeltsigneres alt som passerer to lag (eksplisitt kall +
+ * middleware), og den ytre signaturen ville dekket en path som alt inneholdt en
+ * query. En UTLØPT signatur (forgiftet lagret URL) regnes derimot IKKE som ferdig
+ * — se `erAlleredeSignert` — og re-signeres her, så gamle dokumenter viser bildene
+ * sine igjen uten at databasen røres.
  */
 export function signerHvisPrivat(url: string | null | undefined): string | null | undefined {
   if (typeof url !== "string" || !url.startsWith(UPLOADS_PREFIKS)) return url;
-  if (erAlleredeSignert(url)) return url; // idempotens: ikke dobbeltsigner
+  if (erAlleredeSignert(url)) return url; // gyldig signatur står; utløpt faller gjennom og re-signeres
   try {
     return signerFilSti(url);
   } catch (err) {

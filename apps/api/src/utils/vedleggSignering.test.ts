@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { signerVedleggIData, signerBilder } from "./vedleggSignering";
+import { signerVedleggIData, signerBilder, avvisForgiftetVedleggIData } from "./vedleggSignering";
 
 /**
  * Kontrakt: signér ethvert `url`-felt på ethvert nivå (toppnivå-vedlegg,
@@ -75,6 +75,49 @@ describe("signerVedleggIData", () => {
     expect(signerVedleggIData(null)).toBeNull();
     expect(signerVedleggIData(undefined)).toBeUndefined();
     expect(signerVedleggIData("streng")).toBe("streng");
+  });
+});
+
+describe("avvisForgiftetVedleggIData (del B — skrive-vei-vakt)", () => {
+  const raaData = {
+    "felt-1": {
+      verdi: null,
+      kommentar: "",
+      vedlegg: [{ id: "a", type: "bilde", url: "/uploads/privat/x.jpg", filnavn: "x.jpg" }],
+    },
+  };
+
+  it("🔴 KRAV 2 — kaster når en signert /uploads/-URL forsøkes skrevet til data", () => {
+    const forgiftet = {
+      "felt-1": {
+        verdi: null,
+        vedlegg: [{ id: "a", url: "/uploads/privat/x.jpg?exp=1787424297434&sig=abc123" }],
+      },
+    };
+    expect(() => avvisForgiftetVedleggIData(forgiftet)).toThrow(/signert \/uploads\//i);
+  });
+
+  it("🔴 KRAV 2 — finner forgiftet URL også dypt nestet (repeater-rad)", () => {
+    const nestet = {
+      "repeater-1": {
+        verdi: { "rad-1": { barn: { vedlegg: [{ id: "c", url: "/uploads/nested.jpg?sig=x" }] } } },
+      },
+    };
+    expect(() => avvisForgiftetVedleggIData(nestet)).toThrow();
+  });
+
+  it("🔴 KRAV 3 — rå /uploads/, ekstern https og file:// slipper uendret (ingen falsk-positiv)", () => {
+    expect(() => avvisForgiftetVedleggIData(raaData)).not.toThrow();
+    expect(() =>
+      avvisForgiftetVedleggIData({
+        f: { vedlegg: [{ url: "https://ekstern.no/bilde.jpg?sig=abc" }] },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      avvisForgiftetVedleggIData({ f: { vedlegg: [{ url: "file:///lokal/x.jpg" }] } }),
+    ).not.toThrow();
+    expect(() => avvisForgiftetVedleggIData(null)).not.toThrow();
+    expect(() => avvisForgiftetVedleggIData({})).not.toThrow();
   });
 });
 

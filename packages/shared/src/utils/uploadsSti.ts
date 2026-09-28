@@ -22,3 +22,17 @@ export const UPLOADS_PRIVAT_PREFIKS = "/uploads/privat/";
 export function erRaaUploadsUrl(url: unknown): url is string {
   return typeof url === "string" && url.startsWith(UPLOADS_PREFIKS) && !url.includes("sig=");
 }
+
+/**
+ * Er dette en FORGIFTET `/uploads/`-URL — en som alt bærer en signatur (`sig=`)?
+ * Det motsatte predikatet av `erRaaUploadsUrl`, bygget av SAMME konstant (ingen
+ * femte kopi av «/uploads/»-regelen). En slik URL skal ALDRI skrives til lagret
+ * `Checklist.data`/`Task.data`: signaturen har et innebygd utløp, så den dør i
+ * databasen («forgiftet URL», se `apps/api/src/utils/vedleggSignering.ts`). Kun
+ * en vakt på skrive-veien — visnings-veien tåler forgiftning via emisjons-
+ * re-signeringen (hmac.ts). Ekstern `https://…/uploads/`/`file://` er ikke
+ * `/uploads/` og rammes ikke.
+ */
+export function erForgiftetUploadsUrl(url: unknown): url is string {
+  return typeof url === "string" && url.startsWith(UPLOADS_PREFIKS) && url.includes("sig=");
+}

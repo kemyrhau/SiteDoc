@@ -143,10 +143,29 @@ describe("signerHvisPrivat — hele /uploads/ + idempotens (Fase 1b)", () => {
     expect(signerHvisPrivat(undefined)).toBeUndefined();
   });
 
-  it("🔴 idempotens: en alt signert URL dobbeltsigneres IKKE", () => {
+  // KRAV 4 (idempotens-vakten): en GYLDIG signert URL kommer UENDRET ut. Dette er
+  // kravet den opprinnelige «strip+re-signer hver emisjon»-ideen ville brutt — nå
+  // testbar, så ingen kan gjeninnføre url-churn uten at testen slår ut.
+  it("🔴 KRAV 4 — idempotens: en alt (gyldig) signert URL dobbeltsigneres IKKE", () => {
     const engang = signerHvisPrivat("/uploads/privat/x.jpg") as string;
     const togang = signerHvisPrivat(engang) as string;
     expect(togang).toBe(engang); // uendret — nøyaktig samme streng, ingen andre sig=
     expect((togang.match(/sig=/g) ?? []).length).toBe(1);
+  });
+
+  // KRAV 1 (A virker): en LAGRET URL med UTLØPT sig= er forgiftet — ikke ferdig
+  // signert. Emisjonen skal strippe den døde query-en og signere stien på nytt, så
+  // gamle dokumenter viser bildene sine igjen uten at databasen er rørt.
+  it("🔴 KRAV 1 — utløpt signatur re-signeres (forgiftet URL heles ved emisjon)", () => {
+    // Signér med negativ levetid → exp i fortiden = nøyaktig formen som ligger i prod.
+    const forgiftet = signerFilSti("/uploads/privat/x.jpg", -1000);
+    expect(forgiftet).toContain("sig=");
+    expect(vurderUploadsFilForesporsel(forgiftet).type).toBe("avvist"); // død i utgangspunktet
+
+    const helet = signerHvisPrivat(forgiftet) as string;
+    expect(helet).not.toBe(forgiftet); // NY, fersk signatur
+    expect((helet.match(/sig=/g) ?? []).length).toBe(1); // ikke dobbeltsignert
+    expect(helet.startsWith("/uploads/privat/x.jpg?")).toBe(true); // samme sti, stripset query
+    expect(vurderUploadsFilForesporsel(helet).type).toBe("ok"); // nå gyldig → rendres
   });
 });
