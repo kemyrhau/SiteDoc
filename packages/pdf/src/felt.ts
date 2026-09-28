@@ -5,7 +5,7 @@
 
 import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
-import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser } from "./hjelpere";
+import { esc, normaliserOpsjon, trafikklysEtikettPdf, formaterDato, formaterDatoTid, fullBildeUrl, lesSignaturVerdiPdf, formaterSignaturLinjePdf, byggGrenseVerdi, byggTilfoyelser } from "./hjelpere";
 // D2/D3 foldet inn i renderFelt (2026-08-24): felt.ts-frysen ble opphevet — mobil BUNDLER
 // felt.ts, men KJØRER den aldri (byggSjekklisteHtml/renderAllefelter-grenen er slettet etter
 // arkivmal-overgangen), så den er nå ren server/arkiv-renderer. Intercept-i-innhold.ts droppet;
@@ -82,7 +82,9 @@ export function renderFelt(
     case "traffic_light": {
       const tl = typeof verdi === "string" ? TRAFIKKLYS[verdi] : null;
       if (tl) {
-        verdiHtml = `<span class="trafikklys" style="background:${tl.farge};"></span> ${esc(tl.label)}`;
+        // Feltets egne options overstyrer etiketten (delmengde/omdøpt lyssett); fargen følger verdien.
+        const label = trafikklysEtikettPdf(verdi as string, objekt.config.options, tl.label);
+        verdiHtml = `<span class="trafikklys" style="background:${tl.farge};"></span> ${esc(label)}`;
       } else if (typeof verdi === "string" && verdi.trim() !== "") {
         // Foreldreløs verdi (utenfor TRAFIKKLYS — malen redigert / eldre verdisett): vis den RÅ,
         // aldri stille tap i et signert dokument. Hardkodet nb som resten av arkiv-PDF-en.

@@ -506,7 +506,10 @@ export function MalBygger({ mal, nivaa = "prosjekt" }: MalByggerProps) {
         sortOrder = siste ? siste.sortOrder + 1 : 0;
       }
 
-      const nyConfig: Record<string, unknown> = { ...meta.defaultConfig, zone: målSone };
+      // Palett-variant (trafikklys tre/fire lys) sår egen config; ellers type-defaulten. Objekt-
+      // etiketten er alltid type-navnet — «(3 lys)» er en palett-affordans, ikke et feltnavn.
+      const seedConfig = data.seedConfig as Record<string, unknown> | undefined;
+      const nyConfig: Record<string, unknown> = { ...(seedConfig ?? meta.defaultConfig), zone: målSone };
 
       datakilde.leggTilObjekt.mutate({
         templateId: mal.id,

@@ -125,6 +125,25 @@ export function normaliserOpsjon(raw: unknown): { value: string; label: string }
   return { value: String(raw), label: String(raw) };
 }
 
+/**
+ * Trafikklys-etikett for en verdi, med feltets egne `options` som overstyring. Bærer feltet en
+ * egen etikett for verdien (delmengde/omdøpt lyssett, f.eks. HMS-avvik `red` = «Åpent»), brukes
+ * den; ellers den kanoniske etiketten (`kanoniskLabel`, fra `TRAFIKKLYS[verdi].label`). Fargen
+ * følger alltid verdien (nøklet i `TRAFIKKLYS`) — den ligger hos kalleren.
+ *
+ * SPEIL av lyssett-lesingen i @sitedoc/shared `trafikklysOpsjoner` (web/mobil): egen etikett når
+ * satt, ellers kanonisk. Arkiv-PDF er nb-only, så «kanonisk» her = den norske etiketten (voktet mot
+ * nb-oversettelsen av shared-nøkkelen i `pdf-shared-tvilling-paritet.test.ts`). `label !== value`
+ * skiller en ekte egen etikett fra `normaliserOpsjon`s value=label-fallback (bar verdi → kanonisk).
+ */
+export function trafikklysEtikettPdf(verdi: string, options: unknown, kanoniskLabel: string): string {
+  if (!Array.isArray(options)) return kanoniskLabel;
+  const egen = options.find((o) => normaliserOpsjon(o).value === verdi);
+  if (egen === undefined) return kanoniskLabel;
+  const { value, label } = normaliserOpsjon(egen);
+  return label !== value ? label : kanoniskLabel;
+}
+
 /** Formater dato på norsk (f.eks. "3. april 2026") */
 export function formaterDato(v: unknown): string {
   if (typeof v !== "string") return "";

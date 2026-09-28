@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
-import { TRAFIKKLYS_VALG, ukjentTrafikklysVerdi } from "@sitedoc/shared";
+import { trafikklysOpsjoner, oversettStandardtekst, ukjentTrafikklysVerdi } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
-// Fargeklasser per verdi — plattform-lokalt (tailwind aktiv/inaktiv). Verdisettet + etikettene
-// bor i @sitedoc/shared (TRAFIKKLYS_VALG); her bor bare fargene. Rekkefølgen kommer fra kilden.
+// Fargeklasser per verdi — plattform-lokalt (tailwind aktiv/inaktiv). Verdisettet + rekkefølgen
+// kommer fra feltets `config.options` (via trafikklysOpsjoner) eller det kanoniske settet; her
+// bor bare fargene, nøklet på verdi. Delmengde-felt (f.eks. tre lys) rører ikke denne.
 const FARGE: Record<string, { aktiv: string; inaktiv: string }> = {
   green: { aktiv: "bg-green-500", inaktiv: "bg-green-200" },
   yellow: { aktiv: "bg-yellow-400", inaktiv: "bg-yellow-200" },
@@ -11,17 +12,22 @@ const FARGE: Record<string, { aktiv: string; inaktiv: string }> = {
   gray: { aktiv: "bg-gray-400", inaktiv: "bg-gray-200" },
 };
 
-export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+export function TrafikklysObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const { t } = useTranslation();
   const valgtVerdi = typeof verdi === "string" ? verdi : null;
   const foreldreloes = ukjentTrafikklysVerdi(verdi);
 
+  // Feltets eget lyssett (delmengde/rekkefølge/egen etikett) når det finnes, ellers kanonisk.
+  const valg = trafikklysOpsjoner(objekt.config?.options);
+
   return (
     // items-start så etiketter som bryter (smal skjerm: «Ikke relevant») ikke skyver sirklene.
     <div className="flex items-start gap-3">
-      {TRAFIKKLYS_VALG.map(({ value, i18nKey }) => {
+      {valg.map(({ value, tekst, erI18nNokkel }) => {
         const erValgt = valgtVerdi === value;
-        const farge = FARGE[value]!;
+        const farge = FARGE[value] ?? FARGE.gray!;
+        // Seedet standardtekst → oversett; firmaets egen streng → rå; kanonisk → i18n-nøkkel.
+        const label = erI18nNokkel ? t(tekst) : oversettStandardtekst(tekst, t) ?? tekst;
         return (
           <button
             key={value}
@@ -40,7 +46,7 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
               }`}
             />
             <span className={`text-center text-[10px] leading-tight ${erValgt ? "font-medium text-gray-800" : "text-gray-500"}`}>
-              {t(i18nKey)}
+              {label}
             </span>
           </button>
         );

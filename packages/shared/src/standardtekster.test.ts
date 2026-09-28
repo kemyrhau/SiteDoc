@@ -19,6 +19,7 @@ import {
   STANDARD_OPSJONER,
   STANDARD_FELTLABEL_UNNTAK,
   ukjentTrafikklysVerdi,
+  trafikklysOpsjoner,
 } from "./standardtekster";
 import nb from "./i18n/nb.json";
 
@@ -132,5 +133,65 @@ describe("ukjentTrafikklysVerdi — foreldreløs-beslutningen", () => {
     expect(ukjentTrafikklysVerdi(undefined)).toBeNull();
     expect(ukjentTrafikklysVerdi(123)).toBeNull();
     expect(ukjentTrafikklysVerdi({})).toBeNull();
+  });
+});
+
+/**
+ * Lyssett-lesing (`trafikklysOpsjoner`) — den delte kilden web + mobil rendrer fra. Krav (c) pkt
+ * 1–2 på ren logikk-flate; pkt 4 mot de FAKTISKE systemmal-deklarasjonene i PROSJEKT_MODULER
+ * (ikke en kopi skrevet i testen). En test som bare sjekker at det ikke kastes er en tillatelse,
+ * ikke en test — derfor kreves den nøyaktige verdirekkefølgen og etikett-kilden.
+ */
+function finnTrafikklys(slug: string, label: string) {
+  const modul = PROSJEKT_MODULER.find((m) => m.slug === slug);
+  const objekt = modul?.maler.flatMap((mal) => mal.objekter).find((o) => o.type === "traffic_light" && o.label === label);
+  if (!objekt) throw new Error(`Fant ikke traffic_light «${label}» i modul «${slug}»`);
+  return objekt;
+}
+
+describe("trafikklysOpsjoner — feltets eget lyssett vs. kanonisk", () => {
+  it("(c1) egne options → NØYAKTIG dem, i rekkefølge, med egen etikett (ikke kanonisk sett)", () => {
+    const valg = trafikklysOpsjoner([
+      { value: "red", label: "Åpent" },
+      { value: "yellow", label: "Under behandling" },
+      { value: "green", label: "Lukket" },
+    ]);
+    expect(valg.map((v) => v.value)).toEqual(["red", "yellow", "green"]);
+    expect(valg.map((v) => v.tekst)).toEqual(["Åpent", "Under behandling", "Lukket"]);
+    expect(valg.every((v) => v.erI18nNokkel === false)).toBe(true); // egen etikett, ikke i18n-nøkkel
+  });
+
+  it("(c2) uten options → kanonisk TRAFIKKLYS_VALG uendret (fire lys, i18n-nøkler)", () => {
+    for (const tom of [undefined, null, []]) {
+      const valg = trafikklysOpsjoner(tom);
+      expect(valg.map((v) => v.value)).toEqual(["green", "yellow", "red", "gray"]);
+      expect(valg.map((v) => v.tekst)).toEqual([
+        "standardopsjon.godkjent",
+        "standardopsjon.anmerkning",
+        "standardopsjon.avvik",
+        "standardopsjon.ikkeRelevant",
+      ]);
+      expect(valg.every((v) => v.erI18nNokkel === true)).toBe(true);
+    }
+  });
+
+  it("bar verdi (options uten egen etikett) → kanonisk i18n-nøkkel for verdien, ikke rå «green»", () => {
+    const valg = trafikklysOpsjoner([{ value: "green" }, { value: "red" }]);
+    expect(valg).toEqual([
+      { value: "green", tekst: "standardopsjon.godkjent", erI18nNokkel: true },
+      { value: "red", tekst: "standardopsjon.avvik", erI18nNokkel: true },
+    ]);
+  });
+
+  it("(c4) HMS-avvik «Status» = tre lys Åpent/Under behandling/Lukket (faktisk deklarasjon)", () => {
+    const valg = trafikklysOpsjoner(finnTrafikklys("hms-avvik", "Status").config.options);
+    expect(valg.map((v) => v.value)).toEqual(["red", "yellow", "green"]);
+    expect(valg.map((v) => v.tekst)).toEqual(["Åpent", "Under behandling", "Lukket"]);
+  });
+
+  it("(c4) Godkjenning «Beslutning» = fire lys, inkl. Avvist + Ikke behandlet (faktisk deklarasjon)", () => {
+    const valg = trafikklysOpsjoner(finnTrafikklys("godkjenning", "Beslutning").config.options);
+    expect(valg.map((v) => v.value)).toEqual(["green", "yellow", "red", "gray"]);
+    expect(valg.map((v) => v.tekst)).toEqual(["Godkjent", "Delvis godkjent", "Avvist", "Ikke behandlet"]);
   });
 });

@@ -1,10 +1,11 @@
 import { View, Text, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
-import { TRAFIKKLYS_VALG, ukjentTrafikklysVerdi } from "@sitedoc/shared";
+import { trafikklysOpsjoner, oversettStandardtekst, ukjentTrafikklysVerdi } from "@sitedoc/shared";
 import type { RapportObjektProps } from "./typer";
 
-// Fargeklasser per verdi — plattform-lokalt. Verdisett + etiketter bor i @sitedoc/shared
-// (TRAFIKKLYS_VALG), delt med web; her bor bare fargene.
+// Fargeklasser per verdi — plattform-lokalt. Verdisett + rekkefølge kommer fra feltets
+// `config.options` (via trafikklysOpsjoner) eller kanonisk sett — delt regel med web; her bor
+// bare fargene, nøklet på verdi.
 const FARGE: Record<string, { aktiv: string; inaktiv: string }> = {
   green: { aktiv: "bg-green-500", inaktiv: "bg-green-200" },
   yellow: { aktiv: "bg-yellow-400", inaktiv: "bg-yellow-200" },
@@ -12,16 +13,21 @@ const FARGE: Record<string, { aktiv: string; inaktiv: string }> = {
   gray: { aktiv: "bg-gray-400", inaktiv: "bg-gray-200" },
 };
 
-export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
+export function TrafikklysObjekt({ objekt, verdi, onEndreVerdi, leseModus }: RapportObjektProps) {
   const { t } = useTranslation();
   const valgtVerdi = typeof verdi === "string" ? verdi : null;
   const foreldreloes = ukjentTrafikklysVerdi(verdi);
 
+  // Feltets eget lyssett (delmengde/rekkefølge/egen etikett) når det finnes, ellers kanonisk.
+  const valg = trafikklysOpsjoner(objekt.config?.options);
+
   return (
     <View className="flex-row items-start gap-2 py-2">
-      {TRAFIKKLYS_VALG.map(({ value, i18nKey }) => {
+      {valg.map(({ value, tekst, erI18nNokkel }) => {
         const erValgt = valgtVerdi === value;
-        const farge = FARGE[value]!;
+        const farge = FARGE[value] ?? FARGE.gray!;
+        // Seedet standardtekst → oversett; firmaets egen streng → rå; kanonisk → i18n-nøkkel.
+        const label = erI18nNokkel ? t(tekst) : oversettStandardtekst(tekst, t) ?? tekst;
         return (
           // Trykkflate 44px høy (del6b hit-target); synlig prikk 24px + navnet UNDER (fabel-vedtak:
           // navnet vises alltid ved fargen — mobil hadde ingen tekst i det hele tatt).
@@ -37,7 +43,7 @@ export function TrafikklysObjekt({ verdi, onEndreVerdi, leseModus }: RapportObje
               <View className={`h-6 w-6 rounded-full ${erValgt ? farge.aktiv : farge.inaktiv} ${erValgt ? "border-2 border-gray-800" : ""}`} />
             </View>
             <Text className={`text-center text-[10px] leading-tight ${erValgt ? "font-medium text-gray-800" : "text-gray-500"}`}>
-              {t(i18nKey)}
+              {label}
             </Text>
           </Pressable>
         );

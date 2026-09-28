@@ -467,3 +467,22 @@ eneste medlem er et skjult barn, viser en tom overskrift på skjerm (arkiv-PDF s
 **Ordrer skrevet før 2026-09-23 sier «bruk `forgrening`»** fordi `barnAv` ikke fantes. **Denne regelen går
 foran ordrens bokstav der de er i konflikt** — det gjelder UP-delingen, UM1 v2 og UM1.1. Utføreren melder i
 leveransen hvilken hjelper som ble brukt hvor, så fasiten viser det.
+
+### §1f. Trafikklys med valgbart lyssett (2026-09-27, STYRENDE)
+
+`traffic_light` er ÉN felttype med et valgbart lyssett. Feltets `config.options` bærer HVILKE av de fire
+kanoniske verdiene (`green`/`yellow`/`red`/`gray`) feltet tilbyr, i hvilken rekkefølge, med valgfri egen
+etikett per verdi. Uten `config.options` faller feltet til det kanoniske firelys-settet
+(Godkjent/Anmerkning/Avvik/Ikke relevant) — uendret.
+
+**Regel for mal-bygging:**
+- **Fargen følger verdien**, ikke etiketten — `green` er alltid grønn. Et tresett = fire kanoniske minus én
+  verdi, ALDRI en egen fargeliste. Utelates `gray` får du Godkjent/Anmerkning/Avvik.
+- **Egen etikett brukes kun når betydningen er en annen** (HMS-avvik: `red`=«Åpent», `green`=«Lukket»;
+  Godkjenning: `red`=«Avvist»). Er etiketten seedet standardtekst, oversettes den ved rendring; ellers vises
+  den rått som firmatekst. Nye seedede etiketter MÅ føres i `STANDARD_OPSJONER` (`standardtekster.ts`).
+- **Antallet er ikke låst til 3/4.** Validering (`mal.ts`) krever bare: hver verdi er én kanonisk nøkkel,
+  ingen duplikater, minst to lys. Et framtidig behov for to eller fem lys er ikke sperret (bruk-er-ikke-behov.md).
+- **Malbyggerens palett tilbyr to trafikklys-objekter** (tre lys / fire lys). Begge oppretter `traffic_light`
+  og skiller seg bare i seedet `options` — palett-valg, ikke typevalg, så et bytte er en config-endring som
+  endringsvernet fanger, ikke en slett+nyopprett.

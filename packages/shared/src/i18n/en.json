@@ -2399,6 +2399,8 @@
   "malbygger.enkeltvalg": "Single choice",
   "malbygger.flervalg": "Multiple choice",
   "malbygger.trafikklys": "Traffic light",
+  "malbygger.trafikklys3": "Traffic light (3 lights)",
+  "malbygger.trafikklys4": "Traffic light (4 lights)",
   "malbygger.heltall": "Integer",
   "malbygger.desimaltall": "Decimal",
   "malbygger.beregning": "Calculation",

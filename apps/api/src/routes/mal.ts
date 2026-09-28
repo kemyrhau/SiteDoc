@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
 import type { PrismaClient } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
+import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema, TRAFIKKLYS_VALG, normaliserOpsjon } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET, KUN_SLETTET } from "../utils/softDelete";
 import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
@@ -161,6 +161,40 @@ const configSchema = z.preprocess(
   (val) => val,
   z.record(z.string(), z.unknown()),
 ) as z.ZodType<Record<string, unknown>>;
+
+// De fire kanoniske trafikklys-verdiene — ÉN kilde (TRAFIKKLYS_VALG i @sitedoc/shared). Fargene er
+// nøklet på disse i renderne; en verdi utenfor settet ville blitt et usynlig, fargeløst lys.
+const KANONISKE_TRAFIKKLYS_VERDIER = new Set<string>(TRAFIKKLYS_VALG.map((v) => v.value));
+
+/**
+ * Validerer et trafikklys-felts `config.options` (lyssett). Ett type-felt, valgbar delmengde:
+ * `options` bærer HVILKE av de kanoniske nøklene feltet tilbyr, i hvilken rekkefølge, med valgfri
+ * egen etikett. Antallet er BEVISST ikke låst til 3/4 (en hardkodet grense ville gjentatt feilen i
+ * `retningslinjer/bruk-er-ikke-behov.md`) — men et sett trenger minst to lys for å være et valg.
+ *
+ * Mangler `options` er gyldig: feltet faller til det kanoniske firelys-settet (uendret atferd).
+ */
+export function valideerTrafikklysConfig(config: Record<string, unknown> | undefined): void {
+  const options = config?.options;
+  if (options === undefined || options === null) return; // → kanonisk fallback
+  if (!Array.isArray(options)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Trafikklys-options må være en liste." });
+  }
+  if (options.length < 2) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Et trafikklys må ha minst to lys." });
+  }
+  const sett = new Set<string>();
+  for (const o of options) {
+    const { value } = normaliserOpsjon(o);
+    if (!KANONISKE_TRAFIKKLYS_VERDIER.has(value)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: `Ugyldig trafikklys-verdi «${value}».` });
+    }
+    if (sett.has(value)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: `Trafikklys-verdien «${value}» er oppgitt flere ganger.` });
+    }
+    sett.add(value);
+  }
+}
 
 // 🔴 ÉN EIER for lovlige (domain, subdomain)-par (svar-kontraktssak-domain-vs-subdomain
 // § 3). Valideringen leser DENNE, ikke en schema-kommentar som kan drifte. Neste leser
@@ -743,6 +777,7 @@ export const malRouter = router({
     .mutation(async ({ ctx, input }) => {
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.templateId }, select: { projectId: true } });
       await verifiserAdmin(ctx.userId, mal.projectId);
+      if (input.type === "traffic_light") valideerTrafikklysConfig(input.config);
       const { parentId, ...rest } = input;
       return ctx.prisma.reportObject.create({
         data: {
@@ -770,6 +805,7 @@ export const malRouter = router({
     .mutation(async ({ ctx, input }) => {
       const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
       await verifiserAdmin(ctx.userId, objekt.template.projectId);
+      if (objekt.type === "traffic_light" && input.config !== undefined) valideerTrafikklysConfig(input.config);
 
       // Endringsvern (2026-09-07): et krav som er MÅLT MOT i et aktivt dokument kan ikke endres —
       // ellers ville arkivet vist et annet krav enn det målingen ble vurdert mot (Kenneth-funn:

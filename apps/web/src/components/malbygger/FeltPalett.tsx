@@ -46,6 +46,17 @@ const SKJULT_PER_KATEGORI: Record<string, ReadonlySet<string>> = {
   oppgave: new Set(["repeater"]),
 };
 
+// §8: paletten tilbyr TO trafikklys — tre lys og fire lys. Begge oppretter `type: "traffic_light"`
+// og skiller seg bare i `config.options` de sås med (palett-valg, ikke typevalg). Firelys-settet er
+// META-defaulten uendret; treesettet er DEN SAMME lista minus `gray` — utledet, ikke en egen
+// hardkodet liste (bruk-er-ikke-behov.md). Etikettene beholdes så de gjenkjennes → i18n ved rendring.
+const trafikklysFireOptions = REPORT_OBJECT_TYPE_META.traffic_light.defaultConfig.options as { value: string }[];
+const trafikklysTreOptions = trafikklysFireOptions.filter((o) => o.value !== "gray");
+const TRAFIKKLYS_VARIANTER = [
+  { dragId: "palett-traffic_light-3", labelKey: "malbygger.trafikklys3", seedConfig: { options: trafikklysTreOptions } },
+  { dragId: "palett-traffic_light-4", labelKey: "malbygger.trafikklys4", seedConfig: { options: trafikklysFireOptions } },
+];
+
 export function FeltPalett({ psiModus, category }: { psiModus?: boolean; category?: string }) {
   const { t } = useTranslation();
   const skjultForKategori = category ? SKJULT_PER_KATEGORI[category] : undefined;
@@ -72,13 +83,24 @@ export function FeltPalett({ psiModus, category }: { psiModus?: boolean; categor
           <div key={kategori}>
             <p className="mb-1.5 text-xs font-medium text-gray-400">{label}</p>
             <div className="flex flex-col gap-1.5">
-              {typer.map((type) => (
-                <PalettElement
-                  key={type}
-                  type={type}
-                  meta={REPORT_OBJECT_TYPE_META[type]}
-                />
-              ))}
+              {typer.flatMap((type) =>
+                type === "traffic_light"
+                  ? TRAFIKKLYS_VARIANTER.map((variant) => (
+                      <PalettElement
+                        key={variant.dragId}
+                        type="traffic_light"
+                        meta={REPORT_OBJECT_TYPE_META.traffic_light}
+                        variant={variant}
+                      />
+                    ))
+                  : [
+                      <PalettElement
+                        key={type}
+                        type={type}
+                        meta={REPORT_OBJECT_TYPE_META[type]}
+                      />,
+                    ],
+              )}
             </div>
           </div>
         ))}

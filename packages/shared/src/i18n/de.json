@@ -2399,6 +2399,8 @@
   "malbygger.enkeltvalg": "Einzelauswahl",
   "malbygger.flervalg": "Multiple Choice",
   "malbygger.trafikklys": "Ampel",
+  "malbygger.trafikklys3": "Ampel (3 Lichter)",
+  "malbygger.trafikklys4": "Ampel (4 Lichter)",
   "malbygger.heltall": "Ganze Zahl",
   "malbygger.desimaltall": "Dezimal",
   "malbygger.beregning": "Berechnung",

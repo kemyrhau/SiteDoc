@@ -2399,6 +2399,8 @@
   "malbygger.enkeltvalg": "Jediný výběr",
   "malbygger.flervalg": "Vícenásobný výběr",
   "malbygger.trafikklys": "Semafor",
+  "malbygger.trafikklys3": "Semafor (3 světla)",
+  "malbygger.trafikklys4": "Semafor (4 světla)",
   "malbygger.heltall": "Celé číslo",
   "malbygger.desimaltall": "Desetinný",
   "malbygger.beregning": "Výpočet",

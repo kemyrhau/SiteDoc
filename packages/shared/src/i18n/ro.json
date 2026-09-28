@@ -2399,6 +2399,8 @@
   "malbygger.enkeltvalg": "O singură alegere",
   "malbygger.flervalg": "Alegere multiplă",
   "malbygger.trafikklys": "Semafor",
+  "malbygger.trafikklys3": "Semafor (3 lumini)",
+  "malbygger.trafikklys4": "Semafor (4 lumini)",
   "malbygger.heltall": "Întreg",
   "malbygger.desimaltall": "Zecimal",
   "malbygger.beregning": "Calcul",
