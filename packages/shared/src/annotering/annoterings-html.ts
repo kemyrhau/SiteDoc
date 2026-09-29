@@ -20,7 +20,8 @@ import {
   ANNOTERING_REFERANSE_BREDDE,
   ANNOTERING_BASIS_STREK,
   ANNOTERING_BASIS_FONT,
-  ANNOTERING_BASIS_KONTRAST,
+  ANNOTERING_KONTRAST_FRAKSJON,
+  ANNOTERING_TEKST_KANT_FRAKSJON,
 } from "./lag";
 
 export const ANNOTERINGS_HTML = `<!DOCTYPE html>
@@ -46,22 +47,24 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   var startPunkt = null;
   var forhandsvisning = null;
   // Farger og basis-tall interpoleres fra @sitedoc/shared lag.ts (én kilde, samme
-  // mønster som bro-betingelsene). Kalibrert på referanse-canvas (mobil ~390px):
-  // strek/font/kontrastkant skaleres lineært med canvas-bredden så den VISUELLE andelen
-  // av bildet er lik på tvers av skjermer. Skala-formelen og skalert*/formKontrastStil/
-  // tekstKontrastStil i lag.ts er de testbare tvillingene.
+  // mønster som bro-betingelsene). Strek/font vokser SUB-LINEÆRT (kvadratrot) med
+  // canvas-bredden fra referanse-canvas (mobil ~390px) — lineær ble for tykk på stor
+  // web-canvas. Kontrastkanten er en andel av streken, ikke et fast tillegg. Skala-formelen
+  // og skalert*/formKontrastStil/formLagBeskrivelse/tekstKontrastStil i lag.ts er tvillingene.
   var STREK_FARGE = '${ANNOTERING_STREK_FARGE}';
   var KONTRAST_FARGE = '${ANNOTERING_KONTRAST_FARGE}';
   var REFERANSE_BREDDE = ${ANNOTERING_REFERANSE_BREDDE};
   var BASIS_STREK = ${ANNOTERING_BASIS_STREK};
   var BASIS_FONT = ${ANNOTERING_BASIS_FONT};
-  var BASIS_KONTRAST = ${ANNOTERING_BASIS_KONTRAST};
+  var KONTRAST_FRAKSJON = ${ANNOTERING_KONTRAST_FRAKSJON};
+  var TEKST_KANT_FRAKSJON = ${ANNOTERING_TEKST_KANT_FRAKSJON};
   var objekter = [];
 
-  function naaSkala() { return (canvas && canvas.width > 0) ? (canvas.width / REFERANSE_BREDDE) : 1; }
+  function naaSkala() { return (canvas && canvas.width > 0) ? Math.sqrt(canvas.width / REFERANSE_BREDDE) : 1; }
   function strekBredde() { return BASIS_STREK * naaSkala(); }
   function fontStr() { return BASIS_FONT * naaSkala(); }
-  function kontrastKant() { return BASIS_KONTRAST * naaSkala(); }
+  function kontrastKant() { return strekBredde() * KONTRAST_FRAKSJON; }
+  function tekstKant() { return fontStr() * TEKST_KANT_FRAKSJON; }
 
   // Toveis bro: RN-WebView bruker window.ReactNativeWebView.postMessage,
   // web-iframe bruker window.parent.postMessage. Samme kall begge steder.
@@ -95,6 +98,15 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       // 'draw' = frihånd (Fabric eier dragen). 'select' = flytt eksisterende
       // objekt (Fabric eier selection/drag) — vi skal IKKE lage en ny form.
       if (aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
+      // 'text' = skriv rett på bildet: klikk på tom flate legger en IText og går
+      // rett i redigering (ingen modal, ingen meldingsrunde). Klikk på eksisterende
+      // objekt lar Fabric håndtere det (velg/rediger tekst ved nytt klikk).
+      if (aktivtVerktoy === 'text') {
+        if (opt.target) return;
+        var tp = canvas.getPointer(opt.e);
+        lagTekst(tp.x, tp.y);
+        return;
+      }
       var pointer = canvas.getPointer(opt.e);
       startPunkt = { x: pointer.x, y: pointer.y };
     });
@@ -125,25 +137,7 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       var avstand = Math.sqrt(dx * dx + dy * dy);
 
       if (avstand < 5) {
-        if (aktivtVerktoy === 'text') {
-          var aktiv = canvas.getActiveObject();
-          if (aktiv && aktiv.type === 'text') {
-            // Trykk på eksisterende tekst → rediger
-            var idx = objekter.indexOf(aktiv);
-            postTilVert({
-              type: 'redigerTekst',
-              tekst: aktiv.text,
-              indeks: idx,
-            });
-          } else if (!aktiv) {
-            // Trykk på tom flate → ny tekst
-            postTilVert({
-              type: 'tekstInput',
-              x: startPunkt.x,
-              y: startPunkt.y,
-            });
-          }
-        }
+        // Tekst håndteres i mouse:down (IText direkte på canvas) — ingen tap-logikk her.
         startPunkt = null;
         return;
       }
@@ -153,6 +147,18 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       if (form) { canvas.add(form); objekter.push(form); canvas.renderAll(); }
 
       startPunkt = null;
+    });
+
+    // Avsluttet tekstredigering uten innhold → fjern den tomme IText-en (erstatter den
+    // gamle «tom tekst = slett»-logikken som gikk over broen).
+    canvas.on('text:editing:exited', function(e) {
+      var o = e.target;
+      if (o && (!o.text || !o.text.trim())) {
+        var idx = objekter.indexOf(o);
+        if (idx >= 0) objekter.splice(idx, 1);
+        canvas.remove(o);
+        canvas.renderAll();
+      }
     });
 
     postTilVert({ type: 'klar' });
@@ -187,6 +193,10 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     ], { selectable: false, evented: false });
   }
 
+  // 🔴 Posisjonér etter SENTER (originX/originY 'center'), ikke hjørnet. I Fabric er
+  // left/top hjørnet av omslutningsboksen INKLUDERT strek — to former med samme hjørne
+  // men ulik strokeWidth blir forskjøvet med halve strekdifferansen (funn 2). Med felles
+  // senter er hvit og rød konsentriske uansett strekbredde. TVILLING: formLagBeskrivelse.
   function byggSirkel(fra, til) {
     var s = strekBredde();
     var k = kontrastKant();
@@ -197,7 +207,8 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     var cy = (fra.y + til.y) / 2;
     function ring(farge, bredde) {
       return new fabric.Circle({
-        left: cx - radius, top: cy - radius, radius: radius,
+        originX: 'center', originY: 'center',
+        left: cx, top: cy, radius: radius,
         fill: 'transparent', stroke: farge, strokeWidth: bredde,
         selectable: false, evented: false,
       });
@@ -210,13 +221,14 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   function byggFirkant(fra, til) {
     var s = strekBredde();
     var k = kontrastKant();
-    var x = Math.min(fra.x, til.x);
-    var y = Math.min(fra.y, til.y);
+    var cx = (fra.x + til.x) / 2;
+    var cy = (fra.y + til.y) / 2;
     var w = Math.abs(til.x - fra.x);
     var h = Math.abs(til.y - fra.y);
     function boks(farge, bredde) {
       return new fabric.Rect({
-        left: x, top: y, width: w, height: h,
+        originX: 'center', originY: 'center',
+        left: cx, top: cy, width: w, height: h,
         fill: 'transparent', stroke: farge, strokeWidth: bredde,
         selectable: false, evented: false,
       });
@@ -235,9 +247,12 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     }
   }
 
-  // Plasser tekst på canvas etter bruker har skrevet teksten i modal
-  window.plasserTekst = function(tekst, x, y) {
-    var tekstObj = new fabric.Text(tekst, {
+  // Tekst skrives DIREKTE på bildet: en fabric.IText legges der brukeren klikker og går
+  // rett i redigeringsmodus. Ingen modal, ingen meldingsrunde over broen — brukeren ser
+  // teksten slik sluttproduktet blir, mens han skriver. Hvit outline (paintFirst 'stroke')
+  // gir samme kontrast som formene. Tom tekst ved avsluttet redigering fjernes (se init).
+  function lagTekst(x, y) {
+    var tekstObj = new fabric.IText('', {
       left: x,
       top: y,
       fontSize: fontStr(),
@@ -245,8 +260,9 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       fill: STREK_FARGE,
       fontFamily: 'Arial',
       stroke: KONTRAST_FARGE,
-      strokeWidth: kontrastKant(),
+      strokeWidth: tekstKant(),
       paintFirst: 'stroke',
+      editable: true,
       selectable: true,
       evented: true,
       hasControls: false,
@@ -260,22 +276,10 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     canvas.add(tekstObj);
     objekter.push(tekstObj);
     canvas.setActiveObject(tekstObj);
+    tekstObj.enterEditing();
+    if (tekstObj.hiddenTextarea) tekstObj.hiddenTextarea.focus();
     canvas.renderAll();
-  };
-
-  window.oppdaterTekst = function(indeks, tekst) {
-    if (indeks >= 0 && indeks < objekter.length && objekter[indeks].type === 'text') {
-      if (!tekst) {
-        // Tom tekst → slett objektet
-        canvas.remove(objekter[indeks]);
-        objekter.splice(indeks, 1);
-      } else {
-        objekter[indeks].set('text', tekst);
-      }
-      canvas.discardActiveObject();
-      canvas.renderAll();
-    }
-  };
+  }
 
   // Lagre originalt bildestørrelse for eksport i korrekt oppløsning
   var originalBredde = 0;
@@ -297,7 +301,9 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   // Gjør ETT gjeninnlastet objekt flyttbart eller låst avhengig av modus. Tekst er
   // alltid flyttbar (som ved tegning). Kalles ved lag-innlasting og ved verktøybytte.
   function settFlyttbar(o, flyttbar) {
-    if (o.type === 'text') return;
+    // Tekst (fabric.IText → type 'i-text', eldre lag kan ha 'text') er alltid interaktiv
+    // så den kan flyttes og redigeres uansett verktøy.
+    if (o.type === 'text' || o.type === 'i-text') return;
     o.set({ selectable: flyttbar, evented: flyttbar });
   }
 
@@ -408,8 +414,6 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
         case 'velgVerktoy': velgVerktoy(data.verktoy); break;
         case 'angre': angre(); break;
         case 'lagre': lagre(); break;
-        case 'plasserTekst': plasserTekst(data.tekst, data.x, data.y); break;
-        case 'oppdaterTekst': oppdaterTekst(data.indeks, data.tekst); break;
       }
     } catch(err) {}
   }

@@ -43,12 +43,6 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
   const [erKlar, settErKlar] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Tekst-input state (speiler mobil: trykk tom flate → skriv, trykk tekst → rediger)
-  const [visTekstModal, settVisTekstModal] = useState(false);
-  const [tekstVerdi, settTekstVerdi] = useState("");
-  const [tekstPosisjon, settTekstPosisjon] = useState({ x: 0, y: 0 });
-  const [redigerIndeks, settRedigerIndeks] = useState<number | null>(null);
-
   const sendMelding = useCallback((melding: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(JSON.stringify(melding), "*");
   }, []);
@@ -96,15 +90,6 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
         })();
       } else if (data.type === "ferdig" && typeof data.dataUrl === "string") {
         onFerdigRef.current(data.dataUrl, data.lag as AnnoteringsLag);
-      } else if (data.type === "tekstInput") {
-        settTekstPosisjon({ x: Number(data.x), y: Number(data.y) });
-        settTekstVerdi("");
-        settRedigerIndeks(null);
-        settVisTekstModal(true);
-      } else if (data.type === "redigerTekst") {
-        settTekstVerdi(String(data.tekst ?? ""));
-        settRedigerIndeks(Number(data.indeks));
-        settVisTekstModal(true);
       }
     };
     window.addEventListener("message", håndterMelding);
@@ -118,25 +103,6 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
     },
     [sendMelding],
   );
-
-  const håndterTekstBekreft = useCallback(() => {
-    const trimmet = tekstVerdi.trim();
-    if (redigerIndeks != null) {
-      // Tom tekst = slett (HTML-en håndterer det)
-      sendMelding({ type: "oppdaterTekst", indeks: redigerIndeks, tekst: trimmet });
-    } else if (trimmet) {
-      sendMelding({ type: "plasserTekst", tekst: trimmet, x: tekstPosisjon.x, y: tekstPosisjon.y });
-    }
-    settVisTekstModal(false);
-    settTekstVerdi("");
-    settRedigerIndeks(null);
-  }, [tekstVerdi, tekstPosisjon, redigerIndeks, sendMelding]);
-
-  const håndterTekstAvbryt = useCallback(() => {
-    settVisTekstModal(false);
-    settTekstVerdi("");
-    settRedigerIndeks(null);
-  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
@@ -199,42 +165,6 @@ export function BildeAnnotering({ bildeUrl, lag, onFerdig, onAvbryt }: BildeAnno
           <span className="mt-0.5 text-[10px] text-gray-400">{t("annotering.angre")}</span>
         </button>
       </div>
-
-      {/* Tekst-input modal */}
-      {visTekstModal && (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60">
-          <button type="button" className="absolute inset-0 cursor-default" onClick={håndterTekstAvbryt} />
-          <div className="mx-6 w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">
-              {redigerIndeks != null ? t("annotering.redigerTekst") : t("annotering.skrivInnTekst")}
-            </h3>
-            <textarea
-              autoFocus
-              value={tekstVerdi}
-              onChange={(e) => settTekstVerdi(e.target.value)}
-              placeholder={t("annotering.tekstPlaceholder")}
-              rows={3}
-              className="mb-4 min-h-[80px] w-full resize-none rounded-lg border border-gray-300 bg-gray-50 p-3 text-base text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none"
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={håndterTekstAvbryt}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-              >
-                {t("handling.avbryt")}
-              </button>
-              <button
-                type="button"
-                onClick={håndterTekstBekreft}
-                className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                {t("handling.leggTil")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

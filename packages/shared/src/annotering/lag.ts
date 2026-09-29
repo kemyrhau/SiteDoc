@@ -48,13 +48,14 @@ function somTall(v: unknown, standard: number): number {
 }
 
 /**
- * Kalibrerings-canvas (mobil ~390px display-piksler) der strek/font/kontrastkant ble
- * kalibrert. Strek og tekst skal ha samme VISUELLE andel av bildet uansett skjerm — men
- * canvas-bredden varierer (mobil ~390px, web opptil ~1160px). Derfor skaleres de lineært
- * mot denne referansen: en 3px strek på 390px-canvas og en ~9px strek på 1163px-canvas
- * dekker samme andel av bildet, og eksporteres til samme antall piksler på originalbildet.
+ * Kalibrerings-canvas (mobil ~390px display-piksler) der strek/font ble kalibrert.
+ * Strek og tekst skal vokse med canvas-bredden (mobil ~390px, web opptil ~1160px), men
+ * IKKE lineært: lineær skalering ga proporsjonalt lik strek, og på en stor web-canvas
+ * ble den for tykk (Kenneth så det på et stort bilde 2026-09-29). Derfor SUB-LINEÆR —
+ * kvadratrot av bredde-forholdet: streken vokser saktere enn canvas.
+ *   390px → 3,0px · 1163px → ~5,2px  (lineær ga ~9px)
  *
- * 🔴 TVILLING: `annoterings-html.ts` inliner nøyaktig disse tallene og formelen (HTML-strengen
+ * 🔴 TVILLING: `annoterings-html.ts` inliner nøyaktig disse tallene og formlene (HTML-strengen
  * kan ikke importere). Endres en verdi eller formelen her, skal den endres begge steder.
  * Denne kopien er den enhets-testbare — HTML-en er ikke.
  */
@@ -63,12 +64,14 @@ export const ANNOTERING_REFERANSE_BREDDE = 390;
 export const ANNOTERING_BASIS_STREK = 3;
 /** Tekst-fontstørrelse på referanse-canvas. */
 export const ANNOTERING_BASIS_FONT = 14;
-/** Hvit kontrastkant per side (og tekst-outline) på referanse-canvas. */
-export const ANNOTERING_BASIS_KONTRAST = 2;
+/** Hvit kontrastkant per side som ANDEL av den røde streken (ikke fast tillegg). */
+export const ANNOTERING_KONTRAST_FRAKSJON = 0.3;
+/** Tekst-outline som ANDEL av fontstørrelsen. */
+export const ANNOTERING_TEKST_KANT_FRAKSJON = 0.1;
 
-/** Lineær skala fra referanse-canvas til gjeldende canvas-bredde. */
+/** Sub-lineær skala (kvadratrot) fra referanse-canvas til gjeldende canvas-bredde. */
 export function annoteringSkala(canvasBredde: number): number {
-  return canvasBredde > 0 ? canvasBredde / ANNOTERING_REFERANSE_BREDDE : 1;
+  return canvasBredde > 0 ? Math.sqrt(canvasBredde / ANNOTERING_REFERANSE_BREDDE) : 1;
 }
 
 /** Rød strekbredde for en gitt canvas-bredde. */
@@ -81,9 +84,14 @@ export function skalertFont(canvasBredde: number): number {
   return ANNOTERING_BASIS_FONT * annoteringSkala(canvasBredde);
 }
 
-/** Hvit kontrastkant per side for en gitt canvas-bredde. */
+/** Hvit kontrastkant per side for en form — andel av den røde streken, så halo og strek følges ad. */
 export function skalertKontrast(canvasBredde: number): number {
-  return ANNOTERING_BASIS_KONTRAST * annoteringSkala(canvasBredde);
+  return skalertStrek(canvasBredde) * ANNOTERING_KONTRAST_FRAKSJON;
+}
+
+/** Hvit tekst-outline — andel av fontstørrelsen. */
+export function skalertTekstKant(canvasBredde: number): number {
+  return skalertFont(canvasBredde) * ANNOTERING_TEKST_KANT_FRAKSJON;
 }
 
 /** Rød merkefarge og hvit kontrastfarge — interpoleres inn i HTML-en (én kilde). */
@@ -109,9 +117,36 @@ export function formKontrastStil(canvasBredde: number): {
 }
 
 /**
+ * Lag-beskrivelse for ÉN form: hvit og rød lag som skal være KONSENTRISKE. Feilen Kenneth
+ * så (2026-09-29) var at to former plassert etter hjørnet (`left = cx - radius`) med ulik
+ * strokeWidth ble forskjøvet med halve strekdifferansen — i Fabric er left/top hjørnet av
+ * omslutningsboksen INKLUDERT strek. Løsning: begge lag posisjoneres etter SENTER
+ * (`originX/originY: "center"` med senterkoordinatene), så de er konsentriske uansett
+ * strekbredde. Denne funksjonen holder invarianten (samme senter for begge) testbar.
+ *
+ * 🔴 TVILLING: `annoterings-html.ts` `byggSirkel`/`byggFirkant` bygger de samme to lagene
+ * med senter-origo. Endres origo-strategien her, endres den der.
+ */
+export function formLagBeskrivelse(
+  canvasBredde: number,
+  senterX: number,
+  senterY: number,
+): {
+  hvit: { originX: "center"; originY: "center"; left: number; top: number; stroke: string; strokeWidth: number };
+  rod: { originX: "center"; originY: "center"; left: number; top: number; stroke: string; strokeWidth: number };
+} {
+  const { rodStrek, hvitStrek } = formKontrastStil(canvasBredde);
+  const felles = { originX: "center" as const, originY: "center" as const, left: senterX, top: senterY };
+  return {
+    hvit: { ...felles, stroke: ANNOTERING_KONTRAST_FARGE, strokeWidth: hvitStrek },
+    rod: { ...felles, stroke: ANNOTERING_STREK_FARGE, strokeWidth: rodStrek },
+  };
+}
+
+/**
  * Kontraststil for tekst: hvit outline malt FØRST (`paintFirst: "stroke"`) så den røde
  * fyllfargen legger seg oppå — samme kontrastprinsipp som formene. Font og kant skalerer
- * med canvas. 🔴 TVILLING inlinet i `annoterings-html.ts` `plasserTekst`.
+ * med canvas. 🔴 TVILLING inlinet i `annoterings-html.ts` (`lagTekst` — IText direkte på canvas).
  */
 export function tekstKontrastStil(canvasBredde: number): {
   fontSize: number;
@@ -120,7 +155,7 @@ export function tekstKontrastStil(canvasBredde: number): {
 } {
   return {
     fontSize: skalertFont(canvasBredde),
-    hvitKant: skalertKontrast(canvasBredde),
+    hvitKant: skalertTekstKant(canvasBredde),
     paintFirst: "stroke",
   };
 }
