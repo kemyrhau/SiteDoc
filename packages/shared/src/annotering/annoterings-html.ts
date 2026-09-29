@@ -40,6 +40,8 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 
   // Toveis bro: RN-WebView bruker window.ReactNativeWebView.postMessage,
   // web-iframe bruker window.parent.postMessage. Samme kall begge steder.
+  // 🔴 TVILLING av postTilVert() i @sitedoc/shared bro.ts — grenvalget er testet
+  // der (WebKit/Safari treffer bare parent-grenen). Endres grenene, endres begge.
   function postTilVert(obj) {
     var melding = JSON.stringify(obj);
     if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {

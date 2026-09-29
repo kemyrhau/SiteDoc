@@ -5,3 +5,4 @@ export * from "./i18n";
 export * from "./standardtekster";
 export * from "./annotering/annoterings-html";
 export * from "./annotering/lag";
+export * from "./annotering/bro";
