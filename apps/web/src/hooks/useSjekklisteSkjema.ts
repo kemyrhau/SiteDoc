@@ -43,6 +43,7 @@ export interface UseSjekklisteSkjemaResultat {
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
+  oppdaterVedlegg: (objektId: string, vedleggId: string, patch: Partial<Vedlegg>) => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
   valideringsfeil: Record<string, string>;
   valider: () => boolean;
@@ -294,6 +295,29 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     [planleggLagring, sjekkliste, slettBildeMutation],
   );
 
+  // Oppdater ETT vedlegg in-place (bildeannotering: url/originalUrl/annotering).
+  // IKKE fjern+legg-til: fjernVedlegg sletter fila på server, som ville drept
+  // originalfotoet. Her patches feltene; originalfila på disk røres aldri.
+  const oppdaterVedlegg = useCallback(
+    (objektId: string, vedleggId: string, patch: Partial<Vedlegg>) => {
+      settFeltVerdier((prev) => {
+        const nåværende = prev[objektId] ?? TOM_FELTVERDI;
+        return {
+          ...prev,
+          [objektId]: {
+            ...nåværende,
+            vedlegg: nåværende.vedlegg.map((v) =>
+              v.id === vedleggId ? { ...v, ...patch } : v,
+            ),
+          },
+        };
+      });
+      endredeRef.current.add(objektId);
+      planleggLagring();
+    },
+    [planleggLagring],
+  );
+
   // Betinget synlighet — hele vurderingen (rekursjon, conditionActive, utenfor_krav) i én delt kilde.
   const erSynlig = useCallback(
     (objekt: RapportObjekt): boolean =>
@@ -381,6 +405,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     settKommentar,
     leggTilVedlegg,
     fjernVedlegg,
+    oppdaterVedlegg,
     erSynlig,
     valideringsfeil,
     valider,

@@ -55,6 +55,7 @@ export interface UseOppgaveSkjemaResultat {
   settKommentar: (objektId: string, kommentar: string) => void;
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
+  oppdaterVedlegg: (objektId: string, vedleggId: string, patch: Partial<Vedlegg>) => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
   /** Append-only: felt med eksisterende verdi er låst for verdi-endring */
   erFeltLåst: (objektId: string) => boolean;
@@ -332,6 +333,28 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     [planleggLagring, oppgave, slettBildeMutation],
   );
 
+  // Oppdater ETT vedlegg in-place (bildeannotering). IKKE fjern+legg-til:
+  // fjernVedlegg sletter fila på server, som ville drept originalfotoet.
+  const oppdaterVedlegg = useCallback(
+    (objektId: string, vedleggId: string, patch: Partial<Vedlegg>) => {
+      settFeltVerdier((prev) => {
+        const nåværende = prev[objektId] ?? TOM_FELTVERDI;
+        return {
+          ...prev,
+          [objektId]: {
+            ...nåværende,
+            vedlegg: nåværende.vedlegg.map((v) =>
+              v.id === vedleggId ? { ...v, ...patch } : v,
+            ),
+          },
+        };
+      });
+      endredeRef.current.add(objektId);
+      planleggLagring();
+    },
+    [planleggLagring],
+  );
+
   // Betinget synlighet — hele vurderingen (rekursjon, conditionActive, utenfor_krav) i én delt kilde.
   const erSynlig = useCallback(
     (objekt: RapportObjekt): boolean =>
@@ -407,6 +430,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     settKommentar,
     leggTilVedlegg,
     fjernVedlegg,
+    oppdaterVedlegg,
     erSynlig,
     erFeltLåst,
     valideringsfeil,

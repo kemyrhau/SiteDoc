@@ -1,3 +1,20 @@
+// Delt tegnemotor for bildeannotering (mobil + web). ÉN kilde — ikke kopier.
+//
+// Mobil laster denne som `WebView source={{ html }}` (RN-WebView-bro:
+// window.ReactNativeWebView). Web laster den som `<iframe srcDoc={...}>`
+// (iframe-bro: window.parent.postMessage). Broen er derfor TOVEIS og
+// selv-detekterende — ÉN implementasjon, ingen to grener som drifter.
+//
+// Fabric.js lastes fra CDN (cdnjs). Web-appen setter ingen CSP-header
+// (next.config.js: kun HSTS + X-Frame-Options), så CDN-en laster i begge
+// flater fra nøyaktig samme <script src> — én kilde, ikke to.
+//
+// Eksport: JPEG q0.92 med hvit bakgrunn (IKKE PNG — PNG q1 av et foto blir
+// 3–4 MB; målt 2026-08-26, BACKLOG-772). q0.92 ligger over Chromiums
+// 4:4:4-terskel (~0.9); lavere flipper til chroma-subsampling som gjør
+// 3px røde streker uleselige.
+import { BRO_RN_BETINGELSE, BRO_IFRAME_BETINGELSE } from "./bro";
+
 export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <html>
 <head>
@@ -23,6 +40,19 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   var STREK_BREDDE = 3;
   var objekter = [];
 
+  // Toveis bro: RN-WebView bruker window.ReactNativeWebView.postMessage,
+  // web-iframe bruker window.parent.postMessage. Samme kall begge steder.
+  // 🔴 TVILLING av postTilVert() i @sitedoc/shared bro.ts — grenvalget er testet
+  // der (WebKit/Safari treffer bare parent-grenen). Endres grenene, endres begge.
+  function postTilVert(obj) {
+    var melding = JSON.stringify(obj);
+    if (${BRO_RN_BETINGELSE}) {
+      window.ReactNativeWebView.postMessage(melding);
+    } else if (${BRO_IFRAME_BETINGELSE}) {
+      window.parent.postMessage(melding, '*');
+    }
+  }
+
   function init() {
     var container = document.getElementById('canvas-container');
     var w = container.clientWidth;
@@ -39,13 +69,15 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     canvas.freeDrawingBrush.width = STREK_BREDDE;
 
     canvas.on('mouse:down', function(opt) {
-      if (aktivtVerktoy === 'draw') return;
+      // 'draw' = frihånd (Fabric eier dragen). 'select' = flytt eksisterende
+      // objekt (Fabric eier selection/drag) — vi skal IKKE lage en ny form.
+      if (aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
       var pointer = canvas.getPointer(opt.e);
       startPunkt = { x: pointer.x, y: pointer.y };
     });
 
     canvas.on('mouse:up', function(opt) {
-      if (!startPunkt || aktivtVerktoy === 'draw') return;
+      if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
       var pointer = canvas.getPointer(opt.e);
       var endPunkt = { x: pointer.x, y: pointer.y };
 
@@ -59,18 +91,18 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
           if (aktiv && aktiv.type === 'text') {
             // Trykk på eksisterende tekst → rediger
             var idx = objekter.indexOf(aktiv);
-            window.ReactNativeWebView.postMessage(JSON.stringify({
+            postTilVert({
               type: 'redigerTekst',
               tekst: aktiv.text,
               indeks: idx,
-            }));
+            });
           } else if (!aktiv) {
             // Trykk på tom flate → ny tekst
-            window.ReactNativeWebView.postMessage(JSON.stringify({
+            postTilVert({
               type: 'tekstInput',
               x: startPunkt.x,
               y: startPunkt.y,
-            }));
+            });
           }
         }
         startPunkt = null;
@@ -87,7 +119,7 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       startPunkt = null;
     });
 
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'klar' }));
+    postTilVert({ type: 'klar' });
   }
 
   function leggTilPil(fra, til) {
@@ -215,7 +247,27 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   var originalBredde = 0;
   var originalHoyde = 0;
 
-  window.settBilde = function(bildeUrl) {
+  // Reskaler ett serialisert objekt fra sitt lagrede koordinatsystem til gjeldende
+  // canvas. 🔴 TVILLING av reskalerLagObjekt() i @sitedoc/shared lag.ts — HTML-strengen
+  // kan ikke importere; endres formelen der, endres den her. Den delte er testbar.
+  function reskalerObjekt(o, ratio) {
+    o.set({
+      left: (typeof o.left === 'number' ? o.left : 0) * ratio,
+      top: (typeof o.top === 'number' ? o.top : 0) * ratio,
+      scaleX: (typeof o.scaleX === 'number' ? o.scaleX : 1) * ratio,
+      scaleY: (typeof o.scaleY === 'number' ? o.scaleY : 1) * ratio,
+    });
+    o.setCoords();
+  }
+
+  // Gjør ETT gjeninnlastet objekt flyttbart eller låst avhengig av modus. Tekst er
+  // alltid flyttbar (som ved tegning). Kalles ved lag-innlasting og ved verktøybytte.
+  function settFlyttbar(o, flyttbar) {
+    if (o.type === 'text') return;
+    o.set({ selectable: flyttbar, evented: flyttbar });
+  }
+
+  window.settBilde = function(bildeUrl, lag) {
     fabric.Image.fromURL(bildeUrl, function(img) {
       originalBredde = img.width;
       originalHoyde = img.height;
@@ -241,14 +293,39 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
         selectable: false,
         evented: false,
       });
-      canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+      canvas.setBackgroundImage(img, function() {
+        // Lag-innlasting (redigerbar annotering): enlivenObjects legger objektene
+        // OPPÅ bakgrunnen uten å røre den (loadFromJSON ville tømt canvas). Reskaler
+        // fra lagret canvas-bredde til gjeldende — et lag laget på en annen skjerm
+        // (mobil↔web) må treffe riktig. Objektene starter låst (matcher default-verktøyet);
+        // Velg-verktøyet slår på flytting.
+        if (lag && lag.objekter && lag.objekter.length && fabric.util && fabric.util.enlivenObjects) {
+          var ratio = lag.bredde > 0 ? (canvas.width / lag.bredde) : 1;
+          fabric.util.enlivenObjects(lag.objekter, function(gjenskapte) {
+            gjenskapte.forEach(function(o) {
+              reskalerObjekt(o, ratio);
+              settFlyttbar(o, aktivtVerktoy === 'select');
+              canvas.add(o);
+              objekter.push(o);
+            });
+            canvas.renderAll();
+          });
+        } else {
+          canvas.renderAll();
+        }
+      });
     });
   };
 
   window.velgVerktoy = function(verktoy) {
     aktivtVerktoy = verktoy;
     canvas.isDrawingMode = (verktoy === 'draw');
-    canvas.discardActiveObject();
+    var iVelg = (verktoy === 'select');
+    // Marquee-selection og objekt-flytting kun i Velg-modus; ellers låst så
+    // tegne-verktøyene ikke plukker opp et objekt i stedet for å tegne.
+    canvas.selection = iVelg;
+    objekter.forEach(function(o) { settFlyttbar(o, iVelg); });
+    if (!iVelg) canvas.discardActiveObject();
     canvas.renderAll();
   };
 
@@ -273,14 +350,24 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     canvas.backgroundColor = '#ffffff';
     canvas.renderAll();
     var dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: multiplier });
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ferdig', dataUrl: dataUrl }));
+
+    // Annotasjonslaget UT sammen med den utflatede JPEG-en (tre-artefakt-modellen):
+    // objektene som DATA (uten bakgrunnsbildet — det er originalen, lagret separat),
+    // pluss canvas-dimensjonene og Fabric-versjonen (redigerbarhet + framtidssikring).
+    var lag = {
+      fabricVersion: fabric.version,
+      bredde: canvas.width,
+      hoyde: canvas.height,
+      objekter: objekter.map(function(o) { return o.toObject(); }),
+    };
+    postTilVert({ type: 'ferdig', dataUrl: dataUrl, lag: lag });
   };
 
-  document.addEventListener('message', function(e) {
+  function håndterVertMelding(e) {
     try {
       var data = JSON.parse(e.data);
       switch (data.type) {
-        case 'settBilde': settBilde(data.bildeUrl); break;
+        case 'settBilde': settBilde(data.bildeUrl, data.lag); break;
         case 'velgVerktoy': velgVerktoy(data.verktoy); break;
         case 'angre': angre(); break;
         case 'lagre': lagre(); break;
@@ -288,21 +375,11 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
         case 'oppdaterTekst': oppdaterTekst(data.indeks, data.tekst); break;
       }
     } catch(err) {}
-  });
+  }
 
-  window.addEventListener('message', function(e) {
-    try {
-      var data = JSON.parse(e.data);
-      switch (data.type) {
-        case 'settBilde': settBilde(data.bildeUrl); break;
-        case 'velgVerktoy': velgVerktoy(data.verktoy); break;
-        case 'angre': angre(); break;
-        case 'lagre': lagre(); break;
-        case 'plasserTekst': plasserTekst(data.tekst, data.x, data.y); break;
-        case 'oppdaterTekst': oppdaterTekst(data.indeks, data.tekst); break;
-      }
-    } catch(err) {}
-  });
+  // document: RN-WebView (Android) · window: RN-WebView (iOS) + web-iframe.
+  document.addEventListener('message', håndterVertMelding);
+  window.addEventListener('message', håndterVertMelding);
 
   init();
 })();

@@ -194,6 +194,7 @@ export default function SjekklisteDetaljSide() {
     settKommentar,
     leggTilVedlegg,
     fjernVedlegg,
+    oppdaterVedlegg,
     erSynlig,
     valideringsfeil,
     erRedigerbar,
@@ -1078,6 +1079,7 @@ export default function SjekklisteDetaljSide() {
                 onEndreKommentar={(k) => settKommentar(objekt.id, k)}
                 onLeggTilVedlegg={(v) => leggTilVedlegg(objekt.id, v)}
                 onFjernVedlegg={(id) => fjernVedlegg(objekt.id, id)}
+                onOppdaterVedlegg={(id, patch) => oppdaterVedlegg(objekt.id, id, patch)}
                 leseModus={leseModus}
                 nestingNivå={nestingNivå}
                 valideringsfeil={valideringsfeil[objekt.id]}

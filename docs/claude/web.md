@@ -350,6 +350,19 @@ Mobilappen bruker `hentStatusHandlinger()` direkte — skal migreres til posisjo
 - Sletting fra vedlegg: fjerner fra `data`-JSON OG fra `images`-tabellen via `bilde.slettMedUrl`
 - Bilder med GPS men uten tegningskobling: plasseres via georeferanse-fallback i Rapportlokasjon-modus
 
+### Bildeannotering (web, 2026-09-29)
+
+Web-flaten kan annotere bilder — verktøy pil/sirkel/firkant/frihånd/tekst + **Flytt** (velg og dra eksisterende objekt). Inngang: «Annoter»-knappen i lightboxen (`FeltDokumentasjon.tsx`). Tegnemotoren er den DELTE HTML-en i `@sitedoc/shared` (`ANNOTERINGS_HTML`), lastet i en `<iframe srcDoc>` — samme motor som mobil bruker via WebView (se [shared-pakker.md § Bildeannotering](shared-pakker.md) + [mobil.md](mobil.md)).
+
+🔴 **Tre-artefakt-modellen (Kenneth-vedtak 2026-09-29) — originalen røres aldri:**
+- `Vedlegg.url` = utflatet JPEG (q0.92, hvit bakgrunn) — det som vises i lista/PDF/hos mottaker.
+- `Vedlegg.originalUrl` = bevart originalfoto, satt ÉN gang ved første annotering, deretter uendret (bevis).
+- `Vedlegg.annotering` = Fabric-laget som DATA (`AnnoteringsLag`) — objektene, canvas-dims og Fabric-versjonen. Lar annoteringen gjenåpnes og REDIGERES (pilen flyttes, ikke tegnes på nytt).
+
+Lagres via `oppdaterVedlegg` (in-place patch i `useSjekklisteSkjema`/`useOppgaveSkjema`/`RepeaterObjekt` — **aldri** fjern+legg-til, som ville slettet originalfila). Utflatet JPEG lastes opp som en NY fil (`/api/upload?privat=1`); `url` peker på den, `originalUrl` på originalen. Rene hjelpere + tester: `annotering-lag.ts` (+ `__tests__/annotering-lag.test.ts`, `feltdokumentasjon-annotering.test.tsx`). Koordinat-normalisering (lag laget på én skjermstørrelse åpnet på en annen) i `@sitedoc/shared` `reskalerLagObjekt` (tvilling inlinet i HTML-en).
+
+⚠️ **Bakover:** bilder annotert PÅ MOBIL (eller før denne runden) har `url` men intet lag → vises som flatt bilde, ikke redigerbart, ingen «kan redigeres»-indikator. Mobilens egen lag-runde kommer separat (offline-kø-risiko holdt utenfor denne gaten).
+
 ## Signert filservering — selvfornyelse (S1 Fase 1b)
 
 `/uploads/`-filer serveres bak en HMAC-signaturgate (default-deny, se [sikkerhet.md](sikkerhet.md)); hver `fileUrl` fra en tRPC-query er ALT signert ved emisjon (`?exp=&sig=`) med en begrenset levetid (`STANDARD_LEVETID_MS`). Klienten legger ALDRI signeringslogikk til — og kaller ALDRI en `fil.signer({ sti })`-prosedyre (den måtte autorisert stien selv → kryssfirma-orakel). To komponenter håndterer selvfornyelse når en signatur utløper, ved å invalidere tRPC-queriene DEBOUNCET (`lagInvalideringsDebounce`, delt i `@sitedoc/shared`) så serveren re-emitterer ferske signaturer gjennom en ALT autorisert vei:

@@ -1,3 +1,5 @@
+import type { AnnoteringsLag } from "@sitedoc/shared";
+
 export interface RapportObjekt {
   id: string;
   type: string;
@@ -113,6 +115,15 @@ export interface Vedlegg {
   // Løpende bildenummer per dokument, tildelt ved opptak (kun type "bilde").
   // Dokgen leser dette; mangler det, faller den tilbake til dokumentrekkefølge.
   bildeNr?: number;
+  // Bildeannotering — tre-artefakt-modellen (Kenneth-vedtak 2026-09-29):
+  //  - `url`         = det som VISES (utflatet JPEG etter annotering; originalbildet før).
+  //  - `originalUrl` = bevart originalfoto (settes ved FØRSTE annotering, deretter urørt).
+  //                    Bevisverdien består — originalfila overskrives aldri.
+  //  - `annotering`  = Fabric-laget som DATA, så annoteringen kan gjenåpnes og REDIGERES.
+  // Mangler `annotering` (historisk/mobil-annotert bilde): flatt bilde, ikke redigerbart,
+  // men vises som før. Feltnavnene deles med mobil (samme Checklist.data-blob).
+  originalUrl?: string;
+  annotering?: AnnoteringsLag;
 }
 
 export interface FeltVerdi {
