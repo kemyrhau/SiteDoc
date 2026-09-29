@@ -5,8 +5,10 @@ import {
   skalertStrek,
   skalertFont,
   skalertKontrast,
+  skalertTekstKant,
   annoteringSkala,
   formKontrastStil,
+  formLagBeskrivelse,
   tekstKontrastStil,
   ANNOTERING_STREK_FARGE,
   ANNOTERING_KONTRAST_FARGE,
@@ -63,31 +65,66 @@ describe("reskalerLagObjekt — koordinat-normalisering på tvers av skjermstør
 const MOBIL = 390;
 const WEB = 1163;
 
-describe("strek/font/kontrast skalerer med canvas-bredden (FUNN 1/3)", () => {
+describe("strek/font/kontrast skalerer SUB-LINEÆRT med canvas-bredden (FUNN 2 — for tykt)", () => {
+  const SQRT = Math.sqrt(WEB / MOBIL); // sub-lineær faktor, ~1.727
+
   // KRAV c.1 — assertert mot TO ulike canvas-bredder, ikke én.
-  it("strek er større på web-canvas enn på mobil-canvas, i samme forhold som bredden", () => {
+  it("strek vokser med canvas, men saktere enn lineært (kvadratrot)", () => {
     const mobil = skalertStrek(MOBIL);
     const web = skalertStrek(WEB);
     expect(mobil).toBe(3); // referanse-kalibrering bevart
     expect(web).toBeGreaterThan(mobil);
-    expect(web / mobil).toBeCloseTo(WEB / MOBIL, 10);
+    // Sub-lineær: forholdet er KVADRATROTEN av bredde-forholdet, ikke bredde-forholdet.
+    expect(web / mobil).toBeCloseTo(SQRT, 10);
+    expect(web / mobil).toBeLessThan(WEB / MOBIL); // strengt saktere enn lineær
+    expect(web).toBeCloseTo(5.18, 1); // ~5,2px på 1163px (lineær ga ~9px)
   });
 
-  it("font skalerer likt: 14px på mobil-referanse, proporsjonalt større på web", () => {
+  it("font skalerer sub-lineært: 14px på mobil, ~24px på web (ikke ~42px)", () => {
     expect(skalertFont(MOBIL)).toBe(14);
-    expect(skalertFont(WEB) / skalertFont(MOBIL)).toBeCloseTo(WEB / MOBIL, 10);
+    expect(skalertFont(WEB) / skalertFont(MOBIL)).toBeCloseTo(SQRT, 10);
+    expect(skalertFont(WEB)).toBeCloseTo(24.2, 1);
   });
 
-  it("kontrastkant skalerer også — 2px på mobil er usynlig på 1163px-canvas", () => {
-    expect(skalertKontrast(MOBIL)).toBe(2);
-    expect(skalertKontrast(WEB)).toBeGreaterThan(skalertKontrast(MOBIL));
-    expect(skalertKontrast(WEB) / skalertKontrast(MOBIL)).toBeCloseTo(WEB / MOBIL, 10);
+  it("kontrastkant er en ANDEL av streken (0,3 per side), ikke et fast tillegg", () => {
+    // 0,9px på mobil (3×0,3), ~1,55px på web (5,18×0,3) — tynn, følger streken.
+    expect(skalertKontrast(MOBIL)).toBeCloseTo(0.9, 5);
+    expect(skalertKontrast(WEB)).toBeCloseTo(1.55, 1);
+    expect(skalertKontrast(WEB) / skalertStrek(WEB)).toBeCloseTo(0.3, 5);
+  });
+
+  it("tekst-outline er en andel av fonten (0,1)", () => {
+    expect(skalertTekstKant(MOBIL)).toBeCloseTo(1.4, 5);
+    expect(skalertTekstKant(WEB) / skalertFont(WEB)).toBeCloseTo(0.1, 5);
   });
 
   it("ugyldig/null canvas-bredde faller tilbake til skala 1 (ingen deling på 0)", () => {
     expect(annoteringSkala(0)).toBe(1);
     expect(annoteringSkala(-5)).toBe(1);
     expect(skalertStrek(0)).toBe(3);
+  });
+});
+
+describe("hvit og rød form er KONSENTRISKE uansett strekbredde (FUNN 2, KRAV c.2)", () => {
+  it("begge lag deler nøyaktig senterkoordinater — ikke bare begge finnes", () => {
+    const { hvit, rod } = formLagBeskrivelse(WEB, 500, 320);
+    // Senteret er identisk (poenget: forskjøvet før, da de sto etter hjørnet).
+    expect(hvit.left).toBe(rod.left);
+    expect(hvit.top).toBe(rod.top);
+    expect(hvit.left).toBe(500);
+    expect(hvit.top).toBe(320);
+    // …og posisjonert etter senter, som gjør dem konsentriske uavhengig av strek.
+    expect(hvit.originX).toBe("center");
+    expect(hvit.originY).toBe("center");
+    expect(rod.originX).toBe("center");
+    expect(rod.originY).toBe("center");
+  });
+
+  it("senteret er likt SELV om strekbreddene er ulike (regresjonsvakt mot hjørne-forskyvning)", () => {
+    const { hvit, rod } = formLagBeskrivelse(WEB, 100, 100);
+    expect(hvit.strokeWidth).toBeGreaterThan(rod.strokeWidth); // ulik strek
+    expect(hvit.left).toBe(rod.left); // men samme senter
+    expect(hvit.top).toBe(rod.top);
   });
 });
 
@@ -138,7 +175,7 @@ describe("alle formtyper får hvit kontrastkant, ikke bare tekst (FUNN 4, KRAV c
     const web = tekstKontrastStil(WEB);
     expect(mobil.paintFirst).toBe("stroke");
     expect(mobil.fontSize).toBe(14);
-    expect(mobil.hvitKant).toBe(2);
+    expect(mobil.hvitKant).toBeCloseTo(1.4, 5); // 14 × 0,1
     expect(web.fontSize).toBeGreaterThan(mobil.fontSize);
     expect(web.hvitKant).toBeGreaterThan(mobil.hvitKant);
   });
