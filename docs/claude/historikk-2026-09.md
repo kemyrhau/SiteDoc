@@ -1833,5 +1833,18 @@ ikke blokkerte dem.
 
 **Regelen over plasserte `→ SiteDoc-<navn>` som første linje INNE i fencen.** Den løste ett problem — Kenneth limer ikke til feil terminal — og skapte et annet: **kopiknappen gir ham da destinasjonslinja i tillegg til ordren**, så han må markere manuelt i stedet for å trykke.
 
+**Belegg flyttet i passering 3c (§ Cowork STADFESTER gaten):**
 
+**Målt 2026-09-24:** `feat/uploads-signaturgate` @ `a7e9b63e` ble merget uten designgate. Ordren bar betingelsen, men merge kunne ikke prøve den, og leste den som kontekst. **Samme feilklasse som `0ab36a84`** — merge utløst av at branchen fantes, ikke av en gate-melding. 🟢 Konsekvens null: ingenting nådde `main`, verifisert med fire sjekker.
+
+
+
+  Brutt tre ganger: ukommittert edit referert i en ordre · hash committet etter at branchen var pushet
+  (to ganger). **Be aldri Kenneth pushe en branch cowork fortsatt skriver på.**
+
+  en annen branch, aldri som anslag. Brutt med `web +7` hentet fra en annen branch; merge brukte en
+  runde på å lete etter tre tester som aldri fantes.
+
+ Brutt for `0d20c9e9` og `e0820f46`: begge merget før gaten kom, og design fant etterpå et
+  ekte hull i `psi-feil.ts` som da alt sto på develop.
 

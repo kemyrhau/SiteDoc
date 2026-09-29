@@ -1026,8 +1026,6 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 
 **Merge-agenten kan ikke lese `relay/inbox-cowork.md`.** Den er coworks kanal. En merge-ordre som sier *«merg KUN hvis design har gatet den — står ingen gate i inbox: hopp over»* ber derfor om en verifisering agenten ikke har noen måte å utføre.
 
-**Målt 2026-09-24:** `feat/uploads-signaturgate` @ `a7e9b63e` ble merget uten designgate. Ordren bar betingelsen, men merge kunne ikke prøve den, og leste den som kontekst. **Samme feilklasse som `0ab36a84`** — merge utløst av at branchen fantes, ikke av en gate-melding. 🟢 Konsekvens null: ingenting nådde `main`, verifisert med fire sjekker.
-
 🔴 **Regelen:** cowork **stadfester** gaten i ordren, med sitat og linjenummer — *«Designgatet, inbox-cowork.md:3370»* — eller skriver at den **mangler** og gir ingen merge-kommando i det hele tatt. **En betingelse mottakeren ikke kan prøve, er ikke en gate. Den er en forventning.**
 
 ⚠️ **Generaliseringen er den nyttige:** et krav skal kunne oppfylles av den som får det. Kan mottakeren ikke måle betingelsen selv, må avsenderen ha målt den — ellers er kravet dekorasjon, som `cmd | grep | tail`-gaten som alltid returnerte 0.
@@ -1036,15 +1034,12 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 [STATUS-AKTUELT](STATUS-AKTUELT.md); her står bare kravet:**
 
 - **Hver hash i en ordre er verifisert på origin først** (`git ls-remote --heads origin <branch>`).
-  Brutt tre ganger: ukommittert edit referert i en ordre · hash committet etter at branchen var pushet
-  (to ganger). **Be aldri Kenneth pushe en branch cowork fortsatt skriver på.**
+  🔴 **Be aldri Kenneth pushe en branch cowork fortsatt skriver på.**
 - **Forventede gate-tall kommer fra leverandørens rapport på DEN branchen ordren gjelder** — aldri fra
-  en annen branch, aldri som anslag. Brutt med `web +7` hentet fra en annen branch; merge brukte en
-  runde på å lete etter tre tester som aldri fantes.
+  en annen branch, aldri som anslag.
 - **Gaten skal være I HÅNDEN før merge-ordren skrives.** Gate-forespørsel og merge-ordre går ikke i
   samme melding — Kenneth relayer til fire terminaler og kan ikke vite at blokk 2 forutsetter svar på
-  blokk 1. Brutt for `0d20c9e9` og `e0820f46`: begge merget før gaten kom, og design fant etterpå et
-  ekte hull i `psi-feil.ts` som da alt sto på develop.
+  blokk 1. ⚠️ **Merges den før gaten, kan design finne et ekte hull som da alt står på develop.**
 - **Hver merge-ordre bærer en forutsetningslinje som gjør den idempotent:**
   `git merge-base --is-ancestor <hash> origin/develop && echo "ALT MERGET — STOPP"`. **En duplisert
   ordre skal stoppe seg selv, ikke koste mottakeren en runde på å bevise at avsenderen gjentok seg.**
