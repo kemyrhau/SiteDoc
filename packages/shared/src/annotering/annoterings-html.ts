@@ -13,6 +13,8 @@
 // 3–4 MB; målt 2026-08-26, BACKLOG-772). q0.92 ligger over Chromiums
 // 4:4:4-terskel (~0.9); lavere flipper til chroma-subsampling som gjør
 // 3px røde streker uleselige.
+import { BRO_RN_BETINGELSE, BRO_IFRAME_BETINGELSE } from "./bro";
+
 export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <html>
 <head>
@@ -44,9 +46,9 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   // der (WebKit/Safari treffer bare parent-grenen). Endres grenene, endres begge.
   function postTilVert(obj) {
     var melding = JSON.stringify(obj);
-    if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+    if (${BRO_RN_BETINGELSE}) {
       window.ReactNativeWebView.postMessage(melding);
-    } else if (window.parent && window.parent !== window) {
+    } else if (${BRO_IFRAME_BETINGELSE}) {
       window.parent.postMessage(melding, '*');
     }
   }

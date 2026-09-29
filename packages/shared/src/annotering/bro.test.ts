@@ -1,5 +1,25 @@
 import { describe, it, expect, vi } from "vitest";
-import { postTilVert, type BroVindu } from "./bro";
+import { postTilVert, BRO_RN_BETINGELSE, BRO_IFRAME_BETINGELSE, type BroVindu } from "./bro";
+import { ANNOTERINGS_HTML } from "./annoterings-html";
+
+/**
+ * Tvilling-relasjonen HÅNDHEVES her (ikke bare dokumenteres): grenbetingelsene er
+ * konstanter, HTML-en BYGGES fra dem, og testen asserterer at HTML-en inneholder
+ * dem. Endres en betingelse i bro.ts, følger HTML-en automatisk; hardkodes en
+ * avvikende betingelse i HTML-en, feiler includes-asserten. Samme mekanisme som
+ * FABRIC_VERSJON.
+ */
+describe("bro-betingelser er ÉN kilde — HTML bygges fra konstantene", () => {
+  it("konstantene er pinnet til eksakt betingelsestekst (endring blir en bevisst handling)", () => {
+    expect(BRO_RN_BETINGELSE).toBe("window.ReactNativeWebView && window.ReactNativeWebView.postMessage");
+    expect(BRO_IFRAME_BETINGELSE).toBe("window.parent && window.parent !== window");
+  });
+
+  it("ANNOTERINGS_HTML inneholder begge betingelsene (HTML kan ikke drifte fra bro.ts)", () => {
+    expect(ANNOTERINGS_HTML).toContain(BRO_RN_BETINGELSE);
+    expect(ANNOTERINGS_HTML).toContain(BRO_IFRAME_BETINGELSE);
+  });
+});
 
 /**
  * Grenvalget i broen VELGES av miljøet. Disse testene beviser at riktig gren

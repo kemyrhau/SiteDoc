@@ -8,6 +8,15 @@
 // så uten denne testen er RN-veien refaktorert og ukjørt — og feilmodusen er
 // stille (annotering slutter å svare, ingen typefeil).
 
+// 🔴 ÉN KILDE for grenbetingelsene (samme mekanisme som FABRIC_VERSJON): disse
+// strengene BYGGER postTilVert i annoterings-html.ts (interpolert inn i HTML-en),
+// og `annoterings-html.test.ts` asserterer at HTML-en inneholder dem. Da kan ikke
+// HTML-grenen drifte fra denne fila uten at en test feiler — «holdes like» er
+// håndhevet, ikke bare dokumentert. Endres en betingelse, endres den HER, og både
+// HTML-en og pin-testen under følger.
+export const BRO_RN_BETINGELSE = "window.ReactNativeWebView && window.ReactNativeWebView.postMessage";
+export const BRO_IFRAME_BETINGELSE = "window.parent && window.parent !== window";
+
 /** Window-lignende objekt broen kan poste til. Løs form så testen kan stubbe det. */
 export interface BroVindu {
   ReactNativeWebView?: { postMessage?: (melding: string) => void };
