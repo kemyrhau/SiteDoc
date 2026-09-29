@@ -25,6 +25,36 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-09-29
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `1b7fc87b` | Bildevedlegg i sjekklister og oppgaver — **web** | **Ingen annotering i web.** Bildet kunne vises og slettes, ikke merkes. Nå: pil, sirkel, firkant, frihånd og tekst — og **Velg/Flytt**, så en pil kan dras i stedet for å tegnes på nytt | 🟢 Kenneth 2026-09-29, valgte «paritetsmåling + annotering i web i samme runde» |
+| `1b7fc87b` | Samme | Annoteringen lagres som et **redigerbart lag**, ikke brent inn i bildet. Tre artefakter: **originalen røres aldri** · Fabric-laget som data · utflatet JPEG for visning, PDF og mottaker | 🟢 Kenneth 2026-09-29: *«hvorfor kan vi ikke legge et eget lag på bildet → slik at anotering er redigerbart?»* |
+
+#### 🔴 KONSEKVENS DU SKAL KJENNE: flatene har nå ULIK ANGRERETT på samme handling
+
+**Web:** annoter → originalen består → åpne igjen → flytt pilen → angre helt.
+**Mobil:** annoter → **originalen erstattes permanent** (`FeltDokumentasjon.tsx:532`, siden 2026-08).
+
+⚠️ **Ingen ny skade — mobil har oppført seg slik siden annoteringen ble bygget, og web bryter ikke på
+mobil-annoterte bilder** (KRAV(c) test 4: de blir ikke-redigerbare, ikke ødelagte). 🔴 **Men fra og med
+denne mergen avhenger det av hvilken skjerm brukeren holder i hånda om han kan angre.** **Og piloten er
+mobil-først — altså den flaten som IKKE kan.**
+
+🟢 **Mobil-runden er avgrenset bevisst, ikke utsatt:** den endrer lagringsmodellen og rører
+**offline-køen**, som er den skjøreste flaten vi har («Mobil-appen MÅ fungere offline»). Den får egen
+gate. 🔴 **Og den er blokkert til simulatoren peker mot `api-test` i stedet for produksjon**
+([BACKLOG](BACKLOG.md)) — den runden trenger den innloggede in-app-flyten.
+
+#### 🟢 Sidefunn fra samme runde: annoteringen var aldri borte
+
+**Kenneth trodde funksjonen var forsvunnet fra sjekklister.** Målt: `FeltDokumentasjon.tsx` i web har
+**null treff på annotering i hele git-historikken.** Den har alltid vært mobil-only. 🟢 **Paritetsmålingen
+som fulgte:** 33 rapportobjekt-komponenter finnes i BEGGE trær — **24 i full paritet, 9 divergerer, 1 ren
+mangel.** ⚠️ **De ni er divergens fra parallell utvikling, ikke tap** — men listen bør vedlikeholdes, ikke
+lages én gang.
+
 ### 2026-09-27
 
 | Hash | Flate | Før → Etter | Hjemmel |
