@@ -133,6 +133,8 @@ psql -U kennethmyrhaug -d sitedoc -c "SELECT email, can_login FROM users WHERE e
 
 `pnpm dlx tsx scripts/annotering-prøvebenk.ts` (fra repo-rot) skriver den delte annoterings-HTML-en til `scripts/annotering-prøvebenk.local.html` (gitignorert) med filvelger + verktøyknapper. Åpne den i nettleser, velg et ekte bilde og juster skaleringen ved å endre vindusbredden. Rent utviklerverktøy — automatiserer ingenting.
 
+🔴 **Benken er for ØYNENE, ikke for en agent.** Den finnes for at Kenneth skal dømme tykkelse, kontrast og plassering på et ekte bilde i løpet av sekunder, i stedet for en merge-og-deploy-syklus pr. forsøk. **Den skal ikke drives av Playwright eller annen nettleserautomatisering.** ⚠️ **Målt to ganger 2026-09-29: forsøk på å automatisere den kostet 33 og 31 minutter og ga ingen resultater.** 🟢 **Skal et tall verifiseres, er det en funksjonstest** — forholdet mellom pilhode og strek er matematikk, ikke noe man klikker seg fram til. **Hvem som verifiserer hva: [SAMARBEIDSREGLER § En verifiseringsordre](SAMARBEIDSREGLER.md).**
+
 ## Historikk
 
 Oppsettet var **udokumentert til 2026-07-15**. Frem til da ble `AccessDenied` lest som et OAuth-problem, og `deploy-detaljer.md`-linjene `postgresql://kemyr:kemyr@localhost:5432/...` (som gjelder den **utgåtte WSL-serveren**, ikke Mac-en) ble feillest som lokal dev. Kartlagt via `lsof -i :5432` → `ps -p <pid> -o comm=` → Homebrew pg16. Lærdom: miljø-påstander verifiseres mot maskinen (`lsof`/`ps`), ikke mot docs eller hukommelse — samme regel som gjelder kode.

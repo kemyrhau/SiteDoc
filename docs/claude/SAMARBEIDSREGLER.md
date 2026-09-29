@@ -1048,6 +1048,18 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
   det virker», men «gjør DETTE, som får koden til å kjøre». **Finn hvilken prosedyre som kaller det som er
   fikset, og hva brukeren må GJØRE for å nå den.** ⚠️ **Står det ikke i ordren, er «det virker» en
   observasjon om cache, ikke om fiksen.**
+- 🔴 **Og den skal navngi HVEM som verifiserer.** Utelates det, antar agenten at det er ham — og da bygger
+  han et apparat. **Målt to ganger 2026-09-29: coworks «verifiser på benken» sendte redesign inn i
+  Playwright-harnesser, 33 og 31 minutter, begge ganger uten resultat.** ⚠️ **Første gang manglet det at
+  benken ikke fantes; andre gang at «på benken» betyr at KENNETH ser.**
+  **Tre kategorier, og ordren skal si hvilken:**
+  - **Et TALL eller en REGEL** → funksjonstest. **Ingen nettleser.** Forholdet hode:strek er matematikk og
+    måles ikke ved å klikke.
+  - **Et UTSEENDE** — tykkelse, kontrast, plassering, «ser det riktig ut» → **Kenneth, på benken eller i
+    appen.** 🔴 **Ikke automatiser et blikk.** Et verktøy som viser ham resultatet raskere er riktig; et
+    verktøy som later som det er ham, er ikke.
+  - **En FLYT agenten ikke kan nå** — opplasting, innlogging, enhet → **si det i rapporten i stedet for å
+    la gaten bære det.** 🟢 **«Dette kunne jeg ikke se» er en gyldig leveranse.**
 - 🔴 **Meld og mål på COMMIT-HASH, aldri på branchnavn.** `--is-ancestor origin/<branch>` feiler med
   exit≠0 når refen er slettet, og **en feilende kommando er umulig å skille fra et ekte «nei»**. Riktig
   form: `git merge-base --is-ancestor <hash> origin/develop`. ⚠️ **Navnet er for mennesker, hashen er det
