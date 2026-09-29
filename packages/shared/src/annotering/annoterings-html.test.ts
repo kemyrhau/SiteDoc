@@ -57,6 +57,19 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     expect(ANNOTERINGS_HTML).toContain("REFERANSE_BREDDE = 390");
   });
 
+  // Pilhodet UTLEDES fra streken (TVILLING skalertPilhode/pilLinjeSlutt i lag.ts), så forholdet
+  // hode:strek ikke kan drifte, og linja stoppes før hodet (ellers krysser den gjennom det).
+  it("pilhodet er koblet til streken (s * PILHODE_FAKTOR), ikke sin egen skala-formel", () => {
+    expect(ANNOTERINGS_HTML).toContain("s * PILHODE_FAKTOR");
+    expect(ANNOTERINGS_HTML).not.toContain("15 * naaSkala()"); // gammel, uavhengig skalering
+  });
+
+  it("pil-linja trekkes tilbake før hodet, klemt så en kort pil ikke får negativ lengde", () => {
+    expect(ANNOTERINGS_HTML).toContain("Math.min(pilLen / 2, len)");
+    // linja ender i det tilbaketrukne punktet, ikke i spissen (til.x/til.y)
+    expect(ANNOTERINGS_HTML).toContain("fabric.Line([fra.x, fra.y, sluttX, sluttY]");
+  });
+
   // FUNN 4 (bevart) — hvit kontrastkant på alle formtyper; kanten er nå ANDEL av streken.
   it("pil, sirkel, firkant OG tekst har hvit kontrastkant, som andel av streken", () => {
     expect(ANNOTERINGS_HTML).toContain("KONTRAST_FARGE = '#ffffff'");

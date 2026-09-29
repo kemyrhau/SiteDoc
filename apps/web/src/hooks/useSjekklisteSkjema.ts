@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, erObjektSynlig, løsKollisjonsVerdi } from "@sitedoc/shared";
+import { utledDokumentRettighet, nesteBildeNr, nummererRepeaterBilder, erObjektSynlig, løsKollisjonsVerdi, raaUploadsSti, raaVedleggIData } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -124,6 +124,49 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     endredeRef.current = new Set();
   }, [sjekkliste, alleObjekter, erInitialisert]);
 
+  // Re-hydrer vedlegg-URL-er fra den SIGNERTE queryen (funn 1). `feltVerdier` seedes bare
+  // én gang; en RÅ URL fra en fersk opplasting/annotering blir stående og 401-er i visning
+  // (SignertBilde kan fornye en UTLØPT signatur, ikke signere en rå URL). Etter lagringen
+  // sin invalidering bærer server-dataen ferske signaturer — løft dem inn i DISPLAY-URL-en
+  // for felt som IKKE er dirty (aldri verdi/kommentar; aldri et felt med usendt redigering).
+  // Match på rå sti, så vi kun oppgraderer «samme fil» fra rå→signert, aldri bytter bilde.
+  // Persistering forblir rå (raaVedleggIData på skrive-veien), så dette forgifter ikke data.
+  useEffect(() => {
+    const serverData = (sjekkliste?.data ?? {}) as Record<string, { vedlegg?: Vedlegg[] }>;
+    settFeltVerdier((prev) => {
+      let endret = false;
+      const neste: typeof prev = {};
+      for (const [id, fv] of Object.entries(prev)) {
+        const serverVedlegg = serverData[id]?.vedlegg;
+        if (endredeRef.current.has(id) || !serverVedlegg?.length || !fv.vedlegg.length) {
+          neste[id] = fv;
+          continue;
+        }
+        const oppdatert = fv.vedlegg.map((v) => {
+          const treff = serverVedlegg.find((s) => raaUploadsSti(s.url) === raaUploadsSti(v.url));
+          if (!treff) return v;
+          // Løft både url og originalUrl fra rå→signert (samme fil, rå-sti-match). originalUrl
+          // bærer redigerbarheten (BildeAnnotering åpner den) og signeres også ved emisjon.
+          const nyUrl = treff.url !== v.url ? treff.url : v.url;
+          const nyOriginalUrl =
+            v.originalUrl && treff.originalUrl &&
+            raaUploadsSti(treff.originalUrl) === raaUploadsSti(v.originalUrl) &&
+            treff.originalUrl !== v.originalUrl
+              ? treff.originalUrl
+              : v.originalUrl;
+          return nyUrl !== v.url || nyOriginalUrl !== v.originalUrl ? { ...v, url: nyUrl, originalUrl: nyOriginalUrl } : v;
+        });
+        if (oppdatert.some((v, i) => v !== fv.vedlegg[i])) {
+          neste[id] = { ...fv, vedlegg: oppdatert };
+          endret = true;
+        } else {
+          neste[id] = fv;
+        }
+      }
+      return endret ? neste : prev;
+    });
+  }, [sjekkliste]);
+
   const hentFeltVerdi = useCallback(
     (objektId: string): FeltVerdi => feltVerdier[objektId] ?? TOM_FELTVERDI,
     [feltVerdier],
@@ -151,7 +194,13 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     const sendt = [...endredeRef.current];
     if (sendt.length === 0) return;
     endredeRef.current = new Set();
-    const data = Object.fromEntries(sendt.map((id) => [id, alle[id]]).filter(([, v]) => v !== undefined));
+    // Skrive-vei-vaksine: `feltVerdier` seedes fra den SIGNERTE queryen (og re-hydreres til
+    // signerte URL-er, se effekten under), så en vedlegg-URL kan bære `sig=` i lokal state.
+    // Serveren avviser en signert («forgiftet») URL i data — strip til rå sti før utsendelse.
+    // (Mobil holder `feltVerdier` rå med vilje; web stripper her i stedet.)
+    const data = raaVedleggIData(
+      Object.fromEntries(sendt.map((id) => [id, alle[id]]).filter(([, v]) => v !== undefined)),
+    ) as Record<string, unknown>;
     const base = Object.fromEntries(sendt.map((id) => [id, basisRef.current[id] ?? null]));
     const sendtVerdier = Object.fromEntries(sendt.map((id) => [id, alle[id]?.verdi ?? null]));
     settLagreStatus("lagrer");

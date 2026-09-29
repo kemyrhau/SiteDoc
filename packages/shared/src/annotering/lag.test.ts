@@ -10,6 +10,9 @@ import {
   formKontrastStil,
   formLagBeskrivelse,
   tekstKontrastStil,
+  skalertPilhode,
+  pilLinjeSlutt,
+  ANNOTERING_PILHODE_FAKTOR,
   ANNOTERING_STREK_FARGE,
   ANNOTERING_KONTRAST_FARGE,
 } from "./lag";
@@ -203,5 +206,57 @@ describe("ingen drift når laget lastes på samme bredde det ble laget på (KRAV
     expect((tilbake.scaleX as number)).toBeCloseTo(1, 10);
     expect((tilbake.left as number)).toBeCloseTo(12, 10);
     expect(tilbake.strokeWidth).toBe(tegnet.strokeWidth);
+  });
+});
+
+describe("pilhode: forholdet hode:strek er konstant (KRAV c1 — det som feilet nominelt)", () => {
+  it("hode:strek er PILHODE_FAKTOR:1 (5:1) på mobil-canvas", () => {
+    expect(skalertPilhode(MOBIL) / skalertStrek(MOBIL)).toBeCloseTo(ANNOTERING_PILHODE_FAKTOR, 10);
+  });
+
+  it("SAMME forhold på en mye bredere canvas — ingen drift mellom to bredder", () => {
+    const mobilForhold = skalertPilhode(MOBIL) / skalertStrek(MOBIL);
+    const webForhold = skalertPilhode(WEB) / skalertStrek(WEB);
+    expect(webForhold).toBeCloseTo(mobilForhold, 10);
+    // absolutte verdier vokser med canvas, men i takt: 390px → 3/15, 1163px → større, samme 5:1
+    expect(skalertPilhode(WEB)).toBeGreaterThan(skalertPilhode(MOBIL));
+  });
+});
+
+describe("pilLinjeSlutt: linja stopper FØR hodets senter (KRAV c2 + c3)", () => {
+  const fra = { x: 0, y: 0 };
+
+  it("KRAV c2 — endepunktet er trukket tilbake fra spissen, ikke i den", () => {
+    const til = { x: 100, y: 0 };
+    const pilhode = 20;
+    const slutt = pilLinjeSlutt(fra, til, pilhode);
+    // trukket tilbake med halve hodelengden langs vinkelen (100 - 10 = 90)
+    expect(slutt.x).toBeCloseTo(90, 10);
+    expect(slutt.y).toBeCloseTo(0, 10);
+    // og strengt FØR spissen (ikke i senteret der hodet ligger)
+    expect(slutt.x).toBeLessThan(til.x);
+  });
+
+  it("KRAV c2 — virker på skrå (tilbaketrekk følger pil-vinkelen)", () => {
+    const til = { x: 30, y: 40 }; // lengde 50
+    const slutt = pilLinjeSlutt(fra, til, 20); // tilbake 10 langs (0.6, 0.8)
+    expect(slutt.x).toBeCloseTo(30 - 0.6 * 10, 10);
+    expect(slutt.y).toBeCloseTo(40 - 0.8 * 10, 10);
+  });
+
+  it("KRAV c3 — kort pil klemmes til lengde 0 (ikke negativ), hodet tegnes fortsatt", () => {
+    const til = { x: 6, y: 0 }; // lengde 6 < pilhode/2 = 10
+    const slutt = pilLinjeSlutt(fra, til, 20);
+    // tilbaketrekk klemt til pilens lengde → endepunkt = start, aldri forbi (ingen negativ x)
+    expect(slutt.x).toBeCloseTo(fra.x, 10);
+    expect(slutt.y).toBeCloseTo(fra.y, 10);
+    expect(slutt.x).toBeGreaterThanOrEqual(0);
+  });
+
+  it("KRAV c3 — degenerert pil (fra === til) gir ingen NaN, faller tilbake til spissen", () => {
+    const slutt = pilLinjeSlutt(fra, { x: 0, y: 0 }, 20);
+    expect(Number.isNaN(slutt.x)).toBe(false);
+    expect(Number.isNaN(slutt.y)).toBe(false);
+    expect(slutt).toEqual({ x: 0, y: 0 });
   });
 });

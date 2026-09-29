@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt, Tilfoyelse } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, erObjektSynlig, løsKollisjonsVerdi } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter, nesteBildeNr, nummererRepeaterBilder, erObjektSynlig, løsKollisjonsVerdi, raaUploadsSti, raaVedleggIData } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
@@ -155,6 +155,46 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     endredeRef.current = new Set();
   }, [oppgave, alleObjekter, erInitialisert]);
 
+  // Re-hydrer vedlegg-URL-er fra den SIGNERTE queryen (funn 1) — speiler useSjekklisteSkjema.
+  // En rå URL fra fersk opplasting/annotering blir ellers stående i lokal state og 401-er i
+  // visning. Løft server-signaturen inn i DISPLAY-URL-en for ikke-dirty felt, matchet på rå
+  // sti (samme fil, rå→signert). Persistering strippes til rå, så data forgiftes ikke.
+  useEffect(() => {
+    const serverData = (oppgave?.data ?? {}) as Record<string, { vedlegg?: Vedlegg[] }>;
+    settFeltVerdier((prev) => {
+      let endret = false;
+      const neste: typeof prev = {};
+      for (const [id, fv] of Object.entries(prev)) {
+        const serverVedlegg = serverData[id]?.vedlegg;
+        if (endredeRef.current.has(id) || !serverVedlegg?.length || !fv.vedlegg.length) {
+          neste[id] = fv;
+          continue;
+        }
+        const oppdatert = fv.vedlegg.map((v) => {
+          const treff = serverVedlegg.find((s) => raaUploadsSti(s.url) === raaUploadsSti(v.url));
+          if (!treff) return v;
+          // Løft både url og originalUrl fra rå→signert (samme fil, rå-sti-match). originalUrl
+          // bærer redigerbarheten (BildeAnnotering åpner den) og signeres også ved emisjon.
+          const nyUrl = treff.url !== v.url ? treff.url : v.url;
+          const nyOriginalUrl =
+            v.originalUrl && treff.originalUrl &&
+            raaUploadsSti(treff.originalUrl) === raaUploadsSti(v.originalUrl) &&
+            treff.originalUrl !== v.originalUrl
+              ? treff.originalUrl
+              : v.originalUrl;
+          return nyUrl !== v.url || nyOriginalUrl !== v.originalUrl ? { ...v, url: nyUrl, originalUrl: nyOriginalUrl } : v;
+        });
+        if (oppdatert.some((v, i) => v !== fv.vedlegg[i])) {
+          neste[id] = { ...fv, vedlegg: oppdatert };
+          endret = true;
+        } else {
+          neste[id] = fv;
+        }
+      }
+      return endret ? neste : prev;
+    });
+  }, [oppgave]);
+
   const hentFeltVerdi = useCallback(
     (objektId: string): FeltVerdi => feltVerdier[objektId] ?? TOM_FELTVERDI,
     [feltVerdier],
@@ -181,7 +221,12 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
     const sendt = [...endredeRef.current];
     if (sendt.length === 0) return;
     endredeRef.current = new Set();
-    const data = Object.fromEntries(sendt.map((id) => [id, alle[id]]).filter(([, v]) => v !== undefined));
+    // Skrive-vei-vaksine (funn 1): `feltVerdier` kan bære signerte vedlegg-URL-er (seedet fra
+    // den signerte queryen + re-hydrert). Serveren avviser en forgiftet URL i data — strip til
+    // rå sti før utsendelse. Speiler useSjekklisteSkjema; mobil holder feltVerdier rå i stedet.
+    const data = raaVedleggIData(
+      Object.fromEntries(sendt.map((id) => [id, alle[id]]).filter(([, v]) => v !== undefined)),
+    ) as Record<string, unknown>;
     const base = Object.fromEntries(sendt.map((id) => [id, basisRef.current[id] ?? null]));
     const sendtVerdier = Object.fromEntries(sendt.map((id) => [id, alle[id]?.verdi ?? null]));
     settLagreStatus("lagrer");
