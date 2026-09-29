@@ -25,8 +25,10 @@
 ## Bildeannotering
 
 - Annotert bilde erstatter original in-place via `erstattVedlegg()` — ingen duplikater
-- `BildeAnnotering`-komponent returnerer annotert fil → `FeltDokumentasjon` oppdaterer vedleggets URL
+- `BildeAnnotering`-komponent (`apps/mobile/src/components/BildeAnnotering.tsx`) returnerer annotert fil → `FeltDokumentasjon` oppdaterer vedleggets URL
 - Opplastingskø håndterer ny fil med samme vedlegg-ID
+- **Tegnemotoren er DELT:** HTML-strengen bor i `@sitedoc/shared` (`packages/shared/src/annotering/annoterings-html.ts`, `ANNOTERINGS_HTML`) og deles med web-flatens annotering. Broen er toveis (mobil: `window.ReactNativeWebView`; web: `window.parent.postMessage`) — ÉN implementasjon. Verktøy-etikettene går via i18n (`annotering.*`), ikke lenger hardkodet i `BildeAnnotering.tsx`
+- ⚠️ **Lag-modellen (redigerbar annotering) er foreløpig WEB-ONLY** (Kenneth-vedtak 2026-09-29). Den delte HTML-en BÆRER nå lag-støtten (`settBilde(lag)`, lag-eksport ved lagre, `select`-verktøy) og web bruker den, men mobil sender aldri et lag og viser ikke Velg-verktøyet — mobil erstatter fortsatt originalen in-place (koden over). Mobilens egen lag-runde holdes utenfor denne gaten fordi den rører offline-køen; se [shared-pakker.md § Bildeannotering](shared-pakker.md) + [web.md § Bildeannotering](web.md)
 
 ## Statusendring — detalj-redesign M1–M3 (2026-07-30)
 
@@ -116,7 +118,7 @@ Klikk-budsjett: **Send 3 → 2 taps** (primær → bekreft), **hvem-har-ballen 0
 
 **Tidtaker:** Lang-trykk (0.6s) → 2s nedtelling.
 
-**Bildeannotering (Fabric.js):** WebView-basert canvas. Verktøy: pil, sirkel, firkant, frihånd, tekst. Canvas-resize til bildets 5:4.
+**Bildeannotering (Fabric.js):** WebView-basert canvas. Verktøy: pil, sirkel, firkant, frihånd, tekst. Canvas-resize til bildets 5:4. HTML-en er delt med web via `@sitedoc/shared` `ANNOTERINGS_HTML` (se § Bildeannotering).
 
 **Server-URL-håndtering:** `file://` → lokal, `/uploads/...` → `AUTH_CONFIG.apiUrl + url`, `http(s)://` → direkte.
 

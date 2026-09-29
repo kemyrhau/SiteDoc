@@ -171,6 +171,29 @@ export function RepeaterObjekt({
     [rader, onEndreVerdi],
   );
 
+  const oppdaterVedlegg = useCallback(
+    (radIndeks: number, feltId: string, vedleggId: string, patch: Partial<FeltVerdi["vedlegg"][number]>) => {
+      const oppdatert = rader.map((rad, i) => {
+        if (i !== radIndeks) return rad;
+        const eksisterende = rad.felter[feltId] ?? { ...TOM_FELTVERDI };
+        return {
+          ...rad,
+          felter: {
+            ...rad.felter,
+            [feltId]: {
+              ...eksisterende,
+              vedlegg: (eksisterende.vedlegg ?? []).map((v) =>
+                v.id === vedleggId ? { ...v, ...patch } : v,
+              ),
+            },
+          },
+        };
+      });
+      onEndreVerdi(oppdatert);
+    },
+    [rader, onEndreVerdi],
+  );
+
   if (barn.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-400">
@@ -309,6 +332,9 @@ export function RepeaterObjekt({
                         }
                         onFjernVedlegg={(vId) =>
                           fjernVedlegg(radIndeks, barnObjekt.id, vId)
+                        }
+                        onOppdaterVedlegg={(vId, patch) =>
+                          oppdaterVedlegg(radIndeks, barnObjekt.id, vId, patch)
                         }
                         leseModus={tv.leseModus}
                         skjulKommentar={barnObjekt.type === "text_field"}

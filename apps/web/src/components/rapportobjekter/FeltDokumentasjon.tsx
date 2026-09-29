@@ -2,10 +2,13 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Paperclip, Upload, Clipboard, Trash2, Map, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Paperclip, Upload, Clipboard, Trash2, Map, X, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { formaterDatoTidPunkt } from "@sitedoc/pdf";
+import type { AnnoteringsLag } from "@sitedoc/shared";
 import type { Vedlegg } from "./typer";
 import { TegningsModal } from "./TegningsModal";
+import { BildeAnnotering } from "./BildeAnnotering";
+import { annoteringsKilde, erAnnotert, byggAnnoteringsPatch, dataUrlTilBlob } from "./annotering-lag";
 import { SignertBilde } from "@/components/SignertBilde";
 
 interface FeltDokumentasjonProps {
@@ -14,6 +17,8 @@ interface FeltDokumentasjonProps {
   onEndreKommentar: (kommentar: string) => void;
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
+  /** Oppdater et vedlegg in-place (bildeannotering). Uten den vises ikke annoter-knappen. */
+  onOppdaterVedlegg?: (vedleggId: string, patch: Partial<Vedlegg>) => void;
   leseModus?: boolean;
   skjulKommentar?: boolean;
   prosjektId?: string;
@@ -36,6 +41,7 @@ export function FeltDokumentasjon({
   onEndreKommentar,
   onLeggTilVedlegg,
   onFjernVedlegg,
+  onOppdaterVedlegg,
   leseModus,
   skjulKommentar,
   prosjektId,
@@ -48,7 +54,42 @@ export function FeltDokumentasjon({
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const bildeVedlegg = vedlegg.filter((v) => v.type === "bilde");
   const [visTegningsModal, settVisTegningsModal] = useState(false);
+  // Vedlegget som annoteres nå (id), eller null. Åpner BildeAnnotering fullskjerm.
+  const [annoteringVedleggId, settAnnoteringVedleggId] = useState<string | null>(null);
   const filInputRef = useRef<HTMLInputElement>(null);
+
+  const annoterbart = !leseModus && !!onOppdaterVedlegg;
+
+  const håndterAnnoteringFerdig = useCallback(
+    async (dataUrl: string, lag: AnnoteringsLag) => {
+      const v = vedlegg.find((x) => x.id === annoteringVedleggId);
+      if (!annoteringVedleggId || !v || !onOppdaterVedlegg) {
+        settAnnoteringVedleggId(null);
+        return;
+      }
+      try {
+        // Utflatet JPEG lastes opp som en NY fil (originalfila overskrives aldri).
+        const fil = new File([dataUrlTilBlob(dataUrl)], `annotert-${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+        const formData = new FormData();
+        formData.append("file", fil);
+        const respons = await fetch("/api/upload?privat=1", { method: "POST", body: formData });
+        if (!respons.ok) {
+          console.error("Annotering: opplasting feilet:", respons.statusText);
+          return;
+        }
+        const data = (await respons.json()) as { fileUrl: string; fileName: string };
+        // url → ny JPEG, originalUrl bevart (én gang), annotering = laget.
+        onOppdaterVedlegg(annoteringVedleggId, byggAnnoteringsPatch(v, data.fileUrl, lag));
+      } catch (feil) {
+        console.error("Annotering: opplasting feilet:", feil);
+      } finally {
+        settAnnoteringVedleggId(null);
+      }
+    },
+    [annoteringVedleggId, vedlegg, onOppdaterVedlegg],
+  );
 
   const lastOppFil = useCallback(async (fil: File) => {
     const formData = new FormData();
@@ -195,6 +236,15 @@ export function FeltDokumentasjon({
                     {String(v.bildeNr).padStart(2, "0")}
                   </span>
                 )}
+                {/* Annotert-indikator: laget kan redigeres (pilen flyttes, ikke tegnes på nytt) */}
+                {v.type === "bilde" && erAnnotert(v) && (
+                  <span
+                    className="absolute right-0.5 top-0.5 rounded bg-blue-600/80 p-0.5"
+                    title={t("annotering.kanRedigeres")}
+                  >
+                    <Pencil size={10} className="text-white" />
+                  </span>
+                )}
                 {/* Slett-knapp på valgt vedlegg */}
                 {erValgt && !leseModus && (
                   <button
@@ -259,18 +309,33 @@ export function FeltDokumentasjon({
               onClick={(e) => e.stopPropagation()}
             />
             {!leseModus && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onFjernVedlegg(lbBilde.id);
-                  if (bildeVedlegg.length <= 1) setLightboxIdx(null);
-                  else setLightboxIdx(Math.min(lightboxIdx, bildeVedlegg.length - 2));
-                }}
-                className="absolute bottom-6 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-              >
-                <Trash2 size={14} className="mr-1.5 inline" />
-                {t("rapportobjekt.dokumentasjon.slettBilde")}
-              </button>
+              <div className="absolute bottom-6 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                {annoterbart && (
+                  <button
+                    onClick={() => settAnnoteringVedleggId(lbBilde.id)}
+                    className="flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    <Pencil size={14} className="mr-1.5 inline" />
+                    {t("felt.annoter")}
+                    {erAnnotert(lbBilde) && (
+                      <span className="ml-2 text-xs font-normal text-blue-100">
+                        {t("annotering.kanRedigeres")}
+                      </span>
+                    )}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    onFjernVedlegg(lbBilde.id);
+                    if (bildeVedlegg.length <= 1) setLightboxIdx(null);
+                    else setLightboxIdx(Math.min(lightboxIdx, bildeVedlegg.length - 2));
+                  }}
+                  className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                >
+                  <Trash2 size={14} className="mr-1.5 inline" />
+                  {t("rapportobjekt.dokumentasjon.slettBilde")}
+                </button>
+              </div>
             )}
           </div>
         );
@@ -371,6 +436,20 @@ export function FeltDokumentasjon({
           />
         </div>
       )}
+
+      {/* Bildeannotering (fullskjerm). Åpner på ORIGINALEN + evt. lagret lag. */}
+      {annoteringVedleggId && (() => {
+        const v = vedlegg.find((x) => x.id === annoteringVedleggId);
+        if (!v) return null;
+        return (
+          <BildeAnnotering
+            bildeUrl={annoteringsKilde(v)}
+            lag={v.annotering}
+            onFerdig={håndterAnnoteringFerdig}
+            onAvbryt={() => settAnnoteringVedleggId(null)}
+          />
+        );
+      })()}
 
       {/* Tegningsmodal */}
       {prosjektId && (

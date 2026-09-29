@@ -22,6 +22,7 @@ interface FeltWrapperProps {
   onEndreKommentar: (kommentar: string) => void;
   onLeggTilVedlegg: (vedlegg: Vedlegg) => void;
   onFjernVedlegg: (vedleggId: string) => void;
+  onOppdaterVedlegg?: (vedleggId: string, patch: Partial<Vedlegg>) => void;
   leseModus?: boolean;
   nestingNivå?: number;
   valideringsfeil?: string;
@@ -51,6 +52,7 @@ export function FeltWrapper({
   onEndreKommentar,
   onLeggTilVedlegg,
   onFjernVedlegg,
+  onOppdaterVedlegg,
   leseModus,
   nestingNivå = 0,
   valideringsfeil,
@@ -176,6 +178,7 @@ export function FeltWrapper({
             onEndreKommentar={onEndreKommentar}
             onLeggTilVedlegg={onLeggTilVedlegg}
             onFjernVedlegg={onFjernVedlegg}
+            onOppdaterVedlegg={onOppdaterVedlegg}
             leseModus={tv.leseModus}
             skjulKommentar={objekt.type === "text_field"}
             prosjektId={prosjektId}
