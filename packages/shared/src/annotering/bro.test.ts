@@ -7,7 +7,7 @@ import { ANNOTERINGS_HTML } from "./annoterings-html";
  * konstanter, HTML-en BYGGES fra dem, og testen asserterer at HTML-en inneholder
  * dem. Endres en betingelse i bro.ts, følger HTML-en automatisk; hardkodes en
  * avvikende betingelse i HTML-en, feiler includes-asserten. Samme mekanisme som
- * FABRIC_VERSJON.
+ * FABRIC_CDN_STI.
  */
 describe("bro-betingelser er ÉN kilde — HTML bygges fra konstantene", () => {
   it("konstantene er pinnet til eksakt betingelsestekst (endring blir en bevisst handling)", () => {
