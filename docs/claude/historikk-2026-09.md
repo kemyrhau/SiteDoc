@@ -1355,3 +1355,496 @@ A.Markussen-ansatte (Malin, Silje, Florian — alle `company_admin` med `organiz
 
 Levert via commit `3eb7398f` (impl) + merge `542461e2` (prod) 2026-05-12. Fagområde-kolonne (Bygg/HMS/Kvalitet via `mal.domain`) + Antall punkter-kolonne (`mal._count.objects`) lagt til i `apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx`. 4 nye i18n-nøkler i 15 språk. Tabellen har nå 5 kolonner: Navn, Fagområde, Antall punkter, Prefiks, Versjon.
 
+---
+
+# Flyttet fra SAMARBEIDSREGLER.md 2026-09-28 — passering 1
+
+**Regelen er trukket ut og står i SAMARBEIDSREGLER; fortellingen står her, ordrett.** ⚠️ **Hendelsene er fra
+august og september 2026 — datoen i filnavnet er når de ble ARKIVERT, ikke når de skjedde.**
+
+### 🔴 FEM LÆRDOMMER FRA DØGNET 2026-09-03/04 — alle med målt belegg
+
+Et døgn med seks feltfunn, seks merger, to feilede bygg og ett vellykket. **Fem av feilene var
+coworks, og alle fem har samme form: en påstand ble ført videre uten at kilden ble sjekket.**
+
+#### 1. 🔴 Be ALDRI om verifisering av kode uten å måle hva den inneholder — tre ganger på ett døgn
+
+| Hendelse | Hva cowork ba om | Hva som faktisk var i koden |
+|---|---|---|
+| Bygg 51 | «test PDF-forhåndsvisningen» | Reload-fiksen `d1333599` lå **pushet, aldri merget** — ikke i bygget |
+| Preview-bygg | «test at fiksen virker» | Samme fiks, samme fravær. **Et bygg av kvoten brukt på å bekrefte en fiks som ikke var med** |
+| `feat/galleri-flervalg` | «test flervalget» | Branchen var bygget på et fire timer gammelt grunnlag og manglet **alle tre** fiksene fra samme kveld |
+
+Regel 10b sa «mål premisset før du skriver ORDREN». Den var for smal.
+
+🔴 **Utvidet: mål premisset før du ber noen TESTE noe.** Og konkret:
+**rebas en branch på `origin/develop` FØR du ber om test.** Én kommando fjerner hele klassen.
+Uten den tester noen «to halve verdier» — én med den nye funksjonen og gamle feil, én med
+fiksene og uten funksjonen — og bruker en time på å forstå hvorfor.
+
+#### 2. 🔴 Byggnummer, profil OG distribusjon leses fra kilden — cowork tok feil om bygg 51 to ganger på én time
+
+Først: «bygg 51 er ute hos testerne med de seks funnene» (ført i tavla, gjentatt i flere meldinger).
+Så, da `eas build:list` viste «internal distribution / preview»: «den nådde aldri testerne».
+Så viste App Store Connect **2 installasjoner og 53 økter** på nettopp bygg 51.
+
+**Begge påstandene kom fra hukommelsen om hva som ble *startet*.** Samme feilklasse som 31.08
+(«bygg 47 er hos testerne» etter at 48 var fyrt).
+
+**Regelen:** `eas build:list` **og** App Store Connect. Er de uenige — og det var de her — **står
+begge målingene i loggen til noen har målt hvorfor.** Ingen velges bort for å få en ryddig fortelling.
+
+#### 3. 🔴 En grønn test mot en datastruktur produksjonen ikke bruker, måler ingenting
+
+**Fire feil av samme klasse sto bak en grønn gate i to døgn:** `bildeNr` uteble i rike repeatere ·
+append-racet · opplastings-callbacken som aldri oppdaterte vedleggets URL · endringsloggens
+«Kolonne 2».
+
+Alle fire fordi kode itererte `Object.keys(rad)` og forventet flat form, mens produksjonen lagrer
+repeater-rader innpakket som `{ _radId, felter }` (rad-id-vedtak 2026-08-22).
+
+🔴 **Og testene var grønne fordi de bygde den FLATE legacy-formen.** De traff aldri
+produksjonsformen. Ikke for få tester — tester mot en form som ikke finnes.
+
+**Regelen: produksjonsformen testes FØRST.** Legacy-former beholdes i egen, navngitt
+bakoverkompatibilitet-blokk. Skriv én linje i testfila om hvilken form som er produksjonens og
+hvorfor. Kanonisk traversering ligger i `@sitedoc/shared/utils/repeaterRad.ts` med tvilling i
+`packages/pdf/src/arkivmal/repeaterRad.ts` (dep-regelen tvinger to; **ikke lag en tredje**).
+
+#### 4. 🔴 Simulatoren er ikke telefonen — lag 2 slapp gjennom to ting på ett døgn
+
+**PDF-forhåndsvisningen** ble meldt grønn på simulator og hang på Kenneths iPhone.
+**Kø-robusthetsrunden** var kodegjennomgått, gatet og verifisert — og køen leverte likevel ikke
+uten `r` på enhet.
+
+Simulatoren er fortsatt riktig port før bygg (den fanget mye), men **en flate som handler om
+timing, nett eller WebView-livssyklus er ikke verifisert før den er sett på en fysisk enhet.**
+
+Kenneth satte opp lokal Xcode-signering 03.–04.09 nettopp for dette. Sløyfen er nå:
+kode → `r` i Metro → ekte telefon, uten byggkvote. **Bruk den.**
+
+#### 5. 🔴 Mildne aldri et funn til noe mindre enn utfallet brukeren opplever
+
+Tre ganger samme døgn beskrev cowork et funn som mindre enn det var:
+
+- «Badgen viser at vedlegg lastes opp» — sagt om en skjerm der fire bilder var i ferd med å
+  forsvinne. Kenneth: *«bare fortsett å forsvare feil.»*
+- «Visning, ikke datatap» — fordi radene fantes i SQLite. Kenneth: `r` finnes ikke for en tømrer;
+  for brukeren var bildene borte.
+- «Du leter på feil sted» — om en byggeplass-chip som returnerte `null` uten feilmelding når
+  timer-cachen var tom.
+
+> **Kenneth 2026-09-03:** *«Istedenfor å forsvare tidligere valg og si at jeg leter på feil plass,
+> så må man erkjenne at vi endret ikke på riktig plass når enkel logikk ikke fører til målet.»*
+
+🔴 **Akseptkriteriet som følger, og som gjelder hver runde:** en endring er ikke levert før noen
+som **ikke vet hva som ble endret** kan finne den. En komponent som finnes i koden er ikke en
+endring brukeren har fått. Verifiseringsordrer skal derfor be om **hvor** noe ble funnet og **hvor
+mange trykk** det tok — ikke bare om det virker.
+
+
+### 🔴 `as unknown as` skjuler manglende felt — tre feil på to dager
+
+Mønsteret: en komponent caster et objekt til en type som lover felt objektet ikke har.
+Kompilatoren tier, feltet leses som `undefined`, og symptomet dukker opp langt unna.
+
+| Dato | Sted | Symptom |
+|---|---|---|
+| 08-22 | sjekkliste-siden leste `sjekkliste` (skjema-hook) i stedet for `fullSjekkliste` | dokument-lokasjon arvet ikke |
+| 08-23 | oppgave-siden leste omformet objekt uten `drawing`/`positionX` | «LOKASJON Ikke satt» på data som fantes |
+| 08-22 | cowork brukte `grep -c "slettFeil"` som bevis; kallet het `setSlettFeil` | tsc-feil nådde Docker-bygget |
+
+**Regel:** når en verdi «forsvinner» uten feilmelding, mistenk casten før logikken. Erstatt
+`as unknown as` med en typet hjelper som leser fra den rå kilden — da sier kompilatoren fra
+neste gang. Og et grep-treff på null er ikke bevis for fravær; kompilatoren og databasen er
+fasit, ikke søkemønsteret.
+
+
+### 🔴 En kommentar som lover mer enn koden holder — tre ganger på én dag (2026-08-23)
+
+Samme feilform tre ganger, i tre ulike lag:
+
+| Sted | Kommentaren lovet | Koden gjorde |
+|---|---|---|
+| `opplasting.ts` (mobil) | «`filnavn` bæres som multipart-filnavn så MIME-utledningen og filtype-blokklista fungerer» | `filnavn` ble aldri sendt — kun logget. `uploadAsync` har ingen filnavn-opsjon |
+| `dagsseddel.ts` (api) | «KUN beløp + kategorinavn» over et `utlegg`-oppslag | `include` uten `select` → alle skalarfelt, inkl. `kommentar` (`@db.Text`) |
+| `SAMARBEIDSREGLER.md` selv | «Kjeden er selv-gatende: feiler typecheck, kjøres verken tester eller deploy» | `cmd \| grep \| tail` returnerer `tail` sin kode — alltid 0 |
+
+**Regelen, formulert av dokgen:** *skriver du «KUN X» i en kommentar, skal konstruksjonen håndheve
+X — ikke dokumentere en intensjon.* Prisma: `select`, aldri `include`, når kommentaren avgrenser.
+Bash: `set -o pipefail` eller eksplisitt `exit=$?`, aldri en pipe som gate.
+
+**Hvorfor den er farlig og ikke bare slurv:** en kommentar som overdriver leses som en garanti av
+neste leser, og da slutter noen å måle. Alle tre tilfellene ble funnet ved måling, ingen ved
+lesing. Den sterkeste formen er en garanti ved konstruksjon — som `SheetUtleggVedlegg`, der svak
+FK uten `@relation` gjør vedlegg umulig å dra med. Da er kommentaren en observasjon, ikke et løfte.
+
+
+## Belegg for arbeidsrutinene (utdyper § Arbeidsrutiner for en fersk cowork)
+
+> ⚠️ **Erstattet 2026-08-20:** en tidligere «Statustavle»-seksjon her sa at tavla skulle
+> **tømmes ved rundeslutt**. Det ville slettet registeret over hvilke agenter som finnes —
+> nøyaktig feilen som gjorde at cowork mistet oversikten uten at Kenneth merket det. Tavla
+> er permanent; rader legges til og fjernes per agent. Se
+> [§ Statustavla er første handling](#-statustavla-er-første-handling--før-du-sier-noe).
+
+Statusfiler er agentens siste kjente tilstand — ikke sannheten om repoet.
+Tre feil på én dag (2026-08-15), alle fra samme rot:
+
+- **«PUSHET» er en påstand.** Verifiser med `git branch -r | grep <branch>`
+  **før** merge-kommandoen gis. Cowork ga merge-kommandoen i samme melding som
+  nudgen som ba agenten pushe → `not something we can merge`.
+- **En `BLOKKERT`-status kan være utløpt.** Sjekk med
+  `git merge-base --is-ancestor <sha> develop`. Utlegg stod blokkert i to dager
+  og ventet på test-deploy av `ae752b34`, som lå i develop hele tiden. Agenten
+  kan ikke se develop; cowork må løsne den.
+- **Verifiser agentens kodepåstand mot koden.** «Samme mønster som
+  verifiserAdmin» stemte — men det ble bekreftet i
+  `trpc/tilgangskontroll.ts` (fire forekomster), ikke antatt.
+
+**Sesjonsstart: `git status` i hovedtreet.** 2026-08-15 lå 481 linjer ucommittet
+der — fire fabel-vedtaksdokumenter i `docs/redesign/` og 80 linjer Kenneth-vedtak
+i BACKLOG, én `git checkout` unna å forsvinne. Cowork hadde i tillegg bedt
+Kenneth lime inn fabel-dokumenter som allerede lå i repoet. **Søk i repoet før
+du ber om noe.**
+
+**Sandkasse-fella:** cowork kjører bash i en Linux-sandkasse uten Mac-stiene
+montert. `git worktree list` derfra merker **alle** trær `prunable`, også de som
+finnes og er i bruk. Ikke bedøm worktree-tilstand derfra.
+
+**`relay/` finnes KUN i hovedtreet (lærdom 2026-08-17).** Mappa er gitignored, så
+den følger aldri med til et worktree. En nudge som sier «les `relay/inbox-x.md`»
+sender agenten til en sti som ikke kan eksistere der han står. **Gi alltid full
+sti:** `~/Documents/Programmering/SiteDoc/relay/inbox-x.md`.
+
+**Aldri commit:** `tests/e2e/*-state.json` (Playwright storage-state med
+session-cookies).
+
+---
+
+# Flyttet fra SAMARBEIDSREGLER.md 2026-09-28 — passering 2
+
+**`####`-seksjoner der regelen er trukket ut som kulepunkt under sin forelder. Fortellingen står her, ordrett.**
+
+#### 🔴 MÅLT NESTEN-UHELL 2026-09-02 — docs-commits og merge er et kappløp
+
+Merge-agenten var i ferd med å pushe en merge der `docs/claude/SAMARBEIDSREGLER.md` sto med
+**−20 linjer** — en fil ordren ikke nevnte, og en sletting av regelen Kenneth hadde vedtatt tjue
+minutter før (destinasjonslinje på alt som limes).
+
+**Mekanikken:** agenten gjorde `reset --hard origin/develop`, merget, og **inspiserte diffen før
+push**. De 20 linjene var to nyere develop-commits som resetten var for gammel til å ha med. Den
+stoppet, sporet det, gjorde mergen på nytt mot fersk develop — og da falt fila ut av diffen.
+
+**Fence 5 fanget det.** Uten «ser du en fil du ikke ventet i diffen, STOPP og meld» ville regelen
+vært borte, og ingen ville lett etter den.
+
+🔴 **Rotårsaken er coworks arbeidsvane, ikke agentens:** cowork redigerer docs i hovedtreet og gir
+Kenneth commit-blokker, mens merge-agenten kjører i sitt eget tre. To skrivere mot `develop` uten
+koordinering.
+
+**Regelen som følger:** 🔴 **docs-commits går gjennom merge-agenten**, som rollen alltid har sagt —
+`add docs/` → `commit` → `pull --rebase` → `push` som én operasjon, i samme sekvens som mergene.
+Cowork gir **ikke** Kenneth løsrevne docs-commit-blokker mens en merge pågår. Da finnes ikke
+kappløpet.
+
+**Og alltid `git add docs/`, aldri enkeltfiler.** Cowork ga `git add docs/claude/BACKLOG.md`
+2026-09-02 mens en tidligere docs-endring lå ukommitert; neste `pull --rebase` stoppet på
+«unstaged changes». Fire ganger samme dag. Hele mappa sveiper med det som ble hoppet over.
+
+🔴 **FAST FØRSTE STEG FØR HVER DEPLOY OG OTA: cowork gir docs til merge-agenten.** (2026-09-24, tredje forekomst.)
+
+**`eas update` stempler publiseringen med commit-hash + `*` hvis treet er skittent — og da vet ingen hva som gikk ut.** Tre ganger har asterisken kommet fra **coworks egne ukommiterte docs-filer**: 2026-09-07, 2026-09-10 og 2026-09-24. Hver gang var det ufarlig fordi docs ikke er i JS-bundelen — **men det måtte måles i etterkant hver gang, og regelen finnes nettopp fordi man normalt ikke KAN vite det.**
+
+⚠️ **Mønsteret er coworks arbeidsvane:** cowork skriver docs løpende i hovedtreet mens en deploy forberedes, og oppdager dem først når `git status` dukker opp i et deploy-steg. **Rekkefølgen skal snus: docs-commiten går FØR deploy-ordren gis, ikke som opprydding etterpå.**
+
+
+#### 🔴 RYDDESTEGET DETACHER AGENTER SOM JOBBER — coworks ordre er årsaken (2026-09-26)
+
+**Merge-ordrenes fase 4 inneholder `cd ~/…/SiteDoc-<agent> && git checkout --detach origin/develop`** for å frigjøre branchen før sletting. **Steget antar at treet er ledig. Det er det ofte ikke.**
+
+**Målt to ganger på samme dag:** redesign committet i detached HEAD, så `git push` sendte branch-refen — en tom branch — mens arbeidet lå igjen lokalt. Første gang oppdaget han det i reflogen etterpå; andre gang fanget han det før commit. **Begge ganger var utløseren et `checkout --detach` kjørt i treet hans mens han arbeidet.**
+
+🔴 **Regelen: cowork detacher ALDRI et tre uten at agenten har meldt leveransen ferdig.** Ryddesteget skal gates i kommandoen, ikke i antakelsen:
+
+```sh
+cd ~/Documents/Programmering/SiteDoc-<agent> && \
+  test -z "$(git status --porcelain)" && \
+  git checkout --detach origin/develop || echo "TREET ER I BRUK — hoppet over, meld til cowork"
+```
+
+⚠️ **`git status --porcelain` fanger ukommitert arbeid, men ikke en agent som står klar til å committe.** Derfor er hovedregelen fortsatt at ryddesteget kun gis for trær der agenten **har meldt hash og frosset branchen**.
+
+🟢 **Og `git ls-remote --heads origin <branch>` før en hash meldes er det som fanget begge tilfellene.** Regelen ble skrevet 23.09 av en annen grunn og har nå betalt for seg selv tre ganger — hver gang om en hash som så ekte ut lokalt.
+
+🔴 **Fast siste steg etter HVER merge: hent den inn i hovedtreet.**
+
+```sh
+cd ~/Documents/Programmering/SiteDoc && git pull --ff-only
+```
+
+Merge-agenten pusher fra `SiteDoc-merge`; i det øyeblikket ligger **hovedtreet bak sitt eget ferske
+arbeid**. Tar agenten en docs-commit rett etterpå, står den på en base som allerede er utdatert, og
+`pull --rebase` kan stoppe midt i og etterlate treet detached. Skjedde 2026-09-02 — agenten løste
+det riktig (`rebase --abort`, verifiserte at innholdet var unikt, kjørte på nytt), men steget over
+gjør at det ikke oppstår.
+
+**Merk formen:** `--ff-only`, ikke `--rebase`. Hovedtreet skal aldri ha egne commits å rebase — har
+det det, er noe annet galt og da skal agenten **stoppe og melde**, ikke rebase forbi det.
+
+🔴 **Og steget er merge-agentens — cowork bruker `fetch`.** Skrivende git i hovedtreet (`pull`/`merge`) etterlater stale `ORIG_HEAD.lock` (0 byte); **bekreftet fire ganger 09.–10.09.2026**, utløst av `pull --ff-only` kjørt fra coworks egne målinger, ikke av en krasjet git-kjøring hos merge-agenten. **Én skriver i hovedtreet er hele poenget.** *(Målingen lå i merge-agentens private sesjonsminne og ble sitert som delt regel før den var målt mot docs — den er nå her, der den kan etterprøves.)*
+
+⚠️ **Sett aldri lokale endringer til side med `git stash` når flere worktrees er i sving.** Stash-stakken er **delt** mellom hovedtreet og alle arbeidstrær, så en `pop` fra én økt kan ta en annen økts oppføring — presedensen står i § «Før du BERGER noe som ser tapt ut», der en `stash pop` endte i konflikt. **Bruk en navngitt WIP-branch i stedet:** `git checkout -b wip/<hvem>-<emne>-<dato>` → `git add docs/` → `commit`. Den er i git, usynlig for andre økters `pop`, og gjenfinnbar på navnet. *(Design foreslo formen, merge utførte den 2026-09-23: `wip/cowork-docs-2026-09-23`.)*
+
+
+#### Hvorfor dette ikke svekker gaten
+
+Cowork verifiserer fortsatt mot koden før merge-ordren gis. Det som flyttes er **utførelsen**,
+ikke vurderingen. Merge-agenten er hender, ikke dømmekraft.
+
+⚠️ **Én ting cowork mister, og skal kompensere for:** en feilende kommando i Kenneths terminal er
+synlig for cowork med én gang. 01.09 avslørte en avvist push at cowork hadde ukommitterte
+docs-filer liggende, og to falske «NEI» avslørte at `&&`-kjeden brøt før målingen kjørte. En agent
+løser slikt stille. **Derfor skal merge-agentens rapport alltid inneholde hva som IKKE gikk glatt**
+— ikke bare sluttresultatet.
+
+
+#### 🔴 `git merge-tree` løy ANDRE gang — bruk ekte prøvemerge i et engangsklon (målt 2026-09-26)
+
+`git merge-tree <base> develop <branch>` ga **0 konfliktmarkører** for `docs/design-maalekommando`
+mot `develop@3e6fb25e`. Ekte merge ga **`CONFLICT (content): Merge conflict in CLAUDE.md`** — begge
+sider hadde skrevet om **samme linje** (tegn-måleregelen), design fra base `647d648e`, cowork i
+`3e6fb25e`. **Samme klasse som CLAUDE.md-konflikten 2026-09-25**, der merge-tree også sa 0.
+
+⚠️ **Tre-argument-`merge-tree` (git 2.34) er en PROXY.** Den leser ikke merge-strategien og fanger
+ikke rename/samme-linje-tilfellene. **Den skal aldri være det eneste belegget for «ingen konflikt».**
+
+🟢 **Kjør ekte prøvemerge — det koster sekunder og kan ikke lyve:**
+
+```sh
+cd /tmp && rm -rf konflikttest && git clone -q --no-hardlinks -s ~/Documents/Programmering/SiteDoc konflikttest && cd konflikttest && git checkout -q -B t origin/develop && git -c user.email=t@t -c user.name=t merge --no-ff --no-commit origin/<branch>; git status --porcelain | grep '^UU' || echo "REN MERGE"
+```
+
+🔴 **Og når prøvemergen konflikter, skal cowork stadfeste OPPLØSNINGEN i merge-ordren** — hvilken
+side som gjelder og hvorfor, målt i klonen først. Merge-agenten skal ikke ta en redaksjonell
+avgjørelse om innholdet i en fil cowork eier.
+
+Er branchene ikke skrevet ennå, gjør det samme på flatene ordrene *beskriver*: hvilke sider,
+hvilke komponenter de importerer. Filoverlapp på side-nivå fanger ikke delte komponenter — det
+sto allerede i kollisjons-sjekken (punkt 3), og ble likevel glemt fordi oppgavene *hørtes*
+disjunkte ut. **Oppgavebeskrivelser kolliderer ikke; filer gjør.**
+
+
+#### 🔴 Før du BERGER noe som ser tapt ut: mål om det allerede er levert (2026-09-04)
+
+**Tre ganger på én kveld konkluderte cowork «tapt» og tok feil hver gang:**
+
+| Påstand | Målingen |
+|---|---|
+| «Agenten fjernet coworks sti-retting» | Han lå én commit bak og rørte aldri fila |
+| «Agenten fjernet Legg til-knappen» | Omstrukturert til `useCallback` — knappen står |
+| «Stashen bærer 117 tapte røykliste-linjer» | Innholdet lå i develop i en **nyere** versjon (`228e406a`, `ea2708cb`) — develop 405 linjer mot stashens 341 |
+
+Ingen gjorde skade, fordi alle tre ble målt før handling. Men den tredje kostet en `stash pop`
+som endte i konflikt, og de to første kostet gate-runder og en uberettiget anklage mot en agent
+som hadde gjort alt riktig.
+
+🔴 **Fast første steg når noe ser fjernet, tapt eller foreldreløst ut — FØR du foreslår berging:**
+
+```sh
+git log --oneline --since=<dato> -- <fila>        # er innholdet committet i mellomtiden?
+git show origin/develop:<fila> | grep -c <markør> # har develop det allerede — og MER?
+```
+
+**Asymmetrien som gjør dette viktig:** å overse ekte tap er dyrt, så instinktet om å berge er
+riktig. Men å «berge» noe som allerede finnes drar inn en **eldre** versjon — og den ville
+overskrevet nyere arbeid hvis konflikten ikke hadde stoppet den. **Falsk berging er en
+regresjonsvei, ikke en ufarlig ekstrarunde.**
+
+⚠️ **Beslektet, og det som gjorde funnet vanskelig:** stashen het `metro-nede-notat (foreldes ved
+metro-start)` og inneholdt 117 linjer røykliste. **En stash-melding som ikke beskriver innholdet
+gjør arbeidet usynlig** — den ble hverken funnet eller vurdert på to dager. Navngi stash etter
+innhold, ikke etter situasjonen den oppsto i.
+
+
+#### 🔴 `git diff develop..branch` viser IKKE hva branchen gjorde — bruk TRE punktum (2026-09-04)
+
+**To punktum sammenligner to punkter.** Er branchen bak develop, dukker develops nyere commits opp
+som **slettinger** i diffen — som om branchen fjernet dem.
+
+**Målt 04.09:** cowork gatet `feat/lokasjonomfang` og så at den «fjernet» hele sti-rettingen i
+`designnotat-malarkiv`. Konklusjonen var at agenten hadde reversert en beslutning fra samme kveld,
+og mergen ble stoppet. `git log develop..branch -- <fila>` viste tomt: **agenten hadde aldri rørt
+den.** Han lå én commit bak, og det var akkurat den commiten.
+
+```sh
+git diff origin/develop...origin/<branch>    # TRE punktum — endringene FRA forgreningspunktet
+git log origin/develop..origin/<branch> -- <fil>   # rørte branchen fila i det hele tatt?
+```
+
+**Ved `merge --no-ff` er dette uansett ufarlig** — git tar develops versjon av en fil branchen ikke
+rørte. Men den feilaktige lesningen kostet en gate-runde og en anklage mot en agent som hadde gjort
+alt riktig.
+
+⚠️ **Samme sak fra motsatt kant:** nesten-uhellet 02.09 (§ MERGE-AGENTEN) var en **ekte** −20-linjers
+sletting i et merge-resultat. Forskjellen: der var det diffen av selve mergen, ikke en
+to-punktums-sammenligning mot en branch som lå bak. **Fence 5 står** — se en uventet fil i diffen,
+STOPP og meld. Men mål med tre punktum før du konkluderer om hvem som gjorde hva.
+
+
+#### 🔴 «Finnes ikke» og «treet mitt er gammelt» ser helt like ut (2026-09-02)
+
+**Fast linje i enhver ordre der agenten skal konkludere om kode:**
+
+> Før du måler noe du skal konkludere på: `git log --oneline -1` og bekreft at du står på
+> `origin/develop`-tippen eller nyere. **Finner du ikke noe du forventet, sjekk treets alder FØR du
+> melder det som funn.**
+
+**Målt to ganger samme dag:**
+
+1. **Merge-agenten** gjorde `reset --hard origin/develop` før to docs-commits landet. Diffen viste
+   `SAMARBEIDSREGLER.md` med **−20 linjer** — det så ut som en sletting av en regel skrevet tjue
+   minutter før. Den **stoppet** fordi fence 5 krever det, sporet det, og gjorde mergen på nytt.
+2. **Simulator** kjørte røykliste flyt 13 på et tre fra dagen før, grepet etter en litauisk term,
+   fant den ikke, og **konkluderte** at RUH-kategoriene var hardkodet norsk uten i18n-kobling.
+   Målt på `origin/develop` samme time: strengen var der, og `EnkeltvalgObjekt.tsx:24` kalte
+   `oversettStandardtekst`. Konklusjonen var feil; målingen var ærlig.
+
+**Forskjellen på de to var ikke dyktighet — det var at den ene hadde en plikt til å verifisere
+tilstand før den handlet, og den andre ikke hadde det.**
+
+⚠️ **Merk asymmetrien mellom agenttypene:**
+
+- **Kodeagenter** får ferskt grunnlag hver runde (`fetch` + `checkout -B <branch> origin/develop`),
+  og integrasjonsfeil fanges uansett av at **merge-agenten kjører regel 10 på det SAMMENSLÅTTE
+  resultatet**. En agents grønne bygg på gammelt grunnlag er et signal, ikke en garanti.
+- **Simulator** står detached og flytter seg kun når noen sier fra. Han er derfor den mest utsatte,
+  og forutsetningen står nå fast i [roykliste-mobil.md](roykliste-mobil.md), ikke bare i ordrer.
+| «**Sjekk om et banner alt dekker det** før du kaller noe drift.» | Hindret at tre korrekt merkede filer ble «rettet» (`deploy-detaljer:9`, `VEILEDER:125`). |
+| «**Kjør negativ kontroll** — tom output kan bety at sjekken er død, ikke at den er grønn.» | Spor 1 og 4 gjorde det uoppfordret. Cowork gikk selv i fella samme kveld. |
+| «Er du usikker: **SI DET, ikke gjett.**» | Spor 3 lot UE stå → avdekket at arkitektur-ankeret motsa `schema.prisma:490`. |
+
+**Fabels ordre-mal (redesign-spor)** har samme anatomi og var like udokumentert: *bakgrunn · kodeverifisert · endringer · krav · DoD · eksplisitt utenfor scope*. Fungerende eksempel: **designprosjekt «Sitedoc redesign tips»: `delplaner/georef-panel-v2-ordre.md`** (peker navngir treet per §9 — fila bor ikke i repoet; cowork har ikke lest den, referansen er fabels). Rører fabel formen, oppdateres denne raden.
+
+---
+
+# Flyttet fra SAMARBEIDSREGLER.md 2026-09-28 — passering 3a (duplikat-oppløsning)
+
+**Kenneth avgjorde ordlyden. Reglene er konsolidert i SAMARBEIDSREGLER; belegget står her.**
+
+**2. Verifiser mot kode før du påstår.** Cowork gjettet feil fem ganger på tre dager:
+`config.zone` som frys-årsak (falsifisert), tilgangsrefaktoren som prosjektliste-årsak
+(koden var ikke engang i bygget), PNG som 0-byte-mønster (3 av 4 PNG hadde bytes), «ingen
+legg-til-vei for faggruppe» (grep fanget ikke `upsert`), og at simulator ikke reproduserte
+frysingen (feil mal testet). **Mål før du konkluderer — også når konklusjonen føles
+åpenbar.**
+
+
+
+🔴 **Kostnaden var null fordi ordrene bar «mål premisset selv» + «SI DET, ikke gjett».** Alle
+tre ble fanget før kode ble skrevet — og i den tredje ville coworks «fiks» gjort loggen
+**dårligere**, fordi den ba om å kopiere den svakeste av to sammenligninger. **De to linjene
+skal stå i hver eneste ordre.**
+
+---
+
+# Flyttet fra SAMARBEIDSREGLER.md 2026-09-29 — passering 3b
+
+**Regelen staar som kulepunkt i SAMARBEIDSREGLER; belegget staar her, ordrett.**
+
+#### 🔴 En verifiseringsordre skal navngi HANDLINGEN som trigger kodeveien (2026-09-24)
+
+**Ikke «åpne skjermen og se om det virker» — men «gjør DETTE, som får koden til å kjøre».**
+
+**Målt 2026-09-24:** cowork ba Kenneth åpne en eksisterende PDF-tegning for å verifisere at `pdftoppm`-hotfixen virket. Det beviste ingenting: `pdftoppm` kalles ved **opplasting** (`apps/api/src/routes/tegning.ts:105→258` i `opprett`, `:582→631` i `rekonverterPdf`). En alt konvertert tegning rendrer fra det lagrede PNG-et og trenger aldri binæren igjen. **Kenneth fanget det selv:** *«dette er en pdf tegning → men den har fungert slik hele tiden»*. Riktig test var å laste opp en NY PDF — og da virket den.
+
+⚠️ **Feilklassen ligger nær «be aldri om verifisering av kode som ikke er deployet», men er ikke den samme:** her VAR koden deployet. Det som manglet var at **handlingen som utløser kodeveien** aldri fant sted. En grønn skjerm beviste bare at et gammelt resultat fortsatt lå lagret.
+
+🔴 **Fast krav:** før en verifiseringsordre skrives, finn hvilken prosedyre som kaller det som er fikset, og hva brukeren må GJØRE for å nå den. Står det ikke i ordren, er «det virker» en observasjon om cache, ikke om fiksen.
+
+
+#### 🔴 Spør etter COMMIT-HASH, ikke branchnavn — en ryddet branch og «ikke merget» ser like ut (2026-09-24)
+
+**`git merge-base --is-ancestor origin/<branch> origin/develop` feiler med exit≠0 når `origin/<branch>` ikke finnes** — for eksempel fordi branchen er slettet etter merge. **Exit≠0 fra en feilende kommando og exit≠0 fra et ekte «nei» er umulige å skille.**
+
+**Målt 2026-09-24:** design meldte at tre av egne branches ikke var merget. Alle tre var inne (`2f674968`, `4832ef0c`); cowork hadde ryddet remote-refene etterpå, så oppslaget på navn feilet. Samme feilklasse som da en feilet `git fetch` ga hasher som ikke fantes.
+
+🔴 **Riktig form — hashen finnes uansett om refen gjør det:**
+
+```sh
+git merge-base --is-ancestor <hash> origin/develop && echo "JA" || echo "NEI"
+```
+
+⚠️ **Dette blir vanligere, ikke sjeldnere:** fase 4 sletter mergede refs som den skal (56 ryddet 2026-09-24). Den som leser etterpå må slutte å spørre etter navn som er borte. **Meld alltid hash sammen med branchnavn** — navnet er for mennesker, hashen er det som kan måles.
+
+
+#### 🔴 Cowork skriver GNU-kommandoer til en BSD-maskin (2026-09-24)
+
+**Kenneths Mac har BSD-verktøy. Coworks bash-sandkasse er Linux med GNU-verktøy.** Hver kommando cowork «prøver» før den gis, prøves altså i et annet verktøysett enn det den skal kjøre i.
+
+**Målt 2026-09-24:** cowork ga `xargs -a /tmp/slettelisten.txt -n 20 git push origin --delete` for å rydde 56 brancher. `-a` er en GNU-utvidelse; BSD-`xargs` svarer `invalid option -- a`. **Ingenting ble slettet.** ⚠️ **Og feilen var usynlig**, fordi output gikk gjennom `grep -c` — kommandoen «lyktes» med tomt svar. Merge fanget den på negativ kontroll: tellingen sto på 60, ikke 4. Riktig form er stdin-omdirigering: `xargs -n 20 git push origin --delete < /tmp/slettelisten.txt`.
+
+**De vanligste felles:** `xargs -a` · `sed -i` uten argument (BSD krever `sed -i ''`) · `grep -P` · `date -d` (BSD: `date -v`) · `readlink -f` · `stat -c`.
+
+🔴 **Regelen:** skriver cowork en kommando Kenneth skal kjøre, holder den seg til POSIX-flagg — eller sier eksplisitt at formen er umålt. **Og en slettende eller endrende kommando skal ALLTID etterfølges av en telling som ville avslørt at ingenting skjedde.** Det var tellingen som fanget denne, ikke lesingen.
+
+
+#### 🔴 Et navn i en ordre måles av den som skriver det inn — aldri arvet (2026-09-23)
+
+> **Et binærnavn, en filsti eller et `fil:linje` i en ordre måles av den som skriver det inn — aldri arvet fra en annen agents melding. Arver du det, skriv «umålt» ved siden av.**
+
+**Målt tilfelle:** cowork navnga `dwgread` fra et grovt grep uten å slå det opp. Design kopierte navnet inn i BACKLOG i god tro. Simulator målte og fant at `dwgread` **ikke kalles i det hele tatt** — de virkelige binærene er `dwg2dxf` (`dwgKonvertering.ts:80,892`) og `dwg2SVG` (`:930`).
+
+🔴 **Navnet reiste gjennom to ordrer og én BACKLOG-post før noen slo det opp.** Kjeden fanget det — men ett ledd for sent, og bare fordi den som til slutt skulle *bruke* navnet måtte måle det uansett.
+
+⚠️ **Feilklassen er ikke slurv, den er tillit i feil retning:** et navn fra en velskrevet melding leses som målt. Samme rot som § Cowork leveranse-ansvar punkt 4 («relé, rapport og exit er input, ikke fasit»), anvendt på det minste mulige elementet — ett ord. **Gjelder begge veier.** *(Design foreslo regelen etter å ha vært mellomleddet; formuleringen er hans, plasseringen coworks.)*
+
+
+#### 🔴 Gate-tall skal komme fra `--force`, ikke fra cache (Kenneth-gatet 2026-09-20)
+
+**Bakgrunn:** i merge-runden med malfasit cachet turbo `pnpm test` (FULL TURBO), og
+gate-tallene kom fra cache uten at testene kjørte på merge-agentens eget tre. Tallene var
+korrekte — turbo hash-nøkler cachen på filinnhold — men gaten hviler på at agenten
+**observerer sin egen kjøring**, ikke på et oppslag i en cache.
+
+- 🔴 **Gate-tall skal alltid komme fra `pnpm test --force` fra ROT** (i praksis
+  `pnpm exec turbo run test --force`, siden `--force` ellers spises av `pnpm` selv). **Et
+  FULL TURBO-treff er ikke en gate-kjøring.**
+- 🔴 **Ser du «FULL TURBO» i output, er tallene ikke ferske** — kjør på nytt med `--force`
+  før du rapporterer.
+- 🔴 **Begrunnelsen står:** et cache-treff gir riktige tall, men beviser ikke at testene
+  kjørte på ditt tre. **Gaten er en observasjon, ikke et oppslag.**
+
+**Belegg flyttet i samme passering (3b):**
+
+Uten dette kjører begge agentene reaktivt så snart noe haster — som de gjorde 31.08 — og
+planen står stille en hel dag uten at noen merker det før kvelden.
+
+**Målt eksempel fra 31.08:** tegningsfella var 🔴 — Kenneth måtte drepe appen, og A.Markussen
+kunne ikke stedfeste befaringer. Den skulle avbrutt, og gjorde det. **Endringslogg-støyen var
+🟡** — irriterende, ikke blokkerende. Den ble ordre samme kveld, og det var feil prioritering,
+ikke feil arbeid.
+
+
+
+ Det var coworks flaskehals, ikke
+Kenneths — målt 09.–10.09, der agenter sto ledige mens cowork ventet på en verifisering som
+ikke blokkerte dem.
+
+**Regelen over plasserte `→ SiteDoc-<navn>` som første linje INNE i fencen.** Den løste ett problem — Kenneth limer ikke til feil terminal — og skapte et annet: **kopiknappen gir ham da destinasjonslinja i tillegg til ordren**, så han må markere manuelt i stedet for å trykke.
+
+**Belegg flyttet i passering 3c (§ Cowork STADFESTER gaten):**
+
+**Målt 2026-09-24:** `feat/uploads-signaturgate` @ `a7e9b63e` ble merget uten designgate. Ordren bar betingelsen, men merge kunne ikke prøve den, og leste den som kontekst. **Samme feilklasse som `0ab36a84`** — merge utløst av at branchen fantes, ikke av en gate-melding. 🟢 Konsekvens null: ingenting nådde `main`, verifisert med fire sjekker.
+
+
+
+  Brutt tre ganger: ukommittert edit referert i en ordre · hash committet etter at branchen var pushet
+  (to ganger). **Be aldri Kenneth pushe en branch cowork fortsatt skriver på.**
+
+  en annen branch, aldri som anslag. Brutt med `web +7` hentet fra en annen branch; merge brukte en
+  runde på å lete etter tre tester som aldri fantes.
+
+ Brutt for `0d20c9e9` og `e0820f46`: begge merget før gaten kom, og design fant etterpå et
+  ekte hull i `psi-feil.ts` som da alt sto på develop.
+
