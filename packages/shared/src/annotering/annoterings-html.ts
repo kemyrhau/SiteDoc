@@ -153,6 +153,18 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       startPunkt = null;
     });
 
+    // Frihånd: i isDrawingMode legger Fabric selv strøket på lerretet, men IKKE i
+    // objekter-arrayet. Uten dette kan strøket verken angres (angre popper objekter),
+    // flyttes (settFlyttbar itererer objekter) eller lagres (laget serialiserer objekter)
+    // — det brennes bare inn i den flate JPEG-en og er borte ved neste gjenåpning (stille
+    // datatap). Samme behandling som formene får ved mouse:up: push + settFlyttbar med
+    // gjeldende verktøytilstand (låst i tegnemodus, flyttbar i Velg-modus).
+    canvas.on('path:created', function(e) {
+      var path = e.path;
+      objekter.push(path);
+      settFlyttbar(path, aktivtVerktoy === 'select');
+    });
+
     // Avsluttet tekstredigering uten innhold → fjern den tomme IText-en (erstatter den
     // gamle «tom tekst = slett»-logikken som gikk over broen).
     canvas.on('text:editing:exited', function(e) {
@@ -188,9 +200,17 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     var tilbake = len > 0 ? Math.min(pilLen / 2, len) : 0;
     var sluttX = len > 0 ? til.x - (dx / len) * tilbake : til.x;
     var sluttY = len > 0 ? til.y - (dy / len) * tilbake : til.y;
+    // 🔴 Ankre begge linjene på linjas SENTER (originX/originY 'center'), ikke hjørnet:
+    // uten eksplisitt origo forskyves hvit og rød med halve strekdifferansen (funn 2026-09-29,
+    // samme klasse som sirkel/firkant). Punktene uttrykkes relativt til senteret så geometrien
+    // er uendret. TVILLING: pilLinjeSenterOrigo i lag.ts.
+    var lcx = (fra.x + sluttX) / 2;
+    var lcy = (fra.y + sluttY) / 2;
     function linje(farge, bredde) {
-      return new fabric.Line([fra.x, fra.y, sluttX, sluttY], {
-        stroke: farge, strokeWidth: bredde, selectable: false, evented: false,
+      return new fabric.Line([fra.x - lcx, fra.y - lcy, sluttX - lcx, sluttY - lcy], {
+        stroke: farge, strokeWidth: bredde,
+        left: lcx, top: lcy, originX: 'center', originY: 'center',
+        selectable: false, evented: false,
       });
     }
     function hode(farge, str) {

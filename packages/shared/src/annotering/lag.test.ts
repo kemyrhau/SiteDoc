@@ -12,6 +12,7 @@ import {
   tekstKontrastStil,
   skalertPilhode,
   pilLinjeSlutt,
+  pilLinjeSenterOrigo,
   ANNOTERING_PILHODE_FAKTOR,
   ANNOTERING_STREK_FARGE,
   ANNOTERING_KONTRAST_FARGE,
@@ -258,5 +259,39 @@ describe("pilLinjeSlutt: linja stopper FØR hodets senter (KRAV c2 + c3)", () =>
     expect(Number.isNaN(slutt.x)).toBe(false);
     expect(Number.isNaN(slutt.y)).toBe(false);
     expect(slutt).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe("pilLinjeSenterOrigo: hvit og rød pil-linje deler anker (KRAV 2 — konsentrisk)", () => {
+  it("left/top er linjas midtpunkt og origo er senter", () => {
+    const g = pilLinjeSenterOrigo({ x: 20, y: 40 }, { x: 120, y: 40 });
+    expect(g.left).toBe(70); // (20 + 120) / 2
+    expect(g.top).toBe(40);
+    expect(g.originX).toBe("center");
+    expect(g.originY).toBe("center");
+  });
+
+  it("punktene er relative til senteret så absolutt geometri er UENDRET", () => {
+    const fra = { x: 20, y: 40 };
+    const slutt = { x: 120, y: 90 };
+    const g = pilLinjeSenterOrigo(fra, slutt);
+    // left + relativt punkt rekonstruerer det opprinnelige absolutte endepunktet
+    expect(g.left + g.x1).toBeCloseTo(fra.x, 10);
+    expect(g.top + g.y1).toBeCloseTo(fra.y, 10);
+    expect(g.left + g.x2).toBeCloseTo(slutt.x, 10);
+    expect(g.top + g.y2).toBeCloseTo(slutt.y, 10);
+    // punktene er symmetriske om senteret (0,0 i lokalrommet)
+    expect(g.x1).toBeCloseTo(-g.x2, 10);
+    expect(g.y1).toBeCloseTo(-g.y2, 10);
+  });
+
+  it("uavhengig av strekbredde: samme (fra,slutt) gir identisk anker for begge linjene", () => {
+    // Funksjonen tar ikke strek — hvit (bred) og rød (tynn) linje kaller den med samme
+    // punkter og får per konstruksjon samme left/top/origo → konsentriske uansett strek.
+    const fra = { x: 5, y: 5 };
+    const slutt = { x: 105, y: 55 };
+    const a = pilLinjeSenterOrigo(fra, slutt);
+    const b = pilLinjeSenterOrigo(fra, slutt);
+    expect(a).toEqual(b);
   });
 });

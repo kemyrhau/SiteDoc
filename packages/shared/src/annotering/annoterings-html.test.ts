@@ -66,8 +66,27 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
 
   it("pil-linja trekkes tilbake før hodet, klemt så en kort pil ikke får negativ lengde", () => {
     expect(ANNOTERINGS_HTML).toContain("Math.min(pilLen / 2, len)");
-    // linja ender i det tilbaketrukne punktet, ikke i spissen (til.x/til.y)
-    expect(ANNOTERINGS_HTML).toContain("fabric.Line([fra.x, fra.y, sluttX, sluttY]");
+    // linja ender i det tilbaketrukne punktet (sluttX/sluttY), ikke i spissen (til.x/til.y)
+    expect(ANNOTERINGS_HTML).toContain("sluttX = len > 0 ? til.x");
+  });
+
+  // FUNN 2 (pil) — de to pil-linjene skal være KONSENTRISKE: begge ankres på linjas senter
+  // (originX/originY 'center' + felles left/top), ikke hjørnet som forskjøt dem ved ulik strek.
+  it("pil-linjene ankres på senter med punkter relativt til senteret (konsentrisk uansett strek)", () => {
+    // felles senter (linjas midtpunkt) beregnes én gang og deles av begge linjene
+    expect(ANNOTERINGS_HTML).toContain("lcx = (fra.x + sluttX) / 2");
+    expect(ANNOTERINGS_HTML).toContain("lcy = (fra.y + sluttY) / 2");
+    // punktene er RELATIVE til senteret (geometrien uendret), og linja posisjoneres etter senter
+    expect(ANNOTERINGS_HTML).toContain("fabric.Line([fra.x - lcx, fra.y - lcy, sluttX - lcx, sluttY - lcy]");
+    expect(ANNOTERINGS_HTML).toContain("left: lcx, top: lcy, originX: 'center', originY: 'center'");
+  });
+
+  // KRAV 1 — frihånd må inn i `objekter`, ellers kan strøket ikke angres/flyttes/lagres
+  // (stille datatap: brennes bare inn i JPEG-en, borte ved neste gjenåpning).
+  it("frihånd (path:created) pushes til objekter og får settFlyttbar med gjeldende verktøy", () => {
+    expect(ANNOTERINGS_HTML).toContain("canvas.on('path:created'");
+    expect(ANNOTERINGS_HTML).toContain("objekter.push(path)");
+    expect(ANNOTERINGS_HTML).toContain("settFlyttbar(path, aktivtVerktoy === 'select')");
   });
 
   // FUNN 4 (bevart) — hvit kontrastkant på alle formtyper; kanten er nå ANDEL av streken.
