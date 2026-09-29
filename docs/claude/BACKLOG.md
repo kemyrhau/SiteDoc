@@ -54,6 +54,23 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
+### 🔴 SIMULATOREN PEKER MOT PRODUKSJON — `api.sitedoc.no`, ikke `api-test` (meldt av redesign 2026-09-29)
+
+**Funnet under en røyktest:** dev-login svarte 404 med «Dev-login ikke aktiv». 🟢 **Det er RIKTIG
+oppførsel fra prod — og nettopp derfor er det et funn: simulatoren snakket med produksjon.**
+
+🔴 **Den skal gå via SSH-tunnelen til `api-test` på port 3301**
+([simulator-opus-oppkobling.md](simulator-opus-oppkobling.md) § oppstart). **En simulator som tester
+mot prod er et uhell som venter** — en agent som driver appen med `idb` kan opprette, endre eller
+slette i kundedata uten å vite det.
+
+⚠️ **Og det blokkerer konkret:** mobil-runden for annoterings-lag trenger den **innloggede** in-app-flyten,
+og den er utilgjengelig så lenge dev-login peker på prod (der den med rette er av). 🔴 **Må rettes FØR
+mobil-runden starter, ikke under.**
+
+🟡 **Ikke bestilt.** **Én linje i simulator-oppsettet + verifisering av at tunnelen står. Sjekk samtidig
+om noe er skrevet til prod fra simulatoren** — `idb`-drevne økter har kjørt mot den i ukevis.
+
 ### 🟡 ENDRINGSVERNET HAR EN BLINDSONE PÅ TYPE-NIVÅ — en felttypes default passerer det helt (målt 2026-09-27)
 
 **Funnet av design i `docs/design-ordre-fjern-graa-r3` (`f351433e`), som ble trukket sammen med
