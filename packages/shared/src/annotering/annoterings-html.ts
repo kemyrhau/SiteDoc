@@ -23,6 +23,7 @@ import {
   ANNOTERING_BASIS_FONT,
   ANNOTERING_KONTRAST_FRAKSJON,
   ANNOTERING_TEKST_KANT_FRAKSJON,
+  ANNOTERING_PILHODE_FAKTOR,
 } from "./lag";
 
 export const ANNOTERINGS_HTML = `<!DOCTYPE html>
@@ -60,6 +61,7 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   var BASIS_FONT = ${ANNOTERING_BASIS_FONT};
   var KONTRAST_FRAKSJON = ${ANNOTERING_KONTRAST_FRAKSJON};
   var TEKST_KANT_FRAKSJON = ${ANNOTERING_TEKST_KANT_FRAKSJON};
+  var PILHODE_FAKTOR = ${ANNOTERING_PILHODE_FAKTOR};
   var objekter = [];
 
   function naaSkala() { return (canvas && canvas.width > 0) ? Math.sqrt(canvas.width / REFERANSE_BREDDE) : 1; }
@@ -176,9 +178,18 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     var dx = til.x - fra.x;
     var dy = til.y - fra.y;
     var vinkel = Math.atan2(dy, dx);
-    var pilLen = 15 * naaSkala();
+    // Hodet UTLEDES fra streken (TVILLING skalertPilhode) — forholdet hode:strek er
+    // PILHODE_FAKTOR:1 (5:1) konstant, kan ikke drifte når strek-formelen endres.
+    var pilLen = s * PILHODE_FAKTOR;
+    // Linja stopper der hodet begynner, ikke i spissen — ellers krysser den gjennom det
+    // senter-plasserte hodet og haloene overlapper (TVILLING pilLinjeSlutt). Klem tilbaketrekket
+    // til pilens egen lengde så en kort pil ikke får negativ lengde; hodet tegnes uansett.
+    var len = Math.sqrt(dx * dx + dy * dy);
+    var tilbake = len > 0 ? Math.min(pilLen / 2, len) : 0;
+    var sluttX = len > 0 ? til.x - (dx / len) * tilbake : til.x;
+    var sluttY = len > 0 ? til.y - (dy / len) * tilbake : til.y;
     function linje(farge, bredde) {
-      return new fabric.Line([fra.x, fra.y, til.x, til.y], {
+      return new fabric.Line([fra.x, fra.y, sluttX, sluttY], {
         stroke: farge, strokeWidth: bredde, selectable: false, evented: false,
       });
     }

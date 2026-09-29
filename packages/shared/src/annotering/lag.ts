@@ -98,6 +98,41 @@ export function skalertTekstKant(canvasBredde: number): number {
   return skalertFont(canvasBredde) * ANNOTERING_TEKST_KANT_FRAKSJON;
 }
 
+/**
+ * Pilhodets lengde som MULTIPLUM av den røde streken — holder forholdet hode:strek KONSTANT
+ * uansett canvas-bredde. 5:1 er mobil-kalibreringen (390px: strek 3 → hode 15) Kenneth aldri
+ * klaget på. 🔴 Hodet MÅ utledes fra streken (`skalertPilhode`), ikke ha sin egen skala-formel:
+ * pilLen hardkodet `15 * naaSkala()` uavhengig av streken, og da streken ble sub-lineær beholdt
+ * hodet samme naaSkala kun ved flaks — en framtidig endring av strek-formelen ville reintrodusert
+ * drift (samme halvveis-løste klasse som posisjon-vs-størrelse). Med utledning kan det ikke drifte.
+ */
+export const ANNOTERING_PILHODE_FAKTOR = 5;
+
+/** Pilhodets lengde (= bredde) for en gitt canvas-bredde — alltid FAKTOR × strek. */
+export function skalertPilhode(canvasBredde: number): number {
+  return skalertStrek(canvasBredde) * ANNOTERING_PILHODE_FAKTOR;
+}
+
+/**
+ * Hvor pil-LINJA skal ende: IKKE i spissen (`til`), men der hodet begynner. Går linja til spissen,
+ * krysser den gjennom det senter-plasserte hodet og de to hvite haloene (linje + hode) overlapper
+ * (Kenneth-funn 2026-09-29). Trekk endepunktet tilbake langs pil-vinkelen med halve hodelengden.
+ * 🔴 En veldig kort pil skal ikke få NEGATIV lengde: klem tilbaketrekket til pilens egen lengde
+ * (endepunkt = start, lengde 0) — hodet tegnes uansett. TVILLING: `byggPil` i annoterings-html.ts.
+ */
+export function pilLinjeSlutt(
+  fra: { x: number; y: number },
+  til: { x: number; y: number },
+  pilhode: number,
+): { x: number; y: number } {
+  const dx = til.x - fra.x;
+  const dy = til.y - fra.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return { x: til.x, y: til.y };
+  const tilbake = Math.min(pilhode / 2, len); // klem: aldri forbi start (ingen negativ lengde)
+  return { x: til.x - (dx / len) * tilbake, y: til.y - (dy / len) * tilbake };
+}
+
 /** Rød merkefarge og hvit kontrastfarge — interpoleres inn i HTML-en (én kilde). */
 export const ANNOTERING_STREK_FARGE = "#ef4444";
 export const ANNOTERING_KONTRAST_FARGE = "#ffffff";

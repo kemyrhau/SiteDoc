@@ -36,3 +36,36 @@ export function erRaaUploadsUrl(url: unknown): url is string {
 export function erForgiftetUploadsUrl(url: unknown): url is string {
   return typeof url === "string" && url.startsWith(UPLOADS_PREFIKS) && url.includes("sig=");
 }
+
+/**
+ * Reduser en forgiftet (`sig=`-bærende) `/uploads/`-URL til den RÅ stien (dropp hele
+ * query-strengen — for `/uploads/` er den kun `?exp=&sig=`). Motsatt av emisjons-
+ * signeringen. Alt annet (rå `/uploads/`, ekstern, `data:`, `file://`) slipper uendret
+ * gjennom. Brukes på SKRIVE-veien: web seeder `feltVerdier` fra den signerte queryen,
+ * så en URL kan være signert i lokal state — den skal ALLTID strippes før persistering
+ * (mobil holder `feltVerdier` rå med vilje; web stripper i stedet ved utsendelse).
+ */
+export function raaUploadsSti(url: unknown): unknown {
+  if (!erForgiftetUploadsUrl(url)) return url;
+  const q = url.indexOf("?");
+  return q === -1 ? url : url.slice(0, q);
+}
+
+/**
+ * Dyp kopi der hvert `url`-strengfelt (på ethvert nivå — repeater-nesting, attachments-
+ * felt) er redusert til rå `/uploads/`-sti via `raaUploadsSti`. Speiler serverens
+ * emisjons-signerings-rekursjon, motsatt vei. Muterer aldri input. Skrive-vei-vaksinen
+ * som garanterer at ingen signert URL persisteres (serveren avviser dem ellers).
+ */
+export function raaVedleggIData(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(raaVedleggIData);
+  if (node !== null && typeof node === "object") {
+    const kopi: Record<string, unknown> = {};
+    for (const [nokkel, verdi] of Object.entries(node as Record<string, unknown>)) {
+      kopi[nokkel] =
+        nokkel === "url" && typeof verdi === "string" ? raaUploadsSti(verdi) : raaVedleggIData(verdi);
+    }
+    return kopi;
+  }
+  return node;
+}

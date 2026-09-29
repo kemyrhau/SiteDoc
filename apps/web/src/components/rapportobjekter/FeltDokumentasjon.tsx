@@ -85,7 +85,11 @@ export function FeltDokumentasjon({
       } catch (feil) {
         console.error("Annotering: opplasting feilet:", feil);
       } finally {
+        // Funn 2: annoteringen ble åpnet FRA lightboxen, som fortsatt ligger under.
+        // Etter lagring skal brukeren tilbake til utfyllingen, ikke til lightboxen (som
+        // dessuten viste det ferske bildet før re-hydreringen rakk å signere URL-en).
         settAnnoteringVedleggId(null);
+        setLightboxIdx(null);
       }
     },
     [annoteringVedleggId, vedlegg, onOppdaterVedlegg],
