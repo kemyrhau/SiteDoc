@@ -14,6 +14,14 @@
 // 4:4:4-terskel (~0.9); lavere flipper til chroma-subsampling som gjør
 // 3px røde streker uleselige.
 import { BRO_RN_BETINGELSE, BRO_IFRAME_BETINGELSE } from "./bro";
+import {
+  ANNOTERING_STREK_FARGE,
+  ANNOTERING_KONTRAST_FARGE,
+  ANNOTERING_REFERANSE_BREDDE,
+  ANNOTERING_BASIS_STREK,
+  ANNOTERING_BASIS_FONT,
+  ANNOTERING_BASIS_KONTRAST,
+} from "./lag";
 
 export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <html>
@@ -36,9 +44,24 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
   var canvas;
   var aktivtVerktoy = 'arrow';
   var startPunkt = null;
-  var STREK_FARGE = '#ef4444';
-  var STREK_BREDDE = 3;
+  var forhandsvisning = null;
+  // Farger og basis-tall interpoleres fra @sitedoc/shared lag.ts (én kilde, samme
+  // mønster som bro-betingelsene). Kalibrert på referanse-canvas (mobil ~390px):
+  // strek/font/kontrastkant skaleres lineært med canvas-bredden så den VISUELLE andelen
+  // av bildet er lik på tvers av skjermer. Skala-formelen og skalert*/formKontrastStil/
+  // tekstKontrastStil i lag.ts er de testbare tvillingene.
+  var STREK_FARGE = '${ANNOTERING_STREK_FARGE}';
+  var KONTRAST_FARGE = '${ANNOTERING_KONTRAST_FARGE}';
+  var REFERANSE_BREDDE = ${ANNOTERING_REFERANSE_BREDDE};
+  var BASIS_STREK = ${ANNOTERING_BASIS_STREK};
+  var BASIS_FONT = ${ANNOTERING_BASIS_FONT};
+  var BASIS_KONTRAST = ${ANNOTERING_BASIS_KONTRAST};
   var objekter = [];
+
+  function naaSkala() { return (canvas && canvas.width > 0) ? (canvas.width / REFERANSE_BREDDE) : 1; }
+  function strekBredde() { return BASIS_STREK * naaSkala(); }
+  function fontStr() { return BASIS_FONT * naaSkala(); }
+  function kontrastKant() { return BASIS_KONTRAST * naaSkala(); }
 
   // Toveis bro: RN-WebView bruker window.ReactNativeWebView.postMessage,
   // web-iframe bruker window.parent.postMessage. Samme kall begge steder.
@@ -66,7 +89,7 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     });
 
     canvas.freeDrawingBrush.color = STREK_FARGE;
-    canvas.freeDrawingBrush.width = STREK_BREDDE;
+    canvas.freeDrawingBrush.width = strekBredde();
 
     canvas.on('mouse:down', function(opt) {
       // 'draw' = frihånd (Fabric eier dragen). 'select' = flytt eksisterende
@@ -76,7 +99,23 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       startPunkt = { x: pointer.x, y: pointer.y };
     });
 
+    // Forhåndsvisning under draget: samme bygger som endelig form, lagt på canvas
+    // men IKKE i objekter (angre/eksport rører den ikke). Byttes hver mus-bevegelse
+    // og fjernes ved mouse:up. Felles mangel web+mobil — begge fikk den ved at den
+    // bor i den delte HTML-en.
+    canvas.on('mouse:move', function(opt) {
+      if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select' || aktivtVerktoy === 'text') return;
+      var pointer = canvas.getPointer(opt.e);
+      var mdx = pointer.x - startPunkt.x;
+      var mdy = pointer.y - startPunkt.y;
+      if (Math.sqrt(mdx * mdx + mdy * mdy) < 5) return;
+      if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
+      var forh = byggForm(aktivtVerktoy, startPunkt, pointer);
+      if (forh) { forhandsvisning = forh; canvas.add(forh); canvas.renderAll(); }
+    });
+
     canvas.on('mouse:up', function(opt) {
+      if (forhandsvisning) { canvas.remove(forhandsvisning); forhandsvisning = null; }
       if (!startPunkt || aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
       var pointer = canvas.getPointer(opt.e);
       var endPunkt = { x: pointer.x, y: pointer.y };
@@ -110,11 +149,8 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       }
 
       // Drag-operasjon — tekst skal IKKE trigges her
-      switch (aktivtVerktoy) {
-        case 'arrow': leggTilPil(startPunkt, endPunkt); break;
-        case 'circle': leggTilSirkel(startPunkt, endPunkt); break;
-        case 'rect': leggTilFirkant(startPunkt, endPunkt); break;
-      }
+      var form = byggForm(aktivtVerktoy, startPunkt, endPunkt);
+      if (form) { canvas.add(form); objekter.push(form); canvas.renderAll(); }
 
       startPunkt = null;
     });
@@ -122,83 +158,81 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     postTilVert({ type: 'klar' });
   }
 
-  function leggTilPil(fra, til) {
+  // Alle formene bygges som gruppe [hvit halo (bak), rød strek (foran)]. Den hvite er
+  // (strek + 2×kontrastkant) bred, så den stikker en kontrastkant ut på hver side —
+  // rødt mot rød murvegg/mørk asfalt forsvinner ellers (Kenneth-funn). Kanten skaleres
+  // med canvas som strek og tekst; 2px på 1163px-canvas er usynlig.
+  function byggPil(fra, til) {
+    var s = strekBredde();
+    var k = kontrastKant();
     var dx = til.x - fra.x;
     var dy = til.y - fra.y;
     var vinkel = Math.atan2(dy, dx);
-    var pilLen = 15;
-
-    var linje = new fabric.Line([fra.x, fra.y, til.x, til.y], {
-      stroke: STREK_FARGE,
-      strokeWidth: STREK_BREDDE,
-      selectable: false,
-      evented: false,
-    });
-
-    var pilHode = new fabric.Triangle({
-      left: til.x,
-      top: til.y,
-      originX: 'center',
-      originY: 'center',
-      width: pilLen,
-      height: pilLen,
-      fill: STREK_FARGE,
-      angle: (vinkel * 180 / Math.PI) + 90,
-      selectable: false,
-      evented: false,
-    });
-
-    var gruppe = new fabric.Group([linje, pilHode], {
-      selectable: false,
-      evented: false,
-    });
-
-    canvas.add(gruppe);
-    objekter.push(gruppe);
+    var pilLen = 15 * naaSkala();
+    function linje(farge, bredde) {
+      return new fabric.Line([fra.x, fra.y, til.x, til.y], {
+        stroke: farge, strokeWidth: bredde, selectable: false, evented: false,
+      });
+    }
+    function hode(farge, str) {
+      return new fabric.Triangle({
+        left: til.x, top: til.y, originX: 'center', originY: 'center',
+        width: str, height: str, fill: farge,
+        angle: (vinkel * 180 / Math.PI) + 90, selectable: false, evented: false,
+      });
+    }
+    return new fabric.Group([
+      linje(KONTRAST_FARGE, s + 2 * k), hode(KONTRAST_FARGE, pilLen + 2 * k),
+      linje(STREK_FARGE, s), hode(STREK_FARGE, pilLen),
+    ], { selectable: false, evented: false });
   }
 
-  function leggTilSirkel(fra, til) {
+  function byggSirkel(fra, til) {
+    var s = strekBredde();
+    var k = kontrastKant();
     var dx = til.x - fra.x;
     var dy = til.y - fra.y;
     var radius = Math.sqrt(dx * dx + dy * dy) / 2;
     var cx = (fra.x + til.x) / 2;
     var cy = (fra.y + til.y) / 2;
-
-    var sirkel = new fabric.Circle({
-      left: cx - radius,
-      top: cy - radius,
-      radius: radius,
-      fill: 'transparent',
-      stroke: STREK_FARGE,
-      strokeWidth: STREK_BREDDE,
-      selectable: false,
-      evented: false,
-    });
-
-    canvas.add(sirkel);
-    objekter.push(sirkel);
+    function ring(farge, bredde) {
+      return new fabric.Circle({
+        left: cx - radius, top: cy - radius, radius: radius,
+        fill: 'transparent', stroke: farge, strokeWidth: bredde,
+        selectable: false, evented: false,
+      });
+    }
+    return new fabric.Group([
+      ring(KONTRAST_FARGE, s + 2 * k), ring(STREK_FARGE, s),
+    ], { selectable: false, evented: false });
   }
 
-  function leggTilFirkant(fra, til) {
+  function byggFirkant(fra, til) {
+    var s = strekBredde();
+    var k = kontrastKant();
     var x = Math.min(fra.x, til.x);
     var y = Math.min(fra.y, til.y);
     var w = Math.abs(til.x - fra.x);
     var h = Math.abs(til.y - fra.y);
+    function boks(farge, bredde) {
+      return new fabric.Rect({
+        left: x, top: y, width: w, height: h,
+        fill: 'transparent', stroke: farge, strokeWidth: bredde,
+        selectable: false, evented: false,
+      });
+    }
+    return new fabric.Group([
+      boks(KONTRAST_FARGE, s + 2 * k), boks(STREK_FARGE, s),
+    ], { selectable: false, evented: false });
+  }
 
-    var firkant = new fabric.Rect({
-      left: x,
-      top: y,
-      width: w,
-      height: h,
-      fill: 'transparent',
-      stroke: STREK_FARGE,
-      strokeWidth: STREK_BREDDE,
-      selectable: false,
-      evented: false,
-    });
-
-    canvas.add(firkant);
-    objekter.push(firkant);
+  function byggForm(verktoy, fra, til) {
+    switch (verktoy) {
+      case 'arrow': return byggPil(fra, til);
+      case 'circle': return byggSirkel(fra, til);
+      case 'rect': return byggFirkant(fra, til);
+      default: return null;
+    }
   }
 
   // Plasser tekst på canvas etter bruker har skrevet teksten i modal
@@ -206,12 +240,12 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     var tekstObj = new fabric.Text(tekst, {
       left: x,
       top: y,
-      fontSize: 14,
+      fontSize: fontStr(),
       fontWeight: 'bold',
       fill: STREK_FARGE,
       fontFamily: 'Arial',
-      stroke: '#ffffff',
-      strokeWidth: 2,
+      stroke: KONTRAST_FARGE,
+      strokeWidth: kontrastKant(),
       paintFirst: 'stroke',
       selectable: true,
       evented: true,
@@ -282,6 +316,9 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       var visningsHoyde = Math.round(img.height * skala);
       canvas.setWidth(visningsBredde);
       canvas.setHeight(visningsHoyde);
+      // Canvas har nå bildets skalerte bredde → frihånd-penselen skaleres likt
+      // strek/tekst (3px på 390px-canvas, ~9px på 1163px-canvas).
+      canvas.freeDrawingBrush.width = strekBredde();
 
       img.set({
         scaleX: skala,
