@@ -10,7 +10,7 @@ import type { Vedlegg } from "../typer";
 // lagrings-wiring, ikke tegnemotoren. Mocken fanger props og eksponerer
 // Ferdig/Avbryt så vi kan utløse onFerdig/onAvbryt deterministisk.
 let sisteProps: { bildeUrl: string; lag?: AnnoteringsLag } | null = null;
-const PROVE_LAG: AnnoteringsLag = { fabricVersion: "5.3.1", bredde: 400, hoyde: 300, objekter: [{ type: "group" }] };
+const PROVE_LAG: AnnoteringsLag = { fabricVersion: "5.3.0", bredde: 400, hoyde: 300, objekter: [{ type: "group" }] };
 vi.mock("../BildeAnnotering", () => ({
   BildeAnnotering: (props: { bildeUrl: string; lag?: AnnoteringsLag; onFerdig: (d: string, l: AnnoteringsLag) => void; onAvbryt: () => void }) => {
     sisteProps = { bildeUrl: props.bildeUrl, lag: props.lag };

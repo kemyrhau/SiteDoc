@@ -10,19 +10,21 @@
 
 /**
  * Fabric-versjonen den delte tegnemotoren (`ANNOTERINGS_HTML`) laster fra CDN.
+ * ÉN KILDE: `annoterings-html.ts` interpolerer denne konstanten inn i `<script src=…>`,
+ * så CDN-stien kan aldri drifte fra verdien her (verifisert av `annoterings-html.test.ts`).
+ *
  * 🔴 LAGRES MED HVERT LAG (`AnnoteringsLag.fabricVersion`): JSON-en er Fabrics eget
  * serialiseringsformat, og en framtidig oppgradering kan gjøre gamle lag uleselige.
- * Med versjonen lagret kan den som feilsøker om to år SE hvorfor, i stedet for å
- * gjette. Den utflatede JPEG-en består uansett — et ulesbart lag koster
- * redigerbarhet, aldri bildet. Verdien MÅ matche `<script src=...fabric.js/X/...>`
- * i `annoterings-html.ts` (én kilde) — dette er CDN-STIEN vi laster.
+ * Med versjonen lagret kan den som feilsøker om to år SE hvorfor, i stedet for å gjette.
+ * Den utflatede JPEG-en består uansett — et ulesbart lag koster redigerbarhet, aldri bildet.
  *
- * ⚠️ Selve laget lagrer `fabric.version` (runtime-sannheten), IKKE denne konstanten.
- * Målt 2026-09-29: cdnjs' 5.3.1-bygg rapporterer intern `fabric.version === "5.3.0"`
- * (5.3.1 var en re-pakking uten versjonsbump). Runtime-verdien er riktig å lagre —
- * den forteller hvilken kode som faktisk serialiserte laget.
+ * Verdien er `5.3.0`, IKKE `5.3.1`: cdnjs' `5.3.1`-bygg rapporterer intern
+ * `fabric.version === "5.3.0"` (målt 2026-09-29 — `5.3.1` var en re-pakking uten
+ * versjonsbump). Vi pinner det som FAKTISK kjører, så den lagrede `fabric.version`
+ * (runtime-sannheten laget serialiseres med) og denne konstanten er samme verdi —
+ * ingen framtidig versjonssjekk trenger et unntak for lag skrevet under et `5.3.1`-pin.
  */
-export const FABRIC_VERSJON = "5.3.1";
+export const FABRIC_VERSJON = "5.3.0";
 
 /**
  * Annotasjonslaget som lagres sammen med vedlegget (i Checklist.data).

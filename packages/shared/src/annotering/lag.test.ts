@@ -54,7 +54,7 @@ describe("reskalerLagObjekt — koordinat-normalisering på tvers av skjermstør
   });
 
   it("FABRIC_VERSJON matcher CDN-en HTML-en laster (én kilde)", () => {
-    expect(FABRIC_VERSJON).toBe("5.3.1");
+    expect(FABRIC_VERSJON).toBe("5.3.0");
   });
 });
 
