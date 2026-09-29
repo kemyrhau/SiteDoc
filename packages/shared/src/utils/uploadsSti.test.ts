@@ -65,7 +65,7 @@ describe("raaUploadsSti — reduser signert /uploads/-URL til rå sti (skrive-ve
   });
 });
 
-describe("raaVedleggIData — dyp strip av alle url-felter (nesting)", () => {
+describe("raaVedleggIData — NØKKEL-AGNOSTISK dyp strip (speiler emisjons-signeringen)", () => {
   it("stripper url på ethvert nivå (attachments + repeater-rader), muterer ikke input", () => {
     const inn = {
       felt1: {
@@ -86,10 +86,35 @@ describe("raaVedleggIData — dyp strip av alle url-felter (nesting)", () => {
     expect(inn.felt1.vedlegg[0].url).toBe("/uploads/privat/a.jpg?exp=1&sig=x");
   });
 
-  it("lar rå og eksterne url-er stå, og ikke-url-felter urørt", () => {
-    const inn = { f: { vedlegg: [{ url: "/uploads/privat/raa.jpg" }], kommentar: "sig=abc i tekst" } };
+  it("KRAV — stripper også originalUrl (og enhver annen URL-nøkkel), ikke bare url", () => {
+    const inn = {
+      f: {
+        vedlegg: [{
+          url: "/uploads/privat/annotert.jpg?exp=1&sig=x",
+          originalUrl: "/uploads/privat/original.jpg?exp=1&sig=y",
+        }],
+      },
+    };
+    const ut = raaVedleggIData(inn) as typeof inn;
+    expect(ut.f.vedlegg[0].url).toBe("/uploads/privat/annotert.jpg");
+    expect(ut.f.vedlegg[0].originalUrl).toBe("/uploads/privat/original.jpg"); // ← det ekte funnet
+  });
+
+  it("KRAV falsk-positiv — ekstern https, data: og rå /uploads/ går UENDRET gjennom", () => {
+    const inn = {
+      f: {
+        vedlegg: [
+          { url: "/uploads/privat/raa.jpg" },                    // rå → urørt
+          { url: "https://ekstern.no/x.jpg?sig=abc" },           // ekstern → urørt
+          { url: "data:image/png;base64,AAAA" },                 // data: → urørt
+        ],
+        kommentar: "sig=abc i tekst",                            // ikke /uploads/ → urørt
+      },
+    };
     const ut = raaVedleggIData(inn) as typeof inn;
     expect(ut.f.vedlegg[0].url).toBe("/uploads/privat/raa.jpg");
-    expect(ut.f.kommentar).toBe("sig=abc i tekst"); // ikke et url-felt → urørt
+    expect(ut.f.vedlegg[1].url).toBe("https://ekstern.no/x.jpg?sig=abc");
+    expect(ut.f.vedlegg[2].url).toBe("data:image/png;base64,AAAA");
+    expect(ut.f.kommentar).toBe("sig=abc i tekst");
   });
 });

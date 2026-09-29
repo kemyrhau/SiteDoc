@@ -144,7 +144,17 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
         }
         const oppdatert = fv.vedlegg.map((v) => {
           const treff = serverVedlegg.find((s) => raaUploadsSti(s.url) === raaUploadsSti(v.url));
-          return treff && treff.url !== v.url ? { ...v, url: treff.url } : v;
+          if (!treff) return v;
+          // Løft både url og originalUrl fra rå→signert (samme fil, rå-sti-match). originalUrl
+          // bærer redigerbarheten (BildeAnnotering åpner den) og signeres også ved emisjon.
+          const nyUrl = treff.url !== v.url ? treff.url : v.url;
+          const nyOriginalUrl =
+            v.originalUrl && treff.originalUrl &&
+            raaUploadsSti(treff.originalUrl) === raaUploadsSti(v.originalUrl) &&
+            treff.originalUrl !== v.originalUrl
+              ? treff.originalUrl
+              : v.originalUrl;
+          return nyUrl !== v.url || nyOriginalUrl !== v.originalUrl ? { ...v, url: nyUrl, originalUrl: nyOriginalUrl } : v;
         });
         if (oppdatert.some((v, i) => v !== fv.vedlegg[i])) {
           neste[id] = { ...fv, vedlegg: oppdatert };

@@ -52,18 +52,24 @@ export function raaUploadsSti(url: unknown): unknown {
 }
 
 /**
- * Dyp kopi der hvert `url`-strengfelt (på ethvert nivå — repeater-nesting, attachments-
- * felt) er redusert til rå `/uploads/`-sti via `raaUploadsSti`. Speiler serverens
- * emisjons-signerings-rekursjon, motsatt vei. Muterer aldri input. Skrive-vei-vaksinen
- * som garanterer at ingen signert URL persisteres (serveren avviser dem ellers).
+ * Dyp kopi der ENHVER streng som starter med `/uploads/` (på ethvert nivå, uansett hva
+ * nøkkelen heter — `url`, `originalUrl`, en framtidig tredje URL-nøkkel) er redusert til
+ * rå sti via `raaUploadsSti`. 🔴 NØKKEL-AGNOSTISK ved konstruksjon — det eksakte speilet
+ * av emisjons-signeringen (`signerUploadsOutput`, som signerer enhver `/uploads/`-streng
+ * uansett nøkkel), så skrive- og lese-vei ikke kan drifte fra hverandre. Muterer aldri
+ * input. Skrive-vei-vaksinen som garanterer at ingen signert URL persisteres.
+ *
+ * `raaUploadsSti` er en no-op for alt som ikke er en forgiftet `/uploads/`-URL, så
+ * ekstern `https://…`, `data:` og rå `/uploads/` går uendret gjennom — nøkkel-agnostisk
+ * betyr «strip enhver signert /uploads/-streng», ikke «strip alt som ser ut som en sti».
  */
 export function raaVedleggIData(node: unknown): unknown {
+  if (typeof node === "string") return raaUploadsSti(node);
   if (Array.isArray(node)) return node.map(raaVedleggIData);
   if (node !== null && typeof node === "object") {
     const kopi: Record<string, unknown> = {};
     for (const [nokkel, verdi] of Object.entries(node as Record<string, unknown>)) {
-      kopi[nokkel] =
-        nokkel === "url" && typeof verdi === "string" ? raaUploadsSti(verdi) : raaVedleggIData(verdi);
+      kopi[nokkel] = raaVedleggIData(verdi);
     }
     return kopi;
   }
