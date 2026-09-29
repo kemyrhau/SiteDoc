@@ -71,6 +71,128 @@ mobil-runden starter, ikke under.**
 🟡 **Ikke bestilt.** **Én linje i simulator-oppsettet + verifisering av at tunnelen står. Sjekk samtidig
 om noe er skrevet til prod fra simulatoren** — `idb`-drevne økter har kjørt mot den i ukevis.
 
+---
+
+#### 🟢 MÅLING 2026-09-29 (lesende, `docs/simulator-miljoemaaling` fra develop `82a5e24f`) — fire svar
+
+**1 · Hva peker simulatoren mot NÅ (det som kjører, ikke docs).**
+`apps/mobile/` har fire env-filer (alle gitignorert). Effektiv `EXPO_PUBLIC_API_URL` per fil:
+
+| Fil | `EXPO_PUBLIC_API_URL` | Miljø |
+|---|---|---|
+| `.env` | `http://localhost:3301` | test (via SSH-tunnel) — **riktig** |
+| `.env.local` | `https://api.sitedoc.no` | 🔴 **PROD** |
+| `.env.test` | `https://api-test.sitedoc.no` | test-edge |
+| `.env.production` | `https://api.sitedoc.no` | prod |
+
+`@expo/env` laster **first-wins per nøkkel**. I development er presedensen `.env.development.local`
+→ `.env.local` → `.env.development` → `.env`. **Ingen `.env.development.local` finnes** (målt). Derfor
+vinner `.env.local` (`api.sitedoc.no` = PROD) over `.env` (`localhost:3301`) → **effektiv API-URL ved en
+bar `expo start` er PROD.** Dette er nøyaktig hvorfor dev-login ga 404: appen POSTet
+`https://api.sitedoc.no/dev-login`, som er fail-secure av (`erDevLoginAktiv()`, se
+[dev-login-agent.md § Sikkerhetsgrense](dev-login-agent.md)).
+Installert app på bootet sim (iPhone 16 Plus): bundle `com.kemyrhau.sitedoc` (base-variant, **ikke**
+`.test`), lokalt debug-bygg fra **2026-09-22 16:52**. Debug-bygg serverer JS fra Metro; URL bakes **ikke**
+i native (verifisert: ingen `sitedoc.no`-URL i binæren) → effektiv URL avgjøres av env Metro laster.
+🟢 **Akkurat nå snakker appen ikke med noe:** Metro er nede og SSH-tunnelen på 3301 er nede (begge målt).
+Men neste `expo start` uten override → PROD.
+
+**2 · Hvor lenge har den pekt dit.**
+Env-filene er **gitignorert → ingen git-historikk, intet linje-nivå-spor.** Fil-tider (mtime) er eneste
+kilde:
+- `.env.local` født **2026-09-03 15:57**, sist endret **2026-09-03 17:20**, urørt siden.
+- Før 2026-09-03 fantes ingen `.env.local` → `.env` (`localhost:3301` = test) styrte alene.
+
+Så: **fra 2026-09-03 kunne en bar `expo start` treffe prod.** 🔴 **Kan ikke fastslå hvilke økter som
+FAKTISK traff prod** — det avhang av om økten hadde en høyere-presedens `.env.development.local`-override
+(som [runbook § 3a](simulator-runbook.md) anbefaler for nettopp å peke mot test). Ingen slik override
+finnes nå, så 29.09-økten traff prod. mtime kan heller ikke skille «filen opprettet med prod-verdi» fra
+«verdien redigert inn senere» — kun at prod-verdien har stått **senest siden 2026-09-03 17:20**.
+
+**3 · Er noe skrevet til prod fra simulator-økter? (hovedspørsmålet)**
+🟢 **Sikkerhetsanalyse tilsier: autentiserte skriv til prod fra simulator-økter er blokkert av design.**
+Simulator-agenten kan **kun** autentisere via dev-login (OAuth avvises for agent-drevet app/Chrome, se
+dev-login-agent.md). Prod `/dev-login` → **404 fail-secure** → ingen session mintes → ingen autentiserte
+tRPC-skrivekall er mulige. Sessions er DB-bundet: en test-DB-token validerer ikke mot prod-DB (→ 401).
+**Selve 404-en som utløste funnet er beviset på at gaten holdt.**
+
+🔴 **Ærlige forbehold — det spørringene IKKE kan skille:**
+- **En simulator-opprettet rad ser IDENTISK ut som en menneske-opprettet rad** med mindre en kolonne
+  skiller dem (forfatter = testbruker, eller prosjekt = testprosjekt). Der ingen slik kolonne finnes,
+  teller en tidsvindus-spørring **all** prod-aktivitet i perioden — ikke bare simulator. Tallet fra Q5 er
+  derfor et **volummål å øyne-sjekke**, ikke et presist simulator-tall.
+- Eventuelle **uautentiserte** skrive-endepunkter (om noen finnes) omgår session-argumentet. Ikke målt her.
+- Den presise isolasjonen (Q1/Q4) hviler på at simulatoren kun kjenner `@sitedoc.test`-testbrukere. **Q1
+  er linchpin:** returnerer den 0 testbrukere i prod, finnes ingen aktør-identitet, og Q4 blir trivielt 0.
+
+🔴 **Lim-klare spørringer til Kenneth — mot PROD-DB `sitedoc` (IKKE `sitedoc_test`).** Kjøres via
+`ssh -t server-ny` + `sudo docker` (Opus kan ikke `sudo`). Vindu = 2026-09-03 (da `.env.local` ble født).
+
+```sql
+-- Q1 (LINCHPIN): finnes en testbruker-identitet i prod i det hele tatt?
+--   0 rader ⇒ ingen aktør simulatoren kunne autentisert som ⇒ Q4 blir 0.
+SELECT id, email, role, created_at FROM users WHERE email LIKE '%@sitedoc.test';
+
+-- Q2: ble noen session minta i prod i vinduet? En simulator-innlogging ville lagt en rad her.
+--   Ingen test-bruker-session ⇒ ingen innlogget simulator-flyt traff prod.
+SELECT s.id, s.user_id, u.email, s.created_at, s.expires
+FROM sessions s JOIN users u ON u.id = s.user_id
+WHERE s.created_at >= '2026-09-03' ORDER BY s.created_at DESC;
+
+-- Q3: prosjekter opprettet i vinduet. ⚠️ skiller IKKE simulator fra kunde —
+--   les lista og kjenn igjen ekte kundeprosjekter vs. test-aktige navn/numre.
+SELECT id, project_number, name, created_at, primary_organization_id
+FROM projects WHERE created_at >= '2026-09-03' ORDER BY created_at DESC;
+
+-- Q4 (PRESIST): innhold forfattet av en testbruker — det eneste som isolerer simulator sikkert.
+--   Avhenger av Q1; 0 testbrukere ⇒ 0 rader her.
+SELECT 'checklist' AS type, c.id, c.created_at, u.email AS forfatter
+FROM checklists c JOIN users u ON u.id = c.bestiller_user_id
+WHERE u.email LIKE '%@sitedoc.test'
+UNION ALL
+SELECT 'task', t.id, t.created_at, u.email
+FROM tasks t JOIN users u ON u.id = t.bestiller_user_id
+WHERE u.email LIKE '%@sitedoc.test'
+UNION ALL
+SELECT 'project_member', pm.id, pm.created_at, u.email
+FROM project_members pm JOIN users u ON u.id = pm.user_id
+WHERE u.email LIKE '%@sitedoc.test';
+
+-- Q5 (GROVMÅL — ærlig forbehold): volum av bruker-skrevne rader i vinduet.
+--   ⚠️ Teller ALL prod-aktivitet, ikke bare simulator. Bruk til å se om noe stikker ut.
+SELECT 'projects' t, count(*) FROM projects WHERE created_at >= '2026-09-03'
+UNION ALL SELECT 'project_members', count(*) FROM project_members WHERE created_at >= '2026-09-03'
+UNION ALL SELECT 'checklists', count(*) FROM checklists WHERE created_at >= '2026-09-03'
+UNION ALL SELECT 'tasks', count(*) FROM tasks WHERE created_at >= '2026-09-03'
+UNION ALL SELECT 'images', count(*) FROM images WHERE created_at >= '2026-09-03';
+```
+
+**Tolkning:** Q1 = 0 **og** Q2 = 0 (ingen test-session) ⇒ ingen innlogget simulator-flyt nådde prod, i tråd
+med 404-gaten. Q1 > 0 eller Q2 med `@sitedoc.test`-treff ⇒ eskalér: kryss mot Q4 for faktisk forfattet
+innhold. Q3/Q5 leses som kontekst, ikke som simulator-bevis.
+
+**4 · Hva skal til for å rette (beskrivelse — egen runde, kan kreve Kenneths beslutning om testmiljøet).**
+🔴 **Ikke gjort i denne runden.** Tre ledd:
+1. **Konfigurasjon:** simulatoren skal peke mot test via loopback. To veier — (a) fjern/tøm
+   `apps/mobile/.env.local` slik at `.env` (`localhost:3301`) igjen styrer, eller (b) la `.env.local`
+   ligge og legg en midlertidig `apps/mobile/.env.development.local` med
+   `EXPO_PUBLIC_API_URL=http://localhost:3301` (høyest presedens), slett etter økten. **(b) er minst
+   invasiv** og er runbookens anbefaling. **Beslutning til Kenneth:** skal `.env.local` = prod bestå som
+   default i det hele tatt? Den er selve fella.
+2. **Tunnel:** `ssh -N -L 3301:localhost:3301 server-ny` (hold åpen; Kenneths hånd — SSH/infra).
+3. **Verifiser at den peker riktig ETTERPÅ** (kommando som svarer, ikke antakelse):
+   ```sh
+   # (a) tunnelen svarer test-API på loopback:
+   curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3301        # → 200
+   # (b) effektiv API-URL som Expo faktisk laster (kjør i apps/mobile):
+   npx expo config --type public 2>/dev/null | grep -i api_url            # → localhost:3301, IKKE sitedoc.no
+   # (c) runtime-gate: dev-login lykkes bare mot test (prod gir 404):
+   curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3301/dev-login \
+     -H "Content-Type: application/json" -d '{"email":"test-admin@sitedoc.test"}'   # 200/401 = test svarer; 404 = fortsatt prod
+   ```
+   🔴 **Prod-sperren i [simulator-opus-oppkobling.md § 0](simulator-opus-oppkobling.md) FØR innlogging:**
+   les effektiv `EXPO_PUBLIC_API_URL` og **avbryt hvis den er `api.sitedoc.no`**.
+
 ### 🟡 ENDRINGSVERNET HAR EN BLINDSONE PÅ TYPE-NIVÅ — en felttypes default passerer det helt (målt 2026-09-27)
 
 **Funnet av design i `docs/design-ordre-fjern-graa-r3` (`f351433e`), som ble trukket sammen med
