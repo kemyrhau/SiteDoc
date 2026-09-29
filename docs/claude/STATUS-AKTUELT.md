@@ -21,6 +21,54 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-28 · develop `38567b33` ← ti merger etter `1c432a29`. Kode: `fix/signert-bilde-flere-forsok` `4ef039fd` (1→3 gjenforsøk med backoff, budsjett dekoblet fra lenke-klassen) · `fix/psi-p2002-haandtert` `e0820f46` (stille feil ved PSI nr. 2 lukket) · `feat/trafikklys-verdisett` `ab1efe2c` (rendreren leser `config.options`). GATE på siste: api 634 (+6) · shared 898 · web 349 · pdf 131 · db 277 · mobil 49 · 7/7, tre byggeledd exit 0. Docs: § 0 Kenneths forventninger, septemberarkiveringen, to designordrer. **Origin er ren — kun kjerne + `redesign/navigasjon` (Regel 9).** 🔴 **Prod er `eb9071f2` fra 24.09 — develop er 130+ commits foran med tre umigrerte migreringer og `/uploads/`-gaten som aldri har kjørt utenfor develop.**
 
+**Sist ført: 2026-09-29 · develop `1b7fc87b` ← `feat/web-annotering-og-paritet` `d4c7db3d` (38 filer, +1292/−56) + `fix/forgiftede-vedlegg-urler` `aefb560a` + docs. GATE: shared 921 · web 358 · api 638 · pdf 131 · db 277 · mobil 49 · 7/7, kald web-build uten TS2589. **Test kjører `acdfd750`; alt etter det er udeployet.** 🔴 **Prod er fortsatt `eb9071f2` fra 24.09.**
+
+### 🟢 2026-09-29 — FORGIFTEDE VEDLEGG-URL-ER: BILDER SOM FORSVANT I AUGUST ER TILBAKE
+
+**Kenneth så et vedlegg som viste filnavnet «IMG_1787» i stedet for bildet.** Målt: signaturen i URL-en
+var **utløpt 22.08, 887 timer tidligere** — altså lagret i `Checklist.data`, ikke laget ved emisjon.
+
+🔴 **Rotårsak `hmac.ts`: `erAlleredeSignert()` spurte kun OM en URL bar `sig=`, ikke om signaturen var
+gyldig.** En død signatur telte som «ferdig signert» og ble sendt ut uendret — for alltid. Rotårsaken er
+**Fase 1** (`ca7f16b6`, 07.08), ikke `/uploads/`-gaten. ⚠️ **Advarselen om «forgiftet URL» sto i kodens
+egne kommentarer. Den ble skrevet, og forgiftningen skjedde likevel, fordi det ikke fantes noen vakt.**
+
+**Omfang i prod:** 5 sjekklister + 1 oppgave. **Én tilhører A.Markussen** (`f4337dff`, status `received`).
+🟢 Ingen signert eller godkjent.
+
+🟢 **Fiksen rører ikke databasen.** En utløpt signatur regnes ikke lenger som ferdig, så emisjonen
+signerer på nytt. **Verifisert på test av Kenneth: A.Markussen-raden viser bildet igjen uten at én rad er
+skrevet.** Dataryddingen ligger i `packages/db/manuell/` — utenfor `prisma/migrations/`, så
+`migrate deploy` kan ikke kjøre den — og venter godkjent dry-run. ⚠️ **Idempotensen for GYLDIGE
+signaturer er bevart, så URL-en er stabil i 15-min-vinduet og koalesceringen fra `4ef039fd` består.**
+
+🔴 **Kenneths formulering er ført som regel:** *«jeg har bestilt større sikkerhet → men det er ikke det
+samme som at en gammel sjekkliste aldri mer skal vise bilder.»* **En endring som fjerner noe brukeren
+kunne, er en funksjonsendring — også når den er merket sikkerhet.**
+
+### 🟢 2026-09-29 — ANNOTERING I WEB, MED REDIGERBART LAG
+
+**Kenneth trodde annoteringen var forsvunnet fra sjekklister. Målt: den har ALDRI eksistert i web** —
+`FeltDokumentasjon.tsx` har null treff i hele git-historikken. 🟢 **Paritetsmålingen som fulgte: 33
+rapportobjekt-komponenter i begge trær, 24 i paritet, 9 divergerer, 1 ren mangel.**
+
+🔴 **Og Kenneths spørsmål underveis ga en bedre modell enn ordren:** *«hvorfor kan vi ikke legge et eget
+lag på bildet — slik at anotering er redigerbart?»* **Cowork hadde presentert overskriv-vs-behold som om
+det var valget; begge ofret noe.** 🟢 **Tre artefakter — original urørt · Fabric-lag som data · utflatet
+JPEG — oppløser hele spørsmålet.**
+
+**Tegnemotoren er nå ÉN delt HTML-streng i `@sitedoc/shared`** (mobil-kopien slettet), og
+**bro-betingelsene INTERPOLERES inn i HTML-en fra konstanter** — så HTML-en ikke kan drifte fra
+TS-tvillingen. 🟢 **Design ba om at drift skulle bli detekterbar; redesign gjorde den umulig.**
+
+⚠️ **Fire returer, tre fra cowork:** meld kostnaden før du bygger (fant at «pilen kan flyttes» krever et
+Velg/Flytt-verktøy som ikke fantes, og koordinat-normalisering mellom flatestørrelser) · kjør
+motortest i mobilens WebView · **RN-broen var refaktorert og ukjørt** — WebKit-testen traff
+`window.parent`-grenen. **Og én fra design: tvillingen var dokumentert, ikke håndhevet.**
+
+🟢 **Drag-kjeden er REGNET, ikke påstått:** pil på canvas 1163×775 → `left=368`; gjenåpnet på 1059×706 →
+`left=335`. **368 × (1059/1163) = 335.**
+
 ### 🟢 2026-09-28 — TRAFIKKLYS-VERDISETT: 6 AV 6 PROD-FELT VISTE FEIL ETIKETTER
 
 **Rendreren leste aldri `objekt.config.options`** (`TrafikklysObjekt.tsx:14` destrukturerte
