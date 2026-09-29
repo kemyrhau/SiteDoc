@@ -48,6 +48,84 @@ function somTall(v: unknown, standard: number): number {
 }
 
 /**
+ * Kalibrerings-canvas (mobil ~390px display-piksler) der strek/font/kontrastkant ble
+ * kalibrert. Strek og tekst skal ha samme VISUELLE andel av bildet uansett skjerm — men
+ * canvas-bredden varierer (mobil ~390px, web opptil ~1160px). Derfor skaleres de lineært
+ * mot denne referansen: en 3px strek på 390px-canvas og en ~9px strek på 1163px-canvas
+ * dekker samme andel av bildet, og eksporteres til samme antall piksler på originalbildet.
+ *
+ * 🔴 TVILLING: `annoterings-html.ts` inliner nøyaktig disse tallene og formelen (HTML-strengen
+ * kan ikke importere). Endres en verdi eller formelen her, skal den endres begge steder.
+ * Denne kopien er den enhets-testbare — HTML-en er ikke.
+ */
+export const ANNOTERING_REFERANSE_BREDDE = 390;
+/** Rød strekbredde på referanse-canvas. */
+export const ANNOTERING_BASIS_STREK = 3;
+/** Tekst-fontstørrelse på referanse-canvas. */
+export const ANNOTERING_BASIS_FONT = 14;
+/** Hvit kontrastkant per side (og tekst-outline) på referanse-canvas. */
+export const ANNOTERING_BASIS_KONTRAST = 2;
+
+/** Lineær skala fra referanse-canvas til gjeldende canvas-bredde. */
+export function annoteringSkala(canvasBredde: number): number {
+  return canvasBredde > 0 ? canvasBredde / ANNOTERING_REFERANSE_BREDDE : 1;
+}
+
+/** Rød strekbredde for en gitt canvas-bredde. */
+export function skalertStrek(canvasBredde: number): number {
+  return ANNOTERING_BASIS_STREK * annoteringSkala(canvasBredde);
+}
+
+/** Tekst-fontstørrelse for en gitt canvas-bredde. */
+export function skalertFont(canvasBredde: number): number {
+  return ANNOTERING_BASIS_FONT * annoteringSkala(canvasBredde);
+}
+
+/** Hvit kontrastkant per side for en gitt canvas-bredde. */
+export function skalertKontrast(canvasBredde: number): number {
+  return ANNOTERING_BASIS_KONTRAST * annoteringSkala(canvasBredde);
+}
+
+/** Rød merkefarge og hvit kontrastfarge — interpoleres inn i HTML-en (én kilde). */
+export const ANNOTERING_STREK_FARGE = "#ef4444";
+export const ANNOTERING_KONTRAST_FARGE = "#ffffff";
+
+/**
+ * Kontraststil for en form (pil/sirkel/firkant): den røde streken tegnes oppå en
+ * bredere hvit «halo» som stikker én kontrastkant ut på hver side. Uten den forsvinner
+ * rødt mot rød murvegg eller mørk asfalt (Kenneth-funn). `hvitStrek > rodStrek` er
+ * invarianten som gjør kanten synlig; begge skalerer med canvas.
+ *
+ * 🔴 TVILLING: `annoterings-html.ts` bygger gruppen [hvit, rød] med nøyaktig disse
+ * bredde-formlene inlinet (`s` og `s + 2 * k`). Denne er den testbare.
+ */
+export function formKontrastStil(canvasBredde: number): {
+  rodStrek: number;
+  hvitStrek: number;
+} {
+  const s = skalertStrek(canvasBredde);
+  const k = skalertKontrast(canvasBredde);
+  return { rodStrek: s, hvitStrek: s + 2 * k };
+}
+
+/**
+ * Kontraststil for tekst: hvit outline malt FØRST (`paintFirst: "stroke"`) så den røde
+ * fyllfargen legger seg oppå — samme kontrastprinsipp som formene. Font og kant skalerer
+ * med canvas. 🔴 TVILLING inlinet i `annoterings-html.ts` `plasserTekst`.
+ */
+export function tekstKontrastStil(canvasBredde: number): {
+  fontSize: number;
+  hvitKant: number;
+  paintFirst: "stroke";
+} {
+  return {
+    fontSize: skalertFont(canvasBredde),
+    hvitKant: skalertKontrast(canvasBredde),
+    paintFirst: "stroke",
+  };
+}
+
+/**
  * Reskaler ETT serialisert Fabric-objekt fra sitt lagrede koordinatsystem til
  * gjeldende canvas — gang posisjon og skala med forholdet mellom ny og lagret
  * canvas-bredde. Type-agnostisk: `left`/`top`/`scaleX`/`scaleY` dekker posisjon og
