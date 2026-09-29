@@ -9,20 +9,23 @@
 // flyttes, ikke et flatt bilde som må tegnes på nytt.
 
 /**
- * Fabric-versjonen den delte tegnemotoren (`ANNOTERINGS_HTML`) laster fra CDN.
- * 🔴 LAGRES MED HVERT LAG (`AnnoteringsLag.fabricVersion`): JSON-en er Fabrics eget
- * serialiseringsformat, og en framtidig oppgradering kan gjøre gamle lag uleselige.
- * Med versjonen lagret kan den som feilsøker om to år SE hvorfor, i stedet for å
- * gjette. Den utflatede JPEG-en består uansett — et ulesbart lag koster
- * redigerbarhet, aldri bildet. Verdien MÅ matche `<script src=...fabric.js/X/...>`
- * i `annoterings-html.ts` (én kilde) — dette er CDN-STIEN vi laster.
+ * CDN-STIEN den delte tegnemotoren (`ANNOTERINGS_HTML`) laster Fabric fra.
+ * ÉN KILDE for stien: `annoterings-html.ts` interpolerer denne inn i
+ * `<script src=…fabric.js/${FABRIC_CDN_STI}/…>`, så stien kan aldri drifte fra verdien
+ * her (verifisert av `annoterings-html.test.ts`).
  *
- * ⚠️ Selve laget lagrer `fabric.version` (runtime-sannheten), IKKE denne konstanten.
- * Målt 2026-09-29: cdnjs' 5.3.1-bygg rapporterer intern `fabric.version === "5.3.0"`
- * (5.3.1 var en re-pakking uten versjonsbump). Runtime-verdien er riktig å lagre —
- * den forteller hvilken kode som faktisk serialiserte laget.
+ * 🔴 DETTE ER STIEN, IKKE EN PÅSTAND OM RUNTIME-VERSJONEN. På cdnjs korresponderer ikke
+ * sti og byggets interne `fabric.version`: `.../5.3.1/...` serverer kode som rapporterer
+ * `fabric.version === "5.3.0"`, og `.../5.3.0/...` serverer `5.1.0` (målt 2026-09-29 —
+ * hvert bygg rapporterer forrige utgivelse internt). Vi pinner `5.3.1` = nyeste
+ * tilgjengelige kode. Konstanten skal derfor ALDRI sammenlignes med et lagres `fabricVersion`.
+ *
+ * Format-bindingen — hvilken Fabric-kode et lag ble serialisert med — bæres av den LAGREDE
+ * `AnnoteringsLag.fabricVersion` ALENE. Den settes til `fabric.version` ved konstruksjon i
+ * `annoterings-html.ts` og er korrekt uansett hva CDN-stien heter. Det er den som gjør at
+ * den som feilsøker om to år SER hvilken kode som skrev laget, i stedet for å gjette.
  */
-export const FABRIC_VERSJON = "5.3.1";
+export const FABRIC_CDN_STI = "5.3.1";
 
 /**
  * Annotasjonslaget som lagres sammen med vedlegget (i Checklist.data).
@@ -33,7 +36,8 @@ export const FABRIC_VERSJON = "5.3.1";
  * dem er reskaleringen gjetning.
  */
 export interface AnnoteringsLag {
-  /** Fabric-versjonen laget ble serialisert med (se FABRIC_VERSJON). */
+  /** Fabric-versjonen laget ble serialisert med (`fabric.version` ved konstruksjon).
+   *  Format-bindingens ENESTE kilde — IKKE avledet av CDN-stien; se FABRIC_CDN_STI. */
   fabricVersion: string;
   /** Canvas-bredde (display-piksler) da laget ble laget. */
   bredde: number;

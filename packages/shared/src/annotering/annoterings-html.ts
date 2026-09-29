@@ -15,6 +15,7 @@
 // 3px røde streker uleselige.
 import { BRO_RN_BETINGELSE, BRO_IFRAME_BETINGELSE } from "./bro";
 import {
+  FABRIC_CDN_STI,
   ANNOTERING_STREK_FARGE,
   ANNOTERING_KONTRAST_FARGE,
   ANNOTERING_REFERANSE_BREDDE,
@@ -27,6 +28,7 @@ import {
 export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,7 +41,7 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
 <div id="canvas-container">
   <canvas id="c"></canvas>
 </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/${FABRIC_CDN_STI}/fabric.min.js"></script>
 <script>
 (function() {
   var canvas;

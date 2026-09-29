@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ANNOTERINGS_HTML } from "./annoterings-html";
-import { FABRIC_VERSJON } from "./lag";
+import { FABRIC_CDN_STI } from "./lag";
 
 /**
  * Tegnelogikken bor i en HTML-streng (kan ikke enhets-testes med canvas), så disse
@@ -14,8 +14,14 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     expect(ANNOTERINGS_HTML).not.toContain("format: 'png'");
   });
 
-  it("laster nøyaktig den Fabric-versjonen lag-formatet er bundet til (én kilde)", () => {
-    expect(ANNOTERINGS_HTML).toContain(`fabric.js/${FABRIC_VERSJON}/fabric.min.js`);
+  it("laster Fabric fra den pinnede CDN-stien (én kilde for stien)", () => {
+    expect(ANNOTERINGS_HTML).toContain(`fabric.js/${FABRIC_CDN_STI}/fabric.min.js`);
+  });
+
+  it("er selvbeskrivende med UTF-8 — brekker ikke når den serveres som fil", () => {
+    // Uten charset faller en fil-servert nettleser til windows-1252 og feildekoder æøå
+    // i inline-JS-en (håndterVertMelding + norske strenger) → SyntaxError → settBilde undefined.
+    expect(ANNOTERINGS_HTML).toContain(`<meta charset="utf-8">`);
   });
 
   it("broen er TOVEIS — RN-WebView OG web-iframe fra samme implementasjon", () => {

@@ -7,10 +7,10 @@ import {
   dataUrlTilBlob,
 } from "../annotering-lag";
 import type { Vedlegg } from "../typer";
-import { FABRIC_VERSJON, type AnnoteringsLag } from "@sitedoc/shared";
+import { type AnnoteringsLag } from "@sitedoc/shared";
 
 const LAG: AnnoteringsLag = {
-  fabricVersion: FABRIC_VERSJON,
+  fabricVersion: "5.3.0", // runtime `fabric.version` for den pinnede CDN-stien (ikke stien selv)
   bredde: 400,
   hoyde: 300,
   objekter: [{ type: "group", left: 10, top: 10, scaleX: 1, scaleY: 1 }],

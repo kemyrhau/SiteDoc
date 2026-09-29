@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   reskalerLagObjekt,
-  FABRIC_VERSJON,
+  FABRIC_CDN_STI,
   skalertStrek,
   skalertFont,
   skalertKontrast,
@@ -53,8 +53,8 @@ describe("reskalerLagObjekt — koordinat-normalisering på tvers av skjermstør
     expect(ut.path).toEqual([["M", 0, 0]]);
   });
 
-  it("FABRIC_VERSJON matcher CDN-en HTML-en laster (én kilde)", () => {
-    expect(FABRIC_VERSJON).toBe("5.3.1");
+  it("FABRIC_CDN_STI er pinnet til CDN-stien HTML-en laster (én kilde for stien)", () => {
+    expect(FABRIC_CDN_STI).toBe("5.3.1");
   });
 });
 
