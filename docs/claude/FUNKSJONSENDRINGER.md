@@ -32,6 +32,26 @@ sources: cowork
 | `1b7fc87b` | Bildevedlegg i sjekklister og oppgaver — **web** | **Ingen annotering i web.** Bildet kunne vises og slettes, ikke merkes. Nå: pil, sirkel, firkant, frihånd og tekst — og **Velg/Flytt**, så en pil kan dras i stedet for å tegnes på nytt | 🟢 Kenneth 2026-09-29, valgte «paritetsmåling + annotering i web i samme runde» |
 | `1b7fc87b` | Samme | Annoteringen lagres som et **redigerbart lag**, ikke brent inn i bildet. Tre artefakter: **originalen røres aldri** · Fabric-laget som data · utflatet JPEG for visning, PDF og mottaker | 🟢 Kenneth 2026-09-29: *«hvorfor kan vi ikke legge et eget lag på bildet → slik at anotering er redigerbart?»* |
 
+#### 🔴 TEKSTANNOTERING ER VERIFISERT I WEB — MOBIL ER UTESTET
+
+⚠️ **Ikke les «tekstannotering levert» som levert på begge flater.** Tekstverktøyet ble bygget om
+2026-09-29: modalen er fjernet, og teksten skrives nå direkte på bildet med `fabric.IText` som går rett
+i `enterEditing()`.
+
+| Flate | Status |
+|---|---|
+| **Web** | 🟢 Verifisert. IText fokuserer i nettleser |
+| **Mobil** | 🔴 **UTESTET.** I `react-native-webview` avhenger tastaturet av at `enterEditing()` faktisk åpner WebView-tastaturet. **Gjør den ikke det, virker ikke tekstannotering på telefon i det hele tatt** |
+
+🔴 **Og det er mobilarbeid etter paritetsregelen** — «ta bilde, sette pin» står eksplisitt på
+mobil-siden. **Annotering i felt gjøres på telefon, ikke på PC.** ⚠️ **Oppdages dette først med hansker
+i regn, er det på verste sted.**
+
+🟡 **Kandidat-fiks, ikke satt:** `keyboardDisplayRequiresUserAction={false}` på WebView-en (iOS).
+🟢 **Redesign nektet å sette en prop han ikke kunne teste** — en prop satt på antakelse er en umålt
+påstand i kode. **Krever enhet.** 🔴 **Og det blokkeres av at simulatoren peker mot produksjon i stedet
+for `api-test`** ([BACKLOG](BACKLOG.md)) — den saken er nå på kritisk vei.
+
 #### 🔴 KONSEKVENS DU SKAL KJENNE: flatene har nå ULIK ANGRERETT på samme handling
 
 **Web:** annoter → originalen består → åpne igjen → flytt pilen → angre helt.

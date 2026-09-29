@@ -54,6 +54,24 @@ PowerOffice-eksport (**0 filer** i `apps/api/src`) + `kode`-validering før atte
 
 **❓ Krever fysisk enhet, kan ikke måles statisk:** `config.zone`-frysen · klipp/lim i tekstfelt.
 
+### 🟡 TRE FORELDRELØSE i18n-NØKLER etter at annoterings-modalen ble fjernet (2026-09-29)
+
+**Modalen er borte — teksten skrives nå direkte på bildet med `fabric.IText`. Nøklene ble igjen.**
+
+| Nøkkel | Kode-referanser | Språkfiler |
+|---|---|---|
+| `annotering.skrivInnTekst` | 🔴 **0** | 15 |
+| `annotering.redigerTekst` | 🔴 **0** | 15 |
+| `annotering.tekstPlaceholder` | 🔴 **0** | 15 |
+
+🔴 **De skal SLETTES, ikke oversettes.** Husregelen i CLAUDE.md § i18n-diagnostikk finnes fordi noen
+prøvde å FYLLE relikvier: *«finnes nøkkelen ikke i `*.ts`/`*.tsx`, er det en relikvi som skal slettes,
+ikke en bug som skal fylles.»* ⚠️ **En foreldreløs nøkkel er umulig å skille fra en manglende
+oversettelse seks uker senere** — og da fyller noen den med en oversettelse av noe som ikke finnes.
+
+🟢 **Bevisst holdt utenfor fiks-diffen:** sletting spenner 45 rader over 15 språkfiler, og det hører
+ikke i en runde om tekstverktøy og halo-sentrering. **Tas som eget i18n-sveip.** **Ikke bestilt.**
+
 ### 🔴 SIMULATOREN PEKER MOT PRODUKSJON — `api.sitedoc.no`, ikke `api-test` (meldt av redesign 2026-09-29)
 
 **Funnet under en røyktest:** dev-login svarte 404 med «Dev-login ikke aktiv». 🟢 **Det er RIKTIG
