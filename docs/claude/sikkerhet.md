@@ -73,6 +73,36 @@ Bildet ble borte for godt.
   `packages/db/manuell/forgiftede-vedlegg-urler/` (DRY-RUN + rydding), bevisst **utenfor**
   `prisma/migrations/` så de aldri auto-kjøres. Med A på plass er C rydding, ikke redning.
 
+### ✅ Mobil-motstykket til visnings-helingen (herding 2026-09-30, `fix/mobil-herding-signerte-urler`)
+
+Web helet på visnings-veien (del A over). Mobilen resolver signerte URL-er **ved visning**
+(`apps/mobile/src/utils/signerteUrler.ts`, `resolveSignerteUrler` i `hentFeltVerdi`), men
+resolveren hadde to hull (målt i `maaling-mobil-lagrede-uploads-2026-09-30.md`, «Funn C» +
+akse 2 fra cowork):
+
+- **Akse 1 — bare `url`-nøkkelen ble leget.** Annoteringens `originalUrl` (en `/uploads/`-streng
+  mobilen bærer i JSON-blobben, aldri navngitt i mobil-koden) ble aldri byttet → originalen
+  lastet ikke ved redigering av markeringer.
+- **Akse 2 — bare RÅ ble leget.** Init-veien kan persistere en **signert URL med utløp** til
+  SQLite (`skrivTilSQLite` kopierer `hentMedId`-svaret uendret). Den utløpte URL-en sto død;
+  resolveren rørte den ikke (den bærer `sig=`, så den var ikke «rå»).
+
+**Fiksen speiler web ved KONSTRUKSJON, ikke ved nøkkelliste:**
+- **Nøkkel-agnostisk:** både `samleSignerteVedleggUrler` og `resolveSignerteUrler` rekurserer
+  på strenger — enhver `/uploads/`-streng leges uansett nøkkelnavn (`originalUrl` dekket *fordi
+  den er en `/uploads/`-streng*). Begge nøkler på **rå sti** (`raaUploadsSti`), så rå og
+  utløpt-signert av samme fil finner den ferske.
+- **Utløpt ≠ rå:** heler når `erUtloptSignatur(url)` er sann (rå ELLER utløpt-signert) — **samme
+  delte grense web bruker** (`@sitedoc/shared/signertBildePolicy.ts`). 🔴 **Idempotensen bevart:**
+  en *gyldig* signert URL står urørt (samme grense som `erAlleredeSignert` server-side), ellers
+  skifter URL-en identitet ved hver visning og `SignertBilde`-koalesceringen faller.
+
+🔴 **Krav 3 (selvfornyelse på mobil — tak/backoff/debouncet invalidering + ingen stille feil)
+er IKKE i denne runden.** Den hører inni `AutentisertBilde` (`feat/mobil-bildeheader`, frossen),
+som erstatter `<Image>` i de samme visningskomponentene — å legge `onError` i dem nå ville
+kollidert i fil og havnet i komponenter som ikke lenger eier bildet. Leveres som tillegg når
+bildeheader er merget.
+
 ---
 
 ## Åpne punkter, rangert etter vei fra utenforstående til skade
