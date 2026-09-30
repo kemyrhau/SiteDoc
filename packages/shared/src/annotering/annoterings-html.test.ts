@@ -33,9 +33,11 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
   });
 
   it("lag-modellen: sender laget ut ved lagre, laster det inn ved settBilde", () => {
-    // hentLag: objektene UT sammen med den utflatede dataUrl-en + versjon + dims
+    // hentLag: objektene UT sammen med den utflatede dataUrl-en + versjon + dims.
+    // (Serialiseringen filtrerer nå tom IText først — se egen tom-tekst-vakt-test;
+    // her vokter vi bare at objektene faktisk map-es til toObject.)
     expect(ANNOTERINGS_HTML).toContain("fabricVersion: fabric.version");
-    expect(ANNOTERINGS_HTML).toContain("objekter: objekter.map");
+    expect(ANNOTERINGS_HTML).toContain(".map(function(o) { return o.toObject(); })");
     // settLag: enlivenObjects legger objektene oppå bakgrunnen (uten å tømme canvas)
     expect(ANNOTERINGS_HTML).toContain("enlivenObjects");
   });
@@ -139,6 +141,21 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     );
     // Den gamle brede vakten som drepte klikket på enhver form er borte.
     expect(ANNOTERINGS_HTML).not.toContain("if (opt.target) return;");
+  });
+
+  // TOM-TEKST-VAKT ved LAGRING — garanti ved konstruksjon: en tom IText som ble stående
+  // fordi enterEditing() feilet (editing:exited fyrte aldri) skal IKKE serialiseres inn i
+  // laget. Filtreres i window.lagre FØR objekter.map(toObject). editing:exited-ryddingen
+  // beholdes (holder lerretet rent underveis) — de to utelukker ikke hverandre.
+  it("filtrerer bort tom IText ved lagring, før serialisering", () => {
+    // Predikatet dekker begge tekst-typene (i-text ny, text eldre lag) + tom/whitespace.
+    expect(ANNOTERINGS_HTML).toContain(
+      "return (o.type === 'i-text' || o.type === 'text') && (!o.text || !o.text.trim());",
+    );
+    // Filteret ligger PÅ serialiseringen, ikke bare i hendelsen.
+    expect(ANNOTERINGS_HTML).toContain("objekter.filter(function(o) { return !erTomTekst(o); }).map(");
+    // Hendelses-ryddingen er fortsatt der (utelukker ikke vakten).
+    expect(ANNOTERINGS_HTML).toContain("text:editing:exited");
   });
 
   // FUNN 2 (forrige runde, bevart) — forhåndsvisning under draget.
