@@ -133,6 +133,48 @@ export function pilLinjeSlutt(
   return { x: til.x - (dx / len) * tilbake, y: til.y - (dy / len) * tilbake };
 }
 
+/**
+ * Anker for de to pil-LINJENE (hvit halo + rød strek) så de blir KONSENTRISKE uansett
+ * strokeWidth. Feilen Kenneth så (2026-09-29) var at begge linjene ble bygget med
+ * `new fabric.Line([fra.x, fra.y, sluttX, sluttY], …)` uten eksplisitt origo — da ankrer
+ * Fabric på omslutningsboksens hjørne INKLUDERT strek, og to linjer med ulik strekbredde
+ * forskyves med halve strekdifferansen (målt: konstant skift nedover, ikke rotasjon).
+ *
+ * Løsning — samme som sirkel/firkant: begge linjer får identisk `left`/`top` (linjas
+ * midtpunkt) og `originX/originY: "center"`, med punktene uttrykt RELATIVT til senteret
+ * så geometrien er uendret (`left + x1 === fra.x` osv.). Funksjonen tar ikke strekbredde,
+ * så begge linjer får per konstruksjon samme anker — drift er umulig, ikke bare usynlig.
+ *
+ * 🔴 TVILLING: `annoterings-html.ts` `byggPil` inliner nøyaktig denne senterberegningen
+ * (HTML-strengen kan ikke importere). Endres origo-strategien her, endres den der.
+ */
+export function pilLinjeSenterOrigo(
+  fra: { x: number; y: number },
+  slutt: { x: number; y: number },
+): {
+  left: number;
+  top: number;
+  originX: "center";
+  originY: "center";
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+} {
+  const left = (fra.x + slutt.x) / 2;
+  const top = (fra.y + slutt.y) / 2;
+  return {
+    left,
+    top,
+    originX: "center",
+    originY: "center",
+    x1: fra.x - left,
+    y1: fra.y - top,
+    x2: slutt.x - left,
+    y2: slutt.y - top,
+  };
+}
+
 /** Rød merkefarge og hvit kontrastfarge — interpoleres inn i HTML-en (én kilde). */
 export const ANNOTERING_STREK_FARGE = "#ef4444";
 export const ANNOTERING_KONTRAST_FARGE = "#ffffff";
