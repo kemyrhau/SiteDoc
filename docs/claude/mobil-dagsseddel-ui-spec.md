@@ -209,6 +209,77 @@ Universell enkelt-skift-cap på ALLE sluttbaner** (ikke bare gjenopprett-banen).
 
 ---
 
+## 6.2 🔴 U-BEKREFT — bekreftelsessteget som mangler etter «Slutt dag» (Kenneth-vedtak 2026-09-30)
+
+> **Kenneth 2026-09-30:** *«saken er at vi må vise begge registreringer og bruker må velge
+> hvilken som er rett -> evt mest rett. NB! fra automatisk mobil løsning -> da må vi be bruker
+> gå gjennom registreringer og sjekke hva som er rett. og da må han ha mulighet å rette opp»*
+>
+> **Og på spørsmålet om attestert dag valgte han alternativ A:** arbeideren kan se, men ikke
+> endre — lederen må returnere sedelen først.
+
+### Hvorfor dette er ett steg og ikke en konflikt-dialog
+
+🔴 **Målt 2026-09-30: forslaget blir aldri bekreftet.** `StartSluttDagKort.tsx:107` kaller
+`genererForslag`, og `:123-133` markerer arbeidsdagen `avsluttet`, setter
+`generertDagsseddelId`, synker og navigerer til sedelen. **Funksjonen heter «forslag»; flyten
+behandler det som et faktum.** Det gjelder HVER dag, ikke bare ved konflikt.
+
+🟢 **Derfor er konflikten én TILSTAND i det manglende steget, ikke en egen flate.** Ett skjerm-
+bilde, tre moduser — én flate å bygge og én å vedlikeholde.
+
+### De tre modusene
+
+| Modus | Når | Hva skjermen viser | Hva brukeren kan gjøre |
+|---|---|---|---|
+| **A · Bekreft** | Ingen konflikt. Kun GPS-forslaget | Radene som ble regnet ut, med tider og prosjekt | Rette · bekrefte. **Ingenting sendes før han bekrefter** |
+| **B · Forson** | Dagskortet finnes og er **redigerbart** (`draft`/`returned`) | **BEGGE sett side om side** pr. tidsrom: «regnet ut fra dagen din» mot «står på dagskortet» | Velge pr. rad · rette · bekrefte. **Ender i ÉTT dagskort** |
+| **C · Låst** | Dagskortet er `sent` eller `accepted` | **Begge sett, men lesevisning** | Ikke endre. Får beskjed om hva han skal gjøre — se under |
+
+### Modus C — ordlyden er allerede bestemt av serveren
+
+🔴 **Ikke formuler en ny melding.** `dagsseddel.ts:2159-2164` sier det som skal sies:
+*«Dagsseddelen er allerede godkjent av leder — kontakt leder for endring.»* Og
+`:2172-2176` forklarer hvorfor og hva veien er: *«…kan ikke arbeideren gjenåpne selv — det ville
+kastet lederens arbeid uten varsel. **Han må be leder RETURNERE sedelen**»* (retur-flyten setter
+`attestertStatus="returnert"` + `status="returned"`, som er redigerbar).
+
+🟢 **Alternativ A krever derfor INGEN ny servermekanikk.** Vakten ble innført 2026-07-09;
+Kenneths valg bekrefter den. **Modus C er å vise den grensen i stedet for å treffe den som en
+blokkering.**
+
+🔴 **Forutsetningen er vakten mot datatap** (`fix/timersync-conflict-vakt`): står timene ikke
+igjen på telefonen, har modus C ingenting å vise og ingenting å gjenopprette etter at lederen
+har returnert. **U-BEKREFT kan ikke bygges før den er inne.**
+
+### ⚠️ Det målte hullet i alternativ A — lederen får ingen beskjed
+
+Arbeiderens ubekreftede timer finnes **kun på telefonen**. Serveren har ingen tilstand for
+«mobil har upushet arbeid» — `syncBatch` setter alltid `syncStatus:"synced"` ved skriving
+(`dagsseddel.ts:4883-4884`). **Lederen har altså ingen måte å vite at det finnes noe å
+returnere for.**
+
+**I denne runden løses det ikke i systemet:** modus C ber arbeideren kontakte lederen, slik
+serverens egen melding sier. 🔴 **Men hullet er reelt og skal ikke glemmes** — en signalvei
+krever ny server-tilstand, og den hører sammen med at «dag startet på mobil» også er usynlig
+for web (se § 8).
+
+### Krav som gjelder alle tre modusene
+
+1. 🔴 **Ingenting sendes før brukeren har bekreftet.** Det er hele hensikten.
+2. 🔴 **Aldri et tomt felt.** Mangler et tall, står det hva som mangler.
+3. **Retting skjer i skjermen** — han skal ikke måtte huske et tall og navigere et annet sted.
+4. 🔴 **Tidsrommene skal være sammenlignbare.** Vises to sett, skal samme tidsrom stå på samme
+   linje. To lister uten felles akse er ikke «begge registreringer», det er to lister.
+5. **GPS-forslaget er merket som utregnet**, ikke som ført. Brukeren skal se hvilket sett som er
+   maskinens og hvilket som er menneskets.
+
+### Ut av scope for U-BEKREFT
+
+- **Signalvei til lederen** (se hullet over) — krever ny server-tilstand.
+- **«Dag startet på mobil» synlig i web** — samme årsak: `arbeidsdagLocal` (`mobile/src/db/schema.ts:357`) finnes ikke som servermodell.
+- **Å koble `bekreftConflict`** (`timerSync.ts:906`, i dag død kode med én forekomst i repoet) — modus B/C erstatter den; avgjør ved bygging om den skal brukes eller slettes.
+
 ## 7. Akseptansekriterier — A.Markussen-sjekkliste
 
 På fersk test-build, fysisk enhet:
