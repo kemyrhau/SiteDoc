@@ -18,6 +18,7 @@ import {
   FolderKanban,
   Users,
 } from "lucide-react";
+import { beregnUkeAvvik, mandagIso, type UkeAvvik } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import {
   ProsjektPivot,
@@ -268,6 +269,41 @@ export default function FirmaAttesteringSide() {
   const ukeGrunnlag = useMemo(
     () => [...sentRader, ...acceptedRader].filter(passererFilter),
     [sentRader, acceptedRader, passererFilter],
+  );
+
+  // ORDRE 2 STEG 3 ledd 2 (D2): uke-avvik pr. (ansatt + uke) for SeddelKort-
+  // badgen på Sedler-visningen. Regnet på HELE ukens grunnlag (union sent+
+  // accepted) — samme kilde og funksjon som AnsattPivot-badgen, så de aldri
+  // drifter. Nøkkel = ansatt + mandag (lista er én uke, men nøkkelen er robust).
+  const avvikPerNokkel = useMemo(() => {
+    const bøtter = new Map<
+      string,
+      { totaltimer: number; ukenorm: number; sumOvertid: number }[]
+    >();
+    for (const s of ukeGrunnlag) {
+      const ansattId = s.ansatt?.id;
+      if (!ansattId) continue;
+      const nokkel = `${ansattId}-${mandagIso(s.dato)}`;
+      const liste = bøtter.get(nokkel) ?? [];
+      liste.push({
+        totaltimer: s.totaltimer,
+        ukenorm: s.ukenorm,
+        sumOvertid: s.overtidsgrunnlag?.sumOvertid ?? 0,
+      });
+      bøtter.set(nokkel, liste);
+    }
+    const ut = new Map<string, UkeAvvik>();
+    for (const [nokkel, liste] of bøtter) ut.set(nokkel, beregnUkeAvvik(liste));
+    return ut;
+  }, [ukeGrunnlag]);
+
+  const avvikFor = useCallback(
+    (s: AttesteringRad): UkeAvvik | null => {
+      const ansattId = s.ansatt?.id;
+      if (!ansattId) return null;
+      return avvikPerNokkel.get(`${ansattId}-${mandagIso(s.dato)}`) ?? null;
+    },
+    [avvikPerNokkel],
   );
 
   // Ekspander-modell (2026-08-23) løftet til page-nivå så «Kollaps alle»/«Utvid alle»/«Krever
@@ -603,6 +639,7 @@ export default function FirmaAttesteringSide() {
                 readOnly={readOnly}
                 erApen={erApen}
                 onToggleSedel={toggleSedel}
+                avvikFor={avvikFor}
               />
             ))}
           </div>
@@ -631,6 +668,7 @@ function ProsjektGruppe({
   readOnly,
   erApen,
   onToggleSedel,
+  avvikFor,
 }: {
   gruppe: {
     prosjektId: string;
@@ -646,6 +684,7 @@ function ProsjektGruppe({
   onReturner: (sheetId: string) => void;
   attesterPending: boolean;
   readOnly: boolean;
+  avvikFor: (s: AttesteringRad) => UkeAvvik | null;
 }) {
   const { t } = useTranslation();
 
@@ -697,6 +736,7 @@ function ProsjektGruppe({
             readOnly={readOnly}
             expanded={erApen(s)}
             onToggleExpand={() => onToggleSedel(s)}
+            ukeAvvik={avvikFor(s)}
           />
         ))}
       </div>
