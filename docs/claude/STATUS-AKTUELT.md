@@ -4,6 +4,12 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-08-09
 ---
 
+> 🔴 **OVERTAR DU ORKESTRERINGEN? Les [OVERLEVERING-2026-09-30.md](OVERLEVERING-2026-09-30.md)
+> først.** Cowork-flaten fases ut 6. oktober. Fila bærer de fire åpne trådene med hash, hva
+> hver venter på, Kenneths beslutninger i hans egne ord, og tre ferske lærdommer om gaten som
+> ikke står andre steder ennå. **Uten den må du rekonstruere alt fra `relay/` — som er
+> gitignorert og ikke synkes mellom arbeidstrær.**
+
 # 🔴 TAVLA — hvem sitter hvor
 
 **Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
@@ -22,6 +28,142 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 **Sist ført: 2026-09-28 · develop `38567b33` ← ti merger etter `1c432a29`. Kode: `fix/signert-bilde-flere-forsok` `4ef039fd` (1→3 gjenforsøk med backoff, budsjett dekoblet fra lenke-klassen) · `fix/psi-p2002-haandtert` `e0820f46` (stille feil ved PSI nr. 2 lukket) · `feat/trafikklys-verdisett` `ab1efe2c` (rendreren leser `config.options`). GATE på siste: api 634 (+6) · shared 898 · web 349 · pdf 131 · db 277 · mobil 49 · 7/7, tre byggeledd exit 0. Docs: § 0 Kenneths forventninger, septemberarkiveringen, to designordrer. **Origin er ren — kun kjerne + `redesign/navigasjon` (Regel 9).** 🔴 **Prod er `eb9071f2` fra 24.09 — develop er 130+ commits foran med tre umigrerte migreringer og `/uploads/`-gaten som aldri har kjørt utenfor develop.**
 
 **Sist ført: 2026-09-29 · develop `1b7fc87b` ← `feat/web-annotering-og-paritet` `d4c7db3d` (38 filer, +1292/−56) + `fix/forgiftede-vedlegg-urler` `aefb560a` + docs. GATE: shared 921 · web 358 · api 638 · pdf 131 · db 277 · mobil 49 · 7/7, kald web-build uten TS2589. **Test kjører `acdfd750`; alt etter det er udeployet.** 🔴 **Prod er fortsatt `eb9071f2` fra 24.09.**
+
+**Sist ført: 2026-09-29 · develop `230f2b64` ← `fix/annotering-raa-url-og-pil` `0a91dd4a`. Deployet til test (bygget 22:11) og testet av Kenneth. 🔴 **Prod er fortsatt `eb9071f2` fra 24.09.**
+
+**STATUS 2026-09-30:**
+
+| Agent | Worktree | Branch | Tilstand |
+|---|---|---|---|
+| **redesign** | `SiteDoc-redesign` | `fix/annotering-frihaand-og-pil` `3b2a2004` 🔒 frosset · ny: `feat/mobil-bildeheader` | 🟡 **Måling 2 gitt** (mobilens `<Image>` skal bære Bearer) |
+
+| **dokgen** | `SiteDoc-dokgen` | `fix/tegning-rediger-detaljer` | 🟡 **Gitt** — tegningsdetaljer kan ikke rettes etter opprettelse |
+| **kontrollplan** | `SiteDoc-kontrollplan` | `docs/maaling-mobil-lagrede-uploads` | 🔴 **Gitt — BLOKKERER PROD-DEPLOY** |
+
+> 🟢 **RUT TUNGE MÅLINGER TIL DESIGN (design, 2026-09-30).** `SiteDoc-design` har nå
+> `node_modules` og genererte Prisma-klienter i treet og kan **kjøre** suiten, ikke bare lese
+> repoet. Det var slik `tsc`-driften ble sporet til `29b0c9a5` — ved å kjøre på begge sider
+> av commiten, ikke ved å resonnere. **Trenger en måling at noe faktisk kjøres, hører den hit.**
+
+### 🔴 2026-09-30 — PROD-DEPLOY ER IKKE KLAR. Kenneth valgte «mål først».
+
+```
+main (prod): eb9071f2 · 24.09      develop: 230f2b64 · 29.09
+avstand:     174 commits · 3 umigrerte migreringer
+```
+
+Migreringer: `maaling_i_tegning` · `psi_drop_stale_unik_indeks` · `prefiks_backfill`.
+
+🔴 **Den målte bekymringen er ikke migreringene — det er `/uploads/`-gaten.** Default-deny på
+hele treet **og** signaturlevetid 24 t → 15 min. **Ingen av delene har kjørt utenfor develop.**
+
+⚠️ **Det umålte hullet:** mobilappen er offline-first og lagrer data lokalt. Ligger det
+`/uploads/`-URL-er i telefonenes lokale base — rå eller med utløpt signatur — møter de etter
+deploy en server som nekter. **Samme klasse som de forgiftede lenkene, men i en base vi ikke
+kan rydde i, på telefoner ute hos A.Markussen.** Web har `SignertBilde` med selvfornyelse;
+**om mobilen har et motstykke er ikke målt.** → måleordre til kontrollplan.
+
+**Tre forhold til, ført så de ikke glemmes ved deploy-beslutningen:**
+- **Tekstannotering er verifisert i web, UTESTET på mobil** — går live sammen med resten
+- **`tsc --noEmit` er rød på develop** — tester og bygg grønne, men ett av tre gate-ledd er
+  det ikke, og ingen vet siden når
+- **Tegnings-redigeringen Kenneth ba om finnes ikke ennå** — en deploy i dag ville uansett
+  ikke inneholdt den
+
+🔴 **Anbefalt form når det skjer: ett planlagt vindu med rollback klar** — ikke en
+videreføring av en arbeidsøkt. Prod-verifisering **som innlogget bruker**, aldri `curl -sI`.
+
+🔴 **I KØ, IKKE RELAYET:** `relay/inbox-annotering-tekstverktoy.md` (tekstverktøyet treffer
+overalt + tom-tekst-tilbakemelding + iframe-fokus). **Holdes tilbake med vilje:** den rører
+`annoterings-html.ts`, samme fil som frosne `3b2a2004`. Brancher den fra develop før den
+mergen, kolliderer de. **Slippes når `3b2a2004` er i develop.** Hjemmel alt gitt (Kenneth
+2026-09-30).
+| **design** | `SiteDoc-design` | `docs/design-maaling1-cookie-rewrite` `12d10719` ✅ | 🟡 **Gate på `3b2a2004`** — `relay/inbox-design-gate-frihaand-og-pil.md` |
+
+### 🟢 2026-09-30 — MÅLING 1 BESVART: rewriten bærer sesjonen hele veien
+
+**`12d10719`.** 🟢 **`Cookie` OG `Authorization` kommer fram til API-et. Ingenting strippes.**
+
+🟢 **Metoden er verdt å gjenbruke:** design satte en **ekko-server på port 3001** i stedet for
+API-et og sendte forespørselen gjennom rewriten. Rewriten måles da isolert — ingen
+midlertidig logging i repoet, og «hva nettleseren sendte» kan ikke forveksles med «hva Next
+sendte videre». Det var nettopp den forvekslingen som gjorde at Kenneth ikke kunne måle det
+i DevTools.
+
+🟢 **`localhost:3001`-gåten er løst:** `docker-compose.yml:69` — `network_mode:
+"service:sitedoc-api"`. Web-containeren deler API-containerens **nettverksnavnerom**. Ikke
+proxy, ikke DNS. **Det finnes ikke et nettverkshopp der en header kan gå tapt.**
+
+⚠️ **Til gate-designet:** `host` settes til destinasjonen; **`x-forwarded-host` bærer
+web-domenet.** Skal opphavet kontrolleres, er det den som gjelder.
+⚠️ **Operasjonell felle:** `API_PORT` er et **BUILD-arg** (`Dockerfile.web:25-29`). Endres
+porten, må imaget bygges på nytt — en `environment:`-endring har ingen virkning.
+
+🔴 **Tre ting design IKKE målte, ført så de ikke forsvinner:**
+1. **Produksjonsbygget.** Målingen er Next **dev** 14.2.35. Det bygde imaget er umålt.
+2. **Om en ekte innlogget nettleser sender cookien** — design sendte den for hånd.
+   Same-origin tilsier ja, men det er **utledet**. Kenneth kan lukke den i DevTools.
+3. **Ingenting kjørt på server-ny.** Krav 2 er besvart fra compose-filene.
+
+🟢 **Forutsetningen forslaget hvilte på holder: web bærer sesjon helt fram.** Mobilsporet er
+dermed ikke lenger blokkert — måling 2 er gitt til redesign.
+
+### 🟢 2026-09-30 — `3b2a2004`: frihånd lagres, pil-haloen sentrert
+
+**4 filer, alle i `packages/shared/src/annotering/` (+120/−4).** Gate 7/7, 2415 tester
+(shared 962 · api 638 · web 358 · db 277 · pdf 131 · mobil 49), web build og mobil
+typecheck exit 0.
+
+🟢 **`path:created` er koblet** — strøket går nå inn i `objekter` og dekkes dermed av
+lagring, Angre og Flytt. **Det stille datatapet er lukket.**
+🟢 **Pil-linjene ankres på senter** via ny ren tvilling `pilLinjeSenterOrigo(fra, slutt)`.
+**Funksjonen tar ikke `strokeWidth`** — hvit og rød får samme anker per konstruksjon.
+
+🔴 **EGET FUNN: `tsc --noEmit` på web er RØD PÅ DEVELOP.**
+`feltdokumentasjon-annotering.test.tsx(67,7)`, vitest `Mock<>`-typing. **Cowork etterprøvde
+redesigns påstand om forhåndseksisterende drift uavhengig** — fila er ikke i diffen, den
+importerer kun typen `AnnoteringsLag`, og `lag.ts` har **0 slettede linjer**, så typen er
+urørt. Feilen kan ikke være indusert av denne branchen.
+
+⚠️ **Men `tsc --noEmit` er ett av Regel 10s tre byggeledd. Er det rødt på develop, har en
+gate blitt rapportert kjørt uten å være grønn.** Design skal finne ut hvilken merge som
+slapp det inn. **Ikke lappet i denne runden** — branchen er ren og skal ikke bære en
+fremmed fiks.
+
+**Kenneths tre funn på test 2026-09-29, etter `230f2b64`:**
+1. 🔴 **Frihånd lagres ikke.** Målt rotårsak: null `path:created`-håndterere → strøket kommer aldri inn i `objekter`, som er kilden til både lagring, Angre og Flytt. **Stille datatap** — strøket ligger i den flate JPEG-en, men forsvinner ved neste annotering, og er borte for godt ved neste lagring. → redesign.
+2. 🟡 **Pil-haloen ligger for lavt.** Begge `fabric.Line` mangler eksplisitt senter-anker. Antakelsen om at pil-linja «alt var konsentrisk» er motbevist av skjermbilde. → redesign.
+3. 🟡 **Ingen miniatyr etter Ferdig.** `byggAnnoteringsPatch` skriver en **usignert** `/uploads/`-URL, og `SignertBilde` signerer ikke (og skal ikke). **SATT PÅ VENT** — en lapp her ville sementert bærer-modellen Kenneth avviste samme kveld.
+
+🟢 **Positivt målt samme runde:** re-annotering virker — objektene kommer tilbake redigerbare.
+Kenneth om Flytt-verktøyet: *«ingen endring → jeg liker dagens funksjon»*. **Avvist forslag,
+ført så det ikke gjenoppstår.**
+
+### 🔴 2026-09-29 — KENNETH AVVISER BÆRER-MODELLEN FOR LAGREDE OBJEKTER
+
+> *«URL skal ikke være nok for å hente ut et bilde → vi skal ha en gyldig innlogging → dette
+> gjelder alle objekter som lagres og tilhører systemet»*
+
+**Målt:** `hmac.ts:231` (`vurderUploadsFilForesporsel`) er **signatur-kun**. Kommentaren rett
+over funksjonen siterer Kenneths krav fra **2026-09-24** — «sjekk om den som henter ut bilder
+er innlogget» — og konkluderer likevel med «Ingen sesjons-fallback». 🔴 **Kravet ble lest som
+«strammere signatur» i stedet for «innlogging». Dette er andre gang samme krav stilles.**
+
+**Målt samme runde — gaten er ellers tett:** `server.ts:114` kjører på hver forespørsel,
+normaliserer stien før sjekken, ingen localhost-bakvei, ingen intern nøkkel. **En gjettet
+adresse gir 401. En sjekkliste kan ikke hentes med en URL.** Eksponeringen er en *signert*
+lenke som lekker, i 15 minutter, for én fil.
+
+🟢 **Kenneth aksepterte restrisikoen eksplisitt:** *«15 minutter er ikke et problem → risiko
+for tyveri er betydelig redusert til pågående arbeid»*. **Signaturen beholdes som den er —
+innlogging legges OPPÅ, ikke i stedet for.** Utløpet skal ikke fjernes.
+
+⚠️ **Cowork leverte én feilmåling i denne saken** og korrigerte den selv: påstod at
+PDF-genereringen ville brekke av innloggingskravet. Målt etterpå — `sammenstilling.ts:124-136`
+leser filene fra disk og bygger dem inn som data-URI-er i en container uten nett, og passerer
+aldri gaten. **Mobilen er den eneste reelle usikkerheten og er første punkt i måleordren.**
+
+Hjemmel ført i [FUNKSJONSENDRINGER.md](FUNKSJONSENDRINGER.md) **før** ordren gikk ut.
 
 ### 🟢 2026-09-29 — FORGIFTEDE VEDLEGG-URL-ER: BILDER SOM FORSVANT I AUGUST ER TILBAKE
 

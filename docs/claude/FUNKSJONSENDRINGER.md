@@ -32,6 +32,52 @@ sources: cowork
 | `1b7fc87b` | Bildevedlegg i sjekklister og oppgaver — **web** | **Ingen annotering i web.** Bildet kunne vises og slettes, ikke merkes. Nå: pil, sirkel, firkant, frihånd og tekst — og **Velg/Flytt**, så en pil kan dras i stedet for å tegnes på nytt | 🟢 Kenneth 2026-09-29, valgte «paritetsmåling + annotering i web i samme runde» |
 | `1b7fc87b` | Samme | Annoteringen lagres som et **redigerbart lag**, ikke brent inn i bildet. Tre artefakter: **originalen røres aldri** · Fabric-laget som data · utflatet JPEG for visning, PDF og mottaker | 🟢 Kenneth 2026-09-29: *«hvorfor kan vi ikke legge et eget lag på bildet → slik at anotering er redigerbart?»* |
 
+#### 🟡 HJEMMEL GITT PÅ FORHÅND — ikke levert ennå: innlogging kreves for alle lagrede objekter
+
+Føres her **før** ordren sendes, som regelen krever. Ingen hash ennå — måleordren
+(`relay/inbox-uploads-innlogging-maaling.md`) endrer ingen kode. Raden flyttes opp i
+tabellen over med hash når gaten faktisk merges.
+
+| Flate | Før → Etter | Hjemmel |
+|---|---|---|
+| Uthenting av **alle lagrede objekter** — bilder, tegninger, punktskyer, vedlegg, eksporter | I dag: **signatur-kun**. `hmac.ts:231` krever gyldig HMAC i URL-en og sjekker **ikke** innlogging — en signert lenke virker for hvem som helst i 15 min. Etter: **gyldig innlogging kreves i tillegg**, og prosjekttilgang pr. objekt der eierraden finnes | 🟢 Kenneth 2026-09-29: *«URL skal ikke være nok for å hente ut et bilde → vi skal ha en gyldig innlogging → dette gjelder alle objekter som lagres og tilhører systemet»* |
+
+🟢 **Kenneth-vedtak 2026-09-30 — IMPERSONERINGEN STYRER SYNLIGHETEN.** `Session` bærer både
+`userId` og `impersonatedUserId`. **Den EFFEKTIVE brukeren avgjør hva som vises** — den som
+ser skjermen, ikke den som eier innloggingen. Signaturen bindes til effektiv `userId`, og
+gaten sammenligner mot effektiv `userId`.
+
+**Følgen, og den er selvhelbredende:** signaturer laget under impersonering slutter å matche
+i det øyeblikket impersoneringen opphører — manuelt eller ved at `impersonationExpiresAt`
+løper ut. Tilgangen strammes automatisk, uten opprydding.
+⚠️ **Forutsetter at `SignertBilde` sin selvfornyelse utløses av DENNE feiltypen og ikke bare
+av utløpt signatur. IKKE MÅLT.** Slår den ikke inn, blir resultatet tomme bilder til brukeren
+laster siden på nytt.
+
+**Kenneth har eksplisitt akseptert restrisikoen** i 15-minutters-vinduet: *«15 minutter er
+ikke et problem → risiko for tyveri er betydelig redusert til pågående arbeid»*.
+Signaturen beholdes derfor som den er — innlogging legges **oppå**, ikke i stedet for.
+
+⚠️ Dette er andre gang samme krav stilles. `hmac.ts:224-227` siterer Kenneths krav fra
+**2026-09-24** — «sjekk om den som henter ut bilder er innlogget, ikke bare ved pålogging»
+— og konkluderer likevel med «Ingen sesjons-fallback». Kravet ble den gang lest som
+«strammere signatur» i stedet for «innlogging». Det er rotårsaken til at det kommer opp igjen.
+
+#### 🟡 HJEMMEL GITT PÅ FORHÅND — ikke levert ennå: tekstverktøyet skal treffe overalt
+
+| Flate | Før → Etter | Hjemmel |
+|---|---|---|
+| Annotering, tekstverktøyet (web + mobil) | **I dag:** `annoterings-html.ts:109` — `if (opt.target) return`. Treffer klikket en eksisterende markering, opprettes **ingen** tekst, og brukeren får ingen tilbakemelding. **Etter:** klikket oppretter alltid tekst, **unntatt** når det treffer en eksisterende *tekst* — den åpnes da for redigering. Velging hører til Flytt | 🟢 Kenneth 2026-09-30: *«enig»* på coworks anbefaling |
+
+**Bakgrunn:** Kenneth: *«fritekst annoteringer fungerer ikke → jeg finner ikke logikken for når
+de vises og ikke vises»*. Logikken fantes, men var usynlig — treffområdet er hele objektets
+rammeboks, ikke bare streken, så på et bilde med markeringer traff klikket ofte noe uten at
+brukeren kunne vite det.
+
+**To reparasjoner følger samme runde — ingen hjemmel nødvendig, de retter noe som var ment å
+virke:** tom tekst slettes stille ved `text:editing:exited` (`:158`), og iframe-fokus gjør at
+første klikk kan miste tastetrykkene (**hypotese, ikke målt**).
+
 #### 🔴 TEKSTANNOTERING ER VERIFISERT I WEB — MOBIL ER UTESTET
 
 ⚠️ **Ikke les «tekstannotering levert» som levert på begge flater.** Tekstverktøyet ble bygget om
@@ -108,6 +154,33 @@ døgnet. **Piloten er 50 anleggsgartnere på dårlig 4G — det er deres normalt
 ---
 
 ## 🟢 REPARASJONER MED SYNLIG VIRKNING — til orientering, ingen godkjenning
+
+### 2026-09-30
+
+| Hash | Flate | Før → Etter | Hvilken intensjon som gjenopprettes |
+|---|---|---|---|
+| `49d3fffb` ← `49a137e2` | Tegninger, web — ny rediger-modal (8 felt) | **Tegningsdetaljer kunne ikke rettes etter opprettelse.** Nå kan navn, tegningsnummer, fagdisiplin, tegningstype, **etasje**, **status**, opphav og beskrivelse endres | 🔴 **`tegning.oppdater` (`tegning.ts:375`) har hatt skrivetilgang på ALLE feltene hele tiden**, med `verifiserProsjektmedlem`. Knappen ble aldri koblet — i web brukes mutasjonen kun til målestokk (`tegninger/page.tsx:333`) |
+| `a82b88d0` ← `3b2a2004` | Annotering, web + mobil | **Frihåndsstrøk ble aldri lagret.** De kunne heller ikke angres eller flyttes. Nå dekkes de av lagring, Angre og Flytt | 🔴 **`canvas.isDrawingMode` lot Fabric legge strøket på lerretet uten at noen fanget det.** 0 `path:created`-håndterere → strøket kom aldri inn i `objekter`, som er kilden til alle tre |
+| `a82b88d0` ← `3b2a2004` | Samme — pilen | Den hvite kontrastkanten lå forskjøvet under den røde streken | 🔴 Begge `fabric.Line` manglet eksplisitt senter-anker. Sirkel og firkant ble rettet tidligere; pil-linja ble antatt konsentrisk uten at det var målt |
+
+#### 🔴 To feller av samme slag, lukket samme dag — verdt å kjenne mønsteret
+
+**Begge tegnings-fellene er felt som settes ÉN gang, i en flyt brukeren kanskje aldri kjører,
+uten vei tilbake:**
+
+- En tegning opprettet uten `floor` havnet i **«UTEN ETASJE»** og kom aldri derfra
+- `status` settes til `"utkast"` ved opprettelse (`tegning.ts:186`) og kunne **kun** endres ved
+  å laste opp en ny revisjon (`nyRevisjon`, `:412`). 🔴 **Hver tegning i systemet sto som
+  «utkast» for alltid** med mindre noen kjørte revisjonsflyten
+
+⚠️ **Frihånds-tapet var samme klasse, ett hakk verre:** strøket ble brent inn i den flate
+JPEG-en, men forsvant ved neste annotering — og var **permanent tapt uten varsel** ved neste
+lagring. **Kenneth meldte tegnings-saken 19.08 og igjen 30.09** før den ble tatt.
+
+🟢 **Verifisert ved merge:** i18n 23 lagt til / 0 slettet i alle 15 språkfiler · georeferanse,
+GPS, kalibrering, 3D, punktsky og IFC = 0 treff · tom etasje faller tilbake til «Uten etasje»
+på alle tre grupperingsstedene (`TegningerPanel.tsx:56`, `TegningsModal.tsx:50`,
+`byggeplasser/page.tsx:73`) — målt av cowork, ikke antatt.
 
 ### 2026-09-28
 

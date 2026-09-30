@@ -1026,6 +1026,8 @@ instans** — samme dynamikk som agent-tabellen over beskriver. Ingen agent har 
 - **Ingenting finnes for en agent før cowork har merget til develop.** En branch som finnes lokalt eller er «levert» finnes ikke i mottakerens worktree.
 - 🔴 **Avsender VERIFISERER mot origin FØR en hash meldes:** `git ls-remote --heads origin <branch>`. **Tomt svar = branchen finnes ikke = hashen skal ikke meldes.** Gjelder **begge veier** — design som melder en gate, og cowork som påstår noe om en branchs tilstand.
 - **Endres et filnavn, føres det gamle navnet som DØDT i innboksen** — ellers leter noen etter en fil som ikke finnes.
+- 🔴 **NYE POSTER FØYES TIL NEDERST, og bare nederst** (presisering 2026-09-30). `inbox-cowork.md` er 7 000 linjer; ingen leser hele. **Cowork leser halen.** Skriver én agent øverst og en annen nederst, blir halve innboksen usynlig — og leseren tror avsenderen ikke har skrevet. **Målt 2026-09-30:** kontrollplan skrev to leveranser øverst med `[agent → cowork]`-prefiks, design føyde til nederst. **Cowork leste halen, så ikke kontrollplans poster, og fortalte både ham og dokgen at de ikke hadde meldt fra. Feilen var coworks; fella var de to konvensjonene.** Prefikset `[agent → cowork]` er nyttig og beholdes — **plasseringen er det som er fast.**
+- 🔴 **`relay/` er GITIGNORERT** (`.gitignore:68`) — **filene følger ikke med en branch og synkes ikke mellom arbeidstrær.** Hver agent har sin egen `relay/`-kopi i sitt worktree. **Kanalen er HOVEDTREETS kopi:** `~/Documents/Programmering/SiteDoc/relay/…`, med absolutt sti. Skriver du til `relay/…` relativt i ditt eget tre, lander det et sted ingen andre leser.
 
 #### 🔴 Cowork STADFESTER gaten i merge-ordren — merge skal aldri be om å sjekke den (2026-09-24)
 
@@ -1215,6 +1217,31 @@ manuelt.
 
 Verst: `firmaarkiv-unik-indeks.integration.test.ts` ble skrevet i runde 95 for å oppfylle
 «stille tomhet»-kravet (b). **Den hadde aldri kjørt. Kvitteringen «grønn» var aldri sann.**
+
+#### 🔴 UTVIDELSE 2026-09-30 — de tre byggeleddene dekker IKKE hverandre. Målt.
+
+**`tsc --noEmit` på web sto RØDT på develop i over et døgn** mens hver gate rapporterte
+grønt. Årsaken er målt av redesign, ikke gjettet:
+
+> «`apps/web` sin `tsc --noEmit` ble ikke kjørt separat — «typecheck web+mobil rent» stammet
+> fra **mobile** typecheck (grønn) lest som dekning for begge.»
+
+🔴 **Og mekanismen som gjorde det usynlig er generell: `next build` typesjekker ikke
+`.test.tsx`.** Byggeleddet var altså ekte grønt samtidig som `tsc --noEmit` var ekte rødt —
+på en testfil. **Ingen av de to andre leddene kan avsløre det.**
+
+**Derfor, ufravikelig:**
+
+- 🔴 **`tsc --noEmit` kjøres EKSPLISITT per app.** Aldri utledet av `build`, aldri av den
+  andre appens typecheck. «Typecheck rent» uten app-navn er ikke en kvittering.
+- 🔴 **Rapporten bærer den ORDRETTE siste linja fra hver kommando**, ikke et sammendrag.
+  «Rent», «grønn» og «ingen feil» er tolkninger; exit-koden og linja er målingen.
+- ⚠️ **`turbo run test` uten `--force` er CACHE, ikke en kjøring.** Målt samme dag: 7/7
+  oppgaver på **1,8 sekunder** ble meldt som gate-tall for 2 400 tester. Kjøretiden i
+  rapporten er selv en kontroll — er den urimelig kort, er tallene gjenbrukt.
+
+🟢 **Coworks andel:** cowork stadfestet den grønne rapporten uten å be om leddet separat.
+**Stadfesting er en kontroll, ikke en videreformidling.**
 
 🔴 **Fem tall uten fordeling er ikke lenger gyldig kvittering.** Gate-tall skal oppgis som:
 

@@ -984,6 +984,33 @@ med målavstanden. **Krever én ekte fil fra Kenneth — ikke en ny leveranse.**
 
 ---
 
+### 🔴 3D-visning web: fast høyde + treg pan/zoom — og en regresjon som kommer TILBAKE (Kenneth på test 2026-09-30)
+
+**Kenneth ba uttrykkelig om at ingenting gjøres nå.** Ført for å ikke gå tapt, ikke for å bestilles.
+
+**Symptomene, sett på test:**
+- **Vertikal størrelse er fast.** 3D-lerretet på `/dashbord/<id>/3d-visning` har fast smal høyde med
+  stor tom flate under. **Horisontal størrelse er dynamisk** — bare den vertikale er låst.
+- **Pan og zoom responderer nesten ikke.** Rullehjul og dra gir svært liten bevegelse.
+
+🟢 **3D-modellen VIRKER på mobil mot test** (verifisert av Kenneth samme dag, iPhone).
+⚠️ **Det er IKKE en verifisering av `AutentisertBilde`** — 3D går gjennom WebView (`/mobil-viewer`),
+som `feat/mobil-bildeheader` bevisst ikke rørte.
+
+#### 🔴 Det egentlige funnet er ikke symptomet — det er at det kommer tilbake
+
+> **Kenneth 2026-09-30:** *«jeg har fått det fikset mange ganger. så gjøres det en endring i vanlig
+> tegning. så slutter 3d modellen å fungere som den skal»*
+
+**Det er samme mønster som seksjonen under** (*«den ene fiksen ødela i den andre»*, 2026-09-23).
+🔴 **En feil som er fikset «mange ganger» og kommer tilbake, er ikke en feil som mangler en fiks —
+det er en kobling som mangler en vakt.** Neste gang dette tas, skal leveransen bære **en test som
+feiler når 3D-visningen brytes av en tegnings-endring**, ikke bare en ny fiks.
+
+Uten den vakten er neste fiks den femte, og den holder like lenge som de fire før.
+
+---
+
 ### 🔴 3D-koordinatfesting mot tegning: fiksen kunne ikke nå fram (2026-09-23)
 
 **Kenneth 2026-09-23:** *«det var vanskelig å koordinatfeste 3d mot dwg/pdf tegninger. den ene fiksen ødela i
