@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import {
   invaliderEtterSlett,
   invaliderEtterRekonverter,
+  invaliderEtterRedigerDetaljer,
+  byggRedigerTegningInput,
   slettFeilTekst,
+  type RedigerTegningFelt,
   type TegningUtils,
 } from "../tegningMutasjonEffekter";
 
@@ -36,6 +39,64 @@ describe("invaliderEtterRekonverter", () => {
     invaliderEtterRekonverter(utils, PROSJEKT, TEGNING);
     expect(detalj).toHaveBeenCalledWith({ id: TEGNING });
     expect(bygning).toHaveBeenCalledWith({ projectId: PROSJEKT });
+  });
+});
+
+describe("invaliderEtterRedigerDetaljer", () => {
+  // RØD FØRST (Krav 2, ordre 2026-09-30): fjernes lista-invalideringen, faller denne — en
+  // tegning som får `floor` blir stående i «Uten etasje» selv om mutasjonen lyktes.
+  it("invaliderer BÅDE detaljen og lista (så raden flytter seg ut av «Uten etasje»)", () => {
+    const { utils, bygning, detalj } = lagUtils();
+    invaliderEtterRedigerDetaljer(utils, PROSJEKT, TEGNING);
+    expect(detalj).toHaveBeenCalledWith({ id: TEGNING });
+    expect(bygning).toHaveBeenCalledWith({ projectId: PROSJEKT });
+  });
+});
+
+describe("byggRedigerTegningInput", () => {
+  const fullt: RedigerTegningFelt = {
+    name: "  Plan 1. etasje  ",
+    drawingNumber: " ARK-P-101 ",
+    discipline: "ARK",
+    drawingType: "plan",
+    floor: " 1. etasje ",
+    originator: " Rambøll ",
+    description: "Uendret beskrivelse",
+  };
+
+  it("dekker nøyaktig de sju flate-feltene + id, ingenting mer", () => {
+    const input = byggRedigerTegningInput(TEGNING, fullt);
+    expect(Object.keys(input).sort()).toEqual(
+      ["description", "discipline", "drawingNumber", "drawingType", "floor", "id", "name", "originator"].sort(),
+    );
+    // Ingen scale/scaleKilde/status/issuedAt/byggeplassId/revision — de er bevisst utelatt.
+    expect(input).not.toHaveProperty("scale");
+    expect(input).not.toHaveProperty("status");
+    expect(input).not.toHaveProperty("revision");
+  });
+
+  it("trimmer tekstfelt og sender gyldige enum-verdier", () => {
+    const input = byggRedigerTegningInput(TEGNING, fullt);
+    expect(input).toMatchObject({
+      id: TEGNING,
+      name: "Plan 1. etasje",
+      drawingNumber: "ARK-P-101",
+      discipline: "ARK",
+      drawingType: "plan",
+      floor: "1. etasje",
+      originator: "Rambøll",
+    });
+  });
+
+  it("tom `floor` sendes som tom streng → flytter raden til «Uten etasje»", () => {
+    const input = byggRedigerTegningInput(TEGNING, { ...fullt, floor: "   " });
+    expect(input.floor).toBe("");
+  });
+
+  it("ugyldig/tom enum blir undefined (Zod-enum avviser «»)", () => {
+    const input = byggRedigerTegningInput(TEGNING, { ...fullt, discipline: "", drawingType: "tulletype" });
+    expect(input.discipline).toBeUndefined();
+    expect(input.drawingType).toBeUndefined();
   });
 });
 
