@@ -271,13 +271,18 @@ export async function syncTimer(
         } else {
           // Server-wins: låst (accepted) eller nyere server-versjon under samme
           // identitet. Overskriv metadata, marker conflict for bruker-avklaring.
+          // feilmelding = null: klienten eier brukerkopien via i18n (samme mønster
+          // som `slattSammen` over). Banneret ([id].tsx) brancher på `status` og
+          // viser sann tekst per tilstand — conflict+låst vs conflict+returnert.
+          // (Datatap-ordre 2026-09-30, AVVIK 2: den hardkodede «Server-versjonen
+          // vinner» slo ut i18n-nøkkelen og ble usann etter rad-vakten.)
           db.update(dagsseddelLocal)
             .set({
               syncStatus: "conflict",
               status: r.serverData.status,
               lederKommentar: r.serverData.lederKommentar,
               attestertVed: r.serverData.attestertVed,
-              feilmelding: r.feilmelding ?? "Server-versjonen vinner",
+              feilmelding: r.feilmelding ?? null,
               sistSynkronisert: naa,
             })
             .where(eq(dagsseddelLocal.id, r.clientUuid))
@@ -598,12 +603,46 @@ export async function syncTimer(
       const maalId = lokal ? lokal.id : serverSedel.clientUuid;
 
       // Hvis lokal har "pending"-endringer: ikke overskriv — pending vinner
-      // og syncBatch håndterer push neste gang. (Hvis pending ble pushet,
-      // er sync-status nå "synced" eller "conflict" — i begge tilfeller OK
-      // å oppdatere fra server.)
+      // og syncBatch håndterer push neste gang.
       // SYNC-1: "avvist" er en lokal terminal-tilstand arbeideren må rette eller
       // slette — pull skal ikke stille resette den til "synced".
-      if (lokal && (lokal.syncStatus === "pending" || lokal.syncStatus === "avvist")) {
+      // For BEGGE: hode OG rader er upushet eget arbeid som er nyere lokalt →
+      // hopp over ALT (den brede vakten).
+      if (
+        lokal &&
+        (lokal.syncStatus === "pending" || lokal.syncStatus === "avvist")
+      ) {
+        continue;
+      }
+
+      // 🔴 "conflict" (datatap-ordre 2026-09-30, AVVIK 1): server-wins-grenen
+      // (:271-286) satte conflict FORDI serveren avviste pushen (accepted/sent-
+      // vaktene i dagsseddel.ts returnerte FØR radene ble skrevet). Sedelens
+      // lokale rader finnes derfor KUN her — de er IKKE på server, og er det
+      // eneste eksemplaret til konflikten er løst (avklaringsveien behold/forkast
+      // kommer i egen ordre, U-BEKREFT).
+      //
+      // Men vakten kan IKKE hoppe over alt (som den brede over): da når aldri
+      // lederens retur telefonen — status blir stående `sent`/`accepted` lokalt
+      // for alltid, og arbeideren står fast i conflict uten utvei. Derfor: la
+      // HODET oppdateres fra server (status/lederkommentar/attestering = utveien),
+      // men hopp over RADERSTATNINGEN under, og BEHOLD `syncStatus:"conflict"` så
+      // neste pull fortsatt beskytter de lokale radene.
+      //
+      // Minimalt hode: KUN status/lederKommentar/attestertVed/sistSynkronisert.
+      // projectId/dato/tider/beskrivelse røres IKKE — den lokale header-en er
+      // del av det eneste eksemplaret til konflikten er løst, og skal ikke
+      // klobbes av server-versjonen (presisering, orkestrator TILLEGG 5).
+      if (lokal && lokal.syncStatus === "conflict") {
+        db.update(dagsseddelLocal)
+          .set({
+            status: serverSedel.status as "draft" | "sent" | "returned" | "accepted",
+            lederKommentar: serverSedel.lederKommentar,
+            attestertVed: serverSedel.attestertVed,
+            sistSynkronisert: serverTidMs,
+          })
+          .where(eq(dagsseddelLocal.id, maalId))
+          .run();
         continue;
       }
 
@@ -670,9 +709,13 @@ export async function syncTimer(
           .run();
       }
 
-      // Erstatt rader (samme atom-policy som server). Trygt her: pending/avvist-
-      // sedler (upushet offline-arbeid) er allerede hoppet over via guarden over,
-      // så vi sletter kun rader på synced/conflict-sedler som stemmer med server.
+      // Erstatt rader (samme atom-policy som server). Trygt her: pending og
+      // avvist er hoppet over av den brede vakten, og conflict av sin egen gren
+      // (som kun oppdaterer hodet og `continue`-er før hit). Det er nettopp de
+      // tre tilstandene der lokale rader kan finnes som IKKE er på server
+      // (upushet offline-arbeid eller server-wins-conflict der pushen ble avvist
+      // før skriving). Vi sletter derfor kun rader på SYNCED-sedler, som per
+      // definisjon stemmer med server.
       db.delete(sheetTimerLocal)
         .where(eq(sheetTimerLocal.dagsseddelId, maalId))
         .run();
