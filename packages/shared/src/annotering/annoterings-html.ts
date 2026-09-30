@@ -102,11 +102,16 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       // 'draw' = frihånd (Fabric eier dragen). 'select' = flytt eksisterende
       // objekt (Fabric eier selection/drag) — vi skal IKKE lage en ny form.
       if (aktivtVerktoy === 'draw' || aktivtVerktoy === 'select') return;
-      // 'text' = skriv rett på bildet: klikk på tom flate legger en IText og går
-      // rett i redigering (ingen modal, ingen meldingsrunde). Klikk på eksisterende
-      // objekt lar Fabric håndtere det (velg/rediger tekst ved nytt klikk).
+      // 'text' = skriv rett på bildet. Regel (Kenneth 2026-09-30): et klikk oppretter
+      // ALLTID tekst — UNNTATT når det treffer en eksisterende TEKST, som da åpnes for
+      // redigering (Fabric eier klikket). Å velge en pil/sirkel/firkant hører til Flytt,
+      // ikke tekstverktøyet; et treff på en form skal derfor lage NY tekst oppå den, ikke
+      // plukke den opp. Før døde klikket stille på ethvert opt.target (rammeboksen dekker
+      // mer enn den synlige streken → man traff noe uten å kunne vite det). Tekst er
+      // 'i-text' (ny) eller 'text' (eldre lag) — samme skille som settFlyttbar.
       if (aktivtVerktoy === 'text') {
-        if (opt.target) return;
+        var mål = opt.target;
+        if (mål && (mål.type === 'text' || mål.type === 'i-text')) return;
         var tp = canvas.getPointer(opt.e);
         lagTekst(tp.x, tp.y);
         return;
@@ -166,7 +171,11 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     });
 
     // Avsluttet tekstredigering uten innhold → fjern den tomme IText-en (erstatter den
-    // gamle «tom tekst = slett»-logikken som gikk over broen).
+    // gamle «tom tekst = slett»-logikken som gikk over broen). Dette er IKKE stille
+    // tomhet: krav 1 garanterer at hvert tekst-klikk gir en synlig følge (boksen dukker
+    // opp med markør ved opprettelse), så brukeren SÅ den. Forsvinner den etterpå, er det
+    // fordi den faktisk ble stående tom — en ekte opprydding, ikke et tapt treff. Å beholde
+    // en tom boks ville lagt et usynlig objekt i laget (det motsatte problemet).
     canvas.on('text:editing:exited', function(e) {
       var o = e.target;
       if (o && (!o.text || !o.text.trim())) {

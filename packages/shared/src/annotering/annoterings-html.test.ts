@@ -128,6 +128,19 @@ describe("ANNOTERINGS_HTML — delt tegnemotor", () => {
     expect(ANNOTERINGS_HTML).not.toContain("oppdaterTekst");
   });
 
+  // KRAV 1 (tekstverktøy 2026-09-30) — et klikk oppretter ALLTID tekst, UNNTATT på en
+  // eksisterende tekst (som åpnes for redigering). Treff på pil/sirkel/firkant lager ny
+  // tekst; velging hører til Flytt. Den gamle «if (opt.target) return» — som drepte klikket
+  // på ETHVERT objekt (også former) — skal være borte.
+  it("tekstverktøy: klikk på form lager tekst, kun eksisterende tekst åpner redigering", () => {
+    // Skillet er nøyaktig type-testen settFlyttbar bruker (i-text ny, text eldre lag).
+    expect(ANNOTERINGS_HTML).toContain(
+      "if (mål && (mål.type === 'text' || mål.type === 'i-text')) return;",
+    );
+    // Den gamle brede vakten som drepte klikket på enhver form er borte.
+    expect(ANNOTERINGS_HTML).not.toContain("if (opt.target) return;");
+  });
+
   // FUNN 2 (forrige runde, bevart) — forhåndsvisning under draget.
   it("viser formen live under draget (mouse:move) før den festes ved mouse:up", () => {
     expect(ANNOTERINGS_HTML).toContain("canvas.on('mouse:move'");
