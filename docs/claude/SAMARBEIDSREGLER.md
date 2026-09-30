@@ -134,7 +134,8 @@ linje med andre agenter, og føre raden på tavla.**
 
 | Handling | Hvem |
 |---|---|
-| Gate koden mot faktisk kode før merge | **cowork** — uendret, dette delegeres ALDRI |
+| Gate koden mot faktisk kode før merge | **orkestrator** — delegeres ALDRI |
+| 🔴 **Uavhengig kontroll av risikobærende diff** før merge | **kontrollør** i `SiteDoc-design` — *(Kenneth-vedtak 2026-09-30)*. **Skriver ikke kode, merger ikke.** Kalles inn på auth, `/uploads/`, token, migreringer med nytt identitetsfelt, delt logikk med tvilling og fredet område. **Ikke** på docs, i18n eller ren formatering. ⚠️ **Grunnen er strukturell:** fram til 30.09 bestilte cowork og design gatet — begge avvikene på mobilens token-vakt ble funnet av det andre hodet. Orkestratoren skriver nå ordren, gater og merger; å kontrollere utfallet av sin egen ordre er svakere ved konstruksjon, ikke av uoppmerksomhet. Stående ordre: `relay/inbox-kontrollor.md` |
 | `fetch` · `merge --no-ff` · `push merge-restart:develop` · `merge-base`-verifisering · branch-opprydding | **merge-agent** i `SiteDoc-merge` |
 | `pnpm install` · `prisma generate` ×4 · web build · mobil typecheck · `pnpm test` | **merge-agent** |
 | Docs-commits i hovedtreet | **merge-agent**, som én operasjon: `add` → `commit` → `pull --rebase` → `push` |

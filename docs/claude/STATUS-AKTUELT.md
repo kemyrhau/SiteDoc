@@ -12,7 +12,7 @@ sist_verifisert_mot_kode: 2026-08-09
 
 # 🔴 TAVLA — hvem sitter hvor
 
-**Eneste skribent: cowork** (SAMARBEIDSREGLER `:1054`). 🔴 **Føres FRA MÅLING — `git log
+**Eneste skribent: orkestrator** (cowork-rollen utgikk 2026-09-30). 🔴 **Føres FRA MÅLING — `git log
 origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.**
 
 **Sist ført: 2026-09-23 · develop `77308515` ← `docs/design-fjerde-tapte-funksjon` `362521ce` `--no-ff` (OCR som fjerde tapte funksjon; `dwgread`-navn rettet). Non-ff, målt trygt selv: base `6edda731` i develop, `BACKLOG.md` 0 rørt på develop siden basen, `merge-tree` 0 konfliktmarkører. Faktisk endring mot develop = KUN `BACKLOG.md` +19/−3 (2-punkts-diffen viste også STATUS-AKTUELT.md fordi branch-base var før georeferanse-tavla; 3-veis merge beholdt develop-versjonen — verifisert intakt). GATE `--force` (0 cached): db 243 · api 542 · pdf 128 · shared 854 · web 307 · mobil 38 · 7/7 — ALT STILLE. `feat/server-kapabilitetsprobe` `f0e5702d` (designgatet — merges nå) + `fix/pdf-omrade-navn` `b223d036` (venter designs gate) urørt ved skriving.**
@@ -31,19 +31,36 @@ origin/develop`, `git worktree list`, `git branch -r` — aldri fra hukommelse.*
 
 **Sist ført: 2026-09-29 · develop `230f2b64` ← `fix/annotering-raa-url-og-pil` `0a91dd4a`. Deployet til test (bygget 22:11) og testet av Kenneth. 🔴 **Prod er fortsatt `eb9071f2` fra 24.09.**
 
-**STATUS 2026-09-30:**
+**STATUS 2026-09-30 (kveld) — ført fra måling: `git worktree list` + ancestor-sjekk på hver hash.**
 
-| Agent | Worktree | Branch | Tilstand |
-|---|---|---|---|
-| **redesign** | `SiteDoc-redesign` | `fix/annotering-frihaand-og-pil` `3b2a2004` 🔒 frosset · ny: `feat/mobil-bildeheader` | 🟡 **Måling 2 gitt** (mobilens `<Image>` skal bære Bearer) |
+🔴 **Tre bemannede spor, ikke seks (Kenneth-vedtak 2026-09-30).** Seks trær finnes og skal
+stå — et tomt tre koster ingenting og lar en agent startes på sekunder. **Men seks parallelle
+produsenter foran én seriell merge gir kø, og kø er der de nye hullene oppstår:** to agenter
+som rører samme fil fra ulik vinkel. Det skjedde to ganger 29.–30.09 (tvilling-driften i
+`ANNOTERINGS_HTML`, og vaksinen som måtte gjøres nøkkel-agnostisk om).
 
-| **dokgen** | `SiteDoc-dokgen` | `fix/tegning-rediger-detaljer` | 🟡 **Gitt** — tegningsdetaljer kan ikke rettes etter opprettelse |
-| **kontrollplan** | `SiteDoc-kontrollplan` | `docs/maaling-mobil-lagrede-uploads` | 🔴 **Gitt — BLOKKERER PROD-DEPLOY** |
+| Spor | Agent | Worktree | Branch | Tilstand |
+|---|---|---|---|---|
+| **Plan** | dokgen | `SiteDoc-dokgen` | `feat/timer-server-klassifisering` (ny) | 🟡 **Ordre gitt** — AM 2 steg 3 ledd 1, server som fasit for overtidsklassifisering |
+| **Funn** | — | `SiteDoc-redesign` | — | 🟢 **Ledig.** `fix/annotering-tom-tekst-vakt` merget `16a9de85` |
+| **Måling** | kontrollplan | `SiteDoc-kontrollplan` | `feat/mobil-bilde-selvfornyelse` | 🔴 **Jobber** — krav 3b, siste ledd før Kenneths deploy |
+| **Kontroll** | kontrollør | `SiteDoc-design` | ingen — skriver ikke kode | 🟡 **Ordre skrevet, agent ikke startet.** Første oppdrag: gate krav 3b |
+| — | mal | `SiteDoc-mal` | — | 🟢 Ledig |
+| — | simulator | `SiteDoc-simulator` | — | 🟢 Ledig (`docs/simulator-miljoemaaling` i develop) |
+| — | merge | `SiteDoc-merge` | `merge-restart` `85111353` | ⚠️ **Bak develop.** Rollen utgikk — orkestrator merger fra hovedtreet |
 
-> 🟢 **RUT TUNGE MÅLINGER TIL DESIGN (design, 2026-09-30).** `SiteDoc-design` har nå
-> `node_modules` og genererte Prisma-klienter i treet og kan **kjøre** suiten, ikke bare lese
-> repoet. Det var slik `tsc`-driften ble sporet til `29b0c9a5` — ved å kjøre på begge sider
-> av commiten, ikke ved å resonnere. **Trenger en måling at noe faktisk kjøres, hører den hit.**
+🟢 **Alle 11 gatede hasher i `relay/gate-status.md` er verifisert i develop** (`merge-base
+--is-ancestor`). **Køen er tom** — ingenting gatet ligger umerget.
+
+> 🟢 **`SiteDoc-design` har `node_modules` og genererte Prisma-klienter** og kan **kjøre**
+> suiten, ikke bare lese repoet. Det var slik `tsc`-driften ble sporet til `29b0c9a5` — ved å
+> kjøre på begge sider av commiten, ikke ved å resonnere. **Det er også derfor kontrolløren
+> bor der:** en gate som ikke kan kjøre noe, kan bare lese.
+
+🔴 **Målt om arbeidsformen, 93 commits siste tre døgn:** 29 `docs` · 21 `fix` · **3 `feat`** ·
+38 merger. **Flaskehalsen er ikke produksjonskapasitet — det er runder pr. leveranse.**
+`erServerUpload` alene tok tre runder. **Derfor bærer hver ordre nå gate-kriteriene på
+forhånd** — kantene gaten kommer til å teste står i ordren, så runde 1 består.
 
 ### 🔴 2026-09-30 — PROD-DEPLOY ER IKKE KLAR. Kenneth valgte «mål først».
 
