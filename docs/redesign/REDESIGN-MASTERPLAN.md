@@ -148,6 +148,16 @@ inn.** Regelen i toppen av denne fila står ved lag: fabel leverer notater, cowo
 
 ## 🔴 REMÅLING MOT KODE 2026-09-30 — fire av åtte punkter var utdaterte
 
+> 🟢 **LUKKET SAMME DAG — AM 2 er ferdig.** `1cecdb71` (`ce1e5b5d`, kontrollørgatet) leverte
+> steg 3: `beregnUkeAvvik` trukket til `packages/shared/src/utils/overtidsgrunnlag.ts:144` med
+> én definisjon og tre konsumenter · `avvikRetning` (`:158`) som eneste kilde for retning ·
+> badge på `SeddelKort` (der D2 ordrett plasserte den) · banner i sedel-detalj · badge i mobil
+> sedel-lista · seks D2-tester som dekker `b8a82f3b` retroaktivt, med tilfelle 2 og 3 vist
+> røde først. **Ingen migrering, intet DB-felt.** 🔴 **Gjenstår av AM 2: ledd 3, myk sperre ved
+> føring** — overtidslønnsart kan ikke velges for en uke under norm (D2, samme hjemmel).
+> ⚠️ **Latent felle ført:** `avvikRetning` godtar strukturelt både uke- og dag-grunnlag uten
+> typefeil — en nivå-diskriminant hører inn hvis flaten røres.
+
 > **Kenneth 2026-09-30:** *«mål masterplanen på nytt → hva gjenstår faktisk?»*
 > **Målt av fire agenter parallelt, mot KODE.** Orkestrator verifiserte selv hvert funn som
 > snur en rad. 🔴 **Linjenumrene i 09-11-remålingen har driftet** — `schema.prisma:1168` er nå

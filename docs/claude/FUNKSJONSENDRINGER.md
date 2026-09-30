@@ -29,6 +29,19 @@ sources: cowork
 
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
+| `1cecdb71` | **Firma-attestering** — Sedler-visningen (`SeddelKort`), Per ansatt-pivoten, sedel-detalj (web) og sedel-lista (mobil) | **Før:** attestanten måtte regne selv. Overtid som ikke stemte med ukenormen var usynlig med mindre han åpnet Per ansatt-fanen, der badgen har ligget siden 20.08. **Etter:** varsel på hovedflaten og i detaljen, begge veier — **ført overtid regelen ikke finner dekning for**, OG **ukesum over norm uten at noe er ført som overtid**. Viser norm, sum ordinært og sum overtid. 🔴 **Blokkerer ingenting** — attestanten er kontrollpunktet, ikke systemet | 🟢 `designnotat-attestering-fabel-2026-08-20.md` § D2, **Kenneth-vedtak 2026-08-20.** Badgen på `SeddelKort` er D2s egen ordlyd |
+
+⚠️ **Hvorfor varselet er verdt å ha, i én setning:** web og mobil fører overtid **ulikt** —
+mobilen setter overtidslønnsart automatisk, web gjør det ikke (nå-rapport `:141` M4).
+**Varselet gjør forskjellen synlig i stedet for å skjule den**, og designnotatet er eksplisitt
+om at systemet **aldri** retter `lonnsartId` stille: *«Lønnsartvalget er en menneskelig
+handling.»*
+
+🟢 **Til orientering, samme merge (reparasjon med synlig virkning):** `beregnUkeAvvik` lå som
+en **privat funksjon i en web-komponent uten én test** — levert 20.08, utestet i seks uker.
+Den er nå i `@sitedoc/shared` med **én definisjon og tre konsumenter**, og de seks
+D2-tilfellene dekker den **retroaktivt**. Den bygde badgen tok ikke feil; testene er grønne.
+
 | `21064640` | Bildevedlegg i **mobilappen** — kvittering på tillegg/utlegg, vedlegg i dokument, info-bilder | **Før:** feilet et bilde permanent (slettet fil, utløpt tak), viste `<Image>` bare en tom grå firkant der bakgrunnen sto på bildet selv — og på flater uten bakgrunn: ingenting. **Etter:** en synlig sluttilstand med `ImageOff`-ikon og teksten «vedlegget kunne ikke lastes», skalert pr. flate. 🔴 **Et zoom-vindu som før åpnet seg tomt, sier nå hvorfor** | 🟢 Kenneth 2026-09-30: **«send tilbake»** — etter at kontrolløren fant at `return null` kollapset den grå firkanten, og avviket ble lagt fram i klartekst før merge |
 
 ⚠️ **Hvorfor dette står som funksjonsendring og ikke reparasjon:** selvfornyelsen (krav 3b) er
