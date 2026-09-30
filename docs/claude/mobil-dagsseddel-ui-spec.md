@@ -264,6 +264,67 @@ serverens egen melding sier. 🔴 **Men hullet er reelt og skal ikke glemmes** �
 krever ny server-tilstand, og den hører sammen med at «dag startet på mobil» også er usynlig
 for web (se § 8).
 
+### 🔴 U-BEKREFT-R — arbeideren ber lederen sende dagskortet tilbake (Kenneth-vedtak 2026-09-30)
+
+> **Kenneth 2026-09-30:** *«ansatt må be leder sende dagskortet tilbake»* og
+> *«ledder må kunne gjøre det både på mobil og web»*
+>
+> **Dette lukker hullet som ble ført over** — at lederen ikke fikk beskjed. Modus C skal ikke
+> lenger si «kontakt leder»; den skal bære handlingen.
+
+#### 🟢 Målt: halve kravet er ALLEREDE oppfylt
+
+| Hva | Web | Mobil |
+|---|---|---|
+| Lederen attesterer | 🟢 finnes | 🟢 `AttesteringDetaljMobil.tsx:73` (`attesterRader`) |
+| Lederen returnerer | 🟢 finnes | 🟢 `AttesteringDetaljMobil.tsx:403` → `ReturnerModal.tsx:28` (`returnerRader`), **krever kommentar** (`:103`) |
+
+🔴 **Lederens handling trenger derfor INGEN ny flate.** Retur finnes på begge, og
+retur-flyten setter alt `attestertStatus="returnert"` + `status="returned"`, som er redigerbar.
+**Det som mangler er forespørselen — og at lederen ser den.**
+
+#### Det som skal bygges
+
+**1. En tilstand for forespørselen på dagsseddelen.** Hvem ba, når, og hvorfor (fritekst,
+valgfri). **Dette krever en migrering** — det er den eneste delen av U-BEKREFT som gjør det.
+
+🔴 **Stille tomhet-kravene gjelder, med én presisering:**
+- **(a) Backfill:** feltet er en HENDELSE som ikke har skjedd før, så `null` på eksisterende
+  rader er **riktig** — ikke en tom felle. **Dette er unntaket fra backfill-kravet, og det skal
+  begrunnes i ordren, ikke hoppes over stille.**
+- **(b) Garanti:** én åpen forespørsel pr. sedel. Ligger feltet PÅ sedelen, er det entydig ved
+  konstruksjon — **men si det eksplisitt i rapporten.**
+- **(c) 🔴 En test som FEILER når forespørselen er satt og IKKE vises for lederen.** Det er
+  hele poenget: en forespørsel ingen ser, er verre enn ingen forespørsel.
+
+**2. Synlig for lederen på BEGGE flater — i lista, ikke bare i detaljen.**
+
+| Flate | Hvor | Hvorfor |
+|---|---|---|
+| **Web — Sedler-visningen** | `SeddelKort` | Der lederen jobber. **Må sees uten å åpne sedelen** |
+| **Web — sedel-detalj** | `AttesteringDetalj` | Der retur-handlingen er |
+| **Mobil — sedel-lista** | `app/timer/attestering/index.tsx` | Samme krav som web |
+| **Mobil — sedel-detalj** | `AttesteringDetaljMobil.tsx` | Der `ReturnerModal` alt bor |
+
+🔴 **En forespørsel som bare vises i detaljvisningen er ikke levert.** Lederen åpner ikke
+femti sedler for å lete.
+
+**3. Forespørselen lukkes når sedelen returneres.** Ellers står den og lyser etter at lederen
+har gjort jobben.
+
+**4. Avslag er en handling med begrunnelse, ikke en stille sletting.** *(Orkestrator-beslutning
+2026-09-30 — si fra hvis den er feil.)* Vil lederen ikke returnere, lukker han forespørselen
+med en kommentar som arbeideren ser. **Grunnen: `ReturnerModal` krever alt kommentar
+(`:103`)** — samme disiplin på avslag gjør at arbeideren aldri sitter igjen uten å vite hvorfor.
+
+#### 🟡 Push er tilgjengelig, men ikke bestilt
+
+`apps/api/src/services/pushVarsel.ts:126` (`sendPush`) er bygget og **har null kallsteder i hele
+repoet** — infrastrukturen finnes ubrukt. **Ikke bestilt her:** forespørselen skal bære sin egen
+tilstand FØRST, slik at den ikke kan gå tapt. 🔴 **En forespørsel som kun er et push-varsel, er
+en forespørsel som forsvinner når varselet sveipes bort.** Push kan legges på etterpå som et
+hint, aldri som kanalen.
+
 ### Krav som gjelder alle tre modusene
 
 1. 🔴 **Ingenting sendes før brukeren har bekreftet.** Det er hele hensikten.
