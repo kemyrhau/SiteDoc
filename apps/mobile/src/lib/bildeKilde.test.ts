@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Host-forankringen leser AUTH_CONFIG.apiUrl + hentWebUrl(). Mock dem her så
 // begge verter er deterministiske (uavhengig av EXPO_PUBLIC_API_URL i miljøet)
@@ -8,7 +8,14 @@ vi.mock("../config/auth", () => ({
   hentWebUrl: () => "https://test.sitedoc.no",
 }));
 
-import { byggBildeKilde, erServerUpload, origin } from "./bildeKilde";
+import {
+  byggBildeKilde,
+  erServerUpload,
+  origin,
+  stiForFornyelse,
+  vurderBildeFornyelse,
+} from "./bildeKilde";
+import { lagInvalideringsDebounce, SIGNERT_BILDE_DEBOUNCE_MS } from "@sitedoc/shared";
 
 // Dekker begge URL-formene mobilen bygger for /uploads/:
 //   api-host:   `${AUTH_CONFIG.apiUrl}/uploads/…`
@@ -105,5 +112,97 @@ describe("byggBildeKilde — Bearer legges KUN på server-uploads, KUN med token
       "hemmelig-token",
     );
     expect(kilde.headers).toBeUndefined();
+  });
+});
+
+// Signerte URI-er for fornyelses-vurderingen. Med naa=5000: exp=1000 er UTLØPT
+// (401 → fornybar), exp=9000 er GYLDIG signatur men bildet feilet likevel (404 →
+// terminal). Full mobil-form med VÅR api-host foran + `?exp=&sig=`-query.
+const NAA = 5000;
+const UTLOPT_URI = "http://localhost:3001/uploads/privat/abc.jpg?exp=1000&sig=xyz";
+const GYLDIG_URI = "http://localhost:3001/uploads/privat/abc.jpg?exp=9000&sig=xyz";
+
+describe("stiForFornyelse — full URI → /uploads/-form, MED query beholdt", () => {
+  it("api-host: VÅR origin strippes, query beholdes", () => {
+    expect(stiForFornyelse(UTLOPT_URI)).toBe("/uploads/privat/abc.jpg?exp=1000&sig=xyz");
+  });
+
+  it("web-proxy: origin OG ledende /api strippes, query beholdes", () => {
+    expect(
+      stiForFornyelse("https://test.sitedoc.no/api/uploads/bilde.jpg?exp=1000&sig=xyz"),
+    ).toBe("/uploads/bilde.jpg?exp=1000&sig=xyz");
+  });
+
+  it("🔴 query (?exp=) OVERLEVER — regresjonsvakt mot shared raaUploadsSti (som dropper den)", () => {
+    // Uten `exp` i resultatet ville `erUtloptSignatur` lest exp=null → «utløpt» for
+    // ALT, og 404-vakten (gyldig signatur → terminal) hadde falt.
+    expect(stiForFornyelse(GYLDIG_URI)).toContain("exp=9000");
+  });
+
+  it("lokal file:// slipper uendret gjennom (starter ikke med /uploads/ → ikke fornybar)", () => {
+    expect(stiForFornyelse("file:///var/foto.jpg")).toBe("file:///var/foto.jpg");
+  });
+});
+
+describe("vurderBildeFornyelse — KRAV (c): 401 fornyes, 4. forsøk aldri, 404 terminal", () => {
+  it("forsøk 1 etter 401: umiddelbart (ventMs 0, kun koalescering)", () => {
+    expect(vurderBildeFornyelse(UTLOPT_URI, 0, NAA)).toEqual({
+      type: "forny",
+      nyttForsok: 1,
+      ventMs: 0,
+    });
+  });
+
+  it("🔴 KRAV (c)-1: FORSØK 2 gjøres etter et 401 (med backoff 1000 ms)", () => {
+    expect(vurderBildeFornyelse(UTLOPT_URI, 1, NAA)).toEqual({
+      type: "forny",
+      nyttForsok: 2,
+      ventMs: 1000,
+    });
+  });
+
+  it("forsøk 3 etter et 401 (backoff 2000 ms)", () => {
+    expect(vurderBildeFornyelse(UTLOPT_URI, 2, NAA)).toEqual({
+      type: "forny",
+      nyttForsok: 3,
+      ventMs: 2000,
+    });
+  });
+
+  it("🔴 KRAV (c)-2: ALDRI et fjerde forsøk — taket (3) nådd → gi-opp", () => {
+    expect(vurderBildeFornyelse(UTLOPT_URI, 3, NAA)).toEqual({ type: "gi-opp" });
+  });
+
+  it("🔴 KRAV (c)-3: 404 (gyldig signatur, borte fil) gjenforsøkes ALDRI — gi-opp fra forsøk 0", () => {
+    expect(vurderBildeFornyelse(GYLDIG_URI, 0, NAA)).toEqual({ type: "gi-opp" });
+  });
+
+  it("ikke-server-URI (lokal fil som feiler) → gi-opp, ingen invalideringsløkke", () => {
+    expect(vurderBildeFornyelse("file:///var/foto.jpg", 0, NAA)).toEqual({ type: "gi-opp" });
+  });
+});
+
+describe("🔴 KRAV (c)-4: koalescering — tre bilder samtidig → ÉN invalidering pr. forsøksnivå", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("tre samtidige kall i vinduet → ett kall; neste nivå → ett nytt", () => {
+    const spion = vi.fn();
+    const planlegg = lagInvalideringsDebounce(SIGNERT_BILDE_DEBOUNCE_MS);
+
+    // Forsøksnivå 1: tre bilder feiler nær-samtidig.
+    planlegg(spion);
+    planlegg(spion);
+    planlegg(spion);
+    expect(spion).toHaveBeenCalledTimes(0); // ennå ikke fyrt (fast-vindu)
+    vi.advanceTimersByTime(SIGNERT_BILDE_DEBOUNCE_MS);
+    expect(spion).toHaveBeenCalledTimes(1); // ÉN invalidering for hele bursten
+
+    // Forsøksnivå 2 (etter backoff): tre nye feil → nøyaktig én til.
+    planlegg(spion);
+    planlegg(spion);
+    planlegg(spion);
+    vi.advanceTimersByTime(SIGNERT_BILDE_DEBOUNCE_MS);
+    expect(spion).toHaveBeenCalledTimes(2);
   });
 });

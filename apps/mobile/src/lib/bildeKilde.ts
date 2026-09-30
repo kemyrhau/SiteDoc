@@ -9,7 +9,12 @@
 // cookie hele veien; her må Bearer legges eksplisitt på forespørselen. Legg det ETT
 // sted (denne funksjonen + `AutentisertBilde`), aldri på hvert kallsted — sprer man
 // headeren utover kallstedene, glemmer neste kallsted den.
-import { UPLOADS_PREFIKS } from "@sitedoc/shared";
+import {
+  UPLOADS_PREFIKS,
+  SIGNERT_BILDE_MAKS_FORSOK,
+  backoffForsokMs,
+  erUtloptSignatur,
+} from "@sitedoc/shared";
 import { AUTH_CONFIG, hentWebUrl } from "../config/auth";
 
 export interface BildeKilde {
@@ -70,4 +75,64 @@ export function byggBildeKilde(uri: string, token: string | null): BildeKilde {
     return { uri, headers: { Authorization: `Bearer ${token}` } };
   }
   return { uri };
+}
+
+/**
+ * Reduser en full server-/uploads/-URI til den `/uploads/`-formen `erUtloptSignatur`
+ * forventer. Mobilen bygger to former, begge med VÅR origin foran:
+ *
+ *  - api-host:  `https://api-host/uploads/…?exp=…&sig=…`
+ *  - web-proxy: `https://web-host/api/uploads/…?exp=…&sig=…`
+ *
+ * VÅR origin strippes (samme host-forankring som `erServerUpload`), deretter et
+ * ledende `/api`. `erUtloptSignatur` krever `/uploads/`-prefiks; en full URL med host
+ * ville aldri regnes som utløpt → ingen selvfornyelse.
+ *
+ * 🔴 Query-strengen (`?exp=&sig=`) BEHOLDES. `erUtloptSignatur` leser `exp` for å
+ * skille 401 (utløpt signatur → fornybar) fra 404 (gyldig signatur, borte fil →
+ * terminal). Forveksle IKKE med `@sitedoc/shared`s `raaUploadsSti`, som DROPPER hele
+ * queryen (skrive-vei-vaksine) — brukt her ville den visket ut `exp`, gjort hver feil
+ * til «utløpt» og revet ned 404-vakten.
+ *
+ * Ikke-server-URI-er (lokal `file://`, tredjeparts, `data:`) slipper uendret gjennom:
+ * de starter ikke med `/uploads/`, så `erUtloptSignatur` svarer false (ikke fornybar).
+ */
+export function stiForFornyelse(uri: string): string {
+  for (const vert of [origin(AUTH_CONFIG.apiUrl), origin(hentWebUrl())]) {
+    if (vert !== null && uri.startsWith(`${vert}/`)) {
+      const sti = uri.slice(vert.length); // beholder ledende «/» + hele queryen
+      return sti.startsWith("/api/") ? sti.slice(4) : sti;
+    }
+  }
+  return uri;
+}
+
+/**
+ * Ren beslutning for selvfornyelse av ETT bilde etter en visningsfeil (`<Image onError>`).
+ * `AutentisertBilde` eier tellingen (`forsok`) og timerne; regelen selv bor her, delt
+ * med webs `SignertBilde` gjennom `@sitedoc/shared` — samme tak, samme backoff, samme
+ * 401-vs-404-skille. Ekstrahert hit (ikke inline i komponenten som på web) fordi mobil-
+ * harness kun kjører ren TS: RN-komponenter render-testes ikke, så beslutningen må være
+ * en ren funksjon for at KRAV (c)-testene skal kunne feile uten fiksen.
+ *
+ *  - `gi-opp`  → taket (`SIGNERT_BILDE_MAKS_FORSOK`) er nådd ELLER feilen er ikke en
+ *    utløpt signatur (404/ekte feil). Vis en terminal tilstand, ALDRI en løkke mot 401.
+ *  - `forny`   → planlegg en debouncet invalidering om `ventMs` (0 for forsøk 1, deretter
+ *    voksende backoff). En invalidering gir serveren en runde til å re-emittere en fersk
+ *    signatur gjennom veien som alt er autorisert — ingen ny signeringsprosedyre i klienten.
+ */
+export type BildeFornyelse =
+  | { type: "gi-opp" }
+  | { type: "forny"; nyttForsok: number; ventMs: number };
+
+export function vurderBildeFornyelse(
+  uri: string,
+  forsok: number,
+  naa: number = Date.now(),
+): BildeFornyelse {
+  if (forsok >= SIGNERT_BILDE_MAKS_FORSOK || !erUtloptSignatur(stiForFornyelse(uri), naa)) {
+    return { type: "gi-opp" };
+  }
+  const nyttForsok = forsok + 1;
+  return { type: "forny", nyttForsok, ventMs: backoffForsokMs(nyttForsok) };
 }

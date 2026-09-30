@@ -1,7 +1,22 @@
 import { Image, type ImageProps } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hentSessionToken } from "../services/auth";
-import { byggBildeKilde, erServerUpload, type BildeKilde } from "../lib/bildeKilde";
+import { trpc } from "../lib/trpc";
+import {
+  byggBildeKilde,
+  erServerUpload,
+  vurderBildeFornyelse,
+  type BildeKilde,
+} from "../lib/bildeKilde";
+import { lagInvalideringsDebounce } from "@sitedoc/shared";
+
+/**
+ * Modul-nivå debounce, delt av ALLE AutentisertBilde-instanser (som webs
+ * `SignertBilde`). En skjerm full av utløpte bilder koalescerer derfor til ÉN
+ * tRPC-invalidering pr. forsøksnivå, ikke femti. Hver instans planlegger sitt eget
+ * forsøk gjennom denne — vinduet slår dem sammen.
+ */
+const planleggInvalidering = lagInvalideringsDebounce();
 
 /**
  * AutentisertBilde — native <Image> som bærer Bearer-token når URI-en er en
@@ -18,22 +33,42 @@ import { byggBildeKilde, erServerUpload, type BildeKilde } from "../lib/bildeKil
  * <Image> til token er hentet, slik at den ALLERSTE forespørselen bærer headeren —
  * ingen naken GET som 401-er før et gjenforsøk. Lokale/tredjeparts-URI-er trenger
  * ikke token og monteres umiddelbart (ingen venting, samme opplevelse som før).
+ *
+ * Selvfornyelse (krav 3b): feiler bildet fordi den signerte URL-en er UTLØPT (401),
+ * invalideres tRPC-queriene DEBOUNCET, så kallstedets query refetcher og gir en fersk
+ * signert URI — samme mekanisme som webs `SignertBilde`, samme delte regel i
+ * `@sitedoc/shared`. Maks TRE forsøk med backoff; en 404 (slettet fil, gyldig
+ * signatur) gjenforsøkes ALDRI — ellers evig løkke / selvpåført DoS. Beslutningen bor
+ * i `vurderBildeFornyelse`; her holdes kun tellingen, timerne og terminaltilstanden.
  */
 export type AutentisertBildeProps = Omit<ImageProps, "source"> & {
   /** Full URI: server-/uploads/-URL (får Bearer) eller lokal `file://`/asset (uendret). */
   uri: string;
 };
 
-export function AutentisertBilde({ uri, ...rest }: AutentisertBildeProps) {
+export function AutentisertBilde({ uri, onError, ...rest }: AutentisertBildeProps) {
+  const utils = trpc.useUtils();
   // Lokale/tredjeparts-URI-er kan monteres synkront; kun server-URI-er venter på token.
   const [kilde, setKilde] = useState<BildeKilde | null>(() =>
     erServerUpload(uri) ? null : { uri },
   );
+  // Terminal feiltilstand: taket nådd eller feilen er ikke fornybar (404). Da vises
+  // ingenting framfor en evig 401-løkke. Nullstilles når `uri` endrer seg (fersk signatur).
+  const [feilet, setFeilet] = useState(false);
+  const forsokRef = useRef(0);
+  const backoffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // Ny `uri` (typisk en fersk signatur fra en refetch) = nytt forsøk fra bunnen.
+    // Rydd også en ventende backoff-timer — den hørte til forrige uri.
+    forsokRef.current = 0;
+    setFeilet(false);
+
     if (!erServerUpload(uri)) {
       setKilde({ uri });
-      return;
+      return () => {
+        if (backoffTimerRef.current) clearTimeout(backoffTimerRef.current);
+      };
     }
     let aktiv = true;
     setKilde(null);
@@ -54,9 +89,35 @@ export function AutentisertBilde({ uri, ...rest }: AutentisertBildeProps) {
       });
     return () => {
       aktiv = false;
+      if (backoffTimerRef.current) clearTimeout(backoffTimerRef.current);
     };
   }, [uri]);
 
-  if (!kilde) return null;
-  return <Image source={kilde} {...rest} />;
+  if (!kilde || feilet) return null;
+
+  return (
+    <Image
+      source={kilde}
+      onError={(e) => {
+        onError?.(e);
+        const beslutning = vurderBildeFornyelse(uri, forsokRef.current);
+        if (beslutning.type === "gi-opp") {
+          setFeilet(true);
+          return;
+        }
+        forsokRef.current = beslutning.nyttForsok;
+        // Debouncet invalidering: femti samtidige feil på samme forsøksnivå gir ÉN
+        // refetch. Forsøk 1 umiddelbart (kun koalescering), forsøk 2/3 etter backoff
+        // så ett dekningsdropp på dårlig 4G får tid til å løse seg.
+        const planlegg = () => planleggInvalidering(() => void utils.invalidate());
+        if (beslutning.ventMs === 0) {
+          planlegg();
+        } else {
+          if (backoffTimerRef.current) clearTimeout(backoffTimerRef.current);
+          backoffTimerRef.current = setTimeout(planlegg, beslutning.ventMs);
+        }
+      }}
+      {...rest}
+    />
+  );
 }
