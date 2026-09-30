@@ -2714,6 +2714,7 @@
   "lokasjonVelger.tegning": "Ritning",
   "lokasjonVelger.omrade": "Område",
   "lokasjonVelger.omradeNiva": "Avgränsat område",
+  "lokasjonVelger.omradeUtenNavn": "Ett avgränsat område",
   "lokasjonVelger.omradeVelg": "Eller välj ett område",
   "lokasjonVelger.omradeVelgPlaceholder": "Välj område...",
   "lokasjonVelger.punktSatt": "Punkt markerad på ritningen",

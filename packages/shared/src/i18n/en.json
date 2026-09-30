@@ -2714,6 +2714,7 @@
   "lokasjonVelger.tegning": "Drawing",
   "lokasjonVelger.omrade": "Area",
   "lokasjonVelger.omradeNiva": "Defined area",
+  "lokasjonVelger.omradeUtenNavn": "A defined area",
   "lokasjonVelger.omradeVelg": "Or select an area",
   "lokasjonVelger.omradeVelgPlaceholder": "Select area …",
   "lokasjonVelger.punktSatt": "Point marked on drawing",

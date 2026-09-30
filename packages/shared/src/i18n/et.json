@@ -2714,6 +2714,7 @@
   "lokasjonVelger.tegning": "Joonistamine",
   "lokasjonVelger.omrade": "Piirkond",
   "lokasjonVelger.omradeNiva": "Määratletud ala",
+  "lokasjonVelger.omradeUtenNavn": "Määratletud ala",
   "lokasjonVelger.omradeVelg": "Või valige piirkond",
   "lokasjonVelger.omradeVelgPlaceholder": "Vali piirkond…",
   "lokasjonVelger.punktSatt": "Joonisel märgitud punkt",

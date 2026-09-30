@@ -2714,6 +2714,7 @@
   "lokasjonVelger.tegning": "Rysunek",
   "lokasjonVelger.omrade": "Obszar",
   "lokasjonVelger.omradeNiva": "Zdefiniowany obszar",
+  "lokasjonVelger.omradeUtenNavn": "Zdefiniowany obszar",
   "lokasjonVelger.omradeVelg": "Lub wybierz obszar",
   "lokasjonVelger.omradeVelgPlaceholder": "Wybierz obszar…",
   "lokasjonVelger.punktSatt": "Punkt zaznaczony na rysunku",

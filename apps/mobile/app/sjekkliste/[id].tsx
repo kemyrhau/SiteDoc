@@ -36,6 +36,7 @@ import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal"
 import { EmneFelt } from "../../src/components/EmneFelt";
 import { trpc } from "../../src/lib/trpc";
 import { flytFaggruppeIder } from "../../src/lib/flyt-faggrupper";
+import { dokumentLokasjonsOmfang } from "../../src/lib/dokumentLokasjonsOmfang";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { hentDatabase } from "../../src/db/database";
 import { sjekklisteFeltdata, opplastingsKo } from "../../src/db/schema";
@@ -156,6 +157,10 @@ export default function SjekklisteUtfylling() {
     positionX?: number | null;
     positionY?: number | null;
     byggeplass?: { id: string; name: string } | null;
+    lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
+    lokasjonFritekst?: string | null;
+    omradeId?: string | null;
+    omrade?: { id: string; navn: string; type: string } | null;
     bestiller?: { name?: string | null } | null;
     creator?: { name?: string | null } | null;
     createdAt?: string;
@@ -749,16 +754,24 @@ export default function SjekklisteUtfylling() {
   const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
   // Paritetsregel (2026-09-02): i lesevisning vises dokumentnivå-lokasjonen kun med
   // komplett markør (harMarkorDok); tegning uten punkt leses som «ingen lokasjon».
-  // Lokasjonsomfang (2026-09-04): «Gjelder hele byggeplassen» er et eksplisitt svar og vises
-  // på tvers av flater (web/PDF/mobil) — aldri som tomt felt. Har forrang over markør-teksten.
-  const erByggeplassDok =
-    (sjekklisteDetalj as { lokasjonOmfang?: string | null } | undefined)?.lokasjonOmfang === "byggeplass";
-  // Fritekst-sted (2026-09-06): vises som stedet når satt, ellers «hele byggeplassen».
-  const lokasjonFritekstDok =
-    (sjekklisteDetalj as { lokasjonFritekst?: string | null } | undefined)?.lokasjonFritekst ?? null;
-  const lokasjonTekstVist = erByggeplassDok
-    ? lokasjonFritekstDok || t("lokasjonVelger.gjelderByggeplass")
-    : (leseModus && !harMarkorDok ? null : lokasjonTekst);
+  // Lokasjonsomfang (2026-09-04; område 2026-09-23): «hele byggeplassen» og «et definert
+  // område» er eksplisitte svar, vist på tvers av flater (web/PDF/mobil) — aldri som tomt
+  // felt. Har forrang over markør-teksten. Kastene er borte; feltene er typet på
+  // sjekklisteDetalj. Denne kompakte ett-linjes flaten viser områdenavnet (type-kontekst er
+  // forbeholdt oppgave-flatens to-linjers boks, som PDF-grenen).
+  const omfangVisning = dokumentLokasjonsOmfang({
+    lokasjonOmfang: sjekklisteDetalj?.lokasjonOmfang,
+    lokasjonFritekst: sjekklisteDetalj?.lokasjonFritekst,
+    omrade: sjekklisteDetalj?.omrade,
+  });
+  const lokasjonTekstVist =
+    omfangVisning.slag === "byggeplass"
+      ? omfangVisning.sted || t("lokasjonVelger.gjelderByggeplass")
+      : omfangVisning.slag === "omrade"
+        ? omfangVisning.navn || t("lokasjonVelger.omradeUtenNavn")
+        : leseModus && !harMarkorDok
+          ? null
+          : lokasjonTekst;
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>

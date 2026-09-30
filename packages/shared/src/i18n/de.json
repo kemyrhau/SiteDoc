@@ -2714,6 +2714,7 @@
   "lokasjonVelger.tegning": "Zeichnung",
   "lokasjonVelger.omrade": "Bereich",
   "lokasjonVelger.omradeNiva": "Definierter Bereich",
+  "lokasjonVelger.omradeUtenNavn": "Ein definierter Bereich",
   "lokasjonVelger.omradeVelg": "Oder wählen Sie einen Bereich aus",
   "lokasjonVelger.omradeVelgPlaceholder": "Bereich auswählen …",
   "lokasjonVelger.punktSatt": "Auf der Zeichnung markierter Punkt",
