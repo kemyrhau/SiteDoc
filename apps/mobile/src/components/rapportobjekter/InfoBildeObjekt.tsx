@@ -5,6 +5,7 @@ import { X } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
 import { hentWebUrl } from "../../config/auth";
 import { AutentisertBilde } from "../AutentisertBilde";
+import { BildeFallback } from "../BildeFallback";
 
 /** Bilde med caption (ikke redigerbar) — for PSI og instruksjoner */
 export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
@@ -26,6 +27,13 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
           uri={fullUrl}
           style={{ width: bredde, height: bredde * 0.65, borderRadius: 8 }}
           resizeMode="contain"
+          fallback={
+            <BildeFallback
+              style={{ width: bredde, height: bredde * 0.65, borderRadius: 8 }}
+              ikonStr={36}
+              tekstKlasse="text-xs"
+            />
+          }
         />
         {caption ? (
           <Text className="mt-1.5 text-center text-xs italic text-gray-500">{caption}</Text>
@@ -50,6 +58,13 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
                 uri={fullUrl}
                 style={{ width: skjermBredde, height: skjermBredde }}
                 resizeMode="contain"
+                fallback={
+                  <BildeFallback
+                    style={{ width: skjermBredde, height: skjermBredde }}
+                    ikonStr={48}
+                    tekstKlasse="text-sm"
+                  />
+                }
               />
             </ScrollView>
           </ModalFlate>

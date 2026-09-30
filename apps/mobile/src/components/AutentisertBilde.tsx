@@ -1,9 +1,10 @@
 import { Image, type ImageProps } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { hentSessionToken } from "../services/auth";
 import { trpc } from "../lib/trpc";
 import {
   byggBildeKilde,
+  bildeRenderTilstand,
   erServerUpload,
   vurderBildeFornyelse,
   type BildeKilde,
@@ -40,13 +41,23 @@ const planleggInvalidering = lagInvalideringsDebounce();
  * `@sitedoc/shared`. Maks TRE forsøk med backoff; en 404 (slettet fil, gyldig
  * signatur) gjenforsøkes ALDRI — ellers evig løkke / selvpåført DoS. Beslutningen bor
  * i `vurderBildeFornyelse`; her holdes kun tellingen, timerne og terminaltilstanden.
+ *
+ * Synlig sluttilstand: er alle forsøk brukt opp (eller feilen en 404), rendres
+ * `fallback` — ikke `null`. 🔴 Fallbacken hører KUN til den terminale tilstanden, ALDRI
+ * til token-lastingen: uten `fallback`-prop er oppførselen uendret (`null`), som før.
+ * Se `bildeRenderTilstand` for laster-vs-terminal-skillet.
  */
 export type AutentisertBildeProps = Omit<ImageProps, "source"> & {
   /** Full URI: server-/uploads/-URL (får Bearer) eller lokal `file://`/asset (uendret). */
   uri: string;
+  /**
+   * Vises når tilstanden er TERMINAL (alle forsøk brukt, eller 404). Utelates den,
+   * rendres `null` som før — bakoverkompatibelt. Rendres ALDRI mens token hentes.
+   */
+  fallback?: ReactNode;
 };
 
-export function AutentisertBilde({ uri, onError, ...rest }: AutentisertBildeProps) {
+export function AutentisertBilde({ uri, fallback, onError, ...rest }: AutentisertBildeProps) {
   const utils = trpc.useUtils();
   // Lokale/tredjeparts-URI-er kan monteres synkront; kun server-URI-er venter på token.
   const [kilde, setKilde] = useState<BildeKilde | null>(() =>
@@ -93,7 +104,9 @@ export function AutentisertBilde({ uri, onError, ...rest }: AutentisertBildeProp
     };
   }, [uri]);
 
-  if (!kilde || feilet) return null;
+  const tilstand = bildeRenderTilstand(kilde !== null, feilet);
+  if (tilstand === "terminal") return <>{fallback}</>;
+  if (tilstand === "laster" || !kilde) return null;
 
   return (
     <Image

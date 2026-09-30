@@ -10,6 +10,7 @@ vi.mock("../config/auth", () => ({
 
 import {
   byggBildeKilde,
+  bildeRenderTilstand,
   erServerUpload,
   origin,
   stiForFornyelse,
@@ -179,6 +180,26 @@ describe("vurderBildeFornyelse — KRAV (c): 401 fornyes, 4. forsøk aldri, 404 
 
   it("ikke-server-URI (lokal fil som feiler) → gi-opp, ingen invalideringsløkke", () => {
     expect(vurderBildeFornyelse("file:///var/foto.jpg", 0, NAA)).toEqual({ type: "gi-opp" });
+  });
+});
+
+describe("bildeRenderTilstand — 🔴 fallback hører KUN til terminal, ALDRI til lasting", () => {
+  it("🔴 kilde=null + feilet=false → «laster» (token hentes) — NULL rendres, IKKE fallback", () => {
+    // Den viktigste testen: uten dette skillet blinker fallbacken på hvert server-
+    // bilde i de hundre ms token-hentingen varer.
+    expect(bildeRenderTilstand(false, false)).toBe("laster");
+  });
+
+  it("feilet=true → «terminal» — her, og bare her, vises fallbacken", () => {
+    expect(bildeRenderTilstand(true, true)).toBe("terminal");
+  });
+
+  it("kilde satt + ingen feil → «vis» (Image rendres)", () => {
+    expect(bildeRenderTilstand(true, false)).toBe("vis");
+  });
+
+  it("feilet vinner over manglende kilde (entydig rekkefølge)", () => {
+    expect(bildeRenderTilstand(false, true)).toBe("terminal");
   });
 });
 

@@ -31,6 +31,7 @@ import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
 import { AUTH_CONFIG } from "../../config/auth";
 import { trpc } from "../../lib/trpc";
 import { AutentisertBilde } from "../AutentisertBilde";
+import { BildeFallback } from "../BildeFallback";
 import type { TilleggRad, Tillegg } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { VelgerFelt } from "./VelgerFelt";
@@ -337,7 +338,11 @@ function VedleggBilde({
   return (
     <View className="relative">
       {uri && (
-        <AutentisertBilde uri={uri} className="h-20 w-20 rounded-lg bg-gray-100" />
+        <AutentisertBilde
+          uri={uri}
+          className="h-20 w-20 rounded-lg bg-gray-100"
+          fallback={<BildeFallback className="h-20 w-20" />}
+        />
       )}
       {!v.serverUrl && (
         <View className="absolute bottom-0 left-0 right-0 flex-row items-center justify-center gap-1 rounded-b-lg bg-black/50 py-0.5">

@@ -11,6 +11,7 @@ import {
   Linking,
 } from "react-native";
 import { AutentisertBilde } from "../../src/components/AutentisertBilde";
+import { BildeFallback } from "../../src/components/BildeFallback";
 import { useLocalSearchParams, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Download, FileText, Check, X, Plus, RefreshCw } from "lucide-react-native";
@@ -450,6 +451,13 @@ export default function DokumentLeser() {
                   uri={zoomBilde}
                   style={{ width: skjermBredde, height: skjermBredde }}
                   resizeMode="contain"
+                  fallback={
+                    <BildeFallback
+                      style={{ width: skjermBredde, height: skjermBredde }}
+                      ikonStr={48}
+                      tekstKlasse="text-sm"
+                    />
+                  }
                 />
               )}
             </ScrollView>
@@ -556,6 +564,13 @@ function BlokkRenderer({
               uri={bildeUrl}
               style={{ width: bredde, height: bredde * 0.75, borderRadius: 8 }}
               resizeMode="contain"
+              fallback={
+                <BildeFallback
+                  style={{ width: bredde, height: bredde * 0.75, borderRadius: 8 }}
+                  ikonStr={36}
+                  tekstKlasse="text-xs"
+                />
+              }
             />
           </TouchableOpacity>
         );

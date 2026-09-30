@@ -136,3 +136,24 @@ export function vurderBildeFornyelse(
   const nyttForsok = forsok + 1;
   return { type: "forny", nyttForsok, ventMs: backoffForsokMs(nyttForsok) };
 }
+
+/**
+ * Hva skal `AutentisertBilde` rendre? 🔴 «laster» og «terminal» er IKKE det samme,
+ * og å slå dem sammen er fella i fallback-oppgaven:
+ *
+ *  - `laster`   → token-hentingen pågår (`kilde` er null, ingen feil ennå). Varer noen
+ *    hundre ms på HVERT server-bilde. Rendres som `null` — ALDRI fallbacken, ellers
+ *    blinker «vedlegget kunne ikke lastes» på hvert bilde før det vises.
+ *  - `terminal` → `feilet` (taket nådd eller 404). KUN her hører fallbacken hjemme.
+ *  - `vis`      → en kilde finnes og ingen feil → vis <Image>.
+ *
+ * `feilet` vinner over manglende kilde: i praksis er `kilde` alltid satt når et bilde
+ * rekker å feile, men rekkefølgen gjør regelen entydig uansett.
+ */
+export type BildeRenderTilstand = "laster" | "terminal" | "vis";
+
+export function bildeRenderTilstand(harKilde: boolean, feilet: boolean): BildeRenderTilstand {
+  if (feilet) return "terminal";
+  if (!harKilde) return "laster";
+  return "vis";
+}
