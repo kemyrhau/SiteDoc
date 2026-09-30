@@ -2711,6 +2711,7 @@
   "lokasjonVelger.tegning": "Piirustus",
   "lokasjonVelger.omrade": "Alue",
   "lokasjonVelger.omradeNiva": "Määritelty alue",
+  "lokasjonVelger.omradeUtenNavn": "Määritelty alue",
   "lokasjonVelger.omradeVelg": "Tai valitse alue",
   "lokasjonVelger.omradeVelgPlaceholder": "Valitse alue…",
   "lokasjonVelger.punktSatt": "Piirustukseen merkitty kohta",

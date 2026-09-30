@@ -289,6 +289,9 @@ export const oppgaveRouter = router({
               byggeplass: { select: { id: true, name: true } },
             },
           },
+          // Steg 2b (2026-09-23): områdenavn+type for lokasjonsvisning når lokasjonOmfang="omrade".
+          // Additiv lese-utvidelse — omradeId (skalar) fulgte alt med; navnet krevde relasjonen.
+          omrade: { select: { id: true, navn: true, type: true } },
           checklist: {
             include: {
               template: { select: { prefix: true, name: true } },

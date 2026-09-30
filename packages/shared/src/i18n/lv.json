@@ -2711,6 +2711,7 @@
   "lokasjonVelger.tegning": "Zīmējums",
   "lokasjonVelger.omrade": "Apgabals",
   "lokasjonVelger.omradeNiva": "Noteikts apgabals",
+  "lokasjonVelger.omradeUtenNavn": "Noteikta teritorija",
   "lokasjonVelger.omradeVelg": "Vai arī atlasiet apgabalu",
   "lokasjonVelger.omradeVelgPlaceholder": "Izvēlieties apgabalu…",
   "lokasjonVelger.punktSatt": "Punkts atzīmēts zīmējumā",

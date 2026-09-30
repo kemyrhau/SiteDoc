@@ -2711,6 +2711,7 @@
   "lokasjonVelger.tegning": "Desen",
   "lokasjonVelger.omrade": "Zonă",
   "lokasjonVelger.omradeNiva": "Zona definita",
+  "lokasjonVelger.omradeUtenNavn": "O zonă definită",
   "lokasjonVelger.omradeVelg": "Sau selectați o zonă",
   "lokasjonVelger.omradeVelgPlaceholder": "Selectați zona…",
   "lokasjonVelger.punktSatt": "Punctul marcat pe desen",

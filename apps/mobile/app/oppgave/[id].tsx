@@ -45,6 +45,7 @@ import type { FlytMedlem } from "../../src/components/Flytlinje";
 import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { EmneFelt } from "../../src/components/EmneFelt";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
+import { dokumentLokasjonsOmfang } from "../../src/lib/dokumentLokasjonsOmfang";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
@@ -122,8 +123,21 @@ export default function OppgaveDetalj() {
   const oppgaveDetalj = detaljQuery.data as {
     transfers?: Transfer[];
     drawing?: { id: string; name: string; drawingNumber?: string | null } | null;
+    lokasjonOmfang?: "punkt" | "byggeplass" | "omrade" | null;
+    lokasjonFritekst?: string | null;
+    omradeId?: string | null;
+    omrade?: { id: string; navn: string; type: string } | null;
   } | undefined;
   const overforinger = oppgaveDetalj?.transfers;
+  // Lokasjonsomfang (2026-09-04; område 2026-09-23): les fra det RÅ, typede
+  // hentMedId-resultatet — ikke via `oppgave`-kastet fra useOppgaveSkjema (hooken typer
+  // ikke lokasjonsfeltene, derav de gamle `as`-kastene). Samme DB-rad → uendret byggeplass-
+  // oppførsel, og en ny enum-verdi faller ikke lenger stille ut.
+  const lokasjonOmfangVisning = dokumentLokasjonsOmfang({
+    lokasjonOmfang: oppgaveDetalj?.lokasjonOmfang,
+    lokasjonFritekst: oppgaveDetalj?.lokasjonFritekst,
+    omrade: oppgaveDetalj?.omrade,
+  });
 
   // Hent faggrupper for redigering
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
@@ -862,17 +876,33 @@ export default function OppgaveDetalj() {
 
         {/* Lokasjonsomfang (2026-09-04): «Gjelder hele byggeplassen» — paritet med web/PDF. Vises
             når omfanget er byggeplass (uten tegning); et eksplisitt svar, aldri et tomt felt. */}
-        {!oppgave.drawing &&
-          (oppgave as { lokasjonOmfang?: string | null }).lokasjonOmfang === "byggeplass" && (
+        {!oppgaveDetalj?.drawing && lokasjonOmfangVisning.slag === "byggeplass" && (
           <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
             <MapPin size={18} color="#7c3aed" />
             {/* Fritekst-sted (2026-09-06): stedet når satt, ellers «hele byggeplassen». */}
             <View className="flex-1">
               <Text className="text-sm text-purple-800">
-                {(oppgave as { lokasjonFritekst?: string | null }).lokasjonFritekst || t("lokasjonVelger.gjelderByggeplass")}
+                {lokasjonOmfangVisning.sted || t("lokasjonVelger.gjelderByggeplass")}
               </Text>
-              {(oppgave as { lokasjonFritekst?: string | null }).lokasjonFritekst && (
+              {lokasjonOmfangVisning.sted && (
                 <Text className="text-xs text-purple-500">{t("lokasjonVelger.gjelderByggeplass")}</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Område (2026-09-23): områdenavnet er stedet, områdetypen dempet kontekst under —
+            samme to-linjers form som byggeplass-grenen og PDFs område-gren. Mangler navnet
+            (område slettet / ennå ikke sammenstilt): nøytral tekst, aldri et tomt felt. */}
+        {!oppgaveDetalj?.drawing && lokasjonOmfangVisning.slag === "omrade" && (
+          <View className="flex-row items-center gap-3 rounded-lg bg-purple-50 p-4">
+            <MapPin size={18} color="#7c3aed" />
+            <View className="flex-1">
+              <Text className="text-sm text-purple-800">
+                {lokasjonOmfangVisning.navn || t("lokasjonVelger.omradeUtenNavn")}
+              </Text>
+              {lokasjonOmfangVisning.navn && lokasjonOmfangVisning.typeNokkel && (
+                <Text className="text-xs text-purple-500">{t(lokasjonOmfangVisning.typeNokkel)}</Text>
               )}
             </View>
           </View>

@@ -2711,6 +2711,7 @@
   "lokasjonVelger.tegning": "Vizatim",
   "lokasjonVelger.omrade": "Zona",
   "lokasjonVelger.omradeNiva": "Zona e përcaktuar",
+  "lokasjonVelger.omradeUtenNavn": "Një zonë e përcaktuar",
   "lokasjonVelger.omradeVelg": "Ose zgjidhni një zonë",
   "lokasjonVelger.omradeVelgPlaceholder": "Zgjidhni zonën…",
   "lokasjonVelger.punktSatt": "Pika e shënuar në vizatim",

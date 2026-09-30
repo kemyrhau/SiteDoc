@@ -2711,6 +2711,7 @@
   "lokasjonVelger.tegning": "Малювання",
   "lokasjonVelger.omrade": "Площа",
   "lokasjonVelger.omradeNiva": "Визначена область",
+  "lokasjonVelger.omradeUtenNavn": "Визначена область",
   "lokasjonVelger.omradeVelg": "Або виберіть область",
   "lokasjonVelger.omradeVelgPlaceholder": "Виберіть область…",
   "lokasjonVelger.punktSatt": "Точка, позначена на кресленні",

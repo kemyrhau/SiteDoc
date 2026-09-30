@@ -2711,6 +2711,7 @@
   "lokasjonVelger.tegning": "Рисунок",
   "lokasjonVelger.omrade": "Область",
   "lokasjonVelger.omradeNiva": "Определенная область",
+  "lokasjonVelger.omradeUtenNavn": "Определенная территория",
   "lokasjonVelger.omradeVelg": "Или выберите регион",
   "lokasjonVelger.omradeVelgPlaceholder": "Выбрать регион…",
   "lokasjonVelger.punktSatt": "Точка, отмеченная на рисунке",
