@@ -13,8 +13,11 @@ import * as path from "node:path";
  *
  * Gate-krav:
  *  1. 🔴 Passiv utløser (rød først): en conflict-sedels lokale rader skal BESTÅ
- *     gjennom pull. Uten vakten slettes de (`timerSync.ts:676-689`).
- *  3. Regresjon: pending + avvist hoppes fortsatt over.
+ *     gjennom pull. Uten vakten slettes de.
+ *  2. 🔴 Aktiv utløser (rød først, AVVIK 1): lederens retur skal NÅ telefonen —
+ *     hodet oppdateres (status → returned), radene består, syncStatus forblir
+ *     conflict. Med dagens brede `continue` hoppes hele sedelen over.
+ *  3. Regresjon: pending + avvist hoppes fortsatt over (ALT, hode inkludert).
  *  4. Regresjon: en synced sedel oppdateres FORTSATT fra server (vakten må ikke
  *     ha stoppet all normal pull-oppdatering).
  */
@@ -171,6 +174,10 @@ function timerRaderFor(dagsseddelId: string) {
     .all();
 }
 
+function sedelFor(id: string) {
+  return db().select().from(dagsseddelLocal).where(eq(dagsseddelLocal.id, id)).all()[0];
+}
+
 beforeAll(async () => {
   const require = createRequire(import.meta.url);
   const initSqlJs = require("sql.js");
@@ -229,6 +236,43 @@ describe("syncTimer pull — conflict-vakt (datatap-ordre)", () => {
 
     // Uten vakten: 0 (radene slettet). Med vakten: 2 (bevart).
     expect(timerRaderFor("sheet-1")).toHaveLength(2);
+  });
+
+  it("🔴 AKTIV utløser: lederens RETUR NÅR telefonen — status blir returned, radene BESTÅR", async () => {
+    // conflict-sedel (låst accepted), rader kun lokalt. Lederen returnerer på
+    // server → status "returned". Med dagens brede `continue` (rød først) hopper
+    // pull over HELE sedelen → lokal status blir stående "accepted" og arbeideren
+    // står fast. Med den smale conflict-grenen: hodet oppdateres (status=returned),
+    // radene består, og syncStatus beholdes "conflict" (radene fortsatt beskyttet).
+    seedSedel({ id: "sheet-5", dato: "2026-09-20", status: "accepted", syncStatus: "conflict" });
+    seedTimerRad("row-r1", "sheet-5", 7.5);
+    seedTimerRad("row-r2", "sheet-5", 1.0);
+
+    const klient = lagKlient({
+      serverTid: "2026-09-21T00:00:00.000Z",
+      sedler: [
+        serverSedel({
+          id: "sheet-5",
+          dato: "2026-09-20",
+          status: "returned",
+          lederKommentar: "Sjekk pausene",
+          timer: [],
+        }),
+      ],
+      levendeSedler: [{ id: "sheet-5", clientUuid: "sheet-5" }],
+      slettevindu: { fraDato: "2026-01-01", tilDato: null },
+    });
+
+    await syncTimer(klient, "u1");
+
+    // Radene består (eneste eksemplar).
+    expect(timerRaderFor("sheet-5")).toHaveLength(2);
+    // Lederens retur nådde fram: status oppdatert, kommentar med, men fortsatt
+    // beskyttet (syncStatus = conflict).
+    const s = sedelFor("sheet-5");
+    expect(s.status).toBe("returned");
+    expect(s.lederKommentar).toBe("Sjekk pausene");
+    expect(s.syncStatus).toBe("conflict");
   });
 
   it("REGRESJON: pending-sedelens rader hoppes fortsatt over", async () => {

@@ -690,7 +690,10 @@ export default function DagsseddelDetalj() {
               </Text>
             </View>
             <Text className="mt-1 text-sm text-red-800">
-              {sedel.feilmelding ?? t("timer.sync.konfliktBeskrivelse")}
+              {sedel.feilmelding ??
+                (sedel.status === "returned" || sedel.status === "draft"
+                  ? t("timer.sync.konfliktReturnertBeskrivelse")
+                  : t("timer.sync.konfliktBeskrivelse"))}
             </Text>
           </View>
         )}
