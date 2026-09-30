@@ -18,13 +18,21 @@ export interface BildeKilde {
 }
 
 /**
- * Origin (scheme + host) fra en base-URL — resten (sti som `/trpc`) kuttes.
+ * Origin (scheme + host[:port]) fra en base-URL — resten (sti som `/trpc`) kuttes.
  * `hentWebUrl()` strippet allerede `/trpc`, men `AUTH_CONFIG.apiUrl` kan bære en
  * sti, så vi forankrer på origin, ikke på hele basen.
+ *
+ * 🔴 Returnerer `null` for en base uten `http(s)://…host`. Det er en TOKEN-VAKT:
+ * en ugyldig base skal aldri kunne bli en match. Særlig tom streng —
+ * `AUTH_CONFIG.apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001"`
+ * fanger `null`/`undefined`, men IKKE `""` (settes `EXPO_PUBLIC_API_URL=""` i en
+ * EAS-profil blir apiUrl tom). Uten null-retur ble vakten `uri.startsWith("/")`, og
+ * en protokoll-relativ `//fremmed.example/uploads/x.jpg` ville passert MED tokenet.
+ * Funksjonen skal feile LUKKET på tom base, ikke åpent.
  */
-function origin(base: string): string {
+export function origin(base: string): string | null {
   const m = base.match(/^https?:\/\/[^/]+/);
-  return m ? m[0] : base;
+  return m ? m[0] : null;
 }
 
 /**
@@ -48,7 +56,7 @@ function origin(base: string): string {
 export function erServerUpload(uri: string): boolean {
   if (!uri.includes(UPLOADS_PREFIKS)) return false;
   const våreVerter = [origin(AUTH_CONFIG.apiUrl), origin(hentWebUrl())];
-  return våreVerter.some((vert) => uri.startsWith(`${vert}/`));
+  return våreVerter.some((vert) => vert !== null && uri.startsWith(`${vert}/`));
 }
 
 /**

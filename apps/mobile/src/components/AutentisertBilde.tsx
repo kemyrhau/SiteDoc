@@ -41,11 +41,15 @@ export function AutentisertBilde({ uri, ...rest }: AutentisertBildeProps) {
       .then((token) => {
         if (aktiv) setKilde(byggBildeKilde(uri, token));
       })
-      .catch(() => {
+      .catch((feil) => {
         // Feiler SecureStore-lesingen: monter bildet nakent (som før denne
         // branchen) i stedet for å la `kilde` stå null — da vises <Image> aldri,
         // uten feilmelding. Stille tomhet er forbudt (CLAUDE.md). Når /uploads/-
         // gaten kommer, gir den nakne GET-en en ekte 401, ikke en tom ramme.
+        // console.warn (IKKE toast — ikke brukerens feil å handle på): uten den blir
+        // «SecureStore feilet» og «lokalt bilde» samme kodevei og samme utfall, og
+        // 401-en senere kommer uten spor av hvorfor.
+        console.warn("[AutentisertBilde] token-henting feilet, viser bildet uten Bearer:", feil);
         if (aktiv) setKilde({ uri });
       });
     return () => {

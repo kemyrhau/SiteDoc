@@ -8,7 +8,7 @@ vi.mock("../config/auth", () => ({
   hentWebUrl: () => "https://test.sitedoc.no",
 }));
 
-import { byggBildeKilde, erServerUpload } from "./bildeKilde";
+import { byggBildeKilde, erServerUpload, origin } from "./bildeKilde";
 
 // Dekker begge URL-formene mobilen bygger for /uploads/:
 //   api-host:   `${AUTH_CONFIG.apiUrl}/uploads/…`
@@ -47,6 +47,26 @@ describe("erServerUpload — hvilke URI-er skal bære Bearer", () => {
 
   it("data:-URI er IKKE server-upload", () => {
     expect(erServerUpload("data:image/png;base64,AAAA")).toBe(false);
+  });
+});
+
+// Testes DIREKTE (ikke bare via den mockede AUTH_CONFIG): den ekte kjeden
+// env → AUTH_CONFIG.apiUrl → origin() er der fail-open-kanten bodde. Særlig tom base.
+describe("origin — host-forankring feiler LUKKET på ugyldig/tom base", () => {
+  it("beholder porten (sti kuttes)", () => {
+    expect(origin("https://api.x.no:3001/trpc")).toBe("https://api.x.no:3001");
+  });
+
+  it("etterfølgende skråstrek gir ren origin", () => {
+    expect(origin("https://api.x.no/")).toBe("https://api.x.no");
+  });
+
+  it("base uten protokoll → null (kan ikke bli en match)", () => {
+    expect(origin("api.x.no")).toBeNull();
+  });
+
+  it("🔴 tom base → null (ellers ble vakten uri.startsWith('/') = fail-open)", () => {
+    expect(origin("")).toBeNull();
   });
 });
 
