@@ -34,10 +34,11 @@ interface DokumentflytRad {
   faggruppeId: string | null;
   maler: DokumentflytMalRad[];
 }
-import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler } from "lucide-react";
+import { Map, FileText, MapPin, Plus, ZoomIn, ZoomOut, ArrowLeft, Crosshair, Loader2, AlertTriangle, Info, Pentagon, Trash2, RefreshCw, Ruler, Pencil } from "lucide-react";
 import { MaalingOverlay, type MaalingSegment } from "@/components/tegning/MaalingOverlay";
 import { konverteringBanner } from "@/lib/tegningKonverteringBanner";
-import { invaliderEtterSlett, invaliderEtterRekonverter, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
+import { invaliderEtterSlett, invaliderEtterRekonverter, invaliderEtterRedigerDetaljer, slettFeilTekst } from "@/lib/tegningMutasjonEffekter";
+import { RedigerTegningModal } from "@/components/tegning/RedigerTegningModal";
 import { OmradeOverlay } from "@/components/tegning/OmradeOverlay";
 import { OmradeTegneverktoy } from "@/components/tegning/OmradeTegneverktoy";
 import { SignertBilde } from "@/components/SignertBilde";
@@ -334,6 +335,19 @@ export default function TegningerSide() {
     onSuccess: () => {
       utils.tegning.hentMedId.invalidate({ id: aktivTegning?.id ?? "" });
     },
+  });
+
+  // Rediger tegningsdetaljer — kobler de metadata-feltene som fylles ved opprettelse til den
+  // eksisterende `tegning.oppdater`. Egen mutasjon (ikke målestokk-mutasjonen over) fordi den
+  // MÅ invalidere LISTA: endres `floor`, skal raden flytte seg ut av «Uten etasje» (Krav 2).
+  const [redigerModalApen, setRedigerModalApen] = useState(false);
+  const [redigerFeil, setRedigerFeil] = useState<string | null>(null);
+  const redigerDetaljerMutation = trpc.tegning.oppdater.useMutation({
+    onSuccess: () => {
+      invaliderEtterRedigerDetaljer(utils, params.prosjektId, aktivTegning?.id ?? "");
+      setRedigerModalApen(false);
+    },
+    onError: () => setRedigerFeil(t("tegninger.redigerFeil")),
   });
 
   const [slettModalApen, setSlettModalApen] = useState(false);
@@ -1083,11 +1097,19 @@ export default function TegningerSide() {
           </>
         )}
 
-        {/* Slett tegning — kun admin. Åpner bekreftelsesmodal (ikke confirm()). Serveren har
-            slettevakt: er tegningen brukt av markører/rapportobjekter, blokkeres den med tallet. */}
+        {/* Rediger tegningsdetaljer + slett — kun admin. Rediger kobler de opprettelses-feltene
+            til `tegning.oppdater` (bl.a. etasje, som flytter raden ut av «Uten etasje»). Slett
+            åpner bekreftelsesmodal (ikke confirm()); serveren har slettevakt med tallet. */}
         {kanAdministrereOmrade && (
           <>
             <div className="mx-2 h-4 w-px bg-gray-200" />
+            <button
+              onClick={() => { setRedigerFeil(null); setRedigerModalApen(true); }}
+              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-sitedoc-primary"
+              title={t("tegninger.redigerDetaljer")}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
             <button
               onClick={() => { setSlettFeil(null); setSlettModalApen(true); }}
               className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
@@ -1634,6 +1656,28 @@ export default function TegningerSide() {
           </div>
         </div>
       </Modal>
+
+      {/* Rediger tegningsdetaljer — kobler opprettelses-feltene til `tegning.oppdater`.
+          onSuccess invaliderer BÅDE detaljen og lista (invaliderEtterRedigerDetaljer), så en
+          etasje-endring flytter raden ut av «Uten etasje». */}
+      <RedigerTegningModal
+        open={redigerModalApen}
+        onClose={() => setRedigerModalApen(false)}
+        tegning={{
+          id: tegning.id,
+          name: tegning.name,
+          drawingNumber: tegning.drawingNumber,
+          discipline: tegning.discipline,
+          drawingType: tegning.drawingType,
+          status: tegning.status,
+          floor: tegning.floor,
+          originator: tegning.originator,
+          description: tegning.description,
+        }}
+        onLagre={(input) => { setRedigerFeil(null); redigerDetaljerMutation.mutate(input); }}
+        lagrer={redigerDetaljerMutation.isPending}
+        feil={redigerFeil}
+      />
     </div>
   );
 }
