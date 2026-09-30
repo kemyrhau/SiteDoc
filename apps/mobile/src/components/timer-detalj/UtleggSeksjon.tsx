@@ -41,6 +41,7 @@ import { fjernUtleggVedleggServer } from "../../services/bildeRegistrering";
 import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
 import { AUTH_CONFIG } from "../../config/auth";
 import { trpc } from "../../lib/trpc";
+import { AutentisertBilde } from "../AutentisertBilde";
 import type { UtleggRad, Utleggskategori } from "../../types/timer-detalj";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { KnappMedForklaring } from "../KnappMedForklaring";
@@ -295,7 +296,7 @@ function UtleggVedleggBilde({
 
   return (
     <View className="relative">
-      {uri && <Image source={{ uri }} className="h-20 w-20 rounded-lg bg-gray-100" />}
+      {uri && <AutentisertBilde uri={uri} className="h-20 w-20 rounded-lg bg-gray-100" />}
       {!v.serverUrl && (
         <View className="absolute bottom-0 left-0 right-0 flex-row items-center justify-center gap-1 rounded-b-lg bg-black/50 py-0.5">
           <Clock size={10} color="#ffffff" />
