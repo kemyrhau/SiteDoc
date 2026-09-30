@@ -290,6 +290,7 @@
   "timer.gjenaapne.bekreftTekst": "Sedelen går tilbake til kladd så du kan endre den. Lederen ser den ikke før du sender den til attestering på nytt.",
   "timer.gjenaapne.bekreftKnapp": "Gjenåpne",
   "timer.gjenaapne.laastAttestert": "Leder har attestert minst én rad — be leder returnere dagsseddelen for å endre den.",
+  "timer.gjenaapne.sperretKonflikt": "Timene dine er bevart. Dagskortet kan ikke gjenåpnes herfra nå — kontakt lederen, som kan sende det tilbake til deg.",
   "timer.glemtDag.melding": "Dagen din fra {{dato}} er fortsatt åpen.",
   "timer.glemtDag.glemte": "Jeg glemte å avslutte",
   "timer.glemtDag.jobberFortsatt": "Jeg jobber fortsatt",

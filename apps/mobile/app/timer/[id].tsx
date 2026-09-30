@@ -73,6 +73,7 @@ import {
 } from "../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
+import { kanGjenaapneDagsseddel } from "../../src/utils/gjenaapne-tilgang";
 import { overstigerMaskinTak } from "@sitedoc/shared";
 import type {
   Sedel,
@@ -862,23 +863,44 @@ export default function DagsseddelDetalj() {
             </Text>
           )}
           {/* UF-4: recall — kun på SENDT sedel (ikke godkjent). */}
-          {sedel.status === "sent" && (
-            <>
-              <Pressable
-                onPress={gjenaapne}
-                disabled={gjenaapneMutation.isPending}
-                className="flex-row items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white py-3 active:bg-blue-50 disabled:opacity-50"
-              >
-                <RotateCcw size={16} color="#1e40af" />
-                <Text className="text-base font-medium text-sitedoc-primary">
-                  {t("timer.gjenaapne.knapp")}
+          {sedel.status === "sent" &&
+            (kanGjenaapneDagsseddel(sedel.status, sedel.syncStatus) ? (
+              <>
+                <Pressable
+                  onPress={gjenaapne}
+                  disabled={gjenaapneMutation.isPending}
+                  className="flex-row items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white py-3 active:bg-blue-50 disabled:opacity-50"
+                >
+                  <RotateCcw size={16} color="#1e40af" />
+                  <Text className="text-base font-medium text-sitedoc-primary">
+                    {t("timer.gjenaapne.knapp")}
+                  </Text>
+                </Pressable>
+                <Text className="text-center text-xs text-gray-500">
+                  {t("timer.gjenaapne.hjelp")}
                 </Text>
-              </Pressable>
-              <Text className="text-center text-xs text-gray-500">
-                {t("timer.gjenaapne.hjelp")}
-              </Text>
-            </>
-          )}
+              </>
+            ) : (
+              /* Datatap-ordre 2026-09-30: Gjenåpne er DEAKTIVERT i conflict.
+                 Å gjenåpne ville bumpe server-updatedAt → neste pull sletter de
+                 lokale radene (som kun finnes her). Knappen står synlig men grå
+                 så flaten ikke blir en ny stille tomhet, med tekst som sier at
+                 timene er bevart og at lederen kan returnere sedelen. */
+              <>
+                <Pressable
+                  disabled
+                  className="flex-row items-center justify-center gap-2 rounded-lg border border-gray-200 bg-gray-50 py-3 opacity-50"
+                >
+                  <RotateCcw size={16} color="#9ca3af" />
+                  <Text className="text-base font-medium text-gray-400">
+                    {t("timer.gjenaapne.knapp")}
+                  </Text>
+                </Pressable>
+                <Text className="text-center text-xs text-gray-500">
+                  {t("timer.gjenaapne.sperretKonflikt")}
+                </Text>
+              </>
+            ))}
           {sedel.status === "draft" && (
             <Pressable
               onPress={slettSedel}

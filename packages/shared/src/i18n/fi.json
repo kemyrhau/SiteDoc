@@ -290,6 +290,7 @@
   "timer.gjenaapne.bekreftTekst": "Taulukko palaa luonnokseen, jotta voit muokata sitä. Esimies ei näe sitä uudelleen, ennen kuin lähetät sen uudelleen hyväksyttäväksi.",
   "timer.gjenaapne.bekreftKnapp": "Avaa uudelleen",
   "timer.gjenaapne.laastAttestert": "Esimies on hyväksynyt vähintään yhden rivin – pyydä häntä palauttamaan päivälehti, jotta voit muokata sitä.",
+  "timer.gjenaapne.sperretKonflikt": "Tuntisi säilytetään. Tätä päivittäistä taulukkoa ei voi avata uudelleen täältä juuri nyt – ota yhteyttä esimieheesi, joka voi lähettää sen sinulle takaisin.",
   "timer.glemtDag.melding": "Päiväsi {{dato}} on edelleen auki.",
   "timer.glemtDag.glemte": "Unohdin lopettaa sen",
   "timer.glemtDag.jobberFortsatt": "Olen edelleen töissä",

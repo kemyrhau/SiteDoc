@@ -290,6 +290,7 @@
   "timer.gjenaapne.bekreftTekst": "La feuille revient au brouillon afin que vous puissiez la modifier. Votre responsable ne le verra plus tant que vous ne le soumettrez pas à nouveau pour approbation.",
   "timer.gjenaapne.bekreftKnapp": "Rouvrir",
   "timer.gjenaapne.laastAttestert": "Votre responsable a approuvé au moins une ligne : demandez-lui de vous renvoyer la feuille quotidienne afin que vous puissiez la modifier.",
+  "timer.gjenaapne.sperretKonflikt": "Vos horaires sont préservés. Cette feuille journalière ne peut pas être rouverte à partir d'ici pour le moment : contactez votre responsable qui pourra vous la renvoyer.",
   "timer.glemtDag.melding": "Votre journée du {{dato}} est toujours ouverte.",
   "timer.glemtDag.glemte": "j'ai oublié d'y mettre fin",
   "timer.glemtDag.jobberFortsatt": "je travaille toujours",

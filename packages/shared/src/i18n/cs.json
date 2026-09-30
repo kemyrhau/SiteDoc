@@ -290,6 +290,7 @@
   "timer.gjenaapne.bekreftTekst": "List se vrátí do konceptu, takže jej můžete upravit. Váš manažer jej znovu neuvidí, dokud jej znovu neodešlete ke schválení.",
   "timer.gjenaapne.bekreftKnapp": "Znovu otevřít",
   "timer.gjenaapne.laastAttestert": "Váš manažer schválil alespoň jeden řádek – požádejte ho, aby vrátil denní list, abyste jej mohli upravit.",
+  "timer.gjenaapne.sperretKonflikt": "Vaše hodiny jsou zachovány. Tento denní list nelze odtud nyní znovu otevřít – kontaktujte svého manažera, který vám ho může poslat zpět.",
   "timer.glemtDag.melding": "Váš den od {{dato}} je stále otevřený.",
   "timer.glemtDag.glemte": "Zapomněl jsem to ukončit",
   "timer.glemtDag.jobberFortsatt": "Stále pracuji",

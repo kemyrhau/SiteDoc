@@ -290,6 +290,7 @@
   "timer.gjenaapne.bekreftTekst": "The sheet goes back to draft so you can edit it. Your manager won't see it again until you resubmit it for approval.",
   "timer.gjenaapne.bekreftKnapp": "Reopen",
   "timer.gjenaapne.laastAttestert": "Your manager has approved at least one row — ask them to return the daily sheet so you can edit it.",
+  "timer.gjenaapne.sperretKonflikt": "Your hours are preserved. This daily sheet can't be reopened from here right now — contact your manager, who can send it back to you.",
   "timer.glemtDag.melding": "Your day from {{dato}} is still open.",
   "timer.glemtDag.glemte": "I forgot to end it",
   "timer.glemtDag.jobberFortsatt": "I'm still working",

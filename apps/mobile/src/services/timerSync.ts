@@ -598,12 +598,27 @@ export async function syncTimer(
       const maalId = lokal ? lokal.id : serverSedel.clientUuid;
 
       // Hvis lokal har "pending"-endringer: ikke overskriv — pending vinner
-      // og syncBatch håndterer push neste gang. (Hvis pending ble pushet,
-      // er sync-status nå "synced" eller "conflict" — i begge tilfeller OK
-      // å oppdatere fra server.)
+      // og syncBatch håndterer push neste gang.
       // SYNC-1: "avvist" er en lokal terminal-tilstand arbeideren må rette eller
       // slette — pull skal ikke stille resette den til "synced".
-      if (lokal && (lokal.syncStatus === "pending" || lokal.syncStatus === "avvist")) {
+      // 🔴 "conflict" (datatap-ordre 2026-09-30): server-wins-grenen
+      // (:271-286) satte conflict FORDI serveren avviste pushen (accepted/sent-
+      // vaktene i dagsseddel.ts returnerte FØR radene ble skrevet). Sedelens
+      // lokale rader finnes derfor KUN her — de er IKKE på server. Å la pull
+      // fortsette ville slettet dem (:676-689) og malt banneret grønt uten en
+      // liste over hva som forsvant. Så lenge sedelen står i conflict er de
+      // lokale radene det eneste eksemplaret → pull skal ALDRI slette dem.
+      // Konflikten er uavklart; avklaringsveien (behold/forkast) kommer i egen
+      // ordre (U-BEKREFT). Konsekvens som er tilsiktet: en conflict-sedel får
+      // ingen server-oppdateringer og blir stående rød til arbeideren enten
+      // sletter den eller ber lederen returnere den (Gjenåpne er deaktivert i
+      // conflict, se `utils/gjenaapne-tilgang.ts`).
+      if (
+        lokal &&
+        (lokal.syncStatus === "pending" ||
+          lokal.syncStatus === "avvist" ||
+          lokal.syncStatus === "conflict")
+      ) {
         continue;
       }
 
@@ -670,9 +685,11 @@ export async function syncTimer(
           .run();
       }
 
-      // Erstatt rader (samme atom-policy som server). Trygt her: pending/avvist-
-      // sedler (upushet offline-arbeid) er allerede hoppet over via guarden over,
-      // så vi sletter kun rader på synced/conflict-sedler som stemmer med server.
+      // Erstatt rader (samme atom-policy som server). Trygt her: guarden over
+      // har allerede hoppet over pending, avvist OG conflict — de tre tilstandene
+      // der lokale rader kan finnes som IKKE er på server (upushet offline-arbeid
+      // eller server-wins-conflict der pushen ble avvist før skriving). Vi sletter
+      // derfor kun rader på SYNCED-sedler, som per definisjon stemmer med server.
       db.delete(sheetTimerLocal)
         .where(eq(sheetTimerLocal.dagsseddelId, maalId))
         .run();

@@ -290,6 +290,7 @@
   "timer.gjenaapne.bekreftTekst": "Lapas grįžta į juodraštį, kad galėtumėte jį redaguoti. Jūsų vadovas daugiau jo nematys, kol iš naujo nepateiksite patvirtinti.",
   "timer.gjenaapne.bekreftKnapp": "Atidarykite iš naujo",
   "timer.gjenaapne.laastAttestert": "Jūsų vadovas patvirtino bent vieną eilutę – paprašykite grąžinti dienos lapą, kad galėtumėte jį redaguoti.",
+  "timer.gjenaapne.sperretKonflikt": "Jūsų valandos išsaugomos. Šiuo metu šio dienos lapo negalima iš naujo atidaryti – susisiekite su savo vadovu, kuris gali jums jį atsiųsti.",
   "timer.glemtDag.melding": "Jūsų diena nuo {{dato}} vis dar atvira.",
   "timer.glemtDag.glemte": "Pamiršau pabaigti",
   "timer.glemtDag.jobberFortsatt": "Aš vis dar dirbu",

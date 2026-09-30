@@ -290,6 +290,7 @@
   "timer.gjenaapne.bekreftTekst": "Arkusz wraca do wersji roboczej, dzięki czemu można go edytować. Twój menedżer nie zobaczy go ponownie, dopóki nie prześlesz go ponownie do zatwierdzenia.",
   "timer.gjenaapne.bekreftKnapp": "Otworzyć na nowo",
   "timer.gjenaapne.laastAttestert": "Twój menedżer zatwierdził co najmniej jeden wiersz — poproś go o zwrócenie arkusza dziennego, abyś mógł go edytować.",
+  "timer.gjenaapne.sperretKonflikt": "Twoje godziny pracy zostaną zachowane. W tej chwili nie można ponownie otworzyć tego arkusza dziennego — skontaktuj się ze swoim menedżerem, który może Ci go odesłać.",
   "timer.glemtDag.melding": "Twój dzień z {{dato}} jest nadal otwarty.",
   "timer.glemtDag.glemte": "Zapomniałem to zakończyć",
   "timer.glemtDag.jobberFortsatt": "Nadal pracuję",

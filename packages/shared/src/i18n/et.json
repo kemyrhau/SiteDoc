@@ -290,6 +290,7 @@
   "timer.gjenaapne.bekreftTekst": "Leht naaseb mustandisse, et saaksite seda muuta. Teie haldur ei näe seda uuesti enne, kui esitate selle uuesti kinnitamiseks.",
   "timer.gjenaapne.bekreftKnapp": "Ava uuesti",
   "timer.gjenaapne.laastAttestert": "Teie juht on kinnitanud vähemalt ühe rea – paluge tal päevaleht tagastada, et saaksite seda muuta.",
+  "timer.gjenaapne.sperretKonflikt": "Teie tunnid on säilinud. Seda päevalehte ei saa praegu siit uuesti avada – võtke ühendust oma halduriga, kes saab selle teile tagasi saata.",
   "timer.glemtDag.melding": "Teie päev alates {{dato}} on endiselt avatud.",
   "timer.glemtDag.glemte": "Ma unustasin selle lõpetada",
   "timer.glemtDag.jobberFortsatt": "Ma töötan endiselt",
