@@ -28,6 +28,11 @@ som ikke tjener dem, skal slettes, ikke forklares.** *Kenneths egne ord:*
 - **Agentene kontrollerer hverandres arbeid og sjekker det.**
 - 🔴 **Spør når Kenneth er uklar.** *«ikke gjett hva jeg sier for så å kode i vei → forstå
   grunnleggende hensikt, spør meg når min tolkning kan gå flere veier eller har flere betydninger.»*
+- 🔴 **FØLG MASTERPLANEN I TILLEGG TIL Å FIKSE FEIL SOM OPPDAGES.** *(Kenneth 2026-09-30.)*
+  ⚠️ **Feltfunn skal ikke fortrenge planen — begge spor går.** **Måling samme dag: 80 commits på
+  develop siste tre døgn ga 2 `feat` mot 13 `docs(samarbeid)`, og ni merge-runder gikk til ÉN
+  funksjon.** 🔴 **En uke der planen ikke flyttet seg, er en uke som skal forklares — ikke en uke
+  som forsvinner i fikser.**
 
 ### Hvorfor § 0 finnes
 
