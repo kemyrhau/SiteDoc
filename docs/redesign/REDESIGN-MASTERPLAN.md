@@ -146,6 +146,47 @@ bygget på en versjon fra ~21.08. Hans fil var **24 kB mot repoets 49 kB** og ma
 kopiert fila inn, var alt det tapt. **Kun MK, SJA, rekkefølgen og backlog-postene ble flettet
 inn.** Regelen i toppen av denne fila står ved lag: fabel leverer notater, cowork fører dem inn.
 
+## 🔴 REMÅLING MOT KODE 2026-09-30 — fire av åtte punkter var utdaterte
+
+> **Kenneth 2026-09-30:** *«mål masterplanen på nytt → hva gjenstår faktisk?»*
+> **Målt av fire agenter parallelt, mot KODE.** Orkestrator verifiserte selv hvert funn som
+> snur en rad. 🔴 **Linjenumrene i 09-11-remålingen har driftet** — `schema.prisma:1168` er nå
+> `:1298`, `:953` er `:1031`. Sitatene var ikke etterprøvbare som skrevet.
+
+### ✅ LEVERT — planen sa noe annet
+
+| Kode | Bevis |
+|---|---|
+| **EX ledd 1** navnevedtaket | 🟢 **`449e30c4` 26.09 «lås vokabular arkiv → eksport»**, 21 filer: fire dokumentflater + alle 15 i18n-filer. **Alle tre stedene planen navngir er rettet** — og filnavnene i planen er feil (`[id]` → `[sjekklisteId]`/`[oppgaveId]`). `nb.json:844` = «Last ned PDF» i alle 15 språk. **Null treff på «Arkiv-PDF» i i18n** (to søkeformer) |
+| **LP** enum-utvidelse | 🟢 **Tre verdier, ikke to:** `punkt \| byggeplass \| omrade` (`schema.prisma:1298` Checklist, `:1383` Task; Zod i alle fire skriveveier: `sjekkliste.ts:303,649`, `oppgave.ts:460,721`). Migrering `20260923120000_omrade_lokasjonsniva` med CHECK-garanti. ⚠️ **Men `omrade` er nivået MELLOM punkt og byggeplass** (`schema.prisma:1288`); LP ber om nivået OVER. **Ingen overlapp — LP-behovet står** |
+| **K14** rolle-gating | 🟢 **Mekanismen er ferdig OG testet:** `kreverSitedocAdmin` i `dype-sider.tsx:35` (håndhevet `:98`), `firma-nav.tsx:38` (`:87`), `innstillinger-kort.tsx:116`. Negativ test finnes: `sok-dekning.test.ts:129-176`. **Ingen ny mekanisme trengs** |
+| **Del 7** tilstandene | 🟢 **Per-rad-retur ER bygget:** `returnerRader` (`dagsseddel.ts:3014`), rad-status pr. rad (`:2099-2122`), vist i web (`attestering-buckets.tsx:94-117`) og mobil (`AttesteringStatusBadge.tsx:8-39`). **Konflikt-tilstand finnes i data** (`db-timer/schema.prisma:183`) **og i mobil-UI** (`TimerStatusMerkelapp.tsx:19`). 🔴 **Planens «❌ IKKE BYGGET» på `:121` er feil** |
+| **Del 8a** `formaterAnsvarlig` | 🟢 Fiksen står — `utforerFaggruppe`-fallbacken er borte i begge kopier (`oppgaver/page.tsx:174-179`, `sjekklister/page.tsx:161-166`) |
+| **LP/BL** åpent funn «tegninger hardt / dokumenter mykt» | 🟢 **LUKKET** — tegning bruker samme myke filter (`byggeplassFilter.ts:8-10`, kalt `tegning.ts:131`) |
+
+### ❌ GJENSTÅR FAKTISK — målt, med fil:linje
+
+| Kode | Hva som gjenstår |
+|---|---|
+| **BL** | **Alt.** `Byggeplass` (`schema.prisma:1031-1069`) har **null datoer og null arkivfelt**. `status` har to verdier og **én retning** — eneste skrivevei er `publiser` → hardkodet `{status:"published"}` (`byggeplass.ts:198-208`); `oppdater` tar ikke status. **Ingen «avslutt», ingen vei tilbake.** 🔴 **Status filtreres ikke noe sted** — `hentForProsjekt` (`:40-72`) og `hentForFirma` (`:20-38`) filtrerer ikke, så upubliserte byggeplasser er synlige i alle velgere. 🔴 **Og `hentForProsjekt` har ingen paginering samtidig som den gjør `include: { drawings }`** (`:51-70`) — 500 byggeplasser drar alle tegninger i samme svar. *(type/geofence/hmsregNummer er bekreftet til stede men GAMLE — mars/juni/juli, ikke fra 23.09. Planens feltliste er utdatert, behovet er ikke.)* |
+| **LP** | En **fjerde** verdi over byggeplass-nivået, + lesere i fire flater. 🔴 **BLOKKERT PÅ ET NYTT FUNN: mobilen kjenner ikke `omrade`.** `oppgave/[id].tsx:866` og `sjekkliste/[id].tsx:755` sjekker kun `=== "byggeplass"`, og **null treff på `omradeId` i hele `apps/mobile`** (to søkeformer). **Et lokasjonsnivå levert 23.09 finnes ikke på telefonen.** ⚠️ Dessuten: «Hele prosjektet» er alt tatt i mobil-UI som *filtervalg* (`ByggeplassKontekst.tsx:23`, `ByggeplassChip.tsx:79-80`) — navnekollisjon å planlegge for |
+| **AG** | **Alt.** Null treff i kode og i18n (to søkeformer pr. frase). **Vertene er identifisert:** `firma/innstillinger/page.tsx:131` (seksjonsmønster `:449`–`:988`), peker-kort i `firma/oppsett/page.tsx:184-212`, dempet linje på `firma/hms/page.tsx:176-177` + `[prosjektId]/hms/page.tsx:358`. **Ingen vilkår-side finnes** (`personvern/page.tsx` er hardkodet norsk uten `t()`, kan ikke kopieres som mønster). 🔴 **BLOKKERT PÅ KENNETH:** teksten skal gates av ham, og det er uavklart om «Firmaoppsett» betyr `firma/innstillinger` eller `firma/oppsett` |
+| **Del 7** | Ikke tilstandene — **konsistensen.** Fire konkrete: **(1)** ingen delt fargekilde for timer-statuser — to hardkodede map-er (`web/StatusBadge.tsx:5-10`, `mobil/TimerStatusMerkelapp.tsx:8-12`). 🟢 **Mønsteret finnes alt i `mobil/statusFarger.ts:1-22`**, som henter fra `@sitedoc/shared` nettopp «så mobil og web ikke kan drifte fra hverandre» — bare ikke brukt på timer. **(2)** 🔴 **`accepted` heter «Godkjent» i web (`nb.json:362`) og «Attestert» i mobil (`:543`) og i webs EGEN rad-badge (`:598`)** — det bryter `CLAUDE.md` «Attestering ≠ Godkjenning», ufravikelig låst 2026-04-26. **(3)** retur er **amber** på sedelen (`StatusBadge.tsx:8`) og **rød** på raden (`attestering-buckets.tsx:107`) — samme handling, to farger, samme app. **(4)** **konflikt vises ikke i web** — null treff på `syncStatus`/`sync_status` i hele `apps/web/src` |
+| **Del 8a** | Begrepssaken, og den er **verre enn to kolonner**: fire steder svarer på «hvem har ballen» i samme rad — ANSVARLIG (`sjekklister/page.tsx:701-716`) · FLYT (`:741-747`) · DOKUMENTFLYT (`:736-740`) · «Venter på»-pille i STATUS (`:690-694`). **Alle fire er på som standard** (`STANDARD_AKTIVE` `:145`). Tre kopier av `formaterAnsvarlig` (web ×2 + `dokumentlisteFilter.ts:45`). 🔴 **Krever Kenneth-beslutning:** hvilke skal leve |
+| **Del 8b** | 🔴 **Tallet «sju ugatet» er utdatert — det er 10.** Årsaken er målbar: `3f605c66` (28.08 **13:52**) fjernet `kreverGruppemodul` fra sjekklister/oppgaver/tegninger. **Planens tall var riktig da det ble målt, og ble feil samme ettermiddag.** Planen nevner tre gate-mekanismer; det finnes **seks** (+ `kreverIfc` 2 elementer, `kreverTimerLeder` 1, `tillatelse` deklarert men ubrukt). 🔴 **Og den egentlige forvirringen er skarpere enn planen sier: `kreverFirmaModul` sjekker PROSJEKT-nivå i `sidebar-elementer.tsx:310-315` (kommentaren innrømmer det `:303-304`) og FIRMA-nivå i `firma-nav.tsx:74,85`.** Ett feltnavn, tre evalueringssteder, to nivåer, tre ulike typer |
+| **10a fase 2** | Mindre enn planen tror. Ctrl+K **finnes** (`sok-modal-kontekst.tsx:25`, `SokModal.tsx:29`) men er **rute-only** — `useSokRegistry.ts:42-140` har fire statiske rutelister, ingen `trpc`-import. 🟢 **Men det tverrgående prosjektsøket finnes alt:** `KontekstChip.tsx:247-254`, med usperret admin-gren i `prosjekt.ts hentAlle`. **Gjenstår: tre beslutninger** — erstattes admin-lista av KontekstChip eller av prosjekt-treff i Ctrl+K · hvor flyttes de fem handlingene som bare finnes i `admin/prosjekter/page.tsx` (rydd utløpte, forleng prøveperiode, slett m/statistikk, opprett malprosjekt, opprett for annet firma) · så slette ruta + `admin/layout.tsx:23-26` + testunntaket `sok-dekning.test.ts:84` |
+| **K14** | Kun **registrering** av de åtte admin-rutene i en søkekilde med `kreverSitedocAdmin: true`, + et `sokeordKey`-felt i den valgte kildens struktur (`DypSide` har det ikke), + fjern unntaksraden `sok-dekning.test.ts:84` |
+
+### 🔴 To vedtak som ikke ble rettet der de sto
+
+**1. EX-splittknappen er delvis strøket av Kenneth selv.** Planen ber om «Med logg (standard) / Uten logg / Send til». `packages/pdf/src/arkivmal/loggseksjon.ts:61-71` bærer **Kenneth-vedtak 2026-08-22**: dokumenthistorikken skrives ALLTID, *«Dermed finnes bare én PDF-variant og «Med logg / Uten logg»-valget bortfaller.»* **To av tre bein er borte. Bare «Send til» gjenstår** — og flagget `signaturMedLogg` er hardkodet `true` (`sammenstilling.ts:422`). ⚠️ **Planens spesifikasjon må revideres før den kan bygges.**
+
+**2. «arkiver» er reservert i planen, men navnerommet er alt okkupert.** EX sier *«arkiver reserveres for fremtidig handling»*. Men ordet brukes i to andre betydninger i dag: prosjekt-livssyklus (`nb.json:2828` «Arkiver prosjekt») og kontrollplan-revisjon (`:3567`). En fremtidig «arkiver dokument» kolliderer med begge.
+
+### 🟡 Én synlig restlekkasje fra det gamle vokabularet
+
+`nb.json:847` — *«De kommer med i **arkivet** og ved sending…»*, vist på `apps/mobile/app/sjekkliste/[id].tsx:861`. Interne navn (`rendrArkivPdf`, `trpc.arkiv.rendr`) er ikke synlige og kan ryddes opportunistisk.
+
 ## Nye backlog-saker (2026-09-05-runden, kodeverifisert)
 
 - ~~**TILBEHOR_REN_FJERNING-divergens**~~ ✅ **LUKKET** (`85c8ecd5`): `TILBEHOR_REN_FJERNING_BASE` i `@sitedoc/shared`, begge renderere leser den. 🟡 **`weather` er IKKE harmonisert** — mobil har den, web ikke; begrunnelsen står i koden og venter Kenneths produktsvar: *skal en værobservasjon kunne bære kommentar og bilde i felt?*
