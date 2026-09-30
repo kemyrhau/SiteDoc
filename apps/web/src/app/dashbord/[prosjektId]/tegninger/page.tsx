@@ -1669,6 +1669,7 @@ export default function TegningerSide() {
           drawingNumber: tegning.drawingNumber,
           discipline: tegning.discipline,
           drawingType: tegning.drawingType,
+          status: tegning.status,
           floor: tegning.floor,
           originator: tegning.originator,
           description: tegning.description,

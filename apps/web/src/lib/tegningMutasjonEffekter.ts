@@ -12,8 +12,10 @@
 import {
   DRAWING_DISCIPLINES,
   DRAWING_TYPES,
+  DRAWING_STATUSES,
   type DrawingDiscipline,
   type DrawingType,
+  type DrawingStatus,
 } from "@sitedoc/shared";
 
 /** Minimal strukturell form av trpc `useUtils()` — kun det disse effektene rører. */
@@ -54,15 +56,16 @@ export function invaliderEtterRedigerDetaljer(
 
 /**
  * Feltene redigeringsflaten eksponerer. Speiler opprettelsesflaten
- * (`byggeplasser/page.tsx`) MINUS `revision` (egen revisjonsflyt) og
- * `scale`/`scaleKilde` (målestokk-kalibrering — egen flate på tegningssiden).
- * `status`/`issuedAt`/`byggeplassId` er utelatt fordi de ikke fylles ved opprettelse.
+ * (`byggeplasser/page.tsx`) + `status` (settes til «utkast» ved opprettelse, TILLEGG 1
+ * 2026-09-30), MINUS `revision` (egen revisjonsflyt), `scale`/`scaleKilde`
+ * (målestokk-kalibrering — egen flate) og `issuedAt`/`byggeplassId` (egne flater).
  */
 export interface RedigerTegningFelt {
   name: string;
   drawingNumber: string;
   discipline: string;
   drawingType: string;
+  status: string;
   floor: string;
   originator: string;
   description: string;
@@ -75,6 +78,7 @@ export interface RedigerTegningInput {
   drawingNumber?: string;
   discipline?: DrawingDiscipline;
   drawingType?: DrawingType;
+  status?: DrawingStatus;
   floor?: string;
   originator?: string;
   description?: string;
@@ -88,8 +92,9 @@ export interface RedigerTegningInput {
  * - Fritekstfelt (`drawingNumber`, `floor`, `originator`, `description`) sendes som de er —
  *   tom streng er en gyldig verdi og TØMMER feltet. Nettopp det flytter en rad UT av «Uten
  *   etasje» og tilbake igjen.
- * - Enum-feltene (`discipline`, `drawingType`) sendes bare når verdien er en gyldig kode;
- *   tom streng blir `undefined` (Zod-enum avviser «»). Enum kan altså endres, ikke nulles.
+ * - Enum-feltene (`discipline`, `drawingType`, `status`) sendes bare når verdien er en gyldig
+ *   kode; tom streng blir `undefined` (Zod-enum avviser «»). Enum kan altså endres, ikke nulles.
+ *   `status` har alltid en verdi (default «utkast» server-side), så den sendes i praksis alltid.
  */
 export function byggRedigerTegningInput(id: string, felt: RedigerTegningFelt): RedigerTegningInput {
   const gyldigDisiplin = (DRAWING_DISCIPLINES as readonly string[]).includes(felt.discipline)
@@ -98,12 +103,16 @@ export function byggRedigerTegningInput(id: string, felt: RedigerTegningFelt): R
   const gyldigType = (DRAWING_TYPES as readonly string[]).includes(felt.drawingType)
     ? (felt.drawingType as DrawingType)
     : undefined;
+  const gyldigStatus = (DRAWING_STATUSES as readonly string[]).includes(felt.status)
+    ? (felt.status as DrawingStatus)
+    : undefined;
   return {
     id,
     name: felt.name.trim(),
     drawingNumber: felt.drawingNumber.trim(),
     discipline: gyldigDisiplin,
     drawingType: gyldigType,
+    status: gyldigStatus,
     floor: felt.floor.trim(),
     originator: felt.originator.trim(),
     description: felt.description,

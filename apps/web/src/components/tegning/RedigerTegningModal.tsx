@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, Input, Select, Textarea, Button } from "@sitedoc/ui";
-import { DRAWING_DISCIPLINES, DRAWING_TYPES } from "@sitedoc/shared";
+import { DRAWING_DISCIPLINES, DRAWING_TYPES, DRAWING_STATUSES, type DrawingStatus } from "@sitedoc/shared";
 import {
   byggRedigerTegningInput,
   type RedigerTegningFelt,
@@ -14,11 +14,22 @@ import {
  * OPPRETTELSE til den eksisterende `tegning.oppdater`-mutasjonen (ordre 2026-09-30,
  * reparasjon: knappen ble aldri koblet).
  *
- * Speiler opprettelsesflaten (`byggeplasser/page.tsx`) MINUS tre felt, bevisst utelatt:
+ * Speiler opprettelsesflaten (`byggeplasser/page.tsx`) + `status` (TILLEGG 1 2026-09-30 —
+ * settes til «utkast» ved opprettelse, kunne før bare endres via ny revisjon), MINUS:
  *  - `scale`/`scaleKilde` → målestokk-kalibrering har egen flate på tegningssiden («Ikke rør»).
  *  - `revision` → egen revisjonsflyt (`lastOppRevisjon` bygger historikk).
- * `status`/`issuedAt`/`byggeplassId` er heller ikke med — de fylles ikke ved opprettelse.
+ *  - `issuedAt` → revisjonsflyten eier den. `byggeplassId` → byggeplass-oppsettet eier den.
  */
+
+/** Statusverdiene leses fra enumet (`DRAWING_STATUSES`); labelen kommer fra i18n per verdi. */
+const STATUS_NOKKEL: Record<DrawingStatus, string> = {
+  utkast: "tegninger.statusUtkast",
+  delt: "tegninger.statusDelt",
+  under_behandling: "tegninger.statusUnderBehandling",
+  godkjent: "tegninger.statusGodkjent",
+  for_bygging: "tegninger.statusForBygging",
+  som_bygget: "tegninger.statusSomBygget",
+};
 
 /** Bare feltene flaten leser/skriver — unngår kobling til hele Drawing-typen. */
 export interface RedigerbarTegning {
@@ -27,6 +38,7 @@ export interface RedigerbarTegning {
   drawingNumber: string | null;
   discipline: string | null;
   drawingType: string | null;
+  status: string | null;
   floor: string | null;
   originator: string | null;
   description: string | null;
@@ -111,11 +123,20 @@ export function RedigerTegningModal({
             placeholder={t("tegninger.etasjePlaceholder")}
           />
         </div>
-        <Input
-          label={t("tegninger.feltOpphav")}
-          value={felt.originator}
-          onChange={(e) => oppdater("originator", e.target.value)}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <Select
+            label={t("tegninger.feltStatus")}
+            value={felt.status}
+            onChange={(e) => oppdater("status", e.target.value)}
+            placeholder={t("tegninger.velgStatus")}
+            options={DRAWING_STATUSES.map((s) => ({ value: s, label: t(STATUS_NOKKEL[s]) }))}
+          />
+          <Input
+            label={t("tegninger.feltOpphav")}
+            value={felt.originator}
+            onChange={(e) => oppdater("originator", e.target.value)}
+          />
+        </div>
         <Textarea
           label={t("tegninger.feltBeskrivelse")}
           value={felt.description}
@@ -145,6 +166,7 @@ function tilFelt(tegning: RedigerbarTegning): RedigerTegningFelt {
     drawingNumber: tegning.drawingNumber ?? "",
     discipline: tegning.discipline ?? "",
     drawingType: tegning.drawingType ?? "",
+    status: tegning.status ?? "",
     floor: tegning.floor ?? "",
     originator: tegning.originator ?? "",
     description: tegning.description ?? "",
