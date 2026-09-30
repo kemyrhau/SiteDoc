@@ -29,6 +29,13 @@ sources: cowork
 
 | Hash | Flate | Før → Etter | Hjemmel |
 |---|---|---|---|
+| `b02630ef` | **Dagsseddel i mobilappen** — når web-dagskortet er sendt/attestert | **Før:** «Gjenåpne for redigering» var trykkbar, og den slettet arbeiderens egne timer fra telefonen. **Etter:** knappen er grå i den tilstanden, med teksten «Timene dine er bevart. Dagskortet kan ikke gjenåpnes herfra nå — kontakt lederen, som kan sende det tilbake til deg.» 🔴 **En handling er fjernet i ett feiltilfelle** — den handlingen ødela brukerens data | 🟢 Orkestrator 2026-09-30, meldt til Kenneth i samme runde. **Feiltilfeller teller som funksjon** |
+| `b02630ef` | Samme — konfliktbanneret | **Før:** «Server-versjonen vant. Lokale endringer er erstattet» — **falskt etter vakten**, og vist rett over «Timene dine er bevart». **Etter:** to tekster som brancher på status: låst → «kontakt lederen»; returnert → «rediger og send inn på nytt». Alle 15 språk | 🟢 Reparasjon av en tekst som ble usann. Funnet av kontrolløren |
+
+🟢 **Reparasjon med synlig virkning, samme merge (til orientering):** det stille datatapet er
+lukket. En arbeiders timer for en dag kunne forsvinne fra telefonen uten spor — rødt banner ble
+grønt, timene borte. **Kenneth fant symptomet; målingen fant tapet.**
+
 | `1cecdb71` | **Firma-attestering** — Sedler-visningen (`SeddelKort`), Per ansatt-pivoten, sedel-detalj (web) og sedel-lista (mobil) | **Før:** attestanten måtte regne selv. Overtid som ikke stemte med ukenormen var usynlig med mindre han åpnet Per ansatt-fanen, der badgen har ligget siden 20.08. **Etter:** varsel på hovedflaten og i detaljen, begge veier — **ført overtid regelen ikke finner dekning for**, OG **ukesum over norm uten at noe er ført som overtid**. Viser norm, sum ordinært og sum overtid. 🔴 **Blokkerer ingenting** — attestanten er kontrollpunktet, ikke systemet | 🟢 `designnotat-attestering-fabel-2026-08-20.md` § D2, **Kenneth-vedtak 2026-08-20.** Badgen på `SeddelKort` er D2s egen ordlyd |
 
 ⚠️ **Hvorfor varselet er verdt å ha, i én setning:** web og mobil fører overtid **ulikt** —

@@ -325,6 +325,19 @@ tilstand FØRST, slik at den ikke kan gå tapt. 🔴 **En forespørsel som kun e
 en forespørsel som forsvinner når varselet sveipes bort.** Push kan legges på etterpå som et
 hint, aldri som kanalen.
 
+### 🔴 Bindende handoff fra vakten (`b02630ef`) — hvor server-radene MÅ hentes
+
+**Kontrolløren målte 2026-09-30:** en `conflict`-sedel havner bak den globale inkrementelle
+pull-cursoren. **Det er strukturelt i pull-designet, ikke en feil i vakten** — cursoren settes
+til servertid uansett.
+
+🔴 **Konsekvens for U-BEKREFT, og den er bindende: forkast-veien og sammenligningen MÅ hente
+server-radene PER SEDEL via `hentMedId` (`dagsseddel.ts:1001`), ikke via bulk-pull.** Henter
+den via bulk-pull, finner den **ingenting** — radene er allerede bak cursoren.
+
+🟢 **Det er også derfor `hentMedId` er riktig verktøy uansett:** den er en `query`, brukeravgrenset
+via `hentEgenDagsseddel`, og den rører ikke den lokale kopien.
+
 ### Krav som gjelder alle tre modusene
 
 1. 🔴 **Ingenting sendes før brukeren har bekreftet.** Det er hele hensikten.
