@@ -37,9 +37,17 @@ export function AutentisertBilde({ uri, ...rest }: AutentisertBildeProps) {
     }
     let aktiv = true;
     setKilde(null);
-    hentSessionToken().then((token) => {
-      if (aktiv) setKilde(byggBildeKilde(uri, token));
-    });
+    hentSessionToken()
+      .then((token) => {
+        if (aktiv) setKilde(byggBildeKilde(uri, token));
+      })
+      .catch(() => {
+        // Feiler SecureStore-lesingen: monter bildet nakent (som før denne
+        // branchen) i stedet for å la `kilde` stå null — da vises <Image> aldri,
+        // uten feilmelding. Stille tomhet er forbudt (CLAUDE.md). Når /uploads/-
+        // gaten kommer, gir den nakne GET-en en ekte 401, ikke en tom ramme.
+        if (aktiv) setKilde({ uri });
+      });
     return () => {
       aktiv = false;
     };

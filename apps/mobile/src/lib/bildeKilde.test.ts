@@ -1,4 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+// Host-forankringen leser AUTH_CONFIG.apiUrl + hentWebUrl(). Mock dem her så
+// begge verter er deterministiske (uavhengig av EXPO_PUBLIC_API_URL i miljøet)
+// og vi slipper å dra inn `react-native` via config/auth.
+vi.mock("../config/auth", () => ({
+  AUTH_CONFIG: { apiUrl: "http://localhost:3001" },
+  hentWebUrl: () => "https://test.sitedoc.no",
+}));
+
 import { byggBildeKilde, erServerUpload } from "./bildeKilde";
 
 // Dekker begge URL-formene mobilen bygger for /uploads/:
@@ -26,6 +35,14 @@ describe("erServerUpload — hvilke URI-er skal bære Bearer", () => {
 
   it("tredjeparts-http UTEN /uploads/ er IKKE server-upload (unngår token-lekkasje)", () => {
     expect(erServerUpload("https://tredjepart.example.com/bilde.png")).toBe(false);
+  });
+
+  it("tredjeparts-http MED /uploads/ er IKKE server-upload (token skal ikke til fremmed host)", () => {
+    expect(erServerUpload("https://tredjepart.example.com/uploads/bilde.png")).toBe(false);
+  });
+
+  it("host som utvider vår (suffiks-angrep) er IKKE server-upload", () => {
+    expect(erServerUpload("https://test.sitedoc.no.fremmed.example/uploads/b.png")).toBe(false);
   });
 
   it("data:-URI er IKKE server-upload", () => {
@@ -59,6 +76,14 @@ describe("byggBildeKilde — Bearer legges KUN på server-uploads, KUN med token
 
   it("tredjeparts-http (selv med token) → naken URI, token lekker ikke", () => {
     const kilde = byggBildeKilde("https://tredjepart.example.com/b.png", "hemmelig-token");
+    expect(kilde.headers).toBeUndefined();
+  });
+
+  it("tredjeparts-http MED /uploads/ (selv med token) → naken URI, token lekker ikke", () => {
+    const kilde = byggBildeKilde(
+      "https://tredjepart.example.com/uploads/b.png",
+      "hemmelig-token",
+    );
     expect(kilde.headers).toBeUndefined();
   });
 });

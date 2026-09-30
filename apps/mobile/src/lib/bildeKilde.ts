@@ -10,10 +10,21 @@
 // sted (denne funksjonen + `AutentisertBilde`), aldri på hvert kallsted — sprer man
 // headeren utover kallstedene, glemmer neste kallsted den.
 import { UPLOADS_PREFIKS } from "@sitedoc/shared";
+import { AUTH_CONFIG, hentWebUrl } from "../config/auth";
 
 export interface BildeKilde {
   uri: string;
   headers?: { Authorization: string };
+}
+
+/**
+ * Origin (scheme + host) fra en base-URL — resten (sti som `/trpc`) kuttes.
+ * `hentWebUrl()` strippet allerede `/trpc`, men `AUTH_CONFIG.apiUrl` kan bære en
+ * sti, så vi forankrer på origin, ikke på hele basen.
+ */
+function origin(base: string): string {
+  const m = base.match(/^https?:\/\/[^/]+/);
+  return m ? m[0] : base;
 }
 
 /**
@@ -22,14 +33,22 @@ export interface BildeKilde {
  *  - `${AUTH_CONFIG.apiUrl}/uploads/…`         (felt-/timer-vedlegg, api-host)
  *  - `${hentWebUrl()}/api/uploads/…`           (dokument-/infobilde, web-proxy)
  *
- * Begge inneholder `/uploads/` i stien (`UPLOADS_PREFIKS`, delt kilde med api-gaten
- * — ingen ny kopi av regelen). Lokale `file://`/`/var/`-stier og tredjeparts-http
- * (som IKKE er /uploads/) skal ALDRI få headeren: lokale trenger den ikke, og å
- * sende vårt Bearer til en fremmed host ville lekke sesjonen. Derfor både http-krav
- * OG /uploads/-krav.
+ * To krav, begge må holde:
+ *  1. **HOST** — URI-en må ligge under en av VÅRE to kjente verter (api-host eller
+ *     web-proxy). `origin(base) + "/"` sikrer at grensen treffer et sti-skille, så
+ *     en fremmed host som utvider vår (`https://api-test.sitedoc.no.fremmed.example/…`)
+ *     IKKE passerer. Uten dette gikk tokenet til enhver host med `/uploads/` i URI-en.
+ *  2. **STI** — URI-en må inneholde `/uploads/` (`UPLOADS_PREFIKS`, delt kilde med
+ *     api-gaten). Våre verter serverer også andre stier (tRPC m.m.) som ikke skal
+ *     ha headeren.
+ *
+ * Lokale `file://`/`/var/`-stier og tredjeparts-http skal ALDRI få headeren: lokale
+ * trenger den ikke, og å sende vårt Bearer til en fremmed host ville lekke sesjonen.
  */
 export function erServerUpload(uri: string): boolean {
-  return /^https?:\/\//.test(uri) && uri.includes(UPLOADS_PREFIKS);
+  if (!uri.includes(UPLOADS_PREFIKS)) return false;
+  const våreVerter = [origin(AUTH_CONFIG.apiUrl), origin(hentWebUrl())];
+  return våreVerter.some((vert) => uri.startsWith(`${vert}/`));
 }
 
 /**
