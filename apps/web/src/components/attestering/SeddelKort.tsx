@@ -25,7 +25,9 @@ import {
   RotateCcw,
   Scissors,
 } from "lucide-react";
+import type { UkeAvvik } from "@sitedoc/shared";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { Avviksbadge } from "./Avviksbadge";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
 import { RedigerRadModal } from "./RedigerRadModal";
@@ -111,6 +113,7 @@ export function SeddelKort({
   readOnly = false,
   expanded: expandedProp,
   onToggleExpand,
+  ukeAvvik,
 }: {
   sedel: SeddelKortData;
   onAttester: () => void;
@@ -124,6 +127,9 @@ export function SeddelKort({
   // sin egen interne tilstand med auto-expand ved avvik (DagsKort-bruken uendret).
   expanded?: boolean;
   onToggleExpand?: () => void;
+  // ORDRE 2 STEG 3 ledd 2 (D2): uke-avviket kortets uke tilhører (regnet på HELE
+  // uken av forelderen). Badgen vises kun ved avvik (Avviksbadge → null ellers).
+  ukeAvvik?: UkeAvvik | null;
 }) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
@@ -352,6 +358,14 @@ export function SeddelKort({
         >
           {sedel.totaltimer.toFixed(2)}t / {sedel.dagsnorm.toFixed(2)}t
         </span>
+
+        {/* D2-attestantvarsel (ledd 2): uke-avvik-badge. Klikk bobler ikke til
+            header-toggle (span, ikke knapp) — informativ, ikke handling. */}
+        {ukeAvvik && (
+          <span onClick={(e) => e.stopPropagation()}>
+            <Avviksbadge avvik={ukeAvvik} />
+          </span>
+        )}
 
         {/* ↩ returner — T7-5e: skjult i read-only-modus */}
         {!readOnly && (

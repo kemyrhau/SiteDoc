@@ -99,3 +99,75 @@ export function lesOvertidsgrunnlagFraSnapshot(
     avvik: g.avvik === true,
   };
 }
+
+// ============================================================================
+//  Uke-avvik — attestantvarselet (ORDRE 2 STEG 3 ledd 2, designnotat § D2).
+//
+//  Bygd som per-sedel-grunnlaget aggregert til UKE: attestanten skal se at en
+//  ukes overtid ikke stemmer med normen, uten å regne selv. Trukket hit fra en
+//  privat funksjon i AttesteringPivot.tsx (web) så web SeddelKort/pivot, mobil-
+//  liste og detalj-banner deler ÉN kilde — ellers fødes kopi nummer to.
+//
+//  Semantikk (fabel-vedtak, pivot-kommentaren): varselet er MISFORHOLD mellom
+//  FØRT og BEREGNET overtid — ikke «over norm». En ansatt som fører overtiden
+//  riktig har intet avvik. Dette er den forfinede tolkningen av D2s (a).
+// ============================================================================
+
+/** Én sedel redusert til det uke-avviket trenger (dag-grunnlag + ukenorm). */
+export interface UkeSedelInput {
+  totaltimer: number;
+  /** Ukenormen sedelens uke måles mot (fra beregnUkenorm, servert per sedel). */
+  ukenorm: number;
+  /** Ført (valgt) overtid denne sedelen — dag-grunnlagets sumOvertid. */
+  sumOvertid: number;
+}
+
+/** Uke-nivå avvik (D2): misforhold mellom FØRT og BEREGNET overtid. */
+export interface UkeAvvik {
+  norm: number;
+  ukesum: number;
+  sumOrdinaert: number;
+  /** Ført (valgt) overtid over uken. */
+  sumOvertid: number;
+  /** Beregnet overtid = regelen (klassifiserArbeidstid) over ukesum mot norm. */
+  beregnetOvertid: number;
+  /** beregnet − ført; >0 = overtid ikke ført, <0 = ført under norm. */
+  avvikTimer: number;
+}
+
+/**
+ * Aggreger et sett sedler (samme bruker, samme uke) til uke-avviket. REN.
+ * `beregnetOvertid` går via `klassifiserArbeidstid` — SAMME regel som
+ * `beregnOvertidsgrunnlag`, så terskelen «hvor mye SKAL være overtid» har ett
+ * hjem og følger en fremtidig nivå 1/2-tariff automatisk.
+ */
+export function beregnUkeAvvik(sedler: UkeSedelInput[]): UkeAvvik {
+  const norm = sedler[0]?.ukenorm ?? 0;
+  const ukesum = round2(sedler.reduce((a, s) => a + s.totaltimer, 0));
+  const sumOvertid = round2(sedler.reduce((a, s) => a + s.sumOvertid, 0));
+  const sumOrdinaert = round2(ukesum - sumOvertid);
+  const beregnetOvertid = round2(
+    klassifiserArbeidstid({ arbeidstimer: ukesum, dagsnorm: norm })
+      .filter((s) => s.overtidsnivaa !== null)
+      .reduce((a, s) => a + s.timer, 0),
+  );
+  const avvikTimer = round2(beregnetOvertid - sumOvertid);
+  return { norm, ukesum, sumOrdinaert, sumOvertid, beregnetOvertid, avvikTimer };
+}
+
+/**
+ * Retningen på et avvik — én kilde delt av badge (web+mobil) og banner.
+ * `null` = intet varsel (norm ukjent, eller ført == beregnet innen 0,01 t).
+ * Godtar både `UkeAvvik` og `Overtidsgrunnlag` (begge bærer de tre feltene).
+ */
+export function avvikRetning(g: {
+  norm: number;
+  beregnetOvertid: number;
+  sumOvertid: number;
+}): "over" | "under" | null {
+  if (g.norm <= 0) return null;
+  const d = round2(g.beregnetOvertid - g.sumOvertid);
+  if (d > 0.01) return "over";
+  if (d < -0.01) return "under";
+  return null;
+}

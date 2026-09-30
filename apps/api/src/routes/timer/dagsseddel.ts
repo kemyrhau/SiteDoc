@@ -30,6 +30,7 @@ import {
   type UtleggOrdning,
   beregnUkenorm,
   beregnOvertidsgrunnlag,
+  lesOvertidsgrunnlagFraSnapshot,
   type Overtidsgrunnlag,
 } from "@sitedoc/shared";
 
@@ -2692,6 +2693,25 @@ export const dagsseddelRouter = router({
         maskiner.length > 0 &&
         !(await harGyldigMaskinforerbevis(sheet.userId, sheet.organizationId));
 
+      // ORDRE 2 STEG 3 ledd 2 (D2): uke-overtidsgrunnlag for detalj-banneret.
+      // Kilde-regel (uendret fra STEG 1): attestert sedel leser FROSSET snapshot
+      // (tallene som gjaldt ved attestering, ikke live omregning); uattestert
+      // beregnes live så banneret speiler nåtilstand. Fallback til live når en
+      // gammel snapshot mangler grunnlaget (attestert før STEG 1 fantes).
+      let ukeOvertidsgrunnlag: Overtidsgrunnlag | null = null;
+      if (sheet.status === "accepted") {
+        const snap = timer.find((r) => r.attestertSnapshot)?.attestertSnapshot;
+        ukeOvertidsgrunnlag = lesOvertidsgrunnlagFraSnapshot(snap);
+      }
+      if (!ukeOvertidsgrunnlag && sheet.organizationId) {
+        ukeOvertidsgrunnlag = await byggUkeOvertidsgrunnlag(
+          ctx.prismaTimer,
+          sheet.organizationId,
+          sheet.userId,
+          sheet.dato,
+        );
+      }
+
       return {
         ...sheet,
         aktivitet,
@@ -2705,6 +2725,9 @@ export const dagsseddelRouter = router({
         arbeidstidVarselTimer: orgSetting?.arbeidstidVarselTimer ?? 13,
         // T.11: flagg for leder — maskinarbeid uten gyldig maskinførerbevis.
         manglerMaskinforerbevis,
+        // ORDRE 2 STEG 3 ledd 2: uke-nivå overtidsgrunnlag (norm/ord/overtid)
+        // for D2-banneret. null når org mangler eller ingen rader.
+        ukeOvertidsgrunnlag,
       };
     }),
 
