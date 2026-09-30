@@ -105,6 +105,26 @@ bildeheader er merget.
 
 ---
 
+### 🟡 8. Skrive-vaksinen mot forgiftede `/uploads/`-URL-er kjøres ikke i mobilappen (funn 2026-09-30)
+
+**Målt av kontrollør under gaten av `feat/mobil-bilde-selvfornyelse`.** Vaksinen fra det
+femte funnet — `erForgiftetUploadsUrl` / `raaVedleggIData` — **har ingen kallsteder i
+`apps/mobile`.** Det som i praksis hindrer at en signert URL lagres i feltverdier, er
+**konvensjonen «mobil holder feltVerdier rå», ikke en vakt.**
+
+⚠️ **Ingen kjent vei til skade i dag** — derfor 🟡 og ikke 🟠. Mobilen skriver rå stier, og
+`stiForFornyelse` (`bildeKilde.ts`), som bevisst BEHOLDER `?sig=`, har ett kallsted og er kun
+lesende.
+
+🔴 **Men dette er klassen Kenneth selv har navngitt:** *«en feil som er fikset mange ganger og
+kommer tilbake, mangler ikke en fiks — den mangler en vakt.»* **Web ble vaksinert; mobil fikk
+konvensjonen.** Neste kallsted som bruker en signert URI mot data har ingenting som stopper
+det.
+
+**Tiltak når flaten røres:** kall vaksinen i mobilens skrivevei for feltverdier, eller legg en
+test som feiler hvis en `sig=`-bærende streng havner i lagret data. **Ikke bestilt** — ført her
+fordi funnet ellers bare finnes i en gitignorert innboks.
+
 ## Åpne punkter, rangert etter vei fra utenforstående til skade
 
 ### 1. 🔴 Test skriver inn i prods uploads-katalog — krever ingen kompromittering
