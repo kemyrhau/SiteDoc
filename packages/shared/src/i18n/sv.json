@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Förslag",
   "timer.statusType.sent": "Skickat",
   "timer.statusType.returned": "Returnerad",
-  "timer.statusType.accepted": "Godkänd",
+  "timer.statusType.accepted": "Intygad",
   "timer.kol.dato": "Datum",
   "timer.kol.aktivitet": "Aktivitet",
   "timer.kol.timer": "Timmar",

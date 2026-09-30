@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Brouillon",
   "timer.statusType.sent": "Envoyée",
   "timer.statusType.returned": "Retourné",
-  "timer.statusType.accepted": "Approuvée",
+  "timer.statusType.accepted": "Attestée",
   "timer.kol.dato": "Date",
   "timer.kol.aktivitet": "Activité",
   "timer.kol.timer": "Heures",

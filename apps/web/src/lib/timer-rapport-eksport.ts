@@ -21,6 +21,7 @@ import {
   type DetaljGruppe,
   type Gruppering,
   type TimerKolKey,
+  timerStatusEtikett,
 } from "@sitedoc/shared";
 
 /** Fase 4-akser som styrer eksport-utformingen (mottaker + gruppering). Radvalget
@@ -333,28 +334,30 @@ export function typeEtikett(t: OversettFn, type: DetaljRadType): string {
  * (oversetter direkte) OG PDF (bygger etikett-map via `byggStatusEtiketter`, sendt
  * inn i `tekster` fordi api ikke har `t()`) — så flatene aldri kan drive fra hverandre.
  */
-const STATUS_I18N: Record<string, string> = {
-  // rad-status (attestertStatus)
-  pending: "timer.attestering.radStatus.pending",
-  attestert: "timer.attestering.radStatus.attestert",
-  returnert: "timer.attestering.radStatus.returnert",
-  // sedel-status (DailySheet.status)
-  draft: "timer.statusType.draft",
-  sent: "timer.statusType.sent",
-  returned: "timer.statusType.returned",
-  accepted: "timer.statusType.accepted",
-};
+// Del 7: status→etikettKey leses fra den DELTE kilden (timerStatusEtikett), så
+// eksporten ikke er en tredje kopi ved siden av badgene. Verdi-listen her er kun
+// «hvilke statuser eksporten kjenner» (rad-status + sedel-status), til PDF-mapen.
+const KJENTE_STATUSER = [
+  "pending",
+  "attestert",
+  "returnert", // rad-status (attestertStatus)
+  "draft",
+  "sent",
+  "returned",
+  "accepted", // sedel-status (DailySheet.status)
+] as const;
 
 /** Oversett én status-verdi; ukjent/ny verdi → rå streng (skjul aldri en verdi vi ikke kjenner). */
 export function statusEtikett(t: OversettFn, verdi: string): string {
-  const nøkkel = STATUS_I18N[verdi];
-  return nøkkel ? t(nøkkel) : verdi;
+  // timerStatusEtikett gir status-strengen selv som key for ukjent verdi → t()
+  // returnerer da den rå strengen (samme «skjul aldri»-kontrakt som før).
+  return t(timerStatusEtikett(verdi).etikettKey);
 }
 
 /** Ferdig-oversatt verdi→etikett-map for PDF (injiseres i `tekster.statusEtiketter`). */
 export function byggStatusEtiketter(t: OversettFn): Record<string, string> {
   const ut: Record<string, string> = {};
-  for (const [verdi, nøkkel] of Object.entries(STATUS_I18N)) ut[verdi] = t(nøkkel);
+  for (const verdi of KJENTE_STATUSER) ut[verdi] = statusEtikett(t, verdi);
   return ut;
 }
 
