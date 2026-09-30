@@ -25,6 +25,22 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-09-30
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `21064640` | Bildevedlegg i **mobilappen** — kvittering på tillegg/utlegg, vedlegg i dokument, info-bilder | **Før:** feilet et bilde permanent (slettet fil, utløpt tak), viste `<Image>` bare en tom grå firkant der bakgrunnen sto på bildet selv — og på flater uten bakgrunn: ingenting. **Etter:** en synlig sluttilstand med `ImageOff`-ikon og teksten «vedlegget kunne ikke lastes», skalert pr. flate. 🔴 **Et zoom-vindu som før åpnet seg tomt, sier nå hvorfor** | 🟢 Kenneth 2026-09-30: **«send tilbake»** — etter at kontrolløren fant at `return null` kollapset den grå firkanten, og avviket ble lagt fram i klartekst før merge |
+
+⚠️ **Hvorfor dette står som funksjonsendring og ikke reparasjon:** selvfornyelsen (krav 3b) er
+reparasjon — den var alltid ment å virke. **Men den terminale tilstanden var et nytt valg:** å
+rendre `null` ville gjort et slettet vedlegg usynlig, og det er *stille tomhet*. **Feiltilfeller
+teller som funksjon** — hvordan systemet oppfører seg når noe går galt, er noe brukeren opplever.
+
+🟢 **Kontrolløren fant den, ikke gaten.** Rollen ble innført samme dag, og dette var dens første
+oppdrag. **De fire andre punktene i gaten var rene** — taket, backoffen, 404-vakten og
+debouncen ble bekreftet mot koden.
+
+
 ### 2026-09-29
 
 | Hash | Flate | Før → Etter | Hjemmel |

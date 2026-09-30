@@ -1210,6 +1210,18 @@ når navnet kan ha annen kasus, og la kompilatoren være fasit for «finnes dett
 
 ### 🔴 GATE-TALL SKAL SI HVA SOM KJØRTE (Kenneth/fabel 2026-09-15)
 
+🔴 **PRESISERING 2026-09-30 — `apps/web`s `tsc --noEmit` kan melde FALSKE feil fra foreldet
+`.next/types`.** Målt ved mergen av `21064640`: to `TS2307` på
+`.next/types/app/dashbord/[prosjektId]/maler/layout.ts`, som pekte på en `layout.js` som ikke
+finnes — katalogen har bare `page.tsx`. **Null feil utenfor `.next/`.** Etter at byggeleddet
+regenererte katalogen: **exit 0.**
+
+**Regelen:** står `tsc` rødt, **skill feil i `.next/` fra feil i `src/` før du melder tallet** —
+`npx tsc --noEmit 2>&1 | grep -v '^\.next/'`. Er alle feilene i `.next/`, kjør byggeleddet
+først og mål på nytt. ⚠️ **Dette går BEGGE veier: et rødt ledd kan være foreldet output, og et
+grønt ledd dekker fortsatt ikke `.test.tsx` — `next build` typesjekker dem ikke.** De tre
+byggeleddene dekker fremdeles ikke hverandre.
+
 Cowork brukte «488 grønne api-tester» som merge-grunnlag i en uke. Så ble det målt:
 **25 av 66 testfiler mocker Prisma**, og de eneste testene som beviser noe mot ekte DB
 eller ekte flyt — 4 integrasjonsfiler (17 tester) og 7 e2e-spec-er — var **ekskludert fra
