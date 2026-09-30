@@ -436,6 +436,16 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
     canvas.renderAll();
     var dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: multiplier });
 
+    // Tom-tekst-vakt ved LAGRING (garanti ved konstruksjon): filtrer bort enhver tom
+    // IText FØR serialisering. text:editing:exited-ryddingen over holder lerretet rent
+    // underveis, men fyrer ALDRI hvis enterEditing() feilet — da blir den tomme boksen
+    // stående i objekter og ville ellers serialiseres inn i laget og lagres (usynlig,
+    // tom, permanent — stille tomhet i LAGRET data, forbudt i CLAUDE.md). Vakten her er
+    // uavhengig av hvorfor redigeringen feilet. Tekst er 'i-text' (ny) eller 'text' (eldre
+    // lag) — samme skille som settFlyttbar/mouse:down.
+    function erTomTekst(o) {
+      return (o.type === 'i-text' || o.type === 'text') && (!o.text || !o.text.trim());
+    }
     // Annotasjonslaget UT sammen med den utflatede JPEG-en (tre-artefakt-modellen):
     // objektene som DATA (uten bakgrunnsbildet — det er originalen, lagret separat),
     // pluss canvas-dimensjonene og Fabric-versjonen (redigerbarhet + framtidssikring).
@@ -443,7 +453,7 @@ export const ANNOTERINGS_HTML = `<!DOCTYPE html>
       fabricVersion: fabric.version,
       bredde: canvas.width,
       hoyde: canvas.height,
-      objekter: objekter.map(function(o) { return o.toObject(); }),
+      objekter: objekter.filter(function(o) { return !erTomTekst(o); }).map(function(o) { return o.toObject(); }),
     };
     postTilVert({ type: 'ferdig', dataUrl: dataUrl, lag: lag });
   };
