@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { View, Text, Image, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from "react-native";
+import { View, Text, TouchableOpacity, Modal, ScrollView, useWindowDimensions } from "react-native";
 import { ModalFlate } from "../ModalFlate";
 import { X } from "lucide-react-native";
 import type { RapportObjektProps } from "./typer";
 import { hentWebUrl } from "../../config/auth";
+import { AutentisertBilde } from "../AutentisertBilde";
 
 /** Bilde med caption (ikke redigerbar) — for PSI og instruksjoner */
 export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
@@ -21,8 +22,8 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
   return (
     <>
       <TouchableOpacity onPress={() => setZoom(true)} className="my-3 items-center" activeOpacity={0.8}>
-        <Image
-          source={{ uri: fullUrl }}
+        <AutentisertBilde
+          uri={fullUrl}
           style={{ width: bredde, height: bredde * 0.65, borderRadius: 8 }}
           resizeMode="contain"
         />
@@ -45,8 +46,8 @@ export function InfoBildeObjekt({ objekt }: RapportObjektProps) {
               contentContainerStyle={{ flex: 1, justifyContent: "center", alignItems: "center" }}
               bouncesZoom
             >
-              <Image
-                source={{ uri: fullUrl }}
+              <AutentisertBilde
+                uri={fullUrl}
                 style={{ width: skjermBredde, height: skjermBredde }}
                 resizeMode="contain"
               />
