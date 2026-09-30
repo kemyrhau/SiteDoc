@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Utkast",
   "timer.statusType.sent": "Sendt",
   "timer.statusType.returned": "Returnert",
-  "timer.statusType.accepted": "Godkjent",
+  "timer.statusType.accepted": "Attestert",
   "timer.kol.dato": "Dato",
   "timer.kol.aktivitet": "Aktivitet",
   "timer.kol.timer": "Timer",

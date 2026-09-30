@@ -223,6 +223,7 @@ export type {
   UkeRef,
 } from "./kontrollplanFremdrift";
 export { perspektivEtikett, utledPerspektiv, kvitteringEtikett, noeytralEtikett } from "./perspektivEtikett";
+export { timerStatusEtikett } from "./timerStatus";
 export type {
   BadgeVariant,
   Perspektiv,

@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Чернетка",
   "timer.statusType.sent": "Надіслано",
   "timer.statusType.returned": "Повернувся",
-  "timer.statusType.accepted": "Затверджено",
+  "timer.statusType.accepted": "Атестований",
   "timer.kol.dato": "Дата",
   "timer.kol.aktivitet": "діяльність",
   "timer.kol.timer": "години",

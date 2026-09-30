@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Черновик",
   "timer.statusType.sent": "Отправил",
   "timer.statusType.returned": "Вернулся",
-  "timer.statusType.accepted": "Одобренный",
+  "timer.statusType.accepted": "Аттестованный",
   "timer.kol.dato": "Дата",
   "timer.kol.aktivitet": "Активность",
   "timer.kol.timer": "Часы",

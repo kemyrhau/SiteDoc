@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Projekt",
   "timer.statusType.sent": "Wysłano",
   "timer.statusType.returned": "Zwrócony",
-  "timer.statusType.accepted": "Zatwierdzony",
+  "timer.statusType.accepted": "Atestowane",
   "timer.kol.dato": "Data",
   "timer.kol.aktivitet": "Działalność",
   "timer.kol.timer": "Godziny",

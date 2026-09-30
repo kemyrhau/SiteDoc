@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Melnraksts",
   "timer.statusType.sent": "Nosūtīts",
   "timer.statusType.returned": "Atgriezās",
-  "timer.statusType.accepted": "Apstiprināts",
+  "timer.statusType.accepted": "Apliecināts",
   "timer.kol.dato": "Datums",
   "timer.kol.aktivitet": "Aktivitāte",
   "timer.kol.timer": "Stundas",

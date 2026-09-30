@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Návrh",
   "timer.statusType.sent": "Odesláno",
   "timer.statusType.returned": "Vráceno",
-  "timer.statusType.accepted": "Schválený",
+  "timer.statusType.accepted": "Atestováno",
   "timer.kol.dato": "Datum",
   "timer.kol.aktivitet": "Aktivita",
   "timer.kol.timer": "hodiny",

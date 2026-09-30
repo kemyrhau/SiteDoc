@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Proiect",
   "timer.statusType.sent": "Trimis",
   "timer.statusType.returned": "Întors",
-  "timer.statusType.accepted": "Aprobat",
+  "timer.statusType.accepted": "Atestat",
   "timer.kol.dato": "Data",
   "timer.kol.aktivitet": "Activitate",
   "timer.kol.timer": "Ore",

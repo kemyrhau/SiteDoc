@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Mustand",
   "timer.statusType.sent": "Saadetud",
   "timer.statusType.returned": "Tagastatud",
-  "timer.statusType.accepted": "Kinnitatud",
+  "timer.statusType.accepted": "Atesteeritud",
   "timer.kol.dato": "Kuupäev",
   "timer.kol.aktivitet": "Tegevus",
   "timer.kol.timer": "Tundi",

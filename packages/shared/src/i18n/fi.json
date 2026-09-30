@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Luonnos",
   "timer.statusType.sent": "Lähetetty",
   "timer.statusType.returned": "Palannut",
-  "timer.statusType.accepted": "Hyväksytty",
+  "timer.statusType.accepted": "Todistettu",
   "timer.kol.dato": "Päivämäärä",
   "timer.kol.aktivitet": "Toiminta",
   "timer.kol.timer": "Tuntia",

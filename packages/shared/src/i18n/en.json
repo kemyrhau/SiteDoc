@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Draft",
   "timer.statusType.sent": "Sent",
   "timer.statusType.returned": "Returned",
-  "timer.statusType.accepted": "Approved",
+  "timer.statusType.accepted": "Attested",
   "timer.kol.dato": "Date",
   "timer.kol.aktivitet": "Activity",
   "timer.kol.timer": "Hours",

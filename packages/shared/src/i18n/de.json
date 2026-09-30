@@ -359,7 +359,7 @@
   "timer.statusType.draft": "Entwurf",
   "timer.statusType.sent": "Gesendet",
   "timer.statusType.returned": "Zurückgegeben",
-  "timer.statusType.accepted": "Genehmigt",
+  "timer.statusType.accepted": "Beglaubigt",
   "timer.kol.dato": "Datum",
   "timer.kol.aktivitet": "Aktivität",
   "timer.kol.timer": "Std",

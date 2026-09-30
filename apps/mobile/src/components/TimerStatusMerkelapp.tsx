@@ -1,16 +1,12 @@
 import { View, Text } from "react-native";
 import { useTranslation } from "react-i18next";
+import { timerStatusEtikett } from "@sitedoc/shared";
+import { variantKlasse } from "./statusFarger";
 
-const STATUS_MAP: Record<
-  string,
-  { noekkel: string; bg: string; tekstFarge: string }
-> = {
-  draft: { noekkel: "timer.status.utkast", bg: "bg-gray-100", tekstFarge: "text-gray-700" },
-  sent: { noekkel: "timer.status.sendt", bg: "bg-blue-100", tekstFarge: "text-blue-700" },
-  returned: { noekkel: "timer.status.returnert", bg: "bg-amber-100", tekstFarge: "text-amber-800" },
-  accepted: { noekkel: "timer.status.attestert", bg: "bg-green-100", tekstFarge: "text-green-700" },
-};
-
+// Del 7: sedel-statusens farge + ord leses fra den DELTE kilden
+// (timerStatusEtikett → variantKlasse), samme som web. Ingen hardkodet
+// status-fargetabell igjen. SYNC_MAP under er sync-status (utenfor Del 7 —
+// røres ikke: syncStatus/konflikt hører til konflikt-sporet).
 const SYNC_MAP: Record<
   string,
   { noekkel: string; bg: string; tekstFarge: string }
@@ -28,11 +24,8 @@ export function TimerStatusMerkelapp({
   syncStatus?: string;
 }) {
   const { t } = useTranslation();
-  const stilStatus = STATUS_MAP[status] ?? {
-    noekkel: status,
-    bg: "bg-gray-100",
-    tekstFarge: "text-gray-700",
-  };
+  const { variant, etikettKey } = timerStatusEtikett(status);
+  const stilStatus = { ...variantKlasse(variant), noekkel: etikettKey };
 
   // Sync-status overstyrer kun ved conflict — pending vises ved siden av
   if (syncStatus === "conflict") {
