@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeAll, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterEach, beforeEach, type Mock } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
@@ -55,8 +55,15 @@ afterEach(cleanup);
 
 const original: Vedlegg = { id: "v1", type: "bilde", url: "/uploads/privat/original.jpg?sig=abc", filnavn: "original.jpg" };
 
-function setup(vedlegg: Vedlegg, ekstra?: { onOppdaterVedlegg?: ReturnType<typeof vi.fn> }) {
-  const onOppdaterVedlegg = ekstra?.onOppdaterVedlegg ?? vi.fn();
+// Konkret mock-signatur som matcher FeltDokumentasjons prop
+// `onOppdaterVedlegg?: (vedleggId, patch) => void`. Uten den brede
+// `ReturnType<typeof vi.fn>` (= Mock<Procedure | Constructable>) overlever i
+// `??`-unionen og er ikke tilordnbar til den smale prop-typen (målt: TS2322 på
+// prop-passeringen). Mock<T> beholder `.mock` som testene under leser.
+type OppdaterVedleggMock = Mock<(vedleggId: string, patch: Partial<Vedlegg>) => void>;
+
+function setup(vedlegg: Vedlegg, ekstra?: { onOppdaterVedlegg?: OppdaterVedleggMock }) {
+  const onOppdaterVedlegg = ekstra?.onOppdaterVedlegg ?? vi.fn<(vedleggId: string, patch: Partial<Vedlegg>) => void>();
   render(
     <FeltDokumentasjon
       kommentar=""
