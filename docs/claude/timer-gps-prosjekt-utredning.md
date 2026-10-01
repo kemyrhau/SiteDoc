@@ -6,6 +6,12 @@ sist_verifisert_mot_kode: 2026-06-23
 
 # Utredning: Timer-registrering, GPS, prosjekt-tilknytning og dag-flyt
 
+> 🔴 **HELHETSPLANEN ER SKREVET 2026-10-01 — les den FØR noe her bestilles:**
+> **[timer-gps-helhetsplan.md](timer-gps-helhetsplan.md)**
+> Den syr sammen GPS, reise, flerprosjekt-dag og bekreftelsessteget i fem lag med bindende
+> rekkefølge, og lister seks beslutninger som venter på Kenneth. **Denne fila er grunnlaget
+> (målinger og beslutningshistorikk); planen er veien.**
+
 > **Session-klar agenda** for en dedikert utredningssesjon. Samler beslutningene som dukket
 > opp 2026-06-13 rundt R4 (reisetid-matrise) + EAS-enhet-test. Ingen kode tas før beslutningene
 > er fattet. Rekkefølgen er **avhengighets-ordnet**: Beslutning 1 styrer resten.
