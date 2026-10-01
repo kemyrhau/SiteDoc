@@ -47,6 +47,9 @@ type MockRad = {
 function lagCtx(opts: {
   status: string;
   eksisterende?: MockRad[];
+  // Antall rader den status-betingede updateMany INNE i tx treffer. 0 = sedelen ble
+  // attestert i vinduet mellom validering og skriving (TOCTOU) → forsoningen skal avvises.
+  touchCount?: number;
 }) {
   const eksisterende = opts.eksisterende ?? [];
   const sheet = {
@@ -58,9 +61,18 @@ function lagCtx(opts: {
     pauseMin: 0,
     dato: new Date("2026-09-20T00:00:00Z"),
   };
+  // Writes skjer på `tx`-klienten den interaktive $transaction gir — ikke på ctx.prismaTimer.
   const update = vi.fn().mockResolvedValue({ id: RAD1 });
   const create = vi.fn().mockResolvedValue({ id: "ny-rad" });
-  const transaction = vi.fn(async (ops: unknown[]) => ops);
+  const updateMany = vi.fn().mockResolvedValue({ count: opts.touchCount ?? 1 });
+  const txFindMany = vi.fn().mockResolvedValue(eksisterende);
+  const tx = {
+    dailySheet: { updateMany },
+    sheetTimer: { update, create, findMany: txFindMany },
+  };
+  // Interaktiv form: $transaction(fn) kjører callbacken med tx-klienten og returnerer
+  // resultatet. Kaster callbacken, propagerer feilen (ruller «tilbake» — her: ingen commit).
+  const transaction = vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
   const ctx = {
     userId: USER,
     tokenKilde: null,
@@ -85,7 +97,7 @@ function lagCtx(opts: {
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
-  return { ctx, update, create, transaction };
+  return { ctx, update, create, updateMany, transaction };
 }
 
 const rad = (o: Partial<MockRad> & { id: string }): MockRad => ({
@@ -176,18 +188,21 @@ describe("forsonDagskort — 🔴 in-place, ingen duplikat (gate 3)", () => {
 });
 
 describe("forsonDagskort — 🔴 atomisitet (gate 1): alle writes i ÉN $transaction", () => {
-  it("oppdatering + ny rad → ett $transaction-kall med writes + touchSedel + sluttlesning", async () => {
-    const { ctx, transaction } = lagCtx({
+  it("oppdatering + ny rad → ett interaktivt $transaction-kall, writes + guard-touch på tx", async () => {
+    const { ctx, transaction, update, create, updateMany } = lagCtx({
       status: "returned",
       eksisterende: [rad({ id: RAD1 })],
     });
     const caller = dagsseddelRouter.createCaller(ctx);
     await caller.forsonDagskort({ sheetId: SHEET, oppdateringer: [oppdatering], nyeRader: [nyRad] });
-    // Rød først: en ikke-transaksjonell sekvens ville awaitet hver write for seg og
-    // aldri kalt $transaction. Her: nøyaktig ETT kall, med 1 update + 1 create +
-    // touchSedel + sluttlesning = 4 ops.
+    // Rød først: en ikke-transaksjonell sekvens ville awaitet hver write for seg og aldri
+    // kalt $transaction. Her: nøyaktig ETT interaktivt kall (callback-form), og writene +
+    // status-guard-touchen kjører alle inne i den transaksjonen.
     expect(transaction).toHaveBeenCalledTimes(1);
-    expect(transaction.mock.calls[0]![0]).toHaveLength(4);
+    expect(typeof transaction.mock.calls[0]![0]).toBe("function");
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("alt valgt-server (tomme valg) → ingen $transaction, returnerer kortet som det står", async () => {
@@ -201,5 +216,38 @@ describe("forsonDagskort — 🔴 atomisitet (gate 1): alle writes i ÉN $transa
     expect(update).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
     expect(res).toHaveLength(1);
+  });
+});
+
+describe("forsonDagskort — 🔴 TOCTOU: attestert i vinduet mellom validering og skriving (TILLEGG 3)", () => {
+  it("sedel blir accepted ETTER validering → status-guard treffer 0 rader → avvises, INGEN rad-write", async () => {
+    // hentEgenDagsseddel ser fortsatt "returned" (passerer ytre gate), men den status-betingede
+    // updateMany inne i tx treffer 0 rader = sedelen ble attestert i vinduet. Rød først: med
+    // array-$transaction fantes ingen slik guard — skrivingen ville landet på det låste kortet.
+    const { ctx, update, create } = lagCtx({
+      status: "returned",
+      eksisterende: [rad({ id: RAD1 })],
+      touchCount: 0,
+    });
+    const caller = dagsseddelRouter.createCaller(ctx);
+    await expect(
+      caller.forsonDagskort({ sheetId: SHEET, oppdateringer: [oppdatering], nyeRader: [nyRad] }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    // Kortet er UENDRET: ingen rad ble skrevet (tx rulles tilbake ved kast).
+    expect(update).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("regresjon: normal forsoning på returned (guard treffer raden) skriver som før", async () => {
+    const { ctx, update, create, updateMany } = lagCtx({
+      status: "returned",
+      eksisterende: [rad({ id: RAD1 })],
+      touchCount: 1,
+    });
+    const caller = dagsseddelRouter.createCaller(ctx);
+    await caller.forsonDagskort({ sheetId: SHEET, oppdateringer: [oppdatering], nyeRader: [nyRad] });
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 });

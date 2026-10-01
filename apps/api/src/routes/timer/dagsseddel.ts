@@ -86,8 +86,12 @@ async function verifiserKjoretoyTilhørerFirma(
  * timerLockEtterDager (OrganizationSetting) sjekkes kun for status="draft".
  * null = ingen alders-grense.
  */
+// Én kilde for hvilke statuser som er redigerbare. Brukes både av `erRedigerbar` (gate ved
+// start) og av `forsonDagskort`s status-betingede updateMany (TOCTOU-guard i transaksjonen) —
+// de to MÅ aldri drifte, ellers kan guarden slippe en status gaten avviste (eller motsatt).
+const REDIGERBARE_STATUSER = ["draft", "returned"] as const;
 function erRedigerbar(status: string): boolean {
-  return status === "draft" || status === "returned";
+  return (REDIGERBARE_STATUSER as readonly string[]).includes(status);
 }
 
 /**
@@ -1577,6 +1581,14 @@ export const dagsseddelRouter = router({
   //
   // 🔴 Modus C-vern ligger HER, ikke bare i UI-et: et kall mot en sent/accepted sedel avvises
   // av serveren (PRECONDITION_FAILED). Veien for et låst kort er lederens retur (Kenneth alt A).
+  //
+  // 🔴 Q3(b) — «ingen fjern»-invarianten er IMPLISITT og forutsetter at tomme sider ikke er
+  // trykkbare: visningen (apps/mobile/src/components/timer-detalj/DagskortSammenligning.tsx:89
+  // `kanTrykke`) lar deg aldri velge bort en enkeltstående rad — det fravalgte er alltid den
+  // ANDRE siden av et tidsrom begge hadde. Derfor har denne mutasjonen ingen `fjern`-op.
+  // Tillater en senere UI-endring at en enkeltstående rad velges bort, KAN serveren ikke
+  // uttrykke det — og den som endrer visningen vil ikke se det her. Endres `kanTrykke`, må
+  // forkast-veien bygges inn her samtidig.
   forsonDagskort: protectedProcedure
     .input(
       z.object({
@@ -1759,27 +1771,40 @@ export const dagsseddelRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: await feilMeldingMaskinOverstiger(brytt) });
       }
 
-      // 🔴 ATOMISK: alle writes + touchSedel i ÉN $transaction. Feiler én, rulles ALT tilbake
-      // — ingen halvveis-tilstand. Siste op leser det forsonede settet (autoritativt svar).
-      const resultater = await ctx.prismaTimer.$transaction([
-        ...input.oppdateringer.map((o) =>
-          ctx.prismaTimer.sheetTimer.update({
+      // 🔴 ATOMISK + TOCTOU-lukket: erRedigerbar leses over (:1638) UTENFOR transaksjonen. Blir
+      // sedelen attestert i vinduet mellom validering og skriving, ville en array-$transaction
+      // landet lønnsdata på et låst kort — Kenneths alt A håndhevet i skjermen, ikke i koden.
+      // Vernet er samme mønster som SedelAttestertConflict-guarden (:5131): en status-betinget
+      // updateMany ÅPNER den interaktive tx-en. UPDATE tar radlås til commit, så en samtidig
+      // attestering ser enten draft/returned (vi vinner) eller har alt committet accepted
+      // (count=0 → vi kaster → ALT rulles tilbake). updateMany erstatter samtidig touchSedel
+      // (begge bumper updatedAt). Alle rad-writes + sluttlesningen kjører på samme `tx`.
+      return ctx.prismaTimer.$transaction(async (tx) => {
+        const laast = await tx.dailySheet.updateMany({
+          where: { id: input.sheetId, status: { in: [...REDIGERBARE_STATUSER] } },
+          data: { updatedAt: new Date() },
+        });
+        if (laast.count === 0) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Dagsseddel ble låst under forsoningen — den er attestert. Be leder returnere den.",
+          });
+        }
+        for (const o of input.oppdateringer) {
+          await tx.sheetTimer.update({
             where: { id: o.id },
             data: byggTimerRadData(input.sheetId, o),
-          }),
-        ),
-        ...input.nyeRader.map((r) =>
-          ctx.prismaTimer.sheetTimer.create({ data: byggTimerRadData(input.sheetId, r) }),
-        ),
-        touchSedel(ctx.prismaTimer, input.sheetId),
-        ctx.prismaTimer.sheetTimer.findMany({
+          });
+        }
+        for (const r of input.nyeRader) {
+          await tx.sheetTimer.create({ data: byggTimerRadData(input.sheetId, r) });
+        }
+        return tx.sheetTimer.findMany({
           where: { sheetId: input.sheetId },
           orderBy: { createdAt: "asc" },
-        }),
-      ]);
-      return resultater[resultater.length - 1] as Awaited<
-        ReturnType<typeof ctx.prismaTimer.sheetTimer.findMany>
-      >;
+        });
+      });
     }),
 
   // ----- Tillegg-vedlegg (kvittering) — Funn #2 --------------------------
