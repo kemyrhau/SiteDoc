@@ -1,7 +1,8 @@
 ---
 name: timer-gps-helhetsplan
-description: Helhetsplan som syr sammen GPS, reise, flerprosjekt-dag og bekreftelsessteget i timer-modulen. Skrevet 2026-10-01 på Kenneths ordre etter at orkestratoren hadde bestilt kode i hver runde uten kontroll på kompleksiteten. Les FØR noe i dette komplekset bestilles.
+description: Helhetsplan som syr sammen GPS, reise, flerprosjekt-dag og bekreftelsessteget i timer-modulen. Skrevet 2026-10-01 på Kenneths ordre etter at orkestratoren hadde bestilt kode i hver runde uten kontroll på kompleksiteten. Les FØR noe i dette komplekset bestilles. Revidert 2026-10-01 kveld med Kenneths vedtak V1–V14 (§ 4b).
 sist_verifisert_mot_kode: 2026-10-01
+eier: fabel (kontroll-Claude) — orkestrator gater, fra 2026-10-01 kveld
 ---
 
 # Helhetsplan — GPS, reise og flere prosjekter i timer
@@ -91,14 +92,14 @@ forutsetningen for at GPS i det hele tatt får lov til å velge prosjekt.**
 |---|---|---|---|
 | **H1** | **Prosjekt velges uten avstandsgrense**, og faller blindt til `prosjekter[0]` uten koordinater | `StartSluttDagKort.tsx:440-451` | Stille feil |
 | **H2** | **To innganger uenige:** manuell har 500 m-tak, auto har ingen | `timer/ny.tsx:139` vs. over | Inkonsistens |
-| **H3** | **Byggeplass-geofence er valgfri og finnes ikke i opprettelsen** — den settes i en EGEN modal etterpå (adressesøk, kart, radius), eller utledes fra georeferert tegning. *(Rettet etter KS: planen sa først «oppstår bare fra tegning» — det var for sterkt.)* | `validation/index.ts:95-101` | Tomt datagrunnlag |
+| **H3** | **Byggeplass-geofence er valgfri og finnes ikke i opprettelsen** — den settes i en EGEN modal etterpå (Kartverket-adressesøk, Leaflet-kart, breddegrad/lengdegrad, radius-glider **25–500 m** `oppsett/byggeplasser/page.tsx:1407-1409`, «Beregn fra tegning»), eller utledes fra georeferert tegning. *(Rettet etter KS: planen sa først «oppstår bare fra tegning».)* Tre ulike radius-spenn: modal 25–500 m · byggeplass-API 1–100 000 m · oppmøtested 10–5000 m | `validation/index.ts:95-101`, `page.tsx:959-966` (`handleOpprett` sender kun `name`+`projectId`) | Tomt datagrunnlag — **lukkes av V14** |
 | **H4** | **Avstanden som avgjorde lønnsart kastes** | `StartSluttDagKort.tsx:866-888` | Usporbar lønn |
 | **H5** | **Km har ikke noe felt** — skrives i `timer`, tak 24 interaktivt, **intet tak i `syncBatch`** | `dagsseddel.ts:1329` vs. `:3528` | 🔴 Funksjonsfeil |
 | **H6** | **Null server-side reiselogikk** | 0 treff på «reise» i timer-rutene | Ingen verifisering |
 | **H7** | **`genererForslag` skriver som sideeffekt** — og arbeidsdagen markeres `avsluttet` FØR utfallet sjekkes | `StartSluttDagKort.tsx:119-129` | 🔴 Tapt arbeidsdag |
 | **H8** | **Segment = kalenderdøgn, ikke sted.** Ingen struktur å feste «prosjekt 2 fra 11:30» på | `utils/dagsegment.ts:93-94` | Modellmangel |
 | **H9** | **Posisjon fanges kun to ganger** — start og slutt. Ingen besøkslogg | `db/schema.ts:362-366` | Modellmangel |
-| **H10** | **Ingen byggeplass→byggeplass-akse** i matrisen — sjåførens akse | `@@unique([oppmotestedId, byggeplassId])` | Modellmangel |
+| **H10** | **Ingen byggeplass→byggeplass-akse** i matrisen. ⚠️ Etter V9 avgjør aksen IKKE lønn (mellometappe = arbeidstid uansett avstand) — den trengs kun for km (K4) og sjåfør, og ligger i lag 5 | `@@unique([oppmotestedId, byggeplassId])` | Modellmangel |
 | **H11** | **«Utenfor alle oppmøtesteder» skiller ikke** «startet hjemmefra» fra «GPS var avslått» | `useArbeidsdag.ts:55` | Stille feil |
 | **H12** | **Oppmøtested × byggeplass gjenkjennes uavhengig og forenes aldri** | `useArbeidsdag.ts:143-144` | Udefinert |
 | **H13** | **Fire konkurrerende «jeg er her», ingen delt, ingen testet** | § 1 | Drift |
@@ -117,6 +118,51 @@ forutsetningen for at GPS i det hele tatt får lov til å velge prosjekt.**
 
 🔴 **H15 er samme feilklasse som arvingen orkestratoren fjernet fra origo-ordren — men den står
 i koden i dag.** Det var KS-ens skarpeste funn.
+
+### 🟢 4b. Dagsmodellen — vedtatt av Kenneth 2026-10-01 (kveld)
+
+Vedtakene er gitt i prosa til fabel (lukker K1, K6, K7, K8, K9 og H3-oppfølgeren). **Alt under er
+vedtak, ikke måling** — hver regel er ❌ IKKE IMPLEMENTERT inntil laget som bærer den er levert og
+gatet. Kode-referansene peker på det som skal endres, ikke på noe som virker.
+
+| # | Regel | Lukker | Lag |
+|---|---|---|---|
+| **V1** | 🔴 **Reisetid er aldri overtid.** Kategorien reisetid inngår ikke i overtidsgrunnlaget, uansett klokkeslett. Retur etter overtid er fortsatt reisetid | H17 | 2 |
+| **V2** | **Flagget «Reisetid teller mot overtid» utgår.** `OrganizationSetting.reisetidTellerOvertid` (`schema.prisma:468`) deprecates etter to-stegs-policyen; mobilens fradrag fra normen (`StartSluttDagKort.tsx:785-788`) fjernes; serverens overtidsgrunnlag (`overtidsgrunnlag.ts:46-61`, brukt av `hentTilAttesteringFirma`) summerer i dag reise-rader inn og **skal ekskludere dem** | H17 | 2 |
+| **V3** | **Reise under terskel som firmaet har satt til «som arbeidstid» ER arbeidstid** — føres på prosjektraden fra GPS-start og teller mot normen. Det er kategorien, ikke kjøringen, som avgjør | — | 1 |
+| **V4** | **Overtid er kronologisk.** Alt over dagsnormen (sesongjustert via `ArbeidstidsKalender` `sommertid_start/slutt`) foreslås som overtid, og **prosjektet som eier klokkeslettet bærer det.** På en delt dag bærer siste prosjekt overtiden. Mobil regner i dag pr. økt, ikke pr. dag — må bli pr. dag | H17 | 4 |
+| **V5** | **Normen følger ankomsten, ikke firmaets standard starttid.** Arbeidsdagen begynner når reisen slutter; ordinær slutt = ankomst + norm + pause. `standardStartTid` er forhåndsutfylling, ikke ramme. ⚠️ Mobilen kapper i dag slutt til start + dagsnorm (`StartSluttDagKort.tsx:535`) — skrives om | — | 1 |
+| **V6** | **Pausen trekkes alltid** (`standardPauseMin`), vindu `standardPauseEtterTimer` etter skiftstart. ⚠️ **UTLEDET, ikke eksplisitt vedtatt:** «skiftstart» = ankomst, ikke reisestart (reise 07:00, ankomst 09:00 gir pause 13:00–13:30). På delt dag trekkes pausen fra prosjektet som eier vinduet | — | 1 |
+| **V7** | **Tur OG retur.** Slutt-GPS innenfor et oppmøtested → returetappe foreslås (samme matrisecelle). Ellers foreslås slutt på prosjektet, og brukeren legger til retur selv | H18 | 1 |
+| **V8** | **Reise-rader får klokkevindu**, utledet fra GPS-tidspunkt ± matrisetid (start 05:00 + 120 min → ankomst 07:00; slutt 19:30 − 120 min → avreise 17:30) og **merket som utledet** på raden. 🔴 **Reverserer REISE-UNNTAKET** (fabel-vedtak 2026-07-13, `StartSluttDagKort.tsx:875-882`, `fraTid/tilTid: null`) — vinduet er nødvendig for V4 og V5. Lag 4 erstatter utledning med ekte ankomststempel | H4, H18 | 2 |
+| **V9** | **Mellometappe i ordinær tid er arbeidstid, uansett avstand.** Bæres av prosjektet man kommer til. Tiden er klokketid mellom avreise og ankomst (krever ankomst-registrering, lag 4). **Følge:** byggeplass→byggeplass-aksen (H10) avgjør ikke lønn — den trengs kun for km (K4) og sjåfør, og **flyttes tilbake til lag 5** | H18, H10 | 4 |
+| **V10** | **Terskelen gjelder pr. etappe**, ikke pr. dag. To etapper på 20 km er to etapper under 30 km | — | 1 |
+| **V11** | **Origo: starter dagen ikke på et kontor, er prosjektet oppmøtestedet.** Ingen reise. `Oppmotested.avdelingId` får ingen leser | H20 | 1 |
+| **V12** | **GPS avslått ved start → ingen reise foreslås, med synlig årsak** på bekreftelsesskjermen («reise ikke foreslått: posisjon var utilgjengelig»). Arbeideren legger til selv. Skiller dermed H11s to tilfeller | H11 | 1 + 3 |
+| **V13** | **Ingen regnefallback for manglende plassering.** Reservemålingen luftlinje/50 km/t (`StartSluttDagKort.tsx:494-507`, `reise.ts:165-172`) **fjernes**, og «mangler avstand → under terskel» (`reise.ts:91`) erstattes av «ingen reise». Mangler byggeplassen punkt, eller matrisen cellen, foreslås ingen reise — med årsak hos arbeideren | H16 | 1 |
+| **V14** | **Manglende plassering skal være synlig, ikke påkrevd.** Tre varsler: merke «mangler plassering — reise beregnes ikke» i byggeplasslista (`oppsett/byggeplasser`), teller på Reisetid-matrise-flaten i firmainnstillingene («N byggeplasser mangler punkt»), og årsak hos arbeideren (V12/V13). **Adressefeltet som alt finnes i `createByggeplassSchema` geokodes ved opprettelse** (geokodings-prosedyren finnes), så de fleste får punkt uten ekstra klikk. Kartmodalen overstyrer alltid. **Ingen arv fra prosjektets punkt** (fjernet fra origo-ordren 2026-10-01 — et prosjekt kan strekke seg over kilometer) | H3, K6 | 1 |
+
+**Fasit-eksempler (Kenneths ord, 2026-10-01):**
+
+| Dag A — sommernorm 8 t | Dag B — sen ankomst |
+|---|---|
+| 05:00–07:00 reisetid 2 t | 07:00–09:00 reisetid 2 t |
+| 07:00–15:30 ordinær 8 t (30 min lunsj) | 09:00–17:30 ordinær 8 t (30 min lunsj) |
+| 15:30–17:30 overtid 50 % 2 t | — |
+| 17:30–19:30 reisetid 2 t | 17:30–19:30 reisetid 2 t |
+| **4 t reise · 8 t ordinær · 2 t OT50** | **4 t reise · 8 t ordinær · 0 overtid** |
+
+🔴 **Begge dagene skal inn som tester i laget som leverer V4/V5/V7/V8 — og én test skal FEILE
+når en reise-rad havner i overtidsgrunnlaget** (jf. «stille tomhet»-regelen i CLAUDE.md, krav c).
+
+**Faktum som begrenser:** overtidsmotoren har kun nivå 50 % (`lonnsregel.ts:42-56`, «Nivå 0-regel»:
+`timelønn = min(arbeid, norm)`, resten 50 %). Tariffer med 100 % etter klokkeslett dekkes ikke av
+eksemplene og er ikke vedtatt.
+
+**Avstandsbånd × terskel, målt:** terskelen avgjør kategori (arbeidstid/reisetid); båndene velger
+kun lønnsart når kategorien er reisetid (`reise.ts:139-157`, `timerKatalog.ts:280-300`).
+Rekkefølge: bånd → firmaets `reiseLonnsartId` → navnematch `/reise|transport/`. Hjelpeteksten på
+flaten sier «uten bånd velges på navn» — den hopper over midterste ledd.
 
 ---
 
@@ -145,13 +191,19 @@ i koden i dag.** Det var KS-ens skarpeste funn.
 
 - 🔴 **Målekjeden skal måle til riktig sted** (H15) — i dag måles det til prosjektets
   primærbyggeplass, ikke dit arbeideren faktisk er.
-- 🔴 **Reservemålingen skal være ærlig** (H16) — luftlinje delt på 50 km/t er ikke kjøreavstand,
-  og «mangler avstand» skal ikke stille bli «under terskel».
-- **Origo når dagen ikke starter på et kontor** (H20) — en definert tilstand, ikke fravær.
+- 🔴 **Ingen reservemåling** (H16 → **V13**) — luftlinje/50 km/t fjernes, «mangler avstand» blir
+  «ingen reise + årsak», ikke stille «under terskel».
+- **Origo** (H20 → **V11**): starter dagen ikke på et kontor, er prosjektet oppmøtestedet. GPS av
+  → ingen reise med synlig årsak (**V12**).
+- **Reisemodellen får tur OG retur** (**V7**), terskel pr. etappe (**V10**), og reise under terskel
+  satt til «som arbeidstid» føres som arbeidstid på prosjektraden (**V3**).
+- **Normen følger ankomsten** (**V5**) og pausen trekkes alltid fra ankomst (**V6**, ⚠️ utledet).
+- **Manglende plassering synlig i tre flater + geokoding ved opprettelse** (**V14**). Ingen arv,
+  ingen fallback, ikke påkrevd.
 
-🔴 **Beslutning K1 kreves før dette bygges — se § 6. KS-en viste at K1 var formulert for smalt:
-det er ikke punktets presisjon, det er HELE målekjeden — punkt, valg av byggeplass, målemetode
-og sammenligning mot terskel.**
+🟢 **K1 er avgjort i streng form** (V13 + V14, § 6): reise beregnes kun fra OSRM-matrisen til den
+byggeplassen GPS fant (H15). Alt annet gir «ingen reise» med årsak. **Lag 1 kan spesifiseres nå
+— men bestilles først etter at orkestrator har gatet denne revisjonen (§ 7b).**
 
 ### LAG 2 — Sporbarhet: det som avgjør lønn skal kunne etterprøves
 
@@ -162,6 +214,11 @@ og sammenligning mot terskel.**
 - **Serveren kan verifisere en reiseklassifisering**, ikke bare ta imot den.
 - 🔴 **Og sporbarheten skal nå helt ut i EKSPORTEN** (H19). Stopper den i databasen, ser regnskap
   fortsatt en naken timeverdi — og da er laget ikke levert.
+- 🔴 **Reisetid ut av overtidsgrunnlaget, overalt** (**V1**, **V2**): flagget deprecates, mobilens
+  norm-fradrag fjernes, serverens attesteringsvarsel ekskluderer reise-rader. **Test som feiler når
+  reise havner i grunnlaget** (§ 4b).
+- **Reise-rader får utledet klokkevindu med kilde-markering** (**V8**) — reverserer REISE-UNNTAKET
+  fra 2026-07-13 bevisst og ført. Vinduet er det som gjør V4/V5 regnbart.
 
 ⚠️ **Dette er det laget som er lettest å hoppe over og dyrest å mangle.** Det gir ingen ny
 funksjon brukeren ser — og uten det kan ingen svare på «hvorfor fikk jeg denne lønnen».
@@ -174,6 +231,9 @@ funksjon brukeren ser — og uten det kan ingen svare på «hvorfor fikk jeg den
   bekrefter. **Dagen forblir åpen hvis han avbryter** (Kenneth-vedtak 2026-10-01).
 - **Sammenligningsvisningen ved konflikt** — 🟢 **LEVERT** (`e4866f8d` + `9c7c1ad1`).
 - **Forespørsel til leder når dagskortet er attestert** (U-BEKREFT-R) — krever én migrering.
+- **Bekreftelsesskjermen bærer årsakene** når reise ikke er foreslått (**V12**, **V13**): «posisjon
+  utilgjengelig» · «byggeplass X mangler plassering» · «ingen matrisecelle». Uten dette er V13 en
+  stille tomhet.
 
 🔴 **Og de tre kodekommentarene som forbyr GPS å velge prosjekt må reverseres HER — eksplisitt,
 med henvisning til Kenneths vedtak og til at bekreftelsessteget er på plass.** Rives de før
@@ -186,11 +246,14 @@ bekreftelsessteget finnes, brytes G1.
 - **Segment må få en stedsdimensjon** (H8) — i dag er grensen midnatt og ingenting annet.
   ⚠️ **Rettet etter KS: strukturen er HALVBYGD, ikke fraværende.** `sheet_timer_local.byggeplassId`
   finnes — forslaget setter den bare aldri på radene, kun på sedelen.
-- 🔴 **Hvilket prosjekt bærer overtidsradene på en delt dag** (H17) — og hvilken av de tre
-  overtidsdefinisjonene som gjelder.
-- 🔴 **Retur og mellometapper** (H18). **`timer.md:1086` sier byggeplass → byggeplass er
-  kompensert for ALLE** — så aksen H10 er flyttet fra lag 5 til lag 4. **En vanlig arbeider som
-  besøker to prosjekter trenger den.**
+- 🟢 **Overtid på delt dag er avgjort** (H17 → **V4**): kronologisk, prosjektet som eier
+  klokkeslettet bærer den, siste prosjekt bærer overtiden. Mobilens pr.-økt-regning må bli pr. dag.
+- 🟢 **Mellometapper er avgjort** (H18 → **V9**): arbeidstid uansett avstand, bæres av prosjektet
+  man kommer til, måles som klokketid avreise→ankomst. **Derfor trenger lag 4 IKKE
+  byggeplass→byggeplass-aksen** — H10 er flyttet tilbake til lag 5. *(KS-en flyttet den hit;
+  V9 flytter den tilbake, fordi avstanden mellom prosjekter ikke avgjør lønn.)*
+- **Ankomststempel erstatter utledet vindu** (**V8**) — ankomst-registreringen under gir ekte
+  klokketid for både reise og mellometappe.
 - **`dagsseddel_local.project_id` må bli nullable** (H14) — gjelden `timer.md:124` navngir.
 - **Ankomst-registrering** — noe må merke at man kom til prosjekt nr. 2.
 - ⚠️ **Og overlapp-regelen består:** to prosjekter må ha adskilte klokkevinduer. **«To steder
@@ -201,6 +264,7 @@ bekreftelsessteget finnes, brytes G1.
 **Forutsetter alt over, og minst én beslutning som ikke er teknisk.**
 
 - **Posisjonssporing gjennom dagen** (H9) — eller bekreftede stopp i stedet for sporing.
+- **Byggeplass→byggeplass-akse i matrisen** (H10) — kun for km-sporbarhet (K4) og sjåfør, jf. V9.
 - **En leveranse-/tur-entitet** — finnes ikke, og `vehicleId` på timeraden er en
   **mekaniker**-funksjon, ikke en sjåfør-funksjon.
 
@@ -210,17 +274,19 @@ bekreftelsessteget finnes, brytes G1.
 
 🔴 **Ingen av disse kan avgjøres av orkestratoren. Hver av dem endrer hva som bygges.**
 
+**Status 2026-10-01 kveld:** 🟢 K1, K6, K7, K8, K9 vedtatt (regler i § 4b). 🔴 K2, K3, K4, K5 åpne.
+
 | # | Beslutning | Hvorfor den er din | Konsekvens av valget |
 |---|---|---|---|
-| **K1** | 🔴 **Hvilken MÅLEKJEDE skal avgjøre lønn?** *(Omformulert etter KS — var for smalt.)* Fire ledd, hvert med egen feilkilde: **punktet** · **hvilken byggeplass det måles til** (H15) · **målemetoden** (rute vs. luftlinje, H16) · **sammenligningen mot terskel**. Skal en byggeplass kunne gi reiseberegning uten at kjeden er kontrollert? | Lønn | Streng: færre byggeplasser får reise, men tallet stemmer. Mild: flere får reise, noen får feil — **og feilen er usynlig til H4/H19 er lukket** |
+| **K1** | 🟢 **VEDTATT (streng), via V13 + V14.** Målekjeden er: GPS-identifisert byggeplass (H15) → OSRM-matrise → terskel pr. etappe (V10). Mangler et ledd, er svaret «ingen reise + årsak» — aldri et estimat, aldri arv fra prosjektet | Lønn | Færre byggeplasser får reise før punktet er satt; de som får, får riktig tall. V14 gjør mangelen synlig i tre flater |
 | **K2** | **Hva vinner når oppmøtested og byggeplass overlapper?** I dag gjenkjennes begge og forenes aldri | Produktvalg | Avgjør om en dag som starter på et kontor som ligger på en byggeplass gir reise eller ikke |
 | **K3** | **Sporing eller bekreftede stopp?** Sjåfør-modellen trenger å vite hvor man var underveis | 🔴 **Personvern.** Krever samtykke, og `mannskap.md:19` sier juridisk sign-off for bakgrunns-geofencing | Sporing: automatisk, men inngripende. Bekreftede stopp: arbeideren trykker ved ankomst |
 | **K4** | **Skal km bli en målt størrelse?** I dag skrives km i feltet «timer» med tak 24 | Lønn + regnskap. `timer.md:228` sier «regnskap eier satsene og km-utmålingen» — **vedtaket ditt kolliderer med det** | Eget felt: SiteDoc måler km. Som i dag: regnskap måler, vi bare fører |
 | **K5** | **Hvor mye skal serveren verifisere?** I dag: ingenting. Alt skjer offline på telefonen | Risiko vs. kompleksitet | Full verifisering krever at posisjon synkes — altså lagring av hvor ansatte har vært |
-| **K6** | **Hva skal skje med eksisterende byggeplasser uten punkt?** | Omfang | Etterfylle i bulk, eller la dem stå uten reise til noen rører dem |
-| **K7** | 🔴 **Hva ER reisetid i forhold til overtid — og hvilket prosjekt bærer overtidsradene når dagen er delt?** `timer.md:161` sier reisetid teller IKKE som arbeidstid; firmainnstillingen din har «Reisetid teller mot overtid» huket av | Lønn + doktrine-konflikt | Avgjør om en delt dag i det hele tatt kan beregnes riktig |
-| **K8** | **Er retur og mellometapper kompensert — og regnes de fra faktisk klokke eller fra matrisen?** I dag finnes kun én vei, maks én rad | Lønn | Avgjør om lag 4 trenger en ny akse i matrisen |
-| **K9** | **Hva er origo når arbeideren ikke starter på et kontor?** Ingen reise · fast oppmøtested via avdeling · nærmeste kontor | Lønn | `Oppmotested.avdelingId` finnes ubrukt — valget avgjør om den skal få en leser |
+| **K6** | 🟢 **VEDTATT via V14:** ingen bulk-etterfylling. Eksisterende byggeplasser uten punkt merkes i lista og telles på matrise-flaten; admin setter punkt i modalen (ett klikk) | Omfang | Antall som mangler er fortsatt ikke målt (§ 8) |
+| **K7** | 🟢 **VEDTATT:** *«reisetid er aldri overtid»* (V1). Flagget utgår (V2). Overtid er kronologisk og bæres av prosjektet som eier klokkeslettet; siste prosjekt bærer overtiden på delt dag (V4). Doktrinen samles: `timer.md:161` vinner, `:228`/`:1086` skrives om | Lønn | Lukker H17 |
+| **K8** | 🟢 **VEDTATT:** tur og retur (V7), utledet klokkevindu fra GPS ± matrise (V8), mellometappe = arbeidstid til prosjektet man kommer til (V9), terskel pr. etappe (V10). Normen følger ankomsten (V5) | Lønn | Lag 4 trenger IKKE ny matriseakse (V9) |
+| **K9** | 🟢 **VEDTATT:** *«oppmøtested er på prosjekt»* — ingen reise når dagen ikke starter på et kontor (V11). GPS av → ingen reise med synlig årsak (V12). `Oppmotested.avdelingId` forblir uten leser | Lønn | Lukker H20 og H11 |
 
 ---
 
@@ -228,13 +294,13 @@ bekreftelsessteget finnes, brytes G1.
 
 | Ordre | Status | Grunn |
 |---|---|---|
-| `inbox-dokgen-byggeplass-origo.md` | ⏸️ **HOLDES** | Bygger lag 1 uten at K1 er avgjort. **Origo-spørsmålet Kenneth stilte er ikke besvart — det er en beslutning, ikke en implementasjonsdetalj** |
+| `inbox-dokgen-byggeplass-origo.md` | ⏸️ **HOLDES — kan omskrives** | K1 er nå avgjort (V13/V14). Ordren må **skrives om til V14** (geokoding ved opprettelse + tre varsler, ingen arv, ingen fallback, ikke påkrevd) og gates av orkestrator FØR den sendes |
 | `inbox-kontrollplan-bekreft-dagsforslag.md` | ⏸️ **PAUSET** | Arkitektur-splitten (beregn/anvend) står og hører i LAG 0. **Skjermen venter på at modellen er avklart** |
 | U-BEKREFT-R (forespørsel til leder) | ⏸️ | Krever migrering. Hører i lag 3, etter at lag 3s første del er inne |
 | Alt i lag 4 og 5 | ⏸️ | Forutsetter lag 1–3 |
 
 🔴 **Det eneste som trygt kan bestilles nå er LAG 0** — de to reparasjonene som ikke avhenger av
-noen beslutning.
+noen beslutning. **Lag 1 kan spesifiseres etter at orkestrator har gatet denne revisjonen.**
 
 ---
 
@@ -252,6 +318,11 @@ finnes.**
 🟢 **Fabel kontrollerte; orkestrator førte inn.** Kontrolløren redigerer ikke det den gater — da
 kollapser de to hodene.
 
+**Rollebytte for dette dokumentet (Kenneth-vedtak 2026-10-01 kveld):** fabel **eier og skriver**
+planen fra og med revisjonen med V1–V14; **orkestrator gater** den før den brukes som grunnlag for
+ordrer. Prinsippet over står — det er fortsatt to hoder, de har bare byttet side for denne fila.
+Rollene for kode-ordrer er uendret.
+
 ## 8. Hva denne planen IKKE svarer på
 
 **Ført eksplisitt, så den ikke leses som mer komplett enn den er:**
@@ -261,8 +332,10 @@ kollapser de to hodene.
 - **Hvor mange byggeplasser som faktisk mangler punkt** er ikke målt — krever SQL mot databasen,
   som kun Kenneth kjører.
 - **Eksportsidens behandling av `sats`/`satsEnhet`** mot regnskapssystemene er ikke lest.
-- **Et tredje radius-spenn** (25–500 m i byggeplass-modalen) ble meldt i KS-en men er **IKKE
-  verifisert** av orkestrator — de to som ER målt er oppmøtested 10–5000 m og byggeplass-API
-  1–100 000 m.
+- **V6 (pausevindu fra ankomst) er utledet av fabel, ikke sagt av Kenneth.** Må bekreftes før
+  lag 1 bestilles.
+- **Overtid 100 %-nivå** finnes ikke i motoren og er ikke vedtatt. Eksemplene trenger det ikke.
+- **K2 (kontor på byggeplass), K3 (sporing), K4 (km som målt størrelse), K5 (server-verifisering)**
+  er fortsatt åpne. V9 gjør at K4 er det eneste som trenger byggeplass→byggeplass-aksen.
 - **Sjåfør-modellen er ikke spesifisert** av noen, noe sted. Den er nevnt av Kenneth 2026-10-01
   og finnes ikke i dokumentasjonen ellers.

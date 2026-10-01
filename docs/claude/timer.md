@@ -27,6 +27,8 @@ påvirkes_av_beslutninger:
 > [timer-gps-helhetsplan.md](timer-gps-helhetsplan.md) FØR noe bestilles.**
 > Fem lag med bindende rekkefølge, 20 målte hull og ni beslutninger som venter på Kenneth.
 > KS-et av fabel 2026-10-01. **Kun LAG 0 kan trygt bestilles i dag.**
+> 🟢 **Revidert kveld 2026-10-01: dagsmodellen V1–V14 vedtatt (§ 4b) — reisetid er ALDRI overtid (V1),
+> `reisetidTellerOvertid` utgår (V2), tur/retur (V7), mellometappe = arbeidstid (V9). Fabel eier planen, orkestrator gater.**
 
 
 ## Implementasjonsstatus per 2026-05-01
@@ -231,7 +233,7 @@ Valgfri import ved onboarding. Pakke-orientert UX: vises som «Bransje: Anlegg/b
 | Andre | Fakturerbar tid | Skille fra intern |
 | Andre | Timer prosjektleder | PL med egen sats |
 
-> **Reisetid vs. reise-godtgjørelse (Fase 3 § B, avvik A):** To distinkte konsepter — ikke slå sammen. **Reise-godtgjørelse** («Reise 7,5–15 km» … «45–60 km», «Kilometergodtgjørelse») er **avstands-/godtgjørelse-satser — regnskap eier satsene** og km-utmålingen. **Reisetid** er **timeført arbeidstid** på lønnsarten «Reise/transport til prosjekter» (`ordinaer`), klassifisert mot firmaets terskel (kontor→byggeplass). Fase 3 `reiseLonnsartId` peker som standard på reisetid-arten, IKKE en km-godtgjørelse-art. Seed-artene beholdes uendret; kun denne tekst-distinksjonen er reframet (ingen rad-rename).
+> **Reisetid vs. reise-godtgjørelse (Fase 3 § B, avvik A):** To distinkte konsepter — ikke slå sammen. **Reise-godtgjørelse** («Reise 7,5–15 km» … «45–60 km», «Kilometergodtgjørelse») er **avstands-/godtgjørelse-satser — regnskap eier satsene** og km-utmålingen. **Reisetid** er **timeført arbeidstid** på lønnsarten «Reise/transport til prosjekter» (`ordinaer`) *(⚠️ ordinær lønnsart-TYPE, men **aldri i overtidsgrunnlaget** — vedtak V1, [helhetsplan § 4b](timer-gps-helhetsplan.md), 2026-10-01)*, klassifisert mot firmaets terskel (kontor→byggeplass). Fase 3 `reiseLonnsartId` peker som standard på reisetid-arten, IKKE en km-godtgjørelse-art. Seed-artene beholdes uendret; kun denne tekst-distinksjonen er reframet (ingen rad-rename).
 
 #### Nivå 3 — Egendefinerte
 
@@ -1090,6 +1092,7 @@ En delvis attestert `sent`-sedel har derfor ingen vei tilbake for enkeltraden. E
 
 - **Oppmøtested = egen geo-entitet** (kjerne, søsken til `Avdeling`): `{ organizationId, navn, adresse?, lat, lng, radiusM, avdelingId?, aktiv }`. A.Markussen: 3 kontorer (Narvik, Harstad, Tromsø). Geofence identifiserer kontor + logger inn/ut som *dokumentasjon* + *foreslår* starttid — aldri auto-rad (`fase-0 T.8:983`).
 - **Kompensert reise = kontor→byggeplass + byggeplass→byggeplass.** Hjem→arbeidssted er IKKE kompensert. Reisetid = **lønnsart-rad (ordinær lønn), utenfor overtid** (jf. § Lønnsart-katalog + `:282`). Ingen avstands-/godtgjørelse-sats (regnskap eier satser).
+  - 🔴 **Vedtak 2026-10-01 ([helhetsplan § 4b](timer-gps-helhetsplan.md)):** byggeplass→byggeplass i ordinær tid er **arbeidstid**, ikke reisetid (V9) · kategorien reisetid er **aldri** overtid (V1), flagget `reisetidTellerOvertid` utgår (V2) · tur OG retur (V7) · ingen reise når dagen ikke starter på kontor (V11), ingen fallback-estimat (V13).
 - **Reise-regelsett = firmainnstilling** (konfigurerbart, ikke regelmotor): `OrganizationSetting` + `reiseTerskelMin` (default 30) / `reiseUnderTerskelType` / `reiseOverTerskelType` / `reisetidTellerOvertid`. `<terskel` → arbeidstid, `>terskel` → reisetid. Terskel + lovlighet er per firmas tariff/avtale, ikke universell lov.
   - **⚠️ Terskel-enhet: TID eller AVSTAND (2026-09-08, `feat/reise-terskel-km`, venter Kenneth-gate på migrering `20260908120000_reise_terskel_km`):** `reiseTerskelEnhet` (`"minutter"` default | `"km"`) + `reiseTerskelM` (meter, aktiv ved km). A.Markussen måler km-grense; andre måler tid. **Default `"minutter"` er bevisst — bevarer klassifisering for alle eksisterende firmaer.** `klassifiserReise` tar nå `ReiseMaaling {reisetidMin, avstandM}` + regelsett med enhet (aldri «et tall uten enhet»). Avstand fra samme OSRM-kall (`annotations=duration,distance`) → `ReisetidMatrise.avstandM` (meter, `-1` = uoppnåelig symmetrisk med `kjoretidMin`). km + manglende/uoppnåelig avstand → konservativ under-type. Bytte til km auto-recomputer matrisen (fire-and-forget); firmainnstillingene varsler «avstand mangler for N par» (`hentSetting.reiseMatriseParUtenAvstand`) når rader ikke er reberegnet. **Automatisk avstandsBÅND-lønnsart er bevisst UTELATT** (Kenneth-vedtak 07.09: firma velger lønnsart eksplisitt).
 - **MVP på `Project.latitude/longitude`** (finnes, nullable); byggeplass-GPS er senere arbeid (`T.8:990`).

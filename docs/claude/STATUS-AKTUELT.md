@@ -16,6 +16,8 @@ sist_verifisert_mot_kode: 2026-08-09
 > `inbox-kontrollplan-bekreft-dagsforslag`). **Kun LAG 0 kan bestilles.**
 > ⚠️ **Kenneth 2026-10-01:** *«det er ikke bare å bygge i vei»* — orkestratoren bestilte kode i
 > hver runde mens modellen ennå ble formet, og to ordrer motsa hverandre.
+> 🟢 **Revidert kveld 2026-10-01:** K1, K6–K9 vedtatt som dagsmodell V1–V14 (§ 4b). K2–K5 åpne.
+> **Fabel eier planen, orkestrator gater den** (§ 7b). Origo-ordren kan omskrives til V14 etter gate.
 
 # 🔴 TAVLA — hvem sitter hvor
 
