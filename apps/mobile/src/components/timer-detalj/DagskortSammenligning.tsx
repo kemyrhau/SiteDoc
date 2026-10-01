@@ -106,12 +106,18 @@ export function DagskortSammenligning({
   resultat,
   valg,
   onVelg,
+  onBekreft,
+  bekrefter = false,
 }: {
   resultat: Sammenligning;
   /** Effektivt valg pr. tidsrom (modus B). Ignorert i modus C. */
   valg: Record<string, Side>;
-  /** Registrer valg i skjerm-state (modus B). Skriver INGENTING. */
+  /** Registrer valg i skjerm-state (modus B). */
   onVelg: (tidsrom: string, side: Side) => void;
+  /** Steg 2: anvend valgene → ett dagskort. Utelatt = kun visning (modus C/C-lesevisning). */
+  onBekreft?: () => void;
+  /** Mutasjonen pågår — deaktiver knappen. */
+  bekrefter?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -199,13 +205,32 @@ export function DagskortSammenligning({
         ))
       )}
 
-      {!laast && (
-        <View className="mt-3 flex-row items-start gap-2 rounded-lg bg-amber-50 p-2.5">
-          <AlertTriangle size={13} color="#b45309" style={{ marginTop: 2 }} />
-          <Text className="flex-1 text-xs text-amber-800">
-            {t("timer.sammenlign.ikkeLagret")}
-          </Text>
-        </View>
+      {!laast && onBekreft && resultat.rader.length > 0 && (
+        <>
+          <View className="mt-3 flex-row items-start gap-2 rounded-lg bg-amber-50 p-2.5">
+            <AlertTriangle size={13} color="#b45309" style={{ marginTop: 2 }} />
+            <Text className="flex-1 text-xs text-amber-800">
+              {t("timer.sammenlign.bekreftHjelp")}
+            </Text>
+          </View>
+          <Pressable
+            onPress={onBekreft}
+            disabled={bekrefter}
+            className={`mt-3 flex-row items-center justify-center gap-2 rounded-lg py-3 ${
+              bekrefter ? "bg-gray-300" : "bg-sitedoc-blue"
+            }`}
+            accessibilityRole="button"
+          >
+            {bekrefter ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Check size={18} color="#ffffff" />
+            )}
+            <Text className="text-sm font-semibold text-white">
+              {t("timer.sammenlign.bekreft")}
+            </Text>
+          </Pressable>
+        </>
       )}
     </View>
   );

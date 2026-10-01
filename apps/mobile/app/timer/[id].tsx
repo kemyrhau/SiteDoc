@@ -85,6 +85,87 @@ import type {
   MaskinRad,
   UtleggRad,
 } from "../../src/types/timer-detalj";
+import { bekreftConflict } from "../../src/services/timerSync";
+
+/** Felt-settet `forsonDagskort` tar for en rad (uten id = ny rad). */
+type ForsonRad = {
+  projectId: string;
+  byggeplassId?: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  timer: number;
+  fraTid: string;
+  tilTid: string;
+  beskrivelse?: string | null;
+  externalCostObjectId?: string | null;
+};
+
+/**
+ * Lokal timer-rad → forson-payload. Returnerer null når raden mangler et felt serveren
+ * krever (projectId/fra/til) — da kan den ikke forsones, og kalleren avbryter med melding
+ * i stedet for å sende et ugyldig valg inn på lønnsdata.
+ */
+function lokalRadTilForson(r: TimerRad): ForsonRad | null {
+  if (!r.projectId || !r.fraTid || !r.tilTid) return null;
+  return {
+    projectId: r.projectId,
+    byggeplassId: r.byggeplassId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: r.timer,
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    beskrivelse: r.beskrivelse,
+    externalCostObjectId: r.externalCostObjectId,
+  };
+}
+
+/** Narrow form av server-radene forsonDagskort returnerer (unngår dyp tRPC-union / TS2589). */
+type ForsonetServerRad = {
+  id: string;
+  projectId: string | null;
+  byggeplassId: string | null;
+  lonnsartId: string;
+  aktivitetId: string;
+  externalCostObjectId: string | null;
+  timer: number | string;
+  fraTid: string | null;
+  tilTid: string | null;
+  beskrivelse: string | null;
+  pauseMin: number;
+};
+
+/**
+ * Speil det autoritative forsonede rad-settet fra serveren til lokal DB: slett sedelens
+ * lokale timer-rader og sett inn serverens. Server er sannhet (den validerte + skrev i én
+ * transaksjon), så lokal kan ikke divergere fra web etter dette. Timer-radene er sedelens
+ * sync-atom; ingen per-rad sync-status å bevare.
+ */
+function anvendForsonetLokalt(sheetId: string, rader: ForsonetServerRad[]): void {
+  const db = hentDatabase();
+  if (!db) return;
+  const naa = Date.now();
+  db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.dagsseddelId, sheetId)).run();
+  for (const r of rader) {
+    db.insert(sheetTimerLocal)
+      .values({
+        id: r.id,
+        dagsseddelId: sheetId,
+        projectId: r.projectId,
+        byggeplassId: r.byggeplassId,
+        lonnsartId: r.lonnsartId,
+        aktivitetId: r.aktivitetId,
+        externalCostObjectId: r.externalCostObjectId,
+        timer: Number(r.timer),
+        fraTid: r.fraTid,
+        tilTid: r.tilTid,
+        beskrivelse: r.beskrivelse,
+        pauseMin: r.pauseMin ?? 0,
+        sistEndretLokalt: naa,
+      })
+      .run();
+  }
+}
 
 export default function DagsseddelDetalj() {
   const router = useRouter();
@@ -270,6 +351,54 @@ export default function DagsseddelDetalj() {
     }
     return v;
   }, [sammenligning, valgOverstyr]);
+
+  // Steg 2: anvend valgene ATOMISK på web-kortet (forsonDagskort), speil svaret til lokal,
+  // og kvitter ut konflikten. Kun modus B (redigerbart). Fravalgte rader fjernes bevisst.
+  const forsonMutation = trpc.timer.dagsseddel.forsonDagskort.useMutation();
+  const [bekreftFeilTekst, setBekreftFeilTekst] = useState<string | null>(null);
+  const håndterBekreft = useCallback(async () => {
+    if (sammenligning.slag !== "modusB") return;
+    const lokalEtterId = new Map(timerRader.map((r) => [r.id, r]));
+    const oppdateringer: (ForsonRad & { id: string })[] = [];
+    const nyeRader: ForsonRad[] = [];
+    for (const rad of sammenligning.rader) {
+      const v = effektivtValg[rad.tidsrom];
+      if (rad.lokal && rad.server && v === "lokal") {
+        // Valgt-lokal på et tidsrom begge hadde → erstatt server-raden in-place på dens id.
+        const full = lokalEtterId.get(rad.lokal.id);
+        const p = full ? lokalRadTilForson(full) : null;
+        if (!p) {
+          setBekreftFeilTekst(t("timer.sammenlign.radMangler"));
+          return;
+        }
+        oppdateringer.push({ id: rad.server.id, ...p });
+      } else if (rad.lokal && !rad.server) {
+        // Lokal-only beholdt → ny rad på kortet.
+        const full = lokalEtterId.get(rad.lokal.id);
+        const p = full ? lokalRadTilForson(full) : null;
+        if (!p) {
+          setBekreftFeilTekst(t("timer.sammenlign.radMangler"));
+          return;
+        }
+        nyeRader.push(p);
+      }
+      // Valgt-server / server-only beholdt → no-op (ligger alt på kortet).
+    }
+    setBekreftFeilTekst(null);
+    try {
+      const forsonet = (await forsonMutation.mutateAsync({
+        sheetId,
+        oppdateringer,
+        nyeRader,
+      })) as ForsonetServerRad[];
+      anvendForsonetLokalt(sheetId, forsonet);
+      bekreftConflict(sheetId);
+      lesData();
+      oppdaterTellere();
+    } catch {
+      setBekreftFeilTekst(t("timer.sammenlign.bekreftFeil"));
+    }
+  }, [sammenligning, effektivtValg, timerRader, sheetId, forsonMutation, lesData, oppdaterTellere, t]);
 
   const erRedigerbar = useMemo(() => {
     if (!sedel) return false;
@@ -753,13 +882,22 @@ export default function DagsseddelDetalj() {
             redigerbar / modus C låst lesevisning), eller «får ikke kontakt» offline.
             Skriver ingenting i dette steget. */}
         {sedel.syncStatus === "conflict" && (
-          <DagskortSammenligning
-            resultat={sammenligning}
-            valg={effektivtValg}
-            onVelg={(tidsrom, side) =>
-              setValgOverstyr((forrige) => ({ ...forrige, [tidsrom]: side }))
-            }
-          />
+          <>
+            <DagskortSammenligning
+              resultat={sammenligning}
+              valg={effektivtValg}
+              onVelg={(tidsrom, side) =>
+                setValgOverstyr((forrige) => ({ ...forrige, [tidsrom]: side }))
+              }
+              onBekreft={håndterBekreft}
+              bekrefter={forsonMutation.isPending}
+            />
+            {bekreftFeilTekst && (
+              <View className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 p-2.5">
+                <Text className="text-sm text-red-800">{bekreftFeilTekst}</Text>
+              </View>
+            )}
+          </>
         )}
 
         {sedel.syncStatus === "pending" && (

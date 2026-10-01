@@ -50,7 +50,7 @@ import { drizzle } from "drizzle-orm/sql-js";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema";
 import { kjorMigreringer } from "../db/migreringer";
-import { syncTimer } from "./timerSync";
+import { syncTimer, bekreftConflict } from "./timerSync";
 
 const { dagsseddelLocal, sheetTimerLocal } = schema;
 
@@ -361,5 +361,33 @@ describe("syncTimer pull — conflict-vakt (datatap-ordre)", () => {
       .all()[0];
     expect(sedel.lederKommentar).toBe("ny fra server");
     expect(sedel.syncStatus).toBe("synced");
+  });
+});
+
+describe("bekreftConflict — kvitterer ut en LØST konflikt (U-BEKREFT steg 2)", () => {
+  it("conflict → synced, feilmelding nulles (dødkoden vekkes med dekning)", () => {
+    // Sedel i conflict med en feilmelding fra sync-forsøket.
+    seedSedel({ id: "bc-1", dato: "2026-09-20", status: "returned", syncStatus: "conflict" });
+    db()
+      .update(dagsseddelLocal)
+      .set({ feilmelding: "server har en innsendt versjon" })
+      .where(eq(dagsseddelLocal.id, "bc-1"))
+      .run();
+
+    bekreftConflict("bc-1");
+
+    const sedel = sedelFor("bc-1");
+    expect(sedel.syncStatus).toBe("synced");
+    expect(sedel.feilmelding).toBeNull();
+  });
+
+  it("rører ikke andre sedler", () => {
+    seedSedel({ id: "bc-2", dato: "2026-09-20", status: "returned", syncStatus: "conflict" });
+    seedSedel({ id: "bc-3", dato: "2026-09-21", status: "accepted", syncStatus: "conflict" });
+
+    bekreftConflict("bc-2");
+
+    expect(sedelFor("bc-2").syncStatus).toBe("synced");
+    expect(sedelFor("bc-3").syncStatus).toBe("conflict");
   });
 });

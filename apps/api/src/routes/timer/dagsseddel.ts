@@ -86,8 +86,12 @@ async function verifiserKjoretoyTilhørerFirma(
  * timerLockEtterDager (OrganizationSetting) sjekkes kun for status="draft".
  * null = ingen alders-grense.
  */
+// Én kilde for hvilke statuser som er redigerbare. Brukes både av `erRedigerbar` (gate ved
+// start) og av `forsonDagskort`s status-betingede updateMany (TOCTOU-guard i transaksjonen) —
+// de to MÅ aldri drifte, ellers kan guarden slippe en status gaten avviste (eller motsatt).
+const REDIGERBARE_STATUSER = ["draft", "returned"] as const;
 function erRedigerbar(status: string): boolean {
-  return status === "draft" || status === "returned";
+  return (REDIGERBARE_STATUSER as readonly string[]).includes(status);
 }
 
 /**
@@ -211,6 +215,41 @@ function touchSedel(
     where: { id: sheetId },
     data: { updatedAt: new Date() },
   });
+}
+
+/**
+ * Felt-formen for en timer-rad ved opprettelse. ÉN kilde, delt av `tilfoyTimerRad` og
+ * `forsonDagskort` — ingen andre kopi av skrive-feltene (unngår drift mellom to
+ * create-steder). Rene FK-skalarer (unchecked-create), som den eksisterende raden.
+ */
+function byggTimerRadData(
+  sheetId: string,
+  r: {
+    projectId: string;
+    byggeplassId?: string | null;
+    lonnsartId: string;
+    aktivitetId: string;
+    timer: number;
+    fraTid?: string | null;
+    tilTid?: string | null;
+    beskrivelse?: string | null;
+    externalCostObjectId?: string | null;
+    vehicleId?: string | null;
+  },
+): Prisma.SheetTimerUncheckedCreateInput {
+  return {
+    sheetId,
+    projectId: r.projectId,
+    byggeplassId: r.byggeplassId ?? null,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    timer: r.timer,
+    fraTid: r.fraTid ?? null,
+    tilTid: r.tilTid ?? null,
+    beskrivelse: r.beskrivelse ?? null,
+    externalCostObjectId: r.externalCostObjectId ?? null,
+    vehicleId: r.vehicleId ?? null,
+  };
 }
 
 async function sjekkAldersgrense(
@@ -1385,19 +1424,7 @@ export const dagsseddelRouter = router({
       // F4-1d: rad-write + touchSedel atomisk så mobil pull ser den nye raden.
       const [rad] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetTimer.create({
-          data: {
-            sheetId: input.sheetId,
-            projectId: input.projectId,
-            byggeplassId: input.byggeplassId ?? null,
-            lonnsartId: input.lonnsartId,
-            aktivitetId: input.aktivitetId,
-            timer: input.timer,
-            fraTid: input.fraTid ?? null,
-            tilTid: input.tilTid ?? null,
-            beskrivelse: input.beskrivelse ?? null,
-            externalCostObjectId: input.externalCostObjectId ?? null,
-            vehicleId: input.vehicleId ?? null,
-          },
+          data: byggTimerRadData(input.sheetId, input),
         }),
         touchSedel(ctx.prismaTimer, input.sheetId),
       ]);
@@ -1537,6 +1564,247 @@ export const dagsseddelRouter = router({
         touchSedel(ctx.prismaTimer, rad.sheetId),
       ]);
       return slettet;
+    }),
+
+  // U-BEKREFT steg 2 (2026-10-01): FORSON et dagskort i konflikt. Arbeideren har valgt
+  // pr. tidsrom i sammenligningsvisningen; her anvendes valgene ATOMISK på det redigerbare
+  // web-kortet. Komponerer de SAMME skrivereglene som tilfoy/oppdaterTimerRad (byggTimerRadData
+  // + erRedigerbar + firma-grenser + finnOverlappendeTidsrom + validerMaskinUnderArbeid), men i
+  // ÉN $transaction så en halvveis feil etterlater kortet UENDRET — et halvt anvendt valg på
+  // lønnsdata er en tredje tilstand ingen har designet.
+  //
+  // Kun TIMER-rader (det sammenligningsvisningen stiller opp pr. tidsrom). `oppdateringer` =
+  // valgt-lokal på et tidsrom begge hadde → erstatt server-raden IN-PLACE på dens id (ingen
+  // duplikat). `nyeRader` = lokal-only beholdt → opprett. Valgt-server / server-only beholdt er
+  // no-op (ligger alt på kortet). Svaret er det autoritative forsonede settet — klienten
+  // speiler det til lokal, så flatene ikke kan divergere.
+  //
+  // 🔴 Modus C-vern ligger HER, ikke bare i UI-et: et kall mot en sent/accepted sedel avvises
+  // av serveren (PRECONDITION_FAILED). Veien for et låst kort er lederens retur (Kenneth alt A).
+  //
+  // 🔴 Q3(b) — «ingen fjern»-invarianten er IMPLISITT og forutsetter at tomme sider ikke er
+  // trykkbare: visningen (apps/mobile/src/components/timer-detalj/DagskortSammenligning.tsx:89
+  // `kanTrykke`) lar deg aldri velge bort en enkeltstående rad — det fravalgte er alltid den
+  // ANDRE siden av et tidsrom begge hadde. Derfor har denne mutasjonen ingen `fjern`-op.
+  // Tillater en senere UI-endring at en enkeltstående rad velges bort, KAN serveren ikke
+  // uttrykke det — og den som endrer visningen vil ikke se det her. Endres `kanTrykke`, må
+  // forkast-veien bygges inn her samtidig.
+  forsonDagskort: protectedProcedure
+    .input(
+      z.object({
+        sheetId: z.string().uuid(),
+        oppdateringer: z
+          .array(
+            z
+              .object({
+                id: z.string().uuid(),
+                projectId: z.string().uuid(),
+                byggeplassId: z.string().uuid().nullable().optional(),
+                lonnsartId: z.string().uuid(),
+                aktivitetId: z.string().uuid(),
+                timer: z.number().min(0).max(24),
+                fraTid: z.string(),
+                tilTid: z.string(),
+                beskrivelse: z.string().nullable().optional(),
+                externalCostObjectId: z.string().uuid().nullable().optional(),
+                vehicleId: z.string().uuid().nullable().optional(),
+              })
+              .superRefine(refineFraForTil),
+          )
+          .default([]),
+        nyeRader: z
+          .array(
+            z
+              .object({
+                projectId: z.string().uuid(),
+                byggeplassId: z.string().uuid().nullable().optional(),
+                lonnsartId: z.string().uuid(),
+                aktivitetId: z.string().uuid(),
+                timer: z.number().min(0).max(24),
+                fraTid: z.string(),
+                tilTid: z.string(),
+                beskrivelse: z.string().nullable().optional(),
+                externalCostObjectId: z.string().uuid().nullable().optional(),
+                vehicleId: z.string().uuid().nullable().optional(),
+              })
+              .superRefine(refineFraForTil),
+          )
+          .default([]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      // 🔴 Modus C-vern i server-laget: låst sedel kan ikke forsones (retur via leder).
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+      // Nye rader krever aktiv Timer-firmatak (samme grense som tilfoyTimerRad). Oppdatering
+      // av rader som alt finnes gates IKKE (en påbegynt sedel skal ikke bli ulagrbar).
+      if (input.nyeRader.length > 0) {
+        await krevTimerAktivert(sheet.organizationId);
+      }
+      await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+      const alleRader = [...input.oppdateringer, ...input.nyeRader];
+      if (alleRader.length === 0) {
+        // Alt valgt-server → kortet er alt det ene settet. Returner som det står.
+        return ctx.prismaTimer.sheetTimer.findMany({
+          where: { sheetId: input.sheetId },
+          orderBy: { createdAt: "asc" },
+        });
+      }
+
+      // Firma-grenser (samme regler som rad-mutasjonene): prosjekt, lønnsart, aktivitet og
+      // evt. kjøretøy må tilhøre sedelens firma.
+      await verifiserProsjekterTilhørerFirma(
+        Array.from(new Set(alleRader.map((r) => r.projectId))),
+        sheet.organizationId,
+      );
+      const lonnsartIder = Array.from(new Set(alleRader.map((r) => r.lonnsartId)));
+      const aktivitetIder = Array.from(new Set(alleRader.map((r) => r.aktivitetId)));
+      const [lonnsartTreff, aktivitetTreff] = await Promise.all([
+        ctx.prismaTimer.lonnsart.findMany({
+          where: { id: { in: lonnsartIder }, organizationId: sheet.organizationId },
+          select: { id: true },
+        }),
+        ctx.prismaTimer.aktivitet.findMany({
+          where: { id: { in: aktivitetIder }, organizationId: sheet.organizationId },
+          select: { id: true },
+        }),
+      ]);
+      if (lonnsartTreff.length !== lonnsartIder.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Lønnsart finnes ikke i firmaets katalog" });
+      }
+      if (aktivitetTreff.length !== aktivitetIder.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Aktivitet finnes ikke i firmaets katalog" });
+      }
+      const kjoretoyIder = Array.from(
+        new Set(alleRader.map((r) => r.vehicleId).filter((v): v is string => !!v)),
+      );
+      for (const vid of kjoretoyIder) {
+        await verifiserKjoretoyTilhørerFirma(vid, sheet.organizationId);
+      }
+
+      // Bygg SLUTT-settet og valider ÉN gang (ikke per rad — per-rad mot DB-mellomtilstand
+      // ville gi falske overlapp-brudd mens flere rader endres i samme runde). Server-rader
+      // som ikke oppdateres står; oppdaterte får nye verdier; nye legges til.
+      const naavaerende = await ctx.prismaTimer.sheetTimer.findMany({
+        where: { sheetId: input.sheetId },
+      });
+      // 🔴 Hver oppdatering MÅ treffe en eksisterende rad på DETTE kortet (in-place, ingen
+      // duplikat, ingen kryss-sedel-skriving). Ukjent id → avvis.
+      for (const o of input.oppdateringer) {
+        if (!naavaerende.some((r) => r.id === o.id)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Rad som skal erstattes finnes ikke på dagskortet",
+          });
+        }
+      }
+      const oppdatertEtterId = new Map(input.oppdateringer.map((o) => [o.id, o]));
+      type SluttRad = {
+        projectId: string;
+        externalCostObjectId: string | null;
+        timer: number;
+        fraTid: string;
+        tilTid: string;
+      };
+      const sluttTimer: SluttRad[] = [
+        ...naavaerende.map((r): SluttRad => {
+          const o = oppdatertEtterId.get(r.id);
+          return o
+            ? {
+                projectId: o.projectId,
+                externalCostObjectId: o.externalCostObjectId ?? null,
+                timer: o.timer,
+                fraTid: o.fraTid,
+                tilTid: o.tilTid,
+              }
+            : {
+                projectId: r.projectId,
+                externalCostObjectId: r.externalCostObjectId,
+                timer: Number(r.timer),
+                fraTid: r.fraTid ?? "",
+                tilTid: r.tilTid ?? "",
+              };
+        }),
+        ...input.nyeRader.map((r): SluttRad => ({
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId ?? null,
+          timer: r.timer,
+          fraTid: r.fraTid,
+          tilTid: r.tilTid,
+        })),
+      ];
+
+      // Overlapp-vakt på SLUTT-settet (all-pairs), samme delte regel som rad-mutasjonene.
+      const medTid = sluttTimer.filter((r) => r.fraTid && r.tilTid);
+      for (let i = 0; i < medTid.length; i++) {
+        const r = medTid[i]!;
+        const andre = medTid
+          .filter((_, j) => j !== i)
+          .map((x) => ({ fraTid: x.fraTid, tilTid: x.tilTid }));
+        const overlapp = finnOverlappendeTidsrom(r.fraTid, r.tilTid, andre);
+        if (overlapp) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Tidsrommet overlapper en annen rad (${overlapp.fraTid}–${overlapp.tilTid}) på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
+          });
+        }
+      }
+
+      // Maskin-under-arbeid på SLUTT-settet (samme delte bucket-regel).
+      const naa = await hentRaderForValidering(ctx.prismaTimer, input.sheetId);
+      const brytt = validerMaskinUnderArbeid(
+        sluttTimer.map((r) => ({
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
+          timer: r.timer,
+        })),
+        naa.maskin,
+        sheet.pauseMin,
+      );
+      if (brytt.length > 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: await feilMeldingMaskinOverstiger(brytt) });
+      }
+
+      // 🔴 ATOMISK + TOCTOU-lukket: erRedigerbar leses over (:1638) UTENFOR transaksjonen. Blir
+      // sedelen attestert i vinduet mellom validering og skriving, ville en array-$transaction
+      // landet lønnsdata på et låst kort — Kenneths alt A håndhevet i skjermen, ikke i koden.
+      // Vernet er samme mønster som SedelAttestertConflict-guarden (:5131): en status-betinget
+      // updateMany ÅPNER den interaktive tx-en. UPDATE tar radlås til commit, så en samtidig
+      // attestering ser enten draft/returned (vi vinner) eller har alt committet accepted
+      // (count=0 → vi kaster → ALT rulles tilbake). updateMany erstatter samtidig touchSedel
+      // (begge bumper updatedAt). Alle rad-writes + sluttlesningen kjører på samme `tx`.
+      return ctx.prismaTimer.$transaction(async (tx) => {
+        const laast = await tx.dailySheet.updateMany({
+          where: { id: input.sheetId, status: { in: [...REDIGERBARE_STATUSER] } },
+          data: { updatedAt: new Date() },
+        });
+        if (laast.count === 0) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Dagsseddel ble låst under forsoningen — den er attestert. Be leder returnere den.",
+          });
+        }
+        for (const o of input.oppdateringer) {
+          await tx.sheetTimer.update({
+            where: { id: o.id },
+            data: byggTimerRadData(input.sheetId, o),
+          });
+        }
+        for (const r of input.nyeRader) {
+          await tx.sheetTimer.create({ data: byggTimerRadData(input.sheetId, r) });
+        }
+        return tx.sheetTimer.findMany({
+          where: { sheetId: input.sheetId },
+          orderBy: { createdAt: "asc" },
+        });
+      });
     }),
 
   // ----- Tillegg-vedlegg (kvittering) — Funn #2 --------------------------
