@@ -48,7 +48,10 @@ import {
   byggeplassLocal,
 } from "../../src/db/schema";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
+import { useNettverk } from "../../src/providers/NettverkProvider";
 import { trpc } from "../../src/lib/trpc";
+import { dagskortSammenligning, type Side } from "../../src/lib/dagskortSammenligning";
+import { DagskortSammenligning } from "../../src/components/timer-detalj/DagskortSammenligning";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { TimerSeksjon } from "../../src/components/timer-detalj/TimerSeksjon";
@@ -203,6 +206,70 @@ export default function DagsseddelDetalj() {
       aktiv = false;
     };
   }, [sedel?.organizationId]);
+
+  // U-BEKREFT steg 1: sammenligningsvisning ved conflict. Server-radene finnes IKKE
+  // lokalt under conflict (timerSync beholder kun lokale rader) → hent web-kortet LIVE
+  // via hentMedId, kun når sedelen er i conflict OG vi har nett. Offline → ingen
+  // server-side → «får ikke kontakt» (ikke tomt panel). Leser kun; skriver aldri.
+  const { erPaaNettet } = useNettverk();
+  const erKonflikt = sedel?.syncStatus === "conflict";
+  const webKortQuery = trpc.timer.dagsseddel.hentMedId.useQuery(
+    { id: sheetId },
+    { enabled: !!erKonflikt && erPaaNettet && !!sheetId },
+  );
+  // Smal cast av det dypt-inferrede tRPC-svaret FØR bruk — ellers TS2589 (dyp union)
+  // når .map/useMemo ekspanderer hele hentMedId-outputen. Vi trenger kun hode-status
+  // og timer-radenes fire sammenlignings-felt + visningsfelt.
+  const webKortData = webKortQuery.data as
+    | {
+        status: string;
+        timer: Array<{
+          id: string;
+          fraTid: string | null;
+          tilTid: string | null;
+          timer: number | string;
+          projectId: string | null;
+          lonnsartId: string | null;
+          beskrivelse: string | null;
+        }>;
+      }
+    | undefined;
+  const sammenligning = useMemo(
+    () =>
+      dagskortSammenligning({
+        nettStatus: erPaaNettet ? "online" : "offline",
+        webLaster: webKortQuery.isLoading,
+        webKort: webKortData
+          ? {
+              status: webKortData.status as "draft" | "returned" | "sent" | "accepted",
+              // Server-radenes `timer` kommer som streng (Prisma Decimal) — normaliser til
+              // tall så sammenligningen står på samme enhet som de lokale (Drizzle real).
+              timer: webKortData.timer.map((r) => ({
+                id: r.id,
+                fraTid: r.fraTid,
+                tilTid: r.tilTid,
+                timer: Number(r.timer),
+                projectId: r.projectId,
+                lonnsartId: r.lonnsartId,
+                beskrivelse: r.beskrivelse,
+              })),
+            }
+          : null,
+        lokaleTimer: timerRader,
+      }),
+    [erPaaNettet, webKortQuery.isLoading, webKortData, timerRader],
+  );
+  // Radvalg registreres i skjerm-state (modus B), men anvendes IKKE i steg 1 —
+  // overstyrer bare forhåndsvalget fra den rene funksjonen. Ingen skrivevei.
+  const [valgOverstyr, setValgOverstyr] = useState<Record<string, Side>>({});
+  const effektivtValg = useMemo(() => {
+    if (sammenligning.slag !== "modusB" && sammenligning.slag !== "modusC") return {};
+    const v: Record<string, Side> = {};
+    for (const rad of sammenligning.rader) {
+      v[rad.tidsrom] = valgOverstyr[rad.tidsrom] ?? rad.valgt;
+    }
+    return v;
+  }, [sammenligning, valgOverstyr]);
 
   const erRedigerbar = useMemo(() => {
     if (!sedel) return false;
@@ -681,21 +748,18 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
+        {/* U-BEKREFT steg 1: det røde conflict-banneret peker nå HIT — sammenlignings-
+            visningen er den ekte veien videre. Viser begge dagskort pr. tidsrom (modus B
+            redigerbar / modus C låst lesevisning), eller «får ikke kontakt» offline.
+            Skriver ingenting i dette steget. */}
         {sedel.syncStatus === "conflict" && (
-          <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
-            <View className="flex-row items-center gap-2">
-              <AlertTriangle size={16} color="#b91c1c" />
-              <Text className="text-sm font-semibold text-red-900">
-                {t("timer.sync.konflikt")}
-              </Text>
-            </View>
-            <Text className="mt-1 text-sm text-red-800">
-              {sedel.feilmelding ??
-                (sedel.status === "returned" || sedel.status === "draft"
-                  ? t("timer.sync.konfliktReturnertBeskrivelse")
-                  : t("timer.sync.konfliktBeskrivelse"))}
-            </Text>
-          </View>
+          <DagskortSammenligning
+            resultat={sammenligning}
+            valg={effektivtValg}
+            onVelg={(tidsrom, side) =>
+              setValgOverstyr((forrige) => ({ ...forrige, [tidsrom]: side }))
+            }
+          />
         )}
 
         {sedel.syncStatus === "pending" && (
