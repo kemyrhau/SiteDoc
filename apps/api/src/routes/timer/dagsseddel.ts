@@ -13,6 +13,11 @@ import {
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
+  krevRadInnenforTak,
+  maksForSatsEnhet,
+  takFeilmelding,
+} from "./rad-tak";
+import {
   harGyldigMaskinforerbevis,
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
@@ -1326,7 +1331,9 @@ export const dagsseddelRouter = router({
         byggeplassId: z.string().uuid().nullable().optional(),
         lonnsartId: z.string().uuid(),
         aktivitetId: z.string().uuid(),
-        timer: z.number().min(0).max(24),
+        // LAG 0a (H5): Zod kjenner ikke lønnsarten, så det faste taket er fjernet
+        // her. Km-/time-taket legges lønnsart-bevisst i handleren (rad-tak.ts).
+        timer: z.number().min(0),
         fraTid: z.string().nullable().optional(),
         tilTid: z.string().nullable().optional(),
         // T.12: fritekst per rad («hva jeg gjorde»).
@@ -1384,6 +1391,9 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // LAG 0a (H5): lønnsart-bevisst tak. per_km → km-tak, ellers 24 timer.
+      krevRadInnenforTak(input.timer, lonnsart.satsEnhet);
+
       // Fase 1b: firma-grense på rad-projectId (lukker cross-firma-lekkasje).
       await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
 
@@ -1437,7 +1447,8 @@ export const dagsseddelRouter = router({
         id: z.string().uuid(),
         lonnsartId: z.string().uuid().optional(),
         aktivitetId: z.string().uuid().optional(),
-        timer: z.number().min(0).max(24).optional(),
+        // LAG 0a (H5): tak fjernet fra Zod — settes lønnsart-bevisst i handleren.
+        timer: z.number().min(0).optional(),
         // T.12: fritekst per rad («hva jeg gjorde»).
         beskrivelse: z.string().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
@@ -1475,6 +1486,21 @@ export const dagsseddelRouter = router({
         });
       }
       await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+      // LAG 0a (H5): lønnsart-bevisst tak. Handleren laster ikke lønnsarten ellers,
+      // så vi henter satsEnhet for den EFFEKTIVE lønnsarten (ny hvis satt, ellers
+      // radens egen) når enten verdien eller lønnsarten endres — et bytte til en
+      // time-lønnsart uten å endre en km-verdi skal også fanges. Ukjent lønnsart →
+      // satsEnhet=null → konservativt 24-tak.
+      if (input.timer !== undefined || input.lonnsartId !== undefined) {
+        const effektivLonnsartId = input.lonnsartId ?? rad.lonnsartId;
+        const effektivTimer = input.timer ?? Number(rad.timer);
+        const lonnsart = await ctx.prismaTimer.lonnsart.findFirst({
+          where: { id: effektivLonnsartId, organizationId: sheet.organizationId },
+          select: { satsEnhet: true },
+        });
+        krevRadInnenforTak(effektivTimer, lonnsart?.satsEnhet);
+      }
 
       const data: Prisma.SheetTimerUpdateInput = {};
       if (input.lonnsartId !== undefined) {
@@ -1602,7 +1628,8 @@ export const dagsseddelRouter = router({
                 byggeplassId: z.string().uuid().nullable().optional(),
                 lonnsartId: z.string().uuid(),
                 aktivitetId: z.string().uuid(),
-                timer: z.number().min(0).max(24),
+                // LAG 0a (H5): tak settes lønnsart-bevisst i handleren (rad-tak.ts).
+                timer: z.number().min(0),
                 fraTid: z.string(),
                 tilTid: z.string(),
                 beskrivelse: z.string().nullable().optional(),
@@ -1620,7 +1647,8 @@ export const dagsseddelRouter = router({
                 byggeplassId: z.string().uuid().nullable().optional(),
                 lonnsartId: z.string().uuid(),
                 aktivitetId: z.string().uuid(),
-                timer: z.number().min(0).max(24),
+                // LAG 0a (H5): tak settes lønnsart-bevisst i handleren (rad-tak.ts).
+                timer: z.number().min(0),
                 fraTid: z.string(),
                 tilTid: z.string(),
                 beskrivelse: z.string().nullable().optional(),
@@ -1668,7 +1696,9 @@ export const dagsseddelRouter = router({
       const [lonnsartTreff, aktivitetTreff] = await Promise.all([
         ctx.prismaTimer.lonnsart.findMany({
           where: { id: { in: lonnsartIder }, organizationId: sheet.organizationId },
-          select: { id: true },
+          // LAG 0a (H5): satsEnhet lastes for det lønnsart-bevisste taket (én
+          // spørring for alle rader, ikke pr. rad).
+          select: { id: true, satsEnhet: true },
         }),
         ctx.prismaTimer.aktivitet.findMany({
           where: { id: { in: aktivitetIder }, organizationId: sheet.organizationId },
@@ -1680,6 +1710,13 @@ export const dagsseddelRouter = router({
       }
       if (aktivitetTreff.length !== aktivitetIder.length) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Aktivitet finnes ikke i firmaets katalog" });
+      }
+      // LAG 0a (H5): lønnsart-bevisst tak pr. rad fra det delte opplaget over.
+      const satsEnhetEtterLonnsart = new Map(
+        lonnsartTreff.map((l) => [l.id, l.satsEnhet]),
+      );
+      for (const r of alleRader) {
+        krevRadInnenforTak(r.timer, satsEnhetEtterLonnsart.get(r.lonnsartId));
       }
       const kjoretoyIder = Array.from(
         new Set(alleRader.map((r) => r.vehicleId).filter((v): v is string => !!v)),
@@ -3690,6 +3727,29 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // LAG 0a (H5): lønnsart-bevisst tak på de nye timer-radene. Dette er veien
+      // som manglet taket helt (.positive(), intet maks, lastet ikke lønnsarten) —
+      // en firma-admin kunne føre 25 timer her. Ett batch-oppslag på satsEnhet,
+      // samme regel som de andre skrivestiene. Ukjent lønnsart → 24-tak.
+      if (input.nyeRader.timer.length > 0) {
+        const redigerLonnsartIder = Array.from(
+          new Set(input.nyeRader.timer.map((r) => r.lonnsartId)),
+        );
+        const redigerLonnsarter = await ctx.prismaTimer.lonnsart.findMany({
+          where: {
+            id: { in: redigerLonnsartIder },
+            organizationId: sheet.organizationId,
+          },
+          select: { id: true, satsEnhet: true },
+        });
+        const redigerSatsEnhet = new Map(
+          redigerLonnsarter.map((l) => [l.id, l.satsEnhet]),
+        );
+        for (const r of input.nyeRader.timer) {
+          krevRadInnenforTak(r.timer, redigerSatsEnhet.get(r.lonnsartId));
+        }
+      }
+
       const naa = new Date();
       const antallErstattet =
         eksTimer.length + eksTillegg.length + eksMaskin.length;
@@ -4667,7 +4727,8 @@ export const dagsseddelRouter = router({
                 lonnsartId: z.string().uuid(),
                 aktivitetId: z.string().uuid(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
-                timer: z.number().min(0).max(24),
+                // LAG 0a (H5): tak settes lønnsart-bevisst i handleren (rad-tak.ts).
+                timer: z.number().min(0),
                 // SYNC-2 (2026-07-10): fra/til per rad — MÅ deklareres her ellers
                 // stripper Zod dem (T4-d koblet kun lese-/online-siden, aldri
                 // sync-skrivesiden → tider ført på web ble slettet ved mobilsynk).
@@ -4882,7 +4943,8 @@ export const dagsseddelRouter = router({
               ? Promise.resolve([])
               : ctx.prismaTimer.lonnsart.findMany({
                   where: { id: { in: lonnsartIder }, organizationId: orgId },
-                  select: { id: true },
+                  // LAG 0a (H5): satsEnhet for det lønnsart-bevisste taket.
+                  select: { id: true, satsEnhet: true },
                 }),
             aktivitetIderIRader.length === 0
               ? Promise.resolve([])
@@ -4902,6 +4964,27 @@ export const dagsseddelRouter = router({
               clientUuid: lokal.clientUuid,
               resultat: "avvist",
               feilmelding: "En eller flere lønnsarter finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+          // LAG 0a (H5): lønnsart-bevisst tak pr. timer-rad fra det delte opplaget
+          // over. syncBatch kaster ikke — den avviser pr. sedel (push + continue),
+          // så vi bruker maksForSatsEnhet/takFeilmelding direkte i stedet for
+          // krevRadInnenforTak. Ukjent satsEnhet → 24-tak (konservativt).
+          const syncSatsEnhet = new Map(
+            lonnsartTreff.map((l) => [l.id, l.satsEnhet]),
+          );
+          const overskridendeTimerRad = lokal.timer.find(
+            (t) => t.timer > maksForSatsEnhet(syncSatsEnhet.get(t.lonnsartId)),
+          );
+          if (overskridendeTimerRad) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding: takFeilmelding(
+                overskridendeTimerRad.timer,
+                syncSatsEnhet.get(overskridendeTimerRad.lonnsartId),
+              ),
             });
             continue;
           }
