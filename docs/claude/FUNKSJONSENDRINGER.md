@@ -25,6 +25,22 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-01
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `e4866f8d` + `9c7c1ad1` | **Dagsseddel i mobilappen** — når telefonen og web har rørt samme dato | **Før:** rødt banner «Server-versjonen vant», ingen opplysning om hva serveren har, og eneste knapp slettet arbeiderens timer. **Etter:** banneret peker til en **sammenligning av begge dagskort pr. tidsrom**. Arbeideren velger **pr. rad** hva som er rett, retter i skjermen, og bekrefter — resultatet er **ETT dagskort**. Er web-kortet sendt/attestert: lesevisning, og han ber lederen returnere det | 🟢 **Kenneth 2026-09-30:** *«vi må vise begge registreringer og bruker må velge hvilken som er rett -> evt mest rett»* + *«vi skal ende opp med et utfylt dagskort -> verifiserbart på begge flater»*. Tre presiseringer bekreftet av ham: valg pr. rad · sammenligning pr. tidsrom · visningen brukes også uten konflikt |
+| `9c7c1ad1` | Samme — attestert dagskort | **Arbeideren kan se begge sett, men ikke endre.** Vernet i **to lag**: lesevisning i appen, og serveren avviser kallet | 🟢 **Kenneth 2026-09-30, alternativ A.** Serveren har håndhevet grensen siden 2026-07-09 (`dagsseddel.ts:2159-2164`) — dette gjør den synlig i forkant i stedet for som en blokkering |
+
+⚠️ **Skrivingen er atomisk, og det var et valg:** én mutasjon i stedet for en sekvens av
+eksisterende kall. **Et halvveis anvendt valg er samme feilklasse som det stille datatapet** —
+et dagskort i en tilstand ingen har valgt, på lønnsdata.
+
+🔴 **Kontrolløren fant et TOCTOU-vindu før merge:** redigerbarhets-sjekken lå utenfor
+transaksjonen, så en bulk-skriving kunne landet på et kort som ble attestert i vinduet. **Da
+ville alternativ A vært håndhevet i skjermen, men ikke i koden.** Lukket med status-betinget
+`updateMany` som åpner den interaktive transaksjonen.
+
 ### 2026-09-30
 
 | Hash | Flate | Før → Etter | Hjemmel |

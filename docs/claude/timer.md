@@ -1860,3 +1860,27 @@ Eksport til lønnssystem (Poweroffice/Tripletex/etc.) går via egen `timer.ekspo
 > - **Arbeidstidskalender** → Variant C: manuelt + import-knapp. Detaljer i § Database-modeller > `arbeidstidskalender` ovenfor.
 > - **PDF-rapporter** → Hybrid dynamisk arkitektur (per § Rapportmodul ovenfor). 20 forhåndsdefinerte rapport-typer er forkastet til fordel for én generator + 4 standard-presets + lagrede konfigurasjoner.
 > - **Drømmescenario ProAdm → SiteDoc Godkjenning** → Backlog. Ikke implementeres i Fase 3.
+
+## 🟡 Systemisk funn 2026-10-01 — TOCTOU-vindu i rad-mutasjonene
+
+**Funnet av kontrolløren under gaten av `forsonDagskort`.** `erRedigerbar`-sjekken leses
+**utenfor** transaksjonen i `tilfoyTimerRad`, `oppdater*` og `slett*`
+(`apps/api/src/routes/timer/dagsseddel.ts`). **Blir dagsseddelen attestert i vinduet mellom
+sjekk og skriving, lander endringen på et låst kort.**
+
+🟢 **`forsonDagskort` er lukket** (`9c7c1ad1`): status-betinget `updateMany` åpner den
+interaktive transaksjonen, UPDATE tar radlås til commit, `count === 0` → `PRECONDITION_FAILED`
+og full tilbakerulling. **Mønsteret er det samme som `SedelAttestertConflict`-vernet.**
+
+🔴 **De tre eldre er IKKE lukket. Ikke bestilt — ført her så det ikke bare lever i en
+gitignorert innboks.**
+
+| Forhold | Vurdering |
+|---|---|
+| Utfall | **Mindre enn `forsonDagskort`** — de skriver én rad, ikke hele dagen |
+| Vei inn | Smal: `returned → accepted` krever samtidig `sendInn` + leder-attestering (`:2310`) |
+| Vernet | **Ligger ferdig i samme fil** — mønsteret er etablert, så en fiks er mekanisk |
+
+⚠️ **Dette er ikke «akseptert risiko» — det er et uløst funn.** Kenneth har ikke tatt stilling
+til det, og en føring som sier at risikoen er godtatt ville vært et vedtak ingen har fattet.
+
