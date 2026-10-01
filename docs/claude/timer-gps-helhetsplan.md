@@ -174,6 +174,11 @@ flaten sier «uten bånd velges på navn» — den hopper over midterste ledd.
 
 **Disse er uavhengige av hele GPS-modellen og retter feil som rammer i dag.**
 
+🟡 **BESTILT av Kenneth 2026-10-02** («bestill lag 0»). Rammene ligger i `relay/inbox-orkestrator.md`
+(samme dato): 0a lønnsart-bevisst symmetrisk validering uten km-felt (K4 åpen) · 0b kun
+beregn/anvend-splitt med null atferdsendring og karakteriseringstester først. Orkestrator sender
+agent-ordrene; hash meldes til fabel, som fører LEVERT her.
+
 | Sak | Hull | Hvorfor nå |
 |---|---|---|
 | **24-taket på km-rader** | H5 | En kjøregodtgjørelse over 24 km avvises i dag. Rammer alle som fører km, ikke bare sjåfører. **Og de to veiene er usymmetriske** — `syncBatch` har ikke taket |
