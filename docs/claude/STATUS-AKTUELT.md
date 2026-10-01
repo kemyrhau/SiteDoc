@@ -10,6 +10,13 @@ sist_verifisert_mot_kode: 2026-08-09
 > ikke står andre steder ennå. **Uten den må du rekonstruere alt fra `relay/` — som er
 > gitignorert og ikke synkes mellom arbeidstrær.**
 
+> 🔴 **TIMER + GPS-KOMPLEKSET ER UNDER PLAN, IKKE UNDER BYGGING (2026-10-01).**
+> [timer-gps-helhetsplan.md](timer-gps-helhetsplan.md) — fem lag, 20 hull, ni beslutninger.
+> **To ordrer er merket HOLDT** (`inbox-dokgen-byggeplass-origo`,
+> `inbox-kontrollplan-bekreft-dagsforslag`). **Kun LAG 0 kan bestilles.**
+> ⚠️ **Kenneth 2026-10-01:** *«det er ikke bare å bygge i vei»* — orkestratoren bestilte kode i
+> hver runde mens modellen ennå ble formet, og to ordrer motsa hverandre.
+
 # 🔴 TAVLA — hvem sitter hvor
 
 **Eneste skribent: orkestrator** (cowork-rollen utgikk 2026-09-30). 🔴 **Føres FRA MÅLING — `git log

@@ -23,6 +23,12 @@ påvirkes_av_beslutninger:
 
 # Timeregistrering — Fase 3
 
+> 🔴 **GPS, reise og flere prosjekter pr. dag: les
+> [timer-gps-helhetsplan.md](timer-gps-helhetsplan.md) FØR noe bestilles.**
+> Fem lag med bindende rekkefølge, 20 målte hull og ni beslutninger som venter på Kenneth.
+> KS-et av fabel 2026-10-01. **Kun LAG 0 kan trygt bestilles i dag.**
+
+
 ## Implementasjonsstatus per 2026-05-01
 
 Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet refererer til **planlagt** datamodell/UI hvis ikke annet er merket eksplisitt.
