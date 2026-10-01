@@ -254,6 +254,67 @@ atferd tilsvarer **forslag**, uten innstilling og uten avvikslogg.
 ⚠️ **Og juks-grensen står:** serveren kan **flagge** en påstått koordinat, ikke hindre spoofing.
 **GPS er et hjelpemiddel, ikke et lønnsbevis.**
 
+### 🟢 REISE/KM-MÅLINGEN (2026-10-01) — to av fem ledd er ALLEREDE BYGGET
+
+🔴 **Dette var det store funnet, og det motsier antakelsen om at modellen må bygges fra null.**
+
+| Hva | Status | Bevis |
+|---|---|---|
+| **Oppmøtested-gjenkjenning** | 🟢 **Bygget og i drift** | `useArbeidsdag.ts:71-87`, kalt `:143` ved «Start dag». Nærmeste innenfor egen radius. Mobil-cache `oppmotestedKatalog.ts`. **Radius valideres 10–5000 m** (`oppmotested.ts:66`) |
+| **Tid OG km til prosjektet** | 🟢 **Bygget — for ÉN akse** | `ReisetidMatrise` (`db/schema.prisma:2788-2807`): `kjoretidMin` **og** `avstandM` i METER, fra **ekte OSRM-ruting** (`rute-service.ts:100-120`, `annotations=duration,distance`). Hendelsesdrevet vedlikeholdt, **tilgjengelig offline** (`reisetidMatriseKatalog.ts`) |
+| **Reise som lønn** | 🟢 Bygget, klient-side | Firma-regelsett (`db/schema.prisma:442-471`): terskel i **minutter ELLER meter**, + avstandsbånd → lønnsart (`shared/utils/reise.ts:85-157`) |
+
+🔴 **MEN aksen er `@@unique([oppmotestedId, byggeplassId])`** — **kontor × byggeplass.**
+**Sjåførens rute er byggeplass → byggeplass → byggeplass. Den aksen finnes ikke.**
+
+### 🔴 Fire hull som er konkrete, ikke prinsipielle
+
+**1. Avstanden kastes.** Matrisen HAR meter. De brukes til å velge lønnsart — og lagres så
+**ingen steder**. Reise-raden er en naken timer-verdi: `fraTid: null`, `tilTid: null`
+(`StartSluttDagKort.tsx:866-888`), ingen km, ingen fra-sted, ingen til-sted, ingen
+oppmøtested-referanse. **Ingen kan etterprøve hvorfor den ble som den ble.**
+
+**2. 🔴 Km finnes ikke som størrelse.** Det er **intet km-felt** i hele timer-modulen. Kilometer
+skrives inn i feltet som heter `timer` — **med tak på 24** (`dagsseddel.ts:1329`
+`z.number().min(0).max(24)`). **En rad på «Kilometergodtgjørelse» kan altså ikke overstige 24 km
+på den interaktive veien.** ⚠️ `syncBatch` har ikke taket (`:3528`, `:3551`) — **de to veiene er
+usymmetriske.** Og `satsEnhet = per_km` er en etikett som aldri ganges med noe: `sats` leses
+kun til `attestertSnapshot`.
+
+**3. 🔴 Serveren har NULL reiselogikk.** `grep -ic reise apps/api/src/routes/timer/dagsseddel.ts`
+= **0**. Hele reise-modellen lever i mobil-klienten pluss firmainnstillinger. **Web-dagsseddelen
+kan ikke generere reise, og serveren kan ikke etterprøve en reise-rad.**
+
+**4. `vehicleId` på timeraden er en MEKANIKER-funksjon** (`db-timer/schema.prisma:231-236`) —
+«timene en mekaniker fører på vedlikehold av en maskin». **Ikke en sjåfør-funksjon.** Det finnes
+ingen leveranse-, tur- eller lass-entitet. **Sjåfør er ikke modellert, ikke spesifisert og ikke
+nevnt i dokumentasjonen** (målt med flere søkeformer).
+
+### 🟡 Doktrine-spenningen, presist
+
+`useArbeidsdag.ts:69-70`: oppmøtested-treffet er «KUN dokumentasjon + forslag — aldri
+lønnsgrunnlag». **Men `StartSluttDagKort.tsx:473` gjør `oppmotestedId` til betingelsen for at en
+reise-lønnsart-rad i det hele tatt foreslås.**
+
+🟢 **Påstanden holder — men bare fordi arbeideren godkjenner utkastet.** Det er nøyaktig G1 i
+praksis, og det er nok et argument for at bekreftelsessteget er bærende, ikke kosmetisk.
+
+### 🟡 «Utenfor alle oppmøtesteder» skiller ikke to ulike ting
+
+`null` betyr både **«startet hjemmefra»** (doktrine: ikke kompensert, `timer.md:1086`) og
+**«GPS var avslått»** (`useArbeidsdag.ts:55` returnerer `{null, null}`). **Samme utfall, ulik
+årsak, ingen melding til brukeren.**
+
+### 🟡 Beslutninger som venter — målt som fravær, ikke som feil
+
+- **Oppmøtested × byggeplass overlapper:** begge gjenkjennes uavhengig på samme punkt og begge
+  lagres (`useArbeidsdag.ts:143-144`). **Ingen kode forener dem.** Og matrise-oppslaget ignorerer
+  det GPS-identifiserte byggeplass-treffet — det bruker `resolverPrimaerByggeplass` i stedet.
+- **To oppmøtesteder kan overlappe fritt** — eneste skranke er unikt NAVN, ikke geometri.
+- **Radius-spennene er vilt ulike:** oppmøtested 10–5000 m, byggeplass 1–100 000 m. Ingen delt
+  konstant.
+- **Avdeling på oppmøtested har ingen leser** utenfor admin-tabellen — ren merkelapp i dag.
+
 ### Hva som må på plass, i rekkefølge
 
 | Ledd | Hviler på | Status |
