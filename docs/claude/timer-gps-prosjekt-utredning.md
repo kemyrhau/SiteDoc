@@ -151,6 +151,120 @@ Arbeider beveger seg mellom flere byggeplasser/prosjekter samme dag. Hvordan hå
 
 ---
 
+## 🔴 KENNETHS MODELL + REMÅLING MOT KODE 2026-10-01
+
+> **Kenneth 2026-10-01, hans egne ord:**
+> *«sjekk gps. hvor starter timeføringen · starter den på et oppmøtested · hvor langt tid/km er
+> det til prosjektet? · hvilket prosjekt kommer vi til → registrer prosjekt! · reiser vi til
+> annet prosjekt underveis på arbeidsdagen? registrer arbeidstid der!»*
+>
+> *«den mest avanserte timeføringen skjer hos en sjåfør som leverer til mange prosjekter»*
+
+**Målt av to agenter parallelt, verifisert av orkestrator.** ⚠️ **Reise/km-leddet er ennå ikke
+målt** — egen agent kjører, seksjonen suppleres.
+
+### 🟢 Dette svarer på BESLUTNING 6, og det bryter IKKE G1
+
+**BESLUTNING 6 (multi-byggeplass-dager) er nå besvart av Kenneth:** flere prosjekter på én dag
+skal registreres, hver med sin arbeidstid.
+
+🔴 **Og det står ikke i strid med G1** («GPS = friksjonsfjerner + bevis, ikke hard port;
+arbeider-valg forblir autoritativt») — **forutsatt at bekreftelsessteget finnes.** Kenneth
+vedtok begge samme dag: GPS **foreslår** prosjekt pr. segment, og arbeideren **bekrefter eller
+retter** før noe blir et dagskort (U-BEKREFT modus A, `mobil-dagsseddel-ui-spec.md § 6.2`).
+**Uten bekreftelsessteget blir GPS en hard port, og da faller G1.** De to vedtakene er ett
+system, ikke to saker.
+
+### 🟢 Serveren er allerede klar — mobilen er ikke
+
+| Lag | Status |
+|---|---|
+| **Server** | 🟢 **Flerprosjekt-klar siden T.1 (2026-05-11).** `DailySheet` har ingen `projectId` (`db-timer/schema.prisma:156-157`), unik er `@@unique([userId, dato])` (`:196`), prosjekt ligger på `SheetTimer.projectId` (`:221`). **Ingen migrering kreves** |
+| **Web + manuell mobil** | 🟢 Flerprosjekt-sedel er et levende UI-konsept — prosjektgrupper, «+ Legg til prosjekt» |
+| 🔴 **GPS-auto-veien på mobil** | 🔴 **Enkelt-prosjekt ved konstruksjon** |
+| 🔴 **Lokal mobil-base** | 🔴 `dagsseddelLocal.projectId` er fortsatt `.notNull()` — gjelden `timer.md:124` navngir som utløst av nettopp «mobil-flerprosjekt-dagsseddel» |
+
+### 🔴 Forutsetninger i koden som modellen bryter
+
+1. **Ett prosjektvalg pr. arbeidsdag, tatt på ETT GPS-punkt** (`StartSluttDagKort.tsx:436-451`)
+   — startposisjon, sluttposisjon som reserve. Alle rader arver det, inkl. reiseraden.
+2. 🔴 **Ingen avstandsgrense i auto-veien.** Nærmeste prosjekt vinner uansett avstand, og uten
+   koordinater tas `prosjekter[0]` — **stille**. Den manuelle veien har til sammenligning et
+   hardkodet tak på 500 m (`timer/ny.tsx:139`). **To innganger, uenige om når GPS har rett.**
+3. **«Segment» = kalenderdøgn, ikke sted** (`utils/dagsegment.ts:93-94`). Grensen er lokal
+   midnatt. Et prosjektbytte midt på dagen produserer ikke et nytt segment, og segmenttypen har
+   ingen stedsfelt.
+4. **«Én arbeidsdag = én byggeplass»** står eksplisitt i koden (`StartSluttDagKort.tsx:596-598`).
+5. 🔴 **Posisjon fanges kun to ganger** — ved start og ved slutt (`db/schema.ts:362-366`). **Ingen
+   sporing underveis, ingen tabell for det** (målt negativt, to søkeformer). **Sjåfør-leddet har
+   ingen data å utledes fra.**
+6. **Arbeidsdagen synkes ALDRI til server** (`db/schema.ts:352-353`). Posisjonen dør på enheten;
+   serveren får resultatet uten beviset. **Ingen etterprøvbarhet.**
+7. 🔴 **Overlapp er forbudt på tvers av prosjekt, håndhevet klient OG server**
+   (`tidsromValidering.ts:4-7`, `dagsseddel.ts:635`, `:1750`). Prosjektbytte må uttrykkes som
+   adskilte klokkevinduer. **«To prosjekter samtidig» er ikke uttrykkbart** — og det er trolig
+   riktig.
+8. **Dagsnorm, overtid, pause og reise fordeles pr. døgn-segment, ikke pr. prosjekt.**
+9. **Play-raden viker HELT ved overlapp** (`StartSluttDagKort.tsx:829-832`) — en GPS-rad for
+   prosjekt B droppes i sin helhet mot en manuell rad på prosjekt A. Ingen splitting.
+
+### 🔴 Dataene modellen hviler på finnes stort sett ikke
+
+| Sted | Geofence | Konsekvens |
+|---|---|---|
+| **Oppmøtested** | 🟢 **PÅKREVD** — `lat Float`, `lng Float`, `radiusM Int @default(150)` (`db/schema.prisma:2759-2761`) | **Første ledd i modellen er fast grunn.** «Startet dagen på et oppmøtested» kan avgjøres i dag |
+| **Byggeplass** | 🔴 **VALGFRI** — alle tre nullable (`:1043-1045`), og **ikke med i `createByggeplassSchema`** (`validation/index.ts:95-101`) i det hele tatt | Geofence oppstår bare hvis noen georefererer en tegning, eller taster den manuelt etterpå. **En arbeider på en byggeplass uten geofence får `null`, ikke en feilmelding** |
+| **Prosjekt** | 🔴 **Punkt, men INGEN radius** (`db/schema.prisma:652-653`) | Derfor de to improviserte reglene i punkt 2 over |
+
+### 🔴 Fire konkurrerende definisjoner av «jeg er her»
+
+`byggeplassKatalog.ts:72-96` (byggeplass, egen radius) · `useArbeidsdag.ts:71-87` (oppmøtested,
+egen radius) · `timer/ny.tsx:131-142` (prosjekt, hardkodet 500 m) · `StartSluttDagKort.tsx:441-451`
+(prosjekt, **ingen grense**). **Alle fire bor på mobilen. Ingen er delt. Ingen er testet.**
+
+🔴 **`haversineKm` finnes KUN i `apps/mobile/src/utils/geo.ts:6-21`** — ikke i `packages/shared`.
+**Server og web kan ikke regne avstand mot en geofence i det hele tatt.**
+
+### 🔴 Koden forbyr i dag eksplisitt det modellen krever
+
+**Tre steder, ordrett:** *«KUN dokumentasjon — aldri lønn/reise/prosjektvalg»*
+(`byggeplassKatalog.ts:70`, `useArbeidsdag.ts:141-142`, `db/schema.ts:374`).
+
+**Og `mannskap.md:347-349`:** innsjekkstid skal **ikke** brukes som forslag til arbeidstid;
+«pauser inne i geofence er ikke arbeidstid».
+
+🔴 **Dette er vedtak, ikke forglemmelser. De må reverseres bevisst og føres — ikke rives ved
+uhell.** ⚠️ **Og G1-grensen består:** det som reverseres er «GPS foreslår aldri prosjekt», ikke
+«arbeider-valg er autoritativt». Bekreftelsessteget er det som holder den forskjellen.
+
+### 🟡 PSI er ikke en snarvei
+
+`sjekkInn` tar **ingen koordinat** (`mannskap.ts:179-186`); `kilde="geofence"` er **kun en
+etikett**. 12-timers auto-utsjekk er rent tidsbasert (`:43-53`). `mannskap.md:19`:
+geofence-innsjekk er **Fase C, ubygd, og krever juridisk sign-off.**
+
+**Nærmeste eksisterende posisjon→sted-eksempel er timer-mobilens egne funksjoner**, ikke PSI.
+
+### 🟡 Håndhevingsnivået er parkert — av Kenneth selv
+
+`psi-geofence-handhevning-utredning.md` har fire nivåer (av · forslag · advarsel · blokkering)
+og anbefaler **advarsel** som standard. **Parkert 2026-07-15, ingenting bygget.** Dagens faktiske
+atferd tilsvarer **forslag**, uten innstilling og uten avvikslogg.
+
+⚠️ **Og juks-grensen står:** serveren kan **flagge** en påstått koordinat, ikke hindre spoofing.
+**GPS er et hjelpemiddel, ikke et lønnsbevis.**
+
+### Hva som må på plass, i rekkefølge
+
+| Ledd | Hviler på | Status |
+|---|---|---|
+| **1. Startet dagen på oppmøtested?** | Oppmøtested-geofence (påkrevd) | 🟢 **Byggbart nå** |
+| **2. Hvilket prosjekt kom vi til?** | At prosjekter/byggeplasser FAKTISK har geofence | 🔴 **Dataopprydding først** — geofence må inn i opprettelsen av en byggeplass, ellers er utledningen tom |
+| **3. Bytte underveis** | Segment med stedsdimensjon + posisjon pr. rad | 🔴 **Ny struktur** |
+| **4. Sjåfør, mange leveranser** | Posisjonssporing gjennom dagen | 🔴 **Personvernvalg, ikke teknisk** |
+
+---
+
 ## Avhengigheter (oppsummert)
 
 - **Fase 1c-mobil** (byggeplass-GPS) — forutsetning for Beslutning 2, 3, 6.
