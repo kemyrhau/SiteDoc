@@ -21,6 +21,7 @@ import { provisjonerNyAnsattIProsjekter } from "../services/prosjektTilgangEvalu
 import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 import { recomputeMatriseIBakgrunn } from "../services/reisetidMatrise";
+import { UOPPNAAELIG } from "../services/rute-service";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -1038,13 +1039,21 @@ export const organisasjonRouter = router({
     const reiseLonnsartMatchAntall = aktiveArter.filter((a) =>
       REISE_LONNSART_REGEX.test(a.navn),
     ).length;
-    // Reise-terskel-km: hvor mange matrise-rader mangler avstand (avstandM null
-    // = beregnet FØR avstand-kolonnen fantes, ikke reberegnet ennå). Kun `null`
-    // teller — -1 er «computed men uoppnåelig», altså KJENT, ikke manglende.
-    // Klienten viser dette som varsel når enhet = km: km-klassifisering faller
-    // konservativt til under-type for disse parene til de reberegnes.
-    const reiseMatriseParUtenAvstand = await ctx.prisma.reisetidMatrise.count({
-      where: { organizationId: orgId, avstandM: null },
+    // C5 (V14): to datagrunnlag-tellere som erstatter `reiseMatriseParUtenAvstand`.
+    // Tomheten var usynlig i fire måneder (H21) — derfor gjøres den synlig på
+    // matrise-flaten, begge klikkbare til byggeplasslista.
+    //  (1) Byggeplasser i AKTIVE prosjekter uten eget punkt → ingen reise beregnes
+    //      (arven som arvet prosjektets koordinat er fjernet i C1).
+    //  (2) Par markert uoppnåelig (kjoretidMin = UOPPNAAELIG = -1) — KJENT umulig
+    //      rute (øy uten veiforbindelse e.l.), ikke manglende grunnlag.
+    const reiseByggeplasserUtenPunkt = await ctx.prisma.byggeplass.count({
+      where: {
+        latitude: null,
+        project: { primaryOrganizationId: orgId, status: "active" },
+      },
+    });
+    const reiseParUoppnaaelige = await ctx.prisma.reisetidMatrise.count({
+      where: { organizationId: orgId, kjoretidMin: UOPPNAAELIG },
     });
     // Reise-avstandsskala (grensepunkter): editor + varsel-demping. Når firmaet
     // har konfigurert bånd som peker på en art, er navne-match-tvetydigheten løst
@@ -1057,7 +1066,8 @@ export const organisasjonRouter = router({
     return {
       ...setting,
       reiseLonnsartMatchAntall,
-      reiseMatriseParUtenAvstand,
+      reiseByggeplasserUtenPunkt,
+      reiseParUoppnaaelige,
       reiseGrenser,
     };
   }),

@@ -792,6 +792,7 @@ function PublisertLokasjonKort({
   lokasjon,
   erValgt,
   geofenceSatt,
+  visReiseMangel,
   onVelg,
   onRediger,
   onGeofence,
@@ -803,6 +804,7 @@ function PublisertLokasjonKort({
   };
   erValgt: boolean;
   geofenceSatt: boolean;
+  visReiseMangel: boolean;
   onVelg: () => void;
   onRediger: () => void;
   onGeofence: () => void;
@@ -831,6 +833,11 @@ function PublisertLokasjonKort({
           onClick={onGeofence}
         />
       </div>
+      {visReiseMangel && (
+        <p className="border-t border-gray-100 px-3 py-1.5 text-xs text-amber-700">
+          {t("lokasjoner.geofence.manglerReise")}
+        </p>
+      )}
     </button>
   );
 }
@@ -840,14 +847,23 @@ function PublisertLokasjonKort({
 /* ------------------------------------------------------------------ */
 
 export default function LokasjonerSide() {
-  const { prosjektId } = useProsjekt();
+  const { prosjektId, valgtProsjekt } = useProsjekt();
   const { t } = useTranslation();
   const utils = trpc.useUtils();
+  // C5(a): «mangler plassering»-merket vises KUN når Timer-modulen er aktiv for
+  // firmaet — ellers betyr et manglende byggeplass-punkt ingenting for brukeren.
+  const orgId = valgtProsjekt?.primaryOrganizationId ?? null;
+  const { data: modulTilstand } = trpc.modul.effektivTilstand.useQuery(
+    { firmaId: orgId!, slugs: ["timer"] },
+    { enabled: !!orgId },
+  );
+  const timerAktiv = modulTilstand?.timer === true;
   const [visModal, setVisModal] = useState(false);
   const [visEndreNavnModal, setVisEndreNavnModal] = useState(false);
   // Geofence skilt ut til egen, synlig inngang (discoverability) — egen modal.
   const [visGeofenceModal, setVisGeofenceModal] = useState(false);
   const [nyNavn, setNyNavn] = useState("");
+  const [nyAdresse, setNyAdresse] = useState("");
   const [endreNavn, setEndreNavn] = useState("");
   const [valgtId, setValgtId] = useState<string | null>(null);
   const [redigerLokasjonId, setRedigerLokasjonId] = useState<string | null>(null);
@@ -870,6 +886,7 @@ export default function LokasjonerSide() {
       });
       setVisModal(false);
       setNyNavn("");
+      setNyAdresse("");
     },
   });
 
@@ -963,6 +980,9 @@ export default function LokasjonerSide() {
     opprettMutation.mutate({
       name: nyNavn,
       projectId: prosjektId,
+      // C2: oppgitt adresse geokodes på server (Kartverket). Nøyaktig ett treff
+      // setter geofence-punktet automatisk; ellers opprettes byggeplassen uten punkt.
+      address: nyAdresse.trim() || undefined,
     });
   }
 
@@ -1179,11 +1199,18 @@ export default function LokasjonerSide() {
                           {t("lokasjoner.upublisert")}
                         </td>
                         <td className="px-4 py-2.5">
-                          <GeofenceKnapp
-                            satt={harGeofence(lokasjon)}
-                            tittel={harGeofence(lokasjon) ? t("lokasjoner.geofence.satt") : t("lokasjoner.geofence.ikkeSatt")}
-                            onClick={() => apneGeofence(lokasjon)}
-                          />
+                          <div className="flex items-center gap-2">
+                            <GeofenceKnapp
+                              satt={harGeofence(lokasjon)}
+                              tittel={harGeofence(lokasjon) ? t("lokasjoner.geofence.satt") : t("lokasjoner.geofence.ikkeSatt")}
+                              onClick={() => apneGeofence(lokasjon)}
+                            />
+                            {timerAktiv && !harGeofence(lokasjon) && (
+                              <span className="text-xs text-amber-700">
+                                {t("lokasjoner.geofence.manglerReise")}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm text-gray-500">
                           &mdash;
@@ -1214,6 +1241,7 @@ export default function LokasjonerSide() {
                     lokasjon={lokasjon}
                     erValgt={valgtId === lokasjon.id}
                     geofenceSatt={harGeofence(lokasjon)}
+                    visReiseMangel={timerAktiv && !harGeofence(lokasjon)}
                     onVelg={() => setValgtId(valgtId === lokasjon.id ? null : lokasjon.id)}
                     onRediger={() => setRedigerLokasjonId(lokasjon.id)}
                     onGeofence={() => apneGeofence(lokasjon)}
@@ -1253,6 +1281,16 @@ export default function LokasjonerSide() {
               onChange={(e) => setNyNavn(e.target.value)}
               required
             />
+            <div>
+              <Input
+                label={t("lokasjoner.adresseValgfri")}
+                value={nyAdresse}
+                onChange={(e) => setNyAdresse(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {t("lokasjoner.adresseHjelp")}
+              </p>
+            </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button
                 type="button"

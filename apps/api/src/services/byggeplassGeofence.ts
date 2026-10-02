@@ -10,9 +10,10 @@ import { recomputeRadForByggeplass } from "./reisetidMatrise";
  *
  * @param kunHvisTom Når true (auto-trigger ved georeferering): hopp over hvis
  *   byggeplassen allerede har geofence — auto klobrer aldri en satt/manuell verdi.
- *   Eksplisitt «beregn fra tegning» sender false → overskriver alltid.
+ *   Eksplisitt «beregn fra tegning» sender false → overskriver `geokodet`/`tegning`/
+ *   `ukjent`/`null`, men ALDRI `manuell` (C4: kartvelgeren overstyrer alltid).
  * @returns geofence hvis satt; null hvis ingen georef-tegning, degenerert
- *   georeferanse, eller hoppet pga kunHvisTom.
+ *   georeferanse, eller hoppet pga kunHvisTom/manuell-fredning.
  */
 export async function oppdaterByggeplassGeofence(
   byggeplassId: string,
@@ -20,10 +21,13 @@ export async function oppdaterByggeplassGeofence(
 ): Promise<{ lat: number; lng: number; radiusM: number } | null> {
   const byggeplass = await prisma.byggeplass.findUnique({
     where: { id: byggeplassId },
-    select: { latitude: true },
+    select: { latitude: true, geofenceKilde: true },
   });
   if (!byggeplass) return null;
   if (kunHvisTom && byggeplass.latitude != null) return null;
+  // C4: et manuelt satt punkt fredes mot tegnings-avledning, også eksplisitt
+  // «Beregn fra tegning» (kunHvisTom=false). Kartvelgeren overstyrer alltid.
+  if (byggeplass.geofenceKilde === "manuell") return null;
 
   // Få byggeplassens tegninger, nyeste først; ta den første med georeferanse.
   const tegninger = await prisma.drawing.findMany({
@@ -50,6 +54,7 @@ export async function oppdaterByggeplassGeofence(
       latitude: geofence.lat,
       longitude: geofence.lng,
       radiusM: geofence.radiusM,
+      geofenceKilde: "tegning", // C3: punktet er avledet fra georeferert tegning
     },
   });
   // R3: byggeplass-koordinat endret (success-sti) → recompute rad (fire-and-forget).

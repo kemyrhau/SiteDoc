@@ -20,7 +20,7 @@
  */
 
 import { prisma } from "@sitedoc/db";
-import { hentKjoretidMatrise, type Coord } from "./rute-service";
+import { hentKjoretidMatrise, UOPPNAAELIG, type Coord } from "./rute-service";
 
 // Margin under OSRM /table sitt ~100-koordinat-tak (kontorer + chunk ≤ dette).
 const OSRM_MAX_KOORDINATER = 90;
@@ -37,9 +37,17 @@ interface RecomputeArgs {
  * - `byggeplassId` satt → rad (alle firmaets kontorer × den byggeplassen).
  * - ingen → full firma-backfill.
  */
+export interface RecomputeResultat {
+  rader: number;
+  /** Byggeplasser i dette recompute-settet som mangler eget punkt (H21-fiks, C1). */
+  manglerPunkt: { byggeplassId: string; navn: string; projectId: string }[];
+  /** Antall upsertede par markert uoppnåelig (kjoretidMin === -1). */
+  uoppnaaelige: number;
+}
+
 export async function recomputeMatrise(
   args: RecomputeArgs,
-): Promise<{ rader: number }> {
+): Promise<RecomputeResultat> {
   const { organizationId, oppmotestedId, byggeplassId } = args;
 
   // 1. Kontorer (sources). lat/lng er påkrevde felt på Oppmotested.
@@ -49,7 +57,8 @@ export async function recomputeMatrise(
       : { organizationId },
     select: { id: true, lat: true, lng: true },
   });
-  if (kontorer.length === 0) return { rader: 0 };
+  if (kontorer.length === 0)
+    return { rader: 0, manglerPunkt: [], uoppnaaelige: 0 };
 
   // 2. Byggeplasser (destinations). Firma-isolasjon via project.primaryOrganizationId.
   const byggeplasserRaw = await prisma.byggeplass.findMany({
@@ -58,24 +67,35 @@ export async function recomputeMatrise(
       : { project: { primaryOrganizationId: organizationId } },
     select: {
       id: true,
+      name: true,
+      projectId: true,
       latitude: true,
       longitude: true,
-      project: { select: { latitude: true, longitude: true } },
     },
   });
 
-  // Resolv koordinat: byggeplass egen → prosjekt-fallback → ingen.
+  // 🔴 C1/H21: KUN byggeplassens eget punkt. Prosjekt-arven (`?? b.project?.latitude`)
+  // er fjernet — et prosjekt kan strekke seg over kilometer, og avstanden avgjør om
+  // kjøringen dit betales som arbeidstid eller reisetid. Byggeplass uten eget punkt
+  // får ingen matriserad (og eventuelle arv-baserte rader slettes av stale-ryddingen
+  // under, siden de nå faller i `utenKoord`).
   const byggeplasser = byggeplasserRaw.map((b) => {
-    const lat = b.latitude ?? b.project?.latitude ?? null;
-    const lng = b.longitude ?? b.project?.longitude ?? null;
     const coord: Coord | null =
-      lat != null && lng != null ? { lat, lng } : null;
-    return { id: b.id, coord };
+      b.latitude != null && b.longitude != null
+        ? { lat: b.latitude, lng: b.longitude }
+        : null;
+    return { id: b.id, navn: b.name, projectId: b.projectId, coord };
   });
 
   // Stale-rydding: byggeplasser som mangler koordinat → slett ev. eksisterende
   // rader (utdatert cache ville servere R4 feil tid for en posisjonsløs byggeplass).
-  const utenKoord = byggeplasser.filter((b) => b.coord == null).map((b) => b.id);
+  const utenPunkt = byggeplasser.filter((b) => b.coord == null);
+  const utenKoord = utenPunkt.map((b) => b.id);
+  const manglerPunkt = utenPunkt.map((b) => ({
+    byggeplassId: b.id,
+    navn: b.navn,
+    projectId: b.projectId,
+  }));
   if (utenKoord.length > 0) {
     await prisma.reisetidMatrise.deleteMany({
       where: { organizationId, byggeplassId: { in: utenKoord } },
@@ -83,9 +103,10 @@ export async function recomputeMatrise(
   }
 
   const medKoord = byggeplasser.filter(
-    (b): b is { id: string; coord: Coord } => b.coord != null,
+    (b): b is { id: string; navn: string; projectId: string; coord: Coord } =>
+      b.coord != null,
   );
-  if (medKoord.length === 0) return { rader: 0 };
+  if (medKoord.length === 0) return { rader: 0, manglerPunkt, uoppnaaelige: 0 };
 
   // 3. OSRM /table — batch destinasjonene slik at kontorer + chunk ≤ taket.
   const kontorKoord: Coord[] = kontorer.map((k) => ({ lat: k.lat, lng: k.lng }));
@@ -97,6 +118,7 @@ export async function recomputeMatrise(
   }
 
   let rader = 0;
+  let uoppnaaelige = 0;
   for (let i = 0; i < medKoord.length; i += chunkStorrelse) {
     const chunk = medKoord.slice(i, i + chunkStorrelse);
     const matrise = await hentKjoretidMatrise(
@@ -111,6 +133,7 @@ export async function recomputeMatrise(
       for (let bi = 0; bi < chunk.length; bi++) {
         const kjoretidMin = matrise.durations[ki]?.[bi];
         if (kjoretidMin == null) continue;
+        if (kjoretidMin === UOPPNAAELIG) uoppnaaelige++;
         // Avstand fra samme OSRM-kall (reise-terskel-km). UOPPNAAELIG (-1) er
         // symmetrisk med kjoretidMin; manglende celle → null (aldri sett i
         // praksis siden distances speiler durations, men defensivt).
@@ -147,7 +170,7 @@ export async function recomputeMatrise(
     }
   }
 
-  return { rader };
+  return { rader, manglerPunkt, uoppnaaelige };
 }
 
 /**
