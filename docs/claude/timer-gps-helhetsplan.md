@@ -141,6 +141,7 @@ gatet. Kode-referansene peker på det som skal endres, ikke på noe som virker.
 | **V12** | **GPS avslått ved start → ingen reise foreslås, med synlig årsak** på bekreftelsesskjermen («reise ikke foreslått: posisjon var utilgjengelig»). Arbeideren legger til selv. Skiller dermed H11s to tilfeller | H11 | 1 + 3 |
 | **V13** | **Ingen regnefallback for manglende plassering.** Reservemålingen luftlinje/50 km/t (`StartSluttDagKort.tsx:494-507`, `reise.ts:165-172`) **fjernes**, og «mangler avstand → under terskel» (`reise.ts:91`) erstattes av «ingen reise». Mangler byggeplassen punkt, eller matrisen cellen, foreslås ingen reise — med årsak hos arbeideren | H16 | 1 |
 | **V14** | **Manglende plassering skal være synlig, ikke påkrevd.** Tre varsler: merke «mangler plassering — reise beregnes ikke» i byggeplasslista (`oppsett/byggeplasser`), teller på Reisetid-matrise-flaten i firmainnstillingene («N byggeplasser mangler punkt»), og årsak hos arbeideren (V12/V13). **Adressefeltet som alt finnes i `createByggeplassSchema` geokodes ved opprettelse** (geokodings-prosedyren finnes), så de fleste får punkt uten ekstra klikk. Kartmodalen overstyrer alltid. **Ingen arv fra prosjektets punkt** (fjernet fra origo-ordren 2026-10-01 — et prosjekt kan strekke seg over kilometer) | H3, K6 | 1 |
+| **V15** | 🟢 **Oppmøtested vinner over byggeplass ved start** (K2, 2026-10-02). Treffer start-GPS begge, er origo oppmøtestedet (`useArbeidsdag.ts:143-144` lagrer i dag begge uten å forene). Er første prosjekt det byggeplassen tilhører → avstand 0, ingen reise. Annet prosjekt → vanlig første etappe mot terskelen | H12 | 1 |
 
 **Fasit-eksempler (Kenneths ord, 2026-10-01):**
 
@@ -221,7 +222,7 @@ timer-GPS. Lag 1 er ikke avhengig av det.
 - **Én funksjon pr. kapabilitet** (A/B/C fra § 1), ikke fire konkurrerende. **Hver med navngitt regel og test.**
 - **Én navngitt terskel pr. kapabilitet** — ikke 500 m hardkodet ett sted og ingenting et annet (H1, H2).
 - **Definert tilstand for «ingen treff»** som skiller fravær fra feil (H11).
-- **Avklart hva som vinner når oppmøtested og byggeplass overlapper** (H12).
+- 🟢 **Oppmøtested vinner når det overlapper med byggeplass** (H12 → **V15**, K2 vedtatt).
 
 - 🔴 **Målekjeden skal måle til riktig sted** (H15) — i dag måles det til prosjektets
   primærbyggeplass, ikke dit arbeideren faktisk er.
@@ -308,12 +309,12 @@ bekreftelsessteget finnes, brytes G1.
 
 🔴 **Ingen av disse kan avgjøres av orkestratoren. Hver av dem endrer hva som bygges.**
 
-**Status 2026-10-01 kveld:** 🟢 K1, K6, K7, K8, K9 vedtatt (regler i § 4b). 🔴 K2, K3, K4, K5 åpne.
+**Status 2026-10-02:** 🟢 K1, K2, K6, K7, K8, K9 vedtatt (regler i § 4b, V1–V15). 🔴 K3, K4, K5 åpne — ingen av dem blokkerer lag 1–3.
 
 | # | Beslutning | Hvorfor den er din | Konsekvens av valget |
 |---|---|---|---|
 | **K1** | 🟢 **VEDTATT (streng), via V13 + V14.** Målekjeden er: GPS-identifisert byggeplass (H15) → OSRM-matrise → terskel pr. etappe (V10). Mangler et ledd, er svaret «ingen reise + årsak» — aldri et estimat, aldri arv fra prosjektet | Lønn | Færre byggeplasser får reise før punktet er satt; de som får, får riktig tall. V14 gjør mangelen synlig i tre flater |
-| **K2** | **Hva vinner når oppmøtested og byggeplass overlapper?** I dag gjenkjennes begge og forenes aldri | Produktvalg | Avgjør om en dag som starter på et kontor som ligger på en byggeplass gir reise eller ikke |
+| **K2** | 🟢 **VEDTATT 2026-10-02 (Kenneth): «på kontoret».** Treffer start-GPS både et oppmøtested og en byggeplass-geofence, er origo oppmøtestedet. Er dagens første prosjekt det byggeplassen tilhører, er avstanden null og ingen reise foreslås. Kjøres det til en annen byggeplass, er det en vanlig første etappe fra kontoret mot terskelen (V10). Ført som **V15** i § 4b | Produktvalg | Lukker H12 |
 | **K3** | **Sporing eller bekreftede stopp?** Sjåfør-modellen trenger å vite hvor man var underveis | 🔴 **Personvern.** Krever samtykke, og `mannskap.md:19` sier juridisk sign-off for bakgrunns-geofencing | Sporing: automatisk, men inngripende. Bekreftede stopp: arbeideren trykker ved ankomst |
 | **K4** | **Skal km bli en målt størrelse?** I dag skrives km i feltet «timer» med tak 24 | Lønn + regnskap. `timer.md:228` sier «regnskap eier satsene og km-utmålingen» — **vedtaket ditt kolliderer med det** | Eget felt: SiteDoc måler km. Som i dag: regnskap måler, vi bare fører |
 | **K5** | **Hvor mye skal serveren verifisere?** I dag: ingenting. Alt skjer offline på telefonen | Risiko vs. kompleksitet | Full verifisering krever at posisjon synkes — altså lagring av hvor ansatte har vært |
@@ -336,8 +337,7 @@ bekreftelsessteget finnes, brytes G1.
 | **Lag 0c** (shared tsc) | 🟢 **LEVERT 2026-10-02** | `c78bc14f` — regel 10 er fire ledd, 10 pakker typesjekkes |
 
 🟢 **Lag 0 er komplett (0a · 0b · 0c).** 🔴 **Neste er lag 1-spesifikasjonen, skrevet av fabel fra
-V-reglene.** Den trenger ett svar først: **K2** (kontor som ligger innenfor en byggeplass-geofence). V6 er vedtatt
-(to moduser, 2026-10-02). Ingen kode-ordre før spesifikasjonen er gatet.
+V-reglene.** **K2 og V6 er vedtatt 2026-10-02 — lag 1 kan spesifiseres nå.** Ingen kode-ordre før spesifikasjonen er gatet. Ingen kode-ordre før spesifikasjonen er gatet.
 
 ---
 
@@ -379,7 +379,7 @@ i `a86a5934`, før lag 0-ordrene gikk ut. Rapporten er skrevet mot en eldre lesn
   som kun Kenneth kjører.
 - **Eksportsidens behandling av `sats`/`satsEnhet`** mot regnskapssystemene er ikke lest.
 - **Overtid 100 %-nivå** finnes ikke i motoren og er ikke vedtatt. Eksemplene trenger det ikke.
-- **K2 (kontor på byggeplass), K3 (sporing), K4 (km som målt størrelse), K5 (server-verifisering)**
-  er fortsatt åpne. V9 gjør at K4 er det eneste som trenger byggeplass→byggeplass-aksen.
+- **K3 (sporing), K4 (km som målt størrelse), K5 (server-verifisering)** er fortsatt åpne. V9 gjør at
+  K4 er det eneste som trenger byggeplass→byggeplass-aksen. K5 avgjør hvor mye lag 2 verifiserer server-side.
 - **Sjåfør-modellen er ikke spesifisert** av noen, noe sted. Den er nevnt av Kenneth 2026-10-01
   og finnes ikke i dokumentasjonen ellers.

@@ -20,7 +20,7 @@ sist_verifisert_mot_kode: 2026-08-09
 > **Fabel eier planen, orkestrator gater den** (§ 7b). Origo-ordren kan omskrives til V14 etter gate.
 > 🟢 **LAG 0 LEVERT 2026-10-02:** km-tak `89acee95` (api) + beregn/anvend-splitt `a13f4343` (mobil, OTA).
 > 🟢 **Lag 0c LEVERT `c78bc14f`** — regel 10 er fire ledd, `turbo run typecheck` gater 10 pakker. ⚠️ **`pnpm install` kreves i alle trær** (`@types/node`).
-> 🔴 **Neste: lag 1-spesifikasjon (fabel).** Venter K2 + V6-bekreftelse fra Kenneth. K3–K5 åpne.
+> 🟢 **K2 + V6 vedtatt 2026-10-02** (V15 oppmøtested vinner; pause to moduser). 🔴 **Neste: lag 1-spesifikasjon (fabel skriver, orkestrator gater).** K3–K5 åpne, blokkerer ikke.
 
 # 🔴 TAVLA — hvem sitter hvor
 
