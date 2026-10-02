@@ -12,6 +12,13 @@ import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
 import { sokAdresser } from "../services/rute-service";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
+/**
+ * Geofence-radius (m) for et punkt satt ved geokoding av opprett-adressen (C2).
+ * Lånt fra oppmøtested-defaulten. 🔴 Navngitt fordi § 7.4 er åpen — Kenneth kan snu
+ * den til 75; da er dette den ENE linjen som endres.
+ */
+const GEOKODET_RADIUS_M = 150;
+
 export const byggeplassRouter = router({
   // R4: member-lesbar liste over firmaets byggeplasser (mobil-cache for
   // reisetid-matrise → prosjekt→primær-byggeplass-resolusjon). Firma-scopet via
@@ -99,8 +106,35 @@ export const byggeplassRouter = router({
       });
       const nesteNummer = (maks._max.number ?? 0) + 1;
 
+      // C2: er en adresse oppgitt, geokod den (Kartverket — samme kilde som
+      // geofence-modalen). NØYAKTIG ett treff → punkt settes med geokodet-kilde.
+      // Null eller flere treff → ingen punkt (byggeplassen merkes av C5).
+      // 🔴 Geokoding blokkerer ALDRI opprettelsen (sokAdresser kaster ikke, men
+      // vi verner uansett) — byggeplasser i terreng har ikke alltid en adresse (C6).
+      let geo: {
+        latitude?: number;
+        longitude?: number;
+        radiusM?: number;
+        geofenceKilde?: string;
+      } = {};
+      if (input.address) {
+        try {
+          const treff = await sokAdresser(input.address);
+          if (treff.length === 1) {
+            geo = {
+              latitude: treff[0]!.lat,
+              longitude: treff[0]!.lng,
+              radiusM: GEOKODET_RADIUS_M,
+              geofenceKilde: "geokodet",
+            };
+          }
+        } catch {
+          /* geokoding er best-effort — opprettelsen går uansett gjennom */
+        }
+      }
+
       return ctx.prisma.byggeplass.create({
-        data: { ...input, number: nesteNummer },
+        data: { ...input, number: nesteNummer, ...geo },
       });
     }),
 
@@ -165,6 +199,9 @@ export const byggeplassRouter = router({
           latitude: input.latitude,
           longitude: input.longitude,
           radiusM: input.radiusM,
+          // C3: manuell overstyring → kilde "manuell"; nullstilling → null (holder
+          // CHECK (latitude IS NULL) = (geofence_kilde IS NULL) oppfylt).
+          geofenceKilde: input.latitude != null ? "manuell" : null,
         },
       });
       // R3: manuell geofence-endring (inkl. nullstilling) → recompute rad

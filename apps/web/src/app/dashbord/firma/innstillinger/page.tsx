@@ -1265,13 +1265,15 @@ function ReiseSeksjon() {
   const visTvetydigReiseArt =
     timerAktiv && !reiseArtValgt && !harBånd && antallReiseTreff >= 2;
 
-  // Reise-terskel-km: varsel når firmaet måler i km, men matrise-rader mangler
-  // avstand (beregnet før avstand-kolonnen). De klassifiseres da konservativt
-  // (under-type) til noen trykker «Beregn reisetid-matrise». Uten dette varselet
-  // ville en stille auto-recompute-feil aldri blitt synlig (gate-krav b).
-  const parUtenAvstand = setting.reiseMatriseParUtenAvstand;
-  const visMangelAvstand =
-    timerAktiv && setting.reiseTerskelEnhet === "km" && parUtenAvstand > 0;
+  // C5 (V14): datagrunnlag-tomhet synlig på matrise-flaten. H21 gikk uoppdaget i
+  // fire måneder fordi disse tallene aldri ble vist. To uavhengige mangler:
+  //  (1) byggeplasser i aktive prosjekter uten eget punkt → ingen reise beregnes
+  //      (prosjekt-arven er fjernet i C1), gjelder uansett terskelenhet.
+  //  (2) par markert uoppnåelig (ingen kjørbar rute) → reise kan ikke beregnes dit.
+  const byggeplasserUtenPunkt = setting.reiseByggeplasserUtenPunkt;
+  const parUoppnaaelige = setting.reiseParUoppnaaelige;
+  const visManglerPunkt = timerAktiv && byggeplasserUtenPunkt > 0;
+  const visUoppnaaelige = timerAktiv && parUoppnaaelige > 0;
 
   function lagre() {
     const min = Number(terskel);
@@ -1662,11 +1664,20 @@ function ReiseSeksjon() {
             </span>
           )}
         </div>
-        {visMangelAvstand && (
+        {visManglerPunkt && (
           <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm text-amber-800">
-              {t("firma.innstillinger.reise.matriseMangelAvstand", {
-                antall: parUtenAvstand,
+              {t("firma.innstillinger.reise.matriseManglerPunkt", {
+                antall: byggeplasserUtenPunkt,
+              })}
+            </p>
+          </div>
+        )}
+        {visUoppnaaelige && (
+          <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm text-gray-600">
+              {t("firma.innstillinger.reise.matriseUoppnaaelige", {
+                antall: parUoppnaaelige,
               })}
             </p>
           </div>

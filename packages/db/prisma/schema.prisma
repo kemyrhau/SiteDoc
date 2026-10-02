@@ -1043,6 +1043,11 @@ model Byggeplass {
   latitude     Float?   @map("latitude")
   longitude    Float?   @map("longitude")
   radiusM      Int?     @map("radius_m") // geofence-radius (tegningsutstrekning + buffer)
+  // LAG 1 C3 (timer-GPS): punktets kilde — "tegning" | "manuell" | "geokodet" | "ukjent" | null.
+  // Håndheves på DB-nivå (migrering 20261002120000): CHECK (latitude IS NULL) = (geofence_kilde IS NULL)
+  // — Prisma modellerer ikke CHECK, så koblingen bor i migreringen. Backfill: latitude satt → 'ukjent'
+  // (kilden kan ikke rekonstrueres; å gjette «manuell» ville vært verre), ellers NULL.
+  geofenceKilde String? @map("geofence_kilde")
   // HMSREG-lokasjon-ID — ruting-nøkkel for §15-push til /api/v2/registration.
   // HMSREG «location» = fysisk checkpoint/byggeplass (derfor på Byggeplass, ikke
   // Project). Int? matcher HMSREG-typen (number). Nullable — kun satt for
