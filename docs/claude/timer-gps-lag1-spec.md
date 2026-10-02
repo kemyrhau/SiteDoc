@@ -3,7 +3,7 @@ name: timer-gps-lag1-spec
 description: Spesifikasjon for LAG 1 i timer-GPS-helhetsplanen — én stedsmodell i @sitedoc/shared, reiseberegning etter V3/V5/V6/V7/V10/V11/V12/V13/V15, og datagrunnlag (V14). Skrevet av fabel 2026-10-02, gates av orkestrator før ordrer skrives.
 sist_verifisert_mot_kode: 2026-10-02
 eier: fabel (kontroll-Claude) — orkestrator gater
-status: ⚠️ UTKAST TIL GATE — ingen kode-ordre før orkestrator har gatet
+status: 🟢 GATET 2026-10-02 (orkestrator) med ett avvik i B2 — rettet samme dag, B2 til re-gate før L1-B; L1-C og L1-A kan bestilles
 ---
 
 # LAG 1 — én stedsmodell og én reiseberegning
@@ -68,7 +68,10 @@ beholder sin ekvirektangulære for tegnings-transformasjoner, men **reise bruker
 **Prosjektvalg (kapabilitet C) i lag 1:** prosjektet er byggeplassens prosjekt når A5 gir en
 destinasjon; ellers `aktivtProsjektId` (arbeiderens valgte kontekst — G1: arbeider-valg er
 autoritativt); ellers utfall **`prosjektUkjent`** i `anvendDagsforslag` — dagen holdes åpen med melding,
-samme mønster som `kildeManglet` fra lag 0b. ⚠️ **Dette fjerner `prosjekter[0]`-fallbacken før
+samme mønster som `kildeManglet` fra lag 0b. 🔴 **Meldingen skal navngi veien ut** (gate-krav): *«Fant
+ikke prosjektet fra posisjonen. Velg prosjekt i velgeren øverst og trykk Slutt dag på nytt.»* — dagen
+står `aktiv`, så handlingen finnes; uten setningen sitter arbeideren med et utfall uten handling
+(lærdom fra `kildeManglet`, lag 0b). ⚠️ **Dette fjerner `prosjekter[0]`-fallbacken før
 bekreftelsesskjermen (lag 3) finnes.** Begrunnelse: fallbacken er H1 «stille feil» — en sedel på et
 vilkårlig prosjekt er verre enn en åpen dag med melding. Orkestrator gater om det holder.
 
@@ -101,15 +104,31 @@ avstandM, kategori: "arbeidstid" | "reisetid", kilde: "matrise" }`.
 («mangler avstand → under-type») nås aldri lenger fra forslaget, fordi B1 gater før. Testene for grenen
 beholdes og merkes «defensiv — forslaget kaller ikke med null».
 
-### B2 — arbeidsvinduet følger etappene (V3, V5)
+### B2 — arbeidsvinduet følger etappene (V3, V5) — *rettet etter gate-avvik 2026-10-02*
+
+🔴 **Én trekkmekanisme overlever: vinduet.** I dag trekkes reisen to steder, bevisst og riktig for
+én etappe: timene (`dagsforslag.ts:558` `raaArbeid = totalTimer − reisetidTimer`) og vindusstarten
+(`carveArbeidstid.ts:68` `startTid + reisetidTimer`). Med etapper i begge ender ville den kombinasjonen
+trukket reisen to ganger. **Derfor:**
 
 - `arbeidsstart = start-GPS + ut.kjoretidMin` når ut-etappen er **reisetid**; `= start-GPS` når den er
-  **arbeidstid** (V3 — kjøringen er da arbeid på prosjektraden) eller ikke finnes.
+  **arbeidstid** (V3) eller ikke finnes.
 - `arbeidsslutt = slutt-GPS − retur.kjoretidMin` når retur er reisetid; `= slutt-GPS` ellers.
-- `arbeidstimer = arbeidsslutt − arbeidsstart − pause`, rundet som før. **Dagsnormen anvendes på dette
-  vinduet** (V5) — ikke på firmaets `standardStartTid`.
-- `carveArbeidstider` (`carveArbeidstid.ts`) får `arbeidsstart` direkte i stedet for
-  `startTid + reisetidTimer`, og en ny `sluttKapp` så retur-etappen ikke carves som arbeid.
+- 🔴 **`arbeidstimer = arbeidsslutt − arbeidsstart − pause`** (rundet som før). **Subtraksjonen
+  `totalTimer − reisetidTimer` FJERNES** — vinduet har allerede ekskludert begge etapper.
+- `carveArbeidstider` får `startTid = arbeidsstart` og `reisetidTimer = 0` (eller parameteren fjernes).
+  **Ingen `sluttKapp`:** carven legger segmenter forover og stopper når `seg.timer` er brukt
+  (`carveArbeidstid.ts:72-85`) — er `arbeidstimer` regnet fra vinduet, summerer segmentene til nettopp
+  det, og carven ender i `arbeidsslutt` av seg selv. *(Spesifikasjonen hadde `sluttKapp`; gaten viste
+  at den var overflødig.)*
+- 🔴 **Invariant-test:** `Σ carvede vinduer + pause = arbeidsslutt − arbeidsstart` for Dag A og Dag B.
+  **Og én test som FEILER hvis reisen trekkes to ganger:** Dag A skal gi nøyaktig 8 t ordinær + 2 t
+  OT50, ikke 6 + 2.
+- **Dagsnormen anvendes på dette vinduet** (V5) — ikke på firmaets `standardStartTid`.
+- **`fordelArbeidstidFradrag`** (`dagsforslag.ts:254-320`, midnatt-splitt) fordeler i dag reisen som et
+  *fradrag* over segmentene. Med vinduet er reisen ikke lenger et fradrag: **ut-etappen hører til
+  start-segmentet, retur-etappen til slutt-segmentet**, og funksjonen fordeler kun pausen. Reise-rader
+  (B4) legges på det segmentet etappen hører til.
 - Glemt-dag-vakten (M13): kapplengde = `ut.kjoretidMin + dagsnorm + pauseMin` (ikke bare `dagsnorm`).
 
 ### B3 — pausevinduet (V6)
@@ -179,8 +198,19 @@ CHECK (C3). Stille-tomhet-regelen (CLAUDE.md) er oppfylt for C3: backfill (a), g
 | **L1-A** | Leveranse A (shared) + D-ryddingen av gjenkjenning (mobil) | ingen | — |
 | **L1-B** | Leveranse B (mobil) + B3-innstillingen (api + web) | L1-A | `pauseReferanse` |
 
-L1-C og L1-A kan gå parallelt. L1-B sist. **Hver ordre: regel 10 fire ledd, fasit-testene i § 3 som
+L1-C og L1-A kan gå parallelt. L1-B sist. ⚠️ **Begge migreringene ligger i `packages/db` og blir
+sekvensielle fordi L1-B er sist — skriv rekkefølgen eksplisitt i ordrene (`geofenceKilde` før
+`pauseReferanse`), så ingen kjører dem om hverandre.** **Hver ordre: regel 10 fire ledd, fasit-testene i § 3 som
 DoD for L1-B, `pnpm install` etter pull (lag 0c-kanten). Mobil: OTA.**
+
+## 6b. Gate-record
+
+🟢 **GATET av orkestrator 2026-10-02** (`relay/inbox-fabel.md`), målt mot `9ff1ebce`: M6/H21 verifisert
+ordrett med dato (`7d98b80a` 2026-06-11) · A5 styrker G1 (arbeiderens kontekst tilbake som ledd 2) ·
+`ankomst`-default er dagens oppførsel på dager uten reise, endrer kun reisedager · C3 oppfyller
+stille-tomhet (a/b/c) · ordre-splitten holder. **Ett AVVIK:** B2 dobbelttrakk reisen — rettet samme
+dag (vinduet er eneste mekanisme, `sluttKapp` fjernet, invariant-test lagt til). **B2 til re-gate før
+L1-B bestilles. L1-C og L1-A er uberørt og kan bestilles på Kenneths signal.**
 
 ## 7. Åpne punkter for gaten
 
