@@ -25,6 +25,21 @@ sources: cowork
 
 ## 🔴 FUNKSJONSENDRINGER — krevde hjemmel
 
+### 2026-10-03
+
+| Hash | Flate | Før → Etter | Hjemmel |
+|---|---|---|---|
+| `2e993250` | 🔴 **Attesteringsvarselet (server) + web-sedelen** | **Før:** begge leste et **flatt** tall fra firmainnstillingen. Web-koden sa det rett ut: *«sesongjustering krever server-endepunkt → utenfor scope»*. **Etter:** begge delegerer til én utledning, og firmaer med `normKilde = "kalender"` ser en **sesongjustert** norm | 🟢 V16, Kenneth 2026-10-02. **H22-fiksen** |
+| `2e993250` | **Overtid på reisedager (alle flater)** | **Før:** flagget «Reisetid teller mot overtid» senket dagsnormen med reisetiden, så overtiden begynte tidligere. **Etter:** normen står urørt — **reisetid er aldri overtid**. 🔴 **Mindre overtidsbetaling på reisedager for firmaer som hadde flagget på** | 🟢 V1/V2, Kenneth. Fasit **Dag E** feiler hvis normen senkes |
+| `2e993250` | **Arbeidsdagen på mobil** | **Før:** dagen begynte når GPS-en startet, altså ved reisestart. **Etter:** arbeidsvinduet er `[start + ut, slutt − retur]` — **dagen begynner når reisen slutter**, og normen og pausen henger på det vinduet | 🟢 V3/V5/V6 |
+| `2e993250` | **Når prosjektet ikke kan utledes** | **Før:** `prosjekter[0]` — en vilkårlig sedel, stille. **Etter:** dagen holdes åpen med `prosjektUkjent`, og **meldingen navngir veien ut**: velg prosjekt, trykk «Slutt dag» på nytt | 🟢 H1. Samme mønster som `kildeManglet` |
+| `2e993250` | **Når normen er ukjent** (offline >30 d) | **Ingen normaltid/overtid-splitt**, alle timer på standard lønnsart, med varsel etter «Slutt dag» og banner på sedelen. 🔴 **ALDRI 7,5 som gjetning** — en gjettet norm ser ut som et regnet faktum | 🟢 B6.3. Feilretningen er underbetaling, derfor er markøren synlig |
+
+🟢 **Og en KORREKSJON av H22 som kom fra karakteriseringstestene:** mobilens og serverens
+utledninger var **strukturelt identiske**. H22 var at varselet og web-sedelen leste den **flate
+kolonnen** — ikke at utledningene var uenige. ⚠️ **Uten testene først ville vi trodd vi lukket noe
+annet enn vi gjorde.**
+
 ### 2026-10-02
 
 | Hash | Flate | Før → Etter | Hjemmel |

@@ -252,7 +252,7 @@ GPS-gjenkjennings-funksjoner. Rene funksjoner, ingen DB/RN/Node. Kontrakt A1–A
 | A6 | `RADIUS_GRENSER` | De tre spennene navngitt (oppmøtested 10–5000, byggeplass-API 1–100000, modal 25–500). Grensene uendret — kun én kilde |
 
 🔴 **A5 wires inn i reisekjeden (`beregnDagsforslag`) først i LAG 1-B.** I L1-A bygges/testes den,
-men `resolverPrimaerByggeplass` lever til L1-B gjør byttet. GPS-punkt-typen heter `GpsPunkt`
+og `resolverPrimaerByggeplass` er SLETTET i L1-B (`2e993250`) — A5 erstattet den. GPS-punkt-typen heter `GpsPunkt`
 (`Punkt` er opptatt av piksel-{x,y} i `maaling.ts`). Fasit: `sted.test.ts`.
 
 ## Fallgruver
