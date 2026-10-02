@@ -74,7 +74,7 @@ describe("sammenstillMedLokaleVedlegg (init-sammenstilling)", () => {
 
   it("overskriver et felt med tom server-versjon når SQLite har lokalt vedlegg", () => {
     // Server har feltet, men tomt (klobbet av en tidligere feil-init).
-    const server = { bilde1: { verdi: null, kommentar: "", vedlegg: [] } };
+    const server = { bilde1: { verdi: null, kommentar: "", vedlegg: [] as { id: string; type: string; url: string }[] } };
     const sqlite = {
       bilde1: { verdi: null, kommentar: "", vedlegg: [{ id: "v1", type: "bilde", url: "file:///a.jpg" }] },
     };

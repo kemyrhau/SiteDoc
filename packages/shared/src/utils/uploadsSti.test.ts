@@ -79,11 +79,11 @@ describe("raaVedleggIData — NØKKEL-AGNOSTISK dyp strip (speiler emisjons-sign
       },
     };
     const ut = raaVedleggIData(inn) as typeof inn;
-    expect(ut.felt1.vedlegg[0].url).toBe("/uploads/privat/a.jpg");
-    expect((ut.repeater.verdi[0] as { felter: { bilde: { vedlegg: { url: string }[] } } }).felter.bilde.vedlegg[0].url)
+    expect(ut.felt1.vedlegg[0]!.url).toBe("/uploads/privat/a.jpg");
+    expect((ut.repeater.verdi[0]! as { felter: { bilde: { vedlegg: { url: string }[] } } }).felter.bilde.vedlegg[0]!.url)
       .toBe("/uploads/privat/b.jpg");
     // input uendret (dyp kopi)
-    expect(inn.felt1.vedlegg[0].url).toBe("/uploads/privat/a.jpg?exp=1&sig=x");
+    expect(inn.felt1.vedlegg[0]!.url).toBe("/uploads/privat/a.jpg?exp=1&sig=x");
   });
 
   it("KRAV — stripper også originalUrl (og enhver annen URL-nøkkel), ikke bare url", () => {
@@ -96,8 +96,8 @@ describe("raaVedleggIData — NØKKEL-AGNOSTISK dyp strip (speiler emisjons-sign
       },
     };
     const ut = raaVedleggIData(inn) as typeof inn;
-    expect(ut.f.vedlegg[0].url).toBe("/uploads/privat/annotert.jpg");
-    expect(ut.f.vedlegg[0].originalUrl).toBe("/uploads/privat/original.jpg"); // ← det ekte funnet
+    expect(ut.f.vedlegg[0]!.url).toBe("/uploads/privat/annotert.jpg");
+    expect(ut.f.vedlegg[0]!.originalUrl).toBe("/uploads/privat/original.jpg"); // ← det ekte funnet
   });
 
   it("KRAV falsk-positiv — ekstern https, data: og rå /uploads/ går UENDRET gjennom", () => {
@@ -112,9 +112,9 @@ describe("raaVedleggIData — NØKKEL-AGNOSTISK dyp strip (speiler emisjons-sign
       },
     };
     const ut = raaVedleggIData(inn) as typeof inn;
-    expect(ut.f.vedlegg[0].url).toBe("/uploads/privat/raa.jpg");
-    expect(ut.f.vedlegg[1].url).toBe("https://ekstern.no/x.jpg?sig=abc");
-    expect(ut.f.vedlegg[2].url).toBe("data:image/png;base64,AAAA");
+    expect(ut.f.vedlegg[0]!.url).toBe("/uploads/privat/raa.jpg");
+    expect(ut.f.vedlegg[1]!.url).toBe("https://ekstern.no/x.jpg?sig=abc");
+    expect(ut.f.vedlegg[2]!.url).toBe("data:image/png;base64,AAAA");
     expect(ut.f.kommentar).toBe("sig=abc i tekst");
   });
 });
