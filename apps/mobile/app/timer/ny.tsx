@@ -21,9 +21,9 @@ import { aktivitetLocal } from "../../src/db/schema";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
-import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
+import { hentByggeplasserForFirmaLokalt } from "../../src/services/byggeplassKatalog";
 import { finnEllerOpprettDagsseddel } from "../../src/services/dagsseddelOpprett";
-import { haversineKm } from "../../src/utils/geo";
+import { gjenkjennSted } from "@sitedoc/shared";
 import { trpc } from "../../src/lib/trpc";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { eq } from "drizzle-orm";
@@ -101,10 +101,11 @@ export default function NyDagsseddelSide() {
     }
   }, [aktiviteter, valgtAktivitet]);
 
-  // T7-3b2 geo-forslag: ved sideåpning, hent GPS-posisjon og finn nærmeste
-  // prosjekt fra prosjekt_local innenfor 500m radius (Haversine). Forhåndsvelg
+  // T7-3b2 geo-forslag: ved sideåpning, hent GPS-posisjon og gjenkjenn
+  // byggeplass via geofence (A2); byggeplassens prosjekt blir forslaget (H2,
+  // LAG 1-A — tidligere nærmeste prosjektpunkt innenfor 500 m). Forhåndsvelg
   // hvis bruker ikke allerede har valgt manuelt. Faller stille tilbake ved
-  // tillatelse-avslag eller ingen nærhet — manuell velger fungerer som før.
+  // tillatelse-avslag eller ingen treff — manuell velger fungerer som før.
   useEffect(() => {
     if (valgtProsjekt) return; // bruker har allerede valgt
     if (!bruker) return;
@@ -124,24 +125,20 @@ export default function NyDagsseddelSide() {
           .filter((p) => p.primaryOrganizationId);
         const orgId = lokale[0]?.primaryOrganizationId;
         if (!orgId) return;
-        const kandidater = hentProsjekterLokalt(orgId).filter(
-          (p): p is typeof p & { lat: number; lng: number } =>
-            p.lat !== null && p.lng !== null,
+        // H2 (LAG 1-A): gjenkjenn byggeplass via geofence (A2), i stedet for
+        // nærmeste prosjektpunkt innenfor 500 m. Byggeplassens prosjekt blir
+        // forslaget. Lag 1 (2026-10-02): GPS-treff er FORSLAG; arbeider-valg
+        // går foran (arbeideren kan overstyre i velgeren).
+        const kandidater = hentByggeplasserForFirmaLokalt(orgId).filter(
+          (b): b is typeof b & { lat: number; lng: number; radiusM: number } =>
+            b.lat !== null && b.lng !== null && b.radiusM !== null,
         );
-        let beste: { id: string; avstand: number } | null = null;
-        for (const p of kandidater) {
-          const km = haversineKm(
-            pos.coords.latitude,
-            pos.coords.longitude,
-            p.lat,
-            p.lng,
-          );
-          if (km <= 0.5 && (!beste || km < beste.avstand)) {
-            beste = { id: p.id, avstand: km };
-          }
-        }
-        if (avbrutt || !beste) return;
-        const treff = prosjekter.find((p) => p.id === beste.id);
+        const byggTreff = gjenkjennSted(
+          { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          kandidater,
+        );
+        if (avbrutt || !byggTreff) return;
+        const treff = prosjekter.find((p) => p.id === byggTreff.sted.projectId);
         if (treff) {
           setGeoForslagId(treff.id);
           setValgtProsjekt(treff);

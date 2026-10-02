@@ -1,16 +1,17 @@
 import { eq } from "drizzle-orm";
+import { gjenkjennSted } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import { byggeplassLocal } from "../db/schema";
-import { haversineKm } from "../utils/geo";
 import type { trpc } from "../lib/trpc";
 
 /* ============================================================================
  *  Byggeplass-katalog-cache (R4, 2026-06-11)
  *
- *  Speiler firmaets byggeplasser lokalt (kun id/projectId/number/status) for
- *  prosjekt→primær-byggeplass-resolusjon i reisetid-oppslaget. Ingen
- *  koordinater — reisetid-matrisen bærer kjøretiden. KUN lokal, synkes aldri
- *  opp. Full overskriving per firma. Refresh ved login + nett-gjenkomst.
+ *  Speiler firmaets byggeplasser lokalt — id/projectId/number/status OG
+ *  geofence (lat/lng/radiusM, `:88-93`, `db/schema.ts:494-496`). Geofencen
+ *  brukes til GPS-gjenkjenning (identifiserByggeplass); reisetid-matrisen bærer
+ *  kjøretiden til primær-byggeplassen. KUN lokal, synkes aldri opp. Full
+ *  overskriving per firma. Refresh ved login + nett-gjenkomst.
  * ============================================================================ */
 
 type TrpcKlient = ReturnType<typeof trpc.useUtils>["client"];
@@ -68,6 +69,11 @@ export async function refreshByggeplassKatalog(
  * innenfor sin geofence-radius, org-scopet (på tvers av firmaets prosjekter).
  * Hopper over rader uten lat/lng/radiusM (geofence valgfri på server).
  * KUN dokumentasjon — aldri lønn/reise/prosjektvalg. Returnerer null ved ingen treff.
+ * Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
+ * arbeider-valg (`aktivtProsjektId`) går foran.
+ *
+ * Tynn kaller av A2 (`gjenkjennSted`, LAG 1-A): kalleren filtrerer bort
+ * kandidater uten komplett geofence; funksjonen gir nærmeste innenfor radius.
  */
 export function identifiserByggeplass(
   lat: number | null,
@@ -77,22 +83,17 @@ export function identifiserByggeplass(
   if (lat == null || lng == null || !organizationId) return null;
   const db = hentDatabase();
   if (!db) return null;
-  const rader = db
+  const kandidater = db
     .select()
     .from(byggeplassLocal)
     .where(eq(byggeplassLocal.organizationId, organizationId))
-    .all();
-  let beste: { id: string; navn: string | null } | null = null;
-  let besteM = Infinity;
-  for (const b of rader) {
-    if (b.lat == null || b.lng == null || b.radiusM == null) continue;
-    const meter = haversineKm(lat, lng, b.lat, b.lng) * 1000;
-    if (meter <= b.radiusM && meter < besteM) {
-      besteM = meter;
-      beste = { id: b.id, navn: b.navn ?? null };
-    }
-  }
-  return beste;
+    .all()
+    .filter(
+      (b): b is typeof b & { lat: number; lng: number; radiusM: number } =>
+        b.lat != null && b.lng != null && b.radiusM != null,
+    );
+  const treff = gjenkjennSted({ lat, lng }, kandidater);
+  return treff ? { id: treff.sted.id, navn: treff.sted.navn ?? null } : null;
 }
 
 /**
@@ -105,5 +106,20 @@ export function hentByggeplasserForProsjektLokalt(projectId: string) {
     .select()
     .from(byggeplassLocal)
     .where(eq(byggeplassLocal.projectId, projectId))
+    .all();
+}
+
+/**
+ * Synkron lese-funksjon: firmaets byggeplasser (på tvers av prosjekter) fra
+ * lokal cache. Brukes av «+ Ny»-skjermens GPS-prosjektforslag (ny.tsx) til å
+ * gjenkjenne byggeplass-geofence via A2.
+ */
+export function hentByggeplasserForFirmaLokalt(organizationId: string) {
+  const db = hentDatabase();
+  if (!db) return [];
+  return db
+    .select()
+    .from(byggeplassLocal)
+    .where(eq(byggeplassLocal.organizationId, organizationId))
     .all();
 }

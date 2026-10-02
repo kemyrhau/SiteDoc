@@ -373,6 +373,8 @@ export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
   // L1 (2026-06-20): GPS-identifisert byggeplass ved «Start dag» — speil av
   // oppmøtested. Dokumentasjon, aldri lønn/reise/prosjektvalg. null = utenfor
   // alle byggeplass-geofence.
+  // Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
+  // arbeider-valg (`aktivtProsjektId`) går foran.
   byggeplassId: text("byggeplass_id"),
   byggeplassNavn: text("byggeplass_navn"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),

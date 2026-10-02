@@ -7,7 +7,7 @@ import { hentDatabase } from "../db/database";
 import { arbeidsdagLocal } from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
 import { useFirma } from "../kontekst/FirmaKontekst";
-import { haversineKm } from "../utils/geo";
+import { gjenkjennSted } from "@sitedoc/shared";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 
@@ -67,6 +67,11 @@ export async function fangGps(): Promise<{
  * Nærmeste oppmøtested innenfor sin geofence-radius. Returnerer null hvis
  * ingen treff (da brukes prosjekt-deteksjon / manuell flyt som før).
  * KUN dokumentasjon + forslag — aldri lønnsgrunnlag.
+ * Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
+ * arbeider-valg (`aktivtProsjektId`) går foran.
+ *
+ * Tynn kaller av A2 (`gjenkjennSted`, LAG 1-A): kalleren filtrerer bort
+ * kandidater uten komplett geofence; funksjonen gir nærmeste innenfor radius.
  */
 function identifiserOppmotested(
   lat: number | null,
@@ -74,16 +79,12 @@ function identifiserOppmotested(
   orgId: string,
 ): { id: string; navn: string } | null {
   if (lat == null || lng == null || !orgId) return null;
-  let beste: { id: string; navn: string } | null = null;
-  let besteM = Infinity;
-  for (const s of hentOppmotederLokalt(orgId)) {
-    const meter = haversineKm(lat, lng, s.lat, s.lng) * 1000;
-    if (meter <= s.radiusM && meter < besteM) {
-      besteM = meter;
-      beste = { id: s.id, navn: s.navn };
-    }
-  }
-  return beste;
+  const kandidater = hentOppmotederLokalt(orgId).filter(
+    (s): s is typeof s & { lat: number; lng: number; radiusM: number } =>
+      s.lat != null && s.lng != null && s.radiusM != null,
+  );
+  const treff = gjenkjennSted({ lat, lng }, kandidater);
+  return treff ? { id: treff.sted.id, navn: treff.sted.navn } : null;
 }
 
 export function useArbeidsdag() {
@@ -140,6 +141,8 @@ export function useArbeidsdag() {
       if (!db) return;
       // GPS-identifiser oppmøtested + byggeplass (dokumentasjon + forslag, aldri
       // lønn/reise/prosjektvalg). L1: byggeplass speiler oppmøtested-mønsteret.
+      // Lag 1 (2026-10-02): GPS-treff brukes som FORSLAG til destinasjon via A5;
+      // arbeider-valg (`aktivtProsjektId`) går foran.
       const oppm = identifiserOppmotested(lat, lng, valgtFirmaId ?? "");
       const bygg = identifiserByggeplass(lat, lng, valgtFirmaId ?? "");
       const naaIso = new Date().toISOString();
